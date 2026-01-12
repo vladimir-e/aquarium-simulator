@@ -77,10 +77,10 @@ Mechanical and biological filtration. Different filter types provide different c
 
 | Type | Flow Rate | Bacteria Surface | Notes |
 |------|-----------|------------------|-------|
-| Sponge | Low | Medium | Simple, good for fry tanks |
-| HOB (Hang-on-Back) | Medium | Medium | Common, easy maintenance |
-| Canister | High | High | External, high capacity |
-| Sump | Very High | Very High | Separate tank, most capacity |
+| Sponge | Low | 8,000 cm² | Simple, good for fry tanks |
+| HOB (Hang-on-Back) | Medium | 15,000 cm² | Common, easy maintenance |
+| Canister | High | 25,000 cm² | External, high capacity |
+| Sump | Very High | 40,000 cm² | Separate tank, most capacity |
 
 **Outputs:**
 - +Flow (water circulation)
@@ -124,10 +124,10 @@ Bottom layer of the tank. Type affects which plants can be rooted.
 
 | Type | Bacteria Surface | Plant Rooting | Nutrients | Can Vacuum |
 |------|------------------|---------------|-----------|------------|
-| None | None | No | No | N/A |
-| Sand | Low | Yes (some plants) | No | No |
-| Gravel | Medium | Yes | No | Yes |
-| Aqua Soil | High | Yes (all plants) | Yes (slow release) | Yes |
+| None | 0 cm²/L | No | No | N/A |
+| Sand | 400 cm²/L | Yes (some plants) | No | No |
+| Gravel | 800 cm²/L | Yes | No | Yes |
+| Aqua Soil | 1,200 cm²/L | Yes (all plants) | Yes (slow release) | Yes |
 
 **Behavior:**
 - Bacteria surface area calculated assuming optimal amount for tank size
@@ -149,10 +149,10 @@ Rocks, driftwood, decorations. Tank provides slots for hardscape items.
 
 | Type | Bacteria Surface | pH Effect | Notes |
 |------|------------------|-----------|-------|
-| Neutral Rock | High | None | Inert stone |
-| Calcite Rock | High | +pH (raises) | Calcium-based rock |
-| Driftwood | Medium | -pH (lowers) | Releases tannins |
-| Plastic Decoration | Low | None | Smooth surface |
+| Neutral Rock | 400 cm² | None | Inert stone |
+| Calcite Rock | 400 cm² | +pH (raises) | Calcium-based rock |
+| Driftwood | 650 cm² | -pH (lowers) | Releases tannins |
+| Plastic Decoration | 100 cm² | None | Smooth surface |
 
 **Behavior:**
 - Each item occupies one slot
