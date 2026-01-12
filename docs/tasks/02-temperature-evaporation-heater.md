@@ -1,6 +1,6 @@
 # Task 02: Temperature, Evaporation, and Heater
 
-**Status:** pending
+**Status:** completed
 
 ## Overview
 

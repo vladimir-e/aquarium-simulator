@@ -6,9 +6,11 @@ describe('tick', () => {
   let initialState: SimulationState;
 
   beforeEach(() => {
+    // Water at room temp means no temperature drift
     initialState = createSimulation({
       tankCapacity: 100,
-      initialTemperature: 25,
+      initialTemperature: 22,
+      roomTemperature: 22,
     });
   });
 
@@ -41,12 +43,145 @@ describe('tick', () => {
     expect(initialState.tick).toBe(0);
   });
 
-  it('preserves other state properties', () => {
+  it('preserves tank capacity', () => {
     const newState = tick(initialState);
 
     expect(newState.tank.capacity).toBe(100);
-    expect(newState.tank.waterLevel).toBe(100);
-    expect(newState.resources.temperature).toBe(25);
+  });
+});
+
+describe('tick integration', () => {
+  it('temperature drifts toward room temp over time', () => {
+    let state = createSimulation({
+      tankCapacity: 100,
+      initialTemperature: 28,
+      roomTemperature: 22,
+    });
+
+    state = tick(state);
+
+    // Temperature should decrease toward room temp
+    expect(state.resources.temperature).toBeLessThan(28);
+    expect(state.resources.temperature).toBeGreaterThan(22);
+  });
+
+  it('water level decreases due to evaporation', () => {
+    let state = createSimulation({
+      tankCapacity: 100,
+      initialTemperature: 25,
+      roomTemperature: 22,
+    });
+
+    state = tick(state);
+
+    expect(state.tank.waterLevel).toBeLessThan(100);
+  });
+
+  it('heater counteracts temperature drift', () => {
+    let stateWithHeater = createSimulation({
+      tankCapacity: 100,
+      initialTemperature: 22,
+      roomTemperature: 20,
+      heater: { enabled: true, targetTemperature: 25, wattage: 100 },
+    });
+
+    let stateWithoutHeater = createSimulation({
+      tankCapacity: 100,
+      initialTemperature: 22,
+      roomTemperature: 20,
+      heater: { enabled: false, targetTemperature: 25, wattage: 100 },
+    });
+
+    stateWithHeater = tick(stateWithHeater);
+    stateWithoutHeater = tick(stateWithoutHeater);
+
+    // With heater, temp should be higher than without
+    expect(stateWithHeater.resources.temperature).toBeGreaterThan(
+      stateWithoutHeater.resources.temperature
+    );
+  });
+
+  it('heater sets isOn to true when heating', () => {
+    let state = createSimulation({
+      tankCapacity: 100,
+      initialTemperature: 22,
+      roomTemperature: 20,
+      heater: { enabled: true, isOn: false, targetTemperature: 25, wattage: 100 },
+    });
+
+    state = tick(state);
+
+    expect(state.equipment.heater.isOn).toBe(true);
+  });
+
+  it('heater sets isOn to false when at target', () => {
+    let state = createSimulation({
+      tankCapacity: 100,
+      initialTemperature: 25,
+      roomTemperature: 20,
+      heater: { enabled: true, isOn: true, targetTemperature: 25, wattage: 100 },
+    });
+
+    state = tick(state);
+
+    expect(state.equipment.heater.isOn).toBe(false);
+  });
+
+  it('heater does nothing when disabled', () => {
+    const state = createSimulation({
+      tankCapacity: 100,
+      initialTemperature: 22,
+      roomTemperature: 22,
+      heater: { enabled: false, isOn: false, targetTemperature: 28, wattage: 100 },
+    });
+
+    const newState = tick(state);
+
+    // Temperature shouldn't change (both water and room are at 22)
+    // and heater is disabled
+    expect(newState.equipment.heater.isOn).toBe(false);
+    // Temperature stays at 22 (no drift since room == water temp)
+    expect(newState.resources.temperature).toBeCloseTo(22, 1);
+  });
+
+  it('simulation reaches equilibrium with heater on', () => {
+    // Start cold, heater should warm up and eventually stabilize
+    let state = createSimulation({
+      tankCapacity: 100,
+      initialTemperature: 22,
+      roomTemperature: 20,
+      heater: { enabled: true, targetTemperature: 25, wattage: 130 }, // 1.3 W/L
+    });
+
+    // Run for many ticks to approach equilibrium
+    for (let i = 0; i < 100; i++) {
+      state = tick(state);
+    }
+
+    // Should be between room temp and target temp
+    // (equilibrium point depends on heater power vs cooling rate)
+    expect(state.resources.temperature).toBeGreaterThan(20);
+    expect(state.resources.temperature).toBeLessThanOrEqual(25);
+  });
+
+  it('underpowered heater plateaus below target', () => {
+    // Very low wattage heater won't reach target
+    let state = createSimulation({
+      tankCapacity: 100,
+      initialTemperature: 22,
+      roomTemperature: 20,
+      heater: { enabled: true, targetTemperature: 30, wattage: 10 }, // Very weak
+    });
+
+    // Run for many ticks to approach equilibrium
+    for (let i = 0; i < 200; i++) {
+      state = tick(state);
+    }
+
+    // Should plateau well below target due to underpowered heater
+    expect(state.resources.temperature).toBeLessThan(30);
+    expect(state.resources.temperature).toBeGreaterThan(20);
+    expect(state.equipment.heater.isOn).toBe(true); // Still trying to heat
   });
 });
 
