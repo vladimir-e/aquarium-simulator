@@ -119,9 +119,21 @@ This ordering ensures equipment and actions take effect before organisms respond
 
 ## Key Design Decisions
 
+### State Management
+- **Immutable state** - Each tick produces a new state object
+- **Centralized mutation** - Plugins only emit effects, never mutate state directly
+- One `applyEffects()` function handles all resource mutations with clamping
+- Enables undo, replay, and time-travel debugging
+
+### Volume-Scaled Dynamics
+- Larger tanks are more stable (realistic behavior)
+- Equilibrium speed, evaporation rate, and temperature drift scale with volume
+- Smaller tanks experience faster parameter swings
+
 ### Water Volume & Concentrations
 - Evaporation concentrates pollutants (removes water, not solutes)
 - Water changes dilute proportionally
+- **Effective volume** - Concentrations use current water level, not tank capacity
 - The Dilution core system handles all concentration math
 
 ### Bacterial Dynamics
@@ -176,6 +188,10 @@ Each simulation tick (1 hour) processes effects in three tiers:
 
 *→ Commit PASSIVE effects to resources*
 
+## Event Logging
+
+The simulation logs all significant events to help users understand ecosystem dynamics and for debugging. See `9-LOGGING.md` for details.
+
 ## Document Index
 
 | File | Content |
@@ -187,3 +203,4 @@ Each simulation tick (1 hour) processes effects in three tiers:
 | 6-PLANTS.md | Plant photosynthesis and growth |
 | 7-LIVESTOCK.md | Fish, colonies, metabolism, health |
 | 8-ACTIONS.md | User interventions |
+| 9-LOGGING.md | Event logging system |

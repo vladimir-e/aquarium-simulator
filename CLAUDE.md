@@ -31,7 +31,7 @@ This project follows spec-driven development:
 - Run research agents instead of doing it in main context
 - Give subagents same permissions as your own
 - Do not amend or force push commits, prioritize data safety
-- Avoid using `git -C` flag, it causes unnecessary permission requests, including from subagents
+- Use git commands from working directory and avoid `git -C` argument as it causes unnecessary permission requests. Instruct subagents about that as well.
 
 **Task workflow:**
 When working on a task `docs/tasks/XX-task-name.md`
