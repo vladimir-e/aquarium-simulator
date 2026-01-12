@@ -1,5 +1,14 @@
 @import 'tailwindcss';
 
+@theme {
+  --color-background: #1a1f2e;
+  --color-panel: #242938;
+  --color-border: #2d3548;
+  --color-accent-green: #22c55e;
+  --color-accent-orange: #f97316;
+  --color-accent-blue: #3b82f6;
+}
+
 body {
   margin: 0;
   padding: 0;
@@ -8,4 +17,6 @@ body {
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  background-color: #1a1f2e;
+  color: #e5e7eb;
 }
