@@ -40,7 +40,7 @@ interface SimulationState {
 ```
 
 - `createSimulation(config)` - Factory function to create initial state
-- Config takes tank capacity, initial water level, initial temperature
+- Config takes tank capacity and initial temperature (water level always starts full)
 
 ### 2. Effects (`src/simulation/effects.ts`)
 

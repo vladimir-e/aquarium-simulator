@@ -8,7 +8,6 @@ describe('applyEffects', () => {
   beforeEach(() => {
     initialState = createSimulation({
       tankCapacity: 100,
-      initialWaterLevel: 100,
       initialTemperature: 25,
     });
   });
