@@ -5,14 +5,25 @@
 import { produce } from 'immer';
 import type { SimulationState } from './state.js';
 import { applyEffects, type Effect, type EffectTier } from './effects.js';
+import { coreSystems } from './systems/index.js';
+import { processEquipment } from './equipment/index.js';
 
 /**
- * Collects effects for a given tier.
- * Currently returns empty arrays - systems will be added in future tasks.
+ * Collects effects from core systems for a given tier.
  */
-function collectEffects(_state: SimulationState, _tier: EffectTier): Effect[] {
-  // Future: Equipment, plants, livestock, and core systems will contribute effects here
-  return [];
+function collectSystemEffects(
+  state: SimulationState,
+  tier: EffectTier
+): Effect[] {
+  const effects: Effect[] = [];
+
+  for (const system of coreSystems) {
+    if (system.tier === tier) {
+      effects.push(...system.update(state));
+    }
+  }
+
+  return effects;
 }
 
 /**
@@ -26,13 +37,18 @@ export function tick(state: SimulationState): SimulationState {
     draft.tick += 1;
   });
 
-  // Process effects in tier order
-  const tiers: EffectTier[] = ['immediate', 'active', 'passive'];
+  // Tier 1: IMMEDIATE - Equipment and user actions
+  const equipmentResult = processEquipment(newState);
+  newState = equipmentResult.state;
+  newState = applyEffects(newState, equipmentResult.effects);
 
-  for (const tier of tiers) {
-    const effects = collectEffects(newState, tier);
-    newState = applyEffects(newState, effects);
-  }
+  // Tier 2: ACTIVE - Living processes (plants, livestock)
+  const activeEffects = collectSystemEffects(newState, 'active');
+  newState = applyEffects(newState, activeEffects);
+
+  // Tier 3: PASSIVE - Natural processes (temperature drift, evaporation)
+  const passiveEffects = collectSystemEffects(newState, 'passive');
+  newState = applyEffects(newState, passiveEffects);
 
   return newState;
 }
