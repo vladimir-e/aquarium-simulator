@@ -43,17 +43,16 @@ jobs:
               - **Optional:** Nice-to-have improvements
 
             **Review scope:**
-            - Bugs and correctness issues
-            - Security vulnerabilities
+            - Bugs and correctness, especially simulation logic issues
+            - System architecture issues or suggestions
             - Performance problems
-            - Code quality (only significant issues)
+            - Code quality
             - Test coverage gaps
 
             **Do NOT:**
             - Praise what's good (assume it's fine if not mentioned)
             - Summarize what the PR does (author knows)
             - Use sandwich feedback format
-            - Comment on style unless it breaks conventions in CLAUDE.md
 
             Use the repository's CLAUDE.md for project conventions.
             Use `gh pr comment` with your Bash tool to post your review.
