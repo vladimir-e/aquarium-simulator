@@ -15,11 +15,17 @@ import { REFERENCE_VOLUME, VOLUME_EXPONENT } from '../systems/temperature-drift.
 
 /**
  * Calculates the heating rate for one tick (1 hour).
+ *
+ * Returns 0 for invalid inputs (zero/negative volume or wattage).
  */
 export function calculateHeatingRate(
   wattage: number,
   waterVolume: number
 ): number {
+  if (waterVolume <= 0 || wattage <= 0) {
+    return 0;
+  }
+
   const volumeScale = Math.pow(REFERENCE_VOLUME / waterVolume, VOLUME_EXPONENT);
   return (wattage / waterVolume) * volumeScale;
 }

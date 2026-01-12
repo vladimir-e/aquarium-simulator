@@ -9,10 +9,24 @@ import type { Effect } from '../effects.js';
 import type { SimulationState } from '../state.js';
 import type { System } from './types.js';
 
-/** Base evaporation rate: 1% per day at equilibrium (no lid, medium flow) */
+/**
+ * Base evaporation rate: 1% of water volume per day at thermal equilibrium.
+ *
+ * Calibration basis: Open-top aquariums typically lose 1-2% per day depending
+ * on humidity and airflow. We use 1% as baseline for still air, no lid.
+ * Lid and flow modifiers can be added as multipliers in future.
+ */
 export const BASE_RATE_PER_DAY = 0.01;
 
-/** Temperature doubling interval in °C (every 5.56°C diff doubles evaporation) */
+/**
+ * Temperature doubling interval for evaporation rate.
+ *
+ * Physics: Clausius-Clapeyron equation shows vapor pressure doubles roughly
+ * every 10°C. However, aquarium evaporation also depends on the water-air
+ * temperature differential driving convection. Empirically, a 5-6°C increase
+ * in water temp above room temp roughly doubles evaporation rate.
+ * Value of 5.56°C = 10°F, a common aquarist rule of thumb.
+ */
 export const TEMP_DOUBLING_INTERVAL = 5.56;
 
 /**

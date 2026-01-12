@@ -47,6 +47,46 @@ describe('calculateHeatingRate', () => {
     const expected = (wattage / volume) * volumeScale;
     expect(rate).toBeCloseTo(expected, 6);
   });
+
+  describe('edge cases', () => {
+    it('returns 0 for zero volume', () => {
+      const rate = calculateHeatingRate(100, 0);
+
+      expect(rate).toBe(0);
+    });
+
+    it('returns 0 for negative volume', () => {
+      const rate = calculateHeatingRate(100, -50);
+
+      expect(rate).toBe(0);
+    });
+
+    it('returns 0 for zero wattage', () => {
+      const rate = calculateHeatingRate(0, 100);
+
+      expect(rate).toBe(0);
+    });
+
+    it('returns 0 for negative wattage', () => {
+      const rate = calculateHeatingRate(-100, 100);
+
+      expect(rate).toBe(0);
+    });
+
+    it('handles very large wattage without numerical issues', () => {
+      const rate = calculateHeatingRate(10000, 100);
+
+      expect(rate).toBeGreaterThan(0);
+      expect(Number.isFinite(rate)).toBe(true);
+    });
+
+    it('handles very small volume without numerical issues', () => {
+      const rate = calculateHeatingRate(100, 0.1);
+
+      expect(rate).toBeGreaterThan(0);
+      expect(Number.isFinite(rate)).toBe(true);
+    });
+  });
 });
 
 describe('heaterUpdate', () => {
@@ -163,6 +203,59 @@ describe('heaterUpdate', () => {
 
     // Should only heat by 0.1°C to reach target, not overshoot
     expect(effects[0].delta).toBeCloseTo(0.1, 4);
+  });
+
+  describe('edge cases', () => {
+    it('does not heat when target is below current temperature', () => {
+      const state = createSimulation({
+        tankCapacity: 100,
+        initialTemperature: 28,
+        roomTemperature: 22,
+        heater: { enabled: true, targetTemperature: 25, wattage: 100 },
+      });
+
+      const { effects, isOn } = heaterUpdate(state);
+
+      expect(isOn).toBe(false);
+      expect(effects).toHaveLength(0);
+    });
+
+    it('handles zero water level gracefully', () => {
+      const state = createSimulation({
+        tankCapacity: 100,
+        initialTemperature: 22,
+        roomTemperature: 20,
+        heater: { enabled: true, targetTemperature: 25, wattage: 100 },
+      });
+      const emptyState = {
+        ...state,
+        tank: { ...state.tank, waterLevel: 0 },
+      };
+
+      const { effects, isOn } = heaterUpdate(emptyState);
+
+      // Should still try to heat but with 0 effect
+      expect(isOn).toBe(true);
+      expect(effects).toHaveLength(1);
+      expect(effects[0].delta).toBe(0);
+    });
+
+    it('handles very large wattage without numerical overflow', () => {
+      const state = createSimulation({
+        tankCapacity: 100,
+        initialTemperature: 22,
+        roomTemperature: 20,
+        heater: { enabled: true, targetTemperature: 30, wattage: 100000 },
+      });
+
+      const { effects, isOn } = heaterUpdate(state);
+
+      expect(isOn).toBe(true);
+      expect(effects).toHaveLength(1);
+      // Should be clamped to tempGap (8°C), not some huge number
+      expect(effects[0].delta).toBe(8);
+      expect(Number.isFinite(effects[0].delta)).toBe(true);
+    });
   });
 });
 
