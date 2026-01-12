@@ -1,0 +1,42 @@
+{
+  "name": "aquarium-simulator",
+  "version": "1.0.0",
+  "description": "Comprehensive aquarium ecosystem simulation engine",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "lint": "eslint src/**/*.ts"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/vladimir-e/aquarium-simulator.git"
+  },
+  "keywords": [
+    "aquarium",
+    "simulation",
+    "ecosystem"
+  ],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/vladimir-e/aquarium-simulator/issues"
+  },
+  "homepage": "https://github.com/vladimir-e/aquarium-simulator#readme",
+  "dependencies": {
+    "immer": "^11.1.3"
+  },
+  "devDependencies": {
+    "@types/node": "^25.0.6",
+    "@typescript-eslint/eslint-plugin": "^8.52.0",
+    "@typescript-eslint/parser": "^8.52.0",
+    "@vitest/coverage-v8": "^4.0.17",
+    "eslint": "^9.39.2",
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.17"
+  }
+}
