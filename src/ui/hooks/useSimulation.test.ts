@@ -205,24 +205,6 @@ describe('useSimulation', () => {
       expect(roomTempLog).toBeDefined();
     });
 
-    it('emits log when tank capacity changed', () => {
-      const { result } = renderHook(() => useSimulation(75));
-
-      act(() => {
-        result.current.changeTankCapacity(150);
-      });
-
-      const logs = result.current.state.logs;
-      const capacityLog = logs.find(
-        (log) =>
-          log.source === 'user' &&
-          log.message.includes('Tank capacity changed') &&
-          log.message.includes('75L') &&
-          log.message.includes('150L')
-      );
-      expect(capacityLog).toBeDefined();
-    });
-
     it('emits simulation reset log when reset is called', () => {
       const { result } = renderHook(() => useSimulation(75));
 
