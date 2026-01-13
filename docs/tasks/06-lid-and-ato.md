@@ -1,6 +1,6 @@
 # Task 06: Lid and Auto Top-Off (ATO)
 
-**Status:** pending
+**Status:** completed
 
 ## Overview
 

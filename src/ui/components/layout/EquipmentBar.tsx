@@ -1,18 +1,28 @@
 import React, { useState } from 'react';
 import { HeaterCard, HeaterState } from '../equipment/HeaterCard';
+import { LidCard, LidState, LidType } from '../equipment/LidCard';
+import { AutoTopOffCard, AutoTopOffState } from '../equipment/AutoTopOffCard';
 
 interface EquipmentBarProps {
   heater: HeaterState;
+  lid: LidState;
+  ato: AutoTopOffState;
   onHeaterEnabledChange: (enabled: boolean) => void;
   onHeaterTargetTemperatureChange: (temp: number) => void;
   onHeaterWattageChange: (wattage: number) => void;
+  onLidTypeChange: (type: LidType) => void;
+  onAtoEnabledChange: (enabled: boolean) => void;
 }
 
 export function EquipmentBar({
   heater,
+  lid,
+  ato,
   onHeaterEnabledChange,
   onHeaterTargetTemperatureChange,
   onHeaterWattageChange,
+  onLidTypeChange,
+  onAtoEnabledChange,
 }: EquipmentBarProps): React.JSX.Element {
   const [isExpanded, setIsExpanded] = useState(false);
 
@@ -26,6 +36,7 @@ export function EquipmentBar({
           <span className="text-sm font-medium text-gray-300">Equipment</span>
           {!isExpanded && (
             <div className="flex items-center gap-2">
+              {/* Heater status */}
               <div className="flex items-center gap-1">
                 <span className="text-base">🌡️</span>
                 {heater.enabled && (
@@ -35,6 +46,19 @@ export function EquipmentBar({
                   <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
                 )}
                 <span className="text-xs text-gray-400">Heater</span>
+              </div>
+              {/* Lid status */}
+              <div className="flex items-center gap-1">
+                <span className="text-base">🔲</span>
+                <span className="text-xs text-gray-400 capitalize">{lid.type}</span>
+              </div>
+              {/* ATO status */}
+              <div className="flex items-center gap-1">
+                <span className="text-base">💧</span>
+                {ato.enabled && (
+                  <div className="w-2 h-2 rounded-full bg-accent-blue" />
+                )}
+                <span className="text-xs text-gray-400">ATO</span>
               </div>
             </div>
           )}
@@ -52,6 +76,14 @@ export function EquipmentBar({
               onEnabledChange={onHeaterEnabledChange}
               onTargetTemperatureChange={onHeaterTargetTemperatureChange}
               onWattageChange={onHeaterWattageChange}
+            />
+            <LidCard
+              lid={lid}
+              onTypeChange={onLidTypeChange}
+            />
+            <AutoTopOffCard
+              ato={ato}
+              onEnabledChange={onAtoEnabledChange}
             />
           </div>
         </div>

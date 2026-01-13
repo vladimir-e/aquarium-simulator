@@ -15,8 +15,11 @@ export {
 export {
   evaporationSystem,
   calculateEvaporation,
+  calculateEvaporationRatePerDay,
   BASE_RATE_PER_DAY,
   TEMP_DOUBLING_INTERVAL,
+  LID_MULTIPLIERS,
+  getLidMultiplier,
 } from './evaporation.js';
 
 import type { System } from './types.js';

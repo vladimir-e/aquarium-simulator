@@ -9,12 +9,15 @@ export type {
   Resources,
   Environment,
   Heater,
+  LidType,
+  Lid,
+  AutoTopOff,
   Equipment,
   LogEntry,
   LogSeverity,
   AlertState,
 } from './state.js';
-export { createSimulation, DEFAULT_HEATER } from './state.js';
+export { createSimulation, DEFAULT_HEATER, DEFAULT_LID, DEFAULT_ATO } from './state.js';
 
 // Logging
 export { createLog } from './logging.js';
@@ -32,11 +35,14 @@ export {
   evaporationSystem,
   calculateTemperatureDrift,
   calculateEvaporation,
+  calculateEvaporationRatePerDay,
   COOLING_COEFFICIENT,
   REFERENCE_VOLUME,
   VOLUME_EXPONENT,
   BASE_RATE_PER_DAY,
   TEMP_DOUBLING_INTERVAL,
+  LID_MULTIPLIERS,
+  getLidMultiplier,
 } from './systems/index.js';
 
 // Equipment
@@ -45,6 +51,7 @@ export {
   heaterUpdate,
   applyHeaterStateChange,
   calculateHeatingRate,
+  atoUpdate,
 } from './equipment/index.js';
 
 // Alerts

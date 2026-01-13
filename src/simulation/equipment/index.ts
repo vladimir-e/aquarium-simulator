@@ -9,8 +9,10 @@ import {
   applyHeaterStateChange,
   calculateHeatingRate,
 } from './heater.js';
+import { atoUpdate } from './ato.js';
 
 export { heaterUpdate, applyHeaterStateChange, calculateHeatingRate };
+export { atoUpdate };
 
 /**
  * Collects effects from all equipment and applies equipment state changes.
@@ -28,9 +30,9 @@ export function processEquipment(state: SimulationState): {
   effects.push(...heaterResult.effects);
   updatedState = applyHeaterStateChange(updatedState, heaterResult.isOn);
 
-  // Future: Process other equipment
-  // const filterResult = filterUpdate(updatedState);
-  // effects.push(...filterResult.effects);
+  // Process ATO
+  const atoEffects = atoUpdate(updatedState);
+  effects.push(...atoEffects);
 
   return { state: updatedState, effects };
 }

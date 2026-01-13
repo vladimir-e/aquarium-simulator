@@ -34,9 +34,25 @@ export interface Heater {
   wattage: number;
 }
 
+export type LidType = 'none' | 'mesh' | 'full' | 'sealed';
+
+export interface Lid {
+  /** Lid type affects evaporation rate */
+  type: LidType;
+}
+
+export interface AutoTopOff {
+  /** Whether ATO is enabled */
+  enabled: boolean;
+}
+
 export interface Equipment {
   /** Heater is always present, `enabled` property controls if active */
   heater: Heater;
+  /** Lid is always present, type selectable */
+  lid: Lid;
+  /** ATO is always present, disabled by default */
+  ato: AutoTopOff;
 }
 
 /**
@@ -74,6 +90,10 @@ export interface SimulationConfig {
   roomTemperature?: number;
   /** Initial heater configuration */
   heater?: Partial<Heater>;
+  /** Initial lid configuration */
+  lid?: Partial<Lid>;
+  /** Initial ATO configuration */
+  ato?: Partial<AutoTopOff>;
 }
 
 const DEFAULT_TEMPERATURE = 25;
@@ -86,15 +106,33 @@ export const DEFAULT_HEATER: Heater = {
   wattage: 100,
 };
 
+export const DEFAULT_LID: Lid = {
+  type: 'none',
+};
+
+export const DEFAULT_ATO: AutoTopOff = {
+  enabled: false,
+};
+
 /**
  * Creates a new simulation state with the given configuration.
  */
 export function createSimulation(config: SimulationConfig): SimulationState {
-  const { tankCapacity, initialTemperature, roomTemperature, heater } = config;
+  const { tankCapacity, initialTemperature, roomTemperature, heater, lid, ato } = config;
 
   const heaterConfig = {
     ...DEFAULT_HEATER,
     ...heater,
+  };
+
+  const lidConfig = {
+    ...DEFAULT_LID,
+    ...lid,
+  };
+
+  const atoConfig = {
+    ...DEFAULT_ATO,
+    ...ato,
   };
 
   const effectiveRoomTemp = roomTemperature ?? DEFAULT_ROOM_TEMPERATURE;
@@ -121,6 +159,8 @@ export function createSimulation(config: SimulationConfig): SimulationState {
     },
     equipment: {
       heater: heaterConfig,
+      lid: lidConfig,
+      ato: atoConfig,
     },
     logs: [initialLog],
     alertState: {
