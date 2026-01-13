@@ -37,16 +37,9 @@ export function FilterCard({
 
   return (
     <div className="bg-panel rounded-lg border border-border p-4 w-[220px] flex-shrink-0 self-stretch flex flex-col">
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-2">
-          <span className="text-base">🌊</span>
-          <h4 className="text-sm font-medium text-gray-200">Filter</h4>
-        </div>
-        {filter.enabled && (
-          <span className="text-xs px-2 py-0.5 bg-accent-green text-white rounded">
-            RUNNING
-          </span>
-        )}
+      <div className="flex items-center gap-2 mb-3">
+        <span className="text-base">🌊</span>
+        <h4 className="text-sm font-medium text-gray-200">Filter</h4>
       </div>
 
       <div className="space-y-3 flex-1">

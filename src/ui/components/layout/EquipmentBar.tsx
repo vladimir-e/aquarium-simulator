@@ -60,7 +60,7 @@ export function EquipmentBar({
     <div className="sticky top-[57px] z-10 bg-panel border-b border-border">
       <button
         onClick={() => setIsExpanded(!isExpanded)}
-        className="w-full px-4 py-2 flex items-center justify-between hover:bg-border transition-colors"
+        className="w-full px-4 py-2.5 flex items-center justify-between bg-border/40 hover:bg-border/60 transition-colors"
       >
         <div className="flex items-center gap-3">
           <span className="text-sm font-medium text-gray-300">Equipment</span>
@@ -126,7 +126,7 @@ export function EquipmentBar({
       </button>
 
       {isExpanded && (
-        <div className="px-4 pb-4 overflow-x-auto">
+        <div className="pl-4 pr-4 pt-3 pb-4 overflow-x-auto">
           <div className="flex gap-3 items-stretch">
             <TankCard tank={tank} onCapacityChange={onTankCapacityChange} />
 
