@@ -12,7 +12,8 @@
 
 ### Out of Scope
 
-## Architecture / Implementation
+## Implementation
+Architectural guidelines and high-level implementation plan
 
 ## Acceptance Criteria
 
