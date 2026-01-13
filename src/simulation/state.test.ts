@@ -101,6 +101,62 @@ describe('createSimulation', () => {
       expect(state.equipment.heater.wattage).toBe(DEFAULT_HEATER.wattage);
     });
   });
+
+  describe('logs', () => {
+    it('initializes with logs array', () => {
+      const state = createSimulation({ tankCapacity: 100 });
+
+      expect(Array.isArray(state.logs)).toBe(true);
+    });
+
+    it('emits "Simulation created" log on initialization', () => {
+      const state = createSimulation({ tankCapacity: 100 });
+
+      expect(state.logs.length).toBe(1);
+      expect(state.logs[0].source).toBe('simulation');
+      expect(state.logs[0].severity).toBe('info');
+      expect(state.logs[0].message).toContain('Simulation created');
+    });
+
+    it('includes tank capacity in creation log', () => {
+      const state = createSimulation({ tankCapacity: 150 });
+
+      expect(state.logs[0].message).toContain('150L tank');
+    });
+
+    it('includes room temperature in creation log', () => {
+      const state = createSimulation({
+        tankCapacity: 100,
+        roomTemperature: 24,
+      });
+
+      expect(state.logs[0].message).toContain('24°C room');
+    });
+
+    it('includes heater status in creation log (enabled)', () => {
+      const state = createSimulation({
+        tankCapacity: 100,
+        heater: { enabled: true },
+      });
+
+      expect(state.logs[0].message).toContain('heater enabled');
+    });
+
+    it('includes heater status in creation log (disabled)', () => {
+      const state = createSimulation({
+        tankCapacity: 100,
+        heater: { enabled: false },
+      });
+
+      expect(state.logs[0].message).toContain('heater disabled');
+    });
+
+    it('creation log has tick 0', () => {
+      const state = createSimulation({ tankCapacity: 100 });
+
+      expect(state.logs[0].tick).toBe(0);
+    });
+  });
 });
 
 describe('DEFAULT_HEATER', () => {

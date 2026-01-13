@@ -8,6 +8,10 @@ Format: - **Feature name** (#PR) - Brief description (under 100 chars)
 - Skip UI-only tweaks and minor fixes
 -->
 
+## 2026-01-13
+
+- **Logging System** - Event logging with alerts, user action logs, and Log panel UI display
+
 ## 2026-01-12
 
 - **UI Foundation** (#5) - React + Vite + Tailwind UI with timeline controls, equipment bar, and simulation integration
