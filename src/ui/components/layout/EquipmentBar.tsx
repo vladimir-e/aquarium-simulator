@@ -68,8 +68,8 @@ export function EquipmentBar({
             <div className="flex items-center gap-2">
               {/* Tank info */}
               <div className="flex items-center gap-1">
-                <span className="text-base">🐠</span>
-                <span className="text-xs text-gray-400">{tank.capacity}L</span>
+                <span className="text-base">🟦</span>
+                <span className="text-xs text-gray-400">Tank {tank.capacity}L</span>
               </div>
               {/* Filter status */}
               {filter.enabled && (

@@ -32,7 +32,7 @@ export function TankCard({ tank, onCapacityChange }: TankCardProps): React.JSX.E
   return (
     <div className="bg-panel rounded-lg border border-border p-4 w-[220px] flex-shrink-0 self-stretch flex flex-col">
       <div className="flex items-center gap-2 mb-3">
-        <span className="text-base">🐠</span>
+        <span className="text-base">🟦</span>
         <h4 className="text-sm font-medium text-gray-200">Tank</h4>
       </div>
 
