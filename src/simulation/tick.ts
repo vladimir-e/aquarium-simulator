@@ -9,6 +9,7 @@ import { coreSystems } from './systems/index.js';
 import { processEquipment } from './equipment/index.js';
 import { checkAlerts } from './alerts/index.js';
 import { calculatePassiveResources } from './passive-resources.js';
+import { collectDecayEffects } from './core/index.js';
 
 /**
  * Collects effects from core systems for a given tier.
@@ -58,7 +59,10 @@ export function tick(state: SimulationState): SimulationState {
   newState = applyEffects(newState, activeEffects);
 
   // Tier 3: PASSIVE - Natural processes (decay, nitrogen cycle, gas exchange)
-  const passiveEffects = collectSystemEffects(newState, 'passive');
+  const passiveEffects = [
+    ...collectSystemEffects(newState, 'passive'),
+    ...collectDecayEffects(newState),
+  ];
   newState = applyEffects(newState, passiveEffects);
 
   // Check alerts after all effects applied

@@ -98,6 +98,17 @@ export type {
   Action,
   BaseAction,
   TopOffAction,
+  FeedAction,
   ActionResult,
 } from './actions/index.js';
-export { applyAction, topOff } from './actions/index.js';
+export { applyAction, topOff, feed } from './actions/index.js';
+
+// Core systems
+export {
+  collectDecayEffects,
+  getTemperatureFactor,
+  calculateDecay,
+  Q10,
+  REFERENCE_TEMP,
+  BASE_DECAY_RATE,
+} from './core/index.js';
