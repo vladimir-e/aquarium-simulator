@@ -1,6 +1,7 @@
 import React from 'react';
 import { Timeline } from './components/layout/Timeline';
 import { EquipmentBar } from './components/layout/EquipmentBar';
+import { ResourcesPanel } from './components/resources/ResourcesPanel';
 import { TankPreset } from './components/panels/TankPreset';
 import { TankSize } from './components/panels/TankSize';
 import { Environment } from './components/panels/Environment';
@@ -28,6 +29,11 @@ function App(): React.JSX.Element {
     updateRoomTemperature,
     updateLidType,
     updateAtoEnabled,
+    updateFilterEnabled,
+    updateFilterType,
+    updatePowerheadEnabled,
+    updatePowerheadFlowRate,
+    updateSubstrateType,
     changeTankCapacity,
     reset,
     executeAction,
@@ -48,6 +54,11 @@ function App(): React.JSX.Element {
       />
 
       <EquipmentBar
+        tank={{
+          capacity: state.tank.capacity,
+          waterLevel: state.tank.waterLevel,
+          bacteriaSurface: state.tank.bacteriaSurface,
+        }}
         heater={{
           enabled: state.equipment.heater.enabled,
           targetTemperature: state.equipment.heater.targetTemperature,
@@ -60,11 +71,27 @@ function App(): React.JSX.Element {
         ato={{
           enabled: state.equipment.ato.enabled,
         }}
+        filter={{
+          enabled: state.equipment.filter.enabled,
+          type: state.equipment.filter.type,
+        }}
+        powerhead={{
+          enabled: state.equipment.powerhead.enabled,
+          flowRateGPH: state.equipment.powerhead.flowRateGPH,
+        }}
+        substrate={{
+          type: state.equipment.substrate.type,
+        }}
         onHeaterEnabledChange={updateHeaterEnabled}
         onHeaterTargetTemperatureChange={updateHeaterTargetTemperature}
         onHeaterWattageChange={updateHeaterWattage}
         onLidTypeChange={updateLidType}
         onAtoEnabledChange={updateAtoEnabled}
+        onFilterEnabledChange={updateFilterEnabled}
+        onFilterTypeChange={updateFilterType}
+        onPowerheadEnabledChange={updatePowerheadEnabled}
+        onPowerheadFlowRateChange={updatePowerheadFlowRate}
+        onSubstrateTypeChange={updateSubstrateType}
       />
 
       <div className="p-4">
@@ -98,6 +125,10 @@ function App(): React.JSX.Element {
               waterTemperature={state.resources.temperature}
               roomTemperature={state.environment.roomTemperature}
               lidType={state.equipment.lid.type}
+            />
+            <ResourcesPanel
+              passiveResources={state.passiveResources}
+              tankCapacity={state.tank.capacity}
             />
             <WaterChemistry />
           </div>

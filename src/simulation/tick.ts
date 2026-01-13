@@ -8,6 +8,7 @@ import { applyEffects, type Effect, type EffectTier } from './effects.js';
 import { coreSystems } from './systems/index.js';
 import { processEquipment } from './equipment/index.js';
 import { checkAlerts } from './alerts/index.js';
+import { calculatePassiveResources } from './passive-resources.js';
 
 /**
  * Collects effects from core systems for a given tier.
@@ -34,9 +35,12 @@ function collectSystemEffects(
  * Returns a new state object (immutable).
  */
 export function tick(state: SimulationState): SimulationState {
-  // Increment tick counter
+  // Increment tick counter and calculate passive resources
   let newState = produce(state, (draft) => {
     draft.tick += 1;
+    // Calculate passive resources before processing effects
+    // (used by future systems like nitrogen cycle and gas exchange)
+    draft.passiveResources = calculatePassiveResources(draft);
   });
 
   // Tier 1: IMMEDIATE - Environmental effects, then equipment responses

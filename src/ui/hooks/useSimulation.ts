@@ -7,6 +7,9 @@ import {
   type SimulationState,
   type Action,
   type LidType,
+  type FilterType,
+  type PowerheadFlowRate,
+  type SubstrateType,
 } from '../../simulation/index.js';
 import { createLog } from '../../simulation/logging.js';
 
@@ -32,6 +35,11 @@ interface UseSimulationReturn {
   updateRoomTemperature: (temp: number) => void;
   updateLidType: (type: LidType) => void;
   updateAtoEnabled: (enabled: boolean) => void;
+  updateFilterEnabled: (enabled: boolean) => void;
+  updateFilterType: (type: FilterType) => void;
+  updatePowerheadEnabled: (enabled: boolean) => void;
+  updatePowerheadFlowRate: (flowRateGPH: PowerheadFlowRate) => void;
+  updateSubstrateType: (type: SubstrateType) => void;
   changeTankCapacity: (capacity: number) => void;
   reset: () => void;
   executeAction: (action: Action) => void;
@@ -205,6 +213,82 @@ export function useSimulation(initialCapacity = 75): UseSimulationReturn {
     );
   }, []);
 
+  const updateFilterEnabled = useCallback((enabled: boolean) => {
+    setState((current) =>
+      produce(current, (draft) => {
+        const message = enabled ? 'Filter enabled' : 'Filter disabled';
+        const log = createLog(draft.tick, 'equipment', 'info', message);
+        draft.equipment.filter.enabled = enabled;
+        draft.logs.push(log);
+      })
+    );
+  }, []);
+
+  const updateFilterType = useCallback((type: FilterType) => {
+    setState((current) =>
+      produce(current, (draft) => {
+        const oldType = draft.equipment.filter.type;
+        if (oldType !== type) {
+          const log = createLog(
+            draft.tick,
+            'equipment',
+            'info',
+            `Filter changed to ${type}`
+          );
+          draft.equipment.filter.type = type;
+          draft.logs.push(log);
+        }
+      })
+    );
+  }, []);
+
+  const updatePowerheadEnabled = useCallback((enabled: boolean) => {
+    setState((current) =>
+      produce(current, (draft) => {
+        const message = enabled ? 'Powerhead enabled' : 'Powerhead disabled';
+        const log = createLog(draft.tick, 'equipment', 'info', message);
+        draft.equipment.powerhead.enabled = enabled;
+        draft.logs.push(log);
+      })
+    );
+  }, []);
+
+  const updatePowerheadFlowRate = useCallback((flowRateGPH: PowerheadFlowRate) => {
+    setState((current) =>
+      produce(current, (draft) => {
+        const oldRate = draft.equipment.powerhead.flowRateGPH;
+        if (oldRate !== flowRateGPH) {
+          const log = createLog(
+            draft.tick,
+            'equipment',
+            'info',
+            `Powerhead flow rate set to ${flowRateGPH} GPH`
+          );
+          draft.equipment.powerhead.flowRateGPH = flowRateGPH;
+          draft.logs.push(log);
+        }
+      })
+    );
+  }, []);
+
+  const updateSubstrateType = useCallback((type: SubstrateType) => {
+    setState((current) =>
+      produce(current, (draft) => {
+        const oldType = draft.equipment.substrate.type;
+        if (oldType !== type) {
+          const log = createLog(
+            draft.tick,
+            'equipment',
+            'info',
+            `Substrate changed to ${type}`
+          );
+          draft.equipment.substrate.type = type;
+          draft.logs.push(log);
+        }
+      })
+    );
+  }, []);
+
   const changeTankCapacity = useCallback(
     (capacity: number) => {
       // Stop playing if currently running
@@ -281,6 +365,11 @@ export function useSimulation(initialCapacity = 75): UseSimulationReturn {
     updateRoomTemperature,
     updateLidType,
     updateAtoEnabled,
+    updateFilterEnabled,
+    updateFilterType,
+    updatePowerheadEnabled,
+    updatePowerheadFlowRate,
+    updateSubstrateType,
     changeTankCapacity,
     reset,
     executeAction,
