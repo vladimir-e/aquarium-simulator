@@ -27,9 +27,10 @@ function App(): React.JSX.Element {
     updateHeaterWattage,
     updateRoomTemperature,
     changeTankCapacity,
+    reset,
   } = useSimulation();
 
-  useKeyboardShortcuts(step);
+  useKeyboardShortcuts(step, togglePlayPause, isPlaying);
 
   return (
     <div className="min-h-screen bg-background text-gray-200">
@@ -40,6 +41,7 @@ function App(): React.JSX.Element {
         onStep={step}
         onPlayPause={togglePlayPause}
         onSpeedChange={changeSpeed}
+        onReset={reset}
       />
 
       <EquipmentBar

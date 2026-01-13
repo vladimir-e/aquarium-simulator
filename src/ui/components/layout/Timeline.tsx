@@ -3,6 +3,13 @@ import { Button } from '../ui/Button';
 
 type SpeedPreset = '1hr' | '6hr' | '12hr' | '1day';
 
+const SPEED_MULTIPLIERS: Record<SpeedPreset, number> = {
+  '1hr': 1,
+  '6hr': 6,
+  '12hr': 12,
+  '1day': 24,
+};
+
 interface TimelineProps {
   tick: number;
   isPlaying: boolean;
@@ -10,6 +17,7 @@ interface TimelineProps {
   onStep: () => void;
   onPlayPause: () => void;
   onSpeedChange: (speed: SpeedPreset) => void;
+  onReset: () => void;
 }
 
 export function Timeline({
@@ -19,35 +27,59 @@ export function Timeline({
   onStep,
   onPlayPause,
   onSpeedChange,
+  onReset,
 }: TimelineProps) {
   const day = Math.floor(tick / 24);
   const hour = tick % 24;
   const time = `${String(hour).padStart(2, '0')}:00`;
+  const speedMultiplier = SPEED_MULTIPLIERS[speed];
 
   return (
     <div className="sticky top-0 z-10 bg-panel border-b border-border px-4 py-3">
-      <div className="flex items-center justify-between gap-4">
-        {/* Left: Step button */}
-        <Button onClick={onStep} variant="primary" className="flex items-center gap-2">
-          <span>{isPlaying ? '⏸' : '▶'}</span>
-          <span className="hidden sm:inline">Step</span>
-        </Button>
+      <div className="grid grid-cols-[auto_1fr_auto] items-center gap-4">
+        {/* Left: Title (fixed) */}
+        <div className="text-xs font-semibold text-gray-400 tracking-wider leading-tight">
+          AQUARIUM
+          <br />
+          SIMULATOR
+        </div>
 
-        {/* Center: Play/Pause + Speed controls */}
-        <div className="flex items-center gap-2 flex-1 justify-center">
+        {/* Center: Controls + Display (flexible) */}
+        <div className="flex items-center justify-center gap-3">
+          <Button
+            onClick={() => {
+              if (isPlaying) {
+                onPlayPause();
+              } else {
+                onStep();
+              }
+            }}
+            variant="primary"
+          >
+            Step{speedMultiplier > 1 && (
+              <span className="ml-1 font-bold text-gray-400">
+                x{speedMultiplier}
+              </span>
+            )}
+          </Button>
+
+          <div className="w-px h-6 bg-border" />
+
           <Button
             onClick={onPlayPause}
             variant="primary"
-            className="w-20"
+            className="w-8 h-8 p-0 flex items-center justify-center"
           >
-            {isPlaying ? 'Pause' : 'Play'}
+            {isPlaying ? '⏸' : '▶'}
           </Button>
 
-          <div className="flex gap-1">
+          <div className="flex items-center gap-1">
+            <span className="text-gray-400 text-sm mr-1">⏱</span>
             <Button
               onClick={() => onSpeedChange('1hr')}
               active={speed === '1hr'}
               variant="primary"
+              className="text-xs"
             >
               1hr/s
             </Button>
@@ -55,13 +87,15 @@ export function Timeline({
               onClick={() => onSpeedChange('6hr')}
               active={speed === '6hr'}
               variant="primary"
+              className="text-xs"
             >
-              6hrs
+              6hr/s
             </Button>
             <Button
               onClick={() => onSpeedChange('12hr')}
               active={speed === '12hr'}
               variant="primary"
+              className="text-xs"
             >
               12hr/s
             </Button>
@@ -69,26 +103,31 @@ export function Timeline({
               onClick={() => onSpeedChange('1day')}
               active={speed === '1day'}
               variant="primary"
+              className="text-xs"
             >
               1day/s
             </Button>
           </div>
+
+          <div className="w-px h-6 bg-border" />
+
+          <div className="flex items-center gap-3 text-sm text-gray-400">
+            <span>
+              Day <span className="text-gray-200 font-mono">{day}</span>
+            </span>
+            <span className="text-gray-400">·</span>
+            <span className="text-gray-200 font-mono">{time}</span>
+            <span className="text-gray-400">·</span>
+            <span>
+              Tick <span className="text-gray-200 font-mono">{tick}</span>
+            </span>
+          </div>
         </div>
 
-        {/* Right: Display */}
-        <div className="flex items-center gap-4 text-sm">
-          <div className="text-gray-300">
-            <span className="text-gray-500">Day</span>{' '}
-            <span className="font-mono">{day}</span>
-          </div>
-          <div className="text-gray-300">
-            <span className="font-mono">{time}</span>
-          </div>
-          <div className="text-gray-300">
-            <span className="text-gray-500">Tick</span>{' '}
-            <span className="font-mono">{tick}</span>
-          </div>
-        </div>
+        {/* Right: Reset button (fixed) */}
+        <Button onClick={onReset} variant="secondary" className="text-xs">
+          ↻ Reset
+        </Button>
       </div>
     </div>
   );

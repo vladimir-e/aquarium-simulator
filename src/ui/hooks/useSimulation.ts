@@ -30,12 +30,19 @@ export function useSimulation(initialCapacity = 75) {
   );
 
   const [isPlaying, setIsPlaying] = useState(false);
-  const [speed, setSpeed] = useState<SpeedPreset>('6hr');
+  const [speed, setSpeed] = useState<SpeedPreset>('1hr');
   const intervalRef = useRef<number | null>(null);
 
   const step = useCallback(() => {
-    setState((current) => simulationTick(current));
-  }, []);
+    const multiplier = SPEED_MULTIPLIERS[speed];
+    setState((current) => {
+      let nextState = current;
+      for (let i = 0; i < multiplier; i++) {
+        nextState = simulationTick(nextState);
+      }
+      return nextState;
+    });
+  }, [speed]);
 
   const startAutoPlay = useCallback(() => {
     if (intervalRef.current) return;
@@ -140,6 +147,28 @@ export function useSimulation(initialCapacity = 75) {
     [isPlaying, stopAutoPlay, state]
   );
 
+  const reset = useCallback(() => {
+    // Stop playing if currently running
+    if (isPlaying) {
+      stopAutoPlay();
+      setIsPlaying(false);
+    }
+
+    // Reset to initial state
+    setState(
+      createSimulation({
+        tankCapacity: state.tank.capacity,
+        initialTemperature: 25,
+        roomTemperature: 22,
+        heater: {
+          enabled: true,
+          targetTemperature: 25,
+          wattage: 100,
+        },
+      })
+    );
+  }, [isPlaying, stopAutoPlay, state.tank.capacity]);
+
   return {
     state,
     isPlaying,
@@ -152,5 +181,6 @@ export function useSimulation(initialCapacity = 75) {
     updateHeaterWattage,
     updateRoomTemperature,
     changeTankCapacity,
+    reset,
   };
 }

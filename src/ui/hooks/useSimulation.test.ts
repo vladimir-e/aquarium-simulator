@@ -34,6 +34,7 @@ describe('useSimulation', () => {
       result.current.step();
     });
 
+    // Default speed is '1hr' which has a multiplier of 1
     expect(result.current.state.tick).toBe(initialTick + 1);
   });
 
@@ -46,6 +47,7 @@ describe('useSimulation', () => {
       result.current.step();
     });
 
+    // Each step advances by 1 tick (default speed multiplier)
     expect(result.current.state.tick).toBe(2);
 
     // Change tank size
@@ -111,7 +113,7 @@ describe('useSimulation', () => {
   it('speed changes update speed state', () => {
     const { result } = renderHook(() => useSimulation(75));
 
-    expect(result.current.speed).toBe('6hr');
+    expect(result.current.speed).toBe('1hr');
 
     act(() => {
       result.current.changeSpeed('1day');

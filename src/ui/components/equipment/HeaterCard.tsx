@@ -24,14 +24,17 @@ export function HeaterCard({
   onWattageChange,
 }: HeaterCardProps) {
   return (
-    <div className="bg-background rounded-lg border border-border p-4 min-w-[200px]">
-      <div className="flex items-center gap-2 mb-3">
-        <div
-          className={`w-2 h-2 rounded-full ${
-            heater.isOn ? 'bg-accent-green' : 'bg-gray-600'
-          }`}
-        />
-        <h4 className="text-sm font-medium text-gray-200">Heater</h4>
+    <div className="bg-background rounded-lg border border-border p-4 w-[220px] flex-shrink-0">
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <span className="text-base">🌡️</span>
+          <h4 className="text-sm font-medium text-gray-200">Heater</h4>
+        </div>
+        {heater.isOn && (
+          <span className="text-xs px-2 py-0.5 bg-red-500 text-white rounded">
+            HEATING
+          </span>
+        )}
       </div>
 
       <div className="space-y-3">

@@ -14,42 +14,46 @@ export function EquipmentBar({
   onHeaterTargetTemperatureChange,
   onHeaterWattageChange,
 }: EquipmentBarProps) {
-  const [isExpanded, setIsExpanded] = useState(true);
+  const [isExpanded, setIsExpanded] = useState(false);
 
   return (
     <div className="sticky top-[57px] z-10 bg-panel border-b border-border">
-      <div className="px-4 py-2 flex items-center justify-between">
+      <button
+        onClick={() => setIsExpanded(!isExpanded)}
+        className="w-full px-4 py-2 flex items-center justify-between hover:bg-border transition-colors"
+      >
         <div className="flex items-center gap-3">
           <span className="text-sm font-medium text-gray-300">Equipment</span>
           {!isExpanded && (
             <div className="flex items-center gap-2">
               <div className="flex items-center gap-1">
-                <div
-                  className={`w-2 h-2 rounded-full ${
-                    heater.isOn ? 'bg-accent-green' : 'bg-gray-600'
-                  }`}
-                />
+                <span className="text-base">🌡️</span>
+                {heater.enabled && (
+                  <div className="w-2 h-2 rounded-full bg-accent-green" />
+                )}
+                {heater.isOn && (
+                  <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                )}
                 <span className="text-xs text-gray-400">Heater</span>
               </div>
             </div>
           )}
         </div>
-        <button
-          onClick={() => setIsExpanded(!isExpanded)}
-          className="text-gray-400 hover:text-gray-200"
-        >
+        <span className="text-gray-400">
           {isExpanded ? '▲' : '▼'}
-        </button>
-      </div>
+        </span>
+      </button>
 
       {isExpanded && (
-        <div className="px-4 pb-4">
-          <HeaterCard
-            heater={heater}
-            onEnabledChange={onHeaterEnabledChange}
-            onTargetTemperatureChange={onHeaterTargetTemperatureChange}
-            onWattageChange={onHeaterWattageChange}
-          />
+        <div className="px-4 pb-4 overflow-x-auto">
+          <div className="flex gap-3">
+            <HeaterCard
+              heater={heater}
+              onEnabledChange={onHeaterEnabledChange}
+              onTargetTemperatureChange={onHeaterTargetTemperatureChange}
+              onWattageChange={onHeaterWattageChange}
+            />
+          </div>
         </div>
       )}
     </div>
