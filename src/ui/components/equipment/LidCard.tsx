@@ -22,16 +22,26 @@ export function LidCard({ lid, onTypeChange }: LidCardProps): React.JSX.Element 
         </div>
       </div>
 
-      <Select
-        label="Type"
-        value={lid.type}
-        onChange={(e) => onTypeChange(e.target.value as LidType)}
-      >
-        <option value="none">None</option>
-        <option value="mesh">Mesh</option>
-        <option value="full">Full</option>
-        <option value="sealed">Sealed</option>
-      </Select>
+      <div className="space-y-3">
+        <Select
+          label="Type"
+          value={lid.type}
+          onChange={(e) => onTypeChange(e.target.value as LidType)}
+        >
+          <option value="none">None</option>
+          <option value="mesh">Mesh</option>
+          <option value="full">Full</option>
+          <option value="sealed">Sealed</option>
+        </Select>
+
+        <div className="text-xs text-gray-400">
+          {lid.type === 'sealed'
+            ? 'Prevents evaporation and fish jumping'
+            : lid.type !== 'none'
+            ? 'Reduces evaporation and prevents fish jumping'
+            : 'No protection from evaporation or fish jumping'}
+        </div>
+      </div>
     </div>
   );
 }

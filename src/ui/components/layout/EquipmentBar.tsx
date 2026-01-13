@@ -50,13 +50,16 @@ export function EquipmentBar({
               {/* Lid status */}
               <div className="flex items-center gap-1">
                 <span className="text-base">🔲</span>
-                <span className="text-xs text-gray-400 capitalize">{lid.type}</span>
+                {lid.type !== 'none' && (
+                  <div className="w-2 h-2 rounded-full bg-accent-green" />
+                )}
+                <span className="text-xs text-gray-400">Lid</span>
               </div>
               {/* ATO status */}
               <div className="flex items-center gap-1">
                 <span className="text-base">💧</span>
                 {ato.enabled && (
-                  <div className="w-2 h-2 rounded-full bg-accent-blue" />
+                  <div className="w-2 h-2 rounded-full bg-accent-green" />
                 )}
                 <span className="text-xs text-gray-400">ATO</span>
               </div>
