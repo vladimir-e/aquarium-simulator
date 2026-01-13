@@ -66,6 +66,11 @@ export function EquipmentBar({
           <span className="text-sm font-medium text-gray-300">Equipment</span>
           {!isExpanded && (
             <div className="flex items-center gap-2">
+              {/* Tank info */}
+              <div className="flex items-center gap-1">
+                <span className="text-base">🐠</span>
+                <span className="text-xs text-gray-400">{tank.capacity}L</span>
+              </div>
               {/* Filter status */}
               {filter.enabled && (
                 <div className="flex items-center gap-1">
