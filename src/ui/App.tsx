@@ -2,9 +2,8 @@ import React from 'react';
 import { Timeline } from './components/layout/Timeline';
 import { EquipmentBar } from './components/layout/EquipmentBar';
 import { ResourcesPanel } from './components/resources/ResourcesPanel';
-import { TankPreset } from './components/panels/TankPreset';
+import { SimulationStatus } from './components/panels/SimulationStatus';
 import { Environment } from './components/panels/Environment';
-import { Scheduled } from './components/panels/Scheduled';
 import { Actions } from './components/panels/Actions';
 import { Visualization } from './components/panels/Visualization';
 import { WaterChemistry } from './components/panels/WaterChemistry';
@@ -13,6 +12,15 @@ import { Livestock } from './components/panels/Livestock';
 import { Log } from './components/panels/Log';
 import { useSimulation } from './hooks/useSimulation';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
+
+type SpeedPreset = '1hr' | '6hr' | '12hr' | '1day';
+
+const SPEED_MULTIPLIERS: Record<SpeedPreset, number> = {
+  '1hr': 1,
+  '6hr': 6,
+  '12hr': 12,
+  '1day': 24,
+};
 
 function App(): React.JSX.Element {
   const {
@@ -43,10 +51,8 @@ function App(): React.JSX.Element {
   return (
     <div className="min-h-screen bg-background text-gray-200">
       <Timeline
-        tick={state.tick}
         isPlaying={isPlaying}
         speed={speed}
-        onStep={step}
         onPlayPause={togglePlayPause}
         onSpeedChange={changeSpeed}
         onReset={reset}
@@ -99,13 +105,17 @@ function App(): React.JSX.Element {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
           {/* Column 1 */}
           <div className="space-y-4">
-            <TankPreset />
+            <SimulationStatus
+              tick={state.tick}
+              speed={SPEED_MULTIPLIERS[speed]}
+              isPlaying={isPlaying}
+              onStep={step}
+            />
             <Environment
               roomTemperature={state.environment.roomTemperature}
               waterTemperature={state.resources.temperature}
               onRoomTemperatureChange={updateRoomTemperature}
             />
-            <Scheduled />
             <Actions
               waterLevel={state.tank.waterLevel}
               capacity={state.tank.capacity}

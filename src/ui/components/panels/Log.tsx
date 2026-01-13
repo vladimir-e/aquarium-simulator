@@ -10,6 +10,7 @@ interface LogProps {
 
 export function Log({ logs, state }: LogProps): React.JSX.Element {
   const handleDebug = (): void => {
+    // eslint-disable-next-line no-console
     console.log('Simulation State:', state);
     window.alert('State has been printed to browser console');
   };
