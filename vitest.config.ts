@@ -8,7 +8,7 @@ export default defineConfig({
     environment: 'happy-dom',
     coverage: {
       provider: 'v8',
-      reporter: ['text', 'html', 'json'],
+      reporter: ['text', 'html', 'json', 'json-summary'],
       include: ['src/**/*.ts', 'src/**/*.tsx'],
       exclude: [
         'src/**/*.test.ts',
