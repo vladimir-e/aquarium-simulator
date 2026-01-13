@@ -1,5 +1,6 @@
 import React from 'react';
 import { Select } from '../ui/Select';
+import { Layers } from 'lucide-react';
 import { SUBSTRATE_SURFACE_PER_LITER, type SubstrateType } from '../../../simulation/index.js';
 
 export type { SubstrateType };
@@ -43,7 +44,7 @@ export function SubstrateCard({
   return (
     <div className="bg-panel rounded-lg border border-border p-4 w-[220px] flex-shrink-0 self-stretch flex flex-col">
       <div className="flex items-center gap-2 mb-3">
-        <span className="text-base">{getSubstrateIcon(substrate.type)}</span>
+        {getSubstrateIcon(substrate.type)}
         <h4 className="text-sm font-medium text-gray-200">Substrate</h4>
       </div>
 
@@ -77,16 +78,17 @@ export function SubstrateCard({
   );
 }
 
-export function getSubstrateIcon(type: SubstrateType): string {
+export function getSubstrateIcon(type: SubstrateType): React.ReactNode {
+  const className = 'w-4 h-4';
   switch (type) {
     case 'sand':
-      return '🏖️';
+      return <Layers className={`${className} text-yellow-600`} />;
     case 'gravel':
-      return '🪨';
+      return <Layers className={`${className} text-gray-400`} />;
     case 'aqua_soil':
-      return '🌱';
+      return <Layers className={`${className} text-green-600`} />;
     default:
-      return '⬜';
+      return <Layers className={`${className} text-gray-500`} />;
   }
 }
 

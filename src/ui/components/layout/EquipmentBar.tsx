@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Container, Waves, Thermometer, CloudOff, Droplets, Wind } from 'lucide-react';
 import { HeaterCard, HeaterState } from '../equipment/HeaterCard';
 import { LidCard, LidState, LidType } from '../equipment/LidCard';
 import { AutoTopOffCard, AutoTopOffState } from '../equipment/AutoTopOffCard';
@@ -65,16 +66,16 @@ export function EquipmentBar({
         <div className="flex items-center gap-3">
           <span className="text-sm font-medium text-gray-300">Equipment</span>
           {!isExpanded && (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3">
               {/* Tank info */}
               <div className="flex items-center gap-1">
-                <span className="text-base">🟦</span>
+                <Container className="w-4 h-4 text-accent-blue" />
                 <span className="text-xs text-gray-400">Tank {tank.capacity}L</span>
               </div>
               {/* Filter status */}
               {filter.enabled && (
                 <div className="flex items-center gap-1">
-                  <span className="text-base">🌊</span>
+                  <Waves className="w-4 h-4 text-accent-blue" />
                   <div className="w-2 h-2 rounded-full bg-accent-green" />
                   <span className="text-xs text-gray-400">Filter</span>
                 </div>
@@ -82,7 +83,7 @@ export function EquipmentBar({
               {/* Heater status */}
               {heater.enabled && (
                 <div className="flex items-center gap-1">
-                  <span className="text-base">🌡️</span>
+                  <Thermometer className="w-4 h-4 text-accent-orange" />
                   <div className="w-2 h-2 rounded-full bg-accent-green" />
                   {heater.isOn && (
                     <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
@@ -93,7 +94,7 @@ export function EquipmentBar({
               {/* Substrate status */}
               {substrate.type !== 'none' && (
                 <div className="flex items-center gap-1">
-                  <span className="text-base">{getSubstrateIcon(substrate.type)}</span>
+                  {getSubstrateIcon(substrate.type)}
                   <div className="w-2 h-2 rounded-full bg-accent-green" />
                   <span className="text-xs text-gray-400">
                     {formatSubstrateName(substrate.type)}
@@ -103,7 +104,7 @@ export function EquipmentBar({
               {/* Lid status */}
               {lid.type !== 'none' && (
                 <div className="flex items-center gap-1">
-                  <span className="text-base">🔲</span>
+                  <CloudOff className="w-4 h-4 text-gray-400" />
                   <div className="w-2 h-2 rounded-full bg-accent-green" />
                   <span className="text-xs text-gray-400">Lid</span>
                 </div>
@@ -111,7 +112,7 @@ export function EquipmentBar({
               {/* ATO status */}
               {ato.enabled && (
                 <div className="flex items-center gap-1">
-                  <span className="text-base">💧</span>
+                  <Droplets className="w-4 h-4 text-accent-blue" />
                   <div className="w-2 h-2 rounded-full bg-accent-green" />
                   <span className="text-xs text-gray-400">ATO</span>
                 </div>
@@ -119,7 +120,7 @@ export function EquipmentBar({
               {/* Powerhead status */}
               {powerhead.enabled && (
                 <div className="flex items-center gap-1">
-                  <span className="text-base">🌀</span>
+                  <Wind className="w-4 h-4 text-gray-400" />
                   <div className="w-2 h-2 rounded-full bg-accent-green" />
                   <span className="text-xs text-gray-400">Powerhead</span>
                 </div>

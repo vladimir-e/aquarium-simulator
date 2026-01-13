@@ -1,5 +1,6 @@
 import React from 'react';
 import { Select } from '../ui/Select';
+import { Container } from 'lucide-react';
 
 export interface TankState {
   capacity: number;
@@ -32,7 +33,7 @@ export function TankCard({ tank, onCapacityChange }: TankCardProps): React.JSX.E
   return (
     <div className="bg-panel rounded-lg border border-border p-4 w-[220px] flex-shrink-0 self-stretch flex flex-col">
       <div className="flex items-center gap-2 mb-3">
-        <span className="text-base">🟦</span>
+        <Container className="w-4 h-4 text-accent-blue" />
         <h4 className="text-sm font-medium text-gray-200">Tank</h4>
       </div>
 

@@ -1,6 +1,7 @@
 import React from 'react';
 import { Toggle } from '../ui/Toggle';
 import { Select } from '../ui/Select';
+import { Wind } from 'lucide-react';
 import { POWERHEAD_FLOW_LPH, type PowerheadFlowRate } from '../../../simulation/index.js';
 
 export type { PowerheadFlowRate };
@@ -35,7 +36,7 @@ export function PowerheadCard({
   return (
     <div className="bg-panel rounded-lg border border-border p-4 w-[220px] flex-shrink-0 self-stretch flex flex-col">
       <div className="flex items-center gap-2 mb-3">
-        <span className="text-base">🌀</span>
+        <Wind className="w-4 h-4 text-gray-400" />
         <h4 className="text-sm font-medium text-gray-200">Powerhead</h4>
       </div>
 

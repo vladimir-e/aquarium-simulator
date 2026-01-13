@@ -1,5 +1,6 @@
 import React from 'react';
 import { Select } from '../ui/Select';
+import { CloudOff } from 'lucide-react';
 
 export type LidType = 'none' | 'mesh' | 'full' | 'sealed';
 
@@ -17,7 +18,7 @@ export function LidCard({ lid, onTypeChange }: LidCardProps): React.JSX.Element 
     <div className="bg-panel rounded-lg border border-border p-4 w-[220px] flex-shrink-0 self-stretch flex flex-col">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
-          <span className="text-base">🔲</span>
+          <CloudOff className="w-4 h-4 text-gray-400" />
           <h4 className="text-sm font-medium text-gray-200">Lid</h4>
         </div>
       </div>
