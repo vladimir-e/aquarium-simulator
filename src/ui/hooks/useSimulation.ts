@@ -5,6 +5,7 @@ import {
   tick as simulationTick,
   applyAction,
   calculatePassiveResources,
+  calculateHardscapeSlots,
   getHardscapeName,
   type SimulationState,
   type Action,
@@ -362,8 +363,7 @@ export function useSimulation(initialCapacity = 75): UseSimulationReturn {
       setState((current) => {
         // Calculate new hardscape slots for the new capacity
         // Keep existing items but truncate if the new tank has fewer slots
-        const gallons = capacity / 3.785;
-        const newSlots = Math.min(Math.floor(gallons * 2), 8);
+        const newSlots = calculateHardscapeSlots(capacity);
         const preservedItems = current.equipment.hardscape.items.slice(0, newSlots);
 
         return createSimulation({
