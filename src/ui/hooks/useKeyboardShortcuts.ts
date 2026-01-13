@@ -26,6 +26,6 @@ export function useKeyboardShortcuts(
     };
 
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    return (): void => window.removeEventListener('keydown', handleKeyDown);
   }, [onStep, onTogglePlayPause, isPlaying]);
 }

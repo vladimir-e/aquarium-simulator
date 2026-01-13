@@ -15,7 +15,22 @@ const SPEED_MULTIPLIERS: Record<SpeedPreset, number> = {
   '1day': 24,
 };
 
-export function useSimulation(initialCapacity = 75) {
+interface UseSimulationReturn {
+  state: SimulationState;
+  isPlaying: boolean;
+  speed: SpeedPreset;
+  step: () => void;
+  togglePlayPause: () => void;
+  changeSpeed: (speed: SpeedPreset) => void;
+  updateHeaterEnabled: (enabled: boolean) => void;
+  updateHeaterTargetTemperature: (temp: number) => void;
+  updateHeaterWattage: (wattage: number) => void;
+  updateRoomTemperature: (temp: number) => void;
+  changeTankCapacity: (capacity: number) => void;
+  reset: () => void;
+}
+
+export function useSimulation(initialCapacity = 75): UseSimulationReturn {
   const [state, setState] = useState<SimulationState>(() =>
     createSimulation({
       tankCapacity: initialCapacity,

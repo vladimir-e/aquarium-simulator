@@ -4,3 +4,4 @@ dist-ui/
 coverage/
 *.log
 .DS_Store
+.eslintcache

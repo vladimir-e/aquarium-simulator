@@ -10,7 +10,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "lint": "eslint src/**/*.{ts,tsx}",
+    "lint": "eslint 'src/**/*.{ts,tsx}'",
+    "lint:fresh": "eslint --no-cache 'src/**/*.{ts,tsx}'",
     "ui": "vite",
     "ui:build": "vite build"
   },
