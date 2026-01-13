@@ -177,8 +177,7 @@ export function useSimulation(initialCapacity = 75): UseSimulationReturn {
 
       // Reinitialize simulation with new capacity
       setState((current) => {
-        const oldCapacity = current.tank.capacity;
-        const newState = createSimulation({
+        return createSimulation({
           tankCapacity: capacity,
           initialTemperature: 25,
           roomTemperature: current.environment.roomTemperature,
@@ -187,16 +186,6 @@ export function useSimulation(initialCapacity = 75): UseSimulationReturn {
             targetTemperature: current.equipment.heater.targetTemperature,
             wattage: current.equipment.heater.wattage,
           },
-        });
-        // Add tank capacity changed log
-        const log = createLog(
-          0,
-          'user',
-          'info',
-          `Tank capacity changed: ${oldCapacity}L → ${capacity}L`
-        );
-        return produce(newState, (draft) => {
-          draft.logs.push(log);
         });
       });
     },

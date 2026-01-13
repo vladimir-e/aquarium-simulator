@@ -10,7 +10,6 @@ interface LogProps {
 export function Log({ logs, state }: LogProps): React.JSX.Element {
   const handleDebug = (): void => {
     console.log('Simulation State:', state);
-    console.log('Logs:', logs);
   };
 
   return (
