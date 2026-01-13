@@ -10,6 +10,6 @@ Format: - **Feature name** (#PR) - Brief description (under 100 chars)
 
 ## 2026-01-12
 
-- **UI Foundation** - React + Vite + Tailwind UI with timeline controls, equipment bar, and simulation integration
+- **UI Foundation** (#5) - React + Vite + Tailwind UI with timeline controls, equipment bar, and simulation integration
 - **Temperature, Evaporation, Heater** - Environment/equipment state, temperature drift, evaporation, heater control
 - **Foundation** - Simulation state, effect system, tick loop with Immer immutability
