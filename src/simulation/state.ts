@@ -11,6 +11,16 @@ export interface Tank {
   capacity: number;
   /** Current water volume in liters */
   waterLevel: number;
+  /** Bacteria surface area from glass walls (cm²) */
+  bacteriaSurface: number;
+}
+
+/** Passive resources calculated from equipment each tick */
+export interface PassiveResources {
+  /** Total bacteria surface area from all equipment (cm²) */
+  surface: number;
+  /** Total water flow from all equipment (L/h) */
+  flow: number;
 }
 
 export interface Resources {
@@ -46,6 +56,31 @@ export interface AutoTopOff {
   enabled: boolean;
 }
 
+export type FilterType = 'sponge' | 'hob' | 'canister' | 'sump';
+
+export interface Filter {
+  /** Whether filter is running */
+  enabled: boolean;
+  /** Filter type determines flow and surface area */
+  type: FilterType;
+}
+
+export type PowerheadFlowRate = 240 | 400 | 600 | 850;
+
+export interface Powerhead {
+  /** Whether powerhead is running */
+  enabled: boolean;
+  /** Flow rate preset in GPH (gallons per hour) */
+  flowRateGPH: PowerheadFlowRate;
+}
+
+export type SubstrateType = 'none' | 'sand' | 'gravel' | 'aqua_soil';
+
+export interface Substrate {
+  /** Substrate type affects surface area and plant rooting */
+  type: SubstrateType;
+}
+
 export interface Equipment {
   /** Heater is always present, `enabled` property controls if active */
   heater: Heater;
@@ -53,6 +88,12 @@ export interface Equipment {
   lid: Lid;
   /** ATO is always present, disabled by default */
   ato: AutoTopOff;
+  /** Filter for biological filtration and flow */
+  filter: Filter;
+  /** Powerhead for additional water circulation */
+  powerhead: Powerhead;
+  /** Substrate for bacteria colonization */
+  substrate: Substrate;
 }
 
 /**
@@ -75,6 +116,8 @@ export interface SimulationState {
   environment: Environment;
   /** Tank equipment */
   equipment: Equipment;
+  /** Passive resources calculated from equipment */
+  passiveResources: PassiveResources;
   /** In-memory log storage */
   logs: LogEntry[];
   /** Tracks active alert conditions for threshold-crossing detection */
@@ -94,6 +137,12 @@ export interface SimulationConfig {
   lid?: Partial<Lid>;
   /** Initial ATO configuration */
   ato?: Partial<AutoTopOff>;
+  /** Initial filter configuration */
+  filter?: Partial<Filter>;
+  /** Initial powerhead configuration */
+  powerhead?: Partial<Powerhead>;
+  /** Initial substrate configuration */
+  substrate?: Partial<Substrate>;
 }
 
 const DEFAULT_TEMPERATURE = 25;
@@ -114,25 +163,82 @@ export const DEFAULT_ATO: AutoTopOff = {
   enabled: false,
 };
 
+export const DEFAULT_FILTER: Filter = {
+  enabled: true,
+  type: 'sponge',
+};
+
+export const DEFAULT_POWERHEAD: Powerhead = {
+  enabled: false,
+  flowRateGPH: 400,
+};
+
+export const DEFAULT_SUBSTRATE: Substrate = {
+  type: 'none',
+};
+
+/**
+ * Calculates tank bacteria surface area from capacity.
+ * Assumes standard rectangular shape (length:width:height ≈ 2:1:1).
+ * Includes 4 walls + bottom (excludes top which is open).
+ */
+export function calculateTankBacteriaSurface(capacity: number): number {
+  // Approximation: 4 walls + bottom
+  // Assuming standard proportions (length:width:height ≈ 2:1:1)
+  const volume = capacity; // liters = dm³
+  const height = Math.cbrt(volume / 2); // dm
+  const width = height;
+  const length = 2 * height;
+
+  // Surface area: 2*(length*height) + 2*(width*height) + (length*width)
+  const surfaceDm2 = 2 * (length * height) + 2 * (width * height) + length * width;
+  return Math.round(surfaceDm2 * 100); // convert dm² to cm²
+}
+
 /**
  * Creates a new simulation state with the given configuration.
  */
 export function createSimulation(config: SimulationConfig): SimulationState {
-  const { tankCapacity, initialTemperature, roomTemperature, heater, lid, ato } = config;
+  const {
+    tankCapacity,
+    initialTemperature,
+    roomTemperature,
+    heater,
+    lid,
+    ato,
+    filter,
+    powerhead,
+    substrate,
+  } = config;
 
-  const heaterConfig = {
+  const heaterConfig: Heater = {
     ...DEFAULT_HEATER,
     ...heater,
   };
 
-  const lidConfig = {
+  const lidConfig: Lid = {
     ...DEFAULT_LID,
     ...lid,
   };
 
-  const atoConfig = {
+  const atoConfig: AutoTopOff = {
     ...DEFAULT_ATO,
     ...ato,
+  };
+
+  const filterConfig: Filter = {
+    ...DEFAULT_FILTER,
+    ...filter,
+  };
+
+  const powerheadConfig: Powerhead = {
+    ...DEFAULT_POWERHEAD,
+    ...powerhead,
+  };
+
+  const substrateConfig: Substrate = {
+    ...DEFAULT_SUBSTRATE,
+    ...substrate,
   };
 
   const effectiveRoomTemp = roomTemperature ?? DEFAULT_ROOM_TEMPERATURE;
@@ -145,11 +251,24 @@ export function createSimulation(config: SimulationConfig): SimulationState {
     `Simulation created: ${tankCapacity}L tank, ${effectiveRoomTemp}°C room, heater ${heaterStatus}`
   );
 
+  // Calculate tank bacteria surface from capacity
+  const tankBacteriaSurface = calculateTankBacteriaSurface(tankCapacity);
+
+  // Calculate initial passive resources
+  const initialPassiveResources = calculateInitialPassiveResources(
+    tankBacteriaSurface,
+    tankCapacity,
+    filterConfig,
+    powerheadConfig,
+    substrateConfig
+  );
+
   return {
     tick: 0,
     tank: {
       capacity: tankCapacity,
       waterLevel: tankCapacity,
+      bacteriaSurface: tankBacteriaSurface,
     },
     resources: {
       temperature: initialTemperature ?? DEFAULT_TEMPERATURE,
@@ -161,10 +280,78 @@ export function createSimulation(config: SimulationConfig): SimulationState {
       heater: heaterConfig,
       lid: lidConfig,
       ato: atoConfig,
+      filter: filterConfig,
+      powerhead: powerheadConfig,
+      substrate: substrateConfig,
     },
+    passiveResources: initialPassiveResources,
     logs: [initialLog],
     alertState: {
       waterLevelCritical: false,
     },
   };
 }
+
+/** Filter bacteria surface area by type (cm²) */
+const FILTER_SURFACE: Record<FilterType, number> = {
+  sponge: 8000,
+  hob: 15000,
+  canister: 25000,
+  sump: 40000,
+};
+
+/** Filter flow rate by type (L/h) */
+const FILTER_FLOW: Record<FilterType, number> = {
+  sponge: 100,
+  hob: 300,
+  canister: 600,
+  sump: 1000,
+};
+
+/** Powerhead flow rate conversion GPH to L/h */
+const POWERHEAD_FLOW_LPH: Record<PowerheadFlowRate, number> = {
+  240: 908,
+  400: 1514,
+  600: 2271,
+  850: 3218,
+};
+
+/** Substrate bacteria surface per liter of tank (cm²/L) */
+const SUBSTRATE_SURFACE_PER_LITER: Record<SubstrateType, number> = {
+  none: 0,
+  sand: 400,
+  gravel: 800,
+  aqua_soil: 1200,
+};
+
+/**
+ * Calculates initial passive resources from equipment configuration.
+ */
+function calculateInitialPassiveResources(
+  tankBacteriaSurface: number,
+  tankCapacity: number,
+  filter: Filter,
+  powerhead: Powerhead,
+  substrate: Substrate
+): PassiveResources {
+  // Surface area
+  let surface = tankBacteriaSurface;
+  if (filter.enabled) {
+    surface += FILTER_SURFACE[filter.type];
+  }
+  surface += SUBSTRATE_SURFACE_PER_LITER[substrate.type] * tankCapacity;
+
+  // Flow rate
+  let flow = 0;
+  if (filter.enabled) {
+    flow += FILTER_FLOW[filter.type];
+  }
+  if (powerhead.enabled) {
+    flow += POWERHEAD_FLOW_LPH[powerhead.flowRateGPH];
+  }
+
+  return { surface, flow };
+}
+
+// Export constants for use in passive-resources.ts and tests
+export { FILTER_SURFACE, FILTER_FLOW, POWERHEAD_FLOW_LPH, SUBSTRATE_SURFACE_PER_LITER };

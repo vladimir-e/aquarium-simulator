@@ -12,12 +12,41 @@ export type {
   LidType,
   Lid,
   AutoTopOff,
+  FilterType,
+  Filter,
+  PowerheadFlowRate,
+  Powerhead,
+  SubstrateType,
+  Substrate,
   Equipment,
+  PassiveResources,
   LogEntry,
   LogSeverity,
   AlertState,
 } from './state.js';
-export { createSimulation, DEFAULT_HEATER, DEFAULT_LID, DEFAULT_ATO } from './state.js';
+export {
+  createSimulation,
+  calculateTankBacteriaSurface,
+  DEFAULT_HEATER,
+  DEFAULT_LID,
+  DEFAULT_ATO,
+  DEFAULT_FILTER,
+  DEFAULT_POWERHEAD,
+  DEFAULT_SUBSTRATE,
+  FILTER_SURFACE,
+  FILTER_FLOW,
+  POWERHEAD_FLOW_LPH,
+  SUBSTRATE_SURFACE_PER_LITER,
+} from './state.js';
+
+// Passive resources
+export {
+  calculatePassiveResources,
+  getFilterSurface,
+  getFilterFlow,
+  getPowerheadFlow,
+  getSubstrateSurface,
+} from './passive-resources.js';
 
 // Logging
 export { createLog } from './logging.js';

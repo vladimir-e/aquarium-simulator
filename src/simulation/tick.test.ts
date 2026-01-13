@@ -263,6 +263,84 @@ describe('getDayNumber', () => {
   });
 });
 
+describe('tick passive resources', () => {
+  it('recalculates passive resources each tick', () => {
+    const state = createSimulation({
+      tankCapacity: 100,
+      initialTemperature: 22,
+      roomTemperature: 22,
+      filter: { enabled: true, type: 'sponge' },
+    });
+
+    const initialResources = state.passiveResources;
+    const newState = tick(state);
+
+    // Passive resources should be recalculated (same value since equipment unchanged)
+    expect(newState.passiveResources).toBeDefined();
+    expect(newState.passiveResources.surface).toBe(initialResources.surface);
+    expect(newState.passiveResources.flow).toBe(initialResources.flow);
+  });
+
+  it('passive resources update when filter enabled state changes', () => {
+    let state = createSimulation({
+      tankCapacity: 100,
+      initialTemperature: 22,
+      roomTemperature: 22,
+      filter: { enabled: true, type: 'canister' },
+      powerhead: { enabled: false },
+    });
+
+    const initialFlow = state.passiveResources.flow;
+    expect(initialFlow).toBe(600); // Canister flow
+
+    // Disable filter
+    state = {
+      ...state,
+      equipment: {
+        ...state.equipment,
+        filter: { ...state.equipment.filter, enabled: false },
+      },
+    };
+
+    // Run tick to recalculate
+    const newState = tick(state);
+
+    expect(newState.passiveResources.flow).toBe(0);
+    expect(newState.passiveResources.surface).toBeLessThan(
+      createSimulation({
+        tankCapacity: 100,
+        filter: { enabled: true, type: 'canister' },
+      }).passiveResources.surface
+    );
+  });
+
+  it('passive resources update when powerhead flow rate changes', () => {
+    let state = createSimulation({
+      tankCapacity: 100,
+      initialTemperature: 22,
+      roomTemperature: 22,
+      filter: { enabled: false },
+      powerhead: { enabled: true, flowRateGPH: 240 },
+    });
+
+    expect(state.passiveResources.flow).toBe(908); // 240 GPH
+
+    // Change powerhead flow rate
+    state = {
+      ...state,
+      equipment: {
+        ...state.equipment,
+        powerhead: { ...state.equipment.powerhead, flowRateGPH: 850 },
+      },
+    };
+
+    // Run tick to recalculate
+    const newState = tick(state);
+
+    expect(newState.passiveResources.flow).toBe(3218); // 850 GPH
+  });
+});
+
 describe('tick alerts integration', () => {
   it('preserves logs array through tick', () => {
     const state = createSimulation({ tankCapacity: 100 });

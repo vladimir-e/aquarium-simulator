@@ -10,6 +10,7 @@ Format: - **Feature name** (#PR) - Brief description (under 100 chars)
 
 ## 2026-01-13
 
+- **Surface, Flow, and Filtration Equipment** - Tank, Filter, Powerhead, and Substrate equipment with passive resources (surface area, water flow) calculated each tick; UI cards and ResourcesPanel for equipment control
 - **Lid and ATO Equipment** - Lid with type selector (none/mesh/full/sealed) reduces evaporation; ATO auto-maintains water level at 100%
 - **Actions System** - User action infrastructure with Top Off action and Actions panel UI
 - **Logging System** - Event logging with alerts, user action logs, and Log panel UI display

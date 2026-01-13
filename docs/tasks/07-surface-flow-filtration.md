@@ -1,6 +1,6 @@
 # Task 07: Surface, Flow, and Filtration Equipment
 
-**Status:** pending
+**Status:** completed
 
 ## Overview
 
