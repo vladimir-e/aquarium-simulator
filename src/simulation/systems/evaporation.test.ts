@@ -4,8 +4,10 @@ import {
   evaporationSystem,
   BASE_RATE_PER_DAY,
   TEMP_DOUBLING_INTERVAL,
+  getLidMultiplier,
+  LID_MULTIPLIERS,
 } from './evaporation.js';
-import { createSimulation } from '../state.js';
+import { createSimulation, type LidType } from '../state.js';
 
 describe('calculateEvaporation', () => {
   it('reduces water level over time', () => {
@@ -75,6 +77,58 @@ describe('calculateEvaporation', () => {
 
     expect(quadrupledEvap).toBeCloseTo(baseEvap * 4, 4);
   });
+
+  it('applies no reduction with lid type none', () => {
+    const evapWithoutLid = calculateEvaporation(100, 25, 22);
+    const evapWithNoneLid = calculateEvaporation(100, 25, 22, 'none');
+
+    expect(evapWithNoneLid).toBe(evapWithoutLid);
+  });
+
+  it('applies 75% reduction with lid type mesh', () => {
+    const baseEvap = calculateEvaporation(100, 25, 22, 'none');
+    const meshEvap = calculateEvaporation(100, 25, 22, 'mesh');
+
+    expect(meshEvap).toBeCloseTo(baseEvap * 0.75, 6);
+  });
+
+  it('applies 25% of evaporation with lid type full', () => {
+    const baseEvap = calculateEvaporation(100, 25, 22, 'none');
+    const fullEvap = calculateEvaporation(100, 25, 22, 'full');
+
+    expect(fullEvap).toBeCloseTo(baseEvap * 0.25, 6);
+  });
+
+  it('applies 0% evaporation (no evaporation) with lid type sealed', () => {
+    const sealedEvap = calculateEvaporation(100, 25, 22, 'sealed');
+
+    expect(sealedEvap).toBe(0);
+  });
+});
+
+describe('getLidMultiplier', () => {
+  it('returns 1.0 for none', () => {
+    expect(getLidMultiplier('none')).toBe(1.0);
+  });
+
+  it('returns 0.75 for mesh', () => {
+    expect(getLidMultiplier('mesh')).toBe(0.75);
+  });
+
+  it('returns 0.25 for full', () => {
+    expect(getLidMultiplier('full')).toBe(0.25);
+  });
+
+  it('returns 0.0 for sealed', () => {
+    expect(getLidMultiplier('sealed')).toBe(0.0);
+  });
+
+  it('matches LID_MULTIPLIERS constant values', () => {
+    const lidTypes: LidType[] = ['none', 'mesh', 'full', 'sealed'];
+    for (const type of lidTypes) {
+      expect(getLidMultiplier(type)).toBe(LID_MULTIPLIERS[type]);
+    }
+  });
 });
 
 describe('evaporationSystem', () => {
@@ -134,5 +188,72 @@ describe('evaporationSystem', () => {
     expect(Math.abs(effects2[0].delta)).toBeGreaterThan(
       Math.abs(effects1[0].delta)
     );
+  });
+
+  it('respects lid type none (full evaporation)', () => {
+    const state = createSimulation({
+      tankCapacity: 100,
+      initialTemperature: 25,
+      roomTemperature: 22,
+      lid: { type: 'none' },
+    });
+
+    const effects = evaporationSystem.update(state);
+
+    expect(effects).toHaveLength(1);
+    expect(effects[0].delta).toBeLessThan(0);
+  });
+
+  it('reduces evaporation with lid type mesh (75%)', () => {
+    const stateNone = createSimulation({
+      tankCapacity: 100,
+      initialTemperature: 25,
+      roomTemperature: 22,
+      lid: { type: 'none' },
+    });
+    const stateMesh = createSimulation({
+      tankCapacity: 100,
+      initialTemperature: 25,
+      roomTemperature: 22,
+      lid: { type: 'mesh' },
+    });
+
+    const effectsNone = evaporationSystem.update(stateNone);
+    const effectsMesh = evaporationSystem.update(stateMesh);
+
+    expect(effectsMesh[0].delta).toBeCloseTo(effectsNone[0].delta * 0.75, 6);
+  });
+
+  it('reduces evaporation with lid type full (25%)', () => {
+    const stateNone = createSimulation({
+      tankCapacity: 100,
+      initialTemperature: 25,
+      roomTemperature: 22,
+      lid: { type: 'none' },
+    });
+    const stateFull = createSimulation({
+      tankCapacity: 100,
+      initialTemperature: 25,
+      roomTemperature: 22,
+      lid: { type: 'full' },
+    });
+
+    const effectsNone = evaporationSystem.update(stateNone);
+    const effectsFull = evaporationSystem.update(stateFull);
+
+    expect(effectsFull[0].delta).toBeCloseTo(effectsNone[0].delta * 0.25, 6);
+  });
+
+  it('prevents all evaporation with lid type sealed', () => {
+    const state = createSimulation({
+      tankCapacity: 100,
+      initialTemperature: 25,
+      roomTemperature: 22,
+      lid: { type: 'sealed' },
+    });
+
+    const effects = evaporationSystem.update(state);
+
+    expect(effects).toHaveLength(0);
   });
 });

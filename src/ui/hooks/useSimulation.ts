@@ -6,6 +6,7 @@ import {
   applyAction,
   type SimulationState,
   type Action,
+  type LidType,
 } from '../../simulation/index.js';
 import { createLog } from '../../simulation/logging.js';
 
@@ -29,6 +30,8 @@ interface UseSimulationReturn {
   updateHeaterTargetTemperature: (temp: number) => void;
   updateHeaterWattage: (wattage: number) => void;
   updateRoomTemperature: (temp: number) => void;
+  updateLidType: (type: LidType) => void;
+  updateAtoEnabled: (enabled: boolean) => void;
   changeTankCapacity: (capacity: number) => void;
   reset: () => void;
   executeAction: (action: Action) => void;
@@ -170,6 +173,38 @@ export function useSimulation(initialCapacity = 75): UseSimulationReturn {
     );
   }, []);
 
+  const updateLidType = useCallback((type: LidType) => {
+    setState((current) =>
+      produce(current, (draft) => {
+        const oldType = draft.equipment.lid.type;
+        const log = createLog(
+          draft.tick,
+          'equipment',
+          'info',
+          `Lid changed to ${type}`
+        );
+        draft.equipment.lid.type = type;
+        // Only log if type actually changed
+        if (oldType !== type) {
+          draft.logs.push(log);
+        }
+      })
+    );
+  }, []);
+
+  const updateAtoEnabled = useCallback((enabled: boolean) => {
+    setState((current) =>
+      produce(current, (draft) => {
+        const message = enabled
+          ? 'Auto Top-Off enabled'
+          : 'Auto Top-Off disabled';
+        const log = createLog(draft.tick, 'user', 'info', message);
+        draft.equipment.ato.enabled = enabled;
+        draft.logs.push(log);
+      })
+    );
+  }, []);
+
   const changeTankCapacity = useCallback(
     (capacity: number) => {
       // Stop playing if currently running
@@ -244,6 +279,8 @@ export function useSimulation(initialCapacity = 75): UseSimulationReturn {
     updateHeaterTargetTemperature,
     updateHeaterWattage,
     updateRoomTemperature,
+    updateLidType,
+    updateAtoEnabled,
     changeTankCapacity,
     reset,
     executeAction,

@@ -10,6 +10,7 @@ Format: - **Feature name** (#PR) - Brief description (under 100 chars)
 
 ## 2026-01-13
 
+- **Lid and ATO Equipment** - Lid with type selector (none/mesh/full/sealed) reduces evaporation; ATO auto-maintains water level at 100%
 - **Actions System** - User action infrastructure with Top Off action and Actions panel UI
 - **Logging System** - Event logging with alerts, user action logs, and Log panel UI display
 

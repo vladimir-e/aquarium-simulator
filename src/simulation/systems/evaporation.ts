@@ -3,10 +3,11 @@
  *
  * Evaporation rate scales exponentially with temperature differential.
  * Higher temperature above room temp = faster evaporation.
+ * Lid type affects evaporation rate via multiplier.
  */
 
 import type { Effect } from '../effects.js';
-import type { SimulationState } from '../state.js';
+import type { SimulationState, LidType } from '../state.js';
 import type { System } from './types.js';
 
 /**
@@ -30,14 +31,39 @@ export const BASE_RATE_PER_DAY = 0.01;
 export const TEMP_DOUBLING_INTERVAL = 5.56;
 
 /**
+ * Evaporation multipliers based on lid type.
+ * Controls how much the lid reduces evaporation.
+ */
+export const LID_MULTIPLIERS: Record<LidType, number> = {
+  none: 1.0, // Full evaporation (100%)
+  mesh: 0.75, // Reduced evaporation (75%)
+  full: 0.25, // Minimal evaporation (25%)
+  sealed: 0.0, // No evaporation (0%)
+};
+
+/**
+ * Gets the evaporation multiplier for a given lid type.
+ */
+export function getLidMultiplier(lidType: LidType): number {
+  return LID_MULTIPLIERS[lidType];
+}
+
+/**
  * Calculates the water evaporation amount for one tick (1 hour).
+ * @param lidType - Optional lid type to apply multiplier (defaults to 'none')
  */
 export function calculateEvaporation(
   waterLevel: number,
   waterTemp: number,
-  roomTemp: number
+  roomTemp: number,
+  lidType: LidType = 'none'
 ): number {
   if (waterLevel <= 0) {
+    return 0;
+  }
+
+  const lidMultiplier = getLidMultiplier(lidType);
+  if (lidMultiplier === 0) {
     return 0;
   }
 
@@ -45,7 +71,7 @@ export function calculateEvaporation(
   const tempMultiplier = Math.pow(2, tempDelta / TEMP_DOUBLING_INTERVAL);
   const dailyRate = BASE_RATE_PER_DAY * tempMultiplier;
   const hourlyRate = dailyRate / 24;
-  const evapAmount = waterLevel * hourlyRate;
+  const evapAmount = waterLevel * hourlyRate * lidMultiplier;
 
   return evapAmount;
 }
@@ -58,8 +84,9 @@ export const evaporationSystem: System = {
     const waterLevel = state.tank.waterLevel;
     const waterTemp = state.resources.temperature;
     const roomTemp = state.environment.roomTemperature;
+    const lidType = state.equipment.lid.type;
 
-    const evapAmount = calculateEvaporation(waterLevel, waterTemp, roomTemp);
+    const evapAmount = calculateEvaporation(waterLevel, waterTemp, roomTemp, lidType);
 
     if (evapAmount === 0) {
       return [];

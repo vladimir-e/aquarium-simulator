@@ -26,6 +26,8 @@ function App(): React.JSX.Element {
     updateHeaterTargetTemperature,
     updateHeaterWattage,
     updateRoomTemperature,
+    updateLidType,
+    updateAtoEnabled,
     changeTankCapacity,
     reset,
     executeAction,
@@ -52,9 +54,17 @@ function App(): React.JSX.Element {
           wattage: state.equipment.heater.wattage,
           isOn: state.equipment.heater.isOn,
         }}
+        lid={{
+          type: state.equipment.lid.type,
+        }}
+        ato={{
+          enabled: state.equipment.ato.enabled,
+        }}
         onHeaterEnabledChange={updateHeaterEnabled}
         onHeaterTargetTemperatureChange={updateHeaterTargetTemperature}
         onHeaterWattageChange={updateHeaterWattage}
+        onLidTypeChange={updateLidType}
+        onAtoEnabledChange={updateAtoEnabled}
       />
 
       <div className="p-4">
