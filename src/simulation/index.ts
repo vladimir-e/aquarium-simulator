@@ -35,6 +35,7 @@ export {
   evaporationSystem,
   calculateTemperatureDrift,
   calculateEvaporation,
+  calculateEvaporationRatePerDay,
   COOLING_COEFFICIENT,
   REFERENCE_VOLUME,
   VOLUME_EXPONENT,

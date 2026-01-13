@@ -1,13 +1,35 @@
 import React from 'react';
 import { Panel } from '../layout/Panel';
+import { calculateEvaporationRatePerDay, type LidType } from '../../../simulation/index.js';
+
+const LID_LABELS: Record<LidType, string> = {
+  none: 'no lid',
+  mesh: 'mesh lid',
+  full: 'full lid',
+  sealed: 'sealed',
+};
 
 interface VisualizationProps {
   waterLevel: number;
   capacity: number;
+  waterTemperature: number;
+  roomTemperature: number;
+  lidType: LidType;
 }
 
-export function Visualization({ waterLevel, capacity }: VisualizationProps): React.JSX.Element {
+export function Visualization({
+  waterLevel,
+  capacity,
+  waterTemperature,
+  roomTemperature,
+  lidType,
+}: VisualizationProps): React.JSX.Element {
   const percentage = (waterLevel / capacity) * 100;
+  const evaporationRate = calculateEvaporationRatePerDay(
+    waterTemperature,
+    roomTemperature,
+    lidType
+  );
 
   return (
     <Panel title="Visualization">
@@ -28,6 +50,10 @@ export function Visualization({ waterLevel, capacity }: VisualizationProps): Rea
 
         <div className="text-xs text-gray-400 text-center">
           {waterLevel.toFixed(1)}L / {capacity}L
+        </div>
+
+        <div className="text-xs text-gray-500 text-center">
+          Evaporation {evaporationRate.toFixed(2)}%/day ({LID_LABELS[lidType]})
         </div>
       </div>
     </Panel>

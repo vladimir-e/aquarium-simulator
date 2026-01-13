@@ -49,6 +49,27 @@ export function getLidMultiplier(lidType: LidType): number {
 }
 
 /**
+ * Calculates the daily evaporation rate as a percentage.
+ * Used for UI display purposes.
+ */
+export function calculateEvaporationRatePerDay(
+  waterTemp: number,
+  roomTemp: number,
+  lidType: LidType = 'none'
+): number {
+  const lidMultiplier = getLidMultiplier(lidType);
+  if (lidMultiplier === 0) {
+    return 0;
+  }
+
+  const tempDelta = Math.abs(waterTemp - roomTemp);
+  const tempMultiplier = Math.pow(2, tempDelta / TEMP_DOUBLING_INTERVAL);
+  const dailyRate = BASE_RATE_PER_DAY * tempMultiplier * lidMultiplier;
+
+  return dailyRate * 100; // Return as percentage
+}
+
+/**
  * Calculates the water evaporation amount for one tick (1 hour).
  * @param lidType - Optional lid type to apply multiplier (defaults to 'none')
  */

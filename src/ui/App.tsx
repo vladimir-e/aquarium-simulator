@@ -95,6 +95,9 @@ function App(): React.JSX.Element {
             <Visualization
               waterLevel={state.tank.waterLevel}
               capacity={state.tank.capacity}
+              waterTemperature={state.resources.temperature}
+              roomTemperature={state.environment.roomTemperature}
+              lidType={state.equipment.lid.type}
             />
             <WaterChemistry />
           </div>
