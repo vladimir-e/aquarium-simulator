@@ -12,7 +12,7 @@ export function Environment({
   roomTemperature,
   waterTemperature,
   onRoomTemperatureChange,
-}: EnvironmentProps) {
+}: EnvironmentProps): React.JSX.Element {
   return (
     <Panel title="Environment">
       <div className="space-y-4">

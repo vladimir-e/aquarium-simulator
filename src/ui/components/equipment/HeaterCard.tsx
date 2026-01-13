@@ -22,7 +22,7 @@ export function HeaterCard({
   onEnabledChange,
   onTargetTemperatureChange,
   onWattageChange,
-}: HeaterCardProps) {
+}: HeaterCardProps): React.JSX.Element {
   return (
     <div className="bg-background rounded-lg border border-border p-4 w-[220px] flex-shrink-0">
       <div className="flex items-center justify-between mb-3">

@@ -6,7 +6,7 @@ interface VisualizationProps {
   capacity: number;
 }
 
-export function Visualization({ waterLevel, capacity }: VisualizationProps) {
+export function Visualization({ waterLevel, capacity }: VisualizationProps): React.JSX.Element {
   const percentage = (waterLevel / capacity) * 100;
 
   return (

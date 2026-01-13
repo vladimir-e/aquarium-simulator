@@ -13,7 +13,7 @@ export function EquipmentBar({
   onHeaterEnabledChange,
   onHeaterTargetTemperatureChange,
   onHeaterWattageChange,
-}: EquipmentBarProps) {
+}: EquipmentBarProps): React.JSX.Element {
   const [isExpanded, setIsExpanded] = useState(false);
 
   return (

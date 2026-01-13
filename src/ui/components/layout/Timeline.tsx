@@ -28,7 +28,7 @@ export function Timeline({
   onPlayPause,
   onSpeedChange,
   onReset,
-}: TimelineProps) {
+}: TimelineProps): React.JSX.Element {
   const day = Math.floor(tick / 24);
   const hour = tick % 24;
   const time = `${String(hour).padStart(2, '0')}:00`;

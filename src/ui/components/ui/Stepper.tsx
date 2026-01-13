@@ -18,15 +18,15 @@ export function Stepper({
   max,
   step = 1,
   suffix = '',
-}: StepperProps) {
-  const handleDecrement = () => {
+}: StepperProps): React.JSX.Element {
+  const handleDecrement = (): void => {
     const newValue = value - step;
     if (min === undefined || newValue >= min) {
       onChange(newValue);
     }
   };
 
-  const handleIncrement = () => {
+  const handleIncrement = (): void => {
     const newValue = value + step;
     if (max === undefined || newValue <= max) {
       onChange(newValue);

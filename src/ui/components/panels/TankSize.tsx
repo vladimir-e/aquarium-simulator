@@ -17,7 +17,7 @@ const tankSizes = [
   { liters: 400, display: '400L (100 gal)' },
 ];
 
-export function TankSize({ capacity, onCapacityChange }: TankSizeProps) {
+export function TankSize({ capacity, onCapacityChange }: TankSizeProps): React.JSX.Element {
   return (
     <Panel title="Tank Size">
       <Select

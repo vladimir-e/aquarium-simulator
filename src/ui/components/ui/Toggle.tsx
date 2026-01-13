@@ -6,7 +6,7 @@ interface ToggleProps {
   onChange: (checked: boolean) => void;
 }
 
-export function Toggle({ label, checked, onChange }: ToggleProps) {
+export function Toggle({ label, checked, onChange }: ToggleProps): React.JSX.Element {
   return (
     <div className="flex items-center gap-2">
       <button

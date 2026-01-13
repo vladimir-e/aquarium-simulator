@@ -4,7 +4,7 @@ interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
   label?: string;
 }
 
-export function Select({ label, className = '', children, ...props }: SelectProps) {
+export function Select({ label, className = '', children, ...props }: SelectProps): React.JSX.Element {
   return (
     <div className="flex flex-col gap-1">
       {label && <label className="text-xs text-gray-400">{label}</label>}
