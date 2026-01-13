@@ -41,13 +41,13 @@ export function SubstrateCard({
   const totalSurface = surfacePerLiter * tankCapacity;
 
   return (
-    <div className="bg-panel rounded-lg border border-border p-4 w-[220px] flex-shrink-0">
+    <div className="bg-panel rounded-lg border border-border p-4 w-[220px] flex-shrink-0 self-stretch flex flex-col">
       <div className="flex items-center gap-2 mb-3">
         <span className="text-base">{getSubstrateIcon(substrate.type)}</span>
         <h4 className="text-sm font-medium text-gray-200">Substrate</h4>
       </div>
 
-      <div className="space-y-3">
+      <div className="space-y-3 flex-1">
         <Select
           label="Type"
           value={substrate.type}

@@ -30,9 +30,6 @@ export function Actions({
         >
           Top Off Water
         </Button>
-        {isWaterFull && (
-          <div className="text-xs text-gray-400">Water level at capacity</div>
-        )}
       </div>
     </Panel>
   );

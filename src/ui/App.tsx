@@ -3,7 +3,6 @@ import { Timeline } from './components/layout/Timeline';
 import { EquipmentBar } from './components/layout/EquipmentBar';
 import { ResourcesPanel } from './components/resources/ResourcesPanel';
 import { TankPreset } from './components/panels/TankPreset';
-import { TankSize } from './components/panels/TankSize';
 import { Environment } from './components/panels/Environment';
 import { Scheduled } from './components/panels/Scheduled';
 import { Actions } from './components/panels/Actions';
@@ -82,6 +81,7 @@ function App(): React.JSX.Element {
         substrate={{
           type: state.equipment.substrate.type,
         }}
+        onTankCapacityChange={changeTankCapacity}
         onHeaterEnabledChange={updateHeaterEnabled}
         onHeaterTargetTemperatureChange={updateHeaterTargetTemperature}
         onHeaterWattageChange={updateHeaterWattage}
@@ -100,10 +100,6 @@ function App(): React.JSX.Element {
           {/* Column 1 */}
           <div className="space-y-4">
             <TankPreset />
-            <TankSize
-              capacity={state.tank.capacity}
-              onCapacityChange={changeTankCapacity}
-            />
             <Environment
               roomTemperature={state.environment.roomTemperature}
               waterTemperature={state.resources.temperature}

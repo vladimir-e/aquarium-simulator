@@ -33,7 +33,7 @@ export function PowerheadCard({
   const flowLPH = POWERHEAD_FLOW_LPH[powerhead.flowRateGPH];
 
   return (
-    <div className="bg-panel rounded-lg border border-border p-4 w-[220px] flex-shrink-0">
+    <div className="bg-panel rounded-lg border border-border p-4 w-[220px] flex-shrink-0 self-stretch flex flex-col">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <span className="text-base">💨</span>
@@ -46,7 +46,7 @@ export function PowerheadCard({
         )}
       </div>
 
-      <div className="space-y-3">
+      <div className="space-y-3 flex-1">
         <Toggle label="Enabled" checked={powerhead.enabled} onChange={onEnabledChange} />
 
         <Select

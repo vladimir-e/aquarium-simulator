@@ -21,6 +21,7 @@ interface EquipmentBarProps {
   filter: FilterState;
   powerhead: PowerheadState;
   substrate: SubstrateState;
+  onTankCapacityChange: (capacity: number) => void;
   onHeaterEnabledChange: (enabled: boolean) => void;
   onHeaterTargetTemperatureChange: (temp: number) => void;
   onHeaterWattageChange: (wattage: number) => void;
@@ -41,6 +42,7 @@ export function EquipmentBar({
   filter,
   powerhead,
   substrate,
+  onTankCapacityChange,
   onHeaterEnabledChange,
   onHeaterTargetTemperatureChange,
   onHeaterWattageChange,
@@ -64,41 +66,25 @@ export function EquipmentBar({
           <span className="text-sm font-medium text-gray-300">Equipment</span>
           {!isExpanded && (
             <div className="flex items-center gap-2">
-              {/* Heater status */}
-              <div className="flex items-center gap-1">
-                <span className="text-base">🌡️</span>
-                {heater.enabled && (
-                  <div className="w-2 h-2 rounded-full bg-accent-green" />
-                )}
-                {heater.isOn && (
-                  <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-                )}
-                <span className="text-xs text-gray-400">Heater</span>
-              </div>
               {/* Filter status */}
-              <div className="flex items-center gap-1">
-                <span className="text-base">🌊</span>
-                {filter.enabled && (
+              {filter.enabled && (
+                <div className="flex items-center gap-1">
+                  <span className="text-base">🌊</span>
                   <div className="w-2 h-2 rounded-full bg-accent-green" />
-                )}
-                <span className="text-xs text-gray-400">Filter</span>
-              </div>
-              {/* Powerhead status */}
-              <div className="flex items-center gap-1">
-                <span className="text-base">💨</span>
-                {powerhead.enabled && (
+                  <span className="text-xs text-gray-400">Filter</span>
+                </div>
+              )}
+              {/* Heater status */}
+              {heater.enabled && (
+                <div className="flex items-center gap-1">
+                  <span className="text-base">🌡️</span>
                   <div className="w-2 h-2 rounded-full bg-accent-green" />
-                )}
-                <span className="text-xs text-gray-400">Powerhead</span>
-              </div>
-              {/* Lid status */}
-              <div className="flex items-center gap-1">
-                <span className="text-base">🔲</span>
-                {lid.type !== 'none' && (
-                  <div className="w-2 h-2 rounded-full bg-accent-green" />
-                )}
-                <span className="text-xs text-gray-400">Lid</span>
-              </div>
+                  {heater.isOn && (
+                    <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                  )}
+                  <span className="text-xs text-gray-400">Heater</span>
+                </div>
+              )}
               {/* Substrate status */}
               {substrate.type !== 'none' && (
                 <div className="flex items-center gap-1">
@@ -109,14 +95,30 @@ export function EquipmentBar({
                   </span>
                 </div>
               )}
-              {/* ATO status */}
-              <div className="flex items-center gap-1">
-                <span className="text-base">💧</span>
-                {ato.enabled && (
+              {/* Lid status */}
+              {lid.type !== 'none' && (
+                <div className="flex items-center gap-1">
+                  <span className="text-base">🔲</span>
                   <div className="w-2 h-2 rounded-full bg-accent-green" />
-                )}
-                <span className="text-xs text-gray-400">ATO</span>
-              </div>
+                  <span className="text-xs text-gray-400">Lid</span>
+                </div>
+              )}
+              {/* ATO status */}
+              {ato.enabled && (
+                <div className="flex items-center gap-1">
+                  <span className="text-base">💧</span>
+                  <div className="w-2 h-2 rounded-full bg-accent-green" />
+                  <span className="text-xs text-gray-400">ATO</span>
+                </div>
+              )}
+              {/* Powerhead status */}
+              {powerhead.enabled && (
+                <div className="flex items-center gap-1">
+                  <span className="text-base">💨</span>
+                  <div className="w-2 h-2 rounded-full bg-accent-green" />
+                  <span className="text-xs text-gray-400">Powerhead</span>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -125,23 +127,22 @@ export function EquipmentBar({
 
       {isExpanded && (
         <div className="px-4 pb-4 overflow-x-auto">
-          <div className="flex gap-3">
-            <TankCard tank={tank} />
-            <HeaterCard
-              heater={heater}
-              onEnabledChange={onHeaterEnabledChange}
-              onTargetTemperatureChange={onHeaterTargetTemperatureChange}
-              onWattageChange={onHeaterWattageChange}
-            />
+          <div className="flex gap-3 items-stretch">
+            <TankCard tank={tank} onCapacityChange={onTankCapacityChange} />
+
+            {/* Divider */}
+            <div className="w-px bg-border flex-shrink-0 self-stretch" />
+
             <FilterCard
               filter={filter}
               onEnabledChange={onFilterEnabledChange}
               onTypeChange={onFilterTypeChange}
             />
-            <PowerheadCard
-              powerhead={powerhead}
-              onEnabledChange={onPowerheadEnabledChange}
-              onFlowRateChange={onPowerheadFlowRateChange}
+            <HeaterCard
+              heater={heater}
+              onEnabledChange={onHeaterEnabledChange}
+              onTargetTemperatureChange={onHeaterTargetTemperatureChange}
+              onWattageChange={onHeaterWattageChange}
             />
             <SubstrateCard
               substrate={substrate}
@@ -149,7 +150,16 @@ export function EquipmentBar({
               onTypeChange={onSubstrateTypeChange}
             />
             <LidCard lid={lid} onTypeChange={onLidTypeChange} />
+
+            {/* Divider */}
+            <div className="w-px bg-border flex-shrink-0 self-stretch" />
+
             <AutoTopOffCard ato={ato} onEnabledChange={onAtoEnabledChange} />
+            <PowerheadCard
+              powerhead={powerhead}
+              onEnabledChange={onPowerheadEnabledChange}
+              onFlowRateChange={onPowerheadFlowRateChange}
+            />
           </div>
         </div>
       )}
