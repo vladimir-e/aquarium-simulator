@@ -41,6 +41,8 @@ function App(): React.JSX.Element {
     updatePowerheadEnabled,
     updatePowerheadFlowRate,
     updateSubstrateType,
+    addHardscapeItem,
+    removeHardscapeItem,
     changeTankCapacity,
     reset,
     executeAction,
@@ -87,6 +89,10 @@ function App(): React.JSX.Element {
         substrate={{
           type: state.equipment.substrate.type,
         }}
+        hardscape={{
+          items: state.equipment.hardscape.items,
+        }}
+        hardscapeSlots={state.tank.hardscapeSlots}
         onTankCapacityChange={changeTankCapacity}
         onHeaterEnabledChange={updateHeaterEnabled}
         onHeaterTargetTemperatureChange={updateHeaterTargetTemperature}
@@ -98,6 +104,8 @@ function App(): React.JSX.Element {
         onPowerheadEnabledChange={updatePowerheadEnabled}
         onPowerheadFlowRateChange={updatePowerheadFlowRate}
         onSubstrateTypeChange={updateSubstrateType}
+        onHardscapeAddItem={addHardscapeItem}
+        onHardscapeRemoveItem={removeHardscapeItem}
       />
 
       <div className="p-4">

@@ -18,6 +18,9 @@ export type {
   Powerhead,
   SubstrateType,
   Substrate,
+  HardscapeType,
+  HardscapeItem,
+  Hardscape,
   Equipment,
   PassiveResources,
   LogEntry,
@@ -27,16 +30,19 @@ export type {
 export {
   createSimulation,
   calculateTankBacteriaSurface,
+  calculateHardscapeSlots,
   DEFAULT_HEATER,
   DEFAULT_LID,
   DEFAULT_ATO,
   DEFAULT_FILTER,
   DEFAULT_POWERHEAD,
   DEFAULT_SUBSTRATE,
+  DEFAULT_HARDSCAPE,
   FILTER_SURFACE,
   FILTER_FLOW,
   POWERHEAD_FLOW_LPH,
   SUBSTRATE_SURFACE_PER_LITER,
+  HARDSCAPE_SURFACE,
 } from './state.js';
 
 // Passive resources
@@ -82,6 +88,14 @@ export {
   calculateHeatingRate,
   atoUpdate,
 } from './equipment/index.js';
+
+// Hardscape
+export {
+  getHardscapeSurface,
+  calculateHardscapeTotalSurface,
+  getHardscapeName,
+  getHardscapePHEffect,
+} from './equipment/hardscape.js';
 
 // Alerts
 export type { Alert, AlertResult, CheckAlertsResult } from './alerts/index.js';

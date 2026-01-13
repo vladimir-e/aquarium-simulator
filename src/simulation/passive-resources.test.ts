@@ -6,7 +6,8 @@ import {
   getPowerheadFlow,
   getSubstrateSurface,
 } from './passive-resources.js';
-import { createSimulation, FILTER_SURFACE, FILTER_FLOW, POWERHEAD_FLOW_LPH } from './state.js';
+import { createSimulation, FILTER_SURFACE, FILTER_FLOW, POWERHEAD_FLOW_LPH, HARDSCAPE_SURFACE } from './state.js';
+import type { HardscapeItem } from './state.js';
 
 describe('getFilterSurface', () => {
   it('returns correct surface for sponge filter', () => {
@@ -313,6 +314,116 @@ describe('calculatePassiveResources', () => {
 
       expect(resources.flow).toBe(
         FILTER_FLOW.canister + POWERHEAD_FLOW_LPH[600]
+      );
+    });
+  });
+
+  describe('hardscape surface calculation', () => {
+    it('includes hardscape surface in total', () => {
+      const items: HardscapeItem[] = [
+        { id: 'test-1', type: 'driftwood' },
+      ];
+      const state = createSimulation({
+        tankCapacity: 100,
+        filter: { enabled: false },
+        substrate: { type: 'none' },
+        hardscape: { items },
+      });
+
+      const resources = calculatePassiveResources(state);
+
+      expect(resources.surface).toBe(
+        state.tank.bacteriaSurface + HARDSCAPE_SURFACE.driftwood
+      );
+    });
+
+    it('hardscape surface adds to tank + filter + substrate', () => {
+      const items: HardscapeItem[] = [
+        { id: 'test-1', type: 'neutral_rock' },
+      ];
+      const state = createSimulation({
+        tankCapacity: 100,
+        filter: { enabled: true, type: 'hob' },
+        substrate: { type: 'sand' },
+        hardscape: { items },
+      });
+
+      const resources = calculatePassiveResources(state);
+
+      const expected =
+        state.tank.bacteriaSurface +
+        FILTER_SURFACE.hob +
+        400 * 100 + // sand: 400 cm²/L * 100L
+        HARDSCAPE_SURFACE.neutral_rock;
+
+      expect(resources.surface).toBe(expected);
+    });
+
+    it('empty hardscape contributes 0 surface', () => {
+      const stateWithHardscape = createSimulation({
+        tankCapacity: 100,
+        filter: { enabled: false },
+        substrate: { type: 'none' },
+        hardscape: { items: [{ id: '1', type: 'driftwood' }] },
+      });
+
+      const stateWithoutHardscape = createSimulation({
+        tankCapacity: 100,
+        filter: { enabled: false },
+        substrate: { type: 'none' },
+        hardscape: { items: [] },
+      });
+
+      const resourcesWithHardscape = calculatePassiveResources(stateWithHardscape);
+      const resourcesWithoutHardscape = calculatePassiveResources(stateWithoutHardscape);
+
+      expect(resourcesWithoutHardscape.surface).toBeLessThan(resourcesWithHardscape.surface);
+      expect(resourcesWithHardscape.surface - resourcesWithoutHardscape.surface).toBe(
+        HARDSCAPE_SURFACE.driftwood
+      );
+    });
+
+    it('multiple hardscape items sum correctly', () => {
+      const items: HardscapeItem[] = [
+        { id: '1', type: 'neutral_rock' },  // 400
+        { id: '2', type: 'driftwood' },      // 650
+        { id: '3', type: 'plastic_decoration' }, // 100
+      ];
+      const state = createSimulation({
+        tankCapacity: 100,
+        filter: { enabled: false },
+        substrate: { type: 'none' },
+        hardscape: { items },
+      });
+
+      const resources = calculatePassiveResources(state);
+
+      expect(resources.surface).toBe(
+        state.tank.bacteriaSurface + 400 + 650 + 100
+      );
+    });
+
+    it('different hardscape types have different surfaces', () => {
+      const driftwoodState = createSimulation({
+        tankCapacity: 100,
+        filter: { enabled: false },
+        substrate: { type: 'none' },
+        hardscape: { items: [{ id: '1', type: 'driftwood' }] },
+      });
+
+      const plasticState = createSimulation({
+        tankCapacity: 100,
+        filter: { enabled: false },
+        substrate: { type: 'none' },
+        hardscape: { items: [{ id: '1', type: 'plastic_decoration' }] },
+      });
+
+      const driftwoodResources = calculatePassiveResources(driftwoodState);
+      const plasticResources = calculatePassiveResources(plasticState);
+
+      expect(driftwoodResources.surface).toBeGreaterThan(plasticResources.surface);
+      expect(driftwoodResources.surface - plasticResources.surface).toBe(
+        HARDSCAPE_SURFACE.driftwood - HARDSCAPE_SURFACE.plastic_decoration
       );
     });
   });

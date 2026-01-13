@@ -13,6 +13,8 @@ export interface Tank {
   waterLevel: number;
   /** Bacteria surface area from glass walls (cm²) */
   bacteriaSurface: number;
+  /** Maximum hardscape items allowed (2 per gallon, max 8) */
+  hardscapeSlots: number;
 }
 
 /** Passive resources calculated from equipment each tick */
@@ -81,6 +83,20 @@ export interface Substrate {
   type: SubstrateType;
 }
 
+export type HardscapeType = 'neutral_rock' | 'calcite_rock' | 'driftwood' | 'plastic_decoration';
+
+export interface HardscapeItem {
+  /** Unique ID for this item (for add/remove operations) */
+  id: string;
+  /** Type determines surface area and pH effect (future) */
+  type: HardscapeType;
+}
+
+export interface Hardscape {
+  /** Array of hardscape items in the tank */
+  items: HardscapeItem[];
+}
+
 export interface Equipment {
   /** Heater is always present, `enabled` property controls if active */
   heater: Heater;
@@ -94,6 +110,8 @@ export interface Equipment {
   powerhead: Powerhead;
   /** Substrate for bacteria colonization */
   substrate: Substrate;
+  /** Hardscape items (rocks, driftwood, decorations) */
+  hardscape: Hardscape;
 }
 
 /**
@@ -143,6 +161,8 @@ export interface SimulationConfig {
   powerhead?: Partial<Powerhead>;
   /** Initial substrate configuration */
   substrate?: Partial<Substrate>;
+  /** Initial hardscape configuration */
+  hardscape?: Partial<Hardscape>;
 }
 
 const DEFAULT_TEMPERATURE = 25;
@@ -177,6 +197,20 @@ export const DEFAULT_SUBSTRATE: Substrate = {
   type: 'none',
 };
 
+export const DEFAULT_HARDSCAPE: Hardscape = {
+  items: [],
+};
+
+/**
+ * Calculates available hardscape slots based on tank capacity.
+ * 2 slots per gallon, max 8 slots.
+ */
+export function calculateHardscapeSlots(capacityLiters: number): number {
+  const gallons = capacityLiters / 3.785;
+  const slots = Math.floor(gallons * 2);
+  return Math.min(slots, 8);
+}
+
 /**
  * Calculates tank bacteria surface area from capacity.
  * Assumes standard rectangular shape (length:width:height ≈ 2:1:1).
@@ -209,6 +243,7 @@ export function createSimulation(config: SimulationConfig): SimulationState {
     filter,
     powerhead,
     substrate,
+    hardscape,
   } = config;
 
   const heaterConfig: Heater = {
@@ -241,6 +276,11 @@ export function createSimulation(config: SimulationConfig): SimulationState {
     ...substrate,
   };
 
+  const hardscapeConfig: Hardscape = {
+    ...DEFAULT_HARDSCAPE,
+    ...hardscape,
+  };
+
   const effectiveRoomTemp = roomTemperature ?? DEFAULT_ROOM_TEMPERATURE;
   const heaterStatus = heaterConfig.enabled ? 'enabled' : 'disabled';
 
@@ -254,13 +294,17 @@ export function createSimulation(config: SimulationConfig): SimulationState {
   // Calculate tank bacteria surface from capacity
   const tankBacteriaSurface = calculateTankBacteriaSurface(tankCapacity);
 
+  // Calculate hardscape slots from capacity
+  const hardscapeSlots = calculateHardscapeSlots(tankCapacity);
+
   // Calculate initial passive resources
   const initialPassiveResources = calculateInitialPassiveResources(
     tankBacteriaSurface,
     tankCapacity,
     filterConfig,
     powerheadConfig,
-    substrateConfig
+    substrateConfig,
+    hardscapeConfig
   );
 
   return {
@@ -269,6 +313,7 @@ export function createSimulation(config: SimulationConfig): SimulationState {
       capacity: tankCapacity,
       waterLevel: tankCapacity,
       bacteriaSurface: tankBacteriaSurface,
+      hardscapeSlots,
     },
     resources: {
       temperature: initialTemperature ?? DEFAULT_TEMPERATURE,
@@ -283,6 +328,7 @@ export function createSimulation(config: SimulationConfig): SimulationState {
       filter: filterConfig,
       powerhead: powerheadConfig,
       substrate: substrateConfig,
+      hardscape: hardscapeConfig,
     },
     passiveResources: initialPassiveResources,
     logs: [initialLog],
@@ -324,6 +370,23 @@ const SUBSTRATE_SURFACE_PER_LITER: Record<SubstrateType, number> = {
   aqua_soil: 1200,
 };
 
+/** Hardscape bacteria surface area by type (cm²) */
+const HARDSCAPE_SURFACE: Record<HardscapeType, number> = {
+  neutral_rock: 400,
+  calcite_rock: 400,
+  driftwood: 650,
+  plastic_decoration: 100,
+};
+
+/**
+ * Calculates total bacteria surface from all hardscape items.
+ */
+function calculateHardscapeTotalSurface(items: HardscapeItem[]): number {
+  return items.reduce((total, item) => {
+    return total + HARDSCAPE_SURFACE[item.type];
+  }, 0);
+}
+
 /**
  * Calculates initial passive resources from equipment configuration.
  */
@@ -332,7 +395,8 @@ function calculateInitialPassiveResources(
   tankCapacity: number,
   filter: Filter,
   powerhead: Powerhead,
-  substrate: Substrate
+  substrate: Substrate,
+  hardscape: Hardscape
 ): PassiveResources {
   // Surface area
   let surface = tankBacteriaSurface;
@@ -340,6 +404,7 @@ function calculateInitialPassiveResources(
     surface += FILTER_SURFACE[filter.type];
   }
   surface += SUBSTRATE_SURFACE_PER_LITER[substrate.type] * tankCapacity;
+  surface += calculateHardscapeTotalSurface(hardscape.items);
 
   // Flow rate
   let flow = 0;
@@ -354,4 +419,4 @@ function calculateInitialPassiveResources(
 }
 
 // Export constants for use in passive-resources.ts and tests
-export { FILTER_SURFACE, FILTER_FLOW, POWERHEAD_FLOW_LPH, SUBSTRATE_SURFACE_PER_LITER };
+export { FILTER_SURFACE, FILTER_FLOW, POWERHEAD_FLOW_LPH, SUBSTRATE_SURFACE_PER_LITER, HARDSCAPE_SURFACE };
