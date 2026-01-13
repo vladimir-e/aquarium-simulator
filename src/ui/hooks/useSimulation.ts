@@ -3,7 +3,9 @@ import { produce } from 'immer';
 import {
   createSimulation,
   tick as simulationTick,
+  applyAction,
   type SimulationState,
+  type Action,
 } from '../../simulation/index.js';
 import { createLog } from '../../simulation/logging.js';
 
@@ -29,6 +31,7 @@ interface UseSimulationReturn {
   updateRoomTemperature: (temp: number) => void;
   changeTankCapacity: (capacity: number) => void;
   reset: () => void;
+  executeAction: (action: Action) => void;
 }
 
 export function useSimulation(initialCapacity = 75): UseSimulationReturn {
@@ -220,6 +223,16 @@ export function useSimulation(initialCapacity = 75): UseSimulationReturn {
     );
   }, [isPlaying, stopAutoPlay, state.tank.capacity]);
 
+  /**
+   * Execute a user action immediately (works even when paused).
+   */
+  const executeAction = useCallback((action: Action) => {
+    setState((currentState) => {
+      const result = applyAction(currentState, action);
+      return result.state;
+    });
+  }, []);
+
   return {
     state,
     isPlaying,
@@ -233,5 +246,6 @@ export function useSimulation(initialCapacity = 75): UseSimulationReturn {
     updateRoomTemperature,
     changeTankCapacity,
     reset,
+    executeAction,
   };
 }

@@ -55,3 +55,13 @@ export {
   waterLevelAlert,
   WATER_LEVEL_CRITICAL_THRESHOLD,
 } from './alerts/index.js';
+
+// Actions
+export type {
+  ActionType,
+  Action,
+  BaseAction,
+  TopOffAction,
+  ActionResult,
+} from './actions/index.js';
+export { applyAction, topOff } from './actions/index.js';
