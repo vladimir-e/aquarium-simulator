@@ -1,4 +1,5 @@
 import React from 'react';
+import { Terminal } from 'lucide-react';
 import { Panel } from '../layout/Panel';
 import type { LogEntry, SimulationState } from '../../../simulation/index.js';
 
@@ -10,6 +11,7 @@ interface LogProps {
 export function Log({ logs, state }: LogProps): React.JSX.Element {
   const handleDebug = (): void => {
     console.log('Simulation State:', state);
+    window.alert('State has been printed to browser console');
   };
 
   return (
@@ -18,8 +20,9 @@ export function Log({ logs, state }: LogProps): React.JSX.Element {
       action={
         <button
           onClick={handleDebug}
-          className="text-xs text-gray-400 hover:text-gray-200 px-2 py-1 rounded bg-gray-700 hover:bg-gray-600"
+          className="text-xs text-gray-400 hover:text-gray-200 px-2 py-1 rounded bg-gray-700 hover:bg-gray-600 flex items-center gap-1.5"
         >
+          <Terminal className="w-3.5 h-3.5" />
           Debug
         </button>
       }

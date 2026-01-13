@@ -1,5 +1,5 @@
 import React from 'react';
-import { Play, Pause, Gauge, RotateCcw } from 'lucide-react';
+import { Play, Pause, Gauge, RotateCcw, SkipForward } from 'lucide-react';
 import { Button } from '../ui/Button';
 
 type SpeedPreset = '1hr' | '6hr' | '12hr' | '1day';
@@ -56,8 +56,9 @@ export function Timeline({
               }
             }}
             variant="primary"
-            className="bg-accent-blue/20 hover:bg-accent-blue/30 border border-accent-blue/50 text-gray-200"
+            className="bg-accent-blue/20 hover:bg-accent-blue/30 border border-accent-blue/50 text-gray-200 flex items-center gap-1.5"
           >
+            <SkipForward className="w-4 h-4" />
             Step{speedMultiplier > 1 && (
               <span className="ml-1 font-bold text-gray-400">
                 x{speedMultiplier}
