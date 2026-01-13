@@ -63,7 +63,7 @@ const DEFAULT_TEMPERATURE = 25;
 const DEFAULT_ROOM_TEMPERATURE = 22;
 
 export const DEFAULT_HEATER: Heater = {
-  enabled: false,
+  enabled: true,
   isOn: false,
   targetTemperature: 25,
   wattage: 100,

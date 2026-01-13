@@ -106,7 +106,7 @@ describe('createSimulation', () => {
 describe('DEFAULT_HEATER', () => {
   it('has expected default values', () => {
     expect(DEFAULT_HEATER).toEqual({
-      enabled: false,
+      enabled: true,
       isOn: false,
       targetTemperature: 25,
       wattage: 100,

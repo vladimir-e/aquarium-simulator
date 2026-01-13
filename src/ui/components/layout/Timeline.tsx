@@ -1,0 +1,134 @@
+import React from 'react';
+import { Button } from '../ui/Button';
+
+type SpeedPreset = '1hr' | '6hr' | '12hr' | '1day';
+
+const SPEED_MULTIPLIERS: Record<SpeedPreset, number> = {
+  '1hr': 1,
+  '6hr': 6,
+  '12hr': 12,
+  '1day': 24,
+};
+
+interface TimelineProps {
+  tick: number;
+  isPlaying: boolean;
+  speed: SpeedPreset;
+  onStep: () => void;
+  onPlayPause: () => void;
+  onSpeedChange: (speed: SpeedPreset) => void;
+  onReset: () => void;
+}
+
+export function Timeline({
+  tick,
+  isPlaying,
+  speed,
+  onStep,
+  onPlayPause,
+  onSpeedChange,
+  onReset,
+}: TimelineProps): React.JSX.Element {
+  const day = Math.floor(tick / 24);
+  const hour = tick % 24;
+  const time = `${String(hour).padStart(2, '0')}:00`;
+  const speedMultiplier = SPEED_MULTIPLIERS[speed];
+
+  return (
+    <div className="sticky top-0 z-10 bg-panel border-b border-border px-4 py-3">
+      <div className="grid grid-cols-[auto_1fr_auto] items-center gap-4">
+        {/* Left: Title (fixed) */}
+        <div className="text-xs font-semibold text-gray-400 tracking-wider leading-tight">
+          AQUARIUM
+          <br />
+          SIMULATOR
+        </div>
+
+        {/* Center: Controls + Display (flexible) */}
+        <div className="flex items-center justify-center gap-3">
+          <Button
+            onClick={() => {
+              if (isPlaying) {
+                onPlayPause();
+              } else {
+                onStep();
+              }
+            }}
+            variant="primary"
+          >
+            Step{speedMultiplier > 1 && (
+              <span className="ml-1 font-bold text-gray-400">
+                x{speedMultiplier}
+              </span>
+            )}
+          </Button>
+
+          <div className="w-px h-6 bg-border" />
+
+          <Button
+            onClick={onPlayPause}
+            variant="primary"
+            className="w-8 h-8 p-0 flex items-center justify-center"
+          >
+            {isPlaying ? '⏸' : '▶'}
+          </Button>
+
+          <div className="flex items-center gap-1">
+            <span className="text-gray-400 text-sm mr-1">⏱</span>
+            <Button
+              onClick={() => onSpeedChange('1hr')}
+              active={speed === '1hr'}
+              variant="primary"
+              className="text-xs"
+            >
+              1hr/s
+            </Button>
+            <Button
+              onClick={() => onSpeedChange('6hr')}
+              active={speed === '6hr'}
+              variant="primary"
+              className="text-xs"
+            >
+              6hr/s
+            </Button>
+            <Button
+              onClick={() => onSpeedChange('12hr')}
+              active={speed === '12hr'}
+              variant="primary"
+              className="text-xs"
+            >
+              12hr/s
+            </Button>
+            <Button
+              onClick={() => onSpeedChange('1day')}
+              active={speed === '1day'}
+              variant="primary"
+              className="text-xs"
+            >
+              1day/s
+            </Button>
+          </div>
+
+          <div className="w-px h-6 bg-border" />
+
+          <div className="flex items-center gap-3 text-sm text-gray-400">
+            <span>
+              Day <span className="text-gray-200 font-mono">{day}</span>
+            </span>
+            <span className="text-gray-400">·</span>
+            <span className="text-gray-200 font-mono">{time}</span>
+            <span className="text-gray-400">·</span>
+            <span>
+              Tick <span className="text-gray-200 font-mono">{tick}</span>
+            </span>
+          </div>
+        </div>
+
+        {/* Right: Reset button (fixed) */}
+        <Button onClick={onReset} variant="secondary" className="text-xs">
+          ↻ Reset
+        </Button>
+      </div>
+    </div>
+  );
+}
