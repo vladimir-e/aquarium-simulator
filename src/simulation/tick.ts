@@ -53,12 +53,15 @@ export function tick(state: SimulationState): SimulationState {
   newState = applyEffects(newState, passiveEffects);
 
   // Check alerts after all effects applied
-  const alertLogs = checkAlerts(newState);
-  if (alertLogs.length > 0) {
-    newState = produce(newState, (draft) => {
-      draft.logs.push(...alertLogs);
-    });
-  }
+  const alertResult = checkAlerts(newState);
+  newState = produce(newState, (draft) => {
+    // Update alert state (always, to track threshold crossings)
+    draft.alertState = alertResult.alertState;
+    // Add any triggered log entries
+    if (alertResult.logs.length > 0) {
+      draft.logs.push(...alertResult.logs);
+    }
+  });
 
   return newState;
 }

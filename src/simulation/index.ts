@@ -12,6 +12,7 @@ export type {
   Equipment,
   LogEntry,
   LogSeverity,
+  AlertState,
 } from './state.js';
 export { createSimulation, DEFAULT_HEATER } from './state.js';
 
@@ -47,7 +48,7 @@ export {
 } from './equipment/index.js';
 
 // Alerts
-export type { Alert } from './alerts/index.js';
+export type { Alert, AlertResult, CheckAlertsResult } from './alerts/index.js';
 export {
   alerts,
   checkAlerts,

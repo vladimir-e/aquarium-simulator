@@ -39,6 +39,15 @@ export interface Equipment {
   heater: Heater;
 }
 
+/**
+ * Tracks which alert conditions are currently active.
+ * Used to only fire alerts once when crossing thresholds.
+ */
+export interface AlertState {
+  /** Water level is below critical threshold */
+  waterLevelCritical: boolean;
+}
+
 export interface SimulationState {
   /** Current simulation tick (1 tick = 1 hour) */
   tick: number;
@@ -52,6 +61,8 @@ export interface SimulationState {
   equipment: Equipment;
   /** In-memory log storage */
   logs: LogEntry[];
+  /** Tracks active alert conditions for threshold-crossing detection */
+  alertState: AlertState;
 }
 
 export interface SimulationConfig {
@@ -112,5 +123,8 @@ export function createSimulation(config: SimulationConfig): SimulationState {
       heater: heaterConfig,
     },
     logs: [initialLog],
+    alertState: {
+      waterLevelCritical: false,
+    },
   };
 }
