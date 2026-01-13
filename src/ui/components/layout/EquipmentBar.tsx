@@ -119,7 +119,7 @@ export function EquipmentBar({
               {/* Powerhead status */}
               {powerhead.enabled && (
                 <div className="flex items-center gap-1">
-                  <span className="text-base">💨</span>
+                  <span className="text-base">🌀</span>
                   <div className="w-2 h-2 rounded-full bg-accent-green" />
                   <span className="text-xs text-gray-400">Powerhead</span>
                 </div>
