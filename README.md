@@ -2,6 +2,8 @@
 
 A comprehensive aquarium ecosystem simulation engine that models all aspects of a fish tank environment.
 
+**Live Demo:** https://sim.fishroom.app
+
 ## Setup
 
 ```bash

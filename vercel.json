@@ -1,0 +1,4 @@
+{
+  "buildCommand": "npm run ui:build",
+  "outputDirectory": "dist-ui"
+}
