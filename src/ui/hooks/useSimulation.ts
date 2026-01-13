@@ -5,6 +5,7 @@ import {
   tick as simulationTick,
   type SimulationState,
 } from '../../simulation/index.js';
+import { createLog } from '../../simulation/logging.js';
 
 export type SpeedPreset = '1hr' | '6hr' | '12hr' | '1day';
 
@@ -108,7 +109,12 @@ export function useSimulation(initialCapacity = 75): UseSimulationReturn {
   const updateHeaterEnabled = useCallback((enabled: boolean) => {
     setState((current) =>
       produce(current, (draft) => {
+        const message = enabled
+          ? `Heater enabled (target: ${draft.equipment.heater.targetTemperature}°C, ${draft.equipment.heater.wattage}W)`
+          : 'Heater disabled';
+        const log = createLog(draft.tick, 'user', 'info', message);
         draft.equipment.heater.enabled = enabled;
+        draft.logs.push(log);
       })
     );
   }, []);
@@ -116,7 +122,15 @@ export function useSimulation(initialCapacity = 75): UseSimulationReturn {
   const updateHeaterTargetTemperature = useCallback((temp: number) => {
     setState((current) =>
       produce(current, (draft) => {
+        const oldTemp = draft.equipment.heater.targetTemperature;
+        const log = createLog(
+          draft.tick,
+          'user',
+          'info',
+          `Heater target: ${oldTemp}°C → ${temp}°C`
+        );
         draft.equipment.heater.targetTemperature = temp;
+        draft.logs.push(log);
       })
     );
   }, []);
@@ -124,7 +138,15 @@ export function useSimulation(initialCapacity = 75): UseSimulationReturn {
   const updateHeaterWattage = useCallback((wattage: number) => {
     setState((current) =>
       produce(current, (draft) => {
+        const oldWattage = draft.equipment.heater.wattage;
+        const log = createLog(
+          draft.tick,
+          'user',
+          'info',
+          `Heater wattage: ${oldWattage}W → ${wattage}W`
+        );
         draft.equipment.heater.wattage = wattage;
+        draft.logs.push(log);
       })
     );
   }, []);
@@ -132,7 +154,15 @@ export function useSimulation(initialCapacity = 75): UseSimulationReturn {
   const updateRoomTemperature = useCallback((temp: number) => {
     setState((current) =>
       produce(current, (draft) => {
+        const oldTemp = draft.environment.roomTemperature;
+        const log = createLog(
+          draft.tick,
+          'user',
+          'info',
+          `Room temperature: ${oldTemp}°C → ${temp}°C`
+        );
         draft.environment.roomTemperature = temp;
+        draft.logs.push(log);
       })
     );
   }, []);
@@ -146,8 +176,9 @@ export function useSimulation(initialCapacity = 75): UseSimulationReturn {
       }
 
       // Reinitialize simulation with new capacity
-      setState((current) =>
-        createSimulation({
+      setState((current) => {
+        const oldCapacity = current.tank.capacity;
+        const newState = createSimulation({
           tankCapacity: capacity,
           initialTemperature: 25,
           roomTemperature: current.environment.roomTemperature,
@@ -156,8 +187,18 @@ export function useSimulation(initialCapacity = 75): UseSimulationReturn {
             targetTemperature: current.equipment.heater.targetTemperature,
             wattage: current.equipment.heater.wattage,
           },
-        })
-      );
+        });
+        // Add tank capacity changed log
+        const log = createLog(
+          0,
+          'user',
+          'info',
+          `Tank capacity changed: ${oldCapacity}L → ${capacity}L`
+        );
+        return produce(newState, (draft) => {
+          draft.logs.push(log);
+        });
+      });
     },
     [isPlaying, stopAutoPlay]
   );
@@ -170,16 +211,22 @@ export function useSimulation(initialCapacity = 75): UseSimulationReturn {
     }
 
     // Reset to initial state
+    const capacity = state.tank.capacity;
+    const newState = createSimulation({
+      tankCapacity: capacity,
+      initialTemperature: 25,
+      roomTemperature: 22,
+      heater: {
+        enabled: true,
+        targetTemperature: 25,
+        wattage: 100,
+      },
+    });
+    // Add simulation reset log
+    const log = createLog(0, 'simulation', 'info', `Simulation reset to ${capacity}L tank`);
     setState(
-      createSimulation({
-        tankCapacity: state.tank.capacity,
-        initialTemperature: 25,
-        roomTemperature: 22,
-        heater: {
-          enabled: true,
-          targetTemperature: 25,
-          wattage: 100,
-        },
+      produce(newState, (draft) => {
+        draft.logs.push(log);
       })
     );
   }, [isPlaying, stopAutoPlay, state.tank.capacity]);

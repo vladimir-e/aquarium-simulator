@@ -2,6 +2,10 @@
  * Simulation state types and factory functions.
  */
 
+import { createLog, type LogEntry, type LogSeverity } from './logging.js';
+
+export type { LogEntry, LogSeverity };
+
 export interface Tank {
   /** Maximum water capacity in liters */
   capacity: number;
@@ -46,6 +50,8 @@ export interface SimulationState {
   environment: Environment;
   /** Tank equipment */
   equipment: Equipment;
+  /** In-memory log storage */
+  logs: LogEntry[];
 }
 
 export interface SimulationConfig {
@@ -75,6 +81,21 @@ export const DEFAULT_HEATER: Heater = {
 export function createSimulation(config: SimulationConfig): SimulationState {
   const { tankCapacity, initialTemperature, roomTemperature, heater } = config;
 
+  const heaterConfig = {
+    ...DEFAULT_HEATER,
+    ...heater,
+  };
+
+  const effectiveRoomTemp = roomTemperature ?? DEFAULT_ROOM_TEMPERATURE;
+  const heaterStatus = heaterConfig.enabled ? 'enabled' : 'disabled';
+
+  const initialLog = createLog(
+    0,
+    'simulation',
+    'info',
+    `Simulation created: ${tankCapacity}L tank, ${effectiveRoomTemp}°C room, heater ${heaterStatus}`
+  );
+
   return {
     tick: 0,
     tank: {
@@ -85,13 +106,11 @@ export function createSimulation(config: SimulationConfig): SimulationState {
       temperature: initialTemperature ?? DEFAULT_TEMPERATURE,
     },
     environment: {
-      roomTemperature: roomTemperature ?? DEFAULT_ROOM_TEMPERATURE,
+      roomTemperature: effectiveRoomTemp,
     },
     equipment: {
-      heater: {
-        ...DEFAULT_HEATER,
-        ...heater,
-      },
+      heater: heaterConfig,
     },
+    logs: [initialLog],
   };
 }

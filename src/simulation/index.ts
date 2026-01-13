@@ -10,8 +10,13 @@ export type {
   Environment,
   Heater,
   Equipment,
+  LogEntry,
+  LogSeverity,
 } from './state.js';
 export { createSimulation, DEFAULT_HEATER } from './state.js';
+
+// Logging
+export { createLog } from './logging.js';
 
 export type { Effect, EffectTier, ResourceKey } from './effects.js';
 export { applyEffects } from './effects.js';
@@ -40,3 +45,12 @@ export {
   applyHeaterStateChange,
   calculateHeatingRate,
 } from './equipment/index.js';
+
+// Alerts
+export type { Alert } from './alerts/index.js';
+export {
+  alerts,
+  checkAlerts,
+  waterLevelAlert,
+  WATER_LEVEL_CRITICAL_THRESHOLD,
+} from './alerts/index.js';

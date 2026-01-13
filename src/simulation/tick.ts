@@ -7,6 +7,7 @@ import type { SimulationState } from './state.js';
 import { applyEffects, type Effect, type EffectTier } from './effects.js';
 import { coreSystems } from './systems/index.js';
 import { processEquipment } from './equipment/index.js';
+import { checkAlerts } from './alerts/index.js';
 
 /**
  * Collects effects from core systems for a given tier.
@@ -29,6 +30,7 @@ function collectSystemEffects(
 /**
  * Advances the simulation by one tick (1 hour).
  * Processes effects in three tiers: immediate → active → passive.
+ * Then checks alerts and adds any triggered logs.
  * Returns a new state object (immutable).
  */
 export function tick(state: SimulationState): SimulationState {
@@ -49,6 +51,14 @@ export function tick(state: SimulationState): SimulationState {
   // Tier 3: PASSIVE - Natural processes (temperature drift, evaporation)
   const passiveEffects = collectSystemEffects(newState, 'passive');
   newState = applyEffects(newState, passiveEffects);
+
+  // Check alerts after all effects applied
+  const alertLogs = checkAlerts(newState);
+  if (alertLogs.length > 0) {
+    newState = produce(newState, (draft) => {
+      draft.logs.push(...alertLogs);
+    });
+  }
 
   return newState;
 }

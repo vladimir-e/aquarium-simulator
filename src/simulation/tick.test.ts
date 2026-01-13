@@ -262,3 +262,74 @@ describe('getDayNumber', () => {
     expect(getDayNumber(state)).toBe(2);
   });
 });
+
+describe('tick alerts integration', () => {
+  it('preserves logs array through tick', () => {
+    const state = createSimulation({ tankCapacity: 100 });
+
+    const newState = tick(state);
+
+    expect(Array.isArray(newState.logs)).toBe(true);
+  });
+
+  it('adds alert logs to state.logs', () => {
+    // Create state with low water level to trigger alert
+    let state = createSimulation({ tankCapacity: 100 });
+    // Manually set water level below 20% threshold
+    state = {
+      ...state,
+      tank: {
+        ...state.tank,
+        waterLevel: 15, // 15% of 100L
+      },
+    };
+
+    const initialLogCount = state.logs.length;
+    const newState = tick(state);
+
+    // Should have added a water level alert
+    expect(newState.logs.length).toBeGreaterThan(initialLogCount);
+    const alertLog = newState.logs.find(
+      (log) => log.source === 'evaporation' && log.severity === 'warning'
+    );
+    expect(alertLog).toBeDefined();
+  });
+
+  it('alerts run after passive effects tier', () => {
+    // This test verifies alerts see the state after evaporation
+    // If water level drops below 20% due to evaporation, alert should trigger
+    let state = createSimulation({ tankCapacity: 100 });
+    // Set water level just above 20% so evaporation might push it below
+    state = {
+      ...state,
+      tank: {
+        ...state.tank,
+        waterLevel: 20.1, // Just above threshold
+      },
+    };
+
+    // Run enough ticks for evaporation to drop below threshold
+    for (let i = 0; i < 100; i++) {
+      state = tick(state);
+    }
+
+    // Should eventually get a water level alert
+    const hasWaterAlert = state.logs.some(
+      (log) => log.source === 'evaporation' && log.severity === 'warning'
+    );
+    expect(hasWaterAlert).toBe(true);
+  });
+
+  it('logs accumulate across multiple ticks', () => {
+    let state = createSimulation({ tankCapacity: 100 });
+    const initialLogCount = state.logs.length;
+
+    // Run 5 ticks
+    for (let i = 0; i < 5; i++) {
+      state = tick(state);
+    }
+
+    // Logs should still be present (and possibly have more from alerts)
+    expect(state.logs.length).toBeGreaterThanOrEqual(initialLogCount);
+  });
+});

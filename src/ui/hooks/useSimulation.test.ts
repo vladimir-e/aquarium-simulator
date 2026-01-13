@@ -121,4 +121,157 @@ describe('useSimulation', () => {
 
     expect(result.current.speed).toBe('1day');
   });
+
+  describe('logging', () => {
+    it('emits log when heater enabled', () => {
+      const { result } = renderHook(() => useSimulation(75));
+
+      act(() => {
+        result.current.updateHeaterEnabled(false);
+      });
+      act(() => {
+        result.current.updateHeaterEnabled(true);
+      });
+
+      const logs = result.current.state.logs;
+      const enabledLog = logs.find(
+        (log) => log.source === 'user' && log.message.includes('Heater enabled')
+      );
+      expect(enabledLog).toBeDefined();
+    });
+
+    it('emits log when heater disabled', () => {
+      const { result } = renderHook(() => useSimulation(75));
+
+      act(() => {
+        result.current.updateHeaterEnabled(false);
+      });
+
+      const logs = result.current.state.logs;
+      const disabledLog = logs.find(
+        (log) => log.source === 'user' && log.message === 'Heater disabled'
+      );
+      expect(disabledLog).toBeDefined();
+    });
+
+    it('emits log when heater target changed', () => {
+      const { result } = renderHook(() => useSimulation(75));
+
+      act(() => {
+        result.current.updateHeaterTargetTemperature(28);
+      });
+
+      const logs = result.current.state.logs;
+      const targetLog = logs.find(
+        (log) =>
+          log.source === 'user' &&
+          log.message.includes('Heater target') &&
+          log.message.includes('28°C')
+      );
+      expect(targetLog).toBeDefined();
+    });
+
+    it('emits log when heater wattage changed', () => {
+      const { result } = renderHook(() => useSimulation(75));
+
+      act(() => {
+        result.current.updateHeaterWattage(200);
+      });
+
+      const logs = result.current.state.logs;
+      const wattageLog = logs.find(
+        (log) =>
+          log.source === 'user' &&
+          log.message.includes('Heater wattage') &&
+          log.message.includes('200W')
+      );
+      expect(wattageLog).toBeDefined();
+    });
+
+    it('emits log when room temperature changed', () => {
+      const { result } = renderHook(() => useSimulation(75));
+
+      act(() => {
+        result.current.updateRoomTemperature(25);
+      });
+
+      const logs = result.current.state.logs;
+      const roomTempLog = logs.find(
+        (log) =>
+          log.source === 'user' &&
+          log.message.includes('Room temperature') &&
+          log.message.includes('25°C')
+      );
+      expect(roomTempLog).toBeDefined();
+    });
+
+    it('emits log when tank capacity changed', () => {
+      const { result } = renderHook(() => useSimulation(75));
+
+      act(() => {
+        result.current.changeTankCapacity(150);
+      });
+
+      const logs = result.current.state.logs;
+      const capacityLog = logs.find(
+        (log) =>
+          log.source === 'user' &&
+          log.message.includes('Tank capacity changed') &&
+          log.message.includes('75L') &&
+          log.message.includes('150L')
+      );
+      expect(capacityLog).toBeDefined();
+    });
+
+    it('emits simulation reset log when reset is called', () => {
+      const { result } = renderHook(() => useSimulation(75));
+
+      act(() => {
+        result.current.step();
+        result.current.reset();
+      });
+
+      const logs = result.current.state.logs;
+      const resetLog = logs.find(
+        (log) =>
+          log.source === 'simulation' &&
+          log.message.includes('Simulation reset')
+      );
+      expect(resetLog).toBeDefined();
+    });
+
+    it('logs accumulate across multiple ticks', () => {
+      const { result } = renderHook(() => useSimulation(75));
+      const initialLogCount = result.current.state.logs.length;
+
+      act(() => {
+        result.current.updateHeaterEnabled(false);
+        result.current.updateRoomTemperature(20);
+      });
+
+      // Should have initial log + 2 new logs
+      expect(result.current.state.logs.length).toBe(initialLogCount + 2);
+    });
+
+    it('heater enabled log includes target and wattage', () => {
+      const { result } = renderHook(() => useSimulation(75));
+
+      // First disable, then enable to get the enabled log
+      act(() => {
+        result.current.updateHeaterEnabled(false);
+      });
+      act(() => {
+        result.current.updateHeaterEnabled(true);
+      });
+
+      const logs = result.current.state.logs;
+      const enabledLog = logs.find(
+        (log) => log.source === 'user' && log.message.includes('Heater enabled')
+      );
+      expect(enabledLog).toBeDefined();
+      expect(enabledLog!.message).toContain('target:');
+      expect(enabledLog!.message).toContain('°C');
+      expect(enabledLog!.message).toContain('W');
+    });
+  });
 });
