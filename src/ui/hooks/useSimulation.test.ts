@@ -256,4 +256,127 @@ describe('useSimulation', () => {
       expect(enabledLog!.message).toContain('W');
     });
   });
+
+  describe('executeAction', () => {
+    it('applies action to state', () => {
+      const { result } = renderHook(() => useSimulation(75));
+
+      // First reduce water level by advancing simulation (evaporation)
+      act(() => {
+        for (let i = 0; i < 100; i++) {
+          result.current.step();
+        }
+      });
+
+      const waterLevelBefore = result.current.state.tank.waterLevel;
+      expect(waterLevelBefore).toBeLessThan(75); // Evaporation occurred
+
+      act(() => {
+        result.current.executeAction({ type: 'topOff' });
+      });
+
+      expect(result.current.state.tank.waterLevel).toBe(75);
+    });
+
+    it('works when simulation is paused', () => {
+      const { result } = renderHook(() => useSimulation(75));
+
+      // Simulate evaporation manually by running some ticks
+      act(() => {
+        for (let i = 0; i < 100; i++) {
+          result.current.step();
+        }
+      });
+
+      const waterLevelBefore = result.current.state.tank.waterLevel;
+
+      // Ensure simulation is not playing (paused)
+      expect(result.current.isPlaying).toBe(false);
+
+      act(() => {
+        result.current.executeAction({ type: 'topOff' });
+      });
+
+      // Water should be topped off even when paused
+      expect(result.current.state.tank.waterLevel).toBe(75);
+      expect(result.current.state.tank.waterLevel).toBeGreaterThan(
+        waterLevelBefore
+      );
+    });
+
+    it('top off action appears in logs', () => {
+      const { result } = renderHook(() => useSimulation(75));
+
+      // Reduce water level first
+      act(() => {
+        for (let i = 0; i < 100; i++) {
+          result.current.step();
+        }
+      });
+
+      const logCountBefore = result.current.state.logs.length;
+
+      act(() => {
+        result.current.executeAction({ type: 'topOff' });
+      });
+
+      expect(result.current.state.logs.length).toBeGreaterThan(logCountBefore);
+      const lastLog =
+        result.current.state.logs[result.current.state.logs.length - 1];
+      expect(lastLog.source).toBe('user');
+      expect(lastLog.message).toContain('Topped off water');
+    });
+
+    it('multiple actions can be executed', () => {
+      const { result } = renderHook(() => useSimulation(75));
+
+      // Run simulation to cause evaporation
+      act(() => {
+        for (let i = 0; i < 100; i++) {
+          result.current.step();
+        }
+      });
+
+      // Execute first top off
+      act(() => {
+        result.current.executeAction({ type: 'topOff' });
+      });
+      expect(result.current.state.tank.waterLevel).toBe(75);
+
+      // Run more ticks
+      act(() => {
+        for (let i = 0; i < 100; i++) {
+          result.current.step();
+        }
+      });
+
+      const waterLevelAfterEvaporation = result.current.state.tank.waterLevel;
+      expect(waterLevelAfterEvaporation).toBeLessThan(75);
+
+      // Execute second top off
+      act(() => {
+        result.current.executeAction({ type: 'topOff' });
+      });
+      expect(result.current.state.tank.waterLevel).toBe(75);
+    });
+
+    it('top off increases water level to capacity', () => {
+      const { result } = renderHook(() => useSimulation(100));
+
+      // Run simulation to cause evaporation
+      act(() => {
+        for (let i = 0; i < 100; i++) {
+          result.current.step();
+        }
+      });
+
+      expect(result.current.state.tank.waterLevel).toBeLessThan(100);
+
+      act(() => {
+        result.current.executeAction({ type: 'topOff' });
+      });
+
+      expect(result.current.state.tank.waterLevel).toBe(100);
+    });
+  });
 });

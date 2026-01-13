@@ -28,6 +28,7 @@ function App(): React.JSX.Element {
     updateRoomTemperature,
     changeTankCapacity,
     reset,
+    executeAction,
   } = useSimulation();
 
   useKeyboardShortcuts(step, togglePlayPause, isPlaying);
@@ -72,7 +73,11 @@ function App(): React.JSX.Element {
               onRoomTemperatureChange={updateRoomTemperature}
             />
             <Scheduled />
-            <Actions />
+            <Actions
+              waterLevel={state.tank.waterLevel}
+              capacity={state.tank.capacity}
+              executeAction={executeAction}
+            />
           </div>
 
           {/* Column 2 */}

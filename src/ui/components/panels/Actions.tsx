@@ -1,10 +1,39 @@
 import React from 'react';
 import { Panel } from '../layout/Panel';
+import { Button } from '../ui/Button';
+import type { Action } from '../../../simulation/index.js';
 
-export function Actions(): React.JSX.Element {
+interface ActionsProps {
+  waterLevel: number;
+  capacity: number;
+  executeAction: (action: Action) => void;
+}
+
+export function Actions({
+  waterLevel,
+  capacity,
+  executeAction,
+}: ActionsProps): React.JSX.Element {
+  const handleTopOff = (): void => {
+    executeAction({ type: 'topOff' });
+  };
+
+  const isWaterFull = waterLevel >= capacity;
+
   return (
     <Panel title="Actions">
-      <div className="text-xs text-gray-400">Coming soon...</div>
+      <div className="space-y-2">
+        <Button
+          onClick={handleTopOff}
+          disabled={isWaterFull}
+          variant="primary"
+        >
+          Top Off Water
+        </Button>
+        {isWaterFull && (
+          <div className="text-xs text-gray-400">Water level at capacity</div>
+        )}
+      </div>
     </Panel>
   );
 }

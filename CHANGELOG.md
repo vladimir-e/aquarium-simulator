@@ -10,6 +10,7 @@ Format: - **Feature name** (#PR) - Brief description (under 100 chars)
 
 ## 2026-01-13
 
+- **Actions System** - User action infrastructure with Top Off action and Actions panel UI
 - **Logging System** - Event logging with alerts, user action logs, and Log panel UI display
 
 ## 2026-01-12
