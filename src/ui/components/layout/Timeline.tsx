@@ -1,4 +1,5 @@
 import React from 'react';
+import { Play, Pause, Gauge, RotateCcw } from 'lucide-react';
 import { Button } from '../ui/Button';
 
 type SpeedPreset = '1hr' | '6hr' | '12hr' | '1day';
@@ -70,11 +71,11 @@ export function Timeline({
             variant="primary"
             className="w-8 h-8 p-0 flex items-center justify-center"
           >
-            {isPlaying ? '⏸' : '▶'}
+            {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
           </Button>
 
           <div className="flex items-center gap-1">
-            <span className="text-gray-400 text-sm mr-1">⏱</span>
+            <Gauge className="w-4 h-4 text-gray-400 mr-1" />
             <Button
               onClick={() => onSpeedChange('1hr')}
               active={speed === '1hr'}
@@ -125,8 +126,9 @@ export function Timeline({
         </div>
 
         {/* Right: Reset button (fixed) */}
-        <Button onClick={onReset} variant="secondary" className="text-xs">
-          ↻ Reset
+        <Button onClick={onReset} variant="secondary" className="text-xs flex items-center gap-1.5">
+          <RotateCcw className="w-3.5 h-3.5" />
+          Reset
         </Button>
       </div>
     </div>
