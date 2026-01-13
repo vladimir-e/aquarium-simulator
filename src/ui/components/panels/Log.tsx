@@ -1,13 +1,30 @@
 import React from 'react';
 import { Panel } from '../layout/Panel';
-import { useSimulation } from '../../hooks/useSimulation';
+import type { LogEntry, SimulationState } from '../../../simulation/index.js';
 
-export function Log(): React.JSX.Element {
-  const { state } = useSimulation();
-  const logs = state.logs;
+interface LogProps {
+  logs: LogEntry[];
+  state: SimulationState;
+}
+
+export function Log({ logs, state }: LogProps): React.JSX.Element {
+  const handleDebug = (): void => {
+    console.log('Simulation State:', state);
+    console.log('Logs:', logs);
+  };
 
   return (
-    <Panel title="Log">
+    <Panel
+      title="Log"
+      action={
+        <button
+          onClick={handleDebug}
+          className="text-xs text-gray-400 hover:text-gray-200 px-2 py-1 rounded bg-gray-700 hover:bg-gray-600"
+        >
+          Debug
+        </button>
+      }
+    >
       <div className="space-y-1 max-h-48 overflow-y-auto">
         {logs.length === 0 && (
           <div className="text-xs text-gray-400">No events yet</div>

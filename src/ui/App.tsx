@@ -96,7 +96,7 @@ function App(): React.JSX.Element {
         </div>
 
         {/* Full width log */}
-        <Log />
+        <Log logs={state.logs} state={state} />
       </div>
     </div>
   );
