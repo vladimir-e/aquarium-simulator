@@ -80,7 +80,7 @@ describe('calculateEvaporation', () => {
 describe('evaporationSystem', () => {
   it('has correct id and tier', () => {
     expect(evaporationSystem.id).toBe('evaporation');
-    expect(evaporationSystem.tier).toBe('passive');
+    expect(evaporationSystem.tier).toBe('immediate');
   });
 
   it('returns waterLevel effect', () => {
@@ -93,7 +93,7 @@ describe('evaporationSystem', () => {
     const effects = evaporationSystem.update(state);
 
     expect(effects).toHaveLength(1);
-    expect(effects[0].tier).toBe('passive');
+    expect(effects[0].tier).toBe('immediate');
     expect(effects[0].resource).toBe('waterLevel');
     expect(effects[0].delta).toBeLessThan(0); // Evaporation decreases water
     expect(effects[0].source).toBe('evaporation');

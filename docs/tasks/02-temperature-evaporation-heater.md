@@ -18,8 +18,8 @@ Add the first real systems to the simulation: temperature drift toward room temp
 - Environment on state (roomTemperature)
 - Equipment on state (single heater)
 - System interface and registry pattern
-- Temperature drift system (passive)
-- Evaporation system (passive)
+- Temperature drift system (immediate)
+- Evaporation system (immediate)
 - Heater equipment (immediate)
 
 ### Out of Scope
@@ -198,8 +198,9 @@ export function getEquipmentEffects(state: SimulationState): Effect[] {
 ### 8. Tick Integration (`src/simulation/tick.ts`)
 
 Update `collectEffects` to:
-1. Collect equipment effects (immediate tier)
-2. Collect core system effects (passive tier)
+1. Collect environmental system effects (immediate tier: drift, evaporation)
+2. Collect equipment effects (immediate tier: heater)
+3. Collect chemical/biological system effects (passive tier)
 
 ## File Structure
 

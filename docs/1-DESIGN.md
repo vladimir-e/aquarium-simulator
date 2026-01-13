@@ -47,16 +47,16 @@ Effects are processed in **three tiers** with commits between each:
 
 | Tier | Examples | Description |
 |------|----------|-------------|
-| **IMMEDIATE** | Equipment, user actions | Heater warms water, feeder adds food |
+| **IMMEDIATE** | Environment, equipment, user actions | Temperature drift, evaporation, then heater responds |
 | **ACTIVE** | Living processes | Fish eat, plants photosynthesize |
-| **PASSIVE** | Natural processes | Decay, temperature drift, gas exchange |
+| **PASSIVE** | Chemical/biological processes | Decay, nitrogen cycle, gas exchange |
 
 Each tick:
 1. Collect IMMEDIATE effects → commit to resources
 2. Collect ACTIVE effects → commit to resources
 3. Collect PASSIVE effects → commit to resources
 
-This ordering ensures equipment and actions take effect before organisms respond, and natural processes happen last.
+This ordering ensures environmental effects (drift, evaporation) happen first, equipment responds to the updated state, organisms react, and finally chemical transformations occur.
 
 ## System Architecture
 
@@ -166,8 +166,9 @@ This ordering ensures equipment and actions take effect before organisms respond
 Each simulation tick (1 hour) processes effects in three tiers:
 
 ### Tier 1: IMMEDIATE
-- **Environment** - Update external inputs (room temp)
-- **Equipment** - Heater, chiller, lights, CO2, ATO
+- **Temperature** - Drift toward room temp
+- **Evaporation** - Water loss
+- **Equipment** - Heater, chiller, lights, CO2, ATO (responds to drift)
 - **User Actions** - Feed, water change, dose, etc.
 
 *→ Commit IMMEDIATE effects to resources*
@@ -182,8 +183,6 @@ Each simulation tick (1 hour) processes effects in three tiers:
 - **Decay** - Food/waste → ammonia
 - **Nitrogen Cycle** - Ammonia → nitrite → nitrate
 - **Gas Exchange** - O2/CO2 equilibrium
-- **Temperature** - Drift toward room temp
-- **Evaporation** - Water loss
 - **Dilution** - Concentration adjustments
 
 *→ Commit PASSIVE effects to resources*

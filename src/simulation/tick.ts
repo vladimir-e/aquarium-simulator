@@ -39,7 +39,12 @@ export function tick(state: SimulationState): SimulationState {
     draft.tick += 1;
   });
 
-  // Tier 1: IMMEDIATE - Equipment and user actions
+  // Tier 1: IMMEDIATE - Environmental effects, then equipment responses
+  // First apply environmental effects (drift, evaporation)
+  const immediateEffects = collectSystemEffects(newState, 'immediate');
+  newState = applyEffects(newState, immediateEffects);
+
+  // Then equipment responds to the updated state
   const equipmentResult = processEquipment(newState);
   newState = equipmentResult.state;
   newState = applyEffects(newState, equipmentResult.effects);
@@ -48,7 +53,7 @@ export function tick(state: SimulationState): SimulationState {
   const activeEffects = collectSystemEffects(newState, 'active');
   newState = applyEffects(newState, activeEffects);
 
-  // Tier 3: PASSIVE - Natural processes (temperature drift, evaporation)
+  // Tier 3: PASSIVE - Natural processes (decay, nitrogen cycle, gas exchange)
   const passiveEffects = collectSystemEffects(newState, 'passive');
   newState = applyEffects(newState, passiveEffects);
 

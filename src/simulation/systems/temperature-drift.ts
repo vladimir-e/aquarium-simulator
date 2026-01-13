@@ -58,7 +58,7 @@ export function calculateTemperatureDrift(
 
 export const temperatureDriftSystem: System = {
   id: 'temperature-drift',
-  tier: 'passive',
+  tier: 'immediate',
 
   update(state: SimulationState): Effect[] {
     const waterTemp = state.resources.temperature;
@@ -73,7 +73,7 @@ export const temperatureDriftSystem: System = {
 
     return [
       {
-        tier: 'passive',
+        tier: 'immediate',
         resource: 'temperature',
         delta: drift,
         source: 'temperature-drift',

@@ -78,7 +78,7 @@ describe('calculateTemperatureDrift', () => {
 describe('temperatureDriftSystem', () => {
   it('has correct id and tier', () => {
     expect(temperatureDriftSystem.id).toBe('temperature-drift');
-    expect(temperatureDriftSystem.tier).toBe('passive');
+    expect(temperatureDriftSystem.tier).toBe('immediate');
   });
 
   it('returns temperature effect when water is warmer than room', () => {
@@ -91,7 +91,7 @@ describe('temperatureDriftSystem', () => {
     const effects = temperatureDriftSystem.update(state);
 
     expect(effects).toHaveLength(1);
-    expect(effects[0].tier).toBe('passive');
+    expect(effects[0].tier).toBe('immediate');
     expect(effects[0].resource).toBe('temperature');
     expect(effects[0].delta).toBeLessThan(0);
     expect(effects[0].source).toBe('temperature-drift');

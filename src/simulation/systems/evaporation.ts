@@ -52,7 +52,7 @@ export function calculateEvaporation(
 
 export const evaporationSystem: System = {
   id: 'evaporation',
-  tier: 'passive',
+  tier: 'immediate',
 
   update(state: SimulationState): Effect[] {
     const waterLevel = state.tank.waterLevel;
@@ -67,7 +67,7 @@ export const evaporationSystem: System = {
 
     return [
       {
-        tier: 'passive',
+        tier: 'immediate',
         resource: 'waterLevel',
         delta: -evapAmount,
         source: 'evaporation',

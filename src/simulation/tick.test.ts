@@ -118,7 +118,7 @@ describe('tick integration', () => {
     let state = createSimulation({
       tankCapacity: 100,
       initialTemperature: 25,
-      roomTemperature: 20,
+      roomTemperature: 25, // No drift when room temp equals water temp
       heater: { enabled: true, isOn: true, targetTemperature: 25, wattage: 100 },
     });
 
