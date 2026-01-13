@@ -4,6 +4,7 @@ import {
   createSimulation,
   tick as simulationTick,
   applyAction,
+  calculatePassiveResources,
   type SimulationState,
   type Action,
   type LidType,
@@ -220,6 +221,7 @@ export function useSimulation(initialCapacity = 75): UseSimulationReturn {
         const log = createLog(draft.tick, 'equipment', 'info', message);
         draft.equipment.filter.enabled = enabled;
         draft.logs.push(log);
+        draft.passiveResources = calculatePassiveResources(draft);
       })
     );
   }, []);
@@ -237,6 +239,7 @@ export function useSimulation(initialCapacity = 75): UseSimulationReturn {
           );
           draft.equipment.filter.type = type;
           draft.logs.push(log);
+          draft.passiveResources = calculatePassiveResources(draft);
         }
       })
     );
@@ -249,6 +252,7 @@ export function useSimulation(initialCapacity = 75): UseSimulationReturn {
         const log = createLog(draft.tick, 'equipment', 'info', message);
         draft.equipment.powerhead.enabled = enabled;
         draft.logs.push(log);
+        draft.passiveResources = calculatePassiveResources(draft);
       })
     );
   }, []);
@@ -266,6 +270,7 @@ export function useSimulation(initialCapacity = 75): UseSimulationReturn {
           );
           draft.equipment.powerhead.flowRateGPH = flowRateGPH;
           draft.logs.push(log);
+          draft.passiveResources = calculatePassiveResources(draft);
         }
       })
     );
@@ -284,6 +289,7 @@ export function useSimulation(initialCapacity = 75): UseSimulationReturn {
           );
           draft.equipment.substrate.type = type;
           draft.logs.push(log);
+          draft.passiveResources = calculatePassiveResources(draft);
         }
       })
     );
@@ -297,7 +303,7 @@ export function useSimulation(initialCapacity = 75): UseSimulationReturn {
         setIsPlaying(false);
       }
 
-      // Reinitialize simulation with new capacity
+      // Reinitialize simulation with new capacity, preserving equipment state
       setState((current) => {
         return createSimulation({
           tankCapacity: capacity,
@@ -307,6 +313,23 @@ export function useSimulation(initialCapacity = 75): UseSimulationReturn {
             enabled: current.equipment.heater.enabled,
             targetTemperature: current.equipment.heater.targetTemperature,
             wattage: current.equipment.heater.wattage,
+          },
+          lid: {
+            type: current.equipment.lid.type,
+          },
+          ato: {
+            enabled: current.equipment.ato.enabled,
+          },
+          filter: {
+            enabled: current.equipment.filter.enabled,
+            type: current.equipment.filter.type,
+          },
+          powerhead: {
+            enabled: current.equipment.powerhead.enabled,
+            flowRateGPH: current.equipment.powerhead.flowRateGPH,
+          },
+          substrate: {
+            type: current.equipment.substrate.type,
           },
         });
       });
