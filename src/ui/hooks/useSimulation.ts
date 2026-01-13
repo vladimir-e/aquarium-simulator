@@ -146,20 +146,20 @@ export function useSimulation(initialCapacity = 75): UseSimulationReturn {
       }
 
       // Reinitialize simulation with new capacity
-      setState(
+      setState((current) =>
         createSimulation({
           tankCapacity: capacity,
           initialTemperature: 25,
-          roomTemperature: state.environment.roomTemperature,
+          roomTemperature: current.environment.roomTemperature,
           heater: {
-            enabled: state.equipment.heater.enabled,
-            targetTemperature: state.equipment.heater.targetTemperature,
-            wattage: state.equipment.heater.wattage,
+            enabled: current.equipment.heater.enabled,
+            targetTemperature: current.equipment.heater.targetTemperature,
+            wattage: current.equipment.heater.wattage,
           },
         })
       );
     },
-    [isPlaying, stopAutoPlay, state]
+    [isPlaying, stopAutoPlay]
   );
 
   const reset = useCallback(() => {
