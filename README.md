@@ -11,6 +11,7 @@ npm install
 ## Commands
 
 ```bash
+npm run ui             # Launch control panel
 npm run build          # Compile TypeScript
 npm run lint           # Run ESLint
 npm run test           # Run tests

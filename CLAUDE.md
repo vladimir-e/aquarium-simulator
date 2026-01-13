@@ -43,4 +43,3 @@ When working on a task `docs/tasks/XX-task-name.md`
 6. Add entry to `CHANGELOG.md`
 7. Update task status in task file: `pending` → `completed`
 8. Commit with short message and raise a PR
-9. Post a comment '/review' on the PR, but ONLY when you push the first time though!
