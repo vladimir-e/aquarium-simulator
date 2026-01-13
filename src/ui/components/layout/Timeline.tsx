@@ -1,5 +1,5 @@
 import React from 'react';
-import { Play, Pause, Gauge, RotateCcw } from 'lucide-react';
+import { Play, Pause, Zap, RotateCcw } from 'lucide-react';
 import { Button } from '../ui/Button';
 
 type SpeedPreset = '1hr' | '6hr' | '12hr' | '1day';
@@ -56,6 +56,7 @@ export function Timeline({
               }
             }}
             variant="primary"
+            className="bg-accent-blue hover:bg-accent-blue/80"
           >
             Step{speedMultiplier > 1 && (
               <span className="ml-1 font-bold text-gray-400">
@@ -69,13 +70,17 @@ export function Timeline({
           <Button
             onClick={onPlayPause}
             variant="primary"
-            className="w-8 h-8 p-0 flex items-center justify-center"
+            className={`w-8 h-8 p-0 flex items-center justify-center ${
+              isPlaying
+                ? 'bg-accent-orange hover:bg-accent-orange/80'
+                : 'bg-accent-green hover:bg-accent-green/80'
+            }`}
           >
             {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
           </Button>
 
           <div className="flex items-center gap-1">
-            <Gauge className="w-4 h-4 text-gray-400 mr-1" />
+            <Zap className="w-4 h-4 text-yellow-500 mr-1" />
             <Button
               onClick={() => onSpeedChange('1hr')}
               active={speed === '1hr'}
