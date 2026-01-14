@@ -51,9 +51,9 @@ export interface Resources {
   nitrite: number;
   /** Nitrate in grams (convert to ppm for display: ppm = grams / liters * 1000) */
   nitrate: number;
-  /** AOB (Ammonia-Oxidizing Bacteria) population as fraction of max capacity (0-1) */
+  /** AOB (Ammonia-Oxidizing Bacteria) population as absolute unit count */
   aob: number;
-  /** NOB (Nitrite-Oxidizing Bacteria) population as fraction of max capacity (0-1) */
+  /** NOB (Nitrite-Oxidizing Bacteria) population as absolute unit count */
   nob: number;
 }
 
@@ -353,8 +353,8 @@ export function createSimulation(config: SimulationConfig): SimulationState {
       ammonia: 0,
       nitrite: 0,
       nitrate: 0,
-      aob: 0.001, // 0.1% of max capacity - small seed population
-      nob: 0.0005, // 0.05% of max capacity - smaller seed population
+      aob: 0.0001, // Small seed population (absolute units)
+      nob: 0.00005, // Smaller seed population (absolute units)
     },
     environment: {
       roomTemperature: effectiveRoomTemp,

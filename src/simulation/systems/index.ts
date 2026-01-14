@@ -63,8 +63,8 @@ export {
   MIN_FOOD_AOB,
   MIN_FOOD_NOB,
   BACTERIA_PER_CM2,
-  INITIAL_AOB_FRACTION,
-  INITIAL_NOB_FRACTION,
+  INITIAL_AOB,
+  INITIAL_NOB,
 } from './nitrogen-cycle.js';
 
 import type { System } from './types.js';

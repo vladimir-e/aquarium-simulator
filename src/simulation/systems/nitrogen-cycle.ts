@@ -51,11 +51,11 @@ export const MIN_FOOD_NOB = 0.001;
 /** Bacteria units per cm² of surface area */
 export const BACTERIA_PER_CM2 = 0.0001;
 
-/** Initial AOB seed population as fraction of max capacity */
-export const INITIAL_AOB_FRACTION = 0.001;
+/** Initial AOB seed population (absolute units) */
+export const INITIAL_AOB = 0.0001;
 
-/** Initial NOB seed population as fraction of max capacity */
-export const INITIAL_NOB_FRACTION = 0.0005;
+/** Initial NOB seed population (absolute units) */
+export const INITIAL_NOB = 0.00005;
 
 // ============================================================================
 // Helper Functions
@@ -107,17 +107,17 @@ export function calculateWasteConversion(waste: number): number {
 /**
  * Calculate ammonia -> nitrite conversion by AOB.
  * Returns amount of ammonia consumed.
+ * @param ammonia - ammonia in grams
+ * @param aobPopulation - absolute bacteria count (not percentage)
  */
 export function calculateAOBConversion(
   ammonia: number,
-  aobPopulation: number,
-  maxCapacity: number
+  aobPopulation: number
 ): number {
   if (ammonia <= 0 || aobPopulation <= 0) return 0;
 
-  // Scale conversion by actual population relative to max capacity
-  const effectivePopulation = aobPopulation * maxCapacity;
-  const conversion = AOB_CONVERSION_RATE * effectivePopulation;
+  // Conversion rate is proportional to actual bacteria count
+  const conversion = AOB_CONVERSION_RATE * aobPopulation;
 
   // Can't consume more ammonia than available
   return Math.min(conversion, ammonia);
@@ -126,17 +126,17 @@ export function calculateAOBConversion(
 /**
  * Calculate nitrite -> nitrate conversion by NOB.
  * Returns amount of nitrite consumed.
+ * @param nitrite - nitrite in grams
+ * @param nobPopulation - absolute bacteria count (not percentage)
  */
 export function calculateNOBConversion(
   nitrite: number,
-  nobPopulation: number,
-  maxCapacity: number
+  nobPopulation: number
 ): number {
   if (nitrite <= 0 || nobPopulation <= 0) return 0;
 
-  // Scale conversion by actual population relative to max capacity
-  const effectivePopulation = nobPopulation * maxCapacity;
-  const conversion = NOB_CONVERSION_RATE * effectivePopulation;
+  // Conversion rate is proportional to actual bacteria count
+  const conversion = NOB_CONVERSION_RATE * nobPopulation;
 
   // Can't consume more nitrite than available
   return Math.min(conversion, nitrite);
@@ -145,6 +145,12 @@ export function calculateNOBConversion(
 /**
  * Calculate net bacteria population change (growth - death).
  * Uses logistic growth model with food dependency.
+ * @param population - absolute bacteria count
+ * @param food - available food in grams
+ * @param minFood - minimum food threshold for sustenance
+ * @param growthRate - base growth rate per hour
+ * @param deathRate - base death rate per hour
+ * @param maxCapacity - maximum bacteria capacity from surface area
  */
 export function calculateBacteriaChange(
   population: number,
@@ -157,8 +163,14 @@ export function calculateBacteriaChange(
   if (population <= 0) return 0;
   if (maxCapacity <= 0) return -population; // All bacteria die if no surface
 
+  // If population exceeds current capacity (surface decreased), bacteria die off
+  if (population > maxCapacity) {
+    // Immediate die-off to match capacity
+    return maxCapacity - population;
+  }
+
   const foodFactor = calculateFoodFactor(food, minFood);
-  const capacityFactor = calculateCapacityFactor(population, 1.0); // population is already 0-1 scale
+  const capacityFactor = calculateCapacityFactor(population, maxCapacity);
 
   // Logistic growth when food available and space exists
   const growth = growthRate * foodFactor * capacityFactor * population;
@@ -216,8 +228,7 @@ function updateNitrogenCycle(state: SimulationState): Effect[] {
   if (currentAmmonia > 0 && resources.aob > 0) {
     const ammoniaConverted = calculateAOBConversion(
       currentAmmonia,
-      resources.aob,
-      maxCapacity
+      resources.aob
     );
 
     if (ammoniaConverted > 0) {
@@ -246,8 +257,7 @@ function updateNitrogenCycle(state: SimulationState): Effect[] {
   if (currentNitrite > 0 && resources.nob > 0) {
     const nitriteConverted = calculateNOBConversion(
       currentNitrite,
-      resources.nob,
-      maxCapacity
+      resources.nob
     );
 
     if (nitriteConverted > 0) {

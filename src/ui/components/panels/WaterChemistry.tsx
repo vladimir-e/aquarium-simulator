@@ -182,8 +182,10 @@ export function WaterChemistry({
   const nitritePpm = gramsToPpm(nitrite, waterLevel);
   const nitratePpm = gramsToPpm(nitrate, waterLevel);
 
-  // Calculate bacteria capacity
+  // Calculate bacteria capacity and percentages
   const maxBacteriaCapacity = surface * BACTERIA_PER_CM2;
+  const aobPercentage = maxBacteriaCapacity > 0 ? Math.min(1, aob / maxBacteriaCapacity) : 0;
+  const nobPercentage = maxBacteriaCapacity > 0 ? Math.min(1, nob / maxBacteriaCapacity) : 0;
 
   return (
     <Panel title="Water Chemistry">
@@ -203,7 +205,7 @@ export function WaterChemistry({
               Nitrogen Cycle
             </span>
             <span className="text-xs text-gray-400">
-              {aob >= 0.8 && nob >= 0.8 ? 'Cycled' : 'Cycling...'}
+              {aobPercentage >= 0.8 && nobPercentage >= 0.8 ? 'Cycled' : 'Cycling...'}
             </span>
           </button>
 
@@ -268,21 +270,21 @@ export function WaterChemistry({
               <div className="space-y-1">
                 <div className="flex items-center justify-between">
                   <span className="text-xs text-gray-400">AOB (NH₃ → NO₂)</span>
-                  <span className={`text-xs font-medium ${getBacteriaColor(aob)}`}>
-                    {(aob * 100).toFixed(1)}%
+                  <span className={`text-xs font-medium ${getBacteriaColor(aobPercentage)}`}>
+                    {(aobPercentage * 100).toFixed(1)}%
                   </span>
                 </div>
                 <div className="w-full bg-gray-700 rounded-full h-1.5">
                   <div
                     className={`h-1.5 rounded-full transition-all ${
-                      aob >= 0.8 ? 'bg-green-500' : aob >= 0.3 ? 'bg-yellow-500' : 'bg-gray-500'
+                      aobPercentage >= 0.8 ? 'bg-green-500' : aobPercentage >= 0.3 ? 'bg-yellow-500' : 'bg-gray-500'
                     }`}
-                    style={{ width: `${Math.min(aob * 100, 100)}%` }}
+                    style={{ width: `${Math.min(aobPercentage * 100, 100)}%` }}
                   />
                 </div>
                 <div className="flex items-center justify-between text-xs text-gray-500">
                   <span>Ammonia-Oxidizing</span>
-                  <span>{getBacteriaStatus(aob)}</span>
+                  <span>{getBacteriaStatus(aobPercentage)}</span>
                 </div>
               </div>
 
@@ -290,21 +292,21 @@ export function WaterChemistry({
               <div className="space-y-1">
                 <div className="flex items-center justify-between">
                   <span className="text-xs text-gray-400">NOB (NO₂ → NO₃)</span>
-                  <span className={`text-xs font-medium ${getBacteriaColor(nob)}`}>
-                    {(nob * 100).toFixed(1)}%
+                  <span className={`text-xs font-medium ${getBacteriaColor(nobPercentage)}`}>
+                    {(nobPercentage * 100).toFixed(1)}%
                   </span>
                 </div>
                 <div className="w-full bg-gray-700 rounded-full h-1.5">
                   <div
                     className={`h-1.5 rounded-full transition-all ${
-                      nob >= 0.8 ? 'bg-green-500' : nob >= 0.3 ? 'bg-yellow-500' : 'bg-gray-500'
+                      nobPercentage >= 0.8 ? 'bg-green-500' : nobPercentage >= 0.3 ? 'bg-yellow-500' : 'bg-gray-500'
                     }`}
-                    style={{ width: `${Math.min(nob * 100, 100)}%` }}
+                    style={{ width: `${Math.min(nobPercentage * 100, 100)}%` }}
                   />
                 </div>
                 <div className="flex items-center justify-between text-xs text-gray-500">
                   <span>Nitrite-Oxidizing</span>
-                  <span>{getBacteriaStatus(nob)}</span>
+                  <span>{getBacteriaStatus(nobPercentage)}</span>
                 </div>
               </div>
 

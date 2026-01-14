@@ -46,9 +46,9 @@ const MAX_ALGAE = 100;
 const MIN_NITROGEN = 0;
 const MAX_NITROGEN = 1000; // Reasonable upper limit in grams
 
-/** Bacteria population bounds (0-1 scale representing % of max capacity) */
+/** Bacteria population bounds (absolute units, capped by surface area in nitrogen cycle) */
 const MIN_BACTERIA = 0;
-const MAX_BACTERIA = 1;
+const MAX_BACTERIA = 100; // Reasonable upper limit for absolute bacteria count
 
 /**
  * Clamps a value between min and max (inclusive).

@@ -131,23 +131,22 @@ describe('calculateWasteConversion', () => {
 
 describe('calculateAOBConversion', () => {
   it('returns 0 when ammonia is 0', () => {
-    expect(calculateAOBConversion(0, 0.5, 1.0)).toBe(0);
+    expect(calculateAOBConversion(0, 0.5)).toBe(0);
   });
 
   it('returns 0 when AOB population is 0', () => {
-    expect(calculateAOBConversion(1.0, 0, 1.0)).toBe(0);
+    expect(calculateAOBConversion(1.0, 0)).toBe(0);
   });
 
   it('returns 0 when ammonia is negative', () => {
-    expect(calculateAOBConversion(-1, 0.5, 1.0)).toBe(0);
+    expect(calculateAOBConversion(-1, 0.5)).toBe(0);
   });
 
-  it('scales with AOB population and max capacity', () => {
+  it('scales linearly with AOB population (absolute count)', () => {
     const ammonia = 10; // plenty of ammonia
-    const maxCapacity = 1.0;
 
-    const conv1 = calculateAOBConversion(ammonia, 0.5, maxCapacity);
-    const conv2 = calculateAOBConversion(ammonia, 1.0, maxCapacity);
+    const conv1 = calculateAOBConversion(ammonia, 0.5);
+    const conv2 = calculateAOBConversion(ammonia, 1.0);
 
     // Double population should double conversion
     expect(conv2).toBeCloseTo(conv1 * 2, 10);
@@ -155,56 +154,51 @@ describe('calculateAOBConversion', () => {
 
   it('never consumes more ammonia than available', () => {
     const ammonia = 0.00001; // very little ammonia
-    const converted = calculateAOBConversion(ammonia, 1.0, 100);
+    const converted = calculateAOBConversion(ammonia, 1.0);
     expect(converted).toBeLessThanOrEqual(ammonia);
   });
 
   it('uses AOB_CONVERSION_RATE constant', () => {
     const ammonia = 100; // plenty
-    const aob = 0.5;
-    const maxCapacity = 1.0;
-    const effectivePop = aob * maxCapacity;
-    const expected = AOB_CONVERSION_RATE * effectivePop;
-    expect(calculateAOBConversion(ammonia, aob, maxCapacity)).toBe(expected);
+    const aob = 0.5; // absolute count
+    const expected = AOB_CONVERSION_RATE * aob;
+    expect(calculateAOBConversion(ammonia, aob)).toBe(expected);
   });
 });
 
 describe('calculateNOBConversion', () => {
   it('returns 0 when nitrite is 0', () => {
-    expect(calculateNOBConversion(0, 0.5, 1.0)).toBe(0);
+    expect(calculateNOBConversion(0, 0.5)).toBe(0);
   });
 
   it('returns 0 when NOB population is 0', () => {
-    expect(calculateNOBConversion(1.0, 0, 1.0)).toBe(0);
+    expect(calculateNOBConversion(1.0, 0)).toBe(0);
   });
 
   it('returns 0 when nitrite is negative', () => {
-    expect(calculateNOBConversion(-1, 0.5, 1.0)).toBe(0);
+    expect(calculateNOBConversion(-1, 0.5)).toBe(0);
   });
 
-  it('scales with NOB population and max capacity', () => {
+  it('scales linearly with NOB population (absolute count)', () => {
     const nitrite = 10; // plenty of nitrite
-    const maxCapacity = 1.0;
 
-    const conv1 = calculateNOBConversion(nitrite, 0.5, maxCapacity);
-    const conv2 = calculateNOBConversion(nitrite, 1.0, maxCapacity);
+    const conv1 = calculateNOBConversion(nitrite, 0.5);
+    const conv2 = calculateNOBConversion(nitrite, 1.0);
 
     expect(conv2).toBeCloseTo(conv1 * 2, 10);
   });
 
   it('never consumes more nitrite than available', () => {
     const nitrite = 0.00001;
-    const converted = calculateNOBConversion(nitrite, 1.0, 100);
+    const converted = calculateNOBConversion(nitrite, 1.0);
     expect(converted).toBeLessThanOrEqual(nitrite);
   });
 
   it('uses NOB_CONVERSION_RATE constant', () => {
     const nitrite = 100;
-    const nob = 0.5;
-    const maxCapacity = 1.0;
-    const effectivePop = nob * maxCapacity;
-    const expected = NOB_CONVERSION_RATE * effectivePop;
-    expect(calculateNOBConversion(nitrite, nob, maxCapacity)).toBe(expected);
+    const nob = 0.5; // absolute count
+    const expected = NOB_CONVERSION_RATE * nob;
+    expect(calculateNOBConversion(nitrite, nob)).toBe(expected);
   });
 });
 
@@ -594,12 +588,14 @@ describe('nitrogenCycleSystem', () => {
     });
 
     it('handles maximum bacteria with no food (death occurs)', () => {
+      // maxCapacity = 10000 * 0.0001 = 1.0 bacteria unit
+      const maxCapacity = calculateMaxBacteriaCapacity(10000);
       const state = createTestState({
         waste: 0,
         ammonia: 0,
         nitrite: 0,
-        aob: 1.0,
-        nob: 1.0,
+        aob: maxCapacity,
+        nob: maxCapacity,
         surface: 10000,
       });
       const effects = nitrogenCycleSystem.update(state);
@@ -657,12 +653,14 @@ describe('nitrogenCycleSystem', () => {
       expect(state.resources.waste).toBeLessThan(0.5);
     });
 
-    it('bacteria populations are clamped between 0 and 1', () => {
+    it('bacteria populations are clamped by surface area capacity', () => {
+      // maxCapacity = 10000 * 0.0001 = 1.0 bacteria unit
+      const maxCapacity = calculateMaxBacteriaCapacity(10000);
       let state = createTestState({
         ammonia: 1.0, // lots of food for growth
         nitrite: 1.0,
-        aob: 0.99,
-        nob: 0.99,
+        aob: maxCapacity * 0.99, // near max capacity
+        nob: maxCapacity * 0.99,
         surface: 10000,
       });
 
@@ -672,9 +670,9 @@ describe('nitrogenCycleSystem', () => {
         state = applyEffects(state, effects);
       }
 
-      // Should be clamped at 1.0
-      expect(state.resources.aob).toBeLessThanOrEqual(1.0);
-      expect(state.resources.nob).toBeLessThanOrEqual(1.0);
+      // Should be clamped at maxCapacity (bacteria can't exceed available surface)
+      expect(state.resources.aob).toBeLessThanOrEqual(maxCapacity);
+      expect(state.resources.nob).toBeLessThanOrEqual(maxCapacity);
 
       // Now test death
       state = produce(state, draft => {
@@ -687,9 +685,43 @@ describe('nitrogenCycleSystem', () => {
         state = applyEffects(state, effects);
       }
 
-      // Should be clamped at 0.0
+      // Should be clamped at 0
       expect(state.resources.aob).toBeGreaterThanOrEqual(0);
       expect(state.resources.nob).toBeGreaterThanOrEqual(0);
+    });
+
+    it('bacteria die immediately when surface area decreases below capacity', () => {
+      // Start with bacteria at full capacity for 10000 cm² surface
+      const initialMaxCapacity = calculateMaxBacteriaCapacity(10000);
+      let state = createTestState({
+        ammonia: 1.0,
+        nitrite: 1.0,
+        aob: initialMaxCapacity, // at max for current surface
+        nob: initialMaxCapacity,
+        surface: 10000,
+      });
+
+      // Reduce surface area by half
+      state = produce(state, draft => {
+        draft.passiveResources.surface = 5000;
+      });
+
+      const newMaxCapacity = calculateMaxBacteriaCapacity(5000);
+      const effects = nitrogenCycleSystem.update(state);
+
+      // Bacteria should die off to match new capacity
+      const aobEffect = effects.find(e => e.resource === 'aob');
+      const nobEffect = effects.find(e => e.resource === 'nob');
+
+      expect(aobEffect).toBeDefined();
+      expect(aobEffect!.delta).toBeLessThan(0); // Bacteria dying
+      expect(nobEffect).toBeDefined();
+      expect(nobEffect!.delta).toBeLessThan(0);
+
+      // After applying effects, bacteria should be at new max capacity
+      state = applyEffects(state, effects);
+      expect(state.resources.aob).toBeLessThanOrEqual(newMaxCapacity);
+      expect(state.resources.nob).toBeLessThanOrEqual(newMaxCapacity);
     });
 
     it('AOB grows faster than NOB (creates sequential spikes)', () => {
@@ -724,8 +756,8 @@ describe('State Initialization', () => {
     expect(state.resources.ammonia).toBe(0);
     expect(state.resources.nitrite).toBe(0);
     expect(state.resources.nitrate).toBe(0);
-    expect(state.resources.aob).toBe(0.001); // Initial seed population
-    expect(state.resources.nob).toBe(0.0005); // Initial seed population
+    expect(state.resources.aob).toBe(0.0001); // Initial seed population (absolute units)
+    expect(state.resources.nob).toBe(0.00005); // Initial seed population (absolute units)
   });
 
   it('creates state with nitrogen alert flags', () => {
