@@ -37,4 +37,9 @@ export type ResourceKey =
   | 'light'
   | 'food'
   | 'waste'
-  | 'algae';
+  | 'algae'
+  | 'ammonia'
+  | 'nitrite'
+  | 'nitrate'
+  | 'aob'
+  | 'nob';

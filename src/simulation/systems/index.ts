@@ -41,11 +41,32 @@ export {
   ALGAE_CAP,
 } from './algae.js';
 
+export {
+  nitrogenCycleSystem,
+  calculateMaxBacteria,
+  calculateBacterialGrowth,
+  calculateWasteToAmmonia,
+  calculateAmmoniaToNitrite,
+  calculateNitriteToNitrate,
+  WASTE_CONVERSION_RATE,
+  BACTERIA_PROCESSING_RATE,
+  AOB_SPAWN_THRESHOLD,
+  NOB_SPAWN_THRESHOLD,
+  SPAWN_AMOUNT,
+  AOB_GROWTH_RATE,
+  NOB_GROWTH_RATE,
+  BACTERIA_PER_CM2,
+  BACTERIA_DEATH_RATE,
+  AOB_FOOD_THRESHOLD,
+  NOB_FOOD_THRESHOLD,
+} from './nitrogen-cycle.js';
+
 import type { System } from './types.js';
 import { temperatureDriftSystem } from './temperature-drift.js';
 import { evaporationSystem } from './evaporation.js';
 import { decaySystem } from './decay.js';
 import { algaeSystem } from './algae.js';
+import { nitrogenCycleSystem } from './nitrogen-cycle.js';
 
 /** All core systems in the simulation */
 export const coreSystems: System[] = [
@@ -53,4 +74,5 @@ export const coreSystems: System[] = [
   evaporationSystem,
   decaySystem,
   algaeSystem,
+  nitrogenCycleSystem,
 ];
