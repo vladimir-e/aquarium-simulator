@@ -69,6 +69,18 @@ export const BACTERIA_PER_CM2 = 0.1;
 // ============================================================================
 
 /**
+ * Stochastic rounding for small values.
+ * Probabilistically rounds based on fractional part.
+ * E.g., 0.3 has 30% chance of rounding to 1, 70% chance of 0.
+ * This allows small populations to grow over time.
+ */
+function stochasticRound(value: number): number {
+  const floor = Math.floor(value);
+  const fraction = value - floor;
+  return floor + (Math.random() < fraction ? 1 : 0);
+}
+
+/**
  * Calculate maximum bacteria capacity based on available surface area.
  */
 export function calculateMaxBacteriaCapacity(surfaceArea: number): number {
@@ -228,14 +240,14 @@ function updateBacterialPopulation(resources: Resources, maxCapacity: number): E
   // AOB growth/death
   if (resources.aob > 0) {
     if (resources.ammonia >= MIN_FOOD_AOB && resources.aob < maxCapacity) {
-      // Growth (doubles daily when well-fed) - round to integer
+      // Growth (doubles daily when well-fed) - stochastic rounding for small populations
       const rawGrowth = calculateBacteriaGrowth(
         resources.aob,
         resources.ammonia,
         MIN_FOOD_AOB,
         maxCapacity
       );
-      const growth = Math.round(rawGrowth);
+      const growth = stochasticRound(rawGrowth);
       if (growth > 0) {
         effects.push({ tier: 'passive', resource: 'aob', delta: growth, source: 'nitrogen-cycle' });
       }
@@ -244,7 +256,7 @@ function updateBacterialPopulation(resources: Resources, maxCapacity: number): E
       const rawDeath = calculateBacteriaDeath(resources.aob, resources.ammonia, MIN_FOOD_AOB);
       // Don't let bacteria drop below MIN_BACTERIA_FLOOR once established
       const maxDeath = Math.max(0, resources.aob - MIN_BACTERIA_FLOOR);
-      const death = Math.round(Math.min(rawDeath, maxDeath));
+      const death = stochasticRound(Math.min(rawDeath, maxDeath));
       if (death > 0) {
         effects.push({
           tier: 'passive',
@@ -265,14 +277,14 @@ function updateBacterialPopulation(resources: Resources, maxCapacity: number): E
         MIN_FOOD_NOB,
         maxCapacity
       );
-      const growth = Math.round(rawGrowth);
+      const growth = stochasticRound(rawGrowth);
       if (growth > 0) {
         effects.push({ tier: 'passive', resource: 'nob', delta: growth, source: 'nitrogen-cycle' });
       }
     } else if (resources.nitrite < MIN_FOOD_NOB) {
       const rawDeath = calculateBacteriaDeath(resources.nob, resources.nitrite, MIN_FOOD_NOB);
       const maxDeath = Math.max(0, resources.nob - MIN_BACTERIA_FLOOR);
-      const death = Math.round(Math.min(rawDeath, maxDeath));
+      const death = stochasticRound(Math.min(rawDeath, maxDeath));
       if (death > 0) {
         effects.push({
           tier: 'passive',
