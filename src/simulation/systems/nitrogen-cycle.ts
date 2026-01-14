@@ -55,8 +55,8 @@ export const MIN_FOOD_NOB = 0.01;
 export const SPAWN_THRESHOLD_AOB = 0.05;
 /** Nitrite threshold for NOB to spawn */
 export const SPAWN_THRESHOLD_NOB = 0.5;
-/** Initial bacteria population when spawning (integer) */
-export const INITIAL_BACTERIA_SPAWN = 1;
+/** Initial bacteria population when spawning - needs to be high enough for stochastic growth */
+export const INITIAL_BACTERIA_SPAWN = 10;
 /** Minimum bacteria floor once established (persistent colonization) */
 export const MIN_BACTERIA_FLOOR = 1;
 
