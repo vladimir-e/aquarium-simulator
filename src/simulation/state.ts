@@ -28,11 +28,17 @@ export interface PassiveResources {
 export interface Resources {
   /** Water temperature in °C */
   temperature: number;
+  /** Food available for consumption (grams, 2 decimal precision) */
+  food: number;
+  /** Organic waste accumulation (grams) */
+  waste: number;
 }
 
 export interface Environment {
   /** Room/ambient temperature in °C */
   roomTemperature: number;
+  /** Ambient waste production rate (g/hour) - very small, seeds bacteria */
+  ambientWaste: number;
 }
 
 export interface Heater {
@@ -317,9 +323,12 @@ export function createSimulation(config: SimulationConfig): SimulationState {
     },
     resources: {
       temperature: initialTemperature ?? DEFAULT_TEMPERATURE,
+      food: 0.0,
+      waste: 0.0,
     },
     environment: {
       roomTemperature: effectiveRoomTemp,
+      ambientWaste: 0.01, // 0.01 g/hour
     },
     equipment: {
       heater: heaterConfig,

@@ -22,12 +22,23 @@ export {
   getLidMultiplier,
 } from './evaporation.js';
 
+export {
+  decaySystem,
+  getTemperatureFactor,
+  calculateDecay,
+  Q10,
+  REFERENCE_TEMP,
+  BASE_DECAY_RATE,
+} from './decay.js';
+
 import type { System } from './types.js';
 import { temperatureDriftSystem } from './temperature-drift.js';
 import { evaporationSystem } from './evaporation.js';
+import { decaySystem } from './decay.js';
 
 /** All core systems in the simulation */
 export const coreSystems: System[] = [
   temperatureDriftSystem,
   evaporationSystem,
+  decaySystem,
 ];
