@@ -21,6 +21,7 @@ export type {
   HardscapeType,
   HardscapeItem,
   Hardscape,
+  Light,
   Equipment,
   PassiveResources,
   LogEntry,
@@ -38,6 +39,7 @@ export {
   DEFAULT_POWERHEAD,
   DEFAULT_SUBSTRATE,
   DEFAULT_HARDSCAPE,
+  DEFAULT_LIGHT,
   FILTER_SURFACE,
   FILTER_FLOW,
   POWERHEAD_FLOW_LPH,
@@ -53,6 +55,10 @@ export {
   getPowerheadFlow,
   getSubstrateSurface,
 } from './passive-resources.js';
+
+// Schedule
+export type { DailySchedule } from './schedule.js';
+export { isScheduleActive, isValidSchedule, formatSchedule } from './schedule.js';
 
 // Logging
 export { createLog } from './logging.js';

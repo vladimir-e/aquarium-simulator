@@ -7,6 +7,7 @@ import {
   calculatePassiveResources,
   calculateHardscapeSlots,
   getHardscapeName,
+  formatSchedule,
   type SimulationState,
   type Action,
   type LidType,
@@ -15,6 +16,7 @@ import {
   type SubstrateType,
   type HardscapeType,
   type HardscapeItem,
+  type DailySchedule,
 } from '../../simulation/index.js';
 import { createLog } from '../../simulation/logging.js';
 
@@ -47,6 +49,9 @@ interface UseSimulationReturn {
   updateSubstrateType: (type: SubstrateType) => void;
   addHardscapeItem: (type: HardscapeType) => void;
   removeHardscapeItem: (id: string) => void;
+  updateLightEnabled: (enabled: boolean) => void;
+  updateLightWattage: (wattage: number) => void;
+  updateLightSchedule: (schedule: DailySchedule) => void;
   changeTankCapacity: (capacity: number) => void;
   reset: () => void;
   executeAction: (action: Action) => void;
@@ -351,6 +356,58 @@ export function useSimulation(initialCapacity = 75): UseSimulationReturn {
     );
   }, []);
 
+  const updateLightEnabled = useCallback((enabled: boolean) => {
+    setState((current) =>
+      produce(current, (draft) => {
+        const message = enabled
+          ? `Light enabled (${draft.equipment.light.wattage}W)`
+          : 'Light disabled';
+        const log = createLog(draft.tick, 'user', 'info', message);
+        draft.equipment.light.enabled = enabled;
+        draft.logs.push(log);
+        draft.passiveResources = calculatePassiveResources(draft);
+      })
+    );
+  }, []);
+
+  const updateLightWattage = useCallback((wattage: number) => {
+    setState((current) =>
+      produce(current, (draft) => {
+        const oldWattage = draft.equipment.light.wattage;
+        if (oldWattage !== wattage) {
+          const log = createLog(
+            draft.tick,
+            'user',
+            'info',
+            `Light wattage: ${oldWattage}W → ${wattage}W`
+          );
+          draft.equipment.light.wattage = wattage;
+          draft.logs.push(log);
+          draft.passiveResources = calculatePassiveResources(draft);
+        }
+      })
+    );
+  }, []);
+
+  const updateLightSchedule = useCallback((schedule: DailySchedule) => {
+    setState((current) =>
+      produce(current, (draft) => {
+        const oldSchedule = draft.equipment.light.schedule;
+        if (oldSchedule.startHour !== schedule.startHour || oldSchedule.duration !== schedule.duration) {
+          const log = createLog(
+            draft.tick,
+            'user',
+            'info',
+            `Light schedule: ${formatSchedule(schedule)}`
+          );
+          draft.equipment.light.schedule = schedule;
+          draft.logs.push(log);
+          draft.passiveResources = calculatePassiveResources(draft);
+        }
+      })
+    );
+  }, []);
+
   const changeTankCapacity = useCallback(
     (capacity: number) => {
       // Stop playing if currently running
@@ -394,6 +451,11 @@ export function useSimulation(initialCapacity = 75): UseSimulationReturn {
           },
           hardscape: {
             items: preservedItems,
+          },
+          light: {
+            enabled: current.equipment.light.enabled,
+            wattage: current.equipment.light.wattage,
+            schedule: current.equipment.light.schedule,
           },
         });
       });
@@ -459,6 +521,9 @@ export function useSimulation(initialCapacity = 75): UseSimulationReturn {
     updateSubstrateType,
     addHardscapeItem,
     removeHardscapeItem,
+    updateLightEnabled,
+    updateLightWattage,
+    updateLightSchedule,
     changeTankCapacity,
     reset,
     executeAction,

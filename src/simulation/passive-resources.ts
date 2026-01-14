@@ -1,5 +1,5 @@
 /**
- * Passive resource calculations for surface area and water flow.
+ * Passive resource calculations for surface area, water flow, and light.
  * Passive resources are recalculated each tick from current equipment state.
  */
 
@@ -17,6 +17,7 @@ import {
   SUBSTRATE_SURFACE_PER_LITER,
 } from './state.js';
 import { calculateHardscapeTotalSurface } from './equipment/hardscape.js';
+import { isScheduleActive } from './schedule.js';
 
 /**
  * Gets the bacteria surface area for a filter type (cm²).
@@ -50,7 +51,7 @@ export function getSubstrateSurface(type: SubstrateType, tankCapacity: number): 
 
 /**
  * Calculates passive resources from all equipment.
- * Called each tick to recalculate surface and flow based on current state.
+ * Called each tick to recalculate surface, flow, and light based on current state.
  *
  * Surface area sources:
  * - Tank glass walls (bacteriaSurface)
@@ -61,9 +62,13 @@ export function getSubstrateSurface(type: SubstrateType, tankCapacity: number): 
  * Flow sources:
  * - Filter (when enabled)
  * - Powerhead (when enabled)
+ *
+ * Light sources:
+ * - Light fixture (when enabled and schedule active)
  */
 export function calculatePassiveResources(state: SimulationState): PassiveResources {
-  const { tank, equipment } = state;
+  const { tank, equipment, tick } = state;
+  const hourOfDay = tick % 24;
 
   // Surface area
   let surface = tank.bacteriaSurface; // glass walls
@@ -82,5 +87,14 @@ export function calculatePassiveResources(state: SimulationState): PassiveResour
     flow += getPowerheadFlow(equipment.powerhead.flowRateGPH);
   }
 
-  return { surface, flow };
+  // Light (based on schedule)
+  let light = 0;
+  if (equipment.light.enabled) {
+    const isActive = isScheduleActive(hourOfDay, equipment.light.schedule);
+    if (isActive) {
+      light = equipment.light.wattage;
+    }
+  }
+
+  return { surface, flow, light };
 }

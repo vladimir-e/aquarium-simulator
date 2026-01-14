@@ -43,10 +43,16 @@ function App(): React.JSX.Element {
     updateSubstrateType,
     addHardscapeItem,
     removeHardscapeItem,
+    updateLightEnabled,
+    updateLightWattage,
+    updateLightSchedule,
     changeTankCapacity,
     reset,
     executeAction,
   } = useSimulation();
+
+  // Calculate if light is currently on from passive resources
+  const isLightOn = state.passiveResources.light > 0;
 
   useKeyboardShortcuts(step, togglePlayPause, isPlaying);
 
@@ -93,6 +99,12 @@ function App(): React.JSX.Element {
           items: state.equipment.hardscape.items,
         }}
         hardscapeSlots={state.tank.hardscapeSlots}
+        light={{
+          enabled: state.equipment.light.enabled,
+          wattage: state.equipment.light.wattage,
+          schedule: state.equipment.light.schedule,
+        }}
+        isLightOn={isLightOn}
         onTankCapacityChange={changeTankCapacity}
         onHeaterEnabledChange={updateHeaterEnabled}
         onHeaterTargetTemperatureChange={updateHeaterTargetTemperature}
@@ -106,6 +118,9 @@ function App(): React.JSX.Element {
         onSubstrateTypeChange={updateSubstrateType}
         onHardscapeAddItem={addHardscapeItem}
         onHardscapeRemoveItem={removeHardscapeItem}
+        onLightEnabledChange={updateLightEnabled}
+        onLightWattageChange={updateLightWattage}
+        onLightScheduleChange={updateLightSchedule}
       />
 
       <div className="p-4">

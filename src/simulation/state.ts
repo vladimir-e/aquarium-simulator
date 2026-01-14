@@ -3,6 +3,7 @@
  */
 
 import { createLog, type LogEntry, type LogSeverity } from './logging.js';
+import type { DailySchedule } from './schedule.js';
 
 export type { LogEntry, LogSeverity };
 
@@ -23,6 +24,8 @@ export interface PassiveResources {
   surface: number;
   /** Total water flow from all equipment (L/h) */
   flow: number;
+  /** Light intensity in watts (0 when lights off) */
+  light: number;
 }
 
 export interface Resources {
@@ -103,6 +106,15 @@ export interface Hardscape {
   items: HardscapeItem[];
 }
 
+export interface Light {
+  /** Whether light fixture is installed/enabled */
+  enabled: boolean;
+  /** Light power output in watts */
+  wattage: number;
+  /** Photoperiod schedule (start hour + duration) */
+  schedule: DailySchedule;
+}
+
 export interface Equipment {
   /** Heater is always present, `enabled` property controls if active */
   heater: Heater;
@@ -118,6 +130,8 @@ export interface Equipment {
   substrate: Substrate;
   /** Hardscape items (rocks, driftwood, decorations) */
   hardscape: Hardscape;
+  /** Light fixture with photoperiod schedule */
+  light: Light;
 }
 
 /**
@@ -169,6 +183,8 @@ export interface SimulationConfig {
   substrate?: Partial<Substrate>;
   /** Initial hardscape configuration */
   hardscape?: Partial<Hardscape>;
+  /** Initial light configuration */
+  light?: Partial<Light>;
 }
 
 const DEFAULT_TEMPERATURE = 25;
@@ -205,6 +221,15 @@ export const DEFAULT_SUBSTRATE: Substrate = {
 
 export const DEFAULT_HARDSCAPE: Hardscape = {
   items: [],
+};
+
+export const DEFAULT_LIGHT: Light = {
+  enabled: true,
+  wattage: 100, // 100W default
+  schedule: {
+    startHour: 8, // 8am
+    duration: 10, // 10 hours (8am-6pm)
+  },
 };
 
 /**
@@ -250,6 +275,7 @@ export function createSimulation(config: SimulationConfig): SimulationState {
     powerhead,
     substrate,
     hardscape,
+    light,
   } = config;
 
   const heaterConfig: Heater = {
@@ -285,6 +311,15 @@ export function createSimulation(config: SimulationConfig): SimulationState {
   const hardscapeConfig: Hardscape = {
     ...DEFAULT_HARDSCAPE,
     ...hardscape,
+  };
+
+  const lightConfig: Light = {
+    ...DEFAULT_LIGHT,
+    ...light,
+    schedule: {
+      ...DEFAULT_LIGHT.schedule,
+      ...light?.schedule,
+    },
   };
 
   const effectiveRoomTemp = roomTemperature ?? DEFAULT_ROOM_TEMPERATURE;
@@ -338,6 +373,7 @@ export function createSimulation(config: SimulationConfig): SimulationState {
       powerhead: powerheadConfig,
       substrate: substrateConfig,
       hardscape: hardscapeConfig,
+      light: lightConfig,
     },
     passiveResources: initialPassiveResources,
     logs: [initialLog],
@@ -424,7 +460,9 @@ function calculateInitialPassiveResources(
     flow += POWERHEAD_FLOW_LPH[powerhead.flowRateGPH];
   }
 
-  return { surface, flow };
+  // Light is calculated based on schedule each tick - starts at 0
+  // Will be properly calculated by calculatePassiveResources based on tick
+  return { surface, flow, light: 0 };
 }
 
 // Export constants for use in passive-resources.ts and tests
