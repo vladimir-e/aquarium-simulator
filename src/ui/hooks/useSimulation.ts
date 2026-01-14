@@ -57,7 +57,7 @@ interface UseSimulationReturn {
   executeAction: (action: Action) => void;
 }
 
-export function useSimulation(initialCapacity = 75): UseSimulationReturn {
+export function useSimulation(initialCapacity = 40): UseSimulationReturn {
   const [state, setState] = useState<SimulationState>(() =>
     createSimulation({
       tankCapacity: initialCapacity,
@@ -67,6 +67,26 @@ export function useSimulation(initialCapacity = 75): UseSimulationReturn {
         enabled: true,
         targetTemperature: 25,
         wattage: 100,
+      },
+      filter: {
+        enabled: true,
+        type: 'hob',
+      },
+      light: {
+        enabled: true,
+        wattage: 5,
+      },
+      substrate: {
+        type: 'gravel',
+      },
+      hardscape: {
+        items: [{ id: 'default-rock', type: 'neutral_rock' }],
+      },
+      lid: {
+        type: 'none',
+      },
+      ato: {
+        enabled: true,
       },
     })
   );
@@ -510,6 +530,26 @@ export function useSimulation(initialCapacity = 75): UseSimulationReturn {
         enabled: true,
         targetTemperature: 25,
         wattage: 100,
+      },
+      filter: {
+        enabled: true,
+        type: 'hob',
+      },
+      light: {
+        enabled: true,
+        wattage: 5,
+      },
+      substrate: {
+        type: 'gravel',
+      },
+      hardscape: {
+        items: [{ id: 'default-rock', type: 'neutral_rock' }],
+      },
+      lid: {
+        type: 'none',
+      },
+      ato: {
+        enabled: true,
       },
     });
     // Add simulation reset log

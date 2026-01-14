@@ -84,6 +84,41 @@ export function applyEffects(
             resource.bounds.max
           );
           break;
+        case 'ammonia':
+          draft.resources.ammonia = clamp(
+            draft.resources.ammonia + effect.delta,
+            resource.bounds.min,
+            resource.bounds.max
+          );
+          break;
+        case 'nitrite':
+          draft.resources.nitrite = clamp(
+            draft.resources.nitrite + effect.delta,
+            resource.bounds.min,
+            resource.bounds.max
+          );
+          break;
+        case 'nitrate':
+          draft.resources.nitrate = clamp(
+            draft.resources.nitrate + effect.delta,
+            resource.bounds.min,
+            resource.bounds.max
+          );
+          break;
+        case 'aob':
+          draft.resources.aob = clamp(
+            draft.resources.aob + effect.delta,
+            resource.bounds.min,
+            resource.bounds.max
+          );
+          break;
+        case 'nob':
+          draft.resources.nob = clamp(
+            draft.resources.nob + effect.delta,
+            resource.bounds.min,
+            resource.bounds.max
+          );
+          break;
       }
     }
   });

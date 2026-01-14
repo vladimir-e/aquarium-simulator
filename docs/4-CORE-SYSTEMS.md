@@ -90,15 +90,21 @@ The biological conversion of toxic ammonia to less harmful nitrate.
 
 ### Behavior
 
-The nitrogen cycle is a two-stage bacterial process:
+The nitrogen cycle is a three-stage process:
 
-**Stage 1: Ammonia → Nitrite (by AOB)**
+**Stage 1: Waste → Ammonia (mineralization)**
+```
+Organic waste → NH3
+Waste decomposes into dissolved ammonia (concentration depends on water volume)
+```
+
+**Stage 2: Ammonia → Nitrite (by AOB)**
 ```
 NH3 + O2 → NO2- + H2O + H+
 Ammonia → Nitrite (via Ammonia-Oxidizing Bacteria)
 ```
 
-**Stage 2: Nitrite → Nitrate (by NOB)**
+**Stage 3: Nitrite → Nitrate (by NOB)**
 ```
 NO2- + O2 → NO3-
 Nitrite → Nitrate (via Nitrite-Oxidizing Bacteria)
