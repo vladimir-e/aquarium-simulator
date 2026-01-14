@@ -21,6 +21,13 @@ export interface Effect {
 }
 
 /**
+ * Clamps a value between min and max (inclusive).
+ */
+function clamp(value: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, value));
+}
+
+/**
  * Applies a list of effects to the simulation state.
  * Returns a new state object (immutable).
  */
@@ -35,17 +42,44 @@ export function applyEffects(
   return produce(state, (draft) => {
     for (const effect of effects) {
       const resource = ResourceRegistry[effect.resource];
-      const location = draft[resource.location] as Record<string, number>;
-      const currentValue = location[resource.property] as number;
 
-      // Special case: waterLevel max is tank capacity (dynamic bound)
-      const maxBound =
-        effect.resource === 'waterLevel' ? draft.tank.capacity : resource.bounds.max;
-
-      const newValue = currentValue + effect.delta;
-      const clampedValue = Math.max(resource.bounds.min, Math.min(maxBound, newValue));
-
-      location[resource.property] = clampedValue;
+      switch (effect.resource) {
+        case 'temperature':
+          draft.resources.temperature = clamp(
+            draft.resources.temperature + effect.delta,
+            resource.bounds.min,
+            resource.bounds.max
+          );
+          break;
+        case 'waterLevel':
+          draft.tank.waterLevel = clamp(
+            draft.tank.waterLevel + effect.delta,
+            resource.bounds.min,
+            draft.tank.capacity
+          );
+          break;
+        case 'food':
+          draft.resources.food = clamp(
+            draft.resources.food + effect.delta,
+            resource.bounds.min,
+            resource.bounds.max
+          );
+          break;
+        case 'waste':
+          draft.resources.waste = clamp(
+            draft.resources.waste + effect.delta,
+            resource.bounds.min,
+            resource.bounds.max
+          );
+          break;
+        case 'algae':
+          draft.resources.algae = clamp(
+            draft.resources.algae + effect.delta,
+            resource.bounds.min,
+            resource.bounds.max
+          );
+          break;
+      }
     }
   });
 }

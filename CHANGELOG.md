@@ -10,7 +10,6 @@ Format: - **Feature name** (#PR) - Brief description (under 100 chars)
 
 ## 2026-01-14
 
-- **Resource System Refactor** - Resources are now first-class entities with centralized metadata (units, bounds, precision, formatting, safe ranges); src/simulation/resources/ module with ResourceRegistry; effects system uses resource definitions for bounds; UI components use resource formatters
 - **Algae Growth and Scrub System** - Algae grows based on light intensity per liter (2.5 * W/L per hour); Scrub action removes 10-30% of algae (min 5 to scrub); High algae alert at 80+; Plants panel with algae indicator; LightCard wattage presets expanded (5W-200W)
 - **Light Equipment and Schedule Module** - Light fixture with photoperiod scheduling; reusable Schedule module for time-based equipment; LightCard UI with wattage selector and schedule controls
 
