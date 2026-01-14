@@ -494,7 +494,6 @@ describe('25-Day Tank Cycling Integration Test', () => {
     let peakAmmonia = 0;
     let peakAmmoniaTick = -1;
     let peakNitrite = 0;
-    let peakNitriteTick = -1;
 
     // Run for 600 ticks (25 days)
     for (let tick = 0; tick < 600; tick++) {
@@ -509,7 +508,6 @@ describe('25-Day Tank Cycling Integration Test', () => {
       }
       if (state.resources.nitrite > peakNitrite) {
         peakNitrite = state.resources.nitrite;
-        peakNitriteTick = tick;
       }
 
       // Record history every 24 ticks (once per day)
