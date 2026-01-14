@@ -44,6 +44,18 @@ export interface Resources {
   waste: number;
   /** Algae level (0-100 scale, relative coverage) */
   algae: number;
+
+  // Nitrogen cycle resources
+  /** Ammonia concentration (NH3) in ppm - toxic to fish */
+  ammonia: number;
+  /** Nitrite concentration (NO2) in ppm - toxic to fish */
+  nitrite: number;
+  /** Nitrate concentration (NO3) in ppm - less toxic, accumulates */
+  nitrate: number;
+  /** Ammonia-Oxidizing Bacteria population (abstract units) */
+  aob: number;
+  /** Nitrite-Oxidizing Bacteria population (abstract units) */
+  nob: number;
 }
 
 export interface Environment {
@@ -127,6 +139,12 @@ export interface AlertState {
   waterLevelCritical: boolean;
   /** Algae level is at 80+ (bloom warning) */
   highAlgae: boolean;
+  /** Ammonia level is above stress threshold (>0.02 ppm) */
+  highAmmonia: boolean;
+  /** Nitrite level is above stress threshold (>0.1 ppm) */
+  highNitrite: boolean;
+  /** Nitrate level is above action threshold (>20 ppm) */
+  highNitrate: boolean;
 }
 
 export interface SimulationState {
@@ -336,6 +354,12 @@ export function createSimulation(config: SimulationConfig): SimulationState {
       food: 0.0,
       waste: 0.0,
       algae: 0,
+      // Nitrogen cycle (all start at 0 - bacteria spawns naturally when food appears)
+      ammonia: 0,
+      nitrite: 0,
+      nitrate: 0,
+      aob: 0,
+      nob: 0,
     },
     environment: {
       roomTemperature: effectiveRoomTemp,
@@ -355,6 +379,9 @@ export function createSimulation(config: SimulationConfig): SimulationState {
     alertState: {
       waterLevelCritical: false,
       highAlgae: false,
+      highAmmonia: false,
+      highNitrite: false,
+      highNitrate: false,
     },
   };
 }

@@ -17,6 +17,11 @@ export { LightResource } from './light.js';
 export { FoodResource } from './food.js';
 export { WasteResource } from './waste.js';
 export { AlgaeResource } from './algae.js';
+export { AmmoniaResource } from './ammonia.js';
+export { NitriteResource } from './nitrite.js';
+export { NitrateResource } from './nitrate.js';
+export { AOBResource } from './aob.js';
+export { NOBResource } from './nob.js';
 
 // Import for registry
 import type { ResourceDefinition, ResourceKey } from './types.js';
@@ -28,6 +33,11 @@ import { LightResource } from './light.js';
 import { FoodResource } from './food.js';
 import { WasteResource } from './waste.js';
 import { AlgaeResource } from './algae.js';
+import { AmmoniaResource } from './ammonia.js';
+import { NitriteResource } from './nitrite.js';
+import { NitrateResource } from './nitrate.js';
+import { AOBResource } from './aob.js';
+import { NOBResource } from './nob.js';
 
 /**
  * Registry of all resources indexed by key.
@@ -42,6 +52,11 @@ export const ResourceRegistry: Record<ResourceKey, ResourceDefinition<ResourceKe
   food: FoodResource,
   waste: WasteResource,
   algae: AlgaeResource,
+  ammonia: AmmoniaResource,
+  nitrite: NitriteResource,
+  nitrate: NitrateResource,
+  aob: AOBResource,
+  nob: NOBResource,
 };
 
 /**
