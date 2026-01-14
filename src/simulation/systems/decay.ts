@@ -3,8 +3,9 @@
  * Runs in PASSIVE tier.
  */
 
-import type { SimulationState } from '../state.js';
 import type { Effect } from '../effects.js';
+import type { SimulationState } from '../state.js';
+import type { System } from './types.js';
 
 /** Q10 temperature coefficient (rate doubles every 10°C) */
 export const Q10 = 2.0;
@@ -38,45 +39,45 @@ export function calculateDecay(food: number, temperature: number): number {
   return Math.min(decayAmount, food);
 }
 
-/**
- * Collect decay effects (PASSIVE tier).
- * - Food decays to waste (temperature-scaled)
- * - Ambient waste from environment
- */
-export function collectDecayEffects(state: SimulationState): Effect[] {
-  const effects: Effect[] = [];
+export const decaySystem: System = {
+  id: 'decay',
+  tier: 'passive',
 
-  // Decay food → waste
-  if (state.resources.food > 0) {
-    const decayAmount = calculateDecay(
-      state.resources.food,
-      state.resources.temperature
-    );
+  update(state: SimulationState): Effect[] {
+    const effects: Effect[] = [];
 
-    if (decayAmount > 0) {
-      effects.push({
-        tier: 'passive',
-        resource: 'food',
-        delta: -decayAmount,
-        source: 'decay',
-      });
+    // Decay food → waste
+    if (state.resources.food > 0) {
+      const decayAmount = calculateDecay(
+        state.resources.food,
+        state.resources.temperature
+      );
 
-      effects.push({
-        tier: 'passive',
-        resource: 'waste',
-        delta: decayAmount,
-        source: 'decay',
-      });
+      if (decayAmount > 0) {
+        effects.push({
+          tier: 'passive',
+          resource: 'food',
+          delta: -decayAmount,
+          source: 'decay',
+        });
+
+        effects.push({
+          tier: 'passive',
+          resource: 'waste',
+          delta: decayAmount,
+          source: 'decay',
+        });
+      }
     }
-  }
 
-  // Ambient waste from environment (constant small amount)
-  effects.push({
-    tier: 'passive',
-    resource: 'waste',
-    delta: state.environment.ambientWaste,
-    source: 'environment',
-  });
+    // Ambient waste from environment (constant small amount)
+    effects.push({
+      tier: 'passive',
+      resource: 'waste',
+      delta: state.environment.ambientWaste,
+      source: 'environment',
+    });
 
-  return effects;
-}
+    return effects;
+  },
+};

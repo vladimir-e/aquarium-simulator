@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import {
+  decaySystem,
   getTemperatureFactor,
   calculateDecay,
-  collectDecayEffects,
   REFERENCE_TEMP,
   BASE_DECAY_RATE,
 } from './decay.js';
@@ -100,7 +100,7 @@ describe('calculateDecay', () => {
   });
 });
 
-describe('collectDecayEffects', () => {
+describe('decaySystem', () => {
   function createTestState(overrides: Partial<{
     food: number;
     waste: number;
@@ -124,9 +124,14 @@ describe('collectDecayEffects', () => {
     });
   }
 
+  it('has correct id and tier', () => {
+    expect(decaySystem.id).toBe('decay');
+    expect(decaySystem.tier).toBe('passive');
+  });
+
   it('creates negative food effect when food > 0', () => {
     const state = createTestState({ food: 1.0 });
-    const effects = collectDecayEffects(state);
+    const effects = decaySystem.update(state);
 
     const foodEffect = effects.find((e) => e.resource === 'food');
     expect(foodEffect).toBeDefined();
@@ -135,7 +140,7 @@ describe('collectDecayEffects', () => {
 
   it('creates positive waste effect equal to decay amount', () => {
     const state = createTestState({ food: 1.0, temperature: 25 });
-    const effects = collectDecayEffects(state);
+    const effects = decaySystem.update(state);
 
     const foodEffect = effects.find((e) => e.resource === 'food');
     const wasteEffect = effects.find(
@@ -148,7 +153,7 @@ describe('collectDecayEffects', () => {
 
   it('creates ambient waste effect (default 0.01 g/hour)', () => {
     const state = createTestState({ food: 0 });
-    const effects = collectDecayEffects(state);
+    const effects = decaySystem.update(state);
 
     const ambientEffect = effects.find(
       (e) => e.resource === 'waste' && e.source === 'environment'
@@ -159,15 +164,15 @@ describe('collectDecayEffects', () => {
 
   it('creates no food effect when food is 0', () => {
     const state = createTestState({ food: 0 });
-    const effects = collectDecayEffects(state);
+    const effects = decaySystem.update(state);
 
     const foodEffect = effects.find((e) => e.resource === 'food');
     expect(foodEffect).toBeUndefined();
   });
 
-  it('both effects have tier: passive', () => {
+  it('all effects have tier: passive', () => {
     const state = createTestState({ food: 1.0 });
-    const effects = collectDecayEffects(state);
+    const effects = decaySystem.update(state);
 
     effects.forEach((effect) => {
       expect(effect.tier).toBe('passive');
@@ -176,7 +181,7 @@ describe('collectDecayEffects', () => {
 
   it('decay source is "decay"', () => {
     const state = createTestState({ food: 1.0 });
-    const effects = collectDecayEffects(state);
+    const effects = decaySystem.update(state);
 
     const foodEffect = effects.find((e) => e.resource === 'food');
     expect(foodEffect!.source).toBe('decay');
@@ -184,7 +189,7 @@ describe('collectDecayEffects', () => {
 
   it('ambient source is "environment"', () => {
     const state = createTestState({ food: 0 });
-    const effects = collectDecayEffects(state);
+    const effects = decaySystem.update(state);
 
     const ambientEffect = effects.find((e) => e.resource === 'waste');
     expect(ambientEffect!.source).toBe('environment');
@@ -192,7 +197,7 @@ describe('collectDecayEffects', () => {
 
   it('respects custom ambient waste rate', () => {
     const state = createTestState({ food: 0, ambientWaste: 0.02 });
-    const effects = collectDecayEffects(state);
+    const effects = decaySystem.update(state);
 
     const ambientEffect = effects.find(
       (e) => e.resource === 'waste' && e.source === 'environment'
@@ -204,8 +209,8 @@ describe('collectDecayEffects', () => {
     const coldState = createTestState({ food: 1.0, temperature: 20 });
     const hotState = createTestState({ food: 1.0, temperature: 30 });
 
-    const coldEffects = collectDecayEffects(coldState);
-    const hotEffects = collectDecayEffects(hotState);
+    const coldEffects = decaySystem.update(coldState);
+    const hotEffects = decaySystem.update(hotState);
 
     const coldDecay = coldEffects.find((e) => e.resource === 'food')!.delta;
     const hotDecay = hotEffects.find((e) => e.resource === 'food')!.delta;

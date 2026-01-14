@@ -62,9 +62,12 @@ export {
   coreSystems,
   temperatureDriftSystem,
   evaporationSystem,
+  decaySystem,
   calculateTemperatureDrift,
   calculateEvaporation,
   calculateEvaporationRatePerDay,
+  getTemperatureFactor,
+  calculateDecay,
   COOLING_COEFFICIENT,
   REFERENCE_VOLUME,
   VOLUME_EXPONENT,
@@ -72,6 +75,9 @@ export {
   TEMP_DOUBLING_INTERVAL,
   LID_MULTIPLIERS,
   getLidMultiplier,
+  Q10,
+  REFERENCE_TEMP,
+  BASE_DECAY_RATE,
 } from './systems/index.js';
 
 // Equipment
@@ -102,13 +108,3 @@ export type {
   ActionResult,
 } from './actions/index.js';
 export { applyAction, topOff, feed } from './actions/index.js';
-
-// Core systems
-export {
-  collectDecayEffects,
-  getTemperatureFactor,
-  calculateDecay,
-  Q10,
-  REFERENCE_TEMP,
-  BASE_DECAY_RATE,
-} from './core/index.js';
