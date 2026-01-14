@@ -13,7 +13,7 @@ This project follows spec-driven development:
 
 1. **Start here:** Read `docs/1-DESIGN.md` for architecture and doc index
 2. **Check progress:** Read `CHANGELOG.md` to see what's implemented
-3. **Task files** are stored in `docs/tasks/`
+3. **Task files** are stored in `docs/tasks/`. Template: `docs/tasks/00-template.md`
 
 ## Principles
 

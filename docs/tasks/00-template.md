@@ -14,8 +14,9 @@
 
 ## Implementation
 - Architectural guidelines
-- High-level implementation plan, short code examples
+- **High-level implementation plan**, minimal code excerpts only when necessary
 - Do not provide detailed code for UI updates, only pointers
+- Do not write unit tests in the task files
 
 ## Acceptance Criteria
 
