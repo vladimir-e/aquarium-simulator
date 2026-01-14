@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Container, Waves, Thermometer, CloudOff, Droplets, Wind, Mountain, Sun } from 'lucide-react';
+import { Container, Waves, Thermometer, Cloud, Droplets, Wind, Mountain, Sun } from 'lucide-react';
 import { HeaterCard, HeaterState } from '../equipment/HeaterCard';
 import { LidCard, LidState, LidType } from '../equipment/LidCard';
 import { AutoTopOffCard, AutoTopOffState } from '../equipment/AutoTopOffCard';
@@ -127,7 +127,6 @@ export function EquipmentBar({
               {substrate.type !== 'none' && (
                 <div className="flex items-center gap-1">
                   {getSubstrateIcon(substrate.type)}
-                  <div className="w-2 h-2 rounded-full bg-accent-green" />
                   <span className="text-xs text-gray-400">
                     {formatSubstrateName(substrate.type)}
                   </span>
@@ -136,9 +135,10 @@ export function EquipmentBar({
               {/* Lid status */}
               {lid.type !== 'none' && (
                 <div className="flex items-center gap-1">
-                  <CloudOff className="w-4 h-4 text-gray-400" />
-                  <div className="w-2 h-2 rounded-full bg-accent-green" />
-                  <span className="text-xs text-gray-400">Lid</span>
+                  <Cloud className="w-4 h-4 text-gray-400" />
+                  <span className="text-xs text-gray-400">
+                    {lid.type === 'full' ? 'Full lid' : lid.type === 'mesh' ? 'Mesh lid' : 'Sealed lid'}
+                  </span>
                 </div>
               )}
               {/* ATO status */}
@@ -161,7 +161,6 @@ export function EquipmentBar({
               {hardscape.items.length > 0 && (
                 <div className="flex items-center gap-1">
                   <Mountain className="w-4 h-4 text-gray-400" />
-                  <div className="w-2 h-2 rounded-full bg-accent-green" />
                   <span className="text-xs text-gray-400">
                     Hardscape ({hardscape.items.length})
                   </span>
