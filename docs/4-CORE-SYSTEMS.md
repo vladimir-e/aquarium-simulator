@@ -197,34 +197,30 @@ flow_factor = min(1.0, total_flow / optimal_flow)
 
 ---
 
-## Temperature
+## Temperature Drift
 
-Heat transfer between tank water and environment.
+Passive heat transfer between tank water and environment.
 
 ### Inputs
 | Resource | Source |
 |----------|--------|
 | Room Temperature | Environment |
-| Heater output | Equipment |
-| Chiller output | Equipment |
+| Current Tank Temperature | Resources |
 
 ### Outputs
 | Resource | Destination |
 |----------|-------------|
-| Temperature | Tank water temperature |
+| Temperature | Tank water temperature (drift effect) |
 
 ### Behavior
 
-Tank temperature is influenced by:
-1. **Passive heat transfer** - Tank tends toward room temperature
-2. **Active heating** - Heater adds heat when below setpoint
-3. **Active cooling** - Chiller removes heat when above setpoint
+Tank water naturally tends toward room temperature through passive heat transfer (Newton's Law of Cooling).
 
 ```
-passive_change = heat_transfer_rate * (room_temp - tank_temp)
-active_change = heater_output - chiller_output
-temperature_change = passive_change + active_change
+temperature_change = heat_transfer_rate * (room_temp - tank_temp)
 ```
+
+This system models the passive environmental effect. Equipment (heater, chiller) actively counteracts this drift by directly adjusting temperature during equipment processing.
 
 ### Thermal Mass
 
@@ -232,6 +228,8 @@ Larger tanks change temperature more slowly:
 ```
 heat_transfer_rate = base_rate / tank_volume
 ```
+
+This creates realistic behavior where small tanks are harder to maintain stable temperature.
 
 ### Thresholds
 
@@ -274,12 +272,10 @@ evaporation_rate = base_rate * surface_area * temp_factor * (1 - lid_coverage)
 
 When water evaporates:
 - Volume decreases
-- Dissolved substances remain
+- Dissolved substances remain (not removed with water)
 - Concentrations INCREASE
 
-```
-new_concentration = old_concentration * (old_volume / new_volume)
-```
+The Dilution system (planned) will handle the concentration math when implemented.
 
 ### Thresholds
 
@@ -358,7 +354,8 @@ Dilution runs after:
          │                 │                 │
          ▼                 ▼                 ▼
   ┌─────────────┐   ┌─────────────┐   ┌─────────────┐
-  │ Temperature │   │Gas Exchange │   │   Decay     │
+  │Temperature  │   │Gas Exchange │   │   Decay     │
+  │   Drift     │   │             │   │             │
   └──────┬──────┘   └──────┬──────┘   └──────┬──────┘
          │                 │                 │
          │                 │                 ▼

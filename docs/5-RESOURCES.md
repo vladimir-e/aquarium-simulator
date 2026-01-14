@@ -12,7 +12,7 @@ Resources are measurable quantities that:
 ## Resource Categories
 
 ### Passive Resources
-Provided by equipment, always present when equipment exists:
+Provided by equipment, calculated each tick:
 - **Bacteria Surface** - Area for bacterial colonization (cm²)
 - **Light** - Illumination for photosynthesis (watts)
 - **Flow** - Water circulation rate (L/h)

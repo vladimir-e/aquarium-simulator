@@ -1,6 +1,6 @@
 # Actions
 
-User interventions that modify the aquarium state. Actions are triggered by the user and applied at tick boundaries.
+User interventions that modify the aquarium state. Actions are triggered by the user and applied immediately (outside the tick loop).
 
 ## Purpose
 
