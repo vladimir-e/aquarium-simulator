@@ -2,10 +2,18 @@
  * Simulation state types and factory functions.
  */
 
-import { createLog, type LogEntry, type LogSeverity } from './logging.js';
-import type { DailySchedule } from './schedule.js';
+import { createLog, type LogEntry, type LogSeverity } from './core/logging.js';
+import type { DailySchedule } from './core/schedule.js';
+import type { FilterType, Filter } from './equipment/filter.js';
+import { DEFAULT_FILTER, getFilterSurface, getFilterFlow } from './equipment/filter.js';
+import type { PowerheadFlowRate, Powerhead } from './equipment/powerhead.js';
+import { DEFAULT_POWERHEAD, getPowerheadFlow } from './equipment/powerhead.js';
+import type { SubstrateType, Substrate } from './equipment/substrate.js';
+import { DEFAULT_SUBSTRATE, getSubstrateSurface } from './equipment/substrate.js';
+import { calculateHardscapeTotalSurface } from './equipment/hardscape.js';
 
 export type { LogEntry, LogSeverity };
+export type { FilterType, Filter, PowerheadFlowRate, Powerhead, SubstrateType, Substrate };
 
 export interface Tank {
   /** Maximum water capacity in liters */
@@ -65,31 +73,6 @@ export interface Lid {
 export interface AutoTopOff {
   /** Whether ATO is enabled */
   enabled: boolean;
-}
-
-export type FilterType = 'sponge' | 'hob' | 'canister' | 'sump';
-
-export interface Filter {
-  /** Whether filter is running */
-  enabled: boolean;
-  /** Filter type determines flow and surface area */
-  type: FilterType;
-}
-
-export type PowerheadFlowRate = 240 | 400 | 600 | 850;
-
-export interface Powerhead {
-  /** Whether powerhead is running */
-  enabled: boolean;
-  /** Flow rate preset in GPH (gallons per hour) */
-  flowRateGPH: PowerheadFlowRate;
-}
-
-export type SubstrateType = 'none' | 'sand' | 'gravel' | 'aqua_soil';
-
-export interface Substrate {
-  /** Substrate type affects surface area and plant rooting */
-  type: SubstrateType;
 }
 
 export type HardscapeType = 'neutral_rock' | 'calcite_rock' | 'driftwood' | 'plastic_decoration';
@@ -203,20 +186,6 @@ export const DEFAULT_LID: Lid = {
 
 export const DEFAULT_ATO: AutoTopOff = {
   enabled: false,
-};
-
-export const DEFAULT_FILTER: Filter = {
-  enabled: true,
-  type: 'sponge',
-};
-
-export const DEFAULT_POWERHEAD: Powerhead = {
-  enabled: false,
-  flowRateGPH: 400,
-};
-
-export const DEFAULT_SUBSTRATE: Substrate = {
-  type: 'none',
 };
 
 export const DEFAULT_HARDSCAPE: Hardscape = {
@@ -383,54 +352,13 @@ export function createSimulation(config: SimulationConfig): SimulationState {
   };
 }
 
-/** Filter bacteria surface area by type (cm²) */
-const FILTER_SURFACE: Record<FilterType, number> = {
-  sponge: 8000,
-  hob: 15000,
-  canister: 25000,
-  sump: 40000,
-};
-
-/** Filter flow rate by type (L/h) */
-const FILTER_FLOW: Record<FilterType, number> = {
-  sponge: 100,
-  hob: 300,
-  canister: 600,
-  sump: 1000,
-};
-
-/** Powerhead flow rate conversion GPH to L/h */
-const POWERHEAD_FLOW_LPH: Record<PowerheadFlowRate, number> = {
-  240: 908,
-  400: 1514,
-  600: 2271,
-  850: 3218,
-};
-
-/** Substrate bacteria surface per liter of tank (cm²/L) */
-const SUBSTRATE_SURFACE_PER_LITER: Record<SubstrateType, number> = {
-  none: 0,
-  sand: 400,
-  gravel: 800,
-  aqua_soil: 1200,
-};
-
 /** Hardscape bacteria surface area by type (cm²) */
-const HARDSCAPE_SURFACE: Record<HardscapeType, number> = {
+export const HARDSCAPE_SURFACE: Record<HardscapeType, number> = {
   neutral_rock: 400,
   calcite_rock: 400,
   driftwood: 650,
   plastic_decoration: 100,
 };
-
-/**
- * Calculates total bacteria surface from all hardscape items.
- */
-function calculateHardscapeTotalSurface(items: HardscapeItem[]): number {
-  return items.reduce((total, item) => {
-    return total + HARDSCAPE_SURFACE[item.type];
-  }, 0);
-}
 
 /**
  * Calculates initial passive resources from equipment configuration.
@@ -446,24 +374,21 @@ function calculateInitialPassiveResources(
   // Surface area
   let surface = tankBacteriaSurface;
   if (filter.enabled) {
-    surface += FILTER_SURFACE[filter.type];
+    surface += getFilterSurface(filter.type);
   }
-  surface += SUBSTRATE_SURFACE_PER_LITER[substrate.type] * tankCapacity;
+  surface += getSubstrateSurface(substrate.type, tankCapacity);
   surface += calculateHardscapeTotalSurface(hardscape.items);
 
   // Flow rate
   let flow = 0;
   if (filter.enabled) {
-    flow += FILTER_FLOW[filter.type];
+    flow += getFilterFlow(filter.type);
   }
   if (powerhead.enabled) {
-    flow += POWERHEAD_FLOW_LPH[powerhead.flowRateGPH];
+    flow += getPowerheadFlow(powerhead.flowRateGPH);
   }
 
   // Light is calculated based on schedule each tick - starts at 0
   // Will be properly calculated by calculatePassiveResources based on tick
   return { surface, flow, light: 0 };
 }
-
-// Export constants for use in passive-resources.ts and tests
-export { FILTER_SURFACE, FILTER_FLOW, POWERHEAD_FLOW_LPH, SUBSTRATE_SURFACE_PER_LITER, HARDSCAPE_SURFACE };

@@ -9,7 +9,7 @@
  */
 
 import { produce } from 'immer';
-import type { Effect } from '../effects.js';
+import type { Effect } from '../core/effects.js';
 import type { SimulationState } from '../state.js';
 import { REFERENCE_VOLUME, VOLUME_EXPONENT } from '../systems/temperature-drift.js';
 

@@ -6,7 +6,7 @@
 
 import type { Alert, AlertResult } from './types.js';
 import type { SimulationState } from '../state.js';
-import { createLog } from '../logging.js';
+import { createLog } from '../core/logging.js';
 
 /** Threshold for critical water level (20% of capacity) */
 export const WATER_LEVEL_CRITICAL_THRESHOLD = 0.2;

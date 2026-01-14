@@ -1,6 +1,6 @@
 import { produce } from 'immer';
 import type { SimulationState } from '../state.js';
-import { createLog } from '../logging.js';
+import { createLog } from '../core/logging.js';
 import type { ActionResult } from './types.js';
 
 /**

@@ -3,7 +3,7 @@
  */
 
 import { produce } from 'immer';
-import type { SimulationState } from './state.js';
+import type { SimulationState } from '../state.js';
 
 export type EffectTier = 'immediate' | 'active' | 'passive';
 

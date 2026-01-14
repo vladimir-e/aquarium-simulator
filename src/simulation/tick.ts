@@ -4,11 +4,10 @@
 
 import { produce } from 'immer';
 import type { SimulationState } from './state.js';
-import { applyEffects, type Effect, type EffectTier } from './effects.js';
+import { applyEffects, type Effect, type EffectTier } from './core/effects.js';
 import { coreSystems } from './systems/index.js';
-import { processEquipment } from './equipment/index.js';
+import { processEquipment, calculatePassiveResources } from './equipment/index.js';
 import { checkAlerts } from './alerts/index.js';
-import { calculatePassiveResources } from './passive-resources.js';
 
 /**
  * Collects effects from core systems for a given tier.

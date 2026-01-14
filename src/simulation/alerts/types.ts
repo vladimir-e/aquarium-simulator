@@ -3,7 +3,7 @@
  * Alerts check for warning conditions after effects are applied.
  */
 
-import type { LogEntry } from '../logging.js';
+import type { LogEntry } from '../core/logging.js';
 import type { AlertState, SimulationState } from '../state.js';
 
 /**

@@ -3,11 +3,10 @@ import {
   createSimulation,
   calculateTankBacteriaSurface,
   DEFAULT_HEATER,
-  DEFAULT_FILTER,
-  DEFAULT_POWERHEAD,
-  DEFAULT_SUBSTRATE,
-  FILTER_SURFACE,
 } from './state.js';
+import { DEFAULT_FILTER, FILTER_SURFACE } from './equipment/filter.js';
+import { DEFAULT_POWERHEAD } from './equipment/powerhead.js';
+import { DEFAULT_SUBSTRATE } from './equipment/substrate.js';
 
 describe('createSimulation', () => {
   it('creates simulation with specified tank capacity', () => {

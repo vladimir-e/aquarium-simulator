@@ -18,7 +18,7 @@ import {
   type HardscapeItem,
   type DailySchedule,
 } from '../../simulation/index.js';
-import { createLog } from '../../simulation/logging.js';
+import { createLog } from '../../simulation/core/logging.js';
 
 export type SpeedPreset = '1hr' | '6hr' | '12hr' | '1day';
 

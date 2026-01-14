@@ -4,7 +4,7 @@
  */
 
 import type { Alert } from './types.js';
-import type { LogEntry } from '../logging.js';
+import type { LogEntry } from '../core/logging.js';
 import type { AlertState, SimulationState } from '../state.js';
 import { waterLevelAlert } from './water-level.js';
 
