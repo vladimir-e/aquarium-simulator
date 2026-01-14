@@ -25,22 +25,47 @@ Equipment modifies the tank environment by:
 
 **Note:** pH is not directly provided by equipment. pH changes occur through the Dilution system when water chemistry changes.
 
-## Equipment Scheduling
+## Schedule System
 
-Equipment with schedules (lights, CO2, feeder, dosing) have:
+Equipment can operate on automated schedules using the centralized scheduling system.
 
-| Property | Description |
-|----------|-------------|
-| **Enabled** | On/Off - can be toggled anytime |
-| **Schedule** | On/Off - if On, schedule controls the device |
-| **Start Hour** | 0-23, when device activates |
-| **Duration** | Hours the device stays on (where applicable) |
-| **Frequency** | Daily, every X hours, etc. |
+### DailySchedule Interface
 
-**Behavior:**
-- If Schedule is OFF → user manually controls device state
-- If Schedule is ON → device follows schedule automatically
-- Any equipment can be disabled entirely at any time
+```typescript
+interface DailySchedule {
+  startHour: number  // 0-23, when equipment activates
+  duration: number   // hours equipment stays on
+}
+```
+
+Schedules repeat every 24 hours and support midnight wrap-around (e.g., 10pm-6am).
+
+### Equipment Using Schedules
+
+Current equipment with schedule support:
+- **Light** - Photoperiod automation (e.g., 8am-6pm, 10 hours)
+- **CO2** - Typically matches light schedule (off at night)
+- **Auto Feeder** - Multiple daily feeding times (not yet implemented)
+- **Dosing System** - Periodic fertilizer dosing (not yet implemented)
+
+### Schedule Behavior
+
+Each scheduled equipment has:
+- **enabled** - Master on/off switch (disables equipment entirely)
+- **schedule** - DailySchedule configuration
+
+**Processing:**
+1. `hourOfDay = tick % 24` determines current hour
+2. `isScheduleActive(hourOfDay, schedule)` checks if equipment should be on
+3. Equipment only operates if both `enabled = true` AND schedule is active
+
+**Midnight Wrap-Around:**
+- Schedule `{ startHour: 22, duration: 8 }` means active from 22:00-5:59 (wraps around midnight)
+- Schedule `{ startHour: 8, duration: 10 }` means active from 8:00-17:59 (no wrap)
+
+### Manual Override
+
+Equipment can be disabled at any time by setting `enabled = false`, regardless of schedule state.
 
 ---
 

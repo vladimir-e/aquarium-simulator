@@ -37,7 +37,7 @@ A comprehensive aquarium ecosystem simulation engine that models all aspects of 
 
 ### Effect System
 
-Components emit **effects** - simple data objects describing resource changes:
+**Core systems** emit **effects** - simple data objects describing resource changes:
 
 ```typescript
 { tier: 'active', resource: 'food', delta: -2, source: 'fish' }
@@ -47,16 +47,25 @@ Effects are processed in **three tiers** with commits between each:
 
 | Tier | Examples | Description |
 |------|----------|-------------|
-| **IMMEDIATE** | Environment, equipment, user actions | Temperature drift, evaporation, then heater responds |
+| **IMMEDIATE** | Temperature drift, evaporation | Environmental forces |
 | **ACTIVE** | Living processes | Fish eat, plants photosynthesize |
 | **PASSIVE** | Chemical/biological processes | Decay, nitrogen cycle, gas exchange |
 
-Each tick:
-1. Collect IMMEDIATE effects → commit to resources
-2. Collect ACTIVE effects → commit to resources
-3. Collect PASSIVE effects → commit to resources
+**System Registry Pattern:**
 
-This ordering ensures environmental effects (drift, evaporation) happen first, equipment responds to the updated state, organisms react, and finally chemical transformations occur.
+Each core system implements a common interface:
+
+```typescript
+interface System {
+  id: string
+  tier: EffectTier
+  update(state: SimulationState): Effect[]
+}
+```
+
+Systems are registered in a central list and automatically invoked during their tier.
+
+**Architectural Note:** Only core systems use the effect pattern. Equipment and user actions mutate state directly using Immer for immutability.
 
 ## System Architecture
 
@@ -120,9 +129,9 @@ This ordering ensures environmental effects (drift, evaporation) happen first, e
 ## Key Design Decisions
 
 ### State Management
-- **Immutable state** - Each tick produces a new state object
-- **Centralized mutation** - Plugins only emit effects, never mutate state directly
-- One `applyEffects()` function handles all resource mutations with clamping
+- **Immutable state** - Each tick produces a new state object via Immer
+- **Core systems emit effects** - Effects are collected and applied via `applyEffects()` with clamping
+- **Equipment and actions mutate directly** - Use Immer's `produce()` for immutable updates
 - Enables undo, replay, and time-travel debugging
 
 ### Volume-Scaled Dynamics
@@ -161,35 +170,56 @@ This ordering ensures environmental effects (drift, evaporation) happen first, e
 - Accumulates/depletes based on light, nutrients, competition with plants
 - Does not compete for surface area (bacteria only)
 
-## Tick Update Order
+## Tick Processing Pipeline
 
-Each simulation tick (1 hour) processes effects in three tiers:
+Each simulation tick (1 hour) executes in this order:
 
-### Tier 1: IMMEDIATE
-- **Temperature** - Drift toward room temp
-- **Evaporation** - Water loss
-- **Equipment** - Heater, chiller, lights, CO2, ATO (responds to drift)
-- **User Actions** - Feed, water change, dose, etc.
+### 1. Calculate Passive Resources
+Aggregate values from equipment used throughout the tick:
+- **Surface** - Tank glass + filter media + substrate + hardscape (cm²)
+- **Flow** - Filter + powerhead circulation (L/h)
+- **Light** - Current light intensity based on schedule (watts)
+
+### 2. Tier: IMMEDIATE
+Run environmental systems (emit effects):
+- **Temperature Drift** - Newton's cooling toward room temp
+- **Evaporation** - Water loss (reduced by lid)
 
 *→ Commit IMMEDIATE effects to resources*
 
-### Tier 2: ACTIVE
+### 3. Process Equipment
+Equipment responds to updated state (direct mutations):
+- **Heater** - Activates if temp < setpoint
+- **Chiller** - Activates if temp > setpoint
+- **ATO** - Restores water level if < 99%
+
+### 4. Tier: ACTIVE
+Run organism systems (emit effects):
 - **Plants** - Photosynthesis (if lights on), respiration
 - **Livestock** - Metabolism, feeding, reproduction
 
 *→ Commit ACTIVE effects to resources*
 
-### Tier 3: PASSIVE
-- **Decay** - Food/waste → ammonia
+### 5. Tier: PASSIVE
+Run chemical/biological systems (emit effects):
+- **Decay** - Food/waste → ammonia (temperature-dependent)
 - **Nitrogen Cycle** - Ammonia → nitrite → nitrate
-- **Gas Exchange** - O2/CO2 equilibrium
-- **Dilution** - Concentration adjustments
+- **Gas Exchange** - O2/CO2 equilibrium with atmosphere
+- **Dilution** - Concentration adjustments for volume changes
 
 *→ Commit PASSIVE effects to resources*
 
-## Event Logging
+### 6. Check Alerts
+Evaluate alert conditions and track threshold crossings
 
-The simulation logs all significant events to help users understand ecosystem dynamics and for debugging. See `9-LOGGING.md` for details.
+### 7. Add Log Entries
+Append all events to simulation log
+
+**Note:** User actions (Feed, Top Off, Water Change, etc.) are applied **outside** the tick loop as immediate state mutations before the tick begins.
+
+## Logging and Alerts
+
+The simulation logs all significant events and monitors critical conditions. Alerts detect threshold crossings (e.g., low water level) and issue warnings. See `9-LOGGING-AND-ALERTS.md` for details.
 
 ## Document Index
 
@@ -202,4 +232,4 @@ The simulation logs all significant events to help users understand ecosystem dy
 | 6-PLANTS.md | Plant photosynthesis and growth |
 | 7-LIVESTOCK.md | Fish, colonies, metabolism, health |
 | 8-ACTIONS.md | User interventions |
-| 9-LOGGING.md | Event logging system |
+| 9-LOGGING-AND-ALERTS.md | Event logging and alert system |
