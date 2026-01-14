@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { applyEffects, type Effect } from './effects.js';
-import { createSimulation, type SimulationState } from './state.js';
+import { createSimulation, type SimulationState } from '../state.js';
 
 describe('applyEffects', () => {
   let initialState: SimulationState;

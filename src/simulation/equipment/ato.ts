@@ -8,7 +8,7 @@
  * will handle chemistry changes in a future task.
  */
 
-import type { Effect } from '../effects.js';
+import type { Effect } from '../core/effects.js';
 import type { SimulationState } from '../state.js';
 
 /**

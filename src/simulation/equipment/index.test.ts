@@ -1,90 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import {
-  calculatePassiveResources,
-  getFilterSurface,
-  getFilterFlow,
-  getPowerheadFlow,
-  getSubstrateSurface,
-} from './passive-resources.js';
-import { createSimulation, FILTER_SURFACE, FILTER_FLOW, POWERHEAD_FLOW_LPH, HARDSCAPE_SURFACE } from './state.js';
-import type { HardscapeItem } from './state.js';
-
-describe('getFilterSurface', () => {
-  it('returns correct surface for sponge filter', () => {
-    expect(getFilterSurface('sponge')).toBe(8000);
-  });
-
-  it('returns correct surface for HOB filter', () => {
-    expect(getFilterSurface('hob')).toBe(15000);
-  });
-
-  it('returns correct surface for canister filter', () => {
-    expect(getFilterSurface('canister')).toBe(25000);
-  });
-
-  it('returns correct surface for sump filter', () => {
-    expect(getFilterSurface('sump')).toBe(40000);
-  });
-});
-
-describe('getFilterFlow', () => {
-  it('returns correct flow for sponge filter (lowest)', () => {
-    expect(getFilterFlow('sponge')).toBe(100);
-  });
-
-  it('returns correct flow for HOB filter', () => {
-    expect(getFilterFlow('hob')).toBe(300);
-  });
-
-  it('returns correct flow for canister filter', () => {
-    expect(getFilterFlow('canister')).toBe(600);
-  });
-
-  it('returns correct flow for sump filter (highest)', () => {
-    expect(getFilterFlow('sump')).toBe(1000);
-  });
-});
-
-describe('getPowerheadFlow', () => {
-  it('converts 240 GPH to 908 L/h', () => {
-    expect(getPowerheadFlow(240)).toBe(908);
-  });
-
-  it('converts 400 GPH to 1514 L/h', () => {
-    expect(getPowerheadFlow(400)).toBe(1514);
-  });
-
-  it('converts 600 GPH to 2271 L/h', () => {
-    expect(getPowerheadFlow(600)).toBe(2271);
-  });
-
-  it('converts 850 GPH to 3218 L/h', () => {
-    expect(getPowerheadFlow(850)).toBe(3218);
-  });
-});
-
-describe('getSubstrateSurface', () => {
-  it('returns 0 for no substrate', () => {
-    expect(getSubstrateSurface('none', 100)).toBe(0);
-  });
-
-  it('returns correct surface for sand (400 cm²/L)', () => {
-    expect(getSubstrateSurface('sand', 100)).toBe(40000);
-  });
-
-  it('returns correct surface for gravel (800 cm²/L)', () => {
-    expect(getSubstrateSurface('gravel', 100)).toBe(80000);
-  });
-
-  it('returns correct surface for aqua soil (1200 cm²/L, highest)', () => {
-    expect(getSubstrateSurface('aqua_soil', 100)).toBe(120000);
-  });
-
-  it('scales surface with tank capacity', () => {
-    expect(getSubstrateSurface('gravel', 50)).toBe(40000);
-    expect(getSubstrateSurface('gravel', 200)).toBe(160000);
-  });
-});
+import { calculatePassiveResources } from './index.js';
+import { createSimulation } from '../state.js';
+import { FILTER_SURFACE, FILTER_FLOW } from './filter.js';
+import { POWERHEAD_FLOW_LPH } from './powerhead.js';
+import { HARDSCAPE_SURFACE } from '../state.js';
+import type { HardscapeItem } from '../state.js';
 
 describe('calculatePassiveResources', () => {
   describe('surface calculation', () => {

@@ -12,12 +12,6 @@ export type {
   LidType,
   Lid,
   AutoTopOff,
-  FilterType,
-  Filter,
-  PowerheadFlowRate,
-  Powerhead,
-  SubstrateType,
-  Substrate,
   HardscapeType,
   HardscapeItem,
   Hardscape,
@@ -35,36 +29,20 @@ export {
   DEFAULT_HEATER,
   DEFAULT_LID,
   DEFAULT_ATO,
-  DEFAULT_FILTER,
-  DEFAULT_POWERHEAD,
-  DEFAULT_SUBSTRATE,
   DEFAULT_HARDSCAPE,
   DEFAULT_LIGHT,
-  FILTER_SURFACE,
-  FILTER_FLOW,
-  POWERHEAD_FLOW_LPH,
-  SUBSTRATE_SURFACE_PER_LITER,
   HARDSCAPE_SURFACE,
 } from './state.js';
 
-// Passive resources
-export {
-  calculatePassiveResources,
-  getFilterSurface,
-  getFilterFlow,
-  getPowerheadFlow,
-  getSubstrateSurface,
-} from './passive-resources.js';
-
 // Schedule
-export type { DailySchedule } from './schedule.js';
-export { isScheduleActive, isValidSchedule, formatSchedule } from './schedule.js';
+export type { DailySchedule } from './core/schedule.js';
+export { isScheduleActive, isValidSchedule, formatSchedule } from './core/schedule.js';
 
 // Logging
-export { createLog } from './logging.js';
+export { createLog } from './core/logging.js';
 
-export type { Effect, EffectTier, ResourceKey } from './effects.js';
-export { applyEffects } from './effects.js';
+export type { Effect, EffectTier, ResourceKey } from './core/effects.js';
+export { applyEffects } from './core/effects.js';
 
 export { tick, getHourOfDay, getDayNumber } from './tick.js';
 
@@ -95,10 +73,28 @@ export {
 // Equipment
 export {
   processEquipment,
+  calculatePassiveResources,
   heaterUpdate,
   applyHeaterStateChange,
   calculateHeatingRate,
   atoUpdate,
+  getFilterSurface,
+  getFilterFlow,
+  type FilterType,
+  type Filter,
+  DEFAULT_FILTER,
+  FILTER_SURFACE,
+  FILTER_FLOW,
+  getPowerheadFlow,
+  type PowerheadFlowRate,
+  type Powerhead,
+  DEFAULT_POWERHEAD,
+  POWERHEAD_FLOW_LPH,
+  getSubstrateSurface,
+  type SubstrateType,
+  type Substrate,
+  DEFAULT_SUBSTRATE,
+  SUBSTRATE_SURFACE_PER_LITER,
 } from './equipment/index.js';
 
 // Hardscape

@@ -3,7 +3,7 @@
  * Runs in PASSIVE tier.
  */
 
-import type { Effect } from '../effects.js';
+import type { Effect } from '../core/effects.js';
 import type { SimulationState } from '../state.js';
 import type { System } from './types.js';
 

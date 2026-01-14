@@ -2,17 +2,26 @@
  * Equipment registry and effect collector.
  */
 
-import type { Effect } from '../effects.js';
-import type { SimulationState } from '../state.js';
+import type { Effect } from '../core/effects.js';
+import type { SimulationState, PassiveResources } from '../state.js';
+import { isScheduleActive } from '../core/schedule.js';
 import {
   heaterUpdate,
   applyHeaterStateChange,
   calculateHeatingRate,
 } from './heater.js';
 import { atoUpdate } from './ato.js';
+import { getFilterSurface, getFilterFlow, type FilterType, type Filter, DEFAULT_FILTER, FILTER_SURFACE, FILTER_FLOW } from './filter.js';
+import { getPowerheadFlow, type PowerheadFlowRate, type Powerhead, DEFAULT_POWERHEAD, POWERHEAD_FLOW_LPH } from './powerhead.js';
+import { getSubstrateSurface, type SubstrateType, type Substrate, DEFAULT_SUBSTRATE, SUBSTRATE_SURFACE_PER_LITER } from './substrate.js';
+import { calculateHardscapeTotalSurface } from './hardscape.js';
 
+// Re-export equipment modules
 export { heaterUpdate, applyHeaterStateChange, calculateHeatingRate };
 export { atoUpdate };
+export { getFilterSurface, getFilterFlow, type FilterType, type Filter, DEFAULT_FILTER, FILTER_SURFACE, FILTER_FLOW };
+export { getPowerheadFlow, type PowerheadFlowRate, type Powerhead, DEFAULT_POWERHEAD, POWERHEAD_FLOW_LPH };
+export { getSubstrateSurface, type SubstrateType, type Substrate, DEFAULT_SUBSTRATE, SUBSTRATE_SURFACE_PER_LITER };
 
 /**
  * Collects effects from all equipment and applies equipment state changes.
@@ -35,4 +44,54 @@ export function processEquipment(state: SimulationState): {
   effects.push(...atoEffects);
 
   return { state: updatedState, effects };
+}
+
+/**
+ * Calculates passive resources from all equipment.
+ * Called each tick to recalculate surface, flow, and light based on current state.
+ *
+ * Surface area sources:
+ * - Tank glass walls (bacteriaSurface)
+ * - Filter media (when enabled)
+ * - Substrate (based on type and tank capacity)
+ * - Hardscape items (rocks, driftwood, decorations)
+ *
+ * Flow sources:
+ * - Filter (when enabled)
+ * - Powerhead (when enabled)
+ *
+ * Light sources:
+ * - Light fixture (when enabled and schedule active)
+ */
+export function calculatePassiveResources(state: SimulationState): PassiveResources {
+  const { tank, equipment, tick } = state;
+  const hourOfDay = tick % 24;
+
+  // Surface area
+  let surface = tank.bacteriaSurface; // glass walls
+  if (equipment.filter.enabled) {
+    surface += getFilterSurface(equipment.filter.type);
+  }
+  surface += getSubstrateSurface(equipment.substrate.type, tank.capacity);
+  surface += calculateHardscapeTotalSurface(equipment.hardscape.items);
+
+  // Flow rate
+  let flow = 0;
+  if (equipment.filter.enabled) {
+    flow += getFilterFlow(equipment.filter.type);
+  }
+  if (equipment.powerhead.enabled) {
+    flow += getPowerheadFlow(equipment.powerhead.flowRateGPH);
+  }
+
+  // Light (based on schedule)
+  let light = 0;
+  if (equipment.light.enabled) {
+    const isActive = isScheduleActive(hourOfDay, equipment.light.schedule);
+    if (isActive) {
+      light = equipment.light.wattage;
+    }
+  }
+
+  return { surface, flow, light };
 }

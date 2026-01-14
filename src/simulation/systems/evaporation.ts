@@ -6,7 +6,7 @@
  * Lid type affects evaporation rate via multiplier.
  */
 
-import type { Effect } from '../effects.js';
+import type { Effect } from '../core/effects.js';
 import type { SimulationState, LidType } from '../state.js';
 import type { System } from './types.js';
 

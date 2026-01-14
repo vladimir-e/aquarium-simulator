@@ -2,7 +2,7 @@
  * System interface for core simulation systems.
  */
 
-import type { Effect, EffectTier } from '../effects.js';
+import type { Effect, EffectTier } from '../core/effects.js';
 import type { SimulationState } from '../state.js';
 
 export interface System {
