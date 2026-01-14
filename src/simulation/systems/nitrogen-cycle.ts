@@ -26,9 +26,9 @@ export const BACTERIA_PROCESSING_RATE = 0.002;
 
 // Spawning
 /** ppm ammonia to trigger AOB spawn */
-export const AOB_SPAWN_THRESHOLD = 0.5;
+export const AOB_SPAWN_THRESHOLD = 0.02;
 /** ppm nitrite to trigger NOB spawn */
-export const NOB_SPAWN_THRESHOLD = 0.5;
+export const NOB_SPAWN_THRESHOLD = 0.02;
 /** Initial bacteria when spawning */
 export const SPAWN_AMOUNT = 10;
 
@@ -44,9 +44,9 @@ export const BACTERIA_PER_CM2 = 0.1;
 /** Fraction of bacteria that die per tick without food */
 export const BACTERIA_DEATH_RATE = 0.02;
 /** Min ammonia to sustain AOB */
-export const AOB_FOOD_THRESHOLD = 0.01;
+export const AOB_FOOD_THRESHOLD = 0.001;
 /** Min nitrite to sustain NOB */
-export const NOB_FOOD_THRESHOLD = 0.01;
+export const NOB_FOOD_THRESHOLD = 0.001;
 
 // ============================================================================
 // Helper Functions

@@ -568,7 +568,7 @@ describe('25-Day Tank Cycling Integration Test', () => {
   });
 
   it('waste-to-ammonia conversion works with food decay', () => {
-    // Test the full cycle from food -> waste -> ammonia
+    // Test the full cycle from food -> waste -> ammonia -> nitrite -> nitrate
     let state = createSimulation({
       tankCapacity: 40,
       initialTemperature: 25,
@@ -579,7 +579,7 @@ describe('25-Day Tank Cycling Integration Test', () => {
       draft.resources.food = 5.0; // 5g food
     });
 
-    // Run for 100 ticks to let food decay to waste and waste convert to ammonia
+    // Run for 100 ticks to let food decay through the full nitrogen cycle
     for (let tick = 0; tick < 100; tick++) {
       const decayEffects = decaySystem.update(state);
       state = applyEffects(state, decayEffects);
@@ -595,7 +595,8 @@ describe('25-Day Tank Cycling Integration Test', () => {
     // Food should have largely decayed
     expect(state.resources.food).toBeLessThan(1);
 
-    // Ammonia should have been produced from waste conversion
-    expect(state.resources.ammonia).toBeGreaterThan(0);
+    // Nitrate should have accumulated (proves ammonia was produced and processed)
+    // With bacteria spawning at 0.02 ppm, ammonia gets processed to nitrite to nitrate
+    expect(state.resources.nitrate).toBeGreaterThan(0);
   });
 });
