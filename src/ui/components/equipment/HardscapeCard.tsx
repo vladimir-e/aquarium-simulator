@@ -1,5 +1,5 @@
 import React from 'react';
-import { Mountain, Circle, TreeDeciduous, Sparkles } from 'lucide-react';
+import { Mountain } from 'lucide-react';
 import {
   getHardscapeName,
   getHardscapeSurface,
@@ -24,35 +24,30 @@ interface HardscapeCardProps {
 
 interface HardscapeTypeConfig {
   type: HardscapeType;
-  icon: React.ReactNode;
-  color: string;
-  hoverColor: string;
+  emoji: string;
+  hoverBg: string;
 }
 
 const HARDSCAPE_CONFIGS: HardscapeTypeConfig[] = [
   {
     type: 'neutral_rock',
-    icon: <Circle className="w-4 h-4" />,
-    color: 'text-gray-400',
-    hoverColor: 'hover:text-gray-200 hover:bg-gray-700',
+    emoji: '🪨',
+    hoverBg: 'hover:bg-gray-700',
   },
   {
     type: 'calcite_rock',
-    icon: <Circle className="w-4 h-4" />,
-    color: 'text-blue-400',
-    hoverColor: 'hover:text-blue-300 hover:bg-blue-900/30',
+    emoji: '💎',
+    hoverBg: 'hover:bg-blue-900/30',
   },
   {
     type: 'driftwood',
-    icon: <TreeDeciduous className="w-4 h-4" />,
-    color: 'text-amber-600',
-    hoverColor: 'hover:text-amber-500 hover:bg-amber-900/30',
+    emoji: '🪵',
+    hoverBg: 'hover:bg-amber-900/30',
   },
   {
     type: 'plastic_decoration',
-    icon: <Sparkles className="w-4 h-4" />,
-    color: 'text-pink-400',
-    hoverColor: 'hover:text-pink-300 hover:bg-pink-900/30',
+    emoji: '🏰',
+    hoverBg: 'hover:bg-pink-900/30',
   },
 ];
 
@@ -77,17 +72,17 @@ export function HardscapeCard({
       </div>
 
       <div className="space-y-3 flex-1">
-        {/* Icon buttons to add hardscape */}
-        <div className="flex gap-1">
+        {/* Icon buttons to add hardscape - full width, evenly spread */}
+        <div className="flex justify-between">
           {HARDSCAPE_CONFIGS.map((config) => (
             <button
               key={config.type}
               onClick={() => onAddItem(config.type)}
               disabled={!canAddMore}
-              className={`p-2 rounded transition-colors ${config.color} ${config.hoverColor} disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent`}
+              className={`flex-1 py-2 rounded transition-colors ${config.hoverBg} disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent`}
               title={`Add ${getHardscapeName(config.type)}`}
             >
-              {config.icon}
+              <span className="text-base">{config.emoji}</span>
             </button>
           ))}
         </div>
@@ -106,9 +101,9 @@ export function HardscapeCard({
                 return (
                   <div
                     key={item.id}
-                    className="flex items-center gap-2 text-xs bg-border/30 p-2 rounded group"
+                    className="flex items-center gap-2 text-xs bg-border/30 p-2 rounded"
                   >
-                    <span className={config?.color}>{config?.icon}</span>
+                    <span>{config?.emoji}</span>
                     <div className="flex-1 min-w-0">
                       <div className="text-gray-300 truncate">{getHardscapeName(item.type)}</div>
                       <div className="text-gray-500">
@@ -118,7 +113,7 @@ export function HardscapeCard({
                     </div>
                     <button
                       onClick={() => onRemoveItem(item.id)}
-                      className="text-gray-600 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100"
+                      className="text-gray-500 hover:text-red-400 transition-colors px-1"
                       title="Remove"
                     >
                       ×
@@ -128,7 +123,7 @@ export function HardscapeCard({
               })}
             </div>
           ) : (
-            <div className="text-xs text-gray-600 italic">Click icons above to add</div>
+            <div className="text-xs text-gray-600 italic">Tap icons above to add</div>
           )}
         </div>
       </div>
