@@ -35,11 +35,6 @@ function clamp(value: number, min: number, max: number): number {
 /**
  * Applies a list of effects to the simulation state.
  * Returns a new state object (immutable).
- *
- * Each resource has explicit handling with bounds from ResourceRegistry.
- * Water has dynamic max bound (tank.capacity).
- * Passive resources (surface, flow, light) are not typically modified via effects
- * but are included for completeness.
  */
 export function applyEffects(
   state: SimulationState,
@@ -55,7 +50,6 @@ export function applyEffects(
 
       switch (effect.resource) {
         case 'water':
-          // Water has dynamic max bound (tank.capacity)
           draft.resources.water = clamp(
             draft.resources.water + effect.delta,
             resource.bounds.min,
@@ -65,27 +59,6 @@ export function applyEffects(
         case 'temperature':
           draft.resources.temperature = clamp(
             draft.resources.temperature + effect.delta,
-            resource.bounds.min,
-            resource.bounds.max
-          );
-          break;
-        case 'surface':
-          draft.resources.surface = clamp(
-            draft.resources.surface + effect.delta,
-            resource.bounds.min,
-            resource.bounds.max
-          );
-          break;
-        case 'flow':
-          draft.resources.flow = clamp(
-            draft.resources.flow + effect.delta,
-            resource.bounds.min,
-            resource.bounds.max
-          );
-          break;
-        case 'light':
-          draft.resources.light = clamp(
-            draft.resources.light + effect.delta,
             resource.bounds.min,
             resource.bounds.max
           );
