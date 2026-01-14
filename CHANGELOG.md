@@ -10,6 +10,7 @@ Format: - **Feature name** (#PR) - Brief description (under 100 chars)
 
 ## 2026-01-14
 
+- **Nitrogen Cycle System** - Three-stage bacterial process: waste → ammonia (NH3) → nitrite (NO2) → nitrate (NO3); AOB/NOB bacteria populations with logistic growth; surface area constraints; alerts for high ammonia (>0.02 ppm), nitrite (>0.1 ppm), and nitrate (>20 ppm)
 - **Algae Growth and Scrub System** - Algae grows based on light intensity per liter (2.5 * W/L per hour); Scrub action removes 10-30% of algae (min 5 to scrub); High algae alert at 80+; Plants panel with algae indicator; LightCard wattage presets expanded (5W-200W)
 - **Light Equipment and Schedule Module** - Light fixture with photoperiod scheduling; reusable Schedule module for time-based equipment; LightCard UI with wattage selector and schedule controls
 

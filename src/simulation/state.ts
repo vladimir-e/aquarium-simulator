@@ -45,6 +45,16 @@ export interface Resources {
   waste: number;
   /** Algae level (0-100 scale, relative coverage) */
   algae: number;
+  /** Ammonia in grams (convert to ppm for display: ppm = grams / liters * 1000) */
+  ammonia: number;
+  /** Nitrite in grams (convert to ppm for display: ppm = grams / liters * 1000) */
+  nitrite: number;
+  /** Nitrate in grams (convert to ppm for display: ppm = grams / liters * 1000) */
+  nitrate: number;
+  /** AOB (Ammonia-Oxidizing Bacteria) population as fraction of max capacity (0-1) */
+  aob: number;
+  /** NOB (Nitrite-Oxidizing Bacteria) population as fraction of max capacity (0-1) */
+  nob: number;
 }
 
 export interface Environment {
@@ -128,6 +138,12 @@ export interface AlertState {
   waterLevelCritical: boolean;
   /** Algae level is at 80+ (bloom warning) */
   highAlgae: boolean;
+  /** Ammonia level is above stress threshold (>0.02 ppm) */
+  highAmmonia: boolean;
+  /** Nitrite level is above stress threshold (>0.1 ppm) */
+  highNitrite: boolean;
+  /** Nitrate level is above action threshold (>20 ppm) */
+  highNitrate: boolean;
 }
 
 export interface SimulationState {
@@ -334,6 +350,11 @@ export function createSimulation(config: SimulationConfig): SimulationState {
       food: 0.0,
       waste: 0.0,
       algae: 0,
+      ammonia: 0,
+      nitrite: 0,
+      nitrate: 0,
+      aob: 0.001, // 0.1% of max capacity - small seed population
+      nob: 0.0005, // 0.05% of max capacity - smaller seed population
     },
     environment: {
       roomTemperature: effectiveRoomTemp,
@@ -354,6 +375,9 @@ export function createSimulation(config: SimulationConfig): SimulationState {
     alertState: {
       waterLevelCritical: false,
       highAlgae: false,
+      highAmmonia: false,
+      highNitrite: false,
+      highNitrate: false,
     },
   };
 }

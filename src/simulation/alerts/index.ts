@@ -8,15 +8,24 @@ import type { LogEntry } from '../core/logging.js';
 import type { AlertState, SimulationState } from '../state.js';
 import { waterLevelAlert } from './water-level.js';
 import { highAlgaeAlert } from './high-algae.js';
+import { highAmmoniaAlert } from './high-ammonia.js';
+import { highNitriteAlert } from './high-nitrite.js';
+import { highNitrateAlert } from './high-nitrate.js';
 
 export type { Alert, AlertResult } from './types.js';
 export { waterLevelAlert, WATER_LEVEL_CRITICAL_THRESHOLD } from './water-level.js';
 export { highAlgaeAlert, HIGH_ALGAE_THRESHOLD } from './high-algae.js';
+export { highAmmoniaAlert, HIGH_AMMONIA_THRESHOLD_PPM } from './high-ammonia.js';
+export { highNitriteAlert, HIGH_NITRITE_THRESHOLD_PPM } from './high-nitrite.js';
+export { highNitrateAlert, HIGH_NITRATE_THRESHOLD_PPM } from './high-nitrate.js';
 
 /** All alerts checked after effects are applied */
 export const alerts: Alert[] = [
   waterLevelAlert,
   highAlgaeAlert,
+  highAmmoniaAlert,
+  highNitriteAlert,
+  highNitrateAlert,
 ];
 
 /**

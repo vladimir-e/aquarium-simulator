@@ -7,7 +7,17 @@ import type { SimulationState } from '../state.js';
 
 export type EffectTier = 'immediate' | 'active' | 'passive';
 
-export type ResourceKey = 'temperature' | 'waterLevel' | 'food' | 'waste' | 'algae';
+export type ResourceKey =
+  | 'temperature'
+  | 'waterLevel'
+  | 'food'
+  | 'waste'
+  | 'algae'
+  | 'ammonia'
+  | 'nitrite'
+  | 'nitrate'
+  | 'aob'
+  | 'nob';
 
 export interface Effect {
   /** Processing tier determines when this effect is applied */
@@ -31,6 +41,14 @@ const MAX_RESOURCE = 1000; // Reasonable upper limit
 /** Algae bounds (0-100 relative scale) */
 const MIN_ALGAE = 0;
 const MAX_ALGAE = 100;
+
+/** Nitrogen compound bounds in grams */
+const MIN_NITROGEN = 0;
+const MAX_NITROGEN = 1000; // Reasonable upper limit in grams
+
+/** Bacteria population bounds (0-1 scale representing % of max capacity) */
+const MIN_BACTERIA = 0;
+const MAX_BACTERIA = 1;
 
 /**
  * Clamps a value between min and max (inclusive).
@@ -87,6 +105,41 @@ export function applyEffects(
             draft.resources.algae + effect.delta,
             MIN_ALGAE,
             MAX_ALGAE
+          );
+          break;
+        case 'ammonia':
+          draft.resources.ammonia = clamp(
+            draft.resources.ammonia + effect.delta,
+            MIN_NITROGEN,
+            MAX_NITROGEN
+          );
+          break;
+        case 'nitrite':
+          draft.resources.nitrite = clamp(
+            draft.resources.nitrite + effect.delta,
+            MIN_NITROGEN,
+            MAX_NITROGEN
+          );
+          break;
+        case 'nitrate':
+          draft.resources.nitrate = clamp(
+            draft.resources.nitrate + effect.delta,
+            MIN_NITROGEN,
+            MAX_NITROGEN
+          );
+          break;
+        case 'aob':
+          draft.resources.aob = clamp(
+            draft.resources.aob + effect.delta,
+            MIN_BACTERIA,
+            MAX_BACTERIA
+          );
+          break;
+        case 'nob':
+          draft.resources.nob = clamp(
+            draft.resources.nob + effect.delta,
+            MIN_BACTERIA,
+            MAX_BACTERIA
           );
           break;
       }

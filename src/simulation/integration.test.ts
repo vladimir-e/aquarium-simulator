@@ -44,13 +44,17 @@ describe('Food-Decay-Waste integration', () => {
 
     // No food added, just run ticks
     const initialWaste = state.resources.waste;
+    const initialAmmonia = state.resources.ammonia;
 
     for (let i = 0; i < 10; i++) {
       state = tick(state);
     }
 
-    // Should have accumulated ~0.1g from ambient waste (10 ticks * 0.01g/tick)
-    expect(state.resources.waste).toBeCloseTo(initialWaste + 0.1, 2);
+    // Ambient waste adds 0.01g/tick, but nitrogen cycle converts some to ammonia.
+    // Net waste should still increase (ambient waste adds faster than conversion).
+    // Also ammonia should be produced from the nitrogen cycle.
+    expect(state.resources.waste).toBeGreaterThan(initialWaste);
+    expect(state.resources.ammonia).toBeGreaterThan(initialAmmonia);
   });
 
   it('higher temperature increases decay rate', () => {
