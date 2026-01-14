@@ -2,16 +2,19 @@ import React, { useState } from 'react';
 import { Panel } from '../layout/Panel';
 import { Button } from '../ui/Button';
 import type { Action } from '../../../simulation/index.js';
+import { MIN_ALGAE_TO_SCRUB } from '../../../simulation/index.js';
 
 interface ActionsProps {
   waterLevel: number;
   capacity: number;
+  algae: number;
   executeAction: (action: Action) => void;
 }
 
 export function Actions({
   waterLevel,
   capacity,
+  algae,
   executeAction,
 }: ActionsProps): React.JSX.Element {
   const [feedAmount, setFeedAmount] = useState(0.5);
@@ -24,6 +27,10 @@ export function Actions({
     executeAction({ type: 'feed', amount: feedAmount });
   };
 
+  const handleScrubAlgae = (): void => {
+    executeAction({ type: 'scrubAlgae' });
+  };
+
   const handleFeedAmountChange = (value: string): void => {
     const parsed = parseFloat(value);
     if (!isNaN(parsed) && parsed >= 0.1 && parsed <= 5.0) {
@@ -32,6 +39,7 @@ export function Actions({
   };
 
   const isWaterFull = waterLevel >= capacity;
+  const canScrub = algae >= MIN_ALGAE_TO_SCRUB;
 
   return (
     <Panel title="Actions">
@@ -62,6 +70,15 @@ export function Actions({
           variant="primary"
         >
           Top Off Water
+        </Button>
+
+        {/* Scrub Algae */}
+        <Button
+          onClick={handleScrubAlgae}
+          disabled={!canScrub}
+          variant="primary"
+        >
+          Scrub Algae
         </Button>
       </div>
     </Panel>

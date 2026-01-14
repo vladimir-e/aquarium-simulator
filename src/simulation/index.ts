@@ -53,11 +53,14 @@ export {
   temperatureDriftSystem,
   evaporationSystem,
   decaySystem,
+  algaeSystem,
   calculateTemperatureDrift,
   calculateEvaporation,
   calculateEvaporationRatePerDay,
   getTemperatureFactor,
   calculateDecay,
+  calculateAlgaeGrowth,
+  getWattsPerGallon,
   COOLING_COEFFICIENT,
   REFERENCE_VOLUME,
   VOLUME_EXPONENT,
@@ -68,6 +71,10 @@ export {
   Q10,
   REFERENCE_TEMP,
   BASE_DECAY_RATE,
+  MAX_GROWTH_RATE,
+  HALF_SATURATION,
+  BASE_GROWTH_RATE,
+  ALGAE_CAP,
 } from './systems/index.js';
 
 // Equipment
@@ -111,7 +118,9 @@ export {
   alerts,
   checkAlerts,
   waterLevelAlert,
+  highAlgaeAlert,
   WATER_LEVEL_CRITICAL_THRESHOLD,
+  HIGH_ALGAE_THRESHOLD,
 } from './alerts/index.js';
 
 // Actions
@@ -121,6 +130,16 @@ export type {
   BaseAction,
   TopOffAction,
   FeedAction,
+  ScrubAlgaeAction,
   ActionResult,
 } from './actions/index.js';
-export { applyAction, topOff, feed } from './actions/index.js';
+export {
+  applyAction,
+  topOff,
+  feed,
+  scrubAlgae,
+  canScrubAlgae,
+  MIN_SCRUB_PERCENT,
+  MAX_SCRUB_PERCENT,
+  MIN_ALGAE_TO_SCRUB,
+} from './actions/index.js';

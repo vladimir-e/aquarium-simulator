@@ -67,6 +67,9 @@ export function LightCard({
           value={light.wattage}
           onChange={(e) => onWattageChange(Number(e.target.value))}
         >
+          <option value={5}>5W</option>
+          <option value={10}>10W</option>
+          <option value={25}>25W</option>
           <option value={50}>50W</option>
           <option value={100}>100W</option>
           <option value={150}>150W</option>

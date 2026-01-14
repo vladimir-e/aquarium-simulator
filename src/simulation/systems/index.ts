@@ -31,14 +31,26 @@ export {
   BASE_DECAY_RATE,
 } from './decay.js';
 
+export {
+  algaeSystem,
+  calculateAlgaeGrowth,
+  getWattsPerGallon,
+  MAX_GROWTH_RATE,
+  HALF_SATURATION,
+  BASE_GROWTH_RATE,
+  ALGAE_CAP,
+} from './algae.js';
+
 import type { System } from './types.js';
 import { temperatureDriftSystem } from './temperature-drift.js';
 import { evaporationSystem } from './evaporation.js';
 import { decaySystem } from './decay.js';
+import { algaeSystem } from './algae.js';
 
 /** All core systems in the simulation */
 export const coreSystems: System[] = [
   temperatureDriftSystem,
   evaporationSystem,
   decaySystem,
+  algaeSystem,
 ];
