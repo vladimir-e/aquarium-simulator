@@ -47,12 +47,6 @@ interface EquipmentBarProps {
   onLightScheduleChange: (schedule: DailySchedule) => void;
 }
 
-// Equipment order: single source of truth for both collapsed and expanded views
-// Group 1: Tank (always shown)
-// Group 2: Filter, Light, Heater (active equipment with on/off indicators)
-// Group 3: Substrate, Hardscape, Lid (passive/structural)
-// Group 4: ATO, Powerhead (auxiliary)
-
 function formatLidName(type: string): string {
   switch (type) {
     case 'full':
@@ -108,7 +102,7 @@ export function EquipmentBar({
       showOnlineDot: false,
       activeDot: null,
     },
-    // Group 2: Active equipment
+    // Group 2: Basic equipment
     {
       key: 'filter',
       show: filter.enabled,
@@ -133,7 +127,6 @@ export function EquipmentBar({
       showOnlineDot: true,
       activeDot: heater.isOn ? 'bg-red-500' : null,
     },
-    // Group 3: Passive/structural
     {
       key: 'substrate',
       show: substrate.type !== 'none',
@@ -158,7 +151,7 @@ export function EquipmentBar({
       showOnlineDot: false,
       activeDot: null,
     },
-    // Group 4: Auxiliary
+    // Group 3: Advanced equipment
     {
       key: 'ato',
       show: ato.enabled,
@@ -215,7 +208,7 @@ export function EquipmentBar({
 
             <div className="w-px bg-border flex-shrink-0 self-stretch" />
 
-            {/* Group 2: Active equipment */}
+            {/* Group 2: Basic equipment */}
             <FilterCard
               filter={filter}
               onEnabledChange={onFilterEnabledChange}
@@ -235,7 +228,6 @@ export function EquipmentBar({
               onWattageChange={onHeaterWattageChange}
             />
 
-            {/* Group 3: Passive/structural */}
             <SubstrateCard
               substrate={substrate}
               tankCapacity={tank.capacity}
@@ -252,7 +244,7 @@ export function EquipmentBar({
 
             <div className="w-px bg-border flex-shrink-0 self-stretch" />
 
-            {/* Group 4: Auxiliary */}
+            {/* Group 3: Advanced equipment */}
             <AutoTopOffCard ato={ato} onEnabledChange={onAtoEnabledChange} />
             <PowerheadCard
               powerhead={powerhead}
