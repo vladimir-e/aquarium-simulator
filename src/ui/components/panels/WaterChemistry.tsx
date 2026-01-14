@@ -24,9 +24,9 @@ const BASE_DECAY_RATE = 0.05;
 /** Waste conversion rate to ammonia */
 const WASTE_CONVERSION_RATE = 0.3;
 /** Bacteria processing rate (ppm per unit per tick) */
-const BACTERIA_PROCESSING_RATE = 0.002;
+const BACTERIA_PROCESSING_RATE = 0.000002;
 /** Max bacteria per cm² surface */
-const BACTERIA_PER_CM2 = 0.1;
+const BACTERIA_PER_CM2 = 0.01;
 
 /**
  * Calculate temperature factor for decay rate using Q10 coefficient.
@@ -188,14 +188,6 @@ export function WaterChemistry({
                 <span className="text-xs text-gray-300">
                   {nob > 0 ? `${Math.min(nitriteToNitrateRate, nitrite).toFixed(4)} ppm` : '0 ppm'}
                 </span>
-              </div>
-
-              {/* Safe levels */}
-              <div className="text-xs text-gray-400 font-medium mt-2 pt-2 border-t border-gray-700">
-                Safe Levels
-              </div>
-              <div className="text-xs text-gray-500">
-                Ammonia: 0 ppm | Nitrite: 0 ppm | Nitrate: &lt;20 ppm
               </div>
             </div>
           )}
