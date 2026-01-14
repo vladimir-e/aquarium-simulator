@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Container, Waves, Thermometer, CloudOff, Droplets, Wind, Mountain } from 'lucide-react';
+import { Container, Waves, Thermometer, CloudOff, Droplets, Wind, Mountain, Sun } from 'lucide-react';
 import { HeaterCard, HeaterState } from '../equipment/HeaterCard';
 import { LidCard, LidState, LidType } from '../equipment/LidCard';
 import { AutoTopOffCard, AutoTopOffState } from '../equipment/AutoTopOffCard';
@@ -14,6 +14,8 @@ import {
   formatSubstrateName,
 } from '../equipment/SubstrateCard';
 import { HardscapeCard, HardscapeState, HardscapeType } from '../equipment/HardscapeCard';
+import { LightCard, LightState } from '../equipment/LightCard';
+import type { DailySchedule } from '../../../simulation/index.js';
 
 interface EquipmentBarProps {
   tank: TankState;
@@ -25,6 +27,8 @@ interface EquipmentBarProps {
   substrate: SubstrateState;
   hardscape: HardscapeState;
   hardscapeSlots: number;
+  light: LightState;
+  isLightOn: boolean;
   onTankCapacityChange: (capacity: number) => void;
   onHeaterEnabledChange: (enabled: boolean) => void;
   onHeaterTargetTemperatureChange: (temp: number) => void;
@@ -38,6 +42,9 @@ interface EquipmentBarProps {
   onSubstrateTypeChange: (type: SubstrateType) => void;
   onHardscapeAddItem: (type: HardscapeType) => void;
   onHardscapeRemoveItem: (id: string) => void;
+  onLightEnabledChange: (enabled: boolean) => void;
+  onLightWattageChange: (wattage: number) => void;
+  onLightScheduleChange: (schedule: DailySchedule) => void;
 }
 
 export function EquipmentBar({
@@ -50,6 +57,8 @@ export function EquipmentBar({
   substrate,
   hardscape,
   hardscapeSlots,
+  light,
+  isLightOn,
   onTankCapacityChange,
   onHeaterEnabledChange,
   onHeaterTargetTemperatureChange,
@@ -63,6 +72,9 @@ export function EquipmentBar({
   onSubstrateTypeChange,
   onHardscapeAddItem,
   onHardscapeRemoveItem,
+  onLightEnabledChange,
+  onLightWattageChange,
+  onLightScheduleChange,
 }: EquipmentBarProps): React.JSX.Element {
   const [isExpanded, setIsExpanded] = useState(false);
 
@@ -144,6 +156,17 @@ export function EquipmentBar({
                   </span>
                 </div>
               )}
+              {/* Light status */}
+              {light.enabled && (
+                <div className="flex items-center gap-1">
+                  <Sun className="w-4 h-4 text-accent-yellow" />
+                  <div className="w-2 h-2 rounded-full bg-accent-green" />
+                  {isLightOn && (
+                    <div className="w-2 h-2 rounded-full bg-yellow-500 animate-pulse" />
+                  )}
+                  <span className="text-xs text-gray-400">Light</span>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -168,6 +191,13 @@ export function EquipmentBar({
               onEnabledChange={onHeaterEnabledChange}
               onTargetTemperatureChange={onHeaterTargetTemperatureChange}
               onWattageChange={onHeaterWattageChange}
+            />
+            <LightCard
+              light={light}
+              isCurrentlyOn={isLightOn}
+              onEnabledChange={onLightEnabledChange}
+              onWattageChange={onLightWattageChange}
+              onScheduleChange={onLightScheduleChange}
             />
             <SubstrateCard
               substrate={substrate}

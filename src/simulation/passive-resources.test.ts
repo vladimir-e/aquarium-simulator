@@ -427,4 +427,124 @@ describe('calculatePassiveResources', () => {
       );
     });
   });
+
+  describe('light calculation', () => {
+    it('returns 0 light when light disabled', () => {
+      const state = createSimulation({ tankCapacity: 100 });
+      state.equipment.light.enabled = false;
+      const resources = calculatePassiveResources(state);
+      expect(resources.light).toBe(0);
+    });
+
+    it('returns wattage when schedule active', () => {
+      const state = createSimulation({ tankCapacity: 100 });
+      state.tick = 10; // hourOfDay = 10
+      state.equipment.light.enabled = true;
+      state.equipment.light.wattage = 150;
+      state.equipment.light.schedule = { startHour: 8, duration: 10 }; // 8am-6pm
+      const resources = calculatePassiveResources(state);
+      expect(resources.light).toBe(150);
+    });
+
+    it('returns 0 when outside schedule', () => {
+      const state = createSimulation({ tankCapacity: 100 });
+      state.tick = 20; // hourOfDay = 20 (8pm)
+      state.equipment.light.enabled = true;
+      state.equipment.light.wattage = 150;
+      state.equipment.light.schedule = { startHour: 8, duration: 10 }; // 8am-6pm
+      const resources = calculatePassiveResources(state);
+      expect(resources.light).toBe(0);
+    });
+
+    it('handles 24-hour duration (always-on)', () => {
+      const state = createSimulation({ tankCapacity: 100 });
+      state.equipment.light.enabled = true;
+      state.equipment.light.wattage = 100;
+      state.equipment.light.schedule = { startHour: 0, duration: 24 };
+
+      // Test various hours - all should be on
+      state.tick = 0;
+      expect(calculatePassiveResources(state).light).toBe(100);
+      state.tick = 12;
+      expect(calculatePassiveResources(state).light).toBe(100);
+      state.tick = 23;
+      expect(calculatePassiveResources(state).light).toBe(100);
+    });
+
+    it('handles midnight wrap-around schedule', () => {
+      const state = createSimulation({ tankCapacity: 100 });
+      state.equipment.light.enabled = true;
+      state.equipment.light.wattage = 100;
+      state.equipment.light.schedule = { startHour: 22, duration: 8 }; // 10pm-6am
+
+      // Test hours during active period
+      state.tick = 23; // 11pm - should be on
+      expect(calculatePassiveResources(state).light).toBe(100);
+
+      state.tick = 2; // 2am - should be on
+      expect(calculatePassiveResources(state).light).toBe(100);
+
+      state.tick = 10; // 10am - should be off
+      expect(calculatePassiveResources(state).light).toBe(0);
+    });
+
+    it('light initializes with default values', () => {
+      const state = createSimulation({ tankCapacity: 100 });
+      expect(state.equipment.light.enabled).toBe(true);
+      expect(state.equipment.light.wattage).toBe(100);
+      expect(state.equipment.light.schedule.startHour).toBe(8);
+      expect(state.equipment.light.schedule.duration).toBe(10);
+    });
+
+    it('can be disabled', () => {
+      const state = createSimulation({ tankCapacity: 100 });
+      state.tick = 10; // During default schedule
+      state.equipment.light.enabled = false;
+      expect(calculatePassiveResources(state).light).toBe(0);
+    });
+
+    it('can have wattage changed', () => {
+      const state = createSimulation({ tankCapacity: 100 });
+      state.tick = 10; // During schedule (8am-6pm default)
+      state.equipment.light.wattage = 200;
+      expect(calculatePassiveResources(state).light).toBe(200);
+    });
+
+    it('can have schedule updated', () => {
+      const state = createSimulation({ tankCapacity: 100 });
+      state.equipment.light.schedule = { startHour: 6, duration: 12 };
+      state.tick = 6; // Start of new schedule
+      expect(calculatePassiveResources(state).light).toBe(100);
+      state.tick = 18; // End of new schedule
+      expect(calculatePassiveResources(state).light).toBe(0);
+    });
+
+    it('supports always-on with 24h duration', () => {
+      const state = createSimulation({ tankCapacity: 100 });
+      state.equipment.light.schedule = { startHour: 0, duration: 24 };
+
+      // Verify light is on at any time
+      for (let hour = 0; hour < 24; hour++) {
+        state.tick = hour;
+        expect(calculatePassiveResources(state).light).toBe(100);
+      }
+    });
+
+    it('correctly calculates hourOfDay from tick across multiple days', () => {
+      const state = createSimulation({ tankCapacity: 100 });
+      state.equipment.light.schedule = { startHour: 8, duration: 10 }; // 8am-6pm
+
+      // Day 0, hour 10
+      state.tick = 10;
+      expect(calculatePassiveResources(state).light).toBe(100);
+
+      // Day 1, hour 10 (tick 34)
+      state.tick = 34;
+      expect(calculatePassiveResources(state).light).toBe(100);
+
+      // Day 2, hour 20 (tick 68) - outside schedule
+      state.tick = 68;
+      expect(calculatePassiveResources(state).light).toBe(0);
+    });
+  });
 });
