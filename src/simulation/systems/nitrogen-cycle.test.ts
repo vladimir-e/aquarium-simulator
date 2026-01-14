@@ -19,6 +19,7 @@ import {
   SPAWN_THRESHOLD_AOB,
   SPAWN_THRESHOLD_NOB,
   INITIAL_BACTERIA_SPAWN,
+  MIN_BACTERIA_FLOOR,
   BACTERIA_PER_CM2,
 } from './nitrogen-cycle.js';
 import { createSimulation, type SimulationState } from '../state.js';
@@ -386,9 +387,10 @@ describe('nitrogenCycleSystem', () => {
 
   describe('Bacterial Growth', () => {
     it('AOB grows when ammonia is above threshold', () => {
+      // Need larger population for growth to round to at least 1
       const state = createTestState({
         ammonia: 1.0,
-        aob: 1.0,
+        aob: 100,
         surface: 10000,
       });
       const effects = updateNitrogenCycle(state);
@@ -400,9 +402,10 @@ describe('nitrogenCycleSystem', () => {
     });
 
     it('NOB grows when nitrite is above threshold', () => {
+      // Need larger population for growth to round to at least 1
       const state = createTestState({
         nitrite: 1.0,
-        nob: 1.0,
+        nob: 100,
         surface: 10000,
       });
       const effects = updateNitrogenCycle(state);
@@ -431,9 +434,10 @@ describe('nitrogenCycleSystem', () => {
 
   describe('Bacterial Death', () => {
     it('AOB dies when ammonia below threshold', () => {
+      // Use larger population since MIN_BACTERIA_FLOOR prevents death below it
       const state = createTestState({
         ammonia: 0,
-        aob: 1.0,
+        aob: 100,
         surface: 10000,
       });
       const effects = updateNitrogenCycle(state);
@@ -445,9 +449,10 @@ describe('nitrogenCycleSystem', () => {
     });
 
     it('NOB dies when nitrite below threshold', () => {
+      // Use larger population since MIN_BACTERIA_FLOOR prevents death below it
       const state = createTestState({
         nitrite: 0,
-        nob: 1.0,
+        nob: 100,
         surface: 10000,
       });
       const effects = updateNitrogenCycle(state);
@@ -461,11 +466,27 @@ describe('nitrogenCycleSystem', () => {
     it('AOB does not die when ammonia is sufficient', () => {
       const state = createTestState({
         ammonia: MIN_FOOD_AOB * 2,
-        aob: 1.0,
+        aob: 100,
         surface: 10000,
       });
       const effects = updateNitrogenCycle(state);
 
+      const deathEffect = effects.find(
+        (e) => e.resource === 'aob' && e.source === 'nitrogen-cycle' && e.delta < 0
+      );
+      expect(deathEffect).toBeUndefined();
+    });
+
+    it('bacteria death is limited by MIN_BACTERIA_FLOOR', () => {
+      // When bacteria is at or near floor, death should be 0 or very limited
+      const state = createTestState({
+        ammonia: 0,
+        aob: MIN_BACTERIA_FLOOR,
+        surface: 10000,
+      });
+      const effects = updateNitrogenCycle(state);
+
+      // No death effect should be generated because aob is at MIN_BACTERIA_FLOOR
       const deathEffect = effects.find(
         (e) => e.resource === 'aob' && e.source === 'nitrogen-cycle' && e.delta < 0
       );
@@ -564,7 +585,7 @@ describe('Constants', () => {
   });
 
   it('spawn thresholds are set correctly', () => {
-    expect(SPAWN_THRESHOLD_AOB).toBe(0.5);
+    expect(SPAWN_THRESHOLD_AOB).toBe(0.05);
     expect(SPAWN_THRESHOLD_NOB).toBe(0.5);
   });
 

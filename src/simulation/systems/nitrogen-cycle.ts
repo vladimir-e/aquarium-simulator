@@ -52,11 +52,13 @@ export const MIN_FOOD_AOB = 0.01;
 /** Minimum nitrite to sustain NOB (below this = starvation) */
 export const MIN_FOOD_NOB = 0.01;
 /** Ammonia threshold for AOB to spawn (bacteria omnipresent in nature) */
-export const SPAWN_THRESHOLD_AOB = 0.5;
+export const SPAWN_THRESHOLD_AOB = 0.05;
 /** Nitrite threshold for NOB to spawn */
 export const SPAWN_THRESHOLD_NOB = 0.5;
-/** Initial bacteria population when spawning */
-export const INITIAL_BACTERIA_SPAWN = 0.01;
+/** Initial bacteria population when spawning (integer) */
+export const INITIAL_BACTERIA_SPAWN = 1;
+/** Minimum bacteria floor once established (persistent colonization) */
+export const MIN_BACTERIA_FLOOR = 1;
 
 // Surface area → bacteria capacity
 /** Bacteria units per cm² of surface area */
@@ -217,6 +219,8 @@ function processNOB(resources: Resources): Effect[] {
 
 /**
  * Update bacterial population (growth and death).
+ * Uses integer values - bacteria populations are whole numbers.
+ * Once established, bacteria maintain minimum floor (persistent colonization).
  */
 function updateBacterialPopulation(resources: Resources, maxCapacity: number): Effect[] {
   const effects: Effect[] = [];
@@ -224,19 +228,23 @@ function updateBacterialPopulation(resources: Resources, maxCapacity: number): E
   // AOB growth/death
   if (resources.aob > 0) {
     if (resources.ammonia >= MIN_FOOD_AOB && resources.aob < maxCapacity) {
-      // Growth (doubles daily when well-fed)
-      const growth = calculateBacteriaGrowth(
+      // Growth (doubles daily when well-fed) - round to integer
+      const rawGrowth = calculateBacteriaGrowth(
         resources.aob,
         resources.ammonia,
         MIN_FOOD_AOB,
         maxCapacity
       );
+      const growth = Math.round(rawGrowth);
       if (growth > 0) {
         effects.push({ tier: 'passive', resource: 'aob', delta: growth, source: 'nitrogen-cycle' });
       }
     } else if (resources.ammonia < MIN_FOOD_AOB) {
-      // Death (starves slowly over days)
-      const death = calculateBacteriaDeath(resources.aob, resources.ammonia, MIN_FOOD_AOB);
+      // Death (starves slowly over days) - limit to maintain minimum floor
+      const rawDeath = calculateBacteriaDeath(resources.aob, resources.ammonia, MIN_FOOD_AOB);
+      // Don't let bacteria drop below MIN_BACTERIA_FLOOR once established
+      const maxDeath = Math.max(0, resources.aob - MIN_BACTERIA_FLOOR);
+      const death = Math.round(Math.min(rawDeath, maxDeath));
       if (death > 0) {
         effects.push({
           tier: 'passive',
@@ -251,17 +259,20 @@ function updateBacterialPopulation(resources: Resources, maxCapacity: number): E
   // NOB growth/death (same pattern)
   if (resources.nob > 0) {
     if (resources.nitrite >= MIN_FOOD_NOB && resources.nob < maxCapacity) {
-      const growth = calculateBacteriaGrowth(
+      const rawGrowth = calculateBacteriaGrowth(
         resources.nob,
         resources.nitrite,
         MIN_FOOD_NOB,
         maxCapacity
       );
+      const growth = Math.round(rawGrowth);
       if (growth > 0) {
         effects.push({ tier: 'passive', resource: 'nob', delta: growth, source: 'nitrogen-cycle' });
       }
     } else if (resources.nitrite < MIN_FOOD_NOB) {
-      const death = calculateBacteriaDeath(resources.nob, resources.nitrite, MIN_FOOD_NOB);
+      const rawDeath = calculateBacteriaDeath(resources.nob, resources.nitrite, MIN_FOOD_NOB);
+      const maxDeath = Math.max(0, resources.nob - MIN_BACTERIA_FLOOR);
+      const death = Math.round(Math.min(rawDeath, maxDeath));
       if (death > 0) {
         effects.push({
           tier: 'passive',
@@ -279,24 +290,26 @@ function updateBacterialPopulation(resources: Resources, maxCapacity: number): E
 /**
  * Cap bacteria to surface area capacity.
  * When surface area decreases (e.g., filter removed), bacteria die off immediately.
+ * Values rounded to integers.
  */
 function capBacteriaToSurface(resources: Resources, maxCapacity: number): Effect[] {
   const effects: Effect[] = [];
+  const intMaxCapacity = Math.floor(maxCapacity);
 
-  if (resources.aob > maxCapacity) {
+  if (resources.aob > intMaxCapacity) {
     effects.push({
       tier: 'passive',
       resource: 'aob',
-      delta: maxCapacity - resources.aob,
+      delta: intMaxCapacity - resources.aob,
       source: 'nitrogen-cycle',
     });
   }
 
-  if (resources.nob > maxCapacity) {
+  if (resources.nob > intMaxCapacity) {
     effects.push({
       tier: 'passive',
       resource: 'nob',
-      delta: maxCapacity - resources.nob,
+      delta: intMaxCapacity - resources.nob,
       source: 'nitrogen-cycle',
     });
   }

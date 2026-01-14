@@ -236,7 +236,7 @@ export function WaterChemistry({
           {isWasteExpanded && (
             <div className="mt-2 ml-4 pl-2 border-l border-gray-600 space-y-2">
               <div className="text-xs text-gray-400 mb-2">
-                Production rate: {totalRate.toFixed(3)} g/hr
+                Production rate: {totalRate.toFixed(4)} g/hr
               </div>
 
               {/* Decay source */}
@@ -263,7 +263,7 @@ export function WaterChemistry({
                 <div className="flex items-center justify-between">
                   <span className="text-xs text-gray-400">Ambient</span>
                   <span className="text-xs text-gray-300">
-                    {ambientWaste.toFixed(3)} g/hr
+                    {ambientWaste.toFixed(4)} g/hr
                   </span>
                 </div>
                 <div className="text-xs text-gray-500 ml-2">
