@@ -363,7 +363,7 @@ export function createSimulation(config: SimulationConfig): SimulationState {
     },
     environment: {
       roomTemperature: effectiveRoomTemp,
-      ambientWaste: 0.01, // 0.01 g/hour
+      ambientWaste: 0.0001, // 0.0001 g/hour
     },
     equipment: {
       heater: heaterConfig,

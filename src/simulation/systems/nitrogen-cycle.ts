@@ -60,7 +60,7 @@ export const INITIAL_BACTERIA_SPAWN = 0.01;
 
 // Surface area → bacteria capacity
 /** Bacteria units per cm² of surface area */
-export const BACTERIA_PER_CM2 = 0.001;
+export const BACTERIA_PER_CM2 = 0.1;
 
 // ============================================================================
 // Helper Functions
