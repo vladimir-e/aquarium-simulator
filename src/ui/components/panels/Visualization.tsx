@@ -1,6 +1,7 @@
 import React from 'react';
 import { Panel } from '../layout/Panel';
 import { calculateEvaporationRatePerDay, type LidType } from '../../../simulation/index.js';
+import { WaterLevelResource } from '../../../simulation/resources/index.js';
 
 const LID_LABELS: Record<LidType, string> = {
   none: 'no lid',
@@ -49,7 +50,7 @@ export function Visualization({
         </div>
 
         <div className="text-xs text-gray-400 text-center">
-          {waterLevel.toFixed(1)}L / {capacity}L
+          {WaterLevelResource.format(waterLevel)} / {capacity}L
         </div>
 
         <div className="text-xs text-gray-500 text-center">

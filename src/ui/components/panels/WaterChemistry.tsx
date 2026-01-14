@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Panel } from '../layout/Panel';
+import { WasteResource, FoodResource } from '../../../simulation/resources/index.js';
 
 interface WaterChemistryProps {
   waste: number;
@@ -61,7 +62,7 @@ export function WaterChemistry({
               </span>
               Waste
             </span>
-            <span className="text-sm text-gray-200">{waste.toFixed(2)}g</span>
+            <span className="text-sm text-gray-200">{WasteResource.format(waste)}</span>
           </button>
 
           {/* Expanded breakdown */}
@@ -82,7 +83,7 @@ export function WaterChemistry({
                 <div className="text-xs text-gray-500 ml-2">
                   {food > 0 ? (
                     <>
-                      {food.toFixed(2)}g food × {(BASE_DECAY_RATE * 100).toFixed(0)}%/hr × {tempFactor.toFixed(2)} temp
+                      {FoodResource.format(food)} food × {(BASE_DECAY_RATE * 100).toFixed(0)}%/hr × {tempFactor.toFixed(2)} temp
                     </>
                   ) : (
                     'No food available'

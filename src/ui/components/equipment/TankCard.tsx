@@ -1,6 +1,7 @@
 import React from 'react';
 import { Select } from '../ui/Select';
 import { Container } from 'lucide-react';
+import { WaterLevelResource } from '../../../simulation/resources/index.js';
 
 export interface TankState {
   capacity: number;
@@ -57,7 +58,7 @@ export function TankCard({ tank, onCapacityChange }: TankCardProps): React.JSX.E
         <div className="flex justify-between text-sm">
           <span className="text-gray-400">Water Level</span>
           <span className="text-gray-200">
-            {tank.waterLevel.toFixed(1)} L ({waterPercent}%)
+            {WaterLevelResource.format(tank.waterLevel)} ({waterPercent}%)
           </span>
         </div>
 
