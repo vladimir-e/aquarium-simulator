@@ -136,7 +136,12 @@ function App(): React.JSX.Element {
               passiveResources={state.passiveResources}
               tankCapacity={state.tank.capacity}
             />
-            <WaterChemistry waste={state.resources.waste} />
+            <WaterChemistry
+              waste={state.resources.waste}
+              food={state.resources.food}
+              temperature={state.resources.temperature}
+              ambientWaste={state.environment.ambientWaste}
+            />
           </div>
 
           {/* Column 3 */}
