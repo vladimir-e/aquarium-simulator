@@ -165,6 +165,10 @@ function App(): React.JSX.Element {
               food={state.resources.food}
               temperature={state.resources.temperature}
               ambientWaste={state.environment.ambientWaste}
+              ammonia={state.resources.ammonia}
+              nitrite={state.resources.nitrite}
+              nitrate={state.resources.nitrate}
+              waterLevel={state.tank.waterLevel}
             />
           </div>
 
