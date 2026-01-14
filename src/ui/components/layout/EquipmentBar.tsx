@@ -101,6 +101,17 @@ export function EquipmentBar({
                   <span className="text-xs text-gray-400">Filter</span>
                 </div>
               )}
+              {/* Light status */}
+              {light.enabled && (
+                <div className="flex items-center gap-1">
+                  <Sun className="w-4 h-4 text-accent-yellow" />
+                  <div className="w-2 h-2 rounded-full bg-accent-green" />
+                  {isLightOn && (
+                    <div className="w-2 h-2 rounded-full bg-yellow-500 animate-pulse" />
+                  )}
+                  <span className="text-xs text-gray-400">Light</span>
+                </div>
+              )}
               {/* Heater status */}
               {heater.enabled && (
                 <div className="flex items-center gap-1">
@@ -156,17 +167,6 @@ export function EquipmentBar({
                   </span>
                 </div>
               )}
-              {/* Light status */}
-              {light.enabled && (
-                <div className="flex items-center gap-1">
-                  <Sun className="w-4 h-4 text-accent-yellow" />
-                  <div className="w-2 h-2 rounded-full bg-accent-green" />
-                  {isLightOn && (
-                    <div className="w-2 h-2 rounded-full bg-yellow-500 animate-pulse" />
-                  )}
-                  <span className="text-xs text-gray-400">Light</span>
-                </div>
-              )}
             </div>
           )}
         </div>
@@ -186,18 +186,18 @@ export function EquipmentBar({
               onEnabledChange={onFilterEnabledChange}
               onTypeChange={onFilterTypeChange}
             />
-            <HeaterCard
-              heater={heater}
-              onEnabledChange={onHeaterEnabledChange}
-              onTargetTemperatureChange={onHeaterTargetTemperatureChange}
-              onWattageChange={onHeaterWattageChange}
-            />
             <LightCard
               light={light}
               isCurrentlyOn={isLightOn}
               onEnabledChange={onLightEnabledChange}
               onWattageChange={onLightWattageChange}
               onScheduleChange={onLightScheduleChange}
+            />
+            <HeaterCard
+              heater={heater}
+              onEnabledChange={onHeaterEnabledChange}
+              onTargetTemperatureChange={onHeaterTargetTemperatureChange}
+              onWattageChange={onHeaterWattageChange}
             />
             <SubstrateCard
               substrate={substrate}
