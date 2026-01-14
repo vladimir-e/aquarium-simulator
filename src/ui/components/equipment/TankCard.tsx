@@ -58,7 +58,7 @@ export function TankCard({ tank, onCapacityChange }: TankCardProps): React.JSX.E
         </div>
 
         <div className="text-xs text-gray-400 mt-2">
-          Surface area shown in Resources panel
+          Glass walls provide bacteria colonization surface
         </div>
       </div>
     </div>

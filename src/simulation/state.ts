@@ -22,10 +22,6 @@ export interface Tank {
   hardscapeSlots: number;
 }
 
-/**
- * Unified resource model - all resources live here.
- * Replaces the previous split across tank.waterLevel, passiveResources, and resources.
- */
 export interface Resources {
   // Physical resources
   /** Current water volume in liters (max = tank.capacity) */
@@ -138,7 +134,7 @@ export interface SimulationState {
   tick: number;
   /** Tank physical properties (capacity and slots only) */
   tank: Tank;
-  /** All resource values (unified model) */
+  /** All resource values */
   resources: Resources;
   /** External environment conditions */
   environment: Environment;
