@@ -7,7 +7,7 @@ import type { SimulationState } from '../state.js';
 
 export type EffectTier = 'immediate' | 'active' | 'passive';
 
-export type ResourceKey = 'temperature' | 'waterLevel' | 'food' | 'waste';
+export type ResourceKey = 'temperature' | 'waterLevel' | 'food' | 'waste' | 'algae';
 
 export interface Effect {
   /** Processing tier determines when this effect is applied */
@@ -27,6 +27,10 @@ const MAX_TEMPERATURE = 50;
 /** Food/Waste bounds in grams */
 const MIN_RESOURCE = 0;
 const MAX_RESOURCE = 1000; // Reasonable upper limit
+
+/** Algae bounds (0-100 relative scale) */
+const MIN_ALGAE = 0;
+const MAX_ALGAE = 100;
 
 /**
  * Clamps a value between min and max (inclusive).
@@ -76,6 +80,13 @@ export function applyEffects(
             draft.resources.waste + effect.delta,
             MIN_RESOURCE,
             MAX_RESOURCE
+          );
+          break;
+        case 'algae':
+          draft.resources.algae = clamp(
+            draft.resources.algae + effect.delta,
+            MIN_ALGAE,
+            MAX_ALGAE
           );
           break;
       }

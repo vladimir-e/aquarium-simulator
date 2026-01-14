@@ -1,6 +1,6 @@
 import type { SimulationState } from '../state.js';
 
-export type ActionType = 'topOff' | 'feed';
+export type ActionType = 'topOff' | 'feed' | 'scrubAlgae';
 
 export interface BaseAction {
   type: ActionType;
@@ -17,7 +17,13 @@ export interface FeedAction extends BaseAction {
   amount: number;
 }
 
-export type Action = TopOffAction | FeedAction;
+export interface ScrubAlgaeAction extends BaseAction {
+  type: 'scrubAlgae';
+  /** Optional: deterministic percentage for testing (0.1-0.3) */
+  randomPercent?: number;
+}
+
+export type Action = TopOffAction | FeedAction | ScrubAlgaeAction;
 
 /**
  * Result of applying an action to simulation state.

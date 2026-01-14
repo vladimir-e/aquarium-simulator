@@ -142,6 +142,7 @@ function App(): React.JSX.Element {
             <Actions
               waterLevel={state.tank.waterLevel}
               capacity={state.tank.capacity}
+              algae={state.resources.algae}
               executeAction={executeAction}
             />
           </div>
@@ -169,7 +170,7 @@ function App(): React.JSX.Element {
 
           {/* Column 3 */}
           <div className="space-y-4">
-            <Plants />
+            <Plants algae={state.resources.algae} />
           </div>
 
           {/* Column 4 */}

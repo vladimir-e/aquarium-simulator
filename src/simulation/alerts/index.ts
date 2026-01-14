@@ -7,14 +7,16 @@ import type { Alert } from './types.js';
 import type { LogEntry } from '../core/logging.js';
 import type { AlertState, SimulationState } from '../state.js';
 import { waterLevelAlert } from './water-level.js';
+import { highAlgaeAlert } from './high-algae.js';
 
 export type { Alert, AlertResult } from './types.js';
 export { waterLevelAlert, WATER_LEVEL_CRITICAL_THRESHOLD } from './water-level.js';
+export { highAlgaeAlert, HIGH_ALGAE_THRESHOLD } from './high-algae.js';
 
 /** All alerts checked after effects are applied */
 export const alerts: Alert[] = [
   waterLevelAlert,
-  // Future alerts will be added here
+  highAlgaeAlert,
 ];
 
 /**

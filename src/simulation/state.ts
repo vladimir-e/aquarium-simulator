@@ -43,6 +43,8 @@ export interface Resources {
   food: number;
   /** Organic waste accumulation (grams) */
   waste: number;
+  /** Algae level (0-100 scale, relative coverage) */
+  algae: number;
 }
 
 export interface Environment {
@@ -124,6 +126,8 @@ export interface Equipment {
 export interface AlertState {
   /** Water level is below critical threshold */
   waterLevelCritical: boolean;
+  /** Algae level is at 80+ (bloom warning) */
+  highAlgae: boolean;
 }
 
 export interface SimulationState {
@@ -329,6 +333,7 @@ export function createSimulation(config: SimulationConfig): SimulationState {
       temperature: initialTemperature ?? DEFAULT_TEMPERATURE,
       food: 0.0,
       waste: 0.0,
+      algae: 0,
     },
     environment: {
       roomTemperature: effectiveRoomTemp,
@@ -348,6 +353,7 @@ export function createSimulation(config: SimulationConfig): SimulationState {
     logs: [initialLog],
     alertState: {
       waterLevelCritical: false,
+      highAlgae: false,
     },
   };
 }

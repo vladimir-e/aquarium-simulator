@@ -1,6 +1,6 @@
 # Task 11: Algae Growth & Scrub Algae Action
 
-**Status:** pending
+**Status:** completed
 
 ## Overview
 
