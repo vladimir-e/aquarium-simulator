@@ -3,6 +3,8 @@ import {
   algaeSystem,
   calculateAlgaeGrowth,
   getWattsPerGallon,
+  MAX_GROWTH_RATE,
+  HALF_SATURATION,
   BASE_GROWTH_RATE,
   ALGAE_CAP,
 } from './algae.js';
@@ -30,32 +32,44 @@ describe('calculateAlgaeGrowth', () => {
     expect(growth).toBe(0);
   });
 
-  it('calculates growth correctly with BASE_GROWTH_RATE', () => {
-    // 100W light in 100L tank = 1 W/L
-    // growth = 2.5 * 1 = 2.5 per hour
+  it('uses Michaelis-Menten saturation formula', () => {
+    // 100W in 100L = 1 W/L
+    // growth = MAX_GROWTH_RATE * wpl / (HALF_SATURATION + wpl)
+    // growth = 4 * 1 / (1.3 + 1) = 4 / 2.3 ≈ 1.74
     const growth = calculateAlgaeGrowth(100, 100);
-    expect(growth).toBeCloseTo(BASE_GROWTH_RATE * 1.0, 6);
+    const expected = (MAX_GROWTH_RATE * 1.0) / (HALF_SATURATION + 1.0);
+    expect(growth).toBeCloseTo(expected, 6);
   });
 
-  it('scales linearly with light intensity', () => {
-    const growth1 = calculateAlgaeGrowth(50, 100);
-    const growth2 = calculateAlgaeGrowth(100, 100);
-    expect(growth2).toBeCloseTo(growth1 * 2, 6);
+  it('shows diminishing returns at high light intensity', () => {
+    // With saturation curve, doubling light doesn't double growth
+    const growth1 = calculateAlgaeGrowth(50, 100); // 0.5 W/L
+    const growth2 = calculateAlgaeGrowth(100, 100); // 1.0 W/L
+    const growth4 = calculateAlgaeGrowth(200, 100); // 2.0 W/L
+
+    // Growth increases, but not linearly
+    expect(growth2).toBeGreaterThan(growth1);
+    expect(growth4).toBeGreaterThan(growth2);
+
+    // But the ratios decrease (diminishing returns)
+    const ratio1to2 = growth2 / growth1;
+    const ratio2to4 = growth4 / growth2;
+    expect(ratio2to4).toBeLessThan(ratio1to2);
   });
 
-  it('scales inversely with tank size', () => {
-    // Same wattage, double the tank size = half the growth
-    const growth1 = calculateAlgaeGrowth(100, 50);
-    const growth2 = calculateAlgaeGrowth(100, 100);
-    expect(growth2).toBeCloseTo(growth1 / 2, 6);
+  it('approaches MAX_GROWTH_RATE asymptotically at extreme light', () => {
+    // Very high W/L should approach but not exceed MAX_GROWTH_RATE
+    const extremeGrowth = calculateAlgaeGrowth(1000, 100); // 10 W/L
+    expect(extremeGrowth).toBeLessThan(MAX_GROWTH_RATE);
+    expect(extremeGrowth).toBeGreaterThan(MAX_GROWTH_RATE * 0.85); // >85% of max
   });
 
-  it('produces same growth rate for same W/gal ratio', () => {
-    // 10 gal (38L) with 10W = 1 W/gal
+  it('produces same growth rate for same W/L ratio', () => {
+    // 10 gal (38L) with 10W = ~0.26 W/L
     const growth10gal = calculateAlgaeGrowth(10, 38);
-    // 50 gal (190L) with 50W = 1 W/gal
+    // 50 gal (190L) with 50W = ~0.26 W/L
     const growth50gal = calculateAlgaeGrowth(50, 190);
-    // 100 gal (380L) with 100W = 1 W/gal
+    // 100 gal (380L) with 100W = ~0.26 W/L
     const growth100gal = calculateAlgaeGrowth(100, 380);
 
     // All should produce approximately the same growth rate
@@ -63,36 +77,49 @@ describe('calculateAlgaeGrowth', () => {
     expect(growth50gal).toBeCloseTo(growth100gal, 2);
   });
 
-  // Calibration tests from task spec
-  describe('calibration tests', () => {
-    it('10 gal (38L) with 10W (1 W/gal) gives ~0.65/hour', () => {
+  // Calibration tests with saturation curve
+  describe('calibration tests (saturation curve)', () => {
+    it('10 gal (38L) with 10W (1 W/gal) gives ~0.67/hour (~16/day)', () => {
       const growth = calculateAlgaeGrowth(10, 38);
-      expect(growth).toBeCloseTo(0.65, 1);
+      // wpl = 10/38 ≈ 0.263, growth = 4 * 0.263 / 1.563 ≈ 0.67
+      expect(growth).toBeCloseTo(0.67, 1);
     });
 
-    it('50 gal (190L) with 50W (1 W/gal) gives ~0.65/hour', () => {
+    it('50 gal (190L) with 50W (1 W/gal) gives ~0.67/hour', () => {
       const growth = calculateAlgaeGrowth(50, 190);
-      expect(growth).toBeCloseTo(0.65, 1);
+      expect(growth).toBeCloseTo(0.67, 1);
     });
 
-    it('10 gal (38L) with 5W (0.5 W/gal) gives ~0.33/hour', () => {
+    it('10 gal (38L) with 5W (0.5 W/gal) gives ~0.37/hour (~9/day)', () => {
       const growth = calculateAlgaeGrowth(5, 38);
-      expect(growth).toBeCloseTo(0.33, 1);
+      // wpl = 5/38 ≈ 0.132, growth = 4 * 0.132 / 1.432 ≈ 0.37
+      expect(growth).toBeCloseTo(0.37, 1);
     });
 
-    it('10 gal (38L) with 50W (5 W/gal) gives ~3.29/hour (bloom!)', () => {
+    it('10 gal (38L) with 50W (5 W/gal) gives ~2.0/hour (diminished from linear)', () => {
       const growth = calculateAlgaeGrowth(50, 38);
-      expect(growth).toBeCloseTo(3.29, 1);
+      // wpl = 50/38 ≈ 1.316, growth = 4 * 1.316 / 2.616 ≈ 2.01
+      // Linear would be 3.29, but saturation curve caps it
+      expect(growth).toBeCloseTo(2.0, 1);
     });
 
-    it('100 gal (380L) with 100W (1 W/gal) gives ~0.65/hour', () => {
+    it('100 gal (380L) with 100W (1 W/gal) gives ~0.67/hour', () => {
       const growth = calculateAlgaeGrowth(100, 380);
-      expect(growth).toBeCloseTo(0.65, 1);
+      expect(growth).toBeCloseTo(0.67, 1);
     });
 
-    it('100 gal (380L) with 200W (2 W/gal) gives ~1.33/hour', () => {
+    it('100 gal (380L) with 200W (2 W/gal) gives ~1.15/hour', () => {
       const growth = calculateAlgaeGrowth(200, 380);
-      expect(growth).toBeCloseTo(1.33, 1);
+      // wpl = 200/380 ≈ 0.526, growth = 4 * 0.526 / 1.826 ≈ 1.15
+      expect(growth).toBeCloseTo(1.15, 1);
+    });
+
+    it('5 gal (19L) with 200W (extreme) gives ~3.6/hour (not instant bloom)', () => {
+      const growth = calculateAlgaeGrowth(200, 19);
+      // wpl = 200/19 ≈ 10.5, growth = 4 * 10.5 / 11.8 ≈ 3.56
+      // With 10hr photoperiod = 36/day (takes ~3 days to reach 100, not 1 day)
+      expect(growth).toBeCloseTo(3.6, 1);
+      expect(growth).toBeLessThan(MAX_GROWTH_RATE);
     });
   });
 });
@@ -173,7 +200,7 @@ describe('algaeSystem', () => {
     expect(algaeEffect!.source).toBe('algae');
   });
 
-  it('growth rate depends on light intensity per liter', () => {
+  it('growth rate increases with light intensity (with diminishing returns)', () => {
     const dimState = createTestState({ light: 50 });
     const brightState = createTestState({ light: 100 });
 
@@ -183,7 +210,9 @@ describe('algaeSystem', () => {
     const dimGrowth = dimEffects.find((e) => e.resource === 'algae')!.delta;
     const brightGrowth = brightEffects.find((e) => e.resource === 'algae')!.delta;
 
-    expect(brightGrowth).toBeCloseTo(dimGrowth * 2, 6);
+    // More light = more growth, but not exactly 2x due to saturation
+    expect(brightGrowth).toBeGreaterThan(dimGrowth);
+    expect(brightGrowth).toBeLessThan(dimGrowth * 2); // Diminishing returns
   });
 
   it('larger tanks have slower growth with same wattage', () => {
@@ -196,16 +225,25 @@ describe('algaeSystem', () => {
     const smallGrowth = smallEffects.find((e) => e.resource === 'algae')!.delta;
     const largeGrowth = largeEffects.find((e) => e.resource === 'algae')!.delta;
 
-    expect(largeGrowth).toBeCloseTo(smallGrowth / 2, 6);
+    // Larger tank = slower growth (lower W/L), but not exactly half due to saturation
+    expect(largeGrowth).toBeLessThan(smallGrowth);
   });
 });
 
 describe('constants', () => {
-  it('BASE_GROWTH_RATE is 2.5', () => {
-    expect(BASE_GROWTH_RATE).toBe(2.5);
+  it('MAX_GROWTH_RATE is 4', () => {
+    expect(MAX_GROWTH_RATE).toBe(4);
+  });
+
+  it('HALF_SATURATION is 1.3', () => {
+    expect(HALF_SATURATION).toBe(1.3);
   });
 
   it('ALGAE_CAP is 100', () => {
     expect(ALGAE_CAP).toBe(100);
+  });
+
+  it('BASE_GROWTH_RATE is 2.5 (deprecated, kept for compatibility)', () => {
+    expect(BASE_GROWTH_RATE).toBe(2.5);
   });
 });

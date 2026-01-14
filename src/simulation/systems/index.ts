@@ -35,6 +35,8 @@ export {
   algaeSystem,
   calculateAlgaeGrowth,
   getWattsPerGallon,
+  MAX_GROWTH_RATE,
+  HALF_SATURATION,
   BASE_GROWTH_RATE,
   ALGAE_CAP,
 } from './algae.js';
