@@ -7,7 +7,7 @@ import type { SimulationState } from './state.js';
 
 export type EffectTier = 'immediate' | 'active' | 'passive';
 
-export type ResourceKey = 'temperature' | 'waterLevel';
+export type ResourceKey = 'temperature' | 'waterLevel' | 'food' | 'waste';
 
 export interface Effect {
   /** Processing tier determines when this effect is applied */
@@ -23,6 +23,10 @@ export interface Effect {
 /** Temperature bounds in °C */
 const MIN_TEMPERATURE = 0;
 const MAX_TEMPERATURE = 50;
+
+/** Food/Waste bounds in grams */
+const MIN_RESOURCE = 0;
+const MAX_RESOURCE = 1000; // Reasonable upper limit
 
 /**
  * Clamps a value between min and max (inclusive).
@@ -58,6 +62,20 @@ export function applyEffects(
             draft.tank.waterLevel + effect.delta,
             0,
             draft.tank.capacity
+          );
+          break;
+        case 'food':
+          draft.resources.food = clamp(
+            draft.resources.food + effect.delta,
+            MIN_RESOURCE,
+            MAX_RESOURCE
+          );
+          break;
+        case 'waste':
+          draft.resources.waste = clamp(
+            draft.resources.waste + effect.delta,
+            MIN_RESOURCE,
+            MAX_RESOURCE
           );
           break;
       }
