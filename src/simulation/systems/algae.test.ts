@@ -154,7 +154,7 @@ describe('algaeSystem', () => {
     const state = createSimulation({ tankCapacity: capacity });
     return produce(state, (draft) => {
       if (overrides.light !== undefined) {
-        draft.passiveResources.light = overrides.light;
+        draft.resources.light = overrides.light;
       }
       if (overrides.algae !== undefined) {
         draft.resources.algae = overrides.algae;

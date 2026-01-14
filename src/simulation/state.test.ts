@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
   createSimulation,
-  calculateTankBacteriaSurface,
   DEFAULT_HEATER,
 } from './state.js';
 import { DEFAULT_FILTER, FILTER_SURFACE } from './equipment/filter.js';
@@ -18,7 +17,7 @@ describe('createSimulation', () => {
   it('sets water level to tank capacity', () => {
     const state = createSimulation({ tankCapacity: 100 });
 
-    expect(state.tank.waterLevel).toBe(100);
+    expect(state.resources.water).toBe(100);
   });
 
   it('defaults temperature to 25°C', () => {
@@ -50,7 +49,7 @@ describe('createSimulation', () => {
 
     expect(state.tick).toBe(0);
     expect(state.tank.capacity).toBe(200);
-    expect(state.tank.waterLevel).toBe(200);
+    expect(state.resources.water).toBe(200);
     expect(state.resources.temperature).toBe(22);
   });
 
@@ -203,26 +202,41 @@ describe('DEFAULT_SUBSTRATE', () => {
   });
 });
 
-describe('calculateTankBacteriaSurface', () => {
+describe('tank bacteria surface', () => {
   it('calculates surface area for tank', () => {
-    // For a 100L tank
-    const surface = calculateTankBacteriaSurface(100);
+    const state = createSimulation({
+      tankCapacity: 100,
+      filter: { enabled: false },
+      substrate: { type: 'none' },
+    });
 
     // Should return a positive number
-    expect(surface).toBeGreaterThan(0);
+    expect(state.resources.surface).toBeGreaterThan(0);
   });
 
   it('larger tanks have more surface area', () => {
-    const surface100 = calculateTankBacteriaSurface(100);
-    const surface200 = calculateTankBacteriaSurface(200);
+    const state100 = createSimulation({
+      tankCapacity: 100,
+      filter: { enabled: false },
+      substrate: { type: 'none' },
+    });
+    const state200 = createSimulation({
+      tankCapacity: 200,
+      filter: { enabled: false },
+      substrate: { type: 'none' },
+    });
 
-    expect(surface200).toBeGreaterThan(surface100);
+    expect(state200.resources.surface).toBeGreaterThan(state100.resources.surface);
   });
 
   it('returns rounded integer', () => {
-    const surface = calculateTankBacteriaSurface(75);
+    const state = createSimulation({
+      tankCapacity: 75,
+      filter: { enabled: false },
+      substrate: { type: 'none' },
+    });
 
-    expect(Number.isInteger(surface)).toBe(true);
+    expect(Number.isInteger(state.resources.surface)).toBe(true);
   });
 });
 
@@ -230,15 +244,15 @@ describe('createSimulation - tank bacteria surface', () => {
   it('initializes tank with bacteria surface calculated from capacity', () => {
     const state = createSimulation({ tankCapacity: 100 });
 
-    expect(state.tank.bacteriaSurface).toBe(calculateTankBacteriaSurface(100));
+    expect(state.resources.surface).toBeGreaterThan(0);
   });
 
   it('bacteria surface varies with tank capacity', () => {
     const state100 = createSimulation({ tankCapacity: 100 });
     const state200 = createSimulation({ tankCapacity: 200 });
 
-    expect(state200.tank.bacteriaSurface).toBeGreaterThan(
-      state100.tank.bacteriaSurface
+    expect(state200.resources.surface).toBeGreaterThan(
+      state100.resources.surface
     );
   });
 });
@@ -325,22 +339,28 @@ describe('createSimulation - passive resources', () => {
   it('initializes passive resources', () => {
     const state = createSimulation({ tankCapacity: 100 });
 
-    expect(state.passiveResources).toBeDefined();
-    expect(state.passiveResources.surface).toBeGreaterThan(0);
-    expect(typeof state.passiveResources.flow).toBe('number');
+    expect(state.resources).toBeDefined();
+    expect(state.resources.surface).toBeGreaterThan(0);
+    expect(typeof state.resources.flow).toBe('number');
   });
 
   it('initial passive resources include tank and filter surface', () => {
-    const state = createSimulation({
+    const stateWithFilter = createSimulation({
       tankCapacity: 100,
       filter: { enabled: true, type: 'sponge' },
       substrate: { type: 'none' },
     });
 
-    const expectedSurface =
-      calculateTankBacteriaSurface(100) + FILTER_SURFACE.sponge;
+    const stateWithoutFilter = createSimulation({
+      tankCapacity: 100,
+      filter: { enabled: false },
+      substrate: { type: 'none' },
+    });
 
-    expect(state.passiveResources.surface).toBe(expectedSurface);
+    // Surface with filter should be tank surface + filter surface
+    expect(stateWithFilter.resources.surface).toBe(
+      stateWithoutFilter.resources.surface + FILTER_SURFACE.sponge
+    );
   });
 
   it('initial passive resources include filter flow', () => {
@@ -350,7 +370,7 @@ describe('createSimulation - passive resources', () => {
       powerhead: { enabled: false },
     });
 
-    expect(state.passiveResources.flow).toBe(100); // Sponge filter flow
+    expect(state.resources.flow).toBe(100); // Sponge filter flow
   });
 
   it('disabled filter contributes 0 flow', () => {
@@ -360,7 +380,7 @@ describe('createSimulation - passive resources', () => {
       powerhead: { enabled: false },
     });
 
-    expect(state.passiveResources.flow).toBe(0);
+    expect(state.resources.flow).toBe(0);
   });
 
   it('includes substrate surface in calculation', () => {
@@ -377,8 +397,8 @@ describe('createSimulation - passive resources', () => {
     });
 
     // Gravel adds 800 cm²/L * 100L = 80,000 cm²
-    expect(stateGravel.passiveResources.surface).toBe(
-      stateNone.passiveResources.surface + 80000
+    expect(stateGravel.resources.surface).toBe(
+      stateNone.resources.surface + 80000
     );
   });
 });

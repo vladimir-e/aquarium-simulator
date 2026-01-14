@@ -17,14 +17,13 @@ export type {
   Hardscape,
   Light,
   Equipment,
-  PassiveResources,
   LogEntry,
   LogSeverity,
   AlertState,
 } from './state.js';
 export {
   createSimulation,
-  calculateTankBacteriaSurface,
+  calculateTankGlassSurface,
   calculateHardscapeSlots,
   DEFAULT_HEATER,
   DEFAULT_LID,
@@ -34,6 +33,21 @@ export {
   HARDSCAPE_SURFACE,
 } from './state.js';
 
+// Resources
+export type { ResourceDefinition, ResourceKey } from './resources/index.js';
+export {
+  ResourceRegistry,
+  AllResources,
+  TemperatureResource,
+  WaterResource,
+  SurfaceResource,
+  FlowResource,
+  LightResource,
+  FoodResource,
+  WasteResource,
+  AlgaeResource,
+} from './resources/index.js';
+
 // Schedule
 export type { DailySchedule } from './core/schedule.js';
 export { isScheduleActive, isValidSchedule, formatSchedule } from './core/schedule.js';
@@ -41,7 +55,7 @@ export { isScheduleActive, isValidSchedule, formatSchedule } from './core/schedu
 // Logging
 export { createLog } from './core/logging.js';
 
-export type { Effect, EffectTier, ResourceKey } from './core/effects.js';
+export type { Effect, EffectTier } from './core/effects.js';
 export { applyEffects } from './core/effects.js';
 
 export { tick, getHourOfDay, getDayNumber } from './tick.js';

@@ -74,7 +74,7 @@ describe('tick integration', () => {
 
     state = tick(state);
 
-    expect(state.tank.waterLevel).toBeLessThan(100);
+    expect(state.resources.water).toBeLessThan(100);
   });
 
   it('heater counteracts temperature drift', () => {
@@ -272,13 +272,13 @@ describe('tick passive resources', () => {
       filter: { enabled: true, type: 'sponge' },
     });
 
-    const initialResources = state.passiveResources;
+    const initialResources = state.resources;
     const newState = tick(state);
 
     // Passive resources should be recalculated (same value since equipment unchanged)
-    expect(newState.passiveResources).toBeDefined();
-    expect(newState.passiveResources.surface).toBe(initialResources.surface);
-    expect(newState.passiveResources.flow).toBe(initialResources.flow);
+    expect(newState.resources).toBeDefined();
+    expect(newState.resources.surface).toBe(initialResources.surface);
+    expect(newState.resources.flow).toBe(initialResources.flow);
   });
 
   it('passive resources update when filter enabled state changes', () => {
@@ -290,7 +290,7 @@ describe('tick passive resources', () => {
       powerhead: { enabled: false },
     });
 
-    const initialFlow = state.passiveResources.flow;
+    const initialFlow = state.resources.flow;
     expect(initialFlow).toBe(600); // Canister flow
 
     // Disable filter
@@ -305,12 +305,12 @@ describe('tick passive resources', () => {
     // Run tick to recalculate
     const newState = tick(state);
 
-    expect(newState.passiveResources.flow).toBe(0);
-    expect(newState.passiveResources.surface).toBeLessThan(
+    expect(newState.resources.flow).toBe(0);
+    expect(newState.resources.surface).toBeLessThan(
       createSimulation({
         tankCapacity: 100,
         filter: { enabled: true, type: 'canister' },
-      }).passiveResources.surface
+      }).resources.surface
     );
   });
 
@@ -323,7 +323,7 @@ describe('tick passive resources', () => {
       powerhead: { enabled: true, flowRateGPH: 240 },
     });
 
-    expect(state.passiveResources.flow).toBe(908); // 240 GPH
+    expect(state.resources.flow).toBe(908); // 240 GPH
 
     // Change powerhead flow rate
     state = {
@@ -337,7 +337,7 @@ describe('tick passive resources', () => {
     // Run tick to recalculate
     const newState = tick(state);
 
-    expect(newState.passiveResources.flow).toBe(3218); // 850 GPH
+    expect(newState.resources.flow).toBe(3218); // 850 GPH
   });
 });
 
@@ -356,9 +356,9 @@ describe('tick alerts integration', () => {
     // Manually set water level below 20% threshold
     state = {
       ...state,
-      tank: {
-        ...state.tank,
-        waterLevel: 15, // 15% of 100L
+      resources: {
+        ...state.resources,
+        water: 15, // 15% of 100L
       },
     };
 
@@ -380,9 +380,9 @@ describe('tick alerts integration', () => {
     // Set water level just above 20% so evaporation might push it below
     state = {
       ...state,
-      tank: {
-        ...state.tank,
-        waterLevel: 20.1, // Just above threshold
+      resources: {
+        ...state.resources,
+        water: 20.1, // Just above threshold
       },
     };
 

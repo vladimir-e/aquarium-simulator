@@ -51,8 +51,8 @@ function App(): React.JSX.Element {
     executeAction,
   } = useSimulation();
 
-  // Calculate if light is currently on from passive resources
-  const isLightOn = state.passiveResources.light > 0;
+  // Calculate if light is currently on from resources
+  const isLightOn = state.resources.light > 0;
 
   useKeyboardShortcuts(step, togglePlayPause, isPlaying);
 
@@ -69,8 +69,7 @@ function App(): React.JSX.Element {
       <EquipmentBar
         tank={{
           capacity: state.tank.capacity,
-          waterLevel: state.tank.waterLevel,
-          bacteriaSurface: state.tank.bacteriaSurface,
+          waterLevel: state.resources.water,
         }}
         heater={{
           enabled: state.equipment.heater.enabled,
@@ -140,7 +139,7 @@ function App(): React.JSX.Element {
               onRoomTemperatureChange={updateRoomTemperature}
             />
             <Actions
-              waterLevel={state.tank.waterLevel}
+              waterLevel={state.resources.water}
               capacity={state.tank.capacity}
               algae={state.resources.algae}
               executeAction={executeAction}
@@ -150,14 +149,16 @@ function App(): React.JSX.Element {
           {/* Column 2 */}
           <div className="space-y-4">
             <Visualization
-              waterLevel={state.tank.waterLevel}
+              waterLevel={state.resources.water}
               capacity={state.tank.capacity}
               waterTemperature={state.resources.temperature}
               roomTemperature={state.environment.roomTemperature}
               lidType={state.equipment.lid.type}
             />
             <ResourcesPanel
-              passiveResources={state.passiveResources}
+              surface={state.resources.surface}
+              flow={state.resources.flow}
+              light={state.resources.light}
               tankCapacity={state.tank.capacity}
             />
             <WaterChemistry

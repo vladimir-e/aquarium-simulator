@@ -8,7 +8,8 @@ import type { ActionResult } from './types.js';
  * Simulates adding fresh water to replace evaporated water.
  */
 export function topOff(state: SimulationState): ActionResult {
-  const { waterLevel, capacity } = state.tank;
+  const { capacity } = state.tank;
+  const waterLevel = state.resources.water;
 
   // Already at capacity, no action needed
   if (waterLevel >= capacity) {
@@ -21,7 +22,7 @@ export function topOff(state: SimulationState): ActionResult {
   const amountAdded = capacity - waterLevel;
 
   const newState = produce(state, (draft) => {
-    draft.tank.waterLevel = draft.tank.capacity;
+    draft.resources.water = draft.tank.capacity;
     draft.logs.push(
       createLog(
         draft.tick,

@@ -12,7 +12,7 @@ describe('waterLevelAlert', () => {
     const state = createSimulation({ tankCapacity: 100 });
     // Set water level to 15% (below 20% threshold)
     const lowWaterState = produce(state, (draft) => {
-      draft.tank.waterLevel = 15;
+      draft.resources.water = 15;
       draft.tick = 50;
     });
 
@@ -29,7 +29,7 @@ describe('waterLevelAlert', () => {
     const state = createSimulation({ tankCapacity: 100 });
     // Set water level below threshold AND mark as already triggered
     const alreadyTriggeredState = produce(state, (draft) => {
-      draft.tank.waterLevel = 15;
+      draft.resources.water = 15;
       draft.alertState.waterLevelCritical = true;
     });
 
@@ -43,7 +43,7 @@ describe('waterLevelAlert', () => {
     const state = createSimulation({ tankCapacity: 100 });
     // Set water level to exactly 20%
     const normalWaterState = produce(state, (draft) => {
-      draft.tank.waterLevel = 20;
+      draft.resources.water = 20;
     });
 
     const result = waterLevelAlert.check(normalWaterState);
@@ -55,7 +55,7 @@ describe('waterLevelAlert', () => {
   it('returns null log when water level is 0 (tank empty)', () => {
     const state = createSimulation({ tankCapacity: 100 });
     const emptyTankState = produce(state, (draft) => {
-      draft.tank.waterLevel = 0;
+      draft.resources.water = 0;
     });
 
     const result = waterLevelAlert.check(emptyTankState);
@@ -67,7 +67,7 @@ describe('waterLevelAlert', () => {
   it('log message includes current water level and percentage', () => {
     const state = createSimulation({ tankCapacity: 100 });
     const lowWaterState = produce(state, (draft) => {
-      draft.tank.waterLevel = 15.5;
+      draft.resources.water = 15.5;
     });
 
     const result = waterLevelAlert.check(lowWaterState);
@@ -80,7 +80,7 @@ describe('waterLevelAlert', () => {
   it('log has correct severity (warning) and source (evaporation)', () => {
     const state = createSimulation({ tankCapacity: 100 });
     const lowWaterState = produce(state, (draft) => {
-      draft.tank.waterLevel = 10;
+      draft.resources.water = 10;
     });
 
     const result = waterLevelAlert.check(lowWaterState);
@@ -95,7 +95,7 @@ describe('waterLevelAlert', () => {
 
     // At exactly 20%, should NOT trigger
     const atThreshold = produce(state, (draft) => {
-      draft.tank.waterLevel = 20;
+      draft.resources.water = 20;
     });
     const atResult = waterLevelAlert.check(atThreshold);
     expect(atResult.log).toBeNull();
@@ -103,7 +103,7 @@ describe('waterLevelAlert', () => {
 
     // Just below 20%, should trigger
     const belowThreshold = produce(state, (draft) => {
-      draft.tank.waterLevel = 19.99;
+      draft.resources.water = 19.99;
     });
     const belowResult = waterLevelAlert.check(belowThreshold);
     expect(belowResult.log).not.toBeNull();
@@ -115,7 +115,7 @@ describe('waterLevelAlert', () => {
     // 20% of 200L = 40L
     // Set to 38L (19% of capacity)
     const lowWaterState = produce(state, (draft) => {
-      draft.tank.waterLevel = 38;
+      draft.resources.water = 38;
     });
 
     const result = waterLevelAlert.check(lowWaterState);
@@ -129,7 +129,7 @@ describe('waterLevelAlert', () => {
     const state = createSimulation({ tankCapacity: 100 });
     // Previously triggered, but water is now above threshold
     const recoveredState = produce(state, (draft) => {
-      draft.tank.waterLevel = 25;
+      draft.resources.water = 25;
       draft.alertState.waterLevelCritical = true;
     });
 
@@ -144,7 +144,7 @@ describe('waterLevelAlert', () => {
 
     // First crossing - fires
     const firstCross = produce(state, (draft) => {
-      draft.tank.waterLevel = 15;
+      draft.resources.water = 15;
       draft.alertState.waterLevelCritical = false;
     });
     const firstResult = waterLevelAlert.check(firstCross);
@@ -152,7 +152,7 @@ describe('waterLevelAlert', () => {
 
     // Recovery - clears
     const recovered = produce(state, (draft) => {
-      draft.tank.waterLevel = 25;
+      draft.resources.water = 25;
       draft.alertState.waterLevelCritical = true;
     });
     const recoveredResult = waterLevelAlert.check(recovered);
@@ -160,7 +160,7 @@ describe('waterLevelAlert', () => {
 
     // Second crossing - fires again
     const secondCross = produce(state, (draft) => {
-      draft.tank.waterLevel = 15;
+      draft.resources.water = 15;
       draft.alertState.waterLevelCritical = false;
     });
     const secondResult = waterLevelAlert.check(secondCross);

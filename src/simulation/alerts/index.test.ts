@@ -18,7 +18,7 @@ describe('checkAlerts', () => {
   it('returns result with logs array and updated alertState', () => {
     const state = createSimulation({ tankCapacity: 100 });
     const lowWaterState = produce(state, (draft) => {
-      draft.tank.waterLevel = 15;
+      draft.resources.water = 15;
       draft.tick = 10;
     });
 
@@ -43,7 +43,7 @@ describe('checkAlerts', () => {
     const state = createSimulation({ tankCapacity: 100 });
     // Full tank - no alerts should trigger
     const fullTankState = produce(state, (draft) => {
-      draft.tank.waterLevel = 100;
+      draft.resources.water = 100;
     });
 
     const result = checkAlerts(fullTankState);
@@ -56,7 +56,7 @@ describe('checkAlerts', () => {
     const state = createSimulation({ tankCapacity: 100 });
     // Set up a state that triggers water level alert
     const lowWaterState = produce(state, (draft) => {
-      draft.tank.waterLevel = 10;
+      draft.resources.water = 10;
     });
 
     const result = checkAlerts(lowWaterState);
@@ -69,7 +69,7 @@ describe('checkAlerts', () => {
   it('includes tick information from state', () => {
     const state = createSimulation({ tankCapacity: 100 });
     const lowWaterState = produce(state, (draft) => {
-      draft.tank.waterLevel = 10;
+      draft.resources.water = 10;
       draft.tick = 42;
     });
 
@@ -81,7 +81,7 @@ describe('checkAlerts', () => {
   it('does not re-trigger already triggered alerts', () => {
     const state = createSimulation({ tankCapacity: 100 });
     const alreadyTriggeredState = produce(state, (draft) => {
-      draft.tank.waterLevel = 10;
+      draft.resources.water = 10;
       draft.alertState.waterLevelCritical = true;
     });
 
@@ -94,7 +94,7 @@ describe('checkAlerts', () => {
   it('clears alert state when condition no longer true', () => {
     const state = createSimulation({ tankCapacity: 100 });
     const recoveredState = produce(state, (draft) => {
-      draft.tank.waterLevel = 50;
+      draft.resources.water = 50;
       draft.alertState.waterLevelCritical = true;
     });
 

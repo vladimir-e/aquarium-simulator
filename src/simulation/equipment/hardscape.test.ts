@@ -199,8 +199,8 @@ describe('createSimulation with hardscape', () => {
     });
 
     // Hardscape adds 1050 cm² (650 + 400)
-    expect(stateWithHardscape.passiveResources.surface).toBe(
-      stateWithoutHardscape.passiveResources.surface + 1050
+    expect(stateWithHardscape.resources.surface).toBe(
+      stateWithoutHardscape.resources.surface + 1050
     );
   });
 });

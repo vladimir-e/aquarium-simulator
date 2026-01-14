@@ -22,7 +22,8 @@ export const WATER_LEVEL_THRESHOLD = 0.99;
  */
 export function atoUpdate(state: SimulationState): Effect[] {
   const { ato } = state.equipment;
-  const { waterLevel, capacity } = state.tank;
+  const { capacity } = state.tank;
+  const waterLevel = state.resources.water;
 
   if (!ato.enabled) {
     return [];
@@ -36,7 +37,7 @@ export function atoUpdate(state: SimulationState): Effect[] {
     return [
       {
         tier: 'immediate',
-        resource: 'waterLevel',
+        resource: 'water',
         delta: waterNeeded,
         source: 'ato',
       },

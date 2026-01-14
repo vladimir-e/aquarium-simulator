@@ -8,20 +8,20 @@ describe('topOff action', () => {
     const state = produce(
       createSimulation({ tankCapacity: 100 }),
       (draft) => {
-        draft.tank.waterLevel = 80;
+        draft.resources.water = 80;
       }
     );
 
     const result = topOff(state);
 
-    expect(result.state.tank.waterLevel).toBe(100);
+    expect(result.state.resources.water).toBe(100);
   });
 
   it('returns correct amount added in message', () => {
     const state = produce(
       createSimulation({ tankCapacity: 100 }),
       (draft) => {
-        draft.tank.waterLevel = 75.5;
+        draft.resources.water = 75.5;
       }
     );
 
@@ -34,7 +34,7 @@ describe('topOff action', () => {
     const state = produce(
       createSimulation({ tankCapacity: 100 }),
       (draft) => {
-        draft.tank.waterLevel = 80;
+        draft.resources.water = 80;
         draft.tick = 42;
       }
     );
@@ -67,7 +67,7 @@ describe('topOff action', () => {
         roomTemperature: 20,
       }),
       (draft) => {
-        draft.tank.waterLevel = 80;
+        draft.resources.water = 80;
         draft.tick = 10;
       }
     );
@@ -84,16 +84,16 @@ describe('topOff action', () => {
     const state = produce(
       createSimulation({ tankCapacity: 100 }),
       (draft) => {
-        draft.tank.waterLevel = 80;
+        draft.resources.water = 80;
       }
     );
 
-    const originalWaterLevel = state.tank.waterLevel;
+    const originalWaterLevel = state.resources.water;
     const originalLogsLength = state.logs.length;
 
     topOff(state);
 
-    expect(state.tank.waterLevel).toBe(originalWaterLevel);
+    expect(state.resources.water).toBe(originalWaterLevel);
     expect(state.logs.length).toBe(originalLogsLength);
   });
 
@@ -101,13 +101,13 @@ describe('topOff action', () => {
     const state = produce(
       createSimulation({ tankCapacity: 100 }),
       (draft) => {
-        draft.tank.waterLevel = 99.95;
+        draft.resources.water = 99.95;
       }
     );
 
     const result = topOff(state);
 
-    expect(result.state.tank.waterLevel).toBe(100);
+    expect(result.state.resources.water).toBe(100);
     expect(result.message).toBe('Added 0.0L');
   });
 
@@ -115,13 +115,13 @@ describe('topOff action', () => {
     const state = produce(
       createSimulation({ tankCapacity: 1000 }),
       (draft) => {
-        draft.tank.waterLevel = 500;
+        draft.resources.water = 500;
       }
     );
 
     const result = topOff(state);
 
-    expect(result.state.tank.waterLevel).toBe(1000);
+    expect(result.state.resources.water).toBe(1000);
     expect(result.message).toBe('Added 500.0L');
   });
 });

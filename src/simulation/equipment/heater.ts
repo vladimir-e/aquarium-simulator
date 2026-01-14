@@ -40,7 +40,7 @@ export function heaterUpdate(state: SimulationState): {
 } {
   const { heater } = state.equipment;
   const currentTemp = state.resources.temperature;
-  const waterVolume = state.tank.waterLevel;
+  const waterVolume = state.resources.water;
 
   // If disabled, do nothing
   if (!heater.enabled) {

@@ -8,27 +8,27 @@ describe('applyAction', () => {
     const state = produce(
       createSimulation({ tankCapacity: 100 }),
       (draft) => {
-        draft.tank.waterLevel = 80;
+        draft.resources.water = 80;
       }
     );
 
     const result = applyAction(state, { type: 'topOff' });
 
-    expect(result.state.tank.waterLevel).toBe(100);
+    expect(result.state.resources.water).toBe(100);
   });
 
   it('returns ActionResult with state and message', () => {
     const state = produce(
       createSimulation({ tankCapacity: 100 }),
       (draft) => {
-        draft.tank.waterLevel = 80;
+        draft.resources.water = 80;
       }
     );
 
     const result = applyAction(state, { type: 'topOff' });
 
     expect(result.state).toBeDefined();
-    expect(result.state.tank.waterLevel).toBe(100);
+    expect(result.state.resources.water).toBe(100);
     expect(result.message).toBe('Added 20.0L');
   });
 
@@ -44,21 +44,21 @@ describe('applyAction', () => {
     const state = produce(
       createSimulation({ tankCapacity: 100 }),
       (draft) => {
-        draft.tank.waterLevel = 80;
+        draft.resources.water = 80;
       }
     );
 
-    const originalWaterLevel = state.tank.waterLevel;
+    const originalWaterLevel = state.resources.water;
     applyAction(state, { type: 'topOff' });
 
-    expect(state.tank.waterLevel).toBe(originalWaterLevel);
+    expect(state.resources.water).toBe(originalWaterLevel);
   });
 
   it('logs are added through dispatch', () => {
     const state = produce(
       createSimulation({ tankCapacity: 100 }),
       (draft) => {
-        draft.tank.waterLevel = 80;
+        draft.resources.water = 80;
       }
     );
     const initialLogCount = state.logs.length;
