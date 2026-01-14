@@ -13,7 +13,9 @@
 ### Out of Scope
 
 ## Implementation
-Architectural guidelines and high-level implementation plan
+- Architectural guidelines
+- High-level implementation plan, short code examples
+- Do not provide detailed code for UI updates, only pointers
 
 ## Acceptance Criteria
 
