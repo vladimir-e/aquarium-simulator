@@ -22,13 +22,13 @@ export const WASTE_CONVERSION_RATE = 0.3;
 
 // Bacterial processing rates
 /** ppm processed per bacteria unit per tick */
-export const BACTERIA_PROCESSING_RATE = 0.002;
+export const BACTERIA_PROCESSING_RATE = 0.00001;
 
 // Spawning
 /** ppm ammonia to trigger AOB spawn */
 export const AOB_SPAWN_THRESHOLD = 0.02;
 /** ppm nitrite to trigger NOB spawn */
-export const NOB_SPAWN_THRESHOLD = 0.02;
+export const NOB_SPAWN_THRESHOLD = 0.05;
 /** Initial bacteria when spawning */
 export const SPAWN_AMOUNT = 10;
 
