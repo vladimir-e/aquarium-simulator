@@ -63,7 +63,7 @@ export const temperatureDriftSystem: System = {
   update(state: SimulationState): Effect[] {
     const waterTemp = state.resources.temperature;
     const roomTemp = state.environment.roomTemperature;
-    const waterVolume = state.tank.waterLevel;
+    const waterVolume = state.resources.water;
 
     const drift = calculateTemperatureDrift(waterTemp, roomTemp, waterVolume);
 

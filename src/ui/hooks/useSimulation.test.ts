@@ -16,7 +16,7 @@ describe('useSimulation', () => {
     const { result } = renderHook(() => useSimulation(75));
 
     expect(result.current.state.tank.capacity).toBe(75);
-    expect(result.current.state.tank.waterLevel).toBe(75);
+    expect(result.current.state.resources.water).toBe(75);
     expect(result.current.state.resources.temperature).toBe(25);
     expect(result.current.state.environment.roomTemperature).toBe(22);
     expect(result.current.state.equipment.heater.enabled).toBe(true);
@@ -56,7 +56,7 @@ describe('useSimulation', () => {
     });
 
     expect(result.current.state.tank.capacity).toBe(150);
-    expect(result.current.state.tank.waterLevel).toBe(150);
+    expect(result.current.state.resources.water).toBe(150);
     expect(result.current.state.tick).toBe(0); // Should reset
   });
 
@@ -268,14 +268,14 @@ describe('useSimulation', () => {
         }
       });
 
-      const waterLevelBefore = result.current.state.tank.waterLevel;
+      const waterLevelBefore = result.current.state.resources.water;
       expect(waterLevelBefore).toBeLessThan(75); // Evaporation occurred
 
       act(() => {
         result.current.executeAction({ type: 'topOff' });
       });
 
-      expect(result.current.state.tank.waterLevel).toBe(75);
+      expect(result.current.state.resources.water).toBe(75);
     });
 
     it('works when simulation is paused', () => {
@@ -288,7 +288,7 @@ describe('useSimulation', () => {
         }
       });
 
-      const waterLevelBefore = result.current.state.tank.waterLevel;
+      const waterLevelBefore = result.current.state.resources.water;
 
       // Ensure simulation is not playing (paused)
       expect(result.current.isPlaying).toBe(false);
@@ -298,8 +298,8 @@ describe('useSimulation', () => {
       });
 
       // Water should be topped off even when paused
-      expect(result.current.state.tank.waterLevel).toBe(75);
-      expect(result.current.state.tank.waterLevel).toBeGreaterThan(
+      expect(result.current.state.resources.water).toBe(75);
+      expect(result.current.state.resources.water).toBeGreaterThan(
         waterLevelBefore
       );
     });
@@ -341,7 +341,7 @@ describe('useSimulation', () => {
       act(() => {
         result.current.executeAction({ type: 'topOff' });
       });
-      expect(result.current.state.tank.waterLevel).toBe(75);
+      expect(result.current.state.resources.water).toBe(75);
 
       // Run more ticks
       act(() => {
@@ -350,14 +350,14 @@ describe('useSimulation', () => {
         }
       });
 
-      const waterLevelAfterEvaporation = result.current.state.tank.waterLevel;
+      const waterLevelAfterEvaporation = result.current.state.resources.water;
       expect(waterLevelAfterEvaporation).toBeLessThan(75);
 
       // Execute second top off
       act(() => {
         result.current.executeAction({ type: 'topOff' });
       });
-      expect(result.current.state.tank.waterLevel).toBe(75);
+      expect(result.current.state.resources.water).toBe(75);
     });
 
     it('top off increases water level to capacity', () => {
@@ -370,13 +370,13 @@ describe('useSimulation', () => {
         }
       });
 
-      expect(result.current.state.tank.waterLevel).toBeLessThan(100);
+      expect(result.current.state.resources.water).toBeLessThan(100);
 
       act(() => {
         result.current.executeAction({ type: 'topOff' });
       });
 
-      expect(result.current.state.tank.waterLevel).toBe(100);
+      expect(result.current.state.resources.water).toBe(100);
     });
   });
 });

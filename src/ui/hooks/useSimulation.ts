@@ -232,7 +232,10 @@ export function useSimulation(initialCapacity = 75): UseSimulationReturn {
         const log = createLog(draft.tick, 'equipment', 'info', message);
         draft.equipment.filter.enabled = enabled;
         draft.logs.push(log);
-        draft.passiveResources = calculatePassiveResources(draft);
+        const passiveValues = calculatePassiveResources(draft);
+        draft.resources.surface = passiveValues.surface;
+        draft.resources.flow = passiveValues.flow;
+        draft.resources.light = passiveValues.light;
       })
     );
   }, []);
@@ -250,7 +253,10 @@ export function useSimulation(initialCapacity = 75): UseSimulationReturn {
           );
           draft.equipment.filter.type = type;
           draft.logs.push(log);
-          draft.passiveResources = calculatePassiveResources(draft);
+          const passiveValues = calculatePassiveResources(draft);
+          draft.resources.surface = passiveValues.surface;
+          draft.resources.flow = passiveValues.flow;
+          draft.resources.light = passiveValues.light;
         }
       })
     );
@@ -263,7 +269,10 @@ export function useSimulation(initialCapacity = 75): UseSimulationReturn {
         const log = createLog(draft.tick, 'equipment', 'info', message);
         draft.equipment.powerhead.enabled = enabled;
         draft.logs.push(log);
-        draft.passiveResources = calculatePassiveResources(draft);
+        const passiveValues = calculatePassiveResources(draft);
+        draft.resources.surface = passiveValues.surface;
+        draft.resources.flow = passiveValues.flow;
+        draft.resources.light = passiveValues.light;
       })
     );
   }, []);
@@ -281,7 +290,10 @@ export function useSimulation(initialCapacity = 75): UseSimulationReturn {
           );
           draft.equipment.powerhead.flowRateGPH = flowRateGPH;
           draft.logs.push(log);
-          draft.passiveResources = calculatePassiveResources(draft);
+          const passiveValues = calculatePassiveResources(draft);
+          draft.resources.surface = passiveValues.surface;
+          draft.resources.flow = passiveValues.flow;
+          draft.resources.light = passiveValues.light;
         }
       })
     );
@@ -300,7 +312,10 @@ export function useSimulation(initialCapacity = 75): UseSimulationReturn {
           );
           draft.equipment.substrate.type = type;
           draft.logs.push(log);
-          draft.passiveResources = calculatePassiveResources(draft);
+          const passiveValues = calculatePassiveResources(draft);
+          draft.resources.surface = passiveValues.surface;
+          draft.resources.flow = passiveValues.flow;
+          draft.resources.light = passiveValues.light;
         }
       })
     );
@@ -329,7 +344,10 @@ export function useSimulation(initialCapacity = 75): UseSimulationReturn {
           `Added ${getHardscapeName(type)} hardscape`
         );
         draft.logs.push(log);
-        draft.passiveResources = calculatePassiveResources(draft);
+        const passiveValues = calculatePassiveResources(draft);
+        draft.resources.surface = passiveValues.surface;
+        draft.resources.flow = passiveValues.flow;
+        draft.resources.light = passiveValues.light;
       })
     );
   }, []);
@@ -351,7 +369,10 @@ export function useSimulation(initialCapacity = 75): UseSimulationReturn {
           `Removed ${getHardscapeName(item.type)} hardscape`
         );
         draft.logs.push(log);
-        draft.passiveResources = calculatePassiveResources(draft);
+        const passiveValues = calculatePassiveResources(draft);
+        draft.resources.surface = passiveValues.surface;
+        draft.resources.flow = passiveValues.flow;
+        draft.resources.light = passiveValues.light;
       })
     );
   }, []);
@@ -365,7 +386,10 @@ export function useSimulation(initialCapacity = 75): UseSimulationReturn {
         const log = createLog(draft.tick, 'user', 'info', message);
         draft.equipment.light.enabled = enabled;
         draft.logs.push(log);
-        draft.passiveResources = calculatePassiveResources(draft);
+        const passiveValues = calculatePassiveResources(draft);
+        draft.resources.surface = passiveValues.surface;
+        draft.resources.flow = passiveValues.flow;
+        draft.resources.light = passiveValues.light;
       })
     );
   }, []);
@@ -383,7 +407,10 @@ export function useSimulation(initialCapacity = 75): UseSimulationReturn {
           );
           draft.equipment.light.wattage = wattage;
           draft.logs.push(log);
-          draft.passiveResources = calculatePassiveResources(draft);
+          const passiveValues = calculatePassiveResources(draft);
+          draft.resources.surface = passiveValues.surface;
+          draft.resources.flow = passiveValues.flow;
+          draft.resources.light = passiveValues.light;
         }
       })
     );
@@ -402,7 +429,10 @@ export function useSimulation(initialCapacity = 75): UseSimulationReturn {
           );
           draft.equipment.light.schedule = schedule;
           draft.logs.push(log);
-          draft.passiveResources = calculatePassiveResources(draft);
+          const passiveValues = calculatePassiveResources(draft);
+          draft.resources.surface = passiveValues.surface;
+          draft.resources.flow = passiveValues.flow;
+          draft.resources.light = passiveValues.light;
         }
       })
     );

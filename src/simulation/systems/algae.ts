@@ -85,8 +85,8 @@ export const algaeSystem: System = {
   update(state: SimulationState): Effect[] {
     const effects: Effect[] = [];
 
-    // Get light from passive resources (already accounts for schedule)
-    const lightWatts = state.passiveResources.light;
+    // Get light from resources (already accounts for schedule)
+    const lightWatts = state.resources.light;
 
     // Calculate growth based on light intensity per liter
     const growth = calculateAlgaeGrowth(lightWatts, state.tank.capacity);

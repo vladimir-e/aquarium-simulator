@@ -1,11 +1,11 @@
 import React from 'react';
 import { Select } from '../ui/Select';
 import { Container } from 'lucide-react';
+import { WaterResource } from '../../../simulation/resources/index.js';
 
 export interface TankState {
   capacity: number;
   waterLevel: number;
-  bacteriaSurface: number;
 }
 
 interface TankCardProps {
@@ -22,10 +22,6 @@ const tankSizes = [
   { liters: 300, display: '300L (75 gal)' },
   { liters: 400, display: '400L (100 gal)' },
 ];
-
-function formatNumber(num: number): string {
-  return num.toLocaleString();
-}
 
 export function TankCard({ tank, onCapacityChange }: TankCardProps): React.JSX.Element {
   const waterPercent = Math.round((tank.waterLevel / tank.capacity) * 100);
@@ -57,17 +53,12 @@ export function TankCard({ tank, onCapacityChange }: TankCardProps): React.JSX.E
         <div className="flex justify-between text-sm">
           <span className="text-gray-400">Water Level</span>
           <span className="text-gray-200">
-            {tank.waterLevel.toFixed(1)} L ({waterPercent}%)
+            {WaterResource.format(tank.waterLevel)} ({waterPercent}%)
           </span>
         </div>
 
-        <div className="flex justify-between text-sm">
-          <span className="text-gray-400">Glass Surface</span>
-          <span className="text-gray-200">{formatNumber(tank.bacteriaSurface)} cm²</span>
-        </div>
-
         <div className="text-xs text-gray-400 mt-2">
-          Glass walls provide bacteria colonization surface
+          Surface area shown in Resources panel
         </div>
       </div>
     </div>

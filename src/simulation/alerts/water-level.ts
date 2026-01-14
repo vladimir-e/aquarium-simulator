@@ -15,7 +15,8 @@ export const waterLevelAlert: Alert = {
   id: 'water-level-critical',
 
   check(state: SimulationState): AlertResult {
-    const { waterLevel, capacity } = state.tank;
+    const { capacity } = state.tank;
+    const waterLevel = state.resources.water;
     const wasTriggered = state.alertState.waterLevelCritical;
 
     // Check if currently below threshold (and tank not empty)

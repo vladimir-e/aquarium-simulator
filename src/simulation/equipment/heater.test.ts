@@ -229,7 +229,7 @@ describe('heaterUpdate', () => {
       });
       const emptyState = {
         ...state,
-        tank: { ...state.tank, waterLevel: 0 },
+        resources: { ...state.resources, water: 0 },
       };
 
       const { effects, isOn } = heaterUpdate(emptyState);

@@ -1,5 +1,6 @@
 import React from 'react';
 import { Panel } from '../layout/Panel';
+import { AlgaeResource } from '../../../simulation/resources/index.js';
 
 interface PlantsProps {
   algae: number;
@@ -41,10 +42,10 @@ export function Plants({ algae }: PlantsProps): React.JSX.Element {
             <div
               className={`w-3 h-3 rounded-full ${indicatorClass}`}
               style={{ opacity }}
-              title={`${algae.toFixed(1)} algae level`}
+              title={`${AlgaeResource.format(algae)} algae level`}
             />
             <span className="text-xs text-gray-400">
-              {algae.toFixed(0)} ({description})
+              {AlgaeResource.format(algae)} ({description})
             </span>
           </div>
         </div>

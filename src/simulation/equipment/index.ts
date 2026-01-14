@@ -3,7 +3,8 @@
  */
 
 import type { Effect } from '../core/effects.js';
-import type { SimulationState, PassiveResources } from '../state.js';
+import type { SimulationState } from '../state.js';
+import { calculateTankGlassSurface } from '../state.js';
 import { isScheduleActive } from '../core/schedule.js';
 import {
   heaterUpdate,
@@ -47,11 +48,20 @@ export function processEquipment(state: SimulationState): {
 }
 
 /**
+ * Passive resource values calculated from equipment.
+ */
+export interface PassiveResourceValues {
+  surface: number;
+  flow: number;
+  light: number;
+}
+
+/**
  * Calculates passive resources from all equipment.
  * Called each tick to recalculate surface, flow, and light based on current state.
  *
  * Surface area sources:
- * - Tank glass walls (bacteriaSurface)
+ * - Tank glass walls (calculated from capacity)
  * - Filter media (when enabled)
  * - Substrate (based on type and tank capacity)
  * - Hardscape items (rocks, driftwood, decorations)
@@ -63,12 +73,15 @@ export function processEquipment(state: SimulationState): {
  * Light sources:
  * - Light fixture (when enabled and schedule active)
  */
-export function calculatePassiveResources(state: SimulationState): PassiveResources {
+export function calculatePassiveResources(state: SimulationState): PassiveResourceValues {
   const { tank, equipment, tick } = state;
   const hourOfDay = tick % 24;
 
+  // Calculate tank glass surface from capacity
+  const tankGlassSurface = calculateTankGlassSurface(tank.capacity);
+
   // Surface area
-  let surface = tank.bacteriaSurface; // glass walls
+  let surface = tankGlassSurface;
   if (equipment.filter.enabled) {
     surface += getFilterSurface(equipment.filter.type);
   }

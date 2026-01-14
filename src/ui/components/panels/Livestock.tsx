@@ -1,5 +1,6 @@
 import React from 'react';
 import { Panel } from '../layout/Panel';
+import { FoodResource } from '../../../simulation/resources/index.js';
 
 interface LivestockProps {
   food: number;
@@ -29,9 +30,9 @@ export function Livestock({ food }: LivestockProps): React.JSX.Element {
             <div
               className={`w-3 h-3 rounded-full ${indicatorClass}`}
               style={{ opacity }}
-              title={`${food.toFixed(2)}g food`}
+              title={`${FoodResource.format(food)} food`}
             />
-            <span className="text-xs text-gray-400">{food.toFixed(1)}g</span>
+            <span className="text-xs text-gray-400">{FoodResource.format(food)}</span>
           </div>
         </div>
 

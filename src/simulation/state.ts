@@ -18,27 +18,30 @@ export type { FilterType, Filter, PowerheadFlowRate, Powerhead, SubstrateType, S
 export interface Tank {
   /** Maximum water capacity in liters */
   capacity: number;
-  /** Current water volume in liters */
-  waterLevel: number;
-  /** Bacteria surface area from glass walls (cm²) */
-  bacteriaSurface: number;
   /** Maximum hardscape items allowed (2 per gallon, max 8) */
   hardscapeSlots: number;
 }
 
-/** Passive resources calculated from equipment each tick */
-export interface PassiveResources {
+/**
+ * Unified resource model - all resources live here.
+ * Replaces the previous split across tank.waterLevel, passiveResources, and resources.
+ */
+export interface Resources {
+  // Physical resources
+  /** Current water volume in liters (max = tank.capacity) */
+  water: number;
+  /** Water temperature in °C */
+  temperature: number;
+
+  // Passive resources (calculated each tick from equipment)
   /** Total bacteria surface area from all equipment (cm²) */
   surface: number;
   /** Total water flow from all equipment (L/h) */
   flow: number;
   /** Light intensity in watts (0 when lights off) */
   light: number;
-}
 
-export interface Resources {
-  /** Water temperature in °C */
-  temperature: number;
+  // Biological resources
   /** Food available for consumption (grams, 2 decimal precision) */
   food: number;
   /** Organic waste accumulation (grams) */
@@ -133,16 +136,14 @@ export interface AlertState {
 export interface SimulationState {
   /** Current simulation tick (1 tick = 1 hour) */
   tick: number;
-  /** Tank physical properties */
+  /** Tank physical properties (capacity and slots only) */
   tank: Tank;
-  /** Resource values */
+  /** All resource values (unified model) */
   resources: Resources;
   /** External environment conditions */
   environment: Environment;
   /** Tank equipment */
   equipment: Equipment;
-  /** Passive resources calculated from equipment */
-  passiveResources: PassiveResources;
   /** In-memory log storage */
   logs: LogEntry[];
   /** Tracks active alert conditions for threshold-crossing detection */
@@ -220,7 +221,7 @@ export function calculateHardscapeSlots(capacityLiters: number): number {
  * Assumes standard rectangular shape (length:width:height ≈ 2:1:1).
  * Includes 4 walls + bottom (excludes top which is open).
  */
-export function calculateTankBacteriaSurface(capacity: number): number {
+export function calculateTankGlassSurface(capacity: number): number {
   // Approximation: 4 walls + bottom
   // Assuming standard proportions (length:width:height ≈ 2:1:1)
   const volume = capacity; // liters = dm³
@@ -305,15 +306,15 @@ export function createSimulation(config: SimulationConfig): SimulationState {
     `Simulation created: ${tankCapacity}L tank, ${effectiveRoomTemp}°C room, heater ${heaterStatus}`
   );
 
-  // Calculate tank bacteria surface from capacity
-  const tankBacteriaSurface = calculateTankBacteriaSurface(tankCapacity);
+  // Calculate tank glass surface from capacity (used in passive resource calculation)
+  const tankGlassSurface = calculateTankGlassSurface(tankCapacity);
 
   // Calculate hardscape slots from capacity
   const hardscapeSlots = calculateHardscapeSlots(tankCapacity);
 
-  // Calculate initial passive resources
+  // Calculate initial passive resources (surface, flow, light)
   const initialPassiveResources = calculateInitialPassiveResources(
-    tankBacteriaSurface,
+    tankGlassSurface,
     tankCapacity,
     filterConfig,
     powerheadConfig,
@@ -325,12 +326,17 @@ export function createSimulation(config: SimulationConfig): SimulationState {
     tick: 0,
     tank: {
       capacity: tankCapacity,
-      waterLevel: tankCapacity,
-      bacteriaSurface: tankBacteriaSurface,
       hardscapeSlots,
     },
     resources: {
+      // Physical
+      water: tankCapacity, // Start at full capacity
       temperature: initialTemperature ?? DEFAULT_TEMPERATURE,
+      // Passive (calculated)
+      surface: initialPassiveResources.surface,
+      flow: initialPassiveResources.flow,
+      light: initialPassiveResources.light,
+      // Biological
       food: 0.0,
       waste: 0.0,
       algae: 0,
@@ -349,7 +355,6 @@ export function createSimulation(config: SimulationConfig): SimulationState {
       hardscape: hardscapeConfig,
       light: lightConfig,
     },
-    passiveResources: initialPassiveResources,
     logs: [initialLog],
     alertState: {
       waterLevelCritical: false,
@@ -370,15 +375,15 @@ export const HARDSCAPE_SURFACE: Record<HardscapeType, number> = {
  * Calculates initial passive resources from equipment configuration.
  */
 function calculateInitialPassiveResources(
-  tankBacteriaSurface: number,
+  tankGlassSurface: number,
   tankCapacity: number,
   filter: Filter,
   powerhead: Powerhead,
   substrate: Substrate,
   hardscape: Hardscape
-): PassiveResources {
+): { surface: number; flow: number; light: number } {
   // Surface area
-  let surface = tankBacteriaSurface;
+  let surface = tankGlassSurface;
   if (filter.enabled) {
     surface += getFilterSurface(filter.type);
   }
@@ -395,6 +400,6 @@ function calculateInitialPassiveResources(
   }
 
   // Light is calculated based on schedule each tick - starts at 0
-  // Will be properly calculated by calculatePassiveResources based on tick
+  // Will be properly calculated by updatePassiveResources based on tick
   return { surface, flow, light: 0 };
 }

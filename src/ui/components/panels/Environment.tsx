@@ -1,6 +1,7 @@
 import React from 'react';
 import { Panel } from '../layout/Panel';
 import { Stepper } from '../ui/Stepper';
+import { TemperatureResource } from '../../../simulation/resources/index.js';
 
 interface EnvironmentProps {
   roomTemperature: number;
@@ -28,7 +29,7 @@ export function Environment({
         <div>
           <div className="text-xs text-gray-400 mb-1">Water Temp</div>
           <div className="text-sm text-gray-200">
-            {waterTemperature.toFixed(1)}°C
+            {TemperatureResource.format(waterTemperature)}
           </div>
         </div>
       </div>

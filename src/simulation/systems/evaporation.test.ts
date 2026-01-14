@@ -148,7 +148,7 @@ describe('evaporationSystem', () => {
 
     expect(effects).toHaveLength(1);
     expect(effects[0].tier).toBe('immediate');
-    expect(effects[0].resource).toBe('waterLevel');
+    expect(effects[0].resource).toBe('water');
     expect(effects[0].delta).toBeLessThan(0); // Evaporation decreases water
     expect(effects[0].source).toBe('evaporation');
   });
@@ -162,7 +162,7 @@ describe('evaporationSystem', () => {
     // Manually set water level to 0
     const emptyState = {
       ...state,
-      tank: { ...state.tank, waterLevel: 0 },
+      resources: { ...state.resources, water: 0 },
     };
 
     const effects = evaporationSystem.update(emptyState);

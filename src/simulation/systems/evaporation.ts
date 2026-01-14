@@ -102,7 +102,7 @@ export const evaporationSystem: System = {
   tier: 'immediate',
 
   update(state: SimulationState): Effect[] {
-    const waterLevel = state.tank.waterLevel;
+    const waterLevel = state.resources.water;
     const waterTemp = state.resources.temperature;
     const roomTemp = state.environment.roomTemperature;
     const lidType = state.equipment.lid.type;
@@ -116,7 +116,7 @@ export const evaporationSystem: System = {
     return [
       {
         tier: 'immediate',
-        resource: 'waterLevel',
+        resource: 'water',
         delta: -evapAmount,
         source: 'evaporation',
       },

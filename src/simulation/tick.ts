@@ -38,8 +38,11 @@ export function tick(state: SimulationState): SimulationState {
   let newState = produce(state, (draft) => {
     draft.tick += 1;
     // Calculate passive resources before processing effects
-    // (used by future systems like nitrogen cycle and gas exchange)
-    draft.passiveResources = calculatePassiveResources(draft);
+    // (used by systems like algae growth that depend on light)
+    const passiveValues = calculatePassiveResources(draft);
+    draft.resources.surface = passiveValues.surface;
+    draft.resources.flow = passiveValues.flow;
+    draft.resources.light = passiveValues.light;
   });
 
   // Tier 1: IMMEDIATE - Environmental effects, then equipment responses

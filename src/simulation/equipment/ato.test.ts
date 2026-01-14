@@ -11,7 +11,7 @@ describe('atoUpdate', () => {
     // Set water level below threshold
     const lowWaterState = {
       ...state,
-      tank: { ...state.tank, waterLevel: 90 },
+      resources: { ...state.resources, water: 90 },
     };
 
     const effects = atoUpdate(lowWaterState);
@@ -38,7 +38,7 @@ describe('atoUpdate', () => {
     });
     const thresholdState = {
       ...state,
-      tank: { ...state.tank, waterLevel: 100 * WATER_LEVEL_THRESHOLD },
+      resources: { ...state.resources, water: 100 * WATER_LEVEL_THRESHOLD },
     };
 
     const effects = atoUpdate(thresholdState);
@@ -53,7 +53,7 @@ describe('atoUpdate', () => {
     });
     const lowWaterState = {
       ...state,
-      tank: { ...state.tank, waterLevel: 90 },
+      resources: { ...state.resources, water: 90 },
     };
 
     const effects = atoUpdate(lowWaterState);
@@ -69,7 +69,7 @@ describe('atoUpdate', () => {
     });
     const lowWaterState = {
       ...state,
-      tank: { ...state.tank, waterLevel: 150 },
+      resources: { ...state.resources, water: 150 },
     };
 
     const effects = atoUpdate(lowWaterState);
@@ -85,7 +85,7 @@ describe('atoUpdate', () => {
     });
     const lowWaterState = {
       ...state,
-      tank: { ...state.tank, waterLevel: 90 },
+      resources: { ...state.resources, water: 90 },
     };
 
     const effects = atoUpdate(lowWaterState);
@@ -100,7 +100,7 @@ describe('atoUpdate', () => {
     });
     const lowWaterState = {
       ...state,
-      tank: { ...state.tank, waterLevel: 90 },
+      resources: { ...state.resources, water: 90 },
     };
 
     const effects = atoUpdate(lowWaterState);
@@ -115,12 +115,12 @@ describe('atoUpdate', () => {
     });
     const lowWaterState = {
       ...state,
-      tank: { ...state.tank, waterLevel: 90 },
+      resources: { ...state.resources, water: 90 },
     };
 
     const effects = atoUpdate(lowWaterState);
 
-    expect(effects[0].resource).toBe('waterLevel');
+    expect(effects[0].resource).toBe('water');
   });
 
   it('triggers when water level is just below threshold', () => {
@@ -132,7 +132,7 @@ describe('atoUpdate', () => {
     const justBelowThreshold = 100 * WATER_LEVEL_THRESHOLD - 0.001;
     const lowWaterState = {
       ...state,
-      tank: { ...state.tank, waterLevel: justBelowThreshold },
+      resources: { ...state.resources, water: justBelowThreshold },
     };
 
     const effects = atoUpdate(lowWaterState);
