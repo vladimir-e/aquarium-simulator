@@ -5,12 +5,16 @@ import {
   tick as simulationTick,
   applyAction,
   calculatePassiveResources,
+  calculateHardscapeSlots,
+  getHardscapeName,
   type SimulationState,
   type Action,
   type LidType,
   type FilterType,
   type PowerheadFlowRate,
   type SubstrateType,
+  type HardscapeType,
+  type HardscapeItem,
 } from '../../simulation/index.js';
 import { createLog } from '../../simulation/logging.js';
 
@@ -41,6 +45,8 @@ interface UseSimulationReturn {
   updatePowerheadEnabled: (enabled: boolean) => void;
   updatePowerheadFlowRate: (flowRateGPH: PowerheadFlowRate) => void;
   updateSubstrateType: (type: SubstrateType) => void;
+  addHardscapeItem: (type: HardscapeType) => void;
+  removeHardscapeItem: (id: string) => void;
   changeTankCapacity: (capacity: number) => void;
   reset: () => void;
   executeAction: (action: Action) => void;
@@ -295,6 +301,56 @@ export function useSimulation(initialCapacity = 75): UseSimulationReturn {
     );
   }, []);
 
+  const addHardscapeItem = useCallback((type: HardscapeType) => {
+    setState((current) =>
+      produce(current, (draft) => {
+        // Check slot limit
+        if (draft.equipment.hardscape.items.length >= draft.tank.hardscapeSlots) {
+          return; // Can't add more
+        }
+
+        // Create new item with unique ID
+        const newItem: HardscapeItem = {
+          id: globalThis.crypto.randomUUID(),
+          type,
+        };
+
+        draft.equipment.hardscape.items.push(newItem);
+
+        const log = createLog(
+          draft.tick,
+          'user',
+          'info',
+          `Added ${getHardscapeName(type)} hardscape`
+        );
+        draft.logs.push(log);
+        draft.passiveResources = calculatePassiveResources(draft);
+      })
+    );
+  }, []);
+
+  const removeHardscapeItem = useCallback((id: string) => {
+    setState((current) =>
+      produce(current, (draft) => {
+        const item = draft.equipment.hardscape.items.find((i) => i.id === id);
+        if (!item) return;
+
+        draft.equipment.hardscape.items = draft.equipment.hardscape.items.filter(
+          (i) => i.id !== id
+        );
+
+        const log = createLog(
+          draft.tick,
+          'user',
+          'info',
+          `Removed ${getHardscapeName(item.type)} hardscape`
+        );
+        draft.logs.push(log);
+        draft.passiveResources = calculatePassiveResources(draft);
+      })
+    );
+  }, []);
+
   const changeTankCapacity = useCallback(
     (capacity: number) => {
       // Stop playing if currently running
@@ -305,6 +361,11 @@ export function useSimulation(initialCapacity = 75): UseSimulationReturn {
 
       // Reinitialize simulation with new capacity, preserving equipment state
       setState((current) => {
+        // Calculate new hardscape slots for the new capacity
+        // Keep existing items but truncate if the new tank has fewer slots
+        const newSlots = calculateHardscapeSlots(capacity);
+        const preservedItems = current.equipment.hardscape.items.slice(0, newSlots);
+
         return createSimulation({
           tankCapacity: capacity,
           initialTemperature: 25,
@@ -330,6 +391,9 @@ export function useSimulation(initialCapacity = 75): UseSimulationReturn {
           },
           substrate: {
             type: current.equipment.substrate.type,
+          },
+          hardscape: {
+            items: preservedItems,
           },
         });
       });
@@ -393,6 +457,8 @@ export function useSimulation(initialCapacity = 75): UseSimulationReturn {
     updatePowerheadEnabled,
     updatePowerheadFlowRate,
     updateSubstrateType,
+    addHardscapeItem,
+    removeHardscapeItem,
     changeTankCapacity,
     reset,
     executeAction,

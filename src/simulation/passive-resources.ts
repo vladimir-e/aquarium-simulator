@@ -16,6 +16,7 @@ import {
   POWERHEAD_FLOW_LPH,
   SUBSTRATE_SURFACE_PER_LITER,
 } from './state.js';
+import { calculateHardscapeTotalSurface } from './equipment/hardscape.js';
 
 /**
  * Gets the bacteria surface area for a filter type (cm²).
@@ -55,6 +56,7 @@ export function getSubstrateSurface(type: SubstrateType, tankCapacity: number): 
  * - Tank glass walls (bacteriaSurface)
  * - Filter media (when enabled)
  * - Substrate (based on type and tank capacity)
+ * - Hardscape items (rocks, driftwood, decorations)
  *
  * Flow sources:
  * - Filter (when enabled)
@@ -69,6 +71,7 @@ export function calculatePassiveResources(state: SimulationState): PassiveResour
     surface += getFilterSurface(equipment.filter.type);
   }
   surface += getSubstrateSurface(equipment.substrate.type, tank.capacity);
+  surface += calculateHardscapeTotalSurface(equipment.hardscape.items);
 
   // Flow rate
   let flow = 0;

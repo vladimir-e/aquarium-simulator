@@ -1,6 +1,6 @@
 # Task 08: Hardscape Equipment
 
-**Status:** pending
+**Status:** completed
 
 ## Overview
 

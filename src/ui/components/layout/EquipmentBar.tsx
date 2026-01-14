@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Container, Waves, Thermometer, CloudOff, Droplets, Wind } from 'lucide-react';
+import { Container, Waves, Thermometer, CloudOff, Droplets, Wind, Mountain } from 'lucide-react';
 import { HeaterCard, HeaterState } from '../equipment/HeaterCard';
 import { LidCard, LidState, LidType } from '../equipment/LidCard';
 import { AutoTopOffCard, AutoTopOffState } from '../equipment/AutoTopOffCard';
@@ -13,6 +13,7 @@ import {
   getSubstrateIcon,
   formatSubstrateName,
 } from '../equipment/SubstrateCard';
+import { HardscapeCard, HardscapeState, HardscapeType } from '../equipment/HardscapeCard';
 
 interface EquipmentBarProps {
   tank: TankState;
@@ -22,6 +23,8 @@ interface EquipmentBarProps {
   filter: FilterState;
   powerhead: PowerheadState;
   substrate: SubstrateState;
+  hardscape: HardscapeState;
+  hardscapeSlots: number;
   onTankCapacityChange: (capacity: number) => void;
   onHeaterEnabledChange: (enabled: boolean) => void;
   onHeaterTargetTemperatureChange: (temp: number) => void;
@@ -33,6 +36,8 @@ interface EquipmentBarProps {
   onPowerheadEnabledChange: (enabled: boolean) => void;
   onPowerheadFlowRateChange: (flowRateGPH: PowerheadFlowRate) => void;
   onSubstrateTypeChange: (type: SubstrateType) => void;
+  onHardscapeAddItem: (type: HardscapeType) => void;
+  onHardscapeRemoveItem: (id: string) => void;
 }
 
 export function EquipmentBar({
@@ -43,6 +48,8 @@ export function EquipmentBar({
   filter,
   powerhead,
   substrate,
+  hardscape,
+  hardscapeSlots,
   onTankCapacityChange,
   onHeaterEnabledChange,
   onHeaterTargetTemperatureChange,
@@ -54,6 +61,8 @@ export function EquipmentBar({
   onPowerheadEnabledChange,
   onPowerheadFlowRateChange,
   onSubstrateTypeChange,
+  onHardscapeAddItem,
+  onHardscapeRemoveItem,
 }: EquipmentBarProps): React.JSX.Element {
   const [isExpanded, setIsExpanded] = useState(false);
 
@@ -125,6 +134,16 @@ export function EquipmentBar({
                   <span className="text-xs text-gray-400">Powerhead</span>
                 </div>
               )}
+              {/* Hardscape status */}
+              {hardscape.items.length > 0 && (
+                <div className="flex items-center gap-1">
+                  <Mountain className="w-4 h-4 text-gray-400" />
+                  <div className="w-2 h-2 rounded-full bg-accent-green" />
+                  <span className="text-xs text-gray-400">
+                    Hardscape ({hardscape.items.length})
+                  </span>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -154,6 +173,13 @@ export function EquipmentBar({
               substrate={substrate}
               tankCapacity={tank.capacity}
               onTypeChange={onSubstrateTypeChange}
+            />
+            <HardscapeCard
+              hardscape={hardscape}
+              usedSlots={hardscape.items.length}
+              totalSlots={hardscapeSlots}
+              onAddItem={onHardscapeAddItem}
+              onRemoveItem={onHardscapeRemoveItem}
             />
             <LidCard lid={lid} onTypeChange={onLidTypeChange} />
 
