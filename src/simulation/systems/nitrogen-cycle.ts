@@ -22,13 +22,13 @@ export const WASTE_CONVERSION_RATE = 0.3;
 
 // Bacterial processing rates
 /** ppm processed per bacteria unit per tick */
-export const BACTERIA_PROCESSING_RATE = 0.00001;
+export const BACTERIA_PROCESSING_RATE = 0.000002;
 
 // Spawning
 /** ppm ammonia to trigger AOB spawn */
 export const AOB_SPAWN_THRESHOLD = 0.02;
 /** ppm nitrite to trigger NOB spawn */
-export const NOB_SPAWN_THRESHOLD = 0.05;
+export const NOB_SPAWN_THRESHOLD = 0.125;
 /** Initial bacteria when spawning */
 export const SPAWN_AMOUNT = 10;
 
@@ -36,9 +36,9 @@ export const SPAWN_AMOUNT = 10;
 /** AOB growth rate per tick (~doubles per day) */
 export const AOB_GROWTH_RATE = 0.03;
 /** NOB growth rate per tick (slower than AOB) */
-export const NOB_GROWTH_RATE = 0.025;
+export const NOB_GROWTH_RATE = 0.05;
 /** Max bacteria per cm² surface */
-export const BACTERIA_PER_CM2 = 0.1;
+export const BACTERIA_PER_CM2 = 0.01;
 
 // Death
 /** Fraction of bacteria that die per tick without food */
