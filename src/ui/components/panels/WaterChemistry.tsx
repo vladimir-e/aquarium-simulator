@@ -12,6 +12,11 @@ interface WaterChemistryProps {
   nitrate: number;
   // Tank volume for ppm conversion
   waterLevel: number;
+  // Bacteria populations (0-1 scale)
+  aob: number;
+  nob: number;
+  // Surface area for bacteria capacity
+  surface: number;
 }
 
 /** Q10 temperature coefficient (rate doubles every 10°C) */
@@ -130,6 +135,28 @@ function getNitrateStatus(ppm: number): string {
   return 'SAFE';
 }
 
+/** Bacteria units per cm² of surface area */
+const BACTERIA_PER_CM2 = 0.0001;
+
+/**
+ * Get color class based on bacteria population level.
+ */
+function getBacteriaColor(population: number): string {
+  if (population >= 0.8) return 'text-green-400';
+  if (population >= 0.3) return 'text-yellow-400';
+  return 'text-gray-400';
+}
+
+/**
+ * Get status label for bacteria population.
+ */
+function getBacteriaStatus(population: number): string {
+  if (population >= 0.8) return 'Established';
+  if (population >= 0.3) return 'Growing';
+  if (population >= 0.01) return 'Colonizing';
+  return 'Minimal';
+}
+
 export function WaterChemistry({
   waste,
   food,
@@ -139,8 +166,12 @@ export function WaterChemistry({
   nitrite,
   nitrate,
   waterLevel,
+  aob,
+  nob,
+  surface,
 }: WaterChemistryProps): React.JSX.Element {
   const [isWasteExpanded, setIsWasteExpanded] = useState(false);
+  const [isNitrogenExpanded, setIsNitrogenExpanded] = useState(false);
 
   const decayRate = getCurrentDecayRate(food, temperature);
   const totalRate = decayRate + ambientWaste;
@@ -151,62 +182,153 @@ export function WaterChemistry({
   const nitritePpm = gramsToPpm(nitrite, waterLevel);
   const nitratePpm = gramsToPpm(nitrate, waterLevel);
 
+  // Calculate bacteria capacity
+  const maxBacteriaCapacity = surface * BACTERIA_PER_CM2;
+
   return (
     <Panel title="Water Chemistry">
       <div className="space-y-3">
-        {/* Nitrogen Cycle Section */}
-        <div className="space-y-2">
-          <div className="text-xs text-gray-400 font-medium uppercase tracking-wider">
-            Nitrogen Cycle
+        {/* Nitrogen Cycle Section - Expandable */}
+        <div>
+          <button
+            onClick={() => setIsNitrogenExpanded(!isNitrogenExpanded)}
+            className="w-full flex items-center justify-between hover:bg-gray-700/50 rounded px-1 py-0.5 -mx-1 transition-colors"
+          >
+            <span className="text-sm text-gray-300 flex items-center gap-1">
+              <span
+                className={`text-xs transition-transform ${isNitrogenExpanded ? 'rotate-90' : ''}`}
+              >
+                ▶
+              </span>
+              Nitrogen Cycle
+            </span>
+            <span className="text-xs text-gray-400">
+              {aob >= 0.8 && nob >= 0.8 ? 'Cycled' : 'Cycling...'}
+            </span>
+          </button>
+
+          <div className="mt-2 space-y-2">
+            {/* Ammonia (NH3) */}
+            <div className={`flex items-center justify-between rounded px-2 py-1.5 ${getAmmoniaBgColor(ammoniaPpm)}`}>
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-gray-300">NH₃</span>
+                <span className="text-xs text-gray-500">Ammonia</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className={`text-sm font-medium ${getAmmoniaColor(ammoniaPpm)}`}>
+                  {ammoniaPpm < 0.001 ? '0.000' : ammoniaPpm.toFixed(3)} ppm
+                </span>
+                <span className={`text-xs px-1.5 py-0.5 rounded ${getAmmoniaBgColor(ammoniaPpm)} ${getAmmoniaColor(ammoniaPpm)}`}>
+                  {getAmmoniaStatus(ammoniaPpm)}
+                </span>
+              </div>
+            </div>
+
+            {/* Nitrite (NO2) */}
+            <div className={`flex items-center justify-between rounded px-2 py-1.5 ${getNitriteBgColor(nitritePpm)}`}>
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-gray-300">NO₂</span>
+                <span className="text-xs text-gray-500">Nitrite</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className={`text-sm font-medium ${getNitriteColor(nitritePpm)}`}>
+                  {nitritePpm < 0.01 ? '0.00' : nitritePpm.toFixed(2)} ppm
+                </span>
+                <span className={`text-xs px-1.5 py-0.5 rounded ${getNitriteBgColor(nitritePpm)} ${getNitriteColor(nitritePpm)}`}>
+                  {getNitriteStatus(nitritePpm)}
+                </span>
+              </div>
+            </div>
+
+            {/* Nitrate (NO3) */}
+            <div className={`flex items-center justify-between rounded px-2 py-1.5 ${getNitrateBgColor(nitratePpm)}`}>
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-gray-300">NO₃</span>
+                <span className="text-xs text-gray-500">Nitrate</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className={`text-sm font-medium ${getNitrateColor(nitratePpm)}`}>
+                  {nitratePpm < 0.1 ? '0.0' : nitratePpm.toFixed(1)} ppm
+                </span>
+                <span className={`text-xs px-1.5 py-0.5 rounded ${getNitrateBgColor(nitratePpm)} ${getNitrateColor(nitratePpm)}`}>
+                  {getNitrateStatus(nitratePpm)}
+                </span>
+              </div>
+            </div>
           </div>
 
-          {/* Ammonia (NH3) */}
-          <div className={`flex items-center justify-between rounded px-2 py-1.5 ${getAmmoniaBgColor(ammoniaPpm)}`}>
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-300">NH₃</span>
-              <span className="text-xs text-gray-500">Ammonia</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className={`text-sm font-medium ${getAmmoniaColor(ammoniaPpm)}`}>
-                {ammoniaPpm < 0.001 ? '0.000' : ammoniaPpm.toFixed(3)} ppm
-              </span>
-              <span className={`text-xs px-1.5 py-0.5 rounded ${getAmmoniaBgColor(ammoniaPpm)} ${getAmmoniaColor(ammoniaPpm)}`}>
-                {getAmmoniaStatus(ammoniaPpm)}
-              </span>
-            </div>
-          </div>
+          {/* Expanded bacteria info */}
+          {isNitrogenExpanded && (
+            <div className="mt-3 ml-4 pl-2 border-l border-gray-600 space-y-3">
+              <div className="text-xs text-gray-400 font-medium uppercase tracking-wider">
+                Bacteria Colonies
+              </div>
 
-          {/* Nitrite (NO2) */}
-          <div className={`flex items-center justify-between rounded px-2 py-1.5 ${getNitriteBgColor(nitritePpm)}`}>
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-300">NO₂</span>
-              <span className="text-xs text-gray-500">Nitrite</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className={`text-sm font-medium ${getNitriteColor(nitritePpm)}`}>
-                {nitritePpm < 0.01 ? '0.00' : nitritePpm.toFixed(2)} ppm
-              </span>
-              <span className={`text-xs px-1.5 py-0.5 rounded ${getNitriteBgColor(nitritePpm)} ${getNitriteColor(nitritePpm)}`}>
-                {getNitriteStatus(nitritePpm)}
-              </span>
-            </div>
-          </div>
+              {/* AOB - Ammonia-Oxidizing Bacteria */}
+              <div className="space-y-1">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-gray-400">AOB (NH₃ → NO₂)</span>
+                  <span className={`text-xs font-medium ${getBacteriaColor(aob)}`}>
+                    {(aob * 100).toFixed(1)}%
+                  </span>
+                </div>
+                <div className="w-full bg-gray-700 rounded-full h-1.5">
+                  <div
+                    className={`h-1.5 rounded-full transition-all ${
+                      aob >= 0.8 ? 'bg-green-500' : aob >= 0.3 ? 'bg-yellow-500' : 'bg-gray-500'
+                    }`}
+                    style={{ width: `${Math.min(aob * 100, 100)}%` }}
+                  />
+                </div>
+                <div className="flex items-center justify-between text-xs text-gray-500">
+                  <span>Ammonia-Oxidizing</span>
+                  <span>{getBacteriaStatus(aob)}</span>
+                </div>
+              </div>
 
-          {/* Nitrate (NO3) */}
-          <div className={`flex items-center justify-between rounded px-2 py-1.5 ${getNitrateBgColor(nitratePpm)}`}>
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-300">NO₃</span>
-              <span className="text-xs text-gray-500">Nitrate</span>
+              {/* NOB - Nitrite-Oxidizing Bacteria */}
+              <div className="space-y-1">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-gray-400">NOB (NO₂ → NO₃)</span>
+                  <span className={`text-xs font-medium ${getBacteriaColor(nob)}`}>
+                    {(nob * 100).toFixed(1)}%
+                  </span>
+                </div>
+                <div className="w-full bg-gray-700 rounded-full h-1.5">
+                  <div
+                    className={`h-1.5 rounded-full transition-all ${
+                      nob >= 0.8 ? 'bg-green-500' : nob >= 0.3 ? 'bg-yellow-500' : 'bg-gray-500'
+                    }`}
+                    style={{ width: `${Math.min(nob * 100, 100)}%` }}
+                  />
+                </div>
+                <div className="flex items-center justify-between text-xs text-gray-500">
+                  <span>Nitrite-Oxidizing</span>
+                  <span>{getBacteriaStatus(nob)}</span>
+                </div>
+              </div>
+
+              {/* Surface area info */}
+              <div className="mt-2 pt-2 border-t border-gray-700">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-gray-500">Surface area</span>
+                  <span className="text-xs text-gray-400">
+                    {surface.toLocaleString()} cm²
+                  </span>
+                </div>
+                <div className="flex items-center justify-between mt-1">
+                  <span className="text-xs text-gray-500">Max capacity</span>
+                  <span className="text-xs text-gray-400">
+                    {maxBacteriaCapacity.toFixed(2)} units
+                  </span>
+                </div>
+                <div className="text-xs text-gray-500 mt-2">
+                  Bacteria grow on filter media, substrate, and hardscape surfaces.
+                  More surface area = faster cycling.
+                </div>
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              <span className={`text-sm font-medium ${getNitrateColor(nitratePpm)}`}>
-                {nitratePpm < 0.1 ? '0.0' : nitratePpm.toFixed(1)} ppm
-              </span>
-              <span className={`text-xs px-1.5 py-0.5 rounded ${getNitrateBgColor(nitratePpm)} ${getNitrateColor(nitratePpm)}`}>
-                {getNitrateStatus(nitratePpm)}
-              </span>
-            </div>
-          </div>
+          )}
         </div>
 
         {/* Divider */}

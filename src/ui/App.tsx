@@ -169,6 +169,9 @@ function App(): React.JSX.Element {
               nitrite={state.resources.nitrite}
               nitrate={state.resources.nitrate}
               waterLevel={state.tank.waterLevel}
+              aob={state.resources.aob}
+              nob={state.resources.nob}
+              surface={state.passiveResources.surface}
             />
           </div>
 
