@@ -18,8 +18,8 @@ export interface ResourceDefinition<TKey extends string = string> {
   defaultValue: number;
   /** Decimal places for display formatting */
   precision: number;
-  /** Format value for display with unit */
-  format: (value: number) => string;
+  /** Format value for display with unit. Water param for mass-based resources. */
+  format: (value: number, waterLiters?: number) => string;
   /** Optional safe range for livestock/plants */
   safeRange?: { min: number; max: number };
   /** Optional stress range (outside safe but survivable) */

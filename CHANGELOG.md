@@ -8,6 +8,10 @@ Format: - **Feature name** (#PR) - Brief description (under 100 chars)
 - Skip UI-only tweaks and minor fixes
 -->
 
+## 2026-01-15
+
+- **Nitrogen Mass-Based Storage** - Refactored nitrogen compounds (ammonia, nitrite, nitrate) from ppm to mass (mg) storage; derived ppm = mass/water; evaporation now automatically concentrates compounds; helper functions getPpm/getMassFromPpm; alerts and UI derive ppm for display
+
 ## 2026-01-14
 
 - **Nitrogen Cycle System** - Three-stage biological conversion: waste→ammonia→nitrite→nitrate via AOB/NOB bacteria; logistic bacterial growth limited by surface area; spawning, growth, death dynamics; alerts for high ammonia/nitrite/nitrate; WaterChemistry panel with nitrogen cycle display
