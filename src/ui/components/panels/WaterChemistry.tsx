@@ -1,6 +1,28 @@
 import React, { useState } from 'react';
 import { Panel } from '../layout/Panel';
 
+// Import constants from simulation systems
+import {
+  BASE_DECAY_RATE,
+  getTemperatureFactor,
+} from '../../../simulation/systems/decay';
+import {
+  WASTE_CONVERSION_RATE,
+  BACTERIA_PROCESSING_RATE,
+  BACTERIA_PER_CM2,
+} from '../../../simulation/systems/nitrogen-cycle';
+import {
+  AMMONIA_SAFE_THRESHOLD,
+  AMMONIA_WARNING_THRESHOLD,
+  AMMONIA_DANGER_THRESHOLD,
+  NITRITE_SAFE_THRESHOLD,
+  NITRITE_WARNING_THRESHOLD,
+  NITRITE_DANGER_THRESHOLD,
+  NITRATE_SAFE_THRESHOLD,
+  NITRATE_WARNING_THRESHOLD,
+  NITRATE_DANGER_THRESHOLD,
+} from '../../../simulation/constants/water-quality';
+
 interface WaterChemistryProps {
   waste: number;
   food: number;
@@ -13,27 +35,6 @@ interface WaterChemistryProps {
   nob: number;
   surface: number;
   water: number;
-}
-
-/** Q10 temperature coefficient (rate doubles every 10°C) */
-const Q10 = 2.0;
-/** Reference temperature for decay rate (°C) */
-const REFERENCE_TEMP = 25.0;
-/** Base decay rate at reference temperature (fraction per hour) */
-const BASE_DECAY_RATE = 0.05;
-/** Waste conversion rate to ammonia */
-const WASTE_CONVERSION_RATE = 0.3;
-/** Bacteria processing rate (ppm per unit per tick) */
-const BACTERIA_PROCESSING_RATE = 0.000002;
-/** Max bacteria per cm² surface */
-const BACTERIA_PER_CM2 = 0.01;
-
-/**
- * Calculate temperature factor for decay rate using Q10 coefficient.
- */
-function getTemperatureFactor(temperature: number): number {
-  const tempDiff = temperature - REFERENCE_TEMP;
-  return Math.pow(Q10, tempDiff / 10.0);
 }
 
 /**
@@ -50,9 +51,9 @@ function getCurrentDecayRate(food: number, temperature: number): number {
  */
 function getAmmoniaColor(ammonia: number): string {
   if (ammonia === 0) return 'text-green-400';
-  if (ammonia <= 0.02) return 'text-green-400';
-  if (ammonia <= 0.05) return 'text-yellow-400';
-  if (ammonia <= 0.1) return 'text-orange-400';
+  if (ammonia <= AMMONIA_SAFE_THRESHOLD) return 'text-green-400';
+  if (ammonia <= AMMONIA_WARNING_THRESHOLD) return 'text-yellow-400';
+  if (ammonia <= AMMONIA_DANGER_THRESHOLD) return 'text-orange-400';
   return 'text-red-400';
 }
 
@@ -61,9 +62,9 @@ function getAmmoniaColor(ammonia: number): string {
  */
 function getNitriteColor(nitrite: number): string {
   if (nitrite === 0) return 'text-green-400';
-  if (nitrite <= 0.1) return 'text-green-400';
-  if (nitrite <= 0.5) return 'text-yellow-400';
-  if (nitrite <= 1.0) return 'text-orange-400';
+  if (nitrite <= NITRITE_SAFE_THRESHOLD) return 'text-green-400';
+  if (nitrite <= NITRITE_WARNING_THRESHOLD) return 'text-yellow-400';
+  if (nitrite <= NITRITE_DANGER_THRESHOLD) return 'text-orange-400';
   return 'text-red-400';
 }
 
@@ -71,9 +72,9 @@ function getNitriteColor(nitrite: number): string {
  * Get color class for nitrate level.
  */
 function getNitrateColor(nitrate: number): string {
-  if (nitrate < 20) return 'text-green-400';
-  if (nitrate <= 40) return 'text-yellow-400';
-  if (nitrate <= 80) return 'text-orange-400';
+  if (nitrate < NITRATE_SAFE_THRESHOLD) return 'text-green-400';
+  if (nitrate <= NITRATE_WARNING_THRESHOLD) return 'text-yellow-400';
+  if (nitrate <= NITRATE_DANGER_THRESHOLD) return 'text-orange-400';
   return 'text-red-400';
 }
 
