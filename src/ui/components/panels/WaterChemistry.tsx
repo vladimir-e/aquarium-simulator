@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { Panel } from '../layout/Panel';
 
-// Import constants from simulation systems
 import {
   BASE_DECAY_RATE,
   getTemperatureFactor,
@@ -11,17 +10,6 @@ import {
   BACTERIA_PROCESSING_RATE,
   BACTERIA_PER_CM2,
 } from '../../../simulation/systems/nitrogen-cycle';
-import {
-  AMMONIA_SAFE_THRESHOLD,
-  AMMONIA_WARNING_THRESHOLD,
-  AMMONIA_DANGER_THRESHOLD,
-  NITRITE_SAFE_THRESHOLD,
-  NITRITE_WARNING_THRESHOLD,
-  NITRITE_DANGER_THRESHOLD,
-  NITRATE_SAFE_THRESHOLD,
-  NITRATE_WARNING_THRESHOLD,
-  NITRATE_DANGER_THRESHOLD,
-} from '../../../simulation/constants/water-quality';
 
 interface WaterChemistryProps {
   waste: number;
@@ -46,35 +34,26 @@ function getCurrentDecayRate(food: number, temperature: number): number {
   return food * BASE_DECAY_RATE * tempFactor;
 }
 
-/**
- * Get color class for ammonia level.
- */
 function getAmmoniaColor(ammonia: number): string {
   if (ammonia === 0) return 'text-green-400';
-  if (ammonia <= AMMONIA_SAFE_THRESHOLD) return 'text-green-400';
-  if (ammonia <= AMMONIA_WARNING_THRESHOLD) return 'text-yellow-400';
-  if (ammonia <= AMMONIA_DANGER_THRESHOLD) return 'text-orange-400';
+  if (ammonia <= 0.02) return 'text-green-400';
+  if (ammonia <= 0.05) return 'text-yellow-400';
+  if (ammonia <= 0.1) return 'text-orange-400';
   return 'text-red-400';
 }
 
-/**
- * Get color class for nitrite level.
- */
 function getNitriteColor(nitrite: number): string {
   if (nitrite === 0) return 'text-green-400';
-  if (nitrite <= NITRITE_SAFE_THRESHOLD) return 'text-green-400';
-  if (nitrite <= NITRITE_WARNING_THRESHOLD) return 'text-yellow-400';
-  if (nitrite <= NITRITE_DANGER_THRESHOLD) return 'text-orange-400';
+  if (nitrite <= 0.1) return 'text-green-400';
+  if (nitrite <= 0.5) return 'text-yellow-400';
+  if (nitrite <= 1.0) return 'text-orange-400';
   return 'text-red-400';
 }
 
-/**
- * Get color class for nitrate level.
- */
 function getNitrateColor(nitrate: number): string {
-  if (nitrate < NITRATE_SAFE_THRESHOLD) return 'text-green-400';
-  if (nitrate <= NITRATE_WARNING_THRESHOLD) return 'text-yellow-400';
-  if (nitrate <= NITRATE_DANGER_THRESHOLD) return 'text-orange-400';
+  if (nitrate < 20) return 'text-green-400';
+  if (nitrate <= 40) return 'text-yellow-400';
+  if (nitrate <= 80) return 'text-orange-400';
   return 'text-red-400';
 }
 

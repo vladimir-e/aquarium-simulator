@@ -7,10 +7,9 @@
 import type { Alert, AlertResult } from './types.js';
 import type { SimulationState } from '../state.js';
 import { createLog } from '../core/logging.js';
-import { AMMONIA_DANGER_THRESHOLD } from '../constants/water-quality.js';
 
-/** Threshold for high ammonia alert (ppm) - uses centralized danger threshold */
-export const HIGH_AMMONIA_THRESHOLD = AMMONIA_DANGER_THRESHOLD;
+/** Threshold for high ammonia alert (ppm) */
+export const HIGH_AMMONIA_THRESHOLD = 0.1;
 
 export const highAmmoniaAlert: Alert = {
   id: 'high-ammonia',

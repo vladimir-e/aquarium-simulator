@@ -7,10 +7,9 @@
 import type { Alert, AlertResult } from './types.js';
 import type { SimulationState } from '../state.js';
 import { createLog } from '../core/logging.js';
-import { NITRATE_DANGER_THRESHOLD } from '../constants/water-quality.js';
 
-/** Threshold for high nitrate alert (ppm) - uses centralized danger threshold */
-export const HIGH_NITRATE_THRESHOLD = NITRATE_DANGER_THRESHOLD;
+/** Threshold for high nitrate alert (ppm) */
+export const HIGH_NITRATE_THRESHOLD = 80;
 
 export const highNitrateAlert: Alert = {
   id: 'high-nitrate',
