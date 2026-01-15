@@ -40,6 +40,7 @@ interface UseSimulationReturn {
   updateHeaterTargetTemperature: (temp: number) => void;
   updateHeaterWattage: (wattage: number) => void;
   updateRoomTemperature: (temp: number) => void;
+  updateTapWaterTemperature: (temp: number) => void;
   updateLidType: (type: LidType) => void;
   updateAtoEnabled: (enabled: boolean) => void;
   updateFilterEnabled: (enabled: boolean) => void;
@@ -208,6 +209,22 @@ export function useSimulation(initialCapacity = 40): UseSimulationReturn {
           `Room temperature: ${oldTemp}°C → ${temp}°C`
         );
         draft.environment.roomTemperature = temp;
+        draft.logs.push(log);
+      })
+    );
+  }, []);
+
+  const updateTapWaterTemperature = useCallback((temp: number) => {
+    setState((current) =>
+      produce(current, (draft) => {
+        const oldTemp = draft.environment.tapWaterTemperature;
+        const log = createLog(
+          draft.tick,
+          'user',
+          'info',
+          `Tap water temperature: ${oldTemp}°C → ${temp}°C`
+        );
+        draft.environment.tapWaterTemperature = temp;
         draft.logs.push(log);
       })
     );
@@ -582,6 +599,7 @@ export function useSimulation(initialCapacity = 40): UseSimulationReturn {
     updateHeaterTargetTemperature,
     updateHeaterWattage,
     updateRoomTemperature,
+    updateTapWaterTemperature,
     updateLidType,
     updateAtoEnabled,
     updateFilterEnabled,

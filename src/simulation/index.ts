@@ -99,6 +99,7 @@ export {
   applyHeaterStateChange,
   calculateHeatingRate,
   atoUpdate,
+  applyAtoTemperatureBlending,
   getFilterSurface,
   getFilterFlow,
   type FilterType,
@@ -145,6 +146,7 @@ export type {
   TopOffAction,
   FeedAction,
   ScrubAlgaeAction,
+  WaterChangeAction,
   ActionResult,
 } from './actions/index.js';
 export {
@@ -156,4 +158,7 @@ export {
   MIN_SCRUB_PERCENT,
   MAX_SCRUB_PERCENT,
   MIN_ALGAE_TO_SCRUB,
+  waterChange,
+  WATER_CHANGE_AMOUNTS,
 } from './actions/index.js';
+export type { WaterChangeAmount } from './actions/index.js';

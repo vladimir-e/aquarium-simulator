@@ -4,12 +4,15 @@
  * ATO monitors water level and tops off when level drops below 99% of capacity.
  * Restores water to exactly 100% in a single tick.
  *
- * Note: ATO adds pure water (no dilution effects yet). Dilution system
- * will handle chemistry changes in a future task.
+ * When adding water:
+ * - Temperature blends toward tap water temperature
+ * - With mass-based nitrogen storage, ppm auto-decreases (no mass change needed)
  */
 
+import { produce } from 'immer';
 import type { Effect } from '../core/effects.js';
 import type { SimulationState } from '../state.js';
+import { createLog } from '../core/logging.js';
 
 /**
  * Water level threshold as fraction of capacity.
@@ -17,16 +20,23 @@ import type { SimulationState } from '../state.js';
  */
 export const WATER_LEVEL_THRESHOLD = 0.99;
 
+export interface AtoResult {
+  /** Effects to apply (water addition) */
+  effects: Effect[];
+  /** Amount of water to add (for temperature blending calculation) */
+  waterToAdd: number;
+}
+
 /**
  * Updates ATO state and generates water addition effects.
  */
-export function atoUpdate(state: SimulationState): Effect[] {
+export function atoUpdate(state: SimulationState): AtoResult {
   const { ato } = state.equipment;
   const { capacity } = state.tank;
   const waterLevel = state.resources.water;
 
   if (!ato.enabled) {
-    return [];
+    return { effects: [], waterToAdd: 0 };
   }
 
   const thresholdLevel = capacity * WATER_LEVEL_THRESHOLD;
@@ -34,15 +44,53 @@ export function atoUpdate(state: SimulationState): Effect[] {
   if (waterLevel < thresholdLevel) {
     const waterNeeded = capacity - waterLevel;
 
-    return [
-      {
-        tier: 'immediate',
-        resource: 'water',
-        delta: waterNeeded,
-        source: 'ato',
-      },
-    ];
+    return {
+      effects: [
+        {
+          tier: 'immediate',
+          resource: 'water',
+          delta: waterNeeded,
+          source: 'ato',
+        },
+      ],
+      waterToAdd: waterNeeded,
+    };
   }
 
-  return [];
+  return { effects: [], waterToAdd: 0 };
+}
+
+/**
+ * Apply temperature blending when ATO adds water.
+ * newTemp = (oldTemp * currentWater + tapTemp * waterAdded) / (currentWater + waterAdded)
+ */
+export function applyAtoTemperatureBlending(
+  state: SimulationState,
+  waterToAdd: number
+): SimulationState {
+  if (waterToAdd <= 0) {
+    return state;
+  }
+
+  const currentWater = state.resources.water;
+  const newTotalWater = currentWater + waterToAdd;
+
+  return produce(state, (draft) => {
+    const oldTemp = draft.resources.temperature;
+    const tapTemp = draft.environment.tapWaterTemperature;
+
+    // Temperature blending formula
+    const newTemp = (oldTemp * currentWater + tapTemp * waterToAdd) / newTotalWater;
+    draft.resources.temperature = +newTemp.toFixed(2);
+
+    // Log the ATO action
+    draft.logs.push(
+      createLog(
+        draft.tick,
+        'equipment',
+        'info',
+        `ATO: added ${waterToAdd.toFixed(1)}L`
+      )
+    );
+  });
 }

@@ -64,6 +64,8 @@ export interface Resources {
 export interface Environment {
   /** Room/ambient temperature in °C */
   roomTemperature: number;
+  /** Tap water temperature in °C (for water changes and ATO) */
+  tapWaterTemperature: number;
   /** Ambient waste production rate (g/hour) - very small, seeds bacteria */
   ambientWaste: number;
 }
@@ -174,6 +176,8 @@ export interface SimulationConfig {
   initialTemperature?: number;
   /** Room temperature in °C (defaults to 22) */
   roomTemperature?: number;
+  /** Tap water temperature in °C (defaults to 20) */
+  tapWaterTemperature?: number;
   /** Initial heater configuration */
   heater?: Partial<Heater>;
   /** Initial lid configuration */
@@ -194,6 +198,7 @@ export interface SimulationConfig {
 
 const DEFAULT_TEMPERATURE = 25;
 const DEFAULT_ROOM_TEMPERATURE = 22;
+const DEFAULT_TAP_WATER_TEMPERATURE = 20;
 
 export const DEFAULT_HEATER: Heater = {
   enabled: true,
@@ -259,6 +264,7 @@ export function createSimulation(config: SimulationConfig): SimulationState {
     tankCapacity,
     initialTemperature,
     roomTemperature,
+    tapWaterTemperature,
     heater,
     lid,
     ato,
@@ -314,6 +320,7 @@ export function createSimulation(config: SimulationConfig): SimulationState {
   };
 
   const effectiveRoomTemp = roomTemperature ?? DEFAULT_ROOM_TEMPERATURE;
+  const effectiveTapWaterTemp = tapWaterTemperature ?? DEFAULT_TAP_WATER_TEMPERATURE;
   const heaterStatus = heaterConfig.enabled ? 'enabled' : 'disabled';
 
   const initialLog = createLog(
@@ -367,6 +374,7 @@ export function createSimulation(config: SimulationConfig): SimulationState {
     },
     environment: {
       roomTemperature: effectiveRoomTemp,
+      tapWaterTemperature: effectiveTapWaterTemp,
       ambientWaste: 0.01, // 0.01 g/hour
     },
     equipment: {

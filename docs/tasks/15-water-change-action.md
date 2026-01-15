@@ -1,6 +1,6 @@
 # Task 15: Water Change Action with Temperature Blending
 
-**Status:** pending
+**Status:** completed
 
 **Depends on:** Task 14 (Nitrogen Mass Model) - mass-based storage makes chemistry math trivial
 
