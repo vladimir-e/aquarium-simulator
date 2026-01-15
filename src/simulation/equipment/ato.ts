@@ -13,6 +13,7 @@ import { produce } from 'immer';
 import type { Effect } from '../core/effects.js';
 import type { SimulationState } from '../state.js';
 import { createLog } from '../core/logging.js';
+import { blendTemperature } from '../core/blending.js';
 
 /**
  * Water level threshold as fraction of capacity.
@@ -62,7 +63,6 @@ export function atoUpdate(state: SimulationState): AtoResult {
 
 /**
  * Apply temperature blending when ATO adds water.
- * newTemp = (oldTemp * currentWater + tapTemp * waterAdded) / (currentWater + waterAdded)
  */
 export function applyAtoTemperatureBlending(
   state: SimulationState,
@@ -73,15 +73,17 @@ export function applyAtoTemperatureBlending(
   }
 
   const currentWater = state.resources.water;
-  const newTotalWater = currentWater + waterToAdd;
 
   return produce(state, (draft) => {
     const oldTemp = draft.resources.temperature;
     const tapTemp = draft.environment.tapWaterTemperature;
 
-    // Temperature blending formula
-    const newTemp = (oldTemp * currentWater + tapTemp * waterToAdd) / newTotalWater;
-    draft.resources.temperature = +newTemp.toFixed(2);
+    draft.resources.temperature = blendTemperature(
+      oldTemp,
+      currentWater,
+      tapTemp,
+      waterToAdd
+    );
 
     // Log the ATO action
     draft.logs.push(

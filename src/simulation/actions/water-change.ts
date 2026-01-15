@@ -10,6 +10,7 @@
 import { produce } from 'immer';
 import type { SimulationState } from '../state.js';
 import { createLog } from '../core/logging.js';
+import { blendTemperature } from '../core/blending.js';
 import type { ActionResult, WaterChangeAction } from './types.js';
 
 /** Valid water change amounts as fractions */
@@ -61,12 +62,14 @@ export function waterChange(
     draft.resources.nitrate *= 1 - amount;
 
     // 2. Temperature blending
-    // newTemp = (oldTemp * remaining + tapTemp * added) / total
     const oldTemp = draft.resources.temperature;
     const tapTemp = draft.environment.tapWaterTemperature;
-    const newTemp =
-      (oldTemp * remainingWater + tapTemp * waterRemoved) / currentWater;
-    draft.resources.temperature = +newTemp.toFixed(2);
+    draft.resources.temperature = blendTemperature(
+      oldTemp,
+      remainingWater,
+      tapTemp,
+      waterRemoved
+    );
 
     // 3. Water volume unchanged (removed = added)
     // draft.resources.water stays the same
