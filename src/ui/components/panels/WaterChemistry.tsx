@@ -1,6 +1,16 @@
 import React, { useState } from 'react';
 import { Panel } from '../layout/Panel';
 
+import {
+  BASE_DECAY_RATE,
+  getTemperatureFactor,
+} from '../../../simulation/systems/decay';
+import {
+  WASTE_CONVERSION_RATE,
+  BACTERIA_PROCESSING_RATE,
+  BACTERIA_PER_CM2,
+} from '../../../simulation/systems/nitrogen-cycle';
+
 interface WaterChemistryProps {
   waste: number;
   food: number;
@@ -15,27 +25,6 @@ interface WaterChemistryProps {
   water: number;
 }
 
-/** Q10 temperature coefficient (rate doubles every 10°C) */
-const Q10 = 2.0;
-/** Reference temperature for decay rate (°C) */
-const REFERENCE_TEMP = 25.0;
-/** Base decay rate at reference temperature (fraction per hour) */
-const BASE_DECAY_RATE = 0.05;
-/** Waste conversion rate to ammonia */
-const WASTE_CONVERSION_RATE = 0.3;
-/** Bacteria processing rate (ppm per unit per tick) */
-const BACTERIA_PROCESSING_RATE = 0.000002;
-/** Max bacteria per cm² surface */
-const BACTERIA_PER_CM2 = 0.01;
-
-/**
- * Calculate temperature factor for decay rate using Q10 coefficient.
- */
-function getTemperatureFactor(temperature: number): number {
-  const tempDiff = temperature - REFERENCE_TEMP;
-  return Math.pow(Q10, tempDiff / 10.0);
-}
-
 /**
  * Calculate current decay rate (g/hour) based on food and temperature.
  */
@@ -45,9 +34,6 @@ function getCurrentDecayRate(food: number, temperature: number): number {
   return food * BASE_DECAY_RATE * tempFactor;
 }
 
-/**
- * Get color class for ammonia level.
- */
 function getAmmoniaColor(ammonia: number): string {
   if (ammonia === 0) return 'text-green-400';
   if (ammonia <= 0.02) return 'text-green-400';
@@ -56,9 +42,6 @@ function getAmmoniaColor(ammonia: number): string {
   return 'text-red-400';
 }
 
-/**
- * Get color class for nitrite level.
- */
 function getNitriteColor(nitrite: number): string {
   if (nitrite === 0) return 'text-green-400';
   if (nitrite <= 0.1) return 'text-green-400';
@@ -67,9 +50,6 @@ function getNitriteColor(nitrite: number): string {
   return 'text-red-400';
 }
 
-/**
- * Get color class for nitrate level.
- */
 function getNitrateColor(nitrate: number): string {
   if (nitrate < 20) return 'text-green-400';
   if (nitrate <= 40) return 'text-yellow-400';
