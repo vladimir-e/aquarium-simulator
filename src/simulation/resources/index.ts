@@ -8,6 +8,9 @@
 
 export type { ResourceDefinition, ResourceKey } from './types.js';
 
+// Nitrogen compound helpers (mass <-> ppm conversion)
+export { getPpm, getMassFromPpm } from './helpers.js';
+
 // Individual resource exports
 export { TemperatureResource } from './temperature.js';
 export { WaterResource } from './water.js';

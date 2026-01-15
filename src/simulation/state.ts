@@ -45,12 +45,13 @@ export interface Resources {
   /** Algae level (0-100 scale, relative coverage) */
   algae: number;
 
-  // Chemical resources (nitrogen cycle)
-  /** Ammonia concentration in ppm (toxic, 0 is safe) */
+  // Chemical resources (nitrogen cycle) - stored as mass (mg)
+  // Concentration (ppm) derived as mass/water for display and threshold checks
+  /** Ammonia mass in mg (toxic when ppm > 0.1, derive ppm = mass/water) */
   ammonia: number;
-  /** Nitrite concentration in ppm (toxic, 0 is safe) */
+  /** Nitrite mass in mg (toxic when ppm > 1.0, derive ppm = mass/water) */
   nitrite: number;
-  /** Nitrate concentration in ppm (accumulates, <20 ppm safe) */
+  /** Nitrate mass in mg (accumulates, derive ppm = mass/water, <20 ppm safe) */
   nitrate: number;
 
   // Bacteria populations (nitrogen cycle)

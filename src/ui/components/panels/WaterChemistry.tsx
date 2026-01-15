@@ -7,18 +7,20 @@ import {
 } from '../../../simulation/systems/decay';
 import {
   WASTE_CONVERSION_RATE,
+  WASTE_TO_AMMONIA_RATIO,
   BACTERIA_PROCESSING_RATE,
   BACTERIA_PER_CM2,
 } from '../../../simulation/systems/nitrogen-cycle';
+import { getPpm } from '../../../simulation/resources';
 
 interface WaterChemistryProps {
   waste: number;
   food: number;
   temperature: number;
   ambientWaste: number;
-  ammonia: number;
-  nitrite: number;
-  nitrate: number;
+  ammonia: number; // Mass in mg
+  nitrite: number; // Mass in mg
+  nitrate: number; // Mass in mg
   aob: number;
   nob: number;
   surface: number;
@@ -34,26 +36,26 @@ function getCurrentDecayRate(food: number, temperature: number): number {
   return food * BASE_DECAY_RATE * tempFactor;
 }
 
-function getAmmoniaColor(ammonia: number): string {
-  if (ammonia === 0) return 'text-green-400';
-  if (ammonia <= 0.02) return 'text-green-400';
-  if (ammonia <= 0.05) return 'text-yellow-400';
-  if (ammonia <= 0.1) return 'text-orange-400';
+function getAmmoniaColor(ammoniaPpm: number): string {
+  if (ammoniaPpm === 0) return 'text-green-400';
+  if (ammoniaPpm <= 0.02) return 'text-green-400';
+  if (ammoniaPpm <= 0.05) return 'text-yellow-400';
+  if (ammoniaPpm <= 0.1) return 'text-orange-400';
   return 'text-red-400';
 }
 
-function getNitriteColor(nitrite: number): string {
-  if (nitrite === 0) return 'text-green-400';
-  if (nitrite <= 0.1) return 'text-green-400';
-  if (nitrite <= 0.5) return 'text-yellow-400';
-  if (nitrite <= 1.0) return 'text-orange-400';
+function getNitriteColor(nitritePpm: number): string {
+  if (nitritePpm === 0) return 'text-green-400';
+  if (nitritePpm <= 0.1) return 'text-green-400';
+  if (nitritePpm <= 0.5) return 'text-yellow-400';
+  if (nitritePpm <= 1.0) return 'text-orange-400';
   return 'text-red-400';
 }
 
-function getNitrateColor(nitrate: number): string {
-  if (nitrate < 20) return 'text-green-400';
-  if (nitrate <= 40) return 'text-yellow-400';
-  if (nitrate <= 80) return 'text-orange-400';
+function getNitrateColor(nitratePpm: number): string {
+  if (nitratePpm < 20) return 'text-green-400';
+  if (nitratePpm <= 40) return 'text-yellow-400';
+  if (nitratePpm <= 80) return 'text-orange-400';
   return 'text-red-400';
 }
 
@@ -62,9 +64,9 @@ export function WaterChemistry({
   food,
   temperature,
   ambientWaste,
-  ammonia,
-  nitrite,
-  nitrate,
+  ammonia, // mg
+  nitrite, // mg
+  nitrate, // mg
   aob,
   nob,
   surface,
@@ -77,10 +79,18 @@ export function WaterChemistry({
   const totalRate = decayRate + ambientWaste;
   const tempFactor = getTemperatureFactor(temperature);
 
-  // Calculate nitrogen cycle rates
-  const wasteToAmmoniaRate = waste * WASTE_CONVERSION_RATE * (1 / water);
-  const ammoniaToNitriteRate = aob * BACTERIA_PROCESSING_RATE;
-  const nitriteToNitrateRate = nob * BACTERIA_PROCESSING_RATE;
+  // Derive ppm from mass for display
+  const ammoniaPpm = getPpm(ammonia, water);
+  const nitritePpm = getPpm(nitrite, water);
+  const nitratePpm = getPpm(nitrate, water);
+
+  // Calculate nitrogen cycle rates (as ppm for display)
+  // Waste -> Ammonia produces mg, convert to ppm for display
+  const wasteToAmmoniaMassRate = waste * WASTE_CONVERSION_RATE * WASTE_TO_AMMONIA_RATIO;
+  const wasteToAmmoniaPpmRate = water > 0 ? wasteToAmmoniaMassRate / water : 0;
+  // Bacteria processing (ppm per tick, rate is still expressed as ppm processed)
+  const ammoniaToNitritePpmRate = aob * BACTERIA_PROCESSING_RATE;
+  const nitriteToNitratePpmRate = nob * BACTERIA_PROCESSING_RATE;
   const maxBacteria = surface * BACTERIA_PER_CM2;
 
   return (
@@ -107,24 +117,24 @@ export function WaterChemistry({
             {/* Ammonia */}
             <div className="flex items-center justify-between">
               <span className="text-sm text-gray-400">Ammonia (NH₃)</span>
-              <span className={`text-sm font-medium ${getAmmoniaColor(ammonia)}`}>
-                {ammonia.toFixed(3)} ppm
+              <span className={`text-sm font-medium ${getAmmoniaColor(ammoniaPpm)}`}>
+                {ammoniaPpm.toFixed(3)} ppm
               </span>
             </div>
 
             {/* Nitrite */}
             <div className="flex items-center justify-between">
               <span className="text-sm text-gray-400">Nitrite (NO₂)</span>
-              <span className={`text-sm font-medium ${getNitriteColor(nitrite)}`}>
-                {nitrite.toFixed(3)} ppm
+              <span className={`text-sm font-medium ${getNitriteColor(nitritePpm)}`}>
+                {nitritePpm.toFixed(3)} ppm
               </span>
             </div>
 
             {/* Nitrate */}
             <div className="flex items-center justify-between">
               <span className="text-sm text-gray-400">Nitrate (NO₃)</span>
-              <span className={`text-sm font-medium ${getNitrateColor(nitrate)}`}>
-                {nitrate.toFixed(1)} ppm
+              <span className={`text-sm font-medium ${getNitrateColor(nitratePpm)}`}>
+                {nitratePpm.toFixed(1)} ppm
               </span>
             </div>
           </div>
@@ -154,19 +164,19 @@ export function WaterChemistry({
               <div className="flex items-center justify-between">
                 <span className="text-xs text-gray-500">Waste → Ammonia</span>
                 <span className="text-xs text-gray-300">
-                  {wasteToAmmoniaRate > 0 ? `+${wasteToAmmoniaRate.toFixed(4)} ppm` : '0 ppm'}
+                  {wasteToAmmoniaPpmRate > 0 ? `+${wasteToAmmoniaPpmRate.toFixed(4)} ppm` : '0 ppm'}
                 </span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-xs text-gray-500">Ammonia → Nitrite</span>
                 <span className="text-xs text-gray-300">
-                  {aob > 0 ? `${Math.min(ammoniaToNitriteRate, ammonia).toFixed(4)} ppm` : '0 ppm'}
+                  {aob > 0 ? `${Math.min(ammoniaToNitritePpmRate, ammoniaPpm).toFixed(4)} ppm` : '0 ppm'}
                 </span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-xs text-gray-500">Nitrite → Nitrate</span>
                 <span className="text-xs text-gray-300">
-                  {nob > 0 ? `${Math.min(nitriteToNitrateRate, nitrite).toFixed(4)} ppm` : '0 ppm'}
+                  {nob > 0 ? `${Math.min(nitriteToNitratePpmRate, nitritePpm).toFixed(4)} ppm` : '0 ppm'}
                 </span>
               </div>
             </div>
