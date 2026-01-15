@@ -182,7 +182,8 @@ Living or organic components:
 | Property | Value |
 |----------|-------|
 | **Type** | Chemical |
-| **Unit** | ppm (parts per million) |
+| **Storage** | Mass (mg) |
+| **Display** | ppm (derived: mass/water) |
 | **Safe** | 0 ppm |
 | **Providers** | Fish waste, decay, livestock metabolism |
 | **Consumers** | AOB bacteria (nitrogen cycle) |
@@ -192,6 +193,7 @@ Living or organic components:
 - First stage of nitrogen cycle
 - Produced by all livestock metabolism
 - Must be converted to nitrite by bacteria
+- Mass-based storage: evaporation automatically concentrates
 
 ---
 
@@ -200,7 +202,8 @@ Living or organic components:
 | Property | Value |
 |----------|-------|
 | **Type** | Chemical |
-| **Unit** | ppm |
+| **Storage** | Mass (mg) |
+| **Display** | ppm (derived: mass/water) |
 | **Safe** | 0 ppm |
 | **Providers** | Nitrogen cycle (from ammonia) |
 | **Consumers** | NOB bacteria (nitrogen cycle) |
@@ -210,6 +213,7 @@ Living or organic components:
 - Intermediate product
 - Indicates cycling in progress
 - Must be converted to nitrate by bacteria
+- Mass-based storage: evaporation automatically concentrates
 
 ---
 
@@ -218,7 +222,8 @@ Living or organic components:
 | Property | Value |
 |----------|-------|
 | **Type** | Chemical |
-| **Unit** | ppm |
+| **Storage** | Mass (mg) |
+| **Display** | ppm (derived: mass/water) |
 | **Safe** | < 20 ppm |
 | **Providers** | Nitrogen cycle (from nitrite) |
 | **Consumers** | Plants, water changes |
@@ -228,6 +233,7 @@ Living or organic components:
 - Accumulates over time
 - Removed by plants and water changes
 - Fertilizer for plants
+- Mass-based storage: evaporation automatically concentrates
 
 ---
 
