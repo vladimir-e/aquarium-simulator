@@ -25,6 +25,20 @@ The Environment represents conditions in the room/house where the aquarium is lo
 - Affects evaporation rate (higher temp = faster evaporation)
 - Affects gas exchange rates
 
+### Tap Water Temperature
+
+| Property | Description |
+|----------|-------------|
+| **Type** | Continuous (float) |
+| **Unit** | Degrees Celsius (°C) |
+| **Typical range** | 15.0-25.0°C |
+| **Role** | Temperature of water added during top-off and water changes |
+
+**Behavior:**
+- Water changes and top-offs introduce water at this temperature
+- Temperature blends with existing tank water based on volumes
+- Large water changes with cold tap water can cause temperature shock
+
 ### Tap Water pH
 
 | Property | Description |
@@ -75,6 +89,7 @@ The Environment represents conditions in the room/house where the aquarium is lo
 | Room Temperature | Tank temperature | Temperature core system |
 | Room Temperature | Evaporation rate | Evaporation core system |
 | Room Temperature | Gas exchange | Gas exchange core system |
+| Tap Water Temperature | Tank temperature | Water change/top-off/ATO |
 | Tap Water pH | Tank pH | Water change/top-off actions |
 | Ambient Waste | Tank waste | Decay core system |
 | Ambient Oxygen | Tank O2 | Gas exchange core system |
