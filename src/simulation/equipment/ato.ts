@@ -9,9 +9,8 @@
  * - With mass-based nitrogen storage, ppm auto-decreases (no mass change needed)
  */
 
-import { produce } from 'immer';
+import type { Effect } from '../core/effects.js';
 import type { SimulationState } from '../state.js';
-import { createLog } from '../core/logging.js';
 import { blendTemperature } from '../core/blending.js';
 
 /**
@@ -21,45 +20,52 @@ import { blendTemperature } from '../core/blending.js';
 export const WATER_LEVEL_THRESHOLD = 0.99;
 
 /**
- * Process ATO: if water is below threshold, top off to 100% with temperature blending.
+ * Process ATO: if water is below threshold, returns effects to top off to 100%
+ * with temperature blending.
  */
-export function atoUpdate(state: SimulationState): SimulationState {
+export function atoUpdate(state: SimulationState): Effect[] {
   const { ato } = state.equipment;
   const { capacity } = state.tank;
   const waterLevel = state.resources.water;
 
   if (!ato.enabled) {
-    return state;
+    return [];
   }
 
   const thresholdLevel = capacity * WATER_LEVEL_THRESHOLD;
 
   if (waterLevel >= thresholdLevel) {
-    return state;
+    return [];
   }
 
   const waterToAdd = capacity - waterLevel;
+  const currentTemp = state.resources.temperature;
+  const blendedTemp = blendTemperature(
+    currentTemp,
+    waterLevel,
+    state.environment.tapWaterTemperature,
+    waterToAdd
+  );
+  const tempDelta = blendedTemp - currentTemp;
 
-  return produce(state, (draft) => {
-    // Blend temperature before adding water
-    draft.resources.temperature = blendTemperature(
-      draft.resources.temperature,
-      waterLevel,
-      draft.environment.tapWaterTemperature,
-      waterToAdd
-    );
+  const effects: Effect[] = [
+    {
+      tier: 'immediate',
+      resource: 'water',
+      delta: waterToAdd,
+      source: 'ato',
+    },
+  ];
 
-    // Restore water to 100%
-    draft.resources.water = capacity;
+  // Only add temperature effect if there's an actual change
+  if (tempDelta !== 0) {
+    effects.push({
+      tier: 'immediate',
+      resource: 'temperature',
+      delta: tempDelta,
+      source: 'ato',
+    });
+  }
 
-    // Log
-    draft.logs.push(
-      createLog(
-        draft.tick,
-        'equipment',
-        'info',
-        `ATO: added ${waterToAdd.toFixed(1)}L`
-      )
-    );
-  });
+  return effects;
 }
