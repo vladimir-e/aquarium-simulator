@@ -278,10 +278,8 @@ evaporation_rate = base_rate * surface_area * temp_factor * (1 - lid_coverage)
 
 When water evaporates:
 - Volume decreases
-- Dissolved substances remain (not removed with water)
-- Concentrations INCREASE
-
-The Dilution system (planned) will handle the concentration math when implemented.
+- Dissolved substances remain (mass unchanged)
+- Concentrations INCREASE automatically (ppm = mass / volume)
 
 ### Thresholds
 
@@ -292,60 +290,78 @@ The Dilution system (planned) will handle the concentration math when implemente
 
 ---
 
-## Dilution
+## Dilution & Blending
 
-Manages concentration changes when water volume changes.
+Manages concentration and temperature changes when water volume changes.
 
 ### Inputs
 | Resource | Source |
 |----------|--------|
 | Water added | ATO, water changes, top-off |
 | Water removed | Evaporation, water changes |
-| All dissolved resources | Current concentrations |
+| All dissolved resources | Current amounts (mass-based) |
+| Temperature | Current tank temperature |
+| Tap water temperature | Environment setting |
 
 ### Outputs
 | Resource | Destination |
 |----------|-------------|
 | All dissolved resources | Updated concentrations |
+| Temperature | Blended temperature |
 
 ### Behavior
 
-Dilution handles the math when water volume changes:
+With mass-based storage for dissolved substances, concentration changes are implicit:
+- **Concentration (ppm) = mass / water volume**
+- When water changes, mass stays constant but concentration changes automatically
 
 **Water Addition (top-off, ATO):**
 - Adds water without adding solutes
-- Dilutes all concentrations
+- Mass unchanged, concentration decreases (dilution)
+- Temperature blends toward tap water
 
 ```
-new_concentration = (old_concentration * old_volume) / new_volume
+# Mass unchanged, concentration auto-decreases
+# ppm = mass / new_volume
+
+# Temperature blending (heat capacity weighted average)
+new_temp = (old_temp * old_volume + tap_temp * added_volume) / new_volume
 ```
 
 **Water Change:**
-- Removes water WITH solutes
-- Adds new water with different chemistry
+- Removes water WITH solutes (proportional mass removal)
+- Adds new water (assumed pure for nitrogen compounds)
+- Fills tank to 100% capacity
 
 ```
-# Remove X% of water (and solutes)
-concentration_after_removal = old_concentration * (1 - removal_fraction)
+# Remove X% of water and mass
+mass_after_removal = old_mass * (1 - removal_fraction)
 
-# Add new water
-final_concentration = concentration_after_removal + (new_water_concentration * removal_fraction)
+# Add fresh water to capacity
+# New water has 0 nitrogen compounds, so mass stays at reduced level
+# Temperature blends based on remaining + added volumes
 ```
 
 **Evaporation:**
 - Removes water WITHOUT solutes
-- Concentrates all dissolved substances
+- Mass unchanged, concentration increases
+
+### Temperature Blending Formula
+
+When mixing water volumes at different temperatures:
 
 ```
-new_concentration = old_concentration * (old_volume / new_volume)
+new_temp = (temp1 * volume1 + temp2 * volume2) / (volume1 + volume2)
 ```
+
+This is a heat capacity weighted average, assuming equal specific heat for all water.
 
 ### Interaction with Other Systems
 
-Dilution runs after:
-- Evaporation (to handle concentration)
-- Water changes (to mix new water)
-- ATO (to dilute after top-off)
+Blending occurs during:
+- Water changes (temperature + concentration)
+- ATO top-off (temperature only, mass unchanged)
+- Manual top-off (temperature only)
 
 ---
 

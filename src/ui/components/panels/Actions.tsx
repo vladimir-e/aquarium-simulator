@@ -1,21 +1,26 @@
 import React, { useState } from 'react';
 import { Panel } from '../layout/Panel';
 import { Button } from '../ui/Button';
-import type { Action } from '../../../simulation/index.js';
+import { WaterChangeCard } from '../actions/WaterChangeCard';
+import type { Action, WaterChangeAmount } from '../../../simulation/index.js';
 import { MIN_ALGAE_TO_SCRUB } from '../../../simulation/index.js';
 
 interface ActionsProps {
   waterLevel: number;
   capacity: number;
   algae: number;
+  tapWaterTemperature: number;
   executeAction: (action: Action) => void;
+  onTapWaterTemperatureChange: (temp: number) => void;
 }
 
 export function Actions({
   waterLevel,
   capacity,
   algae,
+  tapWaterTemperature,
   executeAction,
+  onTapWaterTemperatureChange,
 }: ActionsProps): React.JSX.Element {
   const [feedAmount, setFeedAmount] = useState(0.5);
 
@@ -29,6 +34,10 @@ export function Actions({
 
   const handleScrubAlgae = (): void => {
     executeAction({ type: 'scrubAlgae' });
+  };
+
+  const handleWaterChange = (amount: WaterChangeAmount): void => {
+    executeAction({ type: 'waterChange', amount });
   };
 
   const handleFeedAmountChange = (value: string): void => {
@@ -80,6 +89,14 @@ export function Actions({
         >
           Scrub Algae
         </Button>
+
+        {/* Water Change */}
+        <WaterChangeCard
+          waterLevel={waterLevel}
+          tapWaterTemperature={tapWaterTemperature}
+          onWaterChange={handleWaterChange}
+          onTapWaterTemperatureChange={onTapWaterTemperatureChange}
+        />
       </div>
     </Panel>
   );

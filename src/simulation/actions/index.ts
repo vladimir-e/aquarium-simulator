@@ -3,11 +3,13 @@ import type { Action, ActionResult } from './types.js';
 import { topOff } from './top-off.js';
 import { feed } from './feed.js';
 import { scrubAlgae } from './scrub-algae.js';
+import { waterChange } from './water-change.js';
 
 export * from './types.js';
 export * from './top-off.js';
 export * from './feed.js';
 export * from './scrub-algae.js';
+export * from './water-change.js';
 
 /**
  * Apply a user action to the simulation state.
@@ -28,5 +30,7 @@ export function applyAction(
       return feed(state, action);
     case 'scrubAlgae':
       return scrubAlgae(state, action);
+    case 'waterChange':
+      return waterChange(state, action);
   }
 }

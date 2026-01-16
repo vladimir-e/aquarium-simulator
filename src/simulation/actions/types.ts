@@ -1,6 +1,7 @@
 import type { SimulationState } from '../state.js';
+import type { WaterChangeAmount } from './water-change.js';
 
-export type ActionType = 'topOff' | 'feed' | 'scrubAlgae';
+export type ActionType = 'topOff' | 'feed' | 'scrubAlgae' | 'waterChange';
 
 export interface BaseAction {
   type: ActionType;
@@ -23,7 +24,13 @@ export interface ScrubAlgaeAction extends BaseAction {
   randomPercent?: number;
 }
 
-export type Action = TopOffAction | FeedAction | ScrubAlgaeAction;
+export interface WaterChangeAction extends BaseAction {
+  type: 'waterChange';
+  /** Fraction of water to change (0.1, 0.25, 0.5, 0.9) */
+  amount: WaterChangeAmount;
+}
+
+export type Action = TopOffAction | FeedAction | ScrubAlgaeAction | WaterChangeAction;
 
 /**
  * Result of applying an action to simulation state.

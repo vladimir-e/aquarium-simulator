@@ -109,38 +109,46 @@ tank.pH = weighted_average(tank.pH, tap_water_pH, old_volume, amount)
 
 ## Change Water
 
-Remove old water and replace with fresh water.
+Remove old water and replace with fresh water, restoring tank to full capacity.
 
 ### Inputs
 | Parameter | Description |
 |-----------|-------------|
-| Percentage | Fraction of water to change (0-100%) |
+| Percentage | Fraction of current water to remove (10%, 25%, 50%, 90%) |
 
 ### Effects
 | Resource | Change |
 |----------|--------|
-| Water | Maintained (remove then add) |
-| All concentrations | Reduced by percentage |
+| Water | Restored to 100% capacity |
+| Nitrogen compounds | Reduced by percentage (ammonia, nitrite, nitrate) |
+| Temperature | Blends toward tap water temperature |
 | pH | Moves toward tap water pH |
 
 ### Behavior
 
 ```
-change_volume = tank.water * percentage
+water_removed = tank.water * percentage
+remaining_water = tank.water - water_removed
+water_added = tank.capacity - remaining_water  # Fill to 100%
 
 # Remove water WITH dissolved substances
 for each dissolved_resource:
     resource.amount *= (1 - percentage)
 
-# Add new water
-tank.pH = (tank.pH * (1 - percentage)) + (tap_water_pH * percentage)
+# Temperature blending (heat capacity weighted average)
+tank.temperature = (tank.temperature * remaining_water + tap_temperature * water_added) / tank.capacity
+
+# Add new water to capacity
+tank.water = tank.capacity
+tank.pH = blend(tank.pH, tap_water_pH, remaining_water, water_added)
 ```
 
 ### Considerations
 - Primary method of nitrate removal
 - Large changes (> 50%) can stress fish
-- Match temperature of new water to tank
+- Cold tap water causes temperature drop - heater will need to recover
 - Dechlorinate new water
+- If tank is below 100%, water change also acts as a top-off
 
 ### Stressor Effect
 
