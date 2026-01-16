@@ -8,6 +8,10 @@ Format: - **Feature name** (#PR) - Brief description (under 100 chars)
 - Skip UI-only tweaks and minor fixes
 -->
 
+## 2026-01-16
+
+- **Gas Exchange System** - Dissolved O2/CO2 equilibrate toward temperature-dependent saturation and atmospheric levels; exchange rate scales with flow; water change and ATO blend dissolved gases; low oxygen and high CO2 alerts; WaterChemistry panel displays dissolved gases with color-coded indicators
+
 ## 2026-01-15
 
 - **Water Change Action** - Removes proportional nitrogen mass, blends temperature toward tap water; ATO now blends temperature when adding water; WaterChangeCard UI with amount selector and tap temp control

@@ -61,12 +61,26 @@ export {
   NOB_FOOD_THRESHOLD,
 } from './nitrogen-cycle.js';
 
+export {
+  gasExchangeSystem,
+  calculateO2Saturation,
+  calculateFlowFactor,
+  calculateGasExchange,
+  ATMOSPHERIC_CO2,
+  O2_SATURATION_BASE,
+  O2_SATURATION_SLOPE,
+  O2_REFERENCE_TEMP,
+  BASE_EXCHANGE_RATE,
+  OPTIMAL_FLOW_TURNOVER,
+} from './gas-exchange.js';
+
 import type { System } from './types.js';
 import { temperatureDriftSystem } from './temperature-drift.js';
 import { evaporationSystem } from './evaporation.js';
 import { decaySystem } from './decay.js';
 import { algaeSystem } from './algae.js';
 import { nitrogenCycleSystem } from './nitrogen-cycle.js';
+import { gasExchangeSystem } from './gas-exchange.js';
 
 /** All core systems in the simulation */
 export const coreSystems: System[] = [
@@ -75,4 +89,5 @@ export const coreSystems: System[] = [
   decaySystem,
   algaeSystem,
   nitrogenCycleSystem,
+  gasExchangeSystem,
 ];

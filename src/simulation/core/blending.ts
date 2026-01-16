@@ -35,5 +35,35 @@ export function blendTemperature(
   return +blended.toFixed(2);
 }
 
+/**
+ * Blend concentration when mixing water volumes.
+ * Simple weighted average for concentration-based resources (mg/L).
+ *
+ * Formula: newConc = (existingConc * existingVolume + addedConc * addedVolume) / totalVolume
+ *
+ * @param existingConc - Concentration in existing water (mg/L)
+ * @param existingVolume - Volume of existing water (L)
+ * @param addedConc - Concentration of water being added (mg/L)
+ * @param addedVolume - Volume of water being added (L)
+ * @returns Blended concentration (mg/L), rounded to 2 decimal places
+ */
+export function blendConcentration(
+  existingConc: number,
+  existingVolume: number,
+  addedConc: number,
+  addedVolume: number
+): number {
+  const totalVolume = existingVolume + addedVolume;
+
+  if (totalVolume <= 0) {
+    return existingConc;
+  }
+
+  const blended =
+    (existingConc * existingVolume + addedConc * addedVolume) / totalVolume;
+
+  return +blended.toFixed(2);
+}
+
 // Future: blendPH will use logarithmic blending since pH is logarithmic
 // export function blendPH(existingPH: number, existingVolume: number, addedPH: number, addedVolume: number): number

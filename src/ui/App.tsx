@@ -172,6 +172,8 @@ function App(): React.JSX.Element {
               ammonia={state.resources.ammonia}
               nitrite={state.resources.nitrite}
               nitrate={state.resources.nitrate}
+              oxygen={state.resources.oxygen}
+              co2={state.resources.co2}
               aob={state.resources.aob}
               nob={state.resources.nob}
               surface={state.resources.surface}

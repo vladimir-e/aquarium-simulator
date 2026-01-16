@@ -4,13 +4,15 @@
  * Water change affects:
  * - Nitrogen compounds: removes proportional mass (ammonia, nitrite, nitrate)
  * - Temperature: blends toward tap water temperature
+ * - Dissolved gases: O2 and CO2 blend with tap water concentrations
  * - Water volume: always restores to 100% capacity after change
  */
 
 import { produce } from 'immer';
 import type { SimulationState } from '../state.js';
 import { createLog } from '../core/logging.js';
-import { blendTemperature } from '../core/blending.js';
+import { blendTemperature, blendConcentration } from '../core/blending.js';
+import { calculateO2Saturation, ATMOSPHERIC_CO2 } from '../systems/gas-exchange.js';
 import type { ActionResult, WaterChangeAction } from './types.js';
 
 /** Valid water change amounts as fractions */
@@ -76,10 +78,31 @@ export function waterChange(
       waterAdded
     );
 
-    // 3. Restore water to 100% capacity
+    // 3. Dissolved gas blending (O2 and CO2)
+    // Tap water comes saturated with O2 (at tap temp) and at atmospheric CO2
+    const tapO2Saturation = calculateO2Saturation(tapTemp);
+    const tapCo2 = ATMOSPHERIC_CO2;
+
+    // Blend O2: remaining tank water + fresh tap water at saturation
+    draft.resources.oxygen = blendConcentration(
+      draft.resources.oxygen,
+      remainingWater,
+      tapO2Saturation,
+      waterAdded
+    );
+
+    // Blend CO2: remaining tank water + fresh tap water at atmospheric
+    draft.resources.co2 = blendConcentration(
+      draft.resources.co2,
+      remainingWater,
+      tapCo2,
+      waterAdded
+    );
+
+    // 4. Restore water to 100% capacity
     draft.resources.water = capacity;
 
-    // 4. Log the action
+    // 5. Log the action
     const percentLabel = Math.round(amount * 100);
     draft.logs.push(
       createLog(

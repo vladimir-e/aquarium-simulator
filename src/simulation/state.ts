@@ -54,6 +54,12 @@ export interface Resources {
   /** Nitrate mass in mg (accumulates, derive ppm = mass/water, <20 ppm safe) */
   nitrate: number;
 
+  // Chemical resources (dissolved gases) - stored as concentration (mg/L)
+  /** Dissolved oxygen in mg/L (healthy > 6, critical < 4) */
+  oxygen: number;
+  /** Dissolved CO2 in mg/L (atmospheric ~3-5, harmful > 30) */
+  co2: number;
+
   // Bacteria populations (nitrogen cycle)
   /** Ammonia-oxidizing bacteria population (absolute count) */
   aob: number;
@@ -150,6 +156,10 @@ export interface AlertState {
   highNitrite: boolean;
   /** Nitrate level is above danger threshold (>80 ppm) */
   highNitrate: boolean;
+  /** Oxygen below critical threshold (< 4 mg/L) */
+  lowOxygen: boolean;
+  /** CO2 above harmful threshold (> 30 mg/L) */
+  highCo2: boolean;
 }
 
 export interface SimulationState {
@@ -368,6 +378,9 @@ export function createSimulation(config: SimulationConfig): SimulationState {
       ammonia: 0,
       nitrite: 0,
       nitrate: 0,
+      // Dissolved gases (concentration in mg/L)
+      oxygen: 8.0, // Start at saturation for ~20°C
+      co2: 4.0, // Start at atmospheric equilibrium
       // Bacteria (nitrogen cycle)
       aob: 0,
       nob: 0,
@@ -394,6 +407,8 @@ export function createSimulation(config: SimulationConfig): SimulationState {
       highAmmonia: false,
       highNitrite: false,
       highNitrate: false,
+      lowOxygen: false,
+      highCo2: false,
     },
   };
 }

@@ -21,6 +21,8 @@ interface WaterChemistryProps {
   ammonia: number; // Mass in mg
   nitrite: number; // Mass in mg
   nitrate: number; // Mass in mg
+  oxygen: number; // Concentration in mg/L
+  co2: number; // Concentration in mg/L
   aob: number;
   nob: number;
   surface: number;
@@ -59,6 +61,26 @@ function getNitrateColor(nitratePpm: number): string {
   return 'text-red-400';
 }
 
+/**
+ * Get O2 color based on concentration (mg/L).
+ * Green (> 6): healthy, Yellow (4-6): stressed, Red (< 4): critical
+ */
+function getOxygenColor(oxygenMgL: number): string {
+  if (oxygenMgL >= 6) return 'text-green-400';
+  if (oxygenMgL >= 4) return 'text-yellow-400';
+  return 'text-red-400';
+}
+
+/**
+ * Get CO2 color using drop checker spectrum.
+ * Blue (< 10): low CO2, Green (10-30): optimal, Yellow (> 30): high/harmful
+ */
+function getCo2Color(co2MgL: number): string {
+  if (co2MgL < 10) return 'text-blue-400';
+  if (co2MgL <= 30) return 'text-green-400';
+  return 'text-yellow-400';
+}
+
 export function WaterChemistry({
   waste,
   food,
@@ -67,6 +89,8 @@ export function WaterChemistry({
   ammonia, // mg
   nitrite, // mg
   nitrate, // mg
+  oxygen, // mg/L
+  co2, // mg/L
   aob,
   nob,
   surface,
@@ -181,6 +205,28 @@ export function WaterChemistry({
               </div>
             </div>
           )}
+        </div>
+
+        {/* Dissolved Gases */}
+        <div>
+          <div className="text-sm text-gray-300 mb-2">Dissolved Gases</div>
+          <div className="space-y-1">
+            {/* Oxygen */}
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-gray-400">Oxygen (O₂)</span>
+              <span className={`text-sm font-medium ${getOxygenColor(oxygen)}`}>
+                {oxygen.toFixed(1)} mg/L
+              </span>
+            </div>
+
+            {/* CO2 */}
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-gray-400">CO₂</span>
+              <span className={`text-sm font-medium ${getCo2Color(co2)}`}>
+                {co2.toFixed(1)} mg/L
+              </span>
+            </div>
+          </div>
         </div>
 
         {/* Waste - clickable to expand */}
