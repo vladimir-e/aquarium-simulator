@@ -22,14 +22,14 @@ import { blendTemperature } from '../core/blending.js';
 export const WATER_LEVEL_THRESHOLD = 0.99;
 
 export interface AtoResult {
+  /** Updated state (with temperature blending and logging applied) */
+  state: SimulationState;
   /** Effects to apply (water addition) */
   effects: Effect[];
-  /** Amount of water to add (for temperature blending calculation) */
-  waterToAdd: number;
 }
 
 /**
- * Updates ATO state and generates water addition effects.
+ * Updates ATO state: checks water level, blends temperature, and generates water addition effects.
  */
 export function atoUpdate(state: SimulationState): AtoResult {
   const { ato } = state.equipment;
@@ -37,62 +37,45 @@ export function atoUpdate(state: SimulationState): AtoResult {
   const waterLevel = state.resources.water;
 
   if (!ato.enabled) {
-    return { effects: [], waterToAdd: 0 };
+    return { state, effects: [] };
   }
 
   const thresholdLevel = capacity * WATER_LEVEL_THRESHOLD;
 
   if (waterLevel < thresholdLevel) {
-    const waterNeeded = capacity - waterLevel;
+    const waterToAdd = capacity - waterLevel;
+
+    // Apply temperature blending and logging
+    const newState = produce(state, (draft) => {
+      draft.resources.temperature = blendTemperature(
+        draft.resources.temperature,
+        waterLevel,
+        draft.environment.tapWaterTemperature,
+        waterToAdd
+      );
+
+      draft.logs.push(
+        createLog(
+          draft.tick,
+          'equipment',
+          'info',
+          `ATO: added ${waterToAdd.toFixed(1)}L`
+        )
+      );
+    });
 
     return {
+      state: newState,
       effects: [
         {
           tier: 'immediate',
           resource: 'water',
-          delta: waterNeeded,
+          delta: waterToAdd,
           source: 'ato',
         },
       ],
-      waterToAdd: waterNeeded,
     };
   }
 
-  return { effects: [], waterToAdd: 0 };
-}
-
-/**
- * Apply temperature blending when ATO adds water.
- */
-export function applyAtoTemperatureBlending(
-  state: SimulationState,
-  waterToAdd: number
-): SimulationState {
-  if (waterToAdd <= 0) {
-    return state;
-  }
-
-  const currentWater = state.resources.water;
-
-  return produce(state, (draft) => {
-    const oldTemp = draft.resources.temperature;
-    const tapTemp = draft.environment.tapWaterTemperature;
-
-    draft.resources.temperature = blendTemperature(
-      oldTemp,
-      currentWater,
-      tapTemp,
-      waterToAdd
-    );
-
-    // Log the ATO action
-    draft.logs.push(
-      createLog(
-        draft.tick,
-        'equipment',
-        'info',
-        `ATO: added ${waterToAdd.toFixed(1)}L`
-      )
-    );
-  });
+  return { state, effects: [] };
 }

@@ -99,7 +99,6 @@ export {
   applyHeaterStateChange,
   calculateHeatingRate,
   atoUpdate,
-  applyAtoTemperatureBlending,
   getFilterSurface,
   getFilterFlow,
   type FilterType,

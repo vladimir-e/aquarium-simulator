@@ -11,7 +11,7 @@ import {
   applyHeaterStateChange,
   calculateHeatingRate,
 } from './heater.js';
-import { atoUpdate, applyAtoTemperatureBlending } from './ato.js';
+import { atoUpdate } from './ato.js';
 import { getFilterSurface, getFilterFlow, type FilterType, type Filter, DEFAULT_FILTER, FILTER_SURFACE, FILTER_FLOW } from './filter.js';
 import { getPowerheadFlow, type PowerheadFlowRate, type Powerhead, DEFAULT_POWERHEAD, POWERHEAD_FLOW_LPH } from './powerhead.js';
 import { getSubstrateSurface, type SubstrateType, type Substrate, DEFAULT_SUBSTRATE, SUBSTRATE_SURFACE_PER_LITER } from './substrate.js';
@@ -19,7 +19,7 @@ import { calculateHardscapeTotalSurface } from './hardscape.js';
 
 // Re-export equipment modules
 export { heaterUpdate, applyHeaterStateChange, calculateHeatingRate };
-export { atoUpdate, applyAtoTemperatureBlending };
+export { atoUpdate };
 export { getFilterSurface, getFilterFlow, type FilterType, type Filter, DEFAULT_FILTER, FILTER_SURFACE, FILTER_FLOW };
 export { getPowerheadFlow, type PowerheadFlowRate, type Powerhead, DEFAULT_POWERHEAD, POWERHEAD_FLOW_LPH };
 export { getSubstrateSurface, type SubstrateType, type Substrate, DEFAULT_SUBSTRATE, SUBSTRATE_SURFACE_PER_LITER };
@@ -40,13 +40,10 @@ export function processEquipment(state: SimulationState): {
   effects.push(...heaterResult.effects);
   updatedState = applyHeaterStateChange(updatedState, heaterResult.isOn);
 
-  // Process ATO
+  // Process ATO (includes temperature blending)
   const atoResult = atoUpdate(updatedState);
   effects.push(...atoResult.effects);
-
-  // Apply temperature blending before water is added
-  // (blending needs current water level before effect is applied)
-  updatedState = applyAtoTemperatureBlending(updatedState, atoResult.waterToAdd);
+  updatedState = atoResult.state;
 
   return { state: updatedState, effects };
 }
