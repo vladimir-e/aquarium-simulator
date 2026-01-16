@@ -5,7 +5,6 @@
 import type { Effect } from '../core/effects.js';
 import type { SimulationState } from '../state.js';
 import { calculateTankGlassSurface } from '../state.js';
-import { isScheduleActive } from '../core/schedule.js';
 import {
   heaterUpdate,
   applyHeaterStateChange,
@@ -25,6 +24,7 @@ import {
   BUBBLE_RATE_OPTIONS,
   type BubbleRate,
 } from './co2-generator.js';
+import { getLightOutput, type Light, type LightWattage, DEFAULT_LIGHT, LIGHT_WATTAGE_OPTIONS } from './light.js';
 
 // Re-export equipment modules
 export { heaterUpdate, applyHeaterStateChange, calculateHeatingRate };
@@ -41,6 +41,7 @@ export {
   BUBBLE_RATE_OPTIONS,
   type BubbleRate,
 };
+export { getLightOutput, type Light, type LightWattage, DEFAULT_LIGHT, LIGHT_WATTAGE_OPTIONS };
 
 /**
  * Collects effects from all equipment and applies equipment state changes.
@@ -121,13 +122,7 @@ export function calculatePassiveResources(state: SimulationState): PassiveResour
   }
 
   // Light (based on schedule)
-  let light = 0;
-  if (equipment.light.enabled) {
-    const isActive = isScheduleActive(hourOfDay, equipment.light.schedule);
-    if (isActive) {
-      light = equipment.light.wattage;
-    }
-  }
+  const light = getLightOutput(equipment.light, hourOfDay);
 
   return { surface, flow, light };
 }
