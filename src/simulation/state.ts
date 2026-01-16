@@ -122,6 +122,17 @@ export interface Light {
   schedule: DailySchedule;
 }
 
+export interface Co2Generator {
+  /** Whether CO2 injection is enabled */
+  enabled: boolean;
+  /** Bubble rate in bubbles per second (0.5-5.0) */
+  bubbleRate: number;
+  /** Currently injecting CO2 (based on schedule when enabled) */
+  isOn: boolean;
+  /** CO2 injection schedule (start hour + duration) */
+  schedule: DailySchedule;
+}
+
 export interface Equipment {
   /** Heater is always present, `enabled` property controls if active */
   heater: Heater;
@@ -139,6 +150,8 @@ export interface Equipment {
   hardscape: Hardscape;
   /** Light fixture with photoperiod schedule */
   light: Light;
+  /** CO2 generator for planted tanks */
+  co2Generator: Co2Generator;
 }
 
 /**
@@ -204,6 +217,8 @@ export interface SimulationConfig {
   hardscape?: Partial<Hardscape>;
   /** Initial light configuration */
   light?: Partial<Light>;
+  /** Initial CO2 generator configuration */
+  co2Generator?: Partial<Co2Generator>;
 }
 
 const DEFAULT_TEMPERATURE = 25;
@@ -235,6 +250,16 @@ export const DEFAULT_LIGHT: Light = {
   schedule: {
     startHour: 8, // 8am
     duration: 10, // 10 hours (8am-6pm)
+  },
+};
+
+export const DEFAULT_CO2_GENERATOR: Co2Generator = {
+  enabled: false,
+  bubbleRate: 1.0, // 1 bps default
+  isOn: false,
+  schedule: {
+    startHour: 7, // 7am (1 hour before lights default)
+    duration: 10, // 10 hours (7am-5pm, ends 1 hour before lights off)
   },
 };
 
@@ -283,6 +308,7 @@ export function createSimulation(config: SimulationConfig): SimulationState {
     substrate,
     hardscape,
     light,
+    co2Generator,
   } = config;
 
   const heaterConfig: Heater = {
@@ -326,6 +352,15 @@ export function createSimulation(config: SimulationConfig): SimulationState {
     schedule: {
       ...DEFAULT_LIGHT.schedule,
       ...light?.schedule,
+    },
+  };
+
+  const co2GeneratorConfig: Co2Generator = {
+    ...DEFAULT_CO2_GENERATOR,
+    ...co2Generator,
+    schedule: {
+      ...DEFAULT_CO2_GENERATOR.schedule,
+      ...co2Generator?.schedule,
     },
   };
 
@@ -399,6 +434,7 @@ export function createSimulation(config: SimulationConfig): SimulationState {
       substrate: substrateConfig,
       hardscape: hardscapeConfig,
       light: lightConfig,
+      co2Generator: co2GeneratorConfig,
     },
     logs: [initialLog],
     alertState: {

@@ -53,6 +53,9 @@ interface UseSimulationReturn {
   updateLightEnabled: (enabled: boolean) => void;
   updateLightWattage: (wattage: number) => void;
   updateLightSchedule: (schedule: DailySchedule) => void;
+  updateCo2GeneratorEnabled: (enabled: boolean) => void;
+  updateCo2GeneratorBubbleRate: (bubbleRate: number) => void;
+  updateCo2GeneratorSchedule: (schedule: DailySchedule) => void;
   changeTankCapacity: (capacity: number) => void;
   reset: () => void;
   executeAction: (action: Action) => void;
@@ -475,6 +478,55 @@ export function useSimulation(initialCapacity = 40): UseSimulationReturn {
     );
   }, []);
 
+  const updateCo2GeneratorEnabled = useCallback((enabled: boolean) => {
+    setState((current) =>
+      produce(current, (draft) => {
+        const message = enabled
+          ? `CO2 generator enabled (${draft.equipment.co2Generator.bubbleRate} bps)`
+          : 'CO2 generator disabled';
+        const log = createLog(draft.tick, 'user', 'info', message);
+        draft.equipment.co2Generator.enabled = enabled;
+        draft.logs.push(log);
+      })
+    );
+  }, []);
+
+  const updateCo2GeneratorBubbleRate = useCallback((bubbleRate: number) => {
+    setState((current) =>
+      produce(current, (draft) => {
+        const oldRate = draft.equipment.co2Generator.bubbleRate;
+        if (oldRate !== bubbleRate) {
+          const log = createLog(
+            draft.tick,
+            'user',
+            'info',
+            `CO2 bubble rate: ${oldRate} bps → ${bubbleRate} bps`
+          );
+          draft.equipment.co2Generator.bubbleRate = bubbleRate;
+          draft.logs.push(log);
+        }
+      })
+    );
+  }, []);
+
+  const updateCo2GeneratorSchedule = useCallback((schedule: DailySchedule) => {
+    setState((current) =>
+      produce(current, (draft) => {
+        const oldSchedule = draft.equipment.co2Generator.schedule;
+        if (oldSchedule.startHour !== schedule.startHour || oldSchedule.duration !== schedule.duration) {
+          const log = createLog(
+            draft.tick,
+            'user',
+            'info',
+            `CO2 schedule: ${formatSchedule(schedule)}`
+          );
+          draft.equipment.co2Generator.schedule = schedule;
+          draft.logs.push(log);
+        }
+      })
+    );
+  }, []);
+
   const changeTankCapacity = useCallback(
     (capacity: number) => {
       // Stop playing if currently running
@@ -523,6 +575,11 @@ export function useSimulation(initialCapacity = 40): UseSimulationReturn {
             enabled: current.equipment.light.enabled,
             wattage: current.equipment.light.wattage,
             schedule: current.equipment.light.schedule,
+          },
+          co2Generator: {
+            enabled: current.equipment.co2Generator.enabled,
+            bubbleRate: current.equipment.co2Generator.bubbleRate,
+            schedule: current.equipment.co2Generator.schedule,
           },
         });
       });
@@ -612,6 +669,9 @@ export function useSimulation(initialCapacity = 40): UseSimulationReturn {
     updateLightEnabled,
     updateLightWattage,
     updateLightSchedule,
+    updateCo2GeneratorEnabled,
+    updateCo2GeneratorBubbleRate,
+    updateCo2GeneratorSchedule,
     changeTankCapacity,
     reset,
     executeAction,

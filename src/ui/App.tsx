@@ -47,6 +47,9 @@ function App(): React.JSX.Element {
     updateLightEnabled,
     updateLightWattage,
     updateLightSchedule,
+    updateCo2GeneratorEnabled,
+    updateCo2GeneratorBubbleRate,
+    updateCo2GeneratorSchedule,
     changeTankCapacity,
     reset,
     executeAction,
@@ -105,6 +108,12 @@ function App(): React.JSX.Element {
           schedule: state.equipment.light.schedule,
         }}
         isLightOn={isLightOn}
+        co2Generator={{
+          enabled: state.equipment.co2Generator.enabled,
+          bubbleRate: state.equipment.co2Generator.bubbleRate,
+          isOn: state.equipment.co2Generator.isOn,
+          schedule: state.equipment.co2Generator.schedule,
+        }}
         onTankCapacityChange={changeTankCapacity}
         onHeaterEnabledChange={updateHeaterEnabled}
         onHeaterTargetTemperatureChange={updateHeaterTargetTemperature}
@@ -121,6 +130,9 @@ function App(): React.JSX.Element {
         onLightEnabledChange={updateLightEnabled}
         onLightWattageChange={updateLightWattage}
         onLightScheduleChange={updateLightSchedule}
+        onCo2GeneratorEnabledChange={updateCo2GeneratorEnabled}
+        onCo2GeneratorBubbleRateChange={updateCo2GeneratorBubbleRate}
+        onCo2GeneratorScheduleChange={updateCo2GeneratorSchedule}
       />
 
       <div className="p-4">
