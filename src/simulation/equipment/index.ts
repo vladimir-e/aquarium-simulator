@@ -40,10 +40,8 @@ export function processEquipment(state: SimulationState): {
   effects.push(...heaterResult.effects);
   updatedState = applyHeaterStateChange(updatedState, heaterResult.isOn);
 
-  // Process ATO (includes temperature blending)
-  const atoResult = atoUpdate(updatedState);
-  effects.push(...atoResult.effects);
-  updatedState = atoResult.state;
+  // Process ATO (applies water + temperature blending directly)
+  updatedState = atoUpdate(updatedState);
 
   return { state: updatedState, effects };
 }

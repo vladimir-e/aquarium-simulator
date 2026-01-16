@@ -9,16 +9,14 @@ describe('atoUpdate', () => {
       tankCapacity: 100,
       ato: { enabled: false },
     });
-    // Set water level below threshold
-    const lowWaterState = {
-      ...state,
-      resources: { ...state.resources, water: 90 },
-    };
+    const lowWaterState = produce(state, (draft) => {
+      draft.resources.water = 90;
+    });
 
     const result = atoUpdate(lowWaterState);
 
-    expect(result.effects).toHaveLength(0);
-    expect(result.state).toBe(lowWaterState); // Unchanged
+    expect(result).toBe(lowWaterState); // Unchanged
+    expect(result.resources.water).toBe(90);
   });
 
   it('does nothing when water level >= 99%', () => {
@@ -30,8 +28,7 @@ describe('atoUpdate', () => {
 
     const result = atoUpdate(state);
 
-    expect(result.effects).toHaveLength(0);
-    expect(result.state).toBe(state); // Unchanged
+    expect(result).toBe(state); // Unchanged
   });
 
   it('does nothing when water level is exactly at threshold', () => {
@@ -39,92 +36,41 @@ describe('atoUpdate', () => {
       tankCapacity: 100,
       ato: { enabled: true },
     });
-    const thresholdState = {
-      ...state,
-      resources: { ...state.resources, water: 100 * WATER_LEVEL_THRESHOLD },
-    };
+    const thresholdState = produce(state, (draft) => {
+      draft.resources.water = 100 * WATER_LEVEL_THRESHOLD;
+    });
 
     const result = atoUpdate(thresholdState);
 
-    expect(result.effects).toHaveLength(0);
-    expect(result.state).toBe(thresholdState); // Unchanged
+    expect(result).toBe(thresholdState); // Unchanged
   });
 
-  it('adds water to restore 100% when level < 99% and enabled', () => {
+  it('restores water to 100% when level < 99% and enabled', () => {
     const state = createSimulation({
       tankCapacity: 100,
       ato: { enabled: true },
     });
-    const lowWaterState = {
-      ...state,
-      resources: { ...state.resources, water: 90 },
-    };
+    const lowWaterState = produce(state, (draft) => {
+      draft.resources.water = 90;
+    });
 
     const result = atoUpdate(lowWaterState);
 
-    expect(result.effects).toHaveLength(1);
-    expect(result.effects[0].delta).toBe(10); // Restore from 90 to 100
+    expect(result.resources.water).toBe(100);
   });
 
-  it('restores to exactly tank capacity (100%)', () => {
+  it('restores to exactly tank capacity', () => {
     const state = createSimulation({
       tankCapacity: 200,
       ato: { enabled: true },
     });
-    const lowWaterState = {
-      ...state,
-      resources: { ...state.resources, water: 150 },
-    };
-
-    const result = atoUpdate(lowWaterState);
-
-    expect(result.effects).toHaveLength(1);
-    expect(result.effects[0].delta).toBe(50); // Restore from 150 to 200
-  });
-
-  it('emits immediate tier effect', () => {
-    const state = createSimulation({
-      tankCapacity: 100,
-      ato: { enabled: true },
+    const lowWaterState = produce(state, (draft) => {
+      draft.resources.water = 150;
     });
-    const lowWaterState = {
-      ...state,
-      resources: { ...state.resources, water: 90 },
-    };
 
     const result = atoUpdate(lowWaterState);
 
-    expect(result.effects[0].tier).toBe('immediate');
-  });
-
-  it('sets correct source for effect', () => {
-    const state = createSimulation({
-      tankCapacity: 100,
-      ato: { enabled: true },
-    });
-    const lowWaterState = {
-      ...state,
-      resources: { ...state.resources, water: 90 },
-    };
-
-    const result = atoUpdate(lowWaterState);
-
-    expect(result.effects[0].source).toBe('ato');
-  });
-
-  it('sets correct resource for effect', () => {
-    const state = createSimulation({
-      tankCapacity: 100,
-      ato: { enabled: true },
-    });
-    const lowWaterState = {
-      ...state,
-      resources: { ...state.resources, water: 90 },
-    };
-
-    const result = atoUpdate(lowWaterState);
-
-    expect(result.effects[0].resource).toBe('water');
+    expect(result.resources.water).toBe(200);
   });
 
   it('triggers when water level is just below threshold', () => {
@@ -132,109 +78,88 @@ describe('atoUpdate', () => {
       tankCapacity: 100,
       ato: { enabled: true },
     });
-    // Just below 99%
     const justBelowThreshold = 100 * WATER_LEVEL_THRESHOLD - 0.001;
-    const lowWaterState = {
-      ...state,
-      resources: { ...state.resources, water: justBelowThreshold },
-    };
+    const lowWaterState = produce(state, (draft) => {
+      draft.resources.water = justBelowThreshold;
+    });
 
     const result = atoUpdate(lowWaterState);
 
-    expect(result.effects).toHaveLength(1);
-    expect(result.effects[0].delta).toBeCloseTo(100 - justBelowThreshold, 6);
-  });
-});
-
-describe('atoUpdate temperature blending', () => {
-  it('blends temperature when adding water', () => {
-    let state = createSimulation({
-      tankCapacity: 100,
-      initialTemperature: 26,
-      tapWaterTemperature: 20,
-      ato: { enabled: true },
-    });
-    // Simulate water loss (90L remaining)
-    state = produce(state, (draft) => {
-      draft.resources.water = 90;
-    });
-
-    // Adding 10L of tap water (20°C) to 90L of tank water (26°C)
-    // newTemp = (26 * 90 + 20 * 10) / 100 = (2340 + 200) / 100 = 25.4
-    const result = atoUpdate(state);
-
-    expect(result.state.resources.temperature).toBe(25.4);
-  });
-
-  it('blends temperature with larger water addition', () => {
-    let state = createSimulation({
-      tankCapacity: 100,
-      initialTemperature: 28,
-      tapWaterTemperature: 18,
-      ato: { enabled: true },
-    });
-    // Simulate water loss (50L remaining)
-    state = produce(state, (draft) => {
-      draft.resources.water = 50;
-    });
-
-    // Adding 50L of tap water (18°C) to 50L of tank water (28°C)
-    // newTemp = (28 * 50 + 18 * 50) / 100 = (1400 + 900) / 100 = 23
-    const result = atoUpdate(state);
-
-    expect(result.state.resources.temperature).toBe(23);
-  });
-
-  it('uses environment tap water temperature', () => {
-    let state = createSimulation({
-      tankCapacity: 100,
-      initialTemperature: 25,
-      tapWaterTemperature: 15, // Cold tap water
-      ato: { enabled: true },
-    });
-    state = produce(state, (draft) => {
-      draft.resources.water = 80;
-    });
-
-    // Adding 20L of 15°C tap to 80L of 25°C tank water
-    // newTemp = (25 * 80 + 15 * 20) / 100 = (2000 + 300) / 100 = 23
-    const result = atoUpdate(state);
-
-    expect(result.state.resources.temperature).toBe(23);
+    expect(result.resources.water).toBe(100);
   });
 
   it('logs ATO action', () => {
-    let state = createSimulation({
+    const state = createSimulation({
       tankCapacity: 100,
-      initialTemperature: 25,
-      tapWaterTemperature: 20,
       ato: { enabled: true },
     });
-    state = produce(state, (draft) => {
+    const lowWaterState = produce(state, (draft) => {
       draft.resources.water = 90;
     });
 
-    const result = atoUpdate(state);
+    const result = atoUpdate(lowWaterState);
 
-    const atoLog = result.state.logs.find(
+    const atoLog = result.logs.find(
       (log) => log.source === 'equipment' && log.message.includes('ATO')
     );
     expect(atoLog).toBeDefined();
     expect(atoLog!.message).toContain('10.0L');
   });
+});
 
-  it('does not modify state when no water added', () => {
+describe('atoUpdate temperature blending', () => {
+  it('blends temperature when adding water', () => {
     const state = createSimulation({
       tankCapacity: 100,
-      initialTemperature: 25,
+      initialTemperature: 26,
       tapWaterTemperature: 20,
       ato: { enabled: true },
     });
-    // Water at 100%, no action needed
+    const lowWaterState = produce(state, (draft) => {
+      draft.resources.water = 90;
+    });
 
-    const result = atoUpdate(state);
+    // Adding 10L of tap water (20°C) to 90L of tank water (26°C)
+    // newTemp = (26 * 90 + 20 * 10) / 100 = 25.4
+    const result = atoUpdate(lowWaterState);
 
-    expect(result.state).toBe(state); // Same reference
+    expect(result.resources.temperature).toBe(25.4);
+  });
+
+  it('blends temperature with larger water addition', () => {
+    const state = createSimulation({
+      tankCapacity: 100,
+      initialTemperature: 28,
+      tapWaterTemperature: 18,
+      ato: { enabled: true },
+    });
+    const lowWaterState = produce(state, (draft) => {
+      draft.resources.water = 50;
+    });
+
+    // Adding 50L of tap water (18°C) to 50L of tank water (28°C)
+    // newTemp = (28 * 50 + 18 * 50) / 100 = 23
+    const result = atoUpdate(lowWaterState);
+
+    expect(result.resources.temperature).toBe(23);
+  });
+
+  it('uses environment tap water temperature', () => {
+    const state = createSimulation({
+      tankCapacity: 100,
+      initialTemperature: 25,
+      tapWaterTemperature: 15,
+      ato: { enabled: true },
+    });
+    const lowWaterState = produce(state, (draft) => {
+      draft.resources.water = 80;
+    });
+
+    // Adding 20L of 15°C tap to 80L of 25°C tank water
+    // newTemp = (25 * 80 + 15 * 20) / 100 = 23
+    const result = atoUpdate(lowWaterState);
+
+    expect(result.resources.temperature).toBe(23);
   });
 });
 

@@ -10,7 +10,6 @@
  */
 
 import { produce } from 'immer';
-import type { Effect } from '../core/effects.js';
 import type { SimulationState } from '../state.js';
 import { createLog } from '../core/logging.js';
 import { blendTemperature } from '../core/blending.js';
@@ -21,61 +20,46 @@ import { blendTemperature } from '../core/blending.js';
  */
 export const WATER_LEVEL_THRESHOLD = 0.99;
 
-export interface AtoResult {
-  /** Updated state (with temperature blending and logging applied) */
-  state: SimulationState;
-  /** Effects to apply (water addition) */
-  effects: Effect[];
-}
-
 /**
- * Updates ATO state: checks water level, blends temperature, and generates water addition effects.
+ * Process ATO: if water is below threshold, top off to 100% with temperature blending.
  */
-export function atoUpdate(state: SimulationState): AtoResult {
+export function atoUpdate(state: SimulationState): SimulationState {
   const { ato } = state.equipment;
   const { capacity } = state.tank;
   const waterLevel = state.resources.water;
 
   if (!ato.enabled) {
-    return { state, effects: [] };
+    return state;
   }
 
   const thresholdLevel = capacity * WATER_LEVEL_THRESHOLD;
 
-  if (waterLevel < thresholdLevel) {
-    const waterToAdd = capacity - waterLevel;
-
-    // Apply temperature blending and logging
-    const newState = produce(state, (draft) => {
-      draft.resources.temperature = blendTemperature(
-        draft.resources.temperature,
-        waterLevel,
-        draft.environment.tapWaterTemperature,
-        waterToAdd
-      );
-
-      draft.logs.push(
-        createLog(
-          draft.tick,
-          'equipment',
-          'info',
-          `ATO: added ${waterToAdd.toFixed(1)}L`
-        )
-      );
-    });
-
-    return {
-      state: newState,
-      effects: [
-        {
-          tier: 'immediate',
-          resource: 'water',
-          delta: waterToAdd,
-          source: 'ato',
-        },
-      ],
-    };
+  if (waterLevel >= thresholdLevel) {
+    return state;
   }
 
-  return { state, effects: [] };
+  const waterToAdd = capacity - waterLevel;
+
+  return produce(state, (draft) => {
+    // Blend temperature before adding water
+    draft.resources.temperature = blendTemperature(
+      draft.resources.temperature,
+      waterLevel,
+      draft.environment.tapWaterTemperature,
+      waterToAdd
+    );
+
+    // Restore water to 100%
+    draft.resources.water = capacity;
+
+    // Log
+    draft.logs.push(
+      createLog(
+        draft.tick,
+        'equipment',
+        'info',
+        `ATO: added ${waterToAdd.toFixed(1)}L`
+      )
+    );
+  });
 }
