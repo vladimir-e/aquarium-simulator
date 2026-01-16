@@ -120,7 +120,7 @@ describe('waterChange action', () => {
   });
 
   describe('water volume', () => {
-    it('maintains same water volume after water change', () => {
+    it('restores water to 100% capacity after water change', () => {
       const state = createSimulation({ tankCapacity: 100 });
 
       const action: WaterChangeAction = { type: 'waterChange', amount: 0.5 };
@@ -129,7 +129,8 @@ describe('waterChange action', () => {
       expect(result.state.resources.water).toBe(100);
     });
 
-    it('works with partially filled tank', () => {
+    it('fills partially filled tank to 100% after water change', () => {
+      // Tank at 80L, 25% WC removes 20L (leaving 60L), then fills to 100L
       let state = createSimulation({ tankCapacity: 100 });
       state = produce(state, (draft) => {
         draft.resources.water = 80;
@@ -139,10 +140,53 @@ describe('waterChange action', () => {
       const action: WaterChangeAction = { type: 'waterChange', amount: 0.25 };
       const result = waterChange(state, action);
 
-      // Water volume unchanged
-      expect(result.state.resources.water).toBe(80);
-      // Ammonia reduced by 25%
+      // Water restored to 100%
+      expect(result.state.resources.water).toBe(100);
+      // Ammonia reduced by 25% (based on removal, not final volume)
       expect(result.state.resources.ammonia).toBe(7.5);
+    });
+
+    it('handles tank at 90% with 25% water change', () => {
+      // Tank at 90L, 25% WC removes 22.5L (leaving 67.5L), then fills to 100L (adds 32.5L)
+      let state = createSimulation({
+        tankCapacity: 100,
+        initialTemperature: 26,
+        tapWaterTemperature: 20,
+      });
+      state = produce(state, (draft) => {
+        draft.resources.water = 90;
+        draft.resources.nitrate = 90; // 90mg = 1ppm
+      });
+
+      const action: WaterChangeAction = { type: 'waterChange', amount: 0.25 };
+      const result = waterChange(state, action);
+
+      // Water restored to 100%
+      expect(result.state.resources.water).toBe(100);
+      // Nitrate reduced by 25%: 90 * 0.75 = 67.5mg
+      expect(result.state.resources.nitrate).toBe(67.5);
+      // Temperature: 67.5L at 26°C + 32.5L at 20°C = (1755 + 650) / 100 = 24.05°C
+      expect(result.state.resources.temperature).toBe(24.05);
+    });
+
+    it('acts as top-off when tank very low', () => {
+      // Tank at 20L, 25% WC removes 5L (leaving 15L), then fills to 100L (adds 85L)
+      let state = createSimulation({
+        tankCapacity: 100,
+        initialTemperature: 28,
+        tapWaterTemperature: 20,
+      });
+      state = produce(state, (draft) => {
+        draft.resources.water = 20;
+      });
+
+      const action: WaterChangeAction = { type: 'waterChange', amount: 0.25 };
+      const result = waterChange(state, action);
+
+      // Water restored to 100%
+      expect(result.state.resources.water).toBe(100);
+      // Temperature: 15L at 28°C + 85L at 20°C = (420 + 1700) / 100 = 21.2°C
+      expect(result.state.resources.temperature).toBe(21.2);
     });
   });
 
@@ -189,7 +233,7 @@ describe('waterChange action', () => {
   });
 
   describe('logging', () => {
-    it('logs water change action', () => {
+    it('logs water change action with removed and added volumes', () => {
       const state = createSimulation({ tankCapacity: 100 });
 
       const action: WaterChangeAction = { type: 'waterChange', amount: 0.25 };
@@ -200,17 +244,36 @@ describe('waterChange action', () => {
       );
       expect(log).toBeDefined();
       expect(log!.message).toContain('25%');
-      expect(log!.message).toContain('25.0L');
+      expect(log!.message).toContain('removed 25.0L');
+      expect(log!.message).toContain('added 25.0L');
     });
 
-    it('returns success message with percentage and volume', () => {
+    it('logs different removed/added volumes for partial tank', () => {
+      let state = createSimulation({ tankCapacity: 100 });
+      state = produce(state, (draft) => {
+        draft.resources.water = 90;
+      });
+
+      const action: WaterChangeAction = { type: 'waterChange', amount: 0.25 };
+      const result = waterChange(state, action);
+
+      const log = result.state.logs.find(
+        (l) => l.source === 'user' && l.message.includes('Water change')
+      );
+      expect(log).toBeDefined();
+      expect(log!.message).toContain('removed 22.5L');
+      expect(log!.message).toContain('added 32.5L');
+    });
+
+    it('returns success message with percentage and volumes', () => {
       const state = createSimulation({ tankCapacity: 100 });
 
       const action: WaterChangeAction = { type: 'waterChange', amount: 0.5 };
       const result = waterChange(state, action);
 
       expect(result.message).toContain('50%');
-      expect(result.message).toContain('50.0L');
+      expect(result.message).toContain('removed 50.0L');
+      expect(result.message).toContain('added 50.0L');
     });
   });
 

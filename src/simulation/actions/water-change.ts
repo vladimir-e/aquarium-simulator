@@ -4,7 +4,7 @@
  * Water change affects:
  * - Nitrogen compounds: removes proportional mass (ammonia, nitrite, nitrate)
  * - Temperature: blends toward tap water temperature
- * - Water volume: unchanged (removed = added)
+ * - Water volume: always restores to 100% capacity after change
  */
 
 import { produce } from 'immer';
@@ -42,6 +42,7 @@ export function waterChange(
   }
 
   const currentWater = state.resources.water;
+  const capacity = state.tank.capacity;
 
   // Nothing to change if tank is empty
   if (currentWater <= 0) {
@@ -51,8 +52,12 @@ export function waterChange(
     };
   }
 
+  // Calculate water dynamics:
+  // 1. Remove X% of current water
+  // 2. Fill back to 100% capacity
   const waterRemoved = currentWater * amount;
   const remainingWater = currentWater - waterRemoved;
+  const waterAdded = capacity - remainingWater; // Fill to 100%
 
   const newState = produce(state, (draft) => {
     // 1. Remove proportional nitrogen compound mass
@@ -61,18 +66,18 @@ export function waterChange(
     draft.resources.nitrite *= 1 - amount;
     draft.resources.nitrate *= 1 - amount;
 
-    // 2. Temperature blending
+    // 2. Temperature blending (remaining tank water + fresh tap water)
     const oldTemp = draft.resources.temperature;
     const tapTemp = draft.environment.tapWaterTemperature;
     draft.resources.temperature = blendTemperature(
       oldTemp,
       remainingWater,
       tapTemp,
-      waterRemoved
+      waterAdded
     );
 
-    // 3. Water volume unchanged (removed = added)
-    // draft.resources.water stays the same
+    // 3. Restore water to 100% capacity
+    draft.resources.water = capacity;
 
     // 4. Log the action
     const percentLabel = Math.round(amount * 100);
@@ -81,7 +86,7 @@ export function waterChange(
         draft.tick,
         'user',
         'info',
-        `Water change: ${percentLabel}% (${waterRemoved.toFixed(1)}L)`
+        `Water change: ${percentLabel}% (removed ${waterRemoved.toFixed(1)}L, added ${waterAdded.toFixed(1)}L)`
       )
     );
   });
@@ -89,6 +94,6 @@ export function waterChange(
   const percentLabel = Math.round(amount * 100);
   return {
     state: newState,
-    message: `Changed ${percentLabel}% water (${waterRemoved.toFixed(1)}L)`,
+    message: `Changed ${percentLabel}% water (removed ${waterRemoved.toFixed(1)}L, added ${waterAdded.toFixed(1)}L)`,
   };
 }
