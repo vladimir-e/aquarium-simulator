@@ -3,6 +3,7 @@
  */
 
 import { createLog, type LogEntry, type LogSeverity } from './core/logging.js';
+import type { DailySchedule } from './core/schedule.js';
 import type { FilterType, Filter } from './equipment/filter.js';
 import { DEFAULT_FILTER, getFilterSurface, getFilterFlow } from './equipment/filter.js';
 import type { PowerheadFlowRate, Powerhead } from './equipment/powerhead.js';
