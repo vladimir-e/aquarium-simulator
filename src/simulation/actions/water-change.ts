@@ -5,13 +5,14 @@
  * - Nitrogen compounds: removes proportional mass (ammonia, nitrite, nitrate)
  * - Temperature: blends toward tap water temperature
  * - Dissolved gases: O2 and CO2 blend with tap water concentrations
+ * - pH: blends toward tap water pH using H+ concentration math
  * - Water volume: always restores to 100% capacity after change
  */
 
 import { produce } from 'immer';
 import type { SimulationState } from '../state.js';
 import { createLog } from '../core/logging.js';
-import { blendTemperature, blendConcentration } from '../core/blending.js';
+import { blendTemperature, blendConcentration, blendPH } from '../core/blending.js';
 import { calculateO2Saturation, ATMOSPHERIC_CO2 } from '../systems/gas-exchange.js';
 import type { ActionResult, WaterChangeAction } from './types.js';
 
@@ -99,10 +100,19 @@ export function waterChange(
       waterAdded
     );
 
-    // 4. Restore water to 100% capacity
+    // 4. Blend pH using H+ concentration math
+    const tapPH = draft.environment.tapWaterPH;
+    draft.resources.ph = blendPH(
+      draft.resources.ph,
+      remainingWater,
+      tapPH,
+      waterAdded
+    );
+
+    // 5. Restore water to 100% capacity
     draft.resources.water = capacity;
 
-    // 5. Log the action
+    // 6. Log the action
     const percentLabel = Math.round(amount * 100);
     draft.logs.push(
       createLog(

@@ -119,6 +119,13 @@ export function applyEffects(
             resource.bounds.max
           );
           break;
+        case 'ph':
+          draft.resources.ph = clamp(
+            draft.resources.ph + effect.delta,
+            resource.bounds.min,
+            resource.bounds.max
+          );
+          break;
         case 'aob':
           draft.resources.aob = clamp(
             draft.resources.aob + effect.delta,

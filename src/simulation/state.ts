@@ -62,6 +62,10 @@ export interface Resources {
   /** Dissolved CO2 in mg/L (atmospheric ~3-5, harmful > 30) */
   co2: number;
 
+  // Water chemistry
+  /** Tank pH (0-14 scale, typical aquarium range 6.0-8.0) */
+  ph: number;
+
   // Bacteria populations (nitrogen cycle)
   /** Ammonia-oxidizing bacteria population (absolute count) */
   aob: number;
@@ -74,6 +78,8 @@ export interface Environment {
   roomTemperature: number;
   /** Tap water temperature in °C (for water changes and ATO) */
   tapWaterTemperature: number;
+  /** Tap water pH for water changes and ATO */
+  tapWaterPH: number;
   /** Ambient waste production rate (g/hour) - very small, seeds bacteria */
   ambientWaste: number;
 }
@@ -195,6 +201,8 @@ export interface SimulationConfig {
   roomTemperature?: number;
   /** Tap water temperature in °C (defaults to 20) */
   tapWaterTemperature?: number;
+  /** Tap water pH (defaults to 6.5) */
+  tapWaterPH?: number;
   /** Initial heater configuration */
   heater?: Partial<Heater>;
   /** Initial lid configuration */
@@ -218,6 +226,8 @@ export interface SimulationConfig {
 const DEFAULT_TEMPERATURE = 25;
 const DEFAULT_ROOM_TEMPERATURE = 22;
 const DEFAULT_TAP_WATER_TEMPERATURE = 20;
+const DEFAULT_TAP_WATER_PH = 6.5;
+const DEFAULT_INITIAL_PH = 6.5;
 
 export const DEFAULT_HEATER: Heater = {
   enabled: true,
@@ -287,6 +297,7 @@ export function createSimulation(config: SimulationConfig): SimulationState {
     initialTemperature,
     roomTemperature,
     tapWaterTemperature,
+    tapWaterPH,
     heater,
     lid,
     ato,
@@ -353,6 +364,7 @@ export function createSimulation(config: SimulationConfig): SimulationState {
 
   const effectiveRoomTemp = roomTemperature ?? DEFAULT_ROOM_TEMPERATURE;
   const effectiveTapWaterTemp = tapWaterTemperature ?? DEFAULT_TAP_WATER_TEMPERATURE;
+  const effectiveTapWaterPH = tapWaterPH ?? DEFAULT_TAP_WATER_PH;
   const heaterStatus = heaterConfig.enabled ? 'enabled' : 'disabled';
 
   const initialLog = createLog(
@@ -403,6 +415,8 @@ export function createSimulation(config: SimulationConfig): SimulationState {
       // Dissolved gases (concentration in mg/L)
       oxygen: 8.0, // Start at saturation for ~20°C
       co2: 4.0, // Start at atmospheric equilibrium
+      // Water chemistry
+      ph: DEFAULT_INITIAL_PH, // Slightly acidic, matches tap water default
       // Bacteria (nitrogen cycle)
       aob: 0,
       nob: 0,
@@ -410,6 +424,7 @@ export function createSimulation(config: SimulationConfig): SimulationState {
     environment: {
       roomTemperature: effectiveRoomTemp,
       tapWaterTemperature: effectiveTapWaterTemp,
+      tapWaterPH: effectiveTapWaterPH,
       ambientWaste: 0.01, // 0.01 g/hour
     },
     equipment: {

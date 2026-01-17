@@ -7,12 +7,13 @@
  * When adding water:
  * - Temperature blends toward tap water temperature
  * - Dissolved gases blend with tap water concentrations (saturated O2, atmospheric CO2)
+ * - pH blends toward tap water pH using H+ concentration math
  * - With mass-based nitrogen storage, ppm auto-decreases (no mass change needed)
  */
 
 import type { Effect } from '../core/effects.js';
 import type { SimulationState } from '../state.js';
-import { blendTemperature, blendConcentration } from '../core/blending.js';
+import { blendTemperature, blendConcentration, blendPH } from '../core/blending.js';
 import { calculateO2Saturation, ATMOSPHERIC_CO2 } from '../systems/gas-exchange.js';
 
 /**
@@ -72,6 +73,16 @@ export function atoUpdate(state: SimulationState): Effect[] {
   );
   const co2Delta = blendedCo2 - state.resources.co2;
 
+  // Calculate pH blending
+  const tapPH = state.environment.tapWaterPH;
+  const blendedPH = blendPH(
+    state.resources.ph,
+    waterLevel,
+    tapPH,
+    waterToAdd
+  );
+  const phDelta = blendedPH - state.resources.ph;
+
   const effects: Effect[] = [
     {
       tier: 'immediate',
@@ -107,6 +118,16 @@ export function atoUpdate(state: SimulationState): Effect[] {
       tier: 'immediate',
       resource: 'co2',
       delta: co2Delta,
+      source: 'ato',
+    });
+  }
+
+  // Add pH effect if there's a change
+  if (Math.abs(phDelta) > 0.001) {
+    effects.push({
+      tier: 'immediate',
+      resource: 'ph',
+      delta: phDelta,
       source: 'ato',
     });
   }

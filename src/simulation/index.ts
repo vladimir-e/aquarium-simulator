@@ -46,6 +46,7 @@ export {
   FoodResource,
   WasteResource,
   AlgaeResource,
+  PhResource,
 } from './resources/index.js';
 
 // Schedule
@@ -54,6 +55,15 @@ export { isScheduleActive, isValidSchedule, formatSchedule } from './core/schedu
 
 // Logging
 export { createLog } from './core/logging.js';
+
+// Blending
+export {
+  blendTemperature,
+  blendConcentration,
+  blendPH,
+  phToHydrogen,
+  hydrogenToPh,
+} from './core/blending.js';
 
 export type { Effect, EffectTier } from './core/effects.js';
 export { applyEffects } from './core/effects.js';
@@ -89,6 +99,16 @@ export {
   HALF_SATURATION,
   BASE_GROWTH_RATE,
   ALGAE_CAP,
+  phDriftSystem,
+  calculateHardscapeTargetPH,
+  calculateCO2PHEffect,
+  CALCITE_TARGET_PH,
+  DRIFTWOOD_TARGET_PH,
+  NEUTRAL_PH,
+  BASE_PH_DRIFT_RATE,
+  CO2_PH_COEFFICIENT,
+  CO2_NEUTRAL_LEVEL,
+  HARDSCAPE_DIMINISHING_FACTOR,
 } from './systems/index.js';
 
 // Equipment

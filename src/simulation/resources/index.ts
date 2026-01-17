@@ -25,6 +25,7 @@ export { NitriteResource } from './nitrite.js';
 export { NitrateResource } from './nitrate.js';
 export { OxygenResource } from './oxygen.js';
 export { Co2Resource } from './co2.js';
+export { PhResource } from './ph.js';
 export { AobResource } from './aob.js';
 export { NobResource } from './nob.js';
 
@@ -43,6 +44,7 @@ import { NitriteResource } from './nitrite.js';
 import { NitrateResource } from './nitrate.js';
 import { OxygenResource } from './oxygen.js';
 import { Co2Resource } from './co2.js';
+import { PhResource } from './ph.js';
 import { AobResource } from './aob.js';
 import { NobResource } from './nob.js';
 
@@ -64,6 +66,7 @@ export const ResourceRegistry: Record<ResourceKey, ResourceDefinition<ResourceKe
   nitrate: NitrateResource,
   oxygen: OxygenResource,
   co2: Co2Resource,
+  ph: PhResource,
   aob: AobResource,
   nob: NobResource,
 };

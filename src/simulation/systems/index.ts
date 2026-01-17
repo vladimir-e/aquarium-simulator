@@ -74,6 +74,19 @@ export {
   OPTIMAL_FLOW_TURNOVER,
 } from './gas-exchange.js';
 
+export {
+  phDriftSystem,
+  calculateHardscapeTargetPH,
+  calculateCO2PHEffect,
+  CALCITE_TARGET_PH,
+  DRIFTWOOD_TARGET_PH,
+  NEUTRAL_PH,
+  BASE_PH_DRIFT_RATE,
+  CO2_PH_COEFFICIENT,
+  CO2_NEUTRAL_LEVEL,
+  HARDSCAPE_DIMINISHING_FACTOR,
+} from './ph-drift.js';
+
 import type { System } from './types.js';
 import { temperatureDriftSystem } from './temperature-drift.js';
 import { evaporationSystem } from './evaporation.js';
@@ -81,6 +94,7 @@ import { decaySystem } from './decay.js';
 import { algaeSystem } from './algae.js';
 import { nitrogenCycleSystem } from './nitrogen-cycle.js';
 import { gasExchangeSystem } from './gas-exchange.js';
+import { phDriftSystem } from './ph-drift.js';
 
 /** All core systems in the simulation */
 export const coreSystems: System[] = [
@@ -90,4 +104,5 @@ export const coreSystems: System[] = [
   algaeSystem,
   nitrogenCycleSystem,
   gasExchangeSystem,
+  phDriftSystem,
 ];
