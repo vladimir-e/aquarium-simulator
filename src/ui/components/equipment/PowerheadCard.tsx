@@ -3,6 +3,8 @@ import { Toggle } from '../ui/Toggle';
 import { Select } from '../ui/Select';
 import { Wind } from 'lucide-react';
 import { POWERHEAD_FLOW_LPH, type PowerheadFlowRate } from '../../../simulation/index.js';
+import { useUnits } from '../../hooks/useUnits';
+import { formatFlowRate } from '../../utils/units';
 
 export type { PowerheadFlowRate };
 
@@ -19,11 +21,19 @@ interface PowerheadCardProps {
 
 const FLOW_RATE_OPTIONS: PowerheadFlowRate[] = [240, 400, 600, 850];
 
-const TANK_SIZE_RECOMMENDATIONS: Record<PowerheadFlowRate, string> = {
+// Tank size recommendations in both unit systems
+const TANK_SIZE_RECOMMENDATIONS_IMPERIAL: Record<PowerheadFlowRate, string> = {
   240: '5-20 gal',
   400: '20-30 gal',
   600: '30-50 gal',
   850: '50-80 gal',
+};
+
+const TANK_SIZE_RECOMMENDATIONS_METRIC: Record<PowerheadFlowRate, string> = {
+  240: '20-75 L',
+  400: '75-115 L',
+  600: '115-190 L',
+  850: '190-300 L',
 };
 
 export function PowerheadCard({
@@ -31,7 +41,12 @@ export function PowerheadCard({
   onEnabledChange,
   onFlowRateChange,
 }: PowerheadCardProps): React.JSX.Element {
-  const flowLPH = POWERHEAD_FLOW_LPH[powerhead.flowRateGPH];
+  const { unitSystem } = useUnits();
+
+  const recommendations =
+    unitSystem === 'imperial'
+      ? TANK_SIZE_RECOMMENDATIONS_IMPERIAL
+      : TANK_SIZE_RECOMMENDATIONS_METRIC;
 
   return (
     <div className="bg-panel rounded-lg border border-border p-4 w-[220px] flex-shrink-0 self-stretch flex flex-col">
@@ -50,7 +65,7 @@ export function PowerheadCard({
         >
           {FLOW_RATE_OPTIONS.map((gph) => (
             <option key={gph} value={gph}>
-              {gph} GPH ({POWERHEAD_FLOW_LPH[gph]} L/h)
+              {unitSystem === 'imperial' ? `${gph} GPH` : `${POWERHEAD_FLOW_LPH[gph]} L/h`}
             </option>
           ))}
         </Select>
@@ -58,15 +73,11 @@ export function PowerheadCard({
         <div className="text-xs text-gray-400 space-y-1">
           <div className="flex justify-between">
             <span>Output:</span>
-            <span className="text-gray-300">
-              {powerhead.flowRateGPH} GPH / {flowLPH} L/h
-            </span>
+            <span className="text-gray-300">{formatFlowRate(powerhead.flowRateGPH, unitSystem)}</span>
           </div>
           <div className="flex justify-between">
             <span>Recommended:</span>
-            <span className="text-gray-300">
-              {TANK_SIZE_RECOMMENDATIONS[powerhead.flowRateGPH]}
-            </span>
+            <span className="text-gray-300">{recommendations[powerhead.flowRateGPH]}</span>
           </div>
         </div>
 
