@@ -10,7 +10,6 @@ Format: - **Feature name** (#PR) - Brief description (under 100 chars)
 
 ## 2026-01-16
 
-- **Light Equipment Refactor** - Extracted light logic to dedicated equipment/light.ts module with getLightOutput() function; consistent with other equipment patterns
 - **CO2 Generator Equipment** - Injects CO2 at configurable bubble rate (0.5-5.0 bps); schedule-based operation; displays expected mg/L/hr rate; integrates with gas exchange system
 - **Gas Exchange System** - Dissolved O2/CO2 equilibrate toward temperature-dependent saturation and atmospheric levels; exchange rate scales with flow; water change and ATO blend dissolved gases; low oxygen and high CO2 alerts; WaterChemistry panel displays dissolved gases with color-coded indicators
 
