@@ -20,10 +20,14 @@ import { isScheduleActive } from '../core/schedule.js';
 // ============================================================================
 
 /**
- * CO2 dosing rate: mg/L per hour per bubble per second.
- * At 1 bps, this adds 1.5 mg/L of CO2 per hour.
+ * CO2 dosing rate: mg per hour per bubble per second.
+ * This is a MASS rate, not concentration. The actual concentration
+ * change depends on tank volume.
+ *
+ * Tuned so 1 bps in a 10gal (37.85L) tank ≈ 1.5 mg/L/hr.
+ * Formula: 57 mg/hr / 37.85L ≈ 1.5 mg/L/hr
  */
-export const CO2_DOSING_RATE = 1.5;
+export const CO2_MASS_RATE = 57;
 
 /**
  * Available bubble rate options (bubbles per second).
@@ -39,22 +43,28 @@ export type BubbleRate = (typeof BUBBLE_RATE_OPTIONS)[number];
 
 /**
  * Calculate CO2 injection amount per tick (hour).
+ * Uses mass-based calculation: larger tanks get less concentration change
+ * from the same bubble rate.
  *
  * @param bubbleRate - Bubbles per second
+ * @param tankCapacity - Tank capacity in liters
  * @returns CO2 added in mg/L per hour
  */
-export function calculateCo2Injection(bubbleRate: number): number {
-  return bubbleRate * CO2_DOSING_RATE;
+export function calculateCo2Injection(bubbleRate: number, tankCapacity: number): number {
+  if (tankCapacity <= 0) return 0;
+  const massPerHour = bubbleRate * CO2_MASS_RATE;
+  return massPerHour / tankCapacity;
 }
 
 /**
  * Calculate expected CO2 rate for display.
  *
  * @param bubbleRate - Bubbles per second
+ * @param tankCapacity - Tank capacity in liters
  * @returns Formatted string showing expected rate
  */
-export function formatCo2Rate(bubbleRate: number): string {
-  const rate = calculateCo2Injection(bubbleRate);
+export function formatCo2Rate(bubbleRate: number, tankCapacity: number): string {
+  const rate = calculateCo2Injection(bubbleRate, tankCapacity);
   return `+${rate.toFixed(1)} mg/L/hr`;
 }
 
@@ -85,8 +95,8 @@ export function co2GeneratorUpdate(state: SimulationState): Co2GeneratorUpdateRe
     return { effects: [], isOn: false };
   }
 
-  // Calculate CO2 to inject this tick
-  const co2Injection = calculateCo2Injection(co2Generator.bubbleRate);
+  // Calculate CO2 to inject this tick (mass-based, depends on tank volume)
+  const co2Injection = calculateCo2Injection(co2Generator.bubbleRate, state.tank.capacity);
 
   const effects: Effect[] = [
     {

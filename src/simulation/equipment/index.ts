@@ -21,7 +21,7 @@ import {
   applyCo2GeneratorStateChange,
   calculateCo2Injection,
   formatCo2Rate,
-  CO2_DOSING_RATE,
+  CO2_MASS_RATE,
   BUBBLE_RATE_OPTIONS,
   type BubbleRate,
 } from './co2-generator.js';
@@ -37,7 +37,7 @@ export {
   applyCo2GeneratorStateChange,
   calculateCo2Injection,
   formatCo2Rate,
-  CO2_DOSING_RATE,
+  CO2_MASS_RATE,
   BUBBLE_RATE_OPTIONS,
   type BubbleRate,
 };

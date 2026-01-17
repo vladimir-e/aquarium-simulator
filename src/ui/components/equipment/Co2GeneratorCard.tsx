@@ -19,6 +19,7 @@ export interface Co2GeneratorState {
 
 interface Co2GeneratorCardProps {
   co2Generator: Co2GeneratorState;
+  tankCapacity: number;
   onEnabledChange: (enabled: boolean) => void;
   onBubbleRateChange: (bubbleRate: number) => void;
   onScheduleChange: (schedule: DailySchedule) => void;
@@ -26,6 +27,7 @@ interface Co2GeneratorCardProps {
 
 export function Co2GeneratorCard({
   co2Generator,
+  tankCapacity,
   onEnabledChange,
   onBubbleRateChange,
   onScheduleChange,
@@ -80,7 +82,7 @@ export function Co2GeneratorCard({
             </Select>
 
             <div className="text-xs text-gray-400 -mt-1">
-              Rate: {formatCo2Rate(co2Generator.bubbleRate)}
+              Rate: {formatCo2Rate(co2Generator.bubbleRate, tankCapacity)}
             </div>
 
             <div className="text-xs text-gray-400 border-t border-border pt-2">

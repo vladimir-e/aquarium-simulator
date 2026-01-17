@@ -240,6 +240,7 @@ export function EquipmentBar({
             />
             <Co2GeneratorCard
               co2Generator={co2Generator}
+              tankCapacity={tank.capacity}
               onEnabledChange={onCo2GeneratorEnabledChange}
               onBubbleRateChange={onCo2GeneratorBubbleRateChange}
               onScheduleChange={onCo2GeneratorScheduleChange}
