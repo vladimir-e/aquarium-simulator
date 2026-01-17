@@ -16,6 +16,15 @@ import { getFilterSurface, getFilterFlow, type FilterType, type Filter, DEFAULT_
 import { getPowerheadFlow, type PowerheadFlowRate, type Powerhead, DEFAULT_POWERHEAD, POWERHEAD_FLOW_LPH } from './powerhead.js';
 import { getSubstrateSurface, type SubstrateType, type Substrate, DEFAULT_SUBSTRATE, SUBSTRATE_SURFACE_PER_LITER } from './substrate.js';
 import { calculateHardscapeTotalSurface } from './hardscape.js';
+import {
+  co2GeneratorUpdate,
+  applyCo2GeneratorStateChange,
+  calculateCo2Injection,
+  formatCo2Rate,
+  CO2_MASS_RATE,
+  BUBBLE_RATE_OPTIONS,
+  type BubbleRate,
+} from './co2-generator.js';
 
 // Re-export equipment modules
 export { heaterUpdate, applyHeaterStateChange, calculateHeatingRate };
@@ -23,6 +32,15 @@ export { atoUpdate };
 export { getFilterSurface, getFilterFlow, type FilterType, type Filter, DEFAULT_FILTER, FILTER_SURFACE, FILTER_FLOW };
 export { getPowerheadFlow, type PowerheadFlowRate, type Powerhead, DEFAULT_POWERHEAD, POWERHEAD_FLOW_LPH };
 export { getSubstrateSurface, type SubstrateType, type Substrate, DEFAULT_SUBSTRATE, SUBSTRATE_SURFACE_PER_LITER };
+export {
+  co2GeneratorUpdate,
+  applyCo2GeneratorStateChange,
+  calculateCo2Injection,
+  formatCo2Rate,
+  CO2_MASS_RATE,
+  BUBBLE_RATE_OPTIONS,
+  type BubbleRate,
+};
 
 /**
  * Collects effects from all equipment and applies equipment state changes.
@@ -43,6 +61,11 @@ export function processEquipment(state: SimulationState): {
   // Process ATO
   const atoEffects = atoUpdate(updatedState);
   effects.push(...atoEffects);
+
+  // Process CO2 generator
+  const co2Result = co2GeneratorUpdate(updatedState);
+  effects.push(...co2Result.effects);
+  updatedState = applyCo2GeneratorStateChange(updatedState, co2Result.isOn);
 
   return { state: updatedState, effects };
 }

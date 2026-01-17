@@ -105,6 +105,20 @@ export function applyEffects(
             resource.bounds.max
           );
           break;
+        case 'oxygen':
+          draft.resources.oxygen = clamp(
+            draft.resources.oxygen + effect.delta,
+            resource.bounds.min,
+            resource.bounds.max
+          );
+          break;
+        case 'co2':
+          draft.resources.co2 = clamp(
+            draft.resources.co2 + effect.delta,
+            resource.bounds.min,
+            resource.bounds.max
+          );
+          break;
         case 'aob':
           draft.resources.aob = clamp(
             draft.resources.aob + effect.delta,

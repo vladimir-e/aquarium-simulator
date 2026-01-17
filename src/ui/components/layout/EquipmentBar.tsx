@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Container, Waves, Thermometer, Cloud, Droplets, Wind, Mountain, Sun } from 'lucide-react';
+import { Container, Waves, Thermometer, Cloud, Droplets, Wind, Mountain, Sun, Sparkles } from 'lucide-react';
 import { HeaterCard, HeaterState } from '../equipment/HeaterCard';
 import { LidCard, LidState, LidType } from '../equipment/LidCard';
 import { AutoTopOffCard, AutoTopOffState } from '../equipment/AutoTopOffCard';
@@ -15,6 +15,7 @@ import {
 } from '../equipment/SubstrateCard';
 import { HardscapeCard, HardscapeState, HardscapeType } from '../equipment/HardscapeCard';
 import { LightCard, LightState } from '../equipment/LightCard';
+import { Co2GeneratorCard, Co2GeneratorState } from '../equipment/Co2GeneratorCard';
 import type { DailySchedule } from '../../../simulation/index.js';
 
 interface EquipmentBarProps {
@@ -29,6 +30,7 @@ interface EquipmentBarProps {
   hardscapeSlots: number;
   light: LightState;
   isLightOn: boolean;
+  co2Generator: Co2GeneratorState;
   onTankCapacityChange: (capacity: number) => void;
   onHeaterEnabledChange: (enabled: boolean) => void;
   onHeaterTargetTemperatureChange: (temp: number) => void;
@@ -45,6 +47,9 @@ interface EquipmentBarProps {
   onLightEnabledChange: (enabled: boolean) => void;
   onLightWattageChange: (wattage: number) => void;
   onLightScheduleChange: (schedule: DailySchedule) => void;
+  onCo2GeneratorEnabledChange: (enabled: boolean) => void;
+  onCo2GeneratorBubbleRateChange: (bubbleRate: number) => void;
+  onCo2GeneratorScheduleChange: (schedule: DailySchedule) => void;
 }
 
 function formatLidName(type: string): string {
@@ -72,6 +77,7 @@ export function EquipmentBar({
   hardscapeSlots,
   light,
   isLightOn,
+  co2Generator,
   onTankCapacityChange,
   onHeaterEnabledChange,
   onHeaterTargetTemperatureChange,
@@ -88,6 +94,9 @@ export function EquipmentBar({
   onLightEnabledChange,
   onLightWattageChange,
   onLightScheduleChange,
+  onCo2GeneratorEnabledChange,
+  onCo2GeneratorBubbleRateChange,
+  onCo2GeneratorScheduleChange,
 }: EquipmentBarProps): React.JSX.Element {
   const [isExpanded, setIsExpanded] = useState(false);
 
@@ -118,6 +127,14 @@ export function EquipmentBar({
       label: 'Light',
       showOnlineDot: true,
       activeDot: isLightOn ? 'bg-yellow-500' : null,
+    },
+    {
+      key: 'co2',
+      show: co2Generator.enabled,
+      icon: <Sparkles className="w-4 h-4 text-accent-green" />,
+      label: 'CO2',
+      showOnlineDot: true,
+      activeDot: co2Generator.isOn ? 'bg-green-500' : null,
     },
     {
       key: 'heater',
@@ -220,6 +237,13 @@ export function EquipmentBar({
               onEnabledChange={onLightEnabledChange}
               onWattageChange={onLightWattageChange}
               onScheduleChange={onLightScheduleChange}
+            />
+            <Co2GeneratorCard
+              co2Generator={co2Generator}
+              tankCapacity={tank.capacity}
+              onEnabledChange={onCo2GeneratorEnabledChange}
+              onBubbleRateChange={onCo2GeneratorBubbleRateChange}
+              onScheduleChange={onCo2GeneratorScheduleChange}
             />
             <HeaterCard
               heater={heater}

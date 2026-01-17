@@ -6,12 +6,14 @@
  *
  * When adding water:
  * - Temperature blends toward tap water temperature
+ * - Dissolved gases blend with tap water concentrations (saturated O2, atmospheric CO2)
  * - With mass-based nitrogen storage, ppm auto-decreases (no mass change needed)
  */
 
 import type { Effect } from '../core/effects.js';
 import type { SimulationState } from '../state.js';
-import { blendTemperature } from '../core/blending.js';
+import { blendTemperature, blendConcentration } from '../core/blending.js';
+import { calculateO2Saturation, ATMOSPHERIC_CO2 } from '../systems/gas-exchange.js';
 
 /**
  * Water level threshold as fraction of capacity.
@@ -39,14 +41,36 @@ export function atoUpdate(state: SimulationState): Effect[] {
   }
 
   const waterToAdd = capacity - waterLevel;
+  const tapTemp = state.environment.tapWaterTemperature;
   const currentTemp = state.resources.temperature;
   const blendedTemp = blendTemperature(
     currentTemp,
     waterLevel,
-    state.environment.tapWaterTemperature,
+    tapTemp,
     waterToAdd
   );
   const tempDelta = blendedTemp - currentTemp;
+
+  // Calculate O2/CO2 blending
+  // Tap water comes saturated with O2 (at tap temp) and at atmospheric CO2
+  const tapO2Saturation = calculateO2Saturation(tapTemp);
+  const tapCo2 = ATMOSPHERIC_CO2;
+
+  const blendedO2 = blendConcentration(
+    state.resources.oxygen,
+    waterLevel,
+    tapO2Saturation,
+    waterToAdd
+  );
+  const o2Delta = blendedO2 - state.resources.oxygen;
+
+  const blendedCo2 = blendConcentration(
+    state.resources.co2,
+    waterLevel,
+    tapCo2,
+    waterToAdd
+  );
+  const co2Delta = blendedCo2 - state.resources.co2;
 
   const effects: Effect[] = [
     {
@@ -63,6 +87,26 @@ export function atoUpdate(state: SimulationState): Effect[] {
       tier: 'immediate',
       resource: 'temperature',
       delta: tempDelta,
+      source: 'ato',
+    });
+  }
+
+  // Add O2 effect if there's a change
+  if (Math.abs(o2Delta) > 0.001) {
+    effects.push({
+      tier: 'immediate',
+      resource: 'oxygen',
+      delta: o2Delta,
+      source: 'ato',
+    });
+  }
+
+  // Add CO2 effect if there's a change
+  if (Math.abs(co2Delta) > 0.001) {
+    effects.push({
+      tier: 'immediate',
+      resource: 'co2',
+      delta: co2Delta,
       source: 'ato',
     });
   }

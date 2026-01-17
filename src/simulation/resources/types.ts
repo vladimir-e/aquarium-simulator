@@ -41,5 +41,7 @@ export type ResourceKey =
   | 'ammonia'
   | 'nitrite'
   | 'nitrate'
+  | 'oxygen'
+  | 'co2'
   | 'aob'
   | 'nob';
