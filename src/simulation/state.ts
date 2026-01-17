@@ -11,9 +11,11 @@ import { DEFAULT_POWERHEAD, getPowerheadFlow } from './equipment/powerhead.js';
 import type { SubstrateType, Substrate } from './equipment/substrate.js';
 import { DEFAULT_SUBSTRATE, getSubstrateSurface } from './equipment/substrate.js';
 import { calculateHardscapeTotalSurface } from './equipment/hardscape.js';
+import type { Light, LightWattage } from './equipment/light.js';
+import { DEFAULT_LIGHT } from './equipment/light.js';
 
 export type { LogEntry, LogSeverity };
-export type { FilterType, Filter, PowerheadFlowRate, Powerhead, SubstrateType, Substrate };
+export type { FilterType, Filter, PowerheadFlowRate, Powerhead, SubstrateType, Substrate, Light, LightWattage };
 
 export interface Tank {
   /** Maximum water capacity in liters */
@@ -113,15 +115,6 @@ export interface Hardscape {
   items: HardscapeItem[];
 }
 
-export interface Light {
-  /** Whether light fixture is installed/enabled */
-  enabled: boolean;
-  /** Light power output in watts */
-  wattage: number;
-  /** Photoperiod schedule (start hour + duration) */
-  schedule: DailySchedule;
-}
-
 export interface Co2Generator {
   /** Whether CO2 injection is enabled */
   enabled: boolean;
@@ -132,6 +125,7 @@ export interface Co2Generator {
   /** CO2 injection schedule (start hour + duration) */
   schedule: DailySchedule;
 }
+
 
 export interface Equipment {
   /** Heater is always present, `enabled` property controls if active */
@@ -244,14 +238,7 @@ export const DEFAULT_HARDSCAPE: Hardscape = {
   items: [],
 };
 
-export const DEFAULT_LIGHT: Light = {
-  enabled: true,
-  wattage: 100, // 100W default
-  schedule: {
-    startHour: 8, // 8am
-    duration: 10, // 10 hours (8am-6pm)
-  },
-};
+export { DEFAULT_LIGHT };
 
 export const DEFAULT_CO2_GENERATOR: Co2Generator = {
   enabled: false,
