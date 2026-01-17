@@ -8,15 +8,19 @@ import { WATER_CHANGE_AMOUNTS } from '../../../simulation/index.js';
 interface WaterChangeCardProps {
   waterLevel: number;
   tapWaterTemperature: number;
+  tapWaterPH: number;
   onWaterChange: (amount: WaterChangeAmount) => void;
   onTapWaterTemperatureChange: (temp: number) => void;
+  onTapWaterPHChange: (ph: number) => void;
 }
 
 export function WaterChangeCard({
   waterLevel,
   tapWaterTemperature,
+  tapWaterPH,
   onWaterChange,
   onTapWaterTemperatureChange,
+  onTapWaterPHChange,
 }: WaterChangeCardProps): React.JSX.Element {
   const [selectedAmount, setSelectedAmount] = useState<WaterChangeAmount>(0.25);
 
@@ -44,6 +48,17 @@ export function WaterChangeCard({
         max={40}
         step={1}
         suffix="°C"
+      />
+
+      {/* Tap water pH stepper */}
+      <Stepper
+        label="Tap water pH"
+        value={tapWaterPH}
+        onChange={onTapWaterPHChange}
+        min={5.5}
+        max={8.5}
+        step={0.1}
+        suffix=""
       />
 
       {/* Amount selector */}

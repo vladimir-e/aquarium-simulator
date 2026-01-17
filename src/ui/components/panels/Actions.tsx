@@ -10,8 +10,10 @@ interface ActionsProps {
   capacity: number;
   algae: number;
   tapWaterTemperature: number;
+  tapWaterPH: number;
   executeAction: (action: Action) => void;
   onTapWaterTemperatureChange: (temp: number) => void;
+  onTapWaterPHChange: (ph: number) => void;
 }
 
 export function Actions({
@@ -19,8 +21,10 @@ export function Actions({
   capacity,
   algae,
   tapWaterTemperature,
+  tapWaterPH,
   executeAction,
   onTapWaterTemperatureChange,
+  onTapWaterPHChange,
 }: ActionsProps): React.JSX.Element {
   const [feedAmount, setFeedAmount] = useState(0.5);
 
@@ -94,8 +98,10 @@ export function Actions({
         <WaterChangeCard
           waterLevel={waterLevel}
           tapWaterTemperature={tapWaterTemperature}
+          tapWaterPH={tapWaterPH}
           onWaterChange={handleWaterChange}
           onTapWaterTemperatureChange={onTapWaterTemperatureChange}
+          onTapWaterPHChange={onTapWaterPHChange}
         />
       </div>
     </Panel>

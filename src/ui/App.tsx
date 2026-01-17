@@ -35,6 +35,7 @@ function App(): React.JSX.Element {
     updateHeaterWattage,
     updateRoomTemperature,
     updateTapWaterTemperature,
+    updateTapWaterPH,
     updateLidType,
     updateAtoEnabled,
     updateFilterEnabled,
@@ -156,8 +157,10 @@ function App(): React.JSX.Element {
               capacity={state.tank.capacity}
               algae={state.resources.algae}
               tapWaterTemperature={state.environment.tapWaterTemperature}
+              tapWaterPH={state.environment.tapWaterPH}
               executeAction={executeAction}
               onTapWaterTemperatureChange={updateTapWaterTemperature}
+              onTapWaterPHChange={updateTapWaterPH}
             />
           </div>
 
@@ -186,6 +189,7 @@ function App(): React.JSX.Element {
               nitrate={state.resources.nitrate}
               oxygen={state.resources.oxygen}
               co2={state.resources.co2}
+              ph={state.resources.ph}
               aob={state.resources.aob}
               nob={state.resources.nob}
               surface={state.resources.surface}

@@ -23,6 +23,7 @@ interface WaterChemistryProps {
   nitrate: number; // Mass in mg
   oxygen: number; // Concentration in mg/L
   co2: number; // Concentration in mg/L
+  ph: number; // pH value (0-14 scale)
   aob: number;
   nob: number;
   surface: number;
@@ -81,6 +82,16 @@ function getCo2Color(co2MgL: number): string {
   return 'text-yellow-400';
 }
 
+/**
+ * Get pH color based on value.
+ * Blue (< 6.5): acidic, Green (6.5-7.5): neutral/ideal, Purple (> 7.5): alkaline
+ */
+function getPhColor(ph: number): string {
+  if (ph < 6.5) return 'text-blue-400';
+  if (ph <= 7.5) return 'text-green-400';
+  return 'text-purple-400';
+}
+
 export function WaterChemistry({
   waste,
   food,
@@ -91,6 +102,7 @@ export function WaterChemistry({
   nitrate, // mg
   oxygen, // mg/L
   co2, // mg/L
+  ph, // pH value
   aob,
   nob,
   surface,
@@ -226,6 +238,17 @@ export function WaterChemistry({
                 {co2.toFixed(1)} mg/L
               </span>
             </div>
+          </div>
+        </div>
+
+        {/* pH */}
+        <div>
+          <div className="text-sm text-gray-300 mb-2">pH</div>
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-gray-400">Current pH</span>
+            <span className={`text-sm font-medium ${getPhColor(ph)}`}>
+              {ph.toFixed(2)}
+            </span>
           </div>
         </div>
 
