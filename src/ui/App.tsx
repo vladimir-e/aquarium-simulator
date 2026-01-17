@@ -27,9 +27,11 @@ function App(): React.JSX.Element {
     state,
     isPlaying,
     speed,
+    currentPreset,
     step,
     togglePlayPause,
     changeSpeed,
+    loadPreset,
     updateHeaterEnabled,
     updateHeaterTargetTemperature,
     updateHeaterWattage,
@@ -145,7 +147,9 @@ function App(): React.JSX.Element {
               tick={state.tick}
               speed={SPEED_MULTIPLIERS[speed]}
               isPlaying={isPlaying}
+              currentPreset={currentPreset}
               onStep={step}
+              onPresetChange={loadPreset}
             />
             <Environment
               roomTemperature={state.environment.roomTemperature}

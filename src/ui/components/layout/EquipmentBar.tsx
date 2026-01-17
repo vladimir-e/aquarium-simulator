@@ -129,14 +129,6 @@ export function EquipmentBar({
       activeDot: isLightOn ? 'bg-yellow-500' : null,
     },
     {
-      key: 'co2',
-      show: co2Generator.enabled,
-      icon: <Sparkles className="w-4 h-4 text-accent-green" />,
-      label: 'CO2',
-      showOnlineDot: true,
-      activeDot: co2Generator.isOn ? 'bg-green-500' : null,
-    },
-    {
       key: 'heater',
       show: heater.enabled,
       icon: <Thermometer className="w-4 h-4 text-accent-orange" />,
@@ -176,6 +168,14 @@ export function EquipmentBar({
       label: 'ATO',
       showOnlineDot: true,
       activeDot: null,
+    },
+    {
+      key: 'co2',
+      show: co2Generator.enabled,
+      icon: <Sparkles className="w-4 h-4 text-accent-green" />,
+      label: 'CO2',
+      showOnlineDot: true,
+      activeDot: co2Generator.isOn ? 'bg-green-500' : null,
     },
     {
       key: 'powerhead',
@@ -238,13 +238,6 @@ export function EquipmentBar({
               onWattageChange={onLightWattageChange}
               onScheduleChange={onLightScheduleChange}
             />
-            <Co2GeneratorCard
-              co2Generator={co2Generator}
-              tankCapacity={tank.capacity}
-              onEnabledChange={onCo2GeneratorEnabledChange}
-              onBubbleRateChange={onCo2GeneratorBubbleRateChange}
-              onScheduleChange={onCo2GeneratorScheduleChange}
-            />
             <HeaterCard
               heater={heater}
               onEnabledChange={onHeaterEnabledChange}
@@ -270,6 +263,13 @@ export function EquipmentBar({
 
             {/* Group 3: Advanced equipment */}
             <AutoTopOffCard ato={ato} onEnabledChange={onAtoEnabledChange} />
+            <Co2GeneratorCard
+              co2Generator={co2Generator}
+              tankCapacity={tank.capacity}
+              onEnabledChange={onCo2GeneratorEnabledChange}
+              onBubbleRateChange={onCo2GeneratorBubbleRateChange}
+              onScheduleChange={onCo2GeneratorScheduleChange}
+            />
             <PowerheadCard
               powerhead={powerhead}
               onEnabledChange={onPowerheadEnabledChange}

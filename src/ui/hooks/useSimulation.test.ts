@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useSimulation } from './useSimulation';
+import { getPresetById } from '../presets';
 
 describe('useSimulation', () => {
   beforeEach(() => {
@@ -12,21 +13,23 @@ describe('useSimulation', () => {
     vi.useRealTimers();
   });
 
-  it('initializes simulation with default config', () => {
-    const { result } = renderHook(() => useSimulation(75));
+  // The default preset is 'planted' which has a 40L tank
+  const defaultPreset = getPresetById('planted')!;
 
-    expect(result.current.state.tank.capacity).toBe(75);
-    expect(result.current.state.resources.water).toBe(75);
-    expect(result.current.state.resources.temperature).toBe(25);
-    expect(result.current.state.environment.roomTemperature).toBe(22);
-    expect(result.current.state.equipment.heater.enabled).toBe(true);
-    expect(result.current.state.equipment.heater.targetTemperature).toBe(25);
-    expect(result.current.state.equipment.heater.wattage).toBe(100);
+  it('initializes simulation with default preset config', () => {
+    const { result } = renderHook(() => useSimulation());
+
+    expect(result.current.state.tank.capacity).toBe(defaultPreset.config.tankCapacity);
+    expect(result.current.state.resources.water).toBe(defaultPreset.config.tankCapacity);
+    expect(result.current.state.resources.temperature).toBe(25); // Default temp
+    expect(result.current.state.equipment.filter.enabled).toBe(true);
+    expect(result.current.state.equipment.filter.type).toBe('canister');
     expect(result.current.state.tick).toBe(0);
+    expect(result.current.currentPreset).toBe('planted');
   });
 
   it('tick advances simulation state', () => {
-    const { result } = renderHook(() => useSimulation(75));
+    const { result } = renderHook(() => useSimulation());
 
     const initialTick = result.current.state.tick;
 
@@ -39,7 +42,7 @@ describe('useSimulation', () => {
   });
 
   it('changing tank size reinitializes simulation', () => {
-    const { result } = renderHook(() => useSimulation(75));
+    const { result } = renderHook(() => useSimulation());
 
     // Advance tick to verify it resets
     act(() => {
@@ -61,7 +64,10 @@ describe('useSimulation', () => {
   });
 
   it('heater controls update simulation state', () => {
-    const { result } = renderHook(() => useSimulation(75));
+    // Use betta preset which has heater enabled
+    const { result } = renderHook(() => useSimulation('betta'));
+
+    expect(result.current.state.equipment.heater.enabled).toBe(true);
 
     // Update heater enabled
     act(() => {
@@ -83,7 +89,7 @@ describe('useSimulation', () => {
   });
 
   it('room temperature changes update simulation state', () => {
-    const { result } = renderHook(() => useSimulation(75));
+    const { result } = renderHook(() => useSimulation());
 
     act(() => {
       result.current.updateRoomTemperature(25);
@@ -93,7 +99,7 @@ describe('useSimulation', () => {
   });
 
   it('play/pause toggles auto-advance', () => {
-    const { result } = renderHook(() => useSimulation(75));
+    const { result } = renderHook(() => useSimulation());
 
     expect(result.current.isPlaying).toBe(false);
 
@@ -111,7 +117,7 @@ describe('useSimulation', () => {
   });
 
   it('speed changes update speed state', () => {
-    const { result } = renderHook(() => useSimulation(75));
+    const { result } = renderHook(() => useSimulation());
 
     expect(result.current.speed).toBe('1hr');
 
@@ -122,9 +128,69 @@ describe('useSimulation', () => {
     expect(result.current.speed).toBe('1day');
   });
 
+  describe('presets', () => {
+    it('loads preset correctly', () => {
+      const { result } = renderHook(() => useSimulation('betta'));
+
+      expect(result.current.currentPreset).toBe('betta');
+      expect(result.current.state.tank.capacity).toBe(20); // 5 gal
+      expect(result.current.state.equipment.heater.enabled).toBe(true);
+      expect(result.current.state.equipment.heater.targetTemperature).toBe(26);
+      expect(result.current.state.equipment.lid.type).toBe('mesh');
+    });
+
+    it('loadPreset changes configuration', () => {
+      const { result } = renderHook(() => useSimulation('planted'));
+
+      expect(result.current.currentPreset).toBe('planted');
+
+      act(() => {
+        result.current.loadPreset('community');
+      });
+
+      expect(result.current.currentPreset).toBe('community');
+      expect(result.current.state.tank.capacity).toBe(150); // 40 gal
+      expect(result.current.state.equipment.heater.targetTemperature).toBe(27);
+    });
+
+    it('reset reverts to current preset', () => {
+      const { result } = renderHook(() => useSimulation('betta'));
+
+      // Modify some settings
+      act(() => {
+        result.current.updateHeaterTargetTemperature(30);
+        result.current.step();
+        result.current.step();
+      });
+
+      expect(result.current.state.equipment.heater.targetTemperature).toBe(30);
+      expect(result.current.state.tick).toBe(2);
+
+      // Reset should restore preset defaults
+      act(() => {
+        result.current.reset();
+      });
+
+      expect(result.current.state.equipment.heater.targetTemperature).toBe(26); // Betta preset default
+      expect(result.current.state.tick).toBe(0);
+      expect(result.current.currentPreset).toBe('betta');
+    });
+
+    it('bare preset has no equipment enabled', () => {
+      const { result } = renderHook(() => useSimulation('bare'));
+
+      expect(result.current.state.equipment.heater.enabled).toBe(false);
+      expect(result.current.state.equipment.filter.enabled).toBe(false);
+      expect(result.current.state.equipment.light.enabled).toBe(false);
+      expect(result.current.state.equipment.ato.enabled).toBe(false);
+      expect(result.current.state.equipment.co2Generator.enabled).toBe(false);
+    });
+  });
+
   describe('logging', () => {
     it('emits log when heater enabled', () => {
-      const { result } = renderHook(() => useSimulation(75));
+      // Use betta preset which has heater
+      const { result } = renderHook(() => useSimulation('betta'));
 
       act(() => {
         result.current.updateHeaterEnabled(false);
@@ -141,7 +207,7 @@ describe('useSimulation', () => {
     });
 
     it('emits log when heater disabled', () => {
-      const { result } = renderHook(() => useSimulation(75));
+      const { result } = renderHook(() => useSimulation('betta'));
 
       act(() => {
         result.current.updateHeaterEnabled(false);
@@ -155,7 +221,7 @@ describe('useSimulation', () => {
     });
 
     it('emits log when heater target changed', () => {
-      const { result } = renderHook(() => useSimulation(75));
+      const { result } = renderHook(() => useSimulation('betta'));
 
       act(() => {
         result.current.updateHeaterTargetTemperature(28);
@@ -172,7 +238,7 @@ describe('useSimulation', () => {
     });
 
     it('emits log when heater wattage changed', () => {
-      const { result } = renderHook(() => useSimulation(75));
+      const { result } = renderHook(() => useSimulation('betta'));
 
       act(() => {
         result.current.updateHeaterWattage(200);
@@ -189,7 +255,7 @@ describe('useSimulation', () => {
     });
 
     it('emits log when room temperature changed', () => {
-      const { result } = renderHook(() => useSimulation(75));
+      const { result } = renderHook(() => useSimulation());
 
       act(() => {
         result.current.updateRoomTemperature(25);
@@ -206,7 +272,7 @@ describe('useSimulation', () => {
     });
 
     it('emits simulation reset log when reset is called', () => {
-      const { result } = renderHook(() => useSimulation(75));
+      const { result } = renderHook(() => useSimulation());
 
       act(() => {
         result.current.step();
@@ -217,13 +283,13 @@ describe('useSimulation', () => {
       const resetLog = logs.find(
         (log) =>
           log.source === 'simulation' &&
-          log.message.includes('Simulation reset')
+          log.message.includes('Reset to preset')
       );
       expect(resetLog).toBeDefined();
     });
 
     it('logs accumulate across multiple ticks', () => {
-      const { result } = renderHook(() => useSimulation(75));
+      const { result } = renderHook(() => useSimulation('betta'));
       const initialLogCount = result.current.state.logs.length;
 
       act(() => {
@@ -236,7 +302,7 @@ describe('useSimulation', () => {
     });
 
     it('heater enabled log includes target and wattage', () => {
-      const { result } = renderHook(() => useSimulation(75));
+      const { result } = renderHook(() => useSimulation('betta'));
 
       // First disable, then enable to get the enabled log
       act(() => {
@@ -258,8 +324,11 @@ describe('useSimulation', () => {
   });
 
   describe('executeAction', () => {
+    // Use bare preset for evaporation tests (no ATO)
+    const tankCapacity = 40; // bare preset default
+
     it('applies action to state', () => {
-      const { result } = renderHook(() => useSimulation(75));
+      const { result } = renderHook(() => useSimulation('bare'));
 
       // First reduce water level by advancing simulation (evaporation)
       act(() => {
@@ -269,17 +338,17 @@ describe('useSimulation', () => {
       });
 
       const waterLevelBefore = result.current.state.resources.water;
-      expect(waterLevelBefore).toBeLessThan(75); // Evaporation occurred
+      expect(waterLevelBefore).toBeLessThan(tankCapacity); // Evaporation occurred
 
       act(() => {
         result.current.executeAction({ type: 'topOff' });
       });
 
-      expect(result.current.state.resources.water).toBe(75);
+      expect(result.current.state.resources.water).toBe(tankCapacity);
     });
 
     it('works when simulation is paused', () => {
-      const { result } = renderHook(() => useSimulation(75));
+      const { result } = renderHook(() => useSimulation('bare'));
 
       // Simulate evaporation manually by running some ticks
       act(() => {
@@ -298,14 +367,14 @@ describe('useSimulation', () => {
       });
 
       // Water should be topped off even when paused
-      expect(result.current.state.resources.water).toBe(75);
+      expect(result.current.state.resources.water).toBe(tankCapacity);
       expect(result.current.state.resources.water).toBeGreaterThan(
         waterLevelBefore
       );
     });
 
     it('top off action appears in logs', () => {
-      const { result } = renderHook(() => useSimulation(75));
+      const { result } = renderHook(() => useSimulation('bare'));
 
       // Reduce water level first
       act(() => {
@@ -328,7 +397,7 @@ describe('useSimulation', () => {
     });
 
     it('multiple actions can be executed', () => {
-      const { result } = renderHook(() => useSimulation(75));
+      const { result } = renderHook(() => useSimulation('bare'));
 
       // Run simulation to cause evaporation
       act(() => {
@@ -341,7 +410,7 @@ describe('useSimulation', () => {
       act(() => {
         result.current.executeAction({ type: 'topOff' });
       });
-      expect(result.current.state.resources.water).toBe(75);
+      expect(result.current.state.resources.water).toBe(tankCapacity);
 
       // Run more ticks
       act(() => {
@@ -351,17 +420,24 @@ describe('useSimulation', () => {
       });
 
       const waterLevelAfterEvaporation = result.current.state.resources.water;
-      expect(waterLevelAfterEvaporation).toBeLessThan(75);
+      expect(waterLevelAfterEvaporation).toBeLessThan(tankCapacity);
 
       // Execute second top off
       act(() => {
         result.current.executeAction({ type: 'topOff' });
       });
-      expect(result.current.state.resources.water).toBe(75);
+      expect(result.current.state.resources.water).toBe(tankCapacity);
     });
 
     it('top off increases water level to capacity', () => {
-      const { result } = renderHook(() => useSimulation(100));
+      // Use community preset for larger tank (150L)
+      const { result } = renderHook(() => useSimulation('community'));
+      const communityCapacity = 150;
+
+      // Disable ATO first so evaporation can occur
+      act(() => {
+        result.current.updateAtoEnabled(false);
+      });
 
       // Run simulation to cause evaporation
       act(() => {
@@ -370,13 +446,13 @@ describe('useSimulation', () => {
         }
       });
 
-      expect(result.current.state.resources.water).toBeLessThan(100);
+      expect(result.current.state.resources.water).toBeLessThan(communityCapacity);
 
       act(() => {
         result.current.executeAction({ type: 'topOff' });
       });
 
-      expect(result.current.state.resources.water).toBe(100);
+      expect(result.current.state.resources.water).toBe(communityCapacity);
     });
   });
 });

@@ -2,19 +2,25 @@ import React from 'react';
 import { SkipForward } from 'lucide-react';
 import { Panel } from '../layout/Panel';
 import { Button } from '../ui/Button';
+import { Select } from '../ui/Select';
+import { PRESETS, type PresetId } from '../../hooks/useSimulation';
 
 interface SimulationStatusProps {
   tick: number;
   speed: number;
   isPlaying: boolean;
+  currentPreset: PresetId;
   onStep: () => void;
+  onPresetChange: (presetId: PresetId) => void;
 }
 
 export function SimulationStatus({
   tick,
   speed,
   isPlaying,
+  currentPreset,
   onStep,
+  onPresetChange,
 }: SimulationStatusProps): React.JSX.Element {
   const day = Math.floor(tick / 24);
   const hour = tick % 24;
@@ -76,6 +82,21 @@ export function SimulationStatus({
       }
     >
       <div className="space-y-4">
+        {/* Preset Selector */}
+        <div>
+          <label className="text-xs text-gray-400 block mb-1">Preset</label>
+          <Select
+            value={currentPreset}
+            onChange={(e) => onPresetChange(e.target.value as PresetId)}
+          >
+            {PRESETS.map((preset) => (
+              <option key={preset.id} value={preset.id}>
+                {preset.name}
+              </option>
+            ))}
+          </Select>
+        </div>
+
         {/* Time Display */}
         <div className="text-center">
           <div className="text-3xl font-bold text-gray-100 mb-1">Day {day}</div>

@@ -19,6 +19,7 @@ import {
   type DailySchedule,
 } from '../../simulation/index.js';
 import { createLog } from '../../simulation/core/logging.js';
+import { PRESETS, DEFAULT_PRESET_ID, getPresetById, type PresetId } from '../presets.js';
 
 export type SpeedPreset = '1hr' | '6hr' | '12hr' | '1day';
 
@@ -33,9 +34,11 @@ interface UseSimulationReturn {
   state: SimulationState;
   isPlaying: boolean;
   speed: SpeedPreset;
+  currentPreset: PresetId;
   step: () => void;
   togglePlayPause: () => void;
   changeSpeed: (speed: SpeedPreset) => void;
+  loadPreset: (presetId: PresetId) => void;
   updateHeaterEnabled: (enabled: boolean) => void;
   updateHeaterTargetTemperature: (temp: number) => void;
   updateHeaterWattage: (wattage: number) => void;
@@ -62,39 +65,17 @@ interface UseSimulationReturn {
   executeAction: (action: Action) => void;
 }
 
-export function useSimulation(initialCapacity = 40): UseSimulationReturn {
-  const [state, setState] = useState<SimulationState>(() =>
-    createSimulation({
-      tankCapacity: initialCapacity,
-      initialTemperature: 25,
-      roomTemperature: 22,
-      heater: {
-        enabled: true,
-        targetTemperature: 25,
-        wattage: 100,
-      },
-      filter: {
-        enabled: true,
-        type: 'hob',
-      },
-      light: {
-        enabled: true,
-        wattage: 5,
-      },
-      substrate: {
-        type: 'gravel',
-      },
-      hardscape: {
-        items: [{ id: 'default-rock', type: 'neutral_rock' }],
-      },
-      lid: {
-        type: 'none',
-      },
-      ato: {
-        enabled: true,
-      },
-    })
-  );
+export { type PresetId, PRESETS };
+
+export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseSimulationReturn {
+  const [currentPreset, setCurrentPreset] = useState<PresetId>(initialPreset);
+  const [state, setState] = useState<SimulationState>(() => {
+    const preset = getPresetById(initialPreset);
+    if (!preset) {
+      throw new Error(`Unknown preset: ${initialPreset}`);
+    }
+    return createSimulation(preset.config);
+  });
 
   const [isPlaying, setIsPlaying] = useState(false);
   const [speed, setSpeed] = useState<SpeedPreset>('1hr');
@@ -153,6 +134,31 @@ export function useSimulation(initialCapacity = 40): UseSimulationReturn {
           setState((current) => simulationTick(current));
         }, intervalMs);
       }
+    },
+    [isPlaying, stopAutoPlay]
+  );
+
+  const loadPreset = useCallback(
+    (presetId: PresetId) => {
+      const preset = getPresetById(presetId);
+      if (!preset) {
+        return;
+      }
+
+      // Stop playing if currently running
+      if (isPlaying) {
+        stopAutoPlay();
+        setIsPlaying(false);
+      }
+
+      setCurrentPreset(presetId);
+      const newState = createSimulation(preset.config);
+      const log = createLog(0, 'simulation', 'info', `Loaded preset: ${preset.name}`);
+      setState(
+        produce(newState, (draft) => {
+          draft.logs.push(log);
+        })
+      );
     },
     [isPlaying, stopAutoPlay]
   );
@@ -611,46 +617,20 @@ export function useSimulation(initialCapacity = 40): UseSimulationReturn {
       setIsPlaying(false);
     }
 
-    // Reset to initial state
-    const capacity = state.tank.capacity;
-    const newState = createSimulation({
-      tankCapacity: capacity,
-      initialTemperature: 25,
-      roomTemperature: 22,
-      heater: {
-        enabled: true,
-        targetTemperature: 25,
-        wattage: 100,
-      },
-      filter: {
-        enabled: true,
-        type: 'hob',
-      },
-      light: {
-        enabled: true,
-        wattage: 5,
-      },
-      substrate: {
-        type: 'gravel',
-      },
-      hardscape: {
-        items: [{ id: 'default-rock', type: 'neutral_rock' }],
-      },
-      lid: {
-        type: 'none',
-      },
-      ato: {
-        enabled: true,
-      },
-    });
-    // Add simulation reset log
-    const log = createLog(0, 'simulation', 'info', `Simulation reset to ${capacity}L tank`);
+    // Reset to current preset's initial state
+    const preset = getPresetById(currentPreset);
+    if (!preset) {
+      return;
+    }
+
+    const newState = createSimulation(preset.config);
+    const log = createLog(0, 'simulation', 'info', `Reset to preset: ${preset.name}`);
     setState(
       produce(newState, (draft) => {
         draft.logs.push(log);
       })
     );
-  }, [isPlaying, stopAutoPlay, state.tank.capacity]);
+  }, [isPlaying, stopAutoPlay, currentPreset]);
 
   /**
    * Execute a user action immediately (works even when paused).
@@ -666,9 +646,11 @@ export function useSimulation(initialCapacity = 40): UseSimulationReturn {
     state,
     isPlaying,
     speed,
+    currentPreset,
     step,
     togglePlayPause,
     changeSpeed,
+    loadPreset,
     updateHeaterEnabled,
     updateHeaterTargetTemperature,
     updateHeaterWattage,
