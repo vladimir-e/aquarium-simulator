@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useSimulation } from './useSimulation';
-import { PRESETS, getPresetById } from '../presets';
+import { getPresetById } from '../presets';
 
 describe('useSimulation', () => {
   beforeEach(() => {
