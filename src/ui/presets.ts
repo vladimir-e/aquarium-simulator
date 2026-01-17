@@ -91,7 +91,7 @@ export const PRESETS: PresetDefinition[] = [
         wattage: 10,
         schedule: { startHour: 8, duration: 12 },
       },
-      substrate: { type: 'aquasoil' },
+      substrate: { type: 'aqua_soil' },
       hardscape: {
         items: createHardscapeItems([
           { type: 'neutral_rock' },
@@ -129,7 +129,7 @@ export const PRESETS: PresetDefinition[] = [
         wattage: 50,
         schedule: { startHour: 8, duration: 10 },
       },
-      substrate: { type: 'aquasoil' },
+      substrate: { type: 'aqua_soil' },
       hardscape: {
         items: createHardscapeItems([
           { type: 'neutral_rock' },
