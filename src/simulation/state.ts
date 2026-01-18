@@ -478,10 +478,10 @@ function calculateInitialPassiveResources(
   surface += getSubstrateSurface(substrate.type, tankCapacity);
   surface += calculateHardscapeTotalSurface(hardscape.items);
 
-  // Flow rate
+  // Flow rate (scaled to tank capacity)
   let flow = 0;
   if (filter.enabled) {
-    flow += getFilterFlow(filter.type);
+    flow += getFilterFlow(filter.type, tankCapacity);
   }
   if (powerhead.enabled) {
     flow += getPowerheadFlow(powerhead.flowRateGPH);

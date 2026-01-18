@@ -234,6 +234,7 @@ export function EquipmentBar({
             {/* Group 2: Basic equipment */}
             <FilterCard
               filter={filter}
+              tankCapacity={tank.capacity}
               onEnabledChange={onFilterEnabledChange}
               onTypeChange={onFilterTypeChange}
             />

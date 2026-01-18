@@ -363,14 +363,15 @@ describe('createSimulation - passive resources', () => {
     );
   });
 
-  it('initial passive resources include filter flow', () => {
+  it('initial passive resources include filter flow (scaled to tank size)', () => {
     const state = createSimulation({
       tankCapacity: 100,
       filter: { enabled: true, type: 'sponge' },
       powerhead: { enabled: false },
     });
 
-    expect(state.resources.flow).toBe(100); // Sponge filter flow
+    // Sponge on 100L tank: 100 * 4x = 400, but capped at 300 L/h
+    expect(state.resources.flow).toBe(300);
   });
 
   it('disabled filter contributes 0 flow', () => {

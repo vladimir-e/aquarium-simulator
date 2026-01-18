@@ -11,7 +11,7 @@ import {
   calculateHeatingRate,
 } from './heater.js';
 import { atoUpdate } from './ato.js';
-import { getFilterSurface, getFilterFlow, type FilterType, type Filter, DEFAULT_FILTER, FILTER_SURFACE, FILTER_FLOW } from './filter.js';
+import { getFilterSurface, getFilterFlow, type FilterType, type Filter, type FilterSpec, DEFAULT_FILTER, FILTER_SURFACE, FILTER_SPECS } from './filter.js';
 import { getPowerheadFlow, type PowerheadFlowRate, type Powerhead, DEFAULT_POWERHEAD, POWERHEAD_FLOW_LPH } from './powerhead.js';
 import { getSubstrateSurface, type SubstrateType, type Substrate, DEFAULT_SUBSTRATE, SUBSTRATE_SURFACE_PER_LITER } from './substrate.js';
 import { calculateHardscapeTotalSurface } from './hardscape.js';
@@ -29,7 +29,7 @@ import { getLightOutput, type Light, type LightWattage, DEFAULT_LIGHT, LIGHT_WAT
 // Re-export equipment modules
 export { heaterUpdate, applyHeaterStateChange, calculateHeatingRate };
 export { atoUpdate };
-export { getFilterSurface, getFilterFlow, type FilterType, type Filter, DEFAULT_FILTER, FILTER_SURFACE, FILTER_FLOW };
+export { getFilterSurface, getFilterFlow, type FilterType, type Filter, type FilterSpec, DEFAULT_FILTER, FILTER_SURFACE, FILTER_SPECS };
 export { getPowerheadFlow, type PowerheadFlowRate, type Powerhead, DEFAULT_POWERHEAD, POWERHEAD_FLOW_LPH };
 export { getSubstrateSurface, type SubstrateType, type Substrate, DEFAULT_SUBSTRATE, SUBSTRATE_SURFACE_PER_LITER };
 export {
@@ -112,10 +112,10 @@ export function calculatePassiveResources(state: SimulationState): PassiveResour
   surface += getSubstrateSurface(equipment.substrate.type, tank.capacity);
   surface += calculateHardscapeTotalSurface(equipment.hardscape.items);
 
-  // Flow rate
+  // Flow rate (scaled to tank capacity)
   let flow = 0;
   if (equipment.filter.enabled) {
-    flow += getFilterFlow(equipment.filter.type);
+    flow += getFilterFlow(equipment.filter.type, tank.capacity);
   }
   if (equipment.powerhead.enabled) {
     flow += getPowerheadFlow(equipment.powerhead.flowRateGPH);

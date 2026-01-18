@@ -2,7 +2,7 @@ import React from 'react';
 import { Toggle } from '../ui/Toggle';
 import { Select } from '../ui/Select';
 import { Waves } from 'lucide-react';
-import { FILTER_SURFACE, FILTER_FLOW, type FilterType } from '../../../simulation/index.js';
+import { FILTER_SURFACE, FILTER_SPECS, getFilterFlow, type FilterType } from '../../../simulation/index.js';
 import { useUnits } from '../../hooks/useUnits';
 import { lphToGph } from '../../utils/units';
 
@@ -15,6 +15,7 @@ export interface FilterState {
 
 interface FilterCardProps {
   filter: FilterState;
+  tankCapacity: number;
   onEnabledChange: (enabled: boolean) => void;
   onTypeChange: (type: FilterType) => void;
 }
@@ -32,12 +33,15 @@ const FILTER_LABELS: Record<FilterType, string> = {
 
 export function FilterCard({
   filter,
+  tankCapacity,
   onEnabledChange,
   onTypeChange,
 }: FilterCardProps): React.JSX.Element {
   const { unitSystem } = useUnits();
   const surface = FILTER_SURFACE[filter.type];
-  const flowLph = FILTER_FLOW[filter.type];
+  const flowLph = getFilterFlow(filter.type, tankCapacity);
+  const spec = FILTER_SPECS[filter.type];
+  const isUndersized = tankCapacity > spec.maxCapacityLiters;
 
   // Format flow based on unit system
   const flowDisplay =
@@ -81,6 +85,12 @@ export function FilterCard({
         {!filter.enabled && (
           <div className="text-xs text-warning">
             Warning: Filter off - no biological filtration
+          </div>
+        )}
+
+        {filter.enabled && isUndersized && (
+          <div className="text-xs text-warning">
+            Warning: Filter undersized for this tank
           </div>
         )}
       </div>

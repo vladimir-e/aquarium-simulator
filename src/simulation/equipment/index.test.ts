@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { calculatePassiveResources } from './index.js';
 import { createSimulation } from '../state.js';
-import { FILTER_SURFACE, FILTER_FLOW } from './filter.js';
+import { FILTER_SURFACE, getFilterFlow } from './filter.js';
 import { POWERHEAD_FLOW_LPH } from './powerhead.js';
 import { HARDSCAPE_SURFACE } from '../state.js';
 import type { HardscapeItem } from '../state.js';
@@ -152,7 +152,7 @@ describe('calculatePassiveResources', () => {
   });
 
   describe('flow calculation', () => {
-    it('includes filter flow when enabled', () => {
+    it('includes filter flow when enabled (scaled to tank size)', () => {
       const state = createSimulation({
         tankCapacity: 100,
         filter: { enabled: true, type: 'hob' },
@@ -161,7 +161,9 @@ describe('calculatePassiveResources', () => {
 
       const resources = calculatePassiveResources(state);
 
-      expect(resources.flow).toBe(FILTER_FLOW.hob);
+      // HOB on 100L tank: 100 * 6x turnover = 600 L/h
+      expect(resources.flow).toBe(getFilterFlow('hob', 100));
+      expect(resources.flow).toBe(600);
     });
 
     it('disabled filter contributes 0 flow', () => {
@@ -224,7 +226,7 @@ describe('calculatePassiveResources', () => {
       expect(resources.flow).toBe(3218);
     });
 
-    it('sponge filter provides lowest flow (100 L/h)', () => {
+    it('sponge filter caps flow at 300 L/h for large tanks', () => {
       const state = createSimulation({
         tankCapacity: 100,
         filter: { enabled: true, type: 'sponge' },
@@ -233,7 +235,8 @@ describe('calculatePassiveResources', () => {
 
       const resources = calculatePassiveResources(state);
 
-      expect(resources.flow).toBe(100);
+      // Sponge on 100L tank: 100 * 4x = 400, but capped at 300 L/h
+      expect(resources.flow).toBe(300);
     });
 
     it('sump filter provides highest flow (1000 L/h)', () => {
@@ -257,8 +260,10 @@ describe('calculatePassiveResources', () => {
 
       const resources = calculatePassiveResources(state);
 
+      // Canister on 100L tank: 100 * 8x turnover = 800 L/h
+      // Plus powerhead 600 GPH = 2271 L/h
       expect(resources.flow).toBe(
-        FILTER_FLOW.canister + POWERHEAD_FLOW_LPH[600]
+        getFilterFlow('canister', 100) + POWERHEAD_FLOW_LPH[600]
       );
     });
   });

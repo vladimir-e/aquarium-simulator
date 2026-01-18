@@ -291,7 +291,8 @@ describe('tick passive resources', () => {
     });
 
     const initialFlow = state.resources.flow;
-    expect(initialFlow).toBe(600); // Canister flow
+    // Canister on 100L tank: 100 * 8x = 800 L/h
+    expect(initialFlow).toBe(800);
 
     // Disable filter
     state = {
