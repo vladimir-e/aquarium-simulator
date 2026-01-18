@@ -100,12 +100,14 @@ Mechanical and biological filtration. Different filter types provide different c
 
 **Filter Types:**
 
-| Type | Flow Rate | Bacteria Surface | Notes |
-|------|-----------|------------------|-------|
-| Sponge | Low | 8,000 cm² | Simple, good for fry tanks |
-| HOB (Hang-on-Back) | Medium | 15,000 cm² | Common, easy maintenance |
-| Canister | High | 25,000 cm² | External, high capacity |
-| Sump | Very High | 40,000 cm² | Separate tank, most capacity |
+| Type | Target Turnover | Max Tank | Max Flow | Bacteria Surface | Notes |
+|------|-----------------|----------|----------|------------------|-------|
+| Sponge | 4x/hr | 75L (~20 gal) | 300 L/h | 8,000 cm² | Simple, good for small tanks |
+| HOB (Hang-on-Back) | 6x/hr | 208L (~55 gal) | 1,250 L/h | 15,000 cm² | Common, easy maintenance |
+| Canister | 8x/hr | 568L (~150 gal) | 4,500 L/h | 25,000 cm² | External, high capacity |
+| Sump | 10x/hr | Unlimited | Unlimited | 40,000 cm² | Separate tank, most capacity |
+
+Flow rate scales with tank size: `flow = tankCapacity × targetTurnover`, capped at max flow.
 
 **Outputs:**
 - +Flow (water circulation)
