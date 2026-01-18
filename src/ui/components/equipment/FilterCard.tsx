@@ -3,6 +3,8 @@ import { Toggle } from '../ui/Toggle';
 import { Select } from '../ui/Select';
 import { Waves } from 'lucide-react';
 import { FILTER_SURFACE, FILTER_FLOW, type FilterType } from '../../../simulation/index.js';
+import { useUnits } from '../../hooks/useUnits';
+import { lphToGph } from '../../utils/units';
 
 export type { FilterType };
 
@@ -33,8 +35,15 @@ export function FilterCard({
   onEnabledChange,
   onTypeChange,
 }: FilterCardProps): React.JSX.Element {
+  const { unitSystem } = useUnits();
   const surface = FILTER_SURFACE[filter.type];
-  const flow = FILTER_FLOW[filter.type];
+  const flowLph = FILTER_FLOW[filter.type];
+
+  // Format flow based on unit system
+  const flowDisplay =
+    unitSystem === 'imperial'
+      ? `${Math.round(lphToGph(flowLph))} GPH`
+      : `${flowLph} L/h`;
 
   return (
     <div className="bg-panel rounded-lg border border-border p-4 w-[220px] flex-shrink-0 self-stretch flex flex-col">
@@ -61,7 +70,7 @@ export function FilterCard({
         <div className="text-xs text-gray-400 space-y-1">
           <div className="flex justify-between">
             <span>Flow Rate:</span>
-            <span className="text-gray-300">{flow} L/h</span>
+            <span className="text-gray-300">{flowDisplay}</span>
           </div>
           <div className="flex justify-between">
             <span>Surface Area:</span>

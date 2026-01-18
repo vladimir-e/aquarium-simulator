@@ -1,9 +1,7 @@
 import React from 'react';
-import {
-  SurfaceResource,
-  FlowResource,
-  LightResource,
-} from '../../../simulation/resources/index.js';
+import { SurfaceResource, LightResource } from '../../../simulation/resources/index.js';
+import { useUnits } from '../../hooks/useUnits';
+import { formatFlowRate, lphToGph } from '../../utils/units';
 
 interface ResourcesPanelProps {
   surface: number;
@@ -18,8 +16,13 @@ export function ResourcesPanel({
   light,
   tankCapacity,
 }: ResourcesPanelProps): React.JSX.Element {
+  const { unitSystem } = useUnits();
+
   // Calculate turnovers per hour (flow / tank capacity)
   const turnoversPerHour = tankCapacity > 0 ? flow / tankCapacity : 0;
+
+  // Flow is stored in L/h internally, convert to GPH for display if imperial
+  const flowGph = Math.round(lphToGph(flow));
 
   return (
     <div className="bg-panel rounded-lg border border-border p-4">
@@ -40,7 +43,7 @@ export function ResourcesPanel({
           <div className="text-xs text-gray-400">Total Flow</div>
           <div className="text-right">
             <span className="text-sm font-medium text-gray-200">
-              {FlowResource.format(flow)}
+              {formatFlowRate(flowGph, unitSystem)}
             </span>
             <span className="text-xs text-gray-500 ml-2">
               ({turnoversPerHour.toFixed(1)}x/hour)

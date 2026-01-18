@@ -17,6 +17,8 @@ import { HardscapeCard, HardscapeState, HardscapeType } from '../equipment/Hards
 import { LightCard, LightState } from '../equipment/LightCard';
 import { Co2GeneratorCard, Co2GeneratorState } from '../equipment/Co2GeneratorCard';
 import type { DailySchedule } from '../../../simulation/index.js';
+import { useUnits } from '../../hooks/useUnits';
+import { findClosestTankSize } from '../../utils/units';
 
 interface EquipmentBarProps {
   tank: TankState;
@@ -99,6 +101,10 @@ export function EquipmentBar({
   onCo2GeneratorScheduleChange,
 }: EquipmentBarProps): React.JSX.Element {
   const [isExpanded, setIsExpanded] = useState(false);
+  const { unitSystem } = useUnits();
+
+  // Get tank display label based on unit system
+  const tankSize = findClosestTankSize(tank.capacity, unitSystem);
 
   // Mini-panel indicators configuration - order matches expanded panel
   const miniIndicators = [
@@ -107,7 +113,7 @@ export function EquipmentBar({
       key: 'tank',
       show: true,
       icon: <Container className="w-4 h-4 text-accent-blue" />,
-      label: `Tank ${tank.capacity}L`,
+      label: `Tank ${tankSize.display}`,
       showOnlineDot: false,
       activeDot: null,
     },

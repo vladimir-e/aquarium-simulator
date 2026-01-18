@@ -1,7 +1,7 @@
 import React from 'react';
 import { Panel } from '../layout/Panel';
 import { calculateEvaporationRatePerDay, type LidType } from '../../../simulation/index.js';
-import { WaterResource } from '../../../simulation/resources/index.js';
+import { useUnits } from '../../hooks/useUnits';
 
 const LID_LABELS: Record<LidType, string> = {
   none: 'no lid',
@@ -25,6 +25,7 @@ export function Visualization({
   roomTemperature,
   lidType,
 }: VisualizationProps): React.JSX.Element {
+  const { formatVol } = useUnits();
   const percentage = (waterLevel / capacity) * 100;
   const evaporationRate = calculateEvaporationRatePerDay(
     waterTemperature,
@@ -50,7 +51,7 @@ export function Visualization({
         </div>
 
         <div className="text-xs text-gray-400 text-center">
-          {WaterResource.format(waterLevel)} / {WaterResource.format(capacity)}
+          {formatVol(waterLevel)} / {formatVol(capacity)}
         </div>
 
         <div className="text-xs text-gray-500 text-center">
