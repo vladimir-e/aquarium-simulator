@@ -3,6 +3,7 @@ import { Toggle } from '../ui/Toggle';
 import { Stepper } from '../ui/Stepper';
 import { Select } from '../ui/Select';
 import { Thermometer } from 'lucide-react';
+import { useUnits } from '../../hooks/useUnits';
 
 export interface HeaterState {
   enabled: boolean;
@@ -24,6 +25,20 @@ export function HeaterCard({
   onTargetTemperatureChange,
   onWattageChange,
 }: HeaterCardProps): React.JSX.Element {
+  const { unitSystem, tempUnit, displayTemp, internalTemp } = useUnits();
+
+  // Convert internal Celsius to display value (rounded for imperial)
+  const displayValue = Math.round(displayTemp(heater.targetTemperature));
+
+  // Min/max in display units
+  const minTemp = unitSystem === 'imperial' ? 59 : 15; // 15°C = 59°F
+  const maxTemp = unitSystem === 'imperial' ? 95 : 35; // 35°C = 95°F
+
+  const handleTemperatureChange = (newDisplayValue: number): void => {
+    // Convert display value back to internal Celsius
+    onTargetTemperatureChange(internalTemp(newDisplayValue));
+  };
+
   return (
     <div className="bg-panel rounded-lg border border-border p-4 w-[220px] flex-shrink-0 self-stretch flex flex-col">
       <div className="flex items-center justify-between mb-3">
@@ -47,11 +62,11 @@ export function HeaterCard({
 
         <Stepper
           label="Target Temp"
-          value={heater.targetTemperature}
-          onChange={onTargetTemperatureChange}
-          min={15}
-          max={35}
-          suffix="°C"
+          value={displayValue}
+          onChange={handleTemperatureChange}
+          min={minTemp}
+          max={maxTemp}
+          suffix={tempUnit}
         />
 
         <Select

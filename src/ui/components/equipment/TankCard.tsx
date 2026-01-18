@@ -1,7 +1,8 @@
 import React from 'react';
 import { Select } from '../ui/Select';
 import { Container } from 'lucide-react';
-import { WaterResource } from '../../../simulation/resources/index.js';
+import { useUnits } from '../../hooks/useUnits';
+import { getTankSizeOptions, findClosestTankSize } from '../../utils/units';
 
 export interface TankState {
   capacity: number;
@@ -13,18 +14,13 @@ interface TankCardProps {
   onCapacityChange?: (capacity: number) => void;
 }
 
-const tankSizes = [
-  { liters: 20, display: '20L (5 gal)' },
-  { liters: 40, display: '40L (10 gal)' },
-  { liters: 75, display: '75L (20 gal)' },
-  { liters: 150, display: '150L (40 gal)' },
-  { liters: 200, display: '200L (50 gal)' },
-  { liters: 300, display: '300L (75 gal)' },
-  { liters: 400, display: '400L (100 gal)' },
-];
-
 export function TankCard({ tank, onCapacityChange }: TankCardProps): React.JSX.Element {
+  const { unitSystem, formatVol } = useUnits();
   const waterPercent = Math.round((tank.waterLevel / tank.capacity) * 100);
+
+  const tankSizes = getTankSizeOptions(unitSystem);
+  // Find current selection (snap to closest if between sizes)
+  const currentSize = findClosestTankSize(tank.capacity, unitSystem);
 
   return (
     <div className="bg-panel rounded-lg border border-border p-4 w-[220px] flex-shrink-0 self-stretch flex flex-col">
@@ -38,7 +34,7 @@ export function TankCard({ tank, onCapacityChange }: TankCardProps): React.JSX.E
           <div>
             <label className="text-xs text-gray-400 block mb-1">Tank Size</label>
             <Select
-              value={tank.capacity}
+              value={currentSize.liters}
               onChange={(e) => onCapacityChange(Number(e.target.value))}
             >
               {tankSizes.map((size) => (
@@ -53,7 +49,7 @@ export function TankCard({ tank, onCapacityChange }: TankCardProps): React.JSX.E
         <div className="flex justify-between text-sm">
           <span className="text-gray-400">Water Level</span>
           <span className="text-gray-200">
-            {WaterResource.format(tank.waterLevel)} ({waterPercent}%)
+            {formatVol(tank.waterLevel)} ({waterPercent}%)
           </span>
         </div>
 

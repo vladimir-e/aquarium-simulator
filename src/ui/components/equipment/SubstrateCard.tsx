@@ -2,6 +2,8 @@ import React from 'react';
 import { Select } from '../ui/Select';
 import { Layers } from 'lucide-react';
 import { SUBSTRATE_SURFACE_PER_LITER, type SubstrateType } from '../../../simulation/index.js';
+import { useUnits } from '../../hooks/useUnits';
+import { gallonsToLiters } from '../../utils/units';
 
 export type { SubstrateType };
 
@@ -38,8 +40,16 @@ export function SubstrateCard({
   tankCapacity,
   onTypeChange,
 }: SubstrateCardProps): React.JSX.Element {
+  const { unitSystem } = useUnits();
   const surfacePerLiter = SUBSTRATE_SURFACE_PER_LITER[substrate.type];
   const totalSurface = surfacePerLiter * tankCapacity;
+
+  // For imperial, show cm² per gallon (1 gallon = 3.785 liters)
+  const surfacePerUnit =
+    unitSystem === 'imperial'
+      ? Math.round(surfacePerLiter * gallonsToLiters(1))
+      : surfacePerLiter;
+  const unitLabel = unitSystem === 'imperial' ? 'cm²/gal' : 'cm²/L';
 
   return (
     <div className="bg-panel rounded-lg border border-border p-4 w-[220px] flex-shrink-0 self-stretch flex flex-col">
@@ -63,8 +73,8 @@ export function SubstrateCard({
 
         <div className="text-xs text-gray-400 space-y-1">
           <div className="flex justify-between">
-            <span>Surface per L:</span>
-            <span className="text-gray-300">{surfacePerLiter} cm²/L</span>
+            <span>Surface per {unitSystem === 'imperial' ? 'gal' : 'L'}:</span>
+            <span className="text-gray-300">{surfacePerUnit} {unitLabel}</span>
           </div>
           <div className="flex justify-between">
             <span>Total Surface:</span>

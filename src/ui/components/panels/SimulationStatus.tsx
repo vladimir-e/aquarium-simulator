@@ -4,6 +4,7 @@ import { Panel } from '../layout/Panel';
 import { Button } from '../ui/Button';
 import { Select } from '../ui/Select';
 import { PRESETS, type PresetId } from '../../hooks/useSimulation';
+import { useUnits } from '../../hooks/useUnits';
 
 interface SimulationStatusProps {
   tick: number;
@@ -22,6 +23,7 @@ export function SimulationStatus({
   onStep,
   onPresetChange,
 }: SimulationStatusProps): React.JSX.Element {
+  const { unitSystem, toggleUnits } = useUnits();
   const day = Math.floor(tick / 24);
   const hour = tick % 24;
   const time = `${String(hour).padStart(2, '0')}:00`;
@@ -95,6 +97,34 @@ export function SimulationStatus({
               </option>
             ))}
           </Select>
+        </div>
+
+        {/* Unit Switcher */}
+        <div>
+          <label className="text-xs text-gray-400 block mb-1">Units</label>
+          <button
+            onClick={toggleUnits}
+            className="flex items-center w-full bg-gray-800 border border-border rounded-md overflow-hidden"
+          >
+            <span
+              className={`flex-1 py-1.5 text-sm transition-colors ${
+                unitSystem === 'metric'
+                  ? 'bg-accent-blue/20 text-gray-100'
+                  : 'text-gray-500 hover:text-gray-300'
+              }`}
+            >
+              L / °C
+            </span>
+            <span
+              className={`flex-1 py-1.5 text-sm transition-colors ${
+                unitSystem === 'imperial'
+                  ? 'bg-accent-blue/20 text-gray-100'
+                  : 'text-gray-500 hover:text-gray-300'
+              }`}
+            >
+              gal / °F
+            </span>
+          </button>
         </div>
 
         {/* Time Display */}

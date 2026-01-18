@@ -4,6 +4,7 @@ import { Stepper } from '../ui/Stepper';
 import { Select } from '../ui/Select';
 import type { WaterChangeAmount } from '../../../simulation/index.js';
 import { WATER_CHANGE_AMOUNTS } from '../../../simulation/index.js';
+import { useUnits } from '../../hooks/useUnits';
 
 interface WaterChangeCardProps {
   waterLevel: number;
@@ -22,7 +23,19 @@ export function WaterChangeCard({
   onTapWaterTemperatureChange,
   onTapWaterPHChange,
 }: WaterChangeCardProps): React.JSX.Element {
+  const { unitSystem, tempUnit, formatVol, displayTemp, internalTemp } = useUnits();
   const [selectedAmount, setSelectedAmount] = useState<WaterChangeAmount>(0.25);
+
+  // Convert internal Celsius to display value (rounded for imperial)
+  const tapTempDisplayValue = Math.round(displayTemp(tapWaterTemperature));
+
+  // Min/max in display units for tap water temperature
+  const minTapTemp = unitSystem === 'imperial' ? 41 : 5; // 5°C = 41°F
+  const maxTapTemp = unitSystem === 'imperial' ? 104 : 40; // 40°C = 104°F
+
+  const handleTapTempChange = (newDisplayValue: number): void => {
+    onTapWaterTemperatureChange(internalTemp(newDisplayValue));
+  };
 
   const handleAmountChange = (e: React.ChangeEvent<HTMLSelectElement>): void => {
     setSelectedAmount(parseFloat(e.target.value) as WaterChangeAmount);
@@ -42,12 +55,12 @@ export function WaterChangeCard({
       {/* Tap water temperature stepper */}
       <Stepper
         label="Tap water temp"
-        value={tapWaterTemperature}
-        onChange={onTapWaterTemperatureChange}
-        min={5}
-        max={40}
+        value={tapTempDisplayValue}
+        onChange={handleTapTempChange}
+        min={minTapTemp}
+        max={maxTapTemp}
         step={1}
-        suffix="°C"
+        suffix={tempUnit}
       />
 
       {/* Tap water pH stepper */}
@@ -76,7 +89,7 @@ export function WaterChangeCard({
 
       {/* Water change info */}
       <div className="text-xs text-gray-400">
-        Will change {waterToChange.toFixed(1)}L of {waterLevel.toFixed(1)}L
+        Will change {formatVol(waterToChange)} of {formatVol(waterLevel)}
       </div>
 
       {/* Water change button */}
