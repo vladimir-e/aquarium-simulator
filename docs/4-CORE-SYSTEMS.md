@@ -35,37 +35,66 @@ tank.waste += decay_output + fish_waste + plant_decay
 
 ## Decay
 
-Decomposition of organic matter into waste.
+Aerobic decomposition of organic matter, producing waste and affecting dissolved gases.
 
 ### Inputs
 | Resource | Source |
 |----------|--------|
 | Food | Uneaten fish food |
 | Ambient Waste | Environment (constant, very low - seeds bacteria) |
+| Oxygen | Consumed by bacterial respiration |
 
 ### Outputs
 | Resource | Destination |
 |----------|-------------|
-| Waste | Added to waste stock |
+| Waste | Added to waste stock (~40% of decayed mass) |
+| CO2 | Dissolved in water (from oxidized carbon) |
+
+### Aerobic Decomposition Chemistry
+
+Decay follows aerobic decomposition where bacteria break down organic matter:
+
+```
+C6H12O6 + 6O2 → 6CO2 + 6H2O
+(Organic matter + Oxygen → Carbon dioxide + Water)
+```
+
+**Mass conversion:**
+- ~40% of decaying food becomes solid waste
+- ~60% is oxidized by bacteria, releasing CO2 and consuming O2
+- 1g oxidized organic matter produces ~1g CO2 and consumes ~1g O2
 
 ### Behavior
 
-Uneaten food and ambient debris decompose into waste over time.
-
 ```
-decay_output = base_rate * temperature_factor * (uneaten_food + ambient_waste)
+decay_amount = base_rate * temperature_factor * food
+waste_output = decay_amount * 0.4
+oxidized_amount = decay_amount * 0.6
+co2_increase = oxidized_amount * 1000mg / water_volume  (mg/L)
+o2_decrease = oxidized_amount * 1000mg / water_volume   (mg/L)
 ```
 
-- Higher temperature = faster decay
-- More organic matter = more waste produced
-- Decay happens continuously
+- Higher temperature = faster decay (Q10 = 2, rate doubles per 10°C)
+- More food = more decay, waste, and gas exchange
+- Smaller tanks see larger concentration changes (same mass, less volume)
+
+### Tank Size Impact
+
+Example: 1g food decaying 5% per hour at 25°C
+
+| Tank | CO2 Δ/hr | O2 Δ/hr | Effect |
+|------|----------|---------|--------|
+| 40L  | 0.75 mg/L | 0.75 mg/L | Dramatic |
+| 100L | 0.3 mg/L | 0.3 mg/L | Noticeable |
+| 200L | 0.15 mg/L | 0.15 mg/L | Moderate |
 
 ### Thresholds
 
 | Condition | Effect |
 |-----------|--------|
-| Excessive uneaten food | Rapid waste/ammonia spike |
-| High temperature | Accelerated decay |
+| Excessive uneaten food | Rapid waste/ammonia spike, CO2↑, O2↓ |
+| High temperature | Accelerated decay and gas exchange |
+| Small tank + overfeeding | Dangerous O2 depletion, pH drop from CO2 |
 
 ---
 

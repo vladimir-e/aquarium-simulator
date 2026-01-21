@@ -1,6 +1,6 @@
 # Task 18: Decay Mass Loss with CO2/O2 Exchange
 
-**Status:** pending
+**Status:** completed
 
 ## Overview
 

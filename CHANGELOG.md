@@ -8,6 +8,10 @@ Format: - **Feature name** (#PR) - Brief description (under 100 chars)
 - Skip UI-only tweaks and minor fixes
 -->
 
+## 2026-01-21
+
+- **Decay Mass Loss** - Aerobic decay now produces CO2, consumes O2; only 40% becomes waste; smaller tanks more sensitive
+
 ## 2026-01-17
 
 - **pH System** - pH resource drifts toward equilibrium based on hardscape (calcite raises, driftwood lowers) and CO2 (carbonic acid effect); H+ concentration-based blending for water changes and ATO; WaterChemistry panel displays current pH; tap water pH setting in Actions panel
