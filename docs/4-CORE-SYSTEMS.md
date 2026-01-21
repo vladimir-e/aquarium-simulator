@@ -62,7 +62,7 @@ C6H12O6 + 6O2 → 6CO2 + 6H2O
 **Mass conversion:**
 - ~40% of decaying food becomes solid waste
 - ~60% is oxidized by bacteria, releasing CO2 and consuming O2
-- 1g oxidized organic matter produces ~1g CO2 and consumes ~1g O2
+- Gas exchange uses 250 mg/g (~17% of theoretical max) to model gradual bacterial activity
 
 ### Behavior
 
@@ -70,8 +70,8 @@ C6H12O6 + 6O2 → 6CO2 + 6H2O
 decay_amount = base_rate * temperature_factor * food
 waste_output = decay_amount * 0.4
 oxidized_amount = decay_amount * 0.6
-co2_increase = oxidized_amount * 1000mg / water_volume  (mg/L)
-o2_decrease = oxidized_amount * 1000mg / water_volume   (mg/L)
+co2_increase = oxidized_amount * 250mg / water_volume  (mg/L)
+o2_decrease = oxidized_amount * 250mg / water_volume   (mg/L)
 ```
 
 - Higher temperature = faster decay (Q10 = 2, rate doubles per 10°C)
@@ -84,9 +84,9 @@ Example: 1g food decaying 5% per hour at 25°C
 
 | Tank | CO2 Δ/hr | O2 Δ/hr | Effect |
 |------|----------|---------|--------|
-| 40L  | 0.75 mg/L | 0.75 mg/L | Dramatic |
-| 100L | 0.3 mg/L | 0.3 mg/L | Noticeable |
-| 200L | 0.15 mg/L | 0.15 mg/L | Moderate |
+| 40L  | 0.19 mg/L | 0.19 mg/L | Noticeable |
+| 100L | 0.08 mg/L | 0.08 mg/L | Mild |
+| 200L | 0.04 mg/L | 0.04 mg/L | Minimal |
 
 ### Thresholds
 

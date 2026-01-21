@@ -335,8 +335,8 @@ describe('decaySystem', () => {
 
     const co2Effect = effects.find((e) => e.resource === 'co2');
 
-    // 1000L tank: decay=0.05g, oxidized=0.03g, CO2=30mg/1000L = 0.03 mg/L
-    expect(co2Effect!.delta).toBeCloseTo(0.03, 3);
+    // 1000L tank: decay=0.05g, oxidized=0.03g, CO2=0.03g*250mg/g/1000L = 0.0075 mg/L
+    expect(co2Effect!.delta).toBeCloseTo(0.0075, 4);
   });
 
   it('handles zero water volume gracefully (no CO2/O2 effects)', () => {

@@ -26,15 +26,19 @@ export const WASTE_CONVERSION_RATIO = 0.4;
 /**
  * Gas exchange per gram of organic matter oxidized (mg per gram).
  *
- * Based on aerobic decomposition: C6H12O6 + 6O2 → 6CO2 + 6H2O
- * - Food is ~40% carbon by mass
- * - CO2 is 3.67x heavier than carbon (44/12)
- * - 1g food × 0.6 (oxidized) × 0.4 (carbon) × 3.67 ≈ 0.88g CO2
- * - Simplified to 1g (1000mg) per gram oxidized for both CO2 produced and O2 consumed
+ * Theoretical maximum based on aerobic decomposition chemistry:
+ * - C6H12O6 + 6O2 → 6CO2 + 6H2O
+ * - Food ~40% carbon, CO2 is 3.67x heavier than C
+ * - Full oxidation would yield ~1500 mg CO2 per gram
  *
- * This creates realistic feedback: overfeeding → decay → CO2↑ O2↓ → fish stress
+ * We use 250 mg/g (~17% of theoretical) because:
+ * - Bacteria need time to colonize and multiply
+ * - CO2/O2 exchange happens gradually over the decay period
+ * - Not all carbon is immediately bioavailable
+ *
+ * This creates noticeable effects from overfeeding without instant crashes.
  */
-export const GAS_EXCHANGE_PER_GRAM_DECAY = 1000; // mg per gram oxidized
+export const GAS_EXCHANGE_PER_GRAM_DECAY = 250; // mg per gram oxidized
 
 /**
  * Calculate temperature factor for decay rate using Q10 coefficient.
