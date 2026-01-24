@@ -17,6 +17,30 @@ export const REFERENCE_TEMP = 25.0;
 export const BASE_DECAY_RATE = 0.05; // 5% per hour at 25°C
 
 /**
+ * Fraction of decaying food that becomes solid waste.
+ * The remaining fraction (60%) is oxidized by aerobic bacteria,
+ * releasing CO2 and consuming O2.
+ */
+export const WASTE_CONVERSION_RATIO = 0.4;
+
+/**
+ * Gas exchange per gram of organic matter oxidized (mg per gram).
+ *
+ * Theoretical maximum based on aerobic decomposition chemistry:
+ * - C6H12O6 + 6O2 → 6CO2 + 6H2O
+ * - Food ~40% carbon, CO2 is 3.67x heavier than C
+ * - Full oxidation would yield ~1500 mg CO2 per gram
+ *
+ * We use 250 mg/g (~17% of theoretical) because:
+ * - Bacteria need time to colonize and multiply
+ * - CO2/O2 exchange happens gradually over the decay period
+ * - Not all carbon is immediately bioavailable
+ *
+ * This creates noticeable effects from overfeeding without instant crashes.
+ */
+export const GAS_EXCHANGE_PER_GRAM_DECAY = 250; // mg per gram oxidized
+
+/**
  * Calculate temperature factor for decay rate using Q10 coefficient.
  * Rate doubles every 10°C above reference, halves every 10°C below.
  */
@@ -46,7 +70,7 @@ export const decaySystem: System = {
   update(state: SimulationState): Effect[] {
     const effects: Effect[] = [];
 
-    // Decay food → waste
+    // Decay food → waste + CO2 + O2 consumption
     if (state.resources.food > 0) {
       const decayAmount = calculateDecay(
         state.resources.food,
@@ -54,6 +78,7 @@ export const decaySystem: System = {
       );
 
       if (decayAmount > 0) {
+        // Food is consumed
         effects.push({
           tier: 'passive',
           resource: 'food',
@@ -61,16 +86,45 @@ export const decaySystem: System = {
           source: 'decay',
         });
 
+        // Only a fraction becomes solid waste (rest is oxidized)
+        const wasteAmount = decayAmount * WASTE_CONVERSION_RATIO;
         effects.push({
           tier: 'passive',
           resource: 'waste',
-          delta: decayAmount,
+          delta: wasteAmount,
           source: 'decay',
         });
+
+        // Oxidized portion produces CO2 and consumes O2
+        // CO2/O2 are concentrations (mg/L), so divide by water volume
+        const oxidizedAmount = decayAmount * (1 - WASTE_CONVERSION_RATIO);
+        const waterVolume = state.resources.water;
+
+        if (waterVolume > 0) {
+          const gasExchangeMgPerL =
+            (oxidizedAmount * GAS_EXCHANGE_PER_GRAM_DECAY) / waterVolume;
+
+          // CO2 produced by aerobic decomposition
+          effects.push({
+            tier: 'passive',
+            resource: 'co2',
+            delta: gasExchangeMgPerL,
+            source: 'decay',
+          });
+
+          // O2 consumed by bacteria respiration
+          effects.push({
+            tier: 'passive',
+            resource: 'oxygen',
+            delta: -gasExchangeMgPerL,
+            source: 'decay',
+          });
+        }
       }
     }
 
     // Ambient waste from environment (constant small amount)
+    // Note: ambient waste is too small to matter for gas exchange
     effects.push({
       tier: 'passive',
       resource: 'waste',

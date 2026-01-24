@@ -34,7 +34,7 @@ export const O2_REFERENCE_TEMP = 15;
  * Gas exchange uses exponential decay toward equilibrium each tick.
  */
 /** Fraction of difference moved toward equilibrium per tick at optimal flow */
-export const BASE_EXCHANGE_RATE = 0.1;
+export const BASE_EXCHANGE_RATE = 0.25;
 /** Tank turnovers per hour needed for maximum exchange rate */
 export const OPTIMAL_FLOW_TURNOVER = 10;
 
