@@ -13,6 +13,7 @@ import {
 } from './gas-exchange.js';
 import { createSimulation, type SimulationState } from '../state.js';
 import { produce } from 'immer';
+import { DEFAULT_CONFIG } from '../config/index.js';
 
 describe('calculateO2Saturation', () => {
   it('returns base saturation at reference temperature (15°C)', () => {
@@ -169,7 +170,7 @@ describe('gasExchangeSystem', () => {
       temperature: 25,
       flow: 500, // Some flow to enable exchange
     });
-    const effects = gasExchangeSystem.update(state);
+    const effects = gasExchangeSystem.update(state, DEFAULT_CONFIG);
 
     const o2Effect = effects.find((e) => e.resource === 'oxygen');
     expect(o2Effect).toBeDefined();
@@ -183,7 +184,7 @@ describe('gasExchangeSystem', () => {
       co2: 10.0, // Above atmospheric (~4 mg/L)
       flow: 500,
     });
-    const effects = gasExchangeSystem.update(state);
+    const effects = gasExchangeSystem.update(state, DEFAULT_CONFIG);
 
     const co2Effect = effects.find((e) => e.resource === 'co2');
     expect(co2Effect).toBeDefined();
@@ -197,7 +198,7 @@ describe('gasExchangeSystem', () => {
       co2: 2.0, // Below atmospheric (~4 mg/L)
       flow: 500,
     });
-    const effects = gasExchangeSystem.update(state);
+    const effects = gasExchangeSystem.update(state, DEFAULT_CONFIG);
 
     const co2Effect = effects.find((e) => e.resource === 'co2');
     expect(co2Effect).toBeDefined();
@@ -212,7 +213,7 @@ describe('gasExchangeSystem', () => {
       temperature: 25,
       flow: 500,
     });
-    const effects = gasExchangeSystem.update(state);
+    const effects = gasExchangeSystem.update(state, DEFAULT_CONFIG);
 
     // Effects might be very small but effectively 0
     effects.forEach((e) => {
@@ -232,8 +233,8 @@ describe('gasExchangeSystem', () => {
       capacity: 100,
     });
 
-    const lowFlowEffects = gasExchangeSystem.update(lowFlowState);
-    const highFlowEffects = gasExchangeSystem.update(highFlowState);
+    const lowFlowEffects = gasExchangeSystem.update(lowFlowState, DEFAULT_CONFIG);
+    const highFlowEffects = gasExchangeSystem.update(highFlowState, DEFAULT_CONFIG);
 
     const lowO2Delta = lowFlowEffects.find((e) => e.resource === 'oxygen')?.delta ?? 0;
     const highO2Delta = highFlowEffects.find((e) => e.resource === 'oxygen')?.delta ?? 0;
@@ -253,8 +254,8 @@ describe('gasExchangeSystem', () => {
       flow: 500,
     });
 
-    const coldEffects = gasExchangeSystem.update(coldState);
-    const hotEffects = gasExchangeSystem.update(hotState);
+    const coldEffects = gasExchangeSystem.update(coldState, DEFAULT_CONFIG);
+    const hotEffects = gasExchangeSystem.update(hotState, DEFAULT_CONFIG);
 
     const coldO2Delta = coldEffects.find((e) => e.resource === 'oxygen')?.delta ?? 0;
     const hotO2Delta = hotEffects.find((e) => e.resource === 'oxygen')?.delta ?? 0;
@@ -269,7 +270,7 @@ describe('gasExchangeSystem', () => {
       co2: 10.0,
       flow: 0,
     });
-    const effects = gasExchangeSystem.update(state);
+    const effects = gasExchangeSystem.update(state, DEFAULT_CONFIG);
 
     // With zero flow, no gas exchange occurs
     expect(effects.length).toBe(0);
@@ -280,7 +281,7 @@ describe('gasExchangeSystem', () => {
       co2: 20.0,
       flow: 500,
     });
-    const effects = gasExchangeSystem.update(state);
+    const effects = gasExchangeSystem.update(state, DEFAULT_CONFIG);
 
     const co2Effect = effects.find((e) => e.resource === 'co2');
     expect(co2Effect).toBeDefined();

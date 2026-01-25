@@ -9,6 +9,8 @@
 import type { Effect } from '../core/effects.js';
 import type { SimulationState, LidType } from '../state.js';
 import type { System } from './types.js';
+import type { TunableConfig } from '../config/index.js';
+import { type EvaporationConfig, evaporationDefaults } from '../config/evaporation.js';
 
 /**
  * Base evaporation rate: 1% of water volume per day at thermal equilibrium.
@@ -17,7 +19,7 @@ import type { System } from './types.js';
  * on humidity and airflow. We use 1% as baseline for still air, no lid.
  * Lid and flow modifiers can be added as multipliers in future.
  */
-export const BASE_RATE_PER_DAY = 0.01;
+export const BASE_RATE_PER_DAY = evaporationDefaults.baseRatePerDay;
 
 /**
  * Temperature doubling interval for evaporation rate.
@@ -28,7 +30,7 @@ export const BASE_RATE_PER_DAY = 0.01;
  * in water temp above room temp roughly doubles evaporation rate.
  * Value of 5.56°C = 10°F, a common aquarist rule of thumb.
  */
-export const TEMP_DOUBLING_INTERVAL = 5.56;
+export const TEMP_DOUBLING_INTERVAL = evaporationDefaults.tempDoublingInterval;
 
 /**
  * Evaporation multipliers based on lid type.
@@ -55,7 +57,8 @@ export function getLidMultiplier(lidType: LidType): number {
 export function calculateEvaporationRatePerDay(
   waterTemp: number,
   roomTemp: number,
-  lidType: LidType = 'none'
+  lidType: LidType = 'none',
+  config: EvaporationConfig = evaporationDefaults
 ): number {
   const lidMultiplier = getLidMultiplier(lidType);
   if (lidMultiplier === 0) {
@@ -63,8 +66,8 @@ export function calculateEvaporationRatePerDay(
   }
 
   const tempDelta = Math.abs(waterTemp - roomTemp);
-  const tempMultiplier = Math.pow(2, tempDelta / TEMP_DOUBLING_INTERVAL);
-  const dailyRate = BASE_RATE_PER_DAY * tempMultiplier * lidMultiplier;
+  const tempMultiplier = Math.pow(2, tempDelta / config.tempDoublingInterval);
+  const dailyRate = config.baseRatePerDay * tempMultiplier * lidMultiplier;
 
   return dailyRate * 100; // Return as percentage
 }
@@ -77,7 +80,8 @@ export function calculateEvaporation(
   waterLevel: number,
   waterTemp: number,
   roomTemp: number,
-  lidType: LidType = 'none'
+  lidType: LidType = 'none',
+  config: EvaporationConfig = evaporationDefaults
 ): number {
   if (waterLevel <= 0) {
     return 0;
@@ -89,8 +93,8 @@ export function calculateEvaporation(
   }
 
   const tempDelta = Math.abs(waterTemp - roomTemp);
-  const tempMultiplier = Math.pow(2, tempDelta / TEMP_DOUBLING_INTERVAL);
-  const dailyRate = BASE_RATE_PER_DAY * tempMultiplier;
+  const tempMultiplier = Math.pow(2, tempDelta / config.tempDoublingInterval);
+  const dailyRate = config.baseRatePerDay * tempMultiplier;
   const hourlyRate = dailyRate / 24;
   const evapAmount = waterLevel * hourlyRate * lidMultiplier;
 
@@ -101,13 +105,19 @@ export const evaporationSystem: System = {
   id: 'evaporation',
   tier: 'immediate',
 
-  update(state: SimulationState): Effect[] {
+  update(state: SimulationState, config: TunableConfig): Effect[] {
     const waterLevel = state.resources.water;
     const waterTemp = state.resources.temperature;
     const roomTemp = state.environment.roomTemperature;
     const lidType = state.equipment.lid.type;
 
-    const evapAmount = calculateEvaporation(waterLevel, waterTemp, roomTemp, lidType);
+    const evapAmount = calculateEvaporation(
+      waterLevel,
+      waterTemp,
+      roomTemp,
+      lidType,
+      config.evaporation
+    );
 
     if (evapAmount === 0) {
       return [];

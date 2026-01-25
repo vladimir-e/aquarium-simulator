@@ -22,6 +22,7 @@ import { createSimulation, type SimulationState } from '../state.js';
 import { applyEffects } from '../core/effects.js';
 import { decaySystem } from './decay.js';
 import { getPpm, getMassFromPpm } from '../resources/index.js';
+import { DEFAULT_CONFIG } from '../config/index.js';
 
 // ============================================================================
 // Helper Function Tests
@@ -272,7 +273,7 @@ describe('nitrogenCycleSystem', () => {
   describe('Waste to Ammonia', () => {
     it('converts waste to ammonia mass', () => {
       const state = createTestState({ waste: 10, water: 40 });
-      const effects = nitrogenCycleSystem.update(state);
+      const effects = nitrogenCycleSystem.update(state, DEFAULT_CONFIG);
 
       const wasteEffect = effects.find(
         (e) => e.resource === 'waste' && e.source === 'nitrogen-cycle-mineralization'
@@ -291,7 +292,7 @@ describe('nitrogenCycleSystem', () => {
 
     it('produces no ammonia when waste is 0', () => {
       const state = createTestState({ waste: 0 });
-      const effects = nitrogenCycleSystem.update(state);
+      const effects = nitrogenCycleSystem.update(state, DEFAULT_CONFIG);
 
       const ammoniaEffect = effects.find(
         (e) => e.resource === 'ammonia' && e.source === 'nitrogen-cycle-mineralization'
@@ -304,7 +305,7 @@ describe('nitrogenCycleSystem', () => {
     it('processes ammonia mass when AOB present', () => {
       // Set ammonia mass (not ppm)
       const state = createTestState({ ammonia: ppmToMass(1.0), aob: 100 });
-      const effects = nitrogenCycleSystem.update(state);
+      const effects = nitrogenCycleSystem.update(state, DEFAULT_CONFIG);
 
       const ammoniaEffect = effects.find(
         (e) => e.resource === 'ammonia' && e.source === 'nitrogen-cycle-aob'
@@ -322,7 +323,7 @@ describe('nitrogenCycleSystem', () => {
 
     it('does not process ammonia when AOB is 0', () => {
       const state = createTestState({ ammonia: ppmToMass(1.0), aob: 0 });
-      const effects = nitrogenCycleSystem.update(state);
+      const effects = nitrogenCycleSystem.update(state, DEFAULT_CONFIG);
 
       const ammoniaEffect = effects.find(
         (e) => e.resource === 'ammonia' && e.source === 'nitrogen-cycle-aob'
@@ -334,7 +335,7 @@ describe('nitrogenCycleSystem', () => {
   describe('NOB Processing', () => {
     it('processes nitrite mass when NOB present', () => {
       const state = createTestState({ nitrite: ppmToMass(1.0), nob: 100 });
-      const effects = nitrogenCycleSystem.update(state);
+      const effects = nitrogenCycleSystem.update(state, DEFAULT_CONFIG);
 
       const nitriteEffect = effects.find(
         (e) => e.resource === 'nitrite' && e.source === 'nitrogen-cycle-nob'
@@ -352,7 +353,7 @@ describe('nitrogenCycleSystem', () => {
 
     it('does not process nitrite when NOB is 0', () => {
       const state = createTestState({ nitrite: ppmToMass(1.0), nob: 0 });
-      const effects = nitrogenCycleSystem.update(state);
+      const effects = nitrogenCycleSystem.update(state, DEFAULT_CONFIG);
 
       const nitriteEffect = effects.find(
         (e) => e.resource === 'nitrite' && e.source === 'nitrogen-cycle-nob'
@@ -365,7 +366,7 @@ describe('nitrogenCycleSystem', () => {
     it('spawns AOB when ammonia ppm reaches threshold', () => {
       // Use mass that produces spawn threshold ppm
       const state = createTestState({ ammonia: ppmToMass(AOB_SPAWN_THRESHOLD), aob: 0 });
-      const effects = nitrogenCycleSystem.update(state);
+      const effects = nitrogenCycleSystem.update(state, DEFAULT_CONFIG);
 
       const aobEffect = effects.find(
         (e) => e.resource === 'aob' && e.source === 'nitrogen-cycle-spawn'
@@ -376,7 +377,7 @@ describe('nitrogenCycleSystem', () => {
 
     it('does not spawn AOB when already present', () => {
       const state = createTestState({ ammonia: ppmToMass(AOB_SPAWN_THRESHOLD), aob: 1 });
-      const effects = nitrogenCycleSystem.update(state);
+      const effects = nitrogenCycleSystem.update(state, DEFAULT_CONFIG);
 
       const aobSpawnEffect = effects.find(
         (e) => e.resource === 'aob' && e.source === 'nitrogen-cycle-spawn'
@@ -386,7 +387,7 @@ describe('nitrogenCycleSystem', () => {
 
     it('does not spawn AOB when ammonia ppm below threshold', () => {
       const state = createTestState({ ammonia: ppmToMass(AOB_SPAWN_THRESHOLD - 0.01), aob: 0 });
-      const effects = nitrogenCycleSystem.update(state);
+      const effects = nitrogenCycleSystem.update(state, DEFAULT_CONFIG);
 
       const aobEffect = effects.find(
         (e) => e.resource === 'aob' && e.source === 'nitrogen-cycle-spawn'
@@ -396,7 +397,7 @@ describe('nitrogenCycleSystem', () => {
 
     it('spawns NOB when nitrite ppm reaches threshold', () => {
       const state = createTestState({ nitrite: ppmToMass(NOB_SPAWN_THRESHOLD), nob: 0 });
-      const effects = nitrogenCycleSystem.update(state);
+      const effects = nitrogenCycleSystem.update(state, DEFAULT_CONFIG);
 
       const nobEffect = effects.find(
         (e) => e.resource === 'nob' && e.source === 'nitrogen-cycle-spawn'
@@ -413,7 +414,7 @@ describe('nitrogenCycleSystem', () => {
         aob: 100,
         surface: 100000, // Large surface so max = 1000, room to grow
       });
-      const effects = nitrogenCycleSystem.update(state);
+      const effects = nitrogenCycleSystem.update(state, DEFAULT_CONFIG);
 
       const growthEffect = effects.find(
         (e) => e.resource === 'aob' && e.source === 'nitrogen-cycle-growth'
@@ -427,7 +428,7 @@ describe('nitrogenCycleSystem', () => {
         ammonia: ppmToMass(AOB_FOOD_THRESHOLD - 0.0001),
         aob: 100,
       });
-      const effects = nitrogenCycleSystem.update(state);
+      const effects = nitrogenCycleSystem.update(state, DEFAULT_CONFIG);
 
       const growthEffect = effects.find(
         (e) => e.resource === 'aob' && e.source === 'nitrogen-cycle-growth'
@@ -441,7 +442,7 @@ describe('nitrogenCycleSystem', () => {
         nob: 100,
         surface: 100000, // Large surface so max = 1000, room to grow
       });
-      const effects = nitrogenCycleSystem.update(state);
+      const effects = nitrogenCycleSystem.update(state, DEFAULT_CONFIG);
 
       const growthEffect = effects.find(
         (e) => e.resource === 'nob' && e.source === 'nitrogen-cycle-growth'
@@ -457,7 +458,7 @@ describe('nitrogenCycleSystem', () => {
         ammonia: 0, // No food (0 mg = 0 ppm)
         aob: 100,
       });
-      const effects = nitrogenCycleSystem.update(state);
+      const effects = nitrogenCycleSystem.update(state, DEFAULT_CONFIG);
 
       const deathEffect = effects.find(
         (e) => e.resource === 'aob' && e.source === 'nitrogen-cycle-death'
@@ -472,7 +473,7 @@ describe('nitrogenCycleSystem', () => {
         ammonia: ppmToMass(0.5),
         aob: 100,
       });
-      const effects = nitrogenCycleSystem.update(state);
+      const effects = nitrogenCycleSystem.update(state, DEFAULT_CONFIG);
 
       const deathEffect = effects.find(
         (e) => e.resource === 'aob' && e.source === 'nitrogen-cycle-death'
@@ -485,7 +486,7 @@ describe('nitrogenCycleSystem', () => {
         nitrite: 0,
         nob: 100,
       });
-      const effects = nitrogenCycleSystem.update(state);
+      const effects = nitrogenCycleSystem.update(state, DEFAULT_CONFIG);
 
       const deathEffect = effects.find(
         (e) => e.resource === 'nob' && e.source === 'nitrogen-cycle-death'
@@ -501,7 +502,7 @@ describe('nitrogenCycleSystem', () => {
         aob: 500,
         surface: 10000, // Max = 100 bacteria with BACTERIA_PER_CM2 = 0.01
       });
-      const effects = nitrogenCycleSystem.update(state);
+      const effects = nitrogenCycleSystem.update(state, DEFAULT_CONFIG);
 
       const capEffect = effects.find(
         (e) => e.resource === 'aob' && e.source === 'nitrogen-cycle-surface-cap'
@@ -515,7 +516,7 @@ describe('nitrogenCycleSystem', () => {
         nob: 500,
         surface: 10000, // Max = 100 bacteria with BACTERIA_PER_CM2 = 0.01
       });
-      const effects = nitrogenCycleSystem.update(state);
+      const effects = nitrogenCycleSystem.update(state, DEFAULT_CONFIG);
 
       const capEffect = effects.find(
         (e) => e.resource === 'nob' && e.source === 'nitrogen-cycle-surface-cap'
@@ -530,7 +531,7 @@ describe('nitrogenCycleSystem', () => {
         nob: 50,
         surface: 10000, // Max = 100 bacteria with BACTERIA_PER_CM2 = 0.01
       });
-      const effects = nitrogenCycleSystem.update(state);
+      const effects = nitrogenCycleSystem.update(state, DEFAULT_CONFIG);
 
       const aobCapEffect = effects.find(
         (e) => e.resource === 'aob' && e.source === 'nitrogen-cycle-surface-cap'
@@ -630,7 +631,7 @@ describe('25-Day Tank Cycling Integration Test', () => {
     // Run for 600 ticks (25 days)
     for (let tick = 0; tick < 600; tick++) {
       // Apply nitrogen cycle system
-      const nitrogenEffects = nitrogenCycleSystem.update(state);
+      const nitrogenEffects = nitrogenCycleSystem.update(state, DEFAULT_CONFIG);
       state = applyEffects(state, nitrogenEffects);
 
       // Derive ppm for tracking
@@ -704,10 +705,10 @@ describe('25-Day Tank Cycling Integration Test', () => {
 
     // Run for 500 ticks
     for (let tick = 0; tick < 500; tick++) {
-      const decayEffects = decaySystem.update(state);
+      const decayEffects = decaySystem.update(state, DEFAULT_CONFIG);
       state = applyEffects(state, decayEffects);
 
-      const nitrogenEffects = nitrogenCycleSystem.update(state);
+      const nitrogenEffects = nitrogenCycleSystem.update(state, DEFAULT_CONFIG);
       state = applyEffects(state, nitrogenEffects);
 
       state = produce(state, (draft) => {

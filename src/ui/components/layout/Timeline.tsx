@@ -1,6 +1,7 @@
 import React from 'react';
-import { Play, Pause, Gauge, RotateCcw } from 'lucide-react';
+import { Play, Pause, Gauge, RotateCcw, Settings } from 'lucide-react';
 import { Button } from '../ui/Button';
+import { useConfig } from '../../hooks/useConfig';
 
 type SpeedPreset = '1hr' | '6hr' | '12hr' | '1day';
 
@@ -19,6 +20,8 @@ export function Timeline({
   onSpeedChange,
   onReset,
 }: TimelineProps): React.JSX.Element {
+  const { isDebugPanelOpen, toggleDebugPanel, isAnyModified } = useConfig();
+
   return (
     <div className="sticky top-0 z-10 bg-panel border-b border-border px-4 py-3">
       <div className="grid grid-cols-[auto_1fr_auto] items-center gap-4">
@@ -83,11 +86,28 @@ export function Timeline({
           </div>
         </div>
 
-        {/* Right: Reset button (fixed) */}
-        <Button onClick={onReset} variant="secondary" className="text-xs flex items-center gap-1.5">
-          <RotateCcw className="w-3.5 h-3.5" />
-          Reset
-        </Button>
+        {/* Right: Reset and Debug buttons (fixed) */}
+        <div className="flex items-center gap-2">
+          <Button
+            onClick={toggleDebugPanel}
+            variant="secondary"
+            active={isDebugPanelOpen}
+            className={`text-xs flex items-center gap-1.5 relative ${
+              isAnyModified && !isDebugPanelOpen ? 'text-accent-orange' : ''
+            }`}
+            title="Debug: Simulation Constants"
+          >
+            <Settings className="w-3.5 h-3.5" />
+            Debug
+            {isAnyModified && (
+              <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-accent-orange" />
+            )}
+          </Button>
+          <Button onClick={onReset} variant="secondary" className="text-xs flex items-center gap-1.5">
+            <RotateCcw className="w-3.5 h-3.5" />
+            Reset
+          </Button>
+        </div>
       </div>
     </div>
   );

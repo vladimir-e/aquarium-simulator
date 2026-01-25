@@ -8,6 +8,10 @@ Format: - **Feature name** (#PR) - Brief description (under 100 chars)
 - Skip UI-only tweaks and minor fixes
 -->
 
+## 2026-01-25
+
+- **Tunable Constants** - Debug panel for runtime calibration of 38 simulation constants; localStorage persistence; collapsible sections with visual indicators for modified values; reset per-section or global
+
 ## 2026-01-21
 
 - **Decay Mass Loss** - Aerobic decay now produces CO2, consumes O2; only 40% becomes waste; smaller tanks more sensitive

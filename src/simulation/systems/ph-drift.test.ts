@@ -11,6 +11,7 @@ import {
 } from './ph-drift.js';
 import { createSimulation, type SimulationState, type HardscapeItem } from '../state.js';
 import { produce } from 'immer';
+import { DEFAULT_CONFIG } from '../config/index.js';
 
 describe('calculateHardscapeTargetPH', () => {
   it('returns neutral pH when no hardscape', () => {
@@ -151,7 +152,7 @@ describe('phDriftSystem', () => {
       co2: CO2_NEUTRAL_LEVEL,
       hardscapeItems: [], // Target is neutral (7.0)
     });
-    const effects = phDriftSystem.update(state);
+    const effects = phDriftSystem.update(state, DEFAULT_CONFIG);
 
     const phEffect = effects.find((e) => e.resource === 'ph');
     expect(phEffect).toBeDefined();
@@ -166,7 +167,7 @@ describe('phDriftSystem', () => {
       co2: CO2_NEUTRAL_LEVEL,
       hardscapeItems: [], // Target is neutral (7.0)
     });
-    const effects = phDriftSystem.update(state);
+    const effects = phDriftSystem.update(state, DEFAULT_CONFIG);
 
     const phEffect = effects.find((e) => e.resource === 'ph');
     expect(phEffect).toBeDefined();
@@ -179,7 +180,7 @@ describe('phDriftSystem', () => {
       co2: CO2_NEUTRAL_LEVEL,
       hardscapeItems: [],
     });
-    const effects = phDriftSystem.update(state);
+    const effects = phDriftSystem.update(state, DEFAULT_CONFIG);
 
     // Either no effects or very small effect
     if (effects.length > 0) {
@@ -196,7 +197,7 @@ describe('phDriftSystem', () => {
       co2: CO2_NEUTRAL_LEVEL,
       hardscapeItems: [{ id: '1', type: 'calcite_rock' }],
     });
-    const effects = phDriftSystem.update(state);
+    const effects = phDriftSystem.update(state, DEFAULT_CONFIG);
 
     const phEffect = effects.find((e) => e.resource === 'ph');
     expect(phEffect).toBeDefined();
@@ -209,7 +210,7 @@ describe('phDriftSystem', () => {
       co2: CO2_NEUTRAL_LEVEL,
       hardscapeItems: [{ id: '1', type: 'driftwood' }],
     });
-    const effects = phDriftSystem.update(state);
+    const effects = phDriftSystem.update(state, DEFAULT_CONFIG);
 
     const phEffect = effects.find((e) => e.resource === 'ph');
     expect(phEffect).toBeDefined();
@@ -228,8 +229,8 @@ describe('phDriftSystem', () => {
       hardscapeItems: [],
     });
 
-    const normalEffects = phDriftSystem.update(normalCO2State);
-    const highCO2Effects = phDriftSystem.update(highCO2State);
+    const normalEffects = phDriftSystem.update(normalCO2State, DEFAULT_CONFIG);
+    const highCO2Effects = phDriftSystem.update(highCO2State, DEFAULT_CONFIG);
 
     // Normal should have no/negligible effect (at neutral target)
     const normalPhEffect = normalEffects.find((e) => e.resource === 'ph');
@@ -249,7 +250,7 @@ describe('phDriftSystem', () => {
       co2: CO2_NEUTRAL_LEVEL,
       hardscapeItems: [],
     });
-    const effects = phDriftSystem.update(state);
+    const effects = phDriftSystem.update(state, DEFAULT_CONFIG);
 
     const phEffect = effects.find((e) => e.resource === 'ph');
     expect(phEffect).toBeDefined();
@@ -267,7 +268,7 @@ describe('phDriftSystem', () => {
         { id: '2', type: 'plastic_decoration' },
       ],
     });
-    const effects = phDriftSystem.update(neutralState);
+    const effects = phDriftSystem.update(neutralState, DEFAULT_CONFIG);
 
     // Should have no/negligible effect
     if (effects.length > 0) {

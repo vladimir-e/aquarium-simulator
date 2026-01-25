@@ -7,6 +7,7 @@ import {
   VOLUME_EXPONENT,
 } from './temperature-drift.js';
 import { createSimulation } from '../state.js';
+import { DEFAULT_CONFIG } from '../config/index.js';
 
 describe('calculateTemperatureDrift', () => {
   it('drifts toward room temp when water is warmer', () => {
@@ -88,7 +89,7 @@ describe('temperatureDriftSystem', () => {
       roomTemperature: 22,
     });
 
-    const effects = temperatureDriftSystem.update(state);
+    const effects = temperatureDriftSystem.update(state, DEFAULT_CONFIG);
 
     expect(effects).toHaveLength(1);
     expect(effects[0].tier).toBe('immediate');
@@ -104,7 +105,7 @@ describe('temperatureDriftSystem', () => {
       roomTemperature: 22,
     });
 
-    const effects = temperatureDriftSystem.update(state);
+    const effects = temperatureDriftSystem.update(state, DEFAULT_CONFIG);
 
     expect(effects).toHaveLength(1);
     expect(effects[0].delta).toBeGreaterThan(0);
@@ -117,7 +118,7 @@ describe('temperatureDriftSystem', () => {
       roomTemperature: 22,
     });
 
-    const effects = temperatureDriftSystem.update(state);
+    const effects = temperatureDriftSystem.update(state, DEFAULT_CONFIG);
 
     expect(effects).toHaveLength(0);
   });

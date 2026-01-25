@@ -20,6 +20,7 @@ import {
 } from '../../simulation/index.js';
 import { createLog } from '../../simulation/core/logging.js';
 import { PRESETS, DEFAULT_PRESET_ID, getPresetById, type PresetId } from '../presets.js';
+import { useConfig } from './useConfig.js';
 
 export type SpeedPreset = '1hr' | '6hr' | '12hr' | '1day';
 
@@ -68,6 +69,7 @@ interface UseSimulationReturn {
 export { type PresetId, PRESETS };
 
 export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseSimulationReturn {
+  const { config } = useConfig();
   const [currentPreset, setCurrentPreset] = useState<PresetId>(initialPreset);
   const [state, setState] = useState<SimulationState>(() => {
     const preset = getPresetById(initialPreset);
@@ -80,13 +82,16 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
   const [isPlaying, setIsPlaying] = useState(false);
   const [speed, setSpeed] = useState<SpeedPreset>('1hr');
   const intervalRef = useRef<number | null>(null);
+  // Store config ref for use in intervals
+  const configRef = useRef(config);
+  configRef.current = config;
 
   const step = useCallback(() => {
     const multiplier = SPEED_MULTIPLIERS[speed];
     setState((current) => {
       let nextState = current;
       for (let i = 0; i < multiplier; i++) {
-        nextState = simulationTick(nextState);
+        nextState = simulationTick(nextState, configRef.current);
       }
       return nextState;
     });
@@ -99,7 +104,7 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
     const intervalMs = 1000 / ticksPerSecond;
 
     intervalRef.current = window.setInterval(() => {
-      setState((current) => simulationTick(current));
+      setState((current) => simulationTick(current, configRef.current));
     }, intervalMs);
   }, [speed]);
 
@@ -131,7 +136,7 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
         const intervalMs = 1000 / ticksPerSecond;
 
         intervalRef.current = window.setInterval(() => {
-          setState((current) => simulationTick(current));
+          setState((current) => simulationTick(current, configRef.current));
         }, intervalMs);
       }
     },

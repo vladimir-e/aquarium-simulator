@@ -8,6 +8,8 @@
 import type { Effect } from '../core/effects.js';
 import type { SimulationState } from '../state.js';
 import type { System } from './types.js';
+import type { TunableConfig } from '../config/index.js';
+import { type TemperatureConfig, temperatureDefaults } from '../config/temperature.js';
 
 /**
  * Cooling coefficient: °C/hr per °C differential at reference volume.
@@ -16,13 +18,13 @@ import type { System } from './types.js';
  * when 6°C above room temp, giving 0.8/(6*6) ≈ 0.022/hr per °C.
  * Adjusted to 0.132 for simulation balance with heater equilibrium at 1.3 W/L.
  */
-export const COOLING_COEFFICIENT = 0.132;
+export const COOLING_COEFFICIENT = temperatureDefaults.coolingCoefficient;
 
 /**
  * Reference volume in liters for scaling calculations.
  * At this volume, volumeScale = 1.0 (no adjustment).
  */
-export const REFERENCE_VOLUME = 100;
+export const REFERENCE_VOLUME = temperatureDefaults.referenceVolume;
 
 /**
  * Volume scaling exponent derived from surface-area-to-volume ratio.
@@ -31,7 +33,7 @@ export const REFERENCE_VOLUME = 100;
  * while heat capacity scales with volume (V). Net effect: smaller tanks
  * change temperature faster by factor (V_ref/V)^(1/3).
  */
-export const VOLUME_EXPONENT = 1 / 3;
+export const VOLUME_EXPONENT = temperatureDefaults.volumeExponent;
 
 /**
  * Calculates the temperature drift toward room temperature for one tick (1 hour).
@@ -39,7 +41,8 @@ export const VOLUME_EXPONENT = 1 / 3;
 export function calculateTemperatureDrift(
   waterTemp: number,
   roomTemp: number,
-  waterVolume: number
+  waterVolume: number,
+  config: TemperatureConfig = temperatureDefaults
 ): number {
   const deltaT = waterTemp - roomTemp;
 
@@ -47,8 +50,8 @@ export function calculateTemperatureDrift(
     return 0;
   }
 
-  const volumeScale = Math.pow(REFERENCE_VOLUME / waterVolume, VOLUME_EXPONENT);
-  const coolingRate = COOLING_COEFFICIENT * Math.abs(deltaT) * volumeScale;
+  const volumeScale = Math.pow(config.referenceVolume / waterVolume, config.volumeExponent);
+  const coolingRate = config.coolingCoefficient * Math.abs(deltaT) * volumeScale;
 
   // Drift toward room temp, but don't overshoot
   const drift = -Math.sign(deltaT) * Math.min(Math.abs(deltaT), coolingRate);
@@ -60,12 +63,12 @@ export const temperatureDriftSystem: System = {
   id: 'temperature-drift',
   tier: 'immediate',
 
-  update(state: SimulationState): Effect[] {
+  update(state: SimulationState, config: TunableConfig): Effect[] {
     const waterTemp = state.resources.temperature;
     const roomTemp = state.environment.roomTemperature;
     const waterVolume = state.resources.water;
 
-    const drift = calculateTemperatureDrift(waterTemp, roomTemp, waterVolume);
+    const drift = calculateTemperatureDrift(waterTemp, roomTemp, waterVolume, config.temperature);
 
     if (drift === 0) {
       return [];

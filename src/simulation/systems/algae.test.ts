@@ -10,6 +10,7 @@ import {
 } from './algae.js';
 import { createSimulation, type SimulationState } from '../state.js';
 import { produce } from 'immer';
+import { DEFAULT_CONFIG } from '../config/index.js';
 
 describe('calculateAlgaeGrowth', () => {
   it('returns 0 when light is 0', () => {
@@ -169,7 +170,7 @@ describe('algaeSystem', () => {
 
   it('creates algae growth effect when light > 0', () => {
     const state = createTestState({ light: 100 });
-    const effects = algaeSystem.update(state);
+    const effects = algaeSystem.update(state, DEFAULT_CONFIG);
 
     const algaeEffect = effects.find((e) => e.resource === 'algae');
     expect(algaeEffect).toBeDefined();
@@ -178,14 +179,14 @@ describe('algaeSystem', () => {
 
   it('creates no effect when light is 0', () => {
     const state = createTestState({ light: 0 });
-    const effects = algaeSystem.update(state);
+    const effects = algaeSystem.update(state, DEFAULT_CONFIG);
 
     expect(effects.length).toBe(0);
   });
 
   it('all effects have tier: passive', () => {
     const state = createTestState({ light: 100 });
-    const effects = algaeSystem.update(state);
+    const effects = algaeSystem.update(state, DEFAULT_CONFIG);
 
     effects.forEach((effect) => {
       expect(effect.tier).toBe('passive');
@@ -194,7 +195,7 @@ describe('algaeSystem', () => {
 
   it('effect source is "algae"', () => {
     const state = createTestState({ light: 100 });
-    const effects = algaeSystem.update(state);
+    const effects = algaeSystem.update(state, DEFAULT_CONFIG);
 
     const algaeEffect = effects.find((e) => e.resource === 'algae');
     expect(algaeEffect!.source).toBe('algae');
@@ -204,8 +205,8 @@ describe('algaeSystem', () => {
     const dimState = createTestState({ light: 50 });
     const brightState = createTestState({ light: 100 });
 
-    const dimEffects = algaeSystem.update(dimState);
-    const brightEffects = algaeSystem.update(brightState);
+    const dimEffects = algaeSystem.update(dimState, DEFAULT_CONFIG);
+    const brightEffects = algaeSystem.update(brightState, DEFAULT_CONFIG);
 
     const dimGrowth = dimEffects.find((e) => e.resource === 'algae')!.delta;
     const brightGrowth = brightEffects.find((e) => e.resource === 'algae')!.delta;
@@ -219,8 +220,8 @@ describe('algaeSystem', () => {
     const smallTank = createTestState({ light: 100, tankCapacity: 50 });
     const largeTank = createTestState({ light: 100, tankCapacity: 100 });
 
-    const smallEffects = algaeSystem.update(smallTank);
-    const largeEffects = algaeSystem.update(largeTank);
+    const smallEffects = algaeSystem.update(smallTank, DEFAULT_CONFIG);
+    const largeEffects = algaeSystem.update(largeTank, DEFAULT_CONFIG);
 
     const smallGrowth = smallEffects.find((e) => e.resource === 'algae')!.delta;
     const largeGrowth = largeEffects.find((e) => e.resource === 'algae')!.delta;

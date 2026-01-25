@@ -8,19 +8,21 @@ import { applyEffects, type Effect, type EffectTier } from './core/effects.js';
 import { coreSystems } from './systems/index.js';
 import { processEquipment, calculatePassiveResources } from './equipment/index.js';
 import { checkAlerts } from './alerts/index.js';
+import { type TunableConfig, DEFAULT_CONFIG } from './config/index.js';
 
 /**
  * Collects effects from core systems for a given tier.
  */
 function collectSystemEffects(
   state: SimulationState,
-  tier: EffectTier
+  tier: EffectTier,
+  config: TunableConfig
 ): Effect[] {
   const effects: Effect[] = [];
 
   for (const system of coreSystems) {
     if (system.tier === tier) {
-      effects.push(...system.update(state));
+      effects.push(...system.update(state, config));
     }
   }
 
@@ -32,8 +34,14 @@ function collectSystemEffects(
  * Processes effects in three tiers: immediate → active → passive.
  * Then checks alerts and adds any triggered logs.
  * Returns a new state object (immutable).
+ *
+ * @param state - Current simulation state
+ * @param config - Tunable configuration (defaults to DEFAULT_CONFIG)
  */
-export function tick(state: SimulationState): SimulationState {
+export function tick(
+  state: SimulationState,
+  config: TunableConfig = DEFAULT_CONFIG
+): SimulationState {
   // Increment tick counter and calculate passive resources
   let newState = produce(state, (draft) => {
     draft.tick += 1;
@@ -47,7 +55,7 @@ export function tick(state: SimulationState): SimulationState {
 
   // Tier 1: IMMEDIATE - Environmental effects, then equipment responses
   // First apply environmental effects (drift, evaporation)
-  const immediateEffects = collectSystemEffects(newState, 'immediate');
+  const immediateEffects = collectSystemEffects(newState, 'immediate', config);
   newState = applyEffects(newState, immediateEffects);
 
   // Then equipment responds to the updated state
@@ -56,11 +64,11 @@ export function tick(state: SimulationState): SimulationState {
   newState = applyEffects(newState, equipmentResult.effects);
 
   // Tier 2: ACTIVE - Living processes (plants, livestock)
-  const activeEffects = collectSystemEffects(newState, 'active');
+  const activeEffects = collectSystemEffects(newState, 'active', config);
   newState = applyEffects(newState, activeEffects);
 
   // Tier 3: PASSIVE - Natural processes (decay, nitrogen cycle, gas exchange)
-  const passiveEffects = collectSystemEffects(newState, 'passive');
+  const passiveEffects = collectSystemEffects(newState, 'passive', config);
   newState = applyEffects(newState, passiveEffects);
 
   // Check alerts after all effects applied

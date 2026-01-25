@@ -21,15 +21,17 @@
 import type { Effect } from '../core/effects.js';
 import type { SimulationState } from '../state.js';
 import type { System } from './types.js';
+import type { TunableConfig } from '../config/index.js';
+import { type AlgaeConfig, algaeDefaults } from '../config/algae.js';
 
 /** Maximum growth rate per hour (asymptotic limit) */
-export const MAX_GROWTH_RATE = 4;
+export const MAX_GROWTH_RATE = algaeDefaults.maxGrowthRate;
 
 /** Half-saturation constant (W/L at which growth is 50% of max) */
-export const HALF_SATURATION = 1.3;
+export const HALF_SATURATION = algaeDefaults.halfSaturation;
 
 /** Maximum algae level (relative scale) */
-export const ALGAE_CAP = 100;
+export const ALGAE_CAP = algaeDefaults.algaeCap;
 
 /**
  * @deprecated Use MAX_GROWTH_RATE and HALF_SATURATION instead.
@@ -47,7 +49,8 @@ export const BASE_GROWTH_RATE = 2.5;
  */
 export function calculateAlgaeGrowth(
   lightWatts: number,
-  tankCapacity: number
+  tankCapacity: number,
+  config: AlgaeConfig = algaeDefaults
 ): number {
   // No growth if light is off or tank is empty (edge case)
   if (lightWatts <= 0 || tankCapacity <= 0) {
@@ -56,10 +59,10 @@ export function calculateAlgaeGrowth(
 
   const wattsPerLiter = lightWatts / tankCapacity;
 
-  // Michaelis-Menten saturation curve: growth approaches MAX_GROWTH_RATE asymptotically
-  // At low W/L: approximately linear (growth ≈ MAX_GROWTH_RATE * wpl / HALF_SATURATION)
-  // At high W/L: approaches MAX_GROWTH_RATE (diminishing returns)
-  return (MAX_GROWTH_RATE * wattsPerLiter) / (HALF_SATURATION + wattsPerLiter);
+  // Michaelis-Menten saturation curve: growth approaches maxGrowthRate asymptotically
+  // At low W/L: approximately linear (growth ≈ maxGrowthRate * wpl / halfSaturation)
+  // At high W/L: approaches maxGrowthRate (diminishing returns)
+  return (config.maxGrowthRate * wattsPerLiter) / (config.halfSaturation + wattsPerLiter);
 }
 
 /**
@@ -82,14 +85,14 @@ export const algaeSystem: System = {
   id: 'algae',
   tier: 'passive',
 
-  update(state: SimulationState): Effect[] {
+  update(state: SimulationState, config: TunableConfig): Effect[] {
     const effects: Effect[] = [];
 
     // Get light from resources (already accounts for schedule)
     const lightWatts = state.resources.light;
 
     // Calculate growth based on light intensity per liter
-    const growth = calculateAlgaeGrowth(lightWatts, state.tank.capacity);
+    const growth = calculateAlgaeGrowth(lightWatts, state.tank.capacity, config.algae);
 
     if (growth > 0) {
       effects.push({

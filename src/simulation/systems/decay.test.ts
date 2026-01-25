@@ -10,6 +10,7 @@ import {
 } from './decay.js';
 import { createSimulation, type SimulationState } from '../state.js';
 import { produce } from 'immer';
+import { DEFAULT_CONFIG } from '../config/index.js';
 
 describe('getTemperatureFactor', () => {
   it('returns 1.0 at reference temperature (25°C)', () => {
@@ -137,7 +138,7 @@ describe('decaySystem', () => {
 
   it('creates negative food effect when food > 0', () => {
     const state = createTestState({ food: 1.0 });
-    const effects = decaySystem.update(state);
+    const effects = decaySystem.update(state, DEFAULT_CONFIG);
 
     const foodEffect = effects.find((e) => e.resource === 'food');
     expect(foodEffect).toBeDefined();
@@ -146,7 +147,7 @@ describe('decaySystem', () => {
 
   it('creates positive waste effect at 40% of decay amount', () => {
     const state = createTestState({ food: 1.0, temperature: 25 });
-    const effects = decaySystem.update(state);
+    const effects = decaySystem.update(state, DEFAULT_CONFIG);
 
     const foodEffect = effects.find((e) => e.resource === 'food');
     const wasteEffect = effects.find(
@@ -163,7 +164,7 @@ describe('decaySystem', () => {
 
   it('creates ambient waste effect (default 0.01 g/hour)', () => {
     const state = createTestState({ food: 0 });
-    const effects = decaySystem.update(state);
+    const effects = decaySystem.update(state, DEFAULT_CONFIG);
 
     const ambientEffect = effects.find(
       (e) => e.resource === 'waste' && e.source === 'environment'
@@ -174,7 +175,7 @@ describe('decaySystem', () => {
 
   it('creates no food effect when food is 0', () => {
     const state = createTestState({ food: 0 });
-    const effects = decaySystem.update(state);
+    const effects = decaySystem.update(state, DEFAULT_CONFIG);
 
     const foodEffect = effects.find((e) => e.resource === 'food');
     expect(foodEffect).toBeUndefined();
@@ -182,7 +183,7 @@ describe('decaySystem', () => {
 
   it('all effects have tier: passive', () => {
     const state = createTestState({ food: 1.0 });
-    const effects = decaySystem.update(state);
+    const effects = decaySystem.update(state, DEFAULT_CONFIG);
 
     effects.forEach((effect) => {
       expect(effect.tier).toBe('passive');
@@ -191,7 +192,7 @@ describe('decaySystem', () => {
 
   it('decay source is "decay"', () => {
     const state = createTestState({ food: 1.0 });
-    const effects = decaySystem.update(state);
+    const effects = decaySystem.update(state, DEFAULT_CONFIG);
 
     const foodEffect = effects.find((e) => e.resource === 'food');
     expect(foodEffect!.source).toBe('decay');
@@ -199,7 +200,7 @@ describe('decaySystem', () => {
 
   it('ambient source is "environment"', () => {
     const state = createTestState({ food: 0 });
-    const effects = decaySystem.update(state);
+    const effects = decaySystem.update(state, DEFAULT_CONFIG);
 
     const ambientEffect = effects.find((e) => e.resource === 'waste');
     expect(ambientEffect!.source).toBe('environment');
@@ -207,7 +208,7 @@ describe('decaySystem', () => {
 
   it('respects custom ambient waste rate', () => {
     const state = createTestState({ food: 0, ambientWaste: 0.02 });
-    const effects = decaySystem.update(state);
+    const effects = decaySystem.update(state, DEFAULT_CONFIG);
 
     const ambientEffect = effects.find(
       (e) => e.resource === 'waste' && e.source === 'environment'
@@ -219,8 +220,8 @@ describe('decaySystem', () => {
     const coldState = createTestState({ food: 1.0, temperature: 20 });
     const hotState = createTestState({ food: 1.0, temperature: 30 });
 
-    const coldEffects = decaySystem.update(coldState);
-    const hotEffects = decaySystem.update(hotState);
+    const coldEffects = decaySystem.update(coldState, DEFAULT_CONFIG);
+    const hotEffects = decaySystem.update(hotState, DEFAULT_CONFIG);
 
     const coldDecay = coldEffects.find((e) => e.resource === 'food')!.delta;
     const hotDecay = hotEffects.find((e) => e.resource === 'food')!.delta;
@@ -231,7 +232,7 @@ describe('decaySystem', () => {
 
   it('creates CO2 effect when food decays', () => {
     const state = createTestState({ food: 1.0, temperature: 25 });
-    const effects = decaySystem.update(state);
+    const effects = decaySystem.update(state, DEFAULT_CONFIG);
 
     const co2Effect = effects.find((e) => e.resource === 'co2');
     expect(co2Effect).toBeDefined();
@@ -242,7 +243,7 @@ describe('decaySystem', () => {
 
   it('creates negative O2 effect when food decays', () => {
     const state = createTestState({ food: 1.0, temperature: 25 });
-    const effects = decaySystem.update(state);
+    const effects = decaySystem.update(state, DEFAULT_CONFIG);
 
     const o2Effect = effects.find((e) => e.resource === 'oxygen');
     expect(o2Effect).toBeDefined();
@@ -253,7 +254,7 @@ describe('decaySystem', () => {
 
   it('CO2 and O2 effects are equal and opposite', () => {
     const state = createTestState({ food: 1.0, temperature: 25 });
-    const effects = decaySystem.update(state);
+    const effects = decaySystem.update(state, DEFAULT_CONFIG);
 
     const co2Effect = effects.find((e) => e.resource === 'co2');
     const o2Effect = effects.find((e) => e.resource === 'oxygen');
@@ -265,8 +266,8 @@ describe('decaySystem', () => {
     const smallTankState = createTestState({ food: 1.0, temperature: 25, water: 50 });
     const largeTankState = createTestState({ food: 1.0, temperature: 25, water: 200 });
 
-    const smallEffects = decaySystem.update(smallTankState);
-    const largeEffects = decaySystem.update(largeTankState);
+    const smallEffects = decaySystem.update(smallTankState, DEFAULT_CONFIG);
+    const largeEffects = decaySystem.update(largeTankState, DEFAULT_CONFIG);
 
     const smallCo2 = smallEffects.find((e) => e.resource === 'co2')!.delta;
     const largeCo2 = largeEffects.find((e) => e.resource === 'co2')!.delta;
@@ -278,7 +279,7 @@ describe('decaySystem', () => {
   it('calculates correct CO2/O2 amounts based on decay', () => {
     // 100L tank, 1g food at 25°C
     const state = createTestState({ food: 1.0, temperature: 25, water: 100 });
-    const effects = decaySystem.update(state);
+    const effects = decaySystem.update(state, DEFAULT_CONFIG);
 
     const foodEffect = effects.find((e) => e.resource === 'food')!;
     const co2Effect = effects.find((e) => e.resource === 'co2')!;
@@ -294,8 +295,8 @@ describe('decaySystem', () => {
     const coldState = createTestState({ food: 1.0, temperature: 20 });
     const hotState = createTestState({ food: 1.0, temperature: 30 });
 
-    const coldEffects = decaySystem.update(coldState);
-    const hotEffects = decaySystem.update(hotState);
+    const coldEffects = decaySystem.update(coldState, DEFAULT_CONFIG);
+    const hotEffects = decaySystem.update(hotState, DEFAULT_CONFIG);
 
     const coldCo2 = coldEffects.find((e) => e.resource === 'co2')!.delta;
     const hotCo2 = hotEffects.find((e) => e.resource === 'co2')!.delta;
@@ -306,7 +307,7 @@ describe('decaySystem', () => {
 
   it('no CO2/O2 effects when food is zero', () => {
     const state = createTestState({ food: 0 });
-    const effects = decaySystem.update(state);
+    const effects = decaySystem.update(state, DEFAULT_CONFIG);
 
     const co2Effect = effects.find((e) => e.resource === 'co2');
     const o2Effect = effects.find((e) => e.resource === 'oxygen');
@@ -317,7 +318,7 @@ describe('decaySystem', () => {
 
   it('handles very small food amounts correctly', () => {
     const state = createTestState({ food: 0.01, temperature: 25, water: 100 });
-    const effects = decaySystem.update(state);
+    const effects = decaySystem.update(state, DEFAULT_CONFIG);
 
     const co2Effect = effects.find((e) => e.resource === 'co2');
     const o2Effect = effects.find((e) => e.resource === 'oxygen');
@@ -331,7 +332,7 @@ describe('decaySystem', () => {
 
   it('handles large tank volumes correctly', () => {
     const state = createTestState({ food: 1.0, temperature: 25, water: 1000 });
-    const effects = decaySystem.update(state);
+    const effects = decaySystem.update(state, DEFAULT_CONFIG);
 
     const co2Effect = effects.find((e) => e.resource === 'co2');
 
@@ -341,7 +342,7 @@ describe('decaySystem', () => {
 
   it('handles zero water volume gracefully (no CO2/O2 effects)', () => {
     const state = createTestState({ food: 1.0, temperature: 25, water: 0 });
-    const effects = decaySystem.update(state);
+    const effects = decaySystem.update(state, DEFAULT_CONFIG);
 
     // Decay still happens (food -> waste)
     const foodEffect = effects.find((e) => e.resource === 'food');

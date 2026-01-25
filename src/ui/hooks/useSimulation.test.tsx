@@ -1,7 +1,14 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import React from 'react';
 import { renderHook, act } from '@testing-library/react';
 import { useSimulation } from './useSimulation';
 import { getPresetById } from '../presets';
+import { ConfigProvider } from './useConfig';
+
+// Wrapper with ConfigProvider for testing hooks that depend on it
+const wrapper = ({ children }: { children: React.ReactNode }) => (
+  <ConfigProvider>{children}</ConfigProvider>
+);
 
 describe('useSimulation', () => {
   beforeEach(() => {
@@ -17,7 +24,7 @@ describe('useSimulation', () => {
   const defaultPreset = getPresetById('planted')!;
 
   it('initializes simulation with default preset config', () => {
-    const { result } = renderHook(() => useSimulation());
+    const { result } = renderHook(() => useSimulation(), { wrapper });
 
     expect(result.current.state.tank.capacity).toBe(defaultPreset.config.tankCapacity);
     expect(result.current.state.resources.water).toBe(defaultPreset.config.tankCapacity);
@@ -29,7 +36,7 @@ describe('useSimulation', () => {
   });
 
   it('tick advances simulation state', () => {
-    const { result } = renderHook(() => useSimulation());
+    const { result } = renderHook(() => useSimulation(), { wrapper });
 
     const initialTick = result.current.state.tick;
 
@@ -42,7 +49,7 @@ describe('useSimulation', () => {
   });
 
   it('changing tank size reinitializes simulation', () => {
-    const { result } = renderHook(() => useSimulation());
+    const { result } = renderHook(() => useSimulation(), { wrapper });
 
     // Advance tick to verify it resets
     act(() => {
@@ -65,7 +72,7 @@ describe('useSimulation', () => {
 
   it('heater controls update simulation state', () => {
     // Use betta preset which has heater enabled
-    const { result } = renderHook(() => useSimulation('betta'));
+    const { result } = renderHook(() => useSimulation('betta'), { wrapper });
 
     expect(result.current.state.equipment.heater.enabled).toBe(true);
 
@@ -89,7 +96,7 @@ describe('useSimulation', () => {
   });
 
   it('room temperature changes update simulation state', () => {
-    const { result } = renderHook(() => useSimulation());
+    const { result } = renderHook(() => useSimulation(), { wrapper });
 
     act(() => {
       result.current.updateRoomTemperature(25);
@@ -99,7 +106,7 @@ describe('useSimulation', () => {
   });
 
   it('play/pause toggles auto-advance', () => {
-    const { result } = renderHook(() => useSimulation());
+    const { result } = renderHook(() => useSimulation(), { wrapper });
 
     expect(result.current.isPlaying).toBe(false);
 
@@ -117,7 +124,7 @@ describe('useSimulation', () => {
   });
 
   it('speed changes update speed state', () => {
-    const { result } = renderHook(() => useSimulation());
+    const { result } = renderHook(() => useSimulation(), { wrapper });
 
     expect(result.current.speed).toBe('1hr');
 
@@ -130,7 +137,7 @@ describe('useSimulation', () => {
 
   describe('presets', () => {
     it('loads preset correctly', () => {
-      const { result } = renderHook(() => useSimulation('betta'));
+      const { result } = renderHook(() => useSimulation('betta'), { wrapper });
 
       expect(result.current.currentPreset).toBe('betta');
       expect(result.current.state.tank.capacity).toBe(20); // 5 gal
@@ -140,7 +147,7 @@ describe('useSimulation', () => {
     });
 
     it('loadPreset changes configuration', () => {
-      const { result } = renderHook(() => useSimulation('planted'));
+      const { result } = renderHook(() => useSimulation('planted'), { wrapper });
 
       expect(result.current.currentPreset).toBe('planted');
 
@@ -154,7 +161,7 @@ describe('useSimulation', () => {
     });
 
     it('reset reverts to current preset', () => {
-      const { result } = renderHook(() => useSimulation('betta'));
+      const { result } = renderHook(() => useSimulation('betta'), { wrapper });
 
       // Modify some settings
       act(() => {
@@ -177,7 +184,7 @@ describe('useSimulation', () => {
     });
 
     it('bare preset has no equipment enabled', () => {
-      const { result } = renderHook(() => useSimulation('bare'));
+      const { result } = renderHook(() => useSimulation('bare'), { wrapper });
 
       expect(result.current.state.equipment.heater.enabled).toBe(false);
       expect(result.current.state.equipment.filter.enabled).toBe(false);
@@ -190,7 +197,7 @@ describe('useSimulation', () => {
   describe('logging', () => {
     it('emits log when heater enabled', () => {
       // Use betta preset which has heater
-      const { result } = renderHook(() => useSimulation('betta'));
+      const { result } = renderHook(() => useSimulation('betta'), { wrapper });
 
       act(() => {
         result.current.updateHeaterEnabled(false);
@@ -207,7 +214,7 @@ describe('useSimulation', () => {
     });
 
     it('emits log when heater disabled', () => {
-      const { result } = renderHook(() => useSimulation('betta'));
+      const { result } = renderHook(() => useSimulation('betta'), { wrapper });
 
       act(() => {
         result.current.updateHeaterEnabled(false);
@@ -221,7 +228,7 @@ describe('useSimulation', () => {
     });
 
     it('emits log when heater target changed', () => {
-      const { result } = renderHook(() => useSimulation('betta'));
+      const { result } = renderHook(() => useSimulation('betta'), { wrapper });
 
       act(() => {
         result.current.updateHeaterTargetTemperature(28);
@@ -238,7 +245,7 @@ describe('useSimulation', () => {
     });
 
     it('emits log when heater wattage changed', () => {
-      const { result } = renderHook(() => useSimulation('betta'));
+      const { result } = renderHook(() => useSimulation('betta'), { wrapper });
 
       act(() => {
         result.current.updateHeaterWattage(200);
@@ -255,7 +262,7 @@ describe('useSimulation', () => {
     });
 
     it('emits log when room temperature changed', () => {
-      const { result } = renderHook(() => useSimulation());
+      const { result } = renderHook(() => useSimulation(), { wrapper });
 
       act(() => {
         result.current.updateRoomTemperature(25);
@@ -272,7 +279,7 @@ describe('useSimulation', () => {
     });
 
     it('emits simulation reset log when reset is called', () => {
-      const { result } = renderHook(() => useSimulation());
+      const { result } = renderHook(() => useSimulation(), { wrapper });
 
       act(() => {
         result.current.step();
@@ -289,7 +296,7 @@ describe('useSimulation', () => {
     });
 
     it('logs accumulate across multiple ticks', () => {
-      const { result } = renderHook(() => useSimulation('betta'));
+      const { result } = renderHook(() => useSimulation('betta'), { wrapper });
       const initialLogCount = result.current.state.logs.length;
 
       act(() => {
@@ -302,7 +309,7 @@ describe('useSimulation', () => {
     });
 
     it('heater enabled log includes target and wattage', () => {
-      const { result } = renderHook(() => useSimulation('betta'));
+      const { result } = renderHook(() => useSimulation('betta'), { wrapper });
 
       // First disable, then enable to get the enabled log
       act(() => {
@@ -328,7 +335,7 @@ describe('useSimulation', () => {
     const tankCapacity = 40; // bare preset default
 
     it('applies action to state', () => {
-      const { result } = renderHook(() => useSimulation('bare'));
+      const { result } = renderHook(() => useSimulation('bare'), { wrapper });
 
       // First reduce water level by advancing simulation (evaporation)
       act(() => {
@@ -348,7 +355,7 @@ describe('useSimulation', () => {
     });
 
     it('works when simulation is paused', () => {
-      const { result } = renderHook(() => useSimulation('bare'));
+      const { result } = renderHook(() => useSimulation('bare'), { wrapper });
 
       // Simulate evaporation manually by running some ticks
       act(() => {
@@ -374,7 +381,7 @@ describe('useSimulation', () => {
     });
 
     it('top off action appears in logs', () => {
-      const { result } = renderHook(() => useSimulation('bare'));
+      const { result } = renderHook(() => useSimulation('bare'), { wrapper });
 
       // Reduce water level first
       act(() => {
@@ -397,7 +404,7 @@ describe('useSimulation', () => {
     });
 
     it('multiple actions can be executed', () => {
-      const { result } = renderHook(() => useSimulation('bare'));
+      const { result } = renderHook(() => useSimulation('bare'), { wrapper });
 
       // Run simulation to cause evaporation
       act(() => {
@@ -431,7 +438,7 @@ describe('useSimulation', () => {
 
     it('top off increases water level to capacity', () => {
       // Use community preset for larger tank (150L)
-      const { result } = renderHook(() => useSimulation('community'));
+      const { result } = renderHook(() => useSimulation('community'), { wrapper });
       const communityCapacity = 150;
 
       // Disable ATO first so evaporation can occur
