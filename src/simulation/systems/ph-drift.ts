@@ -14,42 +14,6 @@ import type { System } from './types.js';
 import type { TunableConfig } from '../config/index.js';
 import { type PhConfig, phDefaults } from '../config/ph.js';
 
-// ============================================================================
-// Constants (exported for backward compatibility)
-// ============================================================================
-
-/** pH target for calcite rock (pushes pH up) */
-export const CALCITE_TARGET_PH = phDefaults.calciteTargetPh;
-
-/** pH target for driftwood (pushes pH down) */
-export const DRIFTWOOD_TARGET_PH = phDefaults.driftwoodTargetPh;
-
-/** Neutral pH when no hardscape present */
-export const NEUTRAL_PH = phDefaults.neutralPh;
-
-/** Base drift rate (fraction toward target per tick) */
-export const BASE_PH_DRIFT_RATE = phDefaults.basePgDriftRate;
-
-/**
- * CO2 effect on pH.
- * At atmospheric CO2 (~4 mg/L), no effect.
- * Each mg/L above atmospheric lowers pH by this amount.
- */
-export const CO2_PH_COEFFICIENT = phDefaults.co2PhCoefficient;
-
-/** CO2 level at atmospheric equilibrium (no pH effect) */
-export const CO2_NEUTRAL_LEVEL = phDefaults.co2NeutralLevel;
-
-/**
- * Diminishing returns factor for multiple hardscape items.
- * Each additional item has this fraction of the previous item's effect.
- */
-export const HARDSCAPE_DIMINISHING_FACTOR = phDefaults.hardscapeDiminishingFactor;
-
-// ============================================================================
-// Helper Functions
-// ============================================================================
-
 /**
  * Calculate the target pH based on hardscape items.
  * Multiple items of same type have cumulative effect with diminishing returns.

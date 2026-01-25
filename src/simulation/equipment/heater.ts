@@ -11,7 +11,7 @@
 import { produce } from 'immer';
 import type { Effect } from '../core/effects.js';
 import type { SimulationState } from '../state.js';
-import { REFERENCE_VOLUME, VOLUME_EXPONENT } from '../systems/temperature-drift.js';
+import { temperatureDefaults } from '../config/temperature.js';
 
 /**
  * Calculates the heating rate for one tick (1 hour).
@@ -26,7 +26,7 @@ export function calculateHeatingRate(
     return 0;
   }
 
-  const volumeScale = Math.pow(REFERENCE_VOLUME / waterVolume, VOLUME_EXPONENT);
+  const volumeScale = Math.pow(temperatureDefaults.referenceVolume / waterVolume, temperatureDefaults.volumeExponent);
   return (wattage / waterVolume) * volumeScale;
 }
 

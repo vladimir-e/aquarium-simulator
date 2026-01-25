@@ -9,39 +9,6 @@ import type { System } from './types.js';
 import type { TunableConfig } from '../config/index.js';
 import { type DecayConfig, decayDefaults } from '../config/decay.js';
 
-/** Q10 temperature coefficient (rate doubles every 10°C) */
-export const Q10 = decayDefaults.q10;
-
-/** Reference temperature for decay rate (°C) */
-export const REFERENCE_TEMP = decayDefaults.referenceTemp;
-
-/** Base decay rate at reference temperature (fraction per hour) */
-export const BASE_DECAY_RATE = decayDefaults.baseDecayRate;
-
-/**
- * Fraction of decaying food that becomes solid waste.
- * The remaining fraction (60%) is oxidized by aerobic bacteria,
- * releasing CO2 and consuming O2.
- */
-export const WASTE_CONVERSION_RATIO = decayDefaults.wasteConversionRatio;
-
-/**
- * Gas exchange per gram of organic matter oxidized (mg per gram).
- *
- * Theoretical maximum based on aerobic decomposition chemistry:
- * - C6H12O6 + 6O2 → 6CO2 + 6H2O
- * - Food ~40% carbon, CO2 is 3.67x heavier than C
- * - Full oxidation would yield ~1500 mg CO2 per gram
- *
- * We use 250 mg/g (~17% of theoretical) because:
- * - Bacteria need time to colonize and multiply
- * - CO2/O2 exchange happens gradually over the decay period
- * - Not all carbon is immediately bioavailable
- *
- * This creates noticeable effects from overfeeding without instant crashes.
- */
-export const GAS_EXCHANGE_PER_GRAM_DECAY = decayDefaults.gasExchangePerGramDecay;
-
 /**
  * Calculate temperature factor for decay rate using Q10 coefficient.
  * Rate doubles every 10°C above reference, halves every 10°C below.

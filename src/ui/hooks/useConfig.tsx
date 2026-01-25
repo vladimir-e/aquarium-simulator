@@ -19,22 +19,33 @@ import {
 const STORAGE_KEY = 'aquarium-tunable-config';
 
 /**
+ * Validate that a value is a plain object (not null, array, or primitive).
+ */
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+/**
  * Load config from localStorage.
  */
 function loadConfig(): TunableConfig | null {
   try {
     const stored = globalThis.localStorage.getItem(STORAGE_KEY);
     if (stored) {
-      const parsed = JSON.parse(stored);
-      // Merge with defaults to handle added properties
+      const parsed: unknown = JSON.parse(stored);
+      // Validate parsed data is an object
+      if (!isPlainObject(parsed)) {
+        return null;
+      }
+      // Merge with defaults, safely handling missing/invalid sections
       return {
-        decay: { ...DEFAULT_CONFIG.decay, ...parsed.decay },
-        nitrogenCycle: { ...DEFAULT_CONFIG.nitrogenCycle, ...parsed.nitrogenCycle },
-        gasExchange: { ...DEFAULT_CONFIG.gasExchange, ...parsed.gasExchange },
-        temperature: { ...DEFAULT_CONFIG.temperature, ...parsed.temperature },
-        evaporation: { ...DEFAULT_CONFIG.evaporation, ...parsed.evaporation },
-        algae: { ...DEFAULT_CONFIG.algae, ...parsed.algae },
-        ph: { ...DEFAULT_CONFIG.ph, ...parsed.ph },
+        decay: { ...DEFAULT_CONFIG.decay, ...(isPlainObject(parsed.decay) ? parsed.decay : {}) },
+        nitrogenCycle: { ...DEFAULT_CONFIG.nitrogenCycle, ...(isPlainObject(parsed.nitrogenCycle) ? parsed.nitrogenCycle : {}) },
+        gasExchange: { ...DEFAULT_CONFIG.gasExchange, ...(isPlainObject(parsed.gasExchange) ? parsed.gasExchange : {}) },
+        temperature: { ...DEFAULT_CONFIG.temperature, ...(isPlainObject(parsed.temperature) ? parsed.temperature : {}) },
+        evaporation: { ...DEFAULT_CONFIG.evaporation, ...(isPlainObject(parsed.evaporation) ? parsed.evaporation : {}) },
+        algae: { ...DEFAULT_CONFIG.algae, ...(isPlainObject(parsed.algae) ? parsed.algae : {}) },
+        ph: { ...DEFAULT_CONFIG.ph, ...(isPlainObject(parsed.ph) ? parsed.ph : {}) },
       };
     }
   } catch {
@@ -58,7 +69,18 @@ function saveConfig(config: TunableConfig): void {
     } catch {
       // Storage full or unavailable
     }
+    saveTimeout = null;
   }, 500);
+}
+
+/**
+ * Clear any pending save timeout.
+ */
+function clearSaveTimeout(): void {
+  if (saveTimeout) {
+    globalThis.clearTimeout(saveTimeout);
+    saveTimeout = null;
+  }
 }
 
 interface ConfigContextValue {
@@ -125,6 +147,13 @@ export function ConfigProvider({ children }: ConfigProviderProps): React.JSX.Ele
   useEffect(() => {
     saveConfig(config);
   }, [config]);
+
+  // Cleanup pending save timeout on unmount
+  useEffect(() => {
+    return (): void => {
+      clearSaveTimeout();
+    };
+  }, []);
 
   // Save debug panel state to localStorage
   useEffect(() => {

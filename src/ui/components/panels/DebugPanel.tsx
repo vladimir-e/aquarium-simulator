@@ -30,10 +30,32 @@ function ConfigInput({
   unit,
   isModified,
 }: ConfigInputProps): React.JSX.Element {
+  // Use local state to allow empty string while editing
+  const [localValue, setLocalValue] = useState(String(value));
+
+  // Sync local value when prop changes (e.g., reset)
+  React.useEffect(() => {
+    setLocalValue(String(value));
+  }, [value]);
+
   const handleChange: React.ChangeEventHandler<globalThis.HTMLInputElement> = (e) => {
-    const newValue = parseFloat(e.target.value);
-    if (!isNaN(newValue)) {
-      onChange(newValue);
+    const rawValue = e.target.value;
+    setLocalValue(rawValue);
+
+    // Only propagate valid numbers
+    if (rawValue !== '' && rawValue !== '-') {
+      const newValue = parseFloat(rawValue);
+      if (!isNaN(newValue)) {
+        onChange(newValue);
+      }
+    }
+  };
+
+  const handleBlur = (): void => {
+    // On blur, restore to current value if empty/invalid
+    const parsed = parseFloat(localValue);
+    if (isNaN(parsed)) {
+      setLocalValue(String(value));
     }
   };
 
@@ -45,8 +67,9 @@ function ConfigInput({
       </label>
       <input
         type="number"
-        value={value}
+        value={localValue}
         onChange={handleChange}
+        onBlur={handleBlur}
         step={step}
         className={`w-24 px-2 py-1 text-xs text-right rounded border ${
           isModified

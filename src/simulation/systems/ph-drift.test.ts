@@ -3,46 +3,42 @@ import {
   phDriftSystem,
   calculateHardscapeTargetPH,
   calculateCO2PHEffect,
-  CALCITE_TARGET_PH,
-  DRIFTWOOD_TARGET_PH,
-  NEUTRAL_PH,
-  BASE_PH_DRIFT_RATE,
-  CO2_NEUTRAL_LEVEL,
 } from './ph-drift.js';
 import { createSimulation, type SimulationState, type HardscapeItem } from '../state.js';
 import { produce } from 'immer';
 import { DEFAULT_CONFIG } from '../config/index.js';
+import { phDefaults } from '../config/ph.js';
 
 describe('calculateHardscapeTargetPH', () => {
   it('returns neutral pH when no hardscape', () => {
     const target = calculateHardscapeTargetPH([]);
-    expect(target).toBe(NEUTRAL_PH);
+    expect(target).toBe(phDefaults.neutralPh);
   });
 
   it('returns neutral pH with only neutral rock', () => {
     const items: HardscapeItem[] = [{ id: '1', type: 'neutral_rock' }];
     const target = calculateHardscapeTargetPH(items);
-    expect(target).toBe(NEUTRAL_PH);
+    expect(target).toBe(phDefaults.neutralPh);
   });
 
   it('returns neutral pH with only plastic decoration', () => {
     const items: HardscapeItem[] = [{ id: '1', type: 'plastic_decoration' }];
     const target = calculateHardscapeTargetPH(items);
-    expect(target).toBe(NEUTRAL_PH);
+    expect(target).toBe(phDefaults.neutralPh);
   });
 
   it('raises pH toward calcite target with calcite rock', () => {
     const items: HardscapeItem[] = [{ id: '1', type: 'calcite_rock' }];
     const target = calculateHardscapeTargetPH(items);
-    expect(target).toBeGreaterThan(NEUTRAL_PH);
-    expect(target).toBeLessThan(CALCITE_TARGET_PH);
+    expect(target).toBeGreaterThan(phDefaults.neutralPh);
+    expect(target).toBeLessThan(phDefaults.calciteTargetPh);
   });
 
   it('lowers pH toward driftwood target with driftwood', () => {
     const items: HardscapeItem[] = [{ id: '1', type: 'driftwood' }];
     const target = calculateHardscapeTargetPH(items);
-    expect(target).toBeLessThan(NEUTRAL_PH);
-    expect(target).toBeGreaterThan(DRIFTWOOD_TARGET_PH);
+    expect(target).toBeLessThan(phDefaults.neutralPh);
+    expect(target).toBeGreaterThan(phDefaults.driftwoodTargetPh);
   });
 
   it('multiple calcite rocks have cumulative effect with diminishing returns', () => {
@@ -58,7 +54,7 @@ describe('calculateHardscapeTargetPH', () => {
     ]);
 
     // Each additional item should increase pH less than the previous
-    const firstIncrease = oneCalcite - NEUTRAL_PH;
+    const firstIncrease = oneCalcite - phDefaults.neutralPh;
     const secondIncrease = twoCalcite - oneCalcite;
     const thirdIncrease = threeCalcite - twoCalcite;
 
@@ -76,7 +72,7 @@ describe('calculateHardscapeTargetPH', () => {
     ]);
 
     expect(twoDriftwood).toBeLessThan(oneDriftwood);
-    expect(twoDriftwood).toBeGreaterThan(DRIFTWOOD_TARGET_PH);
+    expect(twoDriftwood).toBeGreaterThan(phDefaults.driftwoodTargetPh);
   });
 
   it('calcite and driftwood can cancel each other out', () => {
@@ -87,30 +83,30 @@ describe('calculateHardscapeTargetPH', () => {
     const target = calculateHardscapeTargetPH(items);
     // With equal pieces, they partially cancel
     // The target should be close to neutral
-    expect(target).toBeCloseTo(NEUTRAL_PH, 0);
+    expect(target).toBeCloseTo(phDefaults.neutralPh, 0);
   });
 });
 
 describe('calculateCO2PHEffect', () => {
   it('returns 0 at atmospheric CO2 level', () => {
-    const effect = calculateCO2PHEffect(CO2_NEUTRAL_LEVEL);
+    const effect = calculateCO2PHEffect(phDefaults.co2NeutralLevel);
     // Note: JavaScript may produce -0, which is equal to 0 but not Object.is equal
     expect(effect).toBeCloseTo(0, 10);
   });
 
   it('returns negative value when CO2 is above atmospheric', () => {
-    const effect = calculateCO2PHEffect(CO2_NEUTRAL_LEVEL + 10);
+    const effect = calculateCO2PHEffect(phDefaults.co2NeutralLevel + 10);
     expect(effect).toBeLessThan(0);
   });
 
   it('returns positive value when CO2 is below atmospheric', () => {
-    const effect = calculateCO2PHEffect(CO2_NEUTRAL_LEVEL - 2);
+    const effect = calculateCO2PHEffect(phDefaults.co2NeutralLevel - 2);
     expect(effect).toBeGreaterThan(0);
   });
 
   it('scales linearly with CO2 excess', () => {
-    const effect10 = calculateCO2PHEffect(CO2_NEUTRAL_LEVEL + 10);
-    const effect20 = calculateCO2PHEffect(CO2_NEUTRAL_LEVEL + 20);
+    const effect10 = calculateCO2PHEffect(phDefaults.co2NeutralLevel + 10);
+    const effect20 = calculateCO2PHEffect(phDefaults.co2NeutralLevel + 20);
     expect(effect20).toBeCloseTo(effect10 * 2, 5);
   });
 
@@ -149,7 +145,7 @@ describe('phDriftSystem', () => {
   it('creates pH effect when pH differs from target', () => {
     const state = createTestState({
       ph: 6.0,
-      co2: CO2_NEUTRAL_LEVEL,
+      co2: phDefaults.co2NeutralLevel,
       hardscapeItems: [], // Target is neutral (7.0)
     });
     const effects = phDriftSystem.update(state, DEFAULT_CONFIG);
@@ -164,7 +160,7 @@ describe('phDriftSystem', () => {
   it('creates negative effect when pH is above target', () => {
     const state = createTestState({
       ph: 8.0,
-      co2: CO2_NEUTRAL_LEVEL,
+      co2: phDefaults.co2NeutralLevel,
       hardscapeItems: [], // Target is neutral (7.0)
     });
     const effects = phDriftSystem.update(state, DEFAULT_CONFIG);
@@ -176,8 +172,8 @@ describe('phDriftSystem', () => {
 
   it('creates no/negligible effect when pH equals target', () => {
     const state = createTestState({
-      ph: NEUTRAL_PH,
-      co2: CO2_NEUTRAL_LEVEL,
+      ph: phDefaults.neutralPh,
+      co2: phDefaults.co2NeutralLevel,
       hardscapeItems: [],
     });
     const effects = phDriftSystem.update(state, DEFAULT_CONFIG);
@@ -193,8 +189,8 @@ describe('phDriftSystem', () => {
 
   it('calcite rock raises pH target', () => {
     const state = createTestState({
-      ph: NEUTRAL_PH,
-      co2: CO2_NEUTRAL_LEVEL,
+      ph: phDefaults.neutralPh,
+      co2: phDefaults.co2NeutralLevel,
       hardscapeItems: [{ id: '1', type: 'calcite_rock' }],
     });
     const effects = phDriftSystem.update(state, DEFAULT_CONFIG);
@@ -206,8 +202,8 @@ describe('phDriftSystem', () => {
 
   it('driftwood lowers pH target', () => {
     const state = createTestState({
-      ph: NEUTRAL_PH,
-      co2: CO2_NEUTRAL_LEVEL,
+      ph: phDefaults.neutralPh,
+      co2: phDefaults.co2NeutralLevel,
       hardscapeItems: [{ id: '1', type: 'driftwood' }],
     });
     const effects = phDriftSystem.update(state, DEFAULT_CONFIG);
@@ -219,12 +215,12 @@ describe('phDriftSystem', () => {
 
   it('high CO2 lowers effective pH target', () => {
     const normalCO2State = createTestState({
-      ph: NEUTRAL_PH,
-      co2: CO2_NEUTRAL_LEVEL,
+      ph: phDefaults.neutralPh,
+      co2: phDefaults.co2NeutralLevel,
       hardscapeItems: [],
     });
     const highCO2State = createTestState({
-      ph: NEUTRAL_PH,
+      ph: phDefaults.neutralPh,
       co2: 20, // High CO2
       hardscapeItems: [],
     });
@@ -247,7 +243,7 @@ describe('phDriftSystem', () => {
   it('drift rate follows exponential decay pattern', () => {
     const state = createTestState({
       ph: 6.0,
-      co2: CO2_NEUTRAL_LEVEL,
+      co2: phDefaults.co2NeutralLevel,
       hardscapeItems: [],
     });
     const effects = phDriftSystem.update(state, DEFAULT_CONFIG);
@@ -255,14 +251,14 @@ describe('phDriftSystem', () => {
     const phEffect = effects.find((e) => e.resource === 'ph');
     expect(phEffect).toBeDefined();
 
-    // Expected: BASE_PH_DRIFT_RATE * (7.0 - 6.0) = 0.05 * 1.0 = 0.05
-    expect(phEffect!.delta).toBeCloseTo(BASE_PH_DRIFT_RATE * (NEUTRAL_PH - 6.0), 4);
+    // Expected: basePgDriftRate * (7.0 - 6.0) = 0.05 * 1.0 = 0.05
+    expect(phEffect!.delta).toBeCloseTo(phDefaults.basePgDriftRate * (phDefaults.neutralPh - 6.0), 4);
   });
 
   it('neutral rock and plastic decoration do not affect pH', () => {
     const neutralState = createTestState({
-      ph: NEUTRAL_PH,
-      co2: CO2_NEUTRAL_LEVEL,
+      ph: phDefaults.neutralPh,
+      co2: phDefaults.co2NeutralLevel,
       hardscapeItems: [
         { id: '1', type: 'neutral_rock' },
         { id: '2', type: 'plastic_decoration' },

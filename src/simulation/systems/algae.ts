@@ -24,21 +24,6 @@ import type { System } from './types.js';
 import type { TunableConfig } from '../config/index.js';
 import { type AlgaeConfig, algaeDefaults } from '../config/algae.js';
 
-/** Maximum growth rate per hour (asymptotic limit) */
-export const MAX_GROWTH_RATE = algaeDefaults.maxGrowthRate;
-
-/** Half-saturation constant (W/L at which growth is 50% of max) */
-export const HALF_SATURATION = algaeDefaults.halfSaturation;
-
-/** Maximum algae level (relative scale) */
-export const ALGAE_CAP = algaeDefaults.algaeCap;
-
-/**
- * @deprecated Use MAX_GROWTH_RATE and HALF_SATURATION instead.
- * Kept for backward compatibility with tests expecting linear formula.
- */
-export const BASE_GROWTH_RATE = 2.5;
-
 /**
  * Calculate algae growth for one tick (hour) based on light intensity.
  * Uses Michaelis-Menten saturation curve for realistic diminishing returns.

@@ -2,13 +2,12 @@ import { describe, it, expect } from 'vitest';
 import {
   calculateEvaporation,
   evaporationSystem,
-  BASE_RATE_PER_DAY,
-  TEMP_DOUBLING_INTERVAL,
   getLidMultiplier,
   LID_MULTIPLIERS,
 } from './evaporation.js';
 import { createSimulation, type LidType } from '../state.js';
 import { DEFAULT_CONFIG } from '../config/index.js';
+import { evaporationDefaults } from '../config/evaporation.js';
 
 describe('calculateEvaporation', () => {
   it('reduces water level over time', () => {
@@ -58,12 +57,12 @@ describe('calculateEvaporation', () => {
     const evapPerDay = evapPerHour * 24;
 
     // Should be close to 1% (0.01 * waterLevel = 1 liter)
-    expect(evapPerDay).toBeCloseTo(waterLevel * BASE_RATE_PER_DAY, 4);
+    expect(evapPerDay).toBeCloseTo(waterLevel * evaporationDefaults.baseRatePerDay, 4);
   });
 
-  it('doubles evaporation rate per TEMP_DOUBLING_INTERVAL degrees', () => {
+  it('doubles evaporation rate per tempDoublingInterval degrees', () => {
     const baseEvap = calculateEvaporation(100, 22, 22);
-    const doubledEvap = calculateEvaporation(100, 22 + TEMP_DOUBLING_INTERVAL, 22);
+    const doubledEvap = calculateEvaporation(100, 22 + evaporationDefaults.tempDoublingInterval, 22);
 
     expect(doubledEvap).toBeCloseTo(baseEvap * 2, 4);
   });
@@ -72,7 +71,7 @@ describe('calculateEvaporation', () => {
     const baseEvap = calculateEvaporation(100, 22, 22);
     const quadrupledEvap = calculateEvaporation(
       100,
-      22 + 2 * TEMP_DOUBLING_INTERVAL,
+      22 + 2 * evaporationDefaults.tempDoublingInterval,
       22
     );
 

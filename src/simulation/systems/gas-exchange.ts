@@ -13,37 +13,6 @@ import type { System } from './types.js';
 import type { TunableConfig } from '../config/index.js';
 import { type GasExchangeConfig, gasExchangeDefaults } from '../config/gas-exchange.js';
 
-// ============================================================================
-// Constants (exported for backward compatibility)
-// ============================================================================
-
-/** Atmospheric CO2 equilibrium concentration (mg/L) */
-export const ATMOSPHERIC_CO2 = gasExchangeDefaults.atmosphericCo2;
-
-/**
- * O2 saturation formula coefficients (simplified Henry's Law).
- * Saturation decreases with temperature as gases are less soluble in warmer water.
- */
-/** Base O2 saturation at reference temperature (mg/L at 15°C) */
-export const O2_SATURATION_BASE = gasExchangeDefaults.o2SaturationBase;
-/** Change in saturation per °C (negative = less O2 as temp increases) */
-export const O2_SATURATION_SLOPE = gasExchangeDefaults.o2SaturationSlope;
-/** Reference temperature for saturation calculation (°C) */
-export const O2_REFERENCE_TEMP = gasExchangeDefaults.o2ReferenceTemp;
-
-/**
- * Exchange rate constants.
- * Gas exchange uses exponential decay toward equilibrium each tick.
- */
-/** Fraction of difference moved toward equilibrium per tick at optimal flow */
-export const BASE_EXCHANGE_RATE = gasExchangeDefaults.baseExchangeRate;
-/** Tank turnovers per hour needed for maximum exchange rate */
-export const OPTIMAL_FLOW_TURNOVER = gasExchangeDefaults.optimalFlowTurnover;
-
-// ============================================================================
-// Helper Functions
-// ============================================================================
-
 /**
  * Calculate O2 saturation based on temperature.
  * Colder water holds more dissolved oxygen (Henry's Law).

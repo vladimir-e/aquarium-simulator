@@ -18,49 +18,6 @@ import type { TunableConfig } from '../config/index.js';
 import { type NitrogenCycleConfig, nitrogenCycleDefaults } from '../config/nitrogen-cycle.js';
 import { getPpm } from '../resources/index.js';
 
-// ============================================================================
-// Constants (exported for backward compatibility)
-// ============================================================================
-
-// Waste → Ammonia conversion
-/** Fraction of waste converted to ammonia per tick */
-export const WASTE_CONVERSION_RATE = nitrogenCycleDefaults.wasteConversionRate;
-
-/** Conversion ratio: grams waste to mg ammonia (1g waste = 1mg ammonia) */
-export const WASTE_TO_AMMONIA_RATIO = nitrogenCycleDefaults.wasteToAmmoniaRatio;
-
-// Bacterial processing rates
-/** ppm processed per bacteria unit per tick (multiply by water to get mass) */
-export const BACTERIA_PROCESSING_RATE = nitrogenCycleDefaults.bacteriaProcessingRate;
-
-// Spawning thresholds (in ppm - derived from mass/water)
-/** ppm ammonia to trigger AOB spawn */
-export const AOB_SPAWN_THRESHOLD = nitrogenCycleDefaults.aobSpawnThreshold;
-/** ppm nitrite to trigger NOB spawn */
-export const NOB_SPAWN_THRESHOLD = nitrogenCycleDefaults.nobSpawnThreshold;
-/** Initial bacteria when spawning */
-export const SPAWN_AMOUNT = nitrogenCycleDefaults.spawnAmount;
-
-// Growth (logistic)
-/** AOB growth rate per tick (~doubles per day) */
-export const AOB_GROWTH_RATE = nitrogenCycleDefaults.aobGrowthRate;
-/** NOB growth rate per tick (slower than AOB) */
-export const NOB_GROWTH_RATE = nitrogenCycleDefaults.nobGrowthRate;
-/** Max bacteria per cm² surface */
-export const BACTERIA_PER_CM2 = nitrogenCycleDefaults.bacteriaPerCm2;
-
-// Death thresholds (in ppm - derived from mass/water)
-/** Fraction of bacteria that die per tick without food */
-export const BACTERIA_DEATH_RATE = nitrogenCycleDefaults.bacteriaDeathRate;
-/** Min ammonia (ppm) to sustain AOB */
-export const AOB_FOOD_THRESHOLD = nitrogenCycleDefaults.aobFoodThreshold;
-/** Min nitrite (ppm) to sustain NOB */
-export const NOB_FOOD_THRESHOLD = nitrogenCycleDefaults.nobFoodThreshold;
-
-// ============================================================================
-// Helper Functions
-// ============================================================================
-
 /**
  * Calculate maximum bacteria population based on surface area.
  */

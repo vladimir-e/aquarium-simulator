@@ -3,18 +3,15 @@ import {
   decaySystem,
   getTemperatureFactor,
   calculateDecay,
-  REFERENCE_TEMP,
-  BASE_DECAY_RATE,
-  WASTE_CONVERSION_RATIO,
-  GAS_EXCHANGE_PER_GRAM_DECAY,
 } from './decay.js';
 import { createSimulation, type SimulationState } from '../state.js';
 import { produce } from 'immer';
 import { DEFAULT_CONFIG } from '../config/index.js';
+import { decayDefaults } from '../config/decay.js';
 
 describe('getTemperatureFactor', () => {
   it('returns 1.0 at reference temperature (25°C)', () => {
-    const factor = getTemperatureFactor(REFERENCE_TEMP);
+    const factor = getTemperatureFactor(decayDefaults.referenceTemp);
     expect(factor).toBeCloseTo(1.0, 6);
   });
 
@@ -64,7 +61,7 @@ describe('calculateDecay', () => {
 
   it('at 25°C with 1g food returns 0.05g (5%)', () => {
     const decay = calculateDecay(1, 25);
-    expect(decay).toBeCloseTo(BASE_DECAY_RATE, 6);
+    expect(decay).toBeCloseTo(decayDefaults.baseDecayRate, 6);
   });
 
   it('at 30°C with 1g food returns ~0.07g (faster)', () => {
@@ -155,9 +152,9 @@ describe('decaySystem', () => {
     );
 
     expect(wasteEffect).toBeDefined();
-    // Waste is WASTE_CONVERSION_RATIO (40%) of decayed food
+    // Waste is wasteConversionRatio (40%) of decayed food
     expect(wasteEffect!.delta).toBeCloseTo(
-      -foodEffect!.delta * WASTE_CONVERSION_RATIO,
+      -foodEffect!.delta * decayDefaults.wasteConversionRatio,
       6
     );
   });
@@ -285,8 +282,8 @@ describe('decaySystem', () => {
     const co2Effect = effects.find((e) => e.resource === 'co2')!;
 
     const decayAmount = -foodEffect.delta; // 0.05g at 25°C
-    const oxidizedAmount = decayAmount * (1 - WASTE_CONVERSION_RATIO); // 60%
-    const expectedCo2 = (oxidizedAmount * GAS_EXCHANGE_PER_GRAM_DECAY) / 100; // mg/L
+    const oxidizedAmount = decayAmount * (1 - decayDefaults.wasteConversionRatio); // 60%
+    const expectedCo2 = (oxidizedAmount * decayDefaults.gasExchangePerGramDecay) / 100; // mg/L
 
     expect(co2Effect.delta).toBeCloseTo(expectedCo2, 6);
   });

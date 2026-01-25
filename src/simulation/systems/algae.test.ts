@@ -3,14 +3,11 @@ import {
   algaeSystem,
   calculateAlgaeGrowth,
   getWattsPerGallon,
-  MAX_GROWTH_RATE,
-  HALF_SATURATION,
-  BASE_GROWTH_RATE,
-  ALGAE_CAP,
 } from './algae.js';
 import { createSimulation, type SimulationState } from '../state.js';
 import { produce } from 'immer';
 import { DEFAULT_CONFIG } from '../config/index.js';
+import { algaeDefaults } from '../config/algae.js';
 
 describe('calculateAlgaeGrowth', () => {
   it('returns 0 when light is 0', () => {
@@ -35,10 +32,10 @@ describe('calculateAlgaeGrowth', () => {
 
   it('uses Michaelis-Menten saturation formula', () => {
     // 100W in 100L = 1 W/L
-    // growth = MAX_GROWTH_RATE * wpl / (HALF_SATURATION + wpl)
+    // growth = maxGrowthRate * wpl / (halfSaturation + wpl)
     // growth = 4 * 1 / (1.3 + 1) = 4 / 2.3 ≈ 1.74
     const growth = calculateAlgaeGrowth(100, 100);
-    const expected = (MAX_GROWTH_RATE * 1.0) / (HALF_SATURATION + 1.0);
+    const expected = (algaeDefaults.maxGrowthRate * 1.0) / (algaeDefaults.halfSaturation + 1.0);
     expect(growth).toBeCloseTo(expected, 6);
   });
 
@@ -58,11 +55,11 @@ describe('calculateAlgaeGrowth', () => {
     expect(ratio2to4).toBeLessThan(ratio1to2);
   });
 
-  it('approaches MAX_GROWTH_RATE asymptotically at extreme light', () => {
-    // Very high W/L should approach but not exceed MAX_GROWTH_RATE
+  it('approaches maxGrowthRate asymptotically at extreme light', () => {
+    // Very high W/L should approach but not exceed maxGrowthRate
     const extremeGrowth = calculateAlgaeGrowth(1000, 100); // 10 W/L
-    expect(extremeGrowth).toBeLessThan(MAX_GROWTH_RATE);
-    expect(extremeGrowth).toBeGreaterThan(MAX_GROWTH_RATE * 0.85); // >85% of max
+    expect(extremeGrowth).toBeLessThan(algaeDefaults.maxGrowthRate);
+    expect(extremeGrowth).toBeGreaterThan(algaeDefaults.maxGrowthRate * 0.85); // >85% of max
   });
 
   it('produces same growth rate for same W/L ratio', () => {
@@ -120,7 +117,7 @@ describe('calculateAlgaeGrowth', () => {
       // wpl = 200/19 ≈ 10.5, growth = 4 * 10.5 / 11.8 ≈ 3.56
       // With 10hr photoperiod = 36/day (takes ~3 days to reach 100, not 1 day)
       expect(growth).toBeCloseTo(3.6, 1);
-      expect(growth).toBeLessThan(MAX_GROWTH_RATE);
+      expect(growth).toBeLessThan(algaeDefaults.maxGrowthRate);
     });
   });
 });
@@ -231,20 +228,16 @@ describe('algaeSystem', () => {
   });
 });
 
-describe('constants', () => {
-  it('MAX_GROWTH_RATE is 4', () => {
-    expect(MAX_GROWTH_RATE).toBe(4);
+describe('config defaults', () => {
+  it('maxGrowthRate is 4', () => {
+    expect(algaeDefaults.maxGrowthRate).toBe(4);
   });
 
-  it('HALF_SATURATION is 1.3', () => {
-    expect(HALF_SATURATION).toBe(1.3);
+  it('halfSaturation is 1.3', () => {
+    expect(algaeDefaults.halfSaturation).toBe(1.3);
   });
 
-  it('ALGAE_CAP is 100', () => {
-    expect(ALGAE_CAP).toBe(100);
-  });
-
-  it('BASE_GROWTH_RATE is 2.5 (deprecated, kept for compatibility)', () => {
-    expect(BASE_GROWTH_RATE).toBe(2.5);
+  it('algaeCap is 100', () => {
+    expect(algaeDefaults.algaeCap).toBe(100);
   });
 });
