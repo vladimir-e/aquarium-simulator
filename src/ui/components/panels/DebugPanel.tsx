@@ -39,7 +39,7 @@ function ConfigInput({
 
   return (
     <div className="flex items-center justify-between gap-2 py-1">
-      <label className={`text-xs ${isModified ? 'text-accent-orange' : 'text-gray-400'}`}>
+      <label className={`text-xs ${isModified ? 'text-yellow-400' : 'text-gray-400'}`}>
         {label}
         {unit && <span className="text-gray-500 ml-1">({unit})</span>}
       </label>
@@ -50,7 +50,7 @@ function ConfigInput({
         step={step}
         className={`w-24 px-2 py-1 text-xs text-right rounded border ${
           isModified
-            ? 'bg-accent-orange/10 border-accent-orange/30 text-accent-orange'
+            ? 'bg-yellow-400/10 border-yellow-400/30 text-yellow-400'
             : 'bg-background border-border text-gray-200'
         } focus:outline-none focus:ring-1 focus:ring-accent-blue`}
       />
@@ -87,10 +87,10 @@ function ConfigSection({
           ) : (
             <ChevronRight className="w-4 h-4 text-gray-500" />
           )}
-          <span className={`text-sm font-medium ${isModified ? 'text-accent-orange' : 'text-gray-300'}`}>
+          <span className={`text-sm font-medium ${isModified ? 'text-yellow-400' : 'text-gray-300'}`}>
             {title}
           </span>
-          {isModified && <span className="w-2 h-2 rounded-full bg-accent-orange" />}
+          {isModified && <span className="w-2 h-2 rounded-full bg-yellow-400" />}
         </div>
         <Button
           variant="secondary"

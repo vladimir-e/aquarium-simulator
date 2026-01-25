@@ -93,14 +93,14 @@ export function Timeline({
             variant="secondary"
             active={isDebugPanelOpen}
             className={`text-xs flex items-center gap-1.5 relative ${
-              isAnyModified && !isDebugPanelOpen ? 'text-accent-orange' : ''
+              isAnyModified && !isDebugPanelOpen ? 'text-yellow-400' : ''
             }`}
             title="Debug: Simulation Constants"
           >
             <Settings className="w-3.5 h-3.5" />
             Debug
             {isAnyModified && (
-              <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-accent-orange" />
+              <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-yellow-400" />
             )}
           </Button>
           <Button onClick={onReset} variant="secondary" className="text-xs flex items-center gap-1.5">
