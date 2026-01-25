@@ -30,7 +30,7 @@ function ConfigInput({
   unit,
   isModified,
 }: ConfigInputProps): React.JSX.Element {
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
+  const handleChange: React.ChangeEventHandler<globalThis.HTMLInputElement> = (e) => {
     const newValue = parseFloat(e.target.value);
     if (!isNaN(newValue)) {
       onChange(newValue);

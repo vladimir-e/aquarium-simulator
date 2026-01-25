@@ -6,7 +6,7 @@ import { getPresetById } from '../presets';
 import { ConfigProvider } from './useConfig';
 
 // Wrapper with ConfigProvider for testing hooks that depend on it
-const wrapper = ({ children }: { children: React.ReactNode }) => (
+const wrapper = ({ children }: { children: React.ReactNode }): React.JSX.Element => (
   <ConfigProvider>{children}</ConfigProvider>
 );
 

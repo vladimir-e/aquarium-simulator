@@ -23,7 +23,7 @@ const STORAGE_KEY = 'aquarium-tunable-config';
  */
 function loadConfig(): TunableConfig | null {
   try {
-    const stored = localStorage.getItem(STORAGE_KEY);
+    const stored = globalThis.localStorage.getItem(STORAGE_KEY);
     if (stored) {
       const parsed = JSON.parse(stored);
       // Merge with defaults to handle added properties
@@ -46,15 +46,15 @@ function loadConfig(): TunableConfig | null {
 /**
  * Save config to localStorage with debouncing.
  */
-let saveTimeout: ReturnType<typeof setTimeout> | null = null;
+let saveTimeout: ReturnType<typeof globalThis.setTimeout> | null = null;
 
 function saveConfig(config: TunableConfig): void {
   if (saveTimeout) {
-    clearTimeout(saveTimeout);
+    globalThis.clearTimeout(saveTimeout);
   }
-  saveTimeout = setTimeout(() => {
+  saveTimeout = globalThis.setTimeout(() => {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(config));
+      globalThis.localStorage.setItem(STORAGE_KEY, JSON.stringify(config));
     } catch {
       // Storage full or unavailable
     }
@@ -106,7 +106,7 @@ function getInitialConfig(): TunableConfig {
  */
 function getInitialDebugPanelState(): boolean {
   try {
-    const stored = localStorage.getItem('aquarium-debug-panel-open');
+    const stored = globalThis.localStorage.getItem('aquarium-debug-panel-open');
     return stored === 'true';
   } catch {
     return false;
@@ -129,7 +129,7 @@ export function ConfigProvider({ children }: ConfigProviderProps): React.JSX.Ele
   // Save debug panel state to localStorage
   useEffect(() => {
     try {
-      localStorage.setItem('aquarium-debug-panel-open', String(isDebugPanelOpen));
+      globalThis.localStorage.setItem('aquarium-debug-panel-open', String(isDebugPanelOpen));
     } catch {
       // Storage unavailable
     }
@@ -180,8 +180,8 @@ export function ConfigProvider({ children }: ConfigProviderProps): React.JSX.Ele
       isValueModified: <K extends keyof TunableConfig>(
         section: K,
         key: keyof TunableConfig[K]
-      ) => isModified(config, section, key),
-      isSectionModified: (section: keyof TunableConfig) =>
+      ): boolean => isModified(config, section, key),
+      isSectionModified: (section: keyof TunableConfig): boolean =>
         isSectionModified(config, section),
       isAnyModified: isConfigModified(config),
       isDebugPanelOpen,
