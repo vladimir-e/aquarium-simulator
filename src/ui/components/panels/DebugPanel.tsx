@@ -17,8 +17,6 @@ interface ConfigInputProps {
   label: string;
   value: number;
   onChange: (value: number) => void;
-  min: number;
-  max: number;
   step: number;
   unit: string;
   isModified: boolean;
@@ -28,8 +26,6 @@ function ConfigInput({
   label,
   value,
   onChange,
-  min,
-  max,
   step,
   unit,
   isModified,
@@ -37,7 +33,7 @@ function ConfigInput({
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
     const newValue = parseFloat(e.target.value);
     if (!isNaN(newValue)) {
-      onChange(Math.max(min, Math.min(max, newValue)));
+      onChange(newValue);
     }
   };
 
@@ -51,8 +47,6 @@ function ConfigInput({
         type="number"
         value={value}
         onChange={handleChange}
-        min={min}
-        max={max}
         step={step}
         className={`w-24 px-2 py-1 text-xs text-right rounded border ${
           isModified
@@ -186,8 +180,6 @@ export function DebugPanel(): React.JSX.Element | null {
               label={meta.label}
               value={config.decay[meta.key]}
               onChange={(value) => updateConfig('decay', meta.key, value)}
-              min={meta.min}
-              max={meta.max}
               step={meta.step}
               unit={meta.unit}
               isModified={isValueModified('decay', meta.key)}
@@ -209,8 +201,6 @@ export function DebugPanel(): React.JSX.Element | null {
               label={meta.label}
               value={config.nitrogenCycle[meta.key]}
               onChange={(value) => updateConfig('nitrogenCycle', meta.key, value)}
-              min={meta.min}
-              max={meta.max}
               step={meta.step}
               unit={meta.unit}
               isModified={isValueModified('nitrogenCycle', meta.key)}
@@ -232,8 +222,6 @@ export function DebugPanel(): React.JSX.Element | null {
               label={meta.label}
               value={config.gasExchange[meta.key]}
               onChange={(value) => updateConfig('gasExchange', meta.key, value)}
-              min={meta.min}
-              max={meta.max}
               step={meta.step}
               unit={meta.unit}
               isModified={isValueModified('gasExchange', meta.key)}
@@ -255,8 +243,6 @@ export function DebugPanel(): React.JSX.Element | null {
               label={meta.label}
               value={config.temperature[meta.key]}
               onChange={(value) => updateConfig('temperature', meta.key, value)}
-              min={meta.min}
-              max={meta.max}
               step={meta.step}
               unit={meta.unit}
               isModified={isValueModified('temperature', meta.key)}
@@ -278,8 +264,6 @@ export function DebugPanel(): React.JSX.Element | null {
               label={meta.label}
               value={config.evaporation[meta.key]}
               onChange={(value) => updateConfig('evaporation', meta.key, value)}
-              min={meta.min}
-              max={meta.max}
               step={meta.step}
               unit={meta.unit}
               isModified={isValueModified('evaporation', meta.key)}
@@ -301,8 +285,6 @@ export function DebugPanel(): React.JSX.Element | null {
               label={meta.label}
               value={config.algae[meta.key]}
               onChange={(value) => updateConfig('algae', meta.key, value)}
-              min={meta.min}
-              max={meta.max}
               step={meta.step}
               unit={meta.unit}
               isModified={isValueModified('algae', meta.key)}
@@ -324,8 +306,6 @@ export function DebugPanel(): React.JSX.Element | null {
               label={meta.label}
               value={config.ph[meta.key]}
               onChange={(value) => updateConfig('ph', meta.key, value)}
-              min={meta.min}
-              max={meta.max}
               step={meta.step}
               unit={meta.unit}
               isModified={isValueModified('ph', meta.key)}
