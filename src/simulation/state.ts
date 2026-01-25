@@ -80,8 +80,6 @@ export interface Environment {
   tapWaterTemperature: number;
   /** Tap water pH for water changes and ATO */
   tapWaterPH: number;
-  /** Ambient waste production rate (g/hour) - very small, seeds bacteria */
-  ambientWaste: number;
 }
 
 export interface Heater {
@@ -425,7 +423,6 @@ export function createSimulation(config: SimulationConfig): SimulationState {
       roomTemperature: effectiveRoomTemp,
       tapWaterTemperature: effectiveTapWaterTemp,
       tapWaterPH: effectiveTapWaterPH,
-      ambientWaste: 0.01, // 0.01 g/hour
     },
     equipment: {
       heater: heaterConfig,

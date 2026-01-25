@@ -106,7 +106,7 @@ export const decaySystem: System = {
     effects.push({
       tier: 'passive',
       resource: 'waste',
-      delta: state.environment.ambientWaste,
+      delta: decayConfig.ambientWaste,
       source: 'environment',
     });
 

@@ -1,23 +1,13 @@
 import React, { useState } from 'react';
 import { Panel } from '../layout/Panel';
-
-import {
-  BASE_DECAY_RATE,
-  getTemperatureFactor,
-} from '../../../simulation/systems/decay';
-import {
-  WASTE_CONVERSION_RATE,
-  WASTE_TO_AMMONIA_RATIO,
-  BACTERIA_PROCESSING_RATE,
-  BACTERIA_PER_CM2,
-} from '../../../simulation/systems/nitrogen-cycle';
+import { useConfig } from '../../hooks/useConfig';
+import { getTemperatureFactor } from '../../../simulation/systems/decay';
 import { getPpm } from '../../../simulation/resources';
 
 interface WaterChemistryProps {
   waste: number;
   food: number;
   temperature: number;
-  ambientWaste: number;
   ammonia: number; // Mass in mg
   nitrite: number; // Mass in mg
   nitrate: number; // Mass in mg
@@ -33,10 +23,15 @@ interface WaterChemistryProps {
 /**
  * Calculate current decay rate (g/hour) based on food and temperature.
  */
-function getCurrentDecayRate(food: number, temperature: number): number {
+function getCurrentDecayRate(
+  food: number,
+  temperature: number,
+  baseDecayRate: number,
+  decayConfig: { q10: number; referenceTemp: number }
+): number {
   if (food <= 0) return 0;
-  const tempFactor = getTemperatureFactor(temperature);
-  return food * BASE_DECAY_RATE * tempFactor;
+  const tempFactor = getTemperatureFactor(temperature, decayConfig);
+  return food * baseDecayRate * tempFactor;
 }
 
 function getAmmoniaColor(ammoniaPpm: number): string {
@@ -96,7 +91,6 @@ export function WaterChemistry({
   waste,
   food,
   temperature,
-  ambientWaste,
   ammonia, // mg
   nitrite, // mg
   nitrate, // mg
@@ -110,10 +104,14 @@ export function WaterChemistry({
 }: WaterChemistryProps): React.JSX.Element {
   const [isWasteExpanded, setIsWasteExpanded] = useState(false);
   const [isNitrogenExpanded, setIsNitrogenExpanded] = useState(false);
+  const { config } = useConfig();
 
-  const decayRate = getCurrentDecayRate(food, temperature);
-  const totalRate = decayRate + ambientWaste;
-  const tempFactor = getTemperatureFactor(temperature);
+  // Extract config values
+  const { decay: decayConfig, nitrogenCycle: ncConfig } = config;
+
+  const decayRate = getCurrentDecayRate(food, temperature, decayConfig.baseDecayRate, decayConfig);
+  const totalRate = decayRate + decayConfig.ambientWaste;
+  const tempFactor = getTemperatureFactor(temperature, decayConfig);
 
   // Derive ppm from mass for display
   const ammoniaPpm = getPpm(ammonia, water);
@@ -122,12 +120,12 @@ export function WaterChemistry({
 
   // Calculate nitrogen cycle rates (as ppm for display)
   // Waste -> Ammonia produces mg, convert to ppm for display
-  const wasteToAmmoniaMassRate = waste * WASTE_CONVERSION_RATE * WASTE_TO_AMMONIA_RATIO;
+  const wasteToAmmoniaMassRate = waste * ncConfig.wasteConversionRate * ncConfig.wasteToAmmoniaRatio;
   const wasteToAmmoniaPpmRate = water > 0 ? wasteToAmmoniaMassRate / water : 0;
   // Bacteria processing (ppm per tick, rate is still expressed as ppm processed)
-  const ammoniaToNitritePpmRate = aob * BACTERIA_PROCESSING_RATE;
-  const nitriteToNitratePpmRate = nob * BACTERIA_PROCESSING_RATE;
-  const maxBacteria = surface * BACTERIA_PER_CM2;
+  const ammoniaToNitritePpmRate = aob * ncConfig.bacteriaProcessingRate;
+  const nitriteToNitratePpmRate = nob * ncConfig.bacteriaProcessingRate;
+  const maxBacteria = surface * ncConfig.bacteriaPerCm2;
 
   return (
     <Panel title="Water Chemistry">
@@ -287,7 +285,7 @@ export function WaterChemistry({
                 <div className="text-xs text-gray-500 ml-2">
                   {food > 0 ? (
                     <>
-                      {food.toFixed(2)}g food × {(BASE_DECAY_RATE * 100).toFixed(0)}%/hr × {tempFactor.toFixed(2)} temp
+                      {food.toFixed(2)}g food × {(decayConfig.baseDecayRate * 100).toFixed(0)}%/hr × {tempFactor.toFixed(2)} temp
                     </>
                   ) : (
                     'No food available'
@@ -300,7 +298,7 @@ export function WaterChemistry({
                 <div className="flex items-center justify-between">
                   <span className="text-xs text-gray-400">Ambient</span>
                   <span className="text-xs text-gray-300">
-                    {ambientWaste.toFixed(3)} g/hr
+                    {decayConfig.ambientWaste.toFixed(3)} g/hr
                   </span>
                 </div>
                 <div className="text-xs text-gray-500 ml-2">

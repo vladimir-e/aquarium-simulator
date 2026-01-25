@@ -13,6 +13,8 @@ export interface DecayConfig {
   wasteConversionRatio: number;
   /** Gas exchange per gram of organic matter oxidized (mg per gram) */
   gasExchangePerGramDecay: number;
+  /** Background waste from environment (g/hr) - dust, debris, seeds bacteria */
+  ambientWaste: number;
 }
 
 export const decayDefaults: DecayConfig = {
@@ -21,6 +23,7 @@ export const decayDefaults: DecayConfig = {
   baseDecayRate: 0.05,
   wasteConversionRatio: 0.4,
   gasExchangePerGramDecay: 250,
+  ambientWaste: 0.01,
 };
 
 export interface DecayConfigMeta {
@@ -38,4 +41,5 @@ export const decayConfigMeta: DecayConfigMeta[] = [
   { key: 'baseDecayRate', label: 'Base Decay Rate', unit: '/hr', min: 0.01, max: 0.2, step: 0.01 },
   { key: 'wasteConversionRatio', label: 'Waste Conversion Ratio', unit: '', min: 0.1, max: 0.9, step: 0.1 },
   { key: 'gasExchangePerGramDecay', label: 'CO2/O2 per Gram Decay', unit: 'mg/g', min: 50, max: 500, step: 10 },
+  { key: 'ambientWaste', label: 'Ambient Waste Rate', unit: 'g/hr', min: 0, max: 0.1, step: 0.005 },
 ];

@@ -105,7 +105,6 @@ describe('decaySystem', () => {
     food: number;
     waste: number;
     temperature: number;
-    ambientWaste: number;
     water: number;
   }> = {}): SimulationState {
     const state = createSimulation({ tankCapacity: 100 });
@@ -118,9 +117,6 @@ describe('decaySystem', () => {
       }
       if (overrides.temperature !== undefined) {
         draft.resources.temperature = overrides.temperature;
-      }
-      if (overrides.ambientWaste !== undefined) {
-        draft.environment.ambientWaste = overrides.ambientWaste;
       }
       if (overrides.water !== undefined) {
         draft.resources.water = overrides.water;
@@ -203,9 +199,13 @@ describe('decaySystem', () => {
     expect(ambientEffect!.source).toBe('environment');
   });
 
-  it('respects custom ambient waste rate', () => {
-    const state = createTestState({ food: 0, ambientWaste: 0.02 });
-    const effects = decaySystem.update(state, DEFAULT_CONFIG);
+  it('respects custom ambient waste rate from config', () => {
+    const state = createTestState({ food: 0 });
+    const customConfig = {
+      ...DEFAULT_CONFIG,
+      decay: { ...DEFAULT_CONFIG.decay, ambientWaste: 0.02 },
+    };
+    const effects = decaySystem.update(state, customConfig);
 
     const ambientEffect = effects.find(
       (e) => e.resource === 'waste' && e.source === 'environment'
