@@ -7,21 +7,13 @@ import {
   calculateWasteToAmmonia,
   calculateAmmoniaToNitrite,
   calculateNitriteToNitrate,
-  WASTE_CONVERSION_RATE,
-  WASTE_TO_AMMONIA_RATIO,
-  BACTERIA_PROCESSING_RATE,
-  AOB_SPAWN_THRESHOLD,
-  NOB_SPAWN_THRESHOLD,
-  SPAWN_AMOUNT,
-  AOB_GROWTH_RATE,
-  BACTERIA_PER_CM2,
-  BACTERIA_DEATH_RATE,
-  AOB_FOOD_THRESHOLD,
 } from './nitrogen-cycle.js';
 import { createSimulation, type SimulationState } from '../state.js';
 import { applyEffects } from '../core/effects.js';
 import { decaySystem } from './decay.js';
 import { getPpm, getMassFromPpm } from '../resources/index.js';
+import { DEFAULT_CONFIG } from '../config/index.js';
+import { nitrogenCycleDefaults } from '../config/nitrogen-cycle.js';
 
 // ============================================================================
 // Helper Function Tests
@@ -33,30 +25,30 @@ describe('calculateMaxBacteria', () => {
   });
 
   it('scales linearly with surface area', () => {
-    expect(calculateMaxBacteria(1000)).toBe(1000 * BACTERIA_PER_CM2);
-    expect(calculateMaxBacteria(5000)).toBe(5000 * BACTERIA_PER_CM2);
+    expect(calculateMaxBacteria(1000)).toBe(1000 * nitrogenCycleDefaults.bacteriaPerCm2);
+    expect(calculateMaxBacteria(5000)).toBe(5000 * nitrogenCycleDefaults.bacteriaPerCm2);
   });
 
-  it('uses BACTERIA_PER_CM2 constant correctly', () => {
+  it('uses bacteriaPerCm2 constant correctly', () => {
     const surface = 10000;
-    expect(calculateMaxBacteria(surface)).toBe(surface * BACTERIA_PER_CM2);
+    expect(calculateMaxBacteria(surface)).toBe(surface * nitrogenCycleDefaults.bacteriaPerCm2);
   });
 });
 
 describe('calculateBacterialGrowth', () => {
   it('returns 0 for zero population', () => {
-    expect(calculateBacterialGrowth(0, AOB_GROWTH_RATE, 1000)).toBe(0);
+    expect(calculateBacterialGrowth(0, nitrogenCycleDefaults.aobGrowthRate, 1000)).toBe(0);
   });
 
   it('returns 0 for zero max population', () => {
-    expect(calculateBacterialGrowth(100, AOB_GROWTH_RATE, 0)).toBe(0);
+    expect(calculateBacterialGrowth(100, nitrogenCycleDefaults.aobGrowthRate, 0)).toBe(0);
   });
 
   it('follows logistic growth formula', () => {
     const population = 100;
     const maxPopulation = 1000;
-    const expectedGrowth = population * AOB_GROWTH_RATE * (1 - population / maxPopulation);
-    expect(calculateBacterialGrowth(population, AOB_GROWTH_RATE, maxPopulation)).toBeCloseTo(
+    const expectedGrowth = population * nitrogenCycleDefaults.aobGrowthRate * (1 - population / maxPopulation);
+    expect(calculateBacterialGrowth(population, nitrogenCycleDefaults.aobGrowthRate, maxPopulation)).toBeCloseTo(
       expectedGrowth,
       10
     );
@@ -64,9 +56,9 @@ describe('calculateBacterialGrowth', () => {
 
   it('slows down as population approaches max', () => {
     const maxPopulation = 1000;
-    const growthAt10Percent = calculateBacterialGrowth(100, AOB_GROWTH_RATE, maxPopulation);
-    const growthAt50Percent = calculateBacterialGrowth(500, AOB_GROWTH_RATE, maxPopulation);
-    const growthAt90Percent = calculateBacterialGrowth(900, AOB_GROWTH_RATE, maxPopulation);
+    const growthAt10Percent = calculateBacterialGrowth(100, nitrogenCycleDefaults.aobGrowthRate, maxPopulation);
+    const growthAt50Percent = calculateBacterialGrowth(500, nitrogenCycleDefaults.aobGrowthRate, maxPopulation);
+    const growthAt90Percent = calculateBacterialGrowth(900, nitrogenCycleDefaults.aobGrowthRate, maxPopulation);
 
     // Relative growth rate should decrease
     expect(growthAt50Percent / 500).toBeLessThan(growthAt10Percent / 100);
@@ -74,7 +66,7 @@ describe('calculateBacterialGrowth', () => {
   });
 
   it('returns near-zero growth at carrying capacity', () => {
-    const growth = calculateBacterialGrowth(999, AOB_GROWTH_RATE, 1000);
+    const growth = calculateBacterialGrowth(999, nitrogenCycleDefaults.aobGrowthRate, 1000);
     expect(growth).toBeCloseTo(0.03 * 999 * 0.001, 6);
   });
 });
@@ -88,13 +80,13 @@ describe('calculateWasteToAmmonia', () => {
 
   it('converts 30% of waste per tick', () => {
     const result = calculateWasteToAmmonia(10);
-    expect(result.wasteConsumed).toBeCloseTo(10 * WASTE_CONVERSION_RATE, 10);
+    expect(result.wasteConsumed).toBeCloseTo(10 * nitrogenCycleDefaults.wasteConversionRate, 10);
   });
 
   it('produces ammonia mass proportional to waste consumed', () => {
     const result = calculateWasteToAmmonia(10);
     expect(result.ammoniaProduced).toBeCloseTo(
-      result.wasteConsumed * WASTE_TO_AMMONIA_RATIO,
+      result.wasteConsumed * nitrogenCycleDefaults.wasteToAmmoniaRatio,
       10
     );
   });
@@ -102,7 +94,7 @@ describe('calculateWasteToAmmonia', () => {
   it('produces same ammonia mass regardless of tank size (mass-based)', () => {
     // Unlike ppm-based, mass output is independent of water volume
     const result = calculateWasteToAmmonia(10);
-    expect(result.ammoniaProduced).toBeCloseTo(10 * WASTE_CONVERSION_RATE * WASTE_TO_AMMONIA_RATIO, 10);
+    expect(result.ammoniaProduced).toBeCloseTo(10 * nitrogenCycleDefaults.wasteConversionRate * nitrogenCycleDefaults.wasteToAmmoniaRatio, 10);
   });
 });
 
@@ -125,7 +117,7 @@ describe('calculateAmmoniaToNitrite', () => {
     const ammoniaMass = 100; // More mass than can be processed
     const processed = calculateAmmoniaToNitrite(ammoniaMass, bacteria, waterVolume);
     // Processing capacity = bacteria * rate * water
-    expect(processed).toBeCloseTo(bacteria * BACTERIA_PROCESSING_RATE * waterVolume, 10);
+    expect(processed).toBeCloseTo(bacteria * nitrogenCycleDefaults.bacteriaProcessingRate * waterVolume, 10);
   });
 
   it('cannot process more ammonia than available', () => {
@@ -168,7 +160,7 @@ describe('calculateNitriteToNitrate', () => {
     const waterVolume = 40;
     const nitriteMass = 100; // More mass than can be processed
     const processed = calculateNitriteToNitrate(nitriteMass, bacteria, waterVolume);
-    expect(processed).toBeCloseTo(bacteria * BACTERIA_PROCESSING_RATE * waterVolume, 10);
+    expect(processed).toBeCloseTo(bacteria * nitrogenCycleDefaults.bacteriaProcessingRate * waterVolume, 10);
   });
 
   it('cannot process more nitrite than available', () => {
@@ -272,7 +264,7 @@ describe('nitrogenCycleSystem', () => {
   describe('Waste to Ammonia', () => {
     it('converts waste to ammonia mass', () => {
       const state = createTestState({ waste: 10, water: 40 });
-      const effects = nitrogenCycleSystem.update(state);
+      const effects = nitrogenCycleSystem.update(state, DEFAULT_CONFIG);
 
       const wasteEffect = effects.find(
         (e) => e.resource === 'waste' && e.source === 'nitrogen-cycle-mineralization'
@@ -286,12 +278,12 @@ describe('nitrogenCycleSystem', () => {
       expect(ammoniaEffect).toBeDefined();
       expect(ammoniaEffect!.delta).toBeGreaterThan(0);
       // Ammonia produced = waste consumed * ratio
-      expect(ammoniaEffect!.delta).toBeCloseTo(-wasteEffect!.delta * WASTE_TO_AMMONIA_RATIO, 10);
+      expect(ammoniaEffect!.delta).toBeCloseTo(-wasteEffect!.delta * nitrogenCycleDefaults.wasteToAmmoniaRatio, 10);
     });
 
     it('produces no ammonia when waste is 0', () => {
       const state = createTestState({ waste: 0 });
-      const effects = nitrogenCycleSystem.update(state);
+      const effects = nitrogenCycleSystem.update(state, DEFAULT_CONFIG);
 
       const ammoniaEffect = effects.find(
         (e) => e.resource === 'ammonia' && e.source === 'nitrogen-cycle-mineralization'
@@ -304,7 +296,7 @@ describe('nitrogenCycleSystem', () => {
     it('processes ammonia mass when AOB present', () => {
       // Set ammonia mass (not ppm)
       const state = createTestState({ ammonia: ppmToMass(1.0), aob: 100 });
-      const effects = nitrogenCycleSystem.update(state);
+      const effects = nitrogenCycleSystem.update(state, DEFAULT_CONFIG);
 
       const ammoniaEffect = effects.find(
         (e) => e.resource === 'ammonia' && e.source === 'nitrogen-cycle-aob'
@@ -322,7 +314,7 @@ describe('nitrogenCycleSystem', () => {
 
     it('does not process ammonia when AOB is 0', () => {
       const state = createTestState({ ammonia: ppmToMass(1.0), aob: 0 });
-      const effects = nitrogenCycleSystem.update(state);
+      const effects = nitrogenCycleSystem.update(state, DEFAULT_CONFIG);
 
       const ammoniaEffect = effects.find(
         (e) => e.resource === 'ammonia' && e.source === 'nitrogen-cycle-aob'
@@ -334,7 +326,7 @@ describe('nitrogenCycleSystem', () => {
   describe('NOB Processing', () => {
     it('processes nitrite mass when NOB present', () => {
       const state = createTestState({ nitrite: ppmToMass(1.0), nob: 100 });
-      const effects = nitrogenCycleSystem.update(state);
+      const effects = nitrogenCycleSystem.update(state, DEFAULT_CONFIG);
 
       const nitriteEffect = effects.find(
         (e) => e.resource === 'nitrite' && e.source === 'nitrogen-cycle-nob'
@@ -352,7 +344,7 @@ describe('nitrogenCycleSystem', () => {
 
     it('does not process nitrite when NOB is 0', () => {
       const state = createTestState({ nitrite: ppmToMass(1.0), nob: 0 });
-      const effects = nitrogenCycleSystem.update(state);
+      const effects = nitrogenCycleSystem.update(state, DEFAULT_CONFIG);
 
       const nitriteEffect = effects.find(
         (e) => e.resource === 'nitrite' && e.source === 'nitrogen-cycle-nob'
@@ -364,19 +356,19 @@ describe('nitrogenCycleSystem', () => {
   describe('Bacteria Spawning (ppm thresholds)', () => {
     it('spawns AOB when ammonia ppm reaches threshold', () => {
       // Use mass that produces spawn threshold ppm
-      const state = createTestState({ ammonia: ppmToMass(AOB_SPAWN_THRESHOLD), aob: 0 });
-      const effects = nitrogenCycleSystem.update(state);
+      const state = createTestState({ ammonia: ppmToMass(nitrogenCycleDefaults.aobSpawnThreshold), aob: 0 });
+      const effects = nitrogenCycleSystem.update(state, DEFAULT_CONFIG);
 
       const aobEffect = effects.find(
         (e) => e.resource === 'aob' && e.source === 'nitrogen-cycle-spawn'
       );
       expect(aobEffect).toBeDefined();
-      expect(aobEffect!.delta).toBe(SPAWN_AMOUNT);
+      expect(aobEffect!.delta).toBe(nitrogenCycleDefaults.spawnAmount);
     });
 
     it('does not spawn AOB when already present', () => {
-      const state = createTestState({ ammonia: ppmToMass(AOB_SPAWN_THRESHOLD), aob: 1 });
-      const effects = nitrogenCycleSystem.update(state);
+      const state = createTestState({ ammonia: ppmToMass(nitrogenCycleDefaults.aobSpawnThreshold), aob: 1 });
+      const effects = nitrogenCycleSystem.update(state, DEFAULT_CONFIG);
 
       const aobSpawnEffect = effects.find(
         (e) => e.resource === 'aob' && e.source === 'nitrogen-cycle-spawn'
@@ -385,8 +377,8 @@ describe('nitrogenCycleSystem', () => {
     });
 
     it('does not spawn AOB when ammonia ppm below threshold', () => {
-      const state = createTestState({ ammonia: ppmToMass(AOB_SPAWN_THRESHOLD - 0.01), aob: 0 });
-      const effects = nitrogenCycleSystem.update(state);
+      const state = createTestState({ ammonia: ppmToMass(nitrogenCycleDefaults.aobSpawnThreshold - 0.01), aob: 0 });
+      const effects = nitrogenCycleSystem.update(state, DEFAULT_CONFIG);
 
       const aobEffect = effects.find(
         (e) => e.resource === 'aob' && e.source === 'nitrogen-cycle-spawn'
@@ -395,14 +387,14 @@ describe('nitrogenCycleSystem', () => {
     });
 
     it('spawns NOB when nitrite ppm reaches threshold', () => {
-      const state = createTestState({ nitrite: ppmToMass(NOB_SPAWN_THRESHOLD), nob: 0 });
-      const effects = nitrogenCycleSystem.update(state);
+      const state = createTestState({ nitrite: ppmToMass(nitrogenCycleDefaults.nobSpawnThreshold), nob: 0 });
+      const effects = nitrogenCycleSystem.update(state, DEFAULT_CONFIG);
 
       const nobEffect = effects.find(
         (e) => e.resource === 'nob' && e.source === 'nitrogen-cycle-spawn'
       );
       expect(nobEffect).toBeDefined();
-      expect(nobEffect!.delta).toBe(SPAWN_AMOUNT);
+      expect(nobEffect!.delta).toBe(nitrogenCycleDefaults.spawnAmount);
     });
   });
 
@@ -413,7 +405,7 @@ describe('nitrogenCycleSystem', () => {
         aob: 100,
         surface: 100000, // Large surface so max = 1000, room to grow
       });
-      const effects = nitrogenCycleSystem.update(state);
+      const effects = nitrogenCycleSystem.update(state, DEFAULT_CONFIG);
 
       const growthEffect = effects.find(
         (e) => e.resource === 'aob' && e.source === 'nitrogen-cycle-growth'
@@ -424,10 +416,10 @@ describe('nitrogenCycleSystem', () => {
 
     it('AOB does not grow when ammonia ppm scarce', () => {
       const state = createTestState({
-        ammonia: ppmToMass(AOB_FOOD_THRESHOLD - 0.0001),
+        ammonia: ppmToMass(nitrogenCycleDefaults.aobFoodThreshold - 0.0001),
         aob: 100,
       });
-      const effects = nitrogenCycleSystem.update(state);
+      const effects = nitrogenCycleSystem.update(state, DEFAULT_CONFIG);
 
       const growthEffect = effects.find(
         (e) => e.resource === 'aob' && e.source === 'nitrogen-cycle-growth'
@@ -441,7 +433,7 @@ describe('nitrogenCycleSystem', () => {
         nob: 100,
         surface: 100000, // Large surface so max = 1000, room to grow
       });
-      const effects = nitrogenCycleSystem.update(state);
+      const effects = nitrogenCycleSystem.update(state, DEFAULT_CONFIG);
 
       const growthEffect = effects.find(
         (e) => e.resource === 'nob' && e.source === 'nitrogen-cycle-growth'
@@ -457,14 +449,14 @@ describe('nitrogenCycleSystem', () => {
         ammonia: 0, // No food (0 mg = 0 ppm)
         aob: 100,
       });
-      const effects = nitrogenCycleSystem.update(state);
+      const effects = nitrogenCycleSystem.update(state, DEFAULT_CONFIG);
 
       const deathEffect = effects.find(
         (e) => e.resource === 'aob' && e.source === 'nitrogen-cycle-death'
       );
       expect(deathEffect).toBeDefined();
       expect(deathEffect!.delta).toBeLessThan(0);
-      expect(deathEffect!.delta).toBeCloseTo(-100 * BACTERIA_DEATH_RATE, 10);
+      expect(deathEffect!.delta).toBeCloseTo(-100 * nitrogenCycleDefaults.bacteriaDeathRate, 10);
     });
 
     it('AOB does not die when ammonia ppm available', () => {
@@ -472,7 +464,7 @@ describe('nitrogenCycleSystem', () => {
         ammonia: ppmToMass(0.5),
         aob: 100,
       });
-      const effects = nitrogenCycleSystem.update(state);
+      const effects = nitrogenCycleSystem.update(state, DEFAULT_CONFIG);
 
       const deathEffect = effects.find(
         (e) => e.resource === 'aob' && e.source === 'nitrogen-cycle-death'
@@ -485,7 +477,7 @@ describe('nitrogenCycleSystem', () => {
         nitrite: 0,
         nob: 100,
       });
-      const effects = nitrogenCycleSystem.update(state);
+      const effects = nitrogenCycleSystem.update(state, DEFAULT_CONFIG);
 
       const deathEffect = effects.find(
         (e) => e.resource === 'nob' && e.source === 'nitrogen-cycle-death'
@@ -501,7 +493,7 @@ describe('nitrogenCycleSystem', () => {
         aob: 500,
         surface: 10000, // Max = 100 bacteria with BACTERIA_PER_CM2 = 0.01
       });
-      const effects = nitrogenCycleSystem.update(state);
+      const effects = nitrogenCycleSystem.update(state, DEFAULT_CONFIG);
 
       const capEffect = effects.find(
         (e) => e.resource === 'aob' && e.source === 'nitrogen-cycle-surface-cap'
@@ -515,7 +507,7 @@ describe('nitrogenCycleSystem', () => {
         nob: 500,
         surface: 10000, // Max = 100 bacteria with BACTERIA_PER_CM2 = 0.01
       });
-      const effects = nitrogenCycleSystem.update(state);
+      const effects = nitrogenCycleSystem.update(state, DEFAULT_CONFIG);
 
       const capEffect = effects.find(
         (e) => e.resource === 'nob' && e.source === 'nitrogen-cycle-surface-cap'
@@ -530,7 +522,7 @@ describe('nitrogenCycleSystem', () => {
         nob: 50,
         surface: 10000, // Max = 100 bacteria with BACTERIA_PER_CM2 = 0.01
       });
-      const effects = nitrogenCycleSystem.update(state);
+      const effects = nitrogenCycleSystem.update(state, DEFAULT_CONFIG);
 
       const aobCapEffect = effects.find(
         (e) => e.resource === 'aob' && e.source === 'nitrogen-cycle-surface-cap'
@@ -630,7 +622,7 @@ describe('25-Day Tank Cycling Integration Test', () => {
     // Run for 600 ticks (25 days)
     for (let tick = 0; tick < 600; tick++) {
       // Apply nitrogen cycle system
-      const nitrogenEffects = nitrogenCycleSystem.update(state);
+      const nitrogenEffects = nitrogenCycleSystem.update(state, DEFAULT_CONFIG);
       state = applyEffects(state, nitrogenEffects);
 
       // Derive ppm for tracking
@@ -704,10 +696,10 @@ describe('25-Day Tank Cycling Integration Test', () => {
 
     // Run for 500 ticks
     for (let tick = 0; tick < 500; tick++) {
-      const decayEffects = decaySystem.update(state);
+      const decayEffects = decaySystem.update(state, DEFAULT_CONFIG);
       state = applyEffects(state, decayEffects);
 
-      const nitrogenEffects = nitrogenCycleSystem.update(state);
+      const nitrogenEffects = nitrogenCycleSystem.update(state, DEFAULT_CONFIG);
       state = applyEffects(state, nitrogenEffects);
 
       state = produce(state, (draft) => {

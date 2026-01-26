@@ -10,37 +10,8 @@
 import type { Effect } from '../core/effects.js';
 import type { SimulationState } from '../state.js';
 import type { System } from './types.js';
-
-// ============================================================================
-// Constants
-// ============================================================================
-
-/** Atmospheric CO2 equilibrium concentration (mg/L) */
-export const ATMOSPHERIC_CO2 = 4.0;
-
-/**
- * O2 saturation formula coefficients (simplified Henry's Law).
- * Saturation decreases with temperature as gases are less soluble in warmer water.
- */
-/** Base O2 saturation at reference temperature (mg/L at 15°C) */
-export const O2_SATURATION_BASE = 8.5;
-/** Change in saturation per °C (negative = less O2 as temp increases) */
-export const O2_SATURATION_SLOPE = -0.05;
-/** Reference temperature for saturation calculation (°C) */
-export const O2_REFERENCE_TEMP = 15;
-
-/**
- * Exchange rate constants.
- * Gas exchange uses exponential decay toward equilibrium each tick.
- */
-/** Fraction of difference moved toward equilibrium per tick at optimal flow */
-export const BASE_EXCHANGE_RATE = 0.25;
-/** Tank turnovers per hour needed for maximum exchange rate */
-export const OPTIMAL_FLOW_TURNOVER = 10;
-
-// ============================================================================
-// Helper Functions
-// ============================================================================
+import type { TunableConfig } from '../config/index.js';
+import { type GasExchangeConfig, gasExchangeDefaults } from '../config/gas-exchange.js';
 
 /**
  * Calculate O2 saturation based on temperature.
@@ -49,9 +20,12 @@ export const OPTIMAL_FLOW_TURNOVER = 10;
  * @param temperature - Water temperature in °C
  * @returns O2 saturation concentration in mg/L
  */
-export function calculateO2Saturation(temperature: number): number {
+export function calculateO2Saturation(
+  temperature: number,
+  config: GasExchangeConfig = gasExchangeDefaults
+): number {
   const saturation =
-    O2_SATURATION_BASE + O2_SATURATION_SLOPE * (temperature - O2_REFERENCE_TEMP);
+    config.o2SaturationBase + config.o2SaturationSlope * (temperature - config.o2ReferenceTemp);
   // Floor at 4 mg/L even at extreme temperatures
   return Math.max(saturation, 4.0);
 }
@@ -64,11 +38,15 @@ export function calculateO2Saturation(temperature: number): number {
  * @param tankCapacity - Tank capacity in L
  * @returns Flow factor between 0 and 1
  */
-export function calculateFlowFactor(flow: number, tankCapacity: number): number {
+export function calculateFlowFactor(
+  flow: number,
+  tankCapacity: number,
+  config: GasExchangeConfig = gasExchangeDefaults
+): number {
   if (tankCapacity <= 0) return 0;
   const turnovers = flow / tankCapacity;
   // Approaches 1.0 asymptotically as flow increases
-  return Math.min(1.0, turnovers / OPTIMAL_FLOW_TURNOVER);
+  return Math.min(1.0, turnovers / config.optimalFlowTurnover);
 }
 
 /**
@@ -99,21 +77,22 @@ export const gasExchangeSystem: System = {
   id: 'gas-exchange',
   tier: 'passive',
 
-  update(state: SimulationState): Effect[] {
+  update(state: SimulationState, config: TunableConfig): Effect[] {
     const effects: Effect[] = [];
     const { resources, tank } = state;
+    const geConfig = config.gasExchange;
 
     // Calculate temperature-dependent O2 saturation
-    const o2Saturation = calculateO2Saturation(resources.temperature);
+    const o2Saturation = calculateO2Saturation(resources.temperature, geConfig);
 
     // Calculate flow factor (0-1 based on tank turnovers)
-    const flowFactor = calculateFlowFactor(resources.flow, tank.capacity);
+    const flowFactor = calculateFlowFactor(resources.flow, tank.capacity, geConfig);
 
     // O2 exchange: move toward saturation
     const o2Delta = calculateGasExchange(
       resources.oxygen,
       o2Saturation,
-      BASE_EXCHANGE_RATE,
+      geConfig.baseExchangeRate,
       flowFactor
     );
 
@@ -129,8 +108,8 @@ export const gasExchangeSystem: System = {
     // CO2 exchange: move toward atmospheric equilibrium
     const co2Delta = calculateGasExchange(
       resources.co2,
-      ATMOSPHERIC_CO2,
-      BASE_EXCHANGE_RATE,
+      geConfig.atmosphericCo2,
+      geConfig.baseExchangeRate,
       flowFactor
     );
 

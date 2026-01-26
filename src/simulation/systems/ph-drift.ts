@@ -11,42 +11,8 @@
 import type { Effect } from '../core/effects.js';
 import type { SimulationState, HardscapeItem } from '../state.js';
 import type { System } from './types.js';
-
-// ============================================================================
-// Constants
-// ============================================================================
-
-/** pH target for calcite rock (pushes pH up) */
-export const CALCITE_TARGET_PH = 8.0;
-
-/** pH target for driftwood (pushes pH down) */
-export const DRIFTWOOD_TARGET_PH = 6.0;
-
-/** Neutral pH when no hardscape present */
-export const NEUTRAL_PH = 7.0;
-
-/** Base drift rate (fraction toward target per tick) */
-export const BASE_PH_DRIFT_RATE = 0.05;
-
-/**
- * CO2 effect on pH.
- * At atmospheric CO2 (~4 mg/L), no effect.
- * Each mg/L above atmospheric lowers pH by this amount.
- */
-export const CO2_PH_COEFFICIENT = -0.02;
-
-/** CO2 level at atmospheric equilibrium (no pH effect) */
-export const CO2_NEUTRAL_LEVEL = 4.0;
-
-/**
- * Diminishing returns factor for multiple hardscape items.
- * Each additional item has this fraction of the previous item's effect.
- */
-export const HARDSCAPE_DIMINISHING_FACTOR = 0.7;
-
-// ============================================================================
-// Helper Functions
-// ============================================================================
+import type { TunableConfig } from '../config/index.js';
+import { type PhConfig, phDefaults } from '../config/ph.js';
 
 /**
  * Calculate the target pH based on hardscape items.
@@ -55,8 +21,11 @@ export const HARDSCAPE_DIMINISHING_FACTOR = 0.7;
  * @param items - Array of hardscape items in the tank
  * @returns Target pH value (between 6.0 and 8.0 typically)
  */
-export function calculateHardscapeTargetPH(items: HardscapeItem[]): number {
-  let target = NEUTRAL_PH;
+export function calculateHardscapeTargetPH(
+  items: HardscapeItem[],
+  config: PhConfig = phDefaults
+): number {
+  let target = config.neutralPh;
   let calciteCount = 0;
   let driftwoodCount = 0;
 
@@ -69,12 +38,12 @@ export function calculateHardscapeTargetPH(items: HardscapeItem[]): number {
   // More items = stronger pull, but with diminishing returns
   // Formula: pull = 1 - (diminishing_factor ^ count) approaches 1 asymptotically
   if (calciteCount > 0) {
-    const calcitePull = 1 - Math.pow(HARDSCAPE_DIMINISHING_FACTOR, calciteCount);
-    target += (CALCITE_TARGET_PH - NEUTRAL_PH) * calcitePull;
+    const calcitePull = 1 - Math.pow(config.hardscapeDiminishingFactor, calciteCount);
+    target += (config.calciteTargetPh - config.neutralPh) * calcitePull;
   }
   if (driftwoodCount > 0) {
-    const driftwoodPull = 1 - Math.pow(HARDSCAPE_DIMINISHING_FACTOR, driftwoodCount);
-    target += (DRIFTWOOD_TARGET_PH - NEUTRAL_PH) * driftwoodPull;
+    const driftwoodPull = 1 - Math.pow(config.hardscapeDiminishingFactor, driftwoodCount);
+    target += (config.driftwoodTargetPh - config.neutralPh) * driftwoodPull;
   }
 
   return target;
@@ -87,9 +56,12 @@ export function calculateHardscapeTargetPH(items: HardscapeItem[]): number {
  * @param co2 - Current CO2 concentration in mg/L
  * @returns pH adjustment (negative for high CO2)
  */
-export function calculateCO2PHEffect(co2: number): number {
-  const co2Excess = co2 - CO2_NEUTRAL_LEVEL;
-  return co2Excess * CO2_PH_COEFFICIENT;
+export function calculateCO2PHEffect(
+  co2: number,
+  config: PhConfig = phDefaults
+): number {
+  const co2Excess = co2 - config.co2NeutralLevel;
+  return co2Excess * config.co2PhCoefficient;
 }
 
 // ============================================================================
@@ -100,21 +72,22 @@ export const phDriftSystem: System = {
   id: 'ph-drift',
   tier: 'passive',
 
-  update(state: SimulationState): Effect[] {
+  update(state: SimulationState, config: TunableConfig): Effect[] {
     const { resources, equipment } = state;
     const hardscapeItems = equipment.hardscape.items;
+    const phConfig = config.ph;
 
     // Calculate target pH from hardscape
-    const hardscapeTarget = calculateHardscapeTargetPH(hardscapeItems);
+    const hardscapeTarget = calculateHardscapeTargetPH(hardscapeItems, phConfig);
 
     // Calculate CO2 effect (additive to target pH)
-    const co2Effect = calculateCO2PHEffect(resources.co2);
+    const co2Effect = calculateCO2PHEffect(resources.co2, phConfig);
 
     // Effective target = hardscape target + CO2 effect
     const effectiveTarget = hardscapeTarget + co2Effect;
 
     // Drift toward target using exponential approach
-    const phDelta = BASE_PH_DRIFT_RATE * (effectiveTarget - resources.ph);
+    const phDelta = phConfig.basePgDriftRate * (effectiveTarget - resources.ph);
 
     // Skip negligible changes
     if (Math.abs(phDelta) < 0.001) return [];

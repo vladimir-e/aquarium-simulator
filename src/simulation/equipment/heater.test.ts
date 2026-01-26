@@ -5,7 +5,7 @@ import {
   applyHeaterStateChange,
 } from './heater.js';
 import { createSimulation } from '../state.js';
-import { REFERENCE_VOLUME, VOLUME_EXPONENT } from '../systems/temperature-drift.js';
+import { temperatureDefaults } from '../config/temperature.js';
 
 describe('calculateHeatingRate', () => {
   it('calculates heating rate based on wattage and volume', () => {
@@ -31,10 +31,10 @@ describe('calculateHeatingRate', () => {
 
   it('follows expected formula at reference volume', () => {
     const wattage = 100;
-    const rate = calculateHeatingRate(wattage, REFERENCE_VOLUME);
+    const rate = calculateHeatingRate(wattage, temperatureDefaults.referenceVolume);
 
     // At reference volume, volumeScale = 1
-    const expected = wattage / REFERENCE_VOLUME;
+    const expected = wattage / temperatureDefaults.referenceVolume;
     expect(rate).toBeCloseTo(expected, 6);
   });
 
@@ -43,7 +43,7 @@ describe('calculateHeatingRate', () => {
     const volume = 50;
     const rate = calculateHeatingRate(wattage, volume);
 
-    const volumeScale = Math.pow(REFERENCE_VOLUME / volume, VOLUME_EXPONENT);
+    const volumeScale = Math.pow(temperatureDefaults.referenceVolume / volume, temperatureDefaults.volumeExponent);
     const expected = (wattage / volume) * volumeScale;
     expect(rate).toBeCloseTo(expected, 6);
   });

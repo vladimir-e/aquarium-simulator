@@ -14,7 +14,8 @@
 import type { Effect } from '../core/effects.js';
 import type { SimulationState } from '../state.js';
 import { blendTemperature, blendConcentration, blendPH } from '../core/blending.js';
-import { calculateO2Saturation, ATMOSPHERIC_CO2 } from '../systems/gas-exchange.js';
+import { calculateO2Saturation } from '../systems/gas-exchange.js';
+import { gasExchangeDefaults } from '../config/gas-exchange.js';
 
 /**
  * Water level threshold as fraction of capacity.
@@ -55,7 +56,7 @@ export function atoUpdate(state: SimulationState): Effect[] {
   // Calculate O2/CO2 blending
   // Tap water comes saturated with O2 (at tap temp) and at atmospheric CO2
   const tapO2Saturation = calculateO2Saturation(tapTemp);
-  const tapCo2 = ATMOSPHERIC_CO2;
+  const tapCo2 = gasExchangeDefaults.atmosphericCo2;
 
   const blendedO2 = blendConcentration(
     state.resources.oxygen,

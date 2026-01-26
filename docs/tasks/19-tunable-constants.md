@@ -1,6 +1,6 @@
 # Task 19: Tunable Constants Debug Panel
 
-**Status:** pending
+**Status:** completed
 
 ## Overview
 
@@ -210,14 +210,14 @@ Add debug panel toggle to Timeline component:
 
 ## Acceptance Criteria
 
-- [ ] All ~35 system constants are tunables via debug panel
-- [ ] Changes apply immediately to running simulation
-- [ ] Values persist across page reloads (localStorage)
-- [ ] Reset buttons work (per-section and global)
-- [ ] Modified values are visually distinguished from defaults
-- [ ] Panel can be toggled on/off
-- [ ] No performance impact when panel is closed
-- [ ] TypeScript types are strict (no `any`)
+- [x] All ~35 system constants are tunables via debug panel
+- [x] Changes apply immediately to running simulation
+- [x] Values persist across page reloads (localStorage)
+- [x] Reset buttons work (per-section and global)
+- [x] Modified values are visually distinguished from defaults
+- [x] Panel can be toggled on/off
+- [x] No performance impact when panel is closed
+- [x] TypeScript types are strict (no `any`)
 
 ## Tests
 

@@ -2,11 +2,10 @@ import { describe, it, expect } from 'vitest';
 import {
   calculateTemperatureDrift,
   temperatureDriftSystem,
-  COOLING_COEFFICIENT,
-  REFERENCE_VOLUME,
-  VOLUME_EXPONENT,
 } from './temperature-drift.js';
 import { createSimulation } from '../state.js';
+import { DEFAULT_CONFIG } from '../config/index.js';
+import { temperatureDefaults } from '../config/temperature.js';
 
 describe('calculateTemperatureDrift', () => {
   it('drifts toward room temp when water is warmer', () => {
@@ -55,10 +54,10 @@ describe('calculateTemperatureDrift', () => {
     const roomTemp = 22;
     const deltaT = waterTemp - roomTemp; // 6°C
 
-    const drift = calculateTemperatureDrift(waterTemp, roomTemp, REFERENCE_VOLUME);
+    const drift = calculateTemperatureDrift(waterTemp, roomTemp, temperatureDefaults.referenceVolume);
 
-    // At reference volume, volumeScale = 1, coolingRate = COOLING_COEFFICIENT * deltaT
-    const expectedRate = COOLING_COEFFICIENT * deltaT;
+    // At reference volume, volumeScale = 1, coolingRate = coolingCoefficient * deltaT
+    const expectedRate = temperatureDefaults.coolingCoefficient * deltaT;
     expect(drift).toBeCloseTo(-expectedRate, 6);
   });
 
@@ -69,8 +68,8 @@ describe('calculateTemperatureDrift', () => {
 
     const drift = calculateTemperatureDrift(waterTemp, roomTemp, volume);
 
-    const volumeScale = Math.pow(REFERENCE_VOLUME / volume, VOLUME_EXPONENT);
-    const expectedRate = COOLING_COEFFICIENT * 6 * volumeScale;
+    const volumeScale = Math.pow(temperatureDefaults.referenceVolume / volume, temperatureDefaults.volumeExponent);
+    const expectedRate = temperatureDefaults.coolingCoefficient * 6 * volumeScale;
     expect(drift).toBeCloseTo(-expectedRate, 6);
   });
 });
@@ -88,7 +87,7 @@ describe('temperatureDriftSystem', () => {
       roomTemperature: 22,
     });
 
-    const effects = temperatureDriftSystem.update(state);
+    const effects = temperatureDriftSystem.update(state, DEFAULT_CONFIG);
 
     expect(effects).toHaveLength(1);
     expect(effects[0].tier).toBe('immediate');
@@ -104,7 +103,7 @@ describe('temperatureDriftSystem', () => {
       roomTemperature: 22,
     });
 
-    const effects = temperatureDriftSystem.update(state);
+    const effects = temperatureDriftSystem.update(state, DEFAULT_CONFIG);
 
     expect(effects).toHaveLength(1);
     expect(effects[0].delta).toBeGreaterThan(0);
@@ -117,7 +116,7 @@ describe('temperatureDriftSystem', () => {
       roomTemperature: 22,
     });
 
-    const effects = temperatureDriftSystem.update(state);
+    const effects = temperatureDriftSystem.update(state, DEFAULT_CONFIG);
 
     expect(effects).toHaveLength(0);
   });

@@ -14,56 +14,18 @@
 import type { Effect } from '../core/effects.js';
 import type { SimulationState } from '../state.js';
 import type { System } from './types.js';
+import type { TunableConfig } from '../config/index.js';
+import { type NitrogenCycleConfig, nitrogenCycleDefaults } from '../config/nitrogen-cycle.js';
 import { getPpm } from '../resources/index.js';
-
-// ============================================================================
-// Constants
-// ============================================================================
-
-// Waste → Ammonia conversion
-/** Fraction of waste converted to ammonia per tick */
-export const WASTE_CONVERSION_RATE = 0.3;
-
-/** Conversion ratio: grams waste to mg ammonia (1g waste = 1mg ammonia) */
-export const WASTE_TO_AMMONIA_RATIO = 1.0;
-
-// Bacterial processing rates
-/** ppm processed per bacteria unit per tick (multiply by water to get mass) */
-export const BACTERIA_PROCESSING_RATE = 0.000002;
-
-// Spawning thresholds (in ppm - derived from mass/water)
-/** ppm ammonia to trigger AOB spawn */
-export const AOB_SPAWN_THRESHOLD = 0.02;
-/** ppm nitrite to trigger NOB spawn */
-export const NOB_SPAWN_THRESHOLD = 0.125;
-/** Initial bacteria when spawning */
-export const SPAWN_AMOUNT = 10;
-
-// Growth (logistic)
-/** AOB growth rate per tick (~doubles per day) */
-export const AOB_GROWTH_RATE = 0.03;
-/** NOB growth rate per tick (slower than AOB) */
-export const NOB_GROWTH_RATE = 0.05;
-/** Max bacteria per cm² surface */
-export const BACTERIA_PER_CM2 = 0.01;
-
-// Death thresholds (in ppm - derived from mass/water)
-/** Fraction of bacteria that die per tick without food */
-export const BACTERIA_DEATH_RATE = 0.02;
-/** Min ammonia (ppm) to sustain AOB */
-export const AOB_FOOD_THRESHOLD = 0.001;
-/** Min nitrite (ppm) to sustain NOB */
-export const NOB_FOOD_THRESHOLD = 0.001;
-
-// ============================================================================
-// Helper Functions
-// ============================================================================
 
 /**
  * Calculate maximum bacteria population based on surface area.
  */
-export function calculateMaxBacteria(surface: number): number {
-  return surface * BACTERIA_PER_CM2;
+export function calculateMaxBacteria(
+  surface: number,
+  config: NitrogenCycleConfig = nitrogenCycleDefaults
+): number {
+  return surface * config.bacteriaPerCm2;
 }
 
 /**
@@ -84,7 +46,10 @@ export function calculateBacterialGrowth(
  * Calculate waste to ammonia conversion.
  * Returns wasteConsumed (g) and ammoniaProduced (mg).
  */
-export function calculateWasteToAmmonia(waste: number): {
+export function calculateWasteToAmmonia(
+  waste: number,
+  config: NitrogenCycleConfig = nitrogenCycleDefaults
+): {
   wasteConsumed: number;
   ammoniaProduced: number;
 } {
@@ -92,9 +57,9 @@ export function calculateWasteToAmmonia(waste: number): {
     return { wasteConsumed: 0, ammoniaProduced: 0 };
   }
 
-  const wasteConsumed = waste * WASTE_CONVERSION_RATE;
+  const wasteConsumed = waste * config.wasteConversionRate;
   // Convert grams waste to mg ammonia using ratio
-  const ammoniaProduced = wasteConsumed * WASTE_TO_AMMONIA_RATIO;
+  const ammoniaProduced = wasteConsumed * config.wasteToAmmoniaRatio;
 
   return { wasteConsumed, ammoniaProduced };
 }
@@ -110,11 +75,12 @@ export function calculateWasteToAmmonia(waste: number): {
 export function calculateAmmoniaToNitrite(
   ammoniaMass: number,
   aobPopulation: number,
-  waterVolume: number
+  waterVolume: number,
+  config: NitrogenCycleConfig = nitrogenCycleDefaults
 ): number {
   if (ammoniaMass <= 0 || aobPopulation <= 0 || waterVolume <= 0) return 0;
   // Processing rate is defined per ppm, multiply by water to get mass capacity
-  const canProcessMass = aobPopulation * BACTERIA_PROCESSING_RATE * waterVolume;
+  const canProcessMass = aobPopulation * config.bacteriaProcessingRate * waterVolume;
   return Math.min(canProcessMass, ammoniaMass);
 }
 
@@ -129,11 +95,12 @@ export function calculateAmmoniaToNitrite(
 export function calculateNitriteToNitrate(
   nitriteMass: number,
   nobPopulation: number,
-  waterVolume: number
+  waterVolume: number,
+  config: NitrogenCycleConfig = nitrogenCycleDefaults
 ): number {
   if (nitriteMass <= 0 || nobPopulation <= 0 || waterVolume <= 0) return 0;
   // Processing rate is defined per ppm, multiply by water to get mass capacity
-  const canProcessMass = nobPopulation * BACTERIA_PROCESSING_RATE * waterVolume;
+  const canProcessMass = nobPopulation * config.bacteriaProcessingRate * waterVolume;
   return Math.min(canProcessMass, nitriteMass);
 }
 
@@ -145,10 +112,11 @@ export const nitrogenCycleSystem: System = {
   id: 'nitrogen-cycle',
   tier: 'passive',
 
-  update(state: SimulationState): Effect[] {
+  update(state: SimulationState, config: TunableConfig): Effect[] {
     const effects: Effect[] = [];
     const { resources } = state;
-    const maxBacteria = calculateMaxBacteria(resources.surface);
+    const ncConfig = config.nitrogenCycle;
+    const maxBacteria = calculateMaxBacteria(resources.surface, ncConfig);
     const waterVolume = resources.water;
 
     // Track current values for calculations (effects accumulate)
@@ -186,7 +154,7 @@ export const nitrogenCycleSystem: System = {
     // Produces ammonia mass (mg) from waste (g)
     // ========================================================================
     if (currentWaste > 0) {
-      const { wasteConsumed, ammoniaProduced } = calculateWasteToAmmonia(currentWaste);
+      const { wasteConsumed, ammoniaProduced } = calculateWasteToAmmonia(currentWaste, ncConfig);
 
       if (wasteConsumed > 0) {
         effects.push({
@@ -215,7 +183,8 @@ export const nitrogenCycleSystem: System = {
       const ammoniaProcessed = calculateAmmoniaToNitrite(
         currentAmmonia,
         currentAob,
-        waterVolume
+        waterVolume,
+        ncConfig
       );
 
       if (ammoniaProcessed > 0) {
@@ -245,7 +214,8 @@ export const nitrogenCycleSystem: System = {
       const nitriteProcessed = calculateNitriteToNitrate(
         currentNitrite,
         currentNob,
-        waterVolume
+        waterVolume,
+        ncConfig
       );
 
       if (nitriteProcessed > 0) {
@@ -274,33 +244,33 @@ export const nitrogenCycleSystem: System = {
     const nitritePpm = getPpm(currentNitrite, waterVolume);
 
     // AOB spawns when ammonia reaches threshold and population is zero
-    if (currentAob === 0 && ammoniaPpm >= AOB_SPAWN_THRESHOLD) {
+    if (currentAob === 0 && ammoniaPpm >= ncConfig.aobSpawnThreshold) {
       effects.push({
         tier: 'passive',
         resource: 'aob',
-        delta: SPAWN_AMOUNT,
+        delta: ncConfig.spawnAmount,
         source: 'nitrogen-cycle-spawn',
       });
-      currentAob = SPAWN_AMOUNT;
+      currentAob = ncConfig.spawnAmount;
     }
 
     // NOB spawns when nitrite reaches threshold and population is zero
-    if (currentNob === 0 && nitritePpm >= NOB_SPAWN_THRESHOLD) {
+    if (currentNob === 0 && nitritePpm >= ncConfig.nobSpawnThreshold) {
       effects.push({
         tier: 'passive',
         resource: 'nob',
-        delta: SPAWN_AMOUNT,
+        delta: ncConfig.spawnAmount,
         source: 'nitrogen-cycle-spawn',
       });
-      currentNob = SPAWN_AMOUNT;
+      currentNob = ncConfig.spawnAmount;
     }
 
     // ========================================================================
     // Bacterial Dynamics: Growth (thresholds in ppm, derived from mass)
     // ========================================================================
     // AOB grows if ammonia available (check ppm threshold)
-    if (currentAob > 0 && ammoniaPpm >= AOB_FOOD_THRESHOLD) {
-      const aobGrowth = calculateBacterialGrowth(currentAob, AOB_GROWTH_RATE, maxBacteria);
+    if (currentAob > 0 && ammoniaPpm >= ncConfig.aobFoodThreshold) {
+      const aobGrowth = calculateBacterialGrowth(currentAob, ncConfig.aobGrowthRate, maxBacteria);
       if (aobGrowth > 0) {
         const newAob = Math.min(currentAob + aobGrowth, maxBacteria);
         const actualGrowth = newAob - currentAob;
@@ -317,8 +287,8 @@ export const nitrogenCycleSystem: System = {
     }
 
     // NOB grows if nitrite available (check ppm threshold)
-    if (currentNob > 0 && nitritePpm >= NOB_FOOD_THRESHOLD) {
-      const nobGrowth = calculateBacterialGrowth(currentNob, NOB_GROWTH_RATE, maxBacteria);
+    if (currentNob > 0 && nitritePpm >= ncConfig.nobFoodThreshold) {
+      const nobGrowth = calculateBacterialGrowth(currentNob, ncConfig.nobGrowthRate, maxBacteria);
       if (nobGrowth > 0) {
         const newNob = Math.min(currentNob + nobGrowth, maxBacteria);
         const actualGrowth = newNob - currentNob;
@@ -338,8 +308,8 @@ export const nitrogenCycleSystem: System = {
     // Bacterial Dynamics: Death (thresholds in ppm, derived from mass)
     // ========================================================================
     // AOB dies if ammonia is scarce (check ppm threshold)
-    if (currentAob > 0 && ammoniaPpm < AOB_FOOD_THRESHOLD) {
-      const aobDeath = currentAob * BACTERIA_DEATH_RATE;
+    if (currentAob > 0 && ammoniaPpm < ncConfig.aobFoodThreshold) {
+      const aobDeath = currentAob * ncConfig.bacteriaDeathRate;
       if (aobDeath > 0) {
         effects.push({
           tier: 'passive',
@@ -351,8 +321,8 @@ export const nitrogenCycleSystem: System = {
     }
 
     // NOB dies if nitrite is scarce (check ppm threshold)
-    if (currentNob > 0 && nitritePpm < NOB_FOOD_THRESHOLD) {
-      const nobDeath = currentNob * BACTERIA_DEATH_RATE;
+    if (currentNob > 0 && nitritePpm < ncConfig.nobFoodThreshold) {
+      const nobDeath = currentNob * ncConfig.bacteriaDeathRate;
       if (nobDeath > 0) {
         effects.push({
           tier: 'passive',

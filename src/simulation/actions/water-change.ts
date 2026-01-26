@@ -13,7 +13,8 @@ import { produce } from 'immer';
 import type { SimulationState } from '../state.js';
 import { createLog } from '../core/logging.js';
 import { blendTemperature, blendConcentration, blendPH } from '../core/blending.js';
-import { calculateO2Saturation, ATMOSPHERIC_CO2 } from '../systems/gas-exchange.js';
+import { calculateO2Saturation } from '../systems/gas-exchange.js';
+import { gasExchangeDefaults } from '../config/gas-exchange.js';
 import type { ActionResult, WaterChangeAction } from './types.js';
 
 /** Valid water change amounts as fractions */
@@ -82,7 +83,7 @@ export function waterChange(
     // 3. Dissolved gas blending (O2 and CO2)
     // Tap water comes saturated with O2 (at tap temp) and at atmospheric CO2
     const tapO2Saturation = calculateO2Saturation(tapTemp);
-    const tapCo2 = ATMOSPHERIC_CO2;
+    const tapCo2 = gasExchangeDefaults.atmosphericCo2;
 
     // Blend O2: remaining tank water + fresh tap water at saturation
     draft.resources.oxygen = blendConcentration(

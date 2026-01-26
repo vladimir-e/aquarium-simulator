@@ -10,6 +10,7 @@ import { WaterChemistry } from './components/panels/WaterChemistry';
 import { Plants } from './components/panels/Plants';
 import { Livestock } from './components/panels/Livestock';
 import { Log } from './components/panels/Log';
+import { DebugPanel } from './components/panels/DebugPanel';
 import { useSimulation } from './hooks/useSimulation';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 
@@ -187,7 +188,6 @@ function App(): React.JSX.Element {
               waste={state.resources.waste}
               food={state.resources.food}
               temperature={state.resources.temperature}
-              ambientWaste={state.environment.ambientWaste}
               ammonia={state.resources.ammonia}
               nitrite={state.resources.nitrite}
               nitrate={state.resources.nitrate}
@@ -215,6 +215,9 @@ function App(): React.JSX.Element {
         {/* Full width log */}
         <Log logs={state.logs} state={state} />
       </div>
+
+      {/* Debug Panel (overlay) */}
+      <DebugPanel />
     </div>
   );
 }

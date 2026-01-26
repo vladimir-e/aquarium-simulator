@@ -2,12 +2,12 @@ import { describe, it, expect } from 'vitest';
 import {
   calculateEvaporation,
   evaporationSystem,
-  BASE_RATE_PER_DAY,
-  TEMP_DOUBLING_INTERVAL,
   getLidMultiplier,
   LID_MULTIPLIERS,
 } from './evaporation.js';
 import { createSimulation, type LidType } from '../state.js';
+import { DEFAULT_CONFIG } from '../config/index.js';
+import { evaporationDefaults } from '../config/evaporation.js';
 
 describe('calculateEvaporation', () => {
   it('reduces water level over time', () => {
@@ -57,12 +57,12 @@ describe('calculateEvaporation', () => {
     const evapPerDay = evapPerHour * 24;
 
     // Should be close to 1% (0.01 * waterLevel = 1 liter)
-    expect(evapPerDay).toBeCloseTo(waterLevel * BASE_RATE_PER_DAY, 4);
+    expect(evapPerDay).toBeCloseTo(waterLevel * evaporationDefaults.baseRatePerDay, 4);
   });
 
-  it('doubles evaporation rate per TEMP_DOUBLING_INTERVAL degrees', () => {
+  it('doubles evaporation rate per tempDoublingInterval degrees', () => {
     const baseEvap = calculateEvaporation(100, 22, 22);
-    const doubledEvap = calculateEvaporation(100, 22 + TEMP_DOUBLING_INTERVAL, 22);
+    const doubledEvap = calculateEvaporation(100, 22 + evaporationDefaults.tempDoublingInterval, 22);
 
     expect(doubledEvap).toBeCloseTo(baseEvap * 2, 4);
   });
@@ -71,7 +71,7 @@ describe('calculateEvaporation', () => {
     const baseEvap = calculateEvaporation(100, 22, 22);
     const quadrupledEvap = calculateEvaporation(
       100,
-      22 + 2 * TEMP_DOUBLING_INTERVAL,
+      22 + 2 * evaporationDefaults.tempDoublingInterval,
       22
     );
 
@@ -144,7 +144,7 @@ describe('evaporationSystem', () => {
       roomTemperature: 22,
     });
 
-    const effects = evaporationSystem.update(state);
+    const effects = evaporationSystem.update(state, DEFAULT_CONFIG);
 
     expect(effects).toHaveLength(1);
     expect(effects[0].tier).toBe('immediate');
@@ -165,7 +165,7 @@ describe('evaporationSystem', () => {
       resources: { ...state.resources, water: 0 },
     };
 
-    const effects = evaporationSystem.update(emptyState);
+    const effects = evaporationSystem.update(emptyState, DEFAULT_CONFIG);
 
     expect(effects).toHaveLength(0);
   });
@@ -182,8 +182,8 @@ describe('evaporationSystem', () => {
       roomTemperature: 22,
     });
 
-    const effects1 = evaporationSystem.update(state1);
-    const effects2 = evaporationSystem.update(state2);
+    const effects1 = evaporationSystem.update(state1, DEFAULT_CONFIG);
+    const effects2 = evaporationSystem.update(state2, DEFAULT_CONFIG);
 
     expect(Math.abs(effects2[0].delta)).toBeGreaterThan(
       Math.abs(effects1[0].delta)
@@ -198,7 +198,7 @@ describe('evaporationSystem', () => {
       lid: { type: 'none' },
     });
 
-    const effects = evaporationSystem.update(state);
+    const effects = evaporationSystem.update(state, DEFAULT_CONFIG);
 
     expect(effects).toHaveLength(1);
     expect(effects[0].delta).toBeLessThan(0);
@@ -218,8 +218,8 @@ describe('evaporationSystem', () => {
       lid: { type: 'mesh' },
     });
 
-    const effectsNone = evaporationSystem.update(stateNone);
-    const effectsMesh = evaporationSystem.update(stateMesh);
+    const effectsNone = evaporationSystem.update(stateNone, DEFAULT_CONFIG);
+    const effectsMesh = evaporationSystem.update(stateMesh, DEFAULT_CONFIG);
 
     expect(effectsMesh[0].delta).toBeCloseTo(effectsNone[0].delta * 0.75, 6);
   });
@@ -238,8 +238,8 @@ describe('evaporationSystem', () => {
       lid: { type: 'full' },
     });
 
-    const effectsNone = evaporationSystem.update(stateNone);
-    const effectsFull = evaporationSystem.update(stateFull);
+    const effectsNone = evaporationSystem.update(stateNone, DEFAULT_CONFIG);
+    const effectsFull = evaporationSystem.update(stateFull, DEFAULT_CONFIG);
 
     expect(effectsFull[0].delta).toBeCloseTo(effectsNone[0].delta * 0.25, 6);
   });
@@ -252,7 +252,7 @@ describe('evaporationSystem', () => {
       lid: { type: 'sealed' },
     });
 
-    const effects = evaporationSystem.update(state);
+    const effects = evaporationSystem.update(state, DEFAULT_CONFIG);
 
     expect(effects).toHaveLength(0);
   });

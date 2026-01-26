@@ -3,11 +3,13 @@
  *
  * Effects modify resources during tick processing. Bounds are fetched from
  * ResourceRegistry for consistency. Water has dynamic bounds (0 to tank.capacity).
+ * Algae uses config.algae.algaeCap when config is provided.
  */
 
 import { produce } from 'immer';
 import type { SimulationState } from '../state.js';
 import { ResourceRegistry, type ResourceKey } from '../resources/index.js';
+import type { TunableConfig } from '../config/index.js';
 
 // Re-export ResourceKey for convenience
 export type { ResourceKey };
@@ -35,10 +37,15 @@ function clamp(value: number, min: number, max: number): number {
 /**
  * Applies a list of effects to the simulation state.
  * Returns a new state object (immutable).
+ *
+ * @param state - Current simulation state
+ * @param effects - Effects to apply
+ * @param config - Optional tunable config (used for dynamic bounds like algaeCap)
  */
 export function applyEffects(
   state: SimulationState,
-  effects: Effect[]
+  effects: Effect[],
+  config?: TunableConfig
 ): SimulationState {
   if (effects.length === 0) {
     return state;
@@ -81,7 +88,7 @@ export function applyEffects(
           draft.resources.algae = clamp(
             draft.resources.algae + effect.delta,
             resource.bounds.min,
-            resource.bounds.max
+            config?.algae.algaeCap ?? resource.bounds.max
           );
           break;
         case 'ammonia':
