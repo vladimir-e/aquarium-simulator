@@ -56,20 +56,20 @@ export function tick(
   // Tier 1: IMMEDIATE - Environmental effects, then equipment responses
   // First apply environmental effects (drift, evaporation)
   const immediateEffects = collectSystemEffects(newState, 'immediate', config);
-  newState = applyEffects(newState, immediateEffects);
+  newState = applyEffects(newState, immediateEffects, config);
 
   // Then equipment responds to the updated state
   const equipmentResult = processEquipment(newState);
   newState = equipmentResult.state;
-  newState = applyEffects(newState, equipmentResult.effects);
+  newState = applyEffects(newState, equipmentResult.effects, config);
 
   // Tier 2: ACTIVE - Living processes (plants, livestock)
   const activeEffects = collectSystemEffects(newState, 'active', config);
-  newState = applyEffects(newState, activeEffects);
+  newState = applyEffects(newState, activeEffects, config);
 
   // Tier 3: PASSIVE - Natural processes (decay, nitrogen cycle, gas exchange)
   const passiveEffects = collectSystemEffects(newState, 'passive', config);
-  newState = applyEffects(newState, passiveEffects);
+  newState = applyEffects(newState, passiveEffects, config);
 
   // Check alerts after all effects applied
   const alertResult = checkAlerts(newState);
