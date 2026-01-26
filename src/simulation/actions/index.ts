@@ -4,12 +4,16 @@ import { topOff } from './top-off.js';
 import { feed } from './feed.js';
 import { scrubAlgae } from './scrub-algae.js';
 import { waterChange } from './water-change.js';
+import { trimPlants } from './trim-plants.js';
+import { addPlant, removePlant } from './plant-management.js';
 
 export * from './types.js';
 export * from './top-off.js';
 export * from './feed.js';
 export * from './scrub-algae.js';
 export * from './water-change.js';
+export * from './trim-plants.js';
+export * from './plant-management.js';
 
 /**
  * Apply a user action to the simulation state.
@@ -32,5 +36,11 @@ export function applyAction(
       return scrubAlgae(state, action);
     case 'waterChange':
       return waterChange(state, action);
+    case 'trimPlants':
+      return trimPlants(state, action);
+    case 'addPlant':
+      return addPlant(state, action);
+    case 'removePlant':
+      return removePlant(state, action);
   }
 }

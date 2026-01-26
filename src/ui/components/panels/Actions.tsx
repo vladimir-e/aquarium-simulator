@@ -1,14 +1,16 @@
 import React, { useState } from 'react';
 import { Panel } from '../layout/Panel';
 import { Button } from '../ui/Button';
+import { Select } from '../ui/Select';
 import { WaterChangeCard } from '../actions/WaterChangeCard';
-import type { Action, WaterChangeAmount } from '../../../simulation/index.js';
-import { MIN_ALGAE_TO_SCRUB } from '../../../simulation/index.js';
+import type { Action, WaterChangeAmount, TrimTargetSize, Plant } from '../../../simulation/index.js';
+import { MIN_ALGAE_TO_SCRUB, canTrimPlants, getPlantsToTrimCount } from '../../../simulation/index.js';
 
 interface ActionsProps {
   waterLevel: number;
   capacity: number;
   algae: number;
+  plants: Plant[];
   tapWaterTemperature: number;
   tapWaterPH: number;
   executeAction: (action: Action) => void;
@@ -20,6 +22,7 @@ export function Actions({
   waterLevel,
   capacity,
   algae,
+  plants,
   tapWaterTemperature,
   tapWaterPH,
   executeAction,
@@ -27,6 +30,7 @@ export function Actions({
   onTapWaterPHChange,
 }: ActionsProps): React.JSX.Element {
   const [feedAmount, setFeedAmount] = useState(0.5);
+  const [trimTargetSize, setTrimTargetSize] = useState<TrimTargetSize>(100);
 
   const handleTopOff = (): void => {
     executeAction({ type: 'topOff' });
@@ -44,6 +48,14 @@ export function Actions({
     executeAction({ type: 'waterChange', amount });
   };
 
+  const handleTrimPlants = (): void => {
+    executeAction({ type: 'trimPlants', targetSize: trimTargetSize });
+  };
+
+  const handleTrimTargetChange = (e: React.ChangeEvent<HTMLSelectElement>): void => {
+    setTrimTargetSize(parseInt(e.target.value, 10) as TrimTargetSize);
+  };
+
   const handleFeedAmountChange = (value: string): void => {
     const parsed = parseFloat(value);
     if (!isNaN(parsed) && parsed >= 0.1 && parsed <= 5.0) {
@@ -53,6 +65,9 @@ export function Actions({
 
   const isWaterFull = waterLevel >= capacity;
   const canScrub = algae >= MIN_ALGAE_TO_SCRUB;
+  // Create a pseudo-state object for canTrimPlants
+  const canTrim = canTrimPlants({ plants } as { plants: Plant[] });
+  const plantsToTrim = getPlantsToTrimCount({ plants } as { plants: Plant[] }, trimTargetSize);
 
   return (
     <Panel title="Actions">
@@ -93,6 +108,37 @@ export function Actions({
         >
           Scrub Algae
         </Button>
+
+        {/* Trim Plants */}
+        {plants.length > 0 && (
+          <div className="pt-2 border-t border-gray-700">
+            <div className="flex items-end gap-2 mb-2">
+              <div className="flex-1">
+                <Select
+                  label="Trim to"
+                  value={trimTargetSize}
+                  onChange={handleTrimTargetChange}
+                >
+                  <option value={50}>50%</option>
+                  <option value={85}>85%</option>
+                  <option value={100}>100%</option>
+                </Select>
+              </div>
+              <Button
+                onClick={handleTrimPlants}
+                disabled={!canTrim || plantsToTrim === 0}
+                variant="primary"
+              >
+                Trim Plants
+              </Button>
+            </div>
+            {plantsToTrim > 0 && (
+              <div className="text-xs text-gray-400">
+                {plantsToTrim} plant(s) above {trimTargetSize}%
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Water Change */}
         <WaterChangeCard

@@ -1,7 +1,17 @@
-import type { SimulationState } from '../state.js';
+import type { SimulationState, PlantSpecies } from '../state.js';
 import type { WaterChangeAmount } from './water-change.js';
 
-export type ActionType = 'topOff' | 'feed' | 'scrubAlgae' | 'waterChange';
+/** Valid target sizes for trimming (percentages) */
+export type TrimTargetSize = 50 | 85 | 100;
+
+export type ActionType =
+  | 'topOff'
+  | 'feed'
+  | 'scrubAlgae'
+  | 'waterChange'
+  | 'trimPlants'
+  | 'addPlant'
+  | 'removePlant';
 
 export interface BaseAction {
   type: ActionType;
@@ -30,7 +40,34 @@ export interface WaterChangeAction extends BaseAction {
   amount: WaterChangeAmount;
 }
 
-export type Action = TopOffAction | FeedAction | ScrubAlgaeAction | WaterChangeAction;
+export interface TrimPlantsAction extends BaseAction {
+  type: 'trimPlants';
+  /** Target size to trim plants down to (%) */
+  targetSize: TrimTargetSize;
+}
+
+export interface AddPlantAction extends BaseAction {
+  type: 'addPlant';
+  /** Species of plant to add */
+  species: PlantSpecies;
+  /** Initial size percentage (default 50%) */
+  initialSize?: number;
+}
+
+export interface RemovePlantAction extends BaseAction {
+  type: 'removePlant';
+  /** ID of the plant to remove */
+  plantId: string;
+}
+
+export type Action =
+  | TopOffAction
+  | FeedAction
+  | ScrubAlgaeAction
+  | WaterChangeAction
+  | TrimPlantsAction
+  | AddPlantAction
+  | RemovePlantAction;
 
 /**
  * Result of applying an action to simulation state.

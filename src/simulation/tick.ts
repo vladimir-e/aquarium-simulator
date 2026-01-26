@@ -7,6 +7,7 @@ import type { SimulationState } from './state.js';
 import { applyEffects, type Effect, type EffectTier } from './core/effects.js';
 import { coreSystems } from './systems/index.js';
 import { processEquipment, calculatePassiveResources } from './equipment/index.js';
+import { processPlants } from './plants/index.js';
 import { checkAlerts } from './alerts/index.js';
 import { type TunableConfig, DEFAULT_CONFIG } from './config/index.js';
 
@@ -64,6 +65,12 @@ export function tick(
   newState = applyEffects(newState, equipmentResult.effects, config);
 
   // Tier 2: ACTIVE - Living processes (plants, livestock)
+  // First process plants (photosynthesis, respiration, growth)
+  const plantsResult = processPlants(newState, config);
+  newState = plantsResult.state;
+  newState = applyEffects(newState, plantsResult.effects, config);
+
+  // Then other active systems
   const activeEffects = collectSystemEffects(newState, 'active', config);
   newState = applyEffects(newState, activeEffects, config);
 

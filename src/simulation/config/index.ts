@@ -28,6 +28,7 @@ export {
 } from './evaporation.js';
 export { type AlgaeConfig, algaeDefaults, algaeConfigMeta } from './algae.js';
 export { type PhConfig, phDefaults, phConfigMeta } from './ph.js';
+export { type PlantsConfig, plantsDefaults, plantsConfigMeta } from './plants.js';
 
 import { type DecayConfig, decayDefaults } from './decay.js';
 import { type NitrogenCycleConfig, nitrogenCycleDefaults } from './nitrogen-cycle.js';
@@ -36,6 +37,7 @@ import { type TemperatureConfig, temperatureDefaults } from './temperature.js';
 import { type EvaporationConfig, evaporationDefaults } from './evaporation.js';
 import { type AlgaeConfig, algaeDefaults } from './algae.js';
 import { type PhConfig, phDefaults } from './ph.js';
+import { type PlantsConfig, plantsDefaults } from './plants.js';
 
 /**
  * Complete tunable configuration for all simulation systems.
@@ -48,6 +50,7 @@ export interface TunableConfig {
   evaporation: EvaporationConfig;
   algae: AlgaeConfig;
   ph: PhConfig;
+  plants: PlantsConfig;
 }
 
 /**
@@ -61,6 +64,7 @@ export const DEFAULT_CONFIG: TunableConfig = {
   evaporation: evaporationDefaults,
   algae: algaeDefaults,
   ph: phDefaults,
+  plants: plantsDefaults,
 };
 
 /**

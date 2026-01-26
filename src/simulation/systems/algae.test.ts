@@ -2,9 +2,10 @@ import { describe, it, expect } from 'vitest';
 import {
   algaeSystem,
   calculateAlgaeGrowth,
+  calculatePlantCompetitionFactor,
   getWattsPerGallon,
 } from './algae.js';
-import { createSimulation, type SimulationState } from '../state.js';
+import { createSimulation, type SimulationState, type Plant } from '../state.js';
 import { produce } from 'immer';
 import { DEFAULT_CONFIG } from '../config/index.js';
 import { algaeDefaults } from '../config/algae.js';
@@ -239,5 +240,225 @@ describe('config defaults', () => {
 
   it('algaeCap is 100', () => {
     expect(algaeDefaults.algaeCap).toBe(100);
+  });
+});
+
+describe('calculatePlantCompetitionFactor', () => {
+  it('returns 1.0 with no plants (0% total size)', () => {
+    const factor = calculatePlantCompetitionFactor(0);
+    expect(factor).toBe(1);
+  });
+
+  it('returns 1.0 with negative plant size (edge case)', () => {
+    const factor = calculatePlantCompetitionFactor(-50);
+    expect(factor).toBe(1);
+  });
+
+  it('returns 0.5 at 200% total plant size (halves algae growth)', () => {
+    // Formula: 1 / (1 + totalPlantSize / competitionScale)
+    // = 1 / (1 + 200 / 200) = 1 / 2 = 0.5
+    const factor = calculatePlantCompetitionFactor(200);
+    expect(factor).toBeCloseTo(0.5, 6);
+  });
+
+  it('returns ~0.67 at 100% total plant size', () => {
+    // 1 / (1 + 100/200) = 1 / 1.5 ≈ 0.667
+    const factor = calculatePlantCompetitionFactor(100);
+    expect(factor).toBeCloseTo(2 / 3, 4);
+  });
+
+  it('returns ~0.33 at 400% total plant size', () => {
+    // 1 / (1 + 400/200) = 1 / 3 ≈ 0.333
+    const factor = calculatePlantCompetitionFactor(400);
+    expect(factor).toBeCloseTo(1 / 3, 4);
+  });
+
+  it('decreases as plant size increases', () => {
+    const factor100 = calculatePlantCompetitionFactor(100);
+    const factor200 = calculatePlantCompetitionFactor(200);
+    const factor400 = calculatePlantCompetitionFactor(400);
+
+    expect(factor200).toBeLessThan(factor100);
+    expect(factor400).toBeLessThan(factor200);
+  });
+
+  it('approaches 0 asymptotically with very large plant size', () => {
+    const factor = calculatePlantCompetitionFactor(10000);
+    expect(factor).toBeLessThan(0.02);
+    expect(factor).toBeGreaterThan(0);
+  });
+
+  it('never goes below 0', () => {
+    const extremeFactor = calculatePlantCompetitionFactor(1000000);
+    expect(extremeFactor).toBeGreaterThan(0);
+  });
+
+  it('uses custom competition scale', () => {
+    // With scale 100: 1 / (1 + 100/100) = 0.5
+    const factor = calculatePlantCompetitionFactor(100, 100);
+    expect(factor).toBeCloseTo(0.5, 6);
+  });
+});
+
+describe('algaeSystem with plants', () => {
+  function createStateWithPlants(overrides: Partial<{
+    light: number;
+    tankCapacity: number;
+    algae: number;
+    plants: Plant[];
+  }> = {}): SimulationState {
+    const capacity = overrides.tankCapacity ?? 100;
+    const state = createSimulation({ tankCapacity: capacity });
+    return produce(state, (draft) => {
+      if (overrides.light !== undefined) {
+        draft.resources.light = overrides.light;
+      }
+      if (overrides.algae !== undefined) {
+        draft.resources.algae = overrides.algae;
+      }
+      if (overrides.plants !== undefined) {
+        draft.plants = overrides.plants;
+      }
+    });
+  }
+
+  it('no growth reduction with no plants', () => {
+    const stateNoPlants = createStateWithPlants({ light: 100, plants: [] });
+    const effectsNoPlants = algaeSystem.update(stateNoPlants, DEFAULT_CONFIG);
+
+    const growthNoPlants = effectsNoPlants.find((e) => e.resource === 'algae')!.delta;
+
+    // Should equal base growth rate (no reduction)
+    const baseGrowth = calculateAlgaeGrowth(100, 100);
+    expect(growthNoPlants).toBeCloseTo(baseGrowth, 6);
+  });
+
+  it('reduces algae growth when plants are present', () => {
+    const stateNoPlants = createStateWithPlants({ light: 100, plants: [] });
+    const stateWithPlants = createStateWithPlants({
+      light: 100,
+      plants: [{ id: 'p1', species: 'java_fern', size: 100 }],
+    });
+
+    const effectsNoPlants = algaeSystem.update(stateNoPlants, DEFAULT_CONFIG);
+    const effectsWithPlants = algaeSystem.update(stateWithPlants, DEFAULT_CONFIG);
+
+    const growthNoPlants = effectsNoPlants.find((e) => e.resource === 'algae')!.delta;
+    const growthWithPlants = effectsWithPlants.find((e) => e.resource === 'algae')!.delta;
+
+    expect(growthWithPlants).toBeLessThan(growthNoPlants);
+  });
+
+  it('200% total plant size approximately halves algae growth', () => {
+    const stateNoPlants = createStateWithPlants({ light: 100, plants: [] });
+    const stateWithPlants = createStateWithPlants({
+      light: 100,
+      plants: [{ id: 'p1', species: 'java_fern', size: 200 }],
+    });
+
+    const effectsNoPlants = algaeSystem.update(stateNoPlants, DEFAULT_CONFIG);
+    const effectsWithPlants = algaeSystem.update(stateWithPlants, DEFAULT_CONFIG);
+
+    const growthNoPlants = effectsNoPlants.find((e) => e.resource === 'algae')!.delta;
+    const growthWithPlants = effectsWithPlants.find((e) => e.resource === 'algae')!.delta;
+
+    // 200% plant size should give factor of 0.5
+    expect(growthWithPlants).toBeCloseTo(growthNoPlants * 0.5, 4);
+  });
+
+  it('multiple plants contribute to competition', () => {
+    const singlePlant = createStateWithPlants({
+      light: 100,
+      plants: [{ id: 'p1', species: 'java_fern', size: 100 }],
+    });
+    const multiplePlants = createStateWithPlants({
+      light: 100,
+      plants: [
+        { id: 'p1', species: 'java_fern', size: 100 },
+        { id: 'p2', species: 'anubias', size: 100 },
+      ],
+    });
+
+    const effectsSingle = algaeSystem.update(singlePlant, DEFAULT_CONFIG);
+    const effectsMultiple = algaeSystem.update(multiplePlants, DEFAULT_CONFIG);
+
+    const growthSingle = effectsSingle.find((e) => e.resource === 'algae')!.delta;
+    const growthMultiple = effectsMultiple.find((e) => e.resource === 'algae')!.delta;
+
+    // More plants = more competition = less algae growth
+    expect(growthMultiple).toBeLessThan(growthSingle);
+  });
+
+  it('larger plants compete more effectively', () => {
+    const smallPlant = createStateWithPlants({
+      light: 100,
+      plants: [{ id: 'p1', species: 'java_fern', size: 50 }],
+    });
+    const largePlant = createStateWithPlants({
+      light: 100,
+      plants: [{ id: 'p1', species: 'java_fern', size: 150 }],
+    });
+
+    const effectsSmall = algaeSystem.update(smallPlant, DEFAULT_CONFIG);
+    const effectsLarge = algaeSystem.update(largePlant, DEFAULT_CONFIG);
+
+    const growthSmall = effectsSmall.find((e) => e.resource === 'algae')!.delta;
+    const growthLarge = effectsLarge.find((e) => e.resource === 'algae')!.delta;
+
+    expect(growthLarge).toBeLessThan(growthSmall);
+  });
+
+  it('no algae growth if light is 0 (plants do not help)', () => {
+    const state = createStateWithPlants({
+      light: 0,
+      plants: [{ id: 'p1', species: 'java_fern', size: 200 }],
+    });
+    const effects = algaeSystem.update(state, DEFAULT_CONFIG);
+
+    expect(effects).toHaveLength(0);
+  });
+
+  it('uses competition scale from config', () => {
+    const stateNoPlants = createStateWithPlants({ light: 100, plants: [] });
+    const stateWithPlants = createStateWithPlants({
+      light: 100,
+      plants: [{ id: 'p1', species: 'java_fern', size: 100 }],
+    });
+
+    // Custom config with half the competition scale (100 vs 200)
+    // At 100% plants with scale 100: factor = 1/(1+100/100) = 0.5
+    const customConfig = {
+      ...DEFAULT_CONFIG,
+      plants: { ...DEFAULT_CONFIG.plants, competitionScale: 100 },
+    };
+
+    const effectsNoPlants = algaeSystem.update(stateNoPlants, customConfig);
+    const effectsWithPlants = algaeSystem.update(stateWithPlants, customConfig);
+
+    const growthNoPlants = effectsNoPlants.find((e) => e.resource === 'algae')!.delta;
+    const growthWithPlants = effectsWithPlants.find((e) => e.resource === 'algae')!.delta;
+
+    // With scale 100 and 100% plants, factor should be 0.5
+    expect(growthWithPlants).toBeCloseTo(growthNoPlants * 0.5, 4);
+  });
+
+  it('400% total plant size reduces algae growth to ~33%', () => {
+    const stateNoPlants = createStateWithPlants({ light: 100, plants: [] });
+    const stateWithPlants = createStateWithPlants({
+      light: 100,
+      plants: [
+        { id: 'p1', species: 'java_fern', size: 200 },
+        { id: 'p2', species: 'anubias', size: 200 },
+      ],
+    });
+
+    const effectsNoPlants = algaeSystem.update(stateNoPlants, DEFAULT_CONFIG);
+    const effectsWithPlants = algaeSystem.update(stateWithPlants, DEFAULT_CONFIG);
+
+    const growthNoPlants = effectsNoPlants.find((e) => e.resource === 'algae')!.delta;
+    const growthWithPlants = effectsWithPlants.find((e) => e.resource === 'algae')!.delta;
+
+    // 400% plant size: factor = 1/(1+400/200) = 1/3 ≈ 0.333
+    expect(growthWithPlants).toBeCloseTo(growthNoPlants / 3, 2);
   });
 });

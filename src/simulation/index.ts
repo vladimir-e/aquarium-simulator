@@ -20,6 +20,9 @@ export type {
   LogEntry,
   LogSeverity,
   AlertState,
+  Plant,
+  PlantSpecies,
+  PlantSpeciesData,
 } from './state.js';
 export {
   createSimulation,
@@ -31,6 +34,7 @@ export {
   DEFAULT_HARDSCAPE,
   DEFAULT_LIGHT,
   HARDSCAPE_SURFACE,
+  PLANT_SPECIES_DATA,
 } from './state.js';
 
 // Resources
@@ -148,6 +152,9 @@ export type {
   FeedAction,
   ScrubAlgaeAction,
   WaterChangeAction,
+  TrimPlantsAction,
+  AddPlantAction,
+  RemovePlantAction,
   ActionResult,
 } from './actions/index.js';
 export {
@@ -161,5 +168,29 @@ export {
   MIN_ALGAE_TO_SCRUB,
   waterChange,
   WATER_CHANGE_AMOUNTS,
+  trimPlants,
+  canTrimPlants,
+  getPlantsToTrimCount,
+  addPlant,
+  removePlant,
+  isSubstrateCompatible,
+  getSubstrateIncompatibilityReason,
+  getMaxPlants,
+  canAddPlant,
 } from './actions/index.js';
-export type { WaterChangeAmount } from './actions/index.js';
+export type { WaterChangeAmount, TrimTargetSize } from './actions/index.js';
+
+// Plants
+export {
+  processPlants,
+  calculatePhotosynthesis,
+  getTotalPlantSize,
+  calculateCo2Factor,
+  calculateNitrateFactor,
+  calculateRespiration,
+  getRespirationTemperatureFactor,
+  distributeBiomass,
+  getMaxPlantSize,
+  calculateOvergrowthPenalty,
+  getSpeciesGrowthRate,
+} from './plants/index.js';

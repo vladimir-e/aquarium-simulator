@@ -27,7 +27,27 @@ export {
   algaeSystem,
   calculateAlgaeGrowth,
   getWattsPerGallon,
+  calculatePlantCompetitionFactor,
 } from './algae.js';
+
+export {
+  calculatePhotosynthesis,
+  getTotalPlantSize,
+  calculateCo2Factor,
+  calculateNitrateFactor,
+} from './photosynthesis.js';
+
+export {
+  calculateRespiration,
+  getRespirationTemperatureFactor,
+} from './respiration.js';
+
+export {
+  distributeBiomass,
+  getMaxPlantSize,
+  calculateOvergrowthPenalty,
+  getSpeciesGrowthRate,
+} from './plant-growth.js';
 
 export {
   nitrogenCycleSystem,
