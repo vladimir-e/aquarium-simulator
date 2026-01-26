@@ -4,9 +4,81 @@ import {
   getSubstrateIncompatibilityReason,
   addPlant,
   removePlant,
+  getMaxPlants,
+  canAddPlant,
 } from './plant-management.js';
 import { createSimulation, type SimulationState, type PlantSpecies, type SubstrateType } from '../state.js';
 import { produce } from 'immer';
+
+describe('getMaxPlants', () => {
+  // 3 plants per 5 gallons = 3 plants per 18.927 liters
+
+  it('returns 0 for zero capacity', () => {
+    expect(getMaxPlants(0)).toBe(0);
+  });
+
+  it('returns 0 for negative capacity', () => {
+    expect(getMaxPlants(-10)).toBe(0);
+  });
+
+  it('returns minimum of 1 for small tanks', () => {
+    expect(getMaxPlants(5)).toBe(1); // 5L is less than 5 gallons
+    expect(getMaxPlants(10)).toBe(1);
+  });
+
+  it('returns 3 for 5 gallon (19L) tank', () => {
+    expect(getMaxPlants(19)).toBe(3);
+  });
+
+  it('returns 6 for 10 gallon (38L) tank', () => {
+    expect(getMaxPlants(38)).toBe(6);
+  });
+
+  it('returns 9 for 15 gallon (57L) tank', () => {
+    expect(getMaxPlants(57)).toBe(9);
+  });
+
+  it('returns 15 for 25 gallon (95L) tank', () => {
+    expect(getMaxPlants(95)).toBe(15);
+  });
+
+  it('scales correctly with standard tank sizes', () => {
+    // 10 gallon = 37.85L ~= 5 plants (exactly 6 would need 37.85L)
+    expect(getMaxPlants(38)).toBe(6);
+    // 20 gallon = 75.7L = 11 plants
+    expect(getMaxPlants(76)).toBe(12);
+    // 55 gallon = 208L = 32 plants
+    expect(getMaxPlants(208)).toBe(32);
+  });
+});
+
+describe('canAddPlant', () => {
+  it('returns true when below capacity', () => {
+    const state = createSimulation({ tankCapacity: 38 }); // 10 gallon = 6 max
+    expect(canAddPlant(state)).toBe(true);
+  });
+
+  it('returns false when at capacity', () => {
+    let state = createSimulation({ tankCapacity: 19 }); // 5 gallon = 3 max
+    // Add 3 plants
+    for (let i = 0; i < 3; i++) {
+      state = produce(state, (draft) => {
+        draft.plants.push({ id: `plant_${i}`, species: 'java_fern', size: 50 });
+      });
+    }
+    expect(canAddPlant(state)).toBe(false);
+  });
+
+  it('returns true when just below capacity', () => {
+    let state = createSimulation({ tankCapacity: 19 }); // 5 gallon = 3 max
+    // Add 2 plants
+    state = produce(state, (draft) => {
+      draft.plants.push({ id: 'plant_1', species: 'java_fern', size: 50 });
+      draft.plants.push({ id: 'plant_2', species: 'anubias', size: 50 });
+    });
+    expect(canAddPlant(state)).toBe(true);
+  });
+});
 
 describe('isSubstrateCompatible', () => {
   describe('plants with no substrate requirement (epiphytes)', () => {
@@ -273,6 +345,62 @@ describe('addPlant', () => {
       const result = addPlant(state, { type: 'addPlant', species: 'monte_carlo' });
 
       expect(result.state).toBe(state);
+    });
+  });
+
+  describe('plant capacity limit', () => {
+    it('rejects adding plant when at capacity', () => {
+      // 19L tank = 3 plants max
+      let state = createSimulation({ tankCapacity: 19 });
+      // Add 3 plants to reach capacity
+      state = addPlant(state, { type: 'addPlant', species: 'java_fern' }).state;
+      state = addPlant(state, { type: 'addPlant', species: 'java_fern' }).state;
+      state = addPlant(state, { type: 'addPlant', species: 'java_fern' }).state;
+
+      expect(state.plants).toHaveLength(3);
+
+      // Try to add 4th plant
+      const result = addPlant(state, { type: 'addPlant', species: 'java_fern' });
+      expect(result.state.plants).toHaveLength(3);
+      expect(result.message).toContain('capacity');
+    });
+
+    it('returns error message with max count', () => {
+      let state = createSimulation({ tankCapacity: 19 }); // 3 max
+      state = produce(state, (draft) => {
+        draft.plants.push({ id: 'p1', species: 'java_fern', size: 50 });
+        draft.plants.push({ id: 'p2', species: 'java_fern', size: 50 });
+        draft.plants.push({ id: 'p3', species: 'java_fern', size: 50 });
+      });
+
+      const result = addPlant(state, { type: 'addPlant', species: 'java_fern' });
+      expect(result.message).toContain('3 plants max');
+    });
+
+    it('does not create log when rejected for capacity', () => {
+      let state = createSimulation({ tankCapacity: 19 }); // 3 max
+      state = produce(state, (draft) => {
+        draft.plants.push({ id: 'p1', species: 'java_fern', size: 50 });
+        draft.plants.push({ id: 'p2', species: 'java_fern', size: 50 });
+        draft.plants.push({ id: 'p3', species: 'java_fern', size: 50 });
+      });
+      const initialLogCount = state.logs.length;
+
+      const result = addPlant(state, { type: 'addPlant', species: 'java_fern' });
+      expect(result.state.logs.length).toBe(initialLogCount);
+    });
+
+    it('capacity limit is checked before substrate compatibility', () => {
+      // Even with incompatible substrate, capacity is checked first
+      let state = createSimulation({ tankCapacity: 19 }); // 3 max
+      state = produce(state, (draft) => {
+        draft.plants.push({ id: 'p1', species: 'java_fern', size: 50 });
+        draft.plants.push({ id: 'p2', species: 'java_fern', size: 50 });
+        draft.plants.push({ id: 'p3', species: 'java_fern', size: 50 });
+      });
+
+      const result = addPlant(state, { type: 'addPlant', species: 'monte_carlo' });
+      expect(result.message).toContain('capacity'); // Not substrate error
     });
   });
 

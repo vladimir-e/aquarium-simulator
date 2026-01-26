@@ -8,6 +8,30 @@ import { PLANT_SPECIES_DATA } from '../state.js';
 import { createLog } from '../core/logging.js';
 import type { ActionResult, AddPlantAction, RemovePlantAction } from './types.js';
 
+/** Liters per 5 gallons (basis for plant limit calculation) */
+const LITERS_PER_5_GALLONS = 18.927;
+
+/** Plants allowed per 5 gallons */
+const PLANTS_PER_5_GALLONS = 3;
+
+/**
+ * Calculate maximum number of plants allowed for a given tank capacity.
+ * Limit is 3 plants per 5 gallons, minimum 1 plant.
+ */
+export function getMaxPlants(tankCapacity: number): number {
+  if (tankCapacity <= 0) return 0;
+  // 3 plants per 5 gallons, minimum 1
+  return Math.max(1, Math.floor((tankCapacity / LITERS_PER_5_GALLONS) * PLANTS_PER_5_GALLONS));
+}
+
+/**
+ * Check if more plants can be added to the tank.
+ */
+export function canAddPlant(state: SimulationState): boolean {
+  const maxPlants = getMaxPlants(state.tank.capacity);
+  return state.plants.length < maxPlants;
+}
+
 /** Generate a unique plant ID */
 function generatePlantId(): string {
   return `plant_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
@@ -77,6 +101,15 @@ export function addPlant(
     return {
       state,
       message: `Unknown plant species: ${species}`,
+    };
+  }
+
+  // Check plant capacity
+  const maxPlants = getMaxPlants(state.tank.capacity);
+  if (state.plants.length >= maxPlants) {
+    return {
+      state,
+      message: `Tank at plant capacity (${maxPlants} plants max)`,
     };
   }
 

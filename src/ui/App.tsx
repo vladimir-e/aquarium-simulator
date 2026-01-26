@@ -207,6 +207,7 @@ function App(): React.JSX.Element {
             <Plants
               algae={state.resources.algae}
               plants={state.plants}
+              tankCapacity={state.tank.capacity}
               substrateType={state.equipment.substrate.type}
               executeAction={executeAction}
             />

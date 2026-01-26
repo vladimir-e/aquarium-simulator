@@ -4,11 +4,12 @@ import { Button } from '../ui/Button';
 import { Select } from '../ui/Select';
 import { AlgaeResource } from '../../../simulation/resources/index.js';
 import type { Plant, PlantSpecies, SubstrateType, Action } from '../../../simulation/index.js';
-import { PLANT_SPECIES_DATA, isSubstrateCompatible } from '../../../simulation/index.js';
+import { PLANT_SPECIES_DATA, isSubstrateCompatible, getMaxPlants } from '../../../simulation/index.js';
 
 interface PlantsProps {
   algae: number;
   plants: Plant[];
+  tankCapacity: number;
   substrateType: SubstrateType;
   executeAction: (action: Action) => void;
 }
@@ -65,6 +66,7 @@ const ALL_SPECIES: PlantSpecies[] = [
 export function Plants({
   algae,
   plants,
+  tankCapacity,
   substrateType,
   executeAction,
 }: PlantsProps): React.JSX.Element {
@@ -73,6 +75,9 @@ export function Plants({
   const opacity = getAlgaeIndicatorOpacity(algae);
   const indicatorClass = algae === 0 ? 'bg-gray-600' : 'bg-green-500';
   const description = getAlgaeDescription(algae);
+
+  const maxPlants = getMaxPlants(tankCapacity);
+  const isAtCapacity = plants.length >= maxPlants;
 
   const handleAddPlant = (): void => {
     executeAction({ type: 'addPlant', species: selectedSpecies });
@@ -86,7 +91,7 @@ export function Plants({
     setSelectedSpecies(e.target.value as PlantSpecies);
   };
 
-  const canAddSelectedSpecies = isSubstrateCompatible(selectedSpecies, substrateType);
+  const canAddSelectedSpecies = isSubstrateCompatible(selectedSpecies, substrateType) && !isAtCapacity;
 
   return (
     <Panel title="Plants">
@@ -110,7 +115,7 @@ export function Plants({
         {plants.length > 0 ? (
           <div className="space-y-2">
             <div className="text-xs text-gray-400 font-medium">
-              Plants ({plants.length})
+              Plants ({plants.length}/{maxPlants})
             </div>
             {plants.map((plant) => {
               const speciesData = PLANT_SPECIES_DATA[plant.species];
@@ -167,7 +172,9 @@ export function Plants({
             })}
           </div>
         ) : (
-          <div className="text-xs text-gray-400 italic">No plants yet...</div>
+          <div className="text-xs text-gray-400 italic">
+            No plants yet... (0/{maxPlants} capacity)
+          </div>
         )}
 
         {/* Add plant controls */}
@@ -199,7 +206,12 @@ export function Plants({
               Add
             </Button>
           </div>
-          {!canAddSelectedSpecies && (
+          {isAtCapacity && (
+            <div className="text-xs text-yellow-400 mt-1">
+              Tank at plant capacity ({maxPlants} max)
+            </div>
+          )}
+          {!isAtCapacity && !isSubstrateCompatible(selectedSpecies, substrateType) && (
             <div className="text-xs text-yellow-400 mt-1">
               {PLANT_SPECIES_DATA[selectedSpecies].name} requires{' '}
               {PLANT_SPECIES_DATA[selectedSpecies].substrateRequirement === 'aqua_soil'
