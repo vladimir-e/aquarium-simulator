@@ -83,6 +83,15 @@ export function distributeBiomass(
     0
   );
 
+  // Guard against division by zero (shouldn't happen with valid species, but defensive)
+  if (totalGrowthRate === 0) {
+    return {
+      updatedPlants: plants.map((p) => ({ ...p })),
+      wasteReleased: 0,
+      overgrowthPenalty,
+    };
+  }
+
   // Distribute biomass to each plant based on their growth rate share
   const updatedPlants = plants.map((plant) => {
     const growthRate = getSpeciesGrowthRate(plant.species);

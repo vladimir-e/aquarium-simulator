@@ -45,7 +45,7 @@ function generatePlantId(): string {
  */
 export function isSubstrateCompatible(
   plantSpecies: PlantSpecies,
-  substratetype: SubstrateType
+  substrateType: SubstrateType
 ): boolean {
   const requirement = PLANT_SPECIES_DATA[plantSpecies].substrateRequirement;
 
@@ -55,10 +55,10 @@ export function isSubstrateCompatible(
       return true;
     case 'sand':
       // Needs at least sand, aqua_soil also works
-      return substratetype === 'sand' || substratetype === 'aqua_soil';
+      return substrateType === 'sand' || substrateType === 'aqua_soil';
     case 'aqua_soil':
       // Needs nutrient-rich substrate
-      return substratetype === 'aqua_soil';
+      return substrateType === 'aqua_soil';
     default:
       return false;
   }
@@ -101,6 +101,14 @@ export function addPlant(
     return {
       state,
       message: `Unknown plant species: ${species}`,
+    };
+  }
+
+  // Validate initial size (0-200% allowed, plants can start overgrown)
+  if (initialSize < 0 || initialSize > 200) {
+    return {
+      state,
+      message: `Invalid initial size: ${initialSize}% (must be 0-200%)`,
     };
   }
 

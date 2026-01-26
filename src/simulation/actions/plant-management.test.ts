@@ -304,6 +304,30 @@ describe('addPlant', () => {
       const lastLog = result.state.logs[result.state.logs.length - 1];
       expect(lastLog.message).toContain('80%');
     });
+
+    it('allows overgrown initial size up to 200%', () => {
+      const state = createStateWithSubstrate('none');
+      const result = addPlant(state, { type: 'addPlant', species: 'java_fern', initialSize: 200 });
+
+      expect(result.state.plants[0].size).toBe(200);
+    });
+
+    it('rejects negative initial size', () => {
+      const state = createStateWithSubstrate('none');
+      const result = addPlant(state, { type: 'addPlant', species: 'java_fern', initialSize: -10 });
+
+      expect(result.state.plants).toHaveLength(0);
+      expect(result.message).toContain('Invalid initial size');
+    });
+
+    it('rejects initial size over 200%', () => {
+      const state = createStateWithSubstrate('none');
+      const result = addPlant(state, { type: 'addPlant', species: 'java_fern', initialSize: 250 });
+
+      expect(result.state.plants).toHaveLength(0);
+      expect(result.message).toContain('Invalid initial size');
+      expect(result.message).toContain('0-200%');
+    });
   });
 
   describe('rejection with incompatible substrate', () => {
