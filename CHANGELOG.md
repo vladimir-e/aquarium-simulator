@@ -8,6 +8,10 @@ Format: - **Feature name** (#PR) - Brief description (under 100 chars)
 - Skip UI-only tweaks and minor fixes
 -->
 
+## 2026-01-26
+
+- **Plants System** - Individual plant specimens with 5 species (varied light/CO2 requirements); photosynthesis produces O2, consumes CO2/nitrate when lights on; respiration runs 24/7; biomass distribution by growth rate; overgrowth penalties and waste release at >200%; algae competition; trim action; Plants panel with add/remove/size display
+
 ## 2026-01-25
 
 - **Tunable Constants** - Debug panel for runtime calibration of 38 simulation constants; localStorage persistence; collapsible sections with visual indicators for modified values; reset per-section or global

@@ -1,6 +1,6 @@
 # Task 20: Plants System
 
-**Status:** pending
+**Status:** completed
 
 ## Overview
 

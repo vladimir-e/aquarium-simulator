@@ -23,6 +23,8 @@ import type { SimulationState } from '../state.js';
 import type { System } from './types.js';
 import type { TunableConfig } from '../config/index.js';
 import { type AlgaeConfig, algaeDefaults } from '../config/algae.js';
+import { plantsDefaults } from '../config/plants.js';
+import { getTotalPlantSize } from './photosynthesis.js';
 
 /**
  * Calculate algae growth for one tick (hour) based on light intensity.
@@ -66,6 +68,23 @@ export function getWattsPerGallon(
   return lightWatts / gallons;
 }
 
+/**
+ * Calculate plant competition factor for algae growth.
+ * Plants compete with algae for resources (light, CO2, nitrate).
+ * Calibrated so 200% total plant size halves algae growth.
+ *
+ * @param totalPlantSize - Sum of all plant sizes (%)
+ * @param competitionScale - Scale factor (default from plants config)
+ * @returns Competition factor (0-1, lower = more competition)
+ */
+export function calculatePlantCompetitionFactor(
+  totalPlantSize: number,
+  competitionScale: number = plantsDefaults.competitionScale
+): number {
+  if (totalPlantSize <= 0) return 1;
+  return 1 / (1 + totalPlantSize / competitionScale);
+}
+
 export const algaeSystem: System = {
   id: 'algae',
   tier: 'passive',
@@ -76,8 +95,16 @@ export const algaeSystem: System = {
     // Get light from resources (already accounts for schedule)
     const lightWatts = state.resources.light;
 
-    // Calculate growth based on light intensity per liter
-    const growth = calculateAlgaeGrowth(lightWatts, state.tank.capacity, config.algae);
+    // Calculate base growth based on light intensity per liter
+    let growth = calculateAlgaeGrowth(lightWatts, state.tank.capacity, config.algae);
+
+    // Apply plant competition factor (plants reduce algae growth)
+    if (growth > 0 && state.plants.length > 0) {
+      const totalPlantSize = getTotalPlantSize(state.plants);
+      const competitionScale = config.plants?.competitionScale ?? plantsDefaults.competitionScale;
+      const competitionFactor = calculatePlantCompetitionFactor(totalPlantSize, competitionScale);
+      growth *= competitionFactor;
+    }
 
     if (growth > 0) {
       effects.push({

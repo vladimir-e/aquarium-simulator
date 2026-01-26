@@ -17,6 +17,86 @@ import { DEFAULT_LIGHT } from './equipment/light.js';
 export type { LogEntry, LogSeverity };
 export type { FilterType, Filter, PowerheadFlowRate, Powerhead, SubstrateType, Substrate, Light, LightWattage };
 
+/**
+ * Plant species types.
+ * Each species has different light/CO2 requirements and growth rates.
+ */
+export type PlantSpecies =
+  | 'java_fern'
+  | 'anubias'
+  | 'amazon_sword'
+  | 'dwarf_hairgrass'
+  | 'monte_carlo';
+
+/**
+ * Plant species characteristics.
+ */
+export interface PlantSpeciesData {
+  /** Display name */
+  name: string;
+  /** Light requirement level */
+  lightRequirement: 'low' | 'medium' | 'high';
+  /** CO2 requirement level */
+  co2Requirement: 'low' | 'medium' | 'high';
+  /** Relative growth rate (higher = faster biomass distribution) */
+  growthRate: number;
+  /** Substrate requirement for planting */
+  substrateRequirement: 'none' | 'sand' | 'aqua_soil';
+}
+
+/**
+ * Species catalog with characteristics for each plant type.
+ */
+export const PLANT_SPECIES_DATA: Record<PlantSpecies, PlantSpeciesData> = {
+  java_fern: {
+    name: 'Java Fern',
+    lightRequirement: 'low',
+    co2Requirement: 'low',
+    growthRate: 0.5,
+    substrateRequirement: 'none', // Attaches to hardscape
+  },
+  anubias: {
+    name: 'Anubias',
+    lightRequirement: 'low',
+    co2Requirement: 'low',
+    growthRate: 0.3,
+    substrateRequirement: 'none', // Attaches to hardscape
+  },
+  amazon_sword: {
+    name: 'Amazon Sword',
+    lightRequirement: 'medium',
+    co2Requirement: 'medium',
+    growthRate: 1.0,
+    substrateRequirement: 'sand',
+  },
+  dwarf_hairgrass: {
+    name: 'Dwarf Hairgrass',
+    lightRequirement: 'high',
+    co2Requirement: 'high',
+    growthRate: 1.5,
+    substrateRequirement: 'aqua_soil',
+  },
+  monte_carlo: {
+    name: 'Monte Carlo',
+    lightRequirement: 'high',
+    co2Requirement: 'high',
+    growthRate: 1.8,
+    substrateRequirement: 'aqua_soil',
+  },
+};
+
+/**
+ * Individual plant specimen in the tank.
+ */
+export interface Plant {
+  /** Unique identifier */
+  id: string;
+  /** Plant species type */
+  species: PlantSpecies;
+  /** Size percentage (can exceed 100%, capped at 200% with waste release) */
+  size: number;
+}
+
 export interface Tank {
   /** Maximum water capacity in liters */
   capacity: number;
@@ -184,6 +264,8 @@ export interface SimulationState {
   environment: Environment;
   /** Tank equipment */
   equipment: Equipment;
+  /** Plants in the tank */
+  plants: Plant[];
   /** In-memory log storage */
   logs: LogEntry[];
   /** Tracks active alert conditions for threshold-crossing detection */
@@ -435,6 +517,7 @@ export function createSimulation(config: SimulationConfig): SimulationState {
       light: lightConfig,
       co2Generator: co2GeneratorConfig,
     },
+    plants: [],
     logs: [initialLog],
     alertState: {
       waterLevelCritical: false,
