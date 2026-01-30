@@ -149,16 +149,16 @@ Provides aeration through air stones or similar diffusers. Creates surface agita
 | Property | Description |
 |----------|-------------|
 | **Enabled** | On/off toggle |
-| **Output** | Liters per hour (auto-scales to tank size) |
+| **Output** | Liters per minute (auto-scales to tank size) |
 
 **Output Scaling:**
 
-| Tank Size | Output | Flow Contribution |
-|-----------|--------|-------------------|
-| ≤ 40L | 60 L/h | 6 L/h |
-| 41-150L | 120 L/h | 12 L/h |
-| 151-400L | 240 L/h | 24 L/h |
-| > 400L | 400 L/h | 40 L/h |
+| Tank Size | Air Output | Flow Contribution |
+|-----------|------------|-------------------|
+| ≤ 40L | 1.0 LPM | 6 L/h |
+| 41-150L | 2.0 LPM | 12 L/h |
+| 151-400L | 4.0 LPM | 24 L/h |
+| > 400L | 6.7 LPM | 40 L/h |
 
 **Outputs:**
 - +Aeration (enables enhanced gas exchange)

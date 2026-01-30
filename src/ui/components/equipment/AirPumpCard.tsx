@@ -11,6 +11,14 @@ import {
 import { useUnits } from '../../hooks/useUnits';
 import { lphToGph } from '../../utils/units';
 
+/**
+ * Convert liters per hour to liters per minute.
+ * Air pump output is standardly measured in LPM in the hobby.
+ */
+function lphToLpm(lph: number): number {
+  return lph / 60;
+}
+
 export interface AirPumpState {
   enabled: boolean;
 }
@@ -39,11 +47,9 @@ export function AirPumpCard({
   // Check if sponge filter is already providing aeration
   const spongeFilterActive = filterEnabled && isFilterAirDriven(filterType);
 
-  // Format air output based on unit system
-  const airOutputDisplay =
-    unitSystem === 'imperial'
-      ? `${Math.round(lphToGph(airOutputLph))} GPH`
-      : `${airOutputLph} L/h`;
+  // Format air output in LPM (industry standard for air pumps)
+  const airOutputLpm = lphToLpm(airOutputLph);
+  const airOutputDisplay = `${airOutputLpm.toFixed(1)} LPM`;
 
   // Format flow contribution
   const flowDisplay =
