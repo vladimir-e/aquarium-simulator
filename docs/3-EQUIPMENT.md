@@ -15,6 +15,7 @@ Equipment modifies the tank environment by:
 - Flow (L/h)
 - Light (watts)
 - Bacteria Surface Area (cm²)
+- Aeration (boolean)
 
 **Active Effects (deposit/withdraw from resource stocks):**
 - CO2
@@ -100,24 +101,26 @@ Mechanical and biological filtration. Different filter types provide different c
 
 **Filter Types:**
 
-| Type | Target Turnover | Max Tank | Max Flow | Bacteria Surface | Notes |
-|------|-----------------|----------|----------|------------------|-------|
-| Sponge | 4x/hr | 75L (~20 gal) | 300 L/h | 8,000 cm² | Simple, good for small tanks |
-| HOB (Hang-on-Back) | 6x/hr | 208L (~55 gal) | 1,250 L/h | 15,000 cm² | Common, easy maintenance |
-| Canister | 8x/hr | 568L (~150 gal) | 4,500 L/h | 25,000 cm² | External, high capacity |
-| Sump | 10x/hr | Unlimited | Unlimited | 40,000 cm² | Separate tank, most capacity |
+| Type | Target Turnover | Max Tank | Max Flow | Bacteria Surface | Air-Driven | Notes |
+|------|-----------------|----------|----------|------------------|------------|-------|
+| Sponge | 4x/hr | 75L (~20 gal) | 300 L/h | 8,000 cm² | Yes | Simple, provides aeration |
+| HOB (Hang-on-Back) | 6x/hr | 208L (~55 gal) | 1,250 L/h | 15,000 cm² | No | Common, easy maintenance |
+| Canister | 8x/hr | 568L (~150 gal) | 4,500 L/h | 25,000 cm² | No | External, high capacity |
+| Sump | 10x/hr | Unlimited | Unlimited | 40,000 cm² | No | Separate tank, most capacity |
 
 Flow rate scales with tank size: `flow = tankCapacity × targetTurnover`, capped at max flow.
 
 **Outputs:**
 - +Flow (water circulation)
 - +Bacteria Surface Area
+- +Aeration (sponge filter only - air-driven operation)
 
 **Behavior:**
 - Provides surface area for beneficial bacteria (AOB, NOB)
 - Circulates water, enabling gas exchange
 - Mechanically traps waste particles
 - Cleaning removes some bacteria along with waste
+- Sponge filters provide automatic aeration (no separate air pump needed)
 
 ---
 
@@ -136,6 +139,39 @@ Additional water circulation pump.
 - Increases overall tank flow
 - Helps eliminate dead spots
 - Enhances gas exchange
+
+---
+
+## Air Pump
+
+Provides aeration through air stones or similar diffusers. Creates surface agitation and bubble-driven water movement.
+
+| Property | Description |
+|----------|-------------|
+| **Enabled** | On/off toggle |
+| **Output** | Liters per hour (auto-scales to tank size) |
+
+**Output Scaling:**
+
+| Tank Size | Output | Flow Contribution |
+|-----------|--------|-------------------|
+| ≤ 40L | 60 L/h | 6 L/h |
+| 41-150L | 120 L/h | 12 L/h |
+| 151-400L | 240 L/h | 24 L/h |
+| > 400L | 400 L/h | 40 L/h |
+
+**Outputs:**
+- +Aeration (enables enhanced gas exchange)
+- +Flow (small amount from bubble uplift, ~10% of air output)
+
+**Behavior:**
+- Provides aeration for enhanced oxygen absorption
+- Increases gas exchange rate (2x multiplier)
+- Adds direct O2 injection from bubble dissolution
+- Increases CO2 off-gassing (1.5x multiplier) - conflicts with CO2 injection in planted tanks
+- Auto-scales output based on tank capacity
+
+**Note:** Sponge filters are inherently air-driven and provide aeration automatically when enabled (see Filter section).
 
 ---
 
@@ -353,18 +389,19 @@ Automatic fish feeding.
 
 ## Equipment Summary
 
-| Equipment | Flow | Light | Bacteria Surface | Other Effects |
-|-----------|------|-------|------------------|---------------|
-| Tank | | | Yes | Volume, water surface, slots |
-| Filter | Yes | | Yes (by type) | -Waste |
-| Powerhead | Yes | | | |
-| Substrate | | | Yes (by type) | +Nutrients (aqua soil) |
-| Hardscape | | | Yes (by type) | ±pH (by type) |
-| Light | | Yes | | Schedule |
-| Heater | | | | +Temp (thermostat) |
-| Chiller | | | | -Temp (thermostat) |
-| Lid | | | | -Evaporation, -gas exchange |
-| CO2 | | | | +CO2, schedule |
-| Dosing | | | | +Nutrients, schedule |
-| ATO | | | | +Water (dilutes) |
-| Feeder | | | | +Food, schedule |
+| Equipment | Flow | Light | Bacteria Surface | Aeration | Other Effects |
+|-----------|------|-------|------------------|----------|---------------|
+| Tank | | | Yes | | Volume, water surface, slots |
+| Filter | Yes | | Yes (by type) | Sponge only | -Waste |
+| Powerhead | Yes | | | | |
+| Air Pump | Yes (small) | | | Yes | +O2 direct, CO2 off-gassing |
+| Substrate | | | Yes (by type) | | +Nutrients (aqua soil) |
+| Hardscape | | | Yes (by type) | | ±pH (by type) |
+| Light | | Yes | | | Schedule |
+| Heater | | | | | +Temp (thermostat) |
+| Chiller | | | | | -Temp (thermostat) |
+| Lid | | | | | -Evaporation, -gas exchange |
+| CO2 | | | | | +CO2, schedule |
+| Dosing | | | | | +Nutrients, schedule |
+| ATO | | | | | +Water (dilutes) |
+| Feeder | | | | | +Food, schedule |

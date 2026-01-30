@@ -6,7 +6,6 @@ import {
   getAirPumpFlow,
   isAirPumpUndersized,
   isFilterAirDriven,
-  type AirPump,
   type FilterType,
 } from '../../../simulation/index.js';
 import { useUnits } from '../../hooks/useUnits';
