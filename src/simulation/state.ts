@@ -13,8 +13,11 @@ import { DEFAULT_SUBSTRATE, getSubstrateSurface } from './equipment/substrate.js
 import { calculateHardscapeTotalSurface } from './equipment/hardscape.js';
 import type { Light, LightWattage } from './equipment/light.js';
 import { DEFAULT_LIGHT } from './equipment/light.js';
+import type { AirPump } from './equipment/air-pump.js';
+import { DEFAULT_AIR_PUMP } from './equipment/air-pump.js';
 
 export type { LogEntry, LogSeverity };
+export type { AirPump };
 export type { FilterType, Filter, PowerheadFlowRate, Powerhead, SubstrateType, Substrate, Light, LightWattage };
 
 /**
@@ -118,6 +121,8 @@ export interface Resources {
   flow: number;
   /** Light intensity in watts (0 when lights off) */
   light: number;
+  /** Whether aeration is active (air pump or air-driven filter) */
+  aeration: boolean;
 
   // Biological resources
   /** Food available for consumption (grams, 2 decimal precision) */
@@ -230,6 +235,8 @@ export interface Equipment {
   light: Light;
   /** CO2 generator for planted tanks */
   co2Generator: Co2Generator;
+  /** Air pump for aeration (air stones) */
+  airPump: AirPump;
 }
 
 /**
@@ -301,6 +308,8 @@ export interface SimulationConfig {
   light?: Partial<Light>;
   /** Initial CO2 generator configuration */
   co2Generator?: Partial<Co2Generator>;
+  /** Initial air pump configuration */
+  airPump?: Partial<AirPump>;
 }
 
 const DEFAULT_TEMPERATURE = 25;
@@ -339,6 +348,8 @@ export const DEFAULT_CO2_GENERATOR: Co2Generator = {
     duration: 10, // 10 hours (7am-5pm, ends 1 hour before lights off)
   },
 };
+
+export { DEFAULT_AIR_PUMP };
 
 /**
  * Calculates available hardscape slots based on tank capacity.
@@ -387,6 +398,7 @@ export function createSimulation(config: SimulationConfig): SimulationState {
     hardscape,
     light,
     co2Generator,
+    airPump,
   } = config;
 
   const heaterConfig: Heater = {
@@ -442,6 +454,11 @@ export function createSimulation(config: SimulationConfig): SimulationState {
     },
   };
 
+  const airPumpConfig: AirPump = {
+    ...DEFAULT_AIR_PUMP,
+    ...airPump,
+  };
+
   const effectiveRoomTemp = roomTemperature ?? DEFAULT_ROOM_TEMPERATURE;
   const effectiveTapWaterTemp = tapWaterTemperature ?? DEFAULT_TAP_WATER_TEMPERATURE;
   const effectiveTapWaterPH = tapWaterPH ?? DEFAULT_TAP_WATER_PH;
@@ -460,14 +477,15 @@ export function createSimulation(config: SimulationConfig): SimulationState {
   // Calculate hardscape slots from capacity
   const hardscapeSlots = calculateHardscapeSlots(tankCapacity);
 
-  // Calculate initial passive resources (surface, flow, light)
+  // Calculate initial passive resources (surface, flow, light, aeration)
   const initialPassiveResources = calculateInitialPassiveResources(
     tankGlassSurface,
     tankCapacity,
     filterConfig,
     powerheadConfig,
     substrateConfig,
-    hardscapeConfig
+    hardscapeConfig,
+    airPumpConfig
   );
 
   return {
@@ -484,6 +502,7 @@ export function createSimulation(config: SimulationConfig): SimulationState {
       surface: initialPassiveResources.surface,
       flow: initialPassiveResources.flow,
       light: initialPassiveResources.light,
+      aeration: initialPassiveResources.aeration,
       // Biological
       food: 0.0,
       waste: 0.0,
@@ -516,6 +535,7 @@ export function createSimulation(config: SimulationConfig): SimulationState {
       hardscape: hardscapeConfig,
       light: lightConfig,
       co2Generator: co2GeneratorConfig,
+      airPump: airPumpConfig,
     },
     plants: [],
     logs: [initialLog],
@@ -548,8 +568,12 @@ function calculateInitialPassiveResources(
   filter: Filter,
   powerhead: Powerhead,
   substrate: Substrate,
-  hardscape: Hardscape
-): { surface: number; flow: number; light: number } {
+  hardscape: Hardscape,
+  airPump: AirPump
+): { surface: number; flow: number; light: number; aeration: boolean } {
+  // Import isFilterAirDriven inline to avoid circular dependency
+  const isFilterAirDriven = filter.type === 'sponge';
+
   // Surface area
   let surface = tankGlassSurface;
   if (filter.enabled) {
@@ -567,7 +591,10 @@ function calculateInitialPassiveResources(
     flow += getPowerheadFlow(powerhead.flowRateGPH);
   }
 
+  // Aeration is active if air pump is on OR filter is air-driven (sponge)
+  const aeration = airPump.enabled || (filter.enabled && isFilterAirDriven);
+
   // Light is calculated based on schedule each tick - starts at 0
   // Will be properly calculated by updatePassiveResources based on tick
-  return { surface, flow, light: 0 };
+  return { surface, flow, light: 0, aeration };
 }

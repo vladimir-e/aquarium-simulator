@@ -63,6 +63,24 @@ export const FILTER_SPECS: Record<FilterType, FilterSpec> = {
 };
 
 /**
+ * Whether a filter type is air-driven (provides aeration).
+ * Sponge filters use air lift mechanism for flow, inherently aerating the water.
+ */
+export const FILTER_AIR_DRIVEN: Record<FilterType, boolean> = {
+  sponge: true,
+  hob: false,
+  canister: false,
+  sump: false,
+};
+
+/**
+ * Checks if a filter type is air-driven (provides aeration).
+ */
+export function isFilterAirDriven(type: FilterType): boolean {
+  return FILTER_AIR_DRIVEN[type];
+}
+
+/**
  * Gets the bacteria surface area for a filter type (cm²).
  */
 export function getFilterSurface(type: FilterType): number {

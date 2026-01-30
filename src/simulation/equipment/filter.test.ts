@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { getFilterSurface, getFilterFlow, FILTER_SURFACE, FILTER_SPECS } from './filter.js';
+import { getFilterSurface, getFilterFlow, isFilterAirDriven, FILTER_SURFACE, FILTER_SPECS, FILTER_AIR_DRIVEN } from './filter.js';
 
 describe('getFilterSurface', () => {
   it('returns correct surface for sponge filter', () => {
@@ -95,5 +95,30 @@ describe('getFilterFlow', () => {
       expect(FILTER_SPECS.sump.maxCapacityLiters).toBe(Infinity);
       expect(FILTER_SPECS.sump.maxFlowLph).toBe(Infinity);
     });
+  });
+});
+
+describe('isFilterAirDriven', () => {
+  it('returns true for sponge filter', () => {
+    expect(isFilterAirDriven('sponge')).toBe(true);
+  });
+
+  it('returns false for HOB filter', () => {
+    expect(isFilterAirDriven('hob')).toBe(false);
+  });
+
+  it('returns false for canister filter', () => {
+    expect(isFilterAirDriven('canister')).toBe(false);
+  });
+
+  it('returns false for sump filter', () => {
+    expect(isFilterAirDriven('sump')).toBe(false);
+  });
+
+  it('matches FILTER_AIR_DRIVEN constants', () => {
+    expect(isFilterAirDriven('sponge')).toBe(FILTER_AIR_DRIVEN.sponge);
+    expect(isFilterAirDriven('hob')).toBe(FILTER_AIR_DRIVEN.hob);
+    expect(isFilterAirDriven('canister')).toBe(FILTER_AIR_DRIVEN.canister);
+    expect(isFilterAirDriven('sump')).toBe(FILTER_AIR_DRIVEN.sump);
   });
 });

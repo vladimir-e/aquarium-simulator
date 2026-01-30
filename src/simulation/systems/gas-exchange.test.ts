@@ -4,6 +4,7 @@ import {
   calculateO2Saturation,
   calculateFlowFactor,
   calculateGasExchange,
+  calculateAerationFactor,
 } from './gas-exchange.js';
 import { createSimulation, type SimulationState } from '../state.js';
 import { produce } from 'immer';
@@ -128,6 +129,21 @@ describe('calculateGasExchange', () => {
   });
 });
 
+describe('calculateAerationFactor', () => {
+  it('returns 1.0 when aeration is not active', () => {
+    expect(calculateAerationFactor(false, 2.0)).toBe(1.0);
+  });
+
+  it('returns multiplier when aeration is active', () => {
+    expect(calculateAerationFactor(true, 2.0)).toBe(2.0);
+    expect(calculateAerationFactor(true, 3.0)).toBe(3.0);
+  });
+
+  it('returns 1.0 even with high multiplier if aeration is off', () => {
+    expect(calculateAerationFactor(false, 10.0)).toBe(1.0);
+  });
+});
+
 describe('gasExchangeSystem', () => {
   function createTestState(overrides: Partial<{
     oxygen: number;
@@ -135,6 +151,7 @@ describe('gasExchangeSystem', () => {
     temperature: number;
     flow: number;
     capacity: number;
+    aeration: boolean;
   }> = {}): SimulationState {
     const capacity = overrides.capacity ?? 100;
     const state = createSimulation({ tankCapacity: capacity });
@@ -150,6 +167,9 @@ describe('gasExchangeSystem', () => {
       }
       if (overrides.flow !== undefined) {
         draft.resources.flow = overrides.flow;
+      }
+      if (overrides.aeration !== undefined) {
+        draft.resources.aeration = overrides.aeration;
       }
     });
   }
@@ -259,15 +279,16 @@ describe('gasExchangeSystem', () => {
     expect(coldO2Delta).toBeGreaterThan(hotO2Delta);
   });
 
-  it('creates no effects with zero flow', () => {
+  it('creates no effects with zero flow and no aeration', () => {
     const state = createTestState({
       oxygen: 6.0,
       co2: 10.0,
       flow: 0,
+      aeration: false,
     });
     const effects = gasExchangeSystem.update(state, DEFAULT_CONFIG);
 
-    // With zero flow, no gas exchange occurs
+    // With zero flow and no aeration, no gas exchange occurs
     expect(effects.length).toBe(0);
   });
 
@@ -282,5 +303,77 @@ describe('gasExchangeSystem', () => {
     expect(co2Effect).toBeDefined();
     // Should move 20 -> 4, so negative delta
     expect(co2Effect!.delta).toBeLessThan(0);
+  });
+
+  describe('aeration effects', () => {
+    it('adds direct O2 injection when aeration is active', () => {
+      const state = createTestState({
+        oxygen: 6.0,
+        flow: 0, // No flow, but aeration provides direct O2
+        aeration: true,
+      });
+      const effects = gasExchangeSystem.update(state, DEFAULT_CONFIG);
+
+      const directO2Effect = effects.find((e) => e.source === 'aeration-direct-o2');
+      expect(directO2Effect).toBeDefined();
+      expect(directO2Effect!.delta).toBeGreaterThan(0);
+    });
+
+    it('does not add direct O2 above saturation', () => {
+      const state = createTestState({
+        oxygen: 10.0, // Above saturation
+        temperature: 25,
+        flow: 0,
+        aeration: true,
+      });
+      const effects = gasExchangeSystem.update(state, DEFAULT_CONFIG);
+
+      const directO2Effect = effects.find((e) => e.source === 'aeration-direct-o2');
+      expect(directO2Effect).toBeUndefined();
+    });
+
+    it('increases gas exchange rate when aeration is active', () => {
+      const noAerationState = createTestState({
+        oxygen: 6.0,
+        flow: 500,
+        aeration: false,
+      });
+      const aerationState = createTestState({
+        oxygen: 6.0,
+        flow: 500,
+        aeration: true,
+      });
+
+      const noAerationEffects = gasExchangeSystem.update(noAerationState, DEFAULT_CONFIG);
+      const aerationEffects = gasExchangeSystem.update(aerationState, DEFAULT_CONFIG);
+
+      const noAerationO2 = noAerationEffects.find((e) => e.source === 'gas-exchange-o2')?.delta ?? 0;
+      const aerationO2 = aerationEffects.find((e) => e.source === 'gas-exchange-o2')?.delta ?? 0;
+
+      // Aeration should increase O2 exchange rate
+      expect(aerationO2).toBeGreaterThan(noAerationO2);
+    });
+
+    it('increases CO2 off-gassing when aeration is active', () => {
+      const noAerationState = createTestState({
+        co2: 20.0, // High CO2
+        flow: 500,
+        aeration: false,
+      });
+      const aerationState = createTestState({
+        co2: 20.0,
+        flow: 500,
+        aeration: true,
+      });
+
+      const noAerationEffects = gasExchangeSystem.update(noAerationState, DEFAULT_CONFIG);
+      const aerationEffects = gasExchangeSystem.update(aerationState, DEFAULT_CONFIG);
+
+      const noAerationCO2 = noAerationEffects.find((e) => e.source === 'gas-exchange-co2')?.delta ?? 0;
+      const aerationCO2 = aerationEffects.find((e) => e.source === 'gas-exchange-co2')?.delta ?? 0;
+
+      // Both should be negative (off-gassing), but aeration should off-gas more
+      expect(aerationCO2).toBeLessThan(noAerationCO2);
+    });
   });
 });

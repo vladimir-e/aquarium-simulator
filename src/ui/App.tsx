@@ -43,6 +43,7 @@ function App(): React.JSX.Element {
     updateAtoEnabled,
     updateFilterEnabled,
     updateFilterType,
+    updateAirPumpEnabled,
     updatePowerheadEnabled,
     updatePowerheadFlowRate,
     updateSubstrateType,
@@ -95,6 +96,9 @@ function App(): React.JSX.Element {
           enabled: state.equipment.filter.enabled,
           type: state.equipment.filter.type,
         }}
+        airPump={{
+          enabled: state.equipment.airPump.enabled,
+        }}
         powerhead={{
           enabled: state.equipment.powerhead.enabled,
           flowRateGPH: state.equipment.powerhead.flowRateGPH,
@@ -126,6 +130,7 @@ function App(): React.JSX.Element {
         onAtoEnabledChange={updateAtoEnabled}
         onFilterEnabledChange={updateFilterEnabled}
         onFilterTypeChange={updateFilterType}
+        onAirPumpEnabledChange={updateAirPumpEnabled}
         onPowerheadEnabledChange={updatePowerheadEnabled}
         onPowerheadFlowRateChange={updatePowerheadFlowRate}
         onSubstrateTypeChange={updateSubstrateType}

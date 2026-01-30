@@ -106,12 +106,14 @@ export {
   atoUpdate,
   getFilterSurface,
   getFilterFlow,
+  isFilterAirDriven,
   type FilterType,
   type Filter,
   type FilterSpec,
   DEFAULT_FILTER,
   FILTER_SURFACE,
   FILTER_SPECS,
+  FILTER_AIR_DRIVEN,
   getPowerheadFlow,
   type PowerheadFlowRate,
   type Powerhead,
@@ -122,6 +124,12 @@ export {
   type Substrate,
   DEFAULT_SUBSTRATE,
   SUBSTRATE_SURFACE_PER_LITER,
+  getAirPumpOutput,
+  getAirPumpFlow,
+  isAirPumpUndersized,
+  type AirPump,
+  DEFAULT_AIR_PUMP,
+  AIR_PUMP_SPEC,
 } from './equipment/index.js';
 
 // Hardscape
