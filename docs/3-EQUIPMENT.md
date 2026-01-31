@@ -120,7 +120,6 @@ Flow rate scales with tank size: `flow = tankCapacity × targetTurnover`, capped
 - Circulates water, enabling gas exchange
 - Mechanically traps waste particles
 - Cleaning removes some bacteria along with waste
-- Sponge filters provide automatic aeration (no separate air pump needed)
 
 ---
 
@@ -144,7 +143,7 @@ Additional water circulation pump.
 
 ## Air Pump
 
-Provides aeration through air stones or similar diffusers. Creates surface agitation and bubble-driven water movement.
+Air-driven aeration via air stones.
 
 | Property | Description |
 |----------|-------------|
@@ -161,17 +160,13 @@ Provides aeration through air stones or similar diffusers. Creates surface agita
 | > 400L | 6.7 LPM | 40 L/h |
 
 **Outputs:**
-- +Aeration (enables enhanced gas exchange)
-- +Flow (small amount from bubble uplift, ~10% of air output)
+- +Aeration
+- +Flow (~10% of air output from bubble uplift)
 
 **Behavior:**
-- Provides aeration for enhanced oxygen absorption
 - Increases gas exchange rate (2x multiplier)
-- Adds direct O2 injection from bubble dissolution
-- Increases CO2 off-gassing (1.5x multiplier) - conflicts with CO2 injection in planted tanks
-- Auto-scales output based on tank capacity
-
-**Note:** Sponge filters are inherently air-driven and provide aeration automatically when enabled (see Filter section).
+- Adds direct O2 injection (+0.05 mg/L/hr when below saturation)
+- Increases CO2 off-gassing (1.5x multiplier)
 
 ---
 

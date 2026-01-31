@@ -103,12 +103,9 @@ Living or organic components:
 | **Consumers** | Gas exchange system |
 
 **Notes:**
-- Indicates active air injection into the tank
-- Provided by air pumps or air-driven filters (sponge filters)
 - Enhances gas exchange rate (2x multiplier)
-- Adds direct O2 injection from bubble dissolution
+- Adds direct O2 injection (+0.05 mg/L/hr when below saturation)
 - Increases CO2 off-gassing (1.5x multiplier)
-- Conflicts with CO2 injection in planted tanks
 
 ---
 

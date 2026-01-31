@@ -237,9 +237,6 @@ When aeration is active (air pump or sponge filter):
 | Direct O2 | +0.05 mg/L/hr | Bubble dissolution (when below saturation) |
 | CO2 Off-gassing | 1.5x | Bubbles strip dissolved CO2 |
 
-**Planted Tank Consideration:**
-Aeration conflicts with CO2 injection systems. The increased CO2 off-gassing can negate supplemental CO2, reducing effectiveness for high-tech planted tanks. Consider running aeration only at night when CO2 injection is off.
-
 ### Thresholds
 
 | Parameter | Healthy | Low | Critical |
