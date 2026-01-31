@@ -50,22 +50,21 @@ function loadConfig(): TunableConfig | null {
         return null;
       }
 
-      // Check for versioned format
-      if ('version' in parsed && 'config' in parsed) {
-        const { version, config } = parsed as StoredConfig;
-        // Version mismatch - discard stored config
-        if (version !== CONFIG_SCHEMA_VERSION) {
-          globalThis.localStorage.removeItem(STORAGE_KEY);
-          return null;
-        }
-        if (!isPlainObject(config)) {
-          return null;
-        }
-        return mergeWithDefaults(config);
+      // Require versioned format
+      if (!('version' in parsed) || !('config' in parsed)) {
+        globalThis.localStorage.removeItem(STORAGE_KEY);
+        return null;
       }
 
-      // Legacy format (no version) - migrate to new format
-      return mergeWithDefaults(parsed);
+      const { version, config } = parsed as StoredConfig;
+      if (version !== CONFIG_SCHEMA_VERSION) {
+        globalThis.localStorage.removeItem(STORAGE_KEY);
+        return null;
+      }
+      if (!isPlainObject(config)) {
+        return null;
+      }
+      return mergeWithDefaults(config);
     }
   } catch {
     // Invalid stored data

@@ -43,27 +43,21 @@ describe('useConfig', () => {
       expect(result.current.config.decay.wasteFraction).toBe(0.5);
     });
 
-    it('migrates legacy format (no version) and merges with defaults', () => {
-      // Legacy format: just the config object without version wrapper
-      const legacyConfig = {
+    it('discards unversioned format and uses defaults', () => {
+      const unversionedConfig = {
         decay: { wasteFraction: 0.6 },
-        // Missing other sections - should be filled from defaults
       };
       localStorage.setItem(
         'aquarium-tunable-config',
-        JSON.stringify(legacyConfig)
+        JSON.stringify(unversionedConfig)
       );
 
       const { result } = renderHook(() => useConfig(), { wrapper: createWrapper() });
-      // Should have the stored value
-      expect(result.current.config.decay.wasteFraction).toBe(0.6);
-      // Should have default values for other decay properties
-      expect(result.current.config.decay.baseRate).toBe(
-        DEFAULT_CONFIG.decay.baseRate
-      );
-      // Should have all sections from defaults
-      expect(result.current.config.plants).toBeDefined();
-      expect(result.current.config.gasExchange).toBeDefined();
+
+      // Should use defaults, not stored values
+      expect(result.current.config).toEqual(DEFAULT_CONFIG);
+      // Invalid config should have been removed
+      expect(localStorage.getItem('aquarium-tunable-config')).toBeNull();
     });
 
     it('handles missing sections by using defaults', () => {
@@ -106,7 +100,6 @@ describe('useConfig', () => {
         'aquarium-tunable-config',
         JSON.stringify(oldVersionConfig)
       );
-      const removeItemSpy = vi.spyOn(Storage.prototype, 'removeItem');
 
       const { result } = renderHook(() => useConfig(), { wrapper: createWrapper() });
 
@@ -114,10 +107,8 @@ describe('useConfig', () => {
       expect(result.current.config.decay.wasteFraction).toBe(
         DEFAULT_CONFIG.decay.wasteFraction
       );
-      // Should have removed the invalid stored config
-      expect(removeItemSpy).toHaveBeenCalledWith('aquarium-tunable-config');
-
-      removeItemSpy.mockRestore();
+      // Invalid config should have been removed
+      expect(localStorage.getItem('aquarium-tunable-config')).toBeNull();
     });
 
     it('handles corrupted localStorage gracefully', () => {
