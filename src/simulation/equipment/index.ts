@@ -11,7 +11,7 @@ import {
   calculateHeatingRate,
 } from './heater.js';
 import { atoUpdate } from './ato.js';
-import { getFilterSurface, getFilterFlow, type FilterType, type Filter, type FilterSpec, DEFAULT_FILTER, FILTER_SURFACE, FILTER_SPECS } from './filter.js';
+import { getFilterSurface, getFilterFlow, isFilterAirDriven, type FilterType, type Filter, type FilterSpec, DEFAULT_FILTER, FILTER_SURFACE, FILTER_SPECS, FILTER_AIR_DRIVEN } from './filter.js';
 import { getPowerheadFlow, type PowerheadFlowRate, type Powerhead, DEFAULT_POWERHEAD, POWERHEAD_FLOW_LPH } from './powerhead.js';
 import { getSubstrateSurface, type SubstrateType, type Substrate, DEFAULT_SUBSTRATE, SUBSTRATE_SURFACE_PER_LITER } from './substrate.js';
 import { calculateHardscapeTotalSurface } from './hardscape.js';
@@ -25,11 +25,19 @@ import {
   type BubbleRate,
 } from './co2-generator.js';
 import { getLightOutput, type Light, type LightWattage, DEFAULT_LIGHT, LIGHT_WATTAGE_OPTIONS } from './light.js';
+import {
+  getAirPumpOutput,
+  getAirPumpFlow,
+  isAirPumpUndersized,
+  type AirPump,
+  DEFAULT_AIR_PUMP,
+  AIR_PUMP_SPEC,
+} from './air-pump.js';
 
 // Re-export equipment modules
 export { heaterUpdate, applyHeaterStateChange, calculateHeatingRate };
 export { atoUpdate };
-export { getFilterSurface, getFilterFlow, type FilterType, type Filter, type FilterSpec, DEFAULT_FILTER, FILTER_SURFACE, FILTER_SPECS };
+export { getFilterSurface, getFilterFlow, isFilterAirDriven, type FilterType, type Filter, type FilterSpec, DEFAULT_FILTER, FILTER_SURFACE, FILTER_SPECS, FILTER_AIR_DRIVEN };
 export { getPowerheadFlow, type PowerheadFlowRate, type Powerhead, DEFAULT_POWERHEAD, POWERHEAD_FLOW_LPH };
 export { getSubstrateSurface, type SubstrateType, type Substrate, DEFAULT_SUBSTRATE, SUBSTRATE_SURFACE_PER_LITER };
 export {
@@ -42,6 +50,14 @@ export {
   type BubbleRate,
 };
 export { getLightOutput, type Light, type LightWattage, DEFAULT_LIGHT, LIGHT_WATTAGE_OPTIONS };
+export {
+  getAirPumpOutput,
+  getAirPumpFlow,
+  isAirPumpUndersized,
+  type AirPump,
+  DEFAULT_AIR_PUMP,
+  AIR_PUMP_SPEC,
+};
 
 /**
  * Collects effects from all equipment and applies equipment state changes.
@@ -78,11 +94,12 @@ export interface PassiveResourceValues {
   surface: number;
   flow: number;
   light: number;
+  aeration: boolean;
 }
 
 /**
  * Calculates passive resources from all equipment.
- * Called each tick to recalculate surface, flow, and light based on current state.
+ * Called each tick to recalculate surface, flow, light, and aeration based on current state.
  *
  * Surface area sources:
  * - Tank glass walls (calculated from capacity)
@@ -93,9 +110,14 @@ export interface PassiveResourceValues {
  * Flow sources:
  * - Filter (when enabled)
  * - Powerhead (when enabled)
+ * - Air pump (when enabled, small contribution from bubble uplift)
  *
  * Light sources:
  * - Light fixture (when enabled and schedule active)
+ *
+ * Aeration sources:
+ * - Air pump (when enabled)
+ * - Air-driven filter (sponge filter)
  */
 export function calculatePassiveResources(state: SimulationState): PassiveResourceValues {
   const { tank, equipment, tick } = state;
@@ -120,9 +142,17 @@ export function calculatePassiveResources(state: SimulationState): PassiveResour
   if (equipment.powerhead.enabled) {
     flow += getPowerheadFlow(equipment.powerhead.flowRateGPH);
   }
+  // Air pump adds small flow from bubble uplift
+  if (equipment.airPump.enabled) {
+    flow += getAirPumpFlow(tank.capacity);
+  }
 
   // Light (based on schedule)
   const light = getLightOutput(equipment.light, hourOfDay);
 
-  return { surface, flow, light };
+  // Aeration: active if air pump is on OR filter is air-driven (sponge)
+  const filterAerates = equipment.filter.enabled && isFilterAirDriven(equipment.filter.type);
+  const aeration = equipment.airPump.enabled || filterAerates;
+
+  return { surface, flow, light, aeration };
 }

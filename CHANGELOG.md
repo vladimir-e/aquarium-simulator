@@ -8,6 +8,10 @@ Format: - **Feature name** (#PR) - Brief description (under 100 chars)
 - Skip UI-only tweaks and minor fixes
 -->
 
+## 2026-01-30
+
+- **Aeration System** - Air pump equipment with auto-scaling to tank size; direct O2 injection from bubble dissolution; boosted gas exchange rate when active; increased CO2 off-gassing (conflicts with CO2 injection for planted tanks); sponge filter inherently aerated; Air Pump card in Equipment panel with flow boost display
+
 ## 2026-01-26
 
 - **Plants System** - Individual plant specimens with 5 species (varied light/CO2 requirements); photosynthesis produces O2, consumes CO2/nitrate when lights on; respiration runs 24/7; biomass distribution by growth rate; overgrowth penalties and waste release at >200%; algae competition; trim action; Plants panel with add/remove/size display

@@ -16,6 +16,7 @@ Provided by equipment, calculated each tick:
 - **Bacteria Surface** - Area for bacterial colonization (cm²)
 - **Light** - Illumination for photosynthesis (watts)
 - **Flow** - Water circulation rate (L/h)
+- **Aeration** - Active air injection (boolean)
 
 ### Physical Resources
 Tank-wide physical parameters:
@@ -89,6 +90,22 @@ Living or organic components:
 - Affects gas exchange rate
 - High flow stresses some fish
 - Recommended: 4-10x tank turnover per hour
+
+---
+
+### Aeration
+
+| Property | Value |
+|----------|-------|
+| **Type** | Passive |
+| **Unit** | Boolean (true/false) |
+| **Providers** | Air pump, sponge filter (air-driven) |
+| **Consumers** | Gas exchange system |
+
+**Notes:**
+- Enhances gas exchange rate (2x multiplier)
+- Adds direct O2 injection (+0.05 mg/L/hr when below saturation)
+- Increases CO2 off-gassing (1.5x multiplier)
 
 ---
 

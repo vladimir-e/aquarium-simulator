@@ -50,6 +50,7 @@ interface UseSimulationReturn {
   updateAtoEnabled: (enabled: boolean) => void;
   updateFilterEnabled: (enabled: boolean) => void;
   updateFilterType: (type: FilterType) => void;
+  updateAirPumpEnabled: (enabled: boolean) => void;
   updatePowerheadEnabled: (enabled: boolean) => void;
   updatePowerheadFlowRate: (flowRateGPH: PowerheadFlowRate) => void;
   updateSubstrateType: (type: SubstrateType) => void;
@@ -304,6 +305,7 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
         draft.resources.surface = passiveValues.surface;
         draft.resources.flow = passiveValues.flow;
         draft.resources.light = passiveValues.light;
+        draft.resources.aeration = passiveValues.aeration;
       })
     );
   }, []);
@@ -325,7 +327,24 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
           draft.resources.surface = passiveValues.surface;
           draft.resources.flow = passiveValues.flow;
           draft.resources.light = passiveValues.light;
+          draft.resources.aeration = passiveValues.aeration;
         }
+      })
+    );
+  }, []);
+
+  const updateAirPumpEnabled = useCallback((enabled: boolean) => {
+    setState((current) =>
+      produce(current, (draft) => {
+        const message = enabled ? 'Air pump enabled' : 'Air pump disabled';
+        const log = createLog(draft.tick, 'equipment', 'info', message);
+        draft.equipment.airPump.enabled = enabled;
+        draft.logs.push(log);
+        const passiveValues = calculatePassiveResources(draft);
+        draft.resources.surface = passiveValues.surface;
+        draft.resources.flow = passiveValues.flow;
+        draft.resources.light = passiveValues.light;
+        draft.resources.aeration = passiveValues.aeration;
       })
     );
   }, []);
@@ -341,6 +360,7 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
         draft.resources.surface = passiveValues.surface;
         draft.resources.flow = passiveValues.flow;
         draft.resources.light = passiveValues.light;
+        draft.resources.aeration = passiveValues.aeration;
       })
     );
   }, []);
@@ -416,6 +436,7 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
         draft.resources.surface = passiveValues.surface;
         draft.resources.flow = passiveValues.flow;
         draft.resources.light = passiveValues.light;
+        draft.resources.aeration = passiveValues.aeration;
       })
     );
   }, []);
@@ -441,6 +462,7 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
         draft.resources.surface = passiveValues.surface;
         draft.resources.flow = passiveValues.flow;
         draft.resources.light = passiveValues.light;
+        draft.resources.aeration = passiveValues.aeration;
       })
     );
   }, []);
@@ -458,6 +480,7 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
         draft.resources.surface = passiveValues.surface;
         draft.resources.flow = passiveValues.flow;
         draft.resources.light = passiveValues.light;
+        draft.resources.aeration = passiveValues.aeration;
       })
     );
   }, []);
@@ -609,6 +632,9 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
             bubbleRate: current.equipment.co2Generator.bubbleRate,
             schedule: current.equipment.co2Generator.schedule,
           },
+          airPump: {
+            enabled: current.equipment.airPump.enabled,
+          },
         });
       });
     },
@@ -666,6 +692,7 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
     updateAtoEnabled,
     updateFilterEnabled,
     updateFilterType,
+    updateAirPumpEnabled,
     updatePowerheadEnabled,
     updatePowerheadFlowRate,
     updateSubstrateType,

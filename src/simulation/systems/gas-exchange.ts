@@ -73,6 +73,18 @@ export function calculateGasExchange(
 // System Implementation
 // ============================================================================
 
+/**
+ * Calculate aeration factor for gas exchange boost.
+ * When aeration is active, multiply the exchange rate.
+ *
+ * @param aeration - Whether aeration is active
+ * @param multiplier - Aeration exchange multiplier from config
+ * @returns Factor to multiply exchange rate (1.0 if no aeration)
+ */
+export function calculateAerationFactor(aeration: boolean, multiplier: number): number {
+  return aeration ? multiplier : 1.0;
+}
+
 export const gasExchangeSystem: System = {
   id: 'gas-exchange',
   tier: 'passive',
@@ -88,11 +100,18 @@ export const gasExchangeSystem: System = {
     // Calculate flow factor (0-1 based on tank turnovers)
     const flowFactor = calculateFlowFactor(resources.flow, tank.capacity, geConfig);
 
+    // Calculate aeration factor (multiplies exchange rate when active)
+    const aerationFactor = calculateAerationFactor(
+      resources.aeration,
+      geConfig.aerationExchangeMultiplier
+    );
+
     // O2 exchange: move toward saturation
+    // Aeration boosts the effective exchange rate
     const o2Delta = calculateGasExchange(
       resources.oxygen,
       o2Saturation,
-      geConfig.baseExchangeRate,
+      geConfig.baseExchangeRate * aerationFactor,
       flowFactor
     );
 
@@ -105,11 +124,36 @@ export const gasExchangeSystem: System = {
       });
     }
 
+    // Direct O2 injection from aeration (bubble dissolution)
+    // Small but constant O2 addition when aerating
+    if (resources.aeration && geConfig.aerationDirectO2 > 0) {
+      // Only inject if below saturation (bubbles can't supersaturate)
+      if (resources.oxygen < o2Saturation) {
+        const directO2 = Math.min(
+          geConfig.aerationDirectO2,
+          o2Saturation - resources.oxygen
+        );
+        if (directO2 > 0.001) {
+          effects.push({
+            tier: 'passive',
+            resource: 'oxygen',
+            delta: directO2,
+            source: 'aeration-direct-o2',
+          });
+        }
+      }
+    }
+
     // CO2 exchange: move toward atmospheric equilibrium
+    // Aeration increases CO2 off-gassing (bad for planted tanks!)
+    const co2AerationFactor = resources.aeration
+      ? aerationFactor * geConfig.aerationCo2OffgasMultiplier
+      : 1.0;
+
     const co2Delta = calculateGasExchange(
       resources.co2,
       geConfig.atmosphericCo2,
-      geConfig.baseExchangeRate,
+      geConfig.baseExchangeRate * co2AerationFactor,
       flowFactor
     );
 

@@ -185,6 +185,7 @@ Equilibration of dissolved gases with the atmosphere.
 | Resource | Source |
 |----------|--------|
 | Flow | Equipment (circulation) |
+| Aeration | Air pump, sponge filter |
 | Room Temperature | Environment |
 | Ambient Oxygen | Environment (atmospheric O2) |
 
@@ -202,16 +203,18 @@ Gas exchange occurs at the water surface. Dissolved gases move toward equilibriu
 - Tank O2 equilibrates toward saturation level
 - Saturation depends on temperature (colder = more O2 capacity)
 - Flow increases exchange rate
+- Aeration adds direct O2 injection and faster equilibration
 
 **Carbon Dioxide:**
 - Excess CO2 (from respiration, injection) off-gasses
 - Atmospheric CO2 dissolves in
 - Flow increases exchange rate
+- Aeration increases CO2 off-gassing rate
 
 ```
-exchange_rate = base_rate * flow_factor * surface_area
-O2_change = exchange_rate * (saturation_O2 - current_O2)
-CO2_change = exchange_rate * (atmospheric_CO2 - current_CO2)
+exchange_rate = base_rate * flow_factor * aeration_factor * surface_area
+O2_change = exchange_rate * (saturation_O2 - current_O2) + direct_O2_injection
+CO2_change = exchange_rate * co2_offgas_factor * (atmospheric_CO2 - current_CO2)
 ```
 
 ### Flow Factor
@@ -223,6 +226,16 @@ flow_factor = min(1.0, total_flow / optimal_flow)
 - More flow = faster equilibration
 - Diminishing returns above optimal flow
 - Dead spots (zero flow) = poor gas exchange
+
+### Aeration Effects
+
+When aeration is active (air pump or sponge filter):
+
+| Effect | Multiplier | Description |
+|--------|------------|-------------|
+| Exchange Rate | 2.0x | Surface agitation from bubbles |
+| Direct O2 | +0.05 mg/L/hr | Bubble dissolution (when below saturation) |
+| CO2 Off-gassing | 1.5x | Bubbles strip dissolved CO2 |
 
 ### Thresholds
 

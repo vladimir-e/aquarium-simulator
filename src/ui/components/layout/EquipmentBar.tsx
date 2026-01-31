@@ -5,6 +5,7 @@ import { LidCard, LidState, LidType } from '../equipment/LidCard';
 import { AutoTopOffCard, AutoTopOffState } from '../equipment/AutoTopOffCard';
 import { TankCard, TankState } from '../equipment/TankCard';
 import { FilterCard, FilterState, FilterType } from '../equipment/FilterCard';
+import { AirPumpCard, AirPumpState } from '../equipment/AirPumpCard';
 import { PowerheadCard, PowerheadState, PowerheadFlowRate } from '../equipment/PowerheadCard';
 import {
   SubstrateCard,
@@ -26,6 +27,7 @@ interface EquipmentBarProps {
   lid: LidState;
   ato: AutoTopOffState;
   filter: FilterState;
+  airPump: AirPumpState;
   powerhead: PowerheadState;
   substrate: SubstrateState;
   hardscape: HardscapeState;
@@ -41,6 +43,7 @@ interface EquipmentBarProps {
   onAtoEnabledChange: (enabled: boolean) => void;
   onFilterEnabledChange: (enabled: boolean) => void;
   onFilterTypeChange: (type: FilterType) => void;
+  onAirPumpEnabledChange: (enabled: boolean) => void;
   onPowerheadEnabledChange: (enabled: boolean) => void;
   onPowerheadFlowRateChange: (flowRateGPH: PowerheadFlowRate) => void;
   onSubstrateTypeChange: (type: SubstrateType) => void;
@@ -73,6 +76,7 @@ export function EquipmentBar({
   lid,
   ato,
   filter,
+  airPump,
   powerhead,
   substrate,
   hardscape,
@@ -88,6 +92,7 @@ export function EquipmentBar({
   onAtoEnabledChange,
   onFilterEnabledChange,
   onFilterTypeChange,
+  onAirPumpEnabledChange,
   onPowerheadEnabledChange,
   onPowerheadFlowRateChange,
   onSubstrateTypeChange,
@@ -184,6 +189,14 @@ export function EquipmentBar({
       activeDot: co2Generator.isOn ? 'bg-green-500' : null,
     },
     {
+      key: 'airPump',
+      show: airPump.enabled,
+      icon: <Wind className="w-4 h-4 text-accent-blue" />,
+      label: 'Air Pump',
+      showOnlineDot: true,
+      activeDot: null,
+    },
+    {
       key: 'powerhead',
       show: powerhead.enabled,
       icon: <Wind className="w-4 h-4 text-gray-400" />,
@@ -237,6 +250,13 @@ export function EquipmentBar({
               tankCapacity={tank.capacity}
               onEnabledChange={onFilterEnabledChange}
               onTypeChange={onFilterTypeChange}
+            />
+            <AirPumpCard
+              airPump={airPump}
+              tankCapacity={tank.capacity}
+              filterEnabled={filter.enabled}
+              filterType={filter.type}
+              onEnabledChange={onAirPumpEnabledChange}
             />
             <LightCard
               light={light}
