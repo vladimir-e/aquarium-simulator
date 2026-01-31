@@ -32,7 +32,7 @@ describe('useConfig', () => {
     it('loads stored config with versioned format', () => {
       const customConfig = {
         ...DEFAULT_CONFIG,
-        decay: { ...DEFAULT_CONFIG.decay, wasteFraction: 0.5 },
+        decay: { ...DEFAULT_CONFIG.decay, wasteConversionRatio: 0.5 },
       };
       localStorage.setItem(
         'aquarium-tunable-config',
@@ -40,7 +40,7 @@ describe('useConfig', () => {
       );
 
       const { result } = renderHook(() => useConfig(), { wrapper: createWrapper() });
-      expect(result.current.config.decay.wasteFraction).toBe(0.5);
+      expect(result.current.config.decay.wasteConversionRatio).toBe(0.5);
     });
 
     it('discards unversioned format and uses defaults', () => {
@@ -60,14 +60,14 @@ describe('useConfig', () => {
       expect(localStorage.getItem('aquarium-tunable-config')).toBeNull();
     });
 
-    it('handles missing sections by using defaults', () => {
+    it('handles missing sections by using defaults while preserving stored sections', () => {
       // This is the bug scenario: stored config missing a section
+      const customDecay = { ...DEFAULT_CONFIG.decay, wasteConversionRatio: 0.75 };
       const incompleteConfig = {
         version: 1,
         config: {
-          decay: DEFAULT_CONFIG.decay,
-          nitrogenCycle: DEFAULT_CONFIG.nitrogenCycle,
-          // Missing: gasExchange, temperature, evaporation, algae, ph, plants
+          decay: customDecay,
+          // Missing: all other sections
         },
       };
       localStorage.setItem(
@@ -77,23 +77,20 @@ describe('useConfig', () => {
 
       const { result } = renderHook(() => useConfig(), { wrapper: createWrapper() });
 
-      // All sections should be present
-      expect(result.current.config.gasExchange).toBeDefined();
-      expect(result.current.config.temperature).toBeDefined();
-      expect(result.current.config.evaporation).toBeDefined();
-      expect(result.current.config.algae).toBeDefined();
-      expect(result.current.config.ph).toBeDefined();
-      expect(result.current.config.plants).toBeDefined();
+      // Stored section values should be preserved
+      expect(result.current.config.decay.wasteConversionRatio).toBe(0.75);
 
-      // They should have default values
+      // Missing sections should have default values
       expect(result.current.config.plants).toEqual(DEFAULT_CONFIG.plants);
+      expect(result.current.config.gasExchange).toEqual(DEFAULT_CONFIG.gasExchange);
+      expect(result.current.config.nitrogenCycle).toEqual(DEFAULT_CONFIG.nitrogenCycle);
     });
 
     it('discards stored config when version mismatches', () => {
       const oldVersionConfig = {
         version: 0, // Old version
         config: {
-          decay: { wasteFraction: 0.9 },
+          decay: { wasteConversionRatio: 0.9 },
         },
       };
       localStorage.setItem(
@@ -104,8 +101,8 @@ describe('useConfig', () => {
       const { result } = renderHook(() => useConfig(), { wrapper: createWrapper() });
 
       // Should use defaults, not the stored value
-      expect(result.current.config.decay.wasteFraction).toBe(
-        DEFAULT_CONFIG.decay.wasteFraction
+      expect(result.current.config.decay.wasteConversionRatio).toBe(
+        DEFAULT_CONFIG.decay.wasteConversionRatio
       );
       // Invalid config should have been removed
       expect(localStorage.getItem('aquarium-tunable-config')).toBeNull();
@@ -124,6 +121,34 @@ describe('useConfig', () => {
       const { result } = renderHook(() => useConfig(), { wrapper: createWrapper() });
       expect(result.current.config).toEqual(DEFAULT_CONFIG);
     });
+
+    it('ignores invalid types and unknown keys in stored config', () => {
+      const corruptedConfig = {
+        version: 1,
+        config: {
+          decay: {
+            wasteConversionRatio: 'not a number', // Invalid type - should use default
+            baseDecayRate: 0.08, // Valid - should be preserved
+            unknownKey: 999, // Unknown key - should be ignored
+          },
+        },
+      };
+      localStorage.setItem(
+        'aquarium-tunable-config',
+        JSON.stringify(corruptedConfig)
+      );
+
+      const { result } = renderHook(() => useConfig(), { wrapper: createWrapper() });
+
+      // Invalid type should fall back to default
+      expect(result.current.config.decay.wasteConversionRatio).toBe(
+        DEFAULT_CONFIG.decay.wasteConversionRatio
+      );
+      // Valid value should be preserved
+      expect(result.current.config.decay.baseDecayRate).toBe(0.08);
+      // Unknown key should not exist
+      expect('unknownKey' in result.current.config.decay).toBe(false);
+    });
   });
 
   describe('saving to localStorage', () => {
@@ -131,7 +156,7 @@ describe('useConfig', () => {
       const { result } = renderHook(() => useConfig(), { wrapper: createWrapper() });
 
       act(() => {
-        result.current.updateConfig('decay', 'wasteFraction', 0.7);
+        result.current.updateConfig('decay', 'wasteConversionRatio', 0.7);
       });
 
       // Wait for debounce
@@ -139,9 +164,11 @@ describe('useConfig', () => {
         vi.advanceTimersByTime(600);
       });
 
-      const stored = JSON.parse(localStorage.getItem('aquarium-tunable-config')!);
+      const rawStored = localStorage.getItem('aquarium-tunable-config');
+      expect(rawStored).not.toBeNull();
+      const stored = JSON.parse(rawStored!);
       expect(stored.version).toBe(1);
-      expect(stored.config.decay.wasteFraction).toBe(0.7);
+      expect(stored.config.decay.wasteConversionRatio).toBe(0.7);
     });
   });
 

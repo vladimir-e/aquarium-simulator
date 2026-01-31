@@ -74,20 +74,28 @@ function loadConfig(): TunableConfig | null {
 
 /**
  * Merge stored config with defaults, dynamically handling all sections.
- * This ensures new sections are included even if not in stored data.
+ * Only copies keys that exist in defaults with valid number values.
+ * This prevents schema pollution and type errors from corrupted storage.
  */
 function mergeWithDefaults(stored: Record<string, unknown>): TunableConfig {
   const result = {} as Record<string, unknown>;
 
-  // Iterate over DEFAULT_CONFIG keys to ensure all sections are present
   for (const section of Object.keys(DEFAULT_CONFIG) as (keyof TunableConfig)[]) {
-    const defaultSection = DEFAULT_CONFIG[section];
+    const defaultSection = DEFAULT_CONFIG[section] as Record<string, number>;
     const storedSection = stored[section];
+    const mergedSection = { ...defaultSection };
 
-    result[section] = {
-      ...defaultSection,
-      ...(isPlainObject(storedSection) ? storedSection : {}),
-    };
+    // Only copy stored values for keys that exist in defaults with valid types
+    if (isPlainObject(storedSection)) {
+      for (const key of Object.keys(defaultSection)) {
+        const storedValue = storedSection[key];
+        if (typeof storedValue === 'number' && Number.isFinite(storedValue)) {
+          mergedSection[key] = storedValue;
+        }
+      }
+    }
+
+    result[section] = mergedSection;
   }
 
   return result as TunableConfig;
