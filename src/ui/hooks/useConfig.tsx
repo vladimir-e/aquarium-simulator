@@ -19,6 +19,18 @@ import {
 const STORAGE_KEY = 'aquarium-tunable-config';
 
 /**
+ * Schema version for stored config.
+ * Increment this when TunableConfig structure changes.
+ * When version mismatches, stored config is discarded to prevent runtime errors.
+ */
+const CONFIG_SCHEMA_VERSION = 1;
+
+interface StoredConfig {
+  version: number;
+  config: TunableConfig;
+}
+
+/**
  * Validate that a value is a plain object (not null, array, or primitive).
  */
 function isPlainObject(value: unknown): value is Record<string, unknown> {
@@ -27,26 +39,33 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
 
 /**
  * Load config from localStorage.
+ * Dynamically merges stored values with defaults to handle schema evolution.
  */
 function loadConfig(): TunableConfig | null {
   try {
     const stored = globalThis.localStorage.getItem(STORAGE_KEY);
     if (stored) {
       const parsed: unknown = JSON.parse(stored);
-      // Validate parsed data is an object
       if (!isPlainObject(parsed)) {
         return null;
       }
-      // Merge with defaults, safely handling missing/invalid sections
-      return {
-        decay: { ...DEFAULT_CONFIG.decay, ...(isPlainObject(parsed.decay) ? parsed.decay : {}) },
-        nitrogenCycle: { ...DEFAULT_CONFIG.nitrogenCycle, ...(isPlainObject(parsed.nitrogenCycle) ? parsed.nitrogenCycle : {}) },
-        gasExchange: { ...DEFAULT_CONFIG.gasExchange, ...(isPlainObject(parsed.gasExchange) ? parsed.gasExchange : {}) },
-        temperature: { ...DEFAULT_CONFIG.temperature, ...(isPlainObject(parsed.temperature) ? parsed.temperature : {}) },
-        evaporation: { ...DEFAULT_CONFIG.evaporation, ...(isPlainObject(parsed.evaporation) ? parsed.evaporation : {}) },
-        algae: { ...DEFAULT_CONFIG.algae, ...(isPlainObject(parsed.algae) ? parsed.algae : {}) },
-        ph: { ...DEFAULT_CONFIG.ph, ...(isPlainObject(parsed.ph) ? parsed.ph : {}) },
-      };
+
+      // Check for versioned format
+      if ('version' in parsed && 'config' in parsed) {
+        const { version, config } = parsed as StoredConfig;
+        // Version mismatch - discard stored config
+        if (version !== CONFIG_SCHEMA_VERSION) {
+          globalThis.localStorage.removeItem(STORAGE_KEY);
+          return null;
+        }
+        if (!isPlainObject(config)) {
+          return null;
+        }
+        return mergeWithDefaults(config);
+      }
+
+      // Legacy format (no version) - migrate to new format
+      return mergeWithDefaults(parsed);
     }
   } catch {
     // Invalid stored data
@@ -55,7 +74,29 @@ function loadConfig(): TunableConfig | null {
 }
 
 /**
+ * Merge stored config with defaults, dynamically handling all sections.
+ * This ensures new sections are included even if not in stored data.
+ */
+function mergeWithDefaults(stored: Record<string, unknown>): TunableConfig {
+  const result = {} as Record<string, unknown>;
+
+  // Iterate over DEFAULT_CONFIG keys to ensure all sections are present
+  for (const section of Object.keys(DEFAULT_CONFIG) as (keyof TunableConfig)[]) {
+    const defaultSection = DEFAULT_CONFIG[section];
+    const storedSection = stored[section];
+
+    result[section] = {
+      ...defaultSection,
+      ...(isPlainObject(storedSection) ? storedSection : {}),
+    };
+  }
+
+  return result as TunableConfig;
+}
+
+/**
  * Save config to localStorage with debouncing.
+ * Uses versioned format for safe schema evolution.
  */
 let saveTimeout: ReturnType<typeof globalThis.setTimeout> | null = null;
 
@@ -65,7 +106,11 @@ function saveConfig(config: TunableConfig): void {
   }
   saveTimeout = globalThis.setTimeout(() => {
     try {
-      globalThis.localStorage.setItem(STORAGE_KEY, JSON.stringify(config));
+      const stored: StoredConfig = {
+        version: CONFIG_SCHEMA_VERSION,
+        config,
+      };
+      globalThis.localStorage.setItem(STORAGE_KEY, JSON.stringify(stored));
     } catch {
       // Storage full or unavailable
     }
