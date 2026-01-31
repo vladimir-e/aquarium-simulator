@@ -306,7 +306,6 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
         draft.resources.flow = passiveValues.flow;
         draft.resources.light = passiveValues.light;
         draft.resources.aeration = passiveValues.aeration;
-        draft.resources.aeration = passiveValues.aeration;
       })
     );
   }, []);
@@ -345,7 +344,6 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
         draft.resources.surface = passiveValues.surface;
         draft.resources.flow = passiveValues.flow;
         draft.resources.light = passiveValues.light;
-        draft.resources.aeration = passiveValues.aeration;
         draft.resources.aeration = passiveValues.aeration;
       })
     );

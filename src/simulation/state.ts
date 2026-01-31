@@ -14,7 +14,7 @@ import { calculateHardscapeTotalSurface } from './equipment/hardscape.js';
 import type { Light, LightWattage } from './equipment/light.js';
 import { DEFAULT_LIGHT } from './equipment/light.js';
 import type { AirPump } from './equipment/air-pump.js';
-import { DEFAULT_AIR_PUMP } from './equipment/air-pump.js';
+import { DEFAULT_AIR_PUMP, getAirPumpFlow } from './equipment/air-pump.js';
 
 export type { LogEntry, LogSeverity };
 export type { AirPump };
@@ -589,6 +589,10 @@ function calculateInitialPassiveResources(
   }
   if (powerhead.enabled) {
     flow += getPowerheadFlow(powerhead.flowRateGPH);
+  }
+  // Air pump adds small flow from bubble uplift
+  if (airPump.enabled) {
+    flow += getAirPumpFlow(tankCapacity);
   }
 
   // Aeration is active if air pump is on OR filter is air-driven (sponge)
