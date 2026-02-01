@@ -8,8 +8,8 @@ Implement a centralized persistence system that saves and restores the entire ap
 
 ## References
 
-- `src/ui/hooks/useConfig.tsx` - Current TunableConfig persistence (pattern to follow)
-- `src/ui/hooks/useUnits.tsx` - Current units persistence
+- `src/ui/hooks/useConfig.tsx` - Current TunableConfig persistence (to be replaced)
+- `src/ui/hooks/useUnits.tsx` - Current units persistence (to be replaced)
 - `src/ui/hooks/useSimulation.ts` - Simulation state and reset logic
 - `src/simulation/state.ts` - SimulationState type definition
 
@@ -17,14 +17,14 @@ Implement a centralized persistence system that saves and restores the entire ap
 
 ### In Scope
 
-1. **Unified PersistenceProvider** - Single provider wrapping the app that manages all localStorage persistence
+1. **PersistenceProvider** - Single provider wrapping the app that manages all localStorage persistence
 2. **SimulationState persistence** - Save/restore equipment, resources, plants, tick, environment, alertState
-3. **Migrate existing persistence** - Move TunableConfig, units, and debug panel state into unified system
-4. **Unified localStorage key** - Single `aquarium-state` key with versioned schema
+3. **Replace existing persistence** - Remove old localStorage code from useConfig and useUnits
+4. **Single localStorage key** - `aquarium-state` with versioned schema
 5. **Error-proof loading** - Graceful degradation when stored data is invalid or corrupted
 6. **Hard reset URL** - `?reset` query parameter clears all localStorage and redirects
 7. **Emergency recovery UI** - noscript fallback link to reset URL
-8. **Reset button integration** - Timeline reset clears persisted state
+8. **Reset buttons** - Multiple reset scopes with appropriate confirmations
 
 ### Out of Scope
 
@@ -32,6 +32,7 @@ Implement a centralized persistence system that saves and restores the entire ap
 - Multiple save slots
 - Undo/redo history persistence
 - Cloud sync
+- Backward compatibility with old localStorage keys
 
 ## Implementation
 
@@ -41,9 +42,8 @@ Single localStorage key with versioned structure:
 
 ```typescript
 interface PersistedState {
-  version: number;  // Increment on breaking schema changes
+  version: number;
 
-  // Simulation state (without logs - they're ephemeral)
   simulation: {
     tick: number;
     tank: Tank;
@@ -54,21 +54,18 @@ interface PersistedState {
     alertState: AlertState;
   };
 
-  // Tunable config (migrate from existing)
   tunableConfig: TunableConfig;
 
-  // UI preferences
   ui: {
     units: 'metric' | 'imperial';
     debugPanelOpen: boolean;
-    // Future: preset, speed, isPlaying could go here
   };
 }
 ```
 
-Storage key: `aquarium-state` (replaces `aquarium-tunable-config`, `aquarium-debug-panel-open`, `aquarium-units`)
+Storage key: `aquarium-state`
 
-### 2. PersistenceProvider Architecture
+### 2. File Structure
 
 ```
 src/ui/persistence/
@@ -76,7 +73,6 @@ src/ui/persistence/
 ├── types.ts           # PersistedState type
 ├── schema.ts          # Zod validation schema
 ├── storage.ts         # localStorage read/write with validation
-├── migrations.ts      # Version migration functions
 └── PersistenceProvider.tsx  # React context provider
 ```
 
@@ -86,18 +82,18 @@ src/ui/persistence/
 
 2. **Section-level recovery** - If `simulation` section is corrupted but `tunableConfig` is valid, use defaults for simulation but preserve config.
 
-3. **Debounced auto-save** - Save 500ms after any state change (like current useConfig).
+3. **Debounced auto-save** - Save 500ms after any state change.
 
-4. **Version migrations** - When version increments, run migration function instead of discarding. Fall back to discard if migration fails.
+4. **Version handling** - On version mismatch, discard stored data and use defaults.
 
 ### 3. Provider Hierarchy
 
 ```tsx
-// main.tsx - new structure
-<PersistenceProvider>           {/* Loads/saves everything */}
-  <ConfigProvider>              {/* Reads tunableConfig from persistence */}
-    <UnitsProvider>             {/* Reads units from persistence */}
-      <SimulationProvider>      {/* Reads simulation from persistence */}
+// main.tsx
+<PersistenceProvider>
+  <ConfigProvider>
+    <UnitsProvider>
+      <SimulationProvider>
         <App />
       </SimulationProvider>
     </UnitsProvider>
@@ -105,17 +101,16 @@ src/ui/persistence/
 </PersistenceProvider>
 ```
 
-**Or simpler:** PersistenceProvider provides all state directly, eliminating separate providers. This is cleaner but requires more refactoring. Recommend the nested approach for minimal changes.
+Each child provider reads its initial state from PersistenceProvider context and notifies on changes for persistence.
 
 ### 4. Hard Reset Mechanism
 
 **Query parameter handler in main.tsx:**
 
 ```typescript
-// Check for reset query param before React renders
 if (window.location.search.includes('reset')) {
-  localStorage.clear();  // Or just remove 'aquarium-state'
-  window.location.href = window.location.pathname;  // Redirect to clean URL
+  localStorage.removeItem('aquarium-state');
+  window.location.href = window.location.pathname;
 }
 ```
 
@@ -130,7 +125,11 @@ if (window.location.search.includes('reset')) {
 </noscript>
 ```
 
-Additionally, wrap App in an error boundary that catches render errors and shows the reset link.
+**Error boundary behavior:**
+1. Catch render error
+2. Clear persisted state
+3. Attempt to render app with defaults
+4. If that also fails, show error UI with reset link
 
 ### 5. Loading Strategy
 
@@ -138,35 +137,53 @@ Additionally, wrap App in an error boundary that catches render errors and shows
 
 1. Check for `?reset` - if present, clear storage and redirect
 2. Read `aquarium-state` from localStorage
-3. Validate with Zod schema
-4. If version mismatch: attempt migration, else discard
+3. Parse JSON, validate with Zod schema
+4. If version mismatch or validation fails: discard and use defaults
 5. For each section (simulation, tunableConfig, ui):
    - If valid: use stored value
-   - If invalid: use defaults, log warning
+   - If invalid: use defaults, log warning to console
 6. Merge with defaults to handle new fields added in code
 
-**Wipe logs:** When loading persisted simulation state, always set `logs: []` (don't restore logs).
+**Logs are ephemeral:** When loading persisted simulation state, always set `logs: []`.
 
-### 6. Reset Button Integration
+### 6. Reset Buttons
 
-The existing `reset` function in `useSimulation.ts` resets to preset defaults. Modify to also:
+Three separate reset actions with different scopes:
 
-1. Clear persisted simulation state (but keep tunableConfig and UI preferences)
-2. Or provide two reset modes: "Reset Simulation" vs "Reset All"
+| Reset Action | Location | Scope | Confirmation |
+|-------------|----------|-------|--------------|
+| Reset Simulation | Timeline (existing) | Clears simulation state, keeps equipment/plants at current values but resets resources/tick to fresh state | Confirm if tick > 720 (30 days) |
+| Reset to Preset | New icon button next to preset dropdown | Reloads preset config, resets everything to preset defaults | Always confirm |
+| Reset Tunable Config | Debug panel "Reset All" | Clears tunable config overrides | No confirmation |
 
-Recommend: Reset button clears simulation state from persistence. Debug panel's "Reset All" clears tunable config. No change to units on either reset.
+**Reset Simulation** keeps the user's tank setup (equipment, plants) but resets:
+- tick → 0
+- resources → initial values for current tank capacity
+- alertState → all false
+- logs → empty
 
-### 7. Migration from Existing Keys
+**Reset to Preset** reinitializes everything from the selected preset, same as switching presets. Add confirmation dialog for both preset switch and this reset button.
 
-On first load after deployment:
+### 7. Refactoring Existing Code
 
-1. Check for legacy keys (`aquarium-tunable-config`, `aquarium-units`, `aquarium-debug-panel-open`)
-2. If found and new key doesn't exist: migrate to new format
-3. Delete legacy keys after successful migration
+**useConfig.tsx:**
+- Remove localStorage read/write logic
+- Accept initial tunableConfig from PersistenceProvider context
+- Notify PersistenceProvider on config changes
+
+**useUnits.tsx:**
+- Remove localStorage read/write logic
+- Accept initial units from PersistenceProvider context
+- Notify PersistenceProvider on unit changes
+
+**useSimulation.ts:**
+- Accept initial simulation state from PersistenceProvider context (or null to use preset)
+- Notify PersistenceProvider on state changes
+- Update reset logic per section 6
 
 ### 8. Validation Schema (Zod)
 
-Create strict schemas for each section. Example structure:
+Create strict schemas for each section:
 
 ```typescript
 const ResourcesSchema = z.object({
@@ -190,7 +207,7 @@ const PersistedStateSchema = z.object({
 }).strict();
 ```
 
-Use `.strict()` to reject unknown keys (prevents schema pollution).
+Use `.strict()` to reject unknown keys.
 
 ## Acceptance Criteria
 
@@ -200,20 +217,23 @@ Use `.strict()` to reject unknown keys (prevents schema pollution).
 4. Logs are NOT persisted (start fresh each session)
 5. Visiting `?reset` clears all persisted state and redirects to clean URL
 6. Corrupted localStorage gracefully falls back to defaults without crashing
-7. Legacy localStorage keys are migrated and removed
-8. Reset button in Timeline clears persisted simulation state
-9. Error boundary shows emergency reset link if app crashes on load
+7. Reset Simulation button resets tick/resources, confirms if > 30 days
+8. Reset to Preset button (new) resets to preset with confirmation
+9. Preset switch shows confirmation dialog
+10. Error boundary attempts recovery with defaults before showing error UI
 
 ## Tests
 
 1. **storage.ts** - Unit tests for load/save/validate functions
-2. **migrations.ts** - Unit tests for version migration
+2. **schema.ts** - Unit tests for Zod validation with valid/invalid inputs
 3. **PersistenceProvider** - Integration tests for load/save lifecycle
 4. **Reset flow** - Test that `?reset` clears storage
 5. **Graceful degradation** - Test with various corrupted storage states
+6. **Confirmation dialogs** - Test reset/preset switch confirmations
 
 ## Notes
 
 - **Install Zod** - `npm install zod` (not currently in package.json)
 - Consider localStorage quota limits (~5MB) - simulation state should be well under this
 - Future: save/load via file will export the same `PersistedState` structure as JSON
+- Old localStorage keys (`aquarium-tunable-config`, `aquarium-units`, `aquarium-debug-panel-open`) will be orphaned - users can clear them manually or ignore
