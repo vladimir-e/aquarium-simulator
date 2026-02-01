@@ -188,24 +188,25 @@ describe('useSimulation', () => {
       expect(result.current.currentPreset).toBe('betta');
     });
 
-    it('loadPreset restores full preset defaults', () => {
+    it('loadPreset restores equipment but preserves simulation progress', () => {
       const { result } = renderHook(() => useSimulation('betta'), { wrapper });
 
-      // Modify settings
+      // Modify settings and step
       act(() => {
         result.current.updateHeaterTargetTemperature(30);
         result.current.step();
       });
 
       expect(result.current.state.equipment.heater.targetTemperature).toBe(30);
+      expect(result.current.state.tick).toBe(1);
 
-      // loadPreset should restore full preset defaults
+      // loadPreset should restore equipment but keep tick
       act(() => {
         result.current.loadPreset('betta');
       });
 
       expect(result.current.state.equipment.heater.targetTemperature).toBe(26); // Betta preset default
-      expect(result.current.state.tick).toBe(0);
+      expect(result.current.state.tick).toBe(1); // Tick preserved
     });
 
     it('bare preset has no equipment enabled', () => {

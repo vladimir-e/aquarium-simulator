@@ -113,7 +113,7 @@ export function SimulationStatus({
       <ConfirmDialog
         isOpen={showPresetConfirm}
         title="Switch Preset?"
-        message={`This will reset everything to the "${pendingPresetName}" preset. All current progress will be lost.`}
+        message={`This will change your equipment to the "${pendingPresetName}" configuration. Your simulation will continue running.`}
         confirmLabel="Switch"
         onConfirm={confirmPresetChange}
         onCancel={cancelPresetChange}
@@ -122,7 +122,7 @@ export function SimulationStatus({
       <ConfirmDialog
         isOpen={showResetToPresetConfirm}
         title="Restore Defaults?"
-        message={`This will restore "${presetName}" to its default configuration. All current progress will be lost.`}
+        message={`This will restore your equipment to the "${presetName}" defaults. Your simulation will continue running.`}
         confirmLabel="Restore"
         onConfirm={confirmResetToPreset}
         onCancel={() => setShowResetToPresetConfirm(false)}

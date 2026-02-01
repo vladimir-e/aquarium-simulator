@@ -257,10 +257,35 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
 
       setCurrentPreset(presetId);
       setIsModified(false);
-      const newState = createSimulation(preset.config);
-      const log = createLog(0, 'simulation', 'info', `Loaded preset: ${preset.name}`);
-      setState(
-        produce(newState, (draft) => {
+
+      // Apply preset equipment while preserving simulation progress
+      setState((current) =>
+        produce(current, (draft) => {
+          // Create a fresh state from preset to get equipment defaults
+          const presetState = createSimulation(preset.config);
+
+          // Scale water level if tank capacity changes
+          const oldCapacity = current.tank.capacity;
+          const newCapacity = presetState.tank.capacity;
+          if (oldCapacity !== newCapacity) {
+            const fillRatio = current.resources.water / oldCapacity;
+            draft.resources.water = Math.min(fillRatio * newCapacity, newCapacity);
+          }
+
+          // Apply tank and equipment from preset
+          draft.tank = presetState.tank;
+          draft.equipment = presetState.equipment;
+          draft.environment = presetState.environment;
+
+          // Recalculate passive resources
+          const passiveValues = calculatePassiveResources(draft as SimulationState);
+          draft.resources.surface = passiveValues.surface;
+          draft.resources.flow = passiveValues.flow;
+          draft.resources.light = passiveValues.light;
+          draft.resources.aeration = passiveValues.aeration;
+
+          // Log the change
+          const log = createLog(draft.tick, 'simulation', 'info', `Switched to preset: ${preset.name}`);
           draft.logs.push(log);
         })
       );
