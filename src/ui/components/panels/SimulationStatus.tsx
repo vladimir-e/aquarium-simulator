@@ -104,12 +104,12 @@ export function SimulationStatus({
           <label className="text-xs text-gray-400 block mb-1">Units</label>
           <button
             onClick={toggleUnits}
-            className="flex items-center w-full bg-gray-800 border border-border rounded-md overflow-hidden"
+            className="flex items-center w-full bg-border border border-border rounded-md overflow-hidden"
           >
             <span
               className={`flex-1 py-1.5 text-sm transition-colors ${
                 unitSystem === 'metric'
-                  ? 'bg-accent-blue/20 text-gray-100'
+                  ? 'bg-accent-blue text-white'
                   : 'text-gray-500 hover:text-gray-300'
               }`}
             >
@@ -118,7 +118,7 @@ export function SimulationStatus({
             <span
               className={`flex-1 py-1.5 text-sm transition-colors ${
                 unitSystem === 'imperial'
-                  ? 'bg-accent-blue/20 text-gray-100'
+                  ? 'bg-accent-blue text-white'
                   : 'text-gray-500 hover:text-gray-300'
               }`}
             >
@@ -150,7 +150,7 @@ export function SimulationStatus({
 
             {/* Keyboard Hint */}
             <div className="text-xs text-gray-500 text-center">
-              Press <kbd className="px-1.5 py-0.5 bg-gray-700/50 border border-gray-600 rounded text-gray-300">Space</kbd>{' '}
+              Press <kbd className="px-1.5 py-0.5 bg-border/50 border border-border rounded text-gray-300">Space</kbd>{' '}
               to step
             </div>
           </>
