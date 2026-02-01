@@ -16,7 +16,6 @@ import type { SimulationState } from '../state.js';
 import type { DailySchedule } from '../core/schedule.js';
 import { nutrientsDefaults, type FertilizerFormula } from '../config/nutrients.js';
 import { calculateDoseNutrients } from '../actions/dose.js';
-import { createLog } from '../core/logging.js';
 
 // ============================================================================
 // Types
@@ -201,18 +200,9 @@ export function autoDoserUpdate(
     source: 'auto-doser',
   });
 
-  // Update state to mark as dosed today and log
+  // Update state to mark as dosed today
   newState = produce(newState, (draft) => {
     draft.equipment.autoDoser.dosedToday = true;
-
-    draft.logs.push(
-      createLog(
-        draft.tick,
-        'simulation',
-        'info',
-        `Auto doser dispensed ${autoDoser.doseAmountMl.toFixed(1)}ml fertilizer`
-      )
-    );
   });
 
   return { state: newState, effects, dosed: true };

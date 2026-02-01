@@ -153,28 +153,23 @@ export function Actions({
         )}
 
         {/* Dose Fertilizer */}
-        {plants.length > 0 && (
-          <div className="pt-2 border-t border-gray-700">
-            <div className="flex items-center gap-2 mb-2">
-              <label className="text-xs text-gray-400">Amount (ml)</label>
-              <input
-                type="number"
-                value={doseAmount}
-                onChange={(e) => handleDoseAmountChange(e.target.value)}
-                min="0.5"
-                max="10.0"
-                step="0.5"
-                className="w-20 px-2 py-1 text-sm bg-gray-700 border border-gray-600 rounded text-gray-200"
-              />
-            </div>
-            <Button onClick={handleDose} variant="primary">
-              Dose Fertilizer
-            </Button>
-            <div className="text-xs text-gray-500 mt-1">
-              Adds nutrients for plant growth
-            </div>
+        <div className="pt-2 border-t border-gray-700">
+          <div className="flex items-center gap-2 mb-2">
+            <label className="text-xs text-gray-400">Amount (ml)</label>
+            <input
+              type="number"
+              value={doseAmount}
+              onChange={(e) => handleDoseAmountChange(e.target.value)}
+              min="0.5"
+              max="10.0"
+              step="0.5"
+              className="w-20 px-2 py-1 text-sm bg-gray-700 border border-gray-600 rounded text-gray-200"
+            />
           </div>
-        )}
+          <Button onClick={handleDose} variant="primary">
+            Dose Fertilizer
+          </Button>
+        </div>
 
         {/* Water Change */}
         <WaterChangeCard

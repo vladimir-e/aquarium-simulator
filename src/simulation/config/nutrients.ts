@@ -86,12 +86,13 @@ export interface NutrientsConfig {
 }
 
 export const nutrientsDefaults: NutrientsConfig = {
-  // Fertilizer formula - balanced all-in-one
+  // Fertilizer formula - concentrated all-in-one
+  // 5ml in 40L gives ~40-60% of optimal for all nutrients
   fertilizerFormula: {
-    nitrate: 5.0, // mg per ml
-    phosphate: 0.5, // mg per ml
-    potassium: 2.0, // mg per ml
-    iron: 0.1, // mg per ml
+    nitrate: 50.0, // mg per ml (5ml/40L = 6.25 ppm)
+    phosphate: 5.0, // mg per ml (5ml/40L = 0.625 ppm)
+    potassium: 40.0, // mg per ml (5ml/40L = 5 ppm) - boosted for balance
+    iron: 1.0, // mg per ml (5ml/40L = 0.125 ppm)
   },
 
   // Optimal thresholds (ppm) - typical planted tank targets

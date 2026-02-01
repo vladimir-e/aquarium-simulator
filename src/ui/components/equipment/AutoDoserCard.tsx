@@ -35,23 +35,11 @@ export function AutoDoserCard({
     onScheduleChange({ ...autoDoser.schedule, startHour });
   };
 
-  const statusText = autoDoser.dosedToday ? 'DOSED' : 'WAITING';
-  const statusClass = autoDoser.dosedToday
-    ? 'bg-green-500 text-black'
-    : 'bg-border text-gray-400';
-
   return (
     <div className="bg-panel rounded-lg border border-border p-4 w-[220px] flex-shrink-0 self-stretch flex flex-col">
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-2">
-          <Droplets className="w-4 h-4 text-accent-blue" />
-          <h4 className="text-sm font-medium text-gray-200">Auto Doser</h4>
-        </div>
-        {autoDoser.enabled && (
-          <span className={`text-xs px-2 py-0.5 rounded ${statusClass}`}>
-            {statusText}
-          </span>
-        )}
+      <div className="flex items-center gap-2 mb-3">
+        <Droplets className="w-4 h-4 text-accent-blue" />
+        <h4 className="text-sm font-medium text-gray-200">Auto Doser</h4>
       </div>
 
       <div className="space-y-3 flex-1">
@@ -79,10 +67,6 @@ export function AutoDoserCard({
               {formatDosePreview(autoDoser.doseAmountMl, waterVolume)}
             </div>
 
-            <div className="text-xs text-gray-400 border-t border-border pt-2">
-              Dose time: {autoDoser.schedule.startHour}:00
-            </div>
-
             <Stepper
               label="Dose Hour"
               value={autoDoser.schedule.startHour}
@@ -91,10 +75,6 @@ export function AutoDoserCard({
               max={23}
               suffix=":00"
             />
-
-            <div className="text-xs text-gray-500 pt-2">
-              Doses once daily at scheduled time
-            </div>
           </>
         )}
       </div>

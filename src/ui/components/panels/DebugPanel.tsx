@@ -11,6 +11,8 @@ import {
   evaporationConfigMeta,
   algaeConfigMeta,
   phConfigMeta,
+  plantsConfigMeta,
+  nutrientsConfigMeta,
 } from '../../../simulation/config/index.js';
 
 interface ConfigInputProps {
@@ -332,6 +334,48 @@ export function DebugPanel(): React.JSX.Element | null {
               step={meta.step}
               unit={meta.unit}
               isModified={isValueModified('ph', meta.key)}
+            />
+          ))}
+        </ConfigSection>
+
+        {/* Plants Section */}
+        <ConfigSection
+          title="Plants"
+          isExpanded={expandedSections.has('plants')}
+          onToggle={() => toggleSection('plants')}
+          onReset={() => resetSection('plants')}
+          isModified={isSectionModified('plants')}
+        >
+          {plantsConfigMeta.map((meta) => (
+            <ConfigInput
+              key={meta.key}
+              label={meta.label}
+              value={config.plants[meta.key]}
+              onChange={(value) => updateConfig('plants', meta.key, value)}
+              step={meta.step}
+              unit={meta.unit}
+              isModified={isValueModified('plants', meta.key)}
+            />
+          ))}
+        </ConfigSection>
+
+        {/* Nutrients Section */}
+        <ConfigSection
+          title="Nutrients"
+          isExpanded={expandedSections.has('nutrients')}
+          onToggle={() => toggleSection('nutrients')}
+          onReset={() => resetSection('nutrients')}
+          isModified={isSectionModified('nutrients')}
+        >
+          {nutrientsConfigMeta.map((meta) => (
+            <ConfigInput
+              key={meta.key}
+              label={meta.label}
+              value={config.nutrients[meta.key] as number}
+              onChange={(value) => updateConfig('nutrients', meta.key, value)}
+              step={meta.step}
+              unit={meta.unit}
+              isModified={isValueModified('nutrients', meta.key)}
             />
           ))}
         </ConfigSection>

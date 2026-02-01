@@ -147,6 +147,27 @@ export function applyEffects(
             resource.bounds.max
           );
           break;
+        case 'phosphate':
+          draft.resources.phosphate = clamp(
+            draft.resources.phosphate + effect.delta,
+            resource.bounds.min,
+            resource.bounds.max
+          );
+          break;
+        case 'potassium':
+          draft.resources.potassium = clamp(
+            draft.resources.potassium + effect.delta,
+            resource.bounds.min,
+            resource.bounds.max
+          );
+          break;
+        case 'iron':
+          draft.resources.iron = clamp(
+            draft.resources.iron + effect.delta,
+            resource.bounds.min,
+            resource.bounds.max
+          );
+          break;
       }
     }
   });
