@@ -20,7 +20,7 @@ Equipment modifies the tank environment by:
 **Active Effects (deposit/withdraw from resource stocks):**
 - CO2
 - Food
-- Nutrients
+- Nitrate, Phosphate, Potassium, Iron (via dosing)
 - Temperature
 - Water
 
@@ -180,18 +180,19 @@ Bottom layer of the tank. Type affects which plants can be rooted.
 
 **Substrate Types:**
 
-| Type | Bacteria Surface | Plant Rooting | Nutrients | Can Vacuum |
-|------|------------------|---------------|-----------|------------|
-| None | 0 cm²/L | No | No | N/A |
-| Sand | 400 cm²/L | Yes (some plants) | No | No |
-| Gravel | 800 cm²/L | Yes | No | Yes |
-| Aqua Soil | 1,200 cm²/L | Yes (all plants) | Yes (slow release) | Yes |
+| Type | Bacteria Surface | Plant Rooting | Can Vacuum |
+|------|------------------|---------------|------------|
+| None | 0 cm²/L | No | N/A |
+| Sand | 400 cm²/L | Yes (some plants) | No |
+| Gravel | 800 cm²/L | Yes | Yes |
+| Aqua Soil | 1,200 cm²/L | Yes (all plants) | Yes |
 
 **Behavior:**
 - Bacteria surface area calculated assuming optimal amount for tank size
 - Plants requiring substrate check against type (sand or aqua soil)
-- Aqua soil slowly releases nutrients over time
 - Sand cannot be vacuumed (too fine)
+
+*Note: Aqua soil nutrient buffering is a future feature.*
 
 ---
 
@@ -325,20 +326,41 @@ Carbon dioxide injection for planted tanks.
 
 ## Dosing System
 
-Automated fertilizer dosing.
+Automated fertilizer dosing with all-in-one fertilizer.
 
 | Property | Description |
 |----------|-------------|
+| **Enabled** | On/off toggle |
 | **Dose Amount** | Milliliters per dose |
-| **Schedule** | Frequency, start hour |
+| **Schedule** | DailySchedule (doses once at start hour) |
+
+### Fertilizer Formula
+
+All-in-one fertilizer provides balanced nutrients per milliliter:
+
+| Nutrient | Amount per ml |
+|----------|---------------|
+| Nitrate (NO3) | 5.0 mg |
+| Phosphate (PO4) | 0.5 mg |
+| Potassium (K) | 2.0 mg |
+| Iron (Fe) | 0.1 mg |
 
 **Outputs:**
-- +Nutrients (milliliters)
+- +Nitrate (mg)
+- +Phosphate (mg)
+- +Potassium (mg)
+- +Iron (mg)
 
 **Behavior:**
-- Adds nutrients on schedule
-- Supports plant growth
-- Overdosing can promote algae
+- Doses once per day at schedule start hour
+- Adds all nutrients proportionally per formula
+- Typical dose: 1-5 ml depending on tank size and plant load
+- Supports plant growth for medium and high demand species
+- Overdosing promotes algae (relaxed threshold ~2-3x optimal)
+
+**Natural vs Dosed Tanks:**
+- **Without dosing**: Nitrogen cycle provides nitrate, decay provides trace phosphate. Sufficient for low-demand plants only.
+- **With dosing**: Full nutrient supplementation enables high-demand plant growth.
 
 ---
 
@@ -390,13 +412,13 @@ Automatic fish feeding.
 | Filter | Yes | | Yes (by type) | Sponge only | -Waste |
 | Powerhead | Yes | | | | |
 | Air Pump | Yes (small) | | | Yes | +O2 direct, CO2 off-gassing |
-| Substrate | | | Yes (by type) | | +Nutrients (aqua soil) |
+| Substrate | | | Yes (by type) | | Plant rooting |
 | Hardscape | | | Yes (by type) | | ±pH (by type) |
 | Light | | Yes | | | Schedule |
 | Heater | | | | | +Temp (thermostat) |
 | Chiller | | | | | -Temp (thermostat) |
 | Lid | | | | | -Evaporation, -gas exchange |
 | CO2 | | | | | +CO2, schedule |
-| Dosing | | | | | +Nutrients, schedule |
+| Dosing | | | | | +NO3/PO4/K/Fe, schedule |
 | ATO | | | | | +Water (dilutes) |
 | Feeder | | | | | +Food, schedule |

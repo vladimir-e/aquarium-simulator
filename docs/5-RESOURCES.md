@@ -30,8 +30,10 @@ Dissolved substances and water chemistry:
 - **CO2** - Dissolved carbon dioxide
 - **Ammonia (NH3)** - Toxic fish waste product
 - **Nitrite (NO2)** - Intermediate nitrogen compound
-- **Nitrate (NO3)** - End product of nitrogen cycle
-- **Nutrients** - Aggregate plant fertilizer
+- **Nitrate (NO3)** - End product of nitrogen cycle, plant macronutrient
+- **Phosphate (PO4)** - Plant macronutrient, from decay and fertilizer
+- **Potassium (K)** - Plant macronutrient, from fertilizer only
+- **Iron (Fe)** - Plant micronutrient, from fertilizer only
 
 ### Biological Resources
 Living or organic components:
@@ -241,34 +243,78 @@ Living or organic components:
 | **Type** | Chemical |
 | **Storage** | Mass (mg) |
 | **Display** | ppm (derived: mass/water) |
-| **Safe** | < 20 ppm |
-| **Providers** | Nitrogen cycle (from nitrite) |
-| **Consumers** | Plants, water changes |
+| **Optimal** | 10-20 ppm |
+| **Providers** | Nitrogen cycle (from nitrite), fertilizer dosing |
+| **Consumers** | Plants, algae, water changes |
 
 **Notes:**
 - Least toxic nitrogen compound
-- Accumulates over time
-- Removed by plants and water changes
-- Fertilizer for plants
+- Accumulates over time without plants
+- Primary nitrogen source for plants
+- Natural source from fish bioload via nitrogen cycle
+- Also provided by fertilizer dosing
 - Mass-based storage: evaporation automatically concentrates
 
 ---
 
-### Nutrients
+### Phosphate (PO4)
 
 | Property | Value |
 |----------|-------|
 | **Type** | Chemical |
-| **Unit** | Milliliters (mL) |
-| **Providers** | Dosing system, aqua soil substrate |
+| **Storage** | Mass (mg) |
+| **Display** | ppm (derived: mass/water) |
+| **Optimal** | 0.5-2 ppm |
+| **Providers** | Decay system (trace), fertilizer dosing |
 | **Consumers** | Plants, algae |
 
 **Notes:**
-- Simplified aggregate (not split into NPK/micros)
-- Fish waste becomes nutrients through nitrogen cycle (not directly)
-- Required for plant growth
-- Excess promotes algae
-- Depleted by plant consumption
+- Essential plant macronutrient
+- Trace amounts produced by organic decay (fish waste, uneaten food)
+- Primary source is fertilizer dosing
+- Excess promotes algae growth
+- Mass-based storage: evaporation automatically concentrates
+
+---
+
+### Potassium (K)
+
+| Property | Value |
+|----------|-------|
+| **Type** | Chemical |
+| **Storage** | Mass (mg) |
+| **Display** | ppm (derived: mass/water) |
+| **Optimal** | 5-20 ppm |
+| **Providers** | Fertilizer dosing only |
+| **Consumers** | Plants |
+
+**Notes:**
+- Essential plant macronutrient
+- NOT produced by fish waste or decay
+- Must be supplemented via dosing for demanding plants
+- Low-demand plants can survive without it (slower growth)
+- Mass-based storage: evaporation automatically concentrates
+
+---
+
+### Iron (Fe)
+
+| Property | Value |
+|----------|-------|
+| **Type** | Chemical |
+| **Storage** | Mass (mg) |
+| **Display** | ppm (derived: mass/water) |
+| **Optimal** | 0.1-0.5 ppm |
+| **Providers** | Fertilizer dosing only |
+| **Consumers** | Plants |
+
+**Notes:**
+- Representative micronutrient (stands in for all micros)
+- NOT produced by fish waste or decay
+- Must be supplemented via dosing for demanding plants
+- Low-demand plants can survive without it
+- Deficiency limits growth even with adequate macros
+- Mass-based storage: evaporation automatically concentrates
 
 ---
 
@@ -311,14 +357,16 @@ Living or organic components:
 |----------|-------|
 | **Type** | Biological |
 | **Unit** | Relative (0-100) |
-| **Providers** | Light + nutrients + nitrate |
+| **Providers** | Light + nitrate + phosphate |
 | **Consumers** | Algae-eating colonies (snails, shrimp), scrubbing action |
 
 **Notes:**
-- Grows with excess light and nutrients
-- Competes with plants for resources
+- Grows with excess light and nutrients (especially nitrate and phosphate)
+- Competes with plants for light, CO2, nitrate, and phosphate
+- Thrives when nutrients exceed plant consumption capacity
 - Food source for some livestock
 - Accumulates on glass, hardscape
+- Healthy plant growth starves algae by consuming shared nutrients
 
 ---
 
@@ -354,33 +402,3 @@ Living or organic components:
 - Population limited by surface area
 - Dies without nitrite supply
 
----
-
-## Resource Stock Diagram
-
-```
-PROVIDERS              STOCKS                 CONSUMERS
-─────────              ──────                 ─────────
-
-Feeding ──────────────► Food ◄─────────────── Fish, Colonies
-                          │                        │
-                          └───── (uneaten) ────────┘
-                                    │
-                                    ▼
-Ambient Waste ────────► Waste ◄──── Fish metabolism
-Fish metabolism ──────►   │   ◄──── Plant overgrowth
-Plant decay ──────────►   │
-                          │
-                          ▼
-                    Nitrogen Cycle
-                          │
-        ┌─────────────────┼─────────────────┐
-        ▼                 ▼                 ▼
-     Ammonia          Nitrite           Nitrate ──────► Plants
-        │                 │
-        └──► AOB ─────────┘
-              │
-              └──► NOB ───────────────────────┘
-
-Light + CO2 + Nutrients ──► Plants ──► O2 + Biomass
-```

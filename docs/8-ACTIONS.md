@@ -162,35 +162,40 @@ if percentage > 0.3:  # > 30% water change
 
 ## Dose
 
-Add fertilizers or additives to the tank.
+Add all-in-one fertilizer to the tank.
 
 ### Inputs
 | Parameter | Description |
 |-----------|-------------|
-| Type | What to dose (nutrients, etc.) |
-| Amount | Quantity to add |
+| Amount | Milliliters of fertilizer to add |
 
 ### Effects
 | Resource | Change |
 |----------|--------|
-| Nutrients | +amount (if dosing fertilizer) |
-| Other | Depends on additive type |
+| Nitrate (NO3) | +5.0 mg per ml |
+| Phosphate (PO4) | +0.5 mg per ml |
+| Potassium (K) | +2.0 mg per ml |
+| Iron (Fe) | +0.1 mg per ml |
 
 ### Behavior
 
 ```
-if dose_type == "nutrients":
-    tank.nutrients += amount
-elif dose_type == "pH_up":
-    tank.pH += amount * pH_modifier
-elif dose_type == "pH_down":
-    tank.pH -= amount * pH_modifier
+tank.nitrate += amount * 5.0
+tank.phosphate += amount * 0.5
+tank.potassium += amount * 2.0
+tank.iron += amount * 0.1
 ```
 
+### Fertilizer Formula
+
+The all-in-one fertilizer provides balanced nutrition. Plants consume nutrients in this same ratio, preventing imbalances from building up over time.
+
 ### Considerations
-- Follow dosing schedules for planted tanks
-- Overdosing can cause algae blooms
-- Some additives affect multiple parameters
+- Typical dose: 1-5 ml depending on tank size and plant load
+- Daily or every-other-day dosing for planted tanks
+- Overdosing promotes algae (but relaxed threshold gives margin for error)
+- Low-demand plants may not need dosing at all
+- Dosing System equipment automates this action
 
 ---
 
@@ -323,7 +328,7 @@ if config.scrub_algae == 'on':
 | Clean Substrate | -Waste | Minor bacteria loss (sand excluded) |
 | Top Off | +Water | Dilutes concentrations |
 | Change Water | -Pollutants | Fish stress if large |
-| Dose | +Nutrients | Algae if overdone |
+| Dose | +NO3/PO4/K/Fe | Algae if overdone |
 | Scrub Algae | -Algae | None |
 | Trim Plants | -Biomass | None |
 | Sell Fry | Remove all fry | None |

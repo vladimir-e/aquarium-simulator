@@ -35,7 +35,7 @@ tank.waste += decay_output + fish_waste + plant_decay
 
 ## Decay
 
-Aerobic decomposition of organic matter, producing waste and affecting dissolved gases.
+Aerobic decomposition of organic matter, producing waste, phosphate, and affecting dissolved gases.
 
 ### Inputs
 | Resource | Source |
@@ -49,6 +49,7 @@ Aerobic decomposition of organic matter, producing waste and affecting dissolved
 |----------|-------------|
 | Waste | Added to waste stock (~40% of decayed mass) |
 | CO2 | Dissolved in water (from oxidized carbon) |
+| Phosphate | Trace amount dissolved in water |
 
 ### Aerobic Decomposition Chemistry
 
@@ -72,11 +73,22 @@ waste_output = decay_amount * 0.4
 oxidized_amount = decay_amount * 0.6
 co2_increase = oxidized_amount * 250mg / water_volume  (mg/L)
 o2_decrease = oxidized_amount * 250mg / water_volume   (mg/L)
+phosphate_produced = decay_amount * PHOSPHATE_PER_DECAY  (trace)
 ```
 
 - Higher temperature = faster decay (Q10 = 2, rate doubles per 10°C)
 - More food = more decay, waste, and gas exchange
 - Smaller tanks see larger concentration changes (same mass, less volume)
+
+### Phosphate from Decay
+
+Organic matter (fish waste, uneaten food) contains phosphorus. During decomposition, a trace amount is released as dissolved phosphate:
+
+```
+phosphate_mg = decayed_mass * 0.01  # ~1% of decayed mass becomes PO4
+```
+
+This creates a natural phosphate source from fish bioload, supporting low-demand plants without dosing. However, the amount is insufficient for demanding plants.
 
 ### Tank Size Impact
 

@@ -99,8 +99,8 @@ Systems are registered in a central list and automatically invoked during their 
 │                        RESOURCES                                 │
 │                                                                  │
 │   Water, Temperature, pH, O2, CO2, Ammonia, Nitrite, Nitrate    │
-│   Light, Flow, Surface, Food, Waste, Nutrients, Algae           │
-│   Bacteria (AOB, NOB)                                           │
+│   Phosphate, Potassium, Iron, Light, Flow, Surface              │
+│   Food, Waste, Algae, Bacteria (AOB, NOB)                       │
 └─────────────────────────────────────────────────────────────────┘
                               │
                     ┌─────────┴─────────┐
