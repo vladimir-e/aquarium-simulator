@@ -1,6 +1,7 @@
 import React from 'react';
 import { Play, Pause, Gauge, RotateCcw, Settings } from 'lucide-react';
 import { Button } from '../ui/Button';
+import { ThemeSwitcher } from '../ui/ThemeSwitcher';
 import { useConfig } from '../../hooks/useConfig';
 
 type SpeedPreset = '1hr' | '6hr' | '12hr' | '1day';
@@ -86,8 +87,10 @@ export function Timeline({
           </div>
         </div>
 
-        {/* Right: Reset and Debug buttons (fixed) */}
+        {/* Right: Theme, Debug, and Reset buttons (fixed) */}
         <div className="flex items-center gap-2">
+          <ThemeSwitcher />
+          <div className="w-px h-6 bg-border" />
           <Button
             onClick={toggleDebugPanel}
             variant="secondary"

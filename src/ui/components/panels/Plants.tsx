@@ -73,7 +73,7 @@ export function Plants({
   const [selectedSpecies, setSelectedSpecies] = useState<PlantSpecies>('java_fern');
 
   const opacity = getAlgaeIndicatorOpacity(algae);
-  const indicatorClass = algae === 0 ? 'bg-gray-600' : 'bg-green-500';
+  const indicatorClass = algae === 0 ? 'bg-border' : 'bg-green-500';
   const description = getAlgaeDescription(algae);
 
   const maxPlants = getMaxPlants(tankCapacity);
@@ -127,7 +127,7 @@ export function Plants({
               return (
                 <div
                   key={plant.id}
-                  className="flex items-center gap-2 p-2 bg-gray-800/50 rounded"
+                  className="flex items-center gap-2 p-2 bg-border/30 rounded"
                 >
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between mb-1">
@@ -139,7 +139,7 @@ export function Plants({
                       </span>
                     </div>
                     {/* Size bar */}
-                    <div className="h-1.5 bg-gray-700 rounded-full overflow-hidden">
+                    <div className="h-1.5 bg-border rounded-full overflow-hidden">
                       <div
                         className={`h-full ${sizeColorClass} transition-all`}
                         style={{ width: `${barWidth}%` }}
@@ -178,7 +178,7 @@ export function Plants({
         )}
 
         {/* Add plant controls */}
-        <div className="pt-2 border-t border-gray-700">
+        <div className="pt-2 border-t border-border">
           <div className="flex items-end gap-2">
             <div className="flex-1">
               <Select

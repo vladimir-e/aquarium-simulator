@@ -47,7 +47,7 @@ export function LightCard({
             className={`text-xs px-2 py-0.5 rounded ${
               isCurrentlyOn
                 ? 'bg-yellow-500 text-black'
-                : 'bg-gray-600 text-gray-300'
+                : 'bg-border text-gray-400'
             }`}
           >
             {isCurrentlyOn ? 'ON' : 'OFF'}

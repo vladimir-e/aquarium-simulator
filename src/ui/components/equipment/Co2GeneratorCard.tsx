@@ -52,7 +52,7 @@ export function Co2GeneratorCard({
             className={`text-xs px-2 py-0.5 rounded ${
               co2Generator.isOn
                 ? 'bg-green-500 text-black'
-                : 'bg-gray-600 text-gray-300'
+                : 'bg-border text-gray-400'
             }`}
           >
             {co2Generator.isOn ? 'ON' : 'OFF'}
