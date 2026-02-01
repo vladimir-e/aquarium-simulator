@@ -104,4 +104,66 @@ describe('applyEffects', () => {
       expect(newState.resources.water).toBe(0);
     });
   });
+
+  describe('nutrient resources', () => {
+    it('applies phosphate effect', () => {
+      const effects: Effect[] = [
+        { tier: 'active', resource: 'phosphate', delta: 10, source: 'dose' },
+      ];
+
+      const newState = applyEffects(initialState, effects);
+
+      expect(newState.resources.phosphate).toBe(10);
+    });
+
+    it('applies potassium effect', () => {
+      const effects: Effect[] = [
+        { tier: 'active', resource: 'potassium', delta: 20, source: 'dose' },
+      ];
+
+      const newState = applyEffects(initialState, effects);
+
+      expect(newState.resources.potassium).toBe(20);
+    });
+
+    it('applies iron effect', () => {
+      const effects: Effect[] = [
+        { tier: 'active', resource: 'iron', delta: 5, source: 'dose' },
+      ];
+
+      const newState = applyEffects(initialState, effects);
+
+      expect(newState.resources.iron).toBe(5);
+    });
+
+    it('clamps nutrients to minimum of 0', () => {
+      const effects: Effect[] = [
+        { tier: 'passive', resource: 'phosphate', delta: -100, source: 'consumption' },
+        { tier: 'passive', resource: 'potassium', delta: -100, source: 'consumption' },
+        { tier: 'passive', resource: 'iron', delta: -100, source: 'consumption' },
+      ];
+
+      const newState = applyEffects(initialState, effects);
+
+      expect(newState.resources.phosphate).toBe(0);
+      expect(newState.resources.potassium).toBe(0);
+      expect(newState.resources.iron).toBe(0);
+    });
+
+    it('applies multiple nutrient effects together', () => {
+      const effects: Effect[] = [
+        { tier: 'active', resource: 'nitrate', delta: 50, source: 'dose' },
+        { tier: 'active', resource: 'phosphate', delta: 5, source: 'dose' },
+        { tier: 'active', resource: 'potassium', delta: 40, source: 'dose' },
+        { tier: 'active', resource: 'iron', delta: 1, source: 'dose' },
+      ];
+
+      const newState = applyEffects(initialState, effects);
+
+      expect(newState.resources.nitrate).toBe(50);
+      expect(newState.resources.phosphate).toBe(5);
+      expect(newState.resources.potassium).toBe(40);
+      expect(newState.resources.iron).toBe(1);
+    });
+  });
 });
