@@ -8,6 +8,10 @@ Format: - **Feature name** (#PR) - Brief description (under 100 chars)
 - Skip UI-only tweaks and minor fixes
 -->
 
+## 2026-02-01
+
+- **State Persistence** - Centralized localStorage persistence with Zod schema validation; session restoration on reload; `?reset` query parameter for recovery; confirmation dialogs for preset changes and simulation reset (tick > 720)
+
 ## 2026-01-30
 
 - **Aeration System** - Air pump equipment with auto-scaling to tank size; direct O2 injection from bubble dissolution; boosted gas exchange rate when active; increased CO2 off-gassing (conflicts with CO2 injection for planted tanks); sponge filter inherently aerated; Air Pump card in Equipment panel with flow boost display

@@ -29,6 +29,7 @@ function App(): React.JSX.Element {
     isPlaying,
     speed,
     currentPreset,
+    isPresetModified,
     step,
     togglePlayPause,
     changeSpeed,
@@ -70,6 +71,7 @@ function App(): React.JSX.Element {
       <Timeline
         isPlaying={isPlaying}
         speed={speed}
+        tick={state.tick}
         onPlayPause={togglePlayPause}
         onSpeedChange={changeSpeed}
         onReset={reset}
@@ -154,6 +156,7 @@ function App(): React.JSX.Element {
               speed={SPEED_MULTIPLIERS[speed]}
               isPlaying={isPlaying}
               currentPreset={currentPreset}
+              isPresetModified={isPresetModified}
               onStep={step}
               onPresetChange={loadPreset}
             />
