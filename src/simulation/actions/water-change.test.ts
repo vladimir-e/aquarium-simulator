@@ -59,6 +59,68 @@ describe('waterChange action', () => {
     });
   });
 
+  describe('nutrient dilution', () => {
+    it('removes proportional phosphate mass with 25% water change', () => {
+      let state = createSimulation({ tankCapacity: 100 });
+      state = produce(state, (draft) => {
+        draft.resources.phosphate = 40; // 40mg
+      });
+
+      const action: WaterChangeAction = { type: 'waterChange', amount: 0.25 };
+      const result = waterChange(state, action);
+
+      expect(result.state.resources.phosphate).toBe(30); // 75% remains
+    });
+
+    it('removes proportional potassium mass with 50% water change', () => {
+      let state = createSimulation({ tankCapacity: 100 });
+      state = produce(state, (draft) => {
+        draft.resources.potassium = 200; // 200mg
+      });
+
+      const action: WaterChangeAction = { type: 'waterChange', amount: 0.5 };
+      const result = waterChange(state, action);
+
+      expect(result.state.resources.potassium).toBe(100); // 50% remains
+    });
+
+    it('removes proportional iron mass with 90% water change', () => {
+      let state = createSimulation({ tankCapacity: 100 });
+      state = produce(state, (draft) => {
+        draft.resources.iron = 10; // 10mg
+      });
+
+      const action: WaterChangeAction = { type: 'waterChange', amount: 0.9 };
+      const result = waterChange(state, action);
+
+      expect(result.state.resources.iron).toBeCloseTo(1, 10); // 10% remains
+    });
+
+    it('removes all nutrients proportionally along with nitrogen compounds', () => {
+      let state = createSimulation({ tankCapacity: 100 });
+      state = produce(state, (draft) => {
+        draft.resources.ammonia = 10;
+        draft.resources.nitrite = 20;
+        draft.resources.nitrate = 100;
+        draft.resources.phosphate = 40;
+        draft.resources.potassium = 200;
+        draft.resources.iron = 10;
+      });
+
+      const action: WaterChangeAction = { type: 'waterChange', amount: 0.25 };
+      const result = waterChange(state, action);
+
+      // Nitrogen compounds
+      expect(result.state.resources.ammonia).toBe(7.5);
+      expect(result.state.resources.nitrite).toBe(15);
+      expect(result.state.resources.nitrate).toBe(75);
+      // Nutrients
+      expect(result.state.resources.phosphate).toBe(30);
+      expect(result.state.resources.potassium).toBe(150);
+      expect(result.state.resources.iron).toBe(7.5);
+    });
+  });
+
   describe('temperature blending', () => {
     it('blends temperature correctly with 50% water change', () => {
       // 50% water change with 20°C tap into 26°C tank → 23°C result

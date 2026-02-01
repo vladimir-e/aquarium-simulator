@@ -17,6 +17,7 @@ import {
 import { HardscapeCard, HardscapeState, HardscapeType } from '../equipment/HardscapeCard';
 import { LightCard, LightState } from '../equipment/LightCard';
 import { Co2GeneratorCard, Co2GeneratorState } from '../equipment/Co2GeneratorCard';
+import { AutoDoserCard, AutoDoserState } from '../equipment/AutoDoserCard';
 import type { DailySchedule } from '../../../simulation/index.js';
 import { useUnits } from '../../hooks/useUnits';
 import { findClosestTankSize } from '../../utils/units';
@@ -35,6 +36,7 @@ interface EquipmentBarProps {
   light: LightState;
   isLightOn: boolean;
   co2Generator: Co2GeneratorState;
+  autoDoser: AutoDoserState;
   onTankCapacityChange: (capacity: number) => void;
   onHeaterEnabledChange: (enabled: boolean) => void;
   onHeaterTargetTemperatureChange: (temp: number) => void;
@@ -55,6 +57,9 @@ interface EquipmentBarProps {
   onCo2GeneratorEnabledChange: (enabled: boolean) => void;
   onCo2GeneratorBubbleRateChange: (bubbleRate: number) => void;
   onCo2GeneratorScheduleChange: (schedule: DailySchedule) => void;
+  onAutoDoserEnabledChange: (enabled: boolean) => void;
+  onAutoDoserAmountChange: (amountMl: number) => void;
+  onAutoDoserScheduleChange: (schedule: DailySchedule) => void;
 }
 
 function formatLidName(type: string): string {
@@ -84,6 +89,7 @@ export function EquipmentBar({
   light,
   isLightOn,
   co2Generator,
+  autoDoser,
   onTankCapacityChange,
   onHeaterEnabledChange,
   onHeaterTargetTemperatureChange,
@@ -104,6 +110,9 @@ export function EquipmentBar({
   onCo2GeneratorEnabledChange,
   onCo2GeneratorBubbleRateChange,
   onCo2GeneratorScheduleChange,
+  onAutoDoserEnabledChange,
+  onAutoDoserAmountChange,
+  onAutoDoserScheduleChange,
 }: EquipmentBarProps): React.JSX.Element {
   const [isExpanded, setIsExpanded] = useState(false);
   const { unitSystem } = useUnits();
@@ -204,6 +213,14 @@ export function EquipmentBar({
       showOnlineDot: true,
       activeDot: null,
     },
+    {
+      key: 'autoDoser',
+      show: autoDoser.enabled,
+      icon: <Droplets className="w-4 h-4 text-accent-green" />,
+      label: 'Auto Doser',
+      showOnlineDot: true,
+      activeDot: autoDoser.dosedToday ? 'bg-green-500' : null,
+    },
   ];
 
   return (
@@ -301,6 +318,13 @@ export function EquipmentBar({
               powerhead={powerhead}
               onEnabledChange={onPowerheadEnabledChange}
               onFlowRateChange={onPowerheadFlowRateChange}
+            />
+            <AutoDoserCard
+              autoDoser={autoDoser}
+              waterVolume={tank.waterLevel}
+              onEnabledChange={onAutoDoserEnabledChange}
+              onDoseAmountChange={onAutoDoserAmountChange}
+              onScheduleChange={onAutoDoserScheduleChange}
             />
           </div>
         </div>

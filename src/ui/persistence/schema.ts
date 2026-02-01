@@ -46,6 +46,9 @@ const ResourcesSchema = z
     ammonia: z.number().min(0),
     nitrite: z.number().min(0),
     nitrate: z.number().min(0),
+    phosphate: z.number().min(0),
+    potassium: z.number().min(0),
+    iron: z.number().min(0),
     oxygen: z.number().min(0),
     co2: z.number().min(0),
     ph: z.number().min(0).max(14),
@@ -147,6 +150,15 @@ const AirPumpSchema = z
   })
   .strict();
 
+const AutoDoserSchema = z
+  .object({
+    enabled: z.boolean(),
+    doseAmountMl: z.number().min(0.5).max(10),
+    schedule: DailyScheduleSchema,
+    dosedToday: z.boolean(),
+  })
+  .strict();
+
 const EquipmentSchema = z
   .object({
     heater: HeaterSchema,
@@ -159,6 +171,7 @@ const EquipmentSchema = z
     light: LightSchema,
     co2Generator: Co2GeneratorSchema,
     airPump: AirPumpSchema,
+    autoDoser: AutoDoserSchema,
   })
   .strict();
 
@@ -171,6 +184,7 @@ const PlantSchema = z
     id: z.string(),
     species: z.enum(['java_fern', 'anubias', 'amazon_sword', 'dwarf_hairgrass', 'monte_carlo']),
     size: z.number().min(0).max(200),
+    condition: z.number().min(0).max(100),
   })
   .strict();
 
@@ -309,6 +323,41 @@ const PlantsConfigSchema = z
   })
   .strict();
 
+const FertilizerFormulaSchema = z
+  .object({
+    nitrate: z.number(),
+    phosphate: z.number(),
+    potassium: z.number(),
+    iron: z.number(),
+  })
+  .strict();
+
+const NutrientsConfigSchema = z
+  .object({
+    fertilizerFormula: FertilizerFormulaSchema,
+    optimalNitratePpm: z.number(),
+    optimalPhosphatePpm: z.number(),
+    optimalPotassiumPpm: z.number(),
+    optimalIronPpm: z.number(),
+    lowDemandMultiplier: z.number(),
+    mediumDemandMultiplier: z.number(),
+    highDemandMultiplier: z.number(),
+    thrivingThreshold: z.number(),
+    adequateThreshold: z.number(),
+    strugglingThreshold: z.number(),
+    conditionRecoveryRate: z.number(),
+    conditionDecayRate: z.number(),
+    sheddingConditionThreshold: z.number(),
+    maxSheddingRate: z.number(),
+    wastePerShedSize: z.number(),
+    deathConditionThreshold: z.number(),
+    deathSizeThreshold: z.number(),
+    wastePerPlantDeath: z.number(),
+    phosphatePerDecay: z.number(),
+    baseConsumptionRate: z.number(),
+  })
+  .strict();
+
 export const TunableConfigSchema = z
   .object({
     decay: DecayConfigSchema,
@@ -319,6 +368,7 @@ export const TunableConfigSchema = z
     algae: AlgaeConfigSchema,
     ph: PhConfigSchema,
     plants: PlantsConfigSchema,
+    nutrients: NutrientsConfigSchema,
   })
   .strict();
 

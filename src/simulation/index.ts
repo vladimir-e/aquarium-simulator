@@ -23,6 +23,8 @@ export type {
   Plant,
   PlantSpecies,
   PlantSpeciesData,
+  NutrientDemand,
+  AutoDoser,
 } from './state.js';
 export {
   createSimulation,
@@ -51,6 +53,9 @@ export {
   WasteResource,
   AlgaeResource,
   PhResource,
+  PhosphateResource,
+  PotassiumResource,
+  IronResource,
 } from './resources/index.js';
 
 // Schedule
@@ -130,6 +135,13 @@ export {
   type AirPump,
   DEFAULT_AIR_PUMP,
   AIR_PUMP_SPEC,
+  autoDoserUpdate,
+  applyAutoDoserSettings,
+  formatDosePreview,
+  shouldDose,
+  DEFAULT_AUTO_DOSER,
+  DOSE_AMOUNT_OPTIONS,
+  type DoseAmount,
 } from './equipment/index.js';
 
 // Hardscape
@@ -163,6 +175,7 @@ export type {
   TrimPlantsAction,
   AddPlantAction,
   RemovePlantAction,
+  DoseAction,
   ActionResult,
 } from './actions/index.js';
 export {
@@ -185,6 +198,10 @@ export {
   getSubstrateIncompatibilityReason,
   getMaxPlants,
   canAddPlant,
+  dose,
+  canDose,
+  getDosePreview,
+  calculateDoseNutrients,
 } from './actions/index.js';
 export type { WaterChangeAmount, TrimTargetSize } from './actions/index.js';
 

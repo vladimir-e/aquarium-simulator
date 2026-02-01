@@ -23,6 +23,9 @@ export { AlgaeResource } from './algae.js';
 export { AmmoniaResource } from './ammonia.js';
 export { NitriteResource } from './nitrite.js';
 export { NitrateResource } from './nitrate.js';
+export { PhosphateResource } from './phosphate.js';
+export { PotassiumResource } from './potassium.js';
+export { IronResource } from './iron.js';
 export { OxygenResource } from './oxygen.js';
 export { Co2Resource } from './co2.js';
 export { PhResource } from './ph.js';
@@ -42,6 +45,9 @@ import { AlgaeResource } from './algae.js';
 import { AmmoniaResource } from './ammonia.js';
 import { NitriteResource } from './nitrite.js';
 import { NitrateResource } from './nitrate.js';
+import { PhosphateResource } from './phosphate.js';
+import { PotassiumResource } from './potassium.js';
+import { IronResource } from './iron.js';
 import { OxygenResource } from './oxygen.js';
 import { Co2Resource } from './co2.js';
 import { PhResource } from './ph.js';
@@ -64,6 +70,9 @@ export const ResourceRegistry: Record<ResourceKey, ResourceDefinition<ResourceKe
   ammonia: AmmoniaResource,
   nitrite: NitriteResource,
   nitrate: NitrateResource,
+  phosphate: PhosphateResource,
+  potassium: PotassiumResource,
+  iron: IronResource,
   oxygen: OxygenResource,
   co2: Co2Resource,
   ph: PhResource,

@@ -10,6 +10,8 @@ Format: - **Feature name** (#PR) - Brief description (under 100 chars)
 
 ## 2026-02-01
 
+- **Nutrients and Dosing** - Nutrient resources (PO4, K, Fe); plant condition system with shedding/death; dose action and auto doser equipment
+
 - **State Persistence** - Centralized localStorage persistence with Zod schema validation; session restoration on reload; `?reset` query parameter for recovery; confirmation dialogs for preset changes and simulation reset (tick > 720)
 
 ## 2026-01-30

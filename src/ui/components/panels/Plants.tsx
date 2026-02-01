@@ -54,6 +54,27 @@ function getSizeStatus(size: number): string {
   return 'Critically overgrown!';
 }
 
+/**
+ * Get color class for condition bar based on plant condition.
+ * 0-30: red (dying), 30-60: yellow (struggling), 60-100: green (healthy)
+ */
+function getConditionBarColorClass(condition: number): string {
+  if (condition < 30) return 'bg-red-500';
+  if (condition < 60) return 'bg-yellow-500';
+  return 'bg-green-500';
+}
+
+/**
+ * Get condition status text for a plant.
+ */
+function getConditionStatusText(condition: number): string {
+  if (condition < 10) return 'Dying';
+  if (condition < 30) return 'Struggling';
+  if (condition < 60) return 'Fair';
+  if (condition < 80) return 'Good';
+  return 'Thriving';
+}
+
 /** All plant species for the dropdown */
 const ALL_SPECIES: PlantSpecies[] = [
   'java_fern',
@@ -120,9 +141,13 @@ export function Plants({
             {plants.map((plant) => {
               const speciesData = PLANT_SPECIES_DATA[plant.species];
               const sizePercent = Math.min(plant.size, 200);
-              const barWidth = (sizePercent / 200) * 100;
+              const sizeBarWidth = (sizePercent / 200) * 100;
               const sizeColorClass = getSizeBarColorClass(plant.size);
-              const status = getSizeStatus(plant.size);
+              const sizeStatus = getSizeStatus(plant.size);
+              const condition = plant.condition ?? 100;
+              const conditionBarWidth = condition;
+              const conditionColorClass = getConditionBarColorClass(condition);
+              const conditionStatus = getConditionStatusText(condition);
 
               return (
                 <div
@@ -134,19 +159,45 @@ export function Plants({
                       <span className="text-sm text-gray-200 truncate">
                         {speciesData.name}
                       </span>
-                      <span className="text-xs text-gray-400">
-                        {plant.size.toFixed(0)}%
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-gray-400">
+                          {plant.size.toFixed(0)}%
+                        </span>
+                        <span
+                          className={`text-xs px-1 py-0.5 rounded ${conditionColorClass} text-black`}
+                          title={`Condition: ${condition.toFixed(0)}%`}
+                        >
+                          {conditionStatus}
+                        </span>
+                      </div>
                     </div>
                     {/* Size bar */}
-                    <div className="h-1.5 bg-border rounded-full overflow-hidden">
-                      <div
-                        className={`h-full ${sizeColorClass} transition-all`}
-                        style={{ width: `${barWidth}%` }}
-                      />
+                    <div className="flex items-center gap-1 mb-1">
+                      <span className="text-xs text-gray-500 w-8">Size</span>
+                      <div className="flex-1 h-1.5 bg-border rounded-full overflow-hidden">
+                        <div
+                          className={`h-full ${sizeColorClass} transition-all`}
+                          style={{ width: `${sizeBarWidth}%` }}
+                        />
+                      </div>
                     </div>
-                    {status && (
-                      <div className="text-xs text-yellow-400 mt-0.5">{status}</div>
+                    {/* Condition bar */}
+                    <div className="flex items-center gap-1">
+                      <span className="text-xs text-gray-500 w-8">Cond</span>
+                      <div className="flex-1 h-1.5 bg-border rounded-full overflow-hidden">
+                        <div
+                          className={`h-full ${conditionColorClass} transition-all`}
+                          style={{ width: `${conditionBarWidth}%` }}
+                        />
+                      </div>
+                    </div>
+                    {sizeStatus && (
+                      <div className="text-xs text-yellow-400 mt-0.5">{sizeStatus}</div>
+                    )}
+                    {condition < 30 && (
+                      <div className="text-xs text-red-400 mt-0.5">
+                        Nutrient deficiency!
+                      </div>
                     )}
                   </div>
                   <button

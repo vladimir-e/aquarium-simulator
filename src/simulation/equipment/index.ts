@@ -33,6 +33,16 @@ import {
   DEFAULT_AIR_PUMP,
   AIR_PUMP_SPEC,
 } from './air-pump.js';
+import {
+  autoDoserUpdate,
+  applyAutoDoserSettings,
+  formatDosePreview,
+  shouldDose,
+  type AutoDoser,
+  DEFAULT_AUTO_DOSER,
+  DOSE_AMOUNT_OPTIONS,
+  type DoseAmount,
+} from './auto-doser.js';
 
 // Re-export equipment modules
 export { heaterUpdate, applyHeaterStateChange, calculateHeatingRate };
@@ -57,6 +67,16 @@ export {
   type AirPump,
   DEFAULT_AIR_PUMP,
   AIR_PUMP_SPEC,
+};
+export {
+  autoDoserUpdate,
+  applyAutoDoserSettings,
+  formatDosePreview,
+  shouldDose,
+  type AutoDoser,
+  DEFAULT_AUTO_DOSER,
+  DOSE_AMOUNT_OPTIONS,
+  type DoseAmount,
 };
 
 /**
@@ -83,6 +103,11 @@ export function processEquipment(state: SimulationState): {
   const co2Result = co2GeneratorUpdate(updatedState);
   effects.push(...co2Result.effects);
   updatedState = applyCo2GeneratorStateChange(updatedState, co2Result.isOn);
+
+  // Process auto doser
+  const autoDoserResult = autoDoserUpdate(updatedState);
+  effects.push(...autoDoserResult.effects);
+  updatedState = autoDoserResult.state;
 
   return { state: updatedState, effects };
 }

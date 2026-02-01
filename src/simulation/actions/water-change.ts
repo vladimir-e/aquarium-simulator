@@ -64,11 +64,14 @@ export function waterChange(
   const waterAdded = capacity - remainingWater; // Fill to 100%
 
   const newState = produce(state, (draft) => {
-    // 1. Remove proportional nitrogen compound mass
-    // Water leaving carries dissolved compounds
+    // 1. Remove proportional dissolved compound mass
+    // Water leaving carries dissolved compounds (nitrogen + nutrients)
     draft.resources.ammonia *= 1 - amount;
     draft.resources.nitrite *= 1 - amount;
     draft.resources.nitrate *= 1 - amount;
+    draft.resources.phosphate *= 1 - amount;
+    draft.resources.potassium *= 1 - amount;
+    draft.resources.iron *= 1 - amount;
 
     // 2. Temperature blending (remaining tank water + fresh tap water)
     const oldTemp = draft.resources.temperature;

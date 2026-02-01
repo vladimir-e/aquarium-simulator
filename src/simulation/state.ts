@@ -15,9 +15,12 @@ import type { Light, LightWattage } from './equipment/light.js';
 import { DEFAULT_LIGHT } from './equipment/light.js';
 import type { AirPump } from './equipment/air-pump.js';
 import { DEFAULT_AIR_PUMP, getAirPumpFlow } from './equipment/air-pump.js';
+import type { AutoDoser } from './equipment/auto-doser.js';
+import { DEFAULT_AUTO_DOSER } from './equipment/auto-doser.js';
 
 export type { LogEntry, LogSeverity };
 export type { AirPump };
+export type { AutoDoser };
 export type { FilterType, Filter, PowerheadFlowRate, Powerhead, SubstrateType, Substrate, Light, LightWattage };
 
 /**
@@ -30,6 +33,12 @@ export type PlantSpecies =
   | 'amazon_sword'
   | 'dwarf_hairgrass'
   | 'monte_carlo';
+
+/**
+ * Nutrient demand level for plants.
+ * Determines how much of the optimal nutrient levels a plant needs.
+ */
+export type NutrientDemand = 'low' | 'medium' | 'high';
 
 /**
  * Plant species characteristics.
@@ -45,6 +54,8 @@ export interface PlantSpeciesData {
   growthRate: number;
   /** Substrate requirement for planting */
   substrateRequirement: 'none' | 'sand' | 'aqua_soil';
+  /** Nutrient demand level - affects how much fertilizer is needed */
+  nutrientDemand: NutrientDemand;
 }
 
 /**
@@ -57,6 +68,7 @@ export const PLANT_SPECIES_DATA: Record<PlantSpecies, PlantSpeciesData> = {
     co2Requirement: 'low',
     growthRate: 0.5,
     substrateRequirement: 'none', // Attaches to hardscape
+    nutrientDemand: 'low', // Can survive on fish waste alone
   },
   anubias: {
     name: 'Anubias',
@@ -64,6 +76,7 @@ export const PLANT_SPECIES_DATA: Record<PlantSpecies, PlantSpeciesData> = {
     co2Requirement: 'low',
     growthRate: 0.3,
     substrateRequirement: 'none', // Attaches to hardscape
+    nutrientDemand: 'low', // Can survive on fish waste alone
   },
   amazon_sword: {
     name: 'Amazon Sword',
@@ -71,6 +84,7 @@ export const PLANT_SPECIES_DATA: Record<PlantSpecies, PlantSpeciesData> = {
     co2Requirement: 'medium',
     growthRate: 1.0,
     substrateRequirement: 'sand',
+    nutrientDemand: 'medium', // Benefits from dosing
   },
   dwarf_hairgrass: {
     name: 'Dwarf Hairgrass',
@@ -78,6 +92,7 @@ export const PLANT_SPECIES_DATA: Record<PlantSpecies, PlantSpeciesData> = {
     co2Requirement: 'high',
     growthRate: 1.5,
     substrateRequirement: 'aqua_soil',
+    nutrientDemand: 'high', // Requires regular dosing
   },
   monte_carlo: {
     name: 'Monte Carlo',
@@ -85,6 +100,7 @@ export const PLANT_SPECIES_DATA: Record<PlantSpecies, PlantSpeciesData> = {
     co2Requirement: 'high',
     growthRate: 1.8,
     substrateRequirement: 'aqua_soil',
+    nutrientDemand: 'high', // Requires regular dosing
   },
 };
 
@@ -98,6 +114,8 @@ export interface Plant {
   species: PlantSpecies;
   /** Size percentage (can exceed 100%, capped at 200% with waste release) */
   size: number;
+  /** Condition/health percentage (0-100, plant dies below 10%) */
+  condition: number;
 }
 
 export interface Tank {
@@ -140,6 +158,15 @@ export interface Resources {
   nitrite: number;
   /** Nitrate mass in mg (accumulates, derive ppm = mass/water, <20 ppm safe) */
   nitrate: number;
+
+  // Plant nutrients - stored as mass (mg)
+  // Concentration (ppm) derived as mass/water for display
+  /** Phosphate mass in mg (optimal 0.5-2 ppm for plants) */
+  phosphate: number;
+  /** Potassium mass in mg (optimal 5-20 ppm for plants) */
+  potassium: number;
+  /** Iron mass in mg (optimal 0.1-0.5 ppm, represents micronutrients) */
+  iron: number;
 
   // Chemical resources (dissolved gases) - stored as concentration (mg/L)
   /** Dissolved oxygen in mg/L (healthy > 6, critical < 4) */
@@ -237,6 +264,8 @@ export interface Equipment {
   co2Generator: Co2Generator;
   /** Air pump for aeration (air stones) */
   airPump: AirPump;
+  /** Auto doser for scheduled fertilizer dosing */
+  autoDoser: AutoDoser;
 }
 
 /**
@@ -310,6 +339,8 @@ export interface SimulationConfig {
   co2Generator?: Partial<Co2Generator>;
   /** Initial air pump configuration */
   airPump?: Partial<AirPump>;
+  /** Initial auto doser configuration */
+  autoDoser?: Partial<AutoDoser>;
 }
 
 const DEFAULT_TEMPERATURE = 25;
@@ -399,6 +430,7 @@ export function createSimulation(config: SimulationConfig): SimulationState {
     light,
     co2Generator,
     airPump,
+    autoDoser,
   } = config;
 
   const heaterConfig: Heater = {
@@ -459,6 +491,15 @@ export function createSimulation(config: SimulationConfig): SimulationState {
     ...airPump,
   };
 
+  const autoDoserConfig: AutoDoser = {
+    ...DEFAULT_AUTO_DOSER,
+    ...autoDoser,
+    schedule: {
+      ...DEFAULT_AUTO_DOSER.schedule,
+      ...autoDoser?.schedule,
+    },
+  };
+
   const effectiveRoomTemp = roomTemperature ?? DEFAULT_ROOM_TEMPERATURE;
   const effectiveTapWaterTemp = tapWaterTemperature ?? DEFAULT_TAP_WATER_TEMPERATURE;
   const effectiveTapWaterPH = tapWaterPH ?? DEFAULT_TAP_WATER_PH;
@@ -511,6 +552,10 @@ export function createSimulation(config: SimulationConfig): SimulationState {
       ammonia: 0,
       nitrite: 0,
       nitrate: 0,
+      // Plant nutrients
+      phosphate: 0,
+      potassium: 0,
+      iron: 0,
       // Dissolved gases (concentration in mg/L)
       oxygen: 8.0, // Start at saturation for ~20°C
       co2: 4.0, // Start at atmospheric equilibrium
@@ -536,6 +581,7 @@ export function createSimulation(config: SimulationConfig): SimulationState {
       light: lightConfig,
       co2Generator: co2GeneratorConfig,
       airPump: airPumpConfig,
+      autoDoser: autoDoserConfig,
     },
     plants: [],
     logs: [initialLog],

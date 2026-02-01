@@ -8,6 +8,7 @@ import type { SimulationState } from '../state.js';
 import type { System } from './types.js';
 import type { TunableConfig } from '../config/index.js';
 import { type DecayConfig, decayDefaults } from '../config/decay.js';
+import { nutrientsDefaults } from '../config/nutrients.js';
 
 /**
  * Calculate temperature factor for decay rate using Q10 coefficient.
@@ -46,8 +47,9 @@ export const decaySystem: System = {
   update(state: SimulationState, config: TunableConfig): Effect[] {
     const effects: Effect[] = [];
     const decayConfig = config.decay;
+    const nutrientsConfig = config.nutrients ?? nutrientsDefaults;
 
-    // Decay food → waste + CO2 + O2 consumption
+    // Decay food → waste + CO2 + O2 consumption + trace phosphate
     if (state.resources.food > 0) {
       const decayAmount = calculateDecay(
         state.resources.food,
@@ -70,6 +72,16 @@ export const decaySystem: System = {
           tier: 'passive',
           resource: 'waste',
           delta: wasteAmount,
+          source: 'decay',
+        });
+
+        // Phosphate released from decaying organic matter (mg per gram)
+        // Links fish bioload to partial plant nutrition
+        const phosphateProduced = decayAmount * nutrientsConfig.phosphatePerDecay;
+        effects.push({
+          tier: 'passive',
+          resource: 'phosphate',
+          delta: phosphateProduced,
           source: 'decay',
         });
 

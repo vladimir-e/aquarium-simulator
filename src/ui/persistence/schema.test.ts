@@ -102,6 +102,9 @@ describe('PersistedSimulationSchema', () => {
       ammonia: 0,
       nitrite: 0,
       nitrate: 0,
+      phosphate: 0,
+      potassium: 0,
+      iron: 0,
       oxygen: 8,
       co2: 5,
       ph: 7,
@@ -124,6 +127,7 @@ describe('PersistedSimulationSchema', () => {
       light: { enabled: true, wattage: 10, schedule: { startHour: 8, duration: 8 } },
       co2Generator: { enabled: false, bubbleRate: 1, isOn: false, schedule: { startHour: 8, duration: 8 } },
       airPump: { enabled: false },
+      autoDoser: { enabled: false, doseAmountMl: 2, schedule: { startHour: 8, duration: 1 }, dosedToday: false },
     },
     plants: [],
     alertState: {
@@ -146,8 +150,8 @@ describe('PersistedSimulationSchema', () => {
     const withPlants = {
       ...validSimulation,
       plants: [
-        { id: 'plant-1', species: 'java_fern', size: 50 },
-        { id: 'plant-2', species: 'anubias', size: 75 },
+        { id: 'plant-1', species: 'java_fern', size: 50, condition: 100 },
+        { id: 'plant-2', species: 'anubias', size: 75, condition: 85 },
       ],
     };
     expect(PersistedSimulationSchema.safeParse(withPlants).success).toBe(true);
@@ -172,7 +176,7 @@ describe('PersistedSimulationSchema', () => {
   it('rejects invalid plant species', () => {
     const invalidPlant = {
       ...validSimulation,
-      plants: [{ id: 'p1', species: 'invalid_species', size: 50 }],
+      plants: [{ id: 'p1', species: 'invalid_species', size: 50, condition: 100 }],
     };
     expect(PersistedSimulationSchema.safeParse(invalidPlant).success).toBe(false);
   });
@@ -233,6 +237,9 @@ describe('PersistedStateSchema', () => {
       ammonia: 0,
       nitrite: 0,
       nitrate: 0,
+      phosphate: 0,
+      potassium: 0,
+      iron: 0,
       oxygen: 8,
       co2: 5,
       ph: 7,
@@ -255,6 +262,7 @@ describe('PersistedStateSchema', () => {
       light: { enabled: true, wattage: 10, schedule: { startHour: 8, duration: 8 } },
       co2Generator: { enabled: false, bubbleRate: 1, isOn: false, schedule: { startHour: 8, duration: 8 } },
       airPump: { enabled: false },
+      autoDoser: { enabled: false, doseAmountMl: 2, schedule: { startHour: 8, duration: 1 }, dosedToday: false },
     },
     plants: [],
     alertState: {
