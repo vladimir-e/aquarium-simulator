@@ -69,12 +69,3 @@ export const PERSISTENCE_SCHEMA_VERSION = 1;
  * Storage key for unified persistence.
  */
 export const STORAGE_KEY = 'aquarium-state';
-
-/**
- * Legacy storage keys to migrate from.
- */
-export const LEGACY_KEYS = {
-  tunableConfig: 'aquarium-tunable-config',
-  units: 'aquarium-units',
-  debugPanel: 'aquarium-debug-panel-open',
-} as const;

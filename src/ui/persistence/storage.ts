@@ -10,20 +10,19 @@ import {
   validateUI,
   isCurrentVersion,
 } from './schema.js';
-import {
-  migrateState,
-  migrateLegacyKeys,
-  removeLegacyKeys,
-  hasLegacyKeys,
-  isPlainObject,
-} from './migrations.js';
 import { DEFAULT_CONFIG, type TunableConfig } from '../../simulation/config/index.js';
 import { detectUnitSystem } from '../utils/units.js';
 
 /**
+ * Type guard for plain objects.
+ */
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+/**
  * Load persisted state from localStorage.
- * Handles version migrations and section-level validation.
- * Returns null for each section that fails validation.
+ * Validates each section and returns null for invalid sections.
  */
 export function loadPersistedState(): LoadedState {
   const result: LoadedState = {
@@ -33,19 +32,6 @@ export function loadPersistedState(): LoadedState {
   };
 
   try {
-    // First, check for legacy keys to migrate
-    if (hasLegacyKeys()) {
-      const legacy = migrateLegacyKeys();
-      if (legacy.tunableConfig) {
-        result.tunableConfig = legacy.tunableConfig;
-      }
-      if (legacy.ui) {
-        result.ui = legacy.ui;
-      }
-      // Don't remove legacy keys yet - we'll do that after successful save
-    }
-
-    // Load from new unified key
     const stored = globalThis.localStorage.getItem(STORAGE_KEY);
     if (!stored) {
       return result;
@@ -56,46 +42,43 @@ export function loadPersistedState(): LoadedState {
       return result;
     }
 
-    // Check version
+    // Check version - discard if not current
     const version = typeof parsed.version === 'number' ? parsed.version : 0;
-
-    // Attempt migration if version differs
-    let data: PersistedState | null = null;
-    if (isCurrentVersion(version)) {
-      data = parsed as PersistedState;
-    } else {
-      data = migrateState(parsed, version);
-      if (!data) {
-        // Migration failed - discard stored data
-        console.warn(`[Persistence] Failed to migrate from version ${version}`);
-        return result;
-      }
+    if (!isCurrentVersion(version)) {
+      // eslint-disable-next-line no-console
+      console.warn(`[Persistence] Version mismatch (${version}), discarding stored state`);
+      return result;
     }
+
+    const data = parsed as PersistedState;
 
     // Validate each section independently
     const simulation = validateSimulation(data.simulation);
     if (simulation) {
       result.simulation = simulation as PersistedSimulation;
     } else {
+      // eslint-disable-next-line no-console
       console.warn('[Persistence] Invalid simulation state, using defaults');
     }
 
     const tunableConfig = validateTunableConfig(data.tunableConfig);
     if (tunableConfig) {
       result.tunableConfig = mergeConfigWithDefaults(tunableConfig as Record<string, Record<string, number>>);
-    } else if (!result.tunableConfig) {
-      // Only warn if we didn't get it from legacy keys
+    } else {
+      // eslint-disable-next-line no-console
       console.warn('[Persistence] Invalid tunable config, using defaults');
     }
 
     const ui = validateUI(data.ui);
     if (ui) {
       result.ui = ui as PersistedUI;
-    } else if (!result.ui) {
+    } else {
+      // eslint-disable-next-line no-console
       console.warn('[Persistence] Invalid UI preferences, using defaults');
     }
 
   } catch (error) {
+    // eslint-disable-next-line no-console
     console.warn('[Persistence] Failed to load persisted state:', error);
   }
 
@@ -115,12 +98,8 @@ export function savePersistedState(state: PersistedState): void {
   saveTimeout = globalThis.setTimeout(() => {
     try {
       globalThis.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-
-      // Remove legacy keys after successful save to new format
-      if (hasLegacyKeys()) {
-        removeLegacyKeys();
-      }
     } catch (error) {
+      // eslint-disable-next-line no-console
       console.warn('[Persistence] Failed to save state:', error);
     }
     saveTimeout = null;
@@ -139,11 +118,8 @@ export function savePersistedStateSync(state: PersistedState): void {
 
   try {
     globalThis.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-
-    if (hasLegacyKeys()) {
-      removeLegacyKeys();
-    }
   } catch (error) {
+    // eslint-disable-next-line no-console
     console.warn('[Persistence] Failed to save state:', error);
   }
 }
@@ -159,8 +135,8 @@ export function clearPersistedState(): void {
 
   try {
     globalThis.localStorage.removeItem(STORAGE_KEY);
-    removeLegacyKeys();
   } catch (error) {
+    // eslint-disable-next-line no-console
     console.warn('[Persistence] Failed to clear state:', error);
   }
 }

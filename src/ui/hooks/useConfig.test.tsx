@@ -4,7 +4,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import React, { type ReactNode, type ComponentType } from 'react';
 import { ConfigProvider, useConfig } from './useConfig.js';
-import { PersistenceProvider, STORAGE_KEY, LEGACY_KEYS } from '../persistence/index.js';
+import { PersistenceProvider, STORAGE_KEY } from '../persistence/index.js';
 import { DEFAULT_CONFIG, type TunableConfig } from '../../simulation/config/index.js';
 
 function createWrapper(): ComponentType<{ children: ReactNode }> {
@@ -70,7 +70,7 @@ describe('useConfig', () => {
       expect(result.current.config).toEqual(DEFAULT_CONFIG);
     });
 
-    it('loads stored config from new unified key', () => {
+    it('loads stored config from localStorage', () => {
       const customConfig = {
         ...DEFAULT_CONFIG,
         decay: { ...DEFAULT_CONFIG.decay, wasteConversionRatio: 0.5 },
@@ -81,108 +81,30 @@ describe('useConfig', () => {
       expect(result.current.config.decay.wasteConversionRatio).toBe(0.5);
     });
 
-    it('migrates stored config from legacy versioned format', () => {
-      const customConfig = {
-        ...DEFAULT_CONFIG,
-        decay: { ...DEFAULT_CONFIG.decay, wasteConversionRatio: 0.5 },
-      };
-      globalThis.localStorage.setItem(
-        LEGACY_KEYS.tunableConfig,
-        JSON.stringify({ version: 1, config: customConfig })
-      );
-
-      const { result } = renderHook(() => useConfig(), { wrapper: createWrapper() });
-      expect(result.current.config.decay.wasteConversionRatio).toBe(0.5);
-    });
-
-    it('discards unversioned legacy format and uses defaults', () => {
-      const unversionedConfig = {
-        decay: { wasteFraction: 0.6 },
-      };
-      globalThis.localStorage.setItem(
-        LEGACY_KEYS.tunableConfig,
-        JSON.stringify(unversionedConfig)
-      );
-
-      const { result } = renderHook(() => useConfig(), { wrapper: createWrapper() });
-
-      // Should use defaults, not stored values
-      expect(result.current.config).toEqual(DEFAULT_CONFIG);
-    });
-
-    it('handles missing sections by falling back to defaults', () => {
-      // Legacy partial config is rejected by the new stricter validation
-      const incompleteConfig = {
-        version: 1,
-        config: {
-          decay: { wasteConversionRatio: 0.75 },
-          // Missing: all other sections
-        },
-      };
-      globalThis.localStorage.setItem(
-        LEGACY_KEYS.tunableConfig,
-        JSON.stringify(incompleteConfig)
-      );
-
-      const { result } = renderHook(() => useConfig(), { wrapper: createWrapper() });
-
-      // Incomplete config is rejected - all sections use defaults
-      expect(result.current.config).toEqual(DEFAULT_CONFIG);
-    });
-
-    it('discards stored config when legacy version mismatches', () => {
-      const oldVersionConfig = {
-        version: 0, // Old version
-        config: {
-          decay: { wasteConversionRatio: 0.9 },
-        },
-      };
-      globalThis.localStorage.setItem(
-        LEGACY_KEYS.tunableConfig,
-        JSON.stringify(oldVersionConfig)
-      );
-
-      const { result } = renderHook(() => useConfig(), { wrapper: createWrapper() });
-
-      // Should use defaults, not the stored value
-      expect(result.current.config.decay.wasteConversionRatio).toBe(
-        DEFAULT_CONFIG.decay.wasteConversionRatio
-      );
-    });
-
     it('handles corrupted localStorage gracefully', () => {
-      globalThis.localStorage.setItem(LEGACY_KEYS.tunableConfig, 'not-valid-json');
+      globalThis.localStorage.setItem(STORAGE_KEY, 'not-valid-json');
 
       const { result } = renderHook(() => useConfig(), { wrapper: createWrapper() });
       expect(result.current.config).toEqual(DEFAULT_CONFIG);
     });
 
     it('handles non-object stored values', () => {
-      globalThis.localStorage.setItem(LEGACY_KEYS.tunableConfig, JSON.stringify([1, 2, 3]));
+      globalThis.localStorage.setItem(STORAGE_KEY, JSON.stringify([1, 2, 3]));
 
       const { result } = renderHook(() => useConfig(), { wrapper: createWrapper() });
       expect(result.current.config).toEqual(DEFAULT_CONFIG);
     });
 
-    it('rejects config with invalid types entirely', () => {
-      // Legacy configs with invalid types are rejected by the new validation
-      const corruptedConfig = {
-        version: 1,
-        config: {
-          decay: {
-            wasteConversionRatio: 'not a number', // Invalid type
-            baseDecayRate: 0.08,
-          },
-        },
+    it('handles invalid version by falling back to defaults', () => {
+      const invalidVersionState = {
+        version: 999,
+        simulation: {},
+        tunableConfig: DEFAULT_CONFIG,
+        ui: { units: 'metric', debugPanelOpen: false },
       };
-      globalThis.localStorage.setItem(
-        LEGACY_KEYS.tunableConfig,
-        JSON.stringify(corruptedConfig)
-      );
+      globalThis.localStorage.setItem(STORAGE_KEY, JSON.stringify(invalidVersionState));
 
       const { result } = renderHook(() => useConfig(), { wrapper: createWrapper() });
-
-      // Invalid config is rejected entirely - falls back to defaults
       expect(result.current.config).toEqual(DEFAULT_CONFIG);
     });
   });

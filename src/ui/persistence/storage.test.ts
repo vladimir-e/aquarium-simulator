@@ -13,7 +13,7 @@ import {
   extractPersistedSimulation,
   clearSaveTimeout,
 } from './storage.js';
-import { STORAGE_KEY, PERSISTENCE_SCHEMA_VERSION, LEGACY_KEYS } from './types.js';
+import { STORAGE_KEY, PERSISTENCE_SCHEMA_VERSION } from './types.js';
 import type { PersistedSimulation } from './types.js';
 import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
 
@@ -93,26 +93,6 @@ describe('storage', () => {
       expect(result.ui).toBeNull();
     });
 
-    it('migrates from legacy config key', () => {
-      const legacyConfig = {
-        version: 1,
-        config: DEFAULT_CONFIG,
-      };
-      globalThis.localStorage.setItem(LEGACY_KEYS.tunableConfig, JSON.stringify(legacyConfig));
-
-      const result = loadPersistedState();
-      expect(result.tunableConfig).not.toBeNull();
-    });
-
-    it('migrates from legacy units key', () => {
-      globalThis.localStorage.setItem(LEGACY_KEYS.units, 'imperial');
-      globalThis.localStorage.setItem(LEGACY_KEYS.debugPanel, 'true');
-
-      const result = loadPersistedState();
-      expect(result.ui).not.toBeNull();
-      expect(result.ui?.units).toBe('imperial');
-      expect(result.ui?.debugPanelOpen).toBe(true);
-    });
   });
 
   describe('savePersistedState', () => {
@@ -138,36 +118,15 @@ describe('storage', () => {
       expect(JSON.parse(saved!).version).toBe(PERSISTENCE_SCHEMA_VERSION);
     });
 
-    it('removes legacy keys after successful save', () => {
-      globalThis.localStorage.setItem(LEGACY_KEYS.tunableConfig, JSON.stringify({ version: 1, config: {} }));
-      globalThis.localStorage.setItem(LEGACY_KEYS.units, 'metric');
-      globalThis.localStorage.setItem(LEGACY_KEYS.debugPanel, 'false');
-
-      const state = {
-        version: PERSISTENCE_SCHEMA_VERSION,
-        simulation: createValidSimulation(),
-        tunableConfig: DEFAULT_CONFIG,
-        ui: { units: 'metric' as const, debugPanelOpen: false },
-      };
-
-      savePersistedState(state);
-      vi.advanceTimersByTime(500);
-
-      expect(globalThis.localStorage.getItem(LEGACY_KEYS.tunableConfig)).toBeNull();
-      expect(globalThis.localStorage.getItem(LEGACY_KEYS.units)).toBeNull();
-      expect(globalThis.localStorage.getItem(LEGACY_KEYS.debugPanel)).toBeNull();
-    });
   });
 
   describe('clearPersistedState', () => {
     it('clears all persisted state', () => {
       globalThis.localStorage.setItem(STORAGE_KEY, JSON.stringify({ version: 1 }));
-      globalThis.localStorage.setItem(LEGACY_KEYS.tunableConfig, 'test');
 
       clearPersistedState();
 
       expect(globalThis.localStorage.getItem(STORAGE_KEY)).toBeNull();
-      expect(globalThis.localStorage.getItem(LEGACY_KEYS.tunableConfig)).toBeNull();
     });
   });
 

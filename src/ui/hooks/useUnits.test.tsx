@@ -4,7 +4,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import React, { type ReactNode, type ComponentType } from 'react';
 import { UnitsProvider, useUnits } from './useUnits';
-import { PersistenceProvider, STORAGE_KEY, LEGACY_KEYS } from '../persistence/index.js';
+import { PersistenceProvider, STORAGE_KEY } from '../persistence/index.js';
 import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
 
 function createWrapper(): ComponentType<{ children: ReactNode }> {
@@ -83,8 +83,8 @@ describe('useUnits', () => {
   });
 
   it('toggles between metric and imperial', () => {
-    // Start with metric via legacy key (tests migration)
-    globalThis.localStorage.setItem(LEGACY_KEYS.units, 'metric');
+    // Start with metric
+    globalThis.localStorage.setItem(STORAGE_KEY, createPersistedState('metric'));
 
     const { result } = renderHook(() => useUnits(), {
       wrapper: createWrapper(),
@@ -123,18 +123,7 @@ describe('useUnits', () => {
     expect(result.current.unitSystem).toBe('metric');
   });
 
-  it('loads preference from legacy localStorage key on mount', () => {
-    // Tests legacy key migration
-    globalThis.localStorage.setItem(LEGACY_KEYS.units, 'imperial');
-
-    const { result } = renderHook(() => useUnits(), {
-      wrapper: createWrapper(),
-    });
-
-    expect(result.current.unitSystem).toBe('imperial');
-  });
-
-  it('loads preference from new unified key on mount', () => {
+  it('loads preference from localStorage on mount', () => {
     globalThis.localStorage.setItem(STORAGE_KEY, createPersistedState('imperial'));
 
     const { result } = renderHook(() => useUnits(), {
@@ -146,7 +135,7 @@ describe('useUnits', () => {
 
   describe('formatting functions', () => {
     it('formatTemp formats temperature based on unit system', () => {
-      globalThis.localStorage.setItem(LEGACY_KEYS.units, 'metric');
+      globalThis.localStorage.setItem(STORAGE_KEY, createPersistedState('metric'));
 
       const { result } = renderHook(() => useUnits(), {
         wrapper: createWrapper(),
@@ -162,7 +151,7 @@ describe('useUnits', () => {
     });
 
     it('formatVol formats volume based on unit system', () => {
-      globalThis.localStorage.setItem(LEGACY_KEYS.units, 'metric');
+      globalThis.localStorage.setItem(STORAGE_KEY, createPersistedState('metric'));
 
       const { result } = renderHook(() => useUnits(), {
         wrapper: createWrapper(),
@@ -178,7 +167,7 @@ describe('useUnits', () => {
     });
 
     it('tempUnit returns correct unit label', () => {
-      globalThis.localStorage.setItem(LEGACY_KEYS.units, 'metric');
+      globalThis.localStorage.setItem(STORAGE_KEY, createPersistedState('metric'));
 
       const { result } = renderHook(() => useUnits(), {
         wrapper: createWrapper(),
@@ -194,7 +183,7 @@ describe('useUnits', () => {
     });
 
     it('volUnit returns correct unit label', () => {
-      globalThis.localStorage.setItem(LEGACY_KEYS.units, 'metric');
+      globalThis.localStorage.setItem(STORAGE_KEY, createPersistedState('metric'));
 
       const { result } = renderHook(() => useUnits(), {
         wrapper: createWrapper(),
@@ -212,7 +201,7 @@ describe('useUnits', () => {
 
   describe('conversion functions', () => {
     it('displayTemp converts internal celsius to display value', () => {
-      globalThis.localStorage.setItem(LEGACY_KEYS.units, 'metric');
+      globalThis.localStorage.setItem(STORAGE_KEY, createPersistedState('metric'));
 
       const { result } = renderHook(() => useUnits(), {
         wrapper: createWrapper(),
@@ -228,7 +217,7 @@ describe('useUnits', () => {
     });
 
     it('displayVol converts internal liters to display value', () => {
-      globalThis.localStorage.setItem(LEGACY_KEYS.units, 'metric');
+      globalThis.localStorage.setItem(STORAGE_KEY, createPersistedState('metric'));
 
       const { result } = renderHook(() => useUnits(), {
         wrapper: createWrapper(),
@@ -244,7 +233,7 @@ describe('useUnits', () => {
     });
 
     it('internalTemp converts display value to internal celsius', () => {
-      globalThis.localStorage.setItem(LEGACY_KEYS.units, 'metric');
+      globalThis.localStorage.setItem(STORAGE_KEY, createPersistedState('metric'));
 
       const { result } = renderHook(() => useUnits(), {
         wrapper: createWrapper(),
@@ -260,7 +249,7 @@ describe('useUnits', () => {
     });
 
     it('internalVol converts display value to internal liters', () => {
-      globalThis.localStorage.setItem(LEGACY_KEYS.units, 'metric');
+      globalThis.localStorage.setItem(STORAGE_KEY, createPersistedState('metric'));
 
       const { result } = renderHook(() => useUnits(), {
         wrapper: createWrapper(),
