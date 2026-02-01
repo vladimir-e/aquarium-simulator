@@ -11,7 +11,8 @@ export type ActionType =
   | 'waterChange'
   | 'trimPlants'
   | 'addPlant'
-  | 'removePlant';
+  | 'removePlant'
+  | 'dose';
 
 export interface BaseAction {
   type: ActionType;
@@ -60,6 +61,12 @@ export interface RemovePlantAction extends BaseAction {
   plantId: string;
 }
 
+export interface DoseAction extends BaseAction {
+  type: 'dose';
+  /** Amount of fertilizer to add in ml */
+  amountMl: number;
+}
+
 export type Action =
   | TopOffAction
   | FeedAction
@@ -67,7 +74,8 @@ export type Action =
   | WaterChangeAction
   | TrimPlantsAction
   | AddPlantAction
-  | RemovePlantAction;
+  | RemovePlantAction
+  | DoseAction;
 
 /**
  * Result of applying an action to simulation state.

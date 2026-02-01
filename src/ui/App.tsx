@@ -8,6 +8,7 @@ import { Actions } from './components/panels/Actions';
 import { Visualization } from './components/panels/Visualization';
 import { WaterChemistry } from './components/panels/WaterChemistry';
 import { Plants } from './components/panels/Plants';
+import { Nutrients } from './components/panels/Nutrients';
 import { Livestock } from './components/panels/Livestock';
 import { Log } from './components/panels/Log';
 import { DebugPanel } from './components/panels/DebugPanel';
@@ -56,6 +57,9 @@ function App(): React.JSX.Element {
     updateCo2GeneratorEnabled,
     updateCo2GeneratorBubbleRate,
     updateCo2GeneratorSchedule,
+    updateAutoDoserEnabled,
+    updateAutoDoserAmount,
+    updateAutoDoserSchedule,
     changeTankCapacity,
     reset,
     executeAction,
@@ -124,6 +128,12 @@ function App(): React.JSX.Element {
           isOn: state.equipment.co2Generator.isOn,
           schedule: state.equipment.co2Generator.schedule,
         }}
+        autoDoser={{
+          enabled: state.equipment.autoDoser.enabled,
+          doseAmountMl: state.equipment.autoDoser.doseAmountMl,
+          schedule: state.equipment.autoDoser.schedule,
+          dosedToday: state.equipment.autoDoser.dosedToday,
+        }}
         onTankCapacityChange={changeTankCapacity}
         onHeaterEnabledChange={updateHeaterEnabled}
         onHeaterTargetTemperatureChange={updateHeaterTargetTemperature}
@@ -144,6 +154,9 @@ function App(): React.JSX.Element {
         onCo2GeneratorEnabledChange={updateCo2GeneratorEnabled}
         onCo2GeneratorBubbleRateChange={updateCo2GeneratorBubbleRate}
         onCo2GeneratorScheduleChange={updateCo2GeneratorSchedule}
+        onAutoDoserEnabledChange={updateAutoDoserEnabled}
+        onAutoDoserAmountChange={updateAutoDoserAmount}
+        onAutoDoserScheduleChange={updateAutoDoserSchedule}
       />
 
       <div className="p-4">
@@ -218,6 +231,13 @@ function App(): React.JSX.Element {
               tankCapacity={state.tank.capacity}
               substrateType={state.equipment.substrate.type}
               executeAction={executeAction}
+            />
+            <Nutrients
+              nitrate={state.resources.nitrate}
+              phosphate={state.resources.phosphate}
+              potassium={state.resources.potassium}
+              iron={state.resources.iron}
+              waterVolume={state.resources.water}
             />
           </div>
 

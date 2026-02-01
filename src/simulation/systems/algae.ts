@@ -19,12 +19,14 @@
  */
 
 import type { Effect } from '../core/effects.js';
-import type { SimulationState } from '../state.js';
+import type { SimulationState, Resources } from '../state.js';
 import type { System } from './types.js';
 import type { TunableConfig } from '../config/index.js';
 import { type AlgaeConfig, algaeDefaults } from '../config/algae.js';
 import { plantsDefaults } from '../config/plants.js';
+import { nutrientsDefaults, type NutrientsConfig } from '../config/nutrients.js';
 import { getTotalPlantSize } from './photosynthesis.js';
+import { getPpm } from '../resources/index.js';
 
 /**
  * Calculate algae growth for one tick (hour) based on light intensity.
@@ -85,6 +87,47 @@ export function calculatePlantCompetitionFactor(
   return 1 / (1 + totalPlantSize / competitionScale);
 }
 
+/**
+ * Calculate nutrient boost factor for algae growth.
+ * Excess nutrients (above optimal) boost algae growth.
+ * Uses nitrate and phosphate (K and Fe less relevant for algae).
+ *
+ * Calibration:
+ * - At optimal levels: factor = 1.0 (no boost)
+ * - At 2x optimal: factor ≈ 1.5 (50% boost)
+ * - At 3x optimal: factor ≈ 2.0 (100% boost)
+ *
+ * @param resources - Current resource state
+ * @param waterVolume - Current water volume in liters
+ * @param nutrientsConfig - Nutrients configuration
+ * @returns Nutrient boost factor (≥ 1.0)
+ */
+export function calculateNutrientBoostFactor(
+  resources: Resources,
+  waterVolume: number,
+  nutrientsConfig: NutrientsConfig = nutrientsDefaults
+): number {
+  if (waterVolume <= 0) return 1;
+
+  const nitratePpm = getPpm(resources.nitrate, waterVolume);
+  const phosphatePpm = getPpm(resources.phosphate, waterVolume);
+
+  const optimalNitrate = nutrientsConfig.optimalNitratePpm;
+  const optimalPhosphate = nutrientsConfig.optimalPhosphatePpm;
+
+  // Calculate how much above optimal each nutrient is (min 1.0)
+  const nitrateRatio = optimalNitrate > 0 ? Math.max(1, nitratePpm / optimalNitrate) : 1;
+  const phosphateRatio = optimalPhosphate > 0 ? Math.max(1, phosphatePpm / optimalPhosphate) : 1;
+
+  // Take the minimum of the two - limiting factor for algae
+  // This means both nutrients need to be elevated for significant boost
+  const nutrientFactor = Math.min(nitrateRatio, phosphateRatio);
+
+  // Apply diminishing returns to prevent extreme boosts
+  // sqrt scales: 2x nutrients = 1.41x boost, 4x nutrients = 2x boost
+  return Math.sqrt(nutrientFactor);
+}
+
 export const algaeSystem: System = {
   id: 'algae',
   tier: 'passive',
@@ -104,6 +147,17 @@ export const algaeSystem: System = {
       const competitionScale = config.plants?.competitionScale ?? plantsDefaults.competitionScale;
       const competitionFactor = calculatePlantCompetitionFactor(totalPlantSize, competitionScale);
       growth *= competitionFactor;
+    }
+
+    // Apply nutrient boost factor (excess nutrients boost algae growth)
+    if (growth > 0) {
+      const nutrientsConfig = config.nutrients ?? nutrientsDefaults;
+      const nutrientBoost = calculateNutrientBoostFactor(
+        state.resources,
+        state.resources.water,
+        nutrientsConfig
+      );
+      growth *= nutrientBoost;
     }
 
     if (growth > 0) {

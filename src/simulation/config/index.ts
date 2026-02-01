@@ -29,6 +29,15 @@ export {
 export { type AlgaeConfig, algaeDefaults, algaeConfigMeta } from './algae.js';
 export { type PhConfig, phDefaults, phConfigMeta } from './ph.js';
 export { type PlantsConfig, plantsDefaults, plantsConfigMeta } from './plants.js';
+export {
+  type NutrientsConfig,
+  type FertilizerFormula,
+  nutrientsDefaults,
+  nutrientsConfigMeta,
+  fertilizerFormulaMeta,
+  getTotalFertilizerNutrients,
+  getNutrientRatio,
+} from './nutrients.js';
 
 import { type DecayConfig, decayDefaults } from './decay.js';
 import { type NitrogenCycleConfig, nitrogenCycleDefaults } from './nitrogen-cycle.js';
@@ -38,6 +47,7 @@ import { type EvaporationConfig, evaporationDefaults } from './evaporation.js';
 import { type AlgaeConfig, algaeDefaults } from './algae.js';
 import { type PhConfig, phDefaults } from './ph.js';
 import { type PlantsConfig, plantsDefaults } from './plants.js';
+import { type NutrientsConfig, nutrientsDefaults } from './nutrients.js';
 
 /**
  * Complete tunable configuration for all simulation systems.
@@ -51,6 +61,7 @@ export interface TunableConfig {
   algae: AlgaeConfig;
   ph: PhConfig;
   plants: PlantsConfig;
+  nutrients: NutrientsConfig;
 }
 
 /**
@@ -65,6 +76,7 @@ export const DEFAULT_CONFIG: TunableConfig = {
   algae: algaeDefaults,
   ph: phDefaults,
   plants: plantsDefaults,
+  nutrients: nutrientsDefaults,
 };
 
 /**
@@ -86,6 +98,23 @@ export function isModified<K extends keyof TunableConfig>(
 }
 
 /**
+ * Deep equality check for config values (handles nested objects).
+ */
+function isValueEqual(a: unknown, b: unknown): boolean {
+  if (a === b) return true;
+  if (typeof a !== typeof b) return false;
+  if (typeof a === 'object' && a !== null && b !== null) {
+    const aObj = a as Record<string, unknown>;
+    const bObj = b as Record<string, unknown>;
+    const aKeys = Object.keys(aObj);
+    const bKeys = Object.keys(bObj);
+    if (aKeys.length !== bKeys.length) return false;
+    return aKeys.every((key) => isValueEqual(aObj[key], bObj[key]));
+  }
+  return false;
+}
+
+/**
  * Check if any value in a section differs from default.
  */
 export function isSectionModified<K extends keyof TunableConfig>(
@@ -95,7 +124,7 @@ export function isSectionModified<K extends keyof TunableConfig>(
   const current = config[section];
   const defaults = DEFAULT_CONFIG[section];
   for (const key of Object.keys(defaults) as (keyof TunableConfig[K])[]) {
-    if (current[key] !== defaults[key]) {
+    if (!isValueEqual(current[key], defaults[key])) {
       return true;
     }
   }

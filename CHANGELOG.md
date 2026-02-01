@@ -10,6 +10,8 @@ Format: - **Feature name** (#PR) - Brief description (under 100 chars)
 
 ## 2026-02-01
 
+- **Nutrients and Dosing System** - Individual nutrient resources (phosphate, potassium, iron); plant condition system (0-100%) based on nutrient sufficiency using Liebig's Law; plant shedding and death when starving; phosphate production from decay; manual dose action and auto doser equipment with schedule-based dosing; Nutrients panel with ppm display and status indicators; plant condition display in Plants panel
+
 - **State Persistence** - Centralized localStorage persistence with Zod schema validation; session restoration on reload; `?reset` query parameter for recovery; confirmation dialogs for preset changes and simulation reset (tick > 720)
 
 ## 2026-01-30
