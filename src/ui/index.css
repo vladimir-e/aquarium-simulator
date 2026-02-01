@@ -79,6 +79,34 @@ body {
   background-color: #f9fafb;
 }
 
+/* Light theme gray background overrides */
+:root.light .bg-gray-600 {
+  background-color: #d1d5db;
+}
+
+:root.light .bg-gray-700 {
+  background-color: #e5e7eb;
+}
+
+:root.light .hover\:bg-gray-600:hover {
+  background-color: #9ca3af;
+}
+
+/* Light theme button text in panel backgrounds */
+:root.light button.bg-panel,
+:root.light .bg-panel > button {
+  color: #374151;
+}
+
+:root.light button:hover.hover\:text-gray-100,
+:root.light .hover\:text-gray-100:hover {
+  color: #111827;
+}
+
+:root.light .hover\:text-gray-200:hover {
+  color: #1f2937;
+}
+
 /* Light theme scrollbar */
 :root.light ::-webkit-scrollbar {
   width: 8px;

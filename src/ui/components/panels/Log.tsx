@@ -21,7 +21,7 @@ export function Log({ logs, state }: LogProps): React.JSX.Element {
       action={
         <button
           onClick={handleDebug}
-          className="text-xs text-gray-400 hover:text-gray-200 px-2 py-1 rounded bg-gray-700 hover:bg-gray-600 flex items-center gap-1.5"
+          className="text-xs text-gray-400 hover:text-gray-200 px-2 py-1 rounded bg-border hover:bg-gray-600 flex items-center gap-1.5"
         >
           <Terminal className="w-3.5 h-3.5" />
           Debug

@@ -18,7 +18,7 @@ function getFoodIndicatorOpacity(food: number): number {
 
 export function Livestock({ food }: LivestockProps): React.JSX.Element {
   const opacity = getFoodIndicatorOpacity(food);
-  const indicatorClass = food === 0 ? 'bg-gray-600' : 'bg-orange-500';
+  const indicatorClass = food === 0 ? 'bg-border' : 'bg-orange-500';
 
   return (
     <Panel title="Livestock">
