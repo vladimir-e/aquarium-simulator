@@ -1,6 +1,7 @@
 @import 'tailwindcss';
 
 @theme {
+  /* Dark theme colors (default) */
   --color-background: #1a1f2e;
   --color-panel: #1e2330;
   --color-border: #3a4255;
@@ -8,6 +9,28 @@
   --color-accent-orange: #f97316;
   --color-accent-blue: #3b82f6;
   --color-warning: #f59e0b;
+}
+
+/* Light theme */
+:root.light {
+  --color-background: #f3f4f6;
+  --color-panel: #ffffff;
+  --color-border: #d1d5db;
+  --color-text-primary: #111827;
+  --color-text-secondary: #374151;
+  --color-text-tertiary: #6b7280;
+  --color-text-muted: #9ca3af;
+}
+
+/* Dark theme */
+:root.dark {
+  --color-background: #1a1f2e;
+  --color-panel: #1e2330;
+  --color-border: #3a4255;
+  --color-text-primary: #f3f4f6;
+  --color-text-secondary: #e5e7eb;
+  --color-text-tertiary: #9ca3af;
+  --color-text-muted: #6b7280;
 }
 
 body {
@@ -18,6 +41,78 @@ body {
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background-color: #1a1f2e;
-  color: #e5e7eb;
+  background-color: var(--color-background);
+  color: var(--color-text-secondary);
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+/* Light theme text color overrides */
+:root.light .text-gray-100 { color: #111827; }
+:root.light .text-gray-200 { color: #1f2937; }
+:root.light .text-gray-300 { color: #374151; }
+:root.light .text-gray-400 { color: #4b5563; }
+:root.light .text-gray-500 { color: #6b7280; }
+
+/* Light theme background overrides for panel elements */
+:root.light .bg-panel {
+  background-color: var(--color-panel);
+}
+
+:root.light .bg-background {
+  background-color: var(--color-background);
+}
+
+:root.light .bg-border {
+  background-color: var(--color-border);
+}
+
+:root.light .border-border {
+  border-color: var(--color-border);
+}
+
+/* Hover states for light theme */
+:root.light .hover\:bg-border:hover {
+  background-color: #e5e7eb;
+}
+
+:root.light .hover\:bg-panel:hover {
+  background-color: #f9fafb;
+}
+
+/* Light theme scrollbar */
+:root.light ::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+:root.light ::-webkit-scrollbar-track {
+  background: #e5e7eb;
+}
+
+:root.light ::-webkit-scrollbar-thumb {
+  background: #9ca3af;
+  border-radius: 4px;
+}
+
+:root.light ::-webkit-scrollbar-thumb:hover {
+  background: #6b7280;
+}
+
+/* Dark theme scrollbar */
+:root.dark ::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+:root.dark ::-webkit-scrollbar-track {
+  background: #1a1f2e;
+}
+
+:root.dark ::-webkit-scrollbar-thumb {
+  background: #3a4255;
+  border-radius: 4px;
+}
+
+:root.dark ::-webkit-scrollbar-thumb:hover {
+  background: #4a5568;
 }
