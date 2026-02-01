@@ -41,7 +41,6 @@ interface UseSimulationReturn {
   togglePlayPause: () => void;
   changeSpeed: (speed: SpeedPreset) => void;
   loadPreset: (presetId: PresetId) => void;
-  resetSimulation: () => void;
   updateHeaterEnabled: (enabled: boolean) => void;
   updateHeaterTargetTemperature: (temp: number) => void;
   updateHeaterWattage: (wattage: number) => void;
@@ -252,7 +251,7 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
    * Reset simulation: keeps equipment and plants but resets
    * tick, resources, alertState, and logs to fresh state.
    */
-  const resetSimulation = useCallback(() => {
+  const reset = useCallback(() => {
     // Stop playing if currently running
     if (isPlaying) {
       stopAutoPlay();
@@ -288,12 +287,6 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
       })
     );
   }, [isPlaying, stopAutoPlay]);
-
-  /**
-   * Legacy reset function - now calls resetSimulation.
-   * Kept for backward compatibility with existing UI.
-   */
-  const reset = resetSimulation;
 
   const updateHeaterEnabled = useCallback((enabled: boolean) => {
     setState((current) =>
@@ -786,7 +779,6 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
     togglePlayPause,
     changeSpeed,
     loadPreset,
-    resetSimulation,
     updateHeaterEnabled,
     updateHeaterTargetTemperature,
     updateHeaterWattage,
