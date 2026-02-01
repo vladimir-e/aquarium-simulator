@@ -90,10 +90,18 @@ export function PersistenceProvider({ children }: PersistenceProviderProps): Rea
   // Track if we have all sections for saving
   const hasSimulationRef = useRef<boolean>(initialState.simulation !== null);
 
+  // Skip saves during initial hydration to avoid writing back just-loaded state
+  const hydratedRef = useRef(false);
+
   /**
    * Save current state to localStorage.
    */
   const save = useCallback(() => {
+    // Skip during hydration - child providers report initial state on mount
+    if (!hydratedRef.current) {
+      return;
+    }
+
     // Only save if we have simulation state
     if (!hasSimulationRef.current || !simulationRef.current) {
       return;
@@ -158,6 +166,11 @@ export function PersistenceProvider({ children }: PersistenceProviderProps): Rea
     hasSimulationRef.current = false;
     tunableConfigRef.current = cloneConfig(DEFAULT_CONFIG);
     uiRef.current = getDefaultUI();
+  }, []);
+
+  // Mark as hydrated after first render to enable saving
+  useEffect(() => {
+    hydratedRef.current = true;
   }, []);
 
   // Flush pending save on page unload and unmount

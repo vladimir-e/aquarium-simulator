@@ -1,9 +1,6 @@
 /**
  * Error boundary component for catching render errors.
- * When an error occurs:
- * 1. Calls onError callback (to clear persisted state)
- * 2. Attempts to render app with defaults
- * 3. If that also fails, shows error UI with reset link
+ * When an error occurs, clears persisted state and reloads the page.
  */
 
 import React, { Component, type ReactNode, type ErrorInfo } from 'react';
@@ -17,13 +14,12 @@ interface ErrorBoundaryProps {
 interface ErrorBoundaryState {
   hasError: boolean;
   error: Error | null;
-  attemptedRecovery: boolean;
 }
 
 export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   constructor(props: ErrorBoundaryProps) {
     super(props);
-    this.state = { hasError: false, error: null, attemptedRecovery: false };
+    this.state = { hasError: false, error: null };
   }
 
   static getDerivedStateFromError(error: Error): Partial<ErrorBoundaryState> {
@@ -33,15 +29,12 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
   componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
     console.error('Application error:', error, errorInfo);
 
-    // If we haven't tried recovery yet, clear state and try again
-    if (!this.state.attemptedRecovery) {
-      this.props.onError?.();
-      this.setState({ attemptedRecovery: true, hasError: false, error: null });
-    }
+    // Clear persisted state and reload
+    this.props.onError?.();
+    window.location.href = window.location.pathname;
   }
 
   handleReset = (): void => {
-    // Navigate to reset URL
     window.location.href = '?reset';
   };
 
