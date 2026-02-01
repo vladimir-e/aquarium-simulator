@@ -149,7 +149,7 @@ export function processPlants(
 
   // 4-6. Process nutrient sufficiency, condition, shedding, and death
   let totalNutrientWaste = 0;
-  const deadPlantNames: string[] = [];
+  const deadPlants: Array<{ id: string; name: string }> = [];
   const processedPlants: Plant[] = [];
 
   for (const plant of growthResult.updatedPlants) {
@@ -165,8 +165,8 @@ export function processPlants(
     const result = processPlantNutrients(plant, sufficiency, nutrientsConfig);
 
     if (result.died) {
-      // Track dead plant for logging
-      deadPlantNames.push(PLANT_SPECIES_DATA[plant.species].name);
+      // Track dead plant for logging (include ID for disambiguation)
+      deadPlants.push({ id: plant.id, name: PLANT_SPECIES_DATA[plant.species].name });
     } else {
       // Keep surviving plants
       processedPlants.push(result.plant);
@@ -235,13 +235,13 @@ export function processPlants(
     draft.plants = processedPlants;
 
     // Log plant deaths
-    for (const plantName of deadPlantNames) {
+    for (const deadPlant of deadPlants) {
       draft.logs.push(
         createLog(
           draft.tick,
           'simulation',
           'warning',
-          `${plantName} died from nutrient deficiency`
+          `${deadPlant.name} (${deadPlant.id}) died from nutrient deficiency`
         )
       );
     }

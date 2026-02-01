@@ -2,7 +2,8 @@
  * Nutrients system tunable configuration.
  *
  * Calibration targets:
- * - Fertilizer: 1ml provides ~1 day of nutrients for moderate plant load
+ * - Fertilizer: Supplements fish waste; consumption is slow (0.1 mg/hr per 100% plants)
+ *   At 100% plant coverage, 1ml (96mg) lasts ~40 days; primary nutrients come from waste
  * - Condition recovery: ~2-5% per tick when thriving
  * - Condition decay: ~1-3% per tick when starving
  * - Low-tech balance: Fish waste provides 50-70% of low-demand plant needs
@@ -87,12 +88,12 @@ export interface NutrientsConfig {
 
 export const nutrientsDefaults: NutrientsConfig = {
   // Fertilizer formula - concentrated all-in-one
-  // 5ml in 40L gives ~40-60% of optimal for all nutrients
+  // 5ml in 40L: NO3 6.25ppm (42%), PO4 0.625ppm (63%), K 5ppm (50%), Fe 0.125ppm (63%)
   fertilizerFormula: {
-    nitrate: 50.0, // mg per ml (5ml/40L = 6.25 ppm)
-    phosphate: 5.0, // mg per ml (5ml/40L = 0.625 ppm)
-    potassium: 40.0, // mg per ml (5ml/40L = 5 ppm) - boosted for balance
-    iron: 1.0, // mg per ml (5ml/40L = 0.125 ppm)
+    nitrate: 50.0, // mg per ml (5ml/40L = 6.25 ppm, 42% of 15ppm optimal)
+    phosphate: 5.0, // mg per ml (5ml/40L = 0.625 ppm, 63% of 1ppm optimal)
+    potassium: 40.0, // mg per ml (5ml/40L = 5 ppm, 50% of 10ppm optimal)
+    iron: 1.0, // mg per ml (5ml/40L = 0.125 ppm, 63% of 0.2ppm optimal)
   },
 
   // Optimal thresholds (ppm) - typical planted tank targets
@@ -125,9 +126,13 @@ export const nutrientsDefaults: NutrientsConfig = {
   wastePerPlantDeath: 0.01, // 0.01g waste per % size when dying
 
   // Decay phosphate - links fish waste to plant nutrition
-  phosphatePerDecay: 50, // 50 mg phosphate per gram decayed (trace amount)
+  // Organic matter contains ~0.1-1% phosphorus; 50mg/g represents mineralized PO4
+  // from bacterial decomposition, providing ~5% of plant phosphate needs from waste
+  phosphatePerDecay: 50, // mg phosphate per gram decayed
 
-  // Nutrient consumption - scales with plant size
+  // Nutrient consumption - intentionally slow; plants primarily get nutrients from
+  // fish waste (nitrate via nitrogen cycle, phosphate via decay). Fertilizer supplements.
+  // At 100% plant coverage: 0.1mg/hr means 1ml (96mg) lasts ~40 days
   baseConsumptionRate: 0.1, // mg total nutrients per 100% plant size per hour
 };
 
@@ -151,10 +156,10 @@ export interface FertilizerFormulaMeta {
 }
 
 export const fertilizerFormulaMeta: FertilizerFormulaMeta[] = [
-  { key: 'nitrate', label: 'Nitrate per ml', unit: 'mg', min: 1, max: 20, step: 0.5 },
-  { key: 'phosphate', label: 'Phosphate per ml', unit: 'mg', min: 0.1, max: 5, step: 0.1 },
-  { key: 'potassium', label: 'Potassium per ml', unit: 'mg', min: 0.5, max: 10, step: 0.5 },
-  { key: 'iron', label: 'Iron per ml', unit: 'mg', min: 0.01, max: 1, step: 0.01 },
+  { key: 'nitrate', label: 'Nitrate per ml', unit: 'mg', min: 1, max: 100, step: 1 },
+  { key: 'phosphate', label: 'Phosphate per ml', unit: 'mg', min: 0.1, max: 10, step: 0.1 },
+  { key: 'potassium', label: 'Potassium per ml', unit: 'mg', min: 0.5, max: 80, step: 1 },
+  { key: 'iron', label: 'Iron per ml', unit: 'mg', min: 0.01, max: 2, step: 0.01 },
 ];
 
 export const nutrientsConfigMeta: NutrientsConfigMeta[] = [
