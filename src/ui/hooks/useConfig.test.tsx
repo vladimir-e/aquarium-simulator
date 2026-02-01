@@ -4,22 +4,63 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import React, { type ReactNode, type ComponentType } from 'react';
 import { ConfigProvider, useConfig } from './useConfig.js';
+import { PersistenceProvider, STORAGE_KEY, LEGACY_KEYS } from '../persistence/index.js';
 import { DEFAULT_CONFIG, type TunableConfig } from '../../simulation/config/index.js';
 
 function createWrapper(): ComponentType<{ children: ReactNode }> {
   return function Wrapper({ children }: { children: ReactNode }): React.JSX.Element {
-    return <ConfigProvider>{children}</ConfigProvider>;
+    return (
+      <PersistenceProvider>
+        <ConfigProvider>{children}</ConfigProvider>
+      </PersistenceProvider>
+    );
   };
+}
+
+// Helper to create minimal valid persisted state for testing
+function createPersistedState(config: TunableConfig): string {
+  return JSON.stringify({
+    version: 1,
+    simulation: {
+      tick: 0,
+      tank: { capacity: 40, hardscapeSlots: 4 },
+      resources: {
+        water: 40, temperature: 25, surface: 0, flow: 0, light: 0, aeration: false,
+        food: 0, waste: 0, algae: 0, ammonia: 0, nitrite: 0, nitrate: 0,
+        oxygen: 8, co2: 4, ph: 7, aob: 0, nob: 0,
+      },
+      environment: { roomTemperature: 22, tapWaterTemperature: 20, tapWaterPH: 7 },
+      equipment: {
+        heater: { enabled: false, isOn: false, targetTemperature: 25, wattage: 100 },
+        lid: { type: 'none' },
+        ato: { enabled: false },
+        filter: { enabled: false, type: 'hob' },
+        powerhead: { enabled: false, flowRateGPH: 200 },
+        substrate: { type: 'none' },
+        hardscape: { items: [] },
+        light: { enabled: false, wattage: 10, schedule: { startHour: 8, duration: 8 } },
+        co2Generator: { enabled: false, bubbleRate: 1, isOn: false, schedule: { startHour: 7, duration: 10 } },
+        airPump: { enabled: false },
+      },
+      plants: [],
+      alertState: {
+        waterLevelCritical: false, highAlgae: false, highAmmonia: false,
+        highNitrite: false, highNitrate: false, lowOxygen: false, highCo2: false,
+      },
+    },
+    tunableConfig: config,
+    ui: { units: 'metric', debugPanelOpen: false },
+  });
 }
 
 describe('useConfig', () => {
   beforeEach(() => {
-    localStorage.clear();
+    globalThis.localStorage.clear();
     vi.useFakeTimers();
   });
 
   afterEach(() => {
-    localStorage.clear();
+    globalThis.localStorage.clear();
     vi.useRealTimers();
   });
 
@@ -29,13 +70,24 @@ describe('useConfig', () => {
       expect(result.current.config).toEqual(DEFAULT_CONFIG);
     });
 
-    it('loads stored config with versioned format', () => {
+    it('loads stored config from new unified key', () => {
       const customConfig = {
         ...DEFAULT_CONFIG,
         decay: { ...DEFAULT_CONFIG.decay, wasteConversionRatio: 0.5 },
       };
-      localStorage.setItem(
-        'aquarium-tunable-config',
+      globalThis.localStorage.setItem(STORAGE_KEY, createPersistedState(customConfig));
+
+      const { result } = renderHook(() => useConfig(), { wrapper: createWrapper() });
+      expect(result.current.config.decay.wasteConversionRatio).toBe(0.5);
+    });
+
+    it('migrates stored config from legacy versioned format', () => {
+      const customConfig = {
+        ...DEFAULT_CONFIG,
+        decay: { ...DEFAULT_CONFIG.decay, wasteConversionRatio: 0.5 },
+      };
+      globalThis.localStorage.setItem(
+        LEGACY_KEYS.tunableConfig,
         JSON.stringify({ version: 1, config: customConfig })
       );
 
@@ -43,12 +95,12 @@ describe('useConfig', () => {
       expect(result.current.config.decay.wasteConversionRatio).toBe(0.5);
     });
 
-    it('discards unversioned format and uses defaults', () => {
+    it('discards unversioned legacy format and uses defaults', () => {
       const unversionedConfig = {
         decay: { wasteFraction: 0.6 },
       };
-      localStorage.setItem(
-        'aquarium-tunable-config',
+      globalThis.localStorage.setItem(
+        LEGACY_KEYS.tunableConfig,
         JSON.stringify(unversionedConfig)
       );
 
@@ -56,45 +108,37 @@ describe('useConfig', () => {
 
       // Should use defaults, not stored values
       expect(result.current.config).toEqual(DEFAULT_CONFIG);
-      // Invalid config should have been removed
-      expect(localStorage.getItem('aquarium-tunable-config')).toBeNull();
     });
 
-    it('handles missing sections by using defaults while preserving stored sections', () => {
-      // This is the bug scenario: stored config missing a section
-      const customDecay = { ...DEFAULT_CONFIG.decay, wasteConversionRatio: 0.75 };
+    it('handles missing sections by falling back to defaults', () => {
+      // Legacy partial config is rejected by the new stricter validation
       const incompleteConfig = {
         version: 1,
         config: {
-          decay: customDecay,
+          decay: { wasteConversionRatio: 0.75 },
           // Missing: all other sections
         },
       };
-      localStorage.setItem(
-        'aquarium-tunable-config',
+      globalThis.localStorage.setItem(
+        LEGACY_KEYS.tunableConfig,
         JSON.stringify(incompleteConfig)
       );
 
       const { result } = renderHook(() => useConfig(), { wrapper: createWrapper() });
 
-      // Stored section values should be preserved
-      expect(result.current.config.decay.wasteConversionRatio).toBe(0.75);
-
-      // Missing sections should have default values
-      expect(result.current.config.plants).toEqual(DEFAULT_CONFIG.plants);
-      expect(result.current.config.gasExchange).toEqual(DEFAULT_CONFIG.gasExchange);
-      expect(result.current.config.nitrogenCycle).toEqual(DEFAULT_CONFIG.nitrogenCycle);
+      // Incomplete config is rejected - all sections use defaults
+      expect(result.current.config).toEqual(DEFAULT_CONFIG);
     });
 
-    it('discards stored config when version mismatches', () => {
+    it('discards stored config when legacy version mismatches', () => {
       const oldVersionConfig = {
         version: 0, // Old version
         config: {
           decay: { wasteConversionRatio: 0.9 },
         },
       };
-      localStorage.setItem(
-        'aquarium-tunable-config',
+      globalThis.localStorage.setItem(
+        LEGACY_KEYS.tunableConfig,
         JSON.stringify(oldVersionConfig)
       );
 
@@ -104,55 +148,73 @@ describe('useConfig', () => {
       expect(result.current.config.decay.wasteConversionRatio).toBe(
         DEFAULT_CONFIG.decay.wasteConversionRatio
       );
-      // Invalid config should have been removed
-      expect(localStorage.getItem('aquarium-tunable-config')).toBeNull();
     });
 
     it('handles corrupted localStorage gracefully', () => {
-      localStorage.setItem('aquarium-tunable-config', 'not-valid-json');
+      globalThis.localStorage.setItem(LEGACY_KEYS.tunableConfig, 'not-valid-json');
 
       const { result } = renderHook(() => useConfig(), { wrapper: createWrapper() });
       expect(result.current.config).toEqual(DEFAULT_CONFIG);
     });
 
     it('handles non-object stored values', () => {
-      localStorage.setItem('aquarium-tunable-config', JSON.stringify([1, 2, 3]));
+      globalThis.localStorage.setItem(LEGACY_KEYS.tunableConfig, JSON.stringify([1, 2, 3]));
 
       const { result } = renderHook(() => useConfig(), { wrapper: createWrapper() });
       expect(result.current.config).toEqual(DEFAULT_CONFIG);
     });
 
-    it('ignores invalid types and unknown keys in stored config', () => {
+    it('rejects config with invalid types entirely', () => {
+      // Legacy configs with invalid types are rejected by the new validation
       const corruptedConfig = {
         version: 1,
         config: {
           decay: {
-            wasteConversionRatio: 'not a number', // Invalid type - should use default
-            baseDecayRate: 0.08, // Valid - should be preserved
-            unknownKey: 999, // Unknown key - should be ignored
+            wasteConversionRatio: 'not a number', // Invalid type
+            baseDecayRate: 0.08,
           },
         },
       };
-      localStorage.setItem(
-        'aquarium-tunable-config',
+      globalThis.localStorage.setItem(
+        LEGACY_KEYS.tunableConfig,
         JSON.stringify(corruptedConfig)
       );
 
       const { result } = renderHook(() => useConfig(), { wrapper: createWrapper() });
 
-      // Invalid type should fall back to default
-      expect(result.current.config.decay.wasteConversionRatio).toBe(
-        DEFAULT_CONFIG.decay.wasteConversionRatio
-      );
-      // Valid value should be preserved
-      expect(result.current.config.decay.baseDecayRate).toBe(0.08);
-      // Unknown key should not exist
-      expect('unknownKey' in result.current.config.decay).toBe(false);
+      // Invalid config is rejected entirely - falls back to defaults
+      expect(result.current.config).toEqual(DEFAULT_CONFIG);
     });
   });
 
-  describe('saving to localStorage', () => {
-    it('saves config with version after update', () => {
+  describe('updating config', () => {
+    it('updates config values correctly', () => {
+      const { result } = renderHook(() => useConfig(), { wrapper: createWrapper() });
+
+      act(() => {
+        result.current.updateConfig('decay', 'wasteConversionRatio', 0.7);
+      });
+
+      expect(result.current.config.decay.wasteConversionRatio).toBe(0.7);
+    });
+
+    it('resetConfig returns to defaults', () => {
+      const { result } = renderHook(() => useConfig(), { wrapper: createWrapper() });
+
+      act(() => {
+        result.current.updateConfig('decay', 'wasteConversionRatio', 0.7);
+      });
+
+      expect(result.current.config.decay.wasteConversionRatio).toBe(0.7);
+
+      act(() => {
+        result.current.resetConfig();
+      });
+
+      expect(result.current.config).toEqual(DEFAULT_CONFIG);
+    });
+
+    it('saves config to unified storage after update', () => {
       const { result } = renderHook(() => useConfig(), { wrapper: createWrapper() });
 
       act(() => {
@@ -164,11 +226,11 @@ describe('useConfig', () => {
         vi.advanceTimersByTime(600);
       });
 
-      const rawStored = localStorage.getItem('aquarium-tunable-config');
+      const rawStored = globalThis.localStorage.getItem(STORAGE_KEY);
       expect(rawStored).not.toBeNull();
       const stored = JSON.parse(rawStored!);
       expect(stored.version).toBe(1);
-      expect(stored.config.decay.wasteConversionRatio).toBe(0.7);
+      expect(stored.tunableConfig.decay.wasteConversionRatio).toBe(0.7);
     });
   });
 

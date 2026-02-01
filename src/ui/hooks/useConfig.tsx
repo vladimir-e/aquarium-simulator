@@ -15,125 +15,7 @@ import {
   isSectionModified,
   isConfigModified,
 } from '../../simulation/config/index.js';
-
-const STORAGE_KEY = 'aquarium-tunable-config';
-
-/**
- * Schema version for stored config.
- * Increment this when TunableConfig structure changes.
- * When version mismatches, stored config is discarded to prevent runtime errors.
- */
-const CONFIG_SCHEMA_VERSION = 1;
-
-interface StoredConfig {
-  version: number;
-  config: TunableConfig;
-}
-
-/**
- * Validate that a value is a plain object (not null, array, or primitive).
- */
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
-
-/**
- * Load config from localStorage.
- * Dynamically merges stored values with defaults to handle schema evolution.
- */
-function loadConfig(): TunableConfig | null {
-  try {
-    const stored = globalThis.localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      const parsed: unknown = JSON.parse(stored);
-      if (!isPlainObject(parsed)) {
-        return null;
-      }
-
-      // Require versioned format
-      if (!('version' in parsed) || !('config' in parsed)) {
-        globalThis.localStorage.removeItem(STORAGE_KEY);
-        return null;
-      }
-
-      const { version, config } = parsed as StoredConfig;
-      if (version !== CONFIG_SCHEMA_VERSION) {
-        globalThis.localStorage.removeItem(STORAGE_KEY);
-        return null;
-      }
-      if (!isPlainObject(config)) {
-        return null;
-      }
-      return mergeWithDefaults(config);
-    }
-  } catch {
-    // Invalid stored data
-  }
-  return null;
-}
-
-/**
- * Merge stored config with defaults, dynamically handling all sections.
- * Only copies keys that exist in defaults with valid number values.
- * This prevents schema pollution and type errors from corrupted storage.
- */
-function mergeWithDefaults(stored: Record<string, unknown>): TunableConfig {
-  const result = {} as Record<string, unknown>;
-
-  for (const section of Object.keys(DEFAULT_CONFIG) as (keyof TunableConfig)[]) {
-    const defaultSection = DEFAULT_CONFIG[section] as Record<string, number>;
-    const storedSection = stored[section];
-    const mergedSection = { ...defaultSection };
-
-    // Only copy stored values for keys that exist in defaults with valid types
-    if (isPlainObject(storedSection)) {
-      for (const key of Object.keys(defaultSection)) {
-        const storedValue = storedSection[key];
-        if (typeof storedValue === 'number' && Number.isFinite(storedValue)) {
-          mergedSection[key] = storedValue;
-        }
-      }
-    }
-
-    result[section] = mergedSection;
-  }
-
-  return result as TunableConfig;
-}
-
-/**
- * Save config to localStorage with debouncing.
- * Uses versioned format for safe schema evolution.
- */
-let saveTimeout: ReturnType<typeof globalThis.setTimeout> | null = null;
-
-function saveConfig(config: TunableConfig): void {
-  if (saveTimeout) {
-    globalThis.clearTimeout(saveTimeout);
-  }
-  saveTimeout = globalThis.setTimeout(() => {
-    try {
-      const stored: StoredConfig = {
-        version: CONFIG_SCHEMA_VERSION,
-        config,
-      };
-      globalThis.localStorage.setItem(STORAGE_KEY, JSON.stringify(stored));
-    } catch {
-      // Storage full or unavailable
-    }
-    saveTimeout = null;
-  }, 500);
-}
-
-/**
- * Clear any pending save timeout.
- */
-function clearSaveTimeout(): void {
-  if (saveTimeout) {
-    globalThis.clearTimeout(saveTimeout);
-    saveTimeout = null;
-  }
-}
+import { usePersistence } from '../persistence/index.js';
 
 interface ConfigContextValue {
   /** Current tunable configuration */
@@ -167,54 +49,26 @@ interface ConfigContextValue {
 
 const ConfigContext = createContext<ConfigContextValue | null>(null);
 
-/**
- * Get initial config: localStorage -> defaults.
- */
-function getInitialConfig(): TunableConfig {
-  const stored = loadConfig();
-  return stored ?? cloneConfig(DEFAULT_CONFIG);
-}
-
-/**
- * Get initial debug panel state from localStorage.
- */
-function getInitialDebugPanelState(): boolean {
-  try {
-    const stored = globalThis.localStorage.getItem('aquarium-debug-panel-open');
-    return stored === 'true';
-  } catch {
-    return false;
-  }
-}
-
 interface ConfigProviderProps {
   children: ReactNode;
 }
 
 export function ConfigProvider({ children }: ConfigProviderProps): React.JSX.Element {
-  const [config, setConfig] = useState<TunableConfig>(getInitialConfig);
-  const [isDebugPanelOpen, setDebugPanelOpenState] = useState(getInitialDebugPanelState);
+  const { loadedConfig, loadedUI, saveConfig: persistConfig, saveUI: persistUI } = usePersistence();
 
-  // Save config to localStorage when it changes
-  useEffect(() => {
-    saveConfig(config);
-  }, [config]);
+  // Initialize from persistence
+  const [config, setConfig] = useState<TunableConfig>(() => loadedConfig);
+  const [isDebugPanelOpen, setDebugPanelOpenState] = useState(() => loadedUI.debugPanelOpen);
 
-  // Cleanup pending save timeout on unmount
+  // Save config to persistence when it changes
   useEffect(() => {
-    return (): void => {
-      clearSaveTimeout();
-    };
-  }, []);
+    persistConfig(config);
+  }, [config, persistConfig]);
 
-  // Save debug panel state to localStorage
+  // Save debug panel state to persistence
   useEffect(() => {
-    try {
-      globalThis.localStorage.setItem('aquarium-debug-panel-open', String(isDebugPanelOpen));
-    } catch {
-      // Storage unavailable
-    }
-  }, [isDebugPanelOpen]);
+    persistUI({ ...loadedUI, debugPanelOpen: isDebugPanelOpen });
+  }, [isDebugPanelOpen, persistUI, loadedUI]);
 
   const updateConfig = useCallback(
     <K extends keyof TunableConfig>(

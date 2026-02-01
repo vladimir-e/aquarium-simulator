@@ -4,20 +4,62 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import React, { type ReactNode, type ComponentType } from 'react';
 import { UnitsProvider, useUnits } from './useUnits';
+import { PersistenceProvider, STORAGE_KEY, LEGACY_KEYS } from '../persistence/index.js';
+import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
 
 function createWrapper(): ComponentType<{ children: ReactNode }> {
   return function Wrapper({ children }: { children: ReactNode }): React.JSX.Element {
-    return <UnitsProvider>{children}</UnitsProvider>;
+    return (
+      <PersistenceProvider>
+        <UnitsProvider>{children}</UnitsProvider>
+      </PersistenceProvider>
+    );
   };
+}
+
+// Helper to create minimal valid persisted state for testing
+function createPersistedState(units: 'metric' | 'imperial'): string {
+  return JSON.stringify({
+    version: 1,
+    simulation: {
+      tick: 0,
+      tank: { capacity: 40, hardscapeSlots: 4 },
+      resources: {
+        water: 40, temperature: 25, surface: 0, flow: 0, light: 0, aeration: false,
+        food: 0, waste: 0, algae: 0, ammonia: 0, nitrite: 0, nitrate: 0,
+        oxygen: 8, co2: 4, ph: 7, aob: 0, nob: 0,
+      },
+      environment: { roomTemperature: 22, tapWaterTemperature: 20, tapWaterPH: 7 },
+      equipment: {
+        heater: { enabled: false, isOn: false, targetTemperature: 25, wattage: 100 },
+        lid: { type: 'none' },
+        ato: { enabled: false },
+        filter: { enabled: false, type: 'hob' },
+        powerhead: { enabled: false, flowRateGPH: 200 },
+        substrate: { type: 'none' },
+        hardscape: { items: [] },
+        light: { enabled: false, wattage: 10, schedule: { startHour: 8, duration: 8 } },
+        co2Generator: { enabled: false, bubbleRate: 1, isOn: false, schedule: { startHour: 7, duration: 10 } },
+        airPump: { enabled: false },
+      },
+      plants: [],
+      alertState: {
+        waterLevelCritical: false, highAlgae: false, highAmmonia: false,
+        highNitrite: false, highNitrate: false, lowOxygen: false, highCo2: false,
+      },
+    },
+    tunableConfig: DEFAULT_CONFIG,
+    ui: { units, debugPanelOpen: false },
+  });
 }
 
 describe('useUnits', () => {
   beforeEach(() => {
-    localStorage.clear();
+    globalThis.localStorage.clear();
   });
 
   afterEach(() => {
-    localStorage.clear();
+    globalThis.localStorage.clear();
   });
 
   it('throws when used outside UnitsProvider', () => {
@@ -41,8 +83,8 @@ describe('useUnits', () => {
   });
 
   it('toggles between metric and imperial', () => {
-    // Start with metric by clearing localStorage
-    localStorage.setItem('aquarium-units', 'metric');
+    // Start with metric via legacy key (tests migration)
+    globalThis.localStorage.setItem(LEGACY_KEYS.units, 'metric');
 
     const { result } = renderHook(() => useUnits(), {
       wrapper: createWrapper(),
@@ -81,20 +123,19 @@ describe('useUnits', () => {
     expect(result.current.unitSystem).toBe('metric');
   });
 
-  it('persists preference to localStorage', () => {
+  it('loads preference from legacy localStorage key on mount', () => {
+    // Tests legacy key migration
+    globalThis.localStorage.setItem(LEGACY_KEYS.units, 'imperial');
+
     const { result } = renderHook(() => useUnits(), {
       wrapper: createWrapper(),
     });
 
-    act(() => {
-      result.current.setUnitSystem('imperial');
-    });
-
-    expect(localStorage.getItem('aquarium-units')).toBe('imperial');
+    expect(result.current.unitSystem).toBe('imperial');
   });
 
-  it('loads preference from localStorage on mount', () => {
-    localStorage.setItem('aquarium-units', 'imperial');
+  it('loads preference from new unified key on mount', () => {
+    globalThis.localStorage.setItem(STORAGE_KEY, createPersistedState('imperial'));
 
     const { result } = renderHook(() => useUnits(), {
       wrapper: createWrapper(),
@@ -105,7 +146,7 @@ describe('useUnits', () => {
 
   describe('formatting functions', () => {
     it('formatTemp formats temperature based on unit system', () => {
-      localStorage.setItem('aquarium-units', 'metric');
+      globalThis.localStorage.setItem(LEGACY_KEYS.units, 'metric');
 
       const { result } = renderHook(() => useUnits(), {
         wrapper: createWrapper(),
@@ -121,7 +162,7 @@ describe('useUnits', () => {
     });
 
     it('formatVol formats volume based on unit system', () => {
-      localStorage.setItem('aquarium-units', 'metric');
+      globalThis.localStorage.setItem(LEGACY_KEYS.units, 'metric');
 
       const { result } = renderHook(() => useUnits(), {
         wrapper: createWrapper(),
@@ -137,7 +178,7 @@ describe('useUnits', () => {
     });
 
     it('tempUnit returns correct unit label', () => {
-      localStorage.setItem('aquarium-units', 'metric');
+      globalThis.localStorage.setItem(LEGACY_KEYS.units, 'metric');
 
       const { result } = renderHook(() => useUnits(), {
         wrapper: createWrapper(),
@@ -153,7 +194,7 @@ describe('useUnits', () => {
     });
 
     it('volUnit returns correct unit label', () => {
-      localStorage.setItem('aquarium-units', 'metric');
+      globalThis.localStorage.setItem(LEGACY_KEYS.units, 'metric');
 
       const { result } = renderHook(() => useUnits(), {
         wrapper: createWrapper(),
@@ -171,7 +212,7 @@ describe('useUnits', () => {
 
   describe('conversion functions', () => {
     it('displayTemp converts internal celsius to display value', () => {
-      localStorage.setItem('aquarium-units', 'metric');
+      globalThis.localStorage.setItem(LEGACY_KEYS.units, 'metric');
 
       const { result } = renderHook(() => useUnits(), {
         wrapper: createWrapper(),
@@ -187,7 +228,7 @@ describe('useUnits', () => {
     });
 
     it('displayVol converts internal liters to display value', () => {
-      localStorage.setItem('aquarium-units', 'metric');
+      globalThis.localStorage.setItem(LEGACY_KEYS.units, 'metric');
 
       const { result } = renderHook(() => useUnits(), {
         wrapper: createWrapper(),
@@ -203,7 +244,7 @@ describe('useUnits', () => {
     });
 
     it('internalTemp converts display value to internal celsius', () => {
-      localStorage.setItem('aquarium-units', 'metric');
+      globalThis.localStorage.setItem(LEGACY_KEYS.units, 'metric');
 
       const { result } = renderHook(() => useUnits(), {
         wrapper: createWrapper(),
@@ -219,7 +260,7 @@ describe('useUnits', () => {
     });
 
     it('internalVol converts display value to internal liters', () => {
-      localStorage.setItem('aquarium-units', 'metric');
+      globalThis.localStorage.setItem(LEGACY_KEYS.units, 'metric');
 
       const { result } = renderHook(() => useUnits(), {
         wrapper: createWrapper(),

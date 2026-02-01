@@ -4,10 +4,13 @@ import { renderHook, act } from '@testing-library/react';
 import { useSimulation } from './useSimulation';
 import { getPresetById } from '../presets';
 import { ConfigProvider } from './useConfig';
+import { PersistenceProvider } from '../persistence';
 
-// Wrapper with ConfigProvider for testing hooks that depend on it
+// Wrapper with providers for testing hooks that depend on them
 const wrapper = ({ children }: { children: React.ReactNode }): React.JSX.Element => (
-  <ConfigProvider>{children}</ConfigProvider>
+  <PersistenceProvider>
+    <ConfigProvider>{children}</ConfigProvider>
+  </PersistenceProvider>
 );
 
 describe('useSimulation', () => {

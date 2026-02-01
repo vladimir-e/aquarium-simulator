@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { produce } from 'immer';
 import {
   createSimulation,
@@ -21,6 +21,7 @@ import {
 import { createLog } from '../../simulation/core/logging.js';
 import { PRESETS, DEFAULT_PRESET_ID, getPresetById, type PresetId } from '../presets.js';
 import { useConfig } from './useConfig.js';
+import { usePersistence } from '../persistence/index.js';
 
 export type SpeedPreset = '1hr' | '6hr' | '12hr' | '1day';
 
@@ -71,8 +72,27 @@ export { type PresetId, PRESETS };
 
 export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseSimulationReturn {
   const { config } = useConfig();
+  const {
+    loadedSimulation,
+    saveSimulation,
+    clearSimulation,
+    markSimulationLoaded,
+    simulationLoaded,
+  } = usePersistence();
+
   const [currentPreset, setCurrentPreset] = useState<PresetId>(initialPreset);
   const [state, setState] = useState<SimulationState>(() => {
+    // Try to restore from persistence first
+    if (loadedSimulation) {
+      // Restore with empty logs (logs are ephemeral)
+      const restored: SimulationState = {
+        ...loadedSimulation,
+        logs: [createLog(loadedSimulation.tick, 'simulation', 'info', 'Session restored')],
+      };
+      return restored;
+    }
+
+    // Fall back to preset
     const preset = getPresetById(initialPreset);
     if (!preset) {
       throw new Error(`Unknown preset: ${initialPreset}`);
@@ -86,6 +106,18 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
   // Store config ref for use in intervals
   const configRef = useRef(config);
   configRef.current = config;
+
+  // Mark simulation as loaded on first render
+  useEffect(() => {
+    if (!simulationLoaded) {
+      markSimulationLoaded();
+    }
+  }, [simulationLoaded, markSimulationLoaded]);
+
+  // Save state to persistence when it changes
+  useEffect(() => {
+    saveSimulation(state);
+  }, [state, saveSimulation]);
 
   const step = useCallback(() => {
     const multiplier = SPEED_MULTIPLIERS[speed];
@@ -648,6 +680,9 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
       setIsPlaying(false);
     }
 
+    // Clear persisted simulation state
+    clearSimulation();
+
     // Reset to current preset's initial state
     const preset = getPresetById(currentPreset);
     if (!preset) {
@@ -661,7 +696,7 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
         draft.logs.push(log);
       })
     );
-  }, [isPlaying, stopAutoPlay, currentPreset]);
+  }, [isPlaying, stopAutoPlay, currentPreset, clearSimulation]);
 
   /**
    * Execute a user action immediately (works even when paused).

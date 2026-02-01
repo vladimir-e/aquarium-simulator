@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback, useMemo, type ReactNode } from 'react';
+import React, { createContext, useContext, useState, useCallback, useMemo, useEffect, type ReactNode } from 'react';
 import {
   type UnitSystem,
   formatTemperature,
@@ -9,10 +9,8 @@ import {
   toDisplayVolume,
   toInternalTemperature,
   toInternalVolume,
-  saveUnitPreference,
-  loadUnitPreference,
-  detectUnitSystem,
 } from '../utils/units';
+import { usePersistence } from '../persistence/index.js';
 
 export type { UnitSystem };
 
@@ -43,27 +41,23 @@ interface UnitsContextValue {
 
 const UnitsContext = createContext<UnitsContextValue | null>(null);
 
-/**
- * Determine initial unit system: localStorage -> browser detection -> metric.
- */
-function getInitialUnitSystem(): UnitSystem {
-  const stored = loadUnitPreference();
-  if (stored) {
-    return stored;
-  }
-  return detectUnitSystem();
-}
-
 interface UnitsProviderProps {
   children: ReactNode;
 }
 
 export function UnitsProvider({ children }: UnitsProviderProps): React.JSX.Element {
-  const [unitSystem, setUnitSystemState] = useState<UnitSystem>(getInitialUnitSystem);
+  const { loadedUI, saveUI: persistUI } = usePersistence();
+
+  // Initialize from persistence
+  const [unitSystem, setUnitSystemState] = useState<UnitSystem>(() => loadedUI.units);
+
+  // Save units to persistence when they change
+  useEffect(() => {
+    persistUI({ ...loadedUI, units: unitSystem });
+  }, [unitSystem, persistUI, loadedUI]);
 
   const setUnitSystem = useCallback((system: UnitSystem) => {
     setUnitSystemState(system);
-    saveUnitPreference(system);
   }, []);
 
   const toggleUnits = useCallback(() => {
