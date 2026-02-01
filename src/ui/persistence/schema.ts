@@ -203,6 +203,7 @@ export const PersistedSimulationSchema = z
     equipment: EquipmentSchema,
     plants: z.array(PlantSchema),
     alertState: AlertStateSchema,
+    currentPreset: z.string(),
   })
   .strict();
 

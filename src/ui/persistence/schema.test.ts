@@ -135,6 +135,7 @@ describe('PersistedSimulationSchema', () => {
       lowOxygen: false,
       highCo2: false,
     },
+    currentPreset: 'planted',
   };
 
   it('validates valid simulation state', () => {
@@ -265,6 +266,7 @@ describe('PersistedStateSchema', () => {
       lowOxygen: false,
       highCo2: false,
     },
+    currentPreset: 'planted',
   };
 
   const validState = {

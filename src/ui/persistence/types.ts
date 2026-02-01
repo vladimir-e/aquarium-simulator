@@ -37,6 +37,8 @@ export interface PersistedSimulation {
   equipment: Equipment;
   plants: Plant[];
   alertState: AlertState;
+  /** Currently selected preset ID */
+  currentPreset: string;
 }
 
 /**

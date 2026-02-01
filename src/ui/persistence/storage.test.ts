@@ -378,6 +378,7 @@ function createValidSimulation(): PersistedSimulation {
       lowOxygen: false,
       highCo2: false,
     },
+    currentPreset: 'planted',
   };
 }
 

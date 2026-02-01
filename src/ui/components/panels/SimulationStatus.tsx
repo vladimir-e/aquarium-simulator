@@ -12,6 +12,7 @@ interface SimulationStatusProps {
   speed: number;
   isPlaying: boolean;
   currentPreset: PresetId;
+  isPresetModified: boolean;
   onStep: () => void;
   onPresetChange: (presetId: PresetId) => void;
 }
@@ -21,6 +22,7 @@ export function SimulationStatus({
   speed,
   isPlaying,
   currentPreset,
+  isPresetModified,
   onStep,
   onPresetChange,
 }: SimulationStatusProps): React.JSX.Element {
@@ -119,9 +121,9 @@ export function SimulationStatus({
 
       <ConfirmDialog
         isOpen={showResetToPresetConfirm}
-        title="Reset to Preset?"
-        message={`This will reset everything to the "${presetName}" preset defaults. All current progress will be lost.`}
-        confirmLabel="Reset"
+        title="Restore Defaults?"
+        message={`This will restore "${presetName}" to its default configuration. All current progress will be lost.`}
+        confirmLabel="Restore"
         onConfirm={confirmResetToPreset}
         onCancel={() => setShowResetToPresetConfirm(false)}
       />
@@ -142,7 +144,7 @@ export function SimulationStatus({
         }
       >
         <div className="space-y-4">
-          {/* Preset Selector with Reset Button */}
+          {/* Preset Selector with Restore Button */}
           <div>
             <label className="text-xs text-gray-400 block mb-1">Preset</label>
             <div className="flex gap-2">
@@ -157,13 +159,15 @@ export function SimulationStatus({
                   </option>
                 ))}
               </Select>
-              <button
-                onClick={handleResetToPreset}
-                className="px-2 py-1 bg-gray-700 hover:bg-gray-600 border border-border rounded-md transition-colors"
-                title="Reset to preset defaults"
-              >
-                <RotateCcw className="w-4 h-4 text-gray-400" />
-              </button>
+              {isPresetModified && (
+                <button
+                  onClick={handleResetToPreset}
+                  className="px-2 py-1 bg-gray-700 hover:bg-gray-600 border border-border rounded-md transition-colors"
+                  title="Restore preset defaults"
+                >
+                  <RotateCcw className="w-4 h-4 text-gray-400" />
+                </button>
+              )}
             </div>
           </div>
 

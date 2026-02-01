@@ -37,6 +37,8 @@ interface UseSimulationReturn {
   isPlaying: boolean;
   speed: SpeedPreset;
   currentPreset: PresetId;
+  /** True if equipment or plants have been modified from preset defaults */
+  isPresetModified: boolean;
   step: () => void;
   togglePlayPause: () => void;
   changeSpeed: (speed: SpeedPreset) => void;
@@ -84,7 +86,10 @@ function persistedToState(persisted: PersistedSimulation): SimulationState {
 /**
  * Convert SimulationState to persisted simulation (excludes logs).
  */
-function stateToPersistedSimulation(state: SimulationState): PersistedSimulation {
+function stateToPersistedSimulation(
+  state: SimulationState,
+  currentPreset: PresetId
+): PersistedSimulation {
   return {
     tick: state.tick,
     tank: state.tank,
@@ -93,6 +98,7 @@ function stateToPersistedSimulation(state: SimulationState): PersistedSimulation
     equipment: state.equipment,
     plants: state.plants,
     alertState: state.alertState,
+    currentPreset,
   };
 }
 
@@ -133,7 +139,21 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
   const { config } = useConfig();
   const { initialSimulation, onSimulationChange } = usePersistence();
 
-  const [currentPreset, setCurrentPreset] = useState<PresetId>(initialPreset);
+  // Restore preset from persistence or use default
+  const [currentPreset, setCurrentPreset] = useState<PresetId>(() => {
+    if (initialSimulation?.currentPreset) {
+      // Validate it's a known preset ID
+      const preset = getPresetById(initialSimulation.currentPreset as PresetId);
+      if (preset) {
+        return initialSimulation.currentPreset as PresetId;
+      }
+    }
+    return initialPreset;
+  });
+
+  // Track if equipment/plants have been modified from preset defaults
+  const [isModified, setIsModified] = useState(false);
+
   const [state, setState] = useState<SimulationState>(() => {
     // If we have persisted state, restore it
     if (initialSimulation) {
@@ -160,10 +180,10 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
   const configRef = useRef(config);
   configRef.current = config;
 
-  // Notify persistence when state changes
+  // Notify persistence when state or preset changes
   useEffect(() => {
-    onSimulationChange(stateToPersistedSimulation(state));
-  }, [state, onSimulationChange]);
+    onSimulationChange(stateToPersistedSimulation(state, currentPreset));
+  }, [state, currentPreset, onSimulationChange]);
 
   const step = useCallback(() => {
     const multiplier = SPEED_MULTIPLIERS[speed];
@@ -236,6 +256,7 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
       }
 
       setCurrentPreset(presetId);
+      setIsModified(false);
       const newState = createSimulation(preset.config);
       const log = createLog(0, 'simulation', 'info', `Loaded preset: ${preset.name}`);
       setState(
@@ -289,6 +310,7 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
   }, [isPlaying, stopAutoPlay]);
 
   const updateHeaterEnabled = useCallback((enabled: boolean) => {
+    setIsModified(true);
     setState((current) =>
       produce(current, (draft) => {
         const message = enabled
@@ -302,6 +324,7 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
   }, []);
 
   const updateHeaterTargetTemperature = useCallback((temp: number) => {
+    setIsModified(true);
     setState((current) =>
       produce(current, (draft) => {
         const oldTemp = draft.equipment.heater.targetTemperature;
@@ -318,6 +341,7 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
   }, []);
 
   const updateHeaterWattage = useCallback((wattage: number) => {
+    setIsModified(true);
     setState((current) =>
       produce(current, (draft) => {
         const oldWattage = draft.equipment.heater.wattage;
@@ -382,6 +406,7 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
   }, []);
 
   const updateLidType = useCallback((type: LidType) => {
+    setIsModified(true);
     setState((current) =>
       produce(current, (draft) => {
         const oldType = draft.equipment.lid.type;
@@ -401,6 +426,7 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
   }, []);
 
   const updateAtoEnabled = useCallback((enabled: boolean) => {
+    setIsModified(true);
     setState((current) =>
       produce(current, (draft) => {
         const message = enabled
@@ -414,6 +440,7 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
   }, []);
 
   const updateFilterEnabled = useCallback((enabled: boolean) => {
+    setIsModified(true);
     setState((current) =>
       produce(current, (draft) => {
         const message = enabled ? 'Filter enabled' : 'Filter disabled';
@@ -430,6 +457,7 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
   }, []);
 
   const updateFilterType = useCallback((type: FilterType) => {
+    setIsModified(true);
     setState((current) =>
       produce(current, (draft) => {
         const oldType = draft.equipment.filter.type;
@@ -453,6 +481,7 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
   }, []);
 
   const updateAirPumpEnabled = useCallback((enabled: boolean) => {
+    setIsModified(true);
     setState((current) =>
       produce(current, (draft) => {
         const message = enabled ? 'Air pump enabled' : 'Air pump disabled';
@@ -469,6 +498,7 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
   }, []);
 
   const updatePowerheadEnabled = useCallback((enabled: boolean) => {
+    setIsModified(true);
     setState((current) =>
       produce(current, (draft) => {
         const message = enabled ? 'Powerhead enabled' : 'Powerhead disabled';
@@ -485,6 +515,7 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
   }, []);
 
   const updatePowerheadFlowRate = useCallback((flowRateGPH: PowerheadFlowRate) => {
+    setIsModified(true);
     setState((current) =>
       produce(current, (draft) => {
         const oldRate = draft.equipment.powerhead.flowRateGPH;
@@ -507,6 +538,7 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
   }, []);
 
   const updateSubstrateType = useCallback((type: SubstrateType) => {
+    setIsModified(true);
     setState((current) =>
       produce(current, (draft) => {
         const oldType = draft.equipment.substrate.type;
@@ -529,6 +561,7 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
   }, []);
 
   const addHardscapeItem = useCallback((type: HardscapeType) => {
+    setIsModified(true);
     setState((current) =>
       produce(current, (draft) => {
         // Check slot limit
@@ -561,6 +594,7 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
   }, []);
 
   const removeHardscapeItem = useCallback((id: string) => {
+    setIsModified(true);
     setState((current) =>
       produce(current, (draft) => {
         const item = draft.equipment.hardscape.items.find((i) => i.id === id);
@@ -587,6 +621,7 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
   }, []);
 
   const updateLightEnabled = useCallback((enabled: boolean) => {
+    setIsModified(true);
     setState((current) =>
       produce(current, (draft) => {
         const message = enabled
@@ -605,6 +640,7 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
   }, []);
 
   const updateLightWattage = useCallback((wattage: number) => {
+    setIsModified(true);
     setState((current) =>
       produce(current, (draft) => {
         const oldWattage = draft.equipment.light.wattage;
@@ -627,6 +663,7 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
   }, []);
 
   const updateLightSchedule = useCallback((schedule: DailySchedule) => {
+    setIsModified(true);
     setState((current) =>
       produce(current, (draft) => {
         const oldSchedule = draft.equipment.light.schedule;
@@ -649,6 +686,7 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
   }, []);
 
   const updateCo2GeneratorEnabled = useCallback((enabled: boolean) => {
+    setIsModified(true);
     setState((current) =>
       produce(current, (draft) => {
         const message = enabled
@@ -662,6 +700,7 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
   }, []);
 
   const updateCo2GeneratorBubbleRate = useCallback((bubbleRate: number) => {
+    setIsModified(true);
     setState((current) =>
       produce(current, (draft) => {
         const oldRate = draft.equipment.co2Generator.bubbleRate;
@@ -680,6 +719,7 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
   }, []);
 
   const updateCo2GeneratorSchedule = useCallback((schedule: DailySchedule) => {
+    setIsModified(true);
     setState((current) =>
       produce(current, (draft) => {
         const oldSchedule = draft.equipment.co2Generator.schedule;
@@ -699,6 +739,7 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
 
   const changeTankCapacity = useCallback(
     (capacity: number) => {
+      setIsModified(true);
       // Stop playing if currently running
       if (isPlaying) {
         stopAutoPlay();
@@ -764,6 +805,10 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
    * Execute a user action immediately (works even when paused).
    */
   const executeAction = useCallback((action: Action) => {
+    // Mark as modified for plant actions
+    if (action.type === 'addPlant' || action.type === 'removePlant') {
+      setIsModified(true);
+    }
     setState((currentState) => {
       const result = applyAction(currentState, action);
       return result.state;
@@ -775,6 +820,7 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
     isPlaying,
     speed,
     currentPreset,
+    isPresetModified: isModified,
     step,
     togglePlayPause,
     changeSpeed,
