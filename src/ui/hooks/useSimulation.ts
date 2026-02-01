@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { produce } from 'immer';
 import {
   createSimulation,
@@ -21,6 +21,7 @@ import {
 import { createLog } from '../../simulation/core/logging.js';
 import { PRESETS, DEFAULT_PRESET_ID, getPresetById, type PresetId } from '../presets.js';
 import { useConfig } from './useConfig.js';
+import { usePersistence, type PersistedSimulation } from '../persistence/index.js';
 
 export type SpeedPreset = '1hr' | '6hr' | '12hr' | '1day';
 
@@ -40,6 +41,7 @@ interface UseSimulationReturn {
   togglePlayPause: () => void;
   changeSpeed: (speed: SpeedPreset) => void;
   loadPreset: (presetId: PresetId) => void;
+  resetSimulation: () => void;
   updateHeaterEnabled: (enabled: boolean) => void;
   updateHeaterTargetTemperature: (temp: number) => void;
   updateHeaterWattage: (wattage: number) => void;
@@ -69,10 +71,82 @@ interface UseSimulationReturn {
 
 export { type PresetId, PRESETS };
 
+/**
+ * Convert persisted simulation state to full SimulationState.
+ * Logs are always reset to empty on load (ephemeral).
+ */
+function persistedToState(persisted: PersistedSimulation): SimulationState {
+  return {
+    ...persisted,
+    logs: [], // Logs are NOT persisted
+  };
+}
+
+/**
+ * Convert SimulationState to persisted simulation (excludes logs).
+ */
+function stateToPersistedSimulation(state: SimulationState): PersistedSimulation {
+  return {
+    tick: state.tick,
+    tank: state.tank,
+    resources: state.resources,
+    environment: state.environment,
+    equipment: state.equipment,
+    plants: state.plants,
+    alertState: state.alertState,
+  };
+}
+
+/**
+ * Create initial resources for a fresh simulation reset.
+ * Uses tank capacity to set water level.
+ */
+function createInitialResources(
+  tankCapacity: number,
+  environment: SimulationState['environment'],
+  equipment: SimulationState['equipment']
+): SimulationState['resources'] {
+  // Create a temporary simulation to get initial resource values
+  const tempState = createSimulation({
+    tankCapacity,
+    roomTemperature: environment.roomTemperature,
+    tapWaterTemperature: environment.tapWaterTemperature,
+    tapWaterPH: environment.tapWaterPH,
+  });
+
+  // Now calculate passive resources based on current equipment
+  const fullState: SimulationState = {
+    ...tempState,
+    equipment,
+  };
+  const passiveValues = calculatePassiveResources(fullState);
+
+  return {
+    ...tempState.resources,
+    surface: passiveValues.surface,
+    flow: passiveValues.flow,
+    light: passiveValues.light,
+    aeration: passiveValues.aeration,
+  };
+}
+
 export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseSimulationReturn {
   const { config } = useConfig();
+  const { initialSimulation, onSimulationChange } = usePersistence();
+
   const [currentPreset, setCurrentPreset] = useState<PresetId>(initialPreset);
   const [state, setState] = useState<SimulationState>(() => {
+    // If we have persisted state, restore it
+    if (initialSimulation) {
+      const restoredState = persistedToState(initialSimulation);
+      // Add a log entry for session resume
+      const log = createLog(restoredState.tick, 'simulation', 'info', 'Session restored');
+      return produce(restoredState, (draft) => {
+        draft.logs.push(log);
+      });
+    }
+
+    // Otherwise, create from default preset
     const preset = getPresetById(initialPreset);
     if (!preset) {
       throw new Error(`Unknown preset: ${initialPreset}`);
@@ -86,6 +160,11 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
   // Store config ref for use in intervals
   const configRef = useRef(config);
   configRef.current = config;
+
+  // Notify persistence when state changes
+  useEffect(() => {
+    onSimulationChange(stateToPersistedSimulation(state));
+  }, [state, onSimulationChange]);
 
   const step = useCallback(() => {
     const multiplier = SPEED_MULTIPLIERS[speed];
@@ -168,6 +247,53 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
     },
     [isPlaying, stopAutoPlay]
   );
+
+  /**
+   * Reset simulation: keeps equipment and plants but resets
+   * tick, resources, alertState, and logs to fresh state.
+   */
+  const resetSimulation = useCallback(() => {
+    // Stop playing if currently running
+    if (isPlaying) {
+      stopAutoPlay();
+      setIsPlaying(false);
+    }
+
+    setState((current) =>
+      produce(current, (draft) => {
+        // Reset tick to 0
+        draft.tick = 0;
+
+        // Reset resources to initial values for current tank
+        const freshResources = createInitialResources(
+          current.tank.capacity,
+          current.environment,
+          current.equipment
+        );
+        draft.resources = freshResources;
+
+        // Reset alert state
+        draft.alertState = {
+          waterLevelCritical: false,
+          highAlgae: false,
+          highAmmonia: false,
+          highNitrite: false,
+          highNitrate: false,
+          lowOxygen: false,
+          highCo2: false,
+        };
+
+        // Clear logs and add reset message
+        draft.logs = [createLog(0, 'simulation', 'info', 'Simulation reset')];
+      })
+    );
+  }, [isPlaying, stopAutoPlay]);
+
+  /**
+   * Legacy reset function - now calls resetSimulation.
+   * Kept for backward compatibility with existing UI.
+   */
+  const reset = resetSimulation;
 
   const updateHeaterEnabled = useCallback((enabled: boolean) => {
     setState((current) =>
@@ -641,28 +767,6 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
     [isPlaying, stopAutoPlay]
   );
 
-  const reset = useCallback(() => {
-    // Stop playing if currently running
-    if (isPlaying) {
-      stopAutoPlay();
-      setIsPlaying(false);
-    }
-
-    // Reset to current preset's initial state
-    const preset = getPresetById(currentPreset);
-    if (!preset) {
-      return;
-    }
-
-    const newState = createSimulation(preset.config);
-    const log = createLog(0, 'simulation', 'info', `Reset to preset: ${preset.name}`);
-    setState(
-      produce(newState, (draft) => {
-        draft.logs.push(log);
-      })
-    );
-  }, [isPlaying, stopAutoPlay, currentPreset]);
-
   /**
    * Execute a user action immediately (works even when paused).
    */
@@ -682,6 +786,7 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
     togglePlayPause,
     changeSpeed,
     loadPreset,
+    resetSimulation,
     updateHeaterEnabled,
     updateHeaterTargetTemperature,
     updateHeaterWattage,

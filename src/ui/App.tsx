@@ -70,6 +70,7 @@ function App(): React.JSX.Element {
       <Timeline
         isPlaying={isPlaying}
         speed={speed}
+        tick={state.tick}
         onPlayPause={togglePlayPause}
         onSpeedChange={changeSpeed}
         onReset={reset}

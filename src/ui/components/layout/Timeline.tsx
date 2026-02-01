@@ -1,14 +1,19 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Play, Pause, Gauge, RotateCcw, Settings } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { ThemeSwitcher } from '../ui/ThemeSwitcher';
+import { ConfirmDialog } from '../ui/ConfirmDialog';
 import { useConfig } from '../../hooks/useConfig';
 
 type SpeedPreset = '1hr' | '6hr' | '12hr' | '1day';
 
+/** 30 days in ticks (hours) */
+const RESET_CONFIRM_THRESHOLD = 720;
+
 interface TimelineProps {
   isPlaying: boolean;
   speed: SpeedPreset;
+  tick: number;
   onPlayPause: () => void;
   onSpeedChange: (speed: SpeedPreset) => void;
   onReset: () => void;
@@ -17,13 +22,40 @@ interface TimelineProps {
 export function Timeline({
   isPlaying,
   speed,
+  tick,
   onPlayPause,
   onSpeedChange,
   onReset,
 }: TimelineProps): React.JSX.Element {
   const { isDebugPanelOpen, toggleDebugPanel, isAnyModified } = useConfig();
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
+
+  const handleResetClick = (): void => {
+    // Only show confirmation if tick > 30 days
+    if (tick > RESET_CONFIRM_THRESHOLD) {
+      setShowResetConfirm(true);
+    } else {
+      onReset();
+    }
+  };
+
+  const handleConfirmReset = (): void => {
+    setShowResetConfirm(false);
+    onReset();
+  };
+
+  const day = Math.floor(tick / 24);
 
   return (
+    <>
+      <ConfirmDialog
+        isOpen={showResetConfirm}
+        title="Reset Simulation?"
+        message={`You have ${day} days of simulation progress. This will reset tick, resources, and alerts while keeping your equipment and plants.`}
+        confirmLabel="Reset"
+        onConfirm={handleConfirmReset}
+        onCancel={() => setShowResetConfirm(false)}
+      />
     <div className="sticky top-0 z-10 bg-panel border-b border-border px-4 py-3">
       <div className="grid grid-cols-[auto_1fr_auto] items-center gap-4">
         {/* Left: Title (fixed) */}
@@ -106,12 +138,13 @@ export function Timeline({
               <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-yellow-400" />
             )}
           </Button>
-          <Button onClick={onReset} variant="secondary" className="text-xs flex items-center gap-1.5">
+          <Button onClick={handleResetClick} variant="secondary" className="text-xs flex items-center gap-1.5">
             <RotateCcw className="w-3.5 h-3.5" />
             Reset
           </Button>
         </div>
       </div>
     </div>
+    </>
   );
 }

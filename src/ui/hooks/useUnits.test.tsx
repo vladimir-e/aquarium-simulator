@@ -4,10 +4,15 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import React, { type ReactNode, type ComponentType } from 'react';
 import { UnitsProvider, useUnits } from './useUnits';
+import { PersistenceProvider } from '../persistence/index.js';
 
 function createWrapper(): ComponentType<{ children: ReactNode }> {
   return function Wrapper({ children }: { children: ReactNode }): React.JSX.Element {
-    return <UnitsProvider>{children}</UnitsProvider>;
+    return (
+      <PersistenceProvider>
+        <UnitsProvider>{children}</UnitsProvider>
+      </PersistenceProvider>
+    );
   };
 }
 
@@ -41,26 +46,23 @@ describe('useUnits', () => {
   });
 
   it('toggles between metric and imperial', () => {
-    // Start with metric by clearing localStorage
-    localStorage.setItem('aquarium-units', 'metric');
-
     const { result } = renderHook(() => useUnits(), {
       wrapper: createWrapper(),
     });
 
-    expect(result.current.unitSystem).toBe('metric');
+    const initialUnit = result.current.unitSystem;
 
     act(() => {
       result.current.toggleUnits();
     });
 
-    expect(result.current.unitSystem).toBe('imperial');
+    expect(result.current.unitSystem).toBe(initialUnit === 'metric' ? 'imperial' : 'metric');
 
     act(() => {
       result.current.toggleUnits();
     });
 
-    expect(result.current.unitSystem).toBe('metric');
+    expect(result.current.unitSystem).toBe(initialUnit);
   });
 
   it('setUnitSystem updates unit system', () => {
@@ -81,34 +83,14 @@ describe('useUnits', () => {
     expect(result.current.unitSystem).toBe('metric');
   });
 
-  it('persists preference to localStorage', () => {
-    const { result } = renderHook(() => useUnits(), {
-      wrapper: createWrapper(),
-    });
-
-    act(() => {
-      result.current.setUnitSystem('imperial');
-    });
-
-    expect(localStorage.getItem('aquarium-units')).toBe('imperial');
-  });
-
-  it('loads preference from localStorage on mount', () => {
-    localStorage.setItem('aquarium-units', 'imperial');
-
-    const { result } = renderHook(() => useUnits(), {
-      wrapper: createWrapper(),
-    });
-
-    expect(result.current.unitSystem).toBe('imperial');
-  });
-
   describe('formatting functions', () => {
     it('formatTemp formats temperature based on unit system', () => {
-      localStorage.setItem('aquarium-units', 'metric');
-
       const { result } = renderHook(() => useUnits(), {
         wrapper: createWrapper(),
+      });
+
+      act(() => {
+        result.current.setUnitSystem('metric');
       });
 
       expect(result.current.formatTemp(25)).toBe('25.0°C');
@@ -121,10 +103,12 @@ describe('useUnits', () => {
     });
 
     it('formatVol formats volume based on unit system', () => {
-      localStorage.setItem('aquarium-units', 'metric');
-
       const { result } = renderHook(() => useUnits(), {
         wrapper: createWrapper(),
+      });
+
+      act(() => {
+        result.current.setUnitSystem('metric');
       });
 
       expect(result.current.formatVol(10)).toBe('10.0 L');
@@ -137,10 +121,12 @@ describe('useUnits', () => {
     });
 
     it('tempUnit returns correct unit label', () => {
-      localStorage.setItem('aquarium-units', 'metric');
-
       const { result } = renderHook(() => useUnits(), {
         wrapper: createWrapper(),
+      });
+
+      act(() => {
+        result.current.setUnitSystem('metric');
       });
 
       expect(result.current.tempUnit).toBe('°C');
@@ -153,10 +139,12 @@ describe('useUnits', () => {
     });
 
     it('volUnit returns correct unit label', () => {
-      localStorage.setItem('aquarium-units', 'metric');
-
       const { result } = renderHook(() => useUnits(), {
         wrapper: createWrapper(),
+      });
+
+      act(() => {
+        result.current.setUnitSystem('metric');
       });
 
       expect(result.current.volUnit).toBe('L');
@@ -171,10 +159,12 @@ describe('useUnits', () => {
 
   describe('conversion functions', () => {
     it('displayTemp converts internal celsius to display value', () => {
-      localStorage.setItem('aquarium-units', 'metric');
-
       const { result } = renderHook(() => useUnits(), {
         wrapper: createWrapper(),
+      });
+
+      act(() => {
+        result.current.setUnitSystem('metric');
       });
 
       expect(result.current.displayTemp(25)).toBe(25);
@@ -187,10 +177,12 @@ describe('useUnits', () => {
     });
 
     it('displayVol converts internal liters to display value', () => {
-      localStorage.setItem('aquarium-units', 'metric');
-
       const { result } = renderHook(() => useUnits(), {
         wrapper: createWrapper(),
+      });
+
+      act(() => {
+        result.current.setUnitSystem('metric');
       });
 
       expect(result.current.displayVol(10)).toBe(10);
@@ -203,10 +195,12 @@ describe('useUnits', () => {
     });
 
     it('internalTemp converts display value to internal celsius', () => {
-      localStorage.setItem('aquarium-units', 'metric');
-
       const { result } = renderHook(() => useUnits(), {
         wrapper: createWrapper(),
+      });
+
+      act(() => {
+        result.current.setUnitSystem('metric');
       });
 
       expect(result.current.internalTemp(25)).toBe(25);
@@ -219,10 +213,12 @@ describe('useUnits', () => {
     });
 
     it('internalVol converts display value to internal liters', () => {
-      localStorage.setItem('aquarium-units', 'metric');
-
       const { result } = renderHook(() => useUnits(), {
         wrapper: createWrapper(),
+      });
+
+      act(() => {
+        result.current.setUnitSystem('metric');
       });
 
       expect(result.current.internalVol(10)).toBe(10);
