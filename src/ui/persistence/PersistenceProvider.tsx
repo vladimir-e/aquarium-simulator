@@ -26,6 +26,7 @@ import {
   loadPersistedState,
   savePersistedState,
   cancelPendingSave,
+  flushPendingSave,
   getDefaultUI,
 } from './storage.js';
 
@@ -159,10 +160,17 @@ export function PersistenceProvider({ children }: PersistenceProviderProps): Rea
     uiRef.current = getDefaultUI();
   }, []);
 
-  // Cleanup pending save on unmount
+  // Flush pending save on page unload and unmount
   useEffect(() => {
+    const handleBeforeUnload = (): void => {
+      flushPendingSave();
+    };
+
+    globalThis.addEventListener('beforeunload', handleBeforeUnload);
+
     return (): void => {
-      cancelPendingSave();
+      globalThis.removeEventListener('beforeunload', handleBeforeUnload);
+      flushPendingSave();
     };
   }, []);
 

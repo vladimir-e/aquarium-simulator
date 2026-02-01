@@ -4,7 +4,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import {
   loadPersistedState,
   savePersistedState,
-  savePersistedStateNow,
+  flushPendingSave,
   clearPersistedState,
   cancelPendingSave,
   hasResetQueryParam,
@@ -158,7 +158,7 @@ describe('savePersistedState', () => {
   });
 });
 
-describe('savePersistedStateNow', () => {
+describe('flushPendingSave', () => {
   beforeEach(() => {
     localStorage.clear();
   });
@@ -167,26 +167,41 @@ describe('savePersistedStateNow', () => {
     localStorage.clear();
   });
 
-  it('saves state immediately', () => {
+  it('flushes pending save immediately', () => {
+    vi.useFakeTimers();
     const state = createValidPersistedState();
-    savePersistedStateNow(state);
+    savePersistedState(state, 2000);
+
+    // Nothing saved yet
+    expect(localStorage.getItem(STORAGE_KEY)).toBeNull();
+
+    // Flush immediately
+    flushPendingSave();
 
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY)!);
     expect(saved).toEqual(state);
+
+    vi.useRealTimers();
   });
 
-  it('cancels pending debounced save', () => {
+  it('does nothing if no pending save', () => {
+    flushPendingSave();
+    expect(localStorage.getItem(STORAGE_KEY)).toBeNull();
+  });
+
+  it('cancels pending debounced save after flush', () => {
     vi.useFakeTimers();
     const state1 = createValidPersistedState();
     const state2 = { ...state1, ui: { ...state1.ui, debugPanelOpen: true } };
 
-    savePersistedState(state1, 500);
-    savePersistedStateNow(state2);
+    savePersistedState(state1, 2000);
+    flushPendingSave();
+    savePersistedState(state2, 2000);
 
-    // Advance past debounce time
-    vi.advanceTimersByTime(600);
+    // Advance past debounce time for first save
+    vi.advanceTimersByTime(2100);
 
-    // Should only have the immediately saved state
+    // Should have the second state
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY)!);
     expect(saved.ui.debugPanelOpen).toBe(true);
 
@@ -205,7 +220,8 @@ describe('clearPersistedState', () => {
 
   it('removes stored state', () => {
     const state = createValidPersistedState();
-    savePersistedStateNow(state);
+    savePersistedState(state, 2000);
+    flushPendingSave(); // Flush to actually save
     expect(localStorage.getItem(STORAGE_KEY)).not.toBeNull();
 
     clearPersistedState();

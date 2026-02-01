@@ -7,7 +7,7 @@ export { PersistedStateSchema, PersistedSimulationSchema, TunableConfigSchema, P
 export {
   loadPersistedState,
   savePersistedState,
-  savePersistedStateNow,
+  flushPendingSave,
   cancelPendingSave,
   clearPersistedState,
   hasResetQueryParam,

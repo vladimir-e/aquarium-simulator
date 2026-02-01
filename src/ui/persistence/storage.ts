@@ -146,37 +146,12 @@ function formatZodError(error: z.ZodError): string {
 
 // Debounce state for saving
 let saveTimeout: ReturnType<typeof globalThis.setTimeout> | null = null;
+let pendingState: PersistedState | null = null;
 
 /**
- * Save persisted state to localStorage with debouncing.
- * @param state Complete state to save
- * @param debounceMs Debounce delay (default 500ms)
+ * Write state to localStorage.
  */
-export function savePersistedState(state: PersistedState, debounceMs = 500): void {
-  if (saveTimeout) {
-    globalThis.clearTimeout(saveTimeout);
-  }
-
-  saveTimeout = globalThis.setTimeout(() => {
-    try {
-      globalThis.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-    } catch (error) {
-      // Storage full or unavailable
-      console.warn('Failed to save state to localStorage:', error);
-    }
-    saveTimeout = null;
-  }, debounceMs);
-}
-
-/**
- * Save persisted state immediately (bypassing debounce).
- */
-export function savePersistedStateNow(state: PersistedState): void {
-  if (saveTimeout) {
-    globalThis.clearTimeout(saveTimeout);
-    saveTimeout = null;
-  }
-
+function writeToStorage(state: PersistedState): void {
   try {
     globalThis.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   } catch (error) {
@@ -185,13 +160,50 @@ export function savePersistedStateNow(state: PersistedState): void {
 }
 
 /**
- * Clear any pending save timeout.
+ * Save persisted state to localStorage with debouncing.
+ * @param state Complete state to save
+ * @param debounceMs Debounce delay (default 2000ms)
+ */
+export function savePersistedState(state: PersistedState, debounceMs = 2000): void {
+  pendingState = state;
+
+  if (saveTimeout) {
+    globalThis.clearTimeout(saveTimeout);
+  }
+
+  saveTimeout = globalThis.setTimeout(() => {
+    if (pendingState) {
+      writeToStorage(pendingState);
+      pendingState = null;
+    }
+    saveTimeout = null;
+  }, debounceMs);
+}
+
+/**
+ * Flush any pending save immediately.
+ * Call this before page unload to ensure no data is lost.
+ */
+export function flushPendingSave(): void {
+  if (saveTimeout) {
+    globalThis.clearTimeout(saveTimeout);
+    saveTimeout = null;
+  }
+  if (pendingState) {
+    writeToStorage(pendingState);
+    pendingState = null;
+  }
+}
+
+/**
+ * Clear any pending save without writing.
  */
 export function cancelPendingSave(): void {
   if (saveTimeout) {
     globalThis.clearTimeout(saveTimeout);
     saveTimeout = null;
   }
+  pendingState = null;
 }
 
 /**
