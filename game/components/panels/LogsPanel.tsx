@@ -1,7 +1,5 @@
-import { AlertTriangle, Info, Droplets } from 'lucide-react';
-
 /**
- * LogsPanel - Event log display with scrollable list
+ * LogsPanel - Compact event log display
  */
 function LogsPanel(): React.ReactElement {
   const logs = [
@@ -17,25 +15,14 @@ function LogsPanel(): React.ReactElement {
     { id: '10', time: '20:00', day: 0, type: 'warning', source: 'water', message: 'Water level at 95%' },
   ];
 
-  const getLogIcon = (type: string): React.ReactElement => {
+  const getTypeColor = (type: string): string => {
     switch (type) {
       case 'warning':
-        return <AlertTriangle className="h-4 w-4 text-amber-500" />;
+        return 'text-amber-600';
       case 'action':
-        return <Droplets className="h-4 w-4 text-teal-500" />;
+        return 'text-teal-600';
       default:
-        return <Info className="h-4 w-4 text-slate-400" />;
-    }
-  };
-
-  const getLogStyle = (type: string): string => {
-    switch (type) {
-      case 'warning':
-        return 'border-l-amber-500 bg-amber-50';
-      case 'action':
-        return 'border-l-teal-500 bg-teal-50';
-      default:
-        return 'border-l-slate-300 bg-white';
+        return 'text-slate-400';
     }
   };
 
@@ -46,22 +33,24 @@ function LogsPanel(): React.ReactElement {
       id="panel-logs"
       aria-label="Event logs"
     >
-      {/* Scrollable log list */}
-      <div className="scrollbar-thin min-h-0 flex-1 space-y-2 overflow-y-auto">
-        {logs.map((log) => (
-          <div
-            key={log.id}
-            className={`flex items-start gap-3 rounded-lg border-l-4 p-3 ${getLogStyle(log.type)}`}
-          >
-            <div className="mt-0.5 flex-shrink-0">{getLogIcon(log.type)}</div>
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-medium text-slate-800">{log.message}</p>
-              <p className="mt-0.5 text-xs text-slate-500">
-                Day {log.day}, {log.time} · {log.source}
-              </p>
+      {/* Compact scrollable log list */}
+      <div className="scrollbar-thin min-h-0 flex-1 overflow-y-auto rounded-xl border border-slate-200 bg-white">
+        <div className="divide-y divide-slate-100">
+          {logs.map((log) => (
+            <div
+              key={log.id}
+              className="flex items-baseline gap-2 px-3 py-2 text-sm"
+            >
+              <span className="flex-shrink-0 text-xs text-slate-400">
+                D{log.day} {log.time}
+              </span>
+              <span className={`flex-shrink-0 text-xs font-medium ${getTypeColor(log.type)}`}>
+                [{log.source}]
+              </span>
+              <span className="text-slate-700">{log.message}</span>
             </div>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
     </div>
   );
