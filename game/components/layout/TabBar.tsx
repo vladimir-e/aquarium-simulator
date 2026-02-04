@@ -1,4 +1,4 @@
-import { useRef, useEffect, useCallback } from 'react';
+import { useRef } from 'react';
 import { motion } from 'framer-motion';
 
 export type TabId = 'tank' | 'equipment' | 'plants' | 'livestock' | 'actions' | 'logs';
@@ -27,42 +27,29 @@ interface TabBarProps {
  *
  * Features:
  * - Horizontally scrollable on mobile
- * - Auto-scrolls to center selected tab
+ * - Auto-scrolls to center selected tab on click
  * - High contrast active state with accent color
  * - Animated background indicator
  * - Keyboard accessible
  */
 function TabBar({ activeTab, onTabChange }: TabBarProps): React.ReactElement {
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const tabRefs = useRef<Map<TabId, HTMLButtonElement>>(new Map());
-
-  // Scroll selected tab to center
-  const scrollToCenter = useCallback((tabId: TabId) => {
-    const container = scrollContainerRef.current;
-    const tab = tabRefs.current.get(tabId);
-    if (!container || !tab) return;
-
-    const containerRect = container.getBoundingClientRect();
-    const tabRect = tab.getBoundingClientRect();
-
-    // Calculate scroll position to center the tab
-    const tabCenter = tabRect.left + tabRect.width / 2;
-    const containerCenter = containerRect.left + containerRect.width / 2;
-    const scrollOffset = tabCenter - containerCenter;
-
-    container.scrollBy({
-      left: scrollOffset,
-      behavior: 'smooth',
-    });
-  }, []);
-
-  // Scroll to active tab when it changes
-  useEffect(() => {
-    scrollToCenter(activeTab);
-  }, [activeTab, scrollToCenter]);
 
   const handleTabChange = (tabId: TabId): void => {
     onTabChange(tabId);
+
+    // Scroll the clicked tab into view (centered)
+    const tab = tabRefs.current.get(tabId);
+    if (tab) {
+      // Small delay to let React update, then scroll
+      window.requestAnimationFrame(() => {
+        tab.scrollIntoView({
+          behavior: 'smooth',
+          inline: 'center',
+          block: 'nearest',
+        });
+      });
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent, tabId: TabId): void => {
@@ -94,10 +81,7 @@ function TabBar({ activeTab, onTabChange }: TabBarProps): React.ReactElement {
   };
 
   return (
-    <div
-      ref={scrollContainerRef}
-      className="scrollbar-thin -mx-4 overflow-x-auto px-4"
-    >
+    <div className="scrollbar-thin -mx-4 overflow-x-auto px-4">
       <div
         className="inline-flex gap-2 rounded-full bg-slate-100 p-1"
         role="tablist"
