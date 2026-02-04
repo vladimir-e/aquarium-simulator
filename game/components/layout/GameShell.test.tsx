@@ -106,9 +106,9 @@ describe('GameShell', () => {
     expect(mainContainer).not.toBeNull();
   });
 
-  it('contains tank with aspect ratio container', () => {
+  it('contains tank with square aspect ratio', () => {
     const { container } = render(<GameShell {...defaultProps} />);
-    const aspectContainer = container.querySelector('.aspect-\\[5\\/3\\]');
+    const aspectContainer = container.querySelector('.aspect-square');
     expect(aspectContainer).not.toBeNull();
   });
 });

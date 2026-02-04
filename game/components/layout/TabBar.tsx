@@ -25,10 +25,10 @@ interface TabBarProps {
  * TabBar - Pill-style tabs with smooth selection animation
  *
  * Features:
- * - Left-aligned pills in a subtle container
- * - Animated background indicator that slides to selected tab
- * - Keyboard accessible (Tab, Enter, Space, Arrow keys)
- * - ARIA attributes for accessibility
+ * - Horizontally scrollable on mobile
+ * - High contrast active state with accent color
+ * - Animated background indicator
+ * - Keyboard accessible
  */
 function TabBar({ activeTab, onTabChange }: TabBarProps): React.ReactElement {
   const handleKeyDown = (e: React.KeyboardEvent, tabId: TabId): void => {
@@ -60,9 +60,9 @@ function TabBar({ activeTab, onTabChange }: TabBarProps): React.ReactElement {
   };
 
   return (
-    <div className="overflow-x-auto rounded-2xl border border-[--color-border-light] bg-[--color-bg-card] p-1.5 shadow-sm">
+    <div className="scrollbar-thin -mx-4 overflow-x-auto px-4">
       <div
-        className="flex gap-1"
+        className="inline-flex gap-2 rounded-full bg-slate-100 p-1"
         role="tablist"
         aria-label="Panel navigation"
       >
@@ -73,10 +73,10 @@ function TabBar({ activeTab, onTabChange }: TabBarProps): React.ReactElement {
               key={tab.id}
               onClick={() => onTabChange(tab.id)}
               onKeyDown={(e) => handleKeyDown(e, tab.id)}
-              className={`focus-ring relative flex-shrink-0 rounded-xl px-4 py-2 text-sm font-medium transition-all ${
+              className={`focus-ring relative flex-shrink-0 rounded-full px-4 py-2 text-sm font-semibold transition-all ${
                 isActive
-                  ? 'text-[--color-text-inverse]'
-                  : 'text-[--color-text-secondary] hover:bg-[--color-bg-secondary] hover:text-[--color-text-primary]'
+                  ? 'text-white'
+                  : 'text-slate-600 hover:text-slate-900'
               }`}
               role="tab"
               aria-selected={isActive}
@@ -87,7 +87,7 @@ function TabBar({ activeTab, onTabChange }: TabBarProps): React.ReactElement {
               {isActive && (
                 <motion.div
                   layoutId="activeTab"
-                  className="absolute inset-0 rounded-xl bg-[--color-accent-primary] shadow-md"
+                  className="absolute inset-0 rounded-full bg-teal-500 shadow-lg shadow-teal-500/30"
                   transition={{
                     type: 'spring',
                     stiffness: 400,

@@ -1,7 +1,7 @@
 import { X, Fish } from 'lucide-react';
 
 /**
- * LivestockPanel - Fish and invertebrate list (mobile-first layout)
+ * LivestockPanel - Fish and invertebrate list
  */
 function LivestockPanel(): React.ReactElement {
   const livestock = [
@@ -18,23 +18,23 @@ function LivestockPanel(): React.ReactElement {
       aria-label="Livestock list"
     >
       {livestock.map((animal) => (
-        <div key={animal.id} className="rounded-2xl bg-white p-4 shadow-sm">
+        <div key={animal.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
           <div className="mb-3 flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-sky-50">
-                <Fish className="h-5 w-5 text-sky-500" />
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-sky-100">
+                <Fish className="h-6 w-6 text-sky-600" />
               </div>
               <div>
-                <h3 className="font-semibold text-[--color-text-primary]">{animal.name}</h3>
-                <span className="text-xs text-[--color-text-muted]">x{animal.count}</span>
+                <h3 className="font-semibold text-slate-900">{animal.name}</h3>
+                <span className="text-sm text-slate-500">x{animal.count}</span>
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <span className="rounded-full bg-[--color-status-healthy-bg] px-2.5 py-1 text-xs font-medium text-[--color-status-healthy]">
+              <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700">
                 {animal.status}
               </span>
               <button
-                className="focus-ring rounded-lg p-1.5 text-[--color-text-muted] hover:bg-[--color-bg-secondary]"
+                className="focus-ring rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
                 aria-label={`Remove ${animal.name}`}
                 type="button"
               >
@@ -44,13 +44,13 @@ function LivestockPanel(): React.ReactElement {
           </div>
 
           <div>
-            <div className="mb-1 flex justify-between text-xs">
-              <span className="text-[--color-text-muted]">Health</span>
-              <span className="font-medium text-[--color-text-secondary]">{animal.health}%</span>
+            <div className="mb-1 flex justify-between">
+              <span className="text-xs font-medium text-slate-500">Health</span>
+              <span className="text-xs font-semibold text-slate-700">{animal.health}%</span>
             </div>
-            <div className="h-1.5 overflow-hidden rounded-full bg-[--color-bg-secondary]">
+            <div className="h-2 overflow-hidden rounded-full bg-slate-100">
               <div
-                className="h-full rounded-full bg-[--color-status-healthy]"
+                className="h-full rounded-full bg-emerald-500"
                 style={{ width: `${animal.health}%` }}
               />
             </div>

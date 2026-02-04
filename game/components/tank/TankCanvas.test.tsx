@@ -26,16 +26,16 @@ describe('TankCanvas', () => {
     expect(screen.getByText('Loading tank...')).toBeTruthy();
   });
 
-  it('has rounded border styling', () => {
+  it('has glass-like shadow effect', () => {
     render(<TankCanvas />);
     const container = screen.getByRole('img');
-    expect(container.className).toContain('rounded-2xl');
+    expect(container.className).toContain('shadow-');
   });
 
-  it('has border styling', () => {
+  it('has water background color', () => {
     render(<TankCanvas />);
     const container = screen.getByRole('img');
-    expect(container.className).toContain('border-4');
+    expect(container.className).toContain('bg-[--color-water-deep]');
   });
 
   it('fills container dimensions', () => {

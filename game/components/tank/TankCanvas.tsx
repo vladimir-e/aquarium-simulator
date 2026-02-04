@@ -178,13 +178,21 @@ function TankCanvas(): React.ReactElement {
   return (
     <div
       ref={containerRef}
-      className="relative h-full w-full overflow-hidden rounded-2xl border-4 border-slate-700 bg-[--color-water-deep] shadow-lg"
+      className="relative h-full w-full overflow-hidden bg-[--color-water-deep] shadow-[inset_0_0_30px_rgba(0,0,0,0.15),0_4px_20px_rgba(0,0,0,0.1)]"
+      style={{
+        // Glass-like appearance with subtle highlights
+        background: 'linear-gradient(180deg, rgba(125,211,252,0.1) 0%, transparent 5%)',
+      }}
       aria-label="Aquarium tank visualization"
       role="img"
     >
+      {/* Glass highlight effect on top edge */}
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-b from-white/30 to-transparent" />
+      {/* Glass highlight on left edge */}
+      <div className="pointer-events-none absolute inset-y-0 left-0 w-1 bg-gradient-to-r from-white/20 to-transparent" />
       {!isReady && (
         <div className="absolute inset-0 flex items-center justify-center">
-          <span className="text-[--color-text-muted]">Loading tank...</span>
+          <span className="text-white/70">Loading tank...</span>
         </div>
       )}
     </div>

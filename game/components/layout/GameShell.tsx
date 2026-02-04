@@ -25,9 +25,9 @@ function GameShell({ header, tank, tabs, panel }: GameShellProps): React.ReactEl
         {header}
       </div>
 
-      {/* Tank Canvas - centered with fixed aspect ratio */}
+      {/* Tank Canvas - centered with square aspect ratio */}
       <div className="flex flex-shrink-0 justify-center px-4 pb-3">
-        <div className="aspect-[5/3] w-full max-w-2xl">
+        <div className="aspect-square w-full max-w-sm">
           {tank}
         </div>
       </div>

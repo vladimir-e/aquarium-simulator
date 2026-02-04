@@ -1,12 +1,14 @@
+import { Fan, Flame, Lightbulb, Droplets } from 'lucide-react';
+
 /**
- * EquipmentPanel - Equipment list and controls (mobile-first layout)
+ * EquipmentPanel - Equipment list with status indicators
  */
 function EquipmentPanel(): React.ReactElement {
   const equipment = [
-    { id: 'filter', name: 'HOB Filter', type: 'Filter', status: 'Running', detail: '200 GPH flow rate' },
-    { id: 'heater', name: '100W Heater', type: 'Heater', status: 'Active', detail: 'Set to 78°F' },
-    { id: 'light', name: 'LED Light', type: 'Light', status: 'On', detail: '8:00 AM - 8:00 PM' },
-    { id: 'ato', name: 'Auto Top-Off', type: 'ATO', status: 'Standby', detail: 'Reservoir full' },
+    { id: 'filter', name: 'HOB Filter', type: 'Filter', status: 'Running', detail: '200 GPH flow rate', icon: Fan, color: 'text-blue-600', bg: 'bg-blue-50' },
+    { id: 'heater', name: '100W Heater', type: 'Heater', status: 'Active', detail: 'Set to 78°F', icon: Flame, color: 'text-orange-600', bg: 'bg-orange-50' },
+    { id: 'light', name: 'LED Light', type: 'Light', status: 'On', detail: '8:00 AM - 8:00 PM', icon: Lightbulb, color: 'text-yellow-600', bg: 'bg-yellow-50' },
+    { id: 'ato', name: 'Auto Top-Off', type: 'ATO', status: 'Standby', detail: 'Reservoir full', icon: Droplets, color: 'text-cyan-600', bg: 'bg-cyan-50' },
   ];
 
   return (
@@ -17,16 +19,18 @@ function EquipmentPanel(): React.ReactElement {
       aria-label="Equipment list"
     >
       {equipment.map((item) => (
-        <div key={item.id} className="flex items-center gap-4 rounded-2xl bg-white p-4 shadow-sm">
+        <div key={item.id} className="flex items-center gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className={`flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl ${item.bg}`}>
+            <item.icon className={`h-6 w-6 ${item.color}`} />
+          </div>
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
-              <span className="text-xs font-medium text-[--color-text-muted]">{item.type}</span>
-              <span className="rounded-full bg-[--color-status-healthy-bg] px-2 py-0.5 text-xs font-medium text-[--color-status-healthy]">
+              <p className="font-semibold text-slate-900">{item.name}</p>
+              <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-700">
                 {item.status}
               </span>
             </div>
-            <p className="font-semibold text-[--color-text-primary]">{item.name}</p>
-            <p className="text-xs text-[--color-text-muted]">{item.detail}</p>
+            <p className="text-sm text-slate-500">{item.detail}</p>
           </div>
         </div>
       ))}
