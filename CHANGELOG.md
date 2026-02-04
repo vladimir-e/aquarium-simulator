@@ -8,6 +8,10 @@ Format: - **Feature name** (#PR) - Brief description (under 100 chars)
 - Skip UI-only tweaks and minor fixes
 -->
 
+## 2026-02-04
+
+- **Game UI Foundation** - New game-like UI at `/game`; Pixi.js tank canvas with water gradient; responsive layout (1024px breakpoint); tabbed panels with Framer Motion animations; design system with CSS tokens; 38 component tests
+
 ## 2026-02-01
 
 - **Nutrients and Dosing** - Nutrient resources (PO4, K, Fe); plant condition system with shedding/death; dose action and auto doser equipment

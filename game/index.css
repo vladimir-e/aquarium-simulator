@@ -1,0 +1,281 @@
+@import 'tailwindcss';
+
+/*
+ * Aquarium Simulator Game UI - Design System
+ *
+ * This file defines all design tokens as CSS custom properties.
+ * Tokens are organized by category for easy reference and modification.
+ */
+
+@theme {
+  /* ============================================
+   * COLOR PALETTE
+   * ============================================
+   * Vibrant but harmonious colors with a slightly cartoonish feel
+   */
+
+  /* Water colors - for tank visualization */
+  --color-water-surface: #7DD3FC;
+  --color-water-mid: #38BDF8;
+  --color-water-deep: #0284C7;
+  --color-water-floor: #075985;
+
+  /* UI Background colors */
+  --color-bg-primary: #F8FAFC;
+  --color-bg-secondary: #F1F5F9;
+  --color-bg-card: #FFFFFF;
+  --color-bg-elevated: #FFFFFF;
+
+  /* Accent colors - teal/cyan for interactive elements */
+  --color-accent-primary: #14B8A6;
+  --color-accent-hover: #0D9488;
+  --color-accent-active: #0F766E;
+  --color-accent-light: #CCFBF1;
+  --color-accent-muted: #5EEAD4;
+
+  /* Tab colors */
+  --color-tab-bg: #E2E8F0;
+  --color-tab-active: #14B8A6;
+  --color-tab-text: #475569;
+  --color-tab-text-active: #FFFFFF;
+
+  /* Status colors */
+  --color-status-healthy: #22C55E;
+  --color-status-healthy-bg: #DCFCE7;
+  --color-status-warning: #F59E0B;
+  --color-status-warning-bg: #FEF3C7;
+  --color-status-danger: #EF4444;
+  --color-status-danger-bg: #FEE2E2;
+  --color-status-info: #3B82F6;
+  --color-status-info-bg: #DBEAFE;
+
+  /* Text colors */
+  --color-text-primary: #1E293B;
+  --color-text-secondary: #64748B;
+  --color-text-muted: #94A3B8;
+  --color-text-inverse: #FFFFFF;
+
+  /* Border colors */
+  --color-border-light: #E2E8F0;
+  --color-border-medium: #CBD5E1;
+  --color-border-dark: #94A3B8;
+
+  /* ============================================
+   * TYPOGRAPHY SCALE
+   * ============================================
+   * Clean, readable sizing with tabular numbers for time display
+   */
+  --font-family-primary: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-family-mono: ui-monospace, 'Cascadia Code', 'Source Code Pro', monospace;
+
+  --font-size-xs: 0.75rem;    /* 12px */
+  --font-size-sm: 0.875rem;   /* 14px */
+  --font-size-base: 1rem;     /* 16px */
+  --font-size-lg: 1.25rem;    /* 20px */
+  --font-size-xl: 1.5rem;     /* 24px */
+  --font-size-2xl: 2rem;      /* 32px */
+  --font-size-3xl: 2.5rem;    /* 40px */
+
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+
+  --line-height-tight: 1.25;
+  --line-height-normal: 1.5;
+  --line-height-relaxed: 1.75;
+
+  /* ============================================
+   * SPACING SCALE
+   * ============================================
+   * Consistent rhythm based on 4px base unit
+   */
+  --spacing-0: 0;
+  --spacing-1: 0.25rem;   /* 4px */
+  --spacing-2: 0.5rem;    /* 8px */
+  --spacing-3: 0.75rem;   /* 12px */
+  --spacing-4: 1rem;      /* 16px */
+  --spacing-5: 1.25rem;   /* 20px */
+  --spacing-6: 1.5rem;    /* 24px */
+  --spacing-8: 2rem;      /* 32px */
+  --spacing-10: 2.5rem;   /* 40px */
+  --spacing-12: 3rem;     /* 48px */
+  --spacing-16: 4rem;     /* 64px */
+
+  /* ============================================
+   * BORDER RADII
+   * ============================================
+   */
+  --radius-none: 0;
+  --radius-sm: 0.25rem;   /* 4px */
+  --radius-md: 0.5rem;    /* 8px */
+  --radius-lg: 0.75rem;   /* 12px */
+  --radius-xl: 1rem;      /* 16px */
+  --radius-2xl: 1.5rem;   /* 24px */
+  --radius-full: 9999px;
+
+  /* ============================================
+   * SHADOWS
+   * ============================================
+   */
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+  --shadow-inner: inset 0 2px 4px 0 rgb(0 0 0 / 0.05);
+  --shadow-card: 0 2px 8px -2px rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.06);
+
+  /* ============================================
+   * ANIMATION
+   * ============================================
+   * Subtle, non-distracting transitions
+   */
+  --duration-fast: 150ms;
+  --duration-normal: 200ms;
+  --duration-slow: 300ms;
+  --duration-slower: 500ms;
+
+  --easing-ease-out: cubic-bezier(0.0, 0, 0.2, 1);
+  --easing-ease-in: cubic-bezier(0.4, 0, 1, 1);
+  --easing-ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --easing-spring: cubic-bezier(0.175, 0.885, 0.32, 1.275);
+
+  /* ============================================
+   * LAYOUT
+   * ============================================
+   */
+  --breakpoint-desktop: 1024px;
+  --layout-mobile-fixed-height: 50vh;
+  --layout-desktop-fixed-height: 60vh;
+}
+
+/* ============================================
+ * BASE STYLES
+ * ============================================
+ */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  font-family: var(--font-family-primary);
+  font-size: var(--font-size-base);
+  line-height: var(--line-height-normal);
+  color: var(--color-text-primary);
+  background-color: var(--color-bg-primary);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  overflow: hidden;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+/* Tabular numbers for time display */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ============================================
+ * UTILITY CLASSES
+ * ============================================
+ */
+
+.scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border-medium) transparent;
+}
+
+.scrollbar-thin::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background-color: var(--color-border-medium);
+  border-radius: var(--radius-full);
+}
+
+/* Focus visible styles */
+.focus-ring:focus-visible {
+  outline: 2px solid var(--color-accent-primary);
+  outline-offset: 2px;
+}
+
+/* ============================================
+ * COMPONENT STYLES
+ * ============================================
+ */
+
+/* Card base style */
+.card {
+  background-color: var(--color-bg-card);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+  padding: var(--spacing-4);
+}
+
+/* Button base styles */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-2) var(--spacing-4);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  border-radius: var(--radius-md);
+  transition: all var(--duration-fast) var(--easing-ease-out);
+  cursor: pointer;
+  border: none;
+}
+
+.btn-primary {
+  background-color: var(--color-accent-primary);
+  color: var(--color-text-inverse);
+}
+
+.btn-primary:hover {
+  background-color: var(--color-accent-hover);
+}
+
+.btn-primary:active {
+  background-color: var(--color-accent-active);
+}
+
+/* Status badge styles */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--spacing-1) var(--spacing-2);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  border-radius: var(--radius-full);
+}
+
+.badge-healthy {
+  background-color: var(--color-status-healthy-bg);
+  color: var(--color-status-healthy);
+}
+
+.badge-warning {
+  background-color: var(--color-status-warning-bg);
+  color: var(--color-status-warning);
+}
+
+.badge-danger {
+  background-color: var(--color-status-danger-bg);
+  color: var(--color-status-danger);
+}

@@ -10,10 +10,15 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "lint": "eslint 'src/**/*.{ts,tsx}'",
-    "lint:fresh": "eslint --no-cache 'src/**/*.{ts,tsx}'",
+    "lint": "eslint 'src/**/*.{ts,tsx}' 'game/**/*.{ts,tsx}'",
+    "lint:fresh": "eslint --no-cache 'src/**/*.{ts,tsx}' 'game/**/*.{ts,tsx}'",
     "ui": "vite",
-    "ui:build": "vite build"
+    "ui:build": "vite build",
+    "dev:game": "vite --config vite.game.config.ts",
+    "build:game": "vite build --config vite.game.config.ts",
+    "preview:game": "vite preview --config vite.game.config.ts",
+    "test:game": "vitest run --config vitest.game.config.ts",
+    "test:game:watch": "vitest --config vitest.game.config.ts"
   },
   "repository": {
     "type": "git",
@@ -31,8 +36,10 @@
   },
   "homepage": "https://github.com/vladimir-e/aquarium-simulator#readme",
   "dependencies": {
+    "framer-motion": "^12.31.0",
     "immer": "^11.1.3",
     "lucide-react": "^0.562.0",
+    "pixi.js": "^8.16.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "zod": "^4.3.6"
