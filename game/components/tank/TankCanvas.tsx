@@ -41,112 +41,135 @@ function TankCanvas(): React.ReactElement {
     if (!containerRef.current) return;
 
     const container = containerRef.current;
-    let app: Application | null = null;
+    let mounted = true;
     let resizeObserver: ResizeObserver | null = null;
+    let initComplete = false;
 
     const initPixi = async (): Promise<void> => {
       // Create Pixi application
-      app = new Application();
-      await app.init({
-        background: WATER_COLORS.deep,
-        resizeTo: container,
-        antialias: true,
-        resolution: window.devicePixelRatio || 1,
-        autoDensity: true,
-      });
+      const app = new Application();
 
-      appRef.current = app;
+      try {
+        await app.init({
+          background: WATER_COLORS.deep,
+          antialias: true,
+          resolution: window.devicePixelRatio || 1,
+          autoDensity: true,
+        });
 
-      // Add canvas to DOM
-      container.appendChild(app.canvas);
-
-      // Create layer containers for future sprite management
-      const layers = new Container();
-      layers.label = 'layers';
-
-      Object.keys(LAYERS).forEach((layerName) => {
-        const layerContainer = new Container();
-        layerContainer.label = layerName;
-        layers.addChild(layerContainer);
-      });
-
-      app.stage.addChild(layers);
-
-      // Draw water gradient background
-      const drawBackground = (): void => {
-        if (!app) return;
-
-        // Remove existing background if any
-        const existingBg = app.stage.getChildByLabel('waterBackground');
-        if (existingBg) {
-          app.stage.removeChild(existingBg);
+        // Check if component unmounted during async init
+        if (!mounted) {
+          app.destroy(true);
+          return;
         }
 
-        const graphics = new Graphics();
-        graphics.label = 'waterBackground';
+        appRef.current = app;
 
-        const width = app.screen.width;
-        const height = app.screen.height;
+        // Add canvas to DOM
+        container.appendChild(app.canvas);
 
-        // Draw gradient using multiple horizontal stripes
-        const stripes = 20;
-        const stripeHeight = height / stripes;
+        // Resize to container
+        app.renderer.resize(container.clientWidth, container.clientHeight);
 
-        for (let i = 0; i < stripes; i++) {
-          const progress = i / (stripes - 1);
-          const color = interpolateColor(
-            progress < 0.3
-              ? WATER_COLORS.surface
-              : progress < 0.7
+        // Create layer containers for future sprite management
+        const layers = new Container();
+        layers.label = 'layers';
+
+        Object.keys(LAYERS).forEach((layerName) => {
+          const layerContainer = new Container();
+          layerContainer.label = layerName;
+          layers.addChild(layerContainer);
+        });
+
+        app.stage.addChild(layers);
+
+        // Draw water gradient background
+        const drawBackground = (): void => {
+          if (!appRef.current) return;
+
+          // Remove existing background if any
+          const existingBg = appRef.current.stage.getChildByLabel('waterBackground');
+          if (existingBg) {
+            appRef.current.stage.removeChild(existingBg);
+          }
+
+          const graphics = new Graphics();
+          graphics.label = 'waterBackground';
+
+          const width = appRef.current.screen.width;
+          const height = appRef.current.screen.height;
+
+          // Draw gradient using multiple horizontal stripes
+          const stripes = 20;
+          const stripeHeight = height / stripes;
+
+          for (let i = 0; i < stripes; i++) {
+            const progress = i / (stripes - 1);
+            const color = interpolateColor(
+              progress < 0.3
+                ? WATER_COLORS.surface
+                : progress < 0.7
+                  ? WATER_COLORS.mid
+                  : WATER_COLORS.deep,
+              progress < 0.3
                 ? WATER_COLORS.mid
-                : WATER_COLORS.deep,
-            progress < 0.3
-              ? WATER_COLORS.mid
-              : progress < 0.7
-                ? WATER_COLORS.deep
-                : WATER_COLORS.floor,
-            progress < 0.3
-              ? progress / 0.3
-              : progress < 0.7
-                ? (progress - 0.3) / 0.4
-                : (progress - 0.7) / 0.3
-          );
+                : progress < 0.7
+                  ? WATER_COLORS.deep
+                  : WATER_COLORS.floor,
+              progress < 0.3
+                ? progress / 0.3
+                : progress < 0.7
+                  ? (progress - 0.3) / 0.4
+                  : (progress - 0.7) / 0.3
+            );
 
-          graphics.rect(0, i * stripeHeight, width, stripeHeight + 1);
-          graphics.fill({ color });
+            graphics.rect(0, i * stripeHeight, width, stripeHeight + 1);
+            graphics.fill({ color });
+          }
+
+          // Draw subtle water surface line
+          graphics.rect(0, 0, width, 3);
+          graphics.fill({ color: 0xbae6fd, alpha: 0.6 });
+
+          // Add to stage behind layers
+          appRef.current.stage.addChildAt(graphics, 0);
+        };
+
+        drawBackground();
+
+        // Handle resize
+        resizeObserver = new ResizeObserver(() => {
+          if (appRef.current && mounted) {
+            appRef.current.renderer.resize(container.clientWidth, container.clientHeight);
+            drawBackground();
+          }
+        });
+        resizeObserver.observe(container);
+
+        initComplete = true;
+        setIsReady(true);
+      } catch {
+        // Cleanup on error - only destroy if renderer was initialized
+        if (app.renderer) {
+          app.destroy(true);
         }
-
-        // Draw subtle water surface line
-        graphics.rect(0, 0, width, 3);
-        graphics.fill({ color: 0xbae6fd, alpha: 0.6 });
-
-        // Add to stage behind layers
-        app.stage.addChildAt(graphics, 0);
-      };
-
-      drawBackground();
-
-      // Handle resize
-      resizeObserver = new ResizeObserver(() => {
-        if (app) {
-          app.resize();
-          drawBackground();
-        }
-      });
-      resizeObserver.observe(container);
-
-      setIsReady(true);
+      }
     };
 
     initPixi();
 
     // Cleanup
     return (): void => {
+      mounted = false;
       if (resizeObserver) {
         resizeObserver.disconnect();
       }
-      if (app) {
-        app.destroy(true, { children: true });
+      if (initComplete && appRef.current) {
+        // Remove canvas from DOM first
+        if (appRef.current.canvas.parentNode) {
+          appRef.current.canvas.parentNode.removeChild(appRef.current.canvas);
+        }
+        appRef.current.destroy(true, { children: true });
         appRef.current = null;
       }
     };

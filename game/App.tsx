@@ -3,6 +3,7 @@ import GameShell from './components/layout/GameShell';
 import Timeline from './components/layout/Timeline';
 import TabBar, { TabId } from './components/layout/TabBar';
 import TankCanvas from './components/tank/TankCanvas';
+import ErrorBoundary from './components/ErrorBoundary';
 import TankPanel from './components/panels/TankPanel';
 import EquipmentPanel from './components/panels/EquipmentPanel';
 import PlantsPanel from './components/panels/PlantsPanel';
@@ -56,7 +57,11 @@ function App(): React.ReactElement {
           onFastForward={handleFastForward}
         />
       }
-      tank={<TankCanvas />}
+      tank={
+        <ErrorBoundary>
+          <TankCanvas />
+        </ErrorBoundary>
+      }
       tabs={<TabBar activeTab={activeTab} onTabChange={setActiveTab} />}
       panel={renderPanel()}
     />
