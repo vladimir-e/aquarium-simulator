@@ -1,3 +1,4 @@
+import { useRef, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 
 export type TabId = 'tank' | 'equipment' | 'plants' | 'livestock' | 'actions' | 'logs';
@@ -26,11 +27,44 @@ interface TabBarProps {
  *
  * Features:
  * - Horizontally scrollable on mobile
+ * - Auto-scrolls to center selected tab
  * - High contrast active state with accent color
  * - Animated background indicator
  * - Keyboard accessible
  */
 function TabBar({ activeTab, onTabChange }: TabBarProps): React.ReactElement {
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const tabRefs = useRef<Map<TabId, HTMLButtonElement>>(new Map());
+
+  // Scroll selected tab to center
+  const scrollToCenter = useCallback((tabId: TabId) => {
+    const container = scrollContainerRef.current;
+    const tab = tabRefs.current.get(tabId);
+    if (!container || !tab) return;
+
+    const containerRect = container.getBoundingClientRect();
+    const tabRect = tab.getBoundingClientRect();
+
+    // Calculate scroll position to center the tab
+    const tabCenter = tabRect.left + tabRect.width / 2;
+    const containerCenter = containerRect.left + containerRect.width / 2;
+    const scrollOffset = tabCenter - containerCenter;
+
+    container.scrollBy({
+      left: scrollOffset,
+      behavior: 'smooth',
+    });
+  }, []);
+
+  // Scroll to active tab when it changes
+  useEffect(() => {
+    scrollToCenter(activeTab);
+  }, [activeTab, scrollToCenter]);
+
+  const handleTabChange = (tabId: TabId): void => {
+    onTabChange(tabId);
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent, tabId: TabId): void => {
     const currentIndex = TABS.findIndex((t) => t.id === tabId);
     let newIndex = currentIndex;
@@ -60,7 +94,10 @@ function TabBar({ activeTab, onTabChange }: TabBarProps): React.ReactElement {
   };
 
   return (
-    <div className="scrollbar-thin -mx-4 overflow-x-auto px-4">
+    <div
+      ref={scrollContainerRef}
+      className="scrollbar-thin -mx-4 overflow-x-auto px-4"
+    >
       <div
         className="inline-flex gap-2 rounded-full bg-slate-100 p-1"
         role="tablist"
@@ -71,7 +108,10 @@ function TabBar({ activeTab, onTabChange }: TabBarProps): React.ReactElement {
           return (
             <button
               key={tab.id}
-              onClick={() => onTabChange(tab.id)}
+              ref={(el) => {
+                if (el) tabRefs.current.set(tab.id, el);
+              }}
+              onClick={() => handleTabChange(tab.id)}
               onKeyDown={(e) => handleKeyDown(e, tab.id)}
               className={`focus-ring relative flex-shrink-0 rounded-full px-4 py-2 text-sm font-semibold transition-all ${
                 isActive
