@@ -1,30 +1,22 @@
-import { Droplets, Fish, Scissors, Sparkles, Trash2, FlaskConical } from 'lucide-react';
+import { Droplets, Fish, Scissors, Sparkles, Trash2, FlaskConical, ChevronRight } from 'lucide-react';
 
 /**
- * ActionsPanel - User action buttons
- *
- * Future content:
- * - Feed fish
- * - Water change
- * - Top off
- * - Dose fertilizer
- * - Scrub algae
- * - Trim plants
+ * ActionsPanel - User action buttons (mobile-first layout)
  */
 function ActionsPanel(): React.ReactElement {
   const actions = [
-    { id: 'feed', label: 'Feed', icon: Fish, description: 'Feed your fish' },
-    { id: 'water-change', label: 'Water Change', icon: Droplets, description: 'Partial water change' },
-    { id: 'top-off', label: 'Top Off', icon: Droplets, description: 'Add water to compensate evaporation' },
-    { id: 'dose', label: 'Dose', icon: FlaskConical, description: 'Add fertilizer' },
-    { id: 'scrub', label: 'Scrub Algae', icon: Sparkles, description: 'Clean algae from glass' },
-    { id: 'trim', label: 'Trim Plants', icon: Scissors, description: 'Prune overgrown plants' },
-    { id: 'clean', label: 'Clean Filter', icon: Trash2, description: 'Maintenance cleaning' },
+    { id: 'feed', label: 'Feed Fish', icon: Fish, color: 'bg-orange-50 text-orange-500' },
+    { id: 'water-change', label: 'Water Change', icon: Droplets, color: 'bg-sky-50 text-sky-500' },
+    { id: 'top-off', label: 'Top Off', icon: Droplets, color: 'bg-cyan-50 text-cyan-500' },
+    { id: 'dose', label: 'Dose Fertilizer', icon: FlaskConical, color: 'bg-emerald-50 text-emerald-500' },
+    { id: 'scrub', label: 'Scrub Algae', icon: Sparkles, color: 'bg-yellow-50 text-yellow-600' },
+    { id: 'trim', label: 'Trim Plants', icon: Scissors, color: 'bg-green-50 text-green-500' },
+    { id: 'clean', label: 'Clean Filter', icon: Trash2, color: 'bg-slate-100 text-slate-500' },
   ];
 
   return (
     <div
-      className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+      className="space-y-2"
       role="tabpanel"
       id="panel-actions"
       aria-label="Actions"
@@ -32,16 +24,14 @@ function ActionsPanel(): React.ReactElement {
       {actions.map((action) => (
         <button
           key={action.id}
-          className="card focus-ring flex items-center gap-4 text-left transition-colors hover:bg-[--color-accent-light]"
+          className="focus-ring flex w-full items-center gap-4 rounded-2xl bg-white p-4 text-left shadow-sm transition-all active:scale-[0.98]"
           type="button"
         >
-          <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-lg bg-[--color-accent-light]">
-            <action.icon className="h-6 w-6 text-[--color-accent-primary]" />
+          <div className={`flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl ${action.color}`}>
+            <action.icon className="h-5 w-5" />
           </div>
-          <div>
-            <h3 className="font-medium text-[--color-text-primary]">{action.label}</h3>
-            <p className="text-sm text-[--color-text-muted]">{action.description}</p>
-          </div>
+          <span className="flex-1 font-medium text-[--color-text-primary]">{action.label}</span>
+          <ChevronRight className="h-5 w-5 text-[--color-text-muted]" />
         </button>
       ))}
     </div>

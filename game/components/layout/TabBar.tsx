@@ -25,6 +25,7 @@ interface TabBarProps {
  * TabBar - Pill-style tabs with smooth selection animation
  *
  * Features:
+ * - Left-aligned pills in a subtle container
  * - Animated background indicator that slides to selected tab
  * - Keyboard accessible (Tab, Enter, Space, Arrow keys)
  * - ARIA attributes for accessibility
@@ -59,44 +60,46 @@ function TabBar({ activeTab, onTabChange }: TabBarProps): React.ReactElement {
   };
 
   return (
-    <div
-      className="flex items-center justify-center gap-1 rounded-xl bg-[--color-tab-bg] p-1"
-      role="tablist"
-      aria-label="Panel navigation"
-    >
-      {TABS.map((tab) => {
-        const isActive = activeTab === tab.id;
-        return (
-          <button
-            key={tab.id}
-            onClick={() => onTabChange(tab.id)}
-            onKeyDown={(e) => handleKeyDown(e, tab.id)}
-            className={`focus-ring relative rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-              isActive
-                ? 'text-[--color-tab-text-active]'
-                : 'text-[--color-tab-text] hover:text-[--color-text-primary]'
-            }`}
-            role="tab"
-            aria-selected={isActive}
-            aria-controls={`panel-${tab.id}`}
-            tabIndex={isActive ? 0 : -1}
-            type="button"
-          >
-            {isActive && (
-              <motion.div
-                layoutId="activeTab"
-                className="absolute inset-0 rounded-lg bg-[--color-tab-active]"
-                transition={{
-                  type: 'spring',
-                  stiffness: 500,
-                  damping: 35,
-                }}
-              />
-            )}
-            <span className="relative z-10">{tab.label}</span>
-          </button>
-        );
-      })}
+    <div className="overflow-x-auto rounded-2xl border border-[--color-border-light] bg-[--color-bg-card] p-1.5 shadow-sm">
+      <div
+        className="flex gap-1"
+        role="tablist"
+        aria-label="Panel navigation"
+      >
+        {TABS.map((tab) => {
+          const isActive = activeTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => onTabChange(tab.id)}
+              onKeyDown={(e) => handleKeyDown(e, tab.id)}
+              className={`focus-ring relative flex-shrink-0 rounded-xl px-4 py-2 text-sm font-medium transition-all ${
+                isActive
+                  ? 'text-[--color-text-inverse]'
+                  : 'text-[--color-text-secondary] hover:bg-[--color-bg-secondary] hover:text-[--color-text-primary]'
+              }`}
+              role="tab"
+              aria-selected={isActive}
+              aria-controls={`panel-${tab.id}`}
+              tabIndex={isActive ? 0 : -1}
+              type="button"
+            >
+              {isActive && (
+                <motion.div
+                  layoutId="activeTab"
+                  className="absolute inset-0 rounded-xl bg-[--color-accent-primary] shadow-md"
+                  transition={{
+                    type: 'spring',
+                    stiffness: 400,
+                    damping: 30,
+                  }}
+                />
+              )}
+              <span className="relative z-10">{tab.label}</span>
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }

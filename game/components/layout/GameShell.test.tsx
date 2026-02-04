@@ -99,10 +99,16 @@ describe('GameShell', () => {
     expect(scrollableArea).not.toBeNull();
   });
 
-  it('applies mobile height class on mobile viewport', () => {
-    mockMatchMedia(false); // mobile
+  it('applies flex column layout', () => {
+    mockMatchMedia(false);
     const { container } = render(<GameShell {...defaultProps} />);
-    const fixedSection = container.querySelector('.h-\\[50vh\\]');
-    expect(fixedSection).not.toBeNull();
+    const mainContainer = container.querySelector('.flex.flex-col');
+    expect(mainContainer).not.toBeNull();
+  });
+
+  it('contains tank with aspect ratio container', () => {
+    const { container } = render(<GameShell {...defaultProps} />);
+    const aspectContainer = container.querySelector('.aspect-\\[5\\/3\\]');
+    expect(aspectContainer).not.toBeNull();
   });
 });

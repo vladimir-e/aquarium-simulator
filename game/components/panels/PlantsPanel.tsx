@@ -1,16 +1,9 @@
-import { X } from 'lucide-react';
+import { X, Leaf } from 'lucide-react';
 
 /**
- * PlantsPanel - Plant list with health status
- *
- * Future content:
- * - Individual plant specimens
- * - Growth status
- * - Condition indicators
- * - Add/remove plants
+ * PlantsPanel - Plant list with health status (mobile-first layout)
  */
 function PlantsPanel(): React.ReactElement {
-  // Placeholder plant data
   const plants = [
     { id: '1', name: 'Java Fern', size: 57, condition: 85, status: 'Thriving' },
     { id: '2', name: 'Java Fern', size: 55, condition: 82, status: 'Thriving' },
@@ -19,22 +12,29 @@ function PlantsPanel(): React.ReactElement {
 
   return (
     <div
-      className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+      className="space-y-3"
       role="tabpanel"
       id="panel-plants"
       aria-label="Plants list"
     >
       {plants.map((plant) => (
-        <div key={plant.id} className="card">
-          <div className="mb-3 flex items-start justify-between">
-            <div>
-              <h3 className="font-medium text-[--color-text-primary]">{plant.name}</h3>
-              <span className="text-sm text-[--color-text-muted]">{plant.size}%</span>
+        <div key={plant.id} className="rounded-2xl bg-white p-4 shadow-sm">
+          <div className="mb-3 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50">
+                <Leaf className="h-5 w-5 text-emerald-500" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-[--color-text-primary]">{plant.name}</h3>
+                <span className="text-xs text-[--color-text-muted]">{plant.size}% size</span>
+              </div>
             </div>
             <div className="flex items-center gap-2">
-              <span className="badge badge-healthy">{plant.status}</span>
+              <span className="rounded-full bg-[--color-status-healthy-bg] px-2.5 py-1 text-xs font-medium text-[--color-status-healthy]">
+                {plant.status}
+              </span>
               <button
-                className="focus-ring rounded p-1 text-[--color-text-muted] hover:bg-[--color-bg-secondary] hover:text-[--color-text-primary]"
+                className="focus-ring rounded-lg p-1.5 text-[--color-text-muted] hover:bg-[--color-bg-secondary]"
                 aria-label={`Remove ${plant.name}`}
                 type="button"
               >
@@ -43,26 +43,21 @@ function PlantsPanel(): React.ReactElement {
             </div>
           </div>
 
-          <div className="space-y-2">
+          <div className="grid grid-cols-2 gap-3">
             <div>
-              <div className="mb-1 flex justify-between text-xs">
-                <span className="text-[--color-text-muted]">Size</span>
-              </div>
-              <div className="h-2 overflow-hidden rounded-full bg-[--color-bg-secondary]">
+              <span className="text-xs text-[--color-text-muted]">Size</span>
+              <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-[--color-bg-secondary]">
                 <div
-                  className="h-full rounded-full bg-[--color-status-healthy]"
+                  className="h-full rounded-full bg-emerald-400"
                   style={{ width: `${plant.size}%` }}
                 />
               </div>
             </div>
-
             <div>
-              <div className="mb-1 flex justify-between text-xs">
-                <span className="text-[--color-text-muted]">Cond</span>
-              </div>
-              <div className="h-2 overflow-hidden rounded-full bg-[--color-bg-secondary]">
+              <span className="text-xs text-[--color-text-muted]">Condition</span>
+              <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-[--color-bg-secondary]">
                 <div
-                  className="h-full rounded-full bg-[--color-status-healthy]"
+                  className="h-full rounded-full bg-emerald-400"
                   style={{ width: `${plant.condition}%` }}
                 />
               </div>
@@ -70,12 +65,6 @@ function PlantsPanel(): React.ReactElement {
           </div>
         </div>
       ))}
-
-      {/* Add plant placeholder */}
-      <div className="card flex flex-col items-center justify-center border-2 border-dashed border-[--color-border-light] bg-transparent text-center">
-        <p className="text-sm text-[--color-text-muted]">Add a plant</p>
-        <p className="text-xs text-[--color-text-muted]">(Coming soon)</p>
-      </div>
     </div>
   );
 }

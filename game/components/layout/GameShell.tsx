@@ -9,49 +9,44 @@ interface GameShellProps {
 }
 
 /**
- * GameShell - Main responsive layout container
+ * GameShell - Main responsive layout container (mobile-first app design)
  *
- * Layout structure (same for mobile and desktop):
+ * Layout structure:
  * - Header (Timeline)
- * - Tank Canvas
- * - Tab Pills
- * - Panel Content (scrollable)
- *
- * Responsive behavior:
- * - Mobile (< 1024px): 50% fixed top, 50% scrollable panel, single column cards
- * - Desktop (>= 1024px): 60% fixed top, 40% scrollable panel, multi-column cards
+ * - Tank Canvas (maintains 5:3 aspect ratio for 10-gallon tank)
+ * - Tab Pills (left-aligned with container styling)
+ * - Panel Content (fills remaining space, scrollable)
  */
 function GameShell({ header, tank, tabs, panel }: GameShellProps): React.ReactElement {
   return (
     <div className="flex h-screen flex-col bg-[--color-bg-primary]">
-      {/* Fixed section - header + tank + tabs */}
-      <div className="flex h-[50vh] flex-shrink-0 flex-col lg:h-[60vh]">
-        {/* Header */}
-        <div className="flex-shrink-0 px-4 py-2">
-          {header}
-        </div>
+      {/* Header */}
+      <div className="flex-shrink-0 px-4 py-3">
+        {header}
+      </div>
 
-        {/* Tank Canvas */}
-        <div className="min-h-0 flex-1 px-4 pb-2">
+      {/* Tank Canvas - centered with fixed aspect ratio */}
+      <div className="flex flex-shrink-0 justify-center px-4 pb-3">
+        <div className="aspect-[5/3] w-full max-w-2xl">
           {tank}
-        </div>
-
-        {/* Tab Bar */}
-        <div className="flex-shrink-0 px-4 pb-2">
-          {tabs}
         </div>
       </div>
 
-      {/* Scrollable panel section */}
-      <div className="scrollbar-thin min-h-0 flex-1 overflow-y-auto bg-[--color-bg-secondary]">
+      {/* Tab Bar */}
+      <div className="flex-shrink-0 px-4 pb-3">
+        {tabs}
+      </div>
+
+      {/* Panel section - fills remaining space */}
+      <div className="scrollbar-thin min-h-0 flex-1 overflow-y-auto">
         <AnimatePresence mode="wait">
           <motion.div
             key={panel?.toString()}
-            initial={{ opacity: 0, y: 10 }}
+            initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            transition={{ duration: 0.2, ease: [0, 0, 0.2, 1] }}
-            className="p-4"
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15, ease: [0, 0, 0.2, 1] }}
+            className="flex h-full flex-col px-4 pb-4"
           >
             {panel}
           </motion.div>

@@ -1,44 +1,8 @@
-import { describe, it, expect, vi, beforeAll, afterEach } from 'vitest';
+import { describe, it, expect, afterEach } from 'vitest';
 import { render, screen, cleanup } from '@testing-library/react';
-
-// Set up ResizeObserver mock before any imports that might need it
-beforeAll(() => {
-  global.ResizeObserver = vi.fn().mockImplementation(() => ({
-    observe: vi.fn(),
-    unobserve: vi.fn(),
-    disconnect: vi.fn(),
-  }));
-});
-
-// Mock Pixi.js module completely
-vi.mock('pixi.js', () => {
-  return {
-    Application: vi.fn().mockImplementation(() => ({
-      init: vi.fn().mockResolvedValue(undefined),
-      canvas: document.createElement('canvas'),
-      stage: {
-        addChild: vi.fn(),
-        addChildAt: vi.fn(),
-        getChildByLabel: vi.fn().mockReturnValue(null),
-        removeChild: vi.fn(),
-      },
-      screen: { width: 800, height: 600 },
-      resize: vi.fn(),
-      destroy: vi.fn(),
-    })),
-    Graphics: vi.fn().mockImplementation(() => ({
-      label: '',
-      rect: vi.fn().mockReturnThis(),
-      fill: vi.fn().mockReturnThis(),
-    })),
-    Container: vi.fn().mockImplementation(() => ({
-      label: '',
-      addChild: vi.fn(),
-    })),
-  };
-});
-
 import TankCanvas from './TankCanvas';
+
+// Pixi.js and ResizeObserver are mocked in game/test/setup.ts
 
 describe('TankCanvas', () => {
   afterEach(() => {
@@ -65,7 +29,7 @@ describe('TankCanvas', () => {
   it('has rounded border styling', () => {
     render(<TankCanvas />);
     const container = screen.getByRole('img');
-    expect(container.className).toContain('rounded-xl');
+    expect(container.className).toContain('rounded-2xl');
   });
 
   it('has border styling', () => {

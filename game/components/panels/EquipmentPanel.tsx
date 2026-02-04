@@ -1,57 +1,35 @@
 /**
- * EquipmentPanel - Equipment list and controls
- *
- * Future content:
- * - Filter status
- * - Heater/chiller
- * - Lights
- * - CO2 system
- * - ATO
- * - Air pump
+ * EquipmentPanel - Equipment list and controls (mobile-first layout)
  */
 function EquipmentPanel(): React.ReactElement {
+  const equipment = [
+    { id: 'filter', name: 'HOB Filter', type: 'Filter', status: 'Running', detail: '200 GPH flow rate' },
+    { id: 'heater', name: '100W Heater', type: 'Heater', status: 'Active', detail: 'Set to 78°F' },
+    { id: 'light', name: 'LED Light', type: 'Light', status: 'On', detail: '8:00 AM - 8:00 PM' },
+    { id: 'ato', name: 'Auto Top-Off', type: 'ATO', status: 'Standby', detail: 'Reservoir full' },
+  ];
+
   return (
     <div
-      className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+      className="space-y-3"
       role="tabpanel"
       id="panel-equipment"
       aria-label="Equipment list"
     >
-      <div className="card">
-        <div className="mb-2 flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-[--color-text-secondary]">Filter</h3>
-          <span className="badge badge-healthy">Running</span>
+      {equipment.map((item) => (
+        <div key={item.id} className="flex items-center gap-4 rounded-2xl bg-white p-4 shadow-sm">
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-medium text-[--color-text-muted]">{item.type}</span>
+              <span className="rounded-full bg-[--color-status-healthy-bg] px-2 py-0.5 text-xs font-medium text-[--color-status-healthy]">
+                {item.status}
+              </span>
+            </div>
+            <p className="font-semibold text-[--color-text-primary]">{item.name}</p>
+            <p className="text-xs text-[--color-text-muted]">{item.detail}</p>
+          </div>
         </div>
-        <p className="text-lg font-medium text-[--color-text-primary]">HOB Filter</p>
-        <p className="text-sm text-[--color-text-muted]">200 GPH flow rate</p>
-      </div>
-
-      <div className="card">
-        <div className="mb-2 flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-[--color-text-secondary]">Heater</h3>
-          <span className="badge badge-healthy">Active</span>
-        </div>
-        <p className="text-lg font-medium text-[--color-text-primary]">100W Heater</p>
-        <p className="text-sm text-[--color-text-muted]">Set to 78°F</p>
-      </div>
-
-      <div className="card">
-        <div className="mb-2 flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-[--color-text-secondary]">Light</h3>
-          <span className="badge badge-healthy">On</span>
-        </div>
-        <p className="text-lg font-medium text-[--color-text-primary]">LED Light</p>
-        <p className="text-sm text-[--color-text-muted]">8:00 AM - 8:00 PM</p>
-      </div>
-
-      <div className="card">
-        <div className="mb-2 flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-[--color-text-secondary]">ATO</h3>
-          <span className="badge badge-healthy">Standby</span>
-        </div>
-        <p className="text-lg font-medium text-[--color-text-primary]">Auto Top-Off</p>
-        <p className="text-sm text-[--color-text-muted]">Reservoir full</p>
-      </div>
+      ))}
     </div>
   );
 }

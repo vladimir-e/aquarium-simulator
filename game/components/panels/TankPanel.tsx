@@ -1,48 +1,46 @@
+import { Droplet, Thermometer, Sun, Box } from 'lucide-react';
+
 /**
- * TankPanel - Tank information display
- *
- * Future content:
- * - Tank size and volume
- * - Water level
- * - Temperature
- * - Current time of day effects
+ * TankPanel - Tank information display (mobile-first grid)
  */
 function TankPanel(): React.ReactElement {
+  const stats = [
+    { icon: Box, label: 'Tank Size', value: '20 gal', sub: '75.7 liters' },
+    { icon: Droplet, label: 'Water Level', value: '98%', progress: 98 },
+    { icon: Thermometer, label: 'Temperature', value: '78°F', sub: '25.5°C' },
+    { icon: Sun, label: 'Time of Day', value: 'Day', sub: 'Lights on' },
+  ];
+
   return (
     <div
-      className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+      className="grid grid-cols-2 gap-3"
       role="tabpanel"
       id="panel-tank"
       aria-label="Tank information"
     >
-      <div className="card">
-        <h3 className="mb-2 text-sm font-semibold text-[--color-text-secondary]">Tank Size</h3>
-        <p className="text-2xl font-bold text-[--color-text-primary]">20 gal</p>
-        <p className="text-sm text-[--color-text-muted]">75.7 liters</p>
-      </div>
-
-      <div className="card">
-        <h3 className="mb-2 text-sm font-semibold text-[--color-text-secondary]">Water Level</h3>
-        <p className="text-2xl font-bold text-[--color-text-primary]">98%</p>
-        <div className="mt-2 h-2 overflow-hidden rounded-full bg-[--color-bg-secondary]">
-          <div
-            className="h-full rounded-full bg-[--color-water-mid]"
-            style={{ width: '98%' }}
-          />
+      {stats.map((stat) => (
+        <div
+          key={stat.label}
+          className="rounded-2xl bg-white p-4 shadow-sm"
+        >
+          <div className="mb-2 flex items-center gap-2">
+            <stat.icon className="h-4 w-4 text-[--color-text-muted]" />
+            <span className="text-xs font-medium text-[--color-text-secondary]">{stat.label}</span>
+          </div>
+          <p className="text-xl font-bold text-[--color-text-primary]">{stat.value}</p>
+          {stat.sub && (
+            <p className="text-xs text-[--color-text-muted]">{stat.sub}</p>
+          )}
+          {stat.progress !== undefined && (
+            <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-[--color-bg-secondary]">
+              <div
+                className="h-full rounded-full bg-[--color-water-mid]"
+                style={{ width: `${stat.progress}%` }}
+              />
+            </div>
+          )}
         </div>
-      </div>
-
-      <div className="card">
-        <h3 className="mb-2 text-sm font-semibold text-[--color-text-secondary]">Temperature</h3>
-        <p className="text-2xl font-bold text-[--color-text-primary]">78°F</p>
-        <p className="text-sm text-[--color-text-muted]">25.5°C</p>
-      </div>
-
-      <div className="card">
-        <h3 className="mb-2 text-sm font-semibold text-[--color-text-secondary]">Time of Day</h3>
-        <p className="text-2xl font-bold text-[--color-text-primary]">Day</p>
-        <p className="text-sm text-[--color-text-muted]">Lights on</p>
-      </div>
+      ))}
     </div>
   );
 }

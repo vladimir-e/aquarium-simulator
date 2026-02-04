@@ -178,7 +178,7 @@ function TankCanvas(): React.ReactElement {
   return (
     <div
       ref={containerRef}
-      className="relative h-full w-full overflow-hidden rounded-xl border-4 border-[--color-border-medium] bg-[--color-water-deep]"
+      className="relative h-full w-full overflow-hidden rounded-2xl border-4 border-slate-700 bg-[--color-water-deep] shadow-lg"
       aria-label="Aquarium tank visualization"
       role="img"
     >

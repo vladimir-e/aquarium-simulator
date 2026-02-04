@@ -12,6 +12,7 @@ export default defineConfig({
   test: {
     include: ['game/**/*.test.ts', 'game/**/*.test.tsx'],
     environment: 'happy-dom',
+    setupFiles: ['./game/test/setup.ts'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'html', 'json', 'json-summary'],
