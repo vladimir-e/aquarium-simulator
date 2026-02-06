@@ -100,6 +100,7 @@ function stateToPersistedSimulation(
     environment: state.environment,
     equipment: state.equipment,
     plants: state.plants,
+    fish: state.fish,
     alertState: state.alertState,
     currentPreset,
   };
@@ -890,8 +891,9 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
    * Execute a user action immediately (works even when paused).
    */
   const executeAction = useCallback((action: Action) => {
-    // Mark as modified for plant actions
-    if (action.type === 'addPlant' || action.type === 'removePlant') {
+    // Mark as modified for plant/fish actions
+    if (action.type === 'addPlant' || action.type === 'removePlant' ||
+        action.type === 'addFish' || action.type === 'removeFish') {
       setIsModified(true);
     }
     setState((currentState) => {

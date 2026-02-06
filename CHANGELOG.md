@@ -8,6 +8,10 @@ Format: - **Feature name** (#PR) - Brief description (under 100 chars)
 - Skip UI-only tweaks and minor fixes
 -->
 
+## 2026-02-06
+
+- **Fish Metabolism System** - Individual fish with 5 species (Neon Tetra, Betta, Guppy, Angelfish, Corydoras); metabolism consumes food/O2, produces waste/CO2; hunger increases over time, reduced by feeding; health affected by stressors (temperature, pH, ammonia, nitrite, nitrate, hunger, oxygen, water level); species hardiness modifies stress tolerance; death from health=0 or old age; Livestock panel with health/hunger bars, species selector, add/remove controls
+
 ## 2026-02-04
 
 - **Game UI Foundation** - New game-like UI at `/game`; Pixi.js tank canvas with water gradient; responsive layout (1024px breakpoint); tabbed panels with Framer Motion animations; design system with CSS tokens; 38 component tests

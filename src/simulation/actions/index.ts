@@ -7,6 +7,7 @@ import { waterChange } from './water-change.js';
 import { trimPlants } from './trim-plants.js';
 import { addPlant, removePlant } from './plant-management.js';
 import { dose } from './dose.js';
+import { addFish, removeFish } from './fish-management.js';
 
 export * from './types.js';
 export * from './top-off.js';
@@ -16,6 +17,7 @@ export * from './water-change.js';
 export * from './trim-plants.js';
 export * from './plant-management.js';
 export * from './dose.js';
+export * from './fish-management.js';
 
 /**
  * Apply a user action to the simulation state.
@@ -46,5 +48,9 @@ export function applyAction(
       return removePlant(state, action);
     case 'dose':
       return dose(state, action);
+    case 'addFish':
+      return addFish(state, action);
+    case 'removeFish':
+      return removeFish(state, action);
   }
 }

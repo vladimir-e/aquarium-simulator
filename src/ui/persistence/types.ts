@@ -9,6 +9,7 @@ import type {
   Environment,
   Equipment,
   Plant,
+  Fish,
   AlertState,
 } from '../../simulation/state.js';
 import type { TunableConfig } from '../../simulation/config/index.js';
@@ -18,7 +19,7 @@ import type { TunableConfig } from '../../simulation/config/index.js';
  * Increment this when the structure changes in a breaking way.
  * On version mismatch, stored data is discarded.
  */
-export const PERSISTENCE_VERSION = 1;
+export const PERSISTENCE_VERSION = 2;
 
 /**
  * Storage key for the unified persisted state.
@@ -36,6 +37,7 @@ export interface PersistedSimulation {
   environment: Environment;
   equipment: Equipment;
   plants: Plant[];
+  fish: Fish[];
   alertState: AlertState;
   /** Currently selected preset ID */
   currentPreset: string;

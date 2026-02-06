@@ -1,4 +1,4 @@
-import type { SimulationState, PlantSpecies } from '../state.js';
+import type { SimulationState, PlantSpecies, FishSpecies } from '../state.js';
 import type { WaterChangeAmount } from './water-change.js';
 
 /** Valid target sizes for trimming (percentages) */
@@ -12,7 +12,9 @@ export type ActionType =
   | 'trimPlants'
   | 'addPlant'
   | 'removePlant'
-  | 'dose';
+  | 'dose'
+  | 'addFish'
+  | 'removeFish';
 
 export interface BaseAction {
   type: ActionType;
@@ -67,6 +69,18 @@ export interface DoseAction extends BaseAction {
   amountMl: number;
 }
 
+export interface AddFishAction extends BaseAction {
+  type: 'addFish';
+  /** Species of fish to add */
+  species: FishSpecies;
+}
+
+export interface RemoveFishAction extends BaseAction {
+  type: 'removeFish';
+  /** ID of the fish to remove */
+  fishId: string;
+}
+
 export type Action =
   | TopOffAction
   | FeedAction
@@ -75,7 +89,9 @@ export type Action =
   | TrimPlantsAction
   | AddPlantAction
   | RemovePlantAction
-  | DoseAction;
+  | DoseAction
+  | AddFishAction
+  | RemoveFishAction;
 
 /**
  * Result of applying an action to simulation state.

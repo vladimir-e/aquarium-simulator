@@ -105,6 +105,112 @@ export const PLANT_SPECIES_DATA: Record<PlantSpecies, PlantSpeciesData> = {
 };
 
 /**
+ * Fish species types.
+ */
+export type FishSpecies =
+  | 'neon_tetra'
+  | 'betta'
+  | 'guppy'
+  | 'angelfish'
+  | 'corydoras';
+
+/**
+ * Fish sex for reproduction (future use).
+ */
+export type FishSex = 'male' | 'female';
+
+/**
+ * Fish species characteristics.
+ */
+export interface FishSpeciesData {
+  /** Display name */
+  name: string;
+  /** Adult body mass in grams */
+  adultMass: number;
+  /** Maximum lifespan in ticks (hours) */
+  maxAge: number;
+  /** Hardiness factor 0-1 (higher = more tolerant of stressors) */
+  hardiness: number;
+  /** Preferred temperature range [min, max] in °C */
+  temperatureRange: [number, number];
+  /** Preferred pH range [min, max] */
+  phRange: [number, number];
+  /** Maximum tolerable flow in LPH (liters per hour) */
+  maxFlow: number;
+}
+
+/**
+ * Species catalog with characteristics for each fish type.
+ */
+export const FISH_SPECIES_DATA: Record<FishSpecies, FishSpeciesData> = {
+  neon_tetra: {
+    name: 'Neon Tetra',
+    adultMass: 0.5,
+    maxAge: 24 * 365 * 5, // ~5 years
+    hardiness: 0.5,
+    temperatureRange: [22, 28],
+    phRange: [6.0, 7.5],
+    maxFlow: 300, // Prefers gentle flow
+  },
+  betta: {
+    name: 'Betta',
+    adultMass: 3.0,
+    maxAge: 24 * 365 * 3, // ~3 years
+    hardiness: 0.6,
+    temperatureRange: [24, 30],
+    phRange: [6.5, 7.5],
+    maxFlow: 150, // Very low flow - long fins
+  },
+  guppy: {
+    name: 'Guppy',
+    adultMass: 1.0,
+    maxAge: 24 * 365 * 3, // ~3 years
+    hardiness: 0.8,
+    temperatureRange: [22, 28],
+    phRange: [6.5, 8.0],
+    maxFlow: 300, // Prefers gentle flow
+  },
+  angelfish: {
+    name: 'Angelfish',
+    adultMass: 15.0,
+    maxAge: 24 * 365 * 10, // ~10 years
+    hardiness: 0.4,
+    temperatureRange: [24, 30],
+    phRange: [6.0, 7.5],
+    maxFlow: 400, // Moderate - tall body catches current
+  },
+  corydoras: {
+    name: 'Corydoras',
+    adultMass: 4.0,
+    maxAge: 24 * 365 * 5, // ~5 years
+    hardiness: 0.7,
+    temperatureRange: [22, 26],
+    phRange: [6.0, 7.5],
+    maxFlow: 500, // Bottom dweller, handles moderate flow
+  },
+};
+
+/**
+ * Individual fish in the tank.
+ */
+export interface Fish {
+  /** Unique identifier */
+  id: string;
+  /** Fish species type */
+  species: FishSpecies;
+  /** Body mass in grams (static at adult mass) */
+  mass: number;
+  /** Health percentage (0-100, fish dies at 0) */
+  health: number;
+  /** Age in ticks (hours) */
+  age: number;
+  /** Hunger percentage (0-100, 0=full, 100=starving) */
+  hunger: number;
+  /** Sex for future reproduction */
+  sex: FishSex;
+}
+
+/**
  * Individual plant specimen in the tank.
  */
 export interface Plant {
@@ -302,6 +408,8 @@ export interface SimulationState {
   equipment: Equipment;
   /** Plants in the tank */
   plants: Plant[];
+  /** Fish in the tank */
+  fish: Fish[];
   /** In-memory log storage */
   logs: LogEntry[];
   /** Tracks active alert conditions for threshold-crossing detection */
@@ -584,6 +692,7 @@ export function createSimulation(config: SimulationConfig): SimulationState {
       autoDoser: autoDoserConfig,
     },
     plants: [],
+    fish: [],
     logs: [initialLog],
     alertState: {
       waterLevelCritical: false,

@@ -25,6 +25,10 @@ export type {
   PlantSpeciesData,
   NutrientDemand,
   AutoDoser,
+  Fish,
+  FishSpecies,
+  FishSpeciesData,
+  FishSex,
 } from './state.js';
 export {
   createSimulation,
@@ -37,6 +41,7 @@ export {
   DEFAULT_LIGHT,
   HARDSCAPE_SURFACE,
   PLANT_SPECIES_DATA,
+  FISH_SPECIES_DATA,
 } from './state.js';
 
 // Resources
@@ -176,6 +181,8 @@ export type {
   AddPlantAction,
   RemovePlantAction,
   DoseAction,
+  AddFishAction,
+  RemoveFishAction,
   ActionResult,
 } from './actions/index.js';
 export {
@@ -202,6 +209,8 @@ export {
   canDose,
   getDosePreview,
   calculateDoseNutrients,
+  addFish,
+  removeFish,
 } from './actions/index.js';
 export type { WaterChangeAmount, TrimTargetSize } from './actions/index.js';
 
@@ -219,3 +228,11 @@ export {
   calculateOvergrowthPenalty,
   getSpeciesGrowthRate,
 } from './plants/index.js';
+
+// Livestock
+export {
+  processLivestock,
+  processMetabolism,
+  processHealth,
+  calculateStress,
+} from './livestock/index.js';

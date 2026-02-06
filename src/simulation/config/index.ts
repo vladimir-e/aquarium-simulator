@@ -38,6 +38,11 @@ export {
   getTotalFertilizerNutrients,
   getNutrientRatio,
 } from './nutrients.js';
+export {
+  type LivestockConfig,
+  livestockDefaults,
+  livestockConfigMeta,
+} from './livestock.js';
 
 import { type DecayConfig, decayDefaults } from './decay.js';
 import { type NitrogenCycleConfig, nitrogenCycleDefaults } from './nitrogen-cycle.js';
@@ -48,6 +53,7 @@ import { type AlgaeConfig, algaeDefaults } from './algae.js';
 import { type PhConfig, phDefaults } from './ph.js';
 import { type PlantsConfig, plantsDefaults } from './plants.js';
 import { type NutrientsConfig, nutrientsDefaults } from './nutrients.js';
+import { type LivestockConfig, livestockDefaults } from './livestock.js';
 
 /**
  * Complete tunable configuration for all simulation systems.
@@ -62,6 +68,7 @@ export interface TunableConfig {
   ph: PhConfig;
   plants: PlantsConfig;
   nutrients: NutrientsConfig;
+  livestock: LivestockConfig;
 }
 
 /**
@@ -77,6 +84,7 @@ export const DEFAULT_CONFIG: TunableConfig = {
   ph: phDefaults,
   plants: plantsDefaults,
   nutrients: nutrientsDefaults,
+  livestock: livestockDefaults,
 };
 
 /**
