@@ -25,6 +25,7 @@ export type {
   PlantSpeciesData,
   NutrientDemand,
   AutoDoser,
+  AutoFeeder,
   Fish,
   FishSpecies,
   FishSpeciesData,
@@ -147,6 +148,13 @@ export {
   DEFAULT_AUTO_DOSER,
   DOSE_AMOUNT_OPTIONS,
   type DoseAmount,
+  autoFeederUpdate,
+  applyAutoFeederSettings,
+  formatFeedPreview,
+  shouldFeed,
+  DEFAULT_AUTO_FEEDER,
+  FEED_AMOUNT_OPTIONS,
+  type FeedAmount,
 } from './equipment/index.js';
 
 // Hardscape

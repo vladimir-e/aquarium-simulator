@@ -60,6 +60,9 @@ function App(): React.JSX.Element {
     updateAutoDoserEnabled,
     updateAutoDoserAmount,
     updateAutoDoserSchedule,
+    updateAutoFeederEnabled,
+    updateAutoFeederAmount,
+    updateAutoFeederSchedule,
     changeTankCapacity,
     reset,
     executeAction,
@@ -134,6 +137,12 @@ function App(): React.JSX.Element {
           schedule: state.equipment.autoDoser.schedule,
           dosedToday: state.equipment.autoDoser.dosedToday,
         }}
+        autoFeeder={{
+          enabled: state.equipment.autoFeeder.enabled,
+          feedAmountGrams: state.equipment.autoFeeder.feedAmountGrams,
+          schedule: state.equipment.autoFeeder.schedule,
+          fedToday: state.equipment.autoFeeder.fedToday,
+        }}
         onTankCapacityChange={changeTankCapacity}
         onHeaterEnabledChange={updateHeaterEnabled}
         onHeaterTargetTemperatureChange={updateHeaterTargetTemperature}
@@ -157,6 +166,9 @@ function App(): React.JSX.Element {
         onAutoDoserEnabledChange={updateAutoDoserEnabled}
         onAutoDoserAmountChange={updateAutoDoserAmount}
         onAutoDoserScheduleChange={updateAutoDoserSchedule}
+        onAutoFeederEnabledChange={updateAutoFeederEnabled}
+        onAutoFeederAmountChange={updateAutoFeederAmount}
+        onAutoFeederScheduleChange={updateAutoFeederSchedule}
       />
 
       <div className="p-4">

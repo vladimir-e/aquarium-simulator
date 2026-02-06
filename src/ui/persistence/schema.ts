@@ -159,6 +159,15 @@ const AutoDoserSchema = z
   })
   .strict();
 
+const AutoFeederSchema = z
+  .object({
+    enabled: z.boolean(),
+    feedAmountGrams: z.number().min(0.1).max(2),
+    schedule: DailyScheduleSchema,
+    fedToday: z.boolean(),
+  })
+  .strict();
+
 const EquipmentSchema = z
   .object({
     heater: HeaterSchema,
@@ -172,6 +181,7 @@ const EquipmentSchema = z
     co2Generator: Co2GeneratorSchema,
     airPump: AirPumpSchema,
     autoDoser: AutoDoserSchema,
+    autoFeeder: AutoFeederSchema,
   })
   .strict();
 

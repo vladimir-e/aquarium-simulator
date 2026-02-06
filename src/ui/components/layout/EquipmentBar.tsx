@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Container, Waves, Thermometer, Cloud, Droplets, Wind, Mountain, Sun, Sparkles } from 'lucide-react';
+import { Container, Waves, Thermometer, Cloud, Droplets, Wind, Mountain, Sun, Sparkles, Cookie } from 'lucide-react';
 import { HeaterCard, HeaterState } from '../equipment/HeaterCard';
 import { LidCard, LidState, LidType } from '../equipment/LidCard';
 import { AutoTopOffCard, AutoTopOffState } from '../equipment/AutoTopOffCard';
@@ -18,6 +18,7 @@ import { HardscapeCard, HardscapeState, HardscapeType } from '../equipment/Hards
 import { LightCard, LightState } from '../equipment/LightCard';
 import { Co2GeneratorCard, Co2GeneratorState } from '../equipment/Co2GeneratorCard';
 import { AutoDoserCard, AutoDoserState } from '../equipment/AutoDoserCard';
+import { AutoFeederCard, AutoFeederState } from '../equipment/AutoFeederCard';
 import type { DailySchedule } from '../../../simulation/index.js';
 import { useUnits } from '../../hooks/useUnits';
 import { findClosestTankSize } from '../../utils/units';
@@ -37,6 +38,7 @@ interface EquipmentBarProps {
   isLightOn: boolean;
   co2Generator: Co2GeneratorState;
   autoDoser: AutoDoserState;
+  autoFeeder: AutoFeederState;
   onTankCapacityChange: (capacity: number) => void;
   onHeaterEnabledChange: (enabled: boolean) => void;
   onHeaterTargetTemperatureChange: (temp: number) => void;
@@ -60,6 +62,9 @@ interface EquipmentBarProps {
   onAutoDoserEnabledChange: (enabled: boolean) => void;
   onAutoDoserAmountChange: (amountMl: number) => void;
   onAutoDoserScheduleChange: (schedule: DailySchedule) => void;
+  onAutoFeederEnabledChange: (enabled: boolean) => void;
+  onAutoFeederAmountChange: (amountGrams: number) => void;
+  onAutoFeederScheduleChange: (schedule: DailySchedule) => void;
 }
 
 function formatLidName(type: string): string {
@@ -90,6 +95,7 @@ export function EquipmentBar({
   isLightOn,
   co2Generator,
   autoDoser,
+  autoFeeder,
   onTankCapacityChange,
   onHeaterEnabledChange,
   onHeaterTargetTemperatureChange,
@@ -113,6 +119,9 @@ export function EquipmentBar({
   onAutoDoserEnabledChange,
   onAutoDoserAmountChange,
   onAutoDoserScheduleChange,
+  onAutoFeederEnabledChange,
+  onAutoFeederAmountChange,
+  onAutoFeederScheduleChange,
 }: EquipmentBarProps): React.JSX.Element {
   const [isExpanded, setIsExpanded] = useState(false);
   const { unitSystem } = useUnits();
@@ -221,6 +230,14 @@ export function EquipmentBar({
       showOnlineDot: true,
       activeDot: autoDoser.dosedToday ? 'bg-green-500' : null,
     },
+    {
+      key: 'autoFeeder',
+      show: autoFeeder.enabled,
+      icon: <Cookie className="w-4 h-4 text-accent-orange" />,
+      label: 'Auto Feeder',
+      showOnlineDot: true,
+      activeDot: autoFeeder.fedToday ? 'bg-orange-500' : null,
+    },
   ];
 
   return (
@@ -325,6 +342,12 @@ export function EquipmentBar({
               onEnabledChange={onAutoDoserEnabledChange}
               onDoseAmountChange={onAutoDoserAmountChange}
               onScheduleChange={onAutoDoserScheduleChange}
+            />
+            <AutoFeederCard
+              autoFeeder={autoFeeder}
+              onEnabledChange={onAutoFeederEnabledChange}
+              onFeedAmountChange={onAutoFeederAmountChange}
+              onScheduleChange={onAutoFeederScheduleChange}
             />
           </div>
         </div>

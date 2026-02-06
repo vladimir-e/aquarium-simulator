@@ -68,6 +68,9 @@ interface UseSimulationReturn {
   updateAutoDoserEnabled: (enabled: boolean) => void;
   updateAutoDoserAmount: (amountMl: number) => void;
   updateAutoDoserSchedule: (schedule: DailySchedule) => void;
+  updateAutoFeederEnabled: (enabled: boolean) => void;
+  updateAutoFeederAmount: (amountGrams: number) => void;
+  updateAutoFeederSchedule: (schedule: DailySchedule) => void;
   changeTankCapacity: (capacity: number) => void;
   reset: () => void;
   executeAction: (action: Action) => void;
@@ -818,6 +821,58 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
     );
   }, []);
 
+  const updateAutoFeederEnabled = useCallback((enabled: boolean) => {
+    setIsModified(true);
+    setState((current) =>
+      produce(current, (draft) => {
+        const message = enabled
+          ? `Auto feeder enabled (${draft.equipment.autoFeeder.feedAmountGrams}g at ${draft.equipment.autoFeeder.schedule.startHour}:00)`
+          : 'Auto feeder disabled';
+        const log = createLog(draft.tick, 'user', 'info', message);
+        draft.equipment.autoFeeder.enabled = enabled;
+        draft.logs.push(log);
+      })
+    );
+  }, []);
+
+  const updateAutoFeederAmount = useCallback((amountGrams: number) => {
+    setIsModified(true);
+    setState((current) =>
+      produce(current, (draft) => {
+        const oldAmount = draft.equipment.autoFeeder.feedAmountGrams;
+        if (oldAmount !== amountGrams) {
+          const log = createLog(
+            draft.tick,
+            'user',
+            'info',
+            `Auto feeder amount: ${oldAmount}g → ${amountGrams}g`
+          );
+          draft.equipment.autoFeeder.feedAmountGrams = amountGrams;
+          draft.logs.push(log);
+        }
+      })
+    );
+  }, []);
+
+  const updateAutoFeederSchedule = useCallback((schedule: DailySchedule) => {
+    setIsModified(true);
+    setState((current) =>
+      produce(current, (draft) => {
+        const oldSchedule = draft.equipment.autoFeeder.schedule;
+        if (oldSchedule.startHour !== schedule.startHour) {
+          const log = createLog(
+            draft.tick,
+            'user',
+            'info',
+            `Auto feeder time: ${oldSchedule.startHour}:00 → ${schedule.startHour}:00`
+          );
+          draft.equipment.autoFeeder.schedule = schedule;
+          draft.logs.push(log);
+        }
+      })
+    );
+  }, []);
+
   const changeTankCapacity = useCallback(
     (capacity: number) => {
       setIsModified(true);
@@ -881,6 +936,11 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
             doseAmountMl: current.equipment.autoDoser.doseAmountMl,
             schedule: current.equipment.autoDoser.schedule,
           },
+          autoFeeder: {
+            enabled: current.equipment.autoFeeder.enabled,
+            feedAmountGrams: current.equipment.autoFeeder.feedAmountGrams,
+            schedule: current.equipment.autoFeeder.schedule,
+          },
         });
       });
     },
@@ -937,6 +997,9 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
     updateAutoDoserEnabled,
     updateAutoDoserAmount,
     updateAutoDoserSchedule,
+    updateAutoFeederEnabled,
+    updateAutoFeederAmount,
+    updateAutoFeederSchedule,
     changeTankCapacity,
     reset,
     executeAction,

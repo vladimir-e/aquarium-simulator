@@ -17,10 +17,13 @@ import type { AirPump } from './equipment/air-pump.js';
 import { DEFAULT_AIR_PUMP, getAirPumpFlow } from './equipment/air-pump.js';
 import type { AutoDoser } from './equipment/auto-doser.js';
 import { DEFAULT_AUTO_DOSER } from './equipment/auto-doser.js';
+import type { AutoFeeder } from './equipment/auto-feeder.js';
+import { DEFAULT_AUTO_FEEDER } from './equipment/auto-feeder.js';
 
 export type { LogEntry, LogSeverity };
 export type { AirPump };
 export type { AutoDoser };
+export type { AutoFeeder };
 export type { FilterType, Filter, PowerheadFlowRate, Powerhead, SubstrateType, Substrate, Light, LightWattage };
 
 /**
@@ -372,6 +375,8 @@ export interface Equipment {
   airPump: AirPump;
   /** Auto doser for scheduled fertilizer dosing */
   autoDoser: AutoDoser;
+  /** Auto feeder for scheduled fish feeding */
+  autoFeeder: AutoFeeder;
 }
 
 /**
@@ -449,6 +454,8 @@ export interface SimulationConfig {
   airPump?: Partial<AirPump>;
   /** Initial auto doser configuration */
   autoDoser?: Partial<AutoDoser>;
+  /** Initial auto feeder configuration */
+  autoFeeder?: Partial<AutoFeeder>;
 }
 
 const DEFAULT_TEMPERATURE = 25;
@@ -539,6 +546,7 @@ export function createSimulation(config: SimulationConfig): SimulationState {
     co2Generator,
     airPump,
     autoDoser,
+    autoFeeder,
   } = config;
 
   const heaterConfig: Heater = {
@@ -605,6 +613,15 @@ export function createSimulation(config: SimulationConfig): SimulationState {
     schedule: {
       ...DEFAULT_AUTO_DOSER.schedule,
       ...autoDoser?.schedule,
+    },
+  };
+
+  const autoFeederConfig: AutoFeeder = {
+    ...DEFAULT_AUTO_FEEDER,
+    ...autoFeeder,
+    schedule: {
+      ...DEFAULT_AUTO_FEEDER.schedule,
+      ...autoFeeder?.schedule,
     },
   };
 
@@ -690,6 +707,7 @@ export function createSimulation(config: SimulationConfig): SimulationState {
       co2Generator: co2GeneratorConfig,
       airPump: airPumpConfig,
       autoDoser: autoDoserConfig,
+      autoFeeder: autoFeederConfig,
     },
     plants: [],
     fish: [],

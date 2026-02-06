@@ -43,6 +43,16 @@ import {
   DOSE_AMOUNT_OPTIONS,
   type DoseAmount,
 } from './auto-doser.js';
+import {
+  autoFeederUpdate,
+  applyAutoFeederSettings,
+  formatFeedPreview,
+  shouldFeed,
+  type AutoFeeder,
+  DEFAULT_AUTO_FEEDER,
+  FEED_AMOUNT_OPTIONS,
+  type FeedAmount,
+} from './auto-feeder.js';
 
 // Re-export equipment modules
 export { heaterUpdate, applyHeaterStateChange, calculateHeatingRate };
@@ -78,6 +88,16 @@ export {
   DOSE_AMOUNT_OPTIONS,
   type DoseAmount,
 };
+export {
+  autoFeederUpdate,
+  applyAutoFeederSettings,
+  formatFeedPreview,
+  shouldFeed,
+  type AutoFeeder,
+  DEFAULT_AUTO_FEEDER,
+  FEED_AMOUNT_OPTIONS,
+  type FeedAmount,
+};
 
 /**
  * Collects effects from all equipment and applies equipment state changes.
@@ -108,6 +128,11 @@ export function processEquipment(state: SimulationState): {
   const autoDoserResult = autoDoserUpdate(updatedState);
   effects.push(...autoDoserResult.effects);
   updatedState = autoDoserResult.state;
+
+  // Process auto feeder
+  const autoFeederResult = autoFeederUpdate(updatedState);
+  effects.push(...autoFeederResult.effects);
+  updatedState = autoFeederResult.state;
 
   return { state: updatedState, effects };
 }
