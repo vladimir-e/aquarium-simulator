@@ -189,6 +189,22 @@ const PlantSchema = z
   .strict();
 
 // ============================================================================
+// Fish Schema
+// ============================================================================
+
+const FishSchema = z
+  .object({
+    id: z.string(),
+    species: z.enum(['neon_tetra', 'betta', 'guppy', 'angelfish', 'corydoras']),
+    mass: z.number().min(0),
+    health: z.number().min(0).max(100),
+    age: z.number().int().min(0),
+    hunger: z.number().min(0).max(100),
+    sex: z.enum(['male', 'female']),
+  })
+  .strict();
+
+// ============================================================================
 // Alert State Schema
 // ============================================================================
 
@@ -216,6 +232,7 @@ export const PersistedSimulationSchema = z
     environment: EnvironmentSchema,
     equipment: EquipmentSchema,
     plants: z.array(PlantSchema),
+    fish: z.array(FishSchema),
     alertState: AlertStateSchema,
     currentPreset: z.string(),
   })
@@ -358,6 +375,27 @@ const NutrientsConfigSchema = z
   })
   .strict();
 
+const LivestockConfigSchema = z
+  .object({
+    baseFoodRate: z.number(),
+    baseRespirationRate: z.number(),
+    wasteRatio: z.number(),
+    respiratoryQuotient: z.number(),
+    hungerIncreaseRate: z.number(),
+    baseHealthRecovery: z.number(),
+    temperatureStressSeverity: z.number(),
+    phStressSeverity: z.number(),
+    ammoniaStressSeverity: z.number(),
+    nitriteStressSeverity: z.number(),
+    nitrateStressSeverity: z.number(),
+    hungerStressSeverity: z.number(),
+    oxygenStressSeverity: z.number(),
+    waterLevelStressSeverity: z.number(),
+    deathDecayFactor: z.number(),
+    oldAgeDeathChance: z.number(),
+  })
+  .strict();
+
 export const TunableConfigSchema = z
   .object({
     decay: DecayConfigSchema,
@@ -369,6 +407,7 @@ export const TunableConfigSchema = z
     ph: PhConfigSchema,
     plants: PlantsConfigSchema,
     nutrients: NutrientsConfigSchema,
+    livestock: LivestockConfigSchema,
   })
   .strict();
 

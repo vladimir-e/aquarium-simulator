@@ -130,6 +130,7 @@ describe('PersistedSimulationSchema', () => {
       autoDoser: { enabled: false, doseAmountMl: 2, schedule: { startHour: 8, duration: 1 }, dosedToday: false },
     },
     plants: [],
+    fish: [],
     alertState: {
       waterLevelCritical: false,
       highAlgae: false,
@@ -265,6 +266,7 @@ describe('PersistedStateSchema', () => {
       autoDoser: { enabled: false, doseAmountMl: 2, schedule: { startHour: 8, duration: 1 }, dosedToday: false },
     },
     plants: [],
+    fish: [],
     alertState: {
       waterLevelCritical: false,
       highAlgae: false,

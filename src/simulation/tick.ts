@@ -8,6 +8,7 @@ import { applyEffects, type Effect, type EffectTier } from './core/effects.js';
 import { coreSystems } from './systems/index.js';
 import { processEquipment, calculatePassiveResources } from './equipment/index.js';
 import { processPlants } from './plants/index.js';
+import { processLivestock } from './livestock/index.js';
 import { checkAlerts } from './alerts/index.js';
 import { type TunableConfig, DEFAULT_CONFIG } from './config/index.js';
 
@@ -70,6 +71,11 @@ export function tick(
   const plantsResult = processPlants(newState, config);
   newState = plantsResult.state;
   newState = applyEffects(newState, plantsResult.effects, config);
+
+  // Then process livestock (metabolism, health)
+  const livestockResult = processLivestock(newState, config);
+  newState = livestockResult.state;
+  newState = applyEffects(newState, livestockResult.effects, config);
 
   // Then other active systems
   const activeEffects = collectSystemEffects(newState, 'active', config);

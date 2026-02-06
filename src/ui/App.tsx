@@ -243,7 +243,11 @@ function App(): React.JSX.Element {
 
           {/* Column 4 */}
           <div className="space-y-4">
-            <Livestock food={state.resources.food} />
+            <Livestock
+              food={state.resources.food}
+              fish={state.fish}
+              executeAction={executeAction}
+            />
           </div>
         </div>
 
