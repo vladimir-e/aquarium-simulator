@@ -44,6 +44,8 @@ export interface LivestockConfig {
   oxygenStressSeverity: number;
   /** Health damage per % water below 50% capacity */
   waterLevelStressSeverity: number;
+  /** Health damage per LPH of flow above species max */
+  flowStressSeverity: number;
 
   // Death
   /** Fraction of fish mass added as waste on death */
@@ -74,6 +76,7 @@ export const livestockDefaults: LivestockConfig = {
   hungerStressSeverity: 0.1, // 0.1% per % hunger above 50
   oxygenStressSeverity: 3.0, // 3% damage per mg/L below 5
   waterLevelStressSeverity: 0.2, // 0.2% per % below 50% capacity
+  flowStressSeverity: 0.01, // 0.01% per LPH above species max
 
   // Death
   deathDecayFactor: 0.5, // Half fish mass becomes waste
@@ -148,6 +151,22 @@ export const livestockConfigMeta: LivestockConfigMeta[] = [
     min: 1,
     max: 10,
     step: 0.5,
+  },
+  {
+    key: 'waterLevelStressSeverity',
+    label: 'Water Level Stress',
+    unit: '%/%/hr',
+    min: 0.05,
+    max: 1,
+    step: 0.05,
+  },
+  {
+    key: 'flowStressSeverity',
+    label: 'Flow Stress Severity',
+    unit: '%/LPH/hr',
+    min: 0.001,
+    max: 0.05,
+    step: 0.001,
   },
   // Death
   { key: 'deathDecayFactor', label: 'Death Decay Factor', unit: '', min: 0.1, max: 1.0, step: 0.1 },

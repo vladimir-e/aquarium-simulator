@@ -2,7 +2,7 @@
  * Fish health system.
  *
  * Handles:
- * - Stressor calculations (temperature, pH, ammonia, nitrite, nitrate, hunger, oxygen, water level)
+ * - Stressor calculations (temperature, pH, ammonia, nitrite, nitrate, hunger, oxygen, water level, flow)
  * - Health recovery in good conditions
  * - Health degradation from stressors (modified by hardiness)
  * - Death from health reaching 0
@@ -55,19 +55,20 @@ export function calculateStress(
   }
 
   // Ammonia stress (any amount is harmful)
-  const ammoniaPpm = waterVolume > 0 ? resources.ammonia / waterVolume : 0;
+  // When water volume is 0, concentration is effectively infinite = max stress
+  const ammoniaPpm = waterVolume > 0 ? resources.ammonia / waterVolume : (resources.ammonia > 0 ? 100 : 0);
   if (ammoniaPpm > 0) {
     stress += config.ammoniaStressSeverity * ammoniaPpm * hardinessFactor;
   }
 
   // Nitrite stress (any amount is harmful)
-  const nitritePpm = waterVolume > 0 ? resources.nitrite / waterVolume : 0;
+  const nitritePpm = waterVolume > 0 ? resources.nitrite / waterVolume : (resources.nitrite > 0 ? 100 : 0);
   if (nitritePpm > 0) {
     stress += config.nitriteStressSeverity * nitritePpm * hardinessFactor;
   }
 
   // Nitrate stress (above 40 ppm)
-  const nitratePpm = waterVolume > 0 ? resources.nitrate / waterVolume : 0;
+  const nitratePpm = waterVolume > 0 ? resources.nitrate / waterVolume : (resources.nitrate > 0 ? 100 : 0);
   if (nitratePpm > 40) {
     stress += config.nitrateStressSeverity * (nitratePpm - 40) * hardinessFactor;
   }
@@ -86,6 +87,12 @@ export function calculateStress(
   const waterPercent = tankCapacity > 0 ? (waterVolume / tankCapacity) * 100 : 100;
   if (waterPercent < 50) {
     stress += config.waterLevelStressSeverity * (50 - waterPercent) * hardinessFactor;
+  }
+
+  // Flow stress (above species max tolerance)
+  const flow = resources.flow;
+  if (flow > speciesData.maxFlow) {
+    stress += config.flowStressSeverity * (flow - speciesData.maxFlow) * hardinessFactor;
   }
 
   return stress;

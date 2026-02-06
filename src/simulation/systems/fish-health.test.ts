@@ -145,6 +145,45 @@ describe('calculateStress', () => {
     expect(stress).toBeCloseTo(2.0, 1);
   });
 
+  it('applies flow stress above species max', () => {
+    // Betta has maxFlow=150
+    const fish = makeFish({ species: 'betta' });
+    const resources = makeResources({ flow: 400 });
+    const stress = calculateStress(fish, resources, 100, 100, livestockDefaults);
+
+    // deviation = 400-150=250, severity=0.01, hardiness factor = 1-0.6=0.4
+    // stress = 0.01 * 250 * 0.4 = 1.0
+    expect(stress).toBeCloseTo(1.0, 1);
+  });
+
+  it('does not apply flow stress within species tolerance', () => {
+    const fish = makeFish({ species: 'corydoras' }); // maxFlow=500
+    const resources = makeResources({ flow: 300 });
+    const stress = calculateStress(fish, resources, 100, 100, livestockDefaults);
+    expect(stress).toBe(0);
+  });
+
+  it('applies max stress for toxins when water volume is 0', () => {
+    const fish = makeFish();
+    const resources = makeResources({ ammonia: 1 });
+    const stressNoWater = calculateStress(fish, resources, 0, 100, livestockDefaults);
+
+    // With 0 water, ammonia should be 100 ppm (lethal)
+    expect(stressNoWater).toBeGreaterThan(0);
+
+    // Should be much higher than with 100L water (which gives 0.01 ppm)
+    const stressWithWater = calculateStress(fish, resources, 100, 100, livestockDefaults);
+    expect(stressNoWater).toBeGreaterThan(stressWithWater);
+  });
+
+  it('no toxin stress at zero volume when no toxins present', () => {
+    const fish = makeFish();
+    const resources = makeResources({ ammonia: 0, nitrite: 0, nitrate: 0 });
+    const stress = calculateStress(fish, resources, 0, 100, livestockDefaults);
+    // Only water level stress expected (0% water)
+    expect(stress).toBeGreaterThan(0); // from water level
+  });
+
   it('reduces stress for hardy fish', () => {
     // Guppy (hardiness 0.8) vs Angelfish (hardiness 0.4)
     const guppy = makeFish({ species: 'guppy' });

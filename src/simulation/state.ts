@@ -135,6 +135,8 @@ export interface FishSpeciesData {
   temperatureRange: [number, number];
   /** Preferred pH range [min, max] */
   phRange: [number, number];
+  /** Maximum tolerable flow in LPH (liters per hour) */
+  maxFlow: number;
 }
 
 /**
@@ -148,6 +150,7 @@ export const FISH_SPECIES_DATA: Record<FishSpecies, FishSpeciesData> = {
     hardiness: 0.5,
     temperatureRange: [22, 28],
     phRange: [6.0, 7.5],
+    maxFlow: 300, // Prefers gentle flow
   },
   betta: {
     name: 'Betta',
@@ -156,6 +159,7 @@ export const FISH_SPECIES_DATA: Record<FishSpecies, FishSpeciesData> = {
     hardiness: 0.6,
     temperatureRange: [24, 30],
     phRange: [6.5, 7.5],
+    maxFlow: 150, // Very low flow - long fins
   },
   guppy: {
     name: 'Guppy',
@@ -164,6 +168,7 @@ export const FISH_SPECIES_DATA: Record<FishSpecies, FishSpeciesData> = {
     hardiness: 0.8,
     temperatureRange: [22, 28],
     phRange: [6.5, 8.0],
+    maxFlow: 300, // Prefers gentle flow
   },
   angelfish: {
     name: 'Angelfish',
@@ -172,6 +177,7 @@ export const FISH_SPECIES_DATA: Record<FishSpecies, FishSpeciesData> = {
     hardiness: 0.4,
     temperatureRange: [24, 30],
     phRange: [6.0, 7.5],
+    maxFlow: 400, // Moderate - tall body catches current
   },
   corydoras: {
     name: 'Corydoras',
@@ -180,6 +186,7 @@ export const FISH_SPECIES_DATA: Record<FishSpecies, FishSpeciesData> = {
     hardiness: 0.7,
     temperatureRange: [22, 26],
     phRange: [6.0, 7.5],
+    maxFlow: 500, // Bottom dweller, handles moderate flow
   },
 };
 

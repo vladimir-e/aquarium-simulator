@@ -391,6 +391,7 @@ const LivestockConfigSchema = z
     hungerStressSeverity: z.number(),
     oxygenStressSeverity: z.number(),
     waterLevelStressSeverity: z.number(),
+    flowStressSeverity: z.number(),
     deathDecayFactor: z.number(),
     oldAgeDeathChance: z.number(),
   })
