@@ -24,7 +24,9 @@ export const phDefaults: PhConfig = {
   driftwoodTargetPh: 6.0,
   neutralPh: 7.0,
   basePgDriftRate: 0.08,
-  // Calibrated: 30 ppm CO2 produces ~1.0 pH unit drop (matches KH/pH/CO2 charts)
+  // Linear approximation: (30-4) * -0.05 = -1.3 pH at 30 ppm CO2.
+  // Real relationship is logarithmic (Henderson-Hasselbalch); linear is acceptable
+  // for the 4-40 ppm range typical in planted tanks.
   co2PhCoefficient: -0.05,
   co2NeutralLevel: 4.0,
   hardscapeDiminishingFactor: 0.7,

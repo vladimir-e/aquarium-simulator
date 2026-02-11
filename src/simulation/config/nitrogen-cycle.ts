@@ -31,14 +31,15 @@ export interface NitrogenCycleConfig {
 
 export const nitrogenCycleDefaults: NitrogenCycleConfig = {
   wasteConversionRate: 0.3,
-  // Realistic nitrogen content in organic waste (~5% N by weight = 50 mg ammonia per g waste)
+  // Empirically calibrated for 25-35 day fishless cycle.
+  // Stoichiometry gives ~60 (5% N × MW 17/14) but 50 produces better overall balance.
   wasteToAmmoniaRatio: 50,
   // Calibrated for fishless cycle completing in 25-35 days
   bacteriaProcessingRate: 0.0002,
   aobSpawnThreshold: 0.02,
   nobSpawnThreshold: 0.125,
   spawnAmount: 10,
-  // AOB establishes before NOB (matches real biology)
+  // AOB establishes before NOB — Nitrospira succession (Hovanec & DeLong, 1996)
   aobGrowthRate: 0.04,
   nobGrowthRate: 0.03,
   bacteriaPerCm2: 0.01,
