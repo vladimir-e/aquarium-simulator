@@ -61,8 +61,9 @@ export const livestockDefaults: LivestockConfig = {
   wasteRatio: 0.3, // 30% of food consumed becomes waste
   respiratoryQuotient: 0.8, // CO2/O2 ratio
 
-  // Hunger - increases ~4%/hr = full to starving in ~25 hours
-  hungerIncreaseRate: 4.0,
+  // Hunger - increases ~0.6%/hr; fish can survive 3-7 days without food
+  // Reaches 50% (stress threshold) in ~3.5 days, 100% in ~7 days
+  hungerIncreaseRate: 0.6,
 
   // Health - recovers ~1%/hr = full recovery in ~100 hours if healthy
   baseHealthRecovery: 1.0,
@@ -106,7 +107,7 @@ export const livestockConfigMeta: LivestockConfigMeta[] = [
   { key: 'wasteRatio', label: 'Waste Ratio', unit: '', min: 0.1, max: 0.6, step: 0.05 },
   { key: 'respiratoryQuotient', label: 'Respiratory Quotient', unit: '', min: 0.5, max: 1.2, step: 0.1 },
   // Hunger
-  { key: 'hungerIncreaseRate', label: 'Hunger Rate', unit: '%/hr', min: 1, max: 10, step: 0.5 },
+  { key: 'hungerIncreaseRate', label: 'Hunger Rate', unit: '%/hr', min: 0.1, max: 5, step: 0.1 },
   // Health
   { key: 'baseHealthRecovery', label: 'Health Recovery', unit: '%/hr', min: 0.1, max: 5, step: 0.1 },
   // Stressor severities

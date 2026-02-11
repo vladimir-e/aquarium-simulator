@@ -112,8 +112,8 @@ describe('calculateCO2PHEffect', () => {
 
   it('high CO2 (30 mg/L) significantly lowers pH target', () => {
     const effect = calculateCO2PHEffect(30);
-    // (30 - 4) * -0.02 = -0.52
-    expect(effect).toBeCloseTo(-0.52, 2);
+    // (30 - 4) * -0.05 = -1.3
+    expect(effect).toBeCloseTo(-1.3, 2);
   });
 });
 

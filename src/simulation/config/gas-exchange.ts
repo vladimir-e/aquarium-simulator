@@ -27,15 +27,17 @@ export interface GasExchangeConfig {
 
 export const gasExchangeDefaults: GasExchangeConfig = {
   atmosphericCo2: 4.0,
-  o2SaturationBase: 8.5,
-  o2SaturationSlope: -0.05,
+  // Henry's Law calibration: 10.08 at 15°C, slope -0.17 per °C
+  // Produces: 20°C→9.23, 25°C→8.38, 30°C→7.53 (within 5% of real values)
+  o2SaturationBase: 10.08,
+  o2SaturationSlope: -0.17,
   o2ReferenceTemp: 15,
   baseExchangeRate: 0.25,
   optimalFlowTurnover: 10,
 
   // Aeration defaults
-  // Aeration roughly doubles gas exchange and adds small direct O2
-  aerationExchangeMultiplier: 2.0,
+  // Aeration roughly triples gas exchange and adds small direct O2
+  aerationExchangeMultiplier: 3.0,
   aerationDirectO2: 0.05, // Small direct injection (mg/L per hour)
   aerationCo2OffgasMultiplier: 1.5, // 50% faster CO2 off-gassing
 };
@@ -52,7 +54,7 @@ export interface GasExchangeConfigMeta {
 export const gasExchangeConfigMeta: GasExchangeConfigMeta[] = [
   { key: 'atmosphericCo2', label: 'Atmospheric CO2', unit: 'mg/L', min: 1, max: 10, step: 0.5 },
   { key: 'o2SaturationBase', label: 'O2 Saturation Base', unit: 'mg/L', min: 6, max: 12, step: 0.5 },
-  { key: 'o2SaturationSlope', label: 'O2 Saturation Slope', unit: 'mg/L/°C', min: -0.15, max: 0, step: 0.01 },
+  { key: 'o2SaturationSlope', label: 'O2 Saturation Slope', unit: 'mg/L/°C', min: -0.25, max: 0, step: 0.01 },
   { key: 'o2ReferenceTemp', label: 'O2 Reference Temp', unit: '°C', min: 10, max: 25, step: 1 },
   { key: 'baseExchangeRate', label: 'Base Exchange Rate', unit: '/tick', min: 0.05, max: 0.5, step: 0.05 },
   { key: 'optimalFlowTurnover', label: 'Optimal Flow Turnover', unit: 'x/hr', min: 2, max: 20, step: 1 },

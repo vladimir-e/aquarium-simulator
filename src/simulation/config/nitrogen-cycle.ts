@@ -31,13 +31,16 @@ export interface NitrogenCycleConfig {
 
 export const nitrogenCycleDefaults: NitrogenCycleConfig = {
   wasteConversionRate: 0.3,
-  wasteToAmmoniaRatio: 1.0,
-  bacteriaProcessingRate: 0.000002,
+  // Realistic nitrogen content in organic waste (~5% N by weight = 50 mg ammonia per g waste)
+  wasteToAmmoniaRatio: 50,
+  // Calibrated for fishless cycle completing in 25-35 days
+  bacteriaProcessingRate: 0.0002,
   aobSpawnThreshold: 0.02,
   nobSpawnThreshold: 0.125,
   spawnAmount: 10,
-  aobGrowthRate: 0.03,
-  nobGrowthRate: 0.05,
+  // AOB establishes before NOB (matches real biology)
+  aobGrowthRate: 0.04,
+  nobGrowthRate: 0.03,
   bacteriaPerCm2: 0.01,
   bacteriaDeathRate: 0.02,
   aobFoodThreshold: 0.001,
@@ -55,8 +58,8 @@ export interface NitrogenCycleConfigMeta {
 
 export const nitrogenCycleConfigMeta: NitrogenCycleConfigMeta[] = [
   { key: 'wasteConversionRate', label: 'Waste Conversion Rate', unit: '/tick', min: 0.1, max: 0.9, step: 0.05 },
-  { key: 'wasteToAmmoniaRatio', label: 'Waste to Ammonia Ratio', unit: 'mg/g', min: 0.1, max: 5, step: 0.1 },
-  { key: 'bacteriaProcessingRate', label: 'Bacteria Processing Rate', unit: 'ppm/unit', min: 0.000001, max: 0.00001, step: 0.000001 },
+  { key: 'wasteToAmmoniaRatio', label: 'Waste to Ammonia Ratio', unit: 'mg/g', min: 10, max: 100, step: 5 },
+  { key: 'bacteriaProcessingRate', label: 'Bacteria Processing Rate', unit: 'ppm/unit', min: 0.00005, max: 0.001, step: 0.00005 },
   { key: 'aobSpawnThreshold', label: 'AOB Spawn Threshold', unit: 'ppm', min: 0.005, max: 0.1, step: 0.005 },
   { key: 'nobSpawnThreshold', label: 'NOB Spawn Threshold', unit: 'ppm', min: 0.05, max: 0.5, step: 0.025 },
   { key: 'spawnAmount', label: 'Spawn Amount', unit: '', min: 1, max: 50, step: 1 },

@@ -12,7 +12,9 @@ export interface AlgaeConfig {
 }
 
 export const algaeDefaults: AlgaeConfig = {
-  maxGrowthRate: 4,
+  // Calibrated: ~1.7/day at standard light (1 W/L, 10hr photoperiod)
+  // Algae noticeable at 1-3 weeks, dominant at 6-8 weeks without plants
+  maxGrowthRate: 0.4,
   halfSaturation: 1.3,
   algaeCap: 100,
 };
@@ -27,7 +29,7 @@ export interface AlgaeConfigMeta {
 }
 
 export const algaeConfigMeta: AlgaeConfigMeta[] = [
-  { key: 'maxGrowthRate', label: 'Max Growth Rate', unit: '/hr', min: 1, max: 10, step: 0.5 },
+  { key: 'maxGrowthRate', label: 'Max Growth Rate', unit: '/hr', min: 0.1, max: 2, step: 0.05 },
   { key: 'halfSaturation', label: 'Half Saturation', unit: 'W/L', min: 0.5, max: 3, step: 0.1 },
   { key: 'algaeCap', label: 'Algae Cap', unit: '', min: 50, max: 200, step: 10 },
 ];

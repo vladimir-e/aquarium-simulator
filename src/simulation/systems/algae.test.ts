@@ -76,48 +76,48 @@ describe('calculateAlgaeGrowth', () => {
     expect(growth50gal).toBeCloseTo(growth100gal, 2);
   });
 
-  // Calibration tests with saturation curve
+  // Calibration tests with saturation curve (maxGrowthRate = 0.4)
   describe('calibration tests (saturation curve)', () => {
-    it('10 gal (38L) with 10W (1 W/gal) gives ~0.67/hour (~16/day)', () => {
+    it('10 gal (38L) with 10W (1 W/gal) gives ~0.067/hour (~1.6/day)', () => {
       const growth = calculateAlgaeGrowth(10, 38);
-      // wpl = 10/38 ≈ 0.263, growth = 4 * 0.263 / 1.563 ≈ 0.67
-      expect(growth).toBeCloseTo(0.67, 1);
+      // wpl = 10/38 ≈ 0.263, growth = 0.4 * 0.263 / 1.563 ≈ 0.067
+      expect(growth).toBeCloseTo(0.067, 2);
     });
 
-    it('50 gal (190L) with 50W (1 W/gal) gives ~0.67/hour', () => {
+    it('50 gal (190L) with 50W (1 W/gal) gives ~0.067/hour', () => {
       const growth = calculateAlgaeGrowth(50, 190);
-      expect(growth).toBeCloseTo(0.67, 1);
+      expect(growth).toBeCloseTo(0.067, 2);
     });
 
-    it('10 gal (38L) with 5W (0.5 W/gal) gives ~0.37/hour (~9/day)', () => {
+    it('10 gal (38L) with 5W (0.5 W/gal) gives ~0.037/hour', () => {
       const growth = calculateAlgaeGrowth(5, 38);
-      // wpl = 5/38 ≈ 0.132, growth = 4 * 0.132 / 1.432 ≈ 0.37
-      expect(growth).toBeCloseTo(0.37, 1);
+      // wpl = 5/38 ≈ 0.132, growth = 0.4 * 0.132 / 1.432 ≈ 0.037
+      expect(growth).toBeCloseTo(0.037, 2);
     });
 
-    it('10 gal (38L) with 50W (5 W/gal) gives ~2.0/hour (diminished from linear)', () => {
+    it('10 gal (38L) with 50W (5 W/gal) gives ~0.20/hour (diminished from linear)', () => {
       const growth = calculateAlgaeGrowth(50, 38);
-      // wpl = 50/38 ≈ 1.316, growth = 4 * 1.316 / 2.616 ≈ 2.01
-      // Linear would be 3.29, but saturation curve caps it
-      expect(growth).toBeCloseTo(2.0, 1);
+      // wpl = 50/38 ≈ 1.316, growth = 0.4 * 1.316 / 2.616 ≈ 0.201
+      // Linear would be 0.329, but saturation curve caps it
+      expect(growth).toBeCloseTo(0.20, 1);
     });
 
-    it('100 gal (380L) with 100W (1 W/gal) gives ~0.67/hour', () => {
+    it('100 gal (380L) with 100W (1 W/gal) gives ~0.067/hour', () => {
       const growth = calculateAlgaeGrowth(100, 380);
-      expect(growth).toBeCloseTo(0.67, 1);
+      expect(growth).toBeCloseTo(0.067, 2);
     });
 
-    it('100 gal (380L) with 200W (2 W/gal) gives ~1.15/hour', () => {
+    it('100 gal (380L) with 200W (2 W/gal) gives ~0.115/hour', () => {
       const growth = calculateAlgaeGrowth(200, 380);
-      // wpl = 200/380 ≈ 0.526, growth = 4 * 0.526 / 1.826 ≈ 1.15
-      expect(growth).toBeCloseTo(1.15, 1);
+      // wpl = 200/380 ≈ 0.526, growth = 0.4 * 0.526 / 1.826 ≈ 0.115
+      expect(growth).toBeCloseTo(0.115, 2);
     });
 
-    it('5 gal (19L) with 200W (extreme) gives ~3.6/hour (not instant bloom)', () => {
+    it('5 gal (19L) with 200W (extreme) gives ~0.36/hour (not instant bloom)', () => {
       const growth = calculateAlgaeGrowth(200, 19);
-      // wpl = 200/19 ≈ 10.5, growth = 4 * 10.5 / 11.8 ≈ 3.56
-      // With 10hr photoperiod = 36/day (takes ~3 days to reach 100, not 1 day)
-      expect(growth).toBeCloseTo(3.6, 1);
+      // wpl = 200/19 ≈ 10.5, growth = 0.4 * 10.5 / 11.8 ≈ 0.356
+      // With 10hr photoperiod = 3.6/day (takes weeks to reach 100)
+      expect(growth).toBeCloseTo(0.36, 1);
       expect(growth).toBeLessThan(algaeDefaults.maxGrowthRate);
     });
   });
@@ -230,8 +230,8 @@ describe('algaeSystem', () => {
 });
 
 describe('config defaults', () => {
-  it('maxGrowthRate is 4', () => {
-    expect(algaeDefaults.maxGrowthRate).toBe(4);
+  it('maxGrowthRate is 0.4', () => {
+    expect(algaeDefaults.maxGrowthRate).toBe(0.4);
   });
 
   it('halfSaturation is 1.3', () => {
@@ -254,23 +254,23 @@ describe('calculatePlantCompetitionFactor', () => {
     expect(factor).toBe(1);
   });
 
-  it('returns 0.5 at 200% total plant size (halves algae growth)', () => {
+  it('returns ~0.33 at 200% total plant size', () => {
     // Formula: 1 / (1 + totalPlantSize / competitionScale)
-    // = 1 / (1 + 200 / 200) = 1 / 2 = 0.5
+    // = 1 / (1 + 200 / 100) = 1 / 3 ≈ 0.333
     const factor = calculatePlantCompetitionFactor(200);
+    expect(factor).toBeCloseTo(1 / 3, 4);
+  });
+
+  it('returns 0.5 at 100% total plant size (halves algae growth)', () => {
+    // 1 / (1 + 100/100) = 1 / 2 = 0.5
+    const factor = calculatePlantCompetitionFactor(100);
     expect(factor).toBeCloseTo(0.5, 6);
   });
 
-  it('returns ~0.67 at 100% total plant size', () => {
-    // 1 / (1 + 100/200) = 1 / 1.5 ≈ 0.667
-    const factor = calculatePlantCompetitionFactor(100);
-    expect(factor).toBeCloseTo(2 / 3, 4);
-  });
-
-  it('returns ~0.33 at 400% total plant size', () => {
-    // 1 / (1 + 400/200) = 1 / 3 ≈ 0.333
+  it('returns 0.2 at 400% total plant size', () => {
+    // 1 / (1 + 400/100) = 1 / 5 = 0.2
     const factor = calculatePlantCompetitionFactor(400);
-    expect(factor).toBeCloseTo(1 / 3, 4);
+    expect(factor).toBeCloseTo(0.2, 4);
   });
 
   it('decreases as plant size increases', () => {
@@ -349,7 +349,7 @@ describe('algaeSystem with plants', () => {
     expect(growthWithPlants).toBeLessThan(growthNoPlants);
   });
 
-  it('200% total plant size approximately halves algae growth', () => {
+  it('200% total plant size reduces algae growth to ~33%', () => {
     const stateNoPlants = createStateWithPlants({ light: 100, plants: [] });
     const stateWithPlants = createStateWithPlants({
       light: 100,
@@ -362,8 +362,8 @@ describe('algaeSystem with plants', () => {
     const growthNoPlants = effectsNoPlants.find((e) => e.resource === 'algae')!.delta;
     const growthWithPlants = effectsWithPlants.find((e) => e.resource === 'algae')!.delta;
 
-    // 200% plant size should give factor of 0.5
-    expect(growthWithPlants).toBeCloseTo(growthNoPlants * 0.5, 4);
+    // 200% plant size: factor = 1/(1+200/100) = 1/3
+    expect(growthWithPlants).toBeCloseTo(growthNoPlants / 3, 4);
   });
 
   it('multiple plants contribute to competition', () => {
@@ -442,7 +442,7 @@ describe('algaeSystem with plants', () => {
     expect(growthWithPlants).toBeCloseTo(growthNoPlants * 0.5, 4);
   });
 
-  it('400% total plant size reduces algae growth to ~33%', () => {
+  it('400% total plant size reduces algae growth to ~20%', () => {
     const stateNoPlants = createStateWithPlants({ light: 100, plants: [] });
     const stateWithPlants = createStateWithPlants({
       light: 100,
@@ -458,7 +458,7 @@ describe('algaeSystem with plants', () => {
     const growthNoPlants = effectsNoPlants.find((e) => e.resource === 'algae')!.delta;
     const growthWithPlants = effectsWithPlants.find((e) => e.resource === 'algae')!.delta;
 
-    // 400% plant size: factor = 1/(1+400/200) = 1/3 ≈ 0.333
-    expect(growthWithPlants).toBeCloseTo(growthNoPlants / 3, 2);
+    // 400% plant size: factor = 1/(1+400/100) = 1/5 = 0.2
+    expect(growthWithPlants).toBeCloseTo(growthNoPlants / 5, 2);
   });
 });

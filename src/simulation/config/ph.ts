@@ -23,8 +23,9 @@ export const phDefaults: PhConfig = {
   calciteTargetPh: 8.0,
   driftwoodTargetPh: 6.0,
   neutralPh: 7.0,
-  basePgDriftRate: 0.05,
-  co2PhCoefficient: -0.02,
+  basePgDriftRate: 0.08,
+  // Calibrated: 30 ppm CO2 produces ~1.0 pH unit drop (matches KH/pH/CO2 charts)
+  co2PhCoefficient: -0.05,
   co2NeutralLevel: 4.0,
   hardscapeDiminishingFactor: 0.7,
 };

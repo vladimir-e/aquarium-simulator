@@ -24,10 +24,12 @@ import { isScheduleActive } from '../core/schedule.js';
  * This is a MASS rate, not concentration. The actual concentration
  * change depends on tank volume.
  *
- * Tuned so 1 bps in a 10gal (37.85L) tank ≈ 1.5 mg/L/hr.
- * Formula: 57 mg/hr / 37.85L ≈ 1.5 mg/L/hr
+ * Calibrated: 2 bps in 150L should reach 15-25 ppm CO2 at equilibrium.
+ * At baseExchangeRate 0.25, flowFactor ~0.6:
+ *   equilibrium = atmospheric + injection / (exchangeRate * flowFactor)
+ *   200 * 2 / 150 / (0.25 * 0.6) ≈ 17.8 mg/L above atmospheric → ~22 ppm total
  */
-export const CO2_MASS_RATE = 57;
+export const CO2_MASS_RATE = 200;
 
 /**
  * Available bubble rate options (bubbles per second).
