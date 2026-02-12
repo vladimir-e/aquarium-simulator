@@ -395,7 +395,7 @@ describe('Temperature drift integration', () => {
     });
 
     it('larger water changes cause bigger temperature shifts', () => {
-      const makeState = () =>
+      const makeState = (): ReturnType<typeof createSimulation> =>
         createSimulation({
           tankCapacity: 100,
           initialTemperature: 28,

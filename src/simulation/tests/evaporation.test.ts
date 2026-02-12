@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { produce } from 'immer';
 import { createSimulation } from '../state.js';
 import { tick } from '../tick.js';
-import { getPpm, getMassFromPpm } from '../resources/helpers.js';
+import { getPpm } from '../resources/helpers.js';
 
 describe('Evaporation integration', () => {
   it('water level decreases over ticks from evaporation', () => {
@@ -53,7 +53,7 @@ describe('Evaporation integration', () => {
   });
 
   it('lid reduces evaporation (compare lid types: none, mesh, full, sealed)', () => {
-    const runWithLid = (lidType: 'none' | 'mesh' | 'full' | 'sealed') => {
+    const runWithLid = (lidType: 'none' | 'mesh' | 'full' | 'sealed'): number => {
       let state = createSimulation({
         tankCapacity: 100,
         initialTemperature: 25,

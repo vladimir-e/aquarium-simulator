@@ -9,7 +9,7 @@ import { gasExchangeDefaults } from '../config/gas-exchange.js';
 /**
  * Helper: run N ticks on state.
  */
-function runTicks(state: ReturnType<typeof createSimulation>, n: number) {
+function runTicks(state: ReturnType<typeof createSimulation>, n: number): ReturnType<typeof createSimulation> {
   let s = state;
   for (let i = 0; i < n; i++) {
     s = tick(s);
@@ -250,9 +250,6 @@ describe('Gas Exchange integration', () => {
 
       // Feed the fish so they have food to eat (keeps hunger stable)
       fishState = applyAction(fishState, { type: 'feed', amount: 2.0 }).state;
-
-      const emptyO2Before = emptyState.resources.oxygen;
-      const fishO2Before = fishState.resources.oxygen;
 
       // Run 12 ticks
       emptyState = runTicks(emptyState, 12);

@@ -510,7 +510,6 @@ describe('Nitrogen Cycle Integration', () => {
 
       let peakAmmoniaPpm = 0;
       let peakNitritePpm = 0;
-      let peakNitriteTick = 0;
       let aobSpawnedTick = -1;
       let nobSpawnedTick = -1;
 
@@ -524,14 +523,12 @@ describe('Nitrogen Cycle Integration', () => {
         if (ammoniaPpm > peakAmmoniaPpm) peakAmmoniaPpm = ammoniaPpm;
         if (nitritePpm > peakNitritePpm) {
           peakNitritePpm = nitritePpm;
-          peakNitriteTick = i;
         }
         if (aobSpawnedTick === -1 && state.resources.aob > 0) aobSpawnedTick = i;
         if (nobSpawnedTick === -1 && state.resources.nob > 0) nobSpawnedTick = i;
       }
 
       const finalAmmoniaPpm = getPpm(state.resources.ammonia, state.resources.water);
-      const finalNitritePpm = getPpm(state.resources.nitrite, state.resources.water);
       const finalNitratePpm = getPpm(state.resources.nitrate, state.resources.water);
 
       // AOB should have spawned early (ammonia was above threshold from start)
