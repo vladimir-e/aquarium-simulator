@@ -172,9 +172,9 @@ describe('atoUpdate temperature blending', () => {
 
     const effects = atoUpdate(lowWaterState);
 
-    // Should only have water effect, no temperature effect
-    expect(effects.length).toBe(1);
-    expect(effects[0].resource).toBe('water');
+    // Should have water effect but no temperature effect
+    expect(effects.find((e) => e.resource === 'water')).toBeDefined();
+    expect(effects.find((e) => e.resource === 'temperature')).toBeUndefined();
   });
 });
 

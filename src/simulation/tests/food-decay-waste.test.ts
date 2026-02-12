@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { createSimulation } from './state.js';
-import { tick } from './tick.js';
-import { applyAction } from './actions/index.js';
+import { createSimulation } from '../state.js';
+import { tick } from '../tick.js';
+import { applyAction } from '../actions/index.js';
 
 describe('Food-Decay-Waste integration', () => {
   it('feeding increases food resource', () => {

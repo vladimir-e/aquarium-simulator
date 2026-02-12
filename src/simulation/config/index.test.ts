@@ -128,7 +128,7 @@ describe('temperatureDefaults', () => {
 
 describe('algaeDefaults', () => {
   it('has expected values', () => {
-    expect(algaeDefaults.maxGrowthRate).toBe(4);
+    expect(algaeDefaults.maxGrowthRate).toBe(0.4);
     expect(algaeDefaults.halfSaturation).toBe(1.3);
     expect(algaeDefaults.algaeCap).toBe(100);
   });
@@ -139,6 +139,6 @@ describe('phDefaults', () => {
     expect(phDefaults.calciteTargetPh).toBe(8.0);
     expect(phDefaults.driftwoodTargetPh).toBe(6.0);
     expect(phDefaults.neutralPh).toBe(7.0);
-    expect(phDefaults.basePgDriftRate).toBe(0.05);
+    expect(phDefaults.basePgDriftRate).toBe(0.08);
   });
 });

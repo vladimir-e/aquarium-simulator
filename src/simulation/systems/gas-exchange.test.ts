@@ -26,16 +26,16 @@ describe('calculateO2Saturation', () => {
     expect(hot).toBeLessThan(warm);
   });
 
-  it('returns ~8 mg/L at 20°C', () => {
+  it('returns ~9.2 mg/L at 20°C', () => {
     const saturation = calculateO2Saturation(20);
-    // 8.5 + (-0.05) * (20 - 15) = 8.5 - 0.25 = 8.25
-    expect(saturation).toBeCloseTo(8.25, 2);
+    // 10.08 + (-0.17) * (20 - 15) = 10.08 - 0.85 = 9.23
+    expect(saturation).toBeCloseTo(9.23, 2);
   });
 
   it('returns ~7.5 mg/L at 30°C', () => {
     const saturation = calculateO2Saturation(30);
-    // 8.5 + (-0.05) * (30 - 15) = 8.5 - 0.75 = 7.75
-    expect(saturation).toBeCloseTo(7.75, 2);
+    // 10.08 + (-0.17) * (30 - 15) = 10.08 - 2.55 = 7.53
+    expect(saturation).toBeCloseTo(7.53, 2);
   });
 
   it('has minimum of 4 mg/L even at extreme temperatures', () => {

@@ -67,7 +67,7 @@ describe('calculateBacterialGrowth', () => {
 
   it('returns near-zero growth at carrying capacity', () => {
     const growth = calculateBacterialGrowth(999, nitrogenCycleDefaults.aobGrowthRate, 1000);
-    expect(growth).toBeCloseTo(0.03 * 999 * 0.001, 6);
+    expect(growth).toBeCloseTo(nitrogenCycleDefaults.aobGrowthRate * 999 * 0.001, 6);
   });
 });
 

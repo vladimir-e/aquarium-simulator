@@ -72,8 +72,9 @@ export const plantsDefaults: PlantsConfig = {
   overgrowthPenaltyScale: 200, // Penalty reaches 50% at 200% size
   wastePerExcessSize: 0.01, // Grams waste per % excess above 200
 
-  // Algae competition - 200% total plant size halves algae growth
-  competitionScale: 200,
+  // Algae competition - 100% total plant size halves algae growth
+  // Real planted tanks with dense coverage almost eliminate algae
+  competitionScale: 100,
 };
 
 export interface PlantsConfigMeta {
@@ -175,5 +176,5 @@ export const plantsConfigMeta: PlantsConfigMeta[] = [
     step: 0.001,
   },
   // Algae competition
-  { key: 'competitionScale', label: 'Competition Scale', unit: '%', min: 100, max: 400, step: 10 },
+  { key: 'competitionScale', label: 'Competition Scale', unit: '%', min: 50, max: 300, step: 10 },
 ];

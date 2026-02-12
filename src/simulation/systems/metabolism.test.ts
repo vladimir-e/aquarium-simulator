@@ -48,8 +48,8 @@ describe('processMetabolism', () => {
 
     // No food available, so hunger only increases
     expect(result.updatedFish[0].hunger).toBeGreaterThan(20);
-    // Should increase by hungerIncreaseRate (4.0)
-    expect(result.updatedFish[0].hunger).toBeCloseTo(24, 0);
+    // Should increase by hungerIncreaseRate (0.6)
+    expect(result.updatedFish[0].hunger).toBeCloseTo(20.6, 0);
   });
 
   it('reduces hunger when food is consumed', () => {

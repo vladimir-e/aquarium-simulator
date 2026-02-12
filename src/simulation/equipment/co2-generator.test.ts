@@ -15,13 +15,13 @@ const TANK_100L = 100;
 
 describe('CO2 Generator constants', () => {
   it('has correct mass rate constant', () => {
-    expect(CO2_MASS_RATE).toBe(57);
+    expect(CO2_MASS_RATE).toBe(200);
   });
 
-  it('mass rate tuned for ~1.5 mg/L/hr in 10gal tank', () => {
-    // At 1 bps in a 10gal (37.85L) tank, we want approximately 1.5 mg/L/hr
+  it('mass rate tuned for ~5.3 mg/L/hr in 10gal tank', () => {
+    // At 1 bps in a 10gal (37.85L) tank: 200 / 37.85 ≈ 5.28
     const rate = CO2_MASS_RATE / TANK_10GAL;
-    expect(rate).toBeCloseTo(1.5, 1); // Within 0.1 of 1.5
+    expect(rate).toBeCloseTo(5.3, 1);
   });
 
   it('has correct bubble rate options', () => {
@@ -43,9 +43,9 @@ describe('CO2 Generator constants', () => {
 
 describe('calculateCo2Injection', () => {
   it('calculates CO2 injection based on bubble rate and tank capacity', () => {
-    // 1 bps in 100L tank = 57 / 100 = 0.57 mg/L/hr
+    // 1 bps in 100L tank = 200 / 100 = 2.0 mg/L/hr
     const injection = calculateCo2Injection(1.0, TANK_100L);
-    expect(injection).toBe(0.57);
+    expect(injection).toBe(2.0);
   });
 
   it('scales linearly with bubble rate', () => {
@@ -69,15 +69,15 @@ describe('calculateCo2Injection', () => {
   });
 
   it('calculates correctly for minimum bubble rate', () => {
-    // 0.5 bps in 100L = 28.5 / 100 = 0.285 mg/L/hr
+    // 0.5 bps in 100L = 100 / 100 = 1.0 mg/L/hr
     const injection = calculateCo2Injection(0.5, TANK_100L);
-    expect(injection).toBe(0.285);
+    expect(injection).toBe(1.0);
   });
 
   it('calculates correctly for maximum bubble rate', () => {
-    // 5.0 bps in 100L = 285 / 100 = 2.85 mg/L/hr
+    // 5.0 bps in 100L = 1000 / 100 = 10.0 mg/L/hr
     const injection = calculateCo2Injection(5.0, TANK_100L);
-    expect(injection).toBe(2.85);
+    expect(injection).toBe(10.0);
   });
 
   it('returns 0 for zero bubble rate', () => {
@@ -96,9 +96,9 @@ describe('calculateCo2Injection', () => {
   });
 
   it('handles fractional bubble rates', () => {
-    // 1.5 bps in 100L = 85.5 / 100 = 0.855 mg/L/hr
+    // 1.5 bps in 100L = 300 / 100 = 3.0 mg/L/hr
     const injection = calculateCo2Injection(1.5, TANK_100L);
-    expect(injection).toBe(0.855);
+    expect(injection).toBe(3.0);
   });
 
   it('uses correct mass rate constant', () => {
@@ -111,15 +111,15 @@ describe('calculateCo2Injection', () => {
 
 describe('formatCo2Rate', () => {
   it('formats rate with correct unit', () => {
-    // 1 bps in 100L = 0.57 mg/L/hr
+    // 1 bps in 100L = 2.0 mg/L/hr
     const formatted = formatCo2Rate(1.0, TANK_100L);
-    expect(formatted).toBe('+0.6 mg/L/hr');
+    expect(formatted).toBe('+2.0 mg/L/hr');
   });
 
   it('shows one decimal place', () => {
-    // 2 bps in 100L = 1.14 mg/L/hr → +1.1
+    // 2 bps in 100L = 4.0 mg/L/hr → +4.0
     const formatted = formatCo2Rate(2.0, TANK_100L);
-    expect(formatted).toBe('+1.1 mg/L/hr');
+    expect(formatted).toBe('+4.0 mg/L/hr');
   });
 
   it('includes plus sign prefix', () => {
@@ -128,21 +128,21 @@ describe('formatCo2Rate', () => {
   });
 
   it('formats for 10gal tank correctly', () => {
-    // 1 bps in 10gal ≈ 1.5 mg/L/hr
+    // 1 bps in 10gal ≈ 5.3 mg/L/hr
     const formatted = formatCo2Rate(1.0, TANK_10GAL);
-    expect(formatted).toBe('+1.5 mg/L/hr');
+    expect(formatted).toBe('+5.3 mg/L/hr');
   });
 
   it('formats minimum bubble rate in 100L tank', () => {
-    // 0.5 bps in 100L = 0.285 → +0.3
+    // 0.5 bps in 100L = 1.0 → +1.0
     const formatted = formatCo2Rate(0.5, TANK_100L);
-    expect(formatted).toBe('+0.3 mg/L/hr');
+    expect(formatted).toBe('+1.0 mg/L/hr');
   });
 
   it('formats maximum bubble rate in 100L tank', () => {
-    // 5.0 bps in 100L = 2.85 → +2.9
+    // 5.0 bps in 100L = 10.0 → +10.0
     const formatted = formatCo2Rate(5.0, TANK_100L);
-    expect(formatted).toBe('+2.9 mg/L/hr');
+    expect(formatted).toBe('+10.0 mg/L/hr');
   });
 });
 
@@ -166,7 +166,7 @@ describe('co2GeneratorUpdate', () => {
       expect(effects).toHaveLength(1);
       expect(effects[0].tier).toBe('active');
       expect(effects[0].resource).toBe('co2');
-      expect(effects[0].delta).toBe(0.57); // 57 / 100
+      expect(effects[0].delta).toBe(2.0); // 200 / 100
       expect(effects[0].source).toBe('co2-generator');
     });
 
@@ -234,7 +234,7 @@ describe('co2GeneratorUpdate', () => {
 
       expect(isOn).toBe(true);
       expect(effects).toHaveLength(1);
-      expect(effects[0].delta).toBe(1.14); // 2 * 57 / 100
+      expect(effects[0].delta).toBe(4.0); // 2 * 200 / 100
     });
 
     it('works at last hour of schedule', () => {
@@ -385,7 +385,7 @@ describe('co2GeneratorUpdate', () => {
 
       const { effects } = co2GeneratorUpdate(state);
 
-      expect(effects[0].delta).toBe(0.285); // 0.5 * 57 / 100
+      expect(effects[0].delta).toBe(1.0); // 0.5 * 200 / 100
     });
 
     it('handles maximum bubble rate', () => {
@@ -400,7 +400,7 @@ describe('co2GeneratorUpdate', () => {
 
       const { effects } = co2GeneratorUpdate(state);
 
-      expect(effects[0].delta).toBe(2.85); // 5.0 * 57 / 100
+      expect(effects[0].delta).toBe(10.0); // 5.0 * 200 / 100
     });
   });
 });
