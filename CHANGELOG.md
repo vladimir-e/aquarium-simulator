@@ -10,7 +10,7 @@ Format: - **Feature name** (#PR) - Brief description (under 100 chars)
 
 ## 2026-02-10
 
-- **Simulation Calibration** - 30 real-world calibration scenarios across 9 system groups (nitrogen cycle, gas exchange, temperature, evaporation, nutrients, plants, pH, livestock, decay); calibrated O2 saturation to Henry's Law, nitrogen cycle to 25-35 day fishless cycle, algae growth to weeks-not-days blooms, CO2 injection for planted tank equilibrium, hunger rate for 3-7 day survival, pH drift for ~1 pH unit drop at 30 ppm CO2; test helpers module for scenario setup
+- **Simulation Calibration** - real-world calibration across 9 system groups (nitrogen cycle, gas exchange, temperature, evaporation, nutrients, plants, pH, livestock, decay); calibrated O2 saturation to Henry's Law, nitrogen cycle to 25-35 day fishless cycle, algae growth to weeks-not-days blooms, CO2 injection for planted tank equilibrium, hunger rate for 3-7 day survival, pH drift for ~1 pH unit drop at 30 ppm CO2; test helpers module for scenario setup
 
 ## 2026-02-06
 
