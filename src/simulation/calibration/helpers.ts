@@ -6,14 +6,14 @@
  */
 
 import { produce } from 'immer';
-import type { SimulationState, SimulationConfig, FishSpecies, PlantSpecies } from './state.js';
-import type { Action } from './actions/types.js';
-import { createSimulation } from './state.js';
-import { tick } from './tick.js';
-import { applyAction } from './actions/index.js';
-import { getPpm, getMassFromPpm } from './resources/helpers.js';
-import type { TunableConfig } from './config/index.js';
-import { nitrogenCycleDefaults } from './config/nitrogen-cycle.js';
+import type { SimulationState, SimulationConfig, FishSpecies, PlantSpecies } from '../state.js';
+import type { Action } from '../actions/types.js';
+import { createSimulation } from '../state.js';
+import { tick } from '../tick.js';
+import { applyAction } from '../actions/index.js';
+import { getPpm, getMassFromPpm } from '../resources/helpers.js';
+import type { TunableConfig } from '../config/index.js';
+import { nitrogenCycleDefaults } from '../config/nitrogen-cycle.js';
 
 // Re-export helpers for test convenience
 export { getPpm as ppm, getMassFromPpm as massFromPpm };
