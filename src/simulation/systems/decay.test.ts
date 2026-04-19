@@ -155,7 +155,7 @@ describe('decaySystem', () => {
     );
   });
 
-  it('creates ambient waste effect (default 0.01 g/hour)', () => {
+  it('creates ambient waste effect at the configured rate', () => {
     const state = createTestState({ food: 0 });
     const effects = decaySystem.update(state, DEFAULT_CONFIG);
 
@@ -163,7 +163,9 @@ describe('decaySystem', () => {
       (e) => e.resource === 'waste' && e.source === 'environment'
     );
     expect(ambientEffect).toBeDefined();
-    expect(ambientEffect!.delta).toBe(0.01);
+    // Pins to the tunable default so retuning ambient waste doesn't break
+    // unit tests (the value itself is exercised by the calibration suite).
+    expect(ambientEffect!.delta).toBe(DEFAULT_CONFIG.decay.ambientWaste);
   });
 
   it('creates no food effect when food is 0', () => {

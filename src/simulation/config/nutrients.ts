@@ -80,10 +80,6 @@ export interface NutrientsConfig {
   // Decay phosphate production
   /** Phosphate produced per gram of decayed mass (mg/g) */
   phosphatePerDecay: number;
-
-  // Nutrient consumption
-  /** Base nutrient consumption rate per 100% plant size per hour */
-  baseConsumptionRate: number;
 }
 
 export const nutrientsDefaults: NutrientsConfig = {
@@ -96,11 +92,15 @@ export const nutrientsDefaults: NutrientsConfig = {
     iron: 1.0, // mg per ml (5ml/40L = 0.125 ppm, 63% of 0.2ppm optimal)
   },
 
-  // Optimal thresholds (ppm) - typical planted tank targets
+  // Optimal thresholds (ppm) — tuned so a well-run planted tank with the
+  // default fertilizer formula reaches thriving sufficiency for high-
+  // demand species at realistic dose rates. Values at the low end of the
+  // literature ranges; hobbyists see plants thrive well before hitting
+  // these, and the engine caps sufficiency at 1.0 so excess has no effect.
   optimalNitratePpm: 15.0, // 10-20 ppm range, center at 15
   optimalPhosphatePpm: 1.0, // 0.5-2 ppm range
-  optimalPotassiumPpm: 10.0, // 5-20 ppm range
-  optimalIronPpm: 0.2, // 0.1-0.5 ppm range
+  optimalPotassiumPpm: 7.0,  // 5-20 real range; lowered so Variant A MC thrives on 40 mg/day K dose
+  optimalIronPpm: 0.15,      // 0.1-0.5 real range; lowered to the same band
 
   // Demand multipliers - low-demand plants can survive on less
   lowDemandMultiplier: 0.3, // 30% of optimal
@@ -113,9 +113,17 @@ export const nutrientsDefaults: NutrientsConfig = {
   strugglingThreshold: 0.2, // 20%+ = struggling
   // Below 20% = starving
 
-  // Condition rates - gradual changes give warning
-  conditionRecoveryRate: 3.0, // 3% per tick when thriving
-  conditionDecayRate: 2.0, // 2% per tick when starving
+  // Condition dynamics use the homeostatic model in `systems/nutrients.ts`:
+  // condition trends toward `sufficiency * 100`, capped at these step rates.
+  //
+  // Decay slower than recovery by design — planted-tank hobbyists see
+  // nutrient crashes play out over weeks (scenario 02 Variant B: Monte Carlo
+  // at 30-55 % condition on day 28 after 3+ weeks of no dosing), not days.
+  // Recovery faster so plants "bounce back" when the user corrects a
+  // deficiency, but still gradual enough that missing a single dose
+  // doesn't snap a plant back to 100 % instantly.
+  conditionRecoveryRate: 0.5,
+  conditionDecayRate: 0.1,
 
   // Shedding and death - forgiving thresholds
   sheddingConditionThreshold: 30, // Shedding starts at condition < 30%
@@ -130,10 +138,6 @@ export const nutrientsDefaults: NutrientsConfig = {
   // from bacterial decomposition, providing ~5% of plant phosphate needs from waste
   phosphatePerDecay: 50, // mg phosphate per gram decayed
 
-  // Nutrient consumption - intentionally slow; plants primarily get nutrients from
-  // fish waste (nitrate via nitrogen cycle, phosphate via decay). Fertilizer supplements.
-  // At 100% plant coverage: 0.1mg/hr means 1ml (96mg) lasts ~40 days
-  baseConsumptionRate: 0.1, // mg total nutrients per 100% plant size per hour
 };
 
 export interface NutrientsConfigMeta {
@@ -193,9 +197,6 @@ export const nutrientsConfigMeta: NutrientsConfigMeta[] = [
 
   // Decay phosphate
   { key: 'phosphatePerDecay', label: 'Phosphate per Decay', unit: 'mg/g', min: 10, max: 200, step: 10 },
-
-  // Consumption
-  { key: 'baseConsumptionRate', label: 'Base Consumption Rate', unit: 'mg/hr', min: 0.01, max: 1, step: 0.01 },
 ];
 
 /**

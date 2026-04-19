@@ -327,7 +327,7 @@ const PlantsConfigSchema = z
     optimalNitrate: z.number(),
     o2PerPhotosynthesis: z.number(),
     co2PerPhotosynthesis: z.number(),
-    nitratePerPhotosynthesis: z.number(),
+    nutrientsPerPhotosynthesis: z.number(),
     biomassPerPhotosynthesis: z.number(),
     baseRespirationRate: z.number(),
     o2PerRespiration: z.number(),
@@ -372,7 +372,6 @@ const NutrientsConfigSchema = z
     deathSizeThreshold: z.number(),
     wastePerPlantDeath: z.number(),
     phosphatePerDecay: z.number(),
-    baseConsumptionRate: z.number(),
   })
   .strict();
 

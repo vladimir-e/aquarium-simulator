@@ -51,17 +51,32 @@ export function calculateHardscapeTargetPH(
 
 /**
  * Calculate pH adjustment from CO2 level.
- * High CO2 lowers pH (carbonic acid formation: CO2 + H2O -> H2CO3).
+ *
+ * Uses a logarithmic coupling:
+ *   pHEffect = -log10(co2 / co2NeutralLevel) × co2PhCoefficient
+ *
+ * The log form is the correct shape for Henderson-Hasselbalch
+ * (pH = pK1 + log([HCO3-]/[CO2])) and gives a realistic dynamic range
+ * across the 4–40 ppm CO2 band typical in planted tanks:
+ *
+ * At the neutral CO2 level, effect = 0.
+ * Doubling CO2 shifts pH by −0.30 × coefficient units (log10(2)).
+ * With coefficient ≈ 1.0 and neutral = 4 ppm, a 25 ppm CO2 plume lowers
+ * pH by ~0.80, matching the 0.3–0.5 diurnal swing hobbyists measure in
+ * CO2-injected planted tanks.
+ *
+ * For CO2 below the neutral level the effect goes positive (slight pH
+ * rise), which matches real-world tanks that off-gas below atmospheric.
  *
  * @param co2 - Current CO2 concentration in mg/L
- * @returns pH adjustment (negative for high CO2)
+ * @returns pH adjustment (negative for elevated CO2, positive below neutral)
  */
 export function calculateCO2PHEffect(
   co2: number,
   config: PhConfig = phDefaults
 ): number {
-  const co2Excess = co2 - config.co2NeutralLevel;
-  return co2Excess * config.co2PhCoefficient;
+  if (co2 <= 0 || config.co2NeutralLevel <= 0) return 0;
+  return -Math.log10(co2 / config.co2NeutralLevel) * config.co2PhCoefficient;
 }
 
 // ============================================================================

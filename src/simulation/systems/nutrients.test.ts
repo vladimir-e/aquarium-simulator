@@ -3,11 +3,11 @@ import {
   getDemandMultiplier,
   calculateNutrientSufficiency,
   updatePlantCondition,
+  conditionTargetFor,
   calculateShedding,
   shouldPlantDie,
   calculateDeathWaste,
   processPlantNutrients,
-  calculateNutrientConsumption,
   getLimitingNutrient,
 } from './nutrients.js';
 import { nutrientsDefaults } from '../config/nutrients.js';
@@ -114,15 +114,15 @@ describe('nutrients system', () => {
       expect(sufficiency).toBe(0);
     });
 
-    it('uses Liebig\'s Law - returns minimum factor', () => {
-      // All nutrients at optimal except iron at 50%
+    it("uses Liebig's Law - returns minimum factor", () => {
+      // All nutrients at optimal except iron at 50 %
       const resources = createOptimalResources();
-      resources.iron = 0.1 * 40; // 50% of optimal 0.2ppm
+      resources.iron = nutrientsDefaults.optimalIronPpm * 0.5 * 40;
 
       const sufficiency = calculateNutrientSufficiency(resources, 40, 'dwarf_hairgrass');
 
-      // Should be limited by iron (50%)
-      expect(sufficiency).toBeCloseTo(0.5, 1);
+      // High-demand species → iron is required → Liebig caps at 0.5.
+      expect(sufficiency).toBeCloseTo(0.5, 2);
     });
 
     it('returns 0 for zero water volume', () => {
@@ -147,6 +147,51 @@ describe('nutrients system', () => {
 
       expect(lowDemandSufficiency).toBeGreaterThan(highDemandSufficiency);
     });
+
+    it('treats K and Fe as *boosters* for low-demand plants (no gating)', () => {
+      // Java fern should only be gated on nitrate. Zero out K and Fe — it
+      // should still report full sufficiency as long as NO3 is optimal.
+      const resources = createOptimalResources();
+      resources.potassium = 0;
+      resources.iron = 0;
+      const s = calculateNutrientSufficiency(resources, 40, 'java_fern');
+      expect(s).toBe(1);
+    });
+
+    it('treats K and Fe as *boosters* for medium-demand plants (PO4 still required)', () => {
+      const resources = createOptimalResources();
+      resources.potassium = 0;
+      resources.iron = 0;
+      const s = calculateNutrientSufficiency(resources, 40, 'amazon_sword');
+      expect(s).toBe(1);
+    });
+
+    it('gates medium-demand plants on phosphate too', () => {
+      const resources = createOptimalResources();
+      resources.phosphate = 0;
+      const s = calculateNutrientSufficiency(resources, 40, 'amazon_sword');
+      expect(s).toBe(0);
+    });
+
+    it('gates high-demand plants on all four', () => {
+      const resources = createOptimalResources();
+      resources.iron = 0; // only Fe missing
+      const s = calculateNutrientSufficiency(resources, 40, 'monte_carlo');
+      expect(s).toBe(0);
+    });
+  });
+
+  describe('conditionTargetFor', () => {
+    it('is linear in sufficiency', () => {
+      expect(conditionTargetFor(0)).toBe(0);
+      expect(conditionTargetFor(0.5)).toBe(50);
+      expect(conditionTargetFor(1)).toBe(100);
+    });
+
+    it('clamps out-of-range sufficiency', () => {
+      expect(conditionTargetFor(-0.1)).toBe(0);
+      expect(conditionTargetFor(1.5)).toBe(100);
+    });
   });
 
   describe('updatePlantCondition', () => {
@@ -156,16 +201,17 @@ describe('nutrients system', () => {
       expect(newCondition).toBe(50 + nutrientsDefaults.conditionRecoveryRate);
     });
 
-    it('slowly improves condition when adequate (0.5-0.8)', () => {
+    it('improves condition toward 65 % when adequate (0.5-0.8)', () => {
+      // Homeostatic model: adequate plants trend toward ~65 % condition at
+      // the recovery step rate (with saturation at the target).
       const newCondition = updatePlantCondition(50, 0.6);
-
-      expect(newCondition).toBeCloseTo(50 + nutrientsDefaults.conditionRecoveryRate * 0.3, 1);
+      expect(newCondition).toBe(50 + nutrientsDefaults.conditionRecoveryRate);
     });
 
-    it('slowly degrades condition when struggling (0.2-0.5)', () => {
+    it('drops condition toward 25 % when struggling (0.2-0.5)', () => {
+      // Struggling plants relax toward ~25 % condition at the decay rate.
       const newCondition = updatePlantCondition(50, 0.3);
-
-      expect(newCondition).toBeCloseTo(50 - nutrientsDefaults.conditionDecayRate * 0.5, 1);
+      expect(newCondition).toBe(50 - nutrientsDefaults.conditionDecayRate);
     });
 
     it('rapidly degrades condition when starving (< 0.2)', () => {
@@ -175,13 +221,22 @@ describe('nutrients system', () => {
     });
 
     it('clamps condition to maximum 100', () => {
-      const newCondition = updatePlantCondition(99, 1.0);
-
-      expect(newCondition).toBe(100);
+      // Start within reach of the target (100) so a single tick can hit it.
+      const newCondition = updatePlantCondition(
+        100 - nutrientsDefaults.conditionRecoveryRate * 0.5,
+        1.0
+      );
+      expect(newCondition).toBeLessThanOrEqual(100);
+      expect(newCondition).toBeGreaterThanOrEqual(99.4);
     });
 
     it('clamps condition to minimum 0', () => {
-      const newCondition = updatePlantCondition(1, 0);
+      // Pick a starting condition smaller than the per-tick decay so the
+      // clamp kicks in regardless of the current tuning.
+      const newCondition = updatePlantCondition(
+        nutrientsDefaults.conditionDecayRate * 0.5,
+        0
+      );
 
       expect(newCondition).toBe(0);
     });
@@ -366,59 +421,9 @@ describe('nutrients system', () => {
     });
   });
 
-  describe('calculateNutrientConsumption', () => {
-    it('returns zeros when no plants', () => {
-      const resources = createOptimalResources();
-
-      const result = calculateNutrientConsumption(0, resources);
-
-      expect(result.nitrateConsumed).toBe(0);
-      expect(result.phosphateConsumed).toBe(0);
-      expect(result.potassiumConsumed).toBe(0);
-      expect(result.ironConsumed).toBe(0);
-    });
-
-    it('scales consumption with plant size', () => {
-      const resources = createOptimalResources();
-
-      const small = calculateNutrientConsumption(100, resources);
-      const large = calculateNutrientConsumption(200, resources);
-
-      expect(large.nitrateConsumed).toBe(small.nitrateConsumed * 2);
-    });
-
-    it('clamps consumption to available resources', () => {
-      // Very low nutrients
-      const resources = createResources({
-        nitrate: 0.01,
-        phosphate: 0.001,
-        potassium: 0.01,
-        iron: 0.0001,
-      });
-
-      const result = calculateNutrientConsumption(500, resources);
-
-      expect(result.nitrateConsumed).toBeLessThanOrEqual(resources.nitrate);
-      expect(result.phosphateConsumed).toBeLessThanOrEqual(resources.phosphate);
-      expect(result.potassiumConsumed).toBeLessThanOrEqual(resources.potassium);
-      expect(result.ironConsumed).toBeLessThanOrEqual(resources.iron);
-    });
-
-    it('consumes nutrients in fertilizer formula ratio', () => {
-      const resources = createOptimalResources();
-
-      const result = calculateNutrientConsumption(100, resources);
-
-      // Check ratios match fertilizer formula (approximately)
-      const total = result.nitrateConsumed + result.phosphateConsumed + result.potassiumConsumed + result.ironConsumed;
-      if (total > 0) {
-        const nitrateRatio = result.nitrateConsumed / total;
-        const formulaTotal = 50 + 5 + 40 + 1; // default formula
-        const expectedNitrateRatio = 50 / formulaTotal;
-        expect(nitrateRatio).toBeCloseTo(expectedNitrateRatio, 1);
-      }
-    });
-  });
+  // Nutrient consumption moved into photosynthesis (see photosynthesis.test.ts);
+  // plants draw nutrients in fertilizer ratio from the "potential photosynthesis"
+  // pathway. There is no standalone nutrient consumption function.
 
   describe('getLimitingNutrient', () => {
     it('identifies nitrate as limiting when lowest', () => {

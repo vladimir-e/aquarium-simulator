@@ -20,9 +20,15 @@ export interface PlantsConfig {
   o2PerPhotosynthesis: number;
   /** CO2 consumed per unit photosynthesis (mg/L) */
   co2PerPhotosynthesis: number;
-  /** Nitrate consumed per unit photosynthesis (mg per L of tank) */
-  nitratePerPhotosynthesis: number;
-  /** Biomass produced per unit photosynthesis */
+  /**
+   * Total plant nutrients (NO3 + PO4 + K + Fe) consumed per unit of "potential
+   * photosynthesis" (plant size × light × CO2, pre-Liebig). Consumption is
+   * split across the four nutrients by the fertilizer formula ratio.
+   * Calibrated so at Variant A steady state the plants' daily uptake roughly
+   * matches the 1 ml/day auto-dose + fish bioload (scenario 02).
+   */
+  nutrientsPerPhotosynthesis: number;
+  /** Biomass produced per unit of actual photosynthesis (post-Liebig). */
   biomassPerPhotosynthesis: number;
 
   // Respiration constants
@@ -57,7 +63,17 @@ export const plantsDefaults: PlantsConfig = {
   optimalNitrate: 10.0, // ppm - typical target for planted tanks
   o2PerPhotosynthesis: 0.7, // mg/L per photosynthesis unit
   co2PerPhotosynthesis: 0.5, // mg/L per photosynthesis unit
-  nitratePerPhotosynthesis: 0.02, // mg per L per photosynthesis unit (~0.4 mg/day at 10hr lights)
+  // Calibrated against scenario 02: at ~300 % total plant size with 8 hr
+  // photoperiod and optimal CO2, potential photosynthesis ≈ 1.0 × 3.0 × 1.0
+  // = 3.0 / hr → 24 units / day. 4 mg/unit × 24 × 1.2 (active biomass +
+  // 20 % maintenance draw) ≈ 115 mg/day total nutrient uptake at full
+  // sufficiency — matches the 1 ml/day auto-dose (96 mg) + fish bioload
+  // + ambient mineralization so NO3 plateaus instead of runaway.
+  // See `systems/photosynthesis.ts` for the uptake formula; it blends
+  // Liebig-gated biomass draw with a smaller potential-rate maintenance
+  // draw, so Variant B plants keep trickling nutrients down even with a
+  // starved limiting factor.
+  nutrientsPerPhotosynthesis: 4.0,
   biomassPerPhotosynthesis: 1.0, // biomass units per photosynthesis unit
 
   // Respiration - ~15% of photosynthesis, runs 24/7
@@ -67,8 +83,12 @@ export const plantsDefaults: PlantsConfig = {
   respirationQ10: 2.0, // Rate doubles per 10°C increase
   respirationReferenceTemp: 25.0, // °C
 
-  // Growth - ~1.5% per day at ideal conditions (10hr light, optimal resources)
-  sizePerBiomass: 0.15, // 10hr light × 1.0 biomass × 0.15 = 1.5% per day
+  // Growth — calibrated for scenario 02: 5 plants starting at 35 % size reach
+  // roughly 60–85 % by day 28 under optimal conditions (Variant A). At
+  // biomass rate 1.0 per 100 % plant size, 8 hr/day photoperiod, and the
+  // per-species growth-rate share, this gives the MC carpet the visible
+  // "filled in" behavior hobbyists expect in a high-tech tank.
+  sizePerBiomass: 0.4,
   overgrowthPenaltyScale: 200, // Penalty reaches 50% at 200% size
   wastePerExcessSize: 0.01, // Grams waste per % excess above 200
 
@@ -115,12 +135,12 @@ export const plantsConfigMeta: PlantsConfigMeta[] = [
     step: 0.1,
   },
   {
-    key: 'nitratePerPhotosynthesis',
-    label: 'Nitrate per Photosynthesis',
-    unit: 'mg/L',
-    min: 0.001,
-    max: 0.1,
-    step: 0.001,
+    key: 'nutrientsPerPhotosynthesis',
+    label: 'Nutrients per Photosynthesis',
+    unit: 'mg',
+    min: 0.5,
+    max: 20,
+    step: 0.5,
   },
   {
     key: 'biomassPerPhotosynthesis',
