@@ -56,8 +56,8 @@ describe('calculateStress', () => {
     const stress = calculateStress(fish, resources, 100, 100, livestockDefaults);
 
     // deviation = 22 - 18 = 4°C, hardiness = 0.5, factor = 0.5
-    // stress = 2.0 * 4 * 0.5 = 4
-    expect(stress).toBeCloseTo(4, 1);
+    // stress = 0.85 * 4 * 0.5 = 1.7
+    expect(stress).toBeCloseTo(0.85 * 4 * 0.5, 2);
   });
 
   it('applies temperature stress above safe range', () => {

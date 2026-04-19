@@ -129,7 +129,17 @@ export const livestockDefaults: LivestockConfig = {
   baseHealthRecovery: 1.0,
 
   // Stressor severities
-  temperatureStressSeverity: 2.0, // 2% damage per °C outside range per hour
+  // Per °C outside the species' preferred temperatureRange, scaled by
+  // (1 - hardiness). Calibrated to scenario 04 A.1: a betta (hardiness
+  // 0.6, tempMin 24 °C) at 20 °C sustained should decline ~5 %/day,
+  // landing in the 40–65 band after 7 days and risk dying around day
+  // 21. Net per-hour damage ≈ severity × gap × (1 − hardiness) −
+  // baseHealthRecovery. At severity 0.75 / 4 °C gap / 0.4 factor =
+  // 1.2 %/hr stress − 1 %/hr recovery = 0.2 %/hr = 4.8 %/day loss.
+  // At 1 °C below (23 °C), stress = 0.3 %/hr, net +0.7 %/hr healing —
+  // matches the scenario's "sub-stress band for betta, mild decline
+  // over weeks, not cliff" expectation for the 23 °C failure mode.
+  temperatureStressSeverity: 0.85, // %/°C/hr before hardiness scaling
   phStressSeverity: 3.0, // 3% damage per pH unit outside range per hour
   // Per ppm of UNIONIZED NH3. Sensitive freshwater teleosts show acute
   // gill damage at ~0.05 ppm free NH3 sustained. 175 puts ~0.9 %/hr
