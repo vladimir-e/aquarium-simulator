@@ -10,6 +10,7 @@ Format: - **Feature name** (#PR) - Brief description (under 100 chars)
 
 ## 2026-04-19
 
+- **Filterless surface diffusion** - gas exchange now includes a baseline passive-diffusion floor on `flowFactor` (new `minFlowFactor`, default 0.1) so filterless tanks still equilibrate with the atmosphere across the still surface instead of collapsing to zero exchange; filterless 5 gal betta holds ~7.6 mg/L O2 during respiration draw instead of drifting indefinitely; S3 community unchanged (canister's flow factor is well above the floor)
 - **Gas exchange calibration** - fish respiration `baseRespirationRate` now an absolute mg O2/g/hr rate (was mis-applied as a concentration delta, silently embedding tank volume); livestock pipeline converts to mg/L using water volume, matching the decay system's idiom; default bumped from 0.02 to 0.3, midpoint of real 0.2–0.5 band; 70 g bioload in 150 L now draws the expected 0.14 mg/L/hr and the S3 community tank holds 7–8 mg/L O2 indefinitely instead of crashing in 7 hours
 
 ## 2026-04-18

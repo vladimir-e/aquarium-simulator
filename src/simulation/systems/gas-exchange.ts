@@ -34,9 +34,14 @@ export function calculateO2Saturation(
  * Calculate flow factor for gas exchange.
  * More flow = faster equilibration, with diminishing returns.
  *
+ * A configured floor (`minFlowFactor`) models passive air/water surface
+ * diffusion: a still tank still equilibrates with the atmosphere, just
+ * slowly. Degenerate tanks (capacity <= 0) still return 0 — no water,
+ * no surface.
+ *
  * @param flow - Water flow in L/h
  * @param tankCapacity - Tank capacity in L
- * @returns Flow factor between 0 and 1
+ * @returns Flow factor between minFlowFactor and 1
  */
 export function calculateFlowFactor(
   flow: number,
@@ -45,8 +50,9 @@ export function calculateFlowFactor(
 ): number {
   if (tankCapacity <= 0) return 0;
   const turnovers = flow / tankCapacity;
-  // Approaches 1.0 asymptotically as flow increases
-  return Math.min(1.0, turnovers / config.optimalFlowTurnover);
+  const flowDriven = Math.min(1.0, turnovers / config.optimalFlowTurnover);
+  // Floor at minFlowFactor for baseline passive surface diffusion.
+  return Math.max(flowDriven, config.minFlowFactor);
 }
 
 /**

@@ -52,14 +52,14 @@ describe('calculateO2Saturation', () => {
 });
 
 describe('calculateFlowFactor', () => {
-  it('returns 0 when tank capacity is 0', () => {
+  it('returns 0 when tank capacity is 0 (degenerate tank, no surface)', () => {
     const factor = calculateFlowFactor(100, 0);
     expect(factor).toBe(0);
   });
 
-  it('returns 0 when flow is 0', () => {
+  it('returns minFlowFactor when flow is 0 (passive surface diffusion)', () => {
     const factor = calculateFlowFactor(0, 100);
-    expect(factor).toBe(0);
+    expect(factor).toBe(gasExchangeDefaults.minFlowFactor);
   });
 
   it('returns 1.0 at optimal flow turnover', () => {
@@ -82,10 +82,28 @@ describe('calculateFlowFactor', () => {
     expect(factor).toBe(1.0);
   });
 
-  it('scales linearly with flow below optimal', () => {
-    const factor1 = calculateFlowFactor(200, 100);
-    const factor2 = calculateFlowFactor(400, 100);
+  it('scales linearly with flow below optimal, above the passive floor', () => {
+    // Choose flows well above the passive floor contribution.
+    const factor1 = calculateFlowFactor(400, 100);
+    const factor2 = calculateFlowFactor(800, 100);
     expect(factor2).toBeCloseTo(factor1 * 2, 2);
+  });
+
+  it('floors at minFlowFactor when flow-driven factor is below it', () => {
+    // Tiny flow — well under 10% of optimal. Should be clamped to the floor.
+    const factor = calculateFlowFactor(10, 100);
+    expect(factor).toBe(gasExchangeDefaults.minFlowFactor);
+  });
+
+  it('honours a custom minFlowFactor', () => {
+    const custom = { ...gasExchangeDefaults, minFlowFactor: 0.25 };
+    expect(calculateFlowFactor(0, 100, custom)).toBe(0.25);
+    expect(calculateFlowFactor(10000, 100, custom)).toBe(1.0);
+  });
+
+  it('a zero minFlowFactor recovers the pure flow-driven behaviour', () => {
+    const noFloor = { ...gasExchangeDefaults, minFlowFactor: 0 };
+    expect(calculateFlowFactor(0, 100, noFloor)).toBe(0);
   });
 });
 
@@ -279,16 +297,44 @@ describe('gasExchangeSystem', () => {
     expect(coldO2Delta).toBeGreaterThan(hotO2Delta);
   });
 
-  it('creates no effects with zero flow and no aeration', () => {
+  it('still exchanges slowly with zero flow and no aeration (passive surface diffusion)', () => {
     const state = createTestState({
       oxygen: 6.0,
       co2: 10.0,
+      temperature: 25,
       flow: 0,
       aeration: false,
     });
     const effects = gasExchangeSystem.update(state, DEFAULT_CONFIG);
 
-    // With zero flow and no aeration, no gas exchange occurs
+    const o2Effect = effects.find((e) => e.source === 'gas-exchange-o2');
+    const co2Effect = effects.find((e) => e.source === 'gas-exchange-co2');
+
+    // Both gases still equilibrate through the still surface.
+    expect(o2Effect).toBeDefined();
+    expect(o2Effect!.delta).toBeGreaterThan(0); // moving toward saturation
+    expect(co2Effect).toBeDefined();
+    expect(co2Effect!.delta).toBeLessThan(0); // off-gassing toward atmospheric
+
+    // The passive rate is a small fraction of the full-flow rate.
+    const geConfig = DEFAULT_CONFIG.gasExchange;
+    const o2Saturation = calculateO2Saturation(25, geConfig);
+    const fullFlowO2 = geConfig.baseExchangeRate * (o2Saturation - 6.0);
+    expect(o2Effect!.delta).toBeCloseTo(fullFlowO2 * geConfig.minFlowFactor, 4);
+  });
+
+  it('creates no effects with zero flow when already at equilibrium', () => {
+    const saturation = calculateO2Saturation(25);
+    const state = createTestState({
+      oxygen: saturation,
+      co2: gasExchangeDefaults.atmosphericCo2,
+      temperature: 25,
+      flow: 0,
+      aeration: false,
+    });
+    const effects = gasExchangeSystem.update(state, DEFAULT_CONFIG);
+
+    // At equilibrium the delta is zero regardless of the floor.
     expect(effects.length).toBe(0);
   });
 

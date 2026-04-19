@@ -278,6 +278,7 @@ const GasExchangeConfigSchema = z
     o2ReferenceTemp: z.number(),
     baseExchangeRate: z.number(),
     optimalFlowTurnover: z.number(),
+    minFlowFactor: z.number(),
     aerationExchangeMultiplier: z.number(),
     aerationDirectO2: z.number(),
     aerationCo2OffgasMultiplier: z.number(),
