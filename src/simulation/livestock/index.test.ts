@@ -129,11 +129,13 @@ describe('processLivestock', () => {
 
     expect(result.state.fish).toHaveLength(3);
 
-    // Total O2 should be sum of all fish respiration
+    // Total O2 draw in mg/hr = baseRespirationRate * (1+2+3) = 6 * rate.
+    // Concentration delta (mg/L) = mg / water volume (100L in makeState).
     const o2Effect = result.effects.find((e) => e.resource === 'oxygen');
     expect(o2Effect).toBeDefined();
-    // (0.02 * 1) + (0.02 * 2) + (0.02 * 3) = 0.12
-    expect(o2Effect!.delta).toBeCloseTo(-0.12, 3);
+    const expectedDelta =
+      -(DEFAULT_CONFIG.livestock.baseRespirationRate * 6.0) / state.resources.water;
+    expect(o2Effect!.delta).toBeCloseTo(expectedDelta, 6);
   });
 
   it('effect sources are correctly labeled', () => {

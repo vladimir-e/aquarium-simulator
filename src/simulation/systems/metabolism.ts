@@ -44,10 +44,10 @@ export interface MetabolismResult {
   wasteProduced: number;
   /** Direct NH3 excreted through gills (mg compound mass) */
   ammoniaProduced: number;
-  /** Change in dissolved oxygen (mg/L, negative = consumed) */
-  oxygenDelta: number;
-  /** Change in dissolved CO2 (mg/L, positive = produced) */
-  co2Delta: number;
+  /** Total oxygen consumed (mg, absolute — caller divides by water volume for mg/L delta) */
+  oxygenConsumedMg: number;
+  /** Total CO2 produced (mg, absolute — caller divides by water volume for mg/L delta) */
+  co2ProducedMg: number;
 }
 
 /**
@@ -67,8 +67,8 @@ export function processMetabolism(
       foodConsumed: 0,
       wasteProduced: 0,
       ammoniaProduced: 0,
-      oxygenDelta: 0,
-      co2Delta: 0,
+      oxygenConsumedMg: 0,
+      co2ProducedMg: 0,
     };
   }
 
@@ -81,8 +81,8 @@ export function processMetabolism(
   let totalFoodConsumed = 0;
   let totalWaste = 0;
   let totalAmmonia = 0;
-  let totalOxygenDelta = 0;
-  let totalCo2Delta = 0;
+  let totalOxygenConsumedMg = 0;
+  let totalCo2ProducedMg = 0;
 
   const updatedFish: Fish[] = [...fish];
 
@@ -117,10 +117,14 @@ export function processMetabolism(
     totalAmmonia += nToGills * NH3_MG_PER_G_N;
     totalWaste += foodGiven * (1 - config.gillNFraction);
 
-    // Respiration: oxygen consumed and CO2 produced based on mass
-    const oxygenConsumed = config.baseRespirationRate * f.mass;
-    totalOxygenDelta -= oxygenConsumed;
-    totalCo2Delta += oxygenConsumed * config.respiratoryQuotient;
+    // Respiration: absolute mg O2 consumed and CO2 produced based on mass.
+    // `baseRespirationRate` is mg O2 per gram fish per hour — an intrinsic
+    // physiological rate, independent of tank volume. The caller converts
+    // the returned absolute mass into a mg/L concentration delta using the
+    // current water volume.
+    const oxygenConsumedMg = config.baseRespirationRate * f.mass;
+    totalOxygenConsumedMg += oxygenConsumedMg;
+    totalCo2ProducedMg += oxygenConsumedMg * config.respiratoryQuotient;
 
     // Age increase (1 tick = 1 hour)
     updatedFish[idx] = {
@@ -135,7 +139,7 @@ export function processMetabolism(
     foodConsumed: totalFoodConsumed,
     wasteProduced: totalWaste,
     ammoniaProduced: totalAmmonia,
-    oxygenDelta: totalOxygenDelta,
-    co2Delta: totalCo2Delta,
+    oxygenConsumedMg: totalOxygenConsumedMg,
+    co2ProducedMg: totalCo2ProducedMg,
   };
 }

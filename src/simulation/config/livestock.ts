@@ -12,7 +12,16 @@ export interface LivestockConfig {
   // Metabolism
   /** Base food consumption rate per gram of fish mass per hour */
   baseFoodRate: number;
-  /** Base oxygen consumption rate per gram of fish mass per hour (mg/L) */
+  /**
+   * Base oxygen consumption rate per gram of fish mass per hour (mg O2).
+   *
+   * Intrinsic physiological rate — independent of tank volume. The
+   * livestock pipeline converts the absolute mg/hr draw into a mg/L
+   * concentration delta using the tank's water volume.
+   *
+   * Real-world freshwater teleosts at 25°C sit in 0.2–0.5 mg O2/g/hr,
+   * scaling with Q10 ≈ 2 against temperature.
+   */
   baseRespirationRate: number;
   /**
    * Fraction of ingested food mass that is nitrogen (g N / g food).
@@ -75,7 +84,10 @@ export interface LivestockConfig {
 export const livestockDefaults: LivestockConfig = {
   // Metabolism - a 1g fish eats ~0.01g/hr = 0.24g/day
   baseFoodRate: 0.01,
-  baseRespirationRate: 0.02, // mg/L O2 per gram per hour
+  // 0.3 mg O2 / g fish / hr — midpoint of real-world 0.2–0.5 at 25°C for
+  // small freshwater teleosts. Applied as absolute mg/hr and converted to
+  // mg/L by the livestock pipeline using tank volume.
+  baseRespirationRate: 0.3,
   // 5 % N in food — conservative; typical flake is 6–8 % N. Matches the
   // engine's existing waste → NH3 ratio.
   foodNitrogenFraction: 0.05,
@@ -121,10 +133,10 @@ export const livestockConfigMeta: LivestockConfigMeta[] = [
   {
     key: 'baseRespirationRate',
     label: 'Base Respiration Rate',
-    unit: 'mg/L/g/hr',
-    min: 0.005,
-    max: 0.1,
-    step: 0.005,
+    unit: 'mg O2/g/hr',
+    min: 0.05,
+    max: 1.0,
+    step: 0.05,
   },
   {
     key: 'foodNitrogenFraction',

@@ -25,8 +25,8 @@ describe('processMetabolism', () => {
     expect(result.foodConsumed).toBe(0);
     expect(result.wasteProduced).toBe(0);
     expect(result.ammoniaProduced).toBe(0);
-    expect(result.oxygenDelta).toBe(0);
-    expect(result.co2Delta).toBe(0);
+    expect(result.oxygenConsumedMg).toBe(0);
+    expect(result.co2ProducedMg).toBe(0);
   });
 
   it('consumes food based on hunger and mass', () => {
@@ -194,16 +194,22 @@ describe('processMetabolism', () => {
     const fish = [makeFish({ mass: 2.0 })];
     const result = processMetabolism(fish, 10, livestockDefaults);
 
-    // oxygenConsumed = baseRespirationRate(0.02) * mass(2.0) = 0.04
-    expect(result.oxygenDelta).toBeCloseTo(-0.04, 4);
+    // oxygenConsumedMg = baseRespirationRate * mass = 0.3 * 2.0 = 0.6 mg/hr
+    expect(result.oxygenConsumedMg).toBeCloseTo(
+      livestockDefaults.baseRespirationRate * 2.0,
+      6
+    );
   });
 
   it('produces CO2 proportional to oxygen consumed', () => {
     const fish = [makeFish({ mass: 2.0 })];
     const result = processMetabolism(fish, 10, livestockDefaults);
 
-    // CO2 = O2 consumed * respiratoryQuotient(0.8)
-    expect(result.co2Delta).toBeCloseTo(0.04 * 0.8, 4);
+    // CO2 = O2 consumed * respiratoryQuotient
+    expect(result.co2ProducedMg).toBeCloseTo(
+      result.oxygenConsumedMg * livestockDefaults.respiratoryQuotient,
+      6
+    );
   });
 
   it('increments age by 1 each tick', () => {
@@ -239,8 +245,11 @@ describe('processMetabolism', () => {
     ];
     const result = processMetabolism(fish, 10, livestockDefaults);
 
-    // Total O2 consumption = (0.02 * 1.0) + (0.02 * 2.0) = 0.06
-    expect(result.oxygenDelta).toBeCloseTo(-0.06, 4);
+    // Total O2 consumption = baseRespirationRate * (1.0 + 2.0) mg/hr
+    expect(result.oxygenConsumedMg).toBeCloseTo(
+      livestockDefaults.baseRespirationRate * 3.0,
+      6
+    );
     expect(result.updatedFish).toHaveLength(2);
   });
 });

@@ -77,22 +77,28 @@ export function processLivestock(
     });
   }
 
-  if (metabolismResult.oxygenDelta !== 0) {
-    effects.push({
-      tier: 'active',
-      resource: 'oxygen',
-      delta: metabolismResult.oxygenDelta,
-      source: 'fish-respiration',
-    });
-  }
+  // Respiration effects: convert absolute mg to mg/L concentration delta
+  // using the tank's current water volume. Gas concentrations live in mg/L,
+  // while metabolism produces an intrinsic per-fish mass rate.
+  const waterVolume = state.resources.water;
+  if (waterVolume > 0) {
+    if (metabolismResult.oxygenConsumedMg > 0) {
+      effects.push({
+        tier: 'active',
+        resource: 'oxygen',
+        delta: -metabolismResult.oxygenConsumedMg / waterVolume,
+        source: 'fish-respiration',
+      });
+    }
 
-  if (metabolismResult.co2Delta !== 0) {
-    effects.push({
-      tier: 'active',
-      resource: 'co2',
-      delta: metabolismResult.co2Delta,
-      source: 'fish-respiration',
-    });
+    if (metabolismResult.co2ProducedMg > 0) {
+      effects.push({
+        tier: 'active',
+        resource: 'co2',
+        delta: metabolismResult.co2ProducedMg / waterVolume,
+        source: 'fish-respiration',
+      });
+    }
   }
 
   // 2. Process health (stressors, recovery, death)

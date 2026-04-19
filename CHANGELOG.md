@@ -8,6 +8,10 @@ Format: - **Feature name** (#PR) - Brief description (under 100 chars)
 - Skip UI-only tweaks and minor fixes
 -->
 
+## 2026-04-19
+
+- **Gas exchange calibration** - fish respiration `baseRespirationRate` now an absolute mg O2/g/hr rate (was mis-applied as a concentration delta, silently embedding tank volume); livestock pipeline converts to mg/L using water volume, matching the decay system's idiom; default bumped from 0.02 to 0.3, midpoint of real 0.2–0.5 band; 70 g bioload in 150 L now draws the expected 0.14 mg/L/hr and the S3 community tank holds 7–8 mg/L O2 indefinitely instead of crashing in 7 hours
+
 ## 2026-04-18
 
 - **Fish gill ammonia excretion** - fish metabolism now splits ingested food N: ~80% emitted as direct NH3 through gills (`resources.ammonia`), ~20% feces-bound into the waste stream; new `foodNitrogenFraction` (default 0.05) and `gillNFraction` (default 0.8) tunables on `LivestockConfig`; removes the opaque `wasteRatio` knob — fish waste mass is now derived from the N-mass split; N-mass conservation enforced end-to-end
