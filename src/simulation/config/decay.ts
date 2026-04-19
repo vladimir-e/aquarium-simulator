@@ -23,7 +23,13 @@ export const decayDefaults: DecayConfig = {
   baseDecayRate: 0.05,
   wasteConversionRatio: 0.4,
   gasExchangePerGramDecay: 250,
-  ambientWaste: 0.01,
+  // Ambient waste seeds the nitrogen cycle so bacteria survive between
+  // feedings. Scaled down from 0.01 to offset the 9× increase in
+  // wasteToAmmoniaRatio (50 → 450): at the new ratio, 0.01 g/hr would
+  // generate ~108 mg NH3/day of pure ambient input — enough to peg small
+  // tanks into a permanent low-level ammonia state. 0.001 keeps the
+  // seeding role but returns the NH3 flux to pre-recalibration levels.
+  ambientWaste: 0.001,
 };
 
 export interface DecayConfigMeta {

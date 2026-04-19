@@ -155,7 +155,7 @@ describe('decaySystem', () => {
     );
   });
 
-  it('creates ambient waste effect (default 0.01 g/hour)', () => {
+  it('creates ambient waste effect matching decayDefaults.ambientWaste', () => {
     const state = createTestState({ food: 0 });
     const effects = decaySystem.update(state, DEFAULT_CONFIG);
 
@@ -163,7 +163,7 @@ describe('decaySystem', () => {
       (e) => e.resource === 'waste' && e.source === 'environment'
     );
     expect(ambientEffect).toBeDefined();
-    expect(ambientEffect!.delta).toBe(0.01);
+    expect(ambientEffect!.delta).toBe(decayDefaults.ambientWaste);
   });
 
   it('creates no food effect when food is 0', () => {

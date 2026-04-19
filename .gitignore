@@ -7,4 +7,6 @@ coverage/
 .DS_Store
 .eslintcache
 .simstate/
-docs/calibration/runs/
+calibration-tmp/
+docs/calibration/runs/*
+!docs/calibration/runs/2026-04-19-community-steady-state.md
