@@ -42,6 +42,26 @@ export const NH3_TO_NO2_MASS_RATIO = MW_NO2 / MW_NH3;
 export const NO2_TO_NO3_MASS_RATIO = MW_NO3 / MW_NO2;
 
 /**
+ * NOB per-bacterium processing rate multiplier relative to AOB.
+ *
+ * N-mass is conserved across the chain, but compound mass is not — AOB
+ * consume NH3 and produce NO2 with a mass gain of MW_NO2 / MW_NH3 ≈ 2.702.
+ * If AOB and NOB had the same per-bacterium "compound mass processed per
+ * tick" rate, NOB could clear only 1 / 2.702 ≈ 37 % of the NO2 mass AOB
+ * produce, and nitrite would run away.
+ *
+ * Scaling NOB's effective rate by MW_NO2 / MW_NH3 keeps per-atom N
+ * throughput equal between the two steps — i.e. at population parity the
+ * NO3 produced per tick equals the NH3 consumed per tick in N-atom terms.
+ *
+ * Biologically legitimate: real NOB (Nitrobacter / Nitrospira) are
+ * faster per cell than AOB (Nitrosomonas / Nitrosospira). The engine
+ * exposes a single `bacteriaProcessingRate` knob as the AOB baseline;
+ * NOB inherits `rate × multiplier`.
+ */
+export const NOB_PROCESSING_RATE_MULTIPLIER = MW_NO2 / MW_NH3;
+
+/**
  * Fraction of total ammonia (TAN = NH3 + NH4⁺) that exists as unionized
  * NH3 at the given pH and temperature. The unionized form is what
  * actually crosses gills and poisons fish; NH4⁺ is one to two orders
@@ -142,6 +162,11 @@ export function calculateAmmoniaToNitrite(
  * N-mass is conserved; compound mass scales with MW. NO3⁻ produced =
  * NO2⁻ consumed × MW_NO3 / MW_NO2 ≈ 1.348.
  *
+ * NOB's per-bacterium throughput is scaled by
+ * `NOB_PROCESSING_RATE_MULTIPLIER` relative to AOB so the two steps are
+ * in stoichiometric balance at population parity — see that constant's
+ * docstring.
+ *
  * @param nitriteMass - Current nitrite mass in mg
  * @param nobPopulation - NOB bacteria population
  * @param waterVolume - Water volume in liters (needed to calculate processing capacity)
@@ -156,8 +181,14 @@ export function calculateNitriteToNitrate(
   if (nitriteMass <= 0 || nobPopulation <= 0 || waterVolume <= 0) {
     return { nitriteConsumed: 0, nitrateProduced: 0 };
   }
-  // Processing rate is defined per ppm, multiply by water to get mass capacity
-  const canProcessMass = nobPopulation * config.bacteriaProcessingRate * waterVolume;
+  // Processing rate is defined per ppm, multiply by water to get mass capacity.
+  // NOB runs at `rate × NOB_PROCESSING_RATE_MULTIPLIER` to match AOB's
+  // compound-mass output (MW_NO2 / MW_NH3 heavier than NH3 consumed).
+  const canProcessMass =
+    nobPopulation *
+    config.bacteriaProcessingRate *
+    NOB_PROCESSING_RATE_MULTIPLIER *
+    waterVolume;
   const nitriteConsumed = Math.min(canProcessMass, nitriteMass);
   return {
     nitriteConsumed,

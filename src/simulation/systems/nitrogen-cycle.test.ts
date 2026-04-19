@@ -9,6 +9,7 @@ import {
   calculateNitriteToNitrate,
   NH3_TO_NO2_MASS_RATIO,
   NO2_TO_NO3_MASS_RATIO,
+  NOB_PROCESSING_RATE_MULTIPLIER,
 } from './nitrogen-cycle.js';
 import { createSimulation, type SimulationState } from '../state.js';
 import { applyEffects } from '../core/effects.js';
@@ -195,13 +196,17 @@ describe('calculateNitriteToNitrate', () => {
     expect(result.nitrateProduced).toBe(0);
   });
 
-  it('processes based on bacteria population and water volume', () => {
+  it('processes based on bacteria population, water volume, and NOB multiplier', () => {
     const bacteria = 100;
     const waterVolume = 40;
-    const nitriteMass = 100; // More mass than can be processed
+    const nitriteMass = 1000; // More mass than can be processed
     const { nitriteConsumed } = calculateNitriteToNitrate(nitriteMass, bacteria, waterVolume);
+    // NOB runs at rate × NOB_PROCESSING_RATE_MULTIPLIER to match AOB's compound-mass output
     expect(nitriteConsumed).toBeCloseTo(
-      bacteria * nitrogenCycleDefaults.bacteriaProcessingRate * waterVolume,
+      bacteria *
+        nitrogenCycleDefaults.bacteriaProcessingRate *
+        NOB_PROCESSING_RATE_MULTIPLIER *
+        waterVolume,
       10
     );
   });
@@ -217,7 +222,7 @@ describe('calculateNitriteToNitrate', () => {
   it('scales nitrate produced by MW_NO3 / MW_NO2 (N-mass conserved)', () => {
     const bacteria = 100;
     const waterVolume = 40;
-    const nitriteMass = 100;
+    const nitriteMass = 1000;
     const { nitriteConsumed, nitrateProduced } = calculateNitriteToNitrate(
       nitriteMass,
       bacteria,
@@ -227,6 +232,37 @@ describe('calculateNitriteToNitrate', () => {
     expect(nitrateProduced).toBeCloseTo(nitriteConsumed * NO2_TO_NO3_MASS_RATIO, 10);
     // N-mass conservation.
     expect(nitrateProduced * (14.01 / 62.0)).toBeCloseTo(nitriteConsumed * (14.01 / 46.01), 10);
+  });
+
+  it('NOB throughput matches AOB in N-atom terms at population parity', () => {
+    // Key stoichiometric property: at equal populations and non-limiting
+    // substrate, NOB should consume NO2 mass equal to what AOB produces
+    // from an equivalent NH3 consumption. Expressed per N atom, throughput
+    // is identical.
+    const bacteria = 100;
+    const waterVolume = 40;
+    const { ammoniaConsumed, nitriteProduced } = calculateAmmoniaToNitrite(
+      1e6,
+      bacteria,
+      waterVolume
+    );
+    const { nitriteConsumed } = calculateNitriteToNitrate(1e6, bacteria, waterVolume);
+
+    // NOB clears exactly the NO2 mass AOB just produced (balanced chain).
+    expect(nitriteConsumed).toBeCloseTo(nitriteProduced, 8);
+    // Per-N-atom: same mg of elemental N passes through each stage.
+    const nFromAob = ammoniaConsumed * (14.01 / 17.03);
+    const nFromNob = nitriteConsumed * (14.01 / 46.01);
+    expect(nFromNob).toBeCloseTo(nFromAob, 8);
+  });
+});
+
+describe('NOB_PROCESSING_RATE_MULTIPLIER', () => {
+  it('equals MW_NO2 / MW_NH3 (stoichiometric balance)', () => {
+    // Guards against accidental drift: the multiplier is purely derived
+    // from molecular weights and must stay in lockstep with NH3_TO_NO2_MASS_RATIO.
+    expect(NOB_PROCESSING_RATE_MULTIPLIER).toBeCloseTo(NH3_TO_NO2_MASS_RATIO, 10);
+    expect(NOB_PROCESSING_RATE_MULTIPLIER).toBeCloseTo(46.01 / 17.03, 10);
   });
 });
 
