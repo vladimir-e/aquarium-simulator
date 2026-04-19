@@ -39,12 +39,20 @@ export const nitrogenCycleDefaults: NitrogenCycleConfig = {
   wasteToAmmoniaRatio: 60,
   // Calibrated for fishless cycle completing in 25-35 days
   bacteriaProcessingRate: 0.0002,
-  aobSpawnThreshold: 0.02,
-  nobSpawnThreshold: 0.125,
+  // Spawn thresholds set to "detectable by hobbyist" ranges — 0.5 ppm
+  // NH3 and 0.5 ppm NO2 are the levels where a nitrifier lag-phase
+  // typically ends. Previous 0.02 / 0.125 led to bacteria colonising
+  // within the first day, which contradicted the scenario 1 timeline
+  // (cycle visible only after 10+ days in a fresh tank).
+  aobSpawnThreshold: 0.5,
+  nobSpawnThreshold: 0.5,
   spawnAmount: 10,
-  // AOB establishes before NOB — Nitrospira succession (Hovanec & DeLong, 1996)
-  aobGrowthRate: 0.04,
-  nobGrowthRate: 0.03,
+  // AOB establishes before NOB — Nitrospira succession (Hovanec & DeLong, 1996).
+  // Real-world AOB doubling time is 24–72 hr in fresh aquaria;
+  // 0.02/hr ≈ 35 h doubling, 0.015/hr ≈ 46 h. Slower than previous
+  // 0.04/0.03 to match 2–4 week cycling timelines rather than 5-day.
+  aobGrowthRate: 0.02,
+  nobGrowthRate: 0.015,
   bacteriaPerCm2: 0.01,
   bacteriaDeathRate: 0.02,
   aobFoodThreshold: 0.001,

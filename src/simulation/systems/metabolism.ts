@@ -12,14 +12,26 @@
  * Nitrogen accounting
  * -------------------
  * Aquarium fish are ammoniotelic — they excrete most of their
- * nitrogenous waste as NH3/NH4⁺ directly through the gills. For every
- * gram of food ingested we treat `foodNitrogenFraction` (default 5 %)
- * as N. Of that N, `gillNFraction` (default 80 %) is emitted this tick
- * as NH3 into the water column; the remaining 20 % is bound in feces
- * and leaves via the waste pool, where the existing decay + nitrogen-
- * cycle pipeline mineralises it to NH3 at the engine's canonical
- * `wasteToAmmoniaRatio` (60 mg NH3 / g waste, which encodes the same
- * 5 % N content). That keeps N-mass conserved end-to-end.
+ * nitrogenous waste as NH3/NH4⁺ directly through the gills. Output
+ * has two additive components:
+ *
+ *  1. **Post-prandial** — driven by food intake. For every gram of
+ *     food ingested we treat `foodNitrogenFraction` (default 5 %) as
+ *     N. Of that N, `gillNFraction` (default 80 %) is emitted this
+ *     tick as NH3; the remaining 20 % is bound in feces and leaves
+ *     via the waste pool, where the existing decay + nitrogen-cycle
+ *     pipeline mineralises it to NH3 at the engine's canonical
+ *     `wasteToAmmoniaRatio` (60 mg NH3 / g waste, which encodes the
+ *     same 5 % N content). That keeps N-mass conserved end-to-end.
+ *
+ *  2. **Basal** — produced continuously from body protein turnover
+ *     regardless of feeding, at `basalAmmoniaRate` mg NH3 / g fish /
+ *     hr. Real freshwater teleosts never stop excreting NH3: even a
+ *     fasted fish keeps dumping ammonia while muscle catabolism
+ *     continues. Without this term the engine would report zero NH3
+ *     output whenever food runs out, which is unphysical and
+ *     materially under-counts short-term ammonia accumulation in
+ *     lean-fed tanks.
  *
  * The waste mass from a fish is therefore not a free parameter:
  *     wasteMass = (N to feces) / foodNitrogenFraction
@@ -116,6 +128,11 @@ export function processMetabolism(
     const nToGills = nIngested * config.gillNFraction;
     totalAmmonia += nToGills * NH3_MG_PER_G_N;
     totalWaste += foodGiven * (1 - config.gillNFraction);
+
+    // Basal NH3 excretion — independent of feeding. Body protein
+    // turnover continues whether fed or fasted; real tetras keep
+    // excreting a few tenths of a mg of NH3 per gram per day.
+    totalAmmonia += config.basalAmmoniaRate * f.mass;
 
     // Respiration: absolute mg O2 consumed and CO2 produced based on mass.
     // `baseRespirationRate` is mg O2 per gram fish per hour — an intrinsic

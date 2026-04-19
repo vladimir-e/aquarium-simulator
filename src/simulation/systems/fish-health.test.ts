@@ -78,15 +78,35 @@ describe('calculateStress', () => {
     expect(stress).toBeCloseTo(1.5, 1);
   });
 
-  it('applies ammonia stress', () => {
+  it('applies ammonia stress proportional to the unionized NH3 fraction', () => {
     const fish = makeFish();
-    // 5mg ammonia in 100L water = 0.05 ppm
-    const resources = makeResources({ ammonia: 5 });
+    // 5mg ammonia in 100L water = 0.05 ppm TAN at pH 7.0 / 25 °C.
+    // f_NH3(7.0, 25°C) = 1 / (1 + 10^(9.245 − 7.0)) ≈ 0.00566
+    // free NH3 = 0.05 × 0.00566 ≈ 0.000283 ppm
+    // stress = severity(200) × 0.000283 × hardinessFactor(0.5) ≈ 0.02831
+    // (Severity is per ppm free NH3 under the new model; matches Emerson
+    // et al. 1975 speciation.)
+    const resources = makeResources({ ammonia: 5, ph: 7.0, temperature: 25 });
     const stress = calculateStress(fish, resources, 100, 100, livestockDefaults);
 
-    // ammoniaPpm = 5/100 = 0.05, severity = 50, factor = 0.5
-    // stress = 50 * 0.05 * 0.5 = 1.25
-    expect(stress).toBeCloseTo(1.25, 1);
+    // Derive expected from the actual Emerson pKa so the check stays
+    // robust if severity is retuned later.
+    const pKa = 0.09018 + 2729.92 / (25 + 273.15);
+    const fNH3 = 1 / (1 + Math.pow(10, pKa - 7.0));
+    const expected = livestockDefaults.ammoniaStressSeverity * 0.05 * fNH3 * 0.5;
+    expect(stress).toBeCloseTo(expected, 6);
+  });
+
+  it('free-NH3 toxicity rises sharply with pH', () => {
+    // Same TAN (1 ppm) should produce dramatically higher stress at
+    // pH 8.0 than at pH 6.5 because ~30× more of the TAN is in the
+    // unionized (toxic) form.
+    const fish = makeFish();
+    const low = makeResources({ ammonia: 100, ph: 6.5, temperature: 25 });
+    const high = makeResources({ ammonia: 100, ph: 8.0, temperature: 25 });
+    const stressLow = calculateStress(fish, low, 100, 100, livestockDefaults);
+    const stressHigh = calculateStress(fish, high, 100, 100, livestockDefaults);
+    expect(stressHigh).toBeGreaterThan(stressLow * 10);
   });
 
   it('applies nitrite stress', () => {

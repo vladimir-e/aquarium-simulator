@@ -42,6 +42,26 @@ export const NH3_TO_NO2_MASS_RATIO = MW_NO2 / MW_NH3;
 export const NO2_TO_NO3_MASS_RATIO = MW_NO3 / MW_NO2;
 
 /**
+ * Fraction of total ammonia (TAN = NH3 + NH4⁺) that exists as unionized
+ * NH3 at the given pH and temperature. The unionized form is what
+ * actually crosses gills and poisons fish; NH4⁺ is one to two orders
+ * of magnitude less toxic.
+ *
+ * Emerson et al. (1975): pKa = 0.09018 + 2729.92 / T_K.
+ *   f_NH3 = 1 / (1 + 10^(pKa - pH))
+ *
+ * Physics constant, not tunable — this is chemistry. Reference values
+ * at 25 °C: pH 6.5 → 0.18 %; pH 7.0 → 0.56 %; pH 7.5 → 1.77 %;
+ * pH 8.0 → 5.37 %; pH 8.5 → 15.3 %. A tank running at pH 6.5 carries
+ * ~30× less toxic NH3 than the same TAN at pH 8.0.
+ */
+export function unionizedAmmoniaFraction(ph: number, temperatureC: number): number {
+  const tempK = temperatureC + 273.15;
+  const pKa = 0.09018 + 2729.92 / tempK;
+  return 1 / (1 + Math.pow(10, pKa - ph));
+}
+
+/**
  * Calculate maximum bacteria population based on surface area.
  */
 export function calculateMaxBacteria(

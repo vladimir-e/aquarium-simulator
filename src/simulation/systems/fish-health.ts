@@ -12,6 +12,7 @@
 import type { Fish, Resources } from '../state.js';
 import { FISH_SPECIES_DATA } from '../state.js';
 import type { LivestockConfig } from '../config/livestock.js';
+import { unionizedAmmoniaFraction } from './nitrogen-cycle.js';
 
 export interface HealthResult {
   /** Fish that survived this tick */
@@ -54,11 +55,21 @@ export function calculateStress(
     stress += config.phStressSeverity * (ph - phMax) * hardinessFactor;
   }
 
-  // Ammonia stress (any amount is harmful)
-  // When water volume is 0, concentration is effectively infinite = max stress
-  const ammoniaPpm = waterVolume > 0 ? resources.ammonia / waterVolume : (resources.ammonia > 0 ? 100 : 0);
-  if (ammoniaPpm > 0) {
-    stress += config.ammoniaStressSeverity * ammoniaPpm * hardinessFactor;
+  // Ammonia stress — only the unionized NH3 fraction (not NH4⁺) is
+  // acutely toxic. f_NH3 depends strongly on pH and temperature: at
+  // pH 6.5 / 25 °C barely 0.18 % of TAN is the toxic form, at pH 8 it
+  // is ~5 %. `ammoniaStressSeverity` is expressed per ppm of free NH3.
+  //
+  // When water volume is 0, concentration is effectively infinite and
+  // we fall back to a max-stress sentinel.
+  const totalAmmoniaPpm =
+    waterVolume > 0 ? resources.ammonia / waterVolume : resources.ammonia > 0 ? 100 : 0;
+  if (totalAmmoniaPpm > 0) {
+    const freeNH3Ppm =
+      waterVolume > 0
+        ? totalAmmoniaPpm * unionizedAmmoniaFraction(resources.ph, resources.temperature)
+        : totalAmmoniaPpm; // zero-volume sentinel: max stress
+    stress += config.ammoniaStressSeverity * freeNH3Ppm * hardinessFactor;
   }
 
   // Nitrite stress (any amount is harmful)
