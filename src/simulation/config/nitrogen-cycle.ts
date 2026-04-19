@@ -31,9 +31,12 @@ export interface NitrogenCycleConfig {
 
 export const nitrogenCycleDefaults: NitrogenCycleConfig = {
   wasteConversionRate: 0.3,
-  // Empirically calibrated for 25-35 day fishless cycle.
-  // Stoichiometry gives ~60 (5% N × MW 17/14) but 50 produces better overall balance.
-  wasteToAmmoniaRatio: 50,
+  // Stoichiometric: fish waste ≈ 5% N by dry mass; 1 g waste → 0.05 g N →
+  // 0.05 × MW_NH3/MW_N = 0.05 × 17.03/14.01 ≈ 60.8 mg NH3. The chain
+  // NH3 → NO2 → NO3 then picks up the MW ratios at each conversion step
+  // inside the nitrogen-cycle system, so this coefficient is purely the
+  // waste → NH3 first stage. See systems/nitrogen-cycle.ts for MW math.
+  wasteToAmmoniaRatio: 60,
   // Calibrated for fishless cycle completing in 25-35 days
   bacteriaProcessingRate: 0.0002,
   aobSpawnThreshold: 0.02,
@@ -59,7 +62,7 @@ export interface NitrogenCycleConfigMeta {
 
 export const nitrogenCycleConfigMeta: NitrogenCycleConfigMeta[] = [
   { key: 'wasteConversionRate', label: 'Waste Conversion Rate', unit: '/tick', min: 0.1, max: 0.9, step: 0.05 },
-  { key: 'wasteToAmmoniaRatio', label: 'Waste to Ammonia Ratio', unit: 'mg/g', min: 10, max: 100, step: 5 },
+  { key: 'wasteToAmmoniaRatio', label: 'Waste to Ammonia Ratio', unit: 'mg/g', min: 10, max: 200, step: 5 },
   { key: 'bacteriaProcessingRate', label: 'Bacteria Processing Rate', unit: 'ppm/unit', min: 0.00005, max: 0.001, step: 0.00005 },
   { key: 'aobSpawnThreshold', label: 'AOB Spawn Threshold', unit: 'ppm', min: 0.005, max: 0.1, step: 0.005 },
   { key: 'nobSpawnThreshold', label: 'NOB Spawn Threshold', unit: 'ppm', min: 0.05, max: 0.5, step: 0.025 },
