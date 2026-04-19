@@ -19,7 +19,7 @@ import type { TunableConfig } from '../../simulation/config/index.js';
  * Increment this when the structure changes in a breaking way.
  * On version mismatch, stored data is discarded.
  */
-export const PERSISTENCE_VERSION = 2;
+export const PERSISTENCE_VERSION = 3;
 
 /**
  * Storage key for the unified persisted state.

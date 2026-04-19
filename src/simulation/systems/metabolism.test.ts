@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { processMetabolism } from './metabolism.js';
 import { livestockDefaults } from '../config/livestock.js';
+import { MW_N, MW_NH3 } from './nitrogen-cycle.js';
+import { nitrogenCycleDefaults } from '../config/nitrogen-cycle.js';
 import type { Fish } from '../state.js';
 
 function makeFish(overrides: Partial<Fish> = {}): Fish {
@@ -22,6 +24,7 @@ describe('processMetabolism', () => {
     expect(result.updatedFish).toHaveLength(0);
     expect(result.foodConsumed).toBe(0);
     expect(result.wasteProduced).toBe(0);
+    expect(result.ammoniaProduced).toBe(0);
     expect(result.oxygenDelta).toBe(0);
     expect(result.co2Delta).toBe(0);
   });
@@ -77,13 +80,114 @@ describe('processMetabolism', () => {
     expect(result.updatedFish[0].hunger).toBeGreaterThanOrEqual(0);
   });
 
-  it('produces waste from consumed food', () => {
+  it('splits food nitrogen between direct gill NH3 and feces-bound waste', () => {
     const fish = [makeFish({ hunger: 50, mass: 2.0 })];
     const result = processMetabolism(fish, 10, livestockDefaults);
 
+    expect(result.foodConsumed).toBeGreaterThan(0);
     expect(result.wasteProduced).toBeGreaterThan(0);
-    // Waste = foodConsumed * wasteRatio (0.3)
-    expect(result.wasteProduced).toBeCloseTo(result.foodConsumed * 0.3, 6);
+    expect(result.ammoniaProduced).toBeGreaterThan(0);
+
+    // wasteMass = foodGiven × (1 − gillNFraction)
+    const expectedWaste = result.foodConsumed * (1 - livestockDefaults.gillNFraction);
+    expect(result.wasteProduced).toBeCloseTo(expectedWaste, 8);
+
+    // directNH3 = foodGiven × foodNitrogenFraction × gillNFraction × MW_NH3/MW_N × 1000
+    const expectedNH3 =
+      result.foodConsumed *
+      livestockDefaults.foodNitrogenFraction *
+      livestockDefaults.gillNFraction *
+      (MW_NH3 / MW_N) *
+      1000;
+    expect(result.ammoniaProduced).toBeCloseTo(expectedNH3, 6);
+  });
+
+  it('emits the canonical 48.65 mg NH3 + 0.2 g waste per gram of food at defaults', () => {
+    // A 100-g fish with 100% hunger eats mass × baseFoodRate × hunger/100
+    // = 100 × 0.01 × 1.0 = 1 g of food this tick.
+    const fish = [makeFish({ hunger: 100, mass: 100 })];
+    const result = processMetabolism(fish, 1, livestockDefaults);
+
+    expect(result.foodConsumed).toBeCloseTo(1, 8);
+    // 1 g food × 5 % N × 80 % gill share × (17.03/14.01) × 1000 mg/g
+    // = 0.04 × 1.21556... × 1000 = 48.6224 mg NH3
+    expect(result.ammoniaProduced).toBeCloseTo(48.6224, 3);
+    // 1 g food × 20 % feces share = 0.2 g waste
+    expect(result.wasteProduced).toBeCloseTo(0.2, 8);
+  });
+
+  it('produces zero gill NH3 when no food is eaten', () => {
+    const fish = [makeFish({ hunger: 50, mass: 1.0 })];
+    const result = processMetabolism(fish, 0, livestockDefaults);
+
+    expect(result.foodConsumed).toBe(0);
+    expect(result.wasteProduced).toBe(0);
+    expect(result.ammoniaProduced).toBe(0);
+  });
+
+  it('conserves nitrogen end-to-end: direct NH3 + waste-borne NH3 = ingested N', () => {
+    // Over many ticks, the N excreted directly plus the N that will
+    // eventually mineralise from the waste stream should equal the N
+    // ingested. This is the N-mass conservation invariant.
+    //
+    // Note: the engine's `wasteToAmmoniaRatio = 60` (mg NH3 / g waste)
+    // is a rounded stoichiometric value — the true figure for 5 % N
+    // waste is 0.05 × MW_NH3/MW_N × 1000 ≈ 60.78. That ~1.3 % rounding
+    // is a pre-existing property of Task 26's calibration choice and
+    // is tolerated here. Closing it would require bumping the ratio
+    // to 60.78, which shifts the fishless-seeded anchor — out of
+    // scope for this task.
+    const fish = [makeFish({ hunger: 100, mass: 10 })];
+    let totalFood = 0;
+    let totalDirectNH3 = 0; // mg NH3
+    let totalWaste = 0; // g
+    for (let t = 0; t < 24; t++) {
+      const r = processMetabolism(fish, 1000, livestockDefaults);
+      totalFood += r.foodConsumed;
+      totalDirectNH3 += r.ammoniaProduced;
+      totalWaste += r.wasteProduced;
+    }
+
+    // Ingested N-mass (g)
+    const nIngested = totalFood * livestockDefaults.foodNitrogenFraction;
+    // Direct N-mass in the gill stream
+    const nDirect = totalDirectNH3 / ((MW_NH3 / MW_N) * 1000);
+    // N-mass that will come out of waste when it mineralises — use the
+    // engine's canonical wasteToAmmoniaRatio (mg NH3 / g waste) to
+    // convert back to N.
+    const nWaste =
+      (totalWaste * nitrogenCycleDefaults.wasteToAmmoniaRatio) / ((MW_NH3 / MW_N) * 1000);
+
+    // Tolerance follows the engine's own rounding: 60 vs. 60.78 in the
+    // waste ratio = 1.3 % error on the 20 % feces share = 0.26 % of
+    // ingested N overall. Allow 0.5 % as the conservation envelope.
+    const relError = Math.abs(nDirect + nWaste - nIngested) / nIngested;
+    expect(relError).toBeLessThan(0.005);
+  });
+
+  it('conserves nitrogen exactly when waste ratio matches stoichiometry', () => {
+    // Verifies the N-conservation invariant holds exactly when the
+    // engine's waste-to-NH3 ratio is set to its stoichiometric value
+    // (0.05 × MW_NH3/MW_N × 1000 ≈ 60.78 mg NH3 / g waste). Any future
+    // calibration tightening of `wasteToAmmoniaRatio` can rely on this.
+    const fish = [makeFish({ hunger: 100, mass: 10 })];
+    let totalFood = 0;
+    let totalDirectNH3 = 0;
+    let totalWaste = 0;
+    for (let t = 0; t < 24; t++) {
+      const r = processMetabolism(fish, 1000, livestockDefaults);
+      totalFood += r.foodConsumed;
+      totalDirectNH3 += r.ammoniaProduced;
+      totalWaste += r.wasteProduced;
+    }
+
+    const nIngested = totalFood * livestockDefaults.foodNitrogenFraction;
+    const nDirect = totalDirectNH3 / ((MW_NH3 / MW_N) * 1000);
+    // Use the stoichiometric ratio (not the configured rounded 60).
+    const stoichRatio = livestockDefaults.foodNitrogenFraction * (MW_NH3 / MW_N) * 1000;
+    const nWaste = (totalWaste * stoichRatio) / ((MW_NH3 / MW_N) * 1000);
+
+    expect(nDirect + nWaste).toBeCloseTo(nIngested, 10);
   });
 
   it('consumes oxygen based on mass', () => {

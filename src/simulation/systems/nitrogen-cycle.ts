@@ -25,10 +25,17 @@ import { type NitrogenCycleConfig, nitrogenCycleDefaults } from '../config/nitro
 import { getPpm } from '../resources/index.js';
 
 // Molecular weights (g/mol) — physics constants, not tunable config.
-const MW_NH3 = 17.03;
-const MW_NO2 = 46.01;
-const MW_NO3 = 62.0;
+/** Elemental nitrogen. */
+export const MW_N = 14.01;
+/** Ammonia. */
+export const MW_NH3 = 17.03;
+/** Nitrite (NO2⁻). */
+export const MW_NO2 = 46.01;
+/** Nitrate (NO3⁻). */
+export const MW_NO3 = 62.0;
 
+/** Mass of NH3 produced per unit mass of N (going from N-mass to compound mass). ≈ 1.216. */
+export const N_TO_NH3_MASS_RATIO = MW_NH3 / MW_N;
 /** Mass of NO2⁻ produced per mg of NH3 oxidised. ≈ 2.702. */
 export const NH3_TO_NO2_MASS_RATIO = MW_NO2 / MW_NH3;
 /** Mass of NO3⁻ produced per mg of NO2⁻ oxidised. ≈ 1.348. */

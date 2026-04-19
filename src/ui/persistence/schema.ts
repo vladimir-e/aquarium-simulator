@@ -379,7 +379,8 @@ const LivestockConfigSchema = z
   .object({
     baseFoodRate: z.number(),
     baseRespirationRate: z.number(),
-    wasteRatio: z.number(),
+    foodNitrogenFraction: z.number(),
+    gillNFraction: z.number(),
     respiratoryQuotient: z.number(),
     hungerIncreaseRate: z.number(),
     baseHealthRecovery: z.number(),

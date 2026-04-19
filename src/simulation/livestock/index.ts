@@ -66,6 +66,17 @@ export function processLivestock(
     });
   }
 
+  // Direct ammonia excretion via gills (ammoniotelic pathway).
+  // Stored as NH3 compound mass (mg); MW scaling handled in metabolism.
+  if (metabolismResult.ammoniaProduced > 0) {
+    effects.push({
+      tier: 'active',
+      resource: 'ammonia',
+      delta: metabolismResult.ammoniaProduced,
+      source: 'fish-gill-excretion',
+    });
+  }
+
   if (metabolismResult.oxygenDelta !== 0) {
     effects.push({
       tier: 'active',

@@ -36,7 +36,7 @@ describe('processLivestock', () => {
     expect(result.effects).toHaveLength(0);
   });
 
-  it('processes metabolism: food consumed and waste produced', () => {
+  it('processes metabolism: food consumed, waste and gill NH3 produced', () => {
     const state = makeState([makeFish({ hunger: 50, mass: 1.0 })]);
     const result = processLivestock(state, DEFAULT_CONFIG);
 
@@ -45,10 +45,19 @@ describe('processLivestock', () => {
     expect(foodEffect).toBeDefined();
     expect(foodEffect!.delta).toBeLessThan(0);
 
-    // Should have waste production effect
-    const wasteEffect = result.effects.find((e) => e.resource === 'waste');
+    // Should have waste production effect (feces-bound N share)
+    const wasteEffect = result.effects.find(
+      (e) => e.resource === 'waste' && e.source === 'fish-metabolism'
+    );
     expect(wasteEffect).toBeDefined();
     expect(wasteEffect!.delta).toBeGreaterThan(0);
+
+    // Should have direct ammonia excretion effect (gill pathway)
+    const ammoniaEffect = result.effects.find(
+      (e) => e.resource === 'ammonia' && e.source === 'fish-gill-excretion'
+    );
+    expect(ammoniaEffect).toBeDefined();
+    expect(ammoniaEffect!.delta).toBeGreaterThan(0);
   });
 
   it('processes respiration: O2 consumed and CO2 produced', () => {
@@ -133,6 +142,7 @@ describe('processLivestock', () => {
 
     const sources = result.effects.map((e) => e.source);
     expect(sources).toContain('fish-metabolism');
+    expect(sources).toContain('fish-gill-excretion');
     expect(sources).toContain('fish-respiration');
   });
 });

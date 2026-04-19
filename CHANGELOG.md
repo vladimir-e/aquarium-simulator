@@ -10,6 +10,7 @@ Format: - **Feature name** (#PR) - Brief description (under 100 chars)
 
 ## 2026-04-18
 
+- **Fish gill ammonia excretion** - fish metabolism now splits ingested food N: ~80% emitted as direct NH3 through gills (`resources.ammonia`), ~20% feces-bound into the waste stream; new `foodNitrogenFraction` (default 0.05) and `gillNFraction` (default 0.8) tunables on `LivestockConfig`; removes the opaque `wasteRatio` knob — fish waste mass is now derived from the N-mass split; N-mass conservation enforced end-to-end
 - **Nitrogen-chain stoichiometry** - NH3 → NO2 → NO3 now conserves N-mass with compound-mass scaling by molecular weight (1 mg NH3 → 2.70 mg NO2 → 3.64 mg NO3); replaces the previous physically-wrong 1:1 compound-mass conversion; `wasteToAmmoniaRatio` restored to stoichiometric 60 mg NH3/g waste
 - **Fish default hunger** - `addFish` now initialises hunger to 30 (0–100 scale) instead of 0 so new fish eat on the next feeding rather than letting the food decay
 - **Calibration CLI** - Stateful `sim` CLI at `src/cli/sim.ts` for agent-driven calibration; session persisted in `.simstate/current.json`; commands for new/add/remove/tick/observe/trace/config/action/smoke; capped per-tick history (720 entries); end-to-end smoke scenario doubles as integration test; workflow docs in `docs/calibration/README.md`

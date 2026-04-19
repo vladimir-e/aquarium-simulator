@@ -14,8 +14,26 @@ export interface LivestockConfig {
   baseFoodRate: number;
   /** Base oxygen consumption rate per gram of fish mass per hour (mg/L) */
   baseRespirationRate: number;
-  /** Fraction of food consumed that becomes waste */
-  wasteRatio: number;
+  /**
+   * Fraction of ingested food mass that is nitrogen (g N / g food).
+   *
+   * Typical aquarium flake/pellet food is 35–50 % protein, protein is
+   * ≈16 % N by mass, giving 5.6–8 % N in food. 0.05 is a conservative
+   * floor and matches the engine's existing waste → NH3 assumption
+   * (`wasteToAmmoniaRatio = 60 mg NH3/g waste` embeds 5 % N). Surfacing
+   * this here makes the coupling explicit for calibration.
+   */
+  foodNitrogenFraction: number;
+  /**
+   * Fraction of ingested food nitrogen excreted directly via the gills
+   * as NH3/NH4⁺ (0–1). The remainder leaves as feces-bound N that
+   * mineralizes through the waste → NH3 path.
+   *
+   * Aquarium fish are ammoniotelic: canonical split is ≈75–80 % gill
+   * ammonia, ≈15–20 % feces, ≈5 % urine. We collapse urine into the
+   * gill stream for simulation, giving a ~80 / 20 split.
+   */
+  gillNFraction: number;
   /** CO2 produced per unit oxygen consumed (respiratory quotient) */
   respiratoryQuotient: number;
 
@@ -58,7 +76,11 @@ export const livestockDefaults: LivestockConfig = {
   // Metabolism - a 1g fish eats ~0.01g/hr = 0.24g/day
   baseFoodRate: 0.01,
   baseRespirationRate: 0.02, // mg/L O2 per gram per hour
-  wasteRatio: 0.3, // 30% of food consumed becomes waste
+  // 5 % N in food — conservative; typical flake is 6–8 % N. Matches the
+  // engine's existing waste → NH3 ratio.
+  foodNitrogenFraction: 0.05,
+  // 80 % of ingested N excreted directly through gills; 20 % via feces.
+  gillNFraction: 0.8,
   respiratoryQuotient: 0.8, // CO2/O2 ratio
 
   // Hunger - increases ~0.6%/hr; fish can survive 3-7 days without food
@@ -104,7 +126,15 @@ export const livestockConfigMeta: LivestockConfigMeta[] = [
     max: 0.1,
     step: 0.005,
   },
-  { key: 'wasteRatio', label: 'Waste Ratio', unit: '', min: 0.1, max: 0.6, step: 0.05 },
+  {
+    key: 'foodNitrogenFraction',
+    label: 'Food N Fraction',
+    unit: 'g N/g food',
+    min: 0.03,
+    max: 0.12,
+    step: 0.005,
+  },
+  { key: 'gillNFraction', label: 'Gill N Fraction', unit: '', min: 0.5, max: 0.95, step: 0.05 },
   { key: 'respiratoryQuotient', label: 'Respiratory Quotient', unit: '', min: 0.5, max: 1.2, step: 0.1 },
   // Hunger
   { key: 'hungerIncreaseRate', label: 'Hunger Rate', unit: '%/hr', min: 0.1, max: 5, step: 0.1 },
