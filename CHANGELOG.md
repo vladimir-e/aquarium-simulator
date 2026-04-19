@@ -10,6 +10,7 @@ Format: - **Feature name** (#PR) - Brief description (under 100 chars)
 
 ## 2026-04-18
 
+- **CLI waterChange arbitrary fractions** - Removed discrete-step snap in `sim action waterChange`; accepts any fraction (0–1] or percent (0–100]; widened engine `WaterChangeAmount` type from literal union to `number` (UI preset list preserved as `WATER_CHANGE_AMOUNTS`)
 - **Calibration CLI** - Stateful `sim` CLI at `src/cli/sim.ts` for agent-driven calibration; session persisted in `.simstate/current.json`; commands for new/add/remove/tick/observe/trace/config/action/smoke; capped per-tick history (720 entries); end-to-end smoke scenario doubles as integration test; workflow docs in `docs/calibration/README.md`
 
 ## 2026-02-10

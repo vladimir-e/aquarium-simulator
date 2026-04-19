@@ -340,8 +340,41 @@ describe('waterChange action', () => {
   });
 
   describe('WATER_CHANGE_AMOUNTS', () => {
-    it('exports correct amount options', () => {
+    it('exports the UI preset step buttons', () => {
       expect(WATER_CHANGE_AMOUNTS).toEqual([0.1, 0.25, 0.5, 0.9]);
+    });
+  });
+
+  describe('arbitrary fractions', () => {
+    it('accepts a 40% change and removes exactly 40% of tank volume', () => {
+      let state = createSimulation({ tankCapacity: 100 });
+      state = produce(state, (draft) => {
+        draft.resources.nitrate = 100; // 100mg
+      });
+
+      const action: WaterChangeAction = { type: 'waterChange', amount: 0.4 };
+      const result = waterChange(state, action);
+
+      // Nitrate reduced by 40%: 60mg remains.
+      expect(result.state.resources.nitrate).toBeCloseTo(60, 10);
+      // Tank refilled to capacity.
+      expect(result.state.resources.water).toBe(100);
+      // Log reports the true 40%, not a snapped value.
+      const log = result.state.logs.find((l) => l.message.includes('Water change'));
+      expect(log?.message).toContain('40%');
+    });
+
+    it('accepts a 100% change (full replacement)', () => {
+      let state = createSimulation({ tankCapacity: 100 });
+      state = produce(state, (draft) => {
+        draft.resources.nitrate = 100;
+      });
+
+      const action: WaterChangeAction = { type: 'waterChange', amount: 1 };
+      const result = waterChange(state, action);
+
+      expect(result.state.resources.nitrate).toBeCloseTo(0, 10);
+      expect(result.state.resources.water).toBe(100);
     });
   });
 });

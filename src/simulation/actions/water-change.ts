@@ -17,11 +17,14 @@ import { calculateO2Saturation } from '../systems/gas-exchange.js';
 import { gasExchangeDefaults } from '../config/gas-exchange.js';
 import type { ActionResult, WaterChangeAction } from './types.js';
 
-/** Valid water change amounts as fractions */
-export type WaterChangeAmount = 0.1 | 0.25 | 0.5 | 0.9;
+/**
+ * Water change amount — fraction of tank water to replace, in (0, 1].
+ * Runtime bounds are enforced in `waterChange` below.
+ */
+export type WaterChangeAmount = number;
 
-/** Valid water change percentages for UI display */
-export const WATER_CHANGE_AMOUNTS: WaterChangeAmount[] = [0.1, 0.25, 0.5, 0.9];
+/** Preset step buttons shown in the UI. Not a constraint on the action itself. */
+export const WATER_CHANGE_AMOUNTS: readonly number[] = [0.1, 0.25, 0.5, 0.9];
 
 /**
  * Perform a water change: remove old water (with dissolved compounds)

@@ -135,7 +135,7 @@ function coerceValue(raw: string): unknown {
 }
 
 /** Build an Action from `action <type> [args...]`. Throws on invalid input. */
-function buildAction(type: string, args: string[]): Action {
+export function buildAction(type: string, args: string[]): Action {
   switch (type) {
     case 'feed': {
       const amount = Number(args[0] ?? '1');
@@ -148,17 +148,17 @@ function buildAction(type: string, args: string[]): Action {
       return { type: 'topOff' };
     }
     case 'waterChange': {
+      // Accept either a fraction in (0, 1] or a percentage in (0, 100].
+      // Values > 1 are interpreted as percent and divided by 100.
       let frac = Number(args[0] ?? '0.25');
       if (!Number.isFinite(frac) || frac <= 0) {
-        throw new Error('waterChange requires a fraction or percentage.');
+        throw new Error('waterChange requires a fraction (0–1) or percentage (0–100).');
       }
       if (frac > 1) frac = frac / 100;
-      // Snap to nearest allowed discrete step.
-      const choices: Array<0.1 | 0.25 | 0.5 | 0.9> = [0.1, 0.25, 0.5, 0.9];
-      const snapped = choices.reduce((best, c) =>
-        Math.abs(c - frac) < Math.abs(best - frac) ? c : best
-      );
-      return { type: 'waterChange', amount: snapped };
+      if (frac > 1) {
+        throw new Error('waterChange amount must be ≤ 100% of tank volume.');
+      }
+      return { type: 'waterChange', amount: frac };
     }
     case 'dose': {
       // Accept either `dose <ml>` or `dose <name> <ml>` for convenience.
