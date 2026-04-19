@@ -43,4 +43,13 @@ export default [
       'no-console': 'warn',
     },
   },
+  {
+    // CLI entry point and its helpers run in Node.
+    files: ['src/cli/**/*.ts'],
+    languageOptions: {
+      globals: {
+        process: 'readonly',
+      },
+    },
+  },
 ];

@@ -8,6 +8,10 @@ Format: - **Feature name** (#PR) - Brief description (under 100 chars)
 - Skip UI-only tweaks and minor fixes
 -->
 
+## 2026-04-18
+
+- **Calibration CLI** - Stateful `sim` CLI at `src/cli/sim.ts` for agent-driven calibration; session persisted in `.simstate/current.json`; commands for new/add/remove/tick/observe/trace/config/action/smoke; capped per-tick history (720 entries); end-to-end smoke scenario doubles as integration test; workflow docs in `docs/calibration/README.md`
+
 ## 2026-02-10
 
 - **Simulation Calibration** - real-world calibration across 9 system groups (nitrogen cycle, gas exchange, temperature, evaporation, nutrients, plants, pH, livestock, decay); calibrated O2 saturation to Henry's Law, nitrogen cycle to 25-35 day fishless cycle, algae growth to weeks-not-days blooms, CO2 injection for planted tank equilibrium, hunger rate for 3-7 day survival, pH drift for ~1 pH unit drop at 30 ppm CO2; test helpers module for scenario setup
