@@ -15,6 +15,13 @@ export interface GasExchangeConfig {
   baseExchangeRate: number;
   /** Tank turnovers per hour needed for maximum exchange rate */
   optimalFlowTurnover: number;
+  /**
+   * Floor on the flow factor to model passive air/water surface diffusion.
+   * Real aquaria exchange gas across the still surface even with zero flow
+   * — this constant keeps filterless tanks equilibrating slowly instead of
+   * collapsing to zero exchange. Fraction of the full-flow rate (0–1).
+   */
+  minFlowFactor: number;
 
   // Aeration parameters
   /** Multiplier to gas exchange rate when aeration is active (stacks with flow) */
@@ -34,6 +41,10 @@ export const gasExchangeDefaults: GasExchangeConfig = {
   o2ReferenceTemp: 15,
   baseExchangeRate: 0.25,
   optimalFlowTurnover: 10,
+  // Still-surface diffusion ~5–15% of gentle-filter-flow exchange. 0.1 is
+  // the middle of that band — enough to keep a filterless nano stable
+  // around saturation minus fish draw, without overwhelming the flow signal.
+  minFlowFactor: 0.1,
 
   // Aeration defaults
   // Aeration roughly triples gas exchange and adds small direct O2
@@ -58,6 +69,7 @@ export const gasExchangeConfigMeta: GasExchangeConfigMeta[] = [
   { key: 'o2ReferenceTemp', label: 'O2 Reference Temp', unit: '°C', min: 10, max: 25, step: 1 },
   { key: 'baseExchangeRate', label: 'Base Exchange Rate', unit: '/tick', min: 0.05, max: 0.5, step: 0.05 },
   { key: 'optimalFlowTurnover', label: 'Optimal Flow Turnover', unit: 'x/hr', min: 2, max: 20, step: 1 },
+  { key: 'minFlowFactor', label: 'Min Flow Factor (passive surface diffusion)', unit: 'x', min: 0, max: 0.3, step: 0.01 },
   // Aeration tuning
   { key: 'aerationExchangeMultiplier', label: 'Aeration Exchange Mult', unit: 'x', min: 1.0, max: 4.0, step: 0.25 },
   { key: 'aerationDirectO2', label: 'Aeration Direct O2', unit: 'mg/L/hr', min: 0, max: 0.2, step: 0.01 },

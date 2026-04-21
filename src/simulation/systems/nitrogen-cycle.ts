@@ -9,6 +9,12 @@
  *
  * Storage model: Nitrogen compounds stored as mass (mg).
  * Concentration (ppm) derived as mass/water for threshold checks.
+ *
+ * Stoichiometry: N-mass is conserved across the chain (same number of
+ * nitrogen atoms before and after). Compound mass grows with molecular
+ * weight: NH3 (17.03) → NO2⁻ (46.01) → NO3⁻ (62.00). So 1 mg NH3
+ * oxidised yields 2.702 mg NO2⁻, and 1 mg NO2⁻ oxidised yields 1.348 mg
+ * NO3⁻. Equivalently, 0.823 mg of elemental N passes through each step.
  */
 
 import type { Effect } from '../core/effects.js';
@@ -17,6 +23,63 @@ import type { System } from './types.js';
 import type { TunableConfig } from '../config/index.js';
 import { type NitrogenCycleConfig, nitrogenCycleDefaults } from '../config/nitrogen-cycle.js';
 import { getPpm } from '../resources/index.js';
+
+// Molecular weights (g/mol) — physics constants, not tunable config.
+/** Elemental nitrogen. */
+export const MW_N = 14.01;
+/** Ammonia. */
+export const MW_NH3 = 17.03;
+/** Nitrite (NO2⁻). */
+export const MW_NO2 = 46.01;
+/** Nitrate (NO3⁻). */
+export const MW_NO3 = 62.0;
+
+/** Mass of NH3 produced per unit mass of N (going from N-mass to compound mass). ≈ 1.216. */
+export const N_TO_NH3_MASS_RATIO = MW_NH3 / MW_N;
+/** Mass of NO2⁻ produced per mg of NH3 oxidised. ≈ 2.702. */
+export const NH3_TO_NO2_MASS_RATIO = MW_NO2 / MW_NH3;
+/** Mass of NO3⁻ produced per mg of NO2⁻ oxidised. ≈ 1.348. */
+export const NO2_TO_NO3_MASS_RATIO = MW_NO3 / MW_NO2;
+
+/**
+ * NOB per-bacterium processing rate multiplier relative to AOB.
+ *
+ * N-mass is conserved across the chain, but compound mass is not — AOB
+ * consume NH3 and produce NO2 with a mass gain of MW_NO2 / MW_NH3 ≈ 2.702.
+ * If AOB and NOB had the same per-bacterium "compound mass processed per
+ * tick" rate, NOB could clear only 1 / 2.702 ≈ 37 % of the NO2 mass AOB
+ * produce, and nitrite would run away.
+ *
+ * Scaling NOB's effective rate by MW_NO2 / MW_NH3 keeps per-atom N
+ * throughput equal between the two steps — i.e. at population parity the
+ * NO3 produced per tick equals the NH3 consumed per tick in N-atom terms.
+ *
+ * Biologically legitimate: real NOB (Nitrobacter / Nitrospira) are
+ * faster per cell than AOB (Nitrosomonas / Nitrosospira). The engine
+ * exposes a single `bacteriaProcessingRate` knob as the AOB baseline;
+ * NOB inherits `rate × multiplier`.
+ */
+export const NOB_PROCESSING_RATE_MULTIPLIER = MW_NO2 / MW_NH3;
+
+/**
+ * Fraction of total ammonia (TAN = NH3 + NH4⁺) that exists as unionized
+ * NH3 at the given pH and temperature. The unionized form is what
+ * actually crosses gills and poisons fish; NH4⁺ is one to two orders
+ * of magnitude less toxic.
+ *
+ * Emerson et al. (1975): pKa = 0.09018 + 2729.92 / T_K.
+ *   f_NH3 = 1 / (1 + 10^(pKa - pH))
+ *
+ * Physics constant, not tunable — this is chemistry. Reference values
+ * at 25 °C: pH 6.5 → 0.18 %; pH 7.0 → 0.56 %; pH 7.5 → 1.77 %;
+ * pH 8.0 → 5.37 %; pH 8.5 → 15.3 %. A tank running at pH 6.5 carries
+ * ~30× less toxic NH3 than the same TAN at pH 8.0.
+ */
+export function unionizedAmmoniaFraction(ph: number, temperatureC: number): number {
+  const tempK = temperatureC + 273.15;
+  const pKa = 0.09018 + 2729.92 / tempK;
+  return 1 / (1 + Math.pow(10, pKa - ph));
+}
 
 /**
  * Calculate maximum bacteria population based on surface area.
@@ -66,42 +129,71 @@ export function calculateWasteToAmmonia(
 
 /**
  * Calculate ammonia to nitrite conversion by AOB bacteria.
- * Returns mass of ammonia processed (mg). 1:1 conversion to nitrite.
+ *
+ * N-mass is conserved; compound mass scales with MW. NO2⁻ produced =
+ * NH3 consumed × MW_NO2 / MW_NH3 ≈ 2.702.
  *
  * @param ammoniaMass - Current ammonia mass in mg
  * @param aobPopulation - AOB bacteria population
  * @param waterVolume - Water volume in liters (needed to calculate processing capacity)
+ * @returns mg of ammonia consumed and mg of nitrite produced
  */
 export function calculateAmmoniaToNitrite(
   ammoniaMass: number,
   aobPopulation: number,
   waterVolume: number,
   config: NitrogenCycleConfig = nitrogenCycleDefaults
-): number {
-  if (ammoniaMass <= 0 || aobPopulation <= 0 || waterVolume <= 0) return 0;
+): { ammoniaConsumed: number; nitriteProduced: number } {
+  if (ammoniaMass <= 0 || aobPopulation <= 0 || waterVolume <= 0) {
+    return { ammoniaConsumed: 0, nitriteProduced: 0 };
+  }
   // Processing rate is defined per ppm, multiply by water to get mass capacity
   const canProcessMass = aobPopulation * config.bacteriaProcessingRate * waterVolume;
-  return Math.min(canProcessMass, ammoniaMass);
+  const ammoniaConsumed = Math.min(canProcessMass, ammoniaMass);
+  return {
+    ammoniaConsumed,
+    nitriteProduced: ammoniaConsumed * NH3_TO_NO2_MASS_RATIO,
+  };
 }
 
 /**
  * Calculate nitrite to nitrate conversion by NOB bacteria.
- * Returns mass of nitrite processed (mg). 1:1 conversion to nitrate.
+ *
+ * N-mass is conserved; compound mass scales with MW. NO3⁻ produced =
+ * NO2⁻ consumed × MW_NO3 / MW_NO2 ≈ 1.348.
+ *
+ * NOB's per-bacterium throughput is scaled by
+ * `NOB_PROCESSING_RATE_MULTIPLIER` relative to AOB so the two steps are
+ * in stoichiometric balance at population parity — see that constant's
+ * docstring.
  *
  * @param nitriteMass - Current nitrite mass in mg
  * @param nobPopulation - NOB bacteria population
  * @param waterVolume - Water volume in liters (needed to calculate processing capacity)
+ * @returns mg of nitrite consumed and mg of nitrate produced
  */
 export function calculateNitriteToNitrate(
   nitriteMass: number,
   nobPopulation: number,
   waterVolume: number,
   config: NitrogenCycleConfig = nitrogenCycleDefaults
-): number {
-  if (nitriteMass <= 0 || nobPopulation <= 0 || waterVolume <= 0) return 0;
-  // Processing rate is defined per ppm, multiply by water to get mass capacity
-  const canProcessMass = nobPopulation * config.bacteriaProcessingRate * waterVolume;
-  return Math.min(canProcessMass, nitriteMass);
+): { nitriteConsumed: number; nitrateProduced: number } {
+  if (nitriteMass <= 0 || nobPopulation <= 0 || waterVolume <= 0) {
+    return { nitriteConsumed: 0, nitrateProduced: 0 };
+  }
+  // Processing rate is defined per ppm, multiply by water to get mass capacity.
+  // NOB runs at `rate × NOB_PROCESSING_RATE_MULTIPLIER` to match AOB's
+  // compound-mass output (MW_NO2 / MW_NH3 heavier than NH3 consumed).
+  const canProcessMass =
+    nobPopulation *
+    config.bacteriaProcessingRate *
+    NOB_PROCESSING_RATE_MULTIPLIER *
+    waterVolume;
+  const nitriteConsumed = Math.min(canProcessMass, nitriteMass);
+  return {
+    nitriteConsumed,
+    nitrateProduced: nitriteConsumed * NO2_TO_NO3_MASS_RATIO,
+  };
 }
 
 // ============================================================================
@@ -177,60 +269,62 @@ export const nitrogenCycleSystem: System = {
 
     // ========================================================================
     // Stage 2: Ammonia → Nitrite (AOB Bacteria)
-    // Processes ammonia mass (mg), produces nitrite mass (mg)
+    // Processes ammonia mass (mg), produces nitrite mass (mg).
+    // N-mass is conserved; compound mass grows by MW_NO2 / MW_NH3 ≈ 2.702.
     // ========================================================================
     if (currentAob > 0 && currentAmmonia > 0) {
-      const ammoniaProcessed = calculateAmmoniaToNitrite(
+      const { ammoniaConsumed, nitriteProduced } = calculateAmmoniaToNitrite(
         currentAmmonia,
         currentAob,
         waterVolume,
         ncConfig
       );
 
-      if (ammoniaProcessed > 0) {
+      if (ammoniaConsumed > 0) {
         effects.push({
           tier: 'passive',
           resource: 'ammonia',
-          delta: -ammoniaProcessed, // mg
+          delta: -ammoniaConsumed, // mg
           source: 'nitrogen-cycle-aob',
         });
-        currentAmmonia -= ammoniaProcessed;
+        currentAmmonia -= ammoniaConsumed;
 
         effects.push({
           tier: 'passive',
           resource: 'nitrite',
-          delta: ammoniaProcessed, // 1:1 conversion (mg)
+          delta: nitriteProduced, // mg, scaled by MW ratio
           source: 'nitrogen-cycle-aob',
         });
-        currentNitrite += ammoniaProcessed;
+        currentNitrite += nitriteProduced;
       }
     }
 
     // ========================================================================
     // Stage 3: Nitrite → Nitrate (NOB Bacteria)
-    // Processes nitrite mass (mg), produces nitrate mass (mg)
+    // Processes nitrite mass (mg), produces nitrate mass (mg).
+    // N-mass is conserved; compound mass grows by MW_NO3 / MW_NO2 ≈ 1.348.
     // ========================================================================
     if (currentNob > 0 && currentNitrite > 0) {
-      const nitriteProcessed = calculateNitriteToNitrate(
+      const { nitriteConsumed, nitrateProduced } = calculateNitriteToNitrate(
         currentNitrite,
         currentNob,
         waterVolume,
         ncConfig
       );
 
-      if (nitriteProcessed > 0) {
+      if (nitriteConsumed > 0) {
         effects.push({
           tier: 'passive',
           resource: 'nitrite',
-          delta: -nitriteProcessed, // mg
+          delta: -nitriteConsumed, // mg
           source: 'nitrogen-cycle-nob',
         });
-        currentNitrite -= nitriteProcessed;
+        currentNitrite -= nitriteConsumed;
 
         effects.push({
           tier: 'passive',
           resource: 'nitrate',
-          delta: nitriteProcessed, // 1:1 conversion (mg)
+          delta: nitrateProduced, // mg, scaled by MW ratio
           source: 'nitrogen-cycle-nob',
         });
       }

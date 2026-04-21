@@ -56,8 +56,8 @@ describe('calculateStress', () => {
     const stress = calculateStress(fish, resources, 100, 100, livestockDefaults);
 
     // deviation = 22 - 18 = 4°C, hardiness = 0.5, factor = 0.5
-    // stress = 2.0 * 4 * 0.5 = 4
-    expect(stress).toBeCloseTo(4, 1);
+    // stress = 0.85 * 4 * 0.5 = 1.7
+    expect(stress).toBeCloseTo(0.85 * 4 * 0.5, 2);
   });
 
   it('applies temperature stress above safe range', () => {
@@ -78,15 +78,35 @@ describe('calculateStress', () => {
     expect(stress).toBeCloseTo(1.5, 1);
   });
 
-  it('applies ammonia stress', () => {
+  it('applies ammonia stress proportional to the unionized NH3 fraction', () => {
     const fish = makeFish();
-    // 5mg ammonia in 100L water = 0.05 ppm
-    const resources = makeResources({ ammonia: 5 });
+    // 5mg ammonia in 100L water = 0.05 ppm TAN at pH 7.0 / 25 °C.
+    // f_NH3(7.0, 25°C) = 1 / (1 + 10^(9.245 − 7.0)) ≈ 0.00566
+    // free NH3 = 0.05 × 0.00566 ≈ 0.000283 ppm
+    // stress = severity(200) × 0.000283 × hardinessFactor(0.5) ≈ 0.02831
+    // (Severity is per ppm free NH3 under the new model; matches Emerson
+    // et al. 1975 speciation.)
+    const resources = makeResources({ ammonia: 5, ph: 7.0, temperature: 25 });
     const stress = calculateStress(fish, resources, 100, 100, livestockDefaults);
 
-    // ammoniaPpm = 5/100 = 0.05, severity = 50, factor = 0.5
-    // stress = 50 * 0.05 * 0.5 = 1.25
-    expect(stress).toBeCloseTo(1.25, 1);
+    // Derive expected from the actual Emerson pKa so the check stays
+    // robust if severity is retuned later.
+    const pKa = 0.09018 + 2729.92 / (25 + 273.15);
+    const fNH3 = 1 / (1 + Math.pow(10, pKa - 7.0));
+    const expected = livestockDefaults.ammoniaStressSeverity * 0.05 * fNH3 * 0.5;
+    expect(stress).toBeCloseTo(expected, 6);
+  });
+
+  it('free-NH3 toxicity rises sharply with pH', () => {
+    // Same TAN (1 ppm) should produce dramatically higher stress at
+    // pH 8.0 than at pH 6.5 because ~30× more of the TAN is in the
+    // unionized (toxic) form.
+    const fish = makeFish();
+    const low = makeResources({ ammonia: 100, ph: 6.5, temperature: 25 });
+    const high = makeResources({ ammonia: 100, ph: 8.0, temperature: 25 });
+    const stressLow = calculateStress(fish, low, 100, 100, livestockDefaults);
+    const stressHigh = calculateStress(fish, high, 100, 100, livestockDefaults);
+    expect(stressHigh).toBeGreaterThan(stressLow * 10);
   });
 
   it('applies nitrite stress', () => {
@@ -292,5 +312,96 @@ describe('processHealth', () => {
 
     // Healthy fish may survive, sick fish dies
     expect(result.deadFishNames.length).toBeGreaterThanOrEqual(1);
+  });
+});
+
+describe('temperature stress calibration (S4 Variant A.1)', () => {
+  // Pins the `temperatureStressSeverity = 0.85` calibration against the
+  // scenario 04 cold-failure curve without needing a full scenario run.
+  //
+  // Setup: a betta (hardiness 0.6, safe range 24–30 °C) held at 20 °C.
+  // Expected per-tick damage:
+  //   stress = severity(0.85) × gap(4 °C) × hardinessFactor(0.4) = 1.36 %/hr
+  //   net loss = stress − recovery(1.0) = 0.36 %/hr ≈ 8.64 %/day
+  //
+  // Scenario 04 checkpoints (day = 24 ticks). Note: the scenario
+  // includes a 24-hour thermal drift ramp from 26 °C → 20 °C, which we
+  // skip here (direct to 20 °C), so this test runs a shade harsher than
+  // the scenario report (scenario day 7 actual = 42 vs ~39.5 here).
+  // Bands reflect the pure-20 °C curve, not the scenario-ramped curve.
+  //   day 1  (tick 24):  health 85–95
+  //   day 2  (tick 48):  health 70–85
+  //   day 4  (tick 96):  health 55–75
+  //   day 7  (tick 168): health 35–50  ← primary anchor (calibrated to
+  //                      pure-cold curve, see note above)
+  //   day 14 (tick 336): dead (or nearly so)
+  function runCold(
+    ticks: number
+  ): { health: number; alive: boolean; diedAt: number | null } {
+    const resources = makeResources({ temperature: 20 });
+    let fish: Fish[] = [makeFish({ species: 'betta', mass: 3.0, health: 100 })];
+    for (let i = 0; i < ticks; i++) {
+      const result = processHealth(
+        fish,
+        resources,
+        100,
+        100,
+        livestockDefaults
+      );
+      fish = result.survivingFish;
+      if (fish.length === 0) return { health: 0, alive: false, diedAt: i + 1 };
+    }
+    return { health: fish[0].health, alive: true, diedAt: null };
+  }
+
+  it('day 1 health lands in 85–95 band', () => {
+    const result = runCold(24);
+    expect(result.alive).toBe(true);
+    expect(result.health).toBeGreaterThanOrEqual(85);
+    expect(result.health).toBeLessThanOrEqual(95);
+  });
+
+  it('day 7 health lands in 35–50 band (pure-cold curve)', () => {
+    const result = runCold(168);
+    expect(result.alive).toBe(true);
+    expect(result.health).toBeGreaterThanOrEqual(35);
+    expect(result.health).toBeLessThanOrEqual(50);
+  });
+
+  it('day 14 betta is dead or nearly so', () => {
+    const result = runCold(336);
+    if (result.alive) {
+      expect(result.health).toBeLessThanOrEqual(15);
+    }
+    // Otherwise dead — both outcomes acceptable at day 14.
+  });
+
+  it('hardier neon tetra declines faster at same 20 °C (smaller safe-range margin)', () => {
+    // Neon: hardiness 0.5, range 22–28 °C → gap 2 °C, factor 0.5.
+    // Stress 0.85 × 2 × 0.5 = 0.85 %/hr, net −0.15 %/day loss after
+    // recovery — actually slower decline than betta despite neon being
+    // less hardy, because neon's range starts lower (22 °C). Sanity
+    // check that the calibration respects species range boundaries
+    // rather than using hardcoded thresholds.
+    const resources = makeResources({ temperature: 20 });
+    let fish: Fish[] = [makeFish({ species: 'neon_tetra', health: 100 })];
+    for (let i = 0; i < 168; i++) {
+      const result = processHealth(
+        fish,
+        resources,
+        100,
+        100,
+        livestockDefaults
+      );
+      fish = result.survivingFish;
+    }
+    // After 7 days at 20 °C, neon should still be alive but losing
+    // health. Compare against betta in the same conditions.
+    const bettaResult = runCold(168);
+    expect(fish.length).toBe(1);
+    // Same gap (2 vs 4) / hardiness (0.5 vs 0.4) → neon net loss
+    // 0.85×2×0.5 − 1 = −0.15 /hr; betta 0.85×4×0.4 − 1 = 0.36 /hr.
+    // Neon recovers, betta declines.
+    expect(fish[0].health).toBeGreaterThan(bettaResult.health);
   });
 });

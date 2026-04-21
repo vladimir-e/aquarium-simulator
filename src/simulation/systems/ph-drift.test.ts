@@ -104,16 +104,24 @@ describe('calculateCO2PHEffect', () => {
     expect(effect).toBeGreaterThan(0);
   });
 
-  it('scales linearly with CO2 excess', () => {
-    const effect10 = calculateCO2PHEffect(phDefaults.co2NeutralLevel + 10);
-    const effect20 = calculateCO2PHEffect(phDefaults.co2NeutralLevel + 20);
-    expect(effect20).toBeCloseTo(effect10 * 2, 5);
+  it('scales logarithmically with CO2 (each doubling is a fixed step)', () => {
+    // New engine uses Henderson-Hasselbalch-style log coupling; doubling
+    // CO2 should lower pH by log10(2) * coefficient = 0.301 * coefficient.
+    const effect4x = calculateCO2PHEffect(phDefaults.co2NeutralLevel * 4);
+    const effect2x = calculateCO2PHEffect(phDefaults.co2NeutralLevel * 2);
+    const step = effect2x - 0; // baseline is 0 at neutral
+    expect(effect4x).toBeCloseTo(2 * step, 5); // 4x = two doublings
   });
 
-  it('high CO2 (30 mg/L) significantly lowers pH target', () => {
+  it('high CO2 (30 mg/L) drops pH by the expected log amount', () => {
     const effect = calculateCO2PHEffect(30);
-    // (30 - 4) * -0.05 = -1.3
-    expect(effect).toBeCloseTo(-1.3, 2);
+    // -log10(30/4) * 1.0 ≈ -0.875 with the calibrated coefficient.
+    const expected = -Math.log10(30 / phDefaults.co2NeutralLevel) * phDefaults.co2PhCoefficient;
+    expect(effect).toBeCloseTo(expected, 5);
+  });
+
+  it('0 CO2 is a safe no-op (guard)', () => {
+    expect(calculateCO2PHEffect(0)).toBe(0);
   });
 });
 

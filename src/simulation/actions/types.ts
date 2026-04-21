@@ -39,7 +39,7 @@ export interface ScrubAlgaeAction extends BaseAction {
 
 export interface WaterChangeAction extends BaseAction {
   type: 'waterChange';
-  /** Fraction of water to change (0.1, 0.25, 0.5, 0.9) */
+  /** Fraction of water to change, in (0, 1]. */
   amount: WaterChangeAmount;
 }
 

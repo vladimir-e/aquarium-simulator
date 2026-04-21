@@ -278,6 +278,7 @@ const GasExchangeConfigSchema = z
     o2ReferenceTemp: z.number(),
     baseExchangeRate: z.number(),
     optimalFlowTurnover: z.number(),
+    minFlowFactor: z.number(),
     aerationExchangeMultiplier: z.number(),
     aerationDirectO2: z.number(),
     aerationCo2OffgasMultiplier: z.number(),
@@ -326,7 +327,7 @@ const PlantsConfigSchema = z
     optimalNitrate: z.number(),
     o2PerPhotosynthesis: z.number(),
     co2PerPhotosynthesis: z.number(),
-    nitratePerPhotosynthesis: z.number(),
+    nutrientsPerPhotosynthesis: z.number(),
     biomassPerPhotosynthesis: z.number(),
     baseRespirationRate: z.number(),
     o2PerRespiration: z.number(),
@@ -359,9 +360,6 @@ const NutrientsConfigSchema = z
     lowDemandMultiplier: z.number(),
     mediumDemandMultiplier: z.number(),
     highDemandMultiplier: z.number(),
-    thrivingThreshold: z.number(),
-    adequateThreshold: z.number(),
-    strugglingThreshold: z.number(),
     conditionRecoveryRate: z.number(),
     conditionDecayRate: z.number(),
     sheddingConditionThreshold: z.number(),
@@ -371,7 +369,6 @@ const NutrientsConfigSchema = z
     deathSizeThreshold: z.number(),
     wastePerPlantDeath: z.number(),
     phosphatePerDecay: z.number(),
-    baseConsumptionRate: z.number(),
   })
   .strict();
 
@@ -379,7 +376,9 @@ const LivestockConfigSchema = z
   .object({
     baseFoodRate: z.number(),
     baseRespirationRate: z.number(),
-    wasteRatio: z.number(),
+    foodNitrogenFraction: z.number(),
+    gillNFraction: z.number(),
+    basalAmmoniaRate: z.number(),
     respiratoryQuotient: z.number(),
     hungerIncreaseRate: z.number(),
     baseHealthRecovery: z.number(),

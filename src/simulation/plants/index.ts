@@ -23,7 +23,6 @@ import { distributeBiomass } from '../systems/plant-growth.js';
 import {
   calculateNutrientSufficiency,
   processPlantNutrients,
-  calculateNutrientConsumption,
 } from '../systems/nutrients.js';
 import { createLog } from '../core/logging.js';
 
@@ -67,42 +66,35 @@ export function processPlants(
   }
 
   // 1. Calculate photosynthesis (only when light > 0)
+  // Photosynthesis now owns nutrient uptake for all four plant macronutrients;
+  // uptake scales with potential rate (light/CO2/size), biomass scales with
+  // actual rate (post-Liebig). See systems/photosynthesis.ts for details.
   const photosynthesisResult = calculatePhotosynthesis(
-    totalPlantSize,
+    state.plants,
     state.resources.light,
     state.resources.co2,
-    state.resources.nitrate,
+    state.resources,
     state.resources.water,
-    plantsConfig
+    plantsConfig,
+    nutrientsConfig
   );
 
-  // Add photosynthesis effects
-  if (photosynthesisResult.oxygenDelta !== 0) {
-    effects.push({
-      tier: 'active',
-      resource: 'oxygen',
-      delta: photosynthesisResult.oxygenDelta,
-      source: 'photosynthesis',
-    });
-  }
+  const pushDelta = (
+    resource: 'oxygen' | 'co2' | 'nitrate' | 'phosphate' | 'potassium' | 'iron',
+    delta: number,
+    source: string
+  ): void => {
+    if (delta !== 0) {
+      effects.push({ tier: 'active', resource, delta, source });
+    }
+  };
 
-  if (photosynthesisResult.co2Delta !== 0) {
-    effects.push({
-      tier: 'active',
-      resource: 'co2',
-      delta: photosynthesisResult.co2Delta,
-      source: 'photosynthesis',
-    });
-  }
-
-  if (photosynthesisResult.nitrateDelta !== 0) {
-    effects.push({
-      tier: 'active',
-      resource: 'nitrate',
-      delta: photosynthesisResult.nitrateDelta,
-      source: 'photosynthesis',
-    });
-  }
+  pushDelta('oxygen', photosynthesisResult.oxygenDelta, 'photosynthesis');
+  pushDelta('co2', photosynthesisResult.co2Delta, 'photosynthesis');
+  pushDelta('nitrate', photosynthesisResult.nitrateDelta, 'photosynthesis');
+  pushDelta('phosphate', photosynthesisResult.phosphateDelta, 'photosynthesis');
+  pushDelta('potassium', photosynthesisResult.potassiumDelta, 'photosynthesis');
+  pushDelta('iron', photosynthesisResult.ironDelta, 'photosynthesis');
 
   // 2. Calculate respiration (24/7)
   const respirationResult = calculateRespiration(
@@ -184,51 +176,7 @@ export function processPlants(
     });
   }
 
-  // 7. Calculate and apply nutrient consumption
-  const newTotalPlantSize = getTotalPlantSize(processedPlants);
-  const consumption = calculateNutrientConsumption(
-    newTotalPlantSize,
-    state.resources,
-    nutrientsConfig
-  );
-
-  // Add nutrient consumption effects
-  if (consumption.nitrateConsumed > 0) {
-    effects.push({
-      tier: 'active',
-      resource: 'nitrate',
-      delta: -consumption.nitrateConsumed,
-      source: 'plant-nutrients',
-    });
-  }
-
-  if (consumption.phosphateConsumed > 0) {
-    effects.push({
-      tier: 'active',
-      resource: 'phosphate',
-      delta: -consumption.phosphateConsumed,
-      source: 'plant-nutrients',
-    });
-  }
-
-  if (consumption.potassiumConsumed > 0) {
-    effects.push({
-      tier: 'active',
-      resource: 'potassium',
-      delta: -consumption.potassiumConsumed,
-      source: 'plant-nutrients',
-    });
-  }
-
-  if (consumption.ironConsumed > 0) {
-    effects.push({
-      tier: 'active',
-      resource: 'iron',
-      delta: -consumption.ironConsumed,
-      source: 'plant-nutrients',
-    });
-  }
-
+  // Nutrient consumption is handled inside calculatePhotosynthesis (step 1).
   // Update plants in state
   const newState = produce(state, (draft) => {
     draft.plants = processedPlants;
@@ -272,7 +220,6 @@ export {
   calculateShedding,
   shouldPlantDie,
   processPlantNutrients,
-  calculateNutrientConsumption,
   getDemandMultiplier,
   getLimitingNutrient,
 } from '../systems/nutrients.js';

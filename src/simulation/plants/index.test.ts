@@ -4,13 +4,21 @@ import { createSimulation, type SimulationState, type Plant } from '../state.js'
 import { produce } from 'immer';
 import { DEFAULT_CONFIG } from '../config/index.js';
 import { plantsDefaults } from '../config/plants.js';
+import { nutrientsDefaults } from '../config/nutrients.js';
 
 describe('processPlants', () => {
+  // Default per-plant condition for test stubs — new in the per-plant Liebig
+  // engine (before, plants were a raw {id, species, size} bag).
+  const C = 100;
+
   function createTestState(overrides: Partial<{
     plants: Plant[];
     light: number;
     co2: number;
     nitrate: number;
+    phosphate: number;
+    potassium: number;
+    iron: number;
     oxygen: number;
     temperature: number;
     water: number;
@@ -18,6 +26,15 @@ describe('processPlants', () => {
   }> = {}): SimulationState {
     const state = createSimulation({ tankCapacity: 100 });
     return produce(state, (draft) => {
+      // Seed all four plant macronutrients to optimal so Liebig's Law
+      // doesn't zero out photosynthesis by default. Tests that probe a
+      // specific limiting nutrient explicitly override its value.
+      const waterVol = overrides.water ?? draft.resources.water;
+      draft.resources.phosphate = nutrientsDefaults.optimalPhosphatePpm * waterVol;
+      draft.resources.potassium = nutrientsDefaults.optimalPotassiumPpm * waterVol;
+      draft.resources.iron = nutrientsDefaults.optimalIronPpm * waterVol;
+      draft.resources.nitrate = nutrientsDefaults.optimalNitratePpm * waterVol;
+
       if (overrides.plants !== undefined) {
         draft.plants = overrides.plants;
       }
@@ -29,6 +46,15 @@ describe('processPlants', () => {
       }
       if (overrides.nitrate !== undefined) {
         draft.resources.nitrate = overrides.nitrate;
+      }
+      if (overrides.phosphate !== undefined) {
+        draft.resources.phosphate = overrides.phosphate;
+      }
+      if (overrides.potassium !== undefined) {
+        draft.resources.potassium = overrides.potassium;
+      }
+      if (overrides.iron !== undefined) {
+        draft.resources.iron = overrides.iron;
       }
       if (overrides.oxygen !== undefined) {
         draft.resources.oxygen = overrides.oxygen;
@@ -64,7 +90,7 @@ describe('processPlants', () => {
 
   describe('with plants and lights on (photosynthesis + respiration)', () => {
     const defaultPlants: Plant[] = [
-      { id: 'p1', species: 'java_fern', size: 100 },
+      { id: 'p1', species: 'java_fern', size: 100, condition: C },
     ];
 
     it('produces oxygen effect from photosynthesis', () => {
@@ -171,7 +197,7 @@ describe('processPlants', () => {
 
     it('updates plant sizes due to growth', () => {
       const state = createTestState({
-        plants: [{ id: 'p1', species: 'java_fern', size: 50 }],
+        plants: [{ id: 'p1', species: 'java_fern', size: 50, condition: C }],
         light: 50,
         co2: plantsDefaults.optimalCo2,
         nitrate: plantsDefaults.optimalNitrate * 100,
@@ -185,7 +211,7 @@ describe('processPlants', () => {
 
   describe('with lights off (respiration only)', () => {
     const defaultPlants: Plant[] = [
-      { id: 'p1', species: 'java_fern', size: 100 },
+      { id: 'p1', species: 'java_fern', size: 100, condition: C },
     ];
 
     it('no photosynthesis effects when light is 0', () => {
@@ -242,7 +268,7 @@ describe('processPlants', () => {
 
     it('plant sizes unchanged when no photosynthesis', () => {
       const state = createTestState({
-        plants: [{ id: 'p1', species: 'java_fern', size: 50 }],
+        plants: [{ id: 'p1', species: 'java_fern', size: 50, condition: C }],
         light: 0,
       });
       const result = processPlants(state, DEFAULT_CONFIG);
@@ -254,7 +280,7 @@ describe('processPlants', () => {
   describe('day/night O2 balance', () => {
     it('net positive O2 during day (photosynthesis > respiration)', () => {
       const state = createTestState({
-        plants: [{ id: 'p1', species: 'java_fern', size: 100 }],
+        plants: [{ id: 'p1', species: 'java_fern', size: 100, condition: C }],
         light: 50,
         co2: plantsDefaults.optimalCo2,
         nitrate: plantsDefaults.optimalNitrate * 100,
@@ -270,7 +296,7 @@ describe('processPlants', () => {
 
     it('net negative O2 during night (respiration only)', () => {
       const state = createTestState({
-        plants: [{ id: 'p1', species: 'java_fern', size: 100 }],
+        plants: [{ id: 'p1', species: 'java_fern', size: 100, condition: C }],
         light: 0,
         temperature: 25,
       });
@@ -283,7 +309,7 @@ describe('processPlants', () => {
 
     it('day produces more O2 than night consumes (net positive over 24h)', () => {
       const dayState = createTestState({
-        plants: [{ id: 'p1', species: 'java_fern', size: 100 }],
+        plants: [{ id: 'p1', species: 'java_fern', size: 100, condition: C }],
         light: 50,
         co2: plantsDefaults.optimalCo2,
         nitrate: plantsDefaults.optimalNitrate * 100,
@@ -291,7 +317,7 @@ describe('processPlants', () => {
         temperature: 25,
       });
       const nightState = createTestState({
-        plants: [{ id: 'p1', species: 'java_fern', size: 100 }],
+        plants: [{ id: 'p1', species: 'java_fern', size: 100, condition: C }],
         light: 0,
         temperature: 25,
       });
@@ -315,7 +341,7 @@ describe('processPlants', () => {
     it('produces waste when plant exceeds 200%', () => {
       // Plant at 199% with enough growth to push over 200%
       const state = createTestState({
-        plants: [{ id: 'p1', species: 'monte_carlo', size: 199 }],
+        plants: [{ id: 'p1', species: 'monte_carlo', size: 199, condition: C }],
         light: 50,
         co2: plantsDefaults.optimalCo2,
         nitrate: plantsDefaults.optimalNitrate * 100,
@@ -334,7 +360,7 @@ describe('processPlants', () => {
 
     it('no waste when plants below 200%', () => {
       const state = createTestState({
-        plants: [{ id: 'p1', species: 'java_fern', size: 50 }],
+        plants: [{ id: 'p1', species: 'java_fern', size: 50, condition: C }],
         light: 50,
         co2: plantsDefaults.optimalCo2,
         nitrate: plantsDefaults.optimalNitrate * 100,
@@ -348,7 +374,7 @@ describe('processPlants', () => {
 
     it('plant size capped at 200%', () => {
       const state = createTestState({
-        plants: [{ id: 'p1', species: 'monte_carlo', size: 199 }],
+        plants: [{ id: 'p1', species: 'monte_carlo', size: 199, condition: C }],
         light: 50,
         co2: plantsDefaults.optimalCo2,
         nitrate: plantsDefaults.optimalNitrate * 100,
@@ -364,9 +390,9 @@ describe('processPlants', () => {
     it('processes multiple plants correctly', () => {
       const state = createTestState({
         plants: [
-          { id: 'p1', species: 'java_fern', size: 50 },
-          { id: 'p2', species: 'anubias', size: 60 },
-          { id: 'p3', species: 'amazon_sword', size: 70 },
+          { id: 'p1', species: 'java_fern', size: 50, condition: C },
+          { id: 'p2', species: 'anubias', size: 60, condition: C },
+          { id: 'p3', species: 'amazon_sword', size: 70, condition: C },
         ],
         light: 50,
         co2: plantsDefaults.optimalCo2,
@@ -384,7 +410,7 @@ describe('processPlants', () => {
 
     it('total plant size affects photosynthesis rate', () => {
       const singlePlantState = createTestState({
-        plants: [{ id: 'p1', species: 'java_fern', size: 100 }],
+        plants: [{ id: 'p1', species: 'java_fern', size: 100, condition: C }],
         light: 50,
         co2: plantsDefaults.optimalCo2,
         nitrate: plantsDefaults.optimalNitrate * 100,
@@ -392,8 +418,8 @@ describe('processPlants', () => {
       });
       const multiplePlantsState = createTestState({
         plants: [
-          { id: 'p1', species: 'java_fern', size: 100 },
-          { id: 'p2', species: 'java_fern', size: 100 },
+          { id: 'p1', species: 'java_fern', size: 100, condition: C },
+          { id: 'p2', species: 'java_fern', size: 100, condition: C },
         ],
         light: 50,
         co2: plantsDefaults.optimalCo2,
@@ -419,14 +445,14 @@ describe('processPlants', () => {
   describe('limiting conditions', () => {
     it('low CO2 reduces photosynthesis', () => {
       const optimalState = createTestState({
-        plants: [{ id: 'p1', species: 'java_fern', size: 100 }],
+        plants: [{ id: 'p1', species: 'java_fern', size: 100, condition: C }],
         light: 50,
         co2: plantsDefaults.optimalCo2,
         nitrate: plantsDefaults.optimalNitrate * 100,
         water: 100,
       });
       const lowCo2State = createTestState({
-        plants: [{ id: 'p1', species: 'java_fern', size: 100 }],
+        plants: [{ id: 'p1', species: 'java_fern', size: 100, condition: C }],
         light: 50,
         co2: plantsDefaults.optimalCo2 / 4, // 25% of optimal
         nitrate: plantsDefaults.optimalNitrate * 100,
@@ -448,14 +474,14 @@ describe('processPlants', () => {
 
     it('low nitrate reduces photosynthesis', () => {
       const optimalState = createTestState({
-        plants: [{ id: 'p1', species: 'java_fern', size: 100 }],
+        plants: [{ id: 'p1', species: 'java_fern', size: 100, condition: C }],
         light: 50,
         co2: plantsDefaults.optimalCo2,
         nitrate: plantsDefaults.optimalNitrate * 100, // optimal
         water: 100,
       });
       const lowNitrateState = createTestState({
-        plants: [{ id: 'p1', species: 'java_fern', size: 100 }],
+        plants: [{ id: 'p1', species: 'java_fern', size: 100, condition: C }],
         light: 50,
         co2: plantsDefaults.optimalCo2,
         nitrate: (plantsDefaults.optimalNitrate / 4) * 100, // 25% of optimal
@@ -479,12 +505,12 @@ describe('processPlants', () => {
   describe('temperature effects on respiration', () => {
     it('higher temperature increases respiration', () => {
       const coldState = createTestState({
-        plants: [{ id: 'p1', species: 'java_fern', size: 100 }],
+        plants: [{ id: 'p1', species: 'java_fern', size: 100, condition: C }],
         light: 0,
         temperature: 20,
       });
       const warmState = createTestState({
-        plants: [{ id: 'p1', species: 'java_fern', size: 100 }],
+        plants: [{ id: 'p1', species: 'java_fern', size: 100, condition: C }],
         light: 0,
         temperature: 30,
       });
@@ -507,7 +533,7 @@ describe('processPlants', () => {
   describe('immutability', () => {
     it('does not modify original state', () => {
       const state = createTestState({
-        plants: [{ id: 'p1', species: 'java_fern', size: 50 }],
+        plants: [{ id: 'p1', species: 'java_fern', size: 50, condition: C }],
         light: 50,
         co2: plantsDefaults.optimalCo2,
         nitrate: plantsDefaults.optimalNitrate * 100,
@@ -522,7 +548,7 @@ describe('processPlants', () => {
 
     it('returns new state object when plants grow', () => {
       const state = createTestState({
-        plants: [{ id: 'p1', species: 'java_fern', size: 50 }],
+        plants: [{ id: 'p1', species: 'java_fern', size: 50, condition: C }],
         light: 50,
         co2: plantsDefaults.optimalCo2,
         nitrate: plantsDefaults.optimalNitrate * 100,

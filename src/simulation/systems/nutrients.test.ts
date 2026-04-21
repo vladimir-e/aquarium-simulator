@@ -3,11 +3,11 @@ import {
   getDemandMultiplier,
   calculateNutrientSufficiency,
   updatePlantCondition,
+  conditionTargetFor,
   calculateShedding,
   shouldPlantDie,
   calculateDeathWaste,
   processPlantNutrients,
-  calculateNutrientConsumption,
   getLimitingNutrient,
 } from './nutrients.js';
 import { nutrientsDefaults } from '../config/nutrients.js';
@@ -114,15 +114,15 @@ describe('nutrients system', () => {
       expect(sufficiency).toBe(0);
     });
 
-    it('uses Liebig\'s Law - returns minimum factor', () => {
-      // All nutrients at optimal except iron at 50%
+    it("uses Liebig's Law - returns minimum factor", () => {
+      // All nutrients at optimal except iron at 50 %
       const resources = createOptimalResources();
-      resources.iron = 0.1 * 40; // 50% of optimal 0.2ppm
+      resources.iron = nutrientsDefaults.optimalIronPpm * 0.5 * 40;
 
       const sufficiency = calculateNutrientSufficiency(resources, 40, 'dwarf_hairgrass');
 
-      // Should be limited by iron (50%)
-      expect(sufficiency).toBeCloseTo(0.5, 1);
+      // High-demand species → iron is required → Liebig caps at 0.5.
+      expect(sufficiency).toBeCloseTo(0.5, 2);
     });
 
     it('returns 0 for zero water volume', () => {
@@ -147,6 +147,62 @@ describe('nutrients system', () => {
 
       expect(lowDemandSufficiency).toBeGreaterThan(highDemandSufficiency);
     });
+
+    it('treats K and Fe as *boosters* for low-demand plants (no gating)', () => {
+      // Java fern should only be gated on nitrate. Zero out K and Fe — it
+      // should still report full sufficiency as long as NO3 is optimal.
+      const resources = createOptimalResources();
+      resources.potassium = 0;
+      resources.iron = 0;
+      const s = calculateNutrientSufficiency(resources, 40, 'java_fern');
+      expect(s).toBe(1);
+    });
+
+    it('treats K and Fe as *boosters* for medium-demand plants (PO4 still required)', () => {
+      const resources = createOptimalResources();
+      resources.potassium = 0;
+      resources.iron = 0;
+      const s = calculateNutrientSufficiency(resources, 40, 'amazon_sword');
+      expect(s).toBe(1);
+    });
+
+    it('gates medium-demand plants on phosphate too', () => {
+      const resources = createOptimalResources();
+      resources.phosphate = 0;
+      const s = calculateNutrientSufficiency(resources, 40, 'amazon_sword');
+      expect(s).toBe(0);
+    });
+
+    it('gates high-demand plants on all four', () => {
+      const resources = createOptimalResources();
+      resources.iron = 0; // only Fe missing
+      const s = calculateNutrientSufficiency(resources, 40, 'monte_carlo');
+      expect(s).toBe(0);
+    });
+  });
+
+  describe('conditionTargetFor', () => {
+    it('is linear in sufficiency', () => {
+      expect(conditionTargetFor(0)).toBe(0);
+      expect(conditionTargetFor(0.5)).toBe(50);
+      expect(conditionTargetFor(1)).toBe(100);
+    });
+
+    it('clamps out-of-range sufficiency', () => {
+      expect(conditionTargetFor(-0.1)).toBe(0);
+      expect(conditionTargetFor(1.5)).toBe(100);
+    });
+
+    it('target = sufficiency × 100 across the full [0, 1] range', () => {
+      // Exhaustive linearity pin — this is the S2 calibration's
+      // homeostatic model invariant. Any future refactor that pushes
+      // the target off the straight line (e.g. re-introduces
+      // threshold-based zones) must break at least one of these.
+      for (let i = 0; i <= 10; i++) {
+        const s = i / 10;
+        expect(conditionTargetFor(s)).toBe(s * 100);
+      }
+    });
   });
 
   describe('updatePlantCondition', () => {
@@ -156,16 +212,17 @@ describe('nutrients system', () => {
       expect(newCondition).toBe(50 + nutrientsDefaults.conditionRecoveryRate);
     });
 
-    it('slowly improves condition when adequate (0.5-0.8)', () => {
+    it('improves condition toward 65 % when adequate (0.5-0.8)', () => {
+      // Homeostatic model: adequate plants trend toward ~65 % condition at
+      // the recovery step rate (with saturation at the target).
       const newCondition = updatePlantCondition(50, 0.6);
-
-      expect(newCondition).toBeCloseTo(50 + nutrientsDefaults.conditionRecoveryRate * 0.3, 1);
+      expect(newCondition).toBe(50 + nutrientsDefaults.conditionRecoveryRate);
     });
 
-    it('slowly degrades condition when struggling (0.2-0.5)', () => {
+    it('drops condition toward 25 % when struggling (0.2-0.5)', () => {
+      // Struggling plants relax toward ~25 % condition at the decay rate.
       const newCondition = updatePlantCondition(50, 0.3);
-
-      expect(newCondition).toBeCloseTo(50 - nutrientsDefaults.conditionDecayRate * 0.5, 1);
+      expect(newCondition).toBe(50 - nutrientsDefaults.conditionDecayRate);
     });
 
     it('rapidly degrades condition when starving (< 0.2)', () => {
@@ -175,27 +232,120 @@ describe('nutrients system', () => {
     });
 
     it('clamps condition to maximum 100', () => {
-      const newCondition = updatePlantCondition(99, 1.0);
-
-      expect(newCondition).toBe(100);
+      // Start within reach of the target (100) so a single tick can hit it.
+      const newCondition = updatePlantCondition(
+        100 - nutrientsDefaults.conditionRecoveryRate * 0.5,
+        1.0
+      );
+      expect(newCondition).toBeLessThanOrEqual(100);
+      expect(newCondition).toBeGreaterThanOrEqual(99.4);
     });
 
     it('clamps condition to minimum 0', () => {
-      const newCondition = updatePlantCondition(1, 0);
+      // Pick a starting condition smaller than the per-tick decay so the
+      // clamp kicks in regardless of the current tuning.
+      const newCondition = updatePlantCondition(
+        nutrientsDefaults.conditionDecayRate * 0.5,
+        0
+      );
 
       expect(newCondition).toBe(0);
     });
 
-    it('uses custom config thresholds', () => {
+    it('uses custom config rates', () => {
       const customConfig = {
         ...nutrientsDefaults,
-        thrivingThreshold: 0.5, // Lower threshold
         conditionRecoveryRate: 10,
       };
 
+      // At sufficiency 0.6, target = 60. From 50 with recovery rate 10,
+      // one tick lands exactly at 60.
       const newCondition = updatePlantCondition(50, 0.6, customConfig);
 
-      expect(newCondition).toBe(60); // Full recovery rate because 0.6 >= 0.5
+      expect(newCondition).toBe(60);
+    });
+
+    describe('homeostatic dynamics (linear-in-sufficiency target)', () => {
+      // Pins the S2 calibration's core observation: condition trends
+      // toward `sufficiency × 100` rather than jumping between
+      // threshold-defined zones. Verifies both the steady-state (once
+      // condition ≈ target, no further movement) and the ramp (each
+      // tick moves by at most `conditionRecoveryRate` or
+      // `conditionDecayRate` toward the target).
+
+      it.each([
+        { sufficiency: 0.0, expectedTarget: 0 },
+        { sufficiency: 0.25, expectedTarget: 25 },
+        { sufficiency: 0.5, expectedTarget: 50 },
+        { sufficiency: 0.75, expectedTarget: 75 },
+        { sufficiency: 1.0, expectedTarget: 100 },
+      ])(
+        'condition settles at $expectedTarget for sufficiency $sufficiency',
+        ({ sufficiency, expectedTarget }) => {
+          // Starting from anywhere, after many ticks condition should
+          // converge within one step of the linear target.
+          let condition = 50;
+          for (let i = 0; i < 500; i++) {
+            condition = updatePlantCondition(condition, sufficiency);
+          }
+          const stepBound = Math.max(
+            nutrientsDefaults.conditionRecoveryRate,
+            nutrientsDefaults.conditionDecayRate
+          );
+          expect(Math.abs(condition - expectedTarget)).toBeLessThanOrEqual(
+            stepBound
+          );
+        }
+      );
+
+      it('condition moves toward target, never overshoots', () => {
+        // Starting below target → recovers by exactly
+        // `conditionRecoveryRate` per tick until within one step.
+        let condition = 20;
+        const target = 80;
+        const sufficiency = 0.8;
+        while (condition < target - nutrientsDefaults.conditionRecoveryRate) {
+          const next = updatePlantCondition(condition, sufficiency);
+          expect(next - condition).toBeCloseTo(
+            nutrientsDefaults.conditionRecoveryRate,
+            6
+          );
+          condition = next;
+        }
+        // Final step lands exactly on target (no overshoot).
+        const final = updatePlantCondition(condition, sufficiency);
+        expect(final).toBeLessThanOrEqual(target);
+        expect(final).toBeGreaterThanOrEqual(condition);
+      });
+
+      it('condition declines by exactly decayRate per tick when starting above linear target', () => {
+        let condition = 90;
+        const sufficiency = 0.2;
+        const target = 20;
+        while (condition > target + nutrientsDefaults.conditionDecayRate) {
+          const next = updatePlantCondition(condition, sufficiency);
+          expect(condition - next).toBeCloseTo(
+            nutrientsDefaults.conditionDecayRate,
+            6
+          );
+          condition = next;
+        }
+      });
+
+      it('is monotonic in sufficiency at steady state', () => {
+        // A plant with more nutrients should end up in better shape —
+        // no pathological non-monotonic steps in the sufficiency
+        // response curve.
+        const settled = (s: number): number => {
+          let c = 50;
+          for (let i = 0; i < 1000; i++) c = updatePlantCondition(c, s);
+          return c;
+        };
+        const samples = [0.1, 0.3, 0.5, 0.7, 0.9, 1.0].map(settled);
+        for (let i = 1; i < samples.length; i++) {
+          expect(samples[i]).toBeGreaterThanOrEqual(samples[i - 1]);
+        }
+      });
     });
   });
 
@@ -366,59 +516,9 @@ describe('nutrients system', () => {
     });
   });
 
-  describe('calculateNutrientConsumption', () => {
-    it('returns zeros when no plants', () => {
-      const resources = createOptimalResources();
-
-      const result = calculateNutrientConsumption(0, resources);
-
-      expect(result.nitrateConsumed).toBe(0);
-      expect(result.phosphateConsumed).toBe(0);
-      expect(result.potassiumConsumed).toBe(0);
-      expect(result.ironConsumed).toBe(0);
-    });
-
-    it('scales consumption with plant size', () => {
-      const resources = createOptimalResources();
-
-      const small = calculateNutrientConsumption(100, resources);
-      const large = calculateNutrientConsumption(200, resources);
-
-      expect(large.nitrateConsumed).toBe(small.nitrateConsumed * 2);
-    });
-
-    it('clamps consumption to available resources', () => {
-      // Very low nutrients
-      const resources = createResources({
-        nitrate: 0.01,
-        phosphate: 0.001,
-        potassium: 0.01,
-        iron: 0.0001,
-      });
-
-      const result = calculateNutrientConsumption(500, resources);
-
-      expect(result.nitrateConsumed).toBeLessThanOrEqual(resources.nitrate);
-      expect(result.phosphateConsumed).toBeLessThanOrEqual(resources.phosphate);
-      expect(result.potassiumConsumed).toBeLessThanOrEqual(resources.potassium);
-      expect(result.ironConsumed).toBeLessThanOrEqual(resources.iron);
-    });
-
-    it('consumes nutrients in fertilizer formula ratio', () => {
-      const resources = createOptimalResources();
-
-      const result = calculateNutrientConsumption(100, resources);
-
-      // Check ratios match fertilizer formula (approximately)
-      const total = result.nitrateConsumed + result.phosphateConsumed + result.potassiumConsumed + result.ironConsumed;
-      if (total > 0) {
-        const nitrateRatio = result.nitrateConsumed / total;
-        const formulaTotal = 50 + 5 + 40 + 1; // default formula
-        const expectedNitrateRatio = 50 / formulaTotal;
-        expect(nitrateRatio).toBeCloseTo(expectedNitrateRatio, 1);
-      }
-    });
-  });
+  // Nutrient consumption moved into photosynthesis (see photosynthesis.test.ts);
+  // plants draw nutrients in fertilizer ratio from the "potential photosynthesis"
+  // pathway. There is no standalone nutrient consumption function.
 
   describe('getLimitingNutrient', () => {
     it('identifies nitrate as limiting when lowest', () => {

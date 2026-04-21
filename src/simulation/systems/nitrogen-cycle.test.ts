@@ -7,6 +7,9 @@ import {
   calculateWasteToAmmonia,
   calculateAmmoniaToNitrite,
   calculateNitriteToNitrate,
+  NH3_TO_NO2_MASS_RATIO,
+  NO2_TO_NO3_MASS_RATIO,
+  NOB_PROCESSING_RATE_MULTIPLIER,
 } from './nitrogen-cycle.js';
 import { createSimulation, type SimulationState } from '../state.js';
 import { applyEffects } from '../core/effects.js';
@@ -99,33 +102,42 @@ describe('calculateWasteToAmmonia', () => {
 });
 
 describe('calculateAmmoniaToNitrite', () => {
-  it('returns 0 for no ammonia', () => {
-    expect(calculateAmmoniaToNitrite(0, 100, 40)).toBe(0);
+  it('returns zero consumption and production for no ammonia', () => {
+    const result = calculateAmmoniaToNitrite(0, 100, 40);
+    expect(result.ammoniaConsumed).toBe(0);
+    expect(result.nitriteProduced).toBe(0);
   });
 
-  it('returns 0 for no bacteria', () => {
-    expect(calculateAmmoniaToNitrite(1.0, 0, 40)).toBe(0);
+  it('returns zero for no bacteria', () => {
+    const result = calculateAmmoniaToNitrite(1.0, 0, 40);
+    expect(result.ammoniaConsumed).toBe(0);
+    expect(result.nitriteProduced).toBe(0);
   });
 
-  it('returns 0 for no water', () => {
-    expect(calculateAmmoniaToNitrite(1.0, 100, 0)).toBe(0);
+  it('returns zero for no water', () => {
+    const result = calculateAmmoniaToNitrite(1.0, 100, 0);
+    expect(result.ammoniaConsumed).toBe(0);
+    expect(result.nitriteProduced).toBe(0);
   });
 
   it('processes based on bacteria population and water volume', () => {
     const bacteria = 100;
     const waterVolume = 40;
     const ammoniaMass = 100; // More mass than can be processed
-    const processed = calculateAmmoniaToNitrite(ammoniaMass, bacteria, waterVolume);
+    const { ammoniaConsumed } = calculateAmmoniaToNitrite(ammoniaMass, bacteria, waterVolume);
     // Processing capacity = bacteria * rate * water
-    expect(processed).toBeCloseTo(bacteria * nitrogenCycleDefaults.bacteriaProcessingRate * waterVolume, 10);
+    expect(ammoniaConsumed).toBeCloseTo(
+      bacteria * nitrogenCycleDefaults.bacteriaProcessingRate * waterVolume,
+      10
+    );
   });
 
   it('cannot process more ammonia than available', () => {
     const bacteria = 1000;
     const waterVolume = 40;
     const ammoniaMass = 0.001; // Very little ammonia mass
-    const processed = calculateAmmoniaToNitrite(ammoniaMass, bacteria, waterVolume);
-    expect(processed).toBe(ammoniaMass);
+    const { ammoniaConsumed } = calculateAmmoniaToNitrite(ammoniaMass, bacteria, waterVolume);
+    expect(ammoniaConsumed).toBe(ammoniaMass);
   });
 
   it('processes more mass in larger tanks (same ppm reduction)', () => {
@@ -134,41 +146,123 @@ describe('calculateAmmoniaToNitrite', () => {
     const largeTankWater = 100;
     const ammoniaMass = 100; // Plenty of mass
 
-    const processedSmall = calculateAmmoniaToNitrite(ammoniaMass, bacteria, smallTankWater);
-    const processedLarge = calculateAmmoniaToNitrite(ammoniaMass, bacteria, largeTankWater);
+    const { ammoniaConsumed: processedSmall } = calculateAmmoniaToNitrite(
+      ammoniaMass,
+      bacteria,
+      smallTankWater
+    );
+    const { ammoniaConsumed: processedLarge } = calculateAmmoniaToNitrite(
+      ammoniaMass,
+      bacteria,
+      largeTankWater
+    );
 
     // More water = more mass processed (but same ppm rate)
     expect(processedLarge).toBeCloseTo(processedSmall * 5, 10);
   });
+
+  it('scales nitrite produced by MW_NO2 / MW_NH3 (N-mass conserved)', () => {
+    const bacteria = 100;
+    const waterVolume = 40;
+    const ammoniaMass = 100;
+    const { ammoniaConsumed, nitriteProduced } = calculateAmmoniaToNitrite(
+      ammoniaMass,
+      bacteria,
+      waterVolume
+    );
+    expect(ammoniaConsumed).toBeGreaterThan(0);
+    expect(nitriteProduced).toBeCloseTo(ammoniaConsumed * NH3_TO_NO2_MASS_RATIO, 10);
+    // N-mass conservation: mg of N is the same before and after.
+    expect(nitriteProduced * (14.01 / 46.01)).toBeCloseTo(ammoniaConsumed * (14.01 / 17.03), 10);
+  });
 });
 
 describe('calculateNitriteToNitrate', () => {
-  it('returns 0 for no nitrite', () => {
-    expect(calculateNitriteToNitrate(0, 100, 40)).toBe(0);
+  it('returns zero consumption and production for no nitrite', () => {
+    const result = calculateNitriteToNitrate(0, 100, 40);
+    expect(result.nitriteConsumed).toBe(0);
+    expect(result.nitrateProduced).toBe(0);
   });
 
-  it('returns 0 for no bacteria', () => {
-    expect(calculateNitriteToNitrate(1.0, 0, 40)).toBe(0);
+  it('returns zero for no bacteria', () => {
+    const result = calculateNitriteToNitrate(1.0, 0, 40);
+    expect(result.nitriteConsumed).toBe(0);
+    expect(result.nitrateProduced).toBe(0);
   });
 
-  it('returns 0 for no water', () => {
-    expect(calculateNitriteToNitrate(1.0, 100, 0)).toBe(0);
+  it('returns zero for no water', () => {
+    const result = calculateNitriteToNitrate(1.0, 100, 0);
+    expect(result.nitriteConsumed).toBe(0);
+    expect(result.nitrateProduced).toBe(0);
   });
 
-  it('processes based on bacteria population and water volume', () => {
+  it('processes based on bacteria population, water volume, and NOB multiplier', () => {
     const bacteria = 100;
     const waterVolume = 40;
-    const nitriteMass = 100; // More mass than can be processed
-    const processed = calculateNitriteToNitrate(nitriteMass, bacteria, waterVolume);
-    expect(processed).toBeCloseTo(bacteria * nitrogenCycleDefaults.bacteriaProcessingRate * waterVolume, 10);
+    const nitriteMass = 1000; // More mass than can be processed
+    const { nitriteConsumed } = calculateNitriteToNitrate(nitriteMass, bacteria, waterVolume);
+    // NOB runs at rate × NOB_PROCESSING_RATE_MULTIPLIER to match AOB's compound-mass output
+    expect(nitriteConsumed).toBeCloseTo(
+      bacteria *
+        nitrogenCycleDefaults.bacteriaProcessingRate *
+        NOB_PROCESSING_RATE_MULTIPLIER *
+        waterVolume,
+      10
+    );
   });
 
   it('cannot process more nitrite than available', () => {
     const bacteria = 1000;
     const waterVolume = 40;
     const nitriteMass = 0.001; // Very little nitrite mass
-    const processed = calculateNitriteToNitrate(nitriteMass, bacteria, waterVolume);
-    expect(processed).toBe(nitriteMass);
+    const { nitriteConsumed } = calculateNitriteToNitrate(nitriteMass, bacteria, waterVolume);
+    expect(nitriteConsumed).toBe(nitriteMass);
+  });
+
+  it('scales nitrate produced by MW_NO3 / MW_NO2 (N-mass conserved)', () => {
+    const bacteria = 100;
+    const waterVolume = 40;
+    const nitriteMass = 1000;
+    const { nitriteConsumed, nitrateProduced } = calculateNitriteToNitrate(
+      nitriteMass,
+      bacteria,
+      waterVolume
+    );
+    expect(nitriteConsumed).toBeGreaterThan(0);
+    expect(nitrateProduced).toBeCloseTo(nitriteConsumed * NO2_TO_NO3_MASS_RATIO, 10);
+    // N-mass conservation.
+    expect(nitrateProduced * (14.01 / 62.0)).toBeCloseTo(nitriteConsumed * (14.01 / 46.01), 10);
+  });
+
+  it('NOB throughput matches AOB in N-atom terms at population parity', () => {
+    // Key stoichiometric property: at equal populations and non-limiting
+    // substrate, NOB should consume NO2 mass equal to what AOB produces
+    // from an equivalent NH3 consumption. Expressed per N atom, throughput
+    // is identical.
+    const bacteria = 100;
+    const waterVolume = 40;
+    const { ammoniaConsumed, nitriteProduced } = calculateAmmoniaToNitrite(
+      1e6,
+      bacteria,
+      waterVolume
+    );
+    const { nitriteConsumed } = calculateNitriteToNitrate(1e6, bacteria, waterVolume);
+
+    // NOB clears exactly the NO2 mass AOB just produced (balanced chain).
+    expect(nitriteConsumed).toBeCloseTo(nitriteProduced, 8);
+    // Per-N-atom: same mg of elemental N passes through each stage.
+    const nFromAob = ammoniaConsumed * (14.01 / 17.03);
+    const nFromNob = nitriteConsumed * (14.01 / 46.01);
+    expect(nFromNob).toBeCloseTo(nFromAob, 8);
+  });
+});
+
+describe('NOB_PROCESSING_RATE_MULTIPLIER', () => {
+  it('equals MW_NO2 / MW_NH3 (stoichiometric balance)', () => {
+    // Guards against accidental drift: the multiplier is purely derived
+    // from molecular weights and must stay in lockstep with NH3_TO_NO2_MASS_RATIO.
+    expect(NOB_PROCESSING_RATE_MULTIPLIER).toBeCloseTo(NH3_TO_NO2_MASS_RATIO, 10);
+    expect(NOB_PROCESSING_RATE_MULTIPLIER).toBeCloseTo(46.01 / 17.03, 10);
   });
 });
 
@@ -309,7 +403,8 @@ describe('nitrogenCycleSystem', () => {
       expect(ammoniaEffect!.delta).toBeLessThan(0);
       expect(nitriteEffect).toBeDefined();
       expect(nitriteEffect!.delta).toBeGreaterThan(0);
-      expect(nitriteEffect!.delta).toBe(-ammoniaEffect!.delta); // 1:1 mass conversion
+      // NO2 mass = NH3 mass × MW_NO2 / MW_NH3 (N-mass conserved)
+      expect(nitriteEffect!.delta).toBeCloseTo(-ammoniaEffect!.delta * NH3_TO_NO2_MASS_RATIO, 10);
     });
 
     it('does not process ammonia when AOB is 0', () => {
@@ -339,7 +434,8 @@ describe('nitrogenCycleSystem', () => {
       expect(nitriteEffect!.delta).toBeLessThan(0);
       expect(nitrateEffect).toBeDefined();
       expect(nitrateEffect!.delta).toBeGreaterThan(0);
-      expect(nitrateEffect!.delta).toBe(-nitriteEffect!.delta); // 1:1 mass conversion
+      // NO3 mass = NO2 mass × MW_NO3 / MW_NO2 (N-mass conserved)
+      expect(nitrateEffect!.delta).toBeCloseTo(-nitriteEffect!.delta * NO2_TO_NO3_MASS_RATIO, 10);
     });
 
     it('does not process nitrite when NOB is 0', () => {

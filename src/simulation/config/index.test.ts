@@ -139,6 +139,6 @@ describe('phDefaults', () => {
     expect(phDefaults.calciteTargetPh).toBe(8.0);
     expect(phDefaults.driftwoodTargetPh).toBe(6.0);
     expect(phDefaults.neutralPh).toBe(7.0);
-    expect(phDefaults.basePgDriftRate).toBe(0.08);
+    expect(phDefaults.basePgDriftRate).toBe(0.25);
   });
 });

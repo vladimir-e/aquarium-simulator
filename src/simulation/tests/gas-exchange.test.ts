@@ -349,14 +349,16 @@ describe('Gas Exchange integration', () => {
       filterOnState = runTicks(filterOnState, 12);
       filterOffState = runTicks(filterOffState, 12);
 
-      // Both may recover some (passive surface exchange at flow=0 gives flowFactor=0,
-      // so filter-off tank should have essentially zero gas exchange)
-      // Filter-on tank should have recovered more O2
+      // Filter-off tank recovers slowly via the passive surface-diffusion
+      // floor; filter-on tank still recovers faster.
       expect(filterOnState.resources.oxygen).toBeGreaterThan(filterOffState.resources.oxygen);
+      expect(filterOffState.resources.oxygen).toBeGreaterThan(depressedO2);
     });
 
-    it('no flow means nearly zero gas exchange rate', () => {
-      // Tank with no filter, no powerhead, no air pump = zero flow
+    it('no flow still has baseline passive surface diffusion', () => {
+      // Tank with no filter, no powerhead, no air pump = zero flow.
+      // Models a filterless betta setup: O2 equilibrates slowly but does
+      // not get stuck — real aquaria exchange gas across the still surface.
       let state = createSimulation({
         tankCapacity: 100,
         initialTemperature: 25,
@@ -370,11 +372,18 @@ describe('Gas Exchange integration', () => {
       });
 
       const o2Before = state.resources.oxygen;
-      state = runTicks(state, 6);
+      state = runTicks(state, 48);
 
-      // With zero flow, flowFactor=0, so exchange rate = baseRate * 0 = 0
-      // O2 should remain essentially unchanged
-      expect(state.resources.oxygen).toBeCloseTo(o2Before, 1);
+      // With minFlowFactor = 0.1, flow=0 means exchange = 10% of full.
+      // Over 48 h that's enough to close most of the gap to saturation
+      // but not the full distance (which would require flow).
+      const saturation = calculateO2Saturation(25);
+      expect(state.resources.oxygen).toBeGreaterThan(o2Before);
+      expect(state.resources.oxygen).toBeLessThanOrEqual(saturation);
+      // Must have closed at least half the gap in 48h with the passive floor.
+      const closedFraction =
+        (state.resources.oxygen - o2Before) / (saturation - o2Before);
+      expect(closedFraction).toBeGreaterThan(0.5);
     });
 
     it('filter off also slows CO2 off-gassing', () => {

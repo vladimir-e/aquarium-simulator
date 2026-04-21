@@ -12,7 +12,7 @@
 import type { Resources, Plant, PlantSpecies, NutrientDemand } from '../state.js';
 import { PLANT_SPECIES_DATA } from '../state.js';
 import type { NutrientsConfig } from '../config/nutrients.js';
-import { nutrientsDefaults, getNutrientRatio } from '../config/nutrients.js';
+import { nutrientsDefaults } from '../config/nutrients.js';
 import { getPpm } from '../resources/index.js';
 
 /**
@@ -27,20 +27,6 @@ export interface PlantNutrientResult {
   died: boolean;
   /** Nutrient sufficiency level (0-1) */
   sufficiency: number;
-}
-
-/**
- * Result of nutrient consumption by all plants.
- */
-export interface NutrientConsumptionResult {
-  /** Nitrate consumed (mg) */
-  nitrateConsumed: number;
-  /** Phosphate consumed (mg) */
-  phosphateConsumed: number;
-  /** Potassium consumed (mg) */
-  potassiumConsumed: number;
-  /** Iron consumed (mg) */
-  ironConsumed: number;
 }
 
 /**
@@ -82,6 +68,22 @@ export function calculateNutrientSufficiency(
   const speciesData = PLANT_SPECIES_DATA[species];
   const demand = getDemandMultiplier(speciesData.nutrientDemand, config);
 
+  // Per-demand-tier required-vs-boosting split (per `docs/6-PLANTS.md`):
+  //   - Low  (Java Fern, Anubias):   NO3 required; PO4/K/Fe are boosters.
+  //   - Med  (Amazon Sword):          NO3 + PO4 required; K/Fe are boosters.
+  //   - High (Monte Carlo, Hairgrass): all four required (no shortcuts).
+  //
+  // A missing "required" nutrient caps sufficiency through Liebig's Law;
+  // a missing "booster" has no effect on the Liebig floor (the plant keeps
+  // running at the required-nutrient ceiling). Boosters can push sufficiency
+  // back up to 1.0 when they're present — so a fully-fed low-demand plant
+  // behaves exactly like before this refactor.
+  const tier = speciesData.nutrientDemand;
+  const nitrateRequired = true; // every tier needs N
+  const phosphateRequired = tier === 'medium' || tier === 'high';
+  const potassiumRequired = tier === 'high';
+  const ironRequired = tier === 'high';
+
   // Calculate current ppm for each nutrient
   const nitratePpm = getPpm(resources.nitrate, waterVolume);
   const phosphatePpm = getPpm(resources.phosphate, waterVolume);
@@ -94,15 +96,27 @@ export function calculateNutrientSufficiency(
   const requiredPotassium = config.optimalPotassiumPpm * demand;
   const requiredIron = config.optimalIronPpm * demand;
 
-  // Calculate sufficiency factor for each nutrient (capped at 1)
+  // Per-nutrient factor. For "required" nutrients the factor applies Liebig
+  // directly (limiting). For "booster" nutrients we treat "absent" as 1.0 —
+  // the plant doesn't mind — but "present" still pins to optimal so
+  // excesses don't stack beyond 1.0.
+  const factorFor = (
+    ppm: number,
+    required: number,
+    isRequired: boolean
+  ): number => {
+    if (required <= 0) return 1;
+    if (!isRequired) return 1; // booster: absence is fine
+    return Math.min(1, ppm / required);
+  };
+
   const factors = [
-    requiredNitrate > 0 ? Math.min(1, nitratePpm / requiredNitrate) : 1,
-    requiredPhosphate > 0 ? Math.min(1, phosphatePpm / requiredPhosphate) : 1,
-    requiredPotassium > 0 ? Math.min(1, potassiumPpm / requiredPotassium) : 1,
-    requiredIron > 0 ? Math.min(1, ironPpm / requiredIron) : 1,
+    factorFor(nitratePpm, requiredNitrate, nitrateRequired),
+    factorFor(phosphatePpm, requiredPhosphate, phosphateRequired),
+    factorFor(potassiumPpm, requiredPotassium, potassiumRequired),
+    factorFor(ironPpm, requiredIron, ironRequired),
   ];
 
-  // Sufficiency is the minimum factor (Liebig's Law - limiting factor)
   return Math.min(...factors);
 }
 
@@ -114,28 +128,37 @@ export function calculateNutrientSufficiency(
  * @param config - Nutrients configuration
  * @returns New condition (0-100)
  */
+/**
+ * Target condition (the "steady-state well-being") that a plant's condition
+ * trends toward. Linear in sufficiency so boundary-crossing transients
+ * stay continuous: a plant whose nutrients oscillate around a sufficiency
+ * level doesn't whipsaw between disparate targets.
+ *
+ * This homeostatic model matches scenario 02's observation that Variant B
+ * plants "hover at 60–70 % condition" — that's a natural steady state at
+ * sufficiency ≈ 0.65, not a transient.
+ */
+export function conditionTargetFor(
+  sufficiency: number,
+  _config: NutrientsConfig = nutrientsDefaults
+): number {
+  // Clamp to [0, 1] then scale.
+  const s = Math.max(0, Math.min(1, sufficiency));
+  return s * 100;
+}
+
 export function updatePlantCondition(
   condition: number,
   sufficiency: number,
   config: NutrientsConfig = nutrientsDefaults
 ): number {
-  let newCondition = condition;
-
-  if (sufficiency >= config.thrivingThreshold) {
-    // Thriving: condition improves at full rate
-    newCondition = Math.min(100, condition + config.conditionRecoveryRate);
-  } else if (sufficiency >= config.adequateThreshold) {
-    // Adequate: condition slowly improves (30% of recovery rate)
-    newCondition = Math.min(100, condition + config.conditionRecoveryRate * 0.3);
-  } else if (sufficiency >= config.strugglingThreshold) {
-    // Struggling: condition slowly degrades (50% of decay rate)
-    newCondition = Math.max(0, condition - config.conditionDecayRate * 0.5);
-  } else {
-    // Starving: rapid condition loss at full decay rate
-    newCondition = Math.max(0, condition - config.conditionDecayRate);
-  }
-
-  return newCondition;
+  const target = conditionTargetFor(sufficiency, config);
+  const delta = target - condition;
+  const stepRate =
+    delta >= 0 ? config.conditionRecoveryRate : config.conditionDecayRate;
+  // Move at most `stepRate` %/tick toward the target. Never overshoot.
+  const step = Math.sign(delta) * Math.min(Math.abs(delta), stepRate);
+  return Math.max(0, Math.min(100, condition + step));
 }
 
 /**
@@ -248,55 +271,6 @@ export function processPlantNutrients(
     wasteReleased,
     died,
     sufficiency,
-  };
-}
-
-/**
- * Calculate nutrient consumption for all plants.
- * Plants consume nutrients proportionally to the fertilizer formula ratio.
- * Consumption scales with total plant size and growth rate.
- *
- * @param totalPlantSize - Sum of all plant sizes (%)
- * @param resources - Current resource state
- * @param config - Nutrients configuration
- * @returns Nutrients consumed (clamped to available amounts)
- */
-export function calculateNutrientConsumption(
-  totalPlantSize: number,
-  resources: Resources,
-  config: NutrientsConfig = nutrientsDefaults
-): NutrientConsumptionResult {
-  if (totalPlantSize <= 0) {
-    return {
-      nitrateConsumed: 0,
-      phosphateConsumed: 0,
-      potassiumConsumed: 0,
-      ironConsumed: 0,
-    };
-  }
-
-  // Base consumption scales with plant size
-  // totalPlantSize is in %, divide by 100 to get factor
-  const baseConsumption = (totalPlantSize / 100) * config.baseConsumptionRate;
-
-  // Get nutrient ratios from fertilizer formula
-  const nitrateRatio = getNutrientRatio('nitrate', config.fertilizerFormula);
-  const phosphateRatio = getNutrientRatio('phosphate', config.fertilizerFormula);
-  const potassiumRatio = getNutrientRatio('potassium', config.fertilizerFormula);
-  const ironRatio = getNutrientRatio('iron', config.fertilizerFormula);
-
-  // Calculate raw consumption for each nutrient
-  const rawNitrate = baseConsumption * nitrateRatio;
-  const rawPhosphate = baseConsumption * phosphateRatio;
-  const rawPotassium = baseConsumption * potassiumRatio;
-  const rawIron = baseConsumption * ironRatio;
-
-  // Clamp to available resources (can't consume more than available)
-  return {
-    nitrateConsumed: Math.min(rawNitrate, resources.nitrate),
-    phosphateConsumed: Math.min(rawPhosphate, resources.phosphate),
-    potassiumConsumed: Math.min(rawPotassium, resources.potassium),
-    ironConsumed: Math.min(rawIron, resources.iron),
   };
 }
 

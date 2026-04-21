@@ -221,8 +221,11 @@ describe('distributeBiomass', () => {
       const biomass = 10;
       const result = distributeBiomass(plants, biomass);
 
-      // Growth = biomass * sizePerBiomass = 10 * 0.15 = 1.5%
-      expect(result.updatedPlants[0].size).toBeCloseTo(51.5, 6);
+      // Growth = biomass * sizePerBiomass (pins to tunable default).
+      expect(result.updatedPlants[0].size).toBeCloseTo(
+        50 + 10 * plantsDefaults.sizePerBiomass,
+        6
+      );
     });
 
     it('all biomass goes to single plant', () => {
@@ -411,13 +414,15 @@ describe('distributeBiomass', () => {
 
   describe('custom config', () => {
     it('respects custom sizePerBiomass', () => {
-      const customConfig = { ...plantsDefaults, sizePerBiomass: 0.3 };
+      const customConfig = {
+        ...plantsDefaults,
+        sizePerBiomass: plantsDefaults.sizePerBiomass * 2,
+      };
       const plants: Plant[] = [{ id: 'p1', species: 'java_fern', size: 50 }];
 
       const defaultResult = distributeBiomass(plants, 10, plantsDefaults);
       const customResult = distributeBiomass(plants, 10, customConfig);
 
-      // Custom should have 2x growth (0.3 vs 0.15)
       const defaultGrowth = defaultResult.updatedPlants[0].size - 50;
       const customGrowth = customResult.updatedPlants[0].size - 50;
 

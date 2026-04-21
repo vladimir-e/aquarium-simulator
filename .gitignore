@@ -6,3 +6,6 @@ coverage/
 *.log
 .DS_Store
 .eslintcache
+.simstate/
+docs/calibration/runs/
+calibration-tmp/

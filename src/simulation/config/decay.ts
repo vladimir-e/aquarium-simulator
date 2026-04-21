@@ -23,7 +23,13 @@ export const decayDefaults: DecayConfig = {
   baseDecayRate: 0.05,
   wasteConversionRatio: 0.4,
   gasExchangePerGramDecay: 250,
-  ambientWaste: 0.01,
+  // Background waste from dust, microfauna shedding, ambient organics.
+  // Prior value (0.01 g/hr) mineralized into ~14 mg NH3/day → ~52 mg NO3/day
+  // in a 38 L tank, which dominated the nitrogen budget in long-running
+  // planted scenarios (exposed by scenario 02). 0.001 g/hr (~ 1 mg NH3/day
+  // after mineralization) leaves room for the fish / dosing pathways to
+  // drive N dynamics while still seeding bacteria on day one.
+  ambientWaste: 0.001,
 };
 
 export interface DecayConfigMeta {
