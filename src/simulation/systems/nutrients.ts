@@ -131,15 +131,12 @@ export function calculateNutrientSufficiency(
 /**
  * Target condition (the "steady-state well-being") that a plant's condition
  * trends toward. Linear in sufficiency so boundary-crossing transients
- * stay continuous: a plant whose nutrients oscillate around a threshold
- * doesn't whipsaw between target 100 and target 25.
+ * stay continuous: a plant whose nutrients oscillate around a sufficiency
+ * level doesn't whipsaw between disparate targets.
  *
- * This homeostatic model replaces the older "monotonic up / down" scheme:
- * scenario 02's qualitative states (Variant B plants "hover at 60–70 %
- * condition") are a natural steady state, not a transient. The legacy
- * threshold config values are no longer used by this function (kept on
- * NutrientsConfig for historical compatibility and for the few places
- * that still reason in terms of zones; see `updatePlantCondition`).
+ * This homeostatic model matches scenario 02's observation that Variant B
+ * plants "hover at 60–70 % condition" — that's a natural steady state at
+ * sufficiency ≈ 0.65, not a transient.
  */
 export function conditionTargetFor(
   sufficiency: number,

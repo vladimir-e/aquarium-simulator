@@ -48,15 +48,6 @@ export interface NutrientsConfig {
   /** High-demand plants need full optimal */
   highDemandMultiplier: number;
 
-  // Condition thresholds (sufficiency levels)
-  /** Sufficiency above this = thriving (condition improves) */
-  thrivingThreshold: number;
-  /** Sufficiency above this = adequate (slight recovery) */
-  adequateThreshold: number;
-  /** Sufficiency above this = struggling (slow decay) */
-  strugglingThreshold: number;
-  // Below struggling threshold = starving (rapid decay)
-
   // Condition rates (per tick)
   /** Condition recovery rate when thriving (% per tick) */
   conditionRecoveryRate: number;
@@ -106,12 +97,6 @@ export const nutrientsDefaults: NutrientsConfig = {
   lowDemandMultiplier: 0.3, // 30% of optimal
   mediumDemandMultiplier: 0.6, // 60% of optimal
   highDemandMultiplier: 1.0, // Full optimal needed
-
-  // Condition thresholds - relaxed for user margin
-  thrivingThreshold: 0.8, // 80%+ sufficiency = thriving
-  adequateThreshold: 0.5, // 50%+ = adequate
-  strugglingThreshold: 0.2, // 20%+ = struggling
-  // Below 20% = starving
 
   // Condition dynamics use the homeostatic model in `systems/nutrients.ts`:
   // condition trends toward `sufficiency * 100`, capped at these step rates.
@@ -177,11 +162,6 @@ export const nutrientsConfigMeta: NutrientsConfigMeta[] = [
   { key: 'lowDemandMultiplier', label: 'Low Demand Multiplier', unit: '', min: 0.1, max: 0.5, step: 0.05 },
   { key: 'mediumDemandMultiplier', label: 'Medium Demand Multiplier', unit: '', min: 0.4, max: 0.8, step: 0.05 },
   { key: 'highDemandMultiplier', label: 'High Demand Multiplier', unit: '', min: 0.8, max: 1.0, step: 0.05 },
-
-  // Condition thresholds
-  { key: 'thrivingThreshold', label: 'Thriving Threshold', unit: '', min: 0.6, max: 1.0, step: 0.05 },
-  { key: 'adequateThreshold', label: 'Adequate Threshold', unit: '', min: 0.3, max: 0.7, step: 0.05 },
-  { key: 'strugglingThreshold', label: 'Struggling Threshold', unit: '', min: 0.1, max: 0.4, step: 0.05 },
 
   // Condition rates
   { key: 'conditionRecoveryRate', label: 'Condition Recovery Rate', unit: '%/hr', min: 0.5, max: 10, step: 0.5 },

@@ -252,16 +252,17 @@ describe('nutrients system', () => {
       expect(newCondition).toBe(0);
     });
 
-    it('uses custom config thresholds', () => {
+    it('uses custom config rates', () => {
       const customConfig = {
         ...nutrientsDefaults,
-        thrivingThreshold: 0.5, // Lower threshold
         conditionRecoveryRate: 10,
       };
 
+      // At sufficiency 0.6, target = 60. From 50 with recovery rate 10,
+      // one tick lands exactly at 60.
       const newCondition = updatePlantCondition(50, 0.6, customConfig);
 
-      expect(newCondition).toBe(60); // Full recovery rate because 0.6 >= 0.5
+      expect(newCondition).toBe(60);
     });
 
     describe('homeostatic dynamics (linear-in-sufficiency target)', () => {
