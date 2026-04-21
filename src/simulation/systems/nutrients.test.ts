@@ -336,7 +336,7 @@ describe('nutrients system', () => {
         // A plant with more nutrients should end up in better shape —
         // no pathological non-monotonic steps in the sufficiency
         // response curve.
-        const settled = (s: number) => {
+        const settled = (s: number): number => {
           let c = 50;
           for (let i = 0; i < 1000; i++) c = updatePlantCondition(c, s);
           return c;

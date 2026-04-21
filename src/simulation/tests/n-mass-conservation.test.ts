@@ -47,7 +47,6 @@ import { describe, it, expect } from 'vitest';
 import { produce } from 'immer';
 import { tick } from '../tick.js';
 import { applyAction } from '../actions/index.js';
-import { createSimulation } from '../state.js';
 import {
   createCycledTank,
   addFish,

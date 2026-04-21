@@ -335,7 +335,9 @@ describe('temperature stress calibration (S4 Variant A.1)', () => {
   //   day 7  (tick 168): health 35–50  ← primary anchor (calibrated to
   //                      pure-cold curve, see note above)
   //   day 14 (tick 336): dead (or nearly so)
-  function runCold(ticks: number) {
+  function runCold(
+    ticks: number
+  ): { health: number; alive: boolean; diedAt: number | null } {
     const resources = makeResources({ temperature: 20 });
     let fish: Fish[] = [makeFish({ species: 'betta', mass: 3.0, health: 100 })];
     for (let i = 0; i < ticks; i++) {
