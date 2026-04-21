@@ -192,6 +192,17 @@ describe('nutrients system', () => {
       expect(conditionTargetFor(-0.1)).toBe(0);
       expect(conditionTargetFor(1.5)).toBe(100);
     });
+
+    it('target = sufficiency × 100 across the full [0, 1] range', () => {
+      // Exhaustive linearity pin — this is the S2 calibration's
+      // homeostatic model invariant. Any future refactor that pushes
+      // the target off the straight line (e.g. re-introduces
+      // threshold-based zones) must break at least one of these.
+      for (let i = 0; i <= 10; i++) {
+        const s = i / 10;
+        expect(conditionTargetFor(s)).toBe(s * 100);
+      }
+    });
   });
 
   describe('updatePlantCondition', () => {
@@ -251,6 +262,89 @@ describe('nutrients system', () => {
       const newCondition = updatePlantCondition(50, 0.6, customConfig);
 
       expect(newCondition).toBe(60); // Full recovery rate because 0.6 >= 0.5
+    });
+
+    describe('homeostatic dynamics (linear-in-sufficiency target)', () => {
+      // Pins the S2 calibration's core observation: condition trends
+      // toward `sufficiency × 100` rather than jumping between
+      // threshold-defined zones. Verifies both the steady-state (once
+      // condition ≈ target, no further movement) and the ramp (each
+      // tick moves by at most `conditionRecoveryRate` or
+      // `conditionDecayRate` toward the target).
+
+      it.each([
+        { sufficiency: 0.0, expectedTarget: 0 },
+        { sufficiency: 0.25, expectedTarget: 25 },
+        { sufficiency: 0.5, expectedTarget: 50 },
+        { sufficiency: 0.75, expectedTarget: 75 },
+        { sufficiency: 1.0, expectedTarget: 100 },
+      ])(
+        'condition settles at $expectedTarget for sufficiency $sufficiency',
+        ({ sufficiency, expectedTarget }) => {
+          // Starting from anywhere, after many ticks condition should
+          // converge within one step of the linear target.
+          let condition = 50;
+          for (let i = 0; i < 500; i++) {
+            condition = updatePlantCondition(condition, sufficiency);
+          }
+          const stepBound = Math.max(
+            nutrientsDefaults.conditionRecoveryRate,
+            nutrientsDefaults.conditionDecayRate
+          );
+          expect(Math.abs(condition - expectedTarget)).toBeLessThanOrEqual(
+            stepBound
+          );
+        }
+      );
+
+      it('condition moves toward target, never overshoots', () => {
+        // Starting below target → recovers by exactly
+        // `conditionRecoveryRate` per tick until within one step.
+        let condition = 20;
+        const target = 80;
+        const sufficiency = 0.8;
+        while (condition < target - nutrientsDefaults.conditionRecoveryRate) {
+          const next = updatePlantCondition(condition, sufficiency);
+          expect(next - condition).toBeCloseTo(
+            nutrientsDefaults.conditionRecoveryRate,
+            6
+          );
+          condition = next;
+        }
+        // Final step lands exactly on target (no overshoot).
+        const final = updatePlantCondition(condition, sufficiency);
+        expect(final).toBeLessThanOrEqual(target);
+        expect(final).toBeGreaterThanOrEqual(condition);
+      });
+
+      it('condition declines by exactly decayRate per tick when starting above linear target', () => {
+        let condition = 90;
+        const sufficiency = 0.2;
+        const target = 20;
+        while (condition > target + nutrientsDefaults.conditionDecayRate) {
+          const next = updatePlantCondition(condition, sufficiency);
+          expect(condition - next).toBeCloseTo(
+            nutrientsDefaults.conditionDecayRate,
+            6
+          );
+          condition = next;
+        }
+      });
+
+      it('is monotonic in sufficiency at steady state', () => {
+        // A plant with more nutrients should end up in better shape —
+        // no pathological non-monotonic steps in the sufficiency
+        // response curve.
+        const settled = (s: number) => {
+          let c = 50;
+          for (let i = 0; i < 1000; i++) c = updatePlantCondition(c, s);
+          return c;
+        };
+        const samples = [0.1, 0.3, 0.5, 0.7, 0.9, 1.0].map(settled);
+        for (let i = 1; i < samples.length; i++) {
+          expect(samples[i]).toBeGreaterThanOrEqual(samples[i - 1]);
+        }
+      });
     });
   });
 

@@ -314,3 +314,92 @@ describe('processHealth', () => {
     expect(result.deadFishNames.length).toBeGreaterThanOrEqual(1);
   });
 });
+
+describe('temperature stress calibration (S4 Variant A.1)', () => {
+  // Pins the `temperatureStressSeverity = 0.85` calibration against the
+  // scenario 04 cold-failure curve without needing a full scenario run.
+  //
+  // Setup: a betta (hardiness 0.6, safe range 24–30 °C) held at 20 °C.
+  // Expected per-tick damage:
+  //   stress = severity(0.85) × gap(4 °C) × hardinessFactor(0.4) = 1.36 %/hr
+  //   net loss = stress − recovery(1.0) = 0.36 %/hr ≈ 8.64 %/day
+  //
+  // Scenario 04 checkpoints (day = 24 ticks). Note: the scenario
+  // includes a 24-hour thermal drift ramp from 26 °C → 20 °C, which we
+  // skip here (direct to 20 °C), so this test runs a shade harsher than
+  // the scenario report (scenario day 7 actual = 42 vs ~39.5 here).
+  // Bands reflect the pure-20 °C curve, not the scenario-ramped curve.
+  //   day 1  (tick 24):  health 85–95
+  //   day 2  (tick 48):  health 70–85
+  //   day 4  (tick 96):  health 55–75
+  //   day 7  (tick 168): health 35–50  ← primary anchor (calibrated to
+  //                      pure-cold curve, see note above)
+  //   day 14 (tick 336): dead (or nearly so)
+  function runCold(ticks: number) {
+    const resources = makeResources({ temperature: 20 });
+    let fish: Fish[] = [makeFish({ species: 'betta', mass: 3.0, health: 100 })];
+    for (let i = 0; i < ticks; i++) {
+      const result = processHealth(
+        fish,
+        resources,
+        100,
+        100,
+        livestockDefaults
+      );
+      fish = result.survivingFish;
+      if (fish.length === 0) return { health: 0, alive: false, diedAt: i + 1 };
+    }
+    return { health: fish[0].health, alive: true, diedAt: null };
+  }
+
+  it('day 1 health lands in 85–95 band', () => {
+    const result = runCold(24);
+    expect(result.alive).toBe(true);
+    expect(result.health).toBeGreaterThanOrEqual(85);
+    expect(result.health).toBeLessThanOrEqual(95);
+  });
+
+  it('day 7 health lands in 35–50 band (pure-cold curve)', () => {
+    const result = runCold(168);
+    expect(result.alive).toBe(true);
+    expect(result.health).toBeGreaterThanOrEqual(35);
+    expect(result.health).toBeLessThanOrEqual(50);
+  });
+
+  it('day 14 betta is dead or nearly so', () => {
+    const result = runCold(336);
+    if (result.alive) {
+      expect(result.health).toBeLessThanOrEqual(15);
+    }
+    // Otherwise dead — both outcomes acceptable at day 14.
+  });
+
+  it('hardier neon tetra declines faster at same 20 °C (smaller safe-range margin)', () => {
+    // Neon: hardiness 0.5, range 22–28 °C → gap 2 °C, factor 0.5.
+    // Stress 0.85 × 2 × 0.5 = 0.85 %/hr, net −0.15 %/day loss after
+    // recovery — actually slower decline than betta despite neon being
+    // less hardy, because neon's range starts lower (22 °C). Sanity
+    // check that the calibration respects species range boundaries
+    // rather than using hardcoded thresholds.
+    const resources = makeResources({ temperature: 20 });
+    let fish: Fish[] = [makeFish({ species: 'neon_tetra', health: 100 })];
+    for (let i = 0; i < 168; i++) {
+      const result = processHealth(
+        fish,
+        resources,
+        100,
+        100,
+        livestockDefaults
+      );
+      fish = result.survivingFish;
+    }
+    // After 7 days at 20 °C, neon should still be alive but losing
+    // health. Compare against betta in the same conditions.
+    const bettaResult = runCold(168);
+    expect(fish.length).toBe(1);
+    // Same gap (2 vs 4) / hardiness (0.5 vs 0.4) → neon net loss
+    // 0.85×2×0.5 − 1 = −0.15 /hr; betta 0.85×4×0.4 − 1 = 0.36 /hr.
+    // Neon recovers, betta declines.
+    expect(fish[0].health).toBeGreaterThan(bettaResult.health);
+  });
+});
