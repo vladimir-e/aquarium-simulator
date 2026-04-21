@@ -9,8 +9,13 @@ coefficient changes back in `src/simulation/config/*.ts`.
 
 - `scenarios/` — the canonical calibration scenarios (markdown). Each file
   describes setup, expected checkpoints, and acceptance criteria.
-- `runs/` — per-run reports authored during calibration (gitignored; promote
-  notable runs by moving the file out of `runs/` into a named location).
+- `baselines/` — committed, canonical convergent run per scenario. These are
+  the in-tree evidence that the engine matches each scenario's primary
+  anchors. One file per scenario, named `NN-<scenario-slug>.md`.
+- `runs/` — ephemeral, per-run reports authored during calibration work
+  (gitignored). Use this folder for work-in-progress reports, alternative
+  variants, and debugging runs. Promote a notable run into `baselines/`
+  once it converges and represents the current engine's behaviour.
 
 ## The CLI
 
@@ -58,7 +63,9 @@ sure nothing breaks.
 ## Report template
 
 Save reports into `docs/calibration/runs/<YYYY-MM-DD>-<slug>.md` (gitignored
-by default — move out of `runs/` if you want to keep one in-tree).
+by default). Once a run converges and you're ready to commit it as the
+canonical reference, copy it into `docs/calibration/baselines/<NN-slug>.md`
+(see existing baselines for naming and structure).
 
 ```markdown
 # Calibration run: <scenario-slug>
