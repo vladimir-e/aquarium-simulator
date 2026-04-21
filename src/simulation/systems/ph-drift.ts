@@ -61,9 +61,12 @@ export function calculateHardscapeTargetPH(
  *
  * At the neutral CO2 level, effect = 0.
  * Doubling CO2 shifts pH by −0.30 × coefficient units (log10(2)).
- * With coefficient ≈ 1.0 and neutral = 4 ppm, a 25 ppm CO2 plume lowers
- * pH by ~0.80, matching the 0.3–0.5 diurnal swing hobbyists measure in
- * CO2-injected planted tanks.
+ * With the default coefficient of 0.75 and neutral = 4 ppm, a 25 ppm
+ * CO2 plume lowers pH by ~0.60, landing pH ≈ 6.4 at 25 ppm and ≈ 6.8
+ * at 5 ppm — matching scenario 02's diurnal anchor points for a
+ * CO2-injected planted tank with ~2–3 dKH water. The coefficient
+ * effectively replaces alkalinity in the calculation: a higher-KH tank
+ * would need a smaller coefficient.
  *
  * For CO2 below the neutral level the effect goes positive (slight pH
  * rise), which matches real-world tanks that off-gas below atmospheric.
