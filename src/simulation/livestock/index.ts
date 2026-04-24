@@ -141,4 +141,9 @@ export function processLivestock(
 
 // Re-export for testing and external use
 export { processMetabolism } from '../systems/metabolism.js';
-export { processHealth, calculateStress } from '../systems/fish-health.js';
+export {
+  processHealth,
+  calculateStress,
+  calculateStressBreakdown,
+  type StressBreakdown,
+} from '../systems/fish-health.js';

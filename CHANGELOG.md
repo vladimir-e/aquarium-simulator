@@ -8,6 +8,10 @@ Format: - **Feature name** (#PR) - Brief description (under 100 chars)
 - Skip UI-only tweaks and minor fixes
 -->
 
+## 2026-04-24
+
+- **Fish health legibility** - Livestock panel: each fish card now shows a trend indicator (↑/↓ net %/hr health change, hidden when `|net| < 0.05`) next to the status badge, plus an expandable `▶ Stressors (N)` section listing every active stressor's %/hr contribution, a recovery line, and a net row; removed the now-redundant "Health critical!" warning (the status badge already conveys severity). Backed by a new `calculateStressBreakdown` that returns per-stressor damage (already scaled by hardiness) + `total`; `calculateStress` becomes a thin wrapper so UI and `processHealth` can never drift
+
 ## 2026-04-23
 
 - **Per-fish hardiness stochasticity** - Task 35: `Fish` gains `hardinessOffset` (±15 % of species baseline, sampled once at `addFish` time, never re-rolled) so weaker individuals fail first when conditions degrade; `calculateStress` uses `effectiveHardiness = clamp(speciesHardiness + offset, 0.1, 0.95)`; `addFish` also applies ±5 % initial health jitter (clamped to [0, 100]) to capture mild purchase-condition variation; persistence schema bumped v4 → v5 (old saves discarded via existing version-mismatch path); calibration helper `addFish` neutralises jitter so scenario anchors and N-mass conservation tests stay pinned — stochasticity only flows through the live game path

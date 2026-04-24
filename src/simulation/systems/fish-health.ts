@@ -24,15 +24,45 @@ export interface HealthResult {
 }
 
 /**
- * Calculate total stress for a single fish from all environmental stressors.
+ * Per-stressor stress contribution (%/hr) for a single fish.
+ *
+ * Each field is the damage rate that stressor adds to the fish this
+ * tick, already scaled by the fish's effective hardiness — these are
+ * the actionable numbers the UI shows and together they sum to
+ * `total`, which matches `calculateStress`'s return value.
+ *
+ * Inactive stressors are `0`, not omitted, so callers can iterate the
+ * shape without optional-chaining each field.
  */
-export function calculateStress(
+export interface StressBreakdown {
+  temperature: number;
+  ph: number;
+  ammonia: number;
+  nitrite: number;
+  nitrate: number;
+  hunger: number;
+  oxygen: number;
+  waterLevel: number;
+  flow: number;
+  total: number;
+}
+
+/**
+ * Calculate a per-stressor breakdown of stress on a single fish.
+ *
+ * Each field is already multiplied by the effective hardiness factor,
+ * so values are directly the %/hr damage each stressor contributes.
+ * `total` is the sum and matches what `calculateStress` returns — the
+ * two functions share this implementation so `processHealth` cannot
+ * drift from the UI's displayed numbers.
+ */
+export function calculateStressBreakdown(
   fish: Fish,
   resources: Resources,
   waterVolume: number,
   tankCapacity: number,
   config: LivestockConfig
-): number {
+): StressBreakdown {
   const speciesData = FISH_SPECIES_DATA[fish.species];
   // Apply per-fish hardiness offset on top of the species baseline,
   // clamped to a sane range so extreme offsets (or legacy data) can't
@@ -42,24 +72,25 @@ export function calculateStress(
     Math.min(0.95, speciesData.hardiness + fish.hardinessOffset)
   );
   const hardinessFactor = 1 - effectiveHardiness;
-  let stress = 0;
 
   // Temperature stress
+  let temperature = 0;
   const temp = resources.temperature;
   const [tempMin, tempMax] = speciesData.temperatureRange;
   if (temp < tempMin) {
-    stress += config.temperatureStressSeverity * (tempMin - temp) * hardinessFactor;
+    temperature = config.temperatureStressSeverity * (tempMin - temp) * hardinessFactor;
   } else if (temp > tempMax) {
-    stress += config.temperatureStressSeverity * (temp - tempMax) * hardinessFactor;
+    temperature = config.temperatureStressSeverity * (temp - tempMax) * hardinessFactor;
   }
 
   // pH stress
-  const ph = resources.ph;
+  let ph = 0;
+  const phVal = resources.ph;
   const [phMin, phMax] = speciesData.phRange;
-  if (ph < phMin) {
-    stress += config.phStressSeverity * (phMin - ph) * hardinessFactor;
-  } else if (ph > phMax) {
-    stress += config.phStressSeverity * (ph - phMax) * hardinessFactor;
+  if (phVal < phMin) {
+    ph = config.phStressSeverity * (phMin - phVal) * hardinessFactor;
+  } else if (phVal > phMax) {
+    ph = config.phStressSeverity * (phVal - phMax) * hardinessFactor;
   }
 
   // Ammonia stress — only the unionized NH3 fraction (not NH4⁺) is
@@ -73,6 +104,7 @@ export function calculateStress(
   // finite and fish aren't silently fine in a dry tank). We clamp the
   // apparent concentration to 100 ppm and skip Emerson unionization
   // since pH/temperature are meaningless without water.
+  let ammonia = 0;
   const totalAmmoniaPpm =
     waterVolume > 0 ? resources.ammonia / waterVolume : resources.ammonia > 0 ? 100 : 0;
   if (totalAmmoniaPpm > 0) {
@@ -80,45 +112,68 @@ export function calculateStress(
       waterVolume > 0
         ? totalAmmoniaPpm * unionizedAmmoniaFraction(resources.ph, resources.temperature)
         : totalAmmoniaPpm; // zero-volume sentinel: max stress
-    stress += config.ammoniaStressSeverity * freeNH3Ppm * hardinessFactor;
+    ammonia = config.ammoniaStressSeverity * freeNH3Ppm * hardinessFactor;
   }
 
   // Nitrite stress (any amount is harmful). Same zero-volume sentinel
   // pattern as ammonia above.
+  let nitrite = 0;
   const nitritePpm = waterVolume > 0 ? resources.nitrite / waterVolume : (resources.nitrite > 0 ? 100 : 0);
   if (nitritePpm > 0) {
-    stress += config.nitriteStressSeverity * nitritePpm * hardinessFactor;
+    nitrite = config.nitriteStressSeverity * nitritePpm * hardinessFactor;
   }
 
   // Nitrate stress (above 40 ppm)
+  let nitrate = 0;
   const nitratePpm = waterVolume > 0 ? resources.nitrate / waterVolume : (resources.nitrate > 0 ? 100 : 0);
   if (nitratePpm > 40) {
-    stress += config.nitrateStressSeverity * (nitratePpm - 40) * hardinessFactor;
+    nitrate = config.nitrateStressSeverity * (nitratePpm - 40) * hardinessFactor;
   }
 
   // Hunger stress (above 50%)
+  let hunger = 0;
   if (fish.hunger > 50) {
-    stress += config.hungerStressSeverity * (fish.hunger - 50) * hardinessFactor;
+    hunger = config.hungerStressSeverity * (fish.hunger - 50) * hardinessFactor;
   }
 
   // Oxygen stress (below 5 mg/L)
+  let oxygen = 0;
   if (resources.oxygen < 5) {
-    stress += config.oxygenStressSeverity * (5 - resources.oxygen) * hardinessFactor;
+    oxygen = config.oxygenStressSeverity * (5 - resources.oxygen) * hardinessFactor;
   }
 
   // Water level stress (below 50% capacity)
+  let waterLevel = 0;
   const waterPercent = tankCapacity > 0 ? (waterVolume / tankCapacity) * 100 : 100;
   if (waterPercent < 50) {
-    stress += config.waterLevelStressSeverity * (50 - waterPercent) * hardinessFactor;
+    waterLevel = config.waterLevelStressSeverity * (50 - waterPercent) * hardinessFactor;
   }
 
   // Flow stress (above species max tolerance)
-  const flow = resources.flow;
-  if (flow > speciesData.maxFlow) {
-    stress += config.flowStressSeverity * (flow - speciesData.maxFlow) * hardinessFactor;
+  let flow = 0;
+  const flowVal = resources.flow;
+  if (flowVal > speciesData.maxFlow) {
+    flow = config.flowStressSeverity * (flowVal - speciesData.maxFlow) * hardinessFactor;
   }
 
-  return stress;
+  const total =
+    temperature + ph + ammonia + nitrite + nitrate + hunger + oxygen + waterLevel + flow;
+
+  return { temperature, ph, ammonia, nitrite, nitrate, hunger, oxygen, waterLevel, flow, total };
+}
+
+/**
+ * Calculate total stress for a single fish from all environmental stressors.
+ * Thin wrapper over `calculateStressBreakdown` — identical numeric result.
+ */
+export function calculateStress(
+  fish: Fish,
+  resources: Resources,
+  waterVolume: number,
+  tankCapacity: number,
+  config: LivestockConfig
+): number {
+  return calculateStressBreakdown(fish, resources, waterVolume, tankCapacity, config).total;
 }
 
 /**
