@@ -153,7 +153,7 @@ function FishCard({
   const activeStressors = STRESSOR_LABELS.filter(({ key }) => breakdown[key] > 0);
 
   let trendNode: React.ReactNode = null;
-  if (Math.abs(net) >= TREND_EPSILON) {
+  if (fish.health < 100 && Math.abs(net) >= TREND_EPSILON) {
     const rising = net > 0;
     const arrow = rising ? '↑' : '↓';
     const colorClass = rising ? 'text-green-400' : 'text-red-400';
@@ -162,16 +162,14 @@ function FishCard({
         className={`text-xs ${colorClass}`}
         title={`Net health change: ${net >= 0 ? '+' : ''}${net.toFixed(2)}%/hr`}
       >
-        {arrow} {Math.abs(net).toFixed(1)}%/h
+        {arrow}
       </span>
     );
   }
 
   const toggleLabel = expanded
     ? `▼ Stressors (${activeStressors.length})`
-    : activeStressors.length === 0
-      ? '▶ No active stressors'
-      : `▶ Stressors (${activeStressors.length})`;
+    : `▶ Stressors (${activeStressors.length})`;
 
   return (
     <div className="flex items-start gap-2 p-2 bg-border/30 rounded">
@@ -217,39 +215,27 @@ function FishCard({
         {fish.hunger > 70 && (
           <div className="text-xs text-red-400 mt-0.5">Starving!</div>
         )}
-        {/* Stressor breakdown (collapsible) */}
-        <button
-          type="button"
-          onClick={onToggleExpanded}
-          className="text-xs text-gray-400 hover:text-gray-200 mt-1 w-full text-left"
-        >
-          {toggleLabel}
-        </button>
-        {expanded && (
-          <div className="text-xs mt-1 space-y-0.5 pl-2">
-            {activeStressors.map(({ key, label }) => (
-              <div key={key} className="flex justify-between text-red-400">
-                <span>{label}</span>
-                <span>+{breakdown[key].toFixed(1)}%/h</span>
-              </div>
-            ))}
-            {activeStressors.length > 0 && (
-              <div className="border-t border-border my-1" />
-            )}
-            <div className="flex justify-between text-green-400">
-              <span>Recovery</span>
-              <span>−{recovery.toFixed(1)}%/h</span>
-            </div>
-            <div
-              className={`flex justify-between font-medium ${net >= 0 ? 'text-green-400' : 'text-red-400'}`}
+        {/* Stressor breakdown (collapsible, only when something is stressing the fish) */}
+        {activeStressors.length > 0 && (
+          <>
+            <button
+              type="button"
+              onClick={onToggleExpanded}
+              className="text-xs text-gray-400 hover:text-gray-200 mt-1 w-full text-left"
             >
-              <span>Net</span>
-              <span>
-                {net >= 0 ? '+' : '−'}
-                {Math.abs(net).toFixed(1)}%/h
-              </span>
-            </div>
-          </div>
+              {toggleLabel}
+            </button>
+            {expanded && (
+              <div className="text-xs mt-1 space-y-0.5 pl-2">
+                {activeStressors.map(({ key, label }) => (
+                  <div key={key} className="flex justify-between text-red-400">
+                    <span>{label}</span>
+                    <span>+{breakdown[key].toFixed(1)}%/h</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
         )}
       </div>
       <button
