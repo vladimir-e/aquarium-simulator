@@ -148,8 +148,7 @@ function FishCard({
     tankCapacity,
     livestockConfig
   );
-  const recovery = livestockConfig.baseHealthRecovery;
-  const net = recovery - breakdown.total;
+  const net = livestockConfig.baseHealthRecovery - breakdown.total;
   const activeStressors = STRESSOR_LABELS.filter(({ key }) => breakdown[key] > 0);
 
   let trendNode: React.ReactNode = null;
