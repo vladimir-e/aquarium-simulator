@@ -13,6 +13,7 @@ import { Livestock } from './components/panels/Livestock';
 import { Log } from './components/panels/Log';
 import { DebugPanel } from './components/panels/DebugPanel';
 import { useSimulation } from './hooks/useSimulation';
+import { useConfig } from './hooks/useConfig';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 
 type SpeedPreset = '1hr' | '6hr' | '12hr' | '1day';
@@ -64,6 +65,7 @@ function App(): React.JSX.Element {
     reset,
     executeAction,
   } = useSimulation();
+  const { config } = useConfig();
 
   // Calculate if light is currently on from resources
   const isLightOn = state.resources.light > 0;
@@ -246,6 +248,9 @@ function App(): React.JSX.Element {
             <Livestock
               food={state.resources.food}
               fish={state.fish}
+              resources={state.resources}
+              tankCapacity={state.tank.capacity}
+              livestockConfig={config.livestock}
               executeAction={executeAction}
             />
           </div>

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { calculateStress, processHealth } from './fish-health.js';
+import { calculateStress, calculateStressBreakdown, processHealth } from './fish-health.js';
 import { livestockDefaults } from '../config/livestock.js';
 import type { Fish, Resources } from '../state.js';
 
@@ -12,6 +12,7 @@ function makeFish(overrides: Partial<Fish> = {}): Fish {
     age: 0,
     hunger: 20,
     sex: 'male',
+    hardinessOffset: 0,
     ...overrides,
   };
 }
@@ -215,6 +216,240 @@ describe('calculateStress', () => {
 
     // Hardy guppy should have less stress
     expect(guppyStress).toBeLessThan(angelStress);
+  });
+
+  describe('per-fish hardiness offset', () => {
+    // Neon tetra hardiness = 0.5. Temperature stress at 18 °C (safe 22–28):
+    //   stress = severity(0.85) × gap(4) × (1 - effectiveHardiness)
+    const resources = (): ReturnType<typeof makeResources> =>
+      makeResources({ temperature: 18 });
+
+    it('negative offset → weaker fish → more stress', () => {
+      const baseline = makeFish({ hardinessOffset: 0 });
+      const weak = makeFish({ hardinessOffset: -0.075 }); // -15% of 0.5
+      const bs = calculateStress(baseline, resources(), 100, 100, livestockDefaults);
+      const ws = calculateStress(weak, resources(), 100, 100, livestockDefaults);
+      expect(ws).toBeGreaterThan(bs);
+      // effectiveHardiness goes 0.5 → 0.425, factor 0.5 → 0.575.
+      expect(ws).toBeCloseTo(0.85 * 4 * (1 - 0.425), 6);
+    });
+
+    it('positive offset → hardier fish → less stress', () => {
+      const baseline = makeFish({ hardinessOffset: 0 });
+      const hardy = makeFish({ hardinessOffset: 0.075 }); // +15% of 0.5
+      const bs = calculateStress(baseline, resources(), 100, 100, livestockDefaults);
+      const hs = calculateStress(hardy, resources(), 100, 100, livestockDefaults);
+      expect(hs).toBeLessThan(bs);
+      // effectiveHardiness 0.5 → 0.575, factor 0.5 → 0.425.
+      expect(hs).toBeCloseTo(0.85 * 4 * (1 - 0.575), 6);
+    });
+
+    it('clamps effectiveHardiness to upper bound 0.95', () => {
+      // Extreme offset shouldn't let a fish become invincible.
+      const superFish = makeFish({ species: 'guppy', hardinessOffset: 5 });
+      const stress = calculateStress(
+        superFish,
+        makeResources({ temperature: 18 }),
+        100,
+        100,
+        livestockDefaults
+      );
+      // Guppy range 22–28 → gap 4, severity 0.85. Clamped factor = 1 - 0.95 = 0.05.
+      expect(stress).toBeCloseTo(0.85 * 4 * 0.05, 6);
+    });
+
+    it('clamps effectiveHardiness to lower bound 0.1', () => {
+      // Extreme negative offset shouldn't instantly kill.
+      const glassFish = makeFish({ species: 'guppy', hardinessOffset: -5 });
+      const stress = calculateStress(
+        glassFish,
+        makeResources({ temperature: 18 }),
+        100,
+        100,
+        livestockDefaults
+      );
+      // Clamped factor = 1 - 0.1 = 0.9.
+      expect(stress).toBeCloseTo(0.85 * 4 * 0.9, 6);
+    });
+
+    it('zero offset matches species baseline behavior', () => {
+      // Regression check: zero offset must preserve legacy calibration.
+      const fish = makeFish({ hardinessOffset: 0 });
+      const stress = calculateStress(fish, resources(), 100, 100, livestockDefaults);
+      expect(stress).toBeCloseTo(0.85 * 4 * 0.5, 6);
+    });
+  });
+});
+
+describe('calculateStressBreakdown', () => {
+  it('all stressors zero in ideal conditions', () => {
+    const fish = makeFish();
+    const resources = makeResources();
+    const breakdown = calculateStressBreakdown(fish, resources, 100, 100, livestockDefaults);
+    expect(breakdown).toEqual({
+      temperature: 0,
+      ph: 0,
+      ammonia: 0,
+      nitrite: 0,
+      nitrate: 0,
+      hunger: 0,
+      oxygen: 0,
+      waterLevel: 0,
+      flow: 0,
+      total: 0,
+    });
+  });
+
+  it('isolates temperature stress', () => {
+    const fish = makeFish({ species: 'neon_tetra' }); // range 22–28
+    const resources = makeResources({ temperature: 18 });
+    const b = calculateStressBreakdown(fish, resources, 100, 100, livestockDefaults);
+    // 0.85 × 4 × 0.5 = 1.7
+    expect(b.temperature).toBeCloseTo(1.7, 2);
+    expect(b.ph).toBe(0);
+    expect(b.ammonia).toBe(0);
+    expect(b.nitrite).toBe(0);
+    expect(b.nitrate).toBe(0);
+    expect(b.hunger).toBe(0);
+    expect(b.oxygen).toBe(0);
+    expect(b.waterLevel).toBe(0);
+    expect(b.flow).toBe(0);
+    expect(b.total).toBeCloseTo(b.temperature, 6);
+  });
+
+  it('isolates pH stress', () => {
+    const fish = makeFish({ species: 'neon_tetra' }); // pH 6.0–7.5
+    const resources = makeResources({ ph: 8.5 });
+    const b = calculateStressBreakdown(fish, resources, 100, 100, livestockDefaults);
+    // 3.0 × 1.0 × 0.5 = 1.5
+    expect(b.ph).toBeCloseTo(1.5, 1);
+    expect(b.temperature).toBe(0);
+    expect(b.ammonia).toBe(0);
+    expect(b.total).toBeCloseTo(b.ph, 6);
+  });
+
+  it('isolates ammonia stress (free NH3 fraction)', () => {
+    const fish = makeFish();
+    const resources = makeResources({ ammonia: 5, ph: 7.0, temperature: 25 });
+    const b = calculateStressBreakdown(fish, resources, 100, 100, livestockDefaults);
+    const pKa = 0.09018 + 2729.92 / (25 + 273.15);
+    const fNH3 = 1 / (1 + Math.pow(10, pKa - 7.0));
+    const expected = livestockDefaults.ammoniaStressSeverity * 0.05 * fNH3 * 0.5;
+    expect(b.ammonia).toBeCloseTo(expected, 6);
+    expect(b.temperature).toBe(0);
+    expect(b.nitrite).toBe(0);
+    expect(b.total).toBeCloseTo(b.ammonia, 6);
+  });
+
+  it('isolates nitrite stress', () => {
+    const fish = makeFish();
+    const resources = makeResources({ nitrite: 100 }); // 1 ppm in 100L
+    const b = calculateStressBreakdown(fish, resources, 100, 100, livestockDefaults);
+    expect(b.nitrite).toBeGreaterThan(0);
+    expect(b.ammonia).toBe(0);
+    expect(b.nitrate).toBe(0);
+    expect(b.total).toBeCloseTo(b.nitrite, 6);
+  });
+
+  it('isolates nitrate stress only above 40 ppm', () => {
+    const fish = makeFish();
+    const below = calculateStressBreakdown(
+      fish,
+      makeResources({ nitrate: 3000 }), // 30 ppm
+      100,
+      100,
+      livestockDefaults
+    );
+    expect(below.nitrate).toBe(0);
+    expect(below.total).toBe(0);
+
+    const above = calculateStressBreakdown(
+      fish,
+      makeResources({ nitrate: 6000 }), // 60 ppm
+      100,
+      100,
+      livestockDefaults
+    );
+    expect(above.nitrate).toBeGreaterThan(0);
+    expect(above.total).toBeCloseTo(above.nitrate, 6);
+  });
+
+  it('isolates hunger stress (only above 50%)', () => {
+    const fish = makeFish({ hunger: 80 });
+    const b = calculateStressBreakdown(fish, makeResources(), 100, 100, livestockDefaults);
+    // (80-50) × 0.1 × 0.5 = 1.5
+    expect(b.hunger).toBeCloseTo(1.5, 1);
+    expect(b.total).toBeCloseTo(b.hunger, 6);
+
+    const calm = makeFish({ hunger: 40 });
+    const bCalm = calculateStressBreakdown(calm, makeResources(), 100, 100, livestockDefaults);
+    expect(bCalm.hunger).toBe(0);
+  });
+
+  it('isolates oxygen stress', () => {
+    const fish = makeFish();
+    const resources = makeResources({ oxygen: 3 });
+    const b = calculateStressBreakdown(fish, resources, 100, 100, livestockDefaults);
+    // (5-3) × 3.0 × 0.5 = 3.0
+    expect(b.oxygen).toBeCloseTo(3.0, 1);
+    expect(b.total).toBeCloseTo(b.oxygen, 6);
+  });
+
+  it('isolates water-level stress', () => {
+    const fish = makeFish();
+    const resources = makeResources({ water: 30 });
+    const b = calculateStressBreakdown(fish, resources, 30, 100, livestockDefaults);
+    // (50-30) × 0.2 × 0.5 = 2.0
+    expect(b.waterLevel).toBeCloseTo(2.0, 1);
+    expect(b.total).toBeCloseTo(b.waterLevel, 6);
+  });
+
+  it('isolates flow stress', () => {
+    const fish = makeFish({ species: 'betta' }); // maxFlow 150
+    const resources = makeResources({ flow: 400 });
+    const b = calculateStressBreakdown(fish, resources, 100, 100, livestockDefaults);
+    // (400-150) × 0.01 × 0.4 = 1.0
+    expect(b.flow).toBeCloseTo(1.0, 1);
+    expect(b.total).toBeCloseTo(b.flow, 6);
+  });
+
+  it('sums all active stressors into total and matches calculateStress', () => {
+    const fish = makeFish({ species: 'neon_tetra', hunger: 80 });
+    const resources = makeResources({
+      temperature: 18,
+      ph: 8.5,
+      ammonia: 5,
+      nitrite: 50,
+      nitrate: 6000,
+      oxygen: 3,
+      water: 30,
+      flow: 600,
+    });
+    const b = calculateStressBreakdown(fish, resources, 30, 100, livestockDefaults);
+    const stress = calculateStress(fish, resources, 30, 100, livestockDefaults);
+
+    const handSum =
+      b.temperature +
+      b.ph +
+      b.ammonia +
+      b.nitrite +
+      b.nitrate +
+      b.hunger +
+      b.oxygen +
+      b.waterLevel +
+      b.flow;
+    expect(b.total).toBeCloseTo(handSum, 10);
+    expect(b.total).toBeCloseTo(stress, 10);
+    // All the ones that should be active, are.
+    expect(b.temperature).toBeGreaterThan(0);
+    expect(b.ph).toBeGreaterThan(0);
+    expect(b.ammonia).toBeGreaterThan(0);
+    expect(b.nitrite).toBeGreaterThan(0);
+    expect(b.nitrate).toBeGreaterThan(0);
+    expect(b.hunger).toBeGreaterThan(0);
+    expect(b.oxygen).toBeGreaterThan(0);
+    expect(b.waterLevel).toBeGreaterThan(0);
+    expect(b.flow).toBeGreaterThan(0);
   });
 });
 

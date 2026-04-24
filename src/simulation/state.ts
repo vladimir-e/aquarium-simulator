@@ -208,6 +208,13 @@ export interface Fish {
   hunger: number;
   /** Sex for future reproduction */
   sex: FishSex;
+  /**
+   * Per-individual hardiness offset applied on top of species hardiness.
+   * Sampled once at `addFish` time (never re-rolled) so weaker fish fail
+   * first when conditions degrade, producing staggered deaths instead of
+   * synchronized mass die-offs. Range: ±15 % of species baseline.
+   */
+  hardinessOffset: number;
 }
 
 /**

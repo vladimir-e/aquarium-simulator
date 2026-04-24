@@ -3,12 +3,25 @@ import { Panel } from '../layout/Panel';
 import { Button } from '../ui/Button';
 import { Select } from '../ui/Select';
 import { FoodResource } from '../../../simulation/resources/index.js';
-import type { Fish, FishSpecies, Action } from '../../../simulation/index.js';
-import { FISH_SPECIES_DATA } from '../../../simulation/index.js';
+import type {
+  Fish,
+  FishSpecies,
+  Action,
+  Resources,
+  StressBreakdown,
+} from '../../../simulation/index.js';
+import {
+  FISH_SPECIES_DATA,
+  calculateStressBreakdown,
+} from '../../../simulation/index.js';
+import type { LivestockConfig } from '../../../simulation/config/livestock.js';
 
 interface LivestockProps {
   food: number;
   fish: Fish[];
+  resources: Resources;
+  tankCapacity: number;
+  livestockConfig: LivestockConfig;
   executeAction: (action: Action) => void;
 }
 
@@ -75,6 +88,25 @@ function formatAge(ageTicks: number): string {
   return `${years}y`;
 }
 
+/**
+ * Human-readable stressor labels, rendered in the same order as
+ * `StressBreakdown`'s fields.
+ */
+const STRESSOR_LABELS: Array<{ key: keyof StressBreakdown; label: string }> = [
+  { key: 'temperature', label: 'Temperature' },
+  { key: 'ph', label: 'pH' },
+  { key: 'ammonia', label: 'Free NH3' },
+  { key: 'nitrite', label: 'Nitrite' },
+  { key: 'nitrate', label: 'Nitrate' },
+  { key: 'hunger', label: 'Hunger' },
+  { key: 'oxygen', label: 'Oxygen' },
+  { key: 'waterLevel', label: 'Water level' },
+  { key: 'flow', label: 'Flow' },
+];
+
+/** Threshold below which the trend is considered flat and hidden. */
+const TREND_EPSILON = 0.05;
+
 /** All fish species for the dropdown */
 const ALL_FISH_SPECIES: FishSpecies[] = [
   'neon_tetra',
@@ -84,12 +116,159 @@ const ALL_FISH_SPECIES: FishSpecies[] = [
   'corydoras',
 ];
 
+interface FishCardProps {
+  fish: Fish;
+  resources: Resources;
+  tankCapacity: number;
+  livestockConfig: LivestockConfig;
+  expanded: boolean;
+  onToggleExpanded: () => void;
+  onRemove: () => void;
+}
+
+function FishCard({
+  fish,
+  resources,
+  tankCapacity,
+  livestockConfig,
+  expanded,
+  onToggleExpanded,
+  onRemove,
+}: FishCardProps): React.JSX.Element {
+  const speciesData = FISH_SPECIES_DATA[fish.species];
+  const healthColor = getHealthBarColorClass(fish.health);
+  const healthStatus = getHealthStatusText(fish.health);
+  const hungerColor = getHungerBarColorClass(fish.hunger);
+  const hungerStatus = getHungerStatusText(fish.hunger);
+
+  const breakdown = calculateStressBreakdown(
+    fish,
+    resources,
+    resources.water,
+    tankCapacity,
+    livestockConfig
+  );
+  const net = livestockConfig.baseHealthRecovery - breakdown.total;
+  const activeStressors = STRESSOR_LABELS.filter(({ key }) => breakdown[key] > 0);
+
+  let trendNode: React.ReactNode = null;
+  if (fish.health < 100 && Math.abs(net) >= TREND_EPSILON) {
+    const rising = net > 0;
+    const arrow = rising ? '↑' : '↓';
+    const colorClass = rising ? 'text-green-400' : 'text-red-400';
+    trendNode = (
+      <span
+        className={`text-xs ${colorClass}`}
+        title={`Net health change: ${net >= 0 ? '+' : ''}${net.toFixed(2)}%/hr`}
+      >
+        {arrow}
+      </span>
+    );
+  }
+
+  const toggleLabel = expanded
+    ? `▼ Stressors (${activeStressors.length})`
+    : `▶ Stressors (${activeStressors.length})`;
+
+  return (
+    <div className="flex items-start gap-2 p-2 bg-border/30 rounded">
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center justify-between mb-1 gap-2">
+          <span className="text-sm text-gray-200 truncate">{speciesData.name}</span>
+          <div className="flex items-center gap-2 shrink-0">
+            <span className="text-xs text-gray-500">{formatAge(fish.age)}</span>
+            {trendNode}
+            <span
+              className={`text-xs px-1 py-0.5 rounded ${healthColor} text-black`}
+              title={`Health: ${fish.health.toFixed(0)}%`}
+            >
+              {healthStatus}
+            </span>
+          </div>
+        </div>
+        {/* Health bar */}
+        <div className="flex items-center gap-1 mb-1">
+          <span className="text-xs text-gray-500 w-10">Health</span>
+          <div className="flex-1 h-1.5 bg-border rounded-full overflow-hidden">
+            <div
+              className={`h-full ${healthColor} transition-all`}
+              style={{ width: `${fish.health}%` }}
+            />
+          </div>
+          <span className="text-xs text-gray-500 w-8 text-right">
+            {fish.health.toFixed(0)}%
+          </span>
+        </div>
+        {/* Hunger bar */}
+        <div className="flex items-center gap-1">
+          <span className="text-xs text-gray-500 w-10">Hunger</span>
+          <div className="flex-1 h-1.5 bg-border rounded-full overflow-hidden">
+            <div
+              className={`h-full ${hungerColor} transition-all`}
+              style={{ width: `${fish.hunger}%` }}
+            />
+          </div>
+          <span className="text-xs text-gray-500 w-8 text-right">{hungerStatus}</span>
+        </div>
+        {/* Starving warning */}
+        {fish.hunger > 70 && (
+          <div className="text-xs text-red-400 mt-0.5">Starving!</div>
+        )}
+        {/* Stressor breakdown (collapsible, only when something is stressing the fish) */}
+        {activeStressors.length > 0 && (
+          <>
+            <button
+              type="button"
+              onClick={onToggleExpanded}
+              className="text-xs text-gray-400 hover:text-gray-200 mt-1 w-full text-left"
+            >
+              {toggleLabel}
+            </button>
+            {expanded && (
+              <div className="text-xs mt-1 space-y-0.5 pl-2">
+                {activeStressors.map(({ key, label }) => (
+                  <div key={key} className="flex justify-between text-red-400">
+                    <span>{label}</span>
+                    <span>+{breakdown[key].toFixed(1)}%/h</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
+        )}
+      </div>
+      <button
+        onClick={onRemove}
+        className="text-gray-500 hover:text-red-400 p-1 shrink-0"
+        title="Remove fish"
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          className="h-4 w-4"
+          viewBox="0 0 20 20"
+          fill="currentColor"
+        >
+          <path
+            fillRule="evenodd"
+            d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+            clipRule="evenodd"
+          />
+        </svg>
+      </button>
+    </div>
+  );
+}
+
 export function Livestock({
   food,
   fish,
+  resources,
+  tankCapacity,
+  livestockConfig,
   executeAction,
 }: LivestockProps): React.JSX.Element {
   const [selectedSpecies, setSelectedSpecies] = useState<FishSpecies>('neon_tetra');
+  const [expandedFishIds, setExpandedFishIds] = useState<Set<string>>(new Set());
 
   const opacity = getFoodIndicatorOpacity(food);
   const indicatorClass = food === 0 ? 'bg-border' : 'bg-orange-500';
@@ -104,6 +283,18 @@ export function Livestock({
 
   const handleSpeciesChange = (e: React.ChangeEvent<HTMLSelectElement>): void => {
     setSelectedSpecies(e.target.value as FishSpecies);
+  };
+
+  const toggleExpanded = (fishId: string): void => {
+    setExpandedFishIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(fishId)) {
+        next.delete(fishId);
+      } else {
+        next.add(fishId);
+      }
+      return next;
+    });
   };
 
   const selectedData = FISH_SPECIES_DATA[selectedSpecies];
@@ -130,97 +321,21 @@ export function Livestock({
             <div className="text-xs text-gray-400 font-medium">
               Fish ({fish.length})
             </div>
-            {fish.map((f) => {
-              const speciesData = FISH_SPECIES_DATA[f.species];
-              const healthColor = getHealthBarColorClass(f.health);
-              const healthStatus = getHealthStatusText(f.health);
-              const hungerColor = getHungerBarColorClass(f.hunger);
-              const hungerStatus = getHungerStatusText(f.hunger);
-
-              return (
-                <div
-                  key={f.id}
-                  className="flex items-center gap-2 p-2 bg-border/30 rounded"
-                >
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-sm text-gray-200 truncate">
-                        {speciesData.name}
-                      </span>
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs text-gray-500">
-                          {formatAge(f.age)}
-                        </span>
-                        <span
-                          className={`text-xs px-1 py-0.5 rounded ${healthColor} text-black`}
-                          title={`Health: ${f.health.toFixed(0)}%`}
-                        >
-                          {healthStatus}
-                        </span>
-                      </div>
-                    </div>
-                    {/* Health bar */}
-                    <div className="flex items-center gap-1 mb-1">
-                      <span className="text-xs text-gray-500 w-10">Health</span>
-                      <div className="flex-1 h-1.5 bg-border rounded-full overflow-hidden">
-                        <div
-                          className={`h-full ${healthColor} transition-all`}
-                          style={{ width: `${f.health}%` }}
-                        />
-                      </div>
-                      <span className="text-xs text-gray-500 w-8 text-right">
-                        {f.health.toFixed(0)}%
-                      </span>
-                    </div>
-                    {/* Hunger bar */}
-                    <div className="flex items-center gap-1">
-                      <span className="text-xs text-gray-500 w-10">Hunger</span>
-                      <div className="flex-1 h-1.5 bg-border rounded-full overflow-hidden">
-                        <div
-                          className={`h-full ${hungerColor} transition-all`}
-                          style={{ width: `${f.hunger}%` }}
-                        />
-                      </div>
-                      <span className="text-xs text-gray-500 w-8 text-right">
-                        {hungerStatus}
-                      </span>
-                    </div>
-                    {/* Warnings */}
-                    {f.hunger > 70 && (
-                      <div className="text-xs text-red-400 mt-0.5">Starving!</div>
-                    )}
-                    {f.health < 30 && (
-                      <div className="text-xs text-red-400 mt-0.5">
-                        Health critical!
-                      </div>
-                    )}
-                  </div>
-                  <button
-                    onClick={() => handleRemoveFish(f.id)}
-                    className="text-gray-500 hover:text-red-400 p-1"
-                    title="Remove fish"
-                  >
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      className="h-4 w-4"
-                      viewBox="0 0 20 20"
-                      fill="currentColor"
-                    >
-                      <path
-                        fillRule="evenodd"
-                        d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
-                        clipRule="evenodd"
-                      />
-                    </svg>
-                  </button>
-                </div>
-              );
-            })}
+            {fish.map((f) => (
+              <FishCard
+                key={f.id}
+                fish={f}
+                resources={resources}
+                tankCapacity={tankCapacity}
+                livestockConfig={livestockConfig}
+                expanded={expandedFishIds.has(f.id)}
+                onToggleExpanded={() => toggleExpanded(f.id)}
+                onRemove={() => handleRemoveFish(f.id)}
+              />
+            ))}
           </div>
         ) : (
-          <div className="text-xs text-gray-400 italic">
-            No fish yet...
-          </div>
+          <div className="text-xs text-gray-400 italic">No fish yet...</div>
         )}
 
         {/* Add fish controls */}
@@ -242,21 +357,21 @@ export function Livestock({
                 })}
               </Select>
             </div>
-            <Button
-              onClick={handleAddFish}
-              variant="primary"
-            >
+            <Button onClick={handleAddFish} variant="primary">
               Add
             </Button>
           </div>
           {/* Species info */}
           <div className="text-xs text-gray-500 mt-2">
-            <span className="text-gray-400">
-              {selectedData.name}:
-            </span>{' '}
-            {selectedData.adultMass}g, {selectedData.temperatureRange[0]}-{selectedData.temperatureRange[1]}°C,
-            pH {selectedData.phRange[0]}-{selectedData.phRange[1]},
-            hardiness: {selectedData.hardiness >= 0.7 ? 'high' : selectedData.hardiness >= 0.5 ? 'medium' : 'low'}
+            <span className="text-gray-400">{selectedData.name}:</span>{' '}
+            {selectedData.adultMass}g, {selectedData.temperatureRange[0]}-
+            {selectedData.temperatureRange[1]}°C, pH {selectedData.phRange[0]}-
+            {selectedData.phRange[1]}, hardiness:{' '}
+            {selectedData.hardiness >= 0.7
+              ? 'high'
+              : selectedData.hardiness >= 0.5
+                ? 'medium'
+                : 'low'}
           </div>
         </div>
       </div>

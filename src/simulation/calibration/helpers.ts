@@ -127,17 +127,32 @@ export function createCycledTank(
 
 /**
  * Add multiple fish to a state.
+ *
+ * Calibration fish are deterministic: the live `addFish` action applies
+ * ±15 % hardiness jitter and ±5 % initial-health jitter per individual
+ * (task 35), which would make baseline calibrations and N-mass
+ * conservation checks stochastic. Scenarios and invariant tests want
+ * uniform fish — the jitter is a UX/game feature, not a physics claim.
+ * Helper zero-outs both offsets so scenario anchors stay pinned.
  */
 export function addFish(
   state: SimulationState,
   species: FishSpecies,
   count: number
 ): SimulationState {
+  const existingIds = new Set(state.fish.map((f) => f.id));
   let s = state;
   for (let i = 0; i < count; i++) {
     s = applyAction(s, { type: 'addFish', species }).state;
   }
-  return s;
+  return produce(s, (draft) => {
+    for (const fish of draft.fish) {
+      if (!existingIds.has(fish.id)) {
+        fish.hardinessOffset = 0;
+        fish.health = 100;
+      }
+    }
+  });
 }
 
 /**
