@@ -213,6 +213,8 @@ export {
   getMaxPlantSize,
   calculateOvergrowthPenalty,
   getSpeciesGrowthRate,
+  getSpeciesMaxSize,
+  asymptoticGrowthFactor,
 } from '../systems/plant-growth.js';
 export {
   calculateNutrientSufficiency,
