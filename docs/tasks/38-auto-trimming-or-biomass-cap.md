@@ -29,7 +29,8 @@ valve*.
 
 - At least one of the two options below (A or B), possibly both.
 - Trim action — a user (or auto-scheduler) can remove a fraction of
-  a plant's size, producing proportional waste.
+  a plant's size. Trimmed material exits the system (not added to
+  waste), per `docs/6-PLANTS.md` § Trimming.
 - Surface biomass cap — plants can't exceed a max size proportional
   to the tank's footprint or water column height.
 
@@ -56,9 +57,11 @@ required.
 **Option B — Auto-trim action**
 
 Mirror the existing `scrubAlgae` action: `trimPlants` removes X % of
-size from one or all plants, produces `wastePerShedSize` proportional
-waste. Optionally schedule on a cadence (weekly-ish, per plant's
-growth rate) for auto-managed tanks.
+size from one or all plants. Trimmed material exits the system — no
+waste added (the hobbyist throws it out or replants elsewhere; the
+game-side stem-propagation rule will hook in here later, but that
+lives outside the sim). Optionally schedule on a cadence (weekly-ish,
+per plant's growth rate) for auto-managed tanks.
 
 Explicit user agency (the trim is a choice, not a silent cap). Good
 for the game UX — "time to trim" is a real hobbyist moment.
@@ -83,8 +86,8 @@ Option C, in phases:
 
 - A 40gal community with 5 Java Ferns run for 6 months stabilises
   biomass rather than growing unbounded.
-- Trim action reduces plant size and produces proportional waste;
-  waste mass conserved through the existing pipeline.
+- Trim action reduces plant size; trimmed material exits the system
+  (no waste added), matching the existing spec in `docs/6-PLANTS.md`.
 - No regression in current scenarios' primary anchors — plants in
   scenarios 01 / 02 / 03 / 04 never approach their `maxSize` within
   the test windows, so the asymptotic term should be effectively 1.0
