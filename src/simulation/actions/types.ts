@@ -1,8 +1,8 @@
 import type { SimulationState, PlantSpecies, FishSpecies } from '../state.js';
 import type { WaterChangeAmount } from './water-change.js';
 
-/** Valid target sizes for trimming (percentages) */
-export type TrimTargetSize = 50 | 85 | 100;
+/** Target size for trimming, as a percentage in [0, 100]. */
+export type TrimTargetSize = number;
 
 export type ActionType =
   | 'topOff'
@@ -45,8 +45,10 @@ export interface WaterChangeAction extends BaseAction {
 
 export interface TrimPlantsAction extends BaseAction {
   type: 'trimPlants';
-  /** Target size to trim plants down to (%) */
+  /** Target size to trim plants down to (%), in [0, 100] */
   targetSize: TrimTargetSize;
+  /** If set, trim only the plant with this id; otherwise bulk-trim all plants above targetSize. */
+  plantId?: string;
 }
 
 export interface AddPlantAction extends BaseAction {

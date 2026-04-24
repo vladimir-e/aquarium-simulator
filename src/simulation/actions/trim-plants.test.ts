@@ -2,7 +2,6 @@ import { describe, it, expect } from 'vitest';
 import { canTrimPlants, getPlantsToTrimCount, trimPlants } from './trim-plants.js';
 import { createSimulation, type SimulationState, type Plant } from '../state.js';
 import { produce } from 'immer';
-import type { TrimTargetSize } from './types.js';
 
 describe('canTrimPlants', () => {
   function createStateWithPlants(plants: Plant[]): SimulationState {
@@ -256,55 +255,49 @@ describe('trimPlants', () => {
   });
 
   describe('invalid target size handling', () => {
-    it('rejects target size of 0', () => {
+    it('rejects negative target size', () => {
       const state = createStateWithPlants([
         { id: 'p1', species: 'java_fern', size: 80 },
       ]);
-      const result = trimPlants(state, { type: 'trimPlants', targetSize: 0 as unknown as TrimTargetSize });
+      const result = trimPlants(state, { type: 'trimPlants', targetSize: -1 });
 
       expect(result.state.plants[0].size).toBe(80); // unchanged
+      expect(result.state).toBe(state);
       expect(result.message).toContain('Invalid target size');
     });
 
-    it('rejects target size of 25', () => {
-      const state = createStateWithPlants([
-        { id: 'p1', species: 'java_fern', size: 80 },
-      ]);
-      const result = trimPlants(state, { type: 'trimPlants', targetSize: 25 as unknown as TrimTargetSize });
-
-      expect(result.state.plants[0].size).toBe(80); // unchanged
-      expect(result.message).toContain('Invalid target size');
-    });
-
-    it('rejects target size of 75', () => {
-      const state = createStateWithPlants([
-        { id: 'p1', species: 'java_fern', size: 80 },
-      ]);
-      const result = trimPlants(state, { type: 'trimPlants', targetSize: 75 as unknown as TrimTargetSize });
-
-      expect(result.state.plants[0].size).toBe(80); // unchanged
-      expect(result.message).toContain('Invalid target size');
-    });
-
-    it('rejects target size of 150', () => {
+    it('rejects target size above 100', () => {
       const state = createStateWithPlants([
         { id: 'p1', species: 'java_fern', size: 200 },
       ]);
-      const result = trimPlants(state, { type: 'trimPlants', targetSize: 150 as unknown as TrimTargetSize });
+      const result = trimPlants(state, { type: 'trimPlants', targetSize: 101 });
 
       expect(result.state.plants[0].size).toBe(200); // unchanged
+      expect(result.state).toBe(state);
       expect(result.message).toContain('Invalid target size');
     });
 
-    it('only accepts 50, 85, and 100 as valid targets', () => {
+    it('rejects NaN target size', () => {
+      const state = createStateWithPlants([
+        { id: 'p1', species: 'java_fern', size: 80 },
+      ]);
+      const result = trimPlants(state, { type: 'trimPlants', targetSize: Number.NaN });
+
+      expect(result.state.plants[0].size).toBe(80); // unchanged
+      expect(result.state).toBe(state);
+      expect(result.message).toContain('Invalid target size');
+    });
+
+    it('accepts arbitrary in-range values (e.g. 25, 75, 60)', () => {
       const state = createStateWithPlants([
         { id: 'p1', species: 'java_fern', size: 200 },
       ]);
 
-      // Valid targets
-      expect(trimPlants(state, { type: 'trimPlants', targetSize: 50 }).message).not.toContain('Invalid');
-      expect(trimPlants(state, { type: 'trimPlants', targetSize: 85 }).message).not.toContain('Invalid');
-      expect(trimPlants(state, { type: 'trimPlants', targetSize: 100 }).message).not.toContain('Invalid');
+      for (const target of [0, 25, 60, 75, 100]) {
+        expect(
+          trimPlants(state, { type: 'trimPlants', targetSize: target }).message
+        ).not.toContain('Invalid');
+      }
     });
   });
 
@@ -360,7 +353,7 @@ describe('trimPlants', () => {
         { id: 'p1', species: 'java_fern', size: 80 },
       ]);
       const initialLogCount = state.logs.length;
-      const result = trimPlants(state, { type: 'trimPlants', targetSize: 25 as unknown as TrimTargetSize });
+      const result = trimPlants(state, { type: 'trimPlants', targetSize: -1 });
 
       expect(result.state.logs.length).toBe(initialLogCount);
     });
@@ -407,6 +400,105 @@ describe('trimPlants', () => {
       const result = trimPlants(state, { type: 'trimPlants', targetSize: 50 });
 
       expect(result.state).not.toBe(state);
+    });
+  });
+
+  describe('per-plant trim (plantId provided)', () => {
+    it('trims only the target plant, leaves others untouched', () => {
+      const state = createStateWithPlants([
+        { id: 'p1', species: 'java_fern', size: 92 },
+        { id: 'p2', species: 'anubias', size: 88 },
+        { id: 'p3', species: 'amazon_sword', size: 150 },
+      ]);
+      const result = trimPlants(state, {
+        type: 'trimPlants',
+        plantId: 'p1',
+        targetSize: 60,
+      });
+
+      expect(result.state.plants[0].size).toBe(60);
+      expect(result.state.plants[1].size).toBe(88);
+      expect(result.state.plants[2].size).toBe(150);
+    });
+
+    it('log and message include species name and amount removed', () => {
+      const state = createStateWithPlants([
+        { id: 'p1', species: 'java_fern', size: 92 },
+      ]);
+      const result = trimPlants(state, {
+        type: 'trimPlants',
+        plantId: 'p1',
+        targetSize: 60,
+      });
+
+      expect(result.message).toBe('Trimmed Java Fern to 60% (32% removed)');
+      const lastLog = result.state.logs[result.state.logs.length - 1];
+      expect(lastLog.source).toBe('user');
+      expect(lastLog.message).toBe('Trimmed Java Fern to 60% (32% removed)');
+    });
+
+    it('is a no-op when targetSize equals plant size', () => {
+      const state = createStateWithPlants([
+        { id: 'p1', species: 'java_fern', size: 60 },
+      ]);
+      const initialLogCount = state.logs.length;
+      const result = trimPlants(state, {
+        type: 'trimPlants',
+        plantId: 'p1',
+        targetSize: 60,
+      });
+
+      expect(result.state).toBe(state);
+      expect(result.state.plants[0].size).toBe(60);
+      expect(result.state.logs.length).toBe(initialLogCount);
+      expect(result.message).toContain('already at or below');
+    });
+
+    it('is a no-op when targetSize exceeds plant size', () => {
+      const state = createStateWithPlants([
+        { id: 'p1', species: 'java_fern', size: 40 },
+      ]);
+      const result = trimPlants(state, {
+        type: 'trimPlants',
+        plantId: 'p1',
+        targetSize: 80,
+      });
+
+      expect(result.state).toBe(state);
+      expect(result.state.plants[0].size).toBe(40);
+      expect(result.message).toContain('already at or below');
+    });
+
+    it('is a no-op with a clear message when plantId does not exist', () => {
+      const state = createStateWithPlants([
+        { id: 'p1', species: 'java_fern', size: 100 },
+      ]);
+      const initialLogCount = state.logs.length;
+      const result = trimPlants(state, {
+        type: 'trimPlants',
+        plantId: 'nonexistent',
+        targetSize: 60,
+      });
+
+      expect(result.state).toBe(state);
+      expect(result.state.plants[0].size).toBe(100);
+      expect(result.state.logs.length).toBe(initialLogCount);
+      expect(result.message).toContain('not found');
+    });
+
+    it('rejects invalid targetSize before checking plant', () => {
+      const state = createStateWithPlants([
+        { id: 'p1', species: 'java_fern', size: 100 },
+      ]);
+      const result = trimPlants(state, {
+        type: 'trimPlants',
+        plantId: 'p1',
+        targetSize: 150,
+      });
+
+      expect(result.state).toBe(state);
+      expect(result.state.plants[0].size).toBe(100);
+      expect(result.message).toContain('Invalid target size');
     });
   });
 });
