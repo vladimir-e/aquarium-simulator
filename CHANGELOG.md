@@ -8,6 +8,10 @@ Format: - **Feature name** (#PR) - Brief description (under 100 chars)
 - Skip UI-only tweaks and minor fixes
 -->
 
+## 2026-04-23
+
+- **Per-fish hardiness stochasticity** - Task 35: `Fish` gains `hardinessOffset` (±15 % of species baseline, sampled once at `addFish` time, never re-rolled) so weaker individuals fail first when conditions degrade; `calculateStress` uses `effectiveHardiness = clamp(speciesHardiness + offset, 0.1, 0.95)`; `addFish` also applies ±5 % initial health jitter (clamped to [0, 100]) to capture mild purchase-condition variation; persistence schema bumped v4 → v5 (old saves discarded via existing version-mismatch path); calibration helper `addFish` neutralises jitter so scenario anchors and N-mass conservation tests stay pinned — stochasticity only flows through the live game path
+
 ## 2026-04-19
 
 - **Low-volume stressors calibration (scenario 04)** - Three 19 L variants on the same hardware: filterless betta (Variant A, 8-week hold), betta cold-failure (A.1, heater off at tick 168), overcrowded 10-neon die-off (B); `temperatureStressSeverity` retuned 2.0 → 0.85 %/°C/hr — prior value killed a betta at 20 °C in 24 hr (scenario calls for 7–14 day decline); new `scripts/calibrate-low-volume.ts` runner with `--variant=A|A1|B`, default `seedBacteria` per variant (A/A1 pre-cycled, B uncycled) — scenario's "minimum-viable betta setup" assumes seeded bacteria; Variant A pins NH3/NO2 at 0 across 56 days, NO3 sawtooths 12 → 17 ppm pre-WC / 8 → 12 post-WC, betta health 100 throughout; Variant A.1 thermal drift 26 → 20 °C in ~18 hr (scenario 24 hr) with clean endpoint, betta declines 100 → 94 → 68 → 42 → 15 → dead over 14 days (scenario band 40–65 at day 14); Variant B NH3 amplified ~2× vs S1 at same bioload (0.67 ppm day-2 vs S1's 0.35), all 10 tetras dead by day 7 (scenario target ≤ day 8); `ambientWaste = 0.001 g/hr` survives 19 L test (~30 % of N budget at lean feed, dominated by betta output as intended)

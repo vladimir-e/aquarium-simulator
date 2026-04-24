@@ -14,6 +14,7 @@ function makeFish(overrides: Partial<Fish> = {}): Fish {
     age: 0,
     hunger: 50,
     sex: 'male',
+    hardinessOffset: 0,
     ...overrides,
   };
 }

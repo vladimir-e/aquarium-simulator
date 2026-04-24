@@ -12,6 +12,7 @@ function makeFish(overrides: Partial<Fish> = {}): Fish {
     age: 0,
     hunger: 20,
     sex: 'male',
+    hardinessOffset: 0,
     ...overrides,
   };
 }
@@ -215,6 +216,68 @@ describe('calculateStress', () => {
 
     // Hardy guppy should have less stress
     expect(guppyStress).toBeLessThan(angelStress);
+  });
+
+  describe('per-fish hardiness offset', () => {
+    // Neon tetra hardiness = 0.5. Temperature stress at 18 °C (safe 22–28):
+    //   stress = severity(0.85) × gap(4) × (1 - effectiveHardiness)
+    const resources = (): ReturnType<typeof makeResources> =>
+      makeResources({ temperature: 18 });
+
+    it('negative offset → weaker fish → more stress', () => {
+      const baseline = makeFish({ hardinessOffset: 0 });
+      const weak = makeFish({ hardinessOffset: -0.075 }); // -15% of 0.5
+      const bs = calculateStress(baseline, resources(), 100, 100, livestockDefaults);
+      const ws = calculateStress(weak, resources(), 100, 100, livestockDefaults);
+      expect(ws).toBeGreaterThan(bs);
+      // effectiveHardiness goes 0.5 → 0.425, factor 0.5 → 0.575.
+      expect(ws).toBeCloseTo(0.85 * 4 * (1 - 0.425), 6);
+    });
+
+    it('positive offset → hardier fish → less stress', () => {
+      const baseline = makeFish({ hardinessOffset: 0 });
+      const hardy = makeFish({ hardinessOffset: 0.075 }); // +15% of 0.5
+      const bs = calculateStress(baseline, resources(), 100, 100, livestockDefaults);
+      const hs = calculateStress(hardy, resources(), 100, 100, livestockDefaults);
+      expect(hs).toBeLessThan(bs);
+      // effectiveHardiness 0.5 → 0.575, factor 0.5 → 0.425.
+      expect(hs).toBeCloseTo(0.85 * 4 * (1 - 0.575), 6);
+    });
+
+    it('clamps effectiveHardiness to upper bound 0.95', () => {
+      // Extreme offset shouldn't let a fish become invincible.
+      const superFish = makeFish({ species: 'guppy', hardinessOffset: 5 });
+      const stress = calculateStress(
+        superFish,
+        makeResources({ temperature: 18 }),
+        100,
+        100,
+        livestockDefaults
+      );
+      // Guppy range 22–28 → gap 4, severity 0.85. Clamped factor = 1 - 0.95 = 0.05.
+      expect(stress).toBeCloseTo(0.85 * 4 * 0.05, 6);
+    });
+
+    it('clamps effectiveHardiness to lower bound 0.1', () => {
+      // Extreme negative offset shouldn't instantly kill.
+      const glassFish = makeFish({ species: 'guppy', hardinessOffset: -5 });
+      const stress = calculateStress(
+        glassFish,
+        makeResources({ temperature: 18 }),
+        100,
+        100,
+        livestockDefaults
+      );
+      // Clamped factor = 1 - 0.1 = 0.9.
+      expect(stress).toBeCloseTo(0.85 * 4 * 0.9, 6);
+    });
+
+    it('zero offset matches species baseline behavior', () => {
+      // Regression check: zero offset must preserve legacy calibration.
+      const fish = makeFish({ hardinessOffset: 0 });
+      const stress = calculateStress(fish, resources(), 100, 100, livestockDefaults);
+      expect(stress).toBeCloseTo(0.85 * 4 * 0.5, 6);
+    });
   });
 });
 

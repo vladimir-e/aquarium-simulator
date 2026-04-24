@@ -34,12 +34,26 @@ export function addFish(
   const fishId = generateFishId();
   const sex = Math.random() < 0.5 ? 'male' : 'female';
 
+  // Per-fish hardiness offset: uniform ±15 % of species baseline, stored
+  // once so the same individual fails consistently when conditions
+  // degrade. Produces staggered deaths instead of everyone dying on the
+  // same tick.
+  const hardinessOffset =
+    (Math.random() - 0.5) * 2 * 0.15 * speciesData.hardiness;
+
+  // Small (±5 %) initial health jitter captures mild purchase-condition
+  // variation without introducing a new mechanic. Clamped to [0, 100].
+  const initialHealth = Math.max(
+    0,
+    Math.min(100, 100 + (Math.random() - 0.5) * 2 * 5)
+  );
+
   const newState = produce(state, (draft) => {
     draft.fish.push({
       id: fishId,
       species,
       mass: speciesData.adultMass,
-      health: 100,
+      health: initialHealth,
       age: 0,
       // Slightly hungry on arrival — fish added to a tank have usually
       // gone without food during transfer and are ready to eat at the
@@ -49,6 +63,7 @@ export function addFish(
       // introduction isn't catastrophic.
       hunger: 30,
       sex,
+      hardinessOffset,
     });
 
     draft.logs.push(

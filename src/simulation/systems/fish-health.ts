@@ -34,7 +34,14 @@ export function calculateStress(
   config: LivestockConfig
 ): number {
   const speciesData = FISH_SPECIES_DATA[fish.species];
-  const hardinessFactor = 1 - speciesData.hardiness;
+  // Apply per-fish hardiness offset on top of the species baseline,
+  // clamped to a sane range so extreme offsets (or legacy data) can't
+  // push fish into invincible or instantly-dying territory.
+  const effectiveHardiness = Math.max(
+    0.1,
+    Math.min(0.95, speciesData.hardiness + fish.hardinessOffset)
+  );
+  const hardinessFactor = 1 - effectiveHardiness;
   let stress = 0;
 
   // Temperature stress

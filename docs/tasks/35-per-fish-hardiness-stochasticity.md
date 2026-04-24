@@ -1,6 +1,6 @@
 # Task 35: Per-fish hardiness stochasticity
 
-**Status:** pending
+**Status:** completed
 
 ## Overview
 

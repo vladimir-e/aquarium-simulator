@@ -219,6 +219,63 @@ describe('PersistedSimulationSchema', () => {
     };
     expect(PersistedSimulationSchema.safeParse(invalidFlow).success).toBe(false);
   });
+
+  it('validates fish with hardinessOffset', () => {
+    const withFish = {
+      ...validSimulation,
+      fish: [
+        {
+          id: 'f1',
+          species: 'neon_tetra',
+          mass: 0.5,
+          health: 100,
+          age: 0,
+          hunger: 30,
+          sex: 'male',
+          hardinessOffset: 0.05,
+        },
+      ],
+    };
+    expect(PersistedSimulationSchema.safeParse(withFish).success).toBe(true);
+  });
+
+  it('accepts negative hardinessOffset', () => {
+    const withFish = {
+      ...validSimulation,
+      fish: [
+        {
+          id: 'f1',
+          species: 'neon_tetra',
+          mass: 0.5,
+          health: 50,
+          age: 0,
+          hunger: 30,
+          sex: 'male',
+          hardinessOffset: -0.07,
+        },
+      ],
+    };
+    expect(PersistedSimulationSchema.safeParse(withFish).success).toBe(true);
+  });
+
+  it('rejects fish missing hardinessOffset (strict mode, v5)', () => {
+    const withFish = {
+      ...validSimulation,
+      fish: [
+        {
+          id: 'f1',
+          species: 'neon_tetra',
+          mass: 0.5,
+          health: 100,
+          age: 0,
+          hunger: 30,
+          sex: 'male',
+          // hardinessOffset intentionally omitted
+        },
+      ],
+    };
+    expect(PersistedSimulationSchema.safeParse(withFish).success).toBe(false);
+  });
 });
 
 describe('PersistedStateSchema', () => {
@@ -310,5 +367,14 @@ describe('PersistedStateSchema', () => {
   it('rejects extra top-level keys', () => {
     const withExtra = { ...validState, extraField: 'value' };
     expect(PersistedStateSchema.safeParse(withExtra).success).toBe(false);
+  });
+
+  it('rejects prior version 4 (breaking bump to 5 for hardinessOffset)', () => {
+    const v4 = { ...validState, version: 4 };
+    expect(PersistedStateSchema.safeParse(v4).success).toBe(false);
+  });
+
+  it('PERSISTENCE_VERSION is 5', () => {
+    expect(PERSISTENCE_VERSION).toBe(5);
   });
 });

@@ -201,6 +201,7 @@ const FishSchema = z
     age: z.number().int().min(0),
     hunger: z.number().min(0).max(100),
     sex: z.enum(['male', 'female']),
+    hardinessOffset: z.number(),
   })
   .strict();
 
