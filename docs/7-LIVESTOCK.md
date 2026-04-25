@@ -2,6 +2,11 @@
 
 Animals living in the aquarium: fish (individuals) and colonies (snails, shrimp as populations).
 
+> Fish health runs on the unified vitality engine. See `1-DESIGN.md`
+> § The Vitality Engine for the shared math and § The Surplus Economy
+> for the breeding/growth gating story; this doc covers fish-specific
+> stressors, benefits, and lifecycle mechanics.
+
 ## Purpose
 
 Livestock in the simulation:

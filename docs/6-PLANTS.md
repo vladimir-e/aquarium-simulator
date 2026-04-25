@@ -2,6 +2,11 @@
 
 Aquatic plants that perform photosynthesis and growth, consuming resources and producing oxygen.
 
+> Plant condition runs on the unified vitality engine. See
+> `1-DESIGN.md` § The Vitality Engine for the shared math; this doc
+> covers plant-specific stressors, benefits, and the surplus-driven
+> growth path.
+
 ## Purpose
 
 Plants in the simulation:
