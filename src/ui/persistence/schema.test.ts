@@ -397,12 +397,12 @@ describe('PersistedStateSchema', () => {
     expect(PersistedStateSchema.safeParse(v4).success).toBe(false);
   });
 
-  it('rejects prior version 6 (breaking bump for livestock benefit/threshold knobs)', () => {
-    const v6 = { ...validState, version: 6 };
-    expect(PersistedStateSchema.safeParse(v6).success).toBe(false);
+  it('rejects prior version 7 (breaking bump for plant lifecycle knobs move)', () => {
+    const v7 = { ...validState, version: 7 };
+    expect(PersistedStateSchema.safeParse(v7).success).toBe(false);
   });
 
-  it('PERSISTENCE_VERSION is 7', () => {
-    expect(PERSISTENCE_VERSION).toBe(7);
+  it('PERSISTENCE_VERSION is 8', () => {
+    expect(PERSISTENCE_VERSION).toBe(8);
   });
 });

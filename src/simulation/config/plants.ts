@@ -96,6 +96,21 @@ export interface PlantsConfig {
   phBenefitPeak: number;
   /** Nutrient sufficiency 1.0 (Liebig). */
   nutrientBenefitPeak: number;
+
+  // Lifecycle (shedding + death) — see `systems/plant-lifecycle.ts`.
+  // These fire once vitality has driven condition below their thresholds.
+  /** Condition below this triggers shedding. */
+  sheddingConditionThreshold: number;
+  /** Maximum shedding rate (fraction of size per tick at condition 0). */
+  maxSheddingRate: number;
+  /** Waste produced per unit of shed size (g per % size shed). */
+  wastePerShedSize: number;
+  /** Condition below this triggers death. */
+  deathConditionThreshold: number;
+  /** Size below this triggers death (%). */
+  deathSizeThreshold: number;
+  /** Waste produced when plant dies (g per % size). */
+  wastePerPlantDeath: number;
 }
 
 export const plantsDefaults: PlantsConfig = {
@@ -174,6 +189,14 @@ export const plantsDefaults: PlantsConfig = {
   temperatureBenefitPeak: 0.1,
   phBenefitPeak: 0.1,
   nutrientBenefitPeak: 0.1,
+
+  // Lifecycle thresholds — forgiving by default.
+  sheddingConditionThreshold: 30, // shedding starts at condition < 30 %
+  maxSheddingRate: 0.02, // 2 % size loss per tick at condition 0
+  wastePerShedSize: 0.005, // 0.005 g waste per % size shed
+  deathConditionThreshold: 10, // death at condition < 10 %
+  deathSizeThreshold: 10, // death if size < 10 %
+  wastePerPlantDeath: 0.01, // 0.01 g waste per % size when dying
 };
 
 export interface PlantsConfigMeta {
@@ -295,4 +318,12 @@ export const plantsConfigMeta: PlantsConfigMeta[] = [
   { key: 'temperatureBenefitPeak', label: 'Temp Benefit Peak', unit: '%/hr', min: 0.0, max: 0.5, step: 0.05 },
   { key: 'phBenefitPeak', label: 'pH Benefit Peak', unit: '%/hr', min: 0.0, max: 0.5, step: 0.05 },
   { key: 'nutrientBenefitPeak', label: 'Nutrient Benefit Peak', unit: '%/hr', min: 0.0, max: 0.5, step: 0.05 },
+
+  // Lifecycle (shedding + death)
+  { key: 'sheddingConditionThreshold', label: 'Shedding Threshold', unit: '%', min: 10, max: 50, step: 5 },
+  { key: 'maxSheddingRate', label: 'Max Shedding Rate', unit: '/hr', min: 0.005, max: 0.1, step: 0.005 },
+  { key: 'wastePerShedSize', label: 'Waste per Shed Size', unit: 'g/%', min: 0.001, max: 0.05, step: 0.001 },
+  { key: 'deathConditionThreshold', label: 'Death Condition Threshold', unit: '%', min: 5, max: 20, step: 1 },
+  { key: 'deathSizeThreshold', label: 'Death Size Threshold', unit: '%', min: 5, max: 20, step: 1 },
+  { key: 'wastePerPlantDeath', label: 'Waste per Plant Death', unit: 'g/%', min: 0.001, max: 0.05, step: 0.001 },
 ];

@@ -25,7 +25,11 @@ import {
 import { calculateRespiration } from '../systems/respiration.js';
 import { distributeBiomass } from '../systems/plant-growth.js';
 import { computePlantVitality } from '../systems/plant-vitality.js';
-import { calculateShedding, calculateDeathWaste, shouldPlantDie } from '../systems/nutrients.js';
+import {
+  calculateShedding,
+  calculateDeathWaste,
+  shouldPlantDie,
+} from '../systems/plant-lifecycle.js';
 import { createLog } from '../core/logging.js';
 
 export interface PlantsProcessingResult {
@@ -186,15 +190,15 @@ export function processPlants(
   const processedPlants: Plant[] = [];
 
   for (const plant of mergedPlants) {
-    // Shedding scales with how low condition is (existing math, untouched).
-    const { sizeReduction, wasteProduced } = calculateShedding(plant, nutrientsConfig);
+    // Shedding scales with how low condition is.
+    const { sizeReduction, wasteProduced } = calculateShedding(plant, plantsConfig);
     let updated: Plant = plant;
     if (sizeReduction > 0) {
       updated = { ...plant, size: Math.max(0, plant.size - sizeReduction) };
       totalConditionWaste += wasteProduced;
     }
-    if (shouldPlantDie(updated, nutrientsConfig)) {
-      totalConditionWaste += calculateDeathWaste(updated, nutrientsConfig);
+    if (shouldPlantDie(updated, plantsConfig)) {
+      totalConditionWaste += calculateDeathWaste(updated, plantsConfig);
       deadPlantNames.push(PLANT_SPECIES_DATA[plant.species].name);
       // Drop — surviving array doesn't include dead plants.
       continue;
@@ -250,11 +254,13 @@ export {
 } from '../systems/plant-growth.js';
 export {
   calculateNutrientSufficiency,
+  getDemandMultiplier,
+} from '../systems/nutrients.js';
+export {
   calculateShedding,
   shouldPlantDie,
   calculateDeathWaste,
-  getDemandMultiplier,
-} from '../systems/nutrients.js';
+} from '../systems/plant-lifecycle.js';
 export {
   computePlantVitality,
   buildPlantStressors,

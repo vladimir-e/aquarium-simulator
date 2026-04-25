@@ -19,6 +19,11 @@ import type { TunableConfig } from '../../simulation/config/index.js';
  * Increment this when the structure changes in a breaking way.
  * On version mismatch, stored data is discarded.
  *
+ * v8: Plant lifecycle knobs (`sheddingConditionThreshold`,
+ *     `maxSheddingRate`, `wastePerShedSize`, `deathConditionThreshold`,
+ *     `deathSizeThreshold`, `wastePerPlantDeath`) move from
+ *     `NutrientsConfig` to `PlantsConfig` — alongside the rest of the
+ *     plant-lifecycle calibration.
  * v7: `LivestockConfig` gains stressor activation thresholds
  *     (nitrate / oxygen / hunger / water level) and vitality benefit
  *     peaks (pH / hunger / hunger-full / oxygen / plant / plant
@@ -29,7 +34,7 @@ import type { TunableConfig } from '../../simulation/config/index.js';
  *     nutrient sufficiency) but its persisted shape is identical, so
  *     the bump is purely the new Fish field.
  */
-export const PERSISTENCE_VERSION = 7;
+export const PERSISTENCE_VERSION = 8;
 
 /**
  * Storage key for the unified persisted state.

@@ -1,5 +1,5 @@
 /**
- * Nutrients system - plant nutrient sufficiency, shedding, and death.
+ * Nutrients system — plant nutrient sufficiency.
  *
  * Key concepts:
  * - Plants have nutrient demand levels (low/medium/high)
@@ -7,11 +7,13 @@
  * - Plant condition itself is driven by `systems/plant-vitality.ts`;
  *   sufficiency contributes to it as both a stressor (1 − sufficiency)
  *   and a benefit (sufficiency × peak)
- * - Low condition triggers shedding, very low condition causes death
  * - Plants consume nutrients proportionally to fertilizer formula ratio
+ *
+ * Lifecycle outcomes (shedding, death) live in `plant-lifecycle.ts` —
+ * they're downstream of the vitality engine, not nutrients-specific.
  */
 
-import type { NutrientDemand, Plant, PlantSpecies, Resources } from '../state.js';
+import type { NutrientDemand, PlantSpecies, Resources } from '../state.js';
 import { PLANT_SPECIES_DATA } from '../state.js';
 import type { NutrientsConfig } from '../config/nutrients.js';
 import { nutrientsDefaults } from '../config/nutrients.js';
@@ -108,62 +110,4 @@ export function calculateNutrientSufficiency(
   return Math.min(...factors);
 }
 
-/**
- * Calculate shedding for a plant with low condition.
- *
- * @param plant - Current plant state
- * @param config - Nutrients configuration
- * @returns Object with size reduction and waste produced
- */
-export function calculateShedding(
-  plant: Plant,
-  config: NutrientsConfig = nutrientsDefaults
-): { sizeReduction: number; wasteProduced: number } {
-  if (plant.condition >= config.sheddingConditionThreshold) {
-    return { sizeReduction: 0, wasteProduced: 0 };
-  }
-
-  // Shedding rate scales with how low the condition is
-  // At condition 0, rate = maxSheddingRate
-  // At sheddingConditionThreshold, rate = 0
-  const sheddingIntensity =
-    (config.sheddingConditionThreshold - plant.condition) / config.sheddingConditionThreshold;
-  const sheddingRate = sheddingIntensity * config.maxSheddingRate;
-
-  const sizeReduction = plant.size * sheddingRate;
-  const wasteProduced = sizeReduction * config.wastePerShedSize;
-
-  return { sizeReduction, wasteProduced };
-}
-
-/**
- * Check if a plant should die based on condition and size.
- *
- * @param plant - Current plant state
- * @param config - Nutrients configuration
- * @returns Whether the plant dies
- */
-export function shouldPlantDie(
-  plant: Plant,
-  config: NutrientsConfig = nutrientsDefaults
-): boolean {
-  return (
-    plant.condition < config.deathConditionThreshold ||
-    plant.size < config.deathSizeThreshold
-  );
-}
-
-/**
- * Calculate waste produced when a plant dies.
- *
- * @param plant - Dying plant
- * @param config - Nutrients configuration
- * @returns Waste produced in grams
- */
-export function calculateDeathWaste(
-  plant: Plant,
-  config: NutrientsConfig = nutrientsDefaults
-): number {
-  return plant.size * config.wastePerPlantDeath;
-}
 

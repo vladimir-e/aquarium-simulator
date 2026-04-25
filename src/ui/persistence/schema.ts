@@ -357,6 +357,12 @@ const PlantsConfigSchema = z
     temperatureBenefitPeak: z.number(),
     phBenefitPeak: z.number(),
     nutrientBenefitPeak: z.number(),
+    sheddingConditionThreshold: z.number(),
+    maxSheddingRate: z.number(),
+    wastePerShedSize: z.number(),
+    deathConditionThreshold: z.number(),
+    deathSizeThreshold: z.number(),
+    wastePerPlantDeath: z.number(),
   })
   .strict();
 
@@ -379,12 +385,6 @@ const NutrientsConfigSchema = z
     lowDemandMultiplier: z.number(),
     mediumDemandMultiplier: z.number(),
     highDemandMultiplier: z.number(),
-    sheddingConditionThreshold: z.number(),
-    maxSheddingRate: z.number(),
-    wastePerShedSize: z.number(),
-    deathConditionThreshold: z.number(),
-    deathSizeThreshold: z.number(),
-    wastePerPlantDeath: z.number(),
     phosphatePerDecay: z.number(),
   })
   .strict();

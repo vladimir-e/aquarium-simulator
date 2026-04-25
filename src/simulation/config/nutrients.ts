@@ -50,20 +50,6 @@ export interface NutrientsConfig {
   /** High-demand plants need full optimal */
   highDemandMultiplier: number;
 
-  // Shedding and death
-  /** Condition below this triggers shedding */
-  sheddingConditionThreshold: number;
-  /** Maximum shedding rate (fraction of size per tick at condition 0) */
-  maxSheddingRate: number;
-  /** Waste produced per unit of shed size */
-  wastePerShedSize: number;
-  /** Condition below this = plant death */
-  deathConditionThreshold: number;
-  /** Size below this = plant death (%) */
-  deathSizeThreshold: number;
-  /** Waste produced when plant dies (per % size) */
-  wastePerPlantDeath: number;
-
   // Decay phosphate production
   /** Phosphate produced per gram of decayed mass (mg/g) */
   phosphatePerDecay: number;
@@ -93,14 +79,6 @@ export const nutrientsDefaults: NutrientsConfig = {
   lowDemandMultiplier: 0.3, // 30% of optimal
   mediumDemandMultiplier: 0.6, // 60% of optimal
   highDemandMultiplier: 1.0, // Full optimal needed
-
-  // Shedding and death - forgiving thresholds
-  sheddingConditionThreshold: 30, // Shedding starts at condition < 30%
-  maxSheddingRate: 0.02, // 2% size loss per tick at condition 0
-  wastePerShedSize: 0.005, // 0.005g waste per % size shed
-  deathConditionThreshold: 10, // Death at condition < 10%
-  deathSizeThreshold: 10, // Death if size < 10%
-  wastePerPlantDeath: 0.01, // 0.01g waste per % size when dying
 
   // Decay phosphate - links fish waste to plant nutrition
   // Organic matter contains ~0.1-1% phosphorus; 50mg/g represents mineralized PO4
@@ -146,14 +124,6 @@ export const nutrientsConfigMeta: NutrientsConfigMeta[] = [
   { key: 'lowDemandMultiplier', label: 'Low Demand Multiplier', unit: '', min: 0.1, max: 0.5, step: 0.05 },
   { key: 'mediumDemandMultiplier', label: 'Medium Demand Multiplier', unit: '', min: 0.4, max: 0.8, step: 0.05 },
   { key: 'highDemandMultiplier', label: 'High Demand Multiplier', unit: '', min: 0.8, max: 1.0, step: 0.05 },
-
-  // Shedding and death
-  { key: 'sheddingConditionThreshold', label: 'Shedding Threshold', unit: '%', min: 10, max: 50, step: 5 },
-  { key: 'maxSheddingRate', label: 'Max Shedding Rate', unit: '/hr', min: 0.005, max: 0.1, step: 0.005 },
-  { key: 'wastePerShedSize', label: 'Waste per Shed Size', unit: 'g/%', min: 0.001, max: 0.05, step: 0.001 },
-  { key: 'deathConditionThreshold', label: 'Death Condition Threshold', unit: '%', min: 5, max: 20, step: 1 },
-  { key: 'deathSizeThreshold', label: 'Death Size Threshold', unit: '%', min: 5, max: 20, step: 1 },
-  { key: 'wastePerPlantDeath', label: 'Waste per Plant Death', unit: 'g/%', min: 0.001, max: 0.05, step: 0.001 },
 
   // Decay phosphate
   { key: 'phosphatePerDecay', label: 'Phosphate per Decay', unit: 'mg/g', min: 10, max: 200, step: 10 },
