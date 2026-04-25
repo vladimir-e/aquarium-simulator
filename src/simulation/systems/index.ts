@@ -71,6 +71,14 @@ export {
   calculateCO2PHEffect,
 } from './ph-drift.js';
 
+export {
+  computeVitality,
+  type VitalityFactor,
+  type VitalityInput,
+  type VitalityResult,
+  type VitalityBreakdown,
+} from './vitality.js';
+
 import type { System } from './types.js';
 import { temperatureDriftSystem } from './temperature-drift.js';
 import { evaporationSystem } from './evaporation.js';
