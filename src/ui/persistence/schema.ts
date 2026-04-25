@@ -183,8 +183,9 @@ const PlantSchema = z
   .object({
     id: z.string(),
     species: z.enum(['java_fern', 'anubias', 'amazon_sword', 'dwarf_hairgrass', 'monte_carlo']),
-    size: z.number().min(0).max(200),
+    size: z.number().min(0),
     condition: z.number().min(0).max(100),
+    surplus: z.number().min(0),
   })
   .strict();
 
@@ -330,15 +331,13 @@ const PlantsConfigSchema = z
     o2PerPhotosynthesis: z.number(),
     co2PerPhotosynthesis: z.number(),
     nutrientsPerPhotosynthesis: z.number(),
-    biomassPerPhotosynthesis: z.number(),
     baseRespirationRate: z.number(),
     o2PerRespiration: z.number(),
     co2PerRespiration: z.number(),
     respirationQ10: z.number(),
     respirationReferenceTemp: z.number(),
-    sizePerBiomass: z.number(),
-    overgrowthPenaltyScale: z.number(),
-    wastePerExcessSize: z.number(),
+    plantGrowthPerTickCap: z.number(),
+    sizePerSurplus: z.number(),
     competitionScale: z.number(),
     // Vitality stressor severities
     lightInsufficientSeverity: z.number(),

@@ -28,8 +28,6 @@ export interface PlantsConfig {
    * matches the 1 ml/day auto-dose + fish bioload (scenario 02).
    */
   nutrientsPerPhotosynthesis: number;
-  /** Biomass produced per unit of actual photosynthesis (post-Liebig). */
-  biomassPerPhotosynthesis: number;
 
   // Respiration constants
   /** Base respiration rate per 100% plant size per hour */
@@ -43,13 +41,20 @@ export interface PlantsConfig {
   /** Reference temperature for respiration calculations (°C) */
   respirationReferenceTemp: number;
 
-  // Growth constants
-  /** Size increase per unit biomass (% per biomass unit) */
-  sizePerBiomass: number;
-  /** Scale for overgrowth penalty calculation */
-  overgrowthPenaltyScale: number;
-  /** Waste released per unit excess size above 200% */
-  wastePerExcessSize: number;
+  // Surplus-driven growth knobs.
+  /**
+   * Max surplus units a plant can spend on growth in one tick. Caps
+   * supply-chain drain so a long-banked surplus doesn't suddenly
+   * produce massive growth in a single tick.
+   */
+  plantGrowthPerTickCap: number;
+  /**
+   * Size gained per surplus unit drained, before species growth-rate
+   * and asymptotic-factor scaling. With species growth rates in the
+   * 0.3–1.8 band and a per-tick cap of 2.0, this knob roughly sets
+   * the order of magnitude of the surplus → size conversion.
+   */
+  sizePerSurplus: number;
 
   // Algae competition
   /** Scale factor for plant competition with algae (200% plants = halved algae growth) */
@@ -131,7 +136,6 @@ export const plantsDefaults: PlantsConfig = {
   // draw, so Variant B plants keep trickling nutrients down even with a
   // starved limiting factor.
   nutrientsPerPhotosynthesis: 4.0,
-  biomassPerPhotosynthesis: 1.0, // biomass units per photosynthesis unit
 
   // Respiration - ~15% of photosynthesis, runs 24/7
   baseRespirationRate: 0.15,
@@ -140,14 +144,12 @@ export const plantsDefaults: PlantsConfig = {
   respirationQ10: 2.0, // Rate doubles per 10°C increase
   respirationReferenceTemp: 25.0, // °C
 
-  // Growth — calibrated for scenario 02: 5 plants starting at 35 % size reach
-  // roughly 60–85 % by day 28 under optimal conditions (Variant A). At
-  // biomass rate 1.0 per 100 % plant size, 8 hr/day photoperiod, and the
-  // per-species growth-rate share, this gives the MC carpet the visible
-  // "filled in" behavior hobbyists expect in a high-tech tank.
-  sizePerBiomass: 0.4,
-  overgrowthPenaltyScale: 200, // Penalty reaches 50% at 200% size
-  wastePerExcessSize: 0.01, // Grams waste per % excess above 200
+  // Surplus-driven growth — vitality emits surplus when condition is
+  // full and net is positive; growth drains it (capped per tick), the
+  // asymptotic factor dampens spending efficiency near maxSize, and
+  // species growth rate is the per-species multiplier on conversion.
+  plantGrowthPerTickCap: 2.0,
+  sizePerSurplus: 0.4, // size % per (surplus × growthRate × asymptoticFactor) unit
 
   // Algae competition - 100% total plant size halves algae growth
   // Real planted tanks with dense coverage almost eliminate algae
@@ -244,14 +246,6 @@ export const plantsConfigMeta: PlantsConfigMeta[] = [
     max: 20,
     step: 0.5,
   },
-  {
-    key: 'biomassPerPhotosynthesis',
-    label: 'Biomass per Photosynthesis',
-    unit: '',
-    min: 0.1,
-    max: 5.0,
-    step: 0.1,
-  },
   // Respiration
   {
     key: 'baseRespirationRate',
@@ -279,24 +273,9 @@ export const plantsConfigMeta: PlantsConfigMeta[] = [
     max: 30,
     step: 1,
   },
-  // Growth
-  { key: 'sizePerBiomass', label: 'Size per Biomass', unit: '%', min: 0.01, max: 1.0, step: 0.01 },
-  {
-    key: 'overgrowthPenaltyScale',
-    label: 'Overgrowth Penalty Scale',
-    unit: '%',
-    min: 100,
-    max: 400,
-    step: 10,
-  },
-  {
-    key: 'wastePerExcessSize',
-    label: 'Waste per Excess Size',
-    unit: 'g/%',
-    min: 0.001,
-    max: 0.1,
-    step: 0.001,
-  },
+  // Surplus-driven growth
+  { key: 'plantGrowthPerTickCap', label: 'Plant Growth per Tick Cap', unit: 'surplus', min: 0.1, max: 10, step: 0.1 },
+  { key: 'sizePerSurplus', label: 'Size per Surplus', unit: '%', min: 0.01, max: 2.0, step: 0.01 },
   // Algae competition
   { key: 'competitionScale', label: 'Competition Scale', unit: '%', min: 50, max: 300, step: 10 },
 

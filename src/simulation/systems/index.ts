@@ -42,10 +42,10 @@ export {
 } from './respiration.js';
 
 export {
-  distributeBiomass,
-  getMaxPlantSize,
-  calculateOvergrowthPenalty,
+  spendSurplusOnGrowth,
   getSpeciesGrowthRate,
+  getSpeciesMaxSize,
+  asymptoticGrowthFactor,
 } from './plant-growth.js';
 
 export {

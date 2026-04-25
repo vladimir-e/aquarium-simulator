@@ -120,16 +120,35 @@ Health (Vitality) for the species-specific factor lists.
 Surplus is the currency that gates outcomes. It only accumulates when
 an organism is at full condition with positive net rate — which means
 *the player has stocked good conditions and maintained them well
-enough that the organism has energy to spare*. That accumulated surplus
-is what the outcome layer spends:
+enough that the organism has energy to spare*. Surplus is a **banked
+stock**, not a per-tick rate: vitality emits surplus each tick, the
+organism's outcome pipeline drains some, and whatever is left over
+banks on the organism's state for future use.
 
-- **Plants** — surplus drives biomass production. Stressed plants
-  (condition < 100) take zero share of biomass that tick;
-  photosynthate flows to maintenance. Once condition is full, surplus
-  routes to growth.
-- **Fish** — surplus banks on `Fish.surplus`. Future lifecycle
-  behaviour (breeding readiness, juvenile→adult progression, longevity
-  bonuses) reads it; today it's recorded but unspent.
+- **Plants** — full supply chain implemented (heal → grow → bank).
+  - Vitality emits surplus when condition is full.
+  - The orchestrator banks the emission on `Plant.surplus`.
+  - Each tick, growth drains up to a configured cap from the bank;
+    the drained units convert to size at a rate scaled by species
+    growth rate and an asymptotic factor that decays toward zero as
+    size approaches species `maxSize`. So a young plant grows fast,
+    a mature plant slows down, and a plant at its ceiling stops
+    growing entirely (but still drains surplus to the bank ceiling).
+  - Whatever is left over stays banked. Future propagation work
+    (Task 39) will read this stock and trigger propagation events
+    when it crosses a threshold.
+- **Fish** — heal + bank only on this PR. Vitality emits surplus,
+  the orchestrator banks it on `Fish.surplus`, and that's where the
+  current pipeline ends. Future fish-breeding work will consume the
+  bank. Fish do not have a growth channel today — adult fish are
+  fixed-mass, and juvenile→adult progression is part of the future
+  breeding task.
+
+A planted tank illustrates the loop end-to-end: a healthy plant heals
+to condition 100, banks surplus on each subsequent tick, drains some
+to grow, and as it approaches `maxSize` the asymptotic dampener slows
+visible growth while the bank keeps filling — eventually crossing the
+propagation threshold once that mechanic lands.
 
 This is the player's loop in one line: **stack positives, fix
 negatives, accumulate surplus, watch outcomes follow.** A barely-

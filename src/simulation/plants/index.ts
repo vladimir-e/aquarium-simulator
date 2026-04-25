@@ -1,12 +1,21 @@
 /**
- * Plants processing - handles photosynthesis, respiration, growth, and nutrients.
+ * Plants processing — full supply chain per plant per tick.
  *
- * Per-plant condition is driven by the unified vitality engine: each
- * plant gets a damage/benefit breakdown across light, CO2, temperature,
- * pH, nutrients (sufficiency + toxicity), and algae shading. Condition
- * heals only while net is positive; biomass growth fires only once
- * condition reaches 100 and surplus is captured — stressed plants heal
- * first, never crawl forward at reduced rate.
+ * Pipeline:
+ * 1. Compute per-plant Liebig sufficiency once (shared by photosynthesis
+ *    and vitality below).
+ * 2. Photosynthesis: emits resource effects only — O2 production, CO2
+ *    uptake, nutrient draw. Does NOT directly produce size growth;
+ *    that flows through surplus.
+ * 3. Respiration: O2/CO2 effects, 24/7.
+ * 4. Vitality per plant: drives condition update; emits per-tick
+ *    surplus when condition is full and net is positive.
+ * 5. Bank surplus on `Plant.surplus` (no decay — banked stock).
+ * 6. Spend surplus on growth: drains up to `plantGrowthPerTickCap`
+ *    per tick, converts to size at species-rate × asymptotic-factor.
+ *    Anything left in the bank stays for future propagation work.
+ * 7. Shedding + death (lifecycle module) — applied last, can remove
+ *    plants from the tank.
  *
  * Called during ACTIVE tier processing in tick.ts.
  */
@@ -24,7 +33,7 @@ import {
 } from '../systems/photosynthesis.js';
 import { calculateNutrientSufficiency } from '../systems/nutrients.js';
 import { calculateRespiration } from '../systems/respiration.js';
-import { distributeBiomass } from '../systems/plant-growth.js';
+import { spendSurplusOnGrowth } from '../systems/plant-growth.js';
 import { computePlantVitality } from '../systems/plant-vitality.js';
 import {
   calculateShedding,
@@ -41,16 +50,8 @@ export interface PlantsProcessingResult {
 }
 
 /**
- * Process plants for one tick.
- *
- * Handles:
- * 1. Photosynthesis (when lights on): O2 production, CO2/nitrate consumption, biomass
- * 2. Respiration (24/7): O2 consumption, CO2 production
- * 3. Growth: biomass distribution to plants, overgrowth handling
- * 4. Nutrient sufficiency: check nutrient levels for each plant
- * 5. Condition updates: improve or degrade based on sufficiency
- * 6. Shedding and death: handle declining plants
- * 7. Nutrient consumption: plants consume nutrients proportionally
+ * Process plants for one tick. See module-level docstring for the
+ * pipeline shape.
  *
  * @param state - Current simulation state
  * @param config - Tunable configuration
@@ -89,10 +90,9 @@ export function processPlants(
     ])
   );
 
-  // 1. Calculate photosynthesis (only when light > 0)
-  // Photosynthesis now owns nutrient uptake for all four plant macronutrients;
-  // uptake scales with potential rate (light/CO2/size), biomass scales with
-  // actual rate (post-Liebig). See systems/photosynthesis.ts for details.
+  // 1. Photosynthesis: resource effects only (O2 release, CO2 uptake,
+  //    nutrient draw). Plant size growth flows through the surplus
+  //    supply chain below — photosynthesis does not directly add size.
   const photosynthesisResult = calculatePhotosynthesis(
     state.plants,
     state.resources.light,
@@ -147,9 +147,7 @@ export function processPlants(
     });
   }
 
-  // 3. Compute vitality for each plant (drives condition + surplus).
-  //    Surplus > 0 only when condition === 100 — that's the gate for
-  //    biomass distribution below.
+  // 3. Vitality per plant: drives condition update and emits surplus.
   const vitalities = state.plants.map((plant) =>
     computePlantVitality({
       plant,
@@ -160,50 +158,23 @@ export function processPlants(
     })
   );
 
-  // 4. Apply condition updates. Surplus is captured but not stored on
-  //    Plant (yet — future tasks may want it on state). For now we use
-  //    it inline as the per-plant growth multiplier.
-  const conditionUpdated: Plant[] = state.plants.map((plant, i) => ({
-    ...plant,
-    condition: vitalities[i].newCondition,
-  }));
+  // 4. Apply condition update + bank surplus + spend on growth in one
+  //    pass. The bank is `Plant.surplus`; vitality only emits surplus
+  //    when condition is full and net is positive, so a stressed
+  //    plant heals first and never grows. Growth drains up to
+  //    `plantGrowthPerTickCap` per tick from the bank; whatever is
+  //    left stays banked for future propagation.
+  const mergedPlants: Plant[] = state.plants.map((plant, i) => {
+    const v = vitalities[i];
+    const banked: Plant = {
+      ...plant,
+      condition: v.newCondition,
+      surplus: plant.surplus + v.surplus,
+    };
+    return spendSurplusOnGrowth(banked, plantsConfig);
+  });
 
-  // 5. Distribute biomass — only to plants with surplus > 0. Plants
-  //    below 100 % condition get zero share this tick (they're paying
-  //    down the deficit before producing new tissue).
-  //
-  //    The biomass attributable to a stressed plant flows to its
-  //    healthier neighbours via the rebalanced share computation
-  //    inside `distributeBiomass`. This matches "photosynthesis still
-  //    runs, but actual biomass is surplus-gated" from the spec — the
-  //    unhealthy plant's photosynthate is treated as maintenance.
-  const eligibleForGrowth = conditionUpdated.filter(
-    (_, i) => vitalities[i].surplus > 0
-  );
-  const growthResult = distributeBiomass(
-    eligibleForGrowth,
-    photosynthesisResult.biomassProduced,
-    plantsConfig
-  );
-
-  // Merge grown plants back with surplus-skipped (size unchanged).
-  const grownById = new Map(growthResult.updatedPlants.map((p) => [p.id, p]));
-  const mergedPlants: Plant[] = conditionUpdated.map(
-    (plant) => grownById.get(plant.id) ?? plant
-  );
-
-  // Waste from extreme overgrowth (>200 % size) — only fires under
-  // pathological inputs since the asymptotic growth factor self-limits.
-  if (growthResult.wasteReleased > 0) {
-    effects.push({
-      tier: 'active',
-      resource: 'waste',
-      delta: growthResult.wasteReleased,
-      source: 'plant-overgrowth',
-    });
-  }
-
-  // 6. Shedding (low-condition plants lose biomass) and death.
+  // 5. Shedding (low-condition plants lose biomass) and death.
   let totalConditionWaste = 0;
   const deadPlantNames: string[] = [];
   const processedPlants: Plant[] = [];
@@ -264,9 +235,7 @@ export {
   getRespirationTemperatureFactor,
 } from '../systems/respiration.js';
 export {
-  distributeBiomass,
-  getMaxPlantSize,
-  calculateOvergrowthPenalty,
+  spendSurplusOnGrowth,
   getSpeciesGrowthRate,
   getSpeciesMaxSize,
   asymptoticGrowthFactor,

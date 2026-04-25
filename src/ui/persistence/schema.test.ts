@@ -151,8 +151,8 @@ describe('PersistedSimulationSchema', () => {
     const withPlants = {
       ...validSimulation,
       plants: [
-        { id: 'plant-1', species: 'java_fern', size: 50, condition: 100 },
-        { id: 'plant-2', species: 'anubias', size: 75, condition: 85 },
+        { id: 'plant-1', species: 'java_fern', size: 50, condition: 100, surplus: 0 },
+        { id: 'plant-2', species: 'anubias', size: 75, condition: 85, surplus: 0 },
       ],
     };
     expect(PersistedSimulationSchema.safeParse(withPlants).success).toBe(true);
@@ -177,7 +177,7 @@ describe('PersistedSimulationSchema', () => {
   it('rejects invalid plant species', () => {
     const invalidPlant = {
       ...validSimulation,
-      plants: [{ id: 'p1', species: 'invalid_species', size: 50, condition: 100 }],
+      plants: [{ id: 'p1', species: 'invalid_species', size: 50, condition: 100, surplus: 0 }],
     };
     expect(PersistedSimulationSchema.safeParse(invalidPlant).success).toBe(false);
   });
@@ -397,12 +397,12 @@ describe('PersistedStateSchema', () => {
     expect(PersistedStateSchema.safeParse(v4).success).toBe(false);
   });
 
-  it('rejects prior version 8 (breaking bump for old-age-into-vitality)', () => {
-    const v8 = { ...validState, version: 8 };
-    expect(PersistedStateSchema.safeParse(v8).success).toBe(false);
+  it('rejects prior version 9 (breaking bump for plant surplus + supply chain)', () => {
+    const v9 = { ...validState, version: 9 };
+    expect(PersistedStateSchema.safeParse(v9).success).toBe(false);
   });
 
-  it('PERSISTENCE_VERSION is 9', () => {
-    expect(PERSISTENCE_VERSION).toBe(9);
+  it('PERSISTENCE_VERSION is 10', () => {
+    expect(PERSISTENCE_VERSION).toBe(10);
   });
 });

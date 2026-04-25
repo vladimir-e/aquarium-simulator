@@ -175,7 +175,7 @@ describe('calculatePhotosynthesis', () => {
         suffMap([plant(100)], buildResources(waterVolume), waterVolume));
       expect(result.oxygenDelta).toBe(0);
       expect(result.nitrateDelta).toBe(0);
-      expect(result.biomassProduced).toBe(0);
+      expect(result.oxygenDelta).toBe(0);
       expect(result.limitingFactor).toBe(0);
     });
 
@@ -189,7 +189,7 @@ describe('calculatePhotosynthesis', () => {
       ,
         suffMap([plant(0)], buildResources(waterVolume), waterVolume));
       expect(result.oxygenDelta).toBe(0);
-      expect(result.biomassProduced).toBe(0);
+      expect(result.oxygenDelta).toBe(0);
     });
 
     it('returns zeros when there are no plants', () => {
@@ -202,7 +202,7 @@ describe('calculatePhotosynthesis', () => {
       ,
         suffMap([], buildResources(waterVolume), waterVolume));
       expect(result.oxygenDelta).toBe(0);
-      expect(result.biomassProduced).toBe(0);
+      expect(result.oxygenDelta).toBe(0);
     });
 
     it('returns zeros when water volume is 0', () => {
@@ -215,7 +215,7 @@ describe('calculatePhotosynthesis', () => {
       ,
         suffMap([plant(100)], buildResources(waterVolume), 0));
       expect(result.oxygenDelta).toBe(0);
-      expect(result.biomassProduced).toBe(0);
+      expect(result.oxygenDelta).toBe(0);
     });
 
     it('returns zeros when CO2 is 0', () => {
@@ -227,7 +227,7 @@ describe('calculatePhotosynthesis', () => {
         waterVolume
       ,
         suffMap([plant(100)], buildResources(waterVolume), waterVolume));
-      expect(result.biomassProduced).toBe(0);
+      expect(result.oxygenDelta).toBe(0);
       expect(result.oxygenDelta).toBe(0);
     });
   });
@@ -248,7 +248,7 @@ describe('calculatePhotosynthesis', () => {
       expect(result.phosphateDelta).toBeLessThan(0);
       expect(result.potassiumDelta).toBeLessThan(0);
       expect(result.ironDelta).toBeLessThan(0);
-      expect(result.biomassProduced).toBeGreaterThan(0);
+      expect(result.oxygenDelta).toBeGreaterThan(0);
     });
 
     it('limiting factor is 1.0 at optimal conditions for low-demand plant', () => {
@@ -274,7 +274,7 @@ describe('calculatePhotosynthesis', () => {
         waterVolume
       ,
         suffMap([plant(100, 'monte_carlo')], buildResources(waterVolume, { iron: 0 }), waterVolume));
-      expect(result.biomassProduced).toBe(0);
+      expect(result.oxygenDelta).toBe(0);
       expect(result.limitingFactor).toBe(0);
     });
 
@@ -333,7 +333,7 @@ describe('calculatePhotosynthesis', () => {
         waterVolume
       ,
         suffMap([plant(100, 'java_fern')], buildResources(waterVolume), waterVolume));
-      expect(half.biomassProduced).toBeCloseTo(full.biomassProduced / 2, 4);
+      expect(half.oxygenDelta).toBeCloseTo(full.oxygenDelta / 2, 4);
       expect(half.oxygenDelta).toBeCloseTo(full.oxygenDelta / 2, 4);
     });
   });
@@ -356,7 +356,7 @@ describe('calculatePhotosynthesis', () => {
         waterVolume
       ,
         suffMap([plant(200, 'java_fern')], buildResources(waterVolume, {}, 10), waterVolume));
-      expect(r200.biomassProduced).toBeCloseTo(r100.biomassProduced * 2, 4);
+      expect(r200.oxygenDelta).toBeCloseTo(r100.oxygenDelta * 2, 4);
       expect(r200.oxygenDelta).toBeCloseTo(r100.oxygenDelta * 2, 4);
     });
 
@@ -377,7 +377,7 @@ describe('calculatePhotosynthesis', () => {
         waterVolume
       ,
         suffMap([plant(50, 'java_fern'), plant(50, 'java_fern')], buildResources(waterVolume), waterVolume));
-      expect(pair.biomassProduced).toBeCloseTo(solo.biomassProduced, 4);
+      expect(pair.oxygenDelta).toBeCloseTo(solo.oxygenDelta, 4);
     });
   });
 

@@ -19,6 +19,12 @@ import type { TunableConfig } from '../../simulation/config/index.js';
  * Increment this when the structure changes in a breaking way.
  * On version mismatch, stored data is discarded.
  *
+ * v10: `Plant` gains `surplus` field (banked vitality surplus, drives
+ *      growth and future propagation). `PlantsConfig` drops the
+ *      photosynthesis-driven growth knobs (`biomassPerPhotosynthesis`,
+ *      `sizePerBiomass`, `overgrowthPenaltyScale`, `wastePerExcessSize`)
+ *      and gains the surplus-driven growth knobs
+ *      (`plantGrowthPerTickCap`, `sizePerSurplus`).
  * v9: `LivestockConfig.oldAgeDeathChance` removed (probabilistic
  *     old-age cliff replaced by a smooth vitality stressor). New
  *     `LivestockConfig.ageStressSeverity` for the smooth path.
@@ -37,7 +43,7 @@ import type { TunableConfig } from '../../simulation/config/index.js';
  *     nutrient sufficiency) but its persisted shape is identical, so
  *     the bump is purely the new Fish field.
  */
-export const PERSISTENCE_VERSION = 9;
+export const PERSISTENCE_VERSION = 10;
 
 /**
  * Storage key for the unified persisted state.

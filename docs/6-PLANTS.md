@@ -22,10 +22,15 @@ Plants are modeled as **individual specimens**, each with their own species char
 
 ### Key Concepts
 
-1. **Photosynthesis** produces aggregate **biomass** (tank-wide resource)
-2. **Biomass** is distributed to individual plants based on their characteristics
-3. Each plant has a **size** measured as percentage (%)
-4. Plants can grow past 100%, with consequences
+1. **Photosynthesis** emits resource effects (O2 production, CO2 and
+   nutrient uptake). It does NOT directly produce plant size — that
+   flows through the surplus supply chain.
+2. **Vitality** produces per-plant **surplus** when condition is full
+   and net is positive. Surplus banks on `Plant.surplus`.
+3. **Growth** drains the bank each tick, scaled by species growth
+   rate and an asymptotic factor against species `maxSize`.
+4. Plants can grow past 100% up to their species `maxSize`; growth
+   slows asymptotically as size approaches the cap.
 
 ---
 
@@ -136,48 +141,37 @@ oxygen_produced = photosynthesis_rate * total_plant_size * oxygen_per_unit
 
 ## Growth and Size
 
-### Biomass Distribution
+Growth is **surplus-driven**, per plant, no cross-plant sharing. The
+pipeline is:
 
-After photosynthesis produces aggregate biomass, it's distributed to
-individual plants — **but only those with positive surplus** (condition
-at 100 and net vitality positive). Stressed plants below 100 condition
-take no share of biomass that tick; their photosynthate counts as
-maintenance.
+1. Vitality emits per-tick surplus when the plant is at full condition
+   with positive net rate.
+2. The orchestrator banks the emission on `Plant.surplus`.
+3. Each tick, growth drains up to `plantGrowthPerTickCap` units from
+   the bank. The drained units convert to size at:
 
-```
-eligible = plants where surplus > 0
-for each plant in eligible:
-    plant_share = plant.growth_rate / sum(growth_rates of eligible)
-    plant_biomass = aggregate_biomass * plant_share
-    plant.size += biomass_to_size(plant_biomass, plant.species)
-```
+   ```
+   size_gain = drained × asymptoticFactor × speciesGrowthRate × sizePerSurplus
+   asymptoticFactor = max(0, 1 − size / species.maxSize)
+   ```
 
-Plants outside `eligible` keep their size unchanged. The biomass
-attributable to the photosynthesis they drove is treated as having
-been spent on healing or staying alive.
+4. Whatever is left in `Plant.surplus` stays banked. Future
+   propagation work will trigger propagation events when the bank
+   crosses a threshold.
 
-### Size Mechanics
+The asymptotic factor reduces *spending efficiency*, not withdrawal
+amount: a plant near `maxSize` still drains the cap from its bank
+each tick, but gets less size for the spend. So a plant at its
+ceiling stops growing visibly while the bank keeps filling toward
+the propagation trigger.
 
-| Size Range | Effect |
-|------------|--------|
-| 0-100% | Normal growth |
-| 100-200% | Overgrown - slows growth for ALL plants |
-| >200% | Releases waste (decaying leaves) |
-
-**Overgrowth Penalty:**
-```
-if any_plant.size > 100%:
-    overgrowth_factor = calculate_overgrowth_penalty()
-    all_plants_growth *= overgrowth_factor
-```
-
-**Decay from Extreme Overgrowth:**
-```
-for each plant where size > 200%:
-    excess = plant.size - 200%
-    waste_produced = excess * decay_rate
-    tank.waste += waste_produced
-```
+Photosynthesis is decoupled from growth: it emits resource effects
+only (O2, CO2, nutrient uptake). Plant size never gets photosynthesis
+output directly — it only gets surplus, and surplus is gated by
+vitality (which is gated by stressors, including the nutrient-
+deficiency stressor that photosynthesis health drives upstream). No
+double-counting, no parallel mechanism, single source of truth for
+"is this plant growing right now."
 
 ---
 
@@ -282,10 +276,12 @@ if net > 0 and condition == 100: newCondition = 100
                                  surplus      = net
 ```
 
-Surplus is the per-plant signal that drives biomass distribution.
-Once condition crests 100, the plant starts banking surplus and the
-growth pipeline routes biomass to it. While condition is below 100,
-no surplus → no growth → all photosynthate flows to maintenance.
+Surplus banks on `Plant.surplus`. While condition is below 100 the
+vitality engine emits zero surplus, so the bank doesn't fill and
+growth doesn't happen. Once condition reaches 100, surplus starts
+flowing into the bank, the growth pipeline drains some each tick,
+and the leftover stays for future propagation. See *Growth and Size*
+above for the full supply chain.
 
 ### Heal-or-decline trajectory
 

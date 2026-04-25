@@ -58,9 +58,9 @@ export interface PlantSpeciesData {
   nutrientDemand: NutrientDemand;
   /**
    * Per-plant biological maximum size (% units, same scale as `Plant.size`).
-   * Drives the asymptotic growth factor in `distributeBiomass`:
-   * `factor = max(0, 1 - size / maxSize)`. Plants self-limit toward this
-   * cap instead of growing unbounded.
+   * Drives the asymptotic growth factor in `spendSurplusOnGrowth`:
+   * `factor = max(0, 1 - size / maxSize)`. The factor reduces spending
+   * efficiency as the plant approaches `maxSize` so it self-limits.
    *
    * Values are sized so that within calibration test windows (peak per-plant
    * size ≤ ~100%), the factor stays > 0.9 — the asymptotic term is
@@ -330,10 +330,16 @@ export interface Plant {
   id: string;
   /** Plant species type */
   species: PlantSpecies;
-  /** Size percentage (can exceed 100%, capped at 200% with waste release) */
+  /** Size percentage (can exceed 100% up to species `maxSize`). */
   size: number;
   /** Condition/health percentage (0-100, plant dies below 10%) */
   condition: number;
+  /**
+   * Banked vitality surplus (%/h units). Vitality emits surplus when
+   * condition is full and net is positive; growth drains it; whatever
+   * is left over banks toward future propagation.
+   */
+  surplus: number;
 }
 
 export interface Tank {
