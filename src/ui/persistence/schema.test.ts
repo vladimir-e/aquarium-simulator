@@ -397,12 +397,12 @@ describe('PersistedStateSchema', () => {
     expect(PersistedStateSchema.safeParse(v4).success).toBe(false);
   });
 
-  it('rejects prior version 7 (breaking bump for plant lifecycle knobs move)', () => {
-    const v7 = { ...validState, version: 7 };
-    expect(PersistedStateSchema.safeParse(v7).success).toBe(false);
+  it('rejects prior version 8 (breaking bump for old-age-into-vitality)', () => {
+    const v8 = { ...validState, version: 8 };
+    expect(PersistedStateSchema.safeParse(v8).success).toBe(false);
   });
 
-  it('PERSISTENCE_VERSION is 8', () => {
-    expect(PERSISTENCE_VERSION).toBe(8);
+  it('PERSISTENCE_VERSION is 9', () => {
+    expect(PERSISTENCE_VERSION).toBe(9);
   });
 });

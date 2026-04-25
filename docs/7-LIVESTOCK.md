@@ -138,6 +138,7 @@ spec). Each tick the engine builds two factor lists for the fish:
 | Oxygen | > 5 mg/L | `oxygenStressSeverity` × mg/L below 5 |
 | Water level | > 50% capacity | `waterLevelStressSeverity` × % below 50 |
 | Flow | Species-specific | `flowStressSeverity` × LPH above max |
+| Age | ≤ species `maxAge` | `ageStressSeverity` × hours past `maxAge` |
 
 Severities are pre-hardiness. The fish's effective hardiness
 (species baseline + per-individual offset, clamped 0.1–0.95) is
@@ -226,20 +227,16 @@ poor conditions, but isn't more energised by good ones.
 
 ## Death Mechanics
 
-### From Health (Deterministic)
-When health reaches 0, fish dies immediately.
+Death is vitality-driven: when health reaches 0, the fish dies. There
+is no separate probabilistic check.
 
-### From Old Age (Non-Deterministic)
-When fish reaches max age:
-- Fish becomes **susceptible to death**
-- Each tick: **1% chance of death**
-- Prevents synchronous die-off of same-age fish
-
-```
-if fish.age >= fish.max_age:
-    if random() < 0.01:  # 1% per tick
-        fish_dies()
-```
+Old age flows through the same channel: past species `maxAge` the
+**Age** stressor activates and accumulates damage that scales with
+hours past, runs through the species' hardiness, and eventually drives
+condition to zero. A hardy species in good conditions outlives a
+sensitive species at the same age, and visible declining health gives
+the player a chance to react. When the death is logged, age-driven
+deaths are flagged "(old age)" so the cause is legible.
 
 ### When Fish Dies
 ```

@@ -19,6 +19,9 @@ import type { TunableConfig } from '../../simulation/config/index.js';
  * Increment this when the structure changes in a breaking way.
  * On version mismatch, stored data is discarded.
  *
+ * v9: `LivestockConfig.oldAgeDeathChance` removed (probabilistic
+ *     old-age cliff replaced by a smooth vitality stressor). New
+ *     `LivestockConfig.ageStressSeverity` for the smooth path.
  * v8: Plant lifecycle knobs (`sheddingConditionThreshold`,
  *     `maxSheddingRate`, `wastePerShedSize`, `deathConditionThreshold`,
  *     `deathSizeThreshold`, `wastePerPlantDeath`) move from
@@ -34,7 +37,7 @@ import type { TunableConfig } from '../../simulation/config/index.js';
  *     nutrient sufficiency) but its persisted shape is identical, so
  *     the bump is purely the new Fish field.
  */
-export const PERSISTENCE_VERSION = 8;
+export const PERSISTENCE_VERSION = 9;
 
 /**
  * Storage key for the unified persisted state.

@@ -10,7 +10,7 @@
  * Stressors (raw severities; the vitality module applies hardiness
  * scaling centrally as `(1 - effectiveHardiness)`):
  * - Temperature, pH, free NH3, nitrite, nitrate, hunger, oxygen,
- *   water level, flow.
+ *   water level, flow, age (past species `maxAge`).
  *
  * Benefit factors (peaks and thresholds tunable via `LivestockConfig`):
  * - pH in species range
@@ -197,6 +197,19 @@ function buildStressors(ctx: FishFactorContext): VitalityFactor[] {
     flowStress = config.flowStressSeverity * (resources.flow - speciesData.maxFlow);
   }
 
+  // Age stress — past `maxAge` the fish accumulates damage that scales
+  // linearly with how far past it is. This replaces the legacy
+  // probabilistic old-age cliff with a smooth decline that flows
+  // through the same vitality channel as every other stressor: a hardy
+  // species in good conditions outlives a sensitive species at the
+  // same age, and visible declining health gives the player a chance
+  // to react. Death itself is the same `newHealth <= 0` check the
+  // other stressors share.
+  let ageStress = 0;
+  if (fish.age > speciesData.maxAge) {
+    ageStress = config.ageStressSeverity * (fish.age - speciesData.maxAge);
+  }
+
   return [
     { key: 'temperature', label: 'Temperature', amount: tempStress },
     { key: 'ph', label: 'pH', amount: phStress },
@@ -207,6 +220,7 @@ function buildStressors(ctx: FishFactorContext): VitalityFactor[] {
     { key: 'oxygen', label: 'Oxygen', amount: oxygenStress },
     { key: 'waterLevel', label: 'Water level', amount: waterLevelStress },
     { key: 'flow', label: 'Flow', amount: flowStress },
+    { key: 'age', label: 'Age', amount: ageStress },
   ];
 }
 
@@ -287,6 +301,10 @@ export function computeFishVitality(
 /**
  * Process health for all fish in one tick.
  * Applies vitality, captures surplus, and handles death.
+ *
+ * Death is driven entirely by vitality: when stressors (including
+ * the age stressor past `maxAge`) outpace benefits and condition
+ * reaches 0, the fish dies. There is no separate probabilistic check.
  */
 export function processHealth(
   fish: Fish[],
@@ -294,8 +312,7 @@ export function processHealth(
   plants: Plant[],
   waterVolume: number,
   tankCapacity: number,
-  config: LivestockConfig,
-  random: () => number = Math.random
+  config: LivestockConfig
 ): HealthResult {
   const survivingFish: Fish[] = [];
   const deadFishNames: string[] = [];
@@ -307,25 +324,20 @@ export function processHealth(
     const result = computeFishVitality(f, resources, plants, waterVolume, tankCapacity, config);
     const newHealth = result.newCondition;
 
-    // Death from health
     if (newHealth <= 0) {
-      deadFishNames.push(speciesData.name);
+      // Distinguish age-driven death in the log so the player can tell
+      // "my fish got old" from "my water went bad." Past maxAge the
+      // age stressor is on, so attribute death to age when that's the
+      // dominant signal.
+      const overAge = f.age > speciesData.maxAge;
+      deadFishNames.push(overAge ? `${speciesData.name} (old age)` : speciesData.name);
       deathWaste += f.mass * config.deathDecayFactor;
       continue;
     }
 
-    // Death from old age (probabilistic)
-    if (f.age >= speciesData.maxAge) {
-      if (random() < config.oldAgeDeathChance) {
-        deadFishNames.push(`${speciesData.name} (old age)`);
-        deathWaste += f.mass * config.deathDecayFactor;
-        continue;
-      }
-    }
-
-    // Surplus accumulates on the fish for future use (breeding,
-    // growth). The storage path is wired so those features can read
-    // it directly when they land.
+    // Surplus accumulates on the fish for future use (breeding). The
+    // storage path is wired so future fish-breeding work can read it
+    // directly when it lands.
     survivingFish.push({
       ...f,
       health: newHealth,

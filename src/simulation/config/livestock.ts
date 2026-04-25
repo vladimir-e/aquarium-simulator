@@ -5,7 +5,8 @@
  * - Metabolism: A 1g fish consumes ~0.01g food/hr, produces proportional waste/CO2
  * - Hunger: Increases ~4%/hr when unfed (full to starving in ~24hr)
  * - Health: Per-factor benefits sum to ~1%/h in ideal conditions; degrades faster under stress
- * - Death: 1% chance per tick after max age
+ * - Death: vitality-driven (no probabilistic check); past `maxAge` the
+ *   age stressor kicks in for a smooth decline.
  */
 
 export interface LivestockConfig {
@@ -88,6 +89,14 @@ export interface LivestockConfig {
   waterLevelStressSeverity: number;
   /** Health damage per LPH of flow above species max */
   flowStressSeverity: number;
+  /**
+   * Health damage per hour past species `maxAge`, applied per hour.
+   * Smooth replacement for the legacy probabilistic old-age cliff:
+   * once a fish exceeds its species lifespan, it accumulates damage
+   * that scales with how far past it is, runs through hardiness like
+   * any other stressor, and eventually drives condition to zero.
+   */
+  ageStressSeverity: number;
 
   // Stressor activation thresholds — the value above/below which a
   // stressor switches on. Severity is per unit of *deviation* from
@@ -134,8 +143,6 @@ export interface LivestockConfig {
   // Death
   /** Fraction of fish mass added as waste on death */
   deathDecayFactor: number;
-  /** Chance of death per tick when past max age (0-1) */
-  oldAgeDeathChance: number;
 }
 
 export const livestockDefaults: LivestockConfig = {
@@ -196,6 +203,10 @@ export const livestockDefaults: LivestockConfig = {
   oxygenStressSeverity: 3.0, // 3% damage per mg/L below threshold
   waterLevelStressSeverity: 0.2, // 0.2% per % below threshold
   flowStressSeverity: 0.01, // 0.01% per LPH above species max
+  // 0.05 %/h per hour past maxAge. At 24 h past, 1.2 %/h damage —
+  // just exceeds the all-good benefit budget of ~1.2 %/h, so a fish
+  // begins a slow decline. By a week past, 8.4 %/h — clear decline.
+  ageStressSeverity: 0.05,
 
   // Stressor thresholds
   nitrateStressThreshold: 40, // ppm — above this nitrate damages fish
@@ -218,7 +229,6 @@ export const livestockDefaults: LivestockConfig = {
 
   // Death
   deathDecayFactor: 0.5, // Half fish mass becomes waste
-  oldAgeDeathChance: 0.01, // 1% per tick after max age
 };
 
 export interface LivestockConfigMeta {
@@ -320,6 +330,14 @@ export const livestockConfigMeta: LivestockConfigMeta[] = [
     max: 0.05,
     step: 0.001,
   },
+  {
+    key: 'ageStressSeverity',
+    label: 'Age Stress Severity',
+    unit: '%/(h past maxAge)/h',
+    min: 0.01,
+    max: 0.5,
+    step: 0.01,
+  },
   // Stressor thresholds
   { key: 'nitrateStressThreshold', label: 'Nitrate Stress Threshold', unit: 'ppm', min: 10, max: 100, step: 5 },
   { key: 'oxygenStressThreshold', label: 'O2 Stress Threshold', unit: 'mg/L', min: 2, max: 8, step: 0.5 },
@@ -334,5 +352,4 @@ export const livestockConfigMeta: LivestockConfigMeta[] = [
   { key: 'plantBenefitSaturationPoint', label: 'Plant Benefit Saturation', unit: 'plants', min: 1, max: 10, step: 0.5 },
   // Death
   { key: 'deathDecayFactor', label: 'Death Decay Factor', unit: '', min: 0.1, max: 1.0, step: 0.1 },
-  { key: 'oldAgeDeathChance', label: 'Old Age Death Chance', unit: '/tick', min: 0.001, max: 0.05, step: 0.001 },
 ];

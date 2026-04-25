@@ -513,36 +513,66 @@ describe('processHealth', () => {
     expect(result.deathWaste).toBeCloseTo(2.5, 1);
   });
 
-  it('handles old age death with deterministic random', () => {
-    const maxAge = 24 * 365 * 5; // 5 years for neon_tetra
-    const fish = [makeFish({ age: maxAge + 100, health: 100 })];
+  it('age stressor is zero at maxAge', () => {
+    // Right at maxAge → no age damage yet (stressor activates strictly past).
+    const maxAge = 24 * 365 * 5; // neon_tetra
+    const fish = makeFish({ age: maxAge });
     const resources = makeResources();
+    const v = computeFishVitality(fish, resources, [], 100, 100, livestockDefaults);
+    expect(stressorAmount(v, 'age')).toBe(0);
+  });
 
-    // Test with random that always triggers death (< 0.01)
-    const result = processHealth(fish, resources, [], 100, 100, livestockDefaults, () => 0.005);
+  it('age stressor activates linearly past maxAge', () => {
+    // 24 h past → severity × 24 × hardinessFactor.
+    const maxAge = 24 * 365 * 5;
+    const fish = makeFish({ age: maxAge + 24 });
+    const resources = makeResources();
+    const v = computeFishVitality(fish, resources, [], 100, 100, livestockDefaults);
+    // Neon hardiness 0.5 → factor 0.5. Severity 0.05 × 24 × 0.5 = 0.6.
+    expect(stressorAmount(v, 'age')).toBeCloseTo(0.05 * 24 * 0.5, 6);
+  });
 
+  it('aged fish in ideal conditions deterministically declines and dies', () => {
+    // Far past maxAge: age damage exceeds the all-good benefit budget by a
+    // wide margin, so the fish declines on a fixed trajectory and dies in
+    // a bounded number of ticks. No `random()` involved.
+    const maxAge = 24 * 365 * 5;
+    let fish: Fish[] = [makeFish({ age: maxAge + 24 * 30, health: 100 })]; // 30 d past
+    const resources = makeResources();
+    let ticksToDeath = 0;
+    for (let i = 0; i < 1000; i++) {
+      ticksToDeath = i + 1;
+      const result = processHealth(fish, resources, [], 100, 100, livestockDefaults);
+      fish = result.survivingFish;
+      if (fish.length === 0) {
+        expect(result.deadFishNames[0]).toContain('old age');
+        break;
+      }
+      // Aging during the run keeps damage climbing.
+      fish = fish.map((f) => ({ ...f, age: f.age + 1 }));
+    }
+    expect(fish).toHaveLength(0);
+    // Sanity bound: should die within a few hundred ticks given the
+    // chosen severity, well under the 1000-tick safety cap.
+    expect(ticksToDeath).toBeLessThan(500);
+  });
+
+  it('death past maxAge is attributed to old age in the log', () => {
+    // Lethal condition (health 1) plus age past maxAge → death message
+    // should mention old age, since the age stressor is active.
+    const maxAge = 24 * 365 * 5;
+    const fish = [makeFish({ age: maxAge + 24, health: 1 })];
+    const resources = makeResources({ ammonia: 5000 }); // also lethal env
+    const result = processHealth(fish, resources, [], 100, 100, livestockDefaults);
     expect(result.survivingFish).toHaveLength(0);
     expect(result.deadFishNames[0]).toContain('old age');
   });
 
-  it('fish survives old age with high random value', () => {
-    const maxAge = 24 * 365 * 5;
-    const fish = [makeFish({ age: maxAge + 100, health: 100 })];
+  it('does not trigger age stress before max age', () => {
+    const fish = makeFish({ age: 100 });
     const resources = makeResources();
-
-    // Test with random that never triggers death (> 0.01)
-    const result = processHealth(fish, resources, [], 100, 100, livestockDefaults, () => 0.5);
-
-    expect(result.survivingFish).toHaveLength(1);
-  });
-
-  it('does not trigger old age death before max age', () => {
-    const fish = [makeFish({ age: 100, health: 100 })];
-    const resources = makeResources();
-
-    const result = processHealth(fish, resources, [], 100, 100, livestockDefaults, () => 0.001);
-
-    expect(result.survivingFish).toHaveLength(1);
+    const v = computeFishVitality(fish, resources, [], 100, 100, livestockDefaults);
+    expect(stressorAmount(v, 'age')).toBe(0);
   });
 
   it('handles empty fish array', () => {

@@ -407,6 +407,7 @@ const LivestockConfigSchema = z
     oxygenStressSeverity: z.number(),
     waterLevelStressSeverity: z.number(),
     flowStressSeverity: z.number(),
+    ageStressSeverity: z.number(),
     nitrateStressThreshold: z.number(),
     oxygenStressThreshold: z.number(),
     hungerStressThreshold: z.number(),
@@ -418,7 +419,6 @@ const LivestockConfigSchema = z
     plantBenefitPeak: z.number(),
     plantBenefitSaturationPoint: z.number(),
     deathDecayFactor: z.number(),
-    oldAgeDeathChance: z.number(),
   })
   .strict();
 
