@@ -27,8 +27,6 @@
 import type { Plant, Resources } from '../state.js';
 import { PLANT_SPECIES_DATA } from '../state.js';
 import type { PlantsConfig } from '../config/plants.js';
-import type { NutrientsConfig } from '../config/nutrients.js';
-import { calculateNutrientSufficiency } from './nutrients.js';
 import { getPpm } from '../resources/index.js';
 import {
   computeVitality,
@@ -42,7 +40,12 @@ export interface PlantVitalityContext {
   resources: Resources;
   waterVolume: number;
   plantsConfig: PlantsConfig;
-  nutrientsConfig: NutrientsConfig;
+  /**
+   * Precomputed Liebig sufficiency for this plant (0–1). The orchestrator
+   * computes it once per tick (`processPlants`) and threads the value
+   * into vitality and photosynthesis — no module recomputes it.
+   */
+  nutrientSufficiency: number;
 }
 
 /**
@@ -51,7 +54,7 @@ export interface PlantVitalityContext {
  * `computeVitality`.
  */
 export function buildPlantStressors(ctx: PlantVitalityContext): VitalityFactor[] {
-  const { plant, resources, waterVolume, plantsConfig, nutrientsConfig } = ctx;
+  const { plant, resources, waterVolume, plantsConfig, nutrientSufficiency } = ctx;
   const species = PLANT_SPECIES_DATA[plant.species];
   const factors: VitalityFactor[] = [];
 
@@ -106,14 +109,9 @@ export function buildPlantStressors(ctx: PlantVitalityContext): VitalityFactor[]
   factors.push({ key: 'ph', label: 'pH', amount: phAmount });
 
   // Nutrient deficiency — Liebig sufficiency drives a single damage
-  // signal proportional to (1 − sufficiency).
-  const sufficiency = calculateNutrientSufficiency(
-    resources,
-    waterVolume,
-    plant.species,
-    nutrientsConfig
-  );
-  const deficiency = Math.max(0, 1 - sufficiency);
+  // signal proportional to (1 − sufficiency). Sufficiency is
+  // precomputed by the orchestrator and passed through the context.
+  const deficiency = Math.max(0, 1 - nutrientSufficiency);
   const nutrientAmount = plantsConfig.nutrientDeficiencySeverity * deficiency;
   factors.push({
     key: 'nutrients',
@@ -151,19 +149,12 @@ export function buildPlantStressors(ctx: PlantVitalityContext): VitalityFactor[]
  * in-range/out-of-range.
  */
 export function buildPlantBenefits(ctx: PlantVitalityContext): VitalityFactor[] {
-  const { plant, resources, waterVolume, plantsConfig, nutrientsConfig } = ctx;
+  const { plant, resources, plantsConfig, nutrientSufficiency } = ctx;
   const species = PLANT_SPECIES_DATA[plant.species];
   const [lightLo, lightHi] = species.tolerableLight;
   const [co2Lo, co2Hi] = species.tolerableCO2;
   const [tempLo, tempHi] = species.tolerableTemp;
   const [phLo, phHi] = species.tolerablePH;
-
-  const sufficiency = calculateNutrientSufficiency(
-    resources,
-    waterVolume,
-    plant.species,
-    nutrientsConfig
-  );
 
   return [
     {
@@ -199,7 +190,9 @@ export function buildPlantBenefits(ctx: PlantVitalityContext): VitalityFactor[] 
       // stressor (which scales with (1 − sufficiency)) by design: the
       // two together let condition track sufficiency continuously for
       // plants whose only knob is nutrients.
-      amount: plantsConfig.nutrientBenefitPeak * Math.max(0, Math.min(1, sufficiency)),
+      amount:
+        plantsConfig.nutrientBenefitPeak *
+        Math.max(0, Math.min(1, nutrientSufficiency)),
     },
   ];
 }

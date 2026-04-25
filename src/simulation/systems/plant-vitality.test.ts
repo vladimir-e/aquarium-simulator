@@ -5,6 +5,7 @@ import {
   computePlantVitality,
   type PlantVitalityContext,
 } from './plant-vitality.js';
+import { calculateNutrientSufficiency } from './nutrients.js';
 import { plantsDefaults } from '../config/plants.js';
 import { nutrientsDefaults } from '../config/nutrients.js';
 import { getMassFromPpm } from '../resources/helpers.js';
@@ -47,12 +48,20 @@ function makeResources(overrides: Partial<Resources> = {}): Resources {
 }
 
 function ctx(plant: Plant, resources: Resources): PlantVitalityContext {
+  // Tests compute sufficiency the same way the orchestrator does so the
+  // vitality math sees the value the production path would supply.
+  const nutrientSufficiency = calculateNutrientSufficiency(
+    resources,
+    resources.water,
+    plant.species,
+    nutrientsDefaults
+  );
   return {
     plant,
     resources,
     waterVolume: resources.water,
     plantsConfig: plantsDefaults,
-    nutrientsConfig: nutrientsDefaults,
+    nutrientSufficiency,
   };
 }
 

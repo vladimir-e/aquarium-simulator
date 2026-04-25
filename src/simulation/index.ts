@@ -218,6 +218,7 @@ export type { WaterChangeAmount, TrimTargetSize } from './actions/index.js';
 export {
   processPlants,
   calculatePhotosynthesis,
+  calculateNutrientSufficiency,
   getTotalPlantSize,
   calculateCo2Factor,
   calculateRespiration,

@@ -16,6 +16,7 @@ import {
   isSubstrateCompatible,
   getMaxPlants,
   computePlantVitality,
+  calculateNutrientSufficiency,
 } from '../../../simulation/index.js';
 import type { PlantsConfig } from '../../../simulation/config/plants.js';
 import type { NutrientsConfig } from '../../../simulation/config/nutrients.js';
@@ -421,12 +422,18 @@ export function Plants({
               Plants ({plants.length}/{maxPlants})
             </div>
             {plants.map((plant) => {
+              const nutrientSufficiency = calculateNutrientSufficiency(
+                resources,
+                resources.water,
+                plant.species,
+                nutrientsConfig
+              );
               const vitality = computePlantVitality({
                 plant,
                 resources,
                 waterVolume: resources.water,
                 plantsConfig,
-                nutrientsConfig,
+                nutrientSufficiency,
               });
               const trimExpanded = trim?.plantId === plant.id;
               const trimValue = trim?.value ?? defaultTrimTarget(plant.size);

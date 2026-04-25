@@ -22,6 +22,7 @@ import {
   calculatePhotosynthesis,
   getTotalPlantSize,
 } from '../systems/photosynthesis.js';
+import { calculateNutrientSufficiency } from '../systems/nutrients.js';
 import { calculateRespiration } from '../systems/respiration.js';
 import { distributeBiomass } from '../systems/plant-growth.js';
 import { computePlantVitality } from '../systems/plant-vitality.js';
@@ -71,6 +72,23 @@ export function processPlants(
     return { state, effects };
   }
 
+  // Compute Liebig nutrient sufficiency once per plant per tick. Both
+  // photosynthesis (Liebig-gates biomass and uptake) and vitality
+  // (drives the nutrient stressor + benefit pair) read this value;
+  // computing it once keeps them consistent and avoids the triple
+  // recomputation an earlier pass had.
+  const sufficiencyByPlantId = new Map<string, number>(
+    state.plants.map((plant) => [
+      plant.id,
+      calculateNutrientSufficiency(
+        state.resources,
+        state.resources.water,
+        plant.species,
+        nutrientsConfig
+      ),
+    ])
+  );
+
   // 1. Calculate photosynthesis (only when light > 0)
   // Photosynthesis now owns nutrient uptake for all four plant macronutrients;
   // uptake scales with potential rate (light/CO2/size), biomass scales with
@@ -81,6 +99,7 @@ export function processPlants(
     state.resources.co2,
     state.resources,
     state.resources.water,
+    sufficiencyByPlantId,
     plantsConfig,
     nutrientsConfig
   );
@@ -137,7 +156,7 @@ export function processPlants(
       resources: state.resources,
       waterVolume: state.resources.water,
       plantsConfig,
-      nutrientsConfig,
+      nutrientSufficiency: sufficiencyByPlantId.get(plant.id) ?? 0,
     })
   );
 

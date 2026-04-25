@@ -21,7 +21,14 @@ import { plantsDefaults } from '../config/plants.js';
 import type { NutrientsConfig, FertilizerFormula } from '../config/nutrients.js';
 import { nutrientsDefaults, getNutrientRatio } from '../config/nutrients.js';
 import type { Resources } from '../state.js';
-import { calculateNutrientSufficiency, getDemandMultiplier } from './nutrients.js';
+import { getDemandMultiplier } from './nutrients.js';
+
+/**
+ * Per-plant precomputed Liebig sufficiency, keyed by plant id. The
+ * orchestrator computes this once per tick and passes it to both
+ * vitality and photosynthesis so the calculation isn't repeated.
+ */
+export type SufficiencyMap = ReadonlyMap<string, number>;
 
 export interface PhotosynthesisResult {
   /** Oxygen produced (mg/L) */
@@ -88,13 +95,14 @@ function emptyResult(): PhotosynthesisResult {
  *   oxygen   = biomass × o2PerPhotosynthesis (only produced from actual growth)
  *   co2      = biomass × co2PerPhotosynthesis (only consumed from actual growth)
  *
- * @param plants       Individual plants (for per-species Liebig gating)
- * @param light        Current light output (watts, 0 when off)
- * @param co2          Current CO2 concentration (mg/L)
- * @param resources    Full resource state (for Liebig sufficiency calc)
- * @param waterVolume  Tank water volume (L)
- * @param plantsConfig Plants configuration
- * @param nutrientsConfig Nutrients configuration (thresholds + formula)
+ * @param plants            Individual plants (for per-species Liebig gating)
+ * @param light             Current light output (watts, 0 when off)
+ * @param co2               Current CO2 concentration (mg/L)
+ * @param resources         Full resource state (for the uptake clamping)
+ * @param waterVolume       Tank water volume (L)
+ * @param sufficiencyByPlantId  Precomputed Liebig sufficiency per plant id
+ * @param plantsConfig      Plants configuration
+ * @param nutrientsConfig   Nutrients configuration (thresholds + formula)
  */
 export function calculatePhotosynthesis(
   plants: readonly Plant[],
@@ -102,6 +110,7 @@ export function calculatePhotosynthesis(
   co2: number,
   resources: Resources,
   waterVolume: number,
+  sufficiencyByPlantId: SufficiencyMap,
   plantsConfig: PlantsConfig = plantsDefaults,
   nutrientsConfig: NutrientsConfig = nutrientsDefaults
 ): PhotosynthesisResult {
@@ -129,13 +138,10 @@ export function calculatePhotosynthesis(
     if (plant.size <= 0) continue;
     const potential = (plant.size / 100) * co2Factor;
     potentialSum += potential;
-    // Per-plant Liebig sufficiency (species demand modifier baked in)
-    const sufficiency = calculateNutrientSufficiency(
-      resources,
-      waterVolume,
-      plant.species,
-      nutrientsConfig
-    );
+    // Sufficiency is precomputed by the orchestrator. Default to 0 for
+    // plants the caller hasn't supplied (defensive — should not happen
+    // in production paths).
+    const sufficiency = sufficiencyByPlantId.get(plant.id) ?? 0;
     biomassSum += potential * sufficiency;
     weightedSufficiency += potential * sufficiency;
   }
