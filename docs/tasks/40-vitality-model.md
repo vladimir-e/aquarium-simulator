@@ -171,6 +171,14 @@ will follow.
    how good conditions are. A perfect tank heals fast; a marginal
    tank barely holds steady.
 
+## Scope additions
+
+- **Plant-presence as a fish benefit** (added during PR review): a
+  fourth fish benefit factor, peaking at 0.2 %/h with ~3 full-grown
+  healthy plants saturating the contribution. Pushes the planted-tank
+  budget above 1.0 %/h on purpose — sets up the "stack positives"
+  loop and gives the future breeding task something to gate on.
+
 ## Acceptance criteria
 
 - Vitality module has standalone unit tests covering all four

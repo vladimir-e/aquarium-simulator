@@ -7,12 +7,11 @@ import type {
   Fish,
   FishSpecies,
   Action,
+  Plant,
   Resources,
-  StressBreakdown,
 } from '../../../simulation/index.js';
 import {
   FISH_SPECIES_DATA,
-  calculateStressBreakdown,
   computeFishVitality,
 } from '../../../simulation/index.js';
 import type { LivestockConfig } from '../../../simulation/config/livestock.js';
@@ -20,6 +19,7 @@ import type { LivestockConfig } from '../../../simulation/config/livestock.js';
 interface LivestockProps {
   food: number;
   fish: Fish[];
+  plants: Plant[];
   resources: Resources;
   tankCapacity: number;
   livestockConfig: LivestockConfig;
@@ -89,22 +89,6 @@ function formatAge(ageTicks: number): string {
   return `${years}y`;
 }
 
-/**
- * Human-readable stressor labels, rendered in the same order as
- * `StressBreakdown`'s fields.
- */
-const STRESSOR_LABELS: Array<{ key: keyof StressBreakdown; label: string }> = [
-  { key: 'temperature', label: 'Temperature' },
-  { key: 'ph', label: 'pH' },
-  { key: 'ammonia', label: 'Free NH3' },
-  { key: 'nitrite', label: 'Nitrite' },
-  { key: 'nitrate', label: 'Nitrate' },
-  { key: 'hunger', label: 'Hunger' },
-  { key: 'oxygen', label: 'Oxygen' },
-  { key: 'waterLevel', label: 'Water level' },
-  { key: 'flow', label: 'Flow' },
-];
-
 /** Threshold below which the trend is considered flat and hidden. */
 const TREND_EPSILON = 0.05;
 
@@ -120,6 +104,7 @@ const ALL_FISH_SPECIES: FishSpecies[] = [
 interface FishCardProps {
   fish: Fish;
   resources: Resources;
+  plants: Plant[];
   tankCapacity: number;
   livestockConfig: LivestockConfig;
   expanded: boolean;
@@ -130,6 +115,7 @@ interface FishCardProps {
 function FishCard({
   fish,
   resources,
+  plants,
   tankCapacity,
   livestockConfig,
   expanded,
@@ -142,27 +128,24 @@ function FishCard({
   const hungerColor = getHungerBarColorClass(fish.hunger);
   const hungerStatus = getHungerStatusText(fish.hunger);
 
-  const breakdown = calculateStressBreakdown(
-    fish,
-    resources,
-    resources.water,
-    tankCapacity,
-    livestockConfig
-  );
   // The trend arrow tracks the *vitality* net rate (benefit − damage)
   // rather than a flat recovery − stress. With per-factor benefits
   // (task 40) recovery is no longer constant — a tank that's marginal
   // on multiple knobs heals slower than an otherwise-perfect one, and
-  // the arrow should reflect that.
+  // the arrow should reflect that. The same vitality result drives the
+  // merged Conditions block below — same source of truth as PlantCard.
   const vitality = computeFishVitality(
     fish,
     resources,
+    plants,
     resources.water,
     tankCapacity,
     livestockConfig
   );
   const net = vitality.breakdown.net;
-  const activeStressors = STRESSOR_LABELS.filter(({ key }) => breakdown[key] > 0);
+  const activeStressors = vitality.breakdown.stressors.filter((s) => s.amount > 0);
+  const activeBenefits = vitality.breakdown.benefits.filter((b) => b.amount > 0);
+  const totalConditions = activeStressors.length + activeBenefits.length;
 
   // Trend arrow — hidden when health is full and net is non-negative
   // (no informational value), or when net is essentially flat. A
@@ -186,8 +169,8 @@ function FishCard({
   }
 
   const toggleLabel = expanded
-    ? `▼ Stressors (${activeStressors.length})`
-    : `▶ Stressors (${activeStressors.length})`;
+    ? `▼ Conditions (${totalConditions})`
+    : `▶ Conditions (${totalConditions})`;
 
   return (
     <div className="flex items-start gap-2 p-2 bg-border/30 rounded">
@@ -233,8 +216,10 @@ function FishCard({
         {fish.hunger > 70 && (
           <div className="text-xs text-red-400 mt-0.5">Starving!</div>
         )}
-        {/* Stressor breakdown (collapsible, only when something is stressing the fish) */}
-        {activeStressors.length > 0 && (
+        {/* Conditions breakdown — merged stressors (red, +X%) +
+            benefits (green, +X%). Mirrors the PlantCard pattern from
+            the Plants panel. Hidden when nothing's interesting. */}
+        {totalConditions > 0 && (
           <>
             <button
               type="button"
@@ -245,10 +230,16 @@ function FishCard({
             </button>
             {expanded && (
               <div className="text-xs mt-1 space-y-0.5 pl-2">
-                {activeStressors.map(({ key, label }) => (
-                  <div key={key} className="flex justify-between text-red-400">
-                    <span>{label}</span>
-                    <span>+{breakdown[key].toFixed(1)}%/h</span>
+                {activeStressors.map((s) => (
+                  <div key={`s-${s.key}`} className="flex justify-between text-red-400">
+                    <span>{s.label}</span>
+                    <span>+{s.amount.toFixed(2)}%/h</span>
+                  </div>
+                ))}
+                {activeBenefits.map((b) => (
+                  <div key={`b-${b.key}`} className="flex justify-between text-green-400">
+                    <span>{b.label}</span>
+                    <span>+{b.amount.toFixed(2)}%/h</span>
                   </div>
                 ))}
               </div>
@@ -281,6 +272,7 @@ function FishCard({
 export function Livestock({
   food,
   fish,
+  plants,
   resources,
   tankCapacity,
   livestockConfig,
@@ -345,6 +337,7 @@ export function Livestock({
                 key={f.id}
                 fish={f}
                 resources={resources}
+                plants={plants}
                 tankCapacity={tankCapacity}
                 livestockConfig={livestockConfig}
                 expanded={expandedFishIds.has(f.id)}

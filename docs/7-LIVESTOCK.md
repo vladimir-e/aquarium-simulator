@@ -140,14 +140,16 @@ applied centrally: `damage = severity × gap × (1 − hardiness)`.
 
 ### Benefit coverage
 
-Three benefits boost recovery when their condition is in range; they
-sum to ≈1.0 %/h when the tank is in good shape:
+Four benefits boost recovery when their condition is in range. The
+abiotic three sum to ≈1.0 %/h when the tank is in good shape; the
+biotic plant-presence benefit adds up to 0.2 %/h on top of that:
 
 | Benefit | Trigger | Magnitude |
 |---------|---------|-----------|
 | pH | inside species pH range | 0.4 %/h |
 | Hunger | hunger ≤ 30 (full) → 0 at hunger 50 | up to 0.3 %/h |
 | Oxygen | O2 ≥ 5 mg/L | 0.3 %/h |
+| Plants | live plants in the tank | up to 0.2 %/h |
 
 Temperature is **not** a separate fish benefit — within the species
 range there's already zero temp damage and the other benefits cover
@@ -155,6 +157,19 @@ recovery. Outside the range the temperature stressor takes over.
 Adding a tighter `optimalTemperature` sub-band (with a small
 in-optimal benefit) is straightforward when calibration data
 warrants it.
+
+The plant benefit sums `(size/100) × (condition/100)` across every
+plant in the tank and runs the total through a smooth saturation
+`min(1, total / 3.0)` — so three full-grown healthy plants saturate
+the benefit at its 0.2 %/h peak and adding more plants beyond that
+doesn't keep boosting fish vitality. Sick plants (condition 0) and
+juveniles (small size) contribute proportionally less. This
+intentionally pushes the total benefit budget in a fully planted tank
+to ≈1.2 %/h: a healthy planted tank should sit at full health with a
+positive net rate, accumulating surplus on `Fish.surplus`. That
+surplus is the entry point for the future surplus-driven breeding
+mechanic — fish only reproduce once their environment is stocked
+*and* maintained well enough to bank a sustained positive net rate.
 
 ### Vitality math (per tick)
 

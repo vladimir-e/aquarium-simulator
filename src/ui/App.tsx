@@ -251,6 +251,7 @@ function App(): React.JSX.Element {
             <Livestock
               food={state.resources.food}
               fish={state.fish}
+              plants={state.plants}
               resources={state.resources}
               tankCapacity={state.tank.capacity}
               livestockConfig={config.livestock}
