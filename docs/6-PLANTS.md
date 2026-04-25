@@ -250,8 +250,7 @@ same stressor.
 
 Each species also gets a benefit when an environmental factor is
 inside its tolerable band. Benefits stack into a positive recovery
-rate; in a fully-comfortable tank they sum to roughly the legacy
-`conditionRecoveryRate` (≈0.5 %/h).
+rate; in a fully-comfortable tank they sum to roughly 0.5 %/h.
 
 | Benefit | Trigger | Magnitude |
 |---------|---------|-----------|
@@ -282,6 +281,20 @@ Surplus is the per-plant signal that drives biomass distribution.
 Once condition crests 100, the plant starts banking surplus and the
 growth pipeline routes biomass to it. While condition is below 100,
 no surplus → no growth → all photosynthate flows to maintenance.
+
+### Behaviour shift vs the previous model
+
+The previous homeostatic model had condition trend toward `sufficiency
+× 100` — a continuous knob, so a plant running at sufficiency 0.65
+would settle at condition 65 indefinitely. Under the vitality model
+there is no intermediate steady state: any organism whose net rate is
+non-negative heals to 100, and any organism whose net rate is negative
+declines toward 0. A plant whose stressors are all zero will reach 100
+even when its conditions are merely "adequate" — there is no
+homeostatic parking. This is intentional and matches the simpler
+heal-or-decline shape of the new architecture; calibration scenarios
+that previously parked AS or MC at intermediate condition are
+expected to re-baseline against the upcoming calibration session.
 
 ---
 

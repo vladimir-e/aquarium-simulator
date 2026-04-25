@@ -141,8 +141,7 @@ applied centrally: `damage = severity × gap × (1 − hardiness)`.
 ### Benefit coverage
 
 Three benefits boost recovery when their condition is in range; they
-sum to ≈1.0 %/h (the legacy `baseHealthRecovery`) when the tank is
-in good shape:
+sum to ≈1.0 %/h when the tank is in good shape:
 
 | Benefit | Trigger | Magnitude |
 |---------|---------|-----------|
@@ -175,6 +174,21 @@ Stressed fish heal first, never gain surplus while health is below
 100 — this mirrors the plant rule. Surplus is recorded on each fish
 but isn't currently consumed; future tasks (breeding, juvenile→adult
 progression) will read it.
+
+### Fasting fish — behaviour shift vs the previous model
+
+Hungry fish now decline faster than under the pre-vitality model. The
+old model treated the flat 1.0 %/h base recovery as a constant
+regardless of conditions, so a hungry fish lost only the hunger
+stressor on top of a steady recovery floor. The new benefit budget
+*includes* a hunger-satisfied component (0.3 %/h) — so a hungry fish
+loses both the recovery contribution AND takes the existing hunger
+damage, making net more negative. Quantitatively: at hunger 80 net
+was previously ≈ −0.5 %/h, now ≈ −0.8 %/h (roughly 60 % faster
+decline). A regression test on n-mass conservation observed a ~17×
+faster fasting decline; the future starvation-window calibration
+will need to retune `hungerStressSeverity` and the hunger benefit
+ramp accordingly.
 
 ### Hardy Fish
 
