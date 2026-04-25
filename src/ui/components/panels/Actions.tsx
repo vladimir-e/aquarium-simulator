@@ -3,7 +3,7 @@ import { Panel } from '../layout/Panel';
 import { Button } from '../ui/Button';
 import { Select } from '../ui/Select';
 import { WaterChangeCard } from '../actions/WaterChangeCard';
-import type { Action, WaterChangeAmount, TrimTargetSize, Plant } from '../../../simulation/index.js';
+import type { Action, WaterChangeAmount, Plant } from '../../../simulation/index.js';
 import { MIN_ALGAE_TO_SCRUB, canTrimPlants, getPlantsToTrimCount } from '../../../simulation/index.js';
 
 interface ActionsProps {
@@ -30,7 +30,7 @@ export function Actions({
   onTapWaterPHChange,
 }: ActionsProps): React.JSX.Element {
   const [feedAmount, setFeedAmount] = useState(0.5);
-  const [trimTargetSize, setTrimTargetSize] = useState<TrimTargetSize>(100);
+  const [trimTargetSize, setTrimTargetSize] = useState<number>(100);
   const [doseAmount, setDoseAmount] = useState(2.0);
 
   const handleTopOff = (): void => {
@@ -54,7 +54,7 @@ export function Actions({
   };
 
   const handleTrimTargetChange = (e: React.ChangeEvent<HTMLSelectElement>): void => {
-    setTrimTargetSize(parseInt(e.target.value, 10) as TrimTargetSize);
+    setTrimTargetSize(parseInt(e.target.value, 10));
   };
 
   const handleFeedAmountChange = (value: string): void => {

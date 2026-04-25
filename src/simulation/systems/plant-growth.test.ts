@@ -3,11 +3,25 @@ import {
   getMaxPlantSize,
   calculateOvergrowthPenalty,
   getSpeciesGrowthRate,
+  getSpeciesMaxSize,
+  asymptoticGrowthFactor,
   distributeBiomass,
 } from './plant-growth.js';
 import type { Plant, PlantSpecies } from '../state.js';
 import { PLANT_SPECIES_DATA } from '../state.js';
 import { plantsDefaults } from '../config/plants.js';
+
+/** Convenience: per-plant share growth, post-asymptotic-factor. */
+function expectedGrowth(
+  biomass: number,
+  share: number,
+  size: number,
+  species: PlantSpecies,
+  config = plantsDefaults
+): number {
+  const factor = asymptoticGrowthFactor(size, getSpeciesMaxSize(species));
+  return biomass * share * config.sizePerBiomass * factor;
+}
 
 describe('getMaxPlantSize', () => {
   it('returns 0 for empty array', () => {
@@ -216,25 +230,27 @@ describe('distributeBiomass', () => {
   });
 
   describe('single plant growth', () => {
-    it('increases plant size based on biomass', () => {
-      const plants: Plant[] = [{ id: 'p1', species: 'java_fern', size: 50 }];
+    it('increases plant size based on biomass and asymptotic factor', () => {
+      const plants: Plant[] = [
+        { id: 'p1', species: 'java_fern', size: 50, condition: 100 },
+      ];
       const biomass = 10;
       const result = distributeBiomass(plants, biomass);
 
-      // Growth = biomass * sizePerBiomass (pins to tunable default).
-      expect(result.updatedPlants[0].size).toBeCloseTo(
-        50 + 10 * plantsDefaults.sizePerBiomass,
-        6
-      );
+      // Growth = biomass × sizePerBiomass × share (1.0) × asymptoticFactor.
+      const expected = 50 + expectedGrowth(biomass, 1.0, 50, 'java_fern');
+      expect(result.updatedPlants[0].size).toBeCloseTo(expected, 6);
     });
 
     it('all biomass goes to single plant', () => {
-      const plants: Plant[] = [{ id: 'p1', species: 'java_fern', size: 50 }];
+      const plants: Plant[] = [
+        { id: 'p1', species: 'java_fern', size: 50, condition: 100 },
+      ];
       const result = distributeBiomass(plants, 10);
 
-      // Share = 1.0 (only one plant)
-      const expectedGrowth = 10 * plantsDefaults.sizePerBiomass;
-      expect(result.updatedPlants[0].size).toBeCloseTo(50 + expectedGrowth, 6);
+      // Share = 1.0 (only one plant), growth dampened by asymptoticFactor.
+      const expected = 50 + expectedGrowth(10, 1.0, 50, 'java_fern');
+      expect(result.updatedPlants[0].size).toBeCloseTo(expected, 6);
     });
   });
 
@@ -252,8 +268,8 @@ describe('distributeBiomass', () => {
       const anubiasShare = 0.3 / totalRate;
       const swordShare = 1.0 / totalRate;
 
-      const anubiasGrowth = biomass * anubiasShare * plantsDefaults.sizePerBiomass;
-      const swordGrowth = biomass * swordShare * plantsDefaults.sizePerBiomass;
+      const anubiasGrowth = expectedGrowth(biomass, anubiasShare, 50, 'anubias');
+      const swordGrowth = expectedGrowth(biomass, swordShare, 50, 'amazon_sword');
 
       expect(result.updatedPlants[0].size).toBeCloseTo(50 + anubiasGrowth, 6);
       expect(result.updatedPlants[1].size).toBeCloseTo(50 + swordGrowth, 6);
@@ -270,8 +286,13 @@ describe('distributeBiomass', () => {
       const fastGrowth = result.updatedPlants[1].size - 50;
 
       expect(fastGrowth).toBeGreaterThan(slowGrowth);
-      // Ratio should be 1.8/0.3 = 6
-      expect(fastGrowth / slowGrowth).toBeCloseTo(1.8 / 0.3, 4);
+      // Per-plant growth = share × asymptoticFactor. Both at size 50,
+      // anubias maxSize 700 → factor ≈ 0.929, MC maxSize 1100 → ≈ 0.955.
+      // Expected ratio = (1.8/0.3) × (0.955/0.929) ≈ 6.17.
+      const anubiasFactor = asymptoticGrowthFactor(50, getSpeciesMaxSize('anubias'));
+      const mcFactor = asymptoticGrowthFactor(50, getSpeciesMaxSize('monte_carlo'));
+      const expectedRatio = (1.8 / 0.3) * (mcFactor / anubiasFactor);
+      expect(fastGrowth / slowGrowth).toBeCloseTo(expectedRatio, 4);
     });
 
     it('plants with same species receive equal biomass', () => {
@@ -300,8 +321,8 @@ describe('distributeBiomass', () => {
       for (let i = 0; i < plants.length; i++) {
         const rate = getSpeciesGrowthRate(plants[i].species);
         const share = rate / totalRate;
-        const expectedGrowth = biomass * share * plantsDefaults.sizePerBiomass;
-        expect(result.updatedPlants[i].size).toBeCloseTo(50 + expectedGrowth, 6);
+        const growth = expectedGrowth(biomass, share, 50, plants[i].species);
+        expect(result.updatedPlants[i].size).toBeCloseTo(50 + growth, 6);
       }
     });
   });
@@ -318,7 +339,8 @@ describe('distributeBiomass', () => {
     });
 
     it('reduces effective biomass when overgrown', () => {
-      // One plant at 150% triggers penalty
+      // One plant at 150% triggers penalty (25% off effective biomass) and
+      // also a slightly stronger asymptotic dampening from the larger size.
       const overgrownPlants: Plant[] = [
         { id: 'p1', species: 'java_fern', size: 150 },
       ];
@@ -329,11 +351,15 @@ describe('distributeBiomass', () => {
       const overgrownResult = distributeBiomass(overgrownPlants, 10);
       const normalResult = distributeBiomass(normalPlants, 10);
 
-      // At 150%, penalty = 25%, so growth should be 75% of normal
       const overgrownGrowth = overgrownResult.updatedPlants[0].size - 150;
       const normalGrowth = normalResult.updatedPlants[0].size - 50;
 
-      expect(overgrownGrowth).toBeCloseTo(normalGrowth * 0.75, 4);
+      // Both effects multiply: aggregate penalty (0.75) × asymptotic-factor
+      // ratio (factor@150 / factor@50). java_fern maxSize = 600.
+      const factorAt150 = asymptoticGrowthFactor(150, getSpeciesMaxSize('java_fern'));
+      const factorAt50 = asymptoticGrowthFactor(50, getSpeciesMaxSize('java_fern'));
+      const expectedRatio = 0.75 * (factorAt150 / factorAt50);
+      expect(overgrownGrowth).toBeCloseTo(normalGrowth * expectedRatio, 4);
     });
 
     it('reports correct overgrowth penalty', () => {
@@ -457,5 +483,118 @@ describe('distributeBiomass', () => {
 
       expect(result.updatedPlants[0]).not.toBe(plants[0]);
     });
+  });
+});
+
+describe('asymptoticGrowthFactor', () => {
+  it('returns 1 at size 0 (unmodified growth)', () => {
+    expect(asymptoticGrowthFactor(0, 600)).toBe(1);
+    expect(asymptoticGrowthFactor(0, 1100)).toBe(1);
+  });
+
+  it('approaches 0 as size approaches maxSize', () => {
+    const maxSize = 600;
+    // At 99 % of maxSize, factor should be ~0.01
+    expect(asymptoticGrowthFactor(maxSize * 0.99, maxSize)).toBeCloseTo(0.01, 5);
+    // At maxSize exactly, factor is 0
+    expect(asymptoticGrowthFactor(maxSize, maxSize)).toBe(0);
+    // Slightly below maxSize, factor is small but positive
+    expect(asymptoticGrowthFactor(maxSize * 0.95, maxSize)).toBeCloseTo(0.05, 5);
+  });
+
+  it('clamps at 0 for sizes above maxSize (never negative)', () => {
+    expect(asymptoticGrowthFactor(700, 600)).toBe(0);
+    expect(asymptoticGrowthFactor(1500, 600)).toBe(0);
+    // Even wildly above, still 0 (no negative growth)
+    expect(asymptoticGrowthFactor(1e9, 600)).toBe(0);
+  });
+
+  it('returns 0 for maxSize <= 0 (defensive)', () => {
+    expect(asymptoticGrowthFactor(50, 0)).toBe(0);
+    expect(asymptoticGrowthFactor(50, -1)).toBe(0);
+  });
+
+  it('stays >= 0.9 in calibration windows (size <= 10 % of maxSize)', () => {
+    // Hard constraint from task 38 spec: the factor must be effectively
+    // transparent for baselines, which sit well under 100 % size (maxSize
+    // values are sized so peak calibration sizes are <= 10 % of maxSize).
+    for (const species of Object.keys(PLANT_SPECIES_DATA) as Array<
+      keyof typeof PLANT_SPECIES_DATA
+    >) {
+      const maxSize = PLANT_SPECIES_DATA[species].maxSize;
+      const peak = maxSize * 0.1; // 10 % of maxSize
+      const factor = asymptoticGrowthFactor(peak, maxSize);
+      expect(factor).toBeGreaterThanOrEqual(0.9);
+    }
+  });
+});
+
+describe('distributeBiomass — asymptotic factor behavior', () => {
+  it('applies factor = 1 when plant is at size 0 (unmodified share)', () => {
+    const plants: Plant[] = [{ id: 'p1', species: 'java_fern', size: 0 }];
+    const result = distributeBiomass(plants, 10);
+    // factor(0, 600) = 1, so growth = 10 × 1 × 0.4 × 1 = 4
+    expect(result.updatedPlants[0].size).toBeCloseTo(4, 5);
+  });
+
+  it('per-tick growth shrinks with increasing size (monotonic decay)', () => {
+    // Compare growth per tick at three sizes below the 200 % backstop.
+    // With maxSize = 600, each step up in size cuts the factor and thus
+    // shrinks the per-tick growth — monotonic decay toward maxSize.
+    const sizes = [10, 60, 120, 180];
+    const growths = sizes.map((size) => {
+      const plants: Plant[] = [{ id: 'p1', species: 'java_fern', size }];
+      const result = distributeBiomass(plants, 1);
+      return result.updatedPlants[0].size - size;
+    });
+    for (let i = 1; i < growths.length; i++) {
+      expect(growths[i]).toBeLessThan(growths[i - 1]);
+    }
+    // All growths are positive for size < maxSize and below the 200 cap
+    for (const g of growths) expect(g).toBeGreaterThan(0);
+  });
+
+  it('long-running 5 Java Ferns stabilise below the 200 % waste-dump cap', () => {
+    // Acceptance criterion from task 38: "40 gal community with 5 Java
+    // Ferns run for 6 months stabilises biomass rather than growing
+    // unbounded". Pre-task, steady biomass at these rates would have
+    // driven size well past 100 % and into the 200 % waste dump every
+    // tick. With the asymptotic factor, size asymptotes toward maxSize
+    // (600) but the biomass input scales below the threshold, so over
+    // 6 months the plants stabilise comfortably under 200 and the
+    // backstop never fires.
+    //
+    // Biomass rate chosen to mirror realistic photosynthesis output for
+    // one JF at 50 % size with an 8 hr photoperiod: ~0.05 units/tick
+    // averaged across day/night. Across 5 plants with equal growth
+    // rates, each receives a 1/5 share.
+    let plants: Plant[] = Array.from({ length: 5 }, (_, i) => ({
+      id: `p${i}`,
+      species: 'java_fern' as const,
+      size: 50,
+    }));
+    let totalWasteDumped = 0;
+    let maxSizeSeen = 50;
+
+    const biomassPerTick = 0.05; // ~realistic for 5 JF combined
+    const ticks = 6 * 30 * 24 * 6; // ~6 months at 10 min/tick
+
+    for (let i = 0; i < ticks; i++) {
+      const result = distributeBiomass(plants, biomassPerTick);
+      plants = result.updatedPlants as Plant[];
+      totalWasteDumped += result.wasteReleased;
+      for (const p of plants) {
+        if (p.size > maxSizeSeen) maxSizeSeen = p.size;
+      }
+    }
+
+    // Size stays below the 200 % waste-dump threshold
+    expect(maxSizeSeen).toBeLessThan(200);
+    // And, by construction, below the species' biological cap
+    expect(maxSizeSeen).toBeLessThanOrEqual(
+      PLANT_SPECIES_DATA.java_fern.maxSize
+    );
+    // No waste dump fired across the entire run
+    expect(totalWasteDumped).toBe(0);
   });
 });

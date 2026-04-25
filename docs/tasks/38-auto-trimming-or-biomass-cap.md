@@ -1,6 +1,6 @@
 # Task 38: Auto-trimming or biomass cap for plants
 
-**Status:** pending
+**Status:** completed
 
 ## Overview
 

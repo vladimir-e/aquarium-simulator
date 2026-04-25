@@ -1,12 +1,13 @@
 /**
- * Trim plants action - reduces overgrown plants to target size.
+ * Trim plants action - reduces plant size, either a single plant (when `plantId` is set)
+ * or every plant above `targetSize` in bulk.
  *
  * Trimmed material exits the system cleanly (not converted to waste).
  * This simulates the aquarist properly removing and disposing of trimmed leaves.
  */
 
 import { produce } from 'immer';
-import type { SimulationState } from '../state.js';
+import { PLANT_SPECIES_DATA, type SimulationState } from '../state.js';
 import { createLog } from '../core/logging.js';
 import type { ActionResult, TrimPlantsAction } from './types.js';
 
@@ -29,28 +30,33 @@ export function getPlantsToTrimCount(
 }
 
 /**
- * Trim plants action - reduces all plants above target to the target size.
- * Trimmed material exits the system (not converted to waste).
+ * Trim plants action.
  *
- * @param state - Current simulation state
- * @param action - Trim action with target size
- * @returns Updated state and result message
+ * If `action.plantId` is set, trims only that plant down to `targetSize` (no-op if
+ * the plant is missing or already at/below target). Otherwise, reduces every plant
+ * above `targetSize` to the target. Trimmed material exits the system — the waste
+ * pool is untouched.
  */
 export function trimPlants(
   state: SimulationState,
   action: TrimPlantsAction
 ): ActionResult {
-  const { targetSize } = action;
+  const { targetSize, plantId } = action;
 
-  // Validate target size
-  if (![50, 85, 100].includes(targetSize)) {
+  // Validate target size: must be a finite number in [0, 100].
+  if (!Number.isFinite(targetSize) || targetSize < 0 || targetSize > 100) {
     return {
       state,
-      message: 'Invalid target size for trimming',
+      message: `Invalid target size for trimming (must be a number in [0, 100])`,
     };
   }
 
-  // Check if any plants need trimming
+  return plantId === undefined
+    ? trimBulk(state, targetSize)
+    : trimSingle(state, targetSize, plantId);
+}
+
+function trimBulk(state: SimulationState, targetSize: number): ActionResult {
   const plantsToTrim = state.plants.filter((p) => p.size > targetSize);
   if (plantsToTrim.length === 0) {
     return {
@@ -59,21 +65,17 @@ export function trimPlants(
     };
   }
 
-  // Calculate total amount trimmed (for logging)
   const totalTrimmed = plantsToTrim.reduce(
     (sum, p) => sum + (p.size - targetSize),
     0
   );
 
   const newState = produce(state, (draft) => {
-    // Trim each plant to target size
     for (const plant of draft.plants) {
       if (plant.size > targetSize) {
         plant.size = targetSize;
       }
     }
-
-    // Log the trim action
     draft.logs.push(
       createLog(
         draft.tick,
@@ -87,5 +89,46 @@ export function trimPlants(
   return {
     state: newState,
     message: `Trimmed ${plantsToTrim.length} plant(s) to ${targetSize}%`,
+  };
+}
+
+function trimSingle(
+  state: SimulationState,
+  targetSize: number,
+  plantId: string
+): ActionResult {
+  const plant = state.plants.find((p) => p.id === plantId);
+  if (!plant) {
+    return { state, message: `Plant not found` };
+  }
+  if (plant.size <= targetSize) {
+    const speciesName = PLANT_SPECIES_DATA[plant.species].name;
+    return {
+      state,
+      message: `${speciesName} is already at or below ${targetSize}%`,
+    };
+  }
+
+  const speciesName = PLANT_SPECIES_DATA[plant.species].name;
+  const removed = plant.size - targetSize;
+
+  const newState = produce(state, (draft) => {
+    const target = draft.plants.find((p) => p.id === plantId);
+    // Guarded above; the find on the draft cannot realistically miss, but be defensive.
+    if (!target) return;
+    target.size = targetSize;
+    draft.logs.push(
+      createLog(
+        draft.tick,
+        'user',
+        'info',
+        `Trimmed ${speciesName} to ${targetSize}% (${removed.toFixed(0)}% removed)`
+      )
+    );
+  });
+
+  return {
+    state: newState,
+    message: `Trimmed ${speciesName} to ${targetSize}% (${removed.toFixed(0)}% removed)`,
   };
 }

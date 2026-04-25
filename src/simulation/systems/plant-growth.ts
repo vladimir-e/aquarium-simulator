@@ -4,7 +4,11 @@
  * After photosynthesis produces aggregate biomass:
  * 1. Apply overgrowth penalty if any plant > 100%
  * 2. Distribute biomass to individual plants by species growth rate
- * 3. Handle extreme overgrowth (>200%) by releasing waste
+ * 3. Throttle each plant's per-tick growth by an asymptotic factor that
+ *    decays toward zero as the plant approaches its species `maxSize`.
+ * 4. Handle extreme overgrowth (>200%) by releasing waste — backstop only;
+ *    the asymptotic factor self-limits normal growth so this should rarely
+ *    fire in long-running tanks.
  */
 
 import type { Plant, PlantSpecies } from '../state.js';
@@ -50,6 +54,29 @@ export function getSpeciesGrowthRate(species: PlantSpecies): number {
 }
 
 /**
+ * Get the species-level maximum size cap.
+ */
+export function getSpeciesMaxSize(species: PlantSpecies): number {
+  return PLANT_SPECIES_DATA[species].maxSize;
+}
+
+/**
+ * Asymptotic growth throttle, applied per plant after share distribution.
+ *
+ * `factor = max(0, 1 - size / maxSize)` — biological cap. At `size = 0` the
+ * plant grows at the unmodified rate; as it approaches `maxSize` growth
+ * decays smoothly toward zero, so each plant self-limits to its species
+ * ceiling instead of needing the 200 % waste-dump backstop to catch it.
+ *
+ * Sized so that `size / maxSize < 0.1` across calibration windows — the
+ * factor stays > 0.9 there, effectively transparent to baseline numbers.
+ */
+export function asymptoticGrowthFactor(size: number, maxSize: number): number {
+  if (maxSize <= 0) return 0;
+  return Math.max(0, 1 - size / maxSize);
+}
+
+/**
  * Distribute biomass to plants and handle overgrowth.
  *
  * @param plants - Current plant array
@@ -92,11 +119,18 @@ export function distributeBiomass(
     };
   }
 
-  // Distribute biomass to each plant based on their growth rate share
+  // Distribute biomass to each plant based on their growth rate share, then
+  // throttle by the per-plant asymptotic factor so plants self-limit toward
+  // their species `maxSize` instead of relying on the 200 % waste-dump
+  // backstop. Applied AFTER share distribution so a faster-growing plant
+  // approaching its cap doesn't starve slower neighbours of biomass — only
+  // its own share is dampened.
   const updatedPlants = plants.map((plant) => {
     const growthRate = getSpeciesGrowthRate(plant.species);
     const share = growthRate / totalGrowthRate;
-    const sizeIncrease = effectiveBiomass * share * config.sizePerBiomass;
+    const maxSize = getSpeciesMaxSize(plant.species);
+    const factor = asymptoticGrowthFactor(plant.size, maxSize);
+    const sizeIncrease = effectiveBiomass * share * config.sizePerBiomass * factor;
     return {
       ...plant,
       size: plant.size + sizeIncrease,

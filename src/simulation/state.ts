@@ -56,6 +56,19 @@ export interface PlantSpeciesData {
   substrateRequirement: 'none' | 'sand' | 'aqua_soil';
   /** Nutrient demand level - affects how much fertilizer is needed */
   nutrientDemand: NutrientDemand;
+  /**
+   * Per-plant biological maximum size (% units, same scale as `Plant.size`).
+   * Drives the asymptotic growth factor in `distributeBiomass`:
+   * `factor = max(0, 1 - size / maxSize)`. Plants self-limit toward this
+   * cap instead of growing unbounded.
+   *
+   * Values are sized so that within calibration test windows (peak per-plant
+   * size ≤ ~100%), the factor stays > 0.9 — the asymptotic term is
+   * effectively 1.0 during calibration runs. Slow attached species (Java
+   * Fern, Anubias) cap lower than fast column / carpet species, reflecting
+   * relative biological growth ceilings in real tanks.
+   */
+  maxSize: number;
 }
 
 /**
@@ -69,6 +82,9 @@ export const PLANT_SPECIES_DATA: Record<PlantSpecies, PlantSpeciesData> = {
     growthRate: 0.5,
     substrateRequirement: 'none', // Attaches to hardscape
     nutrientDemand: 'low', // Can survive on fish waste alone
+    // Slow attached fern. Calibration peak (S2A day 28): 54%.
+    // factor at peak = 1 - 54/600 = 0.91 → calibration-safe.
+    maxSize: 600,
   },
   anubias: {
     name: 'Anubias',
@@ -77,6 +93,9 @@ export const PLANT_SPECIES_DATA: Record<PlantSpecies, PlantSpeciesData> = {
     growthRate: 0.3,
     substrateRequirement: 'none', // Attaches to hardscape
     nutrientDemand: 'low', // Can survive on fish waste alone
+    // Slowest, attached. S4A day 56 anubias hits 68%.
+    // factor at peak = 1 - 68/700 = 0.903 → calibration-safe.
+    maxSize: 700,
   },
   amazon_sword: {
     name: 'Amazon Sword',
@@ -85,6 +104,9 @@ export const PLANT_SPECIES_DATA: Record<PlantSpecies, PlantSpeciesData> = {
     growthRate: 1.0,
     substrateRequirement: 'sand',
     nutrientDemand: 'medium', // Benefits from dosing
+    // Medium-rate column plant. Calibration peak (S2A day 28): 73%.
+    // factor at peak = 1 - 73/800 = 0.909 → calibration-safe.
+    maxSize: 800,
   },
   dwarf_hairgrass: {
     name: 'Dwarf Hairgrass',
@@ -93,6 +115,9 @@ export const PLANT_SPECIES_DATA: Record<PlantSpecies, PlantSpeciesData> = {
     growthRate: 1.5,
     substrateRequirement: 'aqua_soil',
     nutrientDemand: 'high', // Requires regular dosing
+    // Fast carpet. No direct calibration coverage; matched to monte_carlo
+    // since both are high-demand carpet species with similar growth rates.
+    maxSize: 1100,
   },
   monte_carlo: {
     name: 'Monte Carlo',
@@ -101,6 +126,9 @@ export const PLANT_SPECIES_DATA: Record<PlantSpecies, PlantSpeciesData> = {
     growthRate: 1.8,
     substrateRequirement: 'aqua_soil',
     nutrientDemand: 'high', // Requires regular dosing
+    // Fast carpet. Calibration peak (S2A day 28): 103%.
+    // factor at peak = 1 - 103/1100 = 0.906 → calibration-safe.
+    maxSize: 1100,
   },
 };
 
