@@ -23,9 +23,12 @@
  *   (paired with the existing tolerableTemperatureRange) we can revisit
  *   by adding a small "in optimal sub-band" benefit without breaking
  *   calibration.
- * - A *biotic* benefit ("Plants", peak 0.2 %/h) sits on top: a planted
- *   tank gives fish hiding spots, oxygen, and biological filtration
- *   contribution. It saturates smoothly at ≈ three full-grown healthy
+ * - A *biotic* benefit ("Plants", peak 0.2 %/h) sits on top: planted
+ *   tanks give fish shelter / cover that reduces baseline stress.
+ *   Plant-derived oxygen and ammonia uptake are deliberately *not*
+ *   double-counted here — they already flow through the resource
+ *   layer into the existing fish oxygen / ammonia channels. The
+ *   benefit saturates (linear ramp) at ≈ three full-grown healthy
  *   plants, pushing the all-good benefit budget to ≈ 1.2 %/h. The
  *   surplus this introduces is intentional — it's the entry point for
  *   the future surplus-driven breeding mechanic. A bare tank still
@@ -175,20 +178,26 @@ interface FishFactorContext {
 }
 
 /**
- * Aggregate plant-presence contribution → smooth-saturated benefit.
+ * Aggregate plant-presence contribution → saturated benefit (linear ramp).
  *
- * Each plant contributes `(size/100) × (condition/100)`: a full-grown
- * (size 100), thriving (condition 100) plant counts as 1.0; a half-
- * grown plant at full health counts 0.5; a sick plant (condition 0)
- * counts 0. The sum runs through `min(1, total / SAT)` so the benefit
- * tops out at `peak` regardless of overplanting — see
- * `PLANT_BENEFIT_SAT_POINT` for the calibration choice.
+ * Each plant contributes `min(1, size/100) × (condition/100)`: a
+ * full-grown (size ≥ 100), thriving (condition 100) plant counts as
+ * 1.0; a half-grown plant at full health counts 0.5; a sick plant
+ * (condition 0) counts 0. The per-plant size factor is **clamped at
+ * 1.0** so an overgrown plant (Task 38: per-species `maxSize` runs
+ * 600–1100 %) can't single-handedly saturate the benefit — the "three
+ * full-grown healthy plants saturate" framing then holds literally
+ * for any combination of plants, regardless of size, and future
+ * breeding gating doesn't get free credit from overgrowth. The sum
+ * runs through `min(1, total / SAT)` so the benefit tops out at
+ * `peak` regardless of overplanting — see `PLANT_BENEFIT_SAT_POINT`
+ * for the calibration choice.
  */
 function plantBenefitAmount(plants: Plant[]): number {
   if (plants.length === 0) return 0;
   let total = 0;
   for (const plant of plants) {
-    total += (plant.size / 100) * (plant.condition / 100);
+    total += Math.min(1, plant.size / 100) * (plant.condition / 100);
   }
   const saturation = Math.min(1, total / PLANT_BENEFIT_SAT_POINT);
   return FISH_BENEFIT_PEAKS.plants * saturation;

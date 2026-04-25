@@ -796,4 +796,69 @@ describe('plant-presence fish benefit', () => {
     expect(plantsFactor).toBeDefined();
     expect(plantsFactor?.amount).toBe(0);
   });
+
+  it('an oversized plant does not single-handedly saturate the benefit', () => {
+    // Per-plant size factor is clamped at 1.0 — Task 38 lets plants
+    // grow well past size 100 (per-species `maxSize` up to 1100), and
+    // an overgrown plant must not steal credit reserved for stocking
+    // multiple full-grown plants.
+    const fish = makeFish();
+    const resources = makeResources();
+    const baseline = netRate(fish, resources, []);
+    const oversized = netRate(fish, resources, [makePlant({ size: 300 })]);
+    // size factor clamps to 1.0; one plant → contribution = peak × 1/SAT.
+    expect(oversized - baseline).toBeCloseTo(PLANT_PEAK / SAT, 6);
+    // Critically: NOT the full saturated peak.
+    expect(oversized - baseline).toBeLessThan(PLANT_PEAK);
+  });
+
+  it('many tiny healthy plants sum to saturation', () => {
+    // 30 plants × (size 10 → 0.1 contribution each) = total 3.0 = SAT
+    // → benefit hits the configured peak. Pins the summing form so a
+    // future regression to (max instead of Σ) is caught.
+    const fish = makeFish();
+    const resources = makeResources();
+    const baseline = netRate(fish, resources, []);
+    const tiny = Array.from({ length: 30 }, (_, i) =>
+      makePlant({ id: `tiny_${i}`, size: 10 })
+    );
+    const result = netRate(fish, resources, tiny);
+    expect(result - baseline).toBeCloseTo(PLANT_PEAK, 6);
+  });
+
+  it('planted tank accumulates more surplus than unplanted (breeding hook)', () => {
+    // The whole motivation for the plant-presence benefit: a healthy
+    // planted tank should bank surplus faster than an otherwise-
+    // identical bare tank, because the abiotic 1.0 %/h ceiling is no
+    // longer the cap. This pin guards against a future retune
+    // silently invalidating the breeding gating.
+    const resources = makeResources();
+    const planted = [makePlant({ id: 'p1' }), makePlant({ id: 'p2' }), makePlant({ id: 'p3' })];
+
+    let plantedFish: Fish[] = [makeFish({ health: 100, surplus: 0 })];
+    let bareFish: Fish[] = [makeFish({ health: 100, surplus: 0 })];
+
+    for (let tick = 0; tick < 2; tick++) {
+      plantedFish = processHealth(
+        plantedFish,
+        resources,
+        planted,
+        100,
+        100,
+        livestockDefaults
+      ).survivingFish;
+      bareFish = processHealth(
+        bareFish,
+        resources,
+        [],
+        100,
+        100,
+        livestockDefaults
+      ).survivingFish;
+    }
+
+    expect(plantedFish[0].surplus).toBeGreaterThan(bareFish[0].surplus);
+    // And the delta should be roughly the plant peak per tick × 2 ticks.
+    expect(plantedFish[0].surplus - bareFish[0].surplus).toBeCloseTo(2 * PLANT_PEAK, 6);
+  });
 });

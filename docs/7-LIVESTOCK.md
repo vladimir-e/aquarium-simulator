@@ -158,18 +158,22 @@ Adding a tighter `optimalTemperature` sub-band (with a small
 in-optimal benefit) is straightforward when calibration data
 warrants it.
 
-The plant benefit sums `(size/100) × (condition/100)` across every
-plant in the tank and runs the total through a smooth saturation
-`min(1, total / 3.0)` — so three full-grown healthy plants saturate
-the benefit at its 0.2 %/h peak and adding more plants beyond that
-doesn't keep boosting fish vitality. Sick plants (condition 0) and
-juveniles (small size) contribute proportionally less. This
-intentionally pushes the total benefit budget in a fully planted tank
-to ≈1.2 %/h: a healthy planted tank should sit at full health with a
-positive net rate, accumulating surplus on `Fish.surplus`. That
-surplus is the entry point for the future surplus-driven breeding
-mechanic — fish only reproduce once their environment is stocked
-*and* maintained well enough to bank a sustained positive net rate.
+The plant benefit sums `min(1, size/100) × (condition/100)` across
+every plant in the tank and runs the total through a linear-ramp
+saturation `min(1, total / 3.0)` — so three full-grown healthy plants
+saturate the benefit at its 0.2 %/h peak and adding more plants
+beyond that doesn't keep boosting fish vitality. The per-plant size
+factor is clamped at 1.0 so an overgrown plant (Task 38 per-species
+`maxSize` runs to 600–1100 %) can't single-handedly saturate; the
+"three plants" framing holds literally regardless of individual plant
+size. Sick plants (condition 0) and juveniles (small size) contribute
+proportionally less. This intentionally pushes the total benefit
+budget in a fully planted tank to ≈1.2 %/h: a healthy planted tank
+should sit at full health with a positive net rate, accumulating
+surplus on `Fish.surplus`. That surplus is the entry point for the
+future surplus-driven breeding mechanic — fish only reproduce once
+their environment is stocked *and* maintained well enough to bank a
+sustained positive net rate.
 
 ### Vitality math (per tick)
 
