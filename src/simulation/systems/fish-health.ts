@@ -13,18 +13,27 @@
  *   four canonical scenarios). Hardiness scaling moves into the vitality
  *   module — fish-health sets up the factors with raw severities and
  *   `computeVitality` applies `(1 - hardiness)`.
- * - Benefits are: pH in range (0.4 %/h), hunger ≤ 30 (0.3), oxygen ≥ 5
- *   mg/L (0.3). Sum at all-ideal = 1.0 %/h — the budget the four
- *   canonical calibration scenarios were pinned against. Temperature
- *   is intentionally not a separate benefit — within the species range
- *   the fish already has zero temp damage and the other benefits cover
- *   recovery; outside the range the temperature stressor takes over.
- *   When per-species `optimalTemperature` data lands later (paired with
- *   the existing tolerableTemperatureRange) we can revisit by adding a
- *   small "in optimal sub-band" benefit without breaking calibration.
+ * - Abiotic benefits are: pH in range (0.4 %/h), hunger ≤ 30 (0.3),
+ *   oxygen ≥ 5 mg/L (0.3). Sum at all-ideal = 1.0 %/h — the budget
+ *   the four canonical calibration scenarios were pinned against.
+ *   Temperature is intentionally not a separate benefit — within the
+ *   species range the fish already has zero temp damage and the other
+ *   benefits cover recovery; outside the range the temperature stressor
+ *   takes over. When per-species `optimalTemperature` data lands later
+ *   (paired with the existing tolerableTemperatureRange) we can revisit
+ *   by adding a small "in optimal sub-band" benefit without breaking
+ *   calibration.
+ * - A *biotic* benefit ("Plants", peak 0.2 %/h) sits on top: a planted
+ *   tank gives fish hiding spots, oxygen, and biological filtration
+ *   contribution. It saturates smoothly at ≈ three full-grown healthy
+ *   plants, pushing the all-good benefit budget to ≈ 1.2 %/h. The
+ *   surplus this introduces is intentional — it's the entry point for
+ *   the future surplus-driven breeding mechanic. A bare tank still
+ *   sits at the 1.0 %/h budget the calibration scenarios were pinned
+ *   against, so existing anchors stay intact.
  */
 
-import type { Fish, Resources } from '../state.js';
+import type { Fish, Plant, Resources } from '../state.js';
 import { FISH_SPECIES_DATA } from '../state.js';
 import type { LivestockConfig } from '../config/livestock.js';
 import { unionizedAmmoniaFraction } from './nitrogen-cycle.js';
@@ -128,7 +137,18 @@ const FISH_BENEFIT_PEAKS = {
   ph: 0.4,
   hunger: 0.3,
   oxygen: 0.3,
+  plants: 0.2,
 } as const;
+
+/**
+ * Plant-presence saturation point. The contribution from each plant is
+ * `(size / 100) × (condition / 100)` (units: "full healthy plants"), and
+ * the benefit hits its peak once the sum reaches `PLANT_BENEFIT_SAT_POINT`.
+ * Three full-grown healthy plants saturate the benefit — beyond that
+ * adding more plants doesn't keep boosting fish vitality, which keeps
+ * the surplus economy bounded as breeding lands in a future task.
+ */
+const PLANT_BENEFIT_SAT_POINT = 3.0;
 
 /** Hunger thresholds (%): full benefit at ≤30, zero at the 50% stress line. */
 const HUNGER_FULL = 30;
@@ -148,9 +168,30 @@ const O2_FULL = 5;
 interface FishFactorContext {
   fish: Fish;
   resources: Resources;
+  plants: Plant[];
   waterVolume: number;
   tankCapacity: number;
   config: LivestockConfig;
+}
+
+/**
+ * Aggregate plant-presence contribution → smooth-saturated benefit.
+ *
+ * Each plant contributes `(size/100) × (condition/100)`: a full-grown
+ * (size 100), thriving (condition 100) plant counts as 1.0; a half-
+ * grown plant at full health counts 0.5; a sick plant (condition 0)
+ * counts 0. The sum runs through `min(1, total / SAT)` so the benefit
+ * tops out at `peak` regardless of overplanting — see
+ * `PLANT_BENEFIT_SAT_POINT` for the calibration choice.
+ */
+function plantBenefitAmount(plants: Plant[]): number {
+  if (plants.length === 0) return 0;
+  let total = 0;
+  for (const plant of plants) {
+    total += (plant.size / 100) * (plant.condition / 100);
+  }
+  const saturation = Math.min(1, total / PLANT_BENEFIT_SAT_POINT);
+  return FISH_BENEFIT_PEAKS.plants * saturation;
 }
 
 /**
@@ -247,12 +288,12 @@ function buildStressors(ctx: FishFactorContext): VitalityFactor[] {
 }
 
 /**
- * Build the benefit list for a fish. All three configured factors are
+ * Build the benefit list for a fish. All four configured factors are
  * emitted every tick, even when they contribute zero — UI filters; the
  * simulation doesn't have to.
  */
 function buildBenefits(ctx: FishFactorContext): VitalityFactor[] {
-  const { fish, resources } = ctx;
+  const { fish, resources, plants } = ctx;
   const speciesData = FISH_SPECIES_DATA[fish.species];
   const [phMin, phMax] = speciesData.phRange;
 
@@ -273,6 +314,12 @@ function buildBenefits(ctx: FishFactorContext): VitalityFactor[] {
       key: 'oxygen',
       label: 'Oxygen',
       amount: rampBenefit(resources.oxygen, O2_NONE, O2_FULL, FISH_BENEFIT_PEAKS.oxygen),
+      kind: 'benefit',
+    },
+    {
+      key: 'plants',
+      label: 'Plants',
+      amount: plantBenefitAmount(plants),
       kind: 'benefit',
     },
   ];
@@ -304,11 +351,12 @@ function toStressBreakdown(result: VitalityResult): StressBreakdown {
 export function computeFishVitality(
   fish: Fish,
   resources: Resources,
+  plants: Plant[],
   waterVolume: number,
   tankCapacity: number,
   config: LivestockConfig
 ): VitalityResult {
-  const ctx: FishFactorContext = { fish, resources, waterVolume, tankCapacity, config };
+  const ctx: FishFactorContext = { fish, resources, plants, waterVolume, tankCapacity, config };
   return computeVitality({
     stressors: buildStressors(ctx),
     benefits: buildBenefits(ctx),
@@ -323,12 +371,13 @@ export function computeFishVitality(
 export function calculateStressBreakdown(
   fish: Fish,
   resources: Resources,
+  plants: Plant[],
   waterVolume: number,
   tankCapacity: number,
   config: LivestockConfig
 ): StressBreakdown {
   return toStressBreakdown(
-    computeFishVitality(fish, resources, waterVolume, tankCapacity, config)
+    computeFishVitality(fish, resources, plants, waterVolume, tankCapacity, config)
   );
 }
 
@@ -339,11 +388,12 @@ export function calculateStressBreakdown(
 export function calculateStress(
   fish: Fish,
   resources: Resources,
+  plants: Plant[],
   waterVolume: number,
   tankCapacity: number,
   config: LivestockConfig
 ): number {
-  return calculateStressBreakdown(fish, resources, waterVolume, tankCapacity, config).total;
+  return calculateStressBreakdown(fish, resources, plants, waterVolume, tankCapacity, config).total;
 }
 
 /**
@@ -353,6 +403,7 @@ export function calculateStress(
 export function processHealth(
   fish: Fish[],
   resources: Resources,
+  plants: Plant[],
   waterVolume: number,
   tankCapacity: number,
   config: LivestockConfig,
@@ -365,7 +416,7 @@ export function processHealth(
   for (const f of fish) {
     const speciesData = FISH_SPECIES_DATA[f.species];
 
-    const result = computeFishVitality(f, resources, waterVolume, tankCapacity, config);
+    const result = computeFishVitality(f, resources, plants, waterVolume, tankCapacity, config);
     const newHealth = result.newCondition;
 
     // Death from health

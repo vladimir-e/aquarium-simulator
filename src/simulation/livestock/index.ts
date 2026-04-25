@@ -105,6 +105,7 @@ export function processLivestock(
   const healthResult = processHealth(
     metabolismResult.updatedFish,
     state.resources,
+    state.plants,
     state.resources.water,
     state.tank.capacity,
     livestockConfig
