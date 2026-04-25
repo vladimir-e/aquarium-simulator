@@ -61,17 +61,17 @@ describe('loadPersistedState', () => {
     expect(result.errors.some((e) => e.includes('Version mismatch'))).toBe(true);
   });
 
-  it('discards v4 payloads after bump to v5 (no silent upgrade)', () => {
-    // Old v4 fish payload lacks hardinessOffset. We don't write a
-    // migration path — version mismatch drops the whole blob and the
-    // caller reinitialises.
-    const v4State = {
-      version: 4,
+  it('discards prior payloads after a version bump (no silent upgrade)', () => {
+    // Whenever a Fish field is added (v4→v5 hardinessOffset, v5→v6
+    // surplus, …) we don't write a migration path. Version mismatch
+    // drops the whole blob and the caller reinitialises.
+    const olderState = {
+      version: PERSISTENCE_VERSION - 1,
       simulation: createValidSimulation(),
       tunableConfig: DEFAULT_CONFIG,
       ui: { units: 'metric', debugPanelOpen: false },
     };
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(v4State));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(olderState));
     const result = loadPersistedState();
     expect(result.simulation).toBeNull();
     expect(result.versionValid).toBe(false);

@@ -220,7 +220,7 @@ describe('PersistedSimulationSchema', () => {
     expect(PersistedSimulationSchema.safeParse(invalidFlow).success).toBe(false);
   });
 
-  it('validates fish with hardinessOffset', () => {
+  it('validates fish with hardinessOffset and surplus', () => {
     const withFish = {
       ...validSimulation,
       fish: [
@@ -233,6 +233,7 @@ describe('PersistedSimulationSchema', () => {
           hunger: 30,
           sex: 'male',
           hardinessOffset: 0.05,
+          surplus: 0,
         },
       ],
     };
@@ -252,13 +253,14 @@ describe('PersistedSimulationSchema', () => {
           hunger: 30,
           sex: 'male',
           hardinessOffset: -0.07,
+          surplus: 1.5,
         },
       ],
     };
     expect(PersistedSimulationSchema.safeParse(withFish).success).toBe(true);
   });
 
-  it('rejects fish missing hardinessOffset (strict mode, v5)', () => {
+  it('rejects fish missing hardinessOffset (strict mode)', () => {
     const withFish = {
       ...validSimulation,
       fish: [
@@ -270,7 +272,28 @@ describe('PersistedSimulationSchema', () => {
           age: 0,
           hunger: 30,
           sex: 'male',
+          surplus: 0,
           // hardinessOffset intentionally omitted
+        },
+      ],
+    };
+    expect(PersistedSimulationSchema.safeParse(withFish).success).toBe(false);
+  });
+
+  it('rejects fish missing surplus (strict mode, v6)', () => {
+    const withFish = {
+      ...validSimulation,
+      fish: [
+        {
+          id: 'f1',
+          species: 'neon_tetra',
+          mass: 0.5,
+          health: 100,
+          age: 0,
+          hunger: 30,
+          sex: 'male',
+          hardinessOffset: 0,
+          // surplus intentionally omitted
         },
       ],
     };
@@ -374,7 +397,12 @@ describe('PersistedStateSchema', () => {
     expect(PersistedStateSchema.safeParse(v4).success).toBe(false);
   });
 
-  it('PERSISTENCE_VERSION is 5', () => {
-    expect(PERSISTENCE_VERSION).toBe(5);
+  it('rejects prior version 5 (breaking bump to 6 for fish surplus + plant vitality)', () => {
+    const v5 = { ...validState, version: 5 };
+    expect(PersistedStateSchema.safeParse(v5).success).toBe(false);
+  });
+
+  it('PERSISTENCE_VERSION is 6', () => {
+    expect(PERSISTENCE_VERSION).toBe(6);
   });
 });

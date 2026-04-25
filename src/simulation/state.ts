@@ -243,6 +243,14 @@ export interface Fish {
    * synchronized mass die-offs. Range: ±15 % of species baseline.
    */
   hardinessOffset: number;
+  /**
+   * Surplus vitality accumulated while the fish is at full health
+   * (condition === 100). Captured by the unified vitality engine but
+   * unused for now — future tasks will spend it on breeding readiness,
+   * juvenile→adult progression, or longevity bonuses. Stored in %/hr-
+   * equivalent units; conservation of meaning is on the consumer.
+   */
+  surplus: number;
 }
 
 /**

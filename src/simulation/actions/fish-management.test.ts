@@ -19,6 +19,7 @@ function makeStateWithFish(): SimulationState {
       hunger: 30,
       sex: 'male',
       hardinessOffset: 0,
+      surplus: 0,
     });
   });
 }
@@ -41,6 +42,7 @@ describe('addFish', () => {
     expect(result.state.fish[0].health).toBe(100);
     expect(result.state.fish[0].hunger).toBe(30); // Slightly hungry on arrival
     expect(result.state.fish[0].hardinessOffset).toBe(0);
+    expect(result.state.fish[0].surplus).toBe(0); // No vitality surplus banked at birth
     expect(result.message).toContain('Neon Tetra');
   });
 

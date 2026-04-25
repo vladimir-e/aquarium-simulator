@@ -236,5 +236,15 @@ export {
   processHealth,
   calculateStress,
   calculateStressBreakdown,
+  computeFishVitality,
   type StressBreakdown,
 } from './livestock/index.js';
+
+// Vitality
+export {
+  computeVitality,
+  type VitalityFactor,
+  type VitalityInput,
+  type VitalityResult,
+  type VitalityBreakdown,
+} from './systems/index.js';

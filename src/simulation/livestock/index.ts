@@ -145,5 +145,6 @@ export {
   processHealth,
   calculateStress,
   calculateStressBreakdown,
+  computeFishVitality,
   type StressBreakdown,
 } from '../systems/fish-health.js';

@@ -205,7 +205,14 @@ describe('N mass conservation (end-to-end)', () => {
   it('fasted-fish integration: basal-only N matches pool delta', () => {
     // Edge case — no food at all. Only source of N is fish basal
     // excretion. Pure test of the basal pathway + chain conservation.
-    const TICKS = 500;
+    //
+    // Fish must stay alive for the full window so basal output is
+    // continuous; fasted starvation eventually kills them under the
+    // vitality model (task 40), so we keep the window short enough
+    // that hunger-stress hasn't depleted health before the test ends.
+    // Hunger reaches 50 (stress threshold) ~33 ticks in; below that
+    // there is no hunger damage and basal NH3 alone drives the pools.
+    const TICKS = 30;
     const config = noAmbientConfig();
 
     let state = createCycledTank(
@@ -220,6 +227,8 @@ describe('N mass conservation (end-to-end)', () => {
     for (let t = 1; t <= TICKS; t++) {
       state = tick(state, config);
     }
+
+    expect(state.fish.length).toBe(10); // sanity — nobody starved
 
     const basalNH3PerTick = config.livestock.basalAmmoniaRate * fishMass;
     const nFromBasal = (basalNH3PerTick * TICKS * MW_N) / MW_NH3 / 1000;

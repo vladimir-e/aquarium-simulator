@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { calculateStress, calculateStressBreakdown, processHealth } from './fish-health.js';
+import {
+  calculateStress,
+  calculateStressBreakdown,
+  computeFishVitality,
+  processHealth,
+} from './fish-health.js';
 import { livestockDefaults } from '../config/livestock.js';
 import type { Fish, Resources } from '../state.js';
 
@@ -13,6 +18,7 @@ function makeFish(overrides: Partial<Fish> = {}): Fish {
     hunger: 20,
     sex: 'male',
     hardinessOffset: 0,
+    surplus: 0,
     ...overrides,
   };
 }
@@ -638,5 +644,77 @@ describe('temperature stress calibration (S4 Variant A.1)', () => {
     // 0.85×2×0.5 − 1 = −0.15 /hr; betta 0.85×4×0.4 − 1 = 0.36 /hr.
     // Neon recovers, betta declines.
     expect(fish[0].health).toBeGreaterThan(bettaResult.health);
+  });
+});
+
+describe('vitality integration', () => {
+  // The vitality model exposes per-factor benefits + surplus capture.
+  // These tests pin the contract the migration introduces on top of the
+  // legacy stress math (which the tests above already cover).
+
+  it('exposes ph/hunger/oxygen benefits when conditions are good', () => {
+    const fish = makeFish();
+    const resources = makeResources();
+    const result = computeFishVitality(fish, resources, 100, 100, livestockDefaults);
+
+    const benefitKeys = result.breakdown.benefits.map((b) => b.key).sort();
+    expect(benefitKeys).toEqual(['hunger', 'oxygen', 'ph']);
+    // Total at "all good" matches the legacy baseHealthRecovery so the
+    // calibration scenarios stay pinned.
+    expect(result.breakdown.benefitRate).toBeCloseTo(
+      livestockDefaults.baseHealthRecovery,
+      6
+    );
+  });
+
+  it('drops the pH benefit to zero when pH leaves the species range', () => {
+    const fish = makeFish({ species: 'neon_tetra' }); // pH 6.0–7.5
+    const resources = makeResources({ ph: 8.5 });
+    const result = computeFishVitality(fish, resources, 100, 100, livestockDefaults);
+
+    const phBenefit = result.breakdown.benefits.find((b) => b.key === 'ph');
+    expect(phBenefit?.amount).toBe(0);
+    // pH stressor takes over from there.
+    const phStress = result.breakdown.stressors.find((s) => s.key === 'ph');
+    expect(phStress?.amount).toBeGreaterThan(0);
+  });
+
+  it('drops the hunger benefit to zero once hunger crosses the stress line', () => {
+    const fish = makeFish({ hunger: 60 });
+    const resources = makeResources();
+    const result = computeFishVitality(fish, resources, 100, 100, livestockDefaults);
+    const hunger = result.breakdown.benefits.find((b) => b.key === 'hunger');
+    expect(hunger?.amount).toBe(0);
+  });
+
+  it('captures surplus when the fish is at full health and net is positive', () => {
+    // No stressors, no negative net — a healthy fish at 100 should
+    // emit positive surplus equal to the net benefit rate. Currently
+    // unused but the breeding/growth tasks will consume it.
+    const fish = makeFish({ health: 100, hunger: 10 });
+    const resources = makeResources();
+    const result = processHealth([fish], resources, 100, 100, livestockDefaults);
+    expect(result.survivingFish[0].health).toBe(100);
+    expect(result.survivingFish[0].surplus).toBeGreaterThan(0);
+  });
+
+  it('does not produce surplus while sub-100 health is recovering', () => {
+    // The locked design: a stressed organism heals first, never grows
+    // while the deficit is unpaid.
+    const fish = makeFish({ health: 80, surplus: 0, hunger: 10 });
+    const resources = makeResources();
+    const result = processHealth([fish], resources, 100, 100, livestockDefaults);
+    expect(result.survivingFish[0].health).toBeGreaterThan(80);
+    expect(result.survivingFish[0].health).toBeLessThanOrEqual(100);
+    expect(result.survivingFish[0].surplus).toBe(0);
+  });
+
+  it('accumulates surplus across ticks at full health', () => {
+    let fish: Fish[] = [makeFish({ health: 100, hunger: 10 })];
+    const resources = makeResources();
+    for (let i = 0; i < 10; i++) {
+      fish = processHealth(fish, resources, 100, 100, livestockDefaults).survivingFish;
+    }
+    expect(fish[0].surplus).toBeGreaterThan(0);
   });
 });

@@ -13,6 +13,7 @@ import type {
 import {
   FISH_SPECIES_DATA,
   calculateStressBreakdown,
+  computeFishVitality,
 } from '../../../simulation/index.js';
 import type { LivestockConfig } from '../../../simulation/config/livestock.js';
 
@@ -148,7 +149,19 @@ function FishCard({
     tankCapacity,
     livestockConfig
   );
-  const net = livestockConfig.baseHealthRecovery - breakdown.total;
+  // The trend arrow tracks the *vitality* net rate (benefit − damage),
+  // not just the legacy `baseHealthRecovery − stress`. With per-factor
+  // benefits (task 40) recovery is no longer constant — a tank that's
+  // marginal on multiple knobs heals slower than an otherwise-perfect
+  // one, and the arrow should reflect that.
+  const vitality = computeFishVitality(
+    fish,
+    resources,
+    resources.water,
+    tankCapacity,
+    livestockConfig
+  );
+  const net = vitality.breakdown.net;
   const activeStressors = STRESSOR_LABELS.filter(({ key }) => breakdown[key] > 0);
 
   let trendNode: React.ReactNode = null;
