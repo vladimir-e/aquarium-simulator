@@ -235,7 +235,6 @@ export {
   calculatePhotosynthesis,
   getTotalPlantSize,
   calculateCo2Factor,
-  calculateNitrateFactor,
 } from '../systems/photosynthesis.js';
 export {
   calculateRespiration,

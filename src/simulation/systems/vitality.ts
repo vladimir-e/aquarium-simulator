@@ -18,19 +18,20 @@
  * value the caller folds into its own state shape.
  */
 
-/** A single contribution to either damage or benefit, kept for UI display. */
+/**
+ * A single contribution to either damage or benefit, kept for UI display.
+ *
+ * Direction (damage vs. benefit) is carried by which array a factor lives
+ * in — `VitalityInput.stressors` or `VitalityInput.benefits` — not by a
+ * tag on the factor itself.
+ */
 export interface VitalityFactor {
   /** Stable identifier (used as React key, log channel, etc.). */
   key: string;
   /** Human-readable label. Plant cards / fish cards render this. */
   label: string;
-  /**
-   * Magnitude in %/h. Positive for damage *or* benefit — direction is
-   * carried by the `kind` field, not by the sign here.
-   */
+  /** Magnitude in %/h. Always non-negative; direction comes from the array. */
   amount: number;
-  /** Whether this factor adds to damage or benefit. */
-  kind: 'damage' | 'benefit';
 }
 
 /** Inputs to a vitality computation. */
@@ -158,4 +159,22 @@ export function computeVitality(input: VitalityInput): VitalityResult {
       net,
     },
   };
+}
+
+/**
+ * In-range benefit: `peak` while `value` is inside the `[lo, hi]`
+ * tolerance band, zero outside. The matching stressor takes over once
+ * the value crosses out of range, so the transition stays continuous in
+ * the net-rate sense (lose `peak` of benefit, start gaining damage).
+ *
+ * Step-shaped on purpose: tolerance bands are mostly flat with cliff
+ * edges (in/out of range), and a flat plateau keeps the benefit budget
+ * near its ceiling when only one factor drops to the edge. Used by both
+ * fish and plant vitality builders.
+ *
+ * `hi = Infinity` is a valid degenerate case — a one-sided "above
+ * threshold" benefit (e.g. oxygen ≥ 5 mg/L).
+ */
+export function inRangeBenefit(value: number, lo: number, hi: number, peak: number): number {
+  return value >= lo && value <= hi ? peak : 0;
 }

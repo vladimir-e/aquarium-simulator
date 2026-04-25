@@ -38,6 +38,7 @@ import type { LivestockConfig } from '../config/livestock.js';
 import { unionizedAmmoniaFraction } from './nitrogen-cycle.js';
 import {
   computeVitality,
+  inRangeBenefit,
   type VitalityFactor,
   type VitalityResult,
 } from './vitality.js';
@@ -98,37 +99,17 @@ function effectiveHardiness(fish: Fish): number {
 }
 
 /**
- * In-range benefit: `peak` while `value` is inside the `[lo, hi]`
- * tolerance band, zero outside. The matching stressor takes over once
- * the value crosses out of range, so the transition stays continuous
- * in the net-rate sense (lose `peak` of benefit, start gaining damage).
- *
- * Step-shaped on purpose: real fish tolerance bands are mostly flat
- * with cliff edges (in/out of range), and a flat plateau keeps the
- * benefit budget near its abiotic ceiling when only one factor drops
- * to the edge.
+ * Linear-ramp benefit: peak when `value ≤ peakAt`, zero when
+ * `value ≥ zeroAt`, linearly interpolated in between. Currently used
+ * for hunger (peak when hunger ≤ 30, zero at hunger 50). The ramp
+ * direction is fixed because every consumer has so far wanted the
+ * "lower is better" shape; if an "ascending ramp" turns up later it
+ * can move into vitality.ts alongside `inRangeBenefit`.
  */
-function inRangeBenefit(value: number, lo: number, hi: number, peak: number): number {
-  return value >= lo && value <= hi ? peak : 0;
-}
-
-/**
- * Linear-ramp benefit: zero up to `lowOff`, ramping to `peak` at
- * `highOn`, full thereafter. Used for hunger (inverted: peak when
- * hunger ≤ low, ramping to 0 above) and oxygen (peak when O2 ≥ high).
- */
-function rampBenefit(value: number, lowOff: number, highOn: number, peak: number): number {
-  if (lowOff === highOn) return value >= highOn ? peak : 0;
-  const ascending = highOn > lowOff;
-  if (ascending) {
-    if (value <= lowOff) return 0;
-    if (value >= highOn) return peak;
-    return peak * ((value - lowOff) / (highOn - lowOff));
-  }
-  // Descending — used for hunger: peak when hunger ≤ highOn, zero at lowOff.
-  if (value >= lowOff) return 0;
-  if (value <= highOn) return peak;
-  return peak * ((lowOff - value) / (lowOff - highOn));
+function rampBenefit(value: number, zeroAt: number, peakAt: number, peak: number): number {
+  if (value >= zeroAt) return 0;
+  if (value <= peakAt) return peak;
+  return peak * ((zeroAt - value) / (zeroAt - peakAt));
 }
 
 /** Peak benefit magnitudes (%/h) — see module-level note for total budget. */
@@ -149,19 +130,13 @@ const FISH_BENEFIT_PEAKS = {
  */
 const PLANT_BENEFIT_SAT_POINT = 3.0;
 
-/** Hunger thresholds (%): full benefit at ≤30, zero at the 50% stress line. */
+/**
+ * Hunger thresholds (%): full benefit at ≤30, zero at the 50% stress
+ * line. The 50 mark also activates the hunger stressor — same threshold,
+ * continuous transition (lose benefit as you start gaining damage).
+ */
 const HUNGER_FULL = 30;
 const HUNGER_NONE = 50;
-
-/**
- * Oxygen thresholds (mg/L): full benefit at ≥5 (the stress threshold).
- * Tighter than a strict aerobic ideal (≥8) on purpose — most healthy
- * tanks sit in the 6–8 mg/L band, and tying the benefit to the same
- * cutoff the stressor uses keeps the net recovery rate stable across
- * the safe-but-not-supersaturated zone.
- */
-const O2_NONE = 5;
-const O2_FULL = 5;
 
 interface FishFactorContext {
   fish: Fish;
@@ -280,15 +255,15 @@ function buildStressors(ctx: FishFactorContext): VitalityFactor[] {
   }
 
   return [
-    { key: 'temperature', label: 'Temperature', amount: tempStress, kind: 'damage' },
-    { key: 'ph', label: 'pH', amount: phStress, kind: 'damage' },
-    { key: 'ammonia', label: 'Free NH3', amount: ammoniaStress, kind: 'damage' },
-    { key: 'nitrite', label: 'Nitrite', amount: nitriteStress, kind: 'damage' },
-    { key: 'nitrate', label: 'Nitrate', amount: nitrateStress, kind: 'damage' },
-    { key: 'hunger', label: 'Hunger', amount: hungerStress, kind: 'damage' },
-    { key: 'oxygen', label: 'Oxygen', amount: oxygenStress, kind: 'damage' },
-    { key: 'waterLevel', label: 'Water level', amount: waterLevelStress, kind: 'damage' },
-    { key: 'flow', label: 'Flow', amount: flowStress, kind: 'damage' },
+    { key: 'temperature', label: 'Temperature', amount: tempStress },
+    { key: 'ph', label: 'pH', amount: phStress },
+    { key: 'ammonia', label: 'Free NH3', amount: ammoniaStress },
+    { key: 'nitrite', label: 'Nitrite', amount: nitriteStress },
+    { key: 'nitrate', label: 'Nitrate', amount: nitrateStress },
+    { key: 'hunger', label: 'Hunger', amount: hungerStress },
+    { key: 'oxygen', label: 'Oxygen', amount: oxygenStress },
+    { key: 'waterLevel', label: 'Water level', amount: waterLevelStress },
+    { key: 'flow', label: 'Flow', amount: flowStress },
   ];
 }
 
@@ -307,25 +282,27 @@ function buildBenefits(ctx: FishFactorContext): VitalityFactor[] {
       key: 'ph',
       label: 'pH',
       amount: inRangeBenefit(resources.ph, phMin, phMax, FISH_BENEFIT_PEAKS.ph),
-      kind: 'benefit',
     },
     {
       key: 'hunger',
       label: 'Well-fed',
       amount: rampBenefit(fish.hunger, HUNGER_NONE, HUNGER_FULL, FISH_BENEFIT_PEAKS.hunger),
-      kind: 'benefit',
     },
     {
+      // Oxygen ≥ 5 mg/L is the stressor's safe side; the benefit is a
+      // one-sided "above threshold" peak (`hi = Infinity`) tying directly
+      // to the same cutoff. Tighter than a strict aerobic ideal (≥8) on
+      // purpose — most healthy tanks sit in the 6–8 mg/L band, and the
+      // shared threshold keeps the net recovery rate stable across the
+      // safe-but-not-supersaturated zone.
       key: 'oxygen',
       label: 'Oxygen',
-      amount: rampBenefit(resources.oxygen, O2_NONE, O2_FULL, FISH_BENEFIT_PEAKS.oxygen),
-      kind: 'benefit',
+      amount: inRangeBenefit(resources.oxygen, 5, Infinity, FISH_BENEFIT_PEAKS.oxygen),
     },
     {
       key: 'plants',
       label: 'Plants',
       amount: plantBenefitAmount(plants),
-      kind: 'benefit',
     },
   ];
 }

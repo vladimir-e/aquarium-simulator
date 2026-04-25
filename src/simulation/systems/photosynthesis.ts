@@ -58,24 +58,6 @@ export function calculateCo2Factor(
 }
 
 /**
- * Calculate nitrate limiting factor for photosynthesis (legacy helper).
- * Retained for backwards compatibility with tests that probe the nitrate
- * contribution to Liebig gating in isolation. In the current engine,
- * per-plant Liebig sufficiency (all four nutrients) is computed in
- * {@link calculateNutrientSufficiency} and fed into
- * {@link calculatePhotosynthesis}.
- */
-export function calculateNitrateFactor(
-  nitrateMass: number,
-  waterVolume: number,
-  config: PlantsConfig = plantsDefaults
-): number {
-  if (nitrateMass <= 0 || waterVolume <= 0) return 0;
-  const nitratePpm = nitrateMass / waterVolume;
-  return Math.min(1, nitratePpm / config.optimalNitrate);
-}
-
-/**
  * Zero-valued photosynthesis result (for guard branches).
  */
 function emptyResult(): PhotosynthesisResult {

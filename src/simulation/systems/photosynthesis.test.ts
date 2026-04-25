@@ -1,10 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import {
   calculateCo2Factor,
-  calculateNitrateFactor,
   calculatePhotosynthesis,
   getTotalPlantSize,
 } from './photosynthesis.js';
+import { calculateNutrientSufficiency } from './nutrients.js';
 import { plantsDefaults } from '../config/plants.js';
 import { nutrientsDefaults, getNutrientRatio } from '../config/nutrients.js';
 import type { Plant, Resources, PlantSpecies } from '../state.js';
@@ -94,19 +94,49 @@ describe('calculateCo2Factor', () => {
   });
 });
 
-describe('calculateNitrateFactor', () => {
-  it('returns 1.0 at optimal nitrate concentration', () => {
-    const nitrateMass = plantsDefaults.optimalNitrate * 100;
-    expect(calculateNitrateFactor(nitrateMass, 100)).toBe(1.0);
+describe('nitrate as the Liebig-limiting nutrient', () => {
+  // Pin the per-plant Liebig sufficiency formula when nitrate is the only
+  // nutrient short of optimum (the other three are saturated). Uses Monte
+  // Carlo (high demand, all four nutrients required) so a missing nitrate
+  // can fully express as sufficiency loss.
+  const waterVolume = 100;
+  const optimal = nutrientsDefaults.optimalNitratePpm;
+
+  function buildSingleLimited(nitratePpm: number): Resources {
+    return {
+      ...buildResources(waterVolume),
+      nitrate: nitratePpm * waterVolume,
+    };
+  }
+
+  it('sufficiency = 1.0 at optimal nitrate', () => {
+    const suff = calculateNutrientSufficiency(
+      buildSingleLimited(optimal),
+      waterVolume,
+      'monte_carlo',
+      nutrientsDefaults
+    );
+    expect(suff).toBe(1.0);
   });
 
-  it('returns 0 when water volume is 0', () => {
-    expect(calculateNitrateFactor(100, 0)).toBe(0);
+  it('sufficiency = 0 when water volume is 0', () => {
+    const suff = calculateNutrientSufficiency(
+      buildSingleLimited(optimal),
+      0,
+      'monte_carlo',
+      nutrientsDefaults
+    );
+    expect(suff).toBe(0);
   });
 
-  it('scales linearly below optimal', () => {
-    const f = calculateNitrateFactor(plantsDefaults.optimalNitrate * 50, 100);
-    expect(f).toBe(0.5);
+  it('sufficiency scales linearly with nitrate below optimal', () => {
+    const suff = calculateNutrientSufficiency(
+      buildSingleLimited(optimal * 0.5),
+      waterVolume,
+      'monte_carlo',
+      nutrientsDefaults
+    );
+    expect(suff).toBe(0.5);
   });
 });
 

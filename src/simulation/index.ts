@@ -220,7 +220,6 @@ export {
   calculatePhotosynthesis,
   getTotalPlantSize,
   calculateCo2Factor,
-  calculateNitrateFactor,
   calculateRespiration,
   getRespirationTemperatureFactor,
   distributeBiomass,

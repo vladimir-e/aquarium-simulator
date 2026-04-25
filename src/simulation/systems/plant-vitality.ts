@@ -32,6 +32,7 @@ import { calculateNutrientSufficiency } from './nutrients.js';
 import { getPpm } from '../resources/index.js';
 import {
   computeVitality,
+  inRangeBenefit,
   type VitalityFactor,
   type VitalityResult,
 } from './vitality.js';
@@ -42,15 +43,6 @@ export interface PlantVitalityContext {
   waterVolume: number;
   plantsConfig: PlantsConfig;
   nutrientsConfig: NutrientsConfig;
-}
-
-/**
- * In-range benefit: full peak inside `[lo, hi]`, zero outside.
- * Mirrors the fish helper of the same name. Step-shaped on purpose so
- * the matching stressor cleanly takes over outside the band.
- */
-function inRangeBenefit(value: number, lo: number, hi: number, peak: number): number {
-  return value >= lo && value <= hi ? peak : 0;
 }
 
 /**
@@ -79,7 +71,7 @@ export function buildPlantStressors(ctx: PlantVitalityContext): VitalityFactor[]
     lightAmount = plantsConfig.lightExcessiveSeverity * (resources.light - lightHi);
     lightLabel = 'Light high';
   }
-  factors.push({ key: 'light', label: lightLabel, amount: lightAmount, kind: 'damage' });
+  factors.push({ key: 'light', label: lightLabel, amount: lightAmount });
 
   // CO2 — only the *low* side is a stressor for plants, and only when
   // lights are on. Plants don't draw CO2 in the dark (no
@@ -91,7 +83,7 @@ export function buildPlantStressors(ctx: PlantVitalityContext): VitalityFactor[]
   if (resources.light > 0 && resources.co2 < co2Lo) {
     co2Amount = plantsConfig.co2InsufficientSeverity * (co2Lo - resources.co2);
   }
-  factors.push({ key: 'co2', label: 'CO2 low', amount: co2Amount, kind: 'damage' });
+  factors.push({ key: 'co2', label: 'CO2 low', amount: co2Amount });
 
   // Temperature — two-sided.
   const [tempLo, tempHi] = species.tolerableTemp;
@@ -101,7 +93,7 @@ export function buildPlantStressors(ctx: PlantVitalityContext): VitalityFactor[]
   } else if (resources.temperature > tempHi) {
     tempAmount = plantsConfig.temperatureStressSeverity * (resources.temperature - tempHi);
   }
-  factors.push({ key: 'temperature', label: 'Temperature', amount: tempAmount, kind: 'damage' });
+  factors.push({ key: 'temperature', label: 'Temperature', amount: tempAmount });
 
   // pH — two-sided.
   const [phLo, phHi] = species.tolerablePH;
@@ -111,7 +103,7 @@ export function buildPlantStressors(ctx: PlantVitalityContext): VitalityFactor[]
   } else if (resources.ph > phHi) {
     phAmount = plantsConfig.phStressSeverity * (resources.ph - phHi);
   }
-  factors.push({ key: 'ph', label: 'pH', amount: phAmount, kind: 'damage' });
+  factors.push({ key: 'ph', label: 'pH', amount: phAmount });
 
   // Nutrient deficiency — Liebig sufficiency drives a single damage
   // signal proportional to (1 − sufficiency).
@@ -127,7 +119,6 @@ export function buildPlantStressors(ctx: PlantVitalityContext): VitalityFactor[]
     key: 'nutrients',
     label: 'Nutrient deficiency',
     amount: nutrientAmount,
-    kind: 'damage',
   });
 
   // Nutrient toxicity — gross NO3 overdose (auto-doser failure case).
@@ -142,7 +133,6 @@ export function buildPlantStressors(ctx: PlantVitalityContext): VitalityFactor[]
     key: 'nutrientToxicity',
     label: 'Nutrient toxicity',
     amount: toxicityAmount,
-    kind: 'damage',
   });
 
   // Algae shading — only kicks in once algae density is meaningful.
@@ -151,7 +141,7 @@ export function buildPlantStressors(ctx: PlantVitalityContext): VitalityFactor[]
     algaeAmount =
       plantsConfig.algaeShadingSeverity * (resources.algae - plantsConfig.algaeShadingThreshold);
   }
-  factors.push({ key: 'algae', label: 'Algae shading', amount: algaeAmount, kind: 'damage' });
+  factors.push({ key: 'algae', label: 'Algae shading', amount: algaeAmount });
 
   return factors;
 }
@@ -180,13 +170,11 @@ export function buildPlantBenefits(ctx: PlantVitalityContext): VitalityFactor[] 
       key: 'light',
       label: 'Light',
       amount: inRangeBenefit(resources.light, lightLo, lightHi, plantsConfig.lightBenefitPeak),
-      kind: 'benefit',
     },
     {
       key: 'co2',
       label: 'CO2',
       amount: inRangeBenefit(resources.co2, co2Lo, co2Hi, plantsConfig.co2BenefitPeak),
-      kind: 'benefit',
     },
     {
       key: 'temperature',
@@ -197,13 +185,11 @@ export function buildPlantBenefits(ctx: PlantVitalityContext): VitalityFactor[] 
         tempHi,
         plantsConfig.temperatureBenefitPeak
       ),
-      kind: 'benefit',
     },
     {
       key: 'ph',
       label: 'pH',
       amount: inRangeBenefit(resources.ph, phLo, phHi, plantsConfig.phBenefitPeak),
-      kind: 'benefit',
     },
     {
       key: 'nutrients',
@@ -214,7 +200,6 @@ export function buildPlantBenefits(ctx: PlantVitalityContext): VitalityFactor[] 
       // two together let condition track sufficiency continuously for
       // plants whose only knob is nutrients.
       amount: plantsConfig.nutrientBenefitPeak * Math.max(0, Math.min(1, sufficiency)),
-      kind: 'benefit',
     },
   ];
 }
