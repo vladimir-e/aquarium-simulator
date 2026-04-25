@@ -236,10 +236,7 @@ export {
   processLivestock,
   processMetabolism,
   processHealth,
-  calculateStress,
-  calculateStressBreakdown,
   computeFishVitality,
-  type StressBreakdown,
 } from './livestock/index.js';
 
 // Vitality

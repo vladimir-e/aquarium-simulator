@@ -53,40 +53,6 @@ export interface HealthResult {
 }
 
 /**
- * Per-stressor stress contribution (%/hr) for a single fish.
- *
- * Each field is the damage rate that stressor adds to the fish this
- * tick, already scaled by the fish's effective hardiness. The named-
- * field shape is the addressable view UI panels and tests use to
- * index the breakdown by stressor key.
- */
-export interface StressBreakdown {
-  temperature: number;
-  ph: number;
-  ammonia: number;
-  nitrite: number;
-  nitrate: number;
-  hunger: number;
-  oxygen: number;
-  waterLevel: number;
-  flow: number;
-  total: number;
-}
-
-const ZERO_BREAKDOWN: StressBreakdown = {
-  temperature: 0,
-  ph: 0,
-  ammonia: 0,
-  nitrite: 0,
-  nitrate: 0,
-  hunger: 0,
-  oxygen: 0,
-  waterLevel: 0,
-  flow: 0,
-  total: 0,
-};
-
-/**
  * Compute the effective hardiness for a fish.
  *
  * Species baseline + per-individual offset, clamped to [0.1, 0.95]
@@ -308,24 +274,6 @@ function buildBenefits(ctx: FishFactorContext): VitalityFactor[] {
 }
 
 /**
- * Translate a vitality breakdown back into the named-field shape that
- * `StressBreakdown` consumers index by key. Values are post-hardiness
- * damage rates — the same numbers `processHealth` is acting on.
- */
-function toStressBreakdown(result: VitalityResult): StressBreakdown {
-  const breakdown: StressBreakdown = { ...ZERO_BREAKDOWN };
-  let total = 0;
-  for (const stressor of result.breakdown.stressors) {
-    if (stressor.key in breakdown) {
-      (breakdown as unknown as Record<string, number>)[stressor.key] = stressor.amount;
-    }
-    total += stressor.amount;
-  }
-  breakdown.total = total;
-  return breakdown;
-}
-
-/**
  * Compute a vitality tick for a single fish without applying it. Used
  * by the UI to render the current trend, by tests to assert against,
  * and by `processHealth` to drive the actual update.
@@ -345,37 +293,6 @@ export function computeFishVitality(
     hardiness: effectiveHardiness(fish),
     condition: fish.health,
   });
-}
-
-/**
- * Per-stressor breakdown for the UI / tests. Hardiness already applied.
- */
-export function calculateStressBreakdown(
-  fish: Fish,
-  resources: Resources,
-  plants: Plant[],
-  waterVolume: number,
-  tankCapacity: number,
-  config: LivestockConfig
-): StressBreakdown {
-  return toStressBreakdown(
-    computeFishVitality(fish, resources, plants, waterVolume, tankCapacity, config)
-  );
-}
-
-/**
- * Total stress for a single fish — thin convenience wrapper over the
- * breakdown. Identical numeric result.
- */
-export function calculateStress(
-  fish: Fish,
-  resources: Resources,
-  plants: Plant[],
-  waterVolume: number,
-  tankCapacity: number,
-  config: LivestockConfig
-): number {
-  return calculateStressBreakdown(fish, resources, plants, waterVolume, tankCapacity, config).total;
 }
 
 /**
