@@ -19,10 +19,10 @@ import type { TunableConfig } from '../../simulation/config/index.js';
  * Increment this when the structure changes in a breaking way.
  * On version mismatch, stored data is discarded.
  *
- * v6: Fish gains `surplus` (vitality overflow store, task 40). Plant
- *     condition semantics also change (now driven by stressors +
- *     benefits, not raw nutrient sufficiency) but its persisted shape
- *     is identical, so the bump is purely the new Fish field.
+ * v6: Fish gains `surplus` (vitality overflow store). Plant condition
+ *     semantics also change (driven by stressors + benefits, not raw
+ *     nutrient sufficiency) but its persisted shape is identical, so
+ *     the bump is purely the new Fish field.
  */
 export const PERSISTENCE_VERSION = 6;
 

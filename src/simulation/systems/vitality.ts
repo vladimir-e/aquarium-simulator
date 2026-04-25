@@ -89,7 +89,7 @@ export interface VitalityResult {
 /**
  * Compute one tick of vitality for an organism.
  *
- * Algorithm (locked design — task 40):
+ * Algorithm:
  * 1. damageRate = Σ stressor.amount × (1 - hardiness)
  * 2. benefitRate = Σ benefit.amount  (no hardiness scaling)
  * 3. net = benefitRate − damageRate

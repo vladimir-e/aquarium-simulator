@@ -279,7 +279,8 @@ describe('calculateStress', () => {
     });
 
     it('zero offset matches species baseline behavior', () => {
-      // Regression check: zero offset must preserve legacy calibration.
+      // Regression check: zero offset must reproduce the species
+      // baseline calibration exactly.
       const fish = makeFish({ hardinessOffset: 0 });
       const stress = calculateStress(fish, resources(), [], 100, 100, livestockDefaults);
       expect(stress).toBeCloseTo(0.85 * 4 * 0.5, 6);
@@ -649,8 +650,8 @@ describe('temperature stress calibration (S4 Variant A.1)', () => {
 
 describe('vitality integration', () => {
   // The vitality model exposes per-factor benefits + surplus capture.
-  // These tests pin the contract the migration introduces on top of the
-  // legacy stress math (which the tests above already cover).
+  // These tests pin that contract on top of the per-stressor math the
+  // describes above already cover.
 
   it('exposes ph/hunger/oxygen/plants benefits when conditions are good', () => {
     const fish = makeFish();
@@ -797,19 +798,19 @@ describe('plant-presence fish benefit', () => {
     expect(plantsFactor?.amount).toBe(0);
   });
 
-  it('an oversized plant does not single-handedly saturate the benefit', () => {
-    // Per-plant size factor is clamped at 1.0 — Task 38 lets plants
-    // grow well past size 100 (per-species `maxSize` up to 1100), and
-    // an overgrown plant must not steal credit reserved for stocking
-    // multiple full-grown plants.
+  it('an oversized healthy plant single-handedly saturates the benefit', () => {
+    // Plants intentionally can grow past size 100 (per-species
+    // `maxSize` runs into the hundreds). The fish-side math counts
+    // raw biomass: a single size-300 plant contributes 3 units, which
+    // hits the saturation point on its own. Overgrowth is regulated
+    // on the plant side (self-shading / interspecies competition push
+    // an overgrown plant toward stressed → biomass dies back), not
+    // by capping the fish benefit.
     const fish = makeFish();
     const resources = makeResources();
     const baseline = netRate(fish, resources, []);
     const oversized = netRate(fish, resources, [makePlant({ size: 300 })]);
-    // size factor clamps to 1.0; one plant → contribution = peak × 1/SAT.
-    expect(oversized - baseline).toBeCloseTo(PLANT_PEAK / SAT, 6);
-    // Critically: NOT the full saturated peak.
-    expect(oversized - baseline).toBeLessThan(PLANT_PEAK);
+    expect(oversized - baseline).toBeCloseTo(PLANT_PEAK, 6);
   });
 
   it('many tiny healthy plants sum to saturation', () => {

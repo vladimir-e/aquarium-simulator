@@ -211,8 +211,8 @@ export function buildPlantBenefits(ctx: PlantVitalityContext): VitalityFactor[] 
       // Nutrient benefit scales linearly with sufficiency — a partially
       // fed plant gets a partial benefit. Asymmetric with the deficiency
       // stressor (which scales with (1 − sufficiency)) by design: the
-      // two together reproduce the legacy "condition tracks sufficiency"
-      // feel for plants whose only knob is nutrients.
+      // two together let condition track sufficiency continuously for
+      // plants whose only knob is nutrients.
       amount: plantsConfig.nutrientBenefitPeak * Math.max(0, Math.min(1, sufficiency)),
       kind: 'benefit',
     },

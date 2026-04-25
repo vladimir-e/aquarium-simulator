@@ -117,8 +117,8 @@ spec). Each tick the engine builds two factor lists for the fish:
 
 - **newCondition** — the new health value (0–100, clamped)
 - **surplus** — the overflow rate when health is at 100 and net is
-  positive. Captured on `fish.surplus` for future use (breeding,
-  growth, longevity bonuses); currently unused.
+  positive. Captured on `fish.surplus` for future lifecycle use
+  (breeding, growth, longevity bonuses).
 
 ### Stressor coverage
 
@@ -158,22 +158,23 @@ Adding a tighter `optimalTemperature` sub-band (with a small
 in-optimal benefit) is straightforward when calibration data
 warrants it.
 
-The plant benefit sums `min(1, size/100) × (condition/100)` across
-every plant in the tank and runs the total through a linear-ramp
-saturation `min(1, total / 3.0)` — so three full-grown healthy plants
+The plant benefit sums `(size/100) × (condition/100)` across every
+plant in the tank and runs the total through a linear-ramp saturation
+`min(1, total / 3.0)` — so three full-grown healthy plants of biomass
 saturate the benefit at its 0.2 %/h peak and adding more plants
-beyond that doesn't keep boosting fish vitality. The per-plant size
-factor is clamped at 1.0 so an overgrown plant (Task 38 per-species
-`maxSize` runs to 600–1100 %) can't single-handedly saturate; the
-"three plants" framing holds literally regardless of individual plant
-size. Sick plants (condition 0) and juveniles (small size) contribute
-proportionally less. This intentionally pushes the total benefit
-budget in a fully planted tank to ≈1.2 %/h: a healthy planted tank
-should sit at full health with a positive net rate, accumulating
-surplus on `Fish.surplus`. That surplus is the entry point for the
-future surplus-driven breeding mechanic — fish only reproduce once
-their environment is stocked *and* maintained well enough to bank a
-sustained positive net rate.
+beyond that doesn't keep boosting fish vitality. Plants count by raw
+biomass, so a single overgrown plant can saturate the benefit on its
+own; that's intended — overgrowth is regulated on the plant side
+(self-shading and interspecies competition push an overgrown plant
+toward stressed → biomass dies back → contribution shrinks), so the
+fish-side math stays linear in raw biomass. Sick plants (condition 0)
+and juveniles (small size) contribute proportionally less. The plant
+benefit pushes the total budget in a fully planted tank to ≈1.2 %/h:
+a healthy planted tank sits at full health with a positive net rate,
+accumulating surplus on `Fish.surplus`. That surplus is the entry
+point for the future surplus-driven breeding mechanic — fish only
+reproduce once their environment is stocked *and* maintained well
+enough to bank a sustained positive net rate.
 
 ### Vitality math (per tick)
 
@@ -191,23 +192,19 @@ if net > 0 and health == 100:   newHealth = 100
 
 Stressed fish heal first, never gain surplus while health is below
 100 — this mirrors the plant rule. Surplus is recorded on each fish
-but isn't currently consumed; future tasks (breeding, juvenile→adult
-progression) will read it.
+for future lifecycle behaviour (breeding, juvenile→adult progression)
+to read.
 
-### Fasting fish — behaviour shift vs the previous model
+### Fasting fish
 
-Hungry fish now decline faster than under the pre-vitality model. The
-old model treated the flat 1.0 %/h base recovery as a constant
-regardless of conditions, so a hungry fish lost only the hunger
-stressor on top of a steady recovery floor. The new benefit budget
-*includes* a hunger-satisfied component (0.3 %/h) — so a hungry fish
-loses both the recovery contribution AND takes the existing hunger
-damage, making net more negative. Quantitatively: at hunger 80 net
-was previously ≈ −0.5 %/h, now ≈ −0.8 %/h (roughly 60 % faster
-decline). A regression test on n-mass conservation observed a ~17×
-faster fasting decline; the future starvation-window calibration
-will need to retune `hungerStressSeverity` and the hunger benefit
-ramp accordingly.
+Hunger sits on both sides of the vitality ledger: the hunger-
+satisfied benefit (up to 0.3 %/h while hunger ≤ 50, peak at ≤ 30) is
+lost as hunger climbs, and the hunger stressor adds damage above
+50 %. A hungry fish therefore loses recovery and takes damage
+simultaneously, so net trends sharply negative — at hunger 80 the net
+rate sits at roughly −0.8 %/h. The starvation-window calibration is a
+future tuning pass on `hungerStressSeverity` and the hunger benefit
+ramp.
 
 ### Hardy Fish
 

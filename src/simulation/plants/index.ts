@@ -1,12 +1,12 @@
 /**
  * Plants processing - handles photosynthesis, respiration, growth, and nutrients.
  *
- * Per-plant condition is now driven by the unified vitality engine
- * (task 40): each plant gets a damage/benefit breakdown across light,
- * CO2, temperature, pH, nutrients (sufficiency + toxicity), and algae
- * shading. Condition heals only while net is positive; biomass growth
- * fires only once condition reaches 100 and surplus is captured —
- * stressed plants heal first, never crawl forward at reduced rate.
+ * Per-plant condition is driven by the unified vitality engine: each
+ * plant gets a damage/benefit breakdown across light, CO2, temperature,
+ * pH, nutrients (sufficiency + toxicity), and algae shading. Condition
+ * heals only while net is positive; biomass growth fires only once
+ * condition reaches 100 and surplus is captured — stressed plants heal
+ * first, never crawl forward at reduced rate.
  *
  * Called during ACTIVE tier processing in tick.ts.
  */

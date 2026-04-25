@@ -282,19 +282,14 @@ Once condition crests 100, the plant starts banking surplus and the
 growth pipeline routes biomass to it. While condition is below 100,
 no surplus → no growth → all photosynthate flows to maintenance.
 
-### Behaviour shift vs the previous model
+### Heal-or-decline trajectory
 
-The previous homeostatic model had condition trend toward `sufficiency
-× 100` — a continuous knob, so a plant running at sufficiency 0.65
-would settle at condition 65 indefinitely. Under the vitality model
-there is no intermediate steady state: any organism whose net rate is
-non-negative heals to 100, and any organism whose net rate is negative
-declines toward 0. A plant whose stressors are all zero will reach 100
-even when its conditions are merely "adequate" — there is no
-homeostatic parking. This is intentional and matches the simpler
-heal-or-decline shape of the new architecture; calibration scenarios
-that previously parked AS or MC at intermediate condition are
-expected to re-baseline against the upcoming calibration session.
+There is no intermediate steady state for plant condition: any organism
+whose net rate is non-negative heals to 100, and any organism whose
+net rate is negative declines toward 0. A plant whose stressors are
+all zero will reach 100 even when its conditions are merely
+"adequate" — there is no homeostatic parking. This is the same
+trajectory shape used for fish.
 
 ---
 

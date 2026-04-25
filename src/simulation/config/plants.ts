@@ -158,9 +158,9 @@ export const plantsDefaults: PlantsConfig = {
   // crash MC mid-scenario.
   nutrientDeficiencySeverity: 0.7,
   // Toxicity threshold is high (100 ppm NO3) so normal dosing never
-  // triggers — only the auto-doser massive-overdose case flagged in
-  // task 40's motivating bug. Severity is small so the stress climbs
-  // gradually past the threshold rather than killing instantly.
+  // triggers — only the auto-doser massive-overdose case. Severity
+  // is small so the stress climbs gradually past the threshold
+  // rather than killing instantly.
   nutrientToxicitySeverity: 0.01,
   nutrientToxicityThresholdNitrate: 100,
   algaeShadingSeverity: 0.01,

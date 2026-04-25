@@ -5,35 +5,31 @@
  * factors, fed through {@link computeVitality}, and the result drives
  * `health` (the fish-side name for vitality's `condition`). Surplus is
  * captured on `Fish.surplus` for future lifecycle behaviour (breeding,
- * juvenile→adult progression, longevity bonuses) but is otherwise unused
- * for now.
+ * juvenile→adult progression, longevity bonuses) but is otherwise unused.
  *
- * Design notes (locked in task 40):
- * - Stressors keep their existing severities (calibrated against the
- *   four canonical scenarios). Hardiness scaling moves into the vitality
- *   module — fish-health sets up the factors with raw severities and
- *   `computeVitality` applies `(1 - hardiness)`.
- * - Abiotic benefits are: pH in range (0.4 %/h), hunger ≤ 30 (0.3),
- *   oxygen ≥ 5 mg/L (0.3). Sum at all-ideal = 1.0 %/h — the budget
- *   the four canonical calibration scenarios were pinned against.
- *   Temperature is intentionally not a separate benefit — within the
- *   species range the fish already has zero temp damage and the other
- *   benefits cover recovery; outside the range the temperature stressor
- *   takes over. When per-species `optimalTemperature` data lands later
- *   (paired with the existing tolerableTemperatureRange) we can revisit
- *   by adding a small "in optimal sub-band" benefit without breaking
- *   calibration.
- * - A *biotic* benefit ("Plants", peak 0.2 %/h) sits on top: planted
- *   tanks give fish shelter / cover that reduces baseline stress.
- *   Plant-derived oxygen and ammonia uptake are deliberately *not*
- *   double-counted here — they already flow through the resource
- *   layer into the existing fish oxygen / ammonia channels. The
- *   benefit saturates (linear ramp) at ≈ three full-grown healthy
- *   plants, pushing the all-good benefit budget to ≈ 1.2 %/h. The
- *   surplus this introduces is intentional — it's the entry point for
- *   the future surplus-driven breeding mechanic. A bare tank still
- *   sits at the 1.0 %/h budget the calibration scenarios were pinned
- *   against, so existing anchors stay intact.
+ * Stressors (raw severities; the vitality module applies hardiness
+ * scaling centrally as `(1 - effectiveHardiness)`):
+ * - Temperature, pH, free NH3, nitrite, nitrate, hunger, oxygen,
+ *   water level, flow.
+ *
+ * Benefits, summing to ≈ 1.0 %/h in a bare tank with everything in
+ * range, and up to ≈ 1.2 %/h with mature planting:
+ * - pH in species range — 0.4 %/h
+ * - Hunger satisfied (≤ 30, ramped to 0 at hunger 50) — up to 0.3 %/h
+ * - Oxygen ≥ 5 mg/L — 0.3 %/h
+ * - Plant presence (saturating) — up to 0.2 %/h
+ *
+ * Temperature is not a separate benefit: inside the species range
+ * temperature stress is zero and the other benefits cover recovery;
+ * outside the range the temperature stressor takes over. The plant-
+ * presence benefit gives fish shelter/cover; plant-derived oxygen and
+ * ammonia uptake flow through the resource layer into the existing
+ * oxygen / ammonia channels and are not double-counted here.
+ *
+ * The plant benefit pushes the all-good budget above the abiotic
+ * ceiling on purpose — a healthy planted tank should sit at full
+ * health with a positive net rate, banking surplus on `Fish.surplus`
+ * for the future surplus-driven breeding mechanic.
  */
 
 import type { Fish, Plant, Resources } from '../state.js';
@@ -59,9 +55,9 @@ export interface HealthResult {
  * Per-stressor stress contribution (%/hr) for a single fish.
  *
  * Each field is the damage rate that stressor adds to the fish this
- * tick, already scaled by the fish's effective hardiness. The shape is
- * preserved from the pre-vitality engine because plant cards / fish
- * cards index it by name.
+ * tick, already scaled by the fish's effective hardiness. The named-
+ * field shape is the addressable view UI panels and tests use to
+ * index the breakdown by stressor key.
  */
 export interface StressBreakdown {
   temperature: number;
@@ -92,8 +88,8 @@ const ZERO_BREAKDOWN: StressBreakdown = {
 /**
  * Compute the effective hardiness for a fish.
  *
- * Species baseline + per-individual offset, clamped so an extreme
- * offset (or legacy data) can't push fish into invincible or instantly-
+ * Species baseline + per-individual offset, clamped to [0.1, 0.95]
+ * so an extreme offset can't push a fish into invincible or instantly-
  * dying territory.
  */
 function effectiveHardiness(fish: Fish): number {
@@ -109,8 +105,8 @@ function effectiveHardiness(fish: Fish): number {
  *
  * Step-shaped on purpose: real fish tolerance bands are mostly flat
  * with cliff edges (in/out of range), and a flat plateau keeps the
- * benefit budget near its 1.0 %/h ceiling when only one factor drops
- * to the edge — preserving calibration without per-scenario retunes.
+ * benefit budget near its abiotic ceiling when only one factor drops
+ * to the edge.
  */
 function inRangeBenefit(value: number, lo: number, hi: number, peak: number): number {
   return value >= lo && value <= hi ? peak : 0;
@@ -147,9 +143,9 @@ const FISH_BENEFIT_PEAKS = {
  * Plant-presence saturation point. The contribution from each plant is
  * `(size / 100) × (condition / 100)` (units: "full healthy plants"), and
  * the benefit hits its peak once the sum reaches `PLANT_BENEFIT_SAT_POINT`.
- * Three full-grown healthy plants saturate the benefit — beyond that
- * adding more plants doesn't keep boosting fish vitality, which keeps
- * the surplus economy bounded as breeding lands in a future task.
+ * Three full-grown healthy plants of biomass saturate the benefit;
+ * beyond that adding more plants doesn't keep boosting fish vitality,
+ * which keeps the surplus economy bounded.
  */
 const PLANT_BENEFIT_SAT_POINT = 3.0;
 
@@ -162,8 +158,7 @@ const HUNGER_NONE = 50;
  * Tighter than a strict aerobic ideal (≥8) on purpose — most healthy
  * tanks sit in the 6–8 mg/L band, and tying the benefit to the same
  * cutoff the stressor uses keeps the net recovery rate stable across
- * the safe-but-not-supersaturated zone (matches legacy 1.0 %/h
- * baseline once the species is otherwise comfortable).
+ * the safe-but-not-supersaturated zone.
  */
 const O2_NONE = 5;
 const O2_FULL = 5;
@@ -180,24 +175,25 @@ interface FishFactorContext {
 /**
  * Aggregate plant-presence contribution → saturated benefit (linear ramp).
  *
- * Each plant contributes `min(1, size/100) × (condition/100)`: a
- * full-grown (size ≥ 100), thriving (condition 100) plant counts as
- * 1.0; a half-grown plant at full health counts 0.5; a sick plant
- * (condition 0) counts 0. The per-plant size factor is **clamped at
- * 1.0** so an overgrown plant (Task 38: per-species `maxSize` runs
- * 600–1100 %) can't single-handedly saturate the benefit — the "three
- * full-grown healthy plants saturate" framing then holds literally
- * for any combination of plants, regardless of size, and future
- * breeding gating doesn't get free credit from overgrowth. The sum
- * runs through `min(1, total / SAT)` so the benefit tops out at
- * `peak` regardless of overplanting — see `PLANT_BENEFIT_SAT_POINT`
- * for the calibration choice.
+ * Each plant contributes `(size/100) × (condition/100)`: a full-grown
+ * (size 100), thriving (condition 100) plant counts as 1.0; a half-
+ * grown plant at full health counts 0.5; a sick plant (condition 0)
+ * counts 0. Overgrown plants count proportionally more — a single
+ * size-300 healthy plant contributes 3 units and saturates the
+ * benefit on its own. That's the intended behaviour: it's a lot of
+ * biomass providing shelter. Overgrowth is regulated on the plant
+ * side (self-shading and interspecies competition push an overgrown
+ * plant toward stressed → biomass dies back → contribution shrinks),
+ * so the fish-side math stays linear in raw biomass. The sum runs
+ * through `min(1, total / SAT)` so the benefit tops out at `peak`
+ * regardless of overplanting — see `PLANT_BENEFIT_SAT_POINT` for the
+ * calibration choice.
  */
 function plantBenefitAmount(plants: Plant[]): number {
   if (plants.length === 0) return 0;
   let total = 0;
   for (const plant of plants) {
-    total += Math.min(1, plant.size / 100) * (plant.condition / 100);
+    total += (plant.size / 100) * (plant.condition / 100);
   }
   const saturation = Math.min(1, total / PLANT_BENEFIT_SAT_POINT);
   return FISH_BENEFIT_PEAKS.plants * saturation;
@@ -335,9 +331,9 @@ function buildBenefits(ctx: FishFactorContext): VitalityFactor[] {
 }
 
 /**
- * Translate a vitality breakdown back into the named-field shape the UI
- * (and existing tests) consume. Values are post-hardiness damage rates —
- * the same numbers `processHealth` is acting on.
+ * Translate a vitality breakdown back into the named-field shape that
+ * `StressBreakdown` consumers index by key. Values are post-hardiness
+ * damage rates — the same numbers `processHealth` is acting on.
  */
 function toStressBreakdown(result: VitalityResult): StressBreakdown {
   const breakdown: StressBreakdown = { ...ZERO_BREAKDOWN };
@@ -444,9 +440,9 @@ export function processHealth(
       }
     }
 
-    // Surplus accumulates on the fish for future use (breeding, growth).
-    // Today nothing reads it; the storage path is wired now to keep the
-    // shape stable when those features land.
+    // Surplus accumulates on the fish for future use (breeding,
+    // growth). The storage path is wired so those features can read
+    // it directly when they land.
     survivingFish.push({
       ...f,
       health: newHealth,

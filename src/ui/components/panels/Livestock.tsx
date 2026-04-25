@@ -128,12 +128,12 @@ function FishCard({
   const hungerColor = getHungerBarColorClass(fish.hunger);
   const hungerStatus = getHungerStatusText(fish.hunger);
 
-  // The trend arrow tracks the *vitality* net rate (benefit − damage)
-  // rather than a flat recovery − stress. With per-factor benefits
-  // (task 40) recovery is no longer constant — a tank that's marginal
-  // on multiple knobs heals slower than an otherwise-perfect one, and
-  // the arrow should reflect that. The same vitality result drives the
-  // merged Conditions block below — same source of truth as PlantCard.
+  // The trend arrow tracks the vitality net rate (benefit − damage).
+  // Recovery scales with how good conditions are — a tank that's
+  // marginal on multiple knobs heals slower than an otherwise-perfect
+  // one, and the arrow reflects that. The same vitality result drives
+  // the merged Conditions block below — same source of truth as
+  // PlantCard.
   const vitality = computeFishVitality(
     fish,
     resources,
