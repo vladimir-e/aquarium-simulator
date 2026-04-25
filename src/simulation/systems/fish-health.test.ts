@@ -659,12 +659,10 @@ describe('vitality integration', () => {
 
     const benefitKeys = result.breakdown.benefits.map((b) => b.key).sort();
     expect(benefitKeys).toEqual(['hunger', 'oxygen', 'ph']);
-    // Total at "all good" matches the legacy baseHealthRecovery so the
-    // calibration scenarios stay pinned.
-    expect(result.breakdown.benefitRate).toBeCloseTo(
-      livestockDefaults.baseHealthRecovery,
-      6
-    );
+    // Total at "all good" sums to ~1.0 %/h (pH 0.4 + hunger 0.3 +
+    // O2 0.3) — the budget the calibration scenarios were pinned
+    // against.
+    expect(result.breakdown.benefitRate).toBeCloseTo(1.0, 6);
   });
 
   it('drops the pH benefit to zero when pH leaves the species range', () => {

@@ -4,7 +4,7 @@
  * Calibration targets:
  * - Metabolism: A 1g fish consumes ~0.01g food/hr, produces proportional waste/CO2
  * - Hunger: Increases ~4%/hr when unfed (full to starving in ~24hr)
- * - Health: Recovers ~1%/hr in ideal conditions, degrades faster under stress
+ * - Health: Per-factor benefits sum to ~1%/h in ideal conditions; degrades faster under stress
  * - Death: 1% chance per tick after max age
  */
 
@@ -59,10 +59,6 @@ export interface LivestockConfig {
   // Hunger
   /** Hunger increase per hour (percentage points) */
   hungerIncreaseRate: number;
-
-  // Health
-  /** Base health recovery per hour when no stressors (percentage points) */
-  baseHealthRecovery: number;
 
   // Stressor severities (damage per hour per unit deviation)
   /** Health damage per °C outside safe temperature range */
@@ -125,20 +121,18 @@ export const livestockDefaults: LivestockConfig = {
   // Reaches 50% (stress threshold) in ~3.5 days, 100% in ~7 days
   hungerIncreaseRate: 0.6,
 
-  // Health - recovers ~1%/hr = full recovery in ~100 hours if healthy
-  baseHealthRecovery: 1.0,
-
   // Stressor severities
   // Per °C outside the species' preferred temperatureRange, scaled by
   // (1 - hardiness). Calibrated to scenario 04 A.1: a betta (hardiness
   // 0.6, tempMin 24 °C) at 20 °C sustained should decline ~5 %/day,
   // landing in the 40–65 band after 7 days and risk dying around day
   // 21. Net per-hour damage ≈ severity × gap × (1 − hardiness) −
-  // baseHealthRecovery. At severity 0.75 / 4 °C gap / 0.4 factor =
-  // 1.2 %/hr stress − 1 %/hr recovery = 0.2 %/hr = 4.8 %/day loss.
-  // At 1 °C below (23 °C), stress = 0.3 %/hr, net +0.7 %/hr healing —
-  // matches the scenario's "sub-stress band for betta, mild decline
-  // over weeks, not cliff" expectation for the 23 °C failure mode.
+  // benefit budget (≈1 %/h at all-good). At severity 0.75 / 4 °C gap
+  // / 0.4 factor = 1.2 %/hr stress − 1 %/hr recovery = 0.2 %/hr =
+  // 4.8 %/day loss. At 1 °C below (23 °C), stress = 0.3 %/hr, net
+  // +0.7 %/hr healing — matches the scenario's "sub-stress band for
+  // betta, mild decline over weeks, not cliff" expectation for the
+  // 23 °C failure mode.
   temperatureStressSeverity: 0.85, // %/°C/hr before hardiness scaling
   phStressSeverity: 3.0, // 3% damage per pH unit outside range per hour
   // Per ppm of UNIONIZED NH3. Sensitive freshwater teleosts show acute
@@ -206,8 +200,6 @@ export const livestockConfigMeta: LivestockConfigMeta[] = [
   { key: 'respiratoryQuotient', label: 'Respiratory Quotient', unit: '', min: 0.5, max: 1.2, step: 0.1 },
   // Hunger
   { key: 'hungerIncreaseRate', label: 'Hunger Rate', unit: '%/hr', min: 0.1, max: 5, step: 0.1 },
-  // Health
-  { key: 'baseHealthRecovery', label: 'Health Recovery', unit: '%/hr', min: 0.1, max: 5, step: 0.1 },
   // Stressor severities
   {
     key: 'temperatureStressSeverity',

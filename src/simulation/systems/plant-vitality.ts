@@ -19,9 +19,9 @@
  * Benefit coverage (in-range = peak, out-of-range = 0):
  * - Light, CO2, Temperature, pH, Nutrients sufficient
  *
- * Sum at all-good ≈ legacy `nutrients.conditionRecoveryRate`, so a
- * healthy plant heals at familiar speed and only starts growing once
- * condition is full (surplus-overflow rule).
+ * Sum at all-good ≈ 0.5 %/h, so a healthy plant heals at familiar
+ * speed and only starts growing once condition is full (surplus-
+ * overflow rule).
  */
 
 import type { Plant, Resources } from '../state.js';
@@ -114,9 +114,7 @@ export function buildPlantStressors(ctx: PlantVitalityContext): VitalityFactor[]
   factors.push({ key: 'ph', label: 'pH', amount: phAmount, kind: 'damage' });
 
   // Nutrient deficiency — Liebig sufficiency drives a single damage
-  // signal proportional to (1 − sufficiency). The per-nutrient
-  // breakdown (limiting NO3 vs PO4 vs K vs Fe) is available via
-  // `getLimitingNutrient` if a card wants to show it.
+  // signal proportional to (1 − sufficiency).
   const sufficiency = calculateNutrientSufficiency(
     resources,
     waterVolume,

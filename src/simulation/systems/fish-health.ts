@@ -14,9 +14,8 @@
  *   module — fish-health sets up the factors with raw severities and
  *   `computeVitality` applies `(1 - hardiness)`.
  * - Benefits are: pH in range (0.4 %/h), hunger ≤ 30 (0.3), oxygen ≥ 5
- *   mg/L (0.3). Sum at all-ideal = 1.0 %/h, matching the legacy
- *   `baseHealthRecovery` constant exactly so the four canonical
- *   calibration scenarios stay within their primary anchors. Temperature
+ *   mg/L (0.3). Sum at all-ideal = 1.0 %/h — the budget the four
+ *   canonical calibration scenarios were pinned against. Temperature
  *   is intentionally not a separate benefit — within the species range
  *   the fish already has zero temp damage and the other benefits cover
  *   recovery; outside the range the temperature stressor takes over.
@@ -78,8 +77,6 @@ const ZERO_BREAKDOWN: StressBreakdown = {
   total: 0,
 };
 
-/** Per-stressor severity ceilings used for both damage and the breakdown. */
-
 /**
  * Compute the effective hardiness for a fish.
  *
@@ -99,10 +96,9 @@ function effectiveHardiness(fish: Fish): number {
  * in the net-rate sense (lose `peak` of benefit, start gaining damage).
  *
  * Step-shaped on purpose: real fish tolerance bands are mostly flat
- * with cliff edges (in/out of range), and a flat plateau preserves the
- * legacy `baseHealthRecovery = 1.0` calibration when *one* factor
- * drops to the edge — total benefits stay near 1.0, matching old
- * behaviour without per-scenario retunes.
+ * with cliff edges (in/out of range), and a flat plateau keeps the
+ * benefit budget near its 1.0 %/h ceiling when only one factor drops
+ * to the edge — preserving calibration without per-scenario retunes.
  */
 function inRangeBenefit(value: number, lo: number, hi: number, peak: number): number {
   return value >= lo && value <= hi ? peak : 0;

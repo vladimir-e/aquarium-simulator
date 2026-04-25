@@ -84,9 +84,8 @@ export interface PlantsConfig {
   algaeShadingThreshold: number;
 
   // Vitality benefit peaks (%/h) when the corresponding factor is in
-  // its tolerable band. Sum at all-good = `recoveryAtAllGood`, which
-  // mirrors the legacy `nutrients.conditionRecoveryRate` for calibration
-  // continuity.
+  // its tolerable band. Sum at all-good ≈ 0.5 %/h — the calibration
+  // budget the plant recovery curves were pinned against.
   /** Light in tolerable range. */
   lightBenefitPeak: number;
   /** CO2 in tolerable range. */
@@ -167,10 +166,9 @@ export const plantsDefaults: PlantsConfig = {
   algaeShadingSeverity: 0.01,
   algaeShadingThreshold: 50,
 
-  // Vitality benefit peaks. Sum at all-good = 0.5 %/h, mirroring the
-  // legacy `nutrients.conditionRecoveryRate`. With a healthy tank the
-  // plant heals to 100 in under 4 sim days (matches old homeostatic
-  // recovery feel), then surplus drives growth.
+  // Vitality benefit peaks. Sum at all-good = 0.5 %/h. With a healthy
+  // tank the plant heals to 100 in under 4 sim days, then surplus
+  // drives growth.
   lightBenefitPeak: 0.1,
   co2BenefitPeak: 0.1,
   temperatureBenefitPeak: 0.1,

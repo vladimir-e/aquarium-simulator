@@ -251,12 +251,10 @@ export {
 } from '../systems/plant-growth.js';
 export {
   calculateNutrientSufficiency,
-  updatePlantCondition,
   calculateShedding,
   shouldPlantDie,
-  processPlantNutrients,
+  calculateDeathWaste,
   getDemandMultiplier,
-  getLimitingNutrient,
 } from '../systems/nutrients.js';
 export {
   computePlantVitality,
