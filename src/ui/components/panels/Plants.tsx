@@ -3,14 +3,31 @@ import { Panel } from '../layout/Panel';
 import { Button } from '../ui/Button';
 import { Select } from '../ui/Select';
 import { AlgaeResource } from '../../../simulation/resources/index.js';
-import type { Plant, PlantSpecies, SubstrateType, Action } from '../../../simulation/index.js';
-import { PLANT_SPECIES_DATA, isSubstrateCompatible, getMaxPlants } from '../../../simulation/index.js';
+import type {
+  Plant,
+  PlantSpecies,
+  Resources,
+  SubstrateType,
+  Action,
+  VitalityResult,
+} from '../../../simulation/index.js';
+import {
+  PLANT_SPECIES_DATA,
+  isSubstrateCompatible,
+  getMaxPlants,
+  computePlantVitality,
+} from '../../../simulation/index.js';
+import type { PlantsConfig } from '../../../simulation/config/plants.js';
+import type { NutrientsConfig } from '../../../simulation/config/nutrients.js';
 
 interface PlantsProps {
   algae: number;
   plants: Plant[];
+  resources: Resources;
   tankCapacity: number;
   substrateType: SubstrateType;
+  plantsConfig: PlantsConfig;
+  nutrientsConfig: NutrientsConfig;
   executeAction: (action: Action) => void;
 }
 
@@ -75,6 +92,9 @@ function getConditionStatusText(condition: number): string {
   return 'Thriving';
 }
 
+/** Threshold below which the trend is considered flat and hidden. */
+const TREND_EPSILON = 0.05;
+
 /** All plant species for the dropdown */
 const ALL_SPECIES: PlantSpecies[] = [
   'java_fern',
@@ -94,15 +114,235 @@ function defaultTrimTarget(size: number): number {
   return Math.max(MIN_TRIM_SIZE, Math.floor(size * 0.7));
 }
 
+interface PlantCardProps {
+  plant: Plant;
+  vitality: VitalityResult;
+  trimExpanded: boolean;
+  trimValue: number;
+  onOpenTrim: (id: string, size: number) => void;
+  onTrimSliderChange: (value: string) => void;
+  onTrimConfirm: (id: string, size: number) => void;
+  onTrimCancel: () => void;
+  onRemove: (id: string) => void;
+  conditionsExpanded: boolean;
+  onToggleConditions: () => void;
+}
+
+function PlantCard({
+  plant,
+  vitality,
+  trimExpanded,
+  trimValue,
+  onOpenTrim,
+  onTrimSliderChange,
+  onTrimConfirm,
+  onTrimCancel,
+  onRemove,
+  conditionsExpanded,
+  onToggleConditions,
+}: PlantCardProps): React.JSX.Element {
+  const speciesData = PLANT_SPECIES_DATA[plant.species];
+  const sizePercent = Math.min(plant.size, 200);
+  const sizeBarWidth = (sizePercent / 200) * 100;
+  const sizeColorClass = getSizeBarColorClass(plant.size);
+  const sizeStatus = getSizeStatus(plant.size);
+  const condition = plant.condition;
+  const conditionBarWidth = condition;
+  const conditionColorClass = getConditionBarColorClass(condition);
+  const conditionStatus = getConditionStatusText(condition);
+  const canTrimThis = plant.size > MIN_TRIM_SIZE;
+  const sliderMax = Math.max(MIN_TRIM_SIZE, Math.floor(plant.size));
+  const sliderValue = trimExpanded ? trimValue : defaultTrimTarget(plant.size);
+  const removed = Math.max(0, plant.size - sliderValue);
+
+  const activeStressors = vitality.breakdown.stressors.filter((s) => s.amount > 0);
+  const activeBenefits = vitality.breakdown.benefits.filter((b) => b.amount > 0);
+  const totalConditions = activeStressors.length + activeBenefits.length;
+  const net = vitality.breakdown.net;
+
+  // Trend arrow — hidden when condition is full and net is non-negative
+  // (no informational value), or when net is essentially flat.
+  let trendNode: React.ReactNode = null;
+  if (Math.abs(net) >= TREND_EPSILON) {
+    const showTrend = condition < 100 || net < 0;
+    if (showTrend) {
+      const rising = net > 0;
+      const arrow = rising ? '↑' : '↓';
+      const colorClass = rising ? 'text-green-400' : 'text-red-400';
+      trendNode = (
+        <span
+          className={`text-xs ${colorClass}`}
+          title={`Net condition change: ${net >= 0 ? '+' : ''}${net.toFixed(2)}%/hr`}
+        >
+          {arrow}
+        </span>
+      );
+    }
+  }
+
+  const toggleLabel = conditionsExpanded
+    ? `▼ Conditions (${totalConditions})`
+    : `▶ Conditions (${totalConditions})`;
+
+  return (
+    <div className="p-2 bg-border/30 rounded">
+      <div className="flex items-center gap-2">
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-sm text-gray-200 truncate">
+              {speciesData.name}
+            </span>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-gray-400">
+                {plant.size.toFixed(0)}%
+              </span>
+              {trendNode}
+              <span
+                className={`text-xs px-1 py-0.5 rounded ${conditionColorClass} text-black`}
+                title={`Condition: ${condition.toFixed(0)}%`}
+              >
+                {conditionStatus}
+              </span>
+            </div>
+          </div>
+          {/* Size bar */}
+          <div className="flex items-center gap-1 mb-1">
+            <span className="text-xs text-gray-500 w-8">Size</span>
+            <div className="flex-1 h-1.5 bg-border rounded-full overflow-hidden">
+              <div
+                className={`h-full ${sizeColorClass} transition-all`}
+                style={{ width: `${sizeBarWidth}%` }}
+              />
+            </div>
+          </div>
+          {/* Condition bar */}
+          <div className="flex items-center gap-1">
+            <span className="text-xs text-gray-500 w-8">Cond</span>
+            <div className="flex-1 h-1.5 bg-border rounded-full overflow-hidden">
+              <div
+                className={`h-full ${conditionColorClass} transition-all`}
+                style={{ width: `${conditionBarWidth}%` }}
+              />
+            </div>
+          </div>
+          {sizeStatus && (
+            <div className="text-xs text-yellow-400 mt-0.5">{sizeStatus}</div>
+          )}
+          {/* Conditions breakdown — merged stressors (red, +X%) +
+              benefits (green, +X%). Mirrors the FishCard pattern from
+              the same panel layer. Hidden when nothing's interesting. */}
+          {totalConditions > 0 && (
+            <>
+              <button
+                type="button"
+                onClick={onToggleConditions}
+                className="text-xs text-gray-400 hover:text-gray-200 mt-1 w-full text-left"
+              >
+                {toggleLabel}
+              </button>
+              {conditionsExpanded && (
+                <div className="text-xs mt-1 space-y-0.5 pl-2">
+                  {activeStressors.map((s) => (
+                    <div key={`s-${s.key}`} className="flex justify-between text-red-400">
+                      <span>{s.label}</span>
+                      <span>+{s.amount.toFixed(2)}%/h</span>
+                    </div>
+                  ))}
+                  {activeBenefits.map((b) => (
+                    <div key={`b-${b.key}`} className="flex justify-between text-green-400">
+                      <span>{b.label}</span>
+                      <span>+{b.amount.toFixed(2)}%/h</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+        </div>
+        <button
+          onClick={() => (trimExpanded ? onTrimCancel() : onOpenTrim(plant.id, plant.size))}
+          className={`p-1 ${canTrimThis ? 'text-gray-500 hover:text-green-400' : 'text-gray-700 cursor-not-allowed'}`}
+          title={canTrimThis ? 'Trim plant' : `Plant is at or below ${MIN_TRIM_SIZE}%`}
+          disabled={!canTrimThis}
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            className="h-4 w-4"
+            viewBox="0 0 20 20"
+            fill="currentColor"
+          >
+            <path d="M5.5 3a2.5 2.5 0 011.885 4.141L10 9.75l6.464-6.464a.75.75 0 011.061 1.06L11.06 10.81l2.625 2.614a2.5 2.5 0 11-1.06 1.06L10 11.87l-2.625 2.614a2.5 2.5 0 11-1.06-1.06L8.94 10.81 6.293 8.163A2.5 2.5 0 115.5 3zm0 1.5a1 1 0 100 2 1 1 0 000-2zm0 9a1 1 0 100 2 1 1 0 000-2zm9 0a1 1 0 100 2 1 1 0 000-2z" />
+          </svg>
+        </button>
+        <button
+          onClick={() => onRemove(plant.id)}
+          className="text-gray-500 hover:text-red-400 p-1"
+          title="Remove plant"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            className="h-4 w-4"
+            viewBox="0 0 20 20"
+            fill="currentColor"
+          >
+            <path
+              fillRule="evenodd"
+              d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+              clipRule="evenodd"
+            />
+          </svg>
+        </button>
+      </div>
+      {trimExpanded && canTrimThis && (
+        <div className="mt-2 pt-2 border-t border-border/50 space-y-2">
+          <input
+            type="range"
+            min={MIN_TRIM_SIZE}
+            max={sliderMax}
+            step={1}
+            value={sliderValue}
+            onChange={(e) => onTrimSliderChange(e.target.value)}
+            className="w-full"
+          />
+          <div className="text-xs text-gray-300">
+            Trim to <span className="font-medium text-gray-100">{sliderValue}%</span>{' '}
+            <span className="text-gray-500">·</span>{' '}
+            removes <span className="font-medium text-gray-100">{removed.toFixed(0)}%</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              onClick={() => onTrimConfirm(plant.id, sliderValue)}
+              variant="primary"
+            >
+              Trim
+            </Button>
+            <button
+              type="button"
+              onClick={onTrimCancel}
+              className="text-xs text-gray-400 hover:text-gray-200"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function Plants({
   algae,
   plants,
+  resources,
   tankCapacity,
   substrateType,
+  plantsConfig,
+  nutrientsConfig,
   executeAction,
 }: PlantsProps): React.JSX.Element {
   const [selectedSpecies, setSelectedSpecies] = useState<PlantSpecies>('java_fern');
   const [trim, setTrim] = useState<{ plantId: string; value: number } | null>(null);
+  const [expandedConditionsIds, setExpandedConditionsIds] = useState<Set<string>>(new Set());
 
   const opacity = getAlgaeIndicatorOpacity(algae);
   const indicatorClass = algae === 0 ? 'bg-border' : 'bg-green-500';
@@ -141,7 +381,20 @@ export function Plants({
     setSelectedSpecies(e.target.value as PlantSpecies);
   };
 
-  const canAddSelectedSpecies = isSubstrateCompatible(selectedSpecies, substrateType) && !isAtCapacity;
+  const toggleConditions = (plantId: string): void => {
+    setExpandedConditionsIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(plantId)) {
+        next.delete(plantId);
+      } else {
+        next.add(plantId);
+      }
+      return next;
+    });
+  };
+
+  const canAddSelectedSpecies =
+    isSubstrateCompatible(selectedSpecies, substrateType) && !isAtCapacity;
 
   return (
     <Panel title="Plants">
@@ -168,141 +421,30 @@ export function Plants({
               Plants ({plants.length}/{maxPlants})
             </div>
             {plants.map((plant) => {
-              const speciesData = PLANT_SPECIES_DATA[plant.species];
-              const sizePercent = Math.min(plant.size, 200);
-              const sizeBarWidth = (sizePercent / 200) * 100;
-              const sizeColorClass = getSizeBarColorClass(plant.size);
-              const sizeStatus = getSizeStatus(plant.size);
-              const condition = plant.condition ?? 100;
-              const conditionBarWidth = condition;
-              const conditionColorClass = getConditionBarColorClass(condition);
-              const conditionStatus = getConditionStatusText(condition);
-              const canTrimThis = plant.size > MIN_TRIM_SIZE;
+              const vitality = computePlantVitality({
+                plant,
+                resources,
+                waterVolume: resources.water,
+                plantsConfig,
+                nutrientsConfig,
+              });
               const trimExpanded = trim?.plantId === plant.id;
-              const sliderMax = Math.max(MIN_TRIM_SIZE, Math.floor(plant.size));
-              const sliderValue = trim?.value ?? defaultTrimTarget(plant.size);
-              const removed = Math.max(0, plant.size - sliderValue);
-
+              const trimValue = trim?.value ?? defaultTrimTarget(plant.size);
               return (
-                <div
+                <PlantCard
                   key={plant.id}
-                  className="p-2 bg-border/30 rounded"
-                >
-                  <div className="flex items-center gap-2">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-sm text-gray-200 truncate">
-                          {speciesData.name}
-                        </span>
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs text-gray-400">
-                            {plant.size.toFixed(0)}%
-                          </span>
-                          <span
-                            className={`text-xs px-1 py-0.5 rounded ${conditionColorClass} text-black`}
-                            title={`Condition: ${condition.toFixed(0)}%`}
-                          >
-                            {conditionStatus}
-                          </span>
-                        </div>
-                      </div>
-                      {/* Size bar */}
-                      <div className="flex items-center gap-1 mb-1">
-                        <span className="text-xs text-gray-500 w-8">Size</span>
-                        <div className="flex-1 h-1.5 bg-border rounded-full overflow-hidden">
-                          <div
-                            className={`h-full ${sizeColorClass} transition-all`}
-                            style={{ width: `${sizeBarWidth}%` }}
-                          />
-                        </div>
-                      </div>
-                      {/* Condition bar */}
-                      <div className="flex items-center gap-1">
-                        <span className="text-xs text-gray-500 w-8">Cond</span>
-                        <div className="flex-1 h-1.5 bg-border rounded-full overflow-hidden">
-                          <div
-                            className={`h-full ${conditionColorClass} transition-all`}
-                            style={{ width: `${conditionBarWidth}%` }}
-                          />
-                        </div>
-                      </div>
-                      {sizeStatus && (
-                        <div className="text-xs text-yellow-400 mt-0.5">{sizeStatus}</div>
-                      )}
-                      {condition < 30 && (
-                        <div className="text-xs text-red-400 mt-0.5">
-                          Nutrient deficiency!
-                        </div>
-                      )}
-                    </div>
-                    <button
-                      onClick={() => (trimExpanded ? handleTrimCancel() : handleOpenTrim(plant.id, plant.size))}
-                      className={`p-1 ${canTrimThis ? 'text-gray-500 hover:text-green-400' : 'text-gray-700 cursor-not-allowed'}`}
-                      title={canTrimThis ? 'Trim plant' : `Plant is at or below ${MIN_TRIM_SIZE}%`}
-                      disabled={!canTrimThis}
-                    >
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        className="h-4 w-4"
-                        viewBox="0 0 20 20"
-                        fill="currentColor"
-                      >
-                        <path d="M5.5 3a2.5 2.5 0 011.885 4.141L10 9.75l6.464-6.464a.75.75 0 011.061 1.06L11.06 10.81l2.625 2.614a2.5 2.5 0 11-1.06 1.06L10 11.87l-2.625 2.614a2.5 2.5 0 11-1.06-1.06L8.94 10.81 6.293 8.163A2.5 2.5 0 115.5 3zm0 1.5a1 1 0 100 2 1 1 0 000-2zm0 9a1 1 0 100 2 1 1 0 000-2zm9 0a1 1 0 100 2 1 1 0 000-2z" />
-                      </svg>
-                    </button>
-                    <button
-                      onClick={() => handleRemovePlant(plant.id)}
-                      className="text-gray-500 hover:text-red-400 p-1"
-                      title="Remove plant"
-                    >
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        className="h-4 w-4"
-                        viewBox="0 0 20 20"
-                        fill="currentColor"
-                      >
-                        <path
-                          fillRule="evenodd"
-                          d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
-                          clipRule="evenodd"
-                        />
-                      </svg>
-                    </button>
-                  </div>
-                  {trimExpanded && canTrimThis && (
-                    <div className="mt-2 pt-2 border-t border-border/50 space-y-2">
-                      <input
-                        type="range"
-                        min={MIN_TRIM_SIZE}
-                        max={sliderMax}
-                        step={1}
-                        value={sliderValue}
-                        onChange={(e) => handleTrimSliderChange(e.target.value)}
-                        className="w-full"
-                      />
-                      <div className="text-xs text-gray-300">
-                        Trim to <span className="font-medium text-gray-100">{sliderValue}%</span>{' '}
-                        <span className="text-gray-500">·</span>{' '}
-                        removes <span className="font-medium text-gray-100">{removed.toFixed(0)}%</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Button
-                          onClick={() => handleTrimConfirm(plant.id, sliderValue)}
-                          variant="primary"
-                        >
-                          Trim
-                        </Button>
-                        <button
-                          type="button"
-                          onClick={handleTrimCancel}
-                          className="text-xs text-gray-400 hover:text-gray-200"
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </div>
+                  plant={plant}
+                  vitality={vitality}
+                  trimExpanded={trimExpanded}
+                  trimValue={trimValue}
+                  onOpenTrim={handleOpenTrim}
+                  onTrimSliderChange={handleTrimSliderChange}
+                  onTrimConfirm={handleTrimConfirm}
+                  onTrimCancel={handleTrimCancel}
+                  onRemove={handleRemovePlant}
+                  conditionsExpanded={expandedConditionsIds.has(plant.id)}
+                  onToggleConditions={() => toggleConditions(plant.id)}
+                />
               );
             })}
           </div>

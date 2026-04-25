@@ -54,6 +54,49 @@ export interface PlantsConfig {
   // Algae competition
   /** Scale factor for plant competition with algae (200% plants = halved algae growth) */
   competitionScale: number;
+
+  // Vitality stressor severities — see systems/plant-vitality.ts. Each is
+  // a pre-hardiness damage rate (%/h per unit deviation); the species
+  // hardiness multiplies the sum centrally.
+  /** Damage per W of light below the species' tolerable lower bound. */
+  lightInsufficientSeverity: number;
+  /** Damage per W of light above the species' tolerable upper bound. */
+  lightExcessiveSeverity: number;
+  /** Damage per mg/L of CO2 below the species' tolerable lower bound. */
+  co2InsufficientSeverity: number;
+  /** Damage per °C of temperature outside the species' tolerable range. */
+  temperatureStressSeverity: number;
+  /** Damage per pH unit outside the species' tolerable range. */
+  phStressSeverity: number;
+  /** Damage per (1 − sufficiency) for nutrient deficiency. */
+  nutrientDeficiencySeverity: number;
+  /**
+   * Damage per ppm of NO3 above the toxicity ceiling (the auto-doser
+   * overdose case). Plants tolerate large surpluses; this only fires
+   * at gross excess.
+   */
+  nutrientToxicitySeverity: number;
+  /** Threshold (ppm NO3) above which nutrient toxicity activates. */
+  nutrientToxicityThresholdNitrate: number;
+  /** Damage per algae unit above the shading threshold. */
+  algaeShadingSeverity: number;
+  /** Algae level (0–100) above which shading stress kicks in. */
+  algaeShadingThreshold: number;
+
+  // Vitality benefit peaks (%/h) when the corresponding factor is in
+  // its tolerable band. Sum at all-good = `recoveryAtAllGood`, which
+  // mirrors the legacy `nutrients.conditionRecoveryRate` for calibration
+  // continuity.
+  /** Light in tolerable range. */
+  lightBenefitPeak: number;
+  /** CO2 in tolerable range. */
+  co2BenefitPeak: number;
+  /** Temperature in tolerable range. */
+  temperatureBenefitPeak: number;
+  /** pH in tolerable range. */
+  phBenefitPeak: number;
+  /** Nutrient sufficiency 1.0 (Liebig). */
+  nutrientBenefitPeak: number;
 }
 
 export const plantsDefaults: PlantsConfig = {
@@ -95,6 +138,44 @@ export const plantsDefaults: PlantsConfig = {
   // Algae competition - 100% total plant size halves algae growth
   // Real planted tanks with dense coverage almost eliminate algae
   competitionScale: 100,
+
+  // Vitality stressor severities (pre-hardiness; the species hardiness
+  // factor multiplies damage centrally inside `computeVitality`).
+  // Calibrated so a Monte Carlo (hardiness 0.3) loses visible condition
+  // within ~24 sim hours when CO2 falls from 20 mg/L to 5 mg/L (gap of
+  // 5 mg/L below tolerableCO2 lower bound) — matches the spec acceptance
+  // scenario.
+  lightInsufficientSeverity: 0.2,
+  lightExcessiveSeverity: 0.05,
+  co2InsufficientSeverity: 1.5,
+  temperatureStressSeverity: 0.4,
+  phStressSeverity: 3.0,
+  // Nutrient deficiency severity: drives how fast plants decline when
+  // their Liebig sufficiency falls. Calibrated against scenario 02
+  // Variant B: a Monte Carlo with Fe limited (sufficiency drops to
+  // ~0.1 by day 14 as substrate-leach Fe runs out) should bottom out
+  // in the 30–55 condition band by day 28 rather than dying. Severity
+  // 0.6 keeps the MC trajectory inside the band; tighter severities
+  // crash MC mid-scenario.
+  nutrientDeficiencySeverity: 0.7,
+  // Toxicity threshold is high (100 ppm NO3) so normal dosing never
+  // triggers — only the auto-doser massive-overdose case flagged in
+  // task 40's motivating bug. Severity is small so the stress climbs
+  // gradually past the threshold rather than killing instantly.
+  nutrientToxicitySeverity: 0.01,
+  nutrientToxicityThresholdNitrate: 100,
+  algaeShadingSeverity: 0.01,
+  algaeShadingThreshold: 50,
+
+  // Vitality benefit peaks. Sum at all-good = 0.5 %/h, mirroring the
+  // legacy `nutrients.conditionRecoveryRate`. With a healthy tank the
+  // plant heals to 100 in under 4 sim days (matches old homeostatic
+  // recovery feel), then surplus drives growth.
+  lightBenefitPeak: 0.1,
+  co2BenefitPeak: 0.1,
+  temperatureBenefitPeak: 0.1,
+  phBenefitPeak: 0.1,
+  nutrientBenefitPeak: 0.1,
 };
 
 export interface PlantsConfigMeta {
@@ -197,4 +278,23 @@ export const plantsConfigMeta: PlantsConfigMeta[] = [
   },
   // Algae competition
   { key: 'competitionScale', label: 'Competition Scale', unit: '%', min: 50, max: 300, step: 10 },
+
+  // Vitality stressor severities
+  { key: 'lightInsufficientSeverity', label: 'Light Insuff. Severity', unit: '%/W/hr', min: 0.01, max: 1.0, step: 0.05 },
+  { key: 'lightExcessiveSeverity', label: 'Light Excess Severity', unit: '%/W/hr', min: 0.01, max: 0.5, step: 0.01 },
+  { key: 'co2InsufficientSeverity', label: 'CO2 Insuff. Severity', unit: '%/(mg/L)/hr', min: 0.1, max: 5.0, step: 0.1 },
+  { key: 'temperatureStressSeverity', label: 'Plant Temp Severity', unit: '%/°C/hr', min: 0.1, max: 2.0, step: 0.1 },
+  { key: 'phStressSeverity', label: 'Plant pH Severity', unit: '%/pH/hr', min: 0.5, max: 10, step: 0.5 },
+  { key: 'nutrientDeficiencySeverity', label: 'Nutrient Defic. Severity', unit: '%/(1-suff)/hr', min: 0.1, max: 2.0, step: 0.1 },
+  { key: 'nutrientToxicitySeverity', label: 'Nutrient Tox. Severity', unit: '%/ppm/hr', min: 0.001, max: 0.2, step: 0.005 },
+  { key: 'nutrientToxicityThresholdNitrate', label: 'NO3 Tox. Threshold', unit: 'ppm', min: 50, max: 300, step: 10 },
+  { key: 'algaeShadingSeverity', label: 'Algae Shading Severity', unit: '%/algae/hr', min: 0.001, max: 0.1, step: 0.005 },
+  { key: 'algaeShadingThreshold', label: 'Algae Shading Threshold', unit: '', min: 20, max: 80, step: 5 },
+
+  // Vitality benefit peaks
+  { key: 'lightBenefitPeak', label: 'Light Benefit Peak', unit: '%/hr', min: 0.0, max: 0.5, step: 0.05 },
+  { key: 'co2BenefitPeak', label: 'CO2 Benefit Peak', unit: '%/hr', min: 0.0, max: 0.5, step: 0.05 },
+  { key: 'temperatureBenefitPeak', label: 'Temp Benefit Peak', unit: '%/hr', min: 0.0, max: 0.5, step: 0.05 },
+  { key: 'phBenefitPeak', label: 'pH Benefit Peak', unit: '%/hr', min: 0.0, max: 0.5, step: 0.05 },
+  { key: 'nutrientBenefitPeak', label: 'Nutrient Benefit Peak', unit: '%/hr', min: 0.0, max: 0.5, step: 0.05 },
 ];

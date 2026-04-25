@@ -1,8 +1,12 @@
 /**
  * Plants processing - handles photosynthesis, respiration, growth, and nutrients.
  *
- * Similar to equipment processing, this returns both updated state
- * (for plant sizes and conditions) and effects (for resource changes).
+ * Per-plant condition is now driven by the unified vitality engine
+ * (task 40): each plant gets a damage/benefit breakdown across light,
+ * CO2, temperature, pH, nutrients (sufficiency + toxicity), and algae
+ * shading. Condition heals only while net is positive; biomass growth
+ * fires only once condition reaches 100 and surplus is captured —
+ * stressed plants heal first, never crawl forward at reduced rate.
  *
  * Called during ACTIVE tier processing in tick.ts.
  */
@@ -20,10 +24,8 @@ import {
 } from '../systems/photosynthesis.js';
 import { calculateRespiration } from '../systems/respiration.js';
 import { distributeBiomass } from '../systems/plant-growth.js';
-import {
-  calculateNutrientSufficiency,
-  processPlantNutrients,
-} from '../systems/nutrients.js';
+import { computePlantVitality } from '../systems/plant-vitality.js';
+import { calculateShedding, calculateDeathWaste, shouldPlantDie } from '../systems/nutrients.js';
 import { createLog } from '../core/logging.js';
 
 export interface PlantsProcessingResult {
@@ -122,14 +124,53 @@ export function processPlants(
     });
   }
 
-  // 3. Distribute biomass and handle growth
+  // 3. Compute vitality for each plant (drives condition + surplus).
+  //    Surplus > 0 only when condition === 100 — that's the gate for
+  //    biomass distribution below.
+  const vitalities = state.plants.map((plant) =>
+    computePlantVitality({
+      plant,
+      resources: state.resources,
+      waterVolume: state.resources.water,
+      plantsConfig,
+      nutrientsConfig,
+    })
+  );
+
+  // 4. Apply condition updates. Surplus is captured but not stored on
+  //    Plant (yet — future tasks may want it on state). For now we use
+  //    it inline as the per-plant growth multiplier.
+  const conditionUpdated: Plant[] = state.plants.map((plant, i) => ({
+    ...plant,
+    condition: vitalities[i].newCondition,
+  }));
+
+  // 5. Distribute biomass — only to plants with surplus > 0. Plants
+  //    below 100 % condition get zero share this tick (they're paying
+  //    down the deficit before producing new tissue).
+  //
+  //    The biomass attributable to a stressed plant flows to its
+  //    healthier neighbours via the rebalanced share computation
+  //    inside `distributeBiomass`. This matches "photosynthesis still
+  //    runs, but actual biomass is surplus-gated" from the spec — the
+  //    unhealthy plant's photosynthate is treated as maintenance.
+  const eligibleForGrowth = conditionUpdated.filter(
+    (_, i) => vitalities[i].surplus > 0
+  );
   const growthResult = distributeBiomass(
-    state.plants,
+    eligibleForGrowth,
     photosynthesisResult.biomassProduced,
     plantsConfig
   );
 
-  // Add waste effect from extreme overgrowth
+  // Merge grown plants back with surplus-skipped (size unchanged).
+  const grownById = new Map(growthResult.updatedPlants.map((p) => [p.id, p]));
+  const mergedPlants: Plant[] = conditionUpdated.map(
+    (plant) => grownById.get(plant.id) ?? plant
+  );
+
+  // Waste from extreme overgrowth (>200 % size) — only fires under
+  // pathological inputs since the asymptotic growth factor self-limits.
   if (growthResult.wasteReleased > 0) {
     effects.push({
       tier: 'active',
@@ -139,56 +180,48 @@ export function processPlants(
     });
   }
 
-  // 4-6. Process nutrient sufficiency, condition, shedding, and death
-  let totalNutrientWaste = 0;
+  // 6. Shedding (low-condition plants lose biomass) and death.
+  let totalConditionWaste = 0;
   const deadPlantNames: string[] = [];
   const processedPlants: Plant[] = [];
 
-  for (const plant of growthResult.updatedPlants) {
-    // Calculate nutrient sufficiency for this plant
-    const sufficiency = calculateNutrientSufficiency(
-      state.resources,
-      state.resources.water,
-      plant.species,
-      nutrientsConfig
-    );
-
-    // Process plant nutrients (condition, shedding, death)
-    const result = processPlantNutrients(plant, sufficiency, nutrientsConfig);
-
-    if (result.died) {
-      deadPlantNames.push(PLANT_SPECIES_DATA[plant.species].name);
-    } else {
-      // Keep surviving plants
-      processedPlants.push(result.plant);
+  for (const plant of mergedPlants) {
+    // Shedding scales with how low condition is (existing math, untouched).
+    const { sizeReduction, wasteProduced } = calculateShedding(plant, nutrientsConfig);
+    let updated: Plant = plant;
+    if (sizeReduction > 0) {
+      updated = { ...plant, size: Math.max(0, plant.size - sizeReduction) };
+      totalConditionWaste += wasteProduced;
     }
-
-    totalNutrientWaste += result.wasteReleased;
+    if (shouldPlantDie(updated, nutrientsConfig)) {
+      totalConditionWaste += calculateDeathWaste(updated, nutrientsConfig);
+      deadPlantNames.push(PLANT_SPECIES_DATA[plant.species].name);
+      // Drop — surviving array doesn't include dead plants.
+      continue;
+    }
+    processedPlants.push(updated);
   }
 
-  // Add waste from shedding and death
-  if (totalNutrientWaste > 0) {
+  if (totalConditionWaste > 0) {
     effects.push({
       tier: 'active',
       resource: 'waste',
-      delta: totalNutrientWaste,
-      source: 'plant-nutrients',
+      delta: totalConditionWaste,
+      source: 'plant-condition',
     });
   }
 
   // Nutrient consumption is handled inside calculatePhotosynthesis (step 1).
-  // Update plants in state
   const newState = produce(state, (draft) => {
     draft.plants = processedPlants;
 
-    // Log plant deaths
     for (const plantName of deadPlantNames) {
       draft.logs.push(
         createLog(
           draft.tick,
           'simulation',
           'warning',
-          `${plantName} died from nutrient deficiency`
+          `${plantName} died from poor conditions`
         )
       );
     }
@@ -225,3 +258,8 @@ export {
   getDemandMultiplier,
   getLimitingNutrient,
 } from '../systems/nutrients.js';
+export {
+  computePlantVitality,
+  buildPlantStressors,
+  buildPlantBenefits,
+} from '../systems/plant-vitality.js';

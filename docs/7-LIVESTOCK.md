@@ -104,50 +104,88 @@ This is separate from the Decay system - fish metabolism adds waste directly.
 
 ---
 
-## Health
+## Health (Vitality)
 
-Fish health is affected by environmental stressors.
+Fish health is driven by the unified **vitality engine** (shared with
+plants — see `docs/6-PLANTS.md` § Plant Condition for the full
+spec). Each tick the engine builds two factor lists for the fish:
 
-### Stressors
+1. **Stressors** — damage rates from out-of-range factors
+2. **Benefits** — recovery rates from in-range factors
 
-| Stressor | Safe Range | Effect |
-|----------|------------|--------|
-| Temperature | Species-specific | Outside range damages health |
-| pH | Species-specific | Outside range damages health |
-| Ammonia | 0 ppm | Any ammonia damages health |
-| Nitrite | 0 ppm | Any nitrite damages health |
-| Nitrate | < 40 ppm | High nitrate damages health |
-| Hunger | < 50% | High hunger damages health |
-| Oxygen | > 5 mg/L | Low oxygen damages health |
-| Water level | > minimum | Low water stresses fish |
-| Flow | Species-specific | Excessive flow stresses some fish |
+…and produces:
+
+- **newCondition** — the new health value (0–100, clamped)
+- **surplus** — the overflow rate when health is at 100 and net is
+  positive. Captured on `fish.surplus` for future use (breeding,
+  growth, longevity bonuses); currently unused.
+
+### Stressor coverage
+
+| Stressor | Safe Range | Severity (per unit deviation) |
+|----------|------------|-------------------------------|
+| Temperature | Species-specific | `temperatureStressSeverity` × gap |
+| pH | Species-specific | `phStressSeverity` × gap |
+| Ammonia (free NH3) | 0 ppm | `ammoniaStressSeverity` × free NH3 ppm |
+| Nitrite | 0 ppm | `nitriteStressSeverity` × ppm |
+| Nitrate | < 40 ppm | `nitrateStressSeverity` × ppm above 40 |
+| Hunger | < 50% | `hungerStressSeverity` × % above 50 |
+| Oxygen | > 5 mg/L | `oxygenStressSeverity` × mg/L below 5 |
+| Water level | > 50% capacity | `waterLevelStressSeverity` × % below 50 |
+| Flow | Species-specific | `flowStressSeverity` × LPH above max |
+
+Severities are pre-hardiness. The fish's effective hardiness
+(species baseline + per-individual offset, clamped 0.1–0.95) is
+applied centrally: `damage = severity × gap × (1 − hardiness)`.
+
+### Benefit coverage
+
+Three benefits boost recovery when their condition is in range; they
+sum to ≈1.0 %/h (the legacy `baseHealthRecovery`) when the tank is
+in good shape:
+
+| Benefit | Trigger | Magnitude |
+|---------|---------|-----------|
+| pH | inside species pH range | 0.4 %/h |
+| Hunger | hunger ≤ 30 (full) → 0 at hunger 50 | up to 0.3 %/h |
+| Oxygen | O2 ≥ 5 mg/L | 0.3 %/h |
+
+Temperature is **not** a separate fish benefit — within the species
+range there's already zero temp damage and the other benefits cover
+recovery. Outside the range the temperature stressor takes over.
+Adding a tighter `optimalTemperature` sub-band (with a small
+in-optimal benefit) is straightforward when calibration data
+warrants it.
+
+### Vitality math (per tick)
+
+```
+damageRate  = Σ stressor.amount × (1 - effectiveHardiness)
+benefitRate = Σ benefit.amount
+net         = benefitRate − damageRate
+
+if net < 0:                     newHealth = health + net   (clamp ≥ 0)
+if net > 0 and health < 100:    newHealth = min(100, health + net)
+                                surplus   = 0
+if net > 0 and health == 100:   newHealth = 100
+                                surplus   = net   (banked on fish.surplus)
+```
+
+Stressed fish heal first, never gain surplus while health is below
+100 — this mirrors the plant rule. Surplus is recorded on each fish
+but isn't currently consumed; future tasks (breeding, juvenile→adult
+progression) will read it.
 
 ### Hardy Fish
 
 Species with high hardiness have:
-- Wider temperature tolerance ranges
-- Wider pH tolerance ranges
-- More resistance to ammonia/nitrite spikes
-- Slower health degradation from stressors
+- More resistance to all stressors (the (1 − hardiness) multiplier
+  is universal — it's not per-stressor)
+- Per-individual offset (±15 % of baseline) randomised at `addFish`
+  time so weaker individuals fail first
 
-```
-health_damage = base_damage * (1 - hardiness_factor)
-```
-
-### Health Calculation
-
-```
-stress_total = 0
-for each stressor:
-    if outside_safe_range:
-        stress_total += severity * (deviation from safe range) * (1 - hardiness)
-
-health_change = base_recovery - stress_total
-health = clamp(health + health_change, 0, 100)
-
-if health <= 0:
-    fish_dies()
-```
+Benefits are **not** scaled by hardiness — a hardy fish tolerates
+poor conditions, but isn't more energised by good ones.
 
 ---
 
@@ -301,13 +339,17 @@ Fish {
     mass: Number (grams, static after maturity)
     sex: Male | Female
     age: Number
-    health: 0-100
+    health: 0-100             // condition in vitality terms
     hunger: 0-100
+    hardinessOffset: Number   // ±15 % of species baseline
+    surplus: Number           // banked overflow vitality (future use)
 
     update(tick):
         metabolize(based_on_mass)
         produce_waste()
-        apply_stressors(modified_by_hardiness)
+        compute_vitality(stressors, benefits, hardiness, health)
+            → newHealth, surplus
+        accumulate_surplus(fish.surplus)
         check_reproduction()
         check_death(health_or_old_age)
 }

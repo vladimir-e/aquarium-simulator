@@ -227,6 +227,9 @@ export {
   getMaxPlantSize,
   calculateOvergrowthPenalty,
   getSpeciesGrowthRate,
+  computePlantVitality,
+  buildPlantStressors,
+  buildPlantBenefits,
 } from './plants/index.js';
 
 // Livestock

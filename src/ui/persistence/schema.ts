@@ -340,6 +340,23 @@ const PlantsConfigSchema = z
     overgrowthPenaltyScale: z.number(),
     wastePerExcessSize: z.number(),
     competitionScale: z.number(),
+    // Vitality stressor severities
+    lightInsufficientSeverity: z.number(),
+    lightExcessiveSeverity: z.number(),
+    co2InsufficientSeverity: z.number(),
+    temperatureStressSeverity: z.number(),
+    phStressSeverity: z.number(),
+    nutrientDeficiencySeverity: z.number(),
+    nutrientToxicitySeverity: z.number(),
+    nutrientToxicityThresholdNitrate: z.number(),
+    algaeShadingSeverity: z.number(),
+    algaeShadingThreshold: z.number(),
+    // Vitality benefit peaks
+    lightBenefitPeak: z.number(),
+    co2BenefitPeak: z.number(),
+    temperatureBenefitPeak: z.number(),
+    phBenefitPeak: z.number(),
+    nutrientBenefitPeak: z.number(),
   })
   .strict();
 

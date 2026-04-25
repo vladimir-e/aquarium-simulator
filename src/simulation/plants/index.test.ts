@@ -207,6 +207,49 @@ describe('processPlants', () => {
 
       expect(result.state.plants[0].size).toBeGreaterThan(50);
     });
+
+    it('does not grow plants whose condition is sub-100 (surplus-overflow gate)', () => {
+      // Task 40 design: a stressed plant heals first, never crawls
+      // forward at reduced rate. If condition < 100 the plant takes 0
+      // share of the photosynthesis biomass that tick — its
+      // photosynthate flows to maintenance, not new tissue.
+      const state = createTestState({
+        plants: [
+          { id: 'p1', species: 'java_fern', size: 50, condition: 80 },
+        ],
+        light: 50,
+        co2: plantsDefaults.optimalCo2,
+        nitrate: plantsDefaults.optimalNitrate * 100,
+        water: 100,
+      });
+      const result = processPlants(state, DEFAULT_CONFIG);
+      // Size unchanged because surplus is gated by condition === 100.
+      expect(result.state.plants[0].size).toBe(50);
+      // Condition heals (vitality net is positive in good conditions).
+      expect(result.state.plants[0].condition).toBeGreaterThan(80);
+    });
+
+    it('only the at-100 plant grows when paired with a sub-100 sibling', () => {
+      // Two java_ferns, identical species and starting size; one
+      // healthy, one sub-100 condition. Only the healthy one should
+      // grow this tick — and it gets the full biomass share since the
+      // unhealthy sibling is excluded from the share calculation.
+      const state = createTestState({
+        plants: [
+          { id: 'healthy', species: 'java_fern', size: 50, condition: 100 },
+          { id: 'stressed', species: 'java_fern', size: 50, condition: 70 },
+        ],
+        light: 50,
+        co2: plantsDefaults.optimalCo2,
+        nitrate: plantsDefaults.optimalNitrate * 100,
+        water: 100,
+      });
+      const result = processPlants(state, DEFAULT_CONFIG);
+      const healthy = result.state.plants.find((p) => p.id === 'healthy');
+      const stressed = result.state.plants.find((p) => p.id === 'stressed');
+      expect(healthy?.size).toBeGreaterThan(50);
+      expect(stressed?.size).toBe(50);
+    });
   });
 
   describe('with lights off (respiration only)', () => {
