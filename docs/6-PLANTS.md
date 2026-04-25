@@ -146,23 +146,36 @@ pipeline is:
 
 1. Vitality emits per-tick surplus when the plant is at full condition
    with positive net rate.
-2. The orchestrator banks the emission on `Plant.surplus`.
-3. Each tick, growth drains up to `plantGrowthPerTickCap` units from
-   the bank. The drained units convert to size at:
+2. The orchestrator banks the emission on `Plant.surplus` — but only
+   while the photoperiod is active (`resources.light > 0`). At night
+   the emission is discarded. Plant surplus represents stored
+   photosynthate (glucose reserves from carbon fixation); plants
+   need active photosynthesis to fix carbon, so without light there's
+   no energy actually captured even if vitality's other channels are
+   positive. (Vitality itself runs every tick, so plant *condition*
+   keeps healing at night from non-light benefits — pH, temperature,
+   nutrients — only the surplus-accrual step pauses.)
+3. While the photoperiod is active, growth drains up to
+   `plantGrowthPerTickCap` units from the bank. The drained units
+   convert to size at:
 
    ```
    size_gain = drained × asymptoticFactor × speciesGrowthRate × sizePerSurplus
    asymptoticFactor = max(0, 1 − size / species.maxSize)
    ```
 
+   Growth pauses at night for the same biological reason: overnight
+   respiration burns sugars for maintenance, but net biomass
+   accumulation requires active carbon fixation. The bank doesn't
+   drain in the dark.
 4. Whatever is left in `Plant.surplus` stays banked. Future
    propagation work will trigger propagation events when the bank
    crosses a threshold.
 
 The asymptotic factor reduces *spending efficiency*, not withdrawal
 amount: a plant near `maxSize` still drains the cap from its bank
-each tick, but gets less size for the spend. So a plant at its
-ceiling stops growing visibly while the bank keeps filling toward
+each daylight tick, but gets less size for the spend. So a plant at
+its ceiling stops growing visibly while the bank keeps filling toward
 the propagation trigger.
 
 Photosynthesis is decoupled from growth: it emits resource effects

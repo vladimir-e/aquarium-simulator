@@ -127,13 +127,22 @@ banks on the organism's state for future use.
 
 - **Plants** — full supply chain implemented (heal → grow → bank).
   - Vitality emits surplus when condition is full.
-  - The orchestrator banks the emission on `Plant.surplus`.
-  - Each tick, growth drains up to a configured cap from the bank;
-    the drained units convert to size at a rate scaled by species
-    growth rate and an asymptotic factor that decays toward zero as
-    size approaches species `maxSize`. So a young plant grows fast,
-    a mature plant slows down, and a plant at its ceiling stops
-    growing entirely (but still drains surplus to the bank ceiling).
+  - The orchestrator banks the emission on `Plant.surplus`. Banking
+    is **photoperiod-gated**: plant surplus represents stored
+    photosynthate (sugars from carbon fixation), so it only accrues
+    when `resources.light > 0`. Vitality's surplus emission overnight
+    is discarded — no photosynthesis means no energy capture. (Plant
+    *condition* still heals at night from non-light benefits; only
+    the surplus-accrual step pauses.)
+  - Each tick of the photoperiod, growth drains up to a configured
+    cap from the bank; the drained units convert to size at a rate
+    scaled by species growth rate and an asymptotic factor that
+    decays toward zero as size approaches species `maxSize`. So a
+    young plant grows fast, a mature plant slows down, and a plant
+    at its ceiling stops growing entirely. Growth is also
+    photoperiod-gated: overnight respiration burns sugars for
+    maintenance, not net biomass accumulation, so the bank doesn't
+    drain at night either.
   - Whatever is left over stays banked. Future propagation work
     (Task 39) will read this stock and trigger propagation events
     when it crosses a threshold.

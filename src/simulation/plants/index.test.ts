@@ -311,9 +311,9 @@ describe('processPlants', () => {
 
     it('no photosynthesis effects when lights off', () => {
       // Photosynthesis is light-gated and emits no resource effects
-      // when lights are off. Surplus-driven growth still runs (vitality
-      // emits surplus from non-light factors), so plant size can move
-      // — that's a separate concern from photosynthesis output.
+      // when lights are off. Plant size doesn't move either — see
+      // the photoperiod-gate describe block below for the full
+      // banking + growth gating contract.
       const state = createTestState({
         plants: [{ id: 'p1', species: 'java_fern', size: 50, condition: C, surplus: 0 }],
         light: 0,
@@ -323,6 +323,132 @@ describe('processPlants', () => {
         (e) => e.source === 'photosynthesis'
       );
       expect(photoEffects).toHaveLength(0);
+    });
+  });
+
+  describe('photoperiod gate on surplus banking and growth', () => {
+    // Plant surplus represents stored photosynthate (sugars from carbon
+    // fixation). Both banking and spending gate on `resources.light > 0`:
+    // no photosynthesis = no energy capture and no net biomass
+    // accumulation. Vitality runs every tick regardless — condition
+    // can still heal at night from non-light benefits — but the
+    // surplus pipeline pauses overnight.
+
+    it('does not bank surplus at night even with otherwise-ideal conditions', () => {
+      // Plant is at full condition with all non-light vitality factors
+      // in their tolerable bands. Vitality still emits surplus
+      // mathematically (positive net rate from pH/temp/nutrients), but
+      // the orchestrator discards it because lights are off.
+      const state = createTestState({
+        plants: [{ id: 'p1', species: 'java_fern', size: 50, condition: 100, surplus: 5 }],
+        light: 0,
+        co2: plantsDefaults.optimalCo2,
+        nitrate: plantsDefaults.optimalNitrate * 100,
+        temperature: 25,
+        water: 100,
+      });
+      const result = processPlants(state, DEFAULT_CONFIG);
+      expect(result.state.plants[0].surplus).toBe(5);
+    });
+
+    it('does not grow at night even with banked surplus', () => {
+      // A plant entering night with a full bank should NOT spend any
+      // of it on growth. Both the bank (already filled) and the size
+      // stay put.
+      const state = createTestState({
+        plants: [{ id: 'p1', species: 'java_fern', size: 50, condition: 100, surplus: 100 }],
+        light: 0,
+        temperature: 25,
+        water: 100,
+      });
+      const result = processPlants(state, DEFAULT_CONFIG);
+      expect(result.state.plants[0].size).toBe(50);
+      expect(result.state.plants[0].surplus).toBe(100);
+    });
+
+    it('banks surplus during the day under ideal conditions', () => {
+      // Same conditions as the night-banking test, but lights on. The
+      // bank should grow by exactly the vitality emission this tick,
+      // minus whatever growth drains. With a small starting surplus,
+      // the post-spend bank is still measurably above the start.
+      const state = createTestState({
+        plants: [{ id: 'p1', species: 'java_fern', size: 50, condition: 100, surplus: 0 }],
+        light: 50,
+        co2: plantsDefaults.optimalCo2,
+        nitrate: plantsDefaults.optimalNitrate * 100,
+        temperature: 25,
+        water: 100,
+      });
+      const result = processPlants(state, DEFAULT_CONFIG);
+      // Plant either banked + spent (size up, surplus could be 0 if
+      // fully drained) or banked + partially spent (surplus > 0).
+      // What's required: at least one of the two is non-trivially
+      // moved. Tighter assertions live in the "Growth happens" test.
+      const after = result.state.plants[0];
+      expect(after.size + after.surplus).toBeGreaterThan(50);
+    });
+
+    it('grows during the day when surplus is available', () => {
+      // Pre-banked surplus + lights on → measurable size gain.
+      const state = createTestState({
+        plants: [{ id: 'p1', species: 'java_fern', size: 50, condition: 100, surplus: 10 }],
+        light: 50,
+        co2: plantsDefaults.optimalCo2,
+        nitrate: plantsDefaults.optimalNitrate * 100,
+        temperature: 25,
+        water: 100,
+      });
+      const result = processPlants(state, DEFAULT_CONFIG);
+      expect(result.state.plants[0].size).toBeGreaterThan(50);
+      // Bank drained by at most plantGrowthPerTickCap (it could also
+      // gain from this tick's vitality emission — net direction
+      // depends on whether emission > drain). Either way, less than
+      // the starting 10.
+      expect(result.state.plants[0].surplus).toBeLessThan(10 + plantsDefaults.plantGrowthPerTickCap);
+    });
+
+    it('day/night/day cycle: surplus and size advance only during lit periods', () => {
+      // 5 ticks day → 5 ticks night → 5 ticks day. Snapshot after
+      // each segment. Night segment must leave surplus and size
+      // exactly as the prior day segment ended; day segments must
+      // both advance them.
+      let state = createTestState({
+        plants: [{ id: 'p1', species: 'java_fern', size: 50, condition: 100, surplus: 0 }],
+        light: 50,
+        co2: plantsDefaults.optimalCo2,
+        nitrate: plantsDefaults.optimalNitrate * 100,
+        temperature: 25,
+        water: 100,
+      });
+      const runTicks = (
+        s: SimulationState,
+        ticks: number,
+        light: number
+      ): SimulationState => {
+        let current = produce(s, (draft) => {
+          draft.resources.light = light;
+        });
+        for (let t = 0; t < ticks; t++) {
+          const r = processPlants(current, DEFAULT_CONFIG);
+          current = r.state;
+        }
+        return current;
+      };
+      const afterDay1 = runTicks(state, 5, 50);
+      const sizeDay1 = afterDay1.plants[0].size;
+      const surplusDay1 = afterDay1.plants[0].surplus;
+      expect(sizeDay1).toBeGreaterThan(50);
+
+      const afterNight = runTicks(afterDay1, 5, 0);
+      // Night freezes both: surplus banking and growth-driven size
+      // changes are gated. (Shedding/death paths could touch size,
+      // but with condition 100 in this scenario neither fires.)
+      expect(afterNight.plants[0].size).toBe(sizeDay1);
+      expect(afterNight.plants[0].surplus).toBe(surplusDay1);
+
+      const afterDay2 = runTicks(afterNight, 5, 50);
+      // Resumes advance once lights return.
+      expect(afterDay2.plants[0].size).toBeGreaterThan(sizeDay1);
     });
   });
 

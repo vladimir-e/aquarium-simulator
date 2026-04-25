@@ -6,14 +6,20 @@
  *    and vitality below).
  * 2. Photosynthesis: emits resource effects only — O2 production, CO2
  *    uptake, nutrient draw. Does NOT directly produce size growth;
- *    that flows through surplus.
+ *    that flows through surplus. Light-gated: zero output at night.
  * 3. Respiration: O2/CO2 effects, 24/7.
  * 4. Vitality per plant: drives condition update; emits per-tick
- *    surplus when condition is full and net is positive.
- * 5. Bank surplus on `Plant.surplus` (no decay — banked stock).
+ *    surplus when condition is full and net is positive. Runs every
+ *    tick — condition can heal at night from non-light benefits.
+ * 5. Bank surplus on `Plant.surplus`. **Photoperiod-gated**: surplus
+ *    represents stored photosynthate, so banking only happens when
+ *    `resources.light > 0`. Vitality's surplus emission overnight is
+ *    discarded (no photosynthesis = no energy capture).
  * 6. Spend surplus on growth: drains up to `plantGrowthPerTickCap`
  *    per tick, converts to size at species-rate × asymptotic-factor.
- *    Anything left in the bank stays for future propagation work.
+ *    Also photoperiod-gated — no carbon fixation overnight, no net
+ *    biomass accumulation. Anything left in the bank stays for
+ *    future propagation work.
  * 7. Shedding + death (lifecycle module) — applied last, can remove
  *    plants from the tank.
  *
@@ -159,19 +165,32 @@ export function processPlants(
   );
 
   // 4. Apply condition update + bank surplus + spend on growth in one
-  //    pass. The bank is `Plant.surplus`; vitality only emits surplus
-  //    when condition is full and net is positive, so a stressed
-  //    plant heals first and never grows. Growth drains up to
-  //    `plantGrowthPerTickCap` per tick from the bank; whatever is
-  //    left stays banked for future propagation.
+  //    pass.
+  //
+  //    Plant surplus represents stored photosynthate (sugars from
+  //    carbon fixation). Both banking and growth gate on the
+  //    photoperiod being active: no light → no photosynthesis → no
+  //    energy capture → no banking, and no withdrawals for new
+  //    biomass either (overnight respiration consumes sugars for
+  //    maintenance, not net growth). Condition healing is NOT gated
+  //    here — vitality's non-light benefits (pH, temp, nutrients) can
+  //    still drive recovery at night; only the surplus-accrual and
+  //    surplus-spending steps require lights on.
+  //
+  //    Vitality runs every tick regardless; the light-keyed factors
+  //    inside vitality (light stressor / light benefit / CO2 low
+  //    stressor) already self-zero at light = 0, so condition tracks
+  //    the real non-light environment overnight without needing a
+  //    second gate here.
+  const photoperiodActive = state.resources.light > 0;
   const mergedPlants: Plant[] = state.plants.map((plant, i) => {
     const v = vitalities[i];
-    const banked: Plant = {
+    const updated: Plant = {
       ...plant,
       condition: v.newCondition,
-      surplus: plant.surplus + v.surplus,
+      surplus: photoperiodActive ? plant.surplus + v.surplus : plant.surplus,
     };
-    return spendSurplusOnGrowth(banked, plantsConfig);
+    return photoperiodActive ? spendSurplusOnGrowth(updated, plantsConfig) : updated;
   });
 
   // 5. Shedding (low-condition plants lose biomass) and death.
