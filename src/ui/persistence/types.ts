@@ -19,12 +19,17 @@ import type { TunableConfig } from '../../simulation/config/index.js';
  * Increment this when the structure changes in a breaking way.
  * On version mismatch, stored data is discarded.
  *
+ * v7: `LivestockConfig` gains stressor activation thresholds
+ *     (nitrate / oxygen / hunger / water level) and vitality benefit
+ *     peaks (pH / hunger / hunger-full / oxygen / plant / plant
+ *     saturation point) — knobs that were previously hardcoded
+ *     constants in `fish-health.ts`.
  * v6: Fish gains `surplus` (vitality overflow store). Plant condition
  *     semantics also change (driven by stressors + benefits, not raw
  *     nutrient sufficiency) but its persisted shape is identical, so
  *     the bump is purely the new Fish field.
  */
-export const PERSISTENCE_VERSION = 6;
+export const PERSISTENCE_VERSION = 7;
 
 /**
  * Storage key for the unified persisted state.

@@ -89,6 +89,48 @@ export interface LivestockConfig {
   /** Health damage per LPH of flow above species max */
   flowStressSeverity: number;
 
+  // Stressor activation thresholds — the value above/below which a
+  // stressor switches on. Severity is per unit of *deviation* from
+  // these thresholds; without them the severity knob is half-tunable.
+  /** Nitrate above this ppm activates the nitrate stressor. */
+  nitrateStressThreshold: number;
+  /**
+   * Oxygen below this mg/L activates the stressor. The same threshold
+   * is the upper edge of the oxygen *benefit*: above it the fish gets
+   * the benefit, below it the stressor takes over (continuous net-rate
+   * transition).
+   */
+  oxygenStressThreshold: number;
+  /**
+   * Hunger above this % activates the stressor. Coupled to the hunger
+   * benefit: above this value the benefit is zero (see
+   * `hungerBenefitFullThreshold` for the peak-end of the benefit ramp).
+   */
+  hungerStressThreshold: number;
+  /** Water below this % of capacity activates the stressor. */
+  waterLevelStressThreshold: number;
+
+  // Vitality benefit peaks (%/h) — recovery rate when each factor is
+  // in its tolerable band. Sum at all-good (no plants) ≈ 1.0 %/h; with
+  // saturated planting it rises to ≈ 1.2 %/h.
+  /** pH inside species range. */
+  phBenefitPeak: number;
+  /** Hunger ≤ `hungerBenefitFullThreshold` (peaks); ramps to 0 at `hungerStressThreshold`. */
+  hungerBenefitPeak: number;
+  /** Hunger threshold (%) at which the benefit hits its peak — below = full peak. */
+  hungerBenefitFullThreshold: number;
+  /** Oxygen ≥ `oxygenStressThreshold` (one-sided "above threshold" benefit). */
+  oxygenBenefitPeak: number;
+  /** Plant-presence benefit at saturation — see `plantBenefitSaturationPoint`. */
+  plantBenefitPeak: number;
+  /**
+   * Plant-presence saturation point — the sum of `(size/100)×(condition/100)`
+   * across all plants at which the benefit hits its peak. Three full-grown
+   * healthy plants of biomass saturate the benefit; beyond that adding
+   * more plants doesn't keep boosting fish vitality.
+   */
+  plantBenefitSaturationPoint: number;
+
   // Death
   /** Fraction of fish mass added as waste on death */
   deathDecayFactor: number;
@@ -149,11 +191,30 @@ export const livestockDefaults: LivestockConfig = {
   //   5 ppm → 3.125 %/hr (net -2.125 — dies in ~47 hr).
   // 96-hr LC50 lands near ~4–5 ppm — consistent with literature.
   nitriteStressSeverity: 2.5,
-  nitrateStressSeverity: 0.5, // Mild - 0.5% damage per ppm above 40
-  hungerStressSeverity: 0.1, // 0.1% per % hunger above 50
-  oxygenStressSeverity: 3.0, // 3% damage per mg/L below 5
-  waterLevelStressSeverity: 0.2, // 0.2% per % below 50% capacity
+  nitrateStressSeverity: 0.5, // Mild - 0.5% damage per ppm above threshold
+  hungerStressSeverity: 0.1, // 0.1% per % hunger above threshold
+  oxygenStressSeverity: 3.0, // 3% damage per mg/L below threshold
+  waterLevelStressSeverity: 0.2, // 0.2% per % below threshold
   flowStressSeverity: 0.01, // 0.01% per LPH above species max
+
+  // Stressor thresholds
+  nitrateStressThreshold: 40, // ppm — above this nitrate damages fish
+  oxygenStressThreshold: 5, // mg/L — below this oxygen damages fish; above
+  // this the oxygen benefit kicks in (shared cutoff, continuous transition)
+  hungerStressThreshold: 50, // % — above this hunger damages fish; the
+  // benefit also ends here (rests below it down to `hungerBenefitFullThreshold`)
+  waterLevelStressThreshold: 50, // % capacity — below this water level damages fish
+
+  // Benefit peaks (%/h) and the hunger benefit's full-peak threshold.
+  // Sum at all-good in a bare tank: 0.4 + 0.3 + 0.3 = 1.0 %/h (pH +
+  // hunger + oxygen). With three full-grown healthy plants (saturated):
+  // +0.2 → 1.2 %/h.
+  phBenefitPeak: 0.4,
+  hungerBenefitPeak: 0.3,
+  hungerBenefitFullThreshold: 30, // % — at or below this hunger, benefit is at peak
+  oxygenBenefitPeak: 0.3,
+  plantBenefitPeak: 0.2,
+  plantBenefitSaturationPoint: 3.0,
 
   // Death
   deathDecayFactor: 0.5, // Half fish mass becomes waste
@@ -259,6 +320,18 @@ export const livestockConfigMeta: LivestockConfigMeta[] = [
     max: 0.05,
     step: 0.001,
   },
+  // Stressor thresholds
+  { key: 'nitrateStressThreshold', label: 'Nitrate Stress Threshold', unit: 'ppm', min: 10, max: 100, step: 5 },
+  { key: 'oxygenStressThreshold', label: 'O2 Stress Threshold', unit: 'mg/L', min: 2, max: 8, step: 0.5 },
+  { key: 'hungerStressThreshold', label: 'Hunger Stress Threshold', unit: '%', min: 30, max: 80, step: 5 },
+  { key: 'waterLevelStressThreshold', label: 'Water Level Stress Threshold', unit: '%', min: 20, max: 80, step: 5 },
+  // Vitality benefit peaks
+  { key: 'phBenefitPeak', label: 'pH Benefit Peak', unit: '%/hr', min: 0, max: 1, step: 0.05 },
+  { key: 'hungerBenefitPeak', label: 'Hunger Benefit Peak', unit: '%/hr', min: 0, max: 1, step: 0.05 },
+  { key: 'hungerBenefitFullThreshold', label: 'Hunger Benefit Full Threshold', unit: '%', min: 0, max: 50, step: 5 },
+  { key: 'oxygenBenefitPeak', label: 'O2 Benefit Peak', unit: '%/hr', min: 0, max: 1, step: 0.05 },
+  { key: 'plantBenefitPeak', label: 'Plant Benefit Peak', unit: '%/hr', min: 0, max: 1, step: 0.05 },
+  { key: 'plantBenefitSaturationPoint', label: 'Plant Benefit Saturation', unit: 'plants', min: 1, max: 10, step: 0.5 },
   // Death
   { key: 'deathDecayFactor', label: 'Death Decay Factor', unit: '', min: 0.1, max: 1.0, step: 0.1 },
   { key: 'oldAgeDeathChance', label: 'Old Age Death Chance', unit: '/tick', min: 0.001, max: 0.05, step: 0.001 },

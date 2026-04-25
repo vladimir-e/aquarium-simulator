@@ -12,12 +12,15 @@
  * - Temperature, pH, free NH3, nitrite, nitrate, hunger, oxygen,
  *   water level, flow.
  *
- * Benefits, summing to ≈ 1.0 %/h in a bare tank with everything in
- * range, and up to ≈ 1.2 %/h with mature planting:
- * - pH in species range — 0.4 %/h
- * - Hunger satisfied (≤ 30, ramped to 0 at hunger 50) — up to 0.3 %/h
- * - Oxygen ≥ 5 mg/L — 0.3 %/h
- * - Plant presence (saturating) — up to 0.2 %/h
+ * Benefit factors (peaks and thresholds tunable via `LivestockConfig`):
+ * - pH in species range
+ * - Hunger satisfied (peak below `hungerBenefitFullThreshold`, zero
+ *   at `hungerStressThreshold`)
+ * - Oxygen ≥ `oxygenStressThreshold`
+ * - Plant presence (saturating at `plantBenefitSaturationPoint`)
+ *
+ * At default calibration the abiotic three sum to ≈ 1.0 %/h and the
+ * plant benefit adds up to 0.2 %/h on top.
  *
  * Temperature is not a separate benefit: inside the species range
  * temperature stress is zero and the other benefits cover recovery;
@@ -78,32 +81,6 @@ function rampBenefit(value: number, zeroAt: number, peakAt: number, peak: number
   return peak * ((zeroAt - value) / (zeroAt - peakAt));
 }
 
-/** Peak benefit magnitudes (%/h) — see module-level note for total budget. */
-const FISH_BENEFIT_PEAKS = {
-  ph: 0.4,
-  hunger: 0.3,
-  oxygen: 0.3,
-  plants: 0.2,
-} as const;
-
-/**
- * Plant-presence saturation point. The contribution from each plant is
- * `(size / 100) × (condition / 100)` (units: "full healthy plants"), and
- * the benefit hits its peak once the sum reaches `PLANT_BENEFIT_SAT_POINT`.
- * Three full-grown healthy plants of biomass saturate the benefit;
- * beyond that adding more plants doesn't keep boosting fish vitality,
- * which keeps the surplus economy bounded.
- */
-const PLANT_BENEFIT_SAT_POINT = 3.0;
-
-/**
- * Hunger thresholds (%): full benefit at ≤30, zero at the 50% stress
- * line. The 50 mark also activates the hunger stressor — same threshold,
- * continuous transition (lose benefit as you start gaining damage).
- */
-const HUNGER_FULL = 30;
-const HUNGER_NONE = 50;
-
 interface FishFactorContext {
   fish: Fish;
   resources: Resources;
@@ -127,17 +104,17 @@ interface FishFactorContext {
  * plant toward stressed → biomass dies back → contribution shrinks),
  * so the fish-side math stays linear in raw biomass. The sum runs
  * through `min(1, total / SAT)` so the benefit tops out at `peak`
- * regardless of overplanting — see `PLANT_BENEFIT_SAT_POINT` for the
- * calibration choice.
+ * regardless of overplanting — see `plantBenefitSaturationPoint` in
+ * `LivestockConfig` for the calibration choice.
  */
-function plantBenefitAmount(plants: Plant[]): number {
+function plantBenefitAmount(plants: Plant[], config: LivestockConfig): number {
   if (plants.length === 0) return 0;
   let total = 0;
   for (const plant of plants) {
     total += (plant.size / 100) * (plant.condition / 100);
   }
-  const saturation = Math.min(1, total / PLANT_BENEFIT_SAT_POINT);
-  return FISH_BENEFIT_PEAKS.plants * saturation;
+  const saturation = Math.min(1, total / config.plantBenefitSaturationPoint);
+  return config.plantBenefitPeak * saturation;
 }
 
 /**
@@ -188,30 +165,30 @@ function buildStressors(ctx: FishFactorContext): VitalityFactor[] {
     nitriteStress = config.nitriteStressSeverity * nitritePpm;
   }
 
-  // Nitrate stress (above 40 ppm)
+  // Nitrate stress (above the configured threshold)
   let nitrateStress = 0;
   const nitratePpm = waterVolume > 0 ? resources.nitrate / waterVolume : (resources.nitrate > 0 ? 100 : 0);
-  if (nitratePpm > 40) {
-    nitrateStress = config.nitrateStressSeverity * (nitratePpm - 40);
+  if (nitratePpm > config.nitrateStressThreshold) {
+    nitrateStress = config.nitrateStressSeverity * (nitratePpm - config.nitrateStressThreshold);
   }
 
-  // Hunger stress (above 50%)
+  // Hunger stress (above the configured threshold)
   let hungerStress = 0;
-  if (fish.hunger > 50) {
-    hungerStress = config.hungerStressSeverity * (fish.hunger - 50);
+  if (fish.hunger > config.hungerStressThreshold) {
+    hungerStress = config.hungerStressSeverity * (fish.hunger - config.hungerStressThreshold);
   }
 
-  // Oxygen stress (below 5 mg/L)
+  // Oxygen stress (below the configured threshold)
   let oxygenStress = 0;
-  if (resources.oxygen < 5) {
-    oxygenStress = config.oxygenStressSeverity * (5 - resources.oxygen);
+  if (resources.oxygen < config.oxygenStressThreshold) {
+    oxygenStress = config.oxygenStressSeverity * (config.oxygenStressThreshold - resources.oxygen);
   }
 
-  // Water level stress (below 50% capacity)
+  // Water level stress (below the configured threshold of capacity)
   let waterLevelStress = 0;
   const waterPercent = tankCapacity > 0 ? (waterVolume / tankCapacity) * 100 : 100;
-  if (waterPercent < 50) {
-    waterLevelStress = config.waterLevelStressSeverity * (50 - waterPercent);
+  if (waterPercent < config.waterLevelStressThreshold) {
+    waterLevelStress = config.waterLevelStressSeverity * (config.waterLevelStressThreshold - waterPercent);
   }
 
   // Flow stress (above species max tolerance)
@@ -239,7 +216,7 @@ function buildStressors(ctx: FishFactorContext): VitalityFactor[] {
  * simulation doesn't have to.
  */
 function buildBenefits(ctx: FishFactorContext): VitalityFactor[] {
-  const { fish, resources, plants } = ctx;
+  const { fish, resources, plants, config } = ctx;
   const speciesData = FISH_SPECIES_DATA[fish.species];
   const [phMin, phMax] = speciesData.phRange;
 
@@ -247,28 +224,40 @@ function buildBenefits(ctx: FishFactorContext): VitalityFactor[] {
     {
       key: 'ph',
       label: 'pH',
-      amount: inRangeBenefit(resources.ph, phMin, phMax, FISH_BENEFIT_PEAKS.ph),
+      amount: inRangeBenefit(resources.ph, phMin, phMax, config.phBenefitPeak),
     },
     {
       key: 'hunger',
       label: 'Well-fed',
-      amount: rampBenefit(fish.hunger, HUNGER_NONE, HUNGER_FULL, FISH_BENEFIT_PEAKS.hunger),
+      // Peaks at hunger ≤ hungerBenefitFullThreshold, ramps to zero at
+      // hungerStressThreshold (where the hunger stressor takes over).
+      amount: rampBenefit(
+        fish.hunger,
+        config.hungerStressThreshold,
+        config.hungerBenefitFullThreshold,
+        config.hungerBenefitPeak
+      ),
     },
     {
-      // Oxygen ≥ 5 mg/L is the stressor's safe side; the benefit is a
+      // Oxygen ≥ stress threshold is the safe side; the benefit is a
       // one-sided "above threshold" peak (`hi = Infinity`) tying directly
-      // to the same cutoff. Tighter than a strict aerobic ideal (≥8) on
+      // to the same cutoff. Tighter than a strict aerobic ideal on
       // purpose — most healthy tanks sit in the 6–8 mg/L band, and the
       // shared threshold keeps the net recovery rate stable across the
       // safe-but-not-supersaturated zone.
       key: 'oxygen',
       label: 'Oxygen',
-      amount: inRangeBenefit(resources.oxygen, 5, Infinity, FISH_BENEFIT_PEAKS.oxygen),
+      amount: inRangeBenefit(
+        resources.oxygen,
+        config.oxygenStressThreshold,
+        Infinity,
+        config.oxygenBenefitPeak
+      ),
     },
     {
       key: 'plants',
       label: 'Plants',
-      amount: plantBenefitAmount(plants),
+      amount: plantBenefitAmount(plants, config),
     },
   ];
 }

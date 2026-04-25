@@ -397,12 +397,12 @@ describe('PersistedStateSchema', () => {
     expect(PersistedStateSchema.safeParse(v4).success).toBe(false);
   });
 
-  it('rejects prior version 5 (breaking bump to 6 for fish surplus + plant vitality)', () => {
-    const v5 = { ...validState, version: 5 };
-    expect(PersistedStateSchema.safeParse(v5).success).toBe(false);
+  it('rejects prior version 6 (breaking bump for livestock benefit/threshold knobs)', () => {
+    const v6 = { ...validState, version: 6 };
+    expect(PersistedStateSchema.safeParse(v6).success).toBe(false);
   });
 
-  it('PERSISTENCE_VERSION is 6', () => {
-    expect(PERSISTENCE_VERSION).toBe(6);
+  it('PERSISTENCE_VERSION is 7', () => {
+    expect(PERSISTENCE_VERSION).toBe(7);
   });
 });
