@@ -149,11 +149,11 @@ function FishCard({
     tankCapacity,
     livestockConfig
   );
-  // The trend arrow tracks the *vitality* net rate (benefit − damage),
-  // not just the legacy `baseHealthRecovery − stress`. With per-factor
-  // benefits (task 40) recovery is no longer constant — a tank that's
-  // marginal on multiple knobs heals slower than an otherwise-perfect
-  // one, and the arrow should reflect that.
+  // The trend arrow tracks the *vitality* net rate (benefit − damage)
+  // rather than a flat recovery − stress. With per-factor benefits
+  // (task 40) recovery is no longer constant — a tank that's marginal
+  // on multiple knobs heals slower than an otherwise-perfect one, and
+  // the arrow should reflect that.
   const vitality = computeFishVitality(
     fish,
     resources,
@@ -164,19 +164,25 @@ function FishCard({
   const net = vitality.breakdown.net;
   const activeStressors = STRESSOR_LABELS.filter(({ key }) => breakdown[key] > 0);
 
+  // Trend arrow — hidden when health is full and net is non-negative
+  // (no informational value), or when net is essentially flat. A
+  // healthy fish suddenly under attack still shows ↓ at health 100.
   let trendNode: React.ReactNode = null;
-  if (fish.health < 100 && Math.abs(net) >= TREND_EPSILON) {
-    const rising = net > 0;
-    const arrow = rising ? '↑' : '↓';
-    const colorClass = rising ? 'text-green-400' : 'text-red-400';
-    trendNode = (
-      <span
-        className={`text-xs ${colorClass}`}
-        title={`Net health change: ${net >= 0 ? '+' : ''}${net.toFixed(2)}%/hr`}
-      >
-        {arrow}
-      </span>
-    );
+  if (Math.abs(net) >= TREND_EPSILON) {
+    const showTrend = fish.health < 100 || net < 0;
+    if (showTrend) {
+      const rising = net > 0;
+      const arrow = rising ? '↑' : '↓';
+      const colorClass = rising ? 'text-green-400' : 'text-red-400';
+      trendNode = (
+        <span
+          className={`text-xs ${colorClass}`}
+          title={`Net health change: ${net >= 0 ? '+' : ''}${net.toFixed(2)}%/hr`}
+        >
+          {arrow}
+        </span>
+      );
+    }
   }
 
   const toggleLabel = expanded
