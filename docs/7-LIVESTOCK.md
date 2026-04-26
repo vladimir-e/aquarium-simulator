@@ -122,8 +122,8 @@ spec). Each tick the engine builds two factor lists for the fish:
 
 - **newCondition** — the new health value (0–100, clamped)
 - **surplus** — the overflow rate when health is at 100 and net is
-  positive. Captured on `fish.surplus` for future lifecycle use
-  (breeding, growth, longevity bonuses).
+  positive. Banked on `fish.surplus`; the bank is the canonical
+  lifecycle-outcome stock for fish.
 
 ### Stressor coverage
 
@@ -177,10 +177,10 @@ fish-side math stays linear in raw biomass. Sick plants (condition 0)
 and juveniles (small size) contribute proportionally less. The plant
 benefit pushes the total budget in a fully planted tank to ≈1.2 %/h:
 a healthy planted tank sits at full health with a positive net rate,
-accumulating surplus on `Fish.surplus`. That surplus is the entry
-point for the future surplus-driven breeding mechanic — fish only
-reproduce once their environment is stocked *and* maintained well
-enough to bank a sustained positive net rate.
+accumulating surplus on `Fish.surplus`. The bank is the canonical
+lifecycle-outcome stock for fish — `Fish.surplus` only fills when the
+environment is stocked *and* maintained well enough to bank a
+sustained positive net rate.
 
 ### Vitality math (per tick)
 
@@ -197,9 +197,8 @@ if net > 0 and health == 100:   newHealth = 100
 ```
 
 Stressed fish heal first, never gain surplus while health is below
-100 — this mirrors the plant rule. Surplus is recorded on each fish
-for future lifecycle behaviour (breeding, juvenile→adult progression)
-to read.
+100 — this mirrors the plant rule. Surplus banks on `Fish.surplus`,
+the canonical lifecycle-outcome stock for fish.
 
 ### Fasting fish
 
@@ -208,8 +207,8 @@ satisfied benefit (up to 0.3 %/h while hunger ≤ 50, peak at ≤ 30) is
 lost as hunger climbs, and the hunger stressor adds damage above
 50 %. A hungry fish therefore loses recovery and takes damage
 simultaneously, so net trends sharply negative — at hunger 80 the net
-rate sits at roughly −0.8 %/h. The starvation-window calibration is a
-future tuning pass on `hungerStressSeverity` and the hunger benefit
+rate sits at roughly −0.8 %/h. The starvation-window outcome is
+governed jointly by `hungerStressSeverity` and the hunger benefit
 ramp.
 
 ### Hardy Fish
@@ -374,7 +373,7 @@ Fish {
     health: 0-100             // condition in vitality terms
     hunger: 0-100
     hardinessOffset: Number   // ±15 % of species baseline
-    surplus: Number           // banked overflow vitality (future use)
+    surplus: Number           // banked vitality overflow
 
     update(tick):
         metabolize(based_on_mass)

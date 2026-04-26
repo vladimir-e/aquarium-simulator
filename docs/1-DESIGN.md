@@ -66,18 +66,17 @@ into NH3 → NO2 → NO3 dynamics. See `4-CORE-SYSTEMS.md`.
 
 ### 4. Vitality layer
 
-Every organism (plant, fish, future colonies) experiences resources as
-**stressors** (damage rate) and **benefits** (recovery rate). Net rate
-drives `condition` (0–100); when net is positive at full condition the
-overflow becomes **surplus** — lifecycle currency the organism module
-spends on outcomes. The vitality layer is the universal organism
-interface; species-specific configs map resources to factors but the
-math is shared. See § The Vitality Engine below.
+Every organism (plants, fish) experiences resources as **stressors**
+(damage rate) and **benefits** (recovery rate). Net rate drives
+`condition` (0–100); when net is positive at full condition the
+overflow becomes **surplus** — a lifecycle-outcome stock the organism
+module spends on outcomes. The vitality layer is the universal
+organism interface; species-specific configs map resources to factors
+but the math is shared across species. See § The Vitality Engine below.
 
 ### 5. Outcome layer
 
-Growth, biomass cap, death, propagation, breeding (future), longevity
-(future), achievements (future). Outcomes are gated by the vitality +
+Growth, biomass cap, death. Outcomes are gated by the vitality +
 surplus path: a stressed organism heals first, surplus only flows once
 condition is full. This is the trajectory shape — recover, then grow —
 that the player's choices ultimately produce.
@@ -109,23 +108,22 @@ stressed organism cannot make progress while its condition is below
 100 %. The healing burns the entire benefit budget until the deficit is
 paid down.
 
-Plants today, fish today, colonies and any future lifeform tomorrow:
-each species module decides which resources count as stressors vs.
-benefits and at what severity, but they all share the same vitality
-math. See `6-PLANTS.md` § Plant Condition and `7-LIVESTOCK.md` §
-Health (Vitality) for the species-specific factor lists.
+Each species module decides which resources count as stressors vs.
+benefits and at what severity; they all share the same vitality math.
+See `6-PLANTS.md` § Plant Condition and `7-LIVESTOCK.md` § Health
+(Vitality) for the species-specific factor lists.
 
 ## The Surplus Economy
 
-Surplus is the currency that gates outcomes. It only accumulates when
-an organism is at full condition with positive net rate — which means
+Surplus is the lifecycle-outcome stock. It only accumulates when an
+organism is at full condition with positive net rate — which means
 *the player has stocked good conditions and maintained them well
 enough that the organism has energy to spare*. Surplus is a **banked
 stock**, not a per-tick rate: vitality emits surplus each tick, the
 organism's outcome pipeline drains some, and whatever is left over
-banks on the organism's state for future use.
+stays on the organism's state.
 
-- **Plants** — full supply chain implemented (heal → grow → bank).
+- **Plants.**
   - Vitality emits surplus when condition is full.
   - The orchestrator banks the emission on `Plant.surplus`. Banking
     is **photoperiod-gated**: plant surplus represents stored
@@ -143,29 +141,24 @@ banks on the organism's state for future use.
     photoperiod-gated: overnight respiration burns sugars for
     maintenance, not net biomass accumulation, so the bank doesn't
     drain at night either.
-  - Whatever is left over stays banked. Future propagation work
-    (Task 39) will read this stock and trigger propagation events
-    when it crosses a threshold.
-- **Fish** — heal + bank only on this PR. Vitality emits surplus,
-  the orchestrator banks it on `Fish.surplus`, and that's where the
-  current pipeline ends. Future fish-breeding work will consume the
-  bank. Fish do not have a growth channel today — adult fish are
-  fixed-mass, and juvenile→adult progression is part of the future
-  breeding task.
+  - Once a plant reaches `species.maxSize`, growth stops; surplus
+    continues to bank on `Plant.surplus`. The bank is the canonical
+    lifecycle-outcome stock for plants — the field exists, it
+    accumulates, consumers attach to it.
+- **Fish.** Vitality emits surplus, the orchestrator banks it on
+  `Fish.surplus`. Fish are fixed-mass adults; the bank is the
+  canonical lifecycle-outcome stock for fish.
 
-A planted tank illustrates the loop end-to-end: a healthy plant heals
-to condition 100, banks surplus on each subsequent tick, drains some
-to grow, and as it approaches `maxSize` the asymptotic dampener slows
-visible growth while the bank keeps filling — eventually crossing the
-propagation threshold once that mechanic lands.
+A planted tank illustrates the loop: a healthy plant heals to
+condition 100, banks surplus on each subsequent daylight tick, drains
+some to grow, and as it approaches `maxSize` the asymptotic dampener
+slows visible growth while the bank keeps filling.
 
 This is the player's loop in one line: **stack positives, fix
-negatives, accumulate surplus, watch outcomes follow.** A barely-
-surviving tank stays alive but produces nothing; a thriving tank
-banks surplus and gets growth, propagation, and (eventually) breeding
-in return. The asymmetry between maintenance and progress is by
-design — it's what makes good husbandry distinguishable from minimum
-viable husbandry.
+negatives, accumulate surplus.** A barely-surviving tank stays alive
+but produces nothing; a thriving tank banks surplus and grows. The
+asymmetry between maintenance and progress is by design — it's what
+makes good husbandry distinguishable from minimum viable husbandry.
 
 ## Simulation Model
 

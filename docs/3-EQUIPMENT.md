@@ -192,8 +192,6 @@ Bottom layer of the tank. Type affects which plants can be rooted.
 - Plants requiring substrate check against type (sand or aqua soil)
 - Sand cannot be vacuumed (too fine)
 
-*Note: Aqua soil nutrient buffering is a future feature.*
-
 ---
 
 ## Hardscape

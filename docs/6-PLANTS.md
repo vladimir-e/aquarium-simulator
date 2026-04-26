@@ -168,23 +168,21 @@ pipeline is:
    respiration burns sugars for maintenance, but net biomass
    accumulation requires active carbon fixation. The bank doesn't
    drain in the dark.
-4. Whatever is left in `Plant.surplus` stays banked. Future
-   propagation work will trigger propagation events when the bank
-   crosses a threshold.
+4. Whatever is left in `Plant.surplus` stays banked. The bank is
+   the canonical lifecycle-outcome stock for plants.
 
 The asymptotic factor reduces *spending efficiency*, not withdrawal
 amount: a plant near `maxSize` still drains the cap from its bank
-each daylight tick, but gets less size for the spend. So a plant at
-its ceiling stops growing visibly while the bank keeps filling toward
-the propagation trigger.
+each daylight tick, but gets less size for the spend. A plant at its
+ceiling stops growing visibly while the bank keeps filling.
 
 Photosynthesis is decoupled from growth: it emits resource effects
 only (O2, CO2, nutrient uptake). Plant size never gets photosynthesis
 output directly — it only gets surplus, and surplus is gated by
 vitality (which is gated by stressors, including the nutrient-
 deficiency stressor that photosynthesis health drives upstream). No
-double-counting, no parallel mechanism, single source of truth for
-"is this plant growing right now."
+double-counting, no parallel mechanism — a single source of truth for
+each plant's per-tick growth.
 
 ---
 
@@ -291,10 +289,10 @@ if net > 0 and condition == 100: newCondition = 100
 
 Surplus banks on `Plant.surplus`. While condition is below 100 the
 vitality engine emits zero surplus, so the bank doesn't fill and
-growth doesn't happen. Once condition reaches 100, surplus starts
-flowing into the bank, the growth pipeline drains some each tick,
-and the leftover stays for future propagation. See *Growth and Size*
-above for the full supply chain.
+growth doesn't happen. Once condition reaches 100, surplus flows
+into the bank, the growth pipeline drains some each daylight tick,
+and the leftover stays banked. See *Growth and Size* above for the
+full supply chain.
 
 ### Heal-or-decline trajectory
 
