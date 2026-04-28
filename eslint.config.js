@@ -4,10 +4,10 @@ import tsparser from '@typescript-eslint/parser';
 
 export default [
   {
-    ignores: ['dist/**', 'dist-ui/**', 'dist-game/**', 'node_modules/**', '*.config.js', '*.config.ts'],
+    ignores: ['dist/**', 'dist-ui/**', 'node_modules/**', '*.config.js', '*.config.ts'],
   },
   {
-    files: ['src/**/*.ts', 'src/**/*.tsx', 'game/**/*.ts', 'game/**/*.tsx'],
+    files: ['src/**/*.ts', 'src/**/*.tsx'],
     languageOptions: {
       parser: tsparser,
       parserOptions: {
