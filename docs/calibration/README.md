@@ -5,6 +5,16 @@ against expected real-tank behaviour. Calibration agents drive the engine
 through the **`sim` CLI** (`src/cli/sim.ts`), observe outputs, and propose
 coefficient changes back in `src/simulation/config/*.ts`.
 
+> **Status: drifted from engine.** Several fundamental mechanics have
+> landed since the last baseline pass — vitality model (Task 40,
+> PR #45) replaces homeostatic plant condition with heal-or-decline,
+> per-species maxSize gates growth, fish hardiness offset, etc. The
+> baselines and scenarios here document the engine *as it was*, not as
+> it is. A consolidated re-baseline session is planned once the
+> remaining mechanics tasks (Tasks 34, 37, 38, 39, ...) settle, so the
+> pass can absorb every change at once instead of being repeated for
+> each. Until then, treat calibration files as historical context.
+
 ## Inputs
 
 - `scenarios/` — the canonical calibration scenarios (markdown). Each file

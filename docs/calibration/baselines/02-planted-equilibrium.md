@@ -1,6 +1,15 @@
 # Calibration run: planted-equilibrium
 Date: 2026-04-19 · Branch: calibration/planted-equilibrium
 
+> **Pending re-baseline.** This baseline pre-dates the vitality model
+> (Task 40, PR #45). The plant-condition homeostatic dynamic it
+> describes (condition trends toward `sufficiency × 100`) no longer
+> exists in the engine — vitality replaces it with binary
+> heal-or-decline. Numbers below are preserved as historical record;
+> they will be replaced in the upcoming calibration session that
+> rolls together Tasks 34 / 37 / 38 / 39 / 40 effects in one pass.
+> Do not edit the recorded numbers in this file.
+
 ## Scenario
 
 Primary: `scenarios/02-planted-equilibrium.md` — 10 gal heavily planted

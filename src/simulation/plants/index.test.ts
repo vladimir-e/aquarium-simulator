@@ -90,7 +90,7 @@ describe('processPlants', () => {
 
   describe('with plants and lights on (photosynthesis + respiration)', () => {
     const defaultPlants: Plant[] = [
-      { id: 'p1', species: 'java_fern', size: 100, condition: C },
+      { id: 'p1', species: 'java_fern', size: 100, condition: C, surplus: 0 },
     ];
 
     it('produces oxygen effect from photosynthesis', () => {
@@ -197,7 +197,7 @@ describe('processPlants', () => {
 
     it('updates plant sizes due to growth', () => {
       const state = createTestState({
-        plants: [{ id: 'p1', species: 'java_fern', size: 50, condition: C }],
+        plants: [{ id: 'p1', species: 'java_fern', size: 50, condition: C, surplus: 0 }],
         light: 50,
         co2: plantsDefaults.optimalCo2,
         nitrate: plantsDefaults.optimalNitrate * 100,
@@ -207,11 +207,54 @@ describe('processPlants', () => {
 
       expect(result.state.plants[0].size).toBeGreaterThan(50);
     });
+
+    it('does not grow plants whose condition is sub-100 (surplus-overflow gate)', () => {
+      // Task 40 design: a stressed plant heals first, never crawls
+      // forward at reduced rate. If condition < 100 the plant takes 0
+      // share of the photosynthesis biomass that tick — its
+      // photosynthate flows to maintenance, not new tissue.
+      const state = createTestState({
+        plants: [
+          { id: 'p1', species: 'java_fern', size: 50, condition: 80, surplus: 0 },
+        ],
+        light: 50,
+        co2: plantsDefaults.optimalCo2,
+        nitrate: plantsDefaults.optimalNitrate * 100,
+        water: 100,
+      });
+      const result = processPlants(state, DEFAULT_CONFIG);
+      // Size unchanged because surplus is gated by condition === 100.
+      expect(result.state.plants[0].size).toBe(50);
+      // Condition heals (vitality net is positive in good conditions).
+      expect(result.state.plants[0].condition).toBeGreaterThan(80);
+    });
+
+    it('only the at-100 plant grows when paired with a sub-100 sibling', () => {
+      // Two java_ferns, identical species and starting size; one
+      // healthy, one sub-100 condition. Only the healthy one should
+      // grow this tick — and it gets the full biomass share since the
+      // unhealthy sibling is excluded from the share calculation.
+      const state = createTestState({
+        plants: [
+          { id: 'healthy', species: 'java_fern', size: 50, condition: 100, surplus: 0 },
+          { id: 'stressed', species: 'java_fern', size: 50, condition: 70, surplus: 0 },
+        ],
+        light: 50,
+        co2: plantsDefaults.optimalCo2,
+        nitrate: plantsDefaults.optimalNitrate * 100,
+        water: 100,
+      });
+      const result = processPlants(state, DEFAULT_CONFIG);
+      const healthy = result.state.plants.find((p) => p.id === 'healthy');
+      const stressed = result.state.plants.find((p) => p.id === 'stressed');
+      expect(healthy?.size).toBeGreaterThan(50);
+      expect(stressed?.size).toBe(50);
+    });
   });
 
   describe('with lights off (respiration only)', () => {
     const defaultPlants: Plant[] = [
-      { id: 'p1', species: 'java_fern', size: 100, condition: C },
+      { id: 'p1', species: 'java_fern', size: 100, condition: C, surplus: 0 },
     ];
 
     it('no photosynthesis effects when light is 0', () => {
@@ -266,21 +309,153 @@ describe('processPlants', () => {
       expect(netCo2).toBeGreaterThan(0);
     });
 
-    it('plant sizes unchanged when no photosynthesis', () => {
+    it('no photosynthesis effects when lights off', () => {
+      // Photosynthesis is light-gated and emits no resource effects
+      // when lights are off. Plant size doesn't move either — see
+      // the photoperiod-gate describe block below for the full
+      // banking + growth gating contract.
       const state = createTestState({
-        plants: [{ id: 'p1', species: 'java_fern', size: 50, condition: C }],
+        plants: [{ id: 'p1', species: 'java_fern', size: 50, condition: C, surplus: 0 }],
         light: 0,
       });
       const result = processPlants(state, DEFAULT_CONFIG);
+      const photoEffects = result.effects.filter(
+        (e) => e.source === 'photosynthesis'
+      );
+      expect(photoEffects).toHaveLength(0);
+    });
+  });
 
+  describe('photoperiod gate on surplus banking and growth', () => {
+    // Plant surplus represents stored photosynthate (sugars from carbon
+    // fixation). Both banking and spending gate on `resources.light > 0`:
+    // no photosynthesis = no energy capture and no net biomass
+    // accumulation. Vitality runs every tick regardless — condition
+    // can still heal at night from non-light benefits — but the
+    // surplus pipeline pauses overnight.
+
+    it('does not bank surplus at night even with otherwise-ideal conditions', () => {
+      // Plant is at full condition with all non-light vitality factors
+      // in their tolerable bands. Vitality still emits surplus
+      // mathematically (positive net rate from pH/temp/nutrients), but
+      // the orchestrator discards it because lights are off.
+      const state = createTestState({
+        plants: [{ id: 'p1', species: 'java_fern', size: 50, condition: 100, surplus: 5 }],
+        light: 0,
+        co2: plantsDefaults.optimalCo2,
+        nitrate: plantsDefaults.optimalNitrate * 100,
+        temperature: 25,
+        water: 100,
+      });
+      const result = processPlants(state, DEFAULT_CONFIG);
+      expect(result.state.plants[0].surplus).toBe(5);
+    });
+
+    it('does not grow at night even with banked surplus', () => {
+      // A plant entering night with a full bank should NOT spend any
+      // of it on growth. Both the bank (already filled) and the size
+      // stay put.
+      const state = createTestState({
+        plants: [{ id: 'p1', species: 'java_fern', size: 50, condition: 100, surplus: 100 }],
+        light: 0,
+        temperature: 25,
+        water: 100,
+      });
+      const result = processPlants(state, DEFAULT_CONFIG);
       expect(result.state.plants[0].size).toBe(50);
+      expect(result.state.plants[0].surplus).toBe(100);
+    });
+
+    it('banks surplus during the day under ideal conditions', () => {
+      // Same conditions as the night-banking test, but lights on. The
+      // bank should grow by exactly the vitality emission this tick,
+      // minus whatever growth drains. With a small starting surplus,
+      // the post-spend bank is still measurably above the start.
+      const state = createTestState({
+        plants: [{ id: 'p1', species: 'java_fern', size: 50, condition: 100, surplus: 0 }],
+        light: 50,
+        co2: plantsDefaults.optimalCo2,
+        nitrate: plantsDefaults.optimalNitrate * 100,
+        temperature: 25,
+        water: 100,
+      });
+      const result = processPlants(state, DEFAULT_CONFIG);
+      // Plant either banked + spent (size up, surplus could be 0 if
+      // fully drained) or banked + partially spent (surplus > 0).
+      // What's required: at least one of the two is non-trivially
+      // moved. Tighter assertions live in the "Growth happens" test.
+      const after = result.state.plants[0];
+      expect(after.size + after.surplus).toBeGreaterThan(50);
+    });
+
+    it('grows during the day when surplus is available', () => {
+      // Pre-banked surplus + lights on → measurable size gain.
+      const state = createTestState({
+        plants: [{ id: 'p1', species: 'java_fern', size: 50, condition: 100, surplus: 10 }],
+        light: 50,
+        co2: plantsDefaults.optimalCo2,
+        nitrate: plantsDefaults.optimalNitrate * 100,
+        temperature: 25,
+        water: 100,
+      });
+      const result = processPlants(state, DEFAULT_CONFIG);
+      expect(result.state.plants[0].size).toBeGreaterThan(50);
+      // Bank drained by at most plantGrowthPerTickCap (it could also
+      // gain from this tick's vitality emission — net direction
+      // depends on whether emission > drain). Either way, less than
+      // the starting 10.
+      expect(result.state.plants[0].surplus).toBeLessThan(10 + plantsDefaults.plantGrowthPerTickCap);
+    });
+
+    it('day/night/day cycle: surplus and size advance only during lit periods', () => {
+      // 5 ticks day → 5 ticks night → 5 ticks day. Snapshot after
+      // each segment. Night segment must leave surplus and size
+      // exactly as the prior day segment ended; day segments must
+      // both advance them.
+      let state = createTestState({
+        plants: [{ id: 'p1', species: 'java_fern', size: 50, condition: 100, surplus: 0 }],
+        light: 50,
+        co2: plantsDefaults.optimalCo2,
+        nitrate: plantsDefaults.optimalNitrate * 100,
+        temperature: 25,
+        water: 100,
+      });
+      const runTicks = (
+        s: SimulationState,
+        ticks: number,
+        light: number
+      ): SimulationState => {
+        let current = produce(s, (draft) => {
+          draft.resources.light = light;
+        });
+        for (let t = 0; t < ticks; t++) {
+          const r = processPlants(current, DEFAULT_CONFIG);
+          current = r.state;
+        }
+        return current;
+      };
+      const afterDay1 = runTicks(state, 5, 50);
+      const sizeDay1 = afterDay1.plants[0].size;
+      const surplusDay1 = afterDay1.plants[0].surplus;
+      expect(sizeDay1).toBeGreaterThan(50);
+
+      const afterNight = runTicks(afterDay1, 5, 0);
+      // Night freezes both: surplus banking and growth-driven size
+      // changes are gated. (Shedding/death paths could touch size,
+      // but with condition 100 in this scenario neither fires.)
+      expect(afterNight.plants[0].size).toBe(sizeDay1);
+      expect(afterNight.plants[0].surplus).toBe(surplusDay1);
+
+      const afterDay2 = runTicks(afterNight, 5, 50);
+      // Resumes advance once lights return.
+      expect(afterDay2.plants[0].size).toBeGreaterThan(sizeDay1);
     });
   });
 
   describe('day/night O2 balance', () => {
     it('net positive O2 during day (photosynthesis > respiration)', () => {
       const state = createTestState({
-        plants: [{ id: 'p1', species: 'java_fern', size: 100, condition: C }],
+        plants: [{ id: 'p1', species: 'java_fern', size: 100, condition: C, surplus: 0 }],
         light: 50,
         co2: plantsDefaults.optimalCo2,
         nitrate: plantsDefaults.optimalNitrate * 100,
@@ -296,7 +471,7 @@ describe('processPlants', () => {
 
     it('net negative O2 during night (respiration only)', () => {
       const state = createTestState({
-        plants: [{ id: 'p1', species: 'java_fern', size: 100, condition: C }],
+        plants: [{ id: 'p1', species: 'java_fern', size: 100, condition: C, surplus: 0 }],
         light: 0,
         temperature: 25,
       });
@@ -309,7 +484,7 @@ describe('processPlants', () => {
 
     it('day produces more O2 than night consumes (net positive over 24h)', () => {
       const dayState = createTestState({
-        plants: [{ id: 'p1', species: 'java_fern', size: 100, condition: C }],
+        plants: [{ id: 'p1', species: 'java_fern', size: 100, condition: C, surplus: 0 }],
         light: 50,
         co2: plantsDefaults.optimalCo2,
         nitrate: plantsDefaults.optimalNitrate * 100,
@@ -317,7 +492,7 @@ describe('processPlants', () => {
         temperature: 25,
       });
       const nightState = createTestState({
-        plants: [{ id: 'p1', species: 'java_fern', size: 100, condition: C }],
+        plants: [{ id: 'p1', species: 'java_fern', size: 100, condition: C, surplus: 0 }],
         light: 0,
         temperature: 25,
       });
@@ -341,7 +516,7 @@ describe('processPlants', () => {
     it('produces waste when plant exceeds 200%', () => {
       // Plant at 199% with enough growth to push over 200%
       const state = createTestState({
-        plants: [{ id: 'p1', species: 'monte_carlo', size: 199, condition: C }],
+        plants: [{ id: 'p1', species: 'monte_carlo', size: 199, condition: C, surplus: 0 }],
         light: 50,
         co2: plantsDefaults.optimalCo2,
         nitrate: plantsDefaults.optimalNitrate * 100,
@@ -360,7 +535,7 @@ describe('processPlants', () => {
 
     it('no waste when plants below 200%', () => {
       const state = createTestState({
-        plants: [{ id: 'p1', species: 'java_fern', size: 50, condition: C }],
+        plants: [{ id: 'p1', species: 'java_fern', size: 50, condition: C, surplus: 0 }],
         light: 50,
         co2: plantsDefaults.optimalCo2,
         nitrate: plantsDefaults.optimalNitrate * 100,
@@ -374,7 +549,7 @@ describe('processPlants', () => {
 
     it('plant size capped at 200%', () => {
       const state = createTestState({
-        plants: [{ id: 'p1', species: 'monte_carlo', size: 199, condition: C }],
+        plants: [{ id: 'p1', species: 'monte_carlo', size: 199, condition: C, surplus: 0 }],
         light: 50,
         co2: plantsDefaults.optimalCo2,
         nitrate: plantsDefaults.optimalNitrate * 100,
@@ -390,9 +565,9 @@ describe('processPlants', () => {
     it('processes multiple plants correctly', () => {
       const state = createTestState({
         plants: [
-          { id: 'p1', species: 'java_fern', size: 50, condition: C },
-          { id: 'p2', species: 'anubias', size: 60, condition: C },
-          { id: 'p3', species: 'amazon_sword', size: 70, condition: C },
+          { id: 'p1', species: 'java_fern', size: 50, condition: C, surplus: 0 },
+          { id: 'p2', species: 'anubias', size: 60, condition: C, surplus: 0 },
+          { id: 'p3', species: 'amazon_sword', size: 70, condition: C, surplus: 0 },
         ],
         light: 50,
         co2: plantsDefaults.optimalCo2,
@@ -410,7 +585,7 @@ describe('processPlants', () => {
 
     it('total plant size affects photosynthesis rate', () => {
       const singlePlantState = createTestState({
-        plants: [{ id: 'p1', species: 'java_fern', size: 100, condition: C }],
+        plants: [{ id: 'p1', species: 'java_fern', size: 100, condition: C, surplus: 0 }],
         light: 50,
         co2: plantsDefaults.optimalCo2,
         nitrate: plantsDefaults.optimalNitrate * 100,
@@ -418,8 +593,8 @@ describe('processPlants', () => {
       });
       const multiplePlantsState = createTestState({
         plants: [
-          { id: 'p1', species: 'java_fern', size: 100, condition: C },
-          { id: 'p2', species: 'java_fern', size: 100, condition: C },
+          { id: 'p1', species: 'java_fern', size: 100, condition: C, surplus: 0 },
+          { id: 'p2', species: 'java_fern', size: 100, condition: C, surplus: 0 },
         ],
         light: 50,
         co2: plantsDefaults.optimalCo2,
@@ -445,14 +620,14 @@ describe('processPlants', () => {
   describe('limiting conditions', () => {
     it('low CO2 reduces photosynthesis', () => {
       const optimalState = createTestState({
-        plants: [{ id: 'p1', species: 'java_fern', size: 100, condition: C }],
+        plants: [{ id: 'p1', species: 'java_fern', size: 100, condition: C, surplus: 0 }],
         light: 50,
         co2: plantsDefaults.optimalCo2,
         nitrate: plantsDefaults.optimalNitrate * 100,
         water: 100,
       });
       const lowCo2State = createTestState({
-        plants: [{ id: 'p1', species: 'java_fern', size: 100, condition: C }],
+        plants: [{ id: 'p1', species: 'java_fern', size: 100, condition: C, surplus: 0 }],
         light: 50,
         co2: plantsDefaults.optimalCo2 / 4, // 25% of optimal
         nitrate: plantsDefaults.optimalNitrate * 100,
@@ -474,14 +649,14 @@ describe('processPlants', () => {
 
     it('low nitrate reduces photosynthesis', () => {
       const optimalState = createTestState({
-        plants: [{ id: 'p1', species: 'java_fern', size: 100, condition: C }],
+        plants: [{ id: 'p1', species: 'java_fern', size: 100, condition: C, surplus: 0 }],
         light: 50,
         co2: plantsDefaults.optimalCo2,
         nitrate: plantsDefaults.optimalNitrate * 100, // optimal
         water: 100,
       });
       const lowNitrateState = createTestState({
-        plants: [{ id: 'p1', species: 'java_fern', size: 100, condition: C }],
+        plants: [{ id: 'p1', species: 'java_fern', size: 100, condition: C, surplus: 0 }],
         light: 50,
         co2: plantsDefaults.optimalCo2,
         nitrate: (plantsDefaults.optimalNitrate / 4) * 100, // 25% of optimal
@@ -505,12 +680,12 @@ describe('processPlants', () => {
   describe('temperature effects on respiration', () => {
     it('higher temperature increases respiration', () => {
       const coldState = createTestState({
-        plants: [{ id: 'p1', species: 'java_fern', size: 100, condition: C }],
+        plants: [{ id: 'p1', species: 'java_fern', size: 100, condition: C, surplus: 0 }],
         light: 0,
         temperature: 20,
       });
       const warmState = createTestState({
-        plants: [{ id: 'p1', species: 'java_fern', size: 100, condition: C }],
+        plants: [{ id: 'p1', species: 'java_fern', size: 100, condition: C, surplus: 0 }],
         light: 0,
         temperature: 30,
       });
@@ -533,7 +708,7 @@ describe('processPlants', () => {
   describe('immutability', () => {
     it('does not modify original state', () => {
       const state = createTestState({
-        plants: [{ id: 'p1', species: 'java_fern', size: 50, condition: C }],
+        plants: [{ id: 'p1', species: 'java_fern', size: 50, condition: C, surplus: 0 }],
         light: 50,
         co2: plantsDefaults.optimalCo2,
         nitrate: plantsDefaults.optimalNitrate * 100,
@@ -548,7 +723,7 @@ describe('processPlants', () => {
 
     it('returns new state object when plants grow', () => {
       const state = createTestState({
-        plants: [{ id: 'p1', species: 'java_fern', size: 50, condition: C }],
+        plants: [{ id: 'p1', species: 'java_fern', size: 50, condition: C, surplus: 0 }],
         light: 50,
         co2: plantsDefaults.optimalCo2,
         nitrate: plantsDefaults.optimalNitrate * 100,

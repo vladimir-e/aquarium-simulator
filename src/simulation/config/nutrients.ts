@@ -4,10 +4,12 @@
  * Calibration targets:
  * - Fertilizer: Supplements fish waste; consumption is slow (0.1 mg/hr per 100% plants)
  *   At 100% plant coverage, 1ml (96mg) lasts ~40 days; primary nutrients come from waste
- * - Condition recovery: ~2-5% per tick when thriving
- * - Condition decay: ~1-3% per tick when starving
  * - Low-tech balance: Fish waste provides 50-70% of low-demand plant needs
  * - Overdose margin: 2-3x optimal before algae significantly benefits
+ *
+ * Plant condition is now driven by `systems/plant-vitality.ts` against
+ * `plantsConfig` (vitality benefit/damage rates per factor); this file
+ * only controls nutrient demand and the shedding/death thresholds.
  */
 
 /**
@@ -48,26 +50,6 @@ export interface NutrientsConfig {
   /** High-demand plants need full optimal */
   highDemandMultiplier: number;
 
-  // Condition rates (per tick)
-  /** Condition recovery rate when thriving (% per tick) */
-  conditionRecoveryRate: number;
-  /** Condition decay rate when starving (% per tick) */
-  conditionDecayRate: number;
-
-  // Shedding and death
-  /** Condition below this triggers shedding */
-  sheddingConditionThreshold: number;
-  /** Maximum shedding rate (fraction of size per tick at condition 0) */
-  maxSheddingRate: number;
-  /** Waste produced per unit of shed size */
-  wastePerShedSize: number;
-  /** Condition below this = plant death */
-  deathConditionThreshold: number;
-  /** Size below this = plant death (%) */
-  deathSizeThreshold: number;
-  /** Waste produced when plant dies (per % size) */
-  wastePerPlantDeath: number;
-
   // Decay phosphate production
   /** Phosphate produced per gram of decayed mass (mg/g) */
   phosphatePerDecay: number;
@@ -97,26 +79,6 @@ export const nutrientsDefaults: NutrientsConfig = {
   lowDemandMultiplier: 0.3, // 30% of optimal
   mediumDemandMultiplier: 0.6, // 60% of optimal
   highDemandMultiplier: 1.0, // Full optimal needed
-
-  // Condition dynamics use the homeostatic model in `systems/nutrients.ts`:
-  // condition trends toward `sufficiency * 100`, capped at these step rates.
-  //
-  // Decay slower than recovery by design — planted-tank hobbyists see
-  // nutrient crashes play out over weeks (scenario 02 Variant B: Monte Carlo
-  // at 30-55 % condition on day 28 after 3+ weeks of no dosing), not days.
-  // Recovery faster so plants "bounce back" when the user corrects a
-  // deficiency, but still gradual enough that missing a single dose
-  // doesn't snap a plant back to 100 % instantly.
-  conditionRecoveryRate: 0.5,
-  conditionDecayRate: 0.1,
-
-  // Shedding and death - forgiving thresholds
-  sheddingConditionThreshold: 30, // Shedding starts at condition < 30%
-  maxSheddingRate: 0.02, // 2% size loss per tick at condition 0
-  wastePerShedSize: 0.005, // 0.005g waste per % size shed
-  deathConditionThreshold: 10, // Death at condition < 10%
-  deathSizeThreshold: 10, // Death if size < 10%
-  wastePerPlantDeath: 0.01, // 0.01g waste per % size when dying
 
   // Decay phosphate - links fish waste to plant nutrition
   // Organic matter contains ~0.1-1% phosphorus; 50mg/g represents mineralized PO4
@@ -162,18 +124,6 @@ export const nutrientsConfigMeta: NutrientsConfigMeta[] = [
   { key: 'lowDemandMultiplier', label: 'Low Demand Multiplier', unit: '', min: 0.1, max: 0.5, step: 0.05 },
   { key: 'mediumDemandMultiplier', label: 'Medium Demand Multiplier', unit: '', min: 0.4, max: 0.8, step: 0.05 },
   { key: 'highDemandMultiplier', label: 'High Demand Multiplier', unit: '', min: 0.8, max: 1.0, step: 0.05 },
-
-  // Condition rates
-  { key: 'conditionRecoveryRate', label: 'Condition Recovery Rate', unit: '%/hr', min: 0.5, max: 10, step: 0.5 },
-  { key: 'conditionDecayRate', label: 'Condition Decay Rate', unit: '%/hr', min: 0.5, max: 10, step: 0.5 },
-
-  // Shedding and death
-  { key: 'sheddingConditionThreshold', label: 'Shedding Threshold', unit: '%', min: 10, max: 50, step: 5 },
-  { key: 'maxSheddingRate', label: 'Max Shedding Rate', unit: '/hr', min: 0.005, max: 0.1, step: 0.005 },
-  { key: 'wastePerShedSize', label: 'Waste per Shed Size', unit: 'g/%', min: 0.001, max: 0.05, step: 0.001 },
-  { key: 'deathConditionThreshold', label: 'Death Condition Threshold', unit: '%', min: 5, max: 20, step: 1 },
-  { key: 'deathSizeThreshold', label: 'Death Size Threshold', unit: '%', min: 5, max: 20, step: 1 },
-  { key: 'wastePerPlantDeath', label: 'Waste per Plant Death', unit: 'g/%', min: 0.001, max: 0.05, step: 0.001 },
 
   // Decay phosphate
   { key: 'phosphatePerDecay', label: 'Phosphate per Decay', unit: 'mg/g', min: 10, max: 200, step: 10 },

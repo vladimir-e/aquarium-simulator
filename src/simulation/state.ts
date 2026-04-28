@@ -58,9 +58,9 @@ export interface PlantSpeciesData {
   nutrientDemand: NutrientDemand;
   /**
    * Per-plant biological maximum size (% units, same scale as `Plant.size`).
-   * Drives the asymptotic growth factor in `distributeBiomass`:
-   * `factor = max(0, 1 - size / maxSize)`. Plants self-limit toward this
-   * cap instead of growing unbounded.
+   * Drives the asymptotic growth factor in `spendSurplusOnGrowth`:
+   * `factor = max(0, 1 - size / maxSize)`. The factor reduces spending
+   * efficiency as the plant approaches `maxSize` so it self-limits.
    *
    * Values are sized so that within calibration test windows (peak per-plant
    * size ≤ ~100%), the factor stays > 0.9 — the asymptotic term is
@@ -69,6 +69,32 @@ export interface PlantSpeciesData {
    * relative biological growth ceilings in real tanks.
    */
   maxSize: number;
+  /**
+   * Hardiness 0–1. Multiplies all stressor severities through the
+   * vitality engine — higher = species tolerates poor conditions
+   * better. Mirrors `FishSpeciesData.hardiness`. Anubias / Java Fern
+   * sit at 0.7 (forgiving), high-tech carpet species at 0.3 (fussy).
+   */
+  hardiness: number;
+  /**
+   * Tolerable light range in watts. Outside this band a light-insufficient
+   * (low) or light-excessive (high) stressor activates. The two-sided
+   * shape lets shade species like Anubias take damage when blasted with
+   * 100 W of LED, in addition to the usual carpet-species low-light
+   * complaints.
+   */
+  tolerableLight: [number, number];
+  /**
+   * Tolerable CO2 range in mg/L. High-tech species suffer when CO2 falls
+   * below their lower bound (the auto-doser-failure case from this
+   * task's motivating bug). Low-tech species' lower bound is just above
+   * atmospheric so they don't false-trigger.
+   */
+  tolerableCO2: [number, number];
+  /** Tolerable temperature range in °C — outside is stress. */
+  tolerableTemp: [number, number];
+  /** Tolerable pH range — outside is stress. */
+  tolerablePH: [number, number];
 }
 
 /**
@@ -85,6 +111,16 @@ export const PLANT_SPECIES_DATA: Record<PlantSpecies, PlantSpeciesData> = {
     // Slow attached fern. Calibration peak (S2A day 28): 54%.
     // factor at peak = 1 - 54/600 = 0.91 → calibration-safe.
     maxSize: 600,
+    hardiness: 0.7, // Forgiving — survives most beginner setups
+    // Light bands: lower bound 5 W matches "alive in a dim 5 W desk
+    // lamp tank"; upper bound 80 W is where leaves start bleaching
+    // under high-output LED. Mid-range covers everything from a stock
+    // 10-gallon kit to a planted nano.
+    tolerableLight: [5, 80],
+    // No CO2 dependency — atmospheric (~3 mg/L) is enough.
+    tolerableCO2: [1, 40],
+    tolerableTemp: [18, 30],
+    tolerablePH: [6.0, 8.0],
   },
   anubias: {
     name: 'Anubias',
@@ -96,6 +132,12 @@ export const PLANT_SPECIES_DATA: Record<PlantSpecies, PlantSpeciesData> = {
     // Slowest, attached. S4A day 56 anubias hits 68%.
     // factor at peak = 1 - 68/700 = 0.903 → calibration-safe.
     maxSize: 700,
+    hardiness: 0.75, // Hardiest of the bunch — bombproof
+    // Shade plant, but tolerates a wide range. Burns above ~70 W.
+    tolerableLight: [3, 70],
+    tolerableCO2: [1, 40],
+    tolerableTemp: [18, 30],
+    tolerablePH: [6.0, 8.0],
   },
   amazon_sword: {
     name: 'Amazon Sword',
@@ -107,6 +149,20 @@ export const PLANT_SPECIES_DATA: Record<PlantSpecies, PlantSpeciesData> = {
     // Medium-rate column plant. Calibration peak (S2A day 28): 73%.
     // factor at peak = 1 - 73/800 = 0.909 → calibration-safe.
     maxSize: 800,
+    hardiness: 0.5,
+    // Lower bound 10 W / 90 W upper. Real swords live happily in
+    // standard 18 W planted-kit lighting (S2 baseline scenario uses
+    // exactly that).
+    tolerableLight: [10, 90],
+    // Mild CO2 dependence — sword grows happily on atmospheric (~4 mg/L)
+    // CO2 in low-tech tanks, so the lower bound sits just above
+    // atmospheric. The spec's "high-tech tank loses CO2" scenario has
+    // sword decline slower than Monte Carlo: the engine produces this
+    // through milder daytime damage that nightly healing partially
+    // offsets, so sword degrades over weeks rather than days.
+    tolerableCO2: [6, 40],
+    tolerableTemp: [20, 28],
+    tolerablePH: [6.0, 7.5],
   },
   dwarf_hairgrass: {
     name: 'Dwarf Hairgrass',
@@ -118,6 +174,14 @@ export const PLANT_SPECIES_DATA: Record<PlantSpecies, PlantSpeciesData> = {
     // Fast carpet. No direct calibration coverage; matched to monte_carlo
     // since both are high-demand carpet species with similar growth rates.
     maxSize: 1100,
+    hardiness: 0.3, // Fussy — needs everything dialled in
+    // Lower bound 15 W. S2 calibration uses 18 W, which lands a fussy
+    // carpet in its tolerable-but-not-thriving zone. The benefit
+    // ramps in at 15 W and full-thrives by 30 W.
+    tolerableLight: [15, 150],
+    tolerableCO2: [10, 40], // Stalls without CO2 — high-tech species
+    tolerableTemp: [20, 28],
+    tolerablePH: [6.0, 7.5],
   },
   monte_carlo: {
     name: 'Monte Carlo',
@@ -129,6 +193,11 @@ export const PLANT_SPECIES_DATA: Record<PlantSpecies, PlantSpeciesData> = {
     // Fast carpet. Calibration peak (S2A day 28): 103%.
     // factor at peak = 1 - 103/1100 = 0.906 → calibration-safe.
     maxSize: 1100,
+    hardiness: 0.3, // Fussy — same band as hairgrass
+    tolerableLight: [15, 150],
+    tolerableCO2: [10, 40], // Same — needs CO2 to thrive
+    tolerableTemp: [20, 28],
+    tolerablePH: [6.0, 7.5],
   },
 };
 
@@ -243,6 +312,14 @@ export interface Fish {
    * synchronized mass die-offs. Range: ±15 % of species baseline.
    */
   hardinessOffset: number;
+  /**
+   * Surplus vitality accumulated while the fish is at full health
+   * (condition === 100). Captured by the unified vitality engine but
+   * unused for now — future tasks will spend it on breeding readiness,
+   * juvenile→adult progression, or longevity bonuses. Stored in %/hr-
+   * equivalent units; conservation of meaning is on the consumer.
+   */
+  surplus: number;
 }
 
 /**
@@ -253,10 +330,16 @@ export interface Plant {
   id: string;
   /** Plant species type */
   species: PlantSpecies;
-  /** Size percentage (can exceed 100%, capped at 200% with waste release) */
+  /** Size percentage (can exceed 100% up to species `maxSize`). */
   size: number;
   /** Condition/health percentage (0-100, plant dies below 10%) */
   condition: number;
+  /**
+   * Banked vitality surplus (%/h units). Vitality emits surplus when
+   * condition is full and net is positive; growth drains it; whatever
+   * is left over banks toward future propagation.
+   */
+  surplus: number;
 }
 
 export interface Tank {

@@ -34,7 +34,6 @@ export {
   calculatePhotosynthesis,
   getTotalPlantSize,
   calculateCo2Factor,
-  calculateNitrateFactor,
 } from './photosynthesis.js';
 
 export {
@@ -43,10 +42,10 @@ export {
 } from './respiration.js';
 
 export {
-  distributeBiomass,
-  getMaxPlantSize,
-  calculateOvergrowthPenalty,
+  spendSurplusOnGrowth,
   getSpeciesGrowthRate,
+  getSpeciesMaxSize,
+  asymptoticGrowthFactor,
 } from './plant-growth.js';
 
 export {
@@ -70,6 +69,14 @@ export {
   calculateHardscapeTargetPH,
   calculateCO2PHEffect,
 } from './ph-drift.js';
+
+export {
+  computeVitality,
+  type VitalityFactor,
+  type VitalityInput,
+  type VitalityResult,
+  type VitalityBreakdown,
+} from './vitality.js';
 
 import type { System } from './types.js';
 import { temperatureDriftSystem } from './temperature-drift.js';

@@ -230,8 +230,11 @@ function App(): React.JSX.Element {
             <Plants
               algae={state.resources.algae}
               plants={state.plants}
+              resources={state.resources}
               tankCapacity={state.tank.capacity}
               substrateType={state.equipment.substrate.type}
+              plantsConfig={config.plants}
+              nutrientsConfig={config.nutrients}
               executeAction={executeAction}
             />
             <Nutrients
@@ -248,6 +251,7 @@ function App(): React.JSX.Element {
             <Livestock
               food={state.resources.food}
               fish={state.fish}
+              plants={state.plants}
               resources={state.resources}
               tankCapacity={state.tank.capacity}
               livestockConfig={config.livestock}

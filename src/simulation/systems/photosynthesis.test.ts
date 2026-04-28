@@ -1,10 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import {
   calculateCo2Factor,
-  calculateNitrateFactor,
   calculatePhotosynthesis,
   getTotalPlantSize,
 } from './photosynthesis.js';
+import { calculateNutrientSufficiency } from './nutrients.js';
 import { plantsDefaults } from '../config/plants.js';
 import { nutrientsDefaults, getNutrientRatio } from '../config/nutrients.js';
 import type { Plant, Resources, PlantSpecies } from '../state.js';
@@ -56,6 +56,25 @@ function plant(size: number, species: PlantSpecies = 'amazon_sword'): Plant {
   };
 }
 
+/**
+ * Build a sufficiency map for a given plant set + resources, using the
+ * production sufficiency function. The orchestrator does this once per
+ * tick; tests do it inline so the calls match the new
+ * `calculatePhotosynthesis` signature exactly.
+ */
+function suffMap(
+  plants: readonly Plant[],
+  resources: Resources,
+  waterVolume: number
+): Map<string, number> {
+  return new Map(
+    plants.map((p) => [
+      p.id,
+      calculateNutrientSufficiency(resources, waterVolume, p.species, nutrientsDefaults),
+    ])
+  );
+}
+
 describe('calculateCo2Factor', () => {
   it('returns 0 when CO2 is 0', () => {
     const factor = calculateCo2Factor(0);
@@ -94,19 +113,49 @@ describe('calculateCo2Factor', () => {
   });
 });
 
-describe('calculateNitrateFactor', () => {
-  it('returns 1.0 at optimal nitrate concentration', () => {
-    const nitrateMass = plantsDefaults.optimalNitrate * 100;
-    expect(calculateNitrateFactor(nitrateMass, 100)).toBe(1.0);
+describe('nitrate as the Liebig-limiting nutrient', () => {
+  // Pin the per-plant Liebig sufficiency formula when nitrate is the only
+  // nutrient short of optimum (the other three are saturated). Uses Monte
+  // Carlo (high demand, all four nutrients required) so a missing nitrate
+  // can fully express as sufficiency loss.
+  const waterVolume = 100;
+  const optimal = nutrientsDefaults.optimalNitratePpm;
+
+  function buildSingleLimited(nitratePpm: number): Resources {
+    return {
+      ...buildResources(waterVolume),
+      nitrate: nitratePpm * waterVolume,
+    };
+  }
+
+  it('sufficiency = 1.0 at optimal nitrate', () => {
+    const suff = calculateNutrientSufficiency(
+      buildSingleLimited(optimal),
+      waterVolume,
+      'monte_carlo',
+      nutrientsDefaults
+    );
+    expect(suff).toBe(1.0);
   });
 
-  it('returns 0 when water volume is 0', () => {
-    expect(calculateNitrateFactor(100, 0)).toBe(0);
+  it('sufficiency = 0 when water volume is 0', () => {
+    const suff = calculateNutrientSufficiency(
+      buildSingleLimited(optimal),
+      0,
+      'monte_carlo',
+      nutrientsDefaults
+    );
+    expect(suff).toBe(0);
   });
 
-  it('scales linearly below optimal', () => {
-    const f = calculateNitrateFactor(plantsDefaults.optimalNitrate * 50, 100);
-    expect(f).toBe(0.5);
+  it('sufficiency scales linearly with nitrate below optimal', () => {
+    const suff = calculateNutrientSufficiency(
+      buildSingleLimited(optimal * 0.5),
+      waterVolume,
+      'monte_carlo',
+      nutrientsDefaults
+    );
+    expect(suff).toBe(0.5);
   });
 });
 
@@ -122,10 +171,11 @@ describe('calculatePhotosynthesis', () => {
         plantsDefaults.optimalCo2,
         buildResources(waterVolume),
         waterVolume
-      );
+      ,
+        suffMap([plant(100)], buildResources(waterVolume), waterVolume));
       expect(result.oxygenDelta).toBe(0);
       expect(result.nitrateDelta).toBe(0);
-      expect(result.biomassProduced).toBe(0);
+      expect(result.oxygenDelta).toBe(0);
       expect(result.limitingFactor).toBe(0);
     });
 
@@ -136,9 +186,10 @@ describe('calculatePhotosynthesis', () => {
         plantsDefaults.optimalCo2,
         buildResources(waterVolume),
         waterVolume
-      );
+      ,
+        suffMap([plant(0)], buildResources(waterVolume), waterVolume));
       expect(result.oxygenDelta).toBe(0);
-      expect(result.biomassProduced).toBe(0);
+      expect(result.oxygenDelta).toBe(0);
     });
 
     it('returns zeros when there are no plants', () => {
@@ -148,9 +199,10 @@ describe('calculatePhotosynthesis', () => {
         plantsDefaults.optimalCo2,
         buildResources(waterVolume),
         waterVolume
-      );
+      ,
+        suffMap([], buildResources(waterVolume), waterVolume));
       expect(result.oxygenDelta).toBe(0);
-      expect(result.biomassProduced).toBe(0);
+      expect(result.oxygenDelta).toBe(0);
     });
 
     it('returns zeros when water volume is 0', () => {
@@ -160,9 +212,10 @@ describe('calculatePhotosynthesis', () => {
         plantsDefaults.optimalCo2,
         buildResources(waterVolume),
         0
-      );
+      ,
+        suffMap([plant(100)], buildResources(waterVolume), 0));
       expect(result.oxygenDelta).toBe(0);
-      expect(result.biomassProduced).toBe(0);
+      expect(result.oxygenDelta).toBe(0);
     });
 
     it('returns zeros when CO2 is 0', () => {
@@ -172,8 +225,9 @@ describe('calculatePhotosynthesis', () => {
         0,
         buildResources(waterVolume),
         waterVolume
-      );
-      expect(result.biomassProduced).toBe(0);
+      ,
+        suffMap([plant(100)], buildResources(waterVolume), waterVolume));
+      expect(result.oxygenDelta).toBe(0);
       expect(result.oxygenDelta).toBe(0);
     });
   });
@@ -186,14 +240,15 @@ describe('calculatePhotosynthesis', () => {
         plantsDefaults.optimalCo2,
         buildResources(waterVolume),
         waterVolume
-      );
+      ,
+        suffMap([plant(100, 'java_fern')], buildResources(waterVolume), waterVolume));
       expect(result.oxygenDelta).toBeGreaterThan(0);
       expect(result.co2Delta).toBeLessThan(0);
       expect(result.nitrateDelta).toBeLessThan(0);
       expect(result.phosphateDelta).toBeLessThan(0);
       expect(result.potassiumDelta).toBeLessThan(0);
       expect(result.ironDelta).toBeLessThan(0);
-      expect(result.biomassProduced).toBeGreaterThan(0);
+      expect(result.oxygenDelta).toBeGreaterThan(0);
     });
 
     it('limiting factor is 1.0 at optimal conditions for low-demand plant', () => {
@@ -203,7 +258,8 @@ describe('calculatePhotosynthesis', () => {
         plantsDefaults.optimalCo2,
         buildResources(waterVolume),
         waterVolume
-      );
+      ,
+        suffMap([plant(100, 'java_fern')], buildResources(waterVolume), waterVolume));
       expect(result.limitingFactor).toBeCloseTo(1.0, 3);
     });
   });
@@ -216,8 +272,9 @@ describe('calculatePhotosynthesis', () => {
         plantsDefaults.optimalCo2,
         buildResources(waterVolume, { iron: 0 }),
         waterVolume
-      );
-      expect(result.biomassProduced).toBe(0);
+      ,
+        suffMap([plant(100, 'monte_carlo')], buildResources(waterVolume, { iron: 0 }), waterVolume));
+      expect(result.oxygenDelta).toBe(0);
       expect(result.limitingFactor).toBe(0);
     });
 
@@ -228,7 +285,8 @@ describe('calculatePhotosynthesis', () => {
         plantsDefaults.optimalCo2,
         buildResources(waterVolume, { iron: 0 }),
         waterVolume
-      );
+      ,
+        suffMap([plant(100, 'monte_carlo')], buildResources(waterVolume, { iron: 0 }), waterVolume));
       // Biomass is zero, but uptake draws from available pools. NO3 / PO4 / K
       // all have mass in resources and should be consumed.
       expect(result.nitrateDelta).toBeLessThan(0);
@@ -238,12 +296,14 @@ describe('calculatePhotosynthesis', () => {
     });
 
     it('nutrient uptake splits in fertilizer ratio', () => {
+      const abundant = buildResources(waterVolume, {}, 10); // 10× optimal — no clamping
       const result = calculatePhotosynthesis(
         [plant(100, 'amazon_sword')],
         light,
         plantsDefaults.optimalCo2,
-        buildResources(waterVolume, {}, 10), // abundant supply, no clamping
-        waterVolume
+        abundant,
+        waterVolume,
+        suffMap([plant(100, 'amazon_sword')], abundant, waterVolume)
       );
       // Total negative uptake should split by fertilizer ratio
       const total =
@@ -263,15 +323,17 @@ describe('calculatePhotosynthesis', () => {
         plantsDefaults.optimalCo2,
         buildResources(waterVolume),
         waterVolume
-      );
+      ,
+        suffMap([plant(100, 'java_fern')], buildResources(waterVolume), waterVolume));
       const half = calculatePhotosynthesis(
         [plant(100, 'java_fern')],
         light,
         plantsDefaults.optimalCo2 / 2,
         buildResources(waterVolume),
         waterVolume
-      );
-      expect(half.biomassProduced).toBeCloseTo(full.biomassProduced / 2, 4);
+      ,
+        suffMap([plant(100, 'java_fern')], buildResources(waterVolume), waterVolume));
+      expect(half.oxygenDelta).toBeCloseTo(full.oxygenDelta / 2, 4);
       expect(half.oxygenDelta).toBeCloseTo(full.oxygenDelta / 2, 4);
     });
   });
@@ -284,15 +346,17 @@ describe('calculatePhotosynthesis', () => {
         plantsDefaults.optimalCo2,
         buildResources(waterVolume),
         waterVolume
-      );
+      ,
+        suffMap([plant(100, 'java_fern')], buildResources(waterVolume), waterVolume));
       const r200 = calculatePhotosynthesis(
         [plant(200, 'java_fern')],
         light,
         plantsDefaults.optimalCo2,
         buildResources(waterVolume, {}, 10),
         waterVolume
-      );
-      expect(r200.biomassProduced).toBeCloseTo(r100.biomassProduced * 2, 4);
+      ,
+        suffMap([plant(200, 'java_fern')], buildResources(waterVolume, {}, 10), waterVolume));
+      expect(r200.oxygenDelta).toBeCloseTo(r100.oxygenDelta * 2, 4);
       expect(r200.oxygenDelta).toBeCloseTo(r100.oxygenDelta * 2, 4);
     });
 
@@ -303,15 +367,17 @@ describe('calculatePhotosynthesis', () => {
         plantsDefaults.optimalCo2,
         buildResources(waterVolume),
         waterVolume
-      );
+      ,
+        suffMap([plant(100, 'java_fern')], buildResources(waterVolume), waterVolume));
       const pair = calculatePhotosynthesis(
         [plant(50, 'java_fern'), plant(50, 'java_fern')],
         light,
         plantsDefaults.optimalCo2,
         buildResources(waterVolume),
         waterVolume
-      );
-      expect(pair.biomassProduced).toBeCloseTo(solo.biomassProduced, 4);
+      ,
+        suffMap([plant(50, 'java_fern'), plant(50, 'java_fern')], buildResources(waterVolume), waterVolume));
+      expect(pair.oxygenDelta).toBeCloseTo(solo.oxygenDelta, 4);
     });
   });
 
@@ -325,7 +391,8 @@ describe('calculatePhotosynthesis', () => {
         plantsDefaults.optimalCo2,
         buildResources(waterVolume),
         waterVolume
-      );
+      ,
+        suffMap([plant(100, 'java_fern')], buildResources(waterVolume), waterVolume));
       expect(result.oxygenDelta).toBeCloseTo(0.7, 1);
     });
 
@@ -336,7 +403,8 @@ describe('calculatePhotosynthesis', () => {
         plantsDefaults.optimalCo2,
         buildResources(waterVolume),
         waterVolume
-      );
+      ,
+        suffMap([plant(100, 'java_fern')], buildResources(waterVolume), waterVolume));
       expect(result.co2Delta).toBeCloseTo(-0.5, 1);
     });
   });

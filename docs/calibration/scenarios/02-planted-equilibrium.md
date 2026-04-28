@@ -1,5 +1,13 @@
 # Scenario 2: Heavily Planted Equilibrium
 
+> **Pending re-baseline.** The prescribed condition bands (e.g.
+> "Variant B: MC 30–55 %, AS 55–75 %") were tuned against the
+> pre-vitality homeostatic model (Task 40, PR #45). Vitality removes
+> intermediate-condition steady states — plants heal to 100 % or
+> decline. Bands below are preserved unchanged for historical
+> reference; the upcoming calibration session will rewrite them
+> against the current engine. Do not modify the numbers here.
+
 10gal heavily planted tank — aqua soil, strong light, CO2 injection on a timer, canister filter with real flow, glass lid to kill evaporation. Five medium-to-high-demand plants (roughly 1 plant per 2 gallons, so 5 in a 10), 10 small fish (neon tetras) at very light feeding. The target state: a "walstad-ish but high-tech" equilibrium where plants consume NO3 and PO4 as fast as they're produced, nitrate sits in the single digits, algae is starved out, and the tank can coast for weeks without water changes. Two sub-scenarios matter for calibration: **(A) with EI dosing** — plants thrive, fast growth, carpet fills in; **(B) with fish waste only, no dosing** — plants survive but stall at mediocre condition, NO3 is still low, algae still suppressed but by a thinner margin. This is the primary plants-subsystem calibration.
 
 ## Setup

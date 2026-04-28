@@ -64,6 +64,7 @@ export function addFish(
       hunger: 30,
       sex,
       hardinessOffset,
+      surplus: 0,
     });
 
     draft.logs.push(

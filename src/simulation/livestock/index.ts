@@ -105,6 +105,7 @@ export function processLivestock(
   const healthResult = processHealth(
     metabolismResult.updatedFish,
     state.resources,
+    state.plants,
     state.resources.water,
     state.tank.capacity,
     livestockConfig
@@ -141,9 +142,4 @@ export function processLivestock(
 
 // Re-export for testing and external use
 export { processMetabolism } from '../systems/metabolism.js';
-export {
-  processHealth,
-  calculateStress,
-  calculateStressBreakdown,
-  type StressBreakdown,
-} from '../systems/fish-health.js';
+export { processHealth, computeFishVitality } from '../systems/fish-health.js';

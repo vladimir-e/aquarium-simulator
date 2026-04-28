@@ -2,6 +2,11 @@
 
 Aquatic plants that perform photosynthesis and growth, consuming resources and producing oxygen.
 
+> Plant condition runs on the unified vitality engine. See
+> `1-DESIGN.md` § The Vitality Engine for the shared math; this doc
+> covers plant-specific stressors, benefits, and the surplus-driven
+> growth path.
+
 ## Purpose
 
 Plants in the simulation:
@@ -17,10 +22,15 @@ Plants are modeled as **individual specimens**, each with their own species char
 
 ### Key Concepts
 
-1. **Photosynthesis** produces aggregate **biomass** (tank-wide resource)
-2. **Biomass** is distributed to individual plants based on their characteristics
-3. Each plant has a **size** measured as percentage (%)
-4. Plants can grow past 100%, with consequences
+1. **Photosynthesis** emits resource effects (O2 production, CO2 and
+   nutrient uptake). It does NOT directly produce plant size — that
+   flows through the surplus supply chain.
+2. **Vitality** produces per-plant **surplus** when condition is full
+   and net is positive. Surplus banks on `Plant.surplus`.
+3. **Growth** drains the bank each tick, scaled by species growth
+   rate and an asymptotic factor against species `maxSize`.
+4. Plants can grow past 100% up to their species `maxSize`; growth
+   slows asymptotically as size approaches the cap.
 
 ---
 
@@ -131,39 +141,48 @@ oxygen_produced = photosynthesis_rate * total_plant_size * oxygen_per_unit
 
 ## Growth and Size
 
-### Biomass Distribution
+Growth is **surplus-driven**, per plant, no cross-plant sharing. The
+pipeline is:
 
-After photosynthesis produces aggregate biomass, it's distributed to individual plants:
+1. Vitality emits per-tick surplus when the plant is at full condition
+   with positive net rate.
+2. The orchestrator banks the emission on `Plant.surplus` — but only
+   while the photoperiod is active (`resources.light > 0`). At night
+   the emission is discarded. Plant surplus represents stored
+   photosynthate (glucose reserves from carbon fixation); plants
+   need active photosynthesis to fix carbon, so without light there's
+   no energy actually captured even if vitality's other channels are
+   positive. (Vitality itself runs every tick, so plant *condition*
+   keeps healing at night from non-light benefits — pH, temperature,
+   nutrients — only the surplus-accrual step pauses.)
+3. While the photoperiod is active, growth drains up to
+   `plantGrowthPerTickCap` units from the bank. The drained units
+   convert to size at:
 
-```
-for each plant:
-    plant_share = plant.growth_rate / total_growth_rates
-    plant_biomass = aggregate_biomass * plant_share
-    plant.size += biomass_to_size(plant_biomass, plant.species)
-```
+   ```
+   size_gain = drained × asymptoticFactor × speciesGrowthRate × sizePerSurplus
+   asymptoticFactor = max(0, 1 − size / species.maxSize)
+   ```
 
-### Size Mechanics
+   Growth pauses at night for the same biological reason: overnight
+   respiration burns sugars for maintenance, but net biomass
+   accumulation requires active carbon fixation. The bank doesn't
+   drain in the dark.
+4. Whatever is left in `Plant.surplus` stays banked. The bank is
+   the canonical lifecycle-outcome stock for plants.
 
-| Size Range | Effect |
-|------------|--------|
-| 0-100% | Normal growth |
-| 100-200% | Overgrown - slows growth for ALL plants |
-| >200% | Releases waste (decaying leaves) |
+The asymptotic factor reduces *spending efficiency*, not withdrawal
+amount: a plant near `maxSize` still drains the cap from its bank
+each daylight tick, but gets less size for the spend. A plant at its
+ceiling stops growing visibly while the bank keeps filling.
 
-**Overgrowth Penalty:**
-```
-if any_plant.size > 100%:
-    overgrowth_factor = calculate_overgrowth_penalty()
-    all_plants_growth *= overgrowth_factor
-```
-
-**Decay from Extreme Overgrowth:**
-```
-for each plant where size > 200%:
-    excess = plant.size - 200%
-    waste_produced = excess * decay_rate
-    tank.waste += waste_produced
-```
+Photosynthesis is decoupled from growth: it emits resource effects
+only (O2, CO2, nutrient uptake). Plant size never gets photosynthesis
+output directly — it only gets surplus, and surplus is gated by
+vitality (which is gated by stressors, including the nutrient-
+deficiency stressor that photosynthesis health drives upstream). No
+double-counting, no parallel mechanism — a single source of truth for
+each plant's per-tick growth.
 
 ---
 
@@ -194,40 +213,95 @@ else:
 
 ---
 
-## Plant Condition
+## Plant Condition (Vitality)
 
-Each plant has a **condition** (0-100%) that reflects its overall health, similar to fish health.
+Each plant has a **condition** (0-100%) driven by the unified
+**vitality engine** that fish also use. Each tick, the engine builds
+two lists for the plant — damage factors (stressors) and benefit
+factors — and produces:
 
-### Condition Changes
+1. The plant's new condition (clamped 0–100), and
+2. A **surplus** value when condition is at 100 and benefits exceed
+   damage.
 
-Condition improves or degrades based on nutrient sufficiency:
+The locked design rule: **growth happens only when condition is 100**.
+A stressed plant heals first, then grows. It never crawls forward at
+reduced rate. Surplus is the gate for biomass distribution
+(see *Growth and Size* below).
 
-| Sufficiency | Condition Effect |
-|-------------|------------------|
-| ≥ 80% | **Thriving**: Condition improves (+2-5% per tick) |
-| 50-79% | **Adequate**: Slight recovery (+0.5-1% per tick) |
-| 20-49% | **Struggling**: Slow decline (-0.5-1.5% per tick) |
-| < 20% | **Starving**: Rapid decline (-1-3% per tick) |
+### Stressor coverage
+
+Each species' tolerance bands (`tolerableLight`, `tolerableCO2`,
+`tolerableTemp`, `tolerablePH`) define when a stressor activates:
+
+| Stressor | Trigger | Severity (per unit deviation) |
+|----------|---------|-------------------------------|
+| Light insufficient | `light < tolerableLight[0]` *and* lights on | `lightInsufficientSeverity` × gap |
+| Light excessive | `light > tolerableLight[1]` | `lightExcessiveSeverity` × gap |
+| CO2 insufficient | `co2 < tolerableCO2[0]` *and* lights on | `co2InsufficientSeverity` × gap |
+| Temperature out of range | outside `tolerableTemp` | `temperatureStressSeverity` × gap |
+| pH out of range | outside `tolerablePH` | `phStressSeverity` × gap |
+| Nutrient deficiency | Liebig sufficiency < 1 | `nutrientDeficiencySeverity` × (1 − sufficiency) |
+| Nutrient toxicity | NO3 ppm > `nutrientToxicityThresholdNitrate` (default 100) | `nutrientToxicitySeverity` × ppm above threshold |
+| Algae shading | algae > `algaeShadingThreshold` | `algaeShadingSeverity` × algae above threshold |
+
+CO2 and light-low stressors are gated on `light > 0` (lights on) — at
+night the plant is dormant and doesn't suffer from low CO2 or low
+light. Light excess remains active any time the lamps are bright
+enough to burn leaves.
+
+Damage rates are pre-hardiness; the species `hardiness` (0–1)
+multiplier is applied centrally inside the vitality engine (`damage *
+(1 - hardiness)`). A high-hardiness species (Anubias 0.75) takes
+quarter the damage of a low-hardiness one (Monte Carlo 0.3) under the
+same stressor.
+
+### Benefit coverage
+
+Each species also gets a benefit when an environmental factor is
+inside its tolerable band. Benefits stack into a positive recovery
+rate; in a fully-comfortable tank they sum to roughly 0.5 %/h.
+
+| Benefit | Trigger | Magnitude |
+|---------|---------|-----------|
+| Light | inside `tolerableLight` | `lightBenefitPeak` |
+| CO2 | inside `tolerableCO2` | `co2BenefitPeak` |
+| Temperature | inside `tolerableTemp` | `temperatureBenefitPeak` |
+| pH | inside `tolerablePH` | `phBenefitPeak` |
+| Nutrients | sufficiency × peak | `nutrientBenefitPeak × sufficiency` |
+
+Benefits are **not** scaled by hardiness — a hardy plant tolerates
+poor conditions better, but isn't more energised by good ones.
+
+### Vitality math (per tick)
 
 ```
-if nutrient_sufficiency >= 0.8:
-    condition += RECOVERY_RATE
-elif nutrient_sufficiency >= 0.5:
-    condition += RECOVERY_RATE * 0.3
-elif nutrient_sufficiency >= 0.2:
-    condition -= DECAY_RATE * 0.5
-else:
-    condition -= DECAY_RATE
+damageRate  = Σ stressor.amount × (1 - hardiness)
+benefitRate = Σ benefit.amount
+net         = benefitRate − damageRate
 
-condition = clamp(condition, 0, 100)
+if net < 0:                      newCondition = condition + net  (clamp ≥ 0)
+if net > 0 and condition < 100:  newCondition = min(100, condition + net)
+                                 surplus      = 0
+if net > 0 and condition == 100: newCondition = 100
+                                 surplus      = net
 ```
 
-### Relaxed Thresholds
+Surplus banks on `Plant.surplus`. While condition is below 100 the
+vitality engine emits zero surplus, so the bank doesn't fill and
+growth doesn't happen. Once condition reaches 100, surplus flows
+into the bank, the growth pipeline drains some each daylight tick,
+and the leftover stays banked. See *Growth and Size* above for the
+full supply chain.
 
-The system provides margin for error:
-- Missing a single dose doesn't immediately harm plants
-- Gradual decline gives user time to notice and correct
-- Low-demand plants are very forgiving
+### Heal-or-decline trajectory
+
+There is no intermediate steady state for plant condition: any organism
+whose net rate is non-negative heals to 100, and any organism whose
+net rate is negative declines toward 0. A plant whose stressors are
+all zero will reach 100 even when its conditions are merely
+"adequate" — there is no homeostatic parking. This is the same
+trajectory shape used for fish.
 
 ---
 

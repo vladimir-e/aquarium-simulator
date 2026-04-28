@@ -55,7 +55,7 @@ describe('dose action', () => {
       let state = createSimulation({ tankCapacity: 40 });
       state = {
         ...state,
-        plants: [{ id: 'test', species: 'java_fern', size: 50, condition: 100 }],
+        plants: [{ id: 'test', species: 'java_fern', size: 50, condition: 100, surplus: 0 }],
       };
 
       expect(canDose(state)).toBe(true);

@@ -218,15 +218,16 @@ export type { WaterChangeAmount, TrimTargetSize } from './actions/index.js';
 export {
   processPlants,
   calculatePhotosynthesis,
+  calculateNutrientSufficiency,
   getTotalPlantSize,
   calculateCo2Factor,
-  calculateNitrateFactor,
   calculateRespiration,
   getRespirationTemperatureFactor,
-  distributeBiomass,
-  getMaxPlantSize,
-  calculateOvergrowthPenalty,
+  spendSurplusOnGrowth,
   getSpeciesGrowthRate,
+  computePlantVitality,
+  buildPlantStressors,
+  buildPlantBenefits,
 } from './plants/index.js';
 
 // Livestock
@@ -234,7 +235,14 @@ export {
   processLivestock,
   processMetabolism,
   processHealth,
-  calculateStress,
-  calculateStressBreakdown,
-  type StressBreakdown,
+  computeFishVitality,
 } from './livestock/index.js';
+
+// Vitality
+export {
+  computeVitality,
+  type VitalityFactor,
+  type VitalityInput,
+  type VitalityResult,
+  type VitalityBreakdown,
+} from './systems/index.js';

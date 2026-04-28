@@ -183,8 +183,9 @@ const PlantSchema = z
   .object({
     id: z.string(),
     species: z.enum(['java_fern', 'anubias', 'amazon_sword', 'dwarf_hairgrass', 'monte_carlo']),
-    size: z.number().min(0).max(200),
+    size: z.number().min(0),
     condition: z.number().min(0).max(100),
+    surplus: z.number().min(0),
   })
   .strict();
 
@@ -202,6 +203,7 @@ const FishSchema = z
     hunger: z.number().min(0).max(100),
     sex: z.enum(['male', 'female']),
     hardinessOffset: z.number(),
+    surplus: z.number().min(0),
   })
   .strict();
 
@@ -329,16 +331,37 @@ const PlantsConfigSchema = z
     o2PerPhotosynthesis: z.number(),
     co2PerPhotosynthesis: z.number(),
     nutrientsPerPhotosynthesis: z.number(),
-    biomassPerPhotosynthesis: z.number(),
     baseRespirationRate: z.number(),
     o2PerRespiration: z.number(),
     co2PerRespiration: z.number(),
     respirationQ10: z.number(),
     respirationReferenceTemp: z.number(),
-    sizePerBiomass: z.number(),
-    overgrowthPenaltyScale: z.number(),
-    wastePerExcessSize: z.number(),
+    plantGrowthPerTickCap: z.number(),
+    sizePerSurplus: z.number(),
     competitionScale: z.number(),
+    // Vitality stressor severities
+    lightInsufficientSeverity: z.number(),
+    lightExcessiveSeverity: z.number(),
+    co2InsufficientSeverity: z.number(),
+    temperatureStressSeverity: z.number(),
+    phStressSeverity: z.number(),
+    nutrientDeficiencySeverity: z.number(),
+    nutrientToxicitySeverity: z.number(),
+    nutrientToxicityThresholdNitrate: z.number(),
+    algaeShadingSeverity: z.number(),
+    algaeShadingThreshold: z.number(),
+    // Vitality benefit peaks
+    lightBenefitPeak: z.number(),
+    co2BenefitPeak: z.number(),
+    temperatureBenefitPeak: z.number(),
+    phBenefitPeak: z.number(),
+    nutrientBenefitPeak: z.number(),
+    sheddingConditionThreshold: z.number(),
+    maxSheddingRate: z.number(),
+    wastePerShedSize: z.number(),
+    deathConditionThreshold: z.number(),
+    deathSizeThreshold: z.number(),
+    wastePerPlantDeath: z.number(),
   })
   .strict();
 
@@ -361,14 +384,6 @@ const NutrientsConfigSchema = z
     lowDemandMultiplier: z.number(),
     mediumDemandMultiplier: z.number(),
     highDemandMultiplier: z.number(),
-    conditionRecoveryRate: z.number(),
-    conditionDecayRate: z.number(),
-    sheddingConditionThreshold: z.number(),
-    maxSheddingRate: z.number(),
-    wastePerShedSize: z.number(),
-    deathConditionThreshold: z.number(),
-    deathSizeThreshold: z.number(),
-    wastePerPlantDeath: z.number(),
     phosphatePerDecay: z.number(),
   })
   .strict();
@@ -382,7 +397,6 @@ const LivestockConfigSchema = z
     basalAmmoniaRate: z.number(),
     respiratoryQuotient: z.number(),
     hungerIncreaseRate: z.number(),
-    baseHealthRecovery: z.number(),
     temperatureStressSeverity: z.number(),
     phStressSeverity: z.number(),
     ammoniaStressSeverity: z.number(),
@@ -392,8 +406,18 @@ const LivestockConfigSchema = z
     oxygenStressSeverity: z.number(),
     waterLevelStressSeverity: z.number(),
     flowStressSeverity: z.number(),
+    ageStressSeverity: z.number(),
+    nitrateStressThreshold: z.number(),
+    oxygenStressThreshold: z.number(),
+    hungerStressThreshold: z.number(),
+    waterLevelStressThreshold: z.number(),
+    phBenefitPeak: z.number(),
+    hungerBenefitPeak: z.number(),
+    hungerBenefitFullThreshold: z.number(),
+    oxygenBenefitPeak: z.number(),
+    plantBenefitPeak: z.number(),
+    plantBenefitSaturationPoint: z.number(),
     deathDecayFactor: z.number(),
-    oldAgeDeathChance: z.number(),
   })
   .strict();
 

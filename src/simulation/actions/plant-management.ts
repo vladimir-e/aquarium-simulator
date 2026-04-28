@@ -140,6 +140,7 @@ export function addPlant(
       species,
       size: initialSize,
       condition: 100, // New plants start at full health
+      surplus: 0,
     });
 
     draft.logs.push(
