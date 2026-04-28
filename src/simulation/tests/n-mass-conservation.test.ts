@@ -47,10 +47,9 @@ import { describe, it, expect } from 'vitest';
 import { produce } from 'immer';
 import { tick } from '../tick.js';
 import { applyAction } from '../actions/index.js';
-import {
-  createCycledTank,
-  addFish,
-} from '../calibration/helpers.js';
+import { createSimulation } from '../state.js';
+import { getMassFromPpm } from '../resources/helpers.js';
+import { nitrogenCycleDefaults } from '../config/nitrogen-cycle.js';
 import { DEFAULT_CONFIG } from '../config/index.js';
 import {
   MW_N,
@@ -58,8 +57,62 @@ import {
   MW_NO2,
   MW_NO3,
 } from '../systems/nitrogen-cycle.js';
-import type { SimulationState } from '../state.js';
+import type { SimulationState, SimulationConfig, FishSpecies } from '../state.js';
 import type { TunableConfig } from '../config/index.js';
+
+/**
+ * Create a pre-cycled tank with established bacteria colonies.
+ * Bacteria at carrying capacity, baseline nitrate, no ammonia/nitrite.
+ */
+function createCycledTank(
+  setup: SimulationConfig,
+  options?: {
+    nitratePpm?: number;
+    aobFraction?: number;
+    nobFraction?: number;
+  }
+): SimulationState {
+  const state = createSimulation(setup);
+  const maxBacteria = state.resources.surface * nitrogenCycleDefaults.bacteriaPerCm2;
+
+  return produce(state, (draft) => {
+    draft.resources.aob = maxBacteria * (options?.aobFraction ?? 1.0);
+    draft.resources.nob = maxBacteria * (options?.nobFraction ?? 1.0);
+    draft.resources.nitrate = getMassFromPpm(
+      options?.nitratePpm ?? 15,
+      draft.resources.water
+    );
+  });
+}
+
+/**
+ * Add multiple fish to a state, neutralising the live-game stochasticity.
+ *
+ * The live `addFish` action applies ±15 % hardiness jitter and ±5 %
+ * initial-health jitter per individual (task 35), which would make the
+ * N-mass conservation invariants stochastic. Invariant tests want
+ * uniform fish — the jitter is a UX/game feature, not a physics claim.
+ * Helper zero-outs both offsets so pool deltas stay pinned.
+ */
+function addFish(
+  state: SimulationState,
+  species: FishSpecies,
+  count: number
+): SimulationState {
+  const existingIds = new Set(state.fish.map((f) => f.id));
+  let s = state;
+  for (let i = 0; i < count; i++) {
+    s = applyAction(s, { type: 'addFish', species }).state;
+  }
+  return produce(s, (draft) => {
+    for (const fish of draft.fish) {
+      if (!existingIds.has(fish.id)) {
+        fish.hardinessOffset = 0;
+        fish.health = 100;
+      }
+    }
+  });
+}
 
 /**
  * Total elemental-N mass (grams) currently held in the tank's pools.

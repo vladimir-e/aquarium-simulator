@@ -8,6 +8,10 @@ Format: - **Feature name** (#PR) - Brief description (under 100 chars)
 - Skip UI-only tweaks and minor fixes
 -->
 
+## 2026-04-27
+
+- **Remove pre-CLI calibration scaffolding** - Task 42: deleted `src/simulation/calibration/` (helpers + smoke test) and the now-stale `docs/tasks/24-calibration-scenarios.md`; the stateful calibration CLI in `src/cli/` plus the workflow docs at `docs/calibration/` (Task 25) are the canonical path now. The two helpers still used by `src/simulation/tests/n-mass-conservation.test.ts` (`createCycledTank` and the deterministic, jitter-neutralising `addFish`) were inlined into the test file — single consumer, ~50 lines, no shared module needed. No engine or CLI behavior changes.
+
 ## 2026-04-25
 
 - **Vitality model: plants-as-fish-benefit + FishCard Conditions** - Fourth fish benefit factor `Plants` summing `(size/100)×(condition/100)` across plants and saturating (linear ramp) at three full-grown healthy plants worth of biomass, peak 0.2 %/h. Raises the planted-tank benefit budget to ≈1.2 %/h so a healthy planted tank accumulates surplus on `Fish.surplus` — entry point for the surplus-driven breeding mechanic. Plants count by raw biomass (no per-plant size cap) so a single overgrown plant can saturate the benefit on its own; overgrowth is regulated on the plant side via self-shading and competition. `processHealth` / `computeFishVitality` / `calculateStress(Breakdown)` signatures take `plants: Plant[]`; `processLivestock` forwards `state.plants`. FishCard rewritten to mirror PlantCard: merged `▶ Conditions (N)` toggle showing red stressors and green benefits in one block, formatting unified to `+X.XX%/h`; vitality breakdown is the single source of truth — no parallel stressor lookup table.
