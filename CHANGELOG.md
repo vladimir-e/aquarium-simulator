@@ -8,6 +8,10 @@ Format: - **Feature name** (#PR) - Brief description (under 100 chars)
 - Skip UI-only tweaks and minor fixes
 -->
 
+## 2026-04-27
+
+- **Game UI extracted** - Task 41: the `/game` scaffolding (Task 23) moved to a separate, non-open-source repo. Deleted `game/`, `vite.game.config.ts`, `vitest.game.config.ts`, and `docs/tasks/23-game-ui-foundation.md`; removed `pixi.js` + `framer-motion` from `dependencies` (verified game-only); dropped `dev:game`/`build:game`/`preview:game`/`test:game`/`test:game:watch` scripts and the `game/**` glob from `lint` + `lint:fresh`; cleaned `dist-game/` out of `.gitignore` and `eslint.config.js`. Engine, calibration CLI, and `src/ui/` (the Vercel-deployed control panel at sim.fishroom.app) are untouched.
+
 ## 2026-04-25
 
 - **Vitality model: plants-as-fish-benefit + FishCard Conditions** - Fourth fish benefit factor `Plants` summing `(size/100)×(condition/100)` across plants and saturating (linear ramp) at three full-grown healthy plants worth of biomass, peak 0.2 %/h. Raises the planted-tank benefit budget to ≈1.2 %/h so a healthy planted tank accumulates surplus on `Fish.surplus` — entry point for the surplus-driven breeding mechanic. Plants count by raw biomass (no per-plant size cap) so a single overgrown plant can saturate the benefit on its own; overgrowth is regulated on the plant side via self-shading and competition. `processHealth` / `computeFishVitality` / `calculateStress(Breakdown)` signatures take `plants: Plant[]`; `processLivestock` forwards `state.plants`. FishCard rewritten to mirror PlantCard: merged `▶ Conditions (N)` toggle showing red stressors and green benefits in one block, formatting unified to `+X.XX%/h`; vitality breakdown is the single source of truth — no parallel stressor lookup table.
