@@ -10,7 +10,8 @@ Format: - **Feature name** (#PR) - Brief description (under 100 chars)
 
 ## 2026-04-27
 
-- **Game UI extracted** - Task 41: the `/game` scaffolding (Task 23) moved to a separate, non-open-source repo. Deleted `game/`, `vite.game.config.ts`, `vitest.game.config.ts`, and `docs/tasks/23-game-ui-foundation.md`; removed `pixi.js` + `framer-motion` from `dependencies` (verified game-only); dropped `dev:game`/`build:game`/`preview:game`/`test:game`/`test:game:watch` scripts and the `game/**` glob from `lint` + `lint:fresh`; cleaned `dist-game/` out of `.gitignore` and `eslint.config.js`. Engine, calibration CLI, and `src/ui/` (the Vercel-deployed control panel at sim.fishroom.app) are untouched.
+- **Game UI extracted** - The `/game` scaffolding (Task 23) moved to a separate, non-open-source repo. Deleted `game/`, `vite.game.config.ts`, `vitest.game.config.ts`, and the Task 23 spec; removed `pixi.js` + `framer-motion` from `dependencies` (verified game-only); dropped the five `*:game` scripts and the `game/**` glob from `lint` + `lint:fresh`; cleaned `dist-game/` out of `.gitignore` and `eslint.config.js`. Engine, calibration CLI, and `src/ui/` (the Vercel-deployed control panel at sim.fishroom.app) are untouched.
+- **Remove pre-CLI calibration scaffolding** - Deleted `src/simulation/calibration/` (helpers + smoke test) and the now-stale Task 24 spec; the stateful calibration CLI in `src/cli/` plus the workflow docs at `docs/calibration/` (Task 25) are the canonical path now. The two helpers still used by `src/simulation/tests/n-mass-conservation.test.ts` (`createCycledTank` and the deterministic, jitter-neutralising `addFish`) were inlined into the test file — single consumer, ~50 lines, no shared module needed. No engine or CLI behavior changes.
 
 ## 2026-04-25
 
