@@ -320,8 +320,10 @@ Systems are registered in a central list and automatically invoked during their 
 - Single aggregate "nutrients" resource (no NPK/micro split)
 
 ### Algae
-- Treated as a resource (quantity) not an entity
-- Accumulates/depletes based on light, nutrients, competition with plants
+- Treated as a population (entity), not a resource — see
+  `6-PLANTS.md` § Algae as an organism for the full model
+- Mass-only state (no condition); net rate from stressors / benefits
+  drives mass directly
 - Does not compete for surface area (bacteria only)
 
 ## Tick Processing Pipeline

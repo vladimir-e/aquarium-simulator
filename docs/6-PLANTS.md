@@ -354,9 +354,14 @@ Plants can recover from low condition if nutrients are restored before death:
 ## Algae as an organism
 
 Algae is a peer organism to plants and fish: it lives in
-`state.algae`, runs through the shared `computeVitality` engine, and
-banks surplus into mass growth — same architectural shape as plants.
-The difference: one population, not an array of specimens.
+`state.algae` and is processed in the ACTIVE tier of the tick.
+Unlike plants and fish, **algae has no condition** — it's a pure
+population. Stressors and benefits feed a single signed net rate
+that drives mass directly: positive net banks surplus and grows the
+bloom, negative net shrinks it.
+
+This shape previews the colony abstraction (snails, shrimps): a
+population doesn't need health, just population dynamics.
 
 ### State shape
 
@@ -366,16 +371,12 @@ state.algae: AlgaeState
 interface AlgaeState {
   /** Aggregate biomass / coverage 0–100. */
   mass: number
-  /** Vitality 0–100. Drives surplus and mass-decay rate. */
-  condition: number
-  /** Banked surplus emitted by vitality once condition === 100. */
+  /** Banked surplus from positive net rate; spent on mass growth. */
   surplus: number
 }
 ```
 
-Initialised to `{ mass: 0, condition: 100, surplus: 0 }`. Condition
-starts at 100 because there's no algae yet — vitality is meaningful
-only once mass > 0.
+Initialised to `{ mass: 0, surplus: 0 }`.
 
 ### Plant power — the shared primitive
 
@@ -423,39 +424,54 @@ with a deadband between `weaknessThreshold` and `suppressionThreshold`
 is the canary signalling "plants are starving, algae moves in" with
 intentionally small severity.
 
+### Net rate
+
+Each tick, `computeAlgaePopulation` builds the stressor / benefit
+factor lists and reduces them to a signed net:
+
+```
+damageRate  = Σ stressor.amount × (1 − hardiness)
+benefitRate = Σ benefit.amount
+net         = benefitRate − damageRate
+```
+
+Hardiness is clamped to `[0, 1]` and scales stressors only. The
+factor lists are returned alongside the net rate as a `breakdown`
+for UI / telemetry — same shape the plant and fish vitality
+engines emit.
+
 ### Mass dynamics
 
-**Surplus → mass growth.** When `condition === 100` and net rate is
-positive, the overflow becomes `algae.surplus`. A tick-spend step
-drains surplus into mass with the same asymptotic shape as plant
-growth:
+**Positive net → surplus → mass growth.** Photoperiod-gated:
+banking and growth only happen while lights are on. The tick-spend
+step drains surplus into mass with the same asymptotic shape as
+plant growth:
 
 ```
-drained      = min(algae.surplus, algaeGrowthPerTickCap)
-factor       = max(0, 1 − mass / 100)
-massIncrease = drained × factor × massPerSurplus
+algae.surplus += net                    // when net > 0 and lights on
+drained        = min(algae.surplus, algaeGrowthPerTickCap)
+factor         = max(0, 1 − mass / 100)
+massIncrease   = drained × factor × massPerSurplus
 ```
 
-Photoperiod-gated: surplus banking and mass growth only happen while
-lights are on. Vitality runs every tick (condition can heal at night
-from non-light benefits), but no carbon fixation overnight means no
-energy capture and no biomass accumulation.
+The asymptotic factor self-limits at `mass = 100`: surplus keeps
+draining at full rate but yields less mass per unit drawn near
+saturation.
 
-**Mass decay.** When `condition < 100`, mass decays:
+**Negative net → direct mass shrinkage.** Runs 24/7 (a suppressed
+bloom recedes at night too):
 
 ```
-massDecay = decayRate × (1 − condition / 100) × mass
+algae.mass = max(0, algae.mass + net)   // when net < 0
 ```
 
-A fully-suppressed bloom (condition 0) bleeds at full
-`decayRate × mass`; a stable bloom at condition 50 bleeds at half
-that. Decay runs 24/7. Decayed mass is **lost from the system** —
-not converted to waste or nutrients. Same convention as scrubbing.
+Decayed mass is **lost from the system** — not converted to waste
+or nutrients. Same convention as scrubbing.
 
-**Spec invariant**: at `condition = 100`, mass is monotonically
-non-decreasing through mass decay. The only ways to remove healthy
-algae mass are scrubbing (manual) or driving condition below 100
-(heavy planting / rebalanced nutrients / light reduction).
+**Spec invariant**: while `net ≥ 0` and lights are on, mass is
+monotonically non-decreasing apart from scrub. The only ways to
+remove healthy algae mass are scrubbing (manual) or driving net
+negative (heavy planting / rebalanced nutrients / light reduction).
 
 ### Tick ordering
 
@@ -487,10 +503,10 @@ scrubbing is the player's only out once it spirals.
 
 All algae knobs live in `simulation/config/algae-vitality.ts`:
 hardiness, the suppression / weakness thresholds, severities and
-peaks for each benefit channel, decay rate, and the surplus-spend
-shape. First-pass values aim for **mechanism correctness**, not
-ecological accuracy — a recalibration session follows Task 42 and
-will tune these against the calibration scenarios.
+peaks for each benefit channel, and the surplus-spend shape.
+First-pass values aim for **mechanism correctness**, not ecological
+accuracy — a recalibration session follows Task 42 and will tune
+these against the calibration scenarios.
 
 ### Out of scope (deferred)
 
@@ -522,15 +538,15 @@ Healthy, fast-growing plants out-compete algae by consuming these shared resourc
 # Well-grown plants starve algae
 if plants_thriving:
     plantPower_high → algae_plant_suppression_active
-    algae_condition_falls → mass_decays
+    algae_net_negative → mass_shrinks_directly
 
 # Struggling plants = algae opportunity
 if excess_nutrients AND poor_plant_health:
     plantPower_low → algae_low_plant_power_benefit
-    excess_nutrients_benefit → algae_condition_climbs → mass_grows
+    excess_nutrients_benefit → algae_net_positive → surplus_grows_mass
 ```
 
-**Key dynamic**: Excess nutrients (especially nitrate and phosphate) combined with light promote algae. The natural defense is healthy plants whose plant-power directly suppresses algae condition — algae cannot grow surplus while a thriving canopy is present, and decays back when stressed long enough.
+**Key dynamic**: Excess nutrients (especially nitrate and phosphate) combined with light promote algae. The natural defense is healthy plants whose plant-power drives algae's net rate negative — a thriving canopy stops the bloom from banking surplus and shrinks existing mass directly until lights-out or scrub.
 
 ---
 
