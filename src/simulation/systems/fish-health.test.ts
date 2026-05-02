@@ -27,10 +27,10 @@ function makeFish(overrides: Partial<Fish> = {}): Fish {
     mass: 0.5,
     health: 100,
     age: 0,
-    // Satiation 82.5 → exact peak of the well-fed band (max benefit,
-    // no stressor). Matches the all-good 1.0 %/h benefit budget the
-    // calibration scenarios pin against.
-    satiation: 82.5,
+    // Satiation 87 → exact peak of the well-fed band (max benefit,
+    // no stressor). Mid of [75, 99]. Matches the all-good 1.0 %/h
+    // benefit budget the calibration scenarios pin against.
+    satiation: 87,
     sex: 'male',
     hardinessOffset: 0,
     surplus: 0,
@@ -745,7 +745,7 @@ describe('vitality integration', () => {
     // No stressors, no negative net — a healthy fish at 100 should
     // emit positive surplus equal to the net benefit rate. Currently
     // unused but the breeding/growth tasks will consume it.
-    const fish = makeFish({ health: 100, satiation: 82.5 });
+    const fish = makeFish({ health: 100, satiation: 87 });
     const resources = makeResources();
     const result = processHealth([fish], resources, [], 100, 100, livestockDefaults);
     expect(result.survivingFish[0].health).toBe(100);
@@ -755,7 +755,7 @@ describe('vitality integration', () => {
   it('does not produce surplus while sub-100 health is recovering', () => {
     // The locked design: a stressed organism heals first, never grows
     // while the deficit is unpaid.
-    const fish = makeFish({ health: 80, surplus: 0, satiation: 82.5 });
+    const fish = makeFish({ health: 80, surplus: 0, satiation: 87 });
     const resources = makeResources();
     const result = processHealth([fish], resources, [], 100, 100, livestockDefaults);
     expect(result.survivingFish[0].health).toBeGreaterThan(80);
@@ -764,7 +764,7 @@ describe('vitality integration', () => {
   });
 
   it('accumulates surplus across ticks at full health', () => {
-    let fish: Fish[] = [makeFish({ health: 100, satiation: 82.5 })];
+    let fish: Fish[] = [makeFish({ health: 100, satiation: 87 })];
     const resources = makeResources();
     for (let i = 0; i < 10; i++) {
       fish = processHealth(fish, resources, [], 100, 100, livestockDefaults).survivingFish;
@@ -921,17 +921,18 @@ describe('plant-presence fish benefit', () => {
 describe('satiation band — integration', () => {
   // These tests run the full vitality pipeline against the new
   // five-band satiation model. They pin the spec's calibration anchors:
-  //   - satiation 95 → overfed stressor active, no well-fed benefit
-  //   - satiation 82 → well-fed benefit active, no satiation stressor
-  //   - satiation 60 → peckish, neither active
-  //   - satiation 30 → hungry stressor active (hungry band)
-  //   - satiation 10 → starving stressor active and steeper than at 30
+  //   - satiation 99.5 → overfed stressor active, no well-fed benefit
+  //   - satiation 87   → well-fed benefit active, no satiation stressor
+  //   - satiation 60   → peckish, neither active
+  //   - satiation 30   → hungry stressor active (hungry band)
+  //   - satiation 10   → starving stressor active and steeper than at 30
   //   - sustained overfeeding accumulates condition loss with no other
   //     stressors
   //   - starving fish loses condition visibly faster than merely hungry
 
-  it('satiation 95 → overfed stressor active, no well-fed benefit', () => {
-    const fish = makeFish({ satiation: 95 });
+  it('satiation 99.5 → overfed stressor active, no well-fed benefit', () => {
+    // 99.5 is the midpoint of the new 1%-wide overfed band [99, 100].
+    const fish = makeFish({ satiation: 99.5 });
     const v = computeFishVitality(fish, makeResources(), [], 100, 100, livestockDefaults);
     expect(stressorAmount(v, 'satiation')).toBeGreaterThan(0);
     expect(v.breakdown.benefits.find((b) => b.key === 'satiation')!.amount).toBe(0);
@@ -1007,9 +1008,9 @@ describe('satiation band — integration', () => {
     // positive.
     let fish: Fish[] = [makeFish({ satiation: 30, health: 80 })];
     const resources = makeResources();
-    // Bump satiation back up to mid well-fed (82.5) to simulate a
+    // Bump satiation back up to mid well-fed (87) to simulate a
     // generous feeding.
-    fish = fish.map((f) => ({ ...f, satiation: 82.5 }));
+    fish = fish.map((f) => ({ ...f, satiation: 87 }));
     const v = computeFishVitality(fish[0], resources, [], 100, 100, livestockDefaults);
     expect(v.breakdown.net).toBeGreaterThan(0);
     fish = processHealth(fish, resources, [], 100, 100, livestockDefaults).survivingFish;

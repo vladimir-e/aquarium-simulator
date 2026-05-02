@@ -161,7 +161,7 @@ biotic plant-presence benefit adds up to 0.2 %/h on top of that:
 | Benefit | Trigger | Magnitude |
 |---------|---------|-----------|
 | pH | inside species pH range | 0.4 %/h |
-| Well fed | satiation 75–90 (well-fed band), peak at 82.5 | up to 0.3 %/h |
+| Well fed | satiation 75–99 (well-fed band), peak at 87 | up to 0.3 %/h |
 | Oxygen | O2 ≥ 5 mg/L | 0.3 %/h |
 | Plants | live plants in the tank | up to 0.2 %/h |
 
@@ -216,17 +216,25 @@ Anchor points map to five UI bands:
 
 | Satiation | Band      | Vitality contribution |
 |-----------|-----------|-----------------------|
-| 100 → 90  | Overfed   | stressor (peak `satiationOverfedSeverity` at 100) |
-| 90  → 75  | Well fed  | benefit (peak `satiationWellFedPeak` at the midpoint 82.5) |
+| 100 → 99  | Overfed   | stressor (peak `satiationOverfedSeverity` at 100; 1%-wide sliver) |
+| 99  → 75  | Well fed  | benefit (peak `satiationWellFedPeak` at the midpoint 87) |
 | 75  → 50  | Peckish   | neutral — no contribution |
 | 50  → 25  | Hungry    | stressor (ramp 0 → `satiationHungrySeverity` at 25) |
 | 25  →  0  | Starving  | stressor (ramp `satiationHungrySeverity` → `satiationStarvingSeverity` at 0; steeper slope) |
 
 Bands exist as **UI labels only** — internally the contribution is
 one continuous function with linear ramps between anchors. It crosses
-zero smoothly at every band boundary (90, 75, 50). At satiation 25
+zero smoothly at every band boundary (99, 75, 50). At satiation 25
 the curve doesn't cross zero — it joins continuously through the
 hungry severity onto a steeper slope into the starving band.
+
+The narrow overfed band is intentional: under steady-state eating
+the per-tick equilibrium sits at sat ≈ 99.4 (100 − 0.6 %/hr decay),
+which lands near the edge of overfed and contributes only ~0.4× peak
+severity — a healthy fish topped up by the player's normal feeding
+cadence drops cleanly into well-fed once the food drains. Sustained
+overfeeding (player keeps refilling the food before decay can act)
+pins satiation at 100, which is where the overfed cost actually bites.
 
 A fasting fish therefore loses the well-fed benefit as soon as
 satiation drops below 75, sits neutral through the peckish band, and
@@ -452,7 +460,7 @@ Colony {
 | Parameter | Safe | Warning | Critical |
 |-----------|------|---------|----------|
 | Health | > 70% | 30-70% | < 30% |
-| Satiation | 75-90 (well-fed) | 50-75 (peckish) or 90-100 (overfed) | < 50 (hungry) or 100 sustained (overfed drift) |
+| Satiation | 75-99 (well-fed) | 50-75 (peckish) or 99-100 (overfed sliver) | < 50 (hungry) or 100 sustained (overfed drift) |
 | Temperature (tropical) | 24-28°C | 22-24°C or 28-30°C | < 20°C or > 32°C |
 | pH (most fish) | 6.5-7.5 | 6.0-6.5 or 7.5-8.0 | < 5.5 or > 8.5 |
 | Ammonia | 0 | 0.01-0.02 ppm | > 0.05 ppm |

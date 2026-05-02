@@ -50,8 +50,8 @@ where it's natural; the field name and config knobs use "satiation."
 
 | Satiation | Label     | Vitality contribution |
 |-----------|-----------|-----------------------|
-| 100 → 90  | Overfed   | stressor              |
-| 90  → 75  | Well fed  | benefit               |
+| 100 → 99  | Overfed   | stressor (1%-wide sliver) |
+| 99  → 75  | Well fed  | benefit               |
 | 75  → 50  | Peckish   | neutral (no contribution) |
 | 50  → 25  | Hungry    | stressor              |
 | 25  →  0  | Starving  | stressor (steep)      |
@@ -60,13 +60,22 @@ Bands exist as **UI labels only**. Internally the contribution is one
 continuous piecewise-linear function; band boundaries are the inflection
 points of that function, not gates.
 
+The narrow overfed band is intentional: under steady-state eating
+the per-tick equilibrium sits at sat ≈ 99.4 (100 − 0.6 %/hr decay),
+so a 99-floor band charges only ~0.4× peak overfed severity at the
+moment after eating and drops cleanly into well-fed once the food
+drains. A 90-floor would have charged near peak severity continuously
+— turning the well-fed steady state into perpetual stress.
+
 ### Eating dynamics
 
 Simplified model: a fish eats whenever food is present in
 `resources.food`, until its satiation reaches 100. There is no
-voluntary stop at 90. Overfeeding is a player-skill failure mode —
-dump too much food, fish gorges, fish suffers from being overfed
-(plus the existing tank-side ammonia spike via food decay).
+voluntary stop at 99. Overfeeding is a player-skill failure mode —
+keep the food coming and the fish stays pinned in the overfed band,
+suffering steady damage (plus the existing tank-side ammonia spike via
+food decay). When food runs out and decay drops satiation back below 99
+the fish lands in well-fed.
 
 ### Vitality wiring
 
@@ -75,8 +84,8 @@ benefit factor (depending on which band the fish is in). The shape is
 continuous and piecewise-linear with these anchor points:
 
 - `s = 100` → overfed stress at peak
-- `s = 90`  → zero
-- `s = 82.5` (mid well-fed) → well-fed benefit at peak
+- `s = 99`  → zero
+- `s = 87` (mid well-fed) → well-fed benefit at peak
 - `s = 75`  → zero
 - `s = 50`  → zero (peckish band has no contribution)
 - `s = 25`  → hungry stress at "moderate" severity
@@ -131,12 +140,12 @@ a numeric ±%/h; the bar is the only thing being removed.
 Replace the existing four hunger knobs with band-edge knobs in
 `LivestockConfig`. The new shape (suggested names):
 
-- `satiationOverfedFloor: 90` — top of well-fed / bottom of overfed
+- `satiationOverfedFloor: 99` — top of well-fed / bottom of overfed
 - `satiationWellFedFloor: 75` — top of peckish / bottom of well-fed
 - `satiationHungryCeiling: 50` — top of hungry / bottom of peckish
 - `satiationStarvingCeiling: 25` — top of starving / bottom of hungry
 - `satiationOverfedSeverity` — peak stress at satiation = 100
-- `satiationWellFedPeak` — peak benefit at mid-well-fed (~82.5)
+- `satiationWellFedPeak` — peak benefit at mid-well-fed (~87)
 - `satiationHungrySeverity` — stress at satiation = 25
 - `satiationStarvingSeverity` — stress at satiation = 0
 

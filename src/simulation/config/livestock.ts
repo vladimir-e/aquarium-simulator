@@ -233,12 +233,19 @@ export const livestockDefaults: LivestockConfig = {
   waterLevelStressThreshold: 50, // % capacity — below this water level damages fish
 
   // Satiation band edges (anchors of the piecewise-linear contribution).
-  // 100 → 90  Overfed     (stressor)
-  //  90 → 75  Well fed    (benefit, peak at 82.5)
+  // 100 → 99  Overfed     (stressor)         — 1%-wide sliver
+  //  99 → 75  Well fed    (benefit, peak at 87)
   //  75 → 50  Peckish     (neutral)
   //  50 → 25  Hungry      (stressor)
   //  25 →  0  Starving    (stressor, steeper)
-  satiationOverfedFloor: 90,
+  //
+  // The narrow overfed band is intentional: under steady-state eating
+  // the per-tick equilibrium sits at sat ≈ 99.4 (100 − 0.6 %/hr decay),
+  // so a 99-floor band charges only ~0.4× peak overfed severity at the
+  // moment after eating and drops cleanly into well-fed once the food
+  // drains. A 90-floor would have charged near peak severity continuously
+  // — turning the well-fed steady state into perpetual stress.
+  satiationOverfedFloor: 99,
   satiationWellFedFloor: 75,
   satiationHungryCeiling: 50,
   satiationStarvingCeiling: 25,

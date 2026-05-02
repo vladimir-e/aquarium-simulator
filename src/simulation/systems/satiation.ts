@@ -7,16 +7,16 @@
  *
  * | Satiation   | Label     | Contribution           |
  * |-------------|-----------|------------------------|
- * | 100 → 90    | Overfed   | stressor               |
- * | 90  → 75    | Well fed  | benefit                |
+ * | 100 → 99    | Overfed   | stressor (1%-wide sliver) |
+ * | 99  → 75    | Well fed  | benefit                |
  * | 75  → 50    | Peckish   | neutral (no contrib)   |
  * | 50  → 25    | Hungry    | stressor               |
  * | 25  →  0    | Starving  | stressor (steeper)     |
  *
- * Anchor points:
+ * Anchor points (default config):
  * - s = 100 → overfed stress at peak
- * - s =  90 → zero (boundary into well-fed)
- * - s = 82.5 (mid well-fed) → well-fed benefit at peak
+ * - s =  99 → zero (boundary into well-fed)
+ * - s =  87 (mid well-fed) → well-fed benefit at peak
  * - s =  75 → zero (boundary into peckish)
  * - s =  50 → zero (boundary into hungry)
  * - s =  25 → hungry stress at "moderate" severity
@@ -88,7 +88,7 @@ export function classifySatiationBandPosition(
 
 /**
  * Map satiation to its current band only. Boundaries belong to the
- * *upper* of the two adjacent bands — satiation 90 is `overfed`, 75 is
+ * *upper* of the two adjacent bands — satiation 99 is `overfed`, 75 is
  * `wellFed`, 50 is `peckish`, 25 is `hungry`. The contribution is zero
  * at every boundary regardless, so the choice is purely cosmetic for
  * the band label.

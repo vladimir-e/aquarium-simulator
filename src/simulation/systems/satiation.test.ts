@@ -16,11 +16,11 @@ const cfg = livestockDefaults;
  * and midpoints, plus continuity at the four band boundaries.
  *
  * Bands at default config:
- *   100 → 90  Overfed   (peak severity 0.6 at 100, zero at 90)
- *    90 → 75  Well-fed  (zero at edges, peak benefit 0.3 at midpoint 82.5)
+ *   100 → 99  Overfed   (peak severity at 100, zero at 99 — 1%-wide sliver)
+ *    99 → 75  Well-fed  (zero at edges, peak benefit 0.3 at midpoint 87)
  *    75 → 50  Peckish   (neutral)
  *    50 → 25  Hungry    (zero at 50, severity 2.5 at 25)
- *    25 →  0  Starving  (severity 2.5 at 25 ramps to 5.0 at 0)
+ *    25 →  0  Starving  (severity 2.5 at 25 ramps to 6.0 at 0)
  */
 
 describe('satiationContribution — band endpoints and midpoints', () => {
@@ -31,29 +31,31 @@ describe('satiationContribution — band endpoints and midpoints', () => {
     expect(c.benefit).toBe(0);
   });
 
-  it('overfed midpoint (95) is half the peak severity', () => {
-    const c = satiationContribution(95, cfg);
+  it('overfed midpoint (99.5) is half the peak severity', () => {
+    const c = satiationContribution(99.5, cfg);
     expect(c.band).toBe('overfed');
     expect(c.stressor).toBeCloseTo(cfg.satiationOverfedSeverity / 2, 10);
     expect(c.benefit).toBe(0);
   });
 
-  it('well-fed peak at satiation = 82.5 (mid of 75–90)', () => {
-    const c = satiationContribution(82.5, cfg);
+  it('well-fed peak at satiation = 87 (mid of 75–99)', () => {
+    const c = satiationContribution(87, cfg);
     expect(c.band).toBe('wellFed');
     expect(c.benefit).toBeCloseTo(cfg.satiationWellFedPeak, 10);
     expect(c.stressor).toBe(0);
   });
 
-  it('well-fed left midpoint (78.75) is half the peak benefit', () => {
-    const c = satiationContribution(78.75, cfg);
+  it('well-fed left midpoint (81) is half the peak benefit', () => {
+    // Mid of [75, 87] = 81 — halfway from the lower edge to the peak.
+    const c = satiationContribution(81, cfg);
     expect(c.band).toBe('wellFed');
     expect(c.benefit).toBeCloseTo(cfg.satiationWellFedPeak / 2, 10);
     expect(c.stressor).toBe(0);
   });
 
-  it('well-fed right midpoint (86.25) is half the peak benefit', () => {
-    const c = satiationContribution(86.25, cfg);
+  it('well-fed right midpoint (93) is half the peak benefit', () => {
+    // Mid of [87, 99] = 93 — halfway from the peak down to the upper edge.
+    const c = satiationContribution(93, cfg);
     expect(c.band).toBe('wellFed');
     expect(c.benefit).toBeCloseTo(cfg.satiationWellFedPeak / 2, 10);
     expect(c.stressor).toBe(0);
@@ -116,11 +118,11 @@ describe('satiationContribution — band endpoints and midpoints', () => {
 
 describe('satiationContribution — continuity at boundaries', () => {
   // The curve must pass smoothly through zero at every transition:
-  // 90 (overfed → well-fed), 75 (well-fed → peckish), 50 (peckish →
+  // 99 (overfed → well-fed), 75 (well-fed → peckish), 50 (peckish →
   // hungry). At 25 (hungry → starving) the curve does NOT cross zero —
   // it crosses through `satiationHungrySeverity`.
-  it('zero at satiation = 90 (overfed/well-fed boundary)', () => {
-    const c = satiationContribution(90, cfg);
+  it('zero at satiation = 99 (overfed/well-fed boundary)', () => {
+    const c = satiationContribution(99, cfg);
     expect(c.stressor).toBe(0);
     expect(c.benefit).toBe(0);
   });
@@ -173,7 +175,8 @@ describe('satiationContribution — clamping outside [0, 100]', () => {
 describe('classifySatiationBand', () => {
   it('classifies each band correctly at internal points', () => {
     expect(classifySatiationBand(100, cfg)).toBe('overfed');
-    expect(classifySatiationBand(95, cfg)).toBe('overfed');
+    expect(classifySatiationBand(99.5, cfg)).toBe('overfed');
+    expect(classifySatiationBand(95, cfg)).toBe('wellFed');
     expect(classifySatiationBand(85, cfg)).toBe('wellFed');
     expect(classifySatiationBand(80, cfg)).toBe('wellFed');
     expect(classifySatiationBand(70, cfg)).toBe('peckish');
@@ -196,7 +199,8 @@ describe('classifySatiationBandPosition', () => {
   // Band positions drive the dot indicator under the UI status label —
   // 0 sits at the lower edge of the band, 1 at the upper edge.
   it('puts a fish at the well-fed midpoint at progress 0.5', () => {
-    const p = classifySatiationBandPosition(82.5, cfg);
+    // Mid of [75, 99] = 87.
+    const p = classifySatiationBandPosition(87, cfg);
     expect(p.band).toBe('wellFed');
     expect(p.progress).toBeCloseTo(0.5, 6);
   });
