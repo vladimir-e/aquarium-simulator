@@ -1,6 +1,6 @@
 # Task 41: Satiation bands — five-zone hunger model and bar-free UI
 
-**Status:** pending
+**Status:** completed
 
 ## Overview
 
