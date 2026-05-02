@@ -39,9 +39,11 @@ Dissolved substances and water chemistry:
 Living or organic components:
 - **Food** - Fish food
 - **Waste** - Organic debris, uneaten food, fish waste
-- **Algae** - Single-celled plant growth
 - **AOB** - Ammonia-oxidizing bacteria population
 - **NOB** - Nitrite-oxidizing bacteria population
+
+Note: algae is no longer a resource. It's a top-level organism on
+`state.algae` — see `6-PLANTS.md` § Algae as an organism.
 
 ---
 
@@ -354,14 +356,14 @@ Living or organic components:
 ### Algae (no longer a resource)
 
 Algae is no longer a resource. It has been promoted to a top-level
-organism on `state.algae` (mass / condition / surplus) and runs through
-the shared vitality engine. See `6-PLANTS.md` § Algae as an organism
+organism on `state.algae` (mass / surplus) and is processed in the
+ACTIVE tier of the tick. See `6-PLANTS.md` § Algae as an organism
 for the full spec.
 
-The reason it lives outside the resource layer: vitality-driven
-condition + surplus + mass-decay don't fit the "stock with deltas"
-shape resources use. Algae is closer to a plant or fish than to a
-chemical concentration.
+The reason it lives outside the resource layer: a population with
+its own surplus-driven growth and net-rate-driven shrinkage doesn't
+fit the "stock with deltas" shape resources use. Algae is closer to
+a plant or fish than to a chemical concentration.
 
 ---
 

@@ -254,7 +254,7 @@ Systems are registered in a central list and automatically invoked during their 
 │                                                                  │
 │   Water, Temperature, pH, O2, CO2, Ammonia, Nitrite, Nitrate    │
 │   Phosphate, Potassium, Iron, Light, Flow, Surface              │
-│   Food, Waste, Algae, Bacteria (AOB, NOB)                       │
+│   Food, Waste, Bacteria (AOB, NOB)                              │
 └─────────────────────────────────────────────────────────────────┘
                               │
                     ┌─────────┴─────────┐

@@ -3,8 +3,8 @@
  * Triggers once when algae mass reaches 80+.
  * Resets when algae mass drops below threshold.
  *
- * Reads `state.algae.mass` directly — algae is no longer a resource
- * but a top-level organism with mass / condition / surplus.
+ * Reads `state.algae.mass` directly — algae is a top-level organism
+ * with mass / surplus, not a resource.
  */
 
 import type { Alert, AlertResult } from './types.js';
