@@ -12,7 +12,7 @@ function makeFish(overrides: Partial<Fish> = {}): Fish {
     mass: 0.5,
     health: 100,
     age: 0,
-    hunger: 50,
+    satiation: 50,
     sex: 'male',
     hardinessOffset: 0,
     surplus: 0,
@@ -39,7 +39,7 @@ describe('processLivestock', () => {
   });
 
   it('processes metabolism: food consumed, waste and gill NH3 produced', () => {
-    const state = makeState([makeFish({ hunger: 50, mass: 1.0 })]);
+    const state = makeState([makeFish({ satiation: 50, mass: 1.0 })]);
     const result = processLivestock(state, DEFAULT_CONFIG);
 
     // Should have food consumption effect
@@ -75,20 +75,27 @@ describe('processLivestock', () => {
     expect(co2Effect!.delta).toBeGreaterThan(0);
   });
 
-  it('updates fish hunger and age', () => {
-    const state = makeState([makeFish({ hunger: 20, age: 100 })]);
+  it('updates fish satiation and age', () => {
+    const state = makeState([makeFish({ satiation: 20, age: 100 })]);
     const result = processLivestock(state, DEFAULT_CONFIG);
 
     expect(result.state.fish[0].age).toBe(101);
-    // Hunger should have changed (increased by rate, possibly reduced by food)
-    expect(result.state.fish[0].hunger).not.toBe(20);
+    // Satiation should have changed (raised by food, possibly reduced by decay).
+    expect(result.state.fish[0].satiation).not.toBe(20);
   });
 
   it('updates fish health', () => {
-    const state = makeState([makeFish({ health: 90 })]);
+    // Start in the well-fed band with a small food ration so the fish
+    // doesn't gorge into the overfed band — the abundant food in
+    // makeState is enough to overshoot 100 in one tick from satiation
+    // 50 otherwise.
+    const fish = makeFish({ health: 90, satiation: 82.5 });
+    const state = produce(makeState([fish]), (draft) => {
+      draft.resources.food = 0; // no extra eating; just exercise the pipeline
+    });
     const result = processLivestock(state, DEFAULT_CONFIG);
 
-    // In ideal conditions, health should recover toward 100
+    // In ideal conditions (peak well-fed, clean water), health recovers.
     expect(result.state.fish[0].health).toBeGreaterThanOrEqual(90);
   });
 
@@ -141,7 +148,7 @@ describe('processLivestock', () => {
   });
 
   it('effect sources are correctly labeled', () => {
-    const state = makeState([makeFish({ hunger: 50 })]);
+    const state = makeState([makeFish({ satiation: 50 })]);
     const result = processLivestock(state, DEFAULT_CONFIG);
 
     const sources = result.effects.map((e) => e.source);

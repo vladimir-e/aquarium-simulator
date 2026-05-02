@@ -57,11 +57,11 @@ export function addFish(
       age: 0,
       // Slightly hungry on arrival — fish added to a tank have usually
       // gone without food during transfer and are ready to eat at the
-      // next feeding. Starting at 30 on the 0–100 scale keeps them well
-      // below the 50% stress threshold (≈33 hours of buffer at the
-      // default 0.6%/hr hunger rate) so a missed feeding right after
-      // introduction isn't catastrophic.
-      hunger: 30,
+      // next feeding. Starting at 70 on the 0–100 satiation scale puts
+      // them inside the peckish band (50–75: neutral, no contribution),
+      // a comfortable buffer above the hungry threshold so a missed
+      // feeding right after introduction isn't catastrophic.
+      satiation: 70,
       sex,
       hardinessOffset,
       surplus: 0,

@@ -301,8 +301,8 @@ export interface Fish {
   health: number;
   /** Age in ticks (hours) */
   age: number;
-  /** Hunger percentage (0-100, 0=full, 100=starving) */
-  hunger: number;
+  /** Satiation percentage (0-100, 0=starving, 100=stuffed). */
+  satiation: number;
   /** Sex for future reproduction */
   sex: FishSex;
   /**

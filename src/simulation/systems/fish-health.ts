@@ -9,13 +9,13 @@
  *
  * Stressors (raw severities; the vitality module applies hardiness
  * scaling centrally as `(1 - effectiveHardiness)`):
- * - Temperature, pH, free NH3, nitrite, nitrate, hunger, oxygen,
- *   water level, flow, age (past species `maxAge`).
+ * - Temperature, pH, free NH3, nitrite, nitrate, satiation (hunger
+ *   side), oxygen, water level, flow, age (past species `maxAge`).
  *
  * Benefit factors (peaks and thresholds tunable via `LivestockConfig`):
  * - pH in species range
- * - Hunger satisfied (peak below `hungerBenefitFullThreshold`, zero
- *   at `hungerStressThreshold`)
+ * - Satiation in well-fed band (peak around mid-well-fed, zero at
+ *   the band edges)
  * - Oxygen ≥ `oxygenStressThreshold`
  * - Plant presence (saturating at `plantBenefitSaturationPoint`)
  *
@@ -39,6 +39,7 @@ import type { Fish, Plant, Resources } from '../state.js';
 import { FISH_SPECIES_DATA } from '../state.js';
 import type { LivestockConfig } from '../config/livestock.js';
 import { unionizedAmmoniaFraction } from './nitrogen-cycle.js';
+import { satiationContribution, SATIATION_BAND_LABEL } from './satiation.js';
 import {
   computeVitality,
   inRangeBenefit,
@@ -65,20 +66,6 @@ export interface HealthResult {
 function effectiveHardiness(fish: Fish): number {
   const base = FISH_SPECIES_DATA[fish.species].hardiness;
   return Math.max(0.1, Math.min(0.95, base + fish.hardinessOffset));
-}
-
-/**
- * Linear-ramp benefit: peak when `value ≤ peakAt`, zero when
- * `value ≥ zeroAt`, linearly interpolated in between. Currently used
- * for hunger (peak when hunger ≤ 30, zero at hunger 50). The ramp
- * direction is fixed because every consumer has so far wanted the
- * "lower is better" shape; if an "ascending ramp" turns up later it
- * can move into vitality.ts alongside `inRangeBenefit`.
- */
-function rampBenefit(value: number, zeroAt: number, peakAt: number, peak: number): number {
-  if (value >= zeroAt) return 0;
-  if (value <= peakAt) return peak;
-  return peak * ((zeroAt - value) / (zeroAt - peakAt));
 }
 
 interface FishFactorContext {
@@ -172,11 +159,20 @@ function buildStressors(ctx: FishFactorContext): VitalityFactor[] {
     nitrateStress = config.nitrateStressSeverity * (nitratePpm - config.nitrateStressThreshold);
   }
 
-  // Hunger stress (above the configured threshold)
-  let hungerStress = 0;
-  if (fish.hunger > config.hungerStressThreshold) {
-    hungerStress = config.hungerStressSeverity * (fish.hunger - config.hungerStressThreshold);
-  }
+  // Satiation stressor — band-aware label (Overfed / Hungry / Starving)
+  // depending on which side of the well-fed peak the fish is sitting
+  // on. The amount comes from the single piecewise-linear
+  // `satiationContribution` curve; the well-fed benefit is emitted in
+  // `buildBenefits` from the same call. When the fish is in a non-
+  // stressing band (well-fed or peckish) the entry is still emitted at
+  // amount 0 so the breakdown shape stays stable; the label falls back
+  // to the neutral channel name "Satiation" so a UI introspecting the
+  // inactive entry doesn't see a misleading band name.
+  const satiation = satiationContribution(fish.satiation, config);
+  const satiationStressLabel =
+    satiation.band === 'overfed' || satiation.band === 'hungry' || satiation.band === 'starving'
+      ? SATIATION_BAND_LABEL[satiation.band]
+      : 'Satiation';
 
   // Oxygen stress (below the configured threshold)
   let oxygenStress = 0;
@@ -216,7 +212,7 @@ function buildStressors(ctx: FishFactorContext): VitalityFactor[] {
     { key: 'ammonia', label: 'Free NH3', amount: ammoniaStress },
     { key: 'nitrite', label: 'Nitrite', amount: nitriteStress },
     { key: 'nitrate', label: 'Nitrate', amount: nitrateStress },
-    { key: 'hunger', label: 'Hunger', amount: hungerStress },
+    { key: 'satiation', label: satiationStressLabel, amount: satiation.stressor },
     { key: 'oxygen', label: 'Oxygen', amount: oxygenStress },
     { key: 'waterLevel', label: 'Water level', amount: waterLevelStress },
     { key: 'flow', label: 'Flow', amount: flowStress },
@@ -241,16 +237,12 @@ function buildBenefits(ctx: FishFactorContext): VitalityFactor[] {
       amount: inRangeBenefit(resources.ph, phMin, phMax, config.phBenefitPeak),
     },
     {
-      key: 'hunger',
-      label: 'Well-fed',
-      // Peaks at hunger ≤ hungerBenefitFullThreshold, ramps to zero at
-      // hungerStressThreshold (where the hunger stressor takes over).
-      amount: rampBenefit(
-        fish.hunger,
-        config.hungerStressThreshold,
-        config.hungerBenefitFullThreshold,
-        config.hungerBenefitPeak
-      ),
+      key: 'satiation',
+      label: SATIATION_BAND_LABEL.wellFed,
+      // Same `satiationContribution` curve as the stressor; only the
+      // well-fed band emits a non-zero benefit, and the ramps either
+      // side of the peak meet zero exactly at the band edges.
+      amount: satiationContribution(fish.satiation, config).benefit,
     },
     {
       // Oxygen ≥ stress threshold is the safe side; the benefit is a

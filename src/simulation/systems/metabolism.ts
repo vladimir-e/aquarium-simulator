@@ -2,11 +2,11 @@
  * Fish metabolism system.
  *
  * Handles:
- * - Food consumption (reduces tank food, reduces fish hunger)
+ * - Food consumption (reduces tank food, raises fish satiation)
  * - Nitrogen excretion: direct gill NH3 + feces-bound waste
  * - Oxygen consumption (reduces dissolved O2)
  * - CO2 production (adds dissolved CO2)
- * - Hunger increase over time
+ * - Satiation decay over time
  * - Age increase
  *
  * Nitrogen accounting
@@ -48,7 +48,7 @@ import { MW_N, MW_NH3 } from './nitrogen-cycle.js';
 const NH3_MG_PER_G_N = (MW_NH3 / MW_N) * 1000;
 
 export interface MetabolismResult {
-  /** Updated fish array (with new hunger, age values) */
+  /** Updated fish array (with new satiation, age values) */
   updatedFish: Fish[];
   /** Total food consumed from tank (grams) */
   foodConsumed: number;
@@ -65,8 +65,12 @@ export interface MetabolismResult {
 /**
  * Process metabolism for all fish in one tick.
  *
- * Fish are sorted by hunger (highest first) for food priority.
- * Each fish consumes food proportional to its mass and hunger level.
+ * Fish are sorted by satiation (lowest first — hungriest served first)
+ * for feeding priority. Each fish consumes food proportional to its mass
+ * and how empty its stomach is, until satiation reaches 100. There is no
+ * voluntary stop at "full enough"; overfeeding is achievable through the
+ * normal eating loop and is punished by the satiation-band stressor in
+ * `fish-health.ts`.
  */
 export function processMetabolism(
   fish: Fish[],
@@ -84,10 +88,10 @@ export function processMetabolism(
     };
   }
 
-  // Sort by hunger (highest first) for feeding priority
+  // Sort by satiation (lowest first — hungriest fish served first).
   const sortedIndices = fish
     .map((_, i) => i)
-    .sort((a, b) => fish[b].hunger - fish[a].hunger);
+    .sort((a, b) => fish[a].satiation - fish[b].satiation);
 
   let remainingFood = availableFood;
   let totalFoodConsumed = 0;
@@ -101,22 +105,31 @@ export function processMetabolism(
   for (const idx of sortedIndices) {
     const f = fish[idx];
 
-    // Calculate food needed based on hunger and mass
-    const foodNeeded = (f.hunger / 100) * f.mass * config.baseFoodRate;
+    // Stomach capacity is the gap between current satiation and the 100
+    // hard cap. Maximum food intake this tick is the same fraction of
+    // mass × baseFoodRate the legacy model used, scaled by how empty the
+    // stomach is — a fish at satiation 0 eats a full ration; at 50 it
+    // eats half; at 100 it can't eat any more.
+    const emptiness = (100 - f.satiation) / 100;
+    const foodNeeded = emptiness * f.mass * config.baseFoodRate;
     const foodGiven = Math.min(foodNeeded, remainingFood);
     remainingFood -= foodGiven;
     totalFoodConsumed += foodGiven;
 
-    // Calculate hunger reduction from food eaten
-    // If we give all food needed, hunger drops proportionally
-    let hungerReduction = 0;
+    // Satiation rises with food eaten (filling the gap to 100). When all
+    // requested food is delivered, satiation lands exactly at 100.
+    let satiationGain = 0;
     if (foodNeeded > 0) {
-      hungerReduction = (foodGiven / foodNeeded) * f.hunger;
+      satiationGain = (foodGiven / foodNeeded) * (100 - f.satiation);
     }
 
-    // Hunger increases over time
-    const hungerIncrease = config.hungerIncreaseRate;
-    const newHunger = Math.min(100, Math.max(0, f.hunger - hungerReduction + hungerIncrease));
+    // Satiation decays over time — fish digest and burn through stored
+    // energy whether or not they're feeding.
+    const satiationDecay = config.satiationDecayRate;
+    const newSatiation = Math.min(
+      100,
+      Math.max(0, f.satiation + satiationGain - satiationDecay)
+    );
 
     // Nitrogen split: direct gill NH3 vs. feces-bound waste.
     // nIngested (g N) = foodGiven × foodNitrogenFraction
@@ -146,7 +159,7 @@ export function processMetabolism(
     // Age increase (1 tick = 1 hour)
     updatedFish[idx] = {
       ...f,
-      hunger: newHunger,
+      satiation: newSatiation,
       age: f.age + 1,
     };
   }

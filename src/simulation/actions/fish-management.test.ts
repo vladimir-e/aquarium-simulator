@@ -16,7 +16,7 @@ function makeStateWithFish(): SimulationState {
       mass: 0.5,
       health: 100,
       age: 0,
-      hunger: 30,
+      satiation: 70,
       sex: 'male',
       hardinessOffset: 0,
       surplus: 0,
@@ -40,7 +40,7 @@ describe('addFish', () => {
     expect(result.state.fish[0].species).toBe('neon_tetra');
     expect(result.state.fish[0].mass).toBe(0.5); // Adult mass for neon tetra
     expect(result.state.fish[0].health).toBe(100);
-    expect(result.state.fish[0].hunger).toBe(30); // Slightly hungry on arrival
+    expect(result.state.fish[0].satiation).toBe(70); // Slightly hungry on arrival (peckish band)
     expect(result.state.fish[0].hardinessOffset).toBe(0);
     expect(result.state.fish[0].surplus).toBe(0); // No vitality surplus banked at birth
     expect(result.message).toContain('Neon Tetra');

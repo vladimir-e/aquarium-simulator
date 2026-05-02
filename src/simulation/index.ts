@@ -237,6 +237,15 @@ export {
   processHealth,
   computeFishVitality,
 } from './livestock/index.js';
+export {
+  satiationContribution,
+  classifySatiationBand,
+  classifySatiationBandPosition,
+  SATIATION_BAND_LABEL,
+  type SatiationBand,
+  type SatiationContribution,
+  type SatiationBandPosition,
+} from './systems/satiation.js';
 
 // Vitality
 export {

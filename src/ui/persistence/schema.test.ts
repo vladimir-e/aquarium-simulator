@@ -230,7 +230,7 @@ describe('PersistedSimulationSchema', () => {
           mass: 0.5,
           health: 100,
           age: 0,
-          hunger: 30,
+          satiation: 70,
           sex: 'male',
           hardinessOffset: 0.05,
           surplus: 0,
@@ -250,7 +250,7 @@ describe('PersistedSimulationSchema', () => {
           mass: 0.5,
           health: 50,
           age: 0,
-          hunger: 30,
+          satiation: 70,
           sex: 'male',
           hardinessOffset: -0.07,
           surplus: 1.5,
@@ -270,7 +270,7 @@ describe('PersistedSimulationSchema', () => {
           mass: 0.5,
           health: 100,
           age: 0,
-          hunger: 30,
+          satiation: 70,
           sex: 'male',
           surplus: 0,
           // hardinessOffset intentionally omitted
@@ -290,7 +290,7 @@ describe('PersistedSimulationSchema', () => {
           mass: 0.5,
           health: 100,
           age: 0,
-          hunger: 30,
+          satiation: 70,
           sex: 'male',
           hardinessOffset: 0,
           // surplus intentionally omitted
@@ -402,7 +402,12 @@ describe('PersistedStateSchema', () => {
     expect(PersistedStateSchema.safeParse(v9).success).toBe(false);
   });
 
-  it('PERSISTENCE_VERSION is 10', () => {
-    expect(PERSISTENCE_VERSION).toBe(10);
+  it('rejects prior version 10 (breaking bump for satiation rename + curve)', () => {
+    const v10 = { ...validState, version: 10 };
+    expect(PersistedStateSchema.safeParse(v10).success).toBe(false);
+  });
+
+  it('PERSISTENCE_VERSION is 11', () => {
+    expect(PERSISTENCE_VERSION).toBe(11);
   });
 });
