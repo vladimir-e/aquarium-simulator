@@ -12,10 +12,13 @@ import {
   evaporationDefaults,
   algaeVitalityDefaults,
   phDefaults,
+  plantsDefaults,
+  nutrientsDefaults,
+  livestockDefaults,
 } from './index.js';
 
 describe('DEFAULT_CONFIG', () => {
-  it('contains all 7 system configs', () => {
+  it('contains all 10 system configs', () => {
     expect(DEFAULT_CONFIG.decay).toBeDefined();
     expect(DEFAULT_CONFIG.nitrogenCycle).toBeDefined();
     expect(DEFAULT_CONFIG.gasExchange).toBeDefined();
@@ -23,6 +26,9 @@ describe('DEFAULT_CONFIG', () => {
     expect(DEFAULT_CONFIG.evaporation).toBeDefined();
     expect(DEFAULT_CONFIG.algae).toBeDefined();
     expect(DEFAULT_CONFIG.ph).toBeDefined();
+    expect(DEFAULT_CONFIG.plants).toBeDefined();
+    expect(DEFAULT_CONFIG.nutrients).toBeDefined();
+    expect(DEFAULT_CONFIG.livestock).toBeDefined();
   });
 
   it('uses the correct defaults for each system', () => {
@@ -33,6 +39,9 @@ describe('DEFAULT_CONFIG', () => {
     expect(DEFAULT_CONFIG.evaporation).toEqual(evaporationDefaults);
     expect(DEFAULT_CONFIG.algae).toEqual(algaeVitalityDefaults);
     expect(DEFAULT_CONFIG.ph).toEqual(phDefaults);
+    expect(DEFAULT_CONFIG.plants).toEqual(plantsDefaults);
+    expect(DEFAULT_CONFIG.nutrients).toEqual(nutrientsDefaults);
+    expect(DEFAULT_CONFIG.livestock).toEqual(livestockDefaults);
   });
 });
 

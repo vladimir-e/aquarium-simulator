@@ -3,128 +3,124 @@
 All notable changes to this project will be documented in this file.
 
 <!--
-Format: - **Feature name** (#PR) - Brief description (under 100 chars)
+Format: - **Feature name** (#PR) - One short sentence (under ~150 chars)
 - Group by date, newest first
 - Skip UI-only tweaks and minor fixes
+- Implementation details belong in the task file (`docs/tasks/XX.md`), not here
 -->
 
 ## Unreleased
 
-- **Algae as pure population** - Follow-up on Task 42 (#48): removed the `condition` state field; net rate drives mass directly (positive net → surplus → growth, negative net → direct shrinkage, both photoperiod-aware). `AlgaeState` is now `{ mass, surplus }`. `computeAlgaeVitality` → `computeAlgaePopulation` (returns net + breakdown; no surplus/newCondition). `applyMassDecay` deleted — replaced by the direct `mass + net` step when net is negative; `decayRate` knob removed from `AlgaeVitalityConfig`. AlgaeCard drops the Cond bar; coverage bar and pill color graduate green → yellow → red as mass climbs (low mass is good for the player). Trend arrow drives from net rate. Persistence schema v12 amended in place — no migration shim. Simplifies the model and previews the colony shape (snails / shrimps come later as populations, not organisms with condition).
+- **Algae as pure population** - Task 42 follow-up (#48): drop `condition` from `AlgaeState`; net rate drives mass directly.
 
 ## 2026-05-02
 
-- **Algae as a living organism** - Task 42: algae promoted from `Resources.algae: number` (Michaelis–Menten growth + bespoke competition formula) to a full peer organism on `state.algae: { mass, condition, surplus }` running through the shared `computeVitality` engine. New `systems/algae-vitality.ts` builder produces stressors (`plant_suppression` once plant power exceeds threshold) and benefits (`excess_light`, `excess_nutrients`, `nutrient_deficiency`, `low_plant_power`) — no direct CO2 / temp / pH / O2 channels, plant condition is the meta-signal. New `algae/index.ts` orchestrator runs in the ACTIVE tier after plants (so suppression / weakness factors read fresh plant condition); banks vitality surplus on `algae.surplus` (photoperiod-gated, mirrors plants), spends it on mass growth via the same asymptotic-factor shape as plants, and applies mass decay 24/7 when `condition < 100` (`decayRate × (1 - condition/100) × mass`) — at full condition mass is monotonically non-decreasing apart from scrub. New shared `getPlantPower(plants)` helper in `systems/plant-power.ts` (Σ size × condition); fish vitality and algae vitality both read it, no duplicated formula. Plant-side `algae_shading` stressor switches data source from `state.resources.algae` to `state.algae.mass`, threshold tightened 50 → 30, severity 0.01 → 0.05 so a heavy bloom (60 % mass) actually bites plants — the death-spiral feedback loop is now real. Algae card promoted from a one-line indicator at the top of the Plants panel to a full card with coverage / condition bars, status pill (Receding / Suppressed / Active / Spreading / Booming, low → high), trend arrow, and collapsible conditions breakdown — same shape as PlantCard. Status pill colors are inverted from plants (green when condition is low, red when high) because the player wants algae condition low; the condition bar itself keeps the standard green-amber-red palette. Mass = 0 collapses the card to "Algae — clear". Clean removal of `Resources.algae`, the old algae system, the bespoke growth / competition / nutrient-boost helpers, the `AlgaeResource` definition, and the `'algae'` resource key — `grep -r 'resources\.algae' src/` returns zero hits. Persistence schema bumps v11 → v12 (breaking save format, no migration shim per project policy). First-pass severity / threshold values are mechanism-correct, not ecologically tuned — recalibration follows.
+- **Algae as a living organism** - Task 42 (#48): algae promoted from `Resources.algae` to a peer organism on `state.algae` with vitality, surplus-driven growth, and plant-suppression feedback. Persistence v11 → v12.
 
 ## 2026-05-01
 
-- **Satiation bands** - Task 41: replace the two-zone hunger model with a five-band satiation model. `Fish.hunger` (0=full, 100=starving) renamed and inverted to `Fish.satiation` (0=starving, 100=stuffed); eating raises satiation, decay lowers it (`satiationDecayRate` replaces `hungerIncreaseRate`). Single piecewise-linear contribution function (`satiation.ts`) spans the whole axis with anchors at satiation 100 / 90 / 82.5 / 75 / 50 / 25 / 0 — peak overfed stress at 100, peak well-fed benefit at 82.5, neutral peckish band 75–50, hungry stress 50–25, starving stress 25–0 (steeper slope by ~40% so the bottom of the axis is visibly more dangerous than mere hunger). Curve is continuous at every band boundary (zero crossings at 90, 75, 50; smooth join at 25). LivestockConfig drops `hungerStressThreshold`, `hungerStressSeverity`, `hungerBenefitPeak`, `hungerBenefitFullThreshold` and gains the eight `satiation*` band-edge knobs (four edges + four severity peaks); all exposed in the constants tuner. Eating loop simplified: a fish eats whenever food is present until satiation hits 100 — there is no voluntary stop, overfeeding is reachable through the normal eating loop and the player pays for it via the overfed stressor (slow drift, ~0.3 %/h net loss with no other stressors). FishCard hunger bar removed; replaced with a band-aware status pill (Overfed / Well fed / Peckish / Hungry / Starving) plus a single dot inching across a thin rail to show in-band progression — a fill-it-up bar primes the wrong gameplay loop. Persistence schema bumps v10 → v11 (breaking save format, no migration shim per project policy).
+- **Satiation bands** - Task 41 (#47): five-zone satiation model (Overfed / Well fed / Peckish / Hungry / Starving) replaces the two-zone hunger model. Persistence v10 → v11.
 
 ## 2026-04-27
 
-- **Game UI extracted** - The `/game` scaffolding (Task 23) moved to a separate, non-open-source repo. Deleted `game/`, `vite.game.config.ts`, `vitest.game.config.ts`, and the Task 23 spec; removed `pixi.js` + `framer-motion` from `dependencies` (verified game-only); dropped the five `*:game` scripts and the `game/**` glob from `lint` + `lint:fresh`; cleaned `dist-game/` out of `.gitignore` and `eslint.config.js`. Engine, calibration CLI, and `src/ui/` (the Vercel-deployed control panel at sim.fishroom.app) are untouched.
-- **Remove pre-CLI calibration scaffolding** - Deleted `src/simulation/calibration/` (helpers + smoke test) and the now-stale Task 24 spec; the stateful calibration CLI in `src/cli/` plus the workflow docs at `docs/calibration/` (Task 25) are the canonical path now. The two helpers still used by `src/simulation/tests/n-mass-conservation.test.ts` (`createCycledTank` and the deterministic, jitter-neutralising `addFish`) were inlined into the test file — single consumer, ~50 lines, no shared module needed. No engine or CLI behavior changes.
+- **Game UI extracted** - Moved `/game` (Task 23) to a separate non-open-source repo; engine, calibration CLI, and `src/ui/` untouched.
+- **Remove pre-CLI calibration scaffolding** - Deleted `src/simulation/calibration/`; the stateful `sim` CLI is now the canonical path.
 
 ## 2026-04-25
 
-- **Vitality model: plants-as-fish-benefit + FishCard Conditions** - Fourth fish benefit factor `Plants` summing `(size/100)×(condition/100)` across plants and saturating (linear ramp) at three full-grown healthy plants worth of biomass, peak 0.2 %/h. Raises the planted-tank benefit budget to ≈1.2 %/h so a healthy planted tank accumulates surplus on `Fish.surplus` — entry point for the surplus-driven breeding mechanic. Plants count by raw biomass (no per-plant size cap) so a single overgrown plant can saturate the benefit on its own; overgrowth is regulated on the plant side via self-shading and competition. `processHealth` / `computeFishVitality` / `calculateStress(Breakdown)` signatures take `plants: Plant[]`; `processLivestock` forwards `state.plants`. FishCard rewritten to mirror PlantCard: merged `▶ Conditions (N)` toggle showing red stressors and green benefits in one block, formatting unified to `+X.XX%/h`; vitality breakdown is the single source of truth — no parallel stressor lookup table.
+- **Plants-as-fish-benefit + FishCard Conditions** - Fish vitality gains a fourth benefit (plants saturate at ~3 healthy mature plants, peak 0.2 %/h); FishCard mirrors PlantCard's `▶ Conditions (N)` block.
 
 ## 2026-04-24
 
-- **Vitality model** - Task 40: unified damage/benefit/condition engine shared by plants and fish. New pure module `systems/vitality.ts` takes `{stressors, benefits, hardiness, condition}` and returns `{newCondition, surplus, breakdown}`; growth/breeding consume the surplus, organism modules don't bake any spending logic into the engine. Fish health migrated through it: stressor severities preserved (calibration-pinned S1/S4-A1 unchanged, betta still dies day 19 of cold-failure scenario), per-factor benefits replace the flat 1 %/h recovery (pH-in-range 0.4 + hunger ≤ 30 0.3 + O2 ≥ 5 mg/L 0.3 = 1.0 at all-good); surplus banked on new `Fish.surplus` for future breeding tasks. Plant condition rewritten — replaces the legacy "trends to nutrient sufficiency × 100" homeostasis with vitality across light, CO2, temperature, pH, nutrient deficiency, nutrient toxicity (auto-doser overdose case), and algae shading; per-species `hardiness` + `tolerableLight/CO2/Temp/PH` fields on `PlantSpeciesData`; CO2 + light-low stressors gated on `light > 0` so the natural overnight CO2 dip in any well-run high-tech tank doesn't kill plants. Surplus-overflow growth: a stressed plant (condition < 100) takes zero share of biomass that tick, photosynthate flows to maintenance — captures the "recover then grow" trajectory hobbyists see in real tanks. Plant cards get the merged `▶ Conditions (N)` block (red stressors + green benefits, %/h units) and ↑/↓ trend arrow matching the FishCard pattern; FishCard trend arrow now reads from the live vitality net rate instead of a flat recovery − stress, so a tank that's marginal on multiple knobs shows the slower-recovery story honestly. Persistence schema bumped v5 → v6 (Fish gains `surplus`, plant config gains the new vitality knobs)
-  - **Behaviour changes** (will need retuning in upcoming calibration session):
-    - Plants in adequate-but-not-perfect conditions now heal to 100 % rather than parking at intermediate condition — the homeostatic steady state is gone in favour of binary heal-or-decline.
-    - Fasting fish decline faster than before (~17× faster in n-mass-conservation regression test) because hunger now suppresses recovery in addition to applying damage.
-  - **Dead config removed** (no backwards compatibility): `livestockConfig.baseHealthRecovery`, `nutrientsConfig.conditionRecoveryRate`, and `nutrientsConfig.conditionDecayRate` are gone — replaced by the per-fish benefit budget and per-plant vitality benefit/damage rates respectively. Helpers `updatePlantCondition`, `processPlantNutrients`, `conditionTargetFor`, and `getLimitingNutrient` deleted along with their tests.
-- **Plant biomass cap (Phase 1)** - Task 38: `PlantSpeciesData` gains `maxSize` (per-species biological ceiling, 600–1100 %) and `distributeBiomass` applies an asymptotic throttle `factor = max(0, 1 - size / maxSize)` per plant, after share distribution; plants self-limit toward `maxSize` instead of relying on the 200 % waste-dump backstop, which now only fires under pathological inputs; `maxSize` sized so that at calibration peak sizes (≤ 10 % of `maxSize`) the factor stays ≥ 0.9 and baselines drift by ≤ 5 points on all scenario 01/02/03/04 anchors (still inside declared target bands); synthetic long-run verifies 5 Java Ferns stabilise comfortably below 200 % across a 6-month horizon without ever tripping the waste dump
-- **Per-plant trim control** - `TrimPlantsAction` gains optional `plantId`; when set, only that plant is clipped to `targetSize` (no-op if plant missing or already at/below target). `TrimTargetSize` relaxed from `50 | 85 | 100` to any finite number in `[0, 100]`; out-of-range / NaN returns a validation-error result with state untouched. Plants panel: each card now has a scissors button that reveals an inline slider (min 20 %, max the plant's current size) with a live "Trim to X% · removes Y%" preview and Trim / Cancel actions — only one card's control is expanded at a time. Bulk trim dropdown in Actions unchanged; trimmed material still exits the system (waste pool untouched)
-- **Fish health legibility** - Livestock panel: fish cards now show a compact ↑/↓ trend arrow next to the status badge (hidden when health is full or net is flat) and an expandable `▶ Stressors (N)` section listing every active stressor's %/hr contribution (hidden entirely when nothing is stressing the fish); removed the now-redundant "Health critical!" warning. Backed by a new `calculateStressBreakdown` that returns per-stressor damage (already hardiness-scaled) + `total`; `calculateStress` becomes a thin wrapper so UI and `processHealth` can never drift
+- **Vitality model** - Task 40 (#45): unified damage/benefit/condition engine for plants and fish; surplus-overflow growth gating; per-species hardiness. Plants in adequate-but-not-perfect conditions now heal fully rather than parking at intermediate condition; fasting fish decline ~17× faster. Persistence v5 → v6.
+- **Plant biomass cap** - Task 38: `PlantSpeciesData` gains per-species `maxSize`; growth applies an asymptotic throttle approaching the cap.
+- **Per-plant trim** - `TrimPlantsAction` accepts an optional `plantId` for targeted trimming; Plants panel adds an inline slider per card.
+- **Fish health legibility** - Livestock panel: trend arrow + expandable `▶ Stressors (N)` block on each fish card.
 
 ## 2026-04-23
 
-- **Per-fish hardiness stochasticity** - Task 35: `Fish` gains `hardinessOffset` (±15 % of species baseline, sampled once at `addFish` time, never re-rolled) so weaker individuals fail first when conditions degrade; `calculateStress` uses `effectiveHardiness = clamp(speciesHardiness + offset, 0.1, 0.95)`; `addFish` also applies ±5 % initial health jitter (clamped to [0, 100]) to capture mild purchase-condition variation; persistence schema bumped v4 → v5 (old saves discarded via existing version-mismatch path); calibration helper `addFish` neutralises jitter so scenario anchors and N-mass conservation tests stay pinned — stochasticity only flows through the live game path
+- **Per-fish hardiness stochasticity** - Task 35: `Fish.hardinessOffset` (±15 %) sampled at `addFish` so weaker individuals fail first. Persistence v4 → v5.
 
 ## 2026-04-19
 
-- **Low-volume stressors calibration (scenario 04)** - Three 19 L variants on the same hardware: filterless betta (Variant A, 8-week hold), betta cold-failure (A.1, heater off at tick 168), overcrowded 10-neon die-off (B); `temperatureStressSeverity` retuned 2.0 → 0.85 %/°C/hr — prior value killed a betta at 20 °C in 24 hr (scenario calls for 7–14 day decline); new `scripts/calibrate-low-volume.ts` runner with `--variant=A|A1|B`, default `seedBacteria` per variant (A/A1 pre-cycled, B uncycled) — scenario's "minimum-viable betta setup" assumes seeded bacteria; Variant A pins NH3/NO2 at 0 across 56 days, NO3 sawtooths 12 → 17 ppm pre-WC / 8 → 12 post-WC, betta health 100 throughout; Variant A.1 thermal drift 26 → 20 °C in ~18 hr (scenario 24 hr) with clean endpoint, betta declines 100 → 94 → 68 → 42 → 15 → dead over 14 days (scenario band 40–65 at day 14); Variant B NH3 amplified ~2× vs S1 at same bioload (0.67 ppm day-2 vs S1's 0.35), all 10 tetras dead by day 7 (scenario target ≤ day 8); `ambientWaste = 0.001 g/hr` survives 19 L test (~30 % of N budget at lean feed, dominated by betta output as intended)
-- **Planted-equilibrium calibration (scenario 02)** - Photosynthesis refactored to per-plant Liebig sufficiency and biomass-scaled nutrient uptake (all 4 macros now flow through one pathway); `calculateNutrientSufficiency` distinguishes *required* vs *booster* nutrients by species demand tier (low needs only N; medium needs N+P; high needs all four), matching spec §Nutrient Demand Levels; `updatePlantCondition` is now homeostatic — condition tracks a linear-in-sufficiency target instead of whipsawing between discrete zones; CO2→pH coupling is Henderson-Hasselbalch-style logarithmic (coef 0.75 lands 6.4 pH at 25 ppm CO2, 6.8 at 5 ppm — scenario anchor); `basePgDriftRate` 0.08 → 0.25 so overnight pH actually reaches its target; `sizePerBiomass` 0.15 → 0.4 and new `nutrientsPerPhotosynthesis` (4.0 mg/unit) calibrate growth + uptake against 1 ml/day EI auto-doser; `ambientWaste` 0.01 → 0.001 g/hr (prior rate mineralized 52 mg NO3/day — dominated the N budget in long-running scenarios); Variant A hits all day-28 anchors (NO3 < 25, algae < 8, pH swing 0.4, plants 60-90% size, conditions ≥ 88), Variant B hits day-28 species targets (MC 33 in 30-55, AS 58 in 55-75, JF 100 > 75)
-- **NOB/AOB stoichiometric asymmetry** - NOB's per-bacterium nitrite-processing rate now scales by `NOB_PROCESSING_RATE_MULTIPLIER = MW_NO2 / MW_NH3 ≈ 2.702` so NO2 throughput matches AOB's compound-mass output in N-atom terms; prior symmetric treatment let NO2 run away to 30+ ppm (NOB could only clear 37% of the NO2 mass AOB produced); seeded-cap tanks now hold NO2 < 0.15 ppm under continuous NH3 dosing; biologically backed (Nitrobacter/Nitrospira really are faster per cell than Nitrosomonas/Nitrosospira)
-- **Uncycled quarantine calibration** - ammonia toxicity now honours the unionized NH3 fraction (Emerson 1975 pKa formula) so pH and temp drive gill damage instead of raw TAN ppm; new `basalAmmoniaRate` captures the continuous N excretion from body protein turnover (fasted fish no longer go silent); `ammoniaStressSeverity` reinterpreted as per-ppm-free-NH3 and retuned to 175; `nitriteStressSeverity` dropped 20→2.5 to land 96-hr LC50 near real-world 4–5 ppm; nitrogen-cycle spawn thresholds raised to 0.5 ppm and growth rates halved so bacteria colonise over weeks, not days; reproduces scenario 01's day 6–8 die-off in a 38 L uncycled tank
-- **Filterless surface diffusion** - gas exchange now includes a baseline passive-diffusion floor on `flowFactor` (new `minFlowFactor`, default 0.1) so filterless tanks still equilibrate with the atmosphere across the still surface instead of collapsing to zero exchange; filterless 5 gal betta holds ~7.6 mg/L O2 during respiration draw instead of drifting indefinitely; S3 community unchanged (canister's flow factor is well above the floor)
-- **Gas exchange calibration** - fish respiration `baseRespirationRate` now an absolute mg O2/g/hr rate (was mis-applied as a concentration delta, silently embedding tank volume); livestock pipeline converts to mg/L using water volume, matching the decay system's idiom; default bumped from 0.02 to 0.3, midpoint of real 0.2–0.5 band; 70 g bioload in 150 L now draws the expected 0.14 mg/L/hr and the S3 community tank holds 7–8 mg/L O2 indefinitely instead of crashing in 7 hours
+- **Low-volume stressors calibration (S04)** - Three 19 L variants; `temperatureStressSeverity` retuned 2.0 → 0.85; new `scripts/calibrate-low-volume.ts`.
+- **Planted-equilibrium calibration (S02)** - Photosynthesis refactored to per-plant Liebig sufficiency by demand tier; CO2→pH logarithmic; ambient waste tightened. Hits S02 day-28 anchors.
+- **NOB/AOB stoichiometric asymmetry** - NOB nitrite-processing rate scales by molar-mass ratio so NO2 throughput matches AOB output in N-atom terms.
+- **Uncycled quarantine calibration** - Ammonia toxicity honors free-NH3 fraction (Emerson 1975); new `basalAmmoniaRate`; nitrification colonizes over weeks.
+- **Filterless surface diffusion** - Gas exchange gains a baseline diffusion floor (`minFlowFactor`); filterless tanks no longer collapse to zero exchange.
+- **Gas exchange calibration** - Fish respiration rate is an absolute mg O2/g/hr value, not a concentration delta; default 0.3.
 
 ## 2026-04-18
 
-- **Fish gill ammonia excretion** - fish metabolism now splits ingested food N: ~80% emitted as direct NH3 through gills (`resources.ammonia`), ~20% feces-bound into the waste stream; new `foodNitrogenFraction` (default 0.05) and `gillNFraction` (default 0.8) tunables on `LivestockConfig`; removes the opaque `wasteRatio` knob — fish waste mass is now derived from the N-mass split; N-mass conservation enforced end-to-end
-- **Nitrogen-chain stoichiometry** - NH3 → NO2 → NO3 now conserves N-mass with compound-mass scaling by molecular weight (1 mg NH3 → 2.70 mg NO2 → 3.64 mg NO3); replaces the previous physically-wrong 1:1 compound-mass conversion; `wasteToAmmoniaRatio` restored to stoichiometric 60 mg NH3/g waste
-- **Fish default hunger** - `addFish` now initialises hunger to 30 (0–100 scale) instead of 0 so new fish eat on the next feeding rather than letting the food decay
-- **CLI waterChange arbitrary fractions** - Removed discrete-step snap in `sim action waterChange`; accepts any fraction (0–1] or percent (0–100]; widened engine `WaterChangeAmount` type from literal union to `number` (UI preset list preserved as `WATER_CHANGE_AMOUNTS`)
-- **Calibration CLI** - Stateful `sim` CLI at `src/cli/sim.ts` for agent-driven calibration; session persisted in `.simstate/current.json`; commands for new/add/remove/tick/observe/trace/config/action/smoke; capped per-tick history (720 entries); end-to-end smoke scenario doubles as integration test; workflow docs in `docs/calibration/README.md`
+- **Fish gill ammonia excretion** - Fish metabolism splits ingested food N (~80 % NH3 through gills, ~20 % feces); opaque `wasteRatio` replaced with the N-mass split.
+- **Nitrogen-chain stoichiometry** - NH3 → NO2 → NO3 conserves N-mass with molecular-weight scaling (1 mg NH3 → 2.70 mg NO2 → 3.64 mg NO3).
+- **Fish default hunger** - `addFish` initialises hunger to 30 (was 0) so new fish eat on the next feeding instead of letting food decay.
+- **CLI waterChange arbitrary fractions** - `sim action waterChange` accepts any fraction in (0–1] or percent in (0–100].
+- **Calibration CLI** - Stateful `sim` CLI for agent-driven calibration; session persisted in `.simstate/current.json`; docs in `docs/calibration/`.
 
 ## 2026-02-10
 
-- **Simulation Calibration** - real-world calibration across 9 system groups (nitrogen cycle, gas exchange, temperature, evaporation, nutrients, plants, pH, livestock, decay); calibrated O2 saturation to Henry's Law, nitrogen cycle to 25-35 day fishless cycle, algae growth to weeks-not-days blooms, CO2 injection for planted tank equilibrium, hunger rate for 3-7 day survival, pH drift for ~1 pH unit drop at 30 ppm CO2; test helpers module for scenario setup
+- **Simulation Calibration** - Real-world calibration across 9 system groups (nitrogen cycle, gas exchange, temperature, evaporation, nutrients, plants, pH, livestock, decay).
 
 ## 2026-02-06
 
-- **Fish Metabolism System** - Individual fish with 5 species (Neon Tetra, Betta, Guppy, Angelfish, Corydoras); metabolism consumes food/O2, produces waste/CO2; hunger increases over time, reduced by feeding; health affected by stressors (temperature, pH, ammonia, nitrite, nitrate, hunger, oxygen, water level); species hardiness modifies stress tolerance; death from health=0 or old age; Livestock panel with health/hunger bars, species selector, add/remove controls
+- **Fish Metabolism System** - Individual fish (5 species) with metabolism, hunger, health stressors, and species hardiness; Livestock panel with controls.
 
 ## 2026-02-04
 
-- **Game UI Foundation** - New game-like UI at `/game`; Pixi.js tank canvas with water gradient; responsive layout (1024px breakpoint); tabbed panels with Framer Motion animations; design system with CSS tokens; 38 component tests
+- **Game UI Foundation** - New game-like UI at `/game`; Pixi.js tank canvas; responsive layout; tabbed panels with Framer Motion.
 
 ## 2026-02-01
 
-- **Nutrients and Dosing** - Nutrient resources (PO4, K, Fe); plant condition system with shedding/death; dose action and auto doser equipment
-
-- **State Persistence** - Centralized localStorage persistence with Zod schema validation; session restoration on reload; `?reset` query parameter for recovery; confirmation dialogs for preset changes and simulation reset (tick > 720)
+- **Nutrients and Dosing** - Nutrient resources (PO4, K, Fe); plant condition system with shedding/death; dose action and auto doser equipment.
+- **State Persistence** - Centralized localStorage persistence with Zod schema validation; session restoration; `?reset` recovery query.
 
 ## 2026-01-30
 
-- **Aeration System** - Air pump equipment with auto-scaling to tank size; direct O2 injection from bubble dissolution; boosted gas exchange rate when active; increased CO2 off-gassing (conflicts with CO2 injection for planted tanks); sponge filter inherently aerated; Air Pump card in Equipment panel with flow boost display
+- **Aeration System** - Air pump equipment with auto-scaling; direct O2 injection from bubble dissolution; sponge filter inherently aerated.
 
 ## 2026-01-26
 
-- **Plants System** - Individual plant specimens with 5 species (varied light/CO2 requirements); photosynthesis produces O2, consumes CO2/nitrate when lights on; respiration runs 24/7; biomass distribution by growth rate; overgrowth penalties and waste release at >200%; algae competition; trim action; Plants panel with add/remove/size display
+- **Plants System** - Individual plant specimens (5 species) with photosynthesis, respiration, biomass distribution, overgrowth penalties, and trim action.
 
 ## 2026-01-25
 
-- **Tunable Constants** - Debug panel for runtime calibration of 38 simulation constants; localStorage persistence; collapsible sections with visual indicators for modified values; reset per-section or global
+- **Tunable Constants** - Debug panel for runtime calibration of 38 simulation constants with localStorage persistence.
 
 ## 2026-01-21
 
-- **Decay Mass Loss** - Aerobic decay now produces CO2, consumes O2; only 40% becomes waste; smaller tanks more sensitive
+- **Decay Mass Loss** - Aerobic decay produces CO2, consumes O2; only 40 % becomes waste; smaller tanks more sensitive.
 
 ## 2026-01-17
 
-- **pH System** - pH resource drifts toward equilibrium based on hardscape (calcite raises, driftwood lowers) and CO2 (carbonic acid effect); H+ concentration-based blending for water changes and ATO; WaterChemistry panel displays current pH; tap water pH setting in Actions panel
+- **pH System** - pH drifts toward equilibrium based on hardscape (calcite raises, driftwood lowers) and CO2; H+ blending for water changes and ATO.
 
 ## 2026-01-16
 
-- **CO2 Generator Equipment** - Injects CO2 at configurable bubble rate (0.5-5.0 bps); schedule-based operation; displays expected mg/L/hr rate; integrates with gas exchange system
-- **Gas Exchange System** - Dissolved O2/CO2 equilibrate toward temperature-dependent saturation and atmospheric levels; exchange rate scales with flow; water change and ATO blend dissolved gases; low oxygen and high CO2 alerts; WaterChemistry panel displays dissolved gases with color-coded indicators
+- **CO2 Generator Equipment** - Configurable bubble rate (0.5–5.0 bps); schedule-based operation; integrates with gas exchange.
+- **Gas Exchange System** - Dissolved O2/CO2 equilibrate toward temperature-dependent saturation and atmospheric levels; rate scales with flow.
 
 ## 2026-01-15
 
-- **Water Change Action** - Removes proportional nitrogen mass, blends temperature toward tap water; ATO now blends temperature when adding water; WaterChangeCard UI with amount selector and tap temp control
+- **Water Change Action** - Removes proportional nitrogen mass; blends temperature toward tap water; ATO blends temperature when adding water.
 
 ## 2026-01-14
 
-- **Nitrogen Cycle System** - Three-stage biological conversion: waste→ammonia→nitrite→nitrate via AOB/NOB bacteria; logistic bacterial growth limited by surface area; spawning, growth, death dynamics; alerts for high ammonia/nitrite/nitrate; WaterChemistry panel with nitrogen cycle display
-- **Algae Growth and Scrub System** - Algae grows based on light intensity per liter (2.5 * W/L per hour); Scrub action removes 10-30% of algae (min 5 to scrub); High algae alert at 80+; Plants panel with algae indicator; LightCard wattage presets expanded (5W-200W)
-- **Light Equipment and Schedule Module** - Light fixture with photoperiod scheduling; reusable Schedule module for time-based equipment; LightCard UI with wattage selector and schedule controls
+- **Nitrogen Cycle System** - Three-stage biological conversion (waste → ammonia → nitrite → nitrate) via AOB/NOB; logistic growth limited by surface area.
+- **Algae Growth and Scrub System** - Algae grows based on light intensity per liter; Scrub action removes 10–30 %; high-algae alert at 80+.
+- **Light Equipment and Schedule Module** - Light fixture with photoperiod scheduling; reusable Schedule module for time-based equipment.
 
 ## 2026-01-13
 
-- **Hardscape Equipment** - Rocks, driftwood, and decorations with bacteria surface area; slot system (2 per gallon, max 8); HardscapeCard UI for add/remove
-- **Food, Decay, and Waste System** - Food and waste resources with temperature-scaled decay (Q10=2); Feed action with UI; food indicator in Livestock panel; waste display in WaterChemistry panel
-- **Surface, Flow, and Filtration Equipment** - Tank, Filter, Powerhead, and Substrate equipment with passive resources (surface area, water flow) calculated each tick; UI cards and ResourcesPanel for equipment control
-- **Lid and ATO Equipment** - Lid with type selector (none/mesh/full/sealed) reduces evaporation; ATO auto-maintains water level at 100%
-- **Actions System** - User action infrastructure with Top Off action and Actions panel UI
-- **Logging System** - Event logging with alerts, user action logs, and Log panel UI display
+- **Hardscape Equipment** - Rocks, driftwood, decorations with bacteria surface area; slot system (2 per gallon, max 8).
+- **Food, Decay, and Waste System** - Food and waste resources with temperature-scaled decay (Q10 = 2); Feed action.
+- **Surface, Flow, and Filtration Equipment** - Tank, Filter, Powerhead, Substrate with passive resources (surface area, water flow).
+- **Lid and ATO Equipment** - Lid (none / mesh / full / sealed) reduces evaporation; ATO auto-maintains water level at 100 %.
+- **Actions System** - User action infrastructure with Top Off action and Actions panel UI.
+- **Logging System** - Event logging with alerts, user action logs, and Log panel UI.
 
 ## 2026-01-12
 
-- **UI Foundation** (#5) - React + Vite + Tailwind UI with timeline controls, equipment bar, and simulation integration
-- **Temperature, Evaporation, Heater** - Environment/equipment state, temperature drift, evaporation, heater control
-- **Foundation** - Simulation state, effect system, tick loop with Immer immutability
+- **UI Foundation** (#5) - React + Vite + Tailwind UI with timeline controls, equipment bar, and simulation integration.
+- **Temperature, Evaporation, Heater** - Environment/equipment state, temperature drift, evaporation, heater control.
+- **Foundation** - Simulation state, effect system, tick loop with Immer immutability.
