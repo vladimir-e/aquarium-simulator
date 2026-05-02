@@ -12,7 +12,7 @@ function makeFish(overrides: Partial<Fish> = {}): Fish {
     mass: 0.5,
     health: 100,
     age: 0,
-    hunger: 50,
+    satiation: 50,
     sex: 'male',
     hardinessOffset: 0,
     surplus: 0,
@@ -31,59 +31,61 @@ describe('processMetabolism', () => {
     expect(result.co2ProducedMg).toBe(0);
   });
 
-  it('consumes food based on hunger and mass', () => {
-    const fish = [makeFish({ hunger: 50, mass: 1.0 })];
+  it('consumes food based on satiation and mass', () => {
+    // satiation 50 → emptiness 0.5; foodNeeded = 0.5 × 1.0 × 0.01 = 0.005g
+    const fish = [makeFish({ satiation: 50, mass: 1.0 })];
     const result = processMetabolism(fish, 10, livestockDefaults);
 
-    // foodNeeded = (50/100) * 1.0 * 0.01 = 0.005g
     expect(result.foodConsumed).toBeCloseTo(0.005, 4);
   });
 
   it('does not consume more food than available', () => {
-    const fish = [makeFish({ hunger: 100, mass: 10 })];
+    const fish = [makeFish({ satiation: 0, mass: 10 })];
     const availableFood = 0.001;
     const result = processMetabolism(fish, availableFood, livestockDefaults);
 
     expect(result.foodConsumed).toBeLessThanOrEqual(availableFood);
   });
 
-  it('increases hunger over time', () => {
-    const fish = [makeFish({ hunger: 20 })];
+  it('decreases satiation over time when no food is available', () => {
+    const fish = [makeFish({ satiation: 80 })];
     const result = processMetabolism(fish, 0, livestockDefaults);
 
-    // No food available, so hunger only increases
-    expect(result.updatedFish[0].hunger).toBeGreaterThan(20);
-    // Should increase by hungerIncreaseRate (0.6)
-    expect(result.updatedFish[0].hunger).toBeCloseTo(20.6, 0);
+    // No food, so satiation only decays.
+    expect(result.updatedFish[0].satiation).toBeLessThan(80);
+    // Should decay by satiationDecayRate (0.6).
+    expect(result.updatedFish[0].satiation).toBeCloseTo(79.4, 0);
   });
 
-  it('reduces hunger when food is consumed', () => {
-    const fish = [makeFish({ hunger: 80, mass: 1.0 })];
+  it('raises satiation when food is consumed', () => {
+    const fish = [makeFish({ satiation: 20, mass: 1.0 })];
     // Lots of food available
     const result = processMetabolism(fish, 100, livestockDefaults);
 
-    // Hunger should decrease (food eaten reduces hunger) then increase by rate
-    // Net should be less than 80 when enough food is available
-    expect(result.updatedFish[0].hunger).toBeLessThan(80);
+    // Satiation should rise toward 100 (then decay knocks it back a hair).
+    expect(result.updatedFish[0].satiation).toBeGreaterThan(20);
   });
 
-  it('caps hunger at 100', () => {
-    const fish = [makeFish({ hunger: 99 })];
-    const result = processMetabolism(fish, 0, livestockDefaults);
-
-    expect(result.updatedFish[0].hunger).toBeLessThanOrEqual(100);
-  });
-
-  it('caps hunger at 0 minimum', () => {
-    const fish = [makeFish({ hunger: 1, mass: 10 })];
-    // Give tons of food
+  it('caps satiation at 100', () => {
+    // Plenty of food, low satiation, mass 10 → eats ~1 g of food worth of
+    // capacity, lands exactly at 100 then decays by 0.6 → 99.4. Verifies
+    // the hard 100 cap inside the eating function.
+    const fish = [makeFish({ satiation: 0, mass: 1 })];
     const result = processMetabolism(fish, 1000, livestockDefaults);
 
-    expect(result.updatedFish[0].hunger).toBeGreaterThanOrEqual(0);
+    expect(result.updatedFish[0].satiation).toBeLessThanOrEqual(100);
+  });
+
+  it('caps satiation at 0 minimum', () => {
+    // Already-empty fish with no food still gets clamped at 0 after decay.
+    const fish = [makeFish({ satiation: 0, mass: 1.0 })];
+    const result = processMetabolism(fish, 0, livestockDefaults);
+
+    expect(result.updatedFish[0].satiation).toBeGreaterThanOrEqual(0);
   });
 
   it('splits food nitrogen between direct gill NH3 and feces-bound waste', () => {
-    const fish = [makeFish({ hunger: 50, mass: 2.0 })];
+    const fish = [makeFish({ satiation: 50, mass: 2.0 })];
     const result = processMetabolism(fish, 10, livestockDefaults);
 
     expect(result.foodConsumed).toBeGreaterThan(0);
@@ -108,9 +110,9 @@ describe('processMetabolism', () => {
   });
 
   it('emits the canonical 48.65 mg NH3 + 0.2 g waste per gram of food (plus basal) at defaults', () => {
-    // A 100-g fish with 100% hunger eats mass × baseFoodRate × hunger/100
-    // = 100 × 0.01 × 1.0 = 1 g of food this tick.
-    const fish = [makeFish({ hunger: 100, mass: 100 })];
+    // A 100-g fish at satiation 0 (fully empty) eats mass × baseFoodRate
+    // × emptiness = 100 × 0.01 × 1.0 = 1 g of food this tick.
+    const fish = [makeFish({ satiation: 0, mass: 100 })];
     const result = processMetabolism(fish, 1, livestockDefaults);
 
     expect(result.foodConsumed).toBeCloseTo(1, 8);
@@ -128,7 +130,7 @@ describe('processMetabolism', () => {
   it('still produces basal gill NH3 when no food is eaten', () => {
     // A fasted fish keeps excreting NH3 from body protein turnover —
     // only the post-prandial pulse and feces-waste vanish.
-    const fish = [makeFish({ hunger: 50, mass: 1.0 })];
+    const fish = [makeFish({ satiation: 50, mass: 1.0 })];
     const result = processMetabolism(fish, 0, livestockDefaults);
 
     expect(result.foodConsumed).toBe(0);
@@ -151,7 +153,7 @@ describe('processMetabolism', () => {
     // waste is 0.05 × MW_NH3/MW_N × 1000 ≈ 60.78. That ~1.3 % rounding
     // is a pre-existing property of Task 26's calibration choice.
     const mass = 10;
-    const fish = [makeFish({ hunger: 100, mass })];
+    const fish = [makeFish({ satiation: 0, mass })];
     let totalFood = 0;
     let totalDirectNH3 = 0; // mg NH3
     let totalWaste = 0; // g
@@ -191,7 +193,7 @@ describe('processMetabolism', () => {
     // / g waste). Basal NH3 is subtracted out as it is a separate
     // body-turnover source.
     const mass = 10;
-    const fish = [makeFish({ hunger: 100, mass })];
+    const fish = [makeFish({ satiation: 0, mass })];
     let totalFood = 0;
     let totalDirectNH3 = 0;
     let totalWaste = 0;
@@ -246,21 +248,21 @@ describe('processMetabolism', () => {
 
   it('feeds hungriest fish first', () => {
     const fish = [
-      makeFish({ id: 'hungry', hunger: 90, mass: 1.0 }),
-      makeFish({ id: 'full', hunger: 10, mass: 1.0 }),
+      makeFish({ id: 'hungry', satiation: 10, mass: 1.0 }),
+      makeFish({ id: 'full', satiation: 90, mass: 1.0 }),
     ];
     // Very limited food - only enough for one fish
     const availableFood = 0.005;
     const result = processMetabolism(fish, availableFood, livestockDefaults);
 
-    // Hungry fish should have consumed most/all food
     const hungryFish = result.updatedFish.find((f) => f.id === 'hungry')!;
     const fullFish = result.updatedFish.find((f) => f.id === 'full')!;
 
-    // Hungry fish should have had its hunger reduced more
-    // Full fish should have barely eaten anything
-    expect(hungryFish.hunger).toBeLessThan(90 + livestockDefaults.hungerIncreaseRate);
-    expect(fullFish.hunger).toBeGreaterThan(10); // Should still get hungrier
+    // Hungry fish (low satiation) gets fed first → its satiation rises;
+    // the already-near-full fish barely eats and just drifts down by decay.
+    expect(hungryFish.satiation).toBeGreaterThan(10);
+    expect(fullFish.satiation).toBeLessThan(90); // drifts down via decay
+    expect(fullFish.satiation).toBeGreaterThanOrEqual(90 - livestockDefaults.satiationDecayRate);
   });
 
   it('handles multiple fish metabolism cumulatively', () => {

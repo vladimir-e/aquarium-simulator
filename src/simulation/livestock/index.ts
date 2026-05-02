@@ -25,7 +25,7 @@ export interface LivestockProcessingResult {
  * Process livestock for one tick.
  *
  * Handles:
- * 1. Metabolism: food consumption, waste/CO2 production, hunger/age updates
+ * 1. Metabolism: food consumption, waste/CO2 production, satiation/age updates
  * 2. Health: stressor calculations, health recovery/damage, death
  */
 export function processLivestock(
@@ -40,7 +40,7 @@ export function processLivestock(
     return { state, effects };
   }
 
-  // 1. Process metabolism (food consumption, waste, respiration, hunger, age)
+  // 1. Process metabolism (food consumption, waste, respiration, satiation, age)
   const metabolismResult = processMetabolism(
     state.fish,
     state.resources.food,

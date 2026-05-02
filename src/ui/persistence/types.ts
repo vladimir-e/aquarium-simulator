@@ -19,6 +19,16 @@ import type { TunableConfig } from '../../simulation/config/index.js';
  * Increment this when the structure changes in a breaking way.
  * On version mismatch, stored data is discarded.
  *
+ * v11: `Fish.hunger` (0=full, 100=starving) renamed and inverted to
+ *      `Fish.satiation` (0=starving, 100=stuffed). `LivestockConfig`
+ *      drops `hungerIncreaseRate` for `satiationDecayRate` (same
+ *      magnitude, opposite direction). Old hunger band-edge knobs
+ *      (`hungerStressThreshold`, `hungerStressSeverity`,
+ *      `hungerBenefitPeak`, `hungerBenefitFullThreshold`) are replaced
+ *      with the eight `satiation*` band-edge knobs that drive the
+ *      five-band model. Per project policy this is a breaking save
+ *      format change with no migration shim — stored sessions are
+ *      discarded on version mismatch.
  * v10: `Plant` gains `surplus` field (banked vitality surplus, drives
  *      growth and future propagation). `PlantsConfig` drops the
  *      photosynthesis-driven growth knobs (`biomassPerPhotosynthesis`,
@@ -43,7 +53,7 @@ import type { TunableConfig } from '../../simulation/config/index.js';
  *     nutrient sufficiency) but its persisted shape is identical, so
  *     the bump is purely the new Fish field.
  */
-export const PERSISTENCE_VERSION = 10;
+export const PERSISTENCE_VERSION = 11;
 
 /**
  * Storage key for the unified persisted state.

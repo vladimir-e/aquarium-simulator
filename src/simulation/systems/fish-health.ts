@@ -9,13 +9,13 @@
  *
  * Stressors (raw severities; the vitality module applies hardiness
  * scaling centrally as `(1 - effectiveHardiness)`):
- * - Temperature, pH, free NH3, nitrite, nitrate, hunger, oxygen,
- *   water level, flow, age (past species `maxAge`).
+ * - Temperature, pH, free NH3, nitrite, nitrate, satiation (hunger
+ *   side), oxygen, water level, flow, age (past species `maxAge`).
  *
  * Benefit factors (peaks and thresholds tunable via `LivestockConfig`):
  * - pH in species range
- * - Hunger satisfied (peak below `hungerBenefitFullThreshold`, zero
- *   at `hungerStressThreshold`)
+ * - Satiation in well-fed band (peak around mid-well-fed, zero at
+ *   the band edges)
  * - Oxygen ≥ `oxygenStressThreshold`
  * - Plant presence (saturating at `plantBenefitSaturationPoint`)
  *
@@ -69,9 +69,8 @@ function effectiveHardiness(fish: Fish): number {
 
 /**
  * Linear-ramp benefit: peak when `value ≤ peakAt`, zero when
- * `value ≥ zeroAt`, linearly interpolated in between. Currently used
- * for hunger (peak when hunger ≤ 30, zero at hunger 50). The ramp
- * direction is fixed because every consumer has so far wanted the
+ * `value ≥ zeroAt`, linearly interpolated in between. The ramp
+ * direction is fixed because every consumer so far has wanted the
  * "lower is better" shape; if an "ascending ramp" turns up later it
  * can move into vitality.ts alongside `inRangeBenefit`.
  */
@@ -172,10 +171,14 @@ function buildStressors(ctx: FishFactorContext): VitalityFactor[] {
     nitrateStress = config.nitrateStressSeverity * (nitratePpm - config.nitrateStressThreshold);
   }
 
-  // Hunger stress (above the configured threshold)
+  // Hunger stress — fish below the satiation hunger threshold takes
+  // damage proportional to how far below it has fallen. (Two-zone
+  // legacy shape inverted onto the satiation axis; the band model
+  // arrives in the next commit.)
   let hungerStress = 0;
-  if (fish.hunger > config.hungerStressThreshold) {
-    hungerStress = config.hungerStressSeverity * (fish.hunger - config.hungerStressThreshold);
+  const hungerFloor = 100 - config.hungerStressThreshold;
+  if (fish.satiation < hungerFloor) {
+    hungerStress = config.hungerStressSeverity * (hungerFloor - fish.satiation);
   }
 
   // Oxygen stress (below the configured threshold)
@@ -243,10 +246,12 @@ function buildBenefits(ctx: FishFactorContext): VitalityFactor[] {
     {
       key: 'hunger',
       label: 'Well-fed',
-      // Peaks at hunger ≤ hungerBenefitFullThreshold, ramps to zero at
-      // hungerStressThreshold (where the hunger stressor takes over).
+      // Peaks when satiation is at/above (100 − hungerBenefitFullThreshold)
+      // and ramps to zero where the hunger stressor takes over at
+      // (100 − hungerStressThreshold). Same two-zone semantics as
+      // before, just expressed on the inverted axis.
       amount: rampBenefit(
-        fish.hunger,
+        100 - fish.satiation,
         config.hungerStressThreshold,
         config.hungerBenefitFullThreshold,
         config.hungerBenefitPeak

@@ -27,7 +27,8 @@ function makeFish(overrides: Partial<Fish> = {}): Fish {
     mass: 0.5,
     health: 100,
     age: 0,
-    hunger: 20,
+    // Satiation 80 → mid well-fed band (peak benefit, no stressor).
+    satiation: 80,
     sex: 'male',
     hardinessOffset: 0,
     surplus: 0,
@@ -149,17 +150,18 @@ describe('total stress', () => {
     expect(stress60).toBeGreaterThan(0);
   });
 
-  it('applies hunger stress above 50%', () => {
-    const fish = makeFish({ hunger: 80 });
+  it('applies hunger stress when satiation falls below 50', () => {
+    // satiation 20 → 30 % below the hungry threshold (50).
+    const fish = makeFish({ satiation: 20 });
     const resources = makeResources();
     const stress = totalStress(computeFishVitality(fish, resources, [], 100, 100, livestockDefaults));
 
-    // (80 - 50) * 0.1 * 0.5 = 1.5
+    // (50 - 20) * 0.1 * 0.5 = 1.5
     expect(stress).toBeCloseTo(1.5, 1);
   });
 
-  it('does not apply hunger stress at 50% or below', () => {
-    const fish = makeFish({ hunger: 40 });
+  it('does not apply hunger stress at satiation 50 or above', () => {
+    const fish = makeFish({ satiation: 60 });
     const resources = makeResources();
     const stress = totalStress(computeFishVitality(fish, resources, [], 100, 100, livestockDefaults));
     expect(stress).toBe(0);
@@ -395,14 +397,14 @@ describe('per-stressor breakdown', () => {
     expect(totalStress(above)).toBeCloseTo(stressorAmount(above, 'nitrate'), 6);
   });
 
-  it('isolates hunger stress (only above 50%)', () => {
-    const fish = makeFish({ hunger: 80 });
+  it('isolates hunger stress (only when satiation < 50)', () => {
+    const fish = makeFish({ satiation: 20 });
     const b = computeFishVitality(fish, makeResources(), [], 100, 100, livestockDefaults);
-    // (80-50) × 0.1 × 0.5 = 1.5
+    // (50 - 20) × 0.1 × 0.5 = 1.5
     expect(stressorAmount(b, 'hunger')).toBeCloseTo(1.5, 1);
     expect(totalStress(b)).toBeCloseTo(stressorAmount(b, 'hunger'), 6);
 
-    const calm = makeFish({ hunger: 40 });
+    const calm = makeFish({ satiation: 60 });
     const bCalm = computeFishVitality(calm, makeResources(), [], 100, 100, livestockDefaults);
     expect(stressorAmount(bCalm, 'hunger')).toBe(0);
   });
@@ -435,7 +437,7 @@ describe('per-stressor breakdown', () => {
   });
 
   it('sums all active stressors into the total', () => {
-    const fish = makeFish({ species: 'neon_tetra', hunger: 80 });
+    const fish = makeFish({ species: 'neon_tetra', satiation: 20 });
     const resources = makeResources({
       temperature: 18,
       ph: 8.5,
@@ -721,8 +723,11 @@ describe('vitality integration', () => {
     expect(phStress?.amount).toBeGreaterThan(0);
   });
 
-  it('drops the hunger benefit to zero once hunger crosses the stress line', () => {
-    const fish = makeFish({ hunger: 60 });
+  it('drops the hunger benefit to zero once satiation crosses the hunger line', () => {
+    // Satiation 40 is below the well-fed band (50–75 is peckish, 50 is
+    // the hungry threshold) — well-fed benefit is zero, hunger stressor
+    // is on instead.
+    const fish = makeFish({ satiation: 40 });
     const resources = makeResources();
     const result = computeFishVitality(fish, resources, [], 100, 100, livestockDefaults);
     const hunger = result.breakdown.benefits.find((b) => b.key === 'hunger');
@@ -733,7 +738,7 @@ describe('vitality integration', () => {
     // No stressors, no negative net — a healthy fish at 100 should
     // emit positive surplus equal to the net benefit rate. Currently
     // unused but the breeding/growth tasks will consume it.
-    const fish = makeFish({ health: 100, hunger: 10 });
+    const fish = makeFish({ health: 100, satiation: 80 });
     const resources = makeResources();
     const result = processHealth([fish], resources, [], 100, 100, livestockDefaults);
     expect(result.survivingFish[0].health).toBe(100);
@@ -743,7 +748,7 @@ describe('vitality integration', () => {
   it('does not produce surplus while sub-100 health is recovering', () => {
     // The locked design: a stressed organism heals first, never grows
     // while the deficit is unpaid.
-    const fish = makeFish({ health: 80, surplus: 0, hunger: 10 });
+    const fish = makeFish({ health: 80, surplus: 0, satiation: 80 });
     const resources = makeResources();
     const result = processHealth([fish], resources, [], 100, 100, livestockDefaults);
     expect(result.survivingFish[0].health).toBeGreaterThan(80);
@@ -752,7 +757,7 @@ describe('vitality integration', () => {
   });
 
   it('accumulates surplus across ticks at full health', () => {
-    let fish: Fish[] = [makeFish({ health: 100, hunger: 10 })];
+    let fish: Fish[] = [makeFish({ health: 100, satiation: 80 })];
     const resources = makeResources();
     for (let i = 0; i < 10; i++) {
       fish = processHealth(fish, resources, [], 100, 100, livestockDefaults).survivingFish;

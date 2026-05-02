@@ -58,8 +58,14 @@ export interface LivestockConfig {
   respiratoryQuotient: number;
 
   // Hunger
-  /** Hunger increase per hour (percentage points) */
-  hungerIncreaseRate: number;
+  /**
+   * Satiation decay per hour (percentage points). Fish digest and burn
+   * through stored energy whether or not they're feeding; a fish at
+   * satiation 100 with no food will fall to 0 in ~100 / `satiationDecayRate`
+   * hours. Inverse direction of the legacy `hungerIncreaseRate`; same
+   * magnitude.
+   */
+  satiationDecayRate: number;
 
   // Stressor severities (damage per hour per unit deviation)
   /** Health damage per °C outside safe temperature range */
@@ -166,9 +172,10 @@ export const livestockDefaults: LivestockConfig = {
   basalAmmoniaRate: 0.03,
   respiratoryQuotient: 0.8, // CO2/O2 ratio
 
-  // Hunger - increases ~0.6%/hr; fish can survive 3-7 days without food
-  // Reaches 50% (stress threshold) in ~3.5 days, 100% in ~7 days
-  hungerIncreaseRate: 0.6,
+  // Satiation - decays ~0.6%/hr; fish can survive 3-7 days without food.
+  // From 100 (stuffed) → 50 (peckish boundary) takes ~3.5 days; → 0
+  // (fully starving) takes ~7 days.
+  satiationDecayRate: 0.6,
 
   // Stressor severities
   // Per °C outside the species' preferred temperatureRange, scaled by
@@ -269,8 +276,8 @@ export const livestockConfigMeta: LivestockConfigMeta[] = [
     step: 0.005,
   },
   { key: 'respiratoryQuotient', label: 'Respiratory Quotient', unit: '', min: 0.5, max: 1.2, step: 0.1 },
-  // Hunger
-  { key: 'hungerIncreaseRate', label: 'Hunger Rate', unit: '%/hr', min: 0.1, max: 5, step: 0.1 },
+  // Satiation
+  { key: 'satiationDecayRate', label: 'Satiation Decay', unit: '%/hr', min: 0.1, max: 5, step: 0.1 },
   // Stressor severities
   {
     key: 'temperatureStressSeverity',
