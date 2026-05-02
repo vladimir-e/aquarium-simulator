@@ -366,3 +366,18 @@ session that follows.
 - UI plant panel: `src/ui/components/panels/Plants.tsx`
 - Related tasks: 40 (vitality model — established the engine), 41
   (hunger-satiation-bands — sibling tuning of the same engine)
+
+## Post-implementation revision
+
+After playing with the live UI on 2026-05-02, the `condition`
+intermediate was dropped: algae was refactored from
+`{ mass, condition, surplus }` to `{ mass, surplus }` and treated as
+a pure population. Net rate (benefits − stressors, post-hardiness)
+now drives mass directly — positive net banks as surplus
+(photoperiod-gated), negative net shrinks mass directly (24/7).
+`computeAlgaeVitality` became `computeAlgaePopulation`,
+`applyMassDecay` was deleted (replaced by the direct `mass + net`
+step), and the AlgaeCard dropped its Cond bar — the coverage bar
+now graduates green → yellow → red as mass climbs, matching the
+status pill. This also previews the colony shape (shrimps, snails):
+populations don't need condition either.
