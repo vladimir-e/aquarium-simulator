@@ -28,7 +28,7 @@ Each fish is tracked individually with:
 | Mass | Body mass (grams) - drives metabolism |
 | Health | 0-100%, fish dies at 0 |
 | Age | Time since birth |
-| Hunger | 0-100% |
+| Satiation | 0-100% (0 = starving, 100 = stuffed) |
 | Sex | Male / Female (for reproduction) |
 
 ### Species Characteristics
@@ -56,12 +56,18 @@ Food distribution follows a strict priority order:
 ### Priority 1: Fish
 ```
 available_food = tank.food
-for each fish (sorted by hunger, highest first):
-    food_needed = fish.hunger * fish.mass * metabolism_rate
-    food_given = min(food_needed, available_food)
-    fish.consume(food_given)
+for each fish (sorted by satiation, lowest first — hungriest served first):
+    emptiness  = (100 − fish.satiation) / 100
+    food_needed = emptiness * fish.mass * metabolism_rate
+    food_given  = min(food_needed, available_food)
+    fish.consume(food_given)             # raises satiation toward 100
     available_food -= food_given
 ```
+
+A fish keeps eating until satiation hits the 100 cap — there is no
+voluntary stop at "full enough." Overfeeding is reachable through
+the normal eating loop and is punished by the satiation-band stressor
+(see § Health (Vitality) → Satiation channel).
 
 ### Priority 2: Colonies (equal split)
 ```
@@ -134,7 +140,9 @@ spec). Each tick the engine builds two factor lists for the fish:
 | Ammonia (free NH3) | 0 ppm | `ammoniaStressSeverity` × free NH3 ppm |
 | Nitrite | 0 ppm | `nitriteStressSeverity` × ppm |
 | Nitrate | < 40 ppm | `nitrateStressSeverity` × ppm above 40 |
-| Hunger | < 50% | `hungerStressSeverity` × % above 50 |
+| Satiation (overfed) | satiation < 90 | ramp from 0 at 90 to `satiationOverfedSeverity` at 100 |
+| Satiation (hungry) | satiation > 50 | ramp from 0 at 50 to `satiationHungrySeverity` at 25 |
+| Satiation (starving) | satiation > 25 | ramp from `satiationHungrySeverity` at 25 to `satiationStarvingSeverity` at 0 (steeper) |
 | Oxygen | > 5 mg/L | `oxygenStressSeverity` × mg/L below 5 |
 | Water level | > 50% capacity | `waterLevelStressSeverity` × % below 50 |
 | Flow | Species-specific | `flowStressSeverity` × LPH above max |
@@ -153,7 +161,7 @@ biotic plant-presence benefit adds up to 0.2 %/h on top of that:
 | Benefit | Trigger | Magnitude |
 |---------|---------|-----------|
 | pH | inside species pH range | 0.4 %/h |
-| Hunger | hunger ≤ 30 (full) → 0 at hunger 50 | up to 0.3 %/h |
+| Well fed | satiation 75–90 (well-fed band), peak at 82.5 | up to 0.3 %/h |
 | Oxygen | O2 ≥ 5 mg/L | 0.3 %/h |
 | Plants | live plants in the tank | up to 0.2 %/h |
 
@@ -200,16 +208,34 @@ Stressed fish heal first, never gain surplus while health is below
 100 — this mirrors the plant rule. Surplus banks on `Fish.surplus`,
 the canonical lifecycle-outcome stock for fish.
 
-### Fasting fish
+### Satiation channel — five bands
 
-Hunger sits on both sides of the vitality ledger: the hunger-
-satisfied benefit (up to 0.3 %/h while hunger ≤ 50, peak at ≤ 30) is
-lost as hunger climbs, and the hunger stressor adds damage above
-50 %. A hungry fish therefore loses recovery and takes damage
-simultaneously, so net trends sharply negative — at hunger 80 the net
-rate sits at roughly −0.8 %/h. The starvation-window outcome is
-governed jointly by `hungerStressSeverity` and the hunger benefit
-ramp.
+Satiation sits on both sides of the vitality ledger via a single
+piecewise-linear contribution function (`systems/satiation.ts`).
+Anchor points map to five UI bands:
+
+| Satiation | Band      | Vitality contribution |
+|-----------|-----------|-----------------------|
+| 100 → 90  | Overfed   | stressor (peak `satiationOverfedSeverity` at 100) |
+| 90  → 75  | Well fed  | benefit (peak `satiationWellFedPeak` at the midpoint 82.5) |
+| 75  → 50  | Peckish   | neutral — no contribution |
+| 50  → 25  | Hungry    | stressor (ramp 0 → `satiationHungrySeverity` at 25) |
+| 25  →  0  | Starving  | stressor (ramp `satiationHungrySeverity` → `satiationStarvingSeverity` at 0; steeper slope) |
+
+Bands exist as **UI labels only** — internally the contribution is
+one continuous function with linear ramps between anchors. It crosses
+zero smoothly at every band boundary (90, 75, 50). At satiation 25
+the curve doesn't cross zero — it joins continuously through the
+hungry severity onto a steeper slope into the starving band.
+
+A fasting fish therefore loses the well-fed benefit as soon as
+satiation drops below 75, sits neutral through the peckish band, and
+then takes accelerating damage from satiation 50 down. By the bottom
+of the starving band the per-tick loss is steep enough that ~24 hr
+of starving conditions starts threatening survival even in otherwise
+clean water. An overfed fish (player keeps dumping food, satiation
+pinned at 100) takes a steady drift of ~0.3 %/h net loss in
+otherwise-ideal conditions — slow drift, not a cliff.
 
 ### Hardy Fish
 
@@ -255,7 +281,7 @@ Fish breeding mechanics.
 |-----------|-------------|
 | Male + Female | Both sexes present |
 | Good health | Health > 70% |
-| Adequate food | Hunger < 30% |
+| Adequate food | Satiation in the well-fed band (≥ 75) |
 | Proper conditions | Temperature, pH in range |
 
 ### Fry Lifecycle
@@ -291,11 +317,11 @@ Larger fish eating smaller organisms.
 ### Behavior
 
 ```
-if predator.hunger > threshold:
-    if shrimp_available:  # Only shrimp, not snails
+if predator.satiation < threshold:        # hungry enough to hunt
+    if shrimp_available:                  # Only shrimp, not snails
         predator.consume(shrimp)
         shrimp.population -= predation_count
-        predator.hunger -= nutritional_value
+        predator.satiation += nutritional_value
 ```
 
 ### Protection Factors
@@ -371,7 +397,7 @@ Fish {
     sex: Male | Female
     age: Number
     health: 0-100             // condition in vitality terms
-    hunger: 0-100
+    satiation: 0-100          // 0 = starving, 100 = stuffed
     hardinessOffset: Number   // ±15 % of species baseline
     surplus: Number           // banked vitality overflow
 
@@ -426,7 +452,7 @@ Colony {
 | Parameter | Safe | Warning | Critical |
 |-----------|------|---------|----------|
 | Health | > 70% | 30-70% | < 30% |
-| Hunger | < 30% | 30-70% | > 70% |
+| Satiation | 75-90 (well-fed) | 50-75 (peckish) or 90-100 (overfed) | < 50 (hungry) or 100 sustained (overfed drift) |
 | Temperature (tropical) | 24-28°C | 22-24°C or 28-30°C | < 20°C or > 32°C |
 | pH (most fish) | 6.5-7.5 | 6.0-6.5 or 7.5-8.0 | < 5.5 or > 8.5 |
 | Ammonia | 0 | 0.01-0.02 ppm | > 0.05 ppm |
