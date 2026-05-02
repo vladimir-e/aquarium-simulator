@@ -27,8 +27,10 @@ function makeFish(overrides: Partial<Fish> = {}): Fish {
     mass: 0.5,
     health: 100,
     age: 0,
-    // Satiation 80 → mid well-fed band (peak benefit, no stressor).
-    satiation: 80,
+    // Satiation 82.5 → exact peak of the well-fed band (max benefit,
+    // no stressor). Matches the all-good 1.0 %/h benefit budget the
+    // calibration scenarios pin against.
+    satiation: 82.5,
     sex: 'male',
     hardinessOffset: 0,
     surplus: 0,
@@ -151,13 +153,15 @@ describe('total stress', () => {
   });
 
   it('applies hunger stress when satiation falls below 50', () => {
-    // satiation 20 → 30 % below the hungry threshold (50).
+    // satiation 20 → starving band (0–25). Curve interpolates from
+    // hungry severity (2.5) at satiation 25 to starving severity
+    // (6.0) at satiation 0; at satiation 20 the raw stressor is
+    // 2.5 + (5/25)·(6 − 2.5) = 3.2 %/h. After hardiness factor 0.5 → 1.6.
     const fish = makeFish({ satiation: 20 });
     const resources = makeResources();
     const stress = totalStress(computeFishVitality(fish, resources, [], 100, 100, livestockDefaults));
 
-    // (50 - 20) * 0.1 * 0.5 = 1.5
-    expect(stress).toBeCloseTo(1.5, 1);
+    expect(stress).toBeCloseTo(1.6, 2);
   });
 
   it('does not apply hunger stress at satiation 50 or above', () => {
@@ -398,10 +402,13 @@ describe('per-stressor breakdown', () => {
   });
 
   it('isolates hunger stress (only when satiation < 50)', () => {
+    // satiation 20 (starving band): raw 3.2 %/h × hardiness factor
+    // 0.5 = 1.6 %/h. The stressor key is `hunger` regardless of band;
+    // the label is "Starving" / "Hungry" / "Overfed" depending on
+    // which side the fish is on.
     const fish = makeFish({ satiation: 20 });
     const b = computeFishVitality(fish, makeResources(), [], 100, 100, livestockDefaults);
-    // (50 - 20) × 0.1 × 0.5 = 1.5
-    expect(stressorAmount(b, 'hunger')).toBeCloseTo(1.5, 1);
+    expect(stressorAmount(b, 'hunger')).toBeCloseTo(1.6, 2);
     expect(totalStress(b)).toBeCloseTo(stressorAmount(b, 'hunger'), 6);
 
     const calm = makeFish({ satiation: 60 });
@@ -738,7 +745,7 @@ describe('vitality integration', () => {
     // No stressors, no negative net — a healthy fish at 100 should
     // emit positive surplus equal to the net benefit rate. Currently
     // unused but the breeding/growth tasks will consume it.
-    const fish = makeFish({ health: 100, satiation: 80 });
+    const fish = makeFish({ health: 100, satiation: 82.5 });
     const resources = makeResources();
     const result = processHealth([fish], resources, [], 100, 100, livestockDefaults);
     expect(result.survivingFish[0].health).toBe(100);
@@ -748,7 +755,7 @@ describe('vitality integration', () => {
   it('does not produce surplus while sub-100 health is recovering', () => {
     // The locked design: a stressed organism heals first, never grows
     // while the deficit is unpaid.
-    const fish = makeFish({ health: 80, surplus: 0, satiation: 80 });
+    const fish = makeFish({ health: 80, surplus: 0, satiation: 82.5 });
     const resources = makeResources();
     const result = processHealth([fish], resources, [], 100, 100, livestockDefaults);
     expect(result.survivingFish[0].health).toBeGreaterThan(80);
@@ -757,7 +764,7 @@ describe('vitality integration', () => {
   });
 
   it('accumulates surplus across ticks at full health', () => {
-    let fish: Fish[] = [makeFish({ health: 100, satiation: 80 })];
+    let fish: Fish[] = [makeFish({ health: 100, satiation: 82.5 })];
     const resources = makeResources();
     for (let i = 0; i < 10; i++) {
       fish = processHealth(fish, resources, [], 100, 100, livestockDefaults).survivingFish;
@@ -908,5 +915,104 @@ describe('plant-presence fish benefit', () => {
     expect(plantedFish[0].surplus).toBeGreaterThan(bareFish[0].surplus);
     // And the delta should be roughly the plant peak per tick × 2 ticks.
     expect(plantedFish[0].surplus - bareFish[0].surplus).toBeCloseTo(2 * PLANT_PEAK, 6);
+  });
+});
+
+describe('satiation band — integration', () => {
+  // These tests run the full vitality pipeline against the new
+  // five-band satiation model. They pin the spec's calibration anchors:
+  //   - satiation 95 → overfed stressor active, no well-fed benefit
+  //   - satiation 82 → well-fed benefit active, no hunger stressor
+  //   - satiation 60 → peckish, neither active
+  //   - satiation 30 → hungry stressor active (hungry band)
+  //   - satiation 10 → starving stressor active and steeper than at 30
+  //   - sustained overfeeding accumulates condition loss with no other
+  //     stressors
+  //   - starving fish loses condition visibly faster than merely hungry
+
+  it('satiation 95 → overfed stressor active, no well-fed benefit', () => {
+    const fish = makeFish({ satiation: 95 });
+    const v = computeFishVitality(fish, makeResources(), [], 100, 100, livestockDefaults);
+    expect(stressorAmount(v, 'hunger')).toBeGreaterThan(0);
+    expect(v.breakdown.benefits.find((b) => b.key === 'hunger')!.amount).toBe(0);
+    expect(v.breakdown.stressors.find((s) => s.key === 'hunger')!.label).toBe('Overfed');
+  });
+
+  it('satiation 82 → well-fed benefit active, no hunger stressor', () => {
+    const fish = makeFish({ satiation: 82 });
+    const v = computeFishVitality(fish, makeResources(), [], 100, 100, livestockDefaults);
+    expect(stressorAmount(v, 'hunger')).toBe(0);
+    expect(v.breakdown.benefits.find((b) => b.key === 'hunger')!.amount).toBeGreaterThan(0);
+  });
+
+  it('satiation 60 → peckish, neither contribution', () => {
+    const fish = makeFish({ satiation: 60 });
+    const v = computeFishVitality(fish, makeResources(), [], 100, 100, livestockDefaults);
+    expect(stressorAmount(v, 'hunger')).toBe(0);
+    expect(v.breakdown.benefits.find((b) => b.key === 'hunger')!.amount).toBe(0);
+  });
+
+  it('satiation 30 → hungry stressor active, label "Hungry"', () => {
+    const fish = makeFish({ satiation: 30 });
+    const v = computeFishVitality(fish, makeResources(), [], 100, 100, livestockDefaults);
+    expect(stressorAmount(v, 'hunger')).toBeGreaterThan(0);
+    expect(v.breakdown.stressors.find((s) => s.key === 'hunger')!.label).toBe('Hungry');
+  });
+
+  it('satiation 10 → starving stressor steeper than satiation 30', () => {
+    const at10 = computeFishVitality(makeFish({ satiation: 10 }), makeResources(), [], 100, 100, livestockDefaults);
+    const at30 = computeFishVitality(makeFish({ satiation: 30 }), makeResources(), [], 100, 100, livestockDefaults);
+    expect(stressorAmount(at10, 'hunger')).toBeGreaterThan(stressorAmount(at30, 'hunger'));
+    expect(at10.breakdown.stressors.find((s) => s.key === 'hunger')!.label).toBe('Starving');
+  });
+
+  it('starving fish loses condition visibly faster than merely hungry', () => {
+    // 24-hour run. Both fish in otherwise-ideal water; only the
+    // satiation differs. Starving (10) should drop much more than
+    // moderately hungry (30).
+    let hungry: Fish[] = [makeFish({ id: 'hungry', satiation: 30, health: 100 })];
+    let starving: Fish[] = [makeFish({ id: 'starving', satiation: 10, health: 100 })];
+    const resources = makeResources();
+    for (let i = 0; i < 24; i++) {
+      hungry = processHealth(hungry, resources, [], 100, 100, livestockDefaults).survivingFish;
+      starving = processHealth(starving, resources, [], 100, 100, livestockDefaults).survivingFish;
+    }
+    expect(hungry[0].health).toBeLessThan(100);
+    expect(starving[0].health).toBeLessThan(hungry[0].health);
+  });
+
+  it('sustained overfeeding accumulates condition loss with no other stressors', () => {
+    // Fish pinned at satiation 100 (player keeps dumping food). With
+    // ideal water and no other stressors, the only damage source is
+    // the overfed-band stress. Over 24 ticks the fish should drift
+    // visibly downward — proving the punishment is real but not
+    // a cliff.
+    let fish: Fish[] = [makeFish({ satiation: 100, health: 100 })];
+    const resources = makeResources();
+    for (let i = 0; i < 24; i++) {
+      // Re-pin satiation to 100 each tick to model "player keeps
+      // refilling the food before decay can kick in."
+      fish = fish.map((f) => ({ ...f, satiation: 100 }));
+      fish = processHealth(fish, resources, [], 100, 100, livestockDefaults).survivingFish;
+    }
+    // The overfed stressor outweighs the abiotic budget enough to drop
+    // health below 100, but slowly — no death within a day.
+    expect(fish[0].health).toBeLessThan(100);
+    expect(fish[0].health).toBeGreaterThan(80); // slow drift, not a cliff
+  });
+
+  it('hungry fish recovers to well-fed once conditions allow', () => {
+    // Spec scenario: a fish in clean conditions with low satiation
+    // recovers to the well-fed band when fed; vitality net rate flips
+    // positive.
+    let fish: Fish[] = [makeFish({ satiation: 30, health: 80 })];
+    const resources = makeResources();
+    // Bump satiation back up to mid well-fed (82.5) to simulate a
+    // generous feeding.
+    fish = fish.map((f) => ({ ...f, satiation: 82.5 }));
+    const v = computeFishVitality(fish[0], resources, [], 100, 100, livestockDefaults);
+    expect(v.breakdown.net).toBeGreaterThan(0);
+    fish = processHealth(fish, resources, [], 100, 100, livestockDefaults).survivingFish;
+    expect(fish[0].health).toBeGreaterThan(80);
   });
 });

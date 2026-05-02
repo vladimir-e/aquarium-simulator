@@ -85,10 +85,17 @@ describe('processLivestock', () => {
   });
 
   it('updates fish health', () => {
-    const state = makeState([makeFish({ health: 90 })]);
+    // Start in the well-fed band with a small food ration so the fish
+    // doesn't gorge into the overfed band — the abundant food in
+    // makeState is enough to overshoot 100 in one tick from satiation
+    // 50 otherwise.
+    const fish = makeFish({ health: 90, satiation: 82.5 });
+    const state = produce(makeState([fish]), (draft) => {
+      draft.resources.food = 0; // no extra eating; just exercise the pipeline
+    });
     const result = processLivestock(state, DEFAULT_CONFIG);
 
-    // In ideal conditions, health should recover toward 100
+    // In ideal conditions (peak well-fed, clean water), health recovers.
     expect(result.state.fish[0].health).toBeGreaterThanOrEqual(90);
   });
 

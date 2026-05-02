@@ -265,6 +265,33 @@ describe('processMetabolism', () => {
     expect(fullFish.satiation).toBeGreaterThanOrEqual(90 - livestockDefaults.satiationDecayRate);
   });
 
+  it('abundant food drives satiation to (100 − decayRate) steady state (overfeeding reachable via the eating loop)', () => {
+    // Each tick: eat fills the gap up to 100, then decay subtracts
+    // satiationDecayRate. With unlimited food the per-tick equilibrium
+    // is 100 − decayRate — i.e. the fish keeps eating to the cap every
+    // tick, and the next tick's decay knocks it back the same amount.
+    // Overfeeding is reachable: the cap is hit every tick before decay,
+    // and that's exactly the condition the overfed stressor charges
+    // against.
+    let fish: Fish[] = [makeFish({ satiation: 30, mass: 1.0 })];
+    for (let i = 0; i < 50; i++) {
+      const r = processMetabolism(fish, 1000, livestockDefaults);
+      fish = r.updatedFish;
+    }
+    expect(fish[0].satiation).toBeCloseTo(100 - livestockDefaults.satiationDecayRate, 6);
+  });
+
+  it('decay alone reduces satiation at the configured rate per tick', () => {
+    // No food at all → satiation drops by exactly satiationDecayRate
+    // each tick (no eating to offset).
+    const fish = [makeFish({ satiation: 50, mass: 1.0 })];
+    const r = processMetabolism(fish, 0, livestockDefaults);
+    expect(r.updatedFish[0].satiation).toBeCloseTo(
+      50 - livestockDefaults.satiationDecayRate,
+      6
+    );
+  });
+
   it('handles multiple fish metabolism cumulatively', () => {
     const fish = [
       makeFish({ id: 'f1', mass: 1.0 }),

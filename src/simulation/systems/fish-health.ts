@@ -39,6 +39,7 @@ import type { Fish, Plant, Resources } from '../state.js';
 import { FISH_SPECIES_DATA } from '../state.js';
 import type { LivestockConfig } from '../config/livestock.js';
 import { unionizedAmmoniaFraction } from './nitrogen-cycle.js';
+import { satiationContribution, SATIATION_BAND_LABEL } from './satiation.js';
 import {
   computeVitality,
   inRangeBenefit,
@@ -65,19 +66,6 @@ export interface HealthResult {
 function effectiveHardiness(fish: Fish): number {
   const base = FISH_SPECIES_DATA[fish.species].hardiness;
   return Math.max(0.1, Math.min(0.95, base + fish.hardinessOffset));
-}
-
-/**
- * Linear-ramp benefit: peak when `value ≤ peakAt`, zero when
- * `value ≥ zeroAt`, linearly interpolated in between. The ramp
- * direction is fixed because every consumer so far has wanted the
- * "lower is better" shape; if an "ascending ramp" turns up later it
- * can move into vitality.ts alongside `inRangeBenefit`.
- */
-function rampBenefit(value: number, zeroAt: number, peakAt: number, peak: number): number {
-  if (value >= zeroAt) return 0;
-  if (value <= peakAt) return peak;
-  return peak * ((zeroAt - value) / (zeroAt - peakAt));
 }
 
 interface FishFactorContext {
@@ -171,15 +159,16 @@ function buildStressors(ctx: FishFactorContext): VitalityFactor[] {
     nitrateStress = config.nitrateStressSeverity * (nitratePpm - config.nitrateStressThreshold);
   }
 
-  // Hunger stress — fish below the satiation hunger threshold takes
-  // damage proportional to how far below it has fallen. (Two-zone
-  // legacy shape inverted onto the satiation axis; the band model
-  // arrives in the next commit.)
-  let hungerStress = 0;
-  const hungerFloor = 100 - config.hungerStressThreshold;
-  if (fish.satiation < hungerFloor) {
-    hungerStress = config.hungerStressSeverity * (hungerFloor - fish.satiation);
-  }
+  // Satiation stressor — band-aware label (Overfed / Hungry / Starving)
+  // depending on which side of the well-fed peak the fish is sitting
+  // on. The amount comes from the single piecewise-linear
+  // `satiationContribution` curve; the well-fed benefit is emitted in
+  // `buildBenefits` from the same call.
+  const satiation = satiationContribution(fish.satiation, config);
+  const satiationStressLabel =
+    satiation.band === 'overfed' || satiation.band === 'hungry' || satiation.band === 'starving'
+      ? SATIATION_BAND_LABEL[satiation.band]
+      : SATIATION_BAND_LABEL.hungry;
 
   // Oxygen stress (below the configured threshold)
   let oxygenStress = 0;
@@ -219,7 +208,7 @@ function buildStressors(ctx: FishFactorContext): VitalityFactor[] {
     { key: 'ammonia', label: 'Free NH3', amount: ammoniaStress },
     { key: 'nitrite', label: 'Nitrite', amount: nitriteStress },
     { key: 'nitrate', label: 'Nitrate', amount: nitrateStress },
-    { key: 'hunger', label: 'Hunger', amount: hungerStress },
+    { key: 'hunger', label: satiationStressLabel, amount: satiation.stressor },
     { key: 'oxygen', label: 'Oxygen', amount: oxygenStress },
     { key: 'waterLevel', label: 'Water level', amount: waterLevelStress },
     { key: 'flow', label: 'Flow', amount: flowStress },
@@ -245,17 +234,11 @@ function buildBenefits(ctx: FishFactorContext): VitalityFactor[] {
     },
     {
       key: 'hunger',
-      label: 'Well-fed',
-      // Peaks when satiation is at/above (100 − hungerBenefitFullThreshold)
-      // and ramps to zero where the hunger stressor takes over at
-      // (100 − hungerStressThreshold). Same two-zone semantics as
-      // before, just expressed on the inverted axis.
-      amount: rampBenefit(
-        100 - fish.satiation,
-        config.hungerStressThreshold,
-        config.hungerBenefitFullThreshold,
-        config.hungerBenefitPeak
-      ),
+      label: SATIATION_BAND_LABEL.wellFed,
+      // Same `satiationContribution` curve as the stressor; only the
+      // well-fed band emits a non-zero benefit, and the ramps either
+      // side of the peak meet zero exactly at the band edges.
+      amount: satiationContribution(fish.satiation, config).benefit,
     },
     {
       // Oxygen ≥ stress threshold is the safe side; the benefit is a

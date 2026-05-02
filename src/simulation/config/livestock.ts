@@ -87,8 +87,6 @@ export interface LivestockConfig {
   nitriteStressSeverity: number;
   /** Health damage per ppm of nitrate above 40 */
   nitrateStressSeverity: number;
-  /** Health damage when hunger exceeds 50% (per % above 50) */
-  hungerStressSeverity: number;
   /** Health damage per mg/L oxygen below 5 */
   oxygenStressSeverity: number;
   /** Health damage per % water below 50% capacity */
@@ -116,24 +114,38 @@ export interface LivestockConfig {
    * transition).
    */
   oxygenStressThreshold: number;
-  /**
-   * Hunger above this % activates the stressor. Coupled to the hunger
-   * benefit: above this value the benefit is zero (see
-   * `hungerBenefitFullThreshold` for the peak-end of the benefit ramp).
-   */
-  hungerStressThreshold: number;
   /** Water below this % of capacity activates the stressor. */
   waterLevelStressThreshold: number;
+
+  // Satiation band edges (% on the 0–100 satiation axis) — these define
+  // the boundaries between the five UI bands and the inflection points
+  // of the single piecewise-linear contribution function. See
+  // `satiation.ts` for the curve.
+  /** Top of well-fed / bottom of overfed. Above this satiation: overfed stress. */
+  satiationOverfedFloor: number;
+  /** Top of peckish / bottom of well-fed. Above this satiation up to overfed: well-fed benefit. */
+  satiationWellFedFloor: number;
+  /** Top of hungry / bottom of peckish. Below this satiation: hunger stress. */
+  satiationHungryCeiling: number;
+  /** Top of starving / bottom of hungry. Below this satiation: starving stress (steeper). */
+  satiationStarvingCeiling: number;
+
+  // Satiation band peak severities (%/h, per anchor — the curve linearly
+  // interpolates between them; see `satiation.ts`).
+  /** Peak overfed stress at satiation = 100 (fully stuffed). */
+  satiationOverfedSeverity: number;
+  /** Peak well-fed benefit at the midpoint between the two well-fed band edges. */
+  satiationWellFedPeak: number;
+  /** Hungry stress at satiation = `satiationStarvingCeiling` (entry to starving). */
+  satiationHungrySeverity: number;
+  /** Starving stress at satiation = 0 (fully empty). */
+  satiationStarvingSeverity: number;
 
   // Vitality benefit peaks (%/h) — recovery rate when each factor is
   // in its tolerable band. Sum at all-good (no plants) ≈ 1.0 %/h; with
   // saturated planting it rises to ≈ 1.2 %/h.
   /** pH inside species range. */
   phBenefitPeak: number;
-  /** Hunger ≤ `hungerBenefitFullThreshold` (peaks); ramps to 0 at `hungerStressThreshold`. */
-  hungerBenefitPeak: number;
-  /** Hunger threshold (%) at which the benefit hits its peak — below = full peak. */
-  hungerBenefitFullThreshold: number;
   /** Oxygen ≥ `oxygenStressThreshold` (one-sided "above threshold" benefit). */
   oxygenBenefitPeak: number;
   /** Plant-presence benefit at saturation — see `plantBenefitSaturationPoint`. */
@@ -206,7 +218,6 @@ export const livestockDefaults: LivestockConfig = {
   // 96-hr LC50 lands near ~4–5 ppm — consistent with literature.
   nitriteStressSeverity: 2.5,
   nitrateStressSeverity: 0.5, // Mild - 0.5% damage per ppm above threshold
-  hungerStressSeverity: 0.1, // 0.1% per % hunger above threshold
   oxygenStressSeverity: 3.0, // 3% damage per mg/L below threshold
   waterLevelStressSeverity: 0.2, // 0.2% per % below threshold
   flowStressSeverity: 0.01, // 0.01% per LPH above species max
@@ -219,17 +230,45 @@ export const livestockDefaults: LivestockConfig = {
   nitrateStressThreshold: 40, // ppm — above this nitrate damages fish
   oxygenStressThreshold: 5, // mg/L — below this oxygen damages fish; above
   // this the oxygen benefit kicks in (shared cutoff, continuous transition)
-  hungerStressThreshold: 50, // % — above this hunger damages fish; the
-  // benefit also ends here (rests below it down to `hungerBenefitFullThreshold`)
   waterLevelStressThreshold: 50, // % capacity — below this water level damages fish
 
-  // Benefit peaks (%/h) and the hunger benefit's full-peak threshold.
-  // Sum at all-good in a bare tank: 0.4 + 0.3 + 0.3 = 1.0 %/h (pH +
-  // hunger + oxygen). With three full-grown healthy plants (saturated):
-  // +0.2 → 1.2 %/h.
+  // Satiation band edges (anchors of the piecewise-linear contribution).
+  // 100 → 90  Overfed     (stressor)
+  //  90 → 75  Well fed    (benefit, peak at 82.5)
+  //  75 → 50  Peckish     (neutral)
+  //  50 → 25  Hungry      (stressor)
+  //  25 →  0  Starving    (stressor, steeper)
+  satiationOverfedFloor: 90,
+  satiationWellFedFloor: 75,
+  satiationHungryCeiling: 50,
+  satiationStarvingCeiling: 25,
+
+  // Severity peaks. Calibrated against the legacy two-zone behaviour
+  // and the spec's calibration anchors:
+  // - Overfed at 100 lands at 2.0 %/h. With the well-fed benefit
+  //   already gone above the band (so the abiotic budget shrinks to
+  //   pH 0.4 + O2 0.3 = 0.7 %/h), a mid-hardiness fish (factor 0.5)
+  //   sees net ≈ 1.0 × 0.5 − 0.7 = −0.3 %/h — slow drift, not a cliff,
+  //   matching the spec's "punishment is over hours, not minutes."
+  // - Well-fed peak 0.3 %/h matches the legacy `hungerBenefitPeak` so
+  //   the all-good budget stays ≈ 1.0 %/h in a bare tank.
+  // - Hungry at the bottom of its band (satiation 25) lands at 2.5 %/h,
+  //   matching the legacy "hunger 75 in old axis" stressor severity
+  //   (0.1 × 25 = 2.5) — i.e. moderately stressed.
+  // - Starving at satiation 0 lands at 6.0 %/h — visibly steeper than
+  //   merely hungry; the per-percent slope inside the starving band
+  //   (0.14 %/%) is ~40 % steeper than the hungry slope (0.10 %/%),
+  //   so survival drops sharply once a fish enters the band.
+  satiationOverfedSeverity: 2.0,
+  satiationWellFedPeak: 0.3,
+  satiationHungrySeverity: 2.5,
+  satiationStarvingSeverity: 6.0,
+
+  // Benefit peaks (%/h) for the non-satiation channels. Sum at
+  // all-good in a bare tank: pH 0.4 + well-fed 0.3 + O2 0.3 = 1.0 %/h
+  // (matches the legacy budget). With three full-grown healthy plants
+  // (saturated): +0.2 → 1.2 %/h.
   phBenefitPeak: 0.4,
-  hungerBenefitPeak: 0.3,
-  hungerBenefitFullThreshold: 30, // % — at or below this hunger, benefit is at peak
   oxygenBenefitPeak: 0.3,
   plantBenefitPeak: 0.2,
   plantBenefitSaturationPoint: 3.0,
@@ -312,7 +351,6 @@ export const livestockConfigMeta: LivestockConfigMeta[] = [
     max: 2,
     step: 0.1,
   },
-  { key: 'hungerStressSeverity', label: 'Hunger Stress', unit: '%/%/hr', min: 0.01, max: 0.5, step: 0.01 },
   {
     key: 'oxygenStressSeverity',
     label: 'O2 Stress Severity',
@@ -348,12 +386,18 @@ export const livestockConfigMeta: LivestockConfigMeta[] = [
   // Stressor thresholds
   { key: 'nitrateStressThreshold', label: 'Nitrate Stress Threshold', unit: 'ppm', min: 10, max: 100, step: 5 },
   { key: 'oxygenStressThreshold', label: 'O2 Stress Threshold', unit: 'mg/L', min: 2, max: 8, step: 0.5 },
-  { key: 'hungerStressThreshold', label: 'Hunger Stress Threshold', unit: '%', min: 30, max: 80, step: 5 },
   { key: 'waterLevelStressThreshold', label: 'Water Level Stress Threshold', unit: '%', min: 20, max: 80, step: 5 },
+  // Satiation band edges and peak severities
+  { key: 'satiationOverfedFloor', label: 'Overfed Floor', unit: '%', min: 80, max: 100, step: 1 },
+  { key: 'satiationWellFedFloor', label: 'Well-fed Floor', unit: '%', min: 60, max: 90, step: 1 },
+  { key: 'satiationHungryCeiling', label: 'Hungry Ceiling', unit: '%', min: 30, max: 70, step: 1 },
+  { key: 'satiationStarvingCeiling', label: 'Starving Ceiling', unit: '%', min: 5, max: 40, step: 1 },
+  { key: 'satiationOverfedSeverity', label: 'Overfed Severity', unit: '%/hr', min: 0, max: 5, step: 0.05 },
+  { key: 'satiationWellFedPeak', label: 'Well-fed Peak', unit: '%/hr', min: 0, max: 1, step: 0.05 },
+  { key: 'satiationHungrySeverity', label: 'Hungry Severity', unit: '%/hr', min: 0, max: 10, step: 0.1 },
+  { key: 'satiationStarvingSeverity', label: 'Starving Severity', unit: '%/hr', min: 0, max: 20, step: 0.1 },
   // Vitality benefit peaks
   { key: 'phBenefitPeak', label: 'pH Benefit Peak', unit: '%/hr', min: 0, max: 1, step: 0.05 },
-  { key: 'hungerBenefitPeak', label: 'Hunger Benefit Peak', unit: '%/hr', min: 0, max: 1, step: 0.05 },
-  { key: 'hungerBenefitFullThreshold', label: 'Hunger Benefit Full Threshold', unit: '%', min: 0, max: 50, step: 5 },
   { key: 'oxygenBenefitPeak', label: 'O2 Benefit Peak', unit: '%/hr', min: 0, max: 1, step: 0.05 },
   { key: 'plantBenefitPeak', label: 'Plant Benefit Peak', unit: '%/hr', min: 0, max: 1, step: 0.05 },
   { key: 'plantBenefitSaturationPoint', label: 'Plant Benefit Saturation', unit: 'plants', min: 1, max: 10, step: 0.5 },
