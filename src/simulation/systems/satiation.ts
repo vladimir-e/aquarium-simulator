@@ -88,9 +88,10 @@ export function classifySatiationBandPosition(
 
 /**
  * Map satiation to its current band only. Boundaries belong to the
- * *lower* band so the well-fed range is `[wellFedFloor, overfedFloor)`
- * etc. — the contribution is zero at every boundary regardless, so
- * the choice is purely cosmetic for the band label.
+ * *upper* of the two adjacent bands — satiation 90 is `overfed`, 75 is
+ * `wellFed`, 50 is `peckish`, 25 is `hungry`. The contribution is zero
+ * at every boundary regardless, so the choice is purely cosmetic for
+ * the band label.
  */
 export function classifySatiationBand(
   satiation: number,

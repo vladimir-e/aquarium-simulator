@@ -163,12 +163,16 @@ function buildStressors(ctx: FishFactorContext): VitalityFactor[] {
   // depending on which side of the well-fed peak the fish is sitting
   // on. The amount comes from the single piecewise-linear
   // `satiationContribution` curve; the well-fed benefit is emitted in
-  // `buildBenefits` from the same call.
+  // `buildBenefits` from the same call. When the fish is in a non-
+  // stressing band (well-fed or peckish) the entry is still emitted at
+  // amount 0 so the breakdown shape stays stable; the label falls back
+  // to the neutral channel name "Satiation" so a UI introspecting the
+  // inactive entry doesn't see a misleading band name.
   const satiation = satiationContribution(fish.satiation, config);
   const satiationStressLabel =
     satiation.band === 'overfed' || satiation.band === 'hungry' || satiation.band === 'starving'
       ? SATIATION_BAND_LABEL[satiation.band]
-      : SATIATION_BAND_LABEL.hungry;
+      : 'Satiation';
 
   // Oxygen stress (below the configured threshold)
   let oxygenStress = 0;
@@ -208,7 +212,7 @@ function buildStressors(ctx: FishFactorContext): VitalityFactor[] {
     { key: 'ammonia', label: 'Free NH3', amount: ammoniaStress },
     { key: 'nitrite', label: 'Nitrite', amount: nitriteStress },
     { key: 'nitrate', label: 'Nitrate', amount: nitrateStress },
-    { key: 'hunger', label: satiationStressLabel, amount: satiation.stressor },
+    { key: 'satiation', label: satiationStressLabel, amount: satiation.stressor },
     { key: 'oxygen', label: 'Oxygen', amount: oxygenStress },
     { key: 'waterLevel', label: 'Water level', amount: waterLevelStress },
     { key: 'flow', label: 'Flow', amount: flowStress },
@@ -233,7 +237,7 @@ function buildBenefits(ctx: FishFactorContext): VitalityFactor[] {
       amount: inRangeBenefit(resources.ph, phMin, phMax, config.phBenefitPeak),
     },
     {
-      key: 'hunger',
+      key: 'satiation',
       label: SATIATION_BAND_LABEL.wellFed,
       // Same `satiationContribution` curve as the stressor; only the
       // well-fed band emits a non-zero benefit, and the ramps either

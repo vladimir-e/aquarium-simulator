@@ -47,7 +47,8 @@ import type { TunableConfig } from '../../simulation/config/index.js';
  *     (nitrate / oxygen / hunger / water level) and vitality benefit
  *     peaks (pH / hunger / hunger-full / oxygen / plant / plant
  *     saturation point) — knobs that were previously hardcoded
- *     constants in `fish-health.ts`.
+ *     constants in `fish-health.ts`. (The hunger knobs listed here
+ *     were superseded by the satiation band knobs in v11.)
  * v6: Fish gains `surplus` (vitality overflow store). Plant condition
  *     semantics also change (driven by stressors + benefits, not raw
  *     nutrient sufficiency) but its persisted shape is identical, so

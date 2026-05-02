@@ -262,9 +262,10 @@ describe('N mass conservation (end-to-end)', () => {
     // Fish must stay alive for the full window so basal output is
     // continuous; fasted starvation eventually kills them under the
     // vitality model (task 40), so we keep the window short enough
-    // that hunger-stress hasn't depleted health before the test ends.
-    // Hunger reaches 50 (stress threshold) ~33 ticks in; below that
-    // there is no hunger damage and basal NH3 alone drives the pools.
+    // that the hunger stressor hasn't depleted health before the test
+    // ends. Satiation drops to 50 (top of the hungry band) ~33 ticks
+    // in from the default starting satiation of 70; above 50 there is
+    // no hunger damage and basal NH3 alone drives the pools.
     const TICKS = 30;
     const config = noAmbientConfig();
 

@@ -152,7 +152,7 @@ describe('total stress', () => {
     expect(stress60).toBeGreaterThan(0);
   });
 
-  it('applies hunger stress when satiation falls below 50', () => {
+  it('applies satiation stress when satiation falls into the starving band', () => {
     // satiation 20 → starving band (0–25). Curve interpolates from
     // hungry severity (2.5) at satiation 25 to starving severity
     // (6.0) at satiation 0; at satiation 20 the raw stressor is
@@ -164,7 +164,7 @@ describe('total stress', () => {
     expect(stress).toBeCloseTo(1.6, 2);
   });
 
-  it('does not apply hunger stress at satiation 50 or above', () => {
+  it('does not apply satiation stress in the peckish band (50 ≤ satiation < 75)', () => {
     const fish = makeFish({ satiation: 60 });
     const resources = makeResources();
     const stress = totalStress(computeFishVitality(fish, resources, [], 100, 100, livestockDefaults));
@@ -317,7 +317,7 @@ describe('per-stressor breakdown', () => {
       'ammonia',
       'nitrite',
       'nitrate',
-      'hunger',
+      'satiation',
       'oxygen',
       'waterLevel',
       'flow',
@@ -337,7 +337,7 @@ describe('per-stressor breakdown', () => {
     expect(stressorAmount(b, 'ammonia')).toBe(0);
     expect(stressorAmount(b, 'nitrite')).toBe(0);
     expect(stressorAmount(b, 'nitrate')).toBe(0);
-    expect(stressorAmount(b, 'hunger')).toBe(0);
+    expect(stressorAmount(b, 'satiation')).toBe(0);
     expect(stressorAmount(b, 'oxygen')).toBe(0);
     expect(stressorAmount(b, 'waterLevel')).toBe(0);
     expect(stressorAmount(b, 'flow')).toBe(0);
@@ -401,19 +401,19 @@ describe('per-stressor breakdown', () => {
     expect(totalStress(above)).toBeCloseTo(stressorAmount(above, 'nitrate'), 6);
   });
 
-  it('isolates hunger stress (only when satiation < 50)', () => {
+  it('isolates satiation stress (only when satiation < 50)', () => {
     // satiation 20 (starving band): raw 3.2 %/h × hardiness factor
-    // 0.5 = 1.6 %/h. The stressor key is `hunger` regardless of band;
-    // the label is "Starving" / "Hungry" / "Overfed" depending on
-    // which side the fish is on.
+    // 0.5 = 1.6 %/h. The stressor key is `satiation` regardless of
+    // band; the label is "Starving" / "Hungry" / "Overfed" depending
+    // on which side the fish is on.
     const fish = makeFish({ satiation: 20 });
     const b = computeFishVitality(fish, makeResources(), [], 100, 100, livestockDefaults);
-    expect(stressorAmount(b, 'hunger')).toBeCloseTo(1.6, 2);
-    expect(totalStress(b)).toBeCloseTo(stressorAmount(b, 'hunger'), 6);
+    expect(stressorAmount(b, 'satiation')).toBeCloseTo(1.6, 2);
+    expect(totalStress(b)).toBeCloseTo(stressorAmount(b, 'satiation'), 6);
 
     const calm = makeFish({ satiation: 60 });
     const bCalm = computeFishVitality(calm, makeResources(), [], 100, 100, livestockDefaults);
-    expect(stressorAmount(bCalm, 'hunger')).toBe(0);
+    expect(stressorAmount(bCalm, 'satiation')).toBe(0);
   });
 
   it('isolates oxygen stress', () => {
@@ -463,7 +463,7 @@ describe('per-stressor breakdown', () => {
       stressorAmount(b, 'ammonia') +
       stressorAmount(b, 'nitrite') +
       stressorAmount(b, 'nitrate') +
-      stressorAmount(b, 'hunger') +
+      stressorAmount(b, 'satiation') +
       stressorAmount(b, 'oxygen') +
       stressorAmount(b, 'waterLevel') +
       stressorAmount(b, 'flow');
@@ -474,7 +474,7 @@ describe('per-stressor breakdown', () => {
     expect(stressorAmount(b, 'ammonia')).toBeGreaterThan(0);
     expect(stressorAmount(b, 'nitrite')).toBeGreaterThan(0);
     expect(stressorAmount(b, 'nitrate')).toBeGreaterThan(0);
-    expect(stressorAmount(b, 'hunger')).toBeGreaterThan(0);
+    expect(stressorAmount(b, 'satiation')).toBeGreaterThan(0);
     expect(stressorAmount(b, 'oxygen')).toBeGreaterThan(0);
     expect(stressorAmount(b, 'waterLevel')).toBeGreaterThan(0);
     expect(stressorAmount(b, 'flow')).toBeGreaterThan(0);
@@ -704,15 +704,15 @@ describe('vitality integration', () => {
   // These tests pin that contract on top of the per-stressor math the
   // describes above already cover.
 
-  it('exposes ph/hunger/oxygen/plants benefits when conditions are good', () => {
+  it('exposes ph/satiation/oxygen/plants benefits when conditions are good', () => {
     const fish = makeFish();
     const resources = makeResources();
     const result = computeFishVitality(fish, resources, [], 100, 100, livestockDefaults);
 
     const benefitKeys = result.breakdown.benefits.map((b) => b.key).sort();
-    expect(benefitKeys).toEqual(['hunger', 'oxygen', 'ph', 'plants']);
+    expect(benefitKeys).toEqual(['oxygen', 'ph', 'plants', 'satiation']);
     // In an unplanted tank the abiotic budget alone sums to ~1.0 %/h
-    // (pH 0.4 + hunger 0.3 + O2 0.3) — the budget the calibration
+    // (pH 0.4 + well-fed 0.3 + O2 0.3) — the budget the calibration
     // scenarios were pinned against. The plant-presence benefit kicks
     // in only when actual plants are passed in.
     expect(result.breakdown.benefitRate).toBeCloseTo(1.0, 6);
@@ -730,15 +730,15 @@ describe('vitality integration', () => {
     expect(phStress?.amount).toBeGreaterThan(0);
   });
 
-  it('drops the hunger benefit to zero once satiation crosses the hunger line', () => {
-    // Satiation 40 is below the well-fed band (50–75 is peckish, 50 is
-    // the hungry threshold) — well-fed benefit is zero, hunger stressor
-    // is on instead.
+  it('drops the well-fed benefit to zero once satiation falls into the hungry band', () => {
+    // Satiation 40 is in the hungry band (25–50). Well-fed benefit is
+    // zero outside its [75, 90) range; the satiation stressor is on
+    // instead.
     const fish = makeFish({ satiation: 40 });
     const resources = makeResources();
     const result = computeFishVitality(fish, resources, [], 100, 100, livestockDefaults);
-    const hunger = result.breakdown.benefits.find((b) => b.key === 'hunger');
-    expect(hunger?.amount).toBe(0);
+    const wellFed = result.breakdown.benefits.find((b) => b.key === 'satiation');
+    expect(wellFed?.amount).toBe(0);
   });
 
   it('captures surplus when the fish is at full health and net is positive', () => {
@@ -922,7 +922,7 @@ describe('satiation band — integration', () => {
   // These tests run the full vitality pipeline against the new
   // five-band satiation model. They pin the spec's calibration anchors:
   //   - satiation 95 → overfed stressor active, no well-fed benefit
-  //   - satiation 82 → well-fed benefit active, no hunger stressor
+  //   - satiation 82 → well-fed benefit active, no satiation stressor
   //   - satiation 60 → peckish, neither active
   //   - satiation 30 → hungry stressor active (hungry band)
   //   - satiation 10 → starving stressor active and steeper than at 30
@@ -933,37 +933,37 @@ describe('satiation band — integration', () => {
   it('satiation 95 → overfed stressor active, no well-fed benefit', () => {
     const fish = makeFish({ satiation: 95 });
     const v = computeFishVitality(fish, makeResources(), [], 100, 100, livestockDefaults);
-    expect(stressorAmount(v, 'hunger')).toBeGreaterThan(0);
-    expect(v.breakdown.benefits.find((b) => b.key === 'hunger')!.amount).toBe(0);
-    expect(v.breakdown.stressors.find((s) => s.key === 'hunger')!.label).toBe('Overfed');
+    expect(stressorAmount(v, 'satiation')).toBeGreaterThan(0);
+    expect(v.breakdown.benefits.find((b) => b.key === 'satiation')!.amount).toBe(0);
+    expect(v.breakdown.stressors.find((s) => s.key === 'satiation')!.label).toBe('Overfed');
   });
 
-  it('satiation 82 → well-fed benefit active, no hunger stressor', () => {
+  it('satiation 82 → well-fed benefit active, no satiation stressor', () => {
     const fish = makeFish({ satiation: 82 });
     const v = computeFishVitality(fish, makeResources(), [], 100, 100, livestockDefaults);
-    expect(stressorAmount(v, 'hunger')).toBe(0);
-    expect(v.breakdown.benefits.find((b) => b.key === 'hunger')!.amount).toBeGreaterThan(0);
+    expect(stressorAmount(v, 'satiation')).toBe(0);
+    expect(v.breakdown.benefits.find((b) => b.key === 'satiation')!.amount).toBeGreaterThan(0);
   });
 
   it('satiation 60 → peckish, neither contribution', () => {
     const fish = makeFish({ satiation: 60 });
     const v = computeFishVitality(fish, makeResources(), [], 100, 100, livestockDefaults);
-    expect(stressorAmount(v, 'hunger')).toBe(0);
-    expect(v.breakdown.benefits.find((b) => b.key === 'hunger')!.amount).toBe(0);
+    expect(stressorAmount(v, 'satiation')).toBe(0);
+    expect(v.breakdown.benefits.find((b) => b.key === 'satiation')!.amount).toBe(0);
   });
 
   it('satiation 30 → hungry stressor active, label "Hungry"', () => {
     const fish = makeFish({ satiation: 30 });
     const v = computeFishVitality(fish, makeResources(), [], 100, 100, livestockDefaults);
-    expect(stressorAmount(v, 'hunger')).toBeGreaterThan(0);
-    expect(v.breakdown.stressors.find((s) => s.key === 'hunger')!.label).toBe('Hungry');
+    expect(stressorAmount(v, 'satiation')).toBeGreaterThan(0);
+    expect(v.breakdown.stressors.find((s) => s.key === 'satiation')!.label).toBe('Hungry');
   });
 
   it('satiation 10 → starving stressor steeper than satiation 30', () => {
     const at10 = computeFishVitality(makeFish({ satiation: 10 }), makeResources(), [], 100, 100, livestockDefaults);
     const at30 = computeFishVitality(makeFish({ satiation: 30 }), makeResources(), [], 100, 100, livestockDefaults);
-    expect(stressorAmount(at10, 'hunger')).toBeGreaterThan(stressorAmount(at30, 'hunger'));
-    expect(at10.breakdown.stressors.find((s) => s.key === 'hunger')!.label).toBe('Starving');
+    expect(stressorAmount(at10, 'satiation')).toBeGreaterThan(stressorAmount(at30, 'satiation'));
+    expect(at10.breakdown.stressors.find((s) => s.key === 'satiation')!.label).toBe('Starving');
   });
 
   it('starving fish loses condition visibly faster than merely hungry', () => {

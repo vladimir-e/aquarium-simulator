@@ -3,7 +3,7 @@
  *
  * Calibration targets:
  * - Metabolism: A 1g fish consumes ~0.01g food/hr, produces proportional waste/CO2
- * - Hunger: Increases ~4%/hr when unfed (full to starving in ~24hr)
+ * - Satiation: Decays ~0.6%/hr when unfed (stuffed to fully starving in ~7 days)
  * - Health: Per-factor benefits sum to ~1%/h in ideal conditions; degrades faster under stress
  * - Death: vitality-driven (no probabilistic check); past `maxAge` the
  *   age stressor kicks in for a smooth decline.
@@ -57,7 +57,7 @@ export interface LivestockConfig {
   /** CO2 produced per unit oxygen consumed (respiratory quotient) */
   respiratoryQuotient: number;
 
-  // Hunger
+  // Satiation
   /**
    * Satiation decay per hour (percentage points). Fish digest and burn
    * through stored energy whether or not they're feeding; a fish at

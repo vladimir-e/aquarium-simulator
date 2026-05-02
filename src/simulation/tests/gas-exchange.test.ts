@@ -248,7 +248,7 @@ describe('Gas Exchange integration', () => {
         fishState = applyAction(fishState, { type: 'addFish', species: 'angelfish' }).state;
       }
 
-      // Feed the fish so they have food to eat (keeps hunger stable)
+      // Feed the fish so they have food to eat (keeps satiation stable)
       fishState = applyAction(fishState, { type: 'feed', amount: 2.0 }).state;
 
       // Run 12 ticks
