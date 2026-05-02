@@ -45,10 +45,52 @@ export interface SatiationContribution {
 }
 
 /**
- * Map satiation to its current band. Boundaries belong to the *lower*
- * band so the well-fed range is `[wellFedFloor, overfedFloor)` etc. —
- * the contribution is zero at every boundary regardless, so the choice
- * is purely cosmetic for the band label.
+ * Map satiation to its current band along with how far into the band
+ * it sits (0 = at the lower edge, 1 = at the upper edge). The
+ * progress fraction is what the UI uses for the in-band progression
+ * indicator under the status label.
+ */
+export interface SatiationBandPosition {
+  band: SatiationBand;
+  /** Position within the band, 0 = at lower edge, 1 = at upper edge. */
+  progress: number;
+}
+
+export function classifySatiationBandPosition(
+  satiation: number,
+  config: LivestockConfig
+): SatiationBandPosition {
+  const s = Math.max(0, Math.min(100, satiation));
+  const {
+    satiationOverfedFloor,
+    satiationWellFedFloor,
+    satiationHungryCeiling,
+    satiationStarvingCeiling,
+  } = config;
+  const ratio = (lo: number, hi: number): number => {
+    if (hi === lo) return 0;
+    return Math.max(0, Math.min(1, (s - lo) / (hi - lo)));
+  };
+  if (s >= satiationOverfedFloor) {
+    return { band: 'overfed', progress: ratio(satiationOverfedFloor, 100) };
+  }
+  if (s >= satiationWellFedFloor) {
+    return { band: 'wellFed', progress: ratio(satiationWellFedFloor, satiationOverfedFloor) };
+  }
+  if (s >= satiationHungryCeiling) {
+    return { band: 'peckish', progress: ratio(satiationHungryCeiling, satiationWellFedFloor) };
+  }
+  if (s >= satiationStarvingCeiling) {
+    return { band: 'hungry', progress: ratio(satiationStarvingCeiling, satiationHungryCeiling) };
+  }
+  return { band: 'starving', progress: ratio(0, satiationStarvingCeiling) };
+}
+
+/**
+ * Map satiation to its current band only. Boundaries belong to the
+ * *lower* band so the well-fed range is `[wellFedFloor, overfedFloor)`
+ * etc. — the contribution is zero at every boundary regardless, so
+ * the choice is purely cosmetic for the band label.
  */
 export function classifySatiationBand(
   satiation: number,

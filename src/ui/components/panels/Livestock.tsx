@@ -13,6 +13,9 @@ import type {
 import {
   FISH_SPECIES_DATA,
   computeFishVitality,
+  classifySatiationBandPosition,
+  SATIATION_BAND_LABEL,
+  type SatiationBand,
 } from '../../../simulation/index.js';
 import type { LivestockConfig } from '../../../simulation/config/livestock.js';
 
@@ -57,25 +60,18 @@ function getHealthStatusText(health: number): string {
 }
 
 /**
- * Get color class for hunger bar.
- * Low hunger = green (well-fed), high hunger = red (starving)
+ * Color of the satiation status pill, by band. Mirrors the band's
+ * gameplay meaning — green for the optimum (well-fed), grey for
+ * neutral (peckish), amber for caution (hungry / overfed), red for
+ * danger (starving).
  */
-function getHungerBarColorClass(hunger: number): string {
-  if (hunger > 70) return 'bg-red-500';
-  if (hunger > 50) return 'bg-yellow-500';
-  return 'bg-green-500';
-}
-
-/**
- * Get hunger status text.
- */
-function getHungerStatusText(hunger: number): string {
-  if (hunger < 10) return 'Full';
-  if (hunger < 30) return 'Satisfied';
-  if (hunger < 50) return 'Peckish';
-  if (hunger < 70) return 'Hungry';
-  return 'Starving';
-}
+const SATIATION_PILL_COLOR: Record<SatiationBand, string> = {
+  overfed: 'bg-orange-500',
+  wellFed: 'bg-green-500',
+  peckish: 'bg-gray-500',
+  hungry: 'bg-yellow-500',
+  starving: 'bg-red-500',
+};
 
 /**
  * Format fish age from ticks (hours) to a readable string.
@@ -125,8 +121,13 @@ function FishCard({
   const speciesData = FISH_SPECIES_DATA[fish.species];
   const healthColor = getHealthBarColorClass(fish.health);
   const healthStatus = getHealthStatusText(fish.health);
-  const hungerColor = getHungerBarColorClass(fish.hunger);
-  const hungerStatus = getHungerStatusText(fish.hunger);
+  // Satiation: band label + a single dot inching across a thin rail to
+  // show in-band progression. The dot lets the player read "still
+  // well-fed but trending toward peckish" without bringing back the
+  // fill-it-up bar.
+  const satiationPosition = classifySatiationBandPosition(fish.satiation, livestockConfig);
+  const satiationLabel = SATIATION_BAND_LABEL[satiationPosition.band];
+  const satiationColor = SATIATION_PILL_COLOR[satiationPosition.band];
 
   // The trend arrow tracks the vitality net rate (benefit − damage).
   // Recovery scales with how good conditions are — a tank that's
@@ -201,21 +202,26 @@ function FishCard({
             {fish.health.toFixed(0)}%
           </span>
         </div>
-        {/* Hunger bar */}
-        <div className="flex items-center gap-1">
+        {/* Satiation: band-aware status label + in-band progression
+            dot (no bar — a bar fights the gameplay goal of keeping
+            fish well-fed, not stuffed). */}
+        <div className="flex items-center gap-1 mt-1">
           <span className="text-xs text-gray-500 w-10">Hunger</span>
-          <div className="flex-1 h-1.5 bg-border rounded-full overflow-hidden">
+          <div className="flex-1 relative h-1.5">
+            <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-px bg-border" />
             <div
-              className={`h-full ${hungerColor} transition-all`}
-              style={{ width: `${fish.hunger}%` }}
+              className={`absolute top-1/2 -translate-y-1/2 -translate-x-1/2 h-1.5 w-1.5 rounded-full ${satiationColor} transition-all`}
+              style={{ left: `${satiationPosition.progress * 100}%` }}
+              title={`Satiation: ${fish.satiation.toFixed(0)}%`}
             />
           </div>
-          <span className="text-xs text-gray-500 w-8 text-right">{hungerStatus}</span>
+          <span
+            className={`text-xs px-1 py-0.5 rounded ${satiationColor} text-black w-16 text-center`}
+            title={`Satiation: ${fish.satiation.toFixed(0)}%`}
+          >
+            {satiationLabel}
+          </span>
         </div>
-        {/* Starving warning */}
-        {fish.hunger > 70 && (
-          <div className="text-xs text-red-400 mt-0.5">Starving!</div>
-        )}
         {/* Conditions breakdown — merged stressors (red, +X%) +
             benefits (green, +X%). Mirrors the PlantCard pattern from
             the Plants panel. Hidden when nothing's interesting. */}

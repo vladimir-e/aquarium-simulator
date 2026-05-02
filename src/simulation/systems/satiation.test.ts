@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   satiationContribution,
   classifySatiationBand,
+  classifySatiationBandPosition,
   SATIATION_BAND_LABEL,
 } from './satiation.js';
 import { livestockDefaults } from '../config/livestock.js';
@@ -188,6 +189,40 @@ describe('classifySatiationBand', () => {
     expect(classifySatiationBand(cfg.satiationOverfedFloor - 0.001, cfg)).toBe('wellFed');
     expect(classifySatiationBand(cfg.satiationWellFedFloor, cfg)).toBe('wellFed');
     expect(classifySatiationBand(cfg.satiationWellFedFloor - 0.001, cfg)).toBe('peckish');
+  });
+});
+
+describe('classifySatiationBandPosition', () => {
+  // Band positions drive the dot indicator under the UI status label —
+  // 0 sits at the lower edge of the band, 1 at the upper edge.
+  it('puts a fish at the well-fed midpoint at progress 0.5', () => {
+    const p = classifySatiationBandPosition(82.5, cfg);
+    expect(p.band).toBe('wellFed');
+    expect(p.progress).toBeCloseTo(0.5, 6);
+  });
+
+  it('puts a fish at the well-fed lower edge at progress 0', () => {
+    const p = classifySatiationBandPosition(75, cfg);
+    expect(p.band).toBe('wellFed');
+    expect(p.progress).toBeCloseTo(0, 6);
+  });
+
+  it('puts a fish at satiation 100 at progress 1 in the overfed band', () => {
+    const p = classifySatiationBandPosition(100, cfg);
+    expect(p.band).toBe('overfed');
+    expect(p.progress).toBeCloseTo(1, 6);
+  });
+
+  it('puts a fully starving fish at progress 0 in the starving band', () => {
+    const p = classifySatiationBandPosition(0, cfg);
+    expect(p.band).toBe('starving');
+    expect(p.progress).toBeCloseTo(0, 6);
+  });
+
+  it('clamps satiation > 100 to overfed progress 1', () => {
+    const p = classifySatiationBandPosition(150, cfg);
+    expect(p.band).toBe('overfed');
+    expect(p.progress).toBeCloseTo(1, 6);
   });
 });
 
