@@ -60,17 +60,34 @@ function getHealthStatusText(health: number): string {
 }
 
 /**
- * Color of the satiation status pill, by band. Mirrors the band's
- * gameplay meaning — green for the optimum (well-fed), grey for
- * neutral (peckish), amber for caution (hungry / overfed), red for
- * danger (starving).
+ * Text color of the satiation band label, by band. Mirrors the band's
+ * gameplay meaning — green for the optimum (well-fed), neutral grey
+ * for peckish, amber for caution (hungry / overfed), red for danger
+ * (starving). Rendered as plain inline text on the same row as the
+ * dot-on-rail progression indicator — no pill background, no rounded
+ * box. The disabled-grey of a pill on the "Starving" variant read as
+ * broken/inactive instead of dangerous in playtesting; plain coloured
+ * text is calmer and clearer.
  */
-const SATIATION_PILL_COLOR: Record<SatiationBand, string> = {
-  overfed: 'bg-orange-500',
-  wellFed: 'bg-green-500',
-  peckish: 'bg-gray-500',
-  hungry: 'bg-yellow-500',
-  starving: 'bg-red-500',
+const SATIATION_LABEL_TEXT_COLOR: Record<SatiationBand, string> = {
+  overfed: 'text-orange-400',
+  wellFed: 'text-green-400',
+  peckish: 'text-gray-400',
+  hungry: 'text-yellow-400',
+  starving: 'text-red-400',
+};
+
+/**
+ * Background color of the in-band progression dot, by band. The dot
+ * still uses fills (not text colors) since it's a positioned shape on
+ * a rail, not a glyph.
+ */
+const SATIATION_DOT_BG_COLOR: Record<SatiationBand, string> = {
+  overfed: 'bg-orange-400',
+  wellFed: 'bg-green-400',
+  peckish: 'bg-gray-400',
+  hungry: 'bg-yellow-400',
+  starving: 'bg-red-400',
 };
 
 /**
@@ -127,7 +144,8 @@ function FishCard({
   // fill-it-up bar.
   const satiationPosition = classifySatiationBandPosition(fish.satiation, livestockConfig);
   const satiationLabel = SATIATION_BAND_LABEL[satiationPosition.band];
-  const satiationColor = SATIATION_PILL_COLOR[satiationPosition.band];
+  const satiationLabelColor = SATIATION_LABEL_TEXT_COLOR[satiationPosition.band];
+  const satiationDotColor = SATIATION_DOT_BG_COLOR[satiationPosition.band];
 
   // The trend arrow tracks the vitality net rate (benefit − damage).
   // Recovery scales with how good conditions are — a tank that's
@@ -202,21 +220,23 @@ function FishCard({
             {fish.health.toFixed(0)}%
           </span>
         </div>
-        {/* Satiation: band-aware status label + in-band progression
-            dot (no bar — a bar fights the gameplay goal of keeping
-            fish well-fed, not stuffed). */}
+        {/* Satiation: in-band dot-on-rail + plain coloured band label.
+            No pill background — a bar fights the gameplay goal of
+            keeping fish well-fed (not stuffed) and a pill on Starving
+            reads as inactive instead of dangerous. The label is plain
+            inline text on the same row as the dot. */}
         <div className="flex items-center gap-1 mt-1">
           <span className="text-xs text-gray-500 w-10">Hunger</span>
           <div className="flex-1 relative h-1.5">
             <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-px bg-border" />
             <div
-              className={`absolute top-1/2 -translate-y-1/2 -translate-x-1/2 h-1.5 w-1.5 rounded-full ${satiationColor} transition-all`}
+              className={`absolute top-1/2 -translate-y-1/2 -translate-x-1/2 h-1.5 w-1.5 rounded-full ${satiationDotColor} transition-all`}
               style={{ left: `${satiationPosition.progress * 100}%` }}
               title={`Satiation: ${fish.satiation.toFixed(0)}%`}
             />
           </div>
           <span
-            className={`text-xs px-1 py-0.5 rounded ${satiationColor} text-black w-16 text-center`}
+            className={`text-xs ${satiationLabelColor} w-16 text-right`}
             title={`Satiation: ${fish.satiation.toFixed(0)}%`}
           >
             {satiationLabel}
