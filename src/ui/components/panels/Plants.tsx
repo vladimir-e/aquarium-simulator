@@ -459,16 +459,20 @@ function AlgaeCard({
           </button>
           {conditionsExpanded && (
             <div className="text-xs mt-1 space-y-0.5 pl-2">
+              {/* Sign + color are inverted from PlantCard / FishCard:
+                  the player roots for algae condition to fall, so an
+                  algae stressor (damage) is "good news" (green, +) and
+                  an algae benefit (growth) is "bad news" (red, −). */}
               {activeStressors.map((s) => (
-                <div key={`s-${s.key}`} className="flex justify-between text-red-400">
+                <div key={`s-${s.key}`} className="flex justify-between text-green-400">
                   <span>{s.label}</span>
                   <span>+{s.amount.toFixed(2)}%/h</span>
                 </div>
               ))}
               {activeBenefits.map((b) => (
-                <div key={`b-${b.key}`} className="flex justify-between text-green-400">
+                <div key={`b-${b.key}`} className="flex justify-between text-red-400">
                   <span>{b.label}</span>
-                  <span>+{b.amount.toFixed(2)}%/h</span>
+                  <span>−{b.amount.toFixed(2)}%/h</span>
                 </div>
               ))}
             </div>
