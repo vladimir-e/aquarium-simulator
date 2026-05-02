@@ -21,14 +21,14 @@ import type { TunableConfig } from '../../simulation/config/index.js';
  * On version mismatch, stored data is discarded.
  *
  * v12: Algae promoted from `Resources.algae: number` to a top-level
- *      `state.algae: { mass, condition, surplus }` organism. The
- *      Resources schema drops the `algae` field and the simulation
- *      gains an `AlgaeState` entry. `TunableConfig.algae` swaps the
+ *      `state.algae: { mass, surplus }` population. The Resources
+ *      schema drops the `algae` field and the simulation gains an
+ *      `AlgaeState` entry. `TunableConfig.algae` swaps the
  *      Michaelis–Menten growth knobs (`maxGrowthRate`,
- *      `halfSaturation`, `algaeCap`) for vitality knobs
+ *      `halfSaturation`, `algaeCap`) for population knobs
  *      (`hardiness`, plant-suppression / weakness thresholds, the
  *      benefit peaks for excess light / nutrients / deficiency /
- *      low plant power, and the mass-dynamics knobs `decayRate`,
+ *      low plant power, and the growth knobs
  *      `algaeGrowthPerTickCap`, `massPerSurplus`). Per project
  *      policy this is a breaking save format change with no migration
  *      shim — stored sessions are discarded on version mismatch.

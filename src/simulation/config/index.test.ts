@@ -127,8 +127,8 @@ describe('temperatureDefaults', () => {
 });
 
 describe('algaeVitalityDefaults', () => {
-  it('has all required vitality knobs', () => {
-    // Smoke check that the new vitality config is wired in. Specific
+  it('has all required population knobs', () => {
+    // Smoke check that the population config is wired in. Specific
     // numeric values are calibration-grade; spot-check a few that
     // anchor the spec.
     expect(algaeVitalityDefaults.hardiness).toBeGreaterThan(0);
@@ -136,7 +136,6 @@ describe('algaeVitalityDefaults', () => {
     expect(algaeVitalityDefaults.weaknessThreshold).toBeLessThan(
       algaeVitalityDefaults.suppressionThreshold
     );
-    expect(algaeVitalityDefaults.decayRate).toBeGreaterThan(0);
     expect(algaeVitalityDefaults.algaeGrowthPerTickCap).toBeGreaterThan(0);
     expect(algaeVitalityDefaults.massPerSurplus).toBeGreaterThan(0);
     expect(algaeVitalityDefaults.lightExcessThreshold).toBeGreaterThan(0);

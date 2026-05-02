@@ -1,13 +1,11 @@
 /**
- * Integration tests for the algae-as-organism mechanic.
+ * Integration tests for the algae-as-population mechanic.
  *
  * These run multi-day simulations to verify the full
- * vitality → surplus → mass → decay loop behaves as the spec
- * describes:
+ * net-rate → surplus → mass loop behaves as the spec describes:
  *
- * - Heavy plants in a healthy tank push algae condition below 100
- *   and mass shrinks visibly within a few sim days (mechanism, not
- *   exact rate).
+ * - Heavy plants in a healthy tank push net rate negative and mass
+ *   shrinks visibly within a few sim days (mechanism, not exact rate).
  * - Pure-light tank with no plants and no dosing accumulates algae
  *   mass via the excess-light benefit alone, capped at 100.
  *
@@ -41,12 +39,12 @@ function setupTank(): SimulationState {
   });
 }
 
-describe('algae as organism — heavy planted tank suppresses an existing bloom', () => {
+describe('algae as population — heavy planted tank suppresses an existing bloom', () => {
   it('mass shrinks when plants are healthy and the bloom started above the threshold', () => {
     let state = setupTank();
     // Start with a meaningful bloom so we can observe shrink.
     state = produce(state, (draft) => {
-      draft.algae = { mass: 50, condition: 100, surplus: 0 };
+      draft.algae = { mass: 50, surplus: 0 };
     });
     // Add several thriving plants — power well above suppression threshold.
     state = applyAction(state, { type: 'addPlant', species: 'amazon_sword', initialSize: 80 }).state;
@@ -58,14 +56,13 @@ describe('algae as organism — heavy planted tank suppresses an existing bloom'
     // Run 7 sim days.
     state = runTicks(state, 24 * 7);
 
-    // Spec: condition drops below 100; mass shrinks visibly. We do
-    // not pin the rate — calibration follows.
-    expect(state.algae.condition).toBeLessThan(100);
+    // Spec: net rate goes negative (suppression dominates), mass
+    // shrinks directly. We do not pin the rate — calibration follows.
     expect(state.algae.mass).toBeLessThan(startMass);
   });
 });
 
-describe('algae as organism — pure-light tank grows mass via excess light alone', () => {
+describe('algae as population — pure-light tank grows mass via excess light alone', () => {
   it('with no plants, no dosing, the bloom accumulates mass over a week', () => {
     // High light setup — well above algaeVitalityDefaults.lightExcessThreshold (0.5 W/L).
     let state = createSimulation({
@@ -77,7 +74,7 @@ describe('algae as organism — pure-light tank grows mass via excess light alon
     // No plants, no dosing — the "neglected" scenario the spec
     // names explicitly.
     state = produce(state, (draft) => {
-      draft.algae = { mass: 0, condition: 100, surplus: 0 };
+      draft.algae = { mass: 0, surplus: 0 };
       draft.resources.nitrate = 0;
       draft.resources.phosphate = 0;
     });
@@ -85,37 +82,38 @@ describe('algae as organism — pure-light tank grows mass via excess light alon
     const startMass = state.algae.mass;
     state = runTicks(state, 24 * 7);
     // Mechanism: excess_light + low_plant_power + nutrient_deficiency
-    // benefits stack, condition stays at 100, surplus banks, mass
+    // benefits stack, surplus banks during photoperiod, mass
     // accumulates. Mass should be visibly above the start.
     expect(state.algae.mass).toBeGreaterThan(startMass);
     expect(state.algae.mass).toBeLessThanOrEqual(100); // hard cap
   });
 });
 
-describe('algae as organism — monotonicity at full condition', () => {
-  it('mass does not decay through the orchestrator while condition === 100', () => {
-    // Stage a state where the vitality engine cannot force condition
-    // below 100: empty tank with lights off, no benefits or stressors,
-    // condition pinned at 100.
-    const state = produce(createSimulation({ tankCapacity: 100 }), (draft) => {
-      draft.algae = { mass: 50, condition: 100, surplus: 0 };
-      draft.resources.light = 0; // lights off — no W/L excess
+describe('algae as population — monotonicity while net ≥ 0', () => {
+  it('mass does not decrease through the orchestrator while net is non-negative', () => {
+    // Stage a state where the net rate cannot be negative: empty tank,
+    // no plants (no suppression), modest light. Whatever non-negative
+    // benefits fire, the orchestrator must never shrink mass.
+    let state = createSimulation({ tankCapacity: 100 });
+    state = produce(state, (draft) => {
+      draft.algae = { mass: 50, surplus: 0 };
+      draft.resources.light = 0; // lights off — surplus banking is gated
     });
 
-    // Run a single tick — `processAlgae` should not call mass decay.
     const next = runTicks(state, 1);
-    // With no surplus and condition at 100, mass should be unchanged.
+    // With no plants and lights off, the only active channel is
+    // low_plant_power + nutrient_deficiency (positive net), which
+    // can't bank overnight. Mass strictly does not decrease.
     expect(next.algae.mass).toBeGreaterThanOrEqual(50);
-    expect(next.algae.condition).toBe(100);
   });
 });
 
-describe('algae as organism — plant-side feedback (algae shading)', () => {
+describe('algae as population — plant-side feedback (algae shading)', () => {
   it('a heavy bloom drives plant condition down via algae_shading', () => {
     let state = setupTank();
     // Start with a bloom well above the 30-mass shading threshold.
     state = produce(state, (draft) => {
-      draft.algae = { mass: 80, condition: 100, surplus: 0 };
+      draft.algae = { mass: 80, surplus: 0 };
     });
     // Use a hardy species (Anubias hardiness 0.75) so it doesn't die
     // before we observe the shading signal — the test is about

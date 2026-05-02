@@ -63,7 +63,6 @@ const ResourcesSchema = z
 const AlgaeStateSchema = z
   .object({
     mass: z.number().min(0).max(100),
-    condition: z.number().min(0).max(100),
     surplus: z.number().min(0),
   })
   .strict();
@@ -330,7 +329,6 @@ const AlgaeConfigSchema = z
     weaknessThreshold: z.number(),
     lowPlantPowerPeak: z.number(),
     lowPlantPowerSeverity: z.number(),
-    decayRate: z.number(),
     algaeGrowthPerTickCap: z.number(),
     massPerSurplus: z.number(),
   })

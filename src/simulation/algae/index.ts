@@ -1,22 +1,23 @@
 /**
- * Algae processing — the tank-wide bloom as a living organism.
+ * Algae processing — the tank-wide bloom as a pure population.
  *
- * Pipeline (mirrors `plants/index.ts`):
- * 1. Vitality: read environment + plant power, compute stressors /
- *    benefits, drive `condition` and emit per-tick surplus.
- * 2. Bank surplus on `algae.surplus`. **Photoperiod-gated**:
- *    surplus represents stored photosynthate, so banking only
- *    happens while lights are on. Vitality's surplus emission
- *    overnight is discarded.
- * 3. Spend surplus on mass growth: drains up to
- *    `algaeGrowthPerTickCap` per tick, converts to mass via the
- *    asymptotic factor (`max(0, 1 - mass/100)`) — same shape as
- *    plant growth. Also photoperiod-gated.
- * 4. Mass decay: when `condition < 100`, lose
- *    `decayRate × (1 - condition/100) × mass` per tick. Decay
- *    runs 24/7 (a suppressed bloom dies back at night too) and
- *    fires only when condition is below full — the spec's
- *    monotonicity invariant for healthy blooms.
+ * Pipeline:
+ * 1. Compute net rate via `computeAlgaePopulation` (sum benefits −
+ *    sum stressors, with hardiness applied centrally).
+ * 2. If net > 0 *and* lights are on, bank `net` on `algae.surplus`.
+ *    Surplus is photoperiod-gated photosynthate; vitality's positive
+ *    rate overnight is discarded.
+ * 3. If net < 0, shrink mass directly: `mass = max(0, mass + net)`.
+ *    Runs 24/7 — a hostile-environment bloom dies back at night too.
+ * 4. Spend surplus on mass growth via `spendAlgaeSurplus`. Drains up
+ *    to `algaeGrowthPerTickCap` per tick, converted to mass through
+ *    the asymptotic factor `max(0, 1 - mass/100)` — same shape as
+ *    plant growth, self-limits at MASS_MAX. Photoperiod-gated.
+ *
+ * No condition state. Conditions favouring algae grow it; conditions
+ * hostile to it shrink it. The shape mirrors the future colony
+ * organisms (snails, shrimps) — populations responding to net
+ * environmental pressure.
  *
  * Sequenced **after plants** in `tick.ts` so the suppression and
  * weakness factors read freshly-updated plant condition. If algae
@@ -34,11 +35,11 @@ import type { SimulationState, AlgaeState } from '../state.js';
 import type { TunableConfig } from '../config/index.js';
 import { algaeVitalityDefaults } from '../config/algae-vitality.js';
 import { nutrientsDefaults } from '../config/nutrients.js';
-import { computeAlgaeVitality } from '../systems/algae-vitality.js';
+import { computeAlgaePopulation } from '../systems/algae-vitality.js';
 import type { AlgaeVitalityConfig } from '../config/algae-vitality.js';
 
 export interface AlgaeProcessingResult {
-  /** Updated state with algae condition / mass / surplus written. */
+  /** Updated state with algae mass / surplus written. */
   state: SimulationState;
 }
 
@@ -69,22 +70,6 @@ export function spendAlgaeSurplus(
 }
 
 /**
- * Apply mass decay for one tick. Fires only when `condition < 100`;
- * a fully-healthy bloom is monotonically non-decreasing through this
- * step (scrub remains the only way to remove a healthy bloom). At
- * `condition = 0` the bloom bleeds at full `decayRate × mass`.
- */
-export function applyMassDecay(
-  algae: AlgaeState,
-  config: AlgaeVitalityConfig
-): AlgaeState {
-  if (algae.condition >= 100 || algae.mass <= 0) return algae;
-  const lossFactor = 1 - algae.condition / 100;
-  const massLoss = config.decayRate * lossFactor * algae.mass;
-  return { ...algae, mass: Math.max(0, algae.mass - massLoss) };
-}
-
-/**
  * Process algae for one tick. See module docstring for the
  * pipeline shape.
  *
@@ -99,8 +84,7 @@ export function processAlgae(
   const algaeConfig = config.algae ?? algaeVitalityDefaults;
   const nutrientsConfig = config.nutrients ?? nutrientsDefaults;
 
-  const vitality = computeAlgaeVitality({
-    algae: state.algae,
+  const { net } = computeAlgaePopulation({
     plants: state.plants,
     resources: state.resources,
     tankCapacity: state.tank.capacity,
@@ -110,22 +94,23 @@ export function processAlgae(
 
   const photoperiodActive = state.resources.light > 0;
 
-  // 1. Apply condition update + bank surplus (photoperiod-gated).
-  let next: AlgaeState = {
-    ...state.algae,
-    condition: vitality.newCondition,
-    surplus: photoperiodActive
-      ? state.algae.surplus + vitality.surplus
-      : state.algae.surplus,
-  };
+  let next: AlgaeState = state.algae;
 
-  // 2. Spend surplus on mass growth (photoperiod-gated).
+  // 1. Positive net — bank as surplus (photoperiod-gated).
+  if (net > 0 && photoperiodActive) {
+    next = { ...next, surplus: next.surplus + net };
+  }
+
+  // 2. Negative net — shrink mass directly (24/7).
+  if (net < 0) {
+    next = { ...next, mass: Math.max(0, next.mass + net) };
+  }
+
+  // 3. Spend surplus on mass growth (photoperiod-gated). The
+  //    asymptotic factor self-limits the bloom at MASS_MAX.
   if (photoperiodActive) {
     next = spendAlgaeSurplus(next, algaeConfig);
   }
-
-  // 3. Mass decay — runs 24/7, only when condition < 100.
-  next = applyMassDecay(next, algaeConfig);
 
   const newState = produce(state, (draft) => {
     draft.algae = next;
@@ -134,9 +119,14 @@ export function processAlgae(
   return { state: newState };
 }
 
-// Re-export the vitality math for tests and UI introspection.
+// Re-export the population math for tests and UI introspection.
 export {
-  computeAlgaeVitality,
+  computeAlgaePopulation,
   buildAlgaeStressors,
   buildAlgaeBenefits,
+} from '../systems/algae-vitality.js';
+export type {
+  AlgaeVitalityContext,
+  AlgaePopulationResult,
+  AlgaePopulationBreakdown,
 } from '../systems/algae-vitality.js';

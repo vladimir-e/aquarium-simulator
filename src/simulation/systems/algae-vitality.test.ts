@@ -1,7 +1,7 @@
 /**
- * Algae vitality unit tests — exercise each stressor / benefit
- * channel through the builder, plus the aggregate `computeAlgaeVitality`
- * path.
+ * Algae population unit tests — exercise each stressor / benefit
+ * channel through the builder, plus the aggregate
+ * `computeAlgaePopulation` path.
  *
  * Severities and peaks are calibration-grade; tests assert
  * mechanism (firing condition + sign of contribution) rather than
@@ -12,17 +12,13 @@ import { describe, it, expect } from 'vitest';
 import {
   buildAlgaeStressors,
   buildAlgaeBenefits,
-  computeAlgaeVitality,
+  computeAlgaePopulation,
   type AlgaeVitalityContext,
 } from './algae-vitality.js';
 import { algaeVitalityDefaults } from '../config/algae-vitality.js';
 import { nutrientsDefaults } from '../config/nutrients.js';
 import { getMassFromPpm } from '../resources/helpers.js';
-import type { AlgaeState, Plant, PlantSpecies, Resources } from '../state.js';
-
-function makeAlgae(overrides: Partial<AlgaeState> = {}): AlgaeState {
-  return { mass: 50, condition: 100, surplus: 0, ...overrides };
-}
+import type { Plant, PlantSpecies, Resources } from '../state.js';
 
 function makePlant(species: PlantSpecies, overrides: Partial<Plant> = {}): Plant {
   return {
@@ -62,7 +58,6 @@ function makeResources(overrides: Partial<Resources> = {}): Resources {
 
 function ctx(overrides: Partial<AlgaeVitalityContext> = {}): AlgaeVitalityContext {
   return {
-    algae: makeAlgae(),
     plants: [],
     resources: makeResources(),
     tankCapacity: 100,
@@ -217,49 +212,88 @@ describe('buildAlgaeBenefits — pathological config guards', () => {
   });
 });
 
-describe('computeAlgaeVitality (aggregate)', () => {
-  it('a heavy planted tank with no excess light pushes condition below 100', () => {
+describe('computeAlgaePopulation (aggregate)', () => {
+  it('a heavy planted tank with no excess light produces a negative net', () => {
     const plants = [
       makePlant('amazon_sword', { size: 150, condition: 100 }),
       makePlant('monte_carlo', { size: 150, condition: 100 }),
     ];
-    const result = computeAlgaeVitality(
-      ctx({ plants, algae: makeAlgae({ condition: 100 }) })
-    );
-    // Net should be negative (suppression > any benefits) — algae
-    // condition will bleed.
-    expect(result.breakdown.net).toBeLessThan(0);
-    expect(result.newCondition).toBeLessThan(100);
+    const result = computeAlgaePopulation(ctx({ plants }));
+    // Suppression dominates any benefits — algae loses ground.
+    expect(result.net).toBeLessThan(0);
+    expect(result.breakdown.net).toBe(result.net);
+    expect(result.breakdown.damageRate).toBeGreaterThan(0);
   });
 
-  it('pure-light tank with no plants and no dosing emits surplus at full condition', () => {
+  it('pure-light tank with no plants and no dosing produces a positive net', () => {
     // No plants, baseline nutrients, lots of W/L.
-    const result = computeAlgaeVitality(
+    const result = computeAlgaePopulation(
       ctx({
         plants: [],
         resources: makeResources({ light: 100, nitrate: 0, phosphate: 0 }),
-        algae: makeAlgae({ condition: 100 }),
       })
     );
     // Excess light + low plant power + nutrient deficiency stack as
-    // benefits; no stressors when no plants → net positive → surplus.
-    expect(result.breakdown.net).toBeGreaterThan(0);
-    expect(result.surplus).toBeGreaterThan(0);
+    // benefits; no stressors when no plants → net positive.
+    expect(result.net).toBeGreaterThan(0);
+    expect(result.breakdown.benefitRate).toBeGreaterThan(0);
+    expect(result.breakdown.damageRate).toBe(0);
   });
 
-  it('overdosed planted tank with weak plants — nutrients dominate, condition climbs', () => {
+  it('overdosed tank with weak plants — nutrients dominate, net positive', () => {
     // Sick plants don't suppress; overdosed nutrients fuel algae.
     const plants = [makePlant('amazon_sword', { size: 100, condition: 0 })];
-    const result = computeAlgaeVitality(
+    const result = computeAlgaePopulation(
       ctx({
         plants,
         resources: makeResources({
           nitrate: getMassFromPpm(nutrientsDefaults.optimalNitratePpm * 3, 100),
         }),
-        algae: makeAlgae({ condition: 50 }),
       })
     );
-    expect(result.breakdown.net).toBeGreaterThan(0);
-    expect(result.newCondition).toBeGreaterThan(50);
+    expect(result.net).toBeGreaterThan(0);
+  });
+
+  it('applies hardiness centrally to stressors but not benefits', () => {
+    // Drive both channels: plant suppression + nutrient deficiency.
+    const plants = [
+      makePlant('amazon_sword', { size: 100, condition: 100 }),
+      makePlant('monte_carlo', { size: 100, condition: 100 }),
+      makePlant('java_fern', { size: 100, condition: 100 }),
+    ];
+    const baseConfig = { ...algaeVitalityDefaults, hardiness: 0 };
+    const hardyConfig = { ...algaeVitalityDefaults, hardiness: 0.5 };
+
+    const baseResult = computeAlgaePopulation(ctx({ plants, algaeConfig: baseConfig }));
+    const hardyResult = computeAlgaePopulation(ctx({ plants, algaeConfig: hardyConfig }));
+
+    // Hardiness halves the damage rate but leaves benefits alone.
+    expect(hardyResult.breakdown.damageRate).toBeCloseTo(baseResult.breakdown.damageRate * 0.5, 8);
+    expect(hardyResult.breakdown.benefitRate).toBeCloseTo(baseResult.breakdown.benefitRate, 8);
+  });
+
+  it('clamps hardiness to [0, 1] for pathological config values', () => {
+    const plants = [
+      makePlant('amazon_sword', { size: 100, condition: 100 }),
+      makePlant('monte_carlo', { size: 100, condition: 100 }),
+    ];
+    const overHardy = { ...algaeVitalityDefaults, hardiness: 5 };
+    const result = computeAlgaePopulation(ctx({ plants, algaeConfig: overHardy }));
+    // Hardiness clamps to 1 → factor 0 → no damage, even though plants are heavy.
+    expect(result.breakdown.damageRate).toBe(0);
+  });
+
+  it('breakdown shape mirrors VitalityBreakdown for UI compatibility', () => {
+    const result = computeAlgaePopulation(ctx());
+    expect(result.breakdown).toMatchObject({
+      stressors: expect.any(Array),
+      benefits: expect.any(Array),
+      damageRate: expect.any(Number),
+      benefitRate: expect.any(Number),
+      net: expect.any(Number),
+    });
+    // Stressors and benefits each have stable keys.
+    expect(result.breakdown.stressors.map((s) => s.key)).toContain('plant_suppression');
+    expect(result.breakdown.benefits.map((b) => b.key)).toContain('excess_light');
   });
 });

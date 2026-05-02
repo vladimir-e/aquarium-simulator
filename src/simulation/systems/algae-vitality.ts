@@ -1,16 +1,18 @@
 /**
- * Algae vitality — runs the tank-wide algae through the unified
- * vitality engine.
+ * Algae population dynamics — runs the tank-wide algae through the
+ * shared stressor / benefit machinery, but as a pure population, not
+ * an organism with a condition state.
  *
- * Algae is a single mass-based organism (one population, not an
- * array of specimens). The same `computeVitality` engine plants and
- * fish use drives `condition`; the orchestrator turns surplus into
- * mass growth and condition < 100 into mass decay (see
- * `simulation/algae/index.ts`).
+ * Algae is a population whose coverage rises when conditions favour
+ * it and falls when conditions are hostile. There is no intermediate
+ * `condition` — net rate (benefit − damage, post-hardiness) drives
+ * mass directly. The orchestrator routes a positive net into the
+ * surplus bank (photoperiod-gated), and a negative net into direct
+ * shrinkage.
  *
  * Stressors:
  * - `plant_suppression` — plant power above `suppressionThreshold`
- *   damages algae condition.
+ *   damages algae growth.
  *
  * Benefits:
  * - `excess_light` — W/L above `lightExcessThreshold` (capped peak).
@@ -32,25 +34,46 @@
  * and any other plant-side input. Plant condition is the meta-signal.
  */
 
-import type { AlgaeState, Plant, Resources } from '../state.js';
+import type { Plant, Resources } from '../state.js';
 import type { AlgaeVitalityConfig } from '../config/algae-vitality.js';
 import type { NutrientsConfig } from '../config/nutrients.js';
 import { getPpm } from '../resources/index.js';
 import { getPlantPower } from './plant-power.js';
-import {
-  computeVitality,
-  type VitalityFactor,
-  type VitalityResult,
-} from './vitality.js';
+import type { VitalityFactor } from './vitality.js';
 
 export interface AlgaeVitalityContext {
-  algae: AlgaeState;
   plants: readonly Plant[];
   resources: Resources;
   /** Tank capacity in liters — used for W/L. */
   tankCapacity: number;
   algaeConfig: AlgaeVitalityConfig;
   nutrientsConfig: NutrientsConfig;
+}
+
+/**
+ * Per-factor and aggregate breakdown for the algae population. Mirrors
+ * the shape of `VitalityBreakdown` so the UI renderer that consumes
+ * vitality breakdowns can read this directly.
+ */
+export interface AlgaePopulationBreakdown {
+  /** Stressor factors with hardiness already applied to `amount`. */
+  stressors: VitalityFactor[];
+  /** Benefit factors (unchanged from the builder). */
+  benefits: VitalityFactor[];
+  /** Total damage rate (%/h), post-hardiness. */
+  damageRate: number;
+  /** Total benefit rate (%/h). */
+  benefitRate: number;
+  /** Net rate (benefit − damage). Positive = growing. */
+  net: number;
+}
+
+/** Result of one tick of algae population computation. */
+export interface AlgaePopulationResult {
+  /** Net rate (benefit − damage), post-hardiness. Drives mass directly. */
+  net: number;
+  /** Per-factor and aggregate breakdown for UI / telemetry. */
+  breakdown: AlgaePopulationBreakdown;
 }
 
 /**
@@ -65,7 +88,8 @@ function cappedAmount(deviation: number, severity: number, peak: number): number
 
 /**
  * Build the stressor list for algae. Severities are pre-hardiness;
- * the engine applies the central hardiness factor.
+ * `computeAlgaePopulation` applies the central `(1 - hardiness)`
+ * scaling.
  *
  * Inactive stressors are emitted with `amount: 0` so the breakdown
  * shape stays stable for UI / tests that look up by key.
@@ -158,15 +182,41 @@ export function buildAlgaeBenefits(ctx: AlgaeVitalityContext): VitalityFactor[] 
 }
 
 /**
- * Compute one tick of vitality for algae. Stateless — UI and tests
- * call this directly; the orchestrator calls it as part of the
- * full tick pipeline.
+ * Compute one tick of population dynamics for algae. Stateless — UI
+ * and tests call this directly; the orchestrator calls it as part of
+ * the full tick pipeline.
+ *
+ * Applies the central `(1 - hardiness)` factor to stressors, sums
+ * both arrays, and returns the net rate plus the bundled breakdown.
+ * Net is the rate at which mass changes (positive → growth via
+ * surplus, negative → direct shrinkage).
  */
-export function computeAlgaeVitality(ctx: AlgaeVitalityContext): VitalityResult {
-  return computeVitality({
-    stressors: buildAlgaeStressors(ctx),
-    benefits: buildAlgaeBenefits(ctx),
-    hardiness: ctx.algaeConfig.hardiness,
-    condition: ctx.algae.condition,
-  });
+export function computeAlgaePopulation(ctx: AlgaeVitalityContext): AlgaePopulationResult {
+  const stressors = buildAlgaeStressors(ctx);
+  const benefits = buildAlgaeBenefits(ctx);
+
+  // Match the central engine's hardiness clamp so out-of-range
+  // values can't produce negative multipliers.
+  const clampedHardiness = Math.max(0, Math.min(1, ctx.algaeConfig.hardiness));
+  const hardinessFactor = 1 - clampedHardiness;
+
+  const scaledStressors = stressors.map((s) => ({
+    ...s,
+    amount: s.amount * hardinessFactor,
+  }));
+
+  const damageRate = scaledStressors.reduce((sum, s) => sum + s.amount, 0);
+  const benefitRate = benefits.reduce((sum, b) => sum + b.amount, 0);
+  const net = benefitRate - damageRate;
+
+  return {
+    net,
+    breakdown: {
+      stressors: scaledStressors,
+      benefits,
+      damageRate,
+      benefitRate,
+      net,
+    },
+  };
 }

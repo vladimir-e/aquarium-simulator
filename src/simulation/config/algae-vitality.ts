@@ -1,21 +1,21 @@
 /**
- * Algae vitality tunable configuration.
+ * Algae population tunable configuration.
  *
  * First-pass values aim for **mechanism correctness**, not ecological
  * accuracy. The numbers below produce the right qualitative shapes
  * (heavy plants suppress algae; pure-light tank with no plants and no
- * dosing accumulates algae via excess-light alone; condition < 100
- * decays mass) — full calibration follows Task 42 in a recalibration
- * pass.
+ * dosing accumulates algae via excess-light alone; hostile conditions
+ * shrink mass directly) — full calibration follows Task 42 in a
+ * recalibration pass.
  *
- * Severities are pre-hardiness; the central vitality engine multiplies
- * by `(1 - hardiness)`. Algae has a single `hardiness` value (no per-
- * species variation yet) — pick it modestly so a single full-grown
- * plant does not zero out the bloom path.
+ * Severities are pre-hardiness; `computeAlgaePopulation` multiplies
+ * by `(1 - hardiness)` centrally. Algae has a single `hardiness`
+ * value (no per-species variation yet) — pick it modestly so a single
+ * full-grown plant does not zero out the bloom path.
  */
 
 export interface AlgaeVitalityConfig {
-  /** Hardiness 0–1 — multiplied centrally by `computeVitality`. */
+  /** Hardiness 0–1 — multiplied centrally by `computeAlgaePopulation`. */
   hardiness: number;
 
   // Stressors --------------------------------------------------------
@@ -101,15 +101,6 @@ export interface AlgaeVitalityConfig {
   // Mass dynamics ----------------------------------------------------
 
   /**
-   * Decay rate (/h). Mass decays as
-   * `decayRate × (1 - condition / 100) × mass` per tick — a fully-
-   * suppressed bloom (condition 0) bleeds at full rate, a stable
-   * bloom at condition 50 bleeds at half. 0.01 /h ≈ 1 % of remaining
-   * mass per hour at full suppression.
-   */
-  decayRate: number;
-
-  /**
    * Max surplus units the bloom can spend on mass growth in one
    * tick. Caps a long-banked surplus from suddenly dumping into a
    * single tick of growth. Mirrors `plantGrowthPerTickCap`.
@@ -143,7 +134,6 @@ export const algaeVitalityDefaults: AlgaeVitalityConfig = {
   lowPlantPowerPeak: 0.2,
   lowPlantPowerSeverity: 0.4,
 
-  decayRate: 0.01,
   algaeGrowthPerTickCap: 2.0,
   massPerSurplus: 0.5,
 };
@@ -174,7 +164,6 @@ export const algaeVitalityConfigMeta: AlgaeVitalityConfigMeta[] = [
   { key: 'lowPlantPowerPeak', label: 'Low Plant Power Peak', unit: '%/hr', min: 0, max: 1, step: 0.05 },
   { key: 'lowPlantPowerSeverity', label: 'Low Plant Power Severity', unit: '%/power/hr', min: 0, max: 2, step: 0.05 },
   // Mass dynamics
-  { key: 'decayRate', label: 'Decay Rate', unit: '/hr', min: 0, max: 0.1, step: 0.005 },
   { key: 'algaeGrowthPerTickCap', label: 'Algae Growth per Tick Cap', unit: 'surplus', min: 0.1, max: 10, step: 0.1 },
   { key: 'massPerSurplus', label: 'Mass per Surplus', unit: '%', min: 0.05, max: 2, step: 0.05 },
 ];

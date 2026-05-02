@@ -215,10 +215,14 @@ export type { WaterChangeAmount, TrimTargetSize } from './actions/index.js';
 export {
   processAlgae,
   spendAlgaeSurplus,
-  applyMassDecay,
-  computeAlgaeVitality,
+  computeAlgaePopulation,
   buildAlgaeStressors,
   buildAlgaeBenefits,
+} from './algae/index.js';
+export type {
+  AlgaeVitalityContext,
+  AlgaePopulationResult,
+  AlgaePopulationBreakdown,
 } from './algae/index.js';
 
 // Plants

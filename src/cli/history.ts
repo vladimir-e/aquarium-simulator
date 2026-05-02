@@ -35,8 +35,8 @@ export interface HistorySnapshot {
   };
   fish: { count: number; avgHealth: number };
   plants: { count: number; avgCondition: number };
-  /** Algae as a single mass-based organism. */
-  algae: { mass: number; condition: number; surplus: number };
+  /** Algae as a population — coverage and surplus only. */
+  algae: { mass: number; surplus: number };
 }
 
 function avg(values: number[]): number {
@@ -79,7 +79,6 @@ export function snapshot(state: SimulationState): HistorySnapshot {
     },
     algae: {
       mass: state.algae.mass,
-      condition: state.algae.condition,
       surplus: state.algae.surplus,
     },
   };
