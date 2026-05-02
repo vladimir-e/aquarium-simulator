@@ -46,6 +46,12 @@ export interface PlantVitalityContext {
    * into vitality and photosynthesis — no module recomputes it.
    */
   nutrientSufficiency: number;
+  /**
+   * Current algae biomass / coverage 0–100 (from `state.algae.mass`).
+   * Drives the `algae_shading` stressor when above the configured
+   * threshold.
+   */
+  algaeMass: number;
 }
 
 /**
@@ -54,7 +60,7 @@ export interface PlantVitalityContext {
  * `computeVitality`.
  */
 export function buildPlantStressors(ctx: PlantVitalityContext): VitalityFactor[] {
-  const { plant, resources, waterVolume, plantsConfig, nutrientSufficiency } = ctx;
+  const { plant, resources, waterVolume, plantsConfig, nutrientSufficiency, algaeMass } = ctx;
   const species = PLANT_SPECIES_DATA[plant.species];
   const factors: VitalityFactor[] = [];
 
@@ -134,10 +140,15 @@ export function buildPlantStressors(ctx: PlantVitalityContext): VitalityFactor[]
   });
 
   // Algae shading — only kicks in once algae density is meaningful.
+  // Reads `state.algae.mass` (threaded through the context); a heavy
+  // bloom (mass > threshold) shades plants and drags their condition
+  // down. With plant decline, algae's `plant_suppression` stressor
+  // weakens → algae condition climbs → more mass growth — the
+  // intended death-spiral mechanic.
   let algaeAmount = 0;
-  if (resources.algae > plantsConfig.algaeShadingThreshold) {
+  if (algaeMass > plantsConfig.algaeShadingThreshold) {
     algaeAmount =
-      plantsConfig.algaeShadingSeverity * (resources.algae - plantsConfig.algaeShadingThreshold);
+      plantsConfig.algaeShadingSeverity * (algaeMass - plantsConfig.algaeShadingThreshold);
   }
   factors.push({ key: 'algae', label: 'Algae shading', amount: algaeAmount });
 

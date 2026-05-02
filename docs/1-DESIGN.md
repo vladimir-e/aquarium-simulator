@@ -49,8 +49,12 @@ tank flows through equipment or actions.
 The physical and chemical state of the tank: water volume, temperature,
 pH, dissolved gases (O2, CO2), nitrogen species (NH3, NO2, NO3),
 nutrients (PO4, K, Fe), light intensity, flow, surface area, food,
-waste, algae, bacteria (AOB, NOB). Resources are continuous floats; the
+waste, bacteria (AOB, NOB). Resources are continuous floats; the
 tank is a stock for each. See `5-RESOURCES.md` for the catalogue.
+
+Algae used to live here as a single number; it has been promoted to
+an organism in the vitality layer (`state.algae`). See `6-PLANTS.md`
+§ Algae as an organism for the new shape.
 
 ### 3. Subsystem layer
 
@@ -250,7 +254,7 @@ Systems are registered in a central list and automatically invoked during their 
 │                                                                  │
 │   Water, Temperature, pH, O2, CO2, Ammonia, Nitrite, Nitrate    │
 │   Phosphate, Potassium, Iron, Light, Flow, Surface              │
-│   Food, Waste, Algae, Bacteria (AOB, NOB)                       │
+│   Food, Waste, Bacteria (AOB, NOB)                              │
 └─────────────────────────────────────────────────────────────────┘
                               │
                     ┌─────────┴─────────┐
@@ -316,8 +320,10 @@ Systems are registered in a central list and automatically invoked during their 
 - Single aggregate "nutrients" resource (no NPK/micro split)
 
 ### Algae
-- Treated as a resource (quantity) not an entity
-- Accumulates/depletes based on light, nutrients, competition with plants
+- Treated as a population (entity), not a resource — see
+  `6-PLANTS.md` § Algae as an organism for the full model
+- Mass-only state (no condition); net rate from stressors / benefits
+  drives mass directly
 - Does not compete for surface area (bacteria only)
 
 ## Tick Processing Pipeline

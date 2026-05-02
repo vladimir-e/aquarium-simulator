@@ -29,6 +29,7 @@ export type {
   FishSpecies,
   FishSpeciesData,
   FishSex,
+  AlgaeState,
 } from './state.js';
 export {
   createSimulation,
@@ -56,7 +57,6 @@ export {
   LightResource,
   FoodResource,
   WasteResource,
-  AlgaeResource,
   PhResource,
   PhosphateResource,
   PotassiumResource,
@@ -91,14 +91,11 @@ export {
   temperatureDriftSystem,
   evaporationSystem,
   decaySystem,
-  algaeSystem,
   calculateTemperatureDrift,
   calculateEvaporation,
   calculateEvaporationRatePerDay,
   getTemperatureFactor,
   calculateDecay,
-  calculateAlgaeGrowth,
-  getWattsPerGallon,
   LID_MULTIPLIERS,
   getLidMultiplier,
   phDriftSystem,
@@ -213,6 +210,20 @@ export {
   removeFish,
 } from './actions/index.js';
 export type { WaterChangeAmount, TrimTargetSize } from './actions/index.js';
+
+// Algae
+export {
+  processAlgae,
+  spendAlgaeSurplus,
+  computeAlgaePopulation,
+  buildAlgaeStressors,
+  buildAlgaeBenefits,
+} from './algae/index.js';
+export type {
+  AlgaeVitalityContext,
+  AlgaePopulationResult,
+  AlgaePopulationBreakdown,
+} from './algae/index.js';
 
 // Plants
 export {

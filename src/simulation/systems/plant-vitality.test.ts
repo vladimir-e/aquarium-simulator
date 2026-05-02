@@ -17,6 +17,7 @@ function makePlant(species: PlantSpecies, overrides: Partial<Plant> = {}): Plant
     species,
     size: 50,
     condition: 100,
+    surplus: 0,
     ...overrides,
   };
 }
@@ -31,7 +32,6 @@ function makeResources(overrides: Partial<Resources> = {}): Resources {
     aeration: true,
     food: 0,
     waste: 0,
-    algae: 0,
     ammonia: 0,
     nitrite: 0,
     nitrate: getMassFromPpm(15, 100), // Mid-range
@@ -47,7 +47,11 @@ function makeResources(overrides: Partial<Resources> = {}): Resources {
   };
 }
 
-function ctx(plant: Plant, resources: Resources): PlantVitalityContext {
+function ctx(
+  plant: Plant,
+  resources: Resources,
+  algaeMass: number = 0
+): PlantVitalityContext {
   // Tests compute sufficiency the same way the orchestrator does so the
   // vitality math sees the value the production path would supply.
   const nutrientSufficiency = calculateNutrientSufficiency(
@@ -62,6 +66,7 @@ function ctx(plant: Plant, resources: Resources): PlantVitalityContext {
     waterVolume: resources.water,
     plantsConfig: plantsDefaults,
     nutrientSufficiency,
+    algaeMass,
   };
 }
 
@@ -155,13 +160,17 @@ describe('buildPlantStressors', () => {
 
   it('flags algae shading only above threshold', () => {
     const plant = makePlant('amazon_sword');
-    const safe = makeResources({ algae: 30 });
-    expect(buildPlantStressors(ctx(plant, safe)).find((s) => s.key === 'algae')?.amount).toBe(0);
+    const resources = makeResources();
+    // Threshold defaults to 30 — at exactly 30 the stressor is still
+    // zero (gap is 0), and below 30 it's also zero.
+    expect(
+      buildPlantStressors(ctx(plant, resources, 30)).find((s) => s.key === 'algae')?.amount
+    ).toBe(0);
 
-    const heavy = makeResources({ algae: 80 });
-    const heavyStressors = buildPlantStressors(ctx(plant, heavy));
+    // 80 - 30 = 50 above threshold.
+    const heavyStressors = buildPlantStressors(ctx(plant, resources, 80));
     const shading = heavyStressors.find((s) => s.key === 'algae');
-    expect(shading?.amount).toBeCloseTo(plantsDefaults.algaeShadingSeverity * 30, 6);
+    expect(shading?.amount).toBeCloseTo(plantsDefaults.algaeShadingSeverity * 50, 6);
   });
 });
 

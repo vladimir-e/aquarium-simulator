@@ -1,7 +1,10 @@
 /**
  * High algae alert.
- * Triggers once when algae level reaches 80+.
- * Resets when algae level drops below threshold.
+ * Triggers once when algae mass reaches 80+.
+ * Resets when algae mass drops below threshold.
+ *
+ * Reads `state.algae.mass` directly — algae is a top-level organism
+ * with mass / surplus, not a resource.
  */
 
 import type { Alert, AlertResult } from './types.js';
@@ -15,11 +18,11 @@ export const highAlgaeAlert: Alert = {
   id: 'high-algae',
 
   check(state: SimulationState): AlertResult {
-    const algaeLevel = state.resources.algae;
+    const algaeMass = state.algae.mass;
     const wasTriggered = state.alertState.highAlgae;
 
     // Check if currently at or above threshold
-    const isAboveThreshold = algaeLevel >= HIGH_ALGAE_THRESHOLD;
+    const isAboveThreshold = algaeMass >= HIGH_ALGAE_THRESHOLD;
 
     if (isAboveThreshold) {
       // Condition is active
@@ -30,7 +33,7 @@ export const highAlgaeAlert: Alert = {
             state.tick,
             'algae',
             'warning',
-            `High algae level: ${algaeLevel.toFixed(1)} - consider reducing light or scrubbing`
+            `High algae level: ${algaeMass.toFixed(1)} - consider reducing light or scrubbing`
           ),
           alertState: { highAlgae: true },
         };

@@ -2,8 +2,9 @@ import React, { useState } from 'react';
 import { Panel } from '../layout/Panel';
 import { Button } from '../ui/Button';
 import { Select } from '../ui/Select';
-import { AlgaeResource } from '../../../simulation/resources/index.js';
 import type {
+  AlgaeState,
+  AlgaePopulationResult,
   Plant,
   PlantSpecies,
   Resources,
@@ -16,41 +17,45 @@ import {
   isSubstrateCompatible,
   getMaxPlants,
   computePlantVitality,
+  computeAlgaePopulation,
   calculateNutrientSufficiency,
 } from '../../../simulation/index.js';
 import type { PlantsConfig } from '../../../simulation/config/plants.js';
+import type { AlgaeVitalityConfig } from '../../../simulation/config/algae-vitality.js';
 import type { NutrientsConfig } from '../../../simulation/config/nutrients.js';
 
 interface PlantsProps {
-  algae: number;
+  algae: AlgaeState;
   plants: Plant[];
   resources: Resources;
   tankCapacity: number;
   substrateType: SubstrateType;
   plantsConfig: PlantsConfig;
+  algaeConfig: AlgaeVitalityConfig;
   nutrientsConfig: NutrientsConfig;
   executeAction: (action: Action) => void;
 }
 
 /**
- * Get opacity for algae indicator based on algae level.
- * 0 = 0.3 (dim), 100 = 1.0 (bright bloom)
+ * Algae status pill — labels driven by mass (coverage). Player wants
+ * algae mass LOW, so status colors run green → red as mass climbs.
  */
-function getAlgaeIndicatorOpacity(algae: number): number {
-  if (algae === 0) return 0.3;
-  const intensity = Math.min(algae / 100, 1.0);
-  return 0.3 + intensity * 0.7; // 0.3 to 1.0
+function getAlgaeStatusText(mass: number): string {
+  if (mass < 30) return 'Suppressed';
+  if (mass < 60) return 'Active';
+  if (mass < 80) return 'Spreading';
+  return 'Booming';
 }
 
 /**
- * Get algae description based on level.
+ * Coverage bar / pill color — inverted from PlantCard. Low mass is
+ * good for the player, high mass is bad: green ramps to red as the
+ * bloom spreads.
  */
-function getAlgaeDescription(algae: number): string {
-  if (algae < 5) return 'Clean';
-  if (algae < 30) return 'Trace';
-  if (algae < 50) return 'Visible';
-  if (algae < 80) return 'High';
-  return 'Bloom!';
+function getCoverageBarColorClass(mass: number): string {
+  if (mass < 30) return 'bg-green-500';
+  if (mass < 60) return 'bg-yellow-500';
+  return 'bg-red-500';
 }
 
 /**
@@ -331,6 +336,133 @@ function PlantCard({
   );
 }
 
+interface AlgaeCardProps {
+  algae: AlgaeState;
+  population: AlgaePopulationResult;
+  conditionsExpanded: boolean;
+  onToggleConditions: () => void;
+}
+
+/**
+ * Algae card — coverage bar + status pill + conditions breakdown.
+ * Algae is a population, not an organism with a condition state, so
+ * the card shows mass directly. Bar and pill colors graduate green →
+ * yellow → red as mass grows (low mass is good for the player).
+ */
+function AlgaeCard({
+  algae,
+  population,
+  conditionsExpanded,
+  onToggleConditions,
+}: AlgaeCardProps): React.JSX.Element {
+  const massPercent = Math.min(Math.max(0, algae.mass), 100);
+  const coverageColorClass = getCoverageBarColorClass(massPercent);
+  const statusText = getAlgaeStatusText(massPercent);
+
+  const activeStressors = population.breakdown.stressors.filter((s) => s.amount > 0);
+  const activeBenefits = population.breakdown.benefits.filter((b) => b.amount > 0);
+  const totalConditions = activeStressors.length + activeBenefits.length;
+  const net = population.net;
+
+  // Trend arrow — driven by net rate, same TREND_EPSILON convention
+  // as plants and fish. Color is inverted from plants: rising algae
+  // is bad for the player (red ↑), falling algae is good (green ↓).
+  let trendNode: React.ReactNode = null;
+  if (Math.abs(net) >= TREND_EPSILON) {
+    const rising = net > 0;
+    const arrow = rising ? '↑' : '↓';
+    const colorClass = rising ? 'text-red-400' : 'text-green-400';
+    trendNode = (
+      <span
+        className={`text-xs ${colorClass}`}
+        title={`Net algae rate: ${net >= 0 ? '+' : ''}${net.toFixed(2)}%/hr`}
+      >
+        {arrow}
+      </span>
+    );
+  }
+
+  // When mass is zero, render the card collapsed: no bar, no
+  // breakdown — just a status line. The population pipeline is still
+  // running, but there's nothing for the player to act on.
+  if (algae.mass <= 0) {
+    return (
+      <div className="p-2 bg-border/30 rounded">
+        <div className="flex items-center justify-between">
+          <span className="text-sm text-gray-200">Algae</span>
+          <span className="text-xs text-gray-400">clear</span>
+        </div>
+      </div>
+    );
+  }
+
+  const toggleLabel = conditionsExpanded
+    ? `▼ Conditions (${totalConditions})`
+    : `▶ Conditions (${totalConditions})`;
+
+  return (
+    <div className="p-2 bg-border/30 rounded">
+      <div className="flex items-center justify-between mb-1">
+        <span className="text-sm text-gray-200">Algae</span>
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-gray-400">{algae.mass.toFixed(0)}%</span>
+          {trendNode}
+          <span
+            className={`text-xs px-1 py-0.5 rounded ${coverageColorClass} text-black`}
+            title={`Coverage: ${massPercent.toFixed(0)}%`}
+          >
+            {statusText}
+          </span>
+        </div>
+      </div>
+      {/* Coverage (mass) bar — color graduates with mass, matching the pill. */}
+      <div className="flex items-center gap-1">
+        <span className="text-xs text-gray-500 w-12">Coverage</span>
+        <div className="flex-1 h-1.5 bg-border rounded-full overflow-hidden">
+          <div
+            className={`h-full ${coverageColorClass} transition-all`}
+            style={{ width: `${massPercent}%` }}
+          />
+        </div>
+      </div>
+      {/* Conditions breakdown — same renderer pattern as PlantCard. */}
+      {totalConditions > 0 && (
+        <>
+          <button
+            type="button"
+            onClick={onToggleConditions}
+            className="text-xs text-gray-400 hover:text-gray-200 mt-1 w-full text-left"
+          >
+            {toggleLabel}
+          </button>
+          {conditionsExpanded && (
+            <div className="text-xs mt-1 space-y-0.5 pl-2">
+              {/* Inverted from PlantCard / FishCard. The sign tracks
+                  algae growth direction (+ grows algae, − kills algae);
+                  the color tracks player sentiment (green = algae is
+                  losing, red = algae is winning). So an algae stressor
+                  reads green − (good news, algae losing ground) and
+                  an algae benefit reads red + (bad news, algae growing). */}
+              {activeStressors.map((s) => (
+                <div key={`s-${s.key}`} className="flex justify-between text-green-400">
+                  <span>{s.label}</span>
+                  <span>−{s.amount.toFixed(2)}%/h</span>
+                </div>
+              ))}
+              {activeBenefits.map((b) => (
+                <div key={`b-${b.key}`} className="flex justify-between text-red-400">
+                  <span>{b.label}</span>
+                  <span>+{b.amount.toFixed(2)}%/h</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
 export function Plants({
   algae,
   plants,
@@ -338,16 +470,22 @@ export function Plants({
   tankCapacity,
   substrateType,
   plantsConfig,
+  algaeConfig,
   nutrientsConfig,
   executeAction,
 }: PlantsProps): React.JSX.Element {
   const [selectedSpecies, setSelectedSpecies] = useState<PlantSpecies>('java_fern');
   const [trim, setTrim] = useState<{ plantId: string; value: number } | null>(null);
   const [expandedConditionsIds, setExpandedConditionsIds] = useState<Set<string>>(new Set());
+  const [algaeConditionsExpanded, setAlgaeConditionsExpanded] = useState(false);
 
-  const opacity = getAlgaeIndicatorOpacity(algae);
-  const indicatorClass = algae === 0 ? 'bg-border' : 'bg-green-500';
-  const description = getAlgaeDescription(algae);
+  const algaePopulation = computeAlgaePopulation({
+    plants,
+    resources,
+    tankCapacity,
+    algaeConfig,
+    nutrientsConfig,
+  });
 
   const maxPlants = getMaxPlants(tankCapacity);
   const isAtCapacity = plants.length >= maxPlants;
@@ -400,20 +538,15 @@ export function Plants({
   return (
     <Panel title="Plants">
       <div className="space-y-4">
-        {/* Algae indicator */}
-        <div className="flex items-center justify-between">
-          <span className="text-sm text-gray-300">Algae</span>
-          <div className="flex items-center gap-2">
-            <div
-              className={`w-3 h-3 rounded-full ${indicatorClass}`}
-              style={{ opacity }}
-              title={`${AlgaeResource.format(algae)} algae level`}
-            />
-            <span className="text-xs text-gray-400">
-              {AlgaeResource.format(algae)} ({description})
-            </span>
-          </div>
-        </div>
+        {/* Algae card — top of the panel where the old indicator
+            lived. Coverage bar + status pill + conditions breakdown
+            for the tank-wide population. */}
+        <AlgaeCard
+          algae={algae}
+          population={algaePopulation}
+          conditionsExpanded={algaeConditionsExpanded}
+          onToggleConditions={() => setAlgaeConditionsExpanded((v) => !v)}
+        />
 
         {/* Plants list */}
         {plants.length > 0 ? (
@@ -434,6 +567,7 @@ export function Plants({
                 waterVolume: resources.water,
                 plantsConfig,
                 nutrientSufficiency,
+                algaeMass: algae.mass,
               });
               const trimExpanded = trim?.plantId === plant.id;
               const trimValue = trim?.value ?? defaultTrimTarget(plant.size);

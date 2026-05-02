@@ -96,7 +96,7 @@ describe('useConfig', () => {
 
       act(() => {
         result.current.updateConfig('decay', 'wasteConversionRatio', 0.7);
-        result.current.updateConfig('algae', 'maxGrowthRate', 0.5);
+        result.current.updateConfig('algae', 'hardiness', 0.5);
       });
 
       expect(result.current.isAnyModified).toBe(true);
@@ -114,7 +114,7 @@ describe('useConfig', () => {
 
       act(() => {
         result.current.updateConfig('decay', 'wasteConversionRatio', 0.7);
-        result.current.updateConfig('algae', 'maxGrowthRate', 0.5);
+        result.current.updateConfig('algae', 'hardiness', 0.5);
       });
 
       expect(result.current.isSectionModified('decay')).toBe(true);

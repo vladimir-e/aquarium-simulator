@@ -10,6 +10,7 @@ import type {
   Equipment,
   Plant,
   Fish,
+  AlgaeState,
   AlertState,
 } from '../../simulation/state.js';
 import type { TunableConfig } from '../../simulation/config/index.js';
@@ -19,6 +20,18 @@ import type { TunableConfig } from '../../simulation/config/index.js';
  * Increment this when the structure changes in a breaking way.
  * On version mismatch, stored data is discarded.
  *
+ * v12: Algae promoted from `Resources.algae: number` to a top-level
+ *      `state.algae: { mass, surplus }` population. The Resources
+ *      schema drops the `algae` field and the simulation gains an
+ *      `AlgaeState` entry. `TunableConfig.algae` swaps the
+ *      Michaelis–Menten growth knobs (`maxGrowthRate`,
+ *      `halfSaturation`, `algaeCap`) for population knobs
+ *      (`hardiness`, plant-suppression / weakness thresholds, the
+ *      benefit peaks for excess light / nutrients / deficiency /
+ *      low plant power, and the growth knobs
+ *      `algaeGrowthPerTickCap`, `massPerSurplus`). Per project
+ *      policy this is a breaking save format change with no migration
+ *      shim — stored sessions are discarded on version mismatch.
  * v11: `Fish.hunger` (0=full, 100=starving) renamed and inverted to
  *      `Fish.satiation` (0=starving, 100=stuffed). `LivestockConfig`
  *      drops `hungerIncreaseRate` for `satiationDecayRate` (same
@@ -54,7 +67,7 @@ import type { TunableConfig } from '../../simulation/config/index.js';
  *     nutrient sufficiency) but its persisted shape is identical, so
  *     the bump is purely the new Fish field.
  */
-export const PERSISTENCE_VERSION = 11;
+export const PERSISTENCE_VERSION = 12;
 
 /**
  * Storage key for the unified persisted state.
@@ -73,6 +86,7 @@ export interface PersistedSimulation {
   equipment: Equipment;
   plants: Plant[];
   fish: Fish[];
+  algae: AlgaeState;
   alertState: AlertState;
   /** Currently selected preset ID */
   currentPreset: string;

@@ -154,6 +154,15 @@ export function processPlants(
   }
 
   // 3. Vitality per plant: drives condition update and emits surplus.
+  //    Algae mass comes from the prior tick's `state.algae.mass`
+  //    (algae processing runs *after* plants in `tick.ts` so plant
+  //    suppression / weakness factors read fresh plant condition).
+  //    For algae's effect on plants this means a one-tick lag — a
+  //    bloom that grows this tick won't shade plants until next
+  //    tick. That's an acceptable trade-off for the algae-after-
+  //    plants ordering required by the bigger-picture suppression
+  //    feedback loop.
+  const algaeMass = state.algae.mass;
   const vitalities = state.plants.map((plant) =>
     computePlantVitality({
       plant,
@@ -161,6 +170,7 @@ export function processPlants(
       waterVolume: state.resources.water,
       plantsConfig,
       nutrientSufficiency: sufficiencyByPlantId.get(plant.id) ?? 0,
+      algaeMass,
     })
   );
 

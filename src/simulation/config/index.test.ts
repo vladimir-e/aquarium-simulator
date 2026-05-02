@@ -10,12 +10,15 @@ import {
   gasExchangeDefaults,
   temperatureDefaults,
   evaporationDefaults,
-  algaeDefaults,
+  algaeVitalityDefaults,
   phDefaults,
+  plantsDefaults,
+  nutrientsDefaults,
+  livestockDefaults,
 } from './index.js';
 
 describe('DEFAULT_CONFIG', () => {
-  it('contains all 7 system configs', () => {
+  it('contains all 10 system configs', () => {
     expect(DEFAULT_CONFIG.decay).toBeDefined();
     expect(DEFAULT_CONFIG.nitrogenCycle).toBeDefined();
     expect(DEFAULT_CONFIG.gasExchange).toBeDefined();
@@ -23,6 +26,9 @@ describe('DEFAULT_CONFIG', () => {
     expect(DEFAULT_CONFIG.evaporation).toBeDefined();
     expect(DEFAULT_CONFIG.algae).toBeDefined();
     expect(DEFAULT_CONFIG.ph).toBeDefined();
+    expect(DEFAULT_CONFIG.plants).toBeDefined();
+    expect(DEFAULT_CONFIG.nutrients).toBeDefined();
+    expect(DEFAULT_CONFIG.livestock).toBeDefined();
   });
 
   it('uses the correct defaults for each system', () => {
@@ -31,8 +37,11 @@ describe('DEFAULT_CONFIG', () => {
     expect(DEFAULT_CONFIG.gasExchange).toEqual(gasExchangeDefaults);
     expect(DEFAULT_CONFIG.temperature).toEqual(temperatureDefaults);
     expect(DEFAULT_CONFIG.evaporation).toEqual(evaporationDefaults);
-    expect(DEFAULT_CONFIG.algae).toEqual(algaeDefaults);
+    expect(DEFAULT_CONFIG.algae).toEqual(algaeVitalityDefaults);
     expect(DEFAULT_CONFIG.ph).toEqual(phDefaults);
+    expect(DEFAULT_CONFIG.plants).toEqual(plantsDefaults);
+    expect(DEFAULT_CONFIG.nutrients).toEqual(nutrientsDefaults);
+    expect(DEFAULT_CONFIG.livestock).toEqual(livestockDefaults);
   });
 });
 
@@ -126,11 +135,19 @@ describe('temperatureDefaults', () => {
   });
 });
 
-describe('algaeDefaults', () => {
-  it('has expected values', () => {
-    expect(algaeDefaults.maxGrowthRate).toBe(0.4);
-    expect(algaeDefaults.halfSaturation).toBe(1.3);
-    expect(algaeDefaults.algaeCap).toBe(100);
+describe('algaeVitalityDefaults', () => {
+  it('has all required population knobs', () => {
+    // Smoke check that the population config is wired in. Specific
+    // numeric values are calibration-grade; spot-check a few that
+    // anchor the spec.
+    expect(algaeVitalityDefaults.hardiness).toBeGreaterThan(0);
+    expect(algaeVitalityDefaults.hardiness).toBeLessThanOrEqual(1);
+    expect(algaeVitalityDefaults.weaknessThreshold).toBeLessThan(
+      algaeVitalityDefaults.suppressionThreshold
+    );
+    expect(algaeVitalityDefaults.algaeGrowthPerTickCap).toBeGreaterThan(0);
+    expect(algaeVitalityDefaults.massPerSurplus).toBeGreaterThan(0);
+    expect(algaeVitalityDefaults.lightExcessThreshold).toBeGreaterThan(0);
   });
 });
 

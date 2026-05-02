@@ -183,7 +183,7 @@ function App(): React.JSX.Element {
             <Actions
               waterLevel={state.resources.water}
               capacity={state.tank.capacity}
-              algae={state.resources.algae}
+              algaeMass={state.algae.mass}
               plants={state.plants}
               tapWaterTemperature={state.environment.tapWaterTemperature}
               tapWaterPH={state.environment.tapWaterPH}
@@ -228,12 +228,13 @@ function App(): React.JSX.Element {
           {/* Column 3 */}
           <div className="space-y-4">
             <Plants
-              algae={state.resources.algae}
+              algae={state.algae}
               plants={state.plants}
               resources={state.resources}
               tankCapacity={state.tank.capacity}
               substrateType={state.equipment.substrate.type}
               plantsConfig={config.plants}
+              algaeConfig={config.algae}
               nutrientsConfig={config.nutrients}
               executeAction={executeAction}
             />

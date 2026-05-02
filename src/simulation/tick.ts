@@ -8,6 +8,7 @@ import { applyEffects, type Effect, type EffectTier } from './core/effects.js';
 import { coreSystems } from './systems/index.js';
 import { processEquipment, calculatePassiveResources } from './equipment/index.js';
 import { processPlants } from './plants/index.js';
+import { processAlgae } from './algae/index.js';
 import { processLivestock } from './livestock/index.js';
 import { checkAlerts } from './alerts/index.js';
 import { type TunableConfig, DEFAULT_CONFIG } from './config/index.js';
@@ -48,7 +49,8 @@ export function tick(
   let newState = produce(state, (draft) => {
     draft.tick += 1;
     // Calculate passive resources before processing effects
-    // (used by systems like algae growth that depend on light, and gas exchange that depends on aeration)
+    // (used by gas exchange that depends on aeration, by algae
+    // vitality which reads W/L, and by plant photosynthesis).
     const passiveValues = calculatePassiveResources(draft);
     draft.resources.surface = passiveValues.surface;
     draft.resources.flow = passiveValues.flow;
@@ -66,13 +68,24 @@ export function tick(
   newState = equipmentResult.state;
   newState = applyEffects(newState, equipmentResult.effects, config);
 
-  // Tier 2: ACTIVE - Living processes (plants, livestock)
-  // First process plants (photosynthesis, respiration, growth)
+  // Tier 2: ACTIVE - Living processes (plants, algae, livestock).
+  // Order matters: algae stressors / benefits read freshly-updated
+  // plant condition (suppression and weakness factors) and the
+  // shared `getPlantPower` reads each plant's current condition.
+  // Running algae before plants would lag the suppression signal by
+  // one tick.
   const plantsResult = processPlants(newState, config);
   newState = plantsResult.state;
   newState = applyEffects(newState, plantsResult.effects, config);
 
-  // Then process livestock (metabolism, health)
+  // Algae uses the just-updated plant.condition to compute power.
+  const algaeResult = processAlgae(newState, config);
+  newState = algaeResult.state;
+
+  // Livestock can now read current algae mass if it ever needs to
+  // (no current dependency, but the order keeps the read graph
+  // monotone from immediate → equipment → plants → algae →
+  // livestock → other-active → passive).
   const livestockResult = processLivestock(newState, config);
   newState = livestockResult.state;
   newState = applyEffects(newState, livestockResult.effects, config);

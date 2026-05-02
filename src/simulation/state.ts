@@ -323,6 +323,29 @@ export interface Fish {
 }
 
 /**
+ * Algae as a pure population — coverage and a surplus bank.
+ *
+ * `mass` is aggregate biomass / coverage on the same 0–100 scale the
+ * old `Resources.algae` field used (so calibration anchors translate
+ * directly). When the net rate from stressors and benefits is
+ * positive, the surplus tank fills (photoperiod-gated); when it's
+ * negative, mass shrinks directly. No intermediate `condition` —
+ * conditions favouring algae grow it; conditions hostile to it
+ * shrink it. `surplus` is the banked overflow the orchestrator drains
+ * into mass each daylight tick.
+ *
+ * One organism, not an array. The shape — coverage plus surplus —
+ * is the prototype for future colonies (snails, shrimps): they're
+ * populations too, and they don't need condition either.
+ */
+export interface AlgaeState {
+  /** Aggregate biomass / coverage, 0–100 (same scale as the old field). */
+  mass: number;
+  /** Banked surplus from positive net rate; drained into mass while lights are on. */
+  surplus: number;
+}
+
+/**
  * Individual plant specimen in the tank.
  */
 export interface Plant {
@@ -371,8 +394,6 @@ export interface Resources {
   food: number;
   /** Organic waste accumulation (grams) */
   waste: number;
-  /** Algae level (0-100 scale, relative coverage) */
-  algae: number;
 
   // Chemical resources (nitrogen cycle) - stored as mass (mg)
   // Concentration (ppm) derived as mass/water for display and threshold checks
@@ -528,6 +549,8 @@ export interface SimulationState {
   plants: Plant[];
   /** Fish in the tank */
   fish: Fish[];
+  /** Tank-wide algae as a single mass-based organism */
+  algae: AlgaeState;
   /** In-memory log storage */
   logs: LogEntry[];
   /** Tracks active alert conditions for threshold-crossing detection */
@@ -773,7 +796,6 @@ export function createSimulation(config: SimulationConfig): SimulationState {
       // Biological
       food: 0.0,
       waste: 0.0,
-      algae: 0,
       // Chemical (nitrogen cycle)
       ammonia: 0,
       nitrite: 0,
@@ -811,6 +833,9 @@ export function createSimulation(config: SimulationConfig): SimulationState {
     },
     plants: [],
     fish: [],
+    // Algae starts at zero biomass and zero surplus. With no
+    // condition state, the empty case is naturally inert.
+    algae: { mass: 0, surplus: 0 },
     logs: [initialLog],
     alertState: {
       waterLevelCritical: false,

@@ -207,7 +207,7 @@ export function runPlantedScenario(
       po4: getPpm(r.phosphate, r.water),
       k: getPpm(r.potassium, r.water),
       fe: getPpm(r.iron, r.water),
-      algae: r.algae,
+      algae: state.algae.mass,
       aob: r.aob,
       nob: r.nob,
       nh3: getPpm(r.ammonia, r.water),

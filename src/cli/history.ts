@@ -21,7 +21,6 @@ export interface HistorySnapshot {
     aeration: boolean;
     food: number;
     waste: number;
-    algae: number;
     ammonia: number;
     nitrite: number;
     nitrate: number;
@@ -36,6 +35,8 @@ export interface HistorySnapshot {
   };
   fish: { count: number; avgHealth: number };
   plants: { count: number; avgCondition: number };
+  /** Algae as a population — coverage and surplus only. */
+  algae: { mass: number; surplus: number };
 }
 
 function avg(values: number[]): number {
@@ -56,7 +57,6 @@ export function snapshot(state: SimulationState): HistorySnapshot {
       aeration: r.aeration,
       food: r.food,
       waste: r.waste,
-      algae: r.algae,
       ammonia: r.ammonia,
       nitrite: r.nitrite,
       nitrate: r.nitrate,
@@ -76,6 +76,10 @@ export function snapshot(state: SimulationState): HistorySnapshot {
     plants: {
       count: state.plants.length,
       avgCondition: avg(state.plants.map((p) => p.condition)),
+    },
+    algae: {
+      mass: state.algae.mass,
+      surplus: state.algae.surplus,
     },
   };
 }

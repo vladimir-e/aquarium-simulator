@@ -70,7 +70,7 @@ export function renderObserve(session: Session): string {
       toPpm(r.iron, r.water),
       3
     )} ppm`,
-    `**Other** waste ${round(r.waste, 2)}g · algae ${round(r.algae, 1)} · food ${round(
+    `**Other** waste ${round(r.waste, 2)}g · algae ${round(state.algae.mass, 1)} · food ${round(
       r.food,
       2
     )}g`,

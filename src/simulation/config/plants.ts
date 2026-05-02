@@ -56,10 +56,6 @@ export interface PlantsConfig {
    */
   sizePerSurplus: number;
 
-  // Algae competition
-  /** Scale factor for plant competition with algae (200% plants = halved algae growth) */
-  competitionScale: number;
-
   // Vitality stressor severities — see systems/plant-vitality.ts. Each is
   // a pre-hardiness damage rate (%/h per unit deviation); the species
   // hardiness multiplies the sum centrally.
@@ -151,10 +147,6 @@ export const plantsDefaults: PlantsConfig = {
   plantGrowthPerTickCap: 2.0,
   sizePerSurplus: 0.4, // size % per (surplus × growthRate × asymptoticFactor) unit
 
-  // Algae competition - 100% total plant size halves algae growth
-  // Real planted tanks with dense coverage almost eliminate algae
-  competitionScale: 100,
-
   // Vitality stressor severities (pre-hardiness; the species hardiness
   // factor multiplies damage centrally inside `computeVitality`).
   // Calibrated so a Monte Carlo (hardiness 0.3) loses visible condition
@@ -180,8 +172,12 @@ export const plantsDefaults: PlantsConfig = {
   // rather than killing instantly.
   nutrientToxicitySeverity: 0.01,
   nutrientToxicityThresholdNitrate: 100,
-  algaeShadingSeverity: 0.01,
-  algaeShadingThreshold: 50,
+  // Algae shading kicks in past 30 % bloom mass — that threshold makes
+  // the player feel the bloom on their plants. Severity 0.05 % / h per
+  // mass-point means a 60 % bloom delivers ~1.5 %/h pre-hardiness damage
+  // (calibration-grade — task 42 first-pass; recalibration follows).
+  algaeShadingSeverity: 0.05,
+  algaeShadingThreshold: 30,
 
   // Vitality benefit peaks. Sum at all-good = 0.5 %/h. With a healthy
   // tank the plant heals to 100 in under 4 sim days, then surplus
@@ -276,8 +272,6 @@ export const plantsConfigMeta: PlantsConfigMeta[] = [
   // Surplus-driven growth
   { key: 'plantGrowthPerTickCap', label: 'Plant Growth per Tick Cap', unit: 'surplus', min: 0.1, max: 10, step: 0.1 },
   { key: 'sizePerSurplus', label: 'Size per Surplus', unit: '%', min: 0.01, max: 2.0, step: 0.01 },
-  // Algae competition
-  { key: 'competitionScale', label: 'Competition Scale', unit: '%', min: 50, max: 300, step: 10 },
 
   // Vitality stressor severities
   { key: 'lightInsufficientSeverity', label: 'Light Insuff. Severity', unit: '%/W/hr', min: 0.01, max: 1.0, step: 0.05 },

@@ -40,6 +40,7 @@ import { FISH_SPECIES_DATA } from '../state.js';
 import type { LivestockConfig } from '../config/livestock.js';
 import { unionizedAmmoniaFraction } from './nitrogen-cycle.js';
 import { satiationContribution, SATIATION_BAND_LABEL } from './satiation.js';
+import { getPlantPower } from './plant-power.js';
 import {
   computeVitality,
   inRangeBenefit,
@@ -80,27 +81,17 @@ interface FishFactorContext {
 /**
  * Aggregate plant-presence contribution → saturated benefit (linear ramp).
  *
- * Each plant contributes `(size/100) × (condition/100)`: a full-grown
- * (size 100), thriving (condition 100) plant counts as 1.0; a half-
- * grown plant at full health counts 0.5; a sick plant (condition 0)
- * counts 0. Overgrown plants count proportionally more — a single
- * size-300 healthy plant contributes 3 units and saturates the
- * benefit on its own. That's the intended behaviour: it's a lot of
- * biomass providing shelter. Overgrowth is regulated on the plant
- * side (self-shading and interspecies competition push an overgrown
- * plant toward stressed → biomass dies back → contribution shrinks),
- * so the fish-side math stays linear in raw biomass. The sum runs
- * through `min(1, total / SAT)` so the benefit tops out at `peak`
- * regardless of overplanting — see `plantBenefitSaturationPoint` in
- * `LivestockConfig` for the calibration choice.
+ * Plant power is `Σ (plant.size / 100) × (plant.condition / 100)` (see
+ * `getPlantPower`). The sum runs through `min(1, power / SAT)` so the
+ * benefit tops out at `peak` regardless of overplanting — see
+ * `plantBenefitSaturationPoint` in `LivestockConfig` for the calibration
+ * choice. Algae vitality reads the same `getPlantPower` primitive for
+ * its suppression stressor, so the two consumers stay consistent.
  */
 function plantBenefitAmount(plants: Plant[], config: LivestockConfig): number {
-  if (plants.length === 0) return 0;
-  let total = 0;
-  for (const plant of plants) {
-    total += (plant.size / 100) * (plant.condition / 100);
-  }
-  const saturation = Math.min(1, total / config.plantBenefitSaturationPoint);
+  const power = getPlantPower(plants);
+  if (power <= 0) return 0;
+  const saturation = Math.min(1, power / config.plantBenefitSaturationPoint);
   return config.plantBenefitPeak * saturation;
 }
 
