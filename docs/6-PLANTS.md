@@ -12,7 +12,7 @@ Aquatic plants that perform photosynthesis and growth, consuming resources and p
 Plants in the simulation:
 - Consume CO2, light, nutrients, and nitrate
 - Produce oxygen through photosynthesis
-- Compete with algae for resources
+- Suppress algae (thriving plants stress algae via plant-power; struggling plants stop suppressing it)
 - Provide shelter (reduce fish stress)
 - Help maintain water quality
 
@@ -530,7 +530,7 @@ if excess_nutrients AND poor_plant_health:
     excess_nutrients_benefit → algae_condition_climbs → mass_grows
 ```
 
-**Key dynamic**: Excess nutrients (especially nitrate and phosphate) combined with light promote algae. The natural defense is healthy plants that consume nutrients before algae can use them.
+**Key dynamic**: Excess nutrients (especially nitrate and phosphate) combined with light promote algae. The natural defense is healthy plants whose plant-power directly suppresses algae condition — algae cannot grow surplus while a thriving canopy is present, and decays back when stressed long enough.
 
 ---
 

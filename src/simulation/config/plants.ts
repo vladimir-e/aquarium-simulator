@@ -56,10 +56,6 @@ export interface PlantsConfig {
    */
   sizePerSurplus: number;
 
-  // Algae competition
-  /** Scale factor for plant competition with algae (200% plants = halved algae growth) */
-  competitionScale: number;
-
   // Vitality stressor severities — see systems/plant-vitality.ts. Each is
   // a pre-hardiness damage rate (%/h per unit deviation); the species
   // hardiness multiplies the sum centrally.
@@ -150,10 +146,6 @@ export const plantsDefaults: PlantsConfig = {
   // species growth rate is the per-species multiplier on conversion.
   plantGrowthPerTickCap: 2.0,
   sizePerSurplus: 0.4, // size % per (surplus × growthRate × asymptoticFactor) unit
-
-  // Algae competition - 100% total plant size halves algae growth
-  // Real planted tanks with dense coverage almost eliminate algae
-  competitionScale: 100,
 
   // Vitality stressor severities (pre-hardiness; the species hardiness
   // factor multiplies damage centrally inside `computeVitality`).
@@ -280,8 +272,6 @@ export const plantsConfigMeta: PlantsConfigMeta[] = [
   // Surplus-driven growth
   { key: 'plantGrowthPerTickCap', label: 'Plant Growth per Tick Cap', unit: 'surplus', min: 0.1, max: 10, step: 0.1 },
   { key: 'sizePerSurplus', label: 'Size per Surplus', unit: '%', min: 0.01, max: 2.0, step: 0.01 },
-  // Algae competition
-  { key: 'competitionScale', label: 'Competition Scale', unit: '%', min: 50, max: 300, step: 10 },
 
   // Vitality stressor severities
   { key: 'lightInsufficientSeverity', label: 'Light Insuff. Severity', unit: '%/W/hr', min: 0.01, max: 1.0, step: 0.05 },
