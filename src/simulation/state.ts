@@ -323,6 +323,31 @@ export interface Fish {
 }
 
 /**
+ * Algae as a single mass-based organism — biomass, vitality, and a
+ * surplus bank, mirroring the per-plant shape but at population scale.
+ *
+ * `mass` is aggregate biomass / coverage on the same 0–100 scale the
+ * old `Resources.algae` field used (so calibration anchors translate
+ * directly). `condition` is vitality 0–100 driven by the shared
+ * `computeVitality` engine — surplus once it's full at net > 0,
+ * mass-decay once it falls below 100. `surplus` is the banked overflow
+ * the orchestrator drains into mass each daylight tick.
+ *
+ * One organism, not an array. The shape extends naturally to colonies
+ * of shrimps / snails when those land — same triple plus colony-
+ * specific fields. This task does not pre-build a generic abstraction;
+ * a second instance will reveal the right shared shape.
+ */
+export interface AlgaeState {
+  /** Aggregate biomass / coverage, 0–100 (same scale as the old field). */
+  mass: number;
+  /** Vitality 0–100. Drives surplus and mass-decay rate. */
+  condition: number;
+  /** Banked surplus emitted by vitality once `condition === 100`. */
+  surplus: number;
+}
+
+/**
  * Individual plant specimen in the tank.
  */
 export interface Plant {
@@ -371,8 +396,6 @@ export interface Resources {
   food: number;
   /** Organic waste accumulation (grams) */
   waste: number;
-  /** Algae level (0-100 scale, relative coverage) */
-  algae: number;
 
   // Chemical resources (nitrogen cycle) - stored as mass (mg)
   // Concentration (ppm) derived as mass/water for display and threshold checks
@@ -528,6 +551,8 @@ export interface SimulationState {
   plants: Plant[];
   /** Fish in the tank */
   fish: Fish[];
+  /** Tank-wide algae as a single mass-based organism */
+  algae: AlgaeState;
   /** In-memory log storage */
   logs: LogEntry[];
   /** Tracks active alert conditions for threshold-crossing detection */
@@ -773,7 +798,6 @@ export function createSimulation(config: SimulationConfig): SimulationState {
       // Biological
       food: 0.0,
       waste: 0.0,
-      algae: 0,
       // Chemical (nitrogen cycle)
       ammonia: 0,
       nitrite: 0,
@@ -811,6 +835,10 @@ export function createSimulation(config: SimulationConfig): SimulationState {
     },
     plants: [],
     fish: [],
+    // Algae starts at zero biomass and full condition — vitality is
+    // meaningful only once mass > 0, but pinning condition at 100 from
+    // t=0 avoids the empty-organism special case.
+    algae: { mass: 0, condition: 100, surplus: 0 },
     logs: [initialLog],
     alertState: {
       waterLevelCritical: false,

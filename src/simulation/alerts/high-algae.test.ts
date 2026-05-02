@@ -11,7 +11,7 @@ describe('highAlgaeAlert', () => {
   it('returns warning log when algae >= 80 and not already triggered', () => {
     const state = createSimulation({ tankCapacity: 100 });
     const highAlgaeState = produce(state, (draft) => {
-      draft.resources.algae = 80;
+      draft.algae.mass = 80;
       draft.tick = 50;
     });
 
@@ -27,7 +27,7 @@ describe('highAlgaeAlert', () => {
   it('returns null log when already triggered (threshold crossing detection)', () => {
     const state = createSimulation({ tankCapacity: 100 });
     const alreadyTriggeredState = produce(state, (draft) => {
-      draft.resources.algae = 85;
+      draft.algae.mass = 85;
       draft.alertState.highAlgae = true;
     });
 
@@ -40,7 +40,7 @@ describe('highAlgaeAlert', () => {
   it('returns null log when algae < 80', () => {
     const state = createSimulation({ tankCapacity: 100 });
     const normalAlgaeState = produce(state, (draft) => {
-      draft.resources.algae = 79;
+      draft.algae.mass = 79;
     });
 
     const result = highAlgaeAlert.check(normalAlgaeState);
@@ -52,7 +52,7 @@ describe('highAlgaeAlert', () => {
   it('returns null log when algae is 0', () => {
     const state = createSimulation({ tankCapacity: 100 });
     const noAlgaeState = produce(state, (draft) => {
-      draft.resources.algae = 0;
+      draft.algae.mass = 0;
     });
 
     const result = highAlgaeAlert.check(noAlgaeState);
@@ -64,7 +64,7 @@ describe('highAlgaeAlert', () => {
   it('log message includes algae level and suggests action', () => {
     const state = createSimulation({ tankCapacity: 100 });
     const highAlgaeState = produce(state, (draft) => {
-      draft.resources.algae = 85.5;
+      draft.algae.mass = 85.5;
     });
 
     const result = highAlgaeAlert.check(highAlgaeState);
@@ -77,7 +77,7 @@ describe('highAlgaeAlert', () => {
   it('log has correct severity (warning) and source (algae)', () => {
     const state = createSimulation({ tankCapacity: 100 });
     const highAlgaeState = produce(state, (draft) => {
-      draft.resources.algae = 90;
+      draft.algae.mass = 90;
     });
 
     const result = highAlgaeAlert.check(highAlgaeState);
@@ -92,7 +92,7 @@ describe('highAlgaeAlert', () => {
 
     // At exactly 80, should trigger
     const atThreshold = produce(state, (draft) => {
-      draft.resources.algae = 80;
+      draft.algae.mass = 80;
     });
     const atResult = highAlgaeAlert.check(atThreshold);
     expect(atResult.log).not.toBeNull();
@@ -100,7 +100,7 @@ describe('highAlgaeAlert', () => {
 
     // Just below 80, should NOT trigger
     const belowThreshold = produce(state, (draft) => {
-      draft.resources.algae = 79.99;
+      draft.algae.mass = 79.99;
     });
     const belowResult = highAlgaeAlert.check(belowThreshold);
     expect(belowResult.log).toBeNull();
@@ -110,7 +110,7 @@ describe('highAlgaeAlert', () => {
   it('triggers at maximum algae level (100)', () => {
     const state = createSimulation({ tankCapacity: 100 });
     const maxAlgaeState = produce(state, (draft) => {
-      draft.resources.algae = 100;
+      draft.algae.mass = 100;
     });
 
     const result = highAlgaeAlert.check(maxAlgaeState);
@@ -123,7 +123,7 @@ describe('highAlgaeAlert', () => {
     const state = createSimulation({ tankCapacity: 100 });
     // Previously triggered, but algae is now below threshold
     const recoveredState = produce(state, (draft) => {
-      draft.resources.algae = 70;
+      draft.algae.mass = 70;
       draft.alertState.highAlgae = true;
     });
 
@@ -138,7 +138,7 @@ describe('highAlgaeAlert', () => {
 
     // First crossing - fires
     const firstCross = produce(state, (draft) => {
-      draft.resources.algae = 85;
+      draft.algae.mass = 85;
       draft.alertState.highAlgae = false;
     });
     const firstResult = highAlgaeAlert.check(firstCross);
@@ -146,7 +146,7 @@ describe('highAlgaeAlert', () => {
 
     // Recovery - clears
     const recovered = produce(state, (draft) => {
-      draft.resources.algae = 50;
+      draft.algae.mass = 50;
       draft.alertState.highAlgae = true;
     });
     const recoveredResult = highAlgaeAlert.check(recovered);
@@ -154,7 +154,7 @@ describe('highAlgaeAlert', () => {
 
     // Second crossing - fires again
     const secondCross = produce(state, (draft) => {
-      draft.resources.algae = 90;
+      draft.algae.mass = 90;
       draft.alertState.highAlgae = false;
     });
     const secondResult = highAlgaeAlert.check(secondCross);
@@ -167,7 +167,7 @@ describe('highAlgaeAlert', () => {
     const levels = [30, 40, 50, 60, 70, 79];
     for (const level of levels) {
       const moderateState = produce(state, (draft) => {
-        draft.resources.algae = level;
+        draft.algae.mass = level;
       });
       const result = highAlgaeAlert.check(moderateState);
       expect(result.log).toBeNull();

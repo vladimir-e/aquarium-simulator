@@ -10,7 +10,7 @@ import {
   gasExchangeDefaults,
   temperatureDefaults,
   evaporationDefaults,
-  algaeDefaults,
+  algaeVitalityDefaults,
   phDefaults,
 } from './index.js';
 
@@ -31,7 +31,7 @@ describe('DEFAULT_CONFIG', () => {
     expect(DEFAULT_CONFIG.gasExchange).toEqual(gasExchangeDefaults);
     expect(DEFAULT_CONFIG.temperature).toEqual(temperatureDefaults);
     expect(DEFAULT_CONFIG.evaporation).toEqual(evaporationDefaults);
-    expect(DEFAULT_CONFIG.algae).toEqual(algaeDefaults);
+    expect(DEFAULT_CONFIG.algae).toEqual(algaeVitalityDefaults);
     expect(DEFAULT_CONFIG.ph).toEqual(phDefaults);
   });
 });
@@ -126,11 +126,20 @@ describe('temperatureDefaults', () => {
   });
 });
 
-describe('algaeDefaults', () => {
-  it('has expected values', () => {
-    expect(algaeDefaults.maxGrowthRate).toBe(0.4);
-    expect(algaeDefaults.halfSaturation).toBe(1.3);
-    expect(algaeDefaults.algaeCap).toBe(100);
+describe('algaeVitalityDefaults', () => {
+  it('has all required vitality knobs', () => {
+    // Smoke check that the new vitality config is wired in. Specific
+    // numeric values are calibration-grade; spot-check a few that
+    // anchor the spec.
+    expect(algaeVitalityDefaults.hardiness).toBeGreaterThan(0);
+    expect(algaeVitalityDefaults.hardiness).toBeLessThanOrEqual(1);
+    expect(algaeVitalityDefaults.weaknessThreshold).toBeLessThan(
+      algaeVitalityDefaults.suppressionThreshold
+    );
+    expect(algaeVitalityDefaults.decayRate).toBeGreaterThan(0);
+    expect(algaeVitalityDefaults.algaeGrowthPerTickCap).toBeGreaterThan(0);
+    expect(algaeVitalityDefaults.massPerSurplus).toBeGreaterThan(0);
+    expect(algaeVitalityDefaults.lightExcessThreshold).toBeGreaterThan(0);
   });
 });
 

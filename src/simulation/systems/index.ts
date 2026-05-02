@@ -24,13 +24,6 @@ export {
 } from './decay.js';
 
 export {
-  algaeSystem,
-  calculateAlgaeGrowth,
-  getWattsPerGallon,
-  calculatePlantCompetitionFactor,
-} from './algae.js';
-
-export {
   calculatePhotosynthesis,
   getTotalPlantSize,
   calculateCo2Factor,
@@ -82,7 +75,6 @@ import type { System } from './types.js';
 import { temperatureDriftSystem } from './temperature-drift.js';
 import { evaporationSystem } from './evaporation.js';
 import { decaySystem } from './decay.js';
-import { algaeSystem } from './algae.js';
 import { nitrogenCycleSystem } from './nitrogen-cycle.js';
 import { gasExchangeSystem } from './gas-exchange.js';
 import { phDriftSystem } from './ph-drift.js';
@@ -92,7 +84,6 @@ export const coreSystems: System[] = [
   temperatureDriftSystem,
   evaporationSystem,
   decaySystem,
-  algaeSystem,
   nitrogenCycleSystem,
   gasExchangeSystem,
   phDriftSystem,

@@ -9,7 +9,7 @@ import { MIN_ALGAE_TO_SCRUB, canTrimPlants, getPlantsToTrimCount } from '../../.
 interface ActionsProps {
   waterLevel: number;
   capacity: number;
-  algae: number;
+  algaeMass: number;
   plants: Plant[];
   tapWaterTemperature: number;
   tapWaterPH: number;
@@ -21,7 +21,7 @@ interface ActionsProps {
 export function Actions({
   waterLevel,
   capacity,
-  algae,
+  algaeMass,
   plants,
   tapWaterTemperature,
   tapWaterPH,
@@ -76,7 +76,7 @@ export function Actions({
   };
 
   const isWaterFull = waterLevel >= capacity;
-  const canScrub = algae >= MIN_ALGAE_TO_SCRUB;
+  const canScrub = algaeMass >= MIN_ALGAE_TO_SCRUB;
   // Create a pseudo-state object for canTrimPlants
   const canTrim = canTrimPlants({ plants } as { plants: Plant[] });
   const plantsToTrim = getPlantsToTrimCount({ plants } as { plants: Plant[] }, trimTargetSize);

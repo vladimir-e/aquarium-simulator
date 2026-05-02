@@ -9,7 +9,7 @@ import {
   gasExchangeConfigMeta,
   temperatureConfigMeta,
   evaporationConfigMeta,
-  algaeConfigMeta,
+  algaeVitalityConfigMeta,
   phConfigMeta,
   plantsConfigMeta,
   nutrientsConfigMeta,
@@ -304,7 +304,7 @@ export function DebugPanel(): React.JSX.Element | null {
           onReset={() => resetSection('algae')}
           isModified={isSectionModified('algae')}
         >
-          {algaeConfigMeta.map((meta) => (
+          {algaeVitalityConfigMeta.map((meta) => (
             <ConfigInput
               key={meta.key}
               label={meta.label}

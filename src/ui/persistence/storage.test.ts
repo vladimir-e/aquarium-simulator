@@ -358,7 +358,6 @@ function createValidSimulation(): PersistedSimulation {
       aeration: false,
       food: 0,
       waste: 0,
-      algae: 0,
       ammonia: 0,
       nitrite: 0,
       nitrate: 0,
@@ -391,6 +390,7 @@ function createValidSimulation(): PersistedSimulation {
     },
     plants: [],
     fish: [],
+    algae: { mass: 0, condition: 100, surplus: 0 },
     alertState: {
       waterLevelCritical: false,
       highAlgae: false,

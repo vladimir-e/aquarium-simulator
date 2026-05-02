@@ -98,7 +98,6 @@ describe('PersistedSimulationSchema', () => {
       aeration: false,
       food: 0,
       waste: 0,
-      algae: 0,
       ammonia: 0,
       nitrite: 0,
       nitrate: 0,
@@ -131,6 +130,7 @@ describe('PersistedSimulationSchema', () => {
     },
     plants: [],
     fish: [],
+    algae: { mass: 0, condition: 100, surplus: 0 },
     alertState: {
       waterLevelCritical: false,
       highAlgae: false,
@@ -314,7 +314,6 @@ describe('PersistedStateSchema', () => {
       aeration: false,
       food: 0,
       waste: 0,
-      algae: 0,
       ammonia: 0,
       nitrite: 0,
       nitrate: 0,
@@ -347,6 +346,7 @@ describe('PersistedStateSchema', () => {
     },
     plants: [],
     fish: [],
+    algae: { mass: 0, condition: 100, surplus: 0 },
     alertState: {
       waterLevelCritical: false,
       highAlgae: false,
@@ -407,7 +407,12 @@ describe('PersistedStateSchema', () => {
     expect(PersistedStateSchema.safeParse(v10).success).toBe(false);
   });
 
-  it('PERSISTENCE_VERSION is 11', () => {
-    expect(PERSISTENCE_VERSION).toBe(11);
+  it('rejects prior version 11 (breaking bump for algae-as-organism)', () => {
+    const v11 = { ...validState, version: 11 };
+    expect(PersistedStateSchema.safeParse(v11).success).toBe(false);
+  });
+
+  it('PERSISTENCE_VERSION is 12', () => {
+    expect(PERSISTENCE_VERSION).toBe(12);
   });
 });

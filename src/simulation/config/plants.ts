@@ -180,8 +180,12 @@ export const plantsDefaults: PlantsConfig = {
   // rather than killing instantly.
   nutrientToxicitySeverity: 0.01,
   nutrientToxicityThresholdNitrate: 100,
-  algaeShadingSeverity: 0.01,
-  algaeShadingThreshold: 50,
+  // Algae shading kicks in past 30 % bloom mass — that threshold makes
+  // the player feel the bloom on their plants. Severity 0.05 % / h per
+  // mass-point means a 60 % bloom delivers ~1.5 %/h pre-hardiness damage
+  // (calibration-grade — task 42 first-pass; recalibration follows).
+  algaeShadingSeverity: 0.05,
+  algaeShadingThreshold: 30,
 
   // Vitality benefit peaks. Sum at all-good = 0.5 %/h. With a healthy
   // tank the plant heals to 100 in under 4 sim days, then surplus

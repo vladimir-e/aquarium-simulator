@@ -19,7 +19,6 @@ export { FlowResource } from './flow.js';
 export { LightResource } from './light.js';
 export { FoodResource } from './food.js';
 export { WasteResource } from './waste.js';
-export { AlgaeResource } from './algae.js';
 export { AmmoniaResource } from './ammonia.js';
 export { NitriteResource } from './nitrite.js';
 export { NitrateResource } from './nitrate.js';
@@ -41,7 +40,6 @@ import { FlowResource } from './flow.js';
 import { LightResource } from './light.js';
 import { FoodResource } from './food.js';
 import { WasteResource } from './waste.js';
-import { AlgaeResource } from './algae.js';
 import { AmmoniaResource } from './ammonia.js';
 import { NitriteResource } from './nitrite.js';
 import { NitrateResource } from './nitrate.js';
@@ -66,7 +64,6 @@ export const ResourceRegistry: Record<ResourceKey, ResourceDefinition<ResourceKe
   light: LightResource,
   food: FoodResource,
   waste: WasteResource,
-  algae: AlgaeResource,
   ammonia: AmmoniaResource,
   nitrite: NitriteResource,
   nitrate: NitrateResource,

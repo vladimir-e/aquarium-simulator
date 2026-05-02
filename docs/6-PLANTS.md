@@ -351,6 +351,163 @@ Plants can recover from low condition if nutrients are restored before death:
 
 ---
 
+## Algae as an organism
+
+Algae is a peer organism to plants and fish: it lives in
+`state.algae`, runs through the shared `computeVitality` engine, and
+banks surplus into mass growth — same architectural shape as plants.
+The difference: one population, not an array of specimens.
+
+### State shape
+
+```ts
+state.algae: AlgaeState
+
+interface AlgaeState {
+  /** Aggregate biomass / coverage 0–100. */
+  mass: number
+  /** Vitality 0–100. Drives surplus and mass-decay rate. */
+  condition: number
+  /** Banked surplus emitted by vitality once condition === 100. */
+  surplus: number
+}
+```
+
+Initialised to `{ mass: 0, condition: 100, surplus: 0 }`. Condition
+starts at 100 because there's no algae yet — vitality is meaningful
+only once mass > 0.
+
+### Plant power — the shared primitive
+
+Both fish vitality (shelter benefit) and algae vitality (suppression
+stressor + low_plant_power benefit) read a single tank-wide number:
+
+```
+plantPower = Σ over plants of (plant.size / 100) × (plant.condition / 100)
+```
+
+A full-grown thriving plant contributes 1.0; a half-grown plant at
+full health contributes 0.5; a sick plant contributes 0. Overgrown
+plants count proportionally more — a single size-300 healthy plant
+contributes 3.
+
+`getPlantPower` lives in `simulation/systems/plant-power.ts` and is
+the only place the formula appears.
+
+### Algae stressors
+
+| Stressor | Trigger | Severity (per unit deviation) |
+|----------|---------|-------------------------------|
+| Plant suppression | `plantPower > suppressionThreshold` | `plantSuppressionSeverity × (plantPower − threshold)` |
+
+There is intentionally no direct CO2 / temperature / pH / oxygen
+stressor on algae. Plant condition is the **meta-signal** — anything
+that hurts plants (low CO2, bad pH, ammonia spike) shows up to algae
+as falling plant power, which shifts algae from suppressed → fueled.
+
+### Algae benefits
+
+Capped at peak: `min(peak, severity × deviation)`.
+
+| Benefit | Trigger | Magnitude |
+|---------|---------|-----------|
+| Excess light | `light > lightExcessThreshold` (W/L) | `min(peak, severity × (wpl − threshold))` |
+| Excess nutrients | NO3 ppm or PO4 ppm above plant optimum | `min(peak, severity × max(no3Excess, po4Excess))` |
+| Nutrient deficiency | NO3 ppm or PO4 ppm below plant optimum | `min(peak, severity × max(no3Def, po4Def))` (small) |
+| Low plant power | `plantPower < weaknessThreshold` | `min(peak, severity × (threshold − power))` |
+
+`low_plant_power` and `plant_suppression` are mirror-image factors
+with a deadband between `weaknessThreshold` and `suppressionThreshold`
+— neither fires inside the band, giving the system a quiet zone.
+`excess_nutrients` is the dominant nutrient lever; `nutrient_deficiency`
+is the canary signalling "plants are starving, algae moves in" with
+intentionally small severity.
+
+### Mass dynamics
+
+**Surplus → mass growth.** When `condition === 100` and net rate is
+positive, the overflow becomes `algae.surplus`. A tick-spend step
+drains surplus into mass with the same asymptotic shape as plant
+growth:
+
+```
+drained      = min(algae.surplus, algaeGrowthPerTickCap)
+factor       = max(0, 1 − mass / 100)
+massIncrease = drained × factor × massPerSurplus
+```
+
+Photoperiod-gated: surplus banking and mass growth only happen while
+lights are on. Vitality runs every tick (condition can heal at night
+from non-light benefits), but no carbon fixation overnight means no
+energy capture and no biomass accumulation.
+
+**Mass decay.** When `condition < 100`, mass decays:
+
+```
+massDecay = decayRate × (1 − condition / 100) × mass
+```
+
+A fully-suppressed bloom (condition 0) bleeds at full
+`decayRate × mass`; a stable bloom at condition 50 bleeds at half
+that. Decay runs 24/7. Decayed mass is **lost from the system** —
+not converted to waste or nutrients. Same convention as scrubbing.
+
+**Spec invariant**: at `condition = 100`, mass is monotonically
+non-decreasing through mass decay. The only ways to remove healthy
+algae mass are scrubbing (manual) or driving condition below 100
+(heavy planting / rebalanced nutrients / light reduction).
+
+### Tick ordering
+
+Algae runs in the ACTIVE tier, **after plants**, before livestock.
+That order matters: algae stressors / benefits read freshly-updated
+plant condition through `getPlantPower`. The reverse direction — algae
+mass affecting plants via the plant-side `algae_shading` stressor —
+is allowed to lag by one tick (algae mass from the previous tick
+feeds this tick's plant vitality), an acceptable trade-off for the
+ordering required by the suppression feedback loop.
+
+### Algae shading on plants
+
+The plant-side `algae_shading` stressor reads `state.algae.mass` and
+fires once mass crosses `algaeShadingThreshold` (default 30). Above
+the threshold:
+
+```
+algaeShadingDamage = algaeShadingSeverity × (mass − threshold)
+```
+
+This is the feedback loop that makes the threshold meaningful: a
+mild bloom self-limits via plant suppression, but a heavy bloom
+hammers plants into decline, which lifts algae's `plant_suppression`
+stressor, which lets algae grow more — the death spiral. Manual
+scrubbing is the player's only out once it spirals.
+
+### Configuration
+
+All algae knobs live in `simulation/config/algae-vitality.ts`:
+hardiness, the suppression / weakness thresholds, severities and
+peaks for each benefit channel, decay rate, and the surplus-spend
+shape. First-pass values aim for **mechanism correctness**, not
+ecological accuracy — a recalibration session follows Task 42 and
+will tune these against the calibration scenarios.
+
+### Out of scope (deferred)
+
+- Nutrient consumption by algae (algae doesn't draw NO3 / PO4 from
+  the pool). If it did, `excess_nutrients` would self-limit
+  organically. Adds calibration surface — defer.
+- Algae as a fish stressor (covers gills, etc.). Real concern, but
+  decline path can wait.
+- Multiple algae species (BBA / GSA / hair). Single aggregate is
+  fine for now; the new state shape is extensible.
+- Mass-decay → waste conversion. Decayed algae just disappears.
+- Generic colony / mass-based-organism abstraction. This task makes
+  algae the first instance; refactor when a second instance lands
+  (snail / shrimp colony).
+
+---
+
 ## Competition with Algae
 
 Plants and algae compete for the same resources:
@@ -364,12 +521,13 @@ Healthy, fast-growing plants out-compete algae by consuming these shared resourc
 ```
 # Well-grown plants starve algae
 if plants_thriving:
-    available_nutrients_for_algae = low
-    algae_growth_suppressed = true
+    plantPower_high → algae_plant_suppression_active
+    algae_condition_falls → mass_decays
 
 # Struggling plants = algae opportunity
 if excess_nutrients AND poor_plant_health:
-    algae_bloom_likely = true
+    plantPower_low → algae_low_plant_power_benefit
+    excess_nutrients_benefit → algae_condition_climbs → mass_grows
 ```
 
 **Key dynamic**: Excess nutrients (especially nitrate and phosphate) combined with light promote algae. The natural defense is healthy plants that consume nutrients before algae can use them.

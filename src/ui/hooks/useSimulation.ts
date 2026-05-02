@@ -101,6 +101,7 @@ function stateToPersistedSimulation(
     equipment: state.equipment,
     plants: state.plants,
     fish: state.fish,
+    algae: state.algae,
     alertState: state.alertState,
     currentPreset,
   };

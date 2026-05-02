@@ -351,22 +351,17 @@ Living or organic components:
 
 ---
 
-### Algae
+### Algae (no longer a resource)
 
-| Property | Value |
-|----------|-------|
-| **Type** | Biological |
-| **Unit** | Relative (0-100) |
-| **Providers** | Light + nitrate + phosphate |
-| **Consumers** | Algae-eating colonies (snails, shrimp), scrubbing action |
+Algae is no longer a resource. It has been promoted to a top-level
+organism on `state.algae` (mass / condition / surplus) and runs through
+the shared vitality engine. See `6-PLANTS.md` § Algae as an organism
+for the full spec.
 
-**Notes:**
-- Grows with excess light and nutrients (especially nitrate and phosphate)
-- Competes with plants for light, CO2, nitrate, and phosphate
-- Thrives when nutrients exceed plant consumption capacity
-- Food source for some livestock
-- Accumulates on glass, hardscape
-- Healthy plant growth starves algae by consuming shared nutrients
+The reason it lives outside the resource layer: vitality-driven
+condition + surplus + mass-decay don't fit the "stock with deltas"
+shape resources use. Algae is closer to a plant or fish than to a
+chemical concentration.
 
 ---
 

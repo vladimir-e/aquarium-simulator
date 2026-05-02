@@ -42,7 +42,6 @@ const ResourcesSchema = z
     aeration: z.boolean(),
     food: z.number().min(0),
     waste: z.number().min(0),
-    algae: z.number().min(0).max(100),
     ammonia: z.number().min(0),
     nitrite: z.number().min(0),
     nitrate: z.number().min(0),
@@ -54,6 +53,18 @@ const ResourcesSchema = z
     ph: z.number().min(0).max(14),
     aob: z.number().min(0),
     nob: z.number().min(0),
+  })
+  .strict();
+
+// ============================================================================
+// Algae Schema
+// ============================================================================
+
+const AlgaeStateSchema = z
+  .object({
+    mass: z.number().min(0).max(100),
+    condition: z.number().min(0).max(100),
+    surplus: z.number().min(0),
   })
   .strict();
 
@@ -236,6 +247,7 @@ export const PersistedSimulationSchema = z
     equipment: EquipmentSchema,
     plants: z.array(PlantSchema),
     fish: z.array(FishSchema),
+    algae: AlgaeStateSchema,
     alertState: AlertStateSchema,
     currentPreset: z.string(),
   })
@@ -305,9 +317,22 @@ const EvaporationConfigSchema = z
 
 const AlgaeConfigSchema = z
   .object({
-    maxGrowthRate: z.number(),
-    halfSaturation: z.number(),
-    algaeCap: z.number(),
+    hardiness: z.number(),
+    suppressionThreshold: z.number(),
+    plantSuppressionSeverity: z.number(),
+    lightExcessThreshold: z.number(),
+    excessLightPeak: z.number(),
+    excessLightSeverity: z.number(),
+    excessNutrientPeak: z.number(),
+    excessNutrientSeverity: z.number(),
+    nutrientDeficiencyPeak: z.number(),
+    nutrientDeficiencySeverity: z.number(),
+    weaknessThreshold: z.number(),
+    lowPlantPowerPeak: z.number(),
+    lowPlantPowerSeverity: z.number(),
+    decayRate: z.number(),
+    algaeGrowthPerTickCap: z.number(),
+    massPerSurplus: z.number(),
   })
   .strict();
 
