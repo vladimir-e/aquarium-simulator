@@ -1,19 +1,30 @@
 {
   "name": "aquarium-simulator",
-  "version": "1.0.0",
-  "description": "Comprehensive aquarium ecosystem simulation engine",
+  "version": "0.1.0",
+  "description": "Pure-TypeScript aquarium ecosystem simulation engine — water chemistry, nitrogen cycle, livestock, plants, algae, and equipment.",
+  "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
-  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "sideEffects": false,
+  "files": [
+    "dist"
+  ],
   "scripts": {
-    "build": "tsc",
+    "build": "rm -rf dist && tsc -p tsconfig.build.json",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "lint": "eslint 'src/**/*.{ts,tsx}'",
     "lint:fresh": "eslint --no-cache 'src/**/*.{ts,tsx}'",
     "ui": "vite",
-    "ui:build": "vite build"
+    "ui:build": "vite build",
+    "prepublishOnly": "npm run build && npm test"
   },
   "repository": {
     "type": "git",
@@ -21,21 +32,22 @@
   },
   "keywords": [
     "aquarium",
+    "fish-tank",
     "simulation",
-    "ecosystem"
+    "ecosystem",
+    "nitrogen-cycle",
+    "water-chemistry",
+    "biology",
+    "typescript"
   ],
-  "author": "",
-  "license": "ISC",
+  "author": "Vladimir Evdokimov",
+  "license": "MIT",
   "bugs": {
     "url": "https://github.com/vladimir-e/aquarium-simulator/issues"
   },
   "homepage": "https://github.com/vladimir-e/aquarium-simulator#readme",
   "dependencies": {
-    "immer": "^11.1.3",
-    "lucide-react": "^0.562.0",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
-    "zod": "^4.3.6"
+    "immer": "^11.1.3"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.0.13",
@@ -49,9 +61,13 @@
     "@vitest/coverage-v8": "^4.0.17",
     "eslint": "^9.39.2",
     "happy-dom": "^16.2.3",
+    "lucide-react": "^0.562.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
     "tailwindcss": "^4.0.13",
     "typescript": "^5.9.3",
     "vite": "^6.0.7",
-    "vitest": "^4.0.17"
+    "vitest": "^4.0.17",
+    "zod": "^4.3.6"
   }
 }

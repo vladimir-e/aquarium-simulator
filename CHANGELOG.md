@@ -11,6 +11,7 @@ Format: - **Feature name** (#PR) - One short sentence (under ~150 chars)
 
 ## Unreleased
 
+- **npm packaging** - publish-ready as `aquarium-simulator` v0.1.0: build ships only the pure-TS engine (no UI/CLI), MIT license, trusted-publishing release workflow.
 - **Algae as pure population** - Task 42 follow-up (#48): drop `condition` from `AlgaeState`; net rate drives mass directly.
 
 ## 2026-05-02
