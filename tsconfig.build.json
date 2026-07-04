@@ -1,0 +1,16 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "declarationMap": false,
+    "sourceMap": false
+  },
+  "exclude": [
+    "node_modules",
+    "dist",
+    "dist-ui",
+    "src/**/*.test.ts",
+    "src/**/*.test.tsx",
+    "src/ui",
+    "src/cli"
+  ]
+}

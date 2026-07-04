@@ -1,0 +1,40 @@
+name: Release
+
+# Publishes to npm via trusted publishing (OIDC) — no NPM_TOKEN.
+# Prerequisite: after the first manual `npm publish`, configure this repo/workflow
+# as a trusted publisher for the package on npmjs.com (package Settings → Publishing).
+on:
+  release:
+    types: [published]
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          registry-url: 'https://registry.npmjs.org'
+
+      # Trusted publishing requires npm >= 11.5.1, newer than what Node 22 bundles.
+      - name: Update npm
+        run: npm install -g npm@latest
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+      - name: Publish to npm
+        run: npm publish --provenance --access public
