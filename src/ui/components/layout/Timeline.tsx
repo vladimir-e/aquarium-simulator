@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Play, Pause, Gauge, RotateCcw, Settings } from 'lucide-react';
+import { Play, Pause, Gauge, RotateCcw, Settings, Github } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { ThemeSwitcher } from '../ui/ThemeSwitcher';
 import { ConfirmDialog } from '../ui/ConfirmDialog';
@@ -142,6 +142,17 @@ export function Timeline({
             <RotateCcw className="w-3.5 h-3.5" />
             Reset
           </Button>
+          <div className="w-px h-6 bg-border" />
+          <a
+            href="https://github.com/vladimir-e/aquarium-simulator"
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="View source on GitHub"
+            title="View source on GitHub"
+            className="p-1.5 rounded text-gray-400 transition-all duration-100 hover:bg-panel hover:text-gray-100 focus:outline-none focus:ring-2 focus:ring-accent-blue/50"
+          >
+            <Github className="w-4 h-4" />
+          </a>
         </div>
       </div>
     </div>
