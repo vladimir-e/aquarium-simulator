@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "description": "Pure-TypeScript aquarium ecosystem simulation engine — water chemistry, nitrogen cycle, livestock, plants, algae, and equipment.",
   "type": "module",
+  "packageManager": "npm@11.4.2",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "exports": {
