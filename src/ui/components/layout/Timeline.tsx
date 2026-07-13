@@ -119,10 +119,8 @@ export function Timeline({
           </div>
         </div>
 
-        {/* Right: Theme, Debug, and Reset buttons (fixed) */}
+        {/* Right: Debug, Reset, GitHub, and Theme (fixed) */}
         <div className="flex items-center gap-2">
-          <ThemeSwitcher />
-          <div className="w-px h-6 bg-border" />
           <Button
             onClick={toggleDebugPanel}
             variant="secondary"
@@ -149,10 +147,12 @@ export function Timeline({
             rel="noopener noreferrer"
             aria-label="View source on GitHub"
             title="View source on GitHub"
-            className="p-1.5 rounded text-gray-400 transition-all duration-100 hover:bg-panel hover:text-gray-100 focus:outline-none focus:ring-2 focus:ring-accent-blue/50"
+            className="px-3 py-1.5 rounded text-xs font-medium flex items-center gap-1.5 border border-border bg-transparent text-gray-300 transition-all duration-100 hover:bg-panel hover:text-gray-100 hover:border-gray-500 active:scale-95 active:bg-border focus:outline-none focus:ring-2 focus:ring-accent-blue/50"
           >
-            <Github className="w-4 h-4" />
+            <Github className="w-3.5 h-3.5" />
+            GitHub
           </a>
+          <ThemeSwitcher />
         </div>
       </div>
     </div>
