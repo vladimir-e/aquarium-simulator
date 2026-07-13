@@ -25,6 +25,7 @@ export default [
         HTMLSelectElement: 'readonly',
         HTMLDivElement: 'readonly',
         KeyboardEvent: 'readonly',
+        PointerEvent: 'readonly',
         clearInterval: 'readonly',
         console: 'readonly',
         React: 'readonly',

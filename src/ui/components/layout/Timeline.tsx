@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Play, Pause, Gauge, RotateCcw, Settings } from 'lucide-react';
+import { Play, Pause, Gauge, RotateCcw, Settings, Github } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { ThemeSwitcher } from '../ui/ThemeSwitcher';
 import { ConfirmDialog } from '../ui/ConfirmDialog';
@@ -56,7 +56,7 @@ export function Timeline({
         onConfirm={handleConfirmReset}
         onCancel={() => setShowResetConfirm(false)}
       />
-    <div className="sticky top-0 z-10 bg-panel border-b border-border px-4 py-3">
+    <div className="sticky top-0 z-20 bg-panel border-b border-border px-4 py-3">
       <div className="grid grid-cols-[auto_1fr_auto] items-center gap-4">
         {/* Left: Title (fixed) */}
         <div className="text-xs font-semibold text-gray-400 tracking-wider leading-tight">
@@ -119,10 +119,19 @@ export function Timeline({
           </div>
         </div>
 
-        {/* Right: Theme, Debug, and Reset buttons (fixed) */}
+        {/* Right: GitHub, Debug, Reset, and Theme (fixed) */}
         <div className="flex items-center gap-2">
-          <ThemeSwitcher />
-          <div className="w-px h-6 bg-border" />
+          <a
+            href="https://github.com/vladimir-e/aquarium-simulator"
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="View source on GitHub"
+            title="View source on GitHub"
+            className="px-3 py-1.5 rounded text-xs font-medium flex items-center gap-1.5 border border-white/10 bg-[#24292f] text-white shadow-sm transition-all duration-100 hover:bg-[#32383f] active:scale-95 focus:outline-none focus:ring-2 focus:ring-accent-blue/50"
+          >
+            <Github className="w-3.5 h-3.5" />
+            GitHub
+          </a>
           <Button
             onClick={toggleDebugPanel}
             variant="secondary"
@@ -142,6 +151,8 @@ export function Timeline({
             <RotateCcw className="w-3.5 h-3.5" />
             Reset
           </Button>
+          <div className="w-px h-6 bg-border" />
+          <ThemeSwitcher />
         </div>
       </div>
     </div>
