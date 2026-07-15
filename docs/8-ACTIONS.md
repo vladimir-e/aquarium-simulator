@@ -328,8 +328,8 @@ fry = state.fish.filter(f => f.stage === 'fry')
 if fry.length == 0:
     return "No fry to sell"          # no-op
 
-state.fish = state.fish.filter(f => f.stage !== 'adult' ? false : true)
-# i.e. keep only adults; log a user-source `fry-sold` event with the count
+state.fish = state.fish.filter(f => f.stage !== 'fry')   # drop every fry, keep adults
+# log a user-source `fry-sold` event with the count
 ```
 
 The log entry carries the typed `fry-sold` event so game-side consumers can

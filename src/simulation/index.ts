@@ -215,6 +215,7 @@ export {
   removeFish,
   sellFry,
   canAddFish,
+  checkFishCapacity,
   getMaxFishMass,
   totalFishMass,
 } from './actions/index.js';

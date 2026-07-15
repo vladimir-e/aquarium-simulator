@@ -143,7 +143,7 @@ spec). Each tick the engine builds two factor lists for the fish:
 | Ammonia (free NH3) | 0 ppm | `ammoniaStressSeverity` × free NH3 ppm |
 | Nitrite | 0 ppm | `nitriteStressSeverity` × ppm |
 | Nitrate | < 40 ppm | `nitrateStressSeverity` × ppm above 40 |
-| Satiation (overfed) | satiation < 90 | ramp from 0 at 90 to `satiationOverfedSeverity` at 100 |
+| Satiation (overfed) | satiation < 99 | ramp from 0 at 99 to `satiationOverfedSeverity` at 100 |
 | Satiation (hungry) | satiation > 50 | ramp from 0 at 50 to `satiationHungrySeverity` at 25 |
 | Satiation (starving) | satiation > 25 | ramp from `satiationHungrySeverity` at 25 to `satiationStarvingSeverity` at 0 (steeper) |
 | Oxygen | > 5 mg/L | `oxygenStressSeverity` × mg/L below 5 |

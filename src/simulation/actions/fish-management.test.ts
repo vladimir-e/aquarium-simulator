@@ -236,7 +236,7 @@ describe('addFish stocking cap', () => {
     const state = produce(createSimulation({ tankCapacity: capacity }), (draft) => {
       draft.fish.push(fish({ id: 'fry_1', species: 'angelfish', mass: 9.5, stage: 'fry' }));
     });
-    expect(totalFishMass(state)).toBeCloseTo(9.5, 5);
+    expect(totalFishMass(state.fish)).toBeCloseTo(9.5, 5);
     // A neon tetra (0.5 g) still fits (9.5 + 0.5 = 10 ≤ 10); a guppy (1 g) doesn't.
     expect(canAddFish(state, 'neon_tetra')).toBe(true);
     expect(canAddFish(state, 'guppy')).toBe(false);
@@ -249,7 +249,7 @@ describe('addFish stocking cap', () => {
     for (let i = 0; i < 33; i++) {
       state = addFish(state, { type: 'addFish', species: 'angelfish' }).state;
     }
-    expect(totalFishMass(state)).toBeCloseTo(495, 5); // 33 × 15
+    expect(totalFishMass(state.fish)).toBeCloseTo(495, 5); // 33 × 15
     expect(canAddFish(state, 'angelfish')).toBe(false); // 34th (510 g) won't fit
     const rejected = addFish(state, { type: 'addFish', species: 'angelfish' });
     expect(rejected.state.fish).toHaveLength(33);

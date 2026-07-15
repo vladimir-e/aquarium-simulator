@@ -15,7 +15,7 @@ import {
   FISH_SPECIES_DATA,
   computeFishVitality,
   classifySatiationBandPosition,
-  getMaxFishMass,
+  checkFishCapacity,
   SATIATION_BAND_LABEL,
   type SatiationBand,
 } from '../../../simulation/index.js';
@@ -409,12 +409,9 @@ export function Livestock({
   const fryCount = fish.reduce((n, f) => n + (f.stage === 'fry' ? 1 : 0), 0);
 
   // Physical stocking ceiling — mirrors the Plants panel's capacity gate.
-  // Total current fish mass plus one more adult of the selected species
-  // must fit under the tank's volume-derived limit.
-  const maxFishMass = getMaxFishMass(tankCapacity);
-  const currentFishMass = fish.reduce((sum, f) => sum + f.mass, 0);
-  const canAddSelected =
-    currentFishMass + FISH_SPECIES_DATA[selectedSpecies].adultMass <= maxFishMass;
+  // Shares checkFishCapacity with the addFish action so the cap math and
+  // rejection message can't drift.
+  const fishCapacity = checkFishCapacity(fish, tankCapacity, selectedSpecies);
 
   const handleAddFish = (): void => {
     executeAction({ type: 'addFish', species: selectedSpecies });
@@ -532,16 +529,14 @@ export function Livestock({
             </div>
             <Button
               onClick={handleAddFish}
-              disabled={!canAddSelected}
+              disabled={!fishCapacity.ok}
               variant="primary"
             >
               Add
             </Button>
           </div>
-          {!canAddSelected && (
-            <div className="text-xs text-yellow-400 mt-1">
-              Tank at fish capacity (~{Math.floor(maxFishMass)}g of fish max)
-            </div>
+          {!fishCapacity.ok && (
+            <div className="text-xs text-yellow-400 mt-1">{fishCapacity.message}</div>
           )}
           {/* Species info */}
           <div className="text-xs text-gray-500 mt-2">

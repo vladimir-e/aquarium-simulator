@@ -3,7 +3,7 @@
  */
 
 import { produce } from 'immer';
-import type { SimulationState, FishSpecies } from '../state.js';
+import type { SimulationState, FishSpecies, Fish } from '../state.js';
 import { FISH_SPECIES_DATA } from '../state.js';
 import { createLog } from '../core/logging.js';
 import { createFish } from '../livestock/create-fish.js';
@@ -44,20 +44,44 @@ export function getMaxFishMass(tankCapacity: number): number {
   return MAX_FISH_VOLUME_FRACTION * tankCapacity * ML_PER_LITER * FISH_GRAMS_PER_ML;
 }
 
-/** Current total body mass (grams) of every fish in the tank, fry included. */
-export function totalFishMass(state: SimulationState): number {
-  return state.fish.reduce((sum, f) => sum + f.mass, 0);
+/** Current total body mass (grams) of a set of fish, fry included. */
+export function totalFishMass(fish: Fish[]): number {
+  return fish.reduce((sum, f) => sum + f.mass, 0);
+}
+
+export interface FishCapacityResult {
+  /** True if one more adult of the species fits under the physical ceiling. */
+  ok: boolean;
+  /** Rejection message when `!ok`; empty string when it fits. */
+  message: string;
+}
+
+/**
+ * Single source of truth for the {@link addFish} stocking ceiling — the
+ * cap comparison and its rejection message. Both the action (via
+ * {@link canAddFish}) and the demo UI call this, so the math and the
+ * message can't drift apart. Mirrors {@link canAddPlant}'s capacity gate.
+ */
+export function checkFishCapacity(
+  fish: Fish[],
+  tankCapacity: number,
+  species: FishSpecies
+): FishCapacityResult {
+  const speciesData = FISH_SPECIES_DATA[species];
+  const maxMass = getMaxFishMass(tankCapacity);
+  const ok = Boolean(speciesData) && totalFishMass(fish) + speciesData.adultMass <= maxMass;
+  return {
+    ok,
+    message: ok ? '' : `Tank at fish capacity (~${Math.floor(maxMass)}g of fish max)`,
+  };
 }
 
 /**
  * Whether one more adult of `species` fits under the physical stocking
- * ceiling. Mirrors {@link canAddPlant} — the UI uses it to gate the Add
- * button, and {@link addFish} enforces it on the action itself.
+ * ceiling. Thin state-based wrapper over {@link checkFishCapacity}.
  */
 export function canAddFish(state: SimulationState, species: FishSpecies): boolean {
-  const speciesData = FISH_SPECIES_DATA[species];
-  if (!speciesData) return false;
-  return totalFishMass(state) + speciesData.adultMass <= getMaxFishMass(state.tank.capacity);
+  return checkFishCapacity(state.fish, state.tank.capacity, species).ok;
 }
 
 /**
@@ -83,12 +107,9 @@ export function addFish(
   const speciesData = FISH_SPECIES_DATA[species];
 
   // Physical stocking ceiling — see MAX_FISH_VOLUME_FRACTION.
-  if (!canAddFish(state, species)) {
-    const maxMass = getMaxFishMass(state.tank.capacity);
-    return {
-      state,
-      message: `Tank at fish capacity (~${Math.floor(maxMass)}g of fish max)`,
-    };
+  const capacity = checkFishCapacity(state.fish, state.tank.capacity, species);
+  if (!capacity.ok) {
+    return { state, message: capacity.message };
   }
 
   const fish = createFish({ species, age: 0, stage: 'adult' });
