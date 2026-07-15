@@ -15,7 +15,8 @@ export type LogEvent =
   | 'fish-spawned' // livebearer live birth — fry added directly
   | 'eggs-laid' // egg-laying spawn — a clutch was created
   | 'eggs-hatched' // a clutch reached its hatch time — fry added
-  | 'fish-died'; // a fish died (any cause)
+  | 'fish-died' // a fish died (any cause)
+  | 'fry-sold'; // the sell-fry action removed every fry at once
 
 export interface LogEntry {
   /** Simulation tick when event occurred */

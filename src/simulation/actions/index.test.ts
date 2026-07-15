@@ -70,4 +70,26 @@ describe('applyAction', () => {
     expect(lastLog.source).toBe('user');
     expect(lastLog.message).toContain('Topped off water');
   });
+
+  it('dispatches sellFry action to correct handler', () => {
+    const state = produce(createSimulation({ tankCapacity: 100 }), (draft) => {
+      draft.fish.push({
+        id: 'fry_1',
+        species: 'guppy',
+        mass: 0.1,
+        health: 100,
+        age: 0,
+        satiation: 70,
+        sex: 'female',
+        stage: 'fry',
+        hardinessOffset: 0,
+        surplus: 0,
+      });
+    });
+
+    const result = applyAction(state, { type: 'sellFry' });
+
+    expect(result.state.fish).toHaveLength(0);
+    expect(result.message).toBe('Sold 1 fry');
+  });
 });

@@ -338,6 +338,18 @@ timers. A female must climb back to the cost from her benefit budget
 before she can spawn again, so a well-run tank breeds on a natural
 cadence set by its net rate and the cap.
 
+### Breeding is uncapped
+
+The physical stocking ceiling that gates the `addFish` action (see
+`8-ACTIONS.md` § Add Fish) does **not** apply to reproduction. Breeding
+and hatching add fry freely, and a bred cohort can legitimately push total
+fish mass past the ceiling — at which point `addFish` refuses further
+stocking until the population drops, but the ecology is otherwise left to
+self-regulate through the vitality engine (crowding raises the bioload,
+which degrades conditions, which throttles the surplus that funds the next
+spawn). This asymmetry is deliberate: the player's manual overstocking is
+plausibility-limited, but the tank's own population dynamics are not.
+
 ### Spawn output — by mode
 
 Each species reproduces one of two ways:

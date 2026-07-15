@@ -213,6 +213,10 @@ export {
   calculateDoseNutrients,
   addFish,
   removeFish,
+  sellFry,
+  canAddFish,
+  getMaxFishMass,
+  totalFishMass,
 } from './actions/index.js';
 export type { WaterChangeAmount, TrimTargetSize } from './actions/index.js';
 
