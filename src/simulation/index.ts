@@ -185,6 +185,7 @@ export type {
   DoseAction,
   AddFishAction,
   RemoveFishAction,
+  SellFryAction,
   ActionResult,
 } from './actions/index.js';
 export {

@@ -74,7 +74,11 @@ export interface VitalityInput {
    * over-cap value from an old save self-heals on the first tick.
    */
   surplus: number;
-  /** Saturation cap for the bank. Accrual beyond it is discarded. */
+  /**
+   * Saturation cap for the bank. Accrual beyond it is discarded. A
+   * negative cap is a nonsensical ceiling and is floored to 0 (an
+   * always-empty bank), so surplus can never be driven below 0.
+   */
   surplusCap: number;
   /**
    * Whether positive overflow accrues into the bank this tick. Defaults
@@ -149,10 +153,12 @@ function clampBank(bank: number, cap: number): number {
  * the stock. Benefit (`net > 0`) accrues into the bank up to `cap` when
  * `accrue` is set, discarding the rest ("vitamin absorption").
  *
- * `bank` is clamped into `[0, cap]` on entry, so an over-cap value from
- * an old save self-heals on the first tick. Shared by `computeVitality`
- * (fish / plants) and the algae orchestrator so every organism type
- * buffers damage identically.
+ * `cap` is floored to 0 first (a negative saturation ceiling is
+ * nonsensical), then `bank` is clamped into `[0, cap]` on entry — so an
+ * over-cap value from an old save self-heals on the first tick and no
+ * caller can drive the bank negative (the persisted `surplus` schema
+ * requires ≥ 0). Shared by `computeVitality` (fish / plants) and the
+ * algae orchestrator so every organism type buffers damage identically.
  */
 export function bankSurplus(
   bank: number,
@@ -160,13 +166,14 @@ export function bankSurplus(
   cap: number,
   accrue: boolean
 ): SurplusBankTick {
-  const start = clampBank(bank, cap);
+  const safeCap = Math.max(0, cap);
+  const start = clampBank(bank, safeCap);
   if (net < 0) {
     const drained = Math.min(start, -net);
     return { surplus: start - drained, drained, overflowDamage: -net - drained };
   }
   if (net > 0 && accrue) {
-    return { surplus: Math.min(cap, start + net), drained: 0, overflowDamage: 0 };
+    return { surplus: Math.min(safeCap, start + net), drained: 0, overflowDamage: 0 };
   }
   // net === 0, or positive net with accrual gated off (overflow discarded).
   return { surplus: start, drained: 0, overflowDamage: 0 };
@@ -216,7 +223,11 @@ export function computeVitality(input: VitalityInput): VitalityResult {
   const net = benefitRate - damageRate;
 
   const condition = Math.max(0, Math.min(100, input.condition));
-  const cap = input.surplusCap;
+  // Floor the cap at 0 — a negative saturation ceiling is nonsensical and
+  // would otherwise clamp the bank negative, violating the persisted
+  // `surplus >= 0` schema. bankSurplus floors independently; this covers
+  // the idle-tick clampBank path below.
+  const cap = Math.max(0, input.surplusCap);
   const accrue = input.accrueSurplus ?? true;
 
   let newCondition: number;

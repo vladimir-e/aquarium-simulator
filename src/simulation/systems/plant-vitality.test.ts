@@ -244,6 +244,23 @@ describe('computePlantVitality', () => {
     expect(result.surplus).toBeGreaterThan(0);
   });
 
+  it('never writes a negative surplus when the cap is negative', () => {
+    // A negative surplusCap floors to 0 rather than banking a negative
+    // surplus, which the persisted `surplus >= 0` schema would reject.
+    const resources = makeResources(); // light > 0 → accrual on
+    const negCap = { ...plantsDefaults, surplusCap: -50 };
+    const accruing = computePlantVitality({
+      ...ctx(makePlant('java_fern', { condition: 100, surplus: 0 }), resources),
+      plantsConfig: negCap,
+    });
+    expect(accruing.surplus).toBe(0);
+    const buffered = computePlantVitality({
+      ...ctx(makePlant('java_fern', { condition: 100, surplus: 20 }), resources),
+      plantsConfig: negCap,
+    });
+    expect(buffered.surplus).toBe(0);
+  });
+
   it('hardier species declines slower under same stress', () => {
     // Anubias hardiness 0.75, MC hardiness 0.3. Same harsh CO2 = 2.
     // Both species' tolerableCO2 lower bound differs (Anubias 1, MC 10),

@@ -192,6 +192,31 @@ describe('computeVitality', () => {
     });
   });
 
+  describe('negative cap is floored at zero (data integrity)', () => {
+    it('never banks a negative surplus while accruing at full condition', () => {
+      // Accrual path with cap −10: the ceiling floors to 0, so a positive
+      // net cannot push the bank negative.
+      const result = computeVitality(
+        input({ benefits: [benefit('great', 5)], hardiness: 0, condition: 100, surplus: 3, surplusCap: -10 })
+      );
+      expect(result.surplus).toBe(0);
+    });
+
+    it('floors an existing bank to zero on an idle tick', () => {
+      const result = computeVitality(
+        input({ hardiness: 0, condition: 90, surplus: 8, surplusCap: -10 })
+      );
+      expect(result.surplus).toBe(0);
+    });
+
+    it('never drives condition-buffering surplus below zero on a damage tick', () => {
+      const result = computeVitality(
+        input({ stressors: [stressor('a', 2)], hardiness: 0, condition: 100, surplus: 8, surplusCap: -10 })
+      );
+      expect(result.surplus).toBe(0);
+    });
+  });
+
   describe('self-heal clamp on oversized banks', () => {
     it('clamps an over-cap bank down to the cap on an idle tick', () => {
       const result = computeVitality(input({ hardiness: 0.5, condition: 90, surplus: 80 }));
@@ -409,5 +434,12 @@ describe('bankSurplus', () => {
 
   it('is a no-op on the bank when net is zero', () => {
     expect(bankSurplus(12, 0, CAP, true)).toEqual({ surplus: 12, drained: 0, overflowDamage: 0 });
+  });
+
+  it('treats a negative cap as zero across every branch', () => {
+    // Accrual, drain, and idle must all leave the bank at 0, never below.
+    expect(bankSurplus(8, 5, -10, true).surplus).toBe(0);
+    expect(bankSurplus(8, -2, -10, true).surplus).toBe(0);
+    expect(bankSurplus(8, 0, -10, true).surplus).toBe(0);
   });
 });

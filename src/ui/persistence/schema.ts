@@ -348,7 +348,7 @@ const AlgaeConfigSchema = z
     lowPlantPowerSeverity: z.number(),
     algaeGrowthPerTickCap: z.number(),
     massPerSurplus: z.number(),
-    surplusCap: z.number(),
+    surplusCap: z.number().min(0),
   })
   .strict();
 
@@ -379,7 +379,7 @@ const PlantsConfigSchema = z
     respirationReferenceTemp: z.number(),
     plantGrowthPerTickCap: z.number(),
     sizePerSurplus: z.number(),
-    surplusCap: z.number(),
+    surplusCap: z.number().min(0),
     // Vitality stressor severities
     lightInsufficientSeverity: z.number(),
     lightExcessiveSeverity: z.number(),
@@ -462,7 +462,7 @@ const LivestockConfigSchema = z
     oxygenBenefitPeak: z.number(),
     plantBenefitPeak: z.number(),
     plantBenefitSaturationPoint: z.number(),
-    surplusCap: z.number(),
+    surplusCap: z.number().min(0),
     deathDecayFactor: z.number(),
   })
   .strict();

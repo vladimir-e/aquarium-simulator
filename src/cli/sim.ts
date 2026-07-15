@@ -186,6 +186,9 @@ export function buildAction(type: string, args: string[]): Action {
       }
       return { type: 'trimPlants', targetSize: target };
     }
+    case 'sellFry': {
+      return { type: 'sellFry' };
+    }
     default:
       throw new Error(`Unknown action type "${type}".`);
   }
@@ -207,7 +210,7 @@ function printHelp(): void {
       '  config get [<dotted.path>]',
       '  config set <dotted.path> <value>',
       '  action <type> [args...]   (feed 2.5, waterChange 40, dose 1, topOff,',
-      '                             scrubAlgae 20, trimPlants 85)',
+      '                             scrubAlgae 20, trimPlants 85, sellFry)',
       '  smoke',
       '',
       'Session persists at .simstate/current.json.',
@@ -244,17 +247,31 @@ function cmdAdd(sub: string, flags: Record<string, string>): void {
       throw new Error('add fish count must be a positive integer.');
     }
     let working = session;
-    let lastMsg = '';
+    let added = 0;
+    let rejection = '';
     for (let i = 0; i < count; i++) {
+      const before = working.state.fish.length;
       const res = applyAndRecord(working, {
         type: 'addFish',
         species: species as Action extends { type: 'addFish'; species: infer S } ? S : never,
       } as Action);
+      // addFish returns the state unchanged (no fish appended) when it
+      // rejects — species unknown or the tank at its physical stocking
+      // ceiling. Stop on the first rejection rather than spinning no-ops
+      // and overstating the count.
+      if (res.session.state.fish.length === before) {
+        rejection = res.message;
+        break;
+      }
       working = res.session;
-      lastMsg = res.message;
+      added++;
     }
     saveSession(working);
-    process.stdout.write(`Added ${count} ${species}. ${lastMsg}\n`);
+    const summary =
+      rejection && added < count
+        ? `Added ${added} of ${count} ${species} (stopped: ${rejection}).`
+        : `Added ${added} ${species}.`;
+    process.stdout.write(`${summary}\n`);
     return;
   }
   if (sub === 'plant') {

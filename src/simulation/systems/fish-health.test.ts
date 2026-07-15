@@ -835,6 +835,24 @@ describe('surplus buffer and cap', () => {
     const result = processHealth(fish, resources, [], 100, 100, livestockDefaults);
     expect(result.survivingFish[0].surplus).toBe(livestockDefaults.surplusCap);
   });
+
+  it('never writes a negative surplus when the cap is negative', () => {
+    // A negative surplusCap must floor to 0 — a negative surplus would be
+    // rejected by the persisted `surplus >= 0` schema, silently discarding
+    // the save. Holds whether the fish is accruing or already banked.
+    const negCap = { ...livestockDefaults, surplusCap: -50 };
+    const resources = makeResources(); // all-good → net positive at 100
+    const accruing = computeFishVitality(
+      makeFish({ health: 100, satiation: 87, surplus: 0 }),
+      resources, [], 100, 100, negCap
+    );
+    expect(accruing.surplus).toBe(0);
+    const buffered = computeFishVitality(
+      makeFish({ health: 100, satiation: 87, surplus: 20 }),
+      resources, [], 100, 100, negCap
+    );
+    expect(buffered.surplus).toBe(0);
+  });
 });
 
 describe('plant-presence fish benefit', () => {
