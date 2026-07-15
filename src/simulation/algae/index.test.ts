@@ -15,7 +15,7 @@ import { produce } from 'immer';
 import { processAlgae, spendAlgaeSurplus } from './index.js';
 import { algaeVitalityDefaults } from '../config/algae-vitality.js';
 import { DEFAULT_CONFIG } from '../config/index.js';
-import { createSimulation, type SimulationState } from '../state.js';
+import { createSimulation, type SimulationState, type Plant } from '../state.js';
 
 function baseState(): SimulationState {
   return createSimulation({ tankCapacity: 100 });
@@ -171,5 +171,79 @@ describe('processAlgae', () => {
     });
     const { state: out } = processAlgae(state, DEFAULT_CONFIG);
     expect(out.algae.mass).toBe(0);
+  });
+});
+
+describe('processAlgae — surplus buffer and cap', () => {
+  // Algae inherits the same reserve-buffer semantics as fish/plants:
+  // suppression drains the surplus bank before mass shrinks, accrual
+  // saturates at `surplusCap`, and an over-cap bank self-heals.
+
+  const heavyPlants = (): Plant[] => [
+    { id: 'p1', species: 'amazon_sword', size: 200, condition: 100, surplus: 0 },
+    { id: 'p2', species: 'monte_carlo', size: 200, condition: 100, surplus: 0 },
+    { id: 'p3', species: 'java_fern', size: 200, condition: 100, surplus: 0 },
+  ];
+
+  it('drains the reserve before shrinking mass under suppression', () => {
+    // Same heavy-plant suppression that shrinks an unbuffered bloom, but
+    // with a stocked reserve: mass is protected while the bank absorbs
+    // the hit, and the bank ticks down instead.
+    const state = produce(baseState(), (draft) => {
+      draft.algae = { mass: 80, surplus: 50 };
+      draft.resources.light = 0;
+      draft.plants = heavyPlants();
+    });
+    const { state: out } = processAlgae(state, DEFAULT_CONFIG);
+    expect(out.algae.mass).toBe(80); // fully buffered
+    expect(out.algae.surplus).toBeLessThan(50);
+    expect(out.algae.surplus).toBeGreaterThan(48); // small per-tick drain
+  });
+
+  it('shrinks mass only by the shortfall once the reserve cannot cover it', () => {
+    // Tiny reserve vs the same suppression: the bank absorbs its sliver,
+    // and the rest of the damage still reaches mass.
+    const withReserve = produce(baseState(), (draft) => {
+      draft.algae = { mass: 80, surplus: 0.1 };
+      draft.resources.light = 0;
+      draft.plants = heavyPlants();
+    });
+    const noReserve = produce(baseState(), (draft) => {
+      draft.algae = { mass: 80, surplus: 0 };
+      draft.resources.light = 0;
+      draft.plants = heavyPlants();
+    });
+    const buffered = processAlgae(withReserve, DEFAULT_CONFIG).state.algae;
+    const unbuffered = processAlgae(noReserve, DEFAULT_CONFIG).state.algae;
+    expect(buffered.surplus).toBe(0);
+    // The 0.1 reserve softens the hit by exactly 0.1 of mass.
+    expect(buffered.mass).toBeCloseTo(unbuffered.mass + 0.1, 6);
+  });
+
+  it('never lets the surplus bank exceed the cap across a pure-light run', () => {
+    let state = produce(baseState(), (draft) => {
+      draft.algae = { mass: 10, surplus: 0 };
+      draft.resources.light = 100; // strong excess light → positive net
+      draft.resources.nitrate = 0;
+      draft.resources.phosphate = 0;
+    });
+    for (let i = 0; i < 200; i++) {
+      state = processAlgae(state, DEFAULT_CONFIG).state;
+      expect(state.algae.surplus).toBeLessThanOrEqual(algaeVitalityDefaults.surplusCap);
+    }
+  });
+
+  it('self-heals an over-cap bank from an old save', () => {
+    // Lights off (no accrual, no spend), no plants: positive net can't
+    // accrue, but the over-cap bank still clamps down to the cap.
+    const state = produce(baseState(), (draft) => {
+      draft.algae = { mass: 30, surplus: 80 };
+      draft.resources.light = 0;
+      draft.resources.nitrate = 0;
+      draft.resources.phosphate = 0;
+    });
+    const { state: out } = processAlgae(state, DEFAULT_CONFIG);
+    expect(out.algae.surplus).toBe(algaeVitalityDefaults.surplusCap);
+    expect(out.algae.mass).toBe(30);
   });
 });

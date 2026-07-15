@@ -313,11 +313,12 @@ export interface Fish {
    */
   hardinessOffset: number;
   /**
-   * Surplus vitality accumulated while the fish is at full health
-   * (condition === 100). Captured by the unified vitality engine but
-   * unused for now — future tasks will spend it on breeding readiness,
-   * juvenile→adult progression, or longevity bonuses. Stored in %/hr-
-   * equivalent units; conservation of meaning is on the consumer.
+   * Surplus vitality bank — a reserve buffer above health. Fills while
+   * the fish is at full health (net > 0 at condition 100), saturating at
+   * `LivestockConfig.surplusCap`; drains to absorb damage before health
+   * falls. Future tasks spend it on breeding readiness, juvenile→adult
+   * progression, or longevity bonuses. Stored in %/hr-equivalent units;
+   * conservation of meaning is on the consumer.
    */
   surplus: number;
 }
@@ -329,10 +330,11 @@ export interface Fish {
  * old `Resources.algae` field used (so calibration anchors translate
  * directly). When the net rate from stressors and benefits is
  * positive, the surplus tank fills (photoperiod-gated); when it's
- * negative, mass shrinks directly. No intermediate `condition` —
- * conditions favouring algae grow it; conditions hostile to it
- * shrink it. `surplus` is the banked overflow the orchestrator drains
- * into mass each daylight tick.
+ * negative, the reserve buffer drains first and mass shrinks only by
+ * the shortfall. No intermediate `condition` — conditions favouring
+ * algae grow it; conditions hostile to it shrink it. `surplus` is the
+ * banked reserve: it buffers hostile ticks and drains into mass each
+ * daylight tick.
  *
  * One organism, not an array. The shape — coverage plus surplus —
  * is the prototype for future colonies (snails, shrimps): they're
@@ -358,9 +360,11 @@ export interface Plant {
   /** Condition/health percentage (0-100, plant dies below 10%) */
   condition: number;
   /**
-   * Banked vitality surplus (%/h units). Vitality emits surplus when
-   * condition is full and net is positive; growth drains it; whatever
-   * is left over banks toward future propagation.
+   * Banked vitality surplus (%/h units) — a reserve buffer above
+   * condition. Fills when condition is full and net is positive
+   * (photoperiod-gated, capped at `PlantsConfig.surplusCap`); drains to
+   * absorb damage before condition falls; growth spends what's left over,
+   * and the remainder banks toward future propagation.
    */
   surplus: number;
 }

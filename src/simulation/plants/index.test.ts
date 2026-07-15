@@ -352,18 +352,17 @@ describe('processPlants', () => {
     });
 
     it('does not grow at night even with banked surplus', () => {
-      // A plant entering night with a full bank should NOT spend any
-      // of it on growth. Both the bank (already filled) and the size
-      // stay put.
+      // A plant entering night with a within-cap bank should NOT spend
+      // any of it on growth. Both the bank and the size stay put.
       const state = createTestState({
-        plants: [{ id: 'p1', species: 'java_fern', size: 50, condition: 100, surplus: 100 }],
+        plants: [{ id: 'p1', species: 'java_fern', size: 50, condition: 100, surplus: 40 }],
         light: 0,
         temperature: 25,
         water: 100,
       });
       const result = processPlants(state, DEFAULT_CONFIG);
       expect(result.state.plants[0].size).toBe(50);
-      expect(result.state.plants[0].surplus).toBe(100);
+      expect(result.state.plants[0].surplus).toBe(40);
     });
 
     it('banks surplus during the day under ideal conditions', () => {
@@ -732,6 +731,48 @@ describe('processPlants', () => {
       const result = processPlants(state, DEFAULT_CONFIG);
 
       expect(result.state).not.toBe(state);
+    });
+  });
+
+  describe('surplus buffer protects condition', () => {
+    // Plants inherit the reserve-buffer semantics: a banked surplus
+    // drains to protect condition before condition falls. Tested at
+    // night (light 0) so growth spending doesn't also draw the bank.
+
+    it('a plant with reserves holds condition better than one without under stress', () => {
+      // Hostile pH at night → net damage. The buffered plant should
+      // keep more condition, spending its bank instead.
+      const buffered = createTestState({
+        plants: [{ id: 'p1', species: 'java_fern', size: 50, condition: 100, surplus: 20 }],
+        light: 0,
+        water: 100,
+      });
+      const bare = createTestState({
+        plants: [{ id: 'p1', species: 'java_fern', size: 50, condition: 100, surplus: 0 }],
+        light: 0,
+        water: 100,
+      });
+      const hostilePh = (s: SimulationState): SimulationState =>
+        produce(s, (draft) => {
+          draft.resources.ph = 9.5;
+        });
+
+      const bufferedOut = processPlants(hostilePh(buffered), DEFAULT_CONFIG).state.plants[0];
+      const bareOut = processPlants(hostilePh(bare), DEFAULT_CONFIG).state.plants[0];
+
+      expect(bareOut.condition).toBeLessThan(100); // unbuffered declines
+      expect(bufferedOut.condition).toBe(100); // fully buffered this tick
+      expect(bufferedOut.surplus).toBeLessThan(20); // reserve drained
+    });
+
+    it('self-heals an over-cap bank on the first tick', () => {
+      const state = createTestState({
+        plants: [{ id: 'p1', species: 'java_fern', size: 50, condition: 100, surplus: 90 }],
+        light: 0,
+        water: 100,
+      });
+      const out = processPlants(state, DEFAULT_CONFIG).state.plants[0];
+      expect(out.surplus).toBe(plantsDefaults.surplusCap);
     });
   });
 });

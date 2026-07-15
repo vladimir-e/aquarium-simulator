@@ -127,9 +127,10 @@ spec). Each tick the engine builds two factor lists for the fish:
 …and produces:
 
 - **newCondition** — the new health value (0–100, clamped)
-- **surplus** — the overflow rate when health is at 100 and net is
-  positive. Banked on `fish.surplus`; the bank is the canonical
-  lifecycle-outcome stock for fish.
+- **surplus** — the new `fish.surplus` bank value. It fills from
+  positive overflow at full health (saturating at `surplusCap`) and
+  drains to buffer damage before health falls. The bank is the fish's
+  reserve buffer and the canonical lifecycle-outcome stock.
 
 ### Stressor coverage
 
@@ -196,17 +197,24 @@ sustained positive net rate.
 damageRate  = Σ stressor.amount × (1 - effectiveHardiness)
 benefitRate = Σ benefit.amount
 net         = benefitRate − damageRate
+bank        = clamp(fish.surplus, 0, surplusCap)   // self-heals old saves
 
-if net < 0:                     newHealth = health + net   (clamp ≥ 0)
+if net < 0:                     drain     = min(bank, |net|)
+                                newHealth = max(0, health − (|net| − drain))
+                                surplus   = bank − drain
 if net > 0 and health < 100:    newHealth = min(100, health + net)
-                                surplus   = 0
+                                surplus   = bank            // idle, capped
 if net > 0 and health == 100:   newHealth = 100
-                                surplus   = net   (banked on fish.surplus)
+                                surplus   = min(surplusCap, bank + net)
 ```
 
 Stressed fish heal first, never gain surplus while health is below
-100 — this mirrors the plant rule. Surplus banks on `Fish.surplus`,
-the canonical lifecycle-outcome stock for fish.
+100 — this mirrors the plant rule. The `fish.surplus` bank is a reserve
+buffer: it drains to hold health at its current level before health
+falls, and only accrues once health is full. So a fish under mild
+stress reads full health while its reserve bleeds down (the "burning
+reserves" state, `net < 0` with `breakdown.drained > 0`), and starts
+losing health only when the reserve empties.
 
 ### Satiation channel — five bands
 
@@ -407,14 +415,14 @@ Fish {
     health: 0-100             // condition in vitality terms
     satiation: 0-100          // 0 = starving, 100 = stuffed
     hardinessOffset: Number   // ±15 % of species baseline
-    surplus: Number           // banked vitality overflow
+    surplus: Number           // reserve bank (buffers damage, capped)
 
     update(tick):
         metabolize(based_on_mass)
         produce_waste()
-        compute_vitality(stressors, benefits, hardiness, health)
-            → newHealth, surplus
-        accumulate_surplus(fish.surplus)
+        compute_vitality(stressors, benefits, hardiness, health,
+                         surplus, surplusCap)
+            → newHealth, surplus        // surplus = new bank, stored directly
         check_reproduction()
         check_death(health_or_old_age)
 }

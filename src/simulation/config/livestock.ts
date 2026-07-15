@@ -9,6 +9,8 @@
  *   age stressor kicks in for a smooth decline.
  */
 
+import { SURPLUS_CAP_DEFAULT } from './vitality.js';
+
 export interface LivestockConfig {
   // Metabolism
   /** Base food consumption rate per gram of fish mass per hour */
@@ -158,6 +160,14 @@ export interface LivestockConfig {
    */
   plantBenefitSaturationPoint: number;
 
+  // Surplus
+  /**
+   * Saturation cap for the surplus reserve bank (%/h-equivalent units).
+   * Damage drains the bank before health falls; accrual saturates here.
+   * Shared default across organism types — see `SURPLUS_CAP_DEFAULT`.
+   */
+  surplusCap: number;
+
   // Death
   /** Fraction of fish mass added as waste on death */
   deathDecayFactor: number;
@@ -279,6 +289,9 @@ export const livestockDefaults: LivestockConfig = {
   oxygenBenefitPeak: 0.3,
   plantBenefitPeak: 0.2,
   plantBenefitSaturationPoint: 3.0,
+
+  // Surplus reserve buffer — half the condition scale by default.
+  surplusCap: SURPLUS_CAP_DEFAULT,
 
   // Death
   deathDecayFactor: 0.5, // Half fish mass becomes waste
@@ -408,6 +421,8 @@ export const livestockConfigMeta: LivestockConfigMeta[] = [
   { key: 'oxygenBenefitPeak', label: 'O2 Benefit Peak', unit: '%/hr', min: 0, max: 1, step: 0.05 },
   { key: 'plantBenefitPeak', label: 'Plant Benefit Peak', unit: '%/hr', min: 0, max: 1, step: 0.05 },
   { key: 'plantBenefitSaturationPoint', label: 'Plant Benefit Saturation', unit: 'plants', min: 1, max: 10, step: 0.5 },
+  // Surplus
+  { key: 'surplusCap', label: 'Surplus Cap', unit: '%', min: 0, max: 100, step: 5 },
   // Death
   { key: 'deathDecayFactor', label: 'Death Decay Factor', unit: '', min: 0.1, max: 1.0, step: 0.1 },
 ];

@@ -14,6 +14,8 @@
  * full-grown plant does not zero out the bloom path.
  */
 
+import { SURPLUS_CAP_DEFAULT } from './vitality.js';
+
 export interface AlgaeVitalityConfig {
   /** Hardiness 0–1 — multiplied centrally by `computeAlgaePopulation`. */
   hardiness: number;
@@ -112,6 +114,13 @@ export interface AlgaeVitalityConfig {
    * factor. Mirrors `sizePerSurplus` in the plant-growth knob.
    */
   massPerSurplus: number;
+
+  /**
+   * Saturation cap for the surplus reserve bank. Suppression drains the
+   * bank before mass shrinks; accrual (photoperiod-gated) saturates
+   * here. Shared default across organism types — see `SURPLUS_CAP_DEFAULT`.
+   */
+  surplusCap: number;
 }
 
 export const algaeVitalityDefaults: AlgaeVitalityConfig = {
@@ -136,6 +145,8 @@ export const algaeVitalityDefaults: AlgaeVitalityConfig = {
 
   algaeGrowthPerTickCap: 2.0,
   massPerSurplus: 0.5,
+
+  surplusCap: SURPLUS_CAP_DEFAULT,
 };
 
 export interface AlgaeVitalityConfigMeta {
@@ -166,4 +177,5 @@ export const algaeVitalityConfigMeta: AlgaeVitalityConfigMeta[] = [
   // Mass dynamics
   { key: 'algaeGrowthPerTickCap', label: 'Algae Growth per Tick Cap', unit: 'surplus', min: 0.1, max: 10, step: 0.1 },
   { key: 'massPerSurplus', label: 'Mass per Surplus', unit: '%', min: 0.05, max: 2, step: 0.05 },
+  { key: 'surplusCap', label: 'Surplus Cap', unit: '%', min: 0, max: 100, step: 5 },
 ];

@@ -261,8 +261,10 @@ export {
 // Vitality
 export {
   computeVitality,
+  bankSurplus,
   type VitalityFactor,
   type VitalityInput,
   type VitalityResult,
   type VitalityBreakdown,
+  type SurplusBankTick,
 } from './systems/index.js';

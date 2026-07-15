@@ -4,11 +4,14 @@
  * Pipeline:
  * 1. Compute net rate via `computeAlgaePopulation` (sum benefits −
  *    sum stressors, with hardiness applied centrally).
- * 2. If net > 0 *and* lights are on, bank `net` on `algae.surplus`.
- *    Surplus is photoperiod-gated photosynthate; vitality's positive
- *    rate overnight is discarded.
- * 3. If net < 0, shrink mass directly: `mass = max(0, mass + net)`.
- *    Runs 24/7 — a hostile-environment bloom dies back at night too.
+ * 2. Fold the net rate into the surplus reserve bank via `bankSurplus`
+ *    (the shared vitality primitive): positive net accrues (capped,
+ *    photoperiod-gated), negative net drains the bank before it touches
+ *    mass. Surplus is photoperiod-gated photosynthate; vitality's
+ *    positive rate overnight is discarded.
+ * 3. Shrink mass by the drain *overflow* — the damage the bank couldn't
+ *    cover. Runs 24/7 — a hostile-environment bloom burns reserves then
+ *    dies back, at night too. A well-stocked bloom shrugs off a bad tick.
  * 4. Spend surplus on mass growth via `spendAlgaeSurplus`. Drains up
  *    to `algaeGrowthPerTickCap` per tick, converted to mass through
  *    the asymptotic factor `max(0, 1 - mass/100)` — same shape as
@@ -36,6 +39,7 @@ import type { TunableConfig } from '../config/index.js';
 import { algaeVitalityDefaults } from '../config/algae-vitality.js';
 import { nutrientsDefaults } from '../config/nutrients.js';
 import { computeAlgaePopulation } from '../systems/algae-vitality.js';
+import { bankSurplus } from '../systems/vitality.js';
 import type { AlgaeVitalityConfig } from '../config/algae-vitality.js';
 
 export interface AlgaeProcessingResult {
@@ -94,16 +98,21 @@ export function processAlgae(
 
   const photoperiodActive = state.resources.light > 0;
 
-  let next: AlgaeState = state.algae;
+  // 1. Fold the net rate into the reserve bank. Positive net accrues
+  //    (capped, photoperiod-gated); negative net drains the bank before
+  //    mass takes the hit.
+  const bank = bankSurplus(
+    state.algae.surplus,
+    net,
+    algaeConfig.surplusCap,
+    photoperiodActive
+  );
+  let next: AlgaeState = { ...state.algae, surplus: bank.surplus };
 
-  // 1. Positive net — bank as surplus (photoperiod-gated).
-  if (net > 0 && photoperiodActive) {
-    next = { ...next, surplus: next.surplus + net };
-  }
-
-  // 2. Negative net — shrink mass directly (24/7).
-  if (net < 0) {
-    next = { ...next, mass: Math.max(0, next.mass + net) };
+  // 2. Whatever damage the bank couldn't absorb shrinks mass directly
+  //    (24/7 — a bloom dies back at night too, once its reserve is gone).
+  if (bank.overflowDamage > 0) {
+    next = { ...next, mass: Math.max(0, next.mass - bank.overflowDamage) };
   }
 
   // 3. Spend surplus on mass growth (photoperiod-gated). The

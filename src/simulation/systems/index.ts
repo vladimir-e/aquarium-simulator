@@ -65,10 +65,12 @@ export {
 
 export {
   computeVitality,
+  bankSurplus,
   type VitalityFactor,
   type VitalityInput,
   type VitalityResult,
   type VitalityBreakdown,
+  type SurplusBankTick,
 } from './vitality.js';
 
 import type { System } from './types.js';

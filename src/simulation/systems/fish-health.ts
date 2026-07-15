@@ -4,8 +4,9 @@
  * Each tick a fish's environment is decomposed into damage and benefit
  * factors, fed through {@link computeVitality}, and the result drives
  * `health` (the fish-side name for vitality's `condition`). Surplus is
- * captured on `Fish.surplus` for future lifecycle behaviour (breeding,
- * juvenile→adult progression, longevity bonuses) but is otherwise unused.
+ * banked on `Fish.surplus` as a reserve buffer: it absorbs damage before
+ * health falls and stocks energy for future lifecycle behaviour
+ * (breeding, juvenile→adult progression, longevity bonuses).
  *
  * Stressors (raw severities; the vitality module applies hardiness
  * scaling centrally as `(1 - effectiveHardiness)`):
@@ -278,6 +279,8 @@ export function computeFishVitality(
     benefits: buildBenefits(ctx),
     hardiness: effectiveHardiness(fish),
     condition: fish.health,
+    surplus: fish.surplus,
+    surplusCap: config.surplusCap,
   });
 }
 
@@ -318,13 +321,14 @@ export function processHealth(
       continue;
     }
 
-    // Surplus accumulates on the fish for future use (breeding). The
-    // storage path is wired so future fish-breeding work can read it
-    // directly when it lands.
+    // The vitality result carries the post-drain, post-accrual bank
+    // directly, so we store it rather than adding an emission. The bank
+    // is the fish's reserve buffer — it protects health from damage and
+    // feeds future breeding work.
     survivingFish.push({
       ...f,
       health: newHealth,
-      surplus: f.surplus + result.surplus,
+      surplus: result.surplus,
     });
   }
 
