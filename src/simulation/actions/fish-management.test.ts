@@ -18,6 +18,7 @@ function makeStateWithFish(): SimulationState {
       age: 0,
       satiation: 70,
       sex: 'male',
+      stage: 'adult',
       hardinessOffset: 0,
       surplus: 0,
     });

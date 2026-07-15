@@ -32,6 +32,7 @@ function makeFish(overrides: Partial<Fish> = {}): Fish {
     // benefit budget the calibration scenarios pin against.
     satiation: 87,
     sex: 'male',
+    stage: 'adult',
     hardinessOffset: 0,
     surplus: 0,
     ...overrides,

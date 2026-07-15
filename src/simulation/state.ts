@@ -2,7 +2,7 @@
  * Simulation state types and factory functions.
  */
 
-import { createLog, type LogEntry, type LogSeverity } from './core/logging.js';
+import { createLog, type LogEntry, type LogSeverity, type LogEvent } from './core/logging.js';
 import type { DailySchedule } from './core/schedule.js';
 import type { FilterType, Filter } from './equipment/filter.js';
 import { DEFAULT_FILTER, getFilterSurface, getFilterFlow } from './equipment/filter.js';
@@ -18,7 +18,7 @@ import { DEFAULT_AIR_PUMP, getAirPumpFlow } from './equipment/air-pump.js';
 import type { AutoDoser } from './equipment/auto-doser.js';
 import { DEFAULT_AUTO_DOSER } from './equipment/auto-doser.js';
 
-export type { LogEntry, LogSeverity };
+export type { LogEntry, LogSeverity, LogEvent };
 export type { AirPump };
 export type { AutoDoser };
 export type { FilterType, Filter, PowerheadFlowRate, Powerhead, SubstrateType, Substrate, Light, LightWattage };
@@ -212,9 +212,57 @@ export type FishSpecies =
   | 'corydoras';
 
 /**
- * Fish sex for reproduction (future use).
+ * Fish sex for reproduction.
  */
 export type FishSex = 'male' | 'female';
+
+/**
+ * Life stage of a fish. Only adults breed; fry grow toward adult mass
+ * and become adults at their species `maturityAge`.
+ */
+export type FishLifeStage = 'fry' | 'adult';
+
+/**
+ * How a species reproduces. Livebearers release free-swimming fry
+ * directly; every egg-laying mode deposits an inert clutch that hatches
+ * into fry after `hatchTime`. The mode is the anchor for the future
+ * predation/guarding layer — nothing downstream branches on it yet
+ * beyond livebearer-vs-clutch.
+ */
+export type BreedingMode =
+  | 'livebearer'
+  | 'egg-scatterer'
+  | 'egg-depositor'
+  | 'substrate-spawner'
+  | 'bubble-nester';
+
+/**
+ * Per-species reproduction parameters. Costs are expressed as fractions
+ * so they scale with `LivestockConfig.surplusCap`; times and counts are
+ * in sim units (ticks = hours, individuals).
+ */
+export interface FishBreedingData {
+  mode: BreedingMode;
+  /**
+   * Fraction of `surplusCap` the female spends per spawn. Re-accruing
+   * this from the reserve bank IS the breeding cooldown — there are no
+   * timers.
+   */
+  costFraction: number;
+  /** Fraction of the female's cost the serving male pays per spawn. */
+  maleShareFraction: number;
+  /**
+   * Ticks from clutch laid to hatch. Unused by livebearers (they skip
+   * the clutch stage — gestation is already paid for by accrual).
+   */
+  hatchTime: number;
+  /** Offspring per spawn: fry for livebearers, eggs for egg-layers. */
+  clutchSize: number;
+  /** Fry starting mass as a fraction of `adultMass`. */
+  fryMassFraction: number;
+  /** Age (ticks) at which fry mature into breeding adults. */
+  maturityAge: number;
+}
 
 /**
  * Fish species characteristics.
@@ -234,6 +282,8 @@ export interface FishSpeciesData {
   phRange: [number, number];
   /** Maximum tolerable flow in LPH (liters per hour) */
   maxFlow: number;
+  /** Reproduction parameters */
+  breeding: FishBreedingData;
 }
 
 /**
@@ -248,6 +298,18 @@ export const FISH_SPECIES_DATA: Record<FishSpecies, FishSpeciesData> = {
     temperatureRange: [22, 28],
     phRange: [6.0, 7.5],
     maxFlow: 300, // Prefers gentle flow
+    // Egg-scatterer: sheds adhesive eggs over plants/substrate, no
+    // parental care. Fast incubation (~24 h in the wild), large broods,
+    // slow to sexual maturity (~4 months here).
+    breeding: {
+      mode: 'egg-scatterer',
+      costFraction: 0.8,
+      maleShareFraction: 0.4,
+      hatchTime: 24,
+      clutchSize: 25,
+      fryMassFraction: 0.05,
+      maturityAge: 24 * 120,
+    },
   },
   betta: {
     name: 'Betta',
@@ -257,6 +319,17 @@ export const FISH_SPECIES_DATA: Record<FishSpecies, FishSpeciesData> = {
     temperatureRange: [24, 30],
     phRange: [6.5, 7.5],
     maxFlow: 150, // Very low flow - long fins
+    // Bubble-nester: male wraps eggs into a surface foam nest. Small
+    // clutch, quick hatch (~36 h), matures in ~3 months.
+    breeding: {
+      mode: 'bubble-nester',
+      costFraction: 0.8,
+      maleShareFraction: 0.4,
+      hatchTime: 36,
+      clutchSize: 30,
+      fryMassFraction: 0.03,
+      maturityAge: 24 * 90,
+    },
   },
   guppy: {
     name: 'Guppy',
@@ -266,6 +339,18 @@ export const FISH_SPECIES_DATA: Record<FishSpecies, FishSpeciesData> = {
     temperatureRange: [22, 28],
     phRange: [6.5, 8.0],
     maxFlow: 300, // Prefers gentle flow
+    // Livebearer: internal gestation, drops free-swimming fry directly
+    // (no clutch stage, so `hatchTime` is unused). Prolific and quick to
+    // mature (~2 months).
+    breeding: {
+      mode: 'livebearer',
+      costFraction: 0.8,
+      maleShareFraction: 0.4,
+      hatchTime: 0,
+      clutchSize: 20,
+      fryMassFraction: 0.05,
+      maturityAge: 24 * 60,
+    },
   },
   angelfish: {
     name: 'Angelfish',
@@ -275,6 +360,17 @@ export const FISH_SPECIES_DATA: Record<FishSpecies, FishSpeciesData> = {
     temperatureRange: [24, 30],
     phRange: [6.0, 7.5],
     maxFlow: 400, // Moderate - tall body catches current
+    // Substrate-spawner: lays a large clutch on a vertical surface,
+    // hatches in ~2.5 days. Big fish, tiny fry, slow to mature (~6 months).
+    breeding: {
+      mode: 'substrate-spawner',
+      costFraction: 0.8,
+      maleShareFraction: 0.4,
+      hatchTime: 60,
+      clutchSize: 40,
+      fryMassFraction: 0.02,
+      maturityAge: 24 * 180,
+    },
   },
   corydoras: {
     name: 'Corydoras',
@@ -284,6 +380,17 @@ export const FISH_SPECIES_DATA: Record<FishSpecies, FishSpeciesData> = {
     temperatureRange: [22, 26],
     phRange: [6.0, 7.5],
     maxFlow: 500, // Bottom dweller, handles moderate flow
+    // Egg-depositor: presses small batches of eggs onto glass and leaves.
+    // Slow hatch (~4 days), modest clutch, matures in ~5 months.
+    breeding: {
+      mode: 'egg-depositor',
+      costFraction: 0.8,
+      maleShareFraction: 0.4,
+      hatchTime: 96,
+      clutchSize: 15,
+      fryMassFraction: 0.04,
+      maturityAge: 24 * 150,
+    },
   },
 };
 
@@ -303,8 +410,16 @@ export interface Fish {
   age: number;
   /** Satiation percentage (0-100, 0=starving, 100=stuffed). */
   satiation: number;
-  /** Sex for future reproduction */
+  /** Sex, used for reproduction */
   sex: FishSex;
+  /**
+   * Life stage. Fry grow from `fryMassFraction × adultMass` toward
+   * `adultMass`, interpolated by age, and flip to `adult` at the
+   * species `maturityAge`; only adults breed. Stocked fish (via
+   * `addFish`) start as adults regardless of age, so the stage can't be
+   * derived from age alone — it is stored.
+   */
+  stage: FishLifeStage;
   /**
    * Per-individual hardiness offset applied on top of species hardiness.
    * Sampled once at `addFish` time (never re-rolled) so weaker fish fail
@@ -316,8 +431,8 @@ export interface Fish {
    * Surplus vitality bank — a reserve buffer above health. Fills while
    * the fish is at full health (net > 0 at condition 100), saturating at
    * `LivestockConfig.surplusCap`; drains to absorb damage before health
-   * falls. Future tasks spend it on breeding readiness, juvenile→adult
-   * progression, or longevity bonuses. Stored in %/hr-equivalent units;
+   * falls. Reproduction spends it on spawning (see
+   * `livestock/breeding.ts`). Stored in %/hr-equivalent units;
    * conservation of meaning is on the consumer.
    */
   surplus: number;
@@ -345,6 +460,26 @@ export interface AlgaeState {
   mass: number;
   /** Banked surplus from positive net rate; drained into mass while lights are on. */
   surplus: number;
+}
+
+/**
+ * A batch of eggs waiting to hatch.
+ *
+ * Egg-laying species deposit a clutch on spawn; it sits inert until
+ * `laidTick + species.breeding.hatchTime`, then hatches into `eggCount`
+ * fry at 100 % survival. Eggs aren't guarded or eaten — the clutch is
+ * the hook the future predation system attaches to. Livebearers never
+ * produce a clutch (fry appear directly).
+ */
+export interface Clutch {
+  /** Unique identifier */
+  id: string;
+  /** Species that laid the clutch — determines the fry produced. */
+  species: FishSpecies;
+  /** Number of eggs, each of which hatches into one fry. */
+  eggCount: number;
+  /** Tick the clutch was laid; hatches at `laidTick + hatchTime`. */
+  laidTick: number;
 }
 
 /**
@@ -553,6 +688,8 @@ export interface SimulationState {
   plants: Plant[];
   /** Fish in the tank */
   fish: Fish[];
+  /** Unhatched egg clutches from egg-laying species */
+  clutches: Clutch[];
   /** Tank-wide algae as a single mass-based organism */
   algae: AlgaeState;
   /** In-memory log storage */
@@ -837,6 +974,7 @@ export function createSimulation(config: SimulationConfig): SimulationState {
     },
     plants: [],
     fish: [],
+    clutches: [],
     // Algae starts at zero biomass and zero surplus. With no
     // condition state, the empty case is naturally inert.
     algae: { mass: 0, surplus: 0 },

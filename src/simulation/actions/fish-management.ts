@@ -6,15 +6,14 @@ import { produce } from 'immer';
 import type { SimulationState } from '../state.js';
 import { FISH_SPECIES_DATA } from '../state.js';
 import { createLog } from '../core/logging.js';
+import { createFish } from '../livestock/create-fish.js';
 import type { ActionResult, AddFishAction, RemoveFishAction } from './types.js';
 
-/** Generate a unique fish ID */
-function generateFishId(): string {
-  return `fish_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
-}
-
 /**
- * Add a fish to the tank.
+ * Add a fish to the tank. Stocked fish arrive as full-grown adults
+ * (age 0, adult mass); the individual variation — sex, hardiness
+ * offset, health jitter — is sampled by the shared {@link createFish}
+ * factory, the same one breeding uses for fry.
  */
 export function addFish(
   state: SimulationState,
@@ -31,48 +30,17 @@ export function addFish(
   }
 
   const speciesData = FISH_SPECIES_DATA[species];
-  const fishId = generateFishId();
-  const sex = Math.random() < 0.5 ? 'male' : 'female';
-
-  // Per-fish hardiness offset: uniform ±15 % of species baseline, stored
-  // once so the same individual fails consistently when conditions
-  // degrade. Produces staggered deaths instead of everyone dying on the
-  // same tick.
-  const hardinessOffset =
-    (Math.random() - 0.5) * 2 * 0.15 * speciesData.hardiness;
-
-  // Small (±5 %) initial health jitter captures mild purchase-condition
-  // variation without introducing a new mechanic. Clamped to [0, 100].
-  const initialHealth = Math.max(
-    0,
-    Math.min(100, 100 + (Math.random() - 0.5) * 2 * 5)
-  );
+  const fish = createFish({ species, age: 0, stage: 'adult' });
 
   const newState = produce(state, (draft) => {
-    draft.fish.push({
-      id: fishId,
-      species,
-      mass: speciesData.adultMass,
-      health: initialHealth,
-      age: 0,
-      // Slightly hungry on arrival — fish added to a tank have usually
-      // gone without food during transfer and are ready to eat at the
-      // next feeding. Starting at 70 on the 0–100 satiation scale puts
-      // them inside the peckish band (50–75: neutral, no contribution),
-      // a comfortable buffer above the hungry threshold so a missed
-      // feeding right after introduction isn't catastrophic.
-      satiation: 70,
-      sex,
-      hardinessOffset,
-      surplus: 0,
-    });
+    draft.fish.push(fish);
 
     draft.logs.push(
       createLog(
         draft.tick,
         'user',
         'info',
-        `Added ${speciesData.name} (${speciesData.adultMass}g, ${sex})`
+        `Added ${speciesData.name} (${speciesData.adultMass}g, ${fish.sex})`
       )
     );
   });

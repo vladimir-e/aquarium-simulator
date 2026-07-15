@@ -10,6 +10,7 @@ import { processEquipment, calculatePassiveResources } from './equipment/index.j
 import { processPlants } from './plants/index.js';
 import { processAlgae } from './algae/index.js';
 import { processLivestock } from './livestock/index.js';
+import { processBreeding } from './livestock/breeding.js';
 import { checkAlerts } from './alerts/index.js';
 import { type TunableConfig, DEFAULT_CONFIG } from './config/index.js';
 
@@ -89,6 +90,12 @@ export function tick(
   const livestockResult = processLivestock(newState, config);
   newState = livestockResult.state;
   newState = applyEffects(newState, livestockResult.effects, config);
+
+  // Reproduction reads the surplus banks livestock just updated and the
+  // per-fish net rates from the same health pass. It's an orchestrator,
+  // not an effect source, because it adds organisms (fry, clutches).
+  const breedingResult = processBreeding(newState, config, livestockResult.netByFishId);
+  newState = breedingResult.state;
 
   // Then other active systems
   const activeEffects = collectSystemEffects(newState, 'active', config);

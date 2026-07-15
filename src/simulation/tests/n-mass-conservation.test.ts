@@ -109,6 +109,10 @@ function addFish(
       if (!existingIds.has(fish.id)) {
         fish.hardinessOffset = 0;
         fish.health = 100;
+        // Single-sex cohort: these conservation runs assume a fixed
+        // population, so keep breeding out of the N budget (no
+        // female → no spawning).
+        fish.sex = 'male';
       }
     }
   });

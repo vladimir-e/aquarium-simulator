@@ -19,6 +19,7 @@ export type {
   Equipment,
   LogEntry,
   LogSeverity,
+  LogEvent,
   AlertState,
   Plant,
   PlantSpecies,
@@ -29,6 +30,10 @@ export type {
   FishSpecies,
   FishSpeciesData,
   FishSex,
+  FishLifeStage,
+  BreedingMode,
+  FishBreedingData,
+  Clutch,
   AlgaeState,
 } from './state.js';
 export {
@@ -247,6 +252,10 @@ export {
   processMetabolism,
   processHealth,
   computeFishVitality,
+  processBreeding,
+  createFish,
+  fishMassForAge,
+  generateFishId,
 } from './livestock/index.js';
 export {
   satiationContribution,

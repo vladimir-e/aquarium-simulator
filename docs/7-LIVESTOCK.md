@@ -25,11 +25,13 @@ Each fish is tracked individually with:
 | Property | Description |
 |----------|-------------|
 | Species | Determines characteristics and requirements |
-| Mass | Body mass (grams) - drives metabolism |
+| Mass | Body mass (grams) - drives metabolism. Full for adults; a fry's mass interpolates with age toward adult mass (see § Reproduction). |
 | Health | 0-100%, fish dies at 0 |
-| Age | Time since birth |
+| Age | Time since birth (ticks) |
 | Satiation | 0-100% (0 = starving, 100 = stuffed) |
 | Sex | Male / Female (for reproduction) |
+| Stage | `fry` or `adult` — only adults breed |
+| Surplus | Reserve vitality bank; the breeding fuel (see § Health) |
 
 ### Species Characteristics
 
@@ -289,30 +291,107 @@ fish.remove_from_tank()
 
 ## Reproduction
 
-Fish breeding mechanics.
+Breeding is an ACTIVE-tier orchestrator (`processBreeding`) that runs
+right after livestock metabolism/health each tick. It's an orchestrator,
+not an effect source, because it *adds organisms* — fry and egg
+clutches — which the effect system can't express. Each tick it grows and
+matures existing fry, hatches any due clutches, then runs the spawn pass.
 
-### Requirements
+Reproduction spends the **vitality surplus bank**. Surplus only accrues
+at full health under a sustained positive net rate (see § Health), so a
+fish that can afford to breed has already proven its environment is good.
+That is the whole point of gating on the bank: the husbandry checks are
+encoded upstream in *how the surplus got there*, so breeding doesn't
+re-test them.
 
-| Condition | Description |
-|-----------|-------------|
-| Male + Female | Both sexes present |
-| Good health | Health > 70% |
-| Adequate food | Satiation in the well-fed band (≥ 75) |
-| Proper conditions | Temperature, pH in range |
+### The gate — banks only
 
-### Fry Lifecycle
+Per species, per tick, a female spawns when **all** hold:
 
-1. **Spawn**: Fry created with minimal mass
-2. **Growth**: Fry consume extra food, increase mass
-3. **Maturity**: When age > maturity_age, convert to adult
-4. **Adult**: Mass becomes static (no more growth)
+| Gate | Condition |
+|------|-----------|
+| Pair present | ≥ 1 adult male **and** ≥ 1 adult female of the species |
+| Female funded | female `surplus ≥ breedingCostFraction × surplusCap` |
+| Male funded | serving male `surplus ≥ maleShareFraction × cost` |
+| Live trend | female's vitality `net ≥ 0` **this tick** |
 
-```
-if fry.age > maturity_age:
-    fry.mass = species.adult_mass  # Final mass
-    convert_to_adult(fry)
-    # Mass is now STATIC - no further growth
-```
+There are **no** condition / satiation / temperature / pH checks — those
+are already priced into surplus accrual. The one extra guard is the
+live-trend check: a buffered fish in a crashing tank (health still 100,
+reserves draining, `net < 0`) must **not** breed off old savings, so the
+female's net rate this tick must be ≥ 0. The net is read from the same
+health pass that produced it — the stressor math is not recomputed.
+
+### Costs and cadence
+
+On spawn the female pays `cost = breedingCostFraction × surplusCap`; the
+serving male pays `maleShareFraction × cost`. At the defaults
+(`surplusCap` 50, cost fraction 0.8, male fraction 0.4) that's **−40**
+for the female and **−16** for the male, so a full male (bank 50) covers
+~3 females before dropping below his share. With several ready females in
+one tick, males are drawn in array order; a male serves until his bank
+can't cover the share, then the next male steps in, and when none can pay
+the species is done for the tick.
+
+**Re-accumulating the spent surplus is the cooldown** — there are no
+timers. A female must climb back to the cost from her benefit budget
+before she can spawn again, so a well-run tank breeds on a natural
+cadence set by its net rate and the cap.
+
+### Spawn output — by mode
+
+Each species reproduces one of two ways:
+
+- **Livebearer** (guppy): fry appear directly in the water. The
+  gestation the fry represent is exactly what the surplus accumulation
+  paid for, so there's no egg stage.
+- **Egg-layers** (every other mode): the spawn deposits a **clutch** — an
+  inert `{ id, species, eggCount, laidTick }` entity in `state.clutches`
+  — that hatches into `eggCount` fry at 100 % survival once it reaches
+  `laidTick + hatchTime`. Eggs are not guarded or eaten; the clutch is
+  the hook the future predation system attaches to.
+
+### Per-species parameters
+
+Modes and numbers are tuned to real fishkeeping (ticks = hours). Cost and
+male-share fractions are the defaults across all five species; the rest
+vary:
+
+| Species | Mode | Hatch time | Clutch | Fry mass | Maturity |
+|---------|------|-----------:|-------:|---------:|---------:|
+| Guppy | livebearer | — (direct) | 20 | 5 % | 60 d |
+| Neon Tetra | egg-scatterer | 24 h | 25 | 5 % | 120 d |
+| Betta | bubble-nester | 36 h | 30 | 3 % | 90 d |
+| Corydoras | egg-depositor | 96 h | 15 | 4 % | 150 d |
+| Angelfish | substrate-spawner | 60 h | 40 | 2 % | 180 d |
+
+"Fry mass" is the fraction of adult mass a fry starts at; "Maturity" is
+the age at which it becomes a breeding adult.
+
+### Fry lifecycle
+
+Fry and stocked adults are built by the same factory, so a fry carries
+the same individual variation as a purchased fish (50/50 sex, a
+per-individual hardiness offset ±15 % of species baseline, small health
+jitter). A fry starts at `fryMassFraction × adultMass` and age 0.
+
+- **Growth.** Each tick a fry's mass is re-derived from its age, linearly
+  interpolating from fry mass at age 0 to full `adultMass` at
+  `maturityAge`. Growth is purely age-driven — fry do **not** spend
+  surplus to grow.
+- **Maturity.** At `maturityAge` the fry flips to `adult` and snaps to
+  full mass. Only adults breed.
+- **Living.** Fry are ordinary fish everywhere else: they eat (joining
+  the feeding priority by satiation), respire, produce waste, take
+  stressor damage, and die at health 0 — all proportional to their
+  (smaller) mass.
+
+### Typed log events
+
+Every lifecycle moment a consumer might react to carries a machine-
+readable `event` on its log entry (the free-text `message` stays for
+humans): `fish-spawned` (livebearer birth), `eggs-laid` (clutch
+deposited), `eggs-hatched` (clutch hatched into fry), and `fish-died`.
 
 ---
 
@@ -409,22 +488,32 @@ if population > healthy_population_limit:
 ```
 Fish {
     species: String
-    mass: Number (grams, static after maturity)
+    mass: Number (grams; full for adults, age-interpolated for fry)
     sex: Male | Female
-    age: Number
+    stage: fry | adult        // only adults breed
+    age: Number (ticks)
     health: 0-100             // condition in vitality terms
     satiation: 0-100          // 0 = starving, 100 = stuffed
     hardinessOffset: Number   // ±15 % of species baseline
-    surplus: Number           // reserve bank (buffers damage, capped)
+    surplus: Number           // reserve bank (buffers damage, breeding fuel)
 
-    update(tick):
-        metabolize(based_on_mass)
-        produce_waste()
-        compute_vitality(stressors, benefits, hardiness, health,
-                         surplus, surplusCap)
-            → newHealth, surplus        // surplus = new bank, stored directly
-        check_reproduction()
-        check_death(health_or_old_age)
+    // Per-tick pipeline (processLivestock, then processBreeding):
+    metabolize(based_on_mass)
+    produce_waste()
+    compute_vitality(stressors, benefits, hardiness, health,
+                     surplus, surplusCap)
+        → newHealth, surplus            // surplus = new bank, stored directly
+    check_death(health_or_old_age)
+    // then, in processBreeding:
+    grow_or_mature_if_fry()
+    spawn_if_adult_and_funded()         // see § Reproduction
+}
+
+Clutch {                                // one per egg-laying spawn
+    id: String
+    species: String
+    eggCount: Number
+    laidTick: Number                    // hatches at laidTick + hatchTime
 }
 ```
 

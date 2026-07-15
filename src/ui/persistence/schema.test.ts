@@ -139,6 +139,7 @@ describe('PersistedSimulationSchema', () => {
     },
     plants: [],
     fish: [],
+    clutches: [],
     algae: { mass: 0, surplus: 0 },
     alertState: {
       waterLevelCritical: false,
@@ -241,6 +242,7 @@ describe('PersistedSimulationSchema', () => {
           age: 0,
           satiation: 70,
           sex: 'male',
+          stage: 'adult',
           hardinessOffset: 0.05,
           surplus: 0,
         },
@@ -261,12 +263,64 @@ describe('PersistedSimulationSchema', () => {
           age: 0,
           satiation: 70,
           sex: 'male',
+          stage: 'adult',
           hardinessOffset: -0.07,
           surplus: 1.5,
         },
       ],
     };
     expect(PersistedSimulationSchema.safeParse(withFish).success).toBe(true);
+  });
+
+  it('round-trips a fry fish alongside an unhatched clutch', () => {
+    const withOffspring = {
+      ...validSimulation,
+      fish: [
+        {
+          id: 'fry1',
+          species: 'guppy',
+          mass: 0.05,
+          health: 98,
+          age: 12,
+          satiation: 50,
+          sex: 'female',
+          stage: 'fry',
+          hardinessOffset: 0.01,
+          surplus: 0,
+        },
+      ],
+      clutches: [{ id: 'c1', species: 'neon_tetra', eggCount: 25, laidTick: 90 }],
+    };
+    expect(PersistedSimulationSchema.safeParse(withOffspring).success).toBe(true);
+  });
+
+  it('rejects an invalid clutch species', () => {
+    const badClutch = {
+      ...validSimulation,
+      clutches: [{ id: 'c1', species: 'not_a_fish', eggCount: 10, laidTick: 0 }],
+    };
+    expect(PersistedSimulationSchema.safeParse(badClutch).success).toBe(false);
+  });
+
+  it('rejects fish missing stage (strict mode)', () => {
+    const withFish = {
+      ...validSimulation,
+      fish: [
+        {
+          id: 'f1',
+          species: 'neon_tetra',
+          mass: 0.5,
+          health: 100,
+          age: 0,
+          satiation: 70,
+          sex: 'male',
+          hardinessOffset: 0,
+          surplus: 0,
+          // stage intentionally omitted
+        },
+      ],
+    };
+    expect(PersistedSimulationSchema.safeParse(withFish).success).toBe(false);
   });
 
   it('rejects fish missing hardinessOffset (strict mode)', () => {
@@ -281,6 +335,7 @@ describe('PersistedSimulationSchema', () => {
           age: 0,
           satiation: 70,
           sex: 'male',
+          stage: 'adult',
           surplus: 0,
           // hardinessOffset intentionally omitted
         },
@@ -301,6 +356,7 @@ describe('PersistedSimulationSchema', () => {
           age: 0,
           satiation: 70,
           sex: 'male',
+          stage: 'adult',
           hardinessOffset: 0,
           // surplus intentionally omitted
         },
@@ -355,6 +411,7 @@ describe('PersistedStateSchema', () => {
     },
     plants: [],
     fish: [],
+    clutches: [],
     algae: { mass: 0, surplus: 0 },
     alertState: {
       waterLevelCritical: false,
