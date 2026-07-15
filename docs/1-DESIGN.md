@@ -182,10 +182,11 @@ stores it and spends from it.
     continues to bank on `Plant.surplus` up to the cap. The bank is the
     canonical lifecycle-outcome stock for plants — the field exists, it
     accumulates, consumers attach to it.
-- **Fish.** Vitality returns the new `Fish.surplus` bank. Fish are
-  fixed-mass adults; the bank is their reserve buffer and the canonical
-  lifecycle-outcome stock, saturating at the cap for the future
-  breeding mechanic to spend.
+- **Fish.** Vitality returns the new `Fish.surplus` bank. It is the
+  fish's reserve buffer and the fuel for reproduction: an adult female
+  spends a fraction of the cap to spawn (a serving male chips in a
+  share), and re-accruing that surplus is the breeding cooldown. See
+  `7-LIVESTOCK.md` § Reproduction.
 - **Algae.** The bloom has no condition — its stock is `mass`. The
   orchestrator folds net rate into the same reserve bank: positive net
   accrues (capped, photoperiod-gated); negative net drains the reserve

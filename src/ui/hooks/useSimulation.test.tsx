@@ -5,6 +5,37 @@ import { useSimulation } from './useSimulation';
 import { getPresetById } from '../presets';
 import { ConfigProvider } from './useConfig';
 import { PersistenceProvider } from '../persistence/index.js';
+import { createSimulation } from '../../simulation/state.js';
+import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
+import { PERSISTENCE_VERSION, STORAGE_KEY } from '../persistence/types.js';
+
+/**
+ * Seed localStorage with a persisted session carrying one in-flight
+ * clutch, so `useSimulation` hydrates from it. This is the only public
+ * path to inject a clutch into the hook's state.
+ */
+function seedSessionWithClutch(presetId: string): void {
+  const base = createSimulation(getPresetById(presetId)!.config);
+  const persisted = {
+    version: PERSISTENCE_VERSION,
+    simulation: {
+      tick: 300,
+      tank: base.tank,
+      resources: base.resources,
+      environment: base.environment,
+      equipment: base.equipment,
+      plants: base.plants,
+      fish: base.fish,
+      clutches: [{ id: 'c1', species: 'neon_tetra', eggCount: 25, laidTick: 250 }],
+      algae: base.algae,
+      alertState: base.alertState,
+      currentPreset: presetId,
+    },
+    tunableConfig: DEFAULT_CONFIG,
+    ui: { units: 'metric', debugPanelOpen: false },
+  };
+  globalThis.localStorage.setItem(STORAGE_KEY, JSON.stringify(persisted));
+}
 
 // Wrapper with ConfigProvider and PersistenceProvider for testing hooks
 const wrapper = ({ children }: { children: React.ReactNode }): React.JSX.Element => (
@@ -186,6 +217,23 @@ describe('useSimulation', () => {
       // But tick should be reset
       expect(result.current.state.tick).toBe(0);
       expect(result.current.currentPreset).toBe('betta');
+    });
+
+    it('reset clears in-flight clutches (time-anchored)', () => {
+      seedSessionWithClutch('planted');
+      try {
+        const { result } = renderHook(() => useSimulation(), { wrapper });
+        expect(result.current.state.clutches).toHaveLength(1);
+
+        act(() => {
+          result.current.reset();
+        });
+
+        expect(result.current.state.clutches).toHaveLength(0);
+        expect(result.current.state.tick).toBe(0);
+      } finally {
+        globalThis.localStorage.clear();
+      }
     });
 
     it('loadPreset restores equipment but preserves simulation progress', () => {

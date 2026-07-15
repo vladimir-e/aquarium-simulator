@@ -4,27 +4,17 @@
  * (see `tick.ts`); it mutates `state.fish` and `state.clutches` directly
  * because it *adds* organisms, which the effect system can't express.
  *
- * Each tick it does three things, in order:
- *
- * 1. **Grow & mature fry.** Every fry's mass is re-derived from its
- *    (already-incremented) age; a fry that has reached its species
- *    `maturityAge` flips to `adult` and snaps to full mass. Only adults
- *    breed.
- * 2. **Hatch clutches.** Any clutch that has reached
- *    `laidTick + hatchTime` hatches into `eggCount` fry at 100 % survival
- *    and is removed.
- * 3. **Spawn.** For each species with an adult pair, ready females spend
- *    from their reserve bank to reproduce, males chip in a share.
- *
  * The gate is deliberately *only* the banks plus a live-trend check —
- * no condition/temperature/pH tests. Surplus only accrues at full health
+ * no condition/temperature/pH tests. Surplus accrues only at full health
  * under a sustained positive net rate, so a fish that can afford the cost
  * has already proven its environment is good; re-checking would
- * double-count what accrual encodes. The one extra guard is that the
- * female's net rate this tick must be ≥ 0, so a buffered fish riding old
- * savings through a crashing tank can't breed.
+ * double-count what accrual encodes. The one extra guard: the female's
+ * net rate this tick must be ≥ 0, so a buffered fish riding old savings
+ * through a crashing tank can't breed. Re-accruing the spent surplus is
+ * the cooldown — there are no timers.
  *
- * Re-accumulating the spent surplus IS the cooldown — there are no timers.
+ * See `docs/7-LIVESTOCK.md` § Reproduction for the full pipeline (grow /
+ * mature fry → hatch clutches → spawn) and the per-species parameters.
  */
 
 import { produce } from 'immer';

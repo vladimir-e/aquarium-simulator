@@ -402,7 +402,7 @@ export interface Fish {
   id: string;
   /** Fish species type */
   species: FishSpecies;
-  /** Body mass in grams (static at adult mass) */
+  /** Body mass in grams — `adultMass` for adults, age-interpolated for fry. */
   mass: number;
   /** Health percentage (0-100, fish dies at 0) */
   health: number;

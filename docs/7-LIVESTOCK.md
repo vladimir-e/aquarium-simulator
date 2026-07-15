@@ -380,7 +380,9 @@ jitter). A fry starts at `fryMassFraction × adultMass` and age 0.
   `maturityAge`. Growth is purely age-driven — fry do **not** spend
   surplus to grow.
 - **Maturity.** At `maturityAge` the fry flips to `adult` and snaps to
-  full mass. Only adults breed.
+  full mass. Only adults breed. Maturation runs before the spawn pass in
+  the same tick, so a fish that reaches maturity already holding a full
+  bank may breed the very tick it becomes an adult — this is intended.
 - **Living.** Fry are ordinary fish everywhere else: they eat (joining
   the feeding priority by satiation), respire, produce waste, take
   stressor damage, and die at health 0 — all proportional to their
