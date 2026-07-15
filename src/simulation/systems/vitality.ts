@@ -15,9 +15,9 @@
  * is spent. Accrual saturates at a cap (`surplusCap`) — a body banks
  * only so much reserve, like vitamin absorption; overflow beyond the
  * cap is discarded, not queued. A consequence worth internalising:
- * **condition 100 no longer means "thriving"** — a buffered organism
- * under attack reads 100 while burning reserves (`net < 0` with
- * `breakdown.drained > 0`).
+ * **condition 100 with negative net means burning reserves, not
+ * thriving** — a buffered organism under attack reads 100 while its
+ * bank drains (`net < 0` with `breakdown.drained > 0`).
  *
  * The module is **organism-agnostic about how surplus is spent.** Plants
  * route surplus to biomass production; fish capture it for future use.
@@ -133,6 +133,13 @@ export interface SurplusBankTick {
   overflowDamage: number;
 }
 
+/** Clamp a bank value into `[0, cap]` — the self-heal for over-cap old
+ *  saves, shared by `bankSurplus`'s entry clamp and `computeVitality`'s
+ *  idle-tick path. */
+function clampBank(bank: number, cap: number): number {
+  return Math.min(cap, Math.max(0, bank));
+}
+
 /**
  * Fold one tick's net vitality rate into a saturating reserve bank.
  *
@@ -147,13 +154,6 @@ export interface SurplusBankTick {
  * (fish / plants) and the algae orchestrator so every organism type
  * buffers damage identically.
  */
-/** Clamp a bank value into `[0, cap]` — the self-heal for over-cap old
- *  saves, shared by `bankSurplus`'s entry clamp and `computeVitality`'s
- *  idle-tick path. */
-function clampBank(bank: number, cap: number): number {
-  return Math.min(cap, Math.max(0, bank));
-}
-
 export function bankSurplus(
   bank: number,
   net: number,
