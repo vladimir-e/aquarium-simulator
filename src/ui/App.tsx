@@ -252,9 +252,11 @@ function App(): React.JSX.Element {
             <Livestock
               food={state.resources.food}
               fish={state.fish}
+              clutches={state.clutches}
               plants={state.plants}
               resources={state.resources}
               tankCapacity={state.tank.capacity}
+              tick={state.tick}
               livestockConfig={config.livestock}
               executeAction={executeAction}
             />
