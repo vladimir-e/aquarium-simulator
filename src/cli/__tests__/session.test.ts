@@ -48,6 +48,17 @@ describe('session roundtrip', () => {
     saveSession({ ...session, version: 99 }, { path });
     expect(() => loadSession({ path })).toThrow(/Unsupported session version/);
   });
+
+  it('rejects a stale v1 session (pre-breeding shape) instead of crashing', () => {
+    // A session written from `main` is version 1 but lacks `Fish.stage` /
+    // `state.clutches` and the saturating surplus bank. The version gate
+    // must reject it cleanly rather than let it load and crash downstream.
+    const preset = getPresetById('bare')!;
+    const state = createSimulation(preset.config);
+    const session = createSession(state, DEFAULT_CONFIG);
+    saveSession({ ...session, version: 1 }, { path });
+    expect(() => loadSession({ path })).toThrow(/Unsupported session version/);
+  });
 });
 
 describe('history cap', () => {

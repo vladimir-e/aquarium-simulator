@@ -131,6 +131,12 @@ function spawn(
   netByFishId: Map<string, number>,
   rng: () => number
 ): void {
+  // A nonpositive surplus cap zeroes every breeding cost, which would make
+  // the funding gate vacuous — a zero-bank pair would spawn a full brood
+  // every tick. With no bank to spend, the surplus economy is off, so
+  // spawning is disabled entirely. (Fry still grow and clutches still hatch.)
+  if (config.surplusCap <= 0) return;
+
   for (const species of SPECIES_IDS) {
     const breeding = FISH_SPECIES_DATA[species].breeding;
     const cost = breeding.costFraction * config.surplusCap;

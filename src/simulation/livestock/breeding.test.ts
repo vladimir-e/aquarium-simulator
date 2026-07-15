@@ -329,3 +329,27 @@ describe('breeding through tick()', () => {
     expect(fry(state.fish)).toHaveLength(0);
   });
 });
+
+describe('processBreeding — zero surplus cap', () => {
+  it('never spawns when surplusCap is 0, even for a healthy funded-looking pair', () => {
+    // A nonpositive cap zeroes the breeding cost, which would make the
+    // funding gate vacuous (surplus 0 ≥ cost 0) and spawn a full brood
+    // every tick. The guard must disable spawning entirely.
+    const zeroCap = produce(DEFAULT_CONFIG, (d) => {
+      d.livestock.surplusCap = 0;
+    });
+    const female = mkFish({ sex: 'female', surplus: 0 });
+    const male = mkFish({ sex: 'male', surplus: 0 });
+    let state = withTank([female, male]);
+
+    for (let t = 0; t < 24; t++) {
+      state = processBreeding(state, zeroCap, nets(state)).state;
+    }
+
+    expect(fry(state.fish)).toHaveLength(0);
+    expect(state.clutches).toHaveLength(0);
+    expect(events(state, 'fish-spawned')).toHaveLength(0);
+    expect(events(state, 'eggs-laid')).toHaveLength(0);
+    expect(state.fish).toHaveLength(2); // original pair untouched
+  });
+});
