@@ -156,8 +156,8 @@ export function processPlants(
     });
   }
 
-  // 3. Vitality per plant: drives condition update and emits surplus.
-  //    Algae mass comes from the prior tick's `state.algae.mass`
+  // 3. Vitality per plant: drives condition update and returns the new
+  //    surplus bank. Algae mass comes from the prior tick's `state.algae.mass`
   //    (algae processing runs *after* plants in `tick.ts` so plant
   //    suppression / weakness factors read fresh plant condition).
   //    For algae's effect on plants this means a one-tick lag — a

@@ -148,7 +148,7 @@ export const plantsDefaults: PlantsConfig = {
   respirationQ10: 2.0, // Rate doubles per 10°C increase
   respirationReferenceTemp: 25.0, // °C
 
-  // Surplus-driven growth — vitality emits surplus when condition is
+  // Surplus-driven growth — vitality banks surplus when condition is
   // full and net is positive; growth drains it (capped per tick), the
   // asymptotic factor dampens spending efficiency near maxSize, and
   // species growth rate is the per-species multiplier on conversion.

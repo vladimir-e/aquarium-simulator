@@ -32,7 +32,6 @@ export {
   algaeVitalityConfigMeta,
 } from './algae-vitality.js';
 export { type PhConfig, phDefaults, phConfigMeta } from './ph.js';
-export { SURPLUS_CAP_DEFAULT } from './vitality.js';
 export { type PlantsConfig, plantsDefaults, plantsConfigMeta } from './plants.js';
 export {
   type NutrientsConfig,

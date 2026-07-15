@@ -124,10 +124,11 @@ stressed organism cannot make progress while its condition is below
 paid down. The reserve bank sits one layer above — it protects
 condition from damage and only fills once condition is full.
 
-The buffer means **condition 100 no longer implies "thriving"**: an
-organism under attack reads 100 while burning reserves. The breakdown
-exposes `drained` (reserve spent this tick) so consumers derive the
-"burning reserves" signal from `condition 100 + net < 0`.
+With the buffer, **condition 100 with negative net means burning
+reserves, not thriving**: an organism under attack reads 100 while its
+bank drains. The breakdown exposes `drained` (reserve spent this tick)
+so consumers derive the "burning reserves" signal from
+`condition 100 + net < 0`.
 
 Each species module decides which resources count as stressors vs.
 benefits and at what severity; they all share the same vitality math.
@@ -152,9 +153,10 @@ before condition falls, so a well-stocked organism holds full condition
 through a bad tick while burning down its buffer; condition only starts
 declining once the reserve is spent. Draining is not photoperiod- or
 condition-gated — the reserve defends the organism at any hour and at
-any condition level. This is why **condition 100 no longer means
-"thriving"**: it can mean "full and stable" or "full but bleeding
-reserves under attack." Vitality owns the whole bank transition — drain,
+any condition level. So **condition 100 means "full and stable" only
+when net ≥ 0**; at condition 100 with negative net it means "full but
+bleeding reserves under attack." Vitality owns the whole bank
+transition — drain,
 accrual, and cap — and returns the new bank value; the caller just
 stores it and spends from it.
 

@@ -743,8 +743,8 @@ describe('vitality integration', () => {
 
   it('captures surplus when the fish is at full health and net is positive', () => {
     // No stressors, no negative net — a healthy fish at 100 should
-    // emit positive surplus equal to the net benefit rate. Currently
-    // unused but the breeding/growth tasks will consume it.
+    // bank positive surplus equal to the net benefit rate. The breeding/
+    // growth tasks will spend it.
     const fish = makeFish({ health: 100, satiation: 87 });
     const resources = makeResources();
     const result = processHealth([fish], resources, [], 100, 100, livestockDefaults);

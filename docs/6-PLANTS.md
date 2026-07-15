@@ -231,8 +231,8 @@ A stressed plant heals first, then grows. It never crawls forward at
 reduced rate. Surplus is the gate for biomass distribution
 (see *Growth and Size* below). The bank also protects condition: a
 plant with reserves holds condition through a hostile tick while its
-buffer drains, so **condition 100 no longer implies "thriving"** — it
-can equally mean "full but burning reserves under attack."
+buffer drains, so **condition 100 with negative net means burning
+reserves, not thriving** — the plant reads full while its bank bleeds.
 
 ### Stressor coverage
 

@@ -336,9 +336,9 @@ describe('processPlants', () => {
 
     it('does not bank surplus at night even with otherwise-ideal conditions', () => {
       // Plant is at full condition with all non-light vitality factors
-      // in their tolerable bands. Vitality still emits surplus
-      // mathematically (positive net rate from pH/temp/nutrients), but
-      // the orchestrator discards it because lights are off.
+      // in their tolerable bands. Net is positive (pH/temp/nutrients),
+      // but the photoperiod gate (accrueSurplus false at night) discards
+      // the overflow, so the bank is unchanged.
       const state = createTestState({
         plants: [{ id: 'p1', species: 'java_fern', size: 50, condition: 100, surplus: 5 }],
         light: 0,
@@ -367,9 +367,9 @@ describe('processPlants', () => {
 
     it('banks surplus during the day under ideal conditions', () => {
       // Same conditions as the night-banking test, but lights on. The
-      // bank should grow by exactly the vitality emission this tick,
-      // minus whatever growth drains. With a small starting surplus,
-      // the post-spend bank is still measurably above the start.
+      // bank accrues this tick's positive overflow, minus whatever growth
+      // drains. With a small starting surplus, the post-spend bank is
+      // still measurably above the start.
       const state = createTestState({
         plants: [{ id: 'p1', species: 'java_fern', size: 50, condition: 100, surplus: 0 }],
         light: 50,
@@ -400,9 +400,8 @@ describe('processPlants', () => {
       const result = processPlants(state, DEFAULT_CONFIG);
       expect(result.state.plants[0].size).toBeGreaterThan(50);
       // Bank drained by at most plantGrowthPerTickCap (it could also
-      // gain from this tick's vitality emission — net direction
-      // depends on whether emission > drain). Either way, less than
-      // the starting 10.
+      // accrue this tick's positive overflow — net direction depends on
+      // whether accrual > drain). Either way, less than the starting 10.
       expect(result.state.plants[0].surplus).toBeLessThan(10 + plantsDefaults.plantGrowthPerTickCap);
     });
 

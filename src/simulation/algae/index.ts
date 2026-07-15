@@ -98,9 +98,6 @@ export function processAlgae(
 
   const photoperiodActive = state.resources.light > 0;
 
-  // 1. Fold the net rate into the reserve bank. Positive net accrues
-  //    (capped, photoperiod-gated); negative net drains the bank before
-  //    mass takes the hit.
   const bank = bankSurplus(
     state.algae.surplus,
     net,
@@ -109,14 +106,10 @@ export function processAlgae(
   );
   let next: AlgaeState = { ...state.algae, surplus: bank.surplus };
 
-  // 2. Whatever damage the bank couldn't absorb shrinks mass directly
-  //    (24/7 — a bloom dies back at night too, once its reserve is gone).
   if (bank.overflowDamage > 0) {
     next = { ...next, mass: Math.max(0, next.mass - bank.overflowDamage) };
   }
 
-  // 3. Spend surplus on mass growth (photoperiod-gated). The
-  //    asymptotic factor self-limits the bloom at MASS_MAX.
   if (photoperiodActive) {
     next = spendAlgaeSurplus(next, algaeConfig);
   }

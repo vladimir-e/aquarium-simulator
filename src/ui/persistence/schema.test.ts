@@ -83,6 +83,15 @@ describe('TunableConfigSchema', () => {
     };
     expect(TunableConfigSchema.safeParse(withExtra).success).toBe(false);
   });
+
+  it('rejects the old v12 config shape (livestock missing surplusCap)', () => {
+    // The v13 bump made `surplusCap` required on every organism config.
+    // A pre-bump config lacking it must not validate — no silent default.
+    const livestockWithoutCap = { ...DEFAULT_CONFIG.livestock } as Record<string, unknown>;
+    delete livestockWithoutCap.surplusCap;
+    const oldShape = { ...DEFAULT_CONFIG, livestock: livestockWithoutCap };
+    expect(TunableConfigSchema.safeParse(oldShape).success).toBe(false);
+  });
 });
 
 describe('PersistedSimulationSchema', () => {
@@ -412,7 +421,12 @@ describe('PersistedStateSchema', () => {
     expect(PersistedStateSchema.safeParse(v11).success).toBe(false);
   });
 
-  it('PERSISTENCE_VERSION is 12', () => {
-    expect(PERSISTENCE_VERSION).toBe(12);
+  it('rejects prior version 12 (breaking bump for surplus cap config field)', () => {
+    const v12 = { ...validState, version: 12 };
+    expect(PersistedStateSchema.safeParse(v12).success).toBe(false);
+  });
+
+  it('PERSISTENCE_VERSION is 13', () => {
+    expect(PERSISTENCE_VERSION).toBe(13);
   });
 });

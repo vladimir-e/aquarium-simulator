@@ -1,9 +1,9 @@
 /**
  * Plant growth — surplus-driven, per plant, no cross-plant sharing.
  *
- * Each plant's vitality emits surplus when condition is full and net
- * is positive. The bank lives on `Plant.surplus`. This module spends
- * the bank: every tick, drain up to `plantGrowthPerTickCap` units;
+ * Each plant's vitality banks surplus on `Plant.surplus` when condition
+ * is full and net is positive (capped at `surplusCap`). This module
+ * spends the bank: every tick, drain up to `plantGrowthPerTickCap` units;
  * convert the drained portion into a size delta scaled by species
  * growth rate, the per-`sizePerSurplus` knob, and an asymptotic factor
  * that decays toward zero as the plant approaches its species

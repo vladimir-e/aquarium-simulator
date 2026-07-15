@@ -147,13 +147,20 @@ export interface SurplusBankTick {
  * (fish / plants) and the algae orchestrator so every organism type
  * buffers damage identically.
  */
+/** Clamp a bank value into `[0, cap]` — the self-heal for over-cap old
+ *  saves, shared by `bankSurplus`'s entry clamp and `computeVitality`'s
+ *  idle-tick path. */
+function clampBank(bank: number, cap: number): number {
+  return Math.min(cap, Math.max(0, bank));
+}
+
 export function bankSurplus(
   bank: number,
   net: number,
   cap: number,
   accrue: boolean
 ): SurplusBankTick {
-  const start = Math.min(cap, Math.max(0, bank));
+  const start = clampBank(bank, cap);
   if (net < 0) {
     const drained = Math.min(start, -net);
     return { surplus: start - drained, drained, overflowDamage: -net - drained };
@@ -237,7 +244,7 @@ export function computeVitality(input: VitalityInput): VitalityResult {
     // (Or net === 0 → no change.) The bank is idle but still clamps to
     // the cap so an oversized old-save value self-heals.
     drained = 0;
-    surplus = Math.min(cap, Math.max(0, input.surplus));
+    surplus = clampBank(input.surplus, cap);
     newCondition = Math.min(100, condition + net);
   }
 
