@@ -32,6 +32,7 @@ function makeFish(overrides: Partial<Fish> = {}): Fish {
     // benefit budget the calibration scenarios pin against.
     satiation: 87,
     sex: 'male',
+    stage: 'adult',
     hardinessOffset: 0,
     surplus: 0,
     ...overrides,
@@ -743,8 +744,8 @@ describe('vitality integration', () => {
 
   it('captures surplus when the fish is at full health and net is positive', () => {
     // No stressors, no negative net — a healthy fish at 100 should
-    // emit positive surplus equal to the net benefit rate. Currently
-    // unused but the breeding/growth tasks will consume it.
+    // bank positive surplus equal to the net benefit rate. The breeding/
+    // growth tasks will spend it.
     const fish = makeFish({ health: 100, satiation: 87 });
     const resources = makeResources();
     const result = processHealth([fish], resources, [], 100, 100, livestockDefaults);
@@ -770,6 +771,87 @@ describe('vitality integration', () => {
       fish = processHealth(fish, resources, [], 100, 100, livestockDefaults).survivingFish;
     }
     expect(fish[0].surplus).toBeGreaterThan(0);
+  });
+});
+
+describe('surplus buffer and cap', () => {
+  // Surplus is a reserve buffer, not an unbounded bank: it saturates at
+  // `surplusCap` and drains to protect health before health falls.
+
+  it('caps banked surplus at surplusCap', () => {
+    // At all-good conditions a fish banks ~1 %/h. Run well past the
+    // number of ticks it takes to fill a 50-cap bank and confirm it
+    // saturates rather than growing without bound.
+    let fish: Fish[] = [makeFish({ health: 100, satiation: 87 })];
+    const resources = makeResources();
+    for (let i = 0; i < 120; i++) {
+      // Re-pin satiation each tick so the well-fed benefit keeps the
+      // net rate positive across the whole run.
+      fish = fish.map((f) => ({ ...f, satiation: 87 }));
+      fish = processHealth(fish, resources, [], 100, 100, livestockDefaults).survivingFish;
+    }
+    expect(fish[0].surplus).toBe(livestockDefaults.surplusCap);
+  });
+
+  it('never exceeds the cap on any tick', () => {
+    let fish: Fish[] = [makeFish({ health: 100, satiation: 87, surplus: 49 })];
+    const resources = makeResources();
+    for (let i = 0; i < 20; i++) {
+      fish = fish.map((f) => ({ ...f, satiation: 87 }));
+      fish = processHealth(fish, resources, [], 100, 100, livestockDefaults).survivingFish;
+      expect(fish[0].surplus).toBeLessThanOrEqual(livestockDefaults.surplusCap);
+    }
+  });
+
+  it('burns reserves to hold health at 100 under mild stress', () => {
+    // Neon at 18 °C: net ≈ 1.0 (benefit) − 1.7 (temp stress) = −0.7 %/h.
+    // A fish at 100 with a reserve should keep reading 100 while the
+    // bank drains — the "burning reserves" state.
+    const fish = [makeFish({ health: 100, satiation: 87, surplus: 10 })];
+    const resources = makeResources({ temperature: 18 });
+    const result = processHealth(fish, resources, [], 100, 100, livestockDefaults);
+    expect(result.survivingFish[0].health).toBe(100);
+    expect(result.survivingFish[0].surplus).toBeCloseTo(9.3, 6);
+  });
+
+  it('health resumes falling once the reserve is spent', () => {
+    // Same stress, but a nearly-empty bank: the first fraction of a
+    // percent is buffered, then health starts declining.
+    let fish: Fish[] = [makeFish({ health: 100, satiation: 87, surplus: 0.2 })];
+    const resources = makeResources({ temperature: 18 });
+    fish = processHealth(fish, resources, [], 100, 100, livestockDefaults).survivingFish;
+    // Tick 1: 0.2 buffered, 0.5 hits health → 99.5, bank empty.
+    expect(fish[0].surplus).toBe(0);
+    expect(fish[0].health).toBeCloseTo(99.5, 6);
+    fish = fish.map((f) => ({ ...f, satiation: 87 }));
+    fish = processHealth(fish, resources, [], 100, 100, livestockDefaults).survivingFish;
+    // Tick 2: no reserve, full 0.7 %/h decline.
+    expect(fish[0].health).toBeCloseTo(98.8, 6);
+  });
+
+  it('self-heals an over-cap bank from an old save on the first tick', () => {
+    const fish = [makeFish({ health: 100, satiation: 87, surplus: 80 })];
+    const resources = makeResources();
+    const result = processHealth(fish, resources, [], 100, 100, livestockDefaults);
+    expect(result.survivingFish[0].surplus).toBe(livestockDefaults.surplusCap);
+  });
+
+  it('never writes a negative surplus when the cap is negative', () => {
+    // A negative surplusCap must floor to 0 — a negative surplus would be
+    // rejected by the persisted `surplus >= 0` schema, silently discarding
+    // the save. Holds whether the fish is accruing or already banked.
+    const negCap = { ...livestockDefaults, surplusCap: -50 };
+    const resources = makeResources(); // all-good → net positive at 100
+    const accruing = computeFishVitality(
+      makeFish({ health: 100, satiation: 87, surplus: 0 }),
+      resources, [], 100, 100, negCap
+    );
+    expect(accruing.surplus).toBe(0);
+    const buffered = computeFishVitality(
+      makeFish({ health: 100, satiation: 87, surplus: 20 }),
+      resources, [], 100, 100, negCap
+    );
+    expect(buffered.surplus).toBe(0);
   });
 });
 

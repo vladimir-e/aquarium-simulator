@@ -45,3 +45,13 @@ describe('buildAction waterChange', () => {
     expect(() => buildAction('waterChange', ['half'])).toThrow(/fraction|percentage/);
   });
 });
+
+describe('buildAction sellFry', () => {
+  it('builds a no-arg sellFry action', () => {
+    expect(buildAction('sellFry', [])).toEqual({ type: 'sellFry' });
+  });
+
+  it('ignores extra args', () => {
+    expect(buildAction('sellFry', ['whatever'])).toEqual({ type: 'sellFry' });
+  });
+});

@@ -10,6 +10,7 @@ import type {
   Equipment,
   Plant,
   Fish,
+  Clutch,
   AlgaeState,
   AlertState,
 } from '../../simulation/state.js';
@@ -20,6 +21,16 @@ import type { TunableConfig } from '../../simulation/config/index.js';
  * Increment this when the structure changes in a breaking way.
  * On version mismatch, stored data is discarded.
  *
+ * v13: Two additions on the same version bump (unshipped, no migration):
+ *      (a) every organism config gains a `surplusCap` knob (the
+ *      saturation cap for the vitality surplus reserve buffer):
+ *      `LivestockConfig`, `PlantsConfig`, and `AlgaeVitalityConfig` each
+ *      add the required field, defaulting to `SURPLUS_CAP_DEFAULT`;
+ *      (b) the fish reproduction system — `Fish` gains a `stage`
+ *      ('fry' | 'adult') field, and the simulation gains a top-level
+ *      `clutches: Clutch[]` array of unhatched egg batches. Per project
+ *      policy this is a breaking save format change with no migration
+ *      shim — stored sessions are discarded on version mismatch.
  * v12: Algae promoted from `Resources.algae: number` to a top-level
  *      `state.algae: { mass, surplus }` population. The Resources
  *      schema drops the `algae` field and the simulation gains an
@@ -67,7 +78,7 @@ import type { TunableConfig } from '../../simulation/config/index.js';
  *     nutrient sufficiency) but its persisted shape is identical, so
  *     the bump is purely the new Fish field.
  */
-export const PERSISTENCE_VERSION = 12;
+export const PERSISTENCE_VERSION = 13;
 
 /**
  * Storage key for the unified persisted state.
@@ -86,6 +97,7 @@ export interface PersistedSimulation {
   equipment: Equipment;
   plants: Plant[];
   fish: Fish[];
+  clutches: Clutch[];
   algae: AlgaeState;
   alertState: AlertState;
   /** Currently selected preset ID */

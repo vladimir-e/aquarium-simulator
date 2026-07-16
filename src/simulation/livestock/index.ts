@@ -19,6 +19,12 @@ export interface LivestockProcessingResult {
   state: SimulationState;
   /** Effects for resource changes (food, waste, O2, CO2) */
   effects: Effect[];
+  /**
+   * Vitality net rate per surviving fish this tick, keyed by id. Passed
+   * to `processBreeding` so the spawn gate can require a non-negative
+   * trend without recomputing stressors.
+   */
+  netByFishId: Map<string, number>;
 }
 
 /**
@@ -37,7 +43,7 @@ export function processLivestock(
 
   // Skip if no fish
   if (state.fish.length === 0) {
-    return { state, effects };
+    return { state, effects, netByFishId: new Map() };
   }
 
   // 1. Process metabolism (food consumption, waste, respiration, satiation, age)
@@ -131,15 +137,18 @@ export function processLivestock(
           draft.tick,
           'simulation',
           'warning',
-          `${fishName} died`
+          `${fishName} died`,
+          'fish-died'
         )
       );
     }
   });
 
-  return { state: newState, effects };
+  return { state: newState, effects, netByFishId: healthResult.netByFishId };
 }
 
 // Re-export for testing and external use
 export { processMetabolism } from '../systems/metabolism.js';
 export { processHealth, computeFishVitality } from '../systems/fish-health.js';
+export { processBreeding } from './breeding.js';
+export { createFish, fishMassForAge, generateFishId } from './create-fish.js';

@@ -203,17 +203,33 @@ const PlantSchema = z
 // Fish Schema
 // ============================================================================
 
+const FISH_SPECIES = ['neon_tetra', 'betta', 'guppy', 'angelfish', 'corydoras'] as const;
+
 const FishSchema = z
   .object({
     id: z.string(),
-    species: z.enum(['neon_tetra', 'betta', 'guppy', 'angelfish', 'corydoras']),
+    species: z.enum(FISH_SPECIES),
     mass: z.number().min(0),
     health: z.number().min(0).max(100),
     age: z.number().int().min(0),
     satiation: z.number().min(0).max(100),
     sex: z.enum(['male', 'female']),
+    stage: z.enum(['fry', 'adult']),
     hardinessOffset: z.number(),
     surplus: z.number().min(0),
+  })
+  .strict();
+
+// ============================================================================
+// Clutch Schema
+// ============================================================================
+
+const ClutchSchema = z
+  .object({
+    id: z.string(),
+    species: z.enum(FISH_SPECIES),
+    eggCount: z.number().int().min(0),
+    laidTick: z.number().int().min(0),
   })
   .strict();
 
@@ -246,6 +262,7 @@ export const PersistedSimulationSchema = z
     equipment: EquipmentSchema,
     plants: z.array(PlantSchema),
     fish: z.array(FishSchema),
+    clutches: z.array(ClutchSchema),
     algae: AlgaeStateSchema,
     alertState: AlertStateSchema,
     currentPreset: z.string(),
@@ -331,6 +348,7 @@ const AlgaeConfigSchema = z
     lowPlantPowerSeverity: z.number(),
     algaeGrowthPerTickCap: z.number(),
     massPerSurplus: z.number(),
+    surplusCap: z.number().min(0),
   })
   .strict();
 
@@ -361,6 +379,7 @@ const PlantsConfigSchema = z
     respirationReferenceTemp: z.number(),
     plantGrowthPerTickCap: z.number(),
     sizePerSurplus: z.number(),
+    surplusCap: z.number().min(0),
     // Vitality stressor severities
     lightInsufficientSeverity: z.number(),
     lightExcessiveSeverity: z.number(),
@@ -443,6 +462,7 @@ const LivestockConfigSchema = z
     oxygenBenefitPeak: z.number(),
     plantBenefitPeak: z.number(),
     plantBenefitSaturationPoint: z.number(),
+    surplusCap: z.number().min(0),
     deathDecayFactor: z.number(),
   })
   .strict();

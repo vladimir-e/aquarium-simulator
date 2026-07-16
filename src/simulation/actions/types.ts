@@ -14,7 +14,8 @@ export type ActionType =
   | 'removePlant'
   | 'dose'
   | 'addFish'
-  | 'removeFish';
+  | 'removeFish'
+  | 'sellFry';
 
 export interface BaseAction {
   type: ActionType;
@@ -83,6 +84,11 @@ export interface RemoveFishAction extends BaseAction {
   fishId: string;
 }
 
+export interface SellFryAction extends BaseAction {
+  type: 'sellFry';
+  // No parameters - removes every fry in the tank
+}
+
 export type Action =
   | TopOffAction
   | FeedAction
@@ -93,7 +99,8 @@ export type Action =
   | RemovePlantAction
   | DoseAction
   | AddFishAction
-  | RemoveFishAction;
+  | RemoveFishAction
+  | SellFryAction;
 
 /**
  * Result of applying an action to simulation state.

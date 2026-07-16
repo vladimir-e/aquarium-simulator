@@ -7,7 +7,7 @@ User interventions that modify the aquarium state. Actions are triggered by the 
 Actions allow the user to:
 - Maintain the aquarium (feeding, cleaning, water changes)
 - Respond to problems (algae scrubbing, emergency water change)
-- Manage livestock (selling fry)
+- Manage livestock (stocking fish, selling fry)
 - Request professional help (maintenance service)
 
 ---
@@ -257,27 +257,90 @@ tank.plant_biomass -= trim_amount
 
 ---
 
+## Add Fish
+
+Stock one adult fish of a chosen species. Individual variation (sex,
+hardiness offset, health jitter) is sampled at add time; see
+`7-LIVESTOCK.md`.
+
+### Inputs
+| Parameter | Description |
+|-----------|-------------|
+| Species | Which species to stock |
+
+### Physical stocking cap
+
+`addFish` enforces a **plausibility** ceiling, not a husbandry one.
+Overstocking is a legitimate (and punished) player choice — cramming a
+nano tank far past its sane bioload is physically possible, so it's
+allowed, and the vitality engine plays out the consequences (ammonia,
+oxygen crash, waste). The cap only blocks the physically *impossible*: a
+tank that would hold more solid fish than water.
+
+Fish are near-neutrally buoyant (the swim bladder trims body density to
+roughly that of water), so **1 g of fish ≈ 1 mL of displaced water**. The
+ceiling caps total fish body mass at the fraction `MAX_FISH_VOLUME_FRACTION`
+(default **0.5**) of the tank's water volume:
+
+```
+maxFishMass_g = MAX_FISH_VOLUME_FRACTION * capacity_L * 1000   # 500 g per liter
+reject addFish if (totalFishMass + species.adultMass) > maxFishMass
+```
+
+At 0.5 the fish would fill half the water volume — already absurd for
+living animals — so any realistic overstocking sits far below it while a
+nonsense request (a thousand fish in a nano cube) is rejected. The check
+mirrors the plant capacity check: a rejected add returns an explanatory
+message and no state change.
+
+**The cap applies only to `addFish`.** Breeding and hatching are
+deliberately uncapped — ecology self-regulates, and bred fry can push the
+total past the ceiling (which then just refuses further stocking until the
+population drops). See `7-LIVESTOCK.md` § Reproduction.
+
+### Considerations
+- `MAX_FISH_VOLUME_FRACTION` is a tunable constant in `fish-management.ts`
+- Measured against tank **capacity**, not current water level, so the
+  ceiling doesn't wobble as water evaporates
+- Total mass includes fry, so a tank full of bred fry can refuse a
+  stocked adult
+
+---
+
 ## Sell Fry
 
-Shortcut to remove all fry from the tank at once.
+Remove every fry from the tank in one action — the population-management
+pressure valve for a tank that has bred past what the player wants to keep.
+Fry are ordinary fish carrying `stage: 'fry'`; this action drops all of them
+and leaves adults untouched.
 
 ### Effects
 | Resource | Change |
 |----------|--------|
-| Fry population | Set to 0 |
+| Fry (`stage === 'fry'`) | All removed |
+| Adults | Unchanged |
+| Water | Unchanged |
 
 ### Behavior
 
 ```
-tank.fry_count = 0
-# All fry exit the system
-# No water loss - purely population management
+fry = state.fish.filter(f => f.stage === 'fry')
+if fry.length == 0:
+    return "No fry to sell"          # no-op
+
+state.fish = state.fish.filter(f => f.stage !== 'fry')   # drop every fry, keep adults
+# log a user-source `fry-sold` event with the count
 ```
 
+The log entry carries the typed `fry-sold` event so game-side consumers can
+detect the sale programmatically. The engine is **money-free** — "sell"
+names the player's intent; any payout is priced on the game side off that
+event. No water is lost (fry mass leaves as fish, not decay).
+
 ### Considerations
-- Convenience action to clear all fry at once
-- Individual fish removal is handled via UI (not a documented action)
-- No water loss
+- Clears the whole fry cohort at once; individual removal uses Remove Fish
+- No-op (with a message) when there are no fry
+- No water loss — purely population management
 
 ---
 
@@ -331,6 +394,7 @@ if config.scrub_algae == 'on':
 | Dose | +NO3/PO4/K/Fe | Algae if overdone |
 | Scrub Algae | -Algae | None |
 | Trim Plants | -Biomass | None |
+| Add Fish | +1 adult fish | Rejected past physical stocking cap |
 | Sell Fry | Remove all fry | None |
 | Maintenance | Configurable | Depends on settings |
 
@@ -349,5 +413,6 @@ Some actions can be automated:
 | Dose | Yes | Via Dosing System |
 | Scrub Algae | Yes | No |
 | Trim Plants | Yes | No |
+| Add Fish | Yes | No |
 | Sell Fry | Yes | No |
 | Maintenance | Yes | Scheduled service |

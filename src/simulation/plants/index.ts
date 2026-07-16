@@ -8,13 +8,16 @@
  *    uptake, nutrient draw. Does NOT directly produce size growth;
  *    that flows through surplus. Light-gated: zero output at night.
  * 3. Respiration: O2/CO2 effects, 24/7.
- * 4. Vitality per plant: drives condition update; emits per-tick
- *    surplus when condition is full and net is positive. Runs every
- *    tick — condition can heal at night from non-light benefits.
- * 5. Bank surplus on `Plant.surplus`. **Photoperiod-gated**: surplus
- *    represents stored photosynthate, so banking only happens when
- *    `resources.light > 0`. Vitality's surplus emission overnight is
- *    discarded (no photosynthesis = no energy capture).
+ * 4. Vitality per plant: drives condition update and returns the new
+ *    `Plant.surplus` bank. The bank is a reserve buffer — damage drains
+ *    it before condition falls; positive overflow at full condition
+ *    accrues back into it (capped at `surplusCap`). Runs every tick —
+ *    condition heals at night from non-light benefits, and the buffer
+ *    protects condition 24/7. Accrual is **photoperiod-gated** inside
+ *    vitality (`accrueSurplus: light > 0`): surplus represents stored
+ *    photosynthate, so overnight overflow is discarded.
+ * 5. Store the returned bank on `Plant.surplus` (no separate banking
+ *    step — vitality already produced the final value).
  * 6. Spend surplus on growth: drains up to `plantGrowthPerTickCap`
  *    per tick, converts to size at species-rate × asymptotic-factor.
  *    Also photoperiod-gated — no carbon fixation overnight, no net
@@ -153,8 +156,8 @@ export function processPlants(
     });
   }
 
-  // 3. Vitality per plant: drives condition update and emits surplus.
-  //    Algae mass comes from the prior tick's `state.algae.mass`
+  // 3. Vitality per plant: drives condition update and returns the new
+  //    surplus bank. Algae mass comes from the prior tick's `state.algae.mass`
   //    (algae processing runs *after* plants in `tick.ts` so plant
   //    suppression / weakness factors read fresh plant condition).
   //    For algae's effect on plants this means a one-tick lag — a
@@ -178,14 +181,15 @@ export function processPlants(
   //    pass.
   //
   //    Plant surplus represents stored photosynthate (sugars from
-  //    carbon fixation). Both banking and growth gate on the
-  //    photoperiod being active: no light → no photosynthesis → no
-  //    energy capture → no banking, and no withdrawals for new
-  //    biomass either (overnight respiration consumes sugars for
-  //    maintenance, not net growth). Condition healing is NOT gated
-  //    here — vitality's non-light benefits (pH, temp, nutrients) can
-  //    still drive recovery at night; only the surplus-accrual and
-  //    surplus-spending steps require lights on.
+  //    carbon fixation). Surplus *accrual* is photoperiod-gated inside
+  //    `computePlantVitality` (via `accrueSurplus: light > 0`), so
+  //    `v.surplus` is already the correct new bank — accrued during the
+  //    day, held (but drained / cap-clamped) at night. Growth *spending*
+  //    is gated here: no light → overnight respiration consumes sugars
+  //    for maintenance, not net biomass, so the bank doesn't drain into
+  //    size. Condition healing is NOT gated — vitality's non-light
+  //    benefits (pH, temp, nutrients) still drive recovery at night, and
+  //    the reserve buffer still protects condition from damage 24/7.
   //
   //    Vitality runs every tick regardless; the light-keyed factors
   //    inside vitality (light stressor / light benefit / CO2 low
@@ -198,7 +202,7 @@ export function processPlants(
     const updated: Plant = {
       ...plant,
       condition: v.newCondition,
-      surplus: photoperiodActive ? plant.surplus + v.surplus : plant.surplus,
+      surplus: v.surplus,
     };
     return photoperiodActive ? spendSurplusOnGrowth(updated, plantsConfig) : updated;
   });

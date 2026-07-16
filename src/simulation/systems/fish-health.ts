@@ -4,8 +4,9 @@
  * Each tick a fish's environment is decomposed into damage and benefit
  * factors, fed through {@link computeVitality}, and the result drives
  * `health` (the fish-side name for vitality's `condition`). Surplus is
- * captured on `Fish.surplus` for future lifecycle behaviour (breeding,
- * juvenile→adult progression, longevity bonuses) but is otherwise unused.
+ * banked on `Fish.surplus` as a reserve buffer: it absorbs damage before
+ * health falls and fuels reproduction — the breeding system spends it on
+ * spawning (see `livestock/breeding.ts`).
  *
  * Stressors (raw severities; the vitality module applies hardiness
  * scaling centrally as `(1 - effectiveHardiness)`):
@@ -31,8 +32,8 @@
  *
  * The plant benefit pushes the all-good budget above the abiotic
  * ceiling on purpose — a healthy planted tank should sit at full
- * health with a positive net rate, banking surplus on `Fish.surplus`
- * for the future surplus-driven breeding mechanic.
+ * health with a positive net rate, banking surplus on `Fish.surplus`,
+ * which the breeding system spends on reproduction.
  */
 
 import type { Fish, Plant, Resources } from '../state.js';
@@ -55,6 +56,13 @@ export interface HealthResult {
   deadFishNames: string[];
   /** Total waste produced from dead fish */
   deathWaste: number;
+  /**
+   * Vitality net rate (benefit − damage, %/h) this tick per surviving
+   * fish, keyed by id. The breeding gate reads it so a buffered fish in
+   * a declining tank can't spawn off old savings; surfacing it here
+   * avoids recomputing the stressor math downstream.
+   */
+  netByFishId: Map<string, number>;
 }
 
 /**
@@ -278,6 +286,8 @@ export function computeFishVitality(
     benefits: buildBenefits(ctx),
     hardiness: effectiveHardiness(fish),
     condition: fish.health,
+    surplus: fish.surplus,
+    surplusCap: config.surplusCap,
   });
 }
 
@@ -299,6 +309,7 @@ export function processHealth(
 ): HealthResult {
   const survivingFish: Fish[] = [];
   const deadFishNames: string[] = [];
+  const netByFishId = new Map<string, number>();
   let deathWaste = 0;
 
   for (const f of fish) {
@@ -318,19 +329,22 @@ export function processHealth(
       continue;
     }
 
-    // Surplus accumulates on the fish for future use (breeding). The
-    // storage path is wired so future fish-breeding work can read it
-    // directly when it lands.
+    // The vitality result carries the post-drain, post-accrual bank
+    // directly, so we store it rather than adding an emission. The bank
+    // is the fish's reserve buffer — it protects health from damage and
+    // feeds breeding.
     survivingFish.push({
       ...f,
       health: newHealth,
-      surplus: f.surplus + result.surplus,
+      surplus: result.surplus,
     });
+    netByFishId.set(f.id, result.breakdown.net);
   }
 
   return {
     survivingFish,
     deadFishNames,
     deathWaste,
+    netByFishId,
   };
 }

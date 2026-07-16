@@ -8,6 +8,8 @@
  * - Nitrate consumption: ~5-10 mg/day
  */
 
+import { SURPLUS_CAP_DEFAULT } from './vitality.js';
+
 export interface PlantsConfig {
   // Photosynthesis constants
   /** Base photosynthesis rate per 100% plant size per hour */
@@ -55,6 +57,12 @@ export interface PlantsConfig {
    * the order of magnitude of the surplus → size conversion.
    */
   sizePerSurplus: number;
+  /**
+   * Saturation cap for the surplus reserve bank. Damage drains the bank
+   * before condition falls; accrual (photoperiod-gated) saturates here.
+   * Shared default across organism types — see `SURPLUS_CAP_DEFAULT`.
+   */
+  surplusCap: number;
 
   // Vitality stressor severities — see systems/plant-vitality.ts. Each is
   // a pre-hardiness damage rate (%/h per unit deviation); the species
@@ -140,12 +148,13 @@ export const plantsDefaults: PlantsConfig = {
   respirationQ10: 2.0, // Rate doubles per 10°C increase
   respirationReferenceTemp: 25.0, // °C
 
-  // Surplus-driven growth — vitality emits surplus when condition is
+  // Surplus-driven growth — vitality banks surplus when condition is
   // full and net is positive; growth drains it (capped per tick), the
   // asymptotic factor dampens spending efficiency near maxSize, and
   // species growth rate is the per-species multiplier on conversion.
   plantGrowthPerTickCap: 2.0,
   sizePerSurplus: 0.4, // size % per (surplus × growthRate × asymptoticFactor) unit
+  surplusCap: SURPLUS_CAP_DEFAULT,
 
   // Vitality stressor severities (pre-hardiness; the species hardiness
   // factor multiplies damage centrally inside `computeVitality`).
@@ -272,6 +281,7 @@ export const plantsConfigMeta: PlantsConfigMeta[] = [
   // Surplus-driven growth
   { key: 'plantGrowthPerTickCap', label: 'Plant Growth per Tick Cap', unit: 'surplus', min: 0.1, max: 10, step: 0.1 },
   { key: 'sizePerSurplus', label: 'Size per Surplus', unit: '%', min: 0.01, max: 2.0, step: 0.01 },
+  { key: 'surplusCap', label: 'Surplus Cap', unit: '%', min: 0, max: 100, step: 5 },
 
   // Vitality stressor severities
   { key: 'lightInsufficientSeverity', label: 'Light Insuff. Severity', unit: '%/W/hr', min: 0.01, max: 1.0, step: 0.05 },

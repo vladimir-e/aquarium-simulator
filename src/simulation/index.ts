@@ -19,6 +19,7 @@ export type {
   Equipment,
   LogEntry,
   LogSeverity,
+  LogEvent,
   AlertState,
   Plant,
   PlantSpecies,
@@ -29,6 +30,10 @@ export type {
   FishSpecies,
   FishSpeciesData,
   FishSex,
+  FishLifeStage,
+  BreedingMode,
+  FishBreedingData,
+  Clutch,
   AlgaeState,
 } from './state.js';
 export {
@@ -180,6 +185,7 @@ export type {
   DoseAction,
   AddFishAction,
   RemoveFishAction,
+  SellFryAction,
   ActionResult,
 } from './actions/index.js';
 export {
@@ -208,6 +214,11 @@ export {
   calculateDoseNutrients,
   addFish,
   removeFish,
+  sellFry,
+  canAddFish,
+  checkFishCapacity,
+  getMaxFishMass,
+  totalFishMass,
 } from './actions/index.js';
 export type { WaterChangeAmount, TrimTargetSize } from './actions/index.js';
 
@@ -247,6 +258,10 @@ export {
   processMetabolism,
   processHealth,
   computeFishVitality,
+  processBreeding,
+  createFish,
+  fishMassForAge,
+  generateFishId,
 } from './livestock/index.js';
 export {
   satiationContribution,
@@ -261,8 +276,10 @@ export {
 // Vitality
 export {
   computeVitality,
+  bankSurplus,
   type VitalityFactor,
   type VitalityInput,
   type VitalityResult,
   type VitalityBreakdown,
+  type SurplusBankTick,
 } from './systems/index.js';

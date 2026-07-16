@@ -6,9 +6,9 @@
  * Algae is a population whose coverage rises when conditions favour
  * it and falls when conditions are hostile. There is no intermediate
  * `condition` — net rate (benefit − damage, post-hardiness) drives
- * mass directly. The orchestrator routes a positive net into the
- * surplus bank (photoperiod-gated), and a negative net into direct
- * shrinkage.
+ * mass. The orchestrator folds a positive net into the surplus bank
+ * (photoperiod-gated); a negative net drains that reserve buffer first
+ * and only shrinks mass by the shortfall the bank can't cover.
  *
  * Stressors:
  * - `plant_suppression` — plant power above `suppressionThreshold`

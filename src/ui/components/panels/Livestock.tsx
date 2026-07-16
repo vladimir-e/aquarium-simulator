@@ -7,6 +7,7 @@ import type {
   Fish,
   FishSpecies,
   Action,
+  Clutch,
   Plant,
   Resources,
 } from '../../../simulation/index.js';
@@ -14,6 +15,7 @@ import {
   FISH_SPECIES_DATA,
   computeFishVitality,
   classifySatiationBandPosition,
+  checkFishCapacity,
   SATIATION_BAND_LABEL,
   type SatiationBand,
 } from '../../../simulation/index.js';
@@ -22,9 +24,11 @@ import type { LivestockConfig } from '../../../simulation/config/livestock.js';
 interface LivestockProps {
   food: number;
   fish: Fish[];
+  clutches: Clutch[];
   plants: Plant[];
   resources: Resources;
   tankCapacity: number;
+  tick: number;
   livestockConfig: LivestockConfig;
   executeAction: (action: Action) => void;
 }
@@ -166,6 +170,23 @@ function FishCard({
   const activeBenefits = vitality.breakdown.benefits.filter((b) => b.amount > 0);
   const totalConditions = activeStressors.length + activeBenefits.length;
 
+  // Fry carry a stage badge and a growth bar (age-driven mass toward
+  // adult); adults render neither. Maturity age also anchors the growth %.
+  const isFry = fish.stage === 'fry';
+  const growthPercent = isFry
+    ? Math.min(100, (fish.age / speciesData.breeding.maturityAge) * 100)
+    : 100;
+
+  // Reserve bank — breeding fuel and damage buffer. The bar fills toward
+  // surplusCap. "Burning reserves": health reads full but the bank is
+  // draining to hold it there (net < 0, drained > 0) — a fish that looks
+  // fine while spending down its buffer.
+  const surplusCap = livestockConfig.surplusCap;
+  const reservePercent =
+    surplusCap > 0 ? Math.min(100, (fish.surplus / surplusCap) * 100) : 0;
+  const burningReserves =
+    fish.health >= 100 && net < 0 && vitality.breakdown.drained > 0;
+
   // Trend arrow — hidden when health is full and net is non-negative
   // (no informational value), or when net is essentially flat. A
   // healthy fish suddenly under attack still shows ↓ at health 100.
@@ -195,7 +216,14 @@ function FishCard({
     <div className="flex items-start gap-2 p-2 bg-border/30 rounded">
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between mb-1 gap-2">
-          <span className="text-sm text-gray-200 truncate">{speciesData.name}</span>
+          <div className="flex items-center gap-1.5 min-w-0">
+            <span className="text-sm text-gray-200 truncate">{speciesData.name}</span>
+            {isFry && (
+              <span className="text-[10px] px-1 py-0.5 rounded bg-sky-500/20 text-sky-300 shrink-0">
+                Fry
+              </span>
+            )}
+          </div>
           <div className="flex items-center gap-2 shrink-0">
             <span className="text-xs text-gray-500">{formatAge(fish.age)}</span>
             {trendNode}
@@ -242,6 +270,46 @@ function FishCard({
             {satiationLabel}
           </span>
         </div>
+        {/* Growth — fry only. Age-driven progress toward adult mass;
+            adults are always full-grown so the row is dropped. */}
+        {isFry && (
+          <div className="flex items-center gap-1 mt-1">
+            <span className="text-xs text-gray-500 w-10">Growth</span>
+            <div className="flex-1 h-1.5 bg-border rounded-full overflow-hidden">
+              <div
+                className="h-full bg-sky-400 transition-all"
+                style={{ width: `${growthPercent}%` }}
+              />
+            </div>
+            <span
+              className="text-xs text-gray-500 w-12 text-right"
+              title={`${growthPercent.toFixed(0)}% grown toward ${speciesData.adultMass}g adult`}
+            >
+              {fish.mass.toFixed(2)}g
+            </span>
+          </div>
+        )}
+        {/* Reserve bank — breeding fuel + damage buffer, fills toward
+            surplusCap. Turns amber while the fish is burning reserves
+            (health full, bank draining to hold it there). */}
+        <div className="flex items-center gap-1 mt-1">
+          <span className="text-xs text-gray-500 w-10">Reserve</span>
+          <div className="flex-1 h-1.5 bg-border rounded-full overflow-hidden">
+            <div
+              className={`h-full transition-all ${burningReserves ? 'bg-orange-400' : 'bg-sky-500'}`}
+              style={{ width: `${reservePercent}%` }}
+            />
+          </div>
+          <span
+            className="text-xs text-gray-500 w-12 text-right"
+            title={`Reserve: ${fish.surplus.toFixed(1)} / ${surplusCap}`}
+          >
+            {fish.surplus.toFixed(0)}
+          </span>
+        </div>
+        {burningReserves && (
+          <div className="text-xs text-orange-400 mt-0.5">Burning reserves</div>
+        )}
         {/* Conditions breakdown — merged stressors (red, +X%) +
             benefits (green, +X%). Mirrors the PlantCard pattern from
             the Plants panel. Hidden when nothing's interesting. */}
@@ -295,12 +363,40 @@ function FishCard({
   );
 }
 
+/**
+ * Egg clutch waiting to hatch — species, egg count, and a hatch
+ * countdown in ticks (hours). Inert until `laidTick + hatchTime`; there's
+ * nothing for the player to act on, so the card is read-only.
+ */
+function ClutchCard({ clutch, tick }: { clutch: Clutch; tick: number }): React.JSX.Element {
+  const speciesData = FISH_SPECIES_DATA[clutch.species];
+  const hatchAt = clutch.laidTick + speciesData.breeding.hatchTime;
+  const remaining = Math.max(0, hatchAt - tick);
+
+  return (
+    <div className="flex items-center justify-between gap-2 p-2 bg-border/30 rounded">
+      <div className="min-w-0">
+        <span className="text-sm text-gray-200 truncate">{speciesData.name} clutch</span>
+        <div className="text-xs text-gray-500">{clutch.eggCount} eggs</div>
+      </div>
+      <span
+        className="text-xs text-sky-300 shrink-0"
+        title={`Laid at tick ${clutch.laidTick}, hatches at tick ${hatchAt}`}
+      >
+        {remaining > 0 ? `hatches in ${remaining}h` : 'hatching…'}
+      </span>
+    </div>
+  );
+}
+
 export function Livestock({
   food,
   fish,
+  clutches,
   plants,
   resources,
   tankCapacity,
+  tick,
   livestockConfig,
   executeAction,
 }: LivestockProps): React.JSX.Element {
@@ -310,12 +406,23 @@ export function Livestock({
   const opacity = getFoodIndicatorOpacity(food);
   const indicatorClass = food === 0 ? 'bg-border' : 'bg-orange-500';
 
+  const fryCount = fish.reduce((n, f) => n + (f.stage === 'fry' ? 1 : 0), 0);
+
+  // Physical stocking ceiling — mirrors the Plants panel's capacity gate.
+  // Shares checkFishCapacity with the addFish action so the cap math and
+  // rejection message can't drift.
+  const fishCapacity = checkFishCapacity(fish, tankCapacity, selectedSpecies);
+
   const handleAddFish = (): void => {
     executeAction({ type: 'addFish', species: selectedSpecies });
   };
 
   const handleRemoveFish = (fishId: string): void => {
     executeAction({ type: 'removeFish', fishId });
+  };
+
+  const handleSellFry = (): void => {
+    executeAction({ type: 'sellFry' });
   };
 
   const handleSpeciesChange = (e: React.ChangeEvent<HTMLSelectElement>): void => {
@@ -355,8 +462,20 @@ export function Livestock({
         {/* Fish list */}
         {fish.length > 0 ? (
           <div className="space-y-2">
-            <div className="text-xs text-gray-400 font-medium">
-              Fish ({fish.length})
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-xs text-gray-400 font-medium">
+                Fish ({fish.length})
+              </span>
+              {fryCount > 0 && (
+                <button
+                  type="button"
+                  onClick={handleSellFry}
+                  className="text-xs text-gray-400 hover:text-gray-100"
+                  title="Remove every fry from the tank"
+                >
+                  Sell fry ({fryCount})
+                </button>
+              )}
             </div>
             {fish.map((f) => (
               <FishCard
@@ -374,6 +493,19 @@ export function Livestock({
           </div>
         ) : (
           <div className="text-xs text-gray-400 italic">No fish yet...</div>
+        )}
+
+        {/* Clutches — eggs in the water waiting to hatch. Egg-laying
+            spawns deposit these; livebearers never do. */}
+        {clutches.length > 0 && (
+          <div className="space-y-2">
+            <div className="text-xs text-gray-400 font-medium">
+              Clutches ({clutches.length})
+            </div>
+            {clutches.map((clutch) => (
+              <ClutchCard key={clutch.id} clutch={clutch} tick={tick} />
+            ))}
+          </div>
         )}
 
         {/* Add fish controls */}
@@ -395,10 +527,17 @@ export function Livestock({
                 })}
               </Select>
             </div>
-            <Button onClick={handleAddFish} variant="primary">
+            <Button
+              onClick={handleAddFish}
+              disabled={!fishCapacity.ok}
+              variant="primary"
+            >
               Add
             </Button>
           </div>
+          {!fishCapacity.ok && (
+            <div className="text-xs text-yellow-400 mt-1">{fishCapacity.message}</div>
+          )}
           {/* Species info */}
           <div className="text-xs text-gray-500 mt-2">
             <span className="text-gray-400">{selectedData.name}:</span>{' '}

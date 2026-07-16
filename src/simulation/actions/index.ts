@@ -7,7 +7,7 @@ import { waterChange } from './water-change.js';
 import { trimPlants } from './trim-plants.js';
 import { addPlant, removePlant } from './plant-management.js';
 import { dose } from './dose.js';
-import { addFish, removeFish } from './fish-management.js';
+import { addFish, removeFish, sellFry } from './fish-management.js';
 
 export * from './types.js';
 export * from './top-off.js';
@@ -52,5 +52,7 @@ export function applyAction(
       return addFish(state, action);
     case 'removeFish':
       return removeFish(state, action);
+    case 'sellFry':
+      return sellFry(state);
   }
 }

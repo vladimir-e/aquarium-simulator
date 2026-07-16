@@ -219,5 +219,11 @@ export function computePlantVitality(ctx: PlantVitalityContext): VitalityResult 
     benefits: buildPlantBenefits(ctx),
     hardiness: species.hardiness,
     condition: ctx.plant.condition,
+    surplus: ctx.plant.surplus,
+    surplusCap: ctx.plantsConfig.surplusCap,
+    // Surplus accrual is photoperiod-gated — no light, no photosynthesis,
+    // no new photosynthate to store. Draining (reserve protecting
+    // condition) and the cap clamp still apply overnight.
+    accrueSurplus: ctx.resources.light > 0,
   });
 }

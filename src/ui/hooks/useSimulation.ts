@@ -101,6 +101,7 @@ function stateToPersistedSimulation(
     equipment: state.equipment,
     plants: state.plants,
     fish: state.fish,
+    clutches: state.clutches,
     algae: state.algae,
     alertState: state.alertState,
     currentPreset,
@@ -321,6 +322,12 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
           current.equipment
         );
         draft.resources = freshResources;
+
+        // Clear in-flight clutches: they hatch at an absolute
+        // `laidTick + hatchTime`, so rewinding the clock to 0 would
+        // strand them until sim time climbed back past their hatch tick.
+        // (Fish age is relative, so livestock is left in place.)
+        draft.clutches = [];
 
         // Reset alert state
         draft.alertState = {

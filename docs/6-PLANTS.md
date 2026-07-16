@@ -25,8 +25,9 @@ Plants are modeled as **individual specimens**, each with their own species char
 1. **Photosynthesis** emits resource effects (O2 production, CO2 and
    nutrient uptake). It does NOT directly produce plant size — that
    flows through the surplus supply chain.
-2. **Vitality** produces per-plant **surplus** when condition is full
-   and net is positive. Surplus banks on `Plant.surplus`.
+2. **Vitality** banks per-plant **surplus** on `Plant.surplus` when
+   condition is full and net is positive (saturating at `surplusCap`);
+   the same bank drains to buffer damage before condition falls.
 3. **Growth** drains the bank each tick, scaled by species growth
    rate and an asymptotic factor against species `maxSize`.
 4. Plants can grow past 100% up to their species `maxSize`; growth
@@ -144,17 +145,18 @@ oxygen_produced = photosynthesis_rate * total_plant_size * oxygen_per_unit
 Growth is **surplus-driven**, per plant, no cross-plant sharing. The
 pipeline is:
 
-1. Vitality emits per-tick surplus when the plant is at full condition
-   with positive net rate.
-2. The orchestrator banks the emission on `Plant.surplus` — but only
-   while the photoperiod is active (`resources.light > 0`). At night
-   the emission is discarded. Plant surplus represents stored
-   photosynthate (glucose reserves from carbon fixation); plants
-   need active photosynthesis to fix carbon, so without light there's
-   no energy actually captured even if vitality's other channels are
+1. Vitality returns the new `Plant.surplus` bank each tick. Positive
+   overflow at full condition accrues into it (up to `surplusCap`);
+   negative net drains it before condition falls (see § Plant Condition).
+2. Accrual is **photoperiod-gated** (`accrueSurplus: light > 0`): at
+   night the overflow is discarded. Plant surplus represents stored
+   photosynthate (glucose reserves from carbon fixation); plants need
+   active photosynthesis to fix carbon, so without light there's no
+   energy actually captured even if vitality's other channels are
    positive. (Vitality itself runs every tick, so plant *condition*
    keeps healing at night from non-light benefits — pH, temperature,
-   nutrients — only the surplus-accrual step pauses.)
+   nutrients — and the reserve still buffers damage overnight; only the
+   accrual step pauses.)
 3. While the photoperiod is active, growth drains up to
    `plantGrowthPerTickCap` units from the bank. The drained units
    convert to size at:
@@ -221,13 +223,16 @@ two lists for the plant — damage factors (stressors) and benefit
 factors — and produces:
 
 1. The plant's new condition (clamped 0–100), and
-2. A **surplus** value when condition is at 100 and benefits exceed
-   damage.
+2. The new **surplus** bank — fills from overflow at condition 100,
+   drains to buffer damage before condition falls (see *Vitality math*).
 
 The locked design rule: **growth happens only when condition is 100**.
 A stressed plant heals first, then grows. It never crawls forward at
 reduced rate. Surplus is the gate for biomass distribution
-(see *Growth and Size* below).
+(see *Growth and Size* below). The bank also protects condition: a
+plant with reserves holds condition through a hostile tick while its
+buffer drains, so **condition 100 with negative net means burning
+reserves, not thriving** — the plant reads full while its bank bleeds.
 
 ### Stressor coverage
 
@@ -279,19 +284,23 @@ poor conditions better, but isn't more energised by good ones.
 damageRate  = Σ stressor.amount × (1 - hardiness)
 benefitRate = Σ benefit.amount
 net         = benefitRate − damageRate
+bank        = clamp(plant.surplus, 0, surplusCap)   // self-heals old saves
 
-if net < 0:                      newCondition = condition + net  (clamp ≥ 0)
+if net < 0:                      drain        = min(bank, |net|)
+                                 newCondition = max(0, condition − (|net| − drain))
+                                 surplus      = bank − drain
 if net > 0 and condition < 100:  newCondition = min(100, condition + net)
-                                 surplus      = 0
+                                 surplus      = bank            // idle, capped
 if net > 0 and condition == 100: newCondition = 100
-                                 surplus      = net
+                                 surplus      = accrue ? min(surplusCap, bank + net) : bank
 ```
 
-Surplus banks on `Plant.surplus`. While condition is below 100 the
-vitality engine emits zero surplus, so the bank doesn't fill and
-growth doesn't happen. Once condition reaches 100, surplus flows
-into the bank, the growth pipeline drains some each daylight tick,
-and the leftover stays banked. See *Growth and Size* above for the
+`accrue` is the photoperiod gate (`light > 0`); draining and the cap
+clamp apply regardless. While condition is below 100 no overflow banks,
+so the bank doesn't fill from healing and growth doesn't happen. Once
+condition reaches 100, daylight overflow accrues (up to the cap), the
+growth pipeline drains some each daylight tick, and the leftover stays
+banked. See *Growth and Size* above for the
 full supply chain.
 
 ### Heal-or-decline trajectory
@@ -356,9 +365,10 @@ Plants can recover from low condition if nutrients are restored before death:
 Algae is a peer organism to plants and fish: it lives in
 `state.algae` and is processed in the ACTIVE tier of the tick.
 Unlike plants and fish, **algae has no condition** — it's a pure
-population. Stressors and benefits feed a single signed net rate
-that drives mass directly: positive net banks surplus and grows the
-bloom, negative net shrinks it.
+population. Stressors and benefits feed a single signed net rate that
+drives the surplus reserve bank and, through it, mass: positive net
+accrues surplus and grows the bloom; negative net drains the reserve
+before mass shrinks, so a stocked bloom rides out a hostile tick.
 
 This shape previews the colony abstraction (snails, shrimps): a
 population doesn't need health, just population dynamics.
@@ -371,7 +381,7 @@ state.algae: AlgaeState
 interface AlgaeState {
   /** Aggregate biomass / coverage 0–100. */
   mass: number
-  /** Banked surplus from positive net rate; spent on mass growth. */
+  /** Reserve bank: buffers hostile ticks, spent on mass growth (capped). */
   surplus: number
 }
 ```
@@ -442,27 +452,37 @@ engines emit.
 
 ### Mass dynamics
 
-**Positive net → surplus → mass growth.** Photoperiod-gated:
-banking and growth only happen while lights are on. The tick-spend
-step drains surplus into mass with the same asymptotic shape as
-plant growth:
+The bloom folds `net` into the surplus reserve bank via the shared
+`bankSurplus` primitive (the same one fish and plants use), then spends
+what's left on mass:
 
 ```
-algae.surplus += net                    // when net > 0 and lights on
-drained        = min(algae.surplus, algaeGrowthPerTickCap)
-factor         = max(0, 1 − mass / 100)
-massIncrease   = drained × factor × massPerSurplus
+bank = clamp(algae.surplus, 0, surplusCap)   // self-heals old saves
+if net > 0 and lights on:  bank = min(surplusCap, bank + net)  // accrue
+if net < 0:                drain = min(bank, |net|); bank −= drain
+                           overflow = |net| − drain             // hits mass
+```
+
+**Positive net → surplus → mass growth.** Accrual and growth-spend are
+photoperiod-gated (lights on). The tick-spend step drains the bank into
+mass with the same asymptotic shape as plant growth:
+
+```
+drained      = min(bank, algaeGrowthPerTickCap)
+factor       = max(0, 1 − mass / 100)
+massIncrease = drained × factor × massPerSurplus
 ```
 
 The asymptotic factor self-limits at `mass = 100`: surplus keeps
 draining at full rate but yields less mass per unit drawn near
 saturation.
 
-**Negative net → direct mass shrinkage.** Runs 24/7 (a suppressed
-bloom recedes at night too):
+**Negative net → drain reserve, then shrink mass.** Runs 24/7 (a
+suppressed bloom recedes at night too). The reserve absorbs the hit
+first; only the shortfall the bank can't cover reduces mass:
 
 ```
-algae.mass = max(0, algae.mass + net)   // when net < 0
+algae.mass = max(0, algae.mass − overflow)   // overflow = damage past the bank
 ```
 
 Decayed mass is **lost from the system** — not converted to waste
@@ -471,7 +491,8 @@ or nutrients. Same convention as scrubbing.
 **Spec invariant**: while `net ≥ 0` and lights are on, mass is
 monotonically non-decreasing apart from scrub. The only ways to
 remove healthy algae mass are scrubbing (manual) or driving net
-negative (heavy planting / rebalanced nutrients / light reduction).
+negative *for longer than the reserve can absorb* (heavy planting /
+rebalanced nutrients / light reduction).
 
 ### Tick ordering
 

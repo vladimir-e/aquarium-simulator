@@ -390,6 +390,7 @@ function createValidSimulation(): PersistedSimulation {
     },
     plants: [],
     fish: [],
+    clutches: [],
     algae: { mass: 0, surplus: 0 },
     alertState: {
       waterLevelCritical: false,

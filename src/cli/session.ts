@@ -12,7 +12,14 @@ import type { SimulationState } from '../simulation/index.js';
 import { type TunableConfig, DEFAULT_CONFIG } from '../simulation/config/index.js';
 import type { HistorySnapshot } from './history.js';
 
-export const SESSION_VERSION = 1;
+/**
+ * Bump whenever the persisted `SimulationState` shape changes so stale
+ * sessions are rejected by {@link loadSession} rather than crashing on a
+ * missing field. Parallel to the UI's `PERSISTENCE_VERSION`. Pre-launch
+ * rule is reject, not migrate. v2 added `Fish.stage` + `state.clutches`
+ * (breeding) and the saturating surplus bank.
+ */
+export const SESSION_VERSION = 2;
 export const DEFAULT_SESSION_PATH = resolve(process.cwd(), '.simstate/current.json');
 
 export interface Session {

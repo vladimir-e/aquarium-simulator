@@ -83,6 +83,15 @@ describe('TunableConfigSchema', () => {
     };
     expect(TunableConfigSchema.safeParse(withExtra).success).toBe(false);
   });
+
+  it('rejects the old v12 config shape (livestock missing surplusCap)', () => {
+    // The v13 bump made `surplusCap` required on every organism config.
+    // A pre-bump config lacking it must not validate — no silent default.
+    const livestockWithoutCap = { ...DEFAULT_CONFIG.livestock } as Record<string, unknown>;
+    delete livestockWithoutCap.surplusCap;
+    const oldShape = { ...DEFAULT_CONFIG, livestock: livestockWithoutCap };
+    expect(TunableConfigSchema.safeParse(oldShape).success).toBe(false);
+  });
 });
 
 describe('PersistedSimulationSchema', () => {
@@ -130,6 +139,7 @@ describe('PersistedSimulationSchema', () => {
     },
     plants: [],
     fish: [],
+    clutches: [],
     algae: { mass: 0, surplus: 0 },
     alertState: {
       waterLevelCritical: false,
@@ -232,6 +242,7 @@ describe('PersistedSimulationSchema', () => {
           age: 0,
           satiation: 70,
           sex: 'male',
+          stage: 'adult',
           hardinessOffset: 0.05,
           surplus: 0,
         },
@@ -252,12 +263,64 @@ describe('PersistedSimulationSchema', () => {
           age: 0,
           satiation: 70,
           sex: 'male',
+          stage: 'adult',
           hardinessOffset: -0.07,
           surplus: 1.5,
         },
       ],
     };
     expect(PersistedSimulationSchema.safeParse(withFish).success).toBe(true);
+  });
+
+  it('round-trips a fry fish alongside an unhatched clutch', () => {
+    const withOffspring = {
+      ...validSimulation,
+      fish: [
+        {
+          id: 'fry1',
+          species: 'guppy',
+          mass: 0.05,
+          health: 98,
+          age: 12,
+          satiation: 50,
+          sex: 'female',
+          stage: 'fry',
+          hardinessOffset: 0.01,
+          surplus: 0,
+        },
+      ],
+      clutches: [{ id: 'c1', species: 'neon_tetra', eggCount: 25, laidTick: 90 }],
+    };
+    expect(PersistedSimulationSchema.safeParse(withOffspring).success).toBe(true);
+  });
+
+  it('rejects an invalid clutch species', () => {
+    const badClutch = {
+      ...validSimulation,
+      clutches: [{ id: 'c1', species: 'not_a_fish', eggCount: 10, laidTick: 0 }],
+    };
+    expect(PersistedSimulationSchema.safeParse(badClutch).success).toBe(false);
+  });
+
+  it('rejects fish missing stage (strict mode)', () => {
+    const withFish = {
+      ...validSimulation,
+      fish: [
+        {
+          id: 'f1',
+          species: 'neon_tetra',
+          mass: 0.5,
+          health: 100,
+          age: 0,
+          satiation: 70,
+          sex: 'male',
+          hardinessOffset: 0,
+          surplus: 0,
+          // stage intentionally omitted
+        },
+      ],
+    };
+    expect(PersistedSimulationSchema.safeParse(withFish).success).toBe(false);
   });
 
   it('rejects fish missing hardinessOffset (strict mode)', () => {
@@ -272,6 +335,7 @@ describe('PersistedSimulationSchema', () => {
           age: 0,
           satiation: 70,
           sex: 'male',
+          stage: 'adult',
           surplus: 0,
           // hardinessOffset intentionally omitted
         },
@@ -292,6 +356,7 @@ describe('PersistedSimulationSchema', () => {
           age: 0,
           satiation: 70,
           sex: 'male',
+          stage: 'adult',
           hardinessOffset: 0,
           // surplus intentionally omitted
         },
@@ -346,6 +411,7 @@ describe('PersistedStateSchema', () => {
     },
     plants: [],
     fish: [],
+    clutches: [],
     algae: { mass: 0, surplus: 0 },
     alertState: {
       waterLevelCritical: false,
@@ -412,7 +478,12 @@ describe('PersistedStateSchema', () => {
     expect(PersistedStateSchema.safeParse(v11).success).toBe(false);
   });
 
-  it('PERSISTENCE_VERSION is 12', () => {
-    expect(PERSISTENCE_VERSION).toBe(12);
+  it('rejects prior version 12 (breaking bump for surplus cap config field)', () => {
+    const v12 = { ...validState, version: 12 };
+    expect(PersistedStateSchema.safeParse(v12).success).toBe(false);
+  });
+
+  it('PERSISTENCE_VERSION is 13', () => {
+    expect(PERSISTENCE_VERSION).toBe(13);
   });
 });
