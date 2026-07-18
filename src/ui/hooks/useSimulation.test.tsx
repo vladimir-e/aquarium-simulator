@@ -78,7 +78,7 @@ describe('useSimulation', () => {
       result.current.step();
     });
 
-    // Default speed is '1hr' which has a multiplier of 1
+    // Default speed is '1h' which has a multiplier of 1
     expect(result.current.state.tick).toBe(initialTick + 1);
   });
 
@@ -160,13 +160,13 @@ describe('useSimulation', () => {
   it('speed changes update speed state', () => {
     const { result } = renderHook(() => useSimulation(), { wrapper });
 
-    expect(result.current.speed).toBe('1hr');
+    expect(result.current.speed).toBe('1h');
 
     act(() => {
-      result.current.changeSpeed('1day');
+      result.current.changeSpeed('1d');
     });
 
-    expect(result.current.speed).toBe('1day');
+    expect(result.current.speed).toBe('1d');
   });
 
   describe('presets', () => {
@@ -534,6 +534,62 @@ describe('useSimulation', () => {
       });
 
       expect(result.current.state.resources.water).toBe(communityCapacity);
+    });
+  });
+
+  describe('run history + aggregates', () => {
+    it('seeds history with the initial snapshot', () => {
+      const { result } = renderHook(() => useSimulation('bare'), { wrapper });
+
+      expect(result.current.history).toHaveLength(1);
+      expect(result.current.history[0].tick).toBe(0);
+      expect(result.current.aggregates.ticks).toBe(0);
+    });
+
+    it('appends a snapshot and advances run length per step', () => {
+      const { result } = renderHook(() => useSimulation('bare'), { wrapper });
+
+      act(() => {
+        result.current.step();
+      });
+
+      const { history, aggregates } = result.current;
+      expect(history.length).toBeGreaterThanOrEqual(2);
+      expect(history[history.length - 1].tick).toBe(1);
+      expect(aggregates.ticks).toBe(1);
+    });
+
+    it('accumulates water changed at dispatch', () => {
+      const { result } = renderHook(() => useSimulation('bare'), { wrapper });
+
+      // Bare tank starts full at 40L; a 25% change replaces 10L.
+      act(() => {
+        result.current.executeAction({ type: 'waterChange', amount: 0.25 });
+      });
+
+      expect(result.current.aggregates.waterChangedL).toBeCloseTo(10, 5);
+    });
+
+    it('resets history and aggregates with the run', () => {
+      const { result } = renderHook(() => useSimulation('bare'), { wrapper });
+
+      act(() => {
+        result.current.step();
+        result.current.step();
+        result.current.executeAction({ type: 'waterChange', amount: 0.25 });
+      });
+
+      expect(result.current.aggregates.ticks).toBe(2);
+      expect(result.current.aggregates.waterChangedL).toBeGreaterThan(0);
+
+      act(() => {
+        result.current.reset();
+      });
+
+      expect(result.current.aggregates.ticks).toBe(0);
+      expect(result.current.aggregates.waterChangedL).toBe(0);
+      expect(result.current.history).toHaveLength(1);
+      expect(result.current.history[0].tick).toBe(0);
     });
   });
 });

@@ -1,273 +1,49 @@
-import React from 'react';
-import { Timeline } from './components/layout/Timeline';
-import { EquipmentBar } from './components/layout/EquipmentBar';
-import { ResourcesPanel } from './components/resources/ResourcesPanel';
-import { SimulationStatus } from './components/panels/SimulationStatus';
-import { Environment } from './components/panels/Environment';
-import { Actions } from './components/panels/Actions';
-import { Visualization } from './components/panels/Visualization';
-import { WaterChemistry } from './components/panels/WaterChemistry';
-import { Plants } from './components/panels/Plants';
-import { Nutrients } from './components/panels/Nutrients';
-import { Livestock } from './components/panels/Livestock';
-import { Log } from './components/panels/Log';
+import React, { useState } from 'react';
+import { AppHeader } from './components/layout/AppHeader';
 import { DebugPanel } from './components/panels/DebugPanel';
+import { RunMode } from './modes/RunMode';
+import { BuildMode } from './modes/BuildMode';
+import { ReviewMode } from './modes/ReviewMode';
+import type { Mode } from './modes/types';
 import { useSimulation } from './hooks/useSimulation';
 import { useConfig } from './hooks/useConfig';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 
-type SpeedPreset = '1hr' | '6hr' | '12hr' | '1day';
-
-const SPEED_MULTIPLIERS: Record<SpeedPreset, number> = {
-  '1hr': 1,
-  '6hr': 6,
-  '12hr': 12,
-  '1day': 24,
-};
-
 function App(): React.JSX.Element {
-  const {
-    state,
-    isPlaying,
-    speed,
-    currentPreset,
-    isPresetModified,
-    step,
-    togglePlayPause,
-    changeSpeed,
-    loadPreset,
-    updateHeaterEnabled,
-    updateHeaterTargetTemperature,
-    updateHeaterWattage,
-    updateRoomTemperature,
-    updateTapWaterTemperature,
-    updateTapWaterPH,
-    updateLidType,
-    updateAtoEnabled,
-    updateFilterEnabled,
-    updateFilterType,
-    updateAirPumpEnabled,
-    updatePowerheadEnabled,
-    updatePowerheadFlowRate,
-    updateSubstrateType,
-    addHardscapeItem,
-    removeHardscapeItem,
-    updateLightEnabled,
-    updateLightWattage,
-    updateLightSchedule,
-    updateCo2GeneratorEnabled,
-    updateCo2GeneratorBubbleRate,
-    updateCo2GeneratorSchedule,
-    updateAutoDoserEnabled,
-    updateAutoDoserAmount,
-    updateAutoDoserSchedule,
-    changeTankCapacity,
-    reset,
-    executeAction,
-  } = useSimulation();
+  const sim = useSimulation();
   const { config } = useConfig();
+  const [mode, setMode] = useState<Mode>('run');
 
-  // Calculate if light is currently on from resources
-  const isLightOn = state.resources.light > 0;
+  useKeyboardShortcuts(sim.step, sim.togglePlayPause, sim.isPlaying);
 
-  useKeyboardShortcuts(step, togglePlayPause, isPlaying);
+  const handleModeChange = (next: Mode): void => {
+    // Entering Build pauses the sim; leaving it does not auto-resume.
+    if (next === 'build') sim.pause();
+    setMode(next);
+  };
 
   return (
-    <div className="min-h-screen bg-background text-gray-200">
-      <Timeline
-        isPlaying={isPlaying}
-        speed={speed}
-        tick={state.tick}
-        onPlayPause={togglePlayPause}
-        onSpeedChange={changeSpeed}
-        onReset={reset}
+    <div className="min-h-screen bg-bg text-ink">
+      <AppHeader
+        mode={mode}
+        onModeChange={handleModeChange}
+        currentPreset={sim.currentPreset}
+        onPresetChange={sim.loadPreset}
+        isPlaying={sim.isPlaying}
+        onPlayPause={sim.togglePlayPause}
+        onStep={sim.step}
+        tick={sim.state.tick}
+        speed={sim.speed}
+        onSpeedChange={sim.changeSpeed}
+        onReset={sim.reset}
       />
 
-      <EquipmentBar
-        tank={{
-          capacity: state.tank.capacity,
-          waterLevel: state.resources.water,
-        }}
-        heater={{
-          enabled: state.equipment.heater.enabled,
-          targetTemperature: state.equipment.heater.targetTemperature,
-          wattage: state.equipment.heater.wattage,
-          isOn: state.equipment.heater.isOn,
-        }}
-        lid={{
-          type: state.equipment.lid.type,
-        }}
-        ato={{
-          enabled: state.equipment.ato.enabled,
-        }}
-        filter={{
-          enabled: state.equipment.filter.enabled,
-          type: state.equipment.filter.type,
-        }}
-        airPump={{
-          enabled: state.equipment.airPump.enabled,
-        }}
-        powerhead={{
-          enabled: state.equipment.powerhead.enabled,
-          flowRateGPH: state.equipment.powerhead.flowRateGPH,
-        }}
-        substrate={{
-          type: state.equipment.substrate.type,
-        }}
-        hardscape={{
-          items: state.equipment.hardscape.items,
-        }}
-        hardscapeSlots={state.tank.hardscapeSlots}
-        light={{
-          enabled: state.equipment.light.enabled,
-          wattage: state.equipment.light.wattage,
-          schedule: state.equipment.light.schedule,
-        }}
-        isLightOn={isLightOn}
-        co2Generator={{
-          enabled: state.equipment.co2Generator.enabled,
-          bubbleRate: state.equipment.co2Generator.bubbleRate,
-          isOn: state.equipment.co2Generator.isOn,
-          schedule: state.equipment.co2Generator.schedule,
-        }}
-        autoDoser={{
-          enabled: state.equipment.autoDoser.enabled,
-          doseAmountMl: state.equipment.autoDoser.doseAmountMl,
-          schedule: state.equipment.autoDoser.schedule,
-          dosedToday: state.equipment.autoDoser.dosedToday,
-        }}
-        onTankCapacityChange={changeTankCapacity}
-        onHeaterEnabledChange={updateHeaterEnabled}
-        onHeaterTargetTemperatureChange={updateHeaterTargetTemperature}
-        onHeaterWattageChange={updateHeaterWattage}
-        onLidTypeChange={updateLidType}
-        onAtoEnabledChange={updateAtoEnabled}
-        onFilterEnabledChange={updateFilterEnabled}
-        onFilterTypeChange={updateFilterType}
-        onAirPumpEnabledChange={updateAirPumpEnabled}
-        onPowerheadEnabledChange={updatePowerheadEnabled}
-        onPowerheadFlowRateChange={updatePowerheadFlowRate}
-        onSubstrateTypeChange={updateSubstrateType}
-        onHardscapeAddItem={addHardscapeItem}
-        onHardscapeRemoveItem={removeHardscapeItem}
-        onLightEnabledChange={updateLightEnabled}
-        onLightWattageChange={updateLightWattage}
-        onLightScheduleChange={updateLightSchedule}
-        onCo2GeneratorEnabledChange={updateCo2GeneratorEnabled}
-        onCo2GeneratorBubbleRateChange={updateCo2GeneratorBubbleRate}
-        onCo2GeneratorScheduleChange={updateCo2GeneratorSchedule}
-        onAutoDoserEnabledChange={updateAutoDoserEnabled}
-        onAutoDoserAmountChange={updateAutoDoserAmount}
-        onAutoDoserScheduleChange={updateAutoDoserSchedule}
-      />
+      <main>
+        {mode === 'run' && <RunMode sim={sim} config={config} />}
+        {mode === 'build' && <BuildMode />}
+        {mode === 'review' && <ReviewMode />}
+      </main>
 
-      <div className="p-4">
-        {/* Responsive grid: 4 cols on desktop, 2 on tablet, 1 on mobile */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-          {/* Column 1 */}
-          <div className="space-y-4">
-            <SimulationStatus
-              tick={state.tick}
-              speed={SPEED_MULTIPLIERS[speed]}
-              isPlaying={isPlaying}
-              currentPreset={currentPreset}
-              isPresetModified={isPresetModified}
-              onStep={step}
-              onPresetChange={loadPreset}
-            />
-            <Environment
-              roomTemperature={state.environment.roomTemperature}
-              waterTemperature={state.resources.temperature}
-              onRoomTemperatureChange={updateRoomTemperature}
-            />
-            <Actions
-              waterLevel={state.resources.water}
-              capacity={state.tank.capacity}
-              algaeMass={state.algae.mass}
-              plants={state.plants}
-              tapWaterTemperature={state.environment.tapWaterTemperature}
-              tapWaterPH={state.environment.tapWaterPH}
-              executeAction={executeAction}
-              onTapWaterTemperatureChange={updateTapWaterTemperature}
-              onTapWaterPHChange={updateTapWaterPH}
-            />
-          </div>
-
-          {/* Column 2 */}
-          <div className="space-y-4">
-            <Visualization
-              waterLevel={state.resources.water}
-              capacity={state.tank.capacity}
-              waterTemperature={state.resources.temperature}
-              roomTemperature={state.environment.roomTemperature}
-              lidType={state.equipment.lid.type}
-            />
-            <ResourcesPanel
-              surface={state.resources.surface}
-              flow={state.resources.flow}
-              light={state.resources.light}
-              tankCapacity={state.tank.capacity}
-            />
-            <WaterChemistry
-              waste={state.resources.waste}
-              food={state.resources.food}
-              temperature={state.resources.temperature}
-              ammonia={state.resources.ammonia}
-              nitrite={state.resources.nitrite}
-              nitrate={state.resources.nitrate}
-              oxygen={state.resources.oxygen}
-              co2={state.resources.co2}
-              ph={state.resources.ph}
-              aob={state.resources.aob}
-              nob={state.resources.nob}
-              surface={state.resources.surface}
-              water={state.resources.water}
-            />
-          </div>
-
-          {/* Column 3 */}
-          <div className="space-y-4">
-            <Plants
-              algae={state.algae}
-              plants={state.plants}
-              resources={state.resources}
-              tankCapacity={state.tank.capacity}
-              substrateType={state.equipment.substrate.type}
-              plantsConfig={config.plants}
-              algaeConfig={config.algae}
-              nutrientsConfig={config.nutrients}
-              executeAction={executeAction}
-            />
-            <Nutrients
-              nitrate={state.resources.nitrate}
-              phosphate={state.resources.phosphate}
-              potassium={state.resources.potassium}
-              iron={state.resources.iron}
-              waterVolume={state.resources.water}
-            />
-          </div>
-
-          {/* Column 4 */}
-          <div className="space-y-4">
-            <Livestock
-              food={state.resources.food}
-              fish={state.fish}
-              clutches={state.clutches}
-              plants={state.plants}
-              resources={state.resources}
-              tankCapacity={state.tank.capacity}
-              tick={state.tick}
-              livestockConfig={config.livestock}
-              executeAction={executeAction}
-            />
-          </div>
-        </div>
-
-        {/* Full width log */}
-        <Log logs={state.logs} state={state} />
-      </div>
-
-      {/* Debug Panel (overlay) */}
       <DebugPanel />
     </div>
   );

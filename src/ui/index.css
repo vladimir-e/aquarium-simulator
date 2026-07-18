@@ -1,146 +1,169 @@
 @import 'tailwindcss';
 
+/* Fonts are self-hosted via @fontsource, imported in main.tsx. */
+
 @theme {
-  /* Dark theme colors (default) */
-  --color-background: #1a1f2e;
-  --color-panel: #1e2330;
-  --color-border: #3a4255;
-  --color-accent-green: #22c55e;
-  --color-accent-orange: #f97316;
-  --color-accent-blue: #3b82f6;
-  --color-warning: #f59e0b;
+  --font-sans: 'Hanken Grotesk', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+
+  --radius-badge: 6px;
+  --radius-control: 8px;
+  --radius-card: 12px;
 }
 
-/* Light theme */
+/* Warm-paper light theme (sampled from mockups 6). */
 :root.light {
-  --color-background: #f3f4f6;
-  --color-panel: #ffffff;
-  --color-border: #d1d5db;
-  --color-text-primary: #111827;
-  --color-text-secondary: #374151;
-  --color-text-tertiary: #6b7280;
-  --color-text-muted: #9ca3af;
+  --bg: #ebe9e1;
+  --surface: #f5f3ed;
+  --surface-2: #fbfaf5;
+  --hairline: #dcd8ce;
+  --hairline-2: #c9c4b6;
+  --track: #e3e0d6;
+  --ink: #282e2d;
+  --ink-2: #5c625c;
+  --ink-3: #8a8e84;
+
+  --ok: #4a8a47;
+  --ok-text: #3e7a3e;
+  --ok-tint: #dfe9dc;
+  --warn: #a7732a;
+  --warn-text: #97671f;
+  --warn-tint: #efe2c8;
+  --alert: #b34935;
+  --alert-text: #a23f2c;
+  --alert-tint: #f1dbd4;
+
+  --accent: #3c7869;
+  --accent-tint: #dce8e2;
+
+  --scrub: #c79a3a;
+  --focus: #3c7869;
 }
 
-/* Dark theme */
+/* Deep-navy dark theme (sampled from mockup 7). */
 :root.dark {
-  --color-background: #1a1f2e;
-  --color-panel: #1e2330;
-  --color-border: #3a4255;
-  --color-text-primary: #f3f4f6;
-  --color-text-secondary: #e5e7eb;
-  --color-text-tertiary: #9ca3af;
-  --color-text-muted: #6b7280;
+  --bg: #0d131b;
+  --surface: #131c25;
+  --surface-2: #18232e;
+  --hairline: #243240;
+  --hairline-2: #2e3e4d;
+  --track: #1b2732;
+  --ink: #eaf1f4;
+  --ink-2: #93a0ad;
+  --ink-3: #63707d;
+
+  --ok: #94d97b;
+  --ok-text: #94d97b;
+  --ok-tint: rgba(148, 217, 123, 0.16);
+  --warn: #f4b765;
+  --warn-text: #f4b765;
+  --warn-tint: rgba(244, 183, 101, 0.16);
+  --alert: #ee816d;
+  --alert-text: #ee816d;
+  --alert-tint: rgba(238, 129, 109, 0.16);
+
+  --accent: #77d5c4;
+  --accent-tint: rgba(119, 213, 196, 0.16);
+
+  --scrub: #e8c34e;
+  --focus: #77d5c4;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-hairline: var(--hairline);
+  --color-hairline-2: var(--hairline-2);
+  --color-track: var(--track);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+
+  --color-ok: var(--ok);
+  --color-ok-text: var(--ok-text);
+  --color-ok-tint: var(--ok-tint);
+  --color-warn: var(--warn);
+  --color-warn-text: var(--warn-text);
+  --color-warn-tint: var(--warn-tint);
+  --color-alert: var(--alert);
+  --color-alert-text: var(--alert-text);
+  --color-alert-tint: var(--alert-tint);
+
+  --color-accent: var(--accent);
+  --color-accent-tint: var(--accent-tint);
+  --color-scrub: var(--scrub);
+  --color-focus: var(--focus);
+
+  /* Legacy aliases: the Run body is hosted unchanged this unit and still
+     paints with these names. They resolve to the new tokens so it themes
+     correctly; they retire as each panel is re-skinned in later units. */
+  --color-background: var(--bg);
+  --color-panel: var(--surface);
+  --color-border: var(--hairline);
+  --color-accent-blue: var(--accent);
+  --color-accent-green: var(--ok);
+  --color-accent-orange: var(--warn);
+  --color-warning: var(--warn);
 }
 
 body {
   margin: 0;
   padding: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
+  font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background-color: var(--color-background);
-  color: var(--color-text-secondary);
-  transition: background-color 0.2s ease, color 0.2s ease;
+  background-color: var(--bg);
+  color: var(--ink);
 }
 
-/* Light theme text color overrides */
-:root.light .text-gray-100 { color: #111827; }
-:root.light .text-gray-200 { color: #1f2937; }
-:root.light .text-gray-300 { color: #374151; }
-:root.light .text-gray-400 { color: #4b5563; }
-:root.light .text-gray-500 { color: #6b7280; }
-
-/* Light theme background overrides for panel elements */
-:root.light .bg-panel {
-  background-color: var(--color-panel);
+@media (prefers-reduced-motion: no-preference) {
+  body {
+    transition:
+      background-color 0.12s ease,
+      color 0.12s ease;
+  }
 }
 
-:root.light .bg-background {
-  background-color: var(--color-background);
+/* Light-mode remaps for the hosted body's built-in gray utilities (grays
+   are Tailwind built-ins, not tokens, so the theme class can't reach them).
+   Retire alongside the legacy aliases as panels move to semantic tokens. */
+:root.light .text-gray-100,
+:root.light .text-gray-200 {
+  color: var(--ink);
 }
-
-:root.light .bg-border {
-  background-color: var(--color-border);
+:root.light .text-gray-300,
+:root.light .text-gray-400 {
+  color: var(--ink-2);
 }
-
-:root.light .border-border {
-  border-color: var(--color-border);
+:root.light .text-gray-500 {
+  color: var(--ink-3);
 }
-
-/* Hover states for light theme */
-:root.light .hover\:bg-border:hover {
-  background-color: #e5e7eb;
-}
-
-:root.light .hover\:bg-panel:hover {
-  background-color: #f9fafb;
-}
-
-/* Light theme gray background overrides */
 :root.light .bg-gray-600 {
-  background-color: #d1d5db;
+  background-color: var(--track);
 }
-
 :root.light .bg-gray-700 {
-  background-color: #e5e7eb;
+  background-color: var(--hairline);
 }
-
 :root.light .hover\:bg-gray-600:hover {
-  background-color: #9ca3af;
+  background-color: var(--hairline-2);
 }
-
-/* Light theme button text in panel backgrounds */
-:root.light button.bg-panel,
-:root.light .bg-panel > button {
-  color: #374151;
-}
-
-:root.light button:hover.hover\:text-gray-100,
-:root.light .hover\:text-gray-100:hover {
-  color: #111827;
-}
-
+:root.light .hover\:text-gray-100:hover,
 :root.light .hover\:text-gray-200:hover {
-  color: #1f2937;
+  color: var(--ink);
 }
 
-/* Light theme scrollbar */
-:root.light ::-webkit-scrollbar {
+::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
-
-:root.light ::-webkit-scrollbar-track {
-  background: #e5e7eb;
+::-webkit-scrollbar-track {
+  background: var(--track);
 }
-
-:root.light ::-webkit-scrollbar-thumb {
-  background: #9ca3af;
+::-webkit-scrollbar-thumb {
+  background: var(--hairline-2);
   border-radius: 4px;
 }
-
-:root.light ::-webkit-scrollbar-thumb:hover {
-  background: #6b7280;
-}
-
-/* Dark theme scrollbar */
-:root.dark ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-
-:root.dark ::-webkit-scrollbar-track {
-  background: #1a1f2e;
-}
-
-:root.dark ::-webkit-scrollbar-thumb {
-  background: #3a4255;
-  border-radius: 4px;
-}
-
-:root.dark ::-webkit-scrollbar-thumb:hover {
-  background: #4a5568;
+::-webkit-scrollbar-thumb:hover {
+  background: var(--ink-3);
 }

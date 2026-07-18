@@ -29,6 +29,9 @@ export interface LogEntry {
   message: string;
   /** Typed discriminator for consumers that detect events programmatically. */
   event?: LogEvent;
+  /** Organisms an event accounts for when it isn't one-per-entry (fry born,
+   * eggs hatched, fry sold), so consumers get the magnitude, not just the kind. */
+  count?: number;
 }
 
 /**
@@ -39,7 +42,8 @@ export function createLog(
   source: string,
   severity: LogSeverity,
   message: string,
-  event?: LogEvent
+  event?: LogEvent,
+  count?: number
 ): LogEntry {
   return {
     tick,
@@ -47,5 +51,6 @@ export function createLog(
     severity,
     message,
     ...(event ? { event } : {}),
+    ...(count !== undefined ? { count } : {}),
   };
 }
