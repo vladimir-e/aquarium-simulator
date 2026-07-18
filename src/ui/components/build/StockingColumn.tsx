@@ -10,7 +10,8 @@ import { bioload, fryLines, removalVictimId, speciesCounts } from '../../build';
 import { useCardCollapse } from '../../hooks/useCardCollapse';
 import { Card, CardBody, CardFooter, CardHeader, CollapseRegion } from '../run/Card';
 import { Bar } from '../run/elements';
-import { Adjust, Select } from './controls';
+import { Adjust } from './controls';
+import { Select } from '../ui/Select';
 
 type Sim = ReturnType<typeof useSimulation>;
 

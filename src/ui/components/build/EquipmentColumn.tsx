@@ -25,8 +25,12 @@ import {
 import { useCardCollapse } from '../../hooks/useCardCollapse';
 import { useIsMobile } from '../../hooks/useMediaQuery';
 import { Card, CardBody, CardHeader, CollapseRegion } from '../run/Card';
-import { StatusDot, CONTROL_FOCUS } from '../run/elements';
-import { FieldRow, Select, Stepper, Toggle } from './controls';
+import { StatusDot } from '../run/elements';
+import { CONTROL_FOCUS } from '../ui/focus';
+import { FieldRow } from './controls';
+import { Select } from '../ui/Select';
+import { Stepper } from '../ui/Stepper';
+import { Toggle } from '../ui/Toggle';
 
 type Sim = ReturnType<typeof useSimulation>;
 

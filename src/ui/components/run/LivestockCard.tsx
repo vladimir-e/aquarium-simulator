@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ChevronDown, X } from 'lucide-react';
+import { X } from 'lucide-react';
 import type { Action, Clutch, Fish, FishSpecies, SimulationState } from '../../../simulation/index.js';
 import {
   FISH_SPECIES_DATA,
@@ -14,6 +14,7 @@ import { useCardCollapse } from '../../hooks/useCardCollapse';
 import { Card, CardBody, CardFooter, CardHeader, CollapseRegion } from './Card';
 import { Bar, Caret, Pill, statusText } from './elements';
 import { SplitButton, type SplitOption } from './SplitButton';
+import { Select } from '../ui/Select';
 
 const FEED_PRESETS = [0.25, 0.5, 1, 2];
 const SEX_GLYPH: Record<Fish['sex'], string> = { male: '♂', female: '♀' };
@@ -142,18 +143,15 @@ export function LivestockCard({ state, config, executeAction }: LivestockCardPro
         </>
       }
       action={
-        <div className="relative">
-          <select
-            value={grouping}
-            onChange={(e) => setGrouping(e.target.value as Grouping)}
-            aria-label="Group livestock"
-            className="appearance-none rounded-control border border-hairline bg-surface py-1 pl-2.5 pr-7 text-[13px] font-medium text-ink-2 transition-colors hover:border-hairline-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
-          >
-            <option value="species">group: species</option>
-            <option value="individuals">group: individuals</option>
-          </select>
-          <ChevronDown className="pointer-events-none absolute right-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-ink-3" />
-        </div>
+        <Select
+          ariaLabel="Group livestock"
+          value={grouping}
+          onChange={(v) => setGrouping(v as Grouping)}
+          options={[
+            { value: 'species', label: 'group: species' },
+            { value: 'individuals', label: 'group: individuals' },
+          ]}
+        />
       }
     />
   );
@@ -276,12 +274,7 @@ export function LivestockCard({ state, config, executeAction }: LivestockCardPro
         />
         <div className="flex items-center gap-2 text-[13px] text-ink-3">
           <span>in water</span>
-          <div className="h-1.5 w-16 overflow-hidden rounded-full bg-track">
-            <div
-              className="h-full rounded-full bg-ink-3"
-              style={{ width: `${Math.min(food / 2, 1) * 100}%` }}
-            />
-          </div>
+          <Bar className="w-16" value={Math.min(food / 2, 1) * 100} status="neutral" />
           <span className="font-mono tabular-nums text-ink-2">{FoodResource.format(food)}</span>
         </div>
         <span className="ml-auto text-[12px] text-ink-3">{hint}</span>

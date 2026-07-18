@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import React from 'react';
 import { renderHook, act } from '@testing-library/react';
 import { useSimulation } from './useSimulation';
-import { getPresetById } from '../presets';
+import { getPresetById, type PresetId } from '../presets';
 import { ConfigProvider } from './useConfig';
 import { PersistenceProvider } from '../persistence/index.js';
 import { createSimulation } from '../../simulation/state.js';
@@ -14,7 +14,7 @@ import { PERSISTENCE_VERSION, STORAGE_KEY } from '../persistence/types.js';
  * clutch, so `useSimulation` hydrates from it. This is the only public
  * path to inject a clutch into the hook's state.
  */
-function seedSessionWithClutch(presetId: string): void {
+function seedSessionWithClutch(presetId: PresetId): void {
   const base = createSimulation(getPresetById(presetId)!.config);
   const persisted = {
     version: PERSISTENCE_VERSION,

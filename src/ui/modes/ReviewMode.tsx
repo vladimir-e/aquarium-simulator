@@ -1,6 +1,7 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import type { useSimulation } from '../hooks/useSimulation';
 import { useTheme } from '../hooks/useTheme';
+import { useUnits } from '../hooks/useUnits';
 import { useIsMobile } from '../hooks/useMediaQuery';
 import { Segmented } from '../components/ui/Segmented';
 import { SummaryTiles } from '../components/review/SummaryTiles';
@@ -42,6 +43,7 @@ interface ReviewModeProps {
  */
 export function ReviewMode({ sim }: ReviewModeProps): React.JSX.Element {
   const { resolvedTheme } = useTheme();
+  const { displayTemp } = useUnits();
   const isMobile = useIsMobile();
   const [window, setWindow] = useState<ReviewWindow>('run');
   const [filter, setFilter] = useState<LogFilter>('all');
@@ -79,6 +81,7 @@ export function ReviewMode({ sim }: ReviewModeProps): React.JSX.Element {
       theme={resolvedTheme}
       markers={marks.filter((m) => chart.alertKinds.includes(m.kind))}
       onScrubToTick={handleScrub}
+      displayTemp={displayTemp}
     />
   );
 

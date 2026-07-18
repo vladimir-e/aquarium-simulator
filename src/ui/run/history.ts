@@ -5,6 +5,7 @@
  */
 
 import type { SimulationState } from '../../simulation/index.js';
+import { getPpm } from '../../simulation/resources/index.js';
 
 export const RUN_HISTORY_CAP = 720; // 30 days of hourly ticks
 
@@ -35,9 +36,9 @@ export function snapshotFromState(state: SimulationState): RunSnapshot {
   const capacity = state.tank.capacity;
   return {
     tick: state.tick,
-    ammonia: r.ammonia,
-    nitrite: r.nitrite,
-    nitrate: r.nitrate,
+    ammonia: getPpm(r.ammonia, r.water),
+    nitrite: getPpm(r.nitrite, r.water),
+    nitrate: getPpm(r.nitrate, r.water),
     ph: r.ph,
     oxygen: r.oxygen,
     co2: r.co2,

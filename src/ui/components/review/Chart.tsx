@@ -64,6 +64,8 @@ interface ChartProps {
   theme: ResolvedTheme;
   markers: AlertMark[];
   onScrubToTick: (tick: number) => void;
+  /** Canonical °C → the viewer's unit, so the tooltip matches the Run tile. */
+  displayTemp: (celsius: number) => number;
 }
 
 export function Chart({
@@ -74,10 +76,16 @@ export function Chart({
   theme,
   markers,
   onScrubToTick,
+  displayTemp,
 }: ChartProps): React.JSX.Element {
   const [ref, width] = useMeasuredWidth();
   const [hovered, setHovered] = useState(false);
   const plotW = Math.max(0, width - PAD.left - PAD.right);
+
+  const displaySeriesValue = (series: ChartSeries, snapshot: RunSnapshot): number => {
+    const raw = series.accessor(snapshot);
+    return series.key === 'temperature' ? displayTemp(raw) : raw;
+  };
   const plotH = HEIGHT - PAD.top - PAD.bottom;
   const baselineY = PAD.top + plotH;
 
@@ -233,7 +241,7 @@ export function Chart({
                       />
                       <span className="text-ink-3">{series.label}</span>
                       <span className="ml-auto font-mono tabular-nums text-ink">
-                        {formatChartValue(series.accessor(current))}
+                        {formatChartValue(displaySeriesValue(series, current))}
                       </span>
                     </div>
                   ))}

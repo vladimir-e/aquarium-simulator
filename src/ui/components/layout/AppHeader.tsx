@@ -1,6 +1,8 @@
 import React from 'react';
-import { Play, Pause, SkipForward, Settings, ChevronDown } from 'lucide-react';
+import { Play, Pause, SkipForward, Settings } from 'lucide-react';
 import { Segmented } from '../ui/Segmented';
+import { Select } from '../ui/Select';
+import { PlaceholderButton } from '../ui/PlaceholderButton';
 import { ThemeToggle } from '../ui/ThemeToggle';
 import { useConfig } from '../../hooks/useConfig';
 import { PRESETS, type PresetId } from '../../presets.js';
@@ -73,32 +75,18 @@ export function AppHeader({
               CHEMISTRY ENGINE v4
             </span>
           </div>
-          <div className="relative">
-            <select
-              value={currentPreset}
-              onChange={(e) => onPresetChange(e.target.value as PresetId)}
-              aria-label="Scenario preset"
-              className="w-full max-w-[8.5rem] appearance-none truncate rounded-control border border-hairline bg-surface py-1.5 pl-3 pr-8 text-[13px] font-medium text-ink transition-colors hover:border-hairline-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus sm:max-w-none"
-            >
-              {PRESETS.map((preset) => (
-                <option key={preset.id} value={preset.id}>
-                  {preset.name}
-                </option>
-              ))}
-            </select>
-            <ChevronDown className="pointer-events-none absolute right-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-ink-3" />
-          </div>
+          <Select
+            ariaLabel="Scenario preset"
+            value={currentPreset}
+            onChange={(v) => onPresetChange(v as PresetId)}
+            options={PRESETS.map((preset) => ({ value: preset.id, label: preset.name }))}
+            className="max-w-[8.5rem] sm:max-w-none"
+            selectClassName="truncate"
+          />
           {mode === 'build' && (
-            <button
-              type="button"
-              disabled
-              aria-disabled
-              title="Coming with saved scenarios"
-              className="hidden cursor-not-allowed items-center gap-1 rounded-control px-2.5 py-1.5 text-[13px] font-medium text-ink-3 opacity-60 sm:inline-flex"
-            >
-              save
-              <ChevronDown className="h-3.5 w-3.5" />
-            </button>
+            <div className="hidden sm:block">
+              <PlaceholderButton label="save" title="Coming with saved scenarios" />
+            </div>
           )}
         </div>
 
@@ -128,21 +116,14 @@ export function AppHeader({
                 Step {STEP_LABELS[speed]}
               </button>
               <Clock tick={tick} />
-              <div className="relative shrink-0 sm:hidden">
-                <select
-                  value={speed}
-                  onChange={(e) => onSpeedChange(e.target.value as SpeedPreset)}
-                  aria-label="Speed"
-                  className="min-h-[44px] appearance-none rounded-control border border-hairline bg-surface py-1.5 pl-2.5 pr-7 text-[13px] font-medium text-ink transition-colors hover:border-hairline-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
-                >
-                  {SPEED_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown className="pointer-events-none absolute right-1.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-ink-3" />
-              </div>
+              <Select
+                ariaLabel="Speed"
+                value={speed}
+                onChange={(v) => onSpeedChange(v as SpeedPreset)}
+                options={SPEED_OPTIONS}
+                className="shrink-0 sm:hidden"
+                selectClassName="min-h-[44px]"
+              />
               <div className="hidden shrink-0 sm:block">
                 <Segmented ariaLabel="Speed" options={SPEED_OPTIONS} value={speed} onChange={onSpeedChange} />
               </div>

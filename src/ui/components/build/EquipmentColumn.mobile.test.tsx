@@ -80,4 +80,16 @@ describe('EquipmentColumn (mobile)', () => {
     const dialog = screen.getByRole('dialog', { name: /CO₂ injector/ });
     expect(within(dialog).getByText('Bubble rate')).toBeTruthy();
   });
+
+  it('returns focus to the triggering device row when the editor pops', () => {
+    renderColumn();
+    const heaterRow = screen.getByRole('button', { name: 'Heater' });
+    fireEvent.click(heaterRow);
+    const dialog = screen.getByRole('dialog', { name: /Heater/ });
+
+    fireEvent.click(within(dialog).getByRole('button', { name: /back/i }));
+
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(document.activeElement).toBe(heaterRow);
+  });
 });

@@ -7,6 +7,7 @@ import {
   type RunSnapshot,
 } from './history';
 import { createSimulation, type SimulationState } from '../../simulation/index.js';
+import { getPpm } from '../../simulation/resources/index.js';
 import type { Plant } from '../../simulation/state.js';
 
 function makeState(mutate: (draft: SimulationState) => void): SimulationState {
@@ -51,11 +52,12 @@ describe('snapshotFromState', () => {
     });
 
     const snap = snapshotFromState(state);
+    const { water } = state.resources;
     expect(snap).toMatchObject({
       tick: 12,
-      ammonia: 0.5,
-      nitrite: 0.2,
-      nitrate: 10,
+      ammonia: getPpm(0.5, water),
+      nitrite: getPpm(0.2, water),
+      nitrate: getPpm(10, water),
       ph: 6.8,
       oxygen: 7.5,
       co2: 18,
@@ -63,6 +65,23 @@ describe('snapshotFromState', () => {
       food: 0.3,
       algaeMass: 4,
     });
+  });
+
+  it('stores nitrogen as ppm on the same basis the vitals tile renders', () => {
+    const state = makeState((d) => {
+      d.tank.capacity = 200;
+      d.resources.water = 120; // water ≠ capacity, so ppm diverges from raw mass
+      d.resources.ammonia = 0.6;
+      d.resources.nitrite = 0.3;
+      d.resources.nitrate = 24;
+    });
+
+    const snap = snapshotFromState(state);
+    const r = state.resources;
+    expect(snap.ammonia).toBe(getPpm(r.ammonia, r.water));
+    expect(snap.nitrite).toBe(getPpm(r.nitrite, r.water));
+    expect(snap.nitrate).toBe(getPpm(r.nitrate, r.water));
+    expect(snap.ammonia).not.toBe(r.ammonia);
   });
 
   it('computes water as a percentage of capacity', () => {

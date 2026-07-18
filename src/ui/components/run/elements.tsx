@@ -1,6 +1,7 @@
 import React from 'react';
 import { ChevronRight } from 'lucide-react';
 import type { Status } from '../../run';
+import { CONTROL_FOCUS } from '../ui/focus';
 
 const BAR_FILL: Record<Status, string> = {
   ok: 'bg-ok',
@@ -20,9 +21,6 @@ const TEXT_COLOR: Record<Status, string> = {
 export function statusText(status: Status): string {
   return TEXT_COLOR[status];
 }
-
-export const CONTROL_FOCUS =
-  'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus';
 
 /** Shared control styling (no border-radius — callers add the corners they need). */
 export function controlClasses(variant: 'primary' | 'secondary'): string {

@@ -17,7 +17,8 @@ import { useCardCollapse } from '../../hooks/useCardCollapse';
 import { Card, CardBody, CardFooter, CardHeader, CollapseRegion } from '../run/Card';
 import { Pill, RunButton } from '../run/elements';
 import { SplitButton, type SplitOption } from '../run/SplitButton';
-import { FieldRow, Select } from './controls';
+import { FieldRow } from './controls';
+import { Select } from '../ui/Select';
 
 type Sim = ReturnType<typeof useSimulation>;
 

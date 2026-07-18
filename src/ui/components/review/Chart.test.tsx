@@ -51,6 +51,7 @@ describe('Chart', () => {
         theme="light"
         markers={[]}
         onScrubToTick={() => {}}
+        displayTemp={(c) => c}
       />
     );
     expect(screen.getByText('Nitrogen cycle')).toBeTruthy();
@@ -69,6 +70,7 @@ describe('Chart', () => {
         theme="light"
         markers={[]}
         onScrubToTick={() => {}}
+        displayTemp={(c) => c}
       />
     );
     expect(screen.getByText('No data in this window yet.')).toBeTruthy();
@@ -85,6 +87,7 @@ describe('Chart', () => {
         theme="light"
         markers={[{ tick: 2, kind: 'ammonia' }]}
         onScrubToTick={vi.fn()}
+        displayTemp={(c) => c}
       />
     );
     expect(screen.getByRole('img', { name: /Nitrogen cycle over ticks 0–2/ })).toBeTruthy();
@@ -110,6 +113,7 @@ describe('Chart', () => {
           theme="light"
           markers={[]}
           onScrubToTick={onScrubToTick}
+          displayTemp={(c) => c}
         />
       );
 
