@@ -95,9 +95,10 @@
   --color-scrub: var(--scrub);
   --color-focus: var(--focus);
 
-  /* Legacy aliases: the Run body is hosted unchanged this unit and still
-     paints with these names. They resolve to the new tokens so it themes
-     correctly; they retire as each panel is re-skinned in later units. */
+  /* Legacy aliases: the surviving pre-redesign pieces — the equipment cards,
+     DebugPanel, and the status/environment panels now hosted in Build — still
+     paint with these names. They resolve to the new tokens so those pieces
+     theme correctly; they retire as the Build/Review units re-skin them. */
   --color-background: var(--bg);
   --color-panel: var(--surface);
   --color-border: var(--hairline);
@@ -125,9 +126,9 @@ body {
   }
 }
 
-/* Light-mode remaps for the hosted body's built-in gray utilities (grays
-   are Tailwind built-ins, not tokens, so the theme class can't reach them).
-   Retire alongside the legacy aliases as panels move to semantic tokens. */
+/* Light-mode remaps for the surviving legacy pieces' built-in gray utilities
+   (grays are Tailwind built-ins, not tokens, so the theme class can't reach
+   them). Retire alongside the legacy aliases as those pieces move to tokens. */
 :root.light .text-gray-100,
 :root.light .text-gray-200 {
   color: var(--ink);
@@ -148,8 +149,7 @@ body {
 :root.light .hover\:bg-gray-600:hover {
   background-color: var(--hairline-2);
 }
-:root.light .hover\:text-gray-100:hover,
-:root.light .hover\:text-gray-200:hover {
+:root.light .hover\:text-gray-100:hover {
   color: var(--ink);
 }
 

@@ -13,6 +13,7 @@ function App(): React.JSX.Element {
   const sim = useSimulation();
   const { config } = useConfig();
   const [mode, setMode] = useState<Mode>('run');
+  const [selectedDeviceId, setSelectedDeviceId] = useState<string | null>(null);
 
   useKeyboardShortcuts(sim.step, sim.togglePlayPause, sim.isPlaying);
 
@@ -20,6 +21,11 @@ function App(): React.JSX.Element {
     // Entering Build pauses the sim; leaving it does not auto-resume.
     if (next === 'build') sim.pause();
     setMode(next);
+  };
+
+  const handleOpenDeviceInBuild = (deviceId: string): void => {
+    setSelectedDeviceId(deviceId);
+    handleModeChange('build');
   };
 
   return (
@@ -39,8 +45,10 @@ function App(): React.JSX.Element {
       />
 
       <main>
-        {mode === 'run' && <RunMode sim={sim} config={config} />}
-        {mode === 'build' && <BuildMode />}
+        {mode === 'run' && (
+          <RunMode sim={sim} config={config} onOpenDeviceInBuild={handleOpenDeviceInBuild} />
+        )}
+        {mode === 'build' && <BuildMode sim={sim} selectedDeviceId={selectedDeviceId} />}
         {mode === 'review' && <ReviewMode />}
       </main>
 
