@@ -72,6 +72,16 @@ const wrapper = ({ children }: { children: React.ReactNode }): React.JSX.Element
   </PersistenceProvider>
 );
 
+// Same providers under StrictMode, so setState updaters double-invoke and the
+// recorder's idempotency guard is actually exercised.
+const strictWrapper = ({ children }: { children: React.ReactNode }): React.JSX.Element => (
+  <React.StrictMode>
+    <PersistenceProvider>
+      <ConfigProvider>{children}</ConfigProvider>
+    </PersistenceProvider>
+  </React.StrictMode>
+);
+
 describe('useSimulation', () => {
   beforeEach(() => {
     vi.useFakeTimers();
@@ -632,33 +642,57 @@ describe('useSimulation', () => {
       });
 
       const { history, aggregates } = result.current;
-      expect(history.length - baseline).toBe(6);
+      const recorded = history.slice(baseline);
+      expect(recorded.map((s) => s.tick)).toEqual([1, 2, 3, 4, 5, 6]);
       expect(aggregates.ticks).toBe(6);
-      expect(history[history.length - 1].tick).toBe(6);
+    });
+
+    it('records each intra-step tick exactly once under StrictMode', () => {
+      const { result } = renderHook(() => useSimulation('bare'), { wrapper: strictWrapper });
+      const baseline = result.current.history.length;
+
+      act(() => {
+        result.current.changeSpeed('6h');
+      });
+      act(() => {
+        result.current.step();
+      });
+
+      // Without the recordedThrough guard, the double-invoked updater would
+      // queue each tick twice (12 snapshots); the guard keeps it at six.
+      const recorded = result.current.history.slice(baseline);
+      expect(recorded.map((s) => s.tick)).toEqual([1, 2, 3, 4, 5, 6]);
+      expect(result.current.aggregates.ticks).toBe(6);
     });
 
     it('rebaselines history and aggregates on a mid-run preset load', () => {
-      const { result } = renderHook(() => useSimulation('planted'), { wrapper });
+      seedSessionWithHighAmmonia();
+      try {
+        const { result } = renderHook(() => useSimulation(), { wrapper });
 
-      act(() => {
-        result.current.step();
-        result.current.step();
-        result.current.step();
-      });
-      expect(result.current.aggregates.ticks).toBe(3);
+        // Cross the ammonia threshold so a warning-severity log exists.
+        act(() => {
+          result.current.step();
+        });
+        const hasWarning = (): boolean =>
+          result.current.state.logs.some((log) => log.severity === 'warning');
+        expect(result.current.aggregates.alerts).toBe(1);
+        expect(hasWarning()).toBe(true);
 
-      act(() => {
-        result.current.loadPreset('community');
-      });
+        act(() => {
+          result.current.loadPreset('community');
+        });
 
-      // History reseeds to a single baseline snapshot and tallies zero out.
-      expect(result.current.history).toHaveLength(1);
-      expect(result.current.aggregates.ticks).toBe(0);
-      // The preset-switch log must not be counted as an alert.
-      expect(result.current.aggregates.alerts).toBe(0);
-      expect(
-        result.current.state.logs.some((log) => log.message.includes('Switched to preset'))
-      ).toBe(true);
+        // History reseeds to a single baseline snapshot and tallies zero out.
+        expect(result.current.history).toHaveLength(1);
+        expect(result.current.aggregates.ticks).toBe(0);
+        // The warning log is still present at reseed but sits behind the new
+        // baseline, so it must not be counted as an alert.
+        expect(hasWarning()).toBe(true);
+        expect(result.current.aggregates.alerts).toBe(0);
+      } finally {
+        globalThis.localStorage.clear();
+      }
     });
 
     it('counts a chemistry alert once per episode', () => {

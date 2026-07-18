@@ -230,6 +230,7 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
 
   const resetRun = useCallback(() => {
     recorderRef.current = null;
+    recordedThroughRef.current = -1;
     pendingSnapshotsRef.current = [];
     setHistory([]);
     setAggregates(emptyAggregates());
@@ -258,8 +259,6 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
     if (queued.length > 0) {
       pendingSnapshotsRef.current = [];
       setHistory((h) => queued.reduce(appendRunSnapshot, h));
-    } else if (state.tick > prev.tick) {
-      setHistory((h) => appendRunSnapshot(h, snapshotFromState(state)));
     }
     const newLogs = state.logs.slice(prev.logCount);
     setAggregates((a) => accrueLogs(accrueTicks(a, state.tick - prev.tick), newLogs));
