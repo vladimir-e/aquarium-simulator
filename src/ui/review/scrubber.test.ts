@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
+  nextScrubPosition,
   clampTick,
   tickToFraction,
   fractionToTick,
@@ -7,6 +8,21 @@ import {
   alertMarkers,
 } from './scrubber';
 import { createLog, type LogEntry } from '../../simulation/index.js';
+
+describe('nextScrubPosition', () => {
+  it('parks the handle at a tick before the live edge', () => {
+    expect(nextScrubPosition(20, { minTick: 0, maxTick: 36 })).toBe(20);
+  });
+
+  it('re-engages follow (null) at or past the live edge', () => {
+    expect(nextScrubPosition(36, { minTick: 0, maxTick: 36 })).toBeNull();
+    expect(nextScrubPosition(99, { minTick: 0, maxTick: 36 })).toBeNull();
+  });
+
+  it('follows when there is no range', () => {
+    expect(nextScrubPosition(5, null)).toBeNull();
+  });
+});
 
 describe('clampTick', () => {
   it('holds a tick inside the domain', () => {

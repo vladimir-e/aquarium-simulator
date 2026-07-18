@@ -16,6 +16,7 @@ export type LogEvent =
   | 'eggs-laid' // egg-laying spawn — a clutch was created
   | 'eggs-hatched' // a clutch reached its hatch time — fry added
   | 'fish-died' // a fish died (any cause)
+  | 'plant-died' // a plant died from poor conditions
   | 'fry-sold'; // the sell-fry action removed every fry at once
 
 export interface LogEntry {

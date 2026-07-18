@@ -13,6 +13,7 @@ describe('categorizeLog', () => {
   it('tags any lifecycle event as life, regardless of source', () => {
     expect(categorizeLog(createLog(1, 'simulation', 'info', 'hatched', 'eggs-hatched', 4))).toBe('life');
     expect(categorizeLog(createLog(1, 'simulation', 'warning', 'died', 'fish-died'))).toBe('life');
+    expect(categorizeLog(createLog(1, 'simulation', 'warning', 'Java Fern died', 'plant-died'))).toBe('life');
     expect(categorizeLog(createLog(1, 'user', 'info', 'sold', 'fry-sold', 100))).toBe('life');
   });
 
@@ -28,9 +29,9 @@ describe('categorizeLog', () => {
     }
   });
 
-  it('falls back to sim for engine chatter', () => {
+  it('falls back to sim for engine chatter without an event', () => {
     expect(categorizeLog(createLog(0, 'simulation', 'info', 'Simulation reset'))).toBe('sim');
-    expect(categorizeLog(createLog(0, 'simulation', 'warning', 'Java Fern died from poor conditions'))).toBe('sim');
+    expect(categorizeLog(createLog(0, 'simulation', 'warning', 'unclassified anomaly'))).toBe('sim');
   });
 });
 
@@ -62,9 +63,9 @@ describe('filterLogs', () => {
 });
 
 describe('isAlertLog', () => {
-  it('counts warnings without a lifecycle event', () => {
+  it('counts chemistry and plant-death warnings', () => {
     expect(isAlertLog(createLog(1, 'nitrogen-cycle', 'warning', 'high ammonia'))).toBe(true);
-    expect(isAlertLog(createLog(1, 'simulation', 'warning', 'plant died'))).toBe(true);
+    expect(isAlertLog(createLog(1, 'simulation', 'warning', 'plant died', 'plant-died'))).toBe(true);
   });
 
   it('excludes a fish death (a death, not an alert) and info lines', () => {
@@ -85,15 +86,16 @@ describe('classifyAlert', () => {
     expect(classifyAlert(createLog(1, 'gas-exchange', 'warning', 'High CO2 level: 35 mg/L'))).toBe('co2');
   });
 
-  it('maps the remaining alert sources', () => {
+  it('maps algae, water, and plant-death alerts', () => {
     expect(classifyAlert(createLog(1, 'algae', 'warning', 'High algae level: 85'))).toBe('algae');
     expect(classifyAlert(createLog(1, 'evaporation', 'warning', 'Water level critical: 30L'))).toBe('water');
-    expect(classifyAlert(createLog(1, 'simulation', 'warning', 'Anubias died from poor conditions'))).toBe('plant');
+    expect(classifyAlert(createLog(1, 'simulation', 'warning', 'Anubias died from poor conditions', 'plant-died'))).toBe('plant');
   });
 
-  it('returns null for non-alert lines', () => {
+  it('returns null for non-alert lines and unclassified engine warnings', () => {
     expect(classifyAlert(createLog(1, 'user', 'info', 'fed fish'))).toBeNull();
     expect(classifyAlert(createLog(1, 'simulation', 'warning', 'died', 'fish-died'))).toBeNull();
+    expect(classifyAlert(createLog(1, 'simulation', 'warning', 'unclassified anomaly'))).toBeNull();
   });
 });
 

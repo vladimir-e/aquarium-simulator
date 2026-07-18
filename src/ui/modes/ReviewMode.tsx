@@ -15,6 +15,7 @@ import {
   windowRange,
   sliceLogs,
   clampTick,
+  nextScrubPosition,
   alertMarkers,
 } from '../review/index.js';
 
@@ -53,8 +54,7 @@ export function ReviewMode({ sim }: ReviewModeProps): React.JSX.Element {
 
   const handleScrub = useCallback(
     (tick: number): void => {
-      // Landing on the live edge re-engages follow, so the run keeps growing under the handle.
-      setScrubTick(range && tick >= range.maxTick ? null : tick);
+      setScrubTick(nextScrubPosition(tick, range));
     },
     [range]
   );

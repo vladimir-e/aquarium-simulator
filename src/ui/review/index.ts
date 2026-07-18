@@ -22,6 +22,7 @@ export {
   sliceLogs,
 } from './window.js';
 export {
+  nextScrubPosition,
   clampTick,
   tickToFraction,
   fractionToTick,

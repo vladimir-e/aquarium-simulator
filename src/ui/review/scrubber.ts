@@ -8,6 +8,16 @@ import type { LogEntry } from '../../simulation/index.js';
 import { classifyAlert, type AlertMark } from './category.js';
 import type { TickRange } from './window.js';
 
+/**
+ * Where a scrub request parks the handle: `null` (follow the live edge) when it
+ * lands at or past the latest tick, otherwise the requested tick. Landing on the
+ * end re-engages follow so a still-running sim keeps growing under the handle.
+ */
+export function nextScrubPosition(tick: number, range: TickRange | null): number | null {
+  if (!range) return null;
+  return tick >= range.maxTick ? null : tick;
+}
+
 export function clampTick(tick: number, minTick: number, maxTick: number): number {
   if (tick < minTick) return minTick;
   if (tick > maxTick) return maxTick;

@@ -31,7 +31,8 @@ function downloadLog(logs: LogEntry[]): void {
   anchor.href = url;
   anchor.download = LOG_EXPORT_FILENAME;
   anchor.click();
-  globalThis.URL.revokeObjectURL(url);
+  // Revoke after the click's download has a chance to start.
+  globalThis.setTimeout(() => globalThis.URL.revokeObjectURL(url), 0);
 }
 
 interface ReviewLogPanelProps {

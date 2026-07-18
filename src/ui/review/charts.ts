@@ -90,10 +90,18 @@ export function seriesExtent(values: number[]): Extent {
   return { min, max };
 }
 
-/** Value → 0..1 within its extent; a flat series sits centred. */
+/**
+ * Relative floor on a series' span: variation under this fraction of the series'
+ * own magnitude reads as flat, so float micro-noise on a steady line (a heater
+ * holding 25°C) doesn't stretch to full-height volatility.
+ */
+const SPAN_EPSILON = 1e-3;
+
+/** Value → 0..1 within its extent; a flat (or near-flat) series sits centred. */
 export function normalize(value: number, extent: Extent): number {
   const span = extent.max - extent.min;
-  if (span <= 0) return 0.5;
+  const floor = Math.max(Math.abs(extent.min), Math.abs(extent.max), 1) * SPAN_EPSILON;
+  if (span <= floor) return 0.5;
   return (value - extent.min) / span;
 }
 

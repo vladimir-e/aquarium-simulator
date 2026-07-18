@@ -83,7 +83,7 @@ export function TickScrubber({ range, currentTick, onScrubToTick }: TickScrubber
   const fraction = range ? tickToFraction(currentTick, range.minTick, range.maxTick) : 0;
 
   return (
-    <div className="sticky bottom-0 z-10 border-t border-hairline-2 bg-surface px-4 py-3">
+    <div className="sticky bottom-0 z-10 border-t border-hairline-2 bg-surface px-4 py-2">
       <div className="flex items-center gap-4">
         <span className="shrink-0 font-mono text-[12px] tabular-nums text-ink-3">
           tick {range ? range.minTick : 0}
@@ -103,7 +103,7 @@ export function TickScrubber({ range, currentTick, onScrubToTick }: TickScrubber
           onPointerUp={handlePointerUp}
           onKeyDown={handleKeyDown}
           style={{ touchAction: 'none' }}
-          className="relative flex h-6 flex-1 cursor-pointer items-center rounded-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
+          className="relative flex h-11 flex-1 cursor-pointer items-center rounded-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
         >
           <div className="pointer-events-none absolute inset-x-0 top-1/2 h-1 -translate-y-1/2 rounded-full bg-track" />
           <div

@@ -81,6 +81,19 @@ describe('normalize', () => {
   it('centres a flat series', () => {
     expect(normalize(22, { min: 22, max: 22 })).toBe(0.5);
   });
+
+  it('centres a near-flat series whose span is float micro-noise', () => {
+    // A heater holding 25°C with ±0.0001 jitter should read flat, not full-height.
+    const extent = { min: 25, max: 25.0002 };
+    expect(normalize(25.0002, extent)).toBe(0.5);
+    expect(normalize(25, extent)).toBe(0.5);
+  });
+
+  it('still resolves a genuine small trend above the noise floor', () => {
+    const extent = { min: 6.5, max: 7.0 };
+    expect(normalize(6.75, extent)).toBeCloseTo(0.5);
+    expect(normalize(7.0, extent)).toBe(1);
+  });
 });
 
 describe('snapshotAtTick', () => {

@@ -29,6 +29,34 @@ describe('TickScrubber', () => {
     expect(onScrubToTick).toHaveBeenLastCalledWith(34); // clamped from 10 + 24
   });
 
+  it('scrubs to the tick under a pointer drag', () => {
+    const onScrubToTick = vi.fn();
+    render(<TickScrubber range={{ minTick: 0, maxTick: 36 }} currentTick={0} onScrubToTick={onScrubToTick} />);
+    const slider = screen.getByRole('slider');
+    slider.setPointerCapture = vi.fn();
+    slider.releasePointerCapture = vi.fn();
+    slider.getBoundingClientRect = (): ReturnType<typeof slider.getBoundingClientRect> => ({
+      left: 0,
+      top: 0,
+      right: 100,
+      bottom: 44,
+      width: 100,
+      height: 44,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    });
+
+    fireEvent.pointerDown(slider, { clientX: 50, pointerId: 1 });
+    expect(onScrubToTick).toHaveBeenLastCalledWith(18); // fraction 0.5 of ticks 0..36
+
+    fireEvent.pointerMove(slider, { clientX: 100, pointerId: 1 });
+    expect(onScrubToTick).toHaveBeenLastCalledWith(36); // dragged to the right edge
+
+    fireEvent.pointerMove(slider, { clientX: 0, pointerId: 1 });
+    expect(onScrubToTick).toHaveBeenLastCalledWith(0);
+  });
+
   it('exposes the domain through slider aria attributes', () => {
     render(<TickScrubber range={{ minTick: 12, maxTick: 36 }} currentTick={24} onScrubToTick={() => {}} />);
     const slider = screen.getByRole('slider');

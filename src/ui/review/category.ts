@@ -66,17 +66,18 @@ export const ALERT_LABEL: Record<AlertKind, string> = {
 };
 
 /**
- * A warning that counts as an alert — the same predicate the run aggregates use:
- * a `fish-died` warning is a death, not an alert, so any warning carrying an
- * event is excluded and the rest (chemistry crossings, plant deaths) count.
+ * A warning that counts as an alert — the mirror of the run aggregates: a
+ * `fish-died` warning is a death, so it's excluded; every other warning
+ * (chemistry crossings, plant deaths) counts.
  */
 export function isAlertLog(log: LogEntry): boolean {
-  return log.severity === 'warning' && log.event === undefined;
+  return log.severity === 'warning' && log.event !== 'fish-died';
 }
 
-/** Which vital an alert warning is about, keyed on source then message. */
+/** Which vital an alert warning is about, keyed on its event then source. */
 export function classifyAlert(log: LogEntry): AlertKind | null {
   if (!isAlertLog(log)) return null;
+  if (log.event === 'plant-died') return 'plant';
   const msg = log.message.toLowerCase();
   switch (log.source) {
     case 'nitrogen-cycle':
@@ -90,8 +91,6 @@ export function classifyAlert(log: LogEntry): AlertKind | null {
       return 'algae';
     case 'evaporation':
       return 'water';
-    case 'simulation':
-      return 'plant';
     default:
       return null;
   }

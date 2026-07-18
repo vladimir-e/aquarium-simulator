@@ -48,7 +48,7 @@ export function SummaryTiles({
   logs: LogEntry[];
 }): React.JSX.Element {
   const { formatVol } = useUnits();
-  const worstAlert = latestAlert(logs);
+  const latest = latestAlert(logs);
 
   return (
     <div className="flex flex-wrap gap-3">
@@ -58,7 +58,7 @@ export function SummaryTiles({
       <Tile
         label="alerts"
         value={String(aggregates.alerts)}
-        chip={worstAlert && <Pill variant="alert">{ALERT_LABEL[worstAlert.kind]}</Pill>}
+        chip={latest && <Pill variant="alert">{ALERT_LABEL[latest.kind]}</Pill>}
       />
       <Tile label="water changed" value={formatVol(aggregates.waterChangedL, 0)} />
     </div>

@@ -62,6 +62,13 @@ describe('accrueLogs', () => {
     expect(result.deaths).toBe(1);
   });
 
+  it('counts a plant death as an alert, not a fish death', () => {
+    const logs = [createLog(1, 'simulation', 'warning', 'Java Fern died', 'plant-died')];
+    const result = accrueLogs(emptyAggregates(), logs);
+    expect(result.alerts).toBe(1);
+    expect(result.deaths).toBe(0);
+  });
+
   it('ignores info entries that carry no lifecycle event', () => {
     const logs = [createLog(1, 'user', 'info', 'Heater enabled')];
     expect(accrueLogs(emptyAggregates(), logs)).toMatchObject({
