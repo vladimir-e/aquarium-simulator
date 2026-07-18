@@ -58,4 +58,15 @@ describe('SystemsCard', () => {
     renderCard(base);
     expect((screen.getByText('Top-off') as HTMLButtonElement).disabled).toBe(true);
   });
+
+  it('pins biofilter colonization to the AOB+NOB formula', () => {
+    // maxBacteria = surface × bacteriaPerCm2 (0.01) = 10 per type; ceiling is 2×.
+    // (aob + nob) = 10 of 20 → 50%.
+    const state: SimulationState = {
+      ...base,
+      resources: { ...base.resources, surface: 1000, aob: 5, nob: 5 },
+    };
+    renderCard(state);
+    expect(screen.getByText('50% · 1,000 cm²')).toBeTruthy();
+  });
 });

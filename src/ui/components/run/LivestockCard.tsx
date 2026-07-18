@@ -175,74 +175,74 @@ export function LivestockCard({ state, config, executeAction }: LivestockCardPro
             )}
             {fish.length > 0 && grouping === 'species' && (
               <div className="divide-y divide-hairline">
-            {species.map((group) => {
-              const open = expanded.has(group.species);
-              return (
-                <div key={group.species}>
-                  <button
-                    type="button"
-                    onClick={() => toggleSpecies(group.species)}
-                    aria-expanded={open}
-                    className={`flex w-full items-center gap-3 rounded py-2.5 text-left transition-colors hover:bg-surface-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus ${open ? 'bg-surface-2' : ''}`}
-                  >
-                    <Caret open={open} />
-                    <span className="text-[15px] font-medium text-ink">{group.name}</span>
-                    <span className="text-[13px] text-ink-3">×{group.count}</span>
-                    <span className="ml-auto flex items-center gap-3">
-                      {group.hungryCount > 0 ? (
-                        <span className="text-[12px] text-warn-text">{group.hungryCount} hungry</span>
-                      ) : (
-                        <span className={`text-[12px] ${statusText(bandStatus(group.band))}`}>
-                          {SATIATION_BAND_LABEL[group.band].toLowerCase()}
+                {species.map((group) => {
+                  const open = expanded.has(group.species);
+                  return (
+                    <div key={group.species}>
+                      <button
+                        type="button"
+                        onClick={() => toggleSpecies(group.species)}
+                        aria-expanded={open}
+                        className={`flex w-full items-center gap-3 rounded py-2.5 text-left transition-colors hover:bg-surface-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus ${open ? 'bg-surface-2' : ''}`}
+                      >
+                        <Caret open={open} />
+                        <span className="text-[15px] font-medium text-ink">{group.name}</span>
+                        <span className="text-[13px] text-ink-3">×{group.count}</span>
+                        <span className="ml-auto flex items-center gap-3">
+                          {group.hungryCount > 0 ? (
+                            <span className="text-[12px] text-warn-text">{group.hungryCount} hungry</span>
+                          ) : (
+                            <span className={`text-[12px] ${statusText(bandStatus(group.band))}`}>
+                              {SATIATION_BAND_LABEL[group.band].toLowerCase()}
+                            </span>
+                          )}
+                          <Bar className="w-24" value={group.avgSatiation} status={bandStatus(group.band)} />
+                          <span className="w-9 font-mono tabular-nums text-[13px] text-ink">
+                            {Math.round(group.avgSatiation)}%
+                          </span>
                         </span>
+                      </button>
+                      {open && (
+                        <div className="max-h-[180px] overflow-y-auto pb-1 pl-6">
+                          {group.fish.map((f) => (
+                            <IndividualRow
+                              key={f.id}
+                              fish={f}
+                              config={config}
+                              showSpecies={false}
+                              onRemove={() => removeFish(f.id)}
+                            />
+                          ))}
+                        </div>
                       )}
-                      <Bar className="w-24" value={group.avgSatiation} status={bandStatus(group.band)} />
-                      <span className="w-9 font-mono tabular-nums text-[13px] text-ink">
-                        {Math.round(group.avgSatiation)}%
-                      </span>
-                    </span>
-                  </button>
-                  {open && (
-                    <div className="max-h-[180px] overflow-y-auto pb-1 pl-6">
-                      {group.fish.map((f) => (
-                        <IndividualRow
-                          key={f.id}
-                          fish={f}
-                          config={config}
-                          showSpecies={false}
-                          onRemove={() => removeFish(f.id)}
-                        />
-                      ))}
                     </div>
-                  )}
-                </div>
-              );
-            })}
+                  );
+                })}
 
-            {fryBatches.map((batch) => (
-              <div key={`fry-${batch.species}`} className="flex items-center gap-3 py-2.5">
-                <span className="w-3.5" />
-                <span className="text-[15px] font-medium text-ink">{batch.name} fry</span>
-                <span className="text-[13px] text-ink-3">×{batch.count}</span>
-                <Pill variant="neutral">batch</Pill>
-                <span className="ml-auto flex items-center gap-3">
-                  <span className="text-[12px] text-ink-3">
-                    day {batch.dayNow} · graduates d{batch.graduationDay}
-                  </span>
-                  <Bar className="w-24" value={batch.growthPct} status="warn" />
-                  <span className="w-9 font-mono tabular-nums text-[13px] text-ink">
-                    {Math.round(batch.growthPct)}%
-                  </span>
-                  <button
-                    type="button"
-                    onClick={sellFry}
-                    className="text-[12px] text-ink-3 transition-colors hover:text-ink-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
-                  >
-                    sell
-                  </button>
-                </span>
-              </div>
-            ))}
+                {fryBatches.map((batch) => (
+                  <div key={`fry-${batch.species}`} className="flex items-center gap-3 py-2.5">
+                    <span className="w-3.5" />
+                    <span className="text-[15px] font-medium text-ink">{batch.name} fry</span>
+                    <span className="text-[13px] text-ink-3">×{batch.count}</span>
+                    <Pill variant="neutral">batch</Pill>
+                    <span className="ml-auto flex items-center gap-3">
+                      <span className="text-[12px] text-ink-3">
+                        day {batch.dayNow} · graduates d{batch.graduationDay}
+                      </span>
+                      <Bar className="w-24" value={batch.growthPct} status="warn" />
+                      <span className="w-9 font-mono tabular-nums text-[13px] text-ink">
+                        {Math.round(batch.growthPct)}%
+                      </span>
+                      <button
+                        type="button"
+                        onClick={sellFry}
+                        className="text-[12px] text-ink-3 transition-colors hover:text-ink-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
+                      >
+                        sell
+                      </button>
+                    </span>
+                  </div>
+                ))}
               </div>
             )}
             {clutches.length > 0 && (
