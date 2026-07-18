@@ -107,7 +107,7 @@ export function AppHeader({
 
         {/* Right: transport + theme + utilities */}
         <div className="flex items-center gap-2 justify-self-end">
-          {mode === 'run' && (
+          {(mode === 'run' || mode === 'review') && (
             <>
               <button
                 type="button"
@@ -139,8 +139,6 @@ export function AppHeader({
               <Clock tick={tick} />
             </>
           )}
-
-          {mode === 'review' && <Clock tick={tick} />}
 
           <div className="mx-1 h-6 w-px bg-hairline-2" />
 

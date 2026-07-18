@@ -62,7 +62,7 @@ function App(): React.JSX.Element {
             onResumeRun={handleResumeRun}
           />
         )}
-        {mode === 'review' && <ReviewMode />}
+        {mode === 'review' && <ReviewMode sim={sim} />}
       </main>
 
       <DebugPanel />
