@@ -199,7 +199,8 @@ export function sellFry(state: SimulationState): ActionResult {
         'user',
         'info',
         `Sold ${fryCount} fry`,
-        'fry-sold'
+        'fry-sold',
+        fryCount
       )
     );
   });

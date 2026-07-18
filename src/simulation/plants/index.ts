@@ -248,7 +248,8 @@ export function processPlants(
           draft.tick,
           'simulation',
           'warning',
-          `${plantName} died from poor conditions`
+          `${plantName} died from poor conditions`,
+          'plant-died'
         )
       );
     }

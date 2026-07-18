@@ -126,9 +126,10 @@ export function loadPersistedState(): LoadResult {
  */
 function mergeConfigWithDefaults(stored: TunableConfig): TunableConfig {
   const result = { ...DEFAULT_CONFIG };
+  const target = result as Record<keyof TunableConfig, unknown>;
 
   for (const section of Object.keys(DEFAULT_CONFIG) as (keyof TunableConfig)[]) {
-    result[section] = {
+    target[section] = {
       ...DEFAULT_CONFIG[section],
       ...(stored[section] ?? {}),
     };
@@ -141,7 +142,7 @@ function mergeConfigWithDefaults(stored: TunableConfig): TunableConfig {
  * Format Zod error for logging.
  */
 function formatZodError(error: z.ZodError): string {
-  return error.errors.map((e) => `${e.path.join('.')}: ${e.message}`).join('; ');
+  return error.issues.map((e) => `${e.path.join('.')}: ${e.message}`).join('; ');
 }
 
 // Debounce state for saving

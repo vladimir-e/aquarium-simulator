@@ -22,15 +22,19 @@ import { createLog } from '../../simulation/core/logging.js';
 import { PRESETS, DEFAULT_PRESET_ID, getPresetById, type PresetId } from '../presets.js';
 import { useConfig } from './useConfig.js';
 import { usePersistence, type PersistedSimulation } from '../persistence/index.js';
+import { type SpeedPreset, DEFAULT_SPEED, SPEED_TICKS_PER_SECOND } from '../run/speed.js';
+import {
+  type RunSnapshot,
+  type RunAggregates,
+  snapshotFromState,
+  appendRunSnapshot,
+  emptyAggregates,
+  accrueLogs,
+  accrueTicks,
+  accrueWaterChanged,
+} from '../run/index.js';
 
-export type SpeedPreset = '1hr' | '6hr' | '12hr' | '1day';
-
-const SPEED_MULTIPLIERS: Record<SpeedPreset, number> = {
-  '1hr': 1,
-  '6hr': 6,
-  '12hr': 12,
-  '1day': 24,
-};
+export type { SpeedPreset };
 
 interface UseSimulationReturn {
   state: SimulationState;
@@ -39,8 +43,13 @@ interface UseSimulationReturn {
   currentPreset: PresetId;
   /** True if equipment or plants have been modified from preset defaults */
   isPresetModified: boolean;
+  /** Per-tick vitals snapshots for this run (ring buffer, session-scoped). */
+  history: RunSnapshot[];
+  /** Rolling run tallies (deaths, births, alerts, water changed…). */
+  aggregates: RunAggregates;
   step: () => void;
   togglePlayPause: () => void;
+  pause: () => void;
   changeSpeed: (speed: SpeedPreset) => void;
   loadPreset: (presetId: PresetId) => void;
   updateHeaterEnabled: (enabled: boolean) => void;
@@ -180,38 +189,102 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
   });
 
   const [isPlaying, setIsPlaying] = useState(false);
-  const [speed, setSpeed] = useState<SpeedPreset>('1hr');
+  const [speed, setSpeed] = useState<SpeedPreset>(DEFAULT_SPEED);
   const intervalRef = useRef<number | null>(null);
-  // Store config ref for use in intervals
+  // Store config/speed refs so the single interval always reads the latest.
   const configRef = useRef(config);
   configRef.current = config;
+  const speedRef = useRef(speed);
+  speedRef.current = speed;
+
+  // Run history + aggregates (session-scoped, reset with the run).
+  const [history, setHistory] = useState<RunSnapshot[]>([]);
+  const [aggregates, setAggregates] = useState<RunAggregates>(emptyAggregates);
+  const stateRef = useRef(state);
+  // Baseline for deriving per-commit deltas; null re-seeds the recorder.
+  const recorderRef = useRef<{ tick: number; logCount: number } | null>(null);
+  // Snapshots captured per tick during an advance, drained on the next commit.
+  const pendingSnapshotsRef = useRef<RunSnapshot[]>([]);
+  // Highest tick already snapshotted — makes queueing idempotent under the
+  // StrictMode double-invocation of setState updaters.
+  const recordedThroughRef = useRef(-1);
+
+  const queueSnapshot = useCallback((next: SimulationState) => {
+    if (next.tick <= recordedThroughRef.current) return;
+    recordedThroughRef.current = next.tick;
+    pendingSnapshotsRef.current.push(snapshotFromState(next));
+  }, []);
+
+  // Advance the sim by `count` ticks, queuing a snapshot for each one.
+  const advanceTicks = useCallback(
+    (current: SimulationState, count: number): SimulationState => {
+      let next = current;
+      for (let i = 0; i < count; i++) {
+        next = simulationTick(next, configRef.current);
+        queueSnapshot(next);
+      }
+      return next;
+    },
+    [queueSnapshot]
+  );
+
+  const resetRun = useCallback(() => {
+    recorderRef.current = null;
+    recordedThroughRef.current = -1;
+    pendingSnapshotsRef.current = [];
+    setHistory([]);
+    setAggregates(emptyAggregates());
+  }, []);
 
   // Notify persistence when state or preset changes
   useEffect(() => {
     onSimulationChange(stateToPersistedSimulation(state, currentPreset));
   }, [state, currentPreset, onSimulationChange]);
 
+  // Record run history + aggregates from each committed state transition.
+  // History drains the per-tick queue (so a multi-tick Step keeps every hour);
+  // aggregates fold all new logs, catching action-emitted events too.
+  useEffect(() => {
+    stateRef.current = state;
+    const prev = recorderRef.current;
+    if (prev === null) {
+      recorderRef.current = { tick: state.tick, logCount: state.logs.length };
+      recordedThroughRef.current = state.tick;
+      pendingSnapshotsRef.current = [];
+      setHistory([snapshotFromState(state)]);
+      return;
+    }
+    const queued = pendingSnapshotsRef.current;
+    if (queued.length > 0) {
+      pendingSnapshotsRef.current = [];
+      setHistory((h) => queued.reduce(appendRunSnapshot, h));
+    } else if (state.tick === recordedThroughRef.current) {
+      // A paused action mutated state without advancing the tick, so nothing was
+      // queued. Refresh this tick's snapshot in place so Review reflects the
+      // post-action world. Idempotent — re-running replaces with an equal value.
+      setHistory((h) => (h.length > 0 ? [...h.slice(0, -1), snapshotFromState(state)] : h));
+    }
+
+    if (state.tick === prev.tick && state.logs.length === prev.logCount) return;
+
+    const newLogs = state.logs.slice(prev.logCount);
+    setAggregates((a) => accrueLogs(accrueTicks(a, state.tick - prev.tick), newLogs));
+    recorderRef.current = { tick: state.tick, logCount: state.logs.length };
+  }, [state]);
+
   const step = useCallback(() => {
-    const multiplier = SPEED_MULTIPLIERS[speed];
-    setState((current) => {
-      let nextState = current;
-      for (let i = 0; i < multiplier; i++) {
-        nextState = simulationTick(nextState, configRef.current);
-      }
-      return nextState;
-    });
-  }, [speed]);
+    const count = SPEED_TICKS_PER_SECOND[speed];
+    setState((current) => advanceTicks(current, count));
+  }, [speed, advanceTicks]);
 
   const startAutoPlay = useCallback(() => {
     if (intervalRef.current) return;
 
-    const ticksPerSecond = SPEED_MULTIPLIERS[speed];
-    const intervalMs = 1000 / ticksPerSecond;
-
+    const intervalMs = 1000 / SPEED_TICKS_PER_SECOND[speedRef.current];
     intervalRef.current = window.setInterval(() => {
-      setState((current) => simulationTick(current, configRef.current));
+      setState((current) => advanceTicks(current, 1));
     }, intervalMs);
-  }, [speed]);
+  }, [advanceTicks]);
 
   const stopAutoPlay = useCallback(() => {
     if (intervalRef.current) {
@@ -231,21 +304,23 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
     });
   }, [startAutoPlay, stopAutoPlay]);
 
+  const pause = useCallback(() => {
+    setIsPlaying((prev) => {
+      if (prev) stopAutoPlay();
+      return false;
+    });
+  }, [stopAutoPlay]);
+
   const changeSpeed = useCallback(
     (newSpeed: SpeedPreset) => {
       setSpeed(newSpeed);
+      speedRef.current = newSpeed;
       if (isPlaying) {
         stopAutoPlay();
-        // Restart with new speed
-        const ticksPerSecond = SPEED_MULTIPLIERS[newSpeed];
-        const intervalMs = 1000 / ticksPerSecond;
-
-        intervalRef.current = window.setInterval(() => {
-          setState((current) => simulationTick(current, configRef.current));
-        }, intervalMs);
+        startAutoPlay();
       }
     },
-    [isPlaying, stopAutoPlay]
+    [isPlaying, stopAutoPlay, startAutoPlay]
   );
 
   const loadPreset = useCallback(
@@ -263,6 +338,7 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
 
       setCurrentPreset(presetId);
       setIsModified(false);
+      resetRun();
 
       // Apply preset equipment while preserving simulation progress
       setState((current) =>
@@ -296,7 +372,7 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
         })
       );
     },
-    [isPlaying, stopAutoPlay]
+    [isPlaying, stopAutoPlay, resetRun]
   );
 
   /**
@@ -309,6 +385,7 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
       stopAutoPlay();
       setIsPlaying(false);
     }
+    resetRun();
 
     setState((current) =>
       produce(current, (draft) => {
@@ -344,7 +421,7 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
         draft.logs = [createLog(0, 'simulation', 'info', 'Simulation reset')];
       })
     );
-  }, [isPlaying, stopAutoPlay]);
+  }, [isPlaying, stopAutoPlay, resetRun]);
 
   const updateHeaterEnabled = useCallback((enabled: boolean) => {
     setIsModified(true);
@@ -834,6 +911,7 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
         stopAutoPlay();
         setIsPlaying(false);
       }
+      resetRun();
 
       // Reinitialize simulation with new capacity, preserving equipment state
       setState((current) => {
@@ -892,7 +970,7 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
         });
       });
     },
-    [isPlaying, stopAutoPlay]
+    [isPlaying, stopAutoPlay, resetRun]
   );
 
   /**
@@ -903,6 +981,14 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
     if (action.type === 'addPlant' || action.type === 'removePlant' ||
         action.type === 'addFish' || action.type === 'removeFish') {
       setIsModified(true);
+    }
+    // Accumulate water changed (in liters) at dispatch — the action itself
+    // only surfaces the volume in free text.
+    if (action.type === 'waterChange' && action.amount > 0 && action.amount <= 1) {
+      const water = stateRef.current.resources.water;
+      if (water > 0) {
+        setAggregates((a) => accrueWaterChanged(a, water * action.amount));
+      }
     }
     setState((currentState) => {
       const result = applyAction(currentState, action);
@@ -916,8 +1002,11 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
     speed,
     currentPreset,
     isPresetModified: isModified,
+    history,
+    aggregates,
     step,
     togglePlayPause,
+    pause,
     changeSpeed,
     loadPreset,
     updateHeaterEnabled,

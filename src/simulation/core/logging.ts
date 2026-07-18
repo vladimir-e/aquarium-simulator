@@ -16,6 +16,7 @@ export type LogEvent =
   | 'eggs-laid' // egg-laying spawn — a clutch was created
   | 'eggs-hatched' // a clutch reached its hatch time — fry added
   | 'fish-died' // a fish died (any cause)
+  | 'plant-died' // a plant died from poor conditions
   | 'fry-sold'; // the sell-fry action removed every fry at once
 
 export interface LogEntry {
@@ -29,6 +30,9 @@ export interface LogEntry {
   message: string;
   /** Typed discriminator for consumers that detect events programmatically. */
   event?: LogEvent;
+  /** Organisms an event accounts for when it isn't one-per-entry (fry born,
+   * eggs hatched, fry sold), so consumers get the magnitude, not just the kind. */
+  count?: number;
 }
 
 /**
@@ -39,7 +43,8 @@ export function createLog(
   source: string,
   severity: LogSeverity,
   message: string,
-  event?: LogEvent
+  event?: LogEvent,
+  count?: number
 ): LogEntry {
   return {
     tick,
@@ -47,5 +52,6 @@ export function createLog(
     severity,
     message,
     ...(event ? { event } : {}),
+    ...(count !== undefined ? { count } : {}),
   };
 }

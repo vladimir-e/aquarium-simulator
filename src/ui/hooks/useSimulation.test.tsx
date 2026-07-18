@@ -2,19 +2,20 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import React from 'react';
 import { renderHook, act } from '@testing-library/react';
 import { useSimulation } from './useSimulation';
-import { getPresetById } from '../presets';
+import { getPresetById, type PresetId } from '../presets';
 import { ConfigProvider } from './useConfig';
 import { PersistenceProvider } from '../persistence/index.js';
 import { createSimulation } from '../../simulation/state.js';
 import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
 import { PERSISTENCE_VERSION, STORAGE_KEY } from '../persistence/types.js';
+import { snapshotFromState } from '../run/index.js';
 
 /**
  * Seed localStorage with a persisted session carrying one in-flight
  * clutch, so `useSimulation` hydrates from it. This is the only public
  * path to inject a clutch into the hook's state.
  */
-function seedSessionWithClutch(presetId: string): void {
+function seedSessionWithClutch(presetId: PresetId): void {
   const base = createSimulation(getPresetById(presetId)!.config);
   const persisted = {
     version: PERSISTENCE_VERSION,
@@ -37,11 +38,49 @@ function seedSessionWithClutch(presetId: string): void {
   globalThis.localStorage.setItem(STORAGE_KEY, JSON.stringify(persisted));
 }
 
+/**
+ * Seed a bare-tank session whose ammonia already sits above the high-ammonia
+ * alert threshold (>0.1 ppm; ppm = mass / water, so 20mg in 40L = 0.5 ppm),
+ * with the alert flag clear so the next tick fires the alert.
+ */
+function seedSessionWithHighAmmonia(): void {
+  const base = createSimulation(getPresetById('bare')!.config);
+  const persisted = {
+    version: PERSISTENCE_VERSION,
+    simulation: {
+      tick: 0,
+      tank: base.tank,
+      resources: { ...base.resources, ammonia: 20 },
+      environment: base.environment,
+      equipment: base.equipment,
+      plants: base.plants,
+      fish: base.fish,
+      clutches: base.clutches,
+      algae: base.algae,
+      alertState: base.alertState,
+      currentPreset: 'bare',
+    },
+    tunableConfig: DEFAULT_CONFIG,
+    ui: { units: 'metric', debugPanelOpen: false },
+  };
+  globalThis.localStorage.setItem(STORAGE_KEY, JSON.stringify(persisted));
+}
+
 // Wrapper with ConfigProvider and PersistenceProvider for testing hooks
 const wrapper = ({ children }: { children: React.ReactNode }): React.JSX.Element => (
   <PersistenceProvider>
     <ConfigProvider>{children}</ConfigProvider>
   </PersistenceProvider>
+);
+
+// Same providers under StrictMode, so setState updaters double-invoke and the
+// recorder's idempotency guard is actually exercised.
+const strictWrapper = ({ children }: { children: React.ReactNode }): React.JSX.Element => (
+  <React.StrictMode>
+    <PersistenceProvider>
+      <ConfigProvider>{children}</ConfigProvider>
+    </PersistenceProvider>
+  </React.StrictMode>
 );
 
 describe('useSimulation', () => {
@@ -78,7 +117,7 @@ describe('useSimulation', () => {
       result.current.step();
     });
 
-    // Default speed is '1hr' which has a multiplier of 1
+    // Default speed is '1h' which has a multiplier of 1
     expect(result.current.state.tick).toBe(initialTick + 1);
   });
 
@@ -160,13 +199,13 @@ describe('useSimulation', () => {
   it('speed changes update speed state', () => {
     const { result } = renderHook(() => useSimulation(), { wrapper });
 
-    expect(result.current.speed).toBe('1hr');
+    expect(result.current.speed).toBe('1h');
 
     act(() => {
-      result.current.changeSpeed('1day');
+      result.current.changeSpeed('1d');
     });
 
-    expect(result.current.speed).toBe('1day');
+    expect(result.current.speed).toBe('1d');
   });
 
   describe('presets', () => {
@@ -534,6 +573,174 @@ describe('useSimulation', () => {
       });
 
       expect(result.current.state.resources.water).toBe(communityCapacity);
+    });
+  });
+
+  describe('run history + aggregates', () => {
+    it('seeds history with the initial snapshot', () => {
+      const { result } = renderHook(() => useSimulation('bare'), { wrapper });
+
+      expect(result.current.history).toHaveLength(1);
+      expect(result.current.history[0].tick).toBe(0);
+      expect(result.current.aggregates.ticks).toBe(0);
+    });
+
+    it('appends a snapshot and advances run length per step', () => {
+      const { result } = renderHook(() => useSimulation('bare'), { wrapper });
+
+      act(() => {
+        result.current.step();
+      });
+
+      const { history, aggregates } = result.current;
+      expect(history.length).toBeGreaterThanOrEqual(2);
+      expect(history[history.length - 1].tick).toBe(1);
+      expect(aggregates.ticks).toBe(1);
+    });
+
+    it('accumulates water changed at dispatch', () => {
+      const { result } = renderHook(() => useSimulation('bare'), { wrapper });
+
+      // Bare tank starts full at 40L; a 25% change replaces 10L.
+      act(() => {
+        result.current.executeAction({ type: 'waterChange', amount: 0.25 });
+      });
+
+      expect(result.current.aggregates.waterChangedL).toBeCloseTo(10, 5);
+    });
+
+    it('refreshes the current-tick snapshot after a paused water change', () => {
+      seedSessionWithHighAmmonia();
+      try {
+        const { result } = renderHook(() => useSimulation(), { wrapper: strictWrapper });
+        const lenBefore = result.current.history.length;
+        const tickBefore = result.current.state.tick;
+        const stale = result.current.history[result.current.history.length - 1];
+        expect(stale.ammonia).toBeGreaterThan(0);
+
+        act(() => {
+          result.current.executeAction({ type: 'waterChange', amount: 0.5 });
+        });
+
+        const fresh = result.current.history[result.current.history.length - 1];
+        // Same tick, refreshed in place — no snapshot appended.
+        expect(result.current.history.length).toBe(lenBefore);
+        expect(fresh.tick).toBe(tickBefore);
+        // Snapshot now mirrors the live post-action state (diluted ppm).
+        expect(fresh).toEqual(snapshotFromState(result.current.state));
+        expect(fresh.ammonia).toBeLessThan(stale.ammonia);
+      } finally {
+        globalThis.localStorage.clear();
+      }
+    });
+
+    it('resets history and aggregates with the run', () => {
+      const { result } = renderHook(() => useSimulation('bare'), { wrapper });
+
+      act(() => {
+        result.current.step();
+        result.current.step();
+        result.current.executeAction({ type: 'waterChange', amount: 0.25 });
+      });
+
+      expect(result.current.aggregates.ticks).toBe(2);
+      expect(result.current.aggregates.waterChangedL).toBeGreaterThan(0);
+
+      act(() => {
+        result.current.reset();
+      });
+
+      expect(result.current.aggregates.ticks).toBe(0);
+      expect(result.current.aggregates.waterChangedL).toBe(0);
+      expect(result.current.history).toHaveLength(1);
+      expect(result.current.history[0].tick).toBe(0);
+    });
+
+    it('records every intra-step tick at 6h speed', () => {
+      const { result } = renderHook(() => useSimulation('bare'), { wrapper });
+      const baseline = result.current.history.length;
+
+      act(() => {
+        result.current.changeSpeed('6h');
+      });
+      act(() => {
+        result.current.step();
+      });
+
+      const { history, aggregates } = result.current;
+      const recorded = history.slice(baseline);
+      expect(recorded.map((s) => s.tick)).toEqual([1, 2, 3, 4, 5, 6]);
+      expect(aggregates.ticks).toBe(6);
+    });
+
+    it('records each intra-step tick exactly once under StrictMode', () => {
+      const { result } = renderHook(() => useSimulation('bare'), { wrapper: strictWrapper });
+      const baseline = result.current.history.length;
+
+      act(() => {
+        result.current.changeSpeed('6h');
+      });
+      act(() => {
+        result.current.step();
+      });
+
+      // Without the recordedThrough guard, the double-invoked updater would
+      // queue each tick twice (12 snapshots); the guard keeps it at six.
+      const recorded = result.current.history.slice(baseline);
+      expect(recorded.map((s) => s.tick)).toEqual([1, 2, 3, 4, 5, 6]);
+      expect(result.current.aggregates.ticks).toBe(6);
+    });
+
+    it('rebaselines history and aggregates on a mid-run preset load', () => {
+      seedSessionWithHighAmmonia();
+      try {
+        const { result } = renderHook(() => useSimulation(), { wrapper });
+
+        // Cross the ammonia threshold so a warning-severity log exists.
+        act(() => {
+          result.current.step();
+        });
+        const hasWarning = (): boolean =>
+          result.current.state.logs.some((log) => log.severity === 'warning');
+        expect(result.current.aggregates.alerts).toBe(1);
+        expect(hasWarning()).toBe(true);
+
+        act(() => {
+          result.current.loadPreset('community');
+        });
+
+        // History reseeds to a single baseline snapshot and tallies zero out.
+        expect(result.current.history).toHaveLength(1);
+        expect(result.current.aggregates.ticks).toBe(0);
+        // The warning log is still present at reseed but sits behind the new
+        // baseline, so it must not be counted as an alert.
+        expect(hasWarning()).toBe(true);
+        expect(result.current.aggregates.alerts).toBe(0);
+      } finally {
+        globalThis.localStorage.clear();
+      }
+    });
+
+    it('counts a chemistry alert once per episode', () => {
+      seedSessionWithHighAmmonia();
+      try {
+        const { result } = renderHook(() => useSimulation(), { wrapper });
+
+        // First tick crosses the ammonia threshold and fires the alert.
+        act(() => {
+          result.current.step();
+        });
+        expect(result.current.aggregates.alerts).toBe(1);
+
+        // Ammonia stays high, so the latched alert does not re-fire.
+        act(() => {
+          result.current.step();
+          result.current.step();
+        });
+        expect(result.current.aggregates.alerts).toBe(1);
+      } finally {
+        globalThis.localStorage.clear();
+      }
     });
   });
 });
