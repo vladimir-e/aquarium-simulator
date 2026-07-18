@@ -71,7 +71,7 @@ describe('EquipmentColumn (mobile)', () => {
     const dialog = screen.getByRole('dialog', { name: /Heater/ });
     expect(within(dialog).getByText('Target')).toBeTruthy();
 
-    fireEvent.click(within(dialog).getByRole('button', { name: /back/ }));
+    fireEvent.click(within(dialog).getByRole('button', { name: /back/i }));
     expect(screen.queryByRole('dialog')).toBeNull();
   });
 

@@ -54,7 +54,7 @@ interface ScapeColumnProps {
 
 export function ScapeColumn({ sim }: ScapeColumnProps): React.JSX.Element {
   const { unitSystem } = useUnits();
-  const { collapsed, toggle, showToggle } = useCardCollapse('build.scape');
+  const { collapsed, toggle, showToggle, regionId } = useCardCollapse('build.scape');
   const { equipment, tank, plants, resources } = sim.state;
   const substrate = equipment.substrate.type;
   const hardscape = equipment.hardscape.items;
@@ -82,9 +82,10 @@ export function ScapeColumn({ sim }: ScapeColumnProps): React.JSX.Element {
         collapsible={showToggle}
         collapsed={collapsed}
         onToggle={toggle}
+        regionId={regionId}
         meta={collapsed ? <span className="sm:hidden">{summary}</span> : undefined}
       />
-      <CollapseRegion collapsed={collapsed}>
+      <CollapseRegion collapsed={collapsed} id={regionId}>
       <CardBody>
         <FieldRow label="Substrate">
           <Select

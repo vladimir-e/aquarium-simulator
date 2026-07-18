@@ -64,7 +64,7 @@ export function AppHeader({
 
   return (
     <header className="sticky top-0 z-30 border-b border-hairline-2 bg-surface px-3 py-2.5 sm:px-4">
-      <div className="flex items-center justify-between gap-2 sm:grid sm:grid-cols-[1fr_auto_1fr] sm:gap-4">
+      <div className="flex items-center gap-2 max-sm:justify-between sm:grid sm:grid-cols-[1fr_auto_1fr] sm:gap-4">
         {/* Left: wordmark + engine label + preset */}
         <div className="flex min-w-0 items-center gap-3 justify-self-start">
           <div className="hidden items-baseline gap-2 sm:flex">
@@ -115,7 +115,7 @@ export function AppHeader({
                 type="button"
                 onClick={onPlayPause}
                 aria-label={isPlaying ? 'Pause' : 'Play'}
-                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-hairline text-ink-2 transition-colors hover:border-hairline-2 hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
+                className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-hairline text-ink-2 transition-colors hover:border-hairline-2 hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus max-sm:after:absolute max-sm:after:inset-[-6px] max-sm:after:content-['']"
               >
                 {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
               </button>
@@ -128,13 +128,12 @@ export function AppHeader({
                 Step {STEP_LABELS[speed]}
               </button>
               <Clock tick={tick} />
-              {/* Speed: a compact dropdown on mobile, the segmented control from sm up. */}
               <div className="relative shrink-0 sm:hidden">
                 <select
                   value={speed}
                   onChange={(e) => onSpeedChange(e.target.value as SpeedPreset)}
                   aria-label="Speed"
-                  className="appearance-none rounded-control border border-hairline bg-surface py-1.5 pl-2.5 pr-7 text-[13px] font-medium text-ink transition-colors hover:border-hairline-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
+                  className="min-h-[44px] appearance-none rounded-control border border-hairline bg-surface py-1.5 pl-2.5 pr-7 text-[13px] font-medium text-ink transition-colors hover:border-hairline-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
                 >
                   {SPEED_OPTIONS.map((option) => (
                     <option key={option.value} value={option.value}>

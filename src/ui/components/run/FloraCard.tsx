@@ -143,7 +143,7 @@ interface FloraCardProps {
 }
 
 export function FloraCard({ state, config, executeAction }: FloraCardProps): React.JSX.Element {
-  const { collapsed, toggle, showToggle } = useCardCollapse('run.flora');
+  const { collapsed, toggle, showToggle, regionId } = useCardCollapse('run.flora');
   const [expandedPlants, setExpandedPlants] = useState<Set<string>>(new Set());
   const [algaeExpanded, setAlgaeExpanded] = useState(false);
 
@@ -194,13 +194,14 @@ export function FloraCard({ state, config, executeAction }: FloraCardProps): Rea
         collapsible={showToggle}
         collapsed={collapsed}
         onToggle={toggle}
+        regionId={regionId}
         meta={
           <span>
             {plants.length}/{maxPlants} plants · algae {algaePct}%
           </span>
         }
       />
-      <CollapseRegion collapsed={collapsed}>
+      <CollapseRegion collapsed={collapsed} id={regionId}>
       <CardBody>
         <div className="divide-y divide-hairline">
           {plants.length === 0 ? (

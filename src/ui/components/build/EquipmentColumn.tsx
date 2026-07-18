@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight, Search } from 'lucide-react';
 import {
   FILTER_SURFACE,
@@ -357,6 +357,12 @@ function PushedEditor({
   sim: Sim;
   onBack: () => void;
 }): React.JSX.Element {
+  const backRef = useRef<HTMLButtonElement>(null);
+  // Entry focus: the editor is pushed navigation, so land focus on its way out.
+  useEffect(() => {
+    backRef.current?.focus();
+  }, []);
+
   return (
     <div
       role="dialog"
@@ -368,8 +374,10 @@ function PushedEditor({
         style={{ paddingTop: 'calc(0.5rem + env(safe-area-inset-top, 0px))' }}
       >
         <button
+          ref={backRef}
           type="button"
           onClick={onBack}
+          aria-label={`Back from ${DEVICE_NAME[id]} settings`}
           className="flex h-11 items-center gap-0.5 rounded-control pl-1 pr-2 text-[15px] font-medium text-accent transition-colors hover:bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
         >
           <ChevronLeft className="h-5 w-5" />
@@ -396,7 +404,7 @@ interface EquipmentColumnProps {
 export function EquipmentColumn({ sim, selectedDeviceId }: EquipmentColumnProps): React.JSX.Element {
   const { unitSystem, formatTemp } = useUnits();
   const isMobile = useIsMobile();
-  const { collapsed, toggle, showToggle } = useCardCollapse('build.equipment');
+  const { collapsed, toggle, showToggle, regionId } = useCardCollapse('build.equipment');
   const devices = buildDeviceList(sim.state.equipment);
   const [selected, setSelected] = useState<DeviceId>(() =>
     resolveSelectedDevice(selectedDeviceId, devices)
@@ -411,13 +419,24 @@ export function EquipmentColumn({ sim, selectedDeviceId }: EquipmentColumnProps)
   const onCount = devices.filter((d) => d.on).length;
   const summary = `${onCount}/${devices.length} on`;
 
-  const openDevice = (id: DeviceId): void => {
+  // Row that opened the pushed editor, so focus can return to it on back.
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
+
+  const openDevice = (id: DeviceId, trigger: HTMLButtonElement): void => {
     setSelected(id);
-    if (isMobile) setPushed(id);
+    if (isMobile) {
+      triggerRef.current = trigger;
+      setPushed(id);
+    }
+  };
+
+  const closePushed = (): void => {
+    setPushed(null);
+    triggerRef.current?.focus();
   };
 
   const search = (
-    <div className="relative">
+    <div className={`relative ${collapsed ? 'max-sm:hidden' : ''}`}>
       <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-ink-3" />
       <input
         type="search"
@@ -438,9 +457,10 @@ export function EquipmentColumn({ sim, selectedDeviceId }: EquipmentColumnProps)
         collapsible={showToggle}
         collapsed={collapsed}
         onToggle={toggle}
+        regionId={regionId}
         meta={collapsed ? <span className="sm:hidden">{summary}</span> : undefined}
       />
-      <CollapseRegion collapsed={collapsed}>
+      <CollapseRegion collapsed={collapsed} id={regionId}>
       <CardBody className="px-0">
         <div className="flex flex-col md:flex-row">
           <div className="px-4 py-1 md:w-[38%] md:border-r md:border-hairline">
@@ -453,8 +473,9 @@ export function EquipmentColumn({ sim, selectedDeviceId }: EquipmentColumnProps)
                   <button
                     key={device.id}
                     type="button"
-                    onClick={() => openDevice(device.id)}
+                    onClick={(e) => openDevice(device.id, e.currentTarget)}
                     aria-pressed={isSelected}
+                    aria-label={device.name}
                     className={`flex min-h-[44px] w-full items-center gap-2.5 rounded py-2 pl-2 pr-1 text-left transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus ${
                       isSelected
                         ? 'bg-surface-2 shadow-[inset_2px_0_0_var(--accent)]'
@@ -481,9 +502,7 @@ export function EquipmentColumn({ sim, selectedDeviceId }: EquipmentColumnProps)
       </CardBody>
       </CollapseRegion>
 
-      {isMobile && pushed && (
-        <PushedEditor id={pushed} sim={sim} onBack={() => setPushed(null)} />
-      )}
+      {isMobile && pushed && <PushedEditor id={pushed} sim={sim} onBack={closePushed} />}
     </Card>
   );
 }

@@ -24,6 +24,8 @@ interface CardHeaderProps {
   collapsible?: boolean;
   collapsed?: boolean;
   onToggle?: () => void;
+  /** Id of the CollapseRegion this header toggles (for aria-controls). */
+  regionId?: string;
 }
 
 export function CardHeader({
@@ -33,6 +35,7 @@ export function CardHeader({
   collapsible = false,
   collapsed = false,
   onToggle,
+  regionId,
 }: CardHeaderProps): React.JSX.Element {
   const titleBlock = (
     <>
@@ -49,6 +52,7 @@ export function CardHeader({
           type="button"
           onClick={onToggle}
           aria-expanded={!collapsed}
+          aria-controls={regionId}
           className="-my-3 flex min-w-0 flex-1 items-center gap-2 self-stretch py-3 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
         >
           {titleBlock}
@@ -96,10 +100,16 @@ export function CardFooter({
  */
 export function CollapseRegion({
   collapsed,
+  id,
   children,
 }: {
   collapsed: boolean;
+  id?: string;
   children: React.ReactNode;
 }): React.JSX.Element {
-  return <div className={collapsed ? 'max-sm:hidden sm:contents' : 'contents'}>{children}</div>;
+  return (
+    <div id={id} className={collapsed ? 'max-sm:hidden sm:contents' : 'contents'}>
+      {children}
+    </div>
+  );
 }

@@ -11,6 +11,7 @@ Format: - **Feature name** (#PR) - One short sentence (under ~150 chars)
 
 ## Unreleased
 
+- **Responsive UI redesign** - three-mode instrument UI (Build/Run/Review): vitals strip, peer cards, review charts + tick scrubber, mobile layout (bottom tab bar, collapsible cards, full-screen equipment editor).
 - **Vitality reserve buffer** - fish `surplus` becomes a saturating reserve bank (cap 50) that drains to absorb damage before condition falls; condition 100 with a negative net rate reads as "burning reserves". Persistence v12 → v13.
 - **Fish reproduction** - adult pairs spend banked surplus to spawn; livebearers drop fry directly, egg-layers lay clutches that hatch after a per-species delay; fry grow with age and mature into breeding adults.
 - **npm packaging** - publish-ready as `aquarium-simulator` v0.1.0: build ships only the pure-TS engine (no UI/CLI), MIT license, trusted-publishing release workflow.

@@ -11,11 +11,14 @@ describe('CardHeader collapse', () => {
     expect(screen.queryByRole('button')).toBeNull();
   });
 
-  it('exposes an expanded toggle that fires onToggle', () => {
+  it('exposes an expanded toggle that fires onToggle and controls its region', () => {
     const onToggle = vi.fn();
-    render(<CardHeader title="Livestock" collapsible collapsed={false} onToggle={onToggle} />);
+    render(
+      <CardHeader title="Livestock" collapsible collapsed={false} onToggle={onToggle} regionId="region-1" />
+    );
     const btn = screen.getByRole('button', { name: /Livestock/ });
     expect(btn.getAttribute('aria-expanded')).toBe('true');
+    expect(btn.getAttribute('aria-controls')).toBe('region-1');
     fireEvent.click(btn);
     expect(onToggle).toHaveBeenCalledTimes(1);
   });

@@ -49,6 +49,7 @@ export function LogStrip({ logs }: { logs: LogEntry[] }): React.JSX.Element {
           type="button"
           onClick={() => setOpen((v) => !v)}
           aria-expanded={open}
+          aria-label={open ? 'Collapse event log' : 'Expand event log'}
           className="ml-auto flex shrink-0 items-center gap-1 rounded text-ink-3 transition-colors hover:text-ink-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
         >
           log {open ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronUp className="h-3.5 w-3.5" />}

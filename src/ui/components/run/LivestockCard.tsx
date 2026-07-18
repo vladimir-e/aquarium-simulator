@@ -88,7 +88,7 @@ function ClutchRow({ clutch, tick }: { clutch: Clutch; tick: number }): React.JS
 }
 
 export function LivestockCard({ state, config, executeAction }: LivestockCardProps): React.JSX.Element {
-  const { collapsed, toggle, showToggle } = useCardCollapse('run.livestock');
+  const { collapsed, toggle, showToggle, regionId } = useCardCollapse('run.livestock');
   const [grouping, setGrouping] = useState<Grouping>('species');
   const [expanded, setExpanded] = useState<Set<FishSpecies>>(new Set());
   const [feedAmount, setFeedAmount] = useState(0.5);
@@ -134,6 +134,7 @@ export function LivestockCard({ state, config, executeAction }: LivestockCardPro
       collapsible={showToggle}
       collapsed={collapsed}
       onToggle={toggle}
+      regionId={regionId}
       meta={
         <>
           <span className="font-mono tabular-nums text-ink-2">{fish.length}</span>
@@ -160,7 +161,7 @@ export function LivestockCard({ state, config, executeAction }: LivestockCardPro
   return (
     <Card className="lg:min-h-[520px]">
       {header}
-      <CollapseRegion collapsed={collapsed}>
+      <CollapseRegion collapsed={collapsed} id={regionId}>
       <CardBody>
         {fish.length === 0 && clutches.length === 0 ? (
           <p className="py-6 text-[13px] text-ink-3">No livestock yet — add fish in Build.</p>

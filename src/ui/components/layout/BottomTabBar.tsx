@@ -12,11 +12,7 @@ interface BottomTabBarProps {
   onModeChange: (mode: Mode) => void;
 }
 
-/**
- * Mobile mode switcher: a thumb-reachable bottom bar that replaces the header's
- * segmented control below `sm`. Active tab is a solid fill for at-a-glance
- * clarity; each tab clears the 44px touch target and the home-bar safe area.
- */
+/** Replaces the header mode switcher on mobile (below `sm`). */
 export function BottomTabBar({ mode, onModeChange }: BottomTabBarProps): React.JSX.Element {
   return (
     <nav

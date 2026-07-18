@@ -23,7 +23,7 @@ interface StockingColumnProps {
 
 export function StockingColumn({ sim, onResumeRun }: StockingColumnProps): React.JSX.Element {
   const { fish, tank } = sim.state;
-  const { collapsed, toggle, showToggle } = useCardCollapse('build.stocking');
+  const { collapsed, toggle, showToggle, regionId } = useCardCollapse('build.stocking');
   const rows = speciesCounts(fish);
   const fry = fryLines(fish);
   const load = bioload(fish, tank.capacity);
@@ -49,9 +49,10 @@ export function StockingColumn({ sim, onResumeRun }: StockingColumnProps): React
         collapsible={showToggle}
         collapsed={collapsed}
         onToggle={toggle}
+        regionId={regionId}
         meta={collapsed ? <span className="sm:hidden">{summary}</span> : undefined}
       />
-      <CollapseRegion collapsed={collapsed}>
+      <CollapseRegion collapsed={collapsed} id={regionId}>
       <CardBody>
         {rows.length === 0 && fry.length === 0 ? (
           <p className="py-4 text-[13px] text-ink-3">No livestock yet — add a species below.</p>

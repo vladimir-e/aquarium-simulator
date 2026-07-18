@@ -37,7 +37,7 @@ export function SystemsCard({
   onOpenDeviceInBuild,
 }: SystemsCardProps): React.JSX.Element {
   const { formatTemp } = useUnits();
-  const { collapsed, toggle, showToggle } = useCardCollapse('run.systems');
+  const { collapsed, toggle, showToggle, regionId } = useCardCollapse('run.systems');
   const [waterPct, setWaterPct] = useState(0.25);
 
   const { equipment, tank, resources } = state;
@@ -77,9 +77,10 @@ export function SystemsCard({
         collapsible={showToggle}
         collapsed={collapsed}
         onToggle={toggle}
+        regionId={regionId}
         meta={<span>glance</span>}
       />
-      <CollapseRegion collapsed={collapsed}>
+      <CollapseRegion collapsed={collapsed} id={regionId}>
       <CardBody>
         <div className="divide-y divide-hairline">
           {devices.map((device) => (
@@ -121,7 +122,9 @@ export function SystemsCard({
         >
           Top-off
         </RunButton>
-        <span className="ml-auto text-[12px] text-ink-3">tap device → opens its editor in Build ↗</span>
+        <span className={`ml-auto text-[12px] text-ink-3 ${collapsed ? 'max-sm:hidden' : ''}`}>
+          tap device → opens its editor in Build ↗
+        </span>
       </CardFooter>
     </Card>
   );

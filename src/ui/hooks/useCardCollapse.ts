@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useId } from 'react';
 import { usePersistentState } from './usePersistentState';
 import { useIsMobile } from './useMediaQuery';
 
@@ -8,6 +8,8 @@ export interface CardCollapse {
   toggle: () => void;
   /** Only mobile shows the collapse control; desktop always renders the body. */
   showToggle: boolean;
+  /** Ties the header toggle (aria-controls) to the collapsible region (id). */
+  regionId: string;
 }
 
 /**
@@ -17,7 +19,8 @@ export interface CardCollapse {
  */
 export function useCardCollapse(key: string, initialCollapsed = false): CardCollapse {
   const isMobile = useIsMobile();
+  const regionId = useId();
   const [collapsed, setCollapsed] = usePersistentState(`card.${key}`, initialCollapsed);
   const toggle = useCallback(() => setCollapsed((v) => !v), [setCollapsed]);
-  return { collapsed, toggle, showToggle: isMobile };
+  return { collapsed, toggle, showToggle: isMobile, regionId };
 }

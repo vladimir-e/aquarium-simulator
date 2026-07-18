@@ -33,7 +33,7 @@ interface ScenarioColumnProps {
 export function ScenarioColumn({ sim, config }: ScenarioColumnProps): React.JSX.Element {
   const { state } = sim;
   const { unitSystem, setUnitSystem, tempUnit, displayTemp, internalTemp } = useUnits();
-  const { collapsed, toggle, showToggle } = useCardCollapse('build.scenario');
+  const { collapsed, toggle, showToggle, regionId } = useCardCollapse('build.scenario');
   const [showResetConfirm, setShowResetConfirm] = useState(false);
 
   const { environment, equipment, resources, tank } = state;
@@ -63,9 +63,10 @@ export function ScenarioColumn({ sim, config }: ScenarioColumnProps): React.JSX.
         collapsible={showToggle}
         collapsed={collapsed}
         onToggle={toggle}
+        regionId={regionId}
         meta={collapsed ? <span className="sm:hidden">{summary}</span> : undefined}
       />
-      <CollapseRegion collapsed={collapsed}>
+      <CollapseRegion collapsed={collapsed} id={regionId}>
       <CardBody>
         <div className="divide-y divide-hairline">
           <FieldRow label="Preset">
