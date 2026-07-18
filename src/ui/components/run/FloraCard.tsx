@@ -1,89 +1,34 @@
 import React, { useState } from 'react';
-import type {
-  Action,
-  HardscapeItem,
-  HardscapeType,
-  Plant,
-  SimulationState,
-  SubstrateType,
-  VitalityResult,
-} from '../../../simulation/index.js';
+import { X } from 'lucide-react';
+import type { Action, Plant, SimulationState, VitalityResult } from '../../../simulation/index.js';
 import {
   PLANT_SPECIES_DATA,
   computeAlgaePopulation,
   computePlantVitality,
   calculateNutrientSufficiency,
   canTrimPlants,
-  getDosePreview,
   getMaxPlants,
-  getPlantsToTrimCount,
   MIN_ALGAE_TO_SCRUB,
 } from '../../../simulation/index.js';
-import {
-  getPpm,
-  IronResource,
-  NitrateResource,
-  PhosphateResource,
-  PotassiumResource,
-  SurfaceResource,
-} from '../../../simulation/resources/index.js';
+import { SurfaceResource } from '../../../simulation/resources/index.js';
 import type { TunableConfig } from '../../../simulation/config/index.js';
-import type { Status } from '../../run/status';
+import {
+  algaeStatus,
+  algaeWord,
+  allNutrientsDepleted,
+  conditionStatus,
+  conditionWord,
+  dosePresets,
+  type NutrientState,
+  nutrientReadings,
+  scapeSummary,
+  trimTargets,
+} from '../../run';
 import { Card, CardBody, CardFooter, CardHeader } from './Card';
 import { Bar, Caret, Pill, RunButton, statusText } from './elements';
 import { SplitButton, type SplitOption } from './SplitButton';
 
-const TRIM_TARGETS = [50, 85, 100];
-const DOSE_PRESETS = [1, 2, 4];
 const TREND_EPSILON = 0.05;
-
-const SUBSTRATE_NAME: Record<SubstrateType, string> = {
-  none: 'Bare',
-  sand: 'Sand',
-  gravel: 'Gravel',
-  aqua_soil: 'Aqua Soil',
-};
-
-const HARDSCAPE_SHORT: Record<HardscapeType, string> = {
-  neutral_rock: 'rock',
-  calcite_rock: 'calcite',
-  driftwood: 'driftwood',
-  plastic_decoration: 'decor',
-};
-
-function conditionStatus(condition: number): Status {
-  return condition < 30 ? 'alert' : condition < 60 ? 'warn' : 'ok';
-}
-
-function conditionWord(condition: number): string {
-  if (condition < 10) return 'dying';
-  if (condition < 30) return 'struggling';
-  if (condition < 60) return 'fair';
-  if (condition < 80) return 'good';
-  return 'thriving';
-}
-
-// Low algae mass is good for the player, so the colours run green → coral as it climbs.
-function algaeStatus(mass: number): Status {
-  return mass < 30 ? 'ok' : mass < 60 ? 'warn' : 'alert';
-}
-
-function algaeWord(mass: number): string {
-  if (mass < 30) return 'suppressed';
-  if (mass < 60) return 'active';
-  if (mass < 80) return 'spreading';
-  return 'booming';
-}
-
-type NutrientState = 'depleted' | 'low' | 'ok' | 'high' | 'veryHigh';
-
-function nutrientState(ppm: number, min: number, max: number): NutrientState {
-  if (ppm <= 0.001) return 'depleted';
-  if (ppm < min) return 'low';
-  if (ppm <= max) return 'ok';
-  if (ppm <= max * 2) return 'high';
-  return 'veryHigh';
-}
 
 const NUTRIENT_CHIP: Record<NutrientState, string> = {
   depleted: 'border-warn/50 text-warn-text',
@@ -92,14 +37,6 @@ const NUTRIENT_CHIP: Record<NutrientState, string> = {
   high: 'border-warn/50 text-warn-text',
   veryHigh: 'border-alert/50 text-alert-text',
 };
-
-function hardscapeSummary(items: HardscapeItem[]): string {
-  const counts = new Map<HardscapeType, number>();
-  for (const item of items) counts.set(item.type, (counts.get(item.type) ?? 0) + 1);
-  return [...counts]
-    .map(([type, n]) => (n > 1 ? `${HARDSCAPE_SHORT[type]} ×${n}` : HARDSCAPE_SHORT[type]))
-    .join(' + ');
-}
 
 function Breakdown({
   stressors,
@@ -140,11 +77,13 @@ function PlantRow({
   vitality,
   expanded,
   onToggle,
+  onRemove,
 }: {
   plant: Plant;
   vitality: VitalityResult;
   expanded: boolean;
   onToggle: () => void;
+  onRemove: () => void;
 }): React.JSX.Element {
   const name = PLANT_SPECIES_DATA[plant.species].name;
   const net = vitality.breakdown.net;
@@ -174,8 +113,23 @@ function PlantRow({
           <Bar className="w-24" value={plant.condition} status={status} />
         </span>
       </button>
-      {expanded && (stressors.length > 0 || benefits.length > 0) && (
-        <Breakdown stressors={stressors} benefits={benefits} />
+      {expanded && (
+        <div className="pb-1">
+          {(stressors.length > 0 || benefits.length > 0) && (
+            <Breakdown stressors={stressors} benefits={benefits} />
+          )}
+          <div className="flex justify-end pl-6">
+            <button
+              type="button"
+              onClick={onRemove}
+              aria-label={`Remove ${name}`}
+              className="flex items-center gap-1 rounded text-[12px] text-ink-3 transition-colors hover:text-alert focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
+            >
+              <X className="h-3.5 w-3.5" />
+              remove
+            </button>
+          </div>
+        </div>
       )}
     </div>
   );
@@ -193,29 +147,19 @@ export function FloraCard({ state, config, executeAction }: FloraCardProps): Rea
 
   const { plants, algae, resources } = state;
   const water = resources.water;
-  const capacity = state.tank.capacity;
-  const maxPlants = getMaxPlants(capacity);
+  const maxPlants = getMaxPlants(state.tank.capacity);
   const algaePct = Math.round(algae.mass);
 
   const algaePopulation = computeAlgaePopulation({
     plants,
     resources,
-    tankCapacity: capacity,
+    tankCapacity: state.tank.capacity,
     algaeConfig: config.algae,
     nutrientsConfig: config.nutrients,
   });
 
-  const nutrients = [
-    { label: 'NO₃', ppm: getPpm(resources.nitrate, water), min: NitrateResource.safeRange?.min ?? 5, max: NitrateResource.safeRange?.max ?? 20 },
-    { label: 'PO₄', ppm: getPpm(resources.phosphate, water), min: 0.5, max: PhosphateResource.safeRange?.max ?? 2 },
-    { label: 'K', ppm: getPpm(resources.potassium, water), min: 5, max: PotassiumResource.safeRange?.max ?? 20 },
-    { label: 'Fe', ppm: getPpm(resources.iron, water), min: 0.1, max: IronResource.safeRange?.max ?? 0.5 },
-  ].map((n) => ({ ...n, state: nutrientState(n.ppm, n.min, n.max) }));
-  const allDepleted = nutrients.every((n) => n.state === 'depleted');
-
-  const scapeSummary = state.equipment.hardscape.items.length
-    ? `${SUBSTRATE_NAME[state.equipment.substrate.type]} + ${hardscapeSummary(state.equipment.hardscape.items)}`
-    : SUBSTRATE_NAME[state.equipment.substrate.type];
+  const nutrients = nutrientReadings(resources, water);
+  const allDepleted = allNutrientsDepleted(nutrients);
 
   const togglePlant = (id: string): void =>
     setExpandedPlants((prev) => {
@@ -226,26 +170,20 @@ export function FloraCard({ state, config, executeAction }: FloraCardProps): Rea
     });
 
   const canTrim = canTrimPlants(state);
-  const trimOptions: SplitOption[] = TRIM_TARGETS.map((target) => {
-    const count = getPlantsToTrimCount(state, target);
-    return {
-      key: String(target),
-      label: `trim to ${target}%`,
-      hint: `${count} plant${count === 1 ? '' : 's'}`,
-      disabled: count === 0,
-      onSelect: () => executeAction({ type: 'trimPlants', targetSize: target }),
-    };
-  });
+  const trimOptions: SplitOption[] = trimTargets(state).map(({ target, count, disabled }) => ({
+    key: String(target),
+    label: `trim to ${target}%`,
+    hint: `${count} plant${count === 1 ? '' : 's'}`,
+    disabled,
+    onSelect: () => executeAction({ type: 'trimPlants', targetSize: target }),
+  }));
 
-  const doseOptions: SplitOption[] = DOSE_PRESETS.map((ml) => {
-    const preview = getDosePreview(ml, water);
-    return {
-      key: String(ml),
-      label: `${ml} ml`,
-      hint: `+${preview.nitratePpm.toFixed(1)} NO₃`,
-      onSelect: () => executeAction({ type: 'dose', amountMl: ml }),
-    };
-  });
+  const doseOptions: SplitOption[] = dosePresets(water).map(({ ml, nitratePpm }) => ({
+    key: String(ml),
+    label: `${ml} ml`,
+    hint: `+${nitratePpm.toFixed(1)} NO₃`,
+    onSelect: () => executeAction({ type: 'dose', amountMl: ml }),
+  }));
 
   return (
     <Card className="lg:min-h-[520px]">
@@ -284,6 +222,7 @@ export function FloraCard({ state, config, executeAction }: FloraCardProps): Rea
                   vitality={vitality}
                   expanded={expandedPlants.has(plant.id)}
                   onToggle={() => togglePlant(plant.id)}
+                  onRemove={() => executeAction({ type: 'removePlant', plantId: plant.id })}
                 />
               );
             })
@@ -342,7 +281,9 @@ export function FloraCard({ state, config, executeAction }: FloraCardProps): Rea
           {/* Scape */}
           <div className="flex items-center gap-3 py-2.5">
             <span className="text-[13px] text-ink-2">Scape</span>
-            <span className="min-w-0 truncate text-[13px] text-ink">{scapeSummary}</span>
+            <span className="min-w-0 truncate text-[13px] text-ink">
+              {scapeSummary(state.equipment.substrate.type, state.equipment.hardscape.items)}
+            </span>
             <span className="ml-auto font-mono tabular-nums text-[12px] text-ink-3">
               {SurfaceResource.format(resources.surface)}
             </span>

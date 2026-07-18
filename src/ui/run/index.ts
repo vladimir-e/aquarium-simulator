@@ -19,3 +19,34 @@ export {
   SPEED_LABELS,
   STEP_LABELS,
 } from './speed.js';
+export { type Status } from './status.js';
+export { classifyVital, type VitalKey, type VitalClassification } from './vitals.js';
+export {
+  isHungryBand,
+  bandOf,
+  bandStatus,
+  countHungry,
+  type SpeciesGroup,
+  groupBySpecies,
+  type FryBatch,
+  groupFryBatches,
+  deriveFryGraduation,
+} from './livestock.js';
+export { latestLog, recentLogs } from './log.js';
+export {
+  conditionStatus,
+  conditionWord,
+  algaeStatus,
+  algaeWord,
+  type NutrientState,
+  nutrientState,
+  type NutrientReading,
+  nutrientReadings,
+  allNutrientsDepleted,
+  hardscapeSummary,
+  scapeSummary,
+  type TrimTarget,
+  trimTargets,
+  type DosePreset,
+  dosePresets,
+} from './flora.js';

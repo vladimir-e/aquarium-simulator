@@ -19,7 +19,6 @@ interface SplitButtonProps {
   variant?: 'primary' | 'secondary';
   disabled?: boolean;
   ariaLabel?: string;
-  align?: 'left' | 'right';
 }
 
 /**
@@ -34,7 +33,6 @@ export function SplitButton({
   variant = 'secondary',
   disabled = false,
   ariaLabel,
-  align = 'left',
 }: SplitButtonProps): React.JSX.Element {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -104,9 +102,7 @@ export function SplitButton({
       {open && (
         <div
           role="menu"
-          className={`absolute bottom-full z-20 mb-1 min-w-[9rem] overflow-hidden rounded-control border border-hairline bg-surface-2 py-1 shadow-[0_6px_20px_rgba(40,46,45,0.12)] dark:shadow-[0_8px_24px_rgba(0,0,0,0.45)] ${
-            align === 'right' ? 'right-0' : 'left-0'
-          }`}
+          className="absolute bottom-full left-0 z-20 mb-1 min-w-[9rem] overflow-hidden rounded-control border border-hairline bg-surface-2 py-1 shadow-[0_6px_20px_rgba(40,46,45,0.12)] dark:shadow-[0_8px_24px_rgba(0,0,0,0.45)]"
         >
           {options.map((option) => (
             <button

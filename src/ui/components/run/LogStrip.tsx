@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import type { LogEntry } from '../../../simulation/index.js';
-import { latestLog, recentLogs } from '../../run/log';
+import { latestLog, recentLogs } from '../../run';
 
 function LogLine({ log }: { log: LogEntry }): React.JSX.Element {
   return (

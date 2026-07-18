@@ -108,9 +108,16 @@
   --color-warning: var(--warn);
 }
 
+/* Theme the root element too, so the overscroll canvas (outside app content)
+   is always the themed page colour, not the browser default. */
+:root {
+  background-color: var(--bg);
+}
+
 body {
   margin: 0;
   padding: 0;
+  min-height: 100vh;
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;

@@ -3,6 +3,7 @@ import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import { LivestockCard } from './LivestockCard';
 import {
   createSimulation,
+  type Clutch,
   type Fish,
   type SimulationState,
 } from '../../../simulation/index.js';
@@ -79,5 +80,19 @@ describe('LivestockCard — flat individuals', () => {
     });
     fireEvent.click(screen.getByLabelText('Remove Neon Tetra'));
     expect(executeAction).toHaveBeenCalledWith({ type: 'removeFish', fishId: 'n1' });
+  });
+});
+
+describe('LivestockCard — clutches', () => {
+  it('shows a laid clutch with egg count and hatch countdown', () => {
+    const clutches: Clutch[] = [{ id: 'c1', species: 'neon_tetra', eggCount: 25, laidTick: 10 }];
+    // neon hatchTime 24 → hatches at tick 34; at tick 20 that's 14h out.
+    const state: SimulationState = { ...base, fish: [], clutches, tick: 20 };
+    render(
+      <LivestockCard state={state} config={livestockDefaults} executeAction={vi.fn() as never} />
+    );
+    expect(screen.getByText('Neon Tetra clutch')).toBeTruthy();
+    expect(screen.getByText('25 eggs')).toBeTruthy();
+    expect(screen.getByText('hatches in 14h')).toBeTruthy();
   });
 });

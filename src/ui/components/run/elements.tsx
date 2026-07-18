@@ -1,6 +1,6 @@
 import React from 'react';
 import { ChevronRight } from 'lucide-react';
-import type { Status } from '../../run/status';
+import type { Status } from '../../run';
 
 const BAR_FILL: Record<Status, string> = {
   ok: 'bg-ok',
@@ -33,19 +33,16 @@ export function controlClasses(variant: 'primary' | 'secondary'): string {
   return `px-3 py-1.5 text-[13px] font-medium leading-none transition-[transform,colors] active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none motion-reduce:transition-none ${v} ${CONTROL_FOCUS}`;
 }
 
-/** Plain flat button — the Scrub/Top-off workhorse. */
+/** Plain flat secondary button — the Scrub/Top-off workhorse. */
 export function RunButton({
-  variant = 'secondary',
   className = '',
   children,
   ...props
-}: React.ButtonHTMLAttributes<HTMLButtonElement> & {
-  variant?: 'primary' | 'secondary';
-}): React.JSX.Element {
+}: React.ButtonHTMLAttributes<HTMLButtonElement>): React.JSX.Element {
   return (
     <button
       type="button"
-      className={`flex items-center gap-1 rounded-control ${controlClasses(variant)} ${className}`}
+      className={`flex items-center gap-1 rounded-control ${controlClasses('secondary')} ${className}`}
       {...props}
     >
       {children}

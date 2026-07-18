@@ -2,8 +2,7 @@ import React from 'react';
 import type { SimulationState } from '../../../simulation/index.js';
 import { getPpm } from '../../../simulation/resources/index.js';
 import { useUnits } from '../../hooks/useUnits';
-import type { RunSnapshot } from '../../run/history';
-import { classifyVital, type VitalClassification, type VitalKey } from '../../run/vitals';
+import { classifyVital, type RunSnapshot, type VitalClassification, type VitalKey } from '../../run';
 import { Pill, Sparkline, statusText } from './elements';
 
 interface VitalSpec {

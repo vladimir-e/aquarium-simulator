@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { ChevronDown, X } from 'lucide-react';
-import type { Action, Fish, FishSpecies, SimulationState } from '../../../simulation/index.js';
+import type { Action, Clutch, Fish, FishSpecies, SimulationState } from '../../../simulation/index.js';
 import {
   FISH_SPECIES_DATA,
   SATIATION_BAND_LABEL,
@@ -9,7 +9,7 @@ import {
 } from '../../../simulation/index.js';
 import { FoodResource } from '../../../simulation/resources/index.js';
 import type { LivestockConfig } from '../../../simulation/config/livestock.js';
-import { bandStatus, countHungry, groupBySpecies, groupFryBatches } from '../../run/livestock';
+import { bandStatus, countHungry, groupBySpecies, groupFryBatches } from '../../run';
 import { Card, CardBody, CardFooter, CardHeader } from './Card';
 import { Bar, Caret, Pill, statusText } from './elements';
 import { SplitButton, type SplitOption } from './SplitButton';
@@ -69,12 +69,30 @@ function IndividualRow({
   );
 }
 
+/** Egg clutch waiting to hatch — inert until laidTick + hatchTime, no action. */
+function ClutchRow({ clutch, tick }: { clutch: Clutch; tick: number }): React.JSX.Element {
+  const data = FISH_SPECIES_DATA[clutch.species];
+  const remaining = Math.max(0, clutch.laidTick + data.breeding.hatchTime - tick);
+  return (
+    <div className="flex items-center gap-3 py-2.5">
+      <span className="w-3.5" />
+      <span className="text-[15px] font-medium text-ink">{data.name} clutch</span>
+      <span className="text-[13px] text-ink-3">{clutch.eggCount} eggs</span>
+      <Pill variant="neutral">eggs</Pill>
+      <span className="ml-auto text-[12px] text-ink-3">
+        {remaining > 0 ? `hatches in ${remaining}h` : 'hatching…'}
+      </span>
+    </div>
+  );
+}
+
 export function LivestockCard({ state, config, executeAction }: LivestockCardProps): React.JSX.Element {
   const [grouping, setGrouping] = useState<Grouping>('species');
   const [expanded, setExpanded] = useState<Set<FishSpecies>>(new Set());
   const [feedAmount, setFeedAmount] = useState(0.5);
 
   const fish = state.fish;
+  const clutches = state.clutches;
   const food = state.resources.food;
   const totalHungry = countHungry(fish, config);
   const species = groupBySpecies(fish, config);
@@ -138,22 +156,25 @@ export function LivestockCard({ state, config, executeAction }: LivestockCardPro
     <Card className="lg:min-h-[520px]">
       {header}
       <CardBody>
-        {fish.length === 0 ? (
+        {fish.length === 0 && clutches.length === 0 ? (
           <p className="py-6 text-[13px] text-ink-3">No livestock yet — add fish in Build.</p>
-        ) : grouping === 'individuals' ? (
-          <div className="max-h-[440px] divide-y divide-hairline overflow-y-auto">
-            {fish.map((f) => (
-              <IndividualRow
-                key={f.id}
-                fish={f}
-                config={config}
-                showSpecies
-                onRemove={() => removeFish(f.id)}
-              />
-            ))}
-          </div>
         ) : (
-          <div className="divide-y divide-hairline">
+          <>
+            {fish.length > 0 && grouping === 'individuals' && (
+              <div className="max-h-[440px] divide-y divide-hairline overflow-y-auto">
+                {fish.map((f) => (
+                  <IndividualRow
+                    key={f.id}
+                    fish={f}
+                    config={config}
+                    showSpecies
+                    onRemove={() => removeFish(f.id)}
+                  />
+                ))}
+              </div>
+            )}
+            {fish.length > 0 && grouping === 'species' && (
+              <div className="divide-y divide-hairline">
             {species.map((group) => {
               const open = expanded.has(group.species);
               return (
@@ -222,7 +243,18 @@ export function LivestockCard({ state, config, executeAction }: LivestockCardPro
                 </span>
               </div>
             ))}
-          </div>
+              </div>
+            )}
+            {clutches.length > 0 && (
+              <div
+                className={`divide-y divide-hairline ${fish.length > 0 ? 'border-t border-hairline' : ''}`}
+              >
+                {clutches.map((c) => (
+                  <ClutchRow key={c.id} clutch={c} tick={state.tick} />
+                ))}
+              </div>
+            )}
+          </>
         )}
       </CardBody>
 

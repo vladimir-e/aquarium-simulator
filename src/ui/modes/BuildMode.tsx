@@ -2,8 +2,9 @@ import React from 'react';
 import { EquipmentBar } from '../components/layout/EquipmentBar';
 import { Environment } from '../components/panels/Environment';
 import { SimulationStatus } from '../components/panels/SimulationStatus';
+import { StockingBridge } from '../components/panels/StockingBridge';
 import type { useSimulation } from '../hooks/useSimulation';
-import { SPEED_TICKS_PER_SECOND } from '../run/speed';
+import { SPEED_TICKS_PER_SECOND } from '../run';
 
 interface BuildModeProps {
   sim: ReturnType<typeof useSimulation>;
@@ -94,7 +95,7 @@ export function BuildMode({ sim, selectedDeviceId }: BuildModeProps): React.JSX.
         onAutoDoserScheduleChange={sim.updateAutoDoserSchedule}
       />
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         <SimulationStatus
           tick={state.tick}
           speed={SPEED_TICKS_PER_SECOND[sim.speed]}
@@ -104,10 +105,15 @@ export function BuildMode({ sim, selectedDeviceId }: BuildModeProps): React.JSX.
           onStep={sim.step}
           onPresetChange={sim.loadPreset}
         />
+        <StockingBridge state={state} executeAction={sim.executeAction} />
         <Environment
           roomTemperature={state.environment.roomTemperature}
           waterTemperature={state.resources.temperature}
+          tapWaterTemperature={state.environment.tapWaterTemperature}
+          tapWaterPH={state.environment.tapWaterPH}
           onRoomTemperatureChange={sim.updateRoomTemperature}
+          onTapWaterTemperatureChange={sim.updateTapWaterTemperature}
+          onTapWaterPHChange={sim.updateTapWaterPH}
         />
       </div>
     </div>

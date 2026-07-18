@@ -29,6 +29,7 @@ export function RunMode({ sim, config, onOpenDeviceInBuild }: RunModeProps): Rea
           <FloraCard state={state} config={config} executeAction={sim.executeAction} />
           <SystemsCard
             state={state}
+            config={config}
             executeAction={sim.executeAction}
             onOpenDeviceInBuild={onOpenDeviceInBuild}
           />

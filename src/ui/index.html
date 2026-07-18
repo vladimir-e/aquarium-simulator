@@ -4,6 +4,26 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Aquarium Simulator</title>
+    <script>
+      // Apply the resolved theme class before first paint so the themed
+      // background tokens are defined immediately (no unthemed flash). Mirrors
+      // useTheme's resolution; React re-affirms the same class on mount.
+      (function () {
+        try {
+          var stored = localStorage.getItem('aquarium-theme-mode');
+          var mode = stored === 'light' || stored === 'dark' || stored === 'system' ? stored : 'system';
+          var resolved =
+            mode === 'system'
+              ? window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+                ? 'dark'
+                : 'light'
+              : mode;
+          document.documentElement.classList.add(resolved);
+        } catch (e) {
+          document.documentElement.classList.add('dark');
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

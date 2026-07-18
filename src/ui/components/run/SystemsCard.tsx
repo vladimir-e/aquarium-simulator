@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { ChevronRight } from 'lucide-react';
 import type { Action, DailySchedule, SimulationState } from '../../../simulation/index.js';
 import { getFilterFlow, WATER_CHANGE_AMOUNTS } from '../../../simulation/index.js';
+import { SurfaceResource } from '../../../simulation/resources/index.js';
+import type { TunableConfig } from '../../../simulation/config/index.js';
 import { lphToGph } from '../../utils/units';
 import { useUnits } from '../../hooks/useUnits';
 import { Card, CardBody, CardFooter, CardHeader } from './Card';
@@ -22,12 +24,14 @@ interface Device {
 
 interface SystemsCardProps {
   state: SimulationState;
+  config: TunableConfig;
   executeAction: (action: Action) => void;
   onOpenDeviceInBuild: (deviceId: string) => void;
 }
 
 export function SystemsCard({
   state,
+  config,
   executeAction,
   onOpenDeviceInBuild,
 }: SystemsCardProps): React.JSX.Element {
@@ -36,6 +40,12 @@ export function SystemsCard({
 
   const { equipment, tank, resources } = state;
   const filterGph = Math.round(lphToGph(getFilterFlow(equipment.filter.type, tank.capacity)));
+
+  // Biofilter colonization: AOB + NOB against their combined ceiling (each
+  // bacterium type caps at surface × bacteriaPerCm2).
+  const maxBacteria = resources.surface * config.nitrogenCycle.bacteriaPerCm2;
+  const colonization =
+    maxBacteria > 0 ? Math.min(100, ((resources.aob + resources.nob) / (2 * maxBacteria)) * 100) : 0;
 
   const devices: Device[] = [
     { id: 'filter', name: 'Filter', on: equipment.filter.enabled, detail: `${equipment.filter.type} · ${filterGph} GPH` },
@@ -78,6 +88,14 @@ export function SystemsCard({
               </span>
             </button>
           ))}
+          {/* Biofilter — derived, read-only (no Build editor). */}
+          <div className="flex items-center gap-3 py-2.5">
+            <StatusDot on={colonization >= 25} />
+            <span className="text-[15px] text-ink">Biofilter</span>
+            <span className="ml-auto font-mono tabular-nums text-[12px] text-ink-2">
+              {Math.round(colonization)}% · {SurfaceResource.format(resources.surface)}
+            </span>
+          </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-2 pt-4">

@@ -89,7 +89,7 @@ export interface FryBatch {
   dayNow: number;
   /** Day number at which this species reaches adulthood. */
   graduationDay: number;
-  /** Progress toward adult mass, 0–100. */
+  /** Maturation, age/maturityAge as a percentage (0–100). */
   growthPct: number;
 }
 

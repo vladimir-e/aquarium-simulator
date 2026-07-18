@@ -24,7 +24,7 @@ export type VitalKey =
   | 'temperature'
   | 'water';
 
-export type VitalPill = 'HIGH' | 'LOW' | null;
+type VitalPill = 'HIGH' | 'LOW' | null;
 
 export interface VitalClassification {
   status: Status;
@@ -32,11 +32,11 @@ export interface VitalClassification {
 }
 
 /** Nitrate below this (ppm) reads as depleted plant food — a LOW glance. */
-export const NITRATE_LOW_PPM = 5;
+const NITRATE_LOW_PPM = 5;
 /** Dissolved oxygen at or above this (mg/L) reads as comfortable. */
-export const OXYGEN_OK_MGL = 6;
+const OXYGEN_OK_MGL = 6;
 /** Water level below this (% of capacity) is the engine's critical threshold. */
-export const WATER_LOW_PCT = WATER_LEVEL_CRITICAL_THRESHOLD * 100;
+const WATER_LOW_PCT = WATER_LEVEL_CRITICAL_THRESHOLD * 100;
 
 const HIGH: VitalClassification = { status: 'alert', pill: 'HIGH' };
 const LOW: VitalClassification = { status: 'warn', pill: 'LOW' };
