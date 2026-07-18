@@ -37,6 +37,34 @@ function seedSessionWithClutch(presetId: string): void {
   globalThis.localStorage.setItem(STORAGE_KEY, JSON.stringify(persisted));
 }
 
+/**
+ * Seed a bare-tank session whose ammonia already sits above the high-ammonia
+ * alert threshold (>0.1 ppm; ppm = mass / water, so 20mg in 40L = 0.5 ppm),
+ * with the alert flag clear so the next tick fires the alert.
+ */
+function seedSessionWithHighAmmonia(): void {
+  const base = createSimulation(getPresetById('bare')!.config);
+  const persisted = {
+    version: PERSISTENCE_VERSION,
+    simulation: {
+      tick: 0,
+      tank: base.tank,
+      resources: { ...base.resources, ammonia: 20 },
+      environment: base.environment,
+      equipment: base.equipment,
+      plants: base.plants,
+      fish: base.fish,
+      clutches: base.clutches,
+      algae: base.algae,
+      alertState: base.alertState,
+      currentPreset: 'bare',
+    },
+    tunableConfig: DEFAULT_CONFIG,
+    ui: { units: 'metric', debugPanelOpen: false },
+  };
+  globalThis.localStorage.setItem(STORAGE_KEY, JSON.stringify(persisted));
+}
+
 // Wrapper with ConfigProvider and PersistenceProvider for testing hooks
 const wrapper = ({ children }: { children: React.ReactNode }): React.JSX.Element => (
   <PersistenceProvider>
@@ -590,6 +618,69 @@ describe('useSimulation', () => {
       expect(result.current.aggregates.waterChangedL).toBe(0);
       expect(result.current.history).toHaveLength(1);
       expect(result.current.history[0].tick).toBe(0);
+    });
+
+    it('records every intra-step tick at 6h speed', () => {
+      const { result } = renderHook(() => useSimulation('bare'), { wrapper });
+      const baseline = result.current.history.length;
+
+      act(() => {
+        result.current.changeSpeed('6h');
+      });
+      act(() => {
+        result.current.step();
+      });
+
+      const { history, aggregates } = result.current;
+      expect(history.length - baseline).toBe(6);
+      expect(aggregates.ticks).toBe(6);
+      expect(history[history.length - 1].tick).toBe(6);
+    });
+
+    it('rebaselines history and aggregates on a mid-run preset load', () => {
+      const { result } = renderHook(() => useSimulation('planted'), { wrapper });
+
+      act(() => {
+        result.current.step();
+        result.current.step();
+        result.current.step();
+      });
+      expect(result.current.aggregates.ticks).toBe(3);
+
+      act(() => {
+        result.current.loadPreset('community');
+      });
+
+      // History reseeds to a single baseline snapshot and tallies zero out.
+      expect(result.current.history).toHaveLength(1);
+      expect(result.current.aggregates.ticks).toBe(0);
+      // The preset-switch log must not be counted as an alert.
+      expect(result.current.aggregates.alerts).toBe(0);
+      expect(
+        result.current.state.logs.some((log) => log.message.includes('Switched to preset'))
+      ).toBe(true);
+    });
+
+    it('counts a chemistry alert once per episode', () => {
+      seedSessionWithHighAmmonia();
+      try {
+        const { result } = renderHook(() => useSimulation(), { wrapper });
+
+        // First tick crosses the ammonia threshold and fires the alert.
+        act(() => {
+          result.current.step();
+        });
+        expect(result.current.aggregates.alerts).toBe(1);
+
+        // Ammonia stays high, so the latched alert does not re-fire.
+        act(() => {
+          result.current.step();
+          result.current.step();
+        });
+        expect(result.current.aggregates.alerts).toBe(1);
+      } finally {
+        globalThis.localStorage.clear();
+      }
     });
   });
 });

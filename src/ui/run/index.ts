@@ -18,5 +18,4 @@ export {
   SPEED_TICKS_PER_SECOND,
   SPEED_LABELS,
   STEP_LABELS,
-  normalizeSpeed,
 } from './speed.js';
