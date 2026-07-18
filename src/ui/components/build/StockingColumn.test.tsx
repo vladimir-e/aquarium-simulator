@@ -61,6 +61,14 @@ describe('StockingColumn', () => {
     expect(executeAction).toHaveBeenCalledWith({ type: 'removeFish', fishId: 'weak' });
   });
 
+  it('disables the row + once the physical stocking ceiling is reached', () => {
+    // Not a realistic stocking — an over-ceiling fixture that pins the
+    // canAdd → checkFishCapacity → disabled-Add wiring (getMaxFishMass(40) = 20000 g).
+    const { sim } = stubSim([makeFish({ id: 'whale', species: 'neon_tetra', mass: 20000 })]);
+    render(<StockingColumn sim={sim} onResumeRun={vi.fn()} />);
+    expect((screen.getByRole('button', { name: 'Add Neon Tetra' }) as HTMLButtonElement).disabled).toBe(true);
+  });
+
   it('resumes the run from the footer button', () => {
     const { sim } = stubSim([]);
     const onResumeRun = vi.fn();
