@@ -109,6 +109,33 @@
    is always the themed page colour, not the browser default. */
 :root {
   background-color: var(--bg);
+  /* Height reserved for the mobile bottom tab bar (0 on desktop, where the tab
+     bar is hidden). Bottom-pinned strips offset by it; the page pads by it. */
+  --tabbar-h: 0px;
+}
+
+@media (max-width: 639.98px) {
+  :root {
+    --tabbar-h: calc(3.5rem + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+/* Mobile pushed editor (Build equipment): slides in from the right. */
+@keyframes aq-push-in {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+.animate-push-in {
+  animation: aq-push-in 200ms ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .animate-push-in {
+    animation: none;
+  }
 }
 
 body {

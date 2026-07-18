@@ -83,7 +83,7 @@ export function TickScrubber({ range, currentTick, onScrubToTick }: TickScrubber
   const fraction = range ? tickToFraction(currentTick, range.minTick, range.maxTick) : 0;
 
   return (
-    <div className="sticky bottom-0 z-10 border-t border-hairline-2 bg-surface px-4 py-2">
+    <div className="sticky bottom-[var(--tabbar-h)] z-10 border-t border-hairline-2 bg-surface px-4 py-2">
       <div className="flex items-center gap-4">
         <span className="shrink-0 font-mono text-[12px] tabular-nums text-ink-3">
           tick {range ? range.minTick : 0}

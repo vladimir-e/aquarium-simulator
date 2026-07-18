@@ -24,7 +24,8 @@ import {
   scapeSummary,
   trimTargets,
 } from '../../run';
-import { Card, CardBody, CardFooter, CardHeader } from './Card';
+import { useCardCollapse } from '../../hooks/useCardCollapse';
+import { Card, CardBody, CardFooter, CardHeader, CollapseRegion } from './Card';
 import { Bar, Caret, Pill, RunButton, statusText } from './elements';
 import { SplitButton, type SplitOption } from './SplitButton';
 
@@ -142,6 +143,7 @@ interface FloraCardProps {
 }
 
 export function FloraCard({ state, config, executeAction }: FloraCardProps): React.JSX.Element {
+  const { collapsed, toggle, showToggle } = useCardCollapse('run.flora');
   const [expandedPlants, setExpandedPlants] = useState<Set<string>>(new Set());
   const [algaeExpanded, setAlgaeExpanded] = useState(false);
 
@@ -189,12 +191,16 @@ export function FloraCard({ state, config, executeAction }: FloraCardProps): Rea
     <Card className="lg:min-h-[520px]">
       <CardHeader
         title="Flora & Scape"
+        collapsible={showToggle}
+        collapsed={collapsed}
+        onToggle={toggle}
         meta={
           <span>
             {plants.length}/{maxPlants} plants · algae {algaePct}%
           </span>
         }
       />
+      <CollapseRegion collapsed={collapsed}>
       <CardBody>
         <div className="divide-y divide-hairline">
           {plants.length === 0 ? (
@@ -290,6 +296,7 @@ export function FloraCard({ state, config, executeAction }: FloraCardProps): Rea
           </div>
         </div>
       </CardBody>
+      </CollapseRegion>
 
       <CardFooter>
         <SplitButton label="Trim" options={trimOptions} disabled={!canTrim} ariaLabel="Trim plants" />

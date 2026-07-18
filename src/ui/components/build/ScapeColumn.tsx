@@ -13,7 +13,8 @@ import {
 import type { useSimulation } from '../../hooks/useSimulation';
 import { useUnits } from '../../hooks/useUnits';
 import { plantOptions, substrateConsequence, substrateSurface } from '../../build';
-import { Card, CardBody, CardFooter, CardHeader } from '../run/Card';
+import { useCardCollapse } from '../../hooks/useCardCollapse';
+import { Card, CardBody, CardFooter, CardHeader, CollapseRegion } from '../run/Card';
 import { Pill, RunButton } from '../run/elements';
 import { SplitButton, type SplitOption } from '../run/SplitButton';
 import { FieldRow, Select } from './controls';
@@ -53,12 +54,15 @@ interface ScapeColumnProps {
 
 export function ScapeColumn({ sim }: ScapeColumnProps): React.JSX.Element {
   const { unitSystem } = useUnits();
+  const { collapsed, toggle, showToggle } = useCardCollapse('build.scape');
   const { equipment, tank, plants, resources } = sim.state;
   const substrate = equipment.substrate.type;
   const hardscape = equipment.hardscape.items;
   const slots = tank.hardscapeSlots;
   const surface = substrateSurface(substrate, tank.capacity, unitSystem);
   const maxPlants = getMaxPlants(tank.capacity);
+  const substrateLabel = SUBSTRATE_OPTIONS.find((o) => o.value === substrate)?.label ?? substrate;
+  const summary = `${substrateLabel.toLowerCase()} + ${hardscape.length} · ${plants.length} plants`;
 
   const options = plantOptions(substrate);
   const [plantToAdd, setPlantToAdd] = useState<PlantSpecies>('java_fern');
@@ -73,7 +77,14 @@ export function ScapeColumn({ sim }: ScapeColumnProps): React.JSX.Element {
 
   return (
     <Card className="h-full">
-      <CardHeader title="Scape & Flora" />
+      <CardHeader
+        title="Scape & Flora"
+        collapsible={showToggle}
+        collapsed={collapsed}
+        onToggle={toggle}
+        meta={collapsed ? <span className="sm:hidden">{summary}</span> : undefined}
+      />
+      <CollapseRegion collapsed={collapsed}>
       <CardBody>
         <FieldRow label="Substrate">
           <Select
@@ -170,6 +181,7 @@ export function ScapeColumn({ sim }: ScapeColumnProps): React.JSX.Element {
           {Math.round(resources.surface).toLocaleString()} cm²
         </span>
       </CardFooter>
+      </CollapseRegion>
     </Card>
   );
 }

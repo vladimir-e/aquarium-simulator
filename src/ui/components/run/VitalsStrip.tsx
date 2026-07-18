@@ -27,19 +27,24 @@ function VitalTile({ spec }: { spec: VitalSpec }): React.JSX.Element {
     cls.status === 'alert' ? 'text-alert' : cls.status === 'warn' ? 'text-warn' : 'text-ink';
 
   return (
-    <div className={`flex flex-col gap-2 rounded-card border bg-surface px-3 py-3 ${border}`}>
+    <div
+      className={`flex flex-col gap-1.5 rounded-card border bg-surface px-2 py-2.5 sm:gap-2 sm:px-3 sm:py-3 ${border}`}
+    >
       <div className="flex items-start justify-between gap-1">
-        <span className="text-[12px] font-medium uppercase tracking-[0.06em] text-ink-3">
+        <span className="text-[11px] font-medium uppercase tracking-[0.06em] text-ink-3 sm:text-[12px]">
           {spec.label}
         </span>
         {cls.pill === 'HIGH' && <Pill variant="alert">HIGH</Pill>}
         {cls.pill === 'LOW' && <Pill variant="warn">LOW</Pill>}
       </div>
       <div className="flex items-baseline gap-1">
-        <span className={`font-mono text-[30px] font-medium leading-none tabular-nums ${number}`}>
+        <span
+          className={`font-mono text-[19px] font-medium leading-none tabular-nums sm:text-[30px] ${number}`}
+        >
           {spec.value}
         </span>
-        {spec.unit && <span className="text-[12px] text-ink-3">{spec.unit}</span>}
+        {/* Unit is dropped below sm — the 4-up grid is too tight and the label carries the metric. */}
+        {spec.unit && <span className="hidden text-[12px] text-ink-3 sm:inline">{spec.unit}</span>}
       </div>
       <div className={statusText(cls.status)}>
         <Sparkline values={spec.series} />
@@ -76,7 +81,7 @@ export function VitalsStrip({
   ];
 
   return (
-    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-8 lg:gap-3">
+    <div className="grid grid-cols-4 gap-2 lg:grid-cols-8 lg:gap-3">
       {specs.map((spec) => (
         <VitalTile key={spec.key} spec={spec} />
       ))}

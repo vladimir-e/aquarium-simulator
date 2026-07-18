@@ -7,7 +7,8 @@ import {
 } from '../../../simulation/index.js';
 import type { useSimulation } from '../../hooks/useSimulation';
 import { bioload, fryLines, removalVictimId, speciesCounts } from '../../build';
-import { Card, CardBody, CardFooter, CardHeader } from '../run/Card';
+import { useCardCollapse } from '../../hooks/useCardCollapse';
+import { Card, CardBody, CardFooter, CardHeader, CollapseRegion } from '../run/Card';
 import { Bar } from '../run/elements';
 import { Adjust, Select } from './controls';
 
@@ -22,10 +23,15 @@ interface StockingColumnProps {
 
 export function StockingColumn({ sim, onResumeRun }: StockingColumnProps): React.JSX.Element {
   const { fish, tank } = sim.state;
+  const { collapsed, toggle, showToggle } = useCardCollapse('build.stocking');
   const rows = speciesCounts(fish);
   const fry = fryLines(fish);
   const load = bioload(fish, tank.capacity);
   const [speciesToAdd, setSpeciesToAdd] = useState<FishSpecies>('neon_tetra');
+
+  const adultCount = rows.reduce((n, r) => n + r.count, 0);
+  const hasFry = fry.length > 0;
+  const summary = `${adultCount}${hasFry ? ' + fry' : ''} · ${load.ratio.toFixed(1)}×`;
 
   const canAdd = (species: FishSpecies): boolean =>
     checkFishCapacity(fish, tank.capacity, species).ok;
@@ -38,7 +44,14 @@ export function StockingColumn({ sim, onResumeRun }: StockingColumnProps): React
 
   return (
     <Card className="h-full">
-      <CardHeader title="Stocking" />
+      <CardHeader
+        title="Stocking"
+        collapsible={showToggle}
+        collapsed={collapsed}
+        onToggle={toggle}
+        meta={collapsed ? <span className="sm:hidden">{summary}</span> : undefined}
+      />
+      <CollapseRegion collapsed={collapsed}>
       <CardBody>
         {rows.length === 0 && fry.length === 0 ? (
           <p className="py-4 text-[13px] text-ink-3">No livestock yet — add a species below.</p>
@@ -103,7 +116,7 @@ export function StockingColumn({ sim, onResumeRun }: StockingColumnProps): React
         </div>
       </CardBody>
 
-      <CardFooter>
+      <CardFooter className="max-sm:hidden">
         <button
           type="button"
           onClick={onResumeRun}
@@ -113,6 +126,7 @@ export function StockingColumn({ sim, onResumeRun }: StockingColumnProps): React
           <ChevronRight className="h-4 w-4" />
         </button>
       </CardFooter>
+      </CollapseRegion>
     </Card>
   );
 }

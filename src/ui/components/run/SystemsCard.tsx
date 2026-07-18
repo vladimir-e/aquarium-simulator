@@ -6,7 +6,8 @@ import { SurfaceResource } from '../../../simulation/resources/index.js';
 import type { TunableConfig } from '../../../simulation/config/index.js';
 import { lphToGph } from '../../utils/units';
 import { useUnits } from '../../hooks/useUnits';
-import { Card, CardBody, CardFooter, CardHeader } from './Card';
+import { useCardCollapse } from '../../hooks/useCardCollapse';
+import { Card, CardBody, CardFooter, CardHeader, CollapseRegion } from './Card';
 import { RunButton, StatusDot } from './elements';
 import { SplitButton, type SplitOption } from './SplitButton';
 
@@ -36,6 +37,7 @@ export function SystemsCard({
   onOpenDeviceInBuild,
 }: SystemsCardProps): React.JSX.Element {
   const { formatTemp } = useUnits();
+  const { collapsed, toggle, showToggle } = useCardCollapse('run.systems');
   const [waterPct, setWaterPct] = useState(0.25);
 
   const { equipment, tank, resources } = state;
@@ -70,7 +72,14 @@ export function SystemsCard({
 
   return (
     <Card className="lg:min-h-[520px]">
-      <CardHeader title="Systems" meta={<span>glance</span>} />
+      <CardHeader
+        title="Systems"
+        collapsible={showToggle}
+        collapsed={collapsed}
+        onToggle={toggle}
+        meta={<span>glance</span>}
+      />
+      <CollapseRegion collapsed={collapsed}>
       <CardBody>
         <div className="divide-y divide-hairline">
           {devices.map((device) => (
@@ -97,24 +106,22 @@ export function SystemsCard({
             </span>
           </div>
         </div>
-
-        <div className="flex flex-wrap items-center gap-2 pt-4">
-          <SplitButton
-            label={`Water Δ ${Math.round(waterPct * 100)}%`}
-            options={waterOptions}
-            ariaLabel="Change water"
-          />
-          <RunButton
-            onClick={() => executeAction({ type: 'topOff' })}
-            disabled={resources.water >= tank.capacity}
-          >
-            Top-off
-          </RunButton>
-        </div>
       </CardBody>
+      </CollapseRegion>
 
       <CardFooter>
-        <span className="text-[12px] text-ink-3">tap device → opens its editor in Build ↗</span>
+        <SplitButton
+          label={`Water Δ ${Math.round(waterPct * 100)}%`}
+          options={waterOptions}
+          ariaLabel="Change water"
+        />
+        <RunButton
+          onClick={() => executeAction({ type: 'topOff' })}
+          disabled={resources.water >= tank.capacity}
+        >
+          Top-off
+        </RunButton>
+        <span className="ml-auto text-[12px] text-ink-3">tap device → opens its editor in Build ↗</span>
       </CardFooter>
     </Card>
   );

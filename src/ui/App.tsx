@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { AppHeader } from './components/layout/AppHeader';
+import { BottomTabBar } from './components/layout/BottomTabBar';
 import { DebugPanel } from './components/panels/DebugPanel';
 import { RunMode } from './modes/RunMode';
 import { BuildMode } from './modes/BuildMode';
@@ -50,7 +51,7 @@ function App(): React.JSX.Element {
         onSpeedChange={sim.changeSpeed}
       />
 
-      <main>
+      <main className="pb-[var(--tabbar-h)]">
         {mode === 'run' && (
           <RunMode sim={sim} config={config} onOpenDeviceInBuild={handleOpenDeviceInBuild} />
         )}
@@ -65,6 +66,7 @@ function App(): React.JSX.Element {
         {mode === 'review' && <ReviewMode sim={sim} />}
       </main>
 
+      <BottomTabBar mode={mode} onModeChange={handleModeChange} />
       <DebugPanel />
     </div>
   );

@@ -39,7 +39,7 @@ export function BuildMode({
         </div>
       </div>
       <div className="mt-4">
-        <BuildStatusBar logs={sim.state.logs} />
+        <BuildStatusBar logs={sim.state.logs} onResumeRun={onResumeRun} />
       </div>
     </div>
   );

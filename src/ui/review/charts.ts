@@ -20,6 +20,8 @@ export interface ChartSeries {
 export interface ChartDef {
   id: string;
   title: string;
+  /** Terse label for the mobile one-chart-at-a-time chip row. */
+  shortLabel: string;
   series: ChartSeries[];
   /** Alert kinds this chart's data explains — its baseline markers filter to these. */
   alertKinds: AlertKind[];
@@ -29,6 +31,7 @@ export const REVIEW_CHARTS: ChartDef[] = [
   {
     id: 'nitrogen',
     title: 'Nitrogen cycle',
+    shortLabel: 'cycle',
     alertKinds: ['ammonia', 'nitrite', 'nitrate'],
     series: [
       { key: 'ammonia', label: 'NH₃', accessor: (s) => s.ammonia, light: '#B34935', dark: '#EE816D' },
@@ -39,6 +42,7 @@ export const REVIEW_CHARTS: ChartDef[] = [
   {
     id: 'ph-co2',
     title: 'pH & CO₂',
+    shortLabel: 'pH·CO₂',
     alertKinds: ['co2'],
     series: [
       { key: 'ph', label: 'pH', accessor: (s) => s.ph, light: '#6D5BA8', dark: '#A99BE0' },
@@ -48,6 +52,7 @@ export const REVIEW_CHARTS: ChartDef[] = [
   {
     id: 'o2-temp',
     title: 'O₂ / temp',
+    shortLabel: 'O₂·temp',
     alertKinds: ['oxygen'],
     series: [
       { key: 'oxygen', label: 'O₂', accessor: (s) => s.oxygen, light: '#3E6DA8', dark: '#7FB0E8' },
@@ -57,6 +62,7 @@ export const REVIEW_CHARTS: ChartDef[] = [
   {
     id: 'population',
     title: 'Population & plant mass',
+    shortLabel: 'pop.',
     alertKinds: ['algae', 'plant'],
     series: [
       { key: 'fishCount', label: 'fish', accessor: (s) => s.fishCount, light: '#4A8A47', dark: '#94D97B' },

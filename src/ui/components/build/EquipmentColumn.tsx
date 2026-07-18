@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Search } from 'lucide-react';
 import {
   FILTER_SURFACE,
   FILTER_SPECS,
@@ -22,7 +22,9 @@ import {
   DEVICE_NAME,
   type DeviceId,
 } from '../../build';
-import { Card, CardBody, CardHeader } from '../run/Card';
+import { useCardCollapse } from '../../hooks/useCardCollapse';
+import { useIsMobile } from '../../hooks/useMediaQuery';
+import { Card, CardBody, CardHeader, CollapseRegion } from '../run/Card';
 import { StatusDot, CONTROL_FOCUS } from '../run/elements';
 import { FieldRow, Select, Stepper, Toggle } from './controls';
 
@@ -100,7 +102,15 @@ function Hint({
   );
 }
 
-function DeviceInspector({ id, sim }: { id: DeviceId; sim: Sim }): React.JSX.Element {
+function DeviceInspector({
+  id,
+  sim,
+  showTitle = true,
+}: {
+  id: DeviceId;
+  sim: Sim;
+  showTitle?: boolean;
+}): React.JSX.Element {
   const { equipment, tank, resources } = sim.state;
   const { unitSystem, tempUnit, displayTemp, internalTemp } = useUnits();
 
@@ -326,8 +336,53 @@ function DeviceInspector({ id, sim }: { id: DeviceId; sim: Sim }): React.JSX.Ele
 
   return (
     <div>
-      <h3 className="pb-1 text-[15px] font-semibold text-ink">{DEVICE_NAME[id]}</h3>
+      {showTitle && <h3 className="pb-1 text-[15px] font-semibold text-ink">{DEVICE_NAME[id]}</h3>}
       <div className="divide-y divide-hairline">{body}</div>
+    </div>
+  );
+}
+
+/**
+ * Mobile equipment editor: the desktop inspector pushed full-screen. It is
+ * navigation, not a modal — a back control pops it, there is no scrim and no
+ * dismiss-on-outside. Reuses `DeviceInspector` verbatim (title suppressed, since
+ * the back bar names the device).
+ */
+function PushedEditor({
+  id,
+  sim,
+  onBack,
+}: {
+  id: DeviceId;
+  sim: Sim;
+  onBack: () => void;
+}): React.JSX.Element {
+  return (
+    <div
+      role="dialog"
+      aria-label={`${DEVICE_NAME[id]} settings`}
+      className="animate-push-in fixed inset-0 z-50 flex flex-col bg-surface-2"
+    >
+      <div
+        className="flex items-center gap-1 border-b border-hairline-2 px-2 py-2"
+        style={{ paddingTop: 'calc(0.5rem + env(safe-area-inset-top, 0px))' }}
+      >
+        <button
+          type="button"
+          onClick={onBack}
+          className="flex h-11 items-center gap-0.5 rounded-control pl-1 pr-2 text-[15px] font-medium text-accent transition-colors hover:bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
+        >
+          <ChevronLeft className="h-5 w-5" />
+          back
+        </button>
+        <h2 className="text-[17px] font-semibold text-ink">{DEVICE_NAME[id]}</h2>
+      </div>
+      <div
+        className="flex-1 overflow-y-auto px-4 py-2"
+        style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
+      >
+        <DeviceInspector id={id} sim={sim} showTitle={false} />
+      </div>
     </div>
   );
 }
@@ -340,12 +395,26 @@ interface EquipmentColumnProps {
 
 export function EquipmentColumn({ sim, selectedDeviceId }: EquipmentColumnProps): React.JSX.Element {
   const { unitSystem, formatTemp } = useUnits();
+  const isMobile = useIsMobile();
+  const { collapsed, toggle, showToggle } = useCardCollapse('build.equipment');
   const devices = buildDeviceList(sim.state.equipment);
   const [selected, setSelected] = useState<DeviceId>(() =>
     resolveSelectedDevice(selectedDeviceId, devices)
   );
+  // On mobile a row taps into a full-screen editor rather than an inline pane;
+  // a device carried in from Run opens straight into it.
+  const [pushed, setPushed] = useState<DeviceId | null>(() =>
+    isMobile && selectedDeviceId ? resolveSelectedDevice(selectedDeviceId, devices) : null
+  );
   const [query, setQuery] = useState('');
   const visible = filterDevices(devices, query);
+  const onCount = devices.filter((d) => d.on).length;
+  const summary = `${onCount}/${devices.length} on`;
+
+  const openDevice = (id: DeviceId): void => {
+    setSelected(id);
+    if (isMobile) setPushed(id);
+  };
 
   const search = (
     <div className="relative">
@@ -363,7 +432,15 @@ export function EquipmentColumn({ sim, selectedDeviceId }: EquipmentColumnProps)
 
   return (
     <Card className="h-full">
-      <CardHeader title="Equipment" action={search} />
+      <CardHeader
+        title="Equipment"
+        action={search}
+        collapsible={showToggle}
+        collapsed={collapsed}
+        onToggle={toggle}
+        meta={collapsed ? <span className="sm:hidden">{summary}</span> : undefined}
+      />
+      <CollapseRegion collapsed={collapsed}>
       <CardBody className="px-0">
         <div className="flex flex-col md:flex-row">
           <div className="px-4 py-1 md:w-[38%] md:border-r md:border-hairline">
@@ -376,9 +453,9 @@ export function EquipmentColumn({ sim, selectedDeviceId }: EquipmentColumnProps)
                   <button
                     key={device.id}
                     type="button"
-                    onClick={() => setSelected(device.id)}
+                    onClick={() => openDevice(device.id)}
                     aria-pressed={isSelected}
-                    className={`flex w-full items-center gap-2.5 rounded py-2 pl-2 pr-1 text-left transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus ${
+                    className={`flex min-h-[44px] w-full items-center gap-2.5 rounded py-2 pl-2 pr-1 text-left transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus ${
                       isSelected
                         ? 'bg-surface-2 shadow-[inset_2px_0_0_var(--accent)]'
                         : 'hover:bg-surface-2'
@@ -391,16 +468,22 @@ export function EquipmentColumn({ sim, selectedDeviceId }: EquipmentColumnProps)
                     <span className="ml-auto font-mono text-[12px] tabular-nums text-ink-3">
                       {deviceFigure(device.id, sim.state, unitSystem, formatTemp)}
                     </span>
+                    <ChevronRight className="h-4 w-4 shrink-0 text-ink-3 sm:hidden" aria-hidden />
                   </button>
                 );
               })
             )}
           </div>
-          <div className="flex-1 px-4 py-1">
+          <div className="hidden flex-1 px-4 py-1 sm:block">
             <DeviceInspector id={selected} sim={sim} />
           </div>
         </div>
       </CardBody>
+      </CollapseRegion>
+
+      {isMobile && pushed && (
+        <PushedEditor id={pushed} sim={sim} onBack={() => setPushed(null)} />
+      )}
     </Card>
   );
 }

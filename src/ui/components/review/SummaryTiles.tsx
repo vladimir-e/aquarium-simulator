@@ -40,6 +40,16 @@ function Tile({
   );
 }
 
+interface SummaryItem {
+  label: string;
+  value: string;
+  unit?: string;
+  meta?: string;
+  /** Trailing word for the compact mobile pill (`36 ticks`, `0 deaths`). */
+  descriptor: string;
+  chip?: React.ReactNode;
+}
+
 export function SummaryTiles({
   aggregates,
   logs,
@@ -50,17 +60,51 @@ export function SummaryTiles({
   const { formatVol } = useUnits();
   const latest = latestAlert(logs);
 
+  const items: SummaryItem[] = [
+    {
+      label: 'run length',
+      value: String(aggregates.ticks),
+      unit: 'ticks',
+      meta: formatDuration(aggregates.ticks),
+      descriptor: 'ticks',
+    },
+    { label: 'deaths', value: String(aggregates.deaths), descriptor: 'deaths' },
+    { label: 'births', value: String(aggregates.births), unit: 'fry', descriptor: 'fry' },
+    {
+      label: 'alerts',
+      value: String(aggregates.alerts),
+      descriptor: aggregates.alerts === 1 ? 'alert' : 'alerts',
+      chip: latest && <Pill variant="alert">{ALERT_LABEL[latest.kind]}</Pill>,
+    },
+    { label: 'water changed', value: formatVol(aggregates.waterChangedL, 0), descriptor: 'changed' },
+  ];
+
   return (
-    <div className="flex flex-wrap gap-3">
-      <Tile label="run length" value={String(aggregates.ticks)} unit="ticks" meta={formatDuration(aggregates.ticks)} />
-      <Tile label="deaths" value={String(aggregates.deaths)} />
-      <Tile label="births" value={String(aggregates.births)} unit="fry" />
-      <Tile
-        label="alerts"
-        value={String(aggregates.alerts)}
-        chip={latest && <Pill variant="alert">{ALERT_LABEL[latest.kind]}</Pill>}
-      />
-      <Tile label="water changed" value={formatVol(aggregates.waterChangedL, 0)} />
-    </div>
+    <>
+      <div className="hidden flex-wrap gap-3 sm:flex">
+        {items.map((item) => (
+          <Tile
+            key={item.label}
+            label={item.label}
+            value={item.value}
+            unit={item.unit}
+            meta={item.meta}
+            chip={item.chip}
+          />
+        ))}
+      </div>
+      <div className="flex flex-wrap gap-2 sm:hidden">
+        {items.map((item) => (
+          <span
+            key={item.label}
+            className="inline-flex items-center gap-1.5 rounded-badge border border-hairline bg-surface px-2.5 py-1 text-[12px] text-ink-2"
+          >
+            <span className="font-mono tabular-nums text-ink">{item.value}</span>
+            {item.descriptor}
+            {item.chip}
+          </span>
+        ))}
+      </div>
+    </>
   );
 }

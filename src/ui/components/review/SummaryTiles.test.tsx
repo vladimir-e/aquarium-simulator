@@ -21,14 +21,16 @@ function renderTiles(aggregates: RunAggregates, logs: LogEntry[]): void {
 const base: RunAggregates = { ticks: 36, deaths: 0, births: 100, frySold: 0, alerts: 1, waterChangedL: 0 };
 
 describe('SummaryTiles', () => {
+  // The desktop tiles and the mobile pill row both render (CSS hides one per
+  // viewport), so a stat's text can appear in both — assert presence, not count.
   it('shows the five headline stats with an honest deaths label', () => {
     renderTiles(base, []);
     for (const label of ['run length', 'deaths', 'births', 'alerts', 'water changed']) {
-      expect(screen.getByText(label)).toBeTruthy();
+      expect(screen.getAllByText(label).length).toBeGreaterThan(0);
     }
-    expect(screen.getByText('36')).toBeTruthy();
-    expect(screen.getByText('100')).toBeTruthy();
-    expect(screen.getByText('fry')).toBeTruthy();
+    expect(screen.getAllByText('36').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('100').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('fry').length).toBeGreaterThan(0);
   });
 
   it('renders run length as a compact d/h reading', () => {
@@ -47,7 +49,7 @@ describe('SummaryTiles', () => {
   it('chips the latest alert type next to the alert count', () => {
     const logs = [createLog(36, 'nitrogen-cycle', 'warning', 'High ammonia level: 0.109 ppm - toxic to fish')];
     renderTiles(base, logs);
-    expect(screen.getByText('NH₃')).toBeTruthy();
+    expect(screen.getAllByText('NH₃').length).toBeGreaterThan(0);
   });
 
   it('omits the alert chip when nothing has fired', () => {

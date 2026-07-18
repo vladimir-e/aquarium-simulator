@@ -110,11 +110,11 @@ export function StatusDot({ on }: { on: boolean }): React.JSX.Element {
 }
 
 /** Disclosure triangle that rotates on expand. */
-export function Caret({ open }: { open: boolean }): React.JSX.Element {
+export function Caret({ open, className = '' }: { open: boolean; className?: string }): React.JSX.Element {
   return (
     <ChevronRight
       aria-hidden
-      className={`h-3.5 w-3.5 shrink-0 text-ink-3 transition-transform motion-reduce:transition-none ${open ? 'rotate-90' : ''}`}
+      className={`h-3.5 w-3.5 shrink-0 text-ink-3 transition-transform motion-reduce:transition-none ${open ? 'rotate-90' : ''} ${className}`}
     />
   );
 }

@@ -1,6 +1,7 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import type { useSimulation } from '../hooks/useSimulation';
 import { useTheme } from '../hooks/useTheme';
+import { useIsMobile } from '../hooks/useMediaQuery';
 import { Segmented } from '../components/ui/Segmented';
 import { SummaryTiles } from '../components/review/SummaryTiles';
 import { ReviewLogPanel } from '../components/review/ReviewLogPanel';
@@ -9,6 +10,7 @@ import { TickScrubber } from '../components/review/TickScrubber';
 import {
   type ReviewWindow,
   type LogFilter,
+  type ChartDef,
   REVIEW_WINDOWS,
   REVIEW_CHARTS,
   sliceHistory,
@@ -25,6 +27,7 @@ const WINDOW_LABEL: Record<ReviewWindow, string> = {
   '7d': '7d',
 };
 const WINDOW_OPTIONS = REVIEW_WINDOWS.map((value) => ({ value, label: WINDOW_LABEL[value] }));
+const CHART_CHIP_OPTIONS = REVIEW_CHARTS.map((chart) => ({ value: chart.id, label: chart.shortLabel }));
 
 interface ReviewModeProps {
   sim: ReturnType<typeof useSimulation>;
@@ -39,8 +42,10 @@ interface ReviewModeProps {
  */
 export function ReviewMode({ sim }: ReviewModeProps): React.JSX.Element {
   const { resolvedTheme } = useTheme();
+  const isMobile = useIsMobile();
   const [window, setWindow] = useState<ReviewWindow>('run');
   const [filter, setFilter] = useState<LogFilter>('all');
+  const [chartId, setChartId] = useState<string>(REVIEW_CHARTS[0].id);
   // null follows the live edge; a number parks the scrubber at that tick.
   const [scrubTick, setScrubTick] = useState<number | null>(null);
 
@@ -64,11 +69,37 @@ export function ReviewMode({ sim }: ReviewModeProps): React.JSX.Element {
     setScrubTick(null);
   }, []);
 
+  const renderChart = (chart: ChartDef): React.JSX.Element => (
+    <Chart
+      key={chart.id}
+      def={chart}
+      history={windowHistory}
+      range={range}
+      currentTick={currentTick}
+      theme={resolvedTheme}
+      markers={marks.filter((m) => chart.alertKinds.includes(m.kind))}
+      onScrubToTick={handleScrub}
+    />
+  );
+
+  const activeChart = REVIEW_CHARTS.find((c) => c.id === chartId) ?? REVIEW_CHARTS[0];
+
+  const logPanel = (
+    <ReviewLogPanel
+      windowLogs={windowLogs}
+      allLogs={logs}
+      filter={filter}
+      onFilterChange={setFilter}
+      currentTick={currentTick}
+      onScrubToTick={handleScrub}
+    />
+  );
+
   return (
     <div>
       <div className="space-y-4 px-4 pt-4 pb-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="min-w-0 flex-1">
+        <div className="flex flex-col-reverse gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+          <div className="min-w-0 sm:flex-1">
             <SummaryTiles aggregates={sim.aggregates} logs={logs} />
           </div>
           <Segmented
@@ -79,30 +110,23 @@ export function ReviewMode({ sim }: ReviewModeProps): React.JSX.Element {
           />
         </div>
 
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
-          <ReviewLogPanel
-            windowLogs={windowLogs}
-            allLogs={logs}
-            filter={filter}
-            onFilterChange={setFilter}
-            currentTick={currentTick}
-            onScrubToTick={handleScrub}
-          />
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            {REVIEW_CHARTS.map((chart) => (
-              <Chart
-                key={chart.id}
-                def={chart}
-                history={windowHistory}
-                range={range}
-                currentTick={currentTick}
-                theme={resolvedTheme}
-                markers={marks.filter((m) => chart.alertKinds.includes(m.kind))}
-                onScrubToTick={handleScrub}
-              />
-            ))}
+        {isMobile ? (
+          <div className="space-y-4">
+            <Segmented
+              ariaLabel="Chart"
+              options={CHART_CHIP_OPTIONS}
+              value={chartId}
+              onChange={setChartId}
+            />
+            {renderChart(activeChart)}
+            {logPanel}
           </div>
-        </div>
+        ) : (
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
+            {logPanel}
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">{REVIEW_CHARTS.map(renderChart)}</div>
+          </div>
+        )}
       </div>
 
       <TickScrubber range={range} currentTick={currentTick} onScrubToTick={handleScrub} />

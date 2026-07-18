@@ -19,7 +19,7 @@ export function LogStrip({ logs }: { logs: LogEntry[] }): React.JSX.Element {
   const recent = recentLogs(logs, 100);
 
   return (
-    <div className="sticky bottom-0 z-10 border-t border-hairline-2 bg-surface">
+    <div className="sticky bottom-[var(--tabbar-h)] z-10 border-t border-hairline-2 bg-surface">
       {open && (
         <div className="max-h-64 overflow-y-auto border-b border-hairline px-4 py-2">
           {recent.length === 0 ? (

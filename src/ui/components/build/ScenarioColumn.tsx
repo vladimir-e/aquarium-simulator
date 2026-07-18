@@ -6,7 +6,8 @@ import type { useSimulation } from '../../hooks/useSimulation';
 import { PRESETS, type PresetId } from '../../presets.js';
 import { useUnits } from '../../hooks/useUnits';
 import { getTankSizeOptions, findClosestTankSize } from '../../utils/units';
-import { Card, CardBody, CardFooter, CardHeader } from '../run/Card';
+import { useCardCollapse } from '../../hooks/useCardCollapse';
+import { Card, CardBody, CardFooter, CardHeader, CollapseRegion } from '../run/Card';
 import { RunButton } from '../run/elements';
 import { Segmented } from '../ui/Segmented';
 import { ConfirmDialog } from '../ui/ConfirmDialog';
@@ -32,6 +33,7 @@ interface ScenarioColumnProps {
 export function ScenarioColumn({ sim, config }: ScenarioColumnProps): React.JSX.Element {
   const { state } = sim;
   const { unitSystem, setUnitSystem, tempUnit, displayTemp, internalTemp } = useUnits();
+  const { collapsed, toggle, showToggle } = useCardCollapse('build.scenario');
   const [showResetConfirm, setShowResetConfirm] = useState(false);
 
   const { environment, equipment, resources, tank } = state;
@@ -52,10 +54,18 @@ export function ScenarioColumn({ sim, config }: ScenarioColumnProps): React.JSX.
   const tankSizes = getTankSizeOptions(unitSystem);
   const currentTank = findClosestTankSize(tank.capacity, unitSystem);
   const days = Math.floor(state.tick / 24);
+  const summary = `${currentTank.display} · room ${roomDisplay}${tempUnit}`;
 
   return (
     <Card className="h-full">
-      <CardHeader title="Scenario" />
+      <CardHeader
+        title="Scenario"
+        collapsible={showToggle}
+        collapsed={collapsed}
+        onToggle={toggle}
+        meta={collapsed ? <span className="sm:hidden">{summary}</span> : undefined}
+      />
+      <CollapseRegion collapsed={collapsed}>
       <CardBody>
         <div className="divide-y divide-hairline">
           <FieldRow label="Preset">
@@ -140,6 +150,7 @@ export function ScenarioColumn({ sim, config }: ScenarioColumnProps): React.JSX.
           <PlaceholderButton label="duplicate" title="Coming with saved scenarios" />
         </span>
       </CardFooter>
+      </CollapseRegion>
 
       <ConfirmDialog
         isOpen={showResetConfirm}
