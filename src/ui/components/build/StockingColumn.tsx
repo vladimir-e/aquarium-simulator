@@ -97,7 +97,7 @@ export function StockingColumn({ sim, onResumeRun }: StockingColumnProps): React
             <span className="text-[13px] text-ink-2">Bioload</span>
             <Bar className="w-24" value={load.pct} status={load.status} />
             <span className="font-mono text-[13px] tabular-nums text-ink">{load.ratio.toFixed(1)}×</span>
-            <span className="text-[12px] text-ink-3">vs tank capacity</span>
+            <span className="text-[12px] text-ink-3">vs guideline</span>
           </div>
           <p className="pt-1 text-[12px] text-ink-3">stocking preview warns before ammonia does</p>
         </div>

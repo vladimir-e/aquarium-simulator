@@ -39,7 +39,7 @@ const DEVICE_ORDER: DeviceId[] = [
   'autoDoser',
 ];
 
-const DEVICE_NAME: Record<DeviceId, string> = {
+export const DEVICE_NAME: Record<DeviceId, string> = {
   filter: 'Filter',
   heater: 'Heater',
   light: 'Light',

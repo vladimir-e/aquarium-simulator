@@ -1,6 +1,7 @@
 export {
   type DeviceId,
   type DeviceRow,
+  DEVICE_NAME,
   isDeviceId,
   buildDeviceList,
   filterDevices,
@@ -14,6 +15,8 @@ export {
   fryLines,
   type Bioload,
   bioload,
+  projectedAdultMass,
+  GUIDELINE_G_PER_L,
 } from './stocking.js';
 export {
   type SubstrateSurface,

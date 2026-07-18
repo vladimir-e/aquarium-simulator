@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Search } from 'lucide-react';
 import {
   FILTER_SURFACE,
+  FILTER_SPECS,
   getFilterFlow,
   POWERHEAD_FLOW_LPH,
   type FilterType,
@@ -12,12 +13,13 @@ import {
 import { BUBBLE_RATE_OPTIONS, formatCo2Rate } from '../../../simulation/equipment/co2-generator.js';
 import { DOSE_AMOUNT_OPTIONS, formatDosePreview } from '../../../simulation/equipment/auto-doser.js';
 import type { useSimulation } from '../../hooks/useSimulation';
-import { useUnits } from '../../hooks/useUnits';
+import { useUnits, type UnitSystem } from '../../hooks/useUnits';
 import { formatFlowRate, lphToGph } from '../../utils/units';
 import {
   buildDeviceList,
   filterDevices,
   resolveSelectedDevice,
+  DEVICE_NAME,
   type DeviceId,
 } from '../../build';
 import { Card, CardBody, CardHeader } from '../run/Card';
@@ -36,6 +38,11 @@ const FILTER_TYPE_OPTIONS = [
 const HEATER_WATTS = [50, 100, 200, 300, 500, 1000];
 const LIGHT_WATTS = [5, 10, 25, 50, 100, 150, 200];
 const POWERHEAD_RATES: PowerheadFlowRate[] = [240, 400, 600, 850];
+
+const POWERHEAD_RECOMMEND: Record<UnitSystem, Record<PowerheadFlowRate, string>> = {
+  imperial: { 240: '5–20 gal', 400: '20–30 gal', 600: '30–50 gal', 850: '50–80 gal' },
+  metric: { 240: '20–75 L', 400: '75–115 L', 600: '115–190 L', 850: '190–300 L' },
+};
 
 function numberOptions(values: number[], suffix: string): { value: string; label: string }[] {
   return values.map((v) => ({ value: String(v), label: `${v}${suffix}` }));
@@ -79,20 +86,19 @@ function ReadOnlyRow({ label, value }: { label: string; value: string }): React.
   );
 }
 
-function Hint({ children }: { children: React.ReactNode }): React.JSX.Element {
-  return <p className="py-2 text-[12px] leading-relaxed text-ink-3">{children}</p>;
+function Hint({
+  children,
+  tone = 'muted',
+}: {
+  children: React.ReactNode;
+  tone?: 'muted' | 'warn';
+}): React.JSX.Element {
+  return (
+    <p className={`py-2 text-[12px] leading-relaxed ${tone === 'warn' ? 'text-warn-text' : 'text-ink-3'}`}>
+      {children}
+    </p>
+  );
 }
-
-const DEVICE_TITLE: Record<DeviceId, string> = {
-  filter: 'Filter',
-  heater: 'Heater',
-  light: 'Light',
-  airPump: 'Air pump',
-  ato: 'ATO',
-  co2Generator: 'CO₂ injector',
-  powerhead: 'Powerhead',
-  autoDoser: 'Auto doser',
-};
 
 function DeviceInspector({ id, sim }: { id: DeviceId; sim: Sim }): React.JSX.Element {
   const { equipment, tank, resources } = sim.state;
@@ -121,6 +127,9 @@ function DeviceInspector({ id, sim }: { id: DeviceId; sim: Sim }): React.JSX.Ele
           <ReadOnlyRow label="Flow" value={formatFlowRate(Math.round(lphToGph(getFilterFlow(f.type, tank.capacity))), unitSystem)} />
           <ReadOnlyRow label="Surface" value={`${FILTER_SURFACE[f.type].toLocaleString()} cm²`} />
           {!f.enabled && <Hint>Off — no biological filtration while disabled.</Hint>}
+          {f.enabled && tank.capacity > FILTER_SPECS[f.type].maxCapacityLiters && (
+            <Hint tone="warn">Undersized for this tank — filtration can’t keep up.</Hint>
+          )}
         </>
       );
       break;
@@ -277,6 +286,7 @@ function DeviceInspector({ id, sim }: { id: DeviceId; sim: Sim }): React.JSX.Ele
               }))}
             />
           </FieldRow>
+          <ReadOnlyRow label="Recommended" value={POWERHEAD_RECOMMEND[unitSystem][p.flowRateGPH]} />
           <Hint>Extra circulation and gas exchange on top of the filter.</Hint>
         </>
       );
@@ -316,7 +326,7 @@ function DeviceInspector({ id, sim }: { id: DeviceId; sim: Sim }): React.JSX.Ele
 
   return (
     <div>
-      <h3 className="pb-1 text-[15px] font-semibold text-ink">{DEVICE_TITLE[id]}</h3>
+      <h3 className="pb-1 text-[15px] font-semibold text-ink">{DEVICE_NAME[id]}</h3>
       <div className="divide-y divide-hairline">{body}</div>
     </div>
   );
