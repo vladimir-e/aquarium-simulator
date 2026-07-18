@@ -24,28 +24,25 @@ export function ConfirmDialog({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      {/* Backdrop */}
-      <div
-        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-        onClick={onCancel}
-      />
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/50" onClick={onCancel} />
 
-      {/* Dialog */}
-      <div className="relative bg-panel border border-border rounded-lg shadow-xl max-w-sm w-full mx-4 p-4">
-        <h2 className="text-lg font-semibold text-gray-100 mb-2">{title}</h2>
-        <p className="text-sm text-gray-400 mb-4">{message}</p>
+      <div className="relative w-full max-w-sm rounded-card border border-hairline bg-surface-2 p-4 shadow-[0_6px_20px_rgba(40,46,45,0.12)] dark:shadow-[0_8px_24px_rgba(0,0,0,0.45)]">
+        <h2 className="mb-2 text-[16px] font-semibold text-ink">{title}</h2>
+        <p className="mb-4 text-[13px] leading-relaxed text-ink-2">{message}</p>
 
         <div className="flex justify-end gap-2">
           <button
+            type="button"
             onClick={onCancel}
-            className="px-4 py-2 text-sm text-gray-300 hover:text-gray-100 bg-gray-700 hover:bg-gray-600 border border-border rounded-md transition-colors"
+            className="rounded-control border border-hairline bg-surface px-3 py-1.5 text-[13px] font-medium text-ink-2 transition-colors hover:border-hairline-2 hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
           >
             {cancelLabel}
           </button>
           <button
+            type="button"
             onClick={onConfirm}
-            className="px-4 py-2 text-sm text-white bg-accent-blue hover:bg-accent-blue/80 rounded-md transition-colors"
+            className="rounded-control bg-accent px-3 py-1.5 text-[13px] font-medium text-surface transition-colors hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
           >
             {confirmLabel}
           </button>

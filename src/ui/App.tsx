@@ -20,12 +20,19 @@ function App(): React.JSX.Element {
   const handleModeChange = (next: Mode): void => {
     // Entering Build pauses the sim; leaving it does not auto-resume.
     if (next === 'build') sim.pause();
+    else setSelectedDeviceId(null);
     setMode(next);
   };
 
   const handleOpenDeviceInBuild = (deviceId: string): void => {
     setSelectedDeviceId(deviceId);
     handleModeChange('build');
+  };
+
+  const handleResumeRun = (): void => {
+    setSelectedDeviceId(null);
+    setMode('run');
+    if (!sim.isPlaying) sim.togglePlayPause();
   };
 
   return (
@@ -41,14 +48,20 @@ function App(): React.JSX.Element {
         tick={sim.state.tick}
         speed={sim.speed}
         onSpeedChange={sim.changeSpeed}
-        onReset={sim.reset}
       />
 
       <main>
         {mode === 'run' && (
           <RunMode sim={sim} config={config} onOpenDeviceInBuild={handleOpenDeviceInBuild} />
         )}
-        {mode === 'build' && <BuildMode sim={sim} selectedDeviceId={selectedDeviceId} />}
+        {mode === 'build' && (
+          <BuildMode
+            sim={sim}
+            config={config}
+            selectedDeviceId={selectedDeviceId}
+            onResumeRun={handleResumeRun}
+          />
+        )}
         {mode === 'review' && <ReviewMode />}
       </main>
 

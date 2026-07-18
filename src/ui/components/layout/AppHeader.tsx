@@ -1,8 +1,7 @@
-import React, { useState } from 'react';
-import { Play, Pause, SkipForward, RotateCcw, Settings, ChevronDown } from 'lucide-react';
+import React from 'react';
+import { Play, Pause, SkipForward, Settings, ChevronDown } from 'lucide-react';
 import { Segmented } from '../ui/Segmented';
 import { ThemeToggle } from '../ui/ThemeToggle';
-import { ConfirmDialog } from '../ui/ConfirmDialog';
 import { useConfig } from '../../hooks/useConfig';
 import { PRESETS, type PresetId } from '../../presets.js';
 import {
@@ -12,9 +11,6 @@ import {
   STEP_LABELS,
 } from '../../run/speed';
 import type { Mode } from '../../modes/types';
-
-/** 30 days in ticks (hours) — reset asks for confirmation past this. */
-const RESET_CONFIRM_THRESHOLD = 720;
 
 const MODE_OPTIONS = [
   { value: 'build' as const, label: 'Build' },
@@ -38,7 +34,6 @@ interface AppHeaderProps {
   tick: number;
   speed: SpeedPreset;
   onSpeedChange: (speed: SpeedPreset) => void;
-  onReset: () => void;
 }
 
 function Clock({ tick }: { tick: number }): React.JSX.Element {
@@ -62,144 +57,111 @@ export function AppHeader({
   tick,
   speed,
   onSpeedChange,
-  onReset,
 }: AppHeaderProps): React.JSX.Element {
   const { isDebugPanelOpen, toggleDebugPanel, isAnyModified } = useConfig();
-  const [showResetConfirm, setShowResetConfirm] = useState(false);
-
-  const handleResetClick = (): void => {
-    if (tick > RESET_CONFIRM_THRESHOLD) {
-      setShowResetConfirm(true);
-    } else {
-      onReset();
-    }
-  };
-
-  const handleConfirmReset = (): void => {
-    setShowResetConfirm(false);
-    onReset();
-  };
 
   return (
-    <>
-      <ConfirmDialog
-        isOpen={showResetConfirm}
-        title="Reset run?"
-        message={`You have ${Math.floor(tick / 24)} days of progress. This resets the clock, resources, and alerts while keeping your equipment and plants.`}
-        confirmLabel="Reset"
-        onConfirm={handleConfirmReset}
-        onCancel={() => setShowResetConfirm(false)}
-      />
-
-      <header className="sticky top-0 z-30 border-b border-hairline-2 bg-surface px-4 py-2.5">
-        <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-4">
-          {/* Left: wordmark + engine label + preset */}
-          <div className="flex min-w-0 items-center gap-3 justify-self-start">
-            <div className="flex items-baseline gap-2">
-              <span className="text-[17px] font-semibold tracking-[0.04em] text-accent">AQ·SIM</span>
-              <span className="hidden text-[11px] font-medium tracking-[0.06em] text-ink-3 sm:inline">
-                CHEMISTRY ENGINE v4
-              </span>
-            </div>
-            <div className="relative">
-              <select
-                value={currentPreset}
-                onChange={(e) => onPresetChange(e.target.value as PresetId)}
-                aria-label="Scenario preset"
-                className="appearance-none rounded-control border border-hairline bg-surface py-1.5 pl-3 pr-8 text-[13px] font-medium text-ink transition-colors hover:border-hairline-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
-              >
-                {PRESETS.map((preset) => (
-                  <option key={preset.id} value={preset.id}>
-                    {preset.name}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown className="pointer-events-none absolute right-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-ink-3" />
-            </div>
+    <header className="sticky top-0 z-30 border-b border-hairline-2 bg-surface px-4 py-2.5">
+      <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-4">
+        {/* Left: wordmark + engine label + preset */}
+        <div className="flex min-w-0 items-center gap-3 justify-self-start">
+          <div className="flex items-baseline gap-2">
+            <span className="text-[17px] font-semibold tracking-[0.04em] text-accent">AQ·SIM</span>
+            <span className="hidden text-[11px] font-medium tracking-[0.06em] text-ink-3 sm:inline">
+              CHEMISTRY ENGINE v4
+            </span>
           </div>
-
-          {/* Center: mode switcher */}
-          <div className="justify-self-center">
-            <Segmented
-              ariaLabel="Mode"
-              options={MODE_OPTIONS}
-              value={mode}
-              onChange={onModeChange}
-            />
+          <div className="relative">
+            <select
+              value={currentPreset}
+              onChange={(e) => onPresetChange(e.target.value as PresetId)}
+              aria-label="Scenario preset"
+              className="appearance-none rounded-control border border-hairline bg-surface py-1.5 pl-3 pr-8 text-[13px] font-medium text-ink transition-colors hover:border-hairline-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
+            >
+              {PRESETS.map((preset) => (
+                <option key={preset.id} value={preset.id}>
+                  {preset.name}
+                </option>
+              ))}
+            </select>
+            <ChevronDown className="pointer-events-none absolute right-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-ink-3" />
           </div>
-
-          {/* Right: transport + theme + utilities */}
-          <div className="flex items-center gap-2 justify-self-end">
-            {mode === 'run' && (
-              <>
-                <button
-                  type="button"
-                  onClick={onPlayPause}
-                  aria-label={isPlaying ? 'Pause' : 'Play'}
-                  className="flex h-8 w-8 items-center justify-center rounded-full border border-hairline text-ink-2 transition-colors hover:border-hairline-2 hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
-                >
-                  {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
-                </button>
-                <button
-                  type="button"
-                  onClick={onStep}
-                  className="hidden items-center gap-1.5 rounded-control border border-hairline bg-surface px-3 py-1.5 text-[13px] font-medium text-ink-2 transition-colors hover:border-hairline-2 hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus sm:inline-flex"
-                >
-                  <SkipForward className="h-3.5 w-3.5" />
-                  Step {STEP_LABELS[speed]}
-                </button>
-                <Clock tick={tick} />
-                <Segmented
-                  ariaLabel="Speed"
-                  options={SPEED_OPTIONS}
-                  value={speed}
-                  onChange={onSpeedChange}
-                />
-              </>
-            )}
-
-            {mode === 'build' && (
-              <>
-                <div className="flex items-center gap-1.5 rounded-badge border border-hairline px-2.5 py-1 text-[13px] font-medium text-ink-2">
-                  <Pause className="h-3.5 w-3.5" />
-                  paused
-                </div>
-                <Clock tick={tick} />
-              </>
-            )}
-
-            {mode === 'review' && <Clock tick={tick} />}
-
-            <div className="mx-1 h-6 w-px bg-hairline-2" />
-
-            <ThemeToggle />
+          {mode === 'build' && (
             <button
               type="button"
-              onClick={handleResetClick}
-              aria-label="Reset run"
-              title="Reset run"
-              className="flex h-8 w-8 items-center justify-center rounded-control text-ink-3 transition-colors hover:text-ink-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
+              disabled
+              aria-disabled
+              title="Coming with saved scenarios"
+              className="hidden cursor-not-allowed items-center gap-1 rounded-control px-2.5 py-1.5 text-[13px] font-medium text-ink-3 opacity-60 sm:inline-flex"
             >
-              <RotateCcw className="h-4 w-4" />
+              save
+              <ChevronDown className="h-3.5 w-3.5" />
             </button>
-            <button
-              type="button"
-              onClick={toggleDebugPanel}
-              aria-label="Debug constants"
-              aria-pressed={isDebugPanelOpen}
-              title="Debug: simulation constants"
-              className={`relative flex h-8 w-8 items-center justify-center rounded-control transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus ${
-                isDebugPanelOpen ? 'text-ink' : 'text-ink-3 hover:text-ink-2'
-              }`}
-            >
-              <Settings className="h-4 w-4" />
-              {isAnyModified && (
-                <span className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-warn" />
-              )}
-            </button>
-          </div>
+          )}
         </div>
-      </header>
-    </>
+
+        {/* Center: mode switcher */}
+        <div className="justify-self-center">
+          <Segmented ariaLabel="Mode" options={MODE_OPTIONS} value={mode} onChange={onModeChange} />
+        </div>
+
+        {/* Right: transport + theme + utilities */}
+        <div className="flex items-center gap-2 justify-self-end">
+          {mode === 'run' && (
+            <>
+              <button
+                type="button"
+                onClick={onPlayPause}
+                aria-label={isPlaying ? 'Pause' : 'Play'}
+                className="flex h-8 w-8 items-center justify-center rounded-full border border-hairline text-ink-2 transition-colors hover:border-hairline-2 hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
+              >
+                {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+              </button>
+              <button
+                type="button"
+                onClick={onStep}
+                className="hidden items-center gap-1.5 rounded-control border border-hairline bg-surface px-3 py-1.5 text-[13px] font-medium text-ink-2 transition-colors hover:border-hairline-2 hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus sm:inline-flex"
+              >
+                <SkipForward className="h-3.5 w-3.5" />
+                Step {STEP_LABELS[speed]}
+              </button>
+              <Clock tick={tick} />
+              <Segmented ariaLabel="Speed" options={SPEED_OPTIONS} value={speed} onChange={onSpeedChange} />
+            </>
+          )}
+
+          {mode === 'build' && (
+            <>
+              <div className="flex items-center gap-1.5 rounded-badge border border-hairline px-2.5 py-1 text-[13px] font-medium text-ink-2">
+                <Pause className="h-3.5 w-3.5" />
+                paused
+              </div>
+              <Clock tick={tick} />
+            </>
+          )}
+
+          {mode === 'review' && <Clock tick={tick} />}
+
+          <div className="mx-1 h-6 w-px bg-hairline-2" />
+
+          <ThemeToggle />
+          <button
+            type="button"
+            onClick={toggleDebugPanel}
+            aria-label="Debug constants"
+            aria-pressed={isDebugPanelOpen}
+            title="Debug: simulation constants"
+            className={`relative flex h-8 w-8 items-center justify-center rounded-control transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus ${
+              isDebugPanelOpen ? 'text-ink' : 'text-ink-3 hover:text-ink-2'
+            }`}
+          >
+            <Settings className="h-4 w-4" />
+            {isAnyModified && (
+              <span className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-warn" />
+            )}
+          </button>
+        </div>
+      </div>
+    </header>
   );
 }

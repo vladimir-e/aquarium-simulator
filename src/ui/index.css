@@ -95,17 +95,14 @@
   --color-scrub: var(--scrub);
   --color-focus: var(--focus);
 
-  /* Legacy aliases: the surviving pre-redesign pieces — the equipment cards,
-     DebugPanel, and the status/environment panels now hosted in Build — still
-     paint with these names. They resolve to the new tokens so those pieces
-     theme correctly; they retire as the Build/Review units re-skin them. */
+  /* Legacy aliases: the DebugPanel (a dev tool) and its Button still paint with
+     these pre-redesign names. They resolve to the current tokens so the panel
+     themes correctly. */
   --color-background: var(--bg);
   --color-panel: var(--surface);
   --color-border: var(--hairline);
   --color-accent-blue: var(--accent);
   --color-accent-green: var(--ok);
-  --color-accent-orange: var(--warn);
-  --color-warning: var(--warn);
 }
 
 /* Theme the root element too, so the overscroll canvas (outside app content)
@@ -133,10 +130,8 @@ body {
   }
 }
 
-/* Light-mode remaps for the surviving legacy pieces' built-in gray utilities
-   (grays are Tailwind built-ins, not tokens, so the theme class can't reach
-   them). Retire alongside the legacy aliases as those pieces move to tokens. */
-:root.light .text-gray-100,
+/* Light-mode remaps for the DebugPanel's built-in gray utilities (grays are
+   Tailwind built-ins, not tokens, so the theme class can't reach them). */
 :root.light .text-gray-200 {
   color: var(--ink);
 }
@@ -146,15 +141,6 @@ body {
 }
 :root.light .text-gray-500 {
   color: var(--ink-3);
-}
-:root.light .bg-gray-600 {
-  background-color: var(--track);
-}
-:root.light .bg-gray-700 {
-  background-color: var(--hairline);
-}
-:root.light .hover\:bg-gray-600:hover {
-  background-color: var(--hairline-2);
 }
 :root.light .hover\:text-gray-100:hover {
   color: var(--ink);
