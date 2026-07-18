@@ -94,6 +94,13 @@ describe('normalize', () => {
     expect(normalize(6.75, extent)).toBeCloseTo(0.5);
     expect(normalize(7.0, extent)).toBe(1);
   });
+
+  it('uses an absolute 0.001 floor at NH₃ scale (magnitude under 1)', () => {
+    // |extent| < 1, so the max(…, 1) term pins the floor at an absolute 0.001 ppm.
+    expect(normalize(0.0005, { min: 0, max: 0.0008 })).toBe(0.5); // span 0.0008 ≤ 0.001 → flat
+    expect(normalize(0.1, { min: 0, max: 0.1 })).toBe(1); // span 0.1 > 0.001 → resolves
+    expect(normalize(0, { min: 0, max: 0.1 })).toBe(0);
+  });
 });
 
 describe('snapshotAtTick', () => {
