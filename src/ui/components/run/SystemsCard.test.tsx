@@ -1,24 +1,42 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
+import { useEffect } from 'react';
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import { SystemsCard } from './SystemsCard';
 import { createSimulation, type SimulationState } from '../../../simulation/index.js';
 import { DEFAULT_CONFIG } from '../../../simulation/config/index.js';
-import { UnitsProvider } from '../../hooks/useUnits';
+import { UnitsProvider, useUnits, type UnitSystem } from '../../hooks/useUnits';
 import { PersistenceProvider } from '../../persistence/index.js';
 
 afterEach(cleanup);
 
 const base: SimulationState = createSimulation({ tankCapacity: 40 });
+const withPowerhead: SimulationState = createSimulation({
+  tankCapacity: 40,
+  powerhead: { enabled: true, flowRateGPH: 400 },
+});
+
+function ForceUnits({ system }: { system: UnitSystem }): null {
+  const { unitSystem, setUnitSystem } = useUnits();
+  useEffect(() => {
+    if (unitSystem !== system) setUnitSystem(system);
+  }, [system, unitSystem, setUnitSystem]);
+  return null;
+}
 
 function renderCard(
   state: SimulationState,
-  handlers: { executeAction?: (...a: unknown[]) => void; onOpen?: (id: string) => void } = {}
+  handlers: {
+    executeAction?: (...a: unknown[]) => void;
+    onOpen?: (id: string) => void;
+    units?: UnitSystem;
+  } = {}
 ): { executeAction: (...a: unknown[]) => void; onOpen: (id: string) => void } {
   const executeAction = handlers.executeAction ?? vi.fn();
   const onOpen = handlers.onOpen ?? vi.fn();
   render(
     <PersistenceProvider>
       <UnitsProvider>
+        {handlers.units && <ForceUnits system={handlers.units} />}
         <SystemsCard
           state={state}
           config={DEFAULT_CONFIG}
@@ -33,11 +51,23 @@ function renderCard(
 
 describe('SystemsCard', () => {
   it('renders device rows, the filter flow, and the biofilter glance', () => {
-    renderCard(base);
+    renderCard(base, { units: 'imperial' });
     expect(screen.getByText('Filter')).toBeTruthy();
     expect(screen.getByText('Heater')).toBeTruthy();
     expect(screen.getByText('Biofilter')).toBeTruthy();
     expect(screen.getByText(/GPH/)).toBeTruthy();
+  });
+
+  it('reads filter and powerhead flow in GPH under imperial', () => {
+    renderCard(withPowerhead, { units: 'imperial' });
+    expect(screen.getAllByText(/GPH/).length).toBeGreaterThanOrEqual(2);
+    expect(screen.queryByText(/L\/h/)).toBeNull();
+  });
+
+  it('reads filter and powerhead flow in L/h under metric, matching Build', () => {
+    renderCard(withPowerhead, { units: 'metric' });
+    expect(screen.getAllByText(/L\/h/).length).toBeGreaterThanOrEqual(2);
+    expect(screen.queryByText(/GPH/)).toBeNull();
   });
 
   it('carries a device id into Build when its row is tapped', () => {

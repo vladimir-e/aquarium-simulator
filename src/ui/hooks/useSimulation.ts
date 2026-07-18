@@ -254,12 +254,19 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
       setHistory([snapshotFromState(state)]);
       return;
     }
-    if (state.tick === prev.tick && state.logs.length === prev.logCount) return;
     const queued = pendingSnapshotsRef.current;
     if (queued.length > 0) {
       pendingSnapshotsRef.current = [];
       setHistory((h) => queued.reduce(appendRunSnapshot, h));
+    } else if (state.tick === recordedThroughRef.current) {
+      // A paused action mutated state without advancing the tick, so nothing was
+      // queued. Refresh this tick's snapshot in place so Review reflects the
+      // post-action world. Idempotent — re-running replaces with an equal value.
+      setHistory((h) => (h.length > 0 ? [...h.slice(0, -1), snapshotFromState(state)] : h));
     }
+
+    if (state.tick === prev.tick && state.logs.length === prev.logCount) return;
+
     const newLogs = state.logs.slice(prev.logCount);
     setAggregates((a) => accrueLogs(accrueTicks(a, state.tick - prev.tick), newLogs));
     recorderRef.current = { tick: state.tick, logCount: state.logs.length };

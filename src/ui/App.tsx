@@ -16,7 +16,7 @@ function App(): React.JSX.Element {
   const [mode, setMode] = useState<Mode>('run');
   const [selectedDeviceId, setSelectedDeviceId] = useState<string | null>(null);
 
-  useKeyboardShortcuts(sim.step, sim.togglePlayPause, sim.isPlaying);
+  useKeyboardShortcuts(sim.step, sim.togglePlayPause, sim.isPlaying, mode !== 'build');
 
   const handleModeChange = (next: Mode): void => {
     // Entering Build pauses the sim; leaving it does not auto-resume.

@@ -8,6 +8,7 @@ import { PersistenceProvider } from '../persistence/index.js';
 import { createSimulation } from '../../simulation/state.js';
 import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
 import { PERSISTENCE_VERSION, STORAGE_KEY } from '../persistence/types.js';
+import { snapshotFromState } from '../run/index.js';
 
 /**
  * Seed localStorage with a persisted session carrying one in-flight
@@ -606,6 +607,31 @@ describe('useSimulation', () => {
       });
 
       expect(result.current.aggregates.waterChangedL).toBeCloseTo(10, 5);
+    });
+
+    it('refreshes the current-tick snapshot after a paused water change', () => {
+      seedSessionWithHighAmmonia();
+      try {
+        const { result } = renderHook(() => useSimulation(), { wrapper: strictWrapper });
+        const lenBefore = result.current.history.length;
+        const tickBefore = result.current.state.tick;
+        const stale = result.current.history[result.current.history.length - 1];
+        expect(stale.ammonia).toBeGreaterThan(0);
+
+        act(() => {
+          result.current.executeAction({ type: 'waterChange', amount: 0.5 });
+        });
+
+        const fresh = result.current.history[result.current.history.length - 1];
+        // Same tick, refreshed in place — no snapshot appended.
+        expect(result.current.history.length).toBe(lenBefore);
+        expect(fresh.tick).toBe(tickBefore);
+        // Snapshot now mirrors the live post-action state (diluted ppm).
+        expect(fresh).toEqual(snapshotFromState(result.current.state));
+        expect(fresh.ammonia).toBeLessThan(stale.ammonia);
+      } finally {
+        globalThis.localStorage.clear();
+      }
     });
 
     it('resets history and aggregates with the run', () => {

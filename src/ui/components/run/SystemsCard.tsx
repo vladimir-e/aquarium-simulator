@@ -4,7 +4,7 @@ import type { Action, DailySchedule, SimulationState } from '../../../simulation
 import { getFilterFlow, WATER_CHANGE_AMOUNTS } from '../../../simulation/index.js';
 import { SurfaceResource } from '../../../simulation/resources/index.js';
 import type { TunableConfig } from '../../../simulation/config/index.js';
-import { lphToGph } from '../../utils/units';
+import { formatFlowRate, lphToGph } from '../../utils/units';
 import { useUnits } from '../../hooks/useUnits';
 import { useCardCollapse } from '../../hooks/useCardCollapse';
 import { Card, CardBody, CardFooter, CardHeader, CollapseRegion } from './Card';
@@ -36,7 +36,7 @@ export function SystemsCard({
   executeAction,
   onOpenDeviceInBuild,
 }: SystemsCardProps): React.JSX.Element {
-  const { formatTemp } = useUnits();
+  const { formatTemp, unitSystem } = useUnits();
   const { collapsed, toggle, showToggle, regionId } = useCardCollapse('run.systems');
   const [waterPct, setWaterPct] = useState(0.25);
 
@@ -50,9 +50,9 @@ export function SystemsCard({
     maxBacteria > 0 ? Math.min(100, ((resources.aob + resources.nob) / (2 * maxBacteria)) * 100) : 0;
 
   const devices: Device[] = [
-    { id: 'filter', name: 'Filter', on: equipment.filter.enabled, detail: `${equipment.filter.type} · ${filterGph} GPH` },
+    { id: 'filter', name: 'Filter', on: equipment.filter.enabled, detail: `${equipment.filter.type} · ${formatFlowRate(filterGph, unitSystem)}` },
     ...(equipment.powerhead.enabled
-      ? [{ id: 'powerhead', name: 'Powerhead', on: true, detail: `${equipment.powerhead.flowRateGPH} GPH` }]
+      ? [{ id: 'powerhead', name: 'Powerhead', on: true, detail: formatFlowRate(equipment.powerhead.flowRateGPH, unitSystem) }]
       : []),
     { id: 'heater', name: 'Heater', on: equipment.heater.enabled, detail: `${equipment.heater.enabled ? 'on' : 'off'} · target ${formatTemp(equipment.heater.targetTemperature, 0)}` },
     { id: 'light', name: 'Light', on: equipment.light.enabled, detail: `${equipment.light.wattage}W · ${scheduleRange(equipment.light.schedule)}` },

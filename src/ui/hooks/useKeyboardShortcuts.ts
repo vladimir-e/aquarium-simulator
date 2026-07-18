@@ -3,9 +3,11 @@ import { useEffect } from 'react';
 export function useKeyboardShortcuts(
   onStep: () => void,
   onTogglePlayPause: () => void,
-  isPlaying: boolean
+  isPlaying: boolean,
+  enabled = true
 ): void {
   useEffect(() => {
+    if (!enabled) return;
     const handleKeyDown = (e: KeyboardEvent): void => {
       // Spacebar for step/pause, but ignore if typing in an input/textarea/button/select
       if (
@@ -27,5 +29,5 @@ export function useKeyboardShortcuts(
 
     window.addEventListener('keydown', handleKeyDown);
     return (): void => window.removeEventListener('keydown', handleKeyDown);
-  }, [onStep, onTogglePlayPause, isPlaying]);
+  }, [onStep, onTogglePlayPause, isPlaying, enabled]);
 }

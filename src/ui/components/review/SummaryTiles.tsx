@@ -58,7 +58,9 @@ export function SummaryTiles({
   logs: LogEntry[];
 }): React.JSX.Element {
   const { formatVol } = useUnits();
-  const latest = latestAlert(logs);
+  // Scope to the current run: loadPreset zeroes the count but keeps prior logs,
+  // so a stale pre-run warning must not chip next to "alerts 0".
+  const latest = aggregates.alerts > 0 ? latestAlert(logs) : null;
 
   const items: SummaryItem[] = [
     {
