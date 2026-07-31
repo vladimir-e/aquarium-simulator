@@ -199,6 +199,8 @@ describe('ActionsSheet', () => {
 
     expect(actions).toEqual([]);
     expect(within(sheet).getAllByText('already at capacity').length).toBeGreaterThan(1);
+    // An action that moves nothing says so rather than showing an empty block.
+    expect(sheet.textContent).toContain('Nothing moves');
   });
 
   it('shows a bare verb its range rather than an invented figure', () => {
