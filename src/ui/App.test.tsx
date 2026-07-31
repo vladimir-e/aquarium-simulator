@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, cleanup } from '@testing-library/react';
+import { render, screen, fireEvent, cleanup, within } from '@testing-library/react';
 import { MemoryRouter, useNavigate } from 'react-router-dom';
 import App from './App';
 import { ThemeProvider } from './hooks/useTheme';
@@ -59,8 +59,11 @@ describe('App routing', () => {
   it('opens on Water, with the tank chemistry on the stage', () => {
     renderApp();
     expect(stageTitle()).toBe('Water');
-    for (const label of ['NH₃', 'NO₂', 'NO₃', 'Temp']) {
-      expect(screen.getAllByText(label).length).toBeGreaterThan(0);
+    // Scoped to the stage: the rail carries NH₃/NO₂/NO₃ too, so an unscoped
+    // query passes on an empty section.
+    const stage = within(screen.getByRole('main'));
+    for (const label of ['Temp', 'pH', 'Level', 'NH₃', 'NO₂', 'NO₃']) {
+      expect(stage.getByText(label)).toBeTruthy();
     }
   });
 

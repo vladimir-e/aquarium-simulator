@@ -53,12 +53,13 @@ function renderWater(state: SimulationState): void {
 describe('WaterSection', () => {
   it('mounts six gauges in two groups, plus Bacteria and Waste', () => {
     renderWater(cycling());
+
+    const groups = screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent);
+    expect(groups).toEqual(['Water', 'Nitrogen cycle', 'Bacteria', 'Waste']);
+
     for (const name of ['Temp', 'pH', 'Level', 'NH₃', 'NO₂', 'NO₃']) {
       expect(screen.getByText(name)).toBeTruthy();
     }
-    expect(screen.getByText('Nitrogen cycle')).toBeTruthy();
-    expect(screen.getByRole('heading', { name: 'Bacteria' })).toBeTruthy();
-    expect(screen.getByRole('heading', { name: 'Waste' })).toBeTruthy();
   });
 
   it('reads as an instrument at day 0 rather than pointing somewhere else', () => {
