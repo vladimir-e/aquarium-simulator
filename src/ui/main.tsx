@@ -11,7 +11,7 @@ import App from './App';
 import { UnitsProvider } from './hooks/useUnits';
 import { ConfigProvider } from './hooks/useConfig';
 import { ThemeProvider } from './hooks/useTheme';
-import { PersistenceProvider, handleResetQueryParam, clearPersistedState } from './persistence/index.js';
+import { PersistenceProvider, handleResetQueryParam } from './persistence/index.js';
 import { ErrorBoundary } from './components/ErrorBoundary.js';
 import './index.css';
 
@@ -22,7 +22,7 @@ if (handleResetQueryParam()) {
 } else {
   ReactDOM.createRoot(document.getElementById('root')!).render(
     <React.StrictMode>
-      <ErrorBoundary onError={clearPersistedState}>
+      <ErrorBoundary>
         <ThemeProvider>
           <PersistenceProvider>
             <ConfigProvider>
