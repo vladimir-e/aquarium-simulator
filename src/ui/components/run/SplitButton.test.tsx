@@ -45,6 +45,25 @@ describe('SplitButton — menu mode', () => {
   });
 });
 
+describe('SplitButton — which way the menu opens', () => {
+  function menu(opens?: 'up' | 'down'): HTMLElement {
+    render(<SplitButton label="Pick" options={options()} opens={opens} />);
+    fireEvent.click(screen.getByText('Pick'));
+    return screen.getByRole('menu');
+  }
+
+  it('rises from a footer control by default', () => {
+    expect(menu().className).toContain('bottom-full');
+  });
+
+  // A header control has nothing above it — opening upward puts the menu off screen.
+  it('drops from a header control', () => {
+    const className = menu('down').className;
+    expect(className).toContain('top-full');
+    expect(className).not.toContain('bottom-full');
+  });
+});
+
 describe('SplitButton — split mode', () => {
   it('runs the main action from the label and opens the menu from the caret', () => {
     const onMain = vi.fn();

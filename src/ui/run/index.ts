@@ -76,6 +76,7 @@ export {
   algaeWord,
   type PlantRow,
   plantRows,
+  ailingPlants,
   type AlgaeRow,
   algaeRow,
   type NutrientKey,

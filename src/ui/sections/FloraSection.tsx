@@ -8,7 +8,6 @@ import { AddHardscape, AddPlant } from '../components/flora/AddControls';
 import { NutrientsCard } from '../components/flora/NutrientsCard';
 import { PlantsCard } from '../components/flora/PlantsCard';
 import { ScapeCard } from '../components/flora/ScapeCard';
-import { SUBSTRATE_NAME } from '../build';
 import {
   algaeRow,
   doseDeltas,
@@ -16,7 +15,6 @@ import {
   nutrientAlert,
   nutrientReadings,
   plantRows,
-  plantsAndAlgae,
   tankDemand,
 } from '../run';
 
@@ -39,12 +37,10 @@ export function FloraSection({
   const algae = useMemo(() => algaeRow(state, config), [state, config]);
   const readings = useMemo(() => nutrientReadings(state, config), [state, config]);
 
-  const meta = `${plantsAndAlgae(state)} · ${SUBSTRATE_NAME[state.equipment.substrate.type]}`;
-
   return (
     <Stage
       title="Flora & Scape"
-      meta={meta}
+      meta="plants · algae · nutrients · scape"
       actions={
         !isMobile && (
           <>

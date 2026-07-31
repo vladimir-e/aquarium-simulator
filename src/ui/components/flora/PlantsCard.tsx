@@ -1,15 +1,26 @@
 import React, { useState } from 'react';
 import { X } from 'lucide-react';
 import type { VitalityFactor } from '../../../simulation/index.js';
-import type { AlgaeRow, PlantRow, Status } from '../../run';
+import { ailingPlants, type AlgaeRow, type PlantRow, type Status } from '../../run';
 import { Card, CardBody, CardHeader } from '../run/Card';
 import { Bar, Caret, statusText } from '../run/elements';
 
 /** Below this the hourly change rounds to nothing worth printing. */
 const RATE_EPSILON = 0.05;
 
-function rateText(rate: number): string {
-  return `${rate > 0 ? '+' : '−'}${Math.abs(rate).toFixed(2)} %/h`;
+// For algae the sentiment inverts — a stressor is good news — but the signs stay
+// as the engine sums them, so the rows still add up to net.
+function tones(invert: boolean): { down: string; up: string } {
+  return invert ? { down: 'text-ok', up: 'text-alert' } : { down: 'text-alert', up: 'text-ok' };
+}
+
+function rateTone(rate: number, invert: boolean): string {
+  const { down, up } = tones(invert);
+  return rate < 0 ? down : up;
+}
+
+function rateText(rate: number, digits = 2): string {
+  return `${rate < 0 ? '−' : '+'}${Math.abs(rate).toFixed(digits)} %/h`;
 }
 
 function Breakdown({
@@ -23,10 +34,7 @@ function Breakdown({
   net: number;
   invert?: boolean;
 }): React.JSX.Element {
-  // For algae the sentiment inverts — a stressor is good news — but the signs
-  // stay as the engine sums them, so the rows still add up to net.
-  const down = invert ? 'text-ok' : 'text-alert';
-  const up = invert ? 'text-alert' : 'text-ok';
+  const { down, up } = tones(invert);
 
   return (
     <div className="pb-2 pl-6 pr-1 text-[12px]">
@@ -42,9 +50,7 @@ function Breakdown({
           <span className="ml-auto font-mono tabular-nums">+{factor.amount.toFixed(2)} %/h</span>
         </div>
       ))}
-      <div
-        className={`flex min-h-[26px] items-center font-medium ${net < 0 ? down : up}`}
-      >
+      <div className={`flex min-h-[26px] items-center font-medium ${rateTone(net, invert)}`}>
         <span>net</span>
         <span className="ml-auto font-mono tabular-nums">{rateText(net)}</span>
       </div>
@@ -56,6 +62,7 @@ function VitalRow({
   name,
   figure,
   rate,
+  invert = false,
   word,
   status,
   value,
@@ -66,6 +73,7 @@ function VitalRow({
   name: string;
   figure: string;
   rate: number;
+  invert?: boolean;
   word: string;
   status: Status;
   /** Bar fill, 0–100. */
@@ -87,10 +95,9 @@ function VitalRow({
         <span className="font-mono text-[12px] tabular-nums text-ink-3">{figure}</span>
         {Math.abs(rate) >= RATE_EPSILON && (
           <span
-            className={`hidden font-mono text-[12px] tabular-nums sm:inline ${rate > 0 ? 'text-ok' : 'text-alert'}`}
+            className={`hidden font-mono text-[12px] tabular-nums sm:inline ${rateTone(rate, invert)}`}
           >
-            {rate > 0 ? '+' : '−'}
-            {Math.abs(rate).toFixed(1)} %/h
+            {rateText(rate, 1)}
           </span>
         )}
         <span className="ml-auto flex shrink-0 items-center gap-2.5">
@@ -128,14 +135,14 @@ export function PlantsCard({
       return next;
     });
 
-  const declining = rows.filter((row) => row.net < 0).length;
+  const ailing = ailingPlants(rows).length;
   const slots = `${rows.length} of ${maxPlants} slots`;
 
   return (
     <Card className={`min-h-0 ${className}`}>
       <CardHeader
         title="Plants"
-        meta={<span>{declining > 0 ? `${slots} · ${declining} in decline` : slots}</span>}
+        meta={<span>{ailing > 0 ? `${slots} · ${ailing} ailing` : slots}</span>}
       />
       <CardBody className="min-h-0 lg:overflow-y-auto">
         <div className="divide-y divide-hairline">
@@ -175,6 +182,7 @@ export function PlantsCard({
             name="Algae"
             figure={`${Math.round(algae.mass)} %`}
             rate={algae.net}
+            invert
             word={algae.word}
             status={algae.status}
             value={algae.mass}

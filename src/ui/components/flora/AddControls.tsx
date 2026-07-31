@@ -1,6 +1,7 @@
 import React from 'react';
 import { Plus } from 'lucide-react';
 import { getHardscapeName, getHardscapeSurface, getMaxPlants } from '../../../simulation/index.js';
+import { SurfaceResource } from '../../../simulation/resources/index.js';
 import type { useSimulation } from '../../hooks/useSimulation';
 import { HARDSCAPE_TYPES, plantOptions } from '../../build';
 import { SplitButton, type SplitOption } from '../run/SplitButton';
@@ -43,7 +44,7 @@ export function AddHardscape({ sim, opens }: { sim: Sim; opens: 'up' | 'down' })
   const options: SplitOption[] = HARDSCAPE_TYPES.map((type) => ({
     key: type,
     label: getHardscapeName(type),
-    hint: `${getHardscapeSurface(type).toLocaleString()} cm²`,
+    hint: SurfaceResource.format(getHardscapeSurface(type)),
     onSelect: () => sim.addHardscapeItem(type),
   }));
 

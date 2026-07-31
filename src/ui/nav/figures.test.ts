@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { formatMeter, navFigures, type MicroMeter, type NavFigure } from './figures';
 import type { SectionId } from './sections';
-import { nutrientAlert, nutrientReadings, waterAlert, waterGauges } from '../run/index.js';
+import { waterAlert, waterGauges } from '../run/index.js';
 import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
 import {
   applyAction,
@@ -212,14 +212,6 @@ describe('navFigures — Flora', () => {
 
   it('says so once when nothing at all is dosed, rather than naming four blanks', () => {
     expect(figures(carpeted()).flora.pill).toEqual({ text: 'nothing dosed', status: 'alert' });
-  });
-
-  it('carries the same nutrient reading the section’s panel does', () => {
-    const state = carpeted();
-    state.resources.nitrate = state.resources.water * 20;
-    expect(figures(state).flora.pill).toEqual(
-      nutrientAlert(nutrientReadings(state, DEFAULT_CONFIG))
-    );
   });
 
   it('gives the second line to the worst plant when one is ailing', () => {

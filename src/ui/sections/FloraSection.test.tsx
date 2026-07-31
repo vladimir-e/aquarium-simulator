@@ -14,24 +14,42 @@ import {
   type SimulationState,
 } from '../../simulation/index.js';
 import { calculatePassiveResources } from '../../simulation/equipment/index.js';
+import { navFigures } from '../nav/figures';
+import { ailingPlants, plantRows } from '../run';
 import type { useSimulation } from '../hooks/useSimulation';
 
 afterEach(cleanup);
 
 const FORMULA = DEFAULT_CONFIG.nutrients.fertilizerFormula;
 
-function tank(): SimulationState {
-  const state = createSimulation({ tankCapacity: 200 });
+/** The index-rail figures for the same state the section is rendering. */
+function rail(state: SimulationState): ReturnType<typeof navFigures> {
+  return navFigures({
+    state,
+    config: DEFAULT_CONFIG,
+    presetName: 'Planted Tank',
+    units: 'metric',
+    alerts: 0,
+    deaths: 0,
+    births: 0,
+  });
+}
+
+function tank(capacity = 200): SimulationState {
+  const state = createSimulation({ tankCapacity: capacity });
   state.equipment.substrate.type = 'aqua_soil';
   state.resources.surface = calculatePassiveResources(state).surface;
   return state;
 }
 
 /** A scaped, planted tank a few days into a run — vitality has something to say. */
-function grown(species: PlantSpecies[] = ['java_fern', 'monte_carlo']): SimulationState {
+function grown(
+  species: PlantSpecies[] = ['java_fern', 'monte_carlo'],
+  capacity = 200
+): SimulationState {
   let state = species.reduce(
     (current, s) => applyAction(current, { type: 'addPlant', species: s }).state,
-    tank()
+    tank(capacity)
   );
   state = applyAction(state, { type: 'feed', amount: 1 }).state;
   for (let hour = 0; hour < 24; hour++) state = tick(state, DEFAULT_CONFIG);
@@ -106,18 +124,43 @@ describe('FloraSection', () => {
   });
 
   it('previews one ml at the tank’s live volume, not its capacity', () => {
-    let state = grown(['monte_carlo']);
+    // A small tank, so ten days of evaporation moves the ppm a dose lands at
+    // into a different bucket than the same dose read against capacity.
+    let state = grown(['monte_carlo'], 40);
     for (let hour = 0; hour < 24 * 10; hour++) state = tick(state, DEFAULT_CONFIG);
     renderFlora(state);
 
-    const preview = getDosePreview(1, state.resources.water, FORMULA);
-    expect(state.resources.water).toBeLessThan(state.tank.capacity);
-    expect(
-      screen.getByText(
+    const line = (water: number): string => {
+      const preview = getDosePreview(1, water, FORMULA);
+      return (
         `1 ml adds +${preview.nitratePpm.toFixed(1)} NO₃ · +${preview.phosphatePpm.toFixed(2)} PO₄ · ` +
-          `+${preview.potassiumPpm.toFixed(1)} K · +${preview.ironPpm.toFixed(2)} Fe`
-      )
-    ).toBeTruthy();
+        `+${preview.potassiumPpm.toFixed(1)} K · +${preview.ironPpm.toFixed(2)} Fe`
+      );
+    };
+
+    expect(line(state.resources.water)).not.toBe(line(state.tank.capacity));
+    expect(screen.getByText(line(state.resources.water))).toBeTruthy();
+  });
+
+  /**
+   * The rail exists so the reader need not open the section, which only holds
+   * while the two agree on what ails: the card counts them, the rail names the
+   * worst of the same set.
+   */
+  it('counts the ailing plants the rail names, and goes quiet with the rail', () => {
+    const state = grown();
+    const ailing = ailingPlants(plantRows(state, DEFAULT_CONFIG));
+    expect(ailing.length).toBeGreaterThan(0);
+
+    renderFlora(state);
+    expect(screen.getByText(`2 of 31 slots · ${ailing.length} ailing`)).toBeTruthy();
+    expect(rail(state).flora.lines[1]).toBe(`${ailing[0].name} ${ailing[0].word}`);
+    cleanup();
+
+    const healthy = { ...state, plants: state.plants.map((p) => ({ ...p, condition: 90 })) };
+    renderFlora(healthy);
+    expect(screen.getByText('2 of 31 slots')).toBeTruthy();
+    expect(rail(healthy).flora.lines[1]).toBe('Aqua Soil');
   });
 
   it('reads the scape out with each piece’s surface, and the biofilter ceiling it sums to', () => {

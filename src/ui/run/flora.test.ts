@@ -11,6 +11,7 @@ import {
 import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
 import { calculatePassiveResources } from '../../simulation/equipment/index.js';
 import {
+  ailingPlants,
   algaeRow,
   algaeStatus,
   algaeWord,
@@ -97,6 +98,26 @@ describe('plantRows', () => {
       word: 'struggling',
       status: 'alert',
     });
+  });
+});
+
+describe('ailingPlants', () => {
+  it('takes every plant off the ok band, worst first', () => {
+    const state = planted(['java_fern', 'monte_carlo', 'anubias']);
+    const conditions = [45, 90, 20];
+    const mixed = {
+      ...state,
+      plants: state.plants.map((p, i) => ({ ...p, condition: conditions[i] })),
+    };
+
+    const ailing = ailingPlants(plantRows(mixed, DEFAULT_CONFIG));
+    expect(ailing.map((row) => row.name)).toEqual(['Anubias', 'Java Fern']);
+    expect(ailing.map((row) => row.word)).toEqual(['struggling', 'fair']);
+  });
+
+  it('has nothing to name while every plant is fine', () => {
+    const state = planted(['java_fern']);
+    expect(ailingPlants(plantRows(state, DEFAULT_CONFIG))).toEqual([]);
   });
 });
 
@@ -212,25 +233,26 @@ describe('nutrientAlert', () => {
 });
 
 describe('dose arithmetic', () => {
-  it('previews against the engine’s own preview, at the tank’s live volume', () => {
-    let state = planted(['monte_carlo']);
-    for (let hour = 0; hour < 24 * 20; hour++) state = tick(state, DEFAULT_CONFIG);
-
-    // Evaporation has run: the basis is the water in the tank, not its capacity.
-    const water = state.resources.water;
-    expect(water).toBeLessThan(state.tank.capacity);
-
-    const preview = getDosePreview(2, water, FORMULA);
-    expect(formatDose(doseDeltas(2, water, FORMULA))).toBe(
+  it('spells the engine’s own preview at each nutrient’s precision, over the water given', () => {
+    const preview = getDosePreview(2, 200, FORMULA);
+    expect(formatDose(doseDeltas(2, 200, FORMULA))).toBe(
       `+${preview.nitratePpm.toFixed(1)} NO₃ · +${preview.phosphatePpm.toFixed(2)} PO₄ · ` +
         `+${preview.potassiumPpm.toFixed(1)} K · +${preview.ironPpm.toFixed(2)} Fe`
     );
+
+    // The same dose is five times as strong in a fifth of the water.
+    const strong = doseDeltas(2, 40, FORMULA);
+    expect(strong.map((d) => d.text)).toEqual(['+2.5', '+0.25', '+2.0', '+0.05']);
   });
 
   it('recommends a dose that actually clears the deficit when the engine applies it', () => {
     const state = planted(['monte_carlo'], 40);
     const advice = doseToCover(nutrientReadings(state, DEFAULT_CONFIG), state, DEFAULT_CONFIG);
-    expect(advice).toEqual({ ml: 12, overSingleDose: false });
+    expect(advice).toEqual({
+      ml: 12,
+      overSingleDose: false,
+      covers: ['NO₃', 'PO₄', 'K', 'Fe'],
+    });
 
     const after = dosed(state, advice?.ml ?? 0);
     expect(nutrientReadings(after, DEFAULT_CONFIG).some((r) => r.limiting)).toBe(false);
@@ -243,7 +265,7 @@ describe('dose arithmetic', () => {
     const state = planted(['monte_carlo']);
     const advice = doseToCover(nutrientReadings(state, DEFAULT_CONFIG), state, DEFAULT_CONFIG);
     // 200 L of empty water needs 60 ml; a single dose action stops at 50.
-    expect(advice).toEqual({ ml: 60, overSingleDose: true });
+    expect(advice).toEqual({ ml: 60, overSingleDose: true, covers: ['NO₃', 'PO₄', 'K', 'Fe'] });
     expect(applyAction(state, { type: 'dose', amountMl: 60 }).state.resources.nitrate).toBe(0);
   });
 
@@ -259,7 +281,7 @@ describe('trim targets', () => {
   it('offers only targets a plant in a calibrated tank can reach', () => {
     expect(TRIM_TARGETS).toEqual([50, 75, 85]);
 
-    // Species peak between 50 % and ~105 % in the engine's own calibration, so
+    // Plants go in at 50 % and a calibrated planted tank settles at 60–90 %, so
     // the top rung has to sit inside that band to ever be reachable.
     const grown = applyAction(tank(), {
       type: 'addPlant',

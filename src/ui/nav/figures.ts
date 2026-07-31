@@ -5,21 +5,21 @@
  * band. Pure; the rail renders whatever these return.
  */
 
-import { PLANT_SPECIES_DATA, type LidType, type SimulationState } from '../../simulation/index.js';
+import type { LidType, SimulationState } from '../../simulation/index.js';
 import type { TunableConfig } from '../../simulation/config/index.js';
 import { bioload, buildDeviceList, equipmentSummary, scapeSummary } from '../build/index.js';
 import {
+  ailingPlants,
   biofilterColonisation,
   CYCLED_PCT,
   classifyVital,
-  conditionStatus,
-  conditionWord,
   countHungry,
   GAUGE_KEYS,
   gaugeFill,
   gaugeValues,
   nutrientAlert,
   nutrientReadings,
+  plantRows,
   plantsAndAlgae,
   rosterSummary,
   waterAlert,
@@ -96,20 +96,15 @@ function equipmentFigure(state: SimulationState, config: TunableConfig): NavFigu
 }
 
 function floraFigure(state: SimulationState, config: TunableConfig): NavFigure {
-  const { plants, equipment } = state;
-  const worst = plants.reduce<(typeof plants)[number] | null>(
-    (lowest, p) => (lowest === null || p.condition < lowest.condition ? p : lowest),
-    null
-  );
-
-  const second =
-    worst && conditionStatus(worst.condition) !== 'ok'
-      ? `${PLANT_SPECIES_DATA[worst.species].name} ${conditionWord(worst.condition)}`
-      : scapeSummary(equipment.substrate.type, equipment.hardscape.items);
+  const { substrate, hardscape } = state.equipment;
+  const [worst] = ailingPlants(plantRows(state, config));
 
   return {
     pill: nutrientAlert(nutrientReadings(state, config)),
-    lines: [plantsAndAlgae(state), second],
+    lines: [
+      plantsAndAlgae(state),
+      worst ? `${worst.name} ${worst.word}` : scapeSummary(substrate.type, hardscape.items),
+    ],
   };
 }
 

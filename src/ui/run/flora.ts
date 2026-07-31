@@ -38,9 +38,10 @@ import type {
 import { conditionStatus, conditionWord, type Status } from './status.js';
 
 /**
- * Trim targets, in % of a plant's size. The engine opens trimming at 50 % and
- * calibrated species peak around 100 %, so every rung here is reachable in an
- * ordinary run.
+ * Trim targets, in % of a plant's size. A calibrated planted tank settles at
+ * 60–90 % (82 % measured at day 28 in
+ * `docs/calibration/baselines/02-planted-equilibrium.md`), so every rung here is
+ * reachable in an ordinary run.
  */
 export const TRIM_TARGETS = [50, 75, 85];
 
@@ -105,6 +106,14 @@ export function plantRows(state: SimulationState, config: TunableConfig): PlantR
       benefits: acting(vitality.breakdown.benefits),
     };
   });
+}
+
+/**
+ * The plants in trouble, worst first. One definition of ailing, so the card's
+ * count and the rail's named plant can never disagree.
+ */
+export function ailingPlants(rows: PlantRow[]): PlantRow[] {
+  return rows.filter((row) => row.status !== 'ok').sort((a, b) => a.condition - b.condition);
 }
 
 /** The algae, read the same way as a plant — but a stressor here is good news. */
@@ -178,7 +187,7 @@ export interface NutrientReading {
   fill: number;
   /** Topping this one up would raise the engine's sufficiency for some plant. */
   limiting: boolean;
-  /** Green at the need, amber short of it, coral empty — grey when no plant asks. */
+  /** Coral empty, amber short, green at the need — grey while it holds nothing back. */
   status: Status;
 }
 
@@ -311,6 +320,8 @@ export interface DoseAdvice {
   ml: number;
   /** More than the engine takes in a single dose, so it wants splitting. */
   overSingleDose: boolean;
+  /** Labels of the nutrients it clears, so the advice names its own scope. */
+  covers: string[];
 }
 
 export function doseToCover(
@@ -328,7 +339,11 @@ export function doseToCover(
     0
   );
   const whole = Math.max(1, Math.ceil(ml));
-  return { ml: whole, overSingleDose: whole > MAX_DOSE_ML };
+  return {
+    ml: whole,
+    overSingleDose: whole > MAX_DOSE_ML,
+    covers: short.map((r) => r.label),
+  };
 }
 
 export interface TrimTarget {

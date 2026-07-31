@@ -29,8 +29,6 @@ export function NutrientsCard({
   /** Dose that clears every shortfall, or null when nothing is short. */
   cover: DoseAdvice | null;
 }): React.JSX.Element {
-  const short = readings.filter((r) => r.limiting).map((r) => r.label);
-
   return (
     <Card className="shrink-0">
       <CardHeader
@@ -63,7 +61,7 @@ export function NutrientsCard({
         <div className="space-y-1 border-t border-hairline pt-2">
           {cover && (
             <p className="text-[12px] text-warn-text">
-              {cover.ml} ml covers {list(short)}
+              {cover.ml} ml covers {list(cover.covers)}
               {cover.overSingleDose ? ' — more than one dose.' : '.'}
             </p>
           )}
