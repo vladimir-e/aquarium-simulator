@@ -41,10 +41,7 @@ export function WaterSection({
   const projection = useMemo(() => projectNitritePeak(state, config), [state, config]);
   const waste = useMemo(() => wasteReadout(state, config), [state, config]);
 
-  const alert = waterAlert(
-    gauges.map((g) => ({ key: g.key, label: g.name, value: g.value, status: g.status })),
-    bacteria.cycled
-  );
+  const alert = waterAlert(gauges, bacteria.cycled);
 
   return (
     <Stage
@@ -56,9 +53,11 @@ export function WaterSection({
     >
       <div className="flex min-h-full flex-col gap-3">
         <div className="grid shrink-0 grid-cols-1 gap-3 md:grid-cols-2">
-          <GaugeGroup title="Water" gauges={gauges.slice(0, 3)} />
-          <GaugeGroup title="Nitrogen cycle" gauges={gauges.slice(3)} />
+          <GaugeGroup title="Water" gauges={gauges.filter((g) => g.group === 'water')} />
+          <GaugeGroup title="Nitrogen cycle" gauges={gauges.filter((g) => g.group === 'nitrogen')} />
         </div>
+        {/* Measured off the wireframe, like the 240 px gauge track above: the
+            floor this row keeps when the two cards have little to show. */}
         <div className="grid min-h-[249px] flex-1 grid-cols-1 gap-3 md:grid-cols-2">
           <BacteriaCard
             readout={bacteria}

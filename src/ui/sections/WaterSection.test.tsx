@@ -4,7 +4,7 @@ import { WaterSection } from './WaterSection';
 import { ThemeProvider } from '../hooks/useTheme';
 import { UnitsProvider } from '../hooks/useUnits';
 import { PersistenceProvider } from '../persistence/index.js';
-import { snapshotFromState } from '../run/index.js';
+import { snapshotFromState, type RunSnapshot } from '../run/index.js';
 import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
 import {
   applyAction,
@@ -16,28 +16,38 @@ import type { useSimulation } from '../hooks/useSimulation';
 
 afterEach(cleanup);
 
-function day0(): SimulationState {
+/** A tank and the run behind it — captions read the history, not just the state. */
+interface Run {
+  state: SimulationState;
+  history: RunSnapshot[];
+}
+
+function tank(): SimulationState {
   return createSimulation({ tankCapacity: 200 });
 }
 
+/** A tank as the app first shows it: one snapshot, nothing to trend against yet. */
+function day0(state: SimulationState = tank()): Run {
+  return { state, history: [snapshotFromState(state)] };
+}
+
 /** Nine days of a stocked, fed tank: AOB established, NOB still behind. */
-function cycling(): SimulationState {
-  let state = day0();
+function cycling(): Run {
+  let state = tank();
   for (let i = 0; i < 6; i++) {
     state = applyAction(state, { type: 'addFish', species: 'neon_tetra' }).state;
   }
+  const history = [snapshotFromState(state)];
   for (let hour = 0; hour < 24 * 9; hour++) {
     if (hour % 24 === 0) state = applyAction(state, { type: 'feed', amount: 0.5 }).state;
     state = tick(state, DEFAULT_CONFIG);
+    history.push(snapshotFromState(state));
   }
-  return state;
+  return { state, history };
 }
 
-function renderWater(state: SimulationState): void {
-  const sim = {
-    state,
-    history: [snapshotFromState(state)],
-  } as unknown as ReturnType<typeof useSimulation>;
+function renderWater({ state, history }: Run): void {
+  const sim = { state, history } as unknown as ReturnType<typeof useSimulation>;
 
   render(
     <ThemeProvider>
@@ -90,9 +100,9 @@ describe('WaterSection', () => {
   });
 
   it('flags the section with the same reading the gauges carry', () => {
-    const state = day0();
+    const state = tank();
     state.resources.ammonia = state.resources.water * 4;
-    renderWater(state);
+    renderWater(day0(state));
 
     const header = screen.getByRole('heading', { level: 1, name: 'Water' }).parentElement!;
     expect(within(header).getByText('NH₃ high')).toBeTruthy();
@@ -100,9 +110,20 @@ describe('WaterSection', () => {
   });
 
   it('says the tank is uncycled when nothing else is wrong', () => {
-    const state = day0();
+    const state = tank();
     state.resources.nitrate = state.resources.water * 12;
-    renderWater(state);
+    renderWater(day0(state));
     expect(screen.getByText('uncycled')).toBeTruthy();
+  });
+
+  it('captions each toxin with which way it is moving, once a run has history', () => {
+    const moving = / · (steady|[+−][\d.]+\/h)$/;
+
+    renderWater(day0());
+    expect(screen.queryAllByText(moving)).toHaveLength(0);
+
+    cleanup();
+    renderWater(cycling());
+    expect(screen.getAllByText(moving)).toHaveLength(3);
   });
 });

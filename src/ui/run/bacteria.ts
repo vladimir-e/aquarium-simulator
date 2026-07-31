@@ -7,14 +7,16 @@
 import {
   calculateAmmoniaToNitrite,
   calculateBacterialGrowth,
+  calculateEvaporation,
   calculateMaxBacteria,
   calculateNitriteToNitrate,
   calculateWasteToAmmonia,
 } from '../../simulation/systems/index.js';
 import { processMetabolism, type Resources, type SimulationState } from '../../simulation/index.js';
+import { WATER_LEVEL_THRESHOLD } from '../../simulation/equipment/ato.js';
 import type { NitrogenCycleConfig, TunableConfig } from '../../simulation/config/index.js';
 import { getPpm } from '../../simulation/resources/index.js';
-import { wasteInflow } from './waste.js';
+import { mineralisationBase, wasteInflow } from './waste.js';
 
 /** Below this colonisation percentage the biofilter cannot carry a bioload. */
 export const CYCLED_PCT = 25;
@@ -27,7 +29,7 @@ export function biofilterColonisation(
   resources: Resources,
   config: NitrogenCycleConfig
 ): number {
-  const ceiling = resources.surface * config.bacteriaPerCm2;
+  const ceiling = calculateMaxBacteria(resources.surface, config);
   if (ceiling <= 0) return 0;
   return Math.min(100, ((resources.aob + resources.nob) / (2 * ceiling)) * 100);
 }
@@ -76,12 +78,15 @@ export function bacteriaReadout(
   const ceiling = calculateMaxBacteria(r.surface, nc);
   const water = r.water;
 
-  // Staged exactly as the nitrogen-cycle system does inside one tick: waste
-  // mineralises first, and the AOB then work on the ammonia that includes it.
-  const { ammoniaProduced } = calculateWasteToAmmonia(r.waste, nc);
+  // The AOB stage sees both of these: gill excretion lands in the active tier,
+  // ahead of the passive nitrogen cycle, and mineralisation runs first inside it.
   const gills = processMetabolism(state.fish, r.food, config.livestock).ammoniaProduced;
+  const { ammoniaProduced } = calculateWasteToAmmonia(
+    mineralisationBase(r.waste, wasteInflow(state, config)),
+    nc
+  );
   const { nitriteProduced } = calculateAmmoniaToNitrite(
-    r.ammonia + ammoniaProduced,
+    r.ammonia + gills + ammoniaProduced,
     r.aob,
     water,
     nc
@@ -118,11 +123,30 @@ export interface CycleProjection {
 }
 
 /**
+ * The tank's volume an hour on: evaporation runs every tick, and an enabled
+ * ATO refills the moment the level drops past its threshold.
+ */
+function nextVolume(water: number, state: SimulationState, config: TunableConfig): number {
+  const level =
+    water -
+    calculateEvaporation(
+      water,
+      state.resources.temperature,
+      state.environment.roomTemperature,
+      state.equipment.lid.type,
+      config.evaporation
+    );
+  const { capacity } = state.tank;
+  return state.equipment.ato.enabled && level < capacity * WATER_LEVEL_THRESHOLD ? capacity : level;
+}
+
+/**
  * Run the engine's own nitrogen model forward to find the nitrite peak.
  *
- * Waste inflow, water volume, biofilm surface and temperature are held at
- * today's values, so this answers "if nothing else changes" — feeding more,
- * adding fish or a water change all move it.
+ * Waste inflow, biofilm surface and temperature are held at today's values, so
+ * this answers "if nothing else changes" — feeding more, adding fish or a water
+ * change all move it. Evaporation is not one of those choices: it runs every
+ * tick, concentrating everything, so the projection evaporates too.
  */
 export function projectNitritePeak(
   state: SimulationState,
@@ -131,13 +155,13 @@ export function projectNitritePeak(
 ): CycleProjection | null {
   const r = state.resources;
   const nc = config.nitrogenCycle;
-  const water = r.water;
   const ceiling = calculateMaxBacteria(r.surface, nc);
-  if (water <= 0 || ceiling <= 0) return null;
+  if (r.water <= 0 || ceiling <= 0) return null;
 
   const inflow = wasteInflow(state, config).perHour;
   const gills = processMetabolism(state.fish, r.food, config.livestock).ammoniaProduced;
 
+  let water = r.water;
   let waste = r.waste;
   let ammonia = r.ammonia;
   let nitrite = r.nitrite;
@@ -148,6 +172,7 @@ export function projectNitritePeak(
   let peakAt = 0;
 
   for (let hour = 1; hour <= horizon; hour++) {
+    water = nextVolume(water, state, config);
     waste += inflow;
 
     const mineralised = calculateWasteToAmmonia(waste, nc);

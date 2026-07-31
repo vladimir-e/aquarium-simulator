@@ -91,8 +91,8 @@ export function Gauge({ gauge }: { gauge: WaterGauge }): React.JSX.Element {
         {gauge.unit && <span className="ml-1 text-[11px] font-normal text-ink-3">{gauge.unit}</span>}
       </div>
 
-      <div className={statusText(status)}>
-        <Sparkline values={gauge.trace} className="h-[22px]" />
+      <div className={`h-[22px] ${statusText(status)}`}>
+        <Sparkline values={gauge.trace} />
       </div>
 
       <div className={`text-center font-mono text-[10px] leading-[1.4] ${tone(status, 'text-ink-3')}`}>

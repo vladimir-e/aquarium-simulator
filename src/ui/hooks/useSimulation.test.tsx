@@ -87,6 +87,9 @@ const HOURS_OF_A_DAY = Array.from({ length: 24 }, (_, i) => i + 1);
 
 describe('useSimulation', () => {
   beforeEach(() => {
+    // The hook persists every run it drives, so without this each test would
+    // hydrate from whichever one happened to go before it.
+    globalThis.localStorage.clear();
     vi.useFakeTimers();
   });
 
@@ -261,19 +264,15 @@ describe('useSimulation', () => {
 
     it('reset clears in-flight clutches (time-anchored)', () => {
       seedSessionWithClutch('planted');
-      try {
-        const { result } = renderHook(() => useSimulation(), { wrapper });
-        expect(result.current.state.clutches).toHaveLength(1);
+      const { result } = renderHook(() => useSimulation(), { wrapper });
+      expect(result.current.state.clutches).toHaveLength(1);
 
-        act(() => {
-          result.current.reset();
-        });
+      act(() => {
+        result.current.reset();
+      });
 
-        expect(result.current.state.clutches).toHaveLength(0);
-        expect(result.current.state.tick).toBe(0);
-      } finally {
-        globalThis.localStorage.clear();
-      }
+      expect(result.current.state.clutches).toHaveLength(0);
+      expect(result.current.state.tick).toBe(0);
     });
 
     it('loadPreset restores equipment but preserves simulation progress', () => {
@@ -612,27 +611,23 @@ describe('useSimulation', () => {
 
     it('refreshes the current-tick snapshot after a paused water change', () => {
       seedSessionWithHighAmmonia();
-      try {
-        const { result } = renderHook(() => useSimulation(), { wrapper: strictWrapper });
-        const lenBefore = result.current.history.length;
-        const tickBefore = result.current.state.tick;
-        const stale = result.current.history[result.current.history.length - 1];
-        expect(stale.ammonia).toBeGreaterThan(0);
+      const { result } = renderHook(() => useSimulation(), { wrapper: strictWrapper });
+      const lenBefore = result.current.history.length;
+      const tickBefore = result.current.state.tick;
+      const stale = result.current.history[result.current.history.length - 1];
+      expect(stale.ammonia).toBeGreaterThan(0);
 
-        act(() => {
-          result.current.executeAction({ type: 'waterChange', amount: 0.5 });
-        });
+      act(() => {
+        result.current.executeAction({ type: 'waterChange', amount: 0.5 });
+      });
 
-        const fresh = result.current.history[result.current.history.length - 1];
-        // Same tick, refreshed in place — no snapshot appended.
-        expect(result.current.history.length).toBe(lenBefore);
-        expect(fresh.tick).toBe(tickBefore);
-        // Snapshot now mirrors the live post-action state (diluted ppm).
-        expect(fresh).toEqual(snapshotFromState(result.current.state));
-        expect(fresh.ammonia).toBeLessThan(stale.ammonia);
-      } finally {
-        globalThis.localStorage.clear();
-      }
+      const fresh = result.current.history[result.current.history.length - 1];
+      // Same tick, refreshed in place — no snapshot appended.
+      expect(result.current.history.length).toBe(lenBefore);
+      expect(fresh.tick).toBe(tickBefore);
+      // Snapshot now mirrors the live post-action state (diluted ppm).
+      expect(fresh).toEqual(snapshotFromState(result.current.state));
+      expect(fresh.ammonia).toBeLessThan(stale.ammonia);
     });
 
     it('resets history and aggregates with the run', () => {
@@ -708,54 +703,46 @@ describe('useSimulation', () => {
 
     it('rebaselines history and aggregates on a mid-run preset load', () => {
       seedSessionWithHighAmmonia();
-      try {
-        const { result } = renderHook(() => useSimulation(), { wrapper });
+      const { result } = renderHook(() => useSimulation(), { wrapper });
 
-        // Cross the ammonia threshold so a warning-severity log exists.
-        act(() => {
-          result.current.step();
-        });
-        const hasWarning = (): boolean =>
-          result.current.state.logs.some((log) => log.severity === 'warning');
-        expect(result.current.aggregates.alerts).toBe(1);
-        expect(hasWarning()).toBe(true);
+      // Cross the ammonia threshold so a warning-severity log exists.
+      act(() => {
+        result.current.step();
+      });
+      const hasWarning = (): boolean =>
+        result.current.state.logs.some((log) => log.severity === 'warning');
+      expect(result.current.aggregates.alerts).toBe(1);
+      expect(hasWarning()).toBe(true);
 
-        act(() => {
-          result.current.loadPreset('community');
-        });
+      act(() => {
+        result.current.loadPreset('community');
+      });
 
-        // History reseeds to a single baseline snapshot and tallies zero out.
-        expect(result.current.history).toHaveLength(1);
-        expect(result.current.aggregates.ticks).toBe(0);
-        // The warning log is still present at reseed but sits behind the new
-        // baseline, so it must not be counted as an alert.
-        expect(hasWarning()).toBe(true);
-        expect(result.current.aggregates.alerts).toBe(0);
-      } finally {
-        globalThis.localStorage.clear();
-      }
+      // History reseeds to a single baseline snapshot and tallies zero out.
+      expect(result.current.history).toHaveLength(1);
+      expect(result.current.aggregates.ticks).toBe(0);
+      // The warning log is still present at reseed but sits behind the new
+      // baseline, so it must not be counted as an alert.
+      expect(hasWarning()).toBe(true);
+      expect(result.current.aggregates.alerts).toBe(0);
     });
 
     it('counts a chemistry alert once per episode', () => {
       seedSessionWithHighAmmonia();
-      try {
-        const { result } = renderHook(() => useSimulation(), { wrapper });
+      const { result } = renderHook(() => useSimulation(), { wrapper });
 
-        // First tick crosses the ammonia threshold and fires the alert.
-        act(() => {
-          result.current.step();
-        });
-        expect(result.current.aggregates.alerts).toBe(1);
+      // First tick crosses the ammonia threshold and fires the alert.
+      act(() => {
+        result.current.step();
+      });
+      expect(result.current.aggregates.alerts).toBe(1);
 
-        // Ammonia stays high, so the latched alert does not re-fire.
-        act(() => {
-          result.current.step();
-          result.current.step();
-        });
-        expect(result.current.aggregates.alerts).toBe(1);
-      } finally {
-        globalThis.localStorage.clear();
-      }
+      // Ammonia stays high, so the latched alert does not re-fire.
+      act(() => {
+        result.current.step();
+        result.current.step();
+      });
+      expect(result.current.aggregates.alerts).toBe(1);
     });
   });
 });

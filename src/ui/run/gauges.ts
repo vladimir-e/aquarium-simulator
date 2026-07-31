@@ -90,9 +90,13 @@ export interface GaugeTick {
   at: number;
 }
 
+/** The two panels the gauges are read in: tank conditions, then the cycle. */
+export type GaugeGroup = 'water' | 'nitrogen';
+
 export interface WaterGauge {
   key: GaugeKey;
   name: string;
+  group: GaugeGroup;
   unit: string;
   /** Canonical value — °C even when the reader is on Fahrenheit. */
   value: number;
@@ -122,6 +126,15 @@ const NAME: Record<GaugeKey, string> = {
   ammonia: 'NH₃',
   nitrite: 'NO₂',
   nitrate: 'NO₃',
+};
+
+const GROUP: Record<GaugeKey, GaugeGroup> = {
+  temperature: 'water',
+  ph: 'water',
+  water: 'water',
+  ammonia: 'nitrogen',
+  nitrite: 'nitrogen',
+  nitrate: 'nitrogen',
 };
 
 const TRACE: Record<GaugeKey, (s: RunSnapshot) => number> = {
@@ -172,7 +185,7 @@ function band(key: GaugeKey, from: number, to: number): GaugeBand {
   return { from: gaugeFill(key, from), to: gaugeFill(key, to) };
 }
 
-/** Change per hour over the trace, phrased for a caption; empty until two samples exist. */
+/** Change since the previous sample, phrased for a caption; empty until two exist. */
 function trend(trace: number[], decimals: number): string {
   if (trace.length < 2) return '';
   const delta = trace[trace.length - 1] - trace[trace.length - 2];
@@ -283,6 +296,7 @@ export function waterGauges({
     return {
       key,
       name: NAME[key],
+      group: GROUP[key],
       value,
       text: display(key, value, units).toFixed(DECIMALS[key]),
       status,
@@ -301,15 +315,16 @@ export interface WaterAlert {
 
 /**
  * The one thing to say about the water right now. Shared by the index rail and
- * the section header so they can never name different problems: an uncycled
- * tank outranks a soft warning — quiet now, about to stop being quiet.
+ * the section header so they can never name different problems — down to the
+ * reading's name, which comes from here rather than from either caller. An
+ * uncycled tank outranks a soft warning: quiet now, about to stop being quiet.
  */
 export function waterAlert(
-  readings: Array<Pick<WaterGauge, 'key' | 'value' | 'status'> & { label: string }>,
+  readings: Array<Pick<WaterGauge, 'key' | 'value' | 'status'>>,
   cycled: boolean
 ): WaterAlert | null {
   const named = (r: (typeof readings)[number]): WaterAlert => ({
-    text: `${r.label} ${(classifyVital(r.key, r.value).pill ?? '').toLowerCase()}`.trim(),
+    text: `${NAME[r.key]} ${(classifyVital(r.key, r.value).pill ?? '').toLowerCase()}`.trim(),
     status: r.status,
   });
 

@@ -1,11 +1,13 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import {
   bacteriaReadout,
   bacteriaSummary,
   biofilterColonisation,
   projectNitritePeak,
+  type CycleProjection,
 } from './bacteria';
 import { DEFAULT_CONFIG, nitrogenCycleDefaults } from '../../simulation/config/index.js';
+import { NO2_TO_NO3_MASS_RATIO } from '../../simulation/systems/nitrogen-cycle.js';
 import {
   applyAction,
   createSimulation,
@@ -25,18 +27,78 @@ function tank(): SimulationState {
   return createSimulation({ tankCapacity: 200 });
 }
 
-/** A stocked, fed tank run far enough that both colonies are working. */
-function cycling(hours: number): SimulationState {
+function stocked(): SimulationState {
   let state = tank();
   for (let i = 0; i < 6; i++) {
     state = applyAction(state, { type: 'addFish', species: 'neon_tetra' }).state;
   }
-  for (let hour = 0; hour < hours; hour++) {
-    if (hour % 24 === 0) state = applyAction(state, { type: 'feed', amount: 0.5 }).state;
-    state = tick(state, config);
-  }
   return state;
 }
+
+function run(state: SimulationState, hours: number): SimulationState {
+  let running = state;
+  for (let hour = 0; hour < hours; hour++) {
+    if (hour % 24 === 0) running = applyAction(running, { type: 'feed', amount: 0.5 }).state;
+    running = tick(running, config);
+  }
+  return running;
+}
+
+/** A stocked, fed tank run far enough that both colonies are working. */
+function cycling(hours: number): SimulationState {
+  return run(stocked(), hours);
+}
+
+/**
+ * The same tank with its colonies seeded at the ceiling. The AOB stage is then
+ * limited by the ammonia reaching it rather than by capacity, which is the only
+ * regime where dropping a source of that ammonia changes the answer.
+ */
+function cycled(hours: number): SimulationState {
+  const base = stocked();
+  const ceiling = base.resources.surface * perCm2;
+  return run({ ...base, resources: { ...base.resources, aob: ceiling, nob: ceiling } }, hours);
+}
+
+/** What the next tick actually does to nitrite, split into its two rates (ppm/h). */
+function engineNitrite(state: SimulationState): { produced: number; cleared: number } {
+  const next = tick(state, config);
+  const water = state.resources.water;
+  const cleared =
+    (next.resources.nitrate - state.resources.nitrate) / NO2_TO_NO3_MASS_RATIO / water;
+  return {
+    produced: (next.resources.nitrite - state.resources.nitrite) / water + cleared,
+    cleared,
+  };
+}
+
+/** Where nitrite actually tops out, run through the engine itself. */
+function enginePeak(state: SimulationState): CycleProjection {
+  let running = state;
+  let ppm = 0;
+  let hours = 0;
+  for (let hour = 1; hour <= 24 * 180; hour++) {
+    running = tick(running, config);
+    const now = running.resources.nitrite / running.resources.water;
+    if (now > ppm) {
+      ppm = now;
+      hours = hour;
+    } else if (hours > 0 && now < ppm * 0.9) {
+      break;
+    }
+  }
+  return { hours, ppm };
+}
+
+// Fish arrive with sampled health and hardiness; pinning the sample keeps every
+// fixture below reproducible run to run.
+beforeEach(() => {
+  vi.spyOn(Math, 'random').mockReturnValue(0.5);
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 describe('biofilterColonisation', () => {
   it('reads both colonies against their combined ceiling', () => {
@@ -98,34 +160,71 @@ describe('bacteriaReadout', () => {
     expect(bacteriaReadout(state, config).rates.gillsToAmmonia).toBeGreaterThan(0);
   });
 
+  it('puts the engine’s own two rates on the card once the biofilter is cycled', () => {
+    const state = cycled(24 * 20);
+    const { rates } = bacteriaReadout(state, config);
+    const engine = engineNitrite(state);
+
+    expect(rates.ammoniaToNitrite).toBeCloseTo(engine.produced, 9);
+    expect(rates.nitriteToNitrate).toBeCloseTo(engine.cleared, 9);
+    expect(rates.netNitrite).toBeCloseTo(engine.produced - engine.cleared, 9);
+  });
+
   it('nets nitrite the way the next tick actually moves it, climbing and falling', () => {
     for (const days of [9, 16]) {
       const state = cycling(24 * days);
       const { rates } = bacteriaReadout(state, config);
+      const engine = engineNitrite(state);
       const moved =
         (tick(state, config).resources.nitrite - state.resources.nitrite) / state.resources.water;
 
+      // Both colonies are still capacity-bound here, and the engine sizes that
+      // capacity on the volume left after the hour's evaporation, so the card
+      // reads a fraction of a percent hot rather than exactly.
+      expect(rates.ammoniaToNitrite).toBeCloseTo(engine.produced, 4);
+      expect(rates.nitriteToNitrate).toBeCloseTo(engine.cleared, 4);
       expect(Math.sign(rates.netNitrite)).toBe(Math.sign(moved));
-      expect(rates.netNitrite).toBeCloseTo(moved, 3);
+      expect(rates.netNitrite).toBeCloseTo(moved, 4);
     }
   });
 });
 
 describe('projectNitritePeak', () => {
-  it('finds a peak the engine then actually reaches', () => {
+  it('finds the peak the engine reaches on a tank left to evaporate', () => {
+    const state = tank();
+    const projection = projectNitritePeak(state, config);
+    const engine = enginePeak(state);
+
+    expect(projection!.hours).toBeGreaterThanOrEqual(engine.hours - 2);
+    expect(projection!.hours).toBeLessThanOrEqual(engine.hours + 2);
+    expect(projection!.ppm).toBeCloseTo(engine.ppm, 2);
+  });
+
+  it('finds a later, lower peak once an ATO is holding the volume up', () => {
+    const state = tank();
+    state.equipment.ato.enabled = true;
+    const projection = projectNitritePeak(state, config);
+    const engine = enginePeak(state);
+
+    expect(projection!.hours).toBeGreaterThanOrEqual(engine.hours - 2);
+    expect(projection!.hours).toBeLessThanOrEqual(engine.hours + 2);
+    expect(projection!.ppm).toBeCloseTo(engine.ppm, 2);
+
+    const evaporating = projectNitritePeak(tank(), config)!;
+    expect(projection!.hours).toBeGreaterThan(evaporating.hours * 1.5);
+    expect(projection!.ppm).toBeLessThan(evaporating.ppm);
+  });
+
+  it('tracks a stocked tank’s peak, which its own losses then pull in', () => {
     const state = cycling(24 * 9);
     const projection = projectNitritePeak(state, config);
-    expect(projection).not.toBeNull();
+    const engine = enginePeak(state);
 
-    let running = state;
-    let observed = 0;
-    for (let hour = 0; hour < projection!.hours * 2; hour++) {
-      running = tick(running, config);
-      observed = Math.max(observed, running.resources.nitrite / running.resources.water);
-    }
-    // The projection holds waste inflow and volume steady, so it lands near the
-    // simulated peak rather than on it.
-    expect(observed).toBeGreaterThan(projection!.ppm * 0.4);
+    // Held-steady inflow is the standing caveat: these fish are dying of the
+    // ammonia, so the engine's own production tails off and the real peak
+    // arrives a little sooner and lower than "if nothing else changes".
+    expect(projection!.hours).toBeLessThan(engine.hours * 1.15);
+    expect(projection!.ppm).toBeLessThan(engine.ppm * 1.15);
   });
 
   it('gives up rather than guessing when nothing is driving the cycle', () => {

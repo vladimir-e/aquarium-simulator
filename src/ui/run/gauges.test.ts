@@ -5,8 +5,10 @@ import {
   gaugeValues,
   waterAlert,
   waterGauges,
+  type GaugeKey,
   type WaterGauge,
 } from './gauges';
+import type { Status } from './status';
 import { snapshotFromState } from './history';
 import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
 import {
@@ -77,6 +79,11 @@ describe('waterGauges', () => {
       'nitrite',
       'nitrate',
     ]);
+  });
+
+  it('assigns each gauge to the panel it is read in', () => {
+    const panels = gauges(tank()).map((g) => g.group);
+    expect(panels).toEqual(['water', 'water', 'water', 'nitrogen', 'nitrogen', 'nitrogen']);
   });
 
   it('bands the toxins at the engine thresholds and leaves temp and pH unbanded', () => {
@@ -184,36 +191,40 @@ describe('waterGauges', () => {
 });
 
 describe('waterAlert', () => {
-  const reading = (key: string, label: string, value: number, status: string): never =>
-    ({ key, label, value, status }) as never;
+  const reading = (
+    key: GaugeKey,
+    value: number,
+    status: Status
+  ): Pick<WaterGauge, 'key' | 'value' | 'status'> => ({ key, value, status });
 
   it('names an alert before anything else', () => {
     expect(
-      waterAlert(
-        [
-          reading('nitrate', 'NO₃', 0, 'warn'),
-          reading('ammonia', 'NH₃', 4, 'alert'),
-        ],
-        true
-      )
+      waterAlert([reading('nitrate', 0, 'warn'), reading('ammonia', 4, 'alert')], true)
     ).toEqual({ text: 'NH₃ high', status: 'alert' });
   });
 
   it('lets an uncycled tank outrank a soft warning', () => {
-    expect(waterAlert([reading('nitrate', 'NO₃', 0, 'warn')], false)).toEqual({
+    expect(waterAlert([reading('nitrate', 0, 'warn')], false)).toEqual({
       text: 'uncycled',
       status: 'neutral',
     });
   });
 
   it('falls through to the warning once the biofilter is established', () => {
-    expect(waterAlert([reading('nitrate', 'NO₃', 0, 'warn')], true)).toEqual({
+    expect(waterAlert([reading('nitrate', 0, 'warn')], true)).toEqual({
       text: 'NO₃ low',
       status: 'warn',
     });
   });
 
+  it('names the reading itself, so no caller can spell it differently', () => {
+    expect(waterAlert([reading('water', 5, 'warn')], true)).toEqual({
+      text: 'Level low',
+      status: 'warn',
+    });
+  });
+
   it('says nothing about a cycled tank that reads clean', () => {
-    expect(waterAlert([reading('nitrate', 'NO₃', 12, 'ok')], true)).toBeNull();
+    expect(waterAlert([reading('nitrate', 12, 'ok')], true)).toBeNull();
   });
 });

@@ -164,16 +164,11 @@ function sparklinePoints(values: number[], width: number, height: number, count 
 }
 
 /**
- * Inline sparkline. Colour comes from the parent's text colour
- * (`currentColor`); the stroke stays 1.5px at any width via non-scaling-stroke.
+ * Inline sparkline that fills its parent box. Colour comes from the parent's
+ * text colour (`currentColor`); the stroke stays 1.5px at any size via
+ * non-scaling-stroke.
  */
-export function Sparkline({
-  values,
-  className = 'h-8',
-}: {
-  values: number[];
-  className?: string;
-}): React.JSX.Element {
+export function Sparkline({ values }: { values: number[] }): React.JSX.Element {
   const width = 100;
   const height = 30;
   const points = sparklinePoints(values, width, height);
@@ -181,7 +176,7 @@ export function Sparkline({
     <svg
       viewBox={`0 0 ${width} ${height}`}
       preserveAspectRatio="none"
-      className={`w-full ${className}`}
+      className="block h-full w-full"
       aria-hidden
     >
       {points && (

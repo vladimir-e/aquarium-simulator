@@ -22,21 +22,16 @@ export {
 export { type Status } from './status.js';
 export {
   classifyVital,
-  NITRATE_LOW_PPM,
   type VitalKey,
   type VitalClassification,
 } from './vitals.js';
 export {
   GAUGE_KEYS,
-  GAUGE_SCALE,
   gaugeFill,
   gaugeValues,
   waterAlert,
   waterGauges,
-  type GaugeBand,
   type GaugeKey,
-  type GaugeTick,
-  type WaterAlert,
   type WaterGauge,
 } from './gauges.js';
 export {
@@ -47,11 +42,9 @@ export {
   CYCLED_PCT,
   type BacteriaReadout,
   type Colony,
-  type ConversionRates,
   type CycleProjection,
 } from './bacteria.js';
 export {
-  wasteInflow,
   wasteReadout,
   wasteSummary,
   type WasteReadout,

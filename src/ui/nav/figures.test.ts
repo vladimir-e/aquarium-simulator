@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { formatMeter, navFigures, type MicroMeter, type NavFigure } from './figures';
 import type { SectionId } from './sections';
+import { waterAlert, waterGauges } from '../run/index.js';
 import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
 import {
   applyAction,
@@ -96,10 +97,72 @@ describe('navFigures — Water', () => {
     expect(figures(cycled()).water.pill).toEqual({ text: 'NO₃ low', status: 'warn' });
   });
 
+  it('fills each toxin track against its own display scale', () => {
+    const state = tank();
+    // NH₃ runs 0–1 ppm, NO₂ 0–5, NO₃ 0–100, so each of these sits mid-track.
+    state.resources.ammonia = state.resources.water * 0.5;
+    state.resources.nitrite = state.resources.water * 2.5;
+    state.resources.nitrate = state.resources.water * 50;
+
+    const fills = (figures(state).water.meters ?? []).map((m) => m.fill);
+    expect(fills.slice(3)).toEqual([0.5, 0.5, 0.5]);
+  });
+
   it('drops the pill entirely when a cycled tank reads clean', () => {
     const state = cycled();
     state.resources.nitrate = state.resources.water * 12; // mid safe band
     expect(figures(state).water.pill).toBeNull();
+  });
+});
+
+/**
+ * The rail exists so the reader need not open the section — which only holds if
+ * the two never disagree. These compare the rail's own figures against the
+ * section's gauges on a tank pushed off every setpoint at once.
+ */
+describe('the rail carries the Water section’s own readings', () => {
+  /** Neutral, warn and alert all on screen at once, across all six readings. */
+  function offSetpoint(): SimulationState {
+    const state = cycled();
+    state.resources.temperature = 29;
+    state.resources.ph = 6.2;
+    state.resources.water = state.tank.capacity * 0.15;
+    state.resources.ammonia = state.resources.water * 0.4;
+    state.resources.nitrite = state.resources.water * 1.2;
+    state.resources.nitrate = state.resources.water * 30;
+    return state;
+  }
+
+  function gauges(state: SimulationState): ReturnType<typeof waterGauges> {
+    return waterGauges({ state, phConfig: DEFAULT_CONFIG.ph, history: [], units: 'metric' });
+  }
+
+  it('matches every micro-meter to its gauge on value, fill and status', () => {
+    const state = offSetpoint();
+    const meters = figures(state).water.meters ?? [];
+    const section = gauges(state);
+
+    expect(meters).toHaveLength(section.length);
+    section.forEach((gauge, i) => {
+      expect(meters[i].key).toBe(gauge.key);
+      expect(meters[i].value).toBe(gauge.value);
+      expect(meters[i].fill).toBe(gauge.fill);
+      expect(meters[i].status).toBe(gauge.status);
+    });
+  });
+
+  it('names the same reading in the rail pill as in the section header', () => {
+    const alerting = offSetpoint();
+    expect(figures(alerting).water.pill).toEqual(waterAlert(gauges(alerting), true));
+
+    // The level is the one reading whose rail caption ('lvl') is not its name,
+    // and it surfaces in the pill only when no toxin outranks it.
+    const low = cycled();
+    low.resources.water = low.tank.capacity * 0.15;
+    low.resources.nitrate = low.resources.water * 12;
+
+    expect(figures(low).water.pill).toEqual(waterAlert(gauges(low), true));
+    expect(figures(low).water.pill?.text).toBe('Level low');
   });
 });
 

@@ -73,13 +73,31 @@ export function wasteInflow(state: SimulationState, config: TunableConfig): Wast
   return { perHour, sources };
 }
 
+/** Sources the engine applies in the active tier, before the nitrogen cycle. */
+const BEFORE_CYCLE: WasteSourceKey[] = ['fish', 'plants'];
+
+/**
+ * The waste mineralisation works on this hour. Fish and plants shed in the
+ * active tier, so the passive nitrogen cycle already sees them; food decay and
+ * ambient waste are collected in the same passive pass and only arrive next hour.
+ */
+export function mineralisationBase(standing: number, inflow: WasteInflowReadout): number {
+  return inflow.sources
+    .filter((source) => BEFORE_CYCLE.includes(source.key))
+    .reduce((total, source) => total + source.gramsPerHour, standing);
+}
+
 export function wasteReadout(state: SimulationState, config: TunableConfig): WasteReadout {
   const r = state.resources;
   const q10 = getTemperatureFactor(r.temperature, config.decay);
+  const inflow = wasteInflow(state, config);
   return {
-    ...wasteInflow(state, config),
+    ...inflow,
     standing: r.waste,
-    mineralised: calculateWasteToAmmonia(r.waste, config.nitrogenCycle).wasteConsumed,
+    mineralised: calculateWasteToAmmonia(
+      mineralisationBase(r.waste, inflow),
+      config.nitrogenCycle
+    ).wasteConsumed,
     food: r.food,
     decayRate: config.decay.baseDecayRate * q10,
     q10,
