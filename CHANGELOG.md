@@ -11,6 +11,7 @@ Format: - **Feature name** (#PR) - One short sentence (under ~150 chars)
 
 ## Unreleased
 
+- **Flora & Scape section** - plants with per-stressor vitality breakdowns beside the algae, nutrients read against what the tank's own plants need, and the scape's surface contributions.
 - **Equipment section** - device list and inspector side by side, selection addressed as `/equipment/:deviceId`, plus a 24 h schedule band and a read-only biofilter entry.
 - **Water section** - six vertical gauges with engine-derived bands and 24 h traces, plus Bacteria and Waste cards that read the biofilter, the conversion rates, and a projected nitrite peak.
 - **Dashboard UI redesign** - index+stage shell replaces the Build/Run/Review modes: six routed sections, a live-figure index rail, and browser back between views.

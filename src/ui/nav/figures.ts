@@ -5,16 +5,10 @@
  * band. Pure; the rail renders whatever these return.
  */
 
-import {
-  PLANT_SPECIES_DATA,
-  getMaxPlants,
-  type LidType,
-  type SimulationState,
-} from '../../simulation/index.js';
+import { PLANT_SPECIES_DATA, type LidType, type SimulationState } from '../../simulation/index.js';
 import type { TunableConfig } from '../../simulation/config/index.js';
-import { bioload, buildDeviceList, equipmentSummary } from '../build/index.js';
+import { bioload, buildDeviceList, equipmentSummary, scapeSummary } from '../build/index.js';
 import {
-  allNutrientsDepleted,
   biofilterColonisation,
   CYCLED_PCT,
   classifyVital,
@@ -24,8 +18,9 @@ import {
   GAUGE_KEYS,
   gaugeFill,
   gaugeValues,
+  nutrientAlert,
   nutrientReadings,
-  scapeSummary,
+  plantsAndAlgae,
   waterAlert,
   type GaugeKey,
   type Status,
@@ -99,32 +94,21 @@ function equipmentFigure(state: SimulationState, config: TunableConfig): NavFigu
   };
 }
 
-function floraFigure(state: SimulationState): NavFigure {
-  const { plants, algae, resources, equipment, tank } = state;
-  const algaePct = Math.round(algae.mass);
-  const readings = nutrientReadings(resources, resources.water);
-  const depleted = readings.find((r) => r.state === 'depleted');
+function floraFigure(state: SimulationState, config: TunableConfig): NavFigure {
+  const { plants, equipment } = state;
   const worst = plants.reduce<(typeof plants)[number] | null>(
     (lowest, p) => (lowest === null || p.condition < lowest.condition ? p : lowest),
     null
   );
-
-  const pill: NavPill | null = allNutrientsDepleted(readings)
-    ? { text: 'no nutrients', status: 'warn' }
-    : depleted
-      ? { text: `${depleted.label} 0`, status: 'warn' }
-      : null;
 
   const second =
     worst && conditionStatus(worst.condition) !== 'ok'
       ? `${PLANT_SPECIES_DATA[worst.species].name} ${conditionWord(worst.condition)}`
       : scapeSummary(equipment.substrate.type, equipment.hardscape.items);
 
-  const algaeText = algaePct < 1 ? 'no algae' : `algae ${algaePct} %`;
-
   return {
-    pill,
-    lines: [`${plants.length} of ${getMaxPlants(tank.capacity)} plants · ${algaeText}`, second],
+    pill: nutrientAlert(nutrientReadings(state, config)),
+    lines: [plantsAndAlgae(state), second],
   };
 }
 
@@ -192,7 +176,7 @@ export function navFigures(input: NavFigureInput): Record<SectionId, NavFigure> 
   return {
     water: { pill: waterAlert(meters, cycled), lines: [], meters },
     equipment: equipmentFigure(state, config),
-    flora: floraFigure(state),
+    flora: floraFigure(state, config),
     livestock: livestockFigure(state, config),
     analytics: analyticsFigure(state, input),
     scenario: scenarioFigure(state, presetName, units),

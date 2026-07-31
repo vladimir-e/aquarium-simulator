@@ -110,7 +110,7 @@ describe('filter readings', () => {
     const readings = read('filter', off);
     expect(value(readings, 'Flow').value).toBe('none');
     expect(value(readings, 'Media surface').note).toBe('not colonised while off');
-    expect(deviceHint('filter', off)).toEqual({
+    expect(deviceHint('filter', off, DEFAULT_CONFIG)).toEqual({
       text: 'No biological filtration while the filter is off.',
       tone: 'muted',
     });
@@ -118,8 +118,8 @@ describe('filter readings', () => {
 
   it('warns when the filter is rated below the tank it is in', () => {
     const big = createSimulation({ tankCapacity: 400 });
-    expect(deviceHint('filter', big)?.tone).toBe('warn');
-    expect(deviceHint('filter', base)).toBeNull();
+    expect(deviceHint('filter', big, DEFAULT_CONFIG)?.tone).toBe('warn');
+    expect(deviceHint('filter', base, DEFAULT_CONFIG)).toBeNull();
   });
 });
 
@@ -353,7 +353,7 @@ describe('biofilter readings', () => {
   });
 
   it('has nothing to configure, and says so', () => {
-    expect(deviceHint('biofilter', base)?.text).toMatch(/nothing to set here/);
+    expect(deviceHint('biofilter', base, DEFAULT_CONFIG)?.text).toMatch(/nothing to set here/);
   });
 });
 
@@ -361,18 +361,21 @@ describe('deviceHint', () => {
   it('adds one sentence to the devices whose figures do not speak for themselves', () => {
     const ids = ['light', 'airPump', 'ato', 'co2Generator', 'powerhead', 'autoDoser'] as const;
     for (const id of ids) {
-      expect(deviceHint(id, base)).toEqual({ text: expect.stringMatching(/\.$/), tone: 'muted' });
+      expect(deviceHint(id, base, DEFAULT_CONFIG)).toEqual({
+        text: expect.stringMatching(/\.$/),
+        tone: 'muted',
+      });
     }
     // The heater reads itself out; the filter speaks only when it is undersized
     // or off, both covered above.
-    expect(deviceHint('heater', base)).toBeNull();
-    expect(deviceHint('filter', base)).toBeNull();
+    expect(deviceHint('heater', base, DEFAULT_CONFIG)).toBeNull();
+    expect(deviceHint('filter', base, DEFAULT_CONFIG)).toBeNull();
   });
 
   it('quotes the engine’s own rate for the devices that have one', () => {
-    expect(deviceHint('co2Generator', base)?.text).toBe('+5.0 mg/L/hr while injecting.');
-    expect(deviceHint('autoDoser', base)?.text).toBe(
-      'Each dose adds +2.5 NO3, +0.25 PO4, +2.0 K, +0.05 Fe ppm.'
+    expect(deviceHint('co2Generator', base, DEFAULT_CONFIG)?.text).toBe('+5.0 mg/L/hr while injecting.');
+    expect(deviceHint('autoDoser', base, DEFAULT_CONFIG)?.text).toBe(
+      'Each dose adds +2.5 NO₃ · +0.25 PO₄ · +2.0 K · +0.05 Fe ppm.'
     );
   });
 });

@@ -36,7 +36,6 @@ import {
 import {
   autoDoserUpdate,
   applyAutoDoserSettings,
-  formatDosePreview,
   shouldDose,
   type AutoDoser,
   DEFAULT_AUTO_DOSER,
@@ -71,7 +70,6 @@ export {
 export {
   autoDoserUpdate,
   applyAutoDoserSettings,
-  formatDosePreview,
   shouldDose,
   type AutoDoser,
   DEFAULT_AUTO_DOSER,

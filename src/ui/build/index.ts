@@ -37,9 +37,14 @@ export {
   GUIDELINE_G_PER_L,
 } from './stocking.js';
 export {
-  type SubstrateSurface,
-  substrateSurface,
+  HARDSCAPE_TYPES,
+  SUBSTRATE_NAME,
+  SUBSTRATE_TYPES,
   substrateConsequence,
+  type HardscapeRow,
+  hardscapeRows,
+  hardscapeSummary,
+  scapeSummary,
   type PlantOption,
   plantOptions,
 } from './scape.js';

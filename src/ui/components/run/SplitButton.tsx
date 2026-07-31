@@ -19,12 +19,14 @@ interface SplitButtonProps {
   variant?: 'primary' | 'secondary';
   disabled?: boolean;
   ariaLabel?: string;
+  /** Which way the menu opens: up from a footer, down from a header. */
+  opens?: 'up' | 'down';
 }
 
 /**
  * A pick-and-act control. As a menu (no `onMain`) every option runs its action
  * on click; as a split button the label re-runs the current action and the
- * caret opens the same options. The menu opens upward — these live in footers.
+ * caret opens the same options.
  */
 export function SplitButton({
   label,
@@ -33,6 +35,7 @@ export function SplitButton({
   variant = 'secondary',
   disabled = false,
   ariaLabel,
+  opens = 'up',
 }: SplitButtonProps): React.JSX.Element {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -102,7 +105,9 @@ export function SplitButton({
       {open && (
         <div
           role="menu"
-          className="absolute bottom-full left-0 z-20 mb-1 min-w-[9rem] overflow-hidden rounded-control border border-hairline bg-surface-2 py-1 shadow-[0_6px_20px_rgba(40,46,45,0.12)] dark:shadow-[0_8px_24px_rgba(0,0,0,0.45)]"
+          className={`absolute z-20 min-w-[9rem] overflow-hidden rounded-control border border-hairline bg-surface-2 py-1 shadow-[0_6px_20px_rgba(40,46,45,0.12)] dark:shadow-[0_8px_24px_rgba(0,0,0,0.45)] ${
+            opens === 'up' ? 'bottom-full left-0 mb-1' : 'right-0 top-full mt-1'
+          }`}
         >
           {options.map((option) => (
             <button

@@ -1,28 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { plantOptions, substrateConsequence, substrateSurface } from './scape';
-
-describe('substrateSurface', () => {
-  it('reports per-gallon and total surface for imperial units', () => {
-    // aqua_soil = 1200 cm²/L; ×3.785… ≈ 4542 cm²/gal; ×40 L = 48000 total.
-    expect(substrateSurface('aqua_soil', 40, 'imperial')).toEqual({
-      perUnit: 4542,
-      unitLabel: 'cm²/gal',
-      total: 48000,
-    });
-  });
-
-  it('reports per-liter surface for metric units', () => {
-    expect(substrateSurface('aqua_soil', 40, 'metric')).toEqual({
-      perUnit: 1200,
-      unitLabel: 'cm²/L',
-      total: 48000,
-    });
-  });
-
-  it('is zero for a bare bottom', () => {
-    expect(substrateSurface('none', 40, 'metric')).toMatchObject({ perUnit: 0, total: 0 });
-  });
-});
+import {
+  hardscapeRows,
+  hardscapeSummary,
+  plantOptions,
+  scapeSummary,
+  substrateConsequence,
+} from './scape';
 
 describe('substrateConsequence', () => {
   it('describes what each substrate can root', () => {
@@ -51,5 +34,34 @@ describe('plantOptions', () => {
     const byId = Object.fromEntries(plantOptions('sand').map((o) => [o.species, o.compatible]));
     expect(byId.amazon_sword).toBe(true);
     expect(byId.monte_carlo).toBe(false);
+  });
+
+  it('hints at the demand it brings, or at every substrate that would take it', () => {
+    const byId = Object.fromEntries(plantOptions('gravel').map((o) => [o.species, o.hint]));
+    expect(byId.java_fern).toBe('low demand');
+    expect(byId.amazon_sword).toBe('needs sand or aqua soil');
+    expect(byId.monte_carlo).toBe('needs aqua soil');
+  });
+});
+
+describe('hardscape', () => {
+  const items = [
+    { id: '1', type: 'neutral_rock' as const },
+    { id: '2', type: 'driftwood' as const },
+    { id: '3', type: 'driftwood' as const },
+  ];
+
+  it('gives each piece the engine’s surface and pH effect', () => {
+    expect(hardscapeRows(items)).toEqual([
+      { id: '1', name: 'Neutral Rock', surface: 400, effect: null },
+      { id: '2', name: 'Driftwood', surface: 650, effect: 'Lowers pH' },
+      { id: '3', name: 'Driftwood', surface: 650, effect: 'Lowers pH' },
+    ]);
+  });
+
+  it('collapses the summary by type with counts, behind the substrate', () => {
+    expect(hardscapeSummary(items)).toBe('rock + driftwood ×2');
+    expect(scapeSummary('aqua_soil', items)).toBe('Aqua Soil + rock + driftwood ×2');
+    expect(scapeSummary('aqua_soil', [])).toBe('Aqua Soil');
   });
 });

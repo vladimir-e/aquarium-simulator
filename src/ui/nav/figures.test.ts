@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { formatMeter, navFigures, type MicroMeter, type NavFigure } from './figures';
 import type { SectionId } from './sections';
-import { waterAlert, waterGauges } from '../run/index.js';
+import { nutrientAlert, nutrientReadings, waterAlert, waterGauges } from '../run/index.js';
 import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
 import {
   applyAction,
@@ -184,23 +184,42 @@ describe('navFigures — Equipment', () => {
 });
 
 describe('navFigures — Flora', () => {
+  /** A tank of one high-demand carpet, which the engine feeds on all four nutrients. */
+  function carpeted(): SimulationState {
+    const state = tank();
+    state.plants = [{ id: 'mc', species: 'monte_carlo', size: 50, condition: 90, surplus: 0 }];
+    return state;
+  }
+
   it('reads plants against tank capacity, and the scape when nothing ails', () => {
     const f = figures(tank()).flora;
     expect(f.lines[0]).toBe('0 of 31 plants · no algae');
     expect(f.lines[1]).toBe('Bare');
   });
 
-  it('names the depleted nutrient', () => {
-    const state = tank();
+  it('stays quiet about nutrients while nothing is planted to want them', () => {
+    expect(figures(tank()).flora.pill).toBeNull();
+  });
+
+  it('names the one deficiency a planted tank has', () => {
+    const state = carpeted();
     // Everything dosed but iron — the classic planted-tank deficiency.
-    state.resources.nitrate = state.resources.water * 12;
-    state.resources.phosphate = state.resources.water * 1;
+    state.resources.nitrate = state.resources.water * 20;
+    state.resources.phosphate = state.resources.water * 2;
     state.resources.potassium = state.resources.water * 10;
-    expect(figures(state).flora.pill).toEqual({ text: 'Fe 0', status: 'warn' });
+    expect(figures(state).flora.pill).toEqual({ text: 'Fe depleted', status: 'alert' });
   });
 
   it('says so once when nothing at all is dosed, rather than naming four blanks', () => {
-    expect(figures(tank()).flora.pill).toEqual({ text: 'no nutrients', status: 'warn' });
+    expect(figures(carpeted()).flora.pill).toEqual({ text: 'nothing dosed', status: 'alert' });
+  });
+
+  it('carries the same nutrient reading the section’s panel does', () => {
+    const state = carpeted();
+    state.resources.nitrate = state.resources.water * 20;
+    expect(figures(state).flora.pill).toEqual(
+      nutrientAlert(nutrientReadings(state, DEFAULT_CONFIG))
+    );
   });
 
   it('gives the second line to the worst plant when one is ailing', () => {
@@ -212,7 +231,8 @@ describe('navFigures — Flora', () => {
   it('keeps the scape on the second line while every plant is fine', () => {
     const state = tank();
     state.plants = [plant(90), plant(75)];
-    expect(figures(state).flora.lines[1]).toBe('Bare');
+    state.equipment.substrate.type = 'sand';
+    expect(figures(state).flora.lines[1]).toBe('Sand');
   });
 
   it('prints the algae reading once it registers', () => {

@@ -20,10 +20,9 @@ import {
 import { getLightOutput } from '../../simulation/equipment/light.js';
 import { WATER_LEVEL_THRESHOLD } from '../../simulation/equipment/ato.js';
 import { formatCo2Rate } from '../../simulation/equipment/co2-generator.js';
-import { formatDosePreview } from '../../simulation/equipment/auto-doser.js';
 import { SurfaceResource } from '../../simulation/resources/index.js';
 import type { TunableConfig } from '../../simulation/config/index.js';
-import { bacteriaReadout, CYCLED_PCT } from '../run/index.js';
+import { bacteriaReadout, CYCLED_PCT, doseDeltas, formatDose } from '../run/index.js';
 import {
   formatFlowRate,
   formatTemperature,
@@ -287,7 +286,11 @@ export interface DeviceHint {
 }
 
 /** The one sentence worth saying about a device beyond its own figures. */
-export function deviceHint(id: EquipmentId, state: SimulationState): DeviceHint | null {
+export function deviceHint(
+  id: EquipmentId,
+  state: SimulationState,
+  config: TunableConfig
+): DeviceHint | null {
   const { equipment, tank, resources } = state;
   const muted = (text: string): DeviceHint => ({ text, tone: 'muted' });
 
@@ -315,7 +318,13 @@ export function deviceHint(id: EquipmentId, state: SimulationState): DeviceHint 
       return muted('Extra circulation and gas exchange on top of the filter.');
     case 'autoDoser':
       return muted(
-        `Each dose adds ${formatDosePreview(equipment.autoDoser.doseAmountMl, resources.water)}.`
+        `Each dose adds ${formatDose(
+          doseDeltas(
+            equipment.autoDoser.doseAmountMl,
+            resources.water,
+            config.nutrients.fertilizerFormula
+          )
+        )} ppm.`
       );
     case 'biofilter':
       return muted(
