@@ -4,7 +4,7 @@ import { ChromeRow } from './ChromeRow';
 import { ThemeProvider } from '../../hooks/useTheme';
 import { ConfigProvider } from '../../hooks/useConfig';
 import { PersistenceProvider } from '../../persistence/index.js';
-import { createLog, type LogEntry } from '../../../simulation/index.js';
+import { createLog } from '../../../simulation/index.js';
 import { stubMatchMedia, type MatchMediaStub } from '../../test/matchMedia';
 
 let media: MatchMediaStub;
@@ -19,7 +19,7 @@ afterEach(() => {
   cleanup();
 });
 
-function renderRow(logs: LogEntry[] = []): {
+function renderRow(overrides: Partial<Parameters<typeof ChromeRow>[0]> = {}): {
   onPresetChange: ReturnType<typeof vi.fn>;
   onOpenIndex: ReturnType<typeof vi.fn>;
 } {
@@ -30,10 +30,11 @@ function renderRow(logs: LogEntry[] = []): {
       <PersistenceProvider>
         <ConfigProvider>
           <ChromeRow
-            logs={logs}
+            logs={[]}
             currentPreset="planted"
             onPresetChange={onPresetChange}
             onOpenIndex={onOpenIndex}
+            {...overrides}
           />
         </ConfigProvider>
       </PersistenceProvider>
@@ -48,10 +49,12 @@ describe('ChromeRow', () => {
     expect(screen.getByText('No events yet.')).toBeTruthy();
 
     cleanup();
-    renderRow([
-      createLog(10, 'simulation', 'info', 'Tank filled'),
-      createLog(36, 'nitrogen-cycle', 'warning', 'High ammonia level: 0.109 ppm'),
-    ]);
+    renderRow({
+      logs: [
+        createLog(10, 'simulation', 'info', 'Tank filled'),
+        createLog(36, 'nitrogen-cycle', 'warning', 'High ammonia level: 0.109 ppm'),
+      ],
+    });
     expect(screen.getByText('High ammonia level: 0.109 ppm')).toBeTruthy();
     expect(screen.getByText('T36')).toBeTruthy();
     expect(screen.queryByText('Tank filled')).toBeNull();
@@ -59,9 +62,8 @@ describe('ChromeRow', () => {
 
   it('carries no verbs — husbandry belongs to the rail, construction to the sections', () => {
     renderRow();
-    for (const verb of [/feed/i, /water change/i, /top-off/i, /dose/i, /trim/i, /scrub/i]) {
-      expect(screen.queryByRole('button', { name: verb })).toBeNull();
-    }
+    const buttons = screen.getAllByRole('button').map((b) => b.getAttribute('aria-label'));
+    expect(buttons).toEqual(['Open index', expect.stringContaining('theme'), 'Debug constants']);
   });
 
   it('switches scenario preset', () => {
@@ -72,7 +74,7 @@ describe('ChromeRow', () => {
     expect(onPresetChange).toHaveBeenCalledWith('community');
   });
 
-  it('opens the index on mobile, and links out to the source', () => {
+  it('opens the index, and links out to the source', () => {
     const { onOpenIndex } = renderRow();
 
     fireEvent.click(screen.getByRole('button', { name: 'Open index' }));
@@ -81,5 +83,10 @@ describe('ChromeRow', () => {
     const source = screen.getByRole('link', { name: 'Source on GitHub' });
     expect(source.getAttribute('href')).toContain('github.com');
     expect(source.getAttribute('rel')).toContain('noreferrer');
+  });
+
+  it('drops the Menu button when the rail stands on its own', () => {
+    renderRow({ onOpenIndex: null });
+    expect(screen.queryByRole('button', { name: 'Open index' })).toBeNull();
   });
 });

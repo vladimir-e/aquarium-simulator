@@ -9,14 +9,15 @@ import { UnitsProvider } from '../../hooks/useUnits';
 import { ConfigProvider, useConfig } from '../../hooks/useConfig';
 import { PersistenceProvider } from '../../persistence/index.js';
 import { useSimulation } from '../../hooks/useSimulation';
-import { RAIL_QUERY } from '../../hooks/useMediaQuery';
+import { MOBILE_QUERY, RAIL_QUERY } from '../../hooks/useMediaQuery';
+import { FOCUSABLE } from '../../hooks/useFocusTrap';
 import { stubMatchMedia, type MatchMediaStub } from '../../test/matchMedia';
 
 let media: MatchMediaStub;
 
 // Phone: the rail has nowhere to stand, so it lives behind the Menu button.
 beforeEach(() => {
-  media = stubMatchMedia((query) => query !== RAIL_QUERY);
+  media = stubMatchMedia((query) => query === MOBILE_QUERY);
 });
 
 afterEach(() => {
@@ -63,6 +64,11 @@ function openDrawer(): HTMLElement {
   return screen.getByRole('dialog', { name: 'Index' });
 }
 
+/** The dismiss overlay is presentational, so it answers to no role. */
+function scrim(drawer: HTMLElement): HTMLElement {
+  return drawer.previousElementSibling as HTMLElement;
+}
+
 describe('AppShell — the index drawer', () => {
   it('stays shut until the Menu button asks for it', () => {
     renderShell();
@@ -71,20 +77,18 @@ describe('AppShell — the index drawer', () => {
     expect(openDrawer()).toBeTruthy();
   });
 
-  it('is a modal that takes focus, so Tab cannot walk the chrome row behind it', () => {
+  it('is a modal that opens on its own close button, so its name is announced first', () => {
     renderShell();
-    const opener = screen.getByRole('button', { name: 'Open index' });
     const drawer = openDrawer();
 
     expect(drawer.getAttribute('aria-modal')).toBe('true');
-    expect(drawer.contains(document.activeElement)).toBe(true);
-    expect(document.activeElement).not.toBe(opener);
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Close index' }));
   });
 
   it('wraps Tab at both edges of the panel', () => {
     renderShell();
     const drawer = openDrawer();
-    const stops = Array.from(drawer.querySelectorAll<HTMLElement>('a, button:not([disabled])'));
+    const stops = Array.from(drawer.querySelectorAll<HTMLElement>(FOCUSABLE));
     const [first, last] = [stops[0], stops[stops.length - 1]];
 
     last.focus();
@@ -106,11 +110,19 @@ describe('AppShell — the index drawer', () => {
     expect(document.activeElement).toBe(opener);
   });
 
-  it('closes on the scrim', () => {
+  it('closes on its own close button', () => {
     renderShell();
     openDrawer();
 
     fireEvent.click(screen.getByRole('button', { name: 'Close index' }));
+
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('closes on the scrim', () => {
+    renderShell();
+
+    fireEvent.click(scrim(openDrawer()));
 
     expect(screen.queryByRole('dialog')).toBeNull();
   });
@@ -125,14 +137,17 @@ describe('AppShell — the index drawer', () => {
     expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Scenario');
   });
 
-  it('closes when the viewport grows enough for the rail to stand on its own', () => {
+  it('hands the index to the standing rail once the viewport grows, mounting it once either way', () => {
     renderShell();
-    openDrawer();
-    expect(screen.getAllByRole('navigation', { name: 'Sections' })).toHaveLength(2);
+    const drawer = openDrawer();
+    // getByRole throws on a second match: the index exists exactly once, and
+    // while the drawer is up it lives inside it.
+    expect(drawer.contains(screen.getByRole('navigation', { name: 'Sections' }))).toBe(true);
 
     act(() => media.set((query) => query === RAIL_QUERY));
 
     expect(screen.queryByRole('dialog')).toBeNull();
-    expect(screen.getAllByRole('navigation', { name: 'Sections' })).toHaveLength(1);
+    expect(screen.getByRole('navigation', { name: 'Sections' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Open index' })).toBeNull();
   });
 });

@@ -9,7 +9,6 @@ import {
   type Plant,
   type SimulationState,
 } from '../../simulation/index.js';
-import { buildDeviceList } from '../build';
 
 function tank(overrides: Partial<SimulationState> = {}): SimulationState {
   return { ...createSimulation({ tankCapacity: 200 }), ...overrides };
@@ -115,8 +114,8 @@ describe('navFigures — Equipment', () => {
     state.equipment.powerhead.enabled = true;
 
     const f = figures(state).equipment;
-    expect(f.dots).toEqual(buildDeviceList(state.equipment).map((d) => d.on));
-    expect(f.dots?.[0]).toBe(false); // filter leads the list
+    // filter · heater · light · air pump · ATO · CO₂ · powerhead · auto doser
+    expect(f.dots).toEqual([false, true, true, false, false, false, true, false]);
     expect(f.lines[0]).toContain(`${f.dots?.filter(Boolean).length} of 8 on`);
   });
 });
@@ -195,7 +194,6 @@ describe('navFigures — Livestock', () => {
 });
 
 describe('navFigures — Analytics and Scenario', () => {
-
   it('says so plainly when there is no history to read', () => {
     expect(figures(tank()).analytics.lines).toEqual(['0 ticks', 'no history yet']);
   });

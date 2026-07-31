@@ -9,10 +9,10 @@ import { createSimulation, createLog, type SimulationState } from '../../simulat
 import type { useSimulation } from '../hooks/useSimulation';
 import { stubMatchMedia, type MatchMediaStub } from '../test/matchMedia';
 
-let media: MatchMediaStub | undefined;
+let media: MatchMediaStub;
 
 afterEach(() => {
-  media?.restore();
+  media.restore();
   cleanup();
 });
 

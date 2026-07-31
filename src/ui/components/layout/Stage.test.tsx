@@ -22,8 +22,9 @@ describe('Stage', () => {
     expect(screen.getByText('content')).toBeTruthy();
   });
 
-  it('leaves the header out of the way when a section has neither meta nor controls', () => {
+  it('leaves no empty slots in the header when a section has neither meta nor controls', () => {
     render(<Stage title="Water">gauges</Stage>);
-    expect(screen.queryByRole('button')).toBeNull();
+    const header = screen.getByRole('heading', { level: 1 }).parentElement;
+    expect(header?.children).toHaveLength(1);
   });
 });

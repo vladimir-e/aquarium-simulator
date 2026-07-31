@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, fireEvent, cleanup, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { IndexRail } from './IndexRail';
@@ -8,16 +8,8 @@ import { navFigures, SECTIONS, type NavFigure, type SectionId } from '../../nav'
 import { buildDeviceList } from '../../build';
 import { DEFAULT_CONFIG } from '../../../simulation/config/index.js';
 import { applyAction, createSimulation, type SimulationState } from '../../../simulation/index.js';
-import { stubMatchMedia, type MatchMediaStub } from '../../test/matchMedia';
-
-let media: MatchMediaStub;
-
-beforeEach(() => {
-  media = stubMatchMedia(false);
-});
 
 afterEach(() => {
-  media.restore();
   globalThis.localStorage.clear();
   cleanup();
 });

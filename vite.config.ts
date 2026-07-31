@@ -8,7 +8,7 @@ export default defineConfig({
   server: {
     host: true,
     port: 3000,
-    allowedHosts: ['macbook.local'],
+    allowedHosts: ['macbook.local', 'clarity.local'],
   },
   build: {
     outDir: '../../dist-ui',

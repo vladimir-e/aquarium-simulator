@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { X } from 'lucide-react';
 import { Outlet } from 'react-router-dom';
 import type { TunableConfig } from '../../../simulation/config/index.js';
 import type { useSimulation } from '../../hooks/useSimulation';
@@ -25,6 +26,7 @@ export function AppShell({ sim, config }: AppShellProps): React.JSX.Element {
   const { unitSystem } = useUnits();
   const railStands = useMediaQuery(RAIL_QUERY);
   const [indexOpen, setIndexOpen] = useState(false);
+  const openIndex = useCallback(() => setIndexOpen(true), []);
   const closeIndex = useCallback(() => setIndexOpen(false), []);
   const drawerRef = useFocusTrap(indexOpen);
 
@@ -73,30 +75,32 @@ export function AppShell({ sim, config }: AppShellProps): React.JSX.Element {
         logs={sim.state.logs}
         currentPreset={sim.currentPreset}
         onPresetChange={sim.loadPreset}
-        onOpenIndex={() => setIndexOpen(true)}
+        onOpenIndex={railStands ? null : openIndex}
       />
 
       <div className="flex min-h-0 flex-1 gap-3 p-3">
-        <div className="hidden min-h-0 md:flex">{rail}</div>
+        {railStands && rail}
         <Outlet />
       </div>
 
       {indexOpen && (
-        <div className="fixed inset-0 z-40 md:hidden">
-          <button
-            type="button"
-            aria-label="Close index"
-            tabIndex={-1}
-            onClick={closeIndex}
-            className="absolute inset-0 bg-ink/30"
-          />
+        <div className="fixed inset-0 z-40">
+          <div aria-hidden onClick={closeIndex} className="absolute inset-0 bg-ink/30" />
           <div
             ref={drawerRef}
             role="dialog"
             aria-modal="true"
             aria-label="Index"
-            className="absolute inset-y-0 left-0 flex flex-col border-r border-hairline-2 bg-surface p-3 shadow-2xl"
+            className="absolute inset-y-0 left-0 flex flex-col gap-3 border-r border-hairline-2 bg-surface p-3 shadow-2xl"
           >
+            <button
+              type="button"
+              aria-label="Close index"
+              onClick={closeIndex}
+              className="flex h-11 w-11 shrink-0 items-center justify-center self-end rounded-control border border-hairline text-ink-2 transition-colors hover:border-hairline-2 hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
+            >
+              <X className="h-4 w-4" />
+            </button>
             {rail}
           </div>
         </div>

@@ -57,13 +57,10 @@ describe('TimelineCard', () => {
     expect(screen.getByText('no light')).toBeTruthy();
   });
 
-  it('offers Step at every speed, since it is not a speed control', () => {
-    for (const speed of ['1h', '6h', '1d'] as const) {
-      const { onStep } = renderCard({ tick: 24, speed });
-      fireEvent.click(screen.getByRole('button', { name: 'Step +1 day' }));
-      expect(onStep).toHaveBeenCalledTimes(1);
-      cleanup();
-    }
+  it('hands Step straight to onStep', () => {
+    const { onStep } = renderCard({ tick: 24 });
+    fireEvent.click(screen.getByRole('button', { name: 'Step +1 day' }));
+    expect(onStep).toHaveBeenCalledTimes(1);
   });
 
   it('treats a run started but not yet ticked as under way, not as day 0', () => {

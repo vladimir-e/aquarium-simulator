@@ -40,7 +40,8 @@ interface ChromeRowProps {
   logs: LogEntry[];
   currentPreset: PresetId;
   onPresetChange: (id: PresetId) => void;
-  onOpenIndex: () => void;
+  /** Null once the rail stands beside the stage — there is no drawer to open. */
+  onOpenIndex: (() => void) | null;
 }
 
 /**
@@ -58,9 +59,11 @@ export function ChromeRow({
 
   return (
     <header className="flex h-14 shrink-0 items-center gap-3 border-b border-hairline-2 bg-surface px-3">
-      <button type="button" onClick={onOpenIndex} aria-label="Open index" className={`${UTILITY} md:hidden`}>
-        <Menu className="h-4 w-4" />
-      </button>
+      {onOpenIndex && (
+        <button type="button" onClick={onOpenIndex} aria-label="Open index" className={UTILITY}>
+          <Menu className="h-4 w-4" />
+        </button>
+      )}
 
       <span className="shrink-0 text-[15px] font-semibold tracking-[0.05em] text-accent">AQ·SIM</span>
 
