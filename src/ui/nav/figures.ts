@@ -10,13 +10,14 @@ import type { TunableConfig } from '../../simulation/config/index.js';
 import { bioload, buildDeviceList, equipmentSummary, scapeSummary } from '../build/index.js';
 import {
   ailingPlants,
+  bandStatus,
   biofilterColonisation,
   CYCLED_PCT,
   classifyVital,
-  countHungry,
   GAUGE_KEYS,
   gaugeFill,
   gaugeValues,
+  hungerOf,
   nutrientAlert,
   nutrientReadings,
   plantRows,
@@ -109,11 +110,11 @@ function floraFigure(state: SimulationState, config: TunableConfig): NavFigure {
 }
 
 function livestockFigure(state: SimulationState, config: TunableConfig): NavFigure {
-  const hungry = countHungry(state.fish, config.livestock);
+  const hunger = hungerOf(state.fish, config.livestock);
   const load = bioload(state.fish, state.tank.capacity);
 
   return {
-    pill: hungry > 0 ? { text: `${hungry} hungry`, status: 'warn' } : null,
+    pill: hunger ? { text: `${hunger.count} hungry`, status: bandStatus(hunger.band) } : null,
     lines: [rosterSummary(state), `bioload ${load.ratio.toFixed(1)}× vs guideline`],
   };
 }

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useId, useRef, useState } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { controlClasses } from './elements';
 
@@ -42,6 +42,7 @@ export function SplitButton({
 }: SplitButtonProps): React.JSX.Element {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
+  const noteId = useId();
 
   useEffect(() => {
     if (!open) return;
@@ -107,28 +108,34 @@ export function SplitButton({
 
       {open && (
         <div
-          role="menu"
           className={`absolute z-20 min-w-[9rem] overflow-hidden rounded-control border border-hairline bg-surface-2 py-1 shadow-[0_6px_20px_rgba(40,46,45,0.12)] dark:shadow-[0_8px_24px_rgba(0,0,0,0.45)] ${
             opens === 'up' ? 'bottom-full left-0 mb-1' : 'right-0 top-full mt-1'
           }`}
         >
-          {options.map((option) => (
-            <button
-              key={option.key}
-              type="button"
-              role="menuitem"
-              onClick={() => runOption(option)}
-              disabled={option.disabled}
-              className="flex w-full items-center justify-between gap-6 px-3 py-2 text-left text-[13px] text-ink transition-colors hover:bg-surface disabled:pointer-events-none disabled:opacity-40"
-            >
-              <span>{option.label}</span>
-              {option.hint != null && (
-                <span className="font-mono text-[12px] tabular-nums text-ink-3">{option.hint}</span>
-              )}
-            </button>
-          ))}
+          <div role="menu" aria-describedby={note ? noteId : undefined}>
+            {options.map((option) => (
+              <button
+                key={option.key}
+                type="button"
+                role="menuitem"
+                onClick={() => runOption(option)}
+                disabled={option.disabled}
+                className="flex w-full items-center justify-between gap-6 px-3 py-2 text-left text-[13px] text-ink transition-colors hover:bg-surface disabled:pointer-events-none disabled:opacity-40"
+              >
+                <span>{option.label}</span>
+                {option.hint != null && (
+                  <span className="font-mono text-[12px] tabular-nums text-ink-3">
+                    {option.hint}
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
           {note && (
-            <p className="mt-1 max-w-[19rem] border-t border-hairline px-3 pb-1 pt-2 text-[11px] leading-snug text-ink-3">
+            <p
+              id={noteId}
+              className="mt-1 max-w-[19rem] border-t border-hairline px-3 pb-1 pt-2 text-[11px] leading-snug text-ink-3"
+            >
               {note}
             </p>
           )}

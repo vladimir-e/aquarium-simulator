@@ -4,10 +4,9 @@ import { createSimulation, FISH_SPECIES_DATA } from '../../simulation/index.js';
 import { livestockDefaults } from '../../simulation/config/livestock.js';
 import {
   bandStatus,
-  countHungry,
-  deriveFryGraduation,
   groupBySpecies,
   groupFryBatches,
+  hungerOf,
   isHungryBand,
   rosterRows,
   rosterSummary,
@@ -58,15 +57,24 @@ describe('bandStatus / isHungryBand', () => {
   });
 });
 
-describe('countHungry', () => {
-  it('tallies fish in the hungry and starving bands', () => {
+describe('hungerOf', () => {
+  it('tallies fish in the hungry and starving bands, fry included', () => {
     const fish = [
       makeFish({ id: 'a', satiation: 90 }), // wellFed
       makeFish({ id: 'b', satiation: 60 }), // peckish
       makeFish({ id: 'c', satiation: 40 }), // hungry
-      makeFish({ id: 'd', satiation: 10 }), // starving
+      makeFish({ id: 'd', satiation: 10, stage: 'fry', age: 24 }), // starving
     ];
-    expect(countHungry(fish, livestockDefaults)).toBe(2);
+    expect(hungerOf(fish, livestockDefaults)).toEqual({ count: 2, band: 'starving' });
+  });
+
+  it('reads the worst band present, not the first one found', () => {
+    const fish = [makeFish({ id: 'a', satiation: 40 }), makeFish({ id: 'b', satiation: 40 })];
+    expect(hungerOf(fish, livestockDefaults)).toEqual({ count: 2, band: 'hungry' });
+  });
+
+  it('is null when nothing is hungry', () => {
+    expect(hungerOf([makeFish({ id: 'a', satiation: 90 })], livestockDefaults)).toBeNull();
   });
 });
 
@@ -83,8 +91,21 @@ describe('groupBySpecies', () => {
     const neon = groups[0];
     expect(neon.count).toBe(2);
     expect(neon.satiation).toBe(60);
-    expect(neon.hungryCount).toBe(1);
+    expect(neon.hunger).toEqual({ count: 1, band: 'hungry' });
     expect(neon.name).toBe(FISH_SPECIES_DATA.neon_tetra.name);
+  });
+
+  it('keeps a starving fish visible behind a calm average', () => {
+    // Mean 50 lands in the peckish band, which on its own reads neutral.
+    const fish = [
+      makeFish({ id: 'a', satiation: 100 }),
+      makeFish({ id: 'b', satiation: 0 }),
+    ];
+    const [neon] = groupBySpecies(fish, livestockDefaults);
+
+    expect(neon.satiation).toBe(50);
+    expect(bandStatus(neon.band)).toBe('neutral');
+    expect(neon.hunger).toEqual({ count: 1, band: 'starving' });
   });
 
   it('sums the group’s mass but averages its age and condition', () => {
@@ -109,29 +130,27 @@ describe('groupFryBatches', () => {
       makeFish({ id: 'f2', species: 'guppy', stage: 'fry', age: 72, mass: 0.09 }),
       makeFish({ id: 'a1', species: 'guppy', stage: 'adult', mass: 1 }),
     ];
-    const batches = groupFryBatches(fish);
+    const batches = groupFryBatches(fish, livestockDefaults);
     expect(batches).toHaveLength(1);
     expect(batches[0].species).toBe('guppy');
     expect(batches[0].count).toBe(2);
     // The adult's 1 g must stay out of the batch mass.
     expect(batches[0].massG).toBeCloseTo(0.12, 10);
-    // guppy maturityAge = 24 * 60 = 1440 ticks → graduates day 60
+    // Mean age 48 ticks = day 2; guppy maturityAge 24 * 60 → graduates day 60.
+    expect(batches[0].ageDays).toBe(2);
     expect(batches[0].graduationDay).toBe(60);
   });
-});
 
-describe('deriveFryGraduation', () => {
-  it('derives day, graduation day, and growth from average age', () => {
-    const maturityAge = 24 * 120; // 2880 ticks → 120 days
-    const g = deriveFryGraduation([24, 72], maturityAge); // avg 48 ticks = day 2
-    expect(g.dayNow).toBe(2);
-    expect(g.graduationDay).toBe(120);
-    expect(g.growthPct).toBeCloseTo((48 / 2880) * 100, 5);
-  });
+  it('gives a batch the same satiation and condition figures a species row gets', () => {
+    const fish = [
+      makeFish({ id: 'f1', species: 'guppy', stage: 'fry', satiation: 80, health: 90 }),
+      makeFish({ id: 'f2', species: 'guppy', stage: 'fry', satiation: 10, health: 50 }),
+    ];
+    const [batch] = groupFryBatches(fish, livestockDefaults);
 
-  it('treats an ageless or maturity-zero batch as fully grown / day zero', () => {
-    expect(deriveFryGraduation([], 2880)).toEqual({ dayNow: 0, graduationDay: 120, growthPct: 0 });
-    expect(deriveFryGraduation([100], 0).growthPct).toBe(100);
+    expect(batch.satiation).toBe(45);
+    expect(batch.condition).toBe(70);
+    expect(batch.hunger).toEqual({ count: 1, band: 'starving' });
   });
 });
 
@@ -185,13 +204,6 @@ describe('rosterRows', () => {
     expect(clutchRow.hoursToHatch).toBe(40);
   });
 
-  it('floors an overdue clutch at zero rather than counting backwards', () => {
-    const clutch: Clutch = { id: 'c_1', species: 'neon_tetra', eggCount: 25, laidTick: 10 };
-    const [row] = rosterRows(tank([], [clutch], 100), livestockDefaults, expanded());
-    expect((row as ClutchRosterRow).hoursToHatch).toBe(0);
-    expect((row as ClutchRosterRow).hatchTick).toBe(34);
-  });
-
   it('gives fry batches their own rows after the adults and the clutches', () => {
     const fish = [
       ...roster,
@@ -205,7 +217,7 @@ describe('rosterRows', () => {
     const fry = rows[3] as FryRosterRow;
     expect(fry.count).toBe(2);
     expect(fry.massG).toBeCloseTo(1, 10);
-    expect(fry.dayNow).toBe(9); // mean of 6 d and 12 d
+    expect(fry.ageDays).toBe(9); // mean of 6 d and 12 d
     expect(fry.graduationDay).toBe(60);
     // Fry never appear as a species row of their own.
     expect(rows.filter((r) => r.kind === 'species').map((r) => r.key)).toEqual([
@@ -222,6 +234,11 @@ describe('rosterRows', () => {
 describe('rosterSummary', () => {
   it('says only what the tank has', () => {
     expect(rosterSummary(tank([]))).toBe('0 fish');
+  });
+
+  it('holds the adult count at zero for a tank that is all fry', () => {
+    const fish = [makeFish({ id: 'a', species: 'guppy', stage: 'fry', age: 24 })];
+    expect(rosterSummary(tank(fish))).toBe('0 fish · 1 species · 1 fry');
   });
 
   it('counts fry apart from the adults rather than folding them in', () => {

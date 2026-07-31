@@ -19,11 +19,10 @@ import { getVolumeUnit, toInternalVolume, type UnitSystem } from '../utils/units
  * (the tank can hold far more solid fish than water) — the point is to warn at
  * stocking time, before the nitrogen cycle reacts hours later.
  *
- * Anchored to the 150 L "Balanced Community" preset stocked sensibly — a
- * 40-gallon community of ~72 g of adult fish (12 neon tetra 6 g + 8 corydoras
- * 32 g + 4 guppy 4 g + 2 angelfish 30 g). That's 72 g / 150 L = 0.48 g/L, which
- * should read as "well stocked, not maxed" (~0.8×). Solving 0.48 / 0.8 gives
- * the 0.6 g/L guideline capacity below.
+ * The engine has no stocking-density mechanic to calibrate against, so this is
+ * a conventional hobby figure chosen for this UI rather than a measured one.
+ * For scale: a 150 L community of ~72 g of adult fish reads 0.48 g/L — 0.8× the
+ * guideline, "well stocked, not maxed".
  */
 export const GUIDELINE_G_PER_L = 0.6;
 

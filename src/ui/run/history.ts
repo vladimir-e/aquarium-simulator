@@ -6,6 +6,7 @@
 
 import type { SimulationState } from '../../simulation/index.js';
 import { getPpm } from '../../simulation/resources/index.js';
+import { countFry } from './livestock.js';
 
 export const RUN_HISTORY_CAP = 720; // 30 days of hourly ticks
 
@@ -20,7 +21,9 @@ export interface RunSnapshot {
   temperature: number;
   /** Water level as a percentage of tank capacity. */
   waterPct: number;
+  /** Adults only — fry are counted apart, as the roster counts them. */
   fishCount: number;
+  fryCount: number;
   plantAvgSize: number;
   algaeMass: number;
   food: number;
@@ -34,6 +37,7 @@ function average(values: number[]): number {
 export function snapshotFromState(state: SimulationState): RunSnapshot {
   const r = state.resources;
   const capacity = state.tank.capacity;
+  const fryCount = countFry(state.fish);
   return {
     tick: state.tick,
     ammonia: getPpm(r.ammonia, r.water),
@@ -44,7 +48,8 @@ export function snapshotFromState(state: SimulationState): RunSnapshot {
     co2: r.co2,
     temperature: r.temperature,
     waterPct: capacity > 0 ? (r.water / capacity) * 100 : 0,
-    fishCount: state.fish.length,
+    fishCount: state.fish.length - fryCount,
+    fryCount,
     plantAvgSize: average(state.plants.map((p) => p.size)),
     algaeMass: state.algae.mass,
     food: r.food,

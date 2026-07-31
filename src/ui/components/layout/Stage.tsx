@@ -5,11 +5,13 @@ interface StageProps {
   meta?: React.ReactNode;
   /** Section-owned controls — construction verbs, view switches. */
   actions?: React.ReactNode;
+  /** The section fills the stage exactly and owns whatever scrolls inside it. */
+  fills?: boolean;
   children: React.ReactNode;
 }
 
 /** The routed surface: one section at a time, owning the whole right-hand side. */
-export function Stage({ title, meta, actions, children }: StageProps): React.JSX.Element {
+export function Stage({ title, meta, actions, fills, children }: StageProps): React.JSX.Element {
   return (
     <main className="flex min-w-0 flex-1 flex-col overflow-hidden rounded-card border border-hairline bg-surface">
       <div className="flex min-h-[52px] shrink-0 items-center gap-2.5 border-b border-hairline px-3.5">
@@ -17,7 +19,9 @@ export function Stage({ title, meta, actions, children }: StageProps): React.JSX
         {meta && <span className="truncate text-[12.5px] text-ink-3">{meta}</span>}
         {actions && <div className="ml-auto flex shrink-0 items-center gap-2">{actions}</div>}
       </div>
-      <div className="min-h-0 flex-1 overflow-y-auto p-3">{children}</div>
+      <div className={`min-h-0 flex-1 p-3 ${fills ? 'overflow-hidden' : 'overflow-y-auto'}`}>
+        {children}
+      </div>
     </main>
   );
 }

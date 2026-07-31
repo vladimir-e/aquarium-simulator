@@ -11,7 +11,7 @@ Format: - **Feature name** (#PR) - One short sentence (under ~150 chars)
 
 ## Unreleased
 
-- **Livestock section** - the roster as a real table: species rows expanding into individuals, clutches and fry batches as first-class rows, a sticky header over the only scroll in the app, and the bioload guideline pinned to the foot.
+- **Livestock section** - the roster as a table: species rows expand into individuals, clutches and fry get their own rows, bioload pinned to the foot.
 - **Flora & Scape section** - plants with per-stressor vitality breakdowns beside the algae, nutrients read against what the tank's own plants need, and the scape's surface contributions.
 - **Equipment section** - device list and inspector side by side, selection addressed as `/equipment/:deviceId`, plus a 24 h schedule band and a read-only biofilter entry.
 - **Water section** - six vertical gauges with engine-derived bands and 24 h traces, plus Bacteria and Waste cards that read the biofilter, the conversion rates, and a projected nitrite peak.

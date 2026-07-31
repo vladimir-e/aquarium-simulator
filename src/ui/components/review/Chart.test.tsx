@@ -34,6 +34,7 @@ function snap(tick: number, ammonia: number): RunSnapshot {
     temperature: 25,
     waterPct: 100,
     fishCount: 0,
+    fryCount: 0,
     plantAvgSize: 0,
     algaeMass: 0,
     food: 0,

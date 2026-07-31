@@ -115,28 +115,103 @@ describe('LivestockSection', () => {
     };
     renderRoster(tank([], [clutch], 1622));
 
-    const row = screen.getByText('Angelfish clutch').closest('tr')!;
+    const row = screen.getByText(/Angelfish clutch/).closest('tr')!;
     expect(within(row).getByText('24 eggs')).toBeTruthy();
-    expect(within(row).getByText('laid T1602')).toBeTruthy();
     expect(within(row).getByText('hatches T1662 · in 40 h')).toBeTruthy();
+    // Eggs have no mass, age or satiation — the row leaves those columns alone.
+    expect(within(row).queryByText(/ g$/)).toBeNull();
+    expect(within(row).queryByText(/%/)).toBeNull();
   });
 
-  it('gives a fry batch its maturation and a tank-wide sell control', () => {
+  it('gives a fry batch its maturation, its satiation and its condition', () => {
     const fish = [
-      makeFish({ id: 'f1', species: 'guppy', stage: 'fry', age: 24 * 6, mass: 0.4 }),
-      makeFish({ id: 'f2', species: 'guppy', stage: 'fry', age: 24 * 12, mass: 0.6 }),
+      makeFish({ id: 'f1', species: 'guppy', stage: 'fry', age: 24 * 6, mass: 0.4, satiation: 20 }),
+      makeFish({
+        id: 'f2',
+        species: 'guppy',
+        stage: 'fry',
+        age: 24 * 12,
+        mass: 0.6,
+        satiation: 60,
+        health: 50,
+      }),
     ];
-    const actions = renderRoster(tank(fish));
+    renderRoster(tank(fish));
 
     const row = screen.getByText(/Guppy fry/).closest('tr')!;
     expect(within(row).getByText('×2')).toBeTruthy();
     expect(within(row).getByText('1.00 g')).toBeTruthy();
-    // guppy maturityAge = 24 * 60 → day 9 of 60, 15 % grown.
+    // guppy maturityAge = 24 * 60 → day 9 of 60.
     expect(within(row).getByText('day 9 of 60')).toBeTruthy();
-    expect(within(row).getByText('15 %')).toBeTruthy();
+    // Satiation 20 and 60 average to 40, and one of the two is starving.
+    expect(within(row).getByText('1 hungry').className).toContain('text-alert');
+    expect(within(row).getByText('40 %')).toBeTruthy();
+    // Condition 100 and 50 average to 75.
+    expect(within(row).getByText('75 %')).toBeTruthy();
+  });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Sell every fry in the tank' }));
+  it('sells every fry from one control, however many batches are in the tank', () => {
+    const fish = [
+      makeFish({ id: 'f1', species: 'guppy', stage: 'fry', age: 24 }),
+      makeFish({ id: 'f2', species: 'guppy', stage: 'fry', age: 24 }),
+      makeFish({ id: 'f3', species: 'neon_tetra', stage: 'fry', age: 24 }),
+    ];
+    const actions = renderRoster(tank(fish));
+
+    expect(screen.getByText(/Guppy fry/)).toBeTruthy();
+    expect(screen.getByText(/Neon Tetra fry/)).toBeTruthy();
+
+    const sell = screen.getAllByRole('button', { name: 'Sell 3 fry' });
+    expect(sell).toHaveLength(1);
+    fireEvent.click(sell[0]);
     expect(actions).toEqual([{ type: 'sellFry' }]);
+  });
+
+  it('offers nothing to sell when the tank has no fry', () => {
+    renderRoster(tank(community()));
+    expect(screen.queryByRole('button', { name: /Sell .* fry/ })).toBeNull();
+  });
+
+  it('escalates a species row to its worst fish rather than its average', () => {
+    const fish = [
+      makeFish({ id: 'fish_a_1', satiation: 100 }),
+      makeFish({ id: 'fish_a_2', satiation: 0 }),
+    ];
+    renderRoster(tank(fish));
+
+    const row = screen.getByRole('button', { name: 'Neon Tetra — 2 fish' }).closest('tr')!;
+    // The mean of 100 and 0 sits in the calm middle; the starving fish must not.
+    expect(within(row).getByText('50 %')).toBeTruthy();
+    expect(within(row).getByText('1 hungry').className).toContain('text-alert');
+  });
+
+  it('scrolls the roster alone, with the header and the bioload pinned outside it', () => {
+    const fish = Array.from({ length: 40 }, (_, i) =>
+      makeFish({ id: `fish_a_${i}`, species: i % 2 === 0 ? 'neon_tetra' : 'guppy' })
+    );
+    renderRoster(tank(fish));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Neon Tetra — 20 fish' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Guppy — 20 fish' }));
+    // Column header + two species rows + every fish beneath them.
+    expect(screen.getAllByRole('row')).toHaveLength(43);
+
+    const table = screen.getByRole('table');
+    expect(table.querySelector('thead')!.className).toContain('sticky top-0');
+
+    const scroller = table.parentElement!;
+    expect(scroller.className).toContain('overflow-y-auto');
+
+    const foot = screen.getByText('vs guideline').closest('div')!;
+    expect(scroller.contains(foot)).toBe(false);
+    expect(foot.className).toContain('shrink-0');
+
+    // Nothing may push the card past the stage, or the stage scrolls the
+    // column header and the bioload foot away with it.
+    const card = scroller.parentElement!;
+    expect(card.className).toContain('h-full');
+    expect(card.className).not.toMatch(/min-h-/);
+    expect(card.parentElement!.className).toContain('overflow-hidden');
   });
 
   it('reads bioload as a guideline, with the arithmetic that produced it', () => {
@@ -163,12 +238,26 @@ describe('LivestockSection', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Add fish' }));
     const angelfish = screen.getByRole('menuitem', { name: /Angelfish/ });
     expect(within(angelfish).getByText('0 in tank · +15 g')).toBeTruthy();
-    expect(
-      within(angelfish.parentElement!).getByText(/Sex is random — the breeding engine assigns it/)
-    ).toBeTruthy();
+
+    // The sex fact is the menu's own description, not a stray child of it.
+    const menu = screen.getByRole('menu');
+    const note = screen.getByText(/Sex is random/);
+    expect(menu.getAttribute('aria-describedby')).toBe(note.id);
+    expect(menu.contains(note)).toBe(false);
 
     fireEvent.click(screen.getByRole('menuitem', { name: /Corydoras/ }));
     expect(actions).toEqual([{ type: 'addFish', species: 'corydoras' }]);
+  });
+
+  it('still opens to say why, when every species is blocked', () => {
+    // A tank too small for anything: the engine's own refusal is the message.
+    const state = { ...tank(community()), tank: { ...tank().tank, capacity: 0.001 } };
+    renderRoster(state);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add fish' }));
+    const angelfish = screen.getByRole('menuitem', { name: /Angelfish/ });
+    expect(angelfish.hasAttribute('disabled')).toBe(true);
+    expect(within(angelfish).getByText(/Tank at fish capacity/)).toBeTruthy();
   });
 
   it('feeds the tank at the amount on the button', () => {
@@ -215,7 +304,7 @@ describe('the rail carries the Livestock section’s own roster', () => {
   function stocked(): SimulationState {
     const fish = [
       ...community(),
-      makeFish({ id: 'f1', species: 'guppy', stage: 'fry', age: 24 * 4 }),
+      makeFish({ id: 'f1', species: 'guppy', stage: 'fry', age: 24 * 4, satiation: 10 }),
       makeFish({ id: 'f2', species: 'guppy', stage: 'fry', age: 24 * 8 }),
     ];
     const clutches: Clutch[] = [
@@ -259,8 +348,13 @@ describe('the rail carries the Livestock section’s own roster', () => {
     const state = stocked();
     renderRoster(state);
 
-    // One of the three adults sits at satiation 40, inside the hungry band.
-    expect(railFigure(state).pill).toEqual({ text: '1 hungry', status: 'warn' });
-    expect(screen.getByText('1 hungry')).toBeTruthy();
+    // One adult sits at satiation 40 (hungry) and one fry at 10 (starving), so
+    // the pill counts both and takes the worse of the two bands.
+    expect(railFigure(state).pill).toEqual({ text: '2 hungry', status: 'alert' });
+
+    const neon = screen.getByRole('button', { name: 'Neon Tetra — 2 fish' }).closest('tr')!;
+    const fry = screen.getByText(/Guppy fry/).closest('tr')!;
+    expect(within(neon).getByText('1 hungry').className).toContain('text-warn');
+    expect(within(fry).getByText('1 hungry').className).toContain('text-alert');
   });
 });

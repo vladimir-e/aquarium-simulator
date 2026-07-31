@@ -1,9 +1,7 @@
 /**
  * Livestock grouping: fold the flat fish array into species rows and fry
  * batches, map satiation bands onto the shared status vocabulary, and lay the
- * roster out as the flat row list the table renders. Pure — the roster renders
- * whatever these return, so a 5-fish and a 500-fish tank produce the same
- * shapes.
+ * roster out as the flat row list the table renders.
  */
 
 import {
@@ -44,8 +42,27 @@ export function bandStatus(band: SatiationBand): Status {
   }
 }
 
-export function countHungry(fish: Fish[], config: LivestockConfig): number {
-  return fish.reduce((n, f) => n + (isHungryBand(bandOf(f.satiation, config)) ? 1 : 0), 0);
+export interface Hunger {
+  count: number;
+  /** The worst band among those counted — a group is as urgent as its worst fish. */
+  band: SatiationBand;
+}
+
+/** Hunger across any set of fish — a species group, a fry batch, the whole tank. */
+export function hungerOf(fish: Fish[], config: LivestockConfig): Hunger | null {
+  let count = 0;
+  let starving = false;
+  for (const f of fish) {
+    const band = bandOf(f.satiation, config);
+    if (!isHungryBand(band)) continue;
+    count++;
+    if (band === 'starving') starving = true;
+  }
+  return count === 0 ? null : { count, band: starving ? 'starving' : 'hungry' };
+}
+
+export function countFry(fish: Fish[]): number {
+  return fish.reduce((n, f) => n + (f.stage === 'fry' ? 1 : 0), 0);
 }
 
 function groupBySpeciesKey(fish: Fish[]): Map<FishSpecies, Fish[]> {
@@ -63,13 +80,12 @@ function mean(values: number[]): number {
 }
 
 /**
- * The columns the table prints for one fish or one species. A species row
- * carries the group's *total* mass against *average* age, satiation and
- * condition — mass is the only figure that sums, because it is the only one
- * bioload is made of.
+ * The columns the table prints for one fish or one group. A group carries its
+ * *total* mass against *average* age, satiation and condition — mass is the
+ * only figure that sums, because it is the only one bioload is made of.
  */
 export interface RosterFigures {
-  /** Body mass (g), summed over a species group. */
+  /** Body mass (g), summed over a group. */
   massG: number;
   /** Whole days lived, from the engine's tick-hours. */
   ageDays: number;
@@ -79,12 +95,20 @@ export interface RosterFigures {
   condition: number;
 }
 
-export interface SpeciesGroup extends RosterFigures {
+interface RosterGroup extends RosterFigures {
   species: FishSpecies;
   name: string;
   count: number;
-  hungryCount: number;
+  hunger: Hunger | null;
+}
+
+export interface SpeciesGroup extends RosterGroup {
   fish: Fish[];
+}
+
+export interface FryBatch extends RosterGroup {
+  /** Day number at which the batch reaches adulthood. */
+  graduationDay: number;
 }
 
 function fishFigures(f: Fish, config: LivestockConfig): RosterFigures {
@@ -97,72 +121,38 @@ function fishFigures(f: Fish, config: LivestockConfig): RosterFigures {
   };
 }
 
-/** Adult fish folded into per-species rows, in first-seen order. */
-export function groupBySpecies(fish: Fish[], config: LivestockConfig): SpeciesGroup[] {
-  const adults = fish.filter((f) => f.stage === 'adult');
-  return [...groupBySpeciesKey(adults)].map(([species, group]) => {
-    const satiation = mean(group.map((f) => f.satiation));
-    return {
-      species,
-      name: FISH_SPECIES_DATA[species].name,
-      count: group.length,
-      massG: group.reduce((sum, f) => sum + f.mass, 0),
-      ageDays: Math.floor(mean(group.map((f) => f.age)) / 24),
-      satiation,
-      band: bandOf(satiation, config),
-      condition: mean(group.map((f) => f.health)),
-      hungryCount: group.filter((f) => isHungryBand(bandOf(f.satiation, config))).length,
-      fish: group,
-    };
-  });
-}
-
-export interface FryBatch {
-  species: FishSpecies;
-  name: string;
-  count: number;
-  /** Combined body mass of the batch (g). */
-  massG: number;
-  /** Whole days the batch has aged (from average age). */
-  dayNow: number;
-  /** Day number at which this species reaches adulthood. */
-  graduationDay: number;
-  /** Maturation, age/maturityAge as a percentage (0–100). */
-  growthPct: number;
-}
-
-export function groupFryBatches(fish: Fish[]): FryBatch[] {
-  const fry = fish.filter((f) => f.stage === 'fry');
-  return [...groupBySpeciesKey(fry)].map(([species, group]) => ({
+function groupFigures(species: FishSpecies, group: Fish[], config: LivestockConfig): RosterGroup {
+  const satiation = mean(group.map((f) => f.satiation));
+  return {
     species,
     name: FISH_SPECIES_DATA[species].name,
     count: group.length,
     massG: group.reduce((sum, f) => sum + f.mass, 0),
-    ...deriveFryGraduation(
-      group.map((f) => f.age),
-      FISH_SPECIES_DATA[species].breeding.maturityAge
-    ),
-  }));
-}
-
-/**
- * Batch maturation, derived from the fry's average age against the species
- * maturity age (ticks are hours; a day is 24). `graduationDay` is where the
- * batch flips to adult; `growthPct` is how far along it is now.
- */
-export function deriveFryGraduation(
-  ages: number[],
-  maturityAge: number
-): { dayNow: number; graduationDay: number; growthPct: number } {
-  const avgAge = mean(ages);
-  return {
-    dayNow: Math.floor(avgAge / 24),
-    graduationDay: Math.max(1, Math.round(maturityAge / 24)),
-    growthPct: maturityAge > 0 ? Math.max(0, Math.min(100, (avgAge / maturityAge) * 100)) : 100,
+    ageDays: Math.floor(mean(group.map((f) => f.age)) / 24),
+    satiation,
+    band: bandOf(satiation, config),
+    condition: mean(group.map((f) => f.health)),
+    hunger: hungerOf(group, config),
   };
 }
 
-/** The engine's ids are `<kind>_<time>_<seq>`; the kind is the table's column. */
+/** Adult fish folded into per-species rows, in first-seen order. */
+export function groupBySpecies(fish: Fish[], config: LivestockConfig): SpeciesGroup[] {
+  const adults = fish.filter((f) => f.stage === 'adult');
+  return [...groupBySpeciesKey(adults)].map(([species, group]) => ({
+    ...groupFigures(species, group, config),
+    fish: group,
+  }));
+}
+
+export function groupFryBatches(fish: Fish[], config: LivestockConfig): FryBatch[] {
+  const fry = fish.filter((f) => f.stage === 'fry');
+  return [...groupBySpeciesKey(fry)].map(([species, group]) => ({
+    ...groupFigures(species, group, config),
+    graduationDay: Math.max(1, Math.floor(FISH_SPECIES_DATA[species].breeding.maturityAge / 24)),
+  }));
+}
+
 function shortId(id: string): string {
   return id.slice(id.indexOf('_') + 1);
 }
@@ -172,12 +162,8 @@ interface RosterRowBase {
   key: string;
 }
 
-export interface SpeciesRosterRow extends RosterRowBase, RosterFigures {
+export interface SpeciesRosterRow extends RosterRowBase, Omit<SpeciesGroup, 'fish'> {
   kind: 'species';
-  species: FishSpecies;
-  name: string;
-  count: number;
-  hungryCount: number;
   expanded: boolean;
 }
 
@@ -194,15 +180,13 @@ export interface ClutchRosterRow extends RosterRowBase {
   shortId: string;
   name: string;
   eggCount: number;
-  laidTick: number;
   hatchTick: number;
-  /** Ticks (hours) until hatch, floored at 0 once the clutch is due. */
+  /** Ticks (hours) until hatch. */
   hoursToHatch: number;
 }
 
-export interface FryRosterRow extends RosterRowBase, Omit<FryBatch, 'species'> {
+export interface FryRosterRow extends RosterRowBase, FryBatch {
   kind: 'fry';
-  species: FishSpecies;
 }
 
 export type RosterRow = SpeciesRosterRow | FishRosterRow | ClutchRosterRow | FryRosterRow;
@@ -241,7 +225,7 @@ export function rosterRows(
     rows.push(clutchRow(clutch, state.tick));
   }
 
-  for (const batch of groupFryBatches(state.fish)) {
+  for (const batch of groupFryBatches(state.fish, config)) {
     rows.push({ kind: 'fry', key: `fry-${batch.species}`, ...batch });
   }
 
@@ -256,9 +240,8 @@ function clutchRow(clutch: Clutch, tick: number): ClutchRosterRow {
     shortId: shortId(clutch.id),
     name: `${FISH_SPECIES_DATA[clutch.species].name} clutch`,
     eggCount: clutch.eggCount,
-    laidTick: clutch.laidTick,
     hatchTick,
-    hoursToHatch: Math.max(0, hatchTick - tick),
+    hoursToHatch: hatchTick - tick,
   };
 }
 
@@ -266,12 +249,12 @@ function clutchRow(clutch: Clutch, tick: number): ClutchRosterRow {
  * What the tank holds, in one line — the index rail's livestock figure and the
  * stage's own meta are the same sentence, so the rail can never claim a roster
  * the section does not show. Fry are counted apart from adults: they are stock
- * the tank is carrying, but they are not yet fish that breed or hold territory.
+ * the tank is carrying, but not yet fish that breed.
  */
 export function rosterSummary(state: SimulationState): string {
   const { fish, clutches } = state;
-  const adults = fish.reduce((n, f) => n + (f.stage === 'adult' ? 1 : 0), 0);
-  const fry = fish.length - adults;
+  const fry = countFry(fish);
+  const adults = fish.length - fry;
   const species = new Set(fish.map((f) => f.species)).size;
 
   const clauses = [`${adults} fish`];

@@ -6,8 +6,8 @@ import { SplitButton, type SplitOption } from '../run/SplitButton';
 
 /**
  * The section's construction verb. There is no sex picker because `addFish`
- * takes no sex — the breeding engine samples it — so the menu says so rather
- * than offering a control that would do nothing.
+ * takes no sex — `createFish` samples it — so the menu says so rather than
+ * offering a control that would do nothing.
  */
 export function AddFish({
   sim,
@@ -36,10 +36,9 @@ export function AddFish({
         </span>
       }
       options={options}
-      disabled={candidates.every((option) => option.disabled)}
       opens={opens}
       ariaLabel="Add fish"
-      note="Sex is random — the breeding engine assigns it on arrival."
+      note="Sex is random — sampled when the fish is created, the same as for fry."
     />
   );
 }

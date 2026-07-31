@@ -8,7 +8,7 @@ import {
 } from './history';
 import { createSimulation, type SimulationState } from '../../simulation/index.js';
 import { getPpm } from '../../simulation/resources/index.js';
-import type { Plant } from '../../simulation/state.js';
+import type { Fish, Plant } from '../../simulation/state.js';
 
 function makeState(mutate: (draft: SimulationState) => void): SimulationState {
   return produce(createSimulation({ tankCapacity: 100 }), mutate);
@@ -16,6 +16,21 @@ function makeState(mutate: (draft: SimulationState) => void): SimulationState {
 
 function makePlant(size: number): Plant {
   return { id: `p-${size}`, species: 'java_fern', size, condition: 80, surplus: 0 };
+}
+
+function makeFish(id: string, stage: Fish['stage']): Fish {
+  return {
+    id,
+    species: 'neon_tetra',
+    mass: 0.5,
+    health: 100,
+    age: 0,
+    satiation: 90,
+    sex: 'male',
+    stage,
+    hardinessOffset: 0,
+    surplus: 0,
+  };
 }
 
 function makeSnapshot(tick: number): RunSnapshot {
@@ -30,6 +45,7 @@ function makeSnapshot(tick: number): RunSnapshot {
     temperature: 25,
     waterPct: 100,
     fishCount: 0,
+    fryCount: 0,
     plantAvgSize: 0,
     algaeMass: 0,
     food: 0,
@@ -100,12 +116,15 @@ describe('snapshotFromState', () => {
     expect(snapshotFromState(state).waterPct).toBe(0);
   });
 
-  it('counts fish and averages plant size', () => {
+  it('counts adults apart from fry, and averages plant size', () => {
     const state = makeState((d) => {
       d.plants = [makePlant(40), makePlant(60), makePlant(80)];
+      d.fish = [makeFish('a', 'adult'), makeFish('b', 'adult'), makeFish('c', 'fry')];
     });
     const snap = snapshotFromState(state);
-    expect(snap.fishCount).toBe(state.fish.length);
+    // The chart's "fish" line means what the roster means by it.
+    expect(snap.fishCount).toBe(2);
+    expect(snap.fryCount).toBe(1);
     expect(snap.plantAvgSize).toBe(60);
   });
 

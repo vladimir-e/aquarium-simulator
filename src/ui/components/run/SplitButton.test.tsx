@@ -31,6 +31,17 @@ describe('SplitButton — menu mode', () => {
     expect(onB).not.toHaveBeenCalled();
   });
 
+  it('describes the menu with its note instead of nesting prose inside it', () => {
+    render(<SplitButton label="Pick" options={options()} note="Standing fact." />);
+    fireEvent.click(screen.getByText('Pick'));
+
+    const menu = screen.getByRole('menu');
+    const note = screen.getByText('Standing fact.');
+    // A menu takes only menuitems; the note reaches assistive tech by reference.
+    expect(menu.contains(note)).toBe(false);
+    expect(menu.getAttribute('aria-describedby')).toBe(note.id);
+  });
+
   it('closes on outside pointerdown and on Escape', () => {
     render(<SplitButton label="Pick" options={options()} />);
     fireEvent.click(screen.getByText('Pick'));
@@ -46,19 +57,19 @@ describe('SplitButton — menu mode', () => {
 });
 
 describe('SplitButton — which way the menu opens', () => {
-  function menu(opens?: 'up' | 'down'): HTMLElement {
+  function popup(opens?: 'up' | 'down'): HTMLElement {
     render(<SplitButton label="Pick" options={options()} opens={opens} />);
     fireEvent.click(screen.getByText('Pick'));
-    return screen.getByRole('menu');
+    return screen.getByRole('menu').parentElement!;
   }
 
   it('rises from a footer control by default', () => {
-    expect(menu().className).toContain('bottom-full');
+    expect(popup().className).toContain('bottom-full');
   });
 
   // A header control has nothing above it — opening upward puts the menu off screen.
   it('drops from a header control', () => {
-    const className = menu('down').className;
+    const className = popup('down').className;
     expect(className).toContain('top-full');
     expect(className).not.toContain('bottom-full');
   });

@@ -286,21 +286,31 @@ describe('navFigures — Livestock', () => {
     fed = applyAction(fed, { type: 'addFish', species: 'betta' }).state;
     expect(figures(fed).livestock.pill).toBeNull();
 
+    const hungry = { ...fed, fish: fed.fish.map((f, i) => (i === 0 ? { ...f, satiation: 40 } : f)) };
+    expect(figures(hungry).livestock.pill).toEqual({ text: '1 hungry', status: 'warn' });
+
     const starved = { ...fed, fish: fed.fish.map((f, i) => (i === 0 ? { ...f, satiation: 0 } : f)) };
-    expect(figures(starved).livestock.pill).toEqual({ text: '1 hungry', status: 'warn' });
+    expect(figures(starved).livestock.pill).toEqual({ text: '1 hungry', status: 'alert' });
   });
 
-  it('counts every hungry fish, not just the first', () => {
+  it('counts every hungry fish, fry included, not just the first', () => {
     let fed = tank();
     for (let i = 0; i < 3; i++) {
       fed = applyAction(fed, { type: 'addFish', species: 'guppy' }).state;
     }
-    // Two starving, one well fed — the pill must not stop at the first hit.
+    // Two hungry, one well fed — the pill must not stop at the first hit.
     const hungry = {
       ...fed,
-      fish: fed.fish.map((f, i) => ({ ...f, satiation: i < 2 ? 5 : 90 })),
+      fish: fed.fish.map((f, i) => ({ ...f, satiation: i < 2 ? 40 : 90 })),
     };
     expect(figures(hungry).livestock.pill).toEqual({ text: '2 hungry', status: 'warn' });
+
+    // A starving fry is as countable as an adult, and it is the worse reading.
+    const withFry = {
+      ...hungry,
+      fish: [...hungry.fish, { ...hungry.fish[0], id: 'fry_1', stage: 'fry' as const, satiation: 5 }],
+    };
+    expect(figures(withFry).livestock.pill).toEqual({ text: '3 hungry', status: 'alert' });
   });
 });
 

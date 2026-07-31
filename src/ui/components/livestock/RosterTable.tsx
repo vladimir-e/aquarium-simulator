@@ -7,6 +7,7 @@ import {
   type ClutchRosterRow,
   type FishRosterRow,
   type FryRosterRow,
+  type Hunger,
   type RosterFigures,
   type RosterRow,
   type SpeciesRosterRow,
@@ -27,19 +28,21 @@ function Mass({ g }: { g: number }): React.JSX.Element {
   return <span className={NUM}>{g.toFixed(2)} g</span>;
 }
 
-/**
- * Satiation reads as a word first; the number is there to compare two fish. The
- * per-fish word is the first thing a narrow stage drops, but a group's hungry
- * tally survives at every width — it is the one reading that asks for an action.
- */
-function Satiation({ figures, note }: { figures: RosterFigures; note?: string }): React.JSX.Element {
-  const status = bandStatus(figures.band);
+/** A group is as urgent as its worst fish, so hunger overrides the mean band. */
+function Satiation({
+  figures,
+  hunger,
+}: {
+  figures: RosterFigures;
+  hunger?: Hunger | null;
+}): React.JSX.Element {
+  const status = bandStatus(hunger?.band ?? figures.band);
   return (
     <span className="flex items-center justify-end gap-2">
       <span
-        className={`w-14 text-left text-[12px] ${note ? 'text-warn-text' : `hidden sm:inline ${statusText(status)}`}`}
+        className={`w-14 text-left text-[12px] ${statusText(status)} ${hunger ? '' : 'hidden sm:inline'}`}
       >
-        {note ?? SATIATION_BAND_LABEL[figures.band].toLowerCase()}
+        {hunger ? `${hunger.count} hungry` : SATIATION_BAND_LABEL[figures.band].toLowerCase()}
       </span>
       <Bar className="hidden w-[90px] sm:block" value={figures.satiation} status={status} />
       <span className={`w-10 text-right ${NUM}`}>{Math.round(figures.satiation)} %</span>
@@ -86,10 +89,7 @@ function SpeciesRow({
       </td>
       <td className={`${CELL} ${AT_MD} text-right ${NUM} text-ink-3`}>{row.ageDays} d</td>
       <td className={`${CELL} text-right`}>
-        <Satiation
-          figures={row}
-          note={row.hungryCount > 0 ? `${row.hungryCount} hungry` : undefined}
-        />
+        <Satiation figures={row} hunger={row.hunger} />
       </td>
       <td className={`${CELL} ${AT_MD} text-right`}>
         <Condition condition={row.condition} />
@@ -108,7 +108,10 @@ function FishRow({
 }): React.JSX.Element {
   return (
     <tr>
-      <td className={`${CELL} text-center text-[12px] text-ink-3`}>{SEX_GLYPH[row.sex]}</td>
+      <td className={`${CELL} text-center text-[12px] text-ink-3`}>
+        <span aria-hidden>{SEX_GLYPH[row.sex]}</span>
+        <span className="sr-only">{row.sex}</span>
+      </td>
       <td className={`${CELL} pl-6 text-[13px] text-ink`}>{row.name}</td>
       <td className={`${CELL} ${AT_LG} ${NUM} text-ink-3`}>{row.shortId}</td>
       <td className={`${CELL} text-right`}>
@@ -135,26 +138,23 @@ function FishRow({
   );
 }
 
+/** A clutch has no mass, age or satiation, so it fills none of those columns. */
 function ClutchRow({ row }: { row: ClutchRosterRow }): React.JSX.Element {
   return (
     <tr>
       <td className={CELL} />
-      <td className={`${CELL} text-[13px] text-ink`}>{row.name}</td>
-      <td className={`${CELL} ${AT_LG} ${NUM} text-ink-3`}>{row.shortId}</td>
-      <td className={`${CELL} text-right ${NUM} text-ink-2`}>{row.eggCount} eggs</td>
-      <td className={`${CELL} ${AT_MD} text-right ${NUM} text-ink-3`}>laid T{row.laidTick}</td>
-      <td className={`${CELL} text-right ${NUM} text-ink-3`}>
-        {row.hoursToHatch > 0
-          ? `hatches T${row.hatchTick} · in ${row.hoursToHatch} h`
-          : `hatching · due T${row.hatchTick}`}
+      <td className={`${CELL} text-[13px] text-ink`}>
+        {row.name} <span className="text-[12px] text-ink-3">{row.eggCount} eggs</span>
       </td>
-      <td className={`${CELL} ${AT_MD}`} />
-      <td className={CELL} />
+      <td className={`${CELL} ${AT_LG} ${NUM} text-ink-3`}>{row.shortId}</td>
+      <td className={`${CELL} text-right ${NUM} text-ink-3`} colSpan={5}>
+        hatches T{row.hatchTick} · in {row.hoursToHatch} h
+      </td>
     </tr>
   );
 }
 
-function FryRow({ row, onSell }: { row: FryRosterRow; onSell: () => void }): React.JSX.Element {
+function FryRow({ row }: { row: FryRosterRow }): React.JSX.Element {
   return (
     <tr>
       <td className={CELL} />
@@ -166,45 +166,27 @@ function FryRow({ row, onSell }: { row: FryRosterRow; onSell: () => void }): Rea
         <Mass g={row.massG} />
       </td>
       <td className={`${CELL} ${AT_MD} text-right ${NUM} text-ink-3`}>
-        day {row.dayNow} of {row.graduationDay}
+        day {row.ageDays} of {row.graduationDay}
       </td>
       <td className={`${CELL} text-right`}>
-        <span className="flex items-center justify-end gap-2">
-          <span className="hidden w-14 text-left text-[12px] text-ink-3 sm:inline">growing</span>
-          <Bar className="hidden w-[90px] sm:block" value={row.growthPct} status="neutral" />
-          <span className={`w-10 text-right ${NUM}`}>{Math.round(row.growthPct)} %</span>
-        </span>
+        <Satiation figures={row} hunger={row.hunger} />
       </td>
-      <td className={`${CELL} ${AT_MD}`} />
-      <td className={`${CELL} text-right`}>
-        <button
-          type="button"
-          onClick={onSell}
-          aria-label="Sell every fry in the tank"
-          className="rounded px-0.5 text-[12px] text-ink-3 transition-colors hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-focus"
-        >
-          sell
-        </button>
+      <td className={`${CELL} ${AT_MD} text-right`}>
+        <Condition condition={row.condition} />
       </td>
+      <td className={CELL} />
     </tr>
   );
 }
 
-/**
- * The roster as a real table. The column header sticks to the top of whatever
- * scrolls it, because a roster is the one unbounded thing in the tank and the
- * reader will be scrolling.
- */
 export function RosterTable({
   rows,
   onToggleSpecies,
   onRemoveFish,
-  onSellFry,
 }: {
   rows: RosterRow[];
   onToggleSpecies: (species: FishSpecies) => void;
   onRemoveFish: (fishId: string) => void;
-  onSellFry: () => void;
 }): React.JSX.Element {
   return (
     <table className="w-full border-separate border-spacing-0">
@@ -238,7 +220,7 @@ export function RosterTable({
             case 'clutch':
               return <ClutchRow key={row.key} row={row} />;
             case 'fry':
-              return <FryRow key={row.key} row={row} onSell={onSellFry} />;
+              return <FryRow key={row.key} row={row} />;
           }
         })}
       </tbody>

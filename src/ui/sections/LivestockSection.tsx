@@ -7,12 +7,12 @@ import { useIsMobile } from '../hooks/useMediaQuery';
 import { useUnits } from '../hooks/useUnits';
 import { Stage } from '../components/layout/Stage';
 import { Card, CardFooter } from '../components/run/Card';
-import { Bar } from '../components/run/elements';
+import { Bar, RunButton } from '../components/run/elements';
 import { SplitButton, type SplitOption } from '../components/run/SplitButton';
 import { AddFish } from '../components/livestock/AddFish';
 import { RosterTable } from '../components/livestock/RosterTable';
 import { bioload, bioloadNote } from '../build';
-import { rosterRows, rosterSummary } from '../run';
+import { countFry, rosterRows, rosterSummary } from '../run';
 
 const FEED_PRESETS = [0.25, 0.5, 1, 2];
 
@@ -39,6 +39,7 @@ export function LivestockSection({
     [state, config.livestock, expanded]
   );
   const load = useMemo(() => bioload(state.fish, state.tank.capacity), [state]);
+  const fryCount = countFry(state.fish);
 
   const toggleSpecies = (species: FishSpecies): void =>
     setExpanded((current) => {
@@ -62,8 +63,9 @@ export function LivestockSection({
       title="Livestock"
       meta={rosterSummary(state)}
       actions={!isMobile && <AddFish sim={sim} opens="down" />}
+      fills
     >
-      <Card className="h-full min-h-[320px]">
+      <Card className="h-full">
         <div className="min-h-0 flex-1 overflow-y-auto px-3">
           {rows.length === 0 ? (
             <p className="py-6 text-[13px] text-ink-3">No fish yet — add one to begin.</p>
@@ -72,12 +74,11 @@ export function LivestockSection({
               rows={rows}
               onToggleSpecies={toggleSpecies}
               onRemoveFish={(fishId) => sim.executeAction({ type: 'removeFish', fishId })}
-              onSellFry={() => sim.executeAction({ type: 'sellFry' })}
             />
           )}
         </div>
 
-        <CardFooter className="gap-x-3">
+        <CardFooter className="shrink-0 gap-x-3">
           <SplitButton
             label={`Feed ${feedAmount} g`}
             variant="primary"
@@ -91,6 +92,12 @@ export function LivestockSection({
               {FoodResource.format(state.resources.food)}
             </span>
           </span>
+
+          {fryCount > 0 && (
+            <RunButton onClick={() => sim.executeAction({ type: 'sellFry' })}>
+              Sell {fryCount} fry
+            </RunButton>
+          )}
 
           <span className="flex items-center gap-2">
             <span className="text-[13px] text-ink-2">Bioload</span>
