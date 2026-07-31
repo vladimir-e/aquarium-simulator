@@ -61,13 +61,15 @@ export const REVIEW_CHARTS: ChartDef[] = [
   },
   {
     id: 'population',
-    title: 'Population & plant mass',
+    // Neither plants nor algae are plotted as a mass: `Plant.size` and
+    // `AlgaeState.mass` are both percentages, so the frame is growth, not mass.
+    title: 'Population & growth',
     shortLabel: 'pop.',
     alertKinds: ['algae', 'plant'],
     series: [
       { key: 'fishCount', label: 'fish', accessor: (s) => s.fishCount, light: '#4A8A47', dark: '#94D97B' },
       { key: 'fryCount', label: 'fry', accessor: (s) => s.fryCount, light: '#3E6DA8', dark: '#7FB0E8' },
-      { key: 'plantAvgSize', label: 'plants', accessor: (s) => s.plantAvgSize, light: '#356B3E', dark: '#6FC271' },
+      { key: 'plantAvgSize', label: 'plant size', accessor: (s) => s.plantAvgSize, light: '#356B3E', dark: '#6FC271' },
       { key: 'algaeMass', label: 'algae', accessor: (s) => s.algaeMass, light: '#7A8B3F', dark: '#B4C56A' },
     ],
   },

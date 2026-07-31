@@ -2,108 +2,83 @@ import React from 'react';
 import type { LogEntry } from '../../../simulation/index.js';
 import type { RunAggregates } from '../../run/index.js';
 import { useUnits } from '../../hooks/useUnits';
-import { ALERT_LABEL, latestAlert } from '../../review/index.js';
+import { type SummaryTile, ALERT_LABEL, SUMMARY_ORDER, runSummary } from '../../review/index.js';
 import { Pill } from '../run/elements';
+import { CONTROL_FOCUS } from '../ui/focus';
 
-/** Ticks are simulated hours: render a compact d/h reading. */
-function formatDuration(ticks: number): string {
-  const days = Math.floor(ticks / 24);
-  const hours = ticks % 24;
-  if (days === 0) return `${hours}h`;
-  if (hours === 0) return `${days}d`;
-  return `${days}d ${hours}h`;
-}
-
-function Tile({
-  label,
-  value,
-  unit,
-  meta,
-  chip,
+/** A meta line that names a tick parks the cursor there when tapped. */
+function MetaLine({
+  tile,
+  onScrubToTick,
+  className,
 }: {
-  label: string;
-  value: string;
-  unit?: string;
-  meta?: string;
-  chip?: React.ReactNode;
-}): React.JSX.Element {
+  tile: SummaryTile;
+  onScrubToTick: (tick: number) => void;
+  className: string;
+}): React.JSX.Element | null {
+  const { meta, metaTick } = tile;
+  if (meta === undefined) return null;
+  if (metaTick === undefined) return <span className={className}>{meta}</span>;
   return (
-    <div className="min-w-[104px] flex-1 rounded-card border border-hairline bg-surface px-3.5 py-2.5">
-      <div className="text-[12px] tracking-[0.03em] text-ink-3">{label}</div>
-      <div className="mt-1.5 flex items-baseline gap-1.5">
-        <span className="font-mono text-[20px] font-medium leading-none tabular-nums text-ink">{value}</span>
-        {unit && <span className="text-[11px] tracking-[0.04em] text-ink-3">{unit}</span>}
-        {chip}
-      </div>
-      {meta && <div className="mt-1 font-mono text-[11px] tabular-nums text-ink-3">{meta}</div>}
-    </div>
+    <button
+      type="button"
+      onClick={() => onScrubToTick(metaTick)}
+      className={`-mx-1 rounded-badge px-1 py-1 underline decoration-dotted underline-offset-2 hover:text-ink ${className} ${CONTROL_FOCUS}`}
+    >
+      {meta}
+    </button>
   );
-}
-
-interface SummaryItem {
-  label: string;
-  value: string;
-  unit?: string;
-  meta?: string;
-  /** Trailing word for the compact mobile pill (`36 ticks`, `0 deaths`). */
-  descriptor: string;
-  chip?: React.ReactNode;
 }
 
 export function SummaryTiles({
   aggregates,
   logs,
+  onScrubToTick,
 }: {
   aggregates: RunAggregates;
   logs: LogEntry[];
+  onScrubToTick: (tick: number) => void;
 }): React.JSX.Element {
-  const { formatVol } = useUnits();
-  // Scope to the current run: loadPreset zeroes the count but keeps prior logs,
-  // so a stale pre-run warning must not chip next to "alerts 0".
-  const latest = aggregates.alerts > 0 ? latestAlert(logs) : null;
-
-  const items: SummaryItem[] = [
-    {
-      label: 'run length',
-      value: String(aggregates.ticks),
-      unit: 'ticks',
-      meta: formatDuration(aggregates.ticks),
-      descriptor: 'ticks',
-    },
-    { label: 'deaths', value: String(aggregates.deaths), descriptor: 'deaths' },
-    { label: 'births', value: String(aggregates.births), unit: 'fry', descriptor: 'fry' },
-    {
-      label: 'alerts',
-      value: String(aggregates.alerts),
-      descriptor: aggregates.alerts === 1 ? 'alert' : 'alerts',
-      chip: latest && <Pill variant="alert">{ALERT_LABEL[latest.kind]}</Pill>,
-    },
-    { label: 'water changed', value: formatVol(aggregates.waterChangedL, 0), descriptor: 'changed' },
-  ];
+  const { unitSystem } = useUnits();
+  const tiles = runSummary(aggregates, logs, unitSystem);
+  const ordered = SUMMARY_ORDER.map((id) => tiles[id]);
 
   return (
     <>
-      <div className="hidden flex-wrap gap-3 sm:flex">
-        {items.map((item) => (
-          <Tile
-            key={item.label}
-            label={item.label}
-            value={item.value}
-            unit={item.unit}
-            meta={item.meta}
-            chip={item.chip}
-          />
+      <div className="hidden flex-wrap gap-2.5 sm:flex">
+        {ordered.map((tile) => (
+          <div
+            key={tile.label}
+            className="min-w-[112px] flex-1 rounded-card border border-hairline bg-surface px-3.5 py-2"
+          >
+            <div className="text-[12px] tracking-[0.03em] text-ink-3">{tile.label}</div>
+            <div className="mt-1 flex items-baseline gap-1.5">
+              <span className="font-mono text-[20px] font-medium leading-none tabular-nums text-ink">
+                {tile.value}
+              </span>
+              {tile.unit && (
+                <span className="text-[11px] tracking-[0.04em] text-ink-3">{tile.unit}</span>
+              )}
+              {tile.alert && <Pill variant="alert">{ALERT_LABEL[tile.alert]}</Pill>}
+            </div>
+            <MetaLine
+              tile={tile}
+              onScrubToTick={onScrubToTick}
+              className="mt-0.5 block font-mono text-[11px] tabular-nums text-ink-3"
+            />
+          </div>
         ))}
       </div>
+
       <div className="flex flex-wrap gap-2 sm:hidden">
-        {items.map((item) => (
+        {ordered.map((tile) => (
           <span
-            key={item.label}
+            key={tile.label}
             className="inline-flex items-center gap-1.5 rounded-badge border border-hairline bg-surface px-2.5 py-1 text-[12px] text-ink-2"
           >
-            <span className="font-mono tabular-nums text-ink">{item.value}</span>
-            {item.descriptor}
-            {item.chip}
+            <span className="font-mono tabular-nums text-ink">{tile.value}</span>
+            {tile.descriptor}
+            {tile.alert && <Pill variant="alert">{ALERT_LABEL[tile.alert]}</Pill>}
           </span>
         ))}
       </div>

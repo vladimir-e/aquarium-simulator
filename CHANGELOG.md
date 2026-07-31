@@ -11,6 +11,7 @@ Format: - **Feature name** (#PR) - One short sentence (under ~150 chars)
 
 ## Unreleased
 
+- **Analytics section** - four full-width charts over a full-width log, and the scrubbed tick lives in `?tick=` so a cursor is a link and back walks out of a scrub.
 - **Error boundary keeps your tank** - render errors show a recovery screen instead of wiping the save and reloading; reset is now an explicit button.
 - **Livestock section** - the roster as a table: species rows expand into individuals, clutches and fry get their own rows, bioload pinned to the foot.
 - **Flora & Scape section** - plants with per-stressor vitality breakdowns beside the algae, nutrients read against what the tank's own plants need, and the scape's surface contributions.

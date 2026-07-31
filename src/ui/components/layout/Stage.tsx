@@ -7,11 +7,13 @@ interface StageProps {
   actions?: React.ReactNode;
   /** The section fills the stage exactly and owns whatever scrolls inside it. */
   fills?: boolean;
+  /** Band pinned below the body, spanning the stage edge to edge. */
+  footer?: React.ReactNode;
   children: React.ReactNode;
 }
 
 /** The routed surface: one section at a time, owning the whole right-hand side. */
-export function Stage({ title, meta, actions, fills, children }: StageProps): React.JSX.Element {
+export function Stage({ title, meta, actions, fills, footer, children }: StageProps): React.JSX.Element {
   return (
     <main className="flex min-w-0 flex-1 flex-col overflow-hidden rounded-card border border-hairline bg-surface">
       <div className="flex min-h-[52px] shrink-0 items-center gap-2.5 border-b border-hairline px-3.5">
@@ -22,6 +24,7 @@ export function Stage({ title, meta, actions, fills, children }: StageProps): Re
       <div className={`min-h-0 flex-1 p-3 ${fills ? 'overflow-hidden' : 'overflow-y-auto'}`}>
         {children}
       </div>
+      {footer}
     </main>
   );
 }

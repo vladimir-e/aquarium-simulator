@@ -27,8 +27,27 @@ export {
   tickToFraction,
   fractionToTick,
   nearestLogIndexAtOrBefore,
+  dayGridTicks,
   alertMarkers,
 } from './scrubber.js';
+export {
+  type AnalyticsView,
+  type ScrubIntent,
+  TICK_PARAM,
+  WINDOW_PARAM,
+  LOG_PARAM,
+  readWindow,
+  readFilter,
+  readTick,
+  viewParams,
+} from './params.js';
+export {
+  type SummaryTile,
+  type SummaryTileId,
+  SUMMARY_ORDER,
+  runSummary,
+  summaryLines,
+} from './summary.js';
 export {
   type ChartSeries,
   type ChartDef,

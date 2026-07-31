@@ -3,6 +3,7 @@ import { Pause, Play, SkipForward } from 'lucide-react';
 import type { DailySchedule } from '../../../simulation/index.js';
 import { scheduleSpans } from '../../build';
 import { SPEED_LABELS, SPEED_PRESETS, type SpeedPreset } from '../../run';
+import { TICKS_PER_DAY, formatDayClock, hourOfDay } from '../../utils/clock';
 import { Pill } from '../run/elements';
 import { Segmented } from '../ui/Segmented';
 
@@ -77,8 +78,8 @@ export function TimelineCard({
   onStep,
   onSpeedChange,
 }: TimelineCardProps): React.JSX.Element {
-  const days = Math.floor(tick / 24);
-  const hour = tick % 24;
+  const days = Math.floor(tick / TICKS_PER_DAY);
+  const hour = hourOfDay(tick);
   const started = tick > 0 || isPlaying;
 
   return (
@@ -113,7 +114,7 @@ export function TimelineCard({
           </button>
           <div className="min-w-0">
             <p className="font-mono text-[17px] font-semibold leading-tight tracking-[-0.01em]">
-              Day {days + 1} · {pad(hour)}:00
+              {formatDayClock(tick)}
             </p>
             <p className="font-mono text-[11px] leading-tight text-ink-3">
               tick {tick} · {days} d elapsed

@@ -1,24 +1,33 @@
-import { describe, it, expect, afterEach } from 'vitest';
-import { render, screen, cleanup } from '@testing-library/react';
+import { describe, it, expect, vi, afterEach } from 'vitest';
+import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import { SummaryTiles } from './SummaryTiles';
-import { UnitsProvider } from '../../hooks/useUnits';
+import { UnitsProvider, useUnits, type UnitSystem } from '../../hooks/useUnits';
 import { PersistenceProvider } from '../../persistence/index.js';
 import type { RunAggregates } from '../../run/index.js';
 import { createLog, type LogEntry } from '../../../simulation/index.js';
+import { formatVolume } from '../../utils/units';
 
 afterEach(cleanup);
 
-function renderTiles(aggregates: RunAggregates, logs: LogEntry[]): void {
+function renderTiles(
+  aggregates: RunAggregates,
+  logs: LogEntry[],
+  onScrubToTick = vi.fn()
+): ReturnType<typeof vi.fn> {
   render(
     <PersistenceProvider>
       <UnitsProvider>
-        <SummaryTiles aggregates={aggregates} logs={logs} />
+        <SummaryTiles aggregates={aggregates} logs={logs} onScrubToTick={onScrubToTick} />
       </UnitsProvider>
     </PersistenceProvider>
   );
+  return onScrubToTick;
 }
 
 const base: RunAggregates = { ticks: 36, deaths: 0, births: 100, frySold: 0, alerts: 1, waterChangedL: 0 };
+
+const ammoniaWarning = (tick: number): LogEntry =>
+  createLog(tick, 'nitrogen-cycle', 'warning', 'High ammonia level: 0.109 ppm - toxic to fish');
 
 describe('SummaryTiles', () => {
   // The desktop tiles and the mobile pill row both render (CSS hides one per
@@ -47,8 +56,7 @@ describe('SummaryTiles', () => {
   });
 
   it('chips the latest alert type next to the alert count', () => {
-    const logs = [createLog(36, 'nitrogen-cycle', 'warning', 'High ammonia level: 0.109 ppm - toxic to fish')];
-    renderTiles(base, logs);
+    renderTiles(base, [ammoniaWarning(36)]);
     expect(screen.getAllByText('NH₃').length).toBeGreaterThan(0);
   });
 
@@ -60,8 +68,46 @@ describe('SummaryTiles', () => {
   it('suppresses a stale alert chip after a preset switch zeroes the count', () => {
     // loadPreset resets aggregates but retains logs; a pre-run warning must not
     // chip next to "alerts 0".
-    const logs = [createLog(36, 'nitrogen-cycle', 'warning', 'High ammonia level: 0.109 ppm - toxic to fish')];
-    renderTiles({ ...base, alerts: 0 }, logs);
+    renderTiles({ ...base, alerts: 0 }, [ammoniaWarning(36)]);
     expect(screen.queryByText('NH₃')).toBeNull();
+  });
+
+  it('parks the cursor on the tick the latest alert names', () => {
+    const onScrubToTick = renderTiles(base, [ammoniaWarning(21), ammoniaWarning(29)]);
+    fireEvent.click(screen.getByRole('button', { name: 'latest T29' }));
+    expect(onScrubToTick).toHaveBeenCalledWith(29);
+  });
+
+  it('names the tick of the last death, not of the last log', () => {
+    const logs = [
+      createLog(8, 'livestock', 'warning', 'Neon Tetra died', 'fish-died'),
+      createLog(19, 'livestock', 'warning', 'Neon Tetra died', 'fish-died'),
+      createLog(30, 'user', 'info', 'Fed 0.5 g'),
+    ];
+    const onScrubToTick = renderTiles({ ...base, deaths: 2 }, logs);
+    fireEvent.click(screen.getByRole('button', { name: 'last T19' }));
+    expect(onScrubToTick).toHaveBeenCalledWith(19);
+  });
+
+  it('states the water changed in the reader’s own units', () => {
+    let system: UnitSystem = 'metric';
+    function Probe(): null {
+      system = useUnits().unitSystem;
+      return null;
+    }
+    render(
+      <PersistenceProvider>
+        <UnitsProvider>
+          <Probe />
+          <SummaryTiles
+            aggregates={{ ...base, waterChangedL: 340 }}
+            logs={[]}
+            onScrubToTick={vi.fn()}
+          />
+        </UnitsProvider>
+      </PersistenceProvider>
+    );
+    // Whichever system the app is on, the tile must speak it — not a constant.
+    expect(screen.getAllByText(formatVolume(340, system, 0)).length).toBeGreaterThan(0);
   });
 });

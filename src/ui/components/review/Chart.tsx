@@ -16,11 +16,8 @@ import {
   fractionToTick,
   tickToFraction,
 } from '../../review/index.js';
-import { Pill } from '../run/elements';
 
-const HEIGHT = 156;
 const PAD = { top: 12, right: 10, bottom: 16, left: 10 };
-const TOOLTIP_HALF = 64;
 
 interface SeriesData {
   series: ChartSeries;
@@ -36,24 +33,25 @@ function formatChartValue(value: number): string {
   return value.toFixed(decimals);
 }
 
-/** Track the plot's pixel width so lines, dots, and markers share one geometry. */
-function useMeasuredWidth(): [React.RefObject<HTMLDivElement>, number] {
+/** Track the plot box so lines, dots, and markers share one geometry. */
+function useMeasuredBox(): [React.RefObject<HTMLDivElement>, number, number] {
   const ref = useRef<HTMLDivElement>(null);
-  const [width, setWidth] = useState(0);
+  const [box, setBox] = useState({ width: 0, height: 0 });
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
-    setWidth(el.clientWidth);
+    setBox({ width: el.clientWidth, height: el.clientHeight });
     if (typeof globalThis.ResizeObserver === 'undefined') return;
     const observer = new globalThis.ResizeObserver((entries): void => {
-      setWidth(entries[0].contentRect.width);
+      const { width, height } = entries[0].contentRect;
+      setBox({ width, height });
     });
     observer.observe(el);
     return (): void => {
       observer.disconnect();
     };
   }, []);
-  return [ref, width];
+  return [ref, box.width, box.height];
 }
 
 interface ChartProps {
@@ -64,10 +62,15 @@ interface ChartProps {
   theme: ResolvedTheme;
   markers: AlertMark[];
   onScrubToTick: (tick: number) => void;
-  /** Canonical °C → the viewer's unit, so the tooltip matches the gauges. */
+  /** Canonical °C → the viewer's unit, so the legend matches the gauges. */
   displayTemp: (celsius: number) => number;
 }
 
+/**
+ * One frame, filling whatever slot the layout gives it. The legend doubles as
+ * the cursor readout — each series states its value at the scrubbed tick, so
+ * the numbers are legible on a touch screen, which has nothing to hover.
+ */
 export function Chart({
   def,
   history,
@@ -78,16 +81,15 @@ export function Chart({
   onScrubToTick,
   displayTemp,
 }: ChartProps): React.JSX.Element {
-  const [ref, width] = useMeasuredWidth();
-  const [hovered, setHovered] = useState(false);
+  const [ref, width, height] = useMeasuredBox();
   const plotW = Math.max(0, width - PAD.left - PAD.right);
+  const plotH = Math.max(0, height - PAD.top - PAD.bottom);
+  const baselineY = PAD.top + plotH;
 
   const displaySeriesValue = (series: ChartSeries, snapshot: RunSnapshot): number => {
     const raw = series.accessor(snapshot);
     return series.key === 'temperature' ? displayTemp(raw) : raw;
   };
-  const plotH = HEIGHT - PAD.top - PAD.bottom;
-  const baselineY = PAD.top + plotH;
 
   // One pass over history per series; rebuilt only when the window's data changes.
   const seriesData = useMemo<SeriesData[]>(
@@ -120,43 +122,40 @@ export function Chart({
 
   const current = range ? snapshotAtTick(history, currentTick) : null;
   const guideX = xForTick(currentTick);
-  const latestMarker = markers.length > 0 ? markers[markers.length - 1] : null;
-  const tipLeft = Math.min(Math.max(guideX, TOOLTIP_HALF), Math.max(TOOLTIP_HALF, width - TOOLTIP_HALF));
 
   return (
-    <section className="flex flex-col rounded-card border border-hairline bg-surface">
-      <div className="flex items-center justify-between gap-3 border-b border-hairline px-4 py-2.5">
-        <h3 className="text-[15px] font-semibold leading-none text-ink">{def.title}</h3>
-        <div className="flex items-center gap-2 text-[12px] text-ink-3">
-          {def.series.map((series) => (
-            <span key={series.key} className="inline-flex items-center gap-1">
+    <section className="flex h-full min-h-0 flex-col rounded-card border border-hairline bg-surface">
+      <div className="flex shrink-0 flex-wrap items-baseline gap-x-3 gap-y-1 border-b border-hairline px-3 py-2">
+        <h3 className="text-[13.5px] font-semibold leading-none text-ink">{def.title}</h3>
+        <div className="ml-auto flex items-baseline gap-2.5 text-[11px] text-ink-3">
+          {seriesData.map(({ series }) => (
+            <span key={series.key} className="inline-flex items-baseline gap-1">
               <span
                 aria-hidden
-                className="h-1.5 w-1.5 rounded-full"
+                className="h-1.5 w-1.5 shrink-0 rounded-full"
                 style={{ backgroundColor: seriesColor(series, theme) }}
               />
-              {series.label}
+              <span>{series.label}</span>
+              {current && (
+                <span className="font-mono tabular-nums text-ink">
+                  {formatChartValue(displaySeriesValue(series, current))}
+                </span>
+              )}
             </span>
           ))}
         </div>
       </div>
 
-      <div
-        ref={ref}
-        className="relative"
-        onClick={handleClick}
-        onMouseEnter={() => setHovered(true)}
-        onMouseLeave={() => setHovered(false)}
-      >
+      <div ref={ref} className="relative min-h-0 flex-1" onClick={handleClick}>
         {history.length === 0 || !range ? (
-          <div className="flex h-[156px] items-center justify-center text-[12.5px] text-ink-3">
+          <div className="flex h-full items-center justify-center text-[12.5px] text-ink-3">
             No data in this window yet.
           </div>
         ) : (
           <>
             <svg
               width={width}
-              height={HEIGHT}
+              height={height}
               className="block cursor-pointer"
               role="img"
               aria-label={`${def.title} over ticks ${range.minTick}–${range.maxTick}`}
@@ -225,49 +224,14 @@ export function Chart({
                 ))}
             </svg>
 
-            {hovered && current && (
-              <div
-                className="pointer-events-none absolute top-1 z-10 -translate-x-1/2 rounded-badge border border-hairline bg-surface-2 px-2 py-1.5 shadow-md"
-                style={{ left: tipLeft }}
-              >
-                <div className="mb-1 font-mono text-[10.5px] tabular-nums text-ink-3">tick {currentTick}</div>
-                <div className="flex flex-col gap-0.5">
-                  {seriesData.map(({ series }) => (
-                    <div key={series.key} className="flex items-center gap-1.5 whitespace-nowrap text-[11px]">
-                      <span
-                        aria-hidden
-                        className="h-1.5 w-1.5 rounded-full"
-                        style={{ backgroundColor: seriesColor(series, theme) }}
-                      />
-                      <span className="text-ink-3">{series.label}</span>
-                      <span className="ml-auto font-mono tabular-nums text-ink">
-                        {formatChartValue(displaySeriesValue(series, current))}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
+            <span className="pointer-events-none absolute bottom-0.5 left-2.5 font-mono text-[10px] tabular-nums text-ink-3">
+              T{range.minTick}
+            </span>
+            <span className="pointer-events-none absolute bottom-0.5 right-2.5 font-mono text-[10px] tabular-nums text-ink-3">
+              T{range.maxTick}
+            </span>
           </>
         )}
-      </div>
-
-      <div className="flex items-center justify-between gap-2 border-t border-hairline px-4 py-2 font-mono text-[11px] text-ink-3 tabular-nums">
-        <span>tick {range ? range.minTick : 0}</span>
-        {latestMarker ? (
-          <button
-            type="button"
-            onClick={() => onScrubToTick(latestMarker.tick)}
-            className="rounded-badge focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
-          >
-            <Pill variant="alert">
-              {ALERT_LABEL[latestMarker.kind]} @{latestMarker.tick}
-            </Pill>
-          </button>
-        ) : (
-          <span />
-        )}
-        <span>tick {range ? range.maxTick : 0}</span>
       </div>
     </section>
   );

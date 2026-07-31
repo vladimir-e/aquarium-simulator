@@ -5,6 +5,7 @@
  */
 
 import type { LogEntry } from '../../simulation/index.js';
+import { TICKS_PER_DAY } from '../utils/clock.js';
 import { classifyAlert, type AlertMark } from './category.js';
 import type { TickRange } from './window.js';
 
@@ -48,6 +49,18 @@ export function nearestLogIndexAtOrBefore(logs: LogEntry[], tick: number): numbe
     else break;
   }
   return index;
+}
+
+/**
+ * Midnight boundaries strictly inside the range, as the scrubber's minor grid.
+ * Both ends already carry their tick label, so a mark on either is noise.
+ */
+export function dayGridTicks(range: TickRange | null): number[] {
+  if (!range) return [];
+  const marks: number[] = [];
+  const first = Math.floor(range.minTick / TICKS_PER_DAY + 1) * TICKS_PER_DAY;
+  for (let tick = first; tick < range.maxTick; tick += TICKS_PER_DAY) marks.push(tick);
+  return marks;
 }
 
 /** Alert warnings inside the window, as markers for a chart baseline. */

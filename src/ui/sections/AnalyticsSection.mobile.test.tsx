@@ -1,5 +1,6 @@
 import { describe, it, expect, afterEach, beforeEach } from 'vitest';
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import { AnalyticsSection } from './AnalyticsSection';
 import { ThemeProvider } from '../hooks/useTheme';
 import { UnitsProvider } from '../hooks/useUnits';
@@ -29,7 +30,9 @@ function renderAnalytics(): void {
     <ThemeProvider>
       <PersistenceProvider>
         <UnitsProvider>
-          <AnalyticsSection sim={fakeSim()} />
+          <MemoryRouter initialEntries={['/analytics']}>
+            <AnalyticsSection sim={fakeSim()} />
+          </MemoryRouter>
         </UnitsProvider>
       </PersistenceProvider>
     </ThemeProvider>

@@ -15,7 +15,7 @@ import {
 } from '../../simulation/index.js';
 import { calculatePassiveResources } from '../../simulation/equipment/index.js';
 import { navFigures } from '../nav/figures';
-import { ailingPlants, plantRows } from '../run';
+import { ailingPlants, emptyAggregates, plantRows } from '../run';
 import type { useSimulation } from '../hooks/useSimulation';
 
 afterEach(cleanup);
@@ -29,9 +29,7 @@ function rail(state: SimulationState): ReturnType<typeof navFigures> {
     config: DEFAULT_CONFIG,
     presetName: 'Planted Tank',
     units: 'metric',
-    alerts: 0,
-    deaths: 0,
-    births: 0,
+    aggregates: emptyAggregates(),
   });
 }
 

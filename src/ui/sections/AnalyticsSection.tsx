@@ -1,4 +1,5 @@
 import React, { useCallback, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import type { useSimulation } from '../hooks/useSimulation';
 import { useTheme } from '../hooks/useTheme';
 import { useUnits } from '../hooks/useUnits';
@@ -10,17 +11,24 @@ import { ReviewLogPanel } from '../components/review/ReviewLogPanel';
 import { Chart } from '../components/review/Chart';
 import { TickScrubber } from '../components/review/TickScrubber';
 import {
-  type ReviewWindow,
-  type LogFilter,
+  type AnalyticsView,
   type ChartDef,
-  REVIEW_WINDOWS,
+  type ReviewWindow,
+  type ScrubIntent,
+  LOG_PARAM,
   REVIEW_CHARTS,
-  sliceHistory,
-  windowRange,
-  sliceLogs,
-  clampTick,
-  nextScrubPosition,
+  REVIEW_WINDOWS,
+  TICK_PARAM,
+  WINDOW_PARAM,
   alertMarkers,
+  nextScrubPosition,
+  readFilter,
+  readTick,
+  readWindow,
+  sliceHistory,
+  sliceLogs,
+  viewParams,
+  windowRange,
 } from '../review/index.js';
 
 const WINDOW_LABEL: Record<ReviewWindow, string> = {
@@ -32,10 +40,10 @@ const WINDOW_OPTIONS = REVIEW_WINDOWS.map((value) => ({ value, label: WINDOW_LAB
 const CHART_CHIP_OPTIONS = REVIEW_CHARTS.map((chart) => ({ value: chart.id, label: chart.shortLabel }));
 
 /**
- * Charts, the log, and the scrubber share one tick timeline — click a log line
- * or an alert marker and the handle jumps; drag the handle and both follow. The
- * scrubber only reads history, so scrubbing never mutates the sim, which may
- * still be running (the transport stays live in the rail).
+ * Charts, the log, and the scrubber share one tick cursor, and that cursor is
+ * the URL — every parked tick is a link, and back walks out of a scrub rather
+ * than out of the app. Only history is read here, so scrubbing never touches
+ * the sim, which may still be running (the transport stays live in the rail).
  */
 export function AnalyticsSection({
   sim,
@@ -45,31 +53,70 @@ export function AnalyticsSection({
   const { resolvedTheme } = useTheme();
   const { displayTemp } = useUnits();
   const isMobile = useIsMobile();
-  const [window, setWindow] = useState<ReviewWindow>('run');
-  const [filter, setFilter] = useState<LogFilter>('all');
+  const [params, setParams] = useSearchParams();
   const [chartId, setChartId] = useState<string>(REVIEW_CHARTS[0].id);
-  // null follows the live edge; a number parks the scrubber at that tick.
-  const [scrubTick, setScrubTick] = useState<number | null>(null);
+
+  const reviewWindow = readWindow(params.get(WINDOW_PARAM));
+  const filter = readFilter(params.get(LOG_PARAM));
 
   const logs = sim.state.logs;
-  const windowHistory = useMemo(() => sliceHistory(sim.history, window), [sim.history, window]);
-  const range = useMemo(() => windowRange(sim.history, window), [sim.history, window]);
+  const windowHistory = useMemo(
+    () => sliceHistory(sim.history, reviewWindow),
+    [sim.history, reviewWindow]
+  );
+  const range = useMemo(() => windowRange(sim.history, reviewWindow), [sim.history, reviewWindow]);
   const windowLogs = useMemo(() => sliceLogs(logs, range), [logs, range]);
   const marks = useMemo(() => alertMarkers(logs, range), [logs, range]);
 
-  const currentTick = range ? clampTick(scrubTick ?? range.maxTick, range.minTick, range.maxTick) : 0;
+  const scrubTick = readTick(params.get(TICK_PARAM), range);
+  const currentTick = range ? (scrubTick ?? range.maxTick) : 0;
 
-  const handleScrub = useCallback(
-    (tick: number): void => {
-      setScrubTick(nextScrubPosition(tick, range));
+  const setView = useCallback(
+    (patch: Partial<AnalyticsView>, intent: ScrubIntent): void => {
+      const view: AnalyticsView = { window: reviewWindow, filter, tick: scrubTick };
+      const next = new globalThis.URLSearchParams(viewParams({ ...view, ...patch })).toString();
+      if (next === new globalThis.URLSearchParams(viewParams(view)).toString()) return;
+      setParams(next, { replace: intent === 'adjust' && scrubTick !== null });
     },
-    [range]
+    [reviewWindow, filter, scrubTick, setParams]
   );
 
-  const handleWindowChange = useCallback((next: ReviewWindow): void => {
-    setWindow(next);
-    setScrubTick(null);
-  }, []);
+  const scrub = useCallback(
+    (tick: number, intent: ScrubIntent): void => {
+      setView({ tick: nextScrubPosition(tick, range) }, intent);
+    },
+    [range, setView]
+  );
+
+  /**
+   * Resolve the cursor against the window it is about to land in, so the URL
+   * and the handle agree in the same render — a tick that predates a narrower
+   * window clamps to its oldest snapshot rather than lingering in the address.
+   */
+  const changeWindow = useCallback(
+    (next: ReviewWindow): void => {
+      const nextRange = windowRange(sim.history, next);
+      const tick = scrubTick === null ? null : readTick(String(scrubTick), nextRange);
+      setView({ window: next, tick }, 'commit');
+    },
+    [sim.history, scrubTick, setView]
+  );
+
+  /**
+   * The tiles count the whole run, so the tick they name can predate a bounded
+   * window — widen back to the run rather than land somewhere else.
+   */
+  const scrubToRunTick = useCallback(
+    (tick: number): void => {
+      if (range !== null && tick >= range.minTick) {
+        setView({ tick: nextScrubPosition(tick, range) }, 'commit');
+        return;
+      }
+      const runRange = windowRange(sim.history, 'run');
+      setView({ window: 'run', tick: nextScrubPosition(tick, runRange) }, 'commit');
+    },
+    [range, sim.history, setView]
+  );
 
   const renderChart = (chart: ChartDef): React.JSX.Element => (
     <Chart
@@ -80,7 +127,7 @@ export function AnalyticsSection({
       currentTick={currentTick}
       theme={resolvedTheme}
       markers={marks.filter((m) => chart.alertKinds.includes(m.kind))}
-      onScrubToTick={handleScrub}
+      onScrubToTick={(tick) => scrub(tick, 'adjust')}
       displayTemp={displayTemp}
     />
   );
@@ -92,48 +139,57 @@ export function AnalyticsSection({
       windowLogs={windowLogs}
       allLogs={logs}
       filter={filter}
-      onFilterChange={setFilter}
+      onFilterChange={(next) => setView({ filter: next }, 'commit')}
       currentTick={currentTick}
-      onScrubToTick={handleScrub}
+      onScrubToTick={(tick) => scrub(tick, 'commit')}
     />
   );
 
   return (
     <Stage
       title="Analytics"
-      meta="charts · log · run summary"
+      meta="charts · log · run summary · tick scrubber"
       actions={
         <Segmented
           ariaLabel="Time window"
           options={WINDOW_OPTIONS}
-          value={window}
-          onChange={handleWindowChange}
+          value={reviewWindow}
+          onChange={changeWindow}
+        />
+      }
+      fills
+      footer={
+        <TickScrubber
+          range={range}
+          currentTick={currentTick}
+          following={scrubTick === null}
+          markers={marks}
+          onScrub={scrub}
         />
       }
     >
-      <div className="space-y-3 pb-3">
-        <SummaryTiles aggregates={sim.aggregates} logs={logs} />
+      <div className="flex h-full min-h-0 flex-col gap-2.5">
+        <SummaryTiles aggregates={sim.aggregates} logs={logs} onScrubToTick={scrubToRunTick} />
 
         {isMobile ? (
-          <div className="space-y-3">
+          <>
             <Segmented
               ariaLabel="Chart"
               options={CHART_CHIP_OPTIONS}
               value={chartId}
               onChange={setChartId}
+              fill
             />
-            {renderChart(activeChart)}
-            {logPanel}
-          </div>
+            <div className="h-[190px] shrink-0">{renderChart(activeChart)}</div>
+          </>
         ) : (
-          <div className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
-            {logPanel}
-            <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">{REVIEW_CHARTS.map(renderChart)}</div>
+          <div className="grid shrink-0 grid-cols-2 grid-rows-[repeat(2,154px)] gap-2.5">
+            {REVIEW_CHARTS.map(renderChart)}
           </div>
         )}
-      </div>
 
-      <TickScrubber range={range} currentTick={currentTick} onScrubToTick={handleScrub} />
+        <div className="min-h-0 flex-1">{logPanel}</div>
+      </div>
     </Stage>
   );
 }

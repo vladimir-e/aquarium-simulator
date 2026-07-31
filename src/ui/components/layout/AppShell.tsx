@@ -49,9 +49,7 @@ export function AppShell({ sim, config }: AppShellProps): React.JSX.Element {
     config,
     presetName: getPresetById(sim.currentPreset)?.name ?? sim.currentPreset,
     units: unitSystem,
-    alerts: sim.aggregates.alerts,
-    deaths: sim.aggregates.deaths,
-    births: sim.aggregates.births,
+    aggregates: sim.aggregates,
   });
 
   const rail = (

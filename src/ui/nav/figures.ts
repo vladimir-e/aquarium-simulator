@@ -5,9 +5,11 @@
  * band. Pure; the rail renders whatever these return.
  */
 
-import type { LidType, SimulationState } from '../../simulation/index.js';
+import type { LidType, LogEntry, SimulationState } from '../../simulation/index.js';
 import type { TunableConfig } from '../../simulation/config/index.js';
 import { bioload, buildDeviceList, equipmentSummary, scapeSummary } from '../build/index.js';
+import { runSummary, summaryLines } from '../review/index.js';
+import type { RunAggregates } from '../run/index.js';
 import {
   ailingPlants,
   bandStatus,
@@ -119,19 +121,16 @@ function livestockFigure(state: SimulationState, config: TunableConfig): NavFigu
   };
 }
 
-function analyticsFigure(state: SimulationState, run: RunTally): NavFigure {
-  if (state.tick === 0) {
+/**
+ * The row reads the section's own summary. Both quote what the run recorded
+ * rather than the tank's age — a restored save opens with an empty history
+ * buffer, and the section has nothing to draw however old the tank is.
+ */
+function analyticsFigure(aggregates: RunAggregates, logs: LogEntry[], units: UnitSystem): NavFigure {
+  if (aggregates.ticks === 0) {
     return { pill: null, lines: ['0 ticks', 'no history yet'] };
   }
-  const days = Math.floor(state.tick / 24);
-  const hours = state.tick % 24;
-  return {
-    pill: null,
-    lines: [
-      `${state.tick} ticks · ${days} d ${hours} h`,
-      `${run.alerts} alerts · ${run.deaths} deaths · ${run.births} fry`,
-    ],
-  };
+  return { pill: null, lines: summaryLines(runSummary(aggregates, logs, units)) };
 }
 
 function scenarioFigure(state: SimulationState, presetName: string, units: UnitSystem): NavFigure {
@@ -145,21 +144,16 @@ function scenarioFigure(state: SimulationState, presetName: string, units: UnitS
   };
 }
 
-interface RunTally {
-  alerts: number;
-  deaths: number;
-  births: number;
-}
-
-export interface NavFigureInput extends RunTally {
+export interface NavFigureInput {
   state: SimulationState;
   config: TunableConfig;
+  aggregates: RunAggregates;
   presetName: string;
   units: UnitSystem;
 }
 
 export function navFigures(input: NavFigureInput): Record<SectionId, NavFigure> {
-  const { state, config, presetName, units } = input;
+  const { state, config, aggregates, presetName, units } = input;
   const meters = waterMeters(state, units);
   const cycled = biofilterColonisation(state.resources, config.nitrogenCycle) >= CYCLED_PCT;
   return {
@@ -167,7 +161,7 @@ export function navFigures(input: NavFigureInput): Record<SectionId, NavFigure> 
     equipment: equipmentFigure(state, config),
     flora: floraFigure(state, config),
     livestock: livestockFigure(state, config),
-    analytics: analyticsFigure(state, input),
+    analytics: analyticsFigure(aggregates, state.logs, units),
     scenario: scenarioFigure(state, presetName, units),
   };
 }

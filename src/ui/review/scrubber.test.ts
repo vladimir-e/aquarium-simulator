@@ -5,6 +5,7 @@ import {
   tickToFraction,
   fractionToTick,
   nearestLogIndexAtOrBefore,
+  dayGridTicks,
   alertMarkers,
 } from './scrubber';
 import { createLog, type LogEntry } from '../../simulation/index.js';
@@ -112,5 +113,27 @@ describe('alertMarkers', () => {
       { tick: 20, kind: 'oxygen' },
       { tick: 40, kind: 'algae' },
     ]);
+  });
+});
+
+describe('dayGridTicks', () => {
+  it('marks every midnight strictly inside the window', () => {
+    expect(dayGridTicks({ minTick: 0, maxTick: 100 })).toEqual([24, 48, 72, 96]);
+  });
+
+  it('skips a boundary that is already an end of the track', () => {
+    // Both ends carry their own tick label, so a mark there would be noise.
+    expect(dayGridTicks({ minTick: 24, maxTick: 72 })).toEqual([48]);
+  });
+
+  it('offsets from the window, not from tick zero', () => {
+    expect(dayGridTicks({ minTick: 25, maxTick: 60 })).toEqual([48]);
+    expect(dayGridTicks({ minTick: 1598, maxTick: 1622 })).toEqual([1608]);
+  });
+
+  it('has nothing to draw inside a window shorter than a day', () => {
+    expect(dayGridTicks({ minTick: 100, maxTick: 110 })).toEqual([]);
+    expect(dayGridTicks({ minTick: 0, maxTick: 0 })).toEqual([]);
+    expect(dayGridTicks(null)).toEqual([]);
   });
 });

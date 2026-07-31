@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { formatMeter, navFigures, type MicroMeter, type NavFigure } from './figures';
 import type { SectionId } from './sections';
-import { waterAlert, waterGauges } from '../run/index.js';
+import { emptyAggregates, waterAlert, waterGauges, type RunAggregates } from '../run/index.js';
 import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
 import {
   applyAction,
@@ -32,18 +32,26 @@ function clutch(id: string): Clutch {
   return { id, species: 'angelfish', eggCount: 30, laidTick: 0 };
 }
 
+const RUN: RunAggregates = {
+  ticks: 1622,
+  deaths: 2,
+  births: 18,
+  frySold: 0,
+  alerts: 6,
+  waterChangedL: 340,
+};
+
 function figures(
   state: SimulationState,
-  units: 'metric' | 'imperial' = 'metric'
+  units: 'metric' | 'imperial' = 'metric',
+  aggregates: RunAggregates = RUN
 ): Record<SectionId, NavFigure> {
   return navFigures({
     state,
     config: DEFAULT_CONFIG,
     presetName: 'Planted Tank',
     units,
-    alerts: 6,
-    deaths: 2,
-    births: 18,
+    aggregates,
   });
 }
 
@@ -316,14 +324,26 @@ describe('navFigures — Livestock', () => {
 
 describe('navFigures — Analytics and Scenario', () => {
   it('says so plainly when there is no history to read', () => {
-    expect(figures(tank()).analytics.lines).toEqual(['0 ticks', 'no history yet']);
+    // A restored save opens deep into the tank's life with nothing recorded —
+    // the row reports the run, not the tank's age.
+    expect(figures(tank({ tick: 1622 }), 'metric', emptyAggregates()).analytics.lines).toEqual([
+      '0 ticks',
+      'no history yet',
+    ]);
   });
 
   it('splits elapsed time into days and hours once the run starts', () => {
-    expect(figures(tank({ tick: 1622 })).analytics.lines).toEqual([
-      '1622 ticks · 67 d 14 h',
+    expect(figures(tank()).analytics.lines).toEqual([
+      '1622 ticks · 67d 14h',
       '6 alerts · 2 deaths · 18 fry',
     ]);
+  });
+
+  it('quotes the run length the section quotes, not the tank\u2019s age', () => {
+    const midRun: RunAggregates = { ...RUN, ticks: 30 };
+    expect(figures(tank({ tick: 1622 }), 'metric', midRun).analytics.lines[0]).toBe(
+      '30 ticks · 1d 6h'
+    );
   });
 
   it('states the scenario in the reader’s own units', () => {

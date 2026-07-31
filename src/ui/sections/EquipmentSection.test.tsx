@@ -6,6 +6,7 @@ import { EquipmentSection } from './EquipmentSection';
 import { UnitsProvider, useUnits, type UnitSystem } from '../hooks/useUnits';
 import { PersistenceProvider } from '../persistence/index.js';
 import { navFigures } from '../nav/figures.js';
+import { emptyAggregates } from '../run/index.js';
 import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
 import { createSimulation, tick, type SimulationState } from '../../simulation/index.js';
 import type { useSimulation } from '../hooks/useSimulation';
@@ -119,9 +120,7 @@ describe('EquipmentSection', () => {
       config: DEFAULT_CONFIG,
       presetName: 'Community',
       units: 'metric',
-      alerts: 0,
-      deaths: 0,
-      births: 0,
+      aggregates: emptyAggregates(),
     }).equipment.lines[0];
     expect(within(header).getByText(railLine)).toBeTruthy();
     expect(railLine).toBe('3 of 8 on · biofilter 0 %');

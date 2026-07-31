@@ -20,9 +20,7 @@ function figuresFor(state: SimulationState): Record<SectionId, NavFigure> {
     config: DEFAULT_CONFIG,
     presetName: 'Planted Tank',
     units: 'metric',
-    alerts: 6,
-    deaths: 2,
-    births: 18,
+    aggregates: { ticks: 1622, deaths: 2, births: 18, frySold: 0, alerts: 6, waterChangedL: 340 },
   });
 }
 

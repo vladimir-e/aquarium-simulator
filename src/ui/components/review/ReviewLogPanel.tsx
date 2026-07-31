@@ -63,13 +63,29 @@ export function ReviewLogPanel({
   }, [activeIndex, filter]);
 
   return (
-    <section className="flex h-full flex-col rounded-card border border-hairline bg-surface">
-      <div className="flex items-center justify-between gap-2 border-b border-hairline px-4 py-2.5">
+    <section className="flex h-full min-h-0 flex-col rounded-card border border-hairline bg-surface">
+      <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-hairline px-4 py-2">
         <h3 className="text-[15px] font-semibold leading-none text-ink">Log</h3>
-        <Segmented ariaLabel="Log category" options={FILTER_OPTIONS} value={filter} onChange={onFilterChange} />
+        <span className="text-[12px] text-ink-3">click a line to park the cursor</span>
+        <div className="ml-auto flex items-center gap-2">
+          <Segmented
+            ariaLabel="Log category"
+            options={FILTER_OPTIONS}
+            value={filter}
+            onChange={onFilterChange}
+          />
+          <button
+            type="button"
+            onClick={() => downloadLog(allLogs)}
+            className="inline-flex items-center gap-1.5 rounded-control border border-hairline bg-surface px-2.5 py-1.5 text-[12px] font-medium text-ink-2 transition-colors hover:border-hairline-2 hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
+          >
+            <Download className="h-3.5 w-3.5" />
+            export
+          </button>
+        </div>
       </div>
 
-      <div className="min-h-[240px] flex-1 overflow-y-auto px-2 py-1.5">
+      <div className="min-h-0 flex-1 overflow-y-auto px-2 py-1.5">
         {shown.length === 0 ? (
           <p className="px-2 py-2 font-mono text-[12.5px] text-ink-3">No events in this view.</p>
         ) : (
@@ -99,18 +115,6 @@ export function ReviewLogPanel({
               );
             })
         )}
-      </div>
-
-      <div className="flex items-center justify-between gap-2 border-t border-hairline px-4 py-2">
-        <span className="text-[12px] text-ink-3">click a line — the scrubber jumps there</span>
-        <button
-          type="button"
-          onClick={() => downloadLog(allLogs)}
-          className="inline-flex items-center gap-1.5 rounded-control border border-hairline bg-surface px-2.5 py-1 text-[12px] font-medium text-ink-2 transition-colors hover:border-hairline-2 hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
-        >
-          <Download className="h-3.5 w-3.5" />
-          export
-        </button>
       </div>
     </section>
   );

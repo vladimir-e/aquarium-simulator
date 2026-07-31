@@ -14,6 +14,7 @@ import {
 } from '../../simulation/index.js';
 import type { useSimulation } from '../hooks/useSimulation';
 import { navFigures, type NavFigure } from '../nav/figures';
+import { emptyAggregates } from '../run/index.js';
 
 afterEach(() => {
   globalThis.localStorage.clear();
@@ -320,9 +321,7 @@ describe('the rail carries the Livestock section’s own roster', () => {
       config: DEFAULT_CONFIG,
       presetName: 'Planted Tank',
       units: 'metric',
-      alerts: 0,
-      deaths: 0,
-      births: 0,
+      aggregates: emptyAggregates(),
     }).livestock;
   }
 
