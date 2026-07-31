@@ -21,7 +21,7 @@ const MIN_DOSE_ML = 0.1;
 /**
  * Maximum dose amount (ml) - prevents accidents
  */
-const MAX_DOSE_ML = 50;
+export const MAX_DOSE_ML = 50;
 
 /**
  * Calculate nutrients added for a given dose amount.

@@ -1,0 +1,119 @@
+import React, { useEffect, useMemo, useRef } from 'react';
+import { Download } from 'lucide-react';
+import type { LogEntry } from '../../../simulation/index.js';
+import { EmptyState } from '../run/Card';
+import { Segmented } from '../ui/Segmented';
+import {
+  type LogCategory,
+  type LogFilter,
+  LOG_FILTERS,
+  CATEGORY_LABEL,
+  categorizeLog,
+  filterLogs,
+  isAlertLog,
+  nearestLogIndexAtOrBefore,
+  formatLogExport,
+  LOG_EXPORT_FILENAME,
+} from '../../review/index.js';
+
+const FILTER_OPTIONS = LOG_FILTERS.map((value) => ({ value, label: value }));
+
+const CATEGORY_TINT: Record<LogCategory, string> = {
+  cycle: 'text-ink-2',
+  user: 'text-accent',
+  life: 'text-ok-text',
+  sim: 'text-ink-3',
+};
+
+function downloadLog(logs: LogEntry[]): void {
+  const blob = new globalThis.Blob([formatLogExport(logs)], { type: 'text/plain' });
+  const url = globalThis.URL.createObjectURL(blob);
+  const anchor = globalThis.document.createElement('a');
+  anchor.href = url;
+  anchor.download = LOG_EXPORT_FILENAME;
+  anchor.click();
+  // Revoke after the click's download has a chance to start.
+  globalThis.setTimeout(() => globalThis.URL.revokeObjectURL(url), 0);
+}
+
+interface ReviewLogPanelProps {
+  /** Window-scoped log lines, ascending by tick. */
+  windowLogs: LogEntry[];
+  filter: LogFilter;
+  onFilterChange: (filter: LogFilter) => void;
+  currentTick: number;
+  onScrubToTick: (tick: number) => void;
+}
+
+export function ReviewLogPanel({
+  windowLogs,
+  filter,
+  onFilterChange,
+  currentTick,
+  onScrubToTick,
+}: ReviewLogPanelProps): React.JSX.Element {
+  const shown = useMemo(() => filterLogs(windowLogs, filter), [windowLogs, filter]);
+  const activeIndex = nearestLogIndexAtOrBefore(shown, currentTick);
+  const activeRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    activeRef.current?.scrollIntoView({ block: 'nearest' });
+  }, [activeIndex, filter]);
+
+  return (
+    <section className="flex h-full min-h-0 flex-col rounded-card border border-hairline bg-surface">
+      <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-hairline px-4 py-2">
+        <h3 className="text-[15px] font-semibold leading-none text-ink">Log</h3>
+        <span className="text-[12px] text-ink-3">click a line to park the cursor</span>
+        <div className="ml-auto flex items-center gap-2">
+          <Segmented
+            ariaLabel="Log category"
+            options={FILTER_OPTIONS}
+            value={filter}
+            onChange={onFilterChange}
+          />
+          <button
+            type="button"
+            onClick={() => downloadLog(shown)}
+            className="inline-flex items-center gap-1.5 rounded-control border border-hairline bg-surface px-2.5 py-1.5 text-[12px] font-medium text-ink-2 transition-colors hover:border-hairline-2 hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
+          >
+            <Download className="h-3.5 w-3.5" />
+            export
+          </button>
+        </div>
+      </div>
+
+      <div className="min-h-0 flex-1 overflow-y-auto px-2 py-1.5">
+        {shown.length === 0 ? (
+          <EmptyState className="px-2 py-2 font-mono">No events in this view.</EmptyState>
+        ) : (
+          shown
+            .map((log, ascIndex) => ({ log, ascIndex }))
+            .reverse()
+            .map(({ log, ascIndex }) => {
+              const active = ascIndex === activeIndex;
+              const alert = isAlertLog(log);
+              return (
+                <button
+                  key={`${log.tick}-${ascIndex}`}
+                  ref={active ? activeRef : undefined}
+                  type="button"
+                  onClick={() => onScrubToTick(log.tick)}
+                  aria-current={active}
+                  className={`flex w-full items-baseline gap-1.5 rounded px-2 py-1 text-left font-mono text-[12.5px] leading-relaxed transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus ${
+                    active ? 'bg-accent-tint' : 'hover:bg-surface-2'
+                  }`}
+                >
+                  <span className="shrink-0 tabular-nums text-ink-3">{log.tick}</span>
+                  <span className={`shrink-0 ${CATEGORY_TINT[categorizeLog(log)]}`}>
+                    [{CATEGORY_LABEL[categorizeLog(log)]}]
+                  </span>
+                  <span className={alert ? 'text-alert-text' : 'text-ink'}>{log.message}</span>
+                </button>
+              );
+            })
+        )}
+      </div>
+    </section>
+  );
+}

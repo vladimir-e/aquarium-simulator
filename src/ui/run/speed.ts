@@ -1,0 +1,26 @@
+/**
+ * Transport speed presets. Speed is session-scoped, not persisted.
+ */
+
+export type SpeedPreset = '1h' | '6h' | '1d';
+
+export const SPEED_PRESETS: readonly SpeedPreset[] = ['1h', '6h', '1d'];
+
+export const DEFAULT_SPEED: SpeedPreset = '1h';
+
+/** Ticks (simulated hours) advanced per real second at each speed. */
+export const SPEED_TICKS_PER_SECOND: Record<SpeedPreset, number> = {
+  '1h': 1,
+  '6h': 6,
+  '1d': 24,
+};
+
+/** Label shown on the transport segmented control. */
+export const SPEED_LABELS: Record<SpeedPreset, string> = {
+  '1h': '1h/s',
+  '6h': '6h',
+  '1d': '1d',
+};
+
+/** Ticks the Step button advances, independent of the autoplay speed. */
+export const STEP_TICKS = 24;

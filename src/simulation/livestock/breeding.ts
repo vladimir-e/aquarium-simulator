@@ -111,7 +111,8 @@ function hatchClutches(draft: SimulationState, rng: () => number): void {
         'simulation',
         'info',
         `${clutch.eggCount} ${FISH_SPECIES_DATA[clutch.species].name} eggs hatched`,
-        'eggs-hatched'
+        'eggs-hatched',
+        clutch.eggCount
       )
     );
   }
@@ -178,7 +179,8 @@ function spawn(
             'simulation',
             'info',
             `${FISH_SPECIES_DATA[species].name} gave birth to ${breeding.clutchSize} fry`,
-            'fish-spawned'
+            'fish-spawned',
+            breeding.clutchSize
           )
         );
       } else {

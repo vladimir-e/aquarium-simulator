@@ -18,6 +18,9 @@ import { temperatureDefaults } from '../config/temperature.js';
  *
  * Returns 0 for invalid inputs (zero/negative volume or wattage).
  */
+/** Common heater wattage options for UI selection */
+export const HEATER_WATTAGE_OPTIONS: number[] = [50, 100, 200, 300, 500, 1000];
+
 export function calculateHeatingRate(
   wattage: number,
   waterVolume: number

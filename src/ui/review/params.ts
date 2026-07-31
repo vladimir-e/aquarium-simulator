@@ -1,0 +1,81 @@
+/**
+ * Analytics' view state lives in the query string, so browser-back walks back
+ * out of a scrub and every view is addressable within the session. Defaults are
+ * absent rather than spelled out — `/analytics` is the widest window at the live
+ * edge, and a running sim never rewrites the URL because following has no param.
+ *
+ * `?tick=` does not outlive the session that made it: history is session-scoped,
+ * so a reload leaves nothing for a tick to name. It is also scoped to this
+ * section — `RunSnapshot` carries no AOB/NOB, waste, nutrients or roster, so no
+ * other section could honour a historical cursor.
+ */
+
+import { type LogFilter, LOG_FILTERS } from './category.js';
+import { type ChartDef, REVIEW_CHARTS } from './charts.js';
+import { type ReviewWindow, REVIEW_WINDOWS, type TickRange } from './window.js';
+
+export const TICK_PARAM = 'tick';
+export const WINDOW_PARAM = 'window';
+export const LOG_PARAM = 'log';
+export const CHART_PARAM = 'chart';
+
+const DEFAULT_WINDOW: ReviewWindow = 'run';
+const DEFAULT_FILTER: LogFilter = 'all';
+const DEFAULT_CHART: ChartDef = REVIEW_CHARTS[0];
+
+export interface AnalyticsView {
+  window: ReviewWindow;
+  filter: LogFilter;
+  /** Parked tick, or null to follow the live edge. */
+  tick: number | null;
+  /** Id of the chart the chips are on — the only chart on a phone. */
+  chart: string;
+}
+
+/**
+ * What a scrub means for the back button. `adjust` refines a cursor that is
+ * already parked — a drag in flight, ±1, an arrow key — and replaces the entry
+ * it started from, or back would replay every tick the drag passed through.
+ * `commit` names a place: a log line, a typed tick, an end of the run, the live
+ * edge. Leaving the live edge always pushes, whatever the intent, so back is
+ * the way out of a parked cursor rather than the way out of the app.
+ */
+export type ScrubIntent = 'adjust' | 'commit';
+
+export function readWindow(raw: string | null): ReviewWindow {
+  return REVIEW_WINDOWS.find((w) => w === raw) ?? DEFAULT_WINDOW;
+}
+
+export function readFilter(raw: string | null): LogFilter {
+  return LOG_FILTERS.find((f) => f === raw) ?? DEFAULT_FILTER;
+}
+
+export function readChart(raw: string | null): ChartDef {
+  return REVIEW_CHARTS.find((c) => c.id === raw) ?? DEFAULT_CHART;
+}
+
+/**
+ * The cursor a `?tick=` names inside the window it lands in. Anything at or
+ * past the live edge follows it instead of pinning to a tick that is about to
+ * move; anything before the window clamps to its oldest snapshot, which is the
+ * earliest state the charts can actually draw.
+ */
+export function readTick(raw: string | null, range: TickRange | null): number | null {
+  if (raw === null || range === null) return null;
+  const trimmed = raw.trim();
+  if (trimmed === '') return null;
+  const tick = Number(trimmed);
+  if (!Number.isInteger(tick)) return null;
+  if (tick >= range.maxTick) return null;
+  return Math.max(tick, range.minTick);
+}
+
+/** The view as query params, with every default left out. */
+export function viewParams(view: AnalyticsView): Record<string, string> {
+  const params: Record<string, string> = {};
+  if (view.tick !== null) params[TICK_PARAM] = String(view.tick);
+  if (view.window !== DEFAULT_WINDOW) params[WINDOW_PARAM] = view.window;
+  if (view.filter !== DEFAULT_FILTER) params[LOG_PARAM] = view.filter;
+  if (view.chart !== DEFAULT_CHART.id) params[CHART_PARAM] = view.chart;
+  return params;
+}

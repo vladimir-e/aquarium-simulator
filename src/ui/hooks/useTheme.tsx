@@ -3,6 +3,7 @@ import React, {
   useContext,
   useState,
   useEffect,
+  useLayoutEffect,
   useCallback,
   useMemo,
   type ReactNode,
@@ -49,48 +50,35 @@ function getSystemTheme(): ResolvedTheme {
   return 'dark'; // Default to dark if matchMedia unavailable
 }
 
-/**
- * Resolve the actual theme based on mode and system preference.
- */
-function resolveTheme(mode: ThemeMode): ResolvedTheme {
-  if (mode === 'system') {
-    return getSystemTheme();
-  }
-  return mode;
-}
-
 interface ThemeProviderProps {
   children: ReactNode;
 }
 
 export function ThemeProvider({ children }: ThemeProviderProps): React.JSX.Element {
   const [mode, setModeState] = useState<ThemeMode>(getInitialMode);
-  const [resolvedTheme, setResolvedTheme] = useState<ResolvedTheme>(() => resolveTheme(mode));
+  const [systemTheme, setSystemTheme] = useState<ResolvedTheme>(getSystemTheme);
 
-  // Update resolved theme when mode changes
+  // Derived synchronously so a toggle resolves in the same render as the mode
+  // change — no chained effect, so no intermediate stale-theme paint.
+  const resolvedTheme: ResolvedTheme = mode === 'system' ? systemTheme : mode;
+
+  // Track the OS preference so `system` mode follows it live.
   useEffect(() => {
-    setResolvedTheme(resolveTheme(mode));
-  }, [mode]);
-
-  // Listen for system theme changes when in system mode
-  useEffect(() => {
-    if (mode !== 'system') return;
-
     const mediaQuery = globalThis.matchMedia?.('(prefers-color-scheme: dark)');
     if (!mediaQuery) return;
 
     const handleChange = (): void => {
-      setResolvedTheme(getSystemTheme());
+      setSystemTheme(mediaQuery.matches ? 'dark' : 'light');
     };
 
     mediaQuery.addEventListener('change', handleChange);
     return (): void => {
       mediaQuery.removeEventListener('change', handleChange);
     };
-  }, [mode]);
+  }, []);
 
-  // Apply theme class to document element
-  useEffect(() => {
+  // Apply the theme class before paint so the swap never shows a stale frame.
+  useLayoutEffect(() => {
     const root = globalThis.document?.documentElement;
     if (!root) return;
 

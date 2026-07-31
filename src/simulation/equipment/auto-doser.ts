@@ -97,30 +97,6 @@ export function shouldResetDosedToday(hourOfDay: number): boolean {
   return hourOfDay === 0;
 }
 
-/**
- * Format the dose preview for UI display.
- *
- * @param doseAmountMl - Dose amount in ml
- * @param waterVolume - Tank water volume in liters
- * @param formula - Fertilizer formula
- * @returns Formatted string with expected ppm changes
- */
-export function formatDosePreview(
-  doseAmountMl: number,
-  waterVolume: number,
-  formula: FertilizerFormula = nutrientsDefaults.fertilizerFormula
-): string {
-  if (waterVolume <= 0) return 'N/A';
-
-  const nutrients = calculateDoseNutrients(doseAmountMl, formula);
-  const nitratePpm = nutrients.nitrate / waterVolume;
-  const phosphatePpm = nutrients.phosphate / waterVolume;
-  const potassiumPpm = nutrients.potassium / waterVolume;
-  const ironPpm = nutrients.iron / waterVolume;
-
-  return `+${nitratePpm.toFixed(1)} NO3, +${phosphatePpm.toFixed(2)} PO4, +${potassiumPpm.toFixed(1)} K, +${ironPpm.toFixed(2)} Fe ppm`;
-}
-
 // ============================================================================
 // Equipment Update
 // ============================================================================

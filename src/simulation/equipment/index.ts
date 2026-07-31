@@ -9,10 +9,11 @@ import {
   heaterUpdate,
   applyHeaterStateChange,
   calculateHeatingRate,
+  HEATER_WATTAGE_OPTIONS,
 } from './heater.js';
 import { atoUpdate } from './ato.js';
-import { getFilterSurface, getFilterFlow, isFilterAirDriven, type FilterType, type Filter, type FilterSpec, DEFAULT_FILTER, FILTER_SURFACE, FILTER_SPECS, FILTER_AIR_DRIVEN } from './filter.js';
-import { getPowerheadFlow, type PowerheadFlowRate, type Powerhead, DEFAULT_POWERHEAD, POWERHEAD_FLOW_LPH } from './powerhead.js';
+import { getFilterSurface, getFilterFlow, isFilterAirDriven, type FilterType, type Filter, type FilterSpec, DEFAULT_FILTER, FILTER_TYPES, FILTER_SURFACE, FILTER_SPECS, FILTER_AIR_DRIVEN } from './filter.js';
+import { getPowerheadFlow, type PowerheadFlowRate, type Powerhead, DEFAULT_POWERHEAD, POWERHEAD_FLOW_LPH, POWERHEAD_FLOW_RATES } from './powerhead.js';
 import { getSubstrateSurface, type SubstrateType, type Substrate, DEFAULT_SUBSTRATE, SUBSTRATE_SURFACE_PER_LITER } from './substrate.js';
 import { calculateHardscapeTotalSurface } from './hardscape.js';
 import {
@@ -36,7 +37,6 @@ import {
 import {
   autoDoserUpdate,
   applyAutoDoserSettings,
-  formatDosePreview,
   shouldDose,
   type AutoDoser,
   DEFAULT_AUTO_DOSER,
@@ -45,10 +45,10 @@ import {
 } from './auto-doser.js';
 
 // Re-export equipment modules
-export { heaterUpdate, applyHeaterStateChange, calculateHeatingRate };
+export { heaterUpdate, applyHeaterStateChange, calculateHeatingRate, HEATER_WATTAGE_OPTIONS };
 export { atoUpdate };
-export { getFilterSurface, getFilterFlow, isFilterAirDriven, type FilterType, type Filter, type FilterSpec, DEFAULT_FILTER, FILTER_SURFACE, FILTER_SPECS, FILTER_AIR_DRIVEN };
-export { getPowerheadFlow, type PowerheadFlowRate, type Powerhead, DEFAULT_POWERHEAD, POWERHEAD_FLOW_LPH };
+export { getFilterSurface, getFilterFlow, isFilterAirDriven, type FilterType, type Filter, type FilterSpec, DEFAULT_FILTER, FILTER_TYPES, FILTER_SURFACE, FILTER_SPECS, FILTER_AIR_DRIVEN };
+export { getPowerheadFlow, type PowerheadFlowRate, type Powerhead, DEFAULT_POWERHEAD, POWERHEAD_FLOW_LPH, POWERHEAD_FLOW_RATES };
 export { getSubstrateSurface, type SubstrateType, type Substrate, DEFAULT_SUBSTRATE, SUBSTRATE_SURFACE_PER_LITER };
 export {
   co2GeneratorUpdate,
@@ -71,7 +71,6 @@ export {
 export {
   autoDoserUpdate,
   applyAutoDoserSettings,
-  formatDosePreview,
   shouldDose,
   type AutoDoser,
   DEFAULT_AUTO_DOSER,

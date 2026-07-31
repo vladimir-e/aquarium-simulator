@@ -16,6 +16,9 @@ export const DEFAULT_POWERHEAD: Powerhead = {
   flowRateGPH: 400,
 };
 
+/** Flow-rate presets in the order a picker offers them. */
+export const POWERHEAD_FLOW_RATES: readonly PowerheadFlowRate[] = [240, 400, 600, 850];
+
 /** Powerhead flow rate conversion GPH to L/h */
 export const POWERHEAD_FLOW_LPH: Record<PowerheadFlowRate, number> = {
   240: 908,

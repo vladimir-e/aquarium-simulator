@@ -1,5 +1,8 @@
 import { useEffect } from 'react';
 
+/** Elements that own Space themselves — typing, activating, or scrolling. */
+const SPACE_IS_THEIRS = ['INPUT', 'TEXTAREA', 'BUTTON', 'SELECT', 'A'];
+
 export function useKeyboardShortcuts(
   onStep: () => void,
   onTogglePlayPause: () => void,
@@ -7,14 +10,10 @@ export function useKeyboardShortcuts(
 ): void {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent): void => {
-      // Spacebar for step/pause, but ignore if typing in an input/textarea/button/select
       if (
         e.code === 'Space' &&
         e.target instanceof HTMLElement &&
-        e.target.tagName !== 'INPUT' &&
-        e.target.tagName !== 'TEXTAREA' &&
-        e.target.tagName !== 'BUTTON' &&
-        e.target.tagName !== 'SELECT'
+        !SPACE_IS_THEIRS.includes(e.target.tagName)
       ) {
         e.preventDefault();
         if (isPlaying) {

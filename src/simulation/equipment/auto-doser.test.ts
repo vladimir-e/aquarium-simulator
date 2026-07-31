@@ -2,7 +2,6 @@ import { describe, it, expect } from 'vitest';
 import {
   shouldDose,
   shouldResetDosedToday,
-  formatDosePreview,
   autoDoserUpdate,
   applyAutoDoserSettings,
   DEFAULT_AUTO_DOSER,
@@ -54,40 +53,6 @@ describe('auto-doser equipment', () => {
       expect(shouldResetDosedToday(1)).toBe(false);
       expect(shouldResetDosedToday(12)).toBe(false);
       expect(shouldResetDosedToday(23)).toBe(false);
-    });
-  });
-
-  describe('formatDosePreview', () => {
-    it('formats dose preview with all nutrient increases', () => {
-      const result = formatDosePreview(2.0, 40);
-
-      expect(result).toContain('NO3');
-      expect(result).toContain('PO4');
-      expect(result).toContain('K');
-      expect(result).toContain('Fe');
-      expect(result).toContain('ppm');
-    });
-
-    it('returns N/A for zero water volume', () => {
-      expect(formatDosePreview(2.0, 0)).toBe('N/A');
-    });
-
-    it('returns N/A for negative water volume', () => {
-      expect(formatDosePreview(2.0, -10)).toBe('N/A');
-    });
-
-    it('uses custom formula when provided', () => {
-      const customFormula: FertilizerFormula = {
-        nitrate: 100,
-        phosphate: 20,
-        potassium: 80,
-        iron: 4,
-      };
-
-      const result = formatDosePreview(1.0, 40, customFormula);
-
-      // 100mg / 40L = 2.5 ppm
-      expect(result).toContain('2.5');
     });
   });
 

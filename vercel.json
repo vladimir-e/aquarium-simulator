@@ -1,4 +1,5 @@
 {
   "buildCommand": "npm run ui:build",
-  "outputDirectory": "dist-ui"
+  "outputDirectory": "dist-ui",
+  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
 }

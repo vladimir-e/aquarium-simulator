@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { produce } from 'immer';
 import {
   createSimulation,
@@ -17,28 +17,53 @@ import {
   type HardscapeType,
   type HardscapeItem,
   type DailySchedule,
+  type LogEntry,
 } from '../../simulation/index.js';
 import { createLog } from '../../simulation/core/logging.js';
 import { PRESETS, DEFAULT_PRESET_ID, getPresetById, type PresetId } from '../presets.js';
 import { useConfig } from './useConfig.js';
 import { usePersistence, type PersistedSimulation } from '../persistence/index.js';
+import { type SpeedPreset, DEFAULT_SPEED, SPEED_TICKS_PER_SECOND, STEP_TICKS } from '../run/speed.js';
+import {
+  type RunSnapshot,
+  type RunAggregates,
+  snapshotFromState,
+  appendRunSnapshot,
+  emptyAggregates,
+  accrueLogs,
+  accrueTicks,
+  accrueWaterChanged,
+} from '../run/index.js';
 
-export type SpeedPreset = '1hr' | '6hr' | '12hr' | '1day';
+export type { SpeedPreset };
 
-const SPEED_MULTIPLIERS: Record<SpeedPreset, number> = {
-  '1hr': 1,
-  '6hr': 6,
-  '12hr': 12,
-  '1day': 24,
-};
+let hardscapeSeq = 0;
+
+/**
+ * Matches the engine's own id scheme (`generateFishId`, `generatePlantId`).
+ * Deliberately not `crypto.randomUUID` — that is secure-context only, so it is
+ * undefined over plain HTTP on a LAN hostname and throws on the preview build.
+ */
+function generateHardscapeId(): string {
+  return `hardscape_${Date.now().toString(36)}_${(hardscapeSeq++).toString(36)}`;
+}
 
 interface UseSimulationReturn {
   state: SimulationState;
   isPlaying: boolean;
   speed: SpeedPreset;
   currentPreset: PresetId;
-  /** True if equipment or plants have been modified from preset defaults */
-  isPresetModified: boolean;
+  /** Per-tick vitals snapshots for this run (ring buffer, session-scoped). */
+  history: RunSnapshot[];
+  /** Rolling run tallies (deaths, births, alerts, water changed…). */
+  aggregates: RunAggregates;
+  /**
+   * The log from this run's start. A preset switch retains the transcript but
+   * rebaselines the run at the same tick, so tick alone cannot tell a prior-run
+   * entry from a new one — anything reading the run reads this, not `state.logs`.
+   */
+  runLogs: LogEntry[];
+  /** Advance one simulated day, whatever the autoplay speed. */
   step: () => void;
   togglePlayPause: () => void;
   changeSpeed: (speed: SpeedPreset) => void;
@@ -157,9 +182,6 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
     return initialPreset;
   });
 
-  // Track if equipment/plants have been modified from preset defaults
-  const [isModified, setIsModified] = useState(false);
-
   const [state, setState] = useState<SimulationState>(() => {
     // If we have persisted state, restore it
     if (initialSimulation) {
@@ -180,38 +202,105 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
   });
 
   const [isPlaying, setIsPlaying] = useState(false);
-  const [speed, setSpeed] = useState<SpeedPreset>('1hr');
+  const [speed, setSpeed] = useState<SpeedPreset>(DEFAULT_SPEED);
   const intervalRef = useRef<number | null>(null);
-  // Store config ref for use in intervals
+  // Store config/speed refs so the single interval always reads the latest.
   const configRef = useRef(config);
   configRef.current = config;
+  const speedRef = useRef(speed);
+  speedRef.current = speed;
+
+  // Run history + aggregates (session-scoped, reset with the run).
+  const [history, setHistory] = useState<RunSnapshot[]>([]);
+  const [aggregates, setAggregates] = useState<RunAggregates>(emptyAggregates);
+  const [runLogStart, setRunLogStart] = useState(0);
+  const runLogs = useMemo(() => state.logs.slice(runLogStart), [state.logs, runLogStart]);
+  const stateRef = useRef(state);
+  // Baseline for deriving per-commit deltas; null re-seeds the recorder.
+  const recorderRef = useRef<{ tick: number; logCount: number } | null>(null);
+  // Snapshots captured per tick during an advance, drained on the next commit.
+  const pendingSnapshotsRef = useRef<RunSnapshot[]>([]);
+  // Highest tick already snapshotted — makes queueing idempotent under the
+  // StrictMode double-invocation of setState updaters.
+  const recordedThroughRef = useRef(-1);
+
+  const queueSnapshot = useCallback((next: SimulationState) => {
+    if (next.tick <= recordedThroughRef.current) return;
+    recordedThroughRef.current = next.tick;
+    pendingSnapshotsRef.current.push(snapshotFromState(next));
+  }, []);
+
+  // Advance the sim by `count` ticks, queuing a snapshot for each one.
+  const advanceTicks = useCallback(
+    (current: SimulationState, count: number): SimulationState => {
+      let next = current;
+      for (let i = 0; i < count; i++) {
+        next = simulationTick(next, configRef.current);
+        queueSnapshot(next);
+      }
+      return next;
+    },
+    [queueSnapshot]
+  );
+
+  /**
+   * Start a new run: history, tallies, and the log all rebaseline here.
+   * `logStart` is where the new run's log begins — 0 when the caller replaces
+   * the transcript, its current length when the caller keeps it.
+   */
+  const resetRun = useCallback((logStart: number) => {
+    recorderRef.current = null;
+    recordedThroughRef.current = -1;
+    pendingSnapshotsRef.current = [];
+    setHistory([]);
+    setAggregates(emptyAggregates());
+    setRunLogStart(logStart);
+  }, []);
 
   // Notify persistence when state or preset changes
   useEffect(() => {
     onSimulationChange(stateToPersistedSimulation(state, currentPreset));
   }, [state, currentPreset, onSimulationChange]);
 
-  const step = useCallback(() => {
-    const multiplier = SPEED_MULTIPLIERS[speed];
-    setState((current) => {
-      let nextState = current;
-      for (let i = 0; i < multiplier; i++) {
-        nextState = simulationTick(nextState, configRef.current);
-      }
-      return nextState;
-    });
-  }, [speed]);
+  // Record run history + aggregates from each committed state transition.
+  // History drains the per-tick queue (so a multi-tick Step keeps every hour);
+  // aggregates fold all new logs, catching action-emitted events too.
+  useEffect(() => {
+    stateRef.current = state;
+    const prev = recorderRef.current;
+    if (prev === null) {
+      recorderRef.current = { tick: state.tick, logCount: state.logs.length };
+      recordedThroughRef.current = state.tick;
+      pendingSnapshotsRef.current = [];
+      setHistory([snapshotFromState(state)]);
+      return;
+    }
+    const queued = pendingSnapshotsRef.current;
+    if (queued.length > 0) {
+      pendingSnapshotsRef.current = [];
+      setHistory((h) => queued.reduce(appendRunSnapshot, h));
+    } else if (state.tick === recordedThroughRef.current) {
+      // A paused action mutated state without advancing the tick, so nothing was
+      // queued. Refresh this tick's snapshot in place so Review reflects the
+      // post-action world. Idempotent — re-running replaces with an equal value.
+      setHistory((h) => (h.length > 0 ? [...h.slice(0, -1), snapshotFromState(state)] : h));
+    }
+
+    if (state.tick === prev.tick && state.logs.length === prev.logCount) return;
+
+    const newLogs = state.logs.slice(prev.logCount);
+    setAggregates((a) => accrueLogs(accrueTicks(a, state.tick - prev.tick), newLogs));
+    recorderRef.current = { tick: state.tick, logCount: state.logs.length };
+  }, [state]);
 
   const startAutoPlay = useCallback(() => {
     if (intervalRef.current) return;
 
-    const ticksPerSecond = SPEED_MULTIPLIERS[speed];
-    const intervalMs = 1000 / ticksPerSecond;
-
+    const intervalMs = 1000 / SPEED_TICKS_PER_SECOND[speedRef.current];
     intervalRef.current = window.setInterval(() => {
-      setState((current) => simulationTick(current, configRef.current));
+      setState((current) => advanceTicks(current, 1));
     }, intervalMs);
-  }, [speed]);
+  }, [advanceTicks]);
 
   const stopAutoPlay = useCallback(() => {
     if (intervalRef.current) {
@@ -231,21 +320,26 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
     });
   }, [startAutoPlay, stopAutoPlay]);
 
+  // Stepping is manual advance, so it takes the clock: autoplay left running
+  // would carry you straight past the day you asked to look at.
+  const step = useCallback(() => {
+    if (isPlaying) {
+      stopAutoPlay();
+      setIsPlaying(false);
+    }
+    setState((current) => advanceTicks(current, STEP_TICKS));
+  }, [isPlaying, stopAutoPlay, advanceTicks]);
+
   const changeSpeed = useCallback(
     (newSpeed: SpeedPreset) => {
       setSpeed(newSpeed);
+      speedRef.current = newSpeed;
       if (isPlaying) {
         stopAutoPlay();
-        // Restart with new speed
-        const ticksPerSecond = SPEED_MULTIPLIERS[newSpeed];
-        const intervalMs = 1000 / ticksPerSecond;
-
-        intervalRef.current = window.setInterval(() => {
-          setState((current) => simulationTick(current, configRef.current));
-        }, intervalMs);
+        startAutoPlay();
       }
     },
-    [isPlaying, stopAutoPlay]
+    [isPlaying, stopAutoPlay, startAutoPlay]
   );
 
   const loadPreset = useCallback(
@@ -262,7 +356,9 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
       }
 
       setCurrentPreset(presetId);
-      setIsModified(false);
+      // The transcript carries over, so the new run opens on the switch line
+      // this call is about to push.
+      resetRun(stateRef.current.logs.length);
 
       // Apply preset equipment while preserving simulation progress
       setState((current) =>
@@ -296,7 +392,7 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
         })
       );
     },
-    [isPlaying, stopAutoPlay]
+    [isPlaying, stopAutoPlay, resetRun]
   );
 
   /**
@@ -309,6 +405,7 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
       stopAutoPlay();
       setIsPlaying(false);
     }
+    resetRun(0);
 
     setState((current) =>
       produce(current, (draft) => {
@@ -344,10 +441,9 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
         draft.logs = [createLog(0, 'simulation', 'info', 'Simulation reset')];
       })
     );
-  }, [isPlaying, stopAutoPlay]);
+  }, [isPlaying, stopAutoPlay, resetRun]);
 
   const updateHeaterEnabled = useCallback((enabled: boolean) => {
-    setIsModified(true);
     setState((current) =>
       produce(current, (draft) => {
         const message = enabled
@@ -361,7 +457,6 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
   }, []);
 
   const updateHeaterTargetTemperature = useCallback((temp: number) => {
-    setIsModified(true);
     setState((current) =>
       produce(current, (draft) => {
         const oldTemp = draft.equipment.heater.targetTemperature;
@@ -378,7 +473,6 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
   }, []);
 
   const updateHeaterWattage = useCallback((wattage: number) => {
-    setIsModified(true);
     setState((current) =>
       produce(current, (draft) => {
         const oldWattage = draft.equipment.heater.wattage;
@@ -443,7 +537,6 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
   }, []);
 
   const updateLidType = useCallback((type: LidType) => {
-    setIsModified(true);
     setState((current) =>
       produce(current, (draft) => {
         const oldType = draft.equipment.lid.type;
@@ -463,7 +556,6 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
   }, []);
 
   const updateAtoEnabled = useCallback((enabled: boolean) => {
-    setIsModified(true);
     setState((current) =>
       produce(current, (draft) => {
         const message = enabled
@@ -477,7 +569,6 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
   }, []);
 
   const updateFilterEnabled = useCallback((enabled: boolean) => {
-    setIsModified(true);
     setState((current) =>
       produce(current, (draft) => {
         const message = enabled ? 'Filter enabled' : 'Filter disabled';
@@ -494,7 +585,6 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
   }, []);
 
   const updateFilterType = useCallback((type: FilterType) => {
-    setIsModified(true);
     setState((current) =>
       produce(current, (draft) => {
         const oldType = draft.equipment.filter.type;
@@ -518,7 +608,6 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
   }, []);
 
   const updateAirPumpEnabled = useCallback((enabled: boolean) => {
-    setIsModified(true);
     setState((current) =>
       produce(current, (draft) => {
         const message = enabled ? 'Air pump enabled' : 'Air pump disabled';
@@ -535,7 +624,6 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
   }, []);
 
   const updatePowerheadEnabled = useCallback((enabled: boolean) => {
-    setIsModified(true);
     setState((current) =>
       produce(current, (draft) => {
         const message = enabled ? 'Powerhead enabled' : 'Powerhead disabled';
@@ -552,7 +640,6 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
   }, []);
 
   const updatePowerheadFlowRate = useCallback((flowRateGPH: PowerheadFlowRate) => {
-    setIsModified(true);
     setState((current) =>
       produce(current, (draft) => {
         const oldRate = draft.equipment.powerhead.flowRateGPH;
@@ -575,7 +662,6 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
   }, []);
 
   const updateSubstrateType = useCallback((type: SubstrateType) => {
-    setIsModified(true);
     setState((current) =>
       produce(current, (draft) => {
         const oldType = draft.equipment.substrate.type;
@@ -598,7 +684,6 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
   }, []);
 
   const addHardscapeItem = useCallback((type: HardscapeType) => {
-    setIsModified(true);
     setState((current) =>
       produce(current, (draft) => {
         // Check slot limit
@@ -606,9 +691,8 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
           return; // Can't add more
         }
 
-        // Create new item with unique ID
         const newItem: HardscapeItem = {
-          id: globalThis.crypto.randomUUID(),
+          id: generateHardscapeId(),
           type,
         };
 
@@ -631,7 +715,6 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
   }, []);
 
   const removeHardscapeItem = useCallback((id: string) => {
-    setIsModified(true);
     setState((current) =>
       produce(current, (draft) => {
         const item = draft.equipment.hardscape.items.find((i) => i.id === id);
@@ -658,7 +741,6 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
   }, []);
 
   const updateLightEnabled = useCallback((enabled: boolean) => {
-    setIsModified(true);
     setState((current) =>
       produce(current, (draft) => {
         const message = enabled
@@ -677,7 +759,6 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
   }, []);
 
   const updateLightWattage = useCallback((wattage: number) => {
-    setIsModified(true);
     setState((current) =>
       produce(current, (draft) => {
         const oldWattage = draft.equipment.light.wattage;
@@ -700,7 +781,6 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
   }, []);
 
   const updateLightSchedule = useCallback((schedule: DailySchedule) => {
-    setIsModified(true);
     setState((current) =>
       produce(current, (draft) => {
         const oldSchedule = draft.equipment.light.schedule;
@@ -723,7 +803,6 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
   }, []);
 
   const updateCo2GeneratorEnabled = useCallback((enabled: boolean) => {
-    setIsModified(true);
     setState((current) =>
       produce(current, (draft) => {
         const message = enabled
@@ -737,7 +816,6 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
   }, []);
 
   const updateCo2GeneratorBubbleRate = useCallback((bubbleRate: number) => {
-    setIsModified(true);
     setState((current) =>
       produce(current, (draft) => {
         const oldRate = draft.equipment.co2Generator.bubbleRate;
@@ -756,7 +834,6 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
   }, []);
 
   const updateCo2GeneratorSchedule = useCallback((schedule: DailySchedule) => {
-    setIsModified(true);
     setState((current) =>
       produce(current, (draft) => {
         const oldSchedule = draft.equipment.co2Generator.schedule;
@@ -775,7 +852,6 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
   }, []);
 
   const updateAutoDoserEnabled = useCallback((enabled: boolean) => {
-    setIsModified(true);
     setState((current) =>
       produce(current, (draft) => {
         const message = enabled
@@ -789,7 +865,6 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
   }, []);
 
   const updateAutoDoserAmount = useCallback((amountMl: number) => {
-    setIsModified(true);
     setState((current) =>
       produce(current, (draft) => {
         const oldAmount = draft.equipment.autoDoser.doseAmountMl;
@@ -808,7 +883,6 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
   }, []);
 
   const updateAutoDoserSchedule = useCallback((schedule: DailySchedule) => {
-    setIsModified(true);
     setState((current) =>
       produce(current, (draft) => {
         const oldSchedule = draft.equipment.autoDoser.schedule;
@@ -828,12 +902,12 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
 
   const changeTankCapacity = useCallback(
     (capacity: number) => {
-      setIsModified(true);
       // Stop playing if currently running
       if (isPlaying) {
         stopAutoPlay();
         setIsPlaying(false);
       }
+      resetRun(0);
 
       // Reinitialize simulation with new capacity, preserving equipment state
       setState((current) => {
@@ -892,17 +966,20 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
         });
       });
     },
-    [isPlaying, stopAutoPlay]
+    [isPlaying, stopAutoPlay, resetRun]
   );
 
   /**
    * Execute a user action immediately (works even when paused).
    */
   const executeAction = useCallback((action: Action) => {
-    // Mark as modified for plant/fish actions
-    if (action.type === 'addPlant' || action.type === 'removePlant' ||
-        action.type === 'addFish' || action.type === 'removeFish') {
-      setIsModified(true);
+    // Accumulate water changed (in liters) at dispatch — the action itself
+    // only surfaces the volume in free text.
+    if (action.type === 'waterChange' && action.amount > 0 && action.amount <= 1) {
+      const water = stateRef.current.resources.water;
+      if (water > 0) {
+        setAggregates((a) => accrueWaterChanged(a, water * action.amount));
+      }
     }
     setState((currentState) => {
       const result = applyAction(currentState, action);
@@ -915,7 +992,9 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
     isPlaying,
     speed,
     currentPreset,
-    isPresetModified: isModified,
+    history,
+    aggregates,
+    runLogs,
     step,
     togglePlayPause,
     changeSpeed,
