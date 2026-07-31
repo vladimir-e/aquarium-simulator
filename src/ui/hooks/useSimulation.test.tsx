@@ -792,6 +792,27 @@ describe('useSimulation', () => {
       // baseline, so it must not be counted as an alert.
       expect(hasWarning()).toBe(true);
       expect(result.current.aggregates.alerts).toBe(0);
+      // …nor read as one: the run's log opens on the switch line, so a reader
+      // scoping by tick cannot pick the retained warning back up.
+      expect(result.current.runLogs).toHaveLength(1);
+      expect(result.current.runLogs[0].message).toMatch(/^Switched to preset/);
+    });
+
+    it('gives the whole transcript to a run that replaced it', () => {
+      const { result } = renderHook(() => useSimulation('bare'), { wrapper });
+
+      act(() => {
+        result.current.step();
+        result.current.updateHeaterEnabled(true);
+      });
+      expect(result.current.runLogs.length).toBeGreaterThan(1);
+
+      act(() => {
+        result.current.reset();
+      });
+
+      expect(result.current.runLogs).toEqual(result.current.state.logs);
+      expect(result.current.runLogs.map((log) => log.message)).toEqual(['Simulation reset']);
     });
 
     it('counts a chemistry alert once per episode', () => {

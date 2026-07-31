@@ -67,6 +67,7 @@ export function AppShell({ sim, config }: AppShellProps): React.JSX.Element {
     presetModified: driftsFromPreset(sim.state, sim.currentPreset),
     units: unitSystem,
     aggregates: sim.aggregates,
+    runLogs: sim.runLogs,
   });
 
   const rail = (

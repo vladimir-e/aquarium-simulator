@@ -5,7 +5,7 @@
  * band. Pure; the rail renders whatever these return.
  */
 
-import type { SimulationState } from '../../simulation/index.js';
+import type { LogEntry, SimulationState } from '../../simulation/index.js';
 import type { TunableConfig } from '../../simulation/config/index.js';
 import {
   bioload,
@@ -137,13 +137,14 @@ export interface NavFigureInput {
   state: SimulationState;
   config: TunableConfig;
   aggregates: RunAggregates;
+  runLogs: LogEntry[];
   presetName: string;
   presetModified: boolean;
   units: UnitSystem;
 }
 
 export function navFigures(input: NavFigureInput): Record<SectionId, NavFigure> {
-  const { state, config, aggregates, presetName, presetModified, units } = input;
+  const { state, config, aggregates, runLogs, presetName, presetModified, units } = input;
   const meters = waterMeters(state, units);
   const cycled = biofilterColonisation(state.resources, config.nitrogenCycle) >= CYCLED_PCT;
   return {
@@ -151,7 +152,7 @@ export function navFigures(input: NavFigureInput): Record<SectionId, NavFigure> 
     equipment: equipmentFigure(state, config),
     flora: floraFigure(state, config),
     livestock: livestockFigure(state, config),
-    analytics: { pill: null, lines: summaryLines(aggregates, state.logs, units) },
+    analytics: { pill: null, lines: summaryLines(aggregates, runLogs, units) },
     scenario: scenarioFigure(state, presetName, units, presetModified),
   };
 }

@@ -23,6 +23,7 @@ function fakeSim(): ReturnType<typeof useSimulation> {
     state,
     history,
     aggregates: { ticks: 39, deaths: 0, births: 100, frySold: 0, alerts: 1, waterChangedL: 0 },
+    runLogs: logs,
   } as unknown as ReturnType<typeof useSimulation>;
 }
 

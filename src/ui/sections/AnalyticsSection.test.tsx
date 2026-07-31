@@ -1,14 +1,17 @@
 import React from 'react';
-import { describe, it, expect, afterEach, beforeEach } from 'vitest';
-import { render, screen, fireEvent, cleanup } from '@testing-library/react';
+import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
+import { render, screen, fireEvent, cleanup, act } from '@testing-library/react';
 import { MemoryRouter, useLocation, useNavigate } from 'react-router-dom';
 import { AnalyticsSection } from './AnalyticsSection';
 import { ThemeProvider } from '../hooks/useTheme';
 import { UnitsProvider } from '../hooks/useUnits';
+import { ConfigProvider } from '../hooks/useConfig';
 import { PersistenceProvider } from '../persistence/index.js';
+import { PERSISTENCE_VERSION, STORAGE_KEY } from '../persistence/types.js';
 import { RUN_HISTORY_CAP, snapshotFromState } from '../run/index.js';
 import { createSimulation, createLog, type SimulationState } from '../../simulation/index.js';
-import type { useSimulation } from '../hooks/useSimulation';
+import { useSimulation } from '../hooks/useSimulation';
+import { getPresetById } from '../presets';
 import { navFigures } from '../nav/figures';
 import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
 import { stubMatchMedia, viewport, type MatchMediaStub } from '../test/matchMedia';
@@ -35,10 +38,11 @@ function fakeSim(
     createLog(31, 'user', 'info', 'added Neon Tetra'),
     createLog(36, 'nitrogen-cycle', 'warning', 'High ammonia level: 0.109 ppm'),
   ],
-  aggregates = { ticks: 39, deaths: 1, births: 100, frySold: 0, alerts: 1, waterChangedL: 0 }
+  aggregates = { ticks: 39, deaths: 1, births: 100, frySold: 0, alerts: 1, waterChangedL: 0 },
+  runLogs = logs
 ): ReturnType<typeof useSimulation> {
   const state: SimulationState = { ...BASE, tick: history[history.length - 1].tick, logs };
-  return { state, history, aggregates } as unknown as ReturnType<typeof useSimulation>;
+  return { state, history, aggregates, runLogs } as unknown as ReturnType<typeof useSimulation>;
 }
 
 /**
@@ -142,6 +146,7 @@ describe('AnalyticsSection', () => {
       state: sim.state,
       config: DEFAULT_CONFIG,
       aggregates: sim.aggregates,
+      runLogs: sim.runLogs,
       presetName: 'Planted Tank',
       presetModified: false,
       units: 'metric',
@@ -341,5 +346,103 @@ describe('AnalyticsSection — what back walks through', () => {
 
     back();
     expect(search()).toBe('');
+  });
+});
+
+/**
+ * Seed a bare-tank session whose ammonia already sits above the alert threshold
+ * (>0.1 ppm; 20 mg in 40 L is 0.5), so the very first tick fires the warning.
+ */
+function seedHighAmmonia(): void {
+  const base = createSimulation(getPresetById('bare')!.config);
+  globalThis.localStorage.setItem(
+    STORAGE_KEY,
+    JSON.stringify({
+      version: PERSISTENCE_VERSION,
+      simulation: {
+        tick: 0,
+        tank: base.tank,
+        resources: { ...base.resources, ammonia: 20 },
+        environment: base.environment,
+        equipment: base.equipment,
+        plants: base.plants,
+        fish: base.fish,
+        clutches: base.clutches,
+        algae: base.algae,
+        alertState: base.alertState,
+        currentPreset: 'bare',
+      },
+      tunableConfig: DEFAULT_CONFIG,
+      ui: { units: 'metric', debugPanelOpen: false },
+    })
+  );
+}
+
+/**
+ * The section on the real hook. A preset switch is the one transition where the
+ * run rebaselines while the transcript carries over, so what the tick-range
+ * selectors can see is only decidable with the hook in the loop.
+ */
+describe('AnalyticsSection — a preset switch starts a new run', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    seedHighAmmonia();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    globalThis.localStorage.clear();
+  });
+
+  function Live(): React.JSX.Element {
+    const sim = useSimulation();
+    return (
+      <>
+        <AnalyticsSection sim={sim} />
+        <button type="button" onClick={() => sim.togglePlayPause()}>
+          test-transport
+        </button>
+        <button type="button" onClick={() => sim.loadPreset('community')}>
+          test-switch
+        </button>
+      </>
+    );
+  }
+
+  function press(name: string): void {
+    fireEvent.click(screen.getByRole('button', { name }));
+  }
+
+  it('drops the events the rebaseline tick carries over from the run before it', () => {
+    render(
+      <ThemeProvider>
+        <PersistenceProvider>
+          <ConfigProvider>
+            <UnitsProvider>
+              <MemoryRouter initialEntries={['/analytics']}>
+                <Live />
+              </MemoryRouter>
+            </UnitsProvider>
+          </ConfigProvider>
+        </PersistenceProvider>
+      </ThemeProvider>
+    );
+
+    // One tick of autoplay at 1h/s: the seeded ammonia crosses its threshold, so
+    // the warning lands on the very tick the switch is about to rebaseline on.
+    press('test-transport');
+    act(() => {
+      vi.advanceTimersByTime(1000);
+    });
+    press('test-transport');
+    expect(screen.getByText(/High ammonia/)).toBeTruthy();
+    expect(screen.getAllByTitle('NH₃ @1').length).toBeGreaterThan(0);
+
+    press('test-switch');
+
+    // The transcript still holds the warning — the new run simply does not.
+    expect(screen.queryByText(/High ammonia/)).toBeNull();
+    expect(screen.queryAllByTitle('NH₃ @1')).toHaveLength(0);
+    expect(screen.getByText(/Switched to preset/)).toBeTruthy();
   });
 });

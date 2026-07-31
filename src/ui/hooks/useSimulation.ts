@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { produce } from 'immer';
 import {
   createSimulation,
@@ -17,6 +17,7 @@ import {
   type HardscapeType,
   type HardscapeItem,
   type DailySchedule,
+  type LogEntry,
 } from '../../simulation/index.js';
 import { createLog } from '../../simulation/core/logging.js';
 import { PRESETS, DEFAULT_PRESET_ID, getPresetById, type PresetId } from '../presets.js';
@@ -56,6 +57,12 @@ interface UseSimulationReturn {
   history: RunSnapshot[];
   /** Rolling run tallies (deaths, births, alerts, water changed…). */
   aggregates: RunAggregates;
+  /**
+   * The log from this run's start. A preset switch retains the transcript but
+   * rebaselines the run at the same tick, so tick alone cannot tell a prior-run
+   * entry from a new one — anything reading the run reads this, not `state.logs`.
+   */
+  runLogs: LogEntry[];
   /** Advance one simulated day, whatever the autoplay speed. */
   step: () => void;
   togglePlayPause: () => void;
@@ -206,6 +213,8 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
   // Run history + aggregates (session-scoped, reset with the run).
   const [history, setHistory] = useState<RunSnapshot[]>([]);
   const [aggregates, setAggregates] = useState<RunAggregates>(emptyAggregates);
+  const [runLogStart, setRunLogStart] = useState(0);
+  const runLogs = useMemo(() => state.logs.slice(runLogStart), [state.logs, runLogStart]);
   const stateRef = useRef(state);
   // Baseline for deriving per-commit deltas; null re-seeds the recorder.
   const recorderRef = useRef<{ tick: number; logCount: number } | null>(null);
@@ -234,12 +243,18 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
     [queueSnapshot]
   );
 
-  const resetRun = useCallback(() => {
+  /**
+   * Start a new run: history, tallies, and the log all rebaseline here.
+   * `logStart` is where the new run's log begins — 0 when the caller replaces
+   * the transcript, its current length when the caller keeps it.
+   */
+  const resetRun = useCallback((logStart: number) => {
     recorderRef.current = null;
     recordedThroughRef.current = -1;
     pendingSnapshotsRef.current = [];
     setHistory([]);
     setAggregates(emptyAggregates());
+    setRunLogStart(logStart);
   }, []);
 
   // Notify persistence when state or preset changes
@@ -341,7 +356,9 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
       }
 
       setCurrentPreset(presetId);
-      resetRun();
+      // The transcript carries over, so the new run opens on the switch line
+      // this call is about to push.
+      resetRun(stateRef.current.logs.length);
 
       // Apply preset equipment while preserving simulation progress
       setState((current) =>
@@ -388,7 +405,7 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
       stopAutoPlay();
       setIsPlaying(false);
     }
-    resetRun();
+    resetRun(0);
 
     setState((current) =>
       produce(current, (draft) => {
@@ -890,7 +907,7 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
         stopAutoPlay();
         setIsPlaying(false);
       }
-      resetRun();
+      resetRun(0);
 
       // Reinitialize simulation with new capacity, preserving equipment state
       setState((current) => {
@@ -977,6 +994,7 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
     currentPreset,
     history,
     aggregates,
+    runLogs,
     step,
     togglePlayPause,
     changeSpeed,

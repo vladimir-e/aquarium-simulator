@@ -11,6 +11,7 @@ Format: - **Feature name** (#PR) - One short sentence (under ~150 chars)
 
 ## Unreleased
 
+- **`formatDosePreview` removed from the public API** - breaking for consumers importing it from the package root; the dose preview was UI string formatting living in the engine, and the Flora section derives it now.
 - **Action previews include dissolved gases** - water changes now show what they do to O₂ and CO₂, not just temperature and pH.
 - **Actions sheet** - one transient surface for all six husbandry verbs: a card over the rail's foot, a master-detail drill-in on a phone, previewing each by applying the action and diffing the engine's own readings.
 - **Scenario section** - five preset cards stating the tank each actually builds, the environment fields with their derived consequences, and the three confirmations restored.

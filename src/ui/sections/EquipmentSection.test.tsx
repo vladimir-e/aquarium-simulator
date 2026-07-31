@@ -107,6 +107,7 @@ describe('EquipmentSection', () => {
       presetModified: false,
       units: 'metric',
       aggregates: emptyAggregates(),
+      runLogs: base.logs,
     }).equipment.lines[0];
     expect(within(header).getByText(railLine)).toBeTruthy();
     expect(railLine).toBe('3 of 8 on · biofilter 0 %');

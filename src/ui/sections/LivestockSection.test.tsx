@@ -377,6 +377,7 @@ describe('the rail carries the Livestock section’s own roster', () => {
       presetModified: false,
       units: 'metric',
       aggregates: emptyAggregates(),
+      runLogs: state.logs,
     }).livestock;
   }
 

@@ -31,6 +31,7 @@ function rail(state: SimulationState): ReturnType<typeof navFigures> {
     presetModified: false,
     units: 'metric',
     aggregates: emptyAggregates(),
+    runLogs: state.logs,
   });
 }
 

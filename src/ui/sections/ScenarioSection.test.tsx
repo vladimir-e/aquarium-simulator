@@ -224,6 +224,7 @@ describe('ScenarioSection', () => {
       state: planted,
       config: DEFAULT_CONFIG,
       aggregates: emptyAggregates(),
+      runLogs: planted.logs,
       presetName: 'Planted Tank',
       presetModified: false,
       units: 'metric',
