@@ -8,30 +8,18 @@ import { UnitsProvider } from './hooks/useUnits';
 import { ConfigProvider } from './hooks/useConfig';
 import { PersistenceProvider } from './persistence/index.js';
 import { SECTIONS } from './nav';
+import { RAIL_QUERY } from './hooks/useMediaQuery';
+import { stubMatchMedia, type MatchMediaStub } from './test/matchMedia';
 
-let restoreMatchMedia: () => void;
+let media: MatchMediaStub;
 
+// Desktop: the rail stands beside the stage rather than living in a drawer.
 beforeEach(() => {
-  const noop = (): void => {};
-  const original = globalThis.matchMedia;
-  globalThis.matchMedia = ((query: string) =>
-    ({
-      matches: false,
-      media: query,
-      onchange: null,
-      addEventListener: noop,
-      removeEventListener: noop,
-      addListener: noop,
-      removeListener: noop,
-      dispatchEvent: (): boolean => false,
-    }) as unknown as ReturnType<typeof globalThis.matchMedia>) as typeof globalThis.matchMedia;
-  restoreMatchMedia = (): void => {
-    globalThis.matchMedia = original;
-  };
+  media = stubMatchMedia((query) => query === RAIL_QUERY);
 });
 
 afterEach(() => {
-  restoreMatchMedia();
+  media.restore();
   globalThis.localStorage.clear();
   cleanup();
 });
@@ -68,9 +56,12 @@ function stageTitle(): string {
 }
 
 describe('App routing', () => {
-  it('opens on Water', () => {
+  it('opens on Water, with the tank chemistry on the stage', () => {
     renderApp();
     expect(stageTitle()).toBe('Water');
+    for (const label of ['NH₃', 'NO₂', 'NO₃', 'Temp']) {
+      expect(screen.getAllByText(label).length).toBeGreaterThan(0);
+    }
   });
 
   it('gives every section its own address', () => {

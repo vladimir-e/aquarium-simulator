@@ -2,6 +2,8 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import type { TunableConfig } from '../../../simulation/config/index.js';
 import type { useSimulation } from '../../hooks/useSimulation';
+import { useFocusTrap } from '../../hooks/useFocusTrap';
+import { useMediaQuery, RAIL_QUERY } from '../../hooks/useMediaQuery';
 import { useUnits } from '../../hooks/useUnits';
 import { navFigures } from '../../nav';
 import { getPresetById } from '../../presets.js';
@@ -21,8 +23,15 @@ interface AppShellProps {
  */
 export function AppShell({ sim, config }: AppShellProps): React.JSX.Element {
   const { unitSystem } = useUnits();
+  const railStands = useMediaQuery(RAIL_QUERY);
   const [indexOpen, setIndexOpen] = useState(false);
   const closeIndex = useCallback(() => setIndexOpen(false), []);
+  const drawerRef = useFocusTrap(indexOpen);
+
+  // A drawer left open across a resize would mount the rail twice.
+  useEffect(() => {
+    if (railStands) setIndexOpen(false);
+  }, [railStands]);
 
   useEffect(() => {
     if (!indexOpen) return;
@@ -77,10 +86,17 @@ export function AppShell({ sim, config }: AppShellProps): React.JSX.Element {
           <button
             type="button"
             aria-label="Close index"
+            tabIndex={-1}
             onClick={closeIndex}
             className="absolute inset-0 bg-ink/30"
           />
-          <div className="absolute inset-y-0 left-0 flex flex-col border-r border-hairline-2 bg-surface p-3 shadow-2xl">
+          <div
+            ref={drawerRef}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Index"
+            className="absolute inset-y-0 left-0 flex flex-col border-r border-hairline-2 bg-surface p-3 shadow-2xl"
+          >
             {rail}
           </div>
         </div>

@@ -671,6 +671,26 @@ describe('useSimulation', () => {
       expect(aggregates.ticks).toBe(24);
     });
 
+    it('steps the same day whatever the autoplay speed is set to', () => {
+      const { result } = renderHook(() => useSimulation('bare'), { wrapper });
+
+      act(() => {
+        result.current.changeSpeed('6h');
+      });
+      act(() => {
+        result.current.step();
+      });
+      expect(result.current.state.tick).toBe(24);
+
+      act(() => {
+        result.current.changeSpeed('1d');
+      });
+      act(() => {
+        result.current.step();
+      });
+      expect(result.current.state.tick).toBe(48);
+    });
+
     it('records each intra-step tick exactly once under StrictMode', () => {
       const { result } = renderHook(() => useSimulation('bare'), { wrapper: strictWrapper });
       const baseline = result.current.history.length;

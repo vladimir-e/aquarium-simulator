@@ -50,7 +50,6 @@ interface UseSimulationReturn {
   /** Advance one simulated day, whatever the autoplay speed. */
   step: () => void;
   togglePlayPause: () => void;
-  pause: () => void;
   changeSpeed: (speed: SpeedPreset) => void;
   loadPreset: (presetId: PresetId) => void;
   updateHeaterEnabled: (enabled: boolean) => void;
@@ -303,13 +302,6 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
       return !prev;
     });
   }, [startAutoPlay, stopAutoPlay]);
-
-  const pause = useCallback(() => {
-    setIsPlaying((prev) => {
-      if (prev) stopAutoPlay();
-      return false;
-    });
-  }, [stopAutoPlay]);
 
   const changeSpeed = useCallback(
     (newSpeed: SpeedPreset) => {
@@ -1006,7 +998,6 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
     aggregates,
     step,
     togglePlayPause,
-    pause,
     changeSpeed,
     loadPreset,
     updateHeaterEnabled,

@@ -75,9 +75,8 @@ interface TimelineCardProps {
 }
 
 /**
- * Head of the index rail. Before the first tick the card collapses to one
- * question — how to start — and `Start simulation` is the only filled control
- * on the screen.
+ * Head of the index rail. Before the first tick the transport gives way to
+ * `Start simulation` — a run that has not begun has nothing to transport.
  */
 export function TimelineCard({
   tick,

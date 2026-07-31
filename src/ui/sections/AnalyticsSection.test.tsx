@@ -7,11 +7,12 @@ import { PersistenceProvider } from '../persistence/index.js';
 import { snapshotFromState } from '../run/index.js';
 import { createSimulation, createLog, type SimulationState } from '../../simulation/index.js';
 import type { useSimulation } from '../hooks/useSimulation';
+import { stubMatchMedia, type MatchMediaStub } from '../test/matchMedia';
 
-let restoreMatchMedia: (() => void) | undefined;
+let media: MatchMediaStub | undefined;
 
 afterEach(() => {
-  restoreMatchMedia?.();
+  media?.restore();
   cleanup();
 });
 
@@ -47,22 +48,7 @@ function renderAnalytics(): void {
 
 // Pin the desktop layout (not mobile) so the four-chart grid is deterministic.
 beforeEach(() => {
-  const noop = (): void => {};
-  const original = globalThis.matchMedia;
-  globalThis.matchMedia = ((): ReturnType<typeof globalThis.matchMedia> =>
-    ({
-      matches: false,
-      media: '',
-      onchange: null,
-      addEventListener: noop,
-      removeEventListener: noop,
-      addListener: noop,
-      removeListener: noop,
-      dispatchEvent: (): boolean => false,
-    }) as unknown as ReturnType<typeof globalThis.matchMedia>) as unknown as typeof globalThis.matchMedia;
-  restoreMatchMedia = (): void => {
-    globalThis.matchMedia = original;
-  };
+  media = stubMatchMedia(false);
 });
 
 describe('AnalyticsSection', () => {

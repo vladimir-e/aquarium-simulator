@@ -7,7 +7,8 @@ import type { TunableConfig } from '../../../simulation/config/index.js';
 import { formatFlowRate, lphToGph } from '../../utils/units';
 import { useUnits } from '../../hooks/useUnits';
 import { useCardCollapse } from '../../hooks/useCardCollapse';
-import { biofilterColonisation } from '../../run';
+import { buildDeviceList, type DeviceId } from '../../build';
+import { biofilterColonisation, CYCLED_PCT } from '../../run';
 import { Card, CardBody, CardFooter, CardHeader, CollapseRegion } from './Card';
 import { RunButton, StatusDot } from './elements';
 import { SplitButton, type SplitOption } from './SplitButton';
@@ -15,13 +16,6 @@ import { SplitButton, type SplitOption } from './SplitButton';
 function scheduleRange(schedule: DailySchedule): string {
   const end = (schedule.startHour + schedule.duration) % 24;
   return `${schedule.startHour}:00–${end}:00`;
-}
-
-interface Device {
-  id: string;
-  name: string;
-  on: boolean;
-  detail: string;
 }
 
 interface SystemsCardProps {
@@ -45,17 +39,23 @@ export function SystemsCard({
   const filterGph = Math.round(lphToGph(getFilterFlow(equipment.filter.type, tank.capacity)));
   const colonization = biofilterColonisation(resources, config.nitrogenCycle);
 
-  const devices: Device[] = [
-    { id: 'filter', name: 'Filter', on: equipment.filter.enabled, detail: `${equipment.filter.type} · ${formatFlowRate(filterGph, unitSystem)}` },
-    ...(equipment.powerhead.enabled
-      ? [{ id: 'powerhead', name: 'Powerhead', on: true, detail: formatFlowRate(equipment.powerhead.flowRateGPH, unitSystem) }]
-      : []),
-    { id: 'heater', name: 'Heater', on: equipment.heater.enabled, detail: `${equipment.heater.enabled ? 'on' : 'off'} · target ${formatTemp(equipment.heater.targetTemperature, 0)}` },
-    { id: 'light', name: 'Light', on: equipment.light.enabled, detail: `${equipment.light.wattage}W · ${scheduleRange(equipment.light.schedule)}` },
-    { id: 'airPump', name: 'Air pump', on: equipment.airPump.enabled, detail: equipment.airPump.enabled ? 'on' : 'off' },
-    { id: 'ato', name: 'ATO', on: equipment.ato.enabled, detail: equipment.ato.enabled ? 'on · RO water' : 'off' },
-    { id: 'co2Generator', name: 'CO₂ injector', on: equipment.co2Generator.enabled, detail: equipment.co2Generator.enabled ? `on · ${equipment.co2Generator.bubbleRate} bps` : 'off' },
-  ];
+  const detail: Record<DeviceId, string> = {
+    filter: `${equipment.filter.type} · ${formatFlowRate(filterGph, unitSystem)}`,
+    heater: `${equipment.heater.enabled ? 'on' : 'off'} · target ${formatTemp(equipment.heater.targetTemperature, 0)}`,
+    light: `${equipment.light.wattage}W · ${scheduleRange(equipment.light.schedule)}`,
+    airPump: equipment.airPump.enabled ? 'on' : 'off',
+    ato: equipment.ato.enabled ? 'on · RO water' : 'off',
+    co2Generator: equipment.co2Generator.enabled
+      ? `on · ${equipment.co2Generator.bubbleRate} bps`
+      : 'off',
+    powerhead: equipment.powerhead.enabled
+      ? formatFlowRate(equipment.powerhead.flowRateGPH, unitSystem)
+      : 'off',
+    autoDoser: equipment.autoDoser.enabled
+      ? `${equipment.autoDoser.doseAmountMl} ml · ${equipment.autoDoser.schedule.startHour}:00`
+      : 'off',
+  };
+  const devices = buildDeviceList(equipment);
 
   const waterOptions: SplitOption[] = WATER_CHANGE_AMOUNTS.map((amount) => ({
     key: String(amount),
@@ -89,13 +89,15 @@ export function SystemsCard({
               <StatusDot on={device.on} />
               <span className="text-[15px] text-ink">{device.name}</span>
               <span className="ml-auto flex items-center gap-2">
-                <span className="font-mono tabular-nums text-[12px] text-ink-2">{device.detail}</span>
+                <span className="font-mono tabular-nums text-[12px] text-ink-2">
+                  {detail[device.id]}
+                </span>
                 <ChevronRight className="h-4 w-4 text-ink-3" aria-hidden />
               </span>
             </button>
           ))}
           <div className="flex items-center gap-3 py-2.5">
-            <StatusDot on={colonization >= 25} />
+            <StatusDot on={colonization >= CYCLED_PCT} />
             <span className="text-[15px] text-ink">Biofilter</span>
             <span className="ml-auto font-mono tabular-nums text-[12px] text-ink-2">
               {Math.round(colonization)}% · {SurfaceResource.format(resources.surface)}

@@ -21,7 +21,7 @@ export {
 } from './speed.js';
 export { type Status } from './status.js';
 export { classifyVital, type VitalKey, type VitalClassification } from './vitals.js';
-export { biofilterColonisation } from './bacteria.js';
+export { biofilterColonisation, CYCLED_PCT } from './bacteria.js';
 export {
   isHungryBand,
   bandOf,
@@ -33,7 +33,7 @@ export {
   groupFryBatches,
   deriveFryGraduation,
 } from './livestock.js';
-export { latestLog, recentLogs } from './log.js';
+export { latestLog } from './log.js';
 export {
   conditionStatus,
   conditionWord,

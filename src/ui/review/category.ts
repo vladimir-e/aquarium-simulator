@@ -1,8 +1,8 @@
 /**
- * Log categorisation for Review's filter chips and the alert language shared by
- * the summary tile and the chart markers. Both are derived from the engine's own
- * `source` / `severity` / `event` fields — Review never re-tags the log, it only
- * buckets what the simulation already emitted.
+ * Log categorisation for Analytics' filter chips and the alert language shared
+ * by the summary tile and the chart markers. Both are derived from the engine's
+ * own `source` / `severity` / `event` fields — nothing here re-tags the log, it
+ * only buckets what the simulation already emitted.
  */
 
 import type { LogEntry } from '../../simulation/index.js';

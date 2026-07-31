@@ -1,7 +1,7 @@
 /**
- * Flora & Scape derivations for the Run card: plant/algae status words, nutrient
- * band readings, scape summary, and the trim/dose option data. Pure — the card
- * renders these and wires the actions.
+ * Flora & Scape derivations: plant/algae status words, nutrient band readings,
+ * scape summary, and the trim/dose option data. Pure — the section renders
+ * these and wires the actions.
  */
 
 import {

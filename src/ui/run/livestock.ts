@@ -1,8 +1,8 @@
 /**
- * Livestock grouping for the Run card: fold the flat fish array into species
- * rows and fry batches, and map satiation bands onto the shared status
- * vocabulary. Pure — the card renders whatever these return, so a 5-fish and a
- * 500-fish tank produce the same shapes.
+ * Livestock grouping: fold the flat fish array into species rows and fry
+ * batches, and map satiation bands onto the shared status vocabulary. Pure —
+ * the roster renders whatever these return, so a 5-fish and a 500-fish tank
+ * produce the same shapes.
  */
 
 import {

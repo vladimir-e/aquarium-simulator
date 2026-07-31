@@ -13,7 +13,7 @@ function readValue<T>(key: string, fallback: T): T {
 
 /**
  * useState whose value is mirrored to localStorage under a namespaced key, so it
- * survives component remounts (mode switches unmount the mode) and reloads.
+ * survives component remounts and reloads.
  * Reads lazily on mount; the write is an effect (pure updater, StrictMode-safe).
  * Falls back to in-memory on any storage failure.
  */

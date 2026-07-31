@@ -1,7 +1,6 @@
 /**
- * Scape & Flora column model: substrate surface math, the substrate's
+ * Scape & Flora model: substrate surface math, the substrate's
  * plant-compatibility consequence, and the substrate-gated plant options.
- * Pure — the surface-area math and gating live only in Build.
  */
 
 import {

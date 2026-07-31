@@ -5,11 +5,31 @@ import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
 import {
   applyAction,
   createSimulation,
+  type Clutch,
+  type Plant,
   type SimulationState,
 } from '../../simulation/index.js';
+import { buildDeviceList } from '../build';
 
 function tank(overrides: Partial<SimulationState> = {}): SimulationState {
   return { ...createSimulation({ tankCapacity: 200 }), ...overrides };
+}
+
+/** A tank whose biofilter is fully colonised, so `uncycled` stops winning. */
+function cycled(overrides: Partial<SimulationState> = {}): SimulationState {
+  const state = tank(overrides);
+  const ceiling = state.resources.surface * DEFAULT_CONFIG.nitrogenCycle.bacteriaPerCm2;
+  state.resources.aob = ceiling;
+  state.resources.nob = ceiling;
+  return state;
+}
+
+function plant(condition: number): Plant {
+  return { id: `p${condition}`, species: 'amazon_sword', size: 60, condition, surplus: 0 };
+}
+
+function clutch(id: string): Clutch {
+  return { id, species: 'angelfish', eggCount: 30, laidTick: 0 };
 }
 
 function figures(
@@ -71,26 +91,81 @@ describe('navFigures — Water', () => {
     state.resources.ammonia = state.resources.water * 2;
     expect(figures(state).water.pill).toEqual({ text: 'NH₃ high', status: 'alert' });
   });
-});
 
-describe('navFigures — sections', () => {
-  it('counts devices and reports colonisation on the equipment row', () => {
-    const f = figures(tank()).equipment;
-    expect(f.dots).toHaveLength(8);
-    expect(f.lines[0]).toMatch(/^\d of 8 on · biofilter 0 %$/);
+  it('falls through to a soft warning once the colony is established', () => {
+    // Nitrate is plant food, so an established tank sitting at zero warns.
+    expect(figures(cycled()).water.pill).toEqual({ text: 'NO₃ low', status: 'warn' });
   });
 
+  it('drops the pill entirely when a cycled tank reads clean', () => {
+    const state = cycled();
+    state.resources.nitrate = state.resources.water * 12; // mid safe band
+    expect(figures(state).water.pill).toBeNull();
+  });
+});
+
+describe('navFigures — Equipment', () => {
+  it('reports colonisation alongside the device count', () => {
+    expect(figures(cycled()).equipment.lines[0]).toMatch(/^\d of 8 on · biofilter 100 %$/);
+  });
+
+  it('gives one dot per device, matching that device’s power state', () => {
+    const state = tank();
+    state.equipment.filter.enabled = false;
+    state.equipment.powerhead.enabled = true;
+
+    const f = figures(state).equipment;
+    expect(f.dots).toEqual(buildDeviceList(state.equipment).map((d) => d.on));
+    expect(f.dots?.[0]).toBe(false); // filter leads the list
+    expect(f.lines[0]).toContain(`${f.dots?.filter(Boolean).length} of 8 on`);
+  });
+});
+
+describe('navFigures — Flora', () => {
   it('reads plants against tank capacity, and the scape when nothing ails', () => {
     const f = figures(tank()).flora;
     expect(f.lines[0]).toBe('0 of 31 plants · no algae');
     expect(f.lines[1]).toBe('Bare');
   });
 
+  it('names the depleted nutrient', () => {
+    const state = tank();
+    // Everything dosed but iron — the classic planted-tank deficiency.
+    state.resources.nitrate = state.resources.water * 12;
+    state.resources.phosphate = state.resources.water * 1;
+    state.resources.potassium = state.resources.water * 10;
+    expect(figures(state).flora.pill).toEqual({ text: 'Fe 0', status: 'warn' });
+  });
+
+  it('says so once when nothing at all is dosed, rather than naming four blanks', () => {
+    expect(figures(tank()).flora.pill).toEqual({ text: 'no nutrients', status: 'warn' });
+  });
+
+  it('gives the second line to the worst plant when one is ailing', () => {
+    const state = tank();
+    state.plants = [plant(90), plant(20)];
+    expect(figures(state).flora.lines[1]).toBe('Amazon Sword struggling');
+  });
+
+  it('keeps the scape on the second line while every plant is fine', () => {
+    const state = tank();
+    state.plants = [plant(90), plant(75)];
+    expect(figures(state).flora.lines[1]).toBe('Bare');
+  });
+
+  it('prints the algae reading once it registers', () => {
+    const state = tank();
+    state.algae.mass = 47;
+    expect(figures(state).flora.lines[0]).toContain('algae 47 %');
+  });
+});
+
+describe('navFigures — Livestock', () => {
   it('drops the species and clutch clauses on an empty roster', () => {
     expect(figures(tank()).livestock.lines).toEqual(['0 fish', 'bioload 0.0× vs guideline']);
   });
 
-  it('counts stocked species and flags hunger', () => {
+  it('counts stocked species', () => {
     let state = tank();
     state = applyAction(state, { type: 'addFish', species: 'neon_tetra' }).state;
     state = applyAction(state, { type: 'addFish', species: 'betta' }).state;
@@ -98,6 +173,28 @@ describe('navFigures — sections', () => {
     expect(f.lines[0]).toBe('2 fish · 2 species');
     expect(f.lines[1]).toMatch(/^bioload \d\.\d× vs guideline$/);
   });
+
+  it('counts clutches, in the plural only when there is more than one', () => {
+    const state = tank();
+    state.clutches = [clutch('a')];
+    expect(figures(state).livestock.lines[0]).toBe('0 fish · 1 clutch');
+
+    state.clutches = [clutch('a'), clutch('b')];
+    expect(figures(state).livestock.lines[0]).toBe('0 fish · 2 clutches');
+  });
+
+  it('flags fish that need feeding', () => {
+    let fed = tank();
+    fed = applyAction(fed, { type: 'addFish', species: 'neon_tetra' }).state;
+    fed = applyAction(fed, { type: 'addFish', species: 'betta' }).state;
+    expect(figures(fed).livestock.pill).toBeNull();
+
+    const starved = { ...fed, fish: fed.fish.map((f, i) => (i === 0 ? { ...f, satiation: 0 } : f)) };
+    expect(figures(starved).livestock.pill).toEqual({ text: '1 hungry', status: 'warn' });
+  });
+});
+
+describe('navFigures — Analytics and Scenario', () => {
 
   it('says so plainly when there is no history to read', () => {
     expect(figures(tank()).analytics.lines).toEqual(['0 ticks', 'no history yet']);

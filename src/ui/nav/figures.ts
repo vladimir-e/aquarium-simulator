@@ -17,6 +17,7 @@ import { bioload, buildDeviceList } from '../build/index.js';
 import {
   allNutrientsDepleted,
   biofilterColonisation,
+  CYCLED_PCT,
   classifyVital,
   conditionStatus,
   conditionWord,
@@ -94,9 +95,6 @@ const LID_LABEL: Record<LidType, string> = {
   sealed: 'sealed lid',
 };
 
-/** Below this colonisation percentage the biofilter cannot carry a bioload. */
-const CYCLED_PCT = 25;
-
 function fillOf(key: MeterKey, value: number): number {
   const [min, max] = METER_RANGE[key];
   return Math.max(0, Math.min(1, (value - min) / (max - min)));
@@ -122,10 +120,7 @@ function waterMeters(state: SimulationState, units: UnitSystem): MicroMeter[] {
   }));
 }
 
-/**
- * The Water pill: an out-of-band reading wins, then an uncycled biofilter (a
- * quiet tank with no colony is about to stop being quiet), then a soft warning.
- */
+/** An uncycled tank outranks a soft warning: quiet now, about to stop being quiet. */
 function waterPill(
   state: SimulationState,
   config: TunableConfig,
@@ -254,7 +249,6 @@ export function navFigures(input: NavFigureInput): Record<SectionId, NavFigure> 
   };
 }
 
-/** Micro-meter readout: the value as the rail prints it, under its own scale. */
 export function formatMeter(meter: MicroMeter, displayTemp: (celsius: number) => number): string {
   switch (meter.key) {
     case 'temperature':

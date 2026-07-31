@@ -57,9 +57,21 @@ describe('TimelineCard', () => {
     expect(screen.getByText('no light')).toBeTruthy();
   });
 
-  it('steps a whole day, independently of the speed', () => {
-    const { onStep } = renderCard({ tick: 24, speed: '1d' });
-    fireEvent.click(screen.getByRole('button', { name: /Step \+1 day/ }));
-    expect(onStep).toHaveBeenCalledTimes(1);
+  it('offers Step at every speed, since it is not a speed control', () => {
+    for (const speed of ['1h', '6h', '1d'] as const) {
+      const { onStep } = renderCard({ tick: 24, speed });
+      fireEvent.click(screen.getByRole('button', { name: 'Step +1 day' }));
+      expect(onStep).toHaveBeenCalledTimes(1);
+      cleanup();
+    }
+  });
+
+  it('treats a run started but not yet ticked as under way, not as day 0', () => {
+    // Start, then pause before the first hour lands: the transport stays, so
+    // the card does not offer to start a run that is already going.
+    renderCard({ tick: 0, isPlaying: true });
+    expect(screen.queryByRole('button', { name: /Start simulation/ })).toBeNull();
+    expect(screen.getByText('Day 1 · 00:00')).toBeTruthy();
+    expect(screen.getByText('tick 0 · 0 d elapsed')).toBeTruthy();
   });
 });

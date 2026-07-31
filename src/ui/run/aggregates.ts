@@ -1,5 +1,5 @@
 /**
- * Run aggregates for the Review summary tiles. Counts are folded from log
+ * Run aggregates for the Analytics summary tiles. Counts are folded from log
  * entries as they're appended (deaths/births/fry-sold/alerts) plus water
  * changed, accumulated at action dispatch. Session-scoped; reset with the run.
  */

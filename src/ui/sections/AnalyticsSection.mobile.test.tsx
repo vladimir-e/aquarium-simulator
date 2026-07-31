@@ -7,6 +7,7 @@ import { PersistenceProvider } from '../persistence/index.js';
 import { snapshotFromState } from '../run/index.js';
 import { createSimulation, createLog, type SimulationState } from '../../simulation/index.js';
 import type { useSimulation } from '../hooks/useSimulation';
+import { stubMatchMedia, type MatchMediaStub } from '../test/matchMedia';
 
 function fakeSim(): ReturnType<typeof useSimulation> {
   const base: SimulationState = createSimulation({ tankCapacity: 40 });
@@ -35,32 +36,14 @@ function renderAnalytics(): void {
   );
 }
 
-function mobileMediaQueryList(query: string): ReturnType<typeof globalThis.matchMedia> {
-  const noop = (): void => {};
-  return {
-    matches: true, // force the mobile layout
-    media: query,
-    onchange: null,
-    addEventListener: noop,
-    removeEventListener: noop,
-    addListener: noop,
-    removeListener: noop,
-    dispatchEvent: (): boolean => false,
-  } as unknown as ReturnType<typeof globalThis.matchMedia>;
-}
-
-let restoreMatchMedia: () => void;
+let media: MatchMediaStub;
 
 beforeEach(() => {
-  const original = globalThis.matchMedia;
-  globalThis.matchMedia = mobileMediaQueryList;
-  restoreMatchMedia = (): void => {
-    globalThis.matchMedia = original;
-  };
+  media = stubMatchMedia(true);
 });
 
 afterEach(() => {
-  restoreMatchMedia();
+  media.restore();
   cleanup();
 });
 

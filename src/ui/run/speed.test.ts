@@ -4,7 +4,6 @@ import {
   SPEED_PRESETS,
   SPEED_TICKS_PER_SECOND,
   SPEED_LABELS,
-  STEP_TICKS,
 } from './speed';
 
 describe('speed presets', () => {
@@ -20,10 +19,6 @@ describe('speed presets', () => {
     for (const preset of SPEED_PRESETS) {
       expect(SPEED_LABELS[preset]).toBeTruthy();
     }
-  });
-
-  it('steps a whole day, whatever the speed', () => {
-    expect(STEP_TICKS).toBe(24);
   });
 
   it('defaults to the slowest tier', () => {

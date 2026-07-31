@@ -68,5 +68,4 @@ describe('StockingColumn', () => {
     render(<StockingColumn sim={sim} />);
     expect((screen.getByRole('button', { name: 'Add Neon Tetra' }) as HTMLButtonElement).disabled).toBe(true);
   });
-
 });

@@ -1,7 +1,4 @@
-/**
- * The six sections, in rail order. Water is home, so it owns the root; every
- * other section owns a path, and its drill-ins nest beneath that path.
- */
+/** The six sections, in rail order. Water is home, so it owns the root. */
 
 export type SectionId = 'water' | 'equipment' | 'flora' | 'livestock' | 'analytics' | 'scenario';
 

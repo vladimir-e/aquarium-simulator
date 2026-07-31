@@ -3,6 +3,9 @@ import { useEffect, useState } from 'react';
 /** Below Tailwind's `sm` breakpoint (640px) — the mobile instrument layout. */
 export const MOBILE_QUERY = '(max-width: 639.98px)';
 
+/** At Tailwind's `md` breakpoint (768px) the index rail stands beside the stage. */
+export const RAIL_QUERY = '(min-width: 768px)';
+
 function matchesQuery(query: string): boolean {
   return typeof globalThis.matchMedia === 'function' ? globalThis.matchMedia(query).matches : false;
 }

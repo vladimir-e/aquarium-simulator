@@ -64,7 +64,7 @@ interface ChartProps {
   theme: ResolvedTheme;
   markers: AlertMark[];
   onScrubToTick: (tick: number) => void;
-  /** Canonical °C → the viewer's unit, so the tooltip matches the Run tile. */
+  /** Canonical °C → the viewer's unit, so the tooltip matches the gauges. */
   displayTemp: (celsius: number) => number;
 }
 

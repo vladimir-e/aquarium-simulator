@@ -1,16 +1,12 @@
 /**
- * Equipment column model: the fixed device set, its search filter, and the
- * routing from a carried-in selection (a Systems-card tap) to a device. Pure —
- * the column renders these and owns the selection state.
+ * Equipment model: the fixed device set, its search filter, and the routing
+ * from a carried-in selection to a device. Pure — the list renders these and
+ * owns the selection state.
  */
 
 import type { Equipment } from '../../simulation/index.js';
 
-/**
- * The configurable devices, in list order. Matches the ids the Run Systems
- * card emits (so a device tap preselects here), plus the auto doser, whose
- * schedule/amount only have a home in Build.
- */
+/** The configurable devices, in list order. */
 export type DeviceId =
   | 'filter'
   | 'heater'

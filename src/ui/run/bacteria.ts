@@ -6,6 +6,9 @@
 import type { Resources } from '../../simulation/index.js';
 import type { NitrogenCycleConfig } from '../../simulation/config/index.js';
 
+/** Below this colonisation percentage the biofilter cannot carry a bioload. */
+export const CYCLED_PCT = 25;
+
 /** Colonisation as a percentage (0–100) of the tank's combined bacteria ceiling. */
 export function biofilterColonisation(
   resources: Resources,
