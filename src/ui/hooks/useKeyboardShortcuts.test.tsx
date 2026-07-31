@@ -10,10 +10,10 @@ function pressSpace(): void {
 }
 
 describe('useKeyboardShortcuts', () => {
-  it('steps on Space when enabled and paused', () => {
+  it('steps on Space while paused', () => {
     const onStep = vi.fn();
     const onToggle = vi.fn();
-    renderHook(() => useKeyboardShortcuts(onStep, onToggle, false, true));
+    renderHook(() => useKeyboardShortcuts(onStep, onToggle, false));
 
     pressSpace();
 
@@ -21,14 +21,14 @@ describe('useKeyboardShortcuts', () => {
     expect(onToggle).not.toHaveBeenCalled();
   });
 
-  it('ignores Space when disabled (Build mode)', () => {
+  it('pauses on Space while playing', () => {
     const onStep = vi.fn();
     const onToggle = vi.fn();
-    renderHook(() => useKeyboardShortcuts(onStep, onToggle, false, false));
+    renderHook(() => useKeyboardShortcuts(onStep, onToggle, true));
 
     pressSpace();
 
+    expect(onToggle).toHaveBeenCalledTimes(1);
     expect(onStep).not.toHaveBeenCalled();
-    expect(onToggle).not.toHaveBeenCalled();
   });
 });

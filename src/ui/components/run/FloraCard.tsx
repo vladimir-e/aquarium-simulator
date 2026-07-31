@@ -205,7 +205,7 @@ export function FloraCard({ state, config, executeAction }: FloraCardProps): Rea
       <CardBody>
         <div className="divide-y divide-hairline">
           {plants.length === 0 ? (
-            <p className="py-4 text-[13px] text-ink-3">No plants yet — add flora in Build.</p>
+            <p className="py-4 text-[13px] text-ink-3">No plants yet — add one from Scape.</p>
           ) : (
             plants.map((plant) => {
               const nutrientSufficiency = calculateNutrientSufficiency(

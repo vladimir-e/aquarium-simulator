@@ -3,6 +3,7 @@ import type { useSimulation } from '../hooks/useSimulation';
 import { useTheme } from '../hooks/useTheme';
 import { useUnits } from '../hooks/useUnits';
 import { useIsMobile } from '../hooks/useMediaQuery';
+import { Stage } from '../components/layout/Stage';
 import { Segmented } from '../components/ui/Segmented';
 import { SummaryTiles } from '../components/review/SummaryTiles';
 import { ReviewLogPanel } from '../components/review/ReviewLogPanel';
@@ -30,18 +31,17 @@ const WINDOW_LABEL: Record<ReviewWindow, string> = {
 const WINDOW_OPTIONS = REVIEW_WINDOWS.map((value) => ({ value, label: WINDOW_LABEL[value] }));
 const CHART_CHIP_OPTIONS = REVIEW_CHARTS.map((chart) => ({ value: chart.id, label: chart.shortLabel }));
 
-interface ReviewModeProps {
-  sim: ReturnType<typeof useSimulation>;
-}
-
 /**
- * Review closes the loop: fast-forward in Run, then scrub the whole run here.
  * Charts, the log, and the scrubber share one tick timeline — click a log line
  * or an alert marker and the handle jumps; drag the handle and both follow. The
- * scrubber only reads history, so scrubbing never mutates the sim (which may
- * still be running — the transport stays live in the header).
+ * scrubber only reads history, so scrubbing never mutates the sim, which may
+ * still be running (the transport stays live in the rail).
  */
-export function ReviewMode({ sim }: ReviewModeProps): React.JSX.Element {
+export function AnalyticsSection({
+  sim,
+}: {
+  sim: ReturnType<typeof useSimulation>;
+}): React.JSX.Element {
   const { resolvedTheme } = useTheme();
   const { displayTemp } = useUnits();
   const isMobile = useIsMobile();
@@ -99,22 +99,23 @@ export function ReviewMode({ sim }: ReviewModeProps): React.JSX.Element {
   );
 
   return (
-    <div>
-      <div className="space-y-4 px-4 pt-4 pb-4">
-        <div className="flex flex-col-reverse gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
-          <div className="min-w-0 sm:flex-1">
-            <SummaryTiles aggregates={sim.aggregates} logs={logs} />
-          </div>
-          <Segmented
-            ariaLabel="Time window"
-            options={WINDOW_OPTIONS}
-            value={window}
-            onChange={handleWindowChange}
-          />
-        </div>
+    <Stage
+      title="Analytics"
+      meta="charts · log · run summary"
+      actions={
+        <Segmented
+          ariaLabel="Time window"
+          options={WINDOW_OPTIONS}
+          value={window}
+          onChange={handleWindowChange}
+        />
+      }
+    >
+      <div className="space-y-3 pb-3">
+        <SummaryTiles aggregates={sim.aggregates} logs={logs} />
 
         {isMobile ? (
-          <div className="space-y-4">
+          <div className="space-y-3">
             <Segmented
               ariaLabel="Chart"
               options={CHART_CHIP_OPTIONS}
@@ -125,14 +126,14 @@ export function ReviewMode({ sim }: ReviewModeProps): React.JSX.Element {
             {logPanel}
           </div>
         ) : (
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
+          <div className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
             {logPanel}
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">{REVIEW_CHARTS.map(renderChart)}</div>
+            <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">{REVIEW_CHARTS.map(renderChart)}</div>
           </div>
         )}
       </div>
 
       <TickScrubber range={range} currentTick={currentTick} onScrubToTick={handleScrub} />
-    </div>
+    </Stage>
   );
 }

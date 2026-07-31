@@ -7,6 +7,7 @@ import type { TunableConfig } from '../../../simulation/config/index.js';
 import { formatFlowRate, lphToGph } from '../../utils/units';
 import { useUnits } from '../../hooks/useUnits';
 import { useCardCollapse } from '../../hooks/useCardCollapse';
+import { biofilterColonisation } from '../../run';
 import { Card, CardBody, CardFooter, CardHeader, CollapseRegion } from './Card';
 import { RunButton, StatusDot } from './elements';
 import { SplitButton, type SplitOption } from './SplitButton';
@@ -27,14 +28,14 @@ interface SystemsCardProps {
   state: SimulationState;
   config: TunableConfig;
   executeAction: (action: Action) => void;
-  onOpenDeviceInBuild: (deviceId: string) => void;
+  onSelectDevice: (deviceId: string) => void;
 }
 
 export function SystemsCard({
   state,
   config,
   executeAction,
-  onOpenDeviceInBuild,
+  onSelectDevice,
 }: SystemsCardProps): React.JSX.Element {
   const { formatTemp, unitSystem } = useUnits();
   const { collapsed, toggle, showToggle, regionId } = useCardCollapse('run.systems');
@@ -42,12 +43,7 @@ export function SystemsCard({
 
   const { equipment, tank, resources } = state;
   const filterGph = Math.round(lphToGph(getFilterFlow(equipment.filter.type, tank.capacity)));
-
-  // Biofilter colonization: AOB + NOB against their combined ceiling (each
-  // bacterium type caps at surface × bacteriaPerCm2).
-  const maxBacteria = resources.surface * config.nitrogenCycle.bacteriaPerCm2;
-  const colonization =
-    maxBacteria > 0 ? Math.min(100, ((resources.aob + resources.nob) / (2 * maxBacteria)) * 100) : 0;
+  const colonization = biofilterColonisation(resources, config.nitrogenCycle);
 
   const devices: Device[] = [
     { id: 'filter', name: 'Filter', on: equipment.filter.enabled, detail: `${equipment.filter.type} · ${formatFlowRate(filterGph, unitSystem)}` },
@@ -87,7 +83,7 @@ export function SystemsCard({
             <button
               key={device.id}
               type="button"
-              onClick={() => onOpenDeviceInBuild(device.id)}
+              onClick={() => onSelectDevice(device.id)}
               className="flex w-full items-center gap-3 rounded py-2.5 text-left transition-colors hover:bg-surface-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
             >
               <StatusDot on={device.on} />
@@ -98,7 +94,6 @@ export function SystemsCard({
               </span>
             </button>
           ))}
-          {/* Biofilter — derived, read-only (no Build editor). */}
           <div className="flex items-center gap-3 py-2.5">
             <StatusDot on={colonization >= 25} />
             <span className="text-[15px] text-ink">Biofilter</span>
@@ -123,7 +118,7 @@ export function SystemsCard({
           Top-off
         </RunButton>
         <span className={`ml-auto text-[12px] text-ink-3 ${collapsed ? 'max-sm:hidden' : ''}`}>
-          tap device → opens its editor in Build ↗
+          tap device → opens its inspector
         </span>
       </CardFooter>
     </Card>

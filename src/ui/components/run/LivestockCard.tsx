@@ -162,7 +162,7 @@ export function LivestockCard({ state, config, executeAction }: LivestockCardPro
       <CollapseRegion collapsed={collapsed} id={regionId}>
       <CardBody>
         {fish.length === 0 && clutches.length === 0 ? (
-          <p className="py-6 text-[13px] text-ink-3">No livestock yet — add fish in Build.</p>
+          <p className="py-6 text-[13px] text-ink-3">No livestock yet — add a species from Stocking.</p>
         ) : (
           <>
             {fish.length > 0 && grouping === 'individuals' && (

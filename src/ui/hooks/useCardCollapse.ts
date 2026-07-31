@@ -14,8 +14,8 @@ export interface CardCollapse {
 
 /**
  * Collapse state for a stacked card or accordion section. State is remembered
- * across mode switches and reloads; the toggle affordance appears on mobile
- * only, where cards stack and space is scarce.
+ * across navigation and reloads; the toggle affordance appears on mobile only,
+ * where cards stack and space is scarce.
  */
 export function useCardCollapse(key: string, initialCollapsed = false): CardCollapse {
   const isMobile = useIsMobile();

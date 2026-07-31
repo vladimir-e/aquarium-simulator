@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach, beforeEach } from 'vitest';
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
-import { ReviewMode } from './ReviewMode';
+import { AnalyticsSection } from './AnalyticsSection';
 import { ThemeProvider } from '../hooks/useTheme';
 import { UnitsProvider } from '../hooks/useUnits';
 import { PersistenceProvider } from '../persistence/index.js';
@@ -23,12 +23,12 @@ function fakeSim(): ReturnType<typeof useSimulation> {
   } as unknown as ReturnType<typeof useSimulation>;
 }
 
-function renderReview(): void {
+function renderAnalytics(): void {
   render(
     <ThemeProvider>
       <PersistenceProvider>
         <UnitsProvider>
-          <ReviewMode sim={fakeSim()} />
+          <AnalyticsSection sim={fakeSim()} />
         </UnitsProvider>
       </PersistenceProvider>
     </ThemeProvider>
@@ -64,9 +64,9 @@ afterEach(() => {
   cleanup();
 });
 
-describe('ReviewMode (mobile)', () => {
+describe('AnalyticsSection (mobile)', () => {
   it('shows one chart at a time and swaps it via the chart chips', () => {
-    renderReview();
+    renderAnalytics();
     // Default chip: the nitrogen-cycle chart.
     expect(screen.getByText('Nitrogen cycle')).toBeTruthy();
     expect(screen.queryByText('pH & CO₂')).toBeNull();
@@ -77,7 +77,7 @@ describe('ReviewMode (mobile)', () => {
   });
 
   it('keeps the scrubber pinned in the mobile layout', () => {
-    renderReview();
+    renderAnalytics();
     expect(screen.getByRole('slider')).toBeTruthy();
   });
 });

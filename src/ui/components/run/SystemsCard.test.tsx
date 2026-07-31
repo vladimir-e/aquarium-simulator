@@ -41,7 +41,7 @@ function renderCard(
           state={state}
           config={DEFAULT_CONFIG}
           executeAction={executeAction as never}
-          onOpenDeviceInBuild={onOpen as never}
+          onSelectDevice={onOpen as never}
         />
       </UnitsProvider>
     </PersistenceProvider>
@@ -64,13 +64,13 @@ describe('SystemsCard', () => {
     expect(screen.queryByText(/L\/h/)).toBeNull();
   });
 
-  it('reads filter and powerhead flow in L/h under metric, matching Build', () => {
+  it('reads filter and powerhead flow in L/h under metric, matching the scape column', () => {
     renderCard(withPowerhead, { units: 'metric' });
     expect(screen.getAllByText(/L\/h/).length).toBeGreaterThanOrEqual(2);
     expect(screen.queryByText(/GPH/)).toBeNull();
   });
 
-  it('carries a device id into Build when its row is tapped', () => {
+  it('selects a device when its row is tapped', () => {
     const { onOpen } = renderCard(base);
     fireEvent.click(screen.getByText('Filter'));
     expect(onOpen).toHaveBeenCalledWith('filter');

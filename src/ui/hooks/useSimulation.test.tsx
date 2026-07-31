@@ -83,6 +83,8 @@ const strictWrapper = ({ children }: { children: React.ReactNode }): React.JSX.E
   </React.StrictMode>
 );
 
+const HOURS_OF_A_DAY = Array.from({ length: 24 }, (_, i) => i + 1);
+
 describe('useSimulation', () => {
   beforeEach(() => {
     vi.useFakeTimers();
@@ -117,8 +119,8 @@ describe('useSimulation', () => {
       result.current.step();
     });
 
-    // Default speed is '1h' which has a multiplier of 1
-    expect(result.current.state.tick).toBe(initialTick + 1);
+    // Step advances one simulated day, whatever the speed
+    expect(result.current.state.tick).toBe(initialTick + 24);
   });
 
   it('changing tank size reinitializes simulation', () => {
@@ -130,8 +132,7 @@ describe('useSimulation', () => {
       result.current.step();
     });
 
-    // Each step advances by 1 tick (default speed multiplier)
-    expect(result.current.state.tick).toBe(2);
+    expect(result.current.state.tick).toBe(48);
 
     // Change tank size
     act(() => {
@@ -244,7 +245,7 @@ describe('useSimulation', () => {
       });
 
       expect(result.current.state.equipment.heater.targetTemperature).toBe(30);
-      expect(result.current.state.tick).toBe(2);
+      expect(result.current.state.tick).toBe(48);
 
       // Reset keeps equipment but resets tick/resources/alerts
       act(() => {
@@ -285,7 +286,7 @@ describe('useSimulation', () => {
       });
 
       expect(result.current.state.equipment.heater.targetTemperature).toBe(30);
-      expect(result.current.state.tick).toBe(1);
+      expect(result.current.state.tick).toBe(24);
 
       // loadPreset should restore equipment but keep tick
       act(() => {
@@ -293,7 +294,7 @@ describe('useSimulation', () => {
       });
 
       expect(result.current.state.equipment.heater.targetTemperature).toBe(26); // Betta preset default
-      expect(result.current.state.tick).toBe(1); // Tick preserved
+      expect(result.current.state.tick).toBe(24); // Tick preserved
     });
 
     it('bare preset has no equipment enabled', () => {
@@ -594,8 +595,8 @@ describe('useSimulation', () => {
 
       const { history, aggregates } = result.current;
       expect(history.length).toBeGreaterThanOrEqual(2);
-      expect(history[history.length - 1].tick).toBe(1);
-      expect(aggregates.ticks).toBe(1);
+      expect(history[history.length - 1].tick).toBe(24);
+      expect(aggregates.ticks).toBe(24);
     });
 
     it('accumulates water changed at dispatch', () => {
@@ -643,7 +644,7 @@ describe('useSimulation', () => {
         result.current.executeAction({ type: 'waterChange', amount: 0.25 });
       });
 
-      expect(result.current.aggregates.ticks).toBe(2);
+      expect(result.current.aggregates.ticks).toBe(48);
       expect(result.current.aggregates.waterChangedL).toBeGreaterThan(0);
 
       act(() => {
@@ -656,21 +657,18 @@ describe('useSimulation', () => {
       expect(result.current.history[0].tick).toBe(0);
     });
 
-    it('records every intra-step tick at 6h speed', () => {
+    it('records every intra-step tick of a day step', () => {
       const { result } = renderHook(() => useSimulation('bare'), { wrapper });
       const baseline = result.current.history.length;
 
-      act(() => {
-        result.current.changeSpeed('6h');
-      });
       act(() => {
         result.current.step();
       });
 
       const { history, aggregates } = result.current;
       const recorded = history.slice(baseline);
-      expect(recorded.map((s) => s.tick)).toEqual([1, 2, 3, 4, 5, 6]);
-      expect(aggregates.ticks).toBe(6);
+      expect(recorded.map((s) => s.tick)).toEqual(HOURS_OF_A_DAY);
+      expect(aggregates.ticks).toBe(24);
     });
 
     it('records each intra-step tick exactly once under StrictMode', () => {
@@ -678,17 +676,14 @@ describe('useSimulation', () => {
       const baseline = result.current.history.length;
 
       act(() => {
-        result.current.changeSpeed('6h');
-      });
-      act(() => {
         result.current.step();
       });
 
       // Without the recordedThrough guard, the double-invoked updater would
-      // queue each tick twice (12 snapshots); the guard keeps it at six.
+      // queue each tick twice (48 snapshots); the guard keeps it at 24.
       const recorded = result.current.history.slice(baseline);
-      expect(recorded.map((s) => s.tick)).toEqual([1, 2, 3, 4, 5, 6]);
-      expect(result.current.aggregates.ticks).toBe(6);
+      expect(recorded.map((s) => s.tick)).toEqual(HOURS_OF_A_DAY);
+      expect(result.current.aggregates.ticks).toBe(24);
     });
 
     it('rebaselines history and aggregates on a mid-run preset load', () => {

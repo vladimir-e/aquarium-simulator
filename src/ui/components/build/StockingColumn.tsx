@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { ChevronRight } from 'lucide-react';
 import {
   checkFishCapacity,
   FISH_SPECIES_DATA,
@@ -8,7 +7,7 @@ import {
 import type { useSimulation } from '../../hooks/useSimulation';
 import { bioload, fryLines, removalVictimId, speciesCounts } from '../../build';
 import { useCardCollapse } from '../../hooks/useCardCollapse';
-import { Card, CardBody, CardFooter, CardHeader, CollapseRegion } from '../run/Card';
+import { Card, CardBody, CardHeader, CollapseRegion } from '../run/Card';
 import { Bar } from '../run/elements';
 import { Adjust } from './controls';
 import { Select } from '../ui/Select';
@@ -17,12 +16,7 @@ type Sim = ReturnType<typeof useSimulation>;
 
 const FISH_SPECIES: FishSpecies[] = ['neon_tetra', 'betta', 'guppy', 'angelfish', 'corydoras'];
 
-interface StockingColumnProps {
-  sim: Sim;
-  onResumeRun: () => void;
-}
-
-export function StockingColumn({ sim, onResumeRun }: StockingColumnProps): React.JSX.Element {
+export function StockingColumn({ sim }: { sim: Sim }): React.JSX.Element {
   const { fish, tank } = sim.state;
   const { collapsed, toggle, showToggle, regionId } = useCardCollapse('build.stocking');
   const rows = speciesCounts(fish);
@@ -117,17 +111,6 @@ export function StockingColumn({ sim, onResumeRun }: StockingColumnProps): React
           <p className="pt-1 text-[12px] text-ink-3">stocking preview warns before ammonia does</p>
         </div>
       </CardBody>
-
-      <CardFooter className="max-sm:hidden">
-        <button
-          type="button"
-          onClick={onResumeRun}
-          className="ml-auto flex items-center gap-1 rounded-control bg-accent px-3.5 py-1.5 text-[13px] font-medium text-surface transition-[transform,opacity] hover:opacity-90 active:scale-[0.98] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
-        >
-          Resume run
-          <ChevronRight className="h-4 w-4" />
-        </button>
-      </CardFooter>
       </CollapseRegion>
     </Card>
   );

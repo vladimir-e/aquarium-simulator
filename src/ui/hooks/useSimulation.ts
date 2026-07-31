@@ -22,7 +22,7 @@ import { createLog } from '../../simulation/core/logging.js';
 import { PRESETS, DEFAULT_PRESET_ID, getPresetById, type PresetId } from '../presets.js';
 import { useConfig } from './useConfig.js';
 import { usePersistence, type PersistedSimulation } from '../persistence/index.js';
-import { type SpeedPreset, DEFAULT_SPEED, SPEED_TICKS_PER_SECOND } from '../run/speed.js';
+import { type SpeedPreset, DEFAULT_SPEED, SPEED_TICKS_PER_SECOND, STEP_TICKS } from '../run/speed.js';
 import {
   type RunSnapshot,
   type RunAggregates,
@@ -47,6 +47,7 @@ interface UseSimulationReturn {
   history: RunSnapshot[];
   /** Rolling run tallies (deaths, births, alerts, water changed…). */
   aggregates: RunAggregates;
+  /** Advance one simulated day, whatever the autoplay speed. */
   step: () => void;
   togglePlayPause: () => void;
   pause: () => void;
@@ -273,9 +274,8 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
   }, [state]);
 
   const step = useCallback(() => {
-    const count = SPEED_TICKS_PER_SECOND[speed];
-    setState((current) => advanceTicks(current, count));
-  }, [speed, advanceTicks]);
+    setState((current) => advanceTicks(current, STEP_TICKS));
+  }, [advanceTicks]);
 
   const startAutoPlay = useCallback(() => {
     if (intervalRef.current) return;

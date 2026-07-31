@@ -17,10 +17,11 @@ export {
   DEFAULT_SPEED,
   SPEED_TICKS_PER_SECOND,
   SPEED_LABELS,
-  STEP_LABELS,
+  STEP_TICKS,
 } from './speed.js';
 export { type Status } from './status.js';
 export { classifyVital, type VitalKey, type VitalClassification } from './vitals.js';
+export { biofilterColonisation } from './bacteria.js';
 export {
   isHungryBand,
   bandOf,

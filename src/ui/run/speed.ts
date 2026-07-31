@@ -22,9 +22,5 @@ export const SPEED_LABELS: Record<SpeedPreset, string> = {
   '1d': '1d',
 };
 
-/** How far the Step button advances at each speed (one autoplay tick's worth). */
-export const STEP_LABELS: Record<SpeedPreset, string> = {
-  '1h': '1h',
-  '6h': '6h',
-  '1d': '1d',
-};
+/** Ticks the Step button advances, independent of the autoplay speed. */
+export const STEP_TICKS = 24;

@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach, beforeEach } from 'vitest';
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
-import { ReviewMode } from './ReviewMode';
+import { AnalyticsSection } from './AnalyticsSection';
 import { ThemeProvider } from '../hooks/useTheme';
 import { UnitsProvider } from '../hooks/useUnits';
 import { PersistenceProvider } from '../persistence/index.js';
@@ -33,12 +33,12 @@ function fakeSim(): ReturnType<typeof useSimulation> {
   } as unknown as ReturnType<typeof useSimulation>;
 }
 
-function renderReview(): void {
+function renderAnalytics(): void {
   render(
     <ThemeProvider>
       <PersistenceProvider>
         <UnitsProvider>
-          <ReviewMode sim={fakeSim()} />
+          <AnalyticsSection sim={fakeSim()} />
         </UnitsProvider>
       </PersistenceProvider>
     </ThemeProvider>
@@ -65,9 +65,9 @@ beforeEach(() => {
   };
 });
 
-describe('ReviewMode', () => {
+describe('AnalyticsSection', () => {
   it('mounts the summary, all four charts, the log, and the scrubber', () => {
-    renderReview();
+    renderAnalytics();
     expect(screen.getByText('run length')).toBeTruthy();
     for (const title of ['Nitrogen cycle', 'pH & CO₂', 'O₂ / temp', 'Population & plant mass']) {
       expect(screen.getByText(title)).toBeTruthy();
@@ -77,7 +77,7 @@ describe('ReviewMode', () => {
   });
 
   it('scopes the scrubber domain to the selected window', () => {
-    renderReview();
+    renderAnalytics();
     expect(screen.getByRole('slider').getAttribute('aria-valuemin')).toBe('0');
 
     fireEvent.click(screen.getByRole('button', { name: '24h' }));

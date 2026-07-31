@@ -37,7 +37,7 @@ describe('StockingColumn', () => {
       makeFish({ id: 'a', species: 'neon_tetra' }),
       makeFish({ id: 'b', species: 'neon_tetra' }),
     ]);
-    render(<StockingColumn sim={sim} onResumeRun={vi.fn()} />);
+    render(<StockingColumn sim={sim} />);
     // Its stepper group is labelled by the species (the name also appears as a
     // <select> option, so target the row's control instead).
     expect(screen.getByRole('group', { name: 'Neon Tetra' })).toBeTruthy();
@@ -46,7 +46,7 @@ describe('StockingColumn', () => {
 
   it('adds a fish of the species when the row + is pressed', () => {
     const { sim, executeAction } = stubSim([makeFish({ id: 'a', species: 'guppy' })]);
-    render(<StockingColumn sim={sim} onResumeRun={vi.fn()} />);
+    render(<StockingColumn sim={sim} />);
     fireEvent.click(screen.getByRole('button', { name: 'Add Guppy' }));
     expect(executeAction).toHaveBeenCalledWith({ type: 'addFish', species: 'guppy' });
   });
@@ -56,7 +56,7 @@ describe('StockingColumn', () => {
       makeFish({ id: 'strong', species: 'neon_tetra', health: 80 }),
       makeFish({ id: 'weak', species: 'neon_tetra', health: 20 }),
     ]);
-    render(<StockingColumn sim={sim} onResumeRun={vi.fn()} />);
+    render(<StockingColumn sim={sim} />);
     fireEvent.click(screen.getByRole('button', { name: 'Remove Neon Tetra' }));
     expect(executeAction).toHaveBeenCalledWith({ type: 'removeFish', fishId: 'weak' });
   });
@@ -65,15 +65,8 @@ describe('StockingColumn', () => {
     // Not a realistic stocking — an over-ceiling fixture that pins the
     // canAdd → checkFishCapacity → disabled-Add wiring (getMaxFishMass(40) = 20000 g).
     const { sim } = stubSim([makeFish({ id: 'whale', species: 'neon_tetra', mass: 20000 })]);
-    render(<StockingColumn sim={sim} onResumeRun={vi.fn()} />);
+    render(<StockingColumn sim={sim} />);
     expect((screen.getByRole('button', { name: 'Add Neon Tetra' }) as HTMLButtonElement).disabled).toBe(true);
   });
 
-  it('resumes the run from the footer button', () => {
-    const { sim } = stubSim([]);
-    const onResumeRun = vi.fn();
-    render(<StockingColumn sim={sim} onResumeRun={onResumeRun} />);
-    fireEvent.click(screen.getByRole('button', { name: /Resume run/ }));
-    expect(onResumeRun).toHaveBeenCalledTimes(1);
-  });
 });
