@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ResolvedTheme } from '../../hooks/useTheme';
 import type { RunSnapshot } from '../../run/index.js';
+import { EmptyState } from '../run/Card';
 import {
   type ChartDef,
   type ChartSeries,
@@ -148,9 +149,9 @@ export function Chart({
 
       <div ref={ref} className="relative min-h-0 flex-1" onClick={handleClick}>
         {history.length === 0 || !range ? (
-          <div className="flex h-full items-center justify-center text-[12.5px] text-ink-3">
+          <EmptyState className="flex h-full items-center justify-center">
             No data in this window yet.
-          </div>
+          </EmptyState>
         ) : (
           <>
             <svg

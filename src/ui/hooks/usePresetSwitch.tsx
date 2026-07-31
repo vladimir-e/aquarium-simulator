@@ -1,5 +1,5 @@
 import React, { createContext, useCallback, useContext, useMemo, useState } from 'react';
-import { getPresetById, type PresetId } from '../presets.js';
+import { presetName, type PresetId } from '../presets.js';
 import { presetRestoreMessage, presetSwitchMessage } from '../build/index.js';
 import { ConfirmDialog } from '../components/ui/ConfirmDialog';
 
@@ -30,7 +30,7 @@ export function PresetSwitchProvider({
   const value = useMemo<PresetSwitch>(() => ({ current, request }), [current, request]);
 
   const restoring = pending !== null && pending === current;
-  const name = pending === null ? '' : (getPresetById(pending)?.name ?? pending);
+  const name = pending === null ? '' : presetName(pending);
 
   return (
     <PresetSwitchContext.Provider value={value}>

@@ -5,7 +5,7 @@ import type { DailySchedule } from '../../../simulation/index.js';
 import { useUnits } from '../../hooks/useUnits';
 import { SECTIONS, formatMeter, type MicroMeter, type NavFigure, type SectionId } from '../../nav';
 import type { Status, SpeedPreset } from '../../run';
-import { Pill, statusText, type PillVariant } from '../run/elements';
+import { Pill, statusText } from '../run/elements';
 import { TimelineCard } from './TimelineCard';
 
 const METER_FILL: Record<Status, string> = {
@@ -13,13 +13,6 @@ const METER_FILL: Record<Status, string> = {
   warn: 'bg-warn',
   alert: 'bg-alert',
   neutral: 'bg-ink-3',
-};
-
-const PILL_VARIANT: Record<Status, PillVariant> = {
-  ok: 'ok',
-  warn: 'warn',
-  alert: 'alert',
-  neutral: 'neutral',
 };
 
 function MicroMeters({ meters }: { meters: MicroMeter[] }): React.JSX.Element {
@@ -93,9 +86,7 @@ function NavRow({
             <span className="min-w-0 truncate text-[14.5px] font-semibold leading-none tracking-[-0.005em]">
               {label}
             </span>
-            {figure.pill && (
-              <Pill variant={PILL_VARIANT[figure.pill.status]}>{figure.pill.text}</Pill>
-            )}
+            {figure.pill && <Pill variant={figure.pill.status}>{figure.pill.text}</Pill>}
             {!isActive && <ChevronRight className="ml-auto h-3.5 w-3.5 shrink-0 text-ink-3" />}
           </span>
           {figure.dots && <DeviceDots dots={figure.dots} />}

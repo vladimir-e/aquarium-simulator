@@ -21,7 +21,7 @@ import {
 import { getLightOutput } from '../../simulation/equipment/light.js';
 import { WATER_LEVEL_THRESHOLD } from '../../simulation/equipment/ato.js';
 import { formatCo2Rate } from '../../simulation/equipment/co2-generator.js';
-import { SurfaceResource } from '../../simulation/resources/index.js';
+import { Co2Resource, SurfaceResource } from '../../simulation/resources/index.js';
 import type { TunableConfig } from '../../simulation/config/index.js';
 import { bacteriaReadout, CYCLED_PCT, doseDeltas, formatDose } from '../run/index.js';
 import {
@@ -187,7 +187,7 @@ function co2Readings({ state }: DeviceReadingInput): DeviceReading[] {
   const injecting = co2Generator.enabled && isScheduleActive(hour, co2Generator.schedule);
 
   return [
-    { label: 'CO₂ now', value: `${state.resources.co2.toFixed(1)} ppm` },
+    { label: 'CO₂ now', value: Co2Resource.format(state.resources.co2) },
     {
       label: 'Injecting',
       value: !co2Generator.enabled ? 'off' : injecting ? 'yes' : 'no',

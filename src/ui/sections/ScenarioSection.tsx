@@ -22,8 +22,10 @@ import {
   environmentDerived,
   presetCards,
   resetConsequence,
+  scenarioSummary,
 } from '../build';
-import { findClosestTankSize, formatVolume, getTankSizeOptions } from '../utils/units';
+import { presetName } from '../presets.js';
+import { findClosestTankSize, getTankSizeOptions } from '../utils/units';
 
 const LID_OPTIONS = LID_TYPES.map((value) => ({ value, label: LID_LABEL[value] }));
 
@@ -49,7 +51,6 @@ export function ScenarioSection({
   const modified = driftsFromPreset(sim.state, current);
 
   const consequence = resetConsequence(sim.state);
-  const presetName = cards.find((card) => card.id === current)?.name ?? current;
   const roomDisplay = Math.round(displayTemp(environment.roomTemperature));
   const tapDisplay = Math.round(displayTemp(environment.tapWaterTemperature));
   const minTemp = unitSystem === 'imperial' ? 50 : 10;
@@ -69,7 +70,7 @@ export function ScenarioSection({
   return (
     <Stage
       title="Scenario"
-      meta={`${presetName} · ${formatVolume(tank.capacity, unitSystem, 0)}`}
+      meta={scenarioSummary(sim.state, presetName(current), unitSystem)}
       actions={
         <Segmented
           ariaLabel="Unit system"

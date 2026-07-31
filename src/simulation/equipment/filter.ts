@@ -19,6 +19,9 @@ export const DEFAULT_FILTER: Filter = {
   type: 'sponge',
 };
 
+/** Filter types in the order a picker offers them, smallest first. */
+export const FILTER_TYPES: readonly FilterType[] = ['sponge', 'hob', 'canister', 'sump'];
+
 /** Filter bacteria surface area by type (cm²) */
 export const FILTER_SURFACE: Record<FilterType, number> = {
   sponge: 8000,

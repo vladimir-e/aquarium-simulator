@@ -66,14 +66,20 @@ describe('runSummary', () => {
 
 describe('summaryLines', () => {
   it('reads the run back in two lines', () => {
-    expect(summaryLines(runSummary(RUN, [], 'metric'))).toEqual([
+    expect(summaryLines(RUN, [], 'metric')).toEqual([
       '1622 ticks · 67d 14h',
       '6 alerts · 2 deaths · 18 fry',
     ]);
   });
 
   it('tracks the summary rather than restating it', () => {
-    const quiet = summaryLines(runSummary({ ...RUN, ticks: 25, alerts: 0, deaths: 1 }, [], 'metric'));
+    const quiet = summaryLines({ ...RUN, ticks: 25, alerts: 0, deaths: 1 }, [], 'metric');
     expect(quiet).toEqual(['25 ticks · 1d 1h', '0 alerts · 1 death · 18 fry']);
+  });
+
+  // A restored save opens with an empty buffer, so a run with nothing recorded
+  // says so rather than reciting zeroes it did not measure.
+  it('says there is no history rather than counting to zero', () => {
+    expect(summaryLines({ ...RUN, ticks: 0 }, [], 'metric')).toEqual(['0 ticks', 'no history yet']);
   });
 });

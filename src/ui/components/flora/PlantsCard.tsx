@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { X } from 'lucide-react';
 import { ailingPlants, type AlgaeRow, type PlantRow, type Status } from '../../run';
 import { Breakdown, RATE_EPSILON, rateText, rateTone } from '../run/Breakdown';
-import { Card, CardBody, CardHeader } from '../run/Card';
+import { Card, CardBody, CardHeader, EmptyState } from '../run/Card';
 import { Bar, Caret, statusText } from '../run/elements';
 
 function VitalRow({
@@ -60,17 +60,12 @@ function VitalRow({
 export function PlantsCard({
   rows,
   algae,
-  maxPlants,
-  overTrim,
   onRemove,
   footer,
   className = '',
 }: {
   rows: PlantRow[];
   algae: AlgaeRow;
-  maxPlants: number;
-  /** Plants every rung of the trim ladder would cut. */
-  overTrim: number;
   onRemove: (plantId: string) => void;
   /** The add-plant control, when it belongs in the list rather than the header. */
   footer?: React.ReactNode;
@@ -85,18 +80,16 @@ export function PlantsCard({
       return next;
     });
 
+  // The slot count and the trim count are the section's headline, one line up.
   const ailing = ailingPlants(rows).length;
-  const clauses = [`${rows.length} of ${maxPlants} slots`];
-  if (ailing > 0) clauses.push(`${ailing} ailing`);
-  if (overTrim > 0) clauses.push(`${overTrim} to trim`);
 
   return (
     <Card className={`min-h-0 ${className}`}>
-      <CardHeader title="Plants" meta={<span>{clauses.join(' · ')}</span>} />
+      <CardHeader title="Plants" meta={ailing > 0 ? `${ailing} ailing` : undefined} />
       <CardBody className="min-h-0 lg:overflow-y-auto">
         <div className="divide-y divide-hairline">
           {rows.length === 0 && (
-            <p className="py-4 text-[13px] text-ink-3">No plants yet — add one to begin.</p>
+            <EmptyState className="py-4">No plants yet — add one to begin.</EmptyState>
           )}
           {rows.map((row) => (
             <VitalRow

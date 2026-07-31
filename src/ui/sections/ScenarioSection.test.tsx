@@ -5,7 +5,9 @@ import { ScenarioSection } from './ScenarioSection';
 import { UnitsProvider, useUnits } from '../hooks/useUnits';
 import { PresetSwitchProvider } from '../hooks/usePresetSwitch';
 import { PersistenceProvider } from '../persistence/index.js';
-import { RESET_CONFIRM_TICKS } from '../build';
+import { RESET_CONFIRM_TICKS, scenarioSummary } from '../build';
+import { navFigures } from '../nav/figures';
+import { emptyAggregates } from '../run';
 import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
 import { applyAction, createSimulation, type SimulationState } from '../../simulation/index.js';
 import type { useSimulation } from '../hooks/useSimulation';
@@ -209,6 +211,49 @@ describe('ScenarioSection', () => {
 
     // 150 L × 4 = 600 L/h, capped at the sponge's 300 L/h.
     expect(screen.getByText('2.0 × tank volume/h')).toBeTruthy();
+  });
+
+  /**
+   * The rail exists so the reader need not open the section; Scenario's row and
+   * its header read one derivation, so they cannot name different tanks.
+   */
+  it('names the preset and its tank exactly as the rail row does', () => {
+    renderSection(stubSim(planted));
+
+    const rail = navFigures({
+      state: planted,
+      config: DEFAULT_CONFIG,
+      aggregates: emptyAggregates(),
+      presetName: 'Planted Tank',
+      presetModified: false,
+      units: 'metric',
+    }).scenario;
+
+    const header = screen.getByRole('heading', { level: 1, name: 'Scenario' }).parentElement!;
+    expect(within(header).getByText(scenarioSummary(planted, 'Planted Tank', 'metric'))).toBeTruthy();
+    expect(rail.lines[0]).toBe('Planted Tank · 40 L');
+  });
+
+  it('stands the preset column beside the environment column', () => {
+    renderSection(stubSim(planted));
+    const presets = screen.getByText('Preset').closest('section')!;
+    const environment = screen.getByText('Environment').closest('section')!;
+
+    expect(presets).not.toBe(environment);
+    expect(presets.parentElement).toBe(environment.parentElement);
+    expect(within(presets).getByText('Betta Cube')).toBeTruthy();
+    expect(within(environment).getByText('Derived')).toBeTruthy();
+  });
+
+  /** The footer is a band, not a row: it wraps rather than truncating the cost. */
+  it('keeps reset, duplicate and the consequence together below the body', () => {
+    renderSection(stubSim(planted));
+    const band = screen.getByRole('button', { name: /Reset run/ }).parentElement!;
+
+    expect(within(band).getByRole('button', { name: /Duplicate scenario/ })).toBeTruthy();
+    expect(within(band).getByText(/Reset clears the clock/)).toBeTruthy();
+    // Outside the scrolling body, so the cost is on screen wherever the body is.
+    expect(band.parentElement).toBe(screen.getByRole('main'));
   });
 
   it('offers the lids in the one wording the rail and the cards use', () => {

@@ -9,7 +9,9 @@ import { PersistenceProvider } from '../persistence/index.js';
 import { RUN_HISTORY_CAP, snapshotFromState } from '../run/index.js';
 import { createSimulation, createLog, type SimulationState } from '../../simulation/index.js';
 import type { useSimulation } from '../hooks/useSimulation';
-import { stubMatchMedia, type MatchMediaStub } from '../test/matchMedia';
+import { navFigures } from '../nav/figures';
+import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
+import { stubMatchMedia, viewport, type MatchMediaStub } from '../test/matchMedia';
 
 let media: MatchMediaStub;
 
@@ -98,6 +100,11 @@ function back(): void {
   fireEvent.click(screen.getByRole('button', { name: 'test-back' }));
 }
 
+/** The stage header's meta line: the section's headline figure. */
+function headline(): string {
+  return screen.getByRole('heading', { level: 1 }).nextElementSibling?.textContent ?? '';
+}
+
 function slider(): HTMLElement {
   return screen.getByRole('slider');
 }
@@ -108,7 +115,7 @@ function cursor(): string {
 
 // Pin the desktop layout (not mobile) so the four-chart grid is deterministic.
 beforeEach(() => {
-  media = stubMatchMedia(false);
+  media = stubMatchMedia(viewport(1280));
 });
 
 describe('AnalyticsSection', () => {
@@ -120,6 +127,43 @@ describe('AnalyticsSection', () => {
     }
     expect(screen.getByText('Log')).toBeTruthy();
     expect(slider()).toBeTruthy();
+  });
+
+  /**
+   * The rail exists so the reader need not open the section. Analytics is the
+   * one row whose figures are the run itself, so the header quotes the rail's
+   * own lines rather than a second count of the same run.
+   */
+  it('states the run in the stage header, in the rail’s own words', () => {
+    const sim = fakeSim();
+    renderAnalytics('/analytics', sim);
+
+    const rail = navFigures({
+      state: sim.state,
+      config: DEFAULT_CONFIG,
+      aggregates: sim.aggregates,
+      presetName: 'Planted Tank',
+      presetModified: false,
+      units: 'metric',
+    }).analytics;
+
+    expect(headline()).toBe(rail.lines.join(' · '));
+    expect(headline()).toContain('39 ticks');
+  });
+
+  it('says there is no history rather than counting an empty run', () => {
+    renderAnalytics(
+      '/analytics',
+      fakeSim(snapshots(0, 0), [], {
+        ticks: 0,
+        deaths: 0,
+        births: 0,
+        frySold: 0,
+        alerts: 0,
+        waterChangedL: 0,
+      })
+    );
+    expect(headline()).toBe('0 ticks · no history yet');
   });
 
   it('scopes the scrubber domain to the selected window', () => {

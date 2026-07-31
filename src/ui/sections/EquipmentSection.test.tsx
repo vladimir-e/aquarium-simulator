@@ -10,16 +10,15 @@ import { emptyAggregates } from '../run/index.js';
 import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
 import { createSimulation, tick, type SimulationState } from '../../simulation/index.js';
 import type { useSimulation } from '../hooks/useSimulation';
-import { RAIL_QUERY } from '../hooks/useMediaQuery';
 import { toInternalTemperature } from '../utils/units';
-import { stubMatchMedia, type MatchMediaStub } from '../test/matchMedia';
+import { stubMatchMedia, viewport, type MatchMediaStub } from '../test/matchMedia';
 import { stubSim } from '../test/stubSim';
 
 let media: MatchMediaStub;
 
 // Desktop: the inspector opens beside the list rather than over it.
 beforeEach(() => {
-  media = stubMatchMedia((query) => query === RAIL_QUERY);
+  media = stubMatchMedia(viewport(1280));
 });
 
 afterEach(() => {

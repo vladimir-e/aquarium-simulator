@@ -56,7 +56,7 @@ export const GAS_KEYS: GasKey[] = ['oxygen', 'co2'];
  * nitrite peak above 2 ppm on a modest bioload, so a track that stopped at the
  * threshold would peg through the whole event it exists to show.
  */
-export const GAUGE_SCALE: Record<GaugeKey, [min: number, max: number]> = {
+const GAUGE_SCALE: Record<GaugeKey, [min: number, max: number]> = {
   temperature: [15, 35],
   ph: [5.5, 8.5],
   water: [0, 100],

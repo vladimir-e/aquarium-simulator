@@ -9,15 +9,14 @@ import { UnitsProvider } from '../../hooks/useUnits';
 import { ConfigProvider, useConfig } from '../../hooks/useConfig';
 import { PersistenceProvider } from '../../persistence/index.js';
 import { useSimulation } from '../../hooks/useSimulation';
-import { MOBILE_QUERY, RAIL_QUERY } from '../../hooks/useMediaQuery';
 import { FOCUSABLE } from '../../hooks/useFocusTrap';
-import { stubMatchMedia, type MatchMediaStub } from '../../test/matchMedia';
+import { stubMatchMedia, viewport, type MatchMediaStub } from '../../test/matchMedia';
 
 let media: MatchMediaStub;
 
 // Phone: the rail has nowhere to stand, so it lives behind the Menu button.
 beforeEach(() => {
-  media = stubMatchMedia((query) => query === MOBILE_QUERY);
+  media = stubMatchMedia(viewport(390));
 });
 
 afterEach(() => {
@@ -158,7 +157,7 @@ describe('AppShell — the index drawer', () => {
     // while the drawer is up it lives inside it.
     expect(drawer.contains(screen.getByRole('navigation', { name: 'Sections' }))).toBe(true);
 
-    act(() => media.set((query) => query === RAIL_QUERY));
+    act(() => media.set(viewport(1280)));
 
     expect(screen.queryByRole('dialog')).toBeNull();
     expect(screen.getByRole('navigation', { name: 'Sections' })).toBeTruthy();
@@ -174,7 +173,7 @@ describe('AppShell — the Actions sheet', () => {
     expect(openDrawer().contains(actionsTrigger())).toBe(false);
     fireEvent.keyDown(window, { key: 'Escape' });
 
-    act(() => media.set((query) => query === RAIL_QUERY));
+    act(() => media.set(viewport(1280)));
 
     const rail = screen.getByRole('navigation', { name: 'Sections' }).parentElement!;
     expect(rail.contains(actionsTrigger())).toBe(true);
@@ -212,7 +211,7 @@ describe('AppShell — the Actions sheet', () => {
 
   it('never evicts the index — the rail is still there behind it', () => {
     renderShell();
-    act(() => media.set((query) => query === RAIL_QUERY));
+    act(() => media.set(viewport(1280)));
 
     fireEvent.click(actionsTrigger());
 

@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { readWindow, readFilter, readTick, viewParams } from './params';
+import { readChart, readWindow, readFilter, readTick, viewParams } from './params';
+import { REVIEW_CHARTS } from './charts';
 import type { TickRange } from './window';
 
 const RANGE: TickRange = { minTick: 100, maxTick: 200 };
@@ -51,22 +52,34 @@ describe('readTick', () => {
   });
 });
 
+describe('readChart', () => {
+  it('takes a chart it draws, and falls back to the first otherwise', () => {
+    expect(readChart('ph-co2').id).toBe('ph-co2');
+    expect(readChart(null)).toBe(REVIEW_CHARTS[0]);
+    expect(readChart('bacteria-population')).toBe(REVIEW_CHARTS[0]);
+  });
+});
+
 describe('viewParams', () => {
+  const DEFAULTS = { window: 'run', filter: 'all', tick: null, chart: REVIEW_CHARTS[0].id } as const;
+
   it('spells out nothing for the default view', () => {
-    expect(viewParams({ window: 'run', filter: 'all', tick: null })).toEqual({});
+    expect(viewParams(DEFAULTS)).toEqual({});
   });
 
   it('carries only what differs from the default', () => {
-    expect(viewParams({ window: '24h', filter: 'all', tick: null })).toEqual({ window: '24h' });
-    expect(viewParams({ window: 'run', filter: 'life', tick: null })).toEqual({ log: 'life' });
-    expect(viewParams({ window: 'run', filter: 'all', tick: 0 })).toEqual({ tick: '0' });
+    expect(viewParams({ ...DEFAULTS, window: '24h' })).toEqual({ window: '24h' });
+    expect(viewParams({ ...DEFAULTS, filter: 'life' })).toEqual({ log: 'life' });
+    expect(viewParams({ ...DEFAULTS, tick: 0 })).toEqual({ tick: '0' });
+    expect(viewParams({ ...DEFAULTS, chart: 'ph-co2' })).toEqual({ chart: 'ph-co2' });
   });
 
   it('round-trips a fully specified view', () => {
-    const view = { window: '24h', filter: 'user', tick: 1584 } as const;
+    const view = { window: '24h', filter: 'user', tick: 1584, chart: 'o2-temp' } as const;
     const params = new globalThis.URLSearchParams(viewParams(view));
     expect(readWindow(params.get('window'))).toBe(view.window);
     expect(readFilter(params.get('log'))).toBe(view.filter);
+    expect(readChart(params.get('chart')).id).toBe(view.chart);
     expect(readTick(params.get('tick'), { minTick: 1560, maxTick: 1622 })).toBe(view.tick);
   });
 });

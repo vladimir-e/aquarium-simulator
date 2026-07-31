@@ -363,19 +363,6 @@ export function doseToCover(
   };
 }
 
-export interface TrimTarget {
-  target: number;
-  count: number;
-  disabled: boolean;
-}
-
-export function trimTargets(state: SimulationState): TrimTarget[] {
-  return TRIM_TARGETS.map((target) => {
-    const count = getPlantsToTrimCount(state, target);
-    return { target, count, disabled: count === 0 };
-  });
-}
-
 /** The section's headline figure, shared with the rail's Flora row. */
 export function plantsAndAlgae(state: SimulationState): string {
   const algaePct = Math.round(state.algae.mass);

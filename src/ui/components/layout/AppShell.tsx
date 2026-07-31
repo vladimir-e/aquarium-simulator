@@ -5,13 +5,13 @@ import type { TunableConfig } from '../../../simulation/config/index.js';
 import type { useSimulation } from '../../hooks/useSimulation';
 import { useActionsSheet } from '../../hooks/useActionsSheet';
 import { useFocusTrap } from '../../hooks/useFocusTrap';
-import { useMediaQuery, RAIL_QUERY } from '../../hooks/useMediaQuery';
+import { useIsMobile } from '../../hooks/useMediaQuery';
 import { PresetSwitchProvider } from '../../hooks/usePresetSwitch';
 import { useUnits } from '../../hooks/useUnits';
 import { verbRow } from '../../actions';
 import { driftsFromPreset } from '../../build';
 import { navFigures } from '../../nav';
-import { getPresetById } from '../../presets.js';
+import { presetName } from '../../presets.js';
 import { ActionsSheet } from '../actions/ActionsSheet';
 import { ActionsTrigger } from '../actions/ActionsTrigger';
 import { DebugPanel } from '../panels/DebugPanel';
@@ -30,7 +30,7 @@ interface AppShellProps {
  */
 export function AppShell({ sim, config }: AppShellProps): React.JSX.Element {
   const { unitSystem } = useUnits();
-  const railStands = useMediaQuery(RAIL_QUERY);
+  const railStands = !useIsMobile();
   const [indexOpen, setIndexOpen] = useState(false);
   const openIndex = useCallback(() => setIndexOpen(true), []);
   const closeIndex = useCallback(() => setIndexOpen(false), []);
@@ -63,7 +63,7 @@ export function AppShell({ sim, config }: AppShellProps): React.JSX.Element {
   const figures = navFigures({
     state: sim.state,
     config,
-    presetName: getPresetById(sim.currentPreset)?.name ?? sim.currentPreset,
+    presetName: presetName(sim.currentPreset),
     presetModified: driftsFromPreset(sim.state, sim.currentPreset),
     units: unitSystem,
     aggregates: sim.aggregates,

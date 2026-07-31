@@ -7,15 +7,14 @@ import { UnitsProvider } from '../hooks/useUnits';
 import { PersistenceProvider } from '../persistence/index.js';
 import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
 import { createSimulation, type SimulationState } from '../../simulation/index.js';
-import { MOBILE_QUERY } from '../hooks/useMediaQuery';
-import { stubMatchMedia, type MatchMediaStub } from '../test/matchMedia';
+import { stubMatchMedia, viewport, type MatchMediaStub } from '../test/matchMedia';
 import { stubSim } from '../test/stubSim';
 
 let media: MatchMediaStub;
 
 // Phone: the inspector is pushed over the list rather than standing beside it.
 beforeEach(() => {
-  media = stubMatchMedia((query) => query === MOBILE_QUERY);
+  media = stubMatchMedia(viewport(390));
 });
 
 afterEach(() => {

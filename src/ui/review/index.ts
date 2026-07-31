@@ -37,8 +37,10 @@ export {
   TICK_PARAM,
   WINDOW_PARAM,
   LOG_PARAM,
+  CHART_PARAM,
   readWindow,
   readFilter,
+  readChart,
   readTick,
   viewParams,
 } from './params.js';

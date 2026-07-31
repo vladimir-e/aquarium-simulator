@@ -73,6 +73,15 @@ function buildSummary(state: SimulationState): string {
   return [scapeSummary(substrate.type, hardscape.items), ...gear, LID_LABEL[lid.type]].join(' · ');
 }
 
+/** The section's headline figure, shared with the rail's Scenario row. */
+export function scenarioSummary(
+  state: SimulationState,
+  presetName: string,
+  units: UnitSystem
+): string {
+  return `${presetName} · ${formatVolume(state.tank.capacity, units, 0)}`;
+}
+
 export function presetCards(units: UnitSystem): PresetCard[] {
   return PRESETS.map((preset) => {
     const built = createSimulation(preset.config);

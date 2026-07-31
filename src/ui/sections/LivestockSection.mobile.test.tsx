@@ -6,14 +6,13 @@ import { PersistenceProvider } from '../persistence/index.js';
 import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
 import { createSimulation, type SimulationState } from '../../simulation/index.js';
 import type { useSimulation } from '../hooks/useSimulation';
-import { MOBILE_QUERY } from '../hooks/useMediaQuery';
-import { stubMatchMedia, type MatchMediaStub } from '../test/matchMedia';
+import { stubMatchMedia, viewport, type MatchMediaStub } from '../test/matchMedia';
 
 let media: MatchMediaStub;
 
 // Phone: the header has no room for a construction verb, so it rides the foot.
 beforeEach(() => {
-  media = stubMatchMedia((query) => query === MOBILE_QUERY);
+  media = stubMatchMedia(viewport(390));
 });
 
 afterEach(() => {

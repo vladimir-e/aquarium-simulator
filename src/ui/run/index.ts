@@ -82,7 +82,6 @@ export {
 export { latestLog } from './log.js';
 export {
   algaeStatus,
-  algaeWord,
   type PlantRow,
   plantRows,
   ailingPlants,
@@ -100,8 +99,5 @@ export {
   doseToCover,
   tankDemand,
   TRIM_TARGETS,
-  overTrimCount,
-  type TrimTarget,
-  trimTargets,
   plantsAndAlgae,
 } from './flora.js';

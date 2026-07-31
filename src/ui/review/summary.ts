@@ -100,8 +100,19 @@ function phrase(tile: SummaryTile): string {
   return `${tile.value} ${tile.descriptor}`;
 }
 
-/** The rail's two Analytics lines: how long the run is, then what it cost. */
-export function summaryLines(tiles: Record<SummaryTileId, SummaryTile>): string[] {
+/**
+ * The run in two lines — how long it is, then what it cost. The rail's row and
+ * the Analytics header both read these, so they cannot quote different runs.
+ * Both count what this run recorded rather than the tank's age: a restored save
+ * opens with an empty history buffer and has nothing to draw however old it is.
+ */
+export function summaryLines(
+  aggregates: RunAggregates,
+  logs: LogEntry[],
+  units: UnitSystem
+): string[] {
+  if (aggregates.ticks === 0) return ['0 ticks', 'no history yet'];
+  const tiles = runSummary(aggregates, logs, units);
   return [
     `${phrase(tiles.run)} · ${tiles.run.meta}`,
     [tiles.alerts, tiles.deaths, tiles.births].map(phrase).join(' · '),

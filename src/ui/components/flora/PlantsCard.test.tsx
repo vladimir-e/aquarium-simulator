@@ -32,15 +32,7 @@ function algae(net: number): AlgaeRow {
 }
 
 function renderCard(rows: PlantRow[], row = algae(0.8)): void {
-  render(
-    <PlantsCard
-      rows={rows}
-      algae={row}
-      maxPlants={31}
-      overTrim={rows.filter((r) => r.overTrim).length}
-      onRemove={vi.fn()}
-    />
-  );
+  render(<PlantsCard rows={rows} algae={row} onRemove={vi.fn()} />);
 }
 
 /** The collapsed row's rate and the `net` line under it are the same number. */
@@ -85,11 +77,13 @@ describe('PlantsCard — rate sentiment', () => {
 describe('PlantsCard — header', () => {
   it('counts the plants off the ok band', () => {
     renderCard([plant(0.4), { ...plant(-0.4), id: 'p2', status: 'warn', word: 'fair' }]);
-    expect(screen.getByText('2 of 31 slots · 1 ailing')).toBeTruthy();
+    expect(screen.getByText('1 ailing')).toBeTruthy();
   });
 
-  it('leaves the count off while every plant is fine', () => {
+  // Slots and trims are the section's headline, one line up; the card says
+  // nothing rather than repeating it.
+  it('says nothing while every plant is fine', () => {
     renderCard([plant(-0.4)]);
-    expect(screen.getByText('1 of 31 slots')).toBeTruthy();
+    expect(screen.queryByText(/ailing/)).toBeNull();
   });
 });

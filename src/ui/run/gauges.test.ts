@@ -1,6 +1,5 @@
 import { describe, it, expect } from 'vitest';
 import {
-  GAUGE_SCALE,
   gasReadings,
   gaugeFill,
   gaugeValues,
@@ -49,11 +48,13 @@ describe('gaugeFill', () => {
   });
 });
 
-describe('GAUGE_SCALE', () => {
+describe('gauge scales', () => {
+  // A track that stopped at the alert line would peg through the whole event it
+  // exists to show, so every threshold has to sit inside its own track.
   it('keeps every alert threshold on the track it belongs to', () => {
-    expect(GAUGE_SCALE.ammonia[1]).toBeGreaterThan(HIGH_AMMONIA_THRESHOLD);
-    expect(GAUGE_SCALE.nitrite[1]).toBeGreaterThan(HIGH_NITRITE_THRESHOLD);
-    expect(GAUGE_SCALE.nitrate[1]).toBeGreaterThan(HIGH_NITRATE_THRESHOLD);
+    expect(gaugeFill('ammonia', HIGH_AMMONIA_THRESHOLD)).toBeLessThan(1);
+    expect(gaugeFill('nitrite', HIGH_NITRITE_THRESHOLD)).toBeLessThan(1);
+    expect(gaugeFill('nitrate', HIGH_NITRATE_THRESHOLD)).toBeLessThan(1);
   });
 });
 

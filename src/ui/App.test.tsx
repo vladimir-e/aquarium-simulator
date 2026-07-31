@@ -8,14 +8,13 @@ import { UnitsProvider } from './hooks/useUnits';
 import { ConfigProvider } from './hooks/useConfig';
 import { PersistenceProvider } from './persistence/index.js';
 import { SECTIONS } from './nav';
-import { RAIL_QUERY } from './hooks/useMediaQuery';
-import { stubMatchMedia, type MatchMediaStub } from './test/matchMedia';
+import { stubMatchMedia, viewport, type MatchMediaStub } from './test/matchMedia';
 
 let media: MatchMediaStub;
 
 // Desktop: the rail stands beside the stage rather than living in a drawer.
 beforeEach(() => {
-  media = stubMatchMedia((query) => query === RAIL_QUERY);
+  media = stubMatchMedia(viewport(1280));
 });
 
 afterEach(() => {
@@ -113,5 +112,48 @@ describe('App routing', () => {
     renderApp('/flora');
     expect(screen.getByRole('link', { name: /Flora/ }).getAttribute('aria-current')).toBe('page');
     expect(screen.getByRole('link', { name: /Water/ }).getAttribute('aria-current')).toBeNull();
+  });
+});
+
+/**
+ * 700 px — between Tailwind's `sm` and `md`, the band a second breakpoint would
+ * hide in. The rail cannot stand here, so the chrome is compact; every section
+ * has to be compact with it, or the stage lays out for a width it does not have.
+ */
+describe('App at 700 px', () => {
+  beforeEach(() => {
+    media.set(viewport(700));
+  });
+
+  it('folds the index into the drawer rather than standing it beside the stage', () => {
+    renderApp();
+    expect(screen.getByRole('button', { name: 'Open index' })).toBeTruthy();
+    expect(screen.queryByRole('navigation', { name: 'Sections' })).toBeNull();
+  });
+
+  it('gives Analytics the chart chips, not the 2×2 grid it has no room for', () => {
+    renderApp('/analytics');
+
+    expect(screen.getByRole('group', { name: 'Chart' })).toBeTruthy();
+    expect(screen.getByText('Nitrogen cycle')).toBeTruthy();
+    expect(screen.queryByText('pH & CO₂')).toBeNull();
+  });
+
+  it('pushes the Equipment inspector over the list instead of beside it', () => {
+    renderApp('/equipment');
+
+    fireEvent.click(within(screen.getByRole('main')).getByRole('link', { name: /Heater/ }));
+
+    expect(screen.getByRole('dialog', { name: 'Heater settings' })).toBeTruthy();
+  });
+
+  it('drills the Actions sheet in rather than floating it beside the rail', () => {
+    renderApp();
+
+    fireEvent.click(screen.getByRole('button', { name: /Feed/ }));
+    const sheet = screen.getByRole('dialog', { name: 'Actions' });
+
+    expect(within(sheet).queryByRole('heading')).toBeNull();
+    expect(within(sheet).getByRole('group', { name: 'Verbs' })).toBeTruthy();
   });
 });

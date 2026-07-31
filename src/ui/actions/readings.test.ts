@@ -5,16 +5,26 @@ import {
   MAX_SCRUB_PERCENT,
   MIN_SCRUB_PERCENT,
   type FishSpecies,
+  type Resources,
   type SimulationState,
 } from '../../simulation/index.js';
 import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
-import { blendTemperature } from '../../simulation/core/blending.js';
+import { blendConcentration, blendTemperature } from '../../simulation/core/blending.js';
 import { calculatePassiveResources } from '../../simulation/equipment/index.js';
+import { calculateO2Saturation } from '../../simulation/systems/gas-exchange.js';
+import { gasExchangeDefaults } from '../../simulation/config/gas-exchange.js';
 import {
   HIGH_NITRATE_THRESHOLD,
   HIGH_NITRITE_THRESHOLD,
 } from '../../simulation/alerts/index.js';
-import { DEFAULT_SETTINGS, verbAction, verbDetail, type VerbDetail, type VerbId } from './verbs';
+import {
+  DEFAULT_SETTINGS,
+  VERB_IDS,
+  verbAction,
+  verbDetail,
+  type VerbDetail,
+  type VerbId,
+} from './verbs';
 import { previewRows, type PreviewRow } from './readings';
 
 /**
@@ -53,6 +63,12 @@ function fixture(species: FishSpecies[] = ['neon_tetra', 'corydoras', 'betta']):
   return { ...state, plants: state.plants.map((plant, i) => ({ ...plant, size: sizes[i] })) };
 }
 
+/** The same tank on CO₂, its oxygen already under the engine's alert line. */
+function gassed(): SimulationState {
+  const state = fixture();
+  return { ...state, resources: { ...state.resources, co2: 28, oxygen: 3.2 } };
+}
+
 function detail(state: SimulationState, id: VerbId, settings = DEFAULT_SETTINGS): VerbDetail {
   return verbDetail(state, id, settings, 'metric', DEFAULT_CONFIG);
 }
@@ -85,6 +101,32 @@ describe('preview readings', () => {
     expect(row(rows, 'level').before).toBe('98');
   });
 
+  it('prices the dissolved gases the tap brings with it', () => {
+    const state = gassed();
+    const { capacity } = state.tank;
+    const remaining = state.resources.water * 0.5;
+    const added = capacity - remaining;
+    const tapTemp = state.environment.tapWaterTemperature;
+
+    const rows = detail(state, 'waterChange', { ...DEFAULT_SETTINGS, waterChange: 0.5 }).preview;
+
+    // Tap arrives saturated with O₂ at its own temperature and at atmospheric CO₂.
+    expect(row(rows, 'oxygen').after).toBe(
+      blendConcentration(3.2, remaining, calculateO2Saturation(tapTemp), added).toFixed(1)
+    );
+    expect(row(rows, 'co2').after).toBe(
+      blendConcentration(28, remaining, gasExchangeDefaults.atmosphericCo2, added).toFixed(1)
+    );
+    // Half the tank carries the oxygen back over the line, so the caveat goes
+    // with it; a tenth leaves the tank suffocating and says so.
+    expect(row(rows, 'oxygen').note).toBeNull();
+    expect(row(rows, 'oxygen').status).toBe('ok');
+
+    const tenth = detail(state, 'waterChange', { ...DEFAULT_SETTINGS, waterChange: 0.1 }).preview;
+    expect(row(tenth, 'oxygen').note).toBe('below 4.0');
+    expect(row(tenth, 'oxygen').status).toBe('warn');
+  });
+
   it('shows the reading it started from, so before and after are the same scale', () => {
     const rows = detail(fixture(), 'waterChange').preview;
 
@@ -93,19 +135,44 @@ describe('preview readings', () => {
     expect(row(rows, 'ph').before).toBe('6.82');
   });
 
-  it.each<VerbId>(['feed', 'waterChange', 'topOff', 'dose', 'trimPlants'])(
-    'promises what %s actually commits',
-    (id) => {
-      const state = fixture();
-      // The action the sheet would dispatch, applied for real — a preview built
-      // from a different amount than the commit sends is the failure this catches.
-      const committed = applyAction(state, verbAction(id, DEFAULT_SETTINGS)).state;
-      const landed = previewRows(state, [committed], 'metric');
+  /** The row that carries each resource a verb can move. */
+  const REPORTED_BY: Partial<Record<keyof Resources, string>> = {
+    water: 'level',
+    temperature: 'temperature',
+    ph: 'ph',
+    ammonia: 'ammonia',
+    nitrite: 'nitrite',
+    nitrate: 'nitrate',
+    phosphate: 'phosphate',
+    potassium: 'potassium',
+    iron: 'iron',
+    oxygen: 'oxygen',
+    co2: 'co2',
+    food: 'food',
+  };
 
-      expect(detail(state, id).preview).toEqual(landed);
-      expect(landed.length).toBeGreaterThan(0);
+  function movedResources(before: SimulationState, after: SimulationState): (keyof Resources)[] {
+    const keys = Object.keys(before.resources) as (keyof Resources)[];
+    return keys.filter((key) => {
+      const from = before.resources[key];
+      const to = after.resources[key];
+      return typeof from === 'number' && typeof to === 'number' && from !== to;
+    });
+  }
+
+  it.each<VerbId>(VERB_IDS)('reports every resource %s moves', (id) => {
+    // Injected CO₂ over an oxygen-starved tank: both gases are in play, so a
+    // verb that moves one has nowhere to hide it.
+    const state = gassed();
+    const committed = applyAction(state, verbAction(id, DEFAULT_SETTINGS)).state;
+    const shown = detail(state, id).preview.map((r) => r.key);
+
+    for (const resource of movedResources(state, committed)) {
+      const reading = REPORTED_BY[resource];
+      expect(reading, `${id} moves ${resource}, which no reading carries`).toBeTruthy();
+      expect(shown, `${id} moves ${resource} without saying so`).toContain(reading);
     }
-  );
+  });
 
   it('dispatches the fraction the engine reads, not the percentage on the chip', () => {
     const state = fixture();

@@ -2,6 +2,7 @@ import React from 'react';
 import { ChevronRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import type { EquipmentId, EquipmentRow } from '../../build';
+import { EmptyState } from '../run/Card';
 import { StatusDot } from '../run/elements';
 
 export function DeviceList({
@@ -14,7 +15,7 @@ export function DeviceList({
   query: string;
 }): React.JSX.Element {
   if (rows.length === 0) {
-    return <p className="px-4 py-4 text-[13px] text-ink-3">No device matches “{query}”.</p>;
+    return <EmptyState className="px-4 py-4">No device matches “{query}”.</EmptyState>;
   }
 
   return (
@@ -40,7 +41,7 @@ export function DeviceList({
               <span className="ml-auto truncate font-mono text-[12px] tabular-nums text-ink-2">
                 {row.summary}
               </span>
-              <ChevronRight className="h-4 w-4 shrink-0 text-ink-3 sm:hidden" aria-hidden />
+              <ChevronRight className="h-4 w-4 shrink-0 text-ink-3 md:hidden" aria-hidden />
             </Link>
           </li>
         );

@@ -25,7 +25,6 @@ import {
   plantsAndAlgae,
   tankDemand,
   TRIM_TARGETS,
-  trimTargets,
 } from './flora';
 import { conditionStatus, conditionWord } from './status';
 
@@ -290,15 +289,13 @@ describe('trim targets', () => {
       initialSize: 90,
     }).state;
 
-    const targets = trimTargets(grown);
-    expect(targets.every((t) => !t.disabled)).toBe(true);
-    expect(targets.map((t) => t.count)).toEqual(TRIM_TARGETS.map((t) => getPlantsToTrimCount(grown, t)));
+    expect(TRIM_TARGETS.map((t) => getPlantsToTrimCount(grown, t))).toEqual([1, 1, 1]);
   });
 
-  it('disables the targets no plant is above', () => {
+  it('has nothing to cut on a plant no rung is above', () => {
     const fresh = planted(['monte_carlo']);
     expect(fresh.plants[0].size).toBe(50);
-    expect(trimTargets(fresh).map((t) => t.disabled)).toEqual([true, true, true]);
+    expect(TRIM_TARGETS.map((t) => getPlantsToTrimCount(fresh, t))).toEqual([0, 0, 0]);
   });
 
   it('trims to every offered target through the engine', () => {
@@ -308,7 +305,7 @@ describe('trim targets', () => {
       initialSize: 90,
     }).state;
 
-    for (const { target } of trimTargets(grown)) {
+    for (const target of TRIM_TARGETS) {
       const trimmed = applyAction(grown, { type: 'trimPlants', targetSize: target }).state;
       expect(trimmed.plants[0].size).toBe(target);
     }

@@ -6,7 +6,7 @@ import { Stage } from '../components/layout/Stage';
 import { DissolvedGases, GaugeGroup } from '../components/run/Gauge';
 import { BacteriaCard } from '../components/run/BacteriaCard';
 import { WasteCard } from '../components/run/WasteCard';
-import { Pill, type PillVariant } from '../components/run/elements';
+import { Pill } from '../components/run/elements';
 import {
   bacteriaReadout,
   gasReadings,
@@ -14,15 +14,7 @@ import {
   waterAlert,
   waterGauges,
   wasteReadout,
-  type Status,
 } from '../run';
-
-const PILL_VARIANT: Record<Status, PillVariant> = {
-  ok: 'ok',
-  warn: 'warn',
-  alert: 'alert',
-  neutral: 'neutral',
-};
 
 export function WaterSection({
   sim,
@@ -46,13 +38,7 @@ export function WaterSection({
   const alert = waterAlert([...gauges, ...gases], bacteria.cycled);
 
   return (
-    <Stage
-      title="Water"
-      meta="six gauges · gases · bacteria · waste"
-      actions={
-        alert && <Pill variant={PILL_VARIANT[alert.status]}>{alert.text}</Pill>
-      }
-    >
+    <Stage title="Water" meta={alert && <Pill variant={alert.status}>{alert.text}</Pill>}>
       <div className="flex min-h-full flex-col gap-3">
         <div className="grid shrink-0 grid-cols-1 gap-3 md:grid-cols-2">
           <GaugeGroup

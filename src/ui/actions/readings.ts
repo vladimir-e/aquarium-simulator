@@ -13,15 +13,19 @@ import {
 } from '../../simulation/index.js';
 import {
   HIGH_AMMONIA_THRESHOLD,
+  HIGH_CO2_THRESHOLD,
   HIGH_NITRITE_THRESHOLD,
   HIGH_NITRATE_THRESHOLD,
+  LOW_OXYGEN_THRESHOLD,
   WATER_LEVEL_CRITICAL_THRESHOLD,
 } from '../../simulation/alerts/index.js';
 import {
+  Co2Resource,
   FoodResource,
   getPpm,
   IronResource,
   NitrateResource,
+  OxygenResource,
   PhosphateResource,
   PotassiumResource,
 } from '../../simulation/resources/index.js';
@@ -158,9 +162,9 @@ function nutrient(
 }
 
 /**
- * Canonical order: the nitrogen cycle, then the physical readings, then plant
- * food, then the two organic stocks. A verb's rows come out in this order
- * however many of them move.
+ * Canonical order: the nitrogen cycle, then the physical readings, then the
+ * dissolved gases, then plant food, then the two organic stocks. A verb's rows
+ * come out in this order however many of them move.
  */
 const READINGS: Reading[] = [
   {
@@ -232,6 +236,27 @@ const READINGS: Reading[] = [
       value < WATER_LEVEL_CRITICAL_THRESHOLD * 100
         ? `below ${WATER_LEVEL_CRITICAL_THRESHOLD * 100} %`
         : null,
+  },
+  {
+    key: 'oxygen',
+    label: 'O₂',
+    read: (state) => state.resources.oxygen,
+    unit: () => OxygenResource.unit,
+    display: same,
+    decimals: OxygenResource.precision,
+    status: (value) => classifyVital('oxygen', value).status,
+    note: (value) =>
+      value < LOW_OXYGEN_THRESHOLD ? `below ${LOW_OXYGEN_THRESHOLD.toFixed(1)}` : null,
+  },
+  {
+    key: 'co2',
+    label: 'CO₂',
+    read: (state) => state.resources.co2,
+    unit: () => Co2Resource.unit,
+    display: same,
+    decimals: Co2Resource.precision,
+    status: (value) => classifyVital('co2', value).status,
+    note: (value, before) => overLine(value, before, HIGH_CO2_THRESHOLD),
   },
   nutrient('phosphate', 'PO₄', PhosphateResource.precision),
   nutrient('potassium', 'K', PotassiumResource.precision),

@@ -505,20 +505,3 @@ export const PersistedStateSchema = z
     ui: PersistedUISchema,
   })
   .strict();
-
-// ============================================================================
-// Partial Schemas for Section-Level Recovery
-// ============================================================================
-
-/**
- * Partial schema for loading - allows individual sections to fail.
- * Version is still strictly required.
- */
-export const PartialPersistedStateSchema = z
-  .object({
-    version: z.literal(PERSISTENCE_VERSION),
-    simulation: PersistedSimulationSchema.optional(),
-    tunableConfig: TunableConfigSchema.optional(),
-    ui: PersistedUISchema.optional(),
-  })
-  .strict();

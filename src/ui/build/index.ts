@@ -2,6 +2,7 @@ export {
   type DeviceRow,
   type EquipmentId,
   type EquipmentRow,
+  FILTER_LABEL,
   isEquipmentId,
   buildDeviceList,
   equipmentRows,
@@ -38,6 +39,7 @@ export {
   presetRestoreMessage,
   presetSwitchMessage,
   resetConsequence,
+  scenarioSummary,
 } from './scenario.js';
 export {
   type Bioload,
@@ -56,7 +58,6 @@ export {
   substrateConsequence,
   type HardscapeRow,
   hardscapeRows,
-  hardscapeSummary,
   scapeSummary,
   type PlantOption,
   plantOptions,

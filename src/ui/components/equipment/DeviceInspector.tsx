@@ -2,7 +2,10 @@ import React, { useEffect, useMemo, useRef } from 'react';
 import { ChevronLeft } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
+  FILTER_TYPES,
+  HEATER_WATTAGE_OPTIONS,
   POWERHEAD_FLOW_LPH,
+  POWERHEAD_FLOW_RATES,
   type DailySchedule,
   type FilterType,
   type PowerheadFlowRate,
@@ -17,6 +20,7 @@ import { formatFlowRate } from '../../utils/units';
 import {
   deviceHint,
   deviceReadings,
+  FILTER_LABEL,
   type DeviceReading,
   type EquipmentId,
   type EquipmentRow,
@@ -29,15 +33,7 @@ import { Toggle } from '../ui/Toggle';
 
 type Sim = ReturnType<typeof useSimulation>;
 
-const FILTER_TYPE_OPTIONS = [
-  { value: 'sponge', label: 'Sponge' },
-  { value: 'hob', label: 'HOB' },
-  { value: 'canister', label: 'Canister' },
-  { value: 'sump', label: 'Sump' },
-];
-
-const HEATER_WATTS = [50, 100, 200, 300, 500, 1000];
-const POWERHEAD_RATES: PowerheadFlowRate[] = [240, 400, 600, 850];
+const FILTER_TYPE_OPTIONS = FILTER_TYPES.map((value) => ({ value, label: FILTER_LABEL[value] }));
 
 function numberOptions(values: number[], suffix: string): { value: string; label: string }[] {
   return values.map((v) => ({ value: String(v), label: `${v}${suffix}` }));
@@ -109,7 +105,7 @@ function DeviceSettings({ id, sim }: { id: EquipmentId; sim: Sim }): React.JSX.E
               ariaLabel="Heater wattage"
               value={String(h.wattage)}
               onChange={(v) => sim.updateHeaterWattage(Number(v))}
-              options={numberOptions(HEATER_WATTS, 'W')}
+              options={numberOptions(HEATER_WATTAGE_OPTIONS, 'W')}
             />
           </FieldRow>
         </>
@@ -231,7 +227,7 @@ function DeviceSettings({ id, sim }: { id: EquipmentId; sim: Sim }): React.JSX.E
               ariaLabel="Powerhead flow rate"
               value={String(p.flowRateGPH)}
               onChange={(v) => sim.updatePowerheadFlowRate(Number(v) as PowerheadFlowRate)}
-              options={POWERHEAD_RATES.map((gph) => ({
+              options={POWERHEAD_FLOW_RATES.map((gph) => ({
                 value: String(gph),
                 label: formatFlowRate(POWERHEAD_FLOW_LPH[gph], unitSystem),
               }))}

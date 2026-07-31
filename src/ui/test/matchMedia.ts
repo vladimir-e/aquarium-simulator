@@ -18,6 +18,21 @@ function toPredicate(matches: Answer): (query: string) => boolean {
   return typeof matches === 'function' ? matches : (): boolean => matches;
 }
 
+/**
+ * Answers width queries against one viewport, and nothing else — so a test
+ * names a width and the app's own breakpoint decides, rather than the test
+ * picking a side for it.
+ */
+export function viewport(width: number): (query: string) => boolean {
+  return (query: string): boolean => {
+    const min = /min-width:\s*([\d.]+)px/.exec(query);
+    if (min) return width >= Number(min[1]);
+    const max = /max-width:\s*([\d.]+)px/.exec(query);
+    if (max) return width <= Number(max[1]);
+    return false;
+  };
+}
+
 export function stubMatchMedia(matches: Answer): MatchMediaStub {
   const original = globalThis.matchMedia;
   const lists = new Map<string, { list: MediaQueryList; listeners: Set<() => void> }>();

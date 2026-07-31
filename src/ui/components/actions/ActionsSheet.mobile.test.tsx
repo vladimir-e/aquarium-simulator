@@ -6,7 +6,7 @@ import { ActionsTrigger } from './ActionsTrigger';
 import { useActionsSheet } from '../../hooks/useActionsSheet';
 import { UnitsProvider, useUnits } from '../../hooks/useUnits';
 import { PersistenceProvider } from '../../persistence/index.js';
-import { stubMatchMedia, type MatchMediaStub } from '../../test/matchMedia';
+import { stubMatchMedia, viewport, type MatchMediaStub } from '../../test/matchMedia';
 import { DEFAULT_CONFIG } from '../../../simulation/config/index.js';
 import { verbRow } from '../../actions';
 import {
@@ -62,7 +62,7 @@ let media: MatchMediaStub;
 
 // No rail to anchor a card to, so the sheet is a drill-in: list, then settings.
 beforeEach(() => {
-  media = stubMatchMedia(false);
+  media = stubMatchMedia(viewport(390));
   actions = [];
   render(
     <PersistenceProvider>

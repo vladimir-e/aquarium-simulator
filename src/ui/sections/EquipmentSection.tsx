@@ -88,12 +88,12 @@ export function EquipmentSection({
     <Stage title="Equipment" meta={equipmentSummary(sim.state, config)} actions={search}>
       <div className="flex min-h-full flex-col gap-3">
         <Card className="min-h-0 flex-1">
-          <div className="flex min-h-0 flex-1 flex-col sm:flex-row">
+          <div className="flex min-h-0 flex-1 flex-col md:flex-row">
             <div
               ref={listRef}
               className={
                 selectedRow
-                  ? 'overflow-y-auto py-1 sm:w-[300px] sm:shrink-0 sm:border-r sm:border-hairline'
+                  ? 'overflow-y-auto py-1 md:w-[300px] md:shrink-0 md:border-r md:border-hairline'
                   : 'flex-1 py-1'
               }
             >

@@ -1,6 +1,7 @@
+import React from 'react';
 import { describe, it, expect, afterEach, beforeEach } from 'vitest';
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, useLocation, useNavigate } from 'react-router-dom';
 import { AnalyticsSection } from './AnalyticsSection';
 import { ThemeProvider } from '../hooks/useTheme';
 import { UnitsProvider } from '../hooks/useUnits';
@@ -8,7 +9,7 @@ import { PersistenceProvider } from '../persistence/index.js';
 import { snapshotFromState } from '../run/index.js';
 import { createSimulation, createLog, type SimulationState } from '../../simulation/index.js';
 import type { useSimulation } from '../hooks/useSimulation';
-import { stubMatchMedia, type MatchMediaStub } from '../test/matchMedia';
+import { stubMatchMedia, viewport, type MatchMediaStub } from '../test/matchMedia';
 
 function fakeSim(): ReturnType<typeof useSimulation> {
   const base: SimulationState = createSimulation({ tankCapacity: 40 });
@@ -25,13 +26,28 @@ function fakeSim(): ReturnType<typeof useSimulation> {
   } as unknown as ReturnType<typeof useSimulation>;
 }
 
-function renderAnalytics(): void {
+/** Reports the query string, and drives history the way the back gesture does. */
+function Address(): React.JSX.Element {
+  const location = useLocation();
+  const navigate = useNavigate();
+  return (
+    <>
+      <span data-testid="search">{location.search}</span>
+      <button type="button" onClick={() => navigate(-1)}>
+        test-back
+      </button>
+    </>
+  );
+}
+
+function renderAnalytics(path = '/analytics'): void {
   render(
     <ThemeProvider>
       <PersistenceProvider>
         <UnitsProvider>
-          <MemoryRouter initialEntries={['/analytics']}>
+          <MemoryRouter initialEntries={[path]}>
             <AnalyticsSection sim={fakeSim()} />
+            <Address />
           </MemoryRouter>
         </UnitsProvider>
       </PersistenceProvider>
@@ -39,10 +55,14 @@ function renderAnalytics(): void {
   );
 }
 
+function search(): string {
+  return screen.getByTestId('search').textContent ?? '';
+}
+
 let media: MatchMediaStub;
 
 beforeEach(() => {
-  media = stubMatchMedia(true);
+  media = stubMatchMedia(viewport(390));
 });
 
 afterEach(() => {
@@ -65,5 +85,28 @@ describe('AnalyticsSection (mobile)', () => {
   it('keeps the scrubber pinned in the mobile layout', () => {
     renderAnalytics();
     expect(screen.getByRole('slider')).toBeTruthy();
+  });
+
+  /**
+   * On a phone the chip is the only thing choosing what you are looking at, so
+   * it is a view like the window and the cursor: addressable, and back walks
+   * out of it rather than out of the app.
+   */
+  it('parks the chosen chart in the URL, and back returns to the last one', () => {
+    renderAnalytics();
+    expect(search()).toBe('');
+
+    fireEvent.click(screen.getByRole('button', { name: 'pH·CO₂' }));
+    expect(search()).toBe('?chart=ph-co2');
+
+    fireEvent.click(screen.getByRole('button', { name: 'test-back' }));
+    expect(search()).toBe('');
+    expect(screen.getByText('Nitrogen cycle')).toBeTruthy();
+  });
+
+  it('opens on the chart a deep link names', () => {
+    renderAnalytics('/analytics?chart=o2-temp');
+    expect(screen.getByText('O₂, temp & level')).toBeTruthy();
+    expect(screen.queryByText('Nitrogen cycle')).toBeNull();
   });
 });

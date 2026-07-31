@@ -4,7 +4,7 @@ import type { useSimulation } from '../hooks/useSimulation';
 import { useIsMobile } from '../hooks/useMediaQuery';
 import { useUnits } from '../hooks/useUnits';
 import { Stage } from '../components/layout/Stage';
-import { Card, CardFooter } from '../components/run/Card';
+import { Card, CardFooter, EmptyState } from '../components/run/Card';
 import { Bar, RunButton } from '../components/run/elements';
 import { AddFish } from '../components/livestock/AddFish';
 import { RosterTable } from '../components/livestock/RosterTable';
@@ -52,7 +52,7 @@ export function LivestockSection({
       <Card className="h-full">
         <div className="min-h-0 flex-1 overflow-y-auto px-3">
           {rows.length === 0 ? (
-            <p className="py-6 text-[13px] text-ink-3">No fish yet — add one to begin.</p>
+            <EmptyState className="py-6">No fish yet — add one to begin.</EmptyState>
           ) : (
             <RosterTable
               rows={rows}

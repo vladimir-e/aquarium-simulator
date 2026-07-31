@@ -15,7 +15,7 @@ import {
 } from '../../simulation/index.js';
 import { calculatePassiveResources } from '../../simulation/equipment/index.js';
 import { navFigures } from '../nav/figures';
-import { ailingPlants, emptyAggregates, plantRows, TRIM_TARGETS } from '../run';
+import { ailingPlants, emptyAggregates, plantRows, plantsAndAlgae, TRIM_TARGETS } from '../run';
 import type { useSimulation } from '../hooks/useSimulation';
 
 afterEach(cleanup);
@@ -32,6 +32,11 @@ function rail(state: SimulationState): ReturnType<typeof navFigures> {
     units: 'metric',
     aggregates: emptyAggregates(),
   });
+}
+
+/** The stage header's meta line: the section's headline figure. */
+function headline(): string {
+  return screen.getByRole('heading', { level: 1 }).nextElementSibling?.textContent ?? '';
 }
 
 function tank(capacity = 200): SimulationState {
@@ -91,7 +96,7 @@ describe('FloraSection', () => {
     expect(screen.getByText('Java Fern')).toBeTruthy();
     expect(screen.getByText('Monte Carlo')).toBeTruthy();
     expect(screen.getByText('Algae')).toBeTruthy();
-    expect(screen.getByText(new RegExp(`^${state.plants.length} of 31 slots`))).toBeTruthy();
+    expect(headline()).toMatch(new RegExp(`^${state.plants.length} of 31 plants`));
   });
 
   it('expands a plant into the engine’s own vitality factors, and removes it', () => {
@@ -152,14 +157,24 @@ describe('FloraSection', () => {
     expect(ailing.length).toBeGreaterThan(0);
 
     renderFlora(state);
-    expect(screen.getByText(`2 of 31 slots · ${ailing.length} ailing`)).toBeTruthy();
+    expect(screen.getByText(`${ailing.length} ailing`)).toBeTruthy();
     expect(rail(state).flora.lines[1]).toBe(`${ailing[0].name} ${ailing[0].word}`);
     cleanup();
 
     const healthy = { ...state, plants: state.plants.map((p) => ({ ...p, condition: 90 })) };
     renderFlora(healthy);
-    expect(screen.getByText('2 of 31 slots')).toBeTruthy();
+    expect(screen.queryByText(/ailing/)).toBeNull();
     expect(rail(healthy).flora.lines[1]).toBe('Aqua Soil');
+  });
+
+  /** The rail's Flora row and the section header quote one derivation. */
+  it('carries the same headline as the rail row', () => {
+    for (const state of [grown(), tank()]) {
+      renderFlora(state);
+      expect(headline()).toBe(plantsAndAlgae(state));
+      expect(headline()).toBe(rail(state).flora.lines[0]);
+      cleanup();
+    }
   });
 
   /**
@@ -187,7 +202,7 @@ describe('FloraSection', () => {
     const calm = screen.getByText('Java Fern').closest('button')!;
     expect(within(calm).queryByText('trim')).toBeNull();
 
-    expect(screen.getByText('2 of 31 slots · 1 to trim')).toBeTruthy();
+    expect(headline()).toContain('1 to trim');
     expect(rail(state).flora.lines[0]).toContain('1 to trim');
   });
 
@@ -199,7 +214,7 @@ describe('FloraSection', () => {
     }).state;
 
     renderFlora(state);
-    expect(screen.getByText('1 of 31 slots')).toBeTruthy();
+    expect(headline()).toContain('1 of 31 plants');
     expect(screen.queryByText('trim')).toBeNull();
     expect(rail(state).flora.lines[0]).not.toContain('to trim');
   });

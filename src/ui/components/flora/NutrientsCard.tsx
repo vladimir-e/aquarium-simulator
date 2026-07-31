@@ -33,8 +33,12 @@ export function NutrientsCard({
     <Card className="shrink-0">
       <CardHeader
         title="Nutrients"
-        meta={<span>ppm · {demand ? `${demand} demand` : 'no plants drawing'}</span>}
-        action={alert && <Pill variant={alert.status === 'alert' ? 'alert' : 'warn'}>{alert.text}</Pill>}
+        meta={
+          <>
+            <span>ppm · {demand ? `${demand} demand` : 'no plants drawing'}</span>
+            {alert && <Pill variant={alert.status}>{alert.text}</Pill>}
+          </>
+        }
       />
       <CardBody className="py-2">
         <div className="divide-y divide-hairline">

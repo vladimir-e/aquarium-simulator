@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import type { useSimulation } from '../hooks/useSimulation';
 import { useTheme } from '../hooks/useTheme';
@@ -15,6 +15,7 @@ import {
   type ChartDef,
   type ReviewWindow,
   type ScrubIntent,
+  CHART_PARAM,
   LOG_PARAM,
   REVIEW_CHARTS,
   REVIEW_WINDOWS,
@@ -23,11 +24,13 @@ import {
   WINDOW_PARAM,
   alertMarkers,
   nextScrubPosition,
+  readChart,
   readFilter,
   readTick,
   readWindow,
   sliceHistory,
   sliceLogs,
+  summaryLines,
   viewParams,
   windowRange,
 } from '../review/index.js';
@@ -51,13 +54,13 @@ export function AnalyticsSection({
   sim: ReturnType<typeof useSimulation>;
 }): React.JSX.Element {
   const { resolvedTheme } = useTheme();
-  const { displayTemp } = useUnits();
+  const { displayTemp, unitSystem } = useUnits();
   const isMobile = useIsMobile();
   const [params, setParams] = useSearchParams();
-  const [chartId, setChartId] = useState<string>(REVIEW_CHARTS[0].id);
 
   const reviewWindow = readWindow(params.get(WINDOW_PARAM));
   const filter = readFilter(params.get(LOG_PARAM));
+  const activeChart = readChart(params.get(CHART_PARAM));
 
   const logs = sim.state.logs;
   const windowHistory = useMemo(
@@ -83,14 +86,19 @@ export function AnalyticsSection({
 
   const setView = useCallback(
     (patch: Partial<AnalyticsView>, intent: ScrubIntent): void => {
-      const view: AnalyticsView = { window: reviewWindow, filter, tick: scrubTick };
+      const view: AnalyticsView = {
+        window: reviewWindow,
+        filter,
+        tick: scrubTick,
+        chart: activeChart.id,
+      };
       const next = { ...view, ...patch };
       if (queryOf(next) === queryOf(view)) return;
       const replace = intent === 'adjust' && parkedRef.current;
       parkedRef.current = next.tick !== null;
       setParams(queryOf(next), { replace });
     },
-    [reviewWindow, filter, scrubTick, setParams]
+    [reviewWindow, filter, scrubTick, activeChart, setParams]
   );
 
   /**
@@ -100,8 +108,10 @@ export function AnalyticsSection({
    */
   useEffect(() => {
     if (rawTick === (scrubTick === null ? null : String(scrubTick))) return;
-    setParams(queryOf({ window: reviewWindow, filter, tick: scrubTick }), { replace: true });
-  }, [rawTick, scrubTick, reviewWindow, filter, setParams]);
+    setParams(queryOf({ window: reviewWindow, filter, tick: scrubTick, chart: activeChart.id }), {
+      replace: true,
+    });
+  }, [rawTick, scrubTick, reviewWindow, filter, activeChart, setParams]);
 
   const scrub = useCallback(
     (tick: number, intent: ScrubIntent): void => {
@@ -154,8 +164,6 @@ export function AnalyticsSection({
     />
   );
 
-  const activeChart = REVIEW_CHARTS.find((c) => c.id === chartId) ?? REVIEW_CHARTS[0];
-
   const logPanel = (
     <ReviewLogPanel
       windowLogs={windowLogs}
@@ -169,7 +177,7 @@ export function AnalyticsSection({
   return (
     <Stage
       title="Analytics"
-      meta="charts · log · run summary · tick scrubber"
+      meta={summaryLines(sim.aggregates, logs, unitSystem).join(' · ')}
       actions={
         <Segmented
           ariaLabel="Time window"
@@ -202,8 +210,8 @@ export function AnalyticsSection({
             <Segmented
               ariaLabel="Chart"
               options={CHART_CHIP_OPTIONS}
-              value={chartId}
-              onChange={setChartId}
+              value={activeChart.id}
+              onChange={(id) => setView({ chart: id }, 'commit')}
               fill
             />
             <div className="h-[190px] shrink-0">{renderChart(activeChart)}</div>

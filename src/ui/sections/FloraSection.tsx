@@ -1,6 +1,5 @@
 import React, { useMemo } from 'react';
 import type { TunableConfig } from '../../simulation/config/index.js';
-import { getMaxPlants } from '../../simulation/index.js';
 import type { useSimulation } from '../hooks/useSimulation';
 import { useIsMobile } from '../hooks/useMediaQuery';
 import { Stage } from '../components/layout/Stage';
@@ -14,8 +13,8 @@ import {
   doseToCover,
   nutrientAlert,
   nutrientReadings,
-  overTrimCount,
   plantRows,
+  plantsAndAlgae,
   tankDemand,
 } from '../run';
 
@@ -41,7 +40,7 @@ export function FloraSection({
   return (
     <Stage
       title="Flora & Scape"
-      meta="plants · algae · nutrients · scape"
+      meta={plantsAndAlgae(state)}
       actions={
         !isMobile && (
           <>
@@ -56,8 +55,6 @@ export function FloraSection({
           className="lg:w-[60%]"
           rows={rows}
           algae={algae}
-          maxPlants={getMaxPlants(state.tank.capacity)}
-          overTrim={overTrimCount(state)}
           onRemove={(plantId) => sim.executeAction({ type: 'removePlant', plantId })}
           footer={isMobile && <AddPlant sim={sim} opens="up" />}
         />

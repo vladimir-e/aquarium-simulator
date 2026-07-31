@@ -1,6 +1,7 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import { renderHook, act, cleanup } from '@testing-library/react';
-import { useMediaQuery } from './useMediaQuery';
+import { useIsMobile } from './useMediaQuery';
+import { stubMatchMedia, viewport } from '../test/matchMedia';
 
 afterEach(cleanup);
 
@@ -42,11 +43,11 @@ function installMatchMedia(initial: boolean): {
   };
 }
 
-describe('useMediaQuery', () => {
+describe('useIsMobile', () => {
   it('resolves the initial match synchronously', () => {
     const mm = installMatchMedia(true);
     try {
-      const { result } = renderHook(() => useMediaQuery('(max-width: 639.98px)'));
+      const { result } = renderHook(() => useIsMobile());
       expect(result.current).toBe(true);
     } finally {
       mm.restore();
@@ -56,7 +57,7 @@ describe('useMediaQuery', () => {
   it('updates live when the query flips', () => {
     const mm = installMatchMedia(false);
     try {
-      const { result } = renderHook(() => useMediaQuery('(max-width: 639.98px)'));
+      const { result } = renderHook(() => useIsMobile());
       expect(result.current).toBe(false);
       act(() => mm.flip(true));
       expect(result.current).toBe(true);
@@ -68,12 +69,31 @@ describe('useMediaQuery', () => {
   it('adds a change listener on mount and removes it on unmount', () => {
     const mm = installMatchMedia(false);
     try {
-      const { unmount } = renderHook(() => useMediaQuery('(max-width: 639.98px)'));
+      const { unmount } = renderHook(() => useIsMobile());
       expect(mm.listenerCount()).toBe(1);
       unmount();
       expect(mm.listenerCount()).toBe(0);
     } finally {
       mm.restore();
+    }
+  });
+
+  /**
+   * The whole point of one breakpoint: the tablet band between Tailwind's `sm`
+   * and `md` is mobile, because that is where the rail stops fitting.
+   */
+  it.each([
+    [390, true],
+    [700, true],
+    [767, true],
+    [768, false],
+    [1280, false],
+  ])('reads %i px as mobile: %s', (width, expected) => {
+    const media = stubMatchMedia(viewport(width));
+    try {
+      expect(renderHook(() => useIsMobile()).result.current).toBe(expected);
+    } finally {
+      media.restore();
     }
   });
 });

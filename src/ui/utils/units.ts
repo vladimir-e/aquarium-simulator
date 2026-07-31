@@ -15,28 +15,28 @@ const LITERS_PER_GALLON = 3.785411784;
 /**
  * Convert Celsius to Fahrenheit.
  */
-export function celsiusToFahrenheit(celsius: number): number {
+function celsiusToFahrenheit(celsius: number): number {
   return (celsius * 9) / 5 + 32;
 }
 
 /**
  * Convert Fahrenheit to Celsius.
  */
-export function fahrenheitToCelsius(fahrenheit: number): number {
+function fahrenheitToCelsius(fahrenheit: number): number {
   return ((fahrenheit - 32) * 5) / 9;
 }
 
 /**
  * Convert liters to gallons.
  */
-export function litersToGallons(liters: number): number {
+function litersToGallons(liters: number): number {
   return liters / LITERS_PER_GALLON;
 }
 
 /**
  * Convert gallons to liters.
  */
-export function gallonsToLiters(gallons: number): number {
+function gallonsToLiters(gallons: number): number {
   return gallons * LITERS_PER_GALLON;
 }
 
@@ -115,34 +115,6 @@ export function toInternalVolume(value: number, system: UnitSystem): number {
  */
 export function toDisplayVolume(liters: number, system: UnitSystem): number {
   return system === 'imperial' ? litersToGallons(liters) : liters;
-}
-
-const STORAGE_KEY = 'aquarium-units';
-
-/**
- * Save unit preference to localStorage.
- */
-export function saveUnitPreference(system: UnitSystem): void {
-  try {
-    localStorage.setItem(STORAGE_KEY, system);
-  } catch {
-    // localStorage may not be available (e.g., private browsing)
-  }
-}
-
-/**
- * Load unit preference from localStorage.
- */
-export function loadUnitPreference(): UnitSystem | null {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored === 'metric' || stored === 'imperial') {
-      return stored;
-    }
-  } catch {
-    // localStorage may not be available
-  }
-  return null;
 }
 
 /**
@@ -238,7 +210,7 @@ const LITERS_PER_HOUR_PER_GPH = 3.785411784;
 /**
  * Convert L/h to GPH.
  */
-export function lphToGph(lph: number): number {
+function lphToGph(lph: number): number {
   return lph / LITERS_PER_HOUR_PER_GPH;
 }
 

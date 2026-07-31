@@ -6,12 +6,12 @@ import { ConfigProvider } from '../../hooks/useConfig';
 import { PresetSwitchProvider } from '../../hooks/usePresetSwitch';
 import { PersistenceProvider } from '../../persistence/index.js';
 import { createLog } from '../../../simulation/index.js';
-import { stubMatchMedia, type MatchMediaStub } from '../../test/matchMedia';
+import { stubMatchMedia, viewport, type MatchMediaStub } from '../../test/matchMedia';
 
 let media: MatchMediaStub;
 
 beforeEach(() => {
-  media = stubMatchMedia(false);
+  media = stubMatchMedia(viewport(1280));
 });
 
 afterEach(() => {

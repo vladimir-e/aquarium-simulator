@@ -5,16 +5,17 @@
  * band. Pure; the rail renders whatever these return.
  */
 
-import type { LogEntry, SimulationState } from '../../simulation/index.js';
+import type { SimulationState } from '../../simulation/index.js';
 import type { TunableConfig } from '../../simulation/config/index.js';
 import {
   bioload,
   buildDeviceList,
   equipmentSummary,
   scapeSummary,
+  scenarioSummary,
   LID_LABEL,
 } from '../build/index.js';
-import { runSummary, summaryLines } from '../review/index.js';
+import { summaryLines } from '../review/index.js';
 import type { RunAggregates } from '../run/index.js';
 import {
   ailingPlants,
@@ -36,12 +37,7 @@ import {
   type GaugeKey,
   type Status,
 } from '../run/index.js';
-import {
-  formatTemperature,
-  formatVolume,
-  getTemperatureUnit,
-  type UnitSystem,
-} from '../utils/units.js';
+import { formatTemperature, getTemperatureUnit, type UnitSystem } from '../utils/units.js';
 import type { SectionId } from './sections.js';
 
 /** One of the six vertical micro-meters pinned to the Water row. */
@@ -121,29 +117,17 @@ function livestockFigure(state: SimulationState, config: TunableConfig): NavFigu
   };
 }
 
-/**
- * The row reads the section's own summary. Both quote what the run recorded
- * rather than the tank's age — a restored save opens with an empty history
- * buffer, and the section has nothing to draw however old the tank is.
- */
-function analyticsFigure(aggregates: RunAggregates, logs: LogEntry[], units: UnitSystem): NavFigure {
-  if (aggregates.ticks === 0) {
-    return { pill: null, lines: ['0 ticks', 'no history yet'] };
-  }
-  return { pill: null, lines: summaryLines(runSummary(aggregates, logs, units)) };
-}
-
 function scenarioFigure(
   state: SimulationState,
   presetName: string,
   units: UnitSystem,
   modified: boolean
 ): NavFigure {
-  const { tank, environment, equipment } = state;
+  const { environment, equipment } = state;
   return {
     pill: modified ? { text: 'modified', status: 'warn' } : null,
     lines: [
-      `${presetName} · ${formatVolume(tank.capacity, units, 0)}`,
+      scenarioSummary(state, presetName, units),
       `room ${formatTemperature(environment.roomTemperature, units, 0)} · ${LID_LABEL[equipment.lid.type]}`,
     ],
   };
@@ -167,7 +151,7 @@ export function navFigures(input: NavFigureInput): Record<SectionId, NavFigure> 
     equipment: equipmentFigure(state, config),
     flora: floraFigure(state, config),
     livestock: livestockFigure(state, config),
-    analytics: analyticsFigure(aggregates, state.logs, units),
+    analytics: { pill: null, lines: summaryLines(aggregates, state.logs, units) },
     scenario: scenarioFigure(state, presetName, units, presetModified),
   };
 }

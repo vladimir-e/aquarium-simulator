@@ -4,10 +4,9 @@ import { render, screen, fireEvent, cleanup, within } from '@testing-library/rea
 import { ActionsSheet } from './ActionsSheet';
 import { ActionsTrigger } from './ActionsTrigger';
 import { useActionsSheet } from '../../hooks/useActionsSheet';
-import { RAIL_QUERY } from '../../hooks/useMediaQuery';
 import { UnitsProvider, useUnits } from '../../hooks/useUnits';
 import { PersistenceProvider } from '../../persistence/index.js';
-import { stubMatchMedia, type MatchMediaStub } from '../../test/matchMedia';
+import { stubMatchMedia, viewport, type MatchMediaStub } from '../../test/matchMedia';
 import { DEFAULT_CONFIG } from '../../../simulation/config/index.js';
 import { verbRow } from '../../actions';
 import {
@@ -22,7 +21,7 @@ let media: MatchMediaStub;
 
 // The rail stands, so the sheet is the card: master beside detail, both at once.
 beforeEach(() => {
-  media = stubMatchMedia((query) => query === RAIL_QUERY);
+  media = stubMatchMedia(viewport(1280));
 });
 
 afterEach(() => {

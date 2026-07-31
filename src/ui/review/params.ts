@@ -11,20 +11,25 @@
  */
 
 import { type LogFilter, LOG_FILTERS } from './category.js';
+import { type ChartDef, REVIEW_CHARTS } from './charts.js';
 import { type ReviewWindow, REVIEW_WINDOWS, type TickRange } from './window.js';
 
 export const TICK_PARAM = 'tick';
 export const WINDOW_PARAM = 'window';
 export const LOG_PARAM = 'log';
+export const CHART_PARAM = 'chart';
 
 const DEFAULT_WINDOW: ReviewWindow = 'run';
 const DEFAULT_FILTER: LogFilter = 'all';
+const DEFAULT_CHART: ChartDef = REVIEW_CHARTS[0];
 
 export interface AnalyticsView {
   window: ReviewWindow;
   filter: LogFilter;
   /** Parked tick, or null to follow the live edge. */
   tick: number | null;
+  /** Id of the chart the chips are on — the only chart on a phone. */
+  chart: string;
 }
 
 /**
@@ -43,6 +48,10 @@ export function readWindow(raw: string | null): ReviewWindow {
 
 export function readFilter(raw: string | null): LogFilter {
   return LOG_FILTERS.find((f) => f === raw) ?? DEFAULT_FILTER;
+}
+
+export function readChart(raw: string | null): ChartDef {
+  return REVIEW_CHARTS.find((c) => c.id === raw) ?? DEFAULT_CHART;
 }
 
 /**
@@ -67,5 +76,6 @@ export function viewParams(view: AnalyticsView): Record<string, string> {
   if (view.tick !== null) params[TICK_PARAM] = String(view.tick);
   if (view.window !== DEFAULT_WINDOW) params[WINDOW_PARAM] = view.window;
   if (view.filter !== DEFAULT_FILTER) params[LOG_PARAM] = view.filter;
+  if (view.chart !== DEFAULT_CHART.id) params[CHART_PARAM] = view.chart;
   return params;
 }

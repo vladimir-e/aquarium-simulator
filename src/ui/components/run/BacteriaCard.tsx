@@ -1,5 +1,6 @@
 import React from 'react';
 import type { NitrogenCycleConfig } from '../../../simulation/config/index.js';
+import { SurfaceResource } from '../../../simulation/resources/index.js';
 import {
   bacteriaSummary,
   CYCLED_PCT,
@@ -11,7 +12,7 @@ import {
 import { Card, CardBody, CardFooter, CardHeader } from './Card';
 import { Bar, DataRow, FieldLabel } from './elements';
 
-const round = (n: number): string => Math.round(n).toLocaleString();
+const colonyCount = (n: number): string => Math.round(n).toLocaleString();
 
 /** A colony too small to carry a bioload is the one thing worth colouring here. */
 function colonyStatus(colony: Colony): Status {
@@ -34,7 +35,8 @@ function ColonyBar({
         <span className="text-[13px] font-semibold">{name}</span>
         <span className="text-[11px] text-ink-3">{reaction}</span>
         <span className="ml-auto font-mono text-[13px] tabular-nums">
-          {round(colony.count)} <span className="text-ink-3">/ {round(colony.ceiling)}</span>
+          {colonyCount(colony.count)}{' '}
+          <span className="text-ink-3">/ {colonyCount(colony.ceiling)}</span>
         </span>
       </div>
       <div className="mt-1 flex items-center gap-2">
@@ -68,8 +70,8 @@ export function BacteriaCard({
           <ColonyBar name="AOB" reaction="NH₃ → NO₂" colony={readout.aob} />
           <ColonyBar name="NOB" reaction="NO₂ → NO₃" colony={readout.nob} />
           <div className="pt-1 font-mono text-[10px] text-ink-3">
-            ceiling {round(readout.aob.ceiling)} = {round(readout.surface)} cm² biofilm ×{' '}
-            {config.bacteriaPerCm2} /cm²
+            ceiling {colonyCount(readout.aob.ceiling)} = {SurfaceResource.format(readout.surface)}{' '}
+            biofilm × {config.bacteriaPerCm2} /cm²
           </div>
         </div>
 

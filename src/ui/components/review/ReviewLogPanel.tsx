@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef } from 'react';
 import { Download } from 'lucide-react';
 import type { LogEntry } from '../../../simulation/index.js';
+import { EmptyState } from '../run/Card';
 import { Segmented } from '../ui/Segmented';
 import {
   type LogCategory,
@@ -84,7 +85,7 @@ export function ReviewLogPanel({
 
       <div className="min-h-0 flex-1 overflow-y-auto px-2 py-1.5">
         {shown.length === 0 ? (
-          <p className="px-2 py-2 font-mono text-[12.5px] text-ink-3">No events in this view.</p>
+          <EmptyState className="px-2 py-2 font-mono">No events in this view.</EmptyState>
         ) : (
           shown
             .map((log, ascIndex) => ({ log, ascIndex }))

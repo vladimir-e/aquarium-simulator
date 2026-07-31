@@ -13,9 +13,10 @@ import {
 } from '../../actions';
 import type { ActionsSheet as SheetState } from '../../hooks/useActionsSheet';
 import { useFocusTrap } from '../../hooks/useFocusTrap';
-import { RAIL_QUERY, useMediaQuery } from '../../hooks/useMediaQuery';
+import { useIsMobile } from '../../hooks/useMediaQuery';
 import { useUnits } from '../../hooks/useUnits';
 import type { Status } from '../../run';
+import { EmptyState } from '../run/Card';
 import { FieldLabel } from '../run/elements';
 import { CONTROL_FOCUS } from '../ui/focus';
 
@@ -166,7 +167,7 @@ function VerbSettings({
       <div className="min-h-0 flex-1 overflow-y-auto pt-[13px]">
         <FieldLabel>At commit</FieldLabel>
         {detail.preview.length === 0 ? (
-          <p className="pt-1 text-[11.5px] text-ink-3">Nothing moves — the tank is already there.</p>
+          <EmptyState className="pt-1">Nothing moves — the tank is already there.</EmptyState>
         ) : (
           <div className="pt-1">
             {detail.preview.map((row) => (
@@ -217,7 +218,7 @@ interface ActionsSheetProps {
  */
 export function ActionsSheet({ sheet, state, config }: ActionsSheetProps): React.JSX.Element {
   const { unitSystem } = useUnits();
-  const drillIn = !useMediaQuery(RAIL_QUERY);
+  const drillIn = useIsMobile();
   const [drilled, setDrilled] = useState(false);
   const trap = useFocusTrap(true);
 

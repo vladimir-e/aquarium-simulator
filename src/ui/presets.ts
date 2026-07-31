@@ -182,3 +182,8 @@ export const DEFAULT_PRESET_ID: PresetId = 'planted';
 export function getPresetById(id: PresetId): PresetDefinition | undefined {
   return PRESETS.find((p) => p.id === id);
 }
+
+/** The one place a preset id becomes the words every surface shows for it. */
+export function presetName(id: PresetId): string {
+  return getPresetById(id)?.name ?? id;
+}

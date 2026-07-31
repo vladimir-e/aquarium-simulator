@@ -9,6 +9,7 @@ import {
   getFilterFlow,
   POWERHEAD_FLOW_LPH,
   type Equipment,
+  type FilterType,
   type SimulationState,
 } from '../../simulation/index.js';
 import type { TunableConfig } from '../../simulation/config/index.js';
@@ -68,6 +69,14 @@ const DEVICE_NAME: Record<DeviceId, string> = {
   co2Generator: 'CO₂ injector',
   powerhead: 'Powerhead',
   autoDoser: 'Auto doser',
+};
+
+/** The filter in prose, for the one place that offers the choice. */
+export const FILTER_LABEL: Record<FilterType, string> = {
+  sponge: 'Sponge',
+  hob: 'HOB',
+  canister: 'Canister',
+  sump: 'Sump',
 };
 
 export function isEquipmentId(value: string): value is EquipmentId {
