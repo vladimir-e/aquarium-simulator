@@ -1,6 +1,6 @@
 /**
- * The six husbandry verbs in one shape: a tile, an option row, a preview and a
- * commit. Every option set is the engine's own (`WATER_CHANGE_AMOUNTS`,
+ * The six husbandry verbs in one shape: a master row, an option row, a preview
+ * and a commit. Every option set is the engine's own (`WATER_CHANGE_AMOUNTS`,
  * `TRIM_TARGETS`) and every refusal is an engine guard (`canDose`,
  * `canScrubAlgae`, `getPlantsToTrimCount`), stated where the verb would
  * otherwise say what it is about to do — so an unavailable verb is never a
@@ -32,7 +32,7 @@ export type SettableVerb = Extract<VerbId, 'feed' | 'waterChange' | 'dose' | 'tr
 
 export type VerbSettings = Record<SettableVerb, number>;
 
-/** Grid order, and the order the master list reads in at both column counts. */
+/** The order the master list reads in, on either form factor. */
 export const VERB_IDS: VerbId[] = [
   'feed',
   'waterChange',
@@ -163,7 +163,7 @@ function blockedReason(
 }
 
 /** The number the verb acts on — its setting when it has one, its reading when it does not. */
-function tileValue(
+function rowValue(
   state: SimulationState,
   id: VerbId,
   settings: VerbSettings,
@@ -185,7 +185,7 @@ function tileValue(
   }
 }
 
-export interface VerbTile {
+export interface VerbRow {
   id: VerbId;
   name: string;
   /** The setting or reading, replaced by the refusal when the verb is off. */
@@ -193,27 +193,27 @@ export interface VerbTile {
   blocked: string | null;
 }
 
-export function verbTile(
+export function verbRow(
   state: SimulationState,
   id: VerbId,
   settings: VerbSettings,
   units: UnitSystem
-): VerbTile {
+): VerbRow {
   const blocked = blockedReason(state, id, settings);
   return {
     id,
     name: NAME[id],
-    value: blocked ?? tileValue(state, id, settings, units),
+    value: blocked ?? rowValue(state, id, settings, units),
     blocked,
   };
 }
 
-export function verbTiles(
+export function verbRows(
   state: SimulationState,
   settings: VerbSettings,
   units: UnitSystem
-): VerbTile[] {
-  return VERB_IDS.map((id) => verbTile(state, id, settings, units));
+): VerbRow[] {
+  return VERB_IDS.map((id) => verbRow(state, id, settings, units));
 }
 
 export interface VerbOption {

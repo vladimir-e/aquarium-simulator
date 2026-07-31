@@ -16,11 +16,11 @@ import {
   VERB_IDS,
   verbAction,
   verbDetail,
-  verbTiles,
+  verbRows,
   type VerbDetail,
   type VerbId,
   type VerbSettings,
-  type VerbTile,
+  type VerbRow,
 } from './verbs';
 
 function tank(): SimulationState {
@@ -45,8 +45,8 @@ function detail(state: SimulationState, id: VerbId, settings: VerbSettings = DEF
   return verbDetail(state, id, settings, 'metric', DEFAULT_CONFIG);
 }
 
-function tile(state: SimulationState, id: VerbId, settings: VerbSettings = DEFAULT_SETTINGS): VerbTile {
-  const found = verbTiles(state, settings, 'metric').find((t) => t.id === id);
+function row(state: SimulationState, id: VerbId, settings: VerbSettings = DEFAULT_SETTINGS): VerbRow {
+  const found = verbRows(state, settings, 'metric').find((t) => t.id === id);
   expect(found).toBeTruthy();
   return found!;
 }
@@ -86,10 +86,10 @@ describe('the six verbs', () => {
     expect(verbAction('scrubAlgae', settings)).toEqual({ type: 'scrubAlgae' });
   });
 
-  it('carries the setting on the tile for the four that take one, the reading for the two that do not', () => {
+  it('carries the setting on the row for the four that take one, the reading for the two that do not', () => {
     const state = planted([80, 60]);
     const values = Object.fromEntries(
-      verbTiles(state, DEFAULT_SETTINGS, 'metric').map((t) => [t.id, t.value])
+      verbRows(state, DEFAULT_SETTINGS, 'metric').map((t) => [t.id, t.value])
     );
 
     expect(values).toMatchObject({
@@ -102,8 +102,8 @@ describe('the six verbs', () => {
     });
   });
 
-  it('reads the tile in the reader’s own volume units', () => {
-    const gallons = verbTiles(tank(), DEFAULT_SETTINGS, 'imperial').find((t) => t.id === 'topOff');
+  it('reads the row in the reader’s own volume units', () => {
+    const gallons = verbRows(tank(), DEFAULT_SETTINGS, 'imperial').find((t) => t.id === 'topOff');
     expect(gallons?.value).toBe('+1.0 gal');
   });
 
@@ -113,12 +113,12 @@ describe('the six verbs', () => {
     const full = { ...bare, resources: { ...bare.resources, water: bare.tank.capacity } };
     const clean = { ...bare, algae: { ...bare.algae, mass: MIN_ALGAE_TO_SCRUB - 2 } };
 
-    expect(tile(bare, 'dose').blocked).toBe('no plants to feed');
-    expect(tile(bare, 'dose').value).toBe('no plants to feed');
-    expect(tile(empty, 'waterChange').blocked).toBe('no water to change');
-    expect(tile(full, 'topOff').blocked).toBe('already at capacity');
-    expect(tile(clean, 'scrubAlgae').blocked).toBe(`needs ${MIN_ALGAE_TO_SCRUB} % algae, now 3 %`);
-    expect(tile(planted([40]), 'trimPlants').blocked).toBe('nothing above 75 %');
+    expect(row(bare, 'dose').blocked).toBe('no plants to feed');
+    expect(row(bare, 'dose').value).toBe('no plants to feed');
+    expect(row(empty, 'waterChange').blocked).toBe('no water to change');
+    expect(row(full, 'topOff').blocked).toBe('already at capacity');
+    expect(row(clean, 'scrubAlgae').blocked).toBe(`needs ${MIN_ALGAE_TO_SCRUB} % algae, now 3 %`);
+    expect(row(planted([40]), 'trimPlants').blocked).toBe('nothing above 75 %');
   });
 
   it('blocks a trim rung by rung, not once for the verb', () => {

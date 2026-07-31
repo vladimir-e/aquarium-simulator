@@ -1,13 +1,15 @@
 import React, { useEffect } from 'react';
-import { describe, it, expect, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, cleanup, within } from '@testing-library/react';
 import { ActionsSheet } from './ActionsSheet';
 import { ActionsTrigger } from './ActionsTrigger';
 import { useActionsSheet } from '../../hooks/useActionsSheet';
+import { RAIL_QUERY } from '../../hooks/useMediaQuery';
 import { UnitsProvider, useUnits } from '../../hooks/useUnits';
 import { PersistenceProvider } from '../../persistence/index.js';
+import { stubMatchMedia, type MatchMediaStub } from '../../test/matchMedia';
 import { DEFAULT_CONFIG } from '../../../simulation/config/index.js';
-import { verbTile } from '../../actions';
+import { verbRow } from '../../actions';
 import {
   applyAction,
   createSimulation,
@@ -16,7 +18,15 @@ import {
 } from '../../../simulation/index.js';
 import { calculatePassiveResources } from '../../../simulation/equipment/index.js';
 
+let media: MatchMediaStub;
+
+// The rail stands, so the sheet is the card: master beside detail, both at once.
+beforeEach(() => {
+  media = stubMatchMedia((query) => query === RAIL_QUERY);
+});
+
 afterEach(() => {
+  media.restore();
   globalThis.localStorage.clear();
   cleanup();
 });
@@ -51,7 +61,7 @@ function Harness({
   actions: Action[];
 }): React.JSX.Element {
   const sheet = useActionsSheet((action) => actions.push(action));
-  const promoted = verbTile(state, sheet.promoted, sheet.settings, 'metric');
+  const promoted = verbRow(state, sheet.promoted, sheet.settings, 'metric');
   return (
     <>
       <ActionsTrigger
@@ -110,6 +120,34 @@ describe('ActionsSheet', () => {
       expect(verb(name)).toBeTruthy();
     }
     expect(within(sheet).getByRole('heading', { name: 'Feed' })).toBeTruthy();
+  });
+
+  it('stacks the six verbs in one column, never a grid', () => {
+    renderSheet();
+    open();
+
+    const picker = screen.getByRole('group', { name: 'Verbs' });
+    expect(picker.className).toContain('flex-col');
+    expect(picker.className).not.toMatch(/\bgrid/);
+  });
+
+  it('holds the card at 380 however many rows the preview costs', () => {
+    renderSheet();
+    const sheet = open();
+    // Every height rule on the card, so a min-h or max-h sneaking in fails too.
+    const height = (): string[] =>
+      sheet.className.split(' ').filter((rule) => /^(min-|max-)?h-/.test(rule));
+    const previewRows = (): number => sheet.querySelectorAll('[data-reading]').length;
+
+    fireEvent.click(verb('Water Δ'));
+    const tall = previewRows();
+    expect(height()).toEqual(['h-[380px]']);
+
+    fireEvent.click(verb('Scrub'));
+    // A scrub moves one reading; a water change moves the most of any verb.
+    expect(previewRows()).toBe(1);
+    expect(tall).toBeGreaterThan(1);
+    expect(height()).toEqual(['h-[380px]']);
   });
 
   it('swaps the settings step without closing the list', () => {

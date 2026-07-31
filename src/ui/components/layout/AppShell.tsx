@@ -8,7 +8,7 @@ import { useFocusTrap } from '../../hooks/useFocusTrap';
 import { useMediaQuery, RAIL_QUERY } from '../../hooks/useMediaQuery';
 import { PresetSwitchProvider } from '../../hooks/usePresetSwitch';
 import { useUnits } from '../../hooks/useUnits';
-import { verbTile } from '../../actions';
+import { verbRow } from '../../actions';
 import { navFigures } from '../../nav';
 import { getPresetById } from '../../presets.js';
 import { ActionsSheet } from '../actions/ActionsSheet';
@@ -50,7 +50,7 @@ export function AppShell({ sim, config }: AppShellProps): React.JSX.Element {
   }, [indexOpen]);
 
   const sheet = useActionsSheet(sim.executeAction);
-  const promoted = verbTile(sim.state, sheet.promoted, sheet.settings, unitSystem);
+  const promoted = verbRow(sim.state, sheet.promoted, sheet.settings, unitSystem);
   const trigger = (
     <ActionsTrigger
       label={`${promoted.name} ${promoted.value}`}
@@ -91,12 +91,16 @@ export function AppShell({ sim, config }: AppShellProps): React.JSX.Element {
 
         <div className="flex min-h-0 flex-1 gap-3 p-3">
           {railStands && rail}
-          <div className="relative flex min-h-0 min-w-0 flex-1 flex-col gap-3">
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3">
             <Outlet />
-            {!railStands && trigger}
-            {sheet.open && <ActionsSheet sheet={sheet} state={sim.state} config={config} />}
           </div>
         </div>
+
+        {!railStands && (
+          <div className="shrink-0 border-t border-hairline-2 bg-surface px-2.5 py-2">{trigger}</div>
+        )}
+
+        {sheet.open && <ActionsSheet sheet={sheet} state={sim.state} config={config} />}
 
         {indexOpen && (
           <div className="fixed inset-0 z-40">

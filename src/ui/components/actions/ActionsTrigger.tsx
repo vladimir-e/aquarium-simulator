@@ -3,9 +3,9 @@ import { ChevronUp, Zap } from 'lucide-react';
 import { CONTROL_FOCUS } from '../ui/focus';
 
 /**
- * Docked at the foot of whichever column persists — the rail where it stands,
- * the stage where it does not. It carries the promoted verb so the sheet's
- * state is legible while the sheet is shut.
+ * Docked at the rail's foot where the rail stands, at the viewport's foot where
+ * it does not. It carries the promoted verb so the sheet's state is legible
+ * while the sheet is shut.
  */
 export function ActionsTrigger({
   label,
@@ -22,7 +22,7 @@ export function ActionsTrigger({
       type="button"
       onClick={onClick}
       aria-expanded={open}
-      className={`flex h-11 shrink-0 items-center gap-2 rounded-card border px-3 text-[13.5px] font-semibold transition-colors ${CONTROL_FOCUS} ${
+      className={`flex h-11 w-full shrink-0 items-center gap-2 rounded-card border px-3 text-[13.5px] font-semibold transition-colors ${CONTROL_FOCUS} ${
         open
           ? 'border-accent bg-accent-tint text-accent'
           : 'border-hairline-2 bg-surface-2 text-ink hover:border-ink-3'

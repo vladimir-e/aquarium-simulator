@@ -3,7 +3,7 @@ export {
   type VerbId,
   type SettableVerb,
   type VerbSettings,
-  type VerbTile,
+  type VerbRow,
   type VerbOption,
   type VerbDetail,
   VERB_IDS,
@@ -11,7 +11,7 @@ export {
   DOSE_PRESETS,
   DEFAULT_SETTINGS,
   verbAction,
-  verbTile,
-  verbTiles,
+  verbRow,
+  verbRows,
   verbDetail,
 } from './verbs.js';
