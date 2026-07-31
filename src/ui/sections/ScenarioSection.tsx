@@ -98,9 +98,6 @@ export function ScenarioSection({
       <div className="flex min-h-full flex-col gap-5 lg:flex-row">
         <section className="flex flex-col gap-2 lg:w-[46%] lg:max-w-[500px]">
           <FieldLabel>Preset</FieldLabel>
-          <p className="text-[12px] leading-[1.5] text-ink-3">
-            Every preset builds an empty tank — no plants, no fish.
-          </p>
           <PresetPicker
             cards={cards}
             current={current}

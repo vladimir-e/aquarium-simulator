@@ -320,6 +320,7 @@ describe('the rail carries the Livestock section’s own roster', () => {
       state,
       config: DEFAULT_CONFIG,
       presetName: 'Planted Tank',
+      presetModified: false,
       units: 'metric',
       aggregates: emptyAggregates(),
     }).livestock;

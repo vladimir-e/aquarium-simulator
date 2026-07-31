@@ -119,6 +119,7 @@ describe('EquipmentSection', () => {
       state: base,
       config: DEFAULT_CONFIG,
       presetName: 'Community',
+      presetModified: false,
       units: 'metric',
       aggregates: emptyAggregates(),
     }).equipment.lines[0];

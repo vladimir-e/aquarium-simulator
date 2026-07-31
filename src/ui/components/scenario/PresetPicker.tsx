@@ -8,22 +8,18 @@ import { CONTROL_FOCUS } from '../ui/focus';
 function Build({ card }: { card: PresetCard }): React.JSX.Element {
   return (
     <>
-      <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-        <span className="text-[15px] font-semibold text-ink">{card.name}</span>
+      <div className="flex flex-wrap items-baseline gap-x-2">
+        <span className="text-[14px] font-semibold text-ink">{card.name}</span>
         <span className="font-mono text-[12px] tabular-nums text-ink-2">{card.volume}</span>
       </div>
-      <p className="mt-1.5 font-mono text-[11px] leading-[1.5] text-ink-3">
-        {card.scape}
-        <br />
-        {card.gear}
-      </p>
+      <p className="mt-1 font-mono text-[11px] leading-[1.5] text-ink-3">{card.build}</p>
     </>
   );
 }
 
 /**
- * The five presets, each stating the tank it builds. The loaded one is not a
- * switch target — it carries the restore instead.
+ * The five presets, each naming the tank it sets up. The loaded one is not a
+ * switch target — it carries the drift indicator and the restore instead.
  */
 export function PresetPicker({
   cards,
@@ -52,7 +48,9 @@ export function PresetPicker({
               <div className="min-w-0 flex-1">
                 <Build card={card} />
               </div>
-              <Pill variant="accent">current</Pill>
+              <Pill variant={modified ? 'warn' : 'accent'}>
+                {modified ? 'modified' : 'current'}
+              </Pill>
             </div>
             {modified && (
               <RunButton className="mt-2.5" onClick={onRestore}>

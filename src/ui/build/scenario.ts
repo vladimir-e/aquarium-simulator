@@ -2,7 +2,7 @@
  * The scenario model: what each preset actually builds, what the environment
  * fields imply, and what the destructive actions cost. Preset copy is read off
  * the state the engine itself creates from the preset, so a card cannot promise
- * something the preset does not build — and none of them build livestock.
+ * something the preset does not build.
  */
 
 import {
@@ -10,7 +10,6 @@ import {
   createSimulation,
   getFilterFlow,
   getMaxPlants,
-  POWERHEAD_FLOW_LPH,
   type LidType,
   type SimulationState,
 } from '../../simulation/index.js';
@@ -18,15 +17,9 @@ import type { TunableConfig } from '../../simulation/config/index.js';
 import { SurfaceResource } from '../../simulation/resources/index.js';
 import { PRESETS, type PresetId } from '../presets.js';
 import { TICKS_PER_DAY } from '../utils/clock.js';
-import {
-  formatFlowRate,
-  formatTemperature,
-  formatVolume,
-  type UnitSystem,
-} from '../utils/units.js';
+import { formatVolume, type UnitSystem } from '../utils/units.js';
 import { turnoverRatio } from './readings.js';
 import { scapeSummary } from './scape.js';
-import { scheduleRange } from './schedules.js';
 
 /** The lid in prose — the rail, the preset cards and the evaporation row agree. */
 export const LID_LABEL: Record<LidType, string> = {
@@ -41,50 +34,35 @@ export interface PresetCard {
   name: string;
   /** Tank capacity in the reader's units. */
   volume: string;
-  /** Substrate and hardscape, in the Scape card's words. */
-  scape: string;
-  /** The devices the preset switches on, each with its engine figure. */
-  gear: string;
+  /** The scape it lays down and the gear it switches on, in one line. */
+  build: string;
 }
 
-function gearSummary(state: SimulationState, units: UnitSystem): string {
-  const { airPump, ato, co2Generator, filter, heater, light, lid, powerhead } = state.equipment;
-  const parts: string[] = [];
+function buildSummary(state: SimulationState): string {
+  const { airPump, ato, co2Generator, filter, heater, hardscape, light, lid, powerhead, substrate } =
+    state.equipment;
+  const gear: string[] = [];
 
-  if (filter.enabled) {
-    const flow = getFilterFlow(filter.type, state.tank.capacity);
-    parts.push(`${filter.type} ${formatFlowRate(flow, units)}`);
-  }
-  if (heater.enabled) {
-    parts.push(`${heater.wattage} W heater → ${formatTemperature(heater.targetTemperature, units, 0)}`);
-  }
-  if (light.enabled) {
-    parts.push(`${light.wattage} W light ${scheduleRange(light.schedule)}`);
-  }
-  if (co2Generator.enabled) {
-    parts.push(`CO₂ ${co2Generator.bubbleRate.toFixed(1)} bps`);
-  }
-  if (airPump.enabled) parts.push('air pump');
-  if (powerhead.enabled) {
-    parts.push(`powerhead ${formatFlowRate(POWERHEAD_FLOW_LPH[powerhead.flowRateGPH], units)}`);
-  }
-  if (ato.enabled) parts.push('ATO');
-  if (parts.length === 0) parts.push('no equipment');
+  if (filter.enabled) gear.push(`${filter.type} filter`);
+  if (heater.enabled) gear.push('heater');
+  if (light.enabled) gear.push('light');
+  if (co2Generator.enabled) gear.push('CO₂');
+  if (airPump.enabled) gear.push('air pump');
+  if (powerhead.enabled) gear.push('powerhead');
+  if (ato.enabled) gear.push('ATO');
+  if (gear.length === 0) gear.push('no equipment');
 
-  parts.push(LID_LABEL[lid.type]);
-  return parts.join(' · ');
+  return [scapeSummary(substrate.type, hardscape.items), ...gear, LID_LABEL[lid.type]].join(' · ');
 }
 
 export function presetCards(units: UnitSystem): PresetCard[] {
   return PRESETS.map((preset) => {
     const built = createSimulation(preset.config);
-    const { hardscape, substrate } = built.equipment;
     return {
       id: preset.id,
       name: preset.name,
       volume: formatVolume(built.tank.capacity, units, 0),
-      scape: scapeSummary(substrate.type, hardscape.items),
-      gear: gearSummary(built, units),
+      build: buildSummary(built),
     };
   });
 }

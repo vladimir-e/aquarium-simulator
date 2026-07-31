@@ -82,16 +82,15 @@ describe('ScenarioSection', () => {
     expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Scenario');
   });
 
-  it('offers every preset, states the tank each builds, and promises no livestock', () => {
+  it('offers every preset, naming the tank each one sets up', () => {
     renderSection(stubSim(planted));
 
-    expect(screen.getByText(/Every preset builds an empty tank/)).toBeTruthy();
     // The loaded preset is not a switch target, so four of the five are buttons.
     for (const name of ['Bare Tank', 'Betta Cube', 'Balanced Community', 'Big Angelfish Tank']) {
       expect(screen.getByRole('button', { name: new RegExp(name) })).toBeTruthy();
     }
     expect(screen.getByText('Betta Cube').closest('button')?.textContent).toContain(
-      '50 W heater → 26°C'
+      'Gravel + rock + driftwood · hob filter · heater · light · mesh lid'
     );
   });
 
@@ -107,13 +106,19 @@ describe('ScenarioSection', () => {
     expect(onLoad).toHaveBeenCalledWith('bare');
   });
 
-  it('offers Restore defaults only once the preset has been modified, and confirms it', () => {
+  it('says the tank still matches its preset until it does not', () => {
     renderSection(stubSim(planted));
+    expect(screen.getByText('current')).toBeTruthy();
+    expect(screen.queryByText('modified')).toBeNull();
     expect(screen.queryByRole('button', { name: /Restore defaults/ })).toBeNull();
+  });
 
-    cleanup();
+  it('flags the drift and offers the way back once the preset has been modified', () => {
     const onLoad = vi.fn();
     renderSection(stubSim(planted, { isPresetModified: true }), { onLoad });
+
+    expect(screen.getByText('modified')).toBeTruthy();
+    expect(screen.queryByText('current')).toBeNull();
 
     fireEvent.click(screen.getByRole('button', { name: /Restore defaults/ }));
     expect(onLoad).not.toHaveBeenCalled();
@@ -177,16 +182,16 @@ describe('ScenarioSection', () => {
     expect(sim.updateRoomTemperature).toHaveBeenCalledWith(planted.environment.roomTemperature + 1);
   });
 
-  it('re-reads every figure — preset cards included — in the reader’s units', () => {
+  it('re-reads every figure — preset capacities included — in the reader’s units', () => {
     renderSection(stubSim(planted));
 
     expect(screen.getAllByText('40 L').length).toBeGreaterThan(0);
-    expect(screen.getByText('Betta Cube').closest('button')?.textContent).toContain('hob 120 L/h');
+    expect(screen.getByText('Betta Cube').closest('button')?.textContent).toContain('20 L');
 
     fireEvent.click(screen.getByRole('button', { name: 'gal/°F' }));
 
     expect(screen.queryByText('40 L')).toBeNull();
-    expect(screen.getByText('Betta Cube').closest('button')?.textContent).toContain('hob 32 GPH');
+    expect(screen.getByText('Betta Cube').closest('button')?.textContent).toContain('5 gal');
     expect(screen.getAllByText(/°F/).length).toBeGreaterThan(0);
   });
 

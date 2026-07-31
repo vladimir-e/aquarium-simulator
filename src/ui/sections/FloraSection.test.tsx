@@ -28,6 +28,7 @@ function rail(state: SimulationState): ReturnType<typeof navFigures> {
     state,
     config: DEFAULT_CONFIG,
     presetName: 'Planted Tank',
+    presetModified: false,
     units: 'metric',
     aggregates: emptyAggregates(),
   });

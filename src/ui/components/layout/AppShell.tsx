@@ -49,6 +49,7 @@ export function AppShell({ sim, config }: AppShellProps): React.JSX.Element {
     state: sim.state,
     config,
     presetName: getPresetById(sim.currentPreset)?.name ?? sim.currentPreset,
+    presetModified: sim.isPresetModified,
     units: unitSystem,
     aggregates: sim.aggregates,
   });

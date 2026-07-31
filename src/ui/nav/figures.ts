@@ -132,10 +132,19 @@ function analyticsFigure(aggregates: RunAggregates, logs: LogEntry[], units: Uni
   return { pill: null, lines: summaryLines(runSummary(aggregates, logs, units)) };
 }
 
-function scenarioFigure(state: SimulationState, presetName: string, units: UnitSystem): NavFigure {
+/**
+ * The pill is the only place drift from the loaded preset is visible without
+ * opening the section, and the restore that clears it lives one click away.
+ */
+function scenarioFigure(
+  state: SimulationState,
+  presetName: string,
+  units: UnitSystem,
+  modified: boolean
+): NavFigure {
   const { tank, environment, equipment } = state;
   return {
-    pill: null,
+    pill: modified ? { text: 'modified', status: 'warn' } : null,
     lines: [
       `${presetName} · ${formatVolume(tank.capacity, units, 0)}`,
       `room ${formatTemperature(environment.roomTemperature, units, 0)} · ${LID_LABEL[equipment.lid.type]}`,
@@ -148,11 +157,13 @@ export interface NavFigureInput {
   config: TunableConfig;
   aggregates: RunAggregates;
   presetName: string;
+  /** Equipment or stocking has moved away from the loaded preset's defaults. */
+  presetModified: boolean;
   units: UnitSystem;
 }
 
 export function navFigures(input: NavFigureInput): Record<SectionId, NavFigure> {
-  const { state, config, aggregates, presetName, units } = input;
+  const { state, config, aggregates, presetName, presetModified, units } = input;
   const meters = waterMeters(state, units);
   const cycled = biofilterColonisation(state.resources, config.nitrogenCycle) >= CYCLED_PCT;
   return {
@@ -161,7 +172,7 @@ export function navFigures(input: NavFigureInput): Record<SectionId, NavFigure> 
     flora: floraFigure(state, config),
     livestock: livestockFigure(state, config),
     analytics: analyticsFigure(aggregates, state.logs, units),
-    scenario: scenarioFigure(state, presetName, units),
+    scenario: scenarioFigure(state, presetName, units, presetModified),
   };
 }
 

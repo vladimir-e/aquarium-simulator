@@ -38,21 +38,12 @@ describe('presetCards', () => {
     expect(metric.find((c) => c.id === 'betta')?.volume).toBe('20 L');
   });
 
-  it('names no livestock — no preset builds any', () => {
+  it('describes only what the preset sets up, never stocking it does not carry', () => {
     for (const card of presetCards('metric')) {
       expect(built(card.id).fish).toHaveLength(0);
       expect(built(card.id).plants).toHaveLength(0);
-      expect(`${card.scape} ${card.gear}`).not.toMatch(/fish|betta|angelfish|shoal|stock/i);
+      expect(card.build).not.toMatch(/fish|betta|angelfish|shoal|plant|stock/i);
     }
-  });
-
-  it('reads the filter’s flow off the engine, scaled to the preset’s own tank', () => {
-    const community = presetCards('metric').find((c) => c.id === 'community')!;
-    const state = built('community');
-    const flow = getFilterFlow(state.equipment.filter.type, state.tank.capacity);
-
-    expect(flow).toBe(1200);
-    expect(community.gear).toContain(`canister ${Math.round(flow)} L/h`);
   });
 
   it('lists only the gear a preset switches on, and always says what the lid is', () => {
@@ -61,19 +52,12 @@ describe('presetCards', () => {
     const bare = cards.find((c) => c.id === 'bare')!;
 
     expect(built('planted').equipment.heater.enabled).toBe(false);
-    expect(planted.gear).not.toContain('heater');
-    expect(planted.gear).toContain('CO₂ 1.0 bps');
-    expect(planted.gear).toContain('ATO');
-    expect(planted.gear.endsWith(LID_LABEL.none)).toBe(true);
+    expect(planted.build).not.toContain('heater');
+    expect(planted.build).toBe('Aqua Soil + rock + driftwood ×2 · canister filter · light · CO₂ · ATO · no lid');
 
-    expect(bare.gear).toBe('no equipment · no lid');
-    expect(bare.scape).toBe('Bare');
-  });
-
-  it('describes the scape the preset builds, hardscape counts included', () => {
-    const cards = presetCards('metric');
-    expect(cards.find((c) => c.id === 'planted')?.scape).toBe('Aqua Soil + rock + driftwood ×2');
-    expect(cards.find((c) => c.id === 'angelfish')?.scape).toBe('Sand + rock ×3');
+    expect(bare.build).toBe('Bare · no equipment · no lid');
+    expect(cards.find((c) => c.id === 'angelfish')?.build).toContain('Sand + rock ×3');
+    expect(cards.find((c) => c.id === 'betta')?.build.endsWith(LID_LABEL.mesh)).toBe(true);
   });
 });
 

@@ -50,6 +50,7 @@ function figures(
     state,
     config: DEFAULT_CONFIG,
     presetName: 'Planted Tank',
+    presetModified: false,
     units,
     aggregates,
   });
@@ -349,6 +350,20 @@ describe('navFigures — Analytics and Scenario', () => {
   it('states the scenario in the reader’s own units', () => {
     expect(figures(tank()).scenario.lines).toEqual(['Planted Tank · 200 L', 'room 22°C · no lid']);
     expect(figures(tank(), 'imperial').scenario.lines[0]).toBe('Planted Tank · 53 gal');
+  });
+
+  it('carries drift from the preset, so it is visible without opening the section', () => {
+    expect(figures(tank()).scenario.pill).toBeNull();
+    expect(
+      navFigures({
+        state: tank(),
+        config: DEFAULT_CONFIG,
+        presetName: 'Planted Tank',
+        presetModified: true,
+        units: 'metric',
+        aggregates: RUN,
+      }).scenario.pill
+    ).toEqual({ text: 'modified', status: 'warn' });
   });
 });
 
