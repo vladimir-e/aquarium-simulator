@@ -97,6 +97,33 @@ export function Pill({
   );
 }
 
+/** Column heading inside a card body — quieter than a CardHeader title. */
+export function FieldLabel({ children }: { children: React.ReactNode }): React.JSX.Element {
+  return (
+    <div className="text-[10px] font-bold uppercase tracking-[0.09em] text-ink-3">{children}</div>
+  );
+}
+
+/** Label on the left, mono figure on the right — the readout table's one row. */
+export function DataRow({
+  label,
+  children,
+  className = '',
+}: {
+  label: React.ReactNode;
+  children: React.ReactNode;
+  className?: string;
+}): React.JSX.Element {
+  return (
+    <div className="flex min-h-[30px] items-center gap-2">
+      <span className="min-w-0 truncate text-[12px] text-ink-2">{label}</span>
+      <span className={`ml-auto shrink-0 font-mono text-[13px] tabular-nums ${className}`}>
+        {children}
+      </span>
+    </div>
+  );
+}
+
 /** Device power indicator: filled dot = on/healthy, hollow ring = off. */
 export function StatusDot({ on }: { on: boolean }): React.JSX.Element {
   return (
@@ -142,7 +169,7 @@ function sparklinePoints(values: number[], width: number, height: number, count 
  */
 export function Sparkline({
   values,
-  className = '',
+  className = 'h-8',
 }: {
   values: number[];
   className?: string;
@@ -154,7 +181,7 @@ export function Sparkline({
     <svg
       viewBox={`0 0 ${width} ${height}`}
       preserveAspectRatio="none"
-      className={`h-8 w-full ${className}`}
+      className={`w-full ${className}`}
       aria-hidden
     >
       {points && (

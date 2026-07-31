@@ -20,7 +20,7 @@ function App(): React.JSX.Element {
   return (
     <Routes>
       <Route element={<AppShell sim={sim} config={config} />}>
-        <Route index element={<WaterSection sim={sim} />} />
+        <Route index element={<WaterSection sim={sim} config={config} />} />
         <Route path="equipment" element={<EquipmentSection sim={sim} config={config} />} />
         <Route path="flora" element={<FloraSection sim={sim} config={config} />} />
         <Route path="livestock" element={<LivestockSection sim={sim} config={config} />} />

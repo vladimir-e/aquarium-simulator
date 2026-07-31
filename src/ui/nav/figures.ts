@@ -11,7 +11,6 @@ import {
   type LidType,
   type SimulationState,
 } from '../../simulation/index.js';
-import { getPpm } from '../../simulation/resources/index.js';
 import type { TunableConfig } from '../../simulation/config/index.js';
 import { bioload, buildDeviceList } from '../build/index.js';
 import {
@@ -22,10 +21,14 @@ import {
   conditionStatus,
   conditionWord,
   countHungry,
+  GAUGE_KEYS,
+  gaugeFill,
+  gaugeValues,
   nutrientReadings,
   scapeSummary,
+  waterAlert,
+  type GaugeKey,
   type Status,
-  type VitalKey,
 } from '../run/index.js';
 import {
   formatTemperature,
@@ -37,7 +40,7 @@ import type { SectionId } from './sections.js';
 
 /** One of the six vertical micro-meters pinned to the Water row. */
 export interface MicroMeter {
-  key: MeterKey;
+  key: GaugeKey;
   /** Unit caption under the track. */
   label: string;
   /** Canonical value: °C, pH, % of capacity, or ppm. */
@@ -61,26 +64,7 @@ export interface NavFigure {
   dots?: boolean[];
 }
 
-type MeterKey = Extract<
-  VitalKey,
-  'temperature' | 'ph' | 'water' | 'ammonia' | 'nitrite' | 'nitrate'
->;
-
-/**
- * Micro-meter track ranges. Wide enough that a healthy tank reads mid-track and
- * a failing one is unmistakable — these are display scales, not safe bands
- * (`classifyVital` owns the bands and colours the fill).
- */
-const METER_RANGE: Record<MeterKey, [min: number, max: number]> = {
-  temperature: [15, 35],
-  ph: [5.5, 8.5],
-  water: [0, 100],
-  ammonia: [0, 0.2],
-  nitrite: [0, 0.6],
-  nitrate: [0, 60],
-};
-
-const METER_LABEL: Record<Exclude<MeterKey, 'temperature'>, string> = {
+const METER_LABEL: Record<Exclude<GaugeKey, 'temperature'>, string> = {
   ph: 'pH',
   water: 'lvl',
   ammonia: 'NH₃',
@@ -95,48 +79,16 @@ const LID_LABEL: Record<LidType, string> = {
   sealed: 'sealed lid',
 };
 
-function fillOf(key: MeterKey, value: number): number {
-  const [min, max] = METER_RANGE[key];
-  return Math.max(0, Math.min(1, (value - min) / (max - min)));
-}
-
+/** Same values, same scales, same classifier as the Water section's gauges. */
 function waterMeters(state: SimulationState, units: UnitSystem): MicroMeter[] {
-  const r = state.resources;
-  const capacity = state.tank.capacity;
-  const readings: Array<[MeterKey, number]> = [
-    ['temperature', r.temperature],
-    ['ph', r.ph],
-    ['water', capacity > 0 ? (r.water / capacity) * 100 : 0],
-    ['ammonia', getPpm(r.ammonia, r.water)],
-    ['nitrite', getPpm(r.nitrite, r.water)],
-    ['nitrate', getPpm(r.nitrate, r.water)],
-  ];
-  return readings.map(([key, value]) => ({
+  const values = gaugeValues(state);
+  return GAUGE_KEYS.map((key) => ({
     key,
     label: key === 'temperature' ? getTemperatureUnit(units) : METER_LABEL[key],
-    value,
-    fill: fillOf(key, value),
-    status: classifyVital(key, value).status,
+    value: values[key],
+    fill: gaugeFill(key, values[key]),
+    status: classifyVital(key, values[key]).status,
   }));
-}
-
-/** An uncycled tank outranks a soft warning: quiet now, about to stop being quiet. */
-function waterPill(
-  state: SimulationState,
-  config: TunableConfig,
-  meters: MicroMeter[]
-): NavPill | null {
-  const named = (m: MicroMeter): NavPill => ({
-    text: `${m.label} ${(classifyVital(m.key, m.value).pill ?? '').toLowerCase()}`.trim(),
-    status: m.status,
-  });
-  const alert = meters.find((m) => m.status === 'alert');
-  if (alert) return named(alert);
-  if (biofilterColonisation(state.resources, config.nitrogenCycle) < CYCLED_PCT) {
-    return { text: 'uncycled', status: 'neutral' };
-  }
-  const warn = meters.find((m) => m.status === 'warn');
-  return warn ? named(warn) : null;
 }
 
 function equipmentFigure(state: SimulationState, config: TunableConfig): NavFigure {
@@ -239,8 +191,9 @@ export interface NavFigureInput extends RunTally {
 export function navFigures(input: NavFigureInput): Record<SectionId, NavFigure> {
   const { state, config, presetName, units } = input;
   const meters = waterMeters(state, units);
+  const cycled = biofilterColonisation(state.resources, config.nitrogenCycle) >= CYCLED_PCT;
   return {
-    water: { pill: waterPill(state, config, meters), lines: [], meters },
+    water: { pill: waterAlert(meters, cycled), lines: [], meters },
     equipment: equipmentFigure(state, config),
     flora: floraFigure(state),
     livestock: livestockFigure(state, config),

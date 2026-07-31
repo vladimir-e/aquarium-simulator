@@ -32,7 +32,7 @@ export interface VitalClassification {
 }
 
 /** Nitrate below this (ppm) reads as depleted plant food — a LOW glance. */
-const NITRATE_LOW_PPM = 5;
+export const NITRATE_LOW_PPM = 5;
 /** Dissolved oxygen at or above this (mg/L) reads as comfortable. */
 const OXYGEN_OK_MGL = 6;
 /** Water level below this (% of capacity) is the engine's critical threshold. */
