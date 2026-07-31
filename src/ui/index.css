@@ -132,7 +132,9 @@
 body {
   margin: 0;
   padding: 0;
-  min-height: 100vh;
+  /* dvh, not vh: iOS Safari's 100vh excludes the URL bar, so the body outgrows
+     AppShell's h-dvh and the whole page scrolls by that difference. */
+  min-height: 100dvh;
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;

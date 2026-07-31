@@ -9,7 +9,6 @@ export type PresetId = 'bare' | 'betta' | 'planted' | 'community' | 'angelfish';
 export interface PresetDefinition {
   id: PresetId;
   name: string;
-  description: string;
   config: SimulationConfig;
 }
 
@@ -25,7 +24,6 @@ export const PRESETS: PresetDefinition[] = [
   {
     id: 'bare',
     name: 'Bare Tank',
-    description: 'Empty tank with no equipment',
     config: {
       tankCapacity: 40, // 10 gal default
       heater: { enabled: false },
@@ -42,7 +40,6 @@ export const PRESETS: PresetDefinition[] = [
   {
     id: 'betta',
     name: 'Betta Cube',
-    description: '5 gal nano tank for bettas',
     config: {
       tankCapacity: 20, // 5 gal
       roomTemperature: 22,
@@ -78,7 +75,6 @@ export const PRESETS: PresetDefinition[] = [
   {
     id: 'planted',
     name: 'Planted Tank',
-    description: '10 gal planted aquarium with CO2',
     config: {
       tankCapacity: 40, // 10 gal
       heater: { enabled: false },
@@ -112,7 +108,6 @@ export const PRESETS: PresetDefinition[] = [
   {
     id: 'community',
     name: 'Balanced Community',
-    description: '40 gal community tank',
     config: {
       tankCapacity: 150, // 40 gal
       heater: {
@@ -150,7 +145,6 @@ export const PRESETS: PresetDefinition[] = [
   {
     id: 'angelfish',
     name: 'Big Angelfish Tank',
-    description: '75 gal angelfish display',
     config: {
       tankCapacity: 300, // 75 gal
       heater: {

@@ -200,6 +200,28 @@ describe('useSimulation', () => {
     expect(result.current.isPlaying).toBe(false);
   });
 
+  it('stepping takes the clock, so the day you stepped to is the day you land on', () => {
+    const { result } = renderHook(() => useSimulation(), { wrapper });
+
+    act(() => {
+      result.current.togglePlayPause();
+    });
+    expect(result.current.isPlaying).toBe(true);
+
+    act(() => {
+      result.current.step();
+    });
+
+    expect(result.current.isPlaying).toBe(false);
+    expect(result.current.state.tick).toBe(24);
+
+    // Autoplay really stopped — a stray interval would carry the tick past 24.
+    act(() => {
+      vi.advanceTimersByTime(5000);
+    });
+    expect(result.current.state.tick).toBe(24);
+  });
+
   it('speed changes update speed state', () => {
     const { result } = renderHook(() => useSimulation(), { wrapper });
 

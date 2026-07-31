@@ -11,6 +11,7 @@ Format: - **Feature name** (#PR) - One short sentence (under ~150 chars)
 
 ## Unreleased
 
+- **Scenario section** - five preset cards stating the tank each actually builds, the environment fields with their derived consequences, and the three confirmations restored.
 - **Analytics section** - four full-width charts over a full-width log, and the scrubbed tick lives in `?tick=` so a cursor is a link and back walks out of a scrub.
 - **Error boundary keeps your tank** - render errors show a recovery screen instead of wiping the save and reloading; reset is now an explicit button.
 - **Livestock section** - the roster as a table: species rows expand into individuals, clutches and fry get their own rows, bioload pinned to the foot.

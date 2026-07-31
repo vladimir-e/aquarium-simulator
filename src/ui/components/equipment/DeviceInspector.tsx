@@ -22,7 +22,7 @@ import {
   type EquipmentRow,
 } from '../../build';
 import { Pill } from '../run/elements';
-import { FieldRow } from '../build/controls';
+import { FieldRow } from '../ui/FieldRow';
 import { Select } from '../ui/Select';
 import { Stepper } from '../ui/Stepper';
 import { Toggle } from '../ui/Toggle';

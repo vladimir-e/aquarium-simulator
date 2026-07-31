@@ -36,6 +36,17 @@ import {
 
 export type { SpeedPreset };
 
+let hardscapeSeq = 0;
+
+/**
+ * Matches the engine's own id scheme (`generateFishId`, `generatePlantId`).
+ * Deliberately not `crypto.randomUUID` — that is secure-context only, so it is
+ * undefined over plain HTTP on a LAN hostname and throws on the preview build.
+ */
+function generateHardscapeId(): string {
+  return `hardscape_${Date.now().toString(36)}_${(hardscapeSeq++).toString(36)}`;
+}
+
 interface UseSimulationReturn {
   state: SimulationState;
   isPlaying: boolean;
@@ -272,10 +283,6 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
     recorderRef.current = { tick: state.tick, logCount: state.logs.length };
   }, [state]);
 
-  const step = useCallback(() => {
-    setState((current) => advanceTicks(current, STEP_TICKS));
-  }, [advanceTicks]);
-
   const startAutoPlay = useCallback(() => {
     if (intervalRef.current) return;
 
@@ -302,6 +309,16 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
       return !prev;
     });
   }, [startAutoPlay, stopAutoPlay]);
+
+  // Stepping is manual advance, so it takes the clock: autoplay left running
+  // would carry you straight past the day you asked to look at.
+  const step = useCallback(() => {
+    if (isPlaying) {
+      stopAutoPlay();
+      setIsPlaying(false);
+    }
+    setState((current) => advanceTicks(current, STEP_TICKS));
+  }, [isPlaying, stopAutoPlay, advanceTicks]);
 
   const changeSpeed = useCallback(
     (newSpeed: SpeedPreset) => {
@@ -675,9 +692,8 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
           return; // Can't add more
         }
 
-        // Create new item with unique ID
         const newItem: HardscapeItem = {
-          id: globalThis.crypto.randomUUID(),
+          id: generateHardscapeId(),
           type,
         };
 

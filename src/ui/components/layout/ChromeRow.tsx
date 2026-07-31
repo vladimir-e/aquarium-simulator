@@ -3,6 +3,7 @@ import { ExternalLink, Menu, Settings } from 'lucide-react';
 import type { LogEntry } from '../../../simulation/index.js';
 import { latestLog } from '../../run';
 import { useConfig } from '../../hooks/useConfig';
+import { usePresetSwitch } from '../../hooks/usePresetSwitch';
 import { PRESETS, type PresetId } from '../../presets.js';
 import { Select } from '../ui/Select';
 import { ThemeToggle } from '../ui/ThemeToggle';
@@ -38,8 +39,6 @@ function Ticker({ logs }: { logs: LogEntry[] }): React.JSX.Element {
 
 interface ChromeRowProps {
   logs: LogEntry[];
-  currentPreset: PresetId;
-  onPresetChange: (id: PresetId) => void;
   /** Null once the rail stands beside the stage — there is no drawer to open. */
   onOpenIndex: (() => void) | null;
 }
@@ -49,13 +48,9 @@ interface ChromeRowProps {
  * husbandry lives behind the rail's Actions trigger, construction in each
  * section's own header.
  */
-export function ChromeRow({
-  logs,
-  currentPreset,
-  onPresetChange,
-  onOpenIndex,
-}: ChromeRowProps): React.JSX.Element {
+export function ChromeRow({ logs, onOpenIndex }: ChromeRowProps): React.JSX.Element {
   const { isDebugPanelOpen, toggleDebugPanel, isAnyModified } = useConfig();
+  const { current, request } = usePresetSwitch();
 
   return (
     <header className="flex h-14 shrink-0 items-center gap-3 border-b border-hairline-2 bg-surface px-3">
@@ -69,8 +64,8 @@ export function ChromeRow({
 
       <Select
         ariaLabel="Scenario preset"
-        value={currentPreset}
-        onChange={(v) => onPresetChange(v as PresetId)}
+        value={current}
+        onChange={(v) => request(v as PresetId)}
         options={PRESETS.map((preset) => ({ value: preset.id, label: preset.name }))}
         className="max-w-[9rem] shrink-0"
         selectClassName="truncate"

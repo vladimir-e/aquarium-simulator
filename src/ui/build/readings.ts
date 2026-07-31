@@ -51,9 +51,14 @@ function temperatureGap(celsius: number, units: UnitSystem): string {
   return `${scaled.toFixed(1)} ${getTemperatureUnit(units)}`;
 }
 
+/** Flow as tank volumes per hour. */
+export function turnoverRatio(litersPerHour: number, capacity: number): number {
+  return capacity > 0 ? litersPerHour / capacity : 0;
+}
+
 function turnover(litersPerHour: number, capacity: number): string {
   if (capacity <= 0) return '—';
-  return `${(litersPerHour / capacity).toFixed(1)} × tank volume/h`;
+  return `${turnoverRatio(litersPerHour, capacity).toFixed(1)} × tank volume/h`;
 }
 
 /** How much longer a running schedule has, for one that ever stops. */

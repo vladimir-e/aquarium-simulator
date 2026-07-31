@@ -1,5 +1,5 @@
 import React from 'react';
-import { ChevronRight, ChevronUp, Zap } from 'lucide-react';
+import { ChevronRight, Zap } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 import type { DailySchedule } from '../../../simulation/index.js';
 import { useUnits } from '../../hooks/useUnits';
@@ -124,7 +124,7 @@ function ActionsTrigger(): React.JSX.Element {
     >
       <Zap className="h-4 w-4 text-ink-2" />
       Actions
-      <ChevronUp className="ml-auto h-4 w-4 text-ink-3" />
+      <span className="ml-auto text-[11px] font-normal text-ink-3">not built yet</span>
     </button>
   );
 }

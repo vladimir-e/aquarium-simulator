@@ -5,9 +5,15 @@
  * band. Pure; the rail renders whatever these return.
  */
 
-import type { LidType, LogEntry, SimulationState } from '../../simulation/index.js';
+import type { LogEntry, SimulationState } from '../../simulation/index.js';
 import type { TunableConfig } from '../../simulation/config/index.js';
-import { bioload, buildDeviceList, equipmentSummary, scapeSummary } from '../build/index.js';
+import {
+  bioload,
+  buildDeviceList,
+  equipmentSummary,
+  scapeSummary,
+  LID_LABEL,
+} from '../build/index.js';
 import { runSummary, summaryLines } from '../review/index.js';
 import type { RunAggregates } from '../run/index.js';
 import {
@@ -69,13 +75,6 @@ const METER_LABEL: Record<Exclude<GaugeKey, 'temperature'>, string> = {
   ammonia: 'NH₃',
   nitrite: 'NO₂',
   nitrate: 'NO₃',
-};
-
-const LID_LABEL: Record<LidType, string> = {
-  none: 'no lid',
-  mesh: 'mesh lid',
-  full: 'full lid',
-  sealed: 'sealed lid',
 };
 
 /** Same values, same scales, same classifier as the Water section's gauges. */

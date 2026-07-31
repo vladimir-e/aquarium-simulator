@@ -3,6 +3,7 @@ import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import { ChromeRow } from './ChromeRow';
 import { ThemeProvider } from '../../hooks/useTheme';
 import { ConfigProvider } from '../../hooks/useConfig';
+import { PresetSwitchProvider } from '../../hooks/usePresetSwitch';
 import { PersistenceProvider } from '../../persistence/index.js';
 import { createLog } from '../../../simulation/index.js';
 import { stubMatchMedia, type MatchMediaStub } from '../../test/matchMedia';
@@ -20,27 +21,23 @@ afterEach(() => {
 });
 
 function renderRow(overrides: Partial<Parameters<typeof ChromeRow>[0]> = {}): {
-  onPresetChange: ReturnType<typeof vi.fn>;
+  onLoadPreset: ReturnType<typeof vi.fn>;
   onOpenIndex: ReturnType<typeof vi.fn>;
 } {
-  const onPresetChange = vi.fn();
+  const onLoadPreset = vi.fn();
   const onOpenIndex = vi.fn();
   render(
     <ThemeProvider>
       <PersistenceProvider>
         <ConfigProvider>
-          <ChromeRow
-            logs={[]}
-            currentPreset="planted"
-            onPresetChange={onPresetChange}
-            onOpenIndex={onOpenIndex}
-            {...overrides}
-          />
+          <PresetSwitchProvider current="planted" onLoad={onLoadPreset}>
+            <ChromeRow logs={[]} onOpenIndex={onOpenIndex} {...overrides} />
+          </PresetSwitchProvider>
         </ConfigProvider>
       </PersistenceProvider>
     </ThemeProvider>
   );
-  return { onPresetChange, onOpenIndex };
+  return { onLoadPreset, onOpenIndex };
 }
 
 describe('ChromeRow', () => {
@@ -66,12 +63,23 @@ describe('ChromeRow', () => {
     expect(buttons).toEqual(['Open index', expect.stringContaining('theme'), 'Debug constants']);
   });
 
-  it('switches scenario preset', () => {
-    const { onPresetChange } = renderRow();
-    fireEvent.change(screen.getByRole('combobox', { name: 'Scenario preset' }), {
-      target: { value: 'community' },
-    });
-    expect(onPresetChange).toHaveBeenCalledWith('community');
+  it('holds a preset switch behind the confirmation, whichever way it is cancelled', () => {
+    const { onLoadPreset } = renderRow();
+    const selector = screen.getByRole('combobox', { name: 'Scenario preset' });
+
+    fireEvent.change(selector, { target: { value: 'community' } });
+    expect(onLoadPreset).not.toHaveBeenCalled();
+    expect(screen.getByText('Switch preset?')).toBeTruthy();
+    // The message is the whole point of the dialog: switching is not a reset.
+    expect(screen.getByText(/as “Balanced Community”\. The run is not reset/)).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(onLoadPreset).not.toHaveBeenCalled();
+    expect(screen.queryByText('Switch preset?')).toBeNull();
+
+    fireEvent.change(selector, { target: { value: 'betta' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Switch' }));
+    expect(onLoadPreset).toHaveBeenCalledExactlyOnceWith('betta');
   });
 
   it('opens the index, and links out to the source', () => {
