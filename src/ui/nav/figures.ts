@@ -12,7 +12,7 @@ import {
   type SimulationState,
 } from '../../simulation/index.js';
 import type { TunableConfig } from '../../simulation/config/index.js';
-import { bioload, buildDeviceList } from '../build/index.js';
+import { bioload, buildDeviceList, equipmentSummary } from '../build/index.js';
 import {
   allNutrientsDepleted,
   biofilterColonisation,
@@ -92,13 +92,10 @@ function waterMeters(state: SimulationState, units: UnitSystem): MicroMeter[] {
 }
 
 function equipmentFigure(state: SimulationState, config: TunableConfig): NavFigure {
-  const devices = buildDeviceList(state.equipment);
-  const on = devices.filter((d) => d.on).length;
-  const colonisation = Math.round(biofilterColonisation(state.resources, config.nitrogenCycle));
   return {
     pill: null,
-    lines: [`${on} of ${devices.length} on · biofilter ${colonisation} %`],
-    dots: devices.map((d) => d.on),
+    lines: [equipmentSummary(state, config)],
+    dots: buildDeviceList(state.equipment).map((d) => d.on),
   };
 }
 

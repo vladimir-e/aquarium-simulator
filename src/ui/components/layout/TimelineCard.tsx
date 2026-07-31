@@ -1,6 +1,7 @@
 import React from 'react';
 import { Pause, Play, SkipForward } from 'lucide-react';
 import type { DailySchedule } from '../../../simulation/index.js';
+import { scheduleSpans } from '../../build';
 import { SPEED_LABELS, SPEED_PRESETS, type SpeedPreset } from '../../run';
 import { Pill } from '../run/elements';
 import { Segmented } from '../ui/Segmented';
@@ -12,18 +13,6 @@ const SPEED_OPTIONS = SPEED_PRESETS.map((preset) => ({
 
 function pad(hour: number): string {
   return String(hour).padStart(2, '0');
-}
-
-/** Lit spans of the 24 h strip, as [left %, width %] pairs. A schedule that
- *  crosses midnight lights both ends of the strip. */
-function photoperiodSpans(schedule: DailySchedule): Array<[number, number]> {
-  const duration = Math.min(24, schedule.duration);
-  const end = schedule.startHour + duration;
-  if (end <= 24) return [[(schedule.startHour / 24) * 100, (duration / 24) * 100]];
-  return [
-    [(schedule.startHour / 24) * 100, ((24 - schedule.startHour) / 24) * 100],
-    [0, ((end - 24) / 24) * 100],
-  ];
 }
 
 function Photoperiod({
@@ -40,12 +29,12 @@ function Photoperiod({
     <div>
       <div className="relative h-2.5 rounded-badge bg-track">
         {lightOn &&
-          photoperiodSpans(schedule).map(([left, width]) => (
+          scheduleSpans(schedule).map((span) => (
             <span
-              key={left}
+              key={span.from}
               aria-hidden
               className="absolute inset-y-0 rounded-badge bg-warn-tint"
-              style={{ left: `${left}%`, width: `${width}%` }}
+              style={{ left: `${span.from * 100}%`, width: `${(span.to - span.from) * 100}%` }}
             />
           ))}
         <span

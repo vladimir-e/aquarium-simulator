@@ -1,12 +1,33 @@
 export {
   type DeviceId,
   type DeviceRow,
+  type EquipmentId,
+  type EquipmentRow,
   DEVICE_NAME,
-  isDeviceId,
+  EQUIPMENT_NAME,
+  isEquipmentId,
   buildDeviceList,
-  filterDevices,
-  resolveSelectedDevice,
+  equipmentRows,
+  equipmentSummary,
+  filterRows,
 } from './devices.js';
+export {
+  type DaySpan,
+  type ScheduleBand,
+  type ScheduleRow,
+  type ScheduledDeviceId,
+  hourLabel,
+  scheduleBand,
+  scheduleRange,
+  scheduleSpans,
+} from './schedules.js';
+export {
+  type DeviceHint,
+  type DeviceReading,
+  type DeviceReadingInput,
+  deviceHint,
+  deviceReadings,
+} from './readings.js';
 export {
   type SpeciesCount,
   speciesCounts,

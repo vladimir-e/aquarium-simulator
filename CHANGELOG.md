@@ -11,6 +11,7 @@ Format: - **Feature name** (#PR) - One short sentence (under ~150 chars)
 
 ## Unreleased
 
+- **Equipment section** - device list and inspector side by side, selection addressed as `/equipment/:deviceId`, plus a 24 h schedule band and a read-only biofilter entry.
 - **Water section** - six vertical gauges with engine-derived bands and 24 h traces, plus Bacteria and Waste cards that read the biofilter, the conversion rates, and a projected nitrite peak.
 - **Dashboard UI redesign** - index+stage shell replaces the Build/Run/Review modes: six routed sections, a live-figure index rail, and browser back between views.
 - **Vitality reserve buffer** - fish `surplus` becomes a saturating reserve bank (cap 50) that drains to absorb damage before condition falls; condition 100 with a negative net rate reads as "burning reserves". Persistence v12 → v13.

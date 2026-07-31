@@ -91,6 +91,19 @@ describe('App routing', () => {
     expect(stageTitle()).toBe('Water');
   });
 
+  it('addresses a drill-in, and steps back out of it', () => {
+    renderApp('/equipment');
+    const stage = within(screen.getByRole('main'));
+    expect(stage.queryByRole('heading', { level: 3 })).toBeNull();
+
+    fireEvent.click(stage.getByRole('link', { name: /Heater/ }));
+    expect(stage.getByRole('heading', { level: 3, name: 'Heater' })).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'test-back' }));
+    expect(stageTitle()).toBe('Equipment');
+    expect(stage.queryByRole('heading', { level: 3 })).toBeNull();
+  });
+
   it('sends an unknown path home', () => {
     renderApp('/nowhere');
     expect(stageTitle()).toBe('Water');
