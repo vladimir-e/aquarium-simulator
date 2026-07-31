@@ -186,7 +186,6 @@ export function AnalyticsSection({
           onChange={changeWindow}
         />
       }
-      fills
       footer={
         <TickScrubber
           range={range}
@@ -197,7 +196,14 @@ export function AnalyticsSection({
         />
       }
     >
-      <div className="flex h-full min-h-0 flex-col gap-2.5">
+      {/*
+       * One height budget, spent in this order: the tiles take what they need,
+       * the log holds its floor, and the charts absorb whatever is left over —
+       * they read at any height, a log of one clipped row reads at none. Below
+       * every floor the column outgrows the stage and the section scrolls, so
+       * nothing here may be pinned to a height it cannot yield.
+       */}
+      <div className="flex min-h-full flex-col gap-2.5">
         <SummaryTiles
           aggregates={sim.aggregates}
           logs={logs}
@@ -214,15 +220,15 @@ export function AnalyticsSection({
               onChange={(id) => setView({ chart: id }, 'commit')}
               fill
             />
-            <div className="h-[190px] shrink-0">{renderChart(activeChart)}</div>
+            <div className="min-h-[150px] basis-[190px]">{renderChart(activeChart)}</div>
           </>
         ) : (
-          <div className="grid shrink-0 grid-cols-2 grid-rows-[repeat(2,154px)] gap-2.5">
+          <div className="grid min-h-[210px] basis-[318px] grid-cols-2 grid-rows-2 gap-2.5">
             {REVIEW_CHARTS.map(renderChart)}
           </div>
         )}
 
-        <div className="min-h-0 flex-1">{logPanel}</div>
+        <div className="min-h-[200px] flex-1">{logPanel}</div>
       </div>
     </Stage>
   );

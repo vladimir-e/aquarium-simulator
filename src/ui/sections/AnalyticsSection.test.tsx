@@ -15,6 +15,7 @@ import { getPresetById } from '../presets';
 import { navFigures } from '../nav/figures';
 import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
 import { stubMatchMedia, viewport, type MatchMediaStub } from '../test/matchMedia';
+import { bandsOf, isRigid, pinnedPx } from '../test/layout';
 
 let media: MatchMediaStub;
 
@@ -117,6 +118,23 @@ function cursor(): string {
   return slider().getAttribute('aria-valuenow') ?? '';
 }
 
+/** The slot the section gives the log, and the one it gives the charts. */
+function logBand(): HTMLElement {
+  return screen.getByText('Log').closest('section')!.parentElement as HTMLElement;
+}
+
+function chartBand(): HTMLElement {
+  return screen.getByText('Nitrogen cycle').closest('section')!.parentElement as HTMLElement;
+}
+
+/**
+ * Every band sharing the column's height, read off the DOM rather than named
+ * here — a band added to the section is a band the budget has to account for.
+ */
+function bands(): HTMLElement[] {
+  return bandsOf(logBand().parentElement as HTMLElement);
+}
+
 // Pin the desktop layout (not mobile) so the four-chart grid is deterministic.
 beforeEach(() => {
   media = stubMatchMedia(viewport(1280));
@@ -178,6 +196,48 @@ describe('AnalyticsSection', () => {
     fireEvent.click(screen.getByRole('button', { name: '24h' }));
     // 40 snapshots (ticks 0..39), trailing 24 ⇒ minTick 16.
     expect(slider().getAttribute('aria-valuemin')).toBe('16');
+  });
+});
+
+/**
+ * The bug this pins: every fixed band above the log passed its shortfall down
+ * to the one flexible element in the column, so on a short stage the log was
+ * left a single clipped row. It is invisible on a tall viewport, so the budget
+ * here is the design target's — iPad landscape, where the stage body is ~510 px
+ * once Safari's chrome, the stage header and the tick scrubber have taken
+ * theirs. The tiles run ~90 and the gaps 20; the charts and the log divide the
+ * rest, and a new fixed band above the log has to come out of that same 410.
+ */
+const FLEXIBLE_BAND_PX = 410;
+/** A log worth scrolling: its header, and five lines under it. */
+const LOG_FLOOR_PX = 200;
+
+describe('AnalyticsSection — the log keeps its height on a short stage', () => {
+  it('floors the log, and fits that floor in what the design target has to give', () => {
+    renderAnalytics();
+    const logFloor = pinnedPx(logBand(), 'min-h');
+    const chartFloor = pinnedPx(chartBand(), 'min-h');
+
+    expect(logFloor).toBeGreaterThanOrEqual(LOG_FLOOR_PX);
+    expect(logFloor! + chartFloor!).toBeLessThanOrEqual(FLEXIBLE_BAND_PX);
+  });
+
+  it('spends the shortfall on the charts, which read at any height', () => {
+    renderAnalytics();
+    const charts = chartBand();
+
+    // A preferred height above its floor is the room the charts give back.
+    expect(pinnedPx(charts, 'basis')!).toBeGreaterThan(pinnedPx(charts, 'min-h')!);
+    expect(isRigid(charts)).toBe(false);
+  });
+
+  it('scrolls the section once every band is down to its floor', () => {
+    renderAnalytics();
+    const column = logBand().parentElement!;
+
+    for (const band of bands().slice(0, -1)) expect(isRigid(band)).toBe(false);
+    expect(column.className).toContain('min-h-full');
+    expect(column.parentElement!.className).toContain('overflow-y-auto');
   });
 });
 

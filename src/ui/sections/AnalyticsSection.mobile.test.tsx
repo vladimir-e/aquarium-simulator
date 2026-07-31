@@ -10,6 +10,7 @@ import { snapshotFromState } from '../run/index.js';
 import { createSimulation, createLog, type SimulationState } from '../../simulation/index.js';
 import type { useSimulation } from '../hooks/useSimulation';
 import { stubMatchMedia, viewport, type MatchMediaStub } from '../test/matchMedia';
+import { bandsOf, isRigid, pinnedPx } from '../test/layout';
 
 function fakeSim(): ReturnType<typeof useSimulation> {
   const base: SimulationState = createSimulation({ tankCapacity: 40 });
@@ -109,5 +110,23 @@ describe('AnalyticsSection (mobile)', () => {
     renderAnalytics('/analytics?chart=o2-temp');
     expect(screen.getByText('O₂, temp & level')).toBeTruthy();
     expect(screen.queryByText('Nitrogen cycle')).toBeNull();
+  });
+
+  /**
+   * A phone has less height than the bands' floors add up to, so the section
+   * scrolls — but the log arrives at a readable size rather than crushed to a
+   * row, and the chart above it is the band that yields on the way there.
+   */
+  it('floors the log here too, and keeps the chart above it yielding', () => {
+    renderAnalytics();
+    const log = screen.getByText('Log').closest('section')!.parentElement as HTMLElement;
+    const chart = screen.getByText('Nitrogen cycle').closest('section')!
+      .parentElement as HTMLElement;
+    const column = log.parentElement as HTMLElement;
+
+    expect(pinnedPx(log, 'min-h')).toBeGreaterThanOrEqual(200);
+    expect(pinnedPx(chart, 'basis')!).toBeGreaterThan(pinnedPx(chart, 'min-h')!);
+    for (const band of bandsOf(column).slice(0, -1)) expect(isRigid(band)).toBe(false);
+    expect(column.parentElement!.className).toContain('overflow-y-auto');
   });
 });
