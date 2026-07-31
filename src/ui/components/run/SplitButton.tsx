@@ -7,6 +7,8 @@ export interface SplitOption {
   label: React.ReactNode;
   /** Right-aligned mono preview (count/ppm/ml). */
   hint?: React.ReactNode;
+  /** Second line under the label: what the option *is*, rather than what it costs. */
+  facts?: React.ReactNode;
   onSelect: () => void;
   disabled?: boolean;
 }
@@ -120,13 +122,18 @@ export function SplitButton({
                 role="menuitem"
                 onClick={() => runOption(option)}
                 disabled={option.disabled}
-                className="flex w-full items-center justify-between gap-6 px-3 py-2 text-left text-[13px] text-ink transition-colors hover:bg-surface disabled:pointer-events-none disabled:opacity-40"
+                className="flex w-full flex-col gap-0.5 px-3 py-2 text-left text-[13px] text-ink transition-colors hover:bg-surface disabled:pointer-events-none disabled:opacity-40"
               >
-                <span>{option.label}</span>
-                {option.hint != null && (
-                  <span className="font-mono text-[12px] tabular-nums text-ink-3">
-                    {option.hint}
-                  </span>
+                <span className="flex w-full items-center justify-between gap-6">
+                  <span>{option.label}</span>
+                  {option.hint != null && (
+                    <span className="font-mono text-[12px] tabular-nums text-ink-3">
+                      {option.hint}
+                    </span>
+                  )}
+                </span>
+                {option.facts != null && (
+                  <span className="text-[11px] leading-snug text-ink-3">{option.facts}</span>
                 )}
               </button>
             ))}

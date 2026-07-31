@@ -1,10 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import {
   GAUGE_SCALE,
+  gasReadings,
   gaugeFill,
   gaugeValues,
   waterAlert,
   waterGauges,
+  type GasReading,
   type GaugeKey,
   type WaterGauge,
 } from './gauges';
@@ -13,8 +15,10 @@ import { snapshotFromState } from './history';
 import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
 import {
   HIGH_AMMONIA_THRESHOLD,
+  HIGH_CO2_THRESHOLD,
   HIGH_NITRATE_THRESHOLD,
   HIGH_NITRITE_THRESHOLD,
+  LOW_OXYGEN_THRESHOLD,
 } from '../../simulation/alerts/index.js';
 import { createSimulation, type SimulationState } from '../../simulation/index.js';
 
@@ -190,6 +194,40 @@ describe('waterGauges', () => {
   });
 });
 
+describe('gasReadings', () => {
+  const gases = (oxygen: number, co2: number): GasReading[] =>
+    gasReadings({ ...tank(), resources: { ...tank().resources, oxygen, co2 } });
+
+  const gas = (oxygen: number, co2: number, key: 'oxygen' | 'co2'): GasReading => {
+    const found = gases(oxygen, co2).find((g) => g.key === key);
+    if (!found) throw new Error(`no reading for ${key}`);
+    return found;
+  };
+
+  it('reads both gases off the engine in mg/L, in gauge order', () => {
+    const [oxygen, co2] = gases(7.25, 12.4);
+    expect([oxygen.key, co2.key]).toEqual(['oxygen', 'co2']);
+    expect(oxygen).toMatchObject({ name: 'O₂', value: 7.25, text: '7.3', unit: 'mg/L' });
+    expect(co2).toMatchObject({ name: 'CO₂', value: 12.4, text: '12.4', unit: 'mg/L' });
+  });
+
+  it('calls oxygen low at the engine’s own alert threshold, and not before', () => {
+    expect(LOW_OXYGEN_THRESHOLD).toBe(4);
+    // Below the alert line the water is failing the fish…
+    expect(gas(3.9, 12, 'oxygen')).toMatchObject({ status: 'warn', pill: 'LOW' });
+    // …between the alert line and comfortable it is neither…
+    expect(gas(5, 12, 'oxygen')).toMatchObject({ status: 'neutral', pill: null });
+    // …and at 6 mg/L it is comfortable.
+    expect(gas(6, 12, 'oxygen')).toMatchObject({ status: 'ok', pill: null });
+  });
+
+  it('calls CO₂ high only past the threshold its alert fires on', () => {
+    expect(HIGH_CO2_THRESHOLD).toBe(30);
+    expect(gas(7, 30.1, 'co2')).toMatchObject({ status: 'alert', pill: 'HIGH' });
+    expect(gas(7, 30, 'co2')).toMatchObject({ status: 'neutral', pill: null });
+  });
+});
+
 describe('waterAlert', () => {
   const reading = (
     key: GaugeKey,
@@ -226,5 +264,21 @@ describe('waterAlert', () => {
 
   it('says nothing about a cycled tank that reads clean', () => {
     expect(waterAlert([reading('nitrate', 12, 'ok')], true)).toBeNull();
+  });
+
+  it('carries the gases too, so suffocation is not something you open Analytics for', () => {
+    const clean = [reading('nitrate', 12, 'ok'), reading('ammonia', 0, 'ok')];
+    const [lowOxygen, highCo2] = gasReadings({
+      ...tank(),
+      resources: { ...tank().resources, oxygen: 3, co2: 45 },
+    });
+
+    // Alone, low oxygen is the one thing worth saying about this water…
+    expect(waterAlert([...clean, lowOxygen], true)).toEqual({ text: 'O₂ low', status: 'warn' });
+    // …and CO₂ over its threshold outranks it, alert over warn.
+    expect(waterAlert([...clean, lowOxygen, highCo2], true)).toEqual({
+      text: 'CO₂ high',
+      status: 'alert',
+    });
   });
 });

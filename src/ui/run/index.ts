@@ -28,11 +28,16 @@ export {
 } from './vitals.js';
 export {
   GAUGE_KEYS,
+  GAS_KEYS,
   gaugeFill,
   gaugeValues,
+  gasReadings,
   waterAlert,
   waterGauges,
   type GaugeKey,
+  type GasKey,
+  type GasReading,
+  type VitalReading,
   type WaterGauge,
 } from './gauges.js';
 export {
@@ -59,6 +64,8 @@ export {
   type Hunger,
   hungerOf,
   countFry,
+  type FishVitals,
+  fishVitals,
   type RosterFigures,
   type SpeciesGroup,
   groupBySpecies,
@@ -93,6 +100,7 @@ export {
   doseToCover,
   tankDemand,
   TRIM_TARGETS,
+  overTrimCount,
   type TrimTarget,
   trimTargets,
   plantsAndAlgae,

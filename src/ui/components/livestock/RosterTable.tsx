@@ -1,6 +1,6 @@
 import React from 'react';
 import { X } from 'lucide-react';
-import { SATIATION_BAND_LABEL, type FishSex, type FishSpecies } from '../../../simulation/index.js';
+import { SATIATION_BAND_LABEL, type FishSex } from '../../../simulation/index.js';
 import {
   bandStatus,
   conditionStatus,
@@ -12,6 +12,7 @@ import {
   type RosterRow,
   type SpeciesRosterRow,
 } from '../../run';
+import { Breakdown } from '../run/Breakdown';
 import { Bar, Caret, statusText } from '../run/elements';
 
 const SEX_GLYPH: Record<FishSex, string> = { male: '♂', female: '♀' };
@@ -50,10 +51,25 @@ function Satiation({
   );
 }
 
-function Condition({ condition }: { condition: number }): React.JSX.Element {
+/**
+ * Condition, and whether it is being held there. A fish burning reserves reads
+ * full while its bank drains, so the bar warns where the number cannot.
+ */
+function Condition({
+  condition,
+  burning,
+}: {
+  condition: number;
+  burning: boolean;
+}): React.JSX.Element {
   return (
     <span className="flex items-center justify-end gap-2">
-      <Bar className="w-16" value={condition} status={conditionStatus(condition)} />
+      {burning && <span className={`text-[12px] ${statusText('warn')}`}>burning</span>}
+      <Bar
+        className="w-16"
+        value={condition}
+        status={burning ? 'warn' : conditionStatus(condition)}
+      />
       <span className={`w-10 text-right ${NUM}`}>{Math.round(condition)} %</span>
     </span>
   );
@@ -92,7 +108,7 @@ function SpeciesRow({
         <Satiation figures={row} hunger={row.hunger} />
       </td>
       <td className={`${CELL} ${AT_MD} text-right`}>
-        <Condition condition={row.condition} />
+        <Condition condition={row.condition} burning={row.burning} />
       </td>
       <td className={CELL} />
     </tr>
@@ -101,9 +117,11 @@ function SpeciesRow({
 
 function FishRow({
   row,
+  onToggle,
   onRemove,
 }: {
   row: FishRosterRow;
+  onToggle: () => void;
   onRemove: () => void;
 }): React.JSX.Element {
   return (
@@ -112,7 +130,18 @@ function FishRow({
         <span aria-hidden>{SEX_GLYPH[row.sex]}</span>
         <span className="sr-only">{row.sex}</span>
       </td>
-      <td className={`${CELL} pl-6 text-[13px] text-ink`}>{row.name}</td>
+      <td className={`${CELL} pl-4`}>
+        <button
+          type="button"
+          onClick={onToggle}
+          aria-expanded={row.expanded}
+          aria-label={`${row.name} ${row.shortId} — conditions`}
+          className="flex h-9 items-center gap-2 rounded pr-2 text-left text-[13px] text-ink focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-focus"
+        >
+          <Caret open={row.expanded} />
+          {row.name}
+        </button>
+      </td>
       <td className={`${CELL} ${AT_LG} ${NUM} text-ink-3`}>{row.shortId}</td>
       <td className={`${CELL} text-right`}>
         <Mass g={row.massG} />
@@ -122,7 +151,7 @@ function FishRow({
         <Satiation figures={row} />
       </td>
       <td className={`${CELL} ${AT_MD} text-right`}>
-        <Condition condition={row.condition} />
+        <Condition condition={row.condition} burning={row.burning} />
       </td>
       <td className={`${CELL} text-right`}>
         <button
@@ -133,6 +162,32 @@ function FishRow({
         >
           <X className="h-3.5 w-3.5" />
         </button>
+      </td>
+    </tr>
+  );
+}
+
+/**
+ * Why this fish is where it is: the reserve standing between its net rate and
+ * its condition, then the factors that rate is made of.
+ */
+function FishDetailRow({ row }: { row: FishRosterRow }): React.JSX.Element {
+  const fill = row.reserveCap > 0 ? (row.reserve / row.reserveCap) * 100 : 0;
+  const tone = row.burning ? 'warn' : 'ok';
+
+  return (
+    <tr>
+      <td className="border-b border-hairline px-1.5 pt-2" colSpan={8}>
+        <div className="flex min-h-[26px] items-center gap-2 pl-6 pr-1 text-[12px]">
+          <span className={row.burning ? statusText('warn') : 'text-ink-2'}>
+            {row.burning ? 'Burning reserves' : 'Reserve'}
+          </span>
+          <Bar className="w-24" value={fill} status={tone} />
+          <span className={`ml-auto text-ink-2 ${NUM}`}>
+            {row.reserve.toFixed(1)} / {row.reserveCap}
+          </span>
+        </div>
+        <Breakdown stressors={row.stressors} benefits={row.benefits} net={row.net} />
       </td>
     </tr>
   );
@@ -172,7 +227,7 @@ function FryRow({ row }: { row: FryRosterRow }): React.JSX.Element {
         <Satiation figures={row} hunger={row.hunger} />
       </td>
       <td className={`${CELL} ${AT_MD} text-right`}>
-        <Condition condition={row.condition} />
+        <Condition condition={row.condition} burning={row.burning} />
       </td>
       <td className={CELL} />
     </tr>
@@ -181,11 +236,12 @@ function FryRow({ row }: { row: FryRosterRow }): React.JSX.Element {
 
 export function RosterTable({
   rows,
-  onToggleSpecies,
+  onToggle,
   onRemoveFish,
 }: {
   rows: RosterRow[];
-  onToggleSpecies: (species: FishSpecies) => void;
+  /** Disclose a row by its own key — a species group, or one fish inside it. */
+  onToggle: (key: string) => void;
   onRemoveFish: (fishId: string) => void;
 }): React.JSX.Element {
   return (
@@ -200,7 +256,7 @@ export function RosterTable({
           <th className={`${HEAD} w-[78px] border-b border-hairline-2 text-right`}>mass</th>
           <th className={`${HEAD} ${AT_MD} w-[110px] border-b border-hairline-2 text-right`}>age</th>
           <th className={`${HEAD} w-[210px] border-b border-hairline-2 text-right`}>satiation</th>
-          <th className={`${HEAD} ${AT_MD} w-[124px] border-b border-hairline-2 text-right`}>
+          <th className={`${HEAD} ${AT_MD} w-[180px] border-b border-hairline-2 text-right`}>
             condition
           </th>
           <th className={`${HEAD} w-11 border-b border-hairline-2`}>
@@ -212,11 +268,18 @@ export function RosterTable({
         {rows.map((row) => {
           switch (row.kind) {
             case 'species':
-              return (
-                <SpeciesRow key={row.key} row={row} onToggle={() => onToggleSpecies(row.species)} />
-              );
+              return <SpeciesRow key={row.key} row={row} onToggle={() => onToggle(row.key)} />;
             case 'fish':
-              return <FishRow key={row.key} row={row} onRemove={() => onRemoveFish(row.id)} />;
+              return (
+                <React.Fragment key={row.key}>
+                  <FishRow
+                    row={row}
+                    onToggle={() => onToggle(row.key)}
+                    onRemove={() => onRemoveFish(row.id)}
+                  />
+                  {row.expanded && <FishDetailRow row={row} />}
+                </React.Fragment>
+              );
             case 'clutch':
               return <ClutchRow key={row.key} row={row} />;
             case 'fry':

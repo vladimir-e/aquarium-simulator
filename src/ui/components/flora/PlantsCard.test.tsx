@@ -10,6 +10,7 @@ function plant(net: number): PlantRow {
     id: 'p1',
     name: 'Java Fern',
     size: 60,
+    overTrim: false,
     condition: 90,
     status: 'ok',
     word: 'thriving',
@@ -31,7 +32,15 @@ function algae(net: number): AlgaeRow {
 }
 
 function renderCard(rows: PlantRow[], row = algae(0.8)): void {
-  render(<PlantsCard rows={rows} algae={row} maxPlants={31} onRemove={vi.fn()} />);
+  render(
+    <PlantsCard
+      rows={rows}
+      algae={row}
+      maxPlants={31}
+      overTrim={rows.filter((r) => r.overTrim).length}
+      onRemove={vi.fn()}
+    />
+  );
 }
 
 /** The collapsed row's rate and the `net` line under it are the same number. */

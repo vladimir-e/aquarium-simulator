@@ -11,7 +11,12 @@ import {
   type FishSpecies,
 } from '../../simulation/index.js';
 import type { Status } from '../run';
-import { getVolumeUnit, toInternalVolume, type UnitSystem } from '../utils/units.js';
+import {
+  formatTemperatureRange,
+  getVolumeUnit,
+  toInternalVolume,
+  type UnitSystem,
+} from '../utils/units.js';
 
 /**
  * Grams of projected adult fish per litre a well-run planted community tank
@@ -92,27 +97,34 @@ export interface FishOption {
   disabled: boolean;
   /** The consequence of taking one, or the engine's own reason it cannot. */
   hint: string;
+  /** What the species is: the bands you check against the heater and the tap. */
+  facts: string;
 }
 
 /**
  * Every species with what adding one costs the tank. Disabled options carry the
  * engine's rejection message rather than a UI paraphrase of it.
  */
-export function fishOptions(fish: Fish[], tankLiters: number): FishOption[] {
+export function fishOptions(fish: Fish[], tankLiters: number, units: UnitSystem): FishOption[] {
   return FISH_SPECIES.map((species) => {
+    const data = FISH_SPECIES_DATA[species];
     const capacity = checkFishCapacity(fish, tankLiters, species);
     const count = fish.reduce(
       (n, f) => n + (f.species === species && f.stage === 'adult' ? 1 : 0),
       0
     );
-    const addsG = FISH_SPECIES_DATA[species].adultMass;
+    const addsG = data.adultMass;
+    const [phLo, phHi] = data.phRange;
     return {
       species,
-      name: FISH_SPECIES_DATA[species].name,
+      name: data.name,
       count,
       addsG,
       disabled: !capacity.ok,
       hint: capacity.ok ? `${count} in tank · +${addsG} g` : capacity.message,
+      facts:
+        `${formatTemperatureRange(data.temperatureRange, units)} · ` +
+        `pH ${phLo.toFixed(1)}–${phHi.toFixed(1)} · hardiness ${data.hardiness}`,
     };
   });
 }

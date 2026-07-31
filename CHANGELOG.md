@@ -16,10 +16,10 @@ Format: - **Feature name** (#PR) - One short sentence (under ~150 chars)
 - **Preset drift is derived** - the "modified" pill compares the tank against its preset's config, so an undo clears it and Restore always has work.
 - **Analytics section** - four full-width charts over a full-width log; the scrubbed tick lives in `?tick=`, so a cursor is a link for the session.
 - **Error boundary keeps your tank** - render errors show a recovery screen instead of wiping the save and reloading; reset is now an explicit button.
-- **Livestock section** - the roster as a table: species rows expand into individuals, clutches and fry get their own rows, bioload pinned to the foot.
-- **Flora & Scape section** - plants with per-stressor vitality breakdowns beside the algae, nutrients read against what the tank's own plants need, and the scape's surface contributions.
+- **Livestock section** - the roster as a table: species rows expand into individuals and individuals into their own vitality breakdown and reserve bank, clutches and fry get their own rows, bioload pinned to the foot.
+- **Flora & Scape section** - plants with per-stressor vitality breakdowns beside the algae, plants above every trim target flagged as the reason to reach for the verb, nutrients read against what the tank's own plants need, and the scape's surface contributions.
 - **Equipment section** - device list and inspector side by side, selection addressed as `/equipment/:deviceId`, plus a 24 h schedule band and a read-only biofilter entry.
-- **Water section** - six vertical gauges with engine-derived bands and 24 h traces, plus Bacteria and Waste cards that read the biofilter, the conversion rates, and a projected nitrite peak.
+- **Water section** - six vertical gauges with engine-derived bands and 24 h traces, a dissolved-gases pair reading O₂ and CO₂ against the thresholds their alerts fire on, plus Bacteria and Waste cards that read the biofilter, the conversion rates, and a projected nitrite peak.
 - **Dashboard UI redesign** - index+stage shell replaces the Build/Run/Review modes: six routed sections, a live-figure index rail, and browser back between views.
 - **Vitality reserve buffer** - fish `surplus` becomes a saturating reserve bank (cap 50) that drains to absorb damage before condition falls; condition 100 with a negative net rate reads as "burning reserves". Persistence v12 → v13.
 - **Fish reproduction** - adult pairs spend banked surplus to spawn; livebearers drop fry directly, egg-layers lay clutches that hatch after a per-species delay; fry grow with age and mature into breeding adults.

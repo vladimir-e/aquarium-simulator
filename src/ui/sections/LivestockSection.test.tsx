@@ -67,6 +67,18 @@ function renderRoster(state: SimulationState, units: UnitSystem = 'metric'): Act
   return actions;
 }
 
+/** How far the one bar inside `container` is filled. */
+function fill(container: HTMLElement): string {
+  const bar = container.querySelector<HTMLElement>('[style*="width"]');
+  if (!bar) throw new Error('no bar to measure');
+  return bar.style.width;
+}
+
+/** The same tank with enough ammonia in it to put every fish at a losing net rate. */
+function poisoned(state: SimulationState, ppm: number): SimulationState {
+  return { ...state, resources: { ...state.resources, ammonia: ppm * state.resources.water } };
+}
+
 /** Two species that differ on mass, age, satiation and condition. */
 function community(): Fish[] {
   return [
@@ -105,6 +117,52 @@ describe('LivestockSection', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Remove Neon Tetra a_2' }));
     expect(actions).toEqual([{ type: 'removeFish', fishId: 'fish_a_2' }]);
+  });
+
+  it('answers why a fish is where it is, the way the plant card does', () => {
+    const state = poisoned(tank([makeFish({ id: 'fish_a_1', health: 100, surplus: 5 })]), 20);
+    renderRoster(state);
+    fireEvent.click(screen.getByRole('button', { name: 'Neon Tetra — 1 fish' }));
+
+    // Nothing is claimed until the fish itself is opened.
+    expect(screen.queryByText('net')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Neon Tetra a_1 — conditions' }));
+
+    expect(screen.getByText('Free NH3')).toBeTruthy();
+    expect(screen.getByText('Oxygen')).toBeTruthy();
+    const net = screen.getByText('net').parentElement!;
+    expect(net.className).toContain('text-alert');
+    expect(within(net).getByText(/^−\d+\.\d\d %\/h$/)).toBeTruthy();
+  });
+
+  it('shows the bank a full fish is spending, and says it is spending it', () => {
+    const state = poisoned(tank([makeFish({ id: 'fish_a_1', health: 100, surplus: 5 })]), 20);
+    renderRoster(state);
+    fireEvent.click(screen.getByRole('button', { name: 'Neon Tetra — 1 fish' }));
+
+    // The species row already reads amber at 100 %, before anything is opened.
+    const group = screen.getByRole('button', { name: 'Neon Tetra — 1 fish' }).closest('tr')!;
+    expect(within(group).getByText('100 %')).toBeTruthy();
+    expect(within(group).getByText('burning').className).toContain('text-warn');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Neon Tetra a_1 — conditions' }));
+    expect(screen.getByText('Burning reserves')).toBeTruthy();
+    // surplusCap is 50 at default calibration, and the fish went in holding 5.
+    const row = screen.getByText('5.0 / 50').parentElement!;
+    expect(fill(row)).toBe('10%');
+  });
+
+  it('leaves a fish that is genuinely thriving at 100 alone', () => {
+    renderRoster(tank([makeFish({ id: 'fish_a_1', health: 100, surplus: 5 })]));
+
+    const group = screen.getByRole('button', { name: 'Neon Tetra — 1 fish' }).closest('tr')!;
+    expect(within(group).getByText('100 %')).toBeTruthy();
+    expect(within(group).queryByText('burning')).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Neon Tetra — 1 fish' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Neon Tetra a_1 — conditions' }));
+    expect(screen.getByText('Reserve')).toBeTruthy();
+    expect(screen.queryByText('Burning reserves')).toBeNull();
   });
 
   it('gives a clutch its hatch tick and the hours left from now', () => {
@@ -239,6 +297,8 @@ describe('LivestockSection', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Add fish' }));
     const angelfish = screen.getByRole('menuitem', { name: /Angelfish/ });
     expect(within(angelfish).getByText('0 in tank · +15 g')).toBeTruthy();
+    // The bands you check against the heater target and the tap, before buying.
+    expect(within(angelfish).getByText('24–30°C · pH 6.0–7.5 · hardiness 0.4')).toBeTruthy();
 
     // The sex fact is the menu's own description, not a stray child of it.
     const menu = screen.getByRole('menu');

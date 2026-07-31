@@ -1,7 +1,14 @@
 import { describe, it, expect } from 'vitest';
 import { formatMeter, navFigures, type MicroMeter, type NavFigure } from './figures';
 import type { SectionId } from './sections';
-import { emptyAggregates, waterAlert, waterGauges, type RunAggregates } from '../run/index.js';
+import {
+  emptyAggregates,
+  gasReadings,
+  waterAlert,
+  waterGauges,
+  type RunAggregates,
+  type VitalReading,
+} from '../run/index.js';
 import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
 import {
   applyAction,
@@ -146,6 +153,11 @@ describe('the rail carries the Water section’s own readings', () => {
     return waterGauges({ state, phConfig: DEFAULT_CONFIG.ph, history: [], units: 'metric' });
   }
 
+  /** Everything the section header judges: the six gauges and the two gases. */
+  function readings(state: SimulationState): VitalReading[] {
+    return [...gauges(state), ...gasReadings(state)];
+  }
+
   it('matches every micro-meter to its gauge on value, fill and status', () => {
     const state = offSetpoint();
     const meters = figures(state).water.meters ?? [];
@@ -162,7 +174,7 @@ describe('the rail carries the Water section’s own readings', () => {
 
   it('names the same reading in the rail pill as in the section header', () => {
     const alerting = offSetpoint();
-    expect(figures(alerting).water.pill).toEqual(waterAlert(gauges(alerting), true));
+    expect(figures(alerting).water.pill).toEqual(waterAlert(readings(alerting), true));
 
     // The level is the one reading whose rail caption ('lvl') is not its name,
     // and it surfaces in the pill only when no toxin outranks it.
@@ -170,8 +182,25 @@ describe('the rail carries the Water section’s own readings', () => {
     low.resources.water = low.tank.capacity * 0.15;
     low.resources.nitrate = low.resources.water * 12;
 
-    expect(figures(low).water.pill).toEqual(waterAlert(gauges(low), true));
+    expect(figures(low).water.pill).toEqual(waterAlert(readings(low), true));
     expect(figures(low).water.pill?.text).toBe('Level low');
+  });
+
+  /**
+   * The gases have no micro-meter of their own, so the pill is the only way
+   * suffocation reaches a reader who never opens the section.
+   */
+  it('lets a gas win the pill even though the rail draws no track for it', () => {
+    const state = cycled();
+    state.resources.nitrate = state.resources.water * 12; // nothing else to say
+    state.resources.oxygen = 3;
+
+    expect(figures(state).water.pill).toEqual({ text: 'O₂ low', status: 'warn' });
+    expect(figures(state).water.pill).toEqual(waterAlert(readings(state), true));
+    expect((figures(state).water.meters ?? []).map((m) => m.key)).not.toContain('oxygen');
+
+    state.resources.co2 = 45;
+    expect(figures(state).water.pill).toEqual({ text: 'CO₂ high', status: 'alert' });
   });
 });
 

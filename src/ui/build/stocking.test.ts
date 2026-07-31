@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { Fish, FishSpecies } from '../../simulation/index.js';
-import { getMaxFishMass } from '../../simulation/index.js';
+import { FISH_SPECIES_DATA, getMaxFishMass } from '../../simulation/index.js';
 import { bioload, bioloadNote, fishOptions, GUIDELINE_G_PER_L, projectedAdultMass } from './stocking';
 
 function makeFish(overrides: Partial<Fish> & { id: string }): Fish {
@@ -96,7 +96,7 @@ describe('fishOptions', () => {
       makeFish({ id: 'fry', species: 'neon_tetra', stage: 'fry', age: 24, mass: 0.1 }),
       ...stock('guppy', 1),
     ];
-    const options = fishOptions(fish, 200);
+    const options = fishOptions(fish, 200, 'metric');
     const byName = Object.fromEntries(options.map((o) => [o.species, o]));
 
     expect(options.map((o) => o.species)).toEqual([
@@ -112,7 +112,7 @@ describe('fishOptions', () => {
   });
 
   it('prices one more of each species at its species adult mass', () => {
-    const options = fishOptions(stock('neon_tetra', 2), 200);
+    const options = fishOptions(stock('neon_tetra', 2), 200, 'metric');
     const neon = options.find((o) => o.species === 'neon_tetra')!;
     const angel = options.find((o) => o.species === 'angelfish')!;
 
@@ -126,7 +126,7 @@ describe('fishOptions', () => {
     // 0.02 L holds 10 g of fish, so an angelfish (15 g) cannot go in but a cory (4 g) can.
     const liters = 0.02;
     expect(getMaxFishMass(liters)).toBe(10);
-    const options = fishOptions([], liters);
+    const options = fishOptions([], liters, 'metric');
 
     const angel = options.find((o) => o.species === 'angelfish')!;
     expect(angel.disabled).toBe(true);
@@ -137,10 +137,31 @@ describe('fishOptions', () => {
     expect(cory.hint).toBe('0 in tank · +4 g');
   });
 
+  it('states the bands you check a species against before you buy it', () => {
+    const neon = FISH_SPECIES_DATA.neon_tetra;
+    const [metric] = fishOptions([], 200, 'metric');
+    const [imperial] = fishOptions([], 200, 'imperial');
+
+    expect(neon.temperatureRange).toEqual([22, 28]);
+    expect(neon.phRange).toEqual([6.0, 7.5]);
+    expect(metric.facts).toBe('22–28°C · pH 6.0–7.5 · hardiness 0.5');
+    // The same band in the reader's own scale — 22–28 °C is 72–82 °F.
+    expect(imperial.facts).toBe('72–82°F · pH 6.0–7.5 · hardiness 0.5');
+  });
+
+  it('quotes each species’ own bands rather than one set for all of them', () => {
+    const facts = Object.fromEntries(
+      fishOptions([], 200, 'metric').map((o) => [o.species, o.facts])
+    );
+    expect(facts.betta).toBe('24–30°C · pH 6.5–7.5 · hardiness 0.6');
+    expect(facts.angelfish).toContain('hardiness 0.4');
+    expect(new Set(Object.values(facts)).size).toBe(5);
+  });
+
   it('measures the ceiling against what is already swimming, fry included', () => {
     // 8 g of the 10 g ceiling is spent, so only the two lightest species still fit.
     const fish = [makeFish({ id: 'c', species: 'corydoras', mass: 8 })];
-    const open = fishOptions(fish, 0.02).filter((o) => !o.disabled);
+    const open = fishOptions(fish, 0.02, 'metric').filter((o) => !o.disabled);
     expect(open.map((o) => o.species)).toEqual(['neon_tetra', 'guppy']);
   });
 });

@@ -1,9 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import type { Clutch, Fish, FishSpecies, SimulationState } from '../../simulation/index.js';
+import type { Clutch, Fish, SimulationState } from '../../simulation/index.js';
 import { createSimulation, FISH_SPECIES_DATA } from '../../simulation/index.js';
 import { livestockDefaults } from '../../simulation/config/livestock.js';
 import {
   bandStatus,
+  fishVitals,
   groupBySpecies,
   groupFryBatches,
   hungerOf,
@@ -35,8 +36,8 @@ function tank(fish: Fish[], clutches: Clutch[] = [], tick = 0): SimulationState 
   return { ...createSimulation({ tankCapacity: 200 }), fish, clutches, tick };
 }
 
-function expanded(...species: FishSpecies[]): Set<FishSpecies> {
-  return new Set(species);
+function expanded(...keys: string[]): Set<string> {
+  return new Set(keys);
 }
 
 // Band floors (config defaults): overfed ≥99, wellFed ≥75, peckish ≥50, hungry ≥25, else starving.
@@ -86,7 +87,7 @@ describe('groupBySpecies', () => {
       makeFish({ id: 'g1', species: 'guppy', satiation: 90 }),
       makeFish({ id: 'f1', species: 'neon_tetra', stage: 'fry', age: 24 }),
     ];
-    const groups = groupBySpecies(fish, livestockDefaults);
+    const groups = groupBySpecies(tank(fish), livestockDefaults);
     expect(groups.map((g) => g.species)).toEqual(['neon_tetra', 'guppy']);
     const neon = groups[0];
     expect(neon.count).toBe(2);
@@ -101,7 +102,7 @@ describe('groupBySpecies', () => {
       makeFish({ id: 'a', satiation: 100 }),
       makeFish({ id: 'b', satiation: 0 }),
     ];
-    const [neon] = groupBySpecies(fish, livestockDefaults);
+    const [neon] = groupBySpecies(tank(fish), livestockDefaults);
 
     expect(neon.satiation).toBe(50);
     expect(bandStatus(neon.band)).toBe('neutral');
@@ -115,7 +116,7 @@ describe('groupBySpecies', () => {
       makeFish({ id: 'b', mass: 0.9, age: 24 * 20, health: 60, satiation: 80 }),
       makeFish({ id: 'c', mass: 1.1, age: 24 * 33, health: 30, satiation: 80 }),
     ];
-    const [neon] = groupBySpecies(fish, livestockDefaults);
+    const [neon] = groupBySpecies(tank(fish), livestockDefaults);
 
     expect(neon.massG).toBeCloseTo(2.4, 10);
     expect(neon.ageDays).toBe(21); // mean age is 21 d, not 10, 33 or 63
@@ -130,7 +131,7 @@ describe('groupFryBatches', () => {
       makeFish({ id: 'f2', species: 'guppy', stage: 'fry', age: 72, mass: 0.09 }),
       makeFish({ id: 'a1', species: 'guppy', stage: 'adult', mass: 1 }),
     ];
-    const batches = groupFryBatches(fish, livestockDefaults);
+    const batches = groupFryBatches(tank(fish), livestockDefaults);
     expect(batches).toHaveLength(1);
     expect(batches[0].species).toBe('guppy');
     expect(batches[0].count).toBe(2);
@@ -146,7 +147,7 @@ describe('groupFryBatches', () => {
       makeFish({ id: 'f1', species: 'guppy', stage: 'fry', satiation: 80, health: 90 }),
       makeFish({ id: 'f2', species: 'guppy', stage: 'fry', satiation: 10, health: 50 }),
     ];
-    const [batch] = groupFryBatches(fish, livestockDefaults);
+    const [batch] = groupFryBatches(tank(fish), livestockDefaults);
 
     expect(batch.satiation).toBe(45);
     expect(batch.condition).toBe(70);
@@ -168,7 +169,7 @@ describe('rosterRows', () => {
   });
 
   it('opens one species without opening the other, and puts its fish beneath it', () => {
-    const rows = rosterRows(tank(roster), livestockDefaults, expanded('neon_tetra'));
+    const rows = rosterRows(tank(roster), livestockDefaults, expanded('species-neon_tetra'));
 
     expect(rows.map((r) => r.kind)).toEqual(['species', 'fish', 'fish', 'species']);
     expect((rows[0] as SpeciesRosterRow).species).toBe('neon_tetra');
@@ -182,7 +183,7 @@ describe('rosterRows', () => {
   });
 
   it('strips the id’s kind prefix, keeping the part that tells two fish apart', () => {
-    const rows = rosterRows(tank(roster), livestockDefaults, expanded('neon_tetra'));
+    const rows = rosterRows(tank(roster), livestockDefaults, expanded('species-neon_tetra'));
     expect((rows[1] as FishRosterRow).shortId).toBe('a_1');
     expect((rows[2] as FishRosterRow).shortId).toBe('a_2');
   });
@@ -228,6 +229,95 @@ describe('rosterRows', () => {
 
   it('has nothing to show for an empty tank', () => {
     expect(rosterRows(tank([]), livestockDefaults, expanded())).toEqual([]);
+  });
+
+  it('opens one fish inside an opened species without opening its shoalmate', () => {
+    const rows = rosterRows(
+      tank(roster),
+      livestockDefaults,
+      expanded('species-neon_tetra', 'fish_a_1')
+    );
+
+    expect((rows[1] as FishRosterRow).expanded).toBe(true);
+    expect((rows[2] as FishRosterRow).expanded).toBe(false);
+  });
+});
+
+describe('fishVitals', () => {
+  /** The tank at a given total ammonia, in ppm of its 200 L. */
+  function poisoned(fish: Fish[], ppm: number): SimulationState {
+    const state = tank(fish);
+    return { ...state, resources: { ...state.resources, ammonia: ppm * state.resources.water } };
+  }
+
+  it('carries the engine’s factors, keeping only the ones actually acting', () => {
+    const state = poisoned([makeFish({ id: 'a' })], 20);
+    const vitals = fishVitals(state.fish[0], state, livestockDefaults);
+
+    expect(vitals.stressors.every((f) => f.amount > 0)).toBe(true);
+    expect(vitals.benefits.every((f) => f.amount > 0)).toBe(true);
+    expect(vitals.stressors.map((f) => f.key)).toContain('ammonia');
+
+    const benefits = vitals.benefits.reduce((sum, f) => sum + f.amount, 0);
+    const stressors = vitals.stressors.reduce((sum, f) => sum + f.amount, 0);
+    expect(vitals.net).toBeCloseTo(benefits - stressors, 6);
+  });
+
+  it('reads a full fish spending down its bank as burning reserves', () => {
+    // The whole point of the reading: health 100 and net < 0 at the same time.
+    const fish = makeFish({ id: 'a', health: 100, surplus: 5 });
+    const state = poisoned([fish], 20);
+    const vitals = fishVitals(state.fish[0], state, livestockDefaults);
+
+    expect(state.fish[0].health).toBe(100);
+    expect(vitals.net).toBeLessThan(0);
+    expect(vitals.burning).toBe(true);
+    expect(vitals.reserve).toBe(5);
+    expect(vitals.reserveCap).toBe(livestockDefaults.surplusCap);
+  });
+
+  it('stops calling it burning once there is nothing left to burn', () => {
+    // Same water, same full health — but an empty bank, so the damage lands on
+    // condition instead and the fish will visibly fall next tick.
+    const state = poisoned([makeFish({ id: 'a', health: 100, surplus: 0 })], 20);
+    const vitals = fishVitals(state.fish[0], state, livestockDefaults);
+
+    expect(vitals.net).toBeLessThan(0);
+    expect(vitals.burning).toBe(false);
+  });
+
+  it('leaves a thriving fish alone, bank or no bank', () => {
+    const state = tank([makeFish({ id: 'a', health: 100, surplus: 5 })]);
+    const vitals = fishVitals(state.fish[0], state, livestockDefaults);
+
+    expect(vitals.net).toBeGreaterThan(0);
+    expect(vitals.burning).toBe(false);
+  });
+
+  it('surfaces one burning fish through the group row that hides it', () => {
+    const state = poisoned(
+      [
+        makeFish({ id: 'fish_a_1', health: 100, surplus: 0 }),
+        makeFish({ id: 'fish_a_2', health: 100, surplus: 5 }),
+      ],
+      20
+    );
+    const rows = rosterRows(state, livestockDefaults, expanded('species-neon_tetra'));
+
+    // Both read 100 %, so the group row would say nothing without the bank.
+    expect((rows[0] as SpeciesRosterRow).condition).toBe(100);
+    expect((rows[0] as SpeciesRosterRow).burning).toBe(true);
+    expect((rows[1] as FishRosterRow).burning).toBe(false);
+    expect((rows[2] as FishRosterRow).burning).toBe(true);
+  });
+
+  it('says nothing about a group with nothing to say', () => {
+    const rows = rosterRows(
+      tank([makeFish({ id: 'a', health: 100, surplus: 5 })]),
+      livestockDefaults,
+      expanded()
+    );
+    expect((rows[0] as SpeciesRosterRow).burning).toBe(false);
   });
 });
 

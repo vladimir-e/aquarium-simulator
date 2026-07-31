@@ -1,8 +1,9 @@
 /**
- * The six vertical gauges on the Water section, and the display scales the
- * index rail's micro-meters share with them. Scales are display ranges, never
- * bands: every band and hairline here is an engine threshold or an engine
- * setpoint, and `classifyVital` alone decides colour.
+ * The six vertical gauges on the Water section, the two dissolved gases read
+ * beside them, and the display scales the index rail's micro-meters share with
+ * the gauges. Scales are display ranges, never bands: every band and hairline
+ * here is an engine threshold or an engine setpoint, and `classifyVital` alone
+ * decides colour.
  */
 
 import {
@@ -43,6 +44,11 @@ export const GAUGE_KEYS: GaugeKey[] = [
   'nitrite',
   'nitrate',
 ];
+
+/** The two dissolved gases, read as a pair beneath the tank-condition gauges. */
+export type GasKey = Extract<VitalKey, 'oxygen' | 'co2'>;
+
+export const GAS_KEYS: GasKey[] = ['oxygen', 'co2'];
 
 /**
  * Track ranges — display scales, never bands. The toxins run well past their
@@ -119,13 +125,15 @@ export interface WaterGauge {
 
 const TRACE_HOURS = 24;
 
-const NAME: Record<GaugeKey, string> = {
+const NAME: Record<VitalKey, string> = {
   temperature: 'Temp',
   ph: 'pH',
   water: 'Level',
   ammonia: 'NH₃',
   nitrite: 'NO₂',
   nitrate: 'NO₃',
+  oxygen: 'O₂',
+  co2: 'CO₂',
 };
 
 const GROUP: Record<GaugeKey, GaugeGroup> = {
@@ -308,8 +316,44 @@ export function waterGauges({
   });
 }
 
+export interface GasReading {
+  key: GasKey;
+  name: string;
+  /** Concentration in mg/L, which is the engine's own unit for both gases. */
+  value: number;
+  text: string;
+  unit: string;
+  status: Status;
+  pill: 'HIGH' | 'LOW' | null;
+}
+
+/**
+ * The dissolved gases, classified against the same engine thresholds the alerts
+ * fire on. They carry no track: neither has a setpoint or a safe band to draw,
+ * and low oxygen is worth reading long before it is worth a seventh gauge.
+ */
+export function gasReadings(state: SimulationState): GasReading[] {
+  const values: Record<GasKey, number> = {
+    oxygen: state.resources.oxygen,
+    co2: state.resources.co2,
+  };
+
+  return GAS_KEYS.map((key) => {
+    const value = values[key];
+    const { status, pill } = classifyVital(key, value);
+    return { key, name: NAME[key], value, text: value.toFixed(1), unit: 'mg/L', status, pill };
+  });
+}
+
 export interface WaterAlert {
   text: string;
+  status: Status;
+}
+
+/** The shape every water reading is judged on, gauge or gas. */
+export interface VitalReading {
+  key: VitalKey;
+  value: number;
   status: Status;
 }
 
@@ -319,11 +363,8 @@ export interface WaterAlert {
  * reading's name, which comes from here rather than from either caller. An
  * uncycled tank outranks a soft warning: quiet now, about to stop being quiet.
  */
-export function waterAlert(
-  readings: Array<Pick<WaterGauge, 'key' | 'value' | 'status'>>,
-  cycled: boolean
-): WaterAlert | null {
-  const named = (r: (typeof readings)[number]): WaterAlert => ({
+export function waterAlert(readings: VitalReading[], cycled: boolean): WaterAlert | null {
+  const named = (r: VitalReading): WaterAlert => ({
     text: `${NAME[r.key]} ${(classifyVital(r.key, r.value).pill ?? '').toLowerCase()}`.trim(),
     status: r.status,
   });

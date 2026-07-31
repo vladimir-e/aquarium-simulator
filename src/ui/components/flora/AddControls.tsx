@@ -17,6 +17,7 @@ export function AddPlant({ sim, opens }: { sim: Sim; opens: 'up' | 'down' }): Re
     key: option.species,
     label: option.name,
     hint: option.hint,
+    facts: option.facts,
     disabled: !option.compatible,
     onSelect: () => sim.executeAction({ type: 'addPlant', species: option.species }),
   }));

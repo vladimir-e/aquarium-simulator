@@ -23,6 +23,7 @@ import {
   CYCLED_PCT,
   classifyVital,
   GAUGE_KEYS,
+  gasReadings,
   gaugeFill,
   gaugeValues,
   hungerOf,
@@ -162,7 +163,7 @@ export function navFigures(input: NavFigureInput): Record<SectionId, NavFigure> 
   const meters = waterMeters(state, units);
   const cycled = biofilterColonisation(state.resources, config.nitrogenCycle) >= CYCLED_PCT;
   return {
-    water: { pill: waterAlert(meters, cycled), lines: [], meters },
+    water: { pill: waterAlert([...meters, ...gasReadings(state)], cycled), lines: [], meters },
     equipment: equipmentFigure(state, config),
     flora: floraFigure(state, config),
     livestock: livestockFigure(state, config),

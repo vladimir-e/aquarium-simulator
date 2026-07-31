@@ -1,5 +1,5 @@
 import React from 'react';
-import type { Status, WaterGauge } from '../../run';
+import type { GasReading, Status, WaterGauge } from '../../run';
 import { Pill, Sparkline, statusText } from './elements';
 
 const FILL: Record<Status, string> = {
@@ -102,13 +102,42 @@ export function Gauge({ gauge }: { gauge: WaterGauge }): React.JSX.Element {
   );
 }
 
+/**
+ * The two dissolved gases as one line: no track, because neither has a band or a
+ * setpoint to draw — but low oxygen kills fish, so it is read at a glance.
+ */
+export function DissolvedGases({ readings }: { readings: GasReading[] }): React.JSX.Element {
+  return (
+    <div className="mt-auto flex items-center justify-around gap-2 border-t border-hairline pt-2">
+      {readings.map((gas) => (
+        <span key={gas.key} className="flex items-baseline gap-1.5">
+          <span className="text-[11px] font-bold uppercase tracking-[0.06em] text-ink-2">
+            {gas.name}
+          </span>
+          <span
+            className={`font-mono text-[15px] font-semibold tabular-nums ${tone(gas.status, 'text-ink')}`}
+          >
+            {gas.text}
+          </span>
+          <span className="text-[10px] text-ink-3">{gas.unit}</span>
+          {gas.pill === 'HIGH' && <Pill variant="alert">HIGH</Pill>}
+          {gas.pill === 'LOW' && <Pill variant="warn">LOW</Pill>}
+        </span>
+      ))}
+    </div>
+  );
+}
+
 /** Three gauges under one heading — Water, or the nitrogen cycle. */
 export function GaugeGroup({
   title,
   gauges,
+  footer,
 }: {
   title: string;
   gauges: WaterGauge[];
+  /** A readout that belongs with these gauges but carries no track of its own. */
+  footer?: React.ReactNode;
 }): React.JSX.Element {
   return (
     <section className="flex flex-1 flex-col rounded-card border border-hairline bg-surface-2 px-2 py-2.5">
@@ -120,6 +149,7 @@ export function GaugeGroup({
           <Gauge key={gauge.key} gauge={gauge} />
         ))}
       </div>
+      {footer}
     </section>
   );
 }

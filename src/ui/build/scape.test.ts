@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { PLANT_SPECIES_DATA } from '../../simulation/index.js';
 import {
   hardscapeRows,
   hardscapeSummary,
@@ -41,6 +42,22 @@ describe('plantOptions', () => {
     expect(byId.java_fern).toBe('low demand');
     expect(byId.amazon_sword).toBe('needs sand or aqua soil');
     expect(byId.monte_carlo).toBe('needs aqua soil');
+  });
+
+  it('states what a species asks of the light and the injector', () => {
+    const byId = Object.fromEntries(plantOptions('aqua_soil').map((o) => [o.species, o.facts]));
+    expect(PLANT_SPECIES_DATA.java_fern.lightRequirement).toBe('low');
+    expect(PLANT_SPECIES_DATA.monte_carlo.co2Requirement).toBe('high');
+
+    expect(byId.java_fern).toBe('low light · low CO₂');
+    expect(byId.amazon_sword).toBe('medium light · medium CO₂');
+    expect(byId.monte_carlo).toBe('high light · high CO₂');
+  });
+
+  it('keeps the facts on a species the substrate rejects — they are why you would switch', () => {
+    const byId = Object.fromEntries(plantOptions('gravel').map((o) => [o.species, o]));
+    expect(byId.monte_carlo.compatible).toBe(false);
+    expect(byId.monte_carlo.facts).toBe('high light · high CO₂');
   });
 });
 

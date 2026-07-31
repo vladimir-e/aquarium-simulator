@@ -1,5 +1,4 @@
 import React, { useMemo, useState } from 'react';
-import type { FishSpecies } from '../../simulation/index.js';
 import type { TunableConfig } from '../../simulation/config/index.js';
 import type { useSimulation } from '../hooks/useSimulation';
 import { useIsMobile } from '../hooks/useMediaQuery';
@@ -26,7 +25,7 @@ export function LivestockSection({
 }): React.JSX.Element {
   const isMobile = useIsMobile();
   const { unitSystem } = useUnits();
-  const [expanded, setExpanded] = useState<ReadonlySet<FishSpecies>>(new Set());
+  const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set());
 
   const { state } = sim;
   const rows = useMemo(
@@ -36,10 +35,10 @@ export function LivestockSection({
   const load = useMemo(() => bioload(state.fish, state.tank.capacity), [state]);
   const fryCount = countFry(state.fish);
 
-  const toggleSpecies = (species: FishSpecies): void =>
+  const toggle = (key: string): void =>
     setExpanded((current) => {
       const next = new Set(current);
-      if (!next.delete(species)) next.add(species);
+      if (!next.delete(key)) next.add(key);
       return next;
     });
 
@@ -57,7 +56,7 @@ export function LivestockSection({
           ) : (
             <RosterTable
               rows={rows}
-              onToggleSpecies={toggleSpecies}
+              onToggle={toggle}
               onRemoveFish={(fishId) => sim.executeAction({ type: 'removeFish', fishId })}
             />
           )}

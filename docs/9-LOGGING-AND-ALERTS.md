@@ -24,7 +24,7 @@ Each log entry contains:
 - **source** - system emitting the event e.g. equipment, livestock, plants, action
 - **severity** - `info` or `warning` (warnings drive alert counts and UI emphasis)
 - **message** - Human-readable description
-- **event** _(optional)_ - Machine-readable discriminator for lifecycle moments consumers react to (`fish-died`, `fish-spawned`, `eggs-laid`, `eggs-hatched`, `fry-sold`)
+- **event** _(optional)_ - Machine-readable discriminator for lifecycle moments consumers react to (`fish-died`, `plant-died`, `fish-spawned`, `eggs-laid`, `eggs-hatched`, `fry-sold`)
 - **count** _(optional)_ - Organisms the event accounts for when it isn't one-per-entry (fry born, eggs hatched, fry sold), so consumers get the magnitude, not just the kind
 
 ### Usage

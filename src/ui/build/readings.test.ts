@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { createSimulation, tick, type SimulationState } from '../../simulation/index.js';
+import {
+  createSimulation,
+  isAirPumpUndersized,
+  tick,
+  type SimulationState,
+} from '../../simulation/index.js';
 import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
 import { bacteriaReadout } from '../run/index.js';
 import type { UnitSystem } from '../utils/units.js';
@@ -224,6 +229,27 @@ describe('air pump readings', () => {
       tank: { ...base.tank, capacity: 1000 },
     };
     expect(value(read('airPump', huge), 'Air output').value).toBe('400 L/h');
+  });
+
+  it('warns once the tank outgrows what one air stone can aerate', () => {
+    // AIR_PUMP_SPEC.maxCapacityLiters is 400 L, so 401 L is past the engine's own line.
+    const over = (capacity: number): SimulationState => ({
+      ...enabled('airPump'),
+      tank: { ...base.tank, capacity },
+    });
+
+    expect(isAirPumpUndersized(401)).toBe(true);
+    expect(deviceHint('airPump', over(401), DEFAULT_CONFIG)).toEqual({
+      text: 'Past what one air stone can aerate — this tank needs more.',
+      tone: 'warn',
+    });
+
+    // A tank inside the pump's range says nothing extra…
+    expect(isAirPumpUndersized(400)).toBe(false);
+    expect(deviceHint('airPump', over(400), DEFAULT_CONFIG)?.tone).toBe('muted');
+    // …and neither does an oversized tank whose pump is switched off.
+    const off: SimulationState = { ...base, tank: { ...base.tank, capacity: 401 } };
+    expect(deviceHint('airPump', off, DEFAULT_CONFIG)?.tone).toBe('muted');
   });
 });
 

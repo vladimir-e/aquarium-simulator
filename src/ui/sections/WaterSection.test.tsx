@@ -116,6 +116,52 @@ describe('WaterSection', () => {
     expect(screen.getByText('uncycled')).toBeTruthy();
   });
 
+  it('reads both dissolved gases without leaving the section', () => {
+    const state = tank();
+    state.resources.oxygen = 7.2;
+    state.resources.co2 = 12.4;
+    renderWater(day0(state));
+
+    // The pair sits with the tank-condition gauges, not the nitrogen cycle.
+    const water = screen.getByRole('heading', { level: 2, name: 'Water' }).parentElement!;
+    expect(within(water).getByText('O₂')).toBeTruthy();
+    expect(within(water).getByText('7.2')).toBeTruthy();
+    expect(within(water).getByText('CO₂')).toBeTruthy();
+    expect(within(water).getByText('12.4')).toBeTruthy();
+    expect(within(water).getAllByText('mg/L')).toHaveLength(2);
+  });
+
+  it('marks oxygen low right where the reading is', () => {
+    const state = tank();
+    state.resources.oxygen = 3;
+    renderWater(day0(state));
+
+    const water = screen.getByRole('heading', { level: 2, name: 'Water' }).parentElement!;
+    expect(within(water).getByText('LOW')).toBeTruthy();
+  });
+
+  it('carries a gas past its threshold up to the section header', () => {
+    // CO₂ over 30 mg/L is an alert, so it outranks the day-0 “uncycled” note.
+    const state = tank();
+    state.resources.co2 = 45;
+    renderWater(day0(state));
+
+    const header = screen.getByRole('heading', { level: 1, name: 'Water' }).parentElement!;
+    expect(within(header).getByText('CO₂ high')).toBeTruthy();
+  });
+
+  it('says nothing about gases the fish are comfortable in', () => {
+    const state = tank();
+    state.resources.oxygen = 7;
+    state.resources.co2 = 12;
+    renderWater(day0(state));
+
+    const water = screen.getByRole('heading', { level: 2, name: 'Water' }).parentElement!;
+    expect(within(water).queryByText('LOW')).toBeNull();
+    expect(within(water).queryByText('HIGH')).toBeNull();
+    expect(screen.getByText('uncycled')).toBeTruthy();
+  });
+
   it('captions each toxin with which way it is moving, once a run has history', () => {
     const moving = / · (steady|[+−][\d.]+\/h)$/;
 

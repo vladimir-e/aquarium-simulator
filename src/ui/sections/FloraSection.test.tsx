@@ -15,7 +15,7 @@ import {
 } from '../../simulation/index.js';
 import { calculatePassiveResources } from '../../simulation/equipment/index.js';
 import { navFigures } from '../nav/figures';
-import { ailingPlants, emptyAggregates, plantRows } from '../run';
+import { ailingPlants, emptyAggregates, plantRows, TRIM_TARGETS } from '../run';
 import type { useSimulation } from '../hooks/useSimulation';
 
 afterEach(cleanup);
@@ -162,6 +162,48 @@ describe('FloraSection', () => {
     expect(rail(healthy).flora.lines[1]).toBe('Aqua Soil');
   });
 
+  /**
+   * Trimming is a verb in the Actions sheet, so the section has to be where the
+   * reason for it shows up — and the rail has to agree, or reading the rail
+   * stops replacing a visit.
+   */
+  it('flags the plants above every trim rung, on the row and in both summaries', () => {
+    const ceiling = Math.max(...TRIM_TARGETS);
+    const big = applyAction(tank(), {
+      type: 'addPlant',
+      species: 'monte_carlo',
+      initialSize: ceiling + 5,
+    }).state;
+    const state = applyAction(big, {
+      type: 'addPlant',
+      species: 'java_fern',
+      initialSize: 60,
+    }).state;
+
+    renderFlora(state);
+    const row = screen.getByText('Monte Carlo').closest('button')!;
+    expect(within(row).getByText('trim')).toBeTruthy();
+
+    const calm = screen.getByText('Java Fern').closest('button')!;
+    expect(within(calm).queryByText('trim')).toBeNull();
+
+    expect(screen.getByText('2 of 31 slots · 1 to trim')).toBeTruthy();
+    expect(rail(state).flora.lines[0]).toContain('1 to trim');
+  });
+
+  it('says nothing about trimming a tank with nothing to trim', () => {
+    const state = applyAction(tank(), {
+      type: 'addPlant',
+      species: 'monte_carlo',
+      initialSize: Math.max(...TRIM_TARGETS),
+    }).state;
+
+    renderFlora(state);
+    expect(screen.getByText('1 of 31 slots')).toBeTruthy();
+    expect(screen.queryByText('trim')).toBeNull();
+    expect(rail(state).flora.lines[0]).not.toContain('to trim');
+  });
+
   it('reads the scape out with each piece’s surface, and the biofilter ceiling it sums to', () => {
     const scaped = tank();
     scaped.equipment.hardscape.items = [{ id: 'h1', type: 'driftwood' }];
@@ -209,9 +251,12 @@ describe('FloraSection', () => {
     const carpet = screen.getByRole('menuitem', { name: /Monte Carlo/ }) as HTMLButtonElement;
     expect(carpet.disabled).toBe(true);
     expect(within(carpet).getByText('needs aqua soil')).toBeTruthy();
-    expect((screen.getByRole('menuitem', { name: /Java Fern/ }) as HTMLButtonElement).disabled).toBe(
-      false
-    );
+    // Light and CO₂ are the two devices you would set for it — stated either way.
+    expect(within(carpet).getByText('high light · high CO₂')).toBeTruthy();
+
+    const fern = screen.getByRole('menuitem', { name: /Java Fern/ }) as HTMLButtonElement;
+    expect(fern.disabled).toBe(false);
+    expect(within(fern).getByText('low light · low CO₂')).toBeTruthy();
   });
 
   it('invites the first plant instead of pointing somewhere else', () => {

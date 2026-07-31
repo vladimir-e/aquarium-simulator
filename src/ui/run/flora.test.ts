@@ -20,6 +20,7 @@ import {
   formatDose,
   nutrientAlert,
   nutrientReadings,
+  overTrimCount,
   plantRows,
   plantsAndAlgae,
   tankDemand,
@@ -314,6 +315,37 @@ describe('trim targets', () => {
   });
 });
 
+describe('overTrimCount', () => {
+  /** One plant of the given size, and nothing else growing. */
+  function sized(size: number): SimulationState {
+    return applyAction(tank(), {
+      type: 'addPlant',
+      species: 'monte_carlo',
+      initialSize: size,
+    }).state;
+  }
+
+  it('counts the plants every rung of the trim ladder would cut', () => {
+    const ceiling = Math.max(...TRIM_TARGETS);
+
+    // One point above the loosest rung is over; the rung itself is not.
+    expect(overTrimCount(sized(ceiling + 1))).toBe(1);
+    expect(overTrimCount(sized(ceiling))).toBe(0);
+    // A plant the tighter rungs would still cut is not yet "too big".
+    expect(overTrimCount(sized(80))).toBe(0);
+    expect(getPlantsToTrimCount(sized(80), 75)).toBe(1);
+  });
+
+  it('flags the same plants on the row as it counts in the summary', () => {
+    const big = sized(Math.max(...TRIM_TARGETS) + 1);
+    expect(plantRows(big, DEFAULT_CONFIG).map((r) => r.overTrim)).toEqual([true]);
+
+    const small = sized(60);
+    expect(plantRows(small, DEFAULT_CONFIG).map((r) => r.overTrim)).toEqual([false]);
+    expect(overTrimCount(small)).toBe(0);
+  });
+});
+
 describe('plantsAndAlgae', () => {
   it('counts plants against the tank’s capacity and reads the algae', () => {
     expect(plantsAndAlgae(tank(40))).toBe('0 of 6 plants · no algae');
@@ -322,5 +354,21 @@ describe('plantsAndAlgae', () => {
     expect(plantsAndAlgae({ ...state, algae: { ...state.algae, mass: 47 } })).toBe(
       '1 of 6 plants · algae 47 %'
     );
+  });
+
+  it('names the reason to trim once there is one', () => {
+    const grown = applyAction(tank(40), {
+      type: 'addPlant',
+      species: 'monte_carlo',
+      initialSize: 95,
+    }).state;
+
+    expect(plantsAndAlgae(grown)).toBe('1 of 6 plants · no algae · 1 to trim');
+    // Trimming to the loosest rung retires the clause it motivated.
+    const trimmed = applyAction(grown, {
+      type: 'trimPlants',
+      targetSize: Math.max(...TRIM_TARGETS),
+    }).state;
+    expect(plantsAndAlgae(trimmed)).toBe('1 of 6 plants · no algae');
   });
 });

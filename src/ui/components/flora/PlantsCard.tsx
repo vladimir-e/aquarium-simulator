@@ -1,62 +1,9 @@
 import React, { useState } from 'react';
 import { X } from 'lucide-react';
-import type { VitalityFactor } from '../../../simulation/index.js';
 import { ailingPlants, type AlgaeRow, type PlantRow, type Status } from '../../run';
+import { Breakdown, RATE_EPSILON, rateText, rateTone } from '../run/Breakdown';
 import { Card, CardBody, CardHeader } from '../run/Card';
 import { Bar, Caret, statusText } from '../run/elements';
-
-/** Below this the hourly change rounds to nothing worth printing. */
-const RATE_EPSILON = 0.05;
-
-// For algae the sentiment inverts — a stressor is good news — but the signs stay
-// as the engine sums them, so the rows still add up to net.
-function tones(invert: boolean): { down: string; up: string } {
-  return invert ? { down: 'text-ok', up: 'text-alert' } : { down: 'text-alert', up: 'text-ok' };
-}
-
-function rateTone(rate: number, invert: boolean): string {
-  const { down, up } = tones(invert);
-  return rate < 0 ? down : up;
-}
-
-function rateText(rate: number, digits = 2): string {
-  return `${rate < 0 ? '−' : '+'}${Math.abs(rate).toFixed(digits)} %/h`;
-}
-
-function Breakdown({
-  stressors,
-  benefits,
-  net,
-  invert = false,
-}: {
-  stressors: VitalityFactor[];
-  benefits: VitalityFactor[];
-  net: number;
-  invert?: boolean;
-}): React.JSX.Element {
-  const { down, up } = tones(invert);
-
-  return (
-    <div className="pb-2 pl-6 pr-1 text-[12px]">
-      {stressors.map((factor) => (
-        <div key={`s-${factor.key}`} className={`flex min-h-[26px] items-center ${down}`}>
-          <span>{factor.label}</span>
-          <span className="ml-auto font-mono tabular-nums">−{factor.amount.toFixed(2)} %/h</span>
-        </div>
-      ))}
-      {benefits.map((factor) => (
-        <div key={`b-${factor.key}`} className={`flex min-h-[26px] items-center ${up}`}>
-          <span>{factor.label}</span>
-          <span className="ml-auto font-mono tabular-nums">+{factor.amount.toFixed(2)} %/h</span>
-        </div>
-      ))}
-      <div className={`flex min-h-[26px] items-center font-medium ${rateTone(net, invert)}`}>
-        <span>net</span>
-        <span className="ml-auto font-mono tabular-nums">{rateText(net)}</span>
-      </div>
-    </div>
-  );
-}
 
 function VitalRow({
   name,
@@ -71,7 +18,7 @@ function VitalRow({
   children,
 }: {
   name: string;
-  figure: string;
+  figure: React.ReactNode;
   rate: number;
   invert?: boolean;
   word: string;
@@ -114,6 +61,7 @@ export function PlantsCard({
   rows,
   algae,
   maxPlants,
+  overTrim,
   onRemove,
   footer,
   className = '',
@@ -121,6 +69,8 @@ export function PlantsCard({
   rows: PlantRow[];
   algae: AlgaeRow;
   maxPlants: number;
+  /** Plants every rung of the trim ladder would cut. */
+  overTrim: number;
   onRemove: (plantId: string) => void;
   /** The add-plant control, when it belongs in the list rather than the header. */
   footer?: React.ReactNode;
@@ -136,14 +86,13 @@ export function PlantsCard({
     });
 
   const ailing = ailingPlants(rows).length;
-  const slots = `${rows.length} of ${maxPlants} slots`;
+  const clauses = [`${rows.length} of ${maxPlants} slots`];
+  if (ailing > 0) clauses.push(`${ailing} ailing`);
+  if (overTrim > 0) clauses.push(`${overTrim} to trim`);
 
   return (
     <Card className={`min-h-0 ${className}`}>
-      <CardHeader
-        title="Plants"
-        meta={<span>{ailing > 0 ? `${slots} · ${ailing} ailing` : slots}</span>}
-      />
+      <CardHeader title="Plants" meta={<span>{clauses.join(' · ')}</span>} />
       <CardBody className="min-h-0 lg:overflow-y-auto">
         <div className="divide-y divide-hairline">
           {rows.length === 0 && (
@@ -153,7 +102,12 @@ export function PlantsCard({
             <VitalRow
               key={row.id}
               name={row.name}
-              figure={`${row.size.toFixed(0)} %`}
+              figure={
+                <>
+                  {row.size.toFixed(0)} %
+                  {row.overTrim && <span className="ml-1.5 text-accent">trim</span>}
+                </>
+              }
               rate={row.net}
               word={row.word}
               status={row.status}

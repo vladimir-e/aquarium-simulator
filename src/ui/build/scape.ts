@@ -91,6 +91,8 @@ export interface PlantOption {
   compatible: boolean;
   /** Demand tier when it can go in; the substrates that would take it when it cannot. */
   hint: string;
+  /** What the species wants from the two devices you would set for it. */
+  facts: string;
 }
 
 /** Every plant species with its compatibility against the current substrate. */
@@ -106,6 +108,7 @@ export function plantOptions(substrate: SubstrateType): PlantOption[] {
       name: data.name,
       compatible,
       hint: compatible ? `${data.nutrientDemand} demand` : `needs ${takes.join(' or ')}`,
+      facts: `${data.lightRequirement} light · ${data.co2Requirement} CO₂`,
     };
   });
 }

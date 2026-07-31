@@ -14,6 +14,7 @@ import {
   doseToCover,
   nutrientAlert,
   nutrientReadings,
+  overTrimCount,
   plantRows,
   tankDemand,
 } from '../run';
@@ -56,6 +57,7 @@ export function FloraSection({
           rows={rows}
           algae={algae}
           maxPlants={getMaxPlants(state.tank.capacity)}
+          overTrim={overTrimCount(state)}
           onRemove={(plantId) => sim.executeAction({ type: 'removePlant', plantId })}
           footer={isMobile && <AddPlant sim={sim} opens="up" />}
         />

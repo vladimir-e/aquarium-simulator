@@ -45,6 +45,20 @@ import { conditionStatus, conditionWord, type Status } from './status.js';
  */
 export const TRIM_TARGETS = [50, 75, 85];
 
+/**
+ * The loosest cut on that ladder, and so the line a plant is "too big" against:
+ * above it, every rung the trim verb offers would take something off. It is the
+ * only size line this engine can honestly draw — growth self-limits against a
+ * species `maxSize` an ordinary run never approaches (600–1100 % against a
+ * calibrated peak near 100 %), and no system penalises size directly.
+ */
+const TRIM_CEILING = Math.max(...TRIM_TARGETS);
+
+/** Plants every rung of the trim ladder would cut — the reason to reach for it. */
+export function overTrimCount(state: SimulationState): number {
+  return getPlantsToTrimCount(state, TRIM_CEILING);
+}
+
 // Low algae mass is good for the player, so the colours run green → coral as it climbs.
 export function algaeStatus(mass: number): Status {
   return mass < 30 ? 'ok' : mass < 60 ? 'warn' : 'alert';
@@ -63,6 +77,8 @@ export interface PlantRow {
   name: string;
   /** % of normal full size — plants grow past 100 % toward their species ceiling. */
   size: number;
+  /** Above every rung of the trim ladder. */
+  overTrim: boolean;
   condition: number;
   status: Status;
   word: string;
@@ -98,6 +114,7 @@ export function plantRows(state: SimulationState, config: TunableConfig): PlantR
       id: plant.id,
       name: PLANT_SPECIES_DATA[plant.species].name,
       size: plant.size,
+      overTrim: plant.size > TRIM_CEILING,
       condition: plant.condition,
       status: conditionStatus(plant.condition),
       word: conditionWord(plant.condition),
@@ -363,5 +380,8 @@ export function trimTargets(state: SimulationState): TrimTarget[] {
 export function plantsAndAlgae(state: SimulationState): string {
   const algaePct = Math.round(state.algae.mass);
   const algae = algaePct < 1 ? 'no algae' : `algae ${algaePct} %`;
-  return `${state.plants.length} of ${getMaxPlants(state.tank.capacity)} plants · ${algae}`;
+  const overTrim = overTrimCount(state);
+  const clauses = [`${state.plants.length} of ${getMaxPlants(state.tank.capacity)} plants`, algae];
+  if (overTrim > 0) clauses.push(`${overTrim} to trim`);
+  return clauses.join(' · ');
 }

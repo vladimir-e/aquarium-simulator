@@ -10,6 +10,7 @@ import {
   getFilterFlow,
   getAirPumpFlow,
   getAirPumpOutput,
+  isAirPumpUndersized,
   isScheduleActive,
   FILTER_SPECS,
   FILTER_SURFACE,
@@ -308,7 +309,9 @@ export function deviceHint(
     case 'light':
       return muted('Photoperiod drives plant growth, and the algae with it.');
     case 'airPump':
-      return muted('Adds oxygen and off-gasses CO₂ through surface agitation.');
+      return equipment.airPump.enabled && isAirPumpUndersized(tank.capacity)
+        ? { text: 'Past what one air stone can aerate — this tank needs more.', tone: 'warn' }
+        : muted('Adds oxygen and off-gasses CO₂ through surface agitation.');
     case 'ato':
       return muted('Tops off with tap water, blending the tank toward tap pH and temperature.');
     case 'co2Generator':

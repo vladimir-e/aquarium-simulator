@@ -3,12 +3,13 @@ import type { TunableConfig } from '../../simulation/config/index.js';
 import type { useSimulation } from '../hooks/useSimulation';
 import { useUnits } from '../hooks/useUnits';
 import { Stage } from '../components/layout/Stage';
-import { GaugeGroup } from '../components/run/Gauge';
+import { DissolvedGases, GaugeGroup } from '../components/run/Gauge';
 import { BacteriaCard } from '../components/run/BacteriaCard';
 import { WasteCard } from '../components/run/WasteCard';
 import { Pill, type PillVariant } from '../components/run/elements';
 import {
   bacteriaReadout,
+  gasReadings,
   projectNitritePeak,
   waterAlert,
   waterGauges,
@@ -37,23 +38,28 @@ export function WaterSection({
     () => waterGauges({ state, phConfig: config.ph, history, units: unitSystem }),
     [state, config.ph, history, unitSystem]
   );
+  const gases = useMemo(() => gasReadings(state), [state]);
   const bacteria = useMemo(() => bacteriaReadout(state, config), [state, config]);
   const projection = useMemo(() => projectNitritePeak(state, config), [state, config]);
   const waste = useMemo(() => wasteReadout(state, config), [state, config]);
 
-  const alert = waterAlert(gauges, bacteria.cycled);
+  const alert = waterAlert([...gauges, ...gases], bacteria.cycled);
 
   return (
     <Stage
       title="Water"
-      meta="six gauges · bacteria · waste"
+      meta="six gauges · gases · bacteria · waste"
       actions={
         alert && <Pill variant={PILL_VARIANT[alert.status]}>{alert.text}</Pill>
       }
     >
       <div className="flex min-h-full flex-col gap-3">
         <div className="grid shrink-0 grid-cols-1 gap-3 md:grid-cols-2">
-          <GaugeGroup title="Water" gauges={gauges.filter((g) => g.group === 'water')} />
+          <GaugeGroup
+            title="Water"
+            gauges={gauges.filter((g) => g.group === 'water')}
+            footer={<DissolvedGases readings={gases} />}
+          />
           <GaugeGroup title="Nitrogen cycle" gauges={gauges.filter((g) => g.group === 'nitrogen')} />
         </div>
         {/* Measured off the wireframe, like the 240 px gauge track above: the

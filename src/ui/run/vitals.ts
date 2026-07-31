@@ -1,7 +1,7 @@
 /**
- * Vitals-tile classification. Each of the eight tiles maps its live value to a
- * status (which drives the tile's border, number, sparkline colour, and pill)
- * using the engine's own alert thresholds — the strip never invents new bands.
+ * Water-reading classification. Each of the eight readings maps its live value
+ * to a status — which drives the gauge's outline, number, sparkline colour and
+ * pill — using the engine's own alert thresholds, so no surface invents a band.
  */
 
 import {

@@ -63,6 +63,19 @@ export function formatVolume(liters: number, system: UnitSystem, precision = 1):
 }
 
 /**
+ * Format a temperature tolerance band for display — one unit label for the pair.
+ */
+export function formatTemperatureRange(
+  [low, high]: [number, number],
+  system: UnitSystem,
+  precision = 0
+): string {
+  const lo = toDisplayTemperature(low, system).toFixed(precision);
+  const hi = toDisplayTemperature(high, system).toFixed(precision);
+  return `${lo}–${hi}${getTemperatureUnit(system)}`;
+}
+
+/**
  * Get temperature unit label based on unit system.
  */
 export function getTemperatureUnit(system: UnitSystem): string {

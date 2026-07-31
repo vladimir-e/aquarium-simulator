@@ -1,18 +1,21 @@
 /**
  * Livestock grouping: fold the flat fish array into species rows and fry
- * batches, map satiation bands onto the shared status vocabulary, and lay the
- * roster out as the flat row list the table renders.
+ * batches, map satiation bands onto the shared status vocabulary, resolve what
+ * each fish's vitality is doing to it, and lay the roster out as the flat row
+ * list the table renders.
  */
 
 import {
   FISH_SPECIES_DATA,
   classifySatiationBandPosition,
+  computeFishVitality,
   type Clutch,
   type Fish,
   type FishSex,
   type FishSpecies,
   type SatiationBand,
   type SimulationState,
+  type VitalityFactor,
 } from '../../simulation/index.js';
 import type { LivestockConfig } from '../../simulation/config/livestock.js';
 import type { Status } from './status.js';
@@ -65,6 +68,54 @@ export function countFry(fish: Fish[]): number {
   return fish.reduce((n, f) => n + (f.stage === 'fry' ? 1 : 0), 0);
 }
 
+/**
+ * What vitality is doing to one fish this hour: the factors behind its net rate,
+ * and the reserve bank standing between that rate and its condition.
+ */
+export interface FishVitals {
+  /** Condition change per hour — what the breakdown sums to. */
+  net: number;
+  stressors: VitalityFactor[];
+  benefits: VitalityFactor[];
+  /** Banked reserve: condition points the bank absorbs before condition falls. */
+  reserve: number;
+  reserveCap: number;
+  /**
+   * Condition reads full while the bank drains to hold it there. Without this
+   * a fish thriving at 100 and a fish spending down its buffer at 100 are the
+   * same reading.
+   */
+  burning: boolean;
+}
+
+function acting(factors: VitalityFactor[]): VitalityFactor[] {
+  return factors.filter((f) => f.amount > 0);
+}
+
+export function fishVitals(
+  fish: Fish,
+  state: SimulationState,
+  config: LivestockConfig
+): FishVitals {
+  const { breakdown } = computeFishVitality(
+    fish,
+    state.resources,
+    state.plants,
+    state.resources.water,
+    state.tank.capacity,
+    config
+  );
+
+  return {
+    net: breakdown.net,
+    stressors: acting(breakdown.stressors),
+    benefits: acting(breakdown.benefits),
+    reserve: fish.surplus,
+    reserveCap: config.surplusCap,
+    burning: fish.health >= 100 && breakdown.net < 0 && breakdown.drained > 0,
+  };
+}
+
 function groupBySpeciesKey(fish: Fish[]): Map<FishSpecies, Fish[]> {
   const groups = new Map<FishSpecies, Fish[]>();
   for (const f of fish) {
@@ -100,6 +151,8 @@ interface RosterGroup extends RosterFigures {
   name: string;
   count: number;
   hunger: Hunger | null;
+  /** Any member holding condition by draining its reserve. */
+  burning: boolean;
 }
 
 export interface SpeciesGroup extends RosterGroup {
@@ -121,7 +174,12 @@ function fishFigures(f: Fish, config: LivestockConfig): RosterFigures {
   };
 }
 
-function groupFigures(species: FishSpecies, group: Fish[], config: LivestockConfig): RosterGroup {
+function groupFigures(
+  species: FishSpecies,
+  group: Fish[],
+  state: SimulationState,
+  config: LivestockConfig
+): RosterGroup {
   const satiation = mean(group.map((f) => f.satiation));
   return {
     species,
@@ -133,22 +191,23 @@ function groupFigures(species: FishSpecies, group: Fish[], config: LivestockConf
     band: bandOf(satiation, config),
     condition: mean(group.map((f) => f.health)),
     hunger: hungerOf(group, config),
+    burning: group.some((f) => fishVitals(f, state, config).burning),
   };
 }
 
 /** Adult fish folded into per-species rows, in first-seen order. */
-export function groupBySpecies(fish: Fish[], config: LivestockConfig): SpeciesGroup[] {
-  const adults = fish.filter((f) => f.stage === 'adult');
+export function groupBySpecies(state: SimulationState, config: LivestockConfig): SpeciesGroup[] {
+  const adults = state.fish.filter((f) => f.stage === 'adult');
   return [...groupBySpeciesKey(adults)].map(([species, group]) => ({
-    ...groupFigures(species, group, config),
+    ...groupFigures(species, group, state, config),
     fish: group,
   }));
 }
 
-export function groupFryBatches(fish: Fish[], config: LivestockConfig): FryBatch[] {
-  const fry = fish.filter((f) => f.stage === 'fry');
+export function groupFryBatches(state: SimulationState, config: LivestockConfig): FryBatch[] {
+  const fry = state.fish.filter((f) => f.stage === 'fry');
   return [...groupBySpeciesKey(fry)].map(([species, group]) => ({
-    ...groupFigures(species, group, config),
+    ...groupFigures(species, group, state, config),
     graduationDay: Math.max(1, Math.floor(FISH_SPECIES_DATA[species].breeding.maturityAge / 24)),
   }));
 }
@@ -167,12 +226,14 @@ export interface SpeciesRosterRow extends RosterRowBase, Omit<SpeciesGroup, 'fis
   expanded: boolean;
 }
 
-export interface FishRosterRow extends RosterRowBase, RosterFigures {
+export interface FishRosterRow extends RosterRowBase, RosterFigures, FishVitals {
   kind: 'fish';
   id: string;
   shortId: string;
   name: string;
   sex: FishSex;
+  /** Open on its own conditions breakdown. */
+  expanded: boolean;
 }
 
 export interface ClutchRosterRow extends RosterRowBase {
@@ -194,19 +255,21 @@ export type RosterRow = SpeciesRosterRow | FishRosterRow | ClutchRosterRow | Fry
 /**
  * The roster in render order: each species row, its individuals directly
  * beneath it when expanded, then the clutches waiting to hatch and the fry
- * batches growing out.
+ * batches growing out. Rows disclose by their own key, so one set opens both a
+ * species and any individual inside it.
  */
 export function rosterRows(
   state: SimulationState,
   config: LivestockConfig,
-  expanded: ReadonlySet<FishSpecies>
+  expanded: ReadonlySet<string>
 ): RosterRow[] {
   const rows: RosterRow[] = [];
 
-  for (const group of groupBySpecies(state.fish, config)) {
-    const open = expanded.has(group.species);
+  for (const group of groupBySpecies(state, config)) {
+    const key = `species-${group.species}`;
+    const open = expanded.has(key);
     const { fish, ...figures } = group;
-    rows.push({ kind: 'species', key: `species-${group.species}`, expanded: open, ...figures });
+    rows.push({ kind: 'species', key, expanded: open, ...figures });
     if (!open) continue;
     for (const f of fish) {
       rows.push({
@@ -216,7 +279,9 @@ export function rosterRows(
         shortId: shortId(f.id),
         name: group.name,
         sex: f.sex,
+        expanded: expanded.has(f.id),
         ...fishFigures(f, config),
+        ...fishVitals(f, state, config),
       });
     }
   }
@@ -225,7 +290,7 @@ export function rosterRows(
     rows.push(clutchRow(clutch, state.tick));
   }
 
-  for (const batch of groupFryBatches(state.fish, config)) {
+  for (const batch of groupFryBatches(state, config)) {
     rows.push({ kind: 'fry', key: `fry-${batch.species}`, ...batch });
   }
 
