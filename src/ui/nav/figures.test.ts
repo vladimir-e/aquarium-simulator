@@ -265,6 +265,29 @@ describe('navFigures — Livestock', () => {
     expect(figures(state).livestock.lines[0]).toBe('0 fish · 2 clutches');
   });
 
+  it('counts fry apart from the adults rather than folding them in', () => {
+    let state = tank();
+    state = applyAction(state, { type: 'addFish', species: 'guppy' }).state;
+    state = {
+      ...state,
+      fish: [
+        ...state.fish,
+        { ...state.fish[0], id: 'fry1', stage: 'fry', age: 24, mass: 0.05 },
+        { ...state.fish[0], id: 'fry2', stage: 'fry', age: 24, mass: 0.05 },
+      ],
+    };
+    expect(figures(state).livestock.lines[0]).toBe('1 fish · 1 species · 2 fry');
+  });
+
+  it('reads the bioload against the tank, not against the head count', () => {
+    let state = tank(); // 200 L → a 120 g guideline
+    for (let i = 0; i < 4; i++) {
+      state = applyAction(state, { type: 'addFish', species: 'angelfish' }).state;
+    }
+    // 4 angelfish project 60 g of adult mass — exactly half the guideline.
+    expect(figures(state).livestock.lines[1]).toBe('bioload 0.5× vs guideline');
+  });
+
   it('flags fish that need feeding', () => {
     let fed = tank();
     fed = applyAction(fed, { type: 'addFish', species: 'neon_tetra' }).state;
@@ -273,6 +296,19 @@ describe('navFigures — Livestock', () => {
 
     const starved = { ...fed, fish: fed.fish.map((f, i) => (i === 0 ? { ...f, satiation: 0 } : f)) };
     expect(figures(starved).livestock.pill).toEqual({ text: '1 hungry', status: 'warn' });
+  });
+
+  it('counts every hungry fish, not just the first', () => {
+    let fed = tank();
+    for (let i = 0; i < 3; i++) {
+      fed = applyAction(fed, { type: 'addFish', species: 'guppy' }).state;
+    }
+    // Two starving, one well fed — the pill must not stop at the first hit.
+    const hungry = {
+      ...fed,
+      fish: fed.fish.map((f, i) => ({ ...f, satiation: i < 2 ? 5 : 90 })),
+    };
+    expect(figures(hungry).livestock.pill).toEqual({ text: '2 hungry', status: 'warn' });
   });
 });
 

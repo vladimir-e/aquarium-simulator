@@ -35,7 +35,7 @@ import type {
   NutrientsConfig,
   TunableConfig,
 } from '../../simulation/config/index.js';
-import type { Status } from './status.js';
+import { conditionStatus, conditionWord, type Status } from './status.js';
 
 /**
  * Trim targets, in % of a plant's size. The engine opens trimming at 50 % and
@@ -43,18 +43,6 @@ import type { Status } from './status.js';
  * ordinary run.
  */
 export const TRIM_TARGETS = [50, 75, 85];
-
-export function conditionStatus(condition: number): Status {
-  return condition < 30 ? 'alert' : condition < 60 ? 'warn' : 'ok';
-}
-
-export function conditionWord(condition: number): string {
-  if (condition < 10) return 'dying';
-  if (condition < 30) return 'struggling';
-  if (condition < 60) return 'fair';
-  if (condition < 80) return 'good';
-  return 'thriving';
-}
 
 // Low algae mass is good for the player, so the colours run green → coral as it climbs.
 export function algaeStatus(mass: number): Status {

@@ -14,8 +14,6 @@ import {
   algaeRow,
   algaeStatus,
   algaeWord,
-  conditionStatus,
-  conditionWord,
   doseDeltas,
   doseToCover,
   formatDose,
@@ -27,6 +25,7 @@ import {
   TRIM_TARGETS,
   trimTargets,
 } from './flora';
+import { conditionStatus, conditionWord } from './status';
 
 const FORMULA = DEFAULT_CONFIG.nutrients.fertilizerFormula;
 

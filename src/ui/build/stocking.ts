@@ -1,69 +1,17 @@
 /**
- * Stocking column model: fold the flat fish array into per-species adult
- * counts and fry lines, pick a cull victim when a count steps down, and derive
- * the bioload preview. Pure — the column renders these and wires the actions.
+ * Stocking model: the bioload guideline the roster is read against, and the
+ * per-species add options with the consequence of taking one more. Pure — the
+ * section renders these and wires the actions.
  */
 
-import { FISH_SPECIES_DATA, type Fish, type FishSpecies } from '../../simulation/index.js';
+import {
+  checkFishCapacity,
+  FISH_SPECIES_DATA,
+  type Fish,
+  type FishSpecies,
+} from '../../simulation/index.js';
 import type { Status } from '../run';
-
-export interface SpeciesCount {
-  species: FishSpecies;
-  name: string;
-  count: number;
-}
-
-/** Adult fish folded into per-species counts, in first-seen order. */
-export function speciesCounts(fish: Fish[]): SpeciesCount[] {
-  const order: FishSpecies[] = [];
-  const counts = new Map<FishSpecies, number>();
-  for (const f of fish) {
-    if (f.stage !== 'adult') continue;
-    if (!counts.has(f.species)) order.push(f.species);
-    counts.set(f.species, (counts.get(f.species) ?? 0) + 1);
-  }
-  return order.map((species) => ({
-    species,
-    name: FISH_SPECIES_DATA[species].name,
-    count: counts.get(species) ?? 0,
-  }));
-}
-
-/**
- * Which fish the − stepper culls: the lowest-health adult of the species, so
- * the weakest goes first (the same logic that staggers natural deaths).
- * Null when the species has no adults left.
- */
-export function removalVictimId(fish: Fish[], species: FishSpecies): string | null {
-  let victim: Fish | null = null;
-  for (const f of fish) {
-    if (f.species !== species || f.stage !== 'adult') continue;
-    if (!victim || f.health < victim.health) victim = f;
-  }
-  return victim?.id ?? null;
-}
-
-export interface FryLine {
-  species: FishSpecies;
-  name: string;
-  count: number;
-}
-
-/** Fry folded into per-species lines, in first-seen order. */
-export function fryLines(fish: Fish[]): FryLine[] {
-  const order: FishSpecies[] = [];
-  const counts = new Map<FishSpecies, number>();
-  for (const f of fish) {
-    if (f.stage !== 'fry') continue;
-    if (!counts.has(f.species)) order.push(f.species);
-    counts.set(f.species, (counts.get(f.species) ?? 0) + 1);
-  }
-  return order.map((species) => ({
-    species,
-    name: FISH_SPECIES_DATA[species].name,
-    count: counts.get(species) ?? 0,
-  }));
-}
+import { getVolumeUnit, toInternalVolume, type UnitSystem } from '../utils/units.js';
 
 /**
  * Grams of projected adult fish per litre a well-run planted community tank
@@ -111,4 +59,61 @@ export function bioload(fish: Fish[], tankLiters: number): Bioload {
   const ratio = guidelineG > 0 ? massG / guidelineG : 0;
   const status: Status = ratio >= 1 ? 'alert' : ratio >= 0.7 ? 'warn' : 'ok';
   return { massG, guidelineG, ratio, pct: Math.min(100, ratio * 100), status };
+}
+
+/**
+ * The arithmetic behind the × figure, spelled out so the bar cannot be read as
+ * a cap the engine enforces. The rate is quoted per the reader's own volume
+ * unit, which is why it is not simply {@link GUIDELINE_G_PER_L}.
+ */
+export function bioloadNote(load: Bioload, units: UnitSystem): string {
+  const perUnit = GUIDELINE_G_PER_L * toInternalVolume(1, units);
+  return (
+    `${load.massG.toFixed(1)} g projected adult mass · ` +
+    `guideline ${load.guidelineG.toFixed(0)} g at ${perUnit.toFixed(1)} g/${getVolumeUnit(units)}`
+  );
+}
+
+/** The species the section offers, in the catalog's own order. */
+export const FISH_SPECIES: FishSpecies[] = [
+  'neon_tetra',
+  'betta',
+  'guppy',
+  'angelfish',
+  'corydoras',
+];
+
+export interface FishOption {
+  species: FishSpecies;
+  name: string;
+  /** Adults of this species already in the tank. */
+  count: number;
+  /** Adult mass one more of these would add to the bioload (g). */
+  addsG: number;
+  disabled: boolean;
+  /** The consequence of taking one, or the engine's own reason it cannot. */
+  hint: string;
+}
+
+/**
+ * Every species with what adding one costs the tank. Disabled options carry the
+ * engine's rejection message rather than a UI paraphrase of it.
+ */
+export function fishOptions(fish: Fish[], tankLiters: number): FishOption[] {
+  return FISH_SPECIES.map((species) => {
+    const capacity = checkFishCapacity(fish, tankLiters, species);
+    const count = fish.reduce(
+      (n, f) => n + (f.species === species && f.stage === 'adult' ? 1 : 0),
+      0
+    );
+    const addsG = FISH_SPECIES_DATA[species].adultMass;
+    return {
+      species,
+      name: FISH_SPECIES_DATA[species].name,
+      count,
+      addsG,
+      disabled: !capacity.ok,
+      hint: capacity.ok ? `${count} in tank · +${addsG} g` : capacity.message,
+    };
+  });
 }

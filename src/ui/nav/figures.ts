@@ -21,6 +21,7 @@ import {
   nutrientAlert,
   nutrientReadings,
   plantsAndAlgae,
+  rosterSummary,
   waterAlert,
   type GaugeKey,
   type Status,
@@ -113,20 +114,12 @@ function floraFigure(state: SimulationState, config: TunableConfig): NavFigure {
 }
 
 function livestockFigure(state: SimulationState, config: TunableConfig): NavFigure {
-  const { fish, clutches, tank } = state;
-  const species = new Set(fish.map((f) => f.species)).size;
-  const hungry = countHungry(fish, config.livestock);
-  const load = bioload(fish, tank.capacity);
-
-  const counts = [`${fish.length} fish`];
-  if (species > 0) counts.push(`${species} species`);
-  if (clutches.length > 0) {
-    counts.push(`${clutches.length} clutch${clutches.length > 1 ? 'es' : ''}`);
-  }
+  const hungry = countHungry(state.fish, config.livestock);
+  const load = bioload(state.fish, state.tank.capacity);
 
   return {
     pill: hungry > 0 ? { text: `${hungry} hungry`, status: 'warn' } : null,
-    lines: [counts.join(' · '), `bioload ${load.ratio.toFixed(1)}× vs guideline`],
+    lines: [rosterSummary(state), `bioload ${load.ratio.toFixed(1)}× vs guideline`],
   };
 }
 

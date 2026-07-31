@@ -19,7 +19,7 @@ export {
   SPEED_LABELS,
   STEP_TICKS,
 } from './speed.js';
-export { type Status } from './status.js';
+export { type Status, conditionStatus, conditionWord } from './status.js';
 export {
   classifyVital,
   type VitalKey,
@@ -56,16 +56,22 @@ export {
   bandOf,
   bandStatus,
   countHungry,
+  type RosterFigures,
   type SpeciesGroup,
   groupBySpecies,
   type FryBatch,
   groupFryBatches,
   deriveFryGraduation,
+  type RosterRow,
+  type SpeciesRosterRow,
+  type FishRosterRow,
+  type ClutchRosterRow,
+  type FryRosterRow,
+  rosterRows,
+  rosterSummary,
 } from './livestock.js';
 export { latestLog } from './log.js';
 export {
-  conditionStatus,
-  conditionWord,
   algaeStatus,
   algaeWord,
   type PlantRow,

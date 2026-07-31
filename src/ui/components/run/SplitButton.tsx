@@ -21,6 +21,8 @@ interface SplitButtonProps {
   ariaLabel?: string;
   /** Which way the menu opens: up from a footer, down from a header. */
   opens?: 'up' | 'down';
+  /** Standing fact about every option, pinned under the list. */
+  note?: React.ReactNode;
 }
 
 /**
@@ -36,6 +38,7 @@ export function SplitButton({
   disabled = false,
   ariaLabel,
   opens = 'up',
+  note,
 }: SplitButtonProps): React.JSX.Element {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -124,6 +127,11 @@ export function SplitButton({
               )}
             </button>
           ))}
+          {note && (
+            <p className="mt-1 max-w-[19rem] border-t border-hairline px-3 pb-1 pt-2 text-[11px] leading-snug text-ink-3">
+              {note}
+            </p>
+          )}
         </div>
       )}
     </div>

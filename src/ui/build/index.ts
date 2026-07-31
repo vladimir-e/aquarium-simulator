@@ -26,15 +26,14 @@ export {
   deviceReadings,
 } from './readings.js';
 export {
-  type SpeciesCount,
-  speciesCounts,
-  removalVictimId,
-  type FryLine,
-  fryLines,
   type Bioload,
   bioload,
+  bioloadNote,
   projectedAdultMass,
   GUIDELINE_G_PER_L,
+  FISH_SPECIES,
+  type FishOption,
+  fishOptions,
 } from './stocking.js';
 export {
   HARDSCAPE_TYPES,

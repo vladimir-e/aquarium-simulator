@@ -1,13 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import type { Fish, FishSpecies } from '../../simulation/index.js';
-import {
-  bioload,
-  fryLines,
-  GUIDELINE_G_PER_L,
-  projectedAdultMass,
-  removalVictimId,
-  speciesCounts,
-} from './stocking';
+import { getMaxFishMass } from '../../simulation/index.js';
+import { bioload, bioloadNote, fishOptions, GUIDELINE_G_PER_L, projectedAdultMass } from './stocking';
 
 function makeFish(overrides: Partial<Fish> & { id: string }): Fish {
   return {
@@ -27,54 +21,6 @@ function makeFish(overrides: Partial<Fish> & { id: string }): Fish {
 function stock(species: FishSpecies, n: number): Fish[] {
   return Array.from({ length: n }, (_, i) => makeFish({ id: `${species}-${i}`, species }));
 }
-
-describe('speciesCounts', () => {
-  it('folds adults into per-species counts in first-seen order, excluding fry', () => {
-    const fish = [
-      makeFish({ id: 'n1', species: 'neon_tetra' }),
-      makeFish({ id: 'g1', species: 'guppy' }),
-      makeFish({ id: 'n2', species: 'neon_tetra' }),
-      makeFish({ id: 'f1', species: 'guppy', stage: 'fry', age: 24 }),
-    ];
-    expect(speciesCounts(fish)).toEqual([
-      { species: 'neon_tetra', name: 'Neon Tetra', count: 2 },
-      { species: 'guppy', name: 'Guppy', count: 1 },
-    ]);
-  });
-
-  it('is empty when only fry are present', () => {
-    expect(speciesCounts([makeFish({ id: 'f1', stage: 'fry', age: 12 })])).toEqual([]);
-  });
-});
-
-describe('removalVictimId', () => {
-  it('picks the lowest-health adult of the species', () => {
-    const fish = [
-      makeFish({ id: 'a', species: 'neon_tetra', health: 80 }),
-      makeFish({ id: 'b', species: 'neon_tetra', health: 30 }),
-      makeFish({ id: 'c', species: 'neon_tetra', health: 55 }),
-      makeFish({ id: 'g', species: 'guppy', health: 10 }),
-    ];
-    expect(removalVictimId(fish, 'neon_tetra')).toBe('b');
-  });
-
-  it('ignores fry and returns null when no adult of the species remains', () => {
-    const fish = [makeFish({ id: 'f', species: 'neon_tetra', stage: 'fry', age: 24, health: 5 })];
-    expect(removalVictimId(fish, 'neon_tetra')).toBeNull();
-    expect(removalVictimId([], 'guppy')).toBeNull();
-  });
-});
-
-describe('fryLines', () => {
-  it('folds fry into per-species lines and ignores adults', () => {
-    const fish = [
-      makeFish({ id: 'f1', species: 'guppy', stage: 'fry', age: 24 }),
-      makeFish({ id: 'f2', species: 'guppy', stage: 'fry', age: 48 }),
-      makeFish({ id: 'a1', species: 'guppy', stage: 'adult' }),
-    ];
-    expect(fryLines(fish)).toEqual([{ species: 'guppy', name: 'Guppy', count: 2 }]);
-  });
-});
 
 describe('projectedAdultMass', () => {
   it('sums species adult mass, counting fry at adult mass', () => {
@@ -122,5 +68,79 @@ describe('bioload', () => {
 
   it('uses the documented guideline density', () => {
     expect(GUIDELINE_G_PER_L).toBe(0.6);
+  });
+});
+
+describe('bioloadNote', () => {
+  // 0.6 g/L over a 200 L tank is a 120 g guideline; 4 corydoras project 16 g.
+  const load = bioload(stock('corydoras', 4), 200);
+
+  it('spells out the mass against the guideline that produced the × figure', () => {
+    expect(bioloadNote(load, 'metric')).toBe(
+      '16.0 g projected adult mass · guideline 120 g at 0.6 g/L'
+    );
+  });
+
+  it('quotes the density per the reader’s own volume unit', () => {
+    // 0.6 g per litre is 2.27 g per gallon — the guideline mass itself is unchanged.
+    expect(bioloadNote(load, 'imperial')).toBe(
+      '16.0 g projected adult mass · guideline 120 g at 2.3 g/gal'
+    );
+  });
+});
+
+describe('fishOptions', () => {
+  it('counts the adults of each species already in the tank', () => {
+    const fish = [
+      ...stock('neon_tetra', 2),
+      makeFish({ id: 'fry', species: 'neon_tetra', stage: 'fry', age: 24, mass: 0.1 }),
+      ...stock('guppy', 1),
+    ];
+    const options = fishOptions(fish, 200);
+    const byName = Object.fromEntries(options.map((o) => [o.species, o]));
+
+    expect(options.map((o) => o.species)).toEqual([
+      'neon_tetra',
+      'betta',
+      'guppy',
+      'angelfish',
+      'corydoras',
+    ]);
+    expect(byName.neon_tetra.count).toBe(2); // the fry is not an adult in the tank
+    expect(byName.guppy.count).toBe(1);
+    expect(byName.betta.count).toBe(0);
+  });
+
+  it('prices one more of each species at its species adult mass', () => {
+    const options = fishOptions(stock('neon_tetra', 2), 200);
+    const neon = options.find((o) => o.species === 'neon_tetra')!;
+    const angel = options.find((o) => o.species === 'angelfish')!;
+
+    expect(neon.addsG).toBe(0.5);
+    expect(neon.hint).toBe('2 in tank · +0.5 g');
+    expect(angel.addsG).toBe(15);
+    expect(angel.hint).toBe('0 in tank · +15 g');
+  });
+
+  it('blocks only the species past the engine’s physical ceiling, in its words', () => {
+    // 0.02 L holds 10 g of fish, so an angelfish (15 g) cannot go in but a cory (4 g) can.
+    const liters = 0.02;
+    expect(getMaxFishMass(liters)).toBe(10);
+    const options = fishOptions([], liters);
+
+    const angel = options.find((o) => o.species === 'angelfish')!;
+    expect(angel.disabled).toBe(true);
+    expect(angel.hint).toBe('Tank at fish capacity (~10g of fish max)');
+
+    const cory = options.find((o) => o.species === 'corydoras')!;
+    expect(cory.disabled).toBe(false);
+    expect(cory.hint).toBe('0 in tank · +4 g');
+  });
+
+  it('measures the ceiling against what is already swimming, fry included', () => {
+    // 8 g of the 10 g ceiling is spent, so only the two lightest species still fit.
+    const fish = [makeFish({ id: 'c', species: 'corydoras', mass: 8 })];
+    const open = fishOptions(fish, 0.02).filter((o) => !o.disabled);
+    expect(open.map((o) => o.species)).toEqual(['neon_tetra', 'guppy']);
   });
 });

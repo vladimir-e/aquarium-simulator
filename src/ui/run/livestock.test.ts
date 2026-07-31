@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import type { Fish } from '../../simulation/index.js';
-import { FISH_SPECIES_DATA } from '../../simulation/index.js';
+import type { Clutch, Fish, FishSpecies, SimulationState } from '../../simulation/index.js';
+import { createSimulation, FISH_SPECIES_DATA } from '../../simulation/index.js';
 import { livestockDefaults } from '../../simulation/config/livestock.js';
 import {
   bandStatus,
@@ -9,6 +9,12 @@ import {
   groupBySpecies,
   groupFryBatches,
   isHungryBand,
+  rosterRows,
+  rosterSummary,
+  type ClutchRosterRow,
+  type FishRosterRow,
+  type FryRosterRow,
+  type SpeciesRosterRow,
 } from './livestock';
 
 function makeFish(overrides: Partial<Fish> & { id: string }): Fish {
@@ -24,6 +30,14 @@ function makeFish(overrides: Partial<Fish> & { id: string }): Fish {
     surplus: 0,
     ...overrides,
   };
+}
+
+function tank(fish: Fish[], clutches: Clutch[] = [], tick = 0): SimulationState {
+  return { ...createSimulation({ tankCapacity: 200 }), fish, clutches, tick };
+}
+
+function expanded(...species: FishSpecies[]): Set<FishSpecies> {
+  return new Set(species);
 }
 
 // Band floors (config defaults): overfed ≥99, wellFed ≥75, peckish ≥50, hungry ≥25, else starving.
@@ -68,23 +82,39 @@ describe('groupBySpecies', () => {
     expect(groups.map((g) => g.species)).toEqual(['neon_tetra', 'guppy']);
     const neon = groups[0];
     expect(neon.count).toBe(2);
-    expect(neon.avgSatiation).toBe(60);
+    expect(neon.satiation).toBe(60);
     expect(neon.hungryCount).toBe(1);
     expect(neon.name).toBe(FISH_SPECIES_DATA.neon_tetra.name);
+  });
+
+  it('sums the group’s mass but averages its age and condition', () => {
+    // Three fish that differ on every axis, so a sum can't pass for a mean.
+    const fish = [
+      makeFish({ id: 'a', mass: 0.4, age: 24 * 10, health: 90, satiation: 80 }),
+      makeFish({ id: 'b', mass: 0.9, age: 24 * 20, health: 60, satiation: 80 }),
+      makeFish({ id: 'c', mass: 1.1, age: 24 * 33, health: 30, satiation: 80 }),
+    ];
+    const [neon] = groupBySpecies(fish, livestockDefaults);
+
+    expect(neon.massG).toBeCloseTo(2.4, 10);
+    expect(neon.ageDays).toBe(21); // mean age is 21 d, not 10, 33 or 63
+    expect(neon.condition).toBeCloseTo(60, 10);
   });
 });
 
 describe('groupFryBatches', () => {
-  it('groups fry by species with derived maturation', () => {
+  it('groups fry by species with derived maturation and combined mass', () => {
     const fish = [
-      makeFish({ id: 'f1', species: 'guppy', stage: 'fry', age: 24 }),
-      makeFish({ id: 'f2', species: 'guppy', stage: 'fry', age: 72 }),
-      makeFish({ id: 'a1', species: 'guppy', stage: 'adult' }),
+      makeFish({ id: 'f1', species: 'guppy', stage: 'fry', age: 24, mass: 0.03 }),
+      makeFish({ id: 'f2', species: 'guppy', stage: 'fry', age: 72, mass: 0.09 }),
+      makeFish({ id: 'a1', species: 'guppy', stage: 'adult', mass: 1 }),
     ];
     const batches = groupFryBatches(fish);
     expect(batches).toHaveLength(1);
     expect(batches[0].species).toBe('guppy');
     expect(batches[0].count).toBe(2);
+    // The adult's 1 g must stay out of the batch mass.
+    expect(batches[0].massG).toBeCloseTo(0.12, 10);
     // guppy maturityAge = 24 * 60 = 1440 ticks → graduates day 60
     expect(batches[0].graduationDay).toBe(60);
   });
@@ -102,5 +132,116 @@ describe('deriveFryGraduation', () => {
   it('treats an ageless or maturity-zero batch as fully grown / day zero', () => {
     expect(deriveFryGraduation([], 2880)).toEqual({ dayNow: 0, graduationDay: 120, growthPct: 0 });
     expect(deriveFryGraduation([100], 0).growthPct).toBe(100);
+  });
+});
+
+describe('rosterRows', () => {
+  const roster = [
+    makeFish({ id: 'fish_a_1', species: 'neon_tetra', satiation: 80 }),
+    makeFish({ id: 'fish_a_2', species: 'neon_tetra', satiation: 40, sex: 'female' }),
+    makeFish({ id: 'fish_a_3', species: 'corydoras', mass: 4 }),
+  ];
+
+  it('lists one row per species while everything is collapsed', () => {
+    const rows = rosterRows(tank(roster), livestockDefaults, expanded());
+    expect(rows.map((r) => r.kind)).toEqual(['species', 'species']);
+    expect((rows[0] as SpeciesRosterRow).expanded).toBe(false);
+  });
+
+  it('opens one species without opening the other, and puts its fish beneath it', () => {
+    const rows = rosterRows(tank(roster), livestockDefaults, expanded('neon_tetra'));
+
+    expect(rows.map((r) => r.kind)).toEqual(['species', 'fish', 'fish', 'species']);
+    expect((rows[0] as SpeciesRosterRow).species).toBe('neon_tetra');
+    expect((rows[3] as SpeciesRosterRow).species).toBe('corydoras');
+    expect((rows[3] as SpeciesRosterRow).expanded).toBe(false);
+
+    const second = rows[2] as FishRosterRow;
+    expect(second.id).toBe('fish_a_2');
+    expect(second.sex).toBe('female');
+    expect(second.satiation).toBe(40);
+  });
+
+  it('strips the id’s kind prefix, keeping the part that tells two fish apart', () => {
+    const rows = rosterRows(tank(roster), livestockDefaults, expanded('neon_tetra'));
+    expect((rows[1] as FishRosterRow).shortId).toBe('a_1');
+    expect((rows[2] as FishRosterRow).shortId).toBe('a_2');
+  });
+
+  it('counts down to hatch from the current tick, not from when the clutch was laid', () => {
+    const clutch: Clutch = {
+      id: 'clutch_x_7',
+      species: 'angelfish', // hatchTime 60
+      eggCount: 24,
+      laidTick: 1602,
+    };
+    const [row] = rosterRows(tank([], [clutch], 1622), livestockDefaults, expanded());
+
+    expect(row.kind).toBe('clutch');
+    const clutchRow = row as ClutchRosterRow;
+    expect(clutchRow.name).toBe('Angelfish clutch');
+    expect(clutchRow.shortId).toBe('x_7');
+    expect(clutchRow.hatchTick).toBe(1662);
+    expect(clutchRow.hoursToHatch).toBe(40);
+  });
+
+  it('floors an overdue clutch at zero rather than counting backwards', () => {
+    const clutch: Clutch = { id: 'c_1', species: 'neon_tetra', eggCount: 25, laidTick: 10 };
+    const [row] = rosterRows(tank([], [clutch], 100), livestockDefaults, expanded());
+    expect((row as ClutchRosterRow).hoursToHatch).toBe(0);
+    expect((row as ClutchRosterRow).hatchTick).toBe(34);
+  });
+
+  it('gives fry batches their own rows after the adults and the clutches', () => {
+    const fish = [
+      ...roster,
+      makeFish({ id: 'fry1', species: 'guppy', stage: 'fry', age: 24 * 6, mass: 0.4 }),
+      makeFish({ id: 'fry2', species: 'guppy', stage: 'fry', age: 24 * 12, mass: 0.6 }),
+    ];
+    const clutch: Clutch = { id: 'c_1', species: 'neon_tetra', eggCount: 25, laidTick: 0 };
+    const rows = rosterRows(tank(fish, [clutch], 12), livestockDefaults, expanded());
+
+    expect(rows.map((r) => r.kind)).toEqual(['species', 'species', 'clutch', 'fry']);
+    const fry = rows[3] as FryRosterRow;
+    expect(fry.count).toBe(2);
+    expect(fry.massG).toBeCloseTo(1, 10);
+    expect(fry.dayNow).toBe(9); // mean of 6 d and 12 d
+    expect(fry.graduationDay).toBe(60);
+    // Fry never appear as a species row of their own.
+    expect(rows.filter((r) => r.kind === 'species').map((r) => r.key)).toEqual([
+      'species-neon_tetra',
+      'species-corydoras',
+    ]);
+  });
+
+  it('has nothing to show for an empty tank', () => {
+    expect(rosterRows(tank([]), livestockDefaults, expanded())).toEqual([]);
+  });
+});
+
+describe('rosterSummary', () => {
+  it('says only what the tank has', () => {
+    expect(rosterSummary(tank([]))).toBe('0 fish');
+  });
+
+  it('counts fry apart from the adults rather than folding them in', () => {
+    const fish = [
+      makeFish({ id: 'a', species: 'neon_tetra' }),
+      makeFish({ id: 'b', species: 'neon_tetra' }),
+      makeFish({ id: 'c', species: 'guppy', stage: 'fry', age: 24 }),
+      makeFish({ id: 'd', species: 'guppy', stage: 'fry', age: 24 }),
+      makeFish({ id: 'e', species: 'guppy', stage: 'fry', age: 24 }),
+    ];
+    // Five fish are present but only two are adults, and the fry's species counts.
+    expect(rosterSummary(tank(fish))).toBe('2 fish · 2 species · 3 fry');
+  });
+
+  it('pluralises the clutch clause on the count, and keeps clause order', () => {
+    const fish = [makeFish({ id: 'a' })];
+    const one: Clutch = { id: 'c1', species: 'neon_tetra', eggCount: 25, laidTick: 0 };
+    const two: Clutch = { id: 'c2', species: 'neon_tetra', eggCount: 25, laidTick: 4 };
+
+    expect(rosterSummary(tank(fish, [one]))).toBe('1 fish · 1 species · 1 clutch');
+    expect(rosterSummary(tank(fish, [one, two]))).toBe('1 fish · 1 species · 2 clutches');
   });
 });
