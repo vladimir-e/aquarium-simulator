@@ -1,20 +1,16 @@
 import React, { useMemo, useState } from 'react';
 import type { FishSpecies } from '../../simulation/index.js';
 import type { TunableConfig } from '../../simulation/config/index.js';
-import { FoodResource } from '../../simulation/resources/index.js';
 import type { useSimulation } from '../hooks/useSimulation';
 import { useIsMobile } from '../hooks/useMediaQuery';
 import { useUnits } from '../hooks/useUnits';
 import { Stage } from '../components/layout/Stage';
 import { Card, CardFooter } from '../components/run/Card';
 import { Bar, RunButton } from '../components/run/elements';
-import { SplitButton, type SplitOption } from '../components/run/SplitButton';
 import { AddFish } from '../components/livestock/AddFish';
 import { RosterTable } from '../components/livestock/RosterTable';
 import { bioload, bioloadNote } from '../build';
 import { countFry, rosterRows, rosterSummary } from '../run';
-
-const FEED_PRESETS = [0.25, 0.5, 1, 2];
 
 /**
  * The roster, as a table. This is the one section whose content is unbounded,
@@ -31,7 +27,6 @@ export function LivestockSection({
   const isMobile = useIsMobile();
   const { unitSystem } = useUnits();
   const [expanded, setExpanded] = useState<ReadonlySet<FishSpecies>>(new Set());
-  const [feedAmount, setFeedAmount] = useState(0.5);
 
   const { state } = sim;
   const rows = useMemo(
@@ -47,16 +42,6 @@ export function LivestockSection({
       if (!next.delete(species)) next.add(species);
       return next;
     });
-
-  const feed = (amount: number): void => sim.executeAction({ type: 'feed', amount });
-  const feedOptions: SplitOption[] = FEED_PRESETS.map((amount) => ({
-    key: String(amount),
-    label: `${amount} g`,
-    onSelect: (): void => {
-      setFeedAmount(amount);
-      feed(amount);
-    },
-  }));
 
   return (
     <Stage
@@ -79,20 +64,6 @@ export function LivestockSection({
         </div>
 
         <CardFooter className="shrink-0 gap-x-3">
-          <SplitButton
-            label={`Feed ${feedAmount} g`}
-            variant="primary"
-            onMain={() => feed(feedAmount)}
-            options={feedOptions}
-            ariaLabel={`Feed ${feedAmount} grams`}
-          />
-          <span className="flex items-center gap-2 text-[12px] text-ink-3">
-            in water
-            <span className="font-mono tabular-nums text-ink-2">
-              {FoodResource.format(state.resources.food)}
-            </span>
-          </span>
-
           {fryCount > 0 && (
             <RunButton onClick={() => sim.executeAction({ type: 'sellFry' })}>
               Sell {fryCount} fry

@@ -22,6 +22,7 @@ export {
 export { type Status, conditionStatus, conditionWord } from './status.js';
 export {
   classifyVital,
+  NITRATE_LOW_PPM,
   type VitalKey,
   type VitalClassification,
 } from './vitals.js';

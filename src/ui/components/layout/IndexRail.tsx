@@ -1,5 +1,5 @@
 import React from 'react';
-import { ChevronRight, Zap } from 'lucide-react';
+import { ChevronRight } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 import type { DailySchedule } from '../../../simulation/index.js';
 import { useUnits } from '../../hooks/useUnits';
@@ -111,24 +111,6 @@ function NavRow({
   );
 }
 
-/**
- * Docked at the rail's foot so the husbandry sheet can grow from a fixed anchor
- * without ever covering the index. Disabled until that sheet exists.
- */
-function ActionsTrigger(): React.JSX.Element {
-  return (
-    <button
-      type="button"
-      disabled
-      className="flex h-11 shrink-0 items-center gap-2 rounded-card border border-hairline-2 bg-surface-2 px-3 text-[13.5px] font-semibold text-ink opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
-    >
-      <Zap className="h-4 w-4 text-ink-2" />
-      Actions
-      <span className="ml-auto text-[11px] font-normal text-ink-3">not built yet</span>
-    </button>
-  );
-}
-
 interface IndexRailProps {
   figures: Record<SectionId, NavFigure>;
   tick: number;
@@ -141,12 +123,15 @@ interface IndexRailProps {
   onSpeedChange: (speed: SpeedPreset) => void;
   /** Dismisses the drawer once a row is followed (mobile only). */
   onNavigate: () => void;
+  /** The Actions trigger, docked at the foot wherever the rail stands. */
+  footer?: React.ReactNode;
 }
 
 /** The figures are the point: the rail is meant to answer most questions without a visit. */
 export function IndexRail({
   figures,
   onNavigate,
+  footer,
   ...timeline
 }: IndexRailProps): React.JSX.Element {
   return (
@@ -166,7 +151,7 @@ export function IndexRail({
           />
         ))}
       </nav>
-      <ActionsTrigger />
+      {footer}
     </div>
   );
 }

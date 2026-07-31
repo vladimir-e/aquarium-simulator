@@ -1,3 +1,4 @@
+import React from 'react';
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, fireEvent, cleanup, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
@@ -27,7 +28,8 @@ function figuresFor(state: SimulationState): Record<SectionId, NavFigure> {
 
 function renderRail(
   state: SimulationState = createSimulation({ tankCapacity: 200 }),
-  path = '/'
+  path = '/',
+  footer?: React.ReactNode
 ): { onNavigate: ReturnType<typeof vi.fn> } {
   const onNavigate = vi.fn();
   render(
@@ -45,6 +47,7 @@ function renderRail(
             onStep={vi.fn()}
             onSpeedChange={vi.fn()}
             onNavigate={onNavigate}
+            footer={footer}
           />
         </MemoryRouter>
       </UnitsProvider>
@@ -115,9 +118,11 @@ describe('IndexRail', () => {
     expect(onNavigate).toHaveBeenCalledTimes(1);
   });
 
-  it('keeps the Actions trigger inert until its sheet exists', () => {
-    renderRail();
-    const trigger = screen.getByRole('button', { name: /Actions/ }) as HTMLButtonElement;
-    expect(trigger.disabled).toBe(true);
+  it('docks whatever the shell puts at its foot, below the index', () => {
+    renderRail(createSimulation({ tankCapacity: 200 }), '/', <button type="button">Actions</button>);
+
+    const foot = screen.getByRole('button', { name: 'Actions' });
+    const nav = screen.getByRole('navigation', { name: 'Sections' });
+    expect(nav.parentElement?.lastElementChild).toBe(foot);
   });
 });

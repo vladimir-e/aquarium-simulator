@@ -3,12 +3,16 @@ import { X } from 'lucide-react';
 import { Outlet } from 'react-router-dom';
 import type { TunableConfig } from '../../../simulation/config/index.js';
 import type { useSimulation } from '../../hooks/useSimulation';
+import { useActionsSheet } from '../../hooks/useActionsSheet';
 import { useFocusTrap } from '../../hooks/useFocusTrap';
 import { useMediaQuery, RAIL_QUERY } from '../../hooks/useMediaQuery';
 import { PresetSwitchProvider } from '../../hooks/usePresetSwitch';
 import { useUnits } from '../../hooks/useUnits';
+import { verbTile } from '../../actions';
 import { navFigures } from '../../nav';
 import { getPresetById } from '../../presets.js';
+import { ActionsSheet } from '../actions/ActionsSheet';
+import { ActionsTrigger } from '../actions/ActionsTrigger';
 import { DebugPanel } from '../panels/DebugPanel';
 import { ChromeRow } from './ChromeRow';
 import { IndexRail } from './IndexRail';
@@ -45,6 +49,16 @@ export function AppShell({ sim, config }: AppShellProps): React.JSX.Element {
     return (): void => window.removeEventListener('keydown', onKeyDown);
   }, [indexOpen]);
 
+  const sheet = useActionsSheet(sim.executeAction);
+  const promoted = verbTile(sim.state, sheet.promoted, sheet.settings, unitSystem);
+  const trigger = (
+    <ActionsTrigger
+      label={`${promoted.name} ${promoted.value}`}
+      open={sheet.open}
+      onClick={sheet.toggle}
+    />
+  );
+
   const figures = navFigures({
     state: sim.state,
     config,
@@ -66,6 +80,7 @@ export function AppShell({ sim, config }: AppShellProps): React.JSX.Element {
       onStep={sim.step}
       onSpeedChange={sim.changeSpeed}
       onNavigate={closeIndex}
+      footer={railStands ? trigger : undefined}
     />
   );
 
@@ -76,7 +91,11 @@ export function AppShell({ sim, config }: AppShellProps): React.JSX.Element {
 
         <div className="flex min-h-0 flex-1 gap-3 p-3">
           {railStands && rail}
-          <Outlet />
+          <div className="relative flex min-h-0 min-w-0 flex-1 flex-col gap-3">
+            <Outlet />
+            {!railStands && trigger}
+            {sheet.open && <ActionsSheet sheet={sheet} state={sim.state} config={config} />}
+          </div>
         </div>
 
         {indexOpen && (

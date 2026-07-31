@@ -261,18 +261,12 @@ describe('LivestockSection', () => {
     expect(within(angelfish).getByText(/Tank at fish capacity/)).toBeTruthy();
   });
 
-  it('feeds the tank at the amount on the button', () => {
-    const actions = renderRoster(tank(community()));
+  it('keeps husbandry out of the section — feeding left with the Actions sheet', () => {
+    renderRoster(tank(community()));
 
-    fireEvent.click(screen.getByRole('button', { name: 'Feed 0.5 grams' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Choose amount' }));
-    fireEvent.click(screen.getByRole('menuitem', { name: '2 g' }));
-
-    expect(actions).toEqual([
-      { type: 'feed', amount: 0.5 },
-      { type: 'feed', amount: 2 },
-    ]);
-    expect(screen.getByRole('button', { name: 'Feed 2 grams' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /Feed/ })).toBeNull();
+    // Construction and roster verbs are the section's own and stay put.
+    expect(screen.getByRole('button', { name: 'Add fish' })).toBeTruthy();
   });
 
   it('invites the first fish instead of pointing somewhere else', () => {

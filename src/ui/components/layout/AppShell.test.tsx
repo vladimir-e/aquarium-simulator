@@ -1,7 +1,7 @@
 import React from 'react';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, cleanup, act, within } from '@testing-library/react';
-import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { AppShell } from './AppShell';
 import { Stage } from './Stage';
 import { ThemeProvider } from '../../hooks/useTheme';
@@ -39,6 +39,11 @@ function Harness(): React.JSX.Element {
   );
 }
 
+function Address(): React.JSX.Element {
+  const { pathname, search } = useLocation();
+  return <p data-testid="address">{`${pathname}${search}`}</p>;
+}
+
 function renderShell(): void {
   render(
     <ThemeProvider>
@@ -47,12 +52,21 @@ function renderShell(): void {
           <UnitsProvider>
             <MemoryRouter initialEntries={['/']}>
               <Harness />
+              <Address />
             </MemoryRouter>
           </UnitsProvider>
         </ConfigProvider>
       </PersistenceProvider>
     </ThemeProvider>
   );
+}
+
+function address(): string {
+  return screen.getByTestId('address').textContent ?? '';
+}
+
+function actionsTrigger(): HTMLElement {
+  return screen.getByRole('button', { name: /Actions/ });
 }
 
 function openDrawer(): HTMLElement {
@@ -149,5 +163,61 @@ describe('AppShell — the index drawer', () => {
     expect(screen.queryByRole('dialog')).toBeNull();
     expect(screen.getByRole('navigation', { name: 'Sections' })).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Open index' })).toBeNull();
+  });
+});
+
+describe('AppShell — the Actions sheet', () => {
+  it('docks the trigger at the foot of whichever column persists', () => {
+    renderShell();
+    // Phone: the rail is behind the Menu button, so the trigger cannot ride it.
+    expect(actionsTrigger()).toBeTruthy();
+    expect(openDrawer().contains(actionsTrigger())).toBe(false);
+    fireEvent.keyDown(window, { key: 'Escape' });
+
+    act(() => media.set((query) => query === RAIL_QUERY));
+
+    const rail = screen.getByRole('navigation', { name: 'Sections' }).parentElement!;
+    expect(rail.contains(actionsTrigger())).toBe(true);
+  });
+
+  it('names the promoted verb while it is shut', () => {
+    renderShell();
+    expect(actionsTrigger().textContent).toContain('Feed 0.5 g');
+  });
+
+  it('is component state, not a view — the address bar keeps naming the section', () => {
+    renderShell();
+    const before = address();
+
+    fireEvent.click(actionsTrigger());
+    expect(screen.getByRole('dialog', { name: 'Actions' })).toBeTruthy();
+    expect(address()).toBe(before);
+
+    fireEvent.click(screen.getByRole('button', { name: /^Water Δ/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Change water · 25 %' }));
+
+    expect(screen.queryByRole('dialog', { name: 'Actions' })).toBeNull();
+    expect(address()).toBe(before);
+  });
+
+  it('answers ⌘K from anywhere, and closes on the second press', () => {
+    renderShell();
+
+    fireEvent.keyDown(window, { key: 'k', metaKey: true });
+    expect(screen.getByRole('dialog', { name: 'Actions' })).toBeTruthy();
+
+    fireEvent.keyDown(window, { key: 'k', metaKey: true });
+    expect(screen.queryByRole('dialog', { name: 'Actions' })).toBeNull();
+  });
+
+  it('never evicts the index — the rail is still there behind it', () => {
+    renderShell();
+    act(() => media.set((query) => query === RAIL_QUERY));
+
+    fireEvent.click(actionsTrigger());
+
+    expect(screen.getByRole('dialog', { name: 'Actions' })).toBeTruthy();
+    expect(screen.getByRole('navigation', { name: 'Sections' })).toBeTruthy();
+    expect(actionsTrigger()).toBeTruthy();
   });
 });

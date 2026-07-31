@@ -45,8 +45,8 @@ interface ChromeRowProps {
 
 /**
  * The top band: identity, scenario, the latest event, and utilities. No verbs —
- * husbandry lives behind the rail's Actions trigger, construction in each
- * section's own header.
+ * husbandry lives behind the Actions trigger, construction in each section's
+ * own header.
  */
 export function ChromeRow({ logs, onOpenIndex }: ChromeRowProps): React.JSX.Element {
   const { isDebugPanelOpen, toggleDebugPanel, isAnyModified } = useConfig();
