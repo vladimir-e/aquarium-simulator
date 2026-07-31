@@ -9,6 +9,7 @@ import { useMediaQuery, RAIL_QUERY } from '../../hooks/useMediaQuery';
 import { PresetSwitchProvider } from '../../hooks/usePresetSwitch';
 import { useUnits } from '../../hooks/useUnits';
 import { verbRow } from '../../actions';
+import { driftsFromPreset } from '../../build';
 import { navFigures } from '../../nav';
 import { getPresetById } from '../../presets.js';
 import { ActionsSheet } from '../actions/ActionsSheet';
@@ -63,7 +64,7 @@ export function AppShell({ sim, config }: AppShellProps): React.JSX.Element {
     state: sim.state,
     config,
     presetName: getPresetById(sim.currentPreset)?.name ?? sim.currentPreset,
-    presetModified: sim.isPresetModified,
+    presetModified: driftsFromPreset(sim.state, sim.currentPreset),
     units: unitSystem,
     aggregates: sim.aggregates,
   });

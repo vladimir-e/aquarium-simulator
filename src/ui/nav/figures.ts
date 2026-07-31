@@ -132,10 +132,6 @@ function analyticsFigure(aggregates: RunAggregates, logs: LogEntry[], units: Uni
   return { pill: null, lines: summaryLines(runSummary(aggregates, logs, units)) };
 }
 
-/**
- * The pill is the only place drift from the loaded preset is visible without
- * opening the section, and the restore that clears it lives one click away.
- */
 function scenarioFigure(
   state: SimulationState,
   presetName: string,
@@ -157,7 +153,6 @@ export interface NavFigureInput {
   config: TunableConfig;
   aggregates: RunAggregates;
   presetName: string;
-  /** Equipment or stocking has moved away from the loaded preset's defaults. */
   presetModified: boolean;
   units: UnitSystem;
 }

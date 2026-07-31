@@ -45,11 +45,12 @@ function StepButton({
 }
 
 /**
- * The run's timeline. At 1622 ticks over a track this wide a drag lands within
- * a couple of ticks of where it aimed, so the step buttons and the tick field
- * are the instrument, not the decoration — they are how an exact tick gets into
- * the URL. Dragging and stepping refine the cursor; typing a tick, jumping to
- * an end, or returning to the live edge commit to a place worth a back step.
+ * The window's timeline. A drag resolves to the nearest tick the track's width
+ * can name, which over a month-wide domain is nowhere near hour-exact — so the
+ * step buttons and the tick field are the instrument, not the decoration; they
+ * are how an exact tick gets into the URL. Dragging and stepping refine the
+ * cursor; typing a tick, jumping to an end, or returning to the live edge
+ * commit to a place worth a back step.
  */
 export function TickScrubber({
   range,

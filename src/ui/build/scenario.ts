@@ -18,10 +18,16 @@ import { SurfaceResource } from '../../simulation/resources/index.js';
 import { PRESETS, type PresetId } from '../presets.js';
 import { TICKS_PER_DAY } from '../utils/clock.js';
 import { formatVolume, type UnitSystem } from '../utils/units.js';
-import { turnoverRatio } from './readings.js';
+import { turnover } from './readings.js';
 import { scapeSummary } from './scape.js';
 
-/** The lid in prose — the rail, the preset cards and the evaporation row agree. */
+/** Lids in the order the picker offers them. */
+export const LID_TYPES: readonly LidType[] = ['none', 'mesh', 'full', 'sealed'];
+
+/**
+ * The lid in prose — the rail, the preset cards, the evaporation row and the
+ * lid picker all read it from here, so there is one wording to disagree with.
+ */
 export const LID_LABEL: Record<LidType, string> = {
   none: 'no lid',
   mesh: 'mesh lid',
@@ -39,8 +45,19 @@ export interface PresetCard {
 }
 
 function buildSummary(state: SimulationState): string {
-  const { airPump, ato, co2Generator, filter, heater, hardscape, light, lid, powerhead, substrate } =
-    state.equipment;
+  const {
+    airPump,
+    ato,
+    autoDoser,
+    co2Generator,
+    filter,
+    heater,
+    hardscape,
+    light,
+    lid,
+    powerhead,
+    substrate,
+  } = state.equipment;
   const gear: string[] = [];
 
   if (filter.enabled) gear.push(`${filter.type} filter`);
@@ -50,6 +67,7 @@ function buildSummary(state: SimulationState): string {
   if (airPump.enabled) gear.push('air pump');
   if (powerhead.enabled) gear.push('powerhead');
   if (ato.enabled) gear.push('ATO');
+  if (autoDoser.enabled) gear.push('auto doser');
   if (gear.length === 0) gear.push('no equipment');
 
   return [scapeSummary(substrate.type, hardscape.items), ...gear, LID_LABEL[lid.type]].join(' · ');
@@ -67,13 +85,54 @@ export function presetCards(units: UnitSystem): PresetCard[] {
   });
 }
 
+/**
+ * Everything a restore would put back, flattened to primitives: the tank,
+ * environment and equipment `loadPreset` rewrites, minus what the engine drives
+ * on its own (`isOn`, `dosedToday`) and the ids it mints per hardscape item.
+ */
+function presetSettings(state: SimulationState): string {
+  const e = state.equipment;
+  const schedule = (s: { startHour: number; duration: number }): number[] => [s.startHour, s.duration];
+
+  return JSON.stringify({
+    capacity: state.tank.capacity,
+    room: state.environment.roomTemperature,
+    tapTemperature: state.environment.tapWaterTemperature,
+    tapPH: state.environment.tapWaterPH,
+    heater: [e.heater.enabled, e.heater.targetTemperature, e.heater.wattage],
+    lid: e.lid.type,
+    ato: e.ato.enabled,
+    filter: [e.filter.enabled, e.filter.type],
+    powerhead: [e.powerhead.enabled, e.powerhead.flowRateGPH],
+    substrate: e.substrate.type,
+    hardscape: e.hardscape.items.map((item) => item.type).sort(),
+    light: [e.light.enabled, e.light.wattage, ...schedule(e.light.schedule)],
+    co2: [e.co2Generator.enabled, e.co2Generator.bubbleRate, ...schedule(e.co2Generator.schedule)],
+    airPump: e.airPump.enabled,
+    autoDoser: [e.autoDoser.enabled, e.autoDoser.doseAmountMl, ...schedule(e.autoDoser.schedule)],
+  });
+}
+
+const PRESET_SETTINGS = new Map<PresetId, string>(
+  PRESETS.map((preset) => [preset.id, presetSettings(createSimulation(preset.config))])
+);
+
+/**
+ * Whether the tank has moved away from the preset it was built from. Derived
+ * rather than tracked, so a change and its undo cancel out, a reload cannot
+ * lose it, and it is true exactly when Restore has something to put back.
+ */
+export function driftsFromPreset(state: SimulationState, presetId: PresetId): boolean {
+  return presetSettings(state) !== PRESET_SETTINGS.get(presetId);
+}
+
 export interface DerivedReading {
   label: string;
   value: string;
   note?: string;
 }
 
-/** What the fields above this block do to the tank, in the engine's own terms. */
+/** What the environment fields do to the tank, in the engine's own terms. */
 export function environmentDerived(
   state: SimulationState,
   config: TunableConfig
@@ -96,9 +155,7 @@ export function environmentDerived(
     { label: 'Bacteria surface', value: SurfaceResource.format(resources.surface) },
     {
       label: 'Filter turnover',
-      value: equipment.filter.enabled
-        ? `${turnoverRatio(flow, tank.capacity).toFixed(1)} ×/h`
-        : 'none',
+      value: equipment.filter.enabled ? turnover(flow, tank.capacity) : 'none',
       note: equipment.filter.enabled ? undefined : 'filter off',
     },
     {
@@ -110,12 +167,11 @@ export function environmentDerived(
 }
 
 /**
- * 30 days. Below it a reset costs little enough that interrupting to ask costs
- * more than the reset does.
+ * Below this a reset costs little enough that interrupting to ask costs more
+ * than the reset does.
  */
-export const RESET_CONFIRM_TICKS = 720;
+export const RESET_CONFIRM_TICKS = 30 * TICKS_PER_DAY;
 
-/** The standing statement of what Reset takes and what it leaves. */
 export function resetConsequence(state: SimulationState): string {
   const days = Math.floor(state.tick / TICKS_PER_DAY);
   const elapsed = days > 0 ? ` — ${days} day${days === 1 ? '' : 's'}` : '';

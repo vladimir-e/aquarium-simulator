@@ -52,8 +52,6 @@ interface UseSimulationReturn {
   isPlaying: boolean;
   speed: SpeedPreset;
   currentPreset: PresetId;
-  /** True if equipment or plants have been modified from preset defaults */
-  isPresetModified: boolean;
   /** Per-tick vitals snapshots for this run (ring buffer, session-scoped). */
   history: RunSnapshot[];
   /** Rolling run tallies (deaths, births, alerts, water changed…). */
@@ -176,9 +174,6 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
     }
     return initialPreset;
   });
-
-  // Track if equipment/plants have been modified from preset defaults
-  const [isModified, setIsModified] = useState(false);
 
   const [state, setState] = useState<SimulationState>(() => {
     // If we have persisted state, restore it
@@ -346,7 +341,6 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
       }
 
       setCurrentPreset(presetId);
-      setIsModified(false);
       resetRun();
 
       // Apply preset equipment while preserving simulation progress
@@ -433,7 +427,6 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
   }, [isPlaying, stopAutoPlay, resetRun]);
 
   const updateHeaterEnabled = useCallback((enabled: boolean) => {
-    setIsModified(true);
     setState((current) =>
       produce(current, (draft) => {
         const message = enabled
@@ -447,7 +440,6 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
   }, []);
 
   const updateHeaterTargetTemperature = useCallback((temp: number) => {
-    setIsModified(true);
     setState((current) =>
       produce(current, (draft) => {
         const oldTemp = draft.equipment.heater.targetTemperature;
@@ -464,7 +456,6 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
   }, []);
 
   const updateHeaterWattage = useCallback((wattage: number) => {
-    setIsModified(true);
     setState((current) =>
       produce(current, (draft) => {
         const oldWattage = draft.equipment.heater.wattage;
@@ -529,7 +520,6 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
   }, []);
 
   const updateLidType = useCallback((type: LidType) => {
-    setIsModified(true);
     setState((current) =>
       produce(current, (draft) => {
         const oldType = draft.equipment.lid.type;
@@ -549,7 +539,6 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
   }, []);
 
   const updateAtoEnabled = useCallback((enabled: boolean) => {
-    setIsModified(true);
     setState((current) =>
       produce(current, (draft) => {
         const message = enabled
@@ -563,7 +552,6 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
   }, []);
 
   const updateFilterEnabled = useCallback((enabled: boolean) => {
-    setIsModified(true);
     setState((current) =>
       produce(current, (draft) => {
         const message = enabled ? 'Filter enabled' : 'Filter disabled';
@@ -580,7 +568,6 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
   }, []);
 
   const updateFilterType = useCallback((type: FilterType) => {
-    setIsModified(true);
     setState((current) =>
       produce(current, (draft) => {
         const oldType = draft.equipment.filter.type;
@@ -604,7 +591,6 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
   }, []);
 
   const updateAirPumpEnabled = useCallback((enabled: boolean) => {
-    setIsModified(true);
     setState((current) =>
       produce(current, (draft) => {
         const message = enabled ? 'Air pump enabled' : 'Air pump disabled';
@@ -621,7 +607,6 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
   }, []);
 
   const updatePowerheadEnabled = useCallback((enabled: boolean) => {
-    setIsModified(true);
     setState((current) =>
       produce(current, (draft) => {
         const message = enabled ? 'Powerhead enabled' : 'Powerhead disabled';
@@ -638,7 +623,6 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
   }, []);
 
   const updatePowerheadFlowRate = useCallback((flowRateGPH: PowerheadFlowRate) => {
-    setIsModified(true);
     setState((current) =>
       produce(current, (draft) => {
         const oldRate = draft.equipment.powerhead.flowRateGPH;
@@ -661,7 +645,6 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
   }, []);
 
   const updateSubstrateType = useCallback((type: SubstrateType) => {
-    setIsModified(true);
     setState((current) =>
       produce(current, (draft) => {
         const oldType = draft.equipment.substrate.type;
@@ -684,7 +667,6 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
   }, []);
 
   const addHardscapeItem = useCallback((type: HardscapeType) => {
-    setIsModified(true);
     setState((current) =>
       produce(current, (draft) => {
         // Check slot limit
@@ -716,7 +698,6 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
   }, []);
 
   const removeHardscapeItem = useCallback((id: string) => {
-    setIsModified(true);
     setState((current) =>
       produce(current, (draft) => {
         const item = draft.equipment.hardscape.items.find((i) => i.id === id);
@@ -743,7 +724,6 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
   }, []);
 
   const updateLightEnabled = useCallback((enabled: boolean) => {
-    setIsModified(true);
     setState((current) =>
       produce(current, (draft) => {
         const message = enabled
@@ -762,7 +742,6 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
   }, []);
 
   const updateLightWattage = useCallback((wattage: number) => {
-    setIsModified(true);
     setState((current) =>
       produce(current, (draft) => {
         const oldWattage = draft.equipment.light.wattage;
@@ -785,7 +764,6 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
   }, []);
 
   const updateLightSchedule = useCallback((schedule: DailySchedule) => {
-    setIsModified(true);
     setState((current) =>
       produce(current, (draft) => {
         const oldSchedule = draft.equipment.light.schedule;
@@ -808,7 +786,6 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
   }, []);
 
   const updateCo2GeneratorEnabled = useCallback((enabled: boolean) => {
-    setIsModified(true);
     setState((current) =>
       produce(current, (draft) => {
         const message = enabled
@@ -822,7 +799,6 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
   }, []);
 
   const updateCo2GeneratorBubbleRate = useCallback((bubbleRate: number) => {
-    setIsModified(true);
     setState((current) =>
       produce(current, (draft) => {
         const oldRate = draft.equipment.co2Generator.bubbleRate;
@@ -841,7 +817,6 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
   }, []);
 
   const updateCo2GeneratorSchedule = useCallback((schedule: DailySchedule) => {
-    setIsModified(true);
     setState((current) =>
       produce(current, (draft) => {
         const oldSchedule = draft.equipment.co2Generator.schedule;
@@ -860,7 +835,6 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
   }, []);
 
   const updateAutoDoserEnabled = useCallback((enabled: boolean) => {
-    setIsModified(true);
     setState((current) =>
       produce(current, (draft) => {
         const message = enabled
@@ -874,7 +848,6 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
   }, []);
 
   const updateAutoDoserAmount = useCallback((amountMl: number) => {
-    setIsModified(true);
     setState((current) =>
       produce(current, (draft) => {
         const oldAmount = draft.equipment.autoDoser.doseAmountMl;
@@ -893,7 +866,6 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
   }, []);
 
   const updateAutoDoserSchedule = useCallback((schedule: DailySchedule) => {
-    setIsModified(true);
     setState((current) =>
       produce(current, (draft) => {
         const oldSchedule = draft.equipment.autoDoser.schedule;
@@ -913,7 +885,6 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
 
   const changeTankCapacity = useCallback(
     (capacity: number) => {
-      setIsModified(true);
       // Stop playing if currently running
       if (isPlaying) {
         stopAutoPlay();
@@ -985,11 +956,6 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
    * Execute a user action immediately (works even when paused).
    */
   const executeAction = useCallback((action: Action) => {
-    // Mark as modified for plant/fish actions
-    if (action.type === 'addPlant' || action.type === 'removePlant' ||
-        action.type === 'addFish' || action.type === 'removeFish') {
-      setIsModified(true);
-    }
     // Accumulate water changed (in liters) at dispatch — the action itself
     // only surfaces the volume in free text.
     if (action.type === 'waterChange' && action.amount > 0 && action.amount <= 1) {
@@ -1009,7 +975,6 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
     isPlaying,
     speed,
     currentPreset,
-    isPresetModified: isModified,
     history,
     aggregates,
     step,

@@ -1,11 +1,13 @@
 /**
- * Analytics' view state lives in the query string, so a parked cursor is a link
- * someone can send and browser-back walks back out of it. Defaults are absent
- * rather than spelled out — `/analytics` is the whole run at the live edge, and
- * a running sim never rewrites the URL because following the edge has no param.
+ * Analytics' view state lives in the query string, so browser-back walks back
+ * out of a scrub and every view is addressable within the session. Defaults are
+ * absent rather than spelled out — `/analytics` is the widest window at the live
+ * edge, and a running sim never rewrites the URL because following has no param.
  *
- * `?tick=` is scoped to this section: `RunSnapshot` carries no AOB/NOB, waste,
- * nutrients or roster, so no other section can honour a historical cursor.
+ * `?tick=` does not outlive the session that made it: history is session-scoped,
+ * so a reload leaves nothing for a tick to name. It is also scoped to this
+ * section — `RunSnapshot` carries no AOB/NOB, waste, nutrients or roster, so no
+ * other section could honour a historical cursor.
  */
 
 import { type LogFilter, LOG_FILTERS } from './category.js';

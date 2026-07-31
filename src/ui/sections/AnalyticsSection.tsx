@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import type { useSimulation } from '../hooks/useSimulation';
 import { useTheme } from '../hooks/useTheme';
@@ -19,6 +19,7 @@ import {
   REVIEW_CHARTS,
   REVIEW_WINDOWS,
   TICK_PARAM,
+  WINDOW_LABEL,
   WINDOW_PARAM,
   alertMarkers,
   nextScrubPosition,
@@ -31,13 +32,12 @@ import {
   windowRange,
 } from '../review/index.js';
 
-const WINDOW_LABEL: Record<ReviewWindow, string> = {
-  run: 'this run',
-  '24h': '24h',
-  '7d': '7d',
-};
 const WINDOW_OPTIONS = REVIEW_WINDOWS.map((value) => ({ value, label: WINDOW_LABEL[value] }));
 const CHART_CHIP_OPTIONS = REVIEW_CHARTS.map((chart) => ({ value: chart.id, label: chart.shortLabel }));
+
+function queryOf(view: AnalyticsView): string {
+  return new globalThis.URLSearchParams(viewParams(view)).toString();
+}
 
 /**
  * Charts, the log, and the scrubber share one tick cursor, and that cursor is
@@ -65,21 +65,43 @@ export function AnalyticsSection({
     [sim.history, reviewWindow]
   );
   const range = useMemo(() => windowRange(sim.history, reviewWindow), [sim.history, reviewWindow]);
+  const runRange = useMemo(() => windowRange(sim.history, 'run'), [sim.history]);
   const windowLogs = useMemo(() => sliceLogs(logs, range), [logs, range]);
   const marks = useMemo(() => alertMarkers(logs, range), [logs, range]);
 
-  const scrubTick = readTick(params.get(TICK_PARAM), range);
+  const rawTick = params.get(TICK_PARAM);
+  const scrubTick = readTick(rawTick, range);
   const currentTick = range ? (scrubTick ?? range.maxTick) : 0;
+
+  /**
+   * Whether the cursor was parked as of the last write rather than the last
+   * render: a drag issues several scrubs per frame, and reading that off
+   * `scrubTick` would let every one of them push its own back entry.
+   */
+  const parkedRef = useRef(false);
+  parkedRef.current = scrubTick !== null;
 
   const setView = useCallback(
     (patch: Partial<AnalyticsView>, intent: ScrubIntent): void => {
       const view: AnalyticsView = { window: reviewWindow, filter, tick: scrubTick };
-      const next = new globalThis.URLSearchParams(viewParams({ ...view, ...patch })).toString();
-      if (next === new globalThis.URLSearchParams(viewParams(view)).toString()) return;
-      setParams(next, { replace: intent === 'adjust' && scrubTick !== null });
+      const next = { ...view, ...patch };
+      if (queryOf(next) === queryOf(view)) return;
+      const replace = intent === 'adjust' && parkedRef.current;
+      parkedRef.current = next.tick !== null;
+      setParams(queryOf(next), { replace });
     },
     [reviewWindow, filter, scrubTick, setParams]
   );
+
+  /**
+   * A `?tick=` the window cannot honour resolves to something else — its oldest
+   * snapshot, or the live edge — and the address has to follow, or a cold deep
+   * link leaves the URL naming a tick the handle is not on.
+   */
+  useEffect(() => {
+    if (rawTick === (scrubTick === null ? null : String(scrubTick))) return;
+    setParams(queryOf({ window: reviewWindow, filter, tick: scrubTick }), { replace: true });
+  }, [rawTick, scrubTick, reviewWindow, filter, setParams]);
 
   const scrub = useCallback(
     (tick: number, intent: ScrubIntent): void => {
@@ -104,7 +126,8 @@ export function AnalyticsSection({
 
   /**
    * The tiles count the whole run, so the tick they name can predate a bounded
-   * window — widen back to the run rather than land somewhere else.
+   * window — widen back to the buffer rather than land somewhere else. A tick
+   * older than the buffer never reaches here: the tile stops offering it.
    */
   const scrubToRunTick = useCallback(
     (tick: number): void => {
@@ -112,10 +135,9 @@ export function AnalyticsSection({
         setView({ tick: nextScrubPosition(tick, range) }, 'commit');
         return;
       }
-      const runRange = windowRange(sim.history, 'run');
       setView({ window: 'run', tick: nextScrubPosition(tick, runRange) }, 'commit');
     },
-    [range, sim.history, setView]
+    [range, runRange, setView]
   );
 
   const renderChart = (chart: ChartDef): React.JSX.Element => (
@@ -137,7 +159,6 @@ export function AnalyticsSection({
   const logPanel = (
     <ReviewLogPanel
       windowLogs={windowLogs}
-      allLogs={logs}
       filter={filter}
       onFilterChange={(next) => setView({ filter: next }, 'commit')}
       currentTick={currentTick}
@@ -169,7 +190,12 @@ export function AnalyticsSection({
       }
     >
       <div className="flex h-full min-h-0 flex-col gap-2.5">
-        <SummaryTiles aggregates={sim.aggregates} logs={logs} onScrubToTick={scrubToRunTick} />
+        <SummaryTiles
+          aggregates={sim.aggregates}
+          logs={logs}
+          reachable={runRange}
+          onScrubToTick={scrubToRunTick}
+        />
 
         {isMobile ? (
           <>

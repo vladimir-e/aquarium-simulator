@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, cleanup, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { EquipmentSection } from './EquipmentSection';
@@ -13,6 +13,7 @@ import type { useSimulation } from '../hooks/useSimulation';
 import { RAIL_QUERY } from '../hooks/useMediaQuery';
 import { toInternalTemperature } from '../utils/units';
 import { stubMatchMedia, type MatchMediaStub } from '../test/matchMedia';
+import { stubSim } from '../test/stubSim';
 
 let media: MatchMediaStub;
 
@@ -28,21 +29,6 @@ afterEach(() => {
 });
 
 const base: SimulationState = createSimulation({ tankCapacity: 40 });
-
-/** Stub of the sim hook: real engine state, a fresh vi.fn() per callback. */
-function stubSim(state: SimulationState): ReturnType<typeof useSimulation> {
-  const cache = new Map<string, ReturnType<typeof vi.fn>>();
-  return new Proxy(
-    { state },
-    {
-      get(target: { state: SimulationState }, prop: string): unknown {
-        if (prop === 'state') return target.state;
-        if (!cache.has(prop)) cache.set(prop, vi.fn());
-        return cache.get(prop);
-      },
-    }
-  ) as unknown as ReturnType<typeof useSimulation>;
-}
 
 function Address(): React.JSX.Element {
   return <span data-testid="address">{useLocation().pathname}</span>;

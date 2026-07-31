@@ -18,8 +18,9 @@ function Build({ card }: { card: PresetCard }): React.JSX.Element {
 }
 
 /**
- * The five presets, each naming the tank it sets up. The loaded one is not a
- * switch target — it carries the drift indicator and the restore instead.
+ * Every preset, each naming the tank it sets up. The loaded one is not a switch
+ * target — it carries the drift indicator and the restore instead, and once the
+ * tank has drifted its build line is the restore target rather than the tank.
  */
 export function PresetPicker({
   cards,
@@ -30,7 +31,6 @@ export function PresetPicker({
 }: {
   cards: PresetCard[];
   current: PresetId;
-  /** Equipment or stocking has moved away from the loaded preset's defaults. */
   modified: boolean;
   onSelect: (id: PresetId) => void;
   onRestore: () => void;
@@ -53,10 +53,15 @@ export function PresetPicker({
               </Pill>
             </div>
             {modified && (
-              <RunButton className="mt-2.5" onClick={onRestore}>
-                <RotateCcw className="h-3.5 w-3.5" />
-                Restore defaults
-              </RunButton>
+              <>
+                <p className="mt-1 text-[11px] leading-[1.5] text-ink-3">
+                  what Restore puts back — the tank has moved since
+                </p>
+                <RunButton className="mt-2.5" onClick={onRestore}>
+                  <RotateCcw className="h-3.5 w-3.5" />
+                  Restore defaults
+                </RunButton>
+              </>
             )}
           </li>
         ) : (

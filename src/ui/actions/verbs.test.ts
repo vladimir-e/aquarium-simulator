@@ -113,8 +113,8 @@ describe('the six verbs', () => {
     const full = { ...bare, resources: { ...bare.resources, water: bare.tank.capacity } };
     const clean = { ...bare, algae: { ...bare.algae, mass: MIN_ALGAE_TO_SCRUB - 2 } };
 
-    expect(row(bare, 'dose').blocked).toBe('no plants to feed');
-    expect(row(bare, 'dose').value).toBe('no plants to feed');
+    expect(row(bare, 'dose').blocked).toBe('no plants to fertilise');
+    expect(row(bare, 'dose').value).toBe('no plants to fertilise');
     expect(row(empty, 'waterChange').blocked).toBe('no water to change');
     expect(row(full, 'topOff').blocked).toBe('already at capacity');
     expect(row(clean, 'scrubAlgae').blocked).toBe(`needs ${MIN_ALGAE_TO_SCRUB} % algae, now 3 %`);
@@ -133,7 +133,7 @@ describe('the six verbs', () => {
   it('leaves a blocked verb its settings step, so the reason is reachable', () => {
     const unplanted = detail(tank(), 'dose');
 
-    expect(unplanted.blocked).toBe('no plants to feed');
+    expect(unplanted.blocked).toBe('no plants to fertilise');
     expect(unplanted.options).toHaveLength(DOSE_PRESETS.length);
     expect(unplanted.preview.length).toBeGreaterThan(0);
   });

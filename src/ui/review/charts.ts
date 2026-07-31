@@ -51,18 +51,18 @@ export const REVIEW_CHARTS: ChartDef[] = [
   },
   {
     id: 'o2-temp',
-    title: 'O₂ / temp',
+    title: 'O₂, temp & level',
     shortLabel: 'O₂·temp',
-    alertKinds: ['oxygen'],
+    alertKinds: ['oxygen', 'water'],
     series: [
       { key: 'oxygen', label: 'O₂', accessor: (s) => s.oxygen, light: '#3E6DA8', dark: '#7FB0E8' },
       { key: 'temperature', label: 'temp', accessor: (s) => s.temperature, light: '#8A7A5E', dark: '#C9B48A' },
+      { key: 'waterPct', label: 'level', accessor: (s) => s.waterPct, light: '#2F7D8C', dark: '#6FC6D6' },
     ],
   },
   {
     id: 'population',
-    // Neither plants nor algae are plotted as a mass: `Plant.size` and
-    // `AlgaeState.mass` are both percentages, so the frame is growth, not mass.
+    // `AlgaeState.mass` is a percentage despite the name, as `Plant.size` is.
     title: 'Population & growth',
     shortLabel: 'pop.',
     alertKinds: ['algae', 'plant'],

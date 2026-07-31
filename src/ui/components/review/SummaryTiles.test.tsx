@@ -1,23 +1,43 @@
+import { useEffect } from 'react';
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import { SummaryTiles } from './SummaryTiles';
 import { UnitsProvider, useUnits, type UnitSystem } from '../../hooks/useUnits';
 import { PersistenceProvider } from '../../persistence/index.js';
+import type { TickRange } from '../../review/index.js';
 import type { RunAggregates } from '../../run/index.js';
 import { createLog, type LogEntry } from '../../../simulation/index.js';
-import { formatVolume } from '../../utils/units';
 
-afterEach(cleanup);
+afterEach(() => {
+  globalThis.localStorage.clear();
+  cleanup();
+});
+
+/** The whole run is still in the buffer unless a test says otherwise. */
+const ALL: TickRange = { minTick: 0, maxTick: 40 };
+
+function ForceUnits({ system }: { system: UnitSystem }): null {
+  const { setUnitSystem } = useUnits();
+  useEffect(() => setUnitSystem(system), [system, setUnitSystem]);
+  return null;
+}
 
 function renderTiles(
   aggregates: RunAggregates,
   logs: LogEntry[],
-  onScrubToTick = vi.fn()
+  options: { reachable?: TickRange | null; units?: UnitSystem } = {}
 ): ReturnType<typeof vi.fn> {
+  const onScrubToTick = vi.fn();
   render(
     <PersistenceProvider>
       <UnitsProvider>
-        <SummaryTiles aggregates={aggregates} logs={logs} onScrubToTick={onScrubToTick} />
+        {options.units && <ForceUnits system={options.units} />}
+        <SummaryTiles
+          aggregates={aggregates}
+          logs={logs}
+          reachable={options.reachable === undefined ? ALL : options.reachable}
+          onScrubToTick={onScrubToTick}
+        />
       </UnitsProvider>
     </PersistenceProvider>
   );
@@ -89,25 +109,21 @@ describe('SummaryTiles', () => {
     expect(onScrubToTick).toHaveBeenCalledWith(19);
   });
 
+  it('states a tick the buffer has dropped without offering to scrub to it', () => {
+    renderTiles(base, [ammoniaWarning(29)], { reachable: { minTick: 100, maxTick: 820 } });
+    expect(screen.getByText('latest T29')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'latest T29' })).toBeNull();
+  });
+
+  it('offers nothing to scrub to before the run has any history', () => {
+    renderTiles(base, [ammoniaWarning(29)], { reachable: null });
+    expect(screen.getByText('latest T29')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'latest T29' })).toBeNull();
+  });
+
   it('states the water changed in the reader’s own units', () => {
-    let system: UnitSystem = 'metric';
-    function Probe(): null {
-      system = useUnits().unitSystem;
-      return null;
-    }
-    render(
-      <PersistenceProvider>
-        <UnitsProvider>
-          <Probe />
-          <SummaryTiles
-            aggregates={{ ...base, waterChangedL: 340 }}
-            logs={[]}
-            onScrubToTick={vi.fn()}
-          />
-        </UnitsProvider>
-      </PersistenceProvider>
-    );
-    // Whichever system the app is on, the tile must speak it — not a constant.
-    expect(screen.getAllByText(formatVolume(340, system, 0)).length).toBeGreaterThan(0);
+    renderTiles({ ...base, waterChangedL: 340 }, [], { units: 'imperial' });
+    expect(screen.getAllByText('90 gal').length).toBeGreaterThan(0);
+    expect(screen.queryByText('340 L')).toBeNull();
   });
 });

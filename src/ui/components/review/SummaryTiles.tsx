@@ -2,23 +2,33 @@ import React from 'react';
 import type { LogEntry } from '../../../simulation/index.js';
 import type { RunAggregates } from '../../run/index.js';
 import { useUnits } from '../../hooks/useUnits';
-import { type SummaryTile, ALERT_LABEL, SUMMARY_ORDER, runSummary } from '../../review/index.js';
+import {
+  type SummaryTile,
+  type TickRange,
+  ALERT_LABEL,
+  SUMMARY_ORDER,
+  runSummary,
+} from '../../review/index.js';
 import { Pill } from '../run/elements';
 import { CONTROL_FOCUS } from '../ui/focus';
 
-/** A meta line that names a tick parks the cursor there when tapped. */
+/** A meta line that names a reachable tick parks the cursor there when tapped. */
 function MetaLine({
   tile,
+  reachable,
   onScrubToTick,
   className,
 }: {
   tile: SummaryTile;
+  reachable: TickRange | null;
   onScrubToTick: (tick: number) => void;
   className: string;
 }): React.JSX.Element | null {
   const { meta, metaTick } = tile;
   if (meta === undefined) return null;
-  if (metaTick === undefined) return <span className={className}>{meta}</span>;
+  if (metaTick === undefined || reachable === null || metaTick < reachable.minTick) {
+    return <span className={className}>{meta}</span>;
+  }
   return (
     <button
       type="button"
@@ -33,10 +43,17 @@ function MetaLine({
 export function SummaryTiles({
   aggregates,
   logs,
+  reachable,
   onScrubToTick,
 }: {
   aggregates: RunAggregates;
   logs: LogEntry[];
+  /**
+   * The span the history buffer still holds. The tiles count the whole run, so
+   * a tick they name can already have dropped off the back — one that has is
+   * stated but not offered, rather than parking the cursor somewhere else.
+   */
+  reachable: TickRange | null;
   onScrubToTick: (tick: number) => void;
 }): React.JSX.Element {
   const { unitSystem } = useUnits();
@@ -63,6 +80,7 @@ export function SummaryTiles({
             </div>
             <MetaLine
               tile={tile}
+              reachable={reachable}
               onScrubToTick={onScrubToTick}
               className="mt-0.5 block font-mono text-[11px] tabular-nums text-ink-3"
             />

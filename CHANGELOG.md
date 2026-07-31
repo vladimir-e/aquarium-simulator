@@ -13,7 +13,8 @@ Format: - **Feature name** (#PR) - One short sentence (under ~150 chars)
 
 - **Actions sheet** - one transient surface for all six husbandry verbs: a card over the rail's foot, a master-detail drill-in on a phone, previewing each by applying the action and diffing the engine's own readings.
 - **Scenario section** - five preset cards stating the tank each actually builds, the environment fields with their derived consequences, and the three confirmations restored.
-- **Analytics section** - four full-width charts over a full-width log, and the scrubbed tick lives in `?tick=` so a cursor is a link and back walks out of a scrub.
+- **Preset drift is derived** - the "modified" pill compares the tank against its preset's config, so an undo clears it and Restore always has work.
+- **Analytics section** - four full-width charts over a full-width log; the scrubbed tick lives in `?tick=`, so a cursor is a link for the session.
 - **Error boundary keeps your tank** - render errors show a recovery screen instead of wiping the save and reloading; reset is now an explicit button.
 - **Livestock section** - the roster as a table: species rows expand into individuals, clutches and fry get their own rows, bioload pinned to the foot.
 - **Flora & Scape section** - plants with per-stressor vitality breakdowns beside the algae, nutrients read against what the tank's own plants need, and the scape's surface contributions.

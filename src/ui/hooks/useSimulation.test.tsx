@@ -297,6 +297,51 @@ describe('useSimulation', () => {
       expect(result.current.state.tick).toBe(0);
     });
 
+    it('switching preset rebuilds the world around the run rather than replacing it', () => {
+      seedSessionWithClutch('planted');
+      const { result } = renderHook(() => useSimulation(), { wrapper });
+
+      act(() => {
+        result.current.executeAction({ type: 'addFish', species: 'neon_tetra' });
+        result.current.executeAction({ type: 'addPlant', species: 'java_fern' });
+      });
+      act(() => {
+        result.current.togglePlayPause();
+      });
+
+      const before = result.current.state;
+      expect(before.fish).toHaveLength(1);
+      expect(before.plants).toHaveLength(1);
+      expect(before.clutches).toHaveLength(1);
+      expect(result.current.isPlaying).toBe(true);
+
+      act(() => {
+        result.current.loadPreset('community');
+      });
+
+      const after = result.current.state;
+      // The world changes…
+      expect(after.tank.capacity).toBe(150);
+      expect(after.equipment.heater.targetTemperature).toBe(27);
+      // …the run inside it does not.
+      expect(after.tick).toBe(before.tick);
+      expect(after.fish).toEqual(before.fish);
+      expect(after.plants).toEqual(before.plants);
+      expect(after.clutches).toEqual(before.clutches);
+      expect(after.algae).toEqual(before.algae);
+      // Playback stops so the rebuilt tank is not swept past unseen, and the
+      // charts start over because the old ones describe a different tank.
+      expect(result.current.isPlaying).toBe(false);
+      expect(result.current.history).toHaveLength(1);
+      expect(result.current.aggregates.ticks).toBe(0);
+
+      // Autoplay really stopped — a stray interval would carry the tick on.
+      act(() => {
+        vi.advanceTimersByTime(5000);
+      });
+      expect(result.current.state.tick).toBe(before.tick);
+    });
+
     it('loadPreset restores equipment but preserves simulation progress', () => {
       const { result } = renderHook(() => useSimulation('betta'), { wrapper });
 

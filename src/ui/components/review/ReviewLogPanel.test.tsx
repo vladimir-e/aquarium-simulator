@@ -21,7 +21,6 @@ describe('ReviewLogPanel', () => {
     const { rerender } = render(
       <ReviewLogPanel
         windowLogs={logs}
-        allLogs={logs}
         filter="user"
         onFilterChange={() => {}}
         currentTick={36}
@@ -35,7 +34,6 @@ describe('ReviewLogPanel', () => {
     rerender(
       <ReviewLogPanel
         windowLogs={logs}
-        allLogs={logs}
         filter="all"
         onFilterChange={() => {}}
         currentTick={36}
@@ -50,7 +48,6 @@ describe('ReviewLogPanel', () => {
     render(
       <ReviewLogPanel
         windowLogs={logs}
-        allLogs={logs}
         filter="all"
         onFilterChange={() => {}}
         currentTick={36}
@@ -65,7 +62,6 @@ describe('ReviewLogPanel', () => {
     render(
       <ReviewLogPanel
         windowLogs={logs}
-        allLogs={logs}
         filter="all"
         onFilterChange={() => {}}
         currentTick={36}
@@ -75,13 +71,12 @@ describe('ReviewLogPanel', () => {
     expect(screen.getByText('export')).toBeTruthy();
   });
 
-  it('exports the whole run transcript, not the windowed view', () => {
-    const windowSubset = [logs[2], logs[3]]; // ticks 30, 36 only
+  it('exports the log it is showing — the window, narrowed by the filter', () => {
+    const windowSubset = [logs[1], logs[2], logs[3]]; // ticks 10, 30, 36
     render(
       <ReviewLogPanel
         windowLogs={windowSubset}
-        allLogs={logs}
-        filter="all"
+        filter="user"
         onFilterChange={() => {}}
         currentTick={36}
         onScrubToTick={() => {}}
@@ -100,8 +95,9 @@ describe('ReviewLogPanel', () => {
 
     expect(blobSpy).toHaveBeenCalledTimes(1);
     const content = (blobSpy.mock.calls[0][0] as string[])[0];
-    expect(content).toBe(formatLogExport(logs));
-    expect(content).toContain('added Neon Tetra'); // a tick-10 line absent from the window
+    expect(content).toBe(formatLogExport([logs[1]]));
+    expect(content).not.toContain('created'); // outside the window
+    expect(content).not.toContain('High ammonia'); // inside it, but not a user line
     expect(anchor.download).toBe('aquarium-run-log.txt');
   });
 
@@ -109,7 +105,6 @@ describe('ReviewLogPanel', () => {
     render(
       <ReviewLogPanel
         windowLogs={[logs[0]]}
-        allLogs={logs}
         filter="life"
         onFilterChange={() => {}}
         currentTick={0}

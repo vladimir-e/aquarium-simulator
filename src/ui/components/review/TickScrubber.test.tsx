@@ -140,6 +140,15 @@ describe('TickScrubber', () => {
     );
   });
 
+  it('rules the track at every midnight strictly inside the window', () => {
+    renderScrubber({ range: { minTick: 0, maxTick: 100 } });
+    const grid = [
+      ...screen.getByRole('slider').querySelectorAll<HTMLElement>('[aria-hidden="true"]'),
+    ];
+    // Ticks 24, 48, 72, 96 — the ends carry their own labels, so no mark there.
+    expect(grid.map((mark) => mark.style.left)).toEqual(['24%', '48%', '72%', '96%']);
+  });
+
   it('marks the run’s alerts on the track', () => {
     renderScrubber({
       range: { minTick: 0, maxTick: 100 },

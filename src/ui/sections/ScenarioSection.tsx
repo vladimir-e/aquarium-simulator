@@ -15,30 +15,23 @@ import { Segmented } from '../components/ui/Segmented';
 import { Select } from '../components/ui/Select';
 import { Stepper } from '../components/ui/Stepper';
 import {
+  LID_LABEL,
+  LID_TYPES,
   RESET_CONFIRM_TICKS,
+  driftsFromPreset,
   environmentDerived,
   presetCards,
   resetConsequence,
 } from '../build';
 import { findClosestTankSize, formatVolume, getTankSizeOptions } from '../utils/units';
 
-const LID_OPTIONS = [
-  { value: 'none', label: 'None' },
-  { value: 'mesh', label: 'Mesh' },
-  { value: 'full', label: 'Full' },
-  { value: 'sealed', label: 'Sealed' },
-];
+const LID_OPTIONS = LID_TYPES.map((value) => ({ value, label: LID_LABEL[value] }));
 
 const UNIT_OPTIONS = [
   { value: 'metric' as const, label: 'L/°C' },
   { value: 'imperial' as const, label: 'gal/°F' },
 ];
 
-/**
- * The setup surface: everything here changes the world rather than acting
- * inside it, which is why the two destructive verbs are pinned to the stage
- * footer with their consequence spelled out beside them.
- */
 export function ScenarioSection({
   sim,
   config,
@@ -53,6 +46,7 @@ export function ScenarioSection({
   const { environment, equipment, tank } = sim.state;
   const cards = useMemo(() => presetCards(unitSystem), [unitSystem]);
   const derived = useMemo(() => environmentDerived(sim.state, config), [sim.state, config]);
+  const modified = driftsFromPreset(sim.state, current);
 
   const consequence = resetConsequence(sim.state);
   const presetName = cards.find((card) => card.id === current)?.name ?? current;
@@ -101,7 +95,7 @@ export function ScenarioSection({
           <PresetPicker
             cards={cards}
             current={current}
-            modified={sim.isPresetModified}
+            modified={modified}
             onSelect={request}
             onRestore={() => request(current)}
           />

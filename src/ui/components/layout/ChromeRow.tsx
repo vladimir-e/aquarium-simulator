@@ -1,5 +1,5 @@
 import React from 'react';
-import { ExternalLink, Menu, Settings } from 'lucide-react';
+import { Github, Menu, Settings } from 'lucide-react';
 import type { LogEntry } from '../../../simulation/index.js';
 import { latestLog } from '../../run';
 import { useConfig } from '../../hooks/useConfig';
@@ -75,15 +75,17 @@ export function ChromeRow({ logs, onOpenIndex }: ChromeRowProps): React.JSX.Elem
 
       <div className="ml-auto flex shrink-0 items-center gap-2 md:ml-0">
         <ThemeToggle />
+        {/* Named, not an icon: the mark is the credibility on an open-source demo. */}
         <a
           href={REPO_URL}
           target="_blank"
           rel="noreferrer"
           aria-label="Source on GitHub"
           title="Source on GitHub"
-          className={UTILITY}
+          className={`${UTILITY} w-auto gap-1.5 px-2.5 text-[13px] font-medium`}
         >
-          <ExternalLink className="h-4 w-4" />
+          <Github className="h-4 w-4" />
+          <span className="hidden sm:inline">GitHub</span>
         </a>
         <button
           type="button"

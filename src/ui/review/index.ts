@@ -15,6 +15,7 @@ export {
 export {
   type ReviewWindow,
   REVIEW_WINDOWS,
+  WINDOW_LABEL,
   WINDOW_TICKS,
   type TickRange,
   sliceHistory,

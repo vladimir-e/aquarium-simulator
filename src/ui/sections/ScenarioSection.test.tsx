@@ -1,73 +1,52 @@
 import { useEffect } from 'react';
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, fireEvent, cleanup, within } from '@testing-library/react';
 import { ScenarioSection } from './ScenarioSection';
-import { UnitsProvider, useUnits, type UnitSystem } from '../hooks/useUnits';
+import { UnitsProvider, useUnits } from '../hooks/useUnits';
 import { PresetSwitchProvider } from '../hooks/usePresetSwitch';
 import { PersistenceProvider } from '../persistence/index.js';
 import { RESET_CONFIRM_TICKS } from '../build';
 import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
-import { createSimulation, type SimulationState } from '../../simulation/index.js';
+import { applyAction, createSimulation, type SimulationState } from '../../simulation/index.js';
 import type { useSimulation } from '../hooks/useSimulation';
-import type { PresetId } from '../presets.js';
-import { RAIL_QUERY } from '../hooks/useMediaQuery';
-import { stubMatchMedia, type MatchMediaStub } from '../test/matchMedia';
-
-let media: MatchMediaStub;
-
-beforeEach(() => {
-  media = stubMatchMedia((query) => query === RAIL_QUERY);
-});
+import { getPresetById, type PresetId } from '../presets.js';
+import { stubSim } from '../test/stubSim';
 
 afterEach(() => {
-  media.restore();
   globalThis.localStorage.clear();
   cleanup();
 });
 
-const planted: SimulationState = createSimulation({
-  tankCapacity: 40,
-  filter: { enabled: true, type: 'canister' },
-  substrate: { type: 'aqua_soil' },
-});
+const planted: SimulationState = createSimulation(getPresetById('planted')!.config);
 
-/** Stub of the sim hook: real engine state, a fresh vi.fn() per callback. */
-function stubSim(
-  state: SimulationState,
-  extras: { isPresetModified?: boolean } = {}
-): ReturnType<typeof useSimulation> {
-  const cache = new Map<string, ReturnType<typeof vi.fn>>();
-  return new Proxy(
-    { state, isPresetModified: extras.isPresetModified ?? false },
-    {
-      get(target: Record<string, unknown>, prop: string): unknown {
-        if (prop in target) return target[prop];
-        if (!cache.has(prop)) cache.set(prop, vi.fn());
-        return cache.get(prop);
-      },
-    }
-  ) as unknown as ReturnType<typeof useSimulation>;
-}
+/** The planted tank with its heater switched on — drift the restore would undo. */
+const heated: SimulationState = {
+  ...planted,
+  equipment: {
+    ...planted.equipment,
+    heater: { ...planted.equipment.heater, enabled: true },
+  },
+};
 
 /**
  * The reader's units come from their locale, so every test names one. Set on
  * mount only — a test that reaches for the toggle must not be undone by it.
  */
-function ForceUnits({ system }: { system: UnitSystem }): null {
+function ForceUnits(): null {
   const { setUnitSystem } = useUnits();
-  useEffect(() => setUnitSystem(system), [system, setUnitSystem]);
+  useEffect(() => setUnitSystem('metric'), [setUnitSystem]);
   return null;
 }
 
 function renderSection(
   sim: ReturnType<typeof useSimulation>,
-  options: { current?: PresetId; onLoad?: (id: PresetId) => void; units?: UnitSystem } = {}
+  onLoad: (id: PresetId) => void = vi.fn()
 ): void {
   render(
     <PersistenceProvider>
       <UnitsProvider>
-        <ForceUnits system={options.units ?? 'metric'} />
-        <PresetSwitchProvider current={options.current ?? 'planted'} onLoad={options.onLoad ?? vi.fn()}>
+        <ForceUnits />
+        <PresetSwitchProvider current="planted" onLoad={onLoad}>
           <ScenarioSection sim={sim} config={DEFAULT_CONFIG} />
         </PresetSwitchProvider>
       </UnitsProvider>
@@ -96,7 +75,7 @@ describe('ScenarioSection', () => {
 
   it('sends a preset pick through the confirmation rather than loading it', () => {
     const onLoad = vi.fn();
-    renderSection(stubSim(planted), { onLoad });
+    renderSection(stubSim(planted), onLoad);
 
     fireEvent.click(screen.getByRole('button', { name: /Bare Tank/ }));
     expect(onLoad).not.toHaveBeenCalled();
@@ -113,9 +92,9 @@ describe('ScenarioSection', () => {
     expect(screen.queryByRole('button', { name: /Restore defaults/ })).toBeNull();
   });
 
-  it('flags the drift and offers the way back once the preset has been modified', () => {
+  it('flags the drift and offers the way back once the tank has moved', () => {
     const onLoad = vi.fn();
-    renderSection(stubSim(planted, { isPresetModified: true }), { onLoad });
+    renderSection(stubSim(heated), onLoad);
 
     expect(screen.getByText('modified')).toBeTruthy();
     expect(screen.queryByText('current')).toBeNull();
@@ -127,6 +106,22 @@ describe('ScenarioSection', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Restore' }));
     expect(onLoad).toHaveBeenCalledWith('planted');
+  });
+
+  it('does not call stocking drift — no preset carries fish, so none can restore them', () => {
+    const stocked = applyAction(planted, { type: 'addFish', species: 'neon_tetra' }).state;
+    renderSection(stubSim(stocked));
+
+    expect(screen.getByText('current')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /Restore defaults/ })).toBeNull();
+  });
+
+  it('names the drifted card’s build line as the restore target, not the live tank', () => {
+    renderSection(stubSim({ ...heated, tank: { ...heated.tank, capacity: 150 } }));
+
+    // The header quotes the live tank; the card quotes what Restore would build.
+    expect(screen.getByRole('heading', { level: 1 }).parentElement?.textContent).toContain('150 L');
+    expect(screen.getByText(/what Restore puts back/)).toBeTruthy();
   });
 
   it('resets without interrupting inside the confirmation threshold', () => {
@@ -198,9 +193,32 @@ describe('ScenarioSection', () => {
   it('derives the consequences of the environment from the engine', () => {
     renderSection(stubSim(planted));
 
-    // 40 L on a canister: 320 L/h ÷ 40 L.
-    expect(screen.getByText('8.0 ×/h')).toBeTruthy();
+    // 40 L on a canister: 320 L/h ÷ 40 L, under the 4500 L/h cap.
+    expect(screen.getByText('8.0 × tank volume/h')).toBeTruthy();
     expect(screen.getByText('Bacteria surface')).toBeTruthy();
     expect(screen.getByText('Plant slots')).toBeTruthy();
+  });
+
+  it('quotes the turnover the filter can actually reach, not its target', () => {
+    const sponge = {
+      ...planted,
+      tank: { ...planted.tank, capacity: 150 },
+      equipment: { ...planted.equipment, filter: { enabled: true, type: 'sponge' as const } },
+    };
+    renderSection(stubSim(sponge));
+
+    // 150 L × 4 = 600 L/h, capped at the sponge's 300 L/h.
+    expect(screen.getByText('2.0 × tank volume/h')).toBeTruthy();
+  });
+
+  it('offers the lids in the one wording the rail and the cards use', () => {
+    renderSection(stubSim(planted));
+    const lid = screen.getByRole('combobox', { name: 'Lid type' });
+    expect([...lid.querySelectorAll('option')].map((o) => o.textContent)).toEqual([
+      'no lid',
+      'mesh lid',
+      'full lid',
+      'sealed lid',
+    ]);
   });
 });

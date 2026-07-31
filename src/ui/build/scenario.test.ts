@@ -1,16 +1,20 @@
 import { describe, it, expect } from 'vitest';
 import {
   LID_LABEL,
+  LID_TYPES,
   RESET_CONFIRM_TICKS,
+  driftsFromPreset,
   environmentDerived,
   presetCards,
   presetRestoreMessage,
   presetSwitchMessage,
   resetConsequence,
 } from './scenario.js';
-import { PRESETS, getPresetById } from '../presets.js';
+import { PRESETS, getPresetById, type PresetId } from '../presets.js';
+import { TICKS_PER_DAY } from '../utils/clock.js';
 import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
 import {
+  applyAction,
   calculateEvaporationRatePerDay,
   createSimulation,
   getFilterFlow,
@@ -91,10 +95,28 @@ describe('environmentDerived', () => {
     const [, surface, turnover, slots] = environmentDerived(state, DEFAULT_CONFIG);
 
     expect(surface.value).toBe(SurfaceResource.format(state.resources.surface));
-    // 150 L on a canister: 1200 L/h ÷ 150 L.
-    expect(turnover.value).toBe('8.0 ×/h');
+    // 150 L on a canister: 1200 L/h ÷ 150 L, under the 4500 L/h cap.
+    expect(turnover.value).toBe('8.0 × tank volume/h');
     expect(slots.value).toBe(String(getMaxPlants(state.tank.capacity)));
     expect(slots.note).toBe('0 used');
+  });
+
+  it('reports the flow the filter actually delivers once its cap bites', () => {
+    const state = built('community'); // 150 L
+    const sponge = {
+      ...state,
+      equipment: { ...state.equipment, filter: { enabled: true, type: 'sponge' as const } },
+    };
+    // 150 L × 4 turnovers = 600 L/h, capped at the sponge's 300 L/h ⇒ 2.0, not 4.0.
+    expect(environmentDerived(sponge, DEFAULT_CONFIG)[2].value).toBe('2.0 × tank volume/h');
+
+    const big = built('angelfish'); // 300 L
+    const hob = {
+      ...big,
+      equipment: { ...big.equipment, filter: { enabled: true, type: 'hob' as const } },
+    };
+    // 300 L × 6 = 1800 L/h, capped at the HOB's 1250 L/h ⇒ 4.2, not 6.0.
+    expect(environmentDerived(hob, DEFAULT_CONFIG)[2].value).toBe('4.2 × tank volume/h');
   });
 
   it('does not report a turnover the tank is not getting while the filter is off', () => {
@@ -145,7 +167,66 @@ describe('preset messages', () => {
 });
 
 describe('RESET_CONFIRM_TICKS', () => {
-  it('is 30 days of ticks', () => {
-    expect(RESET_CONFIRM_TICKS).toBe(30 * 24);
+  it('is 30 days on whatever a day is worth', () => {
+    expect(RESET_CONFIRM_TICKS / TICKS_PER_DAY).toBe(30);
+  });
+});
+
+describe('driftsFromPreset', () => {
+  it('says a freshly built preset matches itself', () => {
+    for (const preset of PRESETS) {
+      expect(driftsFromPreset(built(preset.id), preset.id)).toBe(false);
+    }
+  });
+
+  it('sees equipment, environment and tank move away from the defaults', () => {
+    const state = built('planted');
+    const drift = (next: SimulationState): boolean => driftsFromPreset(next, 'planted');
+
+    expect(
+      drift({ ...state, equipment: { ...state.equipment, lid: { type: 'sealed' } } })
+    ).toBe(true);
+    expect(
+      drift({ ...state, environment: { ...state.environment, roomTemperature: 30 } })
+    ).toBe(true);
+    expect(drift({ ...state, tank: { ...state.tank, capacity: 150 } })).toBe(true);
+  });
+
+  it('cancels a change against its own undo, where a touched flag could not', () => {
+    const state = built('planted');
+    const warmer = { ...state, environment: { ...state.environment, roomTemperature: 30 } };
+    const back = {
+      ...warmer,
+      environment: { ...warmer.environment, roomTemperature: state.environment.roomTemperature },
+    };
+
+    expect(driftsFromPreset(warmer, 'planted')).toBe(true);
+    expect(driftsFromPreset(back, 'planted')).toBe(false);
+  });
+
+  it('ignores what the engine drives on its own', () => {
+    let state = built('planted');
+    for (let i = 0; i < 30; i++) state = tick(state, DEFAULT_CONFIG);
+    expect(driftsFromPreset(state, 'planted')).toBe(false);
+  });
+
+  it('ignores stocking, which no preset carries and no restore returns', () => {
+    const stocked = applyAction(built('planted'), { type: 'addFish', species: 'neon_tetra' }).state;
+    expect(stocked.fish.length).toBe(1);
+    expect(driftsFromPreset(stocked, 'planted')).toBe(false);
+  });
+
+  it('reads the tank against the preset it is being compared to, not the one it was built from', () => {
+    const planted = built('planted');
+    const others = PRESETS.filter((p) => p.id !== 'planted').map((p) => p.id as PresetId);
+    for (const id of others) {
+      expect(driftsFromPreset(planted, id)).toBe(true);
+    }
+  });
+});
+
+describe('LID_TYPES', () => {
+  it('covers every lid the label map names', () => {
+    expect([...LID_TYPES].sort()).toEqual(Object.keys(LID_LABEL).sort());
   });
 });

@@ -6,7 +6,7 @@ import { AnalyticsSection } from './AnalyticsSection';
 import { ThemeProvider } from '../hooks/useTheme';
 import { UnitsProvider } from '../hooks/useUnits';
 import { PersistenceProvider } from '../persistence/index.js';
-import { snapshotFromState } from '../run/index.js';
+import { RUN_HISTORY_CAP, snapshotFromState } from '../run/index.js';
 import { createSimulation, createLog, type SimulationState } from '../../simulation/index.js';
 import type { useSimulation } from '../hooks/useSimulation';
 import { stubMatchMedia, type MatchMediaStub } from '../test/matchMedia';
@@ -18,21 +18,42 @@ afterEach(() => {
   cleanup();
 });
 
-function fakeSim(): ReturnType<typeof useSimulation> {
-  const base: SimulationState = createSimulation({ tankCapacity: 40 });
-  const history = Array.from({ length: 40 }, (_, tick) => snapshotFromState({ ...base, tick }));
-  const logs = [
+const BASE: SimulationState = createSimulation({ tankCapacity: 40 });
+
+/** Snapshots for ticks `from`..`to` inclusive, as the recorder would keep them. */
+function snapshots(from: number, to: number): ReturnType<typeof snapshotFromState>[] {
+  return Array.from({ length: to - from + 1 }, (_, i) => snapshotFromState({ ...BASE, tick: from + i }));
+}
+
+function fakeSim(
+  history = snapshots(0, 39),
+  logs: ReturnType<typeof createLog>[] = [
     createLog(0, 'simulation', 'info', 'created'),
     createLog(5, 'livestock', 'warning', 'Neon Tetra died', 'fish-died'),
     createLog(31, 'user', 'info', 'added Neon Tetra'),
     createLog(36, 'nitrogen-cycle', 'warning', 'High ammonia level: 0.109 ppm'),
-  ];
-  const state: SimulationState = { ...base, tick: 39, logs };
-  return {
-    state,
-    history,
-    aggregates: { ticks: 39, deaths: 1, births: 100, frySold: 0, alerts: 1, waterChangedL: 0 },
-  } as unknown as ReturnType<typeof useSimulation>;
+  ],
+  aggregates = { ticks: 39, deaths: 1, births: 100, frySold: 0, alerts: 1, waterChangedL: 0 }
+): ReturnType<typeof useSimulation> {
+  const state: SimulationState = { ...BASE, tick: history[history.length - 1].tick, logs };
+  return { state, history, aggregates } as unknown as ReturnType<typeof useSimulation>;
+}
+
+/**
+ * A run long enough for the ring buffer to have dropped its start: 1622 ticks
+ * recorded, the trailing `RUN_HISTORY_CAP` kept. The early logs are still in the
+ * transcript and the aggregates still count them — their ticks are simply gone.
+ */
+function cappedSim(): ReturnType<typeof useSimulation> {
+  const last = 1621;
+  return fakeSim(
+    snapshots(last - RUN_HISTORY_CAP + 1, last),
+    [
+      createLog(5, 'livestock', 'warning', 'Neon Tetra died', 'fish-died'),
+      createLog(1600, 'nitrogen-cycle', 'warning', 'High ammonia level: 0.109 ppm'),
+    ],
+    { ticks: 1622, deaths: 1, births: 0, frySold: 0, alerts: 1, waterChangedL: 0 }
+  );
 }
 
 /** Reports the query string, and drives history the way the back gesture does. */
@@ -49,19 +70,24 @@ function Address(): React.JSX.Element {
   );
 }
 
-function renderAnalytics(path = '/analytics'): void {
-  render(
+function renderAnalytics(
+  path = '/analytics',
+  sim = fakeSim()
+): (next: ReturnType<typeof useSimulation>) => void {
+  const tree = (s: ReturnType<typeof useSimulation>): React.JSX.Element => (
     <ThemeProvider>
       <PersistenceProvider>
         <UnitsProvider>
           <MemoryRouter initialEntries={[path]}>
-            <AnalyticsSection sim={fakeSim()} />
+            <AnalyticsSection sim={s} />
             <Address />
           </MemoryRouter>
         </UnitsProvider>
       </PersistenceProvider>
     </ThemeProvider>
   );
+  const { rerender } = render(tree(sim));
+  return (next) => rerender(tree(next));
 }
 
 function search(): string {
@@ -89,7 +115,7 @@ describe('AnalyticsSection', () => {
   it('mounts the summary, all four charts, the log, and the scrubber', () => {
     renderAnalytics();
     expect(screen.getAllByText('run length').length).toBeGreaterThan(0);
-    for (const title of ['Nitrogen cycle', 'pH & CO₂', 'O₂ / temp', 'Population & growth']) {
+    for (const title of ['Nitrogen cycle', 'pH & CO₂', 'O₂, temp & level', 'Population & growth']) {
       expect(screen.getByText(title)).toBeTruthy();
     }
     expect(screen.getByText('Log')).toBeTruthy();
@@ -161,6 +187,53 @@ describe('AnalyticsSection — the view is the URL', () => {
     fireEvent.click(screen.getByRole('button', { name: 'last T5' }));
     expect(search()).toBe('?tick=5');
     expect(cursor()).toBe('5');
+  });
+
+  it('resolves a deep link the window cannot honour, and says so in the URL', () => {
+    renderAnalytics('/analytics?tick=4&window=24h');
+    // Tick 4 predates the 24h window, so the cursor lands on its oldest
+    // snapshot — and the address stops naming a tick nothing is showing.
+    expect(cursor()).toBe('16');
+    expect(search()).toBe('?tick=16&window=24h');
+  });
+
+  it('drops a deep-linked tick the run has run past, rather than parking on it', () => {
+    renderAnalytics('/analytics?tick=900');
+    expect(cursor()).toBe('39');
+    expect(search()).toBe('');
+  });
+
+  it('leaves a parked cursor where it is as the run grows under it', () => {
+    const rerender = renderAnalytics('/analytics?tick=20');
+    expect(cursor()).toBe('20');
+
+    rerender(fakeSim(snapshots(0, 120)));
+    expect(cursor()).toBe('20');
+    expect(search()).toBe('?tick=20');
+    expect(slider().getAttribute('aria-valuemax')).toBe('120');
+  });
+});
+
+describe('AnalyticsSection — a run longer than the buffer', () => {
+  it('scopes the widest window to what the buffer still holds', () => {
+    renderAnalytics('/analytics', cappedSim());
+    expect(slider().getAttribute('aria-valuemin')).toBe(String(1622 - RUN_HISTORY_CAP));
+    expect(slider().getAttribute('aria-valuemax')).toBe('1621');
+  });
+
+  it('states a dropped tick without offering to scrub to it', () => {
+    renderAnalytics('/analytics', cappedSim());
+    // The run's only death is at tick 5, which the buffer dropped long ago.
+    expect(screen.getByText('last T5')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'last T5' })).toBeNull();
+    expect(search()).toBe('');
+  });
+
+  it('still offers a tick the buffer kept', () => {
+    renderAnalytics('/analytics', cappedSim());
+    fireEvent.click(screen.getByRole('button', { name: 'latest T1600' }));
+    expect(search()).toBe('?tick=1600');
+    expect(cursor()).toBe('1600');
   });
 });
 

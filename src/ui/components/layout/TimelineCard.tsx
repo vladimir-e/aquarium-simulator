@@ -3,7 +3,7 @@ import { Pause, Play, SkipForward } from 'lucide-react';
 import type { DailySchedule } from '../../../simulation/index.js';
 import { scheduleSpans } from '../../build';
 import { SPEED_LABELS, SPEED_PRESETS, type SpeedPreset } from '../../run';
-import { TICKS_PER_DAY, formatDayClock, hourOfDay } from '../../utils/clock';
+import { TICKS_PER_DAY, dayNumber, formatDayClock, hourOfDay } from '../../utils/clock';
 import { Pill } from '../run/elements';
 import { Segmented } from '../ui/Segmented';
 
@@ -41,7 +41,7 @@ function Photoperiod({
         <span
           aria-hidden
           className="absolute -top-1 bottom-[-4px] w-px bg-ink"
-          style={{ left: `${(hour / 24) * 100}%` }}
+          style={{ left: `${(hour / TICKS_PER_DAY) * 100}%` }}
         />
       </div>
       <div className="flex justify-between pt-1 font-mono text-[10px] leading-none text-ink-3">
@@ -78,7 +78,7 @@ export function TimelineCard({
   onStep,
   onSpeedChange,
 }: TimelineCardProps): React.JSX.Element {
-  const days = Math.floor(tick / TICKS_PER_DAY);
+  const days = dayNumber(tick) - 1;
   const hour = hourOfDay(tick);
   const started = tick > 0 || isPlaying;
 

@@ -24,13 +24,15 @@ export {
   type DeviceReadingInput,
   deviceHint,
   deviceReadings,
-  turnoverRatio,
+  turnover,
 } from './readings.js';
 export {
   LID_LABEL,
+  LID_TYPES,
   RESET_CONFIRM_TICKS,
   type DerivedReading,
   type PresetCard,
+  driftsFromPreset,
   environmentDerived,
   presetCards,
   presetRestoreMessage,

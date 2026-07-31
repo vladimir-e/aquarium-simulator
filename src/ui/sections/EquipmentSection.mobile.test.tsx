@@ -1,5 +1,5 @@
 import React from 'react';
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, cleanup, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { EquipmentSection } from './EquipmentSection';
@@ -7,9 +7,9 @@ import { UnitsProvider } from '../hooks/useUnits';
 import { PersistenceProvider } from '../persistence/index.js';
 import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
 import { createSimulation, type SimulationState } from '../../simulation/index.js';
-import type { useSimulation } from '../hooks/useSimulation';
 import { MOBILE_QUERY } from '../hooks/useMediaQuery';
 import { stubMatchMedia, type MatchMediaStub } from '../test/matchMedia';
+import { stubSim } from '../test/stubSim';
 
 let media: MatchMediaStub;
 
@@ -25,20 +25,6 @@ afterEach(() => {
 });
 
 const base: SimulationState = createSimulation({ tankCapacity: 40 });
-
-function stubSim(state: SimulationState): ReturnType<typeof useSimulation> {
-  const cache = new Map<string, ReturnType<typeof vi.fn>>();
-  return new Proxy(
-    { state },
-    {
-      get(target: { state: SimulationState }, prop: string): unknown {
-        if (prop === 'state') return target.state;
-        if (!cache.has(prop)) cache.set(prop, vi.fn());
-        return cache.get(prop);
-      },
-    }
-  ) as unknown as ReturnType<typeof useSimulation>;
-}
 
 function Address(): React.JSX.Element {
   return <span data-testid="address">{useLocation().pathname}</span>;

@@ -1,6 +1,8 @@
 /**
- * Plain-text export of the run log — tab-separated tick / source / severity /
+ * Plain-text export of the log — tab-separated tick / source / severity /
  * message, newest last, so the download reads top-to-bottom like a transcript.
+ * It writes out what the panel is showing: the button sits in the filter
+ * cluster, so a download that ignored the filter would not be the same log.
  */
 
 import type { LogEntry } from '../../simulation/index.js';

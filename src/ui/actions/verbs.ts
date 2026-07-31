@@ -150,7 +150,7 @@ function blockedReason(
     case 'topOff':
       return headroom(state) > 0 ? null : 'already at capacity';
     case 'dose':
-      return canDose(state) ? null : 'no plants to feed';
+      return canDose(state) ? null : 'no plants to fertilise';
     case 'trimPlants':
       return trimCount(state, settings.trimPlants) > 0
         ? null

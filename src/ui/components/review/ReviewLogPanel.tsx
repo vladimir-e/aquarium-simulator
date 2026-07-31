@@ -38,8 +38,6 @@ function downloadLog(logs: LogEntry[]): void {
 interface ReviewLogPanelProps {
   /** Window-scoped log lines, ascending by tick. */
   windowLogs: LogEntry[];
-  /** Whole-run log, for the export (the full transcript, not the window). */
-  allLogs: LogEntry[];
   filter: LogFilter;
   onFilterChange: (filter: LogFilter) => void;
   currentTick: number;
@@ -48,7 +46,6 @@ interface ReviewLogPanelProps {
 
 export function ReviewLogPanel({
   windowLogs,
-  allLogs,
   filter,
   onFilterChange,
   currentTick,
@@ -76,7 +73,7 @@ export function ReviewLogPanel({
           />
           <button
             type="button"
-            onClick={() => downloadLog(allLogs)}
+            onClick={() => downloadLog(shown)}
             className="inline-flex items-center gap-1.5 rounded-control border border-hairline bg-surface px-2.5 py-1.5 text-[12px] font-medium text-ink-2 transition-colors hover:border-hairline-2 hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
           >
             <Download className="h-3.5 w-3.5" />
