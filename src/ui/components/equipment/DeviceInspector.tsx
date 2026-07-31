@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import { ChevronLeft } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
@@ -7,11 +7,13 @@ import {
   type FilterType,
   type PowerheadFlowRate,
 } from '../../../simulation/index.js';
+import { LIGHT_WATTAGE_OPTIONS } from '../../../simulation/equipment/light.js';
 import { BUBBLE_RATE_OPTIONS } from '../../../simulation/equipment/co2-generator.js';
 import { DOSE_AMOUNT_OPTIONS } from '../../../simulation/equipment/auto-doser.js';
 import type { TunableConfig } from '../../../simulation/config/index.js';
 import type { useSimulation } from '../../hooks/useSimulation';
 import { useUnits } from '../../hooks/useUnits';
+import { formatFlowRate } from '../../utils/units';
 import {
   deviceHint,
   deviceReadings,
@@ -35,7 +37,6 @@ const FILTER_TYPE_OPTIONS = [
 ];
 
 const HEATER_WATTS = [50, 100, 200, 300, 500, 1000];
-const LIGHT_WATTS = [5, 10, 25, 50, 100, 150, 200];
 const POWERHEAD_RATES: PowerheadFlowRate[] = [240, 400, 600, 850];
 
 function numberOptions(values: number[], suffix: string): { value: string; label: string }[] {
@@ -52,9 +53,9 @@ function setDuration(schedule: DailySchedule, duration: number): DailySchedule {
 
 function ReadingRow({ label, value, note }: DeviceReading): React.JSX.Element {
   return (
-    <div className="flex items-center justify-between gap-3 py-2">
+    <div className="flex items-baseline justify-between gap-3 py-2">
       <span className="shrink-0 text-[13px] text-ink-2">{label}</span>
-      <span className="min-w-0 truncate text-right">
+      <span className="min-w-0 text-right">
         <span className="font-mono text-[14px] tabular-nums text-ink">{value}</span>
         {note && <span className="pl-1.5 font-mono text-[11px] text-ink-3">· {note}</span>}
       </span>
@@ -126,7 +127,7 @@ function DeviceSettings({ id, sim }: { id: EquipmentId; sim: Sim }): React.JSX.E
               ariaLabel="Light wattage"
               value={String(l.wattage)}
               onChange={(v) => sim.updateLightWattage(Number(v))}
-              options={numberOptions(LIGHT_WATTS, 'W')}
+              options={numberOptions(LIGHT_WATTAGE_OPTIONS, 'W')}
             />
           </FieldRow>
           <FieldRow label="Start">
@@ -232,7 +233,7 @@ function DeviceSettings({ id, sim }: { id: EquipmentId; sim: Sim }): React.JSX.E
               onChange={(v) => sim.updatePowerheadFlowRate(Number(v) as PowerheadFlowRate)}
               options={POWERHEAD_RATES.map((gph) => ({
                 value: String(gph),
-                label: unitSystem === 'imperial' ? `${gph} GPH` : `${POWERHEAD_FLOW_LPH[gph]} L/h`,
+                label: formatFlowRate(POWERHEAD_FLOW_LPH[gph], unitSystem),
               }))}
             />
           </FieldRow>
@@ -289,7 +290,10 @@ export function DeviceInspector({
   showTitle = true,
 }: InspectorProps & { showTitle?: boolean }): React.JSX.Element {
   const { unitSystem } = useUnits();
-  const readings = deviceReadings(row.id, { state: sim.state, config, units: unitSystem });
+  const readings = useMemo(
+    () => deviceReadings(row.id, { state: sim.state, config, units: unitSystem }),
+    [row.id, sim.state, config, unitSystem]
+  );
   const hint = deviceHint(row.id, sim.state);
   const status = row.id === 'biofilter' ? (row.on ? 'cycled' : 'uncycled') : row.on ? 'on' : 'off';
 
@@ -299,9 +303,6 @@ export function DeviceInspector({
         <div className="flex items-center gap-2.5 pb-1 pt-2">
           <h3 className="text-[17px] font-semibold text-ink">{row.name}</h3>
           <Pill variant={row.on ? 'ok' : 'neutral'}>{status}</Pill>
-          <span className="ml-auto truncate font-mono text-[11px] text-ink-3">
-            /equipment/{row.id}
-          </span>
         </div>
       )}
       <div className="divide-y divide-hairline">

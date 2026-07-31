@@ -1,10 +1,7 @@
 export {
-  type DeviceId,
   type DeviceRow,
   type EquipmentId,
   type EquipmentRow,
-  DEVICE_NAME,
-  EQUIPMENT_NAME,
   isEquipmentId,
   buildDeviceList,
   equipmentRows,

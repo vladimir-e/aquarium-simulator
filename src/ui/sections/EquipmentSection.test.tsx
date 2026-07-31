@@ -10,6 +10,7 @@ import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
 import { createSimulation, tick, type SimulationState } from '../../simulation/index.js';
 import type { useSimulation } from '../hooks/useSimulation';
 import { RAIL_QUERY } from '../hooks/useMediaQuery';
+import { toInternalTemperature } from '../utils/units';
 import { stubMatchMedia, type MatchMediaStub } from '../test/matchMedia';
 
 let media: MatchMediaStub;
@@ -82,6 +83,11 @@ function address(): string {
   return screen.getByTestId('address').textContent ?? '';
 }
 
+/** One arm of a named Stepper. */
+function step(group: string, arm: 'increase' | 'decrease'): HTMLElement {
+  return within(screen.getByRole('group', { name: group })).getByRole('button', { name: arm });
+}
+
 const ALL_ENTRIES = [
   'Filter',
   'Heater',
@@ -95,11 +101,13 @@ const ALL_ENTRIES = [
 ];
 
 describe('EquipmentSection', () => {
-  it('lists the eight devices and the biofilter, with nothing open', () => {
+  it('lists the eight devices and the biofilter, and nothing else', () => {
     renderSection();
-    for (const name of ALL_ENTRIES) {
-      expect(screen.getByRole('link', { name: new RegExp(name) })).toBeTruthy();
-    }
+    // Exact, not merely present: the engine's device set is fixed, so an extra
+    // row — an "add equipment" affordance, say — has to fail here.
+    const names = screen.getAllByRole('link').map((link) => link.textContent ?? '');
+    expect(names).toHaveLength(ALL_ENTRIES.length);
+    ALL_ENTRIES.forEach((name, i) => expect(names[i]).toMatch(new RegExp(`^${name}`)));
     expect(screen.queryByRole('heading', { level: 3 })).toBeNull();
   });
 
@@ -177,6 +185,46 @@ describe('EquipmentSection', () => {
     expect(sim.updateFilterEnabled).toHaveBeenCalledWith(!base.equipment.filter.enabled);
   });
 
+  it('round-trips the heater target through the display unit (°F → internal °C)', () => {
+    const sim = stubSim(base);
+    renderSection('/equipment/heater', sim, 'imperial');
+    // The default 25°C shows as 77°F; +1 stores 78°F back as its Celsius value.
+    const group = screen.getByRole('group', { name: 'Heater target temperature' });
+    expect(within(group).getByText('77°F')).toBeTruthy();
+    fireEvent.click(within(group).getByRole('button', { name: 'increase' }));
+    expect(sim.updateHeaterTargetTemperature).toHaveBeenCalledWith(
+      toInternalTemperature(78, 'imperial')
+    );
+  });
+
+  it('wires both light schedule steppers to updateLightSchedule', () => {
+    const sim = stubSim(base); // default light schedule { startHour: 8, duration: 10 }
+    renderSection('/equipment/light', sim);
+    fireEvent.click(step('Light start hour', 'increase'));
+    expect(sim.updateLightSchedule).toHaveBeenCalledWith({ startHour: 9, duration: 10 });
+    fireEvent.click(step('Light duration', 'increase'));
+    expect(sim.updateLightSchedule).toHaveBeenCalledWith({ startHour: 8, duration: 11 });
+  });
+
+  it('stops the start hour at the end of the day', () => {
+    const atMax: SimulationState = {
+      ...base,
+      equipment: {
+        ...base.equipment,
+        light: { ...base.equipment.light, schedule: { startHour: 23, duration: 10 } },
+      },
+    };
+    renderSection('/equipment/light', stubSim(atMax));
+    expect((step('Light start hour', 'increase') as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it('wires the CO₂ schedule stepper to updateCo2GeneratorSchedule', () => {
+    const sim = stubSim(base); // default CO₂ schedule { startHour: 7, duration: 10 }
+    renderSection('/equipment/co2Generator', sim);
+    fireEvent.click(step('CO₂ start hour', 'increase'));
+    expect(sim.updateCo2GeneratorSchedule).toHaveBeenCalledWith({ startHour: 8, duration: 10 });
+  });
+
   it('reads the tank back at the device it belongs to', () => {
     renderSection('/equipment/heater', stubSim(base), 'metric');
     expect(screen.getByText('Water now')).toBeTruthy();
@@ -201,11 +249,5 @@ describe('EquipmentSection', () => {
     expect(within(band).getByText('24 h · now 20:00')).toBeTruthy();
     expect(within(band).getByText('08:00–18:00 · 100 W')).toBeTruthy();
     expect(within(band).getByText('off · would dose at 08:00')).toBeTruthy();
-  });
-
-  it('has no add affordance — the engine’s device set is fixed', () => {
-    renderSection();
-    expect(screen.queryByText(/add equipment/i)).toBeNull();
-    expect(screen.queryByRole('button', { name: /add/i })).toBeNull();
   });
 });

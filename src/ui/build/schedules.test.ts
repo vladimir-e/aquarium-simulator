@@ -31,6 +31,10 @@ describe('scheduleSpans', () => {
       { from: 0, to: 8 / 24 },
     ]);
   });
+
+  it('lights nothing for a schedule with no hours in it', () => {
+    expect(scheduleSpans({ startHour: 8, duration: 0 })).toEqual([]);
+  });
 });
 
 describe('scheduleRange', () => {
@@ -38,6 +42,11 @@ describe('scheduleRange', () => {
     expect(scheduleRange({ startHour: 8, duration: 10 })).toBe('08:00–18:00');
     expect(scheduleRange({ startHour: 22, duration: 5 })).toBe('22:00–03:00');
     expect(hourLabel(0)).toBe('00:00');
+  });
+
+  it('names a full day rather than printing a zero-length range', () => {
+    expect(scheduleRange({ startHour: 8, duration: 24 })).toBe('all day');
+    expect(scheduleRange({ startHour: 0, duration: 24 })).toBe('all day');
   });
 });
 

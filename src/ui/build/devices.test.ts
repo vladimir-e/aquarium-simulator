@@ -1,10 +1,20 @@
 import { describe, it, expect } from 'vitest';
 import { createSimulation, type SimulationState } from '../../simulation/index.js';
 import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
-import { buildDeviceList, equipmentRows, equipmentSummary, filterRows } from './devices';
+import {
+  buildDeviceList,
+  equipmentRows,
+  equipmentSummary,
+  filterRows,
+  isEquipmentId,
+} from './devices';
 
 /** Defaults: filter, heater and light on; the other five off. */
 const base: SimulationState = createSimulation({ tankCapacity: 40 });
+const withPowerhead: SimulationState = createSimulation({
+  tankCapacity: 40,
+  powerhead: { enabled: true, flowRateGPH: 400 },
+});
 const rows = equipmentRows(base, DEFAULT_CONFIG, 'metric');
 
 describe('buildDeviceList', () => {
@@ -41,13 +51,18 @@ describe('equipmentRows', () => {
     expect(rows.find((r) => r.id === 'powerhead')?.summary).toBe('off');
   });
 
-  it('reads flow in the reader’s units', () => {
-    const metric = rows.find((r) => r.id === 'filter')?.summary;
-    const imperial = equipmentRows(base, DEFAULT_CONFIG, 'imperial').find(
-      (r) => r.id === 'filter'
-    )?.summary;
-    expect(metric).toBe('sponge · 159 L/h');
-    expect(imperial).toBe('sponge · 42 GPH');
+  it('reads filter and powerhead flow in the reader’s units', () => {
+    // Engine values: the sponge turns a 40 L tank over 4× an hour; the 400 GPH
+    // powerhead preset is 1514 L/h.
+    const imperialRows = equipmentRows(withPowerhead, DEFAULT_CONFIG, 'imperial');
+    const metricRows = equipmentRows(withPowerhead, DEFAULT_CONFIG, 'metric');
+    const summary = (list: typeof rows, id: string): string | undefined =>
+      list.find((r) => r.id === id)?.summary;
+
+    expect(summary(metricRows, 'filter')).toBe('sponge · 160 L/h');
+    expect(summary(metricRows, 'powerhead')).toBe('1514 L/h');
+    expect(summary(imperialRows, 'filter')).toBe('sponge · 42 GPH');
+    expect(summary(imperialRows, 'powerhead')).toBe('400 GPH');
   });
 
   it('marks the biofilter on once it is cycled', () => {
@@ -61,6 +76,20 @@ describe('equipmentRows', () => {
     };
     expect(equipmentRows(cycled, DEFAULT_CONFIG, 'metric')[8].on).toBe(true);
     expect(rows[8].on).toBe(false);
+  });
+});
+
+describe('isEquipmentId', () => {
+  it('admits every list row and nothing else', () => {
+    for (const row of rows) expect(isEquipmentId(row.id)).toBe(true);
+    expect(isEquipmentId('skimmer')).toBe(false);
+    expect(isEquipmentId('')).toBe(false);
+  });
+
+  it('rejects Object.prototype keys — a route is arbitrary user input', () => {
+    for (const key of ['toString', 'constructor', 'valueOf', 'hasOwnProperty', '__proto__']) {
+      expect(isEquipmentId(key)).toBe(false);
+    }
   });
 });
 

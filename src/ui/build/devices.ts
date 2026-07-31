@@ -5,11 +5,16 @@
  * agreement.
  */
 
-import { getFilterFlow, type Equipment, type SimulationState } from '../../simulation/index.js';
+import {
+  getFilterFlow,
+  POWERHEAD_FLOW_LPH,
+  type Equipment,
+  type SimulationState,
+} from '../../simulation/index.js';
 import type { TunableConfig } from '../../simulation/config/index.js';
 import { SurfaceResource } from '../../simulation/resources/index.js';
 import { biofilterColonisation, CYCLED_PCT } from '../run/index.js';
-import { formatFlowRate, formatTemperature, lphToGph, type UnitSystem } from '../utils/units.js';
+import { formatFlowRate, formatTemperature, type UnitSystem } from '../utils/units.js';
 import { hourLabel, scheduleRange } from './schedules.js';
 
 /** The configurable devices, in list order. */
@@ -52,7 +57,9 @@ const DEVICE_ORDER: DeviceId[] = [
   'autoDoser',
 ];
 
-export const DEVICE_NAME: Record<DeviceId, string> = {
+const EQUIPMENT_ORDER: EquipmentId[] = [...DEVICE_ORDER, 'biofilter'];
+
+const DEVICE_NAME: Record<DeviceId, string> = {
   filter: 'Filter',
   heater: 'Heater',
   light: 'Light',
@@ -63,13 +70,8 @@ export const DEVICE_NAME: Record<DeviceId, string> = {
   autoDoser: 'Auto doser',
 };
 
-export const EQUIPMENT_NAME: Record<EquipmentId, string> = {
-  ...DEVICE_NAME,
-  biofilter: 'Biofilter',
-};
-
 export function isEquipmentId(value: string): value is EquipmentId {
-  return value in EQUIPMENT_NAME;
+  return EQUIPMENT_ORDER.some((id) => id === value);
 }
 
 export function buildDeviceList(equipment: Equipment): DeviceRow[] {
@@ -82,8 +84,8 @@ function deviceSummary(id: DeviceId, state: SimulationState, units: UnitSystem):
   switch (id) {
     case 'filter': {
       const f = equipment.filter;
-      const gph = Math.round(lphToGph(getFilterFlow(f.type, tank.capacity)));
-      return f.enabled ? `${f.type} · ${formatFlowRate(gph, units)}` : 'off';
+      const flow = getFilterFlow(f.type, tank.capacity);
+      return f.enabled ? `${f.type} · ${formatFlowRate(flow, units)}` : 'off';
     }
     case 'heater': {
       const h = equipment.heater;
@@ -103,7 +105,7 @@ function deviceSummary(id: DeviceId, state: SimulationState, units: UnitSystem):
     }
     case 'powerhead': {
       const p = equipment.powerhead;
-      return p.enabled ? formatFlowRate(p.flowRateGPH, units) : 'off';
+      return p.enabled ? formatFlowRate(POWERHEAD_FLOW_LPH[p.flowRateGPH], units) : 'off';
     }
     case 'autoDoser': {
       const d = equipment.autoDoser;
@@ -128,7 +130,7 @@ export function equipmentRows(
     })),
     {
       id: 'biofilter' as const,
-      name: EQUIPMENT_NAME.biofilter,
+      name: 'Biofilter',
       on: colonisation >= CYCLED_PCT,
       summary: `${Math.round(colonisation)} % · ${SurfaceResource.format(state.resources.surface)}`,
     },

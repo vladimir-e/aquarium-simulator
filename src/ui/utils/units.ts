@@ -223,13 +223,6 @@ export function findClosestTankSize(liters: number, system: UnitSystem): TankSiz
 const LITERS_PER_HOUR_PER_GPH = 3.785411784;
 
 /**
- * Convert GPH to L/h.
- */
-export function gphToLph(gph: number): number {
-  return gph * LITERS_PER_HOUR_PER_GPH;
-}
-
-/**
  * Convert L/h to GPH.
  */
 export function lphToGph(lph: number): number {
@@ -237,13 +230,12 @@ export function lphToGph(lph: number): number {
 }
 
 /**
- * Format flow rate based on unit system.
- * GPH is standard in imperial, L/h in metric.
+ * Format a flow rate for display. Takes the engine's own unit (L/h) so every
+ * caller passes an engine value and rounds once, in the reader's units.
  */
-export function formatFlowRate(gph: number, system: UnitSystem): string {
+export function formatFlowRate(lph: number, system: UnitSystem): string {
   if (system === 'imperial') {
-    return `${gph} GPH`;
+    return `${Math.round(lphToGph(lph))} GPH`;
   }
-  const lph = Math.round(gphToLph(gph));
-  return `${lph} L/h`;
+  return `${Math.round(lph)} L/h`;
 }

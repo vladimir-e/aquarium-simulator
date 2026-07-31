@@ -14,7 +14,7 @@ import {
   FILTER_SPECS,
   FILTER_SURFACE,
   POWERHEAD_FLOW_LPH,
-  type PowerheadFlowRate,
+  type DailySchedule,
   type SimulationState,
 } from '../../simulation/index.js';
 import { getLightOutput } from '../../simulation/equipment/light.js';
@@ -29,11 +29,10 @@ import {
   formatTemperature,
   formatVolume,
   getTemperatureUnit,
-  lphToGph,
   type UnitSystem,
 } from '../utils/units.js';
 import type { EquipmentId } from './devices.js';
-import { hourLabel } from './schedules.js';
+import { hourLabel, scheduleRange } from './schedules.js';
 
 export interface DeviceReading {
   label: string;
@@ -47,11 +46,6 @@ export interface DeviceReadingInput {
   units: UnitSystem;
 }
 
-const POWERHEAD_SUITED_TO: Record<UnitSystem, Record<PowerheadFlowRate, string>> = {
-  imperial: { 240: '5–20 gal', 400: '20–30 gal', 600: '30–50 gal', 850: '50–80 gal' },
-  metric: { 240: '20–75 L', 400: '75–115 L', 600: '115–190 L', 850: '190–300 L' },
-};
-
 /** A temperature difference, which converts by scale alone — no 32° offset. */
 function temperatureGap(celsius: number, units: UnitSystem): string {
   const scaled = units === 'imperial' ? (celsius * 9) / 5 : celsius;
@@ -61,6 +55,12 @@ function temperatureGap(celsius: number, units: UnitSystem): string {
 function turnover(litersPerHour: number, capacity: number): string {
   if (capacity <= 0) return '—';
   return `${(litersPerHour / capacity).toFixed(1)} × tank volume/h`;
+}
+
+/** How much longer a running schedule has, for one that ever stops. */
+function runsUntil(schedule: DailySchedule): string {
+  if (schedule.duration >= 24) return 'all day';
+  return `until ${hourLabel((schedule.startHour + schedule.duration) % 24)}`;
 }
 
 function heaterReadings({ state, units }: DeviceReadingInput): DeviceReading[] {
@@ -105,7 +105,7 @@ function filterReadings({ state, units }: DeviceReadingInput): DeviceReading[] {
   return [
     {
       label: 'Flow',
-      value: filter.enabled ? formatFlowRate(Math.round(lphToGph(lph)), units) : 'none',
+      value: filter.enabled ? formatFlowRate(lph, units) : 'none',
       note: filter.enabled ? turnover(lph, state.tank.capacity) : 'no circulation while off',
     },
     {
@@ -126,7 +126,6 @@ function lightReadings({ state }: DeviceReadingInput): DeviceReading[] {
   const { light } = state.equipment;
   const hour = state.tick % 24;
   const lit = light.enabled && isScheduleActive(hour, light.schedule);
-  const end = (light.schedule.startHour + light.schedule.duration) % 24;
 
   return [
     {
@@ -135,25 +134,25 @@ function lightReadings({ state }: DeviceReadingInput): DeviceReading[] {
       note: !light.enabled
         ? 'fixture off'
         : lit
-          ? `lit until ${hourLabel(end)}`
+          ? `lit ${runsUntil(light.schedule)}`
           : `next on at ${hourLabel(light.schedule.startHour)}`,
     },
     { label: 'Photoperiod', value: `${light.schedule.duration} h/day` },
   ];
 }
 
-function airPumpReadings({ state }: DeviceReadingInput): DeviceReading[] {
+function airPumpReadings({ state, units }: DeviceReadingInput): DeviceReading[] {
   const { airPump } = state.equipment;
   const capacity = state.tank.capacity;
-  const output = getAirPumpOutput(capacity);
+  const output = formatFlowRate(getAirPumpOutput(capacity), units);
 
   return [
     {
       label: 'Air output',
-      value: airPump.enabled ? `${output} L/h` : 'none',
+      value: airPump.enabled ? output : 'none',
       note: airPump.enabled
-        ? `+${getAirPumpFlow(capacity)} L/h of flow`
-        : `would move ${output} L/h`,
+        ? `+${formatFlowRate(getAirPumpFlow(capacity), units)} of flow`
+        : `would move ${output}`,
     },
     {
       label: 'Aeration',
@@ -190,11 +189,12 @@ function co2Readings({ state }: DeviceReadingInput): DeviceReading[] {
     { label: 'CO₂ now', value: `${state.resources.co2.toFixed(1)} ppm` },
     {
       label: 'Injecting',
-      value: injecting ? 'yes' : 'no',
-      note:
-        co2Generator.enabled && !injecting
-          ? `next at ${hourLabel(co2Generator.schedule.startHour)}`
-          : undefined,
+      value: !co2Generator.enabled ? 'off' : injecting ? 'yes' : 'no',
+      note: !co2Generator.enabled
+        ? `would run ${scheduleRange(co2Generator.schedule)}`
+        : injecting
+          ? runsUntil(co2Generator.schedule)
+          : `next at ${hourLabel(co2Generator.schedule.startHour)}`,
     },
   ];
 }
@@ -202,17 +202,20 @@ function co2Readings({ state }: DeviceReadingInput): DeviceReading[] {
 function powerheadReadings({ state, units }: DeviceReadingInput): DeviceReading[] {
   const { powerhead } = state.equipment;
   const { flow } = state.resources;
+  const lph = POWERHEAD_FLOW_LPH[powerhead.flowRateGPH];
 
   return [
     {
       label: 'Tank circulation',
-      value: `${Math.round(flow)} L/h`,
+      value: formatFlowRate(flow, units),
       note: turnover(flow, state.tank.capacity),
     },
     {
       label: 'This powerhead',
-      value: powerhead.enabled ? `${POWERHEAD_FLOW_LPH[powerhead.flowRateGPH]} L/h` : 'off',
-      note: `rated for ${POWERHEAD_SUITED_TO[units][powerhead.flowRateGPH]}`,
+      value: powerhead.enabled ? formatFlowRate(lph, units) : 'off',
+      note: powerhead.enabled
+        ? turnover(lph, state.tank.capacity)
+        : `would add ${formatFlowRate(lph, units)}`,
     },
   ];
 }
@@ -311,7 +314,9 @@ export function deviceHint(id: EquipmentId, state: SimulationState): DeviceHint 
     case 'powerhead':
       return muted('Extra circulation and gas exchange on top of the filter.');
     case 'autoDoser':
-      return muted(formatDosePreview(equipment.autoDoser.doseAmountMl, resources.water));
+      return muted(
+        `Each dose adds ${formatDosePreview(equipment.autoDoser.doseAmountMl, resources.water)}.`
+      );
     case 'biofilter':
       return muted(
         'Colonies grow into whatever surface the filter, substrate, hardscape and glass offer — there is nothing to set here.'

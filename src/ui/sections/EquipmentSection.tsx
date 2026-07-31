@@ -23,7 +23,7 @@ import {
 /**
  * The device list and one device's inspector, side by side. Selection is the
  * URL, so back moves between devices and every inspector is a link someone can
- * send; the search field is component state and survives the change.
+ * send.
  */
 export function EquipmentSection({
   sim,
@@ -61,6 +61,12 @@ export function EquipmentSection({
     return <Navigate to="/equipment" replace />;
   }
 
+  // The pushed inspector owns the whole phone screen, so the section behind it
+  // is not rendered at all — no invisible list to tab into, no second inspector.
+  if (isMobile && selectedRow) {
+    return <PushedInspector row={selectedRow} sim={sim} config={config} />;
+  }
+
   const search = (
     <div className="relative">
       <Search
@@ -94,7 +100,7 @@ export function EquipmentSection({
               <DeviceList rows={filterRows(rows, query)} selected={selected} query={query} />
             </div>
             {selectedRow && (
-              <div className="hidden min-w-0 flex-1 overflow-y-auto px-4 pb-3 sm:block">
+              <div className="min-w-0 flex-1 overflow-y-auto px-4 pb-3">
                 <DeviceInspector row={selectedRow} sim={sim} config={config} />
               </div>
             )}
@@ -103,10 +109,6 @@ export function EquipmentSection({
 
         <SchedulesBand band={band} />
       </div>
-
-      {isMobile && selectedRow && (
-        <PushedInspector row={selectedRow} sim={sim} config={config} />
-      )}
     </Stage>
   );
 }

@@ -81,6 +81,17 @@ describe('EquipmentSection (mobile)', () => {
     expect(address()).toBe('/equipment');
   });
 
+  it('leaves nothing behind the editor to tab into, and builds only the one', () => {
+    renderSection();
+    fireEvent.click(screen.getByRole('link', { name: /Heater/ }));
+
+    expect(screen.getByRole('dialog', { name: /Heater/ })).toBeTruthy();
+    expect(screen.queryByRole('link')).toBeNull();
+    expect(screen.queryByRole('searchbox')).toBeNull();
+    // One inspector: the desktop one must not be built and hidden underneath.
+    expect(screen.getAllByRole('switch', { name: 'Heater enabled' })).toHaveLength(1);
+  });
+
   it('opens straight into the editor for a deep link, and back still reaches the list', () => {
     renderSection('/equipment/co2Generator');
     const dialog = screen.getByRole('dialog', { name: /CO₂ injector/ });

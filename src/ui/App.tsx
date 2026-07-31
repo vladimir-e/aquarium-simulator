@@ -21,11 +21,7 @@ function App(): React.JSX.Element {
     <Routes>
       <Route element={<AppShell sim={sim} config={config} />}>
         <Route index element={<WaterSection sim={sim} config={config} />} />
-        <Route path="equipment" element={<EquipmentSection sim={sim} config={config} />} />
-        <Route
-          path="equipment/:deviceId"
-          element={<EquipmentSection sim={sim} config={config} />}
-        />
+        <Route path="equipment/:deviceId?" element={<EquipmentSection sim={sim} config={config} />} />
         <Route path="flora" element={<FloraSection sim={sim} config={config} />} />
         <Route path="livestock" element={<LivestockSection sim={sim} config={config} />} />
         <Route path="analytics" element={<AnalyticsSection sim={sim} />} />

@@ -21,6 +21,7 @@ export function hourLabel(hour: number): string {
 }
 
 export function scheduleRange(schedule: DailySchedule): string {
+  if (schedule.duration >= 24) return 'all day';
   return `${hourLabel(schedule.startHour)}–${hourLabel((schedule.startHour + schedule.duration) % 24)}`;
 }
 
