@@ -568,6 +568,29 @@ describe('powerhead readings', () => {
     expect(hint('powerhead', running)?.tone).toBe('muted');
   });
 
+  it('quotes the panel’s own reading back, at every level the water can sit at', () => {
+    const brisk = createSimulation({
+      tankCapacity: 40,
+      filter: { enabled: true, type: 'canister' },
+      powerhead: { enabled: true, flowRateGPH: 240 },
+    });
+    const stocked = applyAction(brisk, { type: 'addFish', species: 'neon_tetra' }).state;
+    let warned = 0;
+
+    for (let tenths = 250; tenths <= 400; tenths++) {
+      const water = tenths / 10;
+      const state: SimulationState = { ...stocked, resources: { ...stocked.resources, water } };
+      const warning = hint('powerhead', state);
+      if (warning?.tone !== 'warn') continue;
+
+      const quoted = /— (.+ × tank volume\/h)/.exec(warning.text)?.[1];
+      expect(read('powerhead', state).map((r) => r.note)).toContain(quoted);
+      warned++;
+    }
+
+    expect(warned).toBe(151);
+  });
+
   it('warns once a fish in the tank cannot take the current, naming the tightest', () => {
     const stocked = ['guppy' as const, 'neon_tetra' as const].reduce(
       (state, species) => applyAction(state, { type: 'addFish', species }).state,
