@@ -3,7 +3,7 @@ import { produce } from 'immer';
 import {
   nitrogenCycleSystem,
   calculateMaxBacteria,
-  calculateBacterialGrowth,
+  calculateColonyFlows,
   calculateWasteToAmmonia,
   calculateAmmoniaToNitrite,
   calculateNitriteToNitrate,
@@ -38,39 +38,67 @@ describe('calculateMaxBacteria', () => {
   });
 });
 
-describe('calculateBacterialGrowth', () => {
-  it('returns 0 for zero population', () => {
-    expect(calculateBacterialGrowth(0, nitrogenCycleDefaults.aobGrowthRate, 1000)).toBe(0);
+describe('calculateColonyFlows', () => {
+  const { aobGrowthRate: growthRate, bacteriaDeathRate: deathRate } = nitrogenCycleDefaults;
+  const flows = (
+    population: number,
+    utilization: number,
+    maxPopulation = 1000
+  ): { growth: number; death: number } =>
+    calculateColonyFlows(population, utilization, growthRate, deathRate, maxPopulation);
+
+  it('has nothing to give or lose without a population', () => {
+    expect(flows(0, 1)).toEqual({ growth: 0, death: 0 });
   });
 
-  it('returns 0 for zero max population', () => {
-    expect(calculateBacterialGrowth(100, nitrogenCycleDefaults.aobGrowthRate, 0)).toBe(0);
+  it('cannot grow onto surface that does not exist', () => {
+    expect(flows(100, 1, 0).growth).toBe(0);
   });
 
-  it('follows logistic growth formula', () => {
+  it('grows at the full rate only when the colony used all its capacity', () => {
     const population = 100;
-    const maxPopulation = 1000;
-    const expectedGrowth = population * nitrogenCycleDefaults.aobGrowthRate * (1 - population / maxPopulation);
-    expect(calculateBacterialGrowth(population, nitrogenCycleDefaults.aobGrowthRate, maxPopulation)).toBeCloseTo(
-      expectedGrowth,
-      10
-    );
+    expect(flows(population, 1).growth).toBeCloseTo(growthRate * population * 0.9, 10);
   });
 
-  it('slows down as population approaches max', () => {
-    const maxPopulation = 1000;
-    const growthAt10Percent = calculateBacterialGrowth(100, nitrogenCycleDefaults.aobGrowthRate, maxPopulation);
-    const growthAt50Percent = calculateBacterialGrowth(500, nitrogenCycleDefaults.aobGrowthRate, maxPopulation);
-    const growthAt90Percent = calculateBacterialGrowth(900, nitrogenCycleDefaults.aobGrowthRate, maxPopulation);
+  it('scales growth with utilization, and gives none for an idle colony', () => {
+    expect(flows(100, 0).growth).toBe(0);
 
-    // Relative growth rate should decrease
-    expect(growthAt50Percent / 500).toBeLessThan(growthAt10Percent / 100);
-    expect(growthAt90Percent / 900).toBeLessThan(growthAt50Percent / 500);
+    const half = flows(100, 0.5).growth;
+    const full = flows(100, 1).growth;
+    expect(half).toBeCloseTo(full / 2, 10);
   });
 
-  it('returns near-zero growth at carrying capacity', () => {
-    const growth = calculateBacterialGrowth(999, nitrogenCycleDefaults.aobGrowthRate, 1000);
-    expect(growth).toBeCloseTo(nitrogenCycleDefaults.aobGrowthRate * 999 * 0.001, 6);
+  it('is monotonic in utilization', () => {
+    let previous = -1;
+    for (const utilization of [0, 0.1, 0.25, 0.5, 0.75, 0.9, 1]) {
+      const { growth } = flows(100, utilization);
+      expect(growth).toBeGreaterThan(previous);
+      previous = growth;
+    }
+  });
+
+  it('brakes on the logistic term as the colony fills its ceiling', () => {
+    const perCapita = (population: number): number => flows(population, 1).growth / population;
+
+    expect(perCapita(500)).toBeLessThan(perCapita(100));
+    expect(perCapita(900)).toBeLessThan(perCapita(500));
+    expect(perCapita(1000)).toBe(0);
+  });
+
+  it('never grows a colony past its ceiling', () => {
+    for (const population of [1, 500, 900, 999, 1000]) {
+      expect(population + flows(population, 1).growth).toBeLessThanOrEqual(1000);
+    }
+  });
+
+  it('loses the same fraction whatever the colony is eating', () => {
+    for (const utilization of [0, 0.001, 0.5, 1]) {
+      expect(flows(100, utilization).death).toBeCloseTo(100 * deathRate, 12);
+    }
+  });
+
+  it('loses in proportion to the colony it is thinning', () => {
+    expect(flows(200, 1).death).toBeCloseTo(flows(100, 1).death * 2, 12);
   });
 });
 
@@ -494,92 +522,91 @@ describe('nitrogenCycleSystem', () => {
     });
   });
 
-  describe('Bacteria Growth (ppm thresholds)', () => {
-    it('AOB grows when ammonia ppm available', () => {
-      const state = createTestState({
-        ammonia: ppmToMass(0.5),
-        aob: 100,
-        surface: 100000, // Large surface so max = 1000, room to grow
-      });
-      const effects = nitrogenCycleSystem.update(state, DEFAULT_CONFIG);
+  describe('Bacteria Growth (proportional to work done)', () => {
+    /** Surface big enough that the logistic ceiling is not what is being read. */
+    const ROOMY = 100000;
 
-      const growthEffect = effects.find(
-        (e) => e.resource === 'aob' && e.source === 'nitrogen-cycle-growth'
-      );
-      expect(growthEffect).toBeDefined();
-      expect(growthEffect!.delta).toBeGreaterThan(0);
+    function growth(resource: 'aob' | 'nob', state: SimulationState): number | undefined {
+      return nitrogenCycleSystem
+        .update(state, DEFAULT_CONFIG)
+        .find((e) => e.resource === resource && e.source === 'nitrogen-cycle-growth')?.delta;
+    }
+
+    it('grows AOB on the ammonia it oxidised', () => {
+      expect(
+        growth('aob', createTestState({ ammonia: ppmToMass(0.5), aob: 100, surface: ROOMY }))
+      ).toBeGreaterThan(0);
     });
 
-    it('AOB does not grow when ammonia ppm scarce', () => {
-      const state = createTestState({
-        ammonia: ppmToMass(nitrogenCycleDefaults.aobFoodThreshold - 0.0001),
-        aob: 100,
-      });
-      const effects = nitrogenCycleSystem.update(state, DEFAULT_CONFIG);
-
-      const growthEffect = effects.find(
-        (e) => e.resource === 'aob' && e.source === 'nitrogen-cycle-growth'
-      );
-      expect(growthEffect).toBeUndefined();
+    it('grows NOB on the nitrite it oxidised', () => {
+      expect(
+        growth('nob', createTestState({ nitrite: ppmToMass(0.5), nob: 100, surface: ROOMY }))
+      ).toBeGreaterThan(0);
     });
 
-    it('NOB grows when nitrite ppm available', () => {
-      const state = createTestState({
-        nitrite: ppmToMass(0.5),
-        nob: 100,
-        surface: 100000, // Large surface so max = 1000, room to grow
-      });
-      const effects = nitrogenCycleSystem.update(state, DEFAULT_CONFIG);
+    it('grows a colony that clears its entire load', () => {
+      // The inversion of the old bug: consuming everything used to leave the
+      // colony under its food threshold, so success was punished with death.
+      const aob = 100;
+      const wholeLoad = aob * nitrogenCycleDefaults.bacteriaProcessingRate * 40 * 0.5;
+      const state = createTestState({ ammonia: wholeLoad, aob, surface: ROOMY });
 
-      const growthEffect = effects.find(
-        (e) => e.resource === 'nob' && e.source === 'nitrogen-cycle-growth'
+      const effects = nitrogenCycleSystem.update(state, DEFAULT_CONFIG);
+      const consumed = effects.find(
+        (e) => e.resource === 'ammonia' && e.source === 'nitrogen-cycle-aob'
+      )!.delta;
+
+      expect(-consumed).toBeCloseTo(wholeLoad, 12);
+      expect(growth('aob', state)).toBeGreaterThan(0);
+    });
+
+    it('grows harder for a heavier load', () => {
+      const light = growth(
+        'aob',
+        createTestState({ ammonia: ppmToMass(0.0005), aob: 100, surface: ROOMY })
       );
-      expect(growthEffect).toBeDefined();
-      expect(growthEffect!.delta).toBeGreaterThan(0);
+      const heavy = growth(
+        'aob',
+        createTestState({ ammonia: ppmToMass(5), aob: 100, surface: ROOMY })
+      );
+
+      expect(light).toBeGreaterThan(0);
+      expect(heavy!).toBeGreaterThan(light!);
+    });
+
+    it('does not grow a colony with nothing to eat', () => {
+      expect(growth('aob', createTestState({ ammonia: 0, aob: 100, surface: ROOMY }))).toBeUndefined();
+      expect(growth('nob', createTestState({ nitrite: 0, nob: 100, surface: ROOMY }))).toBeUndefined();
     });
   });
 
-  describe('Bacteria Death (ppm thresholds)', () => {
-    it('AOB dies when ammonia ppm scarce', () => {
-      const state = createTestState({
-        ammonia: 0, // No food (0 mg = 0 ppm)
-        aob: 100,
-      });
-      const effects = nitrogenCycleSystem.update(state, DEFAULT_CONFIG);
+  describe('Bacteria Death (unconditional maintenance)', () => {
+    function death(resource: 'aob' | 'nob', state: SimulationState): number | undefined {
+      return nitrogenCycleSystem
+        .update(state, DEFAULT_CONFIG)
+        .find((e) => e.resource === resource && e.source === 'nitrogen-cycle-death')?.delta;
+    }
 
-      const deathEffect = effects.find(
-        (e) => e.resource === 'aob' && e.source === 'nitrogen-cycle-death'
+    it('thins a fixed fraction of the colony every tick', () => {
+      expect(death('aob', createTestState({ ammonia: 0, aob: 100 }))).toBeCloseTo(
+        -100 * nitrogenCycleDefaults.bacteriaDeathRate,
+        10
       );
-      expect(deathEffect).toBeDefined();
-      expect(deathEffect!.delta).toBeLessThan(0);
-      expect(deathEffect!.delta).toBeCloseTo(-100 * nitrogenCycleDefaults.bacteriaDeathRate, 10);
     });
 
-    it('AOB does not die when ammonia ppm available', () => {
-      const state = createTestState({
-        ammonia: ppmToMass(0.5),
-        aob: 100,
-      });
-      const effects = nitrogenCycleSystem.update(state, DEFAULT_CONFIG);
+    it('thins a well-fed colony exactly as hard as a starving one', () => {
+      const fed = death('aob', createTestState({ ammonia: ppmToMass(5), aob: 100 }));
+      const starving = death('aob', createTestState({ ammonia: 0, aob: 100 }));
 
-      const deathEffect = effects.find(
-        (e) => e.resource === 'aob' && e.source === 'nitrogen-cycle-death'
-      );
-      expect(deathEffect).toBeUndefined();
+      expect(fed).toBeCloseTo(starving!, 12);
     });
 
-    it('NOB dies when nitrite ppm scarce', () => {
-      const state = createTestState({
-        nitrite: 0,
-        nob: 100,
-      });
-      const effects = nitrogenCycleSystem.update(state, DEFAULT_CONFIG);
+    it('thins NOB on the same terms', () => {
+      const fed = death('nob', createTestState({ nitrite: ppmToMass(5), nob: 100 }));
+      const starving = death('nob', createTestState({ nitrite: 0, nob: 100 }));
 
-      const deathEffect = effects.find(
-        (e) => e.resource === 'nob' && e.source === 'nitrogen-cycle-death'
-      );
-      expect(deathEffect).toBeDefined();
-      expect(deathEffect!.delta).toBeLessThan(0);
+      expect(fed).toBeCloseTo(-100 * nitrogenCycleDefaults.bacteriaDeathRate, 10);
+      expect(fed).toBeCloseTo(starving!, 12);
     });
   });
 

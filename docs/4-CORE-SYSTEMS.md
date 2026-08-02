@@ -154,18 +154,26 @@ Nitrite → Nitrate (via Nitrite-Oxidizing Bacteria)
 ### Bacterial Dynamics
 
 **Growth:**
-- Bacteria grow to fill available surface area
-- Growth rate depends on food supply (ammonia for AOB, nitrite for NOB)
+- Proportional to `utilization` — the share of its processing capacity the colony used this tick
+- Full `growth_rate` only on non-limiting substrate; nothing to oxidise means no growth
 - Maximum population limited by surface area
 
 **Death:**
-- Bacteria die if insufficient waste to sustain them
+- Unconditional maintenance loss, so a cut-off colony fades over weeks rather than collapsing
 - Population immediately reduced if surface area decreases (e.g., filter cleaning)
 
 ```
-bacterial_growth = growth_rate * food_availability * (1 - population/max_population)
-bacterial_death = death_rate * (1 - food_availability)
+utilization      = substrate_consumed / processing_capacity   # 0..1
+bacterial_growth = population * growth_rate * utilization * (1 - population/max_population)
+bacterial_death  = population * death_rate
 ```
+
+`utilization` is dimensionless, and processing capacity carries the tank's
+litres, so per-capita growth is the same in a nano and in a 150 L.
+
+`growth_rate` is read off a saturated doubling time (`ln2 / hours`) and
+`death_rate` off a starvation half-life; a colony under a steady load settles
+where the two cancel, at `death_rate / growth_rate` of its capacity.
 
 ### Surface Area Requirement
 

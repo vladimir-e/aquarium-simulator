@@ -75,8 +75,6 @@ describe('Nitrogen Cycle Integration', () => {
       expect(state.resources.aob).toBeGreaterThan(0);
 
       // Run enough ticks for AOB to grow meaningful processing capacity.
-      // With the calibrated logistic growth rate (~35 h doubling) and a
-      // 40 L tank, reaching cap + processing the leach influx takes ~2 weeks.
       for (let i = 0; i < 500; i++) {
         state = tick(state);
       }
@@ -85,8 +83,10 @@ describe('Nitrogen Cycle Integration', () => {
       // floor protects against "AOB regress to single-digits" failure modes
       // without pinning to a specific number.
       expect(state.resources.aob).toBeGreaterThan(1);
-      // Nitrite should have appeared (ammonia converted by AOB)
-      expect(state.resources.nitrite).toBeGreaterThan(0);
+      // The nitrite AOB made has been carried through to nitrate — by 500 ticks
+      // the NOB have caught up, so the standing nitrite is what is left over
+      // rather than what was produced.
+      expect(state.resources.nitrate).toBeGreaterThan(0);
     });
 
     it('AOB population grows over time when ammonia is present', () => {

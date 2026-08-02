@@ -15,18 +15,14 @@ export interface NitrogenCycleConfig {
   nobSpawnThreshold: number;
   /** Initial bacteria when spawning */
   spawnAmount: number;
-  /** AOB growth rate per tick */
+  /** AOB growth rate per tick at full utilization */
   aobGrowthRate: number;
-  /** NOB growth rate per tick */
+  /** NOB growth rate per tick at full utilization */
   nobGrowthRate: number;
   /** Max bacteria per cm² surface */
   bacteriaPerCm2: number;
-  /** Fraction of bacteria that die per tick without food */
+  /** Fraction of bacteria that die per tick */
   bacteriaDeathRate: number;
-  /** Min ammonia (ppm) to sustain AOB */
-  aobFoodThreshold: number;
-  /** Min nitrite (ppm) to sustain NOB */
-  nobFoodThreshold: number;
 }
 
 export const nitrogenCycleDefaults: NitrogenCycleConfig = {
@@ -47,16 +43,20 @@ export const nitrogenCycleDefaults: NitrogenCycleConfig = {
   aobSpawnThreshold: 0.5,
   nobSpawnThreshold: 0.5,
   spawnAmount: 10,
-  // AOB establishes before NOB — Nitrospira succession (Hovanec & DeLong, 1996).
-  // Real-world AOB doubling time is 24–72 hr in fresh aquaria;
-  // 0.02/hr ≈ 35 h doubling, 0.015/hr ≈ 46 h. Slower than previous
-  // 0.04/0.03 to match 2–4 week cycling timelines rather than 5-day.
-  aobGrowthRate: 0.02,
-  nobGrowthRate: 0.015,
+  // Growth is per-capita at *full* utilization, so each rate is read straight
+  // off a saturated doubling time: rate = ln2 / hours. AOB double in 15–24 h
+  // under non-limiting ammonia, NOB in 24–48 h; the midpoints below keep the
+  // AOB-before-NOB succession (Hovanec & DeLong, 1996) that makes nitrite
+  // peak after ammonia rather than alongside it.
+  aobGrowthRate: Math.LN2 / 20,
+  nobGrowthRate: Math.LN2 / 36,
   bacteriaPerCm2: 0.01,
-  bacteriaDeathRate: 0.02,
-  aobFoodThreshold: 0.001,
-  nobFoodThreshold: 0.001,
+  // Maintenance loss, not starvation: a colony cut off from ammonia fades over
+  // weeks, which is why a tank survives a holiday. ln2 / (3 weeks) — a 21-day
+  // half-life. Against the growth rates above this settles the colony at
+  // deathRate / growthRate of its capacity (4 % AOB, 7 % NOB), i.e. an
+  // established biofilter carries ~15–25× headroom over its standing load.
+  bacteriaDeathRate: Math.LN2 / (21 * 24),
 };
 
 export interface NitrogenCycleConfigMeta {
@@ -78,7 +78,5 @@ export const nitrogenCycleConfigMeta: NitrogenCycleConfigMeta[] = [
   { key: 'aobGrowthRate', label: 'AOB Growth Rate', unit: '/tick', min: 0.01, max: 0.1, step: 0.01 },
   { key: 'nobGrowthRate', label: 'NOB Growth Rate', unit: '/tick', min: 0.01, max: 0.15, step: 0.01 },
   { key: 'bacteriaPerCm2', label: 'Max Bacteria per cm²', unit: '/cm²', min: 0.001, max: 0.1, step: 0.001 },
-  { key: 'bacteriaDeathRate', label: 'Bacteria Death Rate', unit: '/tick', min: 0.005, max: 0.1, step: 0.005 },
-  { key: 'aobFoodThreshold', label: 'AOB Food Threshold', unit: 'ppm', min: 0.0001, max: 0.01, step: 0.0001 },
-  { key: 'nobFoodThreshold', label: 'NOB Food Threshold', unit: 'ppm', min: 0.0001, max: 0.01, step: 0.0001 },
+  { key: 'bacteriaDeathRate', label: 'Bacteria Death Rate', unit: '/tick', min: 0.0005, max: 0.02, step: 0.0005 },
 ];

@@ -6,7 +6,7 @@
 
 import {
   calculateAmmoniaToNitrite,
-  calculateBacterialGrowth,
+  calculateColonyFlows,
   calculateEvaporation,
   calculateMaxBacteria,
   calculateNitriteToNitrate,
@@ -204,14 +204,22 @@ export function projectNitritePeak(
     if (aob === 0 && ammoniaPpm >= nc.aobSpawnThreshold) aob = nc.spawnAmount;
     if (nob === 0 && nitritePpm >= nc.nobSpawnThreshold) nob = nc.spawnAmount;
 
-    aob =
-      ammoniaPpm >= nc.aobFoodThreshold
-        ? Math.min(aob + calculateBacterialGrowth(aob, nc.aobGrowthRate, ceiling), ceiling)
-        : aob * (1 - nc.bacteriaDeathRate);
-    nob =
-      nitritePpm >= nc.nobFoodThreshold
-        ? Math.min(nob + calculateBacterialGrowth(nob, nc.nobGrowthRate, ceiling), ceiling)
-        : nob * (1 - nc.bacteriaDeathRate);
+    const aobFlows = calculateColonyFlows(
+      aob,
+      oxidised.utilization,
+      nc.aobGrowthRate,
+      nc.bacteriaDeathRate,
+      ceiling
+    );
+    const nobFlows = calculateColonyFlows(
+      nob,
+      cleared.utilization,
+      nc.nobGrowthRate,
+      nc.bacteriaDeathRate,
+      ceiling
+    );
+    aob += aobFlows.growth - aobFlows.death;
+    nob += nobFlows.growth - nobFlows.death;
 
     if (nitritePpm > peakPpm) {
       peakPpm = nitritePpm;
