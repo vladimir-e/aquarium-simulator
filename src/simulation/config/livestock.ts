@@ -234,8 +234,8 @@ export const livestockDefaults: LivestockConfig = {
   // plus a 240 GPH powerhead runs 14×, so a neon is 4 over and pays
   // 0.61 %/h after hardiness — most of what a fed tank gives back, and
   // a roster of six is gone by day 10 unless the player pulls the
-  // powerhead. The same powerhead in a 20 L is 45×, 5.3 %/h, dead
-  // inside a day.
+  // powerhead. The same powerhead alone in a 20 L is 45×, 5.3 %/h,
+  // dead inside a day.
   flowStressSeverity: 0.3,
   // 0.05 %/h per hour past maxAge. At 24 h past, 1.2 %/h damage —
   // just exceeds the all-good benefit budget of ~1.2 %/h, so a fish

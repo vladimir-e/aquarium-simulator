@@ -16,19 +16,21 @@ import {
   type FishSpecies,
   type SimulationState,
 } from '../state.js';
-import { FILTER_SPECS, type FilterType } from '../equipment/filter.js';
+import { FILTER_SPECS, FILTER_TYPES, type FilterType } from '../equipment/filter.js';
+import type { PowerheadFlowRate } from '../equipment/powerhead.js';
 import { applyAction } from '../actions/index.js';
-import { getPresetById, PRESETS, type PresetId } from '../../ui/presets.js';
+import { getPresetById, PRESETS, type PresetDefinition, type PresetId } from '../../ui/presets.js';
 import { DAY, flowReading, run, stock, watchFlow } from './tanks.js';
 
 const VOLUMES = [20, 40, 75, 150, 300, 568];
 
-/** The filter class each species would sanely be kept on. */
-const SANE_PAIRING: ReadonlyArray<{ filter: FilterType; species: FishSpecies }> = [
-  { filter: 'sponge', species: 'betta' },
-  { filter: 'hob', species: 'angelfish' },
-  { filter: 'canister', species: 'neon_tetra' },
-  { filter: 'sump', species: 'guppy' },
+/** The filter class each species sanely lives on — the tolerance table in the task. */
+const SANE_PAIRING: ReadonlyArray<{ species: FishSpecies; filter: FilterType }> = [
+  { species: 'betta', filter: 'sponge' },
+  { species: 'angelfish', filter: 'canister' },
+  { species: 'neon_tetra', filter: 'canister' },
+  { species: 'guppy', filter: 'sump' },
+  { species: 'corydoras', filter: 'sump' },
 ];
 
 /** What a keeper would put in each tank the game ships. */
@@ -40,20 +42,48 @@ const PRESET_STOCK: Record<PresetId, { species: FishSpecies; count: number }> = 
   angelfish: { species: 'angelfish', count: 4 },
 };
 
+const community = getPresetById('community');
+if (community === undefined) throw new Error('the community preset is gone');
+
 const KEEPER_ROUTINE = { feed: 0.25, waterChange: 0.25, topOff: true };
 
-const topOff = (state: SimulationState): SimulationState =>
+/**
+ * Every shipped tank on both sides of the one habit that moves turnover: a
+ * keeper who tops off daily, and one who lets the tank evaporate between
+ * water changes. The margin over the filter class exists for the second.
+ */
+const SHIPPED_RUNS = PRESETS.flatMap((preset) =>
+  [true, false].map((topOff) => ({ preset, topOff }))
+);
+
+const toppedOff = (state: SimulationState): SimulationState =>
   applyAction(state, { type: 'topOff' }).state;
 
 /** A preset's own tank, cycled on its bed and stocked with what it is for. */
-function shipped(id: PresetId): SimulationState {
-  const preset = getPresetById(id);
-  if (preset === undefined) throw new Error(`the ${id} preset is gone`);
-
-  const { species, count } = PRESET_STOCK[id];
-  return stock(topOff(run(createSimulation(preset.config), 30 * DAY)), species, count, {
+function shipped(preset: PresetDefinition): SimulationState {
+  const { species, count } = PRESET_STOCK[preset.id];
+  return stock(toppedOff(run(createSimulation(preset.config), 30 * DAY)), species, count, {
     sex: 'male',
   });
+}
+
+/** A cycled tank on the named circulation, stocked with six tetras. */
+function stockedOn(
+  litres: number,
+  filter: FilterType,
+  powerhead: PowerheadFlowRate
+): SimulationState {
+  const cycled = run(
+    createSimulation({
+      tankCapacity: litres,
+      substrate: { type: 'aqua_soil' },
+      filter: { enabled: true, type: filter },
+      powerhead: { enabled: true, flowRateGPH: powerhead },
+      heater: { targetTemperature: 25, wattage: Math.max(100, litres) },
+    }),
+    30 * DAY
+  );
+  return stock(toppedOff(cycled), 'neon_tetra', 6, { sex: 'male' });
 }
 
 describe('flow tolerance', () => {
@@ -64,16 +94,20 @@ describe('flow tolerance', () => {
     expect(new Set(stress).size).toBe(1);
   });
 
-  it('never damages the species a filter class is for, at any volume it is rated to', () => {
-    for (const { filter, species } of SANE_PAIRING) {
-      const rated = VOLUMES.filter((litres) => litres <= FILTER_SPECS[filter].maxCapacityLiters);
-      expect(rated.length).toBeGreaterThan(0);
+  it('never damages a species on its own class, or on any gentler one', () => {
+    for (const { species, filter } of SANE_PAIRING) {
+      const gentler = FILTER_TYPES.slice(0, FILTER_TYPES.indexOf(filter) + 1);
 
-      for (const litres of rated) {
-        const { turnover, stress } = flowReading(species, litres, { filter });
+      for (const type of gentler) {
+        const rated = VOLUMES.filter((litres) => litres <= FILTER_SPECS[type].maxCapacityLiters);
+        expect(rated.length).toBeGreaterThan(0);
 
-        expect(turnover).toBeLessThan(FISH_SPECIES_DATA[species].maxTurnover);
-        expect(stress).toBe(0);
+        for (const litres of rated) {
+          const { turnover, stress } = flowReading(species, litres, { filter: type });
+
+          expect(turnover).toBeLessThan(FISH_SPECIES_DATA[species].maxTurnover);
+          expect(stress).toBe(0);
+        }
       }
     }
   });
@@ -91,27 +125,8 @@ describe('flow tolerance', () => {
   });
 
   it('kills a nano roster with the powerhead the same roster survives in a big tank', () => {
-    const stocked = (litres: number): SimulationState =>
-      stock(
-        topOff(
-          run(
-            createSimulation({
-              tankCapacity: litres,
-              substrate: { type: 'aqua_soil' },
-              filter: { enabled: true, type: 'sponge' },
-              powerhead: { enabled: true, flowRateGPH: 240 },
-              heater: { targetTemperature: 25, wattage: Math.max(100, litres) },
-            }),
-            30 * DAY
-          )
-        ),
-        'neon_tetra',
-        6,
-        { sex: 'male' }
-      );
-
-    const nano = watchFlow(stocked(20), 60, KEEPER_ROUTINE);
-    const big = watchFlow(stocked(300), 60, KEEPER_ROUTINE);
+    const nano = watchFlow(stockedOn(20, 'sponge', 240), 60, KEEPER_ROUTINE);
+    const big = watchFlow(stockedOn(300, 'sponge', 240), 60, KEEPER_ROUTINE);
 
     expect(nano.survivors).toBe(0);
     expect(nano.firstDeathDay).toBeLessThan(2);
@@ -121,11 +136,28 @@ describe('flow tolerance', () => {
     expect(big.minHealth).toBeGreaterThan(90);
   });
 
-  it.each(PRESETS)(
-    'runs the shipped $name for 90 days without its circulation costing a fish anything',
-    ({ id }) => {
-      const { species } = PRESET_STOCK[id];
-      const watched = watchFlow(shipped(id), 90, KEEPER_ROUTINE);
+  it('holds a big planted tank stacking the smallest powerhead on a canister', () => {
+    const watched = watchFlow(stockedOn(300, 'canister', 240), 90, KEEPER_ROUTINE);
+
+    expect(watched.peakTurnover).toBeGreaterThan(FISH_SPECIES_DATA.neon_tetra.maxTurnover);
+    expect(watched.peakStress).toBeLessThan(0.3);
+    expect(watched.survivors).toBe(6);
+    expect(watched.minHealth).toBeGreaterThan(90);
+  });
+
+  it('still kills the same roster when that powerhead is turned all the way up', () => {
+    const watched = watchFlow(stockedOn(300, 'canister', 850), 90, KEEPER_ROUTINE);
+
+    expect(watched.peakTurnover).toBeGreaterThan(18);
+    expect(watched.survivors).toBe(0);
+    expect(watched.firstDeathDay).toBeLessThan(7);
+  });
+
+  it.each(SHIPPED_RUNS)(
+    'runs the shipped $preset.name for 90 days, topping off $topOff, without its circulation costing a fish anything',
+    ({ preset, topOff }) => {
+      const { species } = PRESET_STOCK[preset.id];
+      const watched = watchFlow(shipped(preset), 90, { ...KEEPER_ROUTINE, topOff });
 
       expect(watched.peakTurnover).toBeLessThan(FISH_SPECIES_DATA[species].maxTurnover);
       expect(watched.peakStress).toBe(0);
@@ -133,7 +165,7 @@ describe('flow tolerance', () => {
   );
 
   it('holds the community preset’s twelve tetras for 90 days', () => {
-    const watched = watchFlow(shipped('community'), 90, KEEPER_ROUTINE);
+    const watched = watchFlow(shipped(community), 90, KEEPER_ROUTINE);
 
     expect(watched.survivors).toBe(12);
     expect(watched.firstDeathDay).toBeNull();

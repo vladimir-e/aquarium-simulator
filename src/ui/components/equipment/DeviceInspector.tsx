@@ -291,7 +291,7 @@ export function DeviceInspector({
     () => deviceReadings(row.id, { state: sim.state, config, units: unitSystem }),
     [row.id, sim.state, config, unitSystem]
   );
-  const hint = deviceHint(row.id, sim.state, config);
+  const hint = deviceHint(row.id, sim.state, config, unitSystem);
   const status = row.id === 'biofilter' ? cycleWord(row.on) : row.on ? 'on' : 'off';
 
   return (

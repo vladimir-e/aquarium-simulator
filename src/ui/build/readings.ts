@@ -336,7 +336,8 @@ function tooMuchCurrent(state: SimulationState): DeviceHint | null {
 export function deviceHint(
   id: EquipmentId,
   state: SimulationState,
-  config: TunableConfig
+  config: TunableConfig,
+  units: UnitSystem
 ): DeviceHint | null {
   const { equipment, tank, resources } = state;
   const muted = (text: string): DeviceHint => ({ text, tone: 'muted' });
@@ -346,15 +347,22 @@ export function deviceHint(
       if (!equipment.filter.enabled) {
         return muted('No biological filtration while the filter is off.');
       }
+      // A powerhead, when there is one, is the device that speaks for the
+      // current — but a filter over its rating can still be too brisk for
+      // the roster, and being harmed outranks being under-filtered.
+      const current = equipment.powerhead.enabled ? null : tooMuchCurrent(state);
       const spec = FILTER_SPECS[equipment.filter.type];
       if (tank.capacity > spec.maxCapacityLiters) {
         const lph = getFilterFlow(equipment.filter.type, tank.capacity);
-        return {
-          text: `Undersized for this tank — ${turnover(lph, resources.water)} against the ${spec.targetTurnover} × it is built for.`,
-          tone: 'warn',
-        };
+        const wanted = tank.capacity * spec.targetTurnover;
+        return (
+          current ?? {
+            text: `Undersized for this tank — ${formatFlowRate(lph, units)} against the ${formatFlowRate(wanted, units)} a ${spec.targetTurnover} × turnover here would take.`,
+            tone: 'warn',
+          }
+        );
       }
-      return equipment.powerhead.enabled ? null : tooMuchCurrent(state);
+      return current;
     }
     case 'heater':
       return null;

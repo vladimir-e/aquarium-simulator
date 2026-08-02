@@ -290,7 +290,9 @@ export interface KeeperRoutine {
  *
  * Flow damage is read off the same state the engine charges it against — the
  * hour before its tick — so a reported peak is a rate a fish actually paid,
- * not a rate the tank arrived at afterwards.
+ * not a rate the tank arrived at afterwards. Health and deaths are read after
+ * it, where the damage of the hour has landed and the two agree with each
+ * other.
  */
 export function watchFlow(
   state: SimulationState,
@@ -323,7 +325,6 @@ export function watchFlow(
         peakStress,
         vitality.breakdown.stressors.find((s) => s.key === 'flow')?.amount ?? 0
       );
-      minHealth = Math.min(minHealth, fish.health);
     }
 
     if (feed !== undefined && hour % DAY === 9) {
@@ -337,6 +338,8 @@ export function watchFlow(
     }
 
     running = tick(running, config);
+
+    for (const fish of mine()) minHealth = Math.min(minHealth, fish.health);
     if (firstDeathHour === null && mine().length < roster.size) firstDeathHour = hour;
   }
 

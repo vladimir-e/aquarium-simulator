@@ -186,9 +186,8 @@ function buildStressors(ctx: FishFactorContext): VitalityFactor[] {
     waterLevelStress = config.waterLevelStressSeverity * (config.waterLevelStressThreshold - waterPercent);
   }
 
-  // `resources.flow` is throughput in L/h; a fish feels it as turnover
-  // through the water actually in the tank. A drained tank has no
-  // circulation to feel — the water-level stressor owns that one.
+  // A drained tank has no circulation to feel — the water-level
+  // stressor owns that one.
   let flowStress = 0;
   const turnover = waterVolume > 0 ? resources.flow / waterVolume : 0;
   if (turnover > speciesData.maxTurnover) {
