@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import {
+  computeFishVitality,
   createSimulation,
+  FILTER_SPECS,
   FILTER_TYPES,
   FISH_SPECIES_DATA,
   isAirPumpUndersized,
@@ -16,6 +18,8 @@ import type { EquipmentId } from './devices';
 import { deviceHint, deviceReadings, type DeviceHint, type DeviceReading } from './readings';
 
 const base: SimulationState = createSimulation({ tankCapacity: 40 });
+
+const UNITS = ['metric', 'imperial'] as const;
 
 function read(
   id: EquipmentId,
@@ -108,6 +112,9 @@ describe('heater readings', () => {
 });
 
 describe('filter readings', () => {
+  /** Capacities either side of where each class's flow cap starts to bite. */
+  const SIZING_SWEEP = [40, 75, 76, 100, 208, 208.2, 209, 300, 400, 562, 563, 568, 600, 1000];
+
   it('reads flow as turnover and media as a share of the tank’s biofilm', () => {
     const readings = read('filter');
     expect(value(readings, 'Flow')).toEqual({
@@ -182,26 +189,40 @@ describe('filter readings', () => {
     expect(hint('filter', pastRating)).toBeNull();
   });
 
-  it('never states a sizing gap its own two figures agree on', () => {
-    const capacities = [40, 75, 76, 100, 208, 208.2, 209, 300, 400, 562, 563, 568, 600, 1000];
-    let warned = 0;
+  it('warns exactly where a class’s cap bites, never on a gap its figures agree on', () => {
+    for (const units of UNITS) {
+      for (const type of FILTER_TYPES) {
+        const spec = FILTER_SPECS[type];
+        const warned: number[] = [];
 
-    for (const type of FILTER_TYPES) {
-      for (const tankCapacity of capacities) {
-        const warning = hint(
-          'filter',
-          createSimulation({ tankCapacity, filter: { enabled: true, type } })
-        );
-        if (warning === null) continue;
+        for (const tankCapacity of SIZING_SWEEP) {
+          const warning = hint(
+            'filter',
+            createSimulation({ tankCapacity, filter: { enabled: true, type } }),
+            units
+          );
+          if (warning === null) continue;
 
-        const [, delivers, wants] = /— (\d+) L\/h against the (\d+) L\/h/.exec(warning.text) ?? [];
-        expect(delivers).toBeDefined();
-        expect(Number(delivers)).toBeLessThan(Number(wants));
-        warned++;
+          const [, delivers, wants] =
+            /— (\d+) (?:L\/h|GPH) against the (\d+) (?:L\/h|GPH)/.exec(warning.text) ?? [];
+          expect(delivers).toBeDefined();
+          expect(Number(delivers)).toBeLessThan(Number(wants));
+          warned.push(tankCapacity);
+        }
+
+        const bites = SIZING_SWEEP.filter((c) => c > spec.maxFlowLph / spec.targetTurnover);
+        expect(warned).toEqual(bites);
       }
     }
+  });
 
-    expect(warned).toBeGreaterThan(0);
+  it('never calls a filter with no cap undersized, however big the tank', () => {
+    for (const units of UNITS) {
+      for (const tankCapacity of [...SIZING_SWEEP, 5000, 50000]) {
+        const sump = createSimulation({ tankCapacity, filter: { enabled: true, type: 'sump' } });
+        expect(hint('filter', sump, units)).toBeNull();
+      }
+    }
   });
 
   it('never renders away the excess it is warning about', () => {
@@ -218,9 +239,45 @@ describe('filter readings', () => {
 
     for (const over of [0.001, 0.01, 0.05, 0.2, 1, 3]) {
       const warning = hint('filter', at(maxTurnover + over));
+      expect(warning).not.toBeNull();
+
+      const shown = Number(/— ([\d.]+) ×/.exec(warning?.text ?? '')?.[1]);
+      expect(shown).toBeGreaterThan(maxTurnover);
+    }
+  });
+
+  it('speaks up on exactly the currents the engine charges the fish for', () => {
+    const water = 40;
+    const { maxTurnover } = FISH_SPECIES_DATA.neon_tetra;
+    const tank = createSimulation({
+      tankCapacity: water,
+      filter: { enabled: true, type: 'canister' },
+    });
+    const stocked = applyAction(tank, { type: 'addFish', species: 'neon_tetra' }).state;
+    const rates = [-2, -0.05, 0, 0.05, 2, 30].map((over) => maxTurnover + over);
+
+    for (const rate of rates) {
+      const state: SimulationState = {
+        ...stocked,
+        resources: { ...stocked.resources, flow: rate * water, water },
+      };
+      const fish = state.fish[0];
+      if (fish === undefined) throw new Error('the tetra did not stock');
+
+      const { breakdown } = computeFishVitality(
+        fish,
+        state.resources,
+        state.plants,
+        water,
+        state.tank.capacity,
+        DEFAULT_CONFIG.livestock
+      );
+      const charged = breakdown.stressors.find((s) => s.key === 'flow')?.amount ?? 0;
+      const warning = hint('filter', state);
       const shown = Number(/— ([\d.]+) ×/.exec(warning?.text ?? '')?.[1]);
 
-      expect(shown).toBeGreaterThan(maxTurnover);
+      expect(warning?.text.startsWith('Too much current') ?? false).toBe(charged > 0);
+      if (charged > 0) expect(shown).toBeGreaterThanOrEqual(rate);
     }
   });
 
