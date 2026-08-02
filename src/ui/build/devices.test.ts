@@ -46,7 +46,7 @@ describe('equipmentRows', () => {
   it('closes the eight devices with the derived biofilter', () => {
     expect(rows).toHaveLength(9);
     expect(rows[8].id).toBe('biofilter');
-    expect(rows[8].summary).toMatch(/^0 % · [\d,]+ cm²$/);
+    expect(rows[8].summary).toMatch(/^uncycled · [\d,]+ cm²$/);
   });
 
   it('summarises a running device by its setting and a stopped one by "off"', () => {
@@ -69,9 +69,12 @@ describe('equipmentRows', () => {
     expect(summary(imperialRows, 'powerhead')).toBe('400 GPH');
   });
 
-  it('marks the biofilter on once it is cycled', () => {
+  it('marks the biofilter on once it is cycled, and says so', () => {
     const cycled = cycledTank(40);
-    expect(equipmentRows(cycled, readout(cycled), 'metric')[8].on).toBe(true);
+    const row = equipmentRows(cycled, readout(cycled), 'metric')[8];
+
+    expect(row.on).toBe(true);
+    expect(row.summary).toMatch(/^cycled · [\d,]+ cm²$/);
     expect(rows[8].on).toBe(false);
   });
 });
@@ -110,7 +113,7 @@ describe('filterRows', () => {
 
 describe('equipmentSummary', () => {
   it('counts the devices that are on and names the biofilter', () => {
-    expect(equipmentSummary(base, readout(base))).toBe('3 of 8 on · biofilter 0 %');
+    expect(equipmentSummary(base, readout(base))).toBe('3 of 8 on · biofilter uncycled');
   });
 
   it('follows a device being switched off', () => {
@@ -118,6 +121,6 @@ describe('equipmentSummary', () => {
       ...base,
       equipment: { ...base.equipment, light: { ...base.equipment.light, enabled: false } },
     };
-    expect(equipmentSummary(dark, readout(dark))).toBe('2 of 8 on · biofilter 0 %');
+    expect(equipmentSummary(dark, readout(dark))).toBe('2 of 8 on · biofilter uncycled');
   });
 });

@@ -13,7 +13,7 @@ import {
   type SimulationState,
 } from '../../simulation/index.js';
 import { SurfaceResource } from '../../simulation/resources/index.js';
-import type { BacteriaReadout } from '../run/index.js';
+import { cycleWord, type BacteriaReadout } from '../run/index.js';
 import { formatFlowRate, formatTemperature, type UnitSystem } from '../utils/units.js';
 import { hourLabel, scheduleRange } from './schedules.js';
 
@@ -139,7 +139,7 @@ export function equipmentRows(
       id: 'biofilter' as const,
       name: 'Biofilter',
       on: bacteria.cycled,
-      summary: `${Math.round(bacteria.colonisation)} % · ${SurfaceResource.format(bacteria.surface)}`,
+      summary: `${cycleWord(bacteria.cycled)} · ${SurfaceResource.format(bacteria.surface)}`,
     },
   ];
 }
@@ -155,5 +155,5 @@ export function filterRows(rows: EquipmentRow[], query: string): EquipmentRow[] 
 export function equipmentSummary(state: SimulationState, bacteria: BacteriaReadout): string {
   const devices = buildDeviceList(state.equipment);
   const on = devices.filter((d) => d.on).length;
-  return `${on} of ${devices.length} on · biofilter ${Math.round(bacteria.colonisation)} %`;
+  return `${on} of ${devices.length} on · biofilter ${cycleWord(bacteria.cycled)}`;
 }

@@ -6,7 +6,7 @@ import {
   applyAction,
   calculatePassiveResources,
   calculateHardscapeSlots,
-  replaceSubstrate,
+  rescape,
   getHardscapeName,
   formatSchedule,
   type SimulationState,
@@ -663,26 +663,13 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
   }, []);
 
   const updateSubstrateType = useCallback((type: SubstrateType) => {
-    setState((current) =>
-      produce(current, (draft) => {
-        const bed = draft.equipment.substrate;
-        const replaced = replaceSubstrate(bed, type, draft.tank.capacity);
-        if (replaced !== bed) {
-          const log = createLog(
-            draft.tick,
-            'equipment',
-            'info',
-            `Substrate changed to ${type}`
-          );
-          draft.equipment.substrate = replaced;
-          draft.logs.push(log);
-          const passiveValues = calculatePassiveResources(draft);
-          draft.resources.surface = passiveValues.surface;
-          draft.resources.flow = passiveValues.flow;
-          draft.resources.light = passiveValues.light;
-        }
-      })
-    );
+    setState((current) => {
+      const scaped = rescape(current, type);
+      if (scaped === current) return current;
+      return produce(scaped, (draft) => {
+        draft.logs.push(createLog(draft.tick, 'equipment', 'info', `Substrate changed to ${type}`));
+      });
+    });
   }, []);
 
   const addHardscapeItem = useCallback((type: HardscapeType) => {

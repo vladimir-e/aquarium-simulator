@@ -219,8 +219,8 @@ describe('the rail carries the Water section’s own readings', () => {
 });
 
 describe('navFigures — Equipment', () => {
-  it('reports colonisation alongside the device count', () => {
-    expect(figures(saturated()).equipment.lines[0]).toMatch(/^\d of 8 on · biofilter 100 %$/);
+  it('reports the biofilter’s state alongside the device count', () => {
+    expect(figures(saturated()).equipment.lines[0]).toMatch(/^\d of 8 on · biofilter cycled$/);
   });
 
   it('gives one dot per device, matching that device’s power state', () => {

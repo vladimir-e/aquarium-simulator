@@ -11,7 +11,9 @@ Format: - **Feature name** (#PR) - One short sentence (under ~150 chars)
 
 ## Unreleased
 
-- **Processing capacity** - a bacterium clears the same ammonia in a nano as in a stock tank, populations read in millions of cells, and a cold tank cycles slower (Q10 2.5, so 18 °C takes about twice the days 25 °C does).
+- **A rescape takes the biofilm with the bed** - the colony loses the share that lived on the old substrate, so fresh soil in an established tank blips before it settles.
+- **The biofilter reads as cycled or uncycled** - share of the surface ceiling is a headroom figure now, not the headline a healthy tank sat at 1 % of.
+- **Processing capacity** - a bacterium clears the same ammonia in a nano as in a stock tank, and a cold tank cycles slower: 18 °C takes about twice the days 25 °C does.
 - **Nitrogen cycle** - a fresh tank cycles in about three weeks at any volume, driven by organics leaching from the substrate; a biofilter no longer dies for keeping up with its ammonia.
 - **`processEquipment` requires a config** - breaking: the old default silently ran on `decayDefaults` whatever the caller had tuned; `TunableConfig` and `DEFAULT_CONFIG` are now exported from the package root to pass one.
 - **`formatDosePreview` removed from the public API** - breaking for consumers importing it from the package root; the dose preview was UI string formatting living in the engine, and the Flora section derives it now.

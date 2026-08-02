@@ -30,8 +30,12 @@ import { mineralisationBase, wasteInflow } from './waste.js';
  * unconditional, so the fixed point is `1 − deathRate/growthRate` of the
  * ceiling — 96 % for AOB, 93 % for NOB. A mature tank never reaches 100 %, and
  * a threshold that asks for it never fires.
+ *
+ * Only a tank held under a saturating load gets here at all: an ordinary
+ * stocked tank rests at a couple of percent, because the colony grows to its
+ * load and not to its surface.
  */
-const MATURE_PCT = 90;
+const SURFACE_BOUND_PCT = 90;
 
 /** How far ahead the cycle projection will look before giving up, in ticks. */
 const PROJECTION_HORIZON = 24 * 180;
@@ -39,7 +43,20 @@ const PROJECTION_HORIZON = 24 * 180;
 /** What a hobby test kit reads as zero, ppm. */
 const TRACE_PPM = 0.1;
 
-/** Colonisation as a percentage (0–100) of the tank's combined bacteria ceiling. */
+/**
+ * The word every surface uses for the state of a biofilter — list row, section
+ * header, inspector and CLI all read the same predicate, so they all say this.
+ */
+export function cycleWord(cycled: boolean): string {
+  return cycled ? 'cycled' : 'uncycled';
+}
+
+/**
+ * How much of the surface the colonies have taken, 0–100.
+ *
+ * Occupancy and not health: a colony grows to its load, so an ordinary cycled
+ * tank sits at a couple of percent and the rest is the room it has left.
+ */
 export function biofilterColonisation(
   resources: Resources,
   config: NitrogenCycleConfig
@@ -74,7 +91,7 @@ export interface BacteriaReadout {
   nob: Colony;
   /** Colonisable biofilm, cm². */
   surface: number;
-  /** Combined colonisation, 0–100. */
+  /** Share of that biofilm both colonies together have taken, 0–100. */
   colonisation: number;
   /**
    * The keeper's own test: ammonia and nitrite both at trace, nitrate climbing,
@@ -98,16 +115,26 @@ function colony(count: number, ceiling: number): Colony {
   return { count, ceiling, pct: ceiling > 0 ? Math.min(100, (count / ceiling) * 100) : 0 };
 }
 
+/** One bacteria unit, in cells — the gauge `bacteriaPerCm2` and the seed are quoted in. */
+const CELLS_PER_UNIT = 1e6;
+
+const SI_PREFIXES = ['', 'k', 'M', 'G', 'T'];
+
 /**
- * A population in bacteria units — millions of cells. Colonies span six orders
- * of magnitude between a fresh seed and a canister at its ceiling, so the
- * digits go to an SI suffix rather than to a comma-grouped wall of them.
+ * A population in cells. Colonies span six orders of magnitude between a fresh
+ * seed and a canister at its ceiling, so the digits go to an SI prefix rather
+ * than to a comma-grouped wall of them.
  */
 export function colonyCount(units: number): string {
-  if (units >= 1e6) return `${(units / 1e6).toFixed(1)} T`;
-  if (units >= 1e3) return `${(units / 1e3).toFixed(1)} G`;
-  if (units >= 10) return Math.round(units).toString();
-  return units.toFixed(units >= 1 ? 1 : 2);
+  let cells = units * CELLS_PER_UNIT;
+  let step = 0;
+  // Rounded before compared, so a figure that prints as 1000.0 takes the next
+  // prefix rather than overflowing this one.
+  while (step < SI_PREFIXES.length - 1 && Number(cells.toFixed(1)) >= 1000) {
+    cells /= 1000;
+    step++;
+  }
+  return step === 0 ? Math.round(cells).toString() : `${cells.toFixed(1)} ${SI_PREFIXES[step]}`;
 }
 
 export function bacteriaReadout(
@@ -300,12 +327,12 @@ export function bacteriaSummary(
     return `NOB trail AOB by ${behind} % — nitrite accumulates until the colony catches up.${peakClause(projection)}`;
   }
 
-  if (aob.pct >= MATURE_PCT && nob.pct >= MATURE_PCT) {
-    return 'Both colonies are up against their ceiling — the biofilter processes everything this tank produces.';
+  if (aob.pct >= SURFACE_BOUND_PCT && nob.pct >= SURFACE_BOUND_PCT) {
+    return 'Both colonies have filled the surface they live on — until the tank offers more biofilm, more load has nowhere to go.';
   }
 
   if (rates.netNitrite <= 0) {
-    return `The biofilter is clearing nitrite at least as fast as it appears. Colonisation ${Math.round(readout.colonisation)} % of ceiling.`;
+    return `The biofilter is clearing nitrite at least as fast as it appears, on ${Math.round(readout.colonisation)} % of the biofilm this tank offers.`;
   }
 
   return `Nitrite rising at ${rates.netNitrite.toFixed(4)} ppm/h.${peakClause(projection)}`;

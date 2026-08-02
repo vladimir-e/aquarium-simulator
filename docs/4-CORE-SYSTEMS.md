@@ -161,17 +161,19 @@ Nitrite → Nitrate (via Nitrite-Oxidizing Bacteria)
 **Death:**
 - Unconditional maintenance loss, so a cut-off colony fades over weeks rather than collapsing
 - Population immediately reduced if surface area decreases (e.g., filter cleaning)
+- A colony is a stock sitting on surface, so surface that leaves the tank takes its share of the colony with it — see *Substrate* in [3-EQUIPMENT](3-EQUIPMENT.md) for what a rescape costs
 
 ```
-utilization      = substrate_consumed / processing_capacity   # 0..1
-bacterial_growth = population * growth_rate * utilization * (1 - population/max_population)
-bacterial_death  = population * death_rate
+utilization         = substrate_consumed / processing_capacity   # 0..1
+processing_capacity = population * processing_rate * warmth
+bacterial_growth    = population * growth_rate * warmth * utilization * (1 - population/max_population)
+bacterial_death     = population * death_rate * warmth
 ```
 
-Processing capacity is `population * processing_rate` — mass per bacteria unit
-per tick, with no volume term. Throughput is a property of the cell, so the same
-colony clears the same milligrams in a nano and in a 150 L, and `utilization` is
-dimensionless in both.
+Processing capacity carries no volume term. Throughput is a property of the
+cell, so the same colony clears the same milligrams in a nano and in a 150 L,
+and `utilization` is dimensionless in both. `warmth` is the temperature factor
+below.
 
 A **bacteria unit is 10⁶ cells**, which is what makes `bacteria_per_unit_surface`
 a real biofilm density rather than a score. The three constants — processing
@@ -205,10 +207,7 @@ Nitrification is enzymatic, so all three colony rates carry the same Q10
 factor against the temperature they are quoted at:
 
 ```
-warmth           = q10 ^ ((temperature - reference_temp) / 10)
-capacity         = population * processing_rate * warmth
-bacterial_growth = population * growth_rate * warmth * utilization * (1 - population/max_population)
-bacterial_death  = population * death_rate * warmth
+warmth = q10 ^ ((temperature - reference_temp) / 10)
 ```
 
 One metabolism, one factor: a cell that oxidises half as fast also divides and

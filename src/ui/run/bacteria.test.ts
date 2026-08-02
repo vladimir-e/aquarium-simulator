@@ -3,6 +3,7 @@ import {
   bacteriaReadout,
   bacteriaSummary,
   biofilterColonisation,
+  colonyCount,
   projectNitritePeak,
   type CycleProjection,
 } from './bacteria';
@@ -135,6 +136,29 @@ describe('biofilterColonisation', () => {
   it('clamps a colony that overshoots its ceiling', () => {
     const ceiling = 1000 * perCm2;
     expect(biofilterColonisation(resources(ceiling * 4, ceiling, 1000), nitrogenCycleDefaults)).toBe(100);
+  });
+});
+
+describe('colonyCount', () => {
+  it('reads a population in cells whatever its order of magnitude', () => {
+    expect(colonyCount(0)).toBe('0');
+    expect(colonyCount(0.648)).toBe('648.0 k');
+    expect(colonyCount(1)).toBe('1.0 M');
+    expect(colonyCount(1e3)).toBe('1.0 G');
+    expect(colonyCount(1e6)).toBe('1.0 T');
+  });
+
+  it('carries a rounded figure to the next prefix instead of overflowing this one', () => {
+    expect(colonyCount(999_999)).toBe('1.0 T');
+    expect(colonyCount(999_900)).toBe('999.9 G');
+  });
+
+  it('runs the ceilings the shipped tanks reach', () => {
+    const ceiling = (state: SimulationState): string =>
+      colonyCount(bacteriaReadout(state, config).aob.ceiling);
+
+    expect(ceiling(cycledTank(20))).toMatch(/^\d+\.\d G$/);
+    expect(ceiling(cycledTank(1000))).toMatch(/^\d+\.\d T$/);
   });
 });
 
@@ -307,20 +331,23 @@ describe('bacteriaSummary', () => {
     expect(summary).toContain('Nitrite peaks in');
   });
 
-  it('gives a fully grown biofilter its own line', () => {
+  it('calls out the surface as the limit once a colony has filled it', () => {
     const readout = bacteriaReadout(mature(), config);
 
     // The line has to be reachable from a state the engine produces: decay is
     // unconditional, so neither colony ever arrives at 100 % of its ceiling.
     expect(readout.aob.pct).toBeLessThan(100);
     expect(readout.nob.pct).toBeLessThan(100);
-    expect(bacteriaSummary(readout, null, nc)).toContain('up against their ceiling');
+    expect(bacteriaSummary(readout, null, nc)).toContain('more load has nowhere to go');
   });
 
-  it('reports a colony still climbing toward its ceiling as clearing what it makes', () => {
+  it('reads a colony below its ceiling as room left rather than as a shortfall', () => {
     const state = tank();
     state.resources.aob = state.resources.surface * perCm2 * 0.5;
     state.resources.nob = state.resources.surface * perCm2 * 0.5;
-    expect(bacteriaSummary(bacteriaReadout(state, config), null, nc)).toContain('clearing nitrite');
+
+    const summary = bacteriaSummary(bacteriaReadout(state, config), null, nc);
+    expect(summary).toContain('clearing nitrite');
+    expect(summary).toContain('50 % of the biofilm this tank offers');
   });
 });

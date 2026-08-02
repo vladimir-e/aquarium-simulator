@@ -62,9 +62,9 @@ export function getSubstrateOrganicReserve(type: SubstrateType, tankCapacity: nu
  * Swaps the bed for one of a different type, which is the only way a tank
  * gets its organic reserve back: the new bag of soil is new material.
  *
- * Returns the *same object* when the type is unchanged, and callers depend
- * on that identity: `useSimulation` decides whether a rescape happened —
- * whether to log it and recalculate surface — by comparing references.
+ * The bed alone — everything a swap costs the rest of the tank is `rescape`.
+ * Returns the *same object* when the type is unchanged, which is how that
+ * caller tells a rescape from a no-op.
  */
 export function replaceSubstrate(
   substrate: Substrate,

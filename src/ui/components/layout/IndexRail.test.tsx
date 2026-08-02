@@ -74,7 +74,7 @@ describe('IndexRail', () => {
 
     renderRail(state);
 
-    expect(row('Equipment').textContent).toContain('biofilter 0 %');
+    expect(row('Equipment').textContent).toContain('biofilter uncycled');
     expect(row('Livestock').textContent).toContain('1 fish');
     expect(row('Livestock').textContent).toContain('bioload');
     expect(row('Scenario').textContent).toContain('Planted Tank · 200 L');

@@ -4,6 +4,7 @@ import { SurfaceResource } from '../../../simulation/resources/index.js';
 import {
   bacteriaSummary,
   colonyCount,
+  cycleWord,
   type BacteriaReadout,
   type Colony,
   type CycleProjection,
@@ -63,10 +64,10 @@ export function BacteriaCard({
 
   return (
     <Card className="min-h-0">
-      <CardHeader title="Bacteria" meta={`colonisation ${Math.round(readout.colonisation)} %`} />
+      <CardHeader title="Bacteria" meta={cycleWord(readout.cycled)} />
       <CardBody className="flex flex-col gap-3 sm:flex-row">
         <div className="min-w-0 flex-1">
-          <FieldLabel>Colonisation · millions of cells</FieldLabel>
+          <FieldLabel>Colonies · cells / ceiling</FieldLabel>
           <ColonyBar name="AOB" reaction="NH₃ → NO₂" colony={readout.aob} cycled={readout.cycled} />
           <ColonyBar name="NOB" reaction="NO₂ → NO₃" colony={readout.nob} cycled={readout.cycled} />
           <div className="pt-1 font-mono text-[10px] text-ink-3">

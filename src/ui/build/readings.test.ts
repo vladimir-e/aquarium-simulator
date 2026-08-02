@@ -358,8 +358,7 @@ describe('biofilter readings', () => {
     // never disagree on a population spanning six orders of magnitude.
     const readout = bacteriaReadout(cycled, DEFAULT_CONFIG);
     const readings = read('biofilter', cycled);
-    expect(readout.colonisation).toBeGreaterThan(0);
-    expect(value(readings, 'Colonisation').value).toBe(`${Math.round(readout.colonisation)} %`);
+    expect(readout.aob.count).toBeGreaterThan(0);
     expect(value(readings, 'AOB · ammonia → nitrite').value).toBe(
       `${colonyCount(readout.aob.count)} / ${colonyCount(readout.aob.ceiling)}`
     );
@@ -368,9 +367,35 @@ describe('biofilter readings', () => {
     );
   });
 
-  it('calls a fresh tank uncycled and a working biofilter cycled', () => {
-    expect(value(read('biofilter'), 'Colonisation').note).toBe('uncycled');
-    expect(value(read('biofilter', cycled), 'Colonisation').note).toBe('cycled');
+  it('leads with the cycle and backs it with the reading behind it', () => {
+    expect(value(read('biofilter'), 'Cycle')).toEqual({
+      label: 'Cycle',
+      value: 'uncycled',
+      note: 'nothing colonised yet',
+    });
+    expect(value(read('biofilter', cycled), 'Cycle')).toEqual({
+      label: 'Cycle',
+      value: 'cycled',
+      note: 'NH₃ and NO₂ at trace, NO₃ climbing',
+    });
+  });
+
+  /**
+   * Share of ceiling is the one figure the re-pinned gauge does not let the
+   * headline carry: a cycled tank sits at a couple of percent by design, so it
+   * reads as the room the colony has left and never as its health.
+   */
+  it('keeps share of ceiling as the colonies’ own secondary figure', () => {
+    const readings = read('biofilter', cycled);
+    const readout = bacteriaReadout(cycled, DEFAULT_CONFIG);
+
+    expect(readout.aob.pct).toBeLessThan(10);
+    expect(value(readings, 'AOB · ammonia → nitrite').note).toBe(
+      `${Math.round(readout.aob.pct)} % of ceiling`
+    );
+    expect(value(readings, 'NOB · nitrite → nitrate').note).toBe(
+      `${Math.round(readout.nob.pct)} % of ceiling`
+    );
   });
 
   it('has nothing to configure, and says so', () => {

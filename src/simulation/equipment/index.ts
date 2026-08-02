@@ -2,6 +2,7 @@
  * Equipment registry and effect collector.
  */
 
+import { produce } from 'immer';
 import type { Effect } from '../core/effects.js';
 import type { SimulationState } from '../state.js';
 import { calculateTankGlassSurface } from '../state.js';
@@ -210,4 +211,33 @@ export function calculatePassiveResources(state: SimulationState): PassiveResour
   const aeration = equipment.airPump.enabled || filterAerates;
 
   return { surface, flow, light, aeration };
+}
+
+/**
+ * Pull the bed out and lay a different one in its place.
+ *
+ * The biofilm goes out with it. A colony is a stock spread over every
+ * colonisable cm² the tank has, so a bed that carries most of that surface
+ * carries most of the nitrifiers away in the bucket, and the fresh bed arrives
+ * sterile — which is why a rescape blips even though the glass and the filter
+ * media never left the tank.
+ *
+ * Returns the same state when the bed is already of that type: laying soil over
+ * soil is not something the tank can tell from leaving it alone.
+ */
+export function rescape(state: SimulationState, type: SubstrateType): SimulationState {
+  const bed = state.equipment.substrate;
+  const laid = replaceSubstrate(bed, type, state.tank.capacity);
+  if (laid === bed) return state;
+
+  const surface = calculatePassiveResources(state).surface;
+  const lost = getSubstrateSurface(bed.type, state.tank.capacity);
+  const kept = surface > 0 ? 1 - lost / surface : 1;
+
+  return produce(state, (draft) => {
+    draft.equipment.substrate = laid;
+    draft.resources.aob *= kept;
+    draft.resources.nob *= kept;
+    draft.resources.surface = calculatePassiveResources(draft).surface;
+  });
 }

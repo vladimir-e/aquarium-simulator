@@ -45,6 +45,7 @@ export {
   bacteriaSummary,
   biofilterColonisation,
   colonyCount,
+  cycleWord,
   projectNitritePeak,
   type BacteriaReadout,
   type Colony,

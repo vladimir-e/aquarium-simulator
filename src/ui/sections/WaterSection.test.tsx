@@ -76,7 +76,8 @@ describe('WaterSection', () => {
     renderWater(day0());
     expect(screen.getByText(/ · ATO (on|off)$/)).toBeTruthy();
     expect(screen.getByText(/^heater holds /)).toBeTruthy();
-    expect(screen.getByText('colonisation 0 %')).toBeTruthy();
+    const bacteria = screen.getByRole('heading', { level: 2, name: 'Bacteria' }).parentElement!;
+    expect(within(bacteria).getByText('uncycled')).toBeTruthy();
     expect(screen.getByText('0.00 g standing')).toBeTruthy();
     expect(screen.getByText(/Uncycled\./)).toBeTruthy();
     expect(screen.getByText(/No nitrite peak within|Nitrite peaks in/)).toBeTruthy();
@@ -113,7 +114,9 @@ describe('WaterSection', () => {
     const state = tank();
     state.resources.nitrate = state.resources.water * 12;
     renderWater(day0(state));
-    expect(screen.getByText('uncycled')).toBeTruthy();
+
+    const header = screen.getByRole('heading', { level: 1, name: 'Water' }).parentElement!;
+    expect(within(header).getByText('uncycled')).toBeTruthy();
   });
 
   it('reads both dissolved gases without leaving the section', () => {
@@ -159,7 +162,9 @@ describe('WaterSection', () => {
     const water = screen.getByRole('heading', { level: 2, name: 'Water' }).parentElement!;
     expect(within(water).queryByText('LOW')).toBeNull();
     expect(within(water).queryByText('HIGH')).toBeNull();
-    expect(screen.getByText('uncycled')).toBeTruthy();
+
+    const header = screen.getByRole('heading', { level: 1, name: 'Water' }).parentElement!;
+    expect(within(header).getByText('uncycled')).toBeTruthy();
   });
 
   it('captions each toxin with which way it is moving, once a run has history', () => {

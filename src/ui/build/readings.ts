@@ -23,7 +23,14 @@ import { WATER_LEVEL_THRESHOLD } from '../../simulation/equipment/ato.js';
 import { formatCo2Rate } from '../../simulation/equipment/co2-generator.js';
 import { Co2Resource, SurfaceResource } from '../../simulation/resources/index.js';
 import type { TunableConfig } from '../../simulation/config/index.js';
-import { bacteriaReadout, colonyCount, doseDeltas, formatDose } from '../run/index.js';
+import {
+  bacteriaReadout,
+  colonyCount,
+  cycleWord,
+  doseDeltas,
+  formatDose,
+  type BacteriaReadout,
+} from '../run/index.js';
 import {
   formatFlowRate,
   formatTemperature,
@@ -241,6 +248,13 @@ function autoDoserReadings({ state }: DeviceReadingInput): DeviceReading[] {
   ];
 }
 
+/** What the cycle reading rests on, in the terms a keeper tests for. */
+function cycleNote(readout: BacteriaReadout): string {
+  if (readout.cycled) return 'NH₃ and NO₂ at trace, NO₃ climbing';
+  if (readout.aob.count === 0) return 'nothing colonised yet';
+  return readout.rates.netNitrite > 0 ? 'nitrite still climbing' : 'NH₃ or NO₂ still reading';
+}
+
 function biofilterReadings({ state, config }: DeviceReadingInput): DeviceReading[] {
   const readout = bacteriaReadout(state, config);
   const colony = (count: number, ceiling: number): string =>
@@ -248,9 +262,9 @@ function biofilterReadings({ state, config }: DeviceReadingInput): DeviceReading
 
   return [
     {
-      label: 'Colonisation',
-      value: `${Math.round(readout.colonisation)} %`,
-      note: readout.cycled ? 'cycled' : 'uncycled',
+      label: 'Cycle',
+      value: cycleWord(readout.cycled),
+      note: cycleNote(readout),
     },
     {
       label: 'AOB · ammonia → nitrite',

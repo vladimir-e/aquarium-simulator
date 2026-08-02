@@ -16,10 +16,10 @@ import { getPpm } from '../resources/helpers.js';
 import { DEFAULT_CONFIG } from '../config/index.js';
 import {
   getSubstrateOrganicReserve,
-  replaceSubstrate,
+  getSubstrateSurface,
   type SubstrateType,
 } from '../equipment/substrate.js';
-import { calculatePassiveResources } from '../equipment/index.js';
+import { rescape } from '../equipment/index.js';
 import {
   calculateInoculum,
   NH3_TO_NO2_MASS_RATIO,
@@ -71,6 +71,15 @@ function trace(state: SimulationState, hours: number): Trace {
   };
 }
 
+/** A tank left alone until its bed has stopped delivering anything. */
+function runDown(type: SubstrateType = 'aqua_soil', capacity = 20): SimulationState {
+  let state = fishlessTank(type, { capacity });
+  for (let hour = 0; hour < 28 * DAY; hour++) {
+    state = tick(state, DEFAULT_CONFIG);
+  }
+  return state;
+}
+
 describe('substrate leaching', () => {
   describe('the reserve is a stock the tank is born with', () => {
     it('fills from type and capacity when the tank is created', () => {
@@ -120,26 +129,6 @@ describe('substrate leaching', () => {
   });
 
   describe('a rescape', () => {
-    /** Pull the old bed out and lay `type` in its place, as the UI does. */
-    function rescape(state: SimulationState, type: SubstrateType): SimulationState {
-      return produce(state, (draft) => {
-        draft.equipment.substrate = replaceSubstrate(
-          draft.equipment.substrate,
-          type,
-          draft.tank.capacity
-        );
-        draft.resources.surface = calculatePassiveResources(draft).surface;
-      });
-    }
-
-    function runDown(): SimulationState {
-      let state = fishlessTank('aqua_soil');
-      for (let hour = 0; hour < 28 * DAY; hour++) {
-        state = tick(state, DEFAULT_CONFIG);
-      }
-      return state;
-    }
-
     it('costs the tank its ammonia ramp only by way of a real swap', () => {
       const spent = runDown();
       const held = spent.equipment.substrate.organicReserve;
@@ -157,30 +146,46 @@ describe('substrate leaching', () => {
       const before = trace(spent, 7 * DAY);
       const after = trace(rescape(rescape(spent, 'none'), 'aqua_soil'), 7 * DAY);
 
-      // The biofilm the tank kept on its glass and filter eats the new bed's
-      // output as fast as it appears, so the ramp shows in what the bed
-      // delivers rather than in standing ammonia.
       expect(after.leached).toBeCloseTo(trace(fishlessTank('aqua_soil'), 7 * DAY).leached, 12);
       expect(after.leached).toBeGreaterThan(before.leached);
     });
 
-    it('takes the biofilm with the bed, clipping a colony above the new ceiling', () => {
-      const seeded = produce(fishlessTank('aqua_soil'), (draft) => {
-        const ceiling = draft.resources.surface * DEFAULT_CONFIG.nitrogenCycle.bacteriaPerCm2;
-        draft.resources.aob = ceiling;
-        draft.resources.nob = ceiling;
+    it('takes the biofilm out in the share of the surface the bed carried', () => {
+      const spent = runDown();
+      const bed = getSubstrateSurface('aqua_soil', spent.tank.capacity);
+      const kept = 1 - bed / spent.resources.surface;
+
+      const stripped = rescape(spent, 'none');
+
+      expect(spent.resources.aob).toBeGreaterThan(0);
+      expect(stripped.resources.aob).toBeCloseTo(spent.resources.aob * kept, 9);
+      expect(stripped.resources.nob).toBeCloseTo(spent.resources.nob * kept, 9);
+    });
+
+    it('leaves a colony that was against its ceiling against the new one', () => {
+      const ceilingOf = (state: SimulationState): number =>
+        state.resources.surface * DEFAULT_CONFIG.nitrogenCycle.bacteriaPerCm2;
+      const saturated = produce(fishlessTank('aqua_soil'), (draft) => {
+        draft.resources.aob = ceilingOf(draft);
+        draft.resources.nob = ceilingOf(draft);
       });
 
-      const stripped = rescape(seeded, 'none');
-      const ceiling = stripped.resources.surface * DEFAULT_CONFIG.nitrogenCycle.bacteriaPerCm2;
-      expect(ceiling).toBeLessThan(
-        seeded.resources.surface * DEFAULT_CONFIG.nitrogenCycle.bacteriaPerCm2
-      );
+      const stripped = rescape(saturated, 'none');
 
-      const settled = tick(stripped, DEFAULT_CONFIG);
-      expect(settled.resources.aob).toBeLessThanOrEqual(ceiling);
-      expect(settled.resources.nob).toBeLessThanOrEqual(ceiling);
+      expect(ceilingOf(stripped)).toBeLessThan(ceilingOf(saturated));
+      expect(stripped.resources.aob).toBeCloseTo(ceilingOf(stripped), 9);
+      expect(stripped.resources.nob).toBeCloseTo(ceilingOf(stripped), 9);
     });
+
+    it('hands a bigger bed no colony it has not grown', () => {
+      const spent = runDown('sand');
+      const upsized = rescape(spent, 'aqua_soil');
+
+      expect(upsized.resources.surface).toBeGreaterThan(spent.resources.surface);
+      expect(upsized.resources.aob).toBeLessThan(spent.resources.aob);
+      expect(upsized.resources.nob).toBeLessThan(spent.resources.nob);
+    });
+
   });
 
   describe('the leach is a rate flowing into a stock', () => {
@@ -376,6 +381,26 @@ describe('substrate leaching', () => {
       expect(getPpm(fed.resources.ammonia, fed.resources.water)).toBeLessThan(0.1);
       expect(getPpm(fed.resources.nitrite, fed.resources.water)).toBeLessThan(0.1);
       expect(fed.resources.nitrate).toBeGreaterThan(0);
+    });
+
+    it('a rescape onto an established tank blips, and the tank clears it', () => {
+      const spent = runDown('gravel', 150);
+      expect(getPpm(spent.resources.ammonia, spent.resources.water)).toBeLessThan(0.1);
+
+      let state = rescape(spent, 'aqua_soil');
+      let ammoniaPeak = 0;
+      let nitritePeak = 0;
+      for (let hour = 1; hour <= 21 * DAY; hour++) {
+        state = tick(state, DEFAULT_CONFIG);
+        ammoniaPeak = Math.max(ammoniaPeak, getPpm(state.resources.ammonia, state.resources.water));
+        nitritePeak = Math.max(nitritePeak, getPpm(state.resources.nitrite, state.resources.water));
+      }
+
+      // Both readings come up onto a test kit, and both come back down unaided.
+      expect(ammoniaPeak).toBeGreaterThan(0.1);
+      expect(nitritePeak).toBeGreaterThan(0.5);
+      expect(getPpm(state.resources.ammonia, state.resources.water)).toBeLessThan(0.1);
+      expect(getPpm(state.resources.nitrite, state.resources.water)).toBeLessThan(0.1);
     });
   });
 });

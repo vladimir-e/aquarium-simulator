@@ -110,7 +110,7 @@ describe('EquipmentSection', () => {
       runLogs: base.logs,
     }).equipment.lines[0];
     expect(within(header).getByText(railLine)).toBeTruthy();
-    expect(railLine).toBe('3 of 8 on · biofilter 0 %');
+    expect(railLine).toBe('3 of 8 on · biofilter uncycled');
   });
 
   it('opens a device inspector at its own address', () => {
@@ -222,7 +222,7 @@ describe('EquipmentSection', () => {
     renderSection('/equipment/biofilter');
     expect(screen.getByRole('heading', { level: 3, name: 'Biofilter' })).toBeTruthy();
     expect(screen.queryByRole('switch')).toBeNull();
-    expect(screen.getByText('Colonisation')).toBeTruthy();
+    expect(screen.getByText('Cycle')).toBeTruthy();
     expect(screen.getByText(/nothing to set here/)).toBeTruthy();
   });
 

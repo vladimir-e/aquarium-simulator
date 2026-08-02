@@ -116,6 +116,7 @@ export {
 export {
   processEquipment,
   calculatePassiveResources,
+  rescape,
   heaterUpdate,
   applyHeaterStateChange,
   calculateHeatingRate,

@@ -27,6 +27,7 @@ import {
   toDisplayVolume,
   type UnitSystem,
 } from '../utils/units.js';
+import { cycleWord } from './bacteria.js';
 import type { RunSnapshot } from './history.js';
 import type { Status } from './status.js';
 import { classifyVital, NITRATE_LOW_PPM, type VitalKey } from './vitals.js';
@@ -371,7 +372,7 @@ export function waterAlert(readings: VitalReading[], cycled: boolean): WaterAler
 
   const alert = readings.find((r) => r.status === 'alert');
   if (alert) return named(alert);
-  if (!cycled) return { text: 'uncycled', status: 'neutral' };
+  if (!cycled) return { text: cycleWord(cycled), status: 'neutral' };
   const warn = readings.find((r) => r.status === 'warn');
   return warn ? named(warn) : null;
 }
