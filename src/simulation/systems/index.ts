@@ -50,6 +50,8 @@ export {
   calculateWasteToAmmonia,
   calculateAmmoniaToNitrite,
   calculateNitriteToNitrate,
+  aobCapacity,
+  nobCapacity,
 } from './nitrogen-cycle.js';
 
 export {

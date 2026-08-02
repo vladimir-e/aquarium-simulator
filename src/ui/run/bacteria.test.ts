@@ -199,6 +199,31 @@ describe('bacteriaReadout', () => {
     expect(bacteriaReadout(state, config).cycled).toBe(false);
   });
 
+  it('withdraws it from a tank starved until the colony has faded', () => {
+    // Both toxins have read zero for months — on colonies down to a hundredth
+    // of what cycled this tank, which the next feeding would walk straight past.
+    const starved = runUnfed(cycledTank(150), 150 * 24);
+    const { resources } = starved;
+
+    expect(getPpm(resources.ammonia, resources.water)).toBeLessThan(0.1);
+    expect(getPpm(resources.nitrite, resources.water)).toBeLessThan(0.1);
+    expect(resources.aob).toBeGreaterThan(0);
+    expect(bacteriaReadout(starved, config).cycled).toBe(false);
+  });
+
+  it('holds it through a month of the ration the tank is used to', () => {
+    let state = cycledTank(150);
+    const uncycled: number[] = [];
+
+    for (let hour = 1; hour <= 30 * 24; hour++) {
+      if (hour % 24 === 0) state = applyAction(state, { type: 'feed', amount: 1.5 }).state;
+      state = tick(state, config);
+      if (!bacteriaReadout(state, config).cycled) uncycled.push(hour);
+    }
+
+    expect(uncycled).toEqual([]);
+  });
+
   it('reports no conversion at all on a tank with nothing in it', () => {
     const { rates } = bacteriaReadout(tank(), config);
     expect(rates.wasteToAmmonia).toBe(0);

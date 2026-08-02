@@ -5,6 +5,7 @@
  */
 
 import {
+  aobCapacity,
   calculateAmmoniaToNitrite,
   calculateColonyFlows,
   calculateEvaporation,
@@ -13,6 +14,7 @@ import {
   calculateNitriteToNitrate,
   calculateWasteToAmmonia,
   nitrificationFactor,
+  nobCapacity,
 } from '../../simulation/systems/index.js';
 import {
   calculateSubstrateLeach,
@@ -42,6 +44,24 @@ const PROJECTION_HORIZON = 24 * 180;
 
 /** What a hobby test kit reads as zero, ppm. */
 const TRACE_PPM = 0.1;
+
+/**
+ * The least throughput that still counts as a biofilter, ppm/h: one test-kit
+ * trace cleared over a day. Below it the colonies are turning over less than
+ * the keeper's kit could ever show, which is the state an unfed tank fades into
+ * — bed spent, both toxins at zero, and nothing left that a feeding would not
+ * spike. Every tank whose keeper would call it cycled runs at 9× this or more;
+ * an unfed one crosses it around day 80–120.
+ */
+const MIN_CLEARANCE_PPM_PER_HOUR = TRACE_PPM / 24;
+
+/**
+ * Whether a colony's throughput covers what arrives at it this hour, and is
+ * enough to matter at all rather than being a rounding error.
+ */
+function clears(capacity: number, arriving: number): boolean {
+  return capacity >= Math.max(arriving, MIN_CLEARANCE_PPM_PER_HOUR);
+}
 
 /**
  * The word every surface uses for the state of a biofilter — list row, section
@@ -94,15 +114,17 @@ export interface BacteriaReadout {
   /** Share of that biofilm both colonies together have taken, 0–100. */
   colonisation: number;
   /**
-   * The keeper's own test: ammonia and nitrite both at trace, nitrate climbing,
-   * and nitrite not about to climb again. Same reading `traceCycle` calls
-   * `cycledDay`, minus the one thing a single tick cannot see — that a nitrite
-   * peak was passed rather than never reached.
+   * The keeper's own test: both toxins at trace, and colonies big enough to
+   * keep them there. Same reading `traceCycle` calls `cycledDay`, minus the one
+   * thing a single tick cannot see — that a nitrite peak was passed rather than
+   * never reached.
    *
    * Nitrite standing at trace is what keeps this off a tank at its nitrite
    * peak, where "produced no longer exceeds consumed" first goes true and a
-   * keeper stocking on it would lose the fish. Nitrate climbing is what keeps
-   * it off a tank where nothing is happening at all.
+   * keeper stocking on it would lose the fish. The throughput each stage has to
+   * show is what keeps it off the other end: a tank left unfed until its bed is
+   * spent holds both readings at zero on colonies that have faded to nothing,
+   * and a single feeding would spike it.
    *
    * Deliberately not a share of the surface ceiling: surface is a cap for the
    * overstocked, and an ordinary stocked tank settles at a few percent of it.
@@ -165,24 +187,27 @@ export function bacteriaReadout(
     r.temperature,
     nc
   );
+  const aobThroughput = getPpm(aobCapacity(r.aob, r.temperature, nc), water);
+  const nobThroughput = getPpm(nobCapacity(r.nob, r.temperature, nc), water);
+
+  const rates: ConversionRates = {
+    wasteToAmmonia: getPpm(ammoniaProduced, water),
+    gillsToAmmonia: getPpm(gills, water),
+    ammoniaToNitrite: getPpm(nitriteProduced, water),
+    nitriteToNitrate: getPpm(nitriteConsumed, water),
+    netNitrite: getPpm(nitriteProduced - nitriteConsumed, water),
+  };
   return {
     aob: colony(r.aob, ceiling),
     nob: colony(r.nob, ceiling),
     surface: r.surface,
     colonisation: biofilterColonisation(r, nc),
     cycled:
-      r.aob > 0 &&
-      nitriteConsumed > 0 &&
-      nitriteProduced <= nitriteConsumed &&
       getPpm(r.ammonia, water) < TRACE_PPM &&
-      getPpm(r.nitrite, water) < TRACE_PPM,
-    rates: {
-      wasteToAmmonia: getPpm(ammoniaProduced, water),
-      gillsToAmmonia: getPpm(gills, water),
-      ammoniaToNitrite: getPpm(nitriteProduced, water),
-      nitriteToNitrate: getPpm(nitriteConsumed, water),
-      netNitrite: getPpm(nitriteProduced - nitriteConsumed, water),
-    },
+      getPpm(r.nitrite, water) < TRACE_PPM &&
+      clears(aobThroughput, rates.wasteToAmmonia + rates.gillsToAmmonia) &&
+      clears(nobThroughput, rates.ammoniaToNitrite),
+    rates,
   };
 }
 

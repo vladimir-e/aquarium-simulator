@@ -9,13 +9,15 @@ import {
   calculateWasteToAmmonia,
   calculateAmmoniaToNitrite,
   calculateNitriteToNitrate,
+  aobCapacity,
+  nobCapacity,
   NH3_TO_NO2_MASS_RATIO,
   NO2_TO_NO3_MASS_RATIO,
   NOB_PROCESSING_RATE_MULTIPLIER,
 } from './nitrogen-cycle.js';
 import { createSimulation, type SimulationState } from '../state.js';
 import { type SubstrateType } from '../equipment/substrate.js';
-import { applyEffects } from '../core/effects.js';
+import { applyEffects, type Effect } from '../core/effects.js';
 import { decaySystem } from './decay.js';
 import { getPpm, getMassFromPpm } from '../resources/index.js';
 import { DEFAULT_CONFIG } from '../config/index.js';
@@ -239,6 +241,25 @@ describe('calculateAmmoniaToNitrite', () => {
     expect(nitriteProduced).toBeCloseTo(ammoniaConsumed * NH3_TO_NO2_MASS_RATIO, 10);
     // N-mass conservation: mg of N is the same before and after.
     expect(nitriteProduced * (14.01 / 46.01)).toBeCloseTo(ammoniaConsumed * (14.01 / 17.03), 10);
+  });
+});
+
+describe('aobCapacity / nobCapacity', () => {
+  it('is exactly what its stage saturates at, so a readout can speak for the engine', () => {
+    const glut = 1e6;
+    const cold = 18;
+
+    expect(calculateAmmoniaToNitrite(glut, 250, cold).ammoniaConsumed).toBe(aobCapacity(250, cold));
+    expect(calculateNitriteToNitrate(glut, 250, cold).nitriteConsumed).toBe(nobCapacity(250, cold));
+  });
+
+  it('scales with the colony and with how fast the water lets it work', () => {
+    expect(aobCapacity(200, REF)).toBeCloseTo(aobCapacity(100, REF) * 2, 12);
+    expect(aobCapacity(100, 18)).toBeLessThan(aobCapacity(100, REF));
+    expect(nobCapacity(100, REF) / aobCapacity(100, REF)).toBeCloseTo(
+      NOB_PROCESSING_RATE_MULTIPLIER,
+      12
+    );
   });
 });
 
@@ -499,6 +520,34 @@ describe('nitrogenCycleSystem', () => {
         (e) => e.resource === 'nitrite' && e.source === 'nitrogen-cycle-nob'
       );
       expect(nitriteEffect).toBeUndefined();
+    });
+  });
+
+  describe('A drained tank', () => {
+    // Nitrifiers oxidise what is dissolved. A persisted or API-built state may
+    // carry no water at all, and a colony there has nothing to work on.
+    const COLONY = 1000;
+    const dry = (): Effect[] =>
+      nitrogenCycleSystem.update(
+        createTestState({ ammonia: 100, nitrite: 100, aob: COLONY, nob: COLONY, water: 0 }),
+        DEFAULT_CONFIG
+      );
+
+    it('oxidises neither the ammonia nor the nitrite standing in it', () => {
+      expect(dry().filter((e) => e.source === 'nitrogen-cycle-aob')).toEqual([]);
+      expect(dry().filter((e) => e.source === 'nitrogen-cycle-nob')).toEqual([]);
+    });
+
+    it('grows no colony on work it did not do', () => {
+      expect(dry().filter((e) => e.source === 'nitrogen-cycle-growth')).toEqual([]);
+    });
+
+    it('still thins both colonies — a dry bed dies off rather than waiting', () => {
+      const death = (resource: 'aob' | 'nob'): number =>
+        dry().find((e) => e.resource === resource && e.source === 'nitrogen-cycle-death')!.delta;
+
+      expect(death('aob')).toBeCloseTo(-COLONY * nitrogenCycleDefaults.bacteriaDeathRate, 10);
+      expect(death('nob')).toBeCloseTo(-COLONY * nitrogenCycleDefaults.bacteriaDeathRate, 10);
     });
   });
 

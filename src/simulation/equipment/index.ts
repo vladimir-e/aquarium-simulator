@@ -214,25 +214,37 @@ export function calculatePassiveResources(state: SimulationState): PassiveResour
 }
 
 /**
- * Pull the bed out and lay a different one in its place.
+ * The share of the biofilm a tank keeps when its bed is swapped for `type`.
  *
- * The biofilm goes out with it. A colony is a stock spread over every
- * colonisable cm² the tank has, so a bed that carries most of that surface
- * carries most of the nitrifiers away in the bucket, and the fresh bed arrives
- * sterile — which is why a rescape blips even though the glass and the filter
- * media never left the tank.
+ * A colony is a stock spread over every colonisable cm² the tank has, so a bed
+ * that carries most of that surface carries most of the nitrifiers away in the
+ * bucket, and the fresh bed arrives sterile — which is why a rescape blips even
+ * though the glass and the filter media never left the tank.
  *
- * Returns the same state when the bed is already of that type: laying soil over
- * soil is not something the tank can tell from leaving it alone.
+ * All of it when the bed is already of that type: laying soil over soil is not
+ * something the tank can tell from leaving it alone.
+ */
+export function biofilmKept(state: SimulationState, type: SubstrateType): number {
+  const bed = state.equipment.substrate;
+  if (type === bed.type) return 1;
+
+  const surface = calculatePassiveResources(state).surface;
+  const lost = getSubstrateSurface(bed.type, state.tank.capacity);
+  return surface > 0 ? 1 - lost / surface : 1;
+}
+
+/**
+ * Pull the bed out and lay a different one in its place, and the biofilm that
+ * lived on it goes out with it.
+ *
+ * Returns the same state when the bed is already of that type.
  */
 export function rescape(state: SimulationState, type: SubstrateType): SimulationState {
   const bed = state.equipment.substrate;
   const laid = replaceSubstrate(bed, type, state.tank.capacity);
   if (laid === bed) return state;
 
-  const surface = calculatePassiveResources(state).surface;
-  const lost = getSubstrateSurface(bed.type, state.tank.capacity);
-  const kept = surface > 0 ? 1 - lost / surface : 1;
+  const kept = biofilmKept(state, type);
 
   return produce(state, (draft) => {
     draft.equipment.substrate = laid;

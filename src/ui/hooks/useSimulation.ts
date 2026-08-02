@@ -6,6 +6,7 @@ import {
   applyAction,
   calculatePassiveResources,
   calculateHardscapeSlots,
+  biofilmKept,
   rescape,
   getHardscapeName,
   formatSchedule,
@@ -375,10 +376,16 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
             draft.resources.water = Math.min(fillRatio * newCapacity, newCapacity);
           }
 
+          // A preset that specifies a different bed is a rescape: the old bed
+          // leaves with its share of the biofilm on it.
+          const kept = biofilmKept(current, presetState.equipment.substrate.type);
+
           // Apply tank and equipment from preset
           draft.tank = presetState.tank;
           draft.equipment = presetState.equipment;
           draft.environment = presetState.environment;
+          draft.resources.aob *= kept;
+          draft.resources.nob *= kept;
 
           // Recalculate passive resources
           const passiveValues = calculatePassiveResources(draft as SimulationState);
