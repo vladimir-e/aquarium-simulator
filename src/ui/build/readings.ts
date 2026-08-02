@@ -250,8 +250,9 @@ function autoDoserReadings({ state }: DeviceReadingInput): DeviceReading[] {
 
 /** What the cycle reading rests on, in the terms a keeper tests for. */
 function cycleNote(readout: BacteriaReadout): string {
-  if (readout.cycled) return 'NH₃ and NO₂ at trace, NO₃ climbing';
+  if (readout.cycled) return 'NH₃ and NO₂ at trace, both stages keeping up';
   if (readout.aob.count === 0) return 'nothing colonised yet';
+  if (readout.atTrace) return 'colonies too small to hold a feeding';
   return readout.rates.netNitrite > 0 ? 'nitrite still climbing' : 'NH₃ or NO₂ still reading';
 }
 

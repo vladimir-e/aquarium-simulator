@@ -203,6 +203,11 @@ export function aobCapacity(
  * The mg of NO₂⁻ a NOB colony can put through in one tick — the same gauge
  * scaled by `NOB_PROCESSING_RATE_MULTIPLIER`, which is what keeps the two
  * stages in stoichiometric balance at population parity.
+ *
+ * Spelled out rather than composed as `aobCapacity(…) × MULTIPLIER`: that
+ * reassociates the product and lands on a different float for roughly a third
+ * of the (population, temperature) pairs, and the cycling anchors are pinned to
+ * this order of operations.
  */
 export function nobCapacity(
   population: number,

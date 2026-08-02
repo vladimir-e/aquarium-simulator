@@ -214,20 +214,19 @@ export function calculatePassiveResources(state: SimulationState): PassiveResour
 }
 
 /**
- * The share of the biofilm a tank keeps when its bed is swapped for `type`.
+ * The share of the biofilm a tank keeps when the bed currently in it comes out.
  *
  * A colony is a stock spread over every colonisable cm² the tank has, so a bed
  * that carries most of that surface carries most of the nitrifiers away in the
- * bucket, and the fresh bed arrives sterile — which is why a rescape blips even
- * though the glass and the filter media never left the tank.
+ * bucket, and whatever is laid in its place arrives sterile — which is why a
+ * rescape blips even though the glass and the filter media never left the tank.
  *
- * All of it when the bed is already of that type: laying soil over soil is not
- * something the tank can tell from leaving it alone.
+ * A bed that stays put costs nothing, but that is not a question about types:
+ * a fresh bag of the same soil is still a new bed. The callers that can leave
+ * the bed alone recognise it by identity before they ask this.
  */
-export function biofilmKept(state: SimulationState, type: SubstrateType): number {
+export function biofilmKept(state: SimulationState): number {
   const bed = state.equipment.substrate;
-  if (type === bed.type) return 1;
-
   const surface = calculatePassiveResources(state).surface;
   const lost = getSubstrateSurface(bed.type, state.tank.capacity);
   return surface > 0 ? 1 - lost / surface : 1;
@@ -244,7 +243,7 @@ export function rescape(state: SimulationState, type: SubstrateType): Simulation
   const laid = replaceSubstrate(bed, type, state.tank.capacity);
   if (laid === bed) return state;
 
-  const kept = biofilmKept(state, type);
+  const kept = biofilmKept(state);
 
   return produce(state, (draft) => {
     draft.equipment.substrate = laid;

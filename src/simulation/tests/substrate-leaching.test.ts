@@ -134,6 +134,7 @@ describe('substrate leaching', () => {
       const held = spent.equipment.substrate.organicReserve;
 
       expect(rescape(spent, 'aqua_soil').equipment.substrate.organicReserve).toBe(held);
+      expect(rescape(spent, 'aqua_soil').resources.aob).toBe(spent.resources.aob);
 
       const relaid = rescape(rescape(spent, 'none'), 'aqua_soil');
       expect(relaid.equipment.substrate.organicReserve).toBe(

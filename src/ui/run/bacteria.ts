@@ -50,8 +50,13 @@ const TRACE_PPM = 0.1;
  * trace cleared over a day. Below it the colonies are turning over less than
  * the keeper's kit could ever show, which is the state an unfed tank fades into
  * — bed spent, both toxins at zero, and nothing left that a feeding would not
- * spike. Every tank whose keeper would call it cycled runs at 9× this or more;
- * an unfed one crosses it around day 80–120.
+ * spike. An unfed tank crosses it around day 80–120; one on an ordinary ration
+ * runs at ~12× it, and only a token ration — hundredths of a gram a day —
+ * settles within 2×.
+ *
+ * A ppm figure, so it is the same test at every volume for a load that scales
+ * with volume, which bed leaching does. A fixed ration does not: the pinch of
+ * food that holds a nano over this floor leaves a stock tank under it.
  */
 const MIN_CLEARANCE_PPM_PER_HOUR = TRACE_PPM / 24;
 
@@ -114,6 +119,13 @@ export interface BacteriaReadout {
   /** Share of that biofilm both colonies together have taken, 0–100. */
   colonisation: number;
   /**
+   * Both toxins reading trace or under, which is as far as a keeper's kit can
+   * see. Half the cycle test, carried separately because the surfaces that
+   * explain the word have to know which half failed: uncycled while this holds
+   * is the colonies clearing less than the tank asks of them.
+   */
+  atTrace: boolean;
+  /**
    * The keeper's own test: both toxins at trace, and colonies big enough to
    * keep them there. Same reading `traceCycle` calls `cycledDay`, minus the one
    * thing a single tick cannot see — that a nitrite peak was passed rather than
@@ -125,6 +137,10 @@ export interface BacteriaReadout {
    * show is what keeps it off the other end: a tank left unfed until its bed is
    * spent holds both readings at zero on colonies that have faded to nothing,
    * and a single feeding would spike it.
+   *
+   * Nothing has to be arriving, though. A mature colony with an empty tank in
+   * front of it reads cycled, because it will take the next feeding — so this
+   * is not a claim that nitrate is climbing, and no surface may say it is.
    *
    * Deliberately not a share of the surface ceiling: surface is a cap for the
    * overstocked, and an ordinary stocked tank settles at a few percent of it.
@@ -197,14 +213,15 @@ export function bacteriaReadout(
     nitriteToNitrate: getPpm(nitriteConsumed, water),
     netNitrite: getPpm(nitriteProduced - nitriteConsumed, water),
   };
+  const atTrace = getPpm(r.ammonia, water) < TRACE_PPM && getPpm(r.nitrite, water) < TRACE_PPM;
   return {
     aob: colony(r.aob, ceiling),
     nob: colony(r.nob, ceiling),
     surface: r.surface,
     colonisation: biofilterColonisation(r, nc),
+    atTrace,
     cycled:
-      getPpm(r.ammonia, water) < TRACE_PPM &&
-      getPpm(r.nitrite, water) < TRACE_PPM &&
+      atTrace &&
       clears(aobThroughput, rates.wasteToAmmonia + rates.gillsToAmmonia) &&
       clears(nobThroughput, rates.ammoniaToNitrite),
     rates,
@@ -341,7 +358,7 @@ export function bacteriaSummary(
   projection: CycleProjection | null,
   config: NitrogenCycleConfig
 ): string {
-  const { aob, nob, rates } = readout;
+  const { aob, nob, rates, atTrace, cycled } = readout;
 
   if (aob.count === 0) {
     return `Uncycled. Ammonia has to reach ${config.aobSpawnThreshold} ppm before AOB colonise, and nitrite follows them.${peakClause(projection)}`;
@@ -354,6 +371,10 @@ export function bacteriaSummary(
 
   if (aob.pct >= SURFACE_BOUND_PCT && nob.pct >= SURFACE_BOUND_PCT) {
     return 'Both colonies have filled the surface they live on — until the tank offers more biofilm, more load has nowhere to go.';
+  }
+
+  if (atTrace && !cycled) {
+    return `Both toxins read zero, on colonies too small to hold a feeding — ${Math.round(readout.colonisation)} % of the biofilm this tank offers.`;
   }
 
   if (rates.netNitrite <= 0) {

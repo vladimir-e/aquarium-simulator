@@ -196,10 +196,9 @@ seeds on its filter media like any other and the cycling timeline is the same at
 inoculum = tank_capacity * inoculum_per_liter
 ```
 
-Not a density on surface: surface per litre is not constant — glass grows with
-the square of a tank's linear size and filter media is a flat cm² per filter
-type — so a seed quoted per cm² hands a nano nearly twice the head start per
-litre a stock tank gets, and the timeline spreads with volume.
+Per litre and not per cm² because the ammonia supply is per litre too: the seed
+and the load it has to catch scale together, which is what holds the clock
+steady across volumes.
 
 ### Temperature
 

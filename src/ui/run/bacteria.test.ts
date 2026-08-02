@@ -204,11 +204,18 @@ describe('bacteriaReadout', () => {
     // of what cycled this tank, which the next feeding would walk straight past.
     const starved = runUnfed(cycledTank(150), 150 * 24);
     const { resources } = starved;
+    const readout = bacteriaReadout(starved, config);
 
     expect(getPpm(resources.ammonia, resources.water)).toBeLessThan(0.1);
     expect(getPpm(resources.nitrite, resources.water)).toBeLessThan(0.1);
     expect(resources.aob).toBeGreaterThan(0);
-    expect(bacteriaReadout(starved, config).cycled).toBe(false);
+    expect(readout.cycled).toBe(false);
+    expect(readout.atTrace).toBe(true);
+    // The word the card prints is uncycled, so the sentence under it cannot be
+    // the one that reassures a keeper the biofilter is keeping up.
+    expect(bacteriaSummary(readout, null, config.nitrogenCycle)).toBe(
+      `Both toxins read zero, on colonies too small to hold a feeding — ${Math.round(readout.colonisation)} % of the biofilm this tank offers.`
+    );
   });
 
   it('holds it through a month of the ration the tank is used to', () => {

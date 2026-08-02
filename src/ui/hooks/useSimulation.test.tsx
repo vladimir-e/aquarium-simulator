@@ -309,9 +309,10 @@ describe('useSimulation', () => {
       expect(result.current.state.resources.nob / before.nob).toBeCloseTo(kept, 10);
     });
 
-    it('keeps the whole colony when the preset asks for the bed already in the tank', () => {
-      // Planted and community are both aqua soil; nothing was swapped, so
-      // nothing is owed — even though the tank itself changes size.
+    it('takes the bed’s biofilm even when the new preset names the same substrate', () => {
+      // Planted and community are both aqua soil, but community is a 150 L tank
+      // whose bed is a fresh 150 L of it, reserve and all — a new bed, not the
+      // old one left alone, so the colony on the old one does not come along.
       const { result } = renderHook(() => useSimulation('planted'), { wrapper });
 
       act(() => {
@@ -325,8 +326,10 @@ describe('useSimulation', () => {
         result.current.loadPreset('community');
       });
 
-      expect(result.current.state.resources.aob).toBe(before.aob);
-      expect(result.current.state.resources.nob).toBe(before.nob);
+      const kept = 1 - getSubstrateSurface('aqua_soil', 40) / before.surface;
+      expect(kept).toBeGreaterThan(0);
+      expect(result.current.state.resources.aob / before.aob).toBeCloseTo(kept, 10);
+      expect(result.current.state.resources.nob / before.nob).toBeCloseTo(kept, 10);
     });
 
     it('reset keeps equipment but resets tick and resources', () => {

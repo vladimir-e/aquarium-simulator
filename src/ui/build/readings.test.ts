@@ -7,7 +7,7 @@ import {
 } from '../../simulation/index.js';
 import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
 import { bacteriaReadout, colonyCount } from '../run/index.js';
-import { cycledTank } from '../../simulation/tests/tanks.js';
+import { cycledTank, run as runUnfed } from '../../simulation/tests/tanks.js';
 import type { UnitSystem } from '../utils/units.js';
 import type { EquipmentId } from './devices';
 import { deviceHint, deviceReadings, type DeviceReading } from './readings';
@@ -376,7 +376,22 @@ describe('biofilter readings', () => {
     expect(value(read('biofilter', cycled), 'Cycle')).toEqual({
       label: 'Cycle',
       value: 'cycled',
-      note: 'NH₃ and NO₂ at trace, NO₃ climbing',
+      note: 'NH₃ and NO₂ at trace, both stages keeping up',
+    });
+  });
+
+  it('never says a gauge is reading when both of them are at zero', () => {
+    // A tank starved until its colony faded reads uncycled on two gauges at
+    // zero — the note has to be about the colony, not about a toxin.
+    const starved = runUnfed(cycledTank(150), 150 * 24);
+    const readout = bacteriaReadout(starved, DEFAULT_CONFIG);
+
+    expect(readout.cycled).toBe(false);
+    expect(readout.atTrace).toBe(true);
+    expect(value(read('biofilter', starved), 'Cycle')).toEqual({
+      label: 'Cycle',
+      value: 'uncycled',
+      note: 'colonies too small to hold a feeding',
     });
   });
 
