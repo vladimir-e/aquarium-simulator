@@ -18,7 +18,7 @@ import {
 } from '../state.js';
 import { FILTER_SPECS, type FilterType } from '../equipment/filter.js';
 import { applyAction } from '../actions/index.js';
-import { PRESETS, type PresetId } from '../../ui/presets.js';
+import { getPresetById, PRESETS, type PresetId } from '../../ui/presets.js';
 import { DAY, flowReading, run, stock, watchFlow } from './tanks.js';
 
 const VOLUMES = [20, 40, 75, 150, 300, 568];
@@ -47,7 +47,7 @@ const topOff = (state: SimulationState): SimulationState =>
 
 /** A preset's own tank, cycled on its bed and stocked with what it is for. */
 function shipped(id: PresetId): SimulationState {
-  const preset = PRESETS.find((p) => p.id === id);
+  const preset = getPresetById(id);
   if (preset === undefined) throw new Error(`the ${id} preset is gone`);
 
   const { species, count } = PRESET_STOCK[id];
