@@ -240,7 +240,9 @@ describe('substrate leaching', () => {
       expect(small.spawnHour).not.toBeNull();
       expect(large.spawnHour).not.toBeNull();
       expect(Math.abs(large.spawnHour! - small.spawnHour!)).toBeLessThanOrEqual(2);
-      expect(large.peakPpm).toBeCloseTo(small.peakPpm, 2);
+      // Relative, because volume independence is a claim about the shape of
+      // the curve, not about the height it happens to reach.
+      expect(Math.abs(large.peakPpm - small.peakPpm) / small.peakPpm).toBeLessThan(0.01);
 
       // The rise is the bed's supply curve, and it is the same curve in both
       // tanks. Past the peak the biofilter, not the bed, sets the shape:

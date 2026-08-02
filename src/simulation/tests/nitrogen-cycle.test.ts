@@ -126,8 +126,10 @@ describe('Nitrogen Cycle Integration', () => {
       expect(state.resources.nob).toBeGreaterThan(0);
 
       // Run enough ticks for NOB to grow and meaningfully process nitrite.
+      // The colony seeds at a fraction of a unit and doubles every ~40 h, so
+      // clearing a 2 ppm bolus is three weeks of work, not one.
       const initialNitriteMass = state.resources.nitrite;
-      for (let i = 0; i < 200; i++) {
+      for (let i = 0; i < 600; i++) {
         state = tick(state);
       }
 

@@ -172,8 +172,12 @@ bacterial_death  = population * death_rate
 litres, so per-capita growth is the same in a nano and in a 150 L.
 
 `growth_rate` is read off a saturated doubling time (`ln2 / hours`) and
-`death_rate` off a starvation half-life; a colony under a steady load settles
-where the two cancel, at `death_rate / growth_rate` of its capacity.
+`death_rate` off a starvation half-life. A colony under a steady load settles
+where the two cancel — `utilization = death_rate / growth_rate` while the
+surface ceiling is far off, higher once the logistic term starts braking.
+
+`spawn_amount` is the third constant on this clock: everything between a seeded
+tank and a cycled one is doublings, so the inoculum sets how many there are.
 
 ### Surface Area Requirement
 

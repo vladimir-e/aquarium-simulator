@@ -95,6 +95,41 @@ function settle(
   };
 }
 
+interface CycleTrace {
+  peakPpm: number;
+  peakDay: number;
+  /** Day nitrite first drops under 0.1 ppm past the peak with nitrate still rising. */
+  cycledDay: number | null;
+}
+
+function traceCycle(capacity: number, days = 40): CycleTrace {
+  let state = soilTank(capacity);
+  let peakPpm = 0;
+  let peakHour = 0;
+  let cycledHour: number | null = null;
+  let previousNitrate = 0;
+
+  for (let hour = 1; hour <= days * DAY; hour++) {
+    state = tick(state, DEFAULT_CONFIG);
+    const ppm = nitritePpm(state);
+
+    if (ppm > peakPpm) {
+      peakPpm = ppm;
+      peakHour = hour;
+    }
+    if (cycledHour === null && peakPpm > 0.5 && ppm < 0.1 && state.resources.nitrate > previousNitrate) {
+      cycledHour = hour;
+    }
+    previousNitrate = state.resources.nitrate;
+  }
+
+  return {
+    peakPpm,
+    peakDay: peakHour / DAY,
+    cycledDay: cycledHour === null ? null : cycledHour / DAY,
+  };
+}
+
 /** Cut every nitrogen source, leaving the colony nothing to live on. */
 function starve(state: SimulationState): SimulationState {
   return produce(state, (draft) => {
@@ -206,23 +241,19 @@ describe('bacteria colony dynamics', () => {
    * either the change is wrong or the coefficients need re-deriving against
    * the same real-world behaviour.
    *
-   * Not anchored here, and both for the same reason — a constant outside the
-   * two this model was derived against:
+   * The three cycling anchors — peak height, peak day, cycled day — are met on
+   * a window of `spawnAmount` only 0.63–0.72 wide, and the value we ship sits
+   * ~2 % inside the nearest band edge. They are not three independent readings
+   * of one timeline: the bed's nitrogen budget is fixed, so delaying the peak
+   * necessarily raises it. Whichever of them breaks first, the answer is not to
+   * nudge `spawnAmount` back until it goes green again.
    *
-   * - **When** the fishless cycle turns over. Nitrite should peak around day
-   *   12–16 and the tank should be cycled by day 21–28; it peaks at day 7 and
-   *   is cycled by day 11. The gap is `spawnAmount`: 10 units against a
-   *   working colony of ~60–100 means nitrifiers "arrive" already a sixth of
-   *   the way to a finished biofilter, so only ~3 doublings separate seeding
-   *   from a cycled tank. Dropping it to 1 puts the peak at day 14 and the
-   *   cycle at day 20 with the growth rates below untouched.
-   *
-   * - The **2 ppm dose test below a ~40 L tank.** A colony at its ceiling
-   *   clears `bacteriaPerCm2 × surface × bacteriaProcessingRate` ppm/h, which
-   *   in a 20 L is 1.71 ppm/day — under the dose, before any question of how
-   *   big the colony grew. That ceiling is also why the settled utilization
-   *   above sits well above deathRate/growthRate at ordinary loads: the
-   *   logistic brake, not maintenance decay, is what stops the colony.
+   * Not anchored here: the **2 ppm dose test below a ~40 L tank.** A colony at
+   * its ceiling clears `bacteriaPerCm2 × surface × bacteriaProcessingRate`
+   * ppm/h, which in a 20 L is 1.71 ppm/day — under the dose, before any
+   * question of how big the colony grew. That ceiling is also why the settled
+   * utilization above sits well over deathRate/growthRate at ordinary loads:
+   * the logistic brake, not maintenance decay, is what stops the colony.
    */
   describe('calibration anchors', () => {
     it('doubles AOB in 15–24 h and NOB in 24–48 h on non-limiting substrate', () => {
@@ -249,20 +280,19 @@ describe('bacteria colony dynamics', () => {
       expect(halfLifeDays).toBeLessThanOrEqual(28);
     });
 
-    it('peaks nitrite at 2–5 ppm cycling a soil tank, at 20 L and at 150 L', () => {
+    it('peaks nitrite at 2–5 ppm on day 12–16 and cycles by day 21–28', () => {
       for (const capacity of [20, 150]) {
-        let state = soilTank(capacity);
-        let peak = 0;
-        for (let hour = 0; hour < 40 * DAY; hour++) {
-          state = tick(state, DEFAULT_CONFIG);
-          peak = Math.max(peak, nitritePpm(state));
-        }
+        const { peakPpm, peakDay, cycledDay } = traceCycle(capacity);
 
-        expect(peak).toBeGreaterThanOrEqual(2);
-        expect(peak).toBeLessThanOrEqual(5);
-        // Cycled: nitrite gone, nitrate standing in for it.
-        expect(nitritePpm(state)).toBeLessThan(0.1);
-        expect(state.resources.nitrate).toBeGreaterThan(0);
+        expect(peakPpm).toBeGreaterThanOrEqual(2);
+        expect(peakPpm).toBeLessThanOrEqual(5);
+
+        expect(peakDay).toBeGreaterThanOrEqual(12);
+        expect(peakDay).toBeLessThanOrEqual(16);
+
+        expect(cycledDay).not.toBeNull();
+        expect(cycledDay!).toBeGreaterThanOrEqual(21);
+        expect(cycledDay!).toBeLessThanOrEqual(28);
       }
     });
 

@@ -42,7 +42,17 @@ export const nitrogenCycleDefaults: NitrogenCycleConfig = {
   // (cycle visible only after 10+ days in a fresh tank).
   aobSpawnThreshold: 0.5,
   nobSpawnThreshold: 0.5,
-  spawnAmount: 10,
+  // What drifts in from the air and the tap, and the last thing standing
+  // between a seeded tank and a cycled one: everything after this is doublings,
+  // so the inoculum sets the clock. Derived from the cycling timeline rather
+  // than from a cell count — the only value that lands the nitrite peak on
+  // day 12–16 and a cycled tank on day 21–28 at both 20 L and 150 L.
+  //
+  // The window is 0.63–0.72 and no wider. Below it the peak clears 5 ppm;
+  // above it a 150 L cycles before day 21. Peak height and peak day are not
+  // separate knobs: the bed's nitrogen budget is fixed, so every day the
+  // peak is delayed is another day of it standing as nitrite.
+  spawnAmount: 0.68,
   // Growth is per-capita at *full* utilization, so each rate is read straight
   // off a saturated doubling time: rate = ln2 / hours. AOB double in 15–24 h
   // under non-limiting ammonia, NOB in 24–48 h; the midpoints below keep the
@@ -53,9 +63,10 @@ export const nitrogenCycleDefaults: NitrogenCycleConfig = {
   bacteriaPerCm2: 0.01,
   // Maintenance loss, not starvation: a colony cut off from ammonia fades over
   // weeks, which is why a tank survives a holiday. ln2 / (3 weeks) — a 21-day
-  // half-life. Against the growth rates above this settles the colony at
-  // deathRate / growthRate of its capacity (4 % AOB, 7 % NOB), i.e. an
-  // established biofilter carries ~15–25× headroom over its standing load.
+  // half-life. A colony settles where g·u·(1 − p/K) = d, which is
+  // deathRate / growthRate of capacity (4 % AOB, 7 % NOB) only while the
+  // ceiling is far off; at the `bacteriaPerCm2` this engine ships, an ordinary
+  // load parks a colony at 50–90 % of K and the logistic term stops it first.
   bacteriaDeathRate: Math.LN2 / (21 * 24),
 };
 
@@ -74,7 +85,7 @@ export const nitrogenCycleConfigMeta: NitrogenCycleConfigMeta[] = [
   { key: 'bacteriaProcessingRate', label: 'Bacteria Processing Rate', unit: 'ppm/unit', min: 0.00005, max: 0.001, step: 0.00005 },
   { key: 'aobSpawnThreshold', label: 'AOB Spawn Threshold', unit: 'ppm', min: 0.005, max: 0.1, step: 0.005 },
   { key: 'nobSpawnThreshold', label: 'NOB Spawn Threshold', unit: 'ppm', min: 0.05, max: 0.5, step: 0.025 },
-  { key: 'spawnAmount', label: 'Spawn Amount', unit: '', min: 1, max: 50, step: 1 },
+  { key: 'spawnAmount', label: 'Spawn Amount', unit: '', min: 0.05, max: 5, step: 0.01 },
   { key: 'aobGrowthRate', label: 'AOB Growth Rate', unit: '/tick', min: 0.01, max: 0.1, step: 0.01 },
   { key: 'nobGrowthRate', label: 'NOB Growth Rate', unit: '/tick', min: 0.01, max: 0.15, step: 0.01 },
   { key: 'bacteriaPerCm2', label: 'Max Bacteria per cm²', unit: '/cm²', min: 0.001, max: 0.1, step: 0.001 },
