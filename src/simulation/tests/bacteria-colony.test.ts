@@ -199,10 +199,11 @@ describe('bacteria colony dynamics', () => {
    * a sign the fit is off. The bed's nitrogen budget is fixed, so a day of
    * delay in the nitrite peak converts directly into another day of it
    * standing as nitrite: peak height and cycled day are one degree of freedom,
-   * not two. The passing window on `inoculumPerCm2` is the ~14 % band written
-   * down in `config/nitrogen-cycle.ts`, and it is bounded above by the 21-day
-   * cycled-day floor and below by the 5 ppm nitrite ceiling. Whichever breaks
-   * first, the answer is not to nudge the inoculum until it goes green.
+   * not two. The passing window on `inoculumPerLiter` is the ~13 % band written
+   * down in `config/nitrogen-cycle.ts` and swept in `inoculum-window.test.ts`,
+   * bounded above by the 21-day cycled-day floor and below by the 5 ppm nitrite
+   * ceiling. Whichever breaks first, the answer is not to nudge the inoculum
+   * until it goes green.
    */
   describe('calibration anchors', () => {
     it('doubles AOB in 15–24 h and NOB in 24–48 h on non-limiting substrate', () => {
@@ -240,7 +241,7 @@ describe('bacteria colony dynamics', () => {
 
     it('holds that timeline from a nano to a stock tank', () => {
       // Organics scale with the tank, so the ppm curve has to as well. The
-      // seed is a density on the bed for exactly this reason.
+      // seed is counted per litre for exactly this reason.
       for (const capacity of [10, 1000]) {
         const { nitritePeakPpm, nitritePeakDay, cycledDay } = traceCycle(capacity);
 

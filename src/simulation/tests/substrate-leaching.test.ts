@@ -21,6 +21,7 @@ import {
 } from '../equipment/substrate.js';
 import { calculatePassiveResources } from '../equipment/index.js';
 import {
+  calculateInoculum,
   NH3_TO_NO2_MASS_RATIO,
   NO2_TO_NO3_MASS_RATIO,
 } from '../systems/nitrogen-cycle.js';
@@ -288,6 +289,10 @@ describe('substrate leaching', () => {
     it('never gets a bare-bottom tank over the spawn threshold', () => {
       const bare = trace(fishlessTank('none'), 56 * DAY);
 
+      // Nitrifiers arrive with the water whatever the tank is scaped with, so
+      // what keeps this colony at zero is the missing ammonia, not a missing
+      // bed for it to settle on.
+      expect(calculateInoculum(bare.final.tank.capacity)).toBeGreaterThan(0);
       expect(bare.peakPpm).toBe(0);
       expect(bare.final.resources.aob).toBe(0);
     });
@@ -352,10 +357,25 @@ describe('substrate leaching', () => {
       }
     });
 
-    it('a bare tank never cycles on its own', () => {
-      const run = trace(fishlessTank('none'), 56 * DAY);
+    it('a bare tank never cycles on its own — nothing in it makes ammonia', () => {
+      const bare = fishlessTank('none');
+      expect(bare.equipment.substrate.organicReserve).toBe(0);
+      expect(trace(bare, 56 * DAY).spawnHour).toBeNull();
 
-      expect(run.spawnHour).toBeNull();
+      // The claim is about the source and not about the tank: give the same
+      // bare bottom a daily pinch of food and it cycles on its filter media,
+      // which is what a quarantine tank does.
+      let fed = bare;
+      for (let hour = 1; hour <= 56 * DAY; hour++) {
+        if (hour % 24 === 8) fed = applyAction(fed, { type: 'feed', amount: 0.05 }).state;
+        fed = tick(fed, DEFAULT_CONFIG);
+      }
+
+      expect(fed.resources.aob).toBeGreaterThan(0);
+      expect(fed.resources.nob).toBeGreaterThan(0);
+      expect(getPpm(fed.resources.ammonia, fed.resources.water)).toBeLessThan(0.1);
+      expect(getPpm(fed.resources.nitrite, fed.resources.water)).toBeLessThan(0.1);
+      expect(fed.resources.nitrate).toBeGreaterThan(0);
     });
   });
 });

@@ -22,7 +22,6 @@ import type { SimulationState } from '../state.js';
 import type { System } from './types.js';
 import type { TunableConfig } from '../config/index.js';
 import { type NitrogenCycleConfig, nitrogenCycleDefaults } from '../config/nitrogen-cycle.js';
-import { getSubstrateSurface, type SubstrateType } from '../equipment/substrate.js';
 import { getPpm } from '../resources/index.js';
 
 // Molecular weights (g/mol) — physics constants, not tunable config.
@@ -95,21 +94,23 @@ export function calculateMaxBacteria(
 /**
  * The colony a tank starts with once its spawn threshold is crossed.
  *
- * Nitrifiers arrive from air, tap water and dust and settle out onto the bed,
- * so the seed is a density on it — a bigger bed catches proportionally more.
- * An absolute count instead would hand a 1000 L tank the same starting colony
- * as a 10 L against a hundred times the load.
+ * Nitrifiers arrive dissolved in the fill water and out of the air above it, so
+ * what a tank is born with is set by how much water went into it. They settle
+ * onto whatever is going — bed, glass, filter media — but attachment never
+ * rations the seed: an ordinary colony rests at a couple of percent of
+ * `calculateMaxBacteria`, so there is always somewhere to land.
  *
- * The bed and not `resources.surface`: filter media carries a flat cm² per
- * filter type, so seeding off total surface would make a nano's cycling clock
- * run on its sponge rather than on its tank.
+ * Per litre and not per cm² of surface, which is also the only form that holds
+ * the cycling clock volume-independent: glass area grows with the square of a
+ * tank's linear size and filter media is a flat cm² per filter type, so a seed
+ * quoted per cm² hands a nano nearly twice the head start per litre a stock
+ * tank gets.
  */
 export function calculateInoculum(
-  substrate: SubstrateType,
   tankCapacity: number,
   config: NitrogenCycleConfig = nitrogenCycleDefaults
 ): number {
-  return getSubstrateSurface(substrate, tankCapacity) * config.inoculumPerCm2;
+  return tankCapacity * config.inoculumPerLiter;
 }
 
 /**
@@ -375,14 +376,10 @@ export const nitrogenCycleSystem: System = {
     const ammoniaPpm = getPpm(currentAmmonia, waterVolume);
     const nitritePpm = getPpm(currentNitrite, waterVolume);
 
-    const inoculum = calculateInoculum(
-      state.equipment.substrate.type,
-      state.tank.capacity,
-      ncConfig
-    );
+    const inoculum = calculateInoculum(state.tank.capacity, ncConfig);
 
     // AOB spawns when ammonia reaches threshold and population is zero
-    if (inoculum > 0 && currentAob === 0 && ammoniaPpm >= ncConfig.aobSpawnThreshold) {
+    if (currentAob === 0 && ammoniaPpm >= ncConfig.aobSpawnThreshold) {
       effects.push({
         tier: 'passive',
         resource: 'aob',
@@ -393,7 +390,7 @@ export const nitrogenCycleSystem: System = {
     }
 
     // NOB spawns when nitrite reaches threshold and population is zero
-    if (inoculum > 0 && currentNob === 0 && nitritePpm >= ncConfig.nobSpawnThreshold) {
+    if (currentNob === 0 && nitritePpm >= ncConfig.nobSpawnThreshold) {
       effects.push({
         tier: 'passive',
         resource: 'nob',

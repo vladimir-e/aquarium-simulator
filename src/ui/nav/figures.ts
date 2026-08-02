@@ -19,8 +19,8 @@ import { summaryLines } from '../review/index.js';
 import type { RunAggregates } from '../run/index.js';
 import {
   ailingPlants,
+  bacteriaReadout,
   bandStatus,
-  biofilterCycled,
   classifyVital,
   GAUGE_KEYS,
   gasReadings,
@@ -33,6 +33,7 @@ import {
   plantsAndAlgae,
   rosterSummary,
   waterAlert,
+  type BacteriaReadout,
   type GaugeKey,
   type Status,
 } from '../run/index.js';
@@ -85,10 +86,10 @@ function waterMeters(state: SimulationState, units: UnitSystem): MicroMeter[] {
   }));
 }
 
-function equipmentFigure(state: SimulationState, config: TunableConfig): NavFigure {
+function equipmentFigure(state: SimulationState, bacteria: BacteriaReadout): NavFigure {
   return {
     pill: null,
-    lines: [equipmentSummary(state, config)],
+    lines: [equipmentSummary(state, bacteria)],
     dots: buildDeviceList(state.equipment).map((d) => d.on),
   };
 }
@@ -145,10 +146,14 @@ export interface NavFigureInput {
 export function navFigures(input: NavFigureInput): Record<SectionId, NavFigure> {
   const { state, config, aggregates, runLogs, presetName, presetModified, units } = input;
   const meters = waterMeters(state, units);
-  const cycled = biofilterCycled(state, config);
+  const bacteria = bacteriaReadout(state, config);
   return {
-    water: { pill: waterAlert([...meters, ...gasReadings(state)], cycled), lines: [], meters },
-    equipment: equipmentFigure(state, config),
+    water: {
+      pill: waterAlert([...meters, ...gasReadings(state)], bacteria.cycled),
+      lines: [],
+      meters,
+    },
+    equipment: equipmentFigure(state, bacteria),
     flora: floraFigure(state, config),
     livestock: livestockFigure(state, config),
     analytics: { pill: null, lines: summaryLines(aggregates, runLogs, units) },

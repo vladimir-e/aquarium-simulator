@@ -109,7 +109,7 @@ describe('Nitrogen Cycle Integration', () => {
 
   describe('NOB bacteria grow and convert nitrite to nitrate', () => {
     it('NOB spawn when nitrite ppm reaches threshold, then convert nitrite to nitrate', () => {
-      let state = createSimulation({ tankCapacity: 40, substrate: { type: 'gravel' } });
+      let state = createSimulation({ tankCapacity: 40 });
 
       // Inject nitrite above NOB spawn threshold (0.125 ppm default)
       state = produce(state, (draft) => {
@@ -302,7 +302,7 @@ describe('Nitrogen Cycle Integration', () => {
 
   describe('Full pipeline: feed -> food decays -> waste -> ammonia -> nitrite -> nitrate', () => {
     it('feeding produces nitrate as the end product after sufficient ticks', () => {
-      let state = createSimulation({ tankCapacity: 40, substrate: { type: 'gravel' } });
+      let state = createSimulation({ tankCapacity: 40 });
 
       // Feed the tank
       state = applyAction(state, { type: 'feed', amount: 2.0 }).state;
@@ -487,7 +487,6 @@ describe('Nitrogen Cycle Integration', () => {
       let state = createSimulation({
         tankCapacity: 40,
         initialTemperature: 25,
-        substrate: { type: 'gravel' },
       });
 
       // Dose ammonia to 2 ppm to start the fishless cycle

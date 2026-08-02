@@ -3,6 +3,7 @@ import type { NitrogenCycleConfig } from '../../../simulation/config/index.js';
 import { SurfaceResource } from '../../../simulation/resources/index.js';
 import {
   bacteriaSummary,
+  colonyCount,
   type BacteriaReadout,
   type Colony,
   type CycleProjection,
@@ -10,18 +11,6 @@ import {
 } from '../../run';
 import { Card, CardBody, CardFooter, CardHeader } from './Card';
 import { Bar, DataRow, FieldLabel } from './elements';
-
-/**
- * A population in bacteria units — millions of cells. Colonies span six orders
- * of magnitude between a fresh seed and a canister at its ceiling, so the
- * digits go to an SI suffix rather than to a comma-grouped wall of them.
- */
-function colonyCount(units: number): string {
-  if (units >= 1e6) return `${(units / 1e6).toFixed(1)} T`;
-  if (units >= 1e3) return `${(units / 1e3).toFixed(1)} G`;
-  if (units >= 10) return Math.round(units).toString();
-  return units.toFixed(units >= 1 ? 1 : 2);
-}
 
 /** A biofilter that is not keeping up is the one thing worth colouring here. */
 function colonyStatus(colony: Colony, cycled: boolean): Status {

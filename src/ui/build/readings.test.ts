@@ -6,7 +6,8 @@ import {
   type SimulationState,
 } from '../../simulation/index.js';
 import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
-import { bacteriaReadout } from '../run/index.js';
+import { bacteriaReadout, colonyCount } from '../run/index.js';
+import { cycledTank } from '../../simulation/tests/tanks.js';
 import type { UnitSystem } from '../utils/units.js';
 import type { EquipmentId } from './devices';
 import { deviceHint, deviceReadings, type DeviceReading } from './readings';
@@ -350,26 +351,20 @@ describe('powerhead readings', () => {
 });
 
 describe('biofilter readings', () => {
-  /** Colonies at their ceiling, so the readout is not all zeroes. */
-  const cycled: SimulationState = {
-    ...base,
-    resources: {
-      ...base.resources,
-      aob: base.resources.surface * DEFAULT_CONFIG.nitrogenCycle.bacteriaPerCm2,
-      nob: base.resources.surface * DEFAULT_CONFIG.nitrogenCycle.bacteriaPerCm2,
-    },
-  };
+  const cycled: SimulationState = cycledTank(40);
 
   it('reads the same colonies the Water section’s Bacteria card does', () => {
+    // Both surfaces render through `colonyCount`, so the pane and the card
+    // never disagree on a population spanning six orders of magnitude.
     const readout = bacteriaReadout(cycled, DEFAULT_CONFIG);
     const readings = read('biofilter', cycled);
     expect(readout.colonisation).toBeGreaterThan(0);
     expect(value(readings, 'Colonisation').value).toBe(`${Math.round(readout.colonisation)} %`);
     expect(value(readings, 'AOB · ammonia → nitrite').value).toBe(
-      `${Math.round(readout.aob.count)} / ${Math.round(readout.aob.ceiling)}`
+      `${colonyCount(readout.aob.count)} / ${colonyCount(readout.aob.ceiling)}`
     );
     expect(value(readings, 'NOB · nitrite → nitrate').value).toBe(
-      `${Math.round(readout.nob.count)} / ${Math.round(readout.nob.ceiling)}`
+      `${colonyCount(readout.nob.count)} / ${colonyCount(readout.nob.ceiling)}`
     );
   });
 

@@ -15,8 +15,8 @@ import {
   type Resources,
   type SimulationState,
 } from '../../simulation/index.js';
-import { getMassFromPpm } from '../../simulation/resources/index.js';
-import { fishlessTank } from '../../simulation/tests/tanks.js';
+import { getMassFromPpm, getPpm } from '../../simulation/resources/index.js';
+import { cycledTank, fishlessTank, run as runUnfed } from '../../simulation/tests/tanks.js';
 
 const config = DEFAULT_CONFIG;
 const perCm2 = nitrogenCycleDefaults.bacteriaPerCm2;
@@ -30,9 +30,7 @@ function tank(): SimulationState {
 }
 
 function stocked(): SimulationState {
-  // Gravel, so the tank has a bed for nitrifiers to settle onto — the inoculum
-  // is a density on it, and a bare-bottom tank never starts a colony.
-  let state = createSimulation({ tankCapacity: 200, substrate: { type: 'gravel' } });
+  let state = tank();
   for (let i = 0; i < 6; i++) {
     state = applyAction(state, { type: 'addFish', species: 'neon_tetra' }).state;
   }
@@ -155,13 +153,26 @@ describe('bacteriaReadout', () => {
     expect(readout.surface).toBe(state.resources.surface);
   });
 
-  it('calls a fresh tank uncycled and a colonised one cycled', () => {
+  it('calls a fresh tank uncycled and a tank its bed cycled cycled', () => {
     expect(bacteriaReadout(tank(), config).cycled).toBe(false);
+    expect(bacteriaReadout(cycledTank(200), config).cycled).toBe(true);
+  });
 
+  it('withholds it at the nitrite peak, where nitrite stops climbing but stands', () => {
+    // The worst possible moment to tell a keeper to stock: production has just
+    // tipped under consumption, with nitrite still near 5 ppm.
+    const peak = runUnfed(fishlessTank('aqua_soil', { capacity: 150 }), 16 * 24);
+
+    expect(getPpm(peak.resources.nitrite, peak.resources.water)).toBeGreaterThan(4);
+    expect(bacteriaReadout(peak, config).cycled).toBe(false);
+  });
+
+  it('withholds it from a pair of colonies with nothing to do', () => {
     const state = tank();
-    state.resources.aob = state.resources.surface * perCm2;
-    state.resources.nob = state.resources.surface * perCm2;
-    expect(bacteriaReadout(state, config).cycled).toBe(true);
+    state.resources.aob = 1e-9;
+    state.resources.nob = 1e-9;
+
+    expect(bacteriaReadout(state, config).cycled).toBe(false);
   });
 
   it('reports no conversion at all on a tank with nothing in it', () => {

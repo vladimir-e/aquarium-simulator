@@ -12,9 +12,8 @@ import {
   type FilterType,
   type SimulationState,
 } from '../../simulation/index.js';
-import type { TunableConfig } from '../../simulation/config/index.js';
 import { SurfaceResource } from '../../simulation/resources/index.js';
-import { biofilterColonisation, biofilterCycled } from '../run/index.js';
+import type { BacteriaReadout } from '../run/index.js';
 import { formatFlowRate, formatTemperature, type UnitSystem } from '../utils/units.js';
 import { hourLabel, scheduleRange } from './schedules.js';
 
@@ -128,10 +127,9 @@ function deviceSummary(id: DeviceId, state: SimulationState, units: UnitSystem):
 /** Every list row, in order. The biofilter closes the list: derived, no settings. */
 export function equipmentRows(
   state: SimulationState,
-  config: TunableConfig,
+  bacteria: BacteriaReadout,
   units: UnitSystem
 ): EquipmentRow[] {
-  const colonisation = biofilterColonisation(state.resources, config.nitrogenCycle);
   return [
     ...buildDeviceList(state.equipment).map((device) => ({
       ...device,
@@ -140,8 +138,8 @@ export function equipmentRows(
     {
       id: 'biofilter' as const,
       name: 'Biofilter',
-      on: biofilterCycled(state, config),
-      summary: `${Math.round(colonisation)} % · ${SurfaceResource.format(state.resources.surface)}`,
+      on: bacteria.cycled,
+      summary: `${Math.round(bacteria.colonisation)} % · ${SurfaceResource.format(bacteria.surface)}`,
     },
   ];
 }
@@ -154,9 +152,8 @@ export function filterRows(rows: EquipmentRow[], query: string): EquipmentRow[] 
 }
 
 /** The section's headline figure, shared with the rail's Equipment row. */
-export function equipmentSummary(state: SimulationState, config: TunableConfig): string {
+export function equipmentSummary(state: SimulationState, bacteria: BacteriaReadout): string {
   const devices = buildDeviceList(state.equipment);
   const on = devices.filter((d) => d.on).length;
-  const colonisation = Math.round(biofilterColonisation(state.resources, config.nitrogenCycle));
-  return `${on} of ${devices.length} on · biofilter ${colonisation} %`;
+  return `${on} of ${devices.length} on · biofilter ${Math.round(bacteria.colonisation)} %`;
 }

@@ -3,6 +3,7 @@
  */
 
 import type { SimulationState } from '../simulation/index.js';
+import { calculateMaxBacteria } from '../simulation/systems/index.js';
 import type { Session } from './session.js';
 import type { HistorySnapshot } from './history.js';
 
@@ -46,8 +47,9 @@ export function renderObserve(session: Session): string {
       )
     : 0;
 
-  const aobState = r.aob > 100 ? 'growing' : 'dormant';
-  const nobState = r.nob > 100 ? 'growing' : 'dormant';
+  const ceiling = calculateMaxBacteria(r.surface, session.config.nitrogenCycle);
+  const fill = (population: number): string =>
+    ceiling > 0 ? `${round((population / ceiling) * 100, 1)}% of ceiling` : 'no biofilm';
 
   const lines: string[] = [
     `# Session: ${name} · Day ${day} · Tick ${state.tick}`,
@@ -61,7 +63,7 @@ export function renderObserve(session: Session): string {
     `- NH3: ${nh3} ppm${warningSymbol(nh3 > 0.1)}`,
     `- NO2: ${no2} ppm${warningSymbol(no2 > 1.0)}`,
     `- NO3: ${no3} ppm${warningSymbol(no3 > 80)}`,
-    `- AOB: ${Math.round(r.aob)} (${aobState}) · NOB: ${Math.round(r.nob)} (${nobState})`,
+    `- AOB: ${Math.round(r.aob)} (${fill(r.aob)}) · NOB: ${Math.round(r.nob)} (${fill(r.nob)})`,
     '',
     `**Gases** O2 ${round(r.oxygen, 2)} · CO2 ${round(r.co2, 2)} mg/L${warningSymbol(
       r.oxygen < 4 || r.co2 > 30

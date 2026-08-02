@@ -35,6 +35,12 @@ const MATURE_PCT = 90;
 /** How far ahead the cycle projection will look before giving up, in ticks. */
 const PROJECTION_HORIZON = 24 * 180;
 
+/**
+ * What a hobby test kit reads as zero, ppm. `traceCycle` calls a tank cycled at
+ * the same figure, so the app and the anchors agree on what "clear" means.
+ */
+const TRACE_PPM = 0.1;
+
 /** Colonisation as a percentage (0–100) of the tank's combined bacteria ceiling. */
 export function biofilterColonisation(
   resources: Resources,
@@ -73,8 +79,15 @@ export interface BacteriaReadout {
   /** Combined colonisation, 0–100. */
   colonisation: number;
   /**
-   * Both colonies present and nitrite no longer accumulating — the keeper's own
-   * test, and the one the calibration anchors measure `cycledDay` with.
+   * The keeper's own test: ammonia and nitrite both at trace, nitrate climbing,
+   * and nitrite not about to climb again. Same reading `traceCycle` calls
+   * `cycledDay`, minus the one thing a single tick cannot see — that a nitrite
+   * peak was passed rather than never reached.
+   *
+   * Nitrite standing at trace is what keeps this off a tank at its nitrite
+   * peak, where "produced no longer exceeds consumed" first goes true and a
+   * keeper stocking on it would lose the fish. Nitrate climbing is what keeps
+   * it off a tank where nothing is happening at all.
    *
    * Deliberately not a share of the surface ceiling: surface is a cap for the
    * overstocked, and an ordinary stocked tank settles at a few percent of it.
@@ -85,6 +98,18 @@ export interface BacteriaReadout {
 
 function colony(count: number, ceiling: number): Colony {
   return { count, ceiling, pct: ceiling > 0 ? Math.min(100, (count / ceiling) * 100) : 0 };
+}
+
+/**
+ * A population in bacteria units — millions of cells. Colonies span six orders
+ * of magnitude between a fresh seed and a canister at its ceiling, so the
+ * digits go to an SI suffix rather than to a comma-grouped wall of them.
+ */
+export function colonyCount(units: number): string {
+  if (units >= 1e6) return `${(units / 1e6).toFixed(1)} T`;
+  if (units >= 1e3) return `${(units / 1e3).toFixed(1)} G`;
+  if (units >= 10) return Math.round(units).toString();
+  return units.toFixed(units >= 1 ? 1 : 2);
 }
 
 export function bacteriaReadout(
@@ -114,7 +139,12 @@ export function bacteriaReadout(
     nob: colony(r.nob, ceiling),
     surface: r.surface,
     colonisation: biofilterColonisation(r, nc),
-    cycled: r.aob > 0 && r.nob > 0 && nitriteProduced <= nitriteConsumed,
+    cycled:
+      r.aob > 0 &&
+      nitriteConsumed > 0 &&
+      nitriteProduced <= nitriteConsumed &&
+      getPpm(r.ammonia, water) < TRACE_PPM &&
+      getPpm(r.nitrite, water) < TRACE_PPM,
     rates: {
       wasteToAmmonia: getPpm(ammoniaProduced, water),
       gillsToAmmonia: getPpm(gills, water),
@@ -123,11 +153,6 @@ export function bacteriaReadout(
       netNitrite: getPpm(nitriteProduced - nitriteConsumed, water),
     },
   };
-}
-
-/** {@link BacteriaReadout.cycled} for the callers that only need the verdict. */
-export function biofilterCycled(state: SimulationState, config: TunableConfig): boolean {
-  return bacteriaReadout(state, config).cycled;
 }
 
 export interface CycleProjection {
@@ -172,11 +197,7 @@ export function projectNitritePeak(
   const nc = config.nitrogenCycle;
   const ceiling = calculateMaxBacteria(r.surface, nc);
   if (r.water <= 0 || ceiling <= 0) return null;
-  const inoculum = calculateInoculum(
-    state.equipment.substrate.type,
-    state.tank.capacity,
-    nc
-  );
+  const inoculum = calculateInoculum(state.tank.capacity, nc);
 
   const sources = wasteInflow(state, config).sources;
   const steadyInflow = sources

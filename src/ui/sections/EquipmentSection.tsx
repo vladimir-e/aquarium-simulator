@@ -11,6 +11,7 @@ import { DeviceList } from '../components/equipment/DeviceList';
 import { DeviceInspector, PushedInspector } from '../components/equipment/DeviceInspector';
 import { SchedulesBand } from '../components/equipment/SchedulesBand';
 import { CONTROL_FOCUS } from '../components/ui/focus';
+import { bacteriaReadout } from '../run';
 import {
   equipmentRows,
   equipmentSummary,
@@ -41,9 +42,10 @@ export function EquipmentSection({
 
   const selected: EquipmentId | null = deviceId && isEquipmentId(deviceId) ? deviceId : null;
 
+  const bacteria = useMemo(() => bacteriaReadout(sim.state, config), [sim.state, config]);
   const rows = useMemo(
-    () => equipmentRows(sim.state, config, unitSystem),
-    [sim.state, config, unitSystem]
+    () => equipmentRows(sim.state, bacteria, unitSystem),
+    [sim.state, bacteria, unitSystem]
   );
   const band = useMemo(() => scheduleBand(sim.state), [sim.state]);
   const selectedRow = rows.find((row) => row.id === selected) ?? null;
@@ -85,7 +87,7 @@ export function EquipmentSection({
   );
 
   return (
-    <Stage title="Equipment" meta={equipmentSummary(sim.state, config)} actions={search}>
+    <Stage title="Equipment" meta={equipmentSummary(sim.state, bacteria)} actions={search}>
       <div className="flex min-h-full flex-col gap-3">
         <Card className="min-h-0 flex-1">
           <div className="flex min-h-0 flex-1 flex-col md:flex-row">

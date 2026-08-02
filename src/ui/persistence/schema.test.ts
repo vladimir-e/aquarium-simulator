@@ -483,12 +483,12 @@ describe('PersistedStateSchema', () => {
     expect(PersistedStateSchema.safeParse(v12).success).toBe(false);
   });
 
-  it('rejects prior version 13 (breaking bump for substrate organic reserve)', () => {
-    const v13 = { ...validState, version: 13 };
-    expect(PersistedStateSchema.safeParse(v13).success).toBe(false);
+  it('rejects prior version 14 (breaking bump for the bacteria gauge and inoculum)', () => {
+    const v14 = { ...validState, version: 14 };
+    expect(PersistedStateSchema.safeParse(v14).success).toBe(false);
   });
 
-  it('PERSISTENCE_VERSION is 14', () => {
-    expect(PERSISTENCE_VERSION).toBe(14);
+  it('PERSISTENCE_VERSION is 15', () => {
+    expect(PERSISTENCE_VERSION).toBe(15);
   });
 });

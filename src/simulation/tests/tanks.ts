@@ -157,6 +157,11 @@ export function doseClearance(
   const dosed = produce(cycledTank(capacity, config), (draft) => {
     draft.resources.ammonia += getMassFromPpm(dosePpm, draft.resources.water);
   });
+  // Without this a dose that silently failed to land would read as a clearance
+  // of nothing, and the anchor would pass on a flat zero.
+  const landed = getPpm(dosed.resources.ammonia, dosed.resources.water);
+  if (landed < dosePpm) throw new Error(`dose did not land: ${landed} ppm of ${dosePpm}`);
+
   const cleared = run(dosed, DAY, config);
   return getPpm(cleared.resources.ammonia, cleared.resources.water);
 }

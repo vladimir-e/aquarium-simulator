@@ -13,11 +13,7 @@ import {
   NOB_PROCESSING_RATE_MULTIPLIER,
 } from './nitrogen-cycle.js';
 import { createSimulation, type SimulationState } from '../state.js';
-import {
-  getSubstrateSurface,
-  SUBSTRATE_SURFACE_PER_LITER,
-  type SubstrateType,
-} from '../equipment/substrate.js';
+import { type SubstrateType } from '../equipment/substrate.js';
 import { applyEffects } from '../core/effects.js';
 import { decaySystem } from './decay.js';
 import { getPpm, getMassFromPpm } from '../resources/index.js';
@@ -40,28 +36,19 @@ describe('calculateMaxBacteria', () => {
 });
 
 describe('calculateInoculum', () => {
-  it('returns nothing for a bed that is not there', () => {
-    expect(calculateInoculum('none', 100)).toBe(0);
+  it('scales with the water, so a ten times bigger tank seeds ten times heavier', () => {
+    expect(calculateInoculum(200)).toBeCloseTo(calculateInoculum(20) * 10, 10);
   });
 
-  it('scales with the bed, so a ten times bigger tank seeds ten times heavier', () => {
-    expect(calculateInoculum('aqua_soil', 200)).toBeCloseTo(
-      calculateInoculum('aqua_soil', 20) * 10,
-      10
-    );
-  });
-
-  it('seeds a coarser bed lighter, in proportion to its surface', () => {
-    expect(calculateInoculum('sand', 40) / calculateInoculum('aqua_soil', 40)).toBeCloseTo(
-      SUBSTRATE_SURFACE_PER_LITER.sand / SUBSTRATE_SURFACE_PER_LITER.aqua_soil,
-      10
-    );
+  it('seeds a tank whatever it is scaped with — the cells arrive in the water', () => {
+    expect(calculateInoculum(40)).toBeGreaterThan(0);
   });
 
   it('starts a colony far below the ceiling it will grow into', () => {
-    const surface = getSubstrateSurface('aqua_soil', 40);
+    const surface = createSimulation({ tankCapacity: 40, substrate: { type: 'none' } }).resources
+      .surface;
 
-    expect(calculateInoculum('aqua_soil', 40)).toBeLessThan(calculateMaxBacteria(surface) / 1000);
+    expect(calculateInoculum(40)).toBeLessThan(calculateMaxBacteria(surface) / 1000);
   });
 });
 
@@ -499,7 +486,7 @@ describe('nitrogenCycleSystem', () => {
     it('spawns AOB when ammonia ppm reaches threshold', () => {
       const state = seeded({ ammonia: ppmToMass(nitrogenCycleDefaults.aobSpawnThreshold), aob: 0 });
 
-      expect(spawn(state, 'aob')).toBe(calculateInoculum('aqua_soil', state.tank.capacity));
+      expect(spawn(state, 'aob')).toBe(calculateInoculum(state.tank.capacity));
     });
 
     it('does not spawn AOB when already present', () => {
@@ -520,10 +507,10 @@ describe('nitrogenCycleSystem', () => {
     it('spawns NOB when nitrite ppm reaches threshold', () => {
       const state = seeded({ nitrite: ppmToMass(nitrogenCycleDefaults.nobSpawnThreshold), nob: 0 });
 
-      expect(spawn(state, 'nob')).toBe(calculateInoculum('aqua_soil', state.tank.capacity));
+      expect(spawn(state, 'nob')).toBe(calculateInoculum(state.tank.capacity));
     });
 
-    it('seeds a bigger bed with proportionally more', () => {
+    it('seeds every scape alike, bare bottom included', () => {
       const onEach = (substrate: SubstrateType): number | undefined =>
         spawn(
           createTestState({
@@ -534,19 +521,10 @@ describe('nitrogenCycleSystem', () => {
           'aob'
         );
 
-      // sand 400, gravel 800, aqua_soil 1200 cm²/L.
-      expect(onEach('gravel')).toBeCloseTo(onEach('sand')! * 2, 10);
-      expect(onEach('aqua_soil')).toBeCloseTo(onEach('sand')! * 3, 10);
-    });
-
-    it('has nothing to seed a bare tank with', () => {
-      const state = createTestState({
-        substrate: 'none',
-        ammonia: ppmToMass(nitrogenCycleDefaults.aobSpawnThreshold),
-        aob: 0,
-      });
-
-      expect(spawn(state, 'aob')).toBeUndefined();
+      for (const substrate of ['sand', 'gravel', 'aqua_soil'] as SubstrateType[]) {
+        expect(onEach(substrate)).toBe(onEach('none'));
+      }
+      expect(onEach('none')).toBeGreaterThan(0);
     });
   });
 
@@ -739,7 +717,6 @@ describe('25-Day Tank Cycling Integration Test', () => {
     let state = createSimulation({
       tankCapacity: 40,
       initialTemperature: 25,
-      substrate: { type: 'gravel' },
     });
 
     // Add direct ammonia mass to trigger bacterial spawning
@@ -829,7 +806,6 @@ describe('25-Day Tank Cycling Integration Test', () => {
     let state = createSimulation({
       tankCapacity: 40,
       initialTemperature: 25,
-      substrate: { type: 'gravel' },
     });
 
     // Add food

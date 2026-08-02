@@ -21,6 +21,16 @@ import type { TunableConfig } from '../../simulation/config/index.js';
  * Increment this when the structure changes in a breaking way.
  * On version mismatch, stored data is discarded.
  *
+ * v15: Nitrogen-cycle throughput per bacterium. `NitrogenCycleConfig`
+ *      swaps `spawnAmount` for `inoculumPerLiter` (bacteria units the
+ *      tank is seeded with per litre), and `Resources.aob` / `.nob` are
+ *      redenominated in units of 10⁶ cells — a colony that read 192
+ *      under v14 reads six figures under v15. A v14 colony loaded
+ *      against v15 constants would be a biofilter roughly 1/50th the
+ *      size the tank needs, so the tank would silently poison itself.
+ *      Per project policy this is a breaking save format change with no
+ *      migration shim — stored sessions are discarded on version
+ *      mismatch.
  * v14: Substrate organic leaching. `Substrate` gains `organicReserve`
  *      (grams of organic matter left in the bed) and `DecayConfig`
  *      swaps `ambientWaste` for `substrateLeachRate`. Per project
@@ -83,7 +93,7 @@ import type { TunableConfig } from '../../simulation/config/index.js';
  *     nutrient sufficiency) but its persisted shape is identical, so
  *     the bump is purely the new Fish field.
  */
-export const PERSISTENCE_VERSION = 14;
+export const PERSISTENCE_VERSION = 15;
 
 /**
  * Storage key for the unified persisted state.

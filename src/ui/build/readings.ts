@@ -23,7 +23,7 @@ import { WATER_LEVEL_THRESHOLD } from '../../simulation/equipment/ato.js';
 import { formatCo2Rate } from '../../simulation/equipment/co2-generator.js';
 import { Co2Resource, SurfaceResource } from '../../simulation/resources/index.js';
 import type { TunableConfig } from '../../simulation/config/index.js';
-import { bacteriaReadout, doseDeltas, formatDose } from '../run/index.js';
+import { bacteriaReadout, colonyCount, doseDeltas, formatDose } from '../run/index.js';
 import {
   formatFlowRate,
   formatTemperature,
@@ -244,7 +244,7 @@ function autoDoserReadings({ state }: DeviceReadingInput): DeviceReading[] {
 function biofilterReadings({ state, config }: DeviceReadingInput): DeviceReading[] {
   const readout = bacteriaReadout(state, config);
   const colony = (count: number, ceiling: number): string =>
-    `${Math.round(count)} / ${Math.round(ceiling)}`;
+    `${colonyCount(count)} / ${colonyCount(ceiling)}`;
 
   return [
     {

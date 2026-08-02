@@ -175,7 +175,7 @@ dimensionless in both.
 
 A **bacteria unit is 10⁶ cells**, which is what makes `bacteria_per_unit_surface`
 a real biofilm density rather than a score. The three constants — processing
-rate, ceiling density, inoculum density — carry an exact gauge symmetry, so one
+rate, ceiling density, inoculum — carry an exact gauge symmetry, so one
 of them is a units convention and the ceiling density is the one pinned.
 
 `growth_rate` is read off a saturated doubling time (`ln2 / hours`) and
@@ -185,13 +185,19 @@ surface ceiling is far off, higher once the logistic term starts braking.
 
 The **inoculum** is the third constant on this clock: everything between a
 seeded tank and a cycled one is doublings, so it sets how many there are. It is
-a density on the substrate surface — nitrifiers arrive from air, tap and dust
-and settle onto the bed, so a bigger bed catches proportionally more and the
-cycling timeline is the same at 10 L and 1000 L.
+a count per litre — nitrifiers arrive dissolved in the fill water and out of the
+air above it, then settle onto whatever surface is going, so a bare-bottom tank
+seeds on its filter media like any other and the cycling timeline is the same at
+10 L and 1000 L.
 
 ```
-inoculum = substrate_surface * inoculum_per_unit_surface
+inoculum = tank_capacity * inoculum_per_liter
 ```
+
+Not a density on surface: surface per litre is not constant — glass grows with
+the square of a tank's linear size and filter media is a flat cm² per filter
+type — so a seed quoted per cm² hands a nano nearly twice the head start per
+litre a stock tank gets, and the timeline spreads with volume.
 
 ### Surface Area Requirement
 

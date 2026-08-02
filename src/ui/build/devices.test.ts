@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { createSimulation, type SimulationState } from '../../simulation/index.js';
 import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
+import { cycledTank } from '../../simulation/tests/tanks.js';
+import { bacteriaReadout, type BacteriaReadout } from '../run/index.js';
 import {
   buildDeviceList,
   equipmentRows,
@@ -15,7 +17,9 @@ const withPowerhead: SimulationState = createSimulation({
   tankCapacity: 40,
   powerhead: { enabled: true, flowRateGPH: 400 },
 });
-const rows = equipmentRows(base, DEFAULT_CONFIG, 'metric');
+const readout = (state: SimulationState): BacteriaReadout =>
+  bacteriaReadout(state, DEFAULT_CONFIG);
+const rows = equipmentRows(base, readout(base), 'metric');
 
 describe('buildDeviceList', () => {
   it('lists the eight configurable devices in order', () => {
@@ -54,8 +58,8 @@ describe('equipmentRows', () => {
   it('reads filter and powerhead flow in the reader’s units', () => {
     // Engine values: the sponge turns a 40 L tank over 4× an hour; the 400 GPH
     // powerhead preset is 1514 L/h.
-    const imperialRows = equipmentRows(withPowerhead, DEFAULT_CONFIG, 'imperial');
-    const metricRows = equipmentRows(withPowerhead, DEFAULT_CONFIG, 'metric');
+    const imperialRows = equipmentRows(withPowerhead, readout(withPowerhead), 'imperial');
+    const metricRows = equipmentRows(withPowerhead, readout(withPowerhead), 'metric');
     const summary = (list: typeof rows, id: string): string | undefined =>
       list.find((r) => r.id === id)?.summary;
 
@@ -66,15 +70,8 @@ describe('equipmentRows', () => {
   });
 
   it('marks the biofilter on once it is cycled', () => {
-    const cycled: SimulationState = {
-      ...base,
-      resources: {
-        ...base.resources,
-        aob: base.resources.surface * DEFAULT_CONFIG.nitrogenCycle.bacteriaPerCm2,
-        nob: base.resources.surface * DEFAULT_CONFIG.nitrogenCycle.bacteriaPerCm2,
-      },
-    };
-    expect(equipmentRows(cycled, DEFAULT_CONFIG, 'metric')[8].on).toBe(true);
+    const cycled = cycledTank(40);
+    expect(equipmentRows(cycled, readout(cycled), 'metric')[8].on).toBe(true);
     expect(rows[8].on).toBe(false);
   });
 });
@@ -113,7 +110,7 @@ describe('filterRows', () => {
 
 describe('equipmentSummary', () => {
   it('counts the devices that are on and names the biofilter', () => {
-    expect(equipmentSummary(base, DEFAULT_CONFIG)).toBe('3 of 8 on · biofilter 0 %');
+    expect(equipmentSummary(base, readout(base))).toBe('3 of 8 on · biofilter 0 %');
   });
 
   it('follows a device being switched off', () => {
@@ -121,6 +118,6 @@ describe('equipmentSummary', () => {
       ...base,
       equipment: { ...base.equipment, light: { ...base.equipment.light, enabled: false } },
     };
-    expect(equipmentSummary(dark, DEFAULT_CONFIG)).toBe('2 of 8 on · biofilter 0 %');
+    expect(equipmentSummary(dark, readout(dark))).toBe('2 of 8 on · biofilter 0 %');
   });
 });
