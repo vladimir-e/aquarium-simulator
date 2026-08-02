@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import {
   createSimulation,
+  FILTER_TYPES,
+  FISH_SPECIES_DATA,
   isAirPumpUndersized,
   tick,
   type SimulationState,
@@ -157,15 +159,69 @@ describe('filter readings', () => {
 
   it('warns about the roster before the rating when a filter is over both', () => {
     const overRated = createSimulation({
-      tankCapacity: 208.2,
+      tankCapacity: 209,
       filter: { enabled: true, type: 'hob' },
     });
     const stocked = applyAction(overRated, { type: 'addFish', species: 'betta' }).state;
 
+    expect(hint('filter', overRated)?.text).toContain('Undersized');
     expect(hint('filter', stocked)).toEqual({
       text: 'Too much current for Betta — 6.0 × tank volume/h against its 5 ×.',
       tone: 'warn',
     });
+  });
+
+  it('says nothing about sizing while the filter still delivers its class’s turnover', () => {
+    const atRating = createSimulation({ tankCapacity: 75 });
+    const pastRating = createSimulation({
+      tankCapacity: 208.2,
+      filter: { enabled: true, type: 'hob' },
+    });
+
+    expect(hint('filter', atRating)).toBeNull();
+    expect(hint('filter', pastRating)).toBeNull();
+  });
+
+  it('never states a sizing gap its own two figures agree on', () => {
+    const capacities = [40, 75, 76, 100, 208, 208.2, 209, 300, 400, 562, 563, 568, 600, 1000];
+    let warned = 0;
+
+    for (const type of FILTER_TYPES) {
+      for (const tankCapacity of capacities) {
+        const warning = hint(
+          'filter',
+          createSimulation({ tankCapacity, filter: { enabled: true, type } })
+        );
+        if (warning === null) continue;
+
+        const [, delivers, wants] = /— (\d+) L\/h against the (\d+) L\/h/.exec(warning.text) ?? [];
+        expect(delivers).toBeDefined();
+        expect(Number(delivers)).toBeLessThan(Number(wants));
+        warned++;
+      }
+    }
+
+    expect(warned).toBeGreaterThan(0);
+  });
+
+  it('never renders away the excess it is warning about', () => {
+    const water = 40;
+    const { maxTurnover } = FISH_SPECIES_DATA.betta;
+    const tank = createSimulation({ tankCapacity: water, filter: { enabled: true, type: 'canister' } });
+    const stocked = applyAction(tank, { type: 'addFish', species: 'betta' }).state;
+    const at = (rate: number): SimulationState => ({
+      ...stocked,
+      resources: { ...stocked.resources, flow: rate * water, water },
+    });
+
+    expect(hint('filter', at(maxTurnover))).toBeNull();
+
+    for (const over of [0.001, 0.01, 0.05, 0.2, 1, 3]) {
+      const warning = hint('filter', at(maxTurnover + over));
+      const shown = Number(/— ([\d.]+) ×/.exec(warning?.text ?? '')?.[1]);
+
+      expect(shown).toBeGreaterThan(maxTurnover);
+    }
   });
 
   it('reads the current against the water left, not the tank it was filled to', () => {

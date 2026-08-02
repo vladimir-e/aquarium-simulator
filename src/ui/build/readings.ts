@@ -61,14 +61,16 @@ function temperatureGap(celsius: number, units: UnitSystem): string {
   return `${scaled.toFixed(1)} ${getTemperatureUnit(units)}`;
 }
 
+/** The one wording every surface quotes a turnover in. */
+const volumesPerHour = (rate: number): string => `${rate.toFixed(1)} × tank volume/h`;
+
 /**
- * Flow as tank volumes per hour, in the one wording every surface quotes.
- * Against the water in the tank, not its capacity — the engine charges a
- * fish against that same figure.
+ * Flow as tank volumes per hour. Against the water in the tank, not its
+ * capacity — the engine charges a fish against that same figure.
  */
 export function turnover(litersPerHour: number, waterVolume: number): string {
   if (waterVolume <= 0) return '—';
-  return `${(litersPerHour / waterVolume).toFixed(1)} × tank volume/h`;
+  return volumesPerHour(litersPerHour / waterVolume);
 }
 
 /** How much longer a running schedule has, for one that ever stops. */
@@ -306,15 +308,12 @@ export interface DeviceHint {
   tone: 'muted' | 'warn';
 }
 
-/** The stocked species least able to bear the water the tank is moving. */
-function strainedByFlow({ fish, resources }: SimulationState): FishSpeciesData | null {
-  if (resources.water <= 0) return null;
-  const volumesPerHour = resources.flow / resources.water;
-
+/** The stocked species least able to bear `charged` volumes per hour. */
+function strainedByFlow({ fish }: SimulationState, charged: number): FishSpeciesData | null {
   let tightest: FishSpeciesData | null = null;
   for (const { species } of fish) {
     const data = FISH_SPECIES_DATA[species];
-    if (data.maxTurnover >= volumesPerHour) continue;
+    if (data.maxTurnover >= charged) continue;
     if (tightest === null || data.maxTurnover < tightest.maxTurnover) tightest = data;
   }
   return tightest;
@@ -322,12 +321,19 @@ function strainedByFlow({ fish, resources }: SimulationState): FishSpeciesData |
 
 /** What the device driving the water says when the roster cannot take it. */
 function tooMuchCurrent(state: SimulationState): DeviceHint | null {
-  const strained = strainedByFlow(state);
+  const { flow, water } = state.resources;
+  if (water <= 0) return null;
+
+  // Rounded up, and the roster tested against the rounded figure: a fish a
+  // hair over its tolerance is over it, and a warning whose own two numbers
+  // render as equal argues against itself. The epsilon keeps a tank sitting
+  // exactly on a class's turnover from ticking up into a warning.
+  const charged = Math.ceil((flow / water) * 10 - 1e-9) / 10;
+  const strained = strainedByFlow(state, charged);
   if (strained === null) return null;
 
-  const { flow, water } = state.resources;
   return {
-    text: `Too much current for ${strained.name} — ${turnover(flow, water)} against its ${strained.maxTurnover} ×.`,
+    text: `Too much current for ${strained.name} — ${volumesPerHour(charged)} against its ${strained.maxTurnover} ×.`,
     tone: 'warn',
   };
 }
@@ -349,12 +355,16 @@ export function deviceHint(
       }
       const current = equipment.powerhead.enabled ? null : tooMuchCurrent(state);
       const spec = FILTER_SPECS[equipment.filter.type];
-      if (tank.capacity > spec.maxCapacityLiters) {
-        const lph = getFilterFlow(equipment.filter.type, tank.capacity);
-        const wanted = tank.capacity * spec.targetTurnover;
+      // A filter past its rated capacity is not yet undersized — its flow cap
+      // has to actually bite, by enough to show in the figures. Just over the
+      // rating the two are the same number, and a warning that quotes one
+      // number twice teaches the player to ignore the ones that matter.
+      const delivers = formatFlowRate(getFilterFlow(equipment.filter.type, tank.capacity), units);
+      const wants = formatFlowRate(tank.capacity * spec.targetTurnover, units);
+      if (delivers !== wants) {
         return (
           current ?? {
-            text: `Undersized for this tank — ${formatFlowRate(lph, units)} against the ${formatFlowRate(wanted, units)} a ${spec.targetTurnover} × turnover here would take.`,
+            text: `Undersized for this tank — ${delivers} against the ${wants} a ${spec.targetTurnover} × turnover here would take.`,
             tone: 'warn',
           }
         );
