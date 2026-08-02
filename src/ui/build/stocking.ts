@@ -124,7 +124,8 @@ export function fishOptions(fish: Fish[], tankLiters: number, units: UnitSystem)
       hint: capacity.ok ? `${count} in tank · +${addsG} g` : capacity.message,
       facts:
         `${formatTemperatureRange(data.temperatureRange, units)} · ` +
-        `pH ${phLo.toFixed(1)}–${phHi.toFixed(1)} · hardiness ${data.hardiness}`,
+        `pH ${phLo.toFixed(1)}–${phHi.toFixed(1)} · ` +
+        `flow to ${data.maxTurnover} ×/h · hardiness ${data.hardiness}`,
     };
   });
 }

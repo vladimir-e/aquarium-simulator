@@ -493,7 +493,12 @@ describe('PersistedStateSchema', () => {
     expect(PersistedStateSchema.safeParse(v14).success).toBe(false);
   });
 
-  it('PERSISTENCE_VERSION is 15', () => {
-    expect(PERSISTENCE_VERSION).toBe(15);
+  it('rejects prior version 15 (breaking bump for flow tolerance as a turnover)', () => {
+    const v15 = { ...validState, version: 15 };
+    expect(PersistedStateSchema.safeParse(v15).success).toBe(false);
+  });
+
+  it('PERSISTENCE_VERSION is 16', () => {
+    expect(PERSISTENCE_VERSION).toBe(16);
   });
 });

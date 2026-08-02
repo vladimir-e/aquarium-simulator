@@ -312,13 +312,18 @@ export function deviceHint(
   const muted = (text: string): DeviceHint => ({ text, tone: 'muted' });
 
   switch (id) {
-    case 'filter':
+    case 'filter': {
       if (!equipment.filter.enabled) {
         return muted('No biological filtration while the filter is off.');
       }
-      return tank.capacity > FILTER_SPECS[equipment.filter.type].maxCapacityLiters
-        ? { text: 'Undersized for this tank — filtration can’t keep up.', tone: 'warn' }
-        : null;
+      const spec = FILTER_SPECS[equipment.filter.type];
+      if (tank.capacity <= spec.maxCapacityLiters) return null;
+      const lph = getFilterFlow(equipment.filter.type, tank.capacity);
+      return {
+        text: `Undersized for this tank — ${turnover(lph, tank.capacity)} against the ${spec.targetTurnover} × it is built for.`,
+        tone: 'warn',
+      };
+    }
     case 'heater':
       return null;
     case 'light':

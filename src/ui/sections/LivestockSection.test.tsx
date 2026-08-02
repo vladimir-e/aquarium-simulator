@@ -297,8 +297,11 @@ describe('LivestockSection', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Add fish' }));
     const angelfish = screen.getByRole('menuitem', { name: /Angelfish/ });
     expect(within(angelfish).getByText('0 in tank · +15 g')).toBeTruthy();
-    // The bands you check against the heater target and the tap, before buying.
-    expect(within(angelfish).getByText('24–30°C · pH 6.0–7.5 · hardiness 0.4')).toBeTruthy();
+    // The bands you check against the heater target, the tap and the filter,
+    // before buying.
+    expect(
+      within(angelfish).getByText('24–30°C · pH 6.0–7.5 · flow to 6 ×/h · hardiness 0.4')
+    ).toBeTruthy();
 
     // The sex fact is the menu's own description, not a stray child of it.
     const menu = screen.getByRole('menu');

@@ -13,6 +13,7 @@ import {
   createSimulation,
   DEFAULT_ROOM_TEMPERATURE,
   type FishSpecies,
+  type SimulationConfig,
   type SimulationState,
 } from '../state.js';
 import { tick } from '../tick.js';
@@ -20,7 +21,10 @@ import { applyAction } from '../actions/index.js';
 import { DEFAULT_CONFIG, type TunableConfig } from '../config/index.js';
 import { getMassFromPpm, getPpm } from '../resources/helpers.js';
 import { calculateMaxBacteria } from '../systems/nitrogen-cycle.js';
+import { computeFishVitality } from '../systems/fish-health.js';
 import type { SubstrateType } from '../equipment/substrate.js';
+import type { FilterType } from '../equipment/filter.js';
+import type { PowerheadFlowRate } from '../equipment/powerhead.js';
 
 export const DAY = 24;
 
@@ -38,6 +42,27 @@ export function run(
 /** There is no chiller, so a tank only sits below the room if the room is that cold. */
 const roomFor = (temperature: number): number =>
   Math.min(DEFAULT_ROOM_TEMPERATURE, temperature);
+
+/** Everything in a tank that moves water. Anything unnamed is off. */
+export interface Circulation {
+  filter?: FilterType;
+  /** Powerhead setting in GPH — the label on the box. */
+  powerhead?: PowerheadFlowRate;
+  airPump?: boolean;
+}
+
+function circulationOf({
+  filter,
+  powerhead,
+  airPump = false,
+}: Circulation): Pick<SimulationConfig, 'filter' | 'powerhead' | 'airPump'> {
+  return {
+    filter: filter === undefined ? { enabled: false } : { enabled: true, type: filter },
+    powerhead:
+      powerhead === undefined ? { enabled: false } : { enabled: true, flowRateGPH: powerhead },
+    airPump: { enabled: airPump },
+  };
+}
 
 /**
  * A fishless, unfed, unplanted tank: the bed is the only thing in it that can
@@ -60,7 +85,13 @@ export function fishlessTank(
     capacity = 20,
     ato = true,
     temperature = 25,
-  }: { capacity?: number; ato?: boolean; temperature?: number } = {}
+    circulation = { filter: 'sponge' },
+  }: {
+    capacity?: number;
+    ato?: boolean;
+    temperature?: number;
+    circulation?: Circulation;
+  } = {}
 ): SimulationState {
   return createSimulation({
     tankCapacity: capacity,
@@ -69,6 +100,7 @@ export function fishlessTank(
     initialTemperature: temperature,
     roomTemperature: roomFor(temperature),
     heater: { targetTemperature: temperature, wattage: Math.max(100, capacity) },
+    ...circulationOf(circulation),
   });
 }
 
@@ -82,9 +114,10 @@ export function fishlessTank(
 export function cycledTank(
   capacity: number,
   config: TunableConfig = DEFAULT_CONFIG,
-  days = 30
+  days = 30,
+  circulation: Circulation = { filter: 'sponge' }
 ): SimulationState {
-  return run(fishlessTank('aqua_soil', { capacity }), days * DAY, config);
+  return run(fishlessTank('aqua_soil', { capacity, circulation }), days * DAY, config);
 }
 
 /**
@@ -188,6 +221,143 @@ export function doseClearance(
 
   const cleared = run(dosed, DAY, config);
   return getPpm(cleared.resources.ammonia, cleared.resources.water);
+}
+
+export interface FlowReading {
+  /** Circulation the tank is getting, L/h — what the pumps are rated at. */
+  lph: number;
+  /** The same water read as tank volumes per hour — what a fish feels. */
+  turnover: number;
+  /** Flow damage, %/h after hardiness. */
+  stress: number;
+  /** Vitality net rate, %/h. Negative is a fish on its way down. */
+  net: number;
+}
+
+/**
+ * What one fish of `species` feels from the circulation in a `capacity` tank.
+ *
+ * The per-individual hardiness offset is zeroed: it is randomised at stocking,
+ * and a reading meant to isolate circulation shouldn't also carry the luck of
+ * the draw.
+ */
+export function flowReading(
+  species: FishSpecies,
+  capacity: number,
+  circulation: Circulation = {},
+  config: TunableConfig = DEFAULT_CONFIG
+): FlowReading {
+  const tank = createSimulation({ tankCapacity: capacity, ...circulationOf(circulation) });
+  const state = produce(stock(tank, species, 1), (draft) => {
+    for (const fish of draft.fish) fish.hardinessOffset = 0;
+  });
+
+  const fish = state.fish[0];
+  if (fish === undefined) throw new Error(`${species} will not stock into ${capacity} L`);
+
+  const vitality = computeFishVitality(
+    fish,
+    state.resources,
+    state.plants,
+    state.resources.water,
+    state.tank.capacity,
+    config.livestock
+  );
+
+  return {
+    lph: state.resources.flow,
+    turnover: state.resources.flow / state.resources.water,
+    stress: vitality.breakdown.stressors.find((s) => s.key === 'flow')?.amount ?? 0,
+    net: vitality.breakdown.net,
+  };
+}
+
+export interface FlowWatch {
+  /** Worst flow damage any fish took at any hour of the run, %/h. */
+  peakStress: number;
+  /** Highest turnover the tank reached — evaporation concentrates it. */
+  peakTurnover: number;
+  /** Lowest health any fish in the roster fell to — what the player watches. */
+  minHealth: number;
+  /** How many of the fish stocked at the start are still alive. */
+  survivors: number;
+  /** Day the first of them died, or null if the roster held. */
+  firstDeathDay: number | null;
+}
+
+export interface KeeperRoutine {
+  /** Grams of food, once a day. */
+  feed?: number;
+  /** Fraction of the water swapped, once a week. */
+  waterChange?: number;
+  /** Whether the keeper tops the tank back up each day. */
+  topOff?: boolean;
+  config?: TunableConfig;
+}
+
+/**
+ * Run a stocked tank on a keeper's routine and watch what its circulation does
+ * to the roster.
+ *
+ * Flow damage is read off the same state the engine charges it against — the
+ * hour before its tick — so a reported peak is a rate a fish actually paid,
+ * not a rate the tank arrived at afterwards.
+ */
+export function watchFlow(
+  state: SimulationState,
+  days: number,
+  { feed, waterChange, topOff = false, config = DEFAULT_CONFIG }: KeeperRoutine = {}
+): FlowWatch {
+  let running = state;
+  const roster = new Set(running.fish.map((fish) => fish.id));
+  const mine = (): typeof running.fish => running.fish.filter((f) => roster.has(f.id));
+
+  let peakStress = 0;
+  let peakTurnover = 0;
+  let minHealth = 100;
+  let firstDeathHour: number | null = null;
+
+  for (let hour = 1; hour <= days * DAY; hour++) {
+    const { water } = running.resources;
+    peakTurnover = Math.max(peakTurnover, water > 0 ? running.resources.flow / water : 0);
+
+    for (const fish of mine()) {
+      const vitality = computeFishVitality(
+        fish,
+        running.resources,
+        running.plants,
+        water,
+        running.tank.capacity,
+        config.livestock
+      );
+      peakStress = Math.max(
+        peakStress,
+        vitality.breakdown.stressors.find((s) => s.key === 'flow')?.amount ?? 0
+      );
+      minHealth = Math.min(minHealth, fish.health);
+    }
+
+    if (feed !== undefined && hour % DAY === 9) {
+      running = applyAction(running, { type: 'feed', amount: feed }).state;
+    }
+    if (topOff && hour % DAY === 10) {
+      running = applyAction(running, { type: 'topOff' }).state;
+    }
+    if (waterChange !== undefined && hour % (7 * DAY) === 0) {
+      running = applyAction(running, { type: 'waterChange', amount: waterChange }).state;
+    }
+
+    running = tick(running, config);
+    if (firstDeathHour === null && mine().length < roster.size) firstDeathHour = hour;
+  }
+
+  return {
+    peakStress,
+    peakTurnover,
+    minHealth,
+    survivors: mine().length,
+    firstDeathDay: firstDeathHour === null ? null : firstDeathHour / DAY,
+  };
 }
 
 /** Share of the surface ceiling a colony occupies, 0–1. */

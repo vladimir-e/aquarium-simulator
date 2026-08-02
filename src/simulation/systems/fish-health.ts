@@ -186,10 +186,15 @@ function buildStressors(ctx: FishFactorContext): VitalityFactor[] {
     waterLevelStress = config.waterLevelStressSeverity * (config.waterLevelStressThreshold - waterPercent);
   }
 
-  // Flow stress (above species max tolerance)
+  // Flow stress (circulation above species tolerance). `resources.flow`
+  // is throughput in L/h; the fish feels it as turnover through the
+  // water actually in the tank. Zero volume is the one case with no
+  // circulation to feel at all — the water-level stressor owns a
+  // drained tank.
   let flowStress = 0;
-  if (resources.flow > speciesData.maxFlow) {
-    flowStress = config.flowStressSeverity * (resources.flow - speciesData.maxFlow);
+  const turnover = waterVolume > 0 ? resources.flow / waterVolume : 0;
+  if (turnover > speciesData.maxTurnover) {
+    flowStress = config.flowStressSeverity * (turnover - speciesData.maxTurnover);
   }
 
   // Age stress — past `maxAge` the fish accumulates damage that scales

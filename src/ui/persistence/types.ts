@@ -21,6 +21,16 @@ import type { TunableConfig } from '../../simulation/config/index.js';
  * Increment this when the structure changes in a breaking way.
  * On version mismatch, stored data is discarded.
  *
+ * v16: Fish flow tolerance is a turnover. `FishSpeciesData.maxFlow`
+ *      (absolute L/h) becomes `maxTurnover` (tank volumes/h), and
+ *      `LivestockConfig.flowStressSeverity` is redenominated with it —
+ *      %/h per turnover-unit above tolerance rather than per L/h, so
+ *      the shipped default moves 0.01 → 0.3. A v15 severity read as a
+ *      v16 one is a 30× understatement of every flow stressor, so a
+ *      saved tank would quietly stop reporting a powerhead that is
+ *      drowning its fish. Per project policy this is a breaking save
+ *      format change with no migration shim — stored sessions are
+ *      discarded on version mismatch.
  * v15: Nitrogen-cycle throughput per bacterium. `NitrogenCycleConfig`
  *      swaps `spawnAmount` for `inoculumPerLiter` (bacteria units the
  *      tank is seeded with per litre) and gains the `q10` /
@@ -95,7 +105,7 @@ import type { TunableConfig } from '../../simulation/config/index.js';
  *     nutrient sufficiency) but its persisted shape is identical, so
  *     the bump is purely the new Fish field.
  */
-export const PERSISTENCE_VERSION = 15;
+export const PERSISTENCE_VERSION = 16;
 
 /**
  * Storage key for the unified persisted state.

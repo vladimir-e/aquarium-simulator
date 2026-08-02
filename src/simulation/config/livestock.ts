@@ -93,7 +93,7 @@ export interface LivestockConfig {
   oxygenStressSeverity: number;
   /** Health damage per % water below 50% capacity */
   waterLevelStressSeverity: number;
-  /** Health damage per LPH of flow above species max */
+  /** Health damage per turnover (tank volumes/h) above species tolerance */
   flowStressSeverity: number;
   /**
    * Health damage per hour past species `maxAge`, applied per hour.
@@ -230,7 +230,12 @@ export const livestockDefaults: LivestockConfig = {
   nitrateStressSeverity: 0.5, // Mild - 0.5% damage per ppm above threshold
   oxygenStressSeverity: 3.0, // 3% damage per mg/L below threshold
   waterLevelStressSeverity: 0.2, // 0.2% per % below threshold
-  flowStressSeverity: 0.01, // 0.01% per LPH above species max
+  // 0.3 %/h per turnover above species tolerance. A 150 L on a canister
+  // plus a 240 GPH powerhead runs 14×, so a neon is 6 over and pays
+  // 0.9 %/h after hardiness — more than an unplanted tank gives back,
+  // and a slow decline the player reverses by pulling the powerhead.
+  // The same powerhead in a 20 L is 45×, 5.6 %/h, dead inside a day.
+  flowStressSeverity: 0.3,
   // 0.05 %/h per hour past maxAge. At 24 h past, 1.2 %/h damage —
   // just exceeds the all-good benefit budget of ~1.2 %/h, so a fish
   // begins a slow decline. By a week past, 8.4 %/h — clear decline.
@@ -390,10 +395,10 @@ export const livestockConfigMeta: LivestockConfigMeta[] = [
   {
     key: 'flowStressSeverity',
     label: 'Flow Stress Severity',
-    unit: '%/LPH/hr',
-    min: 0.001,
-    max: 0.05,
-    step: 0.001,
+    unit: '%/turnover/hr',
+    min: 0.05,
+    max: 1.5,
+    step: 0.05,
   },
   {
     key: 'ageStressSeverity',
