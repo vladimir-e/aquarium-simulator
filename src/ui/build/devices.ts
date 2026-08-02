@@ -14,7 +14,7 @@ import {
 } from '../../simulation/index.js';
 import type { TunableConfig } from '../../simulation/config/index.js';
 import { SurfaceResource } from '../../simulation/resources/index.js';
-import { biofilterColonisation, CYCLED_PCT } from '../run/index.js';
+import { biofilterColonisation, biofilterCycled } from '../run/index.js';
 import { formatFlowRate, formatTemperature, type UnitSystem } from '../utils/units.js';
 import { hourLabel, scheduleRange } from './schedules.js';
 
@@ -140,7 +140,7 @@ export function equipmentRows(
     {
       id: 'biofilter' as const,
       name: 'Biofilter',
-      on: colonisation >= CYCLED_PCT,
+      on: biofilterCycled(state, config),
       summary: `${Math.round(colonisation)} % · ${SurfaceResource.format(state.resources.surface)}`,
     },
   ];

@@ -373,8 +373,8 @@ describe('biofilter readings', () => {
     );
   });
 
-  it('names the threshold while uncycled and stops naming it once cycled', () => {
-    expect(value(read('biofilter'), 'Colonisation').note).toBe('cycled at 25 %');
+  it('calls a fresh tank uncycled and a working biofilter cycled', () => {
+    expect(value(read('biofilter'), 'Colonisation').note).toBe('uncycled');
     expect(value(read('biofilter', cycled), 'Colonisation').note).toBe('cycled');
   });
 

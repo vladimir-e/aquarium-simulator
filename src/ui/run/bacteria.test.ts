@@ -30,7 +30,9 @@ function tank(): SimulationState {
 }
 
 function stocked(): SimulationState {
-  let state = tank();
+  // Gravel, so the tank has a bed for nitrifiers to settle onto — the inoculum
+  // is a density on it, and a bare-bottom tank never starts a colony.
+  let state = createSimulation({ tankCapacity: 200, substrate: { type: 'gravel' } });
   for (let i = 0; i < 6; i++) {
     state = applyAction(state, { type: 'addFish', species: 'neon_tetra' }).state;
   }

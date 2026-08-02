@@ -20,8 +20,7 @@ import type { RunAggregates } from '../run/index.js';
 import {
   ailingPlants,
   bandStatus,
-  biofilterColonisation,
-  CYCLED_PCT,
+  biofilterCycled,
   classifyVital,
   GAUGE_KEYS,
   gasReadings,
@@ -146,7 +145,7 @@ export interface NavFigureInput {
 export function navFigures(input: NavFigureInput): Record<SectionId, NavFigure> {
   const { state, config, aggregates, runLogs, presetName, presetModified, units } = input;
   const meters = waterMeters(state, units);
-  const cycled = biofilterColonisation(state.resources, config.nitrogenCycle) >= CYCLED_PCT;
+  const cycled = biofilterCycled(state, config);
   return {
     water: { pill: waterAlert([...meters, ...gasReadings(state)], cycled), lines: [], meters },
     equipment: equipmentFigure(state, config),

@@ -168,16 +168,30 @@ bacterial_growth = population * growth_rate * utilization * (1 - population/max_
 bacterial_death  = population * death_rate
 ```
 
-`utilization` is dimensionless, and processing capacity carries the tank's
-litres, so per-capita growth is the same in a nano and in a 150 L.
+Processing capacity is `population * processing_rate` — mass per bacteria unit
+per tick, with no volume term. Throughput is a property of the cell, so the same
+colony clears the same milligrams in a nano and in a 150 L, and `utilization` is
+dimensionless in both.
+
+A **bacteria unit is 10⁶ cells**, which is what makes `bacteria_per_unit_surface`
+a real biofilm density rather than a score. The three constants — processing
+rate, ceiling density, inoculum density — carry an exact gauge symmetry, so one
+of them is a units convention and the ceiling density is the one pinned.
 
 `growth_rate` is read off a saturated doubling time (`ln2 / hours`) and
 `death_rate` off a starvation half-life. A colony under a steady load settles
 where the two cancel — `utilization = death_rate / growth_rate` while the
 surface ceiling is far off, higher once the logistic term starts braking.
 
-`spawn_amount` is the third constant on this clock: everything between a seeded
-tank and a cycled one is doublings, so the inoculum sets how many there are.
+The **inoculum** is the third constant on this clock: everything between a
+seeded tank and a cycled one is doublings, so it sets how many there are. It is
+a density on the substrate surface — nitrifiers arrive from air, tap and dust
+and settle onto the bed, so a bigger bed catches proportionally more and the
+cycling timeline is the same at 10 L and 1000 L.
+
+```
+inoculum = substrate_surface * inoculum_per_unit_surface
+```
 
 ### Surface Area Requirement
 

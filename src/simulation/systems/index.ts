@@ -44,6 +44,7 @@ export {
 export {
   nitrogenCycleSystem,
   calculateMaxBacteria,
+  calculateInoculum,
   calculateColonyFlows,
   calculateWasteToAmmonia,
   calculateAmmoniaToNitrite,

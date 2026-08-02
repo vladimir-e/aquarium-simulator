@@ -3,7 +3,6 @@ import type { NitrogenCycleConfig } from '../../../simulation/config/index.js';
 import { SurfaceResource } from '../../../simulation/resources/index.js';
 import {
   bacteriaSummary,
-  CYCLED_PCT,
   type BacteriaReadout,
   type Colony,
   type CycleProjection,
@@ -12,22 +11,34 @@ import {
 import { Card, CardBody, CardFooter, CardHeader } from './Card';
 import { Bar, DataRow, FieldLabel } from './elements';
 
-const colonyCount = (n: number): string => Math.round(n).toLocaleString();
+/**
+ * A population in bacteria units — millions of cells. Colonies span six orders
+ * of magnitude between a fresh seed and a canister at its ceiling, so the
+ * digits go to an SI suffix rather than to a comma-grouped wall of them.
+ */
+function colonyCount(units: number): string {
+  if (units >= 1e6) return `${(units / 1e6).toFixed(1)} T`;
+  if (units >= 1e3) return `${(units / 1e3).toFixed(1)} G`;
+  if (units >= 10) return Math.round(units).toString();
+  return units.toFixed(units >= 1 ? 1 : 2);
+}
 
-/** A colony too small to carry a bioload is the one thing worth colouring here. */
-function colonyStatus(colony: Colony): Status {
+/** A biofilter that is not keeping up is the one thing worth colouring here. */
+function colonyStatus(colony: Colony, cycled: boolean): Status {
   if (colony.count <= 0) return 'neutral';
-  return colony.pct < CYCLED_PCT ? 'warn' : 'ok';
+  return cycled ? 'ok' : 'warn';
 }
 
 function ColonyBar({
   name,
   reaction,
   colony,
+  cycled,
 }: {
   name: string;
   reaction: string;
   colony: Colony;
+  cycled: boolean;
 }): React.JSX.Element {
   return (
     <div className="py-1">
@@ -40,9 +51,9 @@ function ColonyBar({
         </span>
       </div>
       <div className="mt-1 flex items-center gap-2">
-        <Bar value={colony.pct} status={colonyStatus(colony)} className="flex-1" />
+        <Bar value={colony.pct} status={colonyStatus(colony, cycled)} className="flex-1" />
         <span className="w-9 text-right font-mono text-[11px] tabular-nums text-ink-2">
-          {Math.round(colony.pct)} %
+          {colony.pct >= 1 || colony.pct === 0 ? Math.round(colony.pct) : '<1'} %
         </span>
       </div>
     </div>
@@ -66,12 +77,12 @@ export function BacteriaCard({
       <CardHeader title="Bacteria" meta={`colonisation ${Math.round(readout.colonisation)} %`} />
       <CardBody className="flex flex-col gap-3 sm:flex-row">
         <div className="min-w-0 flex-1">
-          <FieldLabel>Colonisation</FieldLabel>
-          <ColonyBar name="AOB" reaction="NH₃ → NO₂" colony={readout.aob} />
-          <ColonyBar name="NOB" reaction="NO₂ → NO₃" colony={readout.nob} />
+          <FieldLabel>Colonisation · millions of cells</FieldLabel>
+          <ColonyBar name="AOB" reaction="NH₃ → NO₂" colony={readout.aob} cycled={readout.cycled} />
+          <ColonyBar name="NOB" reaction="NO₂ → NO₃" colony={readout.nob} cycled={readout.cycled} />
           <div className="pt-1 font-mono text-[10px] text-ink-3">
             ceiling {colonyCount(readout.aob.ceiling)} = {SurfaceResource.format(readout.surface)}{' '}
-            biofilm × {config.bacteriaPerCm2} /cm²
+            biofilm × {config.bacteriaPerCm2} M/cm²
           </div>
         </div>
 

@@ -8,6 +8,7 @@ import {
   calculateAmmoniaToNitrite,
   calculateColonyFlows,
   calculateEvaporation,
+  calculateInoculum,
   calculateMaxBacteria,
   calculateNitriteToNitrate,
   calculateWasteToAmmonia,
@@ -23,13 +24,11 @@ import type { NitrogenCycleConfig, TunableConfig } from '../../simulation/config
 import { getPpm } from '../../simulation/resources/index.js';
 import { mineralisationBase, wasteInflow } from './waste.js';
 
-/** Below this colonisation percentage the biofilter cannot carry a bioload. */
-export const CYCLED_PCT = 25;
-
 /**
- * Where a colony stops climbing. Decay is unconditional, so the fixed point is
- * `1 − deathRate/growthRate` of the ceiling — 96 % for AOB, 93 % for NOB. A
- * mature tank never reaches 100 %, and a threshold that asks for it never fires.
+ * Where a colony stops climbing when nothing else limits it. Decay is
+ * unconditional, so the fixed point is `1 − deathRate/growthRate` of the
+ * ceiling — 96 % for AOB, 93 % for NOB. A mature tank never reaches 100 %, and
+ * a threshold that asks for it never fires.
  */
 const MATURE_PCT = 90;
 
@@ -73,6 +72,13 @@ export interface BacteriaReadout {
   surface: number;
   /** Combined colonisation, 0–100. */
   colonisation: number;
+  /**
+   * Both colonies present and nitrite no longer accumulating — the keeper's own
+   * test, and the one the calibration anchors measure `cycledDay` with.
+   *
+   * Deliberately not a share of the surface ceiling: surface is a cap for the
+   * overstocked, and an ordinary stocked tank settles at a few percent of it.
+   */
   cycled: boolean;
   rates: ConversionRates;
 }
@@ -100,23 +106,15 @@ export function bacteriaReadout(
   const { nitriteProduced } = calculateAmmoniaToNitrite(
     r.ammonia + gills + ammoniaProduced,
     r.aob,
-    water,
     nc
   );
-  const { nitriteConsumed } = calculateNitriteToNitrate(
-    r.nitrite + nitriteProduced,
-    r.nob,
-    water,
-    nc
-  );
-  const colonisation = biofilterColonisation(r, nc);
-
+  const { nitriteConsumed } = calculateNitriteToNitrate(r.nitrite + nitriteProduced, r.nob, nc);
   return {
     aob: colony(r.aob, ceiling),
     nob: colony(r.nob, ceiling),
     surface: r.surface,
-    colonisation,
-    cycled: colonisation >= CYCLED_PCT,
+    colonisation: biofilterColonisation(r, nc),
+    cycled: r.aob > 0 && r.nob > 0 && nitriteProduced <= nitriteConsumed,
     rates: {
       wasteToAmmonia: getPpm(ammoniaProduced, water),
       gillsToAmmonia: getPpm(gills, water),
@@ -125,6 +123,11 @@ export function bacteriaReadout(
       netNitrite: getPpm(nitriteProduced - nitriteConsumed, water),
     },
   };
+}
+
+/** {@link BacteriaReadout.cycled} for the callers that only need the verdict. */
+export function biofilterCycled(state: SimulationState, config: TunableConfig): boolean {
+  return bacteriaReadout(state, config).cycled;
 }
 
 export interface CycleProjection {
@@ -169,6 +172,11 @@ export function projectNitritePeak(
   const nc = config.nitrogenCycle;
   const ceiling = calculateMaxBacteria(r.surface, nc);
   if (r.water <= 0 || ceiling <= 0) return null;
+  const inoculum = calculateInoculum(
+    state.equipment.substrate.type,
+    state.tank.capacity,
+    nc
+  );
 
   const sources = wasteInflow(state, config).sources;
   const steadyInflow = sources
@@ -198,18 +206,18 @@ export function projectNitritePeak(
     waste -= mineralised.wasteConsumed;
     ammonia += mineralised.ammoniaProduced + gills;
 
-    const oxidised = calculateAmmoniaToNitrite(ammonia, aob, water, nc);
+    const oxidised = calculateAmmoniaToNitrite(ammonia, aob, nc);
     ammonia -= oxidised.ammoniaConsumed;
     nitrite += oxidised.nitriteProduced;
 
-    const cleared = calculateNitriteToNitrate(nitrite, nob, water, nc);
+    const cleared = calculateNitriteToNitrate(nitrite, nob, nc);
     nitrite -= cleared.nitriteConsumed;
 
     const ammoniaPpm = getPpm(ammonia, water);
     const nitritePpm = getPpm(nitrite, water);
 
-    if (aob === 0 && ammoniaPpm >= nc.aobSpawnThreshold) aob = nc.spawnAmount;
-    if (nob === 0 && nitritePpm >= nc.nobSpawnThreshold) nob = nc.spawnAmount;
+    if (aob === 0 && ammoniaPpm >= nc.aobSpawnThreshold) aob = inoculum;
+    if (nob === 0 && nitritePpm >= nc.nobSpawnThreshold) nob = inoculum;
 
     const aobFlows = calculateColonyFlows(
       aob,
@@ -261,9 +269,9 @@ export function bacteriaSummary(
     return `Uncycled. Ammonia has to reach ${config.aobSpawnThreshold} ppm before AOB colonise, and nitrite follows them.${peakClause(projection)}`;
   }
 
-  const gap = Math.round(aob.pct - nob.pct);
-  if (gap >= 1 && rates.netNitrite > 0) {
-    return `NOB trail AOB by ${gap} pp — nitrite accumulates until the colony catches up.${peakClause(projection)}`;
+  if (nob.count < aob.count && rates.netNitrite > 0) {
+    const behind = Math.round((1 - nob.count / aob.count) * 100);
+    return `NOB trail AOB by ${behind} % — nitrite accumulates until the colony catches up.${peakClause(projection)}`;
   }
 
   if (aob.pct >= MATURE_PCT && nob.pct >= MATURE_PCT) {
