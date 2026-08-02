@@ -224,6 +224,23 @@ describe('filter readings', () => {
     }
   });
 
+  it('leaves a tank sitting exactly on a tolerance alone, however the division rounds', () => {
+    const { maxTurnover } = FISH_SPECIES_DATA.guppy;
+    const tank = createSimulation({ tankCapacity: 300, filter: { enabled: true, type: 'sump' } });
+    const stocked = applyAction(tank, { type: 'addFish', species: 'guppy' }).state;
+
+    // Water volumes where `flow / water` lands a hair over the tolerance
+    // rather than on it — an ordinary artefact of evaporating in litres.
+    for (const water of [200.4, 200.9, 201.4]) {
+      const flow = maxTurnover * water;
+      expect(flow / water).not.toBe(maxTurnover);
+
+      expect(
+        hint('filter', { ...stocked, resources: { ...stocked.resources, flow, water } })
+      ).toBeNull();
+    }
+  });
+
   it('reads the current against the water left, not the tank it was filled to', () => {
     const brisk = createSimulation({ tankCapacity: 40, filter: { enabled: true, type: 'canister' } });
     const stocked = applyAction(brisk, { type: 'addFish', species: 'neon_tetra' }).state;
