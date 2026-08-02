@@ -347,9 +347,6 @@ export function deviceHint(
       if (!equipment.filter.enabled) {
         return muted('No biological filtration while the filter is off.');
       }
-      // A powerhead, when there is one, is the device that speaks for the
-      // current — but a filter over its rating can still be too brisk for
-      // the roster, and being harmed outranks being under-filtered.
       const current = equipment.powerhead.enabled ? null : tooMuchCurrent(state);
       const spec = FILTER_SPECS[equipment.filter.type];
       if (tank.capacity > spec.maxCapacityLiters) {
