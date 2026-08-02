@@ -19,7 +19,8 @@ Waste is an abstract resource representing organic matter that feeds the nitroge
 
 | Source | Trigger |
 |--------|---------|
-| Decay System | Processes uneaten food, ambient waste |
+| Decay System | Processes uneaten food |
+| Substrate Leaching | The bed releases its organic reserve (see 3-EQUIPMENT.md) |
 | Fish Metabolism | Fish directly produce waste (see 7-LIVESTOCK.md) |
 | Plant Overgrowth | Plants past 200% size release waste (decaying leaves) |
 
@@ -28,7 +29,7 @@ Waste is an abstract resource representing organic matter that feeds the nitroge
 Waste accumulates in the tank from all sources and is consumed by the nitrogen cycle (converted to ammonia).
 
 ```
-tank.waste += decay_output + fish_waste + plant_decay
+tank.waste += decay_output + substrate_leach + fish_waste + plant_decay
 ```
 
 ---
@@ -41,7 +42,6 @@ Aerobic decomposition of organic matter, producing waste, phosphate, and affecti
 | Resource | Source |
 |----------|--------|
 | Food | Uneaten fish food |
-| Ambient Waste | Environment (constant, very low - seeds bacteria) |
 | Oxygen | Consumed by bacterial respiration |
 
 ### Outputs
@@ -154,18 +154,30 @@ Nitrite → Nitrate (via Nitrite-Oxidizing Bacteria)
 ### Bacterial Dynamics
 
 **Growth:**
-- Bacteria grow to fill available surface area
-- Growth rate depends on food supply (ammonia for AOB, nitrite for NOB)
+- Proportional to `utilization` — the share of its processing capacity the colony used this tick
+- Full `growth_rate` only on non-limiting substrate; nothing to oxidise means no growth
 - Maximum population limited by surface area
 
 **Death:**
-- Bacteria die if insufficient waste to sustain them
+- Unconditional maintenance loss, so a cut-off colony fades over weeks rather than collapsing
 - Population immediately reduced if surface area decreases (e.g., filter cleaning)
 
 ```
-bacterial_growth = growth_rate * food_availability * (1 - population/max_population)
-bacterial_death = death_rate * (1 - food_availability)
+utilization      = substrate_consumed / processing_capacity   # 0..1
+bacterial_growth = population * growth_rate * utilization * (1 - population/max_population)
+bacterial_death  = population * death_rate
 ```
+
+`utilization` is dimensionless, and processing capacity carries the tank's
+litres, so per-capita growth is the same in a nano and in a 150 L.
+
+`growth_rate` is read off a saturated doubling time (`ln2 / hours`) and
+`death_rate` off a starvation half-life. A colony under a steady load settles
+where the two cancel — `utilization = death_rate / growth_rate` while the
+surface ceiling is far off, higher once the logistic term starts braking.
+
+`spawn_amount` is the third constant on this clock: everything between a seeded
+tank and a cycled one is doublings, so the inoculum sets how many there are.
 
 ### Surface Area Requirement
 

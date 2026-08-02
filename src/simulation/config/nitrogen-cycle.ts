@@ -15,18 +15,14 @@ export interface NitrogenCycleConfig {
   nobSpawnThreshold: number;
   /** Initial bacteria when spawning */
   spawnAmount: number;
-  /** AOB growth rate per tick */
+  /** AOB growth rate per tick at full utilization */
   aobGrowthRate: number;
-  /** NOB growth rate per tick */
+  /** NOB growth rate per tick at full utilization */
   nobGrowthRate: number;
   /** Max bacteria per cm² surface */
   bacteriaPerCm2: number;
-  /** Fraction of bacteria that die per tick without food */
+  /** Fraction of bacteria that die per tick */
   bacteriaDeathRate: number;
-  /** Min ammonia (ppm) to sustain AOB */
-  aobFoodThreshold: number;
-  /** Min nitrite (ppm) to sustain NOB */
-  nobFoodThreshold: number;
 }
 
 export const nitrogenCycleDefaults: NitrogenCycleConfig = {
@@ -46,39 +42,55 @@ export const nitrogenCycleDefaults: NitrogenCycleConfig = {
   // (cycle visible only after 10+ days in a fresh tank).
   aobSpawnThreshold: 0.5,
   nobSpawnThreshold: 0.5,
-  spawnAmount: 10,
-  // AOB establishes before NOB — Nitrospira succession (Hovanec & DeLong, 1996).
-  // Real-world AOB doubling time is 24–72 hr in fresh aquaria;
-  // 0.02/hr ≈ 35 h doubling, 0.015/hr ≈ 46 h. Slower than previous
-  // 0.04/0.03 to match 2–4 week cycling timelines rather than 5-day.
-  aobGrowthRate: 0.02,
-  nobGrowthRate: 0.015,
+  // What drifts in from the air and the tap: everything after this is
+  // doublings, so the inoculum sets the clock. Derived from the cycling
+  // timeline rather than from a cell count — the only value that lands the
+  // nitrite peak on day 12–16 and a cycled tank on day 21–28 at both 20 L
+  // and 150 L.
+  //
+  // Measured by sweep, the window is 0.62–0.68 and no wider. Below it the
+  // peak clears 5 ppm; above it a 150 L cycles before day 21 — at 0.70 it
+  // lands on day 20.96. The value below is the last one that passes, so
+  // there is no headroom upward at all. Peak height and peak day are not
+  // separate knobs: the bed's nitrogen budget is fixed, so every day the
+  // peak is delayed is another day of it standing as nitrite.
+  spawnAmount: 0.68,
+  // Growth is per-capita at *full* utilization, so each rate is read straight
+  // off a saturated doubling time: rate = ln2 / hours. AOB double in 15–24 h
+  // under non-limiting ammonia, NOB in 24–48 h; the midpoints below keep the
+  // AOB-before-NOB succession (Hovanec & DeLong, 1996) that makes nitrite
+  // peak after ammonia rather than alongside it.
+  aobGrowthRate: Math.LN2 / 20,
+  nobGrowthRate: Math.LN2 / 36,
   bacteriaPerCm2: 0.01,
-  bacteriaDeathRate: 0.02,
-  aobFoodThreshold: 0.001,
-  nobFoodThreshold: 0.001,
+  // Maintenance loss, not starvation: a colony cut off from ammonia fades over
+  // weeks, which is why a tank survives a holiday. ln2 / (3 weeks) — a 21-day
+  // half-life. A colony settles where g·u·(1 − p/K) = d, which is
+  // deathRate / growthRate of capacity (4 % AOB, 7 % NOB) only while the
+  // ceiling is far off; at the `bacteriaPerCm2` this engine ships, an ordinary
+  // load parks a colony at 50–90 % of K and the logistic term stops it first.
+  bacteriaDeathRate: Math.LN2 / (21 * 24),
 };
 
 export interface NitrogenCycleConfigMeta {
   key: keyof NitrogenCycleConfig;
   label: string;
   unit: string;
-  min: number;
-  max: number;
   step: number;
 }
 
+// `step` is the debug panel's spinner increment. The rates above are derived
+// from doubling times, so no decimal grid contains them: each step is fine
+// enough that a click nudges its value instead of snapping it to a round one.
 export const nitrogenCycleConfigMeta: NitrogenCycleConfigMeta[] = [
-  { key: 'wasteConversionRate', label: 'Waste Conversion Rate', unit: '/tick', min: 0.1, max: 0.9, step: 0.05 },
-  { key: 'wasteToAmmoniaRatio', label: 'Waste to Ammonia Ratio', unit: 'mg/g', min: 10, max: 200, step: 5 },
-  { key: 'bacteriaProcessingRate', label: 'Bacteria Processing Rate', unit: 'ppm/unit', min: 0.00005, max: 0.001, step: 0.00005 },
-  { key: 'aobSpawnThreshold', label: 'AOB Spawn Threshold', unit: 'ppm', min: 0.005, max: 0.1, step: 0.005 },
-  { key: 'nobSpawnThreshold', label: 'NOB Spawn Threshold', unit: 'ppm', min: 0.05, max: 0.5, step: 0.025 },
-  { key: 'spawnAmount', label: 'Spawn Amount', unit: '', min: 1, max: 50, step: 1 },
-  { key: 'aobGrowthRate', label: 'AOB Growth Rate', unit: '/tick', min: 0.01, max: 0.1, step: 0.01 },
-  { key: 'nobGrowthRate', label: 'NOB Growth Rate', unit: '/tick', min: 0.01, max: 0.15, step: 0.01 },
-  { key: 'bacteriaPerCm2', label: 'Max Bacteria per cm²', unit: '/cm²', min: 0.001, max: 0.1, step: 0.001 },
-  { key: 'bacteriaDeathRate', label: 'Bacteria Death Rate', unit: '/tick', min: 0.005, max: 0.1, step: 0.005 },
-  { key: 'aobFoodThreshold', label: 'AOB Food Threshold', unit: 'ppm', min: 0.0001, max: 0.01, step: 0.0001 },
-  { key: 'nobFoodThreshold', label: 'NOB Food Threshold', unit: 'ppm', min: 0.0001, max: 0.01, step: 0.0001 },
+  { key: 'wasteConversionRate', label: 'Waste Conversion Rate', unit: '/tick', step: 0.05 },
+  { key: 'wasteToAmmoniaRatio', label: 'Waste to Ammonia Ratio', unit: 'mg/g', step: 5 },
+  { key: 'bacteriaProcessingRate', label: 'Bacteria Processing Rate', unit: 'ppm/unit', step: 0.00005 },
+  { key: 'aobSpawnThreshold', label: 'AOB Spawn Threshold', unit: 'ppm', step: 0.005 },
+  { key: 'nobSpawnThreshold', label: 'NOB Spawn Threshold', unit: 'ppm', step: 0.025 },
+  { key: 'spawnAmount', label: 'Spawn Amount', unit: '', step: 0.01 },
+  { key: 'aobGrowthRate', label: 'AOB Growth Rate', unit: '/tick', step: 0.0001 },
+  { key: 'nobGrowthRate', label: 'NOB Growth Rate', unit: '/tick', step: 0.0001 },
+  { key: 'bacteriaPerCm2', label: 'Max Bacteria per cm²', unit: '/cm²', step: 0.001 },
+  { key: 'bacteriaDeathRate', label: 'Bacteria Death Rate', unit: '/tick', step: 0.00001 },
 ];

@@ -198,6 +198,7 @@ describe('DEFAULT_SUBSTRATE', () => {
   it('has expected default values', () => {
     expect(DEFAULT_SUBSTRATE).toEqual({
       type: 'none',
+      organicReserve: 0,
     });
   });
 });

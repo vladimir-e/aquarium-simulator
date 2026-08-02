@@ -9,7 +9,11 @@ import { DEFAULT_FILTER, getFilterSurface, getFilterFlow } from './equipment/fil
 import type { PowerheadFlowRate, Powerhead } from './equipment/powerhead.js';
 import { DEFAULT_POWERHEAD, getPowerheadFlow } from './equipment/powerhead.js';
 import type { SubstrateType, Substrate } from './equipment/substrate.js';
-import { DEFAULT_SUBSTRATE, getSubstrateSurface } from './equipment/substrate.js';
+import {
+  DEFAULT_SUBSTRATE,
+  getSubstrateSurface,
+  getSubstrateOrganicReserve,
+} from './equipment/substrate.js';
 import { calculateHardscapeTotalSurface } from './equipment/hardscape.js';
 import type { Light, LightWattage } from './equipment/light.js';
 import { DEFAULT_LIGHT } from './equipment/light.js';
@@ -720,7 +724,7 @@ export interface SimulationConfig {
   /** Initial powerhead configuration */
   powerhead?: Partial<Powerhead>;
   /** Initial substrate configuration */
-  substrate?: Partial<Substrate>;
+  substrate?: Pick<Substrate, 'type'>;
   /** Initial hardscape configuration */
   hardscape?: Partial<Hardscape>;
   /** Initial light configuration */
@@ -848,9 +852,10 @@ export function createSimulation(config: SimulationConfig): SimulationState {
     ...powerhead,
   };
 
+  const substrateType = substrate?.type ?? DEFAULT_SUBSTRATE.type;
   const substrateConfig: Substrate = {
-    ...DEFAULT_SUBSTRATE,
-    ...substrate,
+    type: substrateType,
+    organicReserve: getSubstrateOrganicReserve(substrateType, tankCapacity),
   };
 
   const hardscapeConfig: Hardscape = {

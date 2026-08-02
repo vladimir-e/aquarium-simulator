@@ -147,6 +147,32 @@ describe('useSimulation', () => {
     expect(result.current.state.tick).toBe(0); // Should reset
   });
 
+  it('swapping the substrate lays a fresh bed with a full organic reserve', () => {
+    // The planted preset starts on aqua soil.
+    const { result } = renderHook(() => useSimulation(), { wrapper });
+
+    const fresh = result.current.state.equipment.substrate.organicReserve;
+    expect(fresh).toBeGreaterThan(0);
+
+    act(() => {
+      for (let day = 0; day < 14; day++) result.current.step();
+    });
+    const spent = result.current.state.equipment.substrate.organicReserve;
+    expect(spent).toBeLessThan(fresh);
+
+    // Re-selecting the bed already in the tank is not a rescape.
+    act(() => {
+      result.current.updateSubstrateType('aqua_soil');
+    });
+    expect(result.current.state.equipment.substrate.organicReserve).toBe(spent);
+
+    act(() => {
+      result.current.updateSubstrateType('gravel');
+      result.current.updateSubstrateType('aqua_soil');
+    });
+    expect(result.current.state.equipment.substrate.organicReserve).toBe(fresh);
+  });
+
   it('heater controls update simulation state', () => {
     // Use betta preset which has heater enabled
     const { result } = renderHook(() => useSimulation('betta'), { wrapper });

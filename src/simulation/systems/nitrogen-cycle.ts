@@ -92,17 +92,35 @@ export function calculateMaxBacteria(
 }
 
 /**
- * Calculate bacterial growth using logistic formula.
- * Growth slows as population approaches carrying capacity.
+ * A colony's two flows for one tick: growth and maintenance decay.
+ *
+ * Growth is the logistic form scaled by `utilization` — the share of its
+ * processing capacity the colony actually used this tick.
+ *
+ * Utilization is dimensionless (consumed / capacity) and that is load-bearing:
+ * capacity carries the tank's litres, so the ratio cancels them and per-capita
+ * growth is the same in a nano and in a 150 L.
+ *
+ * Decay is unconditional. Bacteria do not starve to death the moment a meal
+ * ends — they fade over weeks, which is why a tank survives a holiday.
  */
-export function calculateBacterialGrowth(
+export function calculateColonyFlows(
   population: number,
+  utilization: number,
   growthRate: number,
+  deathRate: number,
   maxPopulation: number
-): number {
-  if (population <= 0 || maxPopulation <= 0) return 0;
-  // Logistic growth: growth = population * rate * (1 - population/max)
-  return population * growthRate * (1 - population / maxPopulation);
+): { growth: number; death: number } {
+  if (population <= 0) return { growth: 0, death: 0 };
+
+  const death = population * deathRate;
+  if (maxPopulation <= 0) return { growth: 0, death };
+
+  const logistic = population * growthRate * utilization * (1 - population / maxPopulation);
+  return {
+    growth: Math.max(0, Math.min(population + logistic, maxPopulation) - population),
+    death,
+  };
 }
 
 /**
@@ -136,16 +154,16 @@ export function calculateWasteToAmmonia(
  * @param ammoniaMass - Current ammonia mass in mg
  * @param aobPopulation - AOB bacteria population
  * @param waterVolume - Water volume in liters (needed to calculate processing capacity)
- * @returns mg of ammonia consumed and mg of nitrite produced
+ * @returns mg consumed, mg of nitrite produced, and the fraction of capacity used
  */
 export function calculateAmmoniaToNitrite(
   ammoniaMass: number,
   aobPopulation: number,
   waterVolume: number,
   config: NitrogenCycleConfig = nitrogenCycleDefaults
-): { ammoniaConsumed: number; nitriteProduced: number } {
+): { ammoniaConsumed: number; nitriteProduced: number; utilization: number } {
   if (ammoniaMass <= 0 || aobPopulation <= 0 || waterVolume <= 0) {
-    return { ammoniaConsumed: 0, nitriteProduced: 0 };
+    return { ammoniaConsumed: 0, nitriteProduced: 0, utilization: 0 };
   }
   // Processing rate is defined per ppm, multiply by water to get mass capacity
   const canProcessMass = aobPopulation * config.bacteriaProcessingRate * waterVolume;
@@ -153,6 +171,7 @@ export function calculateAmmoniaToNitrite(
   return {
     ammoniaConsumed,
     nitriteProduced: ammoniaConsumed * NH3_TO_NO2_MASS_RATIO,
+    utilization: canProcessMass > 0 ? ammoniaConsumed / canProcessMass : 0,
   };
 }
 
@@ -170,16 +189,16 @@ export function calculateAmmoniaToNitrite(
  * @param nitriteMass - Current nitrite mass in mg
  * @param nobPopulation - NOB bacteria population
  * @param waterVolume - Water volume in liters (needed to calculate processing capacity)
- * @returns mg of nitrite consumed and mg of nitrate produced
+ * @returns mg consumed, mg of nitrate produced, and the fraction of capacity used
  */
 export function calculateNitriteToNitrate(
   nitriteMass: number,
   nobPopulation: number,
   waterVolume: number,
   config: NitrogenCycleConfig = nitrogenCycleDefaults
-): { nitriteConsumed: number; nitrateProduced: number } {
+): { nitriteConsumed: number; nitrateProduced: number; utilization: number } {
   if (nitriteMass <= 0 || nobPopulation <= 0 || waterVolume <= 0) {
-    return { nitriteConsumed: 0, nitrateProduced: 0 };
+    return { nitriteConsumed: 0, nitrateProduced: 0, utilization: 0 };
   }
   // Processing rate is defined per ppm, multiply by water to get mass capacity.
   // NOB runs at `rate × NOB_PROCESSING_RATE_MULTIPLIER` to match AOB's
@@ -193,12 +212,38 @@ export function calculateNitriteToNitrate(
   return {
     nitriteConsumed,
     nitrateProduced: nitriteConsumed * NO2_TO_NO3_MASS_RATIO,
+    utilization: canProcessMass > 0 ? nitriteConsumed / canProcessMass : 0,
   };
 }
 
 // ============================================================================
 // System Implementation
 // ============================================================================
+
+function colonyEffects(
+  resource: 'aob' | 'nob',
+  population: number,
+  utilization: number,
+  maxPopulation: number,
+  config: NitrogenCycleConfig
+): Effect[] {
+  const { growth, death } = calculateColonyFlows(
+    population,
+    utilization,
+    resource === 'aob' ? config.aobGrowthRate : config.nobGrowthRate,
+    config.bacteriaDeathRate,
+    maxPopulation
+  );
+
+  const effects: Effect[] = [];
+  if (growth > 0) {
+    effects.push({ tier: 'passive', resource, delta: growth, source: 'nitrogen-cycle-growth' });
+  }
+  if (death > 0) {
+    effects.push({ tier: 'passive', resource, delta: -death, source: 'nitrogen-cycle-death' });
+  }
+  return effects;
+}
 
 export const nitrogenCycleSystem: System = {
   id: 'nitrogen-cycle',
@@ -272,31 +317,23 @@ export const nitrogenCycleSystem: System = {
     // Processes ammonia mass (mg), produces nitrite mass (mg).
     // N-mass is conserved; compound mass grows by MW_NO2 / MW_NH3 ≈ 2.702.
     // ========================================================================
-    if (currentAob > 0 && currentAmmonia > 0) {
-      const { ammoniaConsumed, nitriteProduced } = calculateAmmoniaToNitrite(
-        currentAmmonia,
-        currentAob,
-        waterVolume,
-        ncConfig
-      );
+    const aobStage = calculateAmmoniaToNitrite(currentAmmonia, currentAob, waterVolume, ncConfig);
+    if (aobStage.ammoniaConsumed > 0) {
+      effects.push({
+        tier: 'passive',
+        resource: 'ammonia',
+        delta: -aobStage.ammoniaConsumed, // mg
+        source: 'nitrogen-cycle-aob',
+      });
+      currentAmmonia -= aobStage.ammoniaConsumed;
 
-      if (ammoniaConsumed > 0) {
-        effects.push({
-          tier: 'passive',
-          resource: 'ammonia',
-          delta: -ammoniaConsumed, // mg
-          source: 'nitrogen-cycle-aob',
-        });
-        currentAmmonia -= ammoniaConsumed;
-
-        effects.push({
-          tier: 'passive',
-          resource: 'nitrite',
-          delta: nitriteProduced, // mg, scaled by MW ratio
-          source: 'nitrogen-cycle-aob',
-        });
-        currentNitrite += nitriteProduced;
-      }
+      effects.push({
+        tier: 'passive',
+        resource: 'nitrite',
+        delta: aobStage.nitriteProduced, // mg, scaled by MW ratio
+        source: 'nitrogen-cycle-aob',
+      });
+      currentNitrite += aobStage.nitriteProduced;
     }
 
     // ========================================================================
@@ -304,30 +341,22 @@ export const nitrogenCycleSystem: System = {
     // Processes nitrite mass (mg), produces nitrate mass (mg).
     // N-mass is conserved; compound mass grows by MW_NO3 / MW_NO2 ≈ 1.348.
     // ========================================================================
-    if (currentNob > 0 && currentNitrite > 0) {
-      const { nitriteConsumed, nitrateProduced } = calculateNitriteToNitrate(
-        currentNitrite,
-        currentNob,
-        waterVolume,
-        ncConfig
-      );
+    const nobStage = calculateNitriteToNitrate(currentNitrite, currentNob, waterVolume, ncConfig);
+    if (nobStage.nitriteConsumed > 0) {
+      effects.push({
+        tier: 'passive',
+        resource: 'nitrite',
+        delta: -nobStage.nitriteConsumed, // mg
+        source: 'nitrogen-cycle-nob',
+      });
+      currentNitrite -= nobStage.nitriteConsumed;
 
-      if (nitriteConsumed > 0) {
-        effects.push({
-          tier: 'passive',
-          resource: 'nitrite',
-          delta: -nitriteConsumed, // mg
-          source: 'nitrogen-cycle-nob',
-        });
-        currentNitrite -= nitriteConsumed;
-
-        effects.push({
-          tier: 'passive',
-          resource: 'nitrate',
-          delta: nitrateProduced, // mg, scaled by MW ratio
-          source: 'nitrogen-cycle-nob',
-        });
-      }
+      effects.push({
+        tier: 'passive',
+        resource: 'nitrate',
+        delta: nobStage.nitrateProduced, // mg, scaled by MW ratio
+        source: 'nitrogen-cycle-nob',
+      });
     }
 
     // ========================================================================
@@ -360,72 +389,12 @@ export const nitrogenCycleSystem: System = {
     }
 
     // ========================================================================
-    // Bacterial Dynamics: Growth (thresholds in ppm, derived from mass)
+    // Bacterial Dynamics: Growth and maintenance decay
     // ========================================================================
-    // AOB grows if ammonia available (check ppm threshold)
-    if (currentAob > 0 && ammoniaPpm >= ncConfig.aobFoodThreshold) {
-      const aobGrowth = calculateBacterialGrowth(currentAob, ncConfig.aobGrowthRate, maxBacteria);
-      if (aobGrowth > 0) {
-        const newAob = Math.min(currentAob + aobGrowth, maxBacteria);
-        const actualGrowth = newAob - currentAob;
-        if (actualGrowth > 0) {
-          effects.push({
-            tier: 'passive',
-            resource: 'aob',
-            delta: actualGrowth,
-            source: 'nitrogen-cycle-growth',
-          });
-          currentAob = newAob;
-        }
-      }
-    }
-
-    // NOB grows if nitrite available (check ppm threshold)
-    if (currentNob > 0 && nitritePpm >= ncConfig.nobFoodThreshold) {
-      const nobGrowth = calculateBacterialGrowth(currentNob, ncConfig.nobGrowthRate, maxBacteria);
-      if (nobGrowth > 0) {
-        const newNob = Math.min(currentNob + nobGrowth, maxBacteria);
-        const actualGrowth = newNob - currentNob;
-        if (actualGrowth > 0) {
-          effects.push({
-            tier: 'passive',
-            resource: 'nob',
-            delta: actualGrowth,
-            source: 'nitrogen-cycle-growth',
-          });
-          currentNob = newNob;
-        }
-      }
-    }
-
-    // ========================================================================
-    // Bacterial Dynamics: Death (thresholds in ppm, derived from mass)
-    // ========================================================================
-    // AOB dies if ammonia is scarce (check ppm threshold)
-    if (currentAob > 0 && ammoniaPpm < ncConfig.aobFoodThreshold) {
-      const aobDeath = currentAob * ncConfig.bacteriaDeathRate;
-      if (aobDeath > 0) {
-        effects.push({
-          tier: 'passive',
-          resource: 'aob',
-          delta: -aobDeath,
-          source: 'nitrogen-cycle-death',
-        });
-      }
-    }
-
-    // NOB dies if nitrite is scarce (check ppm threshold)
-    if (currentNob > 0 && nitritePpm < ncConfig.nobFoodThreshold) {
-      const nobDeath = currentNob * ncConfig.bacteriaDeathRate;
-      if (nobDeath > 0) {
-        effects.push({
-          tier: 'passive',
-          resource: 'nob',
-          delta: -nobDeath,
-          source: 'nitrogen-cycle-death',
-        });
-      }
-    }
+    effects.push(
+      ...colonyEffects('aob', currentAob, aobStage.utilization, maxBacteria, ncConfig),
+      ...colonyEffects('nob', currentNob, nobStage.utilization, maxBacteria, ncConfig)
+    );
 
     return effects;
   },

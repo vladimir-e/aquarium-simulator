@@ -6,13 +6,18 @@
 
 import {
   calculateAmmoniaToNitrite,
-  calculateBacterialGrowth,
+  calculateColonyFlows,
   calculateEvaporation,
   calculateMaxBacteria,
   calculateNitriteToNitrate,
   calculateWasteToAmmonia,
 } from '../../simulation/systems/index.js';
-import { processMetabolism, type Resources, type SimulationState } from '../../simulation/index.js';
+import {
+  calculateSubstrateLeach,
+  processMetabolism,
+  type Resources,
+  type SimulationState,
+} from '../../simulation/index.js';
 import { WATER_LEVEL_THRESHOLD } from '../../simulation/equipment/ato.js';
 import type { NitrogenCycleConfig, TunableConfig } from '../../simulation/config/index.js';
 import { getPpm } from '../../simulation/resources/index.js';
@@ -20,6 +25,13 @@ import { mineralisationBase, wasteInflow } from './waste.js';
 
 /** Below this colonisation percentage the biofilter cannot carry a bioload. */
 export const CYCLED_PCT = 25;
+
+/**
+ * Where a colony stops climbing. Decay is unconditional, so the fixed point is
+ * `1 − deathRate/growthRate` of the ceiling — 96 % for AOB, 93 % for NOB. A
+ * mature tank never reaches 100 %, and a threshold that asks for it never fires.
+ */
+const MATURE_PCT = 90;
 
 /** How far ahead the cycle projection will look before giving up, in ticks. */
 const PROJECTION_HORIZON = 24 * 180;
@@ -145,8 +157,8 @@ function nextVolume(water: number, state: SimulationState, config: TunableConfig
  *
  * Waste inflow, biofilm surface and temperature are held at today's values, so
  * this answers "if nothing else changes" — feeding more, adding fish or a water
- * change all move it. Evaporation is not one of those choices: it runs every
- * tick, concentrating everything, so the projection evaporates too.
+ * change all move it. Evaporation and substrate leaching are not choices: both
+ * run every tick whatever the keeper does, so the projection carries them.
  */
 export function projectNitritePeak(
   state: SimulationState,
@@ -158,9 +170,13 @@ export function projectNitritePeak(
   const ceiling = calculateMaxBacteria(r.surface, nc);
   if (r.water <= 0 || ceiling <= 0) return null;
 
-  const inflow = wasteInflow(state, config).perHour;
+  const sources = wasteInflow(state, config).sources;
+  const steadyInflow = sources
+    .filter((source) => source.key !== 'substrate')
+    .reduce((total, source) => total + source.gramsPerHour, 0);
   const gills = processMetabolism(state.fish, r.food, config.livestock).ammoniaProduced;
 
+  let reserve = state.equipment.substrate.organicReserve;
   let water = r.water;
   let waste = r.waste;
   let ammonia = r.ammonia;
@@ -173,7 +189,10 @@ export function projectNitritePeak(
 
   for (let hour = 1; hour <= horizon; hour++) {
     water = nextVolume(water, state, config);
-    waste += inflow;
+
+    const leached = calculateSubstrateLeach(reserve, config.decay);
+    reserve -= leached;
+    waste += steadyInflow + leached;
 
     const mineralised = calculateWasteToAmmonia(waste, nc);
     waste -= mineralised.wasteConsumed;
@@ -192,14 +211,22 @@ export function projectNitritePeak(
     if (aob === 0 && ammoniaPpm >= nc.aobSpawnThreshold) aob = nc.spawnAmount;
     if (nob === 0 && nitritePpm >= nc.nobSpawnThreshold) nob = nc.spawnAmount;
 
-    aob =
-      ammoniaPpm >= nc.aobFoodThreshold
-        ? Math.min(aob + calculateBacterialGrowth(aob, nc.aobGrowthRate, ceiling), ceiling)
-        : aob * (1 - nc.bacteriaDeathRate);
-    nob =
-      nitritePpm >= nc.nobFoodThreshold
-        ? Math.min(nob + calculateBacterialGrowth(nob, nc.nobGrowthRate, ceiling), ceiling)
-        : nob * (1 - nc.bacteriaDeathRate);
+    const aobFlows = calculateColonyFlows(
+      aob,
+      oxidised.utilization,
+      nc.aobGrowthRate,
+      nc.bacteriaDeathRate,
+      ceiling
+    );
+    const nobFlows = calculateColonyFlows(
+      nob,
+      cleared.utilization,
+      nc.nobGrowthRate,
+      nc.bacteriaDeathRate,
+      ceiling
+    );
+    aob += aobFlows.growth - aobFlows.death;
+    nob += nobFlows.growth - nobFlows.death;
 
     if (nitritePpm > peakPpm) {
       peakPpm = nitritePpm;
@@ -239,8 +266,8 @@ export function bacteriaSummary(
     return `NOB trail AOB by ${gap} pp — nitrite accumulates until the colony catches up.${peakClause(projection)}`;
   }
 
-  if (aob.pct >= 99 && nob.pct >= 99) {
-    return 'Both colonies sit at their ceiling — the biofilter processes everything this tank produces.';
+  if (aob.pct >= MATURE_PCT && nob.pct >= MATURE_PCT) {
+    return 'Both colonies are up against their ceiling — the biofilter processes everything this tank produces.';
   }
 
   if (rates.netNitrite <= 0) {

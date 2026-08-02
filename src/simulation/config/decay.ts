@@ -13,8 +13,8 @@ export interface DecayConfig {
   wasteConversionRatio: number;
   /** Gas exchange per gram of organic matter oxidized (mg per gram) */
   gasExchangePerGramDecay: number;
-  /** Background waste from environment (g/hr) - dust, debris, seeds bacteria */
-  ambientWaste: number;
+  /** Fraction of the substrate's remaining organic reserve released per hour */
+  substrateLeachRate: number;
 }
 
 export const decayDefaults: DecayConfig = {
@@ -23,13 +23,8 @@ export const decayDefaults: DecayConfig = {
   baseDecayRate: 0.05,
   wasteConversionRatio: 0.4,
   gasExchangePerGramDecay: 250,
-  // Background waste from dust, microfauna shedding, ambient organics.
-  // Prior value (0.01 g/hr) mineralized into ~14 mg NH3/day → ~52 mg NO3/day
-  // in a 38 L tank, which dominated the nitrogen budget in long-running
-  // planted scenarios (exposed by scenario 02). 0.001 g/hr (~ 1 mg NH3/day
-  // after mineralization) leaves room for the fish / dosing pathways to
-  // drive N dynamics while still seeding bacteria on day one.
-  ambientWaste: 0.001,
+  // ~10-day half-life, so a fresh bed is 98 % spent by week 8.
+  substrateLeachRate: 0.003,
 };
 
 export interface DecayConfigMeta {
@@ -47,5 +42,5 @@ export const decayConfigMeta: DecayConfigMeta[] = [
   { key: 'baseDecayRate', label: 'Base Decay Rate', unit: '/hr', min: 0.01, max: 0.2, step: 0.01 },
   { key: 'wasteConversionRatio', label: 'Waste Conversion Ratio', unit: '', min: 0.1, max: 0.9, step: 0.1 },
   { key: 'gasExchangePerGramDecay', label: 'CO2/O2 per Gram Decay', unit: 'mg/g', min: 50, max: 500, step: 10 },
-  { key: 'ambientWaste', label: 'Ambient Waste Rate', unit: 'g/hr', min: 0, max: 0.1, step: 0.005 },
+  { key: 'substrateLeachRate', label: 'Substrate Leach Rate', unit: '/hr', min: 0, max: 0.02, step: 0.0005 },
 ];

@@ -5,6 +5,7 @@
 import type { Effect } from '../core/effects.js';
 import type { SimulationState } from '../state.js';
 import { calculateTankGlassSurface } from '../state.js';
+import type { TunableConfig } from '../config/index.js';
 import {
   heaterUpdate,
   applyHeaterStateChange,
@@ -14,7 +15,18 @@ import {
 import { atoUpdate } from './ato.js';
 import { getFilterSurface, getFilterFlow, isFilterAirDriven, type FilterType, type Filter, type FilterSpec, DEFAULT_FILTER, FILTER_TYPES, FILTER_SURFACE, FILTER_SPECS, FILTER_AIR_DRIVEN } from './filter.js';
 import { getPowerheadFlow, type PowerheadFlowRate, type Powerhead, DEFAULT_POWERHEAD, POWERHEAD_FLOW_LPH, POWERHEAD_FLOW_RATES } from './powerhead.js';
-import { getSubstrateSurface, type SubstrateType, type Substrate, DEFAULT_SUBSTRATE, SUBSTRATE_SURFACE_PER_LITER } from './substrate.js';
+import {
+  getSubstrateSurface,
+  getSubstrateOrganicReserve,
+  replaceSubstrate,
+  calculateSubstrateLeach,
+  substrateUpdate,
+  type SubstrateType,
+  type Substrate,
+  DEFAULT_SUBSTRATE,
+  SUBSTRATE_SURFACE_PER_LITER,
+  SUBSTRATE_ORGANIC_PER_LITER,
+} from './substrate.js';
 import { calculateHardscapeTotalSurface } from './hardscape.js';
 import {
   co2GeneratorUpdate,
@@ -49,7 +61,18 @@ export { heaterUpdate, applyHeaterStateChange, calculateHeatingRate, HEATER_WATT
 export { atoUpdate };
 export { getFilterSurface, getFilterFlow, isFilterAirDriven, type FilterType, type Filter, type FilterSpec, DEFAULT_FILTER, FILTER_TYPES, FILTER_SURFACE, FILTER_SPECS, FILTER_AIR_DRIVEN };
 export { getPowerheadFlow, type PowerheadFlowRate, type Powerhead, DEFAULT_POWERHEAD, POWERHEAD_FLOW_LPH, POWERHEAD_FLOW_RATES };
-export { getSubstrateSurface, type SubstrateType, type Substrate, DEFAULT_SUBSTRATE, SUBSTRATE_SURFACE_PER_LITER };
+export {
+  getSubstrateSurface,
+  getSubstrateOrganicReserve,
+  replaceSubstrate,
+  calculateSubstrateLeach,
+  substrateUpdate,
+  type SubstrateType,
+  type Substrate,
+  DEFAULT_SUBSTRATE,
+  SUBSTRATE_SURFACE_PER_LITER,
+  SUBSTRATE_ORGANIC_PER_LITER,
+};
 export {
   co2GeneratorUpdate,
   applyCo2GeneratorStateChange,
@@ -82,12 +105,20 @@ export {
  * Collects effects from all equipment and applies equipment state changes.
  * Returns the updated state and collected effects.
  */
-export function processEquipment(state: SimulationState): {
+export function processEquipment(
+  state: SimulationState,
+  config: TunableConfig
+): {
   state: SimulationState;
   effects: Effect[];
 } {
   const effects: Effect[] = [];
   let updatedState = state;
+
+  // Process substrate leaching
+  const substrateResult = substrateUpdate(updatedState, config.decay);
+  effects.push(...substrateResult.effects);
+  updatedState = substrateResult.state;
 
   // Process heater
   const heaterResult = heaterUpdate(updatedState);

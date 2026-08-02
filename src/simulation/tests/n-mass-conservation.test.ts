@@ -38,7 +38,8 @@
  *     fish with steady light feeding they can keep up with.
  *   - Plant uptake. No plants added in any scenario.
  *   - Water change. No water-change actions applied.
- *   - Ambient waste. Disabled via config override.
+ *   - Substrate leaching. Every scenario runs bare-bottom, so the bed
+ *     holds no organic reserve and adds no N.
  *   - NH3 gas off-gassing. Not modeled in the engine → nothing to
  *     subtract.
  */
@@ -138,16 +139,8 @@ function totalNInPools(state: SimulationState, config: TunableConfig): number {
   return nInFood + nInWaste + nInAmmonia + nInNitrite + nInNitrate;
 }
 
-/** Config variant with ambient waste disabled — the default bookkeeping sink. */
-function noAmbientConfig(): TunableConfig {
-  return produce(DEFAULT_CONFIG, (draft) => {
-    draft.decay.ambientWaste = 0;
-  });
-}
-
 describe('N mass conservation (end-to-end)', () => {
   it('direct NH3 injection: conserved through NH3 → NO2 → NO3 chain', () => {
-    const config = noAmbientConfig();
     let state = createCycledTank(
       { tankCapacity: 150 },
       { nitratePpm: 0, aobFraction: 1.0, nobFraction: 1.0 }
@@ -158,21 +151,20 @@ describe('N mass conservation (end-to-end)', () => {
       draft.resources.ammonia = INJECTED_NH3_MG;
     });
 
-    const initialN = totalNInPools(state, config);
+    const initialN = totalNInPools(state, DEFAULT_CONFIG);
 
     for (let i = 0; i < 1000; i++) {
-      state = tick(state, config);
+      state = tick(state, DEFAULT_CONFIG);
     }
 
     expect(state.resources.ammonia).toBeLessThan(0.5);
     expect(state.resources.nitrite).toBeLessThan(0.5);
 
-    const finalN = totalNInPools(state, config);
+    const finalN = totalNInPools(state, DEFAULT_CONFIG);
     expect(Math.abs(finalN - initialN) / initialN).toBeLessThan(0.005);
   });
 
   it('direct waste injection: conserved through mineralization + chain', () => {
-    const config = noAmbientConfig();
     let state = createCycledTank(
       { tankCapacity: 150 },
       { nitratePpm: 0, aobFraction: 1.0, nobFraction: 1.0 }
@@ -183,15 +175,15 @@ describe('N mass conservation (end-to-end)', () => {
       draft.resources.waste = INJECTED_WASTE_G;
     });
 
-    const initialN = totalNInPools(state, config);
+    const initialN = totalNInPools(state, DEFAULT_CONFIG);
 
     for (let i = 0; i < 2000; i++) {
-      state = tick(state, config);
+      state = tick(state, DEFAULT_CONFIG);
     }
 
     expect(state.resources.waste).toBeLessThan(0.05);
 
-    const finalN = totalNInPools(state, config);
+    const finalN = totalNInPools(state, DEFAULT_CONFIG);
     expect(Math.abs(finalN - initialN) / initialN).toBeLessThan(0.005);
   });
 
@@ -209,7 +201,6 @@ describe('N mass conservation (end-to-end)', () => {
     // any food that decayed rather than was eaten) and the ceiling
     // (perfect conservation).
     const TICKS = 1000;
-    const config = noAmbientConfig();
     const DAILY_FEED = 0.03;
 
     let state = createCycledTank(
@@ -218,7 +209,7 @@ describe('N mass conservation (end-to-end)', () => {
     );
     state = addFish(state, 'neon_tetra', 5);
 
-    const initialN = totalNInPools(state, config);
+    const initialN = totalNInPools(state, DEFAULT_CONFIG);
     const fishMass = state.fish.reduce((sum, f) => sum + f.mass, 0);
     expect(fishMass).toBeGreaterThan(0);
 
@@ -229,11 +220,11 @@ describe('N mass conservation (end-to-end)', () => {
         state = applyAction(state, { type: 'feed', amount: DAILY_FEED }).state;
         totalFoodAdded += DAILY_FEED;
       }
-      state = tick(state, config);
+      state = tick(state, DEFAULT_CONFIG);
     }
 
-    const nFromFood = totalFoodAdded * config.livestock.foodNitrogenFraction;
-    const basalNH3PerTick = config.livestock.basalAmmoniaRate * fishMass;
+    const nFromFood = totalFoodAdded * DEFAULT_CONFIG.livestock.foodNitrogenFraction;
+    const basalNH3PerTick = DEFAULT_CONFIG.livestock.basalAmmoniaRate * fishMass;
     const nFromBasal = (basalNH3PerTick * TICKS * MW_N) / MW_NH3 / 1000;
 
     const nInjected = nFromFood + nFromBasal;
@@ -241,11 +232,11 @@ describe('N mass conservation (end-to-end)', () => {
 
     // Worst-case N loss: the entire food ration decayed (none eaten),
     // the oxidized fraction (1 - wasteConversionRatio) vanished.
-    const oxidizedFraction = 1 - config.decay.wasteConversionRatio;
+    const oxidizedFraction = 1 - DEFAULT_CONFIG.decay.wasteConversionRatio;
     const maxDecayLoss = nFromFood * oxidizedFraction;
     const nExpectedFloor = nExpectedCeiling - maxDecayLoss;
 
-    const nActual = totalNInPools(state, config);
+    const nActual = totalNInPools(state, DEFAULT_CONFIG);
 
     // N in pools should lie between the floor (full oxidation loss) and
     // the ceiling (perfect conservation), with a tiny slack for
@@ -271,7 +262,6 @@ describe('N mass conservation (end-to-end)', () => {
     // in from the default starting satiation of 70; above 50 there is
     // no hunger damage and basal NH3 alone drives the pools.
     const TICKS = 30;
-    const config = noAmbientConfig();
 
     let state = createCycledTank(
       { tankCapacity: 150 },
@@ -279,19 +269,19 @@ describe('N mass conservation (end-to-end)', () => {
     );
     state = addFish(state, 'guppy', 10);
 
-    const initialN = totalNInPools(state, config);
+    const initialN = totalNInPools(state, DEFAULT_CONFIG);
     const fishMass = state.fish.reduce((sum, f) => sum + f.mass, 0);
 
     for (let t = 1; t <= TICKS; t++) {
-      state = tick(state, config);
+      state = tick(state, DEFAULT_CONFIG);
     }
 
     expect(state.fish.length).toBe(10); // sanity — nobody starved
 
-    const basalNH3PerTick = config.livestock.basalAmmoniaRate * fishMass;
+    const basalNH3PerTick = DEFAULT_CONFIG.livestock.basalAmmoniaRate * fishMass;
     const nFromBasal = (basalNH3PerTick * TICKS * MW_N) / MW_NH3 / 1000;
     const nExpected = initialN + nFromBasal;
-    const nActual = totalNInPools(state, config);
+    const nActual = totalNInPools(state, DEFAULT_CONFIG);
 
     // Tight tolerance: no food pathway means no decay oxidation risk.
     const tolerance = 0.005 * nExpected;

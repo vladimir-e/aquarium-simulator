@@ -65,7 +65,7 @@ export function tick(
   newState = applyEffects(newState, immediateEffects, config);
 
   // Then equipment responds to the updated state
-  const equipmentResult = processEquipment(newState);
+  const equipmentResult = processEquipment(newState, config);
   newState = equipmentResult.state;
   newState = applyEffects(newState, equipmentResult.effects, config);
 

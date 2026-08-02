@@ -177,20 +177,40 @@ Bottom layer of the tank. Type affects which plants can be rooted.
 | Property | Description |
 |----------|-------------|
 | **Type** | None, Sand, Gravel, Aqua Soil |
+| **Organic Reserve** | Organic matter left in the bed (g), set from type × capacity when the tank is created |
 
 **Substrate Types:**
 
-| Type | Bacteria Surface | Plant Rooting | Can Vacuum |
-|------|------------------|---------------|------------|
-| None | 0 cm²/L | No | N/A |
-| Sand | 400 cm²/L | Yes (some plants) | No |
-| Gravel | 800 cm²/L | Yes | Yes |
-| Aqua Soil | 1,200 cm²/L | Yes (all plants) | Yes |
+| Type | Bacteria Surface | Organic Reserve | Plant Rooting | Can Vacuum |
+|------|------------------|-----------------|---------------|------------|
+| None | 0 cm²/L | 0 g/L | No | N/A |
+| Sand | 400 cm²/L | 0.011 g/L | Yes (some plants) | No |
+| Gravel | 800 cm²/L | 0.013 g/L | Yes | Yes |
+| Aqua Soil | 1,200 cm²/L | 0.050 g/L | Yes (all plants) | Yes |
 
 **Behavior:**
 - Bacteria surface area calculated assuming optimal amount for tank size
 - Plants requiring substrate check against type (sand or aqua soil)
 - Sand cannot be vacuumed (too fine)
+
+**Organic leaching:**
+
+Surface is the bacteria ceiling; the organic reserve is an ammonia source. They are separate quantities — a bed can be a good home for bacteria without feeding them.
+
+Each tick the bed releases `substrateLeachRate` (0.3 %/hr) of whatever reserve is left into the waste pool, where the nitrogen cycle mineralizes it like any other organic matter. Because both the reserve and the release are per-litre quantities, concentration is volume-independent — a 20 L and a 150 L tank cycle on the same timeline.
+
+The leach is a source and the bacteria are a sink; the source never asks about the sink. A cycled tank shows a small blip where an uncycled one shows the full ramp, because the colony consumes the leach — not because the leach is switched off.
+
+**Reserve lifecycle.** The reserve belongs to the bed currently in the tank and only ever falls while that bed stays put. A water change removes dissolved ammonia and leaves the bed alone. Changing the substrate *type* replaces the bed, so the reserve refills for the new type (to zero for `none`); re-selecting the type already in the tank is not a rescape and changes nothing. A rescape therefore starts a fresh ammonia ramp **and** costs the tank the biofilm surface the bed was providing — punishing, and exactly what pulling a substrate does to a real tank.
+
+The resulting behaviour, fishless and unfed:
+
+| Type | Crosses 0.5 ppm NH₃ | Ammonia delivered | Spent |
+|------|---------------------|-------------------|-------|
+| Aqua Soil | day 2–4 | ~3 ppm | ~8 weeks |
+| Gravel | ~2 weeks | ~0.8 ppm | ~8 weeks |
+| Sand | ~3 weeks | ~0.7 ppm | ~8 weeks |
+| None | never | 0 | — |
 
 ---
 

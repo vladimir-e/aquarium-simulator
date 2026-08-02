@@ -21,6 +21,11 @@ import type { TunableConfig } from '../../simulation/config/index.js';
  * Increment this when the structure changes in a breaking way.
  * On version mismatch, stored data is discarded.
  *
+ * v14: Substrate organic leaching. `Substrate` gains `organicReserve`
+ *      (grams of organic matter left in the bed) and `DecayConfig`
+ *      swaps `ambientWaste` for `substrateLeachRate`. Per project
+ *      policy this is a breaking save format change with no migration
+ *      shim — stored sessions are discarded on version mismatch.
  * v13: Two additions on the same version bump (unshipped, no migration):
  *      (a) every organism config gains a `surplusCap` knob (the
  *      saturation cap for the vitality surplus reserve buffer):
@@ -78,7 +83,7 @@ import type { TunableConfig } from '../../simulation/config/index.js';
  *     nutrient sufficiency) but its persisted shape is identical, so
  *     the bump is purely the new Fish field.
  */
-export const PERSISTENCE_VERSION = 13;
+export const PERSISTENCE_VERSION = 14;
 
 /**
  * Storage key for the unified persisted state.

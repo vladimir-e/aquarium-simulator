@@ -4,19 +4,22 @@ import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
 import {
   applyAction,
   calculateDecay,
+  calculateSubstrateLeach,
   createSimulation,
   getTemperatureFactor,
   type SimulationState,
 } from '../../simulation/index.js';
+import { fishlessTank } from '../../simulation/tests/tanks.js';
 
 const config = DEFAULT_CONFIG;
 
+/** Bare bottom: no substrate reserve, so nothing produces waste on its own. */
 function tank(): SimulationState {
   return createSimulation({ tankCapacity: 200 });
 }
 
 function stocked(): SimulationState {
-  let state = tank();
+  let state = fishlessTank('aqua_soil', { capacity: 200, ato: false });
   for (let i = 0; i < 6; i++) {
     state = applyAction(state, { type: 'addFish', species: 'neon_tetra' }).state;
   }
@@ -29,14 +32,19 @@ describe('wasteInflow', () => {
       'food',
       'fish',
       'plants',
-      'ambient',
+      'substrate',
     ]);
   });
 
-  it('is ambient-only on a tank with no food, fish or plants', () => {
-    const inflow = wasteInflow(tank(), config);
-    expect(inflow.perHour).toBeCloseTo(config.decay.ambientWaste, 10);
-    expect(inflow.sources.find((s) => s.key === 'ambient')?.share).toBe(1);
+  it('is substrate-only on a soil tank with no food, fish or plants', () => {
+    const state = fishlessTank('aqua_soil', { capacity: 200, ato: false });
+    const inflow = wasteInflow(state, config);
+    const leach = calculateSubstrateLeach(
+      state.equipment.substrate.organicReserve,
+      config.decay
+    );
+    expect(inflow.perHour).toBeCloseTo(leach, 10);
+    expect(inflow.sources.find((s) => s.key === 'substrate')?.share).toBe(1);
     expect(inflow.sources.find((s) => s.key === 'food')?.gramsPerHour).toBe(0);
   });
 
@@ -60,9 +68,7 @@ describe('wasteInflow', () => {
   });
 
   it('leaves every share at zero when nothing is produced', () => {
-    const state = tank();
-    const bare = { ...config, decay: { ...config.decay, ambientWaste: 0 } };
-    const inflow = wasteInflow(state, bare);
+    const inflow = wasteInflow(tank(), config);
     expect(inflow.perHour).toBe(0);
     expect(inflow.sources.every((s) => s.share === 0)).toBe(true);
   });
@@ -91,7 +97,7 @@ describe('wasteReadout', () => {
 
 describe('wasteSummary', () => {
   it('says where the pool settles, and which way it is heading', () => {
-    const state = tank();
+    const state = fishlessTank('aqua_soil', { capacity: 200, ato: false });
     state.resources.waste = 0;
     expect(wasteSummary(wasteReadout(state, config), config)).toContain('climbing to');
 
@@ -100,15 +106,14 @@ describe('wasteSummary', () => {
   });
 
   it('reads the settled mass as production over the mineralisation rate', () => {
-    const state = tank();
-    const readout = wasteReadout(state, config);
+    const readout = wasteReadout(fishlessTank('aqua_soil', { capacity: 200, ato: false }), config);
     const settled = readout.perHour / config.nitrogenCycle.wasteConversionRate;
     expect(wasteSummary(readout, config)).toContain(settled.toFixed(3));
   });
 
   it('says so plainly when nothing produces waste at all', () => {
-    const state = tank();
-    const bare = { ...config, decay: { ...config.decay, ambientWaste: 0 } };
-    expect(wasteSummary(wasteReadout(state, bare), bare)).toBe('Nothing is producing waste.');
+    expect(wasteSummary(wasteReadout(tank(), config), config)).toBe(
+      'Nothing is producing waste.'
+    );
   });
 });

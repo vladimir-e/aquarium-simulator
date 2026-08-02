@@ -50,6 +50,10 @@ export {
   FISH_SPECIES_DATA,
 } from './state.js';
 
+// Configuration
+export type { TunableConfig } from './config/index.js';
+export { DEFAULT_CONFIG } from './config/index.js';
+
 // Resources
 export type { ResourceDefinition, ResourceKey } from './resources/index.js';
 export {
@@ -135,10 +139,15 @@ export {
   POWERHEAD_FLOW_LPH,
   POWERHEAD_FLOW_RATES,
   getSubstrateSurface,
+  getSubstrateOrganicReserve,
+  replaceSubstrate,
+  calculateSubstrateLeach,
+  substrateUpdate,
   type SubstrateType,
   type Substrate,
   DEFAULT_SUBSTRATE,
   SUBSTRATE_SURFACE_PER_LITER,
+  SUBSTRATE_ORGANIC_PER_LITER,
   getAirPumpOutput,
   getAirPumpFlow,
   isAirPumpUndersized,

@@ -9,7 +9,7 @@ const TONE: Record<WasteSourceKey, string> = {
   food: 'bg-ink',
   fish: 'bg-ink-2',
   plants: 'bg-ink-3',
-  ambient: 'bg-hairline-2',
+  substrate: 'bg-hairline-2',
 };
 
 export function WasteCard({

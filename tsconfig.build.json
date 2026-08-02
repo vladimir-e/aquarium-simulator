@@ -10,6 +10,7 @@
     "dist-ui",
     "src/**/*.test.ts",
     "src/**/*.test.tsx",
+    "src/simulation/tests",
     "src/ui",
     "src/cli"
   ]
