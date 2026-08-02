@@ -136,6 +136,7 @@ export {
   POWERHEAD_FLOW_RATES,
   getSubstrateSurface,
   getSubstrateOrganicReserve,
+  replaceSubstrate,
   calculateSubstrateLeach,
   substrateUpdate,
   type SubstrateType,

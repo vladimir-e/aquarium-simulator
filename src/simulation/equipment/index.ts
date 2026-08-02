@@ -18,6 +18,7 @@ import { getPowerheadFlow, type PowerheadFlowRate, type Powerhead, DEFAULT_POWER
 import {
   getSubstrateSurface,
   getSubstrateOrganicReserve,
+  replaceSubstrate,
   calculateSubstrateLeach,
   substrateUpdate,
   type SubstrateType,
@@ -63,6 +64,7 @@ export { getPowerheadFlow, type PowerheadFlowRate, type Powerhead, DEFAULT_POWER
 export {
   getSubstrateSurface,
   getSubstrateOrganicReserve,
+  replaceSubstrate,
   calculateSubstrateLeach,
   substrateUpdate,
   type SubstrateType,

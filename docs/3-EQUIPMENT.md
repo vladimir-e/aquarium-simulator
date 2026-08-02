@@ -197,7 +197,11 @@ Bottom layer of the tank. Type affects which plants can be rooted.
 
 Surface is the bacteria ceiling; the organic reserve is an ammonia source. They are separate quantities — a bed can be a good home for bacteria without feeding them.
 
-Each tick the bed releases `substrateLeachRate` (0.3 %/hr) of whatever reserve is left into the waste pool, where the nitrogen cycle mineralizes it like any other organic matter. The reserve never refills: a water change removes dissolved ammonia but leaves the bed alone. Because both the reserve and the release are per-litre quantities, concentration is volume-independent — a 20 L and a 150 L tank cycle on the same timeline.
+Each tick the bed releases `substrateLeachRate` (0.3 %/hr) of whatever reserve is left into the waste pool, where the nitrogen cycle mineralizes it like any other organic matter. Because both the reserve and the release are per-litre quantities, concentration is volume-independent — a 20 L and a 150 L tank cycle on the same timeline.
+
+The leach is a source and the bacteria are a sink; the source never asks about the sink. A cycled tank shows a small blip where an uncycled one shows the full ramp, because the colony consumes the leach — not because the leach is switched off.
+
+**Reserve lifecycle.** The reserve belongs to the bed currently in the tank and only ever falls while that bed stays put. A water change removes dissolved ammonia and leaves the bed alone. Changing the substrate *type* replaces the bed, so the reserve refills for the new type (to zero for `none`); re-selecting the type already in the tank is not a rescape and changes nothing. A rescape therefore starts a fresh ammonia ramp **and** costs the tank the biofilm surface the bed was providing — punishing, and exactly what pulling a substrate does to a real tank.
 
 The resulting behaviour, fishless and unfed:
 

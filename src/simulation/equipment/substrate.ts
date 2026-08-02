@@ -63,6 +63,22 @@ export function getSubstrateOrganicReserve(type: SubstrateType, tankCapacity: nu
 }
 
 /**
+ * Swaps the bed for one of a different type, which is the only way a tank
+ * gets its organic reserve back: the new bag of soil is new material.
+ * Re-selecting the type already in the tank is not a rescape and changes
+ * nothing — returning the same substrate is what stops a reserve from
+ * being re-minted by toggling the setting.
+ */
+export function replaceSubstrate(
+  substrate: Substrate,
+  type: SubstrateType,
+  tankCapacity: number
+): Substrate {
+  if (type === substrate.type) return substrate;
+  return { type, organicReserve: getSubstrateOrganicReserve(type, tankCapacity) };
+}
+
+/**
  * Grams of organics the bed releases this tick — a fixed fraction of
  * what is left, so the source tapers as the bed is spent.
  */

@@ -4,9 +4,11 @@ import {
   calculateSubstrateLeach,
   getSubstrateOrganicReserve,
   getSubstrateSurface,
+  replaceSubstrate,
   substrateUpdate,
   SUBSTRATE_ORGANIC_PER_LITER,
   SUBSTRATE_SURFACE_PER_LITER,
+  type Substrate,
   type SubstrateType,
 } from './substrate.js';
 import { createSimulation, type SimulationState } from '../state.js';
@@ -69,6 +71,42 @@ describe('getSubstrateOrganicReserve', () => {
     const surfaceRatio = SUBSTRATE_SURFACE_PER_LITER.aqua_soil / SUBSTRATE_SURFACE_PER_LITER.gravel;
     const organicRatio = SUBSTRATE_ORGANIC_PER_LITER.aqua_soil / SUBSTRATE_ORGANIC_PER_LITER.gravel;
     expect(organicRatio).not.toBeCloseTo(surfaceRatio, 1);
+  });
+});
+
+describe('replaceSubstrate', () => {
+  const spent = { type: 'aqua_soil', organicReserve: 0.4 } as const;
+
+  it('returns the same bed when the type does not change', () => {
+    expect(replaceSubstrate(spent, 'aqua_soil', 100)).toBe(spent);
+  });
+
+  it('lays a full fresh reserve when the type changes', () => {
+    expect(replaceSubstrate(spent, 'gravel', 100)).toEqual({
+      type: 'gravel',
+      organicReserve: getSubstrateOrganicReserve('gravel', 100),
+    });
+  });
+
+  it('empties the reserve when the bed is taken out', () => {
+    expect(replaceSubstrate(spent, 'none', 100).organicReserve).toBe(0);
+  });
+
+  it('re-mints the same type only by way of another type', () => {
+    const stripped = replaceSubstrate(spent, 'none', 100);
+    const relaid = replaceSubstrate(stripped, 'aqua_soil', 100);
+
+    expect(relaid.organicReserve).toBe(getSubstrateOrganicReserve('aqua_soil', 100));
+    expect(relaid.organicReserve).toBeGreaterThan(spent.organicReserve);
+  });
+
+  it('cannot be used to top a bed up by re-selecting it', () => {
+    let substrate: Substrate = spent;
+    for (let attempt = 0; attempt < 10; attempt++) {
+      substrate = replaceSubstrate(substrate, 'aqua_soil', 100);
+    }
+
+    expect(substrate.organicReserve).toBe(spent.organicReserve);
   });
 });
 

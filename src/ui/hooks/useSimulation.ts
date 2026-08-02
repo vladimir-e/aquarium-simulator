@@ -6,7 +6,7 @@ import {
   applyAction,
   calculatePassiveResources,
   calculateHardscapeSlots,
-  getSubstrateOrganicReserve,
+  replaceSubstrate,
   getHardscapeName,
   formatSchedule,
   type SimulationState,
@@ -665,19 +665,16 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
   const updateSubstrateType = useCallback((type: SubstrateType) => {
     setState((current) =>
       produce(current, (draft) => {
-        const oldType = draft.equipment.substrate.type;
-        if (oldType !== type) {
+        const bed = draft.equipment.substrate;
+        const replaced = replaceSubstrate(bed, type, draft.tank.capacity);
+        if (replaced !== bed) {
           const log = createLog(
             draft.tick,
             'equipment',
             'info',
             `Substrate changed to ${type}`
           );
-          draft.equipment.substrate.type = type;
-          draft.equipment.substrate.organicReserve = getSubstrateOrganicReserve(
-            type,
-            draft.tank.capacity
-          );
+          draft.equipment.substrate = replaced;
           draft.logs.push(log);
           const passiveValues = calculatePassiveResources(draft);
           draft.resources.surface = passiveValues.surface;

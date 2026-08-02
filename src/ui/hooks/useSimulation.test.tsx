@@ -157,7 +157,14 @@ describe('useSimulation', () => {
     act(() => {
       for (let day = 0; day < 14; day++) result.current.step();
     });
-    expect(result.current.state.equipment.substrate.organicReserve).toBeLessThan(fresh);
+    const spent = result.current.state.equipment.substrate.organicReserve;
+    expect(spent).toBeLessThan(fresh);
+
+    // Re-selecting the bed already in the tank is not a rescape.
+    act(() => {
+      result.current.updateSubstrateType('aqua_soil');
+    });
+    expect(result.current.state.equipment.substrate.organicReserve).toBe(spent);
 
     act(() => {
       result.current.updateSubstrateType('gravel');

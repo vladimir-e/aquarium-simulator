@@ -14,7 +14,12 @@ import { tick } from '../tick.js';
 import { applyAction } from '../actions/index.js';
 import { getPpm } from '../resources/helpers.js';
 import { DEFAULT_CONFIG } from '../config/index.js';
-import { getSubstrateOrganicReserve, type SubstrateType } from '../equipment/substrate.js';
+import {
+  getSubstrateOrganicReserve,
+  replaceSubstrate,
+  type SubstrateType,
+} from '../equipment/substrate.js';
+import { calculatePassiveResources } from '../equipment/index.js';
 import {
   NH3_TO_NO2_MASS_RATIO,
   NO2_TO_NO3_MASS_RATIO,
@@ -99,6 +104,20 @@ describe('substrate leaching', () => {
       expect(large).toBeCloseTo(small * 2, 12);
     });
 
+    it('never increases while the bed stays in place', () => {
+      for (const type of ['aqua_soil', 'gravel', 'sand', 'none'] as SubstrateType[]) {
+        let state = fishlessTank(type);
+        let previous = state.equipment.substrate.organicReserve;
+
+        for (let hour = 0; hour < 28 * DAY; hour++) {
+          state = tick(state, DEFAULT_CONFIG);
+          const reserve = state.equipment.substrate.organicReserve;
+          expect(reserve).toBeLessThanOrEqual(previous);
+          previous = reserve;
+        }
+      }
+    });
+
     it('never refills — a water change takes water, not soil', () => {
       let state = fishlessTank('aqua_soil');
       for (let hour = 0; hour < 10 * DAY; hour++) {
@@ -111,6 +130,67 @@ describe('substrate leaching', () => {
       expect(after.equipment.substrate.organicReserve).toBe(before);
       // What is already dissolved does leave with the water.
       expect(after.resources.nitrate).toBeLessThan(state.resources.nitrate);
+    });
+  });
+
+  describe('a rescape', () => {
+    /** Pull the old bed out and lay `type` in its place, as the UI does. */
+    function rescape(state: SimulationState, type: SubstrateType): SimulationState {
+      return produce(state, (draft) => {
+        draft.equipment.substrate = replaceSubstrate(
+          draft.equipment.substrate,
+          type,
+          draft.tank.capacity
+        );
+        draft.resources.surface = calculatePassiveResources(draft).surface;
+      });
+    }
+
+    function runDown(): SimulationState {
+      let state = fishlessTank('aqua_soil');
+      for (let hour = 0; hour < 28 * DAY; hour++) {
+        state = tick(state, DEFAULT_CONFIG);
+      }
+      return state;
+    }
+
+    it('costs the tank its ammonia ramp only by way of a real swap', () => {
+      const spent = runDown();
+      const held = spent.equipment.substrate.organicReserve;
+
+      expect(rescape(spent, 'aqua_soil').equipment.substrate.organicReserve).toBe(held);
+
+      const relaid = rescape(rescape(spent, 'none'), 'aqua_soil');
+      expect(relaid.equipment.substrate.organicReserve).toBe(
+        getSubstrateOrganicReserve('aqua_soil', relaid.tank.capacity)
+      );
+    });
+
+    it('starts a fresh ammonia ramp the tank had stopped producing', () => {
+      const spent = runDown();
+      const before = trace(spent, 7 * DAY);
+      const after = trace(rescape(rescape(spent, 'none'), 'aqua_soil'), 7 * DAY);
+
+      expect(before.peakPpm).toBeLessThan(0.05);
+      expect(after.peakPpm).toBeGreaterThan(before.peakPpm * 10);
+    });
+
+    it('takes the biofilm with the bed, clipping a colony above the new ceiling', () => {
+      const seeded = produce(fishlessTank('aqua_soil'), (draft) => {
+        const ceiling = draft.resources.surface * DEFAULT_CONFIG.nitrogenCycle.bacteriaPerCm2;
+        draft.resources.aob = ceiling;
+        draft.resources.nob = ceiling;
+      });
+
+      const stripped = rescape(seeded, 'none');
+      const ceiling = stripped.resources.surface * DEFAULT_CONFIG.nitrogenCycle.bacteriaPerCm2;
+      expect(ceiling).toBeLessThan(
+        seeded.resources.surface * DEFAULT_CONFIG.nitrogenCycle.bacteriaPerCm2
+      );
+
+      const settled = tick(stripped, DEFAULT_CONFIG);
+      expect(settled.resources.aob).toBeLessThanOrEqual(ceiling);
+      expect(settled.resources.nob).toBeLessThanOrEqual(ceiling);
     });
   });
 
