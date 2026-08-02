@@ -33,11 +33,7 @@ export const SUBSTRATE_SURFACE_PER_LITER: Record<SubstrateType, number> = {
  * Organic matter a fresh bed holds per liter of tank (g/L).
  *
  * Distinct from `SUBSTRATE_SURFACE_PER_LITER`: surface is the colony
- * ceiling, this is the ammonia source. Aqua soil is packed with
- * mineralizing organics — the reason a fresh soil tank is unstockable
- * for weeks and the reason the dark-start method works. Gravel and sand
- * carry only what clings to them from the bag; a bare bottom has no
- * source at all, so an unfed bare tank never cycles.
+ * ceiling, this is the ammonia source.
  */
 export const SUBSTRATE_ORGANIC_PER_LITER: Record<SubstrateType, number> = {
   none: 0,
@@ -65,9 +61,10 @@ export function getSubstrateOrganicReserve(type: SubstrateType, tankCapacity: nu
 /**
  * Swaps the bed for one of a different type, which is the only way a tank
  * gets its organic reserve back: the new bag of soil is new material.
- * Re-selecting the type already in the tank is not a rescape and changes
- * nothing — returning the same substrate is what stops a reserve from
- * being re-minted by toggling the setting.
+ *
+ * Returns the *same object* when the type is unchanged, and callers depend
+ * on that identity: `useSimulation` decides whether a rescape happened —
+ * whether to log it and recalculate surface — by comparing references.
  */
 export function replaceSubstrate(
   substrate: Substrate,
@@ -96,8 +93,8 @@ export interface SubstrateUpdateResult {
 }
 
 /**
- * Draws this tick's leach out of the bed and into the waste pool, where
- * mineralization turns it into ammonia like any other organic matter.
+ * The leach lands in the waste pool, where mineralization turns it into
+ * ammonia like any other organic matter.
  */
 export function substrateUpdate(
   state: SimulationState,

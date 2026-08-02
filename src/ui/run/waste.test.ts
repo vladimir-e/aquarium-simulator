@@ -9,6 +9,7 @@ import {
   getTemperatureFactor,
   type SimulationState,
 } from '../../simulation/index.js';
+import { fishlessTank } from '../../simulation/tests/tanks.js';
 
 const config = DEFAULT_CONFIG;
 
@@ -17,12 +18,8 @@ function tank(): SimulationState {
   return createSimulation({ tankCapacity: 200 });
 }
 
-function soilTank(): SimulationState {
-  return createSimulation({ tankCapacity: 200, substrate: { type: 'aqua_soil' } });
-}
-
 function stocked(): SimulationState {
-  let state = soilTank();
+  let state = fishlessTank('aqua_soil', { capacity: 200, ato: false });
   for (let i = 0; i < 6; i++) {
     state = applyAction(state, { type: 'addFish', species: 'neon_tetra' }).state;
   }
@@ -40,7 +37,7 @@ describe('wasteInflow', () => {
   });
 
   it('is substrate-only on a soil tank with no food, fish or plants', () => {
-    const state = soilTank();
+    const state = fishlessTank('aqua_soil', { capacity: 200, ato: false });
     const inflow = wasteInflow(state, config);
     const leach = calculateSubstrateLeach(
       state.equipment.substrate.organicReserve,
@@ -81,7 +78,6 @@ describe('wasteReadout', () => {
   it('reports the pool’s only outflow alongside its inflow', () => {
     const state = tank();
     state.resources.waste = 3;
-    // Bare bottom, so mineralisation works on the standing pool alone.
     const readout = wasteReadout(state, config);
     expect(readout.standing).toBe(3);
     expect(readout.mineralised).toBeCloseTo(3 * config.nitrogenCycle.wasteConversionRate, 10);
@@ -101,7 +97,7 @@ describe('wasteReadout', () => {
 
 describe('wasteSummary', () => {
   it('says where the pool settles, and which way it is heading', () => {
-    const state = soilTank();
+    const state = fishlessTank('aqua_soil', { capacity: 200, ato: false });
     state.resources.waste = 0;
     expect(wasteSummary(wasteReadout(state, config), config)).toContain('climbing to');
 
@@ -110,7 +106,7 @@ describe('wasteSummary', () => {
   });
 
   it('reads the settled mass as production over the mineralisation rate', () => {
-    const readout = wasteReadout(soilTank(), config);
+    const readout = wasteReadout(fishlessTank('aqua_soil', { capacity: 200, ato: false }), config);
     const settled = readout.perHour / config.nitrogenCycle.wasteConversionRate;
     expect(wasteSummary(readout, config)).toContain(settled.toFixed(3));
   });

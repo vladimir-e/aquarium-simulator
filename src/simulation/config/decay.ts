@@ -23,9 +23,7 @@ export const decayDefaults: DecayConfig = {
   baseDecayRate: 0.05,
   wasteConversionRatio: 0.4,
   gasExchangePerGramDecay: 250,
-  // ~10-day half-life, so a fresh bed is 98 % spent by week 8 — the point
-  // where a soil tank stops driving its own ammonia and holds whatever
-  // its stock feeds it.
+  // ~10-day half-life, so a fresh bed is 98 % spent by week 8.
   substrateLeachRate: 0.003,
 };
 

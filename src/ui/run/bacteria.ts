@@ -26,6 +26,13 @@ import { mineralisationBase, wasteInflow } from './waste.js';
 /** Below this colonisation percentage the biofilter cannot carry a bioload. */
 export const CYCLED_PCT = 25;
 
+/**
+ * Where a colony stops climbing. Decay is unconditional, so the fixed point is
+ * `1 − deathRate/growthRate` of the ceiling — 96 % for AOB, 93 % for NOB. A
+ * mature tank never reaches 100 %, and a threshold that asks for it never fires.
+ */
+const MATURE_PCT = 90;
+
 /** How far ahead the cycle projection will look before giving up, in ticks. */
 const PROJECTION_HORIZON = 24 * 180;
 
@@ -259,8 +266,8 @@ export function bacteriaSummary(
     return `NOB trail AOB by ${gap} pp — nitrite accumulates until the colony catches up.${peakClause(projection)}`;
   }
 
-  if (aob.pct >= 99 && nob.pct >= 99) {
-    return 'Both colonies sit at their ceiling — the biofilter processes everything this tank produces.';
+  if (aob.pct >= MATURE_PCT && nob.pct >= MATURE_PCT) {
+    return 'Both colonies are up against their ceiling — the biofilter processes everything this tank produces.';
   }
 
   if (rates.netNitrite <= 0) {

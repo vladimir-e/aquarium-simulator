@@ -91,6 +91,17 @@ describe('calculateColonyFlows', () => {
     }
   });
 
+  it('gives no growth for a utilization below zero, and still takes its decay', () => {
+    const { growth, death } = flows(100, -1);
+
+    expect(growth).toBe(0);
+    expect(death).toBeCloseTo(100 * deathRate, 12);
+  });
+
+  it('holds the ceiling however far utilization overshoots one', () => {
+    expect(100 + flows(100, 1e6).growth).toBe(1000);
+  });
+
   it('loses the same fraction whatever the colony is eating', () => {
     for (const utilization of [0, 0.001, 0.5, 1]) {
       expect(flows(100, utilization).death).toBeCloseTo(100 * deathRate, 12);
@@ -146,6 +157,14 @@ describe('calculateAmmoniaToNitrite', () => {
     const result = calculateAmmoniaToNitrite(1.0, 100, 0);
     expect(result.ammoniaConsumed).toBe(0);
     expect(result.nitriteProduced).toBe(0);
+  });
+
+  it('reports no utilization when a tuned-down rate leaves no capacity at all', () => {
+    const noRate = { ...nitrogenCycleDefaults, bacteriaProcessingRate: 0 };
+    const result = calculateAmmoniaToNitrite(1.0, 100, 40, noRate);
+
+    expect(result.ammoniaConsumed).toBe(0);
+    expect(result.utilization).toBe(0);
   });
 
   it('processes based on bacteria population and water volume', () => {
@@ -222,6 +241,14 @@ describe('calculateNitriteToNitrate', () => {
     const result = calculateNitriteToNitrate(1.0, 100, 0);
     expect(result.nitriteConsumed).toBe(0);
     expect(result.nitrateProduced).toBe(0);
+  });
+
+  it('reports no utilization when a tuned-down rate leaves no capacity at all', () => {
+    const noRate = { ...nitrogenCycleDefaults, bacteriaProcessingRate: 0 };
+    const result = calculateNitriteToNitrate(1.0, 100, 40, noRate);
+
+    expect(result.nitriteConsumed).toBe(0);
+    expect(result.utilization).toBe(0);
   });
 
   it('processes based on bacteria population, water volume, and NOB multiplier', () => {

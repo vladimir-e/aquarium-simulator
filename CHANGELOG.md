@@ -11,8 +11,7 @@ Format: - **Feature name** (#PR) - One short sentence (under ~150 chars)
 
 ## Unreleased
 
-- **Bacteria colony dynamics** - growth scales with the load a colony actually processed and decay is a flat 21-day half-life; the food thresholds that killed a biofilter for clearing its ammonia are gone, and a realistic seeding inoculum puts cycling back on a three-week clock.
-- **Substrate organic leaching** - `decay.ambientWaste` is gone; the substrate now holds a finite per-litre organic reserve that leaches into the waste pool and tapers as it empties, so cycling timelines no longer scale with tank volume.
+- **Nitrogen cycle** - a fresh tank cycles in about three weeks at any volume, driven by organics leaching from the substrate; a biofilter no longer dies for keeping up with its ammonia.
 - **`formatDosePreview` removed from the public API** - breaking for consumers importing it from the package root; the dose preview was UI string formatting living in the engine, and the Flora section derives it now.
 - **Action previews include dissolved gases** - water changes now show what they do to O₂ and CO₂, not just temperature and pH.
 - **Actions sheet** - one transient surface for all six husbandry verbs: a card over the rail's foot, a master-detail drill-in on a phone, previewing each by applying the action and diffing the engine's own readings.

@@ -53,21 +53,6 @@ The Environment represents conditions in the room/house where the aquarium is lo
 - Mixed with existing tank water
 - Affects final tank pH based on volume ratios
 
-### Ambient Waste
-
-| Property | Description |
-|----------|-------------|
-| **Type** | Constant (float) |
-| **Unit** | Grams per tick |
-| **Value** | Very low (e.g., 0.001g/tick) |
-| **Role** | Seeds bacteria during fishless cycling |
-
-**Behavior:**
-- Constant, very low rate of organic matter entering tank
-- Primary purpose: allows bacteria to establish over time without fish
-- Simulates dust, airborne organic particles
-- Feeds into the Decay system → produces ammonia → feeds bacteria
-
 ### Ambient Oxygen
 
 | Property | Description |
@@ -91,7 +76,6 @@ The Environment represents conditions in the room/house where the aquarium is lo
 | Room Temperature | Gas exchange | Gas exchange core system |
 | Tap Water Temperature | Tank temperature | Water change/top-off/ATO |
 | Tap Water pH | Tank pH | Water change/top-off actions |
-| Ambient Waste | Tank waste | Decay core system |
 | Ambient Oxygen | Tank O2 | Gas exchange core system |
 
 ## Configuration

@@ -95,9 +95,7 @@ export function calculateMaxBacteria(
  * A colony's two flows for one tick: growth and maintenance decay.
  *
  * Growth is the logistic form scaled by `utilization` — the share of its
- * processing capacity the colony actually used this tick. A colony clearing a
- * heavy load grows at close to `growthRate`; one idling on a trickle barely
- * grows; one with nothing to eat does not grow at all.
+ * processing capacity the colony actually used this tick.
  *
  * Utilization is dimensionless (consumed / capacity) and that is load-bearing:
  * capacity carries the tank's litres, so the ratio cancels them and per-capita
@@ -173,7 +171,7 @@ export function calculateAmmoniaToNitrite(
   return {
     ammoniaConsumed,
     nitriteProduced: ammoniaConsumed * NH3_TO_NO2_MASS_RATIO,
-    utilization: ammoniaConsumed / canProcessMass,
+    utilization: canProcessMass > 0 ? ammoniaConsumed / canProcessMass : 0,
   };
 }
 
@@ -214,7 +212,7 @@ export function calculateNitriteToNitrate(
   return {
     nitriteConsumed,
     nitrateProduced: nitriteConsumed * NO2_TO_NO3_MASS_RATIO,
-    utilization: nitriteConsumed / canProcessMass,
+    utilization: canProcessMass > 0 ? nitriteConsumed / canProcessMass : 0,
   };
 }
 
@@ -392,9 +390,6 @@ export const nitrogenCycleSystem: System = {
 
     // ========================================================================
     // Bacterial Dynamics: Growth and maintenance decay
-    //
-    // Both flows are read off the population that did this tick's work, so
-    // neither is an artefact of the order they are applied in.
     // ========================================================================
     effects.push(
       ...colonyEffects('aob', currentAob, aobStage.utilization, maxBacteria, ncConfig),

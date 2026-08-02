@@ -265,7 +265,7 @@ Systems are registered in a central list and automatically invoked during their 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │                        ENVIRONMENT                               │
-│         (Room temp, Tap water pH, Ambient waste, O2)            │
+│              (Room temp, Tap water pH, O2)                      │
 └─────────────────────────────────────────────────────────────────┘
                               │
                               ▼

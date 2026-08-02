@@ -24,26 +24,11 @@ import {
   NH3_TO_NO2_MASS_RATIO,
   NO2_TO_NO3_MASS_RATIO,
 } from '../systems/nitrogen-cycle.js';
+import { fishlessTank } from './tanks.js';
 import type { SimulationState } from '../state.js';
 
 const DAY = 24;
 const SPAWN_THRESHOLD = DEFAULT_CONFIG.nitrogenCycle.aobSpawnThreshold;
-
-/**
- * A fishless, unfed, unplanted tank with the volume held steady.
- *
- * The ATO is on so evaporation doesn't quietly concentrate every reading:
- * over the two months these runs cover, an open tank loses most of its
- * water, and a rising ppm would then be a story about the water level
- * rather than about the bed.
- */
-function fishlessTank(substrate: SubstrateType, capacity = 20): SimulationState {
-  return createSimulation({
-    tankCapacity: capacity,
-    substrate: { type: substrate },
-    ato: { enabled: true },
-  });
-}
 
 interface Trace {
   /** Hour ammonia first reached the AOB spawn threshold, or null. */
@@ -98,8 +83,8 @@ describe('substrate leaching', () => {
     });
 
     it('doubles when tank capacity doubles', () => {
-      const small = fishlessTank('aqua_soil', 20).equipment.substrate.organicReserve;
-      const large = fishlessTank('aqua_soil', 40).equipment.substrate.organicReserve;
+      const small = fishlessTank('aqua_soil', { capacity: 20 }).equipment.substrate.organicReserve;
+      const large = fishlessTank('aqua_soil', { capacity: 40 }).equipment.substrate.organicReserve;
 
       expect(large).toBeCloseTo(small * 2, 12);
     });
@@ -234,8 +219,8 @@ describe('substrate leaching', () => {
 
   describe('volume independence', () => {
     it('holds the ammonia curve steady from 20 L to 150 L', () => {
-      const small = trace(fishlessTank('aqua_soil', 20), 28 * DAY);
-      const large = trace(fishlessTank('aqua_soil', 150), 28 * DAY);
+      const small = trace(fishlessTank('aqua_soil', { capacity: 20 }), 28 * DAY);
+      const large = trace(fishlessTank('aqua_soil', { capacity: 150 }), 28 * DAY);
 
       expect(small.spawnHour).not.toBeNull();
       expect(large.spawnHour).not.toBeNull();
@@ -258,12 +243,17 @@ describe('substrate leaching', () => {
 
       const cleared = (ppm: number[]): number =>
         ppm.findIndex((value, hour) => hour > peakHour && value < SPAWN_THRESHOLD);
-      expect(Math.abs(cleared(large.ppm) - cleared(small.ppm))).toBeLessThan(DAY);
+      const clearedSmall = cleared(small.ppm);
+      const clearedLarge = cleared(large.ppm);
+
+      expect(clearedSmall).toBeGreaterThan(peakHour);
+      expect(clearedLarge).toBeGreaterThan(peakHour);
+      expect(Math.abs(clearedLarge - clearedSmall)).toBeLessThan(DAY);
     });
 
     it('scales the reserve with capacity so concentration does not', () => {
-      const small = trace(fishlessTank('aqua_soil', 20), 14 * DAY);
-      const large = trace(fishlessTank('aqua_soil', 150), 14 * DAY);
+      const small = trace(fishlessTank('aqua_soil', { capacity: 20 }), 14 * DAY);
+      const large = trace(fishlessTank('aqua_soil', { capacity: 150 }), 14 * DAY);
 
       expect(large.leached / small.leached).toBeCloseTo(150 / 20, 1);
       expect(large.peakPpm).toBeCloseTo(small.peakPpm, 1);

@@ -5,7 +5,7 @@
 import type { Effect } from '../core/effects.js';
 import type { SimulationState } from '../state.js';
 import { calculateTankGlassSurface } from '../state.js';
-import { type TunableConfig, DEFAULT_CONFIG } from '../config/index.js';
+import type { TunableConfig } from '../config/index.js';
 import {
   heaterUpdate,
   applyHeaterStateChange,
@@ -107,7 +107,7 @@ export {
  */
 export function processEquipment(
   state: SimulationState,
-  config: TunableConfig = DEFAULT_CONFIG
+  config: TunableConfig
 ): {
   state: SimulationState;
   effects: Effect[];

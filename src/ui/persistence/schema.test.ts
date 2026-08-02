@@ -483,6 +483,11 @@ describe('PersistedStateSchema', () => {
     expect(PersistedStateSchema.safeParse(v12).success).toBe(false);
   });
 
+  it('rejects prior version 13 (breaking bump for substrate organic reserve)', () => {
+    const v13 = { ...validState, version: 13 };
+    expect(PersistedStateSchema.safeParse(v13).success).toBe(false);
+  });
+
   it('PERSISTENCE_VERSION is 14', () => {
     expect(PERSISTENCE_VERSION).toBe(14);
   });

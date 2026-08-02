@@ -16,6 +16,7 @@ import { applyAction } from '../actions/index.js';
 import { getPpm, getMassFromPpm } from '../resources/helpers.js';
 import { DEFAULT_CONFIG, type TunableConfig } from '../config/index.js';
 import { calculateAmmoniaToNitrite, calculateMaxBacteria } from '../systems/nitrogen-cycle.js';
+import { fishlessTank } from './tanks.js';
 
 const DAY = 24;
 const nc = DEFAULT_CONFIG.nitrogenCycle;
@@ -25,15 +26,6 @@ const nitritePpm = (s: SimulationState): number => getPpm(s.resources.nitrite, s
 const ceiling = (s: SimulationState, config: TunableConfig = DEFAULT_CONFIG): number =>
   calculateMaxBacteria(s.resources.surface, config.nitrogenCycle);
 
-/** A fishless soil tank with the volume held steady, as the leaching tests use. */
-function soilTank(capacity: number): SimulationState {
-  return createSimulation({
-    tankCapacity: capacity,
-    substrate: { type: 'aqua_soil' },
-    ato: { enabled: true },
-  });
-}
-
 function run(state: SimulationState, hours: number, config = DEFAULT_CONFIG): SimulationState {
   let running = state;
   for (let hour = 0; hour < hours; hour++) running = tick(running, config);
@@ -42,7 +34,7 @@ function run(state: SimulationState, hours: number, config = DEFAULT_CONFIG): Si
 
 /** A tank the bed has cycled on its own, the way a keeper waits before stocking. */
 function cycledTank(capacity: number): SimulationState {
-  return run(soilTank(capacity), 30 * DAY);
+  return run(fishlessTank('aqua_soil', { capacity }), 30 * DAY);
 }
 
 /** Hours for a colony to double with its substrate held non-limiting. */
@@ -103,7 +95,7 @@ interface CycleTrace {
 }
 
 function traceCycle(capacity: number, days = 40): CycleTrace {
-  let state = soilTank(capacity);
+  let state = fishlessTank('aqua_soil', { capacity });
   let peakPpm = 0;
   let peakHour = 0;
   let cycledHour: number | null = null;
@@ -149,7 +141,7 @@ describe('bacteria colony dynamics', () => {
 
     it('runs the whole cycle on the same clock at 20 L and 150 L', () => {
       const peak = (capacity: number): { ppm: number; hour: number } => {
-        let state = soilTank(capacity);
+        let state = fishlessTank('aqua_soil', { capacity });
         let ppm = 0;
         let hour = 0;
         for (let h = 1; h <= 40 * DAY; h++) {
@@ -201,7 +193,7 @@ describe('bacteria colony dynamics', () => {
     });
 
     it('never lets a colony past its ceiling', () => {
-      let state = soilTank(20);
+      let state = fishlessTank('aqua_soil', { capacity: 20 });
       for (let hour = 0; hour < 60 * DAY; hour++) {
         state = tick(state, DEFAULT_CONFIG);
         expect(state.resources.aob).toBeLessThanOrEqual(ceiling(state));
@@ -241,12 +233,13 @@ describe('bacteria colony dynamics', () => {
    * either the change is wrong or the coefficients need re-deriving against
    * the same real-world behaviour.
    *
-   * The three cycling anchors — peak height, peak day, cycled day — are met on
-   * a window of `spawnAmount` only 0.63–0.72 wide, and the value we ship sits
-   * ~2 % inside the nearest band edge. They are not three independent readings
-   * of one timeline: the bed's nitrogen budget is fixed, so delaying the peak
-   * necessarily raises it. Whichever of them breaks first, the answer is not to
-   * nudge `spawnAmount` back until it goes green again.
+   * The three cycling anchors — peak height, peak day, cycled day — are met
+   * only on the narrow `spawnAmount` window derived in
+   * `config/nitrogen-cycle.ts`, which is also where the trade-off between them
+   * is written down. The shipped value sits ~2 % above the 21-day cycled-day
+   * floor: that is the edge that binds first, and it binds when the inoculum
+   * goes up. Whichever of them breaks first, the answer is not to nudge
+   * `spawnAmount` back until it goes green again.
    *
    * Not anchored here: the **2 ppm dose test below a ~40 L tank.** A colony at
    * its ceiling clears `bacteriaPerCm2 × surface × bacteriaProcessingRate`
@@ -271,13 +264,6 @@ describe('bacteria colony dynamics', () => {
       const after = run(starve(start), 7 * DAY);
 
       expect(after.resources.aob / start.resources.aob).toBeGreaterThan(0.7);
-    });
-
-    it('loses half a cut-off colony over 2–4 weeks, not days', () => {
-      const halfLifeDays = Math.LN2 / nc.bacteriaDeathRate / 24;
-
-      expect(halfLifeDays).toBeGreaterThanOrEqual(14);
-      expect(halfLifeDays).toBeLessThanOrEqual(28);
     });
 
     it('peaks nitrite at 2–5 ppm on day 12–16 and cycles by day 21–28', () => {

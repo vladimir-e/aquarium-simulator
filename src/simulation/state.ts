@@ -724,7 +724,7 @@ export interface SimulationConfig {
   /** Initial powerhead configuration */
   powerhead?: Partial<Powerhead>;
   /** Initial substrate configuration */
-  substrate?: Partial<Substrate>;
+  substrate?: Pick<Substrate, 'type'>;
   /** Initial hardscape configuration */
   hardscape?: Partial<Hardscape>;
   /** Initial light configuration */
@@ -855,8 +855,7 @@ export function createSimulation(config: SimulationConfig): SimulationState {
   const substrateType = substrate?.type ?? DEFAULT_SUBSTRATE.type;
   const substrateConfig: Substrate = {
     type: substrateType,
-    organicReserve:
-      substrate?.organicReserve ?? getSubstrateOrganicReserve(substrateType, tankCapacity),
+    organicReserve: getSubstrateOrganicReserve(substrateType, tankCapacity),
   };
 
   const hardscapeConfig: Hardscape = {

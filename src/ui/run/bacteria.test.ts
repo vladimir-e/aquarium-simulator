@@ -15,6 +15,8 @@ import {
   type Resources,
   type SimulationState,
 } from '../../simulation/index.js';
+import { getMassFromPpm } from '../../simulation/resources/index.js';
+import { fishlessTank } from '../../simulation/tests/tanks.js';
 
 const config = DEFAULT_CONFIG;
 const perCm2 = nitrogenCycleDefaults.bacteriaPerCm2;
@@ -25,11 +27,6 @@ function resources(aob: number, nob: number, surface: number): Resources {
 
 function tank(): SimulationState {
   return createSimulation({ tankCapacity: 200 });
-}
-
-/** A fresh soil bed is the one thing that drives a cycle with nothing in the tank. */
-function soilTank(): SimulationState {
-  return createSimulation({ tankCapacity: 200, substrate: { type: 'aqua_soil' } });
 }
 
 function stocked(): SimulationState {
@@ -63,6 +60,25 @@ function cycled(hours: number): SimulationState {
   const base = stocked();
   const ceiling = base.resources.surface * perCm2;
   return run({ ...base, resources: { ...base.resources, aob: ceiling, nob: ceiling } }, hours);
+}
+
+/**
+ * A tank whose colonies have grown as full as the model lets them: 40 days of
+ * more ammonia every hour than they can clear parks AOB at 96 % of ceiling and
+ * NOB at 93 %, the fixed point where growth cancels unconditional decay. The
+ * dose is then withdrawn, so nothing is left standing for them to fall behind.
+ */
+function mature(): SimulationState {
+  const base = tank();
+  let state = { ...base, resources: { ...base.resources, aob: 1, nob: 1 } };
+  for (let hour = 1; hour <= 40 * 24; hour++) {
+    const { water, ammonia } = state.resources;
+    state = tick(
+      { ...state, resources: { ...state.resources, ammonia: ammonia + getMassFromPpm(2, water) } },
+      config
+    );
+  }
+  return { ...state, resources: { ...state.resources, ammonia: 0, nitrite: 0, waste: 0 } };
 }
 
 /** What the next tick actually does to nitrite, split into its two rates (ppm/h). */
@@ -196,7 +212,7 @@ describe('bacteriaReadout', () => {
 
 describe('projectNitritePeak', () => {
   it('finds the peak the engine reaches on a tank left to evaporate', () => {
-    const state = soilTank();
+    const state = fishlessTank('aqua_soil', { capacity: 200, ato: false });
     const projection = projectNitritePeak(state, config);
     const engine = enginePeak(state);
 
@@ -206,7 +222,7 @@ describe('projectNitritePeak', () => {
   });
 
   it('finds a lower peak once an ATO is holding the volume up', () => {
-    const state = soilTank();
+    const state = fishlessTank('aqua_soil', { capacity: 200, ato: false });
     state.equipment.ato.enabled = true;
     const projection = projectNitritePeak(state, config);
     const engine = enginePeak(state);
@@ -215,7 +231,7 @@ describe('projectNitritePeak', () => {
     expect(projection!.hours).toBeLessThanOrEqual(engine.hours + 2);
     expect(projection!.ppm).toBeCloseTo(engine.ppm, 2);
 
-    const evaporating = projectNitritePeak(soilTank(), config)!;
+    const evaporating = projectNitritePeak(fishlessTank('aqua_soil', { capacity: 200, ato: false }), config)!;
     expect(projection!.ppm).toBeLessThan(evaporating.ppm);
   });
 
@@ -278,12 +294,14 @@ describe('bacteriaSummary', () => {
     expect(summary).toContain('Nitrite peaks in');
   });
 
-  it('reports a biofilter that keeps up', () => {
-    const state = tank();
-    state.resources.aob = state.resources.surface * perCm2;
-    state.resources.nob = state.resources.surface * perCm2;
-    const summary = bacteriaSummary(bacteriaReadout(state, config), null, nc);
-    expect(summary).toContain('ceiling');
+  it('gives a fully grown biofilter its own line', () => {
+    const readout = bacteriaReadout(mature(), config);
+
+    // The line has to be reachable from a state the engine produces: decay is
+    // unconditional, so neither colony ever arrives at 100 % of its ceiling.
+    expect(readout.aob.pct).toBeLessThan(100);
+    expect(readout.nob.pct).toBeLessThan(100);
+    expect(bacteriaSummary(readout, null, nc)).toContain('up against their ceiling');
   });
 
   it('reports a colony still climbing toward its ceiling as clearing what it makes', () => {

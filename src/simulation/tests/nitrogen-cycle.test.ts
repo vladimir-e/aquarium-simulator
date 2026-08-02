@@ -58,11 +58,8 @@ describe('Nitrogen Cycle Integration', () => {
 
   describe('AOB bacteria grow and convert ammonia to nitrite', () => {
     it('AOB spawn when ammonia ppm reaches threshold, then convert ammonia to nitrite', () => {
-      // Soil bed, so the colony has a standing ammonia source to live on
-      // once the injected slug is gone.
       let state = createSimulation({ tankCapacity: 40, substrate: { type: 'aqua_soil' } });
 
-      // Inject ammonia above the AOB spawn threshold (0.02 ppm default)
       state = produce(state, (draft) => {
         draft.resources.ammonia = getMassFromPpm(2.0, 40); // 2 ppm = 80 mg
       });
@@ -267,7 +264,7 @@ describe('Nitrogen Cycle Integration', () => {
         state = tick(state);
       }
 
-      // AOB should have declined significantly (death from starvation)
+      // AOB should have declined significantly
       expect(state.resources.aob).toBeLessThan(aobBeforeStarvation);
     });
 
