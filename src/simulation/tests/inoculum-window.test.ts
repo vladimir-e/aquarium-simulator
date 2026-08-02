@@ -56,7 +56,11 @@ function breaks({ peakPpm, peakDay, cycledDay, dose24h }: Outcome): string[] {
   return failures;
 }
 
-describe('inoculumPerLiter — the window behind the shipped value', () => {
+// Each row of the grid is a full 70-day trace plus a 31-day dose challenge, so the
+// sweep costs ~50k ticks — seconds rather than milliseconds, and several times that
+// again under the v8 instrumentation `test:coverage` runs. Vitest's 5 s default is a
+// unit-test default; this is a calibration sweep and needs to be told so.
+describe('inoculumPerLiter — the window behind the shipped value', { timeout: 60_000 }, () => {
   it('holds every anchor at every volume, right across the stated window', () => {
     const rows = sweep(
       {
