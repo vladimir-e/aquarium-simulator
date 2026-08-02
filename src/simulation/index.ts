@@ -50,6 +50,10 @@ export {
   FISH_SPECIES_DATA,
 } from './state.js';
 
+// Configuration
+export type { TunableConfig } from './config/index.js';
+export { DEFAULT_CONFIG } from './config/index.js';
+
 // Resources
 export type { ResourceDefinition, ResourceKey } from './resources/index.js';
 export {

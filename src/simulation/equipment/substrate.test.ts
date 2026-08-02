@@ -135,6 +135,12 @@ describe('calculateSubstrateLeach', () => {
     expect(calculateSubstrateLeach(0, decayDefaults)).toBe(0);
     expect(calculateSubstrateLeach(-1, decayDefaults)).toBe(0);
   });
+
+  it('never releases more than the bed holds, whatever the rate is set to', () => {
+    for (const substrateLeachRate of [1, 2, 500]) {
+      expect(calculateSubstrateLeach(3, { ...decayDefaults, substrateLeachRate })).toBe(3);
+    }
+  });
 });
 
 describe('substrateUpdate', () => {
@@ -182,5 +188,18 @@ describe('substrateUpdate', () => {
     });
 
     expect(substrateUpdate(spent, decayDefaults).effects).toEqual([]);
+  });
+
+  it('cannot be driven past empty by a rate a debug session tuned above 1', () => {
+    const state = soilTank();
+    const held = state.equipment.substrate.organicReserve;
+    const { state: next, effects } = substrateUpdate(state, {
+      ...decayDefaults,
+      substrateLeachRate: 5,
+    });
+
+    expect(effects[0].delta).toBe(held);
+    expect(next.equipment.substrate.organicReserve).toBe(0);
+    expect(substrateUpdate(next, { ...decayDefaults, substrateLeachRate: 5 }).effects).toEqual([]);
   });
 });

@@ -77,14 +77,16 @@ export function replaceSubstrate(
 
 /**
  * Grams of organics the bed releases this tick — a fixed fraction of
- * what is left, so the source tapers as the bed is spent.
+ * what is left, so the source tapers as the bed is spent. Never more than
+ * the bed still holds: the rate is a tunable a debug session can push past
+ * 1, and a bed cannot release mass it does not have.
  */
 export function calculateSubstrateLeach(
   organicReserve: number,
   config: DecayConfig = decayDefaults
 ): number {
   if (organicReserve <= 0) return 0;
-  return organicReserve * config.substrateLeachRate;
+  return Math.min(organicReserve, organicReserve * config.substrateLeachRate);
 }
 
 export interface SubstrateUpdateResult {

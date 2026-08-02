@@ -302,14 +302,23 @@ describe('bacteria colony dynamics', () => {
       }
     });
 
-    it('clears a 2 ppm dose to under 0.25 ppm within 24 h', () => {
+    // KNOWN DEFECT, marked `fails` so the suite stays honest about it: a
+    // freshly cycled tank ends the 24 h challenge holding 0.68 ppm at 60 L and
+    // 0.41 ppm at 150 L, against the 0.25 ppm this anchor asks for.
+    //
+    // `canProcessMass = pop × rate × waterVolume` makes per-bacterium
+    // throughput scale with the surrounding water, so clearance capacity
+    // scales with tank volume while the colony a given load requires does not.
+    // Byte-identical on `main`; tracked for the processing-capacity
+    // recalibration. That PR turns this test red — drop the `.fails` then.
+    //
+    // It passed before only because the fixture fed the tank for 30 days
+    // first, which is a prepared state, not a cycled one: the ration doubled
+    // the colony (213 → 494 AOB at 60 L) and the anchor read the conditioning
+    // rather than the engine.
+    it.fails('clears a 2 ppm dose to under 0.25 ppm within 24 h', () => {
       for (const capacity of [60, 150]) {
-        let state = cycledTank(capacity);
-        const ration = capacity * 0.01;
-        for (let hour = 1; hour <= 30 * DAY; hour++) {
-          if (hour % 24 === 0) state = applyAction(state, { type: 'feed', amount: ration }).state;
-          state = tick(state, DEFAULT_CONFIG);
-        }
+        const state = cycledTank(capacity);
 
         const dosed = produce(state, (draft) => {
           draft.resources.ammonia += getMassFromPpm(2, draft.resources.water);

@@ -12,6 +12,7 @@ Format: - **Feature name** (#PR) - One short sentence (under ~150 chars)
 ## Unreleased
 
 - **Nitrogen cycle** - a fresh tank cycles in about three weeks at any volume, driven by organics leaching from the substrate; a biofilter no longer dies for keeping up with its ammonia.
+- **`processEquipment` requires a config** - breaking: the old default silently ran on `decayDefaults` whatever the caller had tuned; `TunableConfig` and `DEFAULT_CONFIG` are now exported from the package root to pass one.
 - **`formatDosePreview` removed from the public API** - breaking for consumers importing it from the package root; the dose preview was UI string formatting living in the engine, and the Flora section derives it now.
 - **Action previews include dissolved gases** - water changes now show what they do to O₂ and CO₂, not just temperature and pH.
 - **Actions sheet** - one transient surface for all six husbandry verbs: a card over the rail's foot, a master-detail drill-in on a phone, previewing each by applying the action and diffing the engine's own readings.
