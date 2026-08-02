@@ -4,7 +4,6 @@ import { createSimulation } from '../state.js';
 import { tick } from '../tick.js';
 import { applyAction } from '../actions/index.js';
 import { getPpm, getMassFromPpm } from '../resources/helpers.js';
-import { DEFAULT_CONFIG } from '../config/index.js';
 
 /**
  * Nitrogen Cycle Integration Tests
@@ -59,7 +58,9 @@ describe('Nitrogen Cycle Integration', () => {
 
   describe('AOB bacteria grow and convert ammonia to nitrite', () => {
     it('AOB spawn when ammonia ppm reaches threshold, then convert ammonia to nitrite', () => {
-      let state = createSimulation({ tankCapacity: 40 });
+      // Soil bed, so the colony has a standing ammonia source to live on
+      // once the injected slug is gone.
+      let state = createSimulation({ tankCapacity: 40, substrate: { type: 'aqua_soil' } });
 
       // Inject ammonia above the AOB spawn threshold (0.02 ppm default)
       state = produce(state, (draft) => {
@@ -75,16 +76,14 @@ describe('Nitrogen Cycle Integration', () => {
 
       // Run enough ticks for AOB to grow meaningful processing capacity.
       // With the calibrated logistic growth rate (~35 h doubling) and a
-      // 40 L bare tank (small surface → low carrying capacity),
-      // reaching cap + processing ambient influx takes ~2 weeks.
+      // 40 L tank, reaching cap + processing the leach influx takes ~2 weeks.
       for (let i = 0; i < 500; i++) {
         state = tick(state);
       }
 
-      // AOB should have grown substantially from initial spawn. Reducing
-      // ambient waste slightly dropped the steady-state AOB cap in tanks
-      // with no fish; the 1-unit floor protects against "AOB regress to
-      // single-digits" failure modes without pinning to a specific number.
+      // AOB should have grown substantially from initial spawn. The 1-unit
+      // floor protects against "AOB regress to single-digits" failure modes
+      // without pinning to a specific number.
       expect(state.resources.aob).toBeGreaterThan(1);
       // Nitrite should have appeared (ammonia converted by AOB)
       expect(state.resources.nitrite).toBeGreaterThan(0);
@@ -127,8 +126,6 @@ describe('Nitrogen Cycle Integration', () => {
       expect(state.resources.nob).toBeGreaterThan(0);
 
       // Run enough ticks for NOB to grow and meaningfully process nitrite.
-      // The ambient waste pipeline also feeds ammonia -> nitrite via AOB,
-      // so NOB must grow large enough to outpace this small input.
       const initialNitriteMass = state.resources.nitrite;
       for (let i = 0; i < 200; i++) {
         state = tick(state);
@@ -140,9 +137,7 @@ describe('Nitrogen Cycle Integration', () => {
       expect(state.resources.nitrate).toBeGreaterThan(0);
       // NOB must have consumed at least the initial nitrite bolus — nitrate
       // produced (scaled back to NO2-mass via MW ratio) should exceed the
-      // starting mass. (Ambient waste also feeds more nitrite in, so total
-      // nitrite mass in the water isn't guaranteed to drop below the
-      // starting value.)
+      // starting mass.
       const nitrateAsNo2Mass = state.resources.nitrate * (46.01 / 62.0);
       expect(nitrateAsNo2Mass).toBeGreaterThan(initialNitriteMass * 0.5);
     });
@@ -271,20 +266,11 @@ describe('Nitrogen Cycle Integration', () => {
       }
 
       // AOB should have declined significantly (death from starvation)
-      // Note: ambient waste from decay produces tiny amounts of ammonia,
-      // so bacteria may not die completely but should decline dramatically
       expect(state.resources.aob).toBeLessThan(aobBeforeStarvation);
     });
 
     it('NOB decline when nitrite is depleted', () => {
-      // Disable ambient waste so the bacterial population genuinely starves.
-      // With default ambient waste the chain keeps producing NH3 → NO2 at a
-      // small but non-zero rate, which with proper stoichiometry (MW ratios)
-      // is enough to sustain a modest NOB population indefinitely.
-      const noAmbientConfig = produce(DEFAULT_CONFIG, (draft) => {
-        draft.decay.ambientWaste = 0;
-      });
-
+      // Bare bottom: nothing leaches, so the population genuinely starves.
       let state = createSimulation({ tankCapacity: 40 });
 
       // Build up NOB population with nitrite
@@ -294,7 +280,7 @@ describe('Nitrogen Cycle Integration', () => {
       });
 
       for (let i = 0; i < 100; i++) {
-        state = tick(state, noAmbientConfig);
+        state = tick(state);
       }
 
       const nobBeforeStarvation = state.resources.nob;
@@ -308,7 +294,7 @@ describe('Nitrogen Cycle Integration', () => {
       });
 
       for (let i = 0; i < 200; i++) {
-        state = tick(state, noAmbientConfig);
+        state = tick(state);
       }
 
       expect(state.resources.nob).toBeLessThan(nobBeforeStarvation);
@@ -384,9 +370,6 @@ describe('Nitrogen Cycle Integration', () => {
       expect(totalNitrogenMass).toBeGreaterThan(0);
 
       // The initial 2g waste should have been largely consumed.
-      // A small steady-state waste level persists from ambient waste production
-      // (0.01 g/tick from the decay system), so we check it's well below the
-      // starting 2g rather than near-zero.
       expect(state.resources.waste).toBeLessThan(0.1);
     });
 
@@ -561,26 +544,28 @@ describe('Nitrogen Cycle Integration', () => {
       expect(state.resources.nob).toBeGreaterThan(0);
     });
 
-    it('ambient waste seeds the nitrogen cycle even without feeding', () => {
-      let state = createSimulation({ tankCapacity: 40 });
+    it('substrate leaching seeds the nitrogen cycle even without feeding', () => {
+      let state = createSimulation({ tankCapacity: 40, substrate: { type: 'aqua_soil' } });
 
-      // No food, no manual ammonia — just ambient waste from the decay system.
+      // No food, no manual ammonia — just the soil bed mineralizing.
       // This is the "cycle seeds itself over weeks" bootstrap pathway.
       for (let i = 0; i < 200; i++) {
         state = tick(state);
       }
 
-      // Ambient waste should have accumulated and converted to some ammonia.
-      expect(state.resources.ammonia).toBeGreaterThan(0);
+      expect(state.resources.aob).toBeGreaterThan(0);
+      expect(state.resources.nitrate).toBeGreaterThan(0);
+    });
 
-      // AOB only spawns above the spawn threshold — at current ambient
-      // mineralization rate and a tiny tank, 200 ticks is usually below
-      // that. Guard conditionally so the test keeps working if the rate
-      // ever moves back up.
-      const ammoniaPpm = getPpm(state.resources.ammonia, state.resources.water);
-      if (ammoniaPpm >= DEFAULT_CONFIG.nitrogenCycle.aobSpawnThreshold) {
-        expect(state.resources.aob).toBeGreaterThan(0);
+    it('a bare-bottom tank never starts a cycle on its own', () => {
+      let state = createSimulation({ tankCapacity: 40 });
+
+      for (let i = 0; i < 24 * 56; i++) {
+        state = tick(state);
       }
+
+      expect(getPpm(state.resources.ammonia, state.resources.water)).toBe(0);
+      expect(state.resources.aob).toBe(0);
     });
   });
 });

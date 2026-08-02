@@ -121,6 +121,7 @@ const PowerheadSchema = z
 const SubstrateSchema = z
   .object({
     type: z.enum(['none', 'sand', 'gravel', 'aqua_soil']),
+    organicReserve: z.number(),
   })
   .strict();
 
@@ -280,7 +281,7 @@ const DecayConfigSchema = z
     baseDecayRate: z.number(),
     wasteConversionRatio: z.number(),
     gasExchangePerGramDecay: z.number(),
-    ambientWaste: z.number(),
+    substrateLeachRate: z.number(),
   })
   .strict();
 

@@ -6,6 +6,7 @@
 
 import {
   calculateDecay,
+  calculateSubstrateLeach,
   getTemperatureFactor,
   processMetabolism,
   type SimulationState,
@@ -14,7 +15,7 @@ import { calculateShedding } from '../../simulation/plants/index.js';
 import { calculateWasteToAmmonia } from '../../simulation/systems/index.js';
 import type { TunableConfig } from '../../simulation/config/index.js';
 
-export type WasteSourceKey = 'food' | 'fish' | 'plants' | 'ambient';
+export type WasteSourceKey = 'food' | 'fish' | 'plants' | 'substrate';
 
 export interface WasteSource {
   key: WasteSourceKey;
@@ -46,7 +47,7 @@ const LABEL: Record<WasteSourceKey, string> = {
   food: 'Food decay',
   fish: 'Fish',
   plants: 'Plants',
-  ambient: 'Ambient',
+  substrate: 'Substrate',
 };
 
 export function wasteInflow(state: SimulationState, config: TunableConfig): WasteInflowReadout {
@@ -59,7 +60,7 @@ export function wasteInflow(state: SimulationState, config: TunableConfig): Wast
       (sum, plant) => sum + calculateShedding(plant, config.plants).wasteProduced,
       0
     ),
-    ambient: config.decay.ambientWaste,
+    substrate: calculateSubstrateLeach(state.equipment.substrate.organicReserve, config.decay),
   };
 
   const perHour = Object.values(grams).reduce((sum, g) => sum + g, 0);
@@ -73,13 +74,14 @@ export function wasteInflow(state: SimulationState, config: TunableConfig): Wast
   return { perHour, sources };
 }
 
-/** Sources the engine applies in the active tier, before the nitrogen cycle. */
-const BEFORE_CYCLE: WasteSourceKey[] = ['fish', 'plants'];
+/** Sources the engine applies before the passive tier, and so before the nitrogen cycle. */
+const BEFORE_CYCLE: WasteSourceKey[] = ['fish', 'plants', 'substrate'];
 
 /**
- * The waste mineralisation works on this hour. Fish and plants shed in the
- * active tier, so the passive nitrogen cycle already sees them; food decay and
- * ambient waste are collected in the same passive pass and only arrive next hour.
+ * The waste mineralisation works on this hour. The substrate leaches in the
+ * immediate tier and fish and plants shed in the active tier, so the passive
+ * nitrogen cycle already sees them; food decay is collected in the same passive
+ * pass and only arrives next hour.
  */
 export function mineralisationBase(standing: number, inflow: WasteInflowReadout): number {
   return inflow.sources

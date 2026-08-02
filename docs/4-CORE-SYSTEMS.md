@@ -19,7 +19,8 @@ Waste is an abstract resource representing organic matter that feeds the nitroge
 
 | Source | Trigger |
 |--------|---------|
-| Decay System | Processes uneaten food, ambient waste |
+| Decay System | Processes uneaten food |
+| Substrate Leaching | The bed releases its organic reserve (see 3-EQUIPMENT.md) |
 | Fish Metabolism | Fish directly produce waste (see 7-LIVESTOCK.md) |
 | Plant Overgrowth | Plants past 200% size release waste (decaying leaves) |
 
@@ -28,7 +29,7 @@ Waste is an abstract resource representing organic matter that feeds the nitroge
 Waste accumulates in the tank from all sources and is consumed by the nitrogen cycle (converted to ammonia).
 
 ```
-tank.waste += decay_output + fish_waste + plant_decay
+tank.waste += decay_output + substrate_leach + fish_waste + plant_decay
 ```
 
 ---
@@ -41,7 +42,6 @@ Aerobic decomposition of organic matter, producing waste, phosphate, and affecti
 | Resource | Source |
 |----------|--------|
 | Food | Uneaten fish food |
-| Ambient Waste | Environment (constant, very low - seeds bacteria) |
 | Oxygen | Consumed by bacterial respiration |
 
 ### Outputs

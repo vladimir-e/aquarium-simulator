@@ -155,17 +155,10 @@ describe('decaySystem', () => {
     );
   });
 
-  it('creates ambient waste effect at the configured rate', () => {
+  it('creates no effects at all when food is 0', () => {
     const state = createTestState({ food: 0 });
-    const effects = decaySystem.update(state, DEFAULT_CONFIG);
 
-    const ambientEffect = effects.find(
-      (e) => e.resource === 'waste' && e.source === 'environment'
-    );
-    expect(ambientEffect).toBeDefined();
-    // Pins to the tunable default so retuning ambient waste doesn't break
-    // unit tests (the value itself is exercised by the calibration suite).
-    expect(ambientEffect!.delta).toBe(DEFAULT_CONFIG.decay.ambientWaste);
+    expect(decaySystem.update(state, DEFAULT_CONFIG)).toEqual([]);
   });
 
   it('creates no food effect when food is 0', () => {
@@ -191,28 +184,6 @@ describe('decaySystem', () => {
 
     const foodEffect = effects.find((e) => e.resource === 'food');
     expect(foodEffect!.source).toBe('decay');
-  });
-
-  it('ambient source is "environment"', () => {
-    const state = createTestState({ food: 0 });
-    const effects = decaySystem.update(state, DEFAULT_CONFIG);
-
-    const ambientEffect = effects.find((e) => e.resource === 'waste');
-    expect(ambientEffect!.source).toBe('environment');
-  });
-
-  it('respects custom ambient waste rate from config', () => {
-    const state = createTestState({ food: 0 });
-    const customConfig = {
-      ...DEFAULT_CONFIG,
-      decay: { ...DEFAULT_CONFIG.decay, ambientWaste: 0.02 },
-    };
-    const effects = decaySystem.update(state, customConfig);
-
-    const ambientEffect = effects.find(
-      (e) => e.resource === 'waste' && e.source === 'environment'
-    );
-    expect(ambientEffect!.delta).toBe(0.02);
   });
 
   it('temperature affects decay rate', () => {

@@ -25,6 +25,30 @@ This project follows spec-driven development:
 - When removing code, clean it up completely as if it never existed
 - No deprecated functions, no compatibility shims, no "kept for backward compatibility" comments
 
+## Constants are not adjustable to make tests pass
+
+When a test fails, the default assumption is that the **code** is wrong, not the number.
+
+A value in `src/simulation/config/*` is a claim about how real aquariums behave. Editing one to turn a test green changes the simulation everywhere, silently — and the failing test was the only thing that noticed.
+
+**Before changing any value in `src/simulation/config/`:**
+
+1. Work out *why* the test fails, and name the mechanism.
+2. If the mechanism is wrong, fix the mechanism.
+3. If the constant genuinely needs to move — you changed the model and the old value no longer describes it — say so explicitly in the PR: the old value, the new one, the real-world behaviour that justifies it, and what else it affects.
+4. If you can't tell, **stop and raise it**. An unresolved question is a better outcome than a quietly tuned constant.
+
+Never widen a tolerance, delete an assertion, or scale a coefficient "to make the scenario pass." If a test is genuinely wrong, fix the test as its own change, and say why.
+
+**This is not hypothetical.** `ambientWaste` was cut 10× because it dominated the nitrogen budget in one 38 L planted scenario. The scenario passed. Because the constant was a flat g/hr while the AOB spawn threshold is a *concentration*, that same edit pushed a 150 L tank's cycling from ~3 weeks to 51 days, and nothing caught it for months. The real defect was that ambient ammonia wasn't sourced from anything physical.
+
+Two kinds of test live in this repo, and they are not equal:
+
+- **Unit tests** pin mechanism. Edit them freely alongside the code they describe.
+- **Calibration anchors** pin outcome — how a tank behaves over weeks. They encode real aquarium behaviour, not engine behaviour. **A feature PR may not edit an anchor band to go green.** If a feature breaks an anchor, either the feature is wrong or the constants need re-deriving; the anchor holds.
+
+Prefer invariants over magic numbers when writing tests. `expect(flow).toBe(160)` is a tripwire on a coefficient; "doubling capacity doubles flow" is a statement about the model, and it survives recalibration.
+
 ## Quick Start for AI Agents
 
 - Use subagents liberally to preserve main context window

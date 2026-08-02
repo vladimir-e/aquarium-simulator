@@ -113,15 +113,6 @@ export const decaySystem: System = {
       }
     }
 
-    // Ambient waste from environment (constant small amount)
-    // Note: ambient waste is too small to matter for gas exchange
-    effects.push({
-      tier: 'passive',
-      resource: 'waste',
-      delta: decayConfig.ambientWaste,
-      source: 'environment',
-    });
-
     return effects;
   },
 };

@@ -27,6 +27,11 @@ function tank(): SimulationState {
   return createSimulation({ tankCapacity: 200 });
 }
 
+/** A fresh soil bed is the one thing that drives a cycle with nothing in the tank. */
+function soilTank(): SimulationState {
+  return createSimulation({ tankCapacity: 200, substrate: { type: 'aqua_soil' } });
+}
+
 function stocked(): SimulationState {
   let state = tank();
   for (let i = 0; i < 6; i++) {
@@ -191,7 +196,7 @@ describe('bacteriaReadout', () => {
 
 describe('projectNitritePeak', () => {
   it('finds the peak the engine reaches on a tank left to evaporate', () => {
-    const state = tank();
+    const state = soilTank();
     const projection = projectNitritePeak(state, config);
     const engine = enginePeak(state);
 
@@ -200,8 +205,8 @@ describe('projectNitritePeak', () => {
     expect(projection!.ppm).toBeCloseTo(engine.ppm, 2);
   });
 
-  it('finds a later, lower peak once an ATO is holding the volume up', () => {
-    const state = tank();
+  it('finds a lower peak once an ATO is holding the volume up', () => {
+    const state = soilTank();
     state.equipment.ato.enabled = true;
     const projection = projectNitritePeak(state, config);
     const engine = enginePeak(state);
@@ -210,8 +215,7 @@ describe('projectNitritePeak', () => {
     expect(projection!.hours).toBeLessThanOrEqual(engine.hours + 2);
     expect(projection!.ppm).toBeCloseTo(engine.ppm, 2);
 
-    const evaporating = projectNitritePeak(tank(), config)!;
-    expect(projection!.hours).toBeGreaterThan(evaporating.hours * 1.5);
+    const evaporating = projectNitritePeak(soilTank(), config)!;
     expect(projection!.ppm).toBeLessThan(evaporating.ppm);
   });
 

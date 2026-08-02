@@ -39,23 +39,28 @@ describe('Food-Decay-Waste integration', () => {
     expect(state.resources.waste).toBeGreaterThan(initialWaste);
   });
 
-  it('ambient waste accumulates continuously', () => {
-    let state = createSimulation({ tankCapacity: 100 });
+  it('substrate leaching feeds the waste pool without any food', () => {
+    let state = createSimulation({ tankCapacity: 100, substrate: { type: 'aqua_soil' } });
 
-    // No food added, just run ticks
     const initialWaste = state.resources.waste;
 
     for (let i = 0; i < 10; i++) {
       state = tick(state);
     }
 
-    // Ambient waste is added (0.01g/tick) but nitrogen cycle converts 30% of waste to ammonia per tick.
-    // The waste level should still increase due to ambient waste production exceeding conversion.
-    // After 10 ticks, waste should be greater than initial but less than simple accumulation.
     expect(state.resources.waste).toBeGreaterThan(initialWaste);
-
-    // Ammonia should also have been produced from the waste conversion
     expect(state.resources.ammonia).toBeGreaterThan(0);
+  });
+
+  it('a bare-bottom tank produces no waste at all without food', () => {
+    let state = createSimulation({ tankCapacity: 100 });
+
+    for (let i = 0; i < 10; i++) {
+      state = tick(state);
+    }
+
+    expect(state.resources.waste).toBe(0);
+    expect(state.resources.ammonia).toBe(0);
   });
 
   it('higher temperature increases decay rate', () => {

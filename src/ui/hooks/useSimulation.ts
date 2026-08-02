@@ -6,6 +6,7 @@ import {
   applyAction,
   calculatePassiveResources,
   calculateHardscapeSlots,
+  getSubstrateOrganicReserve,
   getHardscapeName,
   formatSchedule,
   type SimulationState,
@@ -673,6 +674,10 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
             `Substrate changed to ${type}`
           );
           draft.equipment.substrate.type = type;
+          draft.equipment.substrate.organicReserve = getSubstrateOrganicReserve(
+            type,
+            draft.tank.capacity
+          );
           draft.logs.push(log);
           const passiveValues = calculatePassiveResources(draft);
           draft.resources.surface = passiveValues.surface;

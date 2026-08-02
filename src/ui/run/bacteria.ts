@@ -12,7 +12,12 @@ import {
   calculateNitriteToNitrate,
   calculateWasteToAmmonia,
 } from '../../simulation/systems/index.js';
-import { processMetabolism, type Resources, type SimulationState } from '../../simulation/index.js';
+import {
+  calculateSubstrateLeach,
+  processMetabolism,
+  type Resources,
+  type SimulationState,
+} from '../../simulation/index.js';
 import { WATER_LEVEL_THRESHOLD } from '../../simulation/equipment/ato.js';
 import type { NitrogenCycleConfig, TunableConfig } from '../../simulation/config/index.js';
 import { getPpm } from '../../simulation/resources/index.js';
@@ -145,8 +150,8 @@ function nextVolume(water: number, state: SimulationState, config: TunableConfig
  *
  * Waste inflow, biofilm surface and temperature are held at today's values, so
  * this answers "if nothing else changes" — feeding more, adding fish or a water
- * change all move it. Evaporation is not one of those choices: it runs every
- * tick, concentrating everything, so the projection evaporates too.
+ * change all move it. Evaporation and substrate leaching are not choices: both
+ * run every tick whatever the keeper does, so the projection carries them.
  */
 export function projectNitritePeak(
   state: SimulationState,
@@ -158,9 +163,13 @@ export function projectNitritePeak(
   const ceiling = calculateMaxBacteria(r.surface, nc);
   if (r.water <= 0 || ceiling <= 0) return null;
 
-  const inflow = wasteInflow(state, config).perHour;
+  const sources = wasteInflow(state, config).sources;
+  const steadyInflow = sources
+    .filter((source) => source.key !== 'substrate')
+    .reduce((total, source) => total + source.gramsPerHour, 0);
   const gills = processMetabolism(state.fish, r.food, config.livestock).ammoniaProduced;
 
+  let reserve = state.equipment.substrate.organicReserve;
   let water = r.water;
   let waste = r.waste;
   let ammonia = r.ammonia;
@@ -173,7 +182,10 @@ export function projectNitritePeak(
 
   for (let hour = 1; hour <= horizon; hour++) {
     water = nextVolume(water, state, config);
-    waste += inflow;
+
+    const leached = calculateSubstrateLeach(reserve, config.decay);
+    reserve -= leached;
+    waste += steadyInflow + leached;
 
     const mineralised = calculateWasteToAmmonia(waste, nc);
     waste -= mineralised.wasteConsumed;

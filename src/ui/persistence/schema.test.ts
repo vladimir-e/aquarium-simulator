@@ -130,7 +130,7 @@ describe('PersistedSimulationSchema', () => {
       ato: { enabled: false },
       filter: { enabled: true, type: 'hob' },
       powerhead: { enabled: false, flowRateGPH: 240 },
-      substrate: { type: 'gravel' },
+      substrate: { type: 'gravel', organicReserve: 0.5 },
       hardscape: { items: [] },
       light: { enabled: true, wattage: 10, schedule: { startHour: 8, duration: 8 } },
       co2Generator: { enabled: false, bubbleRate: 1, isOn: false, schedule: { startHour: 8, duration: 8 } },
@@ -402,7 +402,7 @@ describe('PersistedStateSchema', () => {
       ato: { enabled: false },
       filter: { enabled: true, type: 'hob' },
       powerhead: { enabled: false, flowRateGPH: 240 },
-      substrate: { type: 'gravel' },
+      substrate: { type: 'gravel', organicReserve: 0.5 },
       hardscape: { items: [] },
       light: { enabled: true, wattage: 10, schedule: { startHour: 8, duration: 8 } },
       co2Generator: { enabled: false, bubbleRate: 1, isOn: false, schedule: { startHour: 8, duration: 8 } },
@@ -483,7 +483,7 @@ describe('PersistedStateSchema', () => {
     expect(PersistedStateSchema.safeParse(v12).success).toBe(false);
   });
 
-  it('PERSISTENCE_VERSION is 13', () => {
-    expect(PERSISTENCE_VERSION).toBe(13);
+  it('PERSISTENCE_VERSION is 14', () => {
+    expect(PERSISTENCE_VERSION).toBe(14);
   });
 });

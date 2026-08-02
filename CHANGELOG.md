@@ -11,6 +11,7 @@ Format: - **Feature name** (#PR) - One short sentence (under ~150 chars)
 
 ## Unreleased
 
+- **Substrate organic leaching** - `decay.ambientWaste` is gone; the substrate now holds a finite per-litre organic reserve that leaches into the waste pool and tapers as it empties, so cycling timelines no longer scale with tank volume.
 - **`formatDosePreview` removed from the public API** - breaking for consumers importing it from the package root; the dose preview was UI string formatting living in the engine, and the Flora section derives it now.
 - **Action previews include dissolved gases** - water changes now show what they do to O₂ and CO₂, not just temperature and pH.
 - **Actions sheet** - one transient surface for all six husbandry verbs: a card over the rail's foot, a master-detail drill-in on a phone, previewing each by applying the action and diffing the engine's own readings.

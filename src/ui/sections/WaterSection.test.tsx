@@ -83,12 +83,12 @@ describe('WaterSection', () => {
     expect(document.body.textContent).not.toMatch(/add fish|go to|get started/i);
   });
 
-  it('names every waste source, ambient included, on an empty tank', () => {
-    renderWater(day0());
-    for (const label of ['Food decay', 'Fish', 'Plants', 'Ambient']) {
+  it('names every waste source, substrate included, on an unstocked soil tank', () => {
+    renderWater(day0(createSimulation({ tankCapacity: 200, substrate: { type: 'aqua_soil' } })));
+    for (const label of ['Food decay', 'Fish', 'Plants', 'Substrate']) {
       expect(screen.getByText(label)).toBeTruthy();
     }
-    expect(screen.getByText('100 % ambient')).toBeTruthy();
+    expect(screen.getByText('100 % substrate')).toBeTruthy();
   });
 
   it('shows both colonies against the same ceiling', () => {

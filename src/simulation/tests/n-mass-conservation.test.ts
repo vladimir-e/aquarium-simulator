@@ -38,7 +38,8 @@
  *     fish with steady light feeding they can keep up with.
  *   - Plant uptake. No plants added in any scenario.
  *   - Water change. No water-change actions applied.
- *   - Ambient waste. Disabled via config override.
+ *   - Substrate leaching. Every scenario runs bare-bottom, so the bed
+ *     holds no organic reserve and adds no N.
  *   - NH3 gas off-gassing. Not modeled in the engine → nothing to
  *     subtract.
  */
@@ -138,16 +139,9 @@ function totalNInPools(state: SimulationState, config: TunableConfig): number {
   return nInFood + nInWaste + nInAmmonia + nInNitrite + nInNitrate;
 }
 
-/** Config variant with ambient waste disabled — the default bookkeeping sink. */
-function noAmbientConfig(): TunableConfig {
-  return produce(DEFAULT_CONFIG, (draft) => {
-    draft.decay.ambientWaste = 0;
-  });
-}
-
 describe('N mass conservation (end-to-end)', () => {
   it('direct NH3 injection: conserved through NH3 → NO2 → NO3 chain', () => {
-    const config = noAmbientConfig();
+    const config = DEFAULT_CONFIG;
     let state = createCycledTank(
       { tankCapacity: 150 },
       { nitratePpm: 0, aobFraction: 1.0, nobFraction: 1.0 }
@@ -172,7 +166,7 @@ describe('N mass conservation (end-to-end)', () => {
   });
 
   it('direct waste injection: conserved through mineralization + chain', () => {
-    const config = noAmbientConfig();
+    const config = DEFAULT_CONFIG;
     let state = createCycledTank(
       { tankCapacity: 150 },
       { nitratePpm: 0, aobFraction: 1.0, nobFraction: 1.0 }
@@ -209,7 +203,7 @@ describe('N mass conservation (end-to-end)', () => {
     // any food that decayed rather than was eaten) and the ceiling
     // (perfect conservation).
     const TICKS = 1000;
-    const config = noAmbientConfig();
+    const config = DEFAULT_CONFIG;
     const DAILY_FEED = 0.03;
 
     let state = createCycledTank(
@@ -271,7 +265,7 @@ describe('N mass conservation (end-to-end)', () => {
     // in from the default starting satiation of 70; above 50 there is
     // no hunger damage and basal NH3 alone drives the pools.
     const TICKS = 30;
-    const config = noAmbientConfig();
+    const config = DEFAULT_CONFIG;
 
     let state = createCycledTank(
       { tankCapacity: 150 },
