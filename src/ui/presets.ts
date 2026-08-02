@@ -52,7 +52,7 @@ export const PRESETS: PresetDefinition[] = [
       },
       filter: {
         enabled: true,
-        type: 'hob',
+        type: 'sponge',
       },
       light: {
         enabled: true,

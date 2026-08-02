@@ -11,7 +11,7 @@ Format: - **Feature name** (#PR) - One short sentence (under ~150 chars)
 
 ## Unreleased
 
-- **Flow tolerance is a turnover** - a species tolerates so many tank volumes an hour, not so many litres, so a correctly-sized filter is safe at every volume and one powerhead is a current in a 300 L and lethal in a nano. Persistence v15 → v16.
+- **Flow tolerance is a turnover** - a fish tolerates tank volumes an hour, not litres, so one powerhead is a current in a 300 L and lethal in a nano. Persistence v15 → v16.
 - **A rescape takes the biofilm** - any bed swap, picker or preset, costs the colony the share that lived on the old bed, so an established tank blips.
 - **The biofilter reads as cycled or uncycled** - both toxins at trace on colonies still clearing a load, so a starved tank stops claiming it.
 - **Colonisation reads as headroom** - share of the surface ceiling is the room a colony has left, not the headline a healthy tank sat at 1 % of.

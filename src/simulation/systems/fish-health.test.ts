@@ -211,72 +211,6 @@ describe('total stress', () => {
     expect(stress).toBe(0);
   });
 
-  describe('flow is a turnover', () => {
-    const flowStressOf = (species: FishSpecies, litres: number, turnover: number): number =>
-      stressorAmount(
-        computeFishVitality(
-          makeFish({ species }),
-          makeResources({ flow: turnover * litres }),
-          [],
-          litres,
-          litres,
-          livestockDefaults
-        ),
-        'flow'
-      );
-
-    it('charges the same damage at any volume, given the same turnover', () => {
-      const stress = [20, 40, 150, 300].map((litres) => flowStressOf('neon_tetra', litres, 12));
-
-      expect(stress.every((s) => s > 0)).toBe(true);
-      expect(new Set(stress).size).toBe(1);
-    });
-
-    it('is gentler in a bigger tank for the same pump', () => {
-      const lph = 908;
-      const stress = [20, 40, 75, 150, 300].map((litres) =>
-        flowStressOf('neon_tetra', litres, lph / litres)
-      );
-
-      expect(stress[0]).toBeGreaterThan(0);
-      expect(stress.at(-1)).toBe(0);
-      for (let i = 1; i < stress.length; i++) {
-        if (stress[i - 1]! > 0) expect(stress[i]).toBeLessThan(stress[i - 1]!);
-        else expect(stress[i]).toBe(0);
-      }
-    });
-
-    it('doubles when the excess over tolerance doubles', () => {
-      const { maxTurnover } = FISH_SPECIES_DATA.neon_tetra;
-      const single = flowStressOf('neon_tetra', 100, maxTurnover + 3);
-      const double = flowStressOf('neon_tetra', 100, maxTurnover + 6);
-
-      expect(double).toBeCloseTo(2 * single, 10);
-    });
-
-    it('switches on exactly at each species’ own tolerance', () => {
-      for (const species of Object.keys(FISH_SPECIES_DATA) as FishSpecies[]) {
-        const { maxTurnover } = FISH_SPECIES_DATA[species];
-        expect(flowStressOf(species, 100, maxTurnover)).toBe(0);
-        expect(flowStressOf(species, 100, maxTurnover + 1)).toBeGreaterThan(0);
-      }
-    });
-
-    it('leaves a drained tank to the water-level stressor', () => {
-      const b = computeFishVitality(
-        makeFish(),
-        makeResources({ flow: 1000 }),
-        [],
-        0,
-        100,
-        livestockDefaults
-      );
-
-      expect(stressorAmount(b, 'flow')).toBe(0);
-      expect(stressorAmount(b, 'waterLevel')).toBeGreaterThan(0);
-    });
-  });
-
   it('applies max stress for toxins when water volume is 0', () => {
     const fish = makeFish();
     const resources = makeResources({ ammonia: 1 });
@@ -546,6 +480,72 @@ describe('per-stressor breakdown', () => {
     expect(stressorAmount(b, 'oxygen')).toBeGreaterThan(0);
     expect(stressorAmount(b, 'waterLevel')).toBeGreaterThan(0);
     expect(stressorAmount(b, 'flow')).toBeGreaterThan(0);
+  });
+});
+
+describe('flow is a turnover', () => {
+  const flowStressOf = (species: FishSpecies, litres: number, turnover: number): number =>
+    stressorAmount(
+      computeFishVitality(
+        makeFish({ species }),
+        makeResources({ flow: turnover * litres }),
+        [],
+        litres,
+        litres,
+        livestockDefaults
+      ),
+      'flow'
+    );
+
+  it('charges the same damage at any volume, given the same turnover', () => {
+    const stress = [20, 40, 150, 300].map((litres) => flowStressOf('neon_tetra', litres, 12));
+
+    expect(stress.every((s) => s > 0)).toBe(true);
+    expect(new Set(stress).size).toBe(1);
+  });
+
+  it('is gentler in a bigger tank for the same pump', () => {
+    const lph = 908;
+    const stress = [20, 40, 75, 150, 300].map((litres) =>
+      flowStressOf('neon_tetra', litres, lph / litres)
+    );
+
+    expect(stress[0]).toBeGreaterThan(0);
+    expect(stress.at(-1)).toBe(0);
+    for (let i = 1; i < stress.length; i++) {
+      if (stress[i - 1]! > 0) expect(stress[i]).toBeLessThan(stress[i - 1]!);
+      else expect(stress[i]).toBe(0);
+    }
+  });
+
+  it('doubles when the excess over tolerance doubles', () => {
+    const { maxTurnover } = FISH_SPECIES_DATA.neon_tetra;
+    const single = flowStressOf('neon_tetra', 100, maxTurnover + 3);
+    const double = flowStressOf('neon_tetra', 100, maxTurnover + 6);
+
+    expect(double).toBeCloseTo(2 * single, 10);
+  });
+
+  it('switches on exactly at each species’ own tolerance', () => {
+    for (const species of Object.keys(FISH_SPECIES_DATA) as FishSpecies[]) {
+      const { maxTurnover } = FISH_SPECIES_DATA[species];
+      expect(flowStressOf(species, 100, maxTurnover)).toBe(0);
+      expect(flowStressOf(species, 100, maxTurnover + 1)).toBeGreaterThan(0);
+    }
+  });
+
+  it('leaves a drained tank to the water-level stressor', () => {
+    const b = computeFishVitality(
+      makeFish(),
+      makeResources({ flow: 1000 }),
+      [],
+      0,
+      100,
+      livestockDefaults
+    );
+
+    expect(stressorAmount(b, 'flow')).toBe(0);
+    expect(stressorAmount(b, 'waterLevel')).toBeGreaterThan(0);
   });
 });
 

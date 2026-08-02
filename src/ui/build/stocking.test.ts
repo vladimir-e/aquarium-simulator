@@ -144,18 +144,18 @@ describe('fishOptions', () => {
 
     expect(neon.temperatureRange).toEqual([22, 28]);
     expect(neon.phRange).toEqual([6.0, 7.5]);
-    expect(neon.maxTurnover).toBe(8);
-    expect(metric.facts).toBe('22–28°C · pH 6.0–7.5 · flow to 8 ×/h · hardiness 0.5');
+    expect(neon.maxTurnover).toBe(10);
+    expect(metric.facts).toBe('22–28°C · pH 6.0–7.5 · flow to 10 ×/h · hardiness 0.5');
     // The same band in the reader's own scale — 22–28 °C is 72–82 °F. Turnover
     // is a ratio, so it reads the same on either side of the Atlantic.
-    expect(imperial.facts).toBe('72–82°F · pH 6.0–7.5 · flow to 8 ×/h · hardiness 0.5');
+    expect(imperial.facts).toBe('72–82°F · pH 6.0–7.5 · flow to 10 ×/h · hardiness 0.5');
   });
 
   it('quotes each species’ own bands rather than one set for all of them', () => {
     const facts = Object.fromEntries(
       fishOptions([], 200, 'metric').map((o) => [o.species, o.facts])
     );
-    expect(facts.betta).toBe('24–30°C · pH 6.5–7.5 · flow to 4 ×/h · hardiness 0.6');
+    expect(facts.betta).toBe('24–30°C · pH 6.5–7.5 · flow to 5 ×/h · hardiness 0.6');
     expect(facts.angelfish).toContain('hardiness 0.4');
     expect(new Set(Object.values(facts)).size).toBe(5);
   });

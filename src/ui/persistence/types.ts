@@ -28,9 +28,7 @@ import type { TunableConfig } from '../../simulation/config/index.js';
  *      the shipped default moves 0.01 → 0.3. A v15 severity read as a
  *      v16 one is a 30× understatement of every flow stressor, so a
  *      saved tank would quietly stop reporting a powerhead that is
- *      drowning its fish. Per project policy this is a breaking save
- *      format change with no migration shim — stored sessions are
- *      discarded on version mismatch.
+ *      drowning its fish.
  * v15: Nitrogen-cycle throughput per bacterium. `NitrogenCycleConfig`
  *      swaps `spawnAmount` for `inoculumPerLiter` (bacteria units the
  *      tank is seeded with per litre) and gains the `q10` /

@@ -48,19 +48,16 @@ export interface Circulation {
   filter?: FilterType;
   /** Powerhead setting in GPH — the label on the box. */
   powerhead?: PowerheadFlowRate;
-  airPump?: boolean;
 }
 
 function circulationOf({
   filter,
   powerhead,
-  airPump = false,
-}: Circulation): Pick<SimulationConfig, 'filter' | 'powerhead' | 'airPump'> {
+}: Circulation): Pick<SimulationConfig, 'filter' | 'powerhead'> {
   return {
     filter: filter === undefined ? { enabled: false } : { enabled: true, type: filter },
     powerhead:
       powerhead === undefined ? { enabled: false } : { enabled: true, flowRateGPH: powerhead },
-    airPump: { enabled: airPump },
   };
 }
 
@@ -85,13 +82,7 @@ export function fishlessTank(
     capacity = 20,
     ato = true,
     temperature = 25,
-    circulation = { filter: 'sponge' },
-  }: {
-    capacity?: number;
-    ato?: boolean;
-    temperature?: number;
-    circulation?: Circulation;
-  } = {}
+  }: { capacity?: number; ato?: boolean; temperature?: number } = {}
 ): SimulationState {
   return createSimulation({
     tankCapacity: capacity,
@@ -100,7 +91,6 @@ export function fishlessTank(
     initialTemperature: temperature,
     roomTemperature: roomFor(temperature),
     heater: { targetTemperature: temperature, wattage: Math.max(100, capacity) },
-    ...circulationOf(circulation),
   });
 }
 
@@ -114,10 +104,9 @@ export function fishlessTank(
 export function cycledTank(
   capacity: number,
   config: TunableConfig = DEFAULT_CONFIG,
-  days = 30,
-  circulation: Circulation = { filter: 'sponge' }
+  days = 30
 ): SimulationState {
-  return run(fishlessTank('aqua_soil', { capacity, circulation }), days * DAY, config);
+  return run(fishlessTank('aqua_soil', { capacity }), days * DAY, config);
 }
 
 /**

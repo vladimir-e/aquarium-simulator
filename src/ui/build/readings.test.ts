@@ -5,6 +5,7 @@ import {
   tick,
   type SimulationState,
 } from '../../simulation/index.js';
+import { applyAction } from '../../simulation/actions/index.js';
 import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
 import { bacteriaReadout, colonyCount } from '../run/index.js';
 import { cycledTank, run as runUnfed } from '../../simulation/tests/tanks.js';
@@ -122,9 +123,12 @@ describe('filter readings', () => {
     });
   });
 
-  it('warns when the filter is rated below the tank it is in', () => {
+  it('warns when the filter is rated below the tank it is in, and by how much', () => {
     const big = createSimulation({ tankCapacity: 400 });
-    expect(deviceHint('filter', big, DEFAULT_CONFIG)?.tone).toBe('warn');
+    expect(deviceHint('filter', big, DEFAULT_CONFIG)).toEqual({
+      text: 'Undersized for this tank — 0.8 × tank volume/h against the 4 × it is built for.',
+      tone: 'warn',
+    });
     expect(deviceHint('filter', base, DEFAULT_CONFIG)).toBeNull();
   });
 });
@@ -344,9 +348,32 @@ describe('powerhead readings', () => {
     });
   });
 
-  it('declines to divide by a tank with no volume', () => {
-    const empty: SimulationState = { ...running, tank: { ...base.tank, capacity: 0 } };
-    expect(value(read('powerhead', empty), 'Tank circulation').note).toBe('—');
+  it('declines to divide by a tank with no water in it', () => {
+    const drained: SimulationState = { ...running, resources: { ...running.resources, water: 0 } };
+    expect(value(read('powerhead', drained), 'Tank circulation').note).toBe('—');
+  });
+
+  it('says nothing beyond what it is for while the roster can take the current', () => {
+    const gentle = applyAction(createSimulation({ tankCapacity: 300 }), {
+      type: 'addFish',
+      species: 'neon_tetra',
+    }).state;
+    expect(deviceHint('powerhead', gentle, DEFAULT_CONFIG)).toEqual({
+      text: 'Extra circulation and gas exchange on top of the filter.',
+      tone: 'muted',
+    });
+    expect(deviceHint('powerhead', running, DEFAULT_CONFIG)?.tone).toBe('muted');
+  });
+
+  it('warns once a fish in the tank cannot take the current, naming the tightest', () => {
+    const stocked = ['guppy' as const, 'neon_tetra' as const].reduce(
+      (state, species) => applyAction(state, { type: 'addFish', species }).state,
+      running
+    );
+    expect(deviceHint('powerhead', stocked, DEFAULT_CONFIG)).toEqual({
+      text: 'Too much current for Neon Tetra — 41.9 × tank volume/h against the 10 × it tolerates.',
+      tone: 'warn',
+    });
   });
 });
 

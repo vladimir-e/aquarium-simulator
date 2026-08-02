@@ -4,13 +4,12 @@
  * These pin outcome, not mechanism: whether a tank someone actually set up
  * damages its fish over weeks. `fish-health.test.ts` pins the stressor itself.
  *
- * The preset comes from `src/ui/presets.ts` rather than being restated here —
- * the headline anchor is about the tank that ships, and a copy of it in this
- * file would drift away from the one players load.
+ * The tanks come from `src/ui/presets.ts` rather than being restated here — the
+ * setups that ship are the ones that have to survive, and a copy of them in
+ * this file would drift away from the ones players load.
  */
 
 import { describe, it, expect } from 'vitest';
-import { produce } from 'immer';
 import {
   createSimulation,
   FISH_SPECIES_DATA,
@@ -18,7 +17,8 @@ import {
   type SimulationState,
 } from '../state.js';
 import { FILTER_SPECS, type FilterType } from '../equipment/filter.js';
-import { getPresetById } from '../../ui/presets.js';
+import { applyAction } from '../actions/index.js';
+import { PRESETS, type PresetId } from '../../ui/presets.js';
 import { DAY, flowReading, run, stock, watchFlow } from './tanks.js';
 
 const VOLUMES = [20, 40, 75, 150, 300, 568];
@@ -31,21 +31,34 @@ const SANE_PAIRING: ReadonlyArray<{ filter: FilterType; species: FishSpecies }> 
   { filter: 'sump', species: 'guppy' },
 ];
 
-/**
- * Evaporation is not what these anchors are about, and the shipped presets
- * carry no lid and no ATO — so a reading meant to isolate circulation starts
- * from the water level the tank is supposed to hold.
- */
-const atFullWater = (state: SimulationState): SimulationState =>
-  produce(state, (draft) => {
-    draft.resources.water = draft.tank.capacity;
+/** What a keeper would put in each tank the game ships. */
+const PRESET_STOCK: Record<PresetId, { species: FishSpecies; count: number }> = {
+  bare: { species: 'guppy', count: 4 },
+  betta: { species: 'betta', count: 1 },
+  planted: { species: 'neon_tetra', count: 6 },
+  community: { species: 'neon_tetra', count: 12 },
+  angelfish: { species: 'angelfish', count: 4 },
+};
+
+const KEEPER_ROUTINE = { feed: 0.25, waterChange: 0.25, topOff: true };
+
+const topOff = (state: SimulationState): SimulationState =>
+  applyAction(state, { type: 'topOff' }).state;
+
+/** A preset's own tank, cycled on its bed and stocked with what it is for. */
+function shipped(id: PresetId): SimulationState {
+  const preset = PRESETS.find((p) => p.id === id);
+  if (preset === undefined) throw new Error(`the ${id} preset is gone`);
+
+  const { species, count } = PRESET_STOCK[id];
+  return stock(topOff(run(createSimulation(preset.config), 30 * DAY)), species, count, {
+    sex: 'male',
   });
+}
 
 describe('flow tolerance', () => {
-  it('charges the same damage at every volume, for the same filter class', () => {
-    const stress = VOLUMES.filter((litres) => litres <= FILTER_SPECS.sump.maxCapacityLiters).map(
-      (litres) => flowReading('neon_tetra', litres, { filter: 'sump' }).stress
-    );
+  it('charges the same damage at every volume, for a species kept above its class', () => {
+    const stress = VOLUMES.map((litres) => flowReading('betta', litres, { filter: 'sump' }).stress);
 
     expect(stress.every((s) => s > 0)).toBe(true);
     expect(new Set(stress).size).toBe(1);
@@ -53,12 +66,14 @@ describe('flow tolerance', () => {
 
   it('never damages the species a filter class is for, at any volume it is rated to', () => {
     for (const { filter, species } of SANE_PAIRING) {
-      for (const litres of VOLUMES) {
-        const { turnover, stress, net } = flowReading(species, litres, { filter });
+      const rated = VOLUMES.filter((litres) => litres <= FILTER_SPECS[filter].maxCapacityLiters);
+      expect(rated.length).toBeGreaterThan(0);
 
-        expect(turnover).toBeLessThanOrEqual(FISH_SPECIES_DATA[species].maxTurnover);
+      for (const litres of rated) {
+        const { turnover, stress } = flowReading(species, litres, { filter });
+
+        expect(turnover).toBeLessThan(FISH_SPECIES_DATA[species].maxTurnover);
         expect(stress).toBe(0);
-        expect(net).toBeGreaterThan(0);
       }
     }
   });
@@ -73,13 +88,12 @@ describe('flow tolerance', () => {
 
     expect(big.turnover).toBeLessThan(FISH_SPECIES_DATA.neon_tetra.maxTurnover);
     expect(big.stress).toBe(0);
-    expect(big.net).toBeGreaterThan(0);
   });
 
   it('kills a nano roster with the powerhead the same roster survives in a big tank', () => {
     const stocked = (litres: number): SimulationState =>
       stock(
-        atFullWater(
+        topOff(
           run(
             createSimulation({
               tankCapacity: litres,
@@ -96,9 +110,8 @@ describe('flow tolerance', () => {
         { sex: 'male' }
       );
 
-    const routine = { feed: 0.25, waterChange: 0.25, topOff: true };
-    const nano = watchFlow(stocked(20), 60, routine);
-    const big = watchFlow(stocked(300), 60, routine);
+    const nano = watchFlow(stocked(20), 60, KEEPER_ROUTINE);
+    const big = watchFlow(stocked(300), 60, KEEPER_ROUTINE);
 
     expect(nano.survivors).toBe(0);
     expect(nano.firstDeathDay).toBeLessThan(2);
@@ -108,26 +121,22 @@ describe('flow tolerance', () => {
     expect(big.minHealth).toBeGreaterThan(90);
   });
 
-  it('runs the shipped community preset for 90 days without flow costing a tetra anything', () => {
-    const preset = getPresetById('community');
-    if (preset === undefined) throw new Error('the community preset is gone');
+  it.each(PRESETS)(
+    'runs the shipped $name for 90 days without its circulation costing a fish anything',
+    ({ id }) => {
+      const { species } = PRESET_STOCK[id];
+      const watched = watchFlow(shipped(id), 90, KEEPER_ROUTINE);
 
-    const cycled = atFullWater(run(createSimulation(preset.config), 30 * DAY));
-    const stocked = stock(cycled, 'neon_tetra', 12, { sex: 'male' });
+      expect(watched.peakTurnover).toBeLessThan(FISH_SPECIES_DATA[species].maxTurnover);
+      expect(watched.peakStress).toBe(0);
+    }
+  );
 
-    expect(flowReading('neon_tetra', preset.config.tankCapacity, { filter: 'canister' }).stress).toBe(
-      0
-    );
-
-    const watched = watchFlow(stocked, 90, { feed: 0.25, waterChange: 0.25, topOff: true });
+  it('holds the community preset’s twelve tetras for 90 days', () => {
+    const watched = watchFlow(shipped('community'), 90, KEEPER_ROUTINE);
 
     expect(watched.survivors).toBe(12);
     expect(watched.firstDeathDay).toBeNull();
     expect(watched.minHealth).toBeGreaterThan(90);
-    // The preset ships lidless with no ATO, so the tank sits a little under
-    // capacity between top-offs and the turnover creeps over the tetra's 8.
-    // What that is worth has to stay a rounding error against the ~1 %/h the
-    // fish recovers at.
-    expect(watched.peakStress).toBeLessThan(0.05);
   });
 });

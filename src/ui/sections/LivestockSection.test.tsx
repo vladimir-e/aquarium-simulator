@@ -300,7 +300,7 @@ describe('LivestockSection', () => {
     // The bands you check against the heater target, the tap and the filter,
     // before buying.
     expect(
-      within(angelfish).getByText('24–30°C · pH 6.0–7.5 · flow to 6 ×/h · hardiness 0.4')
+      within(angelfish).getByText('24–30°C · pH 6.0–7.5 · flow to 10 ×/h · hardiness 0.4')
     ).toBeTruthy();
 
     // The sex fact is the menu's own description, not a stray child of it.

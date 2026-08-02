@@ -14,8 +14,10 @@ import {
   isScheduleActive,
   FILTER_SPECS,
   FILTER_SURFACE,
+  FISH_SPECIES_DATA,
   POWERHEAD_FLOW_LPH,
   type DailySchedule,
+  type FishSpeciesData,
   type SimulationState,
 } from '../../simulation/index.js';
 import { getLightOutput } from '../../simulation/equipment/light.js';
@@ -59,10 +61,14 @@ function temperatureGap(celsius: number, units: UnitSystem): string {
   return `${scaled.toFixed(1)} ${getTemperatureUnit(units)}`;
 }
 
-/** Flow as tank volumes per hour, in the one wording every surface quotes. */
-export function turnover(litersPerHour: number, capacity: number): string {
-  if (capacity <= 0) return '—';
-  return `${(litersPerHour / capacity).toFixed(1)} × tank volume/h`;
+/**
+ * Flow as tank volumes per hour, in the one wording every surface quotes.
+ * Against the water in the tank, not its capacity — the engine charges a
+ * fish against that same figure.
+ */
+export function turnover(litersPerHour: number, waterVolume: number): string {
+  if (waterVolume <= 0) return '—';
+  return `${(litersPerHour / waterVolume).toFixed(1)} × tank volume/h`;
 }
 
 /** How much longer a running schedule has, for one that ever stops. */
@@ -114,7 +120,7 @@ function filterReadings({ state, units }: DeviceReadingInput): DeviceReading[] {
     {
       label: 'Flow',
       value: filter.enabled ? formatFlowRate(lph, units) : 'none',
-      note: filter.enabled ? turnover(lph, state.tank.capacity) : 'no circulation while off',
+      note: filter.enabled ? turnover(lph, state.resources.water) : 'no circulation while off',
     },
     {
       label: 'Media surface',
@@ -209,21 +215,19 @@ function co2Readings({ state }: DeviceReadingInput): DeviceReading[] {
 
 function powerheadReadings({ state, units }: DeviceReadingInput): DeviceReading[] {
   const { powerhead } = state.equipment;
-  const { flow } = state.resources;
+  const { flow, water } = state.resources;
   const lph = POWERHEAD_FLOW_LPH[powerhead.flowRateGPH];
 
   return [
     {
       label: 'Tank circulation',
       value: formatFlowRate(flow, units),
-      note: turnover(flow, state.tank.capacity),
+      note: turnover(flow, water),
     },
     {
       label: 'This powerhead',
       value: powerhead.enabled ? formatFlowRate(lph, units) : 'off',
-      note: powerhead.enabled
-        ? turnover(lph, state.tank.capacity)
-        : `would add ${formatFlowRate(lph, units)}`,
+      note: powerhead.enabled ? turnover(lph, water) : `would add ${formatFlowRate(lph, units)}`,
     },
   ];
 }
@@ -302,6 +306,20 @@ export interface DeviceHint {
   tone: 'muted' | 'warn';
 }
 
+/** The stocked species least able to bear the water the tank is moving. */
+function strainedByFlow({ fish, resources }: SimulationState): FishSpeciesData | null {
+  if (resources.water <= 0) return null;
+  const volumesPerHour = resources.flow / resources.water;
+
+  let tightest: FishSpeciesData | null = null;
+  for (const { species } of fish) {
+    const data = FISH_SPECIES_DATA[species];
+    if (data.maxTurnover >= volumesPerHour) continue;
+    if (tightest === null || data.maxTurnover < tightest.maxTurnover) tightest = data;
+  }
+  return tightest;
+}
+
 /** The one sentence worth saying about a device beyond its own figures. */
 export function deviceHint(
   id: EquipmentId,
@@ -320,7 +338,7 @@ export function deviceHint(
       if (tank.capacity <= spec.maxCapacityLiters) return null;
       const lph = getFilterFlow(equipment.filter.type, tank.capacity);
       return {
-        text: `Undersized for this tank — ${turnover(lph, tank.capacity)} against the ${spec.targetTurnover} × it is built for.`,
+        text: `Undersized for this tank — ${turnover(lph, resources.water)} against the ${spec.targetTurnover} × it is built for.`,
         tone: 'warn',
       };
     }
@@ -338,8 +356,16 @@ export function deviceHint(
       return muted(
         `${formatCo2Rate(equipment.co2Generator.bubbleRate, tank.capacity)} while injecting.`
       );
-    case 'powerhead':
-      return muted('Extra circulation and gas exchange on top of the filter.');
+    case 'powerhead': {
+      const strained = strainedByFlow(state);
+      if (strained === null) {
+        return muted('Extra circulation and gas exchange on top of the filter.');
+      }
+      return {
+        text: `Too much current for ${strained.name} — ${turnover(resources.flow, resources.water)} against the ${strained.maxTurnover} × it tolerates.`,
+        tone: 'warn',
+      };
+    }
     case 'autoDoser':
       return muted(
         `Each dose adds ${formatDose(
