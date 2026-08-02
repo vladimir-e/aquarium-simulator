@@ -12,6 +12,7 @@ import {
   calculateMaxBacteria,
   calculateNitriteToNitrate,
   calculateWasteToAmmonia,
+  nitrificationFactor,
 } from '../../simulation/systems/index.js';
 import {
   calculateSubstrateLeach,
@@ -35,10 +36,7 @@ const MATURE_PCT = 90;
 /** How far ahead the cycle projection will look before giving up, in ticks. */
 const PROJECTION_HORIZON = 24 * 180;
 
-/**
- * What a hobby test kit reads as zero, ppm. `traceCycle` calls a tank cycled at
- * the same figure, so the app and the anchors agree on what "clear" means.
- */
+/** What a hobby test kit reads as zero, ppm. */
 const TRACE_PPM = 0.1;
 
 /** Colonisation as a percentage (0–100) of the tank's combined bacteria ceiling. */
@@ -131,9 +129,15 @@ export function bacteriaReadout(
   const { nitriteProduced } = calculateAmmoniaToNitrite(
     r.ammonia + gills + ammoniaProduced,
     r.aob,
+    r.temperature,
     nc
   );
-  const { nitriteConsumed } = calculateNitriteToNitrate(r.nitrite + nitriteProduced, r.nob, nc);
+  const { nitriteConsumed } = calculateNitriteToNitrate(
+    r.nitrite + nitriteProduced,
+    r.nob,
+    r.temperature,
+    nc
+  );
   return {
     aob: colony(r.aob, ceiling),
     nob: colony(r.nob, ceiling),
@@ -198,6 +202,7 @@ export function projectNitritePeak(
   const ceiling = calculateMaxBacteria(r.surface, nc);
   if (r.water <= 0 || ceiling <= 0) return null;
   const inoculum = calculateInoculum(state.tank.capacity, nc);
+  const warmth = nitrificationFactor(r.temperature, nc);
 
   const sources = wasteInflow(state, config).sources;
   const steadyInflow = sources
@@ -227,11 +232,11 @@ export function projectNitritePeak(
     waste -= mineralised.wasteConsumed;
     ammonia += mineralised.ammoniaProduced + gills;
 
-    const oxidised = calculateAmmoniaToNitrite(ammonia, aob, nc);
+    const oxidised = calculateAmmoniaToNitrite(ammonia, aob, r.temperature, nc);
     ammonia -= oxidised.ammoniaConsumed;
     nitrite += oxidised.nitriteProduced;
 
-    const cleared = calculateNitriteToNitrate(nitrite, nob, nc);
+    const cleared = calculateNitriteToNitrate(nitrite, nob, r.temperature, nc);
     nitrite -= cleared.nitriteConsumed;
 
     const ammoniaPpm = getPpm(ammonia, water);
@@ -243,15 +248,15 @@ export function projectNitritePeak(
     const aobFlows = calculateColonyFlows(
       aob,
       oxidised.utilization,
-      nc.aobGrowthRate,
-      nc.bacteriaDeathRate,
+      nc.aobGrowthRate * warmth,
+      nc.bacteriaDeathRate * warmth,
       ceiling
     );
     const nobFlows = calculateColonyFlows(
       nob,
       cleared.utilization,
-      nc.nobGrowthRate,
-      nc.bacteriaDeathRate,
+      nc.nobGrowthRate * warmth,
+      nc.bacteriaDeathRate * warmth,
       ceiling
     );
     aob += aobFlows.growth - aobFlows.death;

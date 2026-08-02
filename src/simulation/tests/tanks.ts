@@ -9,7 +9,12 @@
  */
 
 import { produce } from 'immer';
-import { createSimulation, type FishSpecies, type SimulationState } from '../state.js';
+import {
+  createSimulation,
+  DEFAULT_ROOM_TEMPERATURE,
+  type FishSpecies,
+  type SimulationState,
+} from '../state.js';
 import { tick } from '../tick.js';
 import { applyAction } from '../actions/index.js';
 import { DEFAULT_CONFIG, type TunableConfig } from '../config/index.js';
@@ -30,6 +35,10 @@ export function run(
   return running;
 }
 
+/** There is no chiller, so a tank only sits below the room if the room is that cold. */
+const roomFor = (temperature: number): number =>
+  Math.min(DEFAULT_ROOM_TEMPERATURE, temperature);
+
 /**
  * A fishless, unfed, unplanted tank: the bed is the only thing in it that can
  * produce ammonia, so it alone decides whether — and when — the tank cycles.
@@ -38,15 +47,28 @@ export function run(
  * reading: over the two months these runs cover, an open tank loses most of
  * its water, and a rising ppm would then be a story about the water level
  * rather than about the bed. Turn it off to watch evaporation itself.
+ *
+ * The heater is sized to the tank for the same reason. Nitrifiers run on
+ * temperature, and the shipped 100 W default holds 25 °C only to about 200 L —
+ * a 1000 L on it sits at 22.7 °C, so a sweep across volumes would be reading
+ * the heater rather than the water. 1 W/L is the hobby rule of thumb, floored
+ * at the shipped 100 W, and it holds the target at every volume these runs use.
  */
 export function fishlessTank(
   substrate: SubstrateType,
-  { capacity = 20, ato = true }: { capacity?: number; ato?: boolean } = {}
+  {
+    capacity = 20,
+    ato = true,
+    temperature = 25,
+  }: { capacity?: number; ato?: boolean; temperature?: number } = {}
 ): SimulationState {
   return createSimulation({
     tankCapacity: capacity,
     substrate: { type: substrate },
     ato: { enabled: ato },
+    initialTemperature: temperature,
+    roomTemperature: roomFor(temperature),
+    heater: { targetTemperature: temperature, wattage: Math.max(100, capacity) },
   });
 }
 
@@ -101,13 +123,15 @@ export interface TraceOptions {
   substrate?: SubstrateType;
   days?: number;
   config?: TunableConfig;
+  /** Water temperature the tank is held at, °C. */
+  temperature?: number;
 }
 
 /** Watch a fishless tank through its whole cycle and report the shape of it. */
 export function traceCycle(capacity: number, options: TraceOptions = {}): CycleTrace {
-  const { substrate = 'aqua_soil', days = 40, config = DEFAULT_CONFIG } = options;
+  const { substrate = 'aqua_soil', days = 40, config = DEFAULT_CONFIG, temperature = 25 } = options;
 
-  let state = fishlessTank(substrate, { capacity });
+  let state = fishlessTank(substrate, { capacity, temperature });
   let spawnHour: number | null = null;
   let ammoniaPeakPpm = 0;
   let nitritePeakPpm = 0;

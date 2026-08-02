@@ -28,6 +28,10 @@ export interface NitrogenCycleConfig {
   bacteriaPerCm2: number;
   /** Fraction of bacteria that die per tick */
   bacteriaDeathRate: number;
+  /** Factor every nitrifier rate multiplies by per 10 °C */
+  q10: number;
+  /** Temperature the nitrifier rates are quoted at (°C) */
+  referenceTemp: number;
 }
 
 export const nitrogenCycleDefaults: NitrogenCycleConfig = {
@@ -59,9 +63,9 @@ export const nitrogenCycleDefaults: NitrogenCycleConfig = {
   // knobs: the bed's nitrogen budget is fixed, so every day the peak is delayed
   // is another day of it standing as nitrite.
   //
-  // Swept at 10 L through 1000 L, every value that passes lies in 0.598 – 0.680
+  // Swept at 10 L through 1000 L, every value that passes lies in 0.595 – 0.680
   // units/L: below it the nitrite peak clears the 5 ppm ceiling, above it a
-  // tank cycles before day 21. The value below sits inside that, 0.053 ppm
+  // tank cycles before day 21. The value below sits inside that, 0.055 ppm
   // under the peak ceiling and 0.167 d over the cycled-day floor. Those margins
   // are the widest the window allows — they trade against each other one for
   // one. `tests/inoculum-window.test.ts` re-runs the sweep.
@@ -92,6 +96,20 @@ export const nitrogenCycleDefaults: NitrogenCycleConfig = {
   // 1 − p/K. With the ceiling above, an ordinary load leaves that headroom
   // near 1 and maintenance decay is what the colony balances against.
   bacteriaDeathRate: Math.LN2 / (21 * 24),
+  // Nitrification runs on enzymes, so every rate above is quoted at a
+  // temperature. 2.5 is the middle of the Q10 2–3 measured for Nitrosomonas
+  // and Nitrospira — the same slope wastewater models carry as θ ≈ 1.1 per °C
+  // — and it puts an 18 °C cycle at close to twice the days a 25 °C one takes,
+  // which is the cold-start figure a keeper plans around.
+  //
+  // Oxidation, growth and maintenance all scale by the one factor: they are
+  // one metabolism, and a cell that works half as fast also divides and starves
+  // half as fast. The colony a load needs therefore grows as the water cools,
+  // while the utilization it rests at — deathRate/growthRate — does not move.
+  q10: 2.5,
+  // Every anchor is measured at 25 °C, so the term is inert there by
+  // construction and only bites away from it.
+  referenceTemp: 25,
 };
 
 export interface NitrogenCycleConfigMeta {
@@ -115,4 +133,6 @@ export const nitrogenCycleConfigMeta: NitrogenCycleConfigMeta[] = [
   { key: 'nobGrowthRate', label: 'NOB Growth Rate', unit: '/tick', step: 0.0001 },
   { key: 'bacteriaPerCm2', label: 'Max Bacteria per cm²', unit: 'units/cm²', step: 0.5 },
   { key: 'bacteriaDeathRate', label: 'Bacteria Death Rate', unit: '/tick', step: 0.00001 },
+  { key: 'q10', label: 'Nitrification Q10', unit: '', step: 0.1 },
+  { key: 'referenceTemp', label: 'Nitrification Reference Temp', unit: '°C', step: 1 },
 ];

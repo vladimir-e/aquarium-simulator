@@ -23,7 +23,9 @@ import type { TunableConfig } from '../../simulation/config/index.js';
  *
  * v15: Nitrogen-cycle throughput per bacterium. `NitrogenCycleConfig`
  *      swaps `spawnAmount` for `inoculumPerLiter` (bacteria units the
- *      tank is seeded with per litre), and `Resources.aob` / `.nob` are
+ *      tank is seeded with per litre) and gains the `q10` /
+ *      `referenceTemp` pair that scales nitrification with water
+ *      temperature, and `Resources.aob` / `.nob` are
  *      redenominated in units of 10⁶ cells — a colony that read 192
  *      under v14 reads six figures under v15. A v14 colony loaded
  *      against v15 constants would be a biofilter roughly 1/50th the

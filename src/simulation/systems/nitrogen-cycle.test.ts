@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { produce } from 'immer';
 import {
   nitrogenCycleSystem,
+  nitrificationFactor,
   calculateMaxBacteria,
   calculateInoculum,
   calculateColonyFlows,
@@ -19,6 +20,9 @@ import { decaySystem } from './decay.js';
 import { getPpm, getMassFromPpm } from '../resources/index.js';
 import { DEFAULT_CONFIG } from '../config/index.js';
 import { nitrogenCycleDefaults } from '../config/nitrogen-cycle.js';
+
+/** The temperature every rate in the config is quoted at. */
+const REF = nitrogenCycleDefaults.referenceTemp;
 
 // ============================================================================
 // Helper Function Tests
@@ -40,15 +44,40 @@ describe('calculateInoculum', () => {
     expect(calculateInoculum(200)).toBeCloseTo(calculateInoculum(20) * 10, 10);
   });
 
-  it('seeds a tank whatever it is scaped with — the cells arrive in the water', () => {
-    expect(calculateInoculum(40)).toBeGreaterThan(0);
-  });
-
   it('starts a colony far below the ceiling it will grow into', () => {
     const surface = createSimulation({ tankCapacity: 40, substrate: { type: 'none' } }).resources
       .surface;
 
     expect(calculateInoculum(40)).toBeLessThan(calculateMaxBacteria(surface) / 1000);
+  });
+});
+
+describe('nitrificationFactor', () => {
+  const { q10 } = nitrogenCycleDefaults;
+
+  it('leaves the rates alone at the temperature they are quoted at', () => {
+    expect(nitrificationFactor(REF)).toBe(1);
+  });
+
+  it('multiplies by q10 per 10 °C, either way', () => {
+    expect(nitrificationFactor(REF + 10)).toBeCloseTo(q10, 10);
+    expect(nitrificationFactor(REF - 10)).toBeCloseTo(1 / q10, 10);
+    expect(nitrificationFactor(REF + 20)).toBeCloseTo(q10 * q10, 10);
+  });
+
+  it('slows what a colony can oxidise in cold water, both stages alike', () => {
+    const cold = REF - 10;
+    const glut = 1e6;
+    const bacteria = 100;
+
+    expect(calculateAmmoniaToNitrite(glut, bacteria, cold).ammoniaConsumed).toBeCloseTo(
+      calculateAmmoniaToNitrite(glut, bacteria, REF).ammoniaConsumed / q10,
+      10
+    );
+    expect(calculateNitriteToNitrate(glut, bacteria, cold).nitriteConsumed).toBeCloseTo(
+      calculateNitriteToNitrate(glut, bacteria, REF).nitriteConsumed / q10,
+      10
+    );
   });
 });
 
@@ -156,20 +185,20 @@ describe('calculateWasteToAmmonia', () => {
 
 describe('calculateAmmoniaToNitrite', () => {
   it('returns zero consumption and production for no ammonia', () => {
-    const result = calculateAmmoniaToNitrite(0, 100);
+    const result = calculateAmmoniaToNitrite(0, 100, REF);
     expect(result.ammoniaConsumed).toBe(0);
     expect(result.nitriteProduced).toBe(0);
   });
 
   it('returns zero for no bacteria', () => {
-    const result = calculateAmmoniaToNitrite(1.0, 0);
+    const result = calculateAmmoniaToNitrite(1.0, 0, REF);
     expect(result.ammoniaConsumed).toBe(0);
     expect(result.nitriteProduced).toBe(0);
   });
 
   it('reports no utilization when a tuned-down rate leaves no capacity at all', () => {
     const noRate = { ...nitrogenCycleDefaults, bacteriaProcessingRate: 0 };
-    const result = calculateAmmoniaToNitrite(1.0, 100, noRate);
+    const result = calculateAmmoniaToNitrite(1.0, 100, REF, noRate);
 
     expect(result.ammoniaConsumed).toBe(0);
     expect(result.utilization).toBe(0);
@@ -177,8 +206,8 @@ describe('calculateAmmoniaToNitrite', () => {
 
   it('doubles the mass it clears when the colony doubles', () => {
     const glut = 1e6;
-    const one = calculateAmmoniaToNitrite(glut, 100).ammoniaConsumed;
-    const two = calculateAmmoniaToNitrite(glut, 200).ammoniaConsumed;
+    const one = calculateAmmoniaToNitrite(glut, 100, REF).ammoniaConsumed;
+    const two = calculateAmmoniaToNitrite(glut, 200, REF).ammoniaConsumed;
 
     expect(one).toBeGreaterThan(0);
     expect(two).toBeCloseTo(one * 2, 10);
@@ -189,7 +218,7 @@ describe('calculateAmmoniaToNitrite', () => {
     // a property of its cells, so nothing here can depend on how much water
     // happens to surround them.
     const bacteria = 100;
-    const { ammoniaConsumed } = calculateAmmoniaToNitrite(1e6, bacteria);
+    const { ammoniaConsumed } = calculateAmmoniaToNitrite(1e6, bacteria, REF);
 
     expect(ammoniaConsumed).toBeCloseTo(
       bacteria * nitrogenCycleDefaults.bacteriaProcessingRate,
@@ -199,12 +228,12 @@ describe('calculateAmmoniaToNitrite', () => {
 
   it('cannot process more ammonia than available', () => {
     const ammoniaMass = 0.001;
-    const { ammoniaConsumed } = calculateAmmoniaToNitrite(ammoniaMass, 1000);
+    const { ammoniaConsumed } = calculateAmmoniaToNitrite(ammoniaMass, 1000, REF);
     expect(ammoniaConsumed).toBe(ammoniaMass);
   });
 
   it('scales nitrite produced by MW_NO2 / MW_NH3 (N-mass conserved)', () => {
-    const { ammoniaConsumed, nitriteProduced } = calculateAmmoniaToNitrite(100, 100);
+    const { ammoniaConsumed, nitriteProduced } = calculateAmmoniaToNitrite(100, 100, REF);
 
     expect(ammoniaConsumed).toBeGreaterThan(0);
     expect(nitriteProduced).toBeCloseTo(ammoniaConsumed * NH3_TO_NO2_MASS_RATIO, 10);
@@ -215,20 +244,20 @@ describe('calculateAmmoniaToNitrite', () => {
 
 describe('calculateNitriteToNitrate', () => {
   it('returns zero consumption and production for no nitrite', () => {
-    const result = calculateNitriteToNitrate(0, 100);
+    const result = calculateNitriteToNitrate(0, 100, REF);
     expect(result.nitriteConsumed).toBe(0);
     expect(result.nitrateProduced).toBe(0);
   });
 
   it('returns zero for no bacteria', () => {
-    const result = calculateNitriteToNitrate(1.0, 0);
+    const result = calculateNitriteToNitrate(1.0, 0, REF);
     expect(result.nitriteConsumed).toBe(0);
     expect(result.nitrateProduced).toBe(0);
   });
 
   it('reports no utilization when a tuned-down rate leaves no capacity at all', () => {
     const noRate = { ...nitrogenCycleDefaults, bacteriaProcessingRate: 0 };
-    const result = calculateNitriteToNitrate(1.0, 100, noRate);
+    const result = calculateNitriteToNitrate(1.0, 100, REF, noRate);
 
     expect(result.nitriteConsumed).toBe(0);
     expect(result.utilization).toBe(0);
@@ -236,7 +265,7 @@ describe('calculateNitriteToNitrate', () => {
 
   it('runs at the AOB rate times the NOB multiplier, per bacteria unit', () => {
     const bacteria = 100;
-    const { nitriteConsumed } = calculateNitriteToNitrate(1e6, bacteria);
+    const { nitriteConsumed } = calculateNitriteToNitrate(1e6, bacteria, REF);
 
     expect(nitriteConsumed).toBeCloseTo(
       bacteria * nitrogenCycleDefaults.bacteriaProcessingRate * NOB_PROCESSING_RATE_MULTIPLIER,
@@ -246,12 +275,12 @@ describe('calculateNitriteToNitrate', () => {
 
   it('cannot process more nitrite than available', () => {
     const nitriteMass = 0.001;
-    const { nitriteConsumed } = calculateNitriteToNitrate(nitriteMass, 1000);
+    const { nitriteConsumed } = calculateNitriteToNitrate(nitriteMass, 1000, REF);
     expect(nitriteConsumed).toBe(nitriteMass);
   });
 
   it('scales nitrate produced by MW_NO3 / MW_NO2 (N-mass conserved)', () => {
-    const { nitriteConsumed, nitrateProduced } = calculateNitriteToNitrate(1000, 100);
+    const { nitriteConsumed, nitrateProduced } = calculateNitriteToNitrate(1000, 100, REF);
 
     expect(nitriteConsumed).toBeGreaterThan(0);
     expect(nitrateProduced).toBeCloseTo(nitriteConsumed * NO2_TO_NO3_MASS_RATIO, 10);
@@ -265,8 +294,8 @@ describe('calculateNitriteToNitrate', () => {
     // from an equivalent NH3 consumption. Expressed per N atom, throughput
     // is identical.
     const bacteria = 100;
-    const { ammoniaConsumed, nitriteProduced } = calculateAmmoniaToNitrite(1e6, bacteria);
-    const { nitriteConsumed } = calculateNitriteToNitrate(1e6, bacteria);
+    const { ammoniaConsumed, nitriteProduced } = calculateAmmoniaToNitrite(1e6, bacteria, REF);
+    const { nitriteConsumed } = calculateNitriteToNitrate(1e6, bacteria, REF);
 
     // NOB clears exactly the NO2 mass AOB just produced (balanced chain).
     expect(nitriteConsumed).toBeCloseTo(nitriteProduced, 8);
@@ -575,6 +604,19 @@ describe('nitrogenCycleSystem', () => {
 
       expect(light).toBeGreaterThan(0);
       expect(heavy!).toBeGreaterThan(light!);
+    });
+
+    it('grows a colony slower in cold water than in warm', () => {
+      const at = (temperature: number): number | undefined =>
+        growth(
+          'aob',
+          produce(createTestState({ ammonia: ppmToMass(0.5), aob: 100, surface: ROOMY }), (draft) => {
+            draft.resources.temperature = temperature;
+          })
+        );
+
+      expect(at(18)!).toBeLessThan(at(25)!);
+      expect(at(30)!).toBeGreaterThan(at(25)!);
     });
 
     it('does not grow a colony with nothing to eat', () => {

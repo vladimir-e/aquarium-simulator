@@ -297,6 +297,8 @@ const NitrogenCycleConfigSchema = z
     nobGrowthRate: z.number(),
     bacteriaPerCm2: z.number(),
     bacteriaDeathRate: z.number(),
+    q10: z.number(),
+    referenceTemp: z.number(),
   })
   .strict();
 

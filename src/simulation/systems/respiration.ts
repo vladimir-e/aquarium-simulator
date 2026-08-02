@@ -15,6 +15,7 @@
 
 import type { PlantsConfig } from '../config/plants.js';
 import { plantsDefaults } from '../config/plants.js';
+import { q10Factor } from '../core/kinetics.js';
 
 export interface RespirationResult {
   /** Oxygen consumed (mg/L, negative) */
@@ -31,8 +32,7 @@ export function getRespirationTemperatureFactor(
   temperature: number,
   config: PlantsConfig = plantsDefaults
 ): number {
-  const tempDiff = temperature - config.respirationReferenceTemp;
-  return Math.pow(config.respirationQ10, tempDiff / 10.0);
+  return q10Factor(temperature, config.respirationQ10, config.respirationReferenceTemp);
 }
 
 /**

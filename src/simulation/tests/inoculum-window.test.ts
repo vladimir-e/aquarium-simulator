@@ -9,23 +9,22 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { produce } from 'immer';
 import { DEFAULT_CONFIG, type TunableConfig } from '../config/index.js';
 import { nitrogenCycleDefaults } from '../config/nitrogen-cycle.js';
-import { formatTable, sweep } from './sweep.js';
+import { formatTable, sweep, tuned } from './sweep.js';
 import { doseClearance, traceCycle } from './tanks.js';
 
 /** Every volume the anchors claim the same timeline across. */
 const VOLUMES = [10, 20, 40, 75, 150, 300, 1000] as const;
 
 /** The window the config comment states, and the first grid point outside each edge. */
-const WINDOW_LOW = 0.598;
+const WINDOW_LOW = 0.595;
 const WINDOW_HIGH = 0.68;
-const BELOW_WINDOW = 0.596;
+const BELOW_WINDOW = 0.594;
 const ABOVE_WINDOW = 0.681;
 
 const at = (inoculumPerLiter: number): TunableConfig =>
-  produce(DEFAULT_CONFIG, (draft) => {
+  tuned((draft) => {
     draft.nitrogenCycle.inoculumPerLiter = inoculumPerLiter;
   });
 
@@ -94,7 +93,7 @@ describe('inoculumPerLiter — the window behind the shipped value', () => {
 
     expect(nitrogenCycleDefaults.inoculumPerLiter).toBeGreaterThan(WINDOW_LOW);
     expect(nitrogenCycleDefaults.inoculumPerLiter).toBeLessThan(WINDOW_HIGH);
-    expect(5 - Math.max(...measured.map((o) => o.peakPpm))).toBeCloseTo(0.053, 3);
+    expect(5 - Math.max(...measured.map((o) => o.peakPpm))).toBeCloseTo(0.055, 3);
     expect(Math.min(...measured.map((o) => o.cycledDay ?? 0)) - 21).toBeCloseTo(0.167, 3);
   });
 });

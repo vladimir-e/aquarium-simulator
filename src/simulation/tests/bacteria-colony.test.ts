@@ -15,7 +15,15 @@ import { tick } from '../tick.js';
 import { applyAction } from '../actions/index.js';
 import { getPpm, getMassFromPpm } from '../resources/helpers.js';
 import { DEFAULT_CONFIG, type TunableConfig } from '../config/index.js';
-import { calculateAmmoniaToNitrite, calculateMaxBacteria } from '../systems/nitrogen-cycle.js';
+import {
+  calculateAmmoniaToNitrite,
+  calculateMaxBacteria,
+  NH3_TO_NO2_MASS_RATIO,
+} from '../systems/nitrogen-cycle.js';
+import {
+  SUBSTRATE_ORGANIC_PER_LITER,
+  type SubstrateType,
+} from '../equipment/substrate.js';
 import {
   DAY,
   colonyFill,
@@ -77,6 +85,7 @@ function settle(
     utilization: calculateAmmoniaToNitrite(
       settled.resources.ammonia,
       settled.resources.aob,
+      settled.resources.temperature,
       config.nitrogenCycle
     ).utilization,
     fill: state.resources.aob / ceiling(state, config),
@@ -173,7 +182,10 @@ describe('bacteria colony dynamics', () => {
       };
 
       expect(kept(20, 21)).toBeCloseTo(0.5, 2);
-      expect(kept(150, 21)).toBeCloseTo(kept(20, 21), 6);
+      // Decay reads temperature, not litres, and the two tanks sit a few
+      // thousandths of a degree apart — heat in and out scale differently with
+      // volume — so the match is to a part in ten thousand rather than exact.
+      expect(kept(150, 21)).toBeCloseTo(kept(20, 21), 4);
     });
 
     it('takes the same bite out of a working colony as out of a starving one', () => {
@@ -252,6 +264,49 @@ describe('bacteria colony dynamics', () => {
         expect(cycledDay!).toBeGreaterThanOrEqual(21);
         expect(cycledDay!).toBeLessThanOrEqual(28);
       }
+    });
+
+    it('takes about twice as long to cycle at 18 °C as at 25 °C', () => {
+      // Nitrification is enzymatic, so a cold start is the keeper's own
+      // observation: same tank, same bed, roughly double the wait.
+      const days = (temperature: number): number =>
+        traceCycle(150, { temperature, days: 90 }).cycledDay!;
+      const reference = days(25);
+
+      expect(days(18) / reference).toBeGreaterThan(1.6);
+      expect(days(18) / reference).toBeLessThan(2.4);
+
+      // And monotone in between, with a warm tank finishing early.
+      expect(days(22)).toBeGreaterThan(reference);
+      expect(days(28)).toBeLessThan(reference);
+      expect(days(30)).toBeLessThan(days(28));
+    });
+
+    it('spikes nitrite on an inert bed too, in proportion to what that bed carries', () => {
+      // AOB wait on a concentration while the bed leaches, so most of a weak
+      // bed's nitrogen is standing as ammonia by the time they engage — and
+      // NOB, doubling in 36 h against AOB's 20 h, are still behind when it
+      // converts. The peak that leaves is bounded by the bed's whole budget
+      // read as nitrite, and floored by the ammonia peak it came from.
+      for (const substrate of ['gravel', 'sand'] as SubstrateType[]) {
+        const { ammoniaPeakPpm, nitritePeakPpm } = traceCycle(20, { substrate, days: 60 });
+        const budgetPpm = SUBSTRATE_ORGANIC_PER_LITER[substrate] * nc.wasteToAmmoniaRatio;
+
+        expect(nitritePeakPpm).toBeGreaterThan(ammoniaPeakPpm * NH3_TO_NO2_MASS_RATIO);
+        expect(nitritePeakPpm).toBeLessThan(budgetPpm * NH3_TO_NO2_MASS_RATIO);
+      }
+    });
+
+    it('cycles a coarse bed later than a rich one, and inside six weeks', () => {
+      // The dark start is the fast route because the bed is the ammonia
+      // source: a thin one keeps the colony waiting rather than starting it
+      // sooner.
+      const cycled = (substrate: SubstrateType): number =>
+        traceCycle(20, { substrate, days: 60 }).cycledDay!;
+
+      expect(cycled('aqua_soil')).toBeLessThan(cycled('gravel'));
+      expect(cycled('gravel')).toBeLessThan(cycled('sand'));
+      expect(cycled('sand')).toBeLessThan(42);
     });
 
     it('never shows ammonia on a cycled tank fed its normal ration', () => {

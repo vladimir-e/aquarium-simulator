@@ -199,6 +199,24 @@ the square of a tank's linear size and filter media is a flat cm² per filter
 type — so a seed quoted per cm² hands a nano nearly twice the head start per
 litre a stock tank gets, and the timeline spreads with volume.
 
+### Temperature
+
+Nitrification is enzymatic, so all three colony rates carry the same Q10
+factor against the temperature they are quoted at:
+
+```
+warmth           = q10 ^ ((temperature - reference_temp) / 10)
+capacity         = population * processing_rate * warmth
+bacterial_growth = population * growth_rate * warmth * utilization * (1 - population/max_population)
+bacterial_death  = population * death_rate * warmth
+```
+
+One metabolism, one factor: a cell that oxidises half as fast also divides and
+starves half as fast. So a cold tank needs a larger colony to clear the same
+load and takes longer to build it — an 18 °C cycle runs about twice the days a
+25 °C one does — while the utilization a colony rests at does not move with
+temperature.
+
 ### Surface Area Requirement
 
 Surface is provided by:

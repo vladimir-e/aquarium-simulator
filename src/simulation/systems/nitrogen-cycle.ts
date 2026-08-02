@@ -22,6 +22,7 @@ import type { SimulationState } from '../state.js';
 import type { System } from './types.js';
 import type { TunableConfig } from '../config/index.js';
 import { type NitrogenCycleConfig, nitrogenCycleDefaults } from '../config/nitrogen-cycle.js';
+import { q10Factor } from '../core/kinetics.js';
 import { getPpm } from '../resources/index.js';
 
 // Molecular weights (g/mol) — physics constants, not tunable config.
@@ -79,6 +80,22 @@ export function unionizedAmmoniaFraction(ph: number, temperatureC: number): numb
   const tempK = temperatureC + 273.15;
   const pKa = 0.09018 + 2729.92 / tempK;
   return 1 / (1 + Math.pow(10, pKa - ph));
+}
+
+/**
+ * How fast nitrifiers live at this temperature, against the reference their
+ * rates are quoted at.
+ *
+ * Applies to all three of a colony's rates — oxidation, growth and maintenance
+ * — because they are one metabolism. The visible consequence is that a cold
+ * tank needs a larger colony to clear the same load and takes longer to build
+ * it, while the utilization the colony rests at does not move.
+ */
+export function nitrificationFactor(
+  temperature: number,
+  config: NitrogenCycleConfig = nitrogenCycleDefaults
+): number {
+  return q10Factor(temperature, config.q10, config.referenceTemp);
 }
 
 /**
@@ -174,17 +191,20 @@ export function calculateWasteToAmmonia(
  *
  * @param ammoniaMass - Current ammonia mass in mg
  * @param aobPopulation - AOB bacteria population
+ * @param temperature - Water temperature in °C
  * @returns mg consumed, mg of nitrite produced, and the fraction of capacity used
  */
 export function calculateAmmoniaToNitrite(
   ammoniaMass: number,
   aobPopulation: number,
+  temperature: number,
   config: NitrogenCycleConfig = nitrogenCycleDefaults
 ): { ammoniaConsumed: number; nitriteProduced: number; utilization: number } {
   if (ammoniaMass <= 0 || aobPopulation <= 0) {
     return { ammoniaConsumed: 0, nitriteProduced: 0, utilization: 0 };
   }
-  const canProcessMass = aobPopulation * config.bacteriaProcessingRate;
+  const canProcessMass =
+    aobPopulation * config.bacteriaProcessingRate * nitrificationFactor(temperature, config);
   const ammoniaConsumed = Math.min(canProcessMass, ammoniaMass);
   return {
     ammoniaConsumed,
@@ -206,18 +226,23 @@ export function calculateAmmoniaToNitrite(
  *
  * @param nitriteMass - Current nitrite mass in mg
  * @param nobPopulation - NOB bacteria population
+ * @param temperature - Water temperature in °C
  * @returns mg consumed, mg of nitrate produced, and the fraction of capacity used
  */
 export function calculateNitriteToNitrate(
   nitriteMass: number,
   nobPopulation: number,
+  temperature: number,
   config: NitrogenCycleConfig = nitrogenCycleDefaults
 ): { nitriteConsumed: number; nitrateProduced: number; utilization: number } {
   if (nitriteMass <= 0 || nobPopulation <= 0) {
     return { nitriteConsumed: 0, nitrateProduced: 0, utilization: 0 };
   }
   const canProcessMass =
-    nobPopulation * config.bacteriaProcessingRate * NOB_PROCESSING_RATE_MULTIPLIER;
+    nobPopulation *
+    config.bacteriaProcessingRate *
+    NOB_PROCESSING_RATE_MULTIPLIER *
+    nitrificationFactor(temperature, config);
   const nitriteConsumed = Math.min(canProcessMass, nitriteMass);
   return {
     nitriteConsumed,
@@ -234,14 +259,15 @@ function colonyEffects(
   resource: 'aob' | 'nob',
   population: number,
   utilization: number,
+  temperatureFactor: number,
   maxPopulation: number,
   config: NitrogenCycleConfig
 ): Effect[] {
   const { growth, death } = calculateColonyFlows(
     population,
     utilization,
-    resource === 'aob' ? config.aobGrowthRate : config.nobGrowthRate,
-    config.bacteriaDeathRate,
+    (resource === 'aob' ? config.aobGrowthRate : config.nobGrowthRate) * temperatureFactor,
+    config.bacteriaDeathRate * temperatureFactor,
     maxPopulation
   );
 
@@ -265,6 +291,8 @@ export const nitrogenCycleSystem: System = {
     const ncConfig = config.nitrogenCycle;
     const maxBacteria = calculateMaxBacteria(resources.surface, ncConfig);
     const waterVolume = resources.water;
+    const temperature = resources.temperature;
+    const temperatureFactor = nitrificationFactor(temperature, ncConfig);
 
     // Track current values for calculations (effects accumulate)
     // Nitrogen compounds are stored as mass (mg)
@@ -327,7 +355,7 @@ export const nitrogenCycleSystem: System = {
     // Processes ammonia mass (mg), produces nitrite mass (mg).
     // N-mass is conserved; compound mass grows by MW_NO2 / MW_NH3 ≈ 2.702.
     // ========================================================================
-    const aobStage = calculateAmmoniaToNitrite(currentAmmonia, currentAob, ncConfig);
+    const aobStage = calculateAmmoniaToNitrite(currentAmmonia, currentAob, temperature, ncConfig);
     if (aobStage.ammoniaConsumed > 0) {
       effects.push({
         tier: 'passive',
@@ -351,7 +379,7 @@ export const nitrogenCycleSystem: System = {
     // Processes nitrite mass (mg), produces nitrate mass (mg).
     // N-mass is conserved; compound mass grows by MW_NO3 / MW_NO2 ≈ 1.348.
     // ========================================================================
-    const nobStage = calculateNitriteToNitrate(currentNitrite, currentNob, ncConfig);
+    const nobStage = calculateNitriteToNitrate(currentNitrite, currentNob, temperature, ncConfig);
     if (nobStage.nitriteConsumed > 0) {
       effects.push({
         tier: 'passive',
@@ -404,8 +432,22 @@ export const nitrogenCycleSystem: System = {
     // Bacterial Dynamics: Growth and maintenance decay
     // ========================================================================
     effects.push(
-      ...colonyEffects('aob', currentAob, aobStage.utilization, maxBacteria, ncConfig),
-      ...colonyEffects('nob', currentNob, nobStage.utilization, maxBacteria, ncConfig)
+      ...colonyEffects(
+        'aob',
+        currentAob,
+        aobStage.utilization,
+        temperatureFactor,
+        maxBacteria,
+        ncConfig
+      ),
+      ...colonyEffects(
+        'nob',
+        currentNob,
+        nobStage.utilization,
+        temperatureFactor,
+        maxBacteria,
+        ncConfig
+      )
     );
 
     return effects;

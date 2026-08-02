@@ -9,6 +9,7 @@ import type { System } from './types.js';
 import type { TunableConfig } from '../config/index.js';
 import { type DecayConfig, decayDefaults } from '../config/decay.js';
 import { nutrientsDefaults } from '../config/nutrients.js';
+import { q10Factor } from '../core/kinetics.js';
 
 /**
  * Calculate temperature factor for decay rate using Q10 coefficient.
@@ -18,8 +19,7 @@ export function getTemperatureFactor(
   temperature: number,
   config: DecayConfig = decayDefaults
 ): number {
-  const tempDiff = temperature - config.referenceTemp;
-  return Math.pow(config.q10, tempDiff / 10.0);
+  return q10Factor(temperature, config.q10, config.referenceTemp);
 }
 
 /**
