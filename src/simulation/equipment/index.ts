@@ -2,6 +2,7 @@
  * Equipment registry and effect collector.
  */
 
+import { produce } from 'immer';
 import type { Effect } from '../core/effects.js';
 import type { SimulationState } from '../state.js';
 import { calculateTankGlassSurface } from '../state.js';
@@ -210,4 +211,44 @@ export function calculatePassiveResources(state: SimulationState): PassiveResour
   const aeration = equipment.airPump.enabled || filterAerates;
 
   return { surface, flow, light, aeration };
+}
+
+/**
+ * The share of the biofilm a tank keeps when the bed currently in it comes out.
+ *
+ * A colony is a stock spread over every colonisable cm² the tank has, so a bed
+ * that carries most of that surface carries most of the nitrifiers away in the
+ * bucket, and whatever is laid in its place arrives sterile — which is why a
+ * rescape blips even though the glass and the filter media never left the tank.
+ *
+ * A bed that stays put costs nothing, but that is not a question about types:
+ * a fresh bag of the same soil is still a new bed. The callers that can leave
+ * the bed alone recognise it by identity before they ask this.
+ */
+export function biofilmKept(state: SimulationState): number {
+  const bed = state.equipment.substrate;
+  const surface = calculatePassiveResources(state).surface;
+  const lost = getSubstrateSurface(bed.type, state.tank.capacity);
+  return surface > 0 ? 1 - lost / surface : 1;
+}
+
+/**
+ * Pull the bed out and lay a different one in its place, and the biofilm that
+ * lived on it goes out with it.
+ *
+ * Returns the same state when the bed is already of that type.
+ */
+export function rescape(state: SimulationState, type: SubstrateType): SimulationState {
+  const bed = state.equipment.substrate;
+  const laid = replaceSubstrate(bed, type, state.tank.capacity);
+  if (laid === bed) return state;
+
+  const kept = biofilmKept(state);
+
+  return produce(state, (draft) => {
+    draft.equipment.substrate = laid;
+    draft.resources.aob *= kept;
+    draft.resources.nob *= kept;
+    draft.resources.surface = calculatePassiveResources(draft).surface;
+  });
 }

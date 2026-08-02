@@ -6,7 +6,8 @@ import {
   applyAction,
   calculatePassiveResources,
   calculateHardscapeSlots,
-  replaceSubstrate,
+  biofilmKept,
+  rescape,
   getHardscapeName,
   formatSchedule,
   type SimulationState,
@@ -375,10 +376,16 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
             draft.resources.water = Math.min(fillRatio * newCapacity, newCapacity);
           }
 
+          // A preset lays its own bed, fresh reserve and all, so the old one
+          // leaves with its share of the biofilm on it — same type or not.
+          const kept = biofilmKept(current);
+
           // Apply tank and equipment from preset
           draft.tank = presetState.tank;
           draft.equipment = presetState.equipment;
           draft.environment = presetState.environment;
+          draft.resources.aob *= kept;
+          draft.resources.nob *= kept;
 
           // Recalculate passive resources
           const passiveValues = calculatePassiveResources(draft as SimulationState);
@@ -663,26 +670,13 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
   }, []);
 
   const updateSubstrateType = useCallback((type: SubstrateType) => {
-    setState((current) =>
-      produce(current, (draft) => {
-        const bed = draft.equipment.substrate;
-        const replaced = replaceSubstrate(bed, type, draft.tank.capacity);
-        if (replaced !== bed) {
-          const log = createLog(
-            draft.tick,
-            'equipment',
-            'info',
-            `Substrate changed to ${type}`
-          );
-          draft.equipment.substrate = replaced;
-          draft.logs.push(log);
-          const passiveValues = calculatePassiveResources(draft);
-          draft.resources.surface = passiveValues.surface;
-          draft.resources.flow = passiveValues.flow;
-          draft.resources.light = passiveValues.light;
-        }
-      })
-    );
+    setState((current) => {
+      const scaped = rescape(current, type);
+      if (scaped === current) return current;
+      return produce(scaped, (draft) => {
+        draft.logs.push(createLog(draft.tick, 'equipment', 'info', `Substrate changed to ${type}`));
+      });
+    });
   }, []);
 
   const addHardscapeItem = useCallback((type: HardscapeType) => {

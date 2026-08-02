@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { calculatePassiveResources } from './index.js';
-import { createSimulation } from '../state.js';
+import { biofilmKept, calculatePassiveResources } from './index.js';
+import { getSubstrateSurface, type SubstrateType } from './substrate.js';
+import { createSimulation, type SimulationState } from '../state.js';
 import { FILTER_SURFACE, getFilterFlow } from './filter.js';
 import { POWERHEAD_FLOW_LPH } from './powerhead.js';
 import { HARDSCAPE_SURFACE } from '../state.js';
@@ -513,5 +514,28 @@ describe('calculatePassiveResources', () => {
       state.tick = 68;
       expect(calculatePassiveResources(state).light).toBe(0);
     });
+  });
+});
+
+describe('biofilmKept', () => {
+  const tank = (substrate: SubstrateType): SimulationState =>
+    createSimulation({ tankCapacity: 100, substrate: { type: substrate } });
+
+  it('is the share of the surface the bed does not carry', () => {
+    const state = tank('aqua_soil');
+    const bed = getSubstrateSurface('aqua_soil', state.tank.capacity);
+
+    expect(biofilmKept(state)).toBeCloseTo(
+      1 - bed / calculatePassiveResources(state).surface,
+      12
+    );
+  });
+
+  it('costs more the more of the tank’s surface the bed carries', () => {
+    expect(biofilmKept(tank('aqua_soil'))).toBeLessThan(biofilmKept(tank('sand')));
+  });
+
+  it('costs a tank with no bed nothing at all', () => {
+    expect(biofilmKept(tank('none'))).toBe(1);
   });
 });

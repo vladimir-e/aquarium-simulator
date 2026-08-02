@@ -15,27 +15,32 @@ import { tick } from '../tick.js';
 import { applyAction } from '../actions/index.js';
 import { getPpm, getMassFromPpm } from '../resources/helpers.js';
 import { DEFAULT_CONFIG, type TunableConfig } from '../config/index.js';
-import { calculateAmmoniaToNitrite, calculateMaxBacteria } from '../systems/nitrogen-cycle.js';
-import { fishlessTank } from './tanks.js';
+import {
+  calculateAmmoniaToNitrite,
+  calculateMaxBacteria,
+  NH3_TO_NO2_MASS_RATIO,
+} from '../systems/nitrogen-cycle.js';
+import {
+  SUBSTRATE_ORGANIC_PER_LITER,
+  type SubstrateType,
+} from '../equipment/substrate.js';
+import {
+  DAY,
+  colonyFill,
+  cycledTank,
+  doseClearance,
+  fishlessTank,
+  run,
+  stock,
+  traceCycle,
+} from './tanks.js';
 
-const DAY = 24;
 const nc = DEFAULT_CONFIG.nitrogenCycle;
 
 const ammoniaPpm = (s: SimulationState): number => getPpm(s.resources.ammonia, s.resources.water);
 const nitritePpm = (s: SimulationState): number => getPpm(s.resources.nitrite, s.resources.water);
 const ceiling = (s: SimulationState, config: TunableConfig = DEFAULT_CONFIG): number =>
   calculateMaxBacteria(s.resources.surface, config.nitrogenCycle);
-
-function run(state: SimulationState, hours: number, config = DEFAULT_CONFIG): SimulationState {
-  let running = state;
-  for (let hour = 0; hour < hours; hour++) running = tick(running, config);
-  return running;
-}
-
-/** A tank the bed has cycled on its own, the way a keeper waits before stocking. */
-function cycledTank(capacity: number): SimulationState {
-  return run(fishlessTank('aqua_soil', { capacity }), 30 * DAY);
-}
 
 /** Hours for a colony to double with its substrate held non-limiting. */
 function doublingHours(capacity: number, resource: 'aob' | 'nob'): number {
@@ -80,45 +85,10 @@ function settle(
     utilization: calculateAmmoniaToNitrite(
       settled.resources.ammonia,
       settled.resources.aob,
-      settled.resources.water,
+      settled.resources.temperature,
       config.nitrogenCycle
     ).utilization,
     fill: state.resources.aob / ceiling(state, config),
-  };
-}
-
-interface CycleTrace {
-  peakPpm: number;
-  peakDay: number;
-  /** Day nitrite first drops under 0.1 ppm past the peak with nitrate still rising. */
-  cycledDay: number | null;
-}
-
-function traceCycle(capacity: number, days = 40): CycleTrace {
-  let state = fishlessTank('aqua_soil', { capacity });
-  let peakPpm = 0;
-  let peakHour = 0;
-  let cycledHour: number | null = null;
-  let previousNitrate = 0;
-
-  for (let hour = 1; hour <= days * DAY; hour++) {
-    state = tick(state, DEFAULT_CONFIG);
-    const ppm = nitritePpm(state);
-
-    if (ppm > peakPpm) {
-      peakPpm = ppm;
-      peakHour = hour;
-    }
-    if (cycledHour === null && peakPpm > 0.5 && ppm < 0.1 && state.resources.nitrate > previousNitrate) {
-      cycledHour = hour;
-    }
-    previousNitrate = state.resources.nitrate;
-  }
-
-  return {
-    peakPpm,
-    peakDay: peakHour / DAY,
-    cycledDay: cycledHour === null ? null : cycledHour / DAY,
   };
 }
 
@@ -140,25 +110,29 @@ describe('bacteria colony dynamics', () => {
     });
 
     it('runs the whole cycle on the same clock at 20 L and 150 L', () => {
-      const peak = (capacity: number): { ppm: number; hour: number } => {
-        let state = fishlessTank('aqua_soil', { capacity });
-        let ppm = 0;
-        let hour = 0;
-        for (let h = 1; h <= 40 * DAY; h++) {
-          state = tick(state, DEFAULT_CONFIG);
-          if (nitritePpm(state) > ppm) {
-            ppm = nitritePpm(state);
-            hour = h;
+      const small = traceCycle(20);
+      const large = traceCycle(150);
+
+      expect(Math.abs(large.nitritePeakDay - small.nitritePeakDay) * DAY).toBeLessThanOrEqual(2);
+      expect(large.nitritePeakPpm).toBeCloseTo(small.nitritePeakPpm, 1);
+    });
+
+    it('clears the same mass per bacterium whatever the tank holds', () => {
+      // The units claim, read through the whole system rather than the
+      // conversion function: a colony's throughput is a property of its cells.
+      const cleared = (capacity: number): number => {
+        const seeded = produce(
+          createSimulation({ tankCapacity: capacity, ato: { enabled: true } }),
+          (draft) => {
+            draft.resources.aob = 1000;
+            draft.resources.ammonia = getMassFromPpm(50, draft.resources.water);
           }
-        }
-        return { ppm, hour };
+        );
+        const after = tick(seeded, DEFAULT_CONFIG);
+        return seeded.resources.ammonia - after.resources.ammonia;
       };
 
-      const small = peak(20);
-      const large = peak(150);
-
-      expect(Math.abs(large.hour - small.hour)).toBeLessThanOrEqual(2);
-      expect(large.ppm).toBeCloseTo(small.ppm, 1);
+      expect(cleared(150)).toBeCloseTo(cleared(20), 10);
     });
   });
 
@@ -177,14 +151,11 @@ describe('bacteria colony dynamics', () => {
       }
     });
 
-    it('rests near deathRate / growthRate once the ceiling is out of the way', () => {
-      const roomy = produce(DEFAULT_CONFIG, (draft) => {
-        draft.nitrogenCycle.bacteriaPerCm2 = nc.bacteriaPerCm2 * 20;
-      });
+    it('rests near deathRate / growthRate, because the ceiling is far off', () => {
       const bare = nc.bacteriaDeathRate / nc.aobGrowthRate;
 
       for (const capacity of [20, 150]) {
-        const { utilization, fill } = settle(capacity, 0.002, roomy);
+        const { utilization, fill } = settle(capacity, 0.002);
 
         expect(fill).toBeLessThan(0.15);
         expect(utilization).toBeGreaterThan(bare);
@@ -211,7 +182,10 @@ describe('bacteria colony dynamics', () => {
       };
 
       expect(kept(20, 21)).toBeCloseTo(0.5, 2);
-      expect(kept(150, 21)).toBeCloseTo(kept(20, 21), 6);
+      // Decay reads temperature, not litres, and the two tanks sit a few
+      // thousandths of a degree apart — heat in and out scale differently with
+      // volume — so the match is to a part in ten thousand rather than exact.
+      expect(kept(150, 21)).toBeCloseTo(kept(20, 21), 4);
     });
 
     it('takes the same bite out of a working colony as out of a starving one', () => {
@@ -233,20 +207,15 @@ describe('bacteria colony dynamics', () => {
    * either the change is wrong or the coefficients need re-deriving against
    * the same real-world behaviour.
    *
-   * The three cycling anchors — peak height, peak day, cycled day — are met
-   * only on the narrow `spawnAmount` window derived in
-   * `config/nitrogen-cycle.ts`, which is also where the trade-off between them
-   * is written down. The shipped value sits ~2 % above the 21-day cycled-day
-   * floor: that is the edge that binds first, and it binds when the inoculum
-   * goes up. Whichever of them breaks first, the answer is not to nudge
-   * `spawnAmount` back until it goes green again.
-   *
-   * Not anchored here: the **2 ppm dose test below a ~40 L tank.** A colony at
-   * its ceiling clears `bacteriaPerCm2 × surface × bacteriaProcessingRate`
-   * ppm/h, which in a 20 L is 1.71 ppm/day — under the dose, before any
-   * question of how big the colony grew. That ceiling is also why the settled
-   * utilization above sits well over deathRate/growthRate at ordinary loads:
-   * the logistic brake, not maintenance decay, is what stops the colony.
+   * Two of them sit close to their limits, and that is structural rather than
+   * a sign the fit is off. The bed's nitrogen budget is fixed, so a day of
+   * delay in the nitrite peak converts directly into another day of it
+   * standing as nitrite: peak height and cycled day are one degree of freedom,
+   * not two. The passing window on `inoculumPerLiter` is the ~13 % band written
+   * down in `config/nitrogen-cycle.ts` and swept in `inoculum-window.test.ts`,
+   * bounded above by the 21-day cycled-day floor and below by the 5 ppm nitrite
+   * ceiling. Whichever breaks first, the answer is not to nudge the inoculum
+   * until it goes green.
    */
   describe('calibration anchors', () => {
     it('doubles AOB in 15–24 h and NOB in 24–48 h on non-limiting substrate', () => {
@@ -268,18 +237,76 @@ describe('bacteria colony dynamics', () => {
 
     it('peaks nitrite at 2–5 ppm on day 12–16 and cycles by day 21–28', () => {
       for (const capacity of [20, 150]) {
-        const { peakPpm, peakDay, cycledDay } = traceCycle(capacity);
+        const { nitritePeakPpm, nitritePeakDay, cycledDay } = traceCycle(capacity);
 
-        expect(peakPpm).toBeGreaterThanOrEqual(2);
-        expect(peakPpm).toBeLessThanOrEqual(5);
+        expect(nitritePeakPpm).toBeGreaterThanOrEqual(2);
+        expect(nitritePeakPpm).toBeLessThanOrEqual(5);
 
-        expect(peakDay).toBeGreaterThanOrEqual(12);
-        expect(peakDay).toBeLessThanOrEqual(16);
+        expect(nitritePeakDay).toBeGreaterThanOrEqual(12);
+        expect(nitritePeakDay).toBeLessThanOrEqual(16);
 
         expect(cycledDay).not.toBeNull();
         expect(cycledDay!).toBeGreaterThanOrEqual(21);
         expect(cycledDay!).toBeLessThanOrEqual(28);
       }
+    });
+
+    it('holds that timeline from a nano to a stock tank', () => {
+      // Organics scale with the tank, so the ppm curve has to as well. The
+      // seed is counted per litre for exactly this reason.
+      for (const capacity of [10, 1000]) {
+        const { nitritePeakPpm, nitritePeakDay, cycledDay } = traceCycle(capacity);
+
+        expect(nitritePeakPpm).toBeGreaterThanOrEqual(2);
+        expect(nitritePeakPpm).toBeLessThanOrEqual(5);
+        expect(nitritePeakDay).toBeGreaterThanOrEqual(12);
+        expect(nitritePeakDay).toBeLessThanOrEqual(16);
+        expect(cycledDay!).toBeGreaterThanOrEqual(21);
+        expect(cycledDay!).toBeLessThanOrEqual(28);
+      }
+    });
+
+    it('takes about twice as long to cycle at 18 °C as at 25 °C', () => {
+      // Nitrification is enzymatic, so a cold start is the keeper's own
+      // observation: same tank, same bed, roughly double the wait.
+      const days = (temperature: number): number =>
+        traceCycle(150, { temperature, days: 90 }).cycledDay!;
+      const reference = days(25);
+
+      expect(days(18) / reference).toBeGreaterThan(1.6);
+      expect(days(18) / reference).toBeLessThan(2.4);
+
+      // And monotone in between, with a warm tank finishing early.
+      expect(days(22)).toBeGreaterThan(reference);
+      expect(days(28)).toBeLessThan(reference);
+      expect(days(30)).toBeLessThan(days(28));
+    });
+
+    it('spikes nitrite on an inert bed too, in proportion to what that bed carries', () => {
+      // AOB wait on a concentration while the bed leaches, so most of a weak
+      // bed's nitrogen is standing as ammonia by the time they engage — and
+      // NOB, doubling in 36 h against AOB's 20 h, are still behind when it
+      // converts. The peak that leaves is bounded by the bed's whole budget
+      // read as nitrite, and floored by the ammonia peak it came from.
+      for (const substrate of ['gravel', 'sand'] as SubstrateType[]) {
+        const { ammoniaPeakPpm, nitritePeakPpm } = traceCycle(20, { substrate, days: 60 });
+        const budgetPpm = SUBSTRATE_ORGANIC_PER_LITER[substrate] * nc.wasteToAmmoniaRatio;
+
+        expect(nitritePeakPpm).toBeGreaterThan(ammoniaPeakPpm * NH3_TO_NO2_MASS_RATIO);
+        expect(nitritePeakPpm).toBeLessThan(budgetPpm * NH3_TO_NO2_MASS_RATIO);
+      }
+    });
+
+    it('cycles a coarse bed later than a rich one, and inside six weeks', () => {
+      // The dark start is the fast route because the bed is the ammonia
+      // source: a thin one keeps the colony waiting rather than starting it
+      // sooner.
+      const cycled = (substrate: SubstrateType): number =>
+        traceCycle(20, { substrate, days: 60 }).cycledDay!;
+
+      expect(cycled('aqua_soil')).toBeLessThan(cycled('gravel'));
+      expect(cycled('gravel')).toBeLessThan(cycled('sand'));
+      expect(cycled('sand')).toBeLessThan(42);
     });
 
     it('never shows ammonia on a cycled tank fed its normal ration', () => {
@@ -302,31 +329,34 @@ describe('bacteria colony dynamics', () => {
       }
     });
 
-    // KNOWN DEFECT, marked `fails` so the suite stays honest about it: a
-    // freshly cycled tank ends the 24 h challenge holding 0.68 ppm at 60 L and
-    // 0.41 ppm at 150 L, against the 0.25 ppm this anchor asks for.
-    //
-    // `canProcessMass = pop × rate × waterVolume` makes per-bacterium
-    // throughput scale with the surrounding water, so clearance capacity
-    // scales with tank volume while the colony a given load requires does not.
-    // Byte-identical on `main`; tracked for the processing-capacity
-    // recalibration. That PR turns this test red — drop the `.fails` then.
-    //
-    // It passed before only because the fixture fed the tank for 30 days
-    // first, which is a prepared state, not a cycled one: the ration doubled
-    // the colony (213 → 494 AOB at 60 L) and the anchor read the conditioning
-    // rather than the engine.
-    it.fails('clears a 2 ppm dose to under 0.25 ppm within 24 h', () => {
-      for (const capacity of [60, 150]) {
-        const state = cycledTank(capacity);
-
-        const dosed = produce(state, (draft) => {
-          draft.resources.ammonia += getMassFromPpm(2, draft.resources.water);
-        });
-        expect(ammoniaPpm(dosed)).toBeGreaterThanOrEqual(2);
-
-        expect(ammoniaPpm(run(dosed, DAY))).toBeLessThan(0.25);
+    it('clears a 2 ppm dose to under 0.25 ppm within 24 h, at any volume', () => {
+      // From a tank its own bed cycled and nothing else — feeding it first
+      // would grow a colony the bed does not support, and the challenge would
+      // then be reading the conditioning rather than the engine.
+      for (const capacity of [20, 60, 150, 1000]) {
+        expect(doseClearance(capacity)).toBeLessThan(0.25);
       }
+    });
+
+    it('leaves an ordinary roster nowhere near the surface ceiling', () => {
+      // Surface is a cap for the overstocked, not a target a normal tank grows
+      // into. Single-sex so the run measures the biofilter rather than the
+      // breeding curve; weekly change so nitrate does not end it early.
+      let state = stock(cycledTank(40), 'neon_tetra', 12, { sex: 'male' });
+
+      for (let day = 1; day <= 120; day++) {
+        for (let hour = 0; hour < DAY; hour++) {
+          if (hour === 8) state = applyAction(state, { type: 'feed', amount: 0.05 }).state;
+          if (day % 7 === 0 && hour === 18)
+            state = applyAction(state, { type: 'waterChange', amount: 0.25 }).state;
+          state = tick(state, DEFAULT_CONFIG);
+        }
+      }
+
+      expect(state.fish).toHaveLength(12);
+      expect(ammoniaPpm(state)).toBeLessThan(0.1);
+      expect(nitritePpm(state)).toBeLessThan(0.1);
+      expect(colonyFill(state, 'aob')).toBeLessThan(0.1);
     });
   });
 });

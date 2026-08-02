@@ -16,6 +16,7 @@ import { DOSE_AMOUNT_OPTIONS } from '../../../simulation/equipment/auto-doser.js
 import type { TunableConfig } from '../../../simulation/config/index.js';
 import type { useSimulation } from '../../hooks/useSimulation';
 import { useUnits } from '../../hooks/useUnits';
+import { cycleWord } from '../../run';
 import { formatFlowRate } from '../../utils/units';
 import {
   deviceHint,
@@ -291,7 +292,7 @@ export function DeviceInspector({
     [row.id, sim.state, config, unitSystem]
   );
   const hint = deviceHint(row.id, sim.state, config);
-  const status = row.id === 'biofilter' ? (row.on ? 'cycled' : 'uncycled') : row.on ? 'on' : 'off';
+  const status = row.id === 'biofilter' ? cycleWord(row.on) : row.on ? 'on' : 'off';
 
   return (
     <div>

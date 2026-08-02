@@ -6,7 +6,8 @@ import {
   type SimulationState,
 } from '../../simulation/index.js';
 import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
-import { bacteriaReadout } from '../run/index.js';
+import { bacteriaReadout, colonyCount } from '../run/index.js';
+import { cycledTank, run as runUnfed } from '../../simulation/tests/tanks.js';
 import type { UnitSystem } from '../utils/units.js';
 import type { EquipmentId } from './devices';
 import { deviceHint, deviceReadings, type DeviceReading } from './readings';
@@ -350,32 +351,66 @@ describe('powerhead readings', () => {
 });
 
 describe('biofilter readings', () => {
-  /** Colonies at their ceiling, so the readout is not all zeroes. */
-  const cycled: SimulationState = {
-    ...base,
-    resources: {
-      ...base.resources,
-      aob: base.resources.surface * DEFAULT_CONFIG.nitrogenCycle.bacteriaPerCm2,
-      nob: base.resources.surface * DEFAULT_CONFIG.nitrogenCycle.bacteriaPerCm2,
-    },
-  };
+  const cycled: SimulationState = cycledTank(40);
 
   it('reads the same colonies the Water section’s Bacteria card does', () => {
+    // Both surfaces render through `colonyCount`, so the pane and the card
+    // never disagree on a population spanning six orders of magnitude.
     const readout = bacteriaReadout(cycled, DEFAULT_CONFIG);
     const readings = read('biofilter', cycled);
-    expect(readout.colonisation).toBeGreaterThan(0);
-    expect(value(readings, 'Colonisation').value).toBe(`${Math.round(readout.colonisation)} %`);
+    expect(readout.aob.count).toBeGreaterThan(0);
     expect(value(readings, 'AOB · ammonia → nitrite').value).toBe(
-      `${Math.round(readout.aob.count)} / ${Math.round(readout.aob.ceiling)}`
+      `${colonyCount(readout.aob.count)} / ${colonyCount(readout.aob.ceiling)}`
     );
     expect(value(readings, 'NOB · nitrite → nitrate').value).toBe(
-      `${Math.round(readout.nob.count)} / ${Math.round(readout.nob.ceiling)}`
+      `${colonyCount(readout.nob.count)} / ${colonyCount(readout.nob.ceiling)}`
     );
   });
 
-  it('names the threshold while uncycled and stops naming it once cycled', () => {
-    expect(value(read('biofilter'), 'Colonisation').note).toBe('cycled at 25 %');
-    expect(value(read('biofilter', cycled), 'Colonisation').note).toBe('cycled');
+  it('leads with the cycle and backs it with the reading behind it', () => {
+    expect(value(read('biofilter'), 'Cycle')).toEqual({
+      label: 'Cycle',
+      value: 'uncycled',
+      note: 'nothing colonised yet',
+    });
+    expect(value(read('biofilter', cycled), 'Cycle')).toEqual({
+      label: 'Cycle',
+      value: 'cycled',
+      note: 'NH₃ and NO₂ at trace, both stages keeping up',
+    });
+  });
+
+  it('never says a gauge is reading when both of them are at zero', () => {
+    // A tank starved until its colony faded reads uncycled on two gauges at
+    // zero — the note has to be about the colony, not about a toxin.
+    const starved = runUnfed(cycledTank(150), 150 * 24);
+    const readout = bacteriaReadout(starved, DEFAULT_CONFIG);
+
+    expect(readout.cycled).toBe(false);
+    expect(readout.atTrace).toBe(true);
+    expect(value(read('biofilter', starved), 'Cycle')).toEqual({
+      label: 'Cycle',
+      value: 'uncycled',
+      note: 'colonies too small to hold a feeding',
+    });
+  });
+
+  /**
+   * Share of ceiling is the one figure the re-pinned gauge does not let the
+   * headline carry: a cycled tank sits at a couple of percent by design, so it
+   * reads as the room the colony has left and never as its health.
+   */
+  it('keeps share of ceiling as the colonies’ own secondary figure', () => {
+    const readings = read('biofilter', cycled);
+    const readout = bacteriaReadout(cycled, DEFAULT_CONFIG);
+
+    expect(readout.aob.pct).toBeLessThan(10);
+    expect(value(readings, 'AOB · ammonia → nitrite').note).toBe(
+      `${Math.round(readout.aob.pct)} % of ceiling`
+    );
+    expect(value(readings, 'NOB · nitrite → nitrate').note).toBe(
+      `${Math.round(readout.nob.pct)} % of ceiling`
+    );
   });
 
   it('has nothing to configure, and says so', () => {

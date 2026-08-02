@@ -22,6 +22,7 @@ import type { SimulationState } from '../state.js';
 import type { System } from './types.js';
 import type { TunableConfig } from '../config/index.js';
 import { type NitrogenCycleConfig, nitrogenCycleDefaults } from '../config/nitrogen-cycle.js';
+import { q10Factor } from '../core/kinetics.js';
 import { getPpm } from '../resources/index.js';
 
 // Molecular weights (g/mol) — physics constants, not tunable config.
@@ -82,6 +83,22 @@ export function unionizedAmmoniaFraction(ph: number, temperatureC: number): numb
 }
 
 /**
+ * How fast nitrifiers live at this temperature, against the reference their
+ * rates are quoted at.
+ *
+ * Applies to all three of a colony's rates — oxidation, growth and maintenance
+ * — because they are one metabolism. The visible consequence is that a cold
+ * tank needs a larger colony to clear the same load and takes longer to build
+ * it, while the utilization the colony rests at does not move.
+ */
+export function nitrificationFactor(
+  temperature: number,
+  config: NitrogenCycleConfig = nitrogenCycleDefaults
+): number {
+  return q10Factor(temperature, config.q10, config.referenceTemp);
+}
+
+/**
  * Calculate maximum bacteria population based on surface area.
  */
 export function calculateMaxBacteria(
@@ -92,14 +109,35 @@ export function calculateMaxBacteria(
 }
 
 /**
+ * The colony a tank starts with once its spawn threshold is crossed.
+ *
+ * Nitrifiers arrive dissolved in the fill water and out of the air above it, so
+ * what a tank is born with is set by how much water went into it. They settle
+ * onto whatever is going — bed, glass, filter media — but attachment never
+ * rations the seed: an ordinary colony rests at a couple of percent of
+ * `calculateMaxBacteria`, so there is always somewhere to land.
+ *
+ * Per litre and not per cm² of surface, which is also the only form that holds
+ * the cycling clock volume-independent: glass area grows with the square of a
+ * tank's linear size and filter media is a flat cm² per filter type, so a seed
+ * quoted per cm² hands a nano nearly twice the head start per litre a stock
+ * tank gets.
+ */
+export function calculateInoculum(
+  tankCapacity: number,
+  config: NitrogenCycleConfig = nitrogenCycleDefaults
+): number {
+  return tankCapacity * config.inoculumPerLiter;
+}
+
+/**
  * A colony's two flows for one tick: growth and maintenance decay.
  *
  * Growth is the logistic form scaled by `utilization` — the share of its
  * processing capacity the colony actually used this tick.
  *
- * Utilization is dimensionless (consumed / capacity) and that is load-bearing:
- * capacity carries the tank's litres, so the ratio cancels them and per-capita
- * growth is the same in a nano and in a 150 L.
+ * Utilization is dimensionless (consumed / capacity), so per-capita growth reads
+ * how hard the colony is working rather than how big it or the tank is.
  *
  * Decay is unconditional. Bacteria do not starve to death the moment a meal
  * ends — they fade over weeks, which is why a tank survives a holiday.
@@ -146,6 +184,45 @@ export function calculateWasteToAmmonia(
 }
 
 /**
+ * The mg of NH₃ an AOB colony can put through in one tick — population × the
+ * throughput of a bacterium × how fast this temperature lets it work.
+ *
+ * A property of the cells, so nothing here reads the tank: the same colony
+ * clears the same mass in 10 L as in 1000 L, which is what makes a ppm reading
+ * fall with volume the way it does in a real tank.
+ */
+export function aobCapacity(
+  population: number,
+  temperature: number,
+  config: NitrogenCycleConfig = nitrogenCycleDefaults
+): number {
+  return population * config.bacteriaProcessingRate * nitrificationFactor(temperature, config);
+}
+
+/**
+ * The mg of NO₂⁻ a NOB colony can put through in one tick — the same gauge
+ * scaled by `NOB_PROCESSING_RATE_MULTIPLIER`, which is what keeps the two
+ * stages in stoichiometric balance at population parity.
+ *
+ * Spelled out rather than composed as `aobCapacity(…) × MULTIPLIER`: that
+ * reassociates the product and lands on a different float for roughly a third
+ * of the (population, temperature) pairs, and the cycling anchors are pinned to
+ * this order of operations.
+ */
+export function nobCapacity(
+  population: number,
+  temperature: number,
+  config: NitrogenCycleConfig = nitrogenCycleDefaults
+): number {
+  return (
+    population *
+    config.bacteriaProcessingRate *
+    NOB_PROCESSING_RATE_MULTIPLIER *
+    nitrificationFactor(temperature, config)
+  );
+}
+
+/**
  * Calculate ammonia to nitrite conversion by AOB bacteria.
  *
  * N-mass is conserved; compound mass scales with MW. NO2⁻ produced =
@@ -153,20 +230,19 @@ export function calculateWasteToAmmonia(
  *
  * @param ammoniaMass - Current ammonia mass in mg
  * @param aobPopulation - AOB bacteria population
- * @param waterVolume - Water volume in liters (needed to calculate processing capacity)
+ * @param temperature - Water temperature in °C
  * @returns mg consumed, mg of nitrite produced, and the fraction of capacity used
  */
 export function calculateAmmoniaToNitrite(
   ammoniaMass: number,
   aobPopulation: number,
-  waterVolume: number,
+  temperature: number,
   config: NitrogenCycleConfig = nitrogenCycleDefaults
 ): { ammoniaConsumed: number; nitriteProduced: number; utilization: number } {
-  if (ammoniaMass <= 0 || aobPopulation <= 0 || waterVolume <= 0) {
+  if (ammoniaMass <= 0 || aobPopulation <= 0) {
     return { ammoniaConsumed: 0, nitriteProduced: 0, utilization: 0 };
   }
-  // Processing rate is defined per ppm, multiply by water to get mass capacity
-  const canProcessMass = aobPopulation * config.bacteriaProcessingRate * waterVolume;
+  const canProcessMass = aobCapacity(aobPopulation, temperature, config);
   const ammoniaConsumed = Math.min(canProcessMass, ammoniaMass);
   return {
     ammoniaConsumed,
@@ -188,26 +264,19 @@ export function calculateAmmoniaToNitrite(
  *
  * @param nitriteMass - Current nitrite mass in mg
  * @param nobPopulation - NOB bacteria population
- * @param waterVolume - Water volume in liters (needed to calculate processing capacity)
+ * @param temperature - Water temperature in °C
  * @returns mg consumed, mg of nitrate produced, and the fraction of capacity used
  */
 export function calculateNitriteToNitrate(
   nitriteMass: number,
   nobPopulation: number,
-  waterVolume: number,
+  temperature: number,
   config: NitrogenCycleConfig = nitrogenCycleDefaults
 ): { nitriteConsumed: number; nitrateProduced: number; utilization: number } {
-  if (nitriteMass <= 0 || nobPopulation <= 0 || waterVolume <= 0) {
+  if (nitriteMass <= 0 || nobPopulation <= 0) {
     return { nitriteConsumed: 0, nitrateProduced: 0, utilization: 0 };
   }
-  // Processing rate is defined per ppm, multiply by water to get mass capacity.
-  // NOB runs at `rate × NOB_PROCESSING_RATE_MULTIPLIER` to match AOB's
-  // compound-mass output (MW_NO2 / MW_NH3 heavier than NH3 consumed).
-  const canProcessMass =
-    nobPopulation *
-    config.bacteriaProcessingRate *
-    NOB_PROCESSING_RATE_MULTIPLIER *
-    waterVolume;
+  const canProcessMass = nobCapacity(nobPopulation, temperature, config);
   const nitriteConsumed = Math.min(canProcessMass, nitriteMass);
   return {
     nitriteConsumed,
@@ -224,14 +293,15 @@ function colonyEffects(
   resource: 'aob' | 'nob',
   population: number,
   utilization: number,
+  temperatureFactor: number,
   maxPopulation: number,
   config: NitrogenCycleConfig
 ): Effect[] {
   const { growth, death } = calculateColonyFlows(
     population,
     utilization,
-    resource === 'aob' ? config.aobGrowthRate : config.nobGrowthRate,
-    config.bacteriaDeathRate,
+    (resource === 'aob' ? config.aobGrowthRate : config.nobGrowthRate) * temperatureFactor,
+    config.bacteriaDeathRate * temperatureFactor,
     maxPopulation
   );
 
@@ -255,6 +325,8 @@ export const nitrogenCycleSystem: System = {
     const ncConfig = config.nitrogenCycle;
     const maxBacteria = calculateMaxBacteria(resources.surface, ncConfig);
     const waterVolume = resources.water;
+    const temperature = resources.temperature;
+    const temperatureFactor = nitrificationFactor(temperature, ncConfig);
 
     // Track current values for calculations (effects accumulate)
     // Nitrogen compounds are stored as mass (mg)
@@ -317,7 +389,14 @@ export const nitrogenCycleSystem: System = {
     // Processes ammonia mass (mg), produces nitrite mass (mg).
     // N-mass is conserved; compound mass grows by MW_NO2 / MW_NH3 ≈ 2.702.
     // ========================================================================
-    const aobStage = calculateAmmoniaToNitrite(currentAmmonia, currentAob, waterVolume, ncConfig);
+    // Nitrifiers oxidise what is dissolved, so a tank with no water in it
+    // converts nothing. Maintenance decay below is deliberately outside the
+    // gate: a colony in a drained tank dies back rather than waiting.
+    const submerged = waterVolume > 0;
+
+    const aobStage = submerged
+      ? calculateAmmoniaToNitrite(currentAmmonia, currentAob, temperature, ncConfig)
+      : { ammoniaConsumed: 0, nitriteProduced: 0, utilization: 0 };
     if (aobStage.ammoniaConsumed > 0) {
       effects.push({
         tier: 'passive',
@@ -341,7 +420,9 @@ export const nitrogenCycleSystem: System = {
     // Processes nitrite mass (mg), produces nitrate mass (mg).
     // N-mass is conserved; compound mass grows by MW_NO3 / MW_NO2 ≈ 1.348.
     // ========================================================================
-    const nobStage = calculateNitriteToNitrate(currentNitrite, currentNob, waterVolume, ncConfig);
+    const nobStage = submerged
+      ? calculateNitriteToNitrate(currentNitrite, currentNob, temperature, ncConfig)
+      : { nitriteConsumed: 0, nitrateProduced: 0, utilization: 0 };
     if (nobStage.nitriteConsumed > 0) {
       effects.push({
         tier: 'passive',
@@ -366,15 +447,17 @@ export const nitrogenCycleSystem: System = {
     const ammoniaPpm = getPpm(currentAmmonia, waterVolume);
     const nitritePpm = getPpm(currentNitrite, waterVolume);
 
+    const inoculum = calculateInoculum(state.tank.capacity, ncConfig);
+
     // AOB spawns when ammonia reaches threshold and population is zero
     if (currentAob === 0 && ammoniaPpm >= ncConfig.aobSpawnThreshold) {
       effects.push({
         tier: 'passive',
         resource: 'aob',
-        delta: ncConfig.spawnAmount,
+        delta: inoculum,
         source: 'nitrogen-cycle-spawn',
       });
-      currentAob = ncConfig.spawnAmount;
+      currentAob = inoculum;
     }
 
     // NOB spawns when nitrite reaches threshold and population is zero
@@ -382,18 +465,32 @@ export const nitrogenCycleSystem: System = {
       effects.push({
         tier: 'passive',
         resource: 'nob',
-        delta: ncConfig.spawnAmount,
+        delta: inoculum,
         source: 'nitrogen-cycle-spawn',
       });
-      currentNob = ncConfig.spawnAmount;
+      currentNob = inoculum;
     }
 
     // ========================================================================
     // Bacterial Dynamics: Growth and maintenance decay
     // ========================================================================
     effects.push(
-      ...colonyEffects('aob', currentAob, aobStage.utilization, maxBacteria, ncConfig),
-      ...colonyEffects('nob', currentNob, nobStage.utilization, maxBacteria, ncConfig)
+      ...colonyEffects(
+        'aob',
+        currentAob,
+        aobStage.utilization,
+        temperatureFactor,
+        maxBacteria,
+        ncConfig
+      ),
+      ...colonyEffects(
+        'nob',
+        currentNob,
+        nobStage.utilization,
+        temperatureFactor,
+        maxBacteria,
+        ncConfig
+      )
     );
 
     return effects;

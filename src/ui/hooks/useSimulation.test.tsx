@@ -6,6 +6,7 @@ import { getPresetById, type PresetId } from '../presets';
 import { ConfigProvider } from './useConfig';
 import { PersistenceProvider } from '../persistence/index.js';
 import { createSimulation } from '../../simulation/state.js';
+import { getSubstrateSurface } from '../../simulation/index.js';
 import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
 import { PERSISTENCE_VERSION, STORAGE_KEY } from '../persistence/types.js';
 import { snapshotFromState } from '../run/index.js';
@@ -283,6 +284,52 @@ describe('useSimulation', () => {
       expect(result.current.currentPreset).toBe('community');
       expect(result.current.state.tank.capacity).toBe(150); // 40 gal
       expect(result.current.state.equipment.heater.targetTemperature).toBe(27);
+    });
+
+    it('a preset that lays a different bed takes that bed’s biofilm with it', () => {
+      // The planted preset is 40 L of aqua soil; betta is gravel, so loading it
+      // is a rescape however much else the preset resets.
+      const { result } = renderHook(() => useSimulation('planted'), { wrapper });
+
+      act(() => {
+        for (let day = 0; day < 12; day++) result.current.step();
+      });
+
+      const before = result.current.state.resources;
+      expect(before.aob).toBeGreaterThan(0);
+      expect(before.nob).toBeGreaterThan(0);
+
+      act(() => {
+        result.current.loadPreset('betta');
+      });
+
+      const kept = 1 - getSubstrateSurface('aqua_soil', 40) / before.surface;
+      expect(kept).toBeGreaterThan(0);
+      expect(result.current.state.resources.aob / before.aob).toBeCloseTo(kept, 10);
+      expect(result.current.state.resources.nob / before.nob).toBeCloseTo(kept, 10);
+    });
+
+    it('takes the bed’s biofilm even when the new preset names the same substrate', () => {
+      // Planted and community are both aqua soil, but community is a 150 L tank
+      // whose bed is a fresh 150 L of it, reserve and all — a new bed, not the
+      // old one left alone, so the colony on the old one does not come along.
+      const { result } = renderHook(() => useSimulation('planted'), { wrapper });
+
+      act(() => {
+        for (let day = 0; day < 12; day++) result.current.step();
+      });
+
+      const before = result.current.state.resources;
+      expect(before.aob).toBeGreaterThan(0);
+
+      act(() => {
+        result.current.loadPreset('community');
+      });
+
+      const kept = 1 - getSubstrateSurface('aqua_soil', 40) / before.surface;
+      expect(kept).toBeGreaterThan(0);
+      expect(result.current.state.resources.aob / before.aob).toBeCloseTo(kept, 10);
+      expect(result.current.state.resources.nob / before.nob).toBeCloseTo(kept, 10);
     });
 
     it('reset keeps equipment but resets tick and resources', () => {

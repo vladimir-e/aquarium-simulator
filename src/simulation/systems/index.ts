@@ -43,11 +43,15 @@ export {
 
 export {
   nitrogenCycleSystem,
+  nitrificationFactor,
   calculateMaxBacteria,
+  calculateInoculum,
   calculateColonyFlows,
   calculateWasteToAmmonia,
   calculateAmmoniaToNitrite,
   calculateNitriteToNitrate,
+  aobCapacity,
+  nobCapacity,
 } from './nitrogen-cycle.js';
 
 export {

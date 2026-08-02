@@ -292,11 +292,13 @@ const NitrogenCycleConfigSchema = z
     bacteriaProcessingRate: z.number(),
     aobSpawnThreshold: z.number(),
     nobSpawnThreshold: z.number(),
-    spawnAmount: z.number(),
+    inoculumPerLiter: z.number(),
     aobGrowthRate: z.number(),
     nobGrowthRate: z.number(),
     bacteriaPerCm2: z.number(),
     bacteriaDeathRate: z.number(),
+    q10: z.number(),
+    referenceTemp: z.number(),
   })
   .strict();
 

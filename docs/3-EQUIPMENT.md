@@ -199,9 +199,11 @@ Surface is the bacteria ceiling; the organic reserve is an ammonia source. They 
 
 Each tick the bed releases `substrateLeachRate` (0.3 %/hr) of whatever reserve is left into the waste pool, where the nitrogen cycle mineralizes it like any other organic matter. Because both the reserve and the release are per-litre quantities, concentration is volume-independent — a 20 L and a 150 L tank cycle on the same timeline.
 
-The leach is a source and the bacteria are a sink; the source never asks about the sink. A cycled tank shows a small blip where an uncycled one shows the full ramp, because the colony consumes the leach — not because the leach is switched off.
+The leach is a source and the bacteria are a sink; the source never asks about the sink. A tank that already carries a biofilter shows a blip where a fresh one shows the full ramp, because the colony that survived the swap eats most of the leach — not because the leach is switched off.
 
-**Reserve lifecycle.** The reserve belongs to the bed currently in the tank and only ever falls while that bed stays put. A water change removes dissolved ammonia and leaves the bed alone. Changing the substrate *type* replaces the bed, so the reserve refills for the new type (to zero for `none`); re-selecting the type already in the tank is not a rescape and changes nothing. A rescape therefore starts a fresh ammonia ramp **and** costs the tank the biofilm surface the bed was providing — punishing, and exactly what pulling a substrate does to a real tank.
+**Reserve lifecycle.** The reserve belongs to the bed currently in the tank and only ever falls while that bed stays put. A water change removes dissolved ammonia and leaves the bed alone. Changing the substrate *type* replaces the bed, so the reserve refills for the new type (to zero for `none`); re-selecting the type already in the tank is not a rescape and changes nothing.
+
+A rescape therefore starts a fresh ammonia ramp **and** takes the biofilm out in the bucket. A colony is a stock spread over every colonisable cm² the tank has, so pulling the bed removes the share that was living on it — most of it in a large tank, where the bed dwarfs the glass and the filter media — and the bed that replaces it arrives sterile. Ammonia and nitrite both come back up for a few days and then clear: punishing, and exactly what pulling a substrate does to a real tank.
 
 The resulting behaviour, fishless and unfed:
 

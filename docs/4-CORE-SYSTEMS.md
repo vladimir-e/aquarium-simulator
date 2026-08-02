@@ -161,23 +161,59 @@ Nitrite → Nitrate (via Nitrite-Oxidizing Bacteria)
 **Death:**
 - Unconditional maintenance loss, so a cut-off colony fades over weeks rather than collapsing
 - Population immediately reduced if surface area decreases (e.g., filter cleaning)
+- A colony is a stock sitting on surface, so surface that leaves the tank takes its share of the colony with it — see *Substrate* in [3-EQUIPMENT](3-EQUIPMENT.md) for what a rescape costs
 
 ```
-utilization      = substrate_consumed / processing_capacity   # 0..1
-bacterial_growth = population * growth_rate * utilization * (1 - population/max_population)
-bacterial_death  = population * death_rate
+utilization         = substrate_consumed / processing_capacity   # 0..1
+processing_capacity = population * processing_rate * warmth
+bacterial_growth    = population * growth_rate * warmth * utilization * (1 - population/max_population)
+bacterial_death     = population * death_rate * warmth
 ```
 
-`utilization` is dimensionless, and processing capacity carries the tank's
-litres, so per-capita growth is the same in a nano and in a 150 L.
+Processing capacity carries no volume term. Throughput is a property of the
+cell, so the same colony clears the same milligrams in a nano and in a 150 L,
+and `utilization` is dimensionless in both. `warmth` is the temperature factor
+below.
+
+A **bacteria unit is 10⁶ cells**, which is what makes `bacteria_per_unit_surface`
+a real biofilm density rather than a score. The three constants — processing
+rate, ceiling density, inoculum — carry an exact gauge symmetry, so one
+of them is a units convention and the ceiling density is the one pinned.
 
 `growth_rate` is read off a saturated doubling time (`ln2 / hours`) and
 `death_rate` off a starvation half-life. A colony under a steady load settles
 where the two cancel — `utilization = death_rate / growth_rate` while the
 surface ceiling is far off, higher once the logistic term starts braking.
 
-`spawn_amount` is the third constant on this clock: everything between a seeded
-tank and a cycled one is doublings, so the inoculum sets how many there are.
+The **inoculum** is the third constant on this clock: everything between a
+seeded tank and a cycled one is doublings, so it sets how many there are. It is
+a count per litre — nitrifiers arrive dissolved in the fill water and out of the
+air above it, then settle onto whatever surface is going, so a bare-bottom tank
+seeds on its filter media like any other and the cycling timeline is the same at
+10 L and 1000 L.
+
+```
+inoculum = tank_capacity * inoculum_per_liter
+```
+
+Per litre and not per cm² because the ammonia supply is per litre too: the seed
+and the load it has to catch scale together, which is what holds the clock
+steady across volumes.
+
+### Temperature
+
+Nitrification is enzymatic, so all three colony rates carry the same Q10
+factor against the temperature they are quoted at:
+
+```
+warmth = q10 ^ ((temperature - reference_temp) / 10)
+```
+
+One metabolism, one factor: a cell that oxidises half as fast also divides and
+starves half as fast. So a cold tank needs a larger colony to clear the same
+load and takes longer to build it — an 18 °C cycle runs about twice the days a
+25 °C one does — while the utilization a colony rests at does not move with
+temperature.
 
 ### Surface Area Requirement
 

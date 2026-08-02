@@ -116,6 +116,8 @@ export {
 export {
   processEquipment,
   calculatePassiveResources,
+  biofilmKept,
+  rescape,
   heaterUpdate,
   applyHeaterStateChange,
   calculateHeatingRate,

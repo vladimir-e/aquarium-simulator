@@ -738,7 +738,7 @@ export interface SimulationConfig {
 }
 
 const DEFAULT_TEMPERATURE = 25;
-const DEFAULT_ROOM_TEMPERATURE = 22;
+export const DEFAULT_ROOM_TEMPERATURE = 22;
 const DEFAULT_TAP_WATER_TEMPERATURE = 20;
 const DEFAULT_TAP_WATER_PH = 6.5;
 const DEFAULT_INITIAL_PH = 6.5;

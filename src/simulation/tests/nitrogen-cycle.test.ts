@@ -4,6 +4,7 @@ import { createSimulation } from '../state.js';
 import { tick } from '../tick.js';
 import { applyAction } from '../actions/index.js';
 import { getPpm, getMassFromPpm } from '../resources/helpers.js';
+import { calculateMaxBacteria } from '../systems/nitrogen-cycle.js';
 
 /**
  * Nitrogen Cycle Integration Tests
@@ -161,8 +162,6 @@ describe('Nitrogen Cycle Integration', () => {
 
   describe('Bacteria population is limited by available surface area', () => {
     it('bacteria cannot exceed max capacity for the given surface area', () => {
-      // Small surface area = low max bacteria (surface * 0.01 bacteriaPerCm2)
-      // Default 40L tank has glass surface ~1600 cm2, sponge filter 8000 cm2, etc.
       // Use a small tank with minimal equipment to keep surface low
       let smallSurface = createSimulation({
         tankCapacity: 20,
@@ -194,11 +193,12 @@ describe('Nitrogen Cycle Integration', () => {
       // Both should have AOB, but large surface should support more
       expect(largeSurface.resources.aob).toBeGreaterThan(smallSurface.resources.aob);
 
-      // AOB should not exceed max = surface * bacteriaPerCm2
-      const smallMax = smallSurface.resources.surface * 0.01;
-      const largeMax = largeSurface.resources.surface * 0.01;
-      expect(smallSurface.resources.aob).toBeLessThanOrEqual(smallMax + 0.01);
-      expect(largeSurface.resources.aob).toBeLessThanOrEqual(largeMax + 0.01);
+      expect(smallSurface.resources.aob).toBeLessThanOrEqual(
+        calculateMaxBacteria(smallSurface.resources.surface)
+      );
+      expect(largeSurface.resources.aob).toBeLessThanOrEqual(
+        calculateMaxBacteria(largeSurface.resources.surface)
+      );
     });
 
     it('bacteria growth slows as population approaches surface capacity', () => {
@@ -407,25 +407,17 @@ describe('Nitrogen Cycle Integration', () => {
         filter: { enabled: true, type: 'canister' }, // Canister = 25000 cm2
       });
 
-      // Build up a large bacterial population using the high surface area
+      // A colony filling the canister's surface — the only state where losing
+      // that surface is what limits it, rather than the load it lives on.
       state = produce(state, (draft) => {
         draft.resources.ammonia = getMassFromPpm(3.0, 40);
         draft.resources.nitrite = getMassFromPpm(3.0, 40);
-        draft.resources.aob = 200;
-        draft.resources.nob = 200;
+        draft.resources.aob = calculateMaxBacteria(draft.resources.surface);
+        draft.resources.nob = calculateMaxBacteria(draft.resources.surface);
       });
 
-      // Run ticks to let bacteria grow toward the canister's high capacity
-      for (let i = 0; i < 100; i++) {
-        state = tick(state);
-      }
-
       const aobWithFilter = state.resources.aob;
-      const nobWithFilter = state.resources.nob;
       const surfaceWithFilter = state.resources.surface;
-
-      expect(aobWithFilter).toBeGreaterThan(100);
-      expect(nobWithFilter).toBeGreaterThan(0);
 
       // Now disable the filter — surface area drops dramatically
       state = produce(state, (draft) => {
@@ -440,13 +432,12 @@ describe('Nitrogen Cycle Integration', () => {
       // Surface should have dropped significantly (lost 25000 cm2 from canister)
       expect(surfaceWithoutFilter).toBeLessThan(surfaceWithFilter);
 
-      // New max bacteria = surface * 0.01
-      const newMaxBacteria = surfaceWithoutFilter * 0.01;
+      const newMaxBacteria = calculateMaxBacteria(surfaceWithoutFilter);
 
       // Bacteria should have been capped to new maximum
       // (surface cap applies in the nitrogen cycle system)
-      expect(state.resources.aob).toBeLessThanOrEqual(newMaxBacteria + 0.01);
-      expect(state.resources.nob).toBeLessThanOrEqual(newMaxBacteria + 0.01);
+      expect(state.resources.aob).toBeLessThanOrEqual(newMaxBacteria);
+      expect(state.resources.nob).toBeLessThanOrEqual(newMaxBacteria);
 
       // Bacteria should be lower than they were with the filter
       expect(state.resources.aob).toBeLessThan(aobWithFilter);
@@ -481,11 +472,11 @@ describe('Nitrogen Cycle Integration', () => {
         state = tick(state);
       }
 
-      const maxWithSponge = state.resources.surface * 0.01;
+      const maxWithSponge = calculateMaxBacteria(state.resources.surface);
 
       // If AOB was above new max, it should have been capped
       if (aobWithCanister > maxWithSponge) {
-        expect(state.resources.aob).toBeLessThanOrEqual(maxWithSponge + 0.01);
+        expect(state.resources.aob).toBeLessThanOrEqual(maxWithSponge);
       }
     });
   });

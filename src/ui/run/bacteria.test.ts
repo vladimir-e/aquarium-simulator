@@ -3,6 +3,7 @@ import {
   bacteriaReadout,
   bacteriaSummary,
   biofilterColonisation,
+  colonyCount,
   projectNitritePeak,
   type CycleProjection,
 } from './bacteria';
@@ -15,8 +16,8 @@ import {
   type Resources,
   type SimulationState,
 } from '../../simulation/index.js';
-import { getMassFromPpm } from '../../simulation/resources/index.js';
-import { fishlessTank } from '../../simulation/tests/tanks.js';
+import { getMassFromPpm, getPpm } from '../../simulation/resources/index.js';
+import { cycledTank, fishlessTank, run as runUnfed } from '../../simulation/tests/tanks.js';
 
 const config = DEFAULT_CONFIG;
 const perCm2 = nitrogenCycleDefaults.bacteriaPerCm2;
@@ -138,6 +139,29 @@ describe('biofilterColonisation', () => {
   });
 });
 
+describe('colonyCount', () => {
+  it('reads a population in cells whatever its order of magnitude', () => {
+    expect(colonyCount(0)).toBe('0');
+    expect(colonyCount(0.648)).toBe('648.0 k');
+    expect(colonyCount(1)).toBe('1.0 M');
+    expect(colonyCount(1e3)).toBe('1.0 G');
+    expect(colonyCount(1e6)).toBe('1.0 T');
+  });
+
+  it('carries a rounded figure to the next prefix instead of overflowing this one', () => {
+    expect(colonyCount(999_999)).toBe('1.0 T');
+    expect(colonyCount(999_900)).toBe('999.9 G');
+  });
+
+  it('runs the ceilings the shipped tanks reach', () => {
+    const ceiling = (state: SimulationState): string =>
+      colonyCount(bacteriaReadout(state, config).aob.ceiling);
+
+    expect(ceiling(cycledTank(20))).toMatch(/^\d+\.\d G$/);
+    expect(ceiling(cycledTank(1000))).toMatch(/^\d+\.\d T$/);
+  });
+});
+
 describe('bacteriaReadout', () => {
   it('measures each colony against its own ceiling, not the combined one', () => {
     const state = tank();
@@ -153,13 +177,58 @@ describe('bacteriaReadout', () => {
     expect(readout.surface).toBe(state.resources.surface);
   });
 
-  it('calls a fresh tank uncycled and a colonised one cycled', () => {
+  it('calls a fresh tank uncycled and a tank its bed cycled cycled', () => {
     expect(bacteriaReadout(tank(), config).cycled).toBe(false);
+    expect(bacteriaReadout(cycledTank(200), config).cycled).toBe(true);
+  });
 
+  it('withholds it at the nitrite peak, where nitrite stops climbing but stands', () => {
+    // The worst possible moment to tell a keeper to stock: production has just
+    // tipped under consumption, with nitrite still near 5 ppm.
+    const peak = runUnfed(fishlessTank('aqua_soil', { capacity: 150 }), 16 * 24);
+
+    expect(getPpm(peak.resources.nitrite, peak.resources.water)).toBeGreaterThan(4);
+    expect(bacteriaReadout(peak, config).cycled).toBe(false);
+  });
+
+  it('withholds it from a pair of colonies with nothing to do', () => {
     const state = tank();
-    state.resources.aob = state.resources.surface * perCm2;
-    state.resources.nob = state.resources.surface * perCm2;
-    expect(bacteriaReadout(state, config).cycled).toBe(true);
+    state.resources.aob = 1e-9;
+    state.resources.nob = 1e-9;
+
+    expect(bacteriaReadout(state, config).cycled).toBe(false);
+  });
+
+  it('withdraws it from a tank starved until the colony has faded', () => {
+    // Both toxins have read zero for months — on colonies down to a hundredth
+    // of what cycled this tank, which the next feeding would walk straight past.
+    const starved = runUnfed(cycledTank(150), 150 * 24);
+    const { resources } = starved;
+    const readout = bacteriaReadout(starved, config);
+
+    expect(getPpm(resources.ammonia, resources.water)).toBeLessThan(0.1);
+    expect(getPpm(resources.nitrite, resources.water)).toBeLessThan(0.1);
+    expect(resources.aob).toBeGreaterThan(0);
+    expect(readout.cycled).toBe(false);
+    expect(readout.atTrace).toBe(true);
+    // The word the card prints is uncycled, so the sentence under it cannot be
+    // the one that reassures a keeper the biofilter is keeping up.
+    expect(bacteriaSummary(readout, null, config.nitrogenCycle)).toBe(
+      `Both toxins read zero, on colonies too small to hold a feeding — ${Math.round(readout.colonisation)} % of the biofilm this tank offers.`
+    );
+  });
+
+  it('holds it through a month of the ration the tank is used to', () => {
+    let state = cycledTank(150);
+    const uncycled: number[] = [];
+
+    for (let hour = 1; hour <= 30 * 24; hour++) {
+      if (hour % 24 === 0) state = applyAction(state, { type: 'feed', amount: 1.5 }).state;
+      state = tick(state, config);
+      if (!bacteriaReadout(state, config).cycled) uncycled.push(hour);
+    }
+
+    expect(uncycled).toEqual([]);
   });
 
   it('reports no conversion at all on a tank with nothing in it', () => {
@@ -294,20 +363,23 @@ describe('bacteriaSummary', () => {
     expect(summary).toContain('Nitrite peaks in');
   });
 
-  it('gives a fully grown biofilter its own line', () => {
+  it('calls out the surface as the limit once a colony has filled it', () => {
     const readout = bacteriaReadout(mature(), config);
 
     // The line has to be reachable from a state the engine produces: decay is
     // unconditional, so neither colony ever arrives at 100 % of its ceiling.
     expect(readout.aob.pct).toBeLessThan(100);
     expect(readout.nob.pct).toBeLessThan(100);
-    expect(bacteriaSummary(readout, null, nc)).toContain('up against their ceiling');
+    expect(bacteriaSummary(readout, null, nc)).toContain('more load has nowhere to go');
   });
 
-  it('reports a colony still climbing toward its ceiling as clearing what it makes', () => {
+  it('reads a colony below its ceiling as room left rather than as a shortfall', () => {
     const state = tank();
     state.resources.aob = state.resources.surface * perCm2 * 0.5;
     state.resources.nob = state.resources.surface * perCm2 * 0.5;
-    expect(bacteriaSummary(bacteriaReadout(state, config), null, nc)).toContain('clearing nitrite');
+
+    const summary = bacteriaSummary(bacteriaReadout(state, config), null, nc);
+    expect(summary).toContain('clearing nitrite');
+    expect(summary).toContain('50 % of the biofilm this tank offers');
   });
 });

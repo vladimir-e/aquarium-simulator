@@ -372,7 +372,7 @@ a plant or fish than to a chemical concentration.
 | Property | Value |
 |----------|-------|
 | **Type** | Biological |
-| **Unit** | Population (relative to surface capacity) |
+| **Unit** | Bacteria units — 10⁶ cells |
 | **Providers** | Growth on surfaces when ammonia present |
 | **Consumers** | Surface cleaning, ammonia depletion |
 
@@ -389,7 +389,7 @@ a plant or fish than to a chemical concentration.
 | Property | Value |
 |----------|-------|
 | **Type** | Biological |
-| **Unit** | Population (relative to surface capacity) |
+| **Unit** | Bacteria units — 10⁶ cells |
 | **Providers** | Growth on surfaces when nitrite present |
 | **Consumers** | Surface cleaning, nitrite depletion |
 

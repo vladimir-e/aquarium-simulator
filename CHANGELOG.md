@@ -11,6 +11,10 @@ Format: - **Feature name** (#PR) - One short sentence (under ~150 chars)
 
 ## Unreleased
 
+- **A rescape takes the biofilm** - any bed swap, picker or preset, costs the colony the share that lived on the old bed, so an established tank blips.
+- **The biofilter reads as cycled or uncycled** - both toxins at trace on colonies still clearing a load, so a starved tank stops claiming it.
+- **Colonisation reads as headroom** - share of the surface ceiling is the room a colony has left, not the headline a healthy tank sat at 1 % of.
+- **Processing capacity** - a bacterium clears the same ammonia in a nano as in a stock tank, and a cold tank cycles slower: 18 °C takes about twice the days 25 °C does.
 - **Nitrogen cycle** - a fresh tank cycles in about three weeks at any volume, driven by organics leaching from the substrate; a biofilter no longer dies for keeping up with its ammonia.
 - **`processEquipment` requires a config** - breaking: the old default silently ran on `decayDefaults` whatever the caller had tuned; `TunableConfig` and `DEFAULT_CONFIG` are now exported from the package root to pass one.
 - **`formatDosePreview` removed from the public API** - breaking for consumers importing it from the package root; the dose preview was UI string formatting living in the engine, and the Flora section derives it now.

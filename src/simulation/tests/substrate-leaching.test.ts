@@ -16,11 +16,12 @@ import { getPpm } from '../resources/helpers.js';
 import { DEFAULT_CONFIG } from '../config/index.js';
 import {
   getSubstrateOrganicReserve,
-  replaceSubstrate,
+  getSubstrateSurface,
   type SubstrateType,
 } from '../equipment/substrate.js';
-import { calculatePassiveResources } from '../equipment/index.js';
+import { rescape } from '../equipment/index.js';
 import {
+  calculateInoculum,
   NH3_TO_NO2_MASS_RATIO,
   NO2_TO_NO3_MASS_RATIO,
 } from '../systems/nitrogen-cycle.js';
@@ -68,6 +69,15 @@ function trace(state: SimulationState, hours: number): Trace {
     fractionLeft: start > 0 ? left / start : 0,
     final: running,
   };
+}
+
+/** A tank left alone until its bed has stopped delivering anything. */
+function runDown(type: SubstrateType = 'aqua_soil', capacity = 20): SimulationState {
+  let state = fishlessTank(type, { capacity });
+  for (let hour = 0; hour < 28 * DAY; hour++) {
+    state = tick(state, DEFAULT_CONFIG);
+  }
+  return state;
 }
 
 describe('substrate leaching', () => {
@@ -119,31 +129,12 @@ describe('substrate leaching', () => {
   });
 
   describe('a rescape', () => {
-    /** Pull the old bed out and lay `type` in its place, as the UI does. */
-    function rescape(state: SimulationState, type: SubstrateType): SimulationState {
-      return produce(state, (draft) => {
-        draft.equipment.substrate = replaceSubstrate(
-          draft.equipment.substrate,
-          type,
-          draft.tank.capacity
-        );
-        draft.resources.surface = calculatePassiveResources(draft).surface;
-      });
-    }
-
-    function runDown(): SimulationState {
-      let state = fishlessTank('aqua_soil');
-      for (let hour = 0; hour < 28 * DAY; hour++) {
-        state = tick(state, DEFAULT_CONFIG);
-      }
-      return state;
-    }
-
     it('costs the tank its ammonia ramp only by way of a real swap', () => {
       const spent = runDown();
       const held = spent.equipment.substrate.organicReserve;
 
       expect(rescape(spent, 'aqua_soil').equipment.substrate.organicReserve).toBe(held);
+      expect(rescape(spent, 'aqua_soil').resources.aob).toBe(spent.resources.aob);
 
       const relaid = rescape(rescape(spent, 'none'), 'aqua_soil');
       expect(relaid.equipment.substrate.organicReserve).toBe(
@@ -156,30 +147,46 @@ describe('substrate leaching', () => {
       const before = trace(spent, 7 * DAY);
       const after = trace(rescape(rescape(spent, 'none'), 'aqua_soil'), 7 * DAY);
 
-      // The biofilm the tank kept on its glass and filter eats the new bed's
-      // output as fast as it appears, so the ramp shows in what the bed
-      // delivers rather than in standing ammonia.
       expect(after.leached).toBeCloseTo(trace(fishlessTank('aqua_soil'), 7 * DAY).leached, 12);
       expect(after.leached).toBeGreaterThan(before.leached);
     });
 
-    it('takes the biofilm with the bed, clipping a colony above the new ceiling', () => {
-      const seeded = produce(fishlessTank('aqua_soil'), (draft) => {
-        const ceiling = draft.resources.surface * DEFAULT_CONFIG.nitrogenCycle.bacteriaPerCm2;
-        draft.resources.aob = ceiling;
-        draft.resources.nob = ceiling;
+    it('takes the biofilm out in the share of the surface the bed carried', () => {
+      const spent = runDown();
+      const bed = getSubstrateSurface('aqua_soil', spent.tank.capacity);
+      const kept = 1 - bed / spent.resources.surface;
+
+      const stripped = rescape(spent, 'none');
+
+      expect(spent.resources.aob).toBeGreaterThan(0);
+      expect(stripped.resources.aob).toBeCloseTo(spent.resources.aob * kept, 9);
+      expect(stripped.resources.nob).toBeCloseTo(spent.resources.nob * kept, 9);
+    });
+
+    it('leaves a colony that was against its ceiling against the new one', () => {
+      const ceilingOf = (state: SimulationState): number =>
+        state.resources.surface * DEFAULT_CONFIG.nitrogenCycle.bacteriaPerCm2;
+      const saturated = produce(fishlessTank('aqua_soil'), (draft) => {
+        draft.resources.aob = ceilingOf(draft);
+        draft.resources.nob = ceilingOf(draft);
       });
 
-      const stripped = rescape(seeded, 'none');
-      const ceiling = stripped.resources.surface * DEFAULT_CONFIG.nitrogenCycle.bacteriaPerCm2;
-      expect(ceiling).toBeLessThan(
-        seeded.resources.surface * DEFAULT_CONFIG.nitrogenCycle.bacteriaPerCm2
-      );
+      const stripped = rescape(saturated, 'none');
 
-      const settled = tick(stripped, DEFAULT_CONFIG);
-      expect(settled.resources.aob).toBeLessThanOrEqual(ceiling);
-      expect(settled.resources.nob).toBeLessThanOrEqual(ceiling);
+      expect(ceilingOf(stripped)).toBeLessThan(ceilingOf(saturated));
+      expect(stripped.resources.aob).toBeCloseTo(ceilingOf(stripped), 9);
+      expect(stripped.resources.nob).toBeCloseTo(ceilingOf(stripped), 9);
     });
+
+    it('hands a bigger bed no colony it has not grown', () => {
+      const spent = runDown('sand');
+      const upsized = rescape(spent, 'aqua_soil');
+
+      expect(upsized.resources.surface).toBeGreaterThan(spent.resources.surface);
+      expect(upsized.resources.aob).toBeLessThan(spent.resources.aob);
+      expect(upsized.resources.nob).toBeLessThan(spent.resources.nob);
+    });
+
   });
 
   describe('the leach is a rate flowing into a stock', () => {
@@ -288,6 +295,10 @@ describe('substrate leaching', () => {
     it('never gets a bare-bottom tank over the spawn threshold', () => {
       const bare = trace(fishlessTank('none'), 56 * DAY);
 
+      // Nitrifiers arrive with the water whatever the tank is scaped with, so
+      // what keeps this colony at zero is the missing ammonia, not a missing
+      // bed for it to settle on.
+      expect(calculateInoculum(bare.final.tank.capacity)).toBeGreaterThan(0);
       expect(bare.peakPpm).toBe(0);
       expect(bare.final.resources.aob).toBe(0);
     });
@@ -352,10 +363,45 @@ describe('substrate leaching', () => {
       }
     });
 
-    it('a bare tank never cycles on its own', () => {
-      const run = trace(fishlessTank('none'), 56 * DAY);
+    it('a bare tank never cycles on its own — nothing in it makes ammonia', () => {
+      const bare = fishlessTank('none');
+      expect(bare.equipment.substrate.organicReserve).toBe(0);
+      expect(trace(bare, 56 * DAY).spawnHour).toBeNull();
 
-      expect(run.spawnHour).toBeNull();
+      // The claim is about the source and not about the tank: give the same
+      // bare bottom a daily pinch of food and it cycles on its filter media,
+      // which is what a quarantine tank does.
+      let fed = bare;
+      for (let hour = 1; hour <= 56 * DAY; hour++) {
+        if (hour % 24 === 8) fed = applyAction(fed, { type: 'feed', amount: 0.05 }).state;
+        fed = tick(fed, DEFAULT_CONFIG);
+      }
+
+      expect(fed.resources.aob).toBeGreaterThan(0);
+      expect(fed.resources.nob).toBeGreaterThan(0);
+      expect(getPpm(fed.resources.ammonia, fed.resources.water)).toBeLessThan(0.1);
+      expect(getPpm(fed.resources.nitrite, fed.resources.water)).toBeLessThan(0.1);
+      expect(fed.resources.nitrate).toBeGreaterThan(0);
+    });
+
+    it('a rescape onto an established tank blips, and the tank clears it', () => {
+      const spent = runDown('gravel', 150);
+      expect(getPpm(spent.resources.ammonia, spent.resources.water)).toBeLessThan(0.1);
+
+      let state = rescape(spent, 'aqua_soil');
+      let ammoniaPeak = 0;
+      let nitritePeak = 0;
+      for (let hour = 1; hour <= 21 * DAY; hour++) {
+        state = tick(state, DEFAULT_CONFIG);
+        ammoniaPeak = Math.max(ammoniaPeak, getPpm(state.resources.ammonia, state.resources.water));
+        nitritePeak = Math.max(nitritePeak, getPpm(state.resources.nitrite, state.resources.water));
+      }
+
+      // Both readings come up onto a test kit, and both come back down unaided.
+      expect(ammoniaPeak).toBeGreaterThan(0.1);
+      expect(nitritePeak).toBeGreaterThan(0.5);
+      expect(getPpm(state.resources.ammonia, state.resources.water)).toBeLessThan(0.1);
+      expect(getPpm(state.resources.nitrite, state.resources.water)).toBeLessThan(0.1);
     });
   });
 });

@@ -17,17 +17,28 @@ import {
   type Plant,
   type SimulationState,
 } from '../../simulation/index.js';
+import { cycledTank } from '../../simulation/tests/tanks.js';
 
 function tank(overrides: Partial<SimulationState> = {}): SimulationState {
   return { ...createSimulation({ tankCapacity: 200 }), ...overrides };
 }
 
-/** A tank whose biofilter is fully colonised, so `uncycled` stops winning. */
+/**
+ * A tank its own bed cycled, so `uncycled` stops winning the pill. Run through
+ * the engine rather than seeded by hand: `cycled` is a claim about ammonia and
+ * nitrite both being spent, which no assignment to `aob` can arrange.
+ * Unfrozen a layer deep because the cases below push it off its setpoints.
+ */
 function cycled(overrides: Partial<SimulationState> = {}): SimulationState {
-  const state = tank(overrides);
-  const ceiling = state.resources.surface * DEFAULT_CONFIG.nitrogenCycle.bacteriaPerCm2;
-  state.resources.aob = ceiling;
-  state.resources.nob = ceiling;
+  const state = cycledTank(200);
+  return { ...state, resources: { ...state.resources }, ...overrides };
+}
+
+/** The same tank with both colonies pinned at the surface ceiling. */
+function saturated(): SimulationState {
+  const state = cycled();
+  state.resources.aob = state.resources.surface * DEFAULT_CONFIG.nitrogenCycle.bacteriaPerCm2;
+  state.resources.nob = state.resources.aob;
   return state;
 }
 
@@ -111,7 +122,9 @@ describe('navFigures — Water', () => {
 
   it('falls through to a soft warning once the colony is established', () => {
     // Nitrate is plant food, so an established tank sitting at zero warns.
-    expect(figures(cycled()).water.pill).toEqual({ text: 'NO₃ low', status: 'warn' });
+    const stripped = cycled();
+    stripped.resources.nitrate = 0;
+    expect(figures(stripped).water.pill).toEqual({ text: 'NO₃ low', status: 'warn' });
   });
 
   it('fills each toxin track against its own display scale', () => {
@@ -206,8 +219,8 @@ describe('the rail carries the Water section’s own readings', () => {
 });
 
 describe('navFigures — Equipment', () => {
-  it('reports colonisation alongside the device count', () => {
-    expect(figures(cycled()).equipment.lines[0]).toMatch(/^\d of 8 on · biofilter 100 %$/);
+  it('reports the biofilter’s state alongside the device count', () => {
+    expect(figures(saturated()).equipment.lines[0]).toMatch(/^\d of 8 on · biofilter cycled$/);
   });
 
   it('gives one dot per device, matching that device’s power state', () => {
