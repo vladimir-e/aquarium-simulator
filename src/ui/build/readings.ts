@@ -320,6 +320,18 @@ function strainedByFlow({ fish, resources }: SimulationState): FishSpeciesData |
   return tightest;
 }
 
+/** What the device driving the water says when the roster cannot take it. */
+function tooMuchCurrent(state: SimulationState): DeviceHint | null {
+  const strained = strainedByFlow(state);
+  if (strained === null) return null;
+
+  const { flow, water } = state.resources;
+  return {
+    text: `Too much current for ${strained.name} — ${turnover(flow, water)} against its ${strained.maxTurnover} ×.`,
+    tone: 'warn',
+  };
+}
+
 /** The one sentence worth saying about a device beyond its own figures. */
 export function deviceHint(
   id: EquipmentId,
@@ -335,12 +347,14 @@ export function deviceHint(
         return muted('No biological filtration while the filter is off.');
       }
       const spec = FILTER_SPECS[equipment.filter.type];
-      if (tank.capacity <= spec.maxCapacityLiters) return null;
-      const lph = getFilterFlow(equipment.filter.type, tank.capacity);
-      return {
-        text: `Undersized for this tank — ${turnover(lph, resources.water)} against the ${spec.targetTurnover} × it is built for.`,
-        tone: 'warn',
-      };
+      if (tank.capacity > spec.maxCapacityLiters) {
+        const lph = getFilterFlow(equipment.filter.type, tank.capacity);
+        return {
+          text: `Undersized for this tank — ${turnover(lph, resources.water)} against the ${spec.targetTurnover} × it is built for.`,
+          tone: 'warn',
+        };
+      }
+      return equipment.powerhead.enabled ? null : tooMuchCurrent(state);
     }
     case 'heater':
       return null;
@@ -356,16 +370,11 @@ export function deviceHint(
       return muted(
         `${formatCo2Rate(equipment.co2Generator.bubbleRate, tank.capacity)} while injecting.`
       );
-    case 'powerhead': {
-      const strained = strainedByFlow(state);
-      if (strained === null) {
-        return muted('Extra circulation and gas exchange on top of the filter.');
-      }
-      return {
-        text: `Too much current for ${strained.name} — ${turnover(resources.flow, resources.water)} against the ${strained.maxTurnover} × it tolerates.`,
-        tone: 'warn',
-      };
-    }
+    case 'powerhead':
+      return (
+        (equipment.powerhead.enabled ? tooMuchCurrent(state) : null) ??
+        muted('Extra circulation and gas exchange on top of the filter.')
+      );
     case 'autoDoser':
       return muted(
         `Each dose adds ${formatDose(

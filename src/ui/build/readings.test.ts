@@ -131,6 +131,28 @@ describe('filter readings', () => {
     });
     expect(deviceHint('filter', base, DEFAULT_CONFIG)).toBeNull();
   });
+
+  it('takes the current warning when it is the only thing moving the water', () => {
+    const brisk = createSimulation({ tankCapacity: 40, filter: { enabled: true, type: 'canister' } });
+    const stocked = applyAction(brisk, { type: 'addFish', species: 'betta' }).state;
+
+    expect(deviceHint('filter', stocked, DEFAULT_CONFIG)).toEqual({
+      text: 'Too much current for Betta — 8.0 × tank volume/h against its 5 ×.',
+      tone: 'warn',
+    });
+  });
+
+  it('leaves the current warning to the powerhead once one is running', () => {
+    const brisk = createSimulation({
+      tankCapacity: 40,
+      filter: { enabled: true, type: 'canister' },
+      powerhead: { enabled: true, flowRateGPH: 240 },
+    });
+    const stocked = applyAction(brisk, { type: 'addFish', species: 'betta' }).state;
+
+    expect(deviceHint('filter', stocked, DEFAULT_CONFIG)).toBeNull();
+    expect(deviceHint('powerhead', stocked, DEFAULT_CONFIG)?.tone).toBe('warn');
+  });
 });
 
 describe('light readings', () => {
@@ -371,9 +393,20 @@ describe('powerhead readings', () => {
       running
     );
     expect(deviceHint('powerhead', stocked, DEFAULT_CONFIG)).toEqual({
-      text: 'Too much current for Neon Tetra — 41.9 × tank volume/h against the 10 × it tolerates.',
+      text: 'Too much current for Neon Tetra — 41.9 × tank volume/h against its 10 ×.',
       tone: 'warn',
     });
+  });
+
+  it('does not take the blame for a current it is switched off for', () => {
+    const filterOnly = createSimulation({
+      tankCapacity: 40,
+      filter: { enabled: true, type: 'canister' },
+    });
+    const stocked = applyAction(filterOnly, { type: 'addFish', species: 'betta' }).state;
+
+    expect(deviceHint('powerhead', stocked, DEFAULT_CONFIG)?.tone).toBe('muted');
+    expect(deviceHint('filter', stocked, DEFAULT_CONFIG)?.tone).toBe('warn');
   });
 });
 
