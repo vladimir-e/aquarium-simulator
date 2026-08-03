@@ -54,6 +54,7 @@ export {
 export type {
   PresetSeed,
   SeedBacteria,
+  SeedColony,
   SeedResources,
   SeedFishGroup,
   SeedPlantGroup,
@@ -77,7 +78,6 @@ export { DEFAULT_CONFIG } from './config/index.js';
 // Resources
 export type { ResourceDefinition, ResourceKey } from './resources/index.js';
 export {
-  getPpm,
   getMassFromPpm,
   ResourceRegistry,
   AllResources,
@@ -287,7 +287,6 @@ export {
   buildPlantStressors,
   buildPlantBenefits,
 } from './plants/index.js';
-export { createPlant, generatePlantId, DEFAULT_PLANT_SIZE } from './plants/create-plant.js';
 
 // Livestock
 export {

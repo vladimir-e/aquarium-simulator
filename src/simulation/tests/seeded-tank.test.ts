@@ -1,21 +1,21 @@
 /**
  * A tank started at a state behaves like one that reached it the long way.
- *
- * Seeding writes initial stock values and nothing else, so the claim is
- * not that a seeded tank is a special case the engine handles — it is that
- * there is no special case. Most assertions here are comparisons against
- * the tank that spent three weeks getting there, or against the same tank
- * without the seed.
  */
 
 import { describe, it, expect } from 'vitest';
 import { createSimulation, type SimulationConfig, type SimulationState } from '../state.js';
-import { tick } from '../tick.js';
-import { applyAction } from '../actions/index.js';
 import { cycledColony, type PresetSeed } from '../seed.js';
-import { DEFAULT_CONFIG } from '../config/index.js';
 import { getPpm } from '../resources/helpers.js';
-import { DAY, colonyFill, cycledTank, doseClearance, run, seededCycledTank } from './tanks.js';
+import {
+  DAY,
+  colonyFill,
+  cycledTank,
+  doseClearance,
+  fishlessTank,
+  keep,
+  run,
+  seededCycledTank,
+} from './tanks.js';
 
 const ammoniaPpm = (s: SimulationState): number => getPpm(s.resources.ammonia, s.resources.water);
 const nitritePpm = (s: SimulationState): number => getPpm(s.resources.nitrite, s.resources.water);
@@ -23,37 +23,36 @@ const nitratePpm = (s: SimulationState): number => getPpm(s.resources.nitrate, s
 const totalPlantSize = (s: SimulationState): number =>
   s.plants.reduce((sum, plant) => sum + plant.size, 0);
 
-/** Peak ammonia over `days` of a daily ration, fed from the first morning. */
-function fedAmmoniaPeak(state: SimulationState, ration: number, days: number): number {
-  let running = state;
-  let peak = 0;
-
-  for (let hour = 1; hour <= days * DAY; hour++) {
-    if (hour % DAY === 9) running = applyAction(running, { type: 'feed', amount: ration }).state;
-    running = tick(running, DEFAULT_CONFIG);
-    peak = Math.max(peak, ammoniaPpm(running));
-  }
-
-  return peak;
+interface FedRun {
+  ammoniaPeakPpm: number;
+  /** Nitrate the run produced — the proof the ration decayed at all. */
+  nitrateGainPpm: number;
 }
 
-/** Run a tank on a keeper's routine: fed every morning, a quarter changed weekly. */
-function keeperRoutine(state: SimulationState, days: number, ration: number): SimulationState {
-  let running = state;
+/** Feed a tank a daily ration and watch what the nitrogen does. */
+function feedDaily(state: SimulationState, ration: number, days: number): FedRun {
+  let ammoniaPeakPpm = 0;
+  const final = keep(state, days, { feed: ration }, (_hour, _before, after) => {
+    ammoniaPeakPpm = Math.max(ammoniaPeakPpm, ammoniaPpm(after));
+  });
 
-  for (let day = 1; day <= days; day++) {
-    for (let hour = 0; hour < DAY; hour++) {
-      if (hour === 8) running = applyAction(running, { type: 'feed', amount: ration }).state;
-      if (day % 7 === 0 && hour === 18)
-        running = applyAction(running, { type: 'waterChange', amount: 0.25 }).state;
-      running = tick(running, DEFAULT_CONFIG);
-    }
-  }
-
-  return running;
+  return { ammoniaPeakPpm, nitrateGainPpm: nitratePpm(final) - nitratePpm(state) };
 }
 
 describe('a seeded cycled tank', () => {
+  it('carries the colony a tank that cycled itself grew', () => {
+    const perLitre = cycledColony(1);
+
+    for (const capacity of [20, 150]) {
+      const grown = cycledTank(capacity);
+
+      expect(grown.resources.aob / capacity).toBeGreaterThan(perLitre.aob! * 0.7);
+      expect(grown.resources.aob / capacity).toBeLessThan(perLitre.aob! * 1.3);
+      expect(grown.resources.nob / capacity).toBeGreaterThan(perLitre.nob! * 0.7);
+      expect(grown.resources.nob / capacity).toBeLessThan(perLitre.nob! * 1.3);
+    }
+  });
+
   it('clears a 2 ppm dose inside 24 h, at any volume', () => {
     for (const capacity of [20, 150, 1000]) {
       expect(doseClearance(seededCycledTank(capacity))).toBeLessThan(0.25);
@@ -73,8 +72,11 @@ describe('a seeded cycled tank', () => {
       const seeded = seededCycledTank(capacity);
       const after = run(seeded, 7 * DAY);
 
-      expect(after.resources.aob / seeded.resources.aob).toBeGreaterThan(0.7);
-      expect(after.resources.nob / seeded.resources.nob).toBeGreaterThan(0.7);
+      for (const colony of ['aob', 'nob'] as const) {
+        const ratio = after.resources[colony] / seeded.resources[colony];
+        expect(ratio).toBeGreaterThan(0.7);
+        expect(ratio).toBeLessThan(1.5);
+      }
     }
   });
 
@@ -85,20 +87,20 @@ describe('a seeded cycled tank', () => {
   });
 
   it('takes a feeding from its first day without an ammonia spike', () => {
-    const fresh: SimulationConfig = {
-      tankCapacity: 40,
-      substrate: { type: 'aqua_soil' },
-      ato: { enabled: true },
-    };
+    const seeded = feedDaily(seededCycledTank(40), 0.4, 7);
+    const uncycled = feedDaily(fishlessTank('aqua_soil', { capacity: 40 }), 0.4, 7);
 
-    const seeded = fedAmmoniaPeak(seededCycledTank(40), 0.4, 7);
-    const uncycled = fedAmmoniaPeak(createSimulation(fresh), 0.4, 7);
-
-    expect(seeded).toBeLessThan(0.1);
-    expect(uncycled).toBeGreaterThan(seeded * 10);
+    expect(uncycled.ammoniaPeakPpm).toBeGreaterThan(1);
+    expect(seeded.ammoniaPeakPpm).toBeLessThan(0.1);
+    expect(seeded.nitrateGainPpm).toBeGreaterThan(1);
   });
 });
 
+/**
+ * Guards, not anchors, despite the directory: the bands below say nothing ran
+ * away over three months, not what a community tank settles at. Deriving those
+ * numbers is the calibration pass's job.
+ */
 describe('a seeded community tank', () => {
   const TANK: SimulationConfig = {
     tankCapacity: 150,
@@ -113,11 +115,10 @@ describe('a seeded community tank', () => {
   const ROSTER: PresetSeed['fish'] = [{ species: 'neon_tetra', count: 12, sex: 'male' }];
 
   it('runs 90 days on a keeper routine without anything running away', () => {
-    const state = keeperRoutine(
-      createSimulation(TANK, { bacteria: cycledColony(150), fish: ROSTER }),
-      90,
-      0.15
-    );
+    const state = keep(createSimulation(TANK, { bacteria: 'cycled', fish: ROSTER }), 90, {
+      feed: 0.15,
+      waterChange: 0.25,
+    });
 
     expect(state.fish).toHaveLength(12);
     expect(Math.min(...state.fish.map((f) => f.health))).toBeGreaterThan(90);
@@ -129,7 +130,7 @@ describe('a seeded community tank', () => {
 
   it('starts planted rather than seedling, and grows from there', () => {
     const seed: PresetSeed = {
-      bacteria: cycledColony(150),
+      bacteria: 'cycled',
       fish: ROSTER,
       plants: [
         { species: 'java_fern', count: 3, size: 100 },
@@ -137,7 +138,7 @@ describe('a seeded community tank', () => {
       ],
     };
     const planted = createSimulation(TANK, seed);
-    const after = keeperRoutine(planted, 30, 0.15);
+    const after = keep(planted, 30, { feed: 0.15, waterChange: 0.25 });
 
     expect(planted.plants).toHaveLength(5);
     expect(Math.min(...planted.plants.map((p) => p.size))).toBe(100);

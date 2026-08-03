@@ -191,8 +191,11 @@ export function getPresetById(id: PresetId): PresetDefinition | undefined {
  * The tank a preset builds: its configuration and the state it starts at.
  * The one place both halves of a preset are read together.
  */
-export function createPresetSimulation(preset: PresetDefinition): SimulationState {
-  return createSimulation(preset.config, preset.seed);
+export function createPresetSimulation(
+  preset: PresetDefinition,
+  rng?: () => number
+): SimulationState {
+  return createSimulation(preset.config, preset.seed, rng);
 }
 
 /** The one place a preset id becomes the words every surface shows for it. */

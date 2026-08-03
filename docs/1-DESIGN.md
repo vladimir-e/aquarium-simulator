@@ -327,6 +327,29 @@ Systems are registered in a central list and automatically invoked during their 
 - **Equipment and actions mutate directly** - Use Immer's `produce()` for immutable updates
 - Enables undo, replay, and time-travel debugging
 
+### Starting State
+
+`createSimulation(config, seed?, rng?)` builds a tank at tick 0. Without a
+seed the tank is empty and uncycled; a `PresetSeed` says what is already in
+it — a colony, chemistry stocks, fish at an age and sex, plants at a size.
+
+- **Initial stocks only.** A seed writes resource values and pushes
+  organisms. It adds no dynamics, no gates, no catch-up, so a seeded tank
+  and a tank that reached the same state by running are the same object to
+  every layer above.
+- **Nothing is validated or clamped.** A seed may describe a tank no keeper
+  could have reached — a colony with no ammonia history, a fish past its
+  `maxAge`, a plant in a substrate that would refuse it. Constructing
+  extreme states deliberately is what a scenario is for.
+- **`bacteria: 'cycled'`** resolves against the tank's own capacity when the
+  seed is applied, so a preset resized at the door still gets a biofilter
+  that fits its water. `cycledColony(litres)` gives the absolute figure.
+- **A seed is pure data.** Randomness is a constructor parameter rather than
+  a seed field, so a seed stays serializable. Supplying `rng` makes the
+  roster's individual variation reproducible; the draw sequence is the same
+  whether or not a group names its fish's sex, so naming one doesn't reroll
+  the organisms behind it.
+
 ### Volume-Scaled Dynamics
 - Larger tanks are more stable (realistic behavior)
 - Equilibrium speed, evaporation rate, and temperature drift scale with volume

@@ -1,12 +1,11 @@
 /**
- * Plant construction — the single factory for every plant that enters the
- * tank, whether planted by the player (`addPlant`) or placed by a seed.
- *
- * The mirror of `livestock/create-fish.ts`. Plants carry no individual
- * variation, so the only thing a caller chooses is the size it goes in at.
+ * Plant construction — the mirror of `livestock/create-fish.ts`. Plants carry
+ * no individual variation, so the only thing a caller chooses is the size it
+ * goes in at.
  */
 
-import type { Plant, PlantSpecies } from '../state.js';
+import type { Plant } from '../state.js';
+import type { PlantSpecies } from './species.js';
 
 /** Size a plant goes in at when the caller doesn't say — a young specimen. */
 export const DEFAULT_PLANT_SIZE = 50;

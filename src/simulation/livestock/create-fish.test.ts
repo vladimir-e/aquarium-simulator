@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { createFish, fishMassForAge, generateFishId } from './create-fish.js';
-import { FISH_SPECIES_DATA } from '../state.js';
+import { FISH_SPECIES_DATA } from './species.js';
 
 /** Deterministic uniform PRNG (mulberry32) for distribution assertions. */
 function mulberry32(seed: number): () => number {
@@ -90,18 +90,34 @@ describe('createFish', () => {
     }
   });
 
-  it('spends no randomness on a sex it was given', () => {
-    const sampled = createFish({ species: 'guppy', age: 0, stage: 'adult', rng: seq([0.9, 0.2, 0.8]) });
+  it('draws the same stream whether or not it was given a sex', () => {
+    const draws = [0.9, 0.2, 0.8];
+    const sampled = createFish({ species: 'guppy', age: 0, stage: 'adult', rng: seq(draws) });
     const named = createFish({
       species: 'guppy',
       age: 0,
       stage: 'adult',
-      sex: sampled.sex,
-      rng: seq([0.2, 0.8]),
+      sex: 'male',
+      rng: seq(draws),
     });
 
     expect(named.hardinessOffset).toBe(sampled.hardinessOffset);
     expect(named.health).toBe(sampled.health);
+  });
+
+  it('leaves the stream where the next fish expects it', () => {
+    const draws = [0.9, 0.2, 0.8, 0.1, 0.6, 0.4];
+    const build = (sex?: 'male' | 'female'): ReturnType<typeof createFish> => {
+      const rng = seq(draws);
+      createFish({ species: 'guppy', age: 0, stage: 'adult', sex, rng });
+      return createFish({ species: 'guppy', age: 0, stage: 'adult', rng });
+    };
+    const after = build();
+    const afterNamed = build('female');
+
+    expect(afterNamed.sex).toBe(after.sex);
+    expect(afterNamed.hardinessOffset).toBe(after.hardinessOffset);
+    expect(afterNamed.health).toBe(after.health);
   });
 
   it('keeps hardiness offset within ±15% of species baseline', () => {

@@ -11,8 +11,7 @@ Format: - **Feature name** (#PR) - One short sentence (under ~150 chars)
 
 ## Unreleased
 
-- **A tank can start at a state** - `createSimulation` takes an optional `PresetSeed`: colony, chemistry, fish with age and sex, plants at a size, and an rng that makes the roster reproducible. Testing a cycled tank no longer costs three simulated weeks.
-- **Presets are engine data** - `PRESETS` moved from `src/ui/` into the package root, so engine tests stop importing upward and consumers get the tanks the app ships.
+- **A tank can start at a state** - `createSimulation` takes an optional `PresetSeed`: colony, chemistry, fish at an age and sex, plants at a size. `PRESETS` now ships from the package root.
 - **The community tank stops killing its tetras** - flow tolerance is a turnover, so one powerhead is a current in a 300 L and lethal in a nano. Saved tanks and CLI sessions both reset (v16, v3).
 - **"Undersized" now means the flow cap bites** - a 55 gal on a HOB is no longer told it is underfiltered; a 150 gal on a canister is.
 - **The device moving the water is the one that warns** - too much current names the powerhead, or the air pump, before the filter running behind it.

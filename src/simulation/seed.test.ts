@@ -21,8 +21,8 @@ function mulberry32(seed: number): () => number {
  * The tank minus its organism ids. Ids are process-unique by design — two
  * runs of one seed produce the same tank, not the same identities.
  */
-function anonymised(seed: PresetSeed): unknown {
-  const state = createSimulation(TANK, seed);
+function anonymised(seed: PresetSeed, rng?: () => number): unknown {
+  const state = createSimulation(TANK, seed, rng);
   return JSON.parse(
     JSON.stringify({
       resources: state.resources,
@@ -41,6 +41,19 @@ describe('createSimulation seeding', () => {
     expect(seeded.fish).toEqual([]);
     expect(seeded.plants).toEqual([]);
     expect(seeded.tick).toBe(0);
+  });
+
+  it('hands back a tank as mutable as an unseeded one', () => {
+    const bare = createSimulation(TANK);
+    const seeded = createSimulation(TANK, {
+      bacteria: { aob: 1200 },
+      fish: [{ species: 'guppy' }],
+      plants: [{ species: 'anubias' }],
+    });
+
+    expect(Object.isFrozen(seeded)).toBe(Object.isFrozen(bare));
+    expect(Object.isFrozen(seeded.resources)).toBe(Object.isFrozen(bare.resources));
+    expect(Object.isFrozen(seeded.fish)).toBe(Object.isFrozen(bare.fish));
   });
 
   it('leaves every stock a seed does not name where it was', () => {
@@ -85,6 +98,15 @@ describe('createSimulation seeding', () => {
     expect(seeded.resources.nob).toBe(0);
   });
 
+  it("sizes a 'cycled' colony against the capacity the tank was actually built at", () => {
+    for (const tankCapacity of [20, 150]) {
+      const seeded = createSimulation({ ...TANK, tankCapacity }, { bacteria: 'cycled' });
+
+      expect(seeded.resources.aob).toBe(cycledColony(tankCapacity).aob);
+      expect(seeded.resources.nob).toBe(cycledColony(tankCapacity).nob);
+    }
+  });
+
   describe('roster', () => {
     it('produces exactly the sexes it names, every run', () => {
       for (let run = 0; run < 25; run++) {
@@ -124,14 +146,29 @@ describe('createSimulation seeding', () => {
     });
 
     it('carries the individual variation a stocked fish gets', () => {
-      const state = createSimulation(TANK, {
-        fish: [{ species: 'neon_tetra', count: 40 }],
-        rng: mulberry32(4),
-      });
+      const state = createSimulation(
+        TANK,
+        { fish: [{ species: 'neon_tetra', count: 40 }] },
+        mulberry32(4)
+      );
       const offsets = new Set(state.fish.map((f) => f.hardinessOffset));
 
       expect(offsets.size).toBeGreaterThan(1);
       expect(new Set(state.fish.map((f) => f.id)).size).toBe(40);
+    });
+
+    it('builds the same individuals whether or not a group names its sex', () => {
+      const roster = (sex?: 'male' | 'female'): PresetSeed => ({
+        fish: [
+          { species: 'guppy', sex },
+          { species: 'neon_tetra', count: 4 },
+        ],
+      });
+      const named = createSimulation(TANK, roster('female'), mulberry32(7)).fish;
+      const sampled = createSimulation(TANK, roster(), mulberry32(7)).fish;
+
+      expect(named.map((f) => f.hardinessOffset)).toEqual(sampled.map((f) => f.hardinessOffset));
+      expect(named.map((f) => f.health)).toEqual(sampled.map((f) => f.health));
     });
   });
 
@@ -153,28 +190,24 @@ describe('createSimulation seeding', () => {
   });
 
   describe('determinism', () => {
-    it('builds the same tank twice from one seed and rng', () => {
-      const seed = (): PresetSeed => ({
-        bacteria: cycledColony(40),
-        resources: { nitrate: 400 },
-        fish: [
-          { species: 'neon_tetra', count: 8 },
-          { species: 'corydoras', count: 4, sex: 'female', age: 24 * 200 },
-        ],
-        plants: [{ species: 'java_fern', count: 3, size: 120 }],
-        rng: mulberry32(2026),
-      });
+    const SEED: PresetSeed = {
+      bacteria: cycledColony(40),
+      resources: { nitrate: 400 },
+      fish: [
+        { species: 'neon_tetra', count: 8 },
+        { species: 'corydoras', count: 4, sex: 'female', age: 24 * 200 },
+      ],
+      plants: [{ species: 'java_fern', count: 3, size: 120 }],
+    };
 
-      expect(anonymised(seed())).toEqual(anonymised(seed()));
+    it('builds the same tank twice from one seed and rng', () => {
+      expect(anonymised(SEED, mulberry32(2026))).toEqual(anonymised(SEED, mulberry32(2026)));
     });
 
     it('builds different rosters from different rngs', () => {
-      const roster = (rngSeed: number): PresetSeed => ({
-        fish: [{ species: 'neon_tetra', count: 12 }],
-        rng: mulberry32(rngSeed),
-      });
+      const roster: PresetSeed = { fish: [{ species: 'neon_tetra', count: 12 }] };
 
-      expect(anonymised(roster(1))).not.toEqual(anonymised(roster(2)));
+      expect(anonymised(roster, mulberry32(1))).not.toEqual(anonymised(roster, mulberry32(2)));
     });
   });
 
@@ -205,22 +238,5 @@ describe('createSimulation seeding', () => {
       expect(state.fish).toHaveLength(40);
       expect(state.plants).toHaveLength(30);
     });
-  });
-});
-
-describe('cycledColony', () => {
-  it('scales with the water, not the surface', () => {
-    const small = cycledColony(20);
-    const large = cycledColony(200);
-
-    expect(large.aob).toBeCloseTo(small.aob! * 10, 10);
-    expect(large.nob).toBeCloseTo(small.nob! * 10, 10);
-  });
-
-  it('puts NOB behind AOB, the order they establish in', () => {
-    const colony = cycledColony(40);
-
-    expect(colony.nob!).toBeLessThan(colony.aob!);
-    expect(colony.nob!).toBeGreaterThan(0);
   });
 });

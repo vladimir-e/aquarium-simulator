@@ -8,8 +8,9 @@
  * difference is the stage/age/mass triple the caller supplies.
  */
 
-import type { Fish, FishSex, FishSpecies, FishLifeStage } from '../state.js';
-import { FISH_SPECIES_DATA } from '../state.js';
+import type { Fish } from '../state.js';
+import type { FishSex, FishSpecies, FishLifeStage } from './species.js';
+import { FISH_SPECIES_DATA } from './species.js';
 
 /** Per-fish hardiness offset span as a fraction of species baseline. */
 const HARDINESS_OFFSET_SPAN = 0.15;
@@ -64,7 +65,10 @@ export function createFish(params: CreateFishParams): Fish {
   const { species, age, stage, rng = Math.random } = params;
   const data = FISH_SPECIES_DATA[species];
 
-  const sex = params.sex ?? (rng() < 0.5 ? 'male' : 'female');
+  // Drawn even when the caller named a sex: a seed that names one and a seed
+  // that doesn't must otherwise hand every later organism a different stream.
+  const sampledSex = rng() < 0.5 ? 'male' : 'female';
+  const sex = params.sex ?? sampledSex;
   const hardinessOffset = (rng() - 0.5) * 2 * HARDINESS_OFFSET_SPAN * data.hardiness;
   const health = Math.max(0, Math.min(100, 100 + (rng() - 0.5) * 2 * HEALTH_JITTER));
 

@@ -1,24 +1,11 @@
 /**
- * Starting a tank at a state.
- *
- * `createSimulation` builds an empty, uncycled tank. A `PresetSeed` says
- * what is already in it at tick 0 — a colony, a chemistry, a roster, a
- * scape — so a scenario can observe the mechanic it cares about instead of
- * simulating three weeks to reach it.
- *
  * A seed sets initial stock values and nothing else: no new dynamics, no
  * gates, no catch-up. Whatever it writes, the tick loop takes from there.
  */
 
-import { produce } from 'immer';
-import type {
-  FishLifeStage,
-  FishSex,
-  FishSpecies,
-  PlantSpecies,
-  Resources,
-  SimulationState,
-} from './state.js';
+import type { Resources, SimulationState } from './state.js';
+import type { FishLifeStage, FishSex, FishSpecies } from './livestock/species.js';
+import type { PlantSpecies } from './plants/species.js';
 import { createFish } from './livestock/create-fish.js';
 import { createPlant } from './plants/create-plant.js';
 
@@ -35,7 +22,14 @@ const SEEDABLE_RESOURCES = [
   'co2',
 ] as const;
 
-export type SeedBacteria = Partial<Pick<Resources, (typeof SEEDABLE_BACTERIA)[number]>>;
+export type SeedColony = Partial<Pick<Resources, (typeof SEEDABLE_BACTERIA)[number]>>;
+
+/**
+ * A colony as absolute stock, or `'cycled'` — the colony this tank's own
+ * volume carries, resolved against its capacity when the seed is applied so
+ * a preset resized at the door still gets a biofilter that fits it.
+ */
+export type SeedBacteria = 'cycled' | SeedColony;
 
 /**
  * Chemistry stocks a seed may set, in the units `Resources` stores them
@@ -50,7 +44,6 @@ export interface SeedFishGroup {
   count?: number;
   /** Age in ticks. Defaults to 0. */
   age?: number;
-  /** Sampled 50/50 when absent, the way the shop hands them over. */
   sex?: FishSex;
   /**
    * Defaults to `adult`. Independent of `age`, so both a newly-stocked
@@ -68,8 +61,6 @@ export interface SeedPlantGroup {
 }
 
 /**
- * The state a tank starts at, applied once at tick 0.
- *
  * Nothing here is validated or clamped. A seed may describe a tank no
  * keeper could have reached — a colony with no ammonia history, a fish
  * past its `maxAge`, a plant in a substrate that would refuse it —
@@ -81,12 +72,6 @@ export interface PresetSeed {
   resources?: SeedResources;
   fish?: SeedFishGroup[];
   plants?: SeedPlantGroup[];
-  /**
-   * Randomness for the individual variation `createFish` samples. Supply
-   * one and the same seed builds the same roster every run; organism ids
-   * stay process-unique either way.
-   */
-  rng?: () => number;
 }
 
 /**
@@ -108,46 +93,52 @@ const CYCLED_NOB_PER_LITER = 200;
  * a colony is sized by its ammonia supply, which scales with the water,
  * while surface is only a ceiling.
  */
-export function cycledColony(capacity: number): SeedBacteria {
+export function cycledColony(capacity: number): SeedColony {
   return {
     aob: capacity * CYCLED_AOB_PER_LITER,
     nob: capacity * CYCLED_NOB_PER_LITER,
   };
 }
 
-/** Write the seeded state onto a freshly built tank. */
-export function applySeed(state: SimulationState, seed: PresetSeed): SimulationState {
-  const { rng } = seed;
+function writeStocks<K extends keyof Resources>(
+  resources: Resources,
+  keys: readonly K[],
+  values: Partial<Pick<Resources, K>> | undefined
+): void {
+  if (values === undefined) return;
+  for (const key of keys) {
+    const value = values[key];
+    if (value !== undefined) resources[key] = value;
+  }
+}
 
-  return produce(state, (draft) => {
-    for (const key of SEEDABLE_BACTERIA) {
-      const value = seed.bacteria?.[key];
-      if (value !== undefined) draft.resources[key] = value;
-    }
+export function applySeed(
+  state: SimulationState,
+  seed: PresetSeed,
+  rng: () => number = Math.random
+): void {
+  const bacteria = seed.bacteria === 'cycled' ? cycledColony(state.tank.capacity) : seed.bacteria;
 
-    for (const key of SEEDABLE_RESOURCES) {
-      const value = seed.resources?.[key];
-      if (value !== undefined) draft.resources[key] = value;
-    }
+  writeStocks(state.resources, SEEDABLE_BACTERIA, bacteria);
+  writeStocks(state.resources, SEEDABLE_RESOURCES, seed.resources);
 
-    for (const group of seed.fish ?? []) {
-      for (let i = 0; i < (group.count ?? 1); i++) {
-        draft.fish.push(
-          createFish({
-            species: group.species,
-            age: group.age ?? 0,
-            stage: group.stage ?? 'adult',
-            sex: group.sex,
-            rng,
-          })
-        );
-      }
+  for (const group of seed.fish ?? []) {
+    for (let i = 0; i < (group.count ?? 1); i++) {
+      state.fish.push(
+        createFish({
+          species: group.species,
+          age: group.age ?? 0,
+          stage: group.stage ?? 'adult',
+          sex: group.sex,
+          rng,
+        })
+      );
     }
+  }
 
-    for (const group of seed.plants ?? []) {
-      for (let i = 0; i < (group.count ?? 1); i++) {
-        draft.plants.push(createPlant({ species: group.species, size: group.size }));
-      }
+  for (const group of seed.plants ?? []) {
+    for (let i = 0; i < (group.count ?? 1); i++) {
+      state.plants.push(createPlant({ species: group.species, size: group.size }));
     }
-  });
+  }
 }

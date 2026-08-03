@@ -17,7 +17,7 @@ import {
   type SimulationState,
 } from '../state.js';
 import { tick } from '../tick.js';
-import { cycledColony, type PresetSeed } from '../seed.js';
+import type { PresetSeed } from '../seed.js';
 import { applyAction } from '../actions/index.js';
 import { DEFAULT_CONFIG, type TunableConfig } from '../config/index.js';
 import { getMassFromPpm, getPpm } from '../resources/helpers.js';
@@ -124,7 +124,7 @@ export function cycledTank(
  * of spending three weeks growing one.
  */
 export function seededCycledTank(capacity: number): SimulationState {
-  return fishlessTank('aqua_soil', { capacity, seed: { bacteria: cycledColony(capacity) } });
+  return fishlessTank('aqua_soil', { capacity, seed: { bacteria: 'cycled' } });
 }
 
 /**
@@ -303,28 +303,22 @@ export interface KeeperRoutine {
 }
 
 /**
- * Run a stocked tank on a keeper's routine and watch what its circulation does
- * to the roster.
+ * Run a tank on a keeper's routine for `days` — the one loop every routine
+ * measurement drives, so a swept number and an asserted number come off the
+ * same schedule.
  *
- * Flow damage is read off the state the tick leaves behind, over the fish that
- * went into it. Water moves in the immediate and equipment tiers — evaporation,
- * then the ATO — before livestock runs against it, so the turnover a fish was
- * actually charged for only exists once the tick is over. Sampling the hour
- * before reads a tank that has not evaporated yet.
+ * `watch` sees each hour with the state that went into the tick and the state
+ * it left behind. Water moves in the immediate and equipment tiers —
+ * evaporation, then the ATO — before livestock runs against it, so anything a
+ * fish was actually charged for only exists once the tick is over.
  */
-export function watchFlow(
+export function keep(
   state: SimulationState,
   days: number,
-  { feed, waterChange, topOff = false, config = DEFAULT_CONFIG }: KeeperRoutine = {}
-): FlowWatch {
+  { feed, waterChange, topOff = false, config = DEFAULT_CONFIG }: KeeperRoutine = {},
+  watch?: (hour: number, before: SimulationState, after: SimulationState) => void
+): SimulationState {
   let running = state;
-  const roster = new Set(running.fish.map((fish) => fish.id));
-  const mine = (): typeof running.fish => running.fish.filter((f) => roster.has(f.id));
-
-  let peakStress = 0;
-  let peakTurnover = 0;
-  let minHealth = 100;
-  let firstDeathHour: number | null = null;
 
   for (let hour = 1; hour <= days * DAY; hour++) {
     if (feed !== undefined && hour % DAY === 9) {
@@ -337,19 +331,44 @@ export function watchFlow(
       running = applyAction(running, { type: 'waterChange', amount: waterChange }).state;
     }
 
-    const charged = mine();
+    const before = running;
     running = tick(running, config);
+    watch?.(hour, before, running);
+  }
 
-    const { water } = running.resources;
-    peakTurnover = Math.max(peakTurnover, water > 0 ? running.resources.flow / water : 0);
+  return running;
+}
 
-    for (const fish of charged) {
+/**
+ * Run a stocked tank on a keeper's routine and watch what its circulation does
+ * to the roster.
+ */
+export function watchFlow(
+  state: SimulationState,
+  days: number,
+  routine: KeeperRoutine = {}
+): FlowWatch {
+  const config = routine.config ?? DEFAULT_CONFIG;
+  const roster = new Set(state.fish.map((fish) => fish.id));
+  const mine = (of: SimulationState): SimulationState['fish'] =>
+    of.fish.filter((f) => roster.has(f.id));
+
+  let peakStress = 0;
+  let peakTurnover = 0;
+  let minHealth = 100;
+  let firstDeathHour: number | null = null;
+
+  const final = keep(state, days, routine, (hour, before, after) => {
+    const { water } = after.resources;
+    peakTurnover = Math.max(peakTurnover, water > 0 ? after.resources.flow / water : 0);
+
+    for (const fish of mine(before)) {
       const vitality = computeFishVitality(
         fish,
-        running.resources,
-        running.plants,
+        after.resources,
+        after.plants,
         water,
-        running.tank.capacity,
+        after.tank.capacity,
         config.livestock
       );
       peakStress = Math.max(
@@ -358,15 +377,15 @@ export function watchFlow(
       );
     }
 
-    for (const fish of mine()) minHealth = Math.min(minHealth, fish.health);
-    if (firstDeathHour === null && mine().length < roster.size) firstDeathHour = hour;
-  }
+    for (const fish of mine(after)) minHealth = Math.min(minHealth, fish.health);
+    if (firstDeathHour === null && mine(after).length < roster.size) firstDeathHour = hour;
+  });
 
   return {
     peakStress,
     peakTurnover,
     minHealth,
-    survivors: mine().length,
+    survivors: mine(final).length,
     firstDeathDay: firstDeathHour === null ? null : firstDeathHour / DAY,
   };
 }
