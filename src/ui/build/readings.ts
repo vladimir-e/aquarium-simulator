@@ -14,8 +14,11 @@ import {
   isScheduleActive,
   FILTER_SPECS,
   FILTER_SURFACE,
+  FISH_SPECIES_DATA,
   POWERHEAD_FLOW_LPH,
   type DailySchedule,
+  type Fish,
+  type FishSpeciesData,
   type SimulationState,
 } from '../../simulation/index.js';
 import { getLightOutput } from '../../simulation/equipment/light.js';
@@ -32,7 +35,9 @@ import {
   type BacteriaReadout,
 } from '../run/index.js';
 import {
+  formatDeliveredFlow,
   formatFlowRate,
+  formatRequiredFlow,
   formatTemperature,
   formatVolume,
   getTemperatureUnit,
@@ -59,10 +64,23 @@ function temperatureGap(celsius: number, units: UnitSystem): string {
   return `${scaled.toFixed(1)} ${getTemperatureUnit(units)}`;
 }
 
-/** Flow as tank volumes per hour, in the one wording every surface quotes. */
-export function turnover(litersPerHour: number, capacity: number): string {
-  if (capacity <= 0) return '—';
-  return `${(litersPerHour / capacity).toFixed(1)} × tank volume/h`;
+/**
+ * Flow as tank volumes per hour, at the tenth every surface quotes. The
+ * epsilon is what holds a tank sitting exactly on a tolerance there:
+ * `flow / water` lands a float hair above the round number often enough to
+ * matter, and ceiling that hair would warn about a fish that is over nothing.
+ */
+function volumesPerHour(litersPerHour: number, waterVolume: number): number {
+  return Math.ceil((litersPerHour / waterVolume) * 10 - 1e-9) / 10;
+}
+
+/**
+ * Flow as tank volumes per hour. Against the water in the tank, not its
+ * capacity — the engine charges a fish against that same figure.
+ */
+export function turnover(litersPerHour: number, waterVolume: number): string {
+  if (waterVolume <= 0) return '—';
+  return `${volumesPerHour(litersPerHour, waterVolume).toFixed(1)} × tank volume/h`;
 }
 
 /** How much longer a running schedule has, for one that ever stops. */
@@ -113,8 +131,8 @@ function filterReadings({ state, units }: DeviceReadingInput): DeviceReading[] {
   return [
     {
       label: 'Flow',
-      value: filter.enabled ? formatFlowRate(lph, units) : 'none',
-      note: filter.enabled ? turnover(lph, state.tank.capacity) : 'no circulation while off',
+      value: filter.enabled ? formatDeliveredFlow(lph, units) : 'none',
+      note: filter.enabled ? turnover(lph, state.resources.water) : 'no circulation while off',
     },
     {
       label: 'Media surface',
@@ -209,21 +227,19 @@ function co2Readings({ state }: DeviceReadingInput): DeviceReading[] {
 
 function powerheadReadings({ state, units }: DeviceReadingInput): DeviceReading[] {
   const { powerhead } = state.equipment;
-  const { flow } = state.resources;
+  const { flow, water } = state.resources;
   const lph = POWERHEAD_FLOW_LPH[powerhead.flowRateGPH];
 
   return [
     {
       label: 'Tank circulation',
       value: formatFlowRate(flow, units),
-      note: turnover(flow, state.tank.capacity),
+      note: turnover(flow, water),
     },
     {
       label: 'This powerhead',
       value: powerhead.enabled ? formatFlowRate(lph, units) : 'off',
-      note: powerhead.enabled
-        ? turnover(lph, state.tank.capacity)
-        : `would add ${formatFlowRate(lph, units)}`,
+      note: powerhead.enabled ? turnover(lph, water) : `would add ${formatFlowRate(lph, units)}`,
     },
   ];
 }
@@ -302,31 +318,87 @@ export interface DeviceHint {
   tone: 'muted' | 'warn';
 }
 
+/** The stocked species least able to bear `charged` volumes per hour. */
+function strainedByFlow(fish: readonly Fish[], charged: number): FishSpeciesData | null {
+  let tightest: FishSpeciesData | null = null;
+  for (const { species } of fish) {
+    const data = FISH_SPECIES_DATA[species];
+    if (data.maxTurnover >= charged) continue;
+    if (tightest === null || data.maxTurnover < tightest.maxTurnover) tightest = data;
+  }
+  return tightest;
+}
+
+/**
+ * Circulation is a tank-level figure, so one card owns the warning about it:
+ * the most discretionary of the devices moving the water — the one whose
+ * switch the player can most usefully reach for. A filter is the device a
+ * stocked tank cannot do without, so it speaks only when nothing else does.
+ */
+function flowSpeaker({ equipment }: SimulationState): EquipmentId | null {
+  if (equipment.powerhead.enabled) return 'powerhead';
+  if (equipment.airPump.enabled) return 'airPump';
+  if (equipment.filter.enabled) return 'filter';
+  return null;
+}
+
+/** What the device driving the water says when the roster cannot take it. */
+function tooMuchCurrent(id: EquipmentId, state: SimulationState): DeviceHint | null {
+  const { flow, water } = state.resources;
+  if (water <= 0 || flowSpeaker(state) !== id) return null;
+
+  const charged = volumesPerHour(flow, water);
+  const strained = strainedByFlow(state.fish, charged);
+  if (strained === null) return null;
+
+  return {
+    text: `Too much current for ${strained.name} — ${turnover(flow, water)} against its ${strained.maxTurnover} ×.`,
+    tone: 'warn',
+  };
+}
+
 /** The one sentence worth saying about a device beyond its own figures. */
 export function deviceHint(
   id: EquipmentId,
   state: SimulationState,
-  config: TunableConfig
+  config: TunableConfig,
+  units: UnitSystem
 ): DeviceHint | null {
   const { equipment, tank, resources } = state;
   const muted = (text: string): DeviceHint => ({ text, tone: 'muted' });
 
   switch (id) {
-    case 'filter':
+    case 'filter': {
       if (!equipment.filter.enabled) {
         return muted('No biological filtration while the filter is off.');
       }
-      return tank.capacity > FILTER_SPECS[equipment.filter.type].maxCapacityLiters
-        ? { text: 'Undersized for this tank — filtration can’t keep up.', tone: 'warn' }
-        : null;
+      const current = tooMuchCurrent('filter', state);
+      const spec = FILTER_SPECS[equipment.filter.type];
+      // Only a deficit test because `getFilterFlow` caps at `maxFlowLph`:
+      // delivered ≤ wanted always, so this never reads a surplus as a shortfall.
+      const delivered = getFilterFlow(equipment.filter.type, tank.capacity);
+      const wanted = tank.capacity * spec.targetTurnover;
+      if (delivered < wanted) {
+        return (
+          current ?? {
+            text: `Undersized for this tank — ${formatDeliveredFlow(delivered, units)} against the ${formatRequiredFlow(wanted, units)} a ${spec.targetTurnover} × turnover here would take.`,
+            tone: 'warn',
+          }
+        );
+      }
+      return current;
+    }
     case 'heater':
       return null;
     case 'light':
       return muted('Photoperiod drives plant growth, and the algae with it.');
     case 'airPump':
-      return equipment.airPump.enabled && isAirPumpUndersized(tank.capacity)
-        ? { text: 'Past what one air stone can aerate — this tank needs more.', tone: 'warn' }
-        : muted('Adds oxygen and off-gasses CO₂ through surface agitation.');
+      return (
+        tooMuchCurrent('airPump', state) ??
+        (equipment.airPump.enabled && isAirPumpUndersized(tank.capacity)
+          ? { text: 'Past what one air stone can aerate — this tank needs more.', tone: 'warn' }
+          : muted('Adds oxygen and off-gasses CO₂ through surface agitation.'))
+      );
     case 'ato':
       return muted('Tops off with tap water, blending the tank toward tap pH and temperature.');
     case 'co2Generator':
@@ -334,7 +406,10 @@ export function deviceHint(
         `${formatCo2Rate(equipment.co2Generator.bubbleRate, tank.capacity)} while injecting.`
       );
     case 'powerhead':
-      return muted('Extra circulation and gas exchange on top of the filter.');
+      return (
+        tooMuchCurrent('powerhead', state) ??
+        muted('Extra circulation and gas exchange on top of the filter.')
+      );
     case 'autoDoser':
       return muted(
         `Each dose adds ${formatDose(

@@ -1,18 +1,27 @@
 import { describe, it, expect } from 'vitest';
 import {
+  computeFishVitality,
   createSimulation,
+  FILTER_SPECS,
+  FILTER_TYPES,
+  FISH_SPECIES_DATA,
+  getAirPumpFlow,
   isAirPumpUndersized,
   tick,
   type SimulationState,
 } from '../../simulation/index.js';
+import { applyAction } from '../../simulation/actions/index.js';
 import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
 import { bacteriaReadout, colonyCount } from '../run/index.js';
 import { cycledTank, run as runUnfed } from '../../simulation/tests/tanks.js';
+import { getPresetById } from '../presets.js';
 import type { UnitSystem } from '../utils/units.js';
 import type { EquipmentId } from './devices';
-import { deviceHint, deviceReadings, type DeviceReading } from './readings';
+import { deviceHint, deviceReadings, type DeviceHint, type DeviceReading } from './readings';
 
 const base: SimulationState = createSimulation({ tankCapacity: 40 });
+
+const UNITS = ['metric', 'imperial'] as const;
 
 function read(
   id: EquipmentId,
@@ -20,6 +29,14 @@ function read(
   units: UnitSystem = 'metric'
 ): DeviceReading[] {
   return deviceReadings(id, { state, config: DEFAULT_CONFIG, units });
+}
+
+function hint(
+  id: EquipmentId,
+  state: SimulationState = base,
+  units: UnitSystem = 'metric'
+): DeviceHint | null {
+  return deviceHint(id, state, DEFAULT_CONFIG, units);
 }
 
 function value(readings: DeviceReading[], label: string): DeviceReading {
@@ -97,6 +114,15 @@ describe('heater readings', () => {
 });
 
 describe('filter readings', () => {
+  /**
+   * Capacities either side of where each class's flow cap starts to bite,
+   * including the slivers where the shortfall is under a rendered unit — the
+   * band a gate on formatted strings decided differently for each reader.
+   */
+  const SIZING_SWEEP = [
+    40, 75, 75.13, 76, 100, 208, 208.2, 208.4, 209, 300, 400, 562, 562.55, 563, 568, 600, 1000,
+  ];
+
   it('reads flow as turnover and media as a share of the tank’s biofilm', () => {
     const readings = read('filter');
     expect(value(readings, 'Flow')).toEqual({
@@ -116,16 +142,203 @@ describe('filter readings', () => {
     const readings = read('filter', off);
     expect(value(readings, 'Flow').value).toBe('none');
     expect(value(readings, 'Media surface').note).toBe('not colonised while off');
-    expect(deviceHint('filter', off, DEFAULT_CONFIG)).toEqual({
+    expect(hint('filter', off)).toEqual({
       text: 'No biological filtration while the filter is off.',
       tone: 'muted',
     });
   });
 
-  it('warns when the filter is rated below the tank it is in', () => {
+  it('warns when the filter is rated below the tank it is in, and by how much', () => {
     const big = createSimulation({ tankCapacity: 400 });
-    expect(deviceHint('filter', big, DEFAULT_CONFIG)?.tone).toBe('warn');
-    expect(deviceHint('filter', base, DEFAULT_CONFIG)).toBeNull();
+    expect(hint('filter', big)).toEqual({
+      text: 'Undersized for this tank — 300 L/h against the 1600 L/h a 4 × turnover here would take.',
+      tone: 'warn',
+    });
+    expect(hint('filter', big, 'imperial')?.text).toContain('79 GPH against the 423 GPH');
+    expect(hint('filter', base)).toBeNull();
+  });
+
+  it('states the sizing gap in flow, so a tank low on water is not read as over-filtered', () => {
+    const boundary = createSimulation({ tankCapacity: 76 });
+    const low: SimulationState = {
+      ...boundary,
+      resources: { ...boundary.resources, water: 60 },
+    };
+
+    expect(hint('filter', boundary)).toEqual({
+      text: 'Undersized for this tank — 300 L/h against the 304 L/h a 4 × turnover here would take.',
+      tone: 'warn',
+    });
+    expect(hint('filter', low)).toEqual(hint('filter', boundary));
+  });
+
+  it('warns about the roster before the rating when a filter is over both', () => {
+    const overRated = createSimulation({
+      tankCapacity: 209,
+      filter: { enabled: true, type: 'hob' },
+    });
+    const stocked = applyAction(overRated, { type: 'addFish', species: 'betta' }).state;
+
+    expect(hint('filter', overRated)?.text).toContain('Undersized');
+    expect(hint('filter', stocked)).toEqual({
+      text: 'Too much current for Betta — 6.0 × tank volume/h against its 5 ×.',
+      tone: 'warn',
+    });
+  });
+
+  it('says nothing about sizing while the filter still delivers its class’s turnover', () => {
+    const atRating = createSimulation({ tankCapacity: 75 });
+    const pastRating = createSimulation({
+      tankCapacity: 208.2,
+      filter: { enabled: true, type: 'hob' },
+    });
+
+    expect(hint('filter', atRating)).toBeNull();
+    expect(hint('filter', pastRating)).toBeNull();
+  });
+
+  it('warns exactly where a class’s cap bites, never on a gap its figures agree on', () => {
+    for (const units of UNITS) {
+      for (const type of FILTER_TYPES) {
+        const spec = FILTER_SPECS[type];
+        const warned: number[] = [];
+
+        for (const tankCapacity of SIZING_SWEEP) {
+          const state = createSimulation({ tankCapacity, filter: { enabled: true, type } });
+          const warning = hint('filter', state, units);
+          if (warning === null) continue;
+
+          const [, delivers, wants] =
+            /— (\d+ (?:L\/h|GPH)) against the (\d+ (?:L\/h|GPH))/.exec(warning.text) ?? [];
+          expect(delivers).toBeDefined();
+          expect(parseInt(delivers!)).toBeLessThan(parseInt(wants!));
+          expect(value(read('filter', state, units), 'Flow').value).toBe(delivers);
+          warned.push(tankCapacity);
+        }
+
+        const bites = SIZING_SWEEP.filter((c) => c > spec.maxFlowLph / spec.targetTurnover);
+        expect(warned).toEqual(bites);
+      }
+    }
+  });
+
+  it('never calls a filter with no cap undersized, however big the tank', () => {
+    for (const units of UNITS) {
+      for (const tankCapacity of [...SIZING_SWEEP, 5000, 50000]) {
+        const sump = createSimulation({ tankCapacity, filter: { enabled: true, type: 'sump' } });
+        expect(hint('filter', sump, units)).toBeNull();
+      }
+    }
+  });
+
+  it('never renders away the excess it is warning about', () => {
+    const water = 40;
+    const { maxTurnover } = FISH_SPECIES_DATA.betta;
+    const tank = createSimulation({ tankCapacity: water, filter: { enabled: true, type: 'canister' } });
+    const stocked = applyAction(tank, { type: 'addFish', species: 'betta' }).state;
+    const at = (rate: number): SimulationState => ({
+      ...stocked,
+      resources: { ...stocked.resources, flow: rate * water, water },
+    });
+
+    expect(hint('filter', at(maxTurnover))).toBeNull();
+
+    for (const over of [0.001, 0.01, 0.05, 0.2, 1, 3]) {
+      const warning = hint('filter', at(maxTurnover + over));
+      expect(warning).not.toBeNull();
+
+      const shown = Number(/— ([\d.]+) ×/.exec(warning?.text ?? '')?.[1]);
+      expect(shown).toBeGreaterThan(maxTurnover);
+    }
+  });
+
+  it('speaks up on exactly the currents the engine charges the fish for', () => {
+    const water = 40;
+    const { maxTurnover } = FISH_SPECIES_DATA.neon_tetra;
+    const tank = createSimulation({
+      tankCapacity: water,
+      filter: { enabled: true, type: 'canister' },
+    });
+    const stocked = applyAction(tank, { type: 'addFish', species: 'neon_tetra' }).state;
+    const rates = [-2, -0.05, 0, 0.05, 2, 30].map((over) => maxTurnover + over);
+
+    for (const rate of rates) {
+      const state: SimulationState = {
+        ...stocked,
+        resources: { ...stocked.resources, flow: rate * water, water },
+      };
+      const fish = state.fish[0];
+      if (fish === undefined) throw new Error('the tetra did not stock');
+
+      const { breakdown } = computeFishVitality(
+        fish,
+        state.resources,
+        state.plants,
+        water,
+        state.tank.capacity,
+        DEFAULT_CONFIG.livestock
+      );
+      const charged = breakdown.stressors.find((s) => s.key === 'flow')?.amount ?? 0;
+      const warning = hint('filter', state);
+      const shown = Number(/— ([\d.]+) ×/.exec(warning?.text ?? '')?.[1]);
+
+      expect(warning?.text.startsWith('Too much current') ?? false).toBe(charged > 0);
+      if (charged > 0) expect(shown).toBeGreaterThanOrEqual(rate);
+    }
+  });
+
+  it('leaves a tank sitting exactly on a tolerance alone, however the division rounds', () => {
+    const { maxTurnover } = FISH_SPECIES_DATA.guppy;
+    const tank = createSimulation({ tankCapacity: 300, filter: { enabled: true, type: 'sump' } });
+    const stocked = applyAction(tank, { type: 'addFish', species: 'guppy' }).state;
+
+    // Water volumes where `flow / water` lands a hair over the tolerance
+    // rather than on it — an ordinary artefact of evaporating in litres.
+    for (const water of [200.4, 200.9, 201.4]) {
+      const flow = maxTurnover * water;
+      expect(flow / water).not.toBe(maxTurnover);
+
+      expect(
+        hint('filter', { ...stocked, resources: { ...stocked.resources, flow, water } })
+      ).toBeNull();
+    }
+  });
+
+  it('reads the current against the water left, not the tank it was filled to', () => {
+    const brisk = createSimulation({ tankCapacity: 40, filter: { enabled: true, type: 'canister' } });
+    const stocked = applyAction(brisk, { type: 'addFish', species: 'neon_tetra' }).state;
+    const evaporated: SimulationState = {
+      ...stocked,
+      resources: { ...stocked.resources, water: 30 },
+    };
+
+    expect(hint('filter', stocked)).toBeNull();
+    expect(hint('filter', evaporated)).toEqual({
+      text: 'Too much current for Neon Tetra — 10.7 × tank volume/h against its 10 ×.',
+      tone: 'warn',
+    });
+  });
+
+  it('takes the current warning when it is the only thing moving the water', () => {
+    const brisk = createSimulation({ tankCapacity: 40, filter: { enabled: true, type: 'canister' } });
+    const stocked = applyAction(brisk, { type: 'addFish', species: 'betta' }).state;
+
+    expect(hint('filter', stocked)).toEqual({
+      text: 'Too much current for Betta — 8.0 × tank volume/h against its 5 ×.',
+      tone: 'warn',
+    });
+  });
+
+  it('leaves the current warning to the powerhead once one is running', () => {
+    const brisk = createSimulation({
+      tankCapacity: 40,
+      filter: { enabled: true, type: 'canister' },
+      powerhead: { enabled: true, flowRateGPH: 240 },
+    });
+    const stocked = applyAction(brisk, { type: 'addFish', species: 'betta' }).state;
+
+    expect(hint('filter', stocked)).toBeNull();
+    expect(hint('powerhead', stocked)?.tone).toBe('warn');
   });
 });
 
@@ -240,17 +453,73 @@ describe('air pump readings', () => {
     });
 
     expect(isAirPumpUndersized(401)).toBe(true);
-    expect(deviceHint('airPump', over(401), DEFAULT_CONFIG)).toEqual({
+    expect(hint('airPump', over(401))).toEqual({
       text: 'Past what one air stone can aerate — this tank needs more.',
       tone: 'warn',
     });
 
     // A tank inside the pump's range says nothing extra…
     expect(isAirPumpUndersized(400)).toBe(false);
-    expect(deviceHint('airPump', over(400), DEFAULT_CONFIG)?.tone).toBe('muted');
+    expect(hint('airPump', over(400))?.tone).toBe('muted');
     // …and neither does an oversized tank whose pump is switched off.
     const off: SimulationState = { ...base, tank: { ...base.tank, capacity: 401 } };
-    expect(deviceHint('airPump', off, DEFAULT_CONFIG)?.tone).toBe('muted');
+    expect(hint('airPump', off)?.tone).toBe('muted');
+  });
+
+  it('answers for the current it adds rather than leaving the filter to', () => {
+    // The shipped Betta Cube, evaporated to 17 L of its 20. Its sponge alone
+    // is 4.7 × — inside a betta's 5 — and the pump's uplift carries it to 5.1.
+    const cube = getPresetById('betta')!;
+    const evaporate = (tank: SimulationState): SimulationState => {
+      const { state } = applyAction(tank, { type: 'addFish', species: 'betta' });
+      return { ...state, resources: { ...state.resources, water: 17 } };
+    };
+
+    const pumped = evaporate(createSimulation({ ...cube.config, airPump: { enabled: true } }));
+    expect(hint('airPump', pumped)).toEqual({
+      text: 'Too much current for Betta — 5.1 × tank volume/h against its 5 ×.',
+      tone: 'warn',
+    });
+    expect(hint('filter', pumped)).toBeNull();
+
+    // The same cube as it ships is under tolerance, and nothing warns.
+    const sponge = evaporate(createSimulation(cube.config));
+    expect(pumped.resources.flow - sponge.resources.flow).toBe(getAirPumpFlow(20));
+    expect(hint('filter', sponge)).toBeNull();
+    expect(hint('airPump', sponge)?.tone).toBe('muted');
+  });
+
+  it('leaves the current warning to the powerhead, the way the filter does', () => {
+    const stacked = applyAction(
+      createSimulation({
+        tankCapacity: 40,
+        filter: { enabled: true, type: 'canister' },
+        powerhead: { enabled: true, flowRateGPH: 240 },
+        airPump: { enabled: true },
+      }),
+      { type: 'addFish', species: 'betta' }
+    ).state;
+
+    expect(hint('powerhead', stacked)?.tone).toBe('warn');
+    expect(hint('airPump', stacked)?.tone).toBe('muted');
+    expect(hint('filter', stacked)).toBeNull();
+  });
+
+  it('says the fish are straining before it says one stone is not enough', () => {
+    const both = applyAction(
+      createSimulation({
+        tankCapacity: 500,
+        filter: { enabled: true, type: 'sump' },
+        airPump: { enabled: true },
+      }),
+      { type: 'addFish', species: 'betta' }
+    ).state;
+
+    expect(isAirPumpUndersized(both.tank.capacity)).toBe(true);
+    expect(hint('airPump', both)).toEqual({
+      text: 'Too much current for Betta — 10.1 × tank volume/h against its 5 ×.',
+      tone: 'warn',
+    });
   });
 });
 
@@ -344,9 +613,66 @@ describe('powerhead readings', () => {
     });
   });
 
-  it('declines to divide by a tank with no volume', () => {
-    const empty: SimulationState = { ...running, tank: { ...base.tank, capacity: 0 } };
-    expect(value(read('powerhead', empty), 'Tank circulation').note).toBe('—');
+  it('declines to divide by a tank with no water in it', () => {
+    const drained: SimulationState = { ...running, resources: { ...running.resources, water: 0 } };
+    expect(value(read('powerhead', drained), 'Tank circulation').note).toBe('—');
+  });
+
+  it('says nothing beyond what it is for while the roster can take the current', () => {
+    const gentle = applyAction(createSimulation({ tankCapacity: 300 }), {
+      type: 'addFish',
+      species: 'neon_tetra',
+    }).state;
+    expect(hint('powerhead', gentle)).toEqual({
+      text: 'Extra circulation and gas exchange on top of the filter.',
+      tone: 'muted',
+    });
+    expect(hint('powerhead', running)?.tone).toBe('muted');
+  });
+
+  it('quotes the panel’s own reading back, at every level the water can sit at', () => {
+    const brisk = createSimulation({
+      tankCapacity: 40,
+      filter: { enabled: true, type: 'canister' },
+      powerhead: { enabled: true, flowRateGPH: 240 },
+    });
+    const stocked = applyAction(brisk, { type: 'addFish', species: 'neon_tetra' }).state;
+    let warned = 0;
+
+    for (let tenths = 250; tenths <= 400; tenths++) {
+      const water = tenths / 10;
+      const state: SimulationState = { ...stocked, resources: { ...stocked.resources, water } };
+      const warning = hint('powerhead', state);
+      if (warning?.tone !== 'warn') continue;
+
+      const quoted = /— (.+ × tank volume\/h)/.exec(warning.text)?.[1];
+      expect(read('powerhead', state).map((r) => r.note)).toContain(quoted);
+      warned++;
+    }
+
+    expect(warned).toBe(151);
+  });
+
+  it('warns once a fish in the tank cannot take the current, naming the tightest', () => {
+    const stocked = ['guppy' as const, 'neon_tetra' as const].reduce(
+      (state, species) => applyAction(state, { type: 'addFish', species }).state,
+      running
+    );
+    expect(hint('powerhead', stocked)).toEqual({
+      text: 'Too much current for Neon Tetra — 41.9 × tank volume/h against its 10 ×.',
+      tone: 'warn',
+    });
+  });
+
+  it('does not take the blame for a current it is switched off for', () => {
+    const filterOnly = createSimulation({
+      tankCapacity: 40,
+      filter: { enabled: true, type: 'canister' },
+    });
+    const stocked = applyAction(filterOnly, { type: 'addFish', species: 'betta' }).state;
+
+    expect(hint('powerhead', stocked)?.tone).toBe('muted');
+    expect(hint('filter', stocked)?.tone).toBe('warn');
   });
 });
 
@@ -414,7 +740,7 @@ describe('biofilter readings', () => {
   });
 
   it('has nothing to configure, and says so', () => {
-    expect(deviceHint('biofilter', base, DEFAULT_CONFIG)?.text).toMatch(/nothing to set here/);
+    expect(hint('biofilter', base)?.text).toMatch(/nothing to set here/);
   });
 });
 
@@ -422,20 +748,20 @@ describe('deviceHint', () => {
   it('adds one sentence to the devices whose figures do not speak for themselves', () => {
     const ids = ['light', 'airPump', 'ato', 'co2Generator', 'powerhead', 'autoDoser'] as const;
     for (const id of ids) {
-      expect(deviceHint(id, base, DEFAULT_CONFIG)).toEqual({
+      expect(hint(id, base)).toEqual({
         text: expect.stringMatching(/\.$/),
         tone: 'muted',
       });
     }
     // The heater reads itself out; the filter speaks only when it is undersized
     // or off, both covered above.
-    expect(deviceHint('heater', base, DEFAULT_CONFIG)).toBeNull();
-    expect(deviceHint('filter', base, DEFAULT_CONFIG)).toBeNull();
+    expect(hint('heater', base)).toBeNull();
+    expect(hint('filter', base)).toBeNull();
   });
 
   it('quotes the engine’s own rate for the devices that have one', () => {
-    expect(deviceHint('co2Generator', base, DEFAULT_CONFIG)?.text).toBe('+5.0 mg/L/hr while injecting.');
-    expect(deviceHint('autoDoser', base, DEFAULT_CONFIG)?.text).toBe(
+    expect(hint('co2Generator', base)?.text).toBe('+5.0 mg/L/hr while injecting.');
+    expect(hint('autoDoser', base)?.text).toBe(
       'Each dose adds +2.5 NO₃ · +0.25 PO₄ · +2.0 K · +0.05 Fe ppm.'
     );
   });

@@ -59,6 +59,25 @@ describe('session roundtrip', () => {
     saveSession({ ...session, version: 1 }, { path });
     expect(() => loadSession({ path })).toThrow(/Unsupported session version/);
   });
+
+  it('rejects a stale v2 session, whose flow severity is denominated in L/h', () => {
+    // v2 parses cleanly under v3 — the shape did not move, the unit did.
+    // A v2 config states `flowStressSeverity` in %/h per L/h, so a session
+    // that loaded would charge a thirtieth of every flow stressor. The
+    // version gate is the only thing that can notice.
+    const staleSeverity = 0.01;
+    expect(DEFAULT_CONFIG.livestock.flowStressSeverity).not.toBe(staleSeverity);
+
+    const preset = getPresetById('bare')!;
+    const state = createSimulation(preset.config);
+    const session = createSession(state, {
+      ...DEFAULT_CONFIG,
+      livestock: { ...DEFAULT_CONFIG.livestock, flowStressSeverity: staleSeverity },
+    });
+    saveSession({ ...session, version: 2 }, { path });
+
+    expect(() => loadSession({ path })).toThrow(/Unsupported session version/);
+  });
 });
 
 describe('history cap', () => {

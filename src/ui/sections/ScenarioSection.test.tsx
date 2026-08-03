@@ -71,7 +71,7 @@ describe('ScenarioSection', () => {
       expect(screen.getByRole('button', { name: new RegExp(name) })).toBeTruthy();
     }
     expect(screen.getByText('Betta Cube').closest('button')?.textContent).toContain(
-      'Gravel + rock + driftwood · hob filter · heater · light · mesh lid'
+      'Gravel + rock + driftwood · sponge filter · heater · light · mesh lid'
     );
   });
 
@@ -205,6 +205,7 @@ describe('ScenarioSection', () => {
     const sponge = {
       ...planted,
       tank: { ...planted.tank, capacity: 150 },
+      resources: { ...planted.resources, water: 150 },
       equipment: { ...planted.equipment, filter: { enabled: true, type: 'sponge' as const } },
     };
     renderSection(stubSim(sponge));

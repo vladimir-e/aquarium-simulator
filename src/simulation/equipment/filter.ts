@@ -33,8 +33,14 @@ export const FILTER_SURFACE: Record<FilterType, number> = {
 /**
  * Filter specifications for flow rate scaling.
  * - targetTurnover: desired tank turnovers per hour
- * - maxCapacityLiters: maximum tank size this filter can handle
- * - maxFlowLph: maximum flow rate (L/h), derived from maxCapacity * targetTurnover
+ * - maxCapacityLiters: largest tank the class is sold for
+ * - maxFlowLph: the class's own flow ceiling
+ *
+ * The two limits are independent numbers and do not reconcile. At
+ * `targetTurnover`, `maxFlowLph` runs out at 75 L for a sponge, 208.33 L for a
+ * HOB and 562.5 L for a canister — the last of these short of the 568 L the
+ * class is rated to, so a canister on the tank it is sold for is already
+ * delivering under its own target turnover.
  */
 export interface FilterSpec {
   targetTurnover: number;

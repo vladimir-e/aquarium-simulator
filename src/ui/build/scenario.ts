@@ -164,7 +164,7 @@ export function environmentDerived(
     { label: 'Bacteria surface', value: SurfaceResource.format(resources.surface) },
     {
       label: 'Filter turnover',
-      value: equipment.filter.enabled ? turnover(flow, tank.capacity) : 'none',
+      value: equipment.filter.enabled ? turnover(flow, resources.water) : 'none',
       note: equipment.filter.enabled ? undefined : 'filter off',
     },
     {

@@ -214,13 +214,30 @@ function lphToGph(lph: number): number {
   return lph / LITERS_PER_HOUR_PER_GPH;
 }
 
+function formatFlow(lph: number, system: UnitSystem, round: (value: number) => number): string {
+  if (system === 'imperial') {
+    return `${round(lphToGph(lph))} GPH`;
+  }
+  return `${round(lph)} L/h`;
+}
+
 /**
  * Format a flow rate for display. Takes the engine's own unit (L/h) so every
  * caller passes an engine value and rounds once, in the reader's units.
  */
 export function formatFlowRate(lph: number, system: UnitSystem): string {
-  if (system === 'imperial') {
-    return `${Math.round(lphToGph(lph))} GPH`;
-  }
-  return `${Math.round(lph)} L/h`;
+  return formatFlow(lph, system, Math.round);
+}
+
+/**
+ * The pair a shortfall is stated in: what a device moves, and what the tank
+ * asks of it. They round apart so that a real deficit — however small, and in
+ * whichever units the reader has chosen — never renders as one number twice.
+ */
+export function formatDeliveredFlow(lph: number, system: UnitSystem): string {
+  return formatFlow(lph, system, Math.floor);
+}
+
+export function formatRequiredFlow(lph: number, system: UnitSystem): string {
+  return formatFlow(lph, system, Math.ceil);
 }

@@ -11,6 +11,9 @@ Format: - **Feature name** (#PR) - One short sentence (under ~150 chars)
 
 ## Unreleased
 
+- **The community tank stops killing its tetras** - flow tolerance is a turnover, so one powerhead is a current in a 300 L and lethal in a nano. Saved tanks and CLI sessions both reset (v16, v3).
+- **"Undersized" now means the flow cap bites** - a 55 gal on a HOB is no longer told it is underfiltered; a 150 gal on a canister is.
+- **The device moving the water is the one that warns** - too much current names the powerhead, or the air pump, before the filter running behind it.
 - **A rescape takes the biofilm** - any bed swap, picker or preset, costs the colony the share that lived on the old bed, so an established tank blips.
 - **The biofilter reads as cycled or uncycled** - both toxins at trace on colonies still clearing a load, so a starved tank stops claiming it.
 - **Colonisation reads as headroom** - share of the surface ceiling is the room a colony has left, not the headline a healthy tank sat at 1 % of.

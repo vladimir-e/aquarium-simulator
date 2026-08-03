@@ -40,6 +40,7 @@ Each fish is tracked individually with:
 | Adult Mass | Mass when fully grown |
 | Max Age | Species lifespan |
 | Environment Requirements | Temperature, pH ranges |
+| Max Turnover | Circulation tolerated, in tank volumes per hour |
 | Hardiness | Tolerance to stressors (hardy fish = wider ranges) |
 
 ### Population-Based Colonies
@@ -148,7 +149,7 @@ spec). Each tick the engine builds two factor lists for the fish:
 | Satiation (starving) | satiation > 25 | ramp from `satiationHungrySeverity` at 25 to `satiationStarvingSeverity` at 0 (steeper) |
 | Oxygen | > 5 mg/L | `oxygenStressSeverity` × mg/L below 5 |
 | Water level | > 50% capacity | `waterLevelStressSeverity` × % below 50 |
-| Flow | Species-specific | `flowStressSeverity` × LPH above max |
+| Flow | Species-specific | `flowStressSeverity` × turnover above `maxTurnover` |
 | Age | ≤ species `maxAge` | `ageStressSeverity` × hours past `maxAge` |
 
 Severities are pre-hardiness. The fish's effective hardiness

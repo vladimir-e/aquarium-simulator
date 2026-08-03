@@ -88,11 +88,11 @@ Note: algae is no longer a resource. It's a top-level organism on
 | **Type** | Passive |
 | **Unit** | Liters per hour (L/h) or tank turnovers per hour |
 | **Providers** | Filter, powerhead |
-| **Consumers** | Gas exchange system |
+| **Consumers** | Gas exchange system, fish health |
 
 **Notes:**
-- Affects gas exchange rate
-- High flow stresses some fish
+- Affects gas exchange rate, as turnover against tank capacity
+- Stresses a fish above its `maxTurnover`, as turnover against the water actually in the tank
 - Recommended: 4-10x tank turnover per hour
 
 ---

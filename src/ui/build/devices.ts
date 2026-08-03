@@ -14,7 +14,12 @@ import {
 } from '../../simulation/index.js';
 import { SurfaceResource } from '../../simulation/resources/index.js';
 import { cycleWord, type BacteriaReadout } from '../run/index.js';
-import { formatFlowRate, formatTemperature, type UnitSystem } from '../utils/units.js';
+import {
+  formatDeliveredFlow,
+  formatFlowRate,
+  formatTemperature,
+  type UnitSystem,
+} from '../utils/units.js';
 import { hourLabel, scheduleRange } from './schedules.js';
 
 /** The configurable devices, in list order. */
@@ -93,7 +98,7 @@ function deviceSummary(id: DeviceId, state: SimulationState, units: UnitSystem):
     case 'filter': {
       const f = equipment.filter;
       const flow = getFilterFlow(f.type, tank.capacity);
-      return f.enabled ? `${f.type} · ${formatFlowRate(flow, units)}` : 'off';
+      return f.enabled ? `${f.type} · ${formatDeliveredFlow(flow, units)}` : 'off';
     }
     case 'heater': {
       const h = equipment.heater;

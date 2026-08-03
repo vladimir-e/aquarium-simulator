@@ -16,10 +16,19 @@ import type { HistorySnapshot } from './history.js';
  * Bump whenever the persisted `SimulationState` shape changes so stale
  * sessions are rejected by {@link loadSession} rather than crashing on a
  * missing field. Parallel to the UI's `PERSISTENCE_VERSION`. Pre-launch
- * rule is reject, not migrate. v2 added `Fish.stage` + `state.clutches`
- * (breeding) and the saturating surplus bank.
+ * rule is reject, not migrate.
+ *
+ * v3 made fish flow tolerance a turnover: `FishSpeciesData.maxFlow` (L/h)
+ *    became `maxTurnover` (tank volumes/h), and the `livestock` config a
+ *    session carries was redenominated with it — `flowStressSeverity` is
+ *    %/h per turnover-unit, 0.3, where v2 stored 0.01 %/h per L/h. The
+ *    shape still parses, so nothing downstream would notice: a v2 session
+ *    would go on charging a thirtieth of every flow stressor, in the runs
+ *    calibration is read from.
+ * v2 added `Fish.stage` + `state.clutches` (breeding) and the saturating
+ *    surplus bank.
  */
-export const SESSION_VERSION = 2;
+export const SESSION_VERSION = 3;
 export const DEFAULT_SESSION_PATH = resolve(process.cwd(), '.simstate/current.json');
 
 export interface Session {
