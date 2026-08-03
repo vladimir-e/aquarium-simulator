@@ -55,7 +55,7 @@ export type {
   SeedFishGroup,
   SeedPlantGroup,
 } from './seed.js';
-export { cycledColony, cycledReserve } from './seed.js';
+export { cycledColony, cycledNitrate, cycledReserve } from './seed.js';
 
 // Presets
 export type { PresetId, PresetDefinition } from './presets.js';

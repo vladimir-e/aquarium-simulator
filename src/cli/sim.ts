@@ -192,6 +192,44 @@ export function buildAction(type: string, args: string[]): Action {
   }
 }
 
+/** Every flag each command takes, `add` down to its target. */
+const COMMAND_FLAGS: Record<string, readonly string[]> = {
+  new: ['preset', 'tank-gal', 'tank-liters', 'name', 'no-seed'],
+  'add fish': ['species', 'count'],
+  'add plant': ['species', 'size'],
+  remove: [],
+  tick: [],
+  observe: [],
+  trace: ['fields', 'last', 'every'],
+  config: [],
+  action: [],
+  smoke: [],
+  help: [],
+};
+
+/** The command a flag is judged against: `add` reads its target as part of it. */
+function flagScope(command: string, positional: string[]): string {
+  return command === 'add' ? `add ${positional[0] ?? ''}`.trim() : command;
+}
+
+/**
+ * A mistyped flag would otherwise build a tank nobody asked for and report
+ * success — the failure an instrument for measuring must not have.
+ */
+export function assertKnownFlags(command: string, flags: Record<string, string>): void {
+  const known = COMMAND_FLAGS[command];
+  // Neither a command nor a target this CLI has: whoever dispatches it says so.
+  if (known === undefined) return;
+
+  const unknown = Object.keys(flags).filter((flag) => !known.includes(flag));
+  if (unknown.length === 0) return;
+
+  const named = unknown.map((flag) => `--${flag}`).join(', ');
+  const valid =
+    known.length === 0 ? 'It takes none.' : `Valid: ${known.map((flag) => `--${flag}`).join(', ')}.`;
+  throw new Error(`Unknown flag${unknown.length > 1 ? 's' : ''} ${named} for "${command}". ${valid}`);
+}
+
 function printHelp(): void {
   process.stdout.write(
     [
@@ -375,6 +413,7 @@ function cmdSmoke(): void {
 export function main(argv: string[]): void {
   const [cmd, ...rest] = argv;
   const { flags, rest: positional } = parseFlags(rest);
+  if (cmd !== undefined) assertKnownFlags(flagScope(cmd, positional), flags);
   switch (cmd) {
     case undefined:
     case 'help':

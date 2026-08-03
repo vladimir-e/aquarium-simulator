@@ -344,12 +344,14 @@ plants at a size.
   `maxAge`, a plant in a substrate that would refuse it. Constructing
   extreme states deliberately is what a scenario is for.
 - **`bacteria: 'cycled'`** is a claim about the whole tank and not only its
-  biofilter: a month of running, so the bed carries a month of leaching
-  alongside the colony that volume of water grows. Both resolve against the
-  tank the seed is applied to, so a preset resized or rescaped at the door
-  still gets a filter and a bed that fit it. `cycledColony(litres)` and
-  `cycledReserve(type, litres)` give the absolute figures, and a named
-  `substrate` seed overrides the bed the shorthand would have resolved.
+  biofilter: a month of running, so the bed carries a month of leaching and
+  the water carries the nitrate that leaching became, less what a month of
+  water changes took out. All three resolve against the tank the seed is
+  applied to, so a preset resized or rescaped at the door still gets a
+  filter, a bed and a reading that fit it. `cycledColony(litres)`,
+  `cycledReserve(type, litres)` and `cycledNitrate(type, litres)` give the
+  absolute figures, and a named `substrate` or `resources` seed overrides
+  what the shorthand would have resolved.
 - **A seed is pure data.** Randomness is a constructor parameter rather than
   a seed field, so a seed stays serializable. Supplying `rng` makes the
   roster's individual variation reproducible; the draw sequence is the same
@@ -361,8 +363,8 @@ plants at a size.
 A preset pairs a `SimulationConfig` with the seed the tank starts at;
 `createPresetSimulation(preset)` is the one place both halves are read
 together. Every preset but Bare Tank opens on a tank a month into its life —
-a cycled biofilter over a bed that has done most of its leaching. Bare Tank
-is the one you cycle yourself.
+a cycled biofilter over a bed that has done most of its leaching, in water
+carrying the nitrate to show for it. Bare Tank is the one you cycle yourself.
 
 **Loading a preset starts a new simulation.** The clock, the stock, the
 chemistry and the colonies are the preset's own; nothing of the tank before

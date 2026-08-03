@@ -11,6 +11,8 @@ import {
   type Substrate,
   type SubstrateType,
 } from './equipment/substrate.js';
+import { nitrogenCycleDefaults } from './config/nitrogen-cycle.js';
+import { NH3_TO_NO2_MASS_RATIO, NO2_TO_NO3_MASS_RATIO } from './systems/nitrogen-cycle.js';
 import { createFish } from './livestock/create-fish.js';
 import { createPlant } from './plants/create-plant.js';
 
@@ -34,9 +36,10 @@ export type SeedColony = Partial<Pick<Resources, (typeof SEEDABLE_BACTERIA)[numb
 /**
  * A colony as absolute stock, or `'cycled'` — a tank that has been running a
  * month, which is a claim about the whole tank and not only its biofilter: it
- * carries the bed that month left as well as the colony. Both are resolved
- * against the tank when the seed is applied, so a preset resized or rescaped
- * at the door still gets a filter and a bed that fit it.
+ * carries the bed that month left and the nitrate that month made, as well as
+ * the colony. All three are resolved against the tank when the seed is
+ * applied, so a preset resized or rescaped at the door still gets a filter, a
+ * bed and a nitrate reading that fit it.
  */
 export type SeedBacteria = 'cycled' | SeedColony;
 
@@ -126,6 +129,30 @@ export function cycledReserve(type: SubstrateType, capacity: number): number {
   return getSubstrateOrganicReserve(type, capacity) * CYCLED_RESERVE_FRACTION;
 }
 
+/**
+ * mg of nitrate a gram of the bed's organics ends up as, once mineralised to
+ * ammonia and oxidised the two steps to nitrate — each one keeping the
+ * nitrogen and picking up the mass of the oxygen it gains.
+ */
+const NITRATE_PER_GRAM_LEACHED =
+  nitrogenCycleDefaults.wasteToAmmoniaRatio * NH3_TO_NO2_MASS_RATIO * NO2_TO_NO3_MASS_RATIO;
+
+/**
+ * Share of that nitrate still in the water. Nothing in a fishless tank
+ * consumes nitrate, so a month of leaching left alone reads 9.7 ppm over aqua
+ * soil — but a keeper changes water: the same month measures 0.37 of it under
+ * a weekly 30 % change and 0.17 under a weekly 50 %. A quarter sits between
+ * them, rounded to the low side because nitrate is a stressor and the tank a
+ * keeper hands over has just been changed, not left to load.
+ */
+const CYCLED_NITRATE_RETAINED = 0.25;
+
+/** mg of nitrate a cycled tank of this bed and capacity carries. */
+export function cycledNitrate(type: SubstrateType, capacity: number): number {
+  const leached = getSubstrateOrganicReserve(type, capacity) - cycledReserve(type, capacity);
+  return leached * NITRATE_PER_GRAM_LEACHED * CYCLED_NITRATE_RETAINED;
+}
+
 function writeStocks<T, K extends keyof T>(
   target: T,
   keys: readonly K[],
@@ -144,14 +171,19 @@ export function applySeed(
   rng: () => number = Math.random
 ): void {
   const { capacity } = state.tank;
-  const bacteria = seed.bacteria === 'cycled' ? cycledColony(capacity) : seed.bacteria;
-  const cycledBed =
-    seed.bacteria === 'cycled'
-      ? { organicReserve: cycledReserve(state.equipment.substrate.type, capacity) }
-      : undefined;
+  const { type } = state.equipment.substrate;
 
-  writeStocks(state.resources, SEEDABLE_BACTERIA, bacteria);
-  writeStocks(state.equipment.substrate, SEEDABLE_SUBSTRATE, seed.substrate ?? cycledBed);
+  if (seed.bacteria === 'cycled') {
+    writeStocks(state.resources, SEEDABLE_BACTERIA, cycledColony(capacity));
+    writeStocks(state.equipment.substrate, SEEDABLE_SUBSTRATE, {
+      organicReserve: cycledReserve(type, capacity),
+    });
+    writeStocks(state.resources, SEEDABLE_RESOURCES, { nitrate: cycledNitrate(type, capacity) });
+  } else {
+    writeStocks(state.resources, SEEDABLE_BACTERIA, seed.bacteria);
+  }
+
+  writeStocks(state.equipment.substrate, SEEDABLE_SUBSTRATE, seed.substrate);
   writeStocks(state.resources, SEEDABLE_RESOURCES, seed.resources);
 
   for (const group of seed.fish ?? []) {

@@ -75,6 +75,17 @@ describe('a seeded cycled tank', () => {
     }
   });
 
+  it('reads the nitrate that month made, short of the tank nobody changed water on', () => {
+    for (const capacity of [20, 150]) {
+      const grown = nitratePpm(cycledTank(capacity));
+      const seeded = nitratePpm(seededCycledTank(capacity));
+
+      expect(grown).toBeGreaterThan(1);
+      expect(seeded).toBeGreaterThan(grown * 0.1);
+      expect(seeded).toBeLessThan(grown * 0.5);
+    }
+  });
+
   it('clears a 2 ppm dose inside 24 h, at any volume', () => {
     for (const capacity of [20, 150, 1000]) {
       expect(doseClearance(seededCycledTank(capacity))).toBeLessThan(0.25);
