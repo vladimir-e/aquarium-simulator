@@ -8,10 +8,15 @@ describe('resolvePreset', () => {
     const cycled = createPresetSimulation(resolvePreset('planted', { seeded: true }));
     const fresh = createPresetSimulation(resolvePreset('planted', { seeded: false }));
 
+    const { substrate: freshBed, ...freshHardware } = fresh.equipment;
+    const { substrate: cycledBed, ...cycledHardware } = cycled.equipment;
+
     expect(getPresetById('planted')?.seed).toBeDefined();
     expect(cycled.resources.aob).toBeGreaterThan(0);
     expect(fresh.resources.aob).toBe(0);
-    expect(fresh.equipment).toEqual(cycled.equipment);
+    expect(freshHardware).toEqual(cycledHardware);
+    expect(freshBed.type).toBe(cycledBed.type);
+    expect(freshBed.organicReserve).toBeGreaterThan(cycledBed.organicReserve);
   });
 
   it('resizes the tank the seed then sizes itself against', () => {

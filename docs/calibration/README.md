@@ -34,8 +34,8 @@ so every command operates on a continuous simulation until a new session is
 created.
 
 ```bash
-# Bootstrap a session from a preset. Every preset but bare opens on a cycled
-# biofilter; --no-seed starts the same tank uncycled, to watch it cycle itself.
+# Bootstrap a session from a preset. Every preset but bare opens a month into
+# its life; --no-seed starts the same tank brand new, to watch it cycle itself.
 # The created-session line says which one you got.
 npx tsx src/cli/sim.ts new --preset=planted --tank-gal=10 --name=my-run
 npx tsx src/cli/sim.ts new --preset=planted --tank-gal=10 --name=my-run --no-seed

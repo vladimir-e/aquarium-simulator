@@ -50,11 +50,12 @@ export type {
   PresetSeed,
   SeedBacteria,
   SeedColony,
+  SeedSubstrate,
   SeedResources,
   SeedFishGroup,
   SeedPlantGroup,
 } from './seed.js';
-export { cycledColony } from './seed.js';
+export { cycledColony, cycledReserve } from './seed.js';
 
 // Presets
 export type { PresetId, PresetDefinition } from './presets.js';

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { createSimulation, type SimulationConfig } from './state.js';
 import { FISH_SPECIES_DATA } from './livestock/species.js';
-import { cycledColony, type PresetSeed } from './seed.js';
+import { cycledColony, cycledReserve, type PresetSeed } from './seed.js';
 import { DEFAULT_PLANT_SIZE } from './plants/create-plant.js';
 
 const TANK: SimulationConfig = { tankCapacity: 40, substrate: { type: 'aqua_soil' } };
@@ -106,6 +106,42 @@ describe('createSimulation seeding', () => {
       expect(seeded.resources.aob).toBe(cycledColony(tankCapacity).aob);
       expect(seeded.resources.nob).toBe(cycledColony(tankCapacity).nob);
     }
+  });
+
+  describe('the bed', () => {
+    it("ages a 'cycled' bed against the type and capacity the tank was built with", () => {
+      for (const type of ['gravel', 'aqua_soil', 'sand'] as const) {
+        for (const tankCapacity of [20, 150]) {
+          const config = { tankCapacity, substrate: { type } };
+          const seeded = createSimulation(config, { bacteria: 'cycled' });
+          const virgin = createSimulation(config);
+
+          expect(seeded.equipment.substrate.organicReserve).toBe(cycledReserve(type, tankCapacity));
+          expect(seeded.equipment.substrate.organicReserve).toBeGreaterThan(0);
+          expect(seeded.equipment.substrate.organicReserve).toBeLessThan(
+            virgin.equipment.substrate.organicReserve
+          );
+        }
+      }
+    });
+
+    it('sets the reserve on its own, without a colony', () => {
+      const seeded = createSimulation(TANK, { substrate: { organicReserve: 0.4 } });
+
+      expect(seeded.equipment.substrate.organicReserve).toBe(0.4);
+      expect(seeded.equipment.substrate.type).toBe('aqua_soil');
+      expect(seeded.resources.aob).toBe(0);
+    });
+
+    it('takes a named reserve over the one the shorthand would have resolved', () => {
+      const seeded = createSimulation(TANK, {
+        bacteria: 'cycled',
+        substrate: { organicReserve: 1.5 },
+      });
+
+      expect(seeded.equipment.substrate.organicReserve).toBe(1.5);
+      expect(seeded.resources.aob).toBe(cycledColony(TANK.tankCapacity).aob);
+    });
   });
 
   describe('roster', () => {

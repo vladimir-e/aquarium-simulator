@@ -36,8 +36,9 @@ mutates its input, so you own persistence, scheduling, and rendering. See the
 ### Starting a tank at a state
 
 A fresh tank is empty and uncycled. Pass a `PresetSeed` to start it wherever
-you want to watch it from — a colony, chemistry stocks, fish at an age and
-sex, plants at a size — and it needs no simulated weeks to get there.
+you want to watch it from — a colony, a part-spent bed, chemistry stocks, fish
+at an age and sex, plants at a size — and it needs no simulated weeks to get
+there.
 
 ```ts
 import { createSimulation, createPresetSimulation, getPresetById } from 'aquarium-simulator';
@@ -45,7 +46,7 @@ import { createSimulation, createPresetSimulation, getPresetById } from 'aquariu
 const stocked = createSimulation(
   { tankCapacity: 150 },
   {
-    bacteria: 'cycled', // sized to this tank's water
+    bacteria: 'cycled', // a month in: colony and bed, both sized to this tank
     fish: [{ species: 'neon_tetra', count: 12 }],
     plants: [{ species: 'java_fern', count: 3, size: 100 }],
   }

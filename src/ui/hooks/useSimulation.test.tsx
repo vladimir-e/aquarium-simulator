@@ -6,7 +6,7 @@ import { createPresetSimulation, getPresetById, type PresetId } from '../../simu
 import { ConfigProvider } from './useConfig';
 import { PersistenceProvider } from '../persistence/index.js';
 import { createSimulation } from '../../simulation/state.js';
-import { getSubstrateSurface } from '../../simulation/index.js';
+import { getSubstrateOrganicReserve, getSubstrateSurface } from '../../simulation/index.js';
 import { cycledColony } from '../../simulation/seed.js';
 import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
 import { PERSISTENCE_VERSION, STORAGE_KEY } from '../persistence/types.js';
@@ -153,14 +153,16 @@ describe('useSimulation', () => {
     // The planted preset starts on aqua soil.
     const { result } = renderHook(() => useSimulation(), { wrapper });
 
-    const fresh = result.current.state.equipment.substrate.organicReserve;
-    expect(fresh).toBeGreaterThan(0);
+    const started = result.current.state.equipment.substrate.organicReserve;
+    const full = getSubstrateOrganicReserve('aqua_soil', result.current.state.tank.capacity);
+    expect(started).toBeGreaterThan(0);
+    expect(started).toBeLessThan(full);
 
     act(() => {
       for (let day = 0; day < 14; day++) result.current.step();
     });
     const spent = result.current.state.equipment.substrate.organicReserve;
-    expect(spent).toBeLessThan(fresh);
+    expect(spent).toBeLessThan(started);
 
     // Re-selecting the bed already in the tank is not a rescape.
     act(() => {
@@ -172,7 +174,7 @@ describe('useSimulation', () => {
       result.current.updateSubstrateType('gravel');
       result.current.updateSubstrateType('aqua_soil');
     });
-    expect(result.current.state.equipment.substrate.organicReserve).toBe(fresh);
+    expect(result.current.state.equipment.substrate.organicReserve).toBe(full);
   });
 
   it('heater controls update simulation state', () => {

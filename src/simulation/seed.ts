@@ -6,10 +6,17 @@
 import type { Resources, SimulationState } from './state.js';
 import type { FishLifeStage, FishSex, FishSpecies } from './livestock/species.js';
 import type { PlantSpecies } from './plants/species.js';
+import {
+  getSubstrateOrganicReserve,
+  type Substrate,
+  type SubstrateType,
+} from './equipment/substrate.js';
 import { createFish } from './livestock/create-fish.js';
 import { createPlant } from './plants/create-plant.js';
 
 const SEEDABLE_BACTERIA = ['aob', 'nob'] as const;
+
+const SEEDABLE_SUBSTRATE = ['organicReserve'] as const;
 
 const SEEDABLE_RESOURCES = [
   'ammonia',
@@ -25,11 +32,16 @@ const SEEDABLE_RESOURCES = [
 export type SeedColony = Partial<Pick<Resources, (typeof SEEDABLE_BACTERIA)[number]>>;
 
 /**
- * A colony as absolute stock, or `'cycled'` — the colony this tank's own
- * volume carries, resolved against its capacity when the seed is applied so
- * a preset resized at the door still gets a biofilter that fits it.
+ * A colony as absolute stock, or `'cycled'` — a tank that has been running a
+ * month, which is a claim about the whole tank and not only its biofilter: it
+ * carries the bed that month left as well as the colony. Both are resolved
+ * against the tank when the seed is applied, so a preset resized or rescaped
+ * at the door still gets a filter and a bed that fit it.
  */
 export type SeedBacteria = 'cycled' | SeedColony;
+
+/** The bed's stocks. Its *type* is configuration, not state — see `SimulationConfig`. */
+export type SeedSubstrate = Partial<Pick<Substrate, (typeof SEEDABLE_SUBSTRATE)[number]>>;
 
 /**
  * Chemistry stocks a seed may set, in the units `Resources` stores them
@@ -63,6 +75,7 @@ export interface SeedPlantGroup {
 /** Nothing here is validated or clamped — see `docs/1-DESIGN.md` § Starting State. */
 export interface PresetSeed {
   bacteria?: SeedBacteria;
+  substrate?: SeedSubstrate;
   resources?: SeedResources;
   fish?: SeedFishGroup[];
   plants?: SeedPlantGroup[];
@@ -83,6 +96,18 @@ const CYCLED_AOB_PER_LITER = 300;
 const CYCLED_NOB_PER_LITER = 200;
 
 /**
+ * Share of a fresh bed's organic reserve still in it on day 30 — the same tank
+ * age the colony figures above were read at.
+ *
+ * The leach is a flat fraction of what is left with no substrate term, so this
+ * is one curve every bed follows: gravel, aqua soil and sand all sit at 0.115
+ * there, and only the grams differ. Rounded down for the reason the colony is
+ * rounded up — a scenario that says "cycled" should never be handed a bed
+ * still leaching harder than one that waited.
+ */
+const CYCLED_RESERVE_FRACTION = 0.1;
+
+/**
  * The colony a cycled tank of `capacity` litres carries.
  *
  * Per litre rather than per cm² of surface for the reason the inoculum is:
@@ -96,15 +121,20 @@ export function cycledColony(capacity: number): { aob: number; nob: number } {
   };
 }
 
-function writeStocks<K extends keyof Resources>(
-  resources: Resources,
+/** Grams a bed of this type and capacity still holds once cycled. */
+export function cycledReserve(type: SubstrateType, capacity: number): number {
+  return getSubstrateOrganicReserve(type, capacity) * CYCLED_RESERVE_FRACTION;
+}
+
+function writeStocks<T, K extends keyof T>(
+  target: T,
   keys: readonly K[],
-  values: Partial<Pick<Resources, K>> | undefined
+  values: Partial<Pick<T, K>> | undefined
 ): void {
   if (values === undefined) return;
   for (const key of keys) {
     const value = values[key];
-    if (value !== undefined) resources[key] = value;
+    if (value !== undefined) target[key] = value;
   }
 }
 
@@ -113,9 +143,15 @@ export function applySeed(
   seed: PresetSeed,
   rng: () => number = Math.random
 ): void {
-  const bacteria = seed.bacteria === 'cycled' ? cycledColony(state.tank.capacity) : seed.bacteria;
+  const { capacity } = state.tank;
+  const bacteria = seed.bacteria === 'cycled' ? cycledColony(capacity) : seed.bacteria;
+  const cycledBed =
+    seed.bacteria === 'cycled'
+      ? { organicReserve: cycledReserve(state.equipment.substrate.type, capacity) }
+      : undefined;
 
   writeStocks(state.resources, SEEDABLE_BACTERIA, bacteria);
+  writeStocks(state.equipment.substrate, SEEDABLE_SUBSTRATE, seed.substrate ?? cycledBed);
   writeStocks(state.resources, SEEDABLE_RESOURCES, seed.resources);
 
   for (const group of seed.fish ?? []) {

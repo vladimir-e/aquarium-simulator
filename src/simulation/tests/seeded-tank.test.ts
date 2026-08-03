@@ -26,18 +26,26 @@ const totalPlantSize = (s: SimulationState): number =>
 
 interface FedRun {
   ammoniaPeakPpm: number;
-  /** Nitrate the run produced — the proof the ration decayed at all. */
-  nitrateGainPpm: number;
+  /**
+   * Nitrate the ration itself yielded, mg per gram fed — the proof it decayed
+   * and went all the way through. Read against the same tank left unfed, so
+   * neither a leaching bed nor a large tank's dilution can stand in for it.
+   */
+  nitratePerGram: number;
 }
 
 /** Feed a tank a daily ration and watch what the nitrogen does. */
 function feedDaily(state: SimulationState, ration: number, days: number): FedRun {
   let ammoniaPeakPpm = 0;
-  const final = keep(state, days, { feed: ration }, (_hour, _before, after) => {
+  const fed = keep(state, days, { feed: ration }, (_hour, _before, after) => {
     ammoniaPeakPpm = Math.max(ammoniaPeakPpm, ammoniaPpm(after));
   });
+  const unfed = keep(state, days);
 
-  return { ammoniaPeakPpm, nitrateGainPpm: nitratePpm(final) - nitratePpm(state) };
+  return {
+    ammoniaPeakPpm,
+    nitratePerGram: (fed.resources.nitrate - unfed.resources.nitrate) / (ration * days),
+  };
 }
 
 describe('a seeded cycled tank', () => {
@@ -51,6 +59,19 @@ describe('a seeded cycled tank', () => {
       expect(grown.resources.aob / capacity).toBeLessThan(perLitre.aob * 1.3);
       expect(grown.resources.nob / capacity).toBeGreaterThan(perLitre.nob * 0.7);
       expect(grown.resources.nob / capacity).toBeLessThan(perLitre.nob * 1.3);
+    }
+  });
+
+  it('carries the bed that tank was left with rather than a virgin one', () => {
+    const reserve = (s: SimulationState): number => s.equipment.substrate.organicReserve;
+
+    for (const capacity of [20, 150]) {
+      const grown = reserve(cycledTank(capacity));
+      const seeded = reserve(seededCycledTank(capacity));
+
+      expect(grown).toBeLessThan(reserve(fishlessTank('aqua_soil', { capacity })) * 0.2);
+      expect(seeded).toBeGreaterThan(grown * 0.7);
+      expect(seeded).toBeLessThanOrEqual(grown);
     }
   });
 
@@ -93,7 +114,7 @@ describe('a seeded cycled tank', () => {
 
     expect(uncycled.ammoniaPeakPpm).toBeGreaterThan(1);
     expect(seeded.ammoniaPeakPpm).toBeLessThan(0.1);
-    expect(seeded.nitrateGainPpm).toBeGreaterThan(1);
+    expect(seeded.nitratePerGram).toBeGreaterThan(50);
   });
 });
 
@@ -109,7 +130,7 @@ describe('the tanks the presets ship', () => {
 
       expect(uncycled.ammoniaPeakPpm).toBeGreaterThan(0.2);
       expect(shipped.ammoniaPeakPpm).toBeLessThan(0.05);
-      expect(shipped.nitrateGainPpm).toBeGreaterThan(1);
+      expect(shipped.nitratePerGram).toBeGreaterThan(50);
     }
   });
 });
