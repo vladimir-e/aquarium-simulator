@@ -87,6 +87,21 @@ function stockedOn(
 }
 
 describe('flow tolerance', () => {
+  it('sees the damage a tank sitting on a tolerance takes the moment it evaporates', () => {
+    const { maxTurnover } = FISH_SPECIES_DATA.neon_tetra;
+    const full = stock(
+      toppedOff(
+        run(createSimulation({ tankCapacity: 100, filter: { enabled: true, type: 'sump' } }), DAY)
+      ),
+      'neon_tetra',
+      1,
+      { sex: 'male' }
+    );
+
+    expect(full.resources.flow / full.resources.water).toBe(maxTurnover);
+    expect(watchFlow(full, 1 / DAY).peakStress).toBeGreaterThan(0);
+  });
+
   it('charges the same damage at every volume, for a species kept above its class', () => {
     const stress = VOLUMES.map((litres) => flowReading('betta', litres, { filter: 'sump' }).stress);
 

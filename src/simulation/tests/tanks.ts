@@ -288,11 +288,11 @@ export interface KeeperRoutine {
  * Run a stocked tank on a keeper's routine and watch what its circulation does
  * to the roster.
  *
- * Flow damage is read off the same state the engine charges it against — the
- * hour before its tick — so a reported peak is a rate a fish actually paid,
- * not a rate the tank arrived at afterwards. Health and deaths are read after
- * it, where the damage of the hour has landed and the two agree with each
- * other.
+ * Flow damage is read off the state the tick leaves behind, over the fish that
+ * went into it. Water moves in the immediate and equipment tiers — evaporation,
+ * then the ATO — before livestock runs against it, so the turnover a fish was
+ * actually charged for only exists once the tick is over. Sampling the hour
+ * before reads a tank that has not evaporated yet.
  */
 export function watchFlow(
   state: SimulationState,
@@ -309,10 +309,23 @@ export function watchFlow(
   let firstDeathHour: number | null = null;
 
   for (let hour = 1; hour <= days * DAY; hour++) {
+    if (feed !== undefined && hour % DAY === 9) {
+      running = applyAction(running, { type: 'feed', amount: feed }).state;
+    }
+    if (topOff && hour % DAY === 10) {
+      running = applyAction(running, { type: 'topOff' }).state;
+    }
+    if (waterChange !== undefined && hour % (7 * DAY) === 0) {
+      running = applyAction(running, { type: 'waterChange', amount: waterChange }).state;
+    }
+
+    const charged = mine();
+    running = tick(running, config);
+
     const { water } = running.resources;
     peakTurnover = Math.max(peakTurnover, water > 0 ? running.resources.flow / water : 0);
 
-    for (const fish of mine()) {
+    for (const fish of charged) {
       const vitality = computeFishVitality(
         fish,
         running.resources,
@@ -326,18 +339,6 @@ export function watchFlow(
         vitality.breakdown.stressors.find((s) => s.key === 'flow')?.amount ?? 0
       );
     }
-
-    if (feed !== undefined && hour % DAY === 9) {
-      running = applyAction(running, { type: 'feed', amount: feed }).state;
-    }
-    if (topOff && hour % DAY === 10) {
-      running = applyAction(running, { type: 'topOff' }).state;
-    }
-    if (waterChange !== undefined && hour % (7 * DAY) === 0) {
-      running = applyAction(running, { type: 'waterChange', amount: waterChange }).state;
-    }
-
-    running = tick(running, config);
 
     for (const fish of mine()) minHealth = Math.min(minHealth, fish.health);
     if (firstDeathHour === null && mine().length < roster.size) firstDeathHour = hour;

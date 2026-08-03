@@ -112,8 +112,14 @@ describe('heater readings', () => {
 });
 
 describe('filter readings', () => {
-  /** Capacities either side of where each class's flow cap starts to bite. */
-  const SIZING_SWEEP = [40, 75, 76, 100, 208, 208.2, 209, 300, 400, 562, 563, 568, 600, 1000];
+  /**
+   * Capacities either side of where each class's flow cap starts to bite,
+   * including the slivers where the shortfall is under a rendered unit — the
+   * band a gate on formatted strings decided differently for each reader.
+   */
+  const SIZING_SWEEP = [
+    40, 75, 75.13, 76, 100, 208, 208.2, 208.4, 209, 300, 400, 562, 562.55, 563, 568, 600, 1000,
+  ];
 
   it('reads flow as turnover and media as a share of the tank’s biofilm', () => {
     const readings = read('filter');
@@ -196,17 +202,15 @@ describe('filter readings', () => {
         const warned: number[] = [];
 
         for (const tankCapacity of SIZING_SWEEP) {
-          const warning = hint(
-            'filter',
-            createSimulation({ tankCapacity, filter: { enabled: true, type } }),
-            units
-          );
+          const state = createSimulation({ tankCapacity, filter: { enabled: true, type } });
+          const warning = hint('filter', state, units);
           if (warning === null) continue;
 
           const [, delivers, wants] =
-            /— (\d+) (?:L\/h|GPH) against the (\d+) (?:L\/h|GPH)/.exec(warning.text) ?? [];
+            /— (\d+ (?:L\/h|GPH)) against the (\d+ (?:L\/h|GPH))/.exec(warning.text) ?? [];
           expect(delivers).toBeDefined();
-          expect(Number(delivers)).toBeLessThan(Number(wants));
+          expect(parseInt(delivers!)).toBeLessThan(parseInt(wants!));
+          expect(value(read('filter', state, units), 'Flow').value).toBe(delivers);
           warned.push(tankCapacity);
         }
 

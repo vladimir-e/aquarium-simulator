@@ -35,7 +35,9 @@ import {
   type BacteriaReadout,
 } from '../run/index.js';
 import {
+  formatDeliveredFlow,
   formatFlowRate,
+  formatRequiredFlow,
   formatTemperature,
   formatVolume,
   getTemperatureUnit,
@@ -129,7 +131,7 @@ function filterReadings({ state, units }: DeviceReadingInput): DeviceReading[] {
   return [
     {
       label: 'Flow',
-      value: filter.enabled ? formatFlowRate(lph, units) : 'none',
+      value: filter.enabled ? formatDeliveredFlow(lph, units) : 'none',
       note: filter.enabled ? turnover(lph, state.resources.water) : 'no circulation while off',
     },
     {
@@ -360,14 +362,13 @@ export function deviceHint(
       const current = equipment.powerhead.enabled ? null : tooMuchCurrent(state);
       const spec = FILTER_SPECS[equipment.filter.type];
       // Only a deficit test because `getFilterFlow` caps at `maxFlowLph`:
-      // delivers ≤ wants always, so any difference between the two rendered
-      // figures is a shortfall and never a surplus.
-      const delivers = formatFlowRate(getFilterFlow(equipment.filter.type, tank.capacity), units);
-      const wants = formatFlowRate(tank.capacity * spec.targetTurnover, units);
-      if (delivers !== wants) {
+      // delivered ≤ wanted always, so this never reads a surplus as a shortfall.
+      const delivered = getFilterFlow(equipment.filter.type, tank.capacity);
+      const wanted = tank.capacity * spec.targetTurnover;
+      if (delivered < wanted) {
         return (
           current ?? {
-            text: `Undersized for this tank — ${delivers} against the ${wants} a ${spec.targetTurnover} × turnover here would take.`,
+            text: `Undersized for this tank — ${formatDeliveredFlow(delivered, units)} against the ${formatRequiredFlow(wanted, units)} a ${spec.targetTurnover} × turnover here would take.`,
             tone: 'warn',
           }
         );
