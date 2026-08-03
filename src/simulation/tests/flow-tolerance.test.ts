@@ -10,12 +10,8 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import {
-  createSimulation,
-  FISH_SPECIES_DATA,
-  type FishSpecies,
-  type SimulationState,
-} from '../state.js';
+import { createSimulation, type SimulationState } from '../state.js';
+import { FISH_SPECIES_DATA, type FishSpecies } from '../livestock/species.js';
 import { FILTER_SPECS, FILTER_TYPES, type FilterType } from '../equipment/filter.js';
 import type { PowerheadFlowRate } from '../equipment/powerhead.js';
 import { applyAction } from '../actions/index.js';

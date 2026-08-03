@@ -6,7 +6,7 @@ import type { useSimulation } from '../../hooks/useSimulation';
 import { useActionsSheet } from '../../hooks/useActionsSheet';
 import { useFocusTrap } from '../../hooks/useFocusTrap';
 import { useIsMobile } from '../../hooks/useMediaQuery';
-import { PresetSwitchProvider } from '../../hooks/usePresetSwitch';
+import { PresetLoadProvider } from '../../hooks/usePresetLoad';
 import { useUnits } from '../../hooks/useUnits';
 import { verbRow } from '../../actions';
 import { driftsFromPreset } from '../../build';
@@ -87,7 +87,7 @@ export function AppShell({ sim, config }: AppShellProps): React.JSX.Element {
   );
 
   return (
-    <PresetSwitchProvider current={sim.currentPreset} state={sim.state} onLoad={sim.loadPreset}>
+    <PresetLoadProvider current={sim.currentPreset} state={sim.state} onLoad={sim.loadPreset}>
       <div className="flex h-dvh flex-col bg-bg text-ink">
         <ChromeRow logs={sim.state.logs} onOpenIndex={railStands ? null : openIndex} />
 
@@ -129,6 +129,6 @@ export function AppShell({ sim, config }: AppShellProps): React.JSX.Element {
 
         <DebugPanel />
       </div>
-    </PresetSwitchProvider>
+    </PresetLoadProvider>
   );
 }

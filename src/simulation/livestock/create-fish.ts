@@ -9,6 +9,7 @@
  */
 
 import type { Fish } from '../state.js';
+import { sequentialId } from '../core/ids.js';
 import type { FishSex, FishSpecies, FishLifeStage } from './species.js';
 import { FISH_SPECIES_DATA } from './species.js';
 
@@ -21,12 +22,8 @@ const ADULT_ARRIVAL_SATIATION = 70;
 /** Satiation a newborn fry starts at (peckish, no immediate stress). */
 const FRY_START_SATIATION = 50;
 
-/** Monotonic sequence guaranteeing unique ids even within one tick. */
-let fishSeq = 0;
-
-/** Generate a process-unique fish id (time prefix + counter). */
 export function generateFishId(): string {
-  return `fish_${Date.now().toString(36)}_${(fishSeq++).toString(36)}`;
+  return sequentialId('fish');
 }
 
 /**

@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { createSimulation, FISH_SPECIES_DATA, type SimulationConfig } from './state.js';
+import { createSimulation, type SimulationConfig } from './state.js';
+import { FISH_SPECIES_DATA } from './livestock/species.js';
 import { cycledColony, type PresetSeed } from './seed.js';
 import { DEFAULT_PLANT_SIZE } from './plants/create-plant.js';
 

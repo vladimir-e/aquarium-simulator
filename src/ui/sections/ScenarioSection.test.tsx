@@ -3,23 +3,25 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, fireEvent, cleanup, within } from '@testing-library/react';
 import { ScenarioSection } from './ScenarioSection';
 import { UnitsProvider, useUnits } from '../hooks/useUnits';
-import { PresetSwitchProvider } from '../hooks/usePresetSwitch';
+import { PresetLoadProvider } from '../hooks/usePresetLoad';
 import { PersistenceProvider } from '../persistence/index.js';
 import { RESET_CONFIRM_TICKS, scenarioSummary } from '../build';
 import { navFigures } from '../nav/figures';
 import { emptyAggregates } from '../run';
 import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
-import { applyAction, createSimulation, type SimulationState } from '../../simulation/index.js';
+import { applyAction, type SimulationState } from '../../simulation/index.js';
 import type { useSimulation } from '../hooks/useSimulation';
-import { getPresetById, type PresetId } from '../../simulation/presets.js';
+import { type PresetId } from '../../simulation/presets.js';
 import { stubSim } from '../test/stubSim';
+import { presetTank } from '../test/presetTank';
 
 afterEach(() => {
   globalThis.localStorage.clear();
   cleanup();
 });
 
-const planted: SimulationState = createSimulation(getPresetById('planted')!.config);
+const planted = presetTank('planted');
+const progressed = presetTank('planted', { days: 5 });
 
 /** The planted tank with its heater switched on — drift a rebuild would clear. */
 const heated: SimulationState = {
@@ -29,9 +31,6 @@ const heated: SimulationState = {
     heater: { ...planted.equipment.heater, enabled: true },
   },
 };
-
-/** A run on the clock, so a preset load has something to destroy. */
-const progressed: SimulationState = { ...planted, tick: 5 * 24 };
 
 /**
  * The reader's units come from their locale, so every test names one. Set on
@@ -51,9 +50,9 @@ function renderSection(
     <PersistenceProvider>
       <UnitsProvider>
         <ForceUnits />
-        <PresetSwitchProvider current="planted" state={sim.state} onLoad={onLoad}>
+        <PresetLoadProvider current="planted" state={sim.state} onLoad={onLoad}>
           <ScenarioSection sim={sim} config={DEFAULT_CONFIG} />
-        </PresetSwitchProvider>
+        </PresetLoadProvider>
       </UnitsProvider>
     </PersistenceProvider>
   );
@@ -124,7 +123,7 @@ describe('ScenarioSection', () => {
     expect(onLoad).toHaveBeenCalledWith('planted');
   });
 
-  it('does not call stocking drift — no preset carries fish, so none can restore them', () => {
+  it('does not call stocking drift — the badge is about the build, not the tank’s life', () => {
     const stocked = applyAction(planted, { type: 'addFish', species: 'neon_tetra' }).state;
     renderSection(stubSim(stocked));
 

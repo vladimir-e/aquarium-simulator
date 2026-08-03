@@ -60,13 +60,7 @@ export interface SeedPlantGroup {
   size?: number;
 }
 
-/**
- * Nothing here is validated or clamped. A seed may describe a tank no
- * keeper could have reached — a colony with no ammonia history, a fish
- * past its `maxAge`, a plant in a substrate that would refuse it —
- * because constructing extreme states deliberately is what a scenario is
- * for, and rejecting them would defeat the surface.
- */
+/** Nothing here is validated or clamped — see `docs/1-DESIGN.md` § Starting State. */
 export interface PresetSeed {
   bacteria?: SeedBacteria;
   resources?: SeedResources;
@@ -78,8 +72,10 @@ export interface PresetSeed {
  * AOB units per litre a tank that cycled itself carries. A fishless soil
  * tank measured from 10 L to 1000 L rests at ~261 once cycled; rounding up
  * means a scenario that says "cycled" is never handed a weaker biofilter
- * than one that waited three weeks for it. Still ~2 % of the surface
- * ceiling, so the cap stays where it belongs — out of the way.
+ * than one that waited three weeks for it. That soil tank sits at ~2 % of
+ * its surface ceiling once seeded, so the cap stays out of the way; a bare
+ * 300 L with no filter has so little surface that the same figure fills 40 %
+ * of it.
  */
 const CYCLED_AOB_PER_LITER = 300;
 
@@ -93,7 +89,7 @@ const CYCLED_NOB_PER_LITER = 200;
  * a colony is sized by its ammonia supply, which scales with the water,
  * while surface is only a ceiling.
  */
-export function cycledColony(capacity: number): SeedColony {
+export function cycledColony(capacity: number): { aob: number; nob: number } {
   return {
     aob: capacity * CYCLED_AOB_PER_LITER,
     nob: capacity * CYCLED_NOB_PER_LITER,

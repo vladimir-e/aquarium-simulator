@@ -12,12 +12,12 @@ import { produce } from 'immer';
 import {
   createSimulation,
   DEFAULT_ROOM_TEMPERATURE,
-  type FishSpecies,
   type SimulationConfig,
   type SimulationState,
 } from '../state.js';
+import type { FishSex, FishSpecies } from '../livestock/species.js';
 import { tick } from '../tick.js';
-import type { PresetSeed } from '../seed.js';
+import { applySeed, type PresetSeed } from '../seed.js';
 import { applyAction } from '../actions/index.js';
 import { DEFAULT_CONFIG, type TunableConfig } from '../config/index.js';
 import { getMassFromPpm, getPpm } from '../resources/helpers.js';
@@ -130,22 +130,17 @@ export function seededCycledTank(capacity: number): SimulationState {
 /**
  * Add `count` fish of one species.
  *
- * `sex` forces the whole roster one way, which is how a run watches a stocked
+ * `sex` forces the fish this call adds, which is how a run watches a stocked
  * tank over months without breeding turning it into a different experiment.
  */
 export function stock(
   state: SimulationState,
   species: FishSpecies,
   count: number,
-  { sex }: { sex?: 'male' | 'female' } = {}
+  { sex }: { sex?: FishSex } = {}
 ): SimulationState {
-  let stocked = state;
-  for (let i = 0; i < count; i++) {
-    stocked = applyAction(stocked, { type: 'addFish', species }).state;
-  }
-  if (sex === undefined) return stocked;
-  return produce(stocked, (draft) => {
-    for (const fish of draft.fish) fish.sex = sex;
+  return produce(state, (draft) => {
+    applySeed(draft, { fish: [{ species, count, sex }] });
   });
 }
 
@@ -260,7 +255,7 @@ export function flowReading(
   });
 
   const fish = state.fish[0];
-  if (fish === undefined) throw new Error(`${species} will not stock into ${capacity} L`);
+  if (fish === undefined) throw new Error(`no ${species} in the ${capacity} L tank to read`);
 
   const vitality = computeFishVitality(
     fish,

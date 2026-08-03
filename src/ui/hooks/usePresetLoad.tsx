@@ -4,20 +4,20 @@ import { presetName, type PresetId } from '../../simulation/presets.js';
 import { presetLoadDestroys, presetLoadMessage } from '../build/index.js';
 import { ConfirmDialog } from '../components/ui/ConfirmDialog';
 
-export interface PresetSwitch {
+export interface PresetLoad {
   current: PresetId;
   /** Ask to load a preset. Asking for the loaded one starts it over. */
   request: (id: PresetId) => void;
 }
 
-const PresetSwitchContext = createContext<PresetSwitch | null>(null);
+const PresetLoadContext = createContext<PresetLoad | null>(null);
 
 /**
  * The preset selector sits in the chrome row and the preset picker sits in the
  * Scenario section; both come through here, so a load is confirmed once, in one
  * wording, wherever it was asked for.
  */
-export function PresetSwitchProvider({
+export function PresetLoadProvider({
   current,
   state,
   onLoad,
@@ -32,15 +32,15 @@ export function PresetSwitchProvider({
 
   const request = useCallback(
     (id: PresetId) => {
-      if (presetLoadDestroys(state)) setPending(id);
+      if (presetLoadDestroys(state, current)) setPending(id);
       else onLoad(id);
     },
-    [state, onLoad]
+    [state, current, onLoad]
   );
-  const value = useMemo<PresetSwitch>(() => ({ current, request }), [current, request]);
+  const value = useMemo<PresetLoad>(() => ({ current, request }), [current, request]);
 
   return (
-    <PresetSwitchContext.Provider value={value}>
+    <PresetLoadContext.Provider value={value}>
       {children}
       <ConfirmDialog
         isOpen={pending !== null}
@@ -53,14 +53,14 @@ export function PresetSwitchProvider({
         }}
         onCancel={() => setPending(null)}
       />
-    </PresetSwitchContext.Provider>
+    </PresetLoadContext.Provider>
   );
 }
 
-export function usePresetSwitch(): PresetSwitch {
-  const value = useContext(PresetSwitchContext);
+export function usePresetLoad(): PresetLoad {
+  const value = useContext(PresetLoadContext);
   if (!value) {
-    throw new Error('usePresetSwitch must be used inside a PresetSwitchProvider');
+    throw new Error('usePresetLoad must be used inside a PresetLoadProvider');
   }
   return value;
 }

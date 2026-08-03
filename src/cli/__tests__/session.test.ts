@@ -37,6 +37,24 @@ describe('session roundtrip', () => {
     expect(loaded.config.nitrogenCycle).toEqual(DEFAULT_CONFIG.nitrogenCycle);
   });
 
+  it('reloads a seeded tank whole — colony, roster and scape', () => {
+    const community = getPresetById('community')!;
+    const state = createSimulation(community.config, {
+      ...community.seed,
+      fish: [{ species: 'neon_tetra', count: 3, sex: 'female', age: 500 }],
+      plants: [{ species: 'java_fern', count: 2, size: 80 }],
+    });
+    saveSession(createSession(state, DEFAULT_CONFIG, 'seeded'), { path });
+
+    const loaded = loadSession({ path }).state;
+    expect(state.resources.aob).toBeGreaterThan(0);
+    expect(loaded.resources.aob).toBe(state.resources.aob);
+    expect(loaded.resources.nob).toBe(state.resources.nob);
+    expect(loaded.fish).toEqual(state.fish);
+    expect(loaded.fish.map((f) => f.sex)).toEqual(['female', 'female', 'female']);
+    expect(loaded.plants.map((p) => p.size)).toEqual([80, 80]);
+  });
+
   it('refuses to load a missing session', () => {
     expect(() => loadSession({ path })).toThrow(/No session found/);
   });

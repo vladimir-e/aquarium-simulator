@@ -3,8 +3,10 @@
  */
 
 import { produce } from 'immer';
-import type { SimulationState, PlantSpecies, SubstrateType } from '../state.js';
-import { PLANT_SPECIES_DATA } from '../state.js';
+import type { SimulationState } from '../state.js';
+import type { PlantSpecies } from '../plants/species.js';
+import type { SubstrateType } from '../equipment/substrate.js';
+import { PLANT_SPECIES_DATA } from '../plants/species.js';
 import { createLog } from '../core/logging.js';
 import { createPlant, DEFAULT_PLANT_SIZE } from '../plants/create-plant.js';
 import type { ActionResult, AddPlantAction, RemovePlantAction } from './types.js';

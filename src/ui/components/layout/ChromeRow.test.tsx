@@ -3,11 +3,11 @@ import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import { ChromeRow } from './ChromeRow';
 import { ThemeProvider } from '../../hooks/useTheme';
 import { ConfigProvider } from '../../hooks/useConfig';
-import { PresetSwitchProvider } from '../../hooks/usePresetSwitch';
+import { PresetLoadProvider } from '../../hooks/usePresetLoad';
 import { PersistenceProvider } from '../../persistence/index.js';
-import { createSimulation, createLog, type SimulationState } from '../../../simulation/index.js';
-import { getPresetById } from '../../../simulation/presets.js';
+import { createLog, type SimulationState } from '../../../simulation/index.js';
 import { stubMatchMedia, viewport, type MatchMediaStub } from '../../test/matchMedia';
+import { presetTank } from '../../test/presetTank';
 
 let media: MatchMediaStub;
 
@@ -21,10 +21,8 @@ afterEach(() => {
   cleanup();
 });
 
-const PLANTED: SimulationState = createSimulation(getPresetById('planted')!.config);
-
-/** A run on the clock, so a preset load has something to destroy. */
-const PROGRESSED: SimulationState = { ...PLANTED, tick: 5 * 24 };
+const PLANTED = presetTank('planted');
+const PROGRESSED = presetTank('planted', { days: 5 });
 
 function renderRow(
   overrides: Partial<Parameters<typeof ChromeRow>[0]> = {},
@@ -39,9 +37,9 @@ function renderRow(
     <ThemeProvider>
       <PersistenceProvider>
         <ConfigProvider>
-          <PresetSwitchProvider current="planted" state={state} onLoad={onLoadPreset}>
+          <PresetLoadProvider current="planted" state={state} onLoad={onLoadPreset}>
             <ChromeRow logs={[]} onOpenIndex={onOpenIndex} {...overrides} />
-          </PresetSwitchProvider>
+          </PresetLoadProvider>
         </ConfigProvider>
       </PersistenceProvider>
     </ThemeProvider>

@@ -4,6 +4,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { createSimulation, type SimulationConfig, type SimulationState } from '../state.js';
+import { PRESETS, createPresetSimulation } from '../presets.js';
 import { cycledColony, type PresetSeed } from '../seed.js';
 import { getPpm } from '../resources/helpers.js';
 import {
@@ -46,10 +47,10 @@ describe('a seeded cycled tank', () => {
     for (const capacity of [20, 150]) {
       const grown = cycledTank(capacity);
 
-      expect(grown.resources.aob / capacity).toBeGreaterThan(perLitre.aob! * 0.7);
-      expect(grown.resources.aob / capacity).toBeLessThan(perLitre.aob! * 1.3);
-      expect(grown.resources.nob / capacity).toBeGreaterThan(perLitre.nob! * 0.7);
-      expect(grown.resources.nob / capacity).toBeLessThan(perLitre.nob! * 1.3);
+      expect(grown.resources.aob / capacity).toBeGreaterThan(perLitre.aob * 0.7);
+      expect(grown.resources.aob / capacity).toBeLessThan(perLitre.aob * 1.3);
+      expect(grown.resources.nob / capacity).toBeGreaterThan(perLitre.nob * 0.7);
+      expect(grown.resources.nob / capacity).toBeLessThan(perLitre.nob * 1.3);
     }
   });
 
@@ -59,7 +60,7 @@ describe('a seeded cycled tank', () => {
     }
   });
 
-  it('clears it at least as well as the tank that cycled the long way', () => {
+  it('clears it at least as well as the same soil tank that cycled the long way', () => {
     for (const capacity of [20, 150]) {
       expect(doseClearance(seededCycledTank(capacity))).toBeLessThanOrEqual(
         doseClearance(cycledTank(capacity))
@@ -93,6 +94,23 @@ describe('a seeded cycled tank', () => {
     expect(uncycled.ammoniaPeakPpm).toBeGreaterThan(1);
     expect(seeded.ammoniaPeakPpm).toBeLessThan(0.1);
     expect(seeded.nitrateGainPpm).toBeGreaterThan(1);
+  });
+});
+
+describe('the tanks the presets ship', () => {
+  const seeded = PRESETS.filter((preset) => preset.seed !== undefined);
+
+  it('takes its first feeding without a spike, where the same tank unseeded spikes', () => {
+    expect(seeded).not.toHaveLength(0);
+
+    for (const preset of seeded) {
+      const shipped = feedDaily(createPresetSimulation(preset), 0.2, 7);
+      const uncycled = feedDaily(createSimulation(preset.config), 0.2, 7);
+
+      expect(uncycled.ammoniaPeakPpm).toBeGreaterThan(0.2);
+      expect(shipped.ammoniaPeakPpm).toBeLessThan(0.05);
+      expect(shipped.nitrateGainPpm).toBeGreaterThan(1);
+    }
   });
 });
 

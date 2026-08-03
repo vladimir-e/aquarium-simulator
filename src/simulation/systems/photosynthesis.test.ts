@@ -7,7 +7,8 @@ import {
 import { calculateNutrientSufficiency } from './nutrients.js';
 import { plantsDefaults } from '../config/plants.js';
 import { nutrientsDefaults, getNutrientRatio } from '../config/nutrients.js';
-import type { Plant, Resources, PlantSpecies } from '../state.js';
+import type { Plant, Resources } from '../state.js';
+import type { PlantSpecies } from '../plants/species.js';
 
 /**
  * Build a resources snapshot with nutrient mass chosen so that concentration

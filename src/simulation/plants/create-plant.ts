@@ -5,17 +5,14 @@
  */
 
 import type { Plant } from '../state.js';
+import { sequentialId } from '../core/ids.js';
 import type { PlantSpecies } from './species.js';
 
 /** Size a plant goes in at when the caller doesn't say — a young specimen. */
 export const DEFAULT_PLANT_SIZE = 50;
 
-/** Monotonic sequence guaranteeing unique ids even within one tick. */
-let plantSeq = 0;
-
-/** Generate a process-unique plant id (time prefix + counter). */
 export function generatePlantId(): string {
-  return `plant_${Date.now().toString(36)}_${(plantSeq++).toString(36)}`;
+  return sequentialId('plant');
 }
 
 export interface CreatePlantParams {
@@ -24,7 +21,6 @@ export interface CreatePlantParams {
   size?: number;
 }
 
-/** Build a plant at full condition with an empty surplus bank. */
 export function createPlant(params: CreatePlantParams): Plant {
   const { species, size = DEFAULT_PLANT_SIZE } = params;
 

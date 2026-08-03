@@ -7,7 +7,6 @@
 
 import {
   calculateEvaporationRatePerDay,
-  createSimulation,
   getFilterFlow,
   getMaxPlants,
   type LidType,
@@ -15,7 +14,7 @@ import {
 } from '../../simulation/index.js';
 import type { TunableConfig } from '../../simulation/config/index.js';
 import { SurfaceResource } from '../../simulation/resources/index.js';
-import { PRESETS, type PresetId } from '../../simulation/presets.js';
+import { PRESETS, createPresetSimulation, type PresetId } from '../../simulation/presets.js';
 import { TICKS_PER_DAY, formatElapsed } from '../utils/clock.js';
 import { formatVolume, type UnitSystem } from '../utils/units.js';
 import { turnover } from './readings.js';
@@ -82,16 +81,18 @@ export function scenarioSummary(
   return `${presetName} · ${formatVolume(state.tank.capacity, units, 0)}`;
 }
 
+/** The tank each preset builds, built once — every figure below reads off these. */
+const PRESET_TANKS = PRESETS.map(
+  (preset) => [preset, createPresetSimulation(preset)] as const
+);
+
 export function presetCards(units: UnitSystem): PresetCard[] {
-  return PRESETS.map((preset) => {
-    const built = createSimulation(preset.config);
-    return {
-      id: preset.id,
-      name: preset.name,
-      volume: formatVolume(built.tank.capacity, units, 0),
-      build: buildSummary(built),
-    };
-  });
+  return PRESET_TANKS.map(([preset, built]) => ({
+    id: preset.id,
+    name: preset.name,
+    volume: formatVolume(built.tank.capacity, units, 0),
+    build: buildSummary(built),
+  }));
 }
 
 /**
@@ -123,13 +124,13 @@ function presetSettings(state: SimulationState): string {
 }
 
 const PRESET_SETTINGS = new Map<PresetId, string>(
-  PRESETS.map((preset) => [preset.id, presetSettings(createSimulation(preset.config))])
+  PRESET_TANKS.map(([preset, built]) => [preset.id, presetSettings(built)])
 );
 
 /**
  * Whether the tank has moved away from the preset it was built from. Derived
- * rather than tracked, so a change and its undo cancel out, a reload cannot
- * lose it, and it is true exactly when Restore has something to put back.
+ * rather than tracked, so a change and its undo cancel out and a reload cannot
+ * lose it.
  */
 export function driftsFromPreset(state: SimulationState, presetId: PresetId): boolean {
   return presetSettings(state) !== PRESET_SETTINGS.get(presetId);
@@ -204,13 +205,26 @@ function atStake(state: SimulationState): string[] {
   return stake;
 }
 
+/** The stock a preset puts in the tank, so a load can tell it from the player's. */
+const PRESET_STOCK = new Map<PresetId, { fish: number; plants: number }>(
+  PRESET_TANKS.map(([preset, built]) => [
+    preset.id,
+    { fish: built.fish.length, plants: built.plants.length },
+  ])
+);
+
 /**
- * Whether loading a preset would cost anything. A tank with no clock on it and
- * nothing living in it is already what a preset builds, so asking would cost
- * more than the load does.
+ * Whether loading a preset would cost anything. A tank still at hour zero and
+ * holding exactly what `presetId` stocked it with is already what a load
+ * builds, so asking would cost more than the load does.
  */
-export function presetLoadDestroys(state: SimulationState): boolean {
-  return atStake(state).length > 0;
+export function presetLoadDestroys(state: SimulationState, presetId: PresetId): boolean {
+  const shipped = PRESET_STOCK.get(presetId);
+  return (
+    state.tick > 0 ||
+    state.fish.length !== shipped?.fish ||
+    state.plants.length !== shipped?.plants
+  );
 }
 
 export function presetLoadMessage(name: string, state: SimulationState): string {

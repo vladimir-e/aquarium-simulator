@@ -33,7 +33,8 @@ harness exercise, not a calibration pass — the anchors already hold).
 
 ## Recovery plan (when revisited)
 
-1. `sim new --preset=community --tank-gal=40`
+1. `sim new --preset=community --tank-gal=40` — the preset opens on a cycled
+   biofilter, which is this scenario's day-0 condition (NH3 and NO2 at 0).
 2. Populate per scenarios/03 setup (20 neons + 4 angels, 3 Java Fern +
    2 Amazon Sword at 50 %).
 3. Run 6-day feed + 40 % water-change cycle three times; record NO3, NH3,

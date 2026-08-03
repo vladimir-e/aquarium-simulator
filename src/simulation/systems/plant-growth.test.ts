@@ -5,7 +5,8 @@ import {
   getSpeciesMaxSize,
   asymptoticGrowthFactor,
 } from './plant-growth.js';
-import type { Plant, PlantSpecies } from '../state.js';
+import type { Plant } from '../state.js';
+import type { PlantSpecies } from '../plants/species.js';
 import { plantsDefaults } from '../config/plants.js';
 
 function makePlant(

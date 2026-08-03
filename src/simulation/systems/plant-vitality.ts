@@ -25,7 +25,7 @@
  */
 
 import type { Plant, Resources } from '../state.js';
-import { PLANT_SPECIES_DATA } from '../state.js';
+import { PLANT_SPECIES_DATA } from '../plants/species.js';
 import type { PlantsConfig } from '../config/plants.js';
 import { getPpm } from '../resources/index.js';
 import {

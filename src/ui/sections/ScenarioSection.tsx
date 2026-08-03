@@ -3,7 +3,7 @@ import { RotateCcw } from 'lucide-react';
 import type { LidType } from '../../simulation/index.js';
 import type { TunableConfig } from '../../simulation/config/index.js';
 import type { useSimulation } from '../hooks/useSimulation';
-import { usePresetSwitch } from '../hooks/usePresetSwitch';
+import { usePresetLoad } from '../hooks/usePresetLoad';
 import { useUnits } from '../hooks/useUnits';
 import { Stage } from '../components/layout/Stage';
 import { PresetPicker } from '../components/scenario/PresetPicker';
@@ -42,7 +42,7 @@ export function ScenarioSection({
   config: TunableConfig;
 }): React.JSX.Element {
   const { unitSystem, setUnitSystem, tempUnit, displayTemp, internalTemp } = useUnits();
-  const { current, request } = usePresetSwitch();
+  const { current, request } = usePresetLoad();
   const [confirmReset, setConfirmReset] = useState(false);
 
   const { environment, equipment, tank } = sim.state;

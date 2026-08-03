@@ -8,7 +8,8 @@
 
 import { describe, it, expect } from 'vitest';
 import { getPlantPower } from './plant-power.js';
-import type { Plant, PlantSpecies } from '../state.js';
+import type { Plant } from '../state.js';
+import type { PlantSpecies } from '../plants/species.js';
 
 function makePlant(overrides: Partial<Plant> = {}): Plant {
   return {

@@ -2,21 +2,21 @@
  * Simulation state types and factory functions.
  */
 
-import { createLog, type LogEntry, type LogSeverity, type LogEvent } from './core/logging.js';
+import { createLog, type LogEntry } from './core/logging.js';
 import type { DailySchedule } from './core/schedule.js';
-import type { FilterType, Filter } from './equipment/filter.js';
+import type { Filter } from './equipment/filter.js';
 import { DEFAULT_FILTER, getFilterSurface, getFilterFlow } from './equipment/filter.js';
-import type { PowerheadFlowRate, Powerhead } from './equipment/powerhead.js';
+import type { Powerhead } from './equipment/powerhead.js';
 import { DEFAULT_POWERHEAD, getPowerheadFlow } from './equipment/powerhead.js';
-import type { SubstrateType, Substrate } from './equipment/substrate.js';
+import type { Substrate } from './equipment/substrate.js';
 import {
   DEFAULT_SUBSTRATE,
   getSubstrateSurface,
   getSubstrateOrganicReserve,
 } from './equipment/substrate.js';
-import type { HardscapeType, HardscapeItem, Hardscape } from './equipment/hardscape.js';
+import type { Hardscape } from './equipment/hardscape.js';
 import { DEFAULT_HARDSCAPE, calculateHardscapeTotalSurface } from './equipment/hardscape.js';
-import type { Light, LightWattage } from './equipment/light.js';
+import type { Light } from './equipment/light.js';
 import { DEFAULT_LIGHT } from './equipment/light.js';
 import type { AirPump } from './equipment/air-pump.js';
 import { DEFAULT_AIR_PUMP, getAirPumpFlow } from './equipment/air-pump.js';
@@ -25,23 +25,6 @@ import { DEFAULT_AUTO_DOSER } from './equipment/auto-doser.js';
 import { applySeed, type PresetSeed } from './seed.js';
 import type { PlantSpecies } from './plants/species.js';
 import type { FishSpecies, FishSex, FishLifeStage } from './livestock/species.js';
-
-export type { LogEntry, LogSeverity, LogEvent };
-export type { AirPump };
-export type { AutoDoser };
-export type { FilterType, Filter, PowerheadFlowRate, Powerhead, SubstrateType, Substrate, Light, LightWattage };
-export type { HardscapeType, HardscapeItem, Hardscape };
-export type { PlantSpecies, PlantSpeciesData, NutrientDemand } from './plants/species.js';
-export { PLANT_SPECIES_DATA } from './plants/species.js';
-export type {
-  FishSpecies,
-  FishSex,
-  FishLifeStage,
-  BreedingMode,
-  FishBreedingData,
-  FishSpeciesData,
-} from './livestock/species.js';
-export { FISH_SPECIES_DATA } from './livestock/species.js';
 
 /**
  * Individual fish in the tank.

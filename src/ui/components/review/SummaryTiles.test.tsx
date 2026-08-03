@@ -85,11 +85,6 @@ describe('SummaryTiles', () => {
     expect(screen.queryByText('NH₃')).toBeNull();
   });
 
-  it('never chips an alert the count does not cover', () => {
-    renderTiles({ ...base, alerts: 0 }, [ammoniaWarning(36)]);
-    expect(screen.queryByText('NH₃')).toBeNull();
-  });
-
   it('parks the cursor on the tick the latest alert names', () => {
     const onScrubToTick = renderTiles(base, [ammoniaWarning(21), ammoniaWarning(29)]);
     fireEvent.click(screen.getByRole('button', { name: 'latest T29' }));

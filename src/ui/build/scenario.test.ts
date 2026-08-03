@@ -10,12 +10,8 @@ import {
   presetLoadMessage,
   resetConsequence,
 } from './scenario.js';
-import {
-  PRESETS,
-  createPresetSimulation,
-  getPresetById,
-  type PresetId,
-} from '../../simulation/presets.js';
+import { PRESETS, type PresetId } from '../../simulation/presets.js';
+import { presetTank } from '../test/presetTank';
 import { TICKS_PER_DAY } from '../utils/clock.js';
 import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
 import {
@@ -27,11 +23,6 @@ import {
   type SimulationState,
 } from '../../simulation/index.js';
 import { SurfaceResource } from '../../simulation/resources/index.js';
-
-/** The tank the app builds for a preset — both halves of it, as `loadPreset` does. */
-function built(id: string): SimulationState {
-  return createPresetSimulation(getPresetById(id as never)!);
-}
 
 describe('presetCards', () => {
   it('covers every preset, in the order the selector lists them', () => {
@@ -49,8 +40,8 @@ describe('presetCards', () => {
 
   it('describes only what the preset sets up, never stocking it does not carry', () => {
     for (const card of presetCards('metric')) {
-      expect(built(card.id).fish).toHaveLength(0);
-      expect(built(card.id).plants).toHaveLength(0);
+      expect(presetTank(card.id).fish).toHaveLength(0);
+      expect(presetTank(card.id).plants).toHaveLength(0);
       expect(card.build).not.toMatch(/fish|betta|angelfish|shoal|plant|stock/i);
     }
   });
@@ -60,7 +51,7 @@ describe('presetCards', () => {
     const planted = cards.find((c) => c.id === 'planted')!;
     const bare = cards.find((c) => c.id === 'bare')!;
 
-    expect(built('planted').equipment.heater.enabled).toBe(false);
+    expect(presetTank('planted').equipment.heater.enabled).toBe(false);
     expect(planted.build).not.toContain('heater');
     expect(planted.build).toBe('Aqua Soil + rock + driftwood ×2 · canister filter · light · CO₂ · ATO · no lid');
 
@@ -72,7 +63,7 @@ describe('presetCards', () => {
 
 describe('environmentDerived', () => {
   it('reports the engine’s evaporation rate and the lid driving it', () => {
-    const state = built('community');
+    const state = presetTank('community');
     const expected = calculateEvaporationRatePerDay(
       state.resources.temperature,
       state.environment.roomTemperature,
@@ -87,7 +78,7 @@ describe('environmentDerived', () => {
   });
 
   it('says none under a sealed lid rather than 0.0 %/d', () => {
-    const state = built('community');
+    const state = presetTank('community');
     const sealed = { ...state, equipment: { ...state.equipment, lid: { type: 'sealed' as const } } };
 
     const [evaporation] = environmentDerived(sealed, DEFAULT_CONFIG);
@@ -96,7 +87,7 @@ describe('environmentDerived', () => {
   });
 
   it('reads surface, turnover and plant slots off the same engine the sections do', () => {
-    const state = built('community');
+    const state = presetTank('community');
     const [, surface, turnover, slots] = environmentDerived(state, DEFAULT_CONFIG);
 
     expect(surface.value).toBe(SurfaceResource.format(state.resources.surface));
@@ -107,7 +98,7 @@ describe('environmentDerived', () => {
   });
 
   it('reports the flow the filter actually delivers once its cap bites', () => {
-    const state = built('community'); // 150 L
+    const state = presetTank('community'); // 150 L
     const sponge = {
       ...state,
       equipment: { ...state.equipment, filter: { enabled: true, type: 'sponge' as const } },
@@ -115,7 +106,7 @@ describe('environmentDerived', () => {
     // 150 L × 4 turnovers = 600 L/h, capped at the sponge's 300 L/h ⇒ 2.0, not 4.0.
     expect(environmentDerived(sponge, DEFAULT_CONFIG)[2].value).toBe('2.0 × tank volume/h');
 
-    const big = built('angelfish'); // 300 L
+    const big = presetTank('angelfish'); // 300 L
     const hob = {
       ...big,
       equipment: { ...big.equipment, filter: { enabled: true, type: 'hob' as const } },
@@ -125,7 +116,7 @@ describe('environmentDerived', () => {
   });
 
   it('does not report a turnover the tank is not getting while the filter is off', () => {
-    const state = built('bare');
+    const state = presetTank('bare');
     const [, , turnover] = environmentDerived(state, DEFAULT_CONFIG);
 
     expect(getFilterFlow(state.equipment.filter.type, state.tank.capacity)).toBeGreaterThan(0);
@@ -136,13 +127,13 @@ describe('environmentDerived', () => {
 
 describe('resetConsequence', () => {
   it('names what survives, and stays silent about elapsed days before the first one', () => {
-    const message = resetConsequence(built('planted'));
+    const message = resetConsequence(presetTank('planted'));
     expect(message).toContain('Equipment, scape, plants and fish stay.');
     expect(message).not.toMatch(/day/);
   });
 
   it('counts the run’s days once there are any', () => {
-    let state = built('planted');
+    let state = presetTank('planted');
     for (let i = 0; i < 25; i++) state = tick(state, DEFAULT_CONFIG);
 
     expect(resetConsequence(state)).toContain('— 1 day.');
@@ -150,7 +141,7 @@ describe('resetConsequence', () => {
   });
 
   it('warns about clutches, which reset destroys and the kept list does not cover', () => {
-    const state = built('planted');
+    const state = presetTank('planted');
     const one = { ...state, clutches: [{ id: 'c1' }] as never };
     const two = { ...state, clutches: [{ id: 'c1' }, { id: 'c2' }] as never };
 
@@ -162,13 +153,13 @@ describe('resetConsequence', () => {
 
 describe('presetLoadMessage', () => {
   it('leads with the tank it builds, and says nothing was there to lose', () => {
-    const message = presetLoadMessage('Betta Cube', built('planted'));
+    const message = presetLoadMessage('Betta Cube', presetTank('planted'));
 
     expect(message).toBe('Starts “Betta Cube” as a new tank at hour zero.');
   });
 
   it('names the run and the life the load takes with it', () => {
-    let state = applyAction(built('planted'), { type: 'addFish', species: 'neon_tetra' }).state;
+    let state = applyAction(presetTank('planted'), { type: 'addFish', species: 'neon_tetra' }).state;
     state = applyAction(state, { type: 'addPlant', species: 'java_fern' }).state;
     state = { ...state, tick: 3 * TICKS_PER_DAY + 2 };
 
@@ -180,7 +171,7 @@ describe('presetLoadMessage', () => {
 
   it('counts what it names', () => {
     const state = {
-      ...built('planted'),
+      ...presetTank('planted'),
       fish: [{}, {}, {}],
       plants: [{}, {}],
     } as unknown as SimulationState;
@@ -190,22 +181,20 @@ describe('presetLoadMessage', () => {
 });
 
 describe('presetLoadDestroys', () => {
-  it('is false only for a tank with no clock on it and nothing living in it', () => {
-    const fresh = built('planted');
+  it('is false for the tank a preset just built, whatever stock that preset ships', () => {
+    for (const preset of PRESETS) {
+      expect(presetLoadDestroys(presetTank(preset.id), preset.id)).toBe(false);
+    }
+  });
+
+  it('is true once the clock has moved or the stock is not the preset’s own', () => {
+    const fresh = presetTank('planted');
     const stocked = applyAction(fresh, { type: 'addFish', species: 'neon_tetra' }).state;
     const planted = applyAction(fresh, { type: 'addPlant', species: 'java_fern' }).state;
 
-    expect(presetLoadDestroys(fresh)).toBe(false);
-    expect(presetLoadDestroys({ ...fresh, tick: 1 })).toBe(true);
-    expect(presetLoadDestroys(stocked)).toBe(true);
-    expect(presetLoadDestroys(planted)).toBe(true);
-  });
-
-  it('agrees with the message about whether there is anything to say', () => {
-    for (const state of [built('planted'), { ...built('planted'), tick: 40 }]) {
-      const named = presetLoadMessage('Betta Cube', state).includes('goes');
-      expect(named).toBe(presetLoadDestroys(state));
-    }
+    expect(presetLoadDestroys({ ...fresh, tick: 1 }, 'planted')).toBe(true);
+    expect(presetLoadDestroys(stocked, 'planted')).toBe(true);
+    expect(presetLoadDestroys(planted, 'planted')).toBe(true);
   });
 });
 
@@ -218,12 +207,12 @@ describe('RESET_CONFIRM_TICKS', () => {
 describe('driftsFromPreset', () => {
   it('says a freshly built preset matches itself', () => {
     for (const preset of PRESETS) {
-      expect(driftsFromPreset(built(preset.id), preset.id)).toBe(false);
+      expect(driftsFromPreset(presetTank(preset.id), preset.id)).toBe(false);
     }
   });
 
   it('sees equipment, environment and tank move away from the defaults', () => {
-    const state = built('planted');
+    const state = presetTank('planted');
     const drift = (next: SimulationState): boolean => driftsFromPreset(next, 'planted');
 
     expect(
@@ -236,7 +225,7 @@ describe('driftsFromPreset', () => {
   });
 
   it('cancels a change against its own undo, where a touched flag could not', () => {
-    const state = built('planted');
+    const state = presetTank('planted');
     const warmer = { ...state, environment: { ...state.environment, roomTemperature: 30 } };
     const back = {
       ...warmer,
@@ -248,19 +237,19 @@ describe('driftsFromPreset', () => {
   });
 
   it('ignores what the engine drives on its own', () => {
-    let state = built('planted');
+    let state = presetTank('planted');
     for (let i = 0; i < 30; i++) state = tick(state, DEFAULT_CONFIG);
     expect(driftsFromPreset(state, 'planted')).toBe(false);
   });
 
-  it('ignores stocking, which no preset carries and no restore returns', () => {
-    const stocked = applyAction(built('planted'), { type: 'addFish', species: 'neon_tetra' }).state;
+  it('ignores stocking, because drift is a question about the equipment', () => {
+    const stocked = applyAction(presetTank('planted'), { type: 'addFish', species: 'neon_tetra' }).state;
     expect(stocked.fish.length).toBe(1);
     expect(driftsFromPreset(stocked, 'planted')).toBe(false);
   });
 
   it('reads the tank against the preset it is being compared to, not the one it was built from', () => {
-    const planted = built('planted');
+    const planted = presetTank('planted');
     const others = PRESETS.filter((p) => p.id !== 'planted').map((p) => p.id as PresetId);
     for (const id of others) {
       expect(driftsFromPreset(planted, id)).toBe(true);

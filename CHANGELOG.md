@@ -11,13 +11,13 @@ Format: - **Feature name** (#PR) - One short sentence (under ~150 chars)
 
 ## Unreleased
 
-- **Loading a preset starts a new tank** - a preset builds its own simulation at tick 0 instead of retrofitting the running one; the confirm dialog names the run and the stock it discards, and skips the interruption when there is neither.
+- **Loading a preset starts a new tank** - it builds its own simulation at tick 0 rather than retrofitting the running one, and the dialog names what that costs.
 - **Presets open cycled** - every preset but Bare Tank ships a working biofilter, so a stocked tank takes its first feeding without an ammonia spike.
-- **A tank can start at a state** - `createSimulation` takes an optional `PresetSeed`: colony, chemistry, fish at an age and sex, plants at a size. `PRESETS` now ships from the package root.
+- **A tank can start at a state** - `createSimulation` takes an optional `PresetSeed`: colony, chemistry, fish at an age and sex, plants at a size.
 - **The community tank stops killing its tetras** - flow tolerance is a turnover, so one powerhead is a current in a 300 L and lethal in a nano. Saved tanks and CLI sessions both reset (v16, v3).
 - **"Undersized" now means the flow cap bites** - a 55 gal on a HOB is no longer told it is underfiltered; a 150 gal on a canister is.
 - **The device moving the water is the one that warns** - too much current names the powerhead, or the air pump, before the filter running behind it.
-- **A rescape takes the biofilm** - any bed swap, picker or preset, costs the colony the share that lived on the old bed, so an established tank blips.
+- **A rescape takes the biofilm** - a bed swap costs the colony the share that lived on the old bed, so an established tank blips.
 - **The biofilter reads as cycled or uncycled** - both toxins at trace on colonies still clearing a load, so a starved tank stops claiming it.
 - **Colonisation reads as headroom** - share of the surface ceiling is the room a colony has left, not the headline a healthy tank sat at 1 % of.
 - **Processing capacity** - a bacterium clears the same ammonia in a nano as in a stock tank, and a cold tank cycles slower: 18 °C takes about twice the days 25 °C does.
@@ -27,7 +27,7 @@ Format: - **Feature name** (#PR) - One short sentence (under ~150 chars)
 - **Action previews include dissolved gases** - water changes now show what they do to O₂ and CO₂, not just temperature and pH.
 - **Actions sheet** - one transient surface for all six husbandry verbs: a card over the rail's foot, a master-detail drill-in on a phone, previewing each by applying the action and diffing the engine's own readings.
 - **Scenario section** - five preset cards stating the tank each actually builds, the environment fields with their derived consequences, and the three confirmations restored.
-- **Preset drift is derived** - the "modified" pill compares the tank against its preset's config, so an undo clears it and Restore always has work.
+- **Preset drift is derived** - the "modified" pill compares the tank against its preset's config, so an undo clears it and a reload cannot lose it.
 - **Analytics section** - four full-width charts over a full-width log; the scrubbed tick lives in `?tick=`, so a cursor is a link for the session.
 - **Error boundary keeps your tank** - render errors show a recovery screen instead of wiping the save and reloading; reset is now an explicit button.
 - **Livestock section** - the roster as a table: species rows expand into individuals and individuals into their own vitality breakdown and reserve bank, clutches and fry get their own rows, bioload pinned to the foot.

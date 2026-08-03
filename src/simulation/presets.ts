@@ -2,7 +2,8 @@
  * Aquarium preset configurations for quick setup.
  */
 
-import type { SimulationConfig, HardscapeItem, SimulationState } from './state.js';
+import type { SimulationConfig, SimulationState } from './state.js';
+import type { HardscapeItem } from './equipment/hardscape.js';
 import { createSimulation } from './state.js';
 import type { PresetSeed } from './seed.js';
 

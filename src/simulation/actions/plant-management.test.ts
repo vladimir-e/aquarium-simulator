@@ -7,7 +7,9 @@ import {
   getMaxPlants,
   canAddPlant,
 } from './plant-management.js';
-import { createSimulation, type SimulationState, type PlantSpecies, type SubstrateType } from '../state.js';
+import { createSimulation, type SimulationState } from '../state.js';
+import type { PlantSpecies } from '../plants/species.js';
+import type { SubstrateType } from '../equipment/substrate.js';
 import { produce } from 'immer';
 
 describe('getMaxPlants', () => {

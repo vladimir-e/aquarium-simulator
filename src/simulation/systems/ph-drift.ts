@@ -9,7 +9,8 @@
  */
 
 import type { Effect } from '../core/effects.js';
-import type { SimulationState, HardscapeItem } from '../state.js';
+import type { SimulationState } from '../state.js';
+import type { HardscapeItem } from '../equipment/hardscape.js';
 import type { System } from './types.js';
 import type { TunableConfig } from '../config/index.js';
 import { type PhConfig, phDefaults } from '../config/ph.js';
