@@ -5,6 +5,7 @@ import {
   FILTER_SPECS,
   FILTER_TYPES,
   FISH_SPECIES_DATA,
+  getAirPumpFlow,
   isAirPumpUndersized,
   tick,
   type SimulationState,
@@ -13,6 +14,7 @@ import { applyAction } from '../../simulation/actions/index.js';
 import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
 import { bacteriaReadout, colonyCount } from '../run/index.js';
 import { cycledTank, run as runUnfed } from '../../simulation/tests/tanks.js';
+import { getPresetById } from '../presets.js';
 import type { UnitSystem } from '../utils/units.js';
 import type { EquipmentId } from './devices';
 import { deviceHint, deviceReadings, type DeviceHint, type DeviceReading } from './readings';
@@ -462,6 +464,62 @@ describe('air pump readings', () => {
     // …and neither does an oversized tank whose pump is switched off.
     const off: SimulationState = { ...base, tank: { ...base.tank, capacity: 401 } };
     expect(hint('airPump', off)?.tone).toBe('muted');
+  });
+
+  it('answers for the current it adds rather than leaving the filter to', () => {
+    // The shipped Betta Cube, evaporated to 17 L of its 20. Its sponge alone
+    // is 4.7 × — inside a betta's 5 — and the pump's uplift carries it to 5.1.
+    const cube = getPresetById('betta')!;
+    const evaporate = (tank: SimulationState): SimulationState => {
+      const { state } = applyAction(tank, { type: 'addFish', species: 'betta' });
+      return { ...state, resources: { ...state.resources, water: 17 } };
+    };
+
+    const pumped = evaporate(createSimulation({ ...cube.config, airPump: { enabled: true } }));
+    expect(hint('airPump', pumped)).toEqual({
+      text: 'Too much current for Betta — 5.1 × tank volume/h against its 5 ×.',
+      tone: 'warn',
+    });
+    expect(hint('filter', pumped)).toBeNull();
+
+    // The same cube as it ships is under tolerance, and nothing warns.
+    const sponge = evaporate(createSimulation(cube.config));
+    expect(pumped.resources.flow - sponge.resources.flow).toBe(getAirPumpFlow(20));
+    expect(hint('filter', sponge)).toBeNull();
+    expect(hint('airPump', sponge)?.tone).toBe('muted');
+  });
+
+  it('leaves the current warning to the powerhead, the way the filter does', () => {
+    const stacked = applyAction(
+      createSimulation({
+        tankCapacity: 40,
+        filter: { enabled: true, type: 'canister' },
+        powerhead: { enabled: true, flowRateGPH: 240 },
+        airPump: { enabled: true },
+      }),
+      { type: 'addFish', species: 'betta' }
+    ).state;
+
+    expect(hint('powerhead', stacked)?.tone).toBe('warn');
+    expect(hint('airPump', stacked)?.tone).toBe('muted');
+    expect(hint('filter', stacked)).toBeNull();
+  });
+
+  it('says the fish are straining before it says one stone is not enough', () => {
+    const both = applyAction(
+      createSimulation({
+        tankCapacity: 500,
+        filter: { enabled: true, type: 'sump' },
+        airPump: { enabled: true },
+      }),
+      { type: 'addFish', species: 'betta' }
+    ).state;
+
+    expect(isAirPumpUndersized(both.tank.capacity)).toBe(true);
+    expect(hint('airPump', both)).toEqual({
+      text: 'Too much current for Betta — 10.1 × tank volume/h against its 5 ×.',
+      tone: 'warn',
+    });
   });
 });
 

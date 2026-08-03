@@ -329,10 +329,23 @@ function strainedByFlow(fish: readonly Fish[], charged: number): FishSpeciesData
   return tightest;
 }
 
+/**
+ * Circulation is a tank-level figure, so one card owns the warning about it:
+ * the most discretionary of the devices moving the water — the one whose
+ * switch the player can most usefully reach for. A filter is the device a
+ * stocked tank cannot do without, so it speaks only when nothing else does.
+ */
+function flowSpeaker({ equipment }: SimulationState): EquipmentId | null {
+  if (equipment.powerhead.enabled) return 'powerhead';
+  if (equipment.airPump.enabled) return 'airPump';
+  if (equipment.filter.enabled) return 'filter';
+  return null;
+}
+
 /** What the device driving the water says when the roster cannot take it. */
-function tooMuchCurrent(state: SimulationState): DeviceHint | null {
+function tooMuchCurrent(id: EquipmentId, state: SimulationState): DeviceHint | null {
   const { flow, water } = state.resources;
-  if (water <= 0) return null;
+  if (water <= 0 || flowSpeaker(state) !== id) return null;
 
   const charged = volumesPerHour(flow, water);
   const strained = strainedByFlow(state.fish, charged);
@@ -359,7 +372,7 @@ export function deviceHint(
       if (!equipment.filter.enabled) {
         return muted('No biological filtration while the filter is off.');
       }
-      const current = equipment.powerhead.enabled ? null : tooMuchCurrent(state);
+      const current = tooMuchCurrent('filter', state);
       const spec = FILTER_SPECS[equipment.filter.type];
       // Only a deficit test because `getFilterFlow` caps at `maxFlowLph`:
       // delivered ≤ wanted always, so this never reads a surplus as a shortfall.
@@ -380,9 +393,12 @@ export function deviceHint(
     case 'light':
       return muted('Photoperiod drives plant growth, and the algae with it.');
     case 'airPump':
-      return equipment.airPump.enabled && isAirPumpUndersized(tank.capacity)
-        ? { text: 'Past what one air stone can aerate — this tank needs more.', tone: 'warn' }
-        : muted('Adds oxygen and off-gasses CO₂ through surface agitation.');
+      return (
+        tooMuchCurrent('airPump', state) ??
+        (equipment.airPump.enabled && isAirPumpUndersized(tank.capacity)
+          ? { text: 'Past what one air stone can aerate — this tank needs more.', tone: 'warn' }
+          : muted('Adds oxygen and off-gasses CO₂ through surface agitation.'))
+      );
     case 'ato':
       return muted('Tops off with tap water, blending the tank toward tap pH and temperature.');
     case 'co2Generator':
@@ -391,7 +407,7 @@ export function deviceHint(
       );
     case 'powerhead':
       return (
-        (equipment.powerhead.enabled ? tooMuchCurrent(state) : null) ??
+        tooMuchCurrent('powerhead', state) ??
         muted('Extra circulation and gas exchange on top of the filter.')
       );
     case 'autoDoser':
