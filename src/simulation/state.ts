@@ -21,6 +21,7 @@ import type { AirPump } from './equipment/air-pump.js';
 import { DEFAULT_AIR_PUMP, getAirPumpFlow } from './equipment/air-pump.js';
 import type { AutoDoser } from './equipment/auto-doser.js';
 import { DEFAULT_AUTO_DOSER } from './equipment/auto-doser.js';
+import { applySeed, type PresetSeed } from './seed.js';
 
 export type { LogEntry, LogSeverity, LogEvent };
 export type { AirPump };
@@ -805,9 +806,10 @@ export function calculateTankGlassSurface(capacity: number): number {
 }
 
 /**
- * Creates a new simulation state with the given configuration.
+ * Creates a new simulation state with the given configuration, optionally
+ * started at the state a {@link PresetSeed} describes rather than empty.
  */
-export function createSimulation(config: SimulationConfig): SimulationState {
+export function createSimulation(config: SimulationConfig, seed?: PresetSeed): SimulationState {
   const {
     tankCapacity,
     initialTemperature,
@@ -924,7 +926,7 @@ export function createSimulation(config: SimulationConfig): SimulationState {
     airPumpConfig
   );
 
-  return {
+  const state: SimulationState = {
     tick: 0,
     tank: {
       capacity: tankCapacity,
@@ -994,6 +996,8 @@ export function createSimulation(config: SimulationConfig): SimulationState {
       highCo2: false,
     },
   };
+
+  return seed === undefined ? state : applySeed(state, seed);
 }
 
 /** Hardscape bacteria surface area by type (cm²) */

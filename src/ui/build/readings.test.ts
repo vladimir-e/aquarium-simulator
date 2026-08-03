@@ -14,7 +14,7 @@ import { applyAction } from '../../simulation/actions/index.js';
 import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
 import { bacteriaReadout, colonyCount } from '../run/index.js';
 import { cycledTank, run as runUnfed } from '../../simulation/tests/tanks.js';
-import { getPresetById } from '../presets.js';
+import { getPresetById } from '../../simulation/presets.js';
 import type { UnitSystem } from '../utils/units.js';
 import type { EquipmentId } from './devices';
 import { deviceHint, deviceReadings, type DeviceHint, type DeviceReading } from './readings';

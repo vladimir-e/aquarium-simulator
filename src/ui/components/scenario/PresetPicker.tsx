@@ -1,7 +1,7 @@
 import React from 'react';
 import { RotateCcw } from 'lucide-react';
 import type { PresetCard } from '../../build';
-import type { PresetId } from '../../presets.js';
+import type { PresetId } from '../../../simulation/presets.js';
 import { Pill, RunButton } from '../run/elements';
 import { CONTROL_FOCUS } from '../ui/focus';
 

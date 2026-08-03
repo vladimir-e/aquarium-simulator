@@ -8,7 +8,7 @@
  * difference is the stage/age/mass triple the caller supplies.
  */
 
-import type { Fish, FishSpecies, FishLifeStage } from '../state.js';
+import type { Fish, FishSex, FishSpecies, FishLifeStage } from '../state.js';
 import { FISH_SPECIES_DATA } from '../state.js';
 
 /** Per-fish hardiness offset span as a fraction of species baseline. */
@@ -46,6 +46,11 @@ export interface CreateFishParams {
   /** Age in ticks. Stocked adults and newborn fry both start at 0. */
   age: number;
   stage: FishLifeStage;
+  /**
+   * Sex, sampled 50/50 when absent. A player doesn't choose it at the
+   * shop; a scenario author naming a breeding pair does.
+   */
+  sex?: FishSex;
   /** Randomness source for sex / hardiness / health. Defaults to `Math.random`. */
   rng?: () => number;
 }
@@ -59,7 +64,7 @@ export function createFish(params: CreateFishParams): Fish {
   const { species, age, stage, rng = Math.random } = params;
   const data = FISH_SPECIES_DATA[species];
 
-  const sex = rng() < 0.5 ? 'male' : 'female';
+  const sex = params.sex ?? (rng() < 0.5 ? 'male' : 'female');
   const hardinessOffset = (rng() - 0.5) * 2 * HARDINESS_OFFSET_SPAN * data.hardiness;
   const health = Math.max(0, Math.min(100, 100 + (rng() - 0.5) * 2 * HEALTH_JITTER));
 

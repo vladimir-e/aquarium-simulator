@@ -1,5 +1,5 @@
 import React, { createContext, useCallback, useContext, useMemo, useState } from 'react';
-import { presetName, type PresetId } from '../presets.js';
+import { presetName, type PresetId } from '../../simulation/presets.js';
 import { presetRestoreMessage, presetSwitchMessage } from '../build/index.js';
 import { ConfirmDialog } from '../components/ui/ConfirmDialog';
 

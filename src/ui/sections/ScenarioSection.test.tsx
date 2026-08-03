@@ -11,7 +11,7 @@ import { emptyAggregates } from '../run';
 import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
 import { applyAction, createSimulation, type SimulationState } from '../../simulation/index.js';
 import type { useSimulation } from '../hooks/useSimulation';
-import { getPresetById, type PresetId } from '../presets.js';
+import { getPresetById, type PresetId } from '../../simulation/presets.js';
 import { stubSim } from '../test/stubSim';
 
 afterEach(() => {

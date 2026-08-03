@@ -7,18 +7,12 @@
  * engine, persists the updated session, and prints the result.
  */
 
-import {
-  tick,
-  applyAction,
-  createSimulation,
-  type Action,
-  type SimulationState,
-} from '../simulation/index.js';
+import { tick, applyAction, type Action, type SimulationState } from '../simulation/index.js';
 import {
   DEFAULT_CONFIG,
   type TunableConfig,
 } from '../simulation/config/index.js';
-import { PRESETS, getPresetById, type PresetId } from '../ui/presets.js';
+import { createPresetSimulation, PRESETS, getPresetById, type PresetId } from '../simulation/presets.js';
 import {
   loadSession,
   saveSession,
@@ -228,7 +222,7 @@ function cmdNew(flags: Record<string, string>): void {
   }
   const preset = buildConfigFromPreset(presetId, { capacity });
   if (!preset) throw new Error(`Preset "${presetId}" not found.`);
-  const state = createSimulation(preset.config);
+  const state = createPresetSimulation(preset);
   const session = createSession(state, DEFAULT_CONFIG, flags.name ?? preset.name);
   const recorded: Session = { ...session, history: appendSnapshot(session.history, snapshot(state)) };
   saveSession(recorded);

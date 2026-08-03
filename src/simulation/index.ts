@@ -50,6 +50,26 @@ export {
   FISH_SPECIES_DATA,
 } from './state.js';
 
+// Seeding — starting a tank at a state
+export type {
+  PresetSeed,
+  SeedBacteria,
+  SeedResources,
+  SeedFishGroup,
+  SeedPlantGroup,
+} from './seed.js';
+export { cycledColony } from './seed.js';
+
+// Presets
+export type { PresetId, PresetDefinition } from './presets.js';
+export {
+  PRESETS,
+  DEFAULT_PRESET_ID,
+  createPresetSimulation,
+  getPresetById,
+  presetName,
+} from './presets.js';
+
 // Configuration
 export type { TunableConfig } from './config/index.js';
 export { DEFAULT_CONFIG } from './config/index.js';
@@ -57,6 +77,8 @@ export { DEFAULT_CONFIG } from './config/index.js';
 // Resources
 export type { ResourceDefinition, ResourceKey } from './resources/index.js';
 export {
+  getPpm,
+  getMassFromPpm,
   ResourceRegistry,
   AllResources,
   TemperatureResource,
@@ -265,6 +287,7 @@ export {
   buildPlantStressors,
   buildPlantBenefits,
 } from './plants/index.js';
+export { createPlant, generatePlantId, DEFAULT_PLANT_SIZE } from './plants/create-plant.js';
 
 // Livestock
 export {

@@ -15,7 +15,7 @@ import {
 } from '../../simulation/index.js';
 import type { TunableConfig } from '../../simulation/config/index.js';
 import { SurfaceResource } from '../../simulation/resources/index.js';
-import { PRESETS, type PresetId } from '../presets.js';
+import { PRESETS, type PresetId } from '../../simulation/presets.js';
 import { TICKS_PER_DAY } from '../utils/clock.js';
 import { formatVolume, type UnitSystem } from '../utils/units.js';
 import { turnover } from './readings.js';

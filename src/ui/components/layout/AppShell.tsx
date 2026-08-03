@@ -11,7 +11,7 @@ import { useUnits } from '../../hooks/useUnits';
 import { verbRow } from '../../actions';
 import { driftsFromPreset } from '../../build';
 import { navFigures } from '../../nav';
-import { presetName } from '../../presets.js';
+import { presetName } from '../../../simulation/presets.js';
 import { ActionsSheet } from '../actions/ActionsSheet';
 import { ActionsTrigger } from '../actions/ActionsTrigger';
 import { DebugPanel } from '../panels/DebugPanel';

@@ -4,7 +4,7 @@ import type { LogEntry } from '../../../simulation/index.js';
 import { latestLog } from '../../run';
 import { useConfig } from '../../hooks/useConfig';
 import { usePresetSwitch } from '../../hooks/usePresetSwitch';
-import { PRESETS, type PresetId } from '../../presets.js';
+import { PRESETS, type PresetId } from '../../../simulation/presets.js';
 import { Select } from '../ui/Select';
 import { ThemeToggle } from '../ui/ThemeToggle';
 

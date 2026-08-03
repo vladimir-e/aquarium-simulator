@@ -24,7 +24,7 @@ import {
   resetConsequence,
   scenarioSummary,
 } from '../build';
-import { presetName } from '../presets.js';
+import { presetName } from '../../simulation/presets.js';
 import { findClosestTankSize, getTankSizeOptions } from '../utils/units';
 
 const LID_OPTIONS = LID_TYPES.map((value) => ({ value, label: LID_LABEL[value] }));

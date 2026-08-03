@@ -11,7 +11,7 @@ import { PERSISTENCE_VERSION, STORAGE_KEY } from '../persistence/types.js';
 import { RUN_HISTORY_CAP, snapshotFromState } from '../run/index.js';
 import { createSimulation, createLog, type SimulationState } from '../../simulation/index.js';
 import { useSimulation } from '../hooks/useSimulation';
-import { getPresetById } from '../presets';
+import { getPresetById } from '../../simulation/presets';
 import { navFigures } from '../nav/figures';
 import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
 import { stubMatchMedia, viewport, type MatchMediaStub } from '../test/matchMedia';

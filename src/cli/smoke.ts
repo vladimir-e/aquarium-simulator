@@ -10,9 +10,9 @@ import { mkdtempSync, rmSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { createSimulation, applyAction, tick, type SimulationState } from '../simulation/index.js';
+import { applyAction, tick, type SimulationState } from '../simulation/index.js';
 import { DEFAULT_CONFIG } from '../simulation/config/index.js';
-import { getPresetById } from '../ui/presets.js';
+import { createPresetSimulation, getPresetById } from '../simulation/presets.js';
 import { createSession, loadSession, saveSession, sessionPath } from './session.js';
 import { appendSnapshot, snapshot } from './history.js';
 import { renderObserve, renderTrace } from './format.js';
@@ -44,7 +44,7 @@ export function runSmokeScenario(options: { path?: string; cleanup?: boolean } =
   step('new (planted preset)', () => {
     const preset = getPresetById('planted');
     if (!preset) throw new Error('planted preset missing');
-    const state = createSimulation(preset.config);
+    const state = createPresetSimulation(preset);
     const session = createSession(state, DEFAULT_CONFIG, 'smoke-run');
     saveSession(
       { ...session, history: appendSnapshot(session.history, snapshot(state)) },

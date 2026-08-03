@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import React from 'react';
 import { renderHook, act } from '@testing-library/react';
 import { useSimulation } from './useSimulation';
-import { getPresetById, type PresetId } from '../presets';
+import { getPresetById, type PresetId } from '../../simulation/presets';
 import { ConfigProvider } from './useConfig';
 import { PersistenceProvider } from '../persistence/index.js';
 import { createSimulation } from '../../simulation/state.js';

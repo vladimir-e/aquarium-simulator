@@ -17,6 +17,7 @@ import {
   type SimulationState,
 } from '../state.js';
 import { tick } from '../tick.js';
+import { cycledColony, type PresetSeed } from '../seed.js';
 import { applyAction } from '../actions/index.js';
 import { DEFAULT_CONFIG, type TunableConfig } from '../config/index.js';
 import { getMassFromPpm, getPpm } from '../resources/helpers.js';
@@ -82,16 +83,25 @@ export function fishlessTank(
     capacity = 20,
     ato = true,
     temperature = 25,
-  }: { capacity?: number; ato?: boolean; temperature?: number } = {}
+    seed,
+  }: {
+    capacity?: number;
+    ato?: boolean;
+    temperature?: number;
+    seed?: PresetSeed;
+  } = {}
 ): SimulationState {
-  return createSimulation({
-    tankCapacity: capacity,
-    substrate: { type: substrate },
-    ato: { enabled: ato },
-    initialTemperature: temperature,
-    roomTemperature: roomFor(temperature),
-    heater: { targetTemperature: temperature, wattage: Math.max(100, capacity) },
-  });
+  return createSimulation(
+    {
+      tankCapacity: capacity,
+      substrate: { type: substrate },
+      ato: { enabled: ato },
+      initialTemperature: temperature,
+      roomTemperature: roomFor(temperature),
+      heater: { targetTemperature: temperature, wattage: Math.max(100, capacity) },
+    },
+    seed
+  );
 }
 
 /**
@@ -107,6 +117,14 @@ export function cycledTank(
   days = 30
 ): SimulationState {
   return run(fishlessTank('aqua_soil', { capacity }), days * DAY, config);
+}
+
+/**
+ * The same tank as {@link cycledTank}, handed the colony at tick 0 instead
+ * of spending three weeks growing one.
+ */
+export function seededCycledTank(capacity: number): SimulationState {
+  return fishlessTank('aqua_soil', { capacity, seed: { bacteria: cycledColony(capacity) } });
 }
 
 /**
@@ -193,14 +211,14 @@ export function traceCycle(capacity: number, options: TraceOptions = {}): CycleT
 }
 
 /**
- * ppm of ammonia still standing 24 h after a dose onto a cycled tank — the
+ * ppm of ammonia still standing 24 h after a dose onto `tank` — the
  * fishless-cycling keeper's own test that a biofilter is ready for stock.
  */
 export function doseClearance(
-  capacity: number,
+  tank: SimulationState,
   { dosePpm = 2, config = DEFAULT_CONFIG }: { dosePpm?: number; config?: TunableConfig } = {}
 ): number {
-  const dosed = produce(cycledTank(capacity, config), (draft) => {
+  const dosed = produce(tank, (draft) => {
     draft.resources.ammonia += getMassFromPpm(dosePpm, draft.resources.water);
   });
   // Without this a dose that silently failed to land would read as a clearance

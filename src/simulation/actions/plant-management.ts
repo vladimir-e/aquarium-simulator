@@ -6,6 +6,7 @@ import { produce } from 'immer';
 import type { SimulationState, PlantSpecies, SubstrateType } from '../state.js';
 import { PLANT_SPECIES_DATA } from '../state.js';
 import { createLog } from '../core/logging.js';
+import { createPlant, DEFAULT_PLANT_SIZE } from '../plants/create-plant.js';
 import type { ActionResult, AddPlantAction, RemovePlantAction } from './types.js';
 
 /** Liters per 5 gallons (basis for plant limit calculation) */
@@ -30,11 +31,6 @@ export function getMaxPlants(tankCapacity: number): number {
 export function canAddPlant(state: SimulationState): boolean {
   const maxPlants = getMaxPlants(state.tank.capacity);
   return state.plants.length < maxPlants;
-}
-
-/** Generate a unique plant ID */
-function generatePlantId(): string {
-  return `plant_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
 }
 
 /**
@@ -94,7 +90,7 @@ export function addPlant(
   state: SimulationState,
   action: AddPlantAction
 ): ActionResult {
-  const { species, initialSize = 50 } = action;
+  const { species, initialSize = DEFAULT_PLANT_SIZE } = action;
 
   // Validate species
   if (!PLANT_SPECIES_DATA[species]) {
@@ -132,16 +128,10 @@ export function addPlant(
   }
 
   const plantData = PLANT_SPECIES_DATA[species];
-  const plantId = generatePlantId();
+  const plant = createPlant({ species, size: initialSize });
 
   const newState = produce(state, (draft) => {
-    draft.plants.push({
-      id: plantId,
-      species,
-      size: initialSize,
-      condition: 100, // New plants start at full health
-      surplus: 0,
-    });
+    draft.plants.push(plant);
 
     draft.logs.push(
       createLog(

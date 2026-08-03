@@ -81,6 +81,29 @@ describe('createFish', () => {
     expect(males / N).toBeLessThan(0.54);
   });
 
+  it('takes an explicit sex instead of sampling one', () => {
+    const rng = mulberry32(12345);
+    for (let i = 0; i < 100; i++) {
+      expect(createFish({ species: 'guppy', age: 0, stage: 'adult', sex: 'female', rng }).sex).toBe(
+        'female'
+      );
+    }
+  });
+
+  it('spends no randomness on a sex it was given', () => {
+    const sampled = createFish({ species: 'guppy', age: 0, stage: 'adult', rng: seq([0.9, 0.2, 0.8]) });
+    const named = createFish({
+      species: 'guppy',
+      age: 0,
+      stage: 'adult',
+      sex: sampled.sex,
+      rng: seq([0.2, 0.8]),
+    });
+
+    expect(named.hardinessOffset).toBe(sampled.hardinessOffset);
+    expect(named.health).toBe(sampled.health);
+  });
+
   it('keeps hardiness offset within ±15% of species baseline', () => {
     const rng = mulberry32(999);
     const maxAbs = 0.15 * FISH_SPECIES_DATA.neon_tetra.hardiness;

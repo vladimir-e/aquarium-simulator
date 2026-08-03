@@ -5,7 +5,7 @@ import { join } from 'node:path';
 
 import { createSimulation } from '../../simulation/index.js';
 import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
-import { getPresetById } from '../../ui/presets.js';
+import { getPresetById } from '../../simulation/presets.js';
 import { createSession, loadSession, saveSession, hasSession } from '../session.js';
 import { appendSnapshot, HISTORY_CAP, snapshot } from '../history.js';
 

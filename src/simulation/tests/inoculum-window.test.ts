@@ -12,7 +12,7 @@ import { describe, it, expect } from 'vitest';
 import { DEFAULT_CONFIG, type TunableConfig } from '../config/index.js';
 import { nitrogenCycleDefaults } from '../config/nitrogen-cycle.js';
 import { formatTable, sweep, tuned } from './sweep.js';
-import { doseClearance, traceCycle } from './tanks.js';
+import { cycledTank, doseClearance, traceCycle } from './tanks.js';
 
 /** Every volume the anchors claim the same timeline across. */
 const VOLUMES = [10, 20, 40, 75, 150, 300, 1000] as const;
@@ -41,7 +41,7 @@ function outcome(litres: number, config: TunableConfig): Outcome {
     peakPpm: nitritePeakPpm,
     peakDay: nitritePeakDay,
     cycledDay,
-    dose24h: doseClearance(litres, { config }),
+    dose24h: doseClearance(cycledTank(litres, config), { config }),
   };
 }
 

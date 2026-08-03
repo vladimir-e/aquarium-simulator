@@ -19,7 +19,7 @@ import {
 import { FILTER_SPECS, FILTER_TYPES, type FilterType } from '../equipment/filter.js';
 import type { PowerheadFlowRate } from '../equipment/powerhead.js';
 import { applyAction } from '../actions/index.js';
-import { getPresetById, PRESETS, type PresetDefinition, type PresetId } from '../../ui/presets.js';
+import { getPresetById, PRESETS, type PresetDefinition, type PresetId } from '../presets.js';
 import { DAY, flowReading, run, stock, watchFlow } from './tanks.js';
 
 const VOLUMES = [20, 40, 75, 150, 300, 568];

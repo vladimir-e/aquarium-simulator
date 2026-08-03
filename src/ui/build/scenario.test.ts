@@ -10,7 +10,7 @@ import {
   presetSwitchMessage,
   resetConsequence,
 } from './scenario.js';
-import { PRESETS, getPresetById, type PresetId } from '../presets.js';
+import { PRESETS, getPresetById, type PresetId } from '../../simulation/presets.js';
 import { TICKS_PER_DAY } from '../utils/clock.js';
 import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
 import {

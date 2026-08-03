@@ -22,7 +22,13 @@ import {
   type LogEntry,
 } from '../../simulation/index.js';
 import { createLog } from '../../simulation/core/logging.js';
-import { PRESETS, DEFAULT_PRESET_ID, getPresetById, type PresetId } from '../presets.js';
+import {
+  PRESETS,
+  DEFAULT_PRESET_ID,
+  createPresetSimulation,
+  getPresetById,
+  type PresetId,
+} from '../../simulation/presets.js';
 import { useConfig } from './useConfig.js';
 import { usePersistence, type PersistedSimulation } from '../persistence/index.js';
 import { type SpeedPreset, DEFAULT_SPEED, SPEED_TICKS_PER_SECOND, STEP_TICKS } from '../run/speed.js';
@@ -200,7 +206,7 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
     if (!preset) {
       throw new Error(`Unknown preset: ${initialPreset}`);
     }
-    return createSimulation(preset.config);
+    return createPresetSimulation(preset);
   });
 
   const [isPlaying, setIsPlaying] = useState(false);
