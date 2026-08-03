@@ -43,9 +43,7 @@ export {
   DEFAULT_HEATER,
   DEFAULT_LID,
   DEFAULT_ATO,
-  DEFAULT_HARDSCAPE,
   DEFAULT_LIGHT,
-  HARDSCAPE_SURFACE,
   PLANT_SPECIES_DATA,
   FISH_SPECIES_DATA,
 } from './state.js';
@@ -192,6 +190,8 @@ export {
   calculateHardscapeTotalSurface,
   getHardscapeName,
   getHardscapePHEffect,
+  DEFAULT_HARDSCAPE,
+  HARDSCAPE_SURFACE,
 } from './equipment/hardscape.js';
 
 // Alerts

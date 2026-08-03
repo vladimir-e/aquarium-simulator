@@ -75,6 +75,7 @@ export const PRESETS: PresetDefinition[] = [
       co2Generator: { enabled: false },
       powerhead: { enabled: false },
     },
+    seed: { bacteria: 'cycled' },
   },
   {
     id: 'planted',
@@ -108,6 +109,7 @@ export const PRESETS: PresetDefinition[] = [
       },
       powerhead: { enabled: false },
     },
+    seed: { bacteria: 'cycled' },
   },
   {
     id: 'community',
@@ -145,6 +147,7 @@ export const PRESETS: PresetDefinition[] = [
       co2Generator: { enabled: false },
       powerhead: { enabled: false },
     },
+    seed: { bacteria: 'cycled' },
   },
   {
     id: 'angelfish',
@@ -178,6 +181,7 @@ export const PRESETS: PresetDefinition[] = [
       co2Generator: { enabled: false },
       powerhead: { enabled: false },
     },
+    seed: { bacteria: 'cycled' },
   },
 ];
 

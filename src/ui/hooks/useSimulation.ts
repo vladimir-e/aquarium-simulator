@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { produce } from 'immer';
 import {
   createSimulation,
@@ -6,7 +6,6 @@ import {
   applyAction,
   calculatePassiveResources,
   calculateHardscapeSlots,
-  biofilmKept,
   rescape,
   getHardscapeName,
   formatSchedule,
@@ -19,7 +18,6 @@ import {
   type HardscapeType,
   type HardscapeItem,
   type DailySchedule,
-  type LogEntry,
 } from '../../simulation/index.js';
 import { createLog } from '../../simulation/core/logging.js';
 import {
@@ -65,12 +63,6 @@ interface UseSimulationReturn {
   history: RunSnapshot[];
   /** Rolling run tallies (deaths, births, alerts, water changed…). */
   aggregates: RunAggregates;
-  /**
-   * The log from this run's start. A preset switch retains the transcript but
-   * rebaselines the run at the same tick, so tick alone cannot tell a prior-run
-   * entry from a new one — anything reading the run reads this, not `state.logs`.
-   */
-  runLogs: LogEntry[];
   /** Advance one simulated day, whatever the autoplay speed. */
   step: () => void;
   togglePlayPause: () => void;
@@ -221,8 +213,6 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
   // Run history + aggregates (session-scoped, reset with the run).
   const [history, setHistory] = useState<RunSnapshot[]>([]);
   const [aggregates, setAggregates] = useState<RunAggregates>(emptyAggregates);
-  const [runLogStart, setRunLogStart] = useState(0);
-  const runLogs = useMemo(() => state.logs.slice(runLogStart), [state.logs, runLogStart]);
   const stateRef = useRef(state);
   // Baseline for deriving per-commit deltas; null re-seeds the recorder.
   const recorderRef = useRef<{ tick: number; logCount: number } | null>(null);
@@ -251,18 +241,13 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
     [queueSnapshot]
   );
 
-  /**
-   * Start a new run: history, tallies, and the log all rebaseline here.
-   * `logStart` is where the new run's log begins — 0 when the caller replaces
-   * the transcript, its current length when the caller keeps it.
-   */
-  const resetRun = useCallback((logStart: number) => {
+  /** Start a new run: history and tallies rebaseline on the next commit. */
+  const resetRun = useCallback(() => {
     recorderRef.current = null;
     recordedThroughRef.current = -1;
     pendingSnapshotsRef.current = [];
     setHistory([]);
     setAggregates(emptyAggregates());
-    setRunLogStart(logStart);
   }, []);
 
   // Notify persistence when state or preset changes
@@ -364,47 +349,11 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
       }
 
       setCurrentPreset(presetId);
-      // The transcript carries over, so the new run opens on the switch line
-      // this call is about to push.
-      resetRun(stateRef.current.logs.length);
+      resetRun();
 
-      // Apply preset equipment while preserving simulation progress
-      setState((current) =>
-        produce(current, (draft) => {
-          // Create a fresh state from preset to get equipment defaults
-          const presetState = createSimulation(preset.config);
-
-          // Scale water level if tank capacity changes
-          const oldCapacity = current.tank.capacity;
-          const newCapacity = presetState.tank.capacity;
-          if (oldCapacity !== newCapacity) {
-            const fillRatio = current.resources.water / oldCapacity;
-            draft.resources.water = Math.min(fillRatio * newCapacity, newCapacity);
-          }
-
-          // A preset lays its own bed, fresh reserve and all, so the old one
-          // leaves with its share of the biofilm on it — same type or not.
-          const kept = biofilmKept(current);
-
-          // Apply tank and equipment from preset
-          draft.tank = presetState.tank;
-          draft.equipment = presetState.equipment;
-          draft.environment = presetState.environment;
-          draft.resources.aob *= kept;
-          draft.resources.nob *= kept;
-
-          // Recalculate passive resources
-          const passiveValues = calculatePassiveResources(draft as SimulationState);
-          draft.resources.surface = passiveValues.surface;
-          draft.resources.flow = passiveValues.flow;
-          draft.resources.light = passiveValues.light;
-          draft.resources.aeration = passiveValues.aeration;
-
-          // Log the change
-          const log = createLog(draft.tick, 'simulation', 'info', `Switched to preset: ${preset.name}`);
-          draft.logs.push(log);
-        })
-      );
+      const fresh = createPresetSimulation(preset);
+      fresh.logs.push(createLog(0, 'user', 'info', `Loaded preset: ${preset.name}`));
+      setState(fresh);
     },
     [isPlaying, stopAutoPlay, resetRun]
   );
@@ -419,7 +368,7 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
       stopAutoPlay();
       setIsPlaying(false);
     }
-    resetRun(0);
+    resetRun();
 
     setState((current) =>
       produce(current, (draft) => {
@@ -909,7 +858,7 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
         stopAutoPlay();
         setIsPlaying(false);
       }
-      resetRun(0);
+      resetRun();
 
       // Reinitialize simulation with new capacity, preserving equipment state
       setState((current) => {
@@ -996,7 +945,6 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
     currentPreset,
     history,
     aggregates,
-    runLogs,
     step,
     togglePlayPause,
     changeSpeed,

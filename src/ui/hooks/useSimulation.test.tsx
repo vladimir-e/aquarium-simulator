@@ -2,11 +2,12 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import React from 'react';
 import { renderHook, act } from '@testing-library/react';
 import { useSimulation } from './useSimulation';
-import { getPresetById, type PresetId } from '../../simulation/presets';
+import { createPresetSimulation, getPresetById, type PresetId } from '../../simulation/presets';
 import { ConfigProvider } from './useConfig';
 import { PersistenceProvider } from '../persistence/index.js';
 import { createSimulation } from '../../simulation/state.js';
 import { getSubstrateSurface } from '../../simulation/index.js';
+import { cycledColony } from '../../simulation/seed.js';
 import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
 import { PERSISTENCE_VERSION, STORAGE_KEY } from '../persistence/types.js';
 import { snapshotFromState } from '../run/index.js';
@@ -286,9 +287,9 @@ describe('useSimulation', () => {
       expect(result.current.state.equipment.heater.targetTemperature).toBe(27);
     });
 
-    it('a preset that lays a different bed takes that bed’s biofilm with it', () => {
-      // The planted preset is 40 L of aqua soil; betta is gravel, so loading it
-      // is a rescape however much else the preset resets.
+    it('swapping the bed under a running tank still takes that bed’s biofilm', () => {
+      // The bed is the one thing a running tank can change without restarting
+      // it, and pulling it out costs the colony the share that lived on it.
       const { result } = renderHook(() => useSimulation('planted'), { wrapper });
 
       act(() => {
@@ -300,36 +301,15 @@ describe('useSimulation', () => {
       expect(before.nob).toBeGreaterThan(0);
 
       act(() => {
-        result.current.loadPreset('betta');
+        result.current.updateSubstrateType('gravel');
       });
 
       const kept = 1 - getSubstrateSurface('aqua_soil', 40) / before.surface;
       expect(kept).toBeGreaterThan(0);
+      expect(kept).toBeLessThan(1);
       expect(result.current.state.resources.aob / before.aob).toBeCloseTo(kept, 10);
       expect(result.current.state.resources.nob / before.nob).toBeCloseTo(kept, 10);
-    });
-
-    it('takes the bed’s biofilm even when the new preset names the same substrate', () => {
-      // Planted and community are both aqua soil, but community is a 150 L tank
-      // whose bed is a fresh 150 L of it, reserve and all — a new bed, not the
-      // old one left alone, so the colony on the old one does not come along.
-      const { result } = renderHook(() => useSimulation('planted'), { wrapper });
-
-      act(() => {
-        for (let day = 0; day < 12; day++) result.current.step();
-      });
-
-      const before = result.current.state.resources;
-      expect(before.aob).toBeGreaterThan(0);
-
-      act(() => {
-        result.current.loadPreset('community');
-      });
-
-      const kept = 1 - getSubstrateSurface('aqua_soil', 40) / before.surface;
-      expect(kept).toBeGreaterThan(0);
-      expect(result.current.state.resources.aob / before.aob).toBeCloseTo(kept, 10);
-      expect(result.current.state.resources.nob / before.nob).toBeCloseTo(kept, 10);
+      expect(result.current.state.tick).toBe(12 * 24);
     });
 
     it('reset keeps equipment but resets tick and resources', () => {
@@ -370,7 +350,7 @@ describe('useSimulation', () => {
       expect(result.current.state.tick).toBe(0);
     });
 
-    it('switching preset rebuilds the world around the run rather than replacing it', () => {
+    it('loads a preset as the tank that preset builds, keeping nothing of the last one', () => {
       seedSessionWithClutch('planted');
       const { result } = renderHook(() => useSimulation(), { wrapper });
 
@@ -383,6 +363,7 @@ describe('useSimulation', () => {
       });
 
       const before = result.current.state;
+      expect(before.tick).toBeGreaterThan(0);
       expect(before.fish).toHaveLength(1);
       expect(before.plants).toHaveLength(1);
       expect(before.clutches).toHaveLength(1);
@@ -392,18 +373,14 @@ describe('useSimulation', () => {
         result.current.loadPreset('community');
       });
 
-      const after = result.current.state;
-      // The world changes…
-      expect(after.tank.capacity).toBe(150);
-      expect(after.equipment.heater.targetTemperature).toBe(27);
-      // …the run inside it does not.
-      expect(after.tick).toBe(before.tick);
-      expect(after.fish).toEqual(before.fish);
-      expect(after.plants).toEqual(before.plants);
-      expect(after.clutches).toEqual(before.clutches);
-      expect(after.algae).toEqual(before.algae);
-      // Playback stops so the rebuilt tank is not swept past unseen, and the
-      // charts start over because the old ones describe a different tank.
+      // The tank is the preset's own, to the field: nothing of the 40 L planted
+      // tank survives the load, and nothing the preset does not build appears.
+      const fresh = createPresetSimulation(getPresetById('community')!);
+      expect({ ...result.current.state, logs: [] }).toEqual({ ...fresh, logs: [] });
+      expect(result.current.currentPreset).toBe('community');
+
+      // Playback stops so the new tank is not swept past unseen, and the charts
+      // start over because the old ones describe a tank that no longer exists.
       expect(result.current.isPlaying).toBe(false);
       expect(result.current.history).toHaveLength(1);
       expect(result.current.aggregates.ticks).toBe(0);
@@ -412,13 +389,12 @@ describe('useSimulation', () => {
       act(() => {
         vi.advanceTimersByTime(5000);
       });
-      expect(result.current.state.tick).toBe(before.tick);
+      expect(result.current.state.tick).toBe(0);
     });
 
-    it('loadPreset restores equipment but preserves simulation progress', () => {
+    it('restarts the loaded preset too, drift and all', () => {
       const { result } = renderHook(() => useSimulation('betta'), { wrapper });
 
-      // Modify settings and step
       act(() => {
         result.current.updateHeaterTargetTemperature(30);
         result.current.step();
@@ -427,13 +403,27 @@ describe('useSimulation', () => {
       expect(result.current.state.equipment.heater.targetTemperature).toBe(30);
       expect(result.current.state.tick).toBe(24);
 
-      // loadPreset should restore equipment but keep tick
       act(() => {
         result.current.loadPreset('betta');
       });
 
-      expect(result.current.state.equipment.heater.targetTemperature).toBe(26); // Betta preset default
-      expect(result.current.state.tick).toBe(24); // Tick preserved
+      expect(result.current.state.equipment.heater.targetTemperature).toBe(26);
+      expect(result.current.state.tick).toBe(0);
+    });
+
+    it('starts the established presets cycled, and the bare tank empty', () => {
+      for (const id of ['betta', 'planted', 'community', 'angelfish'] as const) {
+        const { result, unmount } = renderHook(() => useSimulation(id), { wrapper });
+        const { aob, nob } = result.current.state.resources;
+
+        expect(aob).toBe(cycledColony(result.current.state.tank.capacity).aob);
+        expect(nob).toBe(cycledColony(result.current.state.tank.capacity).nob);
+        unmount();
+        globalThis.localStorage.clear();
+      }
+
+      const { result } = renderHook(() => useSimulation('bare'), { wrapper });
+      expect(result.current.state.resources.aob).toBe(0);
     });
 
     it('bare preset has no equipment enabled', () => {
@@ -841,7 +831,7 @@ describe('useSimulation', () => {
       expect(result.current.aggregates.ticks).toBe(24);
     });
 
-    it('rebaselines history and aggregates on a mid-run preset load', () => {
+    it('rebaselines history, aggregates and the transcript on a preset load', () => {
       seedSessionWithHighAmmonia();
       const { result } = renderHook(() => useSimulation(), { wrapper });
 
@@ -861,31 +851,29 @@ describe('useSimulation', () => {
       // History reseeds to a single baseline snapshot and tallies zero out.
       expect(result.current.history).toHaveLength(1);
       expect(result.current.aggregates.ticks).toBe(0);
-      // The warning log is still present at reseed but sits behind the new
-      // baseline, so it must not be counted as an alert.
-      expect(hasWarning()).toBe(true);
       expect(result.current.aggregates.alerts).toBe(0);
-      // …nor read as one: the run's log opens on the switch line, so a reader
-      // scoping by tick cannot pick the retained warning back up.
-      expect(result.current.runLogs).toHaveLength(1);
-      expect(result.current.runLogs[0].message).toMatch(/^Switched to preset/);
+      // The warning described a tank that no longer exists, and its tick is
+      // ahead of the clock now, so it leaves with the tank.
+      expect(hasWarning()).toBe(false);
+      expect(result.current.state.logs.every((log) => log.tick === 0)).toBe(true);
+      const logs = result.current.state.logs;
+      expect(logs[logs.length - 1].message).toBe('Loaded preset: Balanced Community');
     });
 
-    it('gives the whole transcript to a run that replaced it', () => {
+    it('replaces the transcript on a reset too', () => {
       const { result } = renderHook(() => useSimulation('bare'), { wrapper });
 
       act(() => {
         result.current.step();
         result.current.updateHeaterEnabled(true);
       });
-      expect(result.current.runLogs.length).toBeGreaterThan(1);
+      expect(result.current.state.logs.length).toBeGreaterThan(1);
 
       act(() => {
         result.current.reset();
       });
 
-      expect(result.current.runLogs).toEqual(result.current.state.logs);
-      expect(result.current.runLogs.map((log) => log.message)).toEqual(['Simulation reset']);
+      expect(result.current.state.logs.map((log) => log.message)).toEqual(['Simulation reset']);
     });
 
     it('counts a chemistry alert once per episode', () => {

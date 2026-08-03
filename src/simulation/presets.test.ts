@@ -20,14 +20,27 @@ describe('presets', () => {
     }
   });
 
-  it('builds an empty tank for a preset that ships no seed', () => {
+  it('stocks nothing — a preset ships a tank, not its livestock', () => {
     for (const preset of PRESETS) {
       const state = createPresetSimulation(preset);
 
       expect(state.fish).toEqual([]);
       expect(state.plants).toEqual([]);
-      expect(state.resources.aob).toBe(0);
     }
+  });
+
+  it('opens the established tanks on a working biofilter, and the bare one on none', () => {
+    for (const id of ['betta', 'planted', 'community', 'angelfish'] as const) {
+      const state = createPresetSimulation(getPresetById(id)!);
+      const cycled = cycledColony(state.tank.capacity);
+
+      expect(state.resources.aob).toBe(cycled.aob);
+      expect(state.resources.nob).toBe(cycled.nob);
+    }
+
+    const bare = createPresetSimulation(getPresetById('bare')!);
+    expect(bare.resources.aob).toBe(0);
+    expect(bare.resources.nob).toBe(0);
   });
 
   it('honours a seed when the preset carries one', () => {

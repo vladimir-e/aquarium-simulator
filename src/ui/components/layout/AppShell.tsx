@@ -67,7 +67,7 @@ export function AppShell({ sim, config }: AppShellProps): React.JSX.Element {
     presetModified: driftsFromPreset(sim.state, sim.currentPreset),
     units: unitSystem,
     aggregates: sim.aggregates,
-    runLogs: sim.runLogs,
+    logs: sim.state.logs,
   });
 
   const rail = (
@@ -87,7 +87,7 @@ export function AppShell({ sim, config }: AppShellProps): React.JSX.Element {
   );
 
   return (
-    <PresetSwitchProvider current={sim.currentPreset} onLoad={sim.loadPreset}>
+    <PresetSwitchProvider current={sim.currentPreset} state={sim.state} onLoad={sim.loadPreset}>
       <div className="flex h-dvh flex-col bg-bg text-ink">
         <ChromeRow logs={sim.state.logs} onOpenIndex={railStands ? null : openIndex} />
 

@@ -137,14 +137,14 @@ export interface NavFigureInput {
   state: SimulationState;
   config: TunableConfig;
   aggregates: RunAggregates;
-  runLogs: LogEntry[];
+  logs: LogEntry[];
   presetName: string;
   presetModified: boolean;
   units: UnitSystem;
 }
 
 export function navFigures(input: NavFigureInput): Record<SectionId, NavFigure> {
-  const { state, config, aggregates, runLogs, presetName, presetModified, units } = input;
+  const { state, config, aggregates, logs, presetName, presetModified, units } = input;
   const meters = waterMeters(state, units);
   const bacteria = bacteriaReadout(state, config);
   return {
@@ -156,7 +156,7 @@ export function navFigures(input: NavFigureInput): Record<SectionId, NavFigure> 
     equipment: equipmentFigure(state, bacteria),
     flora: floraFigure(state, config),
     livestock: livestockFigure(state, config),
-    analytics: { pill: null, lines: summaryLines(aggregates, runLogs, units) },
+    analytics: { pill: null, lines: summaryLines(aggregates, logs, units) },
     scenario: scenarioFigure(state, presetName, units, presetModified),
   };
 }

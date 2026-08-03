@@ -98,7 +98,7 @@ export function ScenarioSection({
             current={current}
             modified={modified}
             onSelect={request}
-            onRestore={() => request(current)}
+            onRebuild={() => request(current)}
           />
         </section>
 

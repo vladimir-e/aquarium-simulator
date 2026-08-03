@@ -350,6 +350,19 @@ it — a colony, chemistry stocks, fish at an age and sex, plants at a size.
   whether or not a group names its fish's sex, so naming one doesn't reroll
   the organisms behind it.
 
+### Presets
+
+A preset pairs a `SimulationConfig` with the seed the tank starts at;
+`createPresetSimulation(preset)` is the one place both halves are read
+together. Every preset but Bare Tank opens on a cycled biofilter — Bare Tank
+is the one you cycle yourself.
+
+**Loading a preset starts a new simulation.** The clock, the stock, the
+chemistry and the colonies are the preset's own; nothing of the tank before
+it carries over, transcript included. The one change a *running* tank takes
+is a substrate swap, which goes through `rescape` and sheds the biofilm that
+lived on the old bed.
+
 ### Volume-Scaled Dynamics
 - Larger tanks are more stable (realistic behavior)
 - Equilibrium speed, evaporation rate, and temperature drift scale with volume

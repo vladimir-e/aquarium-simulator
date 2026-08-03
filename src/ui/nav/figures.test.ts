@@ -71,7 +71,7 @@ function figures(
     presetModified: false,
     units,
     aggregates,
-    runLogs: state.logs,
+    logs: state.logs,
   });
 }
 
@@ -405,7 +405,7 @@ describe('navFigures — Analytics and Scenario', () => {
         presetModified: true,
         units: 'metric',
         aggregates: RUN,
-        runLogs: [],
+        logs: [],
       }).scenario.pill
     ).toEqual({ text: 'modified', status: 'warn' });
   });

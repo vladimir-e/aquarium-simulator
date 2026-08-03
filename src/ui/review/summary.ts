@@ -53,8 +53,6 @@ export function runSummary(
   logs: LogEntry[],
   units: UnitSystem
 ): Record<SummaryTileId, SummaryTile> {
-  // Scope to the current run: loadPreset zeroes the counts but keeps prior
-  // logs, so a stale warning must not chip next to "alerts 0".
   const alert = aggregates.alerts > 0 ? latestAlert(logs) : null;
   const lastDeath = aggregates.deaths > 0 ? lastEventTick(logs, 'fish-died') : null;
 

@@ -85,9 +85,7 @@ describe('SummaryTiles', () => {
     expect(screen.queryByText('NH₃')).toBeNull();
   });
 
-  it('suppresses a stale alert chip after a preset switch zeroes the count', () => {
-    // loadPreset resets aggregates but retains logs; a pre-run warning must not
-    // chip next to "alerts 0".
+  it('never chips an alert the count does not cover', () => {
     renderTiles({ ...base, alerts: 0 }, [ammoniaWarning(36)]);
     expect(screen.queryByText('NH₃')).toBeNull();
   });

@@ -11,6 +11,8 @@ Format: - **Feature name** (#PR) - One short sentence (under ~150 chars)
 
 ## Unreleased
 
+- **Loading a preset starts a new tank** - a preset builds its own simulation at tick 0 instead of retrofitting the running one; the confirm dialog names the run and the stock it discards, and skips the interruption when there is neither.
+- **Presets open cycled** - every preset but Bare Tank ships a working biofilter, so a stocked tank takes its first feeding without an ammonia spike.
 - **A tank can start at a state** - `createSimulation` takes an optional `PresetSeed`: colony, chemistry, fish at an age and sex, plants at a size. `PRESETS` now ships from the package root.
 - **The community tank stops killing its tetras** - flow tolerance is a turnover, so one powerhead is a current in a 300 L and lethal in a nano. Saved tanks and CLI sessions both reset (v16, v3).
 - **"Undersized" now means the flow cap bites** - a 55 gal on a HOB is no longer told it is underfiltered; a 150 gal on a canister is.

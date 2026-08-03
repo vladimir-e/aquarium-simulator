@@ -6,17 +6,21 @@ import {
   driftsFromPreset,
   environmentDerived,
   presetCards,
-  presetRestoreMessage,
-  presetSwitchMessage,
+  presetLoadDestroys,
+  presetLoadMessage,
   resetConsequence,
 } from './scenario.js';
-import { PRESETS, getPresetById, type PresetId } from '../../simulation/presets.js';
+import {
+  PRESETS,
+  createPresetSimulation,
+  getPresetById,
+  type PresetId,
+} from '../../simulation/presets.js';
 import { TICKS_PER_DAY } from '../utils/clock.js';
 import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
 import {
   applyAction,
   calculateEvaporationRatePerDay,
-  createSimulation,
   getFilterFlow,
   getMaxPlants,
   tick,
@@ -24,8 +28,9 @@ import {
 } from '../../simulation/index.js';
 import { SurfaceResource } from '../../simulation/resources/index.js';
 
+/** The tank the app builds for a preset — both halves of it, as `loadPreset` does. */
 function built(id: string): SimulationState {
-  return createSimulation(getPresetById(id as never)!.config);
+  return createPresetSimulation(getPresetById(id as never)!);
 }
 
 describe('presetCards', () => {
@@ -155,14 +160,52 @@ describe('resetConsequence', () => {
   });
 });
 
-describe('preset messages', () => {
-  it('promise the run survives, and differ only in what they call the change', () => {
-    const tail = 'The run is not reset — the clock, plants and fish carry over';
+describe('presetLoadMessage', () => {
+  it('leads with the tank it builds, and says nothing was there to lose', () => {
+    const message = presetLoadMessage('Betta Cube', built('planted'));
 
-    expect(presetSwitchMessage('Betta Cube')).toContain(tail);
-    expect(presetRestoreMessage('Betta Cube')).toContain(tail);
-    expect(presetSwitchMessage('Betta Cube')).toContain('Rebuilds the tank');
-    expect(presetRestoreMessage('Betta Cube')).toContain('back to the “Betta Cube” defaults');
+    expect(message).toBe('Starts “Betta Cube” as a new tank at hour zero.');
+  });
+
+  it('names the run and the life the load takes with it', () => {
+    let state = applyAction(built('planted'), { type: 'addFish', species: 'neon_tetra' }).state;
+    state = applyAction(state, { type: 'addPlant', species: 'java_fern' }).state;
+    state = { ...state, tick: 3 * TICKS_PER_DAY + 2 };
+
+    expect(presetLoadMessage('Betta Cube', state)).toBe(
+      'Starts “Betta Cube” as a new tank at hour zero. ' +
+        'This one — 3d 2h · 1 fish · 1 plant — goes, water chemistry and biofilter with it.'
+    );
+  });
+
+  it('counts what it names', () => {
+    const state = {
+      ...built('planted'),
+      fish: [{}, {}, {}],
+      plants: [{}, {}],
+    } as unknown as SimulationState;
+
+    expect(presetLoadMessage('Betta Cube', state)).toContain('3 fish · 2 plants');
+  });
+});
+
+describe('presetLoadDestroys', () => {
+  it('is false only for a tank with no clock on it and nothing living in it', () => {
+    const fresh = built('planted');
+    const stocked = applyAction(fresh, { type: 'addFish', species: 'neon_tetra' }).state;
+    const planted = applyAction(fresh, { type: 'addPlant', species: 'java_fern' }).state;
+
+    expect(presetLoadDestroys(fresh)).toBe(false);
+    expect(presetLoadDestroys({ ...fresh, tick: 1 })).toBe(true);
+    expect(presetLoadDestroys(stocked)).toBe(true);
+    expect(presetLoadDestroys(planted)).toBe(true);
+  });
+
+  it('agrees with the message about whether there is anything to say', () => {
+    for (const state of [built('planted'), { ...built('planted'), tick: 40 }]) {
+      const named = presetLoadMessage('Betta Cube', state).includes('goes');
+      expect(named).toBe(presetLoadDestroys(state));
+    }
   });
 });
 

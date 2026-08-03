@@ -36,8 +36,6 @@ describe('runSummary', () => {
   });
 
   it('leaves the tick unnamed when the run has not had one', () => {
-    // loadPreset zeroes the counts and keeps the logs — a previous run's death
-    // must not be quoted under "deaths 0".
     const tiles = runSummary({ ...RUN, deaths: 0, alerts: 0 }, [death(1204), nitriteAlert(1584)], 'metric');
     expect(tiles.deaths.meta).toBeUndefined();
     expect(tiles.deaths.metaTick).toBeUndefined();

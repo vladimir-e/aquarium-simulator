@@ -14,7 +14,8 @@ import {
   getSubstrateSurface,
   getSubstrateOrganicReserve,
 } from './equipment/substrate.js';
-import { calculateHardscapeTotalSurface } from './equipment/hardscape.js';
+import type { HardscapeType, HardscapeItem, Hardscape } from './equipment/hardscape.js';
+import { DEFAULT_HARDSCAPE, calculateHardscapeTotalSurface } from './equipment/hardscape.js';
 import type { Light, LightWattage } from './equipment/light.js';
 import { DEFAULT_LIGHT } from './equipment/light.js';
 import type { AirPump } from './equipment/air-pump.js';
@@ -29,6 +30,7 @@ export type { LogEntry, LogSeverity, LogEvent };
 export type { AirPump };
 export type { AutoDoser };
 export type { FilterType, Filter, PowerheadFlowRate, Powerhead, SubstrateType, Substrate, Light, LightWattage };
+export type { HardscapeType, HardscapeItem, Hardscape };
 export type { PlantSpecies, PlantSpeciesData, NutrientDemand } from './plants/species.js';
 export { PLANT_SPECIES_DATA } from './plants/species.js';
 export type {
@@ -248,20 +250,6 @@ export interface AutoTopOff {
   enabled: boolean;
 }
 
-export type HardscapeType = 'neutral_rock' | 'calcite_rock' | 'driftwood' | 'plastic_decoration';
-
-export interface HardscapeItem {
-  /** Unique ID for this item (for add/remove operations) */
-  id: string;
-  /** Type determines surface area and pH effect (future) */
-  type: HardscapeType;
-}
-
-export interface Hardscape {
-  /** Array of hardscape items in the tank */
-  items: HardscapeItem[];
-}
-
 export interface Co2Generator {
   /** Whether CO2 injection is enabled */
   enabled: boolean;
@@ -399,10 +387,6 @@ export const DEFAULT_LID: Lid = {
 
 export const DEFAULT_ATO: AutoTopOff = {
   enabled: false,
-};
-
-export const DEFAULT_HARDSCAPE: Hardscape = {
-  items: [],
 };
 
 export { DEFAULT_LIGHT };
@@ -648,14 +632,6 @@ export function createSimulation(
   if (seed !== undefined) applySeed(state, seed, rng);
   return state;
 }
-
-/** Hardscape bacteria surface area by type (cm²) */
-export const HARDSCAPE_SURFACE: Record<HardscapeType, number> = {
-  neutral_rock: 400,
-  calcite_rock: 400,
-  driftwood: 650,
-  plastic_decoration: 100,
-};
 
 /**
  * Calculates initial passive resources from equipment configuration.

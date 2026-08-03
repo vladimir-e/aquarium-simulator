@@ -3,8 +3,31 @@
  * Provides surface area calculations and metadata for hardscape items.
  */
 
-import type { HardscapeType, HardscapeItem } from '../state.js';
-import { HARDSCAPE_SURFACE } from '../state.js';
+export type HardscapeType = 'neutral_rock' | 'calcite_rock' | 'driftwood' | 'plastic_decoration';
+
+export interface HardscapeItem {
+  /** Unique ID for this item (for add/remove operations) */
+  id: string;
+  /** Type determines surface area and pH effect (future) */
+  type: HardscapeType;
+}
+
+export interface Hardscape {
+  /** Array of hardscape items in the tank */
+  items: HardscapeItem[];
+}
+
+export const DEFAULT_HARDSCAPE: Hardscape = {
+  items: [],
+};
+
+/** Hardscape bacteria surface area by type (cm²) */
+export const HARDSCAPE_SURFACE: Record<HardscapeType, number> = {
+  neutral_rock: 400,
+  calcite_rock: 400,
+  driftwood: 650,
+  plastic_decoration: 100,
+};
 
 /**
  * Get bacteria surface area for a hardscape type (cm²).
