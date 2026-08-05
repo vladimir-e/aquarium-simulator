@@ -305,16 +305,25 @@ That is the whole point of gating on the bank: the husbandry checks are
 encoded upstream in *how the surplus got there*, so breeding doesn't
 re-test them.
 
-### The gate — banks only
+### The gate — age and banks
 
 Per species, per tick, a female spawns when **all** hold:
 
 | Gate | Condition |
 |------|-----------|
 | Pair present | ≥ 1 adult male **and** ≥ 1 adult female of the species |
+| Both grown | each of the two `age ≥ maturityAge` |
 | Female funded | female `surplus ≥ breedingCostFraction × surplusCap` |
 | Male funded | serving male `surplus ≥ maleShareFraction × cost` |
 | Live trend | female's vitality `net ≥ 0` **this tick** |
+
+Stage and age are both asked because they are stored independently: a
+fry that reaches `maturityAge` is flipped to `adult` in the same pass, so
+for a tank-born fish the two say the same thing — but a seed may name an
+adult younger than its species matures, and that fish waits out the
+difference (see `1-DESIGN.md` § Starting State). A fish bought through
+`addFish` arrives at `maturityAge`, so a purchased pair can breed from
+its first tick.
 
 There are **no** condition / satiation / temperature / pH checks — those
 are already priced into surplus accrual. The one extra guard is the
@@ -393,9 +402,10 @@ jitter). A fry starts at `fryMassFraction × adultMass` and age 0.
   `maturityAge`. Growth is purely age-driven — fry do **not** spend
   surplus to grow.
 - **Maturity.** At `maturityAge` the fry flips to `adult` and snaps to
-  full mass. Only adults breed. Maturation runs before the spawn pass in
-  the same tick, so a fish that reaches maturity already holding a full
-  bank may breed the very tick it becomes an adult — this is intended.
+  full mass. Maturation runs before the spawn pass in the same tick and
+  the gate's age term is met at exactly that age, so a fish that reaches
+  maturity already holding a full bank may breed the very tick it becomes
+  an adult — this is intended.
 - **Living.** Fry are ordinary fish everywhere else: they eat (joining
   the feeding priority by satiation), respire, produce waste, take
   stressor damage, and die at health 0 — all proportional to their

@@ -11,6 +11,7 @@ Format: - **Feature name** (#PR) - One short sentence (under ~150 chars)
 
 ## Unreleased
 
+- **Age decides whether a fish can spawn** - the gate asks `age ≥ maturityAge`; stocked adults arrive grown, an adult seeded at `age: 0` waits out the difference.
 - **A tank runs the same life twice** - randomness is a seed and a counter on the state, so two tanks on one `rngSeed` live the same life, ids included (v17, v4).
 - **The CLI rejects flags it doesn't know** - `sim new --capacity=200` no longer builds the default tank and reports success; each subcommand names the flags it takes.
 - **Loading a preset starts a new tank** - it builds its own simulation at tick 0 rather than retrofitting the running one, and the dialog names what that costs.

@@ -265,9 +265,11 @@ tank.plant_biomass -= trim_amount
 
 ## Add Fish
 
-Stock one adult fish of a chosen species. Individual variation (sex,
-hardiness offset, health jitter) is sampled at add time; see
-`7-LIVESTOCK.md`.
+Stock one adult fish of a chosen species, at adult mass and at the
+species `maturityAge` — the youngest age that can honestly be called
+grown, so a bought pair breeds from its first tick and every hour after
+is an hour nearer `maxAge`. Individual variation (sex, hardiness offset,
+health jitter) is sampled at add time; see `7-LIVESTOCK.md`.
 
 ### Inputs
 | Parameter | Description |

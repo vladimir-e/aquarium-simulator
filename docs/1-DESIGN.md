@@ -345,6 +345,12 @@ plants at a size.
   could have reached — a colony with no ammonia history, a fish past its
   `maxAge`, a plant in a substrate that would refuse it. Constructing
   extreme states deliberately is what a scenario is for.
+- **A fish's stage and its age are separate claims.** A group that names no
+  age gets the age its stage starts at — `maturityAge` for an adult, 0 for
+  a fry — so a roster of adults is a roster of grown fish. Naming an age
+  overrides that, mismatches included: `{ stage: 'adult', age: 0 }` is a
+  full-mass fish too young to breed, and it waits out the difference before
+  the spawn gate will have it (see `7-LIVESTOCK.md` § Reproduction).
 - **`bacteria: 'cycled'`** is a claim about the whole tank and not only its
   biofilter: a month of running, so the bed carries a month of leaching and
   the water carries the nitrate that leaching became, less what a month of

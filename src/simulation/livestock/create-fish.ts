@@ -37,8 +37,12 @@ export function fishMassForAge(species: FishSpecies, age: number, stage: FishLif
 
 export interface CreateFishParams {
   species: FishSpecies;
-  /** Age in ticks. Stocked adults and newborn fry both start at 0. */
-  age: number;
+  /**
+   * Age in ticks. Left out, the fish starts at the youngest age its stage
+   * can honestly hold: `maturityAge` for an adult, 0 for a fry. Only an
+   * age a caller actually names stands as written.
+   */
+  age?: number;
   stage: FishLifeStage;
   /**
    * Sex, sampled 50/50 when absent. A player doesn't choose it at the
@@ -51,12 +55,13 @@ export interface CreateFishParams {
 
 /**
  * Build a fish with sampled individual variation. Mass is derived from
- * `stage` and `age` via {@link fishMassForAge}; a stocked adult is full
- * mass at age 0, a fry starts small and grows.
+ * `stage` and `age` via {@link fishMassForAge}; an adult is full mass at
+ * any age, a fry starts small and grows.
  */
 export function createFish(params: CreateFishParams): Fish {
-  const { species, age, stage, rng } = params;
+  const { species, stage, rng } = params;
   const data = FISH_SPECIES_DATA[species];
+  const age = params.age ?? (stage === 'adult' ? data.breeding.maturityAge : 0);
 
   // Drawn even when the caller named a sex: a seed that names one and a seed
   // that doesn't must otherwise hand every later organism a different stream.

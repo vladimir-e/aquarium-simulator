@@ -33,22 +33,28 @@ describe('fishMassForAge', () => {
 });
 
 describe('createFish', () => {
-  it('builds a stocked adult at full mass, age 0, arrival satiation', () => {
-    const fish = createFish({ species: 'angelfish', age: 0, stage: 'adult', rng: createRng(1) });
+  it('builds a stocked adult at full mass, grown, arrival satiation', () => {
+    const fish = createFish({ species: 'angelfish', stage: 'adult', rng: createRng(1) });
     expect(fish.stage).toBe('adult');
     expect(fish.mass).toBe(FISH_SPECIES_DATA.angelfish.adultMass);
-    expect(fish.age).toBe(0);
+    expect(fish.age).toBe(FISH_SPECIES_DATA.angelfish.breeding.maturityAge);
     expect(fish.satiation).toBe(70);
     expect(fish.surplus).toBe(0);
   });
 
   it('builds a fry small, at fry satiation', () => {
     const { adultMass, breeding } = FISH_SPECIES_DATA.guppy;
-    const fish = createFish({ species: 'guppy', age: 0, stage: 'fry', rng: createRng(1) });
+    const fish = createFish({ species: 'guppy', stage: 'fry', rng: createRng(1) });
     expect(fish.stage).toBe('fry');
     expect(fish.mass).toBeCloseTo(breeding.fryMassFraction * adultMass, 10);
     expect(fish.satiation).toBe(50);
     expect(fish.age).toBe(0);
+  });
+
+  it('takes an age a caller names over the one its stage would start at', () => {
+    const rng = createRng(1);
+    expect(createFish({ species: 'guppy', age: 0, stage: 'adult', rng }).age).toBe(0);
+    expect(createFish({ species: 'guppy', age: 240, stage: 'fry', rng }).age).toBe(240);
   });
 
   it('takes an explicit sex instead of sampling one', () => {

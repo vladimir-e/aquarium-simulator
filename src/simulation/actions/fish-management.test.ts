@@ -60,6 +60,14 @@ describe('addFish', () => {
     expect(result.message).toContain('Neon Tetra');
   });
 
+  it('stocks a fish already grown, at the age its species matures', () => {
+    const state = makeState();
+    const result = addFish(state, { type: 'addFish', species: 'guppy' });
+
+    expect(result.state.fish[0].stage).toBe('adult');
+    expect(result.state.fish[0].age).toBe(FISH_SPECIES_DATA.guppy.breeding.maturityAge);
+  });
+
   it('stocks the same fish from one rng seed, and a different one from another', () => {
     expect(stockedRoster('guppy', 3, 4242)).toEqual(stockedRoster('guppy', 3, 4242));
     expect(stockedRoster('guppy', 3, 4242)).not.toEqual(stockedRoster('guppy', 3, 99));

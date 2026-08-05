@@ -4,14 +4,14 @@
  * (see `tick.ts`); it mutates `state.fish` and `state.clutches` directly
  * because it *adds* organisms, which the effect system can't express.
  *
- * The gate is deliberately *only* the banks plus a live-trend check —
- * no condition/temperature/pH tests. Surplus accrues only at full health
- * under a sustained positive net rate, so a fish that can afford the cost
- * has already proven its environment is good; re-checking would
- * double-count what accrual encodes. The one extra guard: the female's
- * net rate this tick must be ≥ 0, so a buffered fish riding old savings
- * through a crashing tank can't breed. Re-accruing the spent surplus is
- * the cooldown — there are no timers.
+ * Past a pair grown to `maturityAge`, the gate is deliberately *only* the
+ * banks plus a live-trend check — no condition/temperature/pH tests.
+ * Surplus accrues only at full health under a sustained positive net rate,
+ * so a fish that can afford the cost has already proven its environment is
+ * good; re-checking would double-count what accrual encodes. The one extra
+ * guard: the female's net rate this tick must be ≥ 0, so a buffered fish
+ * riding old savings through a crashing tank can't breed. Re-accruing the
+ * spent surplus is the cooldown — there are no timers.
  *
  * See `docs/7-LIVESTOCK.md` § Reproduction for the full pipeline (grow /
  * mature fry → hatch clutches → spawn) and the per-species parameters.
@@ -114,7 +114,16 @@ function hatchClutches(draft: SimulationState): void {
 }
 
 /**
- * Run the spawn pass across every species with an adult pair. Females
+ * Whether a fish is old enough to breed. `stage` and `age` are stored
+ * independently — a seed may name a grown-looking fish younger than its
+ * species matures — so the spawn gate asks both.
+ */
+function isBreedingAdult(fish: Fish): boolean {
+  return fish.stage === 'adult' && fish.age >= FISH_SPECIES_DATA[fish.species].breeding.maturityAge;
+}
+
+/**
+ * Run the spawn pass across every species with a mature pair. Females
  * spend `costFraction × surplusCap`; each spawn is served by a male who
  * pays `maleShareFraction × cost`. A male serves females (in order) until
  * his bank can't cover the share, then the next male takes over; when no
@@ -137,14 +146,14 @@ function spawn(
     const maleShare = breeding.maleShareFraction * cost;
 
     const males = draft.fish.filter(
-      (f) => f.species === species && f.stage === 'adult' && f.sex === 'male'
+      (f) => f.species === species && isBreedingAdult(f) && f.sex === 'male'
     );
     if (males.length === 0) continue;
 
     const readyFemales = draft.fish.filter(
       (f) =>
         f.species === species &&
-        f.stage === 'adult' &&
+        isBreedingAdult(f) &&
         f.sex === 'female' &&
         f.surplus >= cost &&
         (netByFishId.get(f.id) ?? 0) >= 0

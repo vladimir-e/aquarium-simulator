@@ -47,10 +47,11 @@ export interface Fish {
   sex: FishSex;
   /**
    * Life stage. Fry grow from `fryMassFraction × adultMass` toward
-   * `adultMass`, interpolated by age, and flip to `adult` at the
-   * species `maturityAge`; only adults breed. Stocked fish (via
-   * `addFish`) start as adults regardless of age, so the stage can't be
-   * derived from age alone — it is stored.
+   * `adultMass`, interpolated by age, and flip to `adult` at the species
+   * `maturityAge`. A seed may name a stage the age wouldn't imply — an
+   * adult still short of `maturityAge`, say — so the stage can't be
+   * derived from age alone; it is stored, and breeding asks for both
+   * (see `livestock/breeding.ts`).
    */
   stage: FishLifeStage;
   /**
