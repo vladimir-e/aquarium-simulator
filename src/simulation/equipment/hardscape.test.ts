@@ -4,9 +4,11 @@ import {
   calculateHardscapeTotalSurface,
   getHardscapeName,
   getHardscapePHEffect,
+  HARDSCAPE_SURFACE,
+  type HardscapeItem,
+  type HardscapeType,
 } from './hardscape.js';
-import { calculateHardscapeSlots, createSimulation, HARDSCAPE_SURFACE } from '../state.js';
-import type { HardscapeItem, HardscapeType } from '../state.js';
+import { calculateHardscapeSlots, createSimulation } from '../state.js';
 
 describe('getHardscapeSurface', () => {
   it('neutral_rock returns 400 cm²', () => {

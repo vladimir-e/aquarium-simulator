@@ -7,18 +7,18 @@
  * engine, persists the updated session, and prints the result.
  */
 
-import {
-  tick,
-  applyAction,
-  createSimulation,
-  type Action,
-  type SimulationState,
-} from '../simulation/index.js';
+import { tick, applyAction, type Action, type SimulationState } from '../simulation/index.js';
 import {
   DEFAULT_CONFIG,
   type TunableConfig,
 } from '../simulation/config/index.js';
-import { PRESETS, getPresetById, type PresetId } from '../ui/presets.js';
+import {
+  createPresetSimulation,
+  PRESETS,
+  getPresetById,
+  type PresetDefinition,
+  type PresetId,
+} from '../simulation/presets.js';
 import {
   loadSession,
   saveSession,
@@ -52,22 +52,20 @@ function gallonsToLiters(gal: number): number {
   return gal * 3.785;
 }
 
-function buildConfigFromPreset(
+export function resolvePreset(
   presetId: PresetId,
-  overrides: { capacity?: number }
-): ReturnType<typeof getPresetById> {
+  { capacity, seeded }: { capacity?: number; seeded: boolean }
+): PresetDefinition {
   const preset = getPresetById(presetId);
   if (!preset) {
     const ids = PRESETS.map((p) => p.id).join(', ');
     throw new Error(`Unknown preset "${presetId}". Known: ${ids}`);
   }
-  if (overrides.capacity !== undefined) {
-    return {
-      ...preset,
-      config: { ...preset.config, tankCapacity: overrides.capacity },
-    };
-  }
-  return preset;
+  return {
+    ...preset,
+    config: capacity === undefined ? preset.config : { ...preset.config, tankCapacity: capacity },
+    seed: seeded ? preset.seed : undefined,
+  };
 }
 
 function advanceTicks(session: Session, count: number): Session {
@@ -194,6 +192,44 @@ export function buildAction(type: string, args: string[]): Action {
   }
 }
 
+/** Every flag each command takes, `add` down to its target. */
+const COMMAND_FLAGS: Record<string, readonly string[]> = {
+  new: ['preset', 'tank-gal', 'tank-liters', 'name', 'no-seed'],
+  'add fish': ['species', 'count'],
+  'add plant': ['species', 'size'],
+  remove: [],
+  tick: [],
+  observe: [],
+  trace: ['fields', 'last', 'every'],
+  config: [],
+  action: [],
+  smoke: [],
+  help: [],
+};
+
+/** The command a flag is judged against: `add` reads its target as part of it. */
+function flagScope(command: string, positional: string[]): string {
+  return command === 'add' ? `add ${positional[0] ?? ''}`.trim() : command;
+}
+
+/**
+ * A mistyped flag would otherwise build a tank nobody asked for and report
+ * success — the failure an instrument for measuring must not have.
+ */
+export function assertKnownFlags(command: string, flags: Record<string, string>): void {
+  const known = COMMAND_FLAGS[command];
+  // Neither a command nor a target this CLI has: whoever dispatches it says so.
+  if (known === undefined) return;
+
+  const unknown = Object.keys(flags).filter((flag) => !known.includes(flag));
+  if (unknown.length === 0) return;
+
+  const named = unknown.map((flag) => `--${flag}`).join(', ');
+  const valid =
+    known.length === 0 ? 'It takes none.' : `Valid: ${known.map((flag) => `--${flag}`).join(', ')}.`;
+  throw new Error(`Unknown flag${unknown.length > 1 ? 's' : ''} ${named} for "${command}". ${valid}`);
+}
+
 function printHelp(): void {
   process.stdout.write(
     [
@@ -201,6 +237,8 @@ function printHelp(): void {
       '',
       'Commands:',
       '  new --preset=<id> [--tank-gal=<n>|--tank-liters=<n>] [--name=<label>]',
+      '      [--no-seed]           (every preset but bare opens on a cycled',
+      '                             biofilter; --no-seed starts it uncycled)',
       '  add fish --species=<id> --count=<n>',
       '  add plant --species=<id> [--size=<0-1>]',
       '  remove fish <id>',
@@ -226,14 +264,14 @@ function cmdNew(flags: Record<string, string>): void {
   } else if (flags['tank-liters']) {
     capacity = Number(flags['tank-liters']);
   }
-  const preset = buildConfigFromPreset(presetId, { capacity });
-  if (!preset) throw new Error(`Preset "${presetId}" not found.`);
-  const state = createSimulation(preset.config);
+  const preset = resolvePreset(presetId, { capacity, seeded: flags['no-seed'] === undefined });
+  const state = createPresetSimulation(preset);
   const session = createSession(state, DEFAULT_CONFIG, flags.name ?? preset.name);
   const recorded: Session = { ...session, history: appendSnapshot(session.history, snapshot(state)) };
   saveSession(recorded);
+  const biofilter = state.resources.aob > 0 ? 'cycled' : 'uncycled';
   process.stdout.write(
-    `Created session "${recorded.name}" (preset: ${presetId}, ${state.tank.capacity}L).\n`
+    `Created session "${recorded.name}" (preset: ${presetId}, ${state.tank.capacity}L, ${biofilter}).\n`
   );
 }
 
@@ -375,6 +413,7 @@ function cmdSmoke(): void {
 export function main(argv: string[]): void {
   const [cmd, ...rest] = argv;
   const { flags, rest: positional } = parseFlags(rest);
+  if (cmd !== undefined) assertKnownFlags(flagScope(cmd, positional), flags);
   switch (cmd) {
     case undefined:
     case 'help':

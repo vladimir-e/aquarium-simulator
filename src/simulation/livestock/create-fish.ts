@@ -8,8 +8,10 @@
  * difference is the stage/age/mass triple the caller supplies.
  */
 
-import type { Fish, FishSpecies, FishLifeStage } from '../state.js';
-import { FISH_SPECIES_DATA } from '../state.js';
+import type { Fish } from '../state.js';
+import { sequentialId } from '../core/ids.js';
+import type { FishSex, FishSpecies, FishLifeStage } from './species.js';
+import { FISH_SPECIES_DATA } from './species.js';
 
 /** Per-fish hardiness offset span as a fraction of species baseline. */
 const HARDINESS_OFFSET_SPAN = 0.15;
@@ -20,12 +22,8 @@ const ADULT_ARRIVAL_SATIATION = 70;
 /** Satiation a newborn fry starts at (peckish, no immediate stress). */
 const FRY_START_SATIATION = 50;
 
-/** Monotonic sequence guaranteeing unique ids even within one tick. */
-let fishSeq = 0;
-
-/** Generate a process-unique fish id (time prefix + counter). */
 export function generateFishId(): string {
-  return `fish_${Date.now().toString(36)}_${(fishSeq++).toString(36)}`;
+  return sequentialId('fish');
 }
 
 /**
@@ -46,6 +44,11 @@ export interface CreateFishParams {
   /** Age in ticks. Stocked adults and newborn fry both start at 0. */
   age: number;
   stage: FishLifeStage;
+  /**
+   * Sex, sampled 50/50 when absent. A player doesn't choose it at the
+   * shop; a scenario author naming a breeding pair does.
+   */
+  sex?: FishSex;
   /** Randomness source for sex / hardiness / health. Defaults to `Math.random`. */
   rng?: () => number;
 }
@@ -59,7 +62,10 @@ export function createFish(params: CreateFishParams): Fish {
   const { species, age, stage, rng = Math.random } = params;
   const data = FISH_SPECIES_DATA[species];
 
-  const sex = rng() < 0.5 ? 'male' : 'female';
+  // Drawn even when the caller named a sex: a seed that names one and a seed
+  // that doesn't must otherwise hand every later organism a different stream.
+  const sampledSex = rng() < 0.5 ? 'male' : 'female';
+  const sex = params.sex ?? sampledSex;
   const hardinessOffset = (rng() - 0.5) * 2 * HARDINESS_OFFSET_SPAN * data.hardiness;
   const health = Math.max(0, Math.min(100, 100 + (rng() - 0.5) * 2 * HEALTH_JITTER));
 

@@ -18,8 +18,9 @@
  */
 
 import { produce } from 'immer';
-import type { SimulationState, Fish, FishSpecies, Clutch } from '../state.js';
-import { FISH_SPECIES_DATA } from '../state.js';
+import type { SimulationState, Fish, Clutch } from '../state.js';
+import type { FishSpecies } from '../livestock/species.js';
+import { FISH_SPECIES_DATA } from '../livestock/species.js';
 import type { LivestockConfig } from '../config/livestock.js';
 import { livestockDefaults } from '../config/livestock.js';
 import type { TunableConfig } from '../config/index.js';

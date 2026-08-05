@@ -13,8 +13,9 @@
  * they're downstream of the vitality engine, not nutrients-specific.
  */
 
-import type { NutrientDemand, PlantSpecies, Resources } from '../state.js';
-import { PLANT_SPECIES_DATA } from '../state.js';
+import type { Resources } from '../state.js';
+import type { NutrientDemand, PlantSpecies } from '../plants/species.js';
+import { PLANT_SPECIES_DATA } from '../plants/species.js';
 import type { NutrientsConfig } from '../config/nutrients.js';
 import { nutrientsDefaults } from '../config/nutrients.js';
 import { getPpm } from '../resources/index.js';

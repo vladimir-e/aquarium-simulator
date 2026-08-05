@@ -31,7 +31,7 @@
 
 import { produce } from 'immer';
 import type { SimulationState, Plant } from '../state.js';
-import { PLANT_SPECIES_DATA } from '../state.js';
+import { PLANT_SPECIES_DATA } from './species.js';
 import type { Effect } from '../core/effects.js';
 import type { TunableConfig } from '../config/index.js';
 import { plantsDefaults } from '../config/plants.js';

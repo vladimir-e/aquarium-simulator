@@ -6,12 +6,12 @@ import type { useSimulation } from '../../hooks/useSimulation';
 import { useActionsSheet } from '../../hooks/useActionsSheet';
 import { useFocusTrap } from '../../hooks/useFocusTrap';
 import { useIsMobile } from '../../hooks/useMediaQuery';
-import { PresetSwitchProvider } from '../../hooks/usePresetSwitch';
+import { PresetLoadProvider } from '../../hooks/usePresetLoad';
 import { useUnits } from '../../hooks/useUnits';
 import { verbRow } from '../../actions';
 import { driftsFromPreset } from '../../build';
 import { navFigures } from '../../nav';
-import { presetName } from '../../presets.js';
+import { presetName } from '../../../simulation/presets.js';
 import { ActionsSheet } from '../actions/ActionsSheet';
 import { ActionsTrigger } from '../actions/ActionsTrigger';
 import { DebugPanel } from '../panels/DebugPanel';
@@ -67,7 +67,7 @@ export function AppShell({ sim, config }: AppShellProps): React.JSX.Element {
     presetModified: driftsFromPreset(sim.state, sim.currentPreset),
     units: unitSystem,
     aggregates: sim.aggregates,
-    runLogs: sim.runLogs,
+    logs: sim.state.logs,
   });
 
   const rail = (
@@ -87,7 +87,7 @@ export function AppShell({ sim, config }: AppShellProps): React.JSX.Element {
   );
 
   return (
-    <PresetSwitchProvider current={sim.currentPreset} onLoad={sim.loadPreset}>
+    <PresetLoadProvider current={sim.currentPreset} state={sim.state} onLoad={sim.loadPreset}>
       <div className="flex h-dvh flex-col bg-bg text-ink">
         <ChromeRow logs={sim.state.logs} onOpenIndex={railStands ? null : openIndex} />
 
@@ -129,6 +129,6 @@ export function AppShell({ sim, config }: AppShellProps): React.JSX.Element {
 
         <DebugPanel />
       </div>
-    </PresetSwitchProvider>
+    </PresetLoadProvider>
   );
 }

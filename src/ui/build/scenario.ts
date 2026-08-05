@@ -7,7 +7,6 @@
 
 import {
   calculateEvaporationRatePerDay,
-  createSimulation,
   getFilterFlow,
   getMaxPlants,
   type LidType,
@@ -15,8 +14,8 @@ import {
 } from '../../simulation/index.js';
 import type { TunableConfig } from '../../simulation/config/index.js';
 import { SurfaceResource } from '../../simulation/resources/index.js';
-import { PRESETS, type PresetId } from '../presets.js';
-import { TICKS_PER_DAY } from '../utils/clock.js';
+import { PRESETS, createPresetSimulation, type PresetId } from '../../simulation/presets.js';
+import { TICKS_PER_DAY, formatElapsed } from '../utils/clock.js';
 import { formatVolume, type UnitSystem } from '../utils/units.js';
 import { turnover } from './readings.js';
 import { scapeSummary } from './scape.js';
@@ -82,22 +81,24 @@ export function scenarioSummary(
   return `${presetName} · ${formatVolume(state.tank.capacity, units, 0)}`;
 }
 
+/** The tank each preset builds, built once — every figure below reads off these. */
+const PRESET_TANKS = PRESETS.map(
+  (preset) => [preset, createPresetSimulation(preset)] as const
+);
+
 export function presetCards(units: UnitSystem): PresetCard[] {
-  return PRESETS.map((preset) => {
-    const built = createSimulation(preset.config);
-    return {
-      id: preset.id,
-      name: preset.name,
-      volume: formatVolume(built.tank.capacity, units, 0),
-      build: buildSummary(built),
-    };
-  });
+  return PRESET_TANKS.map(([preset, built]) => ({
+    id: preset.id,
+    name: preset.name,
+    volume: formatVolume(built.tank.capacity, units, 0),
+    build: buildSummary(built),
+  }));
 }
 
 /**
- * Everything a restore would put back, flattened to primitives: the tank,
- * environment and equipment `loadPreset` rewrites, minus what the engine drives
- * on its own (`isOn`, `dosedToday`) and the ids it mints per hardscape item.
+ * The tank, environment and equipment a preset configures, flattened to
+ * primitives — minus what the engine drives on its own (`isOn`, `dosedToday`)
+ * and the ids it mints per hardscape item.
  */
 function presetSettings(state: SimulationState): string {
   const e = state.equipment;
@@ -123,13 +124,13 @@ function presetSettings(state: SimulationState): string {
 }
 
 const PRESET_SETTINGS = new Map<PresetId, string>(
-  PRESETS.map((preset) => [preset.id, presetSettings(createSimulation(preset.config))])
+  PRESET_TANKS.map(([preset, built]) => [preset.id, presetSettings(built)])
 );
 
 /**
  * Whether the tank has moved away from the preset it was built from. Derived
- * rather than tracked, so a change and its undo cancel out, a reload cannot
- * lose it, and it is true exactly when Restore has something to put back.
+ * rather than tracked, so a change and its undo cancel out and a reload cannot
+ * lose it.
  */
 export function driftsFromPreset(state: SimulationState, presetId: PresetId): boolean {
   return presetSettings(state) !== PRESET_SETTINGS.get(presetId);
@@ -193,17 +194,45 @@ export function resetConsequence(state: SimulationState): string {
   return `Reset clears the clock, water chemistry, alerts and this run's charts${elapsed}. Equipment, scape, plants and fish stay.${eggs}`;
 }
 
-/**
- * Loading a preset rebuilds the world around the run rather than replacing it.
- * Both dialogs say so in the same words, because it is the same consequence.
- */
-const PRESET_CONSEQUENCE =
-  'The run is not reset — the clock, plants and fish carry over — but playback pauses and the charts start over.';
-
-export function presetSwitchMessage(name: string): string {
-  return `Rebuilds the tank, equipment, scape and environment as “${name}”. ${PRESET_CONSEQUENCE}`;
+/** What the tank holds that a preset load takes with it. */
+function atStake(state: SimulationState): string[] {
+  const stake: string[] = [];
+  if (state.tick > 0) stake.push(formatElapsed(state.tick));
+  if (state.fish.length > 0) stake.push(`${state.fish.length} fish`);
+  if (state.plants.length > 0) {
+    stake.push(`${state.plants.length} plant${state.plants.length === 1 ? '' : 's'}`);
+  }
+  return stake;
 }
 
-export function presetRestoreMessage(name: string): string {
-  return `Puts the tank, equipment, scape and environment back to the “${name}” defaults. ${PRESET_CONSEQUENCE}`;
+/** The stock a preset puts in the tank, so a load can tell it from the player's. */
+const PRESET_STOCK = new Map<PresetId, { fish: number; plants: number }>(
+  PRESET_TANKS.map(([preset, built]) => [
+    preset.id,
+    { fish: built.fish.length, plants: built.plants.length },
+  ])
+);
+
+/**
+ * Whether loading a preset would cost anything. A tank still at hour zero and
+ * holding exactly what `presetId` stocked it with is already what a load
+ * builds, so asking would cost more than the load does.
+ */
+export function presetLoadDestroys(state: SimulationState, presetId: PresetId): boolean {
+  const shipped = PRESET_STOCK.get(presetId);
+  return (
+    state.tick > 0 ||
+    state.fish.length !== shipped?.fish ||
+    state.plants.length !== shipped?.plants
+  );
+}
+
+export function presetLoadMessage(name: string, state: SimulationState): string {
+  const stake = atStake(state);
+  const loss =
+    stake.length === 0
+      ? ''
+      : ` This one — ${stake.join(' · ')} — goes, water chemistry and biofilter with it.`;
+
+  return `Starts “${name}” as a new tank at hour zero.${loss}`;
 }

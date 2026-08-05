@@ -1,4 +1,6 @@
-import type { SimulationState, PlantSpecies, FishSpecies } from '../state.js';
+import type { SimulationState } from '../state.js';
+import type { PlantSpecies } from '../plants/species.js';
+import type { FishSpecies } from '../livestock/species.js';
 import type { WaterChangeAmount } from './water-change.js';
 
 /** Target size for trimming, as a percentage in [0, 100]. */

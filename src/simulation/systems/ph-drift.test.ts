@@ -4,7 +4,8 @@ import {
   calculateHardscapeTargetPH,
   calculateCO2PHEffect,
 } from './ph-drift.js';
-import { createSimulation, type SimulationState, type HardscapeItem } from '../state.js';
+import { createSimulation, type SimulationState } from '../state.js';
+import type { HardscapeItem } from '../equipment/hardscape.js';
 import { produce } from 'immer';
 import { DEFAULT_CONFIG } from '../config/index.js';
 import { phDefaults } from '../config/ph.js';

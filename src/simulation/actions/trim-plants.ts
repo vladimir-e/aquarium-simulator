@@ -7,7 +7,8 @@
  */
 
 import { produce } from 'immer';
-import { PLANT_SPECIES_DATA, type SimulationState } from '../state.js';
+import { type SimulationState } from '../state.js';
+import { PLANT_SPECIES_DATA } from '../plants/species.js';
 import { createLog } from '../core/logging.js';
 import type { ActionResult, TrimPlantsAction } from './types.js';
 

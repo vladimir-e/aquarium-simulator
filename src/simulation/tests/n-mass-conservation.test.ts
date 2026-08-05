@@ -58,7 +58,8 @@ import {
   MW_NO2,
   MW_NO3,
 } from '../systems/nitrogen-cycle.js';
-import type { SimulationState, SimulationConfig, FishSpecies } from '../state.js';
+import type { SimulationState, SimulationConfig } from '../state.js';
+import type { FishSpecies } from '../livestock/species.js';
 import type { TunableConfig } from '../config/index.js';
 
 /**

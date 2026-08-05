@@ -36,8 +36,8 @@ export {
   driftsFromPreset,
   environmentDerived,
   presetCards,
-  presetRestoreMessage,
-  presetSwitchMessage,
+  presetLoadDestroys,
+  presetLoadMessage,
   resetConsequence,
   scenarioSummary,
 } from './scenario.js';

@@ -3,8 +3,8 @@ import { Github, Menu, Settings } from 'lucide-react';
 import type { LogEntry } from '../../../simulation/index.js';
 import { latestLog } from '../../run';
 import { useConfig } from '../../hooks/useConfig';
-import { usePresetSwitch } from '../../hooks/usePresetSwitch';
-import { PRESETS, type PresetId } from '../../presets.js';
+import { usePresetLoad } from '../../hooks/usePresetLoad';
+import { PRESETS, type PresetId } from '../../../simulation/presets.js';
 import { Select } from '../ui/Select';
 import { ThemeToggle } from '../ui/ThemeToggle';
 
@@ -50,7 +50,7 @@ interface ChromeRowProps {
  */
 export function ChromeRow({ logs, onOpenIndex }: ChromeRowProps): React.JSX.Element {
   const { isDebugPanelOpen, toggleDebugPanel, isAnyModified } = useConfig();
-  const { current, request } = usePresetSwitch();
+  const { current, request } = usePresetLoad();
 
   return (
     <header className="flex h-14 shrink-0 items-center gap-3 border-b border-hairline-2 bg-surface px-3">

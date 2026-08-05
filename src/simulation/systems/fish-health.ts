@@ -37,7 +37,7 @@
  */
 
 import type { Fish, Plant, Resources } from '../state.js';
-import { FISH_SPECIES_DATA } from '../state.js';
+import { FISH_SPECIES_DATA } from '../livestock/species.js';
 import type { LivestockConfig } from '../config/livestock.js';
 import { unionizedAmmoniaFraction } from './nitrogen-cycle.js';
 import { satiationContribution, SATIATION_BAND_LABEL } from './satiation.js';

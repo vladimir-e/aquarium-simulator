@@ -11,7 +11,7 @@ import { PERSISTENCE_VERSION, STORAGE_KEY } from '../persistence/types.js';
 import { RUN_HISTORY_CAP, snapshotFromState } from '../run/index.js';
 import { createSimulation, createLog, type SimulationState } from '../../simulation/index.js';
 import { useSimulation } from '../hooks/useSimulation';
-import { getPresetById } from '../presets';
+import { getPresetById } from '../../simulation/presets';
 import { navFigures } from '../nav/figures';
 import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
 import { stubMatchMedia, viewport, type MatchMediaStub } from '../test/matchMedia';
@@ -39,11 +39,10 @@ function fakeSim(
     createLog(31, 'user', 'info', 'added Neon Tetra'),
     createLog(36, 'nitrogen-cycle', 'warning', 'High ammonia level: 0.109 ppm'),
   ],
-  aggregates = { ticks: 39, deaths: 1, births: 100, frySold: 0, alerts: 1, waterChangedL: 0 },
-  runLogs = logs
+  aggregates = { ticks: 39, deaths: 1, births: 100, frySold: 0, alerts: 1, waterChangedL: 0 }
 ): ReturnType<typeof useSimulation> {
   const state: SimulationState = { ...BASE, tick: history[history.length - 1].tick, logs };
-  return { state, history, aggregates, runLogs } as unknown as ReturnType<typeof useSimulation>;
+  return { state, history, aggregates } as unknown as ReturnType<typeof useSimulation>;
 }
 
 /**
@@ -164,7 +163,7 @@ describe('AnalyticsSection', () => {
       state: sim.state,
       config: DEFAULT_CONFIG,
       aggregates: sim.aggregates,
-      runLogs: sim.runLogs,
+      logs: sim.state.logs,
       presetName: 'Planted Tank',
       presetModified: false,
       units: 'metric',
@@ -439,11 +438,10 @@ function seedHighAmmonia(): void {
 }
 
 /**
- * The section on the real hook. A preset switch is the one transition where the
- * run rebaselines while the transcript carries over, so what the tick-range
- * selectors can see is only decidable with the hook in the loop.
+ * The section on the real hook: what the charts and the tick-range selectors can
+ * still see once a preset load has replaced the tank under them.
  */
-describe('AnalyticsSection — a preset switch starts a new run', () => {
+describe('AnalyticsSection — a preset load starts a new run', () => {
   beforeEach(() => {
     vi.useFakeTimers();
     seedHighAmmonia();
@@ -473,7 +471,7 @@ describe('AnalyticsSection — a preset switch starts a new run', () => {
     fireEvent.click(screen.getByRole('button', { name }));
   }
 
-  it('drops the events the rebaseline tick carries over from the run before it', () => {
+  it('drops the run before it, transcript and charts alike', () => {
     render(
       <ThemeProvider>
         <PersistenceProvider>
@@ -500,9 +498,9 @@ describe('AnalyticsSection — a preset switch starts a new run', () => {
 
     press('test-switch');
 
-    // The transcript still holds the warning — the new run simply does not.
+    // The warning described a tank that no longer exists, so it goes with it.
     expect(screen.queryByText(/High ammonia/)).toBeNull();
     expect(screen.queryAllByTitle('NH₃ @1')).toHaveLength(0);
-    expect(screen.getByText(/Switched to preset/)).toBeTruthy();
+    expect(screen.getByText(/Loaded preset: Balanced Community/)).toBeTruthy();
   });
 });

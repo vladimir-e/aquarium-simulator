@@ -334,7 +334,7 @@ describe('bacteria colony dynamics', () => {
       // would grow a colony the bed does not support, and the challenge would
       // then be reading the conditioning rather than the engine.
       for (const capacity of [20, 60, 150, 1000]) {
-        expect(doseClearance(capacity)).toBeLessThan(0.25);
+        expect(doseClearance(cycledTank(capacity))).toBeLessThan(0.25);
       }
     });
 

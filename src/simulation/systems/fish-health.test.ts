@@ -18,8 +18,9 @@ const stressorAmount = (v: VitalityResult, key: string): number =>
 const totalStress = (v: VitalityResult): number =>
   v.breakdown.stressors.reduce((sum, s) => sum + s.amount, 0);
 import { livestockDefaults } from '../config/livestock.js';
-import { FISH_SPECIES_DATA } from '../state.js';
-import type { Fish, FishSpecies, Plant, Resources } from '../state.js';
+import { FISH_SPECIES_DATA } from '../livestock/species.js';
+import type { Fish, Plant, Resources } from '../state.js';
+import type { FishSpecies } from '../livestock/species.js';
 
 function makeFish(overrides: Partial<Fish> = {}): Fish {
   return {

@@ -2,401 +2,29 @@
  * Simulation state types and factory functions.
  */
 
-import { createLog, type LogEntry, type LogSeverity, type LogEvent } from './core/logging.js';
+import { createLog, type LogEntry } from './core/logging.js';
 import type { DailySchedule } from './core/schedule.js';
-import type { FilterType, Filter } from './equipment/filter.js';
+import type { Filter } from './equipment/filter.js';
 import { DEFAULT_FILTER, getFilterSurface, getFilterFlow } from './equipment/filter.js';
-import type { PowerheadFlowRate, Powerhead } from './equipment/powerhead.js';
+import type { Powerhead } from './equipment/powerhead.js';
 import { DEFAULT_POWERHEAD, getPowerheadFlow } from './equipment/powerhead.js';
-import type { SubstrateType, Substrate } from './equipment/substrate.js';
+import type { Substrate } from './equipment/substrate.js';
 import {
   DEFAULT_SUBSTRATE,
   getSubstrateSurface,
   getSubstrateOrganicReserve,
 } from './equipment/substrate.js';
-import { calculateHardscapeTotalSurface } from './equipment/hardscape.js';
-import type { Light, LightWattage } from './equipment/light.js';
+import type { Hardscape } from './equipment/hardscape.js';
+import { DEFAULT_HARDSCAPE, calculateHardscapeTotalSurface } from './equipment/hardscape.js';
+import type { Light } from './equipment/light.js';
 import { DEFAULT_LIGHT } from './equipment/light.js';
 import type { AirPump } from './equipment/air-pump.js';
 import { DEFAULT_AIR_PUMP, getAirPumpFlow } from './equipment/air-pump.js';
 import type { AutoDoser } from './equipment/auto-doser.js';
 import { DEFAULT_AUTO_DOSER } from './equipment/auto-doser.js';
-
-export type { LogEntry, LogSeverity, LogEvent };
-export type { AirPump };
-export type { AutoDoser };
-export type { FilterType, Filter, PowerheadFlowRate, Powerhead, SubstrateType, Substrate, Light, LightWattage };
-
-/**
- * Plant species types.
- * Each species has different light/CO2 requirements and growth rates.
- */
-export type PlantSpecies =
-  | 'java_fern'
-  | 'anubias'
-  | 'amazon_sword'
-  | 'dwarf_hairgrass'
-  | 'monte_carlo';
-
-/**
- * Nutrient demand level for plants.
- * Determines how much of the optimal nutrient levels a plant needs.
- */
-export type NutrientDemand = 'low' | 'medium' | 'high';
-
-/**
- * Plant species characteristics.
- */
-export interface PlantSpeciesData {
-  /** Display name */
-  name: string;
-  /** Light requirement level */
-  lightRequirement: 'low' | 'medium' | 'high';
-  /** CO2 requirement level */
-  co2Requirement: 'low' | 'medium' | 'high';
-  /** Relative growth rate (higher = faster biomass distribution) */
-  growthRate: number;
-  /** Substrate requirement for planting */
-  substrateRequirement: 'none' | 'sand' | 'aqua_soil';
-  /** Nutrient demand level - affects how much fertilizer is needed */
-  nutrientDemand: NutrientDemand;
-  /**
-   * Per-plant biological maximum size (% units, same scale as `Plant.size`).
-   * Drives the asymptotic growth factor in `spendSurplusOnGrowth`:
-   * `factor = max(0, 1 - size / maxSize)`. The factor reduces spending
-   * efficiency as the plant approaches `maxSize` so it self-limits.
-   *
-   * Values are sized so that within calibration test windows (peak per-plant
-   * size ≤ ~100%), the factor stays > 0.9 — the asymptotic term is
-   * effectively 1.0 during calibration runs. Slow attached species (Java
-   * Fern, Anubias) cap lower than fast column / carpet species, reflecting
-   * relative biological growth ceilings in real tanks.
-   */
-  maxSize: number;
-  /**
-   * Hardiness 0–1. Multiplies all stressor severities through the
-   * vitality engine — higher = species tolerates poor conditions
-   * better. Mirrors `FishSpeciesData.hardiness`. Anubias / Java Fern
-   * sit at 0.7 (forgiving), high-tech carpet species at 0.3 (fussy).
-   */
-  hardiness: number;
-  /**
-   * Tolerable light range in watts. Outside this band a light-insufficient
-   * (low) or light-excessive (high) stressor activates. The two-sided
-   * shape lets shade species like Anubias take damage when blasted with
-   * 100 W of LED, in addition to the usual carpet-species low-light
-   * complaints.
-   */
-  tolerableLight: [number, number];
-  /**
-   * Tolerable CO2 range in mg/L. High-tech species suffer when CO2 falls
-   * below their lower bound (the auto-doser-failure case from this
-   * task's motivating bug). Low-tech species' lower bound is just above
-   * atmospheric so they don't false-trigger.
-   */
-  tolerableCO2: [number, number];
-  /** Tolerable temperature range in °C — outside is stress. */
-  tolerableTemp: [number, number];
-  /** Tolerable pH range — outside is stress. */
-  tolerablePH: [number, number];
-}
-
-/**
- * Species catalog with characteristics for each plant type.
- */
-export const PLANT_SPECIES_DATA: Record<PlantSpecies, PlantSpeciesData> = {
-  java_fern: {
-    name: 'Java Fern',
-    lightRequirement: 'low',
-    co2Requirement: 'low',
-    growthRate: 0.5,
-    substrateRequirement: 'none', // Attaches to hardscape
-    nutrientDemand: 'low', // Can survive on fish waste alone
-    // Slow attached fern. Calibration peak (S2A day 28): 54%.
-    // factor at peak = 1 - 54/600 = 0.91 → calibration-safe.
-    maxSize: 600,
-    hardiness: 0.7, // Forgiving — survives most beginner setups
-    // Light bands: lower bound 5 W matches "alive in a dim 5 W desk
-    // lamp tank"; upper bound 80 W is where leaves start bleaching
-    // under high-output LED. Mid-range covers everything from a stock
-    // 10-gallon kit to a planted nano.
-    tolerableLight: [5, 80],
-    // No CO2 dependency — atmospheric (~3 mg/L) is enough.
-    tolerableCO2: [1, 40],
-    tolerableTemp: [18, 30],
-    tolerablePH: [6.0, 8.0],
-  },
-  anubias: {
-    name: 'Anubias',
-    lightRequirement: 'low',
-    co2Requirement: 'low',
-    growthRate: 0.3,
-    substrateRequirement: 'none', // Attaches to hardscape
-    nutrientDemand: 'low', // Can survive on fish waste alone
-    // Slowest, attached. S4A day 56 anubias hits 68%.
-    // factor at peak = 1 - 68/700 = 0.903 → calibration-safe.
-    maxSize: 700,
-    hardiness: 0.75, // Hardiest of the bunch — bombproof
-    // Shade plant, but tolerates a wide range. Burns above ~70 W.
-    tolerableLight: [3, 70],
-    tolerableCO2: [1, 40],
-    tolerableTemp: [18, 30],
-    tolerablePH: [6.0, 8.0],
-  },
-  amazon_sword: {
-    name: 'Amazon Sword',
-    lightRequirement: 'medium',
-    co2Requirement: 'medium',
-    growthRate: 1.0,
-    substrateRequirement: 'sand',
-    nutrientDemand: 'medium', // Benefits from dosing
-    // Medium-rate column plant. Calibration peak (S2A day 28): 73%.
-    // factor at peak = 1 - 73/800 = 0.909 → calibration-safe.
-    maxSize: 800,
-    hardiness: 0.5,
-    // Lower bound 10 W / 90 W upper. Real swords live happily in
-    // standard 18 W planted-kit lighting (S2 baseline scenario uses
-    // exactly that).
-    tolerableLight: [10, 90],
-    // Mild CO2 dependence — sword grows happily on atmospheric (~4 mg/L)
-    // CO2 in low-tech tanks, so the lower bound sits just above
-    // atmospheric. The spec's "high-tech tank loses CO2" scenario has
-    // sword decline slower than Monte Carlo: the engine produces this
-    // through milder daytime damage that nightly healing partially
-    // offsets, so sword degrades over weeks rather than days.
-    tolerableCO2: [6, 40],
-    tolerableTemp: [20, 28],
-    tolerablePH: [6.0, 7.5],
-  },
-  dwarf_hairgrass: {
-    name: 'Dwarf Hairgrass',
-    lightRequirement: 'high',
-    co2Requirement: 'high',
-    growthRate: 1.5,
-    substrateRequirement: 'aqua_soil',
-    nutrientDemand: 'high', // Requires regular dosing
-    // Fast carpet. No direct calibration coverage; matched to monte_carlo
-    // since both are high-demand carpet species with similar growth rates.
-    maxSize: 1100,
-    hardiness: 0.3, // Fussy — needs everything dialled in
-    // Lower bound 15 W. S2 calibration uses 18 W, which lands a fussy
-    // carpet in its tolerable-but-not-thriving zone. The benefit
-    // ramps in at 15 W and full-thrives by 30 W.
-    tolerableLight: [15, 150],
-    tolerableCO2: [10, 40], // Stalls without CO2 — high-tech species
-    tolerableTemp: [20, 28],
-    tolerablePH: [6.0, 7.5],
-  },
-  monte_carlo: {
-    name: 'Monte Carlo',
-    lightRequirement: 'high',
-    co2Requirement: 'high',
-    growthRate: 1.8,
-    substrateRequirement: 'aqua_soil',
-    nutrientDemand: 'high', // Requires regular dosing
-    // Fast carpet. Calibration peak (S2A day 28): 103%.
-    // factor at peak = 1 - 103/1100 = 0.906 → calibration-safe.
-    maxSize: 1100,
-    hardiness: 0.3, // Fussy — same band as hairgrass
-    tolerableLight: [15, 150],
-    tolerableCO2: [10, 40], // Same — needs CO2 to thrive
-    tolerableTemp: [20, 28],
-    tolerablePH: [6.0, 7.5],
-  },
-};
-
-/**
- * Fish species types.
- */
-export type FishSpecies =
-  | 'neon_tetra'
-  | 'betta'
-  | 'guppy'
-  | 'angelfish'
-  | 'corydoras';
-
-/**
- * Fish sex for reproduction.
- */
-export type FishSex = 'male' | 'female';
-
-/**
- * Life stage of a fish. Only adults breed; fry grow toward adult mass
- * and become adults at their species `maturityAge`.
- */
-export type FishLifeStage = 'fry' | 'adult';
-
-/**
- * How a species reproduces. Livebearers release free-swimming fry
- * directly; every egg-laying mode deposits an inert clutch that hatches
- * into fry after `hatchTime`. The mode is the anchor for the future
- * predation/guarding layer — nothing downstream branches on it yet
- * beyond livebearer-vs-clutch.
- */
-export type BreedingMode =
-  | 'livebearer'
-  | 'egg-scatterer'
-  | 'egg-depositor'
-  | 'substrate-spawner'
-  | 'bubble-nester';
-
-/**
- * Per-species reproduction parameters. Costs are expressed as fractions
- * so they scale with `LivestockConfig.surplusCap`; times and counts are
- * in sim units (ticks = hours, individuals).
- */
-export interface FishBreedingData {
-  mode: BreedingMode;
-  /**
-   * Fraction of `surplusCap` the female spends per spawn. Re-accruing
-   * this from the reserve bank IS the breeding cooldown — there are no
-   * timers.
-   */
-  costFraction: number;
-  /** Fraction of the female's cost the serving male pays per spawn. */
-  maleShareFraction: number;
-  /**
-   * Ticks from clutch laid to hatch. Unused by livebearers (they skip
-   * the clutch stage — gestation is already paid for by accrual).
-   */
-  hatchTime: number;
-  /** Offspring per spawn: fry for livebearers, eggs for egg-layers. */
-  clutchSize: number;
-  /** Fry starting mass as a fraction of `adultMass`. */
-  fryMassFraction: number;
-  /** Age (ticks) at which fry mature into breeding adults. */
-  maturityAge: number;
-}
-
-/**
- * Fish species characteristics.
- */
-export interface FishSpeciesData {
-  /** Display name */
-  name: string;
-  /** Adult body mass in grams */
-  adultMass: number;
-  /** Maximum lifespan in ticks (hours) */
-  maxAge: number;
-  /** Hardiness factor 0-1 (higher = more tolerant of stressors) */
-  hardiness: number;
-  /** Preferred temperature range [min, max] in °C */
-  temperatureRange: [number, number];
-  /** Preferred pH range [min, max] */
-  phRange: [number, number];
-  /** Maximum tolerable circulation in tank volumes per hour */
-  maxTurnover: number;
-  /** Reproduction parameters */
-  breeding: FishBreedingData;
-}
-
-/**
- * Species catalog with characteristics for each fish type.
- */
-export const FISH_SPECIES_DATA: Record<FishSpecies, FishSpeciesData> = {
-  neon_tetra: {
-    name: 'Neon Tetra',
-    adultMass: 0.5,
-    maxAge: 24 * 365 * 5, // ~5 years
-    hardiness: 0.5,
-    temperatureRange: [22, 28],
-    phRange: [6.0, 7.5],
-    maxTurnover: 10, // Slow tributaries, but fine on a community canister
-    // Egg-scatterer: sheds adhesive eggs over plants/substrate, no
-    // parental care. Fast incubation (~24 h in the wild), large broods,
-    // slow to sexual maturity (~4 months here).
-    breeding: {
-      mode: 'egg-scatterer',
-      costFraction: 0.8,
-      maleShareFraction: 0.4,
-      hatchTime: 24,
-      clutchSize: 25,
-      fryMassFraction: 0.05,
-      maturityAge: 24 * 120,
-    },
-  },
-  betta: {
-    name: 'Betta',
-    adultMass: 3.0,
-    maxAge: 24 * 365 * 3, // ~3 years
-    hardiness: 0.6,
-    temperatureRange: [24, 30],
-    phRange: [6.5, 7.5],
-    maxTurnover: 5, // Still blackwater, long fins - a sponge filter and no more
-    // Bubble-nester: male wraps eggs into a surface foam nest. Small
-    // clutch, quick hatch (~36 h), matures in ~3 months.
-    breeding: {
-      mode: 'bubble-nester',
-      costFraction: 0.8,
-      maleShareFraction: 0.4,
-      hatchTime: 36,
-      clutchSize: 30,
-      fryMassFraction: 0.03,
-      maturityAge: 24 * 90,
-    },
-  },
-  guppy: {
-    name: 'Guppy',
-    adultMass: 1.0,
-    maxAge: 24 * 365 * 3, // ~3 years
-    hardiness: 0.8,
-    temperatureRange: [22, 28],
-    phRange: [6.5, 8.0],
-    maxTurnover: 13, // Hardy, tolerates a lot
-    // Livebearer: internal gestation, drops free-swimming fry directly
-    // (no clutch stage, so `hatchTime` is unused). Prolific and quick to
-    // mature (~2 months).
-    breeding: {
-      mode: 'livebearer',
-      costFraction: 0.8,
-      maleShareFraction: 0.4,
-      hatchTime: 0,
-      clutchSize: 20,
-      fryMassFraction: 0.05,
-      maturityAge: 24 * 60,
-    },
-  },
-  angelfish: {
-    name: 'Angelfish',
-    adultMass: 15.0,
-    maxAge: 24 * 365 * 10, // ~10 years
-    hardiness: 0.4,
-    temperatureRange: [24, 30],
-    phRange: [6.0, 7.5],
-    maxTurnover: 10, // Tall body catches current, but its canonical home is a big canister tank
-    // Substrate-spawner: lays a large clutch on a vertical surface,
-    // hatches in ~2.5 days. Big fish, tiny fry, slow to mature (~6 months).
-    breeding: {
-      mode: 'substrate-spawner',
-      costFraction: 0.8,
-      maleShareFraction: 0.4,
-      hatchTime: 60,
-      clutchSize: 40,
-      fryMassFraction: 0.02,
-      maturityAge: 24 * 180,
-    },
-  },
-  corydoras: {
-    name: 'Corydoras',
-    adultMass: 4.0,
-    maxAge: 24 * 365 * 5, // ~5 years
-    hardiness: 0.7,
-    temperatureRange: [22, 26],
-    phRange: [6.0, 7.5],
-    maxTurnover: 15, // Bottom dweller, appreciates current
-    // Egg-depositor: presses small batches of eggs onto glass and leaves.
-    // Slow hatch (~4 days), modest clutch, matures in ~5 months.
-    breeding: {
-      mode: 'egg-depositor',
-      costFraction: 0.8,
-      maleShareFraction: 0.4,
-      hatchTime: 96,
-      clutchSize: 15,
-      fryMassFraction: 0.04,
-      maturityAge: 24 * 150,
-    },
-  },
-};
+import { applySeed, type PresetSeed } from './seed.js';
+import type { PlantSpecies } from './plants/species.js';
+import type { FishSpecies, FishSex, FishLifeStage } from './livestock/species.js';
 
 /**
  * Individual fish in the tank.
@@ -605,20 +233,6 @@ export interface AutoTopOff {
   enabled: boolean;
 }
 
-export type HardscapeType = 'neutral_rock' | 'calcite_rock' | 'driftwood' | 'plastic_decoration';
-
-export interface HardscapeItem {
-  /** Unique ID for this item (for add/remove operations) */
-  id: string;
-  /** Type determines surface area and pH effect (future) */
-  type: HardscapeType;
-}
-
-export interface Hardscape {
-  /** Array of hardscape items in the tank */
-  items: HardscapeItem[];
-}
-
 export interface Co2Generator {
   /** Whether CO2 injection is enabled */
   enabled: boolean;
@@ -758,10 +372,6 @@ export const DEFAULT_ATO: AutoTopOff = {
   enabled: false,
 };
 
-export const DEFAULT_HARDSCAPE: Hardscape = {
-  items: [],
-};
-
 export { DEFAULT_LIGHT };
 
 export const DEFAULT_CO2_GENERATOR: Co2Generator = {
@@ -805,9 +415,16 @@ export function calculateTankGlassSurface(capacity: number): number {
 }
 
 /**
- * Creates a new simulation state with the given configuration.
+ * Creates a new simulation state with the given configuration, optionally
+ * started at the state a {@link PresetSeed} describes rather than empty.
+ * `rng` sources the individual variation a seeded roster is built with —
+ * supply one and the same seed produces the same organisms every run.
  */
-export function createSimulation(config: SimulationConfig): SimulationState {
+export function createSimulation(
+  config: SimulationConfig,
+  seed?: PresetSeed,
+  rng?: () => number
+): SimulationState {
   const {
     tankCapacity,
     initialTemperature,
@@ -924,7 +541,7 @@ export function createSimulation(config: SimulationConfig): SimulationState {
     airPumpConfig
   );
 
-  return {
+  const state: SimulationState = {
     tick: 0,
     tank: {
       capacity: tankCapacity,
@@ -994,15 +611,10 @@ export function createSimulation(config: SimulationConfig): SimulationState {
       highCo2: false,
     },
   };
-}
 
-/** Hardscape bacteria surface area by type (cm²) */
-export const HARDSCAPE_SURFACE: Record<HardscapeType, number> = {
-  neutral_rock: 400,
-  calcite_rock: 400,
-  driftwood: 650,
-  plastic_decoration: 100,
-};
+  if (seed !== undefined) applySeed(state, seed, rng);
+  return state;
+}
 
 /**
  * Calculates initial passive resources from equipment configuration.

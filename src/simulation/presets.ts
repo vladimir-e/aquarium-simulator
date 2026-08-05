@@ -2,7 +2,10 @@
  * Aquarium preset configurations for quick setup.
  */
 
-import type { SimulationConfig, HardscapeItem } from '../simulation/state.js';
+import type { SimulationConfig, SimulationState } from './state.js';
+import type { HardscapeItem } from './equipment/hardscape.js';
+import { createSimulation } from './state.js';
+import type { PresetSeed } from './seed.js';
 
 export type PresetId = 'bare' | 'betta' | 'planted' | 'community' | 'angelfish';
 
@@ -10,6 +13,8 @@ export interface PresetDefinition {
   id: PresetId;
   name: string;
   config: SimulationConfig;
+  /** State the tank starts at — a colony, a roster, a scape. */
+  seed?: PresetSeed;
 }
 
 // Helper to create hardscape items with unique IDs
@@ -71,6 +76,7 @@ export const PRESETS: PresetDefinition[] = [
       co2Generator: { enabled: false },
       powerhead: { enabled: false },
     },
+    seed: { bacteria: 'cycled' },
   },
   {
     id: 'planted',
@@ -104,6 +110,7 @@ export const PRESETS: PresetDefinition[] = [
       },
       powerhead: { enabled: false },
     },
+    seed: { bacteria: 'cycled' },
   },
   {
     id: 'community',
@@ -141,6 +148,7 @@ export const PRESETS: PresetDefinition[] = [
       co2Generator: { enabled: false },
       powerhead: { enabled: false },
     },
+    seed: { bacteria: 'cycled' },
   },
   {
     id: 'angelfish',
@@ -174,6 +182,7 @@ export const PRESETS: PresetDefinition[] = [
       co2Generator: { enabled: false },
       powerhead: { enabled: false },
     },
+    seed: { bacteria: 'cycled' },
   },
 ];
 
@@ -181,6 +190,17 @@ export const DEFAULT_PRESET_ID: PresetId = 'planted';
 
 export function getPresetById(id: PresetId): PresetDefinition | undefined {
   return PRESETS.find((p) => p.id === id);
+}
+
+/**
+ * The tank a preset builds: its configuration and the state it starts at.
+ * The one place both halves of a preset are read together.
+ */
+export function createPresetSimulation(
+  preset: PresetDefinition,
+  rng?: () => number
+): SimulationState {
+  return createSimulation(preset.config, preset.seed, rng);
 }
 
 /** The one place a preset id becomes the words every surface shows for it. */

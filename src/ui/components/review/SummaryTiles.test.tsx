@@ -85,13 +85,6 @@ describe('SummaryTiles', () => {
     expect(screen.queryByText('NH₃')).toBeNull();
   });
 
-  it('suppresses a stale alert chip after a preset switch zeroes the count', () => {
-    // loadPreset resets aggregates but retains logs; a pre-run warning must not
-    // chip next to "alerts 0".
-    renderTiles({ ...base, alerts: 0 }, [ammoniaWarning(36)]);
-    expect(screen.queryByText('NH₃')).toBeNull();
-  });
-
   it('parks the cursor on the tick the latest alert names', () => {
     const onScrubToTick = renderTiles(base, [ammoniaWarning(21), ammoniaWarning(29)]);
     fireEvent.click(screen.getByRole('button', { name: 'latest T29' }));

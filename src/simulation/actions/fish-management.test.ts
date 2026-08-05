@@ -7,7 +7,8 @@ import {
   getMaxFishMass,
   totalFishMass,
 } from './fish-management.js';
-import { createSimulation, FISH_SPECIES_DATA, type SimulationState, type Fish } from '../state.js';
+import { createSimulation, type SimulationState, type Fish } from '../state.js';
+import { FISH_SPECIES_DATA } from '../livestock/species.js';
 import { produce } from 'immer';
 
 function makeState(): SimulationState {

@@ -33,6 +33,34 @@ The engine is pure and immutable: `tick(state)` returns a new state and never
 mutates its input, so you own persistence, scheduling, and rendering. See the
 [`docs/`](docs/) folder for the full API surface and simulation model.
 
+### Starting a tank at a state
+
+A fresh tank is empty and uncycled. Pass a `PresetSeed` to start it wherever
+you want to watch it from — a colony, a part-spent bed, chemistry stocks, fish
+at an age and sex, plants at a size — and it needs no simulated weeks to get
+there. A tank that says `bacteria: 'cycled'` starts a month into its life, so
+it opens on a nitrate reading as well as a biofilter.
+
+```ts
+import { createSimulation, createPresetSimulation, getPresetById } from 'aquarium-simulator';
+
+const stocked = createSimulation(
+  { tankCapacity: 150 },
+  {
+    bacteria: 'cycled', // a month in: colony, bed and nitrate, sized to this tank
+    fish: [{ species: 'neon_tetra', count: 12 }],
+    plants: [{ species: 'java_fern', count: 3, size: 100 }],
+  }
+);
+
+// The tanks the app ships — `PRESETS` pairs each config with its starting state.
+const planted = createPresetSimulation(getPresetById('planted')!);
+```
+
+Nothing in a seed is validated or clamped, so a scenario can construct states
+no keeper could reach. A third `rng` argument makes the roster's individual
+variation reproducible.
+
 ## Setup
 
 ```bash

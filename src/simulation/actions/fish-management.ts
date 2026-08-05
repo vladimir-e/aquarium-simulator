@@ -3,8 +3,9 @@
  */
 
 import { produce } from 'immer';
-import type { SimulationState, FishSpecies, Fish } from '../state.js';
-import { FISH_SPECIES_DATA } from '../state.js';
+import type { SimulationState, Fish } from '../state.js';
+import type { FishSpecies } from '../livestock/species.js';
+import { FISH_SPECIES_DATA } from '../livestock/species.js';
 import { createLog } from '../core/logging.js';
 import { createFish } from '../livestock/create-fish.js';
 import type { ActionResult, AddFishAction, RemoveFishAction } from './types.js';

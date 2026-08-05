@@ -15,8 +15,9 @@
  * its own ceiling.
  */
 
-import type { Plant, PlantSpecies } from '../state.js';
-import { PLANT_SPECIES_DATA } from '../state.js';
+import type { Plant } from '../state.js';
+import type { PlantSpecies } from '../plants/species.js';
+import { PLANT_SPECIES_DATA } from '../plants/species.js';
 import type { PlantsConfig } from '../config/plants.js';
 import { plantsDefaults } from '../config/plants.js';
 

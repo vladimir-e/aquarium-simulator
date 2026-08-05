@@ -4,8 +4,7 @@ import { getSubstrateSurface, type SubstrateType } from './substrate.js';
 import { createSimulation, type SimulationState } from '../state.js';
 import { FILTER_SURFACE, getFilterFlow } from './filter.js';
 import { POWERHEAD_FLOW_LPH } from './powerhead.js';
-import { HARDSCAPE_SURFACE } from '../state.js';
-import type { HardscapeItem } from '../state.js';
+import { HARDSCAPE_SURFACE, type HardscapeItem } from './hardscape.js';
 
 describe('calculatePassiveResources', () => {
   describe('surface calculation', () => {

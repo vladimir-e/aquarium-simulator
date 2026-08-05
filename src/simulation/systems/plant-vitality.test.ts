@@ -9,7 +9,8 @@ import { calculateNutrientSufficiency } from './nutrients.js';
 import { plantsDefaults } from '../config/plants.js';
 import { nutrientsDefaults } from '../config/nutrients.js';
 import { getMassFromPpm } from '../resources/helpers.js';
-import type { Plant, PlantSpecies, Resources } from '../state.js';
+import type { Plant, Resources } from '../state.js';
+import type { PlantSpecies } from '../plants/species.js';
 
 function makePlant(species: PlantSpecies, overrides: Partial<Plant> = {}): Plant {
   return {

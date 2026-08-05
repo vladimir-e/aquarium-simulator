@@ -1,7 +1,7 @@
 import React from 'react';
 import { RotateCcw } from 'lucide-react';
 import type { PresetCard } from '../../build';
-import type { PresetId } from '../../presets.js';
+import type { PresetId } from '../../../simulation/presets.js';
 import { Pill, RunButton } from '../run/elements';
 import { CONTROL_FOCUS } from '../ui/focus';
 
@@ -19,21 +19,21 @@ function Build({ card }: { card: PresetCard }): React.JSX.Element {
 
 /**
  * Every preset, each naming the tank it sets up. The loaded one is not a switch
- * target — it carries the drift indicator and the restore instead, and once the
- * tank has drifted its build line is the restore target rather than the tank.
+ * target — it carries the drift indicator and the rebuild instead, and once the
+ * tank has drifted its build line describes the rebuild rather than the tank.
  */
 export function PresetPicker({
   cards,
   current,
   modified,
   onSelect,
-  onRestore,
+  onRebuild,
 }: {
   cards: PresetCard[];
   current: PresetId;
   modified: boolean;
   onSelect: (id: PresetId) => void;
-  onRestore: () => void;
+  onRebuild: () => void;
 }): React.JSX.Element {
   return (
     <ul className="flex flex-col gap-2">
@@ -55,11 +55,11 @@ export function PresetPicker({
             {modified && (
               <>
                 <p className="mt-1 text-[11px] leading-[1.5] text-ink-3">
-                  what Restore puts back — the tank has moved since
+                  the tank has moved from this build
                 </p>
-                <RunButton className="mt-2.5" onClick={onRestore}>
+                <RunButton className="mt-2.5" onClick={onRebuild}>
                   <RotateCcw className="h-3.5 w-3.5" />
-                  Restore defaults
+                  Rebuild
                 </RunButton>
               </>
             )}

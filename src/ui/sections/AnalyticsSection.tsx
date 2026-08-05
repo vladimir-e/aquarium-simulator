@@ -62,7 +62,7 @@ export function AnalyticsSection({
   const filter = readFilter(params.get(LOG_PARAM));
   const activeChart = readChart(params.get(CHART_PARAM));
 
-  const logs = sim.runLogs;
+  const logs = sim.state.logs;
   const windowHistory = useMemo(
     () => sliceHistory(sim.history, reviewWindow),
     [sim.history, reviewWindow]

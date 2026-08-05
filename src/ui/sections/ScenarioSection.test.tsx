@@ -3,25 +3,27 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, fireEvent, cleanup, within } from '@testing-library/react';
 import { ScenarioSection } from './ScenarioSection';
 import { UnitsProvider, useUnits } from '../hooks/useUnits';
-import { PresetSwitchProvider } from '../hooks/usePresetSwitch';
+import { PresetLoadProvider } from '../hooks/usePresetLoad';
 import { PersistenceProvider } from '../persistence/index.js';
 import { RESET_CONFIRM_TICKS, scenarioSummary } from '../build';
 import { navFigures } from '../nav/figures';
 import { emptyAggregates } from '../run';
 import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
-import { applyAction, createSimulation, type SimulationState } from '../../simulation/index.js';
+import { applyAction, type SimulationState } from '../../simulation/index.js';
 import type { useSimulation } from '../hooks/useSimulation';
-import { getPresetById, type PresetId } from '../presets.js';
+import { type PresetId } from '../../simulation/presets.js';
 import { stubSim } from '../test/stubSim';
+import { presetTank } from '../test/presetTank';
 
 afterEach(() => {
   globalThis.localStorage.clear();
   cleanup();
 });
 
-const planted: SimulationState = createSimulation(getPresetById('planted')!.config);
+const planted = presetTank('planted');
+const progressed = presetTank('planted', { days: 5 });
 
-/** The planted tank with its heater switched on — drift the restore would undo. */
+/** The planted tank with its heater switched on — drift a rebuild would clear. */
 const heated: SimulationState = {
   ...planted,
   equipment: {
@@ -48,9 +50,9 @@ function renderSection(
     <PersistenceProvider>
       <UnitsProvider>
         <ForceUnits />
-        <PresetSwitchProvider current="planted" onLoad={onLoad}>
+        <PresetLoadProvider current="planted" state={sim.state} onLoad={onLoad}>
           <ScenarioSection sim={sim} config={DEFAULT_CONFIG} />
-        </PresetSwitchProvider>
+        </PresetLoadProvider>
       </UnitsProvider>
     </PersistenceProvider>
   );
@@ -77,13 +79,24 @@ describe('ScenarioSection', () => {
 
   it('sends a preset pick through the confirmation rather than loading it', () => {
     const onLoad = vi.fn();
-    renderSection(stubSim(planted), onLoad);
+    renderSection(stubSim(progressed), onLoad);
 
     fireEvent.click(screen.getByRole('button', { name: /Bare Tank/ }));
     expect(onLoad).not.toHaveBeenCalled();
-    expect(screen.getByText('Switch preset?')).toBeTruthy();
+    expect(screen.getByText('Start a new tank?')).toBeTruthy();
+    expect(screen.getByText(/Starts “Bare Tank” as a new tank at hour zero\./)).toBeTruthy();
+    expect(screen.getByText(/5d — goes/)).toBeTruthy();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Switch' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Start' }));
+    expect(onLoad).toHaveBeenCalledWith('bare');
+  });
+
+  it('loads without interrupting when the tank has nothing to lose', () => {
+    const onLoad = vi.fn();
+    renderSection(stubSim(planted), onLoad);
+
+    fireEvent.click(screen.getByRole('button', { name: /Bare Tank/ }));
+    expect(screen.queryByText('Start a new tank?')).toBeNull();
     expect(onLoad).toHaveBeenCalledWith('bare');
   });
 
@@ -91,39 +104,39 @@ describe('ScenarioSection', () => {
     renderSection(stubSim(planted));
     expect(screen.getByText('current')).toBeTruthy();
     expect(screen.queryByText('modified')).toBeNull();
-    expect(screen.queryByRole('button', { name: /Restore defaults/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /Rebuild/ })).toBeNull();
   });
 
-  it('flags the drift and offers the way back once the tank has moved', () => {
+  it('flags the drift and offers the rebuild once the tank has moved', () => {
     const onLoad = vi.fn();
-    renderSection(stubSim(heated), onLoad);
+    renderSection(stubSim({ ...heated, tick: 5 * 24 }), onLoad);
 
     expect(screen.getByText('modified')).toBeTruthy();
     expect(screen.queryByText('current')).toBeNull();
 
-    fireEvent.click(screen.getByRole('button', { name: /Restore defaults/ }));
+    // Rebuilding the loaded preset is a load like any other, dialog and all.
+    fireEvent.click(screen.getByRole('button', { name: /Rebuild/ }));
     expect(onLoad).not.toHaveBeenCalled();
-    expect(screen.getByText('Restore defaults?')).toBeTruthy();
-    expect(screen.getByText(/back to the “Planted Tank” defaults/)).toBeTruthy();
+    expect(screen.getByText(/Starts “Planted Tank” as a new tank at hour zero\./)).toBeTruthy();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Restore' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Start' }));
     expect(onLoad).toHaveBeenCalledWith('planted');
   });
 
-  it('does not call stocking drift — no preset carries fish, so none can restore them', () => {
+  it('does not call stocking drift — the badge is about the build, not the tank’s life', () => {
     const stocked = applyAction(planted, { type: 'addFish', species: 'neon_tetra' }).state;
     renderSection(stubSim(stocked));
 
     expect(screen.getByText('current')).toBeTruthy();
-    expect(screen.queryByRole('button', { name: /Restore defaults/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /Rebuild/ })).toBeNull();
   });
 
-  it('names the drifted card’s build line as the restore target, not the live tank', () => {
+  it('names the drifted card’s build line as the rebuild target, not the live tank', () => {
     renderSection(stubSim({ ...heated, tank: { ...heated.tank, capacity: 150 } }));
 
-    // The header quotes the live tank; the card quotes what Restore would build.
+    // The header quotes the live tank; the card quotes what Rebuild would build.
     expect(screen.getByRole('heading', { level: 1 }).parentElement?.textContent).toContain('150 L');
-    expect(screen.getByText(/what Restore puts back/)).toBeTruthy();
+    expect(screen.getByText(/moved from this build/)).toBeTruthy();
   });
 
   it('resets without interrupting inside the confirmation threshold', () => {
@@ -225,7 +238,7 @@ describe('ScenarioSection', () => {
       state: planted,
       config: DEFAULT_CONFIG,
       aggregates: emptyAggregates(),
-      runLogs: planted.logs,
+      logs: planted.logs,
       presetName: 'Planted Tank',
       presetModified: false,
       units: 'metric',

@@ -2,7 +2,9 @@
  * The run summary, derived once. The Analytics tiles render these and the index
  * rail's Analytics row reads the same list, so the rail and the stage cannot
  * quote different run lengths. Every figure is a run aggregate or a tick read
- * off the log that produced it — nothing here re-counts the engine.
+ * off the log that produced it — nothing here re-counts the engine. The counts
+ * and the transcript are the same run's: every path that rebaselines the
+ * aggregates replaces the log in the same commit.
  */
 
 import type { LogEntry } from '../../simulation/index.js';
@@ -53,10 +55,8 @@ export function runSummary(
   logs: LogEntry[],
   units: UnitSystem
 ): Record<SummaryTileId, SummaryTile> {
-  // Scope to the current run: loadPreset zeroes the counts but keeps prior
-  // logs, so a stale warning must not chip next to "alerts 0".
-  const alert = aggregates.alerts > 0 ? latestAlert(logs) : null;
-  const lastDeath = aggregates.deaths > 0 ? lastEventTick(logs, 'fish-died') : null;
+  const alert = latestAlert(logs);
+  const lastDeath = lastEventTick(logs, 'fish-died');
 
   return {
     run: {

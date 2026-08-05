@@ -23,7 +23,7 @@ function figuresFor(state: SimulationState): Record<SectionId, NavFigure> {
     presetModified: false,
     units: 'metric',
     aggregates: { ticks: 1622, deaths: 2, births: 18, frySold: 0, alerts: 6, waterChangedL: 340 },
-    runLogs: state.logs,
+    logs: state.logs,
   });
 }
 

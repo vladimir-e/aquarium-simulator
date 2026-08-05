@@ -12,27 +12,10 @@ export type {
   LidType,
   Lid,
   AutoTopOff,
-  HardscapeType,
-  HardscapeItem,
-  Hardscape,
-  Light,
   Equipment,
-  LogEntry,
-  LogSeverity,
-  LogEvent,
   AlertState,
   Plant,
-  PlantSpecies,
-  PlantSpeciesData,
-  NutrientDemand,
-  AutoDoser,
   Fish,
-  FishSpecies,
-  FishSpeciesData,
-  FishSex,
-  FishLifeStage,
-  BreedingMode,
-  FishBreedingData,
   Clutch,
   AlgaeState,
 } from './state.js';
@@ -43,12 +26,46 @@ export {
   DEFAULT_HEATER,
   DEFAULT_LID,
   DEFAULT_ATO,
-  DEFAULT_HARDSCAPE,
   DEFAULT_LIGHT,
-  HARDSCAPE_SURFACE,
-  PLANT_SPECIES_DATA,
-  FISH_SPECIES_DATA,
 } from './state.js';
+
+// Logging
+export type { LogEntry, LogSeverity, LogEvent } from './core/logging.js';
+
+// Species
+export type { PlantSpecies, PlantSpeciesData, NutrientDemand } from './plants/species.js';
+export { PLANT_SPECIES_DATA } from './plants/species.js';
+export type {
+  FishSpecies,
+  FishSpeciesData,
+  FishSex,
+  FishLifeStage,
+  BreedingMode,
+  FishBreedingData,
+} from './livestock/species.js';
+export { FISH_SPECIES_DATA } from './livestock/species.js';
+
+// Seeding — starting a tank at a state
+export type {
+  PresetSeed,
+  SeedBacteria,
+  SeedColony,
+  SeedSubstrate,
+  SeedResources,
+  SeedFishGroup,
+  SeedPlantGroup,
+} from './seed.js';
+export { cycledColony, cycledNitrate, cycledReserve } from './seed.js';
+
+// Presets
+export type { PresetId, PresetDefinition } from './presets.js';
+export {
+  PRESETS,
+  DEFAULT_PRESET_ID,
+  createPresetSimulation,
+  getPresetById,
+  presetName,
+} from './presets.js';
 
 // Configuration
 export type { TunableConfig } from './config/index.js';
@@ -57,6 +74,7 @@ export { DEFAULT_CONFIG } from './config/index.js';
 // Resources
 export type { ResourceDefinition, ResourceKey } from './resources/index.js';
 export {
+  getMassFromPpm,
   ResourceRegistry,
   AllResources,
   TemperatureResource,
@@ -162,6 +180,9 @@ export {
   DEFAULT_AUTO_DOSER,
   DOSE_AMOUNT_OPTIONS,
   type DoseAmount,
+  type AutoDoser,
+  type Light,
+  type LightWattage,
 } from './equipment/index.js';
 
 // Hardscape
@@ -170,6 +191,11 @@ export {
   calculateHardscapeTotalSurface,
   getHardscapeName,
   getHardscapePHEffect,
+  DEFAULT_HARDSCAPE,
+  HARDSCAPE_SURFACE,
+  type HardscapeType,
+  type HardscapeItem,
+  type Hardscape,
 } from './equipment/hardscape.js';
 
 // Alerts
