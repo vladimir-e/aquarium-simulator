@@ -8,6 +8,7 @@ import {
   totalFishMass,
 } from './fish-management.js';
 import { createSimulation, type SimulationState, type Fish } from '../state.js';
+import { draw } from '../core/rng.js';
 import { FISH_SPECIES_DATA, type FishSpecies } from '../livestock/species.js';
 import { produce } from 'immer';
 
@@ -120,16 +121,18 @@ describe('addFish', () => {
     expect(result.message).toContain('Unknown');
   });
 
-  it('samples hardinessOffset within ±15% of species hardiness, and reaches both ends', () => {
-    const roster = stockedRoster('neon_tetra', 400);
-    const maxAbsOffset = 0.15 * FISH_SPECIES_DATA.neon_tetra.hardiness; // 0.075
-    const offsets = roster.map((f) => f.hardinessOffset);
+  it('offsets hardiness by the tank’s own next draw, over ±15% of the species baseline', () => {
+    const state = makeState(8);
+    const probe = { ...state.rng };
+    draw(probe); // sex
+    const hardinessDraw = draw(probe);
 
-    for (const offset of offsets) {
-      expect(Math.abs(offset)).toBeLessThanOrEqual(maxAbsOffset + 1e-9);
-    }
-    expect(Math.max(...offsets)).toBeGreaterThan(0.9 * maxAbsOffset);
-    expect(Math.min(...offsets)).toBeLessThan(-0.9 * maxAbsOffset);
+    const [stocked] = addFish(state, { type: 'addFish', species: 'neon_tetra' }).state.fish;
+
+    expect(stocked.hardinessOffset).toBeCloseTo(
+      (hardinessDraw - 0.5) * 2 * 0.15 * FISH_SPECIES_DATA.neon_tetra.hardiness,
+      12
+    );
   });
 
   it('offset scales with species hardiness (angelfish vs guppy)', () => {

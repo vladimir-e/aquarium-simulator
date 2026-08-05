@@ -3,10 +3,12 @@
  * physics comes off it: an individual's variation, a scrub's bite, an
  * organism's name.
  *
- * A seed and a counter, both carried on `SimulationState`. A draw is a pure
- * function of `(seed, counter)` and the counter only ever climbs, so there is
- * no generator identity to keep in sync and no closure to lose — the same
- * state always has the same future, across a save and reload included.
+ * A pair rather than a closure because a pair serializes: a saved tank
+ * resumes its stream where a generator identity would have been lost.
+ *
+ * It is an object on the state, so `{ ...state }` aliases it and the two
+ * copies then advance each other's counter. Immer's producers copy it; a
+ * hand-rolled spread has to.
  */
 
 export interface RngState {
@@ -28,12 +30,17 @@ function splitmix32(seed: number, counter: number): number {
   return (z >>> 0) / 0x100000000;
 }
 
+/** Unnamed streams opened so far, so a millisecond can hold more than one. */
+let unnamedStreams = 0;
+
 /**
- * A fresh stream. Without a seed the tank takes a time-derived one, so two
- * tanks are alike only when a caller asks them to be.
+ * A fresh stream. Without a seed the tank takes one off the clock and the
+ * count of streams before it, so two tanks are alike only when a caller asks
+ * them to be.
  */
-export function createRng(seed: number = Date.now()): RngState {
-  return { seed: seed | 0, counter: 0 };
+export function createRng(seed?: number): RngState {
+  const chosen = seed ?? Date.now() + Math.imul(unnamedStreams++, GOLDEN_GAMMA);
+  return { seed: chosen | 0, counter: 0 };
 }
 
 /** Uniform draw in [0, 1). */

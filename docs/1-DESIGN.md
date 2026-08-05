@@ -358,11 +358,13 @@ plants at a size.
   than a seed field, so a seed stays serializable. `SimulationState.rng` is a
   seed and a counter: every draw the tank makes is a pure function of that
   pair and advances the counter by one, so the same state always has the same
-  future — across a save and reload included, which a closure could not
-  survive. `createSimulation`'s `rngSeed` opens that stream at a named point;
-  without one the tank takes a time-derived seed. The draw sequence is the
-  same whether or not a group names its fish's sex, so naming one doesn't
-  reroll the organisms behind it.
+  future — across a save and reload included. `createSimulation`'s `rngSeed`
+  opens that stream at a named point; without one the tank takes the clock and
+  the count of streams opened before it, so two unseeded tanks are never
+  alike. Naming a group's sex doesn't reroll the organisms behind it — the
+  draw is spent either way — but the order of the groups does: reordering a
+  `PresetSeed`'s plants and fish hands every organism a different stretch of
+  the stream.
 - **Organisms are named off the same counter.** A fish, plant or clutch id is
   cut from the stream position, not the clock, so two tanks built on one
   `rngSeed` produce identical ids and a reloaded tank never reissues one it

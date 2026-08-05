@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import {
   bacteriaReadout,
   bacteriaSummary,
@@ -115,16 +115,6 @@ function enginePeak(state: SimulationState): CycleProjection {
   }
   return { hours, ppm };
 }
-
-// Fish arrive with sampled health and hardiness; pinning the sample keeps every
-// fixture below reproducible run to run.
-beforeEach(() => {
-  vi.spyOn(Math, 'random').mockReturnValue(0.5);
-});
-
-afterEach(() => {
-  vi.restoreAllMocks();
-});
 
 describe('biofilterColonisation', () => {
   it('reads both colonies against their combined ceiling', () => {

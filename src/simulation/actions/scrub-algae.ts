@@ -59,25 +59,26 @@ export function scrubAlgae(
   }
 
   const currentMass = state.algae.mass;
+  const rng = { ...state.rng };
+  const percent = action.randomPercent ?? scrubBite(rng);
+  const removed = currentMass * percent;
 
   const newState = produce(state, (draft) => {
-    const percent = action.randomPercent ?? scrubBite(draft.rng);
+    draft.rng = rng;
     // Removed mass exits the system, not added to waste
-    draft.algae.mass = currentMass - currentMass * percent;
+    draft.algae.mass = currentMass - removed;
     draft.logs.push(
       createLog(
         draft.tick,
         'scrub',
         'info',
-        `Scraped algae: removed ${(currentMass - draft.algae.mass).toFixed(1)}, remaining ${draft.algae.mass.toFixed(1)}`
+        `Scraped algae: removed ${removed.toFixed(1)}, remaining ${draft.algae.mass.toFixed(1)}`
       )
     );
   });
 
-  const removed = currentMass - newState.algae.mass;
-
   return {
     state: newState,
-    message: `Removed ${removed.toFixed(1)} algae (${((removed / currentMass) * 100).toFixed(0)}%)`,
+    message: `Removed ${removed.toFixed(1)} algae (${(percent * 100).toFixed(0)}%)`,
   };
 }

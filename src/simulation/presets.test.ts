@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { PRESETS, createPresetSimulation, getPresetById, presetName } from './presets.js';
+import {
+  PRESETS,
+  createPresetSimulation,
+  getPresetById,
+  presetName,
+  type PresetDefinition,
+} from './presets.js';
 import { cycledColony } from './seed.js';
 
 describe('presets', () => {
@@ -41,6 +47,19 @@ describe('presets', () => {
     const bare = createPresetSimulation(getPresetById('bare')!);
     expect(bare.resources.aob).toBe(0);
     expect(bare.resources.nob).toBe(0);
+  });
+
+  it('opens the tank on the stream its caller names, or on one of its own', () => {
+    const preset: PresetDefinition = {
+      id: 'community',
+      name: 'Stocked',
+      config: { tankCapacity: 150 },
+      seed: { fish: [{ species: 'guppy', count: 3 }] },
+    };
+
+    expect(createPresetSimulation(preset, 2026)).toEqual(createPresetSimulation(preset, 2026));
+    expect(createPresetSimulation(preset, 2026)).not.toEqual(createPresetSimulation(preset, 9001));
+    expect(createPresetSimulation(preset).fish).not.toEqual(createPresetSimulation(preset).fish);
   });
 
   it('honours a seed when the preset carries one', () => {

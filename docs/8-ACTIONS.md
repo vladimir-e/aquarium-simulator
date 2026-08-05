@@ -206,7 +206,7 @@ Manually remove algae from glass and surfaces.
 ### Inputs
 | Parameter | Description |
 |-----------|-------------|
-| randomPercent | Optional: the exact share to take off, in place of the drawn one |
+| Percentage | Optional: the exact share to take off, in place of the drawn one |
 
 ### Effects
 | Resource | Change |

@@ -27,9 +27,7 @@ import type { TunableConfig } from '../../simulation/config/index.js';
  *      comes off — and organism ids are cut from that counter rather than
  *      the clock. A v16 tank has no stream to resume, and its ids belong to
  *      a scheme the counter would start colliding with the moment the tank
- *      bred again. Per project policy this is a breaking save format change
- *      with no migration shim — stored sessions are discarded on version
- *      mismatch.
+ *      bred again.
  * v16: Fish flow tolerance is a turnover. `FishSpeciesData.maxFlow`
  *      (absolute L/h) becomes `maxTurnover` (tank volumes/h), and
  *      `LivestockConfig.flowStressSeverity` is redenominated with it —

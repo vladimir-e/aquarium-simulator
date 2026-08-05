@@ -11,7 +11,7 @@ Format: - **Feature name** (#PR) - One short sentence (under ~150 chars)
 
 ## Unreleased
 
-- **A tank runs the same life twice** - randomness moves onto the state as a seed and a counter, so two tanks on one `rngSeed` breed the same fry and name them the same; `Math.random` leaves the engine, and a saved tank resumes its stream instead of restarting it. Breaking: `SimulationState` gains `rng`, `createSimulation`/`createPresetSimulation` take an `rngSeed` number where they took an `rng` function, and `generateFishId` leaves the public API (v17, v4).
+- **A tank runs the same life twice** - randomness is a seed and a counter on the state, so two tanks on one `rngSeed` live the same life, ids included (v17, v4).
 - **The CLI rejects flags it doesn't know** - `sim new --capacity=200` no longer builds the default tank and reports success; each subcommand names the flags it takes.
 - **Loading a preset starts a new tank** - it builds its own simulation at tick 0 rather than retrofitting the running one, and the dialog names what that costs.
 - **Presets open cycled** - every preset but Bare Tank ships a tank a month into its life: a working biofilter, a part-spent bed, and the nitrate to show for it.

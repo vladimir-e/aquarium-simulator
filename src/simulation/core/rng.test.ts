@@ -13,6 +13,12 @@ describe('createRng', () => {
     expect(Number.isInteger(rng.seed)).toBe(true);
   });
 
+  it('opens a stream of its own for every unnamed tank, however fast they are built', () => {
+    const seeds = new Set(Array.from({ length: 1000 }, () => createRng().seed));
+
+    expect(seeds.size).toBe(1000);
+  });
+
   it('keeps the seed inside the word the generator mixes', () => {
     const { seed } = createRng(Number.MAX_SAFE_INTEGER);
 

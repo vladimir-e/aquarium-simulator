@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import { createSimulation } from '../../simulation/index.js';
 import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
 import { getPresetById } from '../../simulation/presets.js';
-import { createSession, loadSession, saveSession, hasSession } from '../session.js';
+import { createSession, loadSession, saveSession, hasSession, SESSION_VERSION } from '../session.js';
 import { appendSnapshot, HISTORY_CAP, snapshot } from '../history.js';
 
 let dir: string;
@@ -22,6 +22,10 @@ afterEach(() => {
 });
 
 describe('session roundtrip', () => {
+  it('SESSION_VERSION is 4', () => {
+    expect(SESSION_VERSION).toBe(4);
+  });
+
   it('creates, saves, and reloads a session', () => {
     const preset = getPresetById('bare');
     expect(preset).toBeDefined();

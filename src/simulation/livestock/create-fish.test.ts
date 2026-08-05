@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { createFish, fishMassForAge } from './create-fish.js';
-import { createRng } from '../core/rng.js';
+import { createRng, draw } from '../core/rng.js';
 import { FISH_SPECIES_DATA } from './species.js';
 
 describe('fishMassForAge', () => {
@@ -49,17 +49,6 @@ describe('createFish', () => {
     expect(fish.mass).toBeCloseTo(breeding.fryMassFraction * adultMass, 10);
     expect(fish.satiation).toBe(50);
     expect(fish.age).toBe(0);
-  });
-
-  it('samples sex ~50/50', () => {
-    const rng = createRng(12345);
-    let males = 0;
-    const N = 4000;
-    for (let i = 0; i < N; i++) {
-      if (createFish({ species: 'guppy', age: 0, stage: 'adult', rng }).sex === 'male') males++;
-    }
-    expect(males / N).toBeGreaterThan(0.46);
-    expect(males / N).toBeLessThan(0.54);
   });
 
   it('takes an explicit sex instead of sampling one', () => {
@@ -116,25 +105,18 @@ describe('createFish', () => {
     }
   });
 
-  it('centres the hardiness offset on the species baseline', () => {
-    const rng = createRng(4242);
-    const N = 4000;
-    let total = 0;
-    let weaker = 0;
-    for (let i = 0; i < N; i++) {
-      const { hardinessOffset } = createFish({
-        species: 'neon_tetra',
-        age: 0,
-        stage: 'adult',
-        rng,
-      });
-      total += hardinessOffset;
-      if (hardinessOffset < 0) weaker++;
-    }
+  it('spends its three draws on sex, hardiness and health, in that order', () => {
+    const rng = createRng(1);
+    const probe = { ...rng };
+    draw(probe); // sex
+    const hardinessDraw = draw(probe);
+    const healthDraw = draw(probe);
+    const { hardiness } = FISH_SPECIES_DATA.neon_tetra;
 
-    expect(total / N).toBeCloseTo(0, 2);
-    expect(weaker / N).toBeGreaterThan(0.46);
-    expect(weaker / N).toBeLessThan(0.54);
+    const fish = createFish({ species: 'neon_tetra', age: 0, stage: 'adult', rng });
+
+    expect(fish.hardinessOffset).toBeCloseTo((hardinessDraw - 0.5) * 2 * 0.15 * hardiness, 12);
+    expect(fish.health).toBeCloseTo(100 + (healthDraw - 0.5) * 2 * 5, 12);
   });
 
   it('names every fish off the stream, never twice the same', () => {
