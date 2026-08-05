@@ -6,7 +6,8 @@
  * A pair rather than a closure because a pair serializes: a saved tank
  * resumes its stream where a generator identity would have been lost.
  *
- * Immer's producers copy the pair for you; a hand-rolled spread has to.
+ * Immer's producers copy the pair for you; a hand-rolled spread has to, or the
+ * two states it separated go on walking one counter.
  */
 
 export interface RngState {

@@ -57,6 +57,8 @@ function generateHardscapeId(): string {
 
 interface UseSimulationReturn {
   state: SimulationState;
+  /** Bumped whenever the tank itself is replaced, never on a reset or a tick. */
+  tankId: number;
   isPlaying: boolean;
   speed: SpeedPreset;
   currentPreset: PresetId;
@@ -202,6 +204,9 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
     }
     return createPresetSimulation(preset);
   });
+
+  const [tankId, setTankId] = useState(0);
+  const replaceTank = useCallback(() => setTankId((id) => id + 1), []);
 
   const [isPlaying, setIsPlaying] = useState(false);
   const [speed, setSpeed] = useState<SpeedPreset>(DEFAULT_SPEED);
@@ -352,12 +357,13 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
 
       setCurrentPreset(presetId);
       resetRun();
+      replaceTank();
 
       const fresh = createPresetSimulation(preset);
       fresh.logs.push(createLog(0, 'user', 'info', `Loaded preset: ${preset.name}`));
       setState(fresh);
     },
-    [isPlaying, stopAutoPlay, resetRun]
+    [isPlaying, stopAutoPlay, resetRun, replaceTank]
   );
 
   /**
@@ -861,6 +867,7 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
         setIsPlaying(false);
       }
       resetRun();
+      replaceTank();
 
       // Reinitialize simulation with new capacity, preserving equipment state
       setState((current) => {
@@ -919,7 +926,7 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
         });
       });
     },
-    [isPlaying, stopAutoPlay, resetRun]
+    [isPlaying, stopAutoPlay, resetRun, replaceTank]
   );
 
   /**
@@ -942,6 +949,7 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
 
   return {
     state,
+    tankId,
     isPlaying,
     speed,
     currentPreset,

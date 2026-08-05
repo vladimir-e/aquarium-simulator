@@ -428,8 +428,8 @@ describe('the age a pair is seeded at, through tick()', () => {
     // A seeded adult is full-mass from tick 0 and never grows, so the young
     // pair banks while it *ages* — and on this ration it is funded long before
     // it is old enough. That funding is the assumption: it holds while
-    // `costFraction × surplusCap` accrues inside the 60 days to maturity, and
-    // only while it does is age alone what holds the pair back.
+    // `costFraction × surplusCap` accrues inside `maturityAge`, and only while
+    // it does is age alone what holds the pair back.
     expect(young).toBe(maturityAge);
   });
 });

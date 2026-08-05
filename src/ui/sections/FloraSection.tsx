@@ -33,7 +33,7 @@ export function FloraSection({
 }): React.JSX.Element {
   const isMobile = useIsMobile();
   const { state } = sim;
-  const [expanded, toggle] = useExpandedRows(state);
+  const [expanded, toggle] = useExpandedRows(sim.tankId);
 
   const rows = useMemo(() => plantRows(state, config), [state, config]);
   const algae = useMemo(() => algaeRow(state, config), [state, config]);

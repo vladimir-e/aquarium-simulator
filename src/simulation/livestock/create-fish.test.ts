@@ -121,14 +121,23 @@ describe('createFish', () => {
 
     const fish = createFish({ species: 'neon_tetra', age: 0, stage: 'adult', rng });
 
-    // Seed 1 opens at 0.527 — just over the even split, so a split moved in
-    // either direction hands this fish the other sex.
     expect(fish.sex).toBe(sexDraw < 0.5 ? 'male' : 'female');
     expect(fish.hardinessOffset).toBeCloseTo(
       (hardinessDraw - 0.5) * 2 * HARDINESS_OFFSET_SPAN * hardiness,
       12
     );
     expect(fish.health).toBeCloseTo(100 + (healthDraw - 0.5) * 2 * 5, 12);
+
+    // Seed 1 straddles the even split: 0.527 at the position this fish read,
+    // 0.368 one on. A fish either side closes both directions — raise the
+    // split and the one above flips, lower it and this one does.
+    const belowTheSplit = createFish({
+      species: 'neon_tetra',
+      age: 0,
+      stage: 'adult',
+      rng: { ...rng, counter: 1 },
+    });
+    expect(belowTheSplit.sex).toBe('male');
   });
 
   it('names every fish off the stream, never twice the same', () => {

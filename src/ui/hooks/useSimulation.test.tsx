@@ -373,6 +373,22 @@ describe('useSimulation', () => {
       expect(result.current.currentPreset).toBe('betta');
     });
 
+    it('takes a new tank identity on a swap, and keeps it through a reset', () => {
+      const { result } = renderHook(() => useSimulation('betta'), { wrapper });
+      const opened = result.current.tankId;
+
+      act(() => result.current.step());
+      act(() => result.current.reset());
+      expect(result.current.tankId).toBe(opened);
+
+      act(() => result.current.loadPreset('planted'));
+      const loaded = result.current.tankId;
+      expect(loaded).not.toBe(opened);
+
+      act(() => result.current.changeTankCapacity(120));
+      expect(result.current.tankId).not.toBe(loaded);
+    });
+
     it('reset clears in-flight clutches (time-anchored)', () => {
       seedSessionWithClutch('planted');
       const { result } = renderHook(() => useSimulation(), { wrapper });

@@ -39,8 +39,10 @@ function tank(): SimulationState {
  * reading — the projection would then be judged against a different tank than
  * the one it was taken from.
  *
- * Hardiness is flattened for the same reason `flowReading` flattens it: these
- * readings are about the biofilter, not about the luck of six draws.
+ * Hardiness is flattened for the same reason: it scales every stressor for the
+ * whole of a fish's life, so an unlucky draw can carry one of the six under
+ * somewhere in those months and drop the bioload mid-reading. The health
+ * jitter stays — ±5 points a fish recovers within days move nothing.
  */
 function stocked(): SimulationState {
   return produce(stock(tank(), 'neon_tetra', 6, { sex: 'male' }), (draft) => {

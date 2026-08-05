@@ -130,6 +130,7 @@ describe('groupBySpecies', () => {
     }).state;
     const [neon] = groupBySpecies(bought, livestockDefaults);
 
+    expect(neon.ageDays).toBeGreaterThan(0);
     expect(neon.ageDays).toBe(FISH_SPECIES_DATA.neon_tetra.breeding.maturityAge / 24);
   });
 });

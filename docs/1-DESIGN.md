@@ -366,14 +366,16 @@ plants at a size.
   pair and advances the counter by one, so the same state always has the same
   future — across a save and reload included. `createSimulation`'s `rngSeed`
   opens that stream at a named point; without one the tank takes the clock and
-  the count of streams opened before it, so no two tanks a process opens are
-  alike. (That count is module state, so two processes — two browser tabs —
-  have only the clock between them.) Naming a group's sex doesn't reroll the
-  organisms behind it — the draw is spent either way — but the order of the
-  groups does: reordering the entries *within* `seed.fish`, or within
-  `seed.plants`, hands every organism after the swap a different stretch of
-  the stream. The two keys themselves are applied in fixed code order, fish
-  then plants, whatever order the seed lists them in.
+  the count of streams opened before it, so two tanks a process opens are all
+  but certain to differ: they collide only if the milliseconds between them
+  exactly cancel the golden-ratio step their counts are apart. (That count is
+  module state, so two processes — two browser tabs — have only the clock
+  between them.) Naming a group's sex doesn't reroll the organisms behind it —
+  the draw is spent either way — but the order of the groups does: reordering
+  the entries *within* `seed.fish`, or within `seed.plants`, hands every
+  organism after the swap a different stretch of the stream. The two keys
+  themselves are applied in fixed code order, fish then plants, whatever order
+  the seed lists them in.
 - **Organisms are named off the same counter.** A fish, plant or clutch id is
   cut from the stream position alone — not from the clock, and not from the
   seed. A reloaded tank never reissues an id it already gave out, but the

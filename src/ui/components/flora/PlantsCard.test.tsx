@@ -2,7 +2,6 @@ import React from 'react';
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import { PlantsCard } from './PlantsCard';
-import { createSimulation } from '../../../simulation/index.js';
 import { useExpandedRows } from '../../hooks/useExpandedRows';
 import type { AlgaeRow, PlantRow } from '../../run';
 
@@ -35,10 +34,8 @@ function algae(net: number): AlgaeRow {
 }
 
 /** The card as its section wires it: disclosure is the section's state. */
-const tank = createSimulation({ tankCapacity: 40 });
-
 function Disclosed({ rows, algae }: { rows: PlantRow[]; algae: AlgaeRow }): React.JSX.Element {
-  const [expanded, toggle] = useExpandedRows(tank);
+  const [expanded, toggle] = useExpandedRows(0);
   return (
     <PlantsCard
       rows={rows}

@@ -28,7 +28,7 @@ export function LivestockSection({
   const { unitSystem } = useUnits();
 
   const { state } = sim;
-  const [expanded, toggle] = useExpandedRows(state);
+  const [expanded, toggle] = useExpandedRows(sim.tankId);
   const rows = useMemo(
     () => rosterRows(state, config.livestock, expanded),
     [state, config.livestock, expanded]

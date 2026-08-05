@@ -25,7 +25,7 @@ Format: - **Feature name** (#PR) - One short sentence (under ~150 chars)
 - **Colonisation reads as headroom** - share of the surface ceiling is the room a colony has left, not the headline a healthy tank sat at 1 % of.
 - **Processing capacity** - a bacterium clears the same ammonia in a nano as in a stock tank, and 18 °C takes twice the days to cycle that 25 °C does.
 - **Nitrogen cycle** - a fresh tank cycles in about three weeks at any volume, on organics leaching from the bed; no biofilter dies for keeping up.
-- **`processEquipment` requires a config** - breaking: the old default ran on `decayDefaults` whatever the caller tuned; `TunableConfig` is exported.
+- **`processEquipment` requires a config** - breaking: the old default ran on `decayDefaults` whatever the caller tuned; `DEFAULT_CONFIG` is exported.
 - **`formatDosePreview` removed from the public API** - breaking: string formatting living in the engine; the Flora section derives the preview now.
 - **Action previews include dissolved gases** - water changes now show what they do to O₂ and CO₂, not just temperature and pH.
 - **Actions sheet** - one transient surface for all six husbandry verbs, previewing each by applying the action and diffing the engine's own readings.

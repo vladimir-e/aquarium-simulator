@@ -518,7 +518,7 @@ Fish {
     species: String
     mass: Number (grams; full for adults, age-interpolated for fry)
     sex: Male | Female
-    stage: fry | adult        // only adults breed
+    stage: fry | adult        // breeding asks the age too
     age: Number (ticks)
     health: 0-100             // condition in vitality terms
     satiation: 0-100          // 0 = starving, 100 = stuffed

@@ -72,6 +72,7 @@ function renderFlora(state: SimulationState): Spy {
   const spy: Spy = { actions: [], hardscape: [], substrate: [], removed: [] };
   const sim = {
     state,
+    tankId: 0,
     executeAction: (action: Action) => spy.actions.push(action),
     addHardscapeItem: (type: string) => spy.hardscape.push(type),
     removeHardscapeItem: (id: string) => spy.removed.push(id),

@@ -76,10 +76,6 @@ describe('scrubAlgae', () => {
     // Test with MAX percent
     const maxResult = scrubAlgae(state, { type: 'scrubAlgae', randomPercent: MAX_SCRUB_PERCENT });
     expect(maxResult.state.algae.mass).toBe(70); // 100 - 100*0.3 = 70
-
-    // A named percent takes no bite out of the stream, so the UI's own scrubs
-    // can't walk the tank's randomness forward behind the player's back.
-    expect(minResult.state.rng).toEqual(state.rng);
   });
 
   it('removes 10% at minimum percent', () => {
@@ -204,6 +200,14 @@ describe('scrubAlgae', () => {
       const state = createStateWithAlgae(4, 4242);
 
       expect(scrubAlgae(state, { type: 'scrubAlgae' }).state.rng).toEqual(state.rng);
+    });
+
+    it('takes no draw at all when the percent is named, so a preview cannot walk it', () => {
+      const state = createStateWithAlgae(100, 4242);
+
+      expect(scrubAlgae(state, { type: 'scrubAlgae', randomPercent: 0.2 }).state.rng).toEqual(
+        state.rng
+      );
     });
 
     it('spans the whole 10–30 % band across a run of scrubs', () => {
