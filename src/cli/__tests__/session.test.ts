@@ -3,10 +3,10 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { createSimulation } from '../../simulation/index.js';
+import { createSimulation, type SimulationState } from '../../simulation/index.js';
 import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
 import { getPresetById } from '../../simulation/presets.js';
-import { createSession, loadSession, saveSession, hasSession, SESSION_VERSION } from '../session.js';
+import { createSession, loadSession, saveSession, hasSession } from '../session.js';
 import { appendSnapshot, HISTORY_CAP, snapshot } from '../history.js';
 
 let dir: string;
@@ -22,10 +22,6 @@ afterEach(() => {
 });
 
 describe('session roundtrip', () => {
-  it('SESSION_VERSION is 4', () => {
-    expect(SESSION_VERSION).toBe(4);
-  });
-
   it('creates, saves, and reloads a session', () => {
     const preset = getPresetById('bare');
     expect(preset).toBeDefined();
@@ -97,6 +93,20 @@ describe('session roundtrip', () => {
       livestock: { ...DEFAULT_CONFIG.livestock, flowStressSeverity: staleSeverity },
     });
     saveSession({ ...session, version: 2 }, { path });
+
+    expect(() => loadSession({ path })).toThrow(/Unsupported session version/);
+  });
+
+  it('rejects a stale v3 session, which carries no draw stream at all', () => {
+    // v3 predates `SimulationState.rng`. The shape parses — the field is
+    // simply absent — so a v3 session that loaded would hand the first fish
+    // it stocked or bred an undefined stream to draw from.
+    const preset = getPresetById('bare')!;
+    const { rng, ...streamless } = createSimulation(preset.config);
+    expect(rng).toBeDefined();
+
+    const session = createSession(streamless as SimulationState, DEFAULT_CONFIG);
+    saveSession({ ...session, version: 3 }, { path });
 
     expect(() => loadSession({ path })).toThrow(/Unsupported session version/);
   });

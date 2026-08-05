@@ -6,9 +6,7 @@
  * A pair rather than a closure because a pair serializes: a saved tank
  * resumes its stream where a generator identity would have been lost.
  *
- * It is an object on the state, so `{ ...state }` aliases it and the two
- * copies then advance each other's counter. Immer's producers copy it; a
- * hand-rolled spread has to.
+ * Immer's producers copy the pair for you; a hand-rolled spread has to.
  */
 
 export interface RngState {
@@ -35,8 +33,9 @@ let unnamedStreams = 0;
 
 /**
  * A fresh stream. Without a seed the tank takes one off the clock and the
- * count of streams before it, so two tanks are alike only when a caller asks
- * them to be.
+ * count of streams opened before it, so two tanks in one process are alike
+ * only when a caller asks them to be. The count is module state: separate
+ * processes — two browser tabs — have only the clock between them.
  */
 export function createRng(seed?: number): RngState {
   const chosen = seed ?? Date.now() + Math.imul(unnamedStreams++, GOLDEN_GAMMA);

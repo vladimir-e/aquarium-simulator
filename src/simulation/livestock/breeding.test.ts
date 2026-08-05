@@ -421,11 +421,15 @@ describe('the age a pair is seeded at, through tick()', () => {
     const grown = firstBirthTick(maturityAge, hours);
     const young = firstBirthTick(0, hours);
 
-    // The grown pair only has to fund the spawn.
+    // The grown pair only has to fund the spawn; the young one has to fund it
+    // and then wait out the age it was seeded short of.
     expect(grown).not.toBeNull();
-    expect(grown!).toBeLessThan(maturityAge);
-    // The young pair banks its surplus while it grows, so age alone holds it:
-    // it breeds the first tick it is old enough.
+    expect(grown!).toBeLessThan(young!);
+    // A seeded adult is full-mass from tick 0 and never grows, so the young
+    // pair banks while it *ages* — and on this ration it is funded long before
+    // it is old enough. That funding is the assumption: it holds while
+    // `costFraction × surplusCap` accrues inside the 60 days to maturity, and
+    // only while it does is age alone what holds the pair back.
     expect(young).toBe(maturityAge);
   });
 });

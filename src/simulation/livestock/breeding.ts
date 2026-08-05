@@ -95,9 +95,7 @@ function hatchClutches(draft: SimulationState): void {
       continue;
     }
     for (let i = 0; i < clutch.eggCount; i++) {
-      draft.fish.push(
-        createFish({ species: clutch.species, age: 0, stage: 'fry', rng: draft.rng })
-      );
+      draft.fish.push(createFish({ species: clutch.species, stage: 'fry', rng: draft.rng }));
     }
     draft.logs.push(
       createLog(
@@ -173,7 +171,7 @@ function spawn(
 
       if (breeding.mode === 'livebearer') {
         for (let i = 0; i < breeding.clutchSize; i++) {
-          draft.fish.push(createFish({ species, age: 0, stage: 'fry', rng: draft.rng }));
+          draft.fish.push(createFish({ species, stage: 'fry', rng: draft.rng }));
         }
         draft.logs.push(
           createLog(

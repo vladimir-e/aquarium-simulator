@@ -1,6 +1,7 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import type { TunableConfig } from '../../simulation/config/index.js';
 import type { useSimulation } from '../hooks/useSimulation';
+import { useExpandedRows } from '../hooks/useExpandedRows';
 import { useIsMobile } from '../hooks/useMediaQuery';
 import { useUnits } from '../hooks/useUnits';
 import { Stage } from '../components/layout/Stage';
@@ -25,22 +26,15 @@ export function LivestockSection({
 }): React.JSX.Element {
   const isMobile = useIsMobile();
   const { unitSystem } = useUnits();
-  const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set());
 
   const { state } = sim;
+  const [expanded, toggle] = useExpandedRows(state);
   const rows = useMemo(
     () => rosterRows(state, config.livestock, expanded),
     [state, config.livestock, expanded]
   );
   const load = useMemo(() => bioload(state.fish, state.tank.capacity), [state]);
   const fryCount = countFry(state.fish);
-
-  const toggle = (key: string): void =>
-    setExpanded((current) => {
-      const next = new Set(current);
-      if (!next.delete(key)) next.add(key);
-      return next;
-    });
 
   return (
     <Stage

@@ -18,6 +18,7 @@ import {
   PERSISTENCE_VERSION,
   STORAGE_KEY,
   type PersistedSimulation,
+  type PersistedState,
 } from '../persistence/types.js';
 import { snapshotFromState } from '../run/index.js';
 
@@ -27,7 +28,7 @@ function seedSession(
   presetId: PresetId,
   overrides: Partial<PersistedSimulation> = {}
 ): void {
-  const persisted = {
+  const persisted: PersistedState = {
     version: PERSISTENCE_VERSION,
     simulation: {
       tick: state.tick,
@@ -410,11 +411,10 @@ describe('useSimulation', () => {
 
       // The tank is the preset's own, to the field: nothing of the 40 L planted
       // tank survives the load, and nothing the preset does not build appears.
-      // Every field but the stream, which each unseeded tank opens for itself.
-      const fresh = createPresetSimulation(getPresetById('community')!);
+      // Built again on the stream this load opened, the two are the same tank.
       const after = result.current.state;
-      expect({ ...after, logs: [], rng: fresh.rng }).toEqual({ ...fresh, logs: [] });
-      expect(after.rng.counter).toBe(0);
+      const fresh = createPresetSimulation(getPresetById('community')!, after.rng.seed);
+      expect({ ...after, logs: [] }).toEqual({ ...fresh, logs: [] });
       expect(after.rng.seed).not.toBe(before.rng.seed);
       expect(result.current.currentPreset).toBe('community');
 

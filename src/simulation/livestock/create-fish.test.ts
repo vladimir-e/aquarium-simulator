@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { createFish, fishMassForAge } from './create-fish.js';
+import { createFish, fishMassForAge, HARDINESS_OFFSET_SPAN } from './create-fish.js';
 import { createRng, draw } from '../core/rng.js';
 import { FISH_SPECIES_DATA } from './species.js';
 
@@ -114,14 +114,20 @@ describe('createFish', () => {
   it('spends its three draws on sex, hardiness and health, in that order', () => {
     const rng = createRng(1);
     const probe = { ...rng };
-    draw(probe); // sex
+    const sexDraw = draw(probe);
     const hardinessDraw = draw(probe);
     const healthDraw = draw(probe);
     const { hardiness } = FISH_SPECIES_DATA.neon_tetra;
 
     const fish = createFish({ species: 'neon_tetra', age: 0, stage: 'adult', rng });
 
-    expect(fish.hardinessOffset).toBeCloseTo((hardinessDraw - 0.5) * 2 * 0.15 * hardiness, 12);
+    // Seed 1 opens at 0.527 — just over the even split, so a split moved in
+    // either direction hands this fish the other sex.
+    expect(fish.sex).toBe(sexDraw < 0.5 ? 'male' : 'female');
+    expect(fish.hardinessOffset).toBeCloseTo(
+      (hardinessDraw - 0.5) * 2 * HARDINESS_OFFSET_SPAN * hardiness,
+      12
+    );
     expect(fish.health).toBeCloseTo(100 + (healthDraw - 0.5) * 2 * 5, 12);
   });
 
@@ -134,11 +140,12 @@ describe('createFish', () => {
     expect(ids.size).toBe(1000);
   });
 
-  it('builds the same fish, id included, from the same seed — and a different one otherwise', () => {
+  it('builds the same fish from the same seed — another seed rerolls all but the id', () => {
     const build = (seed: number): ReturnType<typeof createFish> =>
       createFish({ species: 'guppy', age: 0, stage: 'adult', rng: createRng(seed) });
 
     expect(build(11)).toEqual(build(11));
     expect(build(11)).not.toEqual(build(12));
+    expect(build(11).id).toBe(build(12).id);
   });
 });

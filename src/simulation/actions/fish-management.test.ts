@@ -9,6 +9,9 @@ import {
 } from './fish-management.js';
 import { createSimulation, type SimulationState, type Fish } from '../state.js';
 import { draw } from '../core/rng.js';
+import { computeFishVitality } from '../systems/fish-health.js';
+import { livestockDefaults } from '../config/livestock.js';
+import { HARDINESS_OFFSET_SPAN } from '../livestock/create-fish.js';
 import { FISH_SPECIES_DATA, type FishSpecies } from '../livestock/species.js';
 import { produce } from 'immer';
 
@@ -66,6 +69,28 @@ describe('addFish', () => {
 
     expect(result.state.fish[0].stage).toBe('adult');
     expect(result.state.fish[0].age).toBe(FISH_SPECIES_DATA.guppy.breeding.maturityAge);
+  });
+
+  it('stocks it part-lived: old age is maxAge − maturityAge away, not maxAge', () => {
+    const { maxAge, breeding } = FISH_SPECIES_DATA.neon_tetra;
+    const state = addFish(makeState(), { type: 'addFish', species: 'neon_tetra' }).state;
+    const [bought] = state.fish;
+    const ageStressIn = (hours: number): number =>
+      computeFishVitality(
+        { ...bought, age: bought.age + hours },
+        state.resources,
+        state.plants,
+        state.resources.water,
+        state.tank.capacity,
+        livestockDefaults
+      ).breakdown.stressors.find((s) => s.key === 'age')?.amount ?? 0;
+
+    // The arrival age is not cosmetic: every hour of it is an hour off the far
+    // end, so a bought fish meets old age a whole maturity before one born in
+    // the tank the day it was bought.
+    const left = maxAge - breeding.maturityAge;
+    expect(ageStressIn(left)).toBe(0);
+    expect(ageStressIn(left + 1)).toBeGreaterThan(0);
   });
 
   it('stocks the same fish from one rng seed, and a different one from another', () => {
@@ -138,7 +163,7 @@ describe('addFish', () => {
     const [stocked] = addFish(state, { type: 'addFish', species: 'neon_tetra' }).state.fish;
 
     expect(stocked.hardinessOffset).toBeCloseTo(
-      (hardinessDraw - 0.5) * 2 * 0.15 * FISH_SPECIES_DATA.neon_tetra.hardiness,
+      (hardinessDraw - 0.5) * 2 * HARDINESS_OFFSET_SPAN * FISH_SPECIES_DATA.neon_tetra.hardiness,
       12
     );
   });

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { Clutch, Fish, SimulationState } from '../../simulation/index.js';
-import { createSimulation, FISH_SPECIES_DATA } from '../../simulation/index.js';
+import { applyAction, createSimulation, FISH_SPECIES_DATA } from '../../simulation/index.js';
 import { livestockDefaults } from '../../simulation/config/livestock.js';
 import {
   bandStatus,
@@ -121,6 +121,16 @@ describe('groupBySpecies', () => {
     expect(neon.massG).toBeCloseTo(2.4, 10);
     expect(neon.ageDays).toBe(21); // mean age is 21 d, not 10, 33 or 63
     expect(neon.condition).toBeCloseTo(60, 10);
+  });
+
+  it('reads a bought fish at the age it arrives, which is not day zero', () => {
+    const bought = applyAction(createSimulation({ tankCapacity: 200 }), {
+      type: 'addFish',
+      species: 'neon_tetra',
+    }).state;
+    const [neon] = groupBySpecies(bought, livestockDefaults);
+
+    expect(neon.ageDays).toBe(FISH_SPECIES_DATA.neon_tetra.breeding.maturityAge / 24);
   });
 });
 

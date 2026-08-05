@@ -30,7 +30,7 @@ Each fish is tracked individually with:
 | Age | Time since birth (ticks) |
 | Satiation | 0-100% (0 = starving, 100 = stuffed) |
 | Sex | Male / Female (for reproduction) |
-| Stage | `fry` or `adult` — only adults breed |
+| Stage | `fry` or `adult` — breeding also asks the age (see § Reproduction) |
 | Surplus | Reserve vitality bank; the breeding fuel (see § Health) |
 
 ### Species Characteristics
@@ -395,7 +395,10 @@ the age at which it becomes a breeding adult.
 Fry and stocked adults are built by the same factory, so a fry carries
 the same individual variation as a purchased fish (50/50 sex, a
 per-individual hardiness offset ±15 % of species baseline, small health
-jitter). A fry starts at `fryMassFraction × adultMass` and age 0.
+jitter). A fry starts at `fryMassFraction × adultMass` and age 0; a
+stocked adult starts at full mass and at `maturityAge`, so it clears the
+gate's age term from its first tick and spends that much of its `maxAge`
+before it ever enters the tank (see `8-ACTIONS.md` § Add Fish).
 
 - **Growth.** Each tick a fry's mass is re-derived from its age, linearly
   interpolating from fry mass at age 0 to full `adultMass` at

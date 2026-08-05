@@ -1,6 +1,9 @@
+import React from 'react';
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import { PlantsCard } from './PlantsCard';
+import { createSimulation } from '../../../simulation/index.js';
+import { useExpandedRows } from '../../hooks/useExpandedRows';
 import type { AlgaeRow, PlantRow } from '../../run';
 
 afterEach(cleanup);
@@ -31,8 +34,24 @@ function algae(net: number): AlgaeRow {
   };
 }
 
+/** The card as its section wires it: disclosure is the section's state. */
+const tank = createSimulation({ tankCapacity: 40 });
+
+function Disclosed({ rows, algae }: { rows: PlantRow[]; algae: AlgaeRow }): React.JSX.Element {
+  const [expanded, toggle] = useExpandedRows(tank);
+  return (
+    <PlantsCard
+      rows={rows}
+      algae={algae}
+      expanded={expanded}
+      onToggle={toggle}
+      onRemove={vi.fn()}
+    />
+  );
+}
+
 function renderCard(rows: PlantRow[], row = algae(0.8)): void {
-  render(<PlantsCard rows={rows} algae={row} onRemove={vi.fn()} />);
+  render(<Disclosed rows={rows} algae={row} />);
 }
 
 /** The collapsed row's rate and the `net` line under it are the same number. */

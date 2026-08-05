@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { produce } from 'immer';
 import {
   bacteriaReadout,
   bacteriaSummary,
@@ -37,9 +38,14 @@ function tank(): SimulationState {
  * a mixed roster that breeds on the way there doubles the bioload behind the
  * reading — the projection would then be judged against a different tank than
  * the one it was taken from.
+ *
+ * Hardiness is flattened for the same reason `flowReading` flattens it: these
+ * readings are about the biofilter, not about the luck of six draws.
  */
 function stocked(): SimulationState {
-  return stock(tank(), 'neon_tetra', 6, { sex: 'male' });
+  return produce(stock(tank(), 'neon_tetra', 6, { sex: 'male' }), (draft) => {
+    for (const fish of draft.fish) fish.hardinessOffset = 0;
+  });
 }
 
 function run(state: SimulationState, hours: number): SimulationState {
@@ -64,7 +70,13 @@ function cycling(hours: number): SimulationState {
 function cycled(hours: number): SimulationState {
   const base = stocked();
   const ceiling = base.resources.surface * perCm2;
-  return run({ ...base, resources: { ...base.resources, aob: ceiling, nob: ceiling } }, hours);
+  return run(
+    produce(base, (draft) => {
+      draft.resources.aob = ceiling;
+      draft.resources.nob = ceiling;
+    }),
+    hours
+  );
 }
 
 /**
@@ -74,16 +86,23 @@ function cycled(hours: number): SimulationState {
  * dose is then withdrawn, so nothing is left standing for them to fall behind.
  */
 function mature(): SimulationState {
-  const base = tank();
-  let state = { ...base, resources: { ...base.resources, aob: 1, nob: 1 } };
+  let state = produce(tank(), (draft) => {
+    draft.resources.aob = 1;
+    draft.resources.nob = 1;
+  });
   for (let hour = 1; hour <= 40 * 24; hour++) {
-    const { water, ammonia } = state.resources;
     state = tick(
-      { ...state, resources: { ...state.resources, ammonia: ammonia + getMassFromPpm(2, water) } },
+      produce(state, (draft) => {
+        draft.resources.ammonia += getMassFromPpm(2, draft.resources.water);
+      }),
       config
     );
   }
-  return { ...state, resources: { ...state.resources, ammonia: 0, nitrite: 0, waste: 0 } };
+  return produce(state, (draft) => {
+    draft.resources.ammonia = 0;
+    draft.resources.nitrite = 0;
+    draft.resources.waste = 0;
+  });
 }
 
 /** What the next tick actually does to nitrite, split into its two rates (ppm/h). */

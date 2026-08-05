@@ -59,6 +59,9 @@ export function scrubAlgae(
   }
 
   const currentMass = state.algae.mass;
+  // The bite is needed before the producer opens — it sizes `removed` and the
+  // message — so the draw runs on a copy that goes back in. Drawing on
+  // `state.rng` would advance the caller's own stream.
   const rng = { ...state.rng };
   const percent = action.randomPercent ?? scrubBite(rng);
   const removed = currentMass * percent;
