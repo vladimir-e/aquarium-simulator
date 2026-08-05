@@ -151,4 +151,4 @@ export function processLivestock(
 export { processMetabolism } from '../systems/metabolism.js';
 export { processHealth, computeFishVitality } from '../systems/fish-health.js';
 export { processBreeding } from './breeding.js';
-export { createFish, fishMassForAge, generateFishId } from './create-fish.js';
+export { createFish, fishMassForAge } from './create-fish.js';

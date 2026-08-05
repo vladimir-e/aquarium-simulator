@@ -206,20 +206,26 @@ Manually remove algae from glass and surfaces.
 ### Inputs
 | Parameter | Description |
 |-----------|-------------|
-| Intensity | How thoroughly to scrub (0-100%) |
+| randomPercent | Optional: the exact share to take off, in place of the drawn one |
 
 ### Effects
 | Resource | Change |
 |----------|--------|
-| Algae | -amount (based on intensity) |
+| Algae | -10–30 % of current mass |
 
 ### Behavior
 
 ```
-algae_removed = tank.algae * intensity
+percent = randomPercent ?? 0.1 + draw(state.rng) * 0.2
+algae_removed = tank.algae * percent
 tank.algae -= algae_removed
 # Removed algae exits system (scraped off, not converted to waste)
 ```
+
+How much a scrub takes off is drawn from the tank's own stream (see
+`docs/1-DESIGN.md` § Starting State), so two tanks on one `rngSeed` are scrubbed
+identically and a saved tank resumes where it left off. Disabled below 5 mass —
+too little to mechanically remove.
 
 ### Considerations
 - Regular scrubbing prevents buildup

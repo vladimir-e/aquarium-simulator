@@ -18,6 +18,10 @@ import type { HistorySnapshot } from './history.js';
  * missing field. Parallel to the UI's `PERSISTENCE_VERSION`. Pre-launch
  * rule is reject, not migrate.
  *
+ * v4 put the tank's randomness on the state: `SimulationState` gains
+ *    `rng: { seed, counter }`, the seed and stream position every draw comes
+ *    off. A v3 session parses but carries no stream, so the first fish it
+ *    stocks or breeds crashes on the missing field.
  * v3 made fish flow tolerance a turnover: `FishSpeciesData.maxFlow` (L/h)
  *    became `maxTurnover` (tank volumes/h), and the `livestock` config a
  *    session carries was redenominated with it — `flowStressSeverity` is
@@ -28,7 +32,7 @@ import type { HistorySnapshot } from './history.js';
  * v2 added `Fish.stage` + `state.clutches` (breeding) and the saturating
  *    surplus bank.
  */
-export const SESSION_VERSION = 3;
+export const SESSION_VERSION = 4;
 export const DEFAULT_SESSION_PATH = resolve(process.cwd(), '.simstate/current.json');
 
 export interface Session {

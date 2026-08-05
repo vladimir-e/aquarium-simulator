@@ -428,6 +428,7 @@ function seedHighAmmonia(): void {
         fish: base.fish,
         clutches: base.clutches,
         algae: base.algae,
+        rng: base.rng,
         alertState: base.alertState,
         currentPreset: 'bare',
       },

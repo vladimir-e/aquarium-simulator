@@ -46,9 +46,10 @@ export type { SpeedPreset };
 let hardscapeSeq = 0;
 
 /**
- * Matches the engine's own id scheme (`generateFishId`, `generatePlantId`).
- * Deliberately not `crypto.randomUUID` — that is secure-context only, so it is
- * undefined over plain HTTP on a LAN hostname and throws on the preview build.
+ * Hardscape is chosen in the UI, so its ids are minted here rather than off
+ * the tank's draw stream. Deliberately not `crypto.randomUUID` — that is
+ * secure-context only, so it is undefined over plain HTTP on a LAN hostname
+ * and throws on the preview build.
  */
 function generateHardscapeId(): string {
   return `hardscape_${Date.now().toString(36)}_${(hardscapeSeq++).toString(36)}`;
@@ -128,6 +129,7 @@ function stateToPersistedSimulation(
     fish: state.fish,
     clutches: state.clutches,
     algae: state.algae,
+    rng: state.rng,
     alertState: state.alertState,
     currentPreset,
   };

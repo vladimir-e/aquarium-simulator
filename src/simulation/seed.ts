@@ -165,11 +165,7 @@ function writeStocks<T, K extends keyof T>(
   }
 }
 
-export function applySeed(
-  state: SimulationState,
-  seed: PresetSeed,
-  rng: () => number = Math.random
-): void {
+export function applySeed(state: SimulationState, seed: PresetSeed): void {
   const { capacity } = state.tank;
   const { type } = state.equipment.substrate;
 
@@ -194,7 +190,7 @@ export function applySeed(
           age: group.age ?? 0,
           stage: group.stage ?? 'adult',
           sex: group.sex,
-          rng,
+          rng: state.rng,
         })
       );
     }
@@ -202,7 +198,7 @@ export function applySeed(
 
   for (const group of seed.plants ?? []) {
     for (let i = 0; i < (group.count ?? 1); i++) {
-      state.plants.push(createPlant({ species: group.species, size: group.size }));
+      state.plants.push(createPlant({ species: group.species, size: group.size, rng: state.rng }));
     }
   }
 }

@@ -3,6 +3,7 @@
  */
 
 import { createLog, type LogEntry } from './core/logging.js';
+import { createRng, type RngState } from './core/rng.js';
 import type { DailySchedule } from './core/schedule.js';
 import type { Filter } from './equipment/filter.js';
 import { DEFAULT_FILTER, getFilterSurface, getFilterFlow } from './equipment/filter.js';
@@ -310,6 +311,8 @@ export interface SimulationState {
   clutches: Clutch[];
   /** Tank-wide algae as a single mass-based organism */
   algae: AlgaeState;
+  /** Seed and stream position every draw in this tank comes off. */
+  rng: RngState;
   /** In-memory log storage */
   logs: LogEntry[];
   /** Tracks active alert conditions for threshold-crossing detection */
@@ -417,13 +420,14 @@ export function calculateTankGlassSurface(capacity: number): number {
 /**
  * Creates a new simulation state with the given configuration, optionally
  * started at the state a {@link PresetSeed} describes rather than empty.
- * `rng` sources the individual variation a seeded roster is built with —
- * supply one and the same seed produces the same organisms every run.
+ * `rngSeed` opens the tank's draw stream — name one and the tank runs the
+ * same life every time, organisms, ids and all; leave it out and it takes a
+ * time-derived one.
  */
 export function createSimulation(
   config: SimulationConfig,
   seed?: PresetSeed,
-  rng?: () => number
+  rngSeed?: number
 ): SimulationState {
   const {
     tankCapacity,
@@ -600,6 +604,7 @@ export function createSimulation(
     // Algae starts at zero biomass and zero surplus. With no
     // condition state, the empty case is naturally inert.
     algae: { mass: 0, surplus: 0 },
+    rng: createRng(rngSeed),
     logs: [initialLog],
     alertState: {
       waterLevelCritical: false,
@@ -612,7 +617,7 @@ export function createSimulation(
     },
   };
 
-  if (seed !== undefined) applySeed(state, seed, rng);
+  if (seed !== undefined) applySeed(state, seed);
   return state;
 }
 

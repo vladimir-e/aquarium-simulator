@@ -58,8 +58,9 @@ const planted = createPresetSimulation(getPresetById('planted')!);
 ```
 
 Nothing in a seed is validated or clamped, so a scenario can construct states
-no keeper could reach. A third `rng` argument makes the roster's individual
-variation reproducible.
+no keeper could reach. A third `rngSeed` argument opens the tank's draw stream
+at a known point, so two tanks built on one seed live the same life — the same
+organisms, the same offspring, the same ids.
 
 ## Setup
 

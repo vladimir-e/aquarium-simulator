@@ -113,9 +113,8 @@ export function addFish(
     return { state, message: capacity.message };
   }
 
-  const fish = createFish({ species, age: 0, stage: 'adult' });
-
   const newState = produce(state, (draft) => {
+    const fish = createFish({ species, age: 0, stage: 'adult', rng: draft.rng });
     draft.fish.push(fish);
 
     draft.logs.push(

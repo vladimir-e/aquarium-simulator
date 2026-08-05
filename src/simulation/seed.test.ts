@@ -6,31 +6,10 @@ import { DEFAULT_PLANT_SIZE } from './plants/create-plant.js';
 
 const TANK: SimulationConfig = { tankCapacity: 40, substrate: { type: 'aqua_soil' } };
 
-/** Deterministic uniform PRNG (mulberry32). */
-function mulberry32(seed: number): () => number {
-  let a = seed;
-  return () => {
-    a |= 0;
-    a = (a + 0x6d2b79f5) | 0;
-    let t = Math.imul(a ^ (a >>> 15), 1 | a);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
-/**
- * The tank minus its organism ids. Ids are process-unique by design — two
- * runs of one seed produce the same tank, not the same identities.
- */
-function anonymised(seed: PresetSeed, rng?: () => number): unknown {
-  const state = createSimulation(TANK, seed, rng);
-  return JSON.parse(
-    JSON.stringify({
-      resources: state.resources,
-      fish: state.fish.map(({ id: _id, ...rest }) => rest),
-      plants: state.plants.map(({ id: _id, ...rest }) => rest),
-    })
-  );
+/** Everything a seed writes, ids and all. */
+function stocked(seed: PresetSeed, rngSeed: number): unknown {
+  const state = createSimulation(TANK, seed, rngSeed);
+  return { resources: state.resources, fish: state.fish, plants: state.plants };
 }
 
 describe('createSimulation seeding', () => {
@@ -239,11 +218,7 @@ describe('createSimulation seeding', () => {
     });
 
     it('carries the individual variation a stocked fish gets', () => {
-      const state = createSimulation(
-        TANK,
-        { fish: [{ species: 'neon_tetra', count: 40 }] },
-        mulberry32(4)
-      );
+      const state = createSimulation(TANK, { fish: [{ species: 'neon_tetra', count: 40 }] }, 4);
       const offsets = new Set(state.fish.map((f) => f.hardinessOffset));
 
       expect(offsets.size).toBeGreaterThan(1);
@@ -257,8 +232,8 @@ describe('createSimulation seeding', () => {
           { species: 'neon_tetra', count: 4 },
         ],
       });
-      const named = createSimulation(TANK, roster('female'), mulberry32(7)).fish;
-      const sampled = createSimulation(TANK, roster(), mulberry32(7)).fish;
+      const named = createSimulation(TANK, roster('female'), 7).fish;
+      const sampled = createSimulation(TANK, roster(), 7).fish;
 
       expect(named.map((f) => f.hardinessOffset)).toEqual(sampled.map((f) => f.hardinessOffset));
       expect(named.map((f) => f.health)).toEqual(sampled.map((f) => f.health));
@@ -293,14 +268,24 @@ describe('createSimulation seeding', () => {
       plants: [{ species: 'java_fern', count: 3, size: 120 }],
     };
 
-    it('builds the same tank twice from one seed and rng', () => {
-      expect(anonymised(SEED, mulberry32(2026))).toEqual(anonymised(SEED, mulberry32(2026)));
+    it('builds the same tank twice from one seed and rng seed, ids included', () => {
+      expect(stocked(SEED, 2026)).toEqual(stocked(SEED, 2026));
     });
 
-    it('builds different rosters from different rngs', () => {
+    it('builds different rosters from different rng seeds', () => {
       const roster: PresetSeed = { fish: [{ species: 'neon_tetra', count: 12 }] };
 
-      expect(anonymised(roster, mulberry32(1))).not.toEqual(anonymised(roster, mulberry32(2)));
+      expect(stocked(roster, 1)).not.toEqual(stocked(roster, 2));
+    });
+
+    it('spends the stream only on what the seed stocks', () => {
+      const bare = createSimulation(TANK, {}, 2026);
+      const one = createSimulation(TANK, { fish: [{ species: 'guppy' }] }, 2026);
+      const two = createSimulation(TANK, { fish: [{ species: 'guppy', count: 2 }] }, 2026);
+
+      expect(bare.rng).toEqual({ seed: 2026, counter: 0 });
+      expect(one.rng.counter).toBeGreaterThan(0);
+      expect(two.rng.counter - one.rng.counter).toBe(one.rng.counter);
     });
   });
 

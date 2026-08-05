@@ -44,8 +44,8 @@ describe('canScrubAlgae', () => {
 });
 
 describe('scrubAlgae', () => {
-  function createStateWithAlgae(mass: number): SimulationState {
-    const state = createSimulation({ tankCapacity: 100 });
+  function createStateWithAlgae(mass: number, rngSeed?: number): SimulationState {
+    const state = createSimulation({ tankCapacity: 100 }, undefined, rngSeed);
     return produce(state, (draft) => {
       draft.algae.mass = mass;
     });
@@ -177,6 +177,47 @@ describe('scrubAlgae', () => {
       // Should be between 70 and 90 (100 - 30% to 100 - 10%)
       expect(result.state.algae.mass).toBeGreaterThanOrEqual(70);
       expect(result.state.algae.mass).toBeLessThanOrEqual(90);
+    });
+
+    it('takes the same bite out of two tanks on one rng seed', () => {
+      const scrub = (rngSeed: number): number =>
+        scrubAlgae(createStateWithAlgae(100, rngSeed), { type: 'scrubAlgae' }).state.algae.mass;
+
+      expect(scrub(4242)).toBe(scrub(4242));
+      expect(scrub(4242)).not.toBe(scrub(99));
+    });
+
+    it('spends the stream, so the next scrub takes a different bite', () => {
+      const state = createStateWithAlgae(100, 4242);
+      const first = scrubAlgae(state, { type: 'scrubAlgae' }).state;
+      const second = scrubAlgae(first, { type: 'scrubAlgae' }).state;
+
+      expect(first.rng.counter).toBe(state.rng.counter + 1);
+      expect(second.algae.mass / first.algae.mass).not.toBe(first.algae.mass / 100);
+    });
+
+    it('leaves the stream alone when there is too little to scrub', () => {
+      const state = createStateWithAlgae(4, 4242);
+
+      expect(scrubAlgae(state, { type: 'scrubAlgae' }).state.rng).toEqual(state.rng);
+    });
+
+    it('spans the whole 10–30 % band across a run of scrubs', () => {
+      let state = createStateWithAlgae(100, 4242);
+      const bites: number[] = [];
+      for (let i = 0; i < 200; i++) {
+        const before = state.algae.mass;
+        state = scrubAlgae(state, { type: 'scrubAlgae' }).state;
+        bites.push(1 - state.algae.mass / before);
+        state = produce(state, (draft) => {
+          draft.algae.mass = 100;
+        });
+      }
+
+      expect(Math.min(...bites)).toBeGreaterThanOrEqual(MIN_SCRUB_PERCENT);
+      expect(Math.max(...bites)).toBeLessThanOrEqual(MAX_SCRUB_PERCENT);
+      expect(Math.min(...bites)).toBeLessThan(0.12);
+      expect(Math.max(...bites)).toBeGreaterThan(0.28);
     });
   });
 });

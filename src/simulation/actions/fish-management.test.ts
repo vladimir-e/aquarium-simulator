@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, afterEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import {
   addFish,
   removeFish,
@@ -8,11 +8,20 @@ import {
   totalFishMass,
 } from './fish-management.js';
 import { createSimulation, type SimulationState, type Fish } from '../state.js';
-import { FISH_SPECIES_DATA } from '../livestock/species.js';
+import { FISH_SPECIES_DATA, type FishSpecies } from '../livestock/species.js';
 import { produce } from 'immer';
 
-function makeState(): SimulationState {
-  return createSimulation({ tankCapacity: 100 });
+function makeState(rngSeed = 31337): SimulationState {
+  return createSimulation({ tankCapacity: 100 }, undefined, rngSeed);
+}
+
+/** Stock `count` of a species into a fresh tank and hand back the roster. */
+function stockedRoster(species: FishSpecies, count: number, rngSeed?: number): Fish[] {
+  let state = makeState(rngSeed);
+  for (let i = 0; i < count; i++) {
+    state = addFish(state, { type: 'addFish', species }).state;
+  }
+  return state.fish;
 }
 
 function fish(overrides: Partial<Fish> & { id: string }): Fish {
@@ -38,25 +47,37 @@ function makeStateWithFish(): SimulationState {
 }
 
 describe('addFish', () => {
-  afterEach(() => {
-    vi.restoreAllMocks();
-  });
-
   it('adds a fish to an empty tank', () => {
-    // Stub Math.random to 0.5 so sex/offset/health-jitter are deterministic:
-    // (0.5 - 0.5) * ... = 0 offset, health = 100 + 0 = 100.
-    vi.spyOn(Math, 'random').mockReturnValue(0.5);
     const state = makeState();
     const result = addFish(state, { type: 'addFish', species: 'neon_tetra' });
 
     expect(result.state.fish).toHaveLength(1);
     expect(result.state.fish[0].species).toBe('neon_tetra');
     expect(result.state.fish[0].mass).toBe(0.5); // Adult mass for neon tetra
-    expect(result.state.fish[0].health).toBe(100);
     expect(result.state.fish[0].satiation).toBe(70); // Slightly hungry on arrival (peckish band)
-    expect(result.state.fish[0].hardinessOffset).toBe(0);
     expect(result.state.fish[0].surplus).toBe(0); // No vitality surplus banked at birth
     expect(result.message).toContain('Neon Tetra');
+  });
+
+  it('stocks the same fish from one rng seed, and a different one from another', () => {
+    expect(stockedRoster('guppy', 3, 4242)).toEqual(stockedRoster('guppy', 3, 4242));
+    expect(stockedRoster('guppy', 3, 4242)).not.toEqual(stockedRoster('guppy', 3, 99));
+  });
+
+  it('spends the stream it draws from', () => {
+    const state = makeState();
+    const stocked = addFish(state, { type: 'addFish', species: 'guppy' }).state;
+
+    expect(stocked.rng.seed).toBe(state.rng.seed);
+    expect(stocked.rng.counter).toBeGreaterThan(state.rng.counter);
+  });
+
+  it('leaves the stream alone when it rejects the fish', () => {
+    const state = makeState();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const result = addFish(state, { type: 'addFish', species: 'unknown' as unknown as any });
+
+    expect(result.state.rng).toEqual(state.rng);
   });
 
   it('adds fish with correct species data', () => {
@@ -77,10 +98,9 @@ describe('addFish', () => {
   });
 
   it('assigns sex randomly', () => {
-    const state = makeState();
-    const result = addFish(state, { type: 'addFish', species: 'betta' });
+    const sexes = new Set(stockedRoster('betta', 20).map((f) => f.sex));
 
-    expect(['male', 'female']).toContain(result.state.fish[0].sex);
+    expect(sexes).toEqual(new Set(['male', 'female']));
   });
 
   it('logs the addition', () => {
@@ -100,65 +120,38 @@ describe('addFish', () => {
     expect(result.message).toContain('Unknown');
   });
 
-  it('samples hardinessOffset within ±15% of species hardiness', () => {
-    // Drive Math.random through many values to exercise the offset range.
-    let state = makeState();
-    for (let i = 0; i < 200; i++) {
-      state = addFish(state, { type: 'addFish', species: 'neon_tetra' }).state;
-    }
+  it('samples hardinessOffset within ±15% of species hardiness, and reaches both ends', () => {
+    const roster = stockedRoster('neon_tetra', 400);
     const maxAbsOffset = 0.15 * FISH_SPECIES_DATA.neon_tetra.hardiness; // 0.075
-    for (const fish of state.fish) {
-      expect(Math.abs(fish.hardinessOffset)).toBeLessThanOrEqual(maxAbsOffset + 1e-9);
+    const offsets = roster.map((f) => f.hardinessOffset);
+
+    for (const offset of offsets) {
+      expect(Math.abs(offset)).toBeLessThanOrEqual(maxAbsOffset + 1e-9);
     }
-  });
-
-  it('hardinessOffset hits the extremes (-1 and +1 random)', () => {
-    // Random 0 → offset = -0.15 * hardiness; random ≈1 → offset ≈ +0.15 * hardiness.
-    // Math.random() returns [0, 1); we can't get exactly 1, but can get very close.
-    const species = 'guppy'; // hardiness 0.8
-    const hardiness = FISH_SPECIES_DATA[species].hardiness;
-
-    vi.spyOn(Math, 'random').mockReturnValue(0);
-    let state = makeState();
-    state = addFish(state, { type: 'addFish', species }).state;
-    expect(state.fish[0].hardinessOffset).toBeCloseTo(-0.15 * hardiness, 10);
-
-    vi.restoreAllMocks();
-    vi.spyOn(Math, 'random').mockReturnValue(0.9999999);
-    state = makeState();
-    state = addFish(state, { type: 'addFish', species }).state;
-    expect(state.fish[0].hardinessOffset).toBeCloseTo(0.15 * hardiness, 4);
+    expect(Math.max(...offsets)).toBeGreaterThan(0.9 * maxAbsOffset);
+    expect(Math.min(...offsets)).toBeLessThan(-0.9 * maxAbsOffset);
   });
 
   it('offset scales with species hardiness (angelfish vs guppy)', () => {
-    vi.spyOn(Math, 'random').mockReturnValue(1 - 1e-9); // push toward max positive
-    let state = makeState();
-    state = addFish(state, { type: 'addFish', species: 'guppy' }).state;
-    state = addFish(state, { type: 'addFish', species: 'angelfish' }).state;
-    const guppy = state.fish.find((f) => f.species === 'guppy')!;
-    const angel = state.fish.find((f) => f.species === 'angelfish')!;
-    // Guppy hardiness 0.8 → wider absolute offset than angelfish (0.4).
-    expect(Math.abs(guppy.hardinessOffset)).toBeGreaterThan(
-      Math.abs(angel.hardinessOffset)
-    );
+    // One stream, two tanks: the same draw lands on both fish, so what is
+    // left between them is the species baseline and nothing else.
+    const guppy = stockedRoster('guppy', 1, 8)[0];
+    const angel = stockedRoster('angelfish', 1, 8)[0];
+    const ratio = FISH_SPECIES_DATA.guppy.hardiness / FISH_SPECIES_DATA.angelfish.hardiness;
+
+    expect(guppy.hardinessOffset / angel.hardinessOffset).toBeCloseTo(ratio, 10);
   });
 
   it('initial health jitter stays within ±5 and clamps to [0, 100]', () => {
-    let state = makeState();
-    for (let i = 0; i < 200; i++) {
-      state = addFish(state, { type: 'addFish', species: 'neon_tetra' }).state;
-    }
-    for (const fish of state.fish) {
+    const roster = stockedRoster('neon_tetra', 200);
+
+    for (const fish of roster) {
       expect(fish.health).toBeGreaterThanOrEqual(95);
       expect(fish.health).toBeLessThanOrEqual(100); // clamped upper bound
     }
-  });
-
-  it('health jitter clamps at 100 when random pushes above', () => {
-    vi.spyOn(Math, 'random').mockReturnValue(1 - 1e-9); // +~5 jitter → clamped to 100
-    const state = makeState();
-    const result = addFish(state, { type: 'addFish', species: 'neon_tetra' });
-    expect(result.state.fish[0].health).toBe(100);
+    // Half the jitter pushes above 100 and lands on the clamp.
+    expect(roster.some((f) => f.health === 100)).toBe(true);
+    expect(roster.some((f) => f.health < 100)).toBe(true);
   });
 
   it('offset is stored once, not re-rolled', () => {

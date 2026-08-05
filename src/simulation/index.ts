@@ -32,6 +32,10 @@ export {
 // Logging
 export type { LogEntry, LogSeverity, LogEvent } from './core/logging.js';
 
+// Randomness
+export type { RngState } from './core/rng.js';
+export { createRng, draw, drawId } from './core/rng.js';
+
 // Species
 export type { PlantSpecies, PlantSpeciesData, NutrientDemand } from './plants/species.js';
 export { PLANT_SPECIES_DATA } from './plants/species.js';
@@ -301,7 +305,6 @@ export {
   processBreeding,
   createFish,
   fishMassForAge,
-  generateFishId,
 } from './livestock/index.js';
 export {
   satiationContribution,

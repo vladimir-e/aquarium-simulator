@@ -25,18 +25,12 @@ import type { LivestockConfig } from '../config/livestock.js';
 import { livestockDefaults } from '../config/livestock.js';
 import type { TunableConfig } from '../config/index.js';
 import { createLog } from '../core/logging.js';
+import { drawId } from '../core/rng.js';
 import { createFish, fishMassForAge } from './create-fish.js';
 
 export interface BreedingProcessingResult {
   /** Updated state with grown fry, hatched clutches, and new offspring. */
   state: SimulationState;
-}
-
-/** Monotonic sequence guaranteeing unique clutch ids within one tick. */
-let clutchSeq = 0;
-
-function generateClutchId(): string {
-  return `clutch_${Date.now().toString(36)}_${(clutchSeq++).toString(36)}`;
 }
 
 const SPECIES_IDS = Object.keys(FISH_SPECIES_DATA) as FishSpecies[];
@@ -49,14 +43,11 @@ const SPECIES_IDS = Object.keys(FISH_SPECIES_DATA) as FishSpecies[];
  * @param config - Tunable configuration (for `surplusCap`).
  * @param netByFishId - Per-fish vitality net rate from this tick's health
  *   pass; a female breeds only if her entry is ≥ 0.
- * @param rng - Randomness source for offspring variation (defaults to
- *   `Math.random`).
  */
 export function processBreeding(
   state: SimulationState,
   config: TunableConfig,
-  netByFishId: Map<string, number>,
-  rng: () => number = Math.random
+  netByFishId: Map<string, number>
 ): BreedingProcessingResult {
   const livestockConfig = config.livestock ?? livestockDefaults;
 
@@ -67,8 +58,8 @@ export function processBreeding(
 
   const newState = produce(state, (draft) => {
     growAndMatureFry(draft.fish);
-    hatchClutches(draft, rng);
-    spawn(draft, livestockConfig, netByFishId, rng);
+    hatchClutches(draft);
+    spawn(draft, livestockConfig, netByFishId);
   });
 
   return { state: newState };
@@ -93,7 +84,7 @@ function growAndMatureFry(fish: Fish[]): void {
 }
 
 /** Hatch every clutch that has reached its hatch time into fry. */
-function hatchClutches(draft: SimulationState, rng: () => number): void {
+function hatchClutches(draft: SimulationState): void {
   if (draft.clutches.length === 0) return;
 
   const remaining: Clutch[] = [];
@@ -104,7 +95,9 @@ function hatchClutches(draft: SimulationState, rng: () => number): void {
       continue;
     }
     for (let i = 0; i < clutch.eggCount; i++) {
-      draft.fish.push(createFish({ species: clutch.species, age: 0, stage: 'fry', rng }));
+      draft.fish.push(
+        createFish({ species: clutch.species, age: 0, stage: 'fry', rng: draft.rng })
+      );
     }
     draft.logs.push(
       createLog(
@@ -130,8 +123,7 @@ function hatchClutches(draft: SimulationState, rng: () => number): void {
 function spawn(
   draft: SimulationState,
   config: LivestockConfig,
-  netByFishId: Map<string, number>,
-  rng: () => number
+  netByFishId: Map<string, number>
 ): void {
   // A nonpositive surplus cap zeroes every breeding cost, which would make
   // the funding gate vacuous — a zero-bank pair would spawn a full brood
@@ -172,7 +164,7 @@ function spawn(
 
       if (breeding.mode === 'livebearer') {
         for (let i = 0; i < breeding.clutchSize; i++) {
-          draft.fish.push(createFish({ species, age: 0, stage: 'fry', rng }));
+          draft.fish.push(createFish({ species, age: 0, stage: 'fry', rng: draft.rng }));
         }
         draft.logs.push(
           createLog(
@@ -186,7 +178,7 @@ function spawn(
         );
       } else {
         draft.clutches.push({
-          id: generateClutchId(),
+          id: drawId(draft.rng, 'clutch'),
           species,
           eggCount: breeding.clutchSize,
           laidTick: draft.tick,

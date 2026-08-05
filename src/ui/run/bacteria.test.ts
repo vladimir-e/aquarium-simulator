@@ -17,25 +17,29 @@ import {
   type SimulationState,
 } from '../../simulation/index.js';
 import { getMassFromPpm, getPpm } from '../../simulation/resources/index.js';
-import { cycledTank, fishlessTank, run as runUnfed } from '../../simulation/tests/tanks.js';
+import { cycledTank, fishlessTank, run as runUnfed, stock } from '../../simulation/tests/tanks.js';
 
 const config = DEFAULT_CONFIG;
 const perCm2 = nitrogenCycleDefaults.bacteriaPerCm2;
+/** Fixed so every reading below is off one tank rather than a fresh roll. */
+const RNG_SEED = 2026;
 
 function resources(aob: number, nob: number, surface: number): Resources {
   return { aob, nob, surface } as Resources;
 }
 
 function tank(): SimulationState {
-  return createSimulation({ tankCapacity: 200 });
+  return createSimulation({ tankCapacity: 200 }, undefined, RNG_SEED);
 }
 
+/**
+ * Six tetras, all one sex. These runs stretch months past the nitrite peak, and
+ * a mixed roster that breeds on the way there doubles the bioload behind the
+ * reading — the projection would then be judged against a different tank than
+ * the one it was taken from.
+ */
 function stocked(): SimulationState {
-  let state = tank();
-  for (let i = 0; i < 6; i++) {
-    state = applyAction(state, { type: 'addFish', species: 'neon_tetra' }).state;
-  }
-  return state;
+  return stock(tank(), 'neon_tetra', 6, { sex: 'male' });
 }
 
 function run(state: SimulationState, hours: number): SimulationState {

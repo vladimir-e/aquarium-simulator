@@ -5,27 +5,25 @@
  */
 
 import type { Plant } from '../state.js';
-import { sequentialId } from '../core/ids.js';
+import { drawId, type RngState } from '../core/rng.js';
 import type { PlantSpecies } from './species.js';
 
 /** Size a plant goes in at when the caller doesn't say — a young specimen. */
 export const DEFAULT_PLANT_SIZE = 50;
 
-export function generatePlantId(): string {
-  return sequentialId('plant');
-}
-
 export interface CreatePlantParams {
   species: PlantSpecies;
   /** Size %, same scale as `Plant.size`. */
   size?: number;
+  /** The tank's draw stream — a plant carries no variation, only a name. */
+  rng: RngState;
 }
 
 export function createPlant(params: CreatePlantParams): Plant {
-  const { species, size = DEFAULT_PLANT_SIZE } = params;
+  const { species, size = DEFAULT_PLANT_SIZE, rng } = params;
 
   return {
-    id: generatePlantId(),
+    id: drawId(rng, 'plant'),
     species,
     size,
     condition: 100,
