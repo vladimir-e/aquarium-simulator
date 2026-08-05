@@ -141,6 +141,7 @@ describe('PersistedSimulationSchema', () => {
     fish: [],
     clutches: [],
     algae: { mass: 0, surplus: 0 },
+    rng: { seed: 1, counter: 0 },
     alertState: {
       waterLevelCritical: false,
       highAlgae: false,
@@ -413,6 +414,7 @@ describe('PersistedStateSchema', () => {
     fish: [],
     clutches: [],
     algae: { mass: 0, surplus: 0 },
+    rng: { seed: 1, counter: 0 },
     alertState: {
       waterLevelCritical: false,
       highAlgae: false,
@@ -498,7 +500,21 @@ describe('PersistedStateSchema', () => {
     expect(PersistedStateSchema.safeParse(v15).success).toBe(false);
   });
 
-  it('PERSISTENCE_VERSION is 16', () => {
-    expect(PERSISTENCE_VERSION).toBe(16);
+  it('rejects prior version 16 (breaking bump for the tank-carried draw stream)', () => {
+    const v16 = { ...validState, version: 16 };
+    expect(PersistedStateSchema.safeParse(v16).success).toBe(false);
+  });
+
+  it('rejects a tank with no stream to resume', () => {
+    const streamless: Record<string, unknown> = { ...validState.simulation };
+    delete streamless.rng;
+
+    expect(
+      PersistedStateSchema.safeParse({ ...validState, simulation: streamless }).success
+    ).toBe(false);
+  });
+
+  it('PERSISTENCE_VERSION is 17', () => {
+    expect(PERSISTENCE_VERSION).toBe(17);
   });
 });

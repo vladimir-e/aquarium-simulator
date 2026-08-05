@@ -53,6 +53,7 @@ function renderRoster(state: SimulationState, units: UnitSystem = 'metric'): Act
   const actions: Action[] = [];
   const sim = {
     state,
+    tankId: 0,
     executeAction: (action: Action) => actions.push(action),
   } as unknown as ReturnType<typeof useSimulation>;
 

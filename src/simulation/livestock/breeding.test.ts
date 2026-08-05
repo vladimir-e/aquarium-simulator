@@ -2,7 +2,13 @@ import { describe, it, expect } from 'vitest';
 import { produce } from 'immer';
 import { processBreeding } from './breeding.js';
 import { processLivestock } from './index.js';
-import { createSimulation, type SimulationState, type Fish, type Clutch } from '../state.js';
+import {
+  createSimulation,
+  type SimulationConfig,
+  type SimulationState,
+  type Fish,
+  type Clutch,
+} from '../state.js';
 import { FISH_SPECIES_DATA, type FishSpecies } from '../livestock/species.js';
 import type { LogEntry } from '../core/logging.js';
 import { DEFAULT_CONFIG } from '../config/index.js';
@@ -69,6 +75,39 @@ describe('processBreeding — gate', () => {
     const state = withTank([mkFish({ sex: 'male', surplus: CAP })]);
     const out = processBreeding(state, DEFAULT_CONFIG, nets(state));
     expect(fry(out.state.fish)).toHaveLength(0);
+  });
+
+  it('does not spawn a funded pair still short of maturityAge', () => {
+    const b = FISH_SPECIES_DATA.guppy.breeding;
+    const female = mkFish({ id: 'she', sex: 'female', age: b.maturityAge - 1, surplus: CAP });
+    const male = mkFish({ sex: 'male', age: b.maturityAge - 1, surplus: CAP });
+    const state = withTank([female, male]);
+    const out = processBreeding(state, DEFAULT_CONFIG, nets(state));
+
+    expect(fry(out.state.fish)).toHaveLength(0);
+    expect(out.state.fish.find((f) => f.id === 'she')!.surplus).toBe(CAP);
+  });
+
+  it('spawns once the pair is exactly maturityAge old', () => {
+    const b = FISH_SPECIES_DATA.guppy.breeding;
+    const state = withTank([
+      mkFish({ sex: 'female', age: b.maturityAge, surplus: CAP }),
+      mkFish({ sex: 'male', age: b.maturityAge, surplus: CAP }),
+    ]);
+    const out = processBreeding(state, DEFAULT_CONFIG, nets(state));
+
+    expect(fry(out.state.fish)).toHaveLength(b.clutchSize);
+  });
+
+  it('needs the male grown too, not only the female', () => {
+    const b = FISH_SPECIES_DATA.guppy.breeding;
+    const female = mkFish({ id: 'she', sex: 'female', surplus: CAP });
+    const male = mkFish({ sex: 'male', age: b.maturityAge - 1, surplus: CAP });
+    const state = withTank([female, male]);
+    const out = processBreeding(state, DEFAULT_CONFIG, nets(state));
+
+    expect(fry(out.state.fish)).toHaveLength(0);
+    expect(out.state.fish.find((f) => f.id === 'she')!.surplus).toBe(CAP);
   });
 
   it('does not spawn when the female bank is below cost', () => {
@@ -244,6 +283,18 @@ describe('processBreeding — fry lifecycle', () => {
     expect(atMaturity.state.fish[0].mass).toBe(FISH_SPECIES_DATA.guppy.adultMass);
   });
 
+  it('breeds a fry that matures in the same pass', () => {
+    const b = FISH_SPECIES_DATA.guppy.breeding;
+    const state = withTank([
+      mkFish({ sex: 'female', stage: 'fry', age: b.maturityAge, surplus: CAP }),
+      mkFish({ sex: 'male', stage: 'fry', age: b.maturityAge, surplus: CAP }),
+    ]);
+    const out = processBreeding(state, DEFAULT_CONFIG, nets(state));
+
+    expect(adults(out.state.fish)).toHaveLength(2);
+    expect(fry(out.state.fish)).toHaveLength(b.clutchSize);
+  });
+
   it('does not let fry breed', () => {
     const femaleFry = mkFish({ id: 'she', sex: 'female', stage: 'fry', age: 0, surplus: CAP });
     const maleAdult = mkFish({ sex: 'male', surplus: CAP });
@@ -329,6 +380,57 @@ describe('breeding through tick()', () => {
     expect(events(state, 'fish-spawned')).toHaveLength(0);
     expect(events(state, 'eggs-laid')).toHaveLength(0);
     expect(fry(state.fish)).toHaveLength(0);
+  });
+});
+
+describe('the age a pair is seeded at, through tick()', () => {
+  const DIALED: SimulationConfig = {
+    tankCapacity: 60,
+    substrate: { type: 'aqua_soil' },
+    filter: { enabled: true, type: 'sponge' },
+    heater: { enabled: true, targetTemperature: 26, wattage: 100 },
+    light: { enabled: true, wattage: 15, schedule: { startHour: 8, duration: 10 } },
+    ato: { enabled: true },
+  };
+
+  /** Tick of the first birth in a fed, cycled tank whose guppy pair starts at `age`. */
+  function firstBirthTick(age: number, hours: number): number | null {
+    let state = createSimulation(
+      DIALED,
+      {
+        bacteria: 'cycled',
+        fish: [
+          { species: 'guppy', sex: 'female', age },
+          { species: 'guppy', sex: 'male', age },
+        ],
+      },
+      2026
+    );
+
+    for (let hour = 1; hour <= hours; hour++) {
+      if (hour % 24 === 9) state = applyAction(state, { type: 'feed', amount: 0.05 }).state;
+      state = tick(state, DEFAULT_CONFIG);
+      if (events(state, 'fish-spawned').length > 0) return state.tick;
+    }
+    return null;
+  }
+
+  it('holds a pair seeded newborn until it is old enough, and no longer', () => {
+    const { maturityAge } = FISH_SPECIES_DATA.guppy.breeding;
+    const hours = maturityAge + 30 * 24;
+    const grown = firstBirthTick(maturityAge, hours);
+    const young = firstBirthTick(0, hours);
+
+    // The grown pair only has to fund the spawn; the young one has to fund it
+    // and then wait out the age it was seeded short of.
+    expect(grown).not.toBeNull();
+    expect(grown!).toBeLessThan(young!);
+    // A seeded adult is full-mass from tick 0 and never grows, so the young
+    // pair banks while it *ages* — and on this ration it is funded long before
+    // it is old enough. That funding is the assumption: it holds while
+    // `costFraction × surplusCap` accrues inside `maturityAge`, and only while
+    // it does is age alone what holds the pair back.
+    expect(young).toBe(maturityAge);
   });
 });
 

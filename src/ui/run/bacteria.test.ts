@@ -1,4 +1,5 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
+import { produce } from 'immer';
 import {
   bacteriaReadout,
   bacteriaSummary,
@@ -17,25 +18,36 @@ import {
   type SimulationState,
 } from '../../simulation/index.js';
 import { getMassFromPpm, getPpm } from '../../simulation/resources/index.js';
-import { cycledTank, fishlessTank, run as runUnfed } from '../../simulation/tests/tanks.js';
+import { cycledTank, fishlessTank, run as runUnfed, stock } from '../../simulation/tests/tanks.js';
 
 const config = DEFAULT_CONFIG;
 const perCm2 = nitrogenCycleDefaults.bacteriaPerCm2;
+/** Fixed so every reading below is off one tank rather than a fresh roll. */
+const RNG_SEED = 2026;
 
 function resources(aob: number, nob: number, surface: number): Resources {
   return { aob, nob, surface } as Resources;
 }
 
 function tank(): SimulationState {
-  return createSimulation({ tankCapacity: 200 });
+  return createSimulation({ tankCapacity: 200 }, undefined, RNG_SEED);
 }
 
+/**
+ * Six tetras, all one sex. These runs stretch months past the nitrite peak, and
+ * a mixed roster that breeds on the way there doubles the bioload behind the
+ * reading — the projection would then be judged against a different tank than
+ * the one it was taken from.
+ *
+ * Hardiness is flattened for the same reason: it scales every stressor for the
+ * whole of a fish's life, so an unlucky draw can carry one of the six under
+ * somewhere in those months and drop the bioload mid-reading. The health
+ * jitter stays — ±5 points a fish recovers within days move nothing.
+ */
 function stocked(): SimulationState {
-  let state = tank();
-  for (let i = 0; i < 6; i++) {
-    state = applyAction(state, { type: 'addFish', species: 'neon_tetra' }).state;
-  }
-  return state;
+  return produce(stock(tank(), 'neon_tetra', 6, { sex: 'male' }), (draft) => {
+    for (const fish of draft.fish) fish.hardinessOffset = 0;
+  });
 }
 
 function run(state: SimulationState, hours: number): SimulationState {
@@ -60,7 +72,13 @@ function cycling(hours: number): SimulationState {
 function cycled(hours: number): SimulationState {
   const base = stocked();
   const ceiling = base.resources.surface * perCm2;
-  return run({ ...base, resources: { ...base.resources, aob: ceiling, nob: ceiling } }, hours);
+  return run(
+    produce(base, (draft) => {
+      draft.resources.aob = ceiling;
+      draft.resources.nob = ceiling;
+    }),
+    hours
+  );
 }
 
 /**
@@ -70,16 +88,23 @@ function cycled(hours: number): SimulationState {
  * dose is then withdrawn, so nothing is left standing for them to fall behind.
  */
 function mature(): SimulationState {
-  const base = tank();
-  let state = { ...base, resources: { ...base.resources, aob: 1, nob: 1 } };
+  let state = produce(tank(), (draft) => {
+    draft.resources.aob = 1;
+    draft.resources.nob = 1;
+  });
   for (let hour = 1; hour <= 40 * 24; hour++) {
-    const { water, ammonia } = state.resources;
     state = tick(
-      { ...state, resources: { ...state.resources, ammonia: ammonia + getMassFromPpm(2, water) } },
+      produce(state, (draft) => {
+        draft.resources.ammonia += getMassFromPpm(2, draft.resources.water);
+      }),
       config
     );
   }
-  return { ...state, resources: { ...state.resources, ammonia: 0, nitrite: 0, waste: 0 } };
+  return produce(state, (draft) => {
+    draft.resources.ammonia = 0;
+    draft.resources.nitrite = 0;
+    draft.resources.waste = 0;
+  });
 }
 
 /** What the next tick actually does to nitrite, split into its two rates (ppm/h). */
@@ -111,16 +136,6 @@ function enginePeak(state: SimulationState): CycleProjection {
   }
   return { hours, ppm };
 }
-
-// Fish arrive with sampled health and hardiness; pinning the sample keeps every
-// fixture below reproducible run to run.
-beforeEach(() => {
-  vi.spyOn(Math, 'random').mockReturnValue(0.5);
-});
-
-afterEach(() => {
-  vi.restoreAllMocks();
-});
 
 describe('biofilterColonisation', () => {
   it('reads both colonies against their combined ceiling', () => {

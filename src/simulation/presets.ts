@@ -198,9 +198,9 @@ export function getPresetById(id: PresetId): PresetDefinition | undefined {
  */
 export function createPresetSimulation(
   preset: PresetDefinition,
-  rng?: () => number
+  rngSeed?: number
 ): SimulationState {
-  return createSimulation(preset.config, preset.seed, rng);
+  return createSimulation(preset.config, preset.seed, rngSeed);
 }
 
 /** The one place a preset id becomes the words every surface shows for it. */

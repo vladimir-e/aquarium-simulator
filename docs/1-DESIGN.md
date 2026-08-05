@@ -325,11 +325,13 @@ Systems are registered in a central list and automatically invoked during their 
 - **Immutable state** - Each tick produces a new state object via Immer
 - **Core systems emit effects** - Effects are collected and applied via `applyEffects()` with clamping
 - **Equipment and actions mutate directly** - Use Immer's `produce()` for immutable updates
+- **Randomness lives on the state** - `state.rng` is a seed and a counter, so a
+  state is the whole of the tank's future, not a snapshot of half of it
 - Enables undo, replay, and time-travel debugging
 
 ### Starting State
 
-`createSimulation(config, seed?, rng?)` builds a tank at tick 0. Without a
+`createSimulation(config, seed?, rngSeed?)` builds a tank at tick 0. Without a
 seed the tank is empty and uncycled; a `PresetSeed` says what is already in
 it — a colony, a part-spent bed, chemistry stocks, fish at an age and sex,
 plants at a size.
@@ -343,6 +345,12 @@ plants at a size.
   could have reached — a colony with no ammonia history, a fish past its
   `maxAge`, a plant in a substrate that would refuse it. Constructing
   extreme states deliberately is what a scenario is for.
+- **A fish's stage and its age are separate claims.** A group that names no
+  age gets the age its stage starts at — `maturityAge` for an adult, 0 for
+  a fry — so a roster of adults is a roster of grown fish. Naming an age
+  overrides that, mismatches included: `{ stage: 'adult', age: 0 }` is a
+  full-mass fish too young to breed, and it waits out the difference before
+  the spawn gate will have it (see `7-LIVESTOCK.md` § Reproduction).
 - **`bacteria: 'cycled'`** is a claim about the whole tank and not only its
   biofilter: a month of running, so the bed carries a month of leaching and
   the water carries the nitrate that leaching became, less what a month of
@@ -352,17 +360,34 @@ plants at a size.
   `cycledReserve(type, litres)` and `cycledNitrate(type, litres)` give the
   absolute figures, and a named `substrate` or `resources` seed overrides
   what the shorthand would have resolved.
-- **A seed is pure data.** Randomness is a constructor parameter rather than
-  a seed field, so a seed stays serializable. Supplying `rng` makes the
-  roster's individual variation reproducible; the draw sequence is the same
-  whether or not a group names its fish's sex, so naming one doesn't reroll
-  the organisms behind it.
+- **A seed is pure data.** Randomness is a stream carried on the state rather
+  than a seed field, so a seed stays serializable. `SimulationState.rng` is a
+  seed and a counter: every draw the tank makes is a pure function of that
+  pair and advances the counter by one, so the same state always has the same
+  future — across a save and reload included. `createSimulation`'s `rngSeed`
+  opens that stream at a named point; without one the tank takes the clock and
+  the count of streams opened before it, so two tanks a process opens are all
+  but certain to differ: they collide only if the milliseconds between them
+  exactly cancel the golden-ratio step their counts are apart. (That count is
+  module state, so two processes — two browser tabs — have only the clock
+  between them.) Naming a group's sex doesn't reroll the organisms behind it —
+  the draw is spent either way — but the order of the groups does: reordering
+  the entries *within* `seed.fish`, or within `seed.plants`, hands every
+  organism after the swap a different stretch of the stream. The two keys
+  themselves are applied in fixed code order, fish then plants, whatever order
+  the seed lists them in.
+- **Organisms are named off the same counter.** A fish, plant or clutch id is
+  cut from the stream position alone — not from the clock, and not from the
+  seed. A reloaded tank never reissues an id it already gave out, but the
+  third fish of any tank is `fish_3` whatever its `rngSeed`: ids are unique
+  *within* a tank, where the old clock-derived ones were unique per process.
+  Anything holding an id across a tank swap has to drop it.
 
 ### Presets
 
 A preset pairs a `SimulationConfig` with the seed the tank starts at;
-`createPresetSimulation(preset)` is the one place both halves are read
-together. Every preset but Bare Tank opens on a tank a month into its life —
+`createPresetSimulation(preset, rngSeed?)` is the one place both halves are
+read together. Every preset but Bare Tank opens on a tank a month into its life —
 a cycled biofilter over a bed that has done most of its leaching, in water
 carrying the nitrate to show for it. Bare Tank is the one you cycle yourself.
 

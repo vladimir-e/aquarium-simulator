@@ -22,7 +22,7 @@ afterEach(() => {
 });
 
 function renderRoster(state: SimulationState = createSimulation({ tankCapacity: 200 })): void {
-  const sim = { state } as unknown as ReturnType<typeof useSimulation>;
+  const sim = { state, tankId: 0 } as unknown as ReturnType<typeof useSimulation>;
   render(
     <PersistenceProvider>
       <UnitsProvider>

@@ -1,6 +1,8 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { tick, getHourOfDay, getDayNumber } from './tick.js';
-import { createSimulation, type SimulationState } from './state.js';
+import { createSimulation, type SimulationConfig, type SimulationState } from './state.js';
+import { applyAction } from './actions/index.js';
+import type { PresetSeed } from './seed.js';
 
 describe('tick', () => {
   let initialState: SimulationState;
@@ -410,5 +412,65 @@ describe('tick alerts integration', () => {
 
     // Logs should still be present (and possibly have more from alerts)
     expect(state.logs.length).toBeGreaterThanOrEqual(initialLogCount);
+  });
+});
+
+describe('tick determinism', () => {
+  const TANK: SimulationConfig = {
+    tankCapacity: 150,
+    substrate: { type: 'aqua_soil' },
+    filter: { enabled: true, type: 'canister' },
+    heater: { enabled: true, targetTemperature: 26, wattage: 200 },
+    ato: { enabled: true },
+  };
+
+  /** Mixed-sex, so the run goes through the breeding path rather than round it. */
+  const ROSTER: PresetSeed = {
+    bacteria: 'cycled',
+    fish: [
+      { species: 'guppy', count: 3, sex: 'female' },
+      { species: 'guppy', count: 2, sex: 'male' },
+    ],
+    plants: [{ species: 'java_fern', count: 2, size: 120 }],
+  };
+
+  function fortnight(rngSeed: number): SimulationState {
+    let state = createSimulation(TANK, ROSTER, rngSeed);
+    for (let hour = 1; hour <= 14 * 24; hour++) {
+      if (hour % 24 === 9) state = applyAction(state, { type: 'feed', amount: 0.15 }).state;
+      state = tick(state);
+    }
+    return state;
+  }
+
+  it('runs a breeding tank to the same state twice from one rng seed', () => {
+    const first = fortnight(2026);
+    const second = fortnight(2026);
+
+    // Trivially true of a tank that never bred, so prove the path was taken.
+    expect(first.fish.length).toBeGreaterThan(5);
+    expect(first).toEqual(second);
+    expect(JSON.stringify(first)).toBe(JSON.stringify(second));
+  });
+
+  it('gives the offspring of two identical tanks the same names', () => {
+    const ids = (state: SimulationState): string[] => [
+      ...state.fish.map((f) => f.id),
+      ...state.clutches.map((c) => c.id),
+      ...state.plants.map((p) => p.id),
+    ];
+
+    expect(ids(fortnight(2026))).toEqual(ids(fortnight(2026)));
+  });
+
+  it('sends the same tank down a different life on a different rng seed', () => {
+    expect(fortnight(2026)).not.toEqual(fortnight(9001));
+  });
+
+  it('picks up mid-stream when a serialised tank is handed back', () => {
+    const halfway = fortnight(2026);
+    const resumed: SimulationState = JSON.parse(JSON.stringify(halfway));
+
+    expect(tick(resumed)).toEqual(tick(halfway));
   });
 });

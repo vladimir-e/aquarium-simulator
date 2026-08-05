@@ -130,10 +130,9 @@ export function addPlant(
   }
 
   const plantData = PLANT_SPECIES_DATA[species];
-  const plant = createPlant({ species, size: initialSize });
 
   const newState = produce(state, (draft) => {
-    draft.plants.push(plant);
+    draft.plants.push(createPlant({ species, size: initialSize, rng: draft.rng }));
 
     draft.logs.push(
       createLog(

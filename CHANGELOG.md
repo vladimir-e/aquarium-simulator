@@ -11,34 +11,36 @@ Format: - **Feature name** (#PR) - One short sentence (under ~150 chars)
 
 ## Unreleased
 
-- **The CLI rejects flags it doesn't know** - `sim new --capacity=200` no longer builds the default tank and reports success; each subcommand names the flags it takes.
-- **Loading a preset starts a new tank** - it builds its own simulation at tick 0 rather than retrofitting the running one, and the dialog names what that costs.
-- **Presets open cycled** - every preset but Bare Tank ships a tank a month into its life: a working biofilter, a part-spent bed, and the nitrate to show for it.
-- **A tank can start at a state** - `createSimulation` takes an optional `PresetSeed`: colony, bed, chemistry, fish at an age and sex, plants at a size.
-- **The community tank stops killing its tetras** - flow tolerance is a turnover, so one powerhead is a current in a 300 L and lethal in a nano. Saved tanks and CLI sessions both reset (v16, v3).
+- **Age decides whether a fish can spawn** - the gate asks `age ≥ maturityAge`; a stocked adult arrives grown, one seeded at `age: 0` waits it out.
+- **A tank runs the same life twice** - a seed and counter on the state: one `rngSeed`, one life, ids too. Breaking: no `generateFishId` (v17, v4).
+- **The CLI rejects unknown flags** - `sim new --capacity=200` no longer builds the default tank and reports success; each subcommand names its flags.
+- **Loading a preset starts a new tank** - a fresh simulation at tick 0, not a retrofit of the running one, and the dialog names what that costs.
+- **Presets open cycled** - every preset but Bare Tank opens a month into its life: a working biofilter, a part-spent bed, and the nitrate to match.
+- **A tank can start at a state** - `createSimulation` takes an optional `PresetSeed`: colony, bed, chemistry, fish at age and sex, plants at a size.
+- **The community tank stops killing its tetras** - flow tolerance is a turnover: one powerhead is a current in a 300 L, lethal in a nano (v16, v3).
 - **"Undersized" now means the flow cap bites** - a 55 gal on a HOB is no longer told it is underfiltered; a 150 gal on a canister is.
 - **The device moving the water is the one that warns** - too much current names the powerhead, or the air pump, before the filter running behind it.
 - **A rescape takes the biofilm** - a bed swap costs the colony the share that lived on the old bed, so an established tank blips.
 - **The biofilter reads as cycled or uncycled** - both toxins at trace on colonies still clearing a load, so a starved tank stops claiming it.
 - **Colonisation reads as headroom** - share of the surface ceiling is the room a colony has left, not the headline a healthy tank sat at 1 % of.
-- **Processing capacity** - a bacterium clears the same ammonia in a nano as in a stock tank, and a cold tank cycles slower: 18 °C takes about twice the days 25 °C does.
-- **Nitrogen cycle** - a fresh tank cycles in about three weeks at any volume, driven by organics leaching from the substrate; a biofilter no longer dies for keeping up with its ammonia.
-- **`processEquipment` requires a config** - breaking: the old default silently ran on `decayDefaults` whatever the caller had tuned; `TunableConfig` and `DEFAULT_CONFIG` are now exported from the package root to pass one.
-- **`formatDosePreview` removed from the public API** - breaking for consumers importing it from the package root; the dose preview was UI string formatting living in the engine, and the Flora section derives it now.
+- **Processing capacity** - a bacterium clears the same ammonia in a nano as in a stock tank, and 18 °C takes twice the days to cycle that 25 °C does.
+- **Nitrogen cycle** - a fresh tank cycles in about three weeks at any volume, on organics leaching from the bed; no biofilter dies for keeping up.
+- **`processEquipment` requires a config** - breaking: the old default ran on `decayDefaults` whatever the caller tuned; `DEFAULT_CONFIG` is exported.
+- **`formatDosePreview` removed from the public API** - breaking: string formatting living in the engine; the Flora section derives the preview now.
 - **Action previews include dissolved gases** - water changes now show what they do to O₂ and CO₂, not just temperature and pH.
-- **Actions sheet** - one transient surface for all six husbandry verbs: a card over the rail's foot, a master-detail drill-in on a phone, previewing each by applying the action and diffing the engine's own readings.
-- **Scenario section** - five preset cards stating the tank each actually builds, the environment fields with their derived consequences, and the three confirmations restored.
+- **Actions sheet** - one transient surface for all six husbandry verbs, previewing each by applying the action and diffing the engine's own readings.
+- **Scenario section** - five preset cards stating the tank each builds, the environment fields with their consequences, and the confirmations back.
 - **Preset drift is derived** - the "modified" pill compares the tank against its preset's config, so an undo clears it and a reload cannot lose it.
 - **Analytics section** - four full-width charts over a full-width log; the scrubbed tick lives in `?tick=`, so a cursor is a link for the session.
 - **Error boundary keeps your tank** - render errors show a recovery screen instead of wiping the save and reloading; reset is now an explicit button.
-- **Livestock section** - the roster as a table: species rows expand into individuals and individuals into their own vitality breakdown and reserve bank, clutches and fry get their own rows, bioload pinned to the foot.
-- **Flora & Scape section** - plants with per-stressor vitality breakdowns beside the algae, plants above every trim target flagged as the reason to reach for the verb, nutrients read against what the tank's own plants need, and the scape's surface contributions.
-- **Equipment section** - device list and inspector side by side, selection addressed as `/equipment/:deviceId`, plus a 24 h schedule band and a read-only biofilter entry.
-- **Water section** - six vertical gauges with engine-derived bands and 24 h traces, a dissolved-gases pair reading O₂ and CO₂ against the thresholds their alerts fire on, plus Bacteria and Waste cards that read the biofilter, the conversion rates, and a projected nitrite peak.
-- **Dashboard UI redesign** - index+stage shell replaces the Build/Run/Review modes: six routed sections, a live-figure index rail, and browser back between views.
-- **Vitality reserve buffer** - fish `surplus` becomes a saturating reserve bank (cap 50) that drains to absorb damage before condition falls; condition 100 with a negative net rate reads as "burning reserves". Persistence v12 → v13.
-- **Fish reproduction** - adult pairs spend banked surplus to spawn; livebearers drop fry directly, egg-layers lay clutches that hatch after a per-species delay; fry grow with age and mature into breeding adults.
-- **npm packaging** - publish-ready as `aquarium-simulator` v0.1.0: build ships only the pure-TS engine (no UI/CLI), MIT license, trusted-publishing release workflow.
+- **Livestock section** - the roster as a table: species rows open into individuals, individuals into their own vitality breakdown, fry into batches.
+- **Flora & Scape section** - per-stressor vitality breakdowns beside the algae, trim targets flagged, nutrients read against what the plants need.
+- **Equipment section** - device list and inspector side by side, selection addressed as `/equipment/:deviceId`, plus a 24 h schedule band.
+- **Water section** - six vertical gauges with engine-derived bands and 24 h traces, a dissolved-gases pair, and Bacteria and Waste cards.
+- **Dashboard UI redesign** - index+stage shell replaces Build/Run/Review: six routed sections, a live-figure index rail, browser back between views.
+- **Vitality reserve buffer** - fish `surplus` becomes a saturating bank (cap 50) that drains before condition falls; 100 can read "burning" (v13).
+- **Fish reproduction** - adult pairs spend banked surplus to spawn; livebearers drop fry, egg-layers lay clutches; fry grow and mature into adults.
+- **npm packaging** - publish-ready as `aquarium-simulator` v0.1.0: the build ships only the pure-TS engine, MIT license, trusted publishing.
 - **Algae as pure population** - Task 42 follow-up (#48): drop `condition` from `AlgaeState`; net rate drives mass directly.
 
 ## 2026-05-02

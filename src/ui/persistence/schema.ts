@@ -235,6 +235,17 @@ const ClutchSchema = z
   .strict();
 
 // ============================================================================
+// Rng Schema
+// ============================================================================
+
+const RngStateSchema = z
+  .object({
+    seed: z.number().int(),
+    counter: z.number().int().min(0),
+  })
+  .strict();
+
+// ============================================================================
 // Alert State Schema
 // ============================================================================
 
@@ -265,6 +276,7 @@ export const PersistedSimulationSchema = z
     fish: z.array(FishSchema),
     clutches: z.array(ClutchSchema),
     algae: AlgaeStateSchema,
+    rng: RngStateSchema,
     alertState: AlertStateSchema,
     currentPreset: z.string(),
   })

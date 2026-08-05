@@ -86,10 +86,11 @@ export function canAddFish(state: SimulationState, species: FishSpecies): boolea
 }
 
 /**
- * Add a fish to the tank. Stocked fish arrive as full-grown adults
- * (age 0, adult mass); the individual variation — sex, hardiness
- * offset, health jitter — is sampled by the shared {@link createFish}
- * factory, the same one breeding uses for fry.
+ * Add a fish to the tank. Stocked fish arrive as full-grown adults — adult
+ * mass at `maturityAge`, the youngest age that can honestly be called
+ * grown, so a bought pair can breed from its first tick. The individual
+ * variation — sex, hardiness offset, health jitter — is sampled by the
+ * shared {@link createFish} factory, the same one breeding uses for fry.
  */
 export function addFish(
   state: SimulationState,
@@ -113,9 +114,8 @@ export function addFish(
     return { state, message: capacity.message };
   }
 
-  const fish = createFish({ species, age: 0, stage: 'adult' });
-
   const newState = produce(state, (draft) => {
+    const fish = createFish({ species, stage: 'adult', rng: draft.rng });
     draft.fish.push(fish);
 
     draft.logs.push(

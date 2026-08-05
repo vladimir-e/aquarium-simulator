@@ -14,6 +14,7 @@ import type {
   AlgaeState,
   AlertState,
 } from '../../simulation/state.js';
+import type { RngState } from '../../simulation/core/rng.js';
 import type { TunableConfig } from '../../simulation/config/index.js';
 
 /**
@@ -21,6 +22,12 @@ import type { TunableConfig } from '../../simulation/config/index.js';
  * Increment this when the structure changes in a breaking way.
  * On version mismatch, stored data is discarded.
  *
+ * v17: The tank carries its own randomness. `SimulationState` gains
+ *      `rng: { seed, counter }` — the seed and stream position every draw
+ *      comes off — and organism ids are cut from that counter rather than
+ *      the clock. A v16 tank has no stream to resume, and its ids belong to
+ *      a scheme the counter would start colliding with the moment the tank
+ *      bred again.
  * v16: Fish flow tolerance is a turnover. `FishSpeciesData.maxFlow`
  *      (absolute L/h) becomes `maxTurnover` (tank volumes/h), and
  *      `LivestockConfig.flowStressSeverity` is redenominated with it —
@@ -103,7 +110,7 @@ import type { TunableConfig } from '../../simulation/config/index.js';
  *     nutrient sufficiency) but its persisted shape is identical, so
  *     the bump is purely the new Fish field.
  */
-export const PERSISTENCE_VERSION = 16;
+export const PERSISTENCE_VERSION = 17;
 
 /**
  * Storage key for the unified persisted state.
@@ -124,6 +131,7 @@ export interface PersistedSimulation {
   fish: Fish[];
   clutches: Clutch[];
   algae: AlgaeState;
+  rng: RngState;
   alertState: AlertState;
   /** Currently selected preset ID */
   currentPreset: string;

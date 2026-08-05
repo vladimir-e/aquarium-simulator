@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { X } from 'lucide-react';
 import { ailingPlants, type AlgaeRow, type PlantRow, type Status } from '../../run';
 import { Breakdown, RATE_EPSILON, rateText, rateTone } from '../run/Breakdown';
@@ -60,26 +60,21 @@ function VitalRow({
 export function PlantsCard({
   rows,
   algae,
+  expanded,
+  onToggle,
   onRemove,
   footer,
   className = '',
 }: {
   rows: PlantRow[];
   algae: AlgaeRow;
+  expanded: ReadonlySet<string>;
+  onToggle: (key: string) => void;
   onRemove: (plantId: string) => void;
   /** The add-plant control, when it belongs in the list rather than the header. */
   footer?: React.ReactNode;
   className?: string;
 }): React.JSX.Element {
-  const [expanded, setExpanded] = useState<Set<string>>(new Set());
-
-  const toggle = (id: string): void =>
-    setExpanded((current) => {
-      const next = new Set(current);
-      if (!next.delete(id)) next.add(id);
-      return next;
-    });
-
   // The slot count and the trim count are the section's headline, one line up.
   const ailing = ailingPlants(rows).length;
 
@@ -106,7 +101,7 @@ export function PlantsCard({
               status={row.status}
               value={row.condition}
               expanded={expanded.has(row.id)}
-              onToggle={() => toggle(row.id)}
+              onToggle={() => onToggle(row.id)}
             >
               <Breakdown stressors={row.stressors} benefits={row.benefits} net={row.net} />
               <div className="flex justify-end pb-2 pr-1">
@@ -134,7 +129,7 @@ export function PlantsCard({
             status={algae.status}
             value={algae.mass}
             expanded={expanded.has('algae')}
-            onToggle={() => toggle('algae')}
+            onToggle={() => onToggle('algae')}
           >
             <Breakdown
               stressors={algae.stressors}

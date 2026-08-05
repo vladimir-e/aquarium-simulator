@@ -392,6 +392,7 @@ function createValidSimulation(): PersistedSimulation {
     fish: [],
     clutches: [],
     algae: { mass: 0, surplus: 0 },
+    rng: { seed: 1, counter: 0 },
     alertState: {
       waterLevelCritical: false,
       highAlgae: false,

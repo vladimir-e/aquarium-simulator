@@ -5,12 +5,51 @@ import { useSimulation } from './useSimulation';
 import { createPresetSimulation, getPresetById, type PresetId } from '../../simulation/presets';
 import { ConfigProvider } from './useConfig';
 import { PersistenceProvider } from '../persistence/index.js';
-import { createSimulation } from '../../simulation/state.js';
-import { getSubstrateOrganicReserve, getSubstrateSurface } from '../../simulation/index.js';
+import { createSimulation, type SimulationState } from '../../simulation/state.js';
+import {
+  applyAction,
+  getSubstrateOrganicReserve,
+  getSubstrateSurface,
+  tick,
+} from '../../simulation/index.js';
 import { cycledColony } from '../../simulation/seed.js';
 import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
-import { PERSISTENCE_VERSION, STORAGE_KEY } from '../persistence/types.js';
+import {
+  PERSISTENCE_VERSION,
+  STORAGE_KEY,
+  type PersistedSimulation,
+  type PersistedState,
+} from '../persistence/types.js';
 import { snapshotFromState } from '../run/index.js';
+
+/** Put a tank in localStorage under `presetId`, the way a saved session sits. */
+function seedSession(
+  state: SimulationState,
+  presetId: PresetId,
+  overrides: Partial<PersistedSimulation> = {}
+): void {
+  const persisted: PersistedState = {
+    version: PERSISTENCE_VERSION,
+    simulation: {
+      tick: state.tick,
+      tank: state.tank,
+      resources: state.resources,
+      environment: state.environment,
+      equipment: state.equipment,
+      plants: state.plants,
+      fish: state.fish,
+      clutches: state.clutches,
+      algae: state.algae,
+      rng: state.rng,
+      alertState: state.alertState,
+      currentPreset: presetId,
+      ...overrides,
+    },
+    tunableConfig: DEFAULT_CONFIG,
+    ui: { units: 'metric', debugPanelOpen: false },
+  };
+  globalThis.localStorage.setItem(STORAGE_KEY, JSON.stringify(persisted));
+}
 
 /**
  * Seed localStorage with a persisted session carrying one in-flight
@@ -18,26 +57,10 @@ import { snapshotFromState } from '../run/index.js';
  * path to inject a clutch into the hook's state.
  */
 function seedSessionWithClutch(presetId: PresetId): void {
-  const base = createSimulation(getPresetById(presetId)!.config);
-  const persisted = {
-    version: PERSISTENCE_VERSION,
-    simulation: {
-      tick: 300,
-      tank: base.tank,
-      resources: base.resources,
-      environment: base.environment,
-      equipment: base.equipment,
-      plants: base.plants,
-      fish: base.fish,
-      clutches: [{ id: 'c1', species: 'neon_tetra', eggCount: 25, laidTick: 250 }],
-      algae: base.algae,
-      alertState: base.alertState,
-      currentPreset: presetId,
-    },
-    tunableConfig: DEFAULT_CONFIG,
-    ui: { units: 'metric', debugPanelOpen: false },
-  };
-  globalThis.localStorage.setItem(STORAGE_KEY, JSON.stringify(persisted));
+  seedSession(createSimulation(getPresetById(presetId)!.config), presetId, {
+    tick: 300,
+    clutches: [{ id: 'c1', species: 'neon_tetra', eggCount: 25, laidTick: 250 }],
+  });
 }
 
 /**
@@ -47,25 +70,7 @@ function seedSessionWithClutch(presetId: PresetId): void {
  */
 function seedSessionWithHighAmmonia(): void {
   const base = createSimulation(getPresetById('bare')!.config);
-  const persisted = {
-    version: PERSISTENCE_VERSION,
-    simulation: {
-      tick: 0,
-      tank: base.tank,
-      resources: { ...base.resources, ammonia: 20 },
-      environment: base.environment,
-      equipment: base.equipment,
-      plants: base.plants,
-      fish: base.fish,
-      clutches: base.clutches,
-      algae: base.algae,
-      alertState: base.alertState,
-      currentPreset: 'bare',
-    },
-    tunableConfig: DEFAULT_CONFIG,
-    ui: { units: 'metric', debugPanelOpen: false },
-  };
-  globalThis.localStorage.setItem(STORAGE_KEY, JSON.stringify(persisted));
+  seedSession(base, 'bare', { resources: { ...base.resources, ammonia: 20 } });
 }
 
 // Wrapper with ConfigProvider and PersistenceProvider for testing hooks
@@ -252,6 +257,35 @@ describe('useSimulation', () => {
     expect(result.current.state.tick).toBe(24);
   });
 
+  it('saves and reloads mid-stream, so a session break costs the tank nothing', () => {
+    const start = createSimulation(getPresetById('bare')!.config, undefined, 2026);
+    seedSession(start, 'bare');
+
+    const first = renderHook(() => useSimulation('bare'), { wrapper });
+    act(() => {
+      first.result.current.executeAction({ type: 'addFish', species: 'guppy' });
+      first.result.current.step();
+    });
+    first.unmount();
+
+    const second = renderHook(() => useSimulation('bare'), { wrapper });
+    act(() => {
+      second.result.current.executeAction({ type: 'addFish', species: 'guppy' });
+      second.result.current.step();
+    });
+
+    let straight = start;
+    for (let day = 0; day < 2; day++) {
+      straight = applyAction(straight, { type: 'addFish', species: 'guppy' }).state;
+      for (let hour = 0; hour < 24; hour++) straight = tick(straight, DEFAULT_CONFIG);
+    }
+
+    expect(second.result.current.state.rng).toEqual(straight.rng);
+    expect(second.result.current.state.rng.counter).toBeGreaterThan(start.rng.counter);
+    expect(second.result.current.state.fish).toEqual(straight.fish);
+    expect(second.result.current.state.resources).toEqual(straight.resources);
+  });
+
   it('speed changes update speed state', () => {
     const { result } = renderHook(() => useSimulation(), { wrapper });
 
@@ -339,6 +373,22 @@ describe('useSimulation', () => {
       expect(result.current.currentPreset).toBe('betta');
     });
 
+    it('takes a new tank identity on a swap, and keeps it through a reset', () => {
+      const { result } = renderHook(() => useSimulation('betta'), { wrapper });
+      const opened = result.current.tankId;
+
+      act(() => result.current.step());
+      act(() => result.current.reset());
+      expect(result.current.tankId).toBe(opened);
+
+      act(() => result.current.loadPreset('planted'));
+      const loaded = result.current.tankId;
+      expect(loaded).not.toBe(opened);
+
+      act(() => result.current.changeTankCapacity(120));
+      expect(result.current.tankId).not.toBe(loaded);
+    });
+
     it('reset clears in-flight clutches (time-anchored)', () => {
       seedSessionWithClutch('planted');
       const { result } = renderHook(() => useSimulation(), { wrapper });
@@ -377,8 +427,11 @@ describe('useSimulation', () => {
 
       // The tank is the preset's own, to the field: nothing of the 40 L planted
       // tank survives the load, and nothing the preset does not build appears.
-      const fresh = createPresetSimulation(getPresetById('community')!);
-      expect({ ...result.current.state, logs: [] }).toEqual({ ...fresh, logs: [] });
+      // Built again on the stream this load opened, the two are the same tank.
+      const after = result.current.state;
+      const fresh = createPresetSimulation(getPresetById('community')!, after.rng.seed);
+      expect({ ...after, logs: [] }).toEqual({ ...fresh, logs: [] });
+      expect(after.rng.seed).not.toBe(before.rng.seed);
       expect(result.current.currentPreset).toBe('community');
 
       // Playback stops so the new tank is not swept past unseen, and the charts

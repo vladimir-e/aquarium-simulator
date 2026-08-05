@@ -14,8 +14,9 @@ export type FishSpecies =
 export type FishSex = 'male' | 'female';
 
 /**
- * Life stage of a fish. Only adults breed; fry grow toward adult mass
- * and become adults at their species `maturityAge`.
+ * Life stage of a fish. Fry grow toward adult mass and become adults at
+ * their species `maturityAge`; the spawn gate asks the age as well as the
+ * stage, since a seed may name an adult younger than that.
  */
 export type FishLifeStage = 'fry' | 'adult';
 

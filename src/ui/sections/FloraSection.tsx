@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import type { TunableConfig } from '../../simulation/config/index.js';
 import type { useSimulation } from '../hooks/useSimulation';
+import { useExpandedRows } from '../hooks/useExpandedRows';
 import { useIsMobile } from '../hooks/useMediaQuery';
 import { Stage } from '../components/layout/Stage';
 import { AddHardscape, AddPlant } from '../components/flora/AddControls';
@@ -32,6 +33,7 @@ export function FloraSection({
 }): React.JSX.Element {
   const isMobile = useIsMobile();
   const { state } = sim;
+  const [expanded, toggle] = useExpandedRows(sim.tankId);
 
   const rows = useMemo(() => plantRows(state, config), [state, config]);
   const algae = useMemo(() => algaeRow(state, config), [state, config]);
@@ -55,6 +57,8 @@ export function FloraSection({
           className="lg:w-[60%]"
           rows={rows}
           algae={algae}
+          expanded={expanded}
+          onToggle={toggle}
           onRemove={(plantId) => sim.executeAction({ type: 'removePlant', plantId })}
           footer={isMobile && <AddPlant sim={sim} opens="up" />}
         />

@@ -32,6 +32,9 @@ export {
 // Logging
 export type { LogEntry, LogSeverity, LogEvent } from './core/logging.js';
 
+// Randomness — the stream is the state's to advance, so only its shape is public.
+export type { RngState } from './core/rng.js';
+
 // Species
 export type { PlantSpecies, PlantSpeciesData, NutrientDemand } from './plants/species.js';
 export { PLANT_SPECIES_DATA } from './plants/species.js';
@@ -301,7 +304,6 @@ export {
   processBreeding,
   createFish,
   fishMassForAge,
-  generateFishId,
 } from './livestock/index.js';
 export {
   satiationContribution,

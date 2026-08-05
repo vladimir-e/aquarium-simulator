@@ -30,7 +30,7 @@ Each fish is tracked individually with:
 | Age | Time since birth (ticks) |
 | Satiation | 0-100% (0 = starving, 100 = stuffed) |
 | Sex | Male / Female (for reproduction) |
-| Stage | `fry` or `adult` — only adults breed |
+| Stage | `fry` or `adult` — breeding also asks the age (see § Reproduction) |
 | Surplus | Reserve vitality bank; the breeding fuel (see § Health) |
 
 ### Species Characteristics
@@ -305,16 +305,25 @@ That is the whole point of gating on the bank: the husbandry checks are
 encoded upstream in *how the surplus got there*, so breeding doesn't
 re-test them.
 
-### The gate — banks only
+### The gate — age and banks
 
 Per species, per tick, a female spawns when **all** hold:
 
 | Gate | Condition |
 |------|-----------|
 | Pair present | ≥ 1 adult male **and** ≥ 1 adult female of the species |
+| Both grown | each of the two `age ≥ maturityAge` |
 | Female funded | female `surplus ≥ breedingCostFraction × surplusCap` |
 | Male funded | serving male `surplus ≥ maleShareFraction × cost` |
 | Live trend | female's vitality `net ≥ 0` **this tick** |
+
+Stage and age are both asked because they are stored independently: a
+fry that reaches `maturityAge` is flipped to `adult` in the same pass, so
+for a tank-born fish the two say the same thing — but a seed may name an
+adult younger than its species matures, and that fish waits out the
+difference (see `1-DESIGN.md` § Starting State). A fish bought through
+`addFish` arrives at `maturityAge`, so a purchased pair can breed from
+its first tick.
 
 There are **no** condition / satiation / temperature / pH checks — those
 are already priced into surplus accrual. The one extra guard is the
@@ -386,16 +395,20 @@ the age at which it becomes a breeding adult.
 Fry and stocked adults are built by the same factory, so a fry carries
 the same individual variation as a purchased fish (50/50 sex, a
 per-individual hardiness offset ±15 % of species baseline, small health
-jitter). A fry starts at `fryMassFraction × adultMass` and age 0.
+jitter). A fry starts at `fryMassFraction × adultMass` and age 0; a
+stocked adult starts at full mass and at `maturityAge`, so it clears the
+gate's age term from its first tick and spends that much of its `maxAge`
+before it ever enters the tank (see `8-ACTIONS.md` § Add Fish).
 
 - **Growth.** Each tick a fry's mass is re-derived from its age, linearly
   interpolating from fry mass at age 0 to full `adultMass` at
   `maturityAge`. Growth is purely age-driven — fry do **not** spend
   surplus to grow.
 - **Maturity.** At `maturityAge` the fry flips to `adult` and snaps to
-  full mass. Only adults breed. Maturation runs before the spawn pass in
-  the same tick, so a fish that reaches maturity already holding a full
-  bank may breed the very tick it becomes an adult — this is intended.
+  full mass. Maturation runs before the spawn pass in the same tick and
+  the gate's age term is met at exactly that age, so a fish that reaches
+  maturity already holding a full bank may breed the very tick it becomes
+  an adult — this is intended.
 - **Living.** Fry are ordinary fish everywhere else: they eat (joining
   the feeding priority by satiation), respire, produce waste, take
   stressor damage, and die at health 0 — all proportional to their
@@ -505,7 +518,7 @@ Fish {
     species: String
     mass: Number (grams; full for adults, age-interpolated for fry)
     sex: Male | Female
-    stage: fry | adult        // only adults breed
+    stage: fry | adult        // breeding asks the age too
     age: Number (ticks)
     health: 0-100             // condition in vitality terms
     satiation: 0-100          // 0 = starving, 100 = stuffed

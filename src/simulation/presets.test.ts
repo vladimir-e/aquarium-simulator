@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { PRESETS, createPresetSimulation, getPresetById, presetName } from './presets.js';
+import {
+  PRESETS,
+  createPresetSimulation,
+  getPresetById,
+  presetName,
+  type PresetDefinition,
+} from './presets.js';
 import { cycledColony } from './seed.js';
 
 describe('presets', () => {
@@ -43,16 +49,27 @@ describe('presets', () => {
     expect(bare.resources.nob).toBe(0);
   });
 
-  it('honours a seed when the preset carries one', () => {
-    const seeded = createPresetSimulation({
-      id: 'community',
-      name: 'Seeded',
-      config: { tankCapacity: 150 },
-      seed: { bacteria: cycledColony(150), fish: [{ species: 'guppy', count: 4, sex: 'female' }] },
-    });
+  /** A preset that actually seeds something, so a stream has work to do. */
+  const seeded: PresetDefinition = {
+    id: 'community',
+    name: 'Seeded',
+    config: { tankCapacity: 150 },
+    seed: { bacteria: cycledColony(150), fish: [{ species: 'guppy', count: 4, sex: 'female' }] },
+  };
 
-    expect(seeded.resources.aob).toBe(cycledColony(150).aob);
-    expect(seeded.fish).toHaveLength(4);
-    expect(seeded.fish.every((f) => f.sex === 'female')).toBe(true);
+  it('honours a seed when the preset carries one', () => {
+    const state = createPresetSimulation(seeded);
+
+    expect(state.resources.aob).toBe(cycledColony(150).aob);
+    expect(state.fish).toHaveLength(4);
+    expect(state.fish.every((f) => f.sex === 'female')).toBe(true);
+  });
+
+  it('opens the tank on the stream its caller names, or on one of its own', () => {
+    const named = createPresetSimulation(seeded, 2026);
+
+    expect(named).toEqual(createPresetSimulation(seeded, 2026));
+    expect(named).not.toEqual(createPresetSimulation(seeded, 9001));
+    expect(createPresetSimulation(seeded).fish).not.toEqual(createPresetSimulation(seeded).fish);
   });
 });

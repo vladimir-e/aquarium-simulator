@@ -57,12 +57,16 @@ export interface SeedFishGroup {
   species: FishSpecies;
   /** Defaults to 1. */
   count?: number;
-  /** Age in ticks. Defaults to 0. */
+  /**
+   * Age in ticks. Defaults to the age its stage starts at — `maturityAge`
+   * for an adult, 0 for a fry — so a roster that names no age means grown
+   * fish. Only an age the author wrote stands as written.
+   */
   age?: number;
   sex?: FishSex;
   /**
-   * Defaults to `adult`. Independent of `age`, so both a newly-stocked
-   * grown fish and a months-old juvenile are expressible.
+   * Defaults to `adult`. Independent of `age`, so both a months-old
+   * juvenile and an adult too young to breed are expressible.
    */
   stage?: FishLifeStage;
 }
@@ -165,11 +169,7 @@ function writeStocks<T, K extends keyof T>(
   }
 }
 
-export function applySeed(
-  state: SimulationState,
-  seed: PresetSeed,
-  rng: () => number = Math.random
-): void {
+export function applySeed(state: SimulationState, seed: PresetSeed): void {
   const { capacity } = state.tank;
   const { type } = state.equipment.substrate;
 
@@ -191,10 +191,10 @@ export function applySeed(
       state.fish.push(
         createFish({
           species: group.species,
-          age: group.age ?? 0,
+          age: group.age,
           stage: group.stage ?? 'adult',
           sex: group.sex,
-          rng,
+          rng: state.rng,
         })
       );
     }
@@ -202,7 +202,7 @@ export function applySeed(
 
   for (const group of seed.plants ?? []) {
     for (let i = 0; i < (group.count ?? 1); i++) {
-      state.plants.push(createPlant({ species: group.species, size: group.size }));
+      state.plants.push(createPlant({ species: group.species, size: group.size, rng: state.rng }));
     }
   }
 }
