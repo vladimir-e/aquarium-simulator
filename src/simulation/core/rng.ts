@@ -34,9 +34,10 @@ let unnamedStreams = 0;
 
 /**
  * A fresh stream. Without a seed the tank takes one off the clock and the
- * count of streams opened before it, so two tanks in one process are alike
- * only when a caller asks them to be. The count is module state: separate
- * processes — two browser tabs — have only the clock between them.
+ * count of streams opened before it, so two tanks in one process collide only
+ * if the milliseconds between them exactly cancel the golden-ratio step their
+ * counts are apart. The count is module state: separate processes — two
+ * browser tabs — have only the clock between them.
  */
 export function createRng(seed?: number): RngState {
   const chosen = seed ?? Date.now() + Math.imul(unnamedStreams++, GOLDEN_GAMMA);
