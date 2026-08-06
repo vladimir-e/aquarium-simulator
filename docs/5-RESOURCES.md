@@ -185,7 +185,7 @@ moves a 300 L.
 | **Storage** | Concentration — organisms emit a mass, the resource layer divides by water |
 | **Typical** | 6-8 mg/L |
 | **Providers** | Gas exchange, plant photosynthesis |
-| **Consumers** | Fish respiration, bacterial respiration, plant respiration (night) |
+| **Consumers** | Fish respiration, nitrification, decomposition, plant respiration (night) |
 
 **Notes:**
 - Saturation decreases with temperature

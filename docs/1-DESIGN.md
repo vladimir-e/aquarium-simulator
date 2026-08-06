@@ -428,6 +428,9 @@ lived on the old bed.
   than overdrawing it, with no clamp or ration at the boundary
 - The CO2 each process emits is derived from the oxygen it consumed, so a
   suffocating tank stops emitting carbon instead of manufacturing it
+- Nitrification is in it on both sides: it draws 4.57 mg O2 per mg N and NOB
+  carry nearly four times AOB's constant, so an under-aerated tank stands
+  nitrite while its ammonia still falls
 
 ### Light & Photoperiod
 - Each light fixture has its own on/off schedule
