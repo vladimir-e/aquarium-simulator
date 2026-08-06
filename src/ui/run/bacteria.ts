@@ -14,6 +14,7 @@ import {
   calculateNitriteToNitrate,
   calculateWasteToAmmonia,
   nitrificationFactor,
+  nitrifierOxygenFactor,
   nobCapacity,
 } from '../../simulation/systems/index.js';
 import {
@@ -186,7 +187,7 @@ export function bacteriaReadout(
 
   // The AOB stage sees both of these: gill excretion lands in the active tier,
   // ahead of the passive nitrogen cycle, and mineralisation runs first inside it.
-  const gills = processMetabolism(state.fish, r.food, config.livestock).ammoniaProduced;
+  const gills = processMetabolism(state.fish, r.food, r.oxygen, config.livestock).ammoniaProduced;
   const { ammoniaProduced } = calculateWasteToAmmonia(
     mineralisationBase(r.waste, wasteInflow(state, config)),
     nc
@@ -195,16 +196,18 @@ export function bacteriaReadout(
     r.ammonia + gills + ammoniaProduced,
     r.aob,
     r.temperature,
+    r.oxygen,
     nc
   );
   const { nitriteConsumed } = calculateNitriteToNitrate(
     r.nitrite + nitriteProduced,
     r.nob,
     r.temperature,
+    r.oxygen,
     nc
   );
-  const aobThroughput = getPpm(aobCapacity(r.aob, r.temperature, nc), water);
-  const nobThroughput = getPpm(nobCapacity(r.nob, r.temperature, nc), water);
+  const aobThroughput = getPpm(aobCapacity(r.aob, r.temperature, r.oxygen, nc), water);
+  const nobThroughput = getPpm(nobCapacity(r.nob, r.temperature, r.oxygen, nc), water);
 
   const rates: ConversionRates = {
     wasteToAmmonia: getPpm(ammoniaProduced, water),
@@ -256,10 +259,11 @@ function nextVolume(water: number, state: SimulationState, config: TunableConfig
 /**
  * Run the engine's own nitrogen model forward to find the nitrite peak.
  *
- * Waste inflow, biofilm surface and temperature are held at today's values, so
- * this answers "if nothing else changes" — feeding more, adding fish or a water
- * change all move it. Evaporation and substrate leaching are not choices: both
- * run every tick whatever the keeper does, so the projection carries them.
+ * Waste inflow, biofilm surface, temperature and dissolved oxygen are held at
+ * today's values, so this answers "if nothing else changes" — feeding more,
+ * adding fish or a water change all move it. Evaporation and substrate leaching
+ * are not choices: both run every tick whatever the keeper does, so the
+ * projection carries them.
  */
 export function projectNitritePeak(
   state: SimulationState,
@@ -272,12 +276,14 @@ export function projectNitritePeak(
   if (r.water <= 0 || ceiling <= 0) return null;
   const inoculum = calculateInoculum(state.tank.capacity, nc);
   const warmth = nitrificationFactor(r.temperature, nc);
+  const aobAir = nitrifierOxygenFactor('aob', r.oxygen, nc);
+  const nobAir = nitrifierOxygenFactor('nob', r.oxygen, nc);
 
   const sources = wasteInflow(state, config).sources;
   const steadyInflow = sources
     .filter((source) => source.key !== 'substrate')
     .reduce((total, source) => total + source.gramsPerHour, 0);
-  const gills = processMetabolism(state.fish, r.food, config.livestock).ammoniaProduced;
+  const gills = processMetabolism(state.fish, r.food, r.oxygen, config.livestock).ammoniaProduced;
 
   let reserve = state.equipment.substrate.organicReserve;
   let water = r.water;
@@ -301,11 +307,11 @@ export function projectNitritePeak(
     waste -= mineralised.wasteConsumed;
     ammonia += mineralised.ammoniaProduced + gills;
 
-    const oxidised = calculateAmmoniaToNitrite(ammonia, aob, r.temperature, nc);
+    const oxidised = calculateAmmoniaToNitrite(ammonia, aob, r.temperature, r.oxygen, nc);
     ammonia -= oxidised.ammoniaConsumed;
     nitrite += oxidised.nitriteProduced;
 
-    const cleared = calculateNitriteToNitrate(nitrite, nob, r.temperature, nc);
+    const cleared = calculateNitriteToNitrate(nitrite, nob, r.temperature, r.oxygen, nc);
     nitrite -= cleared.nitriteConsumed;
 
     const ammoniaPpm = getPpm(ammonia, water);
@@ -317,14 +323,14 @@ export function projectNitritePeak(
     const aobFlows = calculateColonyFlows(
       aob,
       oxidised.utilization,
-      nc.aobGrowthRate * warmth,
+      nc.aobGrowthRate * warmth * aobAir,
       nc.bacteriaDeathRate * warmth,
       ceiling
     );
     const nobFlows = calculateColonyFlows(
       nob,
       cleared.utilization,
-      nc.nobGrowthRate * warmth,
+      nc.nobGrowthRate * warmth * nobAir,
       nc.bacteriaDeathRate * warmth,
       ceiling
     );

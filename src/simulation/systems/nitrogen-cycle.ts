@@ -15,6 +15,12 @@
  * weight: NH3 (17.03) → NO2⁻ (46.01) → NO3⁻ (62.00). So 1 mg NH3
  * oxidised yields 2.702 mg NO2⁻, and 1 mg NO2⁻ oxidised yields 1.348 mg
  * NO3⁻. Equivalently, 0.823 mg of elemental N passes through each step.
+ *
+ * Both oxidations are aerobic, and pay for themselves in oxygen: 4.57 mg of
+ * O2 per mg of nitrogen carried the whole way, three quarters of it spent on
+ * the first step. The colonies are as oxygen-limited as they are
+ * temperature-limited, NOB the more sensitive of the two, which is why a tank
+ * short of oxygen stands nitrite while its ammonia still falls.
  */
 
 import type { Effect } from '../core/effects.js';
@@ -22,8 +28,13 @@ import type { SimulationState } from '../state.js';
 import type { System } from './types.js';
 import type { TunableConfig } from '../config/index.js';
 import { type NitrogenCycleConfig, nitrogenCycleDefaults } from '../config/nitrogen-cycle.js';
-import { q10Factor } from '../core/kinetics.js';
-import { NH3_TO_NO2_MASS_RATIO, NO2_TO_NO3_MASS_RATIO } from '../core/chemistry.js';
+import { monodFactor, q10Factor } from '../core/kinetics.js';
+import {
+  NH3_TO_NO2_MASS_RATIO,
+  NO2_TO_NO3_MASS_RATIO,
+  O2_PER_NH3_OXIDIZED,
+  O2_PER_NO2_OXIDIZED,
+} from '../core/chemistry.js';
 import { getPpm } from '../resources/index.js';
 
 /**
@@ -80,6 +91,25 @@ export function nitrificationFactor(
   config: NitrogenCycleConfig = nitrogenCycleDefaults
 ): number {
   return q10Factor(temperature, config.q10, config.referenceTemp);
+}
+
+/**
+ * How fast a nitrifier colony works at this oxygen level, against the
+ * saturating water its rates are quoted in.
+ *
+ * Scales oxidation and growth alike — a colony cannot divide on a reaction it
+ * cannot run — but not maintenance decay, which is what makes an anoxic tank
+ * lose its biofilter rather than merely pause it.
+ */
+export function nitrifierOxygenFactor(
+  stage: 'aob' | 'nob',
+  oxygen: number,
+  config: NitrogenCycleConfig = nitrogenCycleDefaults
+): number {
+  return monodFactor(
+    oxygen,
+    stage === 'aob' ? config.aobOxygenHalfSaturation : config.nobOxygenHalfSaturation
+  );
 }
 
 /**
@@ -169,18 +199,25 @@ export function calculateWasteToAmmonia(
 
 /**
  * The mg of NH₃ an AOB colony can put through in one tick — population × the
- * throughput of a bacterium × how fast this temperature lets it work.
+ * throughput of a bacterium × how fast this temperature and this oxygen let it
+ * work.
  *
- * A property of the cells, so nothing here reads the tank: the same colony
- * clears the same mass in 10 L as in 1000 L, which is what makes a ppm reading
- * fall with volume the way it does in a real tank.
+ * A property of the cells and the water they sit in, not of the tank's size:
+ * the same colony clears the same mass in 10 L as in 1000 L, which is what
+ * makes a ppm reading fall with volume the way it does in a real tank.
  */
 export function aobCapacity(
   population: number,
   temperature: number,
+  oxygen: number,
   config: NitrogenCycleConfig = nitrogenCycleDefaults
 ): number {
-  return population * config.bacteriaProcessingRate * nitrificationFactor(temperature, config);
+  return (
+    population *
+    config.bacteriaProcessingRate *
+    nitrificationFactor(temperature, config) *
+    nitrifierOxygenFactor('aob', oxygen, config)
+  );
 }
 
 /**
@@ -196,13 +233,15 @@ export function aobCapacity(
 export function nobCapacity(
   population: number,
   temperature: number,
+  oxygen: number,
   config: NitrogenCycleConfig = nitrogenCycleDefaults
 ): number {
   return (
     population *
     config.bacteriaProcessingRate *
     NOB_PROCESSING_RATE_MULTIPLIER *
-    nitrificationFactor(temperature, config)
+    nitrificationFactor(temperature, config) *
+    nitrifierOxygenFactor('nob', oxygen, config)
   );
 }
 
@@ -215,22 +254,31 @@ export function nobCapacity(
  * @param ammoniaMass - Current ammonia mass in mg
  * @param aobPopulation - AOB bacteria population
  * @param temperature - Water temperature in °C
- * @returns mg consumed, mg of nitrite produced, and the fraction of capacity used
+ * @param oxygen - Dissolved oxygen in mg/L
+ * @returns mg consumed, mg of nitrite produced, mg of O2 spent, and the
+ *          fraction of capacity used
  */
 export function calculateAmmoniaToNitrite(
   ammoniaMass: number,
   aobPopulation: number,
   temperature: number,
+  oxygen: number,
   config: NitrogenCycleConfig = nitrogenCycleDefaults
-): { ammoniaConsumed: number; nitriteProduced: number; utilization: number } {
+): {
+  ammoniaConsumed: number;
+  nitriteProduced: number;
+  oxygenConsumedMg: number;
+  utilization: number;
+} {
   if (ammoniaMass <= 0 || aobPopulation <= 0) {
-    return { ammoniaConsumed: 0, nitriteProduced: 0, utilization: 0 };
+    return { ammoniaConsumed: 0, nitriteProduced: 0, oxygenConsumedMg: 0, utilization: 0 };
   }
-  const canProcessMass = aobCapacity(aobPopulation, temperature, config);
+  const canProcessMass = aobCapacity(aobPopulation, temperature, oxygen, config);
   const ammoniaConsumed = Math.min(canProcessMass, ammoniaMass);
   return {
     ammoniaConsumed,
     nitriteProduced: ammoniaConsumed * NH3_TO_NO2_MASS_RATIO,
+    oxygenConsumedMg: ammoniaConsumed * O2_PER_NH3_OXIDIZED,
     utilization: canProcessMass > 0 ? ammoniaConsumed / canProcessMass : 0,
   };
 }
@@ -249,22 +297,31 @@ export function calculateAmmoniaToNitrite(
  * @param nitriteMass - Current nitrite mass in mg
  * @param nobPopulation - NOB bacteria population
  * @param temperature - Water temperature in °C
- * @returns mg consumed, mg of nitrate produced, and the fraction of capacity used
+ * @param oxygen - Dissolved oxygen in mg/L
+ * @returns mg consumed, mg of nitrate produced, mg of O2 spent, and the
+ *          fraction of capacity used
  */
 export function calculateNitriteToNitrate(
   nitriteMass: number,
   nobPopulation: number,
   temperature: number,
+  oxygen: number,
   config: NitrogenCycleConfig = nitrogenCycleDefaults
-): { nitriteConsumed: number; nitrateProduced: number; utilization: number } {
+): {
+  nitriteConsumed: number;
+  nitrateProduced: number;
+  oxygenConsumedMg: number;
+  utilization: number;
+} {
   if (nitriteMass <= 0 || nobPopulation <= 0) {
-    return { nitriteConsumed: 0, nitrateProduced: 0, utilization: 0 };
+    return { nitriteConsumed: 0, nitrateProduced: 0, oxygenConsumedMg: 0, utilization: 0 };
   }
-  const canProcessMass = nobCapacity(nobPopulation, temperature, config);
+  const canProcessMass = nobCapacity(nobPopulation, temperature, oxygen, config);
   const nitriteConsumed = Math.min(canProcessMass, nitriteMass);
   return {
     nitriteConsumed,
     nitrateProduced: nitriteConsumed * NO2_TO_NO3_MASS_RATIO,
+    oxygenConsumedMg: nitriteConsumed * O2_PER_NO2_OXIDIZED,
     utilization: canProcessMass > 0 ? nitriteConsumed / canProcessMass : 0,
   };
 }
@@ -278,13 +335,16 @@ function colonyEffects(
   population: number,
   utilization: number,
   temperatureFactor: number,
+  oxygenFactor: number,
   maxPopulation: number,
   config: NitrogenCycleConfig
 ): Effect[] {
   const { growth, death } = calculateColonyFlows(
     population,
     utilization,
-    (resource === 'aob' ? config.aobGrowthRate : config.nobGrowthRate) * temperatureFactor,
+    (resource === 'aob' ? config.aobGrowthRate : config.nobGrowthRate) *
+      temperatureFactor *
+      oxygenFactor,
     config.bacteriaDeathRate * temperatureFactor,
     maxPopulation
   );
@@ -310,7 +370,10 @@ export const nitrogenCycleSystem: System = {
     const maxBacteria = calculateMaxBacteria(resources.surface, ncConfig);
     const waterVolume = resources.water;
     const temperature = resources.temperature;
+    const oxygen = resources.oxygen;
     const temperatureFactor = nitrificationFactor(temperature, ncConfig);
+    const aobOxygenFactor = nitrifierOxygenFactor('aob', oxygen, ncConfig);
+    const nobOxygenFactor = nitrifierOxygenFactor('nob', oxygen, ncConfig);
 
     // Track current values for calculations (effects accumulate)
     // Nitrogen compounds are stored as mass (mg)
@@ -379,8 +442,8 @@ export const nitrogenCycleSystem: System = {
     const submerged = waterVolume > 0;
 
     const aobStage = submerged
-      ? calculateAmmoniaToNitrite(currentAmmonia, currentAob, temperature, ncConfig)
-      : { ammoniaConsumed: 0, nitriteProduced: 0, utilization: 0 };
+      ? calculateAmmoniaToNitrite(currentAmmonia, currentAob, temperature, oxygen, ncConfig)
+      : { ammoniaConsumed: 0, nitriteProduced: 0, oxygenConsumedMg: 0, utilization: 0 };
     if (aobStage.ammoniaConsumed > 0) {
       effects.push({
         tier: 'passive',
@@ -397,6 +460,14 @@ export const nitrogenCycleSystem: System = {
         source: 'nitrogen-cycle-aob',
       });
       currentNitrite += aobStage.nitriteProduced;
+
+      // Oxygen is the one resource here stored as a concentration.
+      effects.push({
+        tier: 'passive',
+        resource: 'oxygen',
+        delta: -getPpm(aobStage.oxygenConsumedMg, waterVolume),
+        source: 'nitrogen-cycle-aob',
+      });
     }
 
     // ========================================================================
@@ -405,8 +476,8 @@ export const nitrogenCycleSystem: System = {
     // N-mass is conserved; compound mass grows by MW_NO3 / MW_NO2 ≈ 1.348.
     // ========================================================================
     const nobStage = submerged
-      ? calculateNitriteToNitrate(currentNitrite, currentNob, temperature, ncConfig)
-      : { nitriteConsumed: 0, nitrateProduced: 0, utilization: 0 };
+      ? calculateNitriteToNitrate(currentNitrite, currentNob, temperature, oxygen, ncConfig)
+      : { nitriteConsumed: 0, nitrateProduced: 0, oxygenConsumedMg: 0, utilization: 0 };
     if (nobStage.nitriteConsumed > 0) {
       effects.push({
         tier: 'passive',
@@ -420,6 +491,13 @@ export const nitrogenCycleSystem: System = {
         tier: 'passive',
         resource: 'nitrate',
         delta: nobStage.nitrateProduced, // mg, scaled by MW ratio
+        source: 'nitrogen-cycle-nob',
+      });
+
+      effects.push({
+        tier: 'passive',
+        resource: 'oxygen',
+        delta: -getPpm(nobStage.oxygenConsumedMg, waterVolume),
         source: 'nitrogen-cycle-nob',
       });
     }
@@ -464,6 +542,7 @@ export const nitrogenCycleSystem: System = {
         currentAob,
         aobStage.utilization,
         temperatureFactor,
+        aobOxygenFactor,
         maxBacteria,
         ncConfig
       ),
@@ -472,6 +551,7 @@ export const nitrogenCycleSystem: System = {
         currentNob,
         nobStage.utilization,
         temperatureFactor,
+        nobOxygenFactor,
         maxBacteria,
         ncConfig
       )

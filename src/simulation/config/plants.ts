@@ -34,6 +34,8 @@ export interface PlantsConfig {
   respirationQ10: number;
   /** Reference temperature for respiration calculations (°C) */
   respirationReferenceTemp: number;
+  /** Dissolved O2 (mg/L) at which respiration runs at half its base rate. */
+  respirationOxygenHalfSaturation: number;
 
   // Gas exchange
   /**
@@ -144,6 +146,13 @@ export const plantsDefaults: PlantsConfig = {
   baseRespirationRate: 0.15,
   respirationQ10: 2.0, // Rate doubles per 10°C increase
   respirationReferenceTemp: 25.0, // °C
+  // Submerged tissue takes its oxygen out of the water across a boundary layer
+  // rather than out of air, so the limit a plant meets is diffusion into the
+  // leaf and not the mitochondrion's own affinity — macrophyte tissue starts
+  // losing respiratory rate below roughly 1–2 mg/L. Half rate at 0.5 leaves a
+  // healthy tank untouched (94 % at 8 mg/L) and only bites where the tank is
+  // already in trouble.
+  respirationOxygenHalfSaturation: 0.5,
 
   // mg CO2 per rate unit. Pinned against a grown-in planted 150 L (≈1000 total
   // plant size): it produces 0.5–1 mg/L/h of oxygen through the photoperiod and
@@ -258,6 +267,14 @@ export const plantsConfigMeta: PlantsConfigMeta[] = [
     min: 20,
     max: 30,
     step: 1,
+  },
+  {
+    key: 'respirationOxygenHalfSaturation',
+    label: 'Respiration O2 Half-Saturation',
+    unit: 'mg/L',
+    min: 0.05,
+    max: 3,
+    step: 0.05,
   },
   // Gas exchange
   { key: 'co2PerRateUnit', label: 'CO2 per Rate Unit', unit: 'mg', min: 1, max: 200, step: 1 },

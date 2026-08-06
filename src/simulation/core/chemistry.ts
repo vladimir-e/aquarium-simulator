@@ -37,3 +37,14 @@ export const NO2_TO_NO3_MASS_RATIO = MW_NO3 / MW_NO2;
 export const CO2_TO_O2_MASS_RATIO = MW_O2 / MW_CO2;
 /** ≈ 1.375 — the same 1:1 reaction read from the oxygen side. */
 export const O2_TO_CO2_MASS_RATIO = MW_CO2 / MW_O2;
+
+/**
+ * ≈ 2.819. NH4⁺ + 1.5 O2 → NO2⁻ + 2H⁺ + H2O, read per gram of ammonia. Per
+ * gram of nitrogen instead it is the 3.43 the wastewater texts quote.
+ */
+export const O2_PER_NH3_OXIDIZED = (1.5 * MW_O2) / MW_NH3;
+/**
+ * ≈ 0.348. NO2⁻ + 0.5 O2 → NO3⁻, per gram of nitrite — 1.14 per gram of
+ * nitrogen, and 4.57 for both steps together.
+ */
+export const O2_PER_NO2_OXIDIZED = (0.5 * MW_O2) / MW_NO2;

@@ -18,6 +18,13 @@ import type { HistorySnapshot } from './history.js';
  * missing field. Parallel to the UI's `PERSISTENCE_VERSION`. Pre-launch
  * rule is reject, not migrate.
  *
+ * v7 made every aerobic process saturate against dissolved oxygen. `DecayConfig`
+ *    gains `oxygenHalfSaturation`, `PlantsConfig` and `LivestockConfig` gain
+ *    `respirationOxygenHalfSaturation`, and `NitrogenCycleConfig` gains
+ *    `aobOxygenHalfSaturation` / `nobOxygenHalfSaturation`. A v6 session parses,
+ *    and every rate that reads one of the five multiplies by `undefined`: the
+ *    first tick turns the tank's gases, its food and its whole nitrogen chain
+ *    into `NaN`.
  * v6 collapsed the plant gas yields onto one constant and changed its unit:
  *    `PlantsConfig` lost `o2PerPhotosynthesis` / `o2PerRespiration` — oxygen
  *    derives from the carbon now — and swapped `co2PerPhotosynthesis` /
@@ -46,7 +53,7 @@ import type { HistorySnapshot } from './history.js';
  * v2 added `Fish.stage` + `state.clutches` (breeding) and the saturating
  *    surplus bank.
  */
-export const SESSION_VERSION = 6;
+export const SESSION_VERSION = 7;
 export const DEFAULT_SESSION_PATH = resolve(process.cwd(), '.simstate/current.json');
 
 export interface Session {

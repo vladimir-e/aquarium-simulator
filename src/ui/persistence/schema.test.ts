@@ -536,8 +536,8 @@ describe('PersistedStateSchema', () => {
     ).toBe(false);
   });
 
-  it('PERSISTENCE_VERSION is 19', () => {
-    expect(PERSISTENCE_VERSION).toBe(19);
+  it('PERSISTENCE_VERSION is 20', () => {
+    expect(PERSISTENCE_VERSION).toBe(20);
   });
 });
 

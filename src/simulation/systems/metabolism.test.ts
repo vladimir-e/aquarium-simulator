@@ -3,7 +3,11 @@ import { processMetabolism } from './metabolism.js';
 import { livestockDefaults } from '../config/livestock.js';
 import { MW_CO2, MW_N, MW_NH3, MW_O2 } from '../core/chemistry.js';
 import { nitrogenCycleDefaults } from '../config/nitrogen-cycle.js';
+import { monodFactor } from '../core/kinetics.js';
 import type { Fish } from '../state.js';
+
+/** Air-saturated water at 25 °C, where a fish takes up all it asks for. */
+const SATURATED_O2 = 8;
 
 function makeFish(overrides: Partial<Fish> = {}): Fish {
   return {
@@ -23,7 +27,7 @@ function makeFish(overrides: Partial<Fish> = {}): Fish {
 
 describe('processMetabolism', () => {
   it('returns empty results for no fish', () => {
-    const result = processMetabolism([], 5, livestockDefaults);
+    const result = processMetabolism([], 5, SATURATED_O2, livestockDefaults);
     expect(result.updatedFish).toHaveLength(0);
     expect(result.foodConsumed).toBe(0);
     expect(result.wasteProduced).toBe(0);
@@ -35,7 +39,7 @@ describe('processMetabolism', () => {
   it('consumes food based on satiation and mass', () => {
     // satiation 50 → emptiness 0.5; foodNeeded = 0.5 × 1.0 × 0.01 = 0.005g
     const fish = [makeFish({ satiation: 50, mass: 1.0 })];
-    const result = processMetabolism(fish, 10, livestockDefaults);
+    const result = processMetabolism(fish, 10, SATURATED_O2, livestockDefaults);
 
     expect(result.foodConsumed).toBeCloseTo(0.005, 4);
   });
@@ -43,14 +47,14 @@ describe('processMetabolism', () => {
   it('does not consume more food than available', () => {
     const fish = [makeFish({ satiation: 0, mass: 10 })];
     const availableFood = 0.001;
-    const result = processMetabolism(fish, availableFood, livestockDefaults);
+    const result = processMetabolism(fish, availableFood, SATURATED_O2, livestockDefaults);
 
     expect(result.foodConsumed).toBeLessThanOrEqual(availableFood);
   });
 
   it('decreases satiation over time when no food is available', () => {
     const fish = [makeFish({ satiation: 80 })];
-    const result = processMetabolism(fish, 0, livestockDefaults);
+    const result = processMetabolism(fish, 0, SATURATED_O2, livestockDefaults);
 
     // No food, so satiation only decays.
     expect(result.updatedFish[0].satiation).toBeLessThan(80);
@@ -61,7 +65,7 @@ describe('processMetabolism', () => {
   it('raises satiation when food is consumed', () => {
     const fish = [makeFish({ satiation: 20, mass: 1.0 })];
     // Lots of food available
-    const result = processMetabolism(fish, 100, livestockDefaults);
+    const result = processMetabolism(fish, 100, SATURATED_O2, livestockDefaults);
 
     // Satiation should rise toward 100 (then decay knocks it back a hair).
     expect(result.updatedFish[0].satiation).toBeGreaterThan(20);
@@ -72,7 +76,7 @@ describe('processMetabolism', () => {
     // capacity, lands exactly at 100 then decays by 0.6 → 99.4. Verifies
     // the hard 100 cap inside the eating function.
     const fish = [makeFish({ satiation: 0, mass: 1 })];
-    const result = processMetabolism(fish, 1000, livestockDefaults);
+    const result = processMetabolism(fish, 1000, SATURATED_O2, livestockDefaults);
 
     expect(result.updatedFish[0].satiation).toBeLessThanOrEqual(100);
   });
@@ -80,14 +84,14 @@ describe('processMetabolism', () => {
   it('caps satiation at 0 minimum', () => {
     // Already-empty fish with no food still gets clamped at 0 after decay.
     const fish = [makeFish({ satiation: 0, mass: 1.0 })];
-    const result = processMetabolism(fish, 0, livestockDefaults);
+    const result = processMetabolism(fish, 0, SATURATED_O2, livestockDefaults);
 
     expect(result.updatedFish[0].satiation).toBeGreaterThanOrEqual(0);
   });
 
   it('splits food nitrogen between direct gill NH3 and feces-bound waste', () => {
     const fish = [makeFish({ satiation: 50, mass: 2.0 })];
-    const result = processMetabolism(fish, 10, livestockDefaults);
+    const result = processMetabolism(fish, 10, SATURATED_O2, livestockDefaults);
 
     expect(result.foodConsumed).toBeGreaterThan(0);
     expect(result.wasteProduced).toBeGreaterThan(0);
@@ -114,7 +118,7 @@ describe('processMetabolism', () => {
     // A 100-g fish at satiation 0 (fully empty) eats mass × baseFoodRate
     // × emptiness = 100 × 0.01 × 1.0 = 1 g of food this tick.
     const fish = [makeFish({ satiation: 0, mass: 100 })];
-    const result = processMetabolism(fish, 1, livestockDefaults);
+    const result = processMetabolism(fish, 1, SATURATED_O2, livestockDefaults);
 
     expect(result.foodConsumed).toBeCloseTo(1, 8);
     // Post-prandial: 1 g food × 5 % N × 80 % gill share × MW ratio × 1000
@@ -132,7 +136,7 @@ describe('processMetabolism', () => {
     // A fasted fish keeps excreting NH3 from body protein turnover —
     // only the post-prandial pulse and feces-waste vanish.
     const fish = [makeFish({ satiation: 50, mass: 1.0 })];
-    const result = processMetabolism(fish, 0, livestockDefaults);
+    const result = processMetabolism(fish, 0, SATURATED_O2, livestockDefaults);
 
     expect(result.foodConsumed).toBe(0);
     expect(result.wasteProduced).toBe(0);
@@ -160,7 +164,7 @@ describe('processMetabolism', () => {
     let totalWaste = 0; // g
     const ticks = 24;
     for (let t = 0; t < ticks; t++) {
-      const r = processMetabolism(fish, 1000, livestockDefaults);
+      const r = processMetabolism(fish, 1000, SATURATED_O2, livestockDefaults);
       totalFood += r.foodConsumed;
       totalDirectNH3 += r.ammoniaProduced;
       totalWaste += r.wasteProduced;
@@ -200,7 +204,7 @@ describe('processMetabolism', () => {
     let totalWaste = 0;
     const ticks = 24;
     for (let t = 0; t < ticks; t++) {
-      const r = processMetabolism(fish, 1000, livestockDefaults);
+      const r = processMetabolism(fish, 1000, SATURATED_O2, livestockDefaults);
       totalFood += r.foodConsumed;
       totalDirectNH3 += r.ammoniaProduced;
       totalWaste += r.wasteProduced;
@@ -218,20 +222,51 @@ describe('processMetabolism', () => {
     expect(nDirect + nWaste).toBeCloseTo(nIngested, 10);
   });
 
-  it('consumes oxygen based on mass', () => {
+  it('consumes oxygen based on mass, and on the oxygen there is to take', () => {
     const fish = [makeFish({ mass: 2.0 })];
-    const result = processMetabolism(fish, 10, livestockDefaults);
+    const result = processMetabolism(fish, 10, SATURATED_O2, livestockDefaults);
 
-    // oxygenConsumedMg = baseRespirationRate * mass = 0.3 * 2.0 = 0.6 mg/hr
     expect(result.oxygenConsumedMg).toBeCloseTo(
-      livestockDefaults.baseRespirationRate * 2.0,
+      livestockDefaults.baseRespirationRate *
+        2.0 *
+        monodFactor(SATURATED_O2, livestockDefaults.respirationOxygenHalfSaturation),
       6
     );
   });
 
+  it('takes up half its base rate at the half-saturation constant', () => {
+    const result = processMetabolism(
+      [makeFish({ mass: 2.0 })],
+      10,
+      livestockDefaults.respirationOxygenHalfSaturation,
+      livestockDefaults
+    );
+
+    expect(result.oxygenConsumedMg).toBeCloseTo(livestockDefaults.baseRespirationRate * 2.0 * 0.5, 9);
+  });
+
+  it('takes nothing from water with none in it, and exhales nothing either', () => {
+    const result = processMetabolism([makeFish({ mass: 2.0 })], 10, 0, livestockDefaults);
+
+    expect(result.oxygenConsumedMg).toBe(0);
+    expect(result.co2ProducedMg).toBe(0);
+  });
+
+  it('keeps excreting ammonia while it suffocates', () => {
+    const suffocating = processMetabolism([makeFish({ mass: 2.0 })], 10, 0, livestockDefaults);
+    const breathing = processMetabolism(
+      [makeFish({ mass: 2.0 })],
+      10,
+      SATURATED_O2,
+      livestockDefaults
+    );
+
+    expect(suffocating.ammoniaProduced).toBeCloseTo(breathing.ammoniaProduced, 12);
+  });
+
   it('exhales the respiratory quotient in moles, not in milligrams', () => {
     const fish = [makeFish({ mass: 2.0 })];
-    const result = processMetabolism(fish, 10, livestockDefaults);
+    const result = processMetabolism(fish, 10, SATURATED_O2, livestockDefaults);
 
     const o2Moles = result.oxygenConsumedMg / MW_O2;
     const co2Moles = result.co2ProducedMg / MW_CO2;
@@ -241,7 +276,7 @@ describe('processMetabolism', () => {
 
   it('increments age by 1 each tick', () => {
     const fish = [makeFish({ age: 100 })];
-    const result = processMetabolism(fish, 10, livestockDefaults);
+    const result = processMetabolism(fish, 10, SATURATED_O2, livestockDefaults);
 
     expect(result.updatedFish[0].age).toBe(101);
   });
@@ -253,7 +288,7 @@ describe('processMetabolism', () => {
     ];
     // Very limited food - only enough for one fish
     const availableFood = 0.005;
-    const result = processMetabolism(fish, availableFood, livestockDefaults);
+    const result = processMetabolism(fish, availableFood, SATURATED_O2, livestockDefaults);
 
     const hungryFish = result.updatedFish.find((f) => f.id === 'hungry')!;
     const fullFish = result.updatedFish.find((f) => f.id === 'full')!;
@@ -275,7 +310,7 @@ describe('processMetabolism', () => {
     // against.
     let fish: Fish[] = [makeFish({ satiation: 30, mass: 1.0 })];
     for (let i = 0; i < 50; i++) {
-      const r = processMetabolism(fish, 1000, livestockDefaults);
+      const r = processMetabolism(fish, 1000, SATURATED_O2, livestockDefaults);
       fish = r.updatedFish;
     }
     expect(fish[0].satiation).toBeCloseTo(100 - livestockDefaults.satiationDecayRate, 6);
@@ -285,7 +320,7 @@ describe('processMetabolism', () => {
     // No food at all → satiation drops by exactly satiationDecayRate
     // each tick (no eating to offset).
     const fish = [makeFish({ satiation: 50, mass: 1.0 })];
-    const r = processMetabolism(fish, 0, livestockDefaults);
+    const r = processMetabolism(fish, 0, SATURATED_O2, livestockDefaults);
     expect(r.updatedFish[0].satiation).toBeCloseTo(
       50 - livestockDefaults.satiationDecayRate,
       6
@@ -297,13 +332,15 @@ describe('processMetabolism', () => {
       makeFish({ id: 'f1', mass: 1.0 }),
       makeFish({ id: 'f2', mass: 2.0 }),
     ];
-    const result = processMetabolism(fish, 10, livestockDefaults);
-
-    // Total O2 consumption = baseRespirationRate * (1.0 + 2.0) mg/hr
-    expect(result.oxygenConsumedMg).toBeCloseTo(
-      livestockDefaults.baseRespirationRate * 3.0,
-      6
+    const result = processMetabolism(fish, 10, SATURATED_O2, livestockDefaults);
+    const alone = processMetabolism(
+      [makeFish({ mass: 1.0 })],
+      10,
+      SATURATED_O2,
+      livestockDefaults
     );
+
+    expect(result.oxygenConsumedMg).toBeCloseTo(alone.oxygenConsumedMg * 3.0, 6);
     expect(result.updatedFish).toHaveLength(2);
   });
 });

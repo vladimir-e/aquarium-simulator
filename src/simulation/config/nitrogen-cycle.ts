@@ -32,6 +32,10 @@ export interface NitrogenCycleConfig {
   q10: number;
   /** Temperature the nitrifier rates are quoted at (°C) */
   referenceTemp: number;
+  /** Dissolved O2 (mg/L) at which AOB oxidise and grow at half rate */
+  aobOxygenHalfSaturation: number;
+  /** Dissolved O2 (mg/L) at which NOB oxidise and grow at half rate */
+  nobOxygenHalfSaturation: number;
 }
 
 export const nitrogenCycleDefaults: NitrogenCycleConfig = {
@@ -110,6 +114,16 @@ export const nitrogenCycleDefaults: NitrogenCycleConfig = {
   // Every anchor is measured at 25 °C, so the term is inert there by
   // construction and only bites away from it.
   referenceTemp: 25,
+  // Wiesmann's measured pair for the two guilds, and the gap between them is
+  // the point: NOB are the fussier about oxygen by a factor of nearly four, so
+  // a tank short of air oxidises its ammonia long after it has stopped clearing
+  // the nitrite that ammonia becomes. Standing nitrite in a poorly aerated tank
+  // is a thing keepers see, and this is where it comes from.
+  //
+  // In saturated water they cost 4 % and 12 % of rate respectively — the rates
+  // above are quoted at saturation, as bacterial rates are.
+  aobOxygenHalfSaturation: 0.3,
+  nobOxygenHalfSaturation: 1.1,
 };
 
 export interface NitrogenCycleConfigMeta {
@@ -117,6 +131,9 @@ export interface NitrogenCycleConfigMeta {
   label: string;
   unit: string;
   step: number;
+  /** Absent on the rates below, which are derived rather than bounded. */
+  min?: number;
+  max?: number;
 }
 
 // `step` is the debug panel's spinner increment. The rates above are derived
@@ -135,4 +152,6 @@ export const nitrogenCycleConfigMeta: NitrogenCycleConfigMeta[] = [
   { key: 'bacteriaDeathRate', label: 'Bacteria Death Rate', unit: '/tick', step: 0.00001 },
   { key: 'q10', label: 'Nitrification Q10', unit: '', step: 0.1 },
   { key: 'referenceTemp', label: 'Nitrification Reference Temp', unit: '°C', step: 1 },
+  { key: 'aobOxygenHalfSaturation', label: 'AOB O2 Half-Saturation', unit: 'mg/L', min: 0.05, max: 3, step: 0.05 },
+  { key: 'nobOxygenHalfSaturation', label: 'NOB O2 Half-Saturation', unit: 'mg/L', min: 0.05, max: 3, step: 0.05 },
 ];

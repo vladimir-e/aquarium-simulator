@@ -83,6 +83,7 @@ function settle(
       settled.resources.ammonia,
       settled.resources.aob,
       settled.resources.temperature,
+      settled.resources.oxygen,
       config.nitrogenCycle
     ).utilization,
     fill: state.resources.aob / ceiling(state, config),

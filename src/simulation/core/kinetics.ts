@@ -10,3 +10,19 @@
 export function q10Factor(temperature: number, q10: number, referenceTemp: number): number {
   return Math.pow(q10, (temperature - referenceTemp) / 10.0);
 }
+
+/**
+ * Substrate scaling for biological rates — `[S] / (K + [S])`, the Monod curve.
+ *
+ * Full rate while the substrate is plentiful, half rate at `K`, and nothing at
+ * all once it is gone. Every process quotes its own half-saturation constant,
+ * the way each quotes its own Q10.
+ *
+ * A stock drawn through this factor is never overdrawn: demand falls with
+ * supply, so the stock approaches zero rather than crossing it, and no clamp,
+ * ration or ordering rule is needed to keep it there.
+ */
+export function monodFactor(concentration: number, halfSaturation: number): number {
+  if (concentration <= 0) return 0;
+  return concentration / (halfSaturation + concentration);
+}

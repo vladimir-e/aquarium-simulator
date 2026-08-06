@@ -12,7 +12,7 @@
 
 import type { PlantsConfig } from '../config/plants.js';
 import { plantsDefaults } from '../config/plants.js';
-import { q10Factor } from '../core/kinetics.js';
+import { monodFactor, q10Factor } from '../core/kinetics.js';
 import { CO2_TO_O2_MASS_RATIO } from '../core/chemistry.js';
 
 export interface RespirationResult {
@@ -38,11 +38,13 @@ export function getRespirationTemperatureFactor(
  *
  * @param totalPlantSize - Sum of all plant sizes (%)
  * @param temperature - Current water temperature (C)
+ * @param oxygen - Dissolved oxygen (mg/L), which the rate saturates against
  * @param config - Plants configuration
  */
 export function calculateRespiration(
   totalPlantSize: number,
   temperature: number,
+  oxygen: number,
   config: PlantsConfig = plantsDefaults
 ): RespirationResult {
   if (totalPlantSize <= 0) {
@@ -54,7 +56,9 @@ export function calculateRespiration(
 
   const plantSizeFactor = totalPlantSize / 100;
   const tempFactor = getRespirationTemperatureFactor(temperature, config);
-  const respirationRate = config.baseRespirationRate * plantSizeFactor * tempFactor;
+  const oxygenFactor = monodFactor(oxygen, config.respirationOxygenHalfSaturation);
+  const respirationRate =
+    config.baseRespirationRate * plantSizeFactor * tempFactor * oxygenFactor;
 
   const co2ProducedMg = respirationRate * config.co2PerRateUnit;
 

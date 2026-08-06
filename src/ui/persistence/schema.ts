@@ -296,6 +296,7 @@ const DecayConfigSchema = z
     baseDecayRate: z.number(),
     wasteConversionRatio: z.number(),
     gasExchangePerGramDecay: z.number(),
+    oxygenHalfSaturation: z.number(),
     substrateLeachRate: z.number(),
   })
   .strict();
@@ -314,6 +315,8 @@ const NitrogenCycleConfigSchema = z
     bacteriaDeathRate: z.number(),
     q10: z.number(),
     referenceTemp: z.number(),
+    aobOxygenHalfSaturation: z.number(),
+    nobOxygenHalfSaturation: z.number(),
   })
   .strict();
 
@@ -395,6 +398,7 @@ const PlantsConfigSchema = z
     baseRespirationRate: z.number(),
     respirationQ10: z.number(),
     respirationReferenceTemp: z.number(),
+    respirationOxygenHalfSaturation: z.number(),
     co2PerRateUnit: z.number(),
     plantGrowthPerTickCap: z.number(),
     sizePerSurplus: z.number(),
@@ -452,6 +456,7 @@ const LivestockConfigSchema = z
   .object({
     baseFoodRate: z.number(),
     baseRespirationRate: z.number(),
+    respirationOxygenHalfSaturation: z.number(),
     foodNitrogenFraction: z.number(),
     gillNFraction: z.number(),
     basalAmmoniaRate: z.number(),

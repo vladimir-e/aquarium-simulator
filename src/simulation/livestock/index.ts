@@ -51,6 +51,7 @@ export function processLivestock(
   const metabolismResult = processMetabolism(
     state.fish,
     state.resources.food,
+    state.resources.oxygen,
     livestockConfig
   );
 
