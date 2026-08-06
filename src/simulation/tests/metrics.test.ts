@@ -103,7 +103,23 @@ describe('runTank', () => {
     expect(daily.samples).toEqual([0, 12, 36].map((hour) => hourly.samples[hour]!));
   });
 
-  it('refuses a cadence that would sample nothing', () => {
+  it('hands every hour to a watcher, either side of the tick', () => {
+    const hours: number[] = [];
+    let advanced = 0;
+    runTank({
+      setup: TANK,
+      days: 1,
+      watch: (hour, before, after) => {
+        hours.push(hour);
+        if (after.tick - before.tick === 1) advanced += 1;
+      },
+    });
+
+    expect(hours).toEqual(Array.from({ length: DAY }, (_, index) => index + 1));
+    expect(advanced).toBe(DAY);
+  });
+
+  it('refuses a cadence it cannot honour', () => {
     expect(() => runTank({ setup: TANK, days: 1, sampleEvery: 0 })).toThrow(/sampleEvery/);
     expect(() => runTank({ setup: TANK, days: 1, sampleEvery: 1.5 })).toThrow(/sampleEvery/);
   });

@@ -92,19 +92,25 @@ not failing.
 
 The measurement isolates the planting: the same tank read with and without it,
 with carbon, nutrients and the oxygen each hour opens at all held, so surface
-exchange cancels out of the difference. 600 total plant size, whatever the tank
-around it.
+exchange cancels out of the difference. The light is held too — the runs use a
+water column of zero attenuation, so every tank reads its fixture's full 90 PAR
+at the substrate instead of the PAR its own depth implies. 600 total plant size,
+whatever the tank around it, and volume the only thing left varying.
 
 Oxygen the planting contributes, mg/L/h:
 
 | tank | 10 L | 20 L | 40 L | 150 L | 300 L |
 |---|---|---|---|---|---|
 | before | 2.623 | 2.624 | 2.628 | 2.628 | 2.628 |
-| after | **8.230** | **4.116** | **2.061** | **0.550** | **0.275** |
+| after | **8.223** | **4.112** | **2.056** | **0.548** | **0.274** |
 
-Before, a 30× change in volume bought 0.2 %. After, it buys 29.9× — the ratio
-the water gives it, to three decimal places at every step. Asserted as a ratio
-in `tests/planted-gas-budget.test.ts`, so it survives recalibration.
+Before, a 30× change in volume bought 0.2 %. After, it buys 30.000× — exactly
+the ratio the water gives it, at every step. Asserted as a ratio in
+`tests/planted-gas-budget.test.ts`, so it survives recalibration.
+
+(The `before` row was read on `main`, where the fixture's PAR was attenuated by
+each tank's depth as the measurement then stood. Pinning the light moves these
+figures by under 0.1 % — and takes the ratio from 29.93 to exactly 30.)
 
 ## The lethality case
 

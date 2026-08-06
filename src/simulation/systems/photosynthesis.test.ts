@@ -274,13 +274,16 @@ describe('calculatePhotosynthesis', () => {
     });
 
     it('makes no oxygen from carbon the water does not hold', () => {
-      const starved = photosynthesis([plant(100, 'java_fern')], {
-        co2: plantsDefaults.optimalCo2,
-        resources: buildResources(waterVolume),
-        volume: 0.001,
-      });
+      // A heavily planted 20 L: an hour at this rate would fix more carbon than
+      // the column is holding, so what it gets is the column.
+      const nano = 20;
+      const scarce = 5;
+      const starved = photosynthesis(
+        [plant(600, 'java_fern'), plant(500, 'java_fern'), plant(400, 'java_fern')],
+        { co2: scarce, resources: buildResources(nano), volume: nano }
+      );
 
-      expect(starved.co2ConsumedMg).toBeCloseTo(plantsDefaults.optimalCo2 * 0.001, 10);
+      expect(starved.co2ConsumedMg).toBeCloseTo(scarce * nano, 10);
       expect(starved.oxygenProducedMg).toBeCloseTo(
         starved.co2ConsumedMg * CO2_TO_O2_MASS_RATIO,
         10

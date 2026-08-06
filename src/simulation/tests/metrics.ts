@@ -56,6 +56,11 @@ export interface RunOptions {
    * and 12 sits inside every standard photoperiod.
    */
   sampleHour?: number;
+  /**
+   * Each hour, with the state that went into the tick and the state it left
+   * behind — for readings a sample can't carry, like the difference a tick made.
+   */
+  watch?: (hour: number, before: SimulationState, after: SimulationState) => void;
 }
 
 function mean(values: readonly number[]): number {
@@ -83,9 +88,10 @@ export function runTank({
   rngSeed = 1234,
   sampleEvery = DAY,
   sampleHour = 12,
+  watch,
 }: RunOptions): RunResult {
-  // A zero or fractional cadence takes no sample at any hour, and a run that
-  // measured nothing reads the same as a tank that did nothing.
+  // A fractional cadence is not the cadence it names — 1.5 lands on every third
+  // hour, wherever 1.5 divides — and a zero one lands nowhere at all.
   if (!Number.isInteger(sampleEvery) || sampleEvery < 1) {
     throw new Error(`sampleEvery must be a whole number of hours, got ${sampleEvery}`);
   }
@@ -102,6 +108,8 @@ export function runTank({
     }
 
     if (hour % sampleEvery === sampleHour % sampleEvery) samples.push(sampleOf(after));
+
+    watch?.(hour, before, after);
   });
 
   return { samples, final, plantDeaths };

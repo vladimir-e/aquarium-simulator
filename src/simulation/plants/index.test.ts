@@ -548,6 +548,21 @@ describe('processPlants', () => {
       expect(small.oxygen / large.oxygen).toBeCloseTo(2, 6);
       expect(small.co2 / large.co2).toBeCloseTo(2, 6);
     });
+
+    it('emits no gas at all into a tank with no water in it', () => {
+      // Respiration answers in mass and knows nothing of volume, so this guard
+      // is the only thing between a drained tank and an infinite concentration.
+      const drained = processPlants(
+        createTestState({ plants: planting, light: 50, co2: 0, water: 0 }),
+        DEFAULT_CONFIG
+      );
+
+      for (const effect of drained.effects) {
+        expect(Number.isFinite(effect.delta)).toBe(true);
+      }
+      expect(drained.effects.filter((e) => e.resource === 'oxygen')).toHaveLength(0);
+      expect(drained.effects.filter((e) => e.resource === 'co2')).toHaveLength(0);
+    });
   });
 
   describe('waste effect when plants overgrow', () => {
