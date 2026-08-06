@@ -347,6 +347,7 @@ Carbon dioxide injection for planted tanks.
 
 **Behavior:**
 - Increases CO2 for plant photosynthesis
+- Meters a mass into the water the tank is holding, not its rated capacity, so an evaporated tank reads a higher concentration off the same bubble rate
 - Should be scheduled with lights (off at night when plants respire)
 - Excessive CO2 can harm fish (> 30 ppm)
 

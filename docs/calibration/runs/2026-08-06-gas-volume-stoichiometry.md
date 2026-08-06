@@ -136,5 +136,5 @@ tank where it genuinely would.
 ## Anchors
 
 All four permissive calibration anchors stay green, and the whole suite passes:
-`npm test` 2577 passed / 148 files, `npm run typecheck` clean on all three
+`npm test` 2582 passed / 148 files, `npm run typecheck` clean on all three
 configs, `npm run lint` clean apart from the 3 standing `no-console` warnings.
