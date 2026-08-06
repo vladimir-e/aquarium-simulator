@@ -25,13 +25,26 @@ export function getTemperatureFactor(
 }
 
 /**
- * Calculate amount of food that decays to waste this tick.
- * Returns decay amount in grams.
+ * The share of standing food that decays in one hour at this temperature and
+ * this dissolved oxygen.
  *
  * Aerobic decomposition is oxygen-limited as a whole process, not only on its
  * gas side: an anoxic tank builds sludge rather than mineralising it, and the
  * nitrogen bound in that sludge stays bound.
  */
+export function decayFraction(
+  temperature: number,
+  oxygen: number,
+  config: DecayConfig = decayDefaults
+): number {
+  return (
+    config.baseDecayRate *
+    getTemperatureFactor(temperature, config) *
+    monodFactor(oxygen, config.oxygenHalfSaturation)
+  );
+}
+
+/** Grams of food that decay to waste this tick, never more than there is. */
 export function calculateDecay(
   food: number,
   temperature: number,
@@ -39,13 +52,7 @@ export function calculateDecay(
   config: DecayConfig = decayDefaults
 ): number {
   if (food <= 0) return 0;
-
-  const tempFactor = getTemperatureFactor(temperature, config);
-  const oxygenFactor = monodFactor(oxygen, config.oxygenHalfSaturation);
-  const decayAmount = food * config.baseDecayRate * tempFactor * oxygenFactor;
-
-  // Can't decay more than available food
-  return Math.min(decayAmount, food);
+  return Math.min(food * decayFraction(temperature, oxygen, config), food);
 }
 
 export const decaySystem: System = {

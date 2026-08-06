@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { produce } from 'immer';
 import { wasteInflow, wasteReadout, wasteSummary } from './waste';
 import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
 import {
@@ -6,7 +7,7 @@ import {
   calculateDecay,
   calculateSubstrateLeach,
   createSimulation,
-  getTemperatureFactor,
+  tick,
   type SimulationState,
 } from '../../simulation/index.js';
 import { fishlessTank } from '../../simulation/tests/tanks.js';
@@ -16,6 +17,16 @@ const config = DEFAULT_CONFIG;
 /** Bare bottom: no substrate reserve, so nothing produces waste on its own. */
 function tank(): SimulationState {
   return createSimulation({ tankCapacity: 200 });
+}
+
+/**
+ * Food standing in a bare tank at a chosen dissolved oxygen. Nothing here moves
+ * oxygen before the passive tier, so decay reads the same figure the card does.
+ */
+function fed(oxygen: number): SimulationState {
+  return produce(applyAction(tank(), { type: 'feed', amount: 2 }).state, (draft) => {
+    draft.resources.oxygen = oxygen;
+  });
 }
 
 function stocked(): SimulationState {
@@ -88,15 +99,28 @@ describe('wasteReadout', () => {
     expect(readout.mineralised).toBeCloseTo(3 * config.nitrogenCycle.wasteConversionRate, 10);
   });
 
-  it('carries the Q10 factor and the decay rate it produces', () => {
+  it('carries the Q10 factor the card names beside the rate', () => {
     const state = tank();
     state.resources.temperature = config.decay.referenceTemp + 10;
-    const readout = wasteReadout(state, config);
-    expect(readout.q10).toBeCloseTo(config.decay.q10, 10);
-    expect(readout.decayRate).toBeCloseTo(
-      config.decay.baseDecayRate * getTemperatureFactor(state.resources.temperature, config.decay),
-      10
-    );
+    expect(wasteReadout(state, config).q10).toBeCloseTo(config.decay.q10, 10);
+  });
+
+  it('reads the share of food the next tick actually decays, at any oxygen', () => {
+    for (const oxygen of [0, 0.2, 2, 8]) {
+      const state = fed(oxygen);
+      const decayed = state.resources.food - tick(state, config).resources.food;
+      expect(wasteReadout(state, config).decayRate * state.resources.food).toBeCloseTo(
+        decayed,
+        10
+      );
+    }
+  });
+
+  it('falls with the oxygen, to nothing at all once there is none', () => {
+    const rateAt = (oxygen: number): number => wasteReadout(fed(oxygen), config).decayRate;
+    expect(rateAt(0)).toBe(0);
+    expect(rateAt(0.2)).toBeLessThan(rateAt(2));
+    expect(rateAt(2)).toBeLessThan(rateAt(8));
   });
 });
 

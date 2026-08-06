@@ -126,6 +126,7 @@ export {
   calculateEvaporation,
   calculateEvaporationRatePerDay,
   getTemperatureFactor,
+  decayFraction,
   calculateDecay,
   LID_MULTIPLIERS,
   getLidMultiplier,

@@ -20,6 +20,7 @@ export {
 export {
   decaySystem,
   getTemperatureFactor,
+  decayFraction,
   calculateDecay,
 } from './decay.js';
 

@@ -7,6 +7,7 @@
 import {
   calculateDecay,
   calculateSubstrateLeach,
+  decayFraction,
   getTemperatureFactor,
   processMetabolism,
   type SimulationState,
@@ -37,7 +38,7 @@ export interface WasteReadout extends WasteInflowReadout {
   mineralised: number;
   /** Food waiting to decay, grams. */
   food: number;
-  /** Fraction of standing food that decays this hour, at this temperature. */
+  /** Fraction of standing food that decays this hour, at this temperature and oxygen. */
   decayRate: number;
   /** Q10 temperature multiplier on decay. */
   q10: number;
@@ -101,7 +102,7 @@ export function wasteReadout(state: SimulationState, config: TunableConfig): Was
       config.nitrogenCycle
     ).wasteConsumed,
     food: r.food,
-    decayRate: config.decay.baseDecayRate * q10,
+    decayRate: decayFraction(r.temperature, r.oxygen, config.decay),
     q10,
   };
 }
