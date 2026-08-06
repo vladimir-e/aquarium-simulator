@@ -1,12 +1,14 @@
 /**
  * A tank that is running out of air, read at the tank rather than at the system.
  *
- * Two claims. Every aerobic process — decomposition, both nitrifier guilds,
+ * Three claims. Every aerobic process — decomposition, both nitrifier guilds,
  * plants and fish — asks for less as the water empties, so the carbon derived
  * from that oxygen falls with it and a suffocating tank stops manufacturing CO2
- * for oxygen it never had. And the oxygen a consumer takes is the only thing
- * that falls: a fish short of air goes on excreting ammonia, which is what
- * leaves the nitrogen budget to the guilds that do read it.
+ * for oxygen it never had. What the water charges a fish is a separate reading
+ * from what its gills manage to take, so a fish short of air draws less and
+ * suffers more. And the oxygen a consumer takes is the only thing that falls:
+ * a fish short of air goes on excreting ammonia, which is what leaves the
+ * nitrogen budget to the guilds that do read it.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -47,14 +49,20 @@ const STOCKED: PresetSeed = {
 
 /**
  * Grams of food a day — a ration a keeper would call heavy for this roster, and
- * the largest one an aerated tank still covers in full. At twice it even the
- * aerated box overdraws its feeding hours, so this is the last ration at which
- * the oxygen term is the whole difference between a tank that pays for what it
- * asks and one that does not.
+ * one the aerated box covers with room to spare: at the tightest hour of the
+ * six days it still holds 2.84 mg/L beyond what the tick asks for. The hard
+ * zero asserted below is a margin, not a knife-edge.
  */
 const RATION = 1;
 
-/** Every half-saturation constant taken to nothing: the draw as it was. */
+/**
+ * Every half-saturation constant taken to nothing: the draw as it was.
+ *
+ * `monodFactor` guards an empty substrate before it reads K, so this control
+ * stops drawing at exactly zero oxygen the way the bounded run does. It
+ * therefore flatters itself against the run it exists to be compared with, and
+ * every gap measured against it is a floor.
+ */
 const UNBOUNDED: TunableConfig = tuned((draft) => {
   draft.decay.oxygenHalfSaturation = 0;
   draft.plants.respirationOxygenHalfSaturation = 0;

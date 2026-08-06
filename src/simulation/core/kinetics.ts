@@ -24,9 +24,7 @@ export function q10Factor(temperature: number, q10: number, referenceTemp: numbe
  *
  * The empty-substrate guard comes first, which matters to the counterfactual
  * runs that take the term out with `K = 0`: those read 1 at every concentration
- * except exactly none, where they read 0 like everything else. A control that
- * reaches exactly zero therefore stops drawing, and flatters itself against the
- * bounded run it exists to be compared with.
+ * except exactly none, where they read 0 like everything else.
  */
 export function monodFactor(concentration: number, halfSaturation: number): number {
   if (concentration <= 0) return 0;

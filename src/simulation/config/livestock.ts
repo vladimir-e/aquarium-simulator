@@ -190,10 +190,8 @@ export const livestockDefaults: LivestockConfig = {
   // tension, which for warm-water teleosts sits around 1–2 mg/L; below it the
   // gills simply cannot extract what is not there and the fish conforms. Half
   // rate at 1.0 puts the taper across that band. That makes the rate above a
-  // Monod maximum rather than a figure read in real water: a healthy tank runs
-  // it at 89 %, so what the model reproduces is 0.267 — still inside the band it
-  // was picked from, which is why this rate is not divided back up the way the
-  // nitrifier rates are. `docs/4-CORE-SYSTEMS.md` carries the rule.
+  // Monod maximum rather than a figure read in real water: air-saturated water
+  // leaves 89 % of it, so what the model reproduces is 0.268.
   //
   // Damage is a separate reading: `oxygenStressThreshold` still charges a fish
   // for the water it is in, so a suffocating fish draws less and suffers more.

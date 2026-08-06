@@ -2,12 +2,13 @@
  * What a planting does to the dissolved gases, read at the tank rather than at
  * the system.
  *
- * Three claims live here. A plant moves a *mass* of gas, so the same planting
+ * Four claims live here. A plant moves a *mass* of gas, so the same planting
  * has to move the concentration of a small tank further than a large one — the
  * term that was missing. The oxygen it releases is the oxygen its carbon paid
  * for, so a planting that wants more carbon than the column holds gets the
- * column and not a milligram past it. And between them, a planted tank can no
- * longer manufacture a night its fish don't survive.
+ * column and not a milligram past it. A grown-in planted 150 L runs the gas
+ * curve `co2PerRateUnit` was pinned against. And between them, a planted tank
+ * can no longer manufacture a night its fish don't survive.
  */
 
 import { describe, it, expect } from 'vitest';

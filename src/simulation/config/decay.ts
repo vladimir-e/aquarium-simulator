@@ -25,6 +25,8 @@ export interface DecayConfig {
 export const decayDefaults: DecayConfig = {
   q10: 2.0,
   referenceTemp: 25.0,
+  // A Monod maximum against the half-saturation below: air-saturated water
+  // leaves 98 % of it, so what the model reproduces is 0.0488.
   baseDecayRate: 0.05,
   wasteConversionRatio: 0.4,
   gasExchangePerGramDecay: 250,

@@ -142,7 +142,9 @@ export const plantsDefaults: PlantsConfig = {
   // starved limiting factor.
   nutrientsPerPhotosynthesis: 4.0,
 
-  // Respiration - ~15% of photosynthesis, runs 24/7
+  // Respiration - ~15% of photosynthesis, runs 24/7. A Monod maximum against
+  // the half-saturation below: air-saturated water leaves 94 % of it, so what
+  // the model reproduces is 0.142.
   baseRespirationRate: 0.15,
   respirationQ10: 2.0, // Rate doubles per 10°C increase
   respirationReferenceTemp: 25.0, // °C
@@ -156,7 +158,8 @@ export const plantsDefaults: PlantsConfig = {
 
   // mg CO2 per rate unit. Pinned against a grown-in planted 150 L (≈1000 total
   // plant size): it produces 0.5–1 mg/L/h of oxygen through the photoperiod and
-  // gives back under 2 mg/L over the dark hours. See
+  // gives back under 2 mg/L over the dark hours.
+  // `tests/planted-gas-budget.test.ts` asserts that tank; the derivation is in
   // `docs/calibration/runs/2026-08-06-gas-volume-stoichiometry.md`.
   co2PerRateUnit: 30.0,
 
