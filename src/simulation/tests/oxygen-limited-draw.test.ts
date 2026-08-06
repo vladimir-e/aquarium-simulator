@@ -18,6 +18,7 @@ import { decaySystem } from '../systems/decay.js';
 import { nitrogenCycleSystem } from '../systems/nitrogen-cycle.js';
 import { processPlants } from '../plants/index.js';
 import { processLivestock } from '../livestock/index.js';
+import { computeFishVitality } from '../systems/fish-health.js';
 import { tuned } from './sweep.js';
 import { runTank } from './metrics.js';
 
@@ -124,6 +125,45 @@ describe('an aerobic draw against the oxygen it is drawing from', () => {
     expect(full.carbon).toBeGreaterThan(0);
     expect(starved.carbon / full.carbon).toBeLessThan(0.5);
     expect(hourly(holding(0)).carbon).toBeCloseTo(0, 12);
+  });
+
+  /** What one fish's gills take out of the water, and what that water charges it. */
+  function fishAt(oxygen: number): { drawn: number; damage: number } {
+    const state = holding(oxygen);
+    const fish = state.fish[0];
+    if (fish === undefined) throw new Error('no fish in the fixture to read');
+
+    const drawn = -processLivestock(state, DEFAULT_CONFIG)
+      .effects.filter(
+        (effect) => effect.resource === 'oxygen' && effect.source === 'fish-respiration'
+      )
+      .reduce((sum, effect) => sum + effect.delta, 0);
+    const { breakdown } = computeFishVitality(
+      fish,
+      state.resources,
+      state.plants,
+      state.resources.water,
+      state.tank.capacity,
+      DEFAULT_CONFIG.livestock
+    );
+
+    return {
+      drawn,
+      damage: breakdown.stressors.find((stressor) => stressor.key === 'oxygen')?.amount ?? 0,
+    };
+  }
+
+  it('draws less and suffers more, which are two readings and not one', () => {
+    // The two constants are deliberately far apart — half rate at 1.0, damage
+    // from 5.0 — so a fish is being charged for the water long before its gills
+    // start conforming to it. Damage reads the water alone: linear in how far
+    // under the threshold the tank sits, whatever the gills managed to take.
+    const { oxygenStressThreshold: threshold } = DEFAULT_CONFIG.livestock;
+    const mild = fishAt(2);
+    const severe = fishAt(0.5);
+
+    expect(severe.drawn).toBeLessThan(mild.drawn);
+    expect(severe.damage / mild.damage).toBeCloseTo((threshold - 0.5) / (threshold - 2), 10);
   });
 
   it('leaves ammonia excretion alone — a fish stops breathing, not living', () => {

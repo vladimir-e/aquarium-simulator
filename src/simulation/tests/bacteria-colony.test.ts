@@ -268,6 +268,24 @@ describe('bacteria colony dynamics', () => {
       expect(kept(150, 21)).toBeCloseTo(kept(20, 21), 4);
     });
 
+    it('takes the same bite out of a suffocating colony as out of a breathing one', () => {
+      // The one nitrifier rate outside the oxygen term, and the reason an anoxic
+      // tank loses its biofilter rather than pausing it: oxidation and growth
+      // both stop, maintenance does not.
+      const died = (oxygen: number): number => {
+        const state = produce(cycledTank(20), (draft) => {
+          draft.resources.oxygen = oxygen;
+        });
+        return -nitrogenCycleSystem
+          .update(state, DEFAULT_CONFIG)
+          .filter((effect) => effect.resource === 'aob' && effect.source === 'nitrogen-cycle-death')
+          .reduce((sum, effect) => sum + effect.delta, 0);
+      };
+
+      expect(died(8)).toBeGreaterThan(0);
+      expect(died(0.1)).toBeCloseTo(died(8), 12);
+    });
+
     it('takes the same bite out of a working colony as out of a starving one', () => {
       // A tank still leaching loses the same fraction per hour; it just makes
       // it back. The observable is that a fed colony grows and a cut-off one

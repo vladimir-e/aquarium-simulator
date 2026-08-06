@@ -527,6 +527,11 @@ describe('PersistedStateSchema', () => {
     expect(PersistedStateSchema.safeParse(v18).success).toBe(false);
   });
 
+  it('rejects prior version 19 (breaking bump for the oxygen term every consumer carries)', () => {
+    const v19 = { ...validState, version: 19 };
+    expect(PersistedStateSchema.safeParse(v19).success).toBe(false);
+  });
+
   it('rejects a tank with no stream to resume', () => {
     const streamless: Record<string, unknown> = { ...validState.simulation };
     delete streamless.rng;

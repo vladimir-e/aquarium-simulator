@@ -188,6 +188,88 @@ describe('the carbon in the water is what pays for the oxygen', () => {
   });
 });
 
+/**
+ * CALIBRATION ANCHOR — the claim `co2PerRateUnit` is pinned on, and the only
+ * one that reads the constant rather than a relation between constants. Every
+ * other reference to it survives any value; this is the tank it was chosen
+ * against, so a feature PR may not widen the band to go green.
+ */
+describe('a grown-in planted 150 L, through a day and a night', () => {
+  /** The tank of `docs/calibration/runs/2026-08-06-gas-volume-stoichiometry.md`. */
+  const GROWN_IN: SimulationConfig = {
+    tankCapacity: 150,
+    heater: { enabled: true, targetTemperature: 25, wattage: 150 },
+    filter: { enabled: true, type: 'canister' },
+    substrate: { type: 'aqua_soil' },
+    light: { enabled: true, par: 90, schedule: { startHour: 8, duration: 12 } },
+    co2Generator: { enabled: true, bubbleRate: 2, schedule: { startHour: 8, duration: 10 } },
+    autoDoser: { enabled: true, doseAmountMl: 3, schedule: { startHour: 8, duration: 1 } },
+    ato: { enabled: true },
+  };
+
+  /** 982 total plant size — what the 90-day run settles at, handed over at tick 0. */
+  const SETTLED: PresetSeed = {
+    bacteria: 'cycled',
+    fish: [{ species: 'neon_tetra', count: 12, sex: 'female' }],
+    plants: [
+      { species: 'amazon_sword', count: 3, size: 164 },
+      { species: 'java_fern', count: 3, size: 163 },
+    ],
+  };
+
+  /**
+   * Gross oxygen the planting releases in a lit hour, mg/L, and the fall the
+   * water takes across a night — from the last hour of light to the first of
+   * the next day's. Gross rather than net: what the constant is quoted on is
+   * what photosynthesis makes, before the tank spends any of it.
+   */
+  function gasCurve(): { gross: number; giveBack: number } {
+    const made: number[] = [];
+    const falls: number[] = [];
+    let dusk: number | null = null;
+
+    runTank({
+      setup: GROWN_IN,
+      seed: SETTLED,
+      days: 10,
+      rngSeed: 4242,
+      routine: { feed: 0.6, waterChange: 0.3 },
+      watch: (hour, before) => {
+        if (hour <= 2 * DAY) return;
+        if (before.resources.light <= 0) {
+          dusk ??= before.resources.oxygen;
+          return;
+        }
+        made.push(
+          processPlants(before, DEFAULT_CONFIG).effects.find(
+            (effect) => effect.resource === 'oxygen' && effect.source === 'photosynthesis'
+          )?.delta ?? 0
+        );
+        if (dusk !== null) {
+          falls.push(dusk - before.resources.oxygen);
+          dusk = null;
+        }
+      },
+    });
+
+    const mean = (values: number[]): number =>
+      values.reduce((sum, value) => sum + value, 0) / values.length;
+    return { gross: mean(made), giveBack: mean(falls) };
+  }
+
+  const curve = gasCurve();
+
+  it('runs 0.5–1 mg/L/h of oxygen through the photoperiod', () => {
+    expect(curve.gross).toBeGreaterThanOrEqual(0.5);
+    expect(curve.gross).toBeLessThanOrEqual(1);
+  });
+
+  it('gives back under 2 mg/L across the dark hours', () => {
+    expect(curve.giveBack).toBeGreaterThan(0);
+    expect(curve.giveBack).toBeLessThan(2);
+  });
+});
+
 describe('a heavily planted tank of neon tetras', () => {
   /**
    * The tank the roster died in: a 982-size planting, a daily ration, and none
