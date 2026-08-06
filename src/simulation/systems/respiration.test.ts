@@ -217,16 +217,6 @@ describe('calculateRespiration', () => {
       expect(result.oxygenConsumedMg).toBeCloseTo(expectedCo2 * CO2_TO_O2_MASS_RATIO, 6);
     });
 
-    it('differs from photosynthesis by the base rates and the air it breathes', () => {
-      const respired = calculateRespiration(100, 25, SATURATED_O2).co2ProducedMg;
-      const fixed = plantsDefaults.basePhotosynthesisRate * plantsDefaults.co2PerRateUnit;
-
-      expect(respired / fixed).toBeCloseTo(
-        (plantsDefaults.baseRespirationRate / plantsDefaults.basePhotosynthesisRate) *
-          monodFactor(SATURATED_O2, plantsDefaults.respirationOxygenHalfSaturation),
-        6
-      );
-    });
   });
 
   describe('uses custom config', () => {

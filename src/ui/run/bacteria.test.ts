@@ -277,6 +277,9 @@ describe('projectNitritePeak', () => {
    * travel.
    */
   const withinAPercent = (projection: CycleProjection, engine: CycleProjection): void => {
+    // High, and only high: a projection reading under the engine would mean the
+    // oxygen coupling had inverted, which a two-sided band would let through.
+    expect(projection.ppm).toBeGreaterThanOrEqual(engine.ppm);
     expect(Math.abs(projection.ppm - engine.ppm) / engine.ppm).toBeLessThan(0.01);
   };
 

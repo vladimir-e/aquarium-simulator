@@ -6,11 +6,16 @@ import {
   type PhotosynthesisResult,
 } from './photosynthesis.js';
 import { calculateNutrientSufficiency } from './nutrients.js';
+import { calculateRespiration } from './respiration.js';
 import { plantsDefaults } from '../config/plants.js';
 import { nutrientsDefaults, getNutrientRatio } from '../config/nutrients.js';
 import type { Plant, Resources } from '../state.js';
 import type { PlantSpecies } from '../plants/species.js';
 import { CO2_TO_O2_MASS_RATIO, MW_CO2, MW_O2 } from '../core/chemistry.js';
+import { monodFactor } from '../core/kinetics.js';
+
+/** Air-saturated water at 25 °C, where respiration is not oxygen-limited. */
+const SATURATED_O2 = 8;
 
 /**
  * Build a resources snapshot with nutrient mass chosen so that concentration
@@ -271,6 +276,34 @@ describe('calculatePhotosynthesis', () => {
       );
 
       expect(result.oxygenProducedMg / MW_O2).toBeCloseTo(result.co2ConsumedMg / MW_CO2, 10);
+    });
+
+    it('shares the carbon yield with respiration, which is why there is one of it', () => {
+      // The reaction run both ways off one constant. What separates the two
+      // numbers is the base rates and the air respiration breathes, and moving
+      // the yield has to leave the ratio where it was — one side reading a
+      // figure of its own is exactly what collapsing four constants removed.
+      const ratio = (config = plantsDefaults): number => {
+        const plants = [plant(100, 'java_fern')];
+        const resources = buildResources(waterVolume);
+        const fixed = calculatePhotosynthesis(
+          plants,
+          light,
+          plantsDefaults.optimalCo2,
+          resources,
+          waterVolume,
+          suffMap(plants, resources, waterVolume),
+          config
+        ).co2ConsumedMg;
+
+        return calculateRespiration(100, 25, SATURATED_O2, config).co2ProducedMg / fixed;
+      };
+      const expected =
+        (plantsDefaults.baseRespirationRate / plantsDefaults.basePhotosynthesisRate) *
+        monodFactor(SATURATED_O2, plantsDefaults.respirationOxygenHalfSaturation);
+
+      expect(ratio()).toBeCloseTo(expected, 6);
+      expect(ratio({ ...plantsDefaults, co2PerRateUnit: 7 })).toBeCloseTo(expected, 6);
     });
 
     it('makes no oxygen from carbon the water does not hold', () => {
