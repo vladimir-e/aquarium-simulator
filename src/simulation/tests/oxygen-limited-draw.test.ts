@@ -6,9 +6,9 @@
  * from that oxygen falls with it and a suffocating tank stops manufacturing CO2
  * for oxygen it never had. What the water charges a fish is a separate reading
  * from what its gills manage to take, so a fish short of air draws less and
- * suffers more. And the oxygen a consumer takes is the only thing that falls:
- * a fish short of air goes on excreting ammonia, which is what leaves the
- * nitrogen budget to the guilds that do read it.
+ * suffers more. And deamination is metabolism too: ammonia excretion falls by
+ * the same factor as the draw, so the nitrogen load on an airless tank eases
+ * alongside the guilds that clear it.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -174,12 +174,19 @@ describe('an aerobic draw against the oxygen it is drawing from', () => {
     expect(severe.damage / mild.damage).toBeCloseTo((threshold - 0.5) / (threshold - 2), 10);
   });
 
-  it('leaves ammonia excretion alone — a fish stops breathing, not living', () => {
+  it('takes the ammonia down with the draw, off the one metabolism', () => {
+    // Deamination is not a separate process with a constant of its own: the
+    // same factor scales both, so the ratio between two oxygens is the ratio
+    // between the two draws.
     const breathing = hourly(holding(8));
-    const suffocating = hourly(holding(0));
+    const gasping = hourly(holding(1));
 
     expect(breathing.ammonia).toBeGreaterThan(0);
-    expect(suffocating.ammonia).toBeCloseTo(breathing.ammonia, 12);
+    expect(gasping.ammonia / breathing.ammonia).toBeCloseTo(
+      fishAt(1).drawn / fishAt(8).drawn,
+      10
+    );
+    expect(hourly(holding(0)).ammonia).toBeCloseTo(0, 12);
   });
 });
 
@@ -210,7 +217,7 @@ describe('the oxygen a stressed tank draws that was never in it', () => {
   // behind is not the factor's to close: a tick is an hour, so a consumer whose
   // reduced demand still outruns the standing stock overshoots inside the step.
   // The base case is the standing draw — a planting and a cycled biofilter in a
-  // box nothing moves water through run this fixture short for 42 of its 144
+  // box nothing moves water through run this fixture short for 41 of its 144
   // hours before a grain of food is added, and the ration then quintuples it.
   // What is left goes with tick resolution, not with the factor.
   it('asks for less, and leaves less of it unpaid', () => {

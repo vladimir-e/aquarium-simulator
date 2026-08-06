@@ -6,8 +6,17 @@ import { nitrogenCycleDefaults } from '../config/nitrogen-cycle.js';
 import { monodFactor } from '../core/kinetics.js';
 import type { Fish } from '../state.js';
 
-/** Air-saturated water at 25 °C, where a fish takes up all it asks for. */
+/** Air-saturated water at 25 °C — where a fish still leaves a ninth on the table. */
 const SATURATED_O2 = 8;
+
+/**
+ * What that water leaves of a fish's metabolism. Deamination and the
+ * respiratory draw are the one metabolism, so both are quoted against it.
+ */
+const SATURATED_FACTOR = monodFactor(
+  SATURATED_O2,
+  livestockDefaults.respirationOxygenHalfSaturation
+);
 
 function makeFish(overrides: Partial<Fish> = {}): Fish {
   return {
@@ -111,10 +120,10 @@ describe('processMetabolism', () => {
       (MW_NH3 / MW_N) *
       1000;
     const basal = livestockDefaults.basalAmmoniaRate * 2.0;
-    expect(result.ammoniaProduced).toBeCloseTo(postPrandial + basal, 6);
+    expect(result.ammoniaProduced).toBeCloseTo((postPrandial + basal) * SATURATED_FACTOR, 6);
   });
 
-  it('emits the canonical 48.65 mg NH3 + 0.2 g waste per gram of food (plus basal) at defaults', () => {
+  it('emits the canonical 48.62 mg NH3 + 0.2 g waste per gram of food (plus basal), less its air', () => {
     // A 100-g fish at satiation 0 (fully empty) eats mass × baseFoodRate
     // × emptiness = 100 × 0.01 × 1.0 = 1 g of food this tick.
     const fish = [makeFish({ satiation: 0, mass: 100 })];
@@ -124,10 +133,10 @@ describe('processMetabolism', () => {
     // Post-prandial: 1 g food × 5 % N × 80 % gill share × MW ratio × 1000
     //   = 0.04 × 1.21556 × 1000 = 48.622 mg NH3
     // Basal: basalAmmoniaRate × mass = 0.03 × 100 = 3.0 mg NH3
-    // Total: 51.622 mg NH3
+    // Total: 51.622 mg NH3 of deamination, of which this water leaves 8/9.
     const postPrandial = 48.6224;
     const basal = livestockDefaults.basalAmmoniaRate * 100;
-    expect(result.ammoniaProduced).toBeCloseTo(postPrandial + basal, 3);
+    expect(result.ammoniaProduced).toBeCloseTo((postPrandial + basal) * SATURATED_FACTOR, 3);
     // 1 g food × 20 % feces share = 0.2 g waste
     expect(result.wasteProduced).toBeCloseTo(0.2, 8);
   });
@@ -140,18 +149,22 @@ describe('processMetabolism', () => {
 
     expect(result.foodConsumed).toBe(0);
     expect(result.wasteProduced).toBe(0);
-    // Basal NH3 = basalAmmoniaRate × mass
+    // Basal NH3 = basalAmmoniaRate × mass × the oxygen it is running on
     expect(result.ammoniaProduced).toBeCloseTo(
-      livestockDefaults.basalAmmoniaRate * 1.0,
+      livestockDefaults.basalAmmoniaRate * 1.0 * SATURATED_FACTOR,
       6
     );
   });
 
-  it('conserves food-derived nitrogen: direct NH3 + waste-borne NH3 = ingested N (excluding basal)', () => {
+  it('conserves food-derived nitrogen: gill NH3 + feces + what the fish kept = ingested N', () => {
     // Over many ticks, the food-derived N (post-prandial gill stream
     // + waste stream) should equal the N ingested. Basal NH3 is a
     // separate source modelling body protein turnover; it appears
     // regardless of feeding and is additive to the food pathway.
+    //
+    // Deamination runs on the oxygen the fish has, so the gill stream is
+    // short of its share by exactly what the fish did not deaminate — N that
+    // stays in the body. Count it and the food pathway closes again.
     //
     // Note: the engine's `wasteToAmmoniaRatio = 60` (mg NH3 / g waste)
     // is a rounded stoichiometric value — the true figure for 5 % N
@@ -171,7 +184,7 @@ describe('processMetabolism', () => {
     }
 
     // Subtract basal contribution so we can measure food-pathway conservation.
-    const basalNH3 = livestockDefaults.basalAmmoniaRate * mass * ticks;
+    const basalNH3 = livestockDefaults.basalAmmoniaRate * mass * ticks * SATURATED_FACTOR;
     const foodDerivedNH3 = totalDirectNH3 - basalNH3;
 
     // Ingested N-mass (g)
@@ -183,11 +196,14 @@ describe('processMetabolism', () => {
     // convert back to N.
     const nWaste =
       (totalWaste * nitrogenCycleDefaults.wasteToAmmoniaRatio) / ((MW_NH3 / MW_N) * 1000);
+    // The share of the gill stream this water left undeaminated.
+    const nKept =
+      nIngested * livestockDefaults.gillNFraction * (1 - SATURATED_FACTOR);
 
     // Tolerance follows the engine's own rounding: 60 vs. 60.78 in the
     // waste ratio = 1.3 % error on the 20 % feces share = 0.26 % of
     // ingested N overall. Allow 0.5 % as the conservation envelope.
-    const relError = Math.abs(nDirect + nWaste - nIngested) / nIngested;
+    const relError = Math.abs(nDirect + nWaste + nKept - nIngested) / nIngested;
     expect(relError).toBeLessThan(0.005);
   });
 
@@ -196,7 +212,7 @@ describe('processMetabolism', () => {
     // food pathway when the engine's waste-to-NH3 ratio is set to its
     // stoichiometric value (0.05 × MW_NH3/MW_N × 1000 ≈ 60.78 mg NH3
     // / g waste). Basal NH3 is subtracted out as it is a separate
-    // body-turnover source.
+    // body-turnover source, and the N the fish kept is added back.
     const mass = 10;
     const fish = [makeFish({ satiation: 0, mass })];
     let totalFood = 0;
@@ -210,7 +226,7 @@ describe('processMetabolism', () => {
       totalWaste += r.wasteProduced;
     }
 
-    const basalNH3 = livestockDefaults.basalAmmoniaRate * mass * ticks;
+    const basalNH3 = livestockDefaults.basalAmmoniaRate * mass * ticks * SATURATED_FACTOR;
     const foodDerivedNH3 = totalDirectNH3 - basalNH3;
 
     const nIngested = totalFood * livestockDefaults.foodNitrogenFraction;
@@ -218,8 +234,9 @@ describe('processMetabolism', () => {
     // Use the stoichiometric ratio (not the configured rounded 60).
     const stoichRatio = livestockDefaults.foodNitrogenFraction * (MW_NH3 / MW_N) * 1000;
     const nWaste = (totalWaste * stoichRatio) / ((MW_NH3 / MW_N) * 1000);
+    const nKept = nIngested * livestockDefaults.gillNFraction * (1 - SATURATED_FACTOR);
 
-    expect(nDirect + nWaste).toBeCloseTo(nIngested, 10);
+    expect(nDirect + nWaste + nKept).toBeCloseTo(nIngested, 10);
   });
 
   it('consumes oxygen based on mass, and on the oxygen there is to take', () => {
@@ -252,16 +269,17 @@ describe('processMetabolism', () => {
     expect(result.co2ProducedMg).toBe(0);
   });
 
-  it('keeps excreting ammonia while it suffocates', () => {
-    const suffocating = processMetabolism([makeFish({ mass: 2.0 })], 10, 0, livestockDefaults);
-    const breathing = processMetabolism(
-      [makeFish({ mass: 2.0 })],
-      10,
-      SATURATED_O2,
-      livestockDefaults
-    );
+  it('stops excreting ammonia as it suffocates, by the factor it stops breathing', () => {
+    const at = (oxygen: number): ReturnType<typeof processMetabolism> =>
+      processMetabolism([makeFish({ mass: 2.0 })], 10, oxygen, livestockDefaults);
+    const gasping = at(1);
+    const breathing = at(SATURATED_O2);
 
-    expect(suffocating.ammoniaProduced).toBeCloseTo(breathing.ammoniaProduced, 12);
+    expect(at(0).ammoniaProduced).toBe(0);
+    expect(gasping.ammoniaProduced / breathing.ammoniaProduced).toBeCloseTo(
+      gasping.oxygenConsumedMg / breathing.oxygenConsumedMg,
+      12
+    );
   });
 
   it('exhales the respiratory quotient in moles, not in milligrams', () => {

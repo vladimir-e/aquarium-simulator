@@ -38,6 +38,20 @@
  *               = foodGiven × (1 - gillNFraction)
  * At defaults this is 0.2 g waste per g food, replacing the previous
  * opaque `wasteRatio = 0.3` knob.
+ *
+ * Both NH3 streams are deamination, and deamination is metabolism: each is
+ * scaled by the same oxygen factor as the respiratory draw, off the same
+ * `respirationOxygenHalfSaturation`. A hypoxic fish enters metabolic
+ * depression and its measured ammonia output falls with the rest of it. Feces
+ * are not scaled — that N is what was never absorbed, and the gut does not
+ * care what the gills are getting.
+ *
+ * The N a depressed fish does not deaminate stays in its body, which is a sink
+ * the engine does not track — the same standing the conservation test gives
+ * plant uptake. Both rates are quoted as bands rather than as single figures
+ * (0.3–1.0 mg NH3-N/g/day, 0.2–0.5 mg O2/g/hr), so neither is divided back up
+ * by the factor the way the nitrifier rates are; what a healthy tank
+ * reproduces is 89 % of each, and both land inside their band.
  */
 
 import type { Fish } from '../state.js';
@@ -142,13 +156,16 @@ export function processMetabolism(
     //                 = foodGiven × (1 − gillNFraction)
     const nIngested = foodGiven * config.foodNitrogenFraction;
     const nToGills = nIngested * config.gillNFraction;
-    totalAmmonia += nToGills * NH3_MG_PER_G_N;
     totalWaste += foodGiven * (1 - config.gillNFraction);
 
     // Basal NH3 excretion — independent of feeding. Body protein
     // turnover continues whether fed or fasted; real tetras keep
     // excreting a few tenths of a mg of NH3 per gram per day.
-    totalAmmonia += config.basalAmmoniaRate * f.mass;
+    const basalNH3 = config.basalAmmoniaRate * f.mass;
+
+    // Both streams are deamination, and deamination is metabolism: the same
+    // factor the draw below runs on, because it is the same metabolism.
+    totalAmmonia += (nToGills * NH3_MG_PER_G_N + basalNH3) * oxygenFactor;
 
     const oxygenConsumedMg = config.baseRespirationRate * f.mass * oxygenFactor;
     totalOxygenConsumedMg += oxygenConsumedMg;

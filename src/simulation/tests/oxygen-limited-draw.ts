@@ -1,11 +1,13 @@
 /**
  * What an oxygen consumer does once the oxygen runs out.
  *
- * Two readings. The first is the availability factor itself: what each consumer
- * asks for at a given dissolved oxygen, against what it asked for before there
- * was a factor at all. The second is the consequence at the tank — how much
- * oxygen gets drawn that was never in the water, and therefore how much carbon
- * the tank emits without having paid for it.
+ * Three readings. The first is the availability factor itself: what each
+ * consumer asks for at a given dissolved oxygen, against what it asked for
+ * before there was a factor at all. The second is the consequence at the tank —
+ * how much oxygen gets drawn that was never in the water, and therefore how
+ * much carbon the tank emits without having paid for it. The third is what a
+ * fish's other metabolic output does with the same factor: deamination runs on
+ * oxygen too, so a stocked tank's nitrogen load eases as its air does.
  *
  * The counterfactual is the same engine with every half-saturation constant
  * taken to nothing, which is the unbounded draw this branch replaced.
@@ -21,8 +23,11 @@ import { O2_TO_CO2_MASS_RATIO } from '../core/chemistry.js';
 import { decaySystem } from '../systems/decay.js';
 import { processPlants } from '../plants/index.js';
 import { processLivestock } from '../livestock/index.js';
+import { getPpm } from '../resources/index.js';
+import { bacteriaReadout } from '../../ui/run/bacteria.js';
 import { formatTable, tuned } from './sweep.js';
 import { runTank } from './metrics.js';
+import { colonyFill, cycledTank, keep, stock } from './tanks.js';
 
 /** A small warm tank with nothing in it that moves water. */
 const STAGNANT: SimulationConfig = {
@@ -196,4 +201,80 @@ process.stdout.write(
     'emptied. The demand columns are the exact ones — a tick is an hour, so a consumer\n' +
     'whose reduced demand still outruns the standing stock overshoots inside the step,\n' +
     'and the last of the overdraw goes with tick resolution rather than with the factor.\n'
+);
+
+// ---------------------------------------------------------------------------
+// 3. The other metabolic output
+// ---------------------------------------------------------------------------
+
+/**
+ * What the same factor on ammonia is worth over a season.
+ *
+ * Oxygen is pinned for the whole run, which is what isolates it: leave the tank
+ * to find its own level and the draw's feedback moves the oxygen underneath the
+ * reading, so the rows would differ by two mechanisms instead of one. The
+ * control is the fish oxygen term taken to nothing — deamination and draw both
+ * unscaled — read at a fixed oxygen where only the first of those can matter.
+ */
+const FISH_UNBOUNDED: TunableConfig = tuned((draft) => {
+  draft.livestock.respirationOxygenHalfSaturation = 0;
+});
+
+const pinnedAt =
+  (oxygen: number) =>
+  (state: SimulationState): SimulationState =>
+    produce(state, (draft) => {
+      draft.resources.oxygen = oxygen;
+    });
+
+function season(oxygen: number, config: TunableConfig): Record<string, unknown> {
+  // Seeded, because the roster's hardiness is a draw: on an unnamed stream the
+  // rows below would differ by the luck of the fish as well as by the factor.
+  const stocked = stock(cycledTank(40, config, 30, 4242), 'neon_tetra', 12, { sex: 'male' });
+  let peakAmmonia = 0;
+  let peakNitrite = 0;
+
+  const final = keep(
+    stocked,
+    90,
+    { feed: 0.05, waterChange: 0.25, config, hold: pinnedAt(oxygen) },
+    (_hour, _before, after) => {
+      peakAmmonia = Math.max(peakAmmonia, getPpm(after.resources.ammonia, after.resources.water));
+      peakNitrite = Math.max(peakNitrite, getPpm(after.resources.nitrite, after.resources.water));
+    }
+  );
+  const { rates } = bacteriaReadout(pinnedAt(oxygen)(final), config);
+
+  return {
+    'gills ppm/h': rates.gillsToAmmonia.toFixed(5),
+    'bed ppm/h': rates.wasteToAmmonia.toFixed(5),
+    'NH3 peak': peakAmmonia.toFixed(4),
+    'NO2 peak': peakNitrite.toFixed(4),
+    'NO3 end': getPpm(final.resources.nitrate, final.resources.water).toFixed(2),
+    'AOB % of surface': (colonyFill(final, 'aob', config) * 100).toFixed(3),
+    fish: final.fish.length,
+  };
+}
+
+process.stdout.write(
+  '\n\nNinety days of twelve tetras in a cycled 40 L, fed 0.05 g/day with a quarter\n' +
+    'of the water out each week, at three pinned oxygens\n\n' +
+    formatTable(
+      [8.38, 5, 2].flatMap((oxygen) =>
+        (
+          [
+            ['shipped', DEFAULT_CONFIG],
+            ['ammonia unscaled', FISH_UNBOUNDED],
+          ] as const
+        ).map(([variant, config]) => ({
+          'O2 mg/L': oxygen.toFixed(2),
+          excretion: variant,
+          ...season(oxygen, config),
+        }))
+      )
+    ) +
+    '\n\nThe biofilter tracks the load down rather than leaving it standing, so what the\n' +
+    'factor is worth reads as a smaller colony and less nitrate, not as more ammonia.\n' +
+    'At 2 mg/L the roster is dead either way and the gill term is gone with it — the\n' +
+    'oxygen a fish suffers at is well above the one its excretion notices.\n'
 );

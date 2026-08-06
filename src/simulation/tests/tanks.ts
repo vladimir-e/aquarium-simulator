@@ -90,12 +90,15 @@ export function fishlessTank(
     // because what the water is getting is the variable these traces vary.
     circulation = { filter: 'sponge' },
     seed,
+    rngSeed,
   }: {
     capacity?: number;
     ato?: boolean;
     temperature?: number;
     circulation?: Circulation;
     seed?: PresetSeed;
+    /** Name it and the tank runs the same life every time — see `createSimulation`. */
+    rngSeed?: number;
   } = {}
 ): SimulationState {
   return createSimulation(
@@ -108,7 +111,8 @@ export function fishlessTank(
       heater: { targetTemperature: temperature, wattage: Math.max(100, capacity) },
       ...circulationOf(circulation),
     },
-    seed
+    seed,
+    rngSeed
   );
 }
 
@@ -122,9 +126,10 @@ export function fishlessTank(
 export function cycledTank(
   capacity: number,
   config: TunableConfig = DEFAULT_CONFIG,
-  days = 30
+  days = 30,
+  rngSeed?: number
 ): SimulationState {
-  return run(fishlessTank('aqua_soil', { capacity }), days * DAY, config);
+  return run(fishlessTank('aqua_soil', { capacity, rngSeed }), days * DAY, config);
 }
 
 /**
