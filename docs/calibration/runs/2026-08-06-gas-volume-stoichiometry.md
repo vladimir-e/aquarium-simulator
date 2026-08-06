@@ -108,6 +108,16 @@ Before, a 30× change in volume bought 0.2 %. After, it buys 30.000× — exactl
 the ratio the water gives it, at every step. Asserted as a ratio in
 `tests/planted-gas-budget.test.ts`, so it survives recalibration.
 
+The assertion runs a lighter probe than the table — 200 total plant size, and
+carbon held at three times optimal rather than at it. The ratio is the same to
+six decimals either way, but the 10 L is the tank that meets a ceiling first,
+and there are two of them: the carbon clamp once an hour's demand outruns the
+column, and `OxygenResource`'s own upper bound once the hour's release outruns
+the water. At the table's own fixture the first of those sits 11 % away, so a
+re-derived `co2PerRateUnit` of 33 would have flattened three volume-ratio
+assertions and pointed them at the volume term. The probe now clears both
+ceilings across the whole 20–50 band the yield sweep admits.
+
 (The `before` row was read on `main`, where the fixture's PAR was attenuated by
 each tank's depth as the measurement then stood. Pinning the light moves these
 figures by under 0.1 % — and takes the ratio from 29.93 to exactly 30.)

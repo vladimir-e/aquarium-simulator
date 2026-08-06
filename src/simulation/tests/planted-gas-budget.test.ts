@@ -5,8 +5,9 @@
  * Three claims live here. A plant moves a *mass* of gas, so the same planting
  * has to move the concentration of a small tank further than a large one — the
  * term that was missing. The oxygen it releases is the oxygen its carbon paid
- * for, so a planting with an empty water column has none to give. And between
- * them, a planted tank can no longer manufacture a night its fish don't survive.
+ * for, so a planting that wants more carbon than the column holds gets the
+ * column and not a milligram past it. And between them, a planted tank can no
+ * longer manufacture a night its fish don't survive.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -14,9 +15,10 @@ import { produce } from 'immer';
 import type { SimulationConfig, SimulationState } from '../state.js';
 import type { PresetSeed } from '../seed.js';
 import { DEFAULT_CONFIG } from '../config/index.js';
-import { livestockDefaults } from '../config/livestock.js';
 import { nutrientsDefaults } from '../config/nutrients.js';
-import { CO2_TO_O2_MASS_RATIO } from '../core/chemistry.js';
+import { plantsDefaults } from '../config/plants.js';
+import { processPlants } from '../plants/index.js';
+import { computeFishVitality } from '../systems/fish-health.js';
 import { runTank } from './metrics.js';
 import { DAY } from './tanks.js';
 
@@ -42,14 +44,29 @@ const CLEAR_WATER = {
   optics: { ...DEFAULT_CONFIG.optics, waterAttenuationPerCm: 0 },
 };
 
-/** 600 total plant size, whatever the tank around it. */
+/**
+ * 200 total plant size, whatever the tank around it.
+ *
+ * Sized for the *smallest* tank in a comparison, which meets two ceilings the
+ * larger ones never approach: the carbon clamp once an hour's demand outruns
+ * the column, and `OxygenResource`'s own upper bound once the hour's release
+ * outruns the water. A planting heavy enough to reach either reads flat with
+ * volume for a reason that has nothing to do with the volume term. This one
+ * clears both across every carbon yield the calibration sweep admits.
+ */
 const PLANTING: PresetSeed['plants'] = [
-  { species: 'java_fern', count: 3, size: 100 },
-  { species: 'anubias', count: 3, size: 100 },
+  { species: 'java_fern', count: 2, size: 50 },
+  { species: 'anubias', count: 2, size: 50 },
 ];
 
 const O2_HELD = 4;
-const CO2_HELD = 20;
+/**
+ * Carbon held where the rate has long since saturated, mg/L — the same three
+ * times optimal the nutrients below are held at. Held *at* the optimum the
+ * column would be barely larger than an hour's demand, and a comparison across
+ * volumes would be reading the carbon clamp in its smallest tank.
+ */
+const CO2_HELD = plantsDefaults.optimalCo2 * 3;
 /** A water column all but stripped of carbon, mg/L. */
 const CO2_STARVED = 0.02;
 
@@ -97,6 +114,39 @@ function read(capacity: number, plants: PresetSeed['plants'], co2 = CO2_HELD): n
 const plantOxygen = (capacity: number, co2 = CO2_HELD, plants = PLANTING): number =>
   read(capacity, plants, co2) - read(capacity, undefined, co2);
 
+/**
+ * The share of the dissolved carbon photosynthesis takes in one lit hour, at
+ * its narrowest and its widest across the run — 1 is a planting that took the
+ * whole column. Read off the effects the tick would apply rather than off the
+ * water afterwards, because respiration and the surface are moving the same
+ * stock in the same hour.
+ */
+function carbonDrawn(
+  capacity: number,
+  plants: PresetSeed['plants'],
+  co2 = CO2_HELD
+): { least: number; most: number } {
+  const shares: number[] = [];
+
+  runTank({
+    setup: plantedTank(capacity),
+    seed: { bacteria: 'cycled', plants },
+    days: 3,
+    rngSeed: 4242,
+    routine: { hold: holding(co2), config: CLEAR_WATER },
+    watch: (hour, before) => {
+      if (hour <= 2 * DAY || before.resources.light <= 0) return;
+      const fixed = processPlants(before, CLEAR_WATER).effects.find(
+        (effect) => effect.resource === 'co2' && effect.source === 'photosynthesis'
+      );
+      shares.push(-(fixed?.delta ?? 0) / before.resources.co2);
+    },
+  });
+
+  if (shares.length === 0) throw new Error(`no lit hour to read in the ${capacity} L`);
+  return { least: Math.min(...shares), most: Math.max(...shares) };
+}
+
 describe('a planting against the water it sits in', () => {
   it('moves a small tank as much further as it is smaller', () => {
     const nano = plantOxygen(10);
@@ -121,13 +171,18 @@ describe('the carbon in the water is what pays for the oxygen', () => {
     { species: 'anubias', count: 12, size: 200 },
   ];
 
-  it('releases no more in an hour than the whole column could pay for', () => {
-    expect(plantOxygen(10, CO2_HELD, JUNGLE)).toBeLessThanOrEqual(
-      CO2_HELD * CO2_TO_O2_MASS_RATIO
-    );
+  it('fixes the whole column in an hour it wants more than the column holds', () => {
+    const { least, most } = carbonDrawn(10, JUNGLE);
+
+    expect(least).toBeCloseTo(1, 10);
+    expect(most).toBeCloseTo(1, 10);
   });
 
-  it('has none to give at all once the column is stripped', () => {
+  it('leaves the rest of it standing in an hour it wants less', () => {
+    expect(carbonDrawn(10, PLANTING).most).toBeLessThan(1);
+  });
+
+  it('takes more than it gives once the column is stripped', () => {
     expect(plantOxygen(10)).toBeGreaterThan(0);
     expect(plantOxygen(10, CO2_STARVED)).toBeLessThan(0);
   });
@@ -155,29 +210,51 @@ describe('a heavily planted tank of neon tetras', () => {
 
   const DAYS = 20;
 
-  /** Survivors and the worst oxygen any hour of the run reached. */
-  function watch(capacity: number): { survivors: number; minOxygen: number } {
+  /**
+   * Survivors, the worst oxygen any hour of the run reached, and the worst any
+   * fish in it was charged for that oxygen.
+   */
+  function watch(capacity: number): {
+    survivors: number;
+    minOxygen: number;
+    peakOxygenStress: number;
+  } {
     let minOxygen = Infinity;
+    let peakOxygenStress = 0;
     const { final } = runTank({
       setup: unaided(capacity),
       seed: HEAVY,
       days: DAYS,
       rngSeed: 4242,
       routine: { feed: 0.5 },
-      watch: (_hour, _before, after) => {
+      watch: (_hour, before, after) => {
         minOxygen = Math.min(minOxygen, after.resources.oxygen);
+        for (const fish of before.fish) {
+          const { breakdown } = computeFishVitality(
+            fish,
+            after.resources,
+            after.plants,
+            after.resources.water,
+            after.tank.capacity,
+            DEFAULT_CONFIG.livestock
+          );
+          peakOxygenStress = Math.max(
+            peakOxygenStress,
+            breakdown.stressors.find((stressor) => stressor.key === 'oxygen')?.amount ?? 0
+          );
+        }
       },
     });
-    return { survivors: final.fish.length, minOxygen };
+    return { survivors: final.fish.length, minOxygen, peakOxygenStress };
   }
 
   const at150 = watch(150);
 
   it('keeps the whole roster through twenty days', () => {
     expect(at150.survivors).toBe(12);
-    // Not merely alive: the water never crossed into the band that damages a
-    // fish at all, so the roster is on the benefit side of it for every hour.
-    expect(at150.minOxygen).toBeGreaterThan(livestockDefaults.oxygenStressThreshold);
+    // Not merely alive: no fish was charged anything for the water at any hour
+    // of the run, so the roster spent all twenty days on the benefit side.
+    expect(at150.peakOxygenStress).toBe(0);
   });
 
   it('leaves a bigger tank more room still', () => {
