@@ -28,6 +28,8 @@ import {
 import { tuned } from './sweep.js';
 import {
   DAY,
+  type Circulation,
+  type CycleTrace,
   colonyFill,
   cycledTank,
   doseClearance,
@@ -369,6 +371,42 @@ describe('bacteria colony dynamics', () => {
 
         expect(peak).toBeLessThan(0.1);
       }
+    });
+
+    it('stands nitrite in a tank short of air, and never clears it in one with none', () => {
+      // Nitrite in an under-aerated tank is a thing keepers see, and this is
+      // where it comes from: NOB keep less of their rate than AOB at every
+      // oxygen, so what leaves the first step outruns the second. Fed rather
+      // than stocked, because a fish short of air excretes less and the load
+      // would then be what differed between the rows instead of the air.
+      const fed = (
+        circulation: Circulation,
+        feed: number,
+        config: TunableConfig = DEFAULT_CONFIG
+      ): CycleTrace => traceCycle(20, { temperature: 30, days: 60, circulation, feed, config });
+
+      const airless = tuned((draft) => {
+        draft.nitrogenCycle.aobOxygenHalfSaturation = 0;
+        draft.nitrogenCycle.nobOxygenHalfSaturation = 0;
+      });
+
+      const aerated = fed({ filter: 'sponge', airPump: true }, 0.3);
+      const still = fed({}, 0.3);
+
+      expect(aerated.minOxygen).toBeGreaterThan(5);
+      expect(still.minOxygen).toBeLessThan(1);
+      expect(still.nitritePeakPpm).toBeGreaterThan(aerated.nitritePeakPpm);
+      expect(still.cycledDay!).toBeGreaterThan(aerated.cycledDay!);
+
+      // The control: the same still box with the term switched off cycles on
+      // the aerated tank's clock, so what the two rows above read is the air
+      // and not the ration.
+      const withoutTheTerm = fed({}, 0.3, airless);
+      expect(withoutTheTerm.nitritePeakPpm).toBeLessThan(aerated.nitritePeakPpm);
+      expect(withoutTheTerm.cycledDay!).toBeLessThan(aerated.cycledDay!);
+
+      // Twice the ration into the same still box, and it never gets there.
+      expect(fed({}, 0.6).cycledDay).toBeNull();
     });
 
     it('clears a 2 ppm dose to under 0.25 ppm within 24 h, at any volume', () => {

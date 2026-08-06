@@ -44,21 +44,24 @@ export function run(
 const roomFor = (temperature: number): number =>
   Math.min(DEFAULT_ROOM_TEMPERATURE, temperature);
 
-/** Everything in a tank that moves water. Anything unnamed is off. */
+/** Everything in a tank that moves or aerates water. Anything unnamed is off. */
 export interface Circulation {
   filter?: FilterType;
   /** Powerhead setting in GPH — the label on the box. */
   powerhead?: PowerheadFlowRate;
+  airPump?: boolean;
 }
 
 function circulationOf({
   filter,
   powerhead,
-}: Circulation): Pick<SimulationConfig, 'filter' | 'powerhead'> {
+  airPump = false,
+}: Circulation): Pick<SimulationConfig, 'filter' | 'powerhead' | 'airPump'> {
   return {
     filter: filter === undefined ? { enabled: false } : { enabled: true, type: filter },
     powerhead:
       powerhead === undefined ? { enabled: false } : { enabled: true, flowRateGPH: powerhead },
+    airPump: { enabled: airPump },
   };
 }
 
@@ -83,11 +86,15 @@ export function fishlessTank(
     capacity = 20,
     ato = true,
     temperature = 25,
+    // The sponge every fresh tank starts with. Named rather than inherited,
+    // because what the water is getting is the variable these traces vary.
+    circulation = { filter: 'sponge' },
     seed,
   }: {
     capacity?: number;
     ato?: boolean;
     temperature?: number;
+    circulation?: Circulation;
     seed?: PresetSeed;
   } = {}
 ): SimulationState {
@@ -99,6 +106,7 @@ export function fishlessTank(
       initialTemperature: temperature,
       roomTemperature: roomFor(temperature),
       heater: { targetTemperature: temperature, wattage: Math.max(100, capacity) },
+      ...circulationOf(circulation),
     },
     seed
   );
@@ -150,6 +158,10 @@ export interface CycleTrace {
   ammoniaPeakPpm: number;
   nitritePeakPpm: number;
   nitritePeakDay: number;
+  /** Nitrate standing at the hour nitrite peaked, ppm. */
+  nitrateAtPeakPpm: number;
+  /** Lowest dissolved oxygen any hour of the run closed on, mg/L. */
+  minOxygen: number;
   /** Day nitrite first drops under 0.1 ppm past the peak with nitrate still rising. */
   cycledDay: number | null;
 }
@@ -160,47 +172,65 @@ export interface TraceOptions {
   config?: TunableConfig;
   /** Water temperature the tank is held at, °C. */
   temperature?: number;
+  circulation?: Circulation;
+  /**
+   * Grams of food a day. A bed alone barely moves the oxygen, so this is how a
+   * trace reaches the low-air regime a keeper's overfed tank sits in.
+   */
+  feed?: number;
 }
 
 /** Watch a fishless tank through its whole cycle and report the shape of it. */
 export function traceCycle(capacity: number, options: TraceOptions = {}): CycleTrace {
-  const { substrate = 'aqua_soil', days = 40, config = DEFAULT_CONFIG, temperature = 25 } = options;
+  const {
+    substrate = 'aqua_soil',
+    days = 40,
+    config = DEFAULT_CONFIG,
+    temperature = 25,
+    circulation,
+    feed,
+  } = options;
 
-  let state = fishlessTank(substrate, { capacity, temperature });
   let spawnHour: number | null = null;
   let ammoniaPeakPpm = 0;
   let nitritePeakPpm = 0;
+  let nitrateAtPeakPpm = 0;
   let peakHour = 0;
+  let minOxygen = Infinity;
   let cycledHour: number | null = null;
   let previousNitrate = 0;
 
-  for (let hour = 1; hour <= days * DAY; hour++) {
-    state = tick(state, config);
-    const ammonia = getPpm(state.resources.ammonia, state.resources.water);
-    const nitrite = getPpm(state.resources.nitrite, state.resources.water);
+  keep(
+    fishlessTank(substrate, { capacity, temperature, circulation }),
+    days,
+    { config, feed },
+    (hour, _before, state) => {
+      const { water, nitrate } = state.resources;
+      const ammonia = getPpm(state.resources.ammonia, water);
+      const nitrite = getPpm(state.resources.nitrite, water);
 
-    if (spawnHour === null && state.resources.aob > 0) spawnHour = hour;
-    if (ammonia > ammoniaPeakPpm) ammoniaPeakPpm = ammonia;
-    if (nitrite > nitritePeakPpm) {
-      nitritePeakPpm = nitrite;
-      peakHour = hour;
+      if (spawnHour === null && state.resources.aob > 0) spawnHour = hour;
+      if (ammonia > ammoniaPeakPpm) ammoniaPeakPpm = ammonia;
+      if (nitrite > nitritePeakPpm) {
+        nitritePeakPpm = nitrite;
+        nitrateAtPeakPpm = getPpm(nitrate, water);
+        peakHour = hour;
+      }
+      minOxygen = Math.min(minOxygen, state.resources.oxygen);
+      if (cycledHour === null && nitritePeakPpm > 0.5 && nitrite < 0.1 && nitrate > previousNitrate) {
+        cycledHour = hour;
+      }
+      previousNitrate = nitrate;
     }
-    if (
-      cycledHour === null &&
-      nitritePeakPpm > 0.5 &&
-      nitrite < 0.1 &&
-      state.resources.nitrate > previousNitrate
-    ) {
-      cycledHour = hour;
-    }
-    previousNitrate = state.resources.nitrate;
-  }
+  );
 
   return {
     spawnDay: spawnHour === null ? null : spawnHour / DAY,
     ammoniaPeakPpm,
     nitritePeakPpm,
     nitritePeakDay: peakHour / DAY,
+    nitrateAtPeakPpm,
+    minOxygen,
     cycledDay: cycledHour === null ? null : cycledHour / DAY,
   };
 }
