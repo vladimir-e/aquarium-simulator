@@ -173,10 +173,6 @@ reproduce identically on `main`.
   every day. Pre-existing. Measured during the empirical pass, not reproducible
   from the committed harness — `runTank` samples plants and algae only, so a
   future pass wanting water chemistry has to widen it.
-- **`scripts/calibrate-*.ts` do not compile.** They import
-  `src/simulation/calibration/helpers.js`, deleted on 2026-04-27, and sit
-  outside every tsconfig, so nothing catches it. This branch's watt→PAR rename
-  edited all three. Dead code, flagged not removed.
 
 ---
 

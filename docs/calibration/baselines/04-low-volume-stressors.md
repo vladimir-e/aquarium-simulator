@@ -89,9 +89,10 @@ heater-failure tick, the daily ration, and whether the colony starts seeded —
 A and A.1 do, B does not. A water change skips the heater-failure tick, so
 thermal drift is not read through a simultaneous water-mixing event.
 
-`scripts/calibrate-low-volume.ts` drove the figures below, but it no longer
-builds: it imports a module deleted on 2026-04-27 and sits outside every
-tsconfig. The parameters above are the scenario's, not the script's.
+The figures below came off a one-off runner script, which stopped building on
+2026-04-27 and was deleted on 2026-08-05. The parameters above are the
+scenario's, not the script's: they are what a re-run has to pin, on whatever
+harness runs it.
 
 ## Results vs expected
 

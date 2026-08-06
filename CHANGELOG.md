@@ -12,6 +12,7 @@ Format: - **Feature name** (#PR) - One short sentence (under ~150 chars)
 ## Unreleased
 
 - **A 1000 W heater no longer destroys the tank** - the picker offered a wattage the save schema refused, and a refused save discards the tank.
+- **Dead calibration scripts removed** - `scripts/calibrate-*.ts` stopped building in April; the committed harness in `src/simulation/tests/` covers their ground.
 - **Light is PAR, not watts** - a fixture is rated at the surface, the tank runs on what reaches the substrate, and depth comes from capacity (v18, v5).
 - **Age decides whether a fish can spawn** - the gate asks `age ≥ maturityAge`; a stocked adult arrives grown, one seeded at `age: 0` waits it out.
 - **A tank runs the same life twice** - a seed and counter on the state: one `rngSeed`, one life, ids too. Breaking: no `generateFishId` (v17, v4).
