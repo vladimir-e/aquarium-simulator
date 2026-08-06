@@ -550,7 +550,7 @@ describe('every fixture the UI offers survives a save', () => {
     currentPreset: 'planted',
   });
 
-  const refused = <T,>(offered: readonly T[], build: (value: T) => unknown): T[] =>
+  const refused = <T>(offered: readonly T[], build: (value: T) => unknown): T[] =>
     offered.filter((value) => !PersistedSimulationSchema.safeParse(build(value)).success);
 
   const built = (config: Omit<SimulationConfig, 'tankCapacity'>): Record<string, unknown> =>

@@ -33,7 +33,7 @@ const FORMULA = DEFAULT_CONFIG.nutrients.fertilizerFormula;
 function tank(capacity = 200): SimulationState {
   const state = createSimulation({ tankCapacity: capacity });
   state.equipment.substrate.type = 'aqua_soil';
-  state.resources.surface = calculatePassiveResources(state).surface;
+  state.resources.surface = calculatePassiveResources(state, DEFAULT_CONFIG.light).surface;
   return state;
 }
 

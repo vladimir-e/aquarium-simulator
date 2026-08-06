@@ -4,6 +4,7 @@
  */
 
 import { z } from 'zod';
+import { MAX_LIGHT_PAR } from '../../simulation/index.js';
 import { PERSISTENCE_VERSION } from './types.js';
 
 // ============================================================================
@@ -142,8 +143,7 @@ const HardscapeSchema = z
 const LightSchema = z
   .object({
     enabled: z.boolean(),
-    // Full noon sunlight at the surface — no fixture over a tank exceeds it.
-    par: z.number().min(0).max(2000),
+    par: z.number().min(0).max(MAX_LIGHT_PAR),
     schedule: DailyScheduleSchema,
   })
   .strict();

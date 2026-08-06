@@ -236,7 +236,7 @@ reserves, not thriving** — the plant reads full while its bank bleeds.
 
 ### Stressor coverage
 
-Each species' tolerance bands (`tolerableLight` in PAR at the plant,
+Each species' tolerance bands (`tolerableLight` in PAR at the substrate,
 `tolerableCO2`, `tolerableTemp`, `tolerablePH`) define when a stressor
 activates:
 

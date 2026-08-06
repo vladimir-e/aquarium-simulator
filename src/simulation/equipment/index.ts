@@ -6,8 +6,7 @@ import { produce } from 'immer';
 import type { Effect } from '../core/effects.js';
 import type { SimulationState } from '../state.js';
 import { calculateTankHeight, calculateTankGlassSurface } from '../state.js';
-import type { TunableConfig } from '../config/index.js';
-import { type LightConfig, lightDefaults } from '../config/light.js';
+import { type LightConfig, type TunableConfig, lightDefaults } from '../config/index.js';
 import {
   heaterUpdate,
   applyHeaterStateChange,
@@ -39,7 +38,7 @@ import {
   BUBBLE_RATE_OPTIONS,
   type BubbleRate,
 } from './co2-generator.js';
-import { getLightOutput, calculateParAtDepth, type Light, type LightPar, DEFAULT_LIGHT, LIGHT_PAR_OPTIONS } from './light.js';
+import { getLightOutput, calculateParAtDepth, type Light, type LightPar, DEFAULT_LIGHT, LIGHT_PAR_OPTIONS, MAX_LIGHT_PAR } from './light.js';
 import {
   getAirPumpOutput,
   getAirPumpFlow,
@@ -84,7 +83,7 @@ export {
   BUBBLE_RATE_OPTIONS,
   type BubbleRate,
 };
-export { getLightOutput, calculateParAtDepth, type Light, type LightPar, DEFAULT_LIGHT, LIGHT_PAR_OPTIONS };
+export { getLightOutput, calculateParAtDepth, type Light, type LightPar, DEFAULT_LIGHT, LIGHT_PAR_OPTIONS, MAX_LIGHT_PAR };
 export {
   getAirPumpOutput,
   getAirPumpFlow,
@@ -179,7 +178,7 @@ export interface PassiveResourceValues {
  */
 export function calculatePassiveResources(
   state: SimulationState,
-  lightConfig: LightConfig = lightDefaults
+  lightConfig: LightConfig
 ): PassiveResourceValues {
   const { tank, equipment, tick } = state;
   const hourOfDay = tick % 24;
@@ -235,7 +234,7 @@ export function calculatePassiveResources(
  */
 export function biofilmKept(state: SimulationState): number {
   const bed = state.equipment.substrate;
-  const surface = calculatePassiveResources(state).surface;
+  const surface = calculatePassiveResources(state, lightDefaults).surface;
   const lost = getSubstrateSurface(bed.type, state.tank.capacity);
   return surface > 0 ? 1 - lost / surface : 1;
 }
@@ -257,6 +256,6 @@ export function rescape(state: SimulationState, type: SubstrateType): Simulation
     draft.equipment.substrate = laid;
     draft.resources.aob *= kept;
     draft.resources.nob *= kept;
-    draft.resources.surface = calculatePassiveResources(draft).surface;
+    draft.resources.surface = calculatePassiveResources(draft, lightDefaults).surface;
   });
 }

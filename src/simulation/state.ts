@@ -18,7 +18,7 @@ import {
 import type { Hardscape } from './equipment/hardscape.js';
 import { DEFAULT_HARDSCAPE, calculateHardscapeTotalSurface } from './equipment/hardscape.js';
 import type { Light } from './equipment/light.js';
-import { DEFAULT_LIGHT } from './equipment/light.js';
+import { DEFAULT_LIGHT, MAX_LIGHT_PAR } from './equipment/light.js';
 import type { AirPump } from './equipment/air-pump.js';
 import { DEFAULT_AIR_PUMP, getAirPumpFlow } from './equipment/air-pump.js';
 import type { AutoDoser } from './equipment/auto-doser.js';
@@ -402,15 +402,16 @@ export function calculateHardscapeSlots(capacityLiters: number): number {
 
 /**
  * Height in cm of the box a capacity implies, assuming the standard
- * rectangular shape (length:width:height ≈ 2:1:1). 20 L stands 21.5 cm,
+ * rectangular shape (length:width:height ≈ 2:1:1). A litre is a dm³, so the
+ * cube root comes out in dm and ×10 reads it as cm: 20 L stands 21.5 cm,
  * 300 L stands 53.1.
  */
 export function calculateTankHeight(capacity: number): number {
-  return Math.cbrt(capacity / 2) * 10; // liters = dm³
+  return Math.cbrt(capacity / 2) * 10;
 }
 
 /**
- * Calculates tank bacteria surface area from capacity.
+ * Calculates tank bacteria surface area in cm² from capacity.
  * Includes 4 walls + bottom (excludes top which is open).
  */
 export function calculateTankGlassSurface(capacity: number): number {
@@ -422,17 +423,51 @@ export function calculateTankGlassSurface(capacity: number): number {
 }
 
 /**
+ * Every threshold in the engine is a comparison, and `NaN` fails all of them —
+ * so one that reaches a resource is never noticed and never leaves: the tank is
+ * poisoned for the rest of its life. Construction is the last place it can be
+ * refused, and it is refused wherever it sits in the input.
+ */
+function refuseNonFinite(value: unknown, path: string): void {
+  if (typeof value === 'number') {
+    if (!Number.isFinite(value)) throw new Error(`createSimulation: ${path} is ${value}`);
+    return;
+  }
+  if (Array.isArray(value)) {
+    value.forEach((item, index) => refuseNonFinite(item, `${path}[${index}]`));
+    return;
+  }
+  if (typeof value === 'object' && value !== null) {
+    for (const [key, item] of Object.entries(value)) refuseNonFinite(item, `${path}.${key}`);
+  }
+}
+
+/**
  * Creates a new simulation state with the given configuration, optionally
  * started at the state a {@link PresetSeed} describes rather than empty.
  * `rngSeed` opens the tank's draw stream — name one and the tank runs the
  * same life every time, organisms, ids and all; leave it out and it takes a
  * time-derived one.
+ *
+ * Throws on a number the tank could not survive: anything non-finite anywhere
+ * in the config or seed, a capacity that isn't positive, or a fixture rated
+ * past {@link MAX_LIGHT_PAR}.
  */
 export function createSimulation(
   config: SimulationConfig,
   seed?: PresetSeed,
   rngSeed?: number
 ): SimulationState {
+  refuseNonFinite(config, 'config');
+  refuseNonFinite(seed, 'seed');
+  if (config.tankCapacity <= 0) {
+    throw new Error(`createSimulation: tankCapacity must be positive, got ${config.tankCapacity}`);
+  }
+  const par = config.light?.par;
+  if (par !== undefined && (par < 0 || par > MAX_LIGHT_PAR)) {
+    throw new Error(`createSimulation: light.par must be within 0–${MAX_LIGHT_PAR}, got ${par}`);
+  }
+
   const {
     tankCapacity,
     initialTemperature,

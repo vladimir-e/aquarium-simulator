@@ -185,6 +185,10 @@ export {
   DOSE_AMOUNT_OPTIONS,
   type DoseAmount,
   type AutoDoser,
+  getLightOutput,
+  calculateParAtDepth,
+  LIGHT_PAR_OPTIONS,
+  MAX_LIGHT_PAR,
   type Light,
   type LightPar,
 } from './equipment/index.js';

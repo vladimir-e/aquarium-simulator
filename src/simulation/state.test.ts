@@ -6,6 +6,7 @@ import {
   DEFAULT_HEATER,
 } from './state.js';
 import { DEFAULT_FILTER, FILTER_SURFACE } from './equipment/filter.js';
+import { MAX_LIGHT_PAR } from './equipment/light.js';
 import { DEFAULT_POWERHEAD } from './equipment/powerhead.js';
 import { DEFAULT_SUBSTRATE } from './equipment/substrate.js';
 
@@ -427,5 +428,43 @@ describe('calculateTankHeight', () => {
     for (let i = 1; i < heights.length; i++) {
       expect(heights[i]).toBeGreaterThan(heights[i - 1]);
     }
+  });
+});
+
+/**
+ * A resource that reaches `NaN` never comes back: every threshold downstream is
+ * a comparison, and all of them are false against it. Construction is the last
+ * place the engine can still say no.
+ */
+describe('createSimulation - numbers a tank could not survive', () => {
+  it('refuses a non-finite number wherever it sits in the config', () => {
+    expect(() => createSimulation({ tankCapacity: NaN })).toThrow(/tankCapacity is NaN/);
+    expect(() =>
+      createSimulation({ tankCapacity: 40, heater: { wattage: Infinity } })
+    ).toThrow(/heater.wattage is Infinity/);
+    expect(() =>
+      createSimulation({ tankCapacity: 40, light: { schedule: { startHour: NaN, duration: 10 } } })
+    ).toThrow(/light.schedule.startHour is NaN/);
+  });
+
+  it('refuses a non-finite number in the seed too', () => {
+    expect(() =>
+      createSimulation({ tankCapacity: 40 }, { plants: [{ species: 'anubias', count: 1, size: NaN }] })
+    ).toThrow(/seed\.plants\[0\]\.size is NaN/);
+  });
+
+  it('refuses a tank with no volume to be a tank', () => {
+    expect(() => createSimulation({ tankCapacity: 0 })).toThrow(/must be positive/);
+    expect(() => createSimulation({ tankCapacity: -40 })).toThrow(/must be positive/);
+  });
+
+  it('refuses a fixture brighter than the sun, and takes every catalog one', () => {
+    expect(() => createSimulation({ tankCapacity: 40, light: { par: 1e6 } })).toThrow(
+      /light.par must be within/
+    );
+    expect(() => createSimulation({ tankCapacity: 40, light: { par: -1 } })).toThrow(
+      /light.par must be within/
+    );
+    expect(createSimulation({ tankCapacity: 40, light: { par: MAX_LIGHT_PAR } })).toBeDefined();
   });
 });

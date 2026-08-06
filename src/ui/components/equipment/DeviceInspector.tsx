@@ -2,17 +2,17 @@ import React, { useEffect, useMemo, useRef } from 'react';
 import { ChevronLeft } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
+  DOSE_AMOUNT_OPTIONS,
   FILTER_TYPES,
   HEATER_WATTAGE_OPTIONS,
+  LIGHT_PAR_OPTIONS,
   POWERHEAD_FLOW_LPH,
   POWERHEAD_FLOW_RATES,
   type DailySchedule,
   type FilterType,
   type PowerheadFlowRate,
 } from '../../../simulation/index.js';
-import { LIGHT_PAR_OPTIONS } from '../../../simulation/equipment/light.js';
 import { BUBBLE_RATE_OPTIONS } from '../../../simulation/equipment/co2-generator.js';
-import { DOSE_AMOUNT_OPTIONS } from '../../../simulation/equipment/auto-doser.js';
 import type { TunableConfig } from '../../../simulation/config/index.js';
 import type { useSimulation } from '../../hooks/useSimulation';
 import { useUnits } from '../../hooks/useUnits';
@@ -36,9 +36,9 @@ type Sim = ReturnType<typeof useSimulation>;
 
 const FILTER_TYPE_OPTIONS = FILTER_TYPES.map((value) => ({ value, label: FILTER_LABEL[value] }));
 
-function numberOptions<T extends number>(
-  values: T[],
-  label: (value: T) => string
+function numberOptions(
+  values: readonly number[],
+  label: (value: number) => string
 ): { value: string; label: string }[] {
   return values.map((v) => ({ value: String(v), label: label(v) }));
 }
@@ -189,7 +189,7 @@ function DeviceSettings({ id, sim }: { id: EquipmentId; sim: Sim }): React.JSX.E
               ariaLabel="CO₂ bubble rate"
               value={String(c.bubbleRate)}
               onChange={(v) => sim.updateCo2GeneratorBubbleRate(Number(v))}
-              options={BUBBLE_RATE_OPTIONS.map((r) => ({ value: String(r), label: `${r.toFixed(1)} bps` }))}
+              options={numberOptions(BUBBLE_RATE_OPTIONS, (r) => `${r.toFixed(1)} bps`)}
             />
           </FieldRow>
           <FieldRow label="Start">
@@ -256,7 +256,7 @@ function DeviceSettings({ id, sim }: { id: EquipmentId; sim: Sim }): React.JSX.E
               ariaLabel="Auto doser amount"
               value={String(d.doseAmountMl)}
               onChange={(v) => sim.updateAutoDoserAmount(Number(v))}
-              options={DOSE_AMOUNT_OPTIONS.map((ml) => ({ value: String(ml), label: `${ml.toFixed(1)} ml` }))}
+              options={numberOptions(DOSE_AMOUNT_OPTIONS, (ml) => `${ml.toFixed(1)} ml`)}
             />
           </FieldRow>
           <FieldRow label="Dose hour">

@@ -51,7 +51,7 @@ describe('equipmentRows', () => {
 
   it('summarises a running device by its setting and a stopped one by "off"', () => {
     expect(rows.find((r) => r.id === 'heater')?.summary).toBe('on · target 25°C');
-    expect(rows.find((r) => r.id === 'light')?.summary).toBe('50 PAR · 08:00–18:00');
+    expect(rows.find((r) => r.id === 'light')?.summary).toBe('50 PAR at surface · 08:00–18:00');
     expect(rows.find((r) => r.id === 'powerhead')?.summary).toBe('off');
   });
 

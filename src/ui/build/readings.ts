@@ -7,10 +7,12 @@
 
 import {
   calculateHeatingRate,
+  calculateParAtDepth,
   calculateTankHeight,
   getFilterFlow,
   getAirPumpFlow,
   getAirPumpOutput,
+  getLightOutput,
   isAirPumpUndersized,
   isScheduleActive,
   FILTER_SPECS,
@@ -22,7 +24,6 @@ import {
   type FishSpeciesData,
   type SimulationState,
 } from '../../simulation/index.js';
-import { getLightOutput, calculateParAtDepth } from '../../simulation/equipment/light.js';
 import { WATER_LEVEL_THRESHOLD } from '../../simulation/equipment/ato.js';
 import { formatCo2Rate } from '../../simulation/equipment/co2-generator.js';
 import { Co2Resource, SurfaceResource } from '../../simulation/resources/index.js';
@@ -155,8 +156,7 @@ function lightReadings({ state, config }: DeviceReadingInput): DeviceReading[] {
   const lit = light.enabled && isScheduleActive(hour, light.schedule);
   const depth = calculateTankHeight(state.tank.capacity);
   const surfacePar = getLightOutput(light, hour);
-  const atSubstrate = (par: number): number =>
-    Math.round(calculateParAtDepth(par, depth, config.light));
+  const wouldLand = Math.round(calculateParAtDepth(light.par, depth, config.light));
   const column = `${Math.round(depth)} cm of water`;
 
   return [
@@ -171,10 +171,8 @@ function lightReadings({ state, config }: DeviceReadingInput): DeviceReading[] {
     },
     {
       label: 'At substrate',
-      value: `${atSubstrate(surfacePar)} PAR`,
-      note: lit
-        ? `through ${column}`
-        : `would land ${atSubstrate(light.par)} PAR through ${column}`,
+      value: `${Math.round(state.resources.light)} PAR`,
+      note: lit ? `through ${column}` : `would land ${wouldLand} PAR through ${column}`,
     },
     { label: 'Photoperiod', value: `${light.schedule.duration} h/day` },
   ];

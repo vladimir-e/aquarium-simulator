@@ -10,6 +10,15 @@ Actions allow the user to:
 - Manage livestock (stocking fish, selling fry)
 - Request professional help (maintenance service)
 
+## Refused inputs
+
+Every bound an action applies is a comparison, and a comparison against `NaN`
+is false — so an unguarded action writes it straight into a resource, where
+nothing downstream ever clears it again. Every action that takes a number
+therefore refuses a non-finite one *before* its own bounds, returning the
+state unchanged with a message. `createSimulation` does the same across the
+whole config and seed, and throws rather than building a poisoned tank.
+
 ---
 
 ## Feed

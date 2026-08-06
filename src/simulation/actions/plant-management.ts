@@ -103,7 +103,7 @@ export function addPlant(
   }
 
   // Validate initial size (0-200% allowed, plants can start overgrown)
-  if (initialSize < 0 || initialSize > 200) {
+  if (!Number.isFinite(initialSize) || initialSize < 0 || initialSize > 200) {
     return {
       state,
       message: `Invalid initial size: ${initialSize}% (must be 0-200%)`,

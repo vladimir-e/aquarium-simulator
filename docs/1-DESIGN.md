@@ -48,9 +48,10 @@ tank flows through equipment or actions.
 
 The physical and chemical state of the tank: water volume, temperature,
 pH, dissolved gases (O2, CO2), nitrogen species (NH3, NO2, NO3),
-nutrients (PO4, K, Fe), light (PAR at the substrate), flow, surface area, food,
-waste, bacteria (AOB, NOB). Resources are continuous floats; the
-tank is a stock for each. See `5-RESOURCES.md` for the catalogue.
+nutrients (PO4, K, Fe), light (PAR at the substrate), flow, surface
+area, food, waste, bacteria (AOB, NOB). Resources are continuous
+floats; the tank is a stock for each. See `5-RESOURCES.md` for the
+catalogue.
 
 Algae used to live here as a single number; it has been promoted to
 an organism in the vitality layer (`state.algae`). See `6-PLANTS.md`

@@ -120,7 +120,7 @@ function coerceValue(raw: string): unknown {
   if (raw === 'true') return true;
   if (raw === 'false') return false;
   const num = Number(raw);
-  if (!Number.isNaN(num) && raw.trim() !== '') return num;
+  if (Number.isFinite(num) && raw.trim() !== '') return num;
   // Try JSON for arrays/objects
   if (raw.startsWith('[') || raw.startsWith('{')) {
     try {
@@ -263,6 +263,9 @@ function cmdNew(flags: Record<string, string>): void {
     capacity = gallonsToLiters(Number(flags['tank-gal']));
   } else if (flags['tank-liters']) {
     capacity = Number(flags['tank-liters']);
+  }
+  if (capacity !== undefined && (!Number.isFinite(capacity) || capacity <= 0)) {
+    throw new Error('new requires a positive tank size.');
   }
   const preset = resolvePreset(presetId, { capacity, seeded: flags['no-seed'] === undefined });
   const state = createPresetSimulation(preset);

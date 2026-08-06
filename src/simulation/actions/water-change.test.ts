@@ -377,4 +377,14 @@ describe('waterChange action', () => {
       expect(result.state.resources.water).toBe(100);
     });
   });
+
+  describe('a fraction the action cannot honour', () => {
+    it('refuses one that is not a number', () => {
+      const state = createSimulation({ tankCapacity: 100 });
+      const result = waterChange(state, { type: 'waterChange', amount: NaN });
+
+      expect(result.state).toBe(state);
+      expect(result.message).toBe('Invalid water change amount');
+    });
+  });
 });

@@ -43,7 +43,7 @@ function headline(): string {
 function tank(capacity = 200): SimulationState {
   const state = createSimulation({ tankCapacity: capacity });
   state.equipment.substrate.type = 'aqua_soil';
-  state.resources.surface = calculatePassiveResources(state).surface;
+  state.resources.surface = calculatePassiveResources(state, DEFAULT_CONFIG.light).surface;
   return state;
 }
 
@@ -224,7 +224,7 @@ describe('FloraSection', () => {
   it('reads the scape out with each piece’s surface, and the biofilter ceiling it sums to', () => {
     const scaped = tank();
     scaped.equipment.hardscape.items = [{ id: 'h1', type: 'driftwood' }];
-    scaped.resources.surface = calculatePassiveResources(scaped).surface;
+    scaped.resources.surface = calculatePassiveResources(scaped, DEFAULT_CONFIG.light).surface;
     const state = applyAction(scaped, { type: 'addPlant', species: 'java_fern' }).state;
     const spy = renderFlora(state);
 

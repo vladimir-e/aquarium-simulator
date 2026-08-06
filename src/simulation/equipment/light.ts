@@ -5,7 +5,7 @@
 
 import type { DailySchedule } from '../core/schedule.js';
 import { isScheduleActive } from '../core/schedule.js';
-import { type LightConfig, lightDefaults } from '../config/light.js';
+import type { LightConfig } from '../config/light.js';
 
 export type LightPar = 25 | 50 | 90 | 150;
 
@@ -37,6 +37,12 @@ export const DEFAULT_LIGHT: Light = {
 export const LIGHT_PAR_OPTIONS: LightPar[] = [25, 50, 90, 150];
 
 /**
+ * Full noon sunlight at the surface. No fixture hung over a tank exceeds it,
+ * so a rating past this is a typo rather than a lighting choice.
+ */
+export const MAX_LIGHT_PAR = 2000;
+
+/**
  * Calculates the current light output based on schedule.
  * Returns the fixture's rated surface PAR when enabled and the schedule is
  * active, 0 otherwise.
@@ -65,7 +71,7 @@ export function getLightOutput(light: Light, hourOfDay: number): number {
 export function calculateParAtDepth(
   surfacePar: number,
   depthCm: number,
-  config: LightConfig = lightDefaults
+  config: LightConfig
 ): number {
   if (surfacePar <= 0) return 0;
 

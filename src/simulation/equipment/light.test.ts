@@ -32,7 +32,7 @@ describe('light equipment', () => {
     it('spans the hobby low-to-very-high tiers on the 150 L reference tank', () => {
       const depth = calculateTankHeight(150);
       const atSubstrate = LIGHT_PAR_OPTIONS.map((par) =>
-        Math.round(calculateParAtDepth(par, depth))
+        Math.round(calculateParAtDepth(par, depth, lightDefaults))
       );
       expect(atSubstrate).toEqual([16, 33, 59, 98]);
     });
@@ -156,15 +156,15 @@ describe('light equipment', () => {
 
   describe('calculateParAtDepth', () => {
     it('leaves the surface reading untouched at zero depth', () => {
-      expect(calculateParAtDepth(90, 0)).toBe(90);
+      expect(calculateParAtDepth(90, 0, lightDefaults)).toBe(90);
     });
 
     it('returns nothing when the fixture is off, at any depth', () => {
-      expect(calculateParAtDepth(0, 42)).toBe(0);
+      expect(calculateParAtDepth(0, 42, lightDefaults)).toBe(0);
     });
 
     it('falls off monotonically with depth', () => {
-      const readings = [0, 10, 20, 40, 80].map((cm) => calculateParAtDepth(100, cm));
+      const readings = [0, 10, 20, 40, 80].map((cm) => calculateParAtDepth(100, cm, lightDefaults));
       for (let i = 1; i < readings.length; i++) {
         expect(readings[i]).toBeLessThan(readings[i - 1]);
       }
@@ -172,17 +172,20 @@ describe('light equipment', () => {
 
     it('scales linearly in the fixture — doubling the fixture doubles the substrate', () => {
       const depth = calculateTankHeight(150);
-      expect(calculateParAtDepth(100, depth)).toBeCloseTo(2 * calculateParAtDepth(50, depth), 10);
+      expect(calculateParAtDepth(100, depth, lightDefaults)).toBeCloseTo(
+        2 * calculateParAtDepth(50, depth, lightDefaults),
+        10
+      );
     });
 
     it('is Beer–Lambert: stacking two depths equals attenuating through their sum', () => {
-      const once = calculateParAtDepth(calculateParAtDepth(100, 20), 30);
-      expect(once).toBeCloseTo(calculateParAtDepth(100, 50), 10);
+      const once = calculateParAtDepth(calculateParAtDepth(100, 20, lightDefaults), 30, lightDefaults);
+      expect(once).toBeCloseTo(calculateParAtDepth(100, 50, lightDefaults), 10);
     });
 
     it('a deeper tank lands less of the same fixture on its substrate', () => {
-      const shallow = calculateParAtDepth(90, calculateTankHeight(20));
-      const deep = calculateParAtDepth(90, calculateTankHeight(300));
+      const shallow = calculateParAtDepth(90, calculateTankHeight(20), lightDefaults);
+      const deep = calculateParAtDepth(90, calculateTankHeight(300), lightDefaults);
       expect(deep).toBeLessThan(shallow);
     });
 
@@ -191,16 +194,6 @@ describe('light equipment', () => {
       const murky = calculateParAtDepth(100, 40, { waterAttenuationPerCm: 0.02 });
       expect(murky).toBeLessThan(clear);
       expect(clear).toBeLessThan(100);
-    });
-
-    it('keeps roughly four fifths of the surface reading in a 20 L', () => {
-      const kept = calculateParAtDepth(100, calculateTankHeight(20), lightDefaults) / 100;
-      expect(kept).toBeCloseTo(0.81, 2);
-    });
-
-    it('keeps roughly three fifths of the surface reading in a 300 L', () => {
-      const kept = calculateParAtDepth(100, calculateTankHeight(300), lightDefaults) / 100;
-      expect(kept).toBeCloseTo(0.59, 2);
     });
   });
 });

@@ -52,7 +52,7 @@ export interface PlantSpeciesData {
    */
   hardiness: number;
   /**
-   * Tolerable PAR range (µmol/m²/s) at the plant. Outside this band a
+   * Tolerable PAR range (µmol/m²/s) at the substrate. Outside this band a
    * light-insufficient (low) or light-excessive (high) stressor activates.
    * The two-sided shape lets shade species like Anubias burn under a
    * high-output fixture, in addition to the usual carpet-species low-light

@@ -50,6 +50,17 @@ export function scrubAlgae(
   state: SimulationState,
   action: ScrubAlgaeAction
 ): ActionResult {
+  const named = action.randomPercent;
+  if (
+    named !== undefined &&
+    (!Number.isFinite(named) || named < MIN_SCRUB_PERCENT || named > MAX_SCRUB_PERCENT)
+  ) {
+    return {
+      state,
+      message: `Scrub percent must be between ${MIN_SCRUB_PERCENT} and ${MAX_SCRUB_PERCENT}`,
+    };
+  }
+
   // Check if scrubbing is possible
   if (!canScrubAlgae(state)) {
     return {
@@ -63,7 +74,7 @@ export function scrubAlgae(
   // message — so the draw runs on a copy that goes back in. Drawing on
   // `state.rng` would advance the caller's own stream.
   const rng = { ...state.rng };
-  const percent = action.randomPercent ?? scrubBite(rng);
+  const percent = named ?? scrubBite(rng);
   const removed = currentMass * percent;
 
   const newState = produce(state, (draft) => {

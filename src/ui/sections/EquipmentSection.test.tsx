@@ -8,7 +8,13 @@ import { PersistenceProvider } from '../persistence/index.js';
 import { navFigures } from '../nav/figures.js';
 import { emptyAggregates } from '../run/index.js';
 import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
-import { createSimulation, tick, type SimulationState } from '../../simulation/index.js';
+import {
+  createSimulation,
+  tick,
+  HEATER_WATTAGE_OPTIONS,
+  LIGHT_PAR_OPTIONS,
+  type SimulationState,
+} from '../../simulation/index.js';
 import type { useSimulation } from '../hooks/useSimulation';
 import { toInternalTemperature } from '../utils/units';
 import { stubMatchMedia, viewport, type MatchMediaStub } from '../test/matchMedia';
@@ -183,6 +189,28 @@ describe('EquipmentSection', () => {
     );
   });
 
+  it('offers every fixture in the catalog by its surface rating', () => {
+    const sim = stubSim(base);
+    renderSection('/equipment/light', sim);
+    const select = screen.getByRole('combobox', { name: 'Light output' });
+    expect(within(select).getAllByRole('option').map((o) => o.textContent)).toEqual(
+      LIGHT_PAR_OPTIONS.map((par) => `${par} PAR`)
+    );
+    fireEvent.change(select, { target: { value: '90' } });
+    expect(sim.updateLightPar).toHaveBeenCalledWith(90);
+  });
+
+  it('offers every heater in the catalog by its wattage', () => {
+    const sim = stubSim(base);
+    renderSection('/equipment/heater', sim);
+    const select = screen.getByRole('combobox', { name: 'Heater wattage' });
+    expect(within(select).getAllByRole('option').map((o) => o.textContent)).toEqual(
+      HEATER_WATTAGE_OPTIONS.map((watts) => `${watts}W`)
+    );
+    fireEvent.change(select, { target: { value: '300' } });
+    expect(sim.updateHeaterWattage).toHaveBeenCalledWith(300);
+  });
+
   it('wires both light schedule steppers to updateLightSchedule', () => {
     const sim = stubSim(base); // default light schedule { startHour: 8, duration: 10 }
     renderSection('/equipment/light', sim);
@@ -233,7 +261,7 @@ describe('EquipmentSection', () => {
 
     const band = screen.getByRole('heading', { level: 2, name: 'Schedules' }).closest('section')!;
     expect(within(band).getByText('24 h · now 20:00')).toBeTruthy();
-    expect(within(band).getByText('08:00–18:00 · 50 PAR')).toBeTruthy();
+    expect(within(band).getByText('08:00–18:00 · 50 PAR at surface')).toBeTruthy();
     expect(within(band).getByText('off · would dose at 08:00')).toBeTruthy();
   });
 });

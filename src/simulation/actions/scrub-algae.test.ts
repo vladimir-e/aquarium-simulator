@@ -228,6 +228,25 @@ describe('scrubAlgae', () => {
       expect(Math.max(...bites)).toBeGreaterThan(0.28);
     });
   });
+
+  describe('a percent the action cannot honour', () => {
+    it('refuses one that is not a number', () => {
+      const state = createStateWithAlgae(50);
+      const result = scrubAlgae(state, { type: 'scrubAlgae', randomPercent: NaN });
+
+      expect(result.state).toBe(state);
+      expect(result.message).toBe(
+        `Scrub percent must be between ${MIN_SCRUB_PERCENT} and ${MAX_SCRUB_PERCENT}`
+      );
+    });
+
+    it('refuses one outside the bite the action documents', () => {
+      const state = createStateWithAlgae(50);
+
+      expect(scrubAlgae(state, { type: 'scrubAlgae', randomPercent: 0.9 }).state).toBe(state);
+      expect(scrubAlgae(state, { type: 'scrubAlgae', randomPercent: -1 }).state).toBe(state);
+    });
+  });
 });
 
 describe('constants', () => {

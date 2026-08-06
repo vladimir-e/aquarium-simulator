@@ -41,7 +41,7 @@ function fixture(species: FishSpecies[] = ['neon_tetra', 'corydoras', 'betta']):
     tapWaterPH: 7.4,
   });
   state.equipment.substrate.type = 'aqua_soil';
-  state.resources.surface = calculatePassiveResources(state).surface;
+  state.resources.surface = calculatePassiveResources(state, DEFAULT_CONFIG.light).surface;
 
   state.resources.water = 196.4;
   state.resources.temperature = 25.4;

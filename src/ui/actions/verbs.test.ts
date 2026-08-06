@@ -26,7 +26,7 @@ import {
 function tank(): SimulationState {
   const state = createSimulation({ tankCapacity: 200, tapWaterTemperature: 18, tapWaterPH: 7.4 });
   state.equipment.substrate.type = 'aqua_soil';
-  state.resources.surface = calculatePassiveResources(state).surface;
+  state.resources.surface = calculatePassiveResources(state, DEFAULT_CONFIG.light).surface;
   state.resources.water = 196.4;
   state.algae.mass = 47;
   return state;

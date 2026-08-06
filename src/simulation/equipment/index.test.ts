@@ -1,11 +1,15 @@
 import { describe, it, expect } from 'vitest';
-import { biofilmKept, calculatePassiveResources } from './index.js';
+import { biofilmKept, calculatePassiveResources, type PassiveResourceValues } from './index.js';
 import { getSubstrateSurface, type SubstrateType } from './substrate.js';
 import { calculateTankHeight, createSimulation, type SimulationState } from '../state.js';
 import { calculateParAtDepth } from './light.js';
+import { lightDefaults } from '../config/light.js';
 import { FILTER_SURFACE, getFilterFlow } from './filter.js';
 import { POWERHEAD_FLOW_LPH } from './powerhead.js';
 import { HARDSCAPE_SURFACE, type HardscapeItem } from './hardscape.js';
+
+const passive = (state: SimulationState): PassiveResourceValues =>
+  calculatePassiveResources(state, lightDefaults);
 
 describe('calculatePassiveResources', () => {
   describe('surface calculation', () => {
@@ -16,7 +20,7 @@ describe('calculatePassiveResources', () => {
         substrate: { type: 'none' },
       });
 
-      const resources = calculatePassiveResources(state);
+      const resources = passive(state);
 
       // Should only have tank surface (positive number)
       expect(resources.surface).toBeGreaterThan(0);
@@ -36,8 +40,8 @@ describe('calculatePassiveResources', () => {
         substrate: { type: 'none' },
       });
 
-      const resourcesWithFilter = calculatePassiveResources(stateWithFilter);
-      const resourcesWithoutFilter = calculatePassiveResources(stateWithoutFilter);
+      const resourcesWithFilter = passive(stateWithFilter);
+      const resourcesWithoutFilter = passive(stateWithoutFilter);
 
       expect(resourcesWithFilter.surface).toBe(
         resourcesWithoutFilter.surface + FILTER_SURFACE.canister
@@ -57,8 +61,8 @@ describe('calculatePassiveResources', () => {
         substrate: { type: 'none' },
       });
 
-      const resourcesEnabled = calculatePassiveResources(stateEnabled);
-      const resourcesDisabled = calculatePassiveResources(stateDisabled);
+      const resourcesEnabled = passive(stateEnabled);
+      const resourcesDisabled = passive(stateDisabled);
 
       expect(resourcesDisabled.surface).toBe(
         resourcesEnabled.surface - FILTER_SURFACE.canister
@@ -78,8 +82,8 @@ describe('calculatePassiveResources', () => {
         substrate: { type: 'none' },
       });
 
-      const resourcesWithGravel = calculatePassiveResources(stateWithGravel);
-      const resourcesWithoutSubstrate = calculatePassiveResources(stateWithoutSubstrate);
+      const resourcesWithGravel = passive(stateWithGravel);
+      const resourcesWithoutSubstrate = passive(stateWithoutSubstrate);
 
       // 800 cm²/L * 100L = 80,000 cm²
       expect(resourcesWithGravel.surface).toBe(
@@ -100,8 +104,8 @@ describe('calculatePassiveResources', () => {
         substrate: { type: 'gravel' },
       });
 
-      const resourcesNone = calculatePassiveResources(stateNone);
-      const resourcesGravel = calculatePassiveResources(stateGravel);
+      const resourcesNone = passive(stateNone);
+      const resourcesGravel = passive(stateGravel);
 
       expect(resourcesNone.surface).toBeLessThan(resourcesGravel.surface);
       expect(resourcesGravel.surface - resourcesNone.surface).toBe(80000); // gravel surface
@@ -120,8 +124,8 @@ describe('calculatePassiveResources', () => {
         substrate: { type: 'aqua_soil' },
       });
 
-      const resourcesSand = calculatePassiveResources(stateSand);
-      const resourcesAquaSoil = calculatePassiveResources(stateAquaSoil);
+      const resourcesSand = passive(stateSand);
+      const resourcesAquaSoil = passive(stateAquaSoil);
 
       expect(resourcesAquaSoil.surface).toBeGreaterThan(resourcesSand.surface);
     });
@@ -139,8 +143,8 @@ describe('calculatePassiveResources', () => {
         substrate: { type: 'none' },
       });
 
-      const resourcesWithAll = calculatePassiveResources(stateWithAll);
-      const resourcesBase = calculatePassiveResources(stateBase);
+      const resourcesWithAll = passive(stateWithAll);
+      const resourcesBase = passive(stateBase);
 
       // Should include tank + filter + substrate
       const expected =
@@ -160,7 +164,7 @@ describe('calculatePassiveResources', () => {
         powerhead: { enabled: false },
       });
 
-      const resources = calculatePassiveResources(state);
+      const resources = passive(state);
 
       // HOB on 100L tank: 100 * 6x turnover = 600 L/h
       expect(resources.flow).toBe(getFilterFlow('hob', 100));
@@ -174,7 +178,7 @@ describe('calculatePassiveResources', () => {
         powerhead: { enabled: false },
       });
 
-      const resources = calculatePassiveResources(state);
+      const resources = passive(state);
 
       expect(resources.flow).toBe(0);
     });
@@ -186,7 +190,7 @@ describe('calculatePassiveResources', () => {
         powerhead: { enabled: true, flowRateGPH: 400 },
       });
 
-      const resources = calculatePassiveResources(state);
+      const resources = passive(state);
 
       expect(resources.flow).toBe(POWERHEAD_FLOW_LPH[400]);
     });
@@ -198,7 +202,7 @@ describe('calculatePassiveResources', () => {
         powerhead: { enabled: false, flowRateGPH: 850 },
       });
 
-      const resources = calculatePassiveResources(state);
+      const resources = passive(state);
 
       expect(resources.flow).toBe(0);
     });
@@ -210,7 +214,7 @@ describe('calculatePassiveResources', () => {
         powerhead: { enabled: true, flowRateGPH: 240 },
       });
 
-      const resources = calculatePassiveResources(state);
+      const resources = passive(state);
 
       expect(resources.flow).toBe(908);
     });
@@ -222,7 +226,7 @@ describe('calculatePassiveResources', () => {
         powerhead: { enabled: true, flowRateGPH: 850 },
       });
 
-      const resources = calculatePassiveResources(state);
+      const resources = passive(state);
 
       expect(resources.flow).toBe(3218);
     });
@@ -234,7 +238,7 @@ describe('calculatePassiveResources', () => {
         powerhead: { enabled: false },
       });
 
-      const resources = calculatePassiveResources(state);
+      const resources = passive(state);
 
       // Sponge on 100L tank: 100 * 4x = 400, but capped at 300 L/h
       expect(resources.flow).toBe(300);
@@ -247,7 +251,7 @@ describe('calculatePassiveResources', () => {
         powerhead: { enabled: false },
       });
 
-      const resources = calculatePassiveResources(state);
+      const resources = passive(state);
 
       expect(resources.flow).toBe(1000);
     });
@@ -259,7 +263,7 @@ describe('calculatePassiveResources', () => {
         powerhead: { enabled: true, flowRateGPH: 600 },
       });
 
-      const resources = calculatePassiveResources(state);
+      const resources = passive(state);
 
       // Canister on 100L tank: 100 * 8x turnover = 800 L/h
       // Plus powerhead 600 GPH = 2271 L/h
@@ -287,8 +291,8 @@ describe('calculatePassiveResources', () => {
         substrate: { type: 'none' },
       });
 
-      const resourcesWithHardscape = calculatePassiveResources(stateWithHardscape);
-      const resourcesWithoutHardscape = calculatePassiveResources(stateWithoutHardscape);
+      const resourcesWithHardscape = passive(stateWithHardscape);
+      const resourcesWithoutHardscape = passive(stateWithoutHardscape);
 
       expect(resourcesWithHardscape.surface).toBe(
         resourcesWithoutHardscape.surface + HARDSCAPE_SURFACE.driftwood
@@ -312,8 +316,8 @@ describe('calculatePassiveResources', () => {
         substrate: { type: 'sand' },
       });
 
-      const resourcesWithHardscape = calculatePassiveResources(stateWithHardscape);
-      const resourcesWithoutHardscape = calculatePassiveResources(stateWithoutHardscape);
+      const resourcesWithHardscape = passive(stateWithHardscape);
+      const resourcesWithoutHardscape = passive(stateWithoutHardscape);
 
       expect(resourcesWithHardscape.surface).toBe(
         resourcesWithoutHardscape.surface + HARDSCAPE_SURFACE.neutral_rock
@@ -335,8 +339,8 @@ describe('calculatePassiveResources', () => {
         hardscape: { items: [] },
       });
 
-      const resourcesWithHardscape = calculatePassiveResources(stateWithHardscape);
-      const resourcesWithoutHardscape = calculatePassiveResources(stateWithoutHardscape);
+      const resourcesWithHardscape = passive(stateWithHardscape);
+      const resourcesWithoutHardscape = passive(stateWithoutHardscape);
 
       expect(resourcesWithoutHardscape.surface).toBeLessThan(resourcesWithHardscape.surface);
       expect(resourcesWithHardscape.surface - resourcesWithoutHardscape.surface).toBe(
@@ -363,8 +367,8 @@ describe('calculatePassiveResources', () => {
         substrate: { type: 'none' },
       });
 
-      const resourcesWithHardscape = calculatePassiveResources(stateWithHardscape);
-      const resourcesWithoutHardscape = calculatePassiveResources(stateWithoutHardscape);
+      const resourcesWithHardscape = passive(stateWithHardscape);
+      const resourcesWithoutHardscape = passive(stateWithoutHardscape);
 
       expect(resourcesWithHardscape.surface).toBe(
         resourcesWithoutHardscape.surface + 400 + 650 + 100
@@ -386,8 +390,8 @@ describe('calculatePassiveResources', () => {
         hardscape: { items: [{ id: '1', type: 'plastic_decoration' }] },
       });
 
-      const driftwoodResources = calculatePassiveResources(driftwoodState);
-      const plasticResources = calculatePassiveResources(plasticState);
+      const driftwoodResources = passive(driftwoodState);
+      const plasticResources = passive(plasticState);
 
       expect(driftwoodResources.surface).toBeGreaterThan(plasticResources.surface);
       expect(driftwoodResources.surface - plasticResources.surface).toBe(
@@ -398,12 +402,12 @@ describe('calculatePassiveResources', () => {
 
   describe('light calculation', () => {
     const atSubstrate = (capacity: number, surfacePar: number): number =>
-      calculateParAtDepth(surfacePar, calculateTankHeight(capacity));
+      calculateParAtDepth(surfacePar, calculateTankHeight(capacity), lightDefaults);
 
     it('returns 0 light when light disabled', () => {
       const state = createSimulation({ tankCapacity: 100 });
       state.equipment.light.enabled = false;
-      const resources = calculatePassiveResources(state);
+      const resources = passive(state);
       expect(resources.light).toBe(0);
     });
 
@@ -413,7 +417,7 @@ describe('calculatePassiveResources', () => {
       state.equipment.light.enabled = true;
       state.equipment.light.par = 150;
       state.equipment.light.schedule = { startHour: 8, duration: 10 }; // 8am-6pm
-      const resources = calculatePassiveResources(state);
+      const resources = passive(state);
       expect(resources.light).toBeCloseTo(atSubstrate(100, 150), 10);
       expect(resources.light).toBeLessThan(150);
     });
@@ -423,7 +427,7 @@ describe('calculatePassiveResources', () => {
         const state = createSimulation({ tankCapacity: capacity });
         state.tick = 10;
         state.equipment.light.par = 90;
-        return calculatePassiveResources(state).light;
+        return passive(state).light;
       };
 
       expect(lit(20)).toBeGreaterThan(lit(40));
@@ -437,7 +441,7 @@ describe('calculatePassiveResources', () => {
       state.equipment.light.enabled = true;
       state.equipment.light.par = 150;
       state.equipment.light.schedule = { startHour: 8, duration: 10 }; // 8am-6pm
-      const resources = calculatePassiveResources(state);
+      const resources = passive(state);
       expect(resources.light).toBe(0);
     });
 
@@ -450,11 +454,11 @@ describe('calculatePassiveResources', () => {
 
       // Test various hours - all should be on
       state.tick = 0;
-      expect(calculatePassiveResources(state).light).toBeCloseTo(lit, 10);
+      expect(passive(state).light).toBeCloseTo(lit, 10);
       state.tick = 12;
-      expect(calculatePassiveResources(state).light).toBeCloseTo(lit, 10);
+      expect(passive(state).light).toBeCloseTo(lit, 10);
       state.tick = 23;
-      expect(calculatePassiveResources(state).light).toBeCloseTo(lit, 10);
+      expect(passive(state).light).toBeCloseTo(lit, 10);
     });
 
     it('handles midnight wrap-around schedule', () => {
@@ -466,13 +470,13 @@ describe('calculatePassiveResources', () => {
 
       // Test hours during active period
       state.tick = 23; // 11pm - should be on
-      expect(calculatePassiveResources(state).light).toBeCloseTo(lit, 10);
+      expect(passive(state).light).toBeCloseTo(lit, 10);
 
       state.tick = 2; // 2am - should be on
-      expect(calculatePassiveResources(state).light).toBeCloseTo(lit, 10);
+      expect(passive(state).light).toBeCloseTo(lit, 10);
 
       state.tick = 10; // 10am - should be off
-      expect(calculatePassiveResources(state).light).toBe(0);
+      expect(passive(state).light).toBe(0);
     });
 
     it('light initializes with default values', () => {
@@ -487,23 +491,23 @@ describe('calculatePassiveResources', () => {
       const state = createSimulation({ tankCapacity: 100 });
       state.tick = 10; // During default schedule
       state.equipment.light.enabled = false;
-      expect(calculatePassiveResources(state).light).toBe(0);
+      expect(passive(state).light).toBe(0);
     });
 
     it('can have the fixture changed', () => {
       const state = createSimulation({ tankCapacity: 100 });
       state.tick = 10; // During schedule (8am-6pm default)
       state.equipment.light.par = 150;
-      expect(calculatePassiveResources(state).light).toBeCloseTo(atSubstrate(100, 150), 10);
+      expect(passive(state).light).toBeCloseTo(atSubstrate(100, 150), 10);
     });
 
     it('can have schedule updated', () => {
       const state = createSimulation({ tankCapacity: 100 });
       state.equipment.light.schedule = { startHour: 6, duration: 12 };
       state.tick = 6; // Start of new schedule
-      expect(calculatePassiveResources(state).light).toBeCloseTo(atSubstrate(100, 50), 10);
+      expect(passive(state).light).toBeCloseTo(atSubstrate(100, 50), 10);
       state.tick = 18; // End of new schedule
-      expect(calculatePassiveResources(state).light).toBe(0);
+      expect(passive(state).light).toBe(0);
     });
 
     it('supports always-on with 24h duration', () => {
@@ -513,7 +517,7 @@ describe('calculatePassiveResources', () => {
       // Verify light is on at any time
       for (let hour = 0; hour < 24; hour++) {
         state.tick = hour;
-        expect(calculatePassiveResources(state).light).toBeCloseTo(atSubstrate(100, 50), 10);
+        expect(passive(state).light).toBeCloseTo(atSubstrate(100, 50), 10);
       }
     });
 
@@ -524,15 +528,15 @@ describe('calculatePassiveResources', () => {
 
       // Day 0, hour 10
       state.tick = 10;
-      expect(calculatePassiveResources(state).light).toBeCloseTo(lit, 10);
+      expect(passive(state).light).toBeCloseTo(lit, 10);
 
       // Day 1, hour 10 (tick 34)
       state.tick = 34;
-      expect(calculatePassiveResources(state).light).toBeCloseTo(lit, 10);
+      expect(passive(state).light).toBeCloseTo(lit, 10);
 
       // Day 2, hour 20 (tick 68) - outside schedule
       state.tick = 68;
-      expect(calculatePassiveResources(state).light).toBe(0);
+      expect(passive(state).light).toBe(0);
     });
   });
 });
@@ -546,7 +550,7 @@ describe('biofilmKept', () => {
     const bed = getSubstrateSurface('aqua_soil', state.tank.capacity);
 
     expect(biofilmKept(state)).toBeCloseTo(
-      1 - bed / calculatePassiveResources(state).surface,
+      1 - bed / passive(state).surface,
       12
     );
   });

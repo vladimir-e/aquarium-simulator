@@ -260,6 +260,8 @@ Aquarium lighting system.
   fixture lands 81 % of its rating on a 20 L floor and 59 % on a 300 L
 - On the 150 L reference tank the four fixtures read 16 / 33 / 59 / 98 PAR at
   the substrate — the hobby's low / medium / high / very high tiers
+- A rating is capped at `MAX_LIGHT_PAR` (2000, full noon sunlight at the
+  surface); `createSimulation` refuses anything past it
 - Drives plant photosynthesis when on
 - Promotes algae growth (especially if excessive)
 - Follows schedule: starts at Start Hour, runs for Duration
