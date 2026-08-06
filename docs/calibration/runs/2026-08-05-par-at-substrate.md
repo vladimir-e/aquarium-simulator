@@ -170,7 +170,9 @@ reproduce identically on `main`.
 - **`excessLightPeak: 0.4` is unreachable.** It needs 170 substrate PAR; the
   brightest buildable tank reaches 126.4. A ceiling, not a floor — deliberate.
 - **`planted` runs pH 5.94–6.50**, below all five species' floor for part of
-  every day. Pre-existing.
+  every day. Pre-existing. Measured during the empirical pass, not reproducible
+  from the committed harness — `runTank` samples plants and algae only, so a
+  future pass wanting water chemistry has to widen it.
 - **`scripts/calibrate-*.ts` do not compile.** They import
   `src/simulation/calibration/helpers.js`, deleted on 2026-04-27, and sit
   outside every tsconfig, so nothing catches it. This branch's watt→PAR rename
