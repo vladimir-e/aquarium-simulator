@@ -708,7 +708,8 @@ function calculateInitialPassiveResources(
   const aeration = airPump.enabled || (filter.enabled && isFilterAirDriven);
 
   // The constructor takes no tunable config, so hour 0 reads on the shipped
-  // optics; the first tick recalculates against the live one.
+  // optics. A caller running tuned optics owes this a recompute — a paused
+  // tank has no next tick, and both of the UI's rebuild paths got that wrong.
   const substratePar = calculateParAtDepth(
     getLightOutput(light, 0),
     calculateTankHeight(tankCapacity),
