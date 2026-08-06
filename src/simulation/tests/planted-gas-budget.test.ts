@@ -163,8 +163,9 @@ describe('a planting against the water it sits in', () => {
 
 describe('the carbon in the water is what pays for the oxygen', () => {
   /**
-   * 4800 total plant size in a 10 L. An hour at full rate would fix seven times
-   * the carbon the tank is holding, so what it actually gets is the column.
+   * 4800 total plant size in a 10 L — twenty-four plants at `maxSize` in a tank
+   * that fits one. An hour at full rate wants more carbon than the column holds
+   * even with it held well past optimal, so what the planting gets is the column.
    */
   const JUNGLE: PresetSeed['plants'] = [
     { species: 'java_fern', count: 12, size: 200 },
