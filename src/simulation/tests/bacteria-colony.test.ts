@@ -33,6 +33,7 @@ import {
   colonyFill,
   cycledTank,
   doseClearance,
+  saturatedColony,
   fishlessTank,
   run,
   stock,
@@ -40,6 +41,12 @@ import {
 } from './tanks.js';
 
 const nc = DEFAULT_CONFIG.nitrogenCycle;
+
+/** Nitrification with no oxygen term at all — the counterfactual, not a tank. */
+const AIRLESS = tuned((draft) => {
+  draft.nitrogenCycle.aobOxygenHalfSaturation = 0;
+  draft.nitrogenCycle.nobOxygenHalfSaturation = 0;
+});
 
 const ammoniaPpm = (s: SimulationState): number => getPpm(s.resources.ammonia, s.resources.water);
 const nitritePpm = (s: SimulationState): number => getPpm(s.resources.nitrite, s.resources.water);
@@ -172,34 +179,11 @@ describe('bacteria colony dynamics', () => {
 
     it('stops a colony short of its surface on air rather than on biofilm', () => {
       // A load big enough to fill the surface is a load big enough to strip the
-      // oxygen, so the biofilm ceiling is not what a real biofilter meets: this
-      // one settles at 95 % AOB against 53 % NOB with 0.9 mg/L left in the
-      // water. Taking the oxygen term out puts both back on the surface, at the
-      // 96 % / 94 % where growth cancels decay. Which is the whole shape of the
-      // finding — NOB are the guild that runs out of air first.
-      const saturated = (config: TunableConfig): SimulationState => {
-        let state = produce(createSimulation({ tankCapacity: 200 }), (draft) => {
-          draft.resources.aob = 1;
-          draft.resources.nob = 1;
-        });
-        for (let hour = 1; hour <= 40 * DAY; hour++) {
-          state = tick(
-            produce(state, (draft) => {
-              draft.resources.ammonia += getMassFromPpm(2, draft.resources.water);
-            }),
-            config
-          );
-        }
-        return state;
-      };
-
-      const airless = tuned((draft) => {
-        draft.nitrogenCycle.aobOxygenHalfSaturation = 0;
-        draft.nitrogenCycle.nobOxygenHalfSaturation = 0;
-      });
-
-      const held = saturated(DEFAULT_CONFIG);
-      const unlimited = saturated(airless);
+      // oxygen first, so the biofilm ceiling is not what a real biofilter meets.
+      // Take the term out and both colonies go back to resting on the surface,
+      // at the fill where growth cancels decay.
+      const held = saturatedColony(200, 40);
+      const unlimited = saturatedColony(200, 40, AIRLESS);
 
       expect(held.resources.oxygen).toBeLessThan(2);
       expect(colonyFill(held, 'nob')).toBeLessThan(colonyFill(held, 'aob'));
@@ -385,11 +369,6 @@ describe('bacteria colony dynamics', () => {
         config: TunableConfig = DEFAULT_CONFIG
       ): CycleTrace => traceCycle(20, { temperature: 30, days: 60, circulation, feed, config });
 
-      const airless = tuned((draft) => {
-        draft.nitrogenCycle.aobOxygenHalfSaturation = 0;
-        draft.nitrogenCycle.nobOxygenHalfSaturation = 0;
-      });
-
       const aerated = fed({ filter: 'sponge', airPump: true }, 0.3);
       const still = fed({}, 0.3);
 
@@ -401,7 +380,7 @@ describe('bacteria colony dynamics', () => {
       // The control: the same still box with the term switched off cycles on
       // the aerated tank's clock, so what the two rows above read is the air
       // and not the ration.
-      const withoutTheTerm = fed({}, 0.3, airless);
+      const withoutTheTerm = fed({}, 0.3, AIRLESS);
       expect(withoutTheTerm.nitritePeakPpm).toBeLessThan(aerated.nitritePeakPpm);
       expect(withoutTheTerm.cycledDay!).toBeLessThan(aerated.cycledDay!);
 

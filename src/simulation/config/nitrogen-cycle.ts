@@ -6,20 +6,22 @@
  * what makes `bacteriaPerCm2` a biofilm density you can look up rather than
  * an arbitrary score. See `bacteriaPerCm2` below for the pin.
  *
- * **Every rate here is a Monod maximum, not a rate you would measure.** The
- * oxygen term reaches 1 only at infinite oxygen, so a rate read off a real
- * aerated culture is already below it; the constants divide the quoted figure
- * back up by exactly that shortfall. Read them at {@link AIR_SATURATED_O2} to
- * get the figures the literature and the anchors are stated in.
+ * **The three rates the oxygen term scales are Monod maxima, not rates you
+ * would measure.** That term reaches 1 only at infinite oxygen, so a figure
+ * read off a real aerated culture already sits below the maximum it multiplies
+ * down from; `bacteriaProcessingRate` and the two growth rates divide the quoted
+ * figure back up by exactly that shortfall. Read them at
+ * {@link AIR_SATURATED_O2} to get the numbers the literature and the anchors are
+ * stated in. `bacteriaDeathRate` is deliberately outside that term.
  */
 
 import { monodFactor } from '../core/kinetics.js';
 
 /**
- * Dissolved O2 in air-saturated freshwater at 25 °C, mg/L — the water every
- * rate below is quoted in, being the water a stirred culture and a healthy tank
- * both sit in. `config/index.test.ts` holds it to the engine's own Henry's-law
- * fit at `referenceTemp`.
+ * Dissolved O2 in air-saturated freshwater at `referenceTemp`, mg/L — the water
+ * every rate below is quoted in, being the water a stirred culture and a healthy
+ * tank both sit in. `config/index.test.ts` holds it to the engine's own
+ * Henry's-law fit at that temperature.
  */
 export const AIR_SATURATED_O2 = 8.38;
 
@@ -129,9 +131,10 @@ export const nitrogenCycleDefaults: NitrogenCycleConfig = {
   bacteriaPerCm2: 10,
   // Maintenance loss, not starvation: a colony cut off from ammonia fades over
   // weeks, which is why a tank survives a holiday. ln2 / (3 weeks) — a 21-day
-  // half-life. A colony settles where g·u·(1 − p/K) = d, so utilization rests
-  // at deathRate / growthRate (4 % AOB, 7 % NOB) divided by the headroom
-  // 1 − p/K. With the ceiling above, an ordinary load leaves that headroom
+  // half-life. A colony settles where g·a·u·(1 − p/K) = d, so utilization rests
+  // at deathRate / (growthRate × the oxygen factor) divided by the headroom
+  // 1 − p/K — 4 % AOB and 7 % NOB in air-saturated water, further up as the
+  // water thins. With the ceiling above, an ordinary load leaves that headroom
   // near 1 and maintenance decay is what the colony balances against.
   bacteriaDeathRate: Math.LN2 / (21 * 24),
   // Nitrification runs on enzymes, so every rate above is quoted at a

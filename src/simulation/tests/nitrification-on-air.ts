@@ -3,29 +3,27 @@
  *
  * Four readings. The factor itself: what each guild can put through at a given
  * dissolved oxygen. The consequence at the tank: one nitrogen load cycled at
- * three levels of circulation, so the nitrite that stands is read against the
- * nitrate it should have become. What a colony held under a saturating load
- * settles at, which is no longer its surface. And the control: the shipped
- * constants against the engine as it was before nitrification read oxygen at
- * all, which is the claim that the rates were re-quoted rather than retuned.
+ * four levels of air, so the nitrite that stands is read against the nitrate it
+ * should have become. What a colony held under a saturating load settles at,
+ * which is no longer its surface. And the control: the shipped constants against
+ * the engine as it was before nitrification read oxygen at all, which is the
+ * claim that the rates were re-quoted rather than retuned.
  *
  *     npm run probe:nitrification-on-air
  */
 
 import { produce } from 'immer';
-import type { SimulationState } from '../state.js';
-import { createSimulation } from '../state.js';
-import { tick } from '../tick.js';
 import { DEFAULT_CONFIG, type TunableConfig } from '../config/index.js';
-import { getMassFromPpm, getPpm } from '../resources/index.js';
+import { AIR_SATURATED_O2 } from '../config/nitrogen-cycle.js';
+import { getPpm } from '../resources/index.js';
 import { aobCapacity, nitrifierOxygenFactor, nobCapacity } from '../systems/nitrogen-cycle.js';
 import { formatTable, tuned } from './sweep.js';
 import {
-  DAY,
   type Circulation,
   colonyFill,
   cycledTank,
   doseClearance,
+  saturatedColony,
   traceCycle,
 } from './tanks.js';
 
@@ -35,10 +33,12 @@ const NO_OXYGEN_TERM: TunableConfig = tuned((draft) => {
   draft.nitrogenCycle.nobOxygenHalfSaturation = 0;
 });
 
-/** That, plus the rate constants back at the figures they were quoted as. */
-const PRE_OXYGEN: TunableConfig = tuned((draft) => {
-  draft.nitrogenCycle.aobOxygenHalfSaturation = 0;
-  draft.nitrogenCycle.nobOxygenHalfSaturation = 0;
+/**
+ * That, plus the four constants back at the figures they held before the term
+ * existed — which is what "the engine before this change" has to mean, since
+ * neutralising the K's alone leaves the re-quoted rates standing.
+ */
+const PRE_OXYGEN: TunableConfig = produce(NO_OXYGEN_TERM, (draft) => {
   draft.nitrogenCycle.bacteriaProcessingRate = 0.0002;
   draft.nitrogenCycle.aobGrowthRate = Math.LN2 / 20;
   draft.nitrogenCycle.nobGrowthRate = Math.LN2 / 36;
@@ -70,7 +70,7 @@ function atOxygen(oxygen: number): Record<string, unknown> {
 process.stdout.write(
   '\nWhat a cycled 20 L colony can put through, against the oxygen it is asking of\n' +
     '(ppm/h, beside the share of its own maximum each guild is left with)\n\n' +
-    `${formatTable([8.38, 6, 4, 2, 1, 0.5, 0.25, 0.1, 0].map(atOxygen))}\n` +
+    `${formatTable([AIR_SATURATED_O2, 6, 4, 2, 1, 0.5, 0.25, 0.1, 0].map(atOxygen))}\n` +
     '\nThe last column is the mechanism in one number: NOB keep less of their rate\n' +
     'than AOB at every oxygen, so what leaves the first step outruns the second.\n'
 );
@@ -131,22 +131,6 @@ process.stdout.write(
 // 3. A colony under a load big enough to fill its surface
 // ---------------------------------------------------------------------------
 
-function saturated(config: TunableConfig): SimulationState {
-  let state = produce(createSimulation({ tankCapacity: 200 }), (draft) => {
-    draft.resources.aob = 1;
-    draft.resources.nob = 1;
-  });
-  for (let hour = 1; hour <= 40 * DAY; hour++) {
-    state = tick(
-      produce(state, (draft) => {
-        draft.resources.ammonia += getMassFromPpm(2, draft.resources.water);
-      }),
-      config
-    );
-  }
-  return state;
-}
-
 process.stdout.write(
   '\n\nA bare 200 L held under more ammonia than it can clear, forty days\n\n' +
     formatTable(
@@ -156,7 +140,7 @@ process.stdout.write(
           ['no oxygen term', NO_OXYGEN_TERM],
         ] as const
       ).map(([label, config]) => {
-        const state = saturated(config);
+        const state = saturatedColony(200, 40, config);
         return {
           nitrification: label,
           'AOB % of surface': (colonyFill(state, 'aob') * 100).toFixed(1),

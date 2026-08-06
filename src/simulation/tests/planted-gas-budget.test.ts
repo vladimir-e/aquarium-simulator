@@ -176,8 +176,7 @@ describe('a heavily planted tank of neon tetras', () => {
   it('keeps the whole roster through twenty days', () => {
     expect(at150.survivors).toBe(12);
     // Not merely alive: the water never crossed into the band that damages a
-    // fish at all, so the roster is on the benefit side of it for every hour of
-    // the run. The pre-dawn low is what this reads.
+    // fish at all, so the roster is on the benefit side of it for every hour.
     expect(at150.minOxygen).toBeGreaterThan(livestockDefaults.oxygenStressThreshold);
   });
 

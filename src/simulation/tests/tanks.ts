@@ -128,6 +128,34 @@ export function cycledTank(
 }
 
 /**
+ * A bare tank held under more ammonia than its colonies can clear, which is the
+ * only regime where a biofilm grows toward its surface at all rather than to
+ * the load it is given. Dosed each hour through the resource rather than fed,
+ * so what the colonies meet is ammonia and not a decay curve.
+ */
+export function saturatedColony(
+  capacity: number,
+  days = 30,
+  config: TunableConfig = DEFAULT_CONFIG,
+  dosePpmPerHour = 2
+): SimulationState {
+  let state = produce(createSimulation({ tankCapacity: capacity }), (draft) => {
+    draft.resources.aob = 1;
+    draft.resources.nob = 1;
+  });
+
+  for (let hour = 1; hour <= days * DAY; hour++) {
+    state = tick(
+      produce(state, (draft) => {
+        draft.resources.ammonia += getMassFromPpm(dosePpmPerHour, draft.resources.water);
+      }),
+      config
+    );
+  }
+  return state;
+}
+
+/**
  * The same tank as {@link cycledTank}, handed the colony at tick 0 instead
  * of spending three weeks growing one.
  */
