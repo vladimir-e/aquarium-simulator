@@ -88,7 +88,8 @@ const HeaterSchema = z
     enabled: z.boolean(),
     isOn: z.boolean(),
     targetTemperature: z.number().min(15).max(35),
-    wattage: z.number().min(10).max(500),
+    // A 15 A household circuit — the ceiling on anything you can plug in.
+    wattage: z.number().min(10).max(1800),
   })
   .strict();
 
