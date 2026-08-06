@@ -103,6 +103,7 @@ Fish mass drives all metabolism numbers:
 ```
 food_needed = base_food_rate * fish.mass
 oxygen_consumed = base_respiration * fish.mass * oxygen_factor
+ammonia_excreted = (post_prandial_NH3 + basal_NH3) * oxygen_factor
 waste_produced = food_consumed * waste_ratio
 co2_produced = oxygen_consumed * respiratory_quotient * MW_CO2 / MW_O2
 ```
@@ -118,8 +119,10 @@ highest in the tank: fish feel a shortage before the bacteria do.
 
 **Damage is a separate reading.** The oxygen stressor still charges a fish for
 the water it is in, so a suffocating fish draws less oxygen *and* suffers more.
-Excretion is separate too — ammonia output does not scale with the factor, so a
-fish that stops breathing goes on producing nitrogen.
+Excretion is not separate: deamination is metabolism, so both NH3 streams —
+post-prandial and basal — carry the same factor off the same constant, and a
+fish in metabolic depression excretes proportionally less nitrogen. Feces are
+outside it, being N that was never absorbed.
 
 ### Waste Production
 

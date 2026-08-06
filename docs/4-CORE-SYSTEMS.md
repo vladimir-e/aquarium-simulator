@@ -14,7 +14,7 @@ Core systems are the "engine" of the simulation. They:
 ## Oxygen-limited processes
 
 Every aerobic process in the tank — decomposition, both nitrifier guilds, plant
-respiration, fish respiration — multiplies its rate by how much oxygen there is
+respiration, fish metabolism — multiplies its rate by how much oxygen there is
 to run on:
 
 ```
@@ -32,8 +32,15 @@ a constant of its own.
 | Aerobic decomposition | 0.20 | 98 % |
 | Ammonia oxidation (AOB) | 0.30 | 97 % |
 | Plant respiration | 0.50 | 94 % |
-| Fish respiration | 1.00 | 89 % |
+| Fish metabolism | 1.00 | 89 % |
 | Nitrite oxidation (NOB) | 1.10 | 88 % |
+
+A fish's row covers both of its outputs. Deamination is metabolism, so ammonia
+excretion — post-prandial and basal alike — runs on the same factor as the
+respiratory draw and off the same constant. A hypoxic fish enters metabolic
+depression and its measured nitrogen output falls with the rest of it. Feces are
+outside it: that N was never absorbed. The N a depressed fish does not deaminate
+stays in its body, which is a sink the engine does not track.
 
 Three consequences follow, and all three are the point:
 
@@ -53,16 +60,22 @@ Every base rate multiplied by that factor is a Monod **maximum**, because the
 factor reaches 1 only at infinite oxygen. What a tank at air saturation
 reproduces is therefore the last column above, not the constant itself.
 
-The three nitrifier rates divide that shortfall back out and the other three do
-not, and what decides it is what each constant *claims*. A 20 h AOB doubling, a
-36 h NOB doubling and 2×10⁻¹³ g of ammonia per cell per hour are single figures
-their comments state and the anchors test; uncorrected, the same tank would read
+The three nitrifier rates divide that shortfall back out and the others do not,
+and what decides it is what each constant *claims*. A 20 h AOB doubling, a 36 h
+NOB doubling and 2×10⁻¹³ g of ammonia per cell per hour are single figures their
+comments state and the anchors test; uncorrected, the same tank would read
 20.7 h and 40.7 h — still inside the published bands, but no longer the numbers
-claimed. Fish respiration quotes a band instead, 0.2–0.5 mg O₂/g/h, and 0.3
-taken to 0.268 sits inside it; plant respiration and decay lose 6 % and 2 %,
-which is finer than either was ever picked to. Dividing those three out as well
-would move three systems' calibration to make nothing truer, and that is the
-calibration pass's call rather than this one's.
+claimed. NOB's throughput is quoted against AOB's rather than on its own, so the
+correction rides in its multiplier: the ratio between the two guilds' rates is
+re-quoted through each guild's factor, which is what puts the chain in per-atom
+N balance at population parity in air-saturated water instead of 8 % under it.
+
+Both fish rates quote a band instead — 0.2–0.5 mg O₂/g/h and 0.3–1.0 mg
+NH₃-N/g/day — and 0.3 taken to 0.268 and 0.03 taken to 0.0268 sit inside theirs;
+plant respiration and decay lose 6 % and 2 %, which is finer than either was
+ever picked to. Dividing those out as well would move three systems'
+calibration to make nothing truer, and that is the calibration pass's call
+rather than this one's.
 
 ---
 
@@ -258,8 +271,11 @@ the surface ceiling is far off, higher once the logistic term starts braking.
 The surface ceiling is not, in practice, what a biofilter meets. Any load big
 enough to fill the biofilm is a load whose oxygen demand strips the water first:
 a bare 200 L held under a saturating ammonia dose settles at 95 % of its surface
-for AOB and 53 % for NOB, against 96 % / 94 % with the oxygen term switched off.
-Oxygen is the binding constraint on a mature colony, and NOB feel it first.
+for AOB and 53 % for NOB on the sponge a fresh tank starts with, against 96 % /
+94 % with the oxygen term switched off. What the circulation decides is how far
+short of that a guild stops — NOB run from 1.4 % with nothing moving the water
+to 90.1 % on a canister, an air pump and a powerhead. Oxygen is the binding
+constraint on a mature colony, and NOB feel it first.
 
 The **inoculum** is the third constant on this clock: everything between a
 seeded tank and a cycled one is doublings, so it sets how many there are. It is
