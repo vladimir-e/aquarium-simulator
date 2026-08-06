@@ -8,6 +8,7 @@ import { PersistenceProvider } from '../persistence/index.js';
 import { createSimulation, type SimulationState } from '../../simulation/state.js';
 import {
   applyAction,
+  calculateTankHeight,
   getSubstrateOrganicReserve,
   getSubstrateSurface,
   tick,
@@ -544,6 +545,32 @@ describe('useSimulation', () => {
       const after = result.current.sim.state.resources.light;
       expect(after / par).toBeCloseTo((before / par) ** 2, 10);
       expect(result.current.sim.state.tick).toBe(tickBefore);
+    });
+
+    // A resized tank is built by `createSimulation`, which takes no tunable
+    // config and so opens on `opticsDefaults`. Nothing downstream corrects it:
+    // the relight effect is keyed on the optics, and these did not move.
+    it('opens a resized tank in the water the config describes', () => {
+      const lit = createPresetSimulation(getPresetById('planted')!);
+      lit.equipment.light.schedule = { startHour: 0, duration: 24 };
+      seedSession(lit, 'planted');
+
+      const { result } = renderHook(
+        () => ({ sim: useSimulation('planted'), config: useConfig() }),
+        { wrapper }
+      );
+
+      const tuned = DEFAULT_CONFIG.optics.waterAttenuationPerCm * 4;
+      act(() => {
+        result.current.config.updateConfig('optics', 'waterAttenuationPerCm', tuned);
+      });
+      act(() => {
+        result.current.sim.changeTankCapacity(200);
+      });
+
+      const { par } = result.current.sim.state.equipment.light;
+      const surviving = Math.exp(-tuned * calculateTankHeight(200));
+      expect(result.current.sim.state.resources.light).toBeCloseTo(par * surviving, 8);
     });
 
     it('puts the light back when the section is reset', () => {

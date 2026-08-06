@@ -65,6 +65,19 @@ function refreshPassiveResources(draft: SimulationState, optics: OpticsConfig): 
   draft.resources.aeration = passive.aeration;
 }
 
+/**
+ * `createSimulation` and `createPresetSimulation` take no tunable config, so a
+ * tank they mint opens on `opticsDefaults`. Every path here that builds or
+ * swaps one hands it through this first: the relight effect is keyed on the
+ * optics, and swapping a tank is not an optics change, so nothing downstream
+ * of a rebuild would otherwise correct the water it opens in.
+ */
+function withPassiveResources(state: SimulationState, optics: OpticsConfig): SimulationState {
+  return produce(state, (draft) => {
+    refreshPassiveResources(draft, optics);
+  });
+}
+
 interface UseSimulationReturn {
   state: SimulationState;
   /** Bumped whenever the tank itself is replaced, never on a reset or a tick. */
@@ -205,6 +218,7 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
       const log = createLog(restoredState.tick, 'simulation', 'info', 'Session restored');
       return produce(restoredState, (draft) => {
         draft.logs.push(log);
+        refreshPassiveResources(draft, config.optics);
       });
     }
 
@@ -213,7 +227,7 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
     if (!preset) {
       throw new Error(`Unknown preset: ${initialPreset}`);
     }
-    return createPresetSimulation(preset);
+    return withPassiveResources(createPresetSimulation(preset), config.optics);
   });
 
   const [tankId, setTankId] = useState(0);
@@ -385,7 +399,7 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
 
       const fresh = createPresetSimulation(preset);
       fresh.logs.push(createLog(0, 'user', 'info', `Loaded preset: ${preset.name}`));
-      setState(fresh);
+      setState(withPassiveResources(fresh, configRef.current.optics));
     },
     [isPlaying, stopAutoPlay, resetRun, replaceTank]
   );
@@ -864,7 +878,7 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
         const newSlots = calculateHardscapeSlots(capacity);
         const preservedItems = current.equipment.hardscape.items.slice(0, newSlots);
 
-        return createSimulation({
+        const resized = createSimulation({
           tankCapacity: capacity,
           initialTemperature: 25,
           roomTemperature: current.environment.roomTemperature,
@@ -912,6 +926,8 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
             schedule: current.equipment.autoDoser.schedule,
           },
         });
+
+        return withPassiveResources(resized, configRef.current.optics);
       });
     },
     [isPlaying, stopAutoPlay, resetRun, replaceTank]
