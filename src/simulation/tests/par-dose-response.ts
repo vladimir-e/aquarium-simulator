@@ -7,7 +7,7 @@
  * on the floor, one tank held fixed, and the line is swept from well under to
  * well over. Run it:
  *
- *     npx tsx src/simulation/tests/par-dose-response.ts
+ *     npm run probe:par-dose-response
  */
 
 import { calculateTankHeight, type SimulationConfig } from '../state.js';
