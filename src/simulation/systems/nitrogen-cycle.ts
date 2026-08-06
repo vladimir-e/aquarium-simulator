@@ -107,7 +107,7 @@ export function nitrifierOxygenFactor(
  *
  * Both rates are Monod maxima, though, and `bacteriaProcessingRate` is divided
  * back up by *AOB's* factor in air-saturated water. The mass ratio alone would
- * hand NOB that correction on top of their own and leave them 8 % under the
+ * hand NOB that correction on top of their own and leave them 8.4 % under the
  * parity it exists to hold, so the ratio is re-quoted through each guild's own
  * factor: the balance sits in the water both figures were measured in, and
  * below it the K gap opens and nitrite stands. Read off the config rather than

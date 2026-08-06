@@ -148,10 +148,10 @@ export function processMetabolism(
       Math.max(0, f.satiation + satiationGain - satiationDecay)
     );
 
-    // Nitrogen split: direct gill NH3 vs. feces-bound waste.
+    // Nitrogen split: deaminated gill NH3 vs. feces-bound waste.
     // nIngested (g N) = foodGiven × foodNitrogenFraction
     // nToGills (g N)  = nIngested × gillNFraction
-    // directNH3 (mg)  = nToGills × MW_NH3/MW_N × 1000
+    // directNH3 (mg)  = nToGills × MW_NH3/MW_N × 1000 × oxygenFactor
     // wasteMass (g)   = nToFeces / foodNitrogenFraction
     //                 = foodGiven × (1 − gillNFraction)
     const nIngested = foodGiven * config.foodNitrogenFraction;
