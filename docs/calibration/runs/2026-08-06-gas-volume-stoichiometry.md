@@ -3,10 +3,10 @@
 Date: 2026-08-06 · Branch: `gas-volume-stoichiometry` · Roadmap §2, subtask 2b
 
 Gas deltas became masses converted through the tank's water volume, and the
-O₂/CO₂ pair became one reaction rather than two independent coefficients. That
-changes what `co2PerPhotosynthesis` and `co2PerRespiration` *mean* — mg/L per
-process unit became mg per process unit — so their old values carry no
-information forward and the new one had to be measured.
+O₂/CO₂ pair became one reaction rather than two independent coefficients. Four
+constants become one: `co2PerRateUnit`, mg of CO₂ per rate unit, read by
+photosynthesis and respiration alike. The old values were mg/L per process unit,
+so they carry no information forward and the new one had to be measured.
 
 Every figure below is an engine run driven through `keep()`, the same loop the
 anchors run, at `rngSeed` 4242.
@@ -19,8 +19,9 @@ anchors run, at `rngSeed` 4242.
 |---|---|---|---|
 | `o2PerPhotosynthesis` | 0.7 mg/L per unit | *deleted* | derives from the carbon |
 | `o2PerRespiration` | 0.7 mg/L per unit | *deleted* | derives from the carbon |
-| `co2PerPhotosynthesis` | 0.5 mg/L per unit | **30 mg per unit** | measured, below |
-| `co2PerRespiration` | 0.5 mg/L per unit | **30 mg per unit** | one reaction, one yield |
+| `co2PerPhotosynthesis` | 0.5 mg/L per unit | *deleted* | one reaction, one yield |
+| `co2PerRespiration` | 0.5 mg/L per unit | *deleted* | ditto |
+| `co2PerRateUnit` | — | **30 mg per rate unit** | measured, below |
 
 The oxygen partner is `× MW_O2 / MW_CO2` = 32/44 off the carbon, so 30 mg of CO₂
 carries 21.8 mg of O₂ and the moles match. The old pair claimed 1.92 moles of O₂

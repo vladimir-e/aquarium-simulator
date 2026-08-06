@@ -171,16 +171,19 @@ describe('calculateRespiration', () => {
     it('releases the configured carbon per unit at 100 % size and reference temp', () => {
       const result = calculateRespiration(100, 25);
 
-      const expectedCo2 = plantsDefaults.baseRespirationRate * plantsDefaults.co2PerRespiration;
+      const expectedCo2 = plantsDefaults.baseRespirationRate * plantsDefaults.co2PerRateUnit;
       expect(result.co2ProducedMg).toBeCloseTo(expectedCo2, 6);
       expect(result.oxygenConsumedMg).toBeCloseTo(expectedCo2 * CO2_TO_O2_MASS_RATIO, 6);
     });
 
-    it('runs at 15 % of the photosynthetic rate on the same yield', () => {
+    it('differs from photosynthesis by the base rates alone', () => {
       const respired = calculateRespiration(100, 25).co2ProducedMg;
-      const fixed = plantsDefaults.basePhotosynthesisRate * plantsDefaults.co2PerPhotosynthesis;
+      const fixed = plantsDefaults.basePhotosynthesisRate * plantsDefaults.co2PerRateUnit;
 
-      expect(respired / fixed).toBeCloseTo(plantsDefaults.baseRespirationRate, 6);
+      expect(respired / fixed).toBeCloseTo(
+        plantsDefaults.baseRespirationRate / plantsDefaults.basePhotosynthesisRate,
+        6
+      );
     });
   });
 
@@ -195,7 +198,7 @@ describe('calculateRespiration', () => {
     });
 
     it('moves both gases together when the carbon yield changes', () => {
-      const customConfig = { ...plantsDefaults, co2PerRespiration: 60 };
+      const customConfig = { ...plantsDefaults, co2PerRateUnit: 60 };
       const defaultResult = calculateRespiration(100, 25, plantsDefaults);
       const customResult = calculateRespiration(100, 25, customConfig);
 

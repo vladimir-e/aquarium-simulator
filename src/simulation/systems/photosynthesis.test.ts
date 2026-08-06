@@ -257,7 +257,7 @@ describe('calculatePhotosynthesis', () => {
     });
 
     it('holds the ratio however the carbon yield is tuned', () => {
-      const tuned = { ...plantsDefaults, co2PerPhotosynthesis: 7 };
+      const tuned = { ...plantsDefaults, co2PerRateUnit: 7 };
       const plants = [plant(100, 'java_fern')];
       const resources = buildResources(waterVolume);
       const result = calculatePhotosynthesis(

@@ -63,7 +63,7 @@ export function calculateRespiration(
   const tempFactor = getRespirationTemperatureFactor(temperature, config);
   const respirationRate = config.baseRespirationRate * plantSizeFactor * tempFactor;
 
-  const co2ProducedMg = respirationRate * config.co2PerRespiration;
+  const co2ProducedMg = respirationRate * config.co2PerRateUnit;
 
   return {
     oxygenConsumedMg: co2ProducedMg * CO2_TO_O2_MASS_RATIO,

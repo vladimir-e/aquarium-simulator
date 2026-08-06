@@ -95,7 +95,7 @@ function emptyResult(): PhotosynthesisResult {
  *   uptake   = Σ potential_i × basePhotosynthesisRate × nutrientsPerPhotosynthesis
  *              (split by fertilizer formula ratio across the 4 nutrients;
  *              not gated by sufficiency — plants draw what they pull in)
- *   co2      = actual × co2PerPhotosynthesis, clamped to the dissolved mass
+ *   co2      = actual × co2PerRateUnit, clamped to the dissolved mass
  *   oxygen   = co2 × CO2_TO_O2_MASS_RATIO
  *
  * @param plants            Individual plants (for per-species Liebig gating)
@@ -176,7 +176,7 @@ export function calculatePhotosynthesis(
   const ironDelta = drawFrom(ironRatio, resources.iron);
 
   const co2ConsumedMg = Math.min(
-    actualRate * plantsConfig.co2PerPhotosynthesis,
+    actualRate * plantsConfig.co2PerRateUnit,
     getMassFromPpm(co2, waterVolume)
   );
   const oxygenProducedMg = co2ConsumedMg * CO2_TO_O2_MASS_RATIO;

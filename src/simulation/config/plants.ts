@@ -19,11 +19,6 @@ export interface PlantsConfig {
   /** Optimal nitrate concentration for max growth (ppm) */
   optimalNitrate: number;
   /**
-   * Carbon fixed per unit photosynthesis, as mg of CO2. The oxygen released is
-   * not a second knob — it derives from this at `CO2_TO_O2_MASS_RATIO`.
-   */
-  co2PerPhotosynthesis: number;
-  /**
    * Total plant nutrients (NO3 + PO4 + K + Fe) consumed per unit of "potential
    * photosynthesis" (plant size × light × CO2, pre-Liebig). Consumption is
    * split across the four nutrients by the fertilizer formula ratio.
@@ -35,17 +30,20 @@ export interface PlantsConfig {
   // Respiration constants
   /** Base respiration rate per 100% plant size per hour */
   baseRespirationRate: number;
-  /**
-   * Carbon released per unit respiration, as mg of CO2, with the oxygen
-   * consumed derived from it. Respiration is photosynthesis run backwards, so
-   * this is the same yield as `co2PerPhotosynthesis`; the day/night asymmetry
-   * belongs to `baseRespirationRate`.
-   */
-  co2PerRespiration: number;
   /** Q10 temperature coefficient (rate multiplier per 10°C) */
   respirationQ10: number;
   /** Reference temperature for respiration calculations (°C) */
   respirationReferenceTemp: number;
+
+  // Gas exchange
+  /**
+   * mg of CO2 carried by one rate unit — one hour of 100 % plant size at base
+   * rate under optimal conditions. Photosynthesis fixes it and respiration
+   * releases it: one reaction run both ways, so one yield, and the day/night
+   * asymmetry belongs to `baseRespirationRate`. The oxygen partner is not a
+   * second knob — it derives at `CO2_TO_O2_MASS_RATIO`.
+   */
+  co2PerRateUnit: number;
 
   // Surplus-driven growth knobs.
   /**
@@ -130,11 +128,6 @@ export const plantsDefaults: PlantsConfig = {
   basePhotosynthesisRate: 1.0,
   optimalCo2: 20.0, // mg/L - typical target for planted tanks
   optimalNitrate: 10.0, // ppm - typical target for planted tanks
-  // mg CO2 per photosynthesis unit. Pinned against a grown-in planted 150 L
-  // (≈1000 total plant size): it produces 0.5–1 mg/L/h of oxygen through the
-  // photoperiod and gives back under 2 mg/L over the dark hours. See
-  // `docs/calibration/runs/2026-08-06-gas-volume-stoichiometry.md`.
-  co2PerPhotosynthesis: 30.0,
   // Calibrated against scenario 02: at ~300 % total plant size with 8 hr
   // photoperiod and optimal CO2, potential photosynthesis ≈ 1.0 × 3.0 × 1.0
   // = 3.0 / hr → 24 units / day. 4 mg/unit × 24 × 1.2 (active biomass +
@@ -149,9 +142,14 @@ export const plantsDefaults: PlantsConfig = {
 
   // Respiration - ~15% of photosynthesis, runs 24/7
   baseRespirationRate: 0.15,
-  co2PerRespiration: 30.0, // One reaction, one yield — the 15 % above is the asymmetry
   respirationQ10: 2.0, // Rate doubles per 10°C increase
   respirationReferenceTemp: 25.0, // °C
+
+  // mg CO2 per rate unit. Pinned against a grown-in planted 150 L (≈1000 total
+  // plant size): it produces 0.5–1 mg/L/h of oxygen through the photoperiod and
+  // gives back under 2 mg/L over the dark hours. See
+  // `docs/calibration/runs/2026-08-06-gas-volume-stoichiometry.md`.
+  co2PerRateUnit: 30.0,
 
   // Surplus-driven growth — vitality banks surplus when condition is
   // full and net is positive; growth drains it (capped per tick), the
@@ -236,14 +234,6 @@ export const plantsConfigMeta: PlantsConfigMeta[] = [
   { key: 'optimalCo2', label: 'Optimal CO2', unit: 'mg/L', min: 5, max: 40, step: 1 },
   { key: 'optimalNitrate', label: 'Optimal Nitrate', unit: 'ppm', min: 5, max: 30, step: 1 },
   {
-    key: 'co2PerPhotosynthesis',
-    label: 'CO2 per Photosynthesis',
-    unit: 'mg',
-    min: 1,
-    max: 200,
-    step: 1,
-  },
-  {
     key: 'nutrientsPerPhotosynthesis',
     label: 'Nutrients per Photosynthesis',
     unit: 'mg',
@@ -260,14 +250,6 @@ export const plantsConfigMeta: PlantsConfigMeta[] = [
     max: 0.5,
     step: 0.01,
   },
-  {
-    key: 'co2PerRespiration',
-    label: 'CO2 per Respiration',
-    unit: 'mg',
-    min: 1,
-    max: 200,
-    step: 1,
-  },
   { key: 'respirationQ10', label: 'Respiration Q10', unit: '', min: 1.5, max: 3.0, step: 0.1 },
   {
     key: 'respirationReferenceTemp',
@@ -277,6 +259,8 @@ export const plantsConfigMeta: PlantsConfigMeta[] = [
     max: 30,
     step: 1,
   },
+  // Gas exchange
+  { key: 'co2PerRateUnit', label: 'CO2 per Rate Unit', unit: 'mg', min: 1, max: 200, step: 1 },
   // Surplus-driven growth
   { key: 'plantGrowthPerTickCap', label: 'Plant Growth per Tick Cap', unit: 'surplus', min: 0.1, max: 10, step: 0.1 },
   { key: 'sizePerSurplus', label: 'Size per Surplus', unit: '%', min: 0.01, max: 2.0, step: 0.01 },

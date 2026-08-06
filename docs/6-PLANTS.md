@@ -140,7 +140,7 @@ dissolved, and the oxygen comes off what was fixed — a carbon-starved tank sto
 producing oxygen because there was no carbon to pay for it.
 
 ```
-co2_fixed_mg = min(actual_rate * co2_per_photosynthesis, co2_mg_per_l * water_volume)
+co2_fixed_mg = min(actual_rate * co2_per_rate_unit, co2_mg_per_l * water_volume)
 o2_released_mg = co2_fixed_mg * MW_O2 / MW_CO2          # 6CO2 → 6O2, 1:1 in moles
 ```
 
@@ -212,14 +212,14 @@ Plants respire continuously, consuming oxygen and producing CO2.
 - Net O2 CONSUMPTION
 - Net CO2 PRODUCTION
 
-Respiration is photosynthesis run backwards, so it runs on the same yield: the
-carbon released decides the oxygen burnt, at the same molar ratio. The day/night
-asymmetry is `base_respiration`, ~15 % of the photosynthetic rate — not a
-second, disagreeing pair of coefficients.
+Respiration is photosynthesis run backwards, so it runs on the same
+`co2_per_rate_unit`: the carbon released decides the oxygen burnt, at the same
+molar ratio. The day/night asymmetry is `base_respiration`, ~15 % of the
+photosynthetic rate — not a second, disagreeing coefficient.
 
 ```
 respiration_rate = base_respiration * temperature_factor * total_plant_size
-co2_released_mg = respiration_rate * co2_per_respiration
+co2_released_mg = respiration_rate * co2_per_rate_unit
 o2_burnt_mg = co2_released_mg * MW_O2 / MW_CO2
 
 if lights_on:
