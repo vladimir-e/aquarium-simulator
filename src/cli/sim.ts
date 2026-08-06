@@ -9,6 +9,7 @@
 
 import { tick, applyAction, type Action, type SimulationState } from '../simulation/index.js';
 import {
+  cloneConfig,
   DEFAULT_CONFIG,
   type TunableConfig,
 } from '../simulation/config/index.js';
@@ -102,34 +103,35 @@ function getByPath(obj: unknown, path: string[]): unknown {
   return cur;
 }
 
-function setByPath(obj: Record<string, unknown>, path: string[], value: unknown): void {
-  if (path.length === 0) return;
-  let cur: Record<string, unknown> = obj;
-  for (let i = 0; i < path.length - 1; i++) {
-    const key = path[i]!;
-    const next = cur[key];
-    if (next === null || typeof next !== 'object') {
-      cur[key] = {};
-    }
-    cur = cur[key] as Record<string, unknown>;
+/**
+ * `config set` against a `TunableConfig`, which is numbers all the way to its
+ * leaves. A value that is not a finite number, and a path that does not
+ * already name one, are both refused rather than stored: a stored string
+ * coerces back to `NaN` in the first multiplication that reads it, and a
+ * stored key nothing reads is a setting the operator only believes they made.
+ */
+export function applyConfigSet(config: TunableConfig, path: string, raw: string): TunableConfig {
+  const value = Number(raw);
+  if (raw.trim() === '' || !Number.isFinite(value)) {
+    throw new Error(`config set requires a finite number, got "${raw}".`);
   }
-  cur[path[path.length - 1]!] = value;
-}
 
-function coerceValue(raw: string): unknown {
-  if (raw === 'true') return true;
-  if (raw === 'false') return false;
-  const num = Number(raw);
-  if (Number.isFinite(num) && raw.trim() !== '') return num;
-  // Try JSON for arrays/objects
-  if (raw.startsWith('[') || raw.startsWith('{')) {
-    try {
-      return JSON.parse(raw);
-    } catch {
-      // fall through to string
+  const keys = path.split('.');
+  const leaf = keys.pop()!;
+  const next = cloneConfig(config);
+  let section = next as unknown as Record<string, unknown>;
+  for (const key of keys) {
+    const nested = section[key];
+    if (nested === null || typeof nested !== 'object') {
+      throw new Error(`Unknown config path "${path}".`);
     }
+    section = nested as Record<string, unknown>;
   }
-  return raw;
+  if (typeof section[leaf] !== 'number') {
+    throw new Error(`Unknown config path "${path}".`);
+  }
+  section[leaf] = value;
+  return next;
 }
 
 /** Build an Action from `action <type> [args...]`. Throws on invalid input. */
@@ -393,9 +395,7 @@ function cmdConfigSet(path: string | undefined, rawValue: string | undefined): v
     throw new Error('config set requires <dotted.path> <value>.');
   }
   const session = loadSession();
-  const next: TunableConfig = JSON.parse(JSON.stringify(session.config));
-  setByPath(next as unknown as Record<string, unknown>, path.split('.'), coerceValue(rawValue));
-  saveSession({ ...session, config: next });
+  saveSession({ ...session, config: applyConfigSet(session.config, path, rawValue) });
   process.stdout.write(`Set ${path} = ${rawValue}\n`);
 }
 
