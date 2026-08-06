@@ -202,36 +202,24 @@ describe('Nitrogen Cycle Integration', () => {
     });
 
     it('bacteria growth slows as population approaches surface capacity', () => {
-      let state = createSimulation({ tankCapacity: 40 });
+      // The same tank and the same hour at three fills, so the headroom term is
+      // the only thing that differs between the readings. Reading it off one
+      // colony as it grows would instead be reading whatever else moved on the
+      // way — the tank's oxygen most of all, which climbs to saturation over
+      // the first day and carries the growth rate with it.
+      const bare = createSimulation({ tankCapacity: 40 });
+      const ceiling = calculateMaxBacteria(bare.resources.surface);
 
-      // Start with some AOB and plenty of ammonia
-      state = produce(state, (draft) => {
-        draft.resources.ammonia = getMassFromPpm(5.0, 40);
-        draft.resources.aob = 5;
-      });
+      const perCapita = (fill: number): number => {
+        const start = produce(bare, (draft) => {
+          draft.resources.ammonia = getMassFromPpm(50, draft.resources.water);
+          draft.resources.aob = ceiling * fill;
+        });
+        return (tick(start).resources.aob - start.resources.aob) / start.resources.aob;
+      };
 
-      // Track growth rates at different population levels
-      const growthSnapshots: { aob: number; growth: number }[] = [];
-
-      for (let i = 0; i < 100; i++) {
-        const prevAob = state.resources.aob;
-        state = tick(state);
-        const growth = state.resources.aob - prevAob;
-        if (i % 10 === 0) {
-          growthSnapshots.push({ aob: prevAob, growth });
-        }
-      }
-
-      // Growth rate should decrease as population increases (logistic growth)
-      // Compare early growth rate (per capita) to later growth rate (per capita)
-      const earlySnapshot = growthSnapshots[0];
-      const lateSnapshot = growthSnapshots[growthSnapshots.length - 1];
-
-      if (earlySnapshot.aob > 0 && lateSnapshot.aob > 0) {
-        const earlyPerCapita = earlySnapshot.growth / earlySnapshot.aob;
-        const latePerCapita = lateSnapshot.growth / lateSnapshot.aob;
-        expect(latePerCapita).toBeLessThan(earlyPerCapita);
-      }
+      expect(perCapita(0.9)).toBeLessThan(perCapita(0.5));
+      expect(perCapita(0.5)).toBeLessThan(perCapita(0.1));
     });
   });
 

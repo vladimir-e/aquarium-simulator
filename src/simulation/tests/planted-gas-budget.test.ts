@@ -14,6 +14,7 @@ import { produce } from 'immer';
 import type { SimulationConfig, SimulationState } from '../state.js';
 import type { PresetSeed } from '../seed.js';
 import { DEFAULT_CONFIG } from '../config/index.js';
+import { livestockDefaults } from '../config/livestock.js';
 import { nutrientsDefaults } from '../config/nutrients.js';
 import { CO2_TO_O2_MASS_RATIO } from '../core/chemistry.js';
 import { runTank } from './metrics.js';
@@ -174,7 +175,10 @@ describe('a heavily planted tank of neon tetras', () => {
 
   it('keeps the whole roster through twenty days', () => {
     expect(at150.survivors).toBe(12);
-    expect(at150.minOxygen).toBeGreaterThan(6);
+    // Not merely alive: the water never crossed into the band that damages a
+    // fish at all, so the roster is on the benefit side of it for every hour of
+    // the run. The pre-dawn low is what this reads.
+    expect(at150.minOxygen).toBeGreaterThan(livestockDefaults.oxygenStressThreshold);
   });
 
   it('leaves a bigger tank more room still', () => {

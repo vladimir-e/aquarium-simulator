@@ -1,11 +1,12 @@
 /**
  * A tank that is running out of air, read at the tank rather than at the system.
  *
- * Two claims. Every aerobic process asks for less as the water empties, so the
- * carbon derived from that oxygen falls with it and a suffocating tank stops
- * manufacturing CO2 for oxygen it never had. And the oxygen a consumer takes is
- * the only thing that falls: a fish short of air goes on excreting ammonia,
- * which is what keeps the nitrogen budget out of this.
+ * Two claims. Every aerobic process — decomposition, both nitrifier guilds,
+ * plants and fish — asks for less as the water empties, so the carbon derived
+ * from that oxygen falls with it and a suffocating tank stops manufacturing CO2
+ * for oxygen it never had. And the oxygen a consumer takes is the only thing
+ * that falls: a fish short of air goes on excreting ammonia, which is what
+ * leaves the nitrogen budget to the guilds that do read it.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -14,6 +15,7 @@ import type { SimulationConfig, SimulationState } from '../state.js';
 import type { PresetSeed } from '../seed.js';
 import { DEFAULT_CONFIG, type TunableConfig } from '../config/index.js';
 import { decaySystem } from '../systems/decay.js';
+import { nitrogenCycleSystem } from '../systems/nitrogen-cycle.js';
 import { processPlants } from '../plants/index.js';
 import { processLivestock } from '../livestock/index.js';
 import { tuned } from './sweep.js';
@@ -40,6 +42,8 @@ const UNBOUNDED: TunableConfig = tuned((draft) => {
   draft.decay.oxygenHalfSaturation = 0;
   draft.plants.respirationOxygenHalfSaturation = 0;
   draft.livestock.respirationOxygenHalfSaturation = 0;
+  draft.nitrogenCycle.aobOxygenHalfSaturation = 0;
+  draft.nitrogenCycle.nobOxygenHalfSaturation = 0;
 });
 
 const tank = runTank({ setup: STAGNANT, seed: STOCKED, days: 1, rngSeed: 4242 }).final;
@@ -57,6 +61,7 @@ function hourly(
 ): { oxygen: number; carbon: number; ammonia: number } {
   const effects = [
     ...decaySystem.update(state, config),
+    ...nitrogenCycleSystem.update(state, config),
     ...processPlants(state, config).effects,
     ...processLivestock(state, config).effects,
   ];
@@ -66,7 +71,13 @@ function hourly(
       .reduce((sum, e) => sum + e.delta, 0);
 
   return {
-    oxygen: -total('oxygen', ['decay', 'fish-respiration', 'respiration']),
+    oxygen: -total('oxygen', [
+      'decay',
+      'nitrogen-cycle-aob',
+      'nitrogen-cycle-nob',
+      'fish-respiration',
+      'respiration',
+    ]),
     carbon: total('co2', ['decay', 'fish-respiration', 'respiration']),
     ammonia: total('ammonia', ['fish-gill-excretion']),
   };
@@ -109,9 +120,10 @@ describe('an aerobic draw against the oxygen it is drawing from', () => {
 });
 
 describe('the oxygen a stressed tank draws that was never in it', () => {
-  /** mg/L asked for across six days beyond what the water was holding. */
-  function unpaid(config: TunableConfig): number {
-    let total = 0;
+  /** mg/L asked for across six days, and how much of it the water never held. */
+  function overdraw(config: TunableConfig): { asked: number; unpaid: number } {
+    let asked = 0;
+    let unpaid = 0;
     runTank({
       setup: STAGNANT,
       seed: STOCKED,
@@ -119,16 +131,24 @@ describe('the oxygen a stressed tank draws that was never in it', () => {
       rngSeed: 4242,
       routine: { config, feed: 1 },
       watch: (_hour, before) => {
-        total += Math.max(0, hourly(before, config).oxygen - before.resources.oxygen);
+        const want = hourly(before, config).oxygen;
+        asked += want;
+        unpaid += Math.max(0, want - before.resources.oxygen);
       },
     });
-    return total;
+    return { asked, unpaid };
   }
 
   // Not to zero: a tick is an hour, so a consumer whose reduced demand still
   // outruns the standing stock overshoots inside the step. What is left of the
-  // overdraw goes with tick resolution, not with the factor.
-  it('is a small fraction of what an unbounded draw took', () => {
-    expect(unpaid(DEFAULT_CONFIG)).toBeLessThan(unpaid(UNBOUNDED) / 10);
+  // overdraw goes with tick resolution, not with the factor, and a cycled
+  // biofilter is where it shows — the hour a day's feeding mineralises into
+  // ammonia asks for more oxygen than an hour of any tank's water holds.
+  it('asks for less, and leaves less of it unpaid', () => {
+    const bounded = overdraw(DEFAULT_CONFIG);
+    const unbounded = overdraw(UNBOUNDED);
+
+    expect(bounded.asked).toBeLessThan(unbounded.asked / 2);
+    expect(bounded.unpaid).toBeLessThan(unbounded.unpaid / 3);
   });
 });

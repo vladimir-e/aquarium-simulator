@@ -15,12 +15,17 @@ import { tick } from '../tick.js';
 import { applyAction } from '../actions/index.js';
 import { getPpm, getMassFromPpm } from '../resources/helpers.js';
 import { DEFAULT_CONFIG, type TunableConfig } from '../config/index.js';
-import { calculateAmmoniaToNitrite, calculateMaxBacteria } from '../systems/nitrogen-cycle.js';
+import {
+  calculateAmmoniaToNitrite,
+  calculateMaxBacteria,
+  nitrifierOxygenFactor,
+} from '../systems/nitrogen-cycle.js';
 import { NH3_TO_NO2_MASS_RATIO } from '../core/chemistry.js';
 import {
   SUBSTRATE_ORGANIC_PER_LITER,
   type SubstrateType,
 } from '../equipment/substrate.js';
+import { tuned } from './sweep.js';
 import {
   DAY,
   colonyFill,
@@ -59,13 +64,14 @@ function doublingHours(capacity: number, resource: 'aob' | 'nob'): number {
 
 /**
  * Settle a colony against a fixed ammonia inflow and read the utilization it
- * rests at, along with how full its ceiling is.
+ * rests at, along with how full its ceiling is and how much of its growth rate
+ * the water's oxygen was leaving it.
  */
 function settle(
   capacity: number,
   inflowPpmPerHour: number,
   config: TunableConfig = DEFAULT_CONFIG
-): { utilization: number; fill: number } {
+): { utilization: number; fill: number; air: number } {
   const feed = (state: SimulationState): SimulationState =>
     produce(state, (draft) => {
       draft.resources.ammonia += getMassFromPpm(inflowPpmPerHour, draft.resources.water);
@@ -87,6 +93,7 @@ function settle(
       config.nitrogenCycle
     ).utilization,
     fill: state.resources.aob / ceiling(state, config),
+    air: nitrifierOxygenFactor('aob', settled.resources.oxygen, config.nitrogenCycle),
   };
 }
 
@@ -136,13 +143,14 @@ describe('bacteria colony dynamics', () => {
 
   describe('a colony under a steady load settles where its two rates cancel', () => {
     it('rests at the utilization that makes growth equal decay', () => {
-      // Growth is g·u·(1 − p/K) and decay is d, so the fixed point is
-      // u = d / (g·(1 − p/K)). This is the model's own arithmetic, and it
+      // Growth is g·a·u·(1 − p/K) against decay d, where `a` is what the water's
+      // oxygen leaves of the growth rate — so the fixed point is
+      // u = d / (g·a·(1 − p/K)). This is the model's own arithmetic, and it
       // holds whether or not the ceiling is anywhere near.
       for (const capacity of [20, 150]) {
         for (const inflow of [0.002, 0.01]) {
-          const { utilization, fill } = settle(capacity, inflow);
-          const predicted = nc.bacteriaDeathRate / (nc.aobGrowthRate * (1 - fill));
+          const { utilization, fill, air } = settle(capacity, inflow);
+          const predicted = nc.bacteriaDeathRate / (nc.aobGrowthRate * air * (1 - fill));
 
           expect(utilization).toBeCloseTo(predicted, 3);
         }
@@ -150,15 +158,51 @@ describe('bacteria colony dynamics', () => {
     });
 
     it('rests near deathRate / growthRate, because the ceiling is far off', () => {
-      const bare = nc.bacteriaDeathRate / nc.aobGrowthRate;
-
       for (const capacity of [20, 150]) {
-        const { utilization, fill } = settle(capacity, 0.002);
+        const { utilization, fill, air } = settle(capacity, 0.002);
+        const bare = nc.bacteriaDeathRate / (nc.aobGrowthRate * air);
 
         expect(fill).toBeLessThan(0.15);
         expect(utilization).toBeGreaterThan(bare);
         expect(utilization).toBeLessThan(bare * 1.2);
       }
+    });
+
+    it('stops a colony short of its surface on air rather than on biofilm', () => {
+      // A load big enough to fill the surface is a load big enough to strip the
+      // oxygen, so the biofilm ceiling is not what a real biofilter meets: this
+      // one settles at 95 % AOB against 53 % NOB with 0.9 mg/L left in the
+      // water. Taking the oxygen term out puts both back on the surface, at the
+      // 96 % / 94 % where growth cancels decay. Which is the whole shape of the
+      // finding — NOB are the guild that runs out of air first.
+      const saturated = (config: TunableConfig): SimulationState => {
+        let state = produce(createSimulation({ tankCapacity: 200 }), (draft) => {
+          draft.resources.aob = 1;
+          draft.resources.nob = 1;
+        });
+        for (let hour = 1; hour <= 40 * DAY; hour++) {
+          state = tick(
+            produce(state, (draft) => {
+              draft.resources.ammonia += getMassFromPpm(2, draft.resources.water);
+            }),
+            config
+          );
+        }
+        return state;
+      };
+
+      const airless = tuned((draft) => {
+        draft.nitrogenCycle.aobOxygenHalfSaturation = 0;
+        draft.nitrogenCycle.nobOxygenHalfSaturation = 0;
+      });
+
+      const held = saturated(DEFAULT_CONFIG);
+      const unlimited = saturated(airless);
+
+      expect(held.resources.oxygen).toBeLessThan(2);
+      expect(colonyFill(held, 'nob')).toBeLessThan(colonyFill(held, 'aob'));
+      expect(colonyFill(held, 'nob')).toBeLessThan(colonyFill(unlimited, 'nob') * 0.7);
+      expect(colonyFill(unlimited, 'nob')).toBeGreaterThan(0.9);
     });
 
     it('never lets a colony past its ceiling', () => {

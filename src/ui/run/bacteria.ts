@@ -28,18 +28,6 @@ import type { NitrogenCycleConfig, TunableConfig } from '../../simulation/config
 import { getPpm } from '../../simulation/resources/index.js';
 import { mineralisationBase, wasteInflow } from './waste.js';
 
-/**
- * Where a colony stops climbing when nothing else limits it. Decay is
- * unconditional, so the fixed point is `1 − deathRate/growthRate` of the
- * ceiling — 96 % for AOB, 93 % for NOB. A mature tank never reaches 100 %, and
- * a threshold that asks for it never fires.
- *
- * Only a tank held under a saturating load gets here at all: an ordinary
- * stocked tank rests at a couple of percent, because the colony grows to its
- * load and not to its surface.
- */
-const SURFACE_BOUND_PCT = 90;
-
 /** How far ahead the cycle projection will look before giving up, in ticks. */
 const PROJECTION_HORIZON = 24 * 180;
 
@@ -373,10 +361,6 @@ export function bacteriaSummary(
   if (nob.count < aob.count && rates.netNitrite > 0) {
     const behind = Math.round((1 - nob.count / aob.count) * 100);
     return `NOB trail AOB by ${behind} % — nitrite accumulates until the colony catches up.${peakClause(projection)}`;
-  }
-
-  if (aob.pct >= SURFACE_BOUND_PCT && nob.pct >= SURFACE_BOUND_PCT) {
-    return 'Both colonies have filled the surface they live on — until the tank offers more biofilm, more load has nowhere to go.';
   }
 
   if (atTrace && !cycled) {

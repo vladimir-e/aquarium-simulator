@@ -18,10 +18,10 @@ import { cycledTank, doseClearance, traceCycle } from './tanks.js';
 const VOLUMES = [10, 20, 40, 75, 150, 300, 1000] as const;
 
 /** The window the config comment states, and the first grid point outside each edge. */
-const WINDOW_LOW = 0.595;
-const WINDOW_HIGH = 0.68;
-const BELOW_WINDOW = 0.594;
-const ABOVE_WINDOW = 0.681;
+const WINDOW_LOW = 0.637;
+const WINDOW_HIGH = 0.728;
+const BELOW_WINDOW = 0.636;
+const ABOVE_WINDOW = 0.729;
 
 const at = (inoculumPerLiter: number): TunableConfig =>
   tuned((draft) => {

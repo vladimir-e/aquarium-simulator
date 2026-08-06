@@ -5,7 +5,30 @@
  * inoculum and the throughput rate are all quoted in those units, which is
  * what makes `bacteriaPerCm2` a biofilm density you can look up rather than
  * an arbitrary score. See `bacteriaPerCm2` below for the pin.
+ *
+ * **Every rate here is a Monod maximum, not a rate you would measure.** The
+ * oxygen term reaches 1 only at infinite oxygen, so a rate read off a real
+ * aerated culture is already below it; the constants divide the quoted figure
+ * back up by exactly that shortfall. Read them at {@link AIR_SATURATED_O2} to
+ * get the figures the literature and the anchors are stated in.
  */
+
+import { monodFactor } from '../core/kinetics.js';
+
+/**
+ * Dissolved O2 in air-saturated freshwater at 25 °C, mg/L — the water every
+ * rate below is quoted in, being the water a stirred culture and a healthy tank
+ * both sit in. `config/index.test.ts` holds it to the engine's own Henry's-law
+ * fit at `referenceTemp`.
+ */
+export const AIR_SATURATED_O2 = 8.38;
+
+const AOB_OXYGEN_HALF_SATURATION = 0.3;
+const NOB_OXYGEN_HALF_SATURATION = 1.1;
+
+/** What the oxygen term leaves of each guild's maximum in that water. */
+const AOB_AT_AIR_SATURATION = monodFactor(AIR_SATURATED_O2, AOB_OXYGEN_HALF_SATURATION);
+const NOB_AT_AIR_SATURATION = monodFactor(AIR_SATURATED_O2, NOB_OXYGEN_HALF_SATURATION);
 
 export interface NitrogenCycleConfig {
   /** Fraction of waste converted to ammonia per tick */
@@ -47,10 +70,16 @@ export const nitrogenCycleDefaults: NitrogenCycleConfig = {
   // waste → NH3 first stage. See systems/nitrogen-cycle.ts for MW math.
   wasteToAmmoniaRatio: 60,
   // mg NH₃ one bacteria unit (10⁶ cells) oxidises per tick, and a tick is an
-  // hour: 2×10⁻¹³ g/cell/h, inside the 10⁻¹⁴–10⁻¹³ g/cell/h measured for
-  // Nitrosomonas. That is the independent check on the gauge pinned at
-  // `bacteriaPerCm2` — the pair lands on real biology, not only on the anchors.
-  bacteriaProcessingRate: 0.0002,
+  // hour: 2×10⁻¹³ g/cell/h in air-saturated water, inside the 10⁻¹⁴–10⁻¹³
+  // g/cell/h measured for Nitrosomonas. That is the independent check on the
+  // gauge pinned at `bacteriaPerCm2` — the pair lands on real biology, not only
+  // on the anchors.
+  //
+  // NOB take the same per-cell throughput scaled by the N mass ratio and their
+  // own oxygen term, so the two guilds share this constant and diverge on air
+  // alone: at saturation NOB clear 8 % less nitrite per cell than AOB clear
+  // ammonia, which is the whole reason nitrite is the species that stands.
+  bacteriaProcessingRate: 0.0002 / AOB_AT_AIR_SATURATION,
   // Spawn thresholds set to "detectable by hobbyist" ranges — 0.5 ppm
   // NH3 and 0.5 ppm NO2 are the levels where a nitrifier lag-phase
   // typically ends. Previous 0.02 / 0.125 led to bacteria colonising
@@ -67,20 +96,25 @@ export const nitrogenCycleDefaults: NitrogenCycleConfig = {
   // knobs: the bed's nitrogen budget is fixed, so every day the peak is delayed
   // is another day of it standing as nitrite.
   //
-  // Swept at 10 L through 1000 L, every value that passes lies in 0.595 – 0.680
+  // Swept at 10 L through 1000 L, every value that passes lies in 0.637 – 0.728
   // units/L: below it the nitrite peak clears the 5 ppm ceiling, above it a
   // tank cycles before day 21. The value below sits inside that, 0.055 ppm
   // under the peak ceiling and 0.167 d over the cycled-day floor. Those margins
   // are the widest the window allows — they trade against each other one for
   // one. `tests/inoculum-window.test.ts` re-runs the sweep.
-  inoculumPerLiter: 0.648,
+  inoculumPerLiter: 0.685,
   // Growth is per-capita at *full* utilization, so each rate is read straight
   // off a saturated doubling time: rate = ln2 / hours. AOB double in 15–24 h
   // under non-limiting ammonia, NOB in 24–48 h; the midpoints below keep the
   // AOB-before-NOB succession (Hovanec & DeLong, 1996) that makes nitrite
   // peak after ammonia rather than alongside it.
-  aobGrowthRate: Math.LN2 / 20,
-  nobGrowthRate: Math.LN2 / 36,
+  //
+  // Those hours are what a culture in air-saturated water does, so each is the
+  // doubling time the tank reproduces rather than the one the constant states:
+  // dividing by the oxygen term there puts 20 h and 36 h back in the water and
+  // stretches them as the water thins.
+  aobGrowthRate: Math.LN2 / 20 / AOB_AT_AIR_SATURATION,
+  nobGrowthRate: Math.LN2 / 36 / NOB_AT_AIR_SATURATION,
   // Carrying capacity in 10⁶ cells per cm² of biofilm — 10⁷ cells/cm², mid-range
   // for mature nitrifying media.
   //
@@ -119,11 +153,8 @@ export const nitrogenCycleDefaults: NitrogenCycleConfig = {
   // a tank short of air oxidises its ammonia long after it has stopped clearing
   // the nitrite that ammonia becomes. Standing nitrite in a poorly aerated tank
   // is a thing keepers see, and this is where it comes from.
-  //
-  // In saturated water they cost 4 % and 12 % of rate respectively — the rates
-  // above are quoted at saturation, as bacterial rates are.
-  aobOxygenHalfSaturation: 0.3,
-  nobOxygenHalfSaturation: 1.1,
+  aobOxygenHalfSaturation: AOB_OXYGEN_HALF_SATURATION,
+  nobOxygenHalfSaturation: NOB_OXYGEN_HALF_SATURATION,
 };
 
 export interface NitrogenCycleConfigMeta {

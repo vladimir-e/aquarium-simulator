@@ -18,6 +18,9 @@ import {
   nutrientsDefaults,
   livestockDefaults,
 } from './index.js';
+import { AIR_SATURATED_O2 } from './nitrogen-cycle.js';
+import { monodFactor } from '../core/kinetics.js';
+import { calculateO2Saturation } from '../systems/gas-exchange.js';
 
 describe('DEFAULT_CONFIG', () => {
   it('contains all 11 system configs', () => {
@@ -174,6 +177,41 @@ describe('configRange', () => {
       'nitrogenCycle.aobOxygenHalfSaturation',
       'nitrogenCycle.nobOxygenHalfSaturation',
     ]);
+  });
+});
+
+/**
+ * Every nitrifier rate is a Monod maximum, so the figure its comment quotes is
+ * what the rate reads in air-saturated water rather than what the constant
+ * holds. This is that arithmetic, run rather than retold: a constant that moves
+ * without its quoted figure moving breaks it.
+ */
+describe('nitrogenCycleDefaults quoted in the water they were measured in', () => {
+  const { aobOxygenHalfSaturation: aobK, nobOxygenHalfSaturation: nobK } = nitrogenCycleDefaults;
+  const inAir = (halfSaturation: number): number => monodFactor(AIR_SATURATED_O2, halfSaturation);
+
+  it('calls air-saturated water what the gas model calls it at the same temperature', () => {
+    expect(AIR_SATURATED_O2).toBeCloseTo(
+      calculateO2Saturation(nitrogenCycleDefaults.referenceTemp),
+      6
+    );
+  });
+
+  it('doubles AOB in 20 h and NOB in 36 h there', () => {
+    expect(Math.LN2 / (nitrogenCycleDefaults.aobGrowthRate * inAir(aobK))).toBeCloseTo(20, 9);
+    expect(Math.LN2 / (nitrogenCycleDefaults.nobGrowthRate * inAir(nobK))).toBeCloseTo(36, 9);
+  });
+
+  it('puts 2×10⁻¹³ g of ammonia through a cell an hour there', () => {
+    expect(nitrogenCycleDefaults.bacteriaProcessingRate * inAir(aobK)).toBeCloseTo(0.0002, 12);
+  });
+
+  it('keeps both half-saturation constants inside the published range, NOB above AOB', () => {
+    expect(aobK).toBeGreaterThanOrEqual(0.3);
+    expect(aobK).toBeLessThanOrEqual(0.6);
+    expect(nobK).toBeGreaterThanOrEqual(0.6);
+    expect(nobK).toBeLessThanOrEqual(1.5);
+    expect(nobK).toBeGreaterThan(aobK);
   });
 });
 
