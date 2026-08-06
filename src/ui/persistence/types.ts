@@ -26,8 +26,8 @@ import type { TunableConfig } from '../../simulation/config/index.js';
  *      fixture's rated PAR at the water surface — and `Resources.light`
  *      holds PAR at the substrate rather than a raw watt count, so the
  *      species bands, the plant light severities and the algae excess-light
- *      threshold are all redenominated with it. `TunableConfig` gains a
- *      `light` section carrying the water column's attenuation coefficient.
+ *      threshold are all redenominated with it. `TunableConfig` gains an
+ *      `optics` section carrying the water column's attenuation coefficient.
  *      A v17 tank read as v18 would take a 200 W fixture's number for
  *      200 PAR — brighter than the 150 at the top of the catalog.
  * v17: The tank carries its own randomness. `SimulationState` gains

@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { createSimulation } from '../../simulation/index.js';
-import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
+import { DEFAULT_CONFIG, type TunableConfig } from '../../simulation/config/index.js';
 import { getPresetById } from '../../simulation/presets.js';
 import { createSession, loadSession, saveSession, hasSession } from '../session.js';
 import { appendSnapshot, HISTORY_CAP, snapshot } from '../history.js';
@@ -93,6 +93,27 @@ describe('session roundtrip', () => {
       livestock: { ...DEFAULT_CONFIG.livestock, flowStressSeverity: staleSeverity },
     });
     saveSession({ ...session, version: 2 }, { path });
+
+    expect(() => loadSession({ path })).toThrow(/Unsupported session version/);
+  });
+
+  it('rejects a stale v4 session, written before light became PAR', () => {
+    // A v4 session parses and runs — through the night. It carries no
+    // `config.optics`, and the substrate-PAR calculation returns early while
+    // surface PAR is zero, so the missing attenuation coefficient is not read
+    // until the photoperiod opens. A session that loaded would die at 08:00.
+    expect(DEFAULT_CONFIG.optics.waterAttenuationPerCm).toBeGreaterThan(0);
+
+    const preset = getPresetById('bare')!;
+    const state = createSimulation(preset.config);
+    const session = createSession(state, DEFAULT_CONFIG);
+
+    const preParConfig: Record<string, unknown> = { ...session.config };
+    delete preParConfig.optics;
+    saveSession(
+      { ...session, version: 4, config: preParConfig as unknown as TunableConfig },
+      { path }
+    );
 
     expect(() => loadSession({ path })).toThrow(/Unsupported session version/);
   });
