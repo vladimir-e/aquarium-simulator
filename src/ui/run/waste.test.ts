@@ -51,7 +51,12 @@ describe('wasteInflow', () => {
   it('takes food decay straight from the engine’s decay curve', () => {
     const state = stocked();
     const expected =
-      calculateDecay(state.resources.food, state.resources.temperature, config.decay) *
+      calculateDecay(
+        state.resources.food,
+        state.resources.temperature,
+        state.resources.oxygen,
+        config.decay
+      ) *
       config.decay.wasteConversionRatio;
     expect(wasteInflow(state, config).sources[0].gramsPerHour).toBeCloseTo(expected, 10);
   });

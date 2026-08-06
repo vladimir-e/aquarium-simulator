@@ -186,7 +186,7 @@ export function bacteriaReadout(
 
   // The AOB stage sees both of these: gill excretion lands in the active tier,
   // ahead of the passive nitrogen cycle, and mineralisation runs first inside it.
-  const gills = processMetabolism(state.fish, r.food, config.livestock).ammoniaProduced;
+  const gills = processMetabolism(state.fish, r.food, r.oxygen, config.livestock).ammoniaProduced;
   const { ammoniaProduced } = calculateWasteToAmmonia(
     mineralisationBase(r.waste, wasteInflow(state, config)),
     nc
@@ -277,7 +277,7 @@ export function projectNitritePeak(
   const steadyInflow = sources
     .filter((source) => source.key !== 'substrate')
     .reduce((total, source) => total + source.gramsPerHour, 0);
-  const gills = processMetabolism(state.fish, r.food, config.livestock).ammoniaProduced;
+  const gills = processMetabolism(state.fish, r.food, r.oxygen, config.livestock).ammoniaProduced;
 
   let reserve = state.equipment.substrate.organicReserve;
   let water = r.water;

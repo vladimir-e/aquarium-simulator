@@ -9,7 +9,7 @@ import type { System } from './types.js';
 import type { TunableConfig } from '../config/index.js';
 import { type DecayConfig, decayDefaults } from '../config/decay.js';
 import { nutrientsDefaults } from '../config/nutrients.js';
-import { q10Factor } from '../core/kinetics.js';
+import { monodFactor, q10Factor } from '../core/kinetics.js';
 import { O2_TO_CO2_MASS_RATIO } from '../core/chemistry.js';
 import { getPpm } from '../resources/index.js';
 
@@ -27,16 +27,22 @@ export function getTemperatureFactor(
 /**
  * Calculate amount of food that decays to waste this tick.
  * Returns decay amount in grams.
+ *
+ * Aerobic decomposition is oxygen-limited as a whole process, not only on its
+ * gas side: an anoxic tank builds sludge rather than mineralising it, and the
+ * nitrogen bound in that sludge stays bound.
  */
 export function calculateDecay(
   food: number,
   temperature: number,
+  oxygen: number,
   config: DecayConfig = decayDefaults
 ): number {
   if (food <= 0) return 0;
 
   const tempFactor = getTemperatureFactor(temperature, config);
-  const decayAmount = food * config.baseDecayRate * tempFactor;
+  const oxygenFactor = monodFactor(oxygen, config.oxygenHalfSaturation);
+  const decayAmount = food * config.baseDecayRate * tempFactor * oxygenFactor;
 
   // Can't decay more than available food
   return Math.min(decayAmount, food);
@@ -56,6 +62,7 @@ export const decaySystem: System = {
       const decayAmount = calculateDecay(
         state.resources.food,
         state.resources.temperature,
+        state.resources.oxygen,
         decayConfig
       );
 

@@ -18,6 +18,7 @@ import { createSimulation, type SimulationState } from '../state.js';
 import { type SubstrateType } from '../equipment/substrate.js';
 import { applyEffects, type Effect } from '../core/effects.js';
 import { decaySystem } from './decay.js';
+import { gasExchangeSystem } from './gas-exchange.js';
 import { getPpm, getMassFromPpm } from '../resources/index.js';
 import { DEFAULT_CONFIG } from '../config/index.js';
 import { nitrogenCycleDefaults } from '../config/nitrogen-cycle.js';
@@ -900,13 +901,16 @@ describe('25-Day Tank Cycling Integration Test', () => {
       draft.resources.food = 5.0; // 5g food
     });
 
-    // Run for 500 ticks
+    // Run for 500 ticks. Gas exchange is in the loop because decomposition
+    // spends oxygen: without a surface the tank goes anoxic and the food stands.
     for (let tick = 0; tick < 500; tick++) {
       const decayEffects = decaySystem.update(state, DEFAULT_CONFIG);
       state = applyEffects(state, decayEffects);
 
       const nitrogenEffects = nitrogenCycleSystem.update(state, DEFAULT_CONFIG);
       state = applyEffects(state, nitrogenEffects);
+
+      state = applyEffects(state, gasExchangeSystem.update(state, DEFAULT_CONFIG));
 
       state = produce(state, (draft) => {
         draft.tick = tick + 1;

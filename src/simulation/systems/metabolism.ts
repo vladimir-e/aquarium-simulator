@@ -43,6 +43,7 @@
 import type { Fish } from '../state.js';
 import type { LivestockConfig } from '../config/livestock.js';
 import { N_TO_NH3_MASS_RATIO, O2_TO_CO2_MASS_RATIO } from '../core/chemistry.js';
+import { monodFactor } from '../core/kinetics.js';
 
 const NH3_MG_PER_G_N = N_TO_NH3_MASS_RATIO * 1000;
 
@@ -74,6 +75,7 @@ export interface MetabolismResult {
 export function processMetabolism(
   fish: Fish[],
   availableFood: number,
+  oxygen: number,
   config: LivestockConfig
 ): MetabolismResult {
   if (fish.length === 0) {
@@ -86,6 +88,8 @@ export function processMetabolism(
       co2ProducedMg: 0,
     };
   }
+
+  const oxygenFactor = monodFactor(oxygen, config.respirationOxygenHalfSaturation);
 
   // Sort by satiation (lowest first — hungriest fish served first).
   const sortedIndices = fish
@@ -151,7 +155,7 @@ export function processMetabolism(
     // physiological rate, independent of tank volume. The caller converts
     // the returned absolute mass into a mg/L concentration delta using the
     // current water volume.
-    const oxygenConsumedMg = config.baseRespirationRate * f.mass;
+    const oxygenConsumedMg = config.baseRespirationRate * f.mass * oxygenFactor;
     totalOxygenConsumedMg += oxygenConsumedMg;
     totalCo2ProducedMg += oxygenConsumedMg * config.respiratoryQuotient * O2_TO_CO2_MASS_RATIO;
 

@@ -9,6 +9,11 @@ import { produce } from 'immer';
 import { DEFAULT_CONFIG } from '../config/index.js';
 import { decayDefaults } from '../config/decay.js';
 import { MW_CO2, MW_O2 } from '../core/chemistry.js';
+import { monodFactor } from '../core/kinetics.js';
+
+/** Air-saturated water at 25 °C, where decomposition is not oxygen-limited. */
+const SATURATED_O2 = 8;
+const AEROBIC = monodFactor(SATURATED_O2, decayDefaults.oxygenHalfSaturation);
 
 describe('getTemperatureFactor', () => {
   it('returns 1.0 at reference temperature (25°C)', () => {
@@ -51,53 +56,72 @@ describe('getTemperatureFactor', () => {
 
 describe('calculateDecay', () => {
   it('returns 0 when food is 0', () => {
-    const decay = calculateDecay(0, 25);
+    const decay = calculateDecay(0, 25, SATURATED_O2);
     expect(decay).toBe(0);
   });
 
   it('returns 0 when food is negative', () => {
-    const decay = calculateDecay(-1, 25);
+    const decay = calculateDecay(-1, 25, SATURATED_O2);
     expect(decay).toBe(0);
   });
 
-  it('at 25°C with 1g food returns 0.05g (5%)', () => {
-    const decay = calculateDecay(1, 25);
-    expect(decay).toBeCloseTo(decayDefaults.baseDecayRate, 6);
+  it('takes the base fraction per hour at reference temperature', () => {
+    const decay = calculateDecay(1, 25, SATURATED_O2);
+    expect(decay).toBeCloseTo(decayDefaults.baseDecayRate * AEROBIC, 6);
   });
 
-  it('at 30°C with 1g food returns ~0.07g (faster)', () => {
-    const decay = calculateDecay(1, 30);
-    // 5% * sqrt(2) ≈ 7.07%
-    expect(decay).toBeCloseTo(0.05 * Math.sqrt(2), 4);
+  it('runs at sqrt(Q10) five degrees above reference', () => {
+    const decay = calculateDecay(1, 30, SATURATED_O2);
+    expect(decay).toBeCloseTo(decayDefaults.baseDecayRate * AEROBIC * Math.sqrt(2), 6);
   });
 
-  it('at 20°C with 1g food returns ~0.035g (slower)', () => {
-    const decay = calculateDecay(1, 20);
-    // 5% / sqrt(2) ≈ 3.54%
-    expect(decay).toBeCloseTo(0.05 / Math.sqrt(2), 4);
+  it('runs at 1/sqrt(Q10) five degrees below reference', () => {
+    const decay = calculateDecay(1, 20, SATURATED_O2);
+    expect(decay).toBeCloseTo((decayDefaults.baseDecayRate * AEROBIC) / Math.sqrt(2), 6);
   });
 
-  it('at 35°C with 1g food returns 0.1g (10%)', () => {
-    const decay = calculateDecay(1, 35);
-    // 5% * 2 = 10%
-    expect(decay).toBeCloseTo(0.10, 6);
+  it('doubles ten degrees above reference', () => {
+    const decay = calculateDecay(1, 35, SATURATED_O2);
+    expect(decay).toBeCloseTo(calculateDecay(1, 25, SATURATED_O2) * 2, 6);
   });
 
   it('never decays more than available food', () => {
     // Very high temperature, very small food amount
-    const decay = calculateDecay(0.01, 50);
+    const decay = calculateDecay(0.01, 50, SATURATED_O2);
     expect(decay).toBeLessThanOrEqual(0.01);
   });
 
   it('very small food amounts decay correctly', () => {
-    const decay = calculateDecay(0.1, 25);
-    expect(decay).toBeCloseTo(0.005, 6); // 5% of 0.1g
+    const decay = calculateDecay(0.1, 25, SATURATED_O2);
+    expect(decay).toBeCloseTo(calculateDecay(1, 25, SATURATED_O2) / 10, 6);
   });
 
   it('scales linearly with food amount', () => {
-    const decay1 = calculateDecay(1, 25);
-    const decay2 = calculateDecay(2, 25);
+    const decay1 = calculateDecay(1, 25, SATURATED_O2);
+    const decay2 = calculateDecay(2, 25, SATURATED_O2);
     expect(decay2).toBeCloseTo(decay1 * 2, 6);
+  });
+});
+
+describe('calculateDecay — oxygen availability', () => {
+  it('runs at half its base rate at the half-saturation constant', () => {
+    const half = calculateDecay(1, 25, decayDefaults.oxygenHalfSaturation);
+
+    expect(half).toBeCloseTo(decayDefaults.baseDecayRate * 0.5, 9);
+  });
+
+  it('stops entirely in water with no oxygen, so the sludge stands', () => {
+    expect(calculateDecay(1, 25, 0)).toBe(0);
+  });
+
+  it('falls monotonically as the water empties', () => {
+    let previous = Infinity;
+    for (const oxygen of [8, 4, 2, 1, 0.5, 0.1, 0]) {
+      const decayed = calculateDecay(1, 25, oxygen);
+      expect(decayed).toBeGreaterThanOrEqual(0);
+      expect(decayed).toBeLessThan(previous);
+      previous = decayed;
+    }
   });
 });
 
@@ -301,14 +325,14 @@ describe('decaySystem', () => {
     expect(o2Effect!.delta).toBeLessThan(0);
   });
 
-  it('handles large tank volumes correctly', () => {
-    const state = createTestState({ food: 1.0, temperature: 25, water: 1000 });
-    const effects = decaySystem.update(state, DEFAULT_CONFIG);
+  it('spends a mass of oxygen, so ten times the water is a tenth of the demand', () => {
+    const drawnIn = (water: number): number => {
+      const state = createTestState({ food: 1.0, temperature: 25, water });
+      const effects = decaySystem.update(state, DEFAULT_CONFIG);
+      return -effects.find((e) => e.resource === 'oxygen')!.delta;
+    };
 
-    const o2Effect = effects.find((e) => e.resource === 'oxygen');
-
-    // 1000L tank: decay=0.05g, oxidized=0.03g, O2=0.03g*250mg/g/1000L = 0.0075 mg/L
-    expect(-o2Effect!.delta).toBeCloseTo(0.0075, 4);
+    expect(drawnIn(100) / drawnIn(1000)).toBeCloseTo(10, 6);
   });
 
   it('handles zero water volume gracefully (no CO2/O2 effects)', () => {

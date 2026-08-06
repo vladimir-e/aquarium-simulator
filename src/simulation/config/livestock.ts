@@ -26,6 +26,8 @@ export interface LivestockConfig {
    * scaling with Q10 ≈ 2 against temperature.
    */
   baseRespirationRate: number;
+  /** Dissolved O2 (mg/L) at which a fish takes up half its base rate. */
+  respirationOxygenHalfSaturation: number;
   /**
    * Fraction of ingested food mass that is nitrogen (g N / g food).
    *
@@ -184,6 +186,15 @@ export const livestockDefaults: LivestockConfig = {
   // small freshwater teleosts. Applied as absolute mg/hr and converted to
   // mg/L by the livestock pipeline using tank volume.
   baseRespirationRate: 0.3,
+  // A fish regulates its uptake until the water falls past its critical oxygen
+  // tension, which for warm-water teleosts sits around 1–2 mg/L; below it the
+  // gills simply cannot extract what is not there and the fish conforms. Half
+  // rate at 1.0 puts the taper across that band. It costs 11 % of the base rate
+  // in saturated water, which is what a base rate quoted at saturation means.
+  //
+  // Damage is a separate reading: `oxygenStressThreshold` still charges a fish
+  // for the water it is in, so a suffocating fish draws less and suffers more.
+  respirationOxygenHalfSaturation: 1.0,
   // 5 % N in food — conservative; typical flake is 6–8 % N. Matches the
   // engine's existing waste → NH3 ratio.
   foodNitrogenFraction: 0.05,
@@ -326,6 +337,14 @@ export const livestockConfigMeta: LivestockConfigMeta[] = [
     min: 0.05,
     max: 1.0,
     step: 0.05,
+  },
+  {
+    key: 'respirationOxygenHalfSaturation',
+    label: 'Respiration O2 Half-Saturation',
+    unit: 'mg/L',
+    min: 0.1,
+    max: 4,
+    step: 0.1,
   },
   {
     key: 'foodNitrogenFraction',

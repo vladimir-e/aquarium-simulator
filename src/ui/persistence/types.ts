@@ -22,6 +22,12 @@ import type { TunableConfig } from '../../simulation/config/index.js';
  * Increment this when the structure changes in a breaking way.
  * On version mismatch, stored data is discarded.
  *
+ * v20: Every oxygen consumer saturates against the oxygen it is drawing from,
+ *      and each carries the half-saturation constant it does so at:
+ *      `DecayConfig` gains `oxygenHalfSaturation`, `PlantsConfig` and
+ *      `LivestockConfig` gain `respirationOxygenHalfSaturation`. A v19 config
+ *      is missing all three, and the strict schema refuses those sections; a
+ *      refused section reverts every other one to its defaults.
  * v19: The plant gas yields collapse onto one constant, and it changes unit.
  *      `PlantsConfig` drops `o2PerPhotosynthesis` and `o2PerRespiration` —
  *      oxygen derives from the carbon at `CO2_TO_O2_MASS_RATIO` — and replaces
@@ -128,7 +134,7 @@ import type { TunableConfig } from '../../simulation/config/index.js';
  *     nutrient sufficiency) but its persisted shape is identical, so
  *     the bump is purely the new Fish field.
  */
-export const PERSISTENCE_VERSION = 19;
+export const PERSISTENCE_VERSION = 20;
 
 /**
  * Storage key for the unified persisted state.

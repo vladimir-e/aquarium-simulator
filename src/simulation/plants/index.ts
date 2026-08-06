@@ -139,6 +139,7 @@ export function processPlants(
   const respirationResult = calculateRespiration(
     totalPlantSize,
     state.resources.temperature,
+    state.resources.oxygen,
     plantsConfig
   );
 
