@@ -43,19 +43,36 @@ truer.
 has no body-N pool, so it leaves the accounting — the same standing
 `n-mass-conservation.test.ts` already gives plant uptake. It is bounded: at most
 8.5 % of the N a fish ate in air-saturated water, well inside the 60 % the
-decay-oxidation floor in that test already allows for. The fed-fish scenario's
-basal term now sums the per-tick factor instead of counting ticks, which makes
-that anchor *tighter* than it was rather than looser — the fasted scenario
-balances to 3×10⁻¹⁷ g of N.
+decay-oxidation floor in that test already allows for.
+
+Both scenarios' basal term now sums the per-tick factor instead of counting
+ticks, but only the fed one had to: on the counted-tick injection it lands under
+its own floor, while the fasted one still passes — residual −7.93×10⁻⁴ g of N
+against an 8.84×10⁻⁴ tolerance, 90 % of the budget spent on 30 ticks of breathing
+the fish did 26.79 of. Summed, that scenario balances to 3×10⁻¹⁷ g, which makes
+the anchor *tighter* than it was rather than looser.
 
 ## What it is worth at the tank
 
 Twelve tetras in a cycled 40 L, fed 0.05 g/day with a quarter of the water out
-each week, ninety days. **Oxygen is pinned for the whole run, which is what
-isolates the change**: left to find its own level the draw's own feedback moves
-the oxygen underneath the reading, and the rows would then differ by two
-mechanisms instead of one. The control is the fish oxygen term taken to nothing,
-read at a fixed oxygen where only deamination can be what differs.
+each week, ninety days. **Oxygen is pinned for the whole run**, because left to
+find its own level the draw's feedback moves the oxygen underneath the reading
+and the rows would differ by the water as well as by the change.
+
+**The control is close, not clean, and it is worth saying which.** It is
+`respirationOxygenHalfSaturation` taken to nothing, and that constant scales the
+respiratory draw as well as deamination — so the unscaled row's roster also
+breathes at full rate. The pin is re-applied *between* ticks, not inside one, so
+within each tick that roster strips a little more oxygen before the passive tier
+reads it, and its nitrifiers work in marginally thinner water. Two mechanisms,
+one of them small.
+
+How small is measurable off the bottom pair, where the roster is dead by day
+1.08 and deamination is identically zero on both sides for the remaining 99 % of
+the run: 0.8 % on the nitrite peak, 0.2 % on both end nitrate and final colony
+size. Against headline effects of 8–17 % the leak is about a tenth of what is
+being measured, so the ordering and the magnitudes below stand — but they are
+read against a control that is loose by that much.
 
 | O₂ mg/L | excretion | gills ppm/h | NH₃ peak | NO₂ peak | NO₃ at d90 | AOB % of surface | fish |
 |---|---|---|---|---|---|---|---|
@@ -118,9 +135,10 @@ None of them a widened band.
   pins it to the ratio between the two draws, which is the "one metabolism, one
   factor" claim rather than a number.
 - `n-mass-conservation.test.ts` — the basal injection sums `monodFactor` over
-  the run instead of multiplying by ticks. Read off the state going into each
-  tick, which is exactly what `processMetabolism` sees in these fixtures:
-  livestock runs in the active tier and nothing ahead of it moves oxygen there.
+  the run instead of multiplying by ticks, in both fish scenarios though only
+  the fed one needed it. Read off the state going into each tick, which is
+  exactly what `processMetabolism` sees in these fixtures: livestock runs in the
+  active tier and nothing ahead of it moves oxygen there.
 
 ### Found on the way
 

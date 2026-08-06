@@ -228,11 +228,17 @@ process.stdout.write(
 /**
  * What the same factor on ammonia is worth over a season.
  *
- * Oxygen is pinned for the whole run, which is what isolates it: leave the tank
- * to find its own level and the draw's feedback moves the oxygen underneath the
- * reading, so the rows would differ by two mechanisms instead of one. The
- * control is the fish oxygen term taken to nothing — deamination and draw both
- * unscaled — read at a fixed oxygen where only the first of those can matter.
+ * Oxygen is pinned for the whole run: leave the tank to find its own level and
+ * the draw's feedback moves the oxygen underneath the reading, so the rows would
+ * differ by the water as well as by the change.
+ *
+ * The control is close rather than clean, and the loose end is worth knowing.
+ * One constant scales deamination *and* the draw, so the unscaled row also
+ * breathes at full rate; the pin is re-applied between ticks and not inside one,
+ * so within each tick that roster strips a little more oxygen before the passive
+ * tier reads it. The bottom pair bounds what that is worth — the roster is dead
+ * by day 1.08 there and deamination is zero on both sides for the rest of the
+ * run, leaving under 1 % between the rows.
  */
 const FISH_UNBOUNDED: TunableConfig = tuned((draft) => {
   draft.livestock.respirationOxygenHalfSaturation = 0;
