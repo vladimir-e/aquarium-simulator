@@ -42,7 +42,7 @@
 
 import type { Fish } from '../state.js';
 import type { LivestockConfig } from '../config/livestock.js';
-import { MW_N, MW_NH3 } from './nitrogen-cycle.js';
+import { MW_N, MW_NH3, O2_TO_CO2_MASS_RATIO } from '../core/chemistry.js';
 
 /** mg NH3 emitted per g of elemental N (MW_NH3 / MW_N × 1000). */
 const NH3_MG_PER_G_N = (MW_NH3 / MW_N) * 1000;
@@ -152,9 +152,12 @@ export function processMetabolism(
     // physiological rate, independent of tank volume. The caller converts
     // the returned absolute mass into a mg/L concentration delta using the
     // current water volume.
+    //
+    // The respiratory quotient is a ratio of gas *volumes*, so it counts
+    // molecules; the mass of CO2 those molecules carry takes the molar step.
     const oxygenConsumedMg = config.baseRespirationRate * f.mass;
     totalOxygenConsumedMg += oxygenConsumedMg;
-    totalCo2ProducedMg += oxygenConsumedMg * config.respiratoryQuotient;
+    totalCo2ProducedMg += oxygenConsumedMg * config.respiratoryQuotient * O2_TO_CO2_MASS_RATIO;
 
     // Age increase (1 tick = 1 hour)
     updatedFish[idx] = {

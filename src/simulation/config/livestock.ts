@@ -56,7 +56,11 @@ export interface LivestockConfig {
    * fasting or sparse feeding.
    */
   basalAmmoniaRate: number;
-  /** CO2 produced per unit oxygen consumed (respiratory quotient) */
+  /**
+   * Moles of CO2 exhaled per mole of O2 consumed. A *molar* ratio, as the
+   * literature defines it — converting it to a mass takes the molar step
+   * through `O2_TO_CO2_MASS_RATIO`.
+   */
   respiratoryQuotient: number;
 
   // Satiation
@@ -192,7 +196,7 @@ export const livestockDefaults: LivestockConfig = {
   // at lean feeding — matching the real-world observation that
   // basal output is non-negligible.
   basalAmmoniaRate: 0.03,
-  respiratoryQuotient: 0.8, // CO2/O2 ratio
+  respiratoryQuotient: 0.8, // textbook mixed-diet value
 
   // Satiation - decays ~0.6%/hr; fish can survive 3-7 days without food.
   // From 100 (stuffed) → 50 (peckish boundary) takes ~3.5 days; → 0

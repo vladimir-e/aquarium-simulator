@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { processMetabolism } from './metabolism.js';
 import { livestockDefaults } from '../config/livestock.js';
-import { MW_N, MW_NH3 } from './nitrogen-cycle.js';
+import { MW_CO2, MW_N, MW_NH3, MW_O2 } from '../core/chemistry.js';
 import { nitrogenCycleDefaults } from '../config/nitrogen-cycle.js';
 import type { Fish } from '../state.js';
 
@@ -229,15 +229,14 @@ describe('processMetabolism', () => {
     );
   });
 
-  it('produces CO2 proportional to oxygen consumed', () => {
+  it('exhales the respiratory quotient in moles, not in milligrams', () => {
     const fish = [makeFish({ mass: 2.0 })];
     const result = processMetabolism(fish, 10, livestockDefaults);
 
-    // CO2 = O2 consumed * respiratoryQuotient
-    expect(result.co2ProducedMg).toBeCloseTo(
-      result.oxygenConsumedMg * livestockDefaults.respiratoryQuotient,
-      6
-    );
+    const o2Moles = result.oxygenConsumedMg / MW_O2;
+    const co2Moles = result.co2ProducedMg / MW_CO2;
+
+    expect(co2Moles).toBeCloseTo(o2Moles * livestockDefaults.respiratoryQuotient, 10);
   });
 
   it('increments age by 1 each tick', () => {

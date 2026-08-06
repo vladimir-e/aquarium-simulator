@@ -2,7 +2,7 @@
  * Plants system tunable configuration.
  *
  * Calibration targets:
- * - Photosynthesis: 100% total plant size with optimal CO2/nitrate = ~0.5-1.0 mg/L O2/hr
+ * - Photosynthesis: a grown-in planted 150 L runs 0.5–1.0 mg/L O2/hr by day
  * - Respiration: ~10-20% of max photosynthesis rate
  * - Growth: ~1-2% size increase per day at ideal conditions
  * - Nitrate consumption: ~5-10 mg/day
@@ -18,9 +18,10 @@ export interface PlantsConfig {
   optimalCo2: number;
   /** Optimal nitrate concentration for max growth (ppm) */
   optimalNitrate: number;
-  /** Oxygen produced per unit photosynthesis (mg/L) */
-  o2PerPhotosynthesis: number;
-  /** CO2 consumed per unit photosynthesis (mg/L) */
+  /**
+   * Carbon fixed per unit photosynthesis, as mg of CO2. The oxygen released is
+   * not a second knob — it derives from this at `CO2_TO_O2_MASS_RATIO`.
+   */
   co2PerPhotosynthesis: number;
   /**
    * Total plant nutrients (NO3 + PO4 + K + Fe) consumed per unit of "potential
@@ -34,9 +35,12 @@ export interface PlantsConfig {
   // Respiration constants
   /** Base respiration rate per 100% plant size per hour */
   baseRespirationRate: number;
-  /** Oxygen consumed per unit respiration (mg/L) */
-  o2PerRespiration: number;
-  /** CO2 produced per unit respiration (mg/L) */
+  /**
+   * Carbon released per unit respiration, as mg of CO2, with the oxygen
+   * consumed derived from it. Respiration is photosynthesis run backwards, so
+   * this is the same yield as `co2PerPhotosynthesis`; the day/night asymmetry
+   * belongs to `baseRespirationRate`.
+   */
   co2PerRespiration: number;
   /** Q10 temperature coefficient (rate multiplier per 10°C) */
   respirationQ10: number;
@@ -123,12 +127,14 @@ export interface PlantsConfig {
 }
 
 export const plantsDefaults: PlantsConfig = {
-  // Photosynthesis - calibrated for ~0.7 mg/L O2/hr at 100% plant size, optimal conditions
   basePhotosynthesisRate: 1.0,
   optimalCo2: 20.0, // mg/L - typical target for planted tanks
   optimalNitrate: 10.0, // ppm - typical target for planted tanks
-  o2PerPhotosynthesis: 0.7, // mg/L per photosynthesis unit
-  co2PerPhotosynthesis: 0.5, // mg/L per photosynthesis unit
+  // mg CO2 per photosynthesis unit. Pinned against a grown-in planted 150 L
+  // (≈1000 total plant size): it produces 0.5–1 mg/L/h of oxygen through the
+  // photoperiod and gives back under 2 mg/L over the dark hours. See
+  // `docs/calibration/runs/2026-08-06-gas-volume-stoichiometry.md`.
+  co2PerPhotosynthesis: 30.0,
   // Calibrated against scenario 02: at ~300 % total plant size with 8 hr
   // photoperiod and optimal CO2, potential photosynthesis ≈ 1.0 × 3.0 × 1.0
   // = 3.0 / hr → 24 units / day. 4 mg/unit × 24 × 1.2 (active biomass +
@@ -143,8 +149,7 @@ export const plantsDefaults: PlantsConfig = {
 
   // Respiration - ~15% of photosynthesis, runs 24/7
   baseRespirationRate: 0.15,
-  o2PerRespiration: 0.7, // Same stoichiometry as photosynthesis (reversed)
-  co2PerRespiration: 0.5,
+  co2PerRespiration: 30.0, // One reaction, one yield — the 15 % above is the asymmetry
   respirationQ10: 2.0, // Rate doubles per 10°C increase
   respirationReferenceTemp: 25.0, // °C
 
@@ -231,20 +236,12 @@ export const plantsConfigMeta: PlantsConfigMeta[] = [
   { key: 'optimalCo2', label: 'Optimal CO2', unit: 'mg/L', min: 5, max: 40, step: 1 },
   { key: 'optimalNitrate', label: 'Optimal Nitrate', unit: 'ppm', min: 5, max: 30, step: 1 },
   {
-    key: 'o2PerPhotosynthesis',
-    label: 'O2 per Photosynthesis',
-    unit: 'mg/L',
-    min: 0.1,
-    max: 2.0,
-    step: 0.1,
-  },
-  {
     key: 'co2PerPhotosynthesis',
     label: 'CO2 per Photosynthesis',
-    unit: 'mg/L',
-    min: 0.1,
-    max: 2.0,
-    step: 0.1,
+    unit: 'mg',
+    min: 1,
+    max: 200,
+    step: 1,
   },
   {
     key: 'nutrientsPerPhotosynthesis',
@@ -263,14 +260,13 @@ export const plantsConfigMeta: PlantsConfigMeta[] = [
     max: 0.5,
     step: 0.01,
   },
-  { key: 'o2PerRespiration', label: 'O2 per Respiration', unit: 'mg/L', min: 0.1, max: 2.0, step: 0.1 },
   {
     key: 'co2PerRespiration',
     label: 'CO2 per Respiration',
-    unit: 'mg/L',
-    min: 0.1,
-    max: 2.0,
-    step: 0.1,
+    unit: 'mg',
+    min: 1,
+    max: 200,
+    step: 1,
   },
   { key: 'respirationQ10', label: 'Respiration Q10', unit: '', min: 1.5, max: 3.0, step: 0.1 },
   {

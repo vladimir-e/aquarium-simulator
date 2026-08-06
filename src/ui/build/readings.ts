@@ -414,7 +414,7 @@ export function deviceHint(
       return muted('Tops off with tap water, blending the tank toward tap pH and temperature.');
     case 'co2Generator':
       return muted(
-        `${formatCo2Rate(equipment.co2Generator.bubbleRate, tank.capacity)} while injecting.`
+        `${formatCo2Rate(equipment.co2Generator.bubbleRate, resources.water)} while injecting.`
       );
     case 'powerhead':
       return (

@@ -8,6 +8,7 @@ import { createSimulation, type SimulationState } from '../state.js';
 import { produce } from 'immer';
 import { DEFAULT_CONFIG } from '../config/index.js';
 import { decayDefaults } from '../config/decay.js';
+import { MW_CO2, MW_O2 } from '../core/chemistry.js';
 
 describe('getTemperatureFactor', () => {
   it('returns 1.0 at reference temperature (25°C)', () => {
@@ -222,14 +223,14 @@ describe('decaySystem', () => {
     expect(o2Effect!.tier).toBe('passive');
   });
 
-  it('CO2 and O2 effects are equal and opposite', () => {
+  it('breathes one mole of O2 for every mole of CO2 it exhales', () => {
     const state = createTestState({ food: 1.0, temperature: 25 });
     const effects = decaySystem.update(state, DEFAULT_CONFIG);
 
     const co2Effect = effects.find((e) => e.resource === 'co2');
     const o2Effect = effects.find((e) => e.resource === 'oxygen');
 
-    expect(co2Effect!.delta).toBeCloseTo(-o2Effect!.delta, 6);
+    expect(co2Effect!.delta / MW_CO2).toBeCloseTo(-o2Effect!.delta / MW_O2, 10);
   });
 
   it('CO2/O2 effects scale inversely with water volume', () => {
@@ -246,19 +247,19 @@ describe('decaySystem', () => {
     expect(smallCo2).toBeCloseTo(largeCo2 * 4, 4);
   });
 
-  it('calculates correct CO2/O2 amounts based on decay', () => {
+  it('draws the oxygen the oxidised fraction demands', () => {
     // 100L tank, 1g food at 25°C
     const state = createTestState({ food: 1.0, temperature: 25, water: 100 });
     const effects = decaySystem.update(state, DEFAULT_CONFIG);
 
     const foodEffect = effects.find((e) => e.resource === 'food')!;
-    const co2Effect = effects.find((e) => e.resource === 'co2')!;
+    const o2Effect = effects.find((e) => e.resource === 'oxygen')!;
 
     const decayAmount = -foodEffect.delta; // 0.05g at 25°C
     const oxidizedAmount = decayAmount * (1 - decayDefaults.wasteConversionRatio); // 60%
-    const expectedCo2 = (oxidizedAmount * decayDefaults.gasExchangePerGramDecay) / 100; // mg/L
+    const expectedO2 = (oxidizedAmount * decayDefaults.gasExchangePerGramDecay) / 100; // mg/L
 
-    expect(co2Effect.delta).toBeCloseTo(expectedCo2, 6);
+    expect(-o2Effect.delta).toBeCloseTo(expectedO2, 6);
   });
 
   it('temperature affects CO2/O2 effects (through decay rate)', () => {
@@ -304,10 +305,10 @@ describe('decaySystem', () => {
     const state = createTestState({ food: 1.0, temperature: 25, water: 1000 });
     const effects = decaySystem.update(state, DEFAULT_CONFIG);
 
-    const co2Effect = effects.find((e) => e.resource === 'co2');
+    const o2Effect = effects.find((e) => e.resource === 'oxygen');
 
-    // 1000L tank: decay=0.05g, oxidized=0.03g, CO2=0.03g*250mg/g/1000L = 0.0075 mg/L
-    expect(co2Effect!.delta).toBeCloseTo(0.0075, 4);
+    // 1000L tank: decay=0.05g, oxidized=0.03g, O2=0.03g*250mg/g/1000L = 0.0075 mg/L
+    expect(-o2Effect!.delta).toBeCloseTo(0.0075, 4);
   });
 
   it('handles zero water volume gracefully (no CO2/O2 effects)', () => {

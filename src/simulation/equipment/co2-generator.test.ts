@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { produce } from 'immer';
 import {
   calculateCo2Injection,
   formatCo2Rate,
@@ -42,8 +43,8 @@ describe('CO2 Generator constants', () => {
 });
 
 describe('calculateCo2Injection', () => {
-  it('calculates CO2 injection based on bubble rate and tank capacity', () => {
-    // 1 bps in 100L tank = 200 / 100 = 2.0 mg/L/hr
+  it('calculates CO2 injection based on bubble rate and water volume', () => {
+    // 1 bps in 100L of water = 200 / 100 = 2.0 mg/L/hr
     const injection = calculateCo2Injection(1.0, TANK_100L);
     expect(injection).toBe(2.0);
   });
@@ -54,7 +55,7 @@ describe('calculateCo2Injection', () => {
     expect(high).toBe(low * 2);
   });
 
-  it('scales inversely with tank capacity', () => {
+  it('scales inversely with water volume', () => {
     const smallTank = calculateCo2Injection(1.0, 50);
     const largeTank = calculateCo2Injection(1.0, 100);
     expect(smallTank).toBe(largeTank * 2);
@@ -194,7 +195,7 @@ describe('co2GeneratorUpdate', () => {
       expect(result2.effects[0].delta).toBe(result1.effects[0].delta * 3);
     });
 
-    it('injection scales inversely with tank capacity', () => {
+    it('injection scales inversely with water volume', () => {
       const smallTankState = createSimulation({
         tankCapacity: 50,
         co2Generator: {
@@ -217,6 +218,24 @@ describe('co2GeneratorUpdate', () => {
 
       // 50L tank should have 2x the concentration increase
       expect(smallResult.effects[0].delta).toBe(largeResult.effects[0].delta * 2);
+    });
+
+    it('doses the water in the tank, not the glass around it', () => {
+      const state = createSimulation({
+        tankCapacity: 100,
+        co2Generator: {
+          enabled: true,
+          bubbleRate: 1.0,
+          schedule: { startHour: 0, duration: 24 },
+        },
+      });
+      const evaporated = produce(state, (draft) => {
+        draft.resources.water = 50;
+      });
+
+      expect(co2GeneratorUpdate(evaporated).effects[0].delta).toBe(
+        co2GeneratorUpdate(state).effects[0].delta * 2
+      );
     });
 
     it('works at schedule start hour', () => {

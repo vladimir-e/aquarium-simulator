@@ -171,6 +171,7 @@ Note: algae is no longer a resource. It's a top-level organism on
 |----------|-------|
 | **Type** | Chemical |
 | **Unit** | mg/L (milligrams per liter) |
+| **Storage** | Concentration — organisms emit a mass, the resource layer divides by water |
 | **Typical** | 6-8 mg/L |
 | **Providers** | Gas exchange, plant photosynthesis |
 | **Consumers** | Fish respiration, bacterial respiration, plant respiration (night) |
@@ -188,6 +189,7 @@ Note: algae is no longer a resource. It's a top-level organism on
 |----------|-------|
 | **Type** | Chemical |
 | **Unit** | mg/L or ppm |
+| **Storage** | Concentration — organisms emit a mass, the resource layer divides by water |
 | **Typical** | 10-30 mg/L for planted tanks |
 | **Providers** | CO2 injection, fish respiration, bacterial respiration |
 | **Consumers** | Gas exchange (off-gassing), plant photosynthesis |

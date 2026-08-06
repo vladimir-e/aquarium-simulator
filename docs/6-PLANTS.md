@@ -132,11 +132,21 @@ potassium_consumed = consumption * (2 / total_ratio)
 iron_consumed = consumption * (0.1 / total_ratio)
 ```
 
-### Oxygen Production
+### Carbon and Oxygen
+
+Photosynthesis fixes carbon and releases oxygen; the two are one reaction, so
+only the carbon is a free parameter. The draw is clamped to the carbon actually
+dissolved, and the oxygen comes off what was fixed — a carbon-starved tank stops
+producing oxygen because there was no carbon to pay for it.
 
 ```
-oxygen_produced = photosynthesis_rate * total_plant_size * oxygen_per_unit
+co2_fixed_mg = min(actual_rate * co2_per_photosynthesis, co2_mg_per_l * water_volume)
+o2_released_mg = co2_fixed_mg * MW_O2 / MW_CO2          # 6CO2 → 6O2, 1:1 in moles
 ```
+
+Both are **masses**, like the nutrient draws beside them. The resource layer
+divides by the tank's water volume to reach the mg/L the gases are stored as, so
+the same planting moves a nano further than it moves a 300 L.
 
 ---
 
@@ -202,8 +212,15 @@ Plants respire continuously, consuming oxygen and producing CO2.
 - Net O2 CONSUMPTION
 - Net CO2 PRODUCTION
 
+Respiration is photosynthesis run backwards, so it runs on the same yield: the
+carbon released decides the oxygen burnt, at the same molar ratio. The day/night
+asymmetry is `base_respiration`, ~15 % of the photosynthetic rate — not a
+second, disagreeing pair of coefficients.
+
 ```
 respiration_rate = base_respiration * temperature_factor * total_plant_size
+co2_released_mg = respiration_rate * co2_per_respiration
+o2_burnt_mg = co2_released_mg * MW_O2 / MW_CO2
 
 if lights_on:
     O2_change = photosynthesis_O2 - respiration_O2  # positive

@@ -123,8 +123,13 @@ export function processPlants(
     }
   };
 
-  pushDelta('oxygen', photosynthesisResult.oxygenDelta, 'photosynthesis');
-  pushDelta('co2', photosynthesisResult.co2Delta, 'photosynthesis');
+  // Every draw below is a mass, but only the gases are *stored* as a
+  // concentration, so only they convert through the water volume.
+  const waterVolume = state.resources.water;
+  const perLitre = (mass: number): number => (waterVolume > 0 ? mass / waterVolume : 0);
+
+  pushDelta('oxygen', perLitre(photosynthesisResult.oxygenProducedMg), 'photosynthesis');
+  pushDelta('co2', -perLitre(photosynthesisResult.co2ConsumedMg), 'photosynthesis');
   pushDelta('nitrate', photosynthesisResult.nitrateDelta, 'photosynthesis');
   pushDelta('phosphate', photosynthesisResult.phosphateDelta, 'photosynthesis');
   pushDelta('potassium', photosynthesisResult.potassiumDelta, 'photosynthesis');
@@ -137,24 +142,8 @@ export function processPlants(
     plantsConfig
   );
 
-  // Add respiration effects
-  if (respirationResult.oxygenDelta !== 0) {
-    effects.push({
-      tier: 'active',
-      resource: 'oxygen',
-      delta: respirationResult.oxygenDelta,
-      source: 'respiration',
-    });
-  }
-
-  if (respirationResult.co2Delta !== 0) {
-    effects.push({
-      tier: 'active',
-      resource: 'co2',
-      delta: respirationResult.co2Delta,
-      source: 'respiration',
-    });
-  }
+  pushDelta('oxygen', -perLitre(respirationResult.oxygenConsumedMg), 'respiration');
+  pushDelta('co2', perLitre(respirationResult.co2ProducedMg), 'respiration');
 
   // 3. Vitality per plant: drives condition update and returns the new
   //    surplus bank. Algae mass comes from the prior tick's `state.algae.mass`

@@ -52,12 +52,7 @@ import { createSimulation } from '../state.js';
 import { getMassFromPpm } from '../resources/helpers.js';
 import { nitrogenCycleDefaults } from '../config/nitrogen-cycle.js';
 import { DEFAULT_CONFIG } from '../config/index.js';
-import {
-  MW_N,
-  MW_NH3,
-  MW_NO2,
-  MW_NO3,
-} from '../systems/nitrogen-cycle.js';
+import { MW_N, MW_NH3, MW_NO2, MW_NO3 } from '../core/chemistry.js';
 import type { SimulationState, SimulationConfig } from '../state.js';
 import type { FishSpecies } from '../livestock/species.js';
 import type { TunableConfig } from '../config/index.js';

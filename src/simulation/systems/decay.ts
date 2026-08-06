@@ -10,6 +10,7 @@ import type { TunableConfig } from '../config/index.js';
 import { type DecayConfig, decayDefaults } from '../config/decay.js';
 import { nutrientsDefaults } from '../config/nutrients.js';
 import { q10Factor } from '../core/kinetics.js';
+import { O2_TO_CO2_MASS_RATIO } from '../core/chemistry.js';
 
 /**
  * Calculate temperature factor for decay rate using Q10 coefficient.
@@ -85,28 +86,26 @@ export const decaySystem: System = {
           source: 'decay',
         });
 
-        // Oxidized portion produces CO2 and consumes O2
-        // CO2/O2 are concentrations (mg/L), so divide by water volume
+        // Oxidized portion consumes O2 and produces CO2, one mole for one.
+        // CO2/O2 are concentrations (mg/L), so divide by water volume.
         const oxidizedAmount = decayAmount * (1 - decayConfig.wasteConversionRatio);
         const waterVolume = state.resources.water;
 
         if (waterVolume > 0) {
-          const gasExchangeMgPerL =
+          const oxygenDemandMgPerL =
             (oxidizedAmount * decayConfig.gasExchangePerGramDecay) / waterVolume;
 
-          // CO2 produced by aerobic decomposition
           effects.push({
             tier: 'passive',
             resource: 'co2',
-            delta: gasExchangeMgPerL,
+            delta: oxygenDemandMgPerL * O2_TO_CO2_MASS_RATIO,
             source: 'decay',
           });
 
-          // O2 consumed by bacteria respiration
           effects.push({
             tier: 'passive',
             resource: 'oxygen',
-            delta: -gasExchangeMgPerL,
+            delta: -oxygenDemandMgPerL,
             source: 'decay',
           });
         }

@@ -12,7 +12,7 @@ import {
   type SubstrateType,
 } from './equipment/substrate.js';
 import { nitrogenCycleDefaults } from './config/nitrogen-cycle.js';
-import { NH3_TO_NO2_MASS_RATIO, NO2_TO_NO3_MASS_RATIO } from './systems/nitrogen-cycle.js';
+import { NH3_TO_NO2_MASS_RATIO, NO2_TO_NO3_MASS_RATIO } from './core/chemistry.js';
 import { createFish } from './livestock/create-fish.js';
 import { createPlant } from './plants/create-plant.js';
 

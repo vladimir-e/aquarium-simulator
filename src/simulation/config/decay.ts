@@ -11,7 +11,10 @@ export interface DecayConfig {
   baseDecayRate: number;
   /** Fraction of decaying food that becomes solid waste */
   wasteConversionRatio: number;
-  /** Gas exchange per gram of organic matter oxidized (mg per gram) */
+  /**
+   * Oxygen the bacteria demand per gram of organic matter oxidised (mg O2/g).
+   * The CO2 they release derives from it at the molar ratio.
+   */
   gasExchangePerGramDecay: number;
   /** Fraction of the substrate's remaining organic reserve released per hour */
   substrateLeachRate: number;
@@ -41,6 +44,6 @@ export const decayConfigMeta: DecayConfigMeta[] = [
   { key: 'referenceTemp', label: 'Reference Temperature', unit: '°C', min: 15, max: 35, step: 1 },
   { key: 'baseDecayRate', label: 'Base Decay Rate', unit: '/hr', min: 0.01, max: 0.2, step: 0.01 },
   { key: 'wasteConversionRatio', label: 'Waste Conversion Ratio', unit: '', min: 0.1, max: 0.9, step: 0.1 },
-  { key: 'gasExchangePerGramDecay', label: 'CO2/O2 per Gram Decay', unit: 'mg/g', min: 50, max: 500, step: 10 },
+  { key: 'gasExchangePerGramDecay', label: 'O2 Demand per Gram Decay', unit: 'mg O2/g', min: 50, max: 500, step: 10 },
   { key: 'substrateLeachRate', label: 'Substrate Leach Rate', unit: '/hr', min: 0, max: 0.02, step: 0.0005 },
 ];

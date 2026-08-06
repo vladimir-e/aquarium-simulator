@@ -4,6 +4,7 @@ import {
   calculateRespiration,
 } from './respiration.js';
 import { plantsDefaults } from '../config/plants.js';
+import { CO2_TO_O2_MASS_RATIO, MW_CO2, MW_O2 } from '../core/chemistry.js';
 
 describe('getRespirationTemperatureFactor', () => {
   it('returns 1.0 at reference temperature (25C)', () => {
@@ -73,37 +74,30 @@ describe('calculateRespiration', () => {
     it('returns zeros when plant size is 0', () => {
       const result = calculateRespiration(0, 25);
 
-      expect(result.oxygenDelta).toBe(0);
-      expect(result.co2Delta).toBe(0);
+      expect(result.oxygenConsumedMg).toBe(0);
+      expect(result.co2ProducedMg).toBe(0);
     });
 
     it('returns zeros when plant size is negative', () => {
       const result = calculateRespiration(-50, 25);
 
-      expect(result.oxygenDelta).toBe(0);
-      expect(result.co2Delta).toBe(0);
+      expect(result.oxygenConsumedMg).toBe(0);
+      expect(result.co2ProducedMg).toBe(0);
     });
   });
 
   describe('at reference temperature (25C)', () => {
-    it('consumes oxygen (negative delta)', () => {
+    it('consumes oxygen and produces CO2', () => {
       const result = calculateRespiration(100, 25);
-      expect(result.oxygenDelta).toBeLessThan(0);
+
+      expect(result.oxygenConsumedMg).toBeGreaterThan(0);
+      expect(result.co2ProducedMg).toBeGreaterThan(0);
     });
 
-    it('produces CO2 (positive delta)', () => {
-      const result = calculateRespiration(100, 25);
-      expect(result.co2Delta).toBeGreaterThan(0);
-    });
-
-    it('O2 consumption and CO2 production are related by stoichiometry', () => {
+    it('burns one mole of O2 for every mole of carbon it releases', () => {
       const result = calculateRespiration(100, 25);
 
-      // Based on config: o2PerRespiration = 0.7, co2PerRespiration = 0.5
-      // Ratio should be 0.7/0.5 = 1.4
-      const ratio = Math.abs(result.oxygenDelta) / result.co2Delta;
-      const expectedRatio = plantsDefaults.o2PerRespiration / plantsDefaults.co2PerRespiration;
-      expect(ratio).toBeCloseTo(expectedRatio, 6);
+      expect(result.oxygenConsumedMg / MW_O2).toBeCloseTo(result.co2ProducedMg / MW_CO2, 10);
     });
   });
 
@@ -112,30 +106,30 @@ describe('calculateRespiration', () => {
       const result100 = calculateRespiration(100, 25);
       const result200 = calculateRespiration(200, 25);
 
-      expect(result200.oxygenDelta).toBeCloseTo(result100.oxygenDelta * 2, 6);
-      expect(result200.co2Delta).toBeCloseTo(result100.co2Delta * 2, 6);
+      expect(result200.oxygenConsumedMg).toBeCloseTo(result100.oxygenConsumedMg * 2, 6);
+      expect(result200.co2ProducedMg).toBeCloseTo(result100.co2ProducedMg * 2, 6);
     });
 
     it('handles fractional plant sizes', () => {
       const result50 = calculateRespiration(50, 25);
       const result100 = calculateRespiration(100, 25);
 
-      expect(result50.oxygenDelta).toBeCloseTo(result100.oxygenDelta / 2, 6);
-      expect(result50.co2Delta).toBeCloseTo(result100.co2Delta / 2, 6);
+      expect(result50.oxygenConsumedMg).toBeCloseTo(result100.oxygenConsumedMg / 2, 6);
+      expect(result50.co2ProducedMg).toBeCloseTo(result100.co2ProducedMg / 2, 6);
     });
 
     it('handles very small plant sizes', () => {
       const result = calculateRespiration(1, 25);
 
-      expect(result.oxygenDelta).toBeLessThan(0);
-      expect(result.co2Delta).toBeGreaterThan(0);
+      expect(result.oxygenConsumedMg).toBeGreaterThan(0);
+      expect(result.co2ProducedMg).toBeGreaterThan(0);
     });
 
     it('handles very large plant sizes', () => {
       const result = calculateRespiration(500, 25);
 
-      expect(result.oxygenDelta).toBeLessThan(0);
-      expect(result.co2Delta).toBeGreaterThan(0);
+      expect(result.oxygenConsumedMg).toBeGreaterThan(0);
+      expect(result.co2ProducedMg).toBeGreaterThan(0);
     });
   });
 
@@ -144,52 +138,49 @@ describe('calculateRespiration', () => {
       const result25 = calculateRespiration(100, 25);
       const result35 = calculateRespiration(100, 35);
 
-      expect(result35.oxygenDelta).toBeCloseTo(result25.oxygenDelta * 2, 6);
-      expect(result35.co2Delta).toBeCloseTo(result25.co2Delta * 2, 6);
+      expect(result35.oxygenConsumedMg).toBeCloseTo(result25.oxygenConsumedMg * 2, 6);
+      expect(result35.co2ProducedMg).toBeCloseTo(result25.co2ProducedMg * 2, 6);
     });
 
     it('respiration halves at -10C (15C vs 25C)', () => {
       const result25 = calculateRespiration(100, 25);
       const result15 = calculateRespiration(100, 15);
 
-      expect(result15.oxygenDelta).toBeCloseTo(result25.oxygenDelta / 2, 6);
-      expect(result15.co2Delta).toBeCloseTo(result25.co2Delta / 2, 6);
+      expect(result15.oxygenConsumedMg).toBeCloseTo(result25.oxygenConsumedMg / 2, 6);
+      expect(result15.co2ProducedMg).toBeCloseTo(result25.co2ProducedMg / 2, 6);
     });
 
     it('higher temperatures increase respiration rate', () => {
       const resultCold = calculateRespiration(100, 20);
       const resultWarm = calculateRespiration(100, 30);
 
-      // More O2 consumed at higher temp (more negative)
-      expect(resultWarm.oxygenDelta).toBeLessThan(resultCold.oxygenDelta);
-      // More CO2 produced at higher temp
-      expect(resultWarm.co2Delta).toBeGreaterThan(resultCold.co2Delta);
+      expect(resultWarm.oxygenConsumedMg).toBeGreaterThan(resultCold.oxygenConsumedMg);
+      expect(resultWarm.co2ProducedMg).toBeGreaterThan(resultCold.co2ProducedMg);
     });
 
     it('cold temperatures reduce respiration rate', () => {
       const resultCold = calculateRespiration(100, 10);
       const resultRef = calculateRespiration(100, 25);
 
-      // Less O2 consumed at lower temp (less negative)
-      expect(resultCold.oxygenDelta).toBeGreaterThan(resultRef.oxygenDelta);
-      // Less CO2 produced at lower temp
-      expect(resultCold.co2Delta).toBeLessThan(resultRef.co2Delta);
+      expect(resultCold.oxygenConsumedMg).toBeLessThan(resultRef.oxygenConsumedMg);
+      expect(resultCold.co2ProducedMg).toBeLessThan(resultRef.co2ProducedMg);
     });
   });
 
   describe('calibration', () => {
-    it('respiration rate is ~15% of max photosynthesis at reference temp', () => {
-      // At 100% plant size and reference temp
+    it('releases the configured carbon per unit at 100 % size and reference temp', () => {
       const result = calculateRespiration(100, 25);
 
-      // Based on config: baseRespirationRate = 0.15
-      // O2 consumption = 0.15 * 0.7 = 0.105 mg/L
-      const expectedO2 = -plantsDefaults.baseRespirationRate * plantsDefaults.o2PerRespiration;
-      expect(result.oxygenDelta).toBeCloseTo(expectedO2, 6);
-
-      // CO2 production = 0.15 * 0.5 = 0.075 mg/L
       const expectedCo2 = plantsDefaults.baseRespirationRate * plantsDefaults.co2PerRespiration;
-      expect(result.co2Delta).toBeCloseTo(expectedCo2, 6);
+      expect(result.co2ProducedMg).toBeCloseTo(expectedCo2, 6);
+      expect(result.oxygenConsumedMg).toBeCloseTo(expectedCo2 * CO2_TO_O2_MASS_RATIO, 6);
+    });
+
+    it('runs at 15 % of the photosynthetic rate on the same yield', () => {
+      const respired = calculateRespiration(100, 25).co2ProducedMg;
+      const fixed = plantsDefaults.basePhotosynthesisRate * plantsDefaults.co2PerPhotosynthesis;
+
+      expect(respired / fixed).toBeCloseTo(plantsDefaults.baseRespirationRate, 6);
     });
   });
 
@@ -200,25 +191,16 @@ describe('calculateRespiration', () => {
       const customResult = calculateRespiration(100, 25, customConfig);
 
       // Custom should be 2x default (0.3 vs 0.15)
-      expect(customResult.oxygenDelta).toBeCloseTo(defaultResult.oxygenDelta * 2, 6);
+      expect(customResult.oxygenConsumedMg).toBeCloseTo(defaultResult.oxygenConsumedMg * 2, 6);
     });
 
-    it('respects custom O2 per respiration', () => {
-      const customConfig = { ...plantsDefaults, o2PerRespiration: 1.4 };
+    it('moves both gases together when the carbon yield changes', () => {
+      const customConfig = { ...plantsDefaults, co2PerRespiration: 60 };
       const defaultResult = calculateRespiration(100, 25, plantsDefaults);
       const customResult = calculateRespiration(100, 25, customConfig);
 
-      // Custom should be 2x O2 consumption (1.4 vs 0.7)
-      expect(customResult.oxygenDelta).toBeCloseTo(defaultResult.oxygenDelta * 2, 6);
-    });
-
-    it('respects custom CO2 per respiration', () => {
-      const customConfig = { ...plantsDefaults, co2PerRespiration: 1.0 };
-      const defaultResult = calculateRespiration(100, 25, plantsDefaults);
-      const customResult = calculateRespiration(100, 25, customConfig);
-
-      // Custom should be 2x CO2 production (1.0 vs 0.5)
-      expect(customResult.co2Delta).toBeCloseTo(defaultResult.co2Delta * 2, 6);
+      expect(customResult.co2ProducedMg).toBeCloseTo(defaultResult.co2ProducedMg * 2, 6);
+      expect(customResult.oxygenConsumedMg).toBeCloseTo(defaultResult.oxygenConsumedMg * 2, 6);
     });
   });
 });

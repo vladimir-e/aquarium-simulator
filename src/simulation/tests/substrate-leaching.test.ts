@@ -20,11 +20,8 @@ import {
   type SubstrateType,
 } from '../equipment/substrate.js';
 import { rescape } from '../equipment/index.js';
-import {
-  calculateInoculum,
-  NH3_TO_NO2_MASS_RATIO,
-  NO2_TO_NO3_MASS_RATIO,
-} from '../systems/nitrogen-cycle.js';
+import { calculateInoculum } from '../systems/nitrogen-cycle.js';
+import { NH3_TO_NO2_MASS_RATIO, NO2_TO_NO3_MASS_RATIO } from '../core/chemistry.js';
 import { fishlessTank } from './tanks.js';
 import type { SimulationState } from '../state.js';
 

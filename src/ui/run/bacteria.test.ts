@@ -9,7 +9,7 @@ import {
   type CycleProjection,
 } from './bacteria';
 import { DEFAULT_CONFIG, nitrogenCycleDefaults } from '../../simulation/config/index.js';
-import { NO2_TO_NO3_MASS_RATIO } from '../../simulation/systems/nitrogen-cycle.js';
+import { NO2_TO_NO3_MASS_RATIO } from '../../simulation/core/chemistry.js';
 import {
   applyAction,
   createSimulation,

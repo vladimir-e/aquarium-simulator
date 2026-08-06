@@ -15,11 +15,8 @@ import { tick } from '../tick.js';
 import { applyAction } from '../actions/index.js';
 import { getPpm, getMassFromPpm } from '../resources/helpers.js';
 import { DEFAULT_CONFIG, type TunableConfig } from '../config/index.js';
-import {
-  calculateAmmoniaToNitrite,
-  calculateMaxBacteria,
-  NH3_TO_NO2_MASS_RATIO,
-} from '../systems/nitrogen-cycle.js';
+import { calculateAmmoniaToNitrite, calculateMaxBacteria } from '../systems/nitrogen-cycle.js';
+import { NH3_TO_NO2_MASS_RATIO } from '../core/chemistry.js';
 import {
   SUBSTRATE_ORGANIC_PER_LITER,
   type SubstrateType,
