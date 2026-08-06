@@ -205,6 +205,6 @@ Two further findings from the same build, worth keeping:
 
 The four permissive anchors hold on the shipped branch: the cycle completes in
 15–35 days at every volume, mass conservation holds end-to-end, a sane preset
-survives 90 days, nothing runs away. `npm test` 2592 passed / 148 files,
-`npm run typecheck` clean on all three configs, `npm run lint` clean apart from
-the 3 standing `no-console` warnings.
+survives 90 days, nothing runs away. Re-read 2026-08-08 with the tables above:
+`npm test` 2634 passed / 151 files, `npm run typecheck` clean on all three
+configs, `npm run lint` clean apart from the 3 standing `no-console` warnings.

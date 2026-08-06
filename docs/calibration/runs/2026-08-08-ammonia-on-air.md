@@ -118,7 +118,7 @@ All four permissive anchors hold.
   basal term that now sums the factor rather than counting ticks.
 - **Nothing runs away** — the 90-day guard bands hold.
 
-`npm test` 2631 passed / 151 files · `npx tsc --noEmit` clean on all three
+`npm test` 2634 passed / 151 files · `npx tsc --noEmit` clean on all three
 configs · `npm run lint` clean apart from the 3 standing `no-console` warnings.
 
 ### Tests that moved, and why
