@@ -19,6 +19,7 @@ import {
   calculateAmmoniaToNitrite,
   calculateMaxBacteria,
   nitrifierOxygenFactor,
+  nitrogenCycleSystem,
 } from '../systems/nitrogen-cycle.js';
 import { NH3_TO_NO2_MASS_RATIO } from '../core/chemistry.js';
 import {
@@ -147,6 +148,32 @@ describe('bacteria colony dynamics', () => {
       };
 
       expect(cleared(150)).toBeCloseTo(cleared(20), 10);
+    });
+
+    it('spends the same oxygen per bacterium whatever the tank holds', () => {
+      // The other half of the units claim, and the half nothing was reading:
+      // both oxidations bill the water in mg/L, so the mass behind that bill
+      // has to be a property of the cells the way the throughput above is.
+      const spent = (capacity: number): number => {
+        const seeded = produce(
+          createSimulation({ tankCapacity: capacity, ato: { enabled: true } }),
+          (draft) => {
+            draft.resources.aob = 1000;
+            draft.resources.nob = 1000;
+            draft.resources.ammonia = getMassFromPpm(50, draft.resources.water);
+            draft.resources.nitrite = getMassFromPpm(50, draft.resources.water);
+          }
+        );
+        const drawn = nitrogenCycleSystem
+          .update(seeded, DEFAULT_CONFIG)
+          .filter((effect) => effect.resource === 'oxygen')
+          .reduce((sum, effect) => sum + effect.delta, 0);
+
+        return getMassFromPpm(-drawn, seeded.resources.water);
+      };
+
+      expect(spent(1000)).toBeCloseTo(spent(10), 10);
+      expect(spent(10)).toBeGreaterThan(0);
     });
   });
 

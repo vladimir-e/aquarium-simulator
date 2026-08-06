@@ -14,7 +14,12 @@ import {
   nitrifierOxygenFactor,
   NOB_PROCESSING_RATE_MULTIPLIER,
 } from './nitrogen-cycle.js';
-import { NH3_TO_NO2_MASS_RATIO, NO2_TO_NO3_MASS_RATIO } from '../core/chemistry.js';
+import {
+  NH3_TO_NO2_MASS_RATIO,
+  NO2_TO_NO3_MASS_RATIO,
+  O2_PER_NH3_OXIDIZED,
+  O2_PER_NO2_OXIDIZED,
+} from '../core/chemistry.js';
 import { createSimulation, type SimulationState } from '../state.js';
 import { type SubstrateType } from '../equipment/substrate.js';
 import { applyEffects, type Effect } from '../core/effects.js';
@@ -247,6 +252,18 @@ describe('calculateAmmoniaToNitrite', () => {
     // N-mass conservation: mg of N is the same before and after.
     expect(nitriteProduced * (14.01 / 46.01)).toBeCloseTo(ammoniaConsumed * (14.01 / 17.03), 10);
   });
+
+  it('pays for the ammonia it oxidises at the reaction rate, not at a rate of its own', () => {
+    const { ammoniaConsumed, oxygenConsumedMg } = calculateAmmoniaToNitrite(100, 100, REF, AIR);
+
+    expect(oxygenConsumedMg).toBeCloseTo(ammoniaConsumed * O2_PER_NH3_OXIDIZED, 12);
+  });
+
+  it('spends nothing on an hour it converts nothing in', () => {
+    expect(calculateAmmoniaToNitrite(0, 100, REF, AIR).oxygenConsumedMg).toBe(0);
+    expect(calculateAmmoniaToNitrite(100, 0, REF, AIR).oxygenConsumedMg).toBe(0);
+    expect(calculateAmmoniaToNitrite(100, 100, REF, 0).oxygenConsumedMg).toBe(0);
+  });
 });
 
 describe('aobCapacity / nobCapacity', () => {
@@ -319,6 +336,18 @@ describe('calculateNitriteToNitrate', () => {
     expect(nitrateProduced * (14.01 / 62.0)).toBeCloseTo(nitriteConsumed * (14.01 / 46.01), 10);
   });
 
+  it('pays for the nitrite it oxidises at the reaction rate, not at a rate of its own', () => {
+    const { nitriteConsumed, oxygenConsumedMg } = calculateNitriteToNitrate(1000, 100, REF, AIR);
+
+    expect(oxygenConsumedMg).toBeCloseTo(nitriteConsumed * O2_PER_NO2_OXIDIZED, 12);
+  });
+
+  it('spends nothing on an hour it converts nothing in', () => {
+    expect(calculateNitriteToNitrate(0, 100, REF, AIR).oxygenConsumedMg).toBe(0);
+    expect(calculateNitriteToNitrate(1000, 0, REF, AIR).oxygenConsumedMg).toBe(0);
+    expect(calculateNitriteToNitrate(1000, 100, REF, 0).oxygenConsumedMg).toBe(0);
+  });
+
   it('NOB throughput trails AOB at population parity by exactly the air between them', () => {
     // At equal populations and non-limiting substrate the chain is balanced
     // per N atom, up to the one thing the two guilds do not share: how much of
@@ -369,6 +398,10 @@ describe('nitrifierOxygenFactor', () => {
 describe('NOB_PROCESSING_RATE_MULTIPLIER', () => {
   it('is the mass a milligram of NH3 gains on its way to NO2', () => {
     expect(NOB_PROCESSING_RATE_MULTIPLIER).toBeCloseTo(46.01 / 17.03, 10);
+  });
+
+  it('is that mass as `chemistry.ts` states it, so the two cannot drift apart', () => {
+    expect(NOB_PROCESSING_RATE_MULTIPLIER).toBeCloseTo(NH3_TO_NO2_MASS_RATIO, 12);
   });
 });
 
