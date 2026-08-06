@@ -10,7 +10,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { produce } from 'immer';
-import { createSimulation, type SimulationState } from '../state.js';
+import { type SimulationState } from '../state.js';
 import { tick } from '../tick.js';
 import { applyAction } from '../actions/index.js';
 import { getPpm, getMassFromPpm } from '../resources/helpers.js';
@@ -18,17 +18,24 @@ import { DEFAULT_CONFIG, type TunableConfig } from '../config/index.js';
 import {
   calculateAmmoniaToNitrite,
   calculateMaxBacteria,
-  NH3_TO_NO2_MASS_RATIO,
+  nitrifierOxygenFactor,
+  nitrogenCycleSystem,
 } from '../systems/nitrogen-cycle.js';
+import { NH3_TO_NO2_MASS_RATIO } from '../core/chemistry.js';
 import {
   SUBSTRATE_ORGANIC_PER_LITER,
   type SubstrateType,
 } from '../equipment/substrate.js';
+import { tuned } from './sweep.js';
 import {
   DAY,
+  type Circulation,
+  type CycleTrace,
   colonyFill,
   cycledTank,
   doseClearance,
+  saturatedColony,
+  seededColony,
   fishlessTank,
   run,
   stock,
@@ -37,6 +44,12 @@ import {
 
 const nc = DEFAULT_CONFIG.nitrogenCycle;
 
+/** Nitrification with no oxygen term at all — the counterfactual, not a tank. */
+const AIRLESS = tuned((draft) => {
+  draft.nitrogenCycle.aobOxygenHalfSaturation = 0;
+  draft.nitrogenCycle.nobOxygenHalfSaturation = 0;
+});
+
 const ammoniaPpm = (s: SimulationState): number => getPpm(s.resources.ammonia, s.resources.water);
 const nitritePpm = (s: SimulationState): number => getPpm(s.resources.nitrite, s.resources.water);
 const ceiling = (s: SimulationState, config: TunableConfig = DEFAULT_CONFIG): number =>
@@ -44,10 +57,7 @@ const ceiling = (s: SimulationState, config: TunableConfig = DEFAULT_CONFIG): nu
 
 /** Hours for a colony to double with its substrate held non-limiting. */
 function doublingHours(capacity: number, resource: 'aob' | 'nob'): number {
-  let state = produce(createSimulation({ tankCapacity: capacity, ato: { enabled: true } }), (draft) => {
-    draft.resources.aob = 1;
-    draft.resources.nob = 1;
-  });
+  let state = seededColony(capacity, { aob: 1, nob: 1 });
 
   for (let hour = 1; hour <= 500; hour++) {
     state = produce(state, (draft) => {
@@ -62,22 +72,20 @@ function doublingHours(capacity: number, resource: 'aob' | 'nob'): number {
 
 /**
  * Settle a colony against a fixed ammonia inflow and read the utilization it
- * rests at, along with how full its ceiling is.
+ * rests at, along with how full its ceiling is and how much of its growth rate
+ * the water's oxygen was leaving it.
  */
 function settle(
   capacity: number,
   inflowPpmPerHour: number,
   config: TunableConfig = DEFAULT_CONFIG
-): { utilization: number; fill: number } {
+): { utilization: number; fill: number; air: number } {
   const feed = (state: SimulationState): SimulationState =>
     produce(state, (draft) => {
       draft.resources.ammonia += getMassFromPpm(inflowPpmPerHour, draft.resources.water);
     });
 
-  let state = produce(createSimulation({ tankCapacity: capacity, ato: { enabled: true } }), (draft) => {
-    draft.resources.aob = 5;
-    draft.resources.nob = 5;
-  });
+  let state = seededColony(capacity, { aob: 5, nob: 5 });
   for (let hour = 0; hour < 300 * DAY; hour++) state = tick(feed(state), config);
 
   const settled = feed(state);
@@ -86,9 +94,11 @@ function settle(
       settled.resources.ammonia,
       settled.resources.aob,
       settled.resources.temperature,
+      settled.resources.oxygen,
       config.nitrogenCycle
     ).utilization,
     fill: state.resources.aob / ceiling(state, config),
+    air: nitrifierOxygenFactor('aob', settled.resources.oxygen, config.nitrogenCycle),
   };
 }
 
@@ -121,30 +131,49 @@ describe('bacteria colony dynamics', () => {
       // The units claim, read through the whole system rather than the
       // conversion function: a colony's throughput is a property of its cells.
       const cleared = (capacity: number): number => {
-        const seeded = produce(
-          createSimulation({ tankCapacity: capacity, ato: { enabled: true } }),
-          (draft) => {
-            draft.resources.aob = 1000;
-            draft.resources.ammonia = getMassFromPpm(50, draft.resources.water);
-          }
-        );
+        const seeded = seededColony(capacity, { aob: 1000, ammoniaPpm: 50 });
         const after = tick(seeded, DEFAULT_CONFIG);
         return seeded.resources.ammonia - after.resources.ammonia;
       };
 
       expect(cleared(150)).toBeCloseTo(cleared(20), 10);
+      expect(cleared(20)).toBeGreaterThan(0);
+    });
+
+    it('spends the same oxygen per bacterium whatever the tank holds', () => {
+      // The other half of the units claim, and the half nothing was reading:
+      // both oxidations bill the water in mg/L, so the mass behind that bill
+      // has to be a property of the cells the way the throughput above is.
+      const spent = (capacity: number): number => {
+        const seeded = seededColony(capacity, {
+          aob: 1000,
+          nob: 1000,
+          ammoniaPpm: 50,
+          nitritePpm: 50,
+        });
+        const drawn = nitrogenCycleSystem
+          .update(seeded, DEFAULT_CONFIG)
+          .filter((effect) => effect.resource === 'oxygen')
+          .reduce((sum, effect) => sum + effect.delta, 0);
+
+        return getMassFromPpm(-drawn, seeded.resources.water);
+      };
+
+      expect(spent(1000)).toBeCloseTo(spent(10), 10);
+      expect(spent(10)).toBeGreaterThan(0);
     });
   });
 
   describe('a colony under a steady load settles where its two rates cancel', () => {
     it('rests at the utilization that makes growth equal decay', () => {
-      // Growth is g·u·(1 − p/K) and decay is d, so the fixed point is
-      // u = d / (g·(1 − p/K)). This is the model's own arithmetic, and it
+      // Growth is g·a·u·(1 − p/K) against decay d, where `a` is what the water's
+      // oxygen leaves of the growth rate — so the fixed point is
+      // u = d / (g·a·(1 − p/K)). This is the model's own arithmetic, and it
       // holds whether or not the ceiling is anywhere near.
       for (const capacity of [20, 150]) {
         for (const inflow of [0.002, 0.01]) {
-          const { utilization, fill } = settle(capacity, inflow);
-          const predicted = nc.bacteriaDeathRate / (nc.aobGrowthRate * (1 - fill));
+          const { utilization, fill, air } = settle(capacity, inflow);
+          const predicted = nc.bacteriaDeathRate / (nc.aobGrowthRate * air * (1 - fill));
 
           expect(utilization).toBeCloseTo(predicted, 3);
         }
@@ -152,15 +181,53 @@ describe('bacteria colony dynamics', () => {
     });
 
     it('rests near deathRate / growthRate, because the ceiling is far off', () => {
-      const bare = nc.bacteriaDeathRate / nc.aobGrowthRate;
-
       for (const capacity of [20, 150]) {
-        const { utilization, fill } = settle(capacity, 0.002);
+        const { utilization, fill, air } = settle(capacity, 0.002);
+        const bare = nc.bacteriaDeathRate / (nc.aobGrowthRate * air);
 
         expect(fill).toBeLessThan(0.15);
         expect(utilization).toBeGreaterThan(bare);
         expect(utilization).toBeLessThan(bare * 1.2);
       }
+    });
+
+    it('stops a colony short of its surface on air rather than on biofilm', () => {
+      // A load big enough to fill the surface is a load big enough to strip the
+      // oxygen first, so the biofilm ceiling is not what a real biofilter meets.
+      // Take the term out and both colonies go back to resting on the surface,
+      // at the fill where growth cancels decay: u = 1 leaves 1 − d/g.
+      const held = saturatedColony(200, 40);
+      const unlimited = saturatedColony(200, 40, { config: AIRLESS });
+
+      expect(held.resources.oxygen).toBeLessThan(2);
+      expect(colonyFill(held, 'nob')).toBeLessThan(colonyFill(held, 'aob'));
+      expect(colonyFill(held, 'nob')).toBeLessThan(colonyFill(unlimited, 'nob') * 0.7);
+      expect(colonyFill(unlimited, 'nob')).toBeCloseTo(
+        1 - nc.bacteriaDeathRate / nc.nobGrowthRate,
+        2
+      );
+    });
+
+    it('leaves NOB where the circulation leaves the oxygen, and AOB barely notice', () => {
+      // How far short the air stops a colony is a reading on the pumps, not a
+      // property of the model: strip the tank of everything that moves water and
+      // NOB hold a fiftieth of a ceiling AOB have all but reached, and every
+      // point of that gap comes back with the circulation.
+      const settles = (growthRate: number): number => 1 - nc.bacteriaDeathRate / growthRate;
+      const still = saturatedColony(200, 40, { circulation: {} });
+      const aerated = saturatedColony(200, 40, {
+        circulation: { filter: 'canister', powerhead: 400, airPump: true },
+      });
+
+      expect(still.resources.oxygen).toBeLessThan(aerated.resources.oxygen);
+      expect(colonyFill(still, 'aob')).toBeGreaterThan(settles(nc.aobGrowthRate) * 0.9);
+      expect(colonyFill(still, 'nob')).toBeLessThan(settles(nc.nobGrowthRate) * 0.05);
+      expect(colonyFill(aerated, 'nob')).toBeGreaterThan(settles(nc.nobGrowthRate) * 0.9);
+
+      // Neither guild passes that fixed point whatever the air, because it is
+      // the colony's own arithmetic and no amount of oxygen lifts it.
+      expect(colonyFill(aerated, 'aob')).toBeLessThan(settles(nc.aobGrowthRate));
+      expect(colonyFill(aerated, 'nob')).toBeLessThan(settles(nc.nobGrowthRate));
     });
 
     it('never lets a colony past its ceiling', () => {
@@ -186,6 +253,24 @@ describe('bacteria colony dynamics', () => {
       // thousandths of a degree apart — heat in and out scale differently with
       // volume — so the match is to a part in ten thousand rather than exact.
       expect(kept(150, 21)).toBeCloseTo(kept(20, 21), 4);
+    });
+
+    it('takes the same bite out of a suffocating colony as out of a breathing one', () => {
+      // The one nitrifier rate outside the oxygen term, and the reason an anoxic
+      // tank loses its biofilter rather than pausing it: oxidation and growth
+      // both stop, maintenance does not.
+      const died = (oxygen: number): number => {
+        const state = produce(cycledTank(20), (draft) => {
+          draft.resources.oxygen = oxygen;
+        });
+        return -nitrogenCycleSystem
+          .update(state, DEFAULT_CONFIG)
+          .filter((effect) => effect.resource === 'aob' && effect.source === 'nitrogen-cycle-death')
+          .reduce((sum, effect) => sum + effect.delta, 0);
+      };
+
+      expect(died(8)).toBeGreaterThan(0);
+      expect(died(0.1)).toBeCloseTo(died(8), 12);
     });
 
     it('takes the same bite out of a working colony as out of a starving one', () => {
@@ -329,6 +414,37 @@ describe('bacteria colony dynamics', () => {
       }
     });
 
+    it('stands nitrite in a tank short of air, and never clears it in one with none', () => {
+      // Nitrite in an under-aerated tank is a thing keepers see, and this is
+      // where it comes from: NOB keep less of their rate than AOB at every
+      // oxygen, so what leaves the first step outruns the second. Fed rather
+      // than stocked, because a fish short of air excretes less and the load
+      // would then be what differed between the rows instead of the air.
+      const fed = (
+        circulation: Circulation,
+        feed: number,
+        config: TunableConfig = DEFAULT_CONFIG
+      ): CycleTrace => traceCycle(20, { temperature: 30, days: 60, circulation, feed, config });
+
+      const aerated = fed({ filter: 'sponge', airPump: true }, 0.3);
+      const still = fed({}, 0.3);
+
+      expect(aerated.minOxygen).toBeGreaterThan(5);
+      expect(still.minOxygen).toBeLessThan(1);
+      expect(still.nitritePeakPpm).toBeGreaterThan(aerated.nitritePeakPpm);
+      expect(still.cycledDay!).toBeGreaterThan(aerated.cycledDay!);
+
+      // The control: the same still box with the term switched off cycles on
+      // the aerated tank's clock, so what the two rows above read is the air
+      // and not the ration.
+      const withoutTheTerm = fed({}, 0.3, AIRLESS);
+      expect(withoutTheTerm.nitritePeakPpm).toBeLessThan(aerated.nitritePeakPpm);
+      expect(withoutTheTerm.cycledDay!).toBeLessThan(aerated.cycledDay!);
+
+      // Twice the ration into the same still box, and it never gets there.
+      expect(fed({}, 0.6).cycledDay).toBeNull();
+    });
+
     it('clears a 2 ppm dose to under 0.25 ppm within 24 h, at any volume', () => {
       // From a tank its own bed cycled and nothing else — feeding it first
       // would grow a colony the bed does not support, and the challenge would
@@ -341,8 +457,10 @@ describe('bacteria colony dynamics', () => {
     it('leaves an ordinary roster nowhere near the surface ceiling', () => {
       // Surface is a cap for the overstocked, not a target a normal tank grows
       // into. Single-sex so the run measures the biofilter rather than the
-      // breeding curve; weekly change so nitrate does not end it early.
-      let state = stock(cycledTank(40), 'neon_tetra', 12, { sex: 'male' });
+      // breeding curve; weekly change so nitrate does not end it early. Seeded
+      // to the stream the ammonia probe's own 40 L runs on, so the anchor and
+      // the measurement read one tank rather than two rosters.
+      let state = stock(cycledTank(40, { rngSeed: 4242 }), 'neon_tetra', 12, { sex: 'male' });
 
       for (let day = 1; day <= 120; day++) {
         for (let hour = 0; hour < DAY; hour++) {

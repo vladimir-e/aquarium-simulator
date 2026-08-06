@@ -50,6 +50,7 @@ import {
   shouldPlantDie,
 } from '../systems/plant-lifecycle.js';
 import { createLog } from '../core/logging.js';
+import { getPpm } from '../resources/index.js';
 
 export interface PlantsProcessingResult {
   /** Updated state with modified plant sizes */
@@ -123,8 +124,12 @@ export function processPlants(
     }
   };
 
-  pushDelta('oxygen', photosynthesisResult.oxygenDelta, 'photosynthesis');
-  pushDelta('co2', photosynthesisResult.co2Delta, 'photosynthesis');
+  // Every draw below is a mass, but only the gases are *stored* as a
+  // concentration, so only they convert through the water volume.
+  const waterVolume = state.resources.water;
+
+  pushDelta('oxygen', getPpm(photosynthesisResult.oxygenProducedMg, waterVolume), 'photosynthesis');
+  pushDelta('co2', -getPpm(photosynthesisResult.co2ConsumedMg, waterVolume), 'photosynthesis');
   pushDelta('nitrate', photosynthesisResult.nitrateDelta, 'photosynthesis');
   pushDelta('phosphate', photosynthesisResult.phosphateDelta, 'photosynthesis');
   pushDelta('potassium', photosynthesisResult.potassiumDelta, 'photosynthesis');
@@ -134,27 +139,12 @@ export function processPlants(
   const respirationResult = calculateRespiration(
     totalPlantSize,
     state.resources.temperature,
+    state.resources.oxygen,
     plantsConfig
   );
 
-  // Add respiration effects
-  if (respirationResult.oxygenDelta !== 0) {
-    effects.push({
-      tier: 'active',
-      resource: 'oxygen',
-      delta: respirationResult.oxygenDelta,
-      source: 'respiration',
-    });
-  }
-
-  if (respirationResult.co2Delta !== 0) {
-    effects.push({
-      tier: 'active',
-      resource: 'co2',
-      delta: respirationResult.co2Delta,
-      source: 'respiration',
-    });
-  }
+  pushDelta('oxygen', -getPpm(respirationResult.oxygenConsumedMg, waterVolume), 'respiration');
+  pushDelta('co2', getPpm(respirationResult.co2ProducedMg, waterVolume), 'respiration');
 
   // 3. Vitality per plant: drives condition update and returns the new
   //    surplus bank. Algae mass comes from the prior tick's `state.algae.mass`

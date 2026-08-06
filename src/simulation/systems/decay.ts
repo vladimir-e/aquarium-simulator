@@ -9,7 +9,9 @@ import type { System } from './types.js';
 import type { TunableConfig } from '../config/index.js';
 import { type DecayConfig, decayDefaults } from '../config/decay.js';
 import { nutrientsDefaults } from '../config/nutrients.js';
-import { q10Factor } from '../core/kinetics.js';
+import { monodFactor, q10Factor } from '../core/kinetics.js';
+import { O2_TO_CO2_MASS_RATIO } from '../core/chemistry.js';
+import { getPpm } from '../resources/index.js';
 
 /**
  * Calculate temperature factor for decay rate using Q10 coefficient.
@@ -23,21 +25,34 @@ export function getTemperatureFactor(
 }
 
 /**
- * Calculate amount of food that decays to waste this tick.
- * Returns decay amount in grams.
+ * The share of standing food that decays in one hour at this temperature and
+ * this dissolved oxygen.
+ *
+ * Aerobic decomposition is oxygen-limited as a whole process, not only on its
+ * gas side: an anoxic tank builds sludge rather than mineralising it, and the
+ * nitrogen bound in that sludge stays bound.
  */
+export function decayFraction(
+  temperature: number,
+  oxygen: number,
+  config: DecayConfig = decayDefaults
+): number {
+  return (
+    config.baseDecayRate *
+    getTemperatureFactor(temperature, config) *
+    monodFactor(oxygen, config.oxygenHalfSaturation)
+  );
+}
+
+/** Grams of food that decay to waste this tick, never more than there is. */
 export function calculateDecay(
   food: number,
   temperature: number,
+  oxygen: number,
   config: DecayConfig = decayDefaults
 ): number {
   if (food <= 0) return 0;
-
-  const tempFactor = getTemperatureFactor(temperature, config);
-  const decayAmount = food * config.baseDecayRate * tempFactor;
-
-  // Can't decay more than available food
-  return Math.min(decayAmount, food);
+  return Math.min(food * decayFraction(temperature, oxygen, config), food);
 }
 
 export const decaySystem: System = {
@@ -54,6 +69,7 @@ export const decaySystem: System = {
       const decayAmount = calculateDecay(
         state.resources.food,
         state.resources.temperature,
+        state.resources.oxygen,
         decayConfig
       );
 
@@ -85,28 +101,24 @@ export const decaySystem: System = {
           source: 'decay',
         });
 
-        // Oxidized portion produces CO2 and consumes O2
-        // CO2/O2 are concentrations (mg/L), so divide by water volume
         const oxidizedAmount = decayAmount * (1 - decayConfig.wasteConversionRatio);
-        const waterVolume = state.resources.water;
+        const oxygenDemandMgPerL = getPpm(
+          oxidizedAmount * decayConfig.gasExchangePerGramDecay,
+          state.resources.water
+        );
 
-        if (waterVolume > 0) {
-          const gasExchangeMgPerL =
-            (oxidizedAmount * decayConfig.gasExchangePerGramDecay) / waterVolume;
-
-          // CO2 produced by aerobic decomposition
+        if (oxygenDemandMgPerL > 0) {
           effects.push({
             tier: 'passive',
             resource: 'co2',
-            delta: gasExchangeMgPerL,
+            delta: oxygenDemandMgPerL * O2_TO_CO2_MASS_RATIO,
             source: 'decay',
           });
 
-          // O2 consumed by bacteria respiration
           effects.push({
             tier: 'passive',
             resource: 'oxygen',
-            delta: -gasExchangeMgPerL,
+            delta: -oxygenDemandMgPerL,
             source: 'decay',
           });
         }

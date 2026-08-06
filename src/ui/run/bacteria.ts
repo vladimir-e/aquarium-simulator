@@ -14,6 +14,7 @@ import {
   calculateNitriteToNitrate,
   calculateWasteToAmmonia,
   nitrificationFactor,
+  nitrifierOxygenFactor,
   nobCapacity,
 } from '../../simulation/systems/index.js';
 import {
@@ -28,16 +29,22 @@ import { getPpm } from '../../simulation/resources/index.js';
 import { mineralisationBase, wasteInflow } from './waste.js';
 
 /**
- * Where a colony stops climbing when nothing else limits it. Decay is
- * unconditional, so the fixed point is `1 − deathRate/growthRate` of the
- * ceiling — 96 % for AOB, 93 % for NOB. A mature tank never reaches 100 %, and
- * a threshold that asks for it never fires.
+ * The share of its own ceiling at which a colony counts as having filled it.
  *
- * Only a tank held under a saturating load gets here at all: an ordinary
- * stocked tank rests at a couple of percent, because the colony grows to its
- * load and not to its surface.
+ * Not 100: unconditional decay puts the arithmetic limit at
+ * `1 − deathRate/growthRate`, and oxygen stops NOB short of even that. Where
+ * this number sits against both is measured, not asserted here —
+ * `bacteria-colony.test.ts` pins the circulation ladder and
+ * `docs/calibration/runs/2026-08-07-nitrification-on-air.md` carries it. The
+ * margin is wide on that ladder, which is dosed straight into the resource, and
+ * narrow on the feed path, whose two measured rungs straddle this number rather
+ * than clearing it.
+ *
+ * Only a tank held under a load like that gets near it at all: an ordinary
+ * stocked tank rests at a couple of percent, because a colony grows to its load
+ * and not to its surface.
  */
-const SURFACE_BOUND_PCT = 90;
+const SURFACE_BOUND_PCT = 85;
 
 /** How far ahead the cycle projection will look before giving up, in ticks. */
 const PROJECTION_HORIZON = 24 * 180;
@@ -186,7 +193,7 @@ export function bacteriaReadout(
 
   // The AOB stage sees both of these: gill excretion lands in the active tier,
   // ahead of the passive nitrogen cycle, and mineralisation runs first inside it.
-  const gills = processMetabolism(state.fish, r.food, config.livestock).ammoniaProduced;
+  const gills = processMetabolism(state.fish, r.food, r.oxygen, config.livestock).ammoniaProduced;
   const { ammoniaProduced } = calculateWasteToAmmonia(
     mineralisationBase(r.waste, wasteInflow(state, config)),
     nc
@@ -195,16 +202,18 @@ export function bacteriaReadout(
     r.ammonia + gills + ammoniaProduced,
     r.aob,
     r.temperature,
+    r.oxygen,
     nc
   );
   const { nitriteConsumed } = calculateNitriteToNitrate(
     r.nitrite + nitriteProduced,
     r.nob,
     r.temperature,
+    r.oxygen,
     nc
   );
-  const aobThroughput = getPpm(aobCapacity(r.aob, r.temperature, nc), water);
-  const nobThroughput = getPpm(nobCapacity(r.nob, r.temperature, nc), water);
+  const aobThroughput = getPpm(aobCapacity(r.aob, r.temperature, r.oxygen, nc), water);
+  const nobThroughput = getPpm(nobCapacity(r.nob, r.temperature, r.oxygen, nc), water);
 
   const rates: ConversionRates = {
     wasteToAmmonia: getPpm(ammoniaProduced, water),
@@ -256,10 +265,11 @@ function nextVolume(water: number, state: SimulationState, config: TunableConfig
 /**
  * Run the engine's own nitrogen model forward to find the nitrite peak.
  *
- * Waste inflow, biofilm surface and temperature are held at today's values, so
- * this answers "if nothing else changes" — feeding more, adding fish or a water
- * change all move it. Evaporation and substrate leaching are not choices: both
- * run every tick whatever the keeper does, so the projection carries them.
+ * Waste inflow, biofilm surface, temperature and dissolved oxygen are held at
+ * today's values, so this answers "if nothing else changes" — feeding more,
+ * adding fish or a water change all move it. Evaporation and substrate leaching
+ * are not choices: both run every tick whatever the keeper does, so the
+ * projection carries them.
  */
 export function projectNitritePeak(
   state: SimulationState,
@@ -272,12 +282,14 @@ export function projectNitritePeak(
   if (r.water <= 0 || ceiling <= 0) return null;
   const inoculum = calculateInoculum(state.tank.capacity, nc);
   const warmth = nitrificationFactor(r.temperature, nc);
+  const aobAir = nitrifierOxygenFactor('aob', r.oxygen, nc);
+  const nobAir = nitrifierOxygenFactor('nob', r.oxygen, nc);
 
   const sources = wasteInflow(state, config).sources;
   const steadyInflow = sources
     .filter((source) => source.key !== 'substrate')
     .reduce((total, source) => total + source.gramsPerHour, 0);
-  const gills = processMetabolism(state.fish, r.food, config.livestock).ammoniaProduced;
+  const gills = processMetabolism(state.fish, r.food, r.oxygen, config.livestock).ammoniaProduced;
 
   let reserve = state.equipment.substrate.organicReserve;
   let water = r.water;
@@ -301,11 +313,11 @@ export function projectNitritePeak(
     waste -= mineralised.wasteConsumed;
     ammonia += mineralised.ammoniaProduced + gills;
 
-    const oxidised = calculateAmmoniaToNitrite(ammonia, aob, r.temperature, nc);
+    const oxidised = calculateAmmoniaToNitrite(ammonia, aob, r.temperature, r.oxygen, nc);
     ammonia -= oxidised.ammoniaConsumed;
     nitrite += oxidised.nitriteProduced;
 
-    const cleared = calculateNitriteToNitrate(nitrite, nob, r.temperature, nc);
+    const cleared = calculateNitriteToNitrate(nitrite, nob, r.temperature, r.oxygen, nc);
     nitrite -= cleared.nitriteConsumed;
 
     const ammoniaPpm = getPpm(ammonia, water);
@@ -317,14 +329,14 @@ export function projectNitritePeak(
     const aobFlows = calculateColonyFlows(
       aob,
       oxidised.utilization,
-      nc.aobGrowthRate * warmth,
+      nc.aobGrowthRate * warmth * aobAir,
       nc.bacteriaDeathRate * warmth,
       ceiling
     );
     const nobFlows = calculateColonyFlows(
       nob,
       cleared.utilization,
-      nc.nobGrowthRate * warmth,
+      nc.nobGrowthRate * warmth * nobAir,
       nc.bacteriaDeathRate * warmth,
       ceiling
     );
@@ -364,13 +376,21 @@ export function bacteriaSummary(
     return `Uncycled. Ammonia has to reach ${config.aobSpawnThreshold} ppm before AOB colonise, and nitrite follows them.${peakClause(projection)}`;
   }
 
+  // Ahead of the lagging-colony line, which promises a colony that catches up:
+  // one already on its surface has nowhere left to do it, and under a load big
+  // enough to fill a biofilm nitrite is always climbing.
+  //
+  // No projection either, and for the same reason: a peak is where a growing
+  // colony overtakes its load, so a colony with no growth left in it has none.
+  // On a tank fed hard enough to reach this state the projector returns the
+  // 180-day horizon rather than a peak the tank passes through.
+  if (aob.pct >= SURFACE_BOUND_PCT && nob.pct >= SURFACE_BOUND_PCT) {
+    return 'Both colonies have filled the surface they live on — until the tank offers more biofilm, more load has nowhere to go.';
+  }
+
   if (nob.count < aob.count && rates.netNitrite > 0) {
     const behind = Math.round((1 - nob.count / aob.count) * 100);
     return `NOB trail AOB by ${behind} % — nitrite accumulates until the colony catches up.${peakClause(projection)}`;
-  }
-
-  if (aob.pct >= SURFACE_BOUND_PCT && nob.pct >= SURFACE_BOUND_PCT) {
-    return 'Both colonies have filled the surface they live on — until the tank offers more biofilm, more load has nowhere to go.';
   }
 
   if (atTrace && !cycled) {

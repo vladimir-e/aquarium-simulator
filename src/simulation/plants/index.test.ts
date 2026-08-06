@@ -510,6 +510,61 @@ describe('processPlants', () => {
     });
   });
 
+  describe('the water the gases dissolve into', () => {
+    const planting: Plant[] = [
+      { id: 'p1', species: 'java_fern', size: 100, condition: C, surplus: 0 },
+    ];
+
+    /** Every gas effect this planting emits, summed, in a tank of `water` litres. */
+    const gasIn = (water: number, light: number): { oxygen: number; co2: number } => {
+      const result = processPlants(
+        createTestState({
+          plants: planting,
+          light,
+          co2: plantsDefaults.optimalCo2,
+          nitrate: plantsDefaults.optimalNitrate * water,
+          water,
+          temperature: 25,
+        }),
+        DEFAULT_CONFIG
+      );
+      const sum = (resource: 'oxygen' | 'co2'): number =>
+        result.effects.filter((e) => e.resource === resource).reduce((s, e) => s + e.delta, 0);
+      return { oxygen: sum('oxygen'), co2: sum('co2') };
+    };
+
+    it('moves a lit tank twice as far at half the volume', () => {
+      const small = gasIn(150, 50);
+      const large = gasIn(300, 50);
+
+      expect(small.oxygen / large.oxygen).toBeCloseTo(2, 6);
+      expect(small.co2 / large.co2).toBeCloseTo(2, 6);
+    });
+
+    it('does the same to the night draw', () => {
+      const small = gasIn(150, 0);
+      const large = gasIn(300, 0);
+
+      expect(small.oxygen / large.oxygen).toBeCloseTo(2, 6);
+      expect(small.co2 / large.co2).toBeCloseTo(2, 6);
+    });
+
+    it('emits no gas at all into a tank with no water in it', () => {
+      // Respiration answers in mass and knows nothing of volume, so this guard
+      // is the only thing between a drained tank and an infinite concentration.
+      const drained = processPlants(
+        createTestState({ plants: planting, light: 50, co2: 0, water: 0 }),
+        DEFAULT_CONFIG
+      );
+
+      for (const effect of drained.effects) {
+        expect(Number.isFinite(effect.delta)).toBe(true);
+      }
+      expect(drained.effects.filter((e) => e.resource === 'oxygen')).toHaveLength(0);
+      expect(drained.effects.filter((e) => e.resource === 'co2')).toHaveLength(0);
+    });
+  });
+
   describe('waste effect when plants overgrow', () => {
     it('produces waste when plant exceeds 200%', () => {
       // Plant at 199% with enough growth to push over 200%

@@ -18,6 +18,20 @@ import type { HistorySnapshot } from './history.js';
  * missing field. Parallel to the UI's `PERSISTENCE_VERSION`. Pre-launch
  * rule is reject, not migrate.
  *
+ * v7 made every oxygen consumer saturate against the oxygen it draws from.
+ *    `DecayConfig` gains `oxygenHalfSaturation`, `PlantsConfig` and
+ *    `LivestockConfig` gain `respirationOxygenHalfSaturation`, and
+ *    `NitrogenCycleConfig` gains `aobOxygenHalfSaturation` /
+ *    `nobOxygenHalfSaturation`. A v6 session parses, and every rate that reads
+ *    one of the five multiplies by `undefined`: the first tick turns the tank's
+ *    gases, its food and its whole nitrogen chain to `NaN`.
+ * v6 collapsed the plant gas yields onto one constant and changed its unit:
+ *    `PlantsConfig` lost `o2PerPhotosynthesis` / `o2PerRespiration` — oxygen
+ *    derives from the carbon now — and swapped `co2PerPhotosynthesis` /
+ *    `co2PerRespiration` for `co2PerRateUnit`, mg of CO2 per rate unit where
+ *    the pair held mg/L, 0.5 against 30. A v5 session parses, and the first
+ *    tick with a plant in it multiplies a rate by the key it does not carry:
+ *    every gas figure a calibration run reads off it is `NaN`.
  * v5 made light PAR, not watts: `Light.wattage` became `Light.par` — the
  *    fixture's rated PAR at the water surface — `Resources.light` and the
  *    history snapshots recording it hold PAR at the substrate rather than a
@@ -39,7 +53,7 @@ import type { HistorySnapshot } from './history.js';
  * v2 added `Fish.stage` + `state.clutches` (breeding) and the saturating
  *    surplus bank.
  */
-export const SESSION_VERSION = 5;
+export const SESSION_VERSION = 7;
 export const DEFAULT_SESSION_PATH = resolve(process.cwd(), '.simstate/current.json');
 
 export interface Session {

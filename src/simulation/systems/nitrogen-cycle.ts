@@ -15,52 +15,31 @@
  * weight: NH3 (17.03) → NO2⁻ (46.01) → NO3⁻ (62.00). So 1 mg NH3
  * oxidised yields 2.702 mg NO2⁻, and 1 mg NO2⁻ oxidised yields 1.348 mg
  * NO3⁻. Equivalently, 0.823 mg of elemental N passes through each step.
+ *
+ * Both oxidations are aerobic, and pay for themselves in oxygen: 4.57 mg of
+ * O2 per mg of nitrogen carried the whole way, three quarters of it spent on
+ * the first step. The colonies are as oxygen-limited as they are
+ * temperature-limited, NOB the more sensitive of the two, which is why a tank
+ * short of oxygen stands nitrite while its ammonia still falls.
  */
 
 import type { Effect } from '../core/effects.js';
 import type { SimulationState } from '../state.js';
 import type { System } from './types.js';
 import type { TunableConfig } from '../config/index.js';
-import { type NitrogenCycleConfig, nitrogenCycleDefaults } from '../config/nitrogen-cycle.js';
-import { q10Factor } from '../core/kinetics.js';
+import {
+  AIR_SATURATED_O2,
+  type NitrogenCycleConfig,
+  nitrogenCycleDefaults,
+} from '../config/nitrogen-cycle.js';
+import { monodFactor, q10Factor } from '../core/kinetics.js';
+import {
+  NH3_TO_NO2_MASS_RATIO,
+  NO2_TO_NO3_MASS_RATIO,
+  O2_PER_NH3_OXIDIZED,
+  O2_PER_NO2_OXIDIZED,
+} from '../core/chemistry.js';
 import { getPpm } from '../resources/index.js';
-
-// Molecular weights (g/mol) — physics constants, not tunable config.
-/** Elemental nitrogen. */
-export const MW_N = 14.01;
-/** Ammonia. */
-export const MW_NH3 = 17.03;
-/** Nitrite (NO2⁻). */
-export const MW_NO2 = 46.01;
-/** Nitrate (NO3⁻). */
-export const MW_NO3 = 62.0;
-
-/** Mass of NH3 produced per unit mass of N (going from N-mass to compound mass). ≈ 1.216. */
-export const N_TO_NH3_MASS_RATIO = MW_NH3 / MW_N;
-/** Mass of NO2⁻ produced per mg of NH3 oxidised. ≈ 2.702. */
-export const NH3_TO_NO2_MASS_RATIO = MW_NO2 / MW_NH3;
-/** Mass of NO3⁻ produced per mg of NO2⁻ oxidised. ≈ 1.348. */
-export const NO2_TO_NO3_MASS_RATIO = MW_NO3 / MW_NO2;
-
-/**
- * NOB per-bacterium processing rate multiplier relative to AOB.
- *
- * N-mass is conserved across the chain, but compound mass is not — AOB
- * consume NH3 and produce NO2 with a mass gain of MW_NO2 / MW_NH3 ≈ 2.702.
- * If AOB and NOB had the same per-bacterium "compound mass processed per
- * tick" rate, NOB could clear only 1 / 2.702 ≈ 37 % of the NO2 mass AOB
- * produce, and nitrite would run away.
- *
- * Scaling NOB's effective rate by MW_NO2 / MW_NH3 keeps per-atom N
- * throughput equal between the two steps — i.e. at population parity the
- * NO3 produced per tick equals the NH3 consumed per tick in N-atom terms.
- *
- * Biologically legitimate: real NOB (Nitrobacter / Nitrospira) are
- * faster per cell than AOB (Nitrosomonas / Nitrosospira). The engine
- * exposes a single `bacteriaProcessingRate` knob as the AOB baseline;
- * NOB inherits `rate × multiplier`.
- */
-export const NOB_PROCESSING_RATE_MULTIPLIER = MW_NO2 / MW_NH3;
 
 /**
  * Fraction of total ammonia (TAN = NH3 + NH4⁺) that exists as unionized
@@ -96,6 +75,56 @@ export function nitrificationFactor(
   config: NitrogenCycleConfig = nitrogenCycleDefaults
 ): number {
   return q10Factor(temperature, config.q10, config.referenceTemp);
+}
+
+/**
+ * How fast a nitrifier colony works at this oxygen level, against the
+ * saturating water its rates are quoted in.
+ *
+ * Scales oxidation and growth alike — a colony cannot divide on a reaction it
+ * cannot run — but not maintenance decay, which is what makes an anoxic tank
+ * lose its biofilter rather than merely pause it.
+ */
+export function nitrifierOxygenFactor(
+  stage: 'aob' | 'nob',
+  oxygen: number,
+  config: NitrogenCycleConfig = nitrogenCycleDefaults
+): number {
+  return monodFactor(
+    oxygen,
+    stage === 'aob' ? config.aobOxygenHalfSaturation : config.nobOxygenHalfSaturation
+  );
+}
+
+/**
+ * How much more compound mass a NOB cell puts through than an AOB one.
+ *
+ * N-mass is conserved across the chain, but compound mass is not — AOB consume
+ * NH3 and produce NO2 at `NH3_TO_NO2_MASS_RATIO` ≈ 2.702. On one shared
+ * per-bacterium rate NOB could clear only 1 / 2.702 ≈ 37 % of the NO2 mass AOB
+ * produce, and nitrite would run away. Scaling by that ratio is what puts the
+ * two steps in per-atom N balance at population parity.
+ *
+ * Both rates are Monod maxima, though, and `bacteriaProcessingRate` is divided
+ * back up by *AOB's* factor in air-saturated water. The mass ratio alone would
+ * hand NOB that correction on top of their own and leave them 8.4 % under the
+ * parity it exists to hold, so the ratio is re-quoted through each guild's own
+ * factor: the balance sits in the water both figures were measured in, and
+ * below it the K gap opens and nitrite stands. Read off the config rather than
+ * frozen at the defaults, so the balance survives a tuned half-saturation
+ * constant — and so neutralising both of them reproduces an engine with no
+ * oxygen term at all.
+ *
+ * Biologically legitimate: real NOB (Nitrobacter / Nitrospira) are faster per
+ * cell than AOB (Nitrosomonas / Nitrosospira).
+ */
+export function nobProcessingRateMultiplier(
+  config: NitrogenCycleConfig = nitrogenCycleDefaults
+): number {
+  return (
+    (NH3_TO_NO2_MASS_RATIO * nitrifierOxygenFactor('aob', AIR_SATURATED_O2, config)) /
+    nitrifierOxygenFactor('nob', AIR_SATURATED_O2, config)
+  );
 }
 
 /**
@@ -185,26 +214,34 @@ export function calculateWasteToAmmonia(
 
 /**
  * The mg of NH₃ an AOB colony can put through in one tick — population × the
- * throughput of a bacterium × how fast this temperature lets it work.
+ * throughput of a bacterium × how fast this temperature and this oxygen let it
+ * work.
  *
- * A property of the cells, so nothing here reads the tank: the same colony
- * clears the same mass in 10 L as in 1000 L, which is what makes a ppm reading
- * fall with volume the way it does in a real tank.
+ * A property of the cells and the water they sit in, not of the tank's size:
+ * the same colony clears the same mass in 10 L as in 1000 L, which is what
+ * makes a ppm reading fall with volume the way it does in a real tank.
  */
 export function aobCapacity(
   population: number,
   temperature: number,
+  oxygen: number,
   config: NitrogenCycleConfig = nitrogenCycleDefaults
 ): number {
-  return population * config.bacteriaProcessingRate * nitrificationFactor(temperature, config);
+  return (
+    population *
+    config.bacteriaProcessingRate *
+    nitrificationFactor(temperature, config) *
+    nitrifierOxygenFactor('aob', oxygen, config)
+  );
 }
 
 /**
  * The mg of NO₂⁻ a NOB colony can put through in one tick — the same gauge
- * scaled by `NOB_PROCESSING_RATE_MULTIPLIER`, which is what keeps the two
- * stages in stoichiometric balance at population parity.
+ * scaled by `nobProcessingRateMultiplier`, which is what keeps the two stages
+ * in stoichiometric balance at population parity in air-saturated water.
+ * Thinner water is where they part, NOB first.
  *
- * Spelled out rather than composed as `aobCapacity(…) × MULTIPLIER`: that
+ * Spelled out rather than composed as `aobCapacity(…) × multiplier`: that
  * reassociates the product and lands on a different float for roughly a third
  * of the (population, temperature) pairs, and the cycling anchors are pinned to
  * this order of operations.
@@ -212,13 +249,15 @@ export function aobCapacity(
 export function nobCapacity(
   population: number,
   temperature: number,
+  oxygen: number,
   config: NitrogenCycleConfig = nitrogenCycleDefaults
 ): number {
   return (
     population *
     config.bacteriaProcessingRate *
-    NOB_PROCESSING_RATE_MULTIPLIER *
-    nitrificationFactor(temperature, config)
+    nobProcessingRateMultiplier(config) *
+    nitrificationFactor(temperature, config) *
+    nitrifierOxygenFactor('nob', oxygen, config)
   );
 }
 
@@ -231,22 +270,31 @@ export function nobCapacity(
  * @param ammoniaMass - Current ammonia mass in mg
  * @param aobPopulation - AOB bacteria population
  * @param temperature - Water temperature in °C
- * @returns mg consumed, mg of nitrite produced, and the fraction of capacity used
+ * @param oxygen - Dissolved oxygen in mg/L
+ * @returns mg consumed, mg of nitrite produced, mg of O2 spent, and the
+ *          fraction of capacity used
  */
 export function calculateAmmoniaToNitrite(
   ammoniaMass: number,
   aobPopulation: number,
   temperature: number,
+  oxygen: number,
   config: NitrogenCycleConfig = nitrogenCycleDefaults
-): { ammoniaConsumed: number; nitriteProduced: number; utilization: number } {
+): {
+  ammoniaConsumed: number;
+  nitriteProduced: number;
+  oxygenConsumedMg: number;
+  utilization: number;
+} {
   if (ammoniaMass <= 0 || aobPopulation <= 0) {
-    return { ammoniaConsumed: 0, nitriteProduced: 0, utilization: 0 };
+    return { ammoniaConsumed: 0, nitriteProduced: 0, oxygenConsumedMg: 0, utilization: 0 };
   }
-  const canProcessMass = aobCapacity(aobPopulation, temperature, config);
+  const canProcessMass = aobCapacity(aobPopulation, temperature, oxygen, config);
   const ammoniaConsumed = Math.min(canProcessMass, ammoniaMass);
   return {
     ammoniaConsumed,
     nitriteProduced: ammoniaConsumed * NH3_TO_NO2_MASS_RATIO,
+    oxygenConsumedMg: ammoniaConsumed * O2_PER_NH3_OXIDIZED,
     utilization: canProcessMass > 0 ? ammoniaConsumed / canProcessMass : 0,
   };
 }
@@ -257,30 +305,38 @@ export function calculateAmmoniaToNitrite(
  * N-mass is conserved; compound mass scales with MW. NO3⁻ produced =
  * NO2⁻ consumed × MW_NO3 / MW_NO2 ≈ 1.348.
  *
- * NOB's per-bacterium throughput is scaled by
- * `NOB_PROCESSING_RATE_MULTIPLIER` relative to AOB so the two steps are
- * in stoichiometric balance at population parity — see that constant's
- * docstring.
+ * NOB's per-bacterium throughput is scaled by `nobProcessingRateMultiplier`
+ * relative to AOB so the two steps are in stoichiometric balance at population
+ * parity in air-saturated water — see that function's docstring.
  *
  * @param nitriteMass - Current nitrite mass in mg
  * @param nobPopulation - NOB bacteria population
  * @param temperature - Water temperature in °C
- * @returns mg consumed, mg of nitrate produced, and the fraction of capacity used
+ * @param oxygen - Dissolved oxygen in mg/L
+ * @returns mg consumed, mg of nitrate produced, mg of O2 spent, and the
+ *          fraction of capacity used
  */
 export function calculateNitriteToNitrate(
   nitriteMass: number,
   nobPopulation: number,
   temperature: number,
+  oxygen: number,
   config: NitrogenCycleConfig = nitrogenCycleDefaults
-): { nitriteConsumed: number; nitrateProduced: number; utilization: number } {
+): {
+  nitriteConsumed: number;
+  nitrateProduced: number;
+  oxygenConsumedMg: number;
+  utilization: number;
+} {
   if (nitriteMass <= 0 || nobPopulation <= 0) {
-    return { nitriteConsumed: 0, nitrateProduced: 0, utilization: 0 };
+    return { nitriteConsumed: 0, nitrateProduced: 0, oxygenConsumedMg: 0, utilization: 0 };
   }
-  const canProcessMass = nobCapacity(nobPopulation, temperature, config);
+  const canProcessMass = nobCapacity(nobPopulation, temperature, oxygen, config);
   const nitriteConsumed = Math.min(canProcessMass, nitriteMass);
   return {
     nitriteConsumed,
     nitrateProduced: nitriteConsumed * NO2_TO_NO3_MASS_RATIO,
+    oxygenConsumedMg: nitriteConsumed * O2_PER_NO2_OXIDIZED,
     utilization: canProcessMass > 0 ? nitriteConsumed / canProcessMass : 0,
   };
 }
@@ -294,13 +350,16 @@ function colonyEffects(
   population: number,
   utilization: number,
   temperatureFactor: number,
+  oxygenFactor: number,
   maxPopulation: number,
   config: NitrogenCycleConfig
 ): Effect[] {
   const { growth, death } = calculateColonyFlows(
     population,
     utilization,
-    (resource === 'aob' ? config.aobGrowthRate : config.nobGrowthRate) * temperatureFactor,
+    (resource === 'aob' ? config.aobGrowthRate : config.nobGrowthRate) *
+      temperatureFactor *
+      oxygenFactor,
     config.bacteriaDeathRate * temperatureFactor,
     maxPopulation
   );
@@ -326,7 +385,10 @@ export const nitrogenCycleSystem: System = {
     const maxBacteria = calculateMaxBacteria(resources.surface, ncConfig);
     const waterVolume = resources.water;
     const temperature = resources.temperature;
+    const oxygen = resources.oxygen;
     const temperatureFactor = nitrificationFactor(temperature, ncConfig);
+    const aobOxygenFactor = nitrifierOxygenFactor('aob', oxygen, ncConfig);
+    const nobOxygenFactor = nitrifierOxygenFactor('nob', oxygen, ncConfig);
 
     // Track current values for calculations (effects accumulate)
     // Nitrogen compounds are stored as mass (mg)
@@ -395,8 +457,8 @@ export const nitrogenCycleSystem: System = {
     const submerged = waterVolume > 0;
 
     const aobStage = submerged
-      ? calculateAmmoniaToNitrite(currentAmmonia, currentAob, temperature, ncConfig)
-      : { ammoniaConsumed: 0, nitriteProduced: 0, utilization: 0 };
+      ? calculateAmmoniaToNitrite(currentAmmonia, currentAob, temperature, oxygen, ncConfig)
+      : { ammoniaConsumed: 0, nitriteProduced: 0, oxygenConsumedMg: 0, utilization: 0 };
     if (aobStage.ammoniaConsumed > 0) {
       effects.push({
         tier: 'passive',
@@ -413,6 +475,14 @@ export const nitrogenCycleSystem: System = {
         source: 'nitrogen-cycle-aob',
       });
       currentNitrite += aobStage.nitriteProduced;
+
+      // Oxygen is the one resource here stored as a concentration.
+      effects.push({
+        tier: 'passive',
+        resource: 'oxygen',
+        delta: -getPpm(aobStage.oxygenConsumedMg, waterVolume),
+        source: 'nitrogen-cycle-aob',
+      });
     }
 
     // ========================================================================
@@ -421,8 +491,8 @@ export const nitrogenCycleSystem: System = {
     // N-mass is conserved; compound mass grows by MW_NO3 / MW_NO2 ≈ 1.348.
     // ========================================================================
     const nobStage = submerged
-      ? calculateNitriteToNitrate(currentNitrite, currentNob, temperature, ncConfig)
-      : { nitriteConsumed: 0, nitrateProduced: 0, utilization: 0 };
+      ? calculateNitriteToNitrate(currentNitrite, currentNob, temperature, oxygen, ncConfig)
+      : { nitriteConsumed: 0, nitrateProduced: 0, oxygenConsumedMg: 0, utilization: 0 };
     if (nobStage.nitriteConsumed > 0) {
       effects.push({
         tier: 'passive',
@@ -436,6 +506,13 @@ export const nitrogenCycleSystem: System = {
         tier: 'passive',
         resource: 'nitrate',
         delta: nobStage.nitrateProduced, // mg, scaled by MW ratio
+        source: 'nitrogen-cycle-nob',
+      });
+
+      effects.push({
+        tier: 'passive',
+        resource: 'oxygen',
+        delta: -getPpm(nobStage.oxygenConsumedMg, waterVolume),
         source: 'nitrogen-cycle-nob',
       });
     }
@@ -480,6 +557,7 @@ export const nitrogenCycleSystem: System = {
         currentAob,
         aobStage.utilization,
         temperatureFactor,
+        aobOxygenFactor,
         maxBacteria,
         ncConfig
       ),
@@ -488,6 +566,7 @@ export const nitrogenCycleSystem: System = {
         currentNob,
         nobStage.utilization,
         temperatureFactor,
+        nobOxygenFactor,
         maxBacteria,
         ncConfig
       )

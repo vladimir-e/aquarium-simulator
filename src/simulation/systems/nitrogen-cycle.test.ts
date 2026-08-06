@@ -11,20 +11,32 @@ import {
   calculateNitriteToNitrate,
   aobCapacity,
   nobCapacity,
+  nitrifierOxygenFactor,
+  nobProcessingRateMultiplier,
+} from './nitrogen-cycle.js';
+import {
   NH3_TO_NO2_MASS_RATIO,
   NO2_TO_NO3_MASS_RATIO,
-  NOB_PROCESSING_RATE_MULTIPLIER,
-} from './nitrogen-cycle.js';
+  O2_PER_NH3_OXIDIZED,
+  O2_PER_NO2_OXIDIZED,
+} from '../core/chemistry.js';
 import { createSimulation, type SimulationState } from '../state.js';
 import { type SubstrateType } from '../equipment/substrate.js';
 import { applyEffects, type Effect } from '../core/effects.js';
 import { decaySystem } from './decay.js';
+import { gasExchangeSystem } from './gas-exchange.js';
 import { getPpm, getMassFromPpm } from '../resources/index.js';
 import { DEFAULT_CONFIG } from '../config/index.js';
-import { nitrogenCycleDefaults } from '../config/nitrogen-cycle.js';
+import { AIR_SATURATED_O2, nitrogenCycleDefaults } from '../config/nitrogen-cycle.js';
 
 /** The temperature every rate in the config is quoted at. */
 const REF = nitrogenCycleDefaults.referenceTemp;
+/**
+ * Oxygen enough that nothing below is short of it. Deliberately not
+ * {@link AIR_SATURATED_O2}: that is 8.38, it is the water the rates were quoted
+ * in, and the two parity tests that need the chain to balance exactly use it.
+ */
+const AMPLE_O2 = 8;
 
 // ============================================================================
 // Helper Function Tests
@@ -72,12 +84,12 @@ describe('nitrificationFactor', () => {
     const glut = 1e6;
     const bacteria = 100;
 
-    expect(calculateAmmoniaToNitrite(glut, bacteria, cold).ammoniaConsumed).toBeCloseTo(
-      calculateAmmoniaToNitrite(glut, bacteria, REF).ammoniaConsumed / q10,
+    expect(calculateAmmoniaToNitrite(glut, bacteria, cold, AMPLE_O2).ammoniaConsumed).toBeCloseTo(
+      calculateAmmoniaToNitrite(glut, bacteria, REF, AMPLE_O2).ammoniaConsumed / q10,
       10
     );
-    expect(calculateNitriteToNitrate(glut, bacteria, cold).nitriteConsumed).toBeCloseTo(
-      calculateNitriteToNitrate(glut, bacteria, REF).nitriteConsumed / q10,
+    expect(calculateNitriteToNitrate(glut, bacteria, cold, AMPLE_O2).nitriteConsumed).toBeCloseTo(
+      calculateNitriteToNitrate(glut, bacteria, REF, AMPLE_O2).nitriteConsumed / q10,
       10
     );
   });
@@ -187,20 +199,20 @@ describe('calculateWasteToAmmonia', () => {
 
 describe('calculateAmmoniaToNitrite', () => {
   it('returns zero consumption and production for no ammonia', () => {
-    const result = calculateAmmoniaToNitrite(0, 100, REF);
+    const result = calculateAmmoniaToNitrite(0, 100, REF, AMPLE_O2);
     expect(result.ammoniaConsumed).toBe(0);
     expect(result.nitriteProduced).toBe(0);
   });
 
   it('returns zero for no bacteria', () => {
-    const result = calculateAmmoniaToNitrite(1.0, 0, REF);
+    const result = calculateAmmoniaToNitrite(1.0, 0, REF, AMPLE_O2);
     expect(result.ammoniaConsumed).toBe(0);
     expect(result.nitriteProduced).toBe(0);
   });
 
   it('reports no utilization when a tuned-down rate leaves no capacity at all', () => {
     const noRate = { ...nitrogenCycleDefaults, bacteriaProcessingRate: 0 };
-    const result = calculateAmmoniaToNitrite(1.0, 100, REF, noRate);
+    const result = calculateAmmoniaToNitrite(1.0, 100, REF, AMPLE_O2, noRate);
 
     expect(result.ammoniaConsumed).toBe(0);
     expect(result.utilization).toBe(0);
@@ -208,8 +220,8 @@ describe('calculateAmmoniaToNitrite', () => {
 
   it('doubles the mass it clears when the colony doubles', () => {
     const glut = 1e6;
-    const one = calculateAmmoniaToNitrite(glut, 100, REF).ammoniaConsumed;
-    const two = calculateAmmoniaToNitrite(glut, 200, REF).ammoniaConsumed;
+    const one = calculateAmmoniaToNitrite(glut, 100, REF, AMPLE_O2).ammoniaConsumed;
+    const two = calculateAmmoniaToNitrite(glut, 200, REF, AMPLE_O2).ammoniaConsumed;
 
     expect(one).toBeGreaterThan(0);
     expect(two).toBeCloseTo(one * 2, 10);
@@ -220,27 +232,41 @@ describe('calculateAmmoniaToNitrite', () => {
     // a property of its cells, so nothing here can depend on how much water
     // happens to surround them.
     const bacteria = 100;
-    const { ammoniaConsumed } = calculateAmmoniaToNitrite(1e6, bacteria, REF);
+    const { ammoniaConsumed } = calculateAmmoniaToNitrite(1e6, bacteria, REF, AMPLE_O2);
 
     expect(ammoniaConsumed).toBeCloseTo(
-      bacteria * nitrogenCycleDefaults.bacteriaProcessingRate,
+      bacteria *
+        nitrogenCycleDefaults.bacteriaProcessingRate *
+        nitrifierOxygenFactor('aob', AMPLE_O2),
       10
     );
   });
 
   it('cannot process more ammonia than available', () => {
     const ammoniaMass = 0.001;
-    const { ammoniaConsumed } = calculateAmmoniaToNitrite(ammoniaMass, 1000, REF);
+    const { ammoniaConsumed } = calculateAmmoniaToNitrite(ammoniaMass, 1000, REF, AMPLE_O2);
     expect(ammoniaConsumed).toBe(ammoniaMass);
   });
 
   it('scales nitrite produced by MW_NO2 / MW_NH3 (N-mass conserved)', () => {
-    const { ammoniaConsumed, nitriteProduced } = calculateAmmoniaToNitrite(100, 100, REF);
+    const { ammoniaConsumed, nitriteProduced } = calculateAmmoniaToNitrite(100, 100, REF, AMPLE_O2);
 
     expect(ammoniaConsumed).toBeGreaterThan(0);
     expect(nitriteProduced).toBeCloseTo(ammoniaConsumed * NH3_TO_NO2_MASS_RATIO, 10);
     // N-mass conservation: mg of N is the same before and after.
     expect(nitriteProduced * (14.01 / 46.01)).toBeCloseTo(ammoniaConsumed * (14.01 / 17.03), 10);
+  });
+
+  it('pays for the ammonia it oxidises at the reaction rate, not at a rate of its own', () => {
+    const { ammoniaConsumed, oxygenConsumedMg } = calculateAmmoniaToNitrite(100, 100, REF, AMPLE_O2);
+
+    expect(oxygenConsumedMg).toBeCloseTo(ammoniaConsumed * O2_PER_NH3_OXIDIZED, 12);
+  });
+
+  it('spends nothing on an hour it converts nothing in', () => {
+    expect(calculateAmmoniaToNitrite(0, 100, REF, AMPLE_O2).oxygenConsumedMg).toBe(0);
+    expect(calculateAmmoniaToNitrite(100, 0, REF, AMPLE_O2).oxygenConsumedMg).toBe(0);
+    expect(calculateAmmoniaToNitrite(100, 100, REF, 0).oxygenConsumedMg).toBe(0);
   });
 });
 
@@ -249,15 +275,17 @@ describe('aobCapacity / nobCapacity', () => {
     const glut = 1e6;
     const cold = 18;
 
-    expect(calculateAmmoniaToNitrite(glut, 250, cold).ammoniaConsumed).toBe(aobCapacity(250, cold));
-    expect(calculateNitriteToNitrate(glut, 250, cold).nitriteConsumed).toBe(nobCapacity(250, cold));
+    expect(calculateAmmoniaToNitrite(glut, 250, cold, AMPLE_O2).ammoniaConsumed).toBe(aobCapacity(250, cold, AMPLE_O2));
+    expect(calculateNitriteToNitrate(glut, 250, cold, AMPLE_O2).nitriteConsumed).toBe(nobCapacity(250, cold, AMPLE_O2));
   });
 
   it('scales with the colony and with how fast the water lets it work', () => {
-    expect(aobCapacity(200, REF)).toBeCloseTo(aobCapacity(100, REF) * 2, 12);
-    expect(aobCapacity(100, 18)).toBeLessThan(aobCapacity(100, REF));
-    expect(nobCapacity(100, REF) / aobCapacity(100, REF)).toBeCloseTo(
-      NOB_PROCESSING_RATE_MULTIPLIER,
+    expect(aobCapacity(200, REF, AMPLE_O2)).toBeCloseTo(aobCapacity(100, REF, AMPLE_O2) * 2, 12);
+    expect(aobCapacity(100, 18, AMPLE_O2)).toBeLessThan(aobCapacity(100, REF, AMPLE_O2));
+    expect(aobCapacity(100, REF, 1)).toBeLessThan(aobCapacity(100, REF, AMPLE_O2));
+    expect(nobCapacity(100, REF, AMPLE_O2) / aobCapacity(100, REF, AMPLE_O2)).toBeCloseTo(
+      (nobProcessingRateMultiplier() * nitrifierOxygenFactor('nob', AMPLE_O2)) /
+        nitrifierOxygenFactor('aob', AMPLE_O2),
       12
     );
   });
@@ -265,20 +293,20 @@ describe('aobCapacity / nobCapacity', () => {
 
 describe('calculateNitriteToNitrate', () => {
   it('returns zero consumption and production for no nitrite', () => {
-    const result = calculateNitriteToNitrate(0, 100, REF);
+    const result = calculateNitriteToNitrate(0, 100, REF, AMPLE_O2);
     expect(result.nitriteConsumed).toBe(0);
     expect(result.nitrateProduced).toBe(0);
   });
 
   it('returns zero for no bacteria', () => {
-    const result = calculateNitriteToNitrate(1.0, 0, REF);
+    const result = calculateNitriteToNitrate(1.0, 0, REF, AMPLE_O2);
     expect(result.nitriteConsumed).toBe(0);
     expect(result.nitrateProduced).toBe(0);
   });
 
   it('reports no utilization when a tuned-down rate leaves no capacity at all', () => {
     const noRate = { ...nitrogenCycleDefaults, bacteriaProcessingRate: 0 };
-    const result = calculateNitriteToNitrate(1.0, 100, REF, noRate);
+    const result = calculateNitriteToNitrate(1.0, 100, REF, AMPLE_O2, noRate);
 
     expect(result.nitriteConsumed).toBe(0);
     expect(result.utilization).toBe(0);
@@ -286,22 +314,25 @@ describe('calculateNitriteToNitrate', () => {
 
   it('runs at the AOB rate times the NOB multiplier, per bacteria unit', () => {
     const bacteria = 100;
-    const { nitriteConsumed } = calculateNitriteToNitrate(1e6, bacteria, REF);
+    const { nitriteConsumed } = calculateNitriteToNitrate(1e6, bacteria, REF, AMPLE_O2);
 
     expect(nitriteConsumed).toBeCloseTo(
-      bacteria * nitrogenCycleDefaults.bacteriaProcessingRate * NOB_PROCESSING_RATE_MULTIPLIER,
+      bacteria *
+        nitrogenCycleDefaults.bacteriaProcessingRate *
+        nobProcessingRateMultiplier() *
+        nitrifierOxygenFactor('nob', AMPLE_O2),
       10
     );
   });
 
   it('cannot process more nitrite than available', () => {
     const nitriteMass = 0.001;
-    const { nitriteConsumed } = calculateNitriteToNitrate(nitriteMass, 1000, REF);
+    const { nitriteConsumed } = calculateNitriteToNitrate(nitriteMass, 1000, REF, AMPLE_O2);
     expect(nitriteConsumed).toBe(nitriteMass);
   });
 
   it('scales nitrate produced by MW_NO3 / MW_NO2 (N-mass conserved)', () => {
-    const { nitriteConsumed, nitrateProduced } = calculateNitriteToNitrate(1000, 100, REF);
+    const { nitriteConsumed, nitrateProduced } = calculateNitriteToNitrate(1000, 100, REF, AMPLE_O2);
 
     expect(nitriteConsumed).toBeGreaterThan(0);
     expect(nitrateProduced).toBeCloseTo(nitriteConsumed * NO2_TO_NO3_MASS_RATIO, 10);
@@ -309,30 +340,120 @@ describe('calculateNitriteToNitrate', () => {
     expect(nitrateProduced * (14.01 / 62.0)).toBeCloseTo(nitriteConsumed * (14.01 / 46.01), 10);
   });
 
-  it('NOB throughput matches AOB in N-atom terms at population parity', () => {
-    // Key stoichiometric property: at equal populations and non-limiting
-    // substrate, NOB should consume NO2 mass equal to what AOB produces
-    // from an equivalent NH3 consumption. Expressed per N atom, throughput
-    // is identical.
-    const bacteria = 100;
-    const { ammoniaConsumed, nitriteProduced } = calculateAmmoniaToNitrite(1e6, bacteria, REF);
-    const { nitriteConsumed } = calculateNitriteToNitrate(1e6, bacteria, REF);
+  it('pays for the nitrite it oxidises at the reaction rate, not at a rate of its own', () => {
+    const { nitriteConsumed, oxygenConsumedMg } = calculateNitriteToNitrate(1000, 100, REF, AMPLE_O2);
 
-    // NOB clears exactly the NO2 mass AOB just produced (balanced chain).
-    expect(nitriteConsumed).toBeCloseTo(nitriteProduced, 8);
-    // Per-N-atom: same mg of elemental N passes through each stage.
+    expect(oxygenConsumedMg).toBeCloseTo(nitriteConsumed * O2_PER_NO2_OXIDIZED, 12);
+  });
+
+  it('spends nothing on an hour it converts nothing in', () => {
+    expect(calculateNitriteToNitrate(0, 100, REF, AMPLE_O2).oxygenConsumedMg).toBe(0);
+    expect(calculateNitriteToNitrate(1000, 0, REF, AMPLE_O2).oxygenConsumedMg).toBe(0);
+    expect(calculateNitriteToNitrate(1000, 100, REF, 0).oxygenConsumedMg).toBe(0);
+  });
+
+  it('clears exactly what AOB produce at population parity, in the water both rates are quoted in', () => {
+    // The two rates are quoted at air saturation, so that is where the chain
+    // balances per N atom: what the first step puts out, the second takes.
+    const bacteria = 100;
+    const saturated = AIR_SATURATED_O2;
+    const { ammoniaConsumed, nitriteProduced } = calculateAmmoniaToNitrite(1e6, bacteria, REF, saturated);
+    const { nitriteConsumed } = calculateNitriteToNitrate(1e6, bacteria, REF, saturated);
+
+    expect(nitriteConsumed).toBeCloseTo(nitriteProduced, 10);
+
     const nFromAob = ammoniaConsumed * (14.01 / 17.03);
     const nFromNob = nitriteConsumed * (14.01 / 46.01);
-    expect(nFromNob).toBeCloseTo(nFromAob, 8);
+    expect(nFromNob).toBeCloseTo(nFromAob, 10);
+  });
+
+  it('falls behind that parity in every thinner water, and by more the thinner it gets', () => {
+    // The K gap, and the only thing between the two guilds once the rates are
+    // quoted against each other: NOB keep less of their maximum than AOB at
+    // every oxygen below the one both were measured at.
+    const bacteria = 100;
+    const shortfall = (oxygen: number): number =>
+      calculateNitriteToNitrate(1e6, bacteria, REF, oxygen).nitriteConsumed /
+      calculateAmmoniaToNitrite(1e6, bacteria, REF, oxygen).nitriteProduced;
+
+    let previous = 1;
+    for (const oxygen of [8, 4, 2, 1, 0.5, 0.25, 0.1]) {
+      const behind = shortfall(oxygen);
+      expect(behind).toBeLessThan(previous);
+      previous = behind;
+    }
   });
 });
 
-describe('NOB_PROCESSING_RATE_MULTIPLIER', () => {
-  it('equals MW_NO2 / MW_NH3 (stoichiometric balance)', () => {
-    // Guards against accidental drift: the multiplier is purely derived
-    // from molecular weights and must stay in lockstep with NH3_TO_NO2_MASS_RATIO.
-    expect(NOB_PROCESSING_RATE_MULTIPLIER).toBeCloseTo(NH3_TO_NO2_MASS_RATIO, 10);
-    expect(NOB_PROCESSING_RATE_MULTIPLIER).toBeCloseTo(46.01 / 17.03, 10);
+describe('nitrifierOxygenFactor', () => {
+  it('runs each guild at half rate at its own half-saturation constant', () => {
+    expect(nitrifierOxygenFactor('aob', nitrogenCycleDefaults.aobOxygenHalfSaturation)).toBeCloseTo(
+      0.5,
+      12
+    );
+    expect(nitrifierOxygenFactor('nob', nitrogenCycleDefaults.nobOxygenHalfSaturation)).toBeCloseTo(
+      0.5,
+      12
+    );
+  });
+
+  it('stops both guilds dead in water with no oxygen', () => {
+    expect(nitrifierOxygenFactor('aob', 0)).toBe(0);
+    expect(nitrifierOxygenFactor('nob', 0)).toBe(0);
+  });
+
+  // The whole reason the two constants are separate: the gap widens as the
+  // water empties, so a starved tank clears ammonia long after it has stopped
+  // clearing the nitrite that ammonia becomes.
+  it('holds NOB back harder than AOB, and by more the less oxygen there is', () => {
+    let previous = 1;
+    for (const oxygen of [8, 4, 2, 1, 0.5, 0.25]) {
+      const gap = nitrifierOxygenFactor('nob', oxygen) / nitrifierOxygenFactor('aob', oxygen);
+      expect(gap).toBeLessThan(previous);
+      previous = gap;
+    }
+  });
+});
+
+describe('nobProcessingRateMultiplier', () => {
+  /** Both guilds' oxygen term neutralised — the ratio with no air left in it. */
+  const airless = {
+    ...nitrogenCycleDefaults,
+    aobOxygenHalfSaturation: 0,
+    nobOxygenHalfSaturation: 0,
+  };
+
+  it('is the mass a milligram of NH3 gains on its way to NO2, once the air is out of it', () => {
+    expect(nobProcessingRateMultiplier(airless)).toBeCloseTo(46.01 / 17.03, 10);
+  });
+
+  it('is that mass as `chemistry.ts` states it, so the two cannot drift apart', () => {
+    expect(nobProcessingRateMultiplier(airless)).toBeCloseTo(NH3_TO_NO2_MASS_RATIO, 12);
+  });
+
+  it('lifts NOB above it in real water, because their own costs them more', () => {
+    expect(nobProcessingRateMultiplier()).toBeGreaterThan(NH3_TO_NO2_MASS_RATIO);
+  });
+
+  it('balances the chain at air saturation whatever the two constants are', () => {
+    // Read off the config rather than frozen at the defaults, so that the claim
+    // survives the debug panel moving either K — and so the counterfactual
+    // above is an engine with no oxygen term rather than a half-corrected one.
+    for (const [aobK, nobK] of [
+      [0.3, 1.1],
+      [0.6, 0.6],
+      [1.5, 0.2],
+    ]) {
+      const config = {
+        ...nitrogenCycleDefaults,
+        aobOxygenHalfSaturation: aobK,
+        nobOxygenHalfSaturation: nobK,
+      };
+      const { nitriteProduced } = calculateAmmoniaToNitrite(1e6, 100, REF, AIR_SATURATED_O2, config);
+      const { nitriteConsumed } = calculateNitriteToNitrate(1e6, 100, REF, AIR_SATURATED_O2, config);
+
+      expect(nitriteConsumed).toBeCloseTo(nitriteProduced, 10);
+    }
   });
 });
 
@@ -904,13 +1025,17 @@ describe('25-Day Tank Cycling Integration Test', () => {
       draft.resources.food = 5.0; // 5g food
     });
 
-    // Run for 500 ticks
+    // Run for 500 ticks. Gas exchange is in the loop because decomposition and
+    // nitrification both spend oxygen: without a surface the tank goes anoxic,
+    // the food stands and the chain stalls.
     for (let tick = 0; tick < 500; tick++) {
       const decayEffects = decaySystem.update(state, DEFAULT_CONFIG);
       state = applyEffects(state, decayEffects);
 
       const nitrogenEffects = nitrogenCycleSystem.update(state, DEFAULT_CONFIG);
       state = applyEffects(state, nitrogenEffects);
+
+      state = applyEffects(state, gasExchangeSystem.update(state, DEFAULT_CONFIG));
 
       state = produce(state, (draft) => {
         draft.tick = tick + 1;

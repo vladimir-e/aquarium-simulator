@@ -5,7 +5,33 @@
  * inoculum and the throughput rate are all quoted in those units, which is
  * what makes `bacteriaPerCm2` a biofilm density you can look up rather than
  * an arbitrary score. See `bacteriaPerCm2` below for the pin.
+ *
+ * Three of the rates below are Monod maxima read at {@link AIR_SATURATED_O2}
+ * rather than figures a culture would hand you, and each says so where it is
+ * defined. `docs/4-CORE-SYSTEMS.md` carries the rule and which constants in the
+ * engine follow it.
  */
+
+import { monodFactor } from '../core/kinetics.js';
+
+/**
+ * Dissolved O2 in air-saturated freshwater at `referenceTemp`, mg/L — the water
+ * every rate below is quoted in, being the water a stirred culture and a healthy
+ * tank both sit in.
+ *
+ * A literal rather than `calculateO2Saturation(referenceTemp)`: that function
+ * lives in `systems/`, and no other constant in `config/` reaches across that
+ * boundary. `config/index.test.ts` holds the two together to a part in a
+ * million, which buys the same protection without the dependency.
+ */
+export const AIR_SATURATED_O2 = 8.38;
+
+const AOB_OXYGEN_HALF_SATURATION = 0.3;
+const NOB_OXYGEN_HALF_SATURATION = 1.1;
+
+/** What the oxygen term leaves of each guild's maximum in that water. */
+const AOB_AT_AIR_SATURATION = monodFactor(AIR_SATURATED_O2, AOB_OXYGEN_HALF_SATURATION);
+const NOB_AT_AIR_SATURATION = monodFactor(AIR_SATURATED_O2, NOB_OXYGEN_HALF_SATURATION);
 
 export interface NitrogenCycleConfig {
   /** Fraction of waste converted to ammonia per tick */
@@ -32,6 +58,10 @@ export interface NitrogenCycleConfig {
   q10: number;
   /** Temperature the nitrifier rates are quoted at (°C) */
   referenceTemp: number;
+  /** Dissolved O2 (mg/L) at which AOB oxidise and grow at half rate */
+  aobOxygenHalfSaturation: number;
+  /** Dissolved O2 (mg/L) at which NOB oxidise and grow at half rate */
+  nobOxygenHalfSaturation: number;
 }
 
 export const nitrogenCycleDefaults: NitrogenCycleConfig = {
@@ -43,10 +73,18 @@ export const nitrogenCycleDefaults: NitrogenCycleConfig = {
   // waste → NH3 first stage. See systems/nitrogen-cycle.ts for MW math.
   wasteToAmmoniaRatio: 60,
   // mg NH₃ one bacteria unit (10⁶ cells) oxidises per tick, and a tick is an
-  // hour: 2×10⁻¹³ g/cell/h, inside the 10⁻¹⁴–10⁻¹³ g/cell/h measured for
-  // Nitrosomonas. That is the independent check on the gauge pinned at
-  // `bacteriaPerCm2` — the pair lands on real biology, not only on the anchors.
-  bacteriaProcessingRate: 0.0002,
+  // hour: 2×10⁻¹³ g/cell/h in air-saturated water, inside the 10⁻¹⁴–10⁻¹³
+  // g/cell/h measured for Nitrosomonas. That is the independent check on the
+  // gauge pinned at `bacteriaPerCm2` — the pair lands on real biology, not only
+  // on the anchors.
+  //
+  // NOB take the same per-cell throughput scaled by the N mass ratio, re-quoted
+  // through their own oxygen term instead of inheriting AOB's — so the two
+  // guilds balance per N atom in the water both figures were measured in, and
+  // part company in every thinner one. That parting is what makes nitrite the
+  // species that stands: the gap between the two half-saturation constants runs
+  // from 1.000 at saturation to 0.364 at 0.10 mg/L.
+  bacteriaProcessingRate: 0.0002 / AOB_AT_AIR_SATURATION,
   // Spawn thresholds set to "detectable by hobbyist" ranges — 0.5 ppm
   // NH3 and 0.5 ppm NO2 are the levels where a nitrifier lag-phase
   // typically ends. Previous 0.02 / 0.125 led to bacteria colonising
@@ -54,8 +92,8 @@ export const nitrogenCycleDefaults: NitrogenCycleConfig = {
   // (cycle visible only after 10+ days in a fresh tank).
   aobSpawnThreshold: 0.5,
   nobSpawnThreshold: 0.5,
-  // Nitrifiers the tank is born with, per litre of fill water — 6.5×10⁵ cells,
-  // ~650 per mL. See `calculateInoculum` for why the seed is counted in litres.
+  // Nitrifiers the tank is born with, per litre of fill water — 6.4×10⁵ cells,
+  // ~640 per mL. See `calculateInoculum` for why the seed is counted in litres.
   //
   // Everything after the seed is doublings, so the inoculum sets the clock —
   // this is the one constant of the three read off the cycling timeline rather
@@ -63,20 +101,26 @@ export const nitrogenCycleDefaults: NitrogenCycleConfig = {
   // knobs: the bed's nitrogen budget is fixed, so every day the peak is delayed
   // is another day of it standing as nitrite.
   //
-  // Swept at 10 L through 1000 L, every value that passes lies in 0.595 – 0.680
+  // Swept at 10 L through 1000 L, every value that passes lies in 0.597 – 0.680
   // units/L: below it the nitrite peak clears the 5 ppm ceiling, above it a
-  // tank cycles before day 21. The value below sits inside that, 0.055 ppm
-  // under the peak ceiling and 0.167 d over the cycled-day floor. Those margins
-  // are the widest the window allows — they trade against each other one for
-  // one. `tests/inoculum-window.test.ts` re-runs the sweep.
-  inoculumPerLiter: 0.648,
+  // tank cycles before day 21. Room at one edge is bought with room at the
+  // other, one for one, so the value below is the middle of that window — the
+  // furthest either edge can be held off. It leaves 0.047 ppm under the peak
+  // ceiling and 0.208 d over the cycled-day floor.
+  // `tests/inoculum-window.test.ts` re-runs the sweep.
+  inoculumPerLiter: 0.6385,
   // Growth is per-capita at *full* utilization, so each rate is read straight
   // off a saturated doubling time: rate = ln2 / hours. AOB double in 15–24 h
   // under non-limiting ammonia, NOB in 24–48 h; the midpoints below keep the
   // AOB-before-NOB succession (Hovanec & DeLong, 1996) that makes nitrite
   // peak after ammonia rather than alongside it.
-  aobGrowthRate: Math.LN2 / 20,
-  nobGrowthRate: Math.LN2 / 36,
+  //
+  // Those hours are what a culture in air-saturated water does, so each is the
+  // doubling time the tank reproduces rather than the one the constant states:
+  // dividing by the oxygen term there puts 20 h and 36 h back in the water and
+  // stretches them as the water thins.
+  aobGrowthRate: Math.LN2 / 20 / AOB_AT_AIR_SATURATION,
+  nobGrowthRate: Math.LN2 / 36 / NOB_AT_AIR_SATURATION,
   // Carrying capacity in 10⁶ cells per cm² of biofilm — 10⁷ cells/cm², mid-range
   // for mature nitrifying media.
   //
@@ -91,9 +135,10 @@ export const nitrogenCycleDefaults: NitrogenCycleConfig = {
   bacteriaPerCm2: 10,
   // Maintenance loss, not starvation: a colony cut off from ammonia fades over
   // weeks, which is why a tank survives a holiday. ln2 / (3 weeks) — a 21-day
-  // half-life. A colony settles where g·u·(1 − p/K) = d, so utilization rests
-  // at deathRate / growthRate (4 % AOB, 7 % NOB) divided by the headroom
-  // 1 − p/K. With the ceiling above, an ordinary load leaves that headroom
+  // half-life. A colony settles where g·a·u·(1 − p/K) = d, so utilization rests
+  // at deathRate / (growthRate × the oxygen factor) divided by the headroom
+  // 1 − p/K — 4 % AOB and 7 % NOB in air-saturated water, further up as the
+  // water thins. With the ceiling above, an ordinary load leaves that headroom
   // near 1 and maintenance decay is what the colony balances against.
   bacteriaDeathRate: Math.LN2 / (21 * 24),
   // Nitrification runs on enzymes, so every rate above is quoted at a
@@ -110,6 +155,13 @@ export const nitrogenCycleDefaults: NitrogenCycleConfig = {
   // Every anchor is measured at 25 °C, so the term is inert there by
   // construction and only bites away from it.
   referenceTemp: 25,
+  // Wiesmann's measured pair for the two guilds, and the gap between them is
+  // the point: NOB are the fussier about oxygen by a factor of nearly four, so
+  // a tank short of air oxidises its ammonia long after it has stopped clearing
+  // the nitrite that ammonia becomes. Standing nitrite in a poorly aerated tank
+  // is a thing keepers see, and this is where it comes from.
+  aobOxygenHalfSaturation: AOB_OXYGEN_HALF_SATURATION,
+  nobOxygenHalfSaturation: NOB_OXYGEN_HALF_SATURATION,
 };
 
 export interface NitrogenCycleConfigMeta {
@@ -117,6 +169,9 @@ export interface NitrogenCycleConfigMeta {
   label: string;
   unit: string;
   step: number;
+  /** Absent on the rates below, which are derived rather than bounded. */
+  min?: number;
+  max?: number;
 }
 
 // `step` is the debug panel's spinner increment. The rates above are derived
@@ -135,4 +190,6 @@ export const nitrogenCycleConfigMeta: NitrogenCycleConfigMeta[] = [
   { key: 'bacteriaDeathRate', label: 'Bacteria Death Rate', unit: '/tick', step: 0.00001 },
   { key: 'q10', label: 'Nitrification Q10', unit: '', step: 0.1 },
   { key: 'referenceTemp', label: 'Nitrification Reference Temp', unit: '°C', step: 1 },
+  { key: 'aobOxygenHalfSaturation', label: 'AOB O2 Half-Saturation', unit: 'mg/L', min: 0.05, max: 3, step: 0.05 },
+  { key: 'nobOxygenHalfSaturation', label: 'NOB O2 Half-Saturation', unit: 'mg/L', min: 0.05, max: 3, step: 0.05 },
 ];

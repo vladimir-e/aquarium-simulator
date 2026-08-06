@@ -11,6 +11,74 @@ Core systems are the "engine" of the simulation. They:
 
 ---
 
+## Oxygen-limited processes
+
+Every aerobic process in the tank — decomposition, both nitrifier guilds, plant
+respiration, fish metabolism — multiplies its rate by how much oxygen there is
+to run on:
+
+```
+oxygen_factor = O2 / (K + O2)
+```
+
+`K` is the half-saturation constant, the dissolved oxygen at which the process
+runs at half its base rate, and each process quotes its own. This is Monod
+saturation, the measured kinetics of oxygen-limited metabolism, and it is the
+same shape as the Q10 term: a multiplicative modifier on a rate, quoted against
+a constant of its own.
+
+| Process | K (mg/L) | Rate left at 8.38 mg/L |
+|---------|----------|------------------------|
+| Aerobic decomposition | 0.20 | 98 % |
+| Ammonia oxidation (AOB) | 0.30 | 97 % |
+| Plant respiration | 0.50 | 94 % |
+| Fish metabolism | 1.00 | 89 % |
+| Nitrite oxidation (NOB) | 1.10 | 88 % |
+
+A fish's row covers both of its outputs. Deamination is metabolism, so ammonia
+excretion — post-prandial and basal alike — runs on the same factor as the
+respiratory draw and off the same constant. A hypoxic fish enters metabolic
+depression and its measured nitrogen output falls with the rest of it. Feces are
+outside it: that N was never absorbed. The N a depressed fish does not deaminate
+stays in its body, which is a sink the engine does not track.
+
+Three consequences follow, and all three are the point:
+
+- **Demand falls with supply.** A tank cannot draw oxygen it does not have,
+  because the draw shrinks as the stock does. There is no clamp at the zero
+  boundary and no tick-wide ration — the rate carries it.
+- **The derived carbon falls with the oxygen.** Each of these processes emits CO2
+  derived from the oxygen it consumed, so a suffocating tank stops emitting
+  carbon rather than manufacturing it out of oxygen that was never there.
+- **The guild that needs the most air suffers first.** NOB carry nearly four
+  times AOB's half-saturation constant, so a tank short of air goes on oxidising
+  its ammonia long after it has stopped clearing the nitrite that ammonia
+  becomes. Standing nitrite in an under-aerated tank is a thing keepers see, and
+  this is where it comes from.
+
+Every base rate multiplied by that factor is a Monod **maximum**, because the
+factor reaches 1 only at infinite oxygen. What a tank at air saturation
+reproduces is therefore the last column above, not the constant itself.
+
+The three nitrifier rates divide that shortfall back out and the others do not,
+and what decides it is what each constant *claims*. A 20 h AOB doubling, a 36 h
+NOB doubling and 2×10⁻¹³ g of ammonia per cell per hour are single figures their
+comments state and the anchors test; uncorrected, the same tank would read
+20.7 h and 40.7 h — still inside the published bands, but no longer the numbers
+claimed. NOB's throughput is quoted against AOB's rather than on its own, so the
+correction rides in its multiplier: the ratio between the two guilds' rates is
+re-quoted through each guild's factor, which is what puts the chain in per-atom
+N balance at population parity in air-saturated water instead of 8 % under it.
+
+Both fish rates quote a band instead — 0.2–0.5 mg O₂/g/h and 0.3–1.0 mg
+NH₃-N/g/day — and 0.3 taken to 0.268 and 0.03 taken to 0.0268 sit inside theirs;
+plant respiration and decay lose 6 % and 2 %, which is finer than either was
+ever picked to. Dividing those out as well would move three systems'
+calibration to make nothing truer, and that is the calibration pass's call
+rather than this one's.
+
+---
+
 ## Waste Stock
 
 Waste is an abstract resource representing organic matter that feeds the nitrogen cycle. Multiple systems contribute to the waste stock.
@@ -68,17 +136,23 @@ C6H12O6 + 6O2 → 6CO2 + 6H2O
 ### Behavior
 
 ```
-decay_amount = base_rate * temperature_factor * food
+decay_amount = base_rate * temperature_factor * oxygen_factor * food
 waste_output = decay_amount * 0.4
 oxidized_amount = decay_amount * 0.6
-co2_increase = oxidized_amount * 250mg / water_volume  (mg/L)
-o2_decrease = oxidized_amount * 250mg / water_volume   (mg/L)
+o2_demand_mg = oxidized_amount * 250mg
+o2_decrease = o2_demand_mg / water_volume                        (mg/L)
+co2_increase = o2_decrease * MW_CO2 / MW_O2                      (mg/L)
 phosphate_produced = decay_amount * PHOSPHATE_PER_DECAY  (trace)
 ```
 
 - Higher temperature = faster decay (Q10 = 2, rate doubles per 10°C)
+- Less oxygen = slower decay — the whole process, not only its gas side, so an
+  anoxic tank builds sludge instead of mineralising it and the nitrogen bound in
+  that sludge stays bound
 - More food = more decay, waste, and gas exchange
 - Smaller tanks see larger concentration changes (same mass, less volume)
+- `250 mg/g` is an oxygen demand; the CO2 is derived from it at the molar ratio,
+  so the two gases are one reaction rather than two coefficients
 
 ### Phosphate from Decay
 
@@ -92,13 +166,13 @@ This creates a natural phosphate source from fish bioload, supporting low-demand
 
 ### Tank Size Impact
 
-Example: 1g food decaying 5% per hour at 25°C
+Example: 1g food decaying at 25°C in air-saturated water
 
-| Tank | CO2 Δ/hr | O2 Δ/hr | Effect |
-|------|----------|---------|--------|
-| 40L  | 0.19 mg/L | 0.19 mg/L | Noticeable |
-| 100L | 0.08 mg/L | 0.08 mg/L | Mild |
-| 200L | 0.04 mg/L | 0.04 mg/L | Minimal |
+| Tank | O2 Δ/hr | CO2 Δ/hr | Effect |
+|------|---------|----------|--------|
+| 40L  | 0.18 mg/L | 0.25 mg/L | Noticeable |
+| 100L | 0.07 mg/L | 0.10 mg/L | Mild |
+| 200L | 0.04 mg/L | 0.05 mg/L | Minimal |
 
 ### Thresholds
 
@@ -141,15 +215,19 @@ Waste decomposes into dissolved ammonia (concentration depends on water volume)
 
 **Stage 2: Ammonia → Nitrite (by AOB)**
 ```
-NH3 + O2 → NO2- + H2O + H+
-Ammonia → Nitrite (via Ammonia-Oxidizing Bacteria)
+NH4+ + 1.5 O2 → NO2- + 2 H+ + H2O
+Ammonia → Nitrite (via Ammonia-Oxidizing Bacteria), 3.43 mg O2 per mg N
 ```
 
 **Stage 3: Nitrite → Nitrate (by NOB)**
 ```
-NO2- + O2 → NO3-
-Nitrite → Nitrate (via Nitrite-Oxidizing Bacteria)
+NO2- + 0.5 O2 → NO3-
+Nitrite → Nitrate (via Nitrite-Oxidizing Bacteria), 1.14 mg O2 per mg N
 ```
+
+Both stages pay for themselves in oxygen — 4.57 mg per mg of nitrogen carried
+the whole way, three quarters of it on the first step — and the draw is derived
+from the nitrogen actually oxidised, not quoted separately.
 
 ### Bacterial Dynamics
 
@@ -165,10 +243,15 @@ Nitrite → Nitrate (via Nitrite-Oxidizing Bacteria)
 
 ```
 utilization         = substrate_consumed / processing_capacity   # 0..1
-processing_capacity = population * processing_rate * warmth
-bacterial_growth    = population * growth_rate * warmth * utilization * (1 - population/max_population)
+processing_capacity = population * processing_rate * warmth * air
+bacterial_growth    = population * growth_rate * warmth * air * utilization * (1 - population/max_population)
 bacterial_death     = population * death_rate * warmth
 ```
+
+`air` is the guild's own oxygen factor from *Oxygen-limited processes* above. It
+scales oxidation and growth alike — a colony cannot divide on a reaction it
+cannot run — but deliberately not maintenance decay, which is what makes an
+anoxic tank lose its biofilter rather than merely pause it.
 
 Processing capacity carries no volume term. Throughput is a property of the
 cell, so the same colony clears the same milligrams in a nano and in a 150 L,
@@ -182,8 +265,17 @@ of them is a units convention and the ceiling density is the one pinned.
 
 `growth_rate` is read off a saturated doubling time (`ln2 / hours`) and
 `death_rate` off a starvation half-life. A colony under a steady load settles
-where the two cancel — `utilization = death_rate / growth_rate` while the
-surface ceiling is far off, higher once the logistic term starts braking.
+where the two cancel — `utilization = death_rate / (growth_rate * air)` while
+the surface ceiling is far off, higher once the logistic term starts braking.
+
+The surface ceiling is not, in practice, what a biofilter meets. Any load big
+enough to fill the biofilm is a load whose oxygen demand strips the water first:
+a bare 200 L held under a saturating ammonia dose settles at 95 % of its surface
+for AOB and 53 % for NOB on the sponge a fresh tank starts with, against 96 % /
+94 % with the oxygen term switched off. What the circulation decides is how far
+short of that a guild stops — NOB run from 1.4 % with nothing moving the water
+to 90.1 % on a canister, an air pump and a powerhead. Oxygen is the binding
+constraint on a mature colony, and NOB feel it first.
 
 The **inoculum** is the third constant on this clock: everything between a
 seeded tank and a cycled one is doublings, so it sets how many there are. It is

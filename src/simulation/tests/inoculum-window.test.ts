@@ -1,11 +1,11 @@
 /**
  * The derivation behind `inoculumPerLiter`, re-run rather than retold.
  *
- * The config comment claims a passing window, and claims the shipped value sits
- * inside it with named margins. This sweeps the grid that claim was read off
- * and asserts the claim itself — including that the values just outside the
- * window fail, and fail for the reasons the comment gives. A constant that
- * moves without its comment moving breaks this.
+ * The config comment claims a passing window, and claims the shipped value is
+ * its middle. This sweeps the grid that claim was read off and asserts the
+ * claim itself — including that the values just outside the window fail, and
+ * fail for the reasons the comment gives. A constant that moves without its
+ * comment moving breaks this.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -18,9 +18,9 @@ import { cycledTank, doseClearance, traceCycle } from './tanks.js';
 const VOLUMES = [10, 20, 40, 75, 150, 300, 1000] as const;
 
 /** The window the config comment states, and the first grid point outside each edge. */
-const WINDOW_LOW = 0.595;
-const WINDOW_HIGH = 0.68;
-const BELOW_WINDOW = 0.594;
+const WINDOW_LOW = 0.597;
+const WINDOW_HIGH = 0.680;
+const BELOW_WINDOW = 0.596;
 const ABOVE_WINDOW = 0.681;
 
 const at = (inoculumPerLiter: number): TunableConfig =>
@@ -41,7 +41,7 @@ function outcome(litres: number, config: TunableConfig): Outcome {
     peakPpm: nitritePeakPpm,
     peakDay: nitritePeakDay,
     cycledDay,
-    dose24h: doseClearance(cycledTank(litres, config), { config }),
+    dose24h: doseClearance(cycledTank(litres, { config }), { config }),
   };
 }
 
@@ -92,12 +92,11 @@ describe('inoculumPerLiter — the window behind the shipped value', { timeout: 
     expect(Math.min(...days)).toBeLessThan(21);
   });
 
-  it('sits the shipped value inside the window, on the margins the comment quotes', () => {
+  it('ships the middle of that window, on the margins the comment quotes', () => {
     const measured = VOLUMES.map((litres) => outcome(litres, DEFAULT_CONFIG));
 
-    expect(nitrogenCycleDefaults.inoculumPerLiter).toBeGreaterThan(WINDOW_LOW);
-    expect(nitrogenCycleDefaults.inoculumPerLiter).toBeLessThan(WINDOW_HIGH);
-    expect(5 - Math.max(...measured.map((o) => o.peakPpm))).toBeCloseTo(0.055, 3);
-    expect(Math.min(...measured.map((o) => o.cycledDay ?? 0)) - 21).toBeCloseTo(0.167, 3);
+    expect(nitrogenCycleDefaults.inoculumPerLiter).toBeCloseTo((WINDOW_LOW + WINDOW_HIGH) / 2, 4);
+    expect(5 - Math.max(...measured.map((o) => o.peakPpm))).toBeCloseTo(0.047, 3);
+    expect(Math.min(...measured.map((o) => o.cycledDay ?? 0)) - 21).toBeCloseTo(0.208, 3);
   });
 });

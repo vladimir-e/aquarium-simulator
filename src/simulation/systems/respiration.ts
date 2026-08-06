@@ -8,20 +8,18 @@
  *
  * During day: photosynthesis > respiration = net O2 production
  * During night: respiration only = net O2 consumption
- *
- * Stoichiometry (reverse of photosynthesis):
- * C6H12O6 + 6O2 → 6CO2 + 6H2O + energy
  */
 
 import type { PlantsConfig } from '../config/plants.js';
 import { plantsDefaults } from '../config/plants.js';
-import { q10Factor } from '../core/kinetics.js';
+import { monodFactor, q10Factor } from '../core/kinetics.js';
+import { CO2_TO_O2_MASS_RATIO } from '../core/chemistry.js';
 
 export interface RespirationResult {
-  /** Oxygen consumed (mg/L, negative) */
-  oxygenDelta: number;
-  /** CO2 produced (mg/L) */
-  co2Delta: number;
+  /** Oxygen consumed (mg, absolute — caller divides by water volume for mg/L delta) */
+  oxygenConsumedMg: number;
+  /** CO2 produced (mg, absolute — caller divides by water volume for mg/L delta) */
+  co2ProducedMg: number;
 }
 
 /**
@@ -36,38 +34,36 @@ export function getRespirationTemperatureFactor(
 }
 
 /**
- * Calculate plant respiration rate and resource changes.
+ * Calculate plant respiration rate and the gas masses it moves.
  *
  * @param totalPlantSize - Sum of all plant sizes (%)
  * @param temperature - Current water temperature (C)
+ * @param oxygen - Dissolved oxygen (mg/L), which the rate saturates against
  * @param config - Plants configuration
- * @returns Respiration result with O2 and CO2 deltas
  */
 export function calculateRespiration(
   totalPlantSize: number,
   temperature: number,
+  oxygen: number,
   config: PlantsConfig = plantsDefaults
 ): RespirationResult {
-  // No respiration without plants
   if (totalPlantSize <= 0) {
     return {
-      oxygenDelta: 0,
-      co2Delta: 0,
+      oxygenConsumedMg: 0,
+      co2ProducedMg: 0,
     };
   }
 
-  // Calculate respiration rate
-  // Rate scales with total plant size (100% = 1.0) and temperature
   const plantSizeFactor = totalPlantSize / 100;
   const tempFactor = getRespirationTemperatureFactor(temperature, config);
-  const respirationRate = config.baseRespirationRate * plantSizeFactor * tempFactor;
+  const oxygenFactor = monodFactor(oxygen, config.respirationOxygenHalfSaturation);
+  const respirationRate =
+    config.baseRespirationRate * plantSizeFactor * tempFactor * oxygenFactor;
 
-  // Calculate resource changes (respiration consumes O2, produces CO2)
-  const oxygenDelta = -respirationRate * config.o2PerRespiration;
-  const co2Delta = respirationRate * config.co2PerRespiration;
+  const co2ProducedMg = respirationRate * config.co2PerRateUnit;
 
   return {
-    oxygenDelta,
-    co2Delta,
+    oxygenConsumedMg: co2ProducedMg * CO2_TO_O2_MASS_RATIO,
+    co2ProducedMg,
   };
 }

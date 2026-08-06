@@ -7,6 +7,7 @@
 import {
   calculateDecay,
   calculateSubstrateLeach,
+  decayFraction,
   getTemperatureFactor,
   processMetabolism,
   type SimulationState,
@@ -37,7 +38,7 @@ export interface WasteReadout extends WasteInflowReadout {
   mineralised: number;
   /** Food waiting to decay, grams. */
   food: number;
-  /** Fraction of standing food that decays this hour, at this temperature. */
+  /** Fraction of standing food that decays this hour, at this temperature and oxygen. */
   decayRate: number;
   /** Q10 temperature multiplier on decay. */
   q10: number;
@@ -52,10 +53,10 @@ const LABEL: Record<WasteSourceKey, string> = {
 
 export function wasteInflow(state: SimulationState, config: TunableConfig): WasteInflowReadout {
   const r = state.resources;
-  const decayed = calculateDecay(r.food, r.temperature, config.decay);
+  const decayed = calculateDecay(r.food, r.temperature, r.oxygen, config.decay);
   const grams: Record<WasteSourceKey, number> = {
     food: decayed * config.decay.wasteConversionRatio,
-    fish: processMetabolism(state.fish, r.food, config.livestock).wasteProduced,
+    fish: processMetabolism(state.fish, r.food, r.oxygen, config.livestock).wasteProduced,
     plants: state.plants.reduce(
       (sum, plant) => sum + calculateShedding(plant, config.plants).wasteProduced,
       0
@@ -101,7 +102,7 @@ export function wasteReadout(state: SimulationState, config: TunableConfig): Was
       config.nitrogenCycle
     ).wasteConsumed,
     food: r.food,
-    decayRate: config.decay.baseDecayRate * q10,
+    decayRate: decayFraction(r.temperature, r.oxygen, config.decay),
     q10,
   };
 }

@@ -26,6 +26,8 @@ export interface LivestockConfig {
    * scaling with Q10 ≈ 2 against temperature.
    */
   baseRespirationRate: number;
+  /** Dissolved O2 (mg/L) at which a fish takes up half its base rate. */
+  respirationOxygenHalfSaturation: number;
   /**
    * Fraction of ingested food mass that is nitrogen (g N / g food).
    *
@@ -56,7 +58,11 @@ export interface LivestockConfig {
    * fasting or sparse feeding.
    */
   basalAmmoniaRate: number;
-  /** CO2 produced per unit oxygen consumed (respiratory quotient) */
+  /**
+   * Moles of CO2 exhaled per mole of O2 consumed. A *molar* ratio, as the
+   * literature defines it — converting it to a mass takes the molar step
+   * through `O2_TO_CO2_MASS_RATIO`.
+   */
   respiratoryQuotient: number;
 
   // Satiation
@@ -176,23 +182,41 @@ export interface LivestockConfig {
 export const livestockDefaults: LivestockConfig = {
   // Metabolism - a 1g fish eats ~0.01g/hr = 0.24g/day
   baseFoodRate: 0.01,
-  // 0.3 mg O2 / g fish / hr — midpoint of real-world 0.2–0.5 at 25°C for
-  // small freshwater teleosts. Applied as absolute mg/hr and converted to
-  // mg/L by the livestock pipeline using tank volume.
+  // 0.3 mg O2 / g fish / hr, inside the real-world 0.2–0.5 at 25°C for small
+  // freshwater teleosts. Applied as absolute mg/hr and converted to mg/L by the
+  // livestock pipeline using tank volume.
   baseRespirationRate: 0.3,
+  // A fish regulates its uptake until the water falls past its critical oxygen
+  // tension, which for warm-water teleosts sits around 1–2 mg/L; below it the
+  // gills simply cannot extract what is not there and the fish conforms. Half
+  // rate at 1.0 puts the taper across that band. That makes the rate above a
+  // Monod maximum rather than a figure read in real water: air-saturated water
+  // leaves 89 % of it, so what the model reproduces is 0.268.
+  //
+  // It scales `basalAmmoniaRate` and the post-prandial gill stream as well as
+  // the draw — deamination is the same metabolism — so this one constant sets
+  // both what a roster breathes and what it loads the water with.
+  //
+  // Damage is a separate reading: `oxygenStressThreshold` still charges a fish
+  // for the water it is in, so a suffocating fish draws less and suffers more.
+  respirationOxygenHalfSaturation: 1.0,
   // 5 % N in food — conservative; typical flake is 6–8 % N. Matches the
   // engine's existing waste → NH3 ratio.
   foodNitrogenFraction: 0.05,
   // 80 % of ingested N excreted directly through gills; 20 % via feces.
   gillNFraction: 0.8,
-  // 0.03 mg NH3 / g fish / hr = 0.72 mg/g/day — mid of the 0.3–1.0
-  // mg N/g/day range (converted via MW_NH3/MW_N), representative of a
-  // small freshwater teleost at 25 °C. For 5 g of neon tetras this
-  // is 3.6 mg NH3/day, roughly equal to the food-driven contribution
-  // at lean feeding — matching the real-world observation that
-  // basal output is non-negligible.
+  // Body protein turnover, mg NH3 / g fish / hr, in the 0.3–1.0 mg N/g/day
+  // measured for a small freshwater teleost at 25 °C (converted via
+  // MW_NH3/MW_N).
+  //
+  // A Monod maximum like the draw it rides on, and read the same way: air-
+  // saturated water leaves 89 % of it, so what the model reproduces is 0.0268
+  // — 0.529 mg N/g/day, a third of the way into that band rather than the
+  // middle of it, and 3.2 mg NH3/day for 5 g of neon tetras. That is roughly
+  // the food-driven contribution at lean feeding, which is the real-world
+  // observation the term exists for: basal output is not negligible.
   basalAmmoniaRate: 0.03,
-  respiratoryQuotient: 0.8, // CO2/O2 ratio
+  respiratoryQuotient: 0.8, // textbook mixed-diet value
 
   // Satiation - decays ~0.6%/hr; fish can survive 3-7 days without food.
   // From 100 (stuffed) → 50 (peckish boundary) takes ~3.5 days; → 0
@@ -322,6 +346,14 @@ export const livestockConfigMeta: LivestockConfigMeta[] = [
     min: 0.05,
     max: 1.0,
     step: 0.05,
+  },
+  {
+    key: 'respirationOxygenHalfSaturation',
+    label: 'Respiration O2 Half-Saturation',
+    unit: 'mg/L',
+    min: 0.1,
+    max: 4,
+    step: 0.1,
   },
   {
     key: 'foodNitrogenFraction',

@@ -3,12 +3,17 @@ import {
   calculateCo2Factor,
   calculatePhotosynthesis,
   getTotalPlantSize,
+  type PhotosynthesisResult,
 } from './photosynthesis.js';
 import { calculateNutrientSufficiency } from './nutrients.js';
-import { plantsDefaults } from '../config/plants.js';
+import { calculateRespiration } from './respiration.js';
+import { plantsDefaults, type PlantsConfig } from '../config/plants.js';
 import { nutrientsDefaults, getNutrientRatio } from '../config/nutrients.js';
+import { AIR_SATURATED_O2 } from '../config/nitrogen-cycle.js';
 import type { Plant, Resources } from '../state.js';
 import type { PlantSpecies } from '../plants/species.js';
+import { CO2_TO_O2_MASS_RATIO, MW_CO2, MW_O2 } from '../core/chemistry.js';
+import { monodFactor } from '../core/kinetics.js';
 
 /**
  * Build a resources snapshot with nutrient mass chosen so that concentration
@@ -164,130 +169,182 @@ describe('calculatePhotosynthesis', () => {
   const waterVolume = 100;
   const light = 50;
 
+  /** Call with one plant set, its own sufficiency map, and the usual defaults. */
+  function photosynthesis(
+    plants: readonly Plant[],
+    {
+      co2 = plantsDefaults.optimalCo2,
+      resources = buildResources(waterVolume),
+      volume = waterVolume,
+      lightPar = light,
+      config = plantsDefaults,
+    }: {
+      co2?: number;
+      resources?: Resources;
+      volume?: number;
+      lightPar?: number;
+      config?: PlantsConfig;
+    } = {}
+  ): PhotosynthesisResult {
+    return calculatePhotosynthesis(
+      plants,
+      lightPar,
+      co2,
+      resources,
+      volume,
+      suffMap(plants, resources, volume),
+      config
+    );
+  }
+
   describe('no photosynthesis conditions', () => {
     it('returns zeros when light is 0', () => {
-      const result = calculatePhotosynthesis(
-        [plant(100)],
-        0,
-        plantsDefaults.optimalCo2,
-        buildResources(waterVolume),
-        waterVolume
-      ,
-        suffMap([plant(100)], buildResources(waterVolume), waterVolume));
-      expect(result.oxygenDelta).toBe(0);
+      const result = photosynthesis([plant(100)], { lightPar: 0 });
+
+      expect(result.oxygenProducedMg).toBe(0);
+      expect(result.co2ConsumedMg).toBe(0);
       expect(result.nitrateDelta).toBe(0);
-      expect(result.oxygenDelta).toBe(0);
       expect(result.limitingFactor).toBe(0);
     });
 
     it('returns zeros when plant size is 0', () => {
-      const result = calculatePhotosynthesis(
-        [plant(0)],
-        light,
-        plantsDefaults.optimalCo2,
-        buildResources(waterVolume),
-        waterVolume
-      ,
-        suffMap([plant(0)], buildResources(waterVolume), waterVolume));
-      expect(result.oxygenDelta).toBe(0);
-      expect(result.oxygenDelta).toBe(0);
+      const result = photosynthesis([plant(0)]);
+
+      expect(result.oxygenProducedMg).toBe(0);
+      expect(result.co2ConsumedMg).toBe(0);
     });
 
     it('returns zeros when there are no plants', () => {
-      const result = calculatePhotosynthesis(
-        [],
-        light,
-        plantsDefaults.optimalCo2,
-        buildResources(waterVolume),
-        waterVolume
-      ,
-        suffMap([], buildResources(waterVolume), waterVolume));
-      expect(result.oxygenDelta).toBe(0);
-      expect(result.oxygenDelta).toBe(0);
+      const result = photosynthesis([]);
+
+      expect(result.oxygenProducedMg).toBe(0);
+      expect(result.co2ConsumedMg).toBe(0);
     });
 
     it('returns zeros when water volume is 0', () => {
-      const result = calculatePhotosynthesis(
-        [plant(100)],
-        light,
-        plantsDefaults.optimalCo2,
-        buildResources(waterVolume),
-        0
-      ,
-        suffMap([plant(100)], buildResources(waterVolume), 0));
-      expect(result.oxygenDelta).toBe(0);
-      expect(result.oxygenDelta).toBe(0);
+      const result = photosynthesis([plant(100)], { volume: 0 });
+
+      expect(result.oxygenProducedMg).toBe(0);
+      expect(result.co2ConsumedMg).toBe(0);
     });
 
     it('returns zeros when CO2 is 0', () => {
-      const result = calculatePhotosynthesis(
-        [plant(100)],
-        light,
-        0,
-        buildResources(waterVolume),
-        waterVolume
-      ,
-        suffMap([plant(100)], buildResources(waterVolume), waterVolume));
-      expect(result.oxygenDelta).toBe(0);
-      expect(result.oxygenDelta).toBe(0);
+      const result = photosynthesis([plant(100)], { co2: 0 });
+
+      expect(result.oxygenProducedMg).toBe(0);
+      expect(result.co2ConsumedMg).toBe(0);
     });
   });
 
   describe('optimal conditions', () => {
     it('produces oxygen and consumes CO2 / nutrients', () => {
-      const result = calculatePhotosynthesis(
-        [plant(100, 'java_fern')],
-        light,
-        plantsDefaults.optimalCo2,
-        buildResources(waterVolume),
-        waterVolume
-      ,
-        suffMap([plant(100, 'java_fern')], buildResources(waterVolume), waterVolume));
-      expect(result.oxygenDelta).toBeGreaterThan(0);
-      expect(result.co2Delta).toBeLessThan(0);
+      const result = photosynthesis([plant(100, 'java_fern')]);
+
+      expect(result.oxygenProducedMg).toBeGreaterThan(0);
+      expect(result.co2ConsumedMg).toBeGreaterThan(0);
       expect(result.nitrateDelta).toBeLessThan(0);
       expect(result.phosphateDelta).toBeLessThan(0);
       expect(result.potassiumDelta).toBeLessThan(0);
       expect(result.ironDelta).toBeLessThan(0);
-      expect(result.oxygenDelta).toBeGreaterThan(0);
     });
 
     it('limiting factor is 1.0 at optimal conditions for low-demand plant', () => {
-      const result = calculatePhotosynthesis(
-        [plant(100, 'java_fern')],
-        light,
-        plantsDefaults.optimalCo2,
-        buildResources(waterVolume),
-        waterVolume
-      ,
-        suffMap([plant(100, 'java_fern')], buildResources(waterVolume), waterVolume));
+      const result = photosynthesis([plant(100, 'java_fern')]);
+
       expect(result.limitingFactor).toBeCloseTo(1.0, 3);
+    });
+  });
+
+  describe('stoichiometry', () => {
+    it('releases one mole of O2 per mole of carbon fixed', () => {
+      const result = photosynthesis([plant(100, 'java_fern')]);
+
+      expect(result.oxygenProducedMg / MW_O2).toBeCloseTo(result.co2ConsumedMg / MW_CO2, 10);
+    });
+
+    it('holds the ratio however the carbon yield is tuned', () => {
+      const result = photosynthesis([plant(100, 'java_fern')], {
+        config: { ...plantsDefaults, co2PerRateUnit: 7 },
+      });
+
+      expect(result.oxygenProducedMg / MW_O2).toBeCloseTo(result.co2ConsumedMg / MW_CO2, 10);
+    });
+
+    it('shares the carbon yield with respiration, which is why there is one of it', () => {
+      // The reaction run both ways off one constant. What separates the two
+      // numbers is the base rates and the air respiration breathes, and moving
+      // the yield has to leave the ratio where it was — one side reading a
+      // figure of its own is exactly what collapsing four constants removed.
+      const ratio = (config = plantsDefaults): number => {
+        const fixed = photosynthesis([plant(100, 'java_fern')], { config }).co2ConsumedMg;
+
+        return calculateRespiration(100, 25, AIR_SATURATED_O2, config).co2ProducedMg / fixed;
+      };
+      const expected =
+        (plantsDefaults.baseRespirationRate / plantsDefaults.basePhotosynthesisRate) *
+        monodFactor(AIR_SATURATED_O2, plantsDefaults.respirationOxygenHalfSaturation);
+
+      expect(ratio()).toBeCloseTo(expected, 6);
+      expect(ratio({ ...plantsDefaults, co2PerRateUnit: 7 })).toBeCloseTo(expected, 6);
+    });
+
+    it('makes no oxygen from carbon the water does not hold', () => {
+      // A heavily planted 20 L: an hour at this rate would fix more carbon than
+      // the column is holding, so what it gets is the column.
+      const nano = 20;
+      const scarce = 5;
+      const starved = photosynthesis(
+        [plant(600, 'java_fern'), plant(500, 'java_fern'), plant(400, 'java_fern')],
+        { co2: scarce, resources: buildResources(nano), volume: nano }
+      );
+
+      expect(starved.co2ConsumedMg).toBeCloseTo(scarce * nano, 10);
+      expect(starved.oxygenProducedMg).toBeCloseTo(
+        starved.co2ConsumedMg * CO2_TO_O2_MASS_RATIO,
+        10
+      );
+    });
+  });
+
+  describe('the volume term', () => {
+    it('moves the same gas mass whatever the tank around the plants', () => {
+      const plants = [plant(100, 'java_fern')];
+      const small = photosynthesis(plants, {
+        resources: buildResources(150, {}, 10),
+        volume: 150,
+      });
+      const large = photosynthesis(plants, {
+        resources: buildResources(300, {}, 10),
+        volume: 300,
+      });
+
+      expect(large.oxygenProducedMg).toBeCloseTo(small.oxygenProducedMg, 10);
+      expect(large.co2ConsumedMg).toBeCloseTo(small.co2ConsumedMg, 10);
+    });
+
+    it('moves the concentration by the volume ratio', () => {
+      const plants = [plant(100, 'java_fern')];
+      const perLitre = (volume: number): number =>
+        photosynthesis(plants, { resources: buildResources(volume, {}, 10), volume })
+          .oxygenProducedMg / volume;
+
+      expect(perLitre(150) / perLitre(300)).toBeCloseTo(2, 10);
     });
   });
 
   describe("Liebig's Law - nutrient gating of biomass", () => {
     it('drops biomass to zero when iron is zero for a high-demand plant', () => {
-      const result = calculatePhotosynthesis(
-        [plant(100, 'monte_carlo')],
-        light,
-        plantsDefaults.optimalCo2,
-        buildResources(waterVolume, { iron: 0 }),
-        waterVolume
-      ,
-        suffMap([plant(100, 'monte_carlo')], buildResources(waterVolume, { iron: 0 }), waterVolume));
-      expect(result.oxygenDelta).toBe(0);
+      const resources = buildResources(waterVolume, { iron: 0 });
+      const result = photosynthesis([plant(100, 'monte_carlo')], { resources });
+
+      expect(result.oxygenProducedMg).toBe(0);
       expect(result.limitingFactor).toBe(0);
     });
 
     it('does NOT zero nutrient uptake when iron is zero (plants still draw)', () => {
-      const result = calculatePhotosynthesis(
-        [plant(100, 'monte_carlo')],
-        light,
-        plantsDefaults.optimalCo2,
-        buildResources(waterVolume, { iron: 0 }),
-        waterVolume
-      ,
-        suffMap([plant(100, 'monte_carlo')], buildResources(waterVolume, { iron: 0 }), waterVolume));
+      const resources = buildResources(waterVolume, { iron: 0 });
+      const result = photosynthesis([plant(100, 'monte_carlo')], { resources });
+
       // Biomass is zero, but uptake draws from available pools. NO3 / PO4 / K
       // all have mass in resources and should be consumed.
       expect(result.nitrateDelta).toBeLessThan(0);
@@ -298,115 +355,42 @@ describe('calculatePhotosynthesis', () => {
 
     it('nutrient uptake splits in fertilizer ratio', () => {
       const abundant = buildResources(waterVolume, {}, 10); // 10× optimal — no clamping
-      const result = calculatePhotosynthesis(
-        [plant(100, 'amazon_sword')],
-        light,
-        plantsDefaults.optimalCo2,
-        abundant,
-        waterVolume,
-        suffMap([plant(100, 'amazon_sword')], abundant, waterVolume)
-      );
-      // Total negative uptake should split by fertilizer ratio
+      const result = photosynthesis([plant(100, 'amazon_sword')], { resources: abundant });
+
       const total =
-        -result.nitrateDelta +
-        -result.phosphateDelta +
-        -result.potassiumDelta +
-        -result.ironDelta;
+        -result.nitrateDelta + -result.phosphateDelta + -result.potassiumDelta + -result.ironDelta;
       const formula = nutrientsDefaults.fertilizerFormula;
       expect(-result.nitrateDelta / total).toBeCloseTo(getNutrientRatio('nitrate', formula), 4);
       expect(-result.ironDelta / total).toBeCloseTo(getNutrientRatio('iron', formula), 4);
     });
 
     it('CO2 limit halves biomass at 50% optimal CO2', () => {
-      const full = calculatePhotosynthesis(
-        [plant(100, 'java_fern')],
-        light,
-        plantsDefaults.optimalCo2,
-        buildResources(waterVolume),
-        waterVolume
-      ,
-        suffMap([plant(100, 'java_fern')], buildResources(waterVolume), waterVolume));
-      const half = calculatePhotosynthesis(
-        [plant(100, 'java_fern')],
-        light,
-        plantsDefaults.optimalCo2 / 2,
-        buildResources(waterVolume),
-        waterVolume
-      ,
-        suffMap([plant(100, 'java_fern')], buildResources(waterVolume), waterVolume));
-      expect(half.oxygenDelta).toBeCloseTo(full.oxygenDelta / 2, 4);
-      expect(half.oxygenDelta).toBeCloseTo(full.oxygenDelta / 2, 4);
+      const full = photosynthesis([plant(100, 'java_fern')]);
+      const half = photosynthesis([plant(100, 'java_fern')], {
+        co2: plantsDefaults.optimalCo2 / 2,
+      });
+
+      expect(half.oxygenProducedMg).toBeCloseTo(full.oxygenProducedMg / 2, 4);
+      expect(half.co2ConsumedMg).toBeCloseTo(full.co2ConsumedMg / 2, 4);
     });
   });
 
   describe('scaling with plant size', () => {
     it('biomass scales linearly with plant size', () => {
-      const r100 = calculatePhotosynthesis(
-        [plant(100, 'java_fern')],
-        light,
-        plantsDefaults.optimalCo2,
-        buildResources(waterVolume),
-        waterVolume
-      ,
-        suffMap([plant(100, 'java_fern')], buildResources(waterVolume), waterVolume));
-      const r200 = calculatePhotosynthesis(
-        [plant(200, 'java_fern')],
-        light,
-        plantsDefaults.optimalCo2,
-        buildResources(waterVolume, {}, 10),
-        waterVolume
-      ,
-        suffMap([plant(200, 'java_fern')], buildResources(waterVolume, {}, 10), waterVolume));
-      expect(r200.oxygenDelta).toBeCloseTo(r100.oxygenDelta * 2, 4);
-      expect(r200.oxygenDelta).toBeCloseTo(r100.oxygenDelta * 2, 4);
+      const r100 = photosynthesis([plant(100, 'java_fern')]);
+      const r200 = photosynthesis([plant(200, 'java_fern')], {
+        resources: buildResources(waterVolume, {}, 10),
+      });
+
+      expect(r200.oxygenProducedMg).toBeCloseTo(r100.oxygenProducedMg * 2, 4);
+      expect(r200.co2ConsumedMg).toBeCloseTo(r100.co2ConsumedMg * 2, 4);
     });
 
     it('sums contributions from multiple plants', () => {
-      const solo = calculatePhotosynthesis(
-        [plant(100, 'java_fern')],
-        light,
-        plantsDefaults.optimalCo2,
-        buildResources(waterVolume),
-        waterVolume
-      ,
-        suffMap([plant(100, 'java_fern')], buildResources(waterVolume), waterVolume));
-      const pair = calculatePhotosynthesis(
-        [plant(50, 'java_fern'), plant(50, 'java_fern')],
-        light,
-        plantsDefaults.optimalCo2,
-        buildResources(waterVolume),
-        waterVolume
-      ,
-        suffMap([plant(50, 'java_fern'), plant(50, 'java_fern')], buildResources(waterVolume), waterVolume));
-      expect(pair.oxygenDelta).toBeCloseTo(solo.oxygenDelta, 4);
-    });
-  });
+      const solo = photosynthesis([plant(100, 'java_fern')]);
+      const pair = photosynthesis([plant(50, 'java_fern'), plant(50, 'java_fern')]);
 
-  describe('calibration', () => {
-    // Scenario 02: at 100% plant size, optimal CO2, low-demand plant at optimal
-    // nutrients → biomass rate 1.0/hr → O2 delta 0.7 mg/L/hr.
-    it('produces ~0.7 mg/L O2/hr at 100% plant size, optimal conditions', () => {
-      const result = calculatePhotosynthesis(
-        [plant(100, 'java_fern')],
-        light,
-        plantsDefaults.optimalCo2,
-        buildResources(waterVolume),
-        waterVolume
-      ,
-        suffMap([plant(100, 'java_fern')], buildResources(waterVolume), waterVolume));
-      expect(result.oxygenDelta).toBeCloseTo(0.7, 1);
-    });
-
-    it('consumes ~0.5 mg/L CO2/hr at 100% plant size, optimal conditions', () => {
-      const result = calculatePhotosynthesis(
-        [plant(100, 'java_fern')],
-        light,
-        plantsDefaults.optimalCo2,
-        buildResources(waterVolume),
-        waterVolume
-      ,
-        suffMap([plant(100, 'java_fern')], buildResources(waterVolume), waterVolume));
-      expect(result.co2Delta).toBeCloseTo(-0.5, 1);
+      expect(pair.oxygenProducedMg).toBeCloseTo(solo.oxygenProducedMg, 4);
     });
   });
 });

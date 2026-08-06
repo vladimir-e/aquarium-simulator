@@ -20,6 +20,7 @@ export {
 export {
   decaySystem,
   getTemperatureFactor,
+  decayFraction,
   calculateDecay,
 } from './decay.js';
 
@@ -44,6 +45,7 @@ export {
 export {
   nitrogenCycleSystem,
   nitrificationFactor,
+  nitrifierOxygenFactor,
   calculateMaxBacteria,
   calculateInoculum,
   calculateColonyFlows,

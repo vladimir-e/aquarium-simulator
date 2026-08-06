@@ -3,6 +3,7 @@ import { processLivestock } from './index.js';
 import { createSimulation, type SimulationState } from '../state.js';
 import { DEFAULT_CONFIG } from '../config/index.js';
 import { produce } from 'immer';
+import { monodFactor } from '../core/kinetics.js';
 import type { Fish } from '../state.js';
 
 function makeFish(overrides: Partial<Fish> = {}): Fish {
@@ -139,12 +140,19 @@ describe('processLivestock', () => {
 
     expect(result.state.fish).toHaveLength(3);
 
-    // Total O2 draw in mg/hr = baseRespirationRate * (1+2+3) = 6 * rate.
-    // Concentration delta (mg/L) = mg / water volume (100L in makeState).
+    // Total O2 draw in mg/hr = baseRespirationRate * (1+2+3) * what the water
+    // will give. Concentration delta (mg/L) = mg / water volume (100L).
     const o2Effect = result.effects.find((e) => e.resource === 'oxygen');
     expect(o2Effect).toBeDefined();
     const expectedDelta =
-      -(DEFAULT_CONFIG.livestock.baseRespirationRate * 6.0) / state.resources.water;
+      -(
+        DEFAULT_CONFIG.livestock.baseRespirationRate *
+        6.0 *
+        monodFactor(
+          state.resources.oxygen,
+          DEFAULT_CONFIG.livestock.respirationOxygenHalfSaturation
+        )
+      ) / state.resources.water;
     expect(o2Effect!.delta).toBeCloseTo(expectedDelta, 6);
   });
 

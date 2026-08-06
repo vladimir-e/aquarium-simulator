@@ -9,7 +9,7 @@ import {
   type CycleProjection,
 } from './bacteria';
 import { DEFAULT_CONFIG, nitrogenCycleDefaults } from '../../simulation/config/index.js';
-import { NO2_TO_NO3_MASS_RATIO } from '../../simulation/systems/nitrogen-cycle.js';
+import { NO2_TO_NO3_MASS_RATIO } from '../../simulation/core/chemistry.js';
 import {
   applyAction,
   createSimulation,
@@ -17,8 +17,14 @@ import {
   type Resources,
   type SimulationState,
 } from '../../simulation/index.js';
-import { getMassFromPpm, getPpm } from '../../simulation/resources/index.js';
-import { cycledTank, fishlessTank, run as runUnfed, stock } from '../../simulation/tests/tanks.js';
+import { getPpm } from '../../simulation/resources/index.js';
+import {
+  cycledTank,
+  fishlessTank,
+  run as runUnfed,
+  saturatedColony,
+  stock,
+} from '../../simulation/tests/tanks.js';
 
 const config = DEFAULT_CONFIG;
 const perCm2 = nitrogenCycleDefaults.bacteriaPerCm2;
@@ -79,32 +85,6 @@ function cycled(hours: number): SimulationState {
     }),
     hours
   );
-}
-
-/**
- * A tank whose colonies have grown as full as the model lets them: 40 days of
- * more ammonia every hour than they can clear parks AOB at 96 % of ceiling and
- * NOB at 93 %, the fixed point where growth cancels unconditional decay. The
- * dose is then withdrawn, so nothing is left standing for them to fall behind.
- */
-function mature(): SimulationState {
-  let state = produce(tank(), (draft) => {
-    draft.resources.aob = 1;
-    draft.resources.nob = 1;
-  });
-  for (let hour = 1; hour <= 40 * 24; hour++) {
-    state = tick(
-      produce(state, (draft) => {
-        draft.resources.ammonia += getMassFromPpm(2, draft.resources.water);
-      }),
-      config
-    );
-  }
-  return produce(state, (draft) => {
-    draft.resources.ammonia = 0;
-    draft.resources.nitrite = 0;
-    draft.resources.waste = 0;
-  });
 }
 
 /** What the next tick actually does to nitrite, split into its two rates (ppm/h). */
@@ -295,6 +275,20 @@ describe('bacteriaReadout', () => {
 });
 
 describe('projectNitritePeak', () => {
+  /**
+   * The projection holds today's dissolved oxygen for the whole forward run,
+   * and the engine's falls as the biofilter it is projecting grows into its
+   * draw — so the card reads a shade high. Within a percent is the claim; a
+   * decimal place would be a tripwire on how far the tank's oxygen happens to
+   * travel.
+   */
+  const withinAPercent = (projection: CycleProjection, engine: CycleProjection): void => {
+    // High, and only high: a projection reading under the engine would mean the
+    // oxygen coupling had inverted, which a two-sided band would let through.
+    expect(projection.ppm).toBeGreaterThanOrEqual(engine.ppm);
+    expect(Math.abs(projection.ppm - engine.ppm) / engine.ppm).toBeLessThan(0.01);
+  };
+
   it('finds the peak the engine reaches on a tank left to evaporate', () => {
     const state = fishlessTank('aqua_soil', { capacity: 200, ato: false });
     const projection = projectNitritePeak(state, config);
@@ -302,7 +296,7 @@ describe('projectNitritePeak', () => {
 
     expect(projection!.hours).toBeGreaterThanOrEqual(engine.hours - 2);
     expect(projection!.hours).toBeLessThanOrEqual(engine.hours + 2);
-    expect(projection!.ppm).toBeCloseTo(engine.ppm, 2);
+    withinAPercent(projection!, engine);
   });
 
   it('finds a lower peak once an ATO is holding the volume up', () => {
@@ -313,7 +307,7 @@ describe('projectNitritePeak', () => {
 
     expect(projection!.hours).toBeGreaterThanOrEqual(engine.hours - 2);
     expect(projection!.hours).toBeLessThanOrEqual(engine.hours + 2);
-    expect(projection!.ppm).toBeCloseTo(engine.ppm, 2);
+    withinAPercent(projection!, engine);
 
     const evaporating = projectNitritePeak(fishlessTank('aqua_soil', { capacity: 200, ato: false }), config)!;
     expect(projection!.ppm).toBeLessThan(evaporating.ppm);
@@ -378,14 +372,28 @@ describe('bacteriaSummary', () => {
     expect(summary).toContain('Nitrite peaks in');
   });
 
-  it('calls out the surface as the limit once a colony has filled it', () => {
-    const readout = bacteriaReadout(mature(), config);
+  it('calls out the surface as the limit once both colonies have filled it', () => {
+    // Reachable only on the circulation that keeps NOB in oxygen — a canister
+    // and an air pump — and the same tank without the air pump is the control:
+    // there the biofilm is not what binds, and the card must not say it is.
+    const filled = saturatedColony(200, 40, {
+      circulation: { filter: 'canister', airPump: true },
+    });
+    const readout = bacteriaReadout(filled, config);
 
-    // The line has to be reachable from a state the engine produces: decay is
-    // unconditional, so neither colony ever arrives at 100 % of its ceiling.
+    // Decay is unconditional, so neither colony ever arrives at 100 % of its
+    // ceiling; and under a load this size nitrite is always still climbing.
     expect(readout.aob.pct).toBeLessThan(100);
     expect(readout.nob.pct).toBeLessThan(100);
+    expect(readout.rates.netNitrite).toBeGreaterThan(0);
     expect(bacteriaSummary(readout, null, nc)).toContain('more load has nowhere to go');
+
+    const airless = bacteriaReadout(
+      saturatedColony(200, 40, { circulation: { filter: 'canister' } }),
+      config
+    );
+    expect(airless.nob.pct).toBeLessThan(readout.nob.pct);
+    expect(bacteriaSummary(airless, null, nc)).toContain('NOB trail AOB by');
   });
 
   it('reads a colony below its ceiling as room left rather than as a shortfall', () => {

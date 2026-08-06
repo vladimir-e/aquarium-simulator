@@ -45,6 +45,17 @@ Living or organic components:
 Note: algae is no longer a resource. It's a top-level organism on
 `state.algae` — see `6-PLANTS.md` § Algae as an organism.
 
+## Mass and concentration
+
+An organism system answers a biological question — how much of a compound this
+biomass moves — so it returns a **mass in mg**, with no volume term in it.
+Turning that into a stock is the resource layer's job, and it is one conversion
+everywhere: `getPpm` / `getMassFromPpm` against `resources.water`. Nitrogen
+compounds store the mass and derive ppm for display; the dissolved gases store
+the concentration, so plants, fish and decay each divide before pushing their
+effect. That division is why the same planting moves a nano further than it
+moves a 300 L.
+
 ---
 
 ## Resource Details
@@ -171,14 +182,18 @@ Note: algae is no longer a resource. It's a top-level organism on
 |----------|-------|
 | **Type** | Chemical |
 | **Unit** | mg/L (milligrams per liter) |
+| **Storage** | Concentration — organisms emit a mass, the resource layer divides by water |
 | **Typical** | 6-8 mg/L |
 | **Providers** | Gas exchange, plant photosynthesis |
-| **Consumers** | Fish respiration, bacterial respiration, plant respiration (night) |
+| **Consumers** | Fish respiration, nitrification, decomposition, plant respiration (night) |
 
 **Notes:**
 - Saturation decreases with temperature
 - Critical for fish survival
 - Plants produce O2 in light, consume at night
+- Every consumer's rate saturates against the stock it draws from, so demand
+  falls as the water empties rather than overdrawing it — see
+  `4-CORE-SYSTEMS.md` § Oxygen-limited processes
 
 ---
 
@@ -188,6 +203,7 @@ Note: algae is no longer a resource. It's a top-level organism on
 |----------|-------|
 | **Type** | Chemical |
 | **Unit** | mg/L or ppm |
+| **Storage** | Concentration — organisms emit a mass, the resource layer divides by water |
 | **Typical** | 10-30 mg/L for planted tanks |
 | **Providers** | CO2 injection, fish respiration, bacterial respiration |
 | **Consumers** | Gas exchange (off-gassing), plant photosynthesis |

@@ -26,6 +26,8 @@ import { plantsDefaults } from '../config/plants.js';
 import type { NutrientsConfig, FertilizerFormula } from '../config/nutrients.js';
 import { nutrientsDefaults, getNutrientRatio } from '../config/nutrients.js';
 import type { Resources } from '../state.js';
+import { CO2_TO_O2_MASS_RATIO } from '../core/chemistry.js';
+import { getMassFromPpm } from '../resources/index.js';
 import { getDemandMultiplier } from './nutrients.js';
 
 /**
@@ -36,10 +38,10 @@ import { getDemandMultiplier } from './nutrients.js';
 export type SufficiencyMap = ReadonlyMap<string, number>;
 
 export interface PhotosynthesisResult {
-  /** Oxygen produced (mg/L) */
-  oxygenDelta: number;
-  /** CO2 consumed (mg/L, negative) */
-  co2Delta: number;
+  /** Oxygen released (mg, absolute — caller divides by water volume for mg/L delta) */
+  oxygenProducedMg: number;
+  /** Carbon fixed (mg of CO2, absolute — caller divides by water volume for mg/L delta) */
+  co2ConsumedMg: number;
   /** Nitrate consumed (mg, negative) */
   nitrateDelta: number;
   /** Phosphate consumed (mg, negative) */
@@ -72,8 +74,8 @@ export function calculateCo2Factor(
  */
 function emptyResult(): PhotosynthesisResult {
   return {
-    oxygenDelta: 0,
-    co2Delta: 0,
+    oxygenProducedMg: 0,
+    co2ConsumedMg: 0,
     nitrateDelta: 0,
     phosphateDelta: 0,
     potassiumDelta: 0,
@@ -89,13 +91,12 @@ function emptyResult(): PhotosynthesisResult {
  *   potential_i = size_i × co2Factor (driven by light/CO2/size only)
  *   actual_i    = potential_i × sufficiency_i × basePhotosynthesisRate
  *
- * Aggregate outputs:
+ * Aggregate outputs, all masses in mg:
  *   uptake   = Σ potential_i × basePhotosynthesisRate × nutrientsPerPhotosynthesis
  *              (split by fertilizer formula ratio across the 4 nutrients;
  *              not gated by sufficiency — plants draw what they pull in)
- *   oxygen   = actual × o2PerPhotosynthesis (released only when plants are
- *              actually photosynthesizing — Liebig-gated rate)
- *   co2      = actual × co2PerPhotosynthesis (same gate as oxygen)
+ *   co2      = actual × co2PerRateUnit, clamped to the dissolved mass
+ *   oxygen   = co2 × CO2_TO_O2_MASS_RATIO
  *
  * @param plants            Individual plants (for per-species Liebig gating)
  * @param light             Substrate PAR (µmol/m²/s, 0 when off)
@@ -174,16 +175,17 @@ export function calculatePhotosynthesis(
   const potassiumDelta = drawFrom(potassiumRatio, resources.potassium);
   const ironDelta = drawFrom(ironRatio, resources.iron);
 
-  // O2/CO2 deltas scale with actual (Liebig-gated) rate: plants only release
-  // oxygen and fix carbon when they're actually photosynthesizing.
-  const oxygenDelta = actualRate * plantsConfig.o2PerPhotosynthesis;
-  const co2Delta = -actualRate * plantsConfig.co2PerPhotosynthesis;
+  const co2ConsumedMg = Math.min(
+    actualRate * plantsConfig.co2PerRateUnit,
+    getMassFromPpm(co2, waterVolume)
+  );
+  const oxygenProducedMg = co2ConsumedMg * CO2_TO_O2_MASS_RATIO;
 
   const limitingFactor = potentialSum > 0 ? weightedSufficiency / potentialSum : 0;
 
   return {
-    oxygenDelta,
-    co2Delta,
+    oxygenProducedMg,
+    co2ConsumedMg,
     nitrateDelta,
     phosphateDelta,
     potassiumDelta,

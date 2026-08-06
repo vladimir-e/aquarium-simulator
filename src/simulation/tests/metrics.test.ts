@@ -12,6 +12,12 @@ const TANK: SimulationConfig = {
   ato: { enabled: true },
 };
 
+/** The same tank on a CO₂ injector, so the gases have a day/night swing to be read. */
+const INJECTED: SimulationConfig = {
+  ...TANK,
+  co2Generator: { enabled: true, bubbleRate: 1.0, schedule: { startHour: 7, duration: 10 } },
+};
+
 const PLANTED: PresetSeed = {
   bacteria: 'cycled',
   plants: [{ species: 'java_fern', count: 1, size: 40 }],
@@ -55,6 +61,67 @@ describe('runTank', () => {
     expect(opening.plants).toBe(1);
     expect(opening.totalSize).toBe(40);
     expect(opening.avgCondition).toBe(100);
+  });
+
+  it('reads the dissolved gases off each sample', () => {
+    const run = runTank({ setup: TANK, days: 2, sampleEvery: 1 });
+    const last = run.samples[run.samples.length - 1]!;
+
+    expect(last.day).toBe(2);
+    expect(last.oxygen).toBe(run.final.resources.oxygen);
+    expect(last.co2).toBe(run.final.resources.co2);
+  });
+
+  it('resolves a swing inside a single day', () => {
+    const co2 = runTank({ setup: INJECTED, days: 2, sampleEvery: 1 })
+      .samples.filter((sample) => sample.day > 1)
+      .map((sample) => sample.co2);
+
+    expect(Math.max(...co2) - Math.min(...co2)).toBeGreaterThan(1);
+  });
+
+  it('takes the whole day at an hourly cadence', () => {
+    const run = runTank({ setup: TANK, days: 1, sampleEvery: 1 });
+
+    expect(run.samples.map((sample) => sample.day * DAY)).toEqual(
+      Array.from({ length: DAY + 1 }, (_, hour) => hour)
+    );
+  });
+
+  it('keeps sampleHour as the phase of any cadence', () => {
+    const run = runTank({ setup: TANK, days: 2, sampleEvery: 6, sampleHour: 7 });
+    const hours = run.samples.map((sample) => sample.day * DAY);
+
+    expect(hours).toEqual([0, 1, 7, 13, 19, 25, 31, 37, 43]);
+  });
+
+  it('reads the same tank whatever the cadence', () => {
+    const options = { setup: INJECTED, seed: PLANTED, days: 2 };
+    const daily = runTank(options);
+    const hourly = runTank({ ...options, sampleEvery: 1 });
+
+    expect(daily.samples).toEqual([0, 12, 36].map((hour) => hourly.samples[hour]!));
+  });
+
+  it('hands every hour to a watcher, either side of the tick', () => {
+    const hours: number[] = [];
+    let advanced = 0;
+    runTank({
+      setup: TANK,
+      days: 1,
+      watch: (hour, before, after) => {
+        hours.push(hour);
+        if (after.tick - before.tick === 1) advanced += 1;
+      },
+    });
+
+    expect(hours).toEqual(Array.from({ length: DAY }, (_, index) => index + 1));
+    expect(advanced).toBe(DAY);
+  });
+
+  it('refuses a cadence it cannot honour', () => {
+    expect(() => runTank({ setup: TANK, days: 1, sampleEvery: 0 })).toThrow(/sampleEvery/);
+    expect(() => runTank({ setup: TANK, days: 1, sampleEvery: 1.5 })).toThrow(/sampleEvery/);
   });
 
   it('records the day a plant left, whatever the sampling misses', () => {

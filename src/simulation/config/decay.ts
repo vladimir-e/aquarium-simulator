@@ -11,8 +11,13 @@ export interface DecayConfig {
   baseDecayRate: number;
   /** Fraction of decaying food that becomes solid waste */
   wasteConversionRatio: number;
-  /** Gas exchange per gram of organic matter oxidized (mg per gram) */
+  /**
+   * Oxygen the bacteria demand per gram of organic matter oxidised (mg O2/g).
+   * The CO2 they release derives from it at the molar ratio.
+   */
   gasExchangePerGramDecay: number;
+  /** Dissolved O2 (mg/L) at which decomposition runs at half its base rate. */
+  oxygenHalfSaturation: number;
   /** Fraction of the substrate's remaining organic reserve released per hour */
   substrateLeachRate: number;
 }
@@ -20,9 +25,16 @@ export interface DecayConfig {
 export const decayDefaults: DecayConfig = {
   q10: 2.0,
   referenceTemp: 25.0,
+  // A Monod maximum against the half-saturation below: air-saturated water
+  // leaves 98 % of it, so what the model reproduces is 0.0488.
   baseDecayRate: 0.05,
   wasteConversionRatio: 0.4,
   gasExchangePerGramDecay: 250,
+  // Aerobic heterotrophs are the least oxygen-fussy organisms in the tank —
+  // ASM1 carries them at 0.2 mg/L, half the value it gives autotrophs. The
+  // whole process scales with it, not only the gas side, which is why an anoxic
+  // tank accumulates sludge instead of quietly mineralising it.
+  oxygenHalfSaturation: 0.2,
   // ~10-day half-life, so a fresh bed is 98 % spent by week 8.
   substrateLeachRate: 0.003,
 };
@@ -41,6 +53,7 @@ export const decayConfigMeta: DecayConfigMeta[] = [
   { key: 'referenceTemp', label: 'Reference Temperature', unit: '°C', min: 15, max: 35, step: 1 },
   { key: 'baseDecayRate', label: 'Base Decay Rate', unit: '/hr', min: 0.01, max: 0.2, step: 0.01 },
   { key: 'wasteConversionRatio', label: 'Waste Conversion Ratio', unit: '', min: 0.1, max: 0.9, step: 0.1 },
-  { key: 'gasExchangePerGramDecay', label: 'CO2/O2 per Gram Decay', unit: 'mg/g', min: 50, max: 500, step: 10 },
+  { key: 'gasExchangePerGramDecay', label: 'O2 Demand per Gram Decay', unit: 'mg O2/g', min: 50, max: 500, step: 10 },
+  { key: 'oxygenHalfSaturation', label: 'Decay O2 Half-Saturation', unit: 'mg/L', min: 0.02, max: 2, step: 0.02 },
   { key: 'substrateLeachRate', label: 'Substrate Leach Rate', unit: '/hr', min: 0, max: 0.02, step: 0.0005 },
 ];

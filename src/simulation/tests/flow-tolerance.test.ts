@@ -16,7 +16,7 @@ import { FILTER_SPECS, FILTER_TYPES, type FilterType } from '../equipment/filter
 import type { PowerheadFlowRate } from '../equipment/powerhead.js';
 import { applyAction } from '../actions/index.js';
 import { getPresetById, PRESETS, type PresetDefinition, type PresetId } from '../presets.js';
-import { DAY, flowReading, run, stock, watchFlow } from './tanks.js';
+import { DAY, DEFAULT_RNG_SEED, flowReading, run, stock, watchFlow } from './tanks.js';
 
 const VOLUMES = [20, 40, 75, 150, 300, 568];
 
@@ -55,12 +55,21 @@ const SHIPPED_RUNS = PRESETS.flatMap((preset) =>
 const toppedOff = (state: SimulationState): SimulationState =>
   applyAction(state, { type: 'topOff' }).state;
 
-/** A preset's own tank, cycled on its bed and stocked with what it is for. */
+/**
+ * A preset's own tank, cycled on its bed and stocked with what it is for.
+ *
+ * Named stream: stocking draws a hardiness offset and a health offset per fish,
+ * and the assertions below are that no fish is damaged at all over ninety days.
+ * On an unnamed stream that anchor would be decided by the roll.
+ */
 function shipped(preset: PresetDefinition): SimulationState {
   const { species, count } = PRESET_STOCK[preset.id];
-  return stock(toppedOff(run(createSimulation(preset.config), 30 * DAY)), species, count, {
-    sex: 'male',
-  });
+  return stock(
+    toppedOff(run(createSimulation(preset.config, undefined, DEFAULT_RNG_SEED), 30 * DAY)),
+    species,
+    count,
+    { sex: 'male' }
+  );
 }
 
 /** A cycled tank on the named circulation, stocked with six tetras. */
@@ -70,13 +79,17 @@ function stockedOn(
   powerhead: PowerheadFlowRate
 ): SimulationState {
   const cycled = run(
-    createSimulation({
-      tankCapacity: litres,
-      substrate: { type: 'aqua_soil' },
-      filter: { enabled: true, type: filter },
-      powerhead: { enabled: true, flowRateGPH: powerhead },
-      heater: { targetTemperature: 25, wattage: Math.max(100, litres) },
-    }),
+    createSimulation(
+      {
+        tankCapacity: litres,
+        substrate: { type: 'aqua_soil' },
+        filter: { enabled: true, type: filter },
+        powerhead: { enabled: true, flowRateGPH: powerhead },
+        heater: { targetTemperature: 25, wattage: Math.max(100, litres) },
+      },
+      undefined,
+      DEFAULT_RNG_SEED
+    ),
     30 * DAY
   );
   return stock(toppedOff(cycled), 'neon_tetra', 6, { sex: 'male' });
@@ -87,7 +100,14 @@ describe('flow tolerance', () => {
     const { maxTurnover } = FISH_SPECIES_DATA.neon_tetra;
     const full = stock(
       toppedOff(
-        run(createSimulation({ tankCapacity: 100, filter: { enabled: true, type: 'sump' } }), DAY)
+        run(
+          createSimulation(
+            { tankCapacity: 100, filter: { enabled: true, type: 'sump' } },
+            undefined,
+            DEFAULT_RNG_SEED
+          ),
+          DAY
+        )
       ),
       'neon_tetra',
       1,

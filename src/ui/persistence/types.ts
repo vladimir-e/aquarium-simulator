@@ -22,6 +22,24 @@ import type { TunableConfig } from '../../simulation/config/index.js';
  * Increment this when the structure changes in a breaking way.
  * On version mismatch, stored data is discarded.
  *
+ * v20: Every oxygen consumer saturates against the oxygen it is drawing from,
+ *      and each carries the half-saturation constant it does so at:
+ *      `DecayConfig` gains `oxygenHalfSaturation`, `PlantsConfig` and
+ *      `LivestockConfig` gain `respirationOxygenHalfSaturation`, and
+ *      `NitrogenCycleConfig` gains `aobOxygenHalfSaturation` /
+ *      `nobOxygenHalfSaturation`. A v19 config is missing all five, and the
+ *      strict schema refuses those sections; a refused section reverts every
+ *      other one to its defaults.
+ * v19: The plant gas yields collapse onto one constant, and it changes unit.
+ *      `PlantsConfig` drops `o2PerPhotosynthesis` and `o2PerRespiration` —
+ *      oxygen derives from the carbon at `CO2_TO_O2_MASS_RATIO` — and replaces
+ *      `co2PerPhotosynthesis` / `co2PerRespiration` with a single
+ *      `co2PerRateUnit` holding a mass rather than a concentration: mg of CO2
+ *      per rate unit where the pair held mg/L, so the shipped value moves
+ *      0.5 → 30. A v18 config carries four keys the strict schema refuses, and
+ *      a refused config section reverts *every* other section to its defaults;
+ *      were the stored 0.5 read as a v19 number it would be a planting fixing
+ *      a sixtieth of the carbon it should.
  * v18: Light is PAR, not watts. `Light.wattage` becomes `Light.par` — the
  *      fixture's rated PAR at the water surface — and `Resources.light`
  *      holds PAR at the substrate rather than a raw watt count, so the
@@ -118,7 +136,7 @@ import type { TunableConfig } from '../../simulation/config/index.js';
  *     nutrient sufficiency) but its persisted shape is identical, so
  *     the bump is purely the new Fish field.
  */
-export const PERSISTENCE_VERSION = 18;
+export const PERSISTENCE_VERSION = 20;
 
 /**
  * Storage key for the unified persisted state.

@@ -28,10 +28,18 @@
  *   - NH3 N content (g)   = ammoniaMg × MW_N / MW_NH3 / 1000
  *   - NO2 N content (g)   = nitriteMg × MW_N / MW_NO2 / 1000
  *   - NO3 N content (g)   = nitrateMg × MW_N / MW_NO3 / 1000
- *   - Basal N injected    = basalAmmoniaRate × fishMass × ticks
+ *   - Basal N injected    = basalAmmoniaRate × fishMass × Σ oxygenFactor
  *                           × MW_N / (MW_NH3 × 1000)
  *
  * Known sinks we must control for:
+ *   - Metabolic retention. Deamination scales with the oxygen factor, so a
+ *     fish short of air keeps the N it did not deaminate. The engine tracks
+ *     no body-N pool, so that N leaves the accounting — the same standing
+ *     plant uptake has. Air-saturated water leaves 89 % of both NH3 streams,
+ *     which is why the basal term above sums the factor rather than counting
+ *     ticks. On the gill stream it is bounded rather than summed: it costs at
+ *     most 8.5 % of the N a fish ate, well inside the 60 % the decay-oxidation
+ *     floor below already allows for.
  *   - Decay oxidation. When food decays, `wasteConversionRatio` (40 %)
  *     becomes waste; the rest is oxidized to CO2/O2 — the engine does
  *     NOT track N in the oxidized fraction. Avoid this path by driving
@@ -52,12 +60,8 @@ import { createSimulation } from '../state.js';
 import { getMassFromPpm } from '../resources/helpers.js';
 import { nitrogenCycleDefaults } from '../config/nitrogen-cycle.js';
 import { DEFAULT_CONFIG } from '../config/index.js';
-import {
-  MW_N,
-  MW_NH3,
-  MW_NO2,
-  MW_NO3,
-} from '../systems/nitrogen-cycle.js';
+import { MW_N, MW_NH3, MW_NO2, MW_NO3 } from '../core/chemistry.js';
+import { monodFactor } from '../core/kinetics.js';
 import type { SimulationState, SimulationConfig } from '../state.js';
 import type { FishSpecies } from '../livestock/species.js';
 import type { TunableConfig } from '../config/index.js';
@@ -140,6 +144,18 @@ function totalNInPools(state: SimulationState, config: TunableConfig): number {
   return nInFood + nInWaste + nInAmmonia + nInNitrite + nInNitrate;
 }
 
+/**
+ * What the fish metabolism ran on this tick.
+ *
+ * Read off the state going into the tick, which is exactly what
+ * `processMetabolism` sees here: livestock runs in the active tier and nothing
+ * ahead of it moves oxygen in these fixtures — no plants, and gas exchange is
+ * passive.
+ */
+function oxygenFactor(state: SimulationState, config: TunableConfig): number {
+  return monodFactor(state.resources.oxygen, config.livestock.respirationOxygenHalfSaturation);
+}
+
 describe('N mass conservation (end-to-end)', () => {
   it('direct NH3 injection: conserved through NH3 → NO2 → NO3 chain', () => {
     let state = createCycledTank(
@@ -215,18 +231,20 @@ describe('N mass conservation (end-to-end)', () => {
     expect(fishMass).toBeGreaterThan(0);
 
     let totalFoodAdded = 0;
+    let breathed = 0;
 
     for (let t = 1; t <= TICKS; t++) {
       if (t % 24 === 1) {
         state = applyAction(state, { type: 'feed', amount: DAILY_FEED }).state;
         totalFoodAdded += DAILY_FEED;
       }
+      breathed += oxygenFactor(state, DEFAULT_CONFIG);
       state = tick(state, DEFAULT_CONFIG);
     }
 
     const nFromFood = totalFoodAdded * DEFAULT_CONFIG.livestock.foodNitrogenFraction;
     const basalNH3PerTick = DEFAULT_CONFIG.livestock.basalAmmoniaRate * fishMass;
-    const nFromBasal = (basalNH3PerTick * TICKS * MW_N) / MW_NH3 / 1000;
+    const nFromBasal = (basalNH3PerTick * breathed * MW_N) / MW_NH3 / 1000;
 
     const nInjected = nFromFood + nFromBasal;
     const nExpectedCeiling = initialN + nInjected;
@@ -273,14 +291,18 @@ describe('N mass conservation (end-to-end)', () => {
     const initialN = totalNInPools(state, DEFAULT_CONFIG);
     const fishMass = state.fish.reduce((sum, f) => sum + f.mass, 0);
 
+    let breathed = 0;
+
     for (let t = 1; t <= TICKS; t++) {
+      breathed += oxygenFactor(state, DEFAULT_CONFIG);
       state = tick(state, DEFAULT_CONFIG);
     }
 
     expect(state.fish.length).toBe(10); // sanity — nobody starved
+    expect(breathed).toBeLessThan(TICKS); // the factor is doing something
 
     const basalNH3PerTick = DEFAULT_CONFIG.livestock.basalAmmoniaRate * fishMass;
-    const nFromBasal = (basalNH3PerTick * TICKS * MW_N) / MW_NH3 / 1000;
+    const nFromBasal = (basalNH3PerTick * breathed * MW_N) / MW_NH3 / 1000;
     const nExpected = initialN + nFromBasal;
     const nActual = totalNInPools(state, DEFAULT_CONFIG);
 
