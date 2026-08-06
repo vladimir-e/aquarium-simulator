@@ -95,13 +95,13 @@ The factor takes 56 % off what the stressed 20 L asks for and 70 % off what it
 cannot pay. **The residual is not small.** That tank still draws 56.50 mg/L of
 oxygen it never had across six days — a little over half of everything it asked
 for — and still manufactures 78 mg/L of CO₂ against 261 before, which is 30 % of
-the phantom carbon rather than a rounding error. The 600-size jungle keeps 58 %
+the phantom carbon rather than a rounding error. The 600-size jungle keeps 57 %
 of its overdraw.
 
 The bigger planting overdraws *less* in total than the smaller one under the
-unbounded draw, and it is not a paradox: four times the leaf area is also four
-times the daytime photosynthesis, so the tank spends fewer hours short (95
-against 124) and pays more heavily in each of them.
+unbounded draw, and it is not a paradox: two and a half times the leaf area is
+also two and a half times the daytime photosynthesis, so the tank spends fewer
+hours short (95 against 124) and pays more heavily in each of them.
 
 Circulation is still what decides whether a tank is in this regime at all, but
 it is no longer a clean zero: a sponge and an air pump cover the 240-size
@@ -116,14 +116,14 @@ integrating the draw across the step — which couples the four consumers into t
 tick-wide rationing pass this design exists to avoid. Recorded rather than
 fixed.
 
-**Nitrification is the reason the residual is this size, and it is a load and
-not a rate.** Summed over the stagnant 240-size run the four consumers ask for
-38.21 decay + 35.62 nitrifiers + 34.34 plants + 1.09 fish mg/L; unbounded, the
-same run reads 61.20 / 100.42 / 84.05 / 1.59. The guilds are the largest single
-consumer in a fed tank, because their demand is set by the nitrogen arriving
-rather than by a rate the factor can trim — 1 g of food a day into 20 L is a
-standing oxygen bill, and the availability factor can only make the tank slower
-to pay it.
+**Nitrification is a third of the budget, which is the size of what the old
+figures were missing.** Summed over the stagnant 240-size run the four consumers
+ask for 38.21 decay + 35.62 nitrifiers + 34.34 plants + 1.09 fish mg/L; on the
+unbounded draw the same run reads 61.20 / 100.42 / 84.05 / 1.59. The guilds are
+the largest consumer in the engine this branch replaced and the second largest
+in the one it ships, and they are also the consumer the factor cuts hardest —
+65 % against decay's 38 %, because a tank this short of air spends most of its
+hours where the NOB curve is steep.
 
 > **Superseded.** This section used to read 24 h / 12.80 unpaid against 15 h /
 > **0.59** for the stagnant 240-size tank, a zero on both aerated rows, and "a
