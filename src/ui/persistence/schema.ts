@@ -315,6 +315,8 @@ const NitrogenCycleConfigSchema = z
     bacteriaDeathRate: z.number(),
     q10: z.number(),
     referenceTemp: z.number(),
+    aobOxygenHalfSaturation: z.number(),
+    nobOxygenHalfSaturation: z.number(),
   })
   .strict();
 

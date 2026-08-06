@@ -25,9 +25,11 @@ import type { TunableConfig } from '../../simulation/config/index.js';
  * v20: Every oxygen consumer saturates against the oxygen it is drawing from,
  *      and each carries the half-saturation constant it does so at:
  *      `DecayConfig` gains `oxygenHalfSaturation`, `PlantsConfig` and
- *      `LivestockConfig` gain `respirationOxygenHalfSaturation`. A v19 config
- *      is missing all three, and the strict schema refuses those sections; a
- *      refused section reverts every other one to its defaults.
+ *      `LivestockConfig` gain `respirationOxygenHalfSaturation`, and
+ *      `NitrogenCycleConfig` gains `aobOxygenHalfSaturation` /
+ *      `nobOxygenHalfSaturation`. A v19 config is missing all five, and the
+ *      strict schema refuses those sections; a refused section reverts every
+ *      other one to its defaults.
  * v19: The plant gas yields collapse onto one constant, and it changes unit.
  *      `PlantsConfig` drops `o2PerPhotosynthesis` and `o2PerRespiration` —
  *      oxygen derives from the carbon at `CO2_TO_O2_MASS_RATIO` — and replaces

@@ -19,10 +19,12 @@ import type { HistorySnapshot } from './history.js';
  * rule is reject, not migrate.
  *
  * v7 made every oxygen consumer saturate against the oxygen it draws from.
- *    `DecayConfig` gains `oxygenHalfSaturation`, and `PlantsConfig` and
- *    `LivestockConfig` gain `respirationOxygenHalfSaturation`. A v6 session
- *    parses, and every rate that reads one of the three multiplies by
- *    `undefined`: the first tick turns the tank's gases and its food to `NaN`.
+ *    `DecayConfig` gains `oxygenHalfSaturation`, `PlantsConfig` and
+ *    `LivestockConfig` gain `respirationOxygenHalfSaturation`, and
+ *    `NitrogenCycleConfig` gains `aobOxygenHalfSaturation` /
+ *    `nobOxygenHalfSaturation`. A v6 session parses, and every rate that reads
+ *    one of the five multiplies by `undefined`: the first tick turns the tank's
+ *    gases, its food and its whole nitrogen chain to `NaN`.
  * v6 collapsed the plant gas yields onto one constant and changed its unit:
  *    `PlantsConfig` lost `o2PerPhotosynthesis` / `o2PerRespiration` — oxygen
  *    derives from the carbon now — and swapped `co2PerPhotosynthesis` /

@@ -164,11 +164,16 @@ describe('configRange', () => {
   // Nitrification rates come off doubling times and no bound was ever derived
   // for them, so `config set` has nothing to hold them to. Deriving bounds
   // turns this red — the gap is stated here rather than left to be discovered.
-  it('bounds nothing in the nitrogen cycle', () => {
+  // The two half-saturation constants are measured concentrations and came
+  // with theirs.
+  it('bounds the nitrogen cycle’s half-saturation constants and nothing else', () => {
     const bounded = paths.filter(
       (path) => path.startsWith('nitrogenCycle.') && configRange(path) !== undefined
     );
-    expect(bounded).toEqual([]);
+    expect(bounded).toEqual([
+      'nitrogenCycle.aobOxygenHalfSaturation',
+      'nitrogenCycle.nobOxygenHalfSaturation',
+    ]);
   });
 });
 
