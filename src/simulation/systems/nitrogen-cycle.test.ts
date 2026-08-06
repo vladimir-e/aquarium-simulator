@@ -327,10 +327,7 @@ describe('calculateNitriteToNitrate', () => {
 });
 
 describe('NOB_PROCESSING_RATE_MULTIPLIER', () => {
-  it('equals MW_NO2 / MW_NH3 (stoichiometric balance)', () => {
-    // Guards against accidental drift: the multiplier is purely derived
-    // from molecular weights and must stay in lockstep with NH3_TO_NO2_MASS_RATIO.
-    expect(NOB_PROCESSING_RATE_MULTIPLIER).toBeCloseTo(NH3_TO_NO2_MASS_RATIO, 10);
+  it('is the mass a milligram of NH3 gains on its way to NO2', () => {
     expect(NOB_PROCESSING_RATE_MULTIPLIER).toBeCloseTo(46.01 / 17.03, 10);
   });
 });

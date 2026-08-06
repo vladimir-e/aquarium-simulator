@@ -30,9 +30,9 @@ export const NH3_TO_NO2_MASS_RATIO = MW_NO2 / MW_NH3;
 export const NO2_TO_NO3_MASS_RATIO = MW_NO3 / MW_NO2;
 
 /**
- * ≈ 0.727. 6CO2 + 6H2O → C6H12O6 + 6O2 is 1:1 in moles, so a gram of carbon
- * fixed releases well under a gram of oxygen. Aerobic respiration and decay run
- * the same reaction backwards at the same ratio.
+ * ≈ 0.727. 6CO2 + 6H2O → C6H12O6 + 6O2 is 1:1 in moles, so a gram of CO2 fixed
+ * releases 32/44 of a gram of oxygen. Aerobic respiration and decay run the same
+ * reaction backwards at the same ratio.
  */
 export const CO2_TO_O2_MASS_RATIO = MW_O2 / MW_CO2;
 /** ≈ 1.375 — the same 1:1 reaction read from the oxygen side. */

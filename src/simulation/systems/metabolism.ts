@@ -42,10 +42,9 @@
 
 import type { Fish } from '../state.js';
 import type { LivestockConfig } from '../config/livestock.js';
-import { MW_N, MW_NH3, O2_TO_CO2_MASS_RATIO } from '../core/chemistry.js';
+import { N_TO_NH3_MASS_RATIO, O2_TO_CO2_MASS_RATIO } from '../core/chemistry.js';
 
-/** mg NH3 emitted per g of elemental N (MW_NH3 / MW_N × 1000). */
-const NH3_MG_PER_G_N = (MW_NH3 / MW_N) * 1000;
+const NH3_MG_PER_G_N = N_TO_NH3_MASS_RATIO * 1000;
 
 export interface MetabolismResult {
   /** Updated fish array (with new satiation, age values) */
