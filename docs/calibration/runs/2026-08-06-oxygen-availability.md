@@ -35,55 +35,101 @@ Damage is unchanged and separate — `oxygenStressThreshold` still charges a fis
 for the water it is in, so a suffocating fish draws less oxygen *and* suffers
 more.
 
+A fourth consumer joined them later on the same branch: both nitrifier guilds,
+K = 0.30 AOB and 1.10 NOB, derived and measured in
+`2026-08-07-nitrification-on-air.md`. Every figure below is the four-consumer
+budget.
+
 ## What each consumer asks for
 
 A 20 L, stagnant, 30 °C, 8 neon tetras and 240 total plant size, held at each
-oxygen with 5 g of food standing. mg/L/h, beside the share of the unbounded draw.
+oxygen with 5 g of food and 2 ppm of ammonia standing. mg/L/h, with the share of
+the unbounded draw in brackets.
 
-| O₂ mg/L | decay | of full | fish | of full | plants | of full | CO₂ out |
-|---|---|---|---|---|---|---|---|
-| 8.00 | 2.6016 | 0.976 | 0.0536 | 0.889 | 0.5322 | 0.941 | 3.6370 |
-| 4.00 | 2.5397 | 0.952 | 0.0483 | 0.800 | 0.5027 | 0.889 | 3.5459 |
-| 2.00 | 2.4242 | 0.909 | 0.0402 | 0.667 | 0.4524 | 0.800 | 3.3783 |
-| 1.00 | 2.2222 | 0.833 | 0.0302 | 0.500 | 0.3770 | 0.667 | 3.0894 |
-| 0.50 | 1.9047 | 0.714 | 0.0201 | 0.333 | 0.2827 | 0.500 | 2.6418 |
-| 0.25 | 1.4815 | 0.556 | 0.0121 | 0.200 | 0.1885 | 0.333 | 2.0508 |
-| 0.10 | 0.8889 | 0.333 | 0.0055 | 0.091 | 0.0942 | 0.167 | 1.2285 |
-| 0.00 | 0.0000 | — | 0.0000 | — | 0.0000 | — | **0.0000** |
+| O₂ mg/L | decay | nitrifiers | fish | plants | CO₂ out |
+|---|---|---|---|---|---|
+| 8.00 | 2.6016 (0.976) | 0.3352 (0.963) | 0.0536 (0.889) | 0.5322 (0.941) | 3.6370 |
+| 6.00 | 2.5806 (0.968) | 0.3296 (0.947) | 0.0517 (0.857) | 0.5219 (0.923) | 3.6061 |
+| 4.00 | 2.5397 (0.952) | 0.3191 (0.917) | 0.0483 (0.800) | 0.5026 (0.889) | 3.5459 |
+| 2.00 | 2.4242 (0.909) | 0.2923 (0.840) | 0.0402 (0.667) | 0.4523 (0.800) | 3.3783 |
+| 1.00 | 2.2222 (0.833) | 0.2521 (0.724) | 0.0302 (0.500) | 0.3770 (0.667) | 3.0894 |
+| 0.50 | 1.9047 (0.714) | 0.1997 (0.574) | 0.0201 (0.333) | 0.2827 (0.500) | 2.6418 |
+| 0.25 | 1.4815 (0.556) | 0.1424 (0.409) | 0.0121 (0.200) | 0.1885 (0.333) | 2.0508 |
+| 0.10 | 0.8889 (0.333) | 0.0770 (0.221) | 0.0055 (0.091) | 0.0942 (0.167) | 1.2285 |
+| 0.00 | 0.0000 | 0.0000 | 0.0000 | 0.0000 | **0.0000** |
 
-All three throttle, each on its own curve, and the `CO₂ out` column is the point
+All four throttle, each on its own curve, and the `CO₂ out` column is the point
 of the exercise: carbon is derived from the oxygen actually consumed, so it
 falls with it and reaches zero where the oxygen does. It costs nothing to keep
 true — the derivation was already in place from the first half of 2b.
 
+**The ammonia is pinned for the same reason the food is.** A consumer short of
+substrate reads its substrate and not its factor — `min(capacity, what is
+there)` takes the second argument — and on the standing ammonia this tank
+actually carries, the nitrifier column is flat at 1.000 the whole way down. What
+that column shows is the factor; what a tank's biofilter usually shows is the
+load.
+
+> **Superseded.** The table above used to carry three consumers and no ammonia
+> pin, because `draws()` in the probe summed decay, plants and fish while the
+> tank paid for nitrification too. Its decay, fish and plant figures still
+> reproduce to within a digit in the last place; what it was missing was a
+> column.
+
 ## What it is worth at the tank
 
-Six days, fed 1 g/day. `unpaid O₂` is oxygen the tick asked for beyond what the
-water was holding, summed over the run; `phantom CO₂` is the carbon that oxygen
-would have paid for.
+Six days, fed 1 g/day. `asked O₂` is what the four consumers wanted across the
+run; `unpaid O₂` is the part of it the water was not holding when they asked;
+`phantom CO₂` is the carbon that unpaid oxygen would have bought.
 
-| tank | draw | overdrawn h | unpaid O₂ | phantom CO₂ |
-|---|---|---|---|---|
-| stagnant 20 L, 240 plant size | unbounded | 24 | 12.80 | 17.60 |
-| stagnant 20 L, 240 plant size | **saturating** | 15 | **0.59** | **0.81** |
-| stagnant 20 L, 600 plant size | unbounded | 35 | 45.01 | 61.90 |
-| stagnant 20 L, 600 plant size | **saturating** | 45 | **12.80** | **17.60** |
-| sponge + air, 600 plant size | unbounded | 0 | 0.00 | 0.00 |
-| sponge + air, 600 plant size | **saturating** | 0 | **0.00** | **0.00** |
+| tank | draw | overdrawn h | asked O₂ | unpaid O₂ | phantom CO₂ |
+|---|---|---|---|---|---|
+| stagnant 20 L, 240 plant size | unbounded | 124 | 247.26 | 189.97 | 261.27 |
+| stagnant 20 L, 240 plant size | **saturating** | 122 | 109.26 | **56.50** | **77.70** |
+| stagnant 20 L, 600 plant size | unbounded | 95 | 352.95 | 177.86 | 244.61 |
+| stagnant 20 L, 600 plant size | **saturating** | 126 | 177.40 | **102.14** | **140.47** |
+| sponge + air, 600 plant size | unbounded | 16 | 296.37 | 6.71 | 9.23 |
+| sponge + air, 600 plant size | **saturating** | 5 | 277.02 | **2.82** | **3.88** |
 
-A stressed tank manufactures 4 % of the carbon it used to. A tank with the
-circulation a keeper would actually give it never reaches the condition at all,
-before or after — which is the right shape: the defect only ever fired in tanks
-already in failure.
+The factor takes 56 % off what the stressed 20 L asks for and 70 % off what it
+cannot pay. **The residual is not small.** That tank still draws 56.50 mg/L of
+oxygen it never had across six days — a little over half of everything it asked
+for — and still manufactures 78 mg/L of CO₂ against 261 before, which is 30 % of
+the phantom carbon rather than a rounding error. The 600-size jungle keeps 58 %
+of its overdraw.
+
+The bigger planting overdraws *less* in total than the smaller one under the
+unbounded draw, and it is not a paradox: four times the leaf area is also four
+times the daytime photosynthesis, so the tank spends fewer hours short (95
+against 124) and pays more heavily in each of them.
+
+Circulation is still what decides whether a tank is in this regime at all, but
+it is no longer a clean zero: a sponge and an air pump cover the 240-size
+planting outright — `oxygen-limited-draw.test.ts` asserts that tank owes exactly
+nothing, on a 3.05 mg/L margin at its tightest hour — and leave the 600-size
+jungle 2.82 mg/L short across five of its 144 hours.
 
 **It does not go to zero, and the reason is the tick.** The factor scales
 demand, but a tick is an hour: a consumer whose reduced demand still outruns the
-standing stock overshoots inside the step. In the 600-size jungle the planting
-alone wants 1.35 mg/L/h against a tank holding 0.19, so 12.8 mg/L still goes
-unpaid across six days. What is left of the overdraw goes with tick resolution
-rather than with the factor, and closing it properly would mean integrating the
-draw across the step — which couples the three consumers into the tick-wide
-rationing pass this design exists to avoid. Recorded rather than fixed.
+standing stock overshoots inside the step. Closing it properly would mean
+integrating the draw across the step — which couples the four consumers into the
+tick-wide rationing pass this design exists to avoid. Recorded rather than
+fixed.
+
+**Nitrification is the reason the residual is this size, and it is a load and
+not a rate.** Summed over the stagnant 240-size run the four consumers ask for
+38.21 decay + 35.62 nitrifiers + 34.34 plants + 1.09 fish mg/L; unbounded, the
+same run reads 61.20 / 100.42 / 84.05 / 1.59. The guilds are the largest single
+consumer in a fed tank, because their demand is set by the nitrogen arriving
+rather than by a rate the factor can trim — 1 g of food a day into 20 L is a
+standing oxygen bill, and the availability factor can only make the tank slower
+to pay it.
+
+> **Superseded.** This section used to read 24 h / 12.80 unpaid against 15 h /
+> **0.59** for the stagnant 240-size tank, a zero on both aerated rows, and "a
+> stressed tank manufactures 4 % of the carbon it used to". Those were the
+> three-consumer probe, measured before nitrification drew any oxygen at all;
+> neither the fixture nor the constants moved, the missing consumer did.
 
 ---
 
