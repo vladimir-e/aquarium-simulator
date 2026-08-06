@@ -401,29 +401,24 @@ export function calculateHardscapeSlots(capacityLiters: number): number {
 }
 
 /**
- * Water depth in cm from tank capacity.
- * Assumes standard rectangular shape (length:width:height ≈ 2:1:1), so
- * height = cbrt(volume / 2) in dm. 20 L is 21.5 cm deep, 300 L is 53.1.
+ * Height in cm of the box a capacity implies, assuming the standard
+ * rectangular shape (length:width:height ≈ 2:1:1). 20 L stands 21.5 cm,
+ * 300 L stands 53.1.
  */
-export function calculateTankDepth(capacity: number): number {
-  const heightDm = Math.cbrt(capacity / 2); // liters = dm³
-  return heightDm * 10;
+export function calculateTankHeight(capacity: number): number {
+  return Math.cbrt(capacity / 2) * 10; // liters = dm³
 }
 
 /**
  * Calculates tank bacteria surface area from capacity.
- * Assumes standard rectangular shape (length:width:height ≈ 2:1:1).
  * Includes 4 walls + bottom (excludes top which is open).
  */
 export function calculateTankGlassSurface(capacity: number): number {
-  // Approximation: 4 walls + bottom
-  const height = calculateTankDepth(capacity) / 10; // dm
+  const height = calculateTankHeight(capacity);
   const width = height;
   const length = 2 * height;
 
-  // Surface area: 2*(length*height) + 2*(width*height) + (length*width)
-  const surfaceDm2 = 2 * (length * height) + 2 * (width * height) + length * width;
-  return Math.round(surfaceDm2 * 100); // convert dm² to cm²
+  return Math.round(2 * (length * height) + 2 * (width * height) + length * width);
 }
 
 /**

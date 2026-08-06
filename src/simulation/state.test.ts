@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   createSimulation,
-  calculateTankDepth,
+  calculateTankHeight,
   calculateTankGlassSurface,
   DEFAULT_HEATER,
 } from './state.js';
@@ -407,25 +407,25 @@ describe('createSimulation - passive resources', () => {
   });
 });
 
-describe('calculateTankDepth', () => {
+describe('calculateTankHeight', () => {
   it('reads the 2:1:1 box the glass surface already assumes', () => {
     // Two tanks of the same shape: 8× the volume is 2× every edge, so
-    // 2× the depth and 4× the glass.
-    expect(calculateTankDepth(8 * 40) / calculateTankDepth(40)).toBeCloseTo(2, 10);
+    // 2× the height and 4× the glass.
+    expect(calculateTankHeight(8 * 40) / calculateTankHeight(40)).toBeCloseTo(2, 10);
     expect(calculateTankGlassSurface(8 * 40) / calculateTankGlassSurface(40)).toBeCloseTo(4, 3);
   });
 
-  it('puts the catalog tanks at believable depths', () => {
-    expect(calculateTankDepth(20)).toBeCloseTo(21.5, 1);
-    expect(calculateTankDepth(40)).toBeCloseTo(27.1, 1);
-    expect(calculateTankDepth(150)).toBeCloseTo(42.2, 1);
-    expect(calculateTankDepth(300)).toBeCloseTo(53.1, 1);
+  it('puts the catalog tanks at believable heights', () => {
+    expect(calculateTankHeight(20)).toBeCloseTo(21.5, 1);
+    expect(calculateTankHeight(40)).toBeCloseTo(27.1, 1);
+    expect(calculateTankHeight(150)).toBeCloseTo(42.2, 1);
+    expect(calculateTankHeight(300)).toBeCloseTo(53.1, 1);
   });
 
   it('grows with capacity', () => {
-    const depths = [10, 20, 40, 150, 300, 1000].map(calculateTankDepth);
-    for (let i = 1; i < depths.length; i++) {
-      expect(depths[i]).toBeGreaterThan(depths[i - 1]);
+    const heights = [10, 20, 40, 150, 300, 1000].map(calculateTankHeight);
+    for (let i = 1; i < heights.length; i++) {
+      expect(heights[i]).toBeGreaterThan(heights[i - 1]);
     }
   });
 });

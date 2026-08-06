@@ -5,7 +5,7 @@
 import { produce } from 'immer';
 import type { Effect } from '../core/effects.js';
 import type { SimulationState } from '../state.js';
-import { calculateTankDepth, calculateTankGlassSurface } from '../state.js';
+import { calculateTankHeight, calculateTankGlassSurface } from '../state.js';
 import type { TunableConfig } from '../config/index.js';
 import { type LightConfig, lightDefaults } from '../config/light.js';
 import {
@@ -208,11 +208,9 @@ export function calculatePassiveResources(
     flow += getAirPumpFlow(tank.capacity);
   }
 
-  // Light: the fixture is rated at the surface, the tank runs on what
-  // reaches the substrate.
   const light = calculateParAtDepth(
     getLightOutput(equipment.light, hourOfDay),
-    calculateTankDepth(tank.capacity),
+    calculateTankHeight(tank.capacity),
     lightConfig
   );
 

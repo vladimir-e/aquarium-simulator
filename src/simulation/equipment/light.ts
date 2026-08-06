@@ -31,9 +31,8 @@ export const DEFAULT_LIGHT: Light = {
 };
 
 /**
- * Fixture catalog for UI selection. At the 150 L reference tank these land
- * 16 / 33 / 59 / 98 PAR on the substrate — the hobby's low / medium / high /
- * very high tiers.
+ * Fixture catalog for UI selection — the hobby's low / medium / high / very
+ * high tiers.
  */
 export const LIGHT_PAR_OPTIONS: LightPar[] = [25, 50, 90, 150];
 

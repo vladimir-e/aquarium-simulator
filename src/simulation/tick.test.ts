@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { tick, getHourOfDay, getDayNumber } from './tick.js';
 import { createSimulation, type SimulationConfig, type SimulationState } from './state.js';
 import { applyAction } from './actions/index.js';
+import { DEFAULT_CONFIG, type TunableConfig } from './config/index.js';
 import type { PresetSeed } from './seed.js';
 
 describe('tick', () => {
@@ -341,6 +342,21 @@ describe('tick passive resources', () => {
     const newState = tick(state);
 
     expect(newState.resources.flow).toBe(3218); // 850 GPH
+  });
+
+  it('lights the substrate through the water column the config describes', () => {
+    const state = createSimulation({
+      tankCapacity: 100,
+      light: { enabled: true, par: 150, schedule: { startHour: 0, duration: 24 } },
+    });
+    const murky: TunableConfig = {
+      ...DEFAULT_CONFIG,
+      light: { waterAttenuationPerCm: DEFAULT_CONFIG.light.waterAttenuationPerCm * 4 },
+    };
+
+    expect(tick(state, murky).resources.light).toBeLessThan(
+      tick(state, DEFAULT_CONFIG).resources.light
+    );
   });
 });
 

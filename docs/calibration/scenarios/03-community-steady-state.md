@@ -4,7 +4,7 @@ Vlad's canonical "well-run community tank" — 40 gallons, gravel, a handful of 
 
 ## Setup
 - **Tank:** 150L (40 gal), gravel substrate, no lid (mesh top optional for jumpers)
-- **Equipment:** Canister filter (large surface, ~1200 L/h = 8× turnover); heater at 26°C, 200W; light 40W on 10 hr/day (enough for low-light plants); no CO2, no air pump
+- **Equipment:** Canister filter (large surface, ~1200 L/h = 8× turnover); heater at 26°C, 200W; light rated 50 PAR on 10 hr/day, landing 33 PAR on the substrate through 42 cm of water (enough for low-light plants); no CO2, no air pump
 - **Plants:** Modest — 3× Java Fern and 2× Amazon Sword, all starting ~50% size. Nutrient demand mostly low; they'll contribute some NO3 consumption but not enough to zero it out.
 - **Stock:**
   - 20 × Neon Tetra (`neon_tetra`, 0.5 g each = 10 g)

@@ -7,7 +7,7 @@ import {
   type Light,
 } from './light.js';
 import { lightDefaults } from '../config/light.js';
-import { calculateTankDepth } from '../state.js';
+import { calculateTankHeight } from '../state.js';
 
 describe('light equipment', () => {
   describe('DEFAULT_LIGHT', () => {
@@ -26,11 +26,11 @@ describe('light equipment', () => {
     });
 
     it('includes the default fixture', () => {
-      expect(LIGHT_PAR_OPTIONS.map(Number)).toContain(DEFAULT_LIGHT.par);
+      expect(LIGHT_PAR_OPTIONS).toContain(DEFAULT_LIGHT.par);
     });
 
     it('spans the hobby low-to-very-high tiers on the 150 L reference tank', () => {
-      const depth = calculateTankDepth(150);
+      const depth = calculateTankHeight(150);
       const atSubstrate = LIGHT_PAR_OPTIONS.map((par) =>
         Math.round(calculateParAtDepth(par, depth))
       );
@@ -171,7 +171,7 @@ describe('light equipment', () => {
     });
 
     it('scales linearly in the fixture — doubling the fixture doubles the substrate', () => {
-      const depth = calculateTankDepth(150);
+      const depth = calculateTankHeight(150);
       expect(calculateParAtDepth(100, depth)).toBeCloseTo(2 * calculateParAtDepth(50, depth), 10);
     });
 
@@ -181,8 +181,8 @@ describe('light equipment', () => {
     });
 
     it('a deeper tank lands less of the same fixture on its substrate', () => {
-      const shallow = calculateParAtDepth(90, calculateTankDepth(20));
-      const deep = calculateParAtDepth(90, calculateTankDepth(300));
+      const shallow = calculateParAtDepth(90, calculateTankHeight(20));
+      const deep = calculateParAtDepth(90, calculateTankHeight(300));
       expect(deep).toBeLessThan(shallow);
     });
 
@@ -194,12 +194,12 @@ describe('light equipment', () => {
     });
 
     it('keeps roughly four fifths of the surface reading in a 20 L', () => {
-      const kept = calculateParAtDepth(100, calculateTankDepth(20), lightDefaults) / 100;
+      const kept = calculateParAtDepth(100, calculateTankHeight(20), lightDefaults) / 100;
       expect(kept).toBeCloseTo(0.81, 2);
     });
 
     it('keeps roughly three fifths of the surface reading in a 300 L', () => {
-      const kept = calculateParAtDepth(100, calculateTankDepth(300), lightDefaults) / 100;
+      const kept = calculateParAtDepth(100, calculateTankHeight(300), lightDefaults) / 100;
       expect(kept).toBeCloseTo(0.59, 2);
     });
   });

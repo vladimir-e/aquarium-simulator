@@ -89,8 +89,7 @@ export const PLANT_SPECIES_DATA: Record<PlantSpecies, PlantSpeciesData> = {
     maxSize: 600,
     hardiness: 0.7, // Forgiving — survives most beginner setups
     // Alive at 10 PAR — below anything the hobby calls low light — and
-    // bleaches past 90, which only a high-output fixture on a shallow
-    // tank reaches.
+    // bleaches past 90, which takes the brightest fixture in the catalog.
     tolerableLight: [10, 90],
     // No CO2 dependency — atmospheric (~3 mg/L) is enough.
     tolerableCO2: [1, 40],

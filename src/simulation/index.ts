@@ -21,7 +21,7 @@ export type {
 } from './state.js';
 export {
   createSimulation,
-  calculateTankDepth,
+  calculateTankHeight,
   calculateTankGlassSurface,
   calculateHardscapeSlots,
   DEFAULT_HEATER,

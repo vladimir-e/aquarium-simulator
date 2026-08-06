@@ -36,8 +36,11 @@ type Sim = ReturnType<typeof useSimulation>;
 
 const FILTER_TYPE_OPTIONS = FILTER_TYPES.map((value) => ({ value, label: FILTER_LABEL[value] }));
 
-function numberOptions(values: number[], suffix: string): { value: string; label: string }[] {
-  return values.map((v) => ({ value: String(v), label: `${v}${suffix}` }));
+function numberOptions<T extends number>(
+  values: T[],
+  label: (value: T) => string
+): { value: string; label: string }[] {
+  return values.map((v) => ({ value: String(v), label: label(v) }));
 }
 
 function setStart(schedule: DailySchedule, startHour: number): DailySchedule {
@@ -106,7 +109,7 @@ function DeviceSettings({ id, sim }: { id: EquipmentId; sim: Sim }): React.JSX.E
               ariaLabel="Heater wattage"
               value={String(h.wattage)}
               onChange={(v) => sim.updateHeaterWattage(Number(v))}
-              options={numberOptions(HEATER_WATTAGE_OPTIONS, 'W')}
+              options={numberOptions(HEATER_WATTAGE_OPTIONS, (w) => `${w}W`)}
             />
           </FieldRow>
         </>
@@ -124,7 +127,7 @@ function DeviceSettings({ id, sim }: { id: EquipmentId; sim: Sim }): React.JSX.E
               ariaLabel="Light output"
               value={String(l.par)}
               onChange={(v) => sim.updateLightPar(Number(v))}
-              options={numberOptions(LIGHT_PAR_OPTIONS, ' PAR')}
+              options={numberOptions(LIGHT_PAR_OPTIONS, (par) => `${par} PAR`)}
             />
           </FieldRow>
           <FieldRow label="Start">

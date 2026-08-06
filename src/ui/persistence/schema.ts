@@ -141,7 +141,8 @@ const HardscapeSchema = z
 const LightSchema = z
   .object({
     enabled: z.boolean(),
-    par: z.number().min(0).max(500),
+    // Full noon sunlight at the surface — no fixture over a tank exceeds it.
+    par: z.number().min(0).max(2000),
     schedule: DailyScheduleSchema,
   })
   .strict();

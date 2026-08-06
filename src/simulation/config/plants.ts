@@ -158,16 +158,15 @@ export const plantsDefaults: PlantsConfig = {
 
   // Vitality stressor severities (pre-hardiness; the species hardiness
   // factor multiplies damage centrally inside `computeVitality`).
+  //
+  // %/h per PAR unit outside the species band, against a 0.5 %/h benefit
+  // budget: 10 PAR short costs 0.20 %/h pre-hardiness, 10 PAR over 0.15 %/h.
+  lightInsufficientSeverity: 0.02,
+  lightExcessiveSeverity: 0.015,
   // Calibrated so a Monte Carlo (hardiness 0.3) loses visible condition
   // within ~24 sim hours when CO2 falls from 20 mg/L to 5 mg/L (gap of
   // 5 mg/L below tolerableCO2 lower bound) — matches the spec acceptance
   // scenario.
-  // %/h per PAR unit outside the species band, against a 0.5 %/h benefit
-  // budget: 10 PAR out costs 0.15 %/h pre-hardiness, and the brightest
-  // fixture in the smallest tank puts Anubias 51 PAR over at 0.77 %/h —
-  // measured as a dent (condition 98.3 at 30 days), not a melt.
-  lightInsufficientSeverity: 0.02,
-  lightExcessiveSeverity: 0.015,
   co2InsufficientSeverity: 1.5,
   temperatureStressSeverity: 0.4,
   phStressSeverity: 3.0,

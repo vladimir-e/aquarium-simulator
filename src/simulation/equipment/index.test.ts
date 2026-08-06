@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { biofilmKept, calculatePassiveResources } from './index.js';
 import { getSubstrateSurface, type SubstrateType } from './substrate.js';
-import { calculateTankDepth, createSimulation, type SimulationState } from '../state.js';
+import { calculateTankHeight, createSimulation, type SimulationState } from '../state.js';
 import { calculateParAtDepth } from './light.js';
 import { FILTER_SURFACE, getFilterFlow } from './filter.js';
 import { POWERHEAD_FLOW_LPH } from './powerhead.js';
@@ -397,9 +397,8 @@ describe('calculatePassiveResources', () => {
   });
 
   describe('light calculation', () => {
-    /** What the engine should land on the substrate of a `capacity` tank. */
     const atSubstrate = (capacity: number, surfacePar: number): number =>
-      calculateParAtDepth(surfacePar, calculateTankDepth(capacity));
+      calculateParAtDepth(surfacePar, calculateTankHeight(capacity));
 
     it('returns 0 light when light disabled', () => {
       const state = createSimulation({ tankCapacity: 100 });

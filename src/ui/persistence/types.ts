@@ -28,8 +28,8 @@ import type { TunableConfig } from '../../simulation/config/index.js';
  *      species bands, the plant light severities and the algae excess-light
  *      threshold are all redenominated with it. `TunableConfig` gains a
  *      `light` section carrying the water column's attenuation coefficient.
- *      A v17 tank read as v18 would put a 200 W fixture's number into a
- *      field where 200 means the brightest light in the catalog.
+ *      A v17 tank read as v18 would take a 200 W fixture's number for
+ *      200 PAR — brighter than the 150 at the top of the catalog.
  * v17: The tank carries its own randomness. `SimulationState` gains
  *      `rng: { seed, counter }` — the seed and stream position every draw
  *      comes off — and organism ids are cut from that counter rather than

@@ -90,7 +90,7 @@ export const PRESETS: PresetDefinition[] = [
       },
       light: {
         enabled: true,
-        par: 50,
+        par: 90,
         schedule: { startHour: 8, duration: 12 },
       },
       substrate: { type: 'aqua_soil' },

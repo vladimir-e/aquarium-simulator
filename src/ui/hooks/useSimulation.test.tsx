@@ -492,6 +492,24 @@ describe('useSimulation', () => {
     });
   });
 
+  describe('equipment updates', () => {
+    it('relights the substrate when the fixture is swapped', () => {
+      let lit = createPresetSimulation(getPresetById('planted')!);
+      for (let i = 0; i < 9; i++) lit = tick(lit, DEFAULT_CONFIG);
+      seedSession(lit, 'planted');
+
+      const { result } = renderHook(() => useSimulation('planted'), { wrapper });
+      const before = result.current.state.resources.light;
+      expect(before).toBeGreaterThan(0);
+
+      act(() => {
+        result.current.updateLightPar(150);
+      });
+
+      expect(result.current.state.resources.light / before).toBeCloseTo(150 / 90, 6);
+    });
+  });
+
   describe('logging', () => {
     it('emits log when heater enabled', () => {
       // Use betta preset which has heater

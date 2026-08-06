@@ -7,7 +7,7 @@
 
 import {
   calculateHeatingRate,
-  calculateTankDepth,
+  calculateTankHeight,
   getFilterFlow,
   getAirPumpFlow,
   getAirPumpOutput,
@@ -153,8 +153,11 @@ function lightReadings({ state, config }: DeviceReadingInput): DeviceReading[] {
   const { light } = state.equipment;
   const hour = state.tick % 24;
   const lit = light.enabled && isScheduleActive(hour, light.schedule);
-  const depth = calculateTankDepth(state.tank.capacity);
+  const depth = calculateTankHeight(state.tank.capacity);
   const surfacePar = getLightOutput(light, hour);
+  const atSubstrate = (par: number): number =>
+    Math.round(calculateParAtDepth(par, depth, config.light));
+  const column = `${Math.round(depth)} cm of water`;
 
   return [
     {
@@ -168,8 +171,10 @@ function lightReadings({ state, config }: DeviceReadingInput): DeviceReading[] {
     },
     {
       label: 'At substrate',
-      value: `${Math.round(calculateParAtDepth(surfacePar, depth, config.light))} PAR`,
-      note: `through ${Math.round(depth)} cm of water`,
+      value: `${atSubstrate(surfacePar)} PAR`,
+      note: lit
+        ? `through ${column}`
+        : `would land ${atSubstrate(light.par)} PAR through ${column}`,
     },
     { label: 'Photoperiod', value: `${light.schedule.duration} h/day` },
   ];
