@@ -13,6 +13,7 @@ import { join } from 'node:path';
 import { applyAction, tick, type SimulationState } from '../simulation/index.js';
 import { DEFAULT_CONFIG } from '../simulation/config/index.js';
 import { createPresetSimulation, getPresetById } from '../simulation/presets.js';
+import { applyConfigSet } from './config-set.js';
 import { createSession, loadSession, saveSession, sessionPath } from './session.js';
 import { appendSnapshot, snapshot } from './history.js';
 import { renderObserve, renderTrace } from './format.js';
@@ -163,13 +164,10 @@ export function runSmokeScenario(options: { path?: string; cleanup?: boolean } =
     applyAction(session.state, { type: 'scrubAlgae', randomPercent: 0.2 });
   });
 
-  step('config set (nitrogenCycle.maxAmmoniaOxidation)', () => {
+  step('config set (nitrogenCycle.wasteConversionRate)', () => {
     const session = loadSession({ path });
-    const next = JSON.parse(JSON.stringify(session.config));
-    const key = Object.keys(next.nitrogenCycle)[0];
-    if (!key) throw new Error('no nitrogen cycle keys');
-    const original = next.nitrogenCycle[key];
-    next.nitrogenCycle[key] = typeof original === 'number' ? original * 1.1 : original;
+    const raised = session.config.nitrogenCycle.wasteConversionRate * 1.1;
+    const next = applyConfigSet(session.config, 'nitrogenCycle.wasteConversionRate', String(raised));
     saveSession({ ...session, config: next }, { path });
     const reloaded = loadSession({ path });
     if (JSON.stringify(reloaded.config) !== JSON.stringify(next)) {

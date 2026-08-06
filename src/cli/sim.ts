@@ -8,11 +8,7 @@
  */
 
 import { tick, applyAction, type Action, type SimulationState } from '../simulation/index.js';
-import {
-  cloneConfig,
-  DEFAULT_CONFIG,
-  type TunableConfig,
-} from '../simulation/config/index.js';
+import { DEFAULT_CONFIG } from '../simulation/config/index.js';
 import {
   createPresetSimulation,
   PRESETS,
@@ -26,6 +22,7 @@ import {
   createSession,
   type Session,
 } from './session.js';
+import { applyConfigSet } from './config-set.js';
 import { parseDuration } from './duration.js';
 import { appendSnapshot, snapshot } from './history.js';
 import { renderObserve, renderTrace } from './format.js';
@@ -101,37 +98,6 @@ function getByPath(obj: unknown, path: string[]): unknown {
     cur = (cur as Record<string, unknown>)[key];
   }
   return cur;
-}
-
-/**
- * `config set` against a `TunableConfig`, which is numbers all the way to its
- * leaves. A value that is not a finite number, and a path that does not
- * already name one, are both refused rather than stored: a stored string
- * coerces back to `NaN` in the first multiplication that reads it, and a
- * stored key nothing reads is a setting the operator only believes they made.
- */
-export function applyConfigSet(config: TunableConfig, path: string, raw: string): TunableConfig {
-  const value = Number(raw);
-  if (raw.trim() === '' || !Number.isFinite(value)) {
-    throw new Error(`config set requires a finite number, got "${raw}".`);
-  }
-
-  const keys = path.split('.');
-  const leaf = keys.pop()!;
-  const next = cloneConfig(config);
-  let section = next as unknown as Record<string, unknown>;
-  for (const key of keys) {
-    const nested = section[key];
-    if (nested === null || typeof nested !== 'object') {
-      throw new Error(`Unknown config path "${path}".`);
-    }
-    section = nested as Record<string, unknown>;
-  }
-  if (typeof section[leaf] !== 'number') {
-    throw new Error(`Unknown config path "${path}".`);
-  }
-  section[leaf] = value;
-  return next;
 }
 
 /** Build an Action from `action <type> [args...]`. Throws on invalid input. */

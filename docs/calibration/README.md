@@ -65,6 +65,10 @@ npx tsx src/cli/sim.ts smoke
 
 Durations accept `5d`, `48h`, or a bare integer (hours).
 
+`config set` holds a tunable to the range its `*ConfigMeta` declares and names
+that range when it refuses. The nitrogen cycle's meta declares none, so its
+rates take any finite number.
+
 ## Branches
 
 One branch per scenario: `calibration/<scenario-slug>`. Commit coefficient

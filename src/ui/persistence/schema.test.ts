@@ -6,7 +6,7 @@ import {
   PersistedUISchema,
 } from './schema.js';
 import { PERSISTENCE_VERSION } from './types.js';
-import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
+import { DEFAULT_CONFIG, MAX_WATER_ATTENUATION_PER_CM } from '../../simulation/config/index.js';
 import {
   createSimulation,
   BUBBLE_RATE_OPTIONS,
@@ -86,6 +86,19 @@ describe('TunableConfigSchema', () => {
       },
     };
     expect(TunableConfigSchema.safeParse(withExtra).success).toBe(false);
+  });
+
+  it.each([-100, -0.001, MAX_WATER_ATTENUATION_PER_CM + 1])(
+    'rejects an attenuation of %s, which is not a water column',
+    (waterAttenuationPerCm) => {
+      const config = { ...DEFAULT_CONFIG, optics: { waterAttenuationPerCm } };
+      expect(TunableConfigSchema.safeParse(config).success).toBe(false);
+    }
+  );
+
+  it('takes an attenuation of zero — water that costs the light nothing', () => {
+    const config = { ...DEFAULT_CONFIG, optics: { waterAttenuationPerCm: 0 } };
+    expect(TunableConfigSchema.safeParse(config).success).toBe(true);
   });
 
   it('rejects the old v12 config shape (livestock missing surplusCap)', () => {

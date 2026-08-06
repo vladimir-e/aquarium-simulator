@@ -3,7 +3,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { createSimulation } from '../../simulation/index.js';
+import { createSimulation, tick } from '../../simulation/index.js';
 import { DEFAULT_CONFIG, type TunableConfig } from '../../simulation/config/index.js';
 import { getPresetById } from '../../simulation/presets.js';
 import { createSession, loadSession, saveSession, hasSession } from '../session.js';
@@ -102,19 +102,17 @@ describe('session roundtrip', () => {
     // `config.optics`, and the substrate-PAR calculation returns early while
     // surface PAR is zero, so the missing attenuation coefficient is not read
     // until the photoperiod opens. A session that loaded would die at 08:00.
-    expect(DEFAULT_CONFIG.optics.waterAttenuationPerCm).toBeGreaterThan(0);
-
-    const preset = getPresetById('bare')!;
-    const state = createSimulation(preset.config);
-    const session = createSession(state, DEFAULT_CONFIG);
-
-    const preParConfig: Record<string, unknown> = { ...session.config };
+    const preParConfig: Record<string, unknown> = { ...DEFAULT_CONFIG };
     delete preParConfig.optics;
-    saveSession(
-      { ...session, version: 4, config: preParConfig as unknown as TunableConfig },
-      { path }
-    );
+    const config = preParConfig as unknown as TunableConfig;
 
+    const lit = createSimulation({
+      tankCapacity: 40,
+      light: { enabled: true, par: 50, schedule: { startHour: 0, duration: 24 } },
+    });
+    expect(() => tick(lit, config)).toThrow(/waterAttenuationPerCm/);
+
+    saveSession({ ...createSession(lit, config), version: 4 }, { path });
     expect(() => loadSession({ path })).toThrow(/Unsupported session version/);
   });
 });

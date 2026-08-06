@@ -128,15 +128,10 @@ const DERIVED_FIELDS = [
   'po4_ppm',
 ] as const;
 
-/** Everything `--fields` accepts. */
 export const TRACE_FIELDS: readonly string[] = [
   ...DERIVED_FIELDS,
   ...Object.keys(RESOURCE_FIELDS),
 ];
-
-function unknownField(field: string): Error {
-  return new Error(`Unknown trace field "${field}". Valid: ${TRACE_FIELDS.join(', ')}.`);
-}
 
 function getFieldValue(entry: HistorySnapshot, field: string): string {
   const r = entry.resources;
@@ -164,7 +159,9 @@ function getFieldValue(entry: HistorySnapshot, field: string): string {
     case 'po4_ppm':
       return String(round(toPpm(r.phosphate, r.water), 4));
     default: {
-      if (!(field in RESOURCE_FIELDS)) throw unknownField(field);
+      if (!Object.hasOwn(RESOURCE_FIELDS, field)) {
+        throw new Error(`Trace field "${field}" is offered but renders nothing.`);
+      }
       const v = r[field as keyof typeof r];
       if (typeof v === 'boolean') return v ? '1' : '0';
       return String(round(v, 4));
@@ -197,7 +194,9 @@ export function renderTrace(
   // Up front, so a typo is named before any output rather than read as a
   // column of blanks — and on an empty history, where no row would check it.
   for (const field of header) {
-    if (!TRACE_FIELDS.includes(field)) throw unknownField(field);
+    if (!TRACE_FIELDS.includes(field)) {
+      throw new Error(`Unknown trace field "${field}". Valid: ${TRACE_FIELDS.join(', ')}.`);
+    }
   }
   const rows = sampled.map((entry) =>
     header.map((f) => getFieldValue(entry, f)).join(',')

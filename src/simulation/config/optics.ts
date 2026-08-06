@@ -15,6 +15,14 @@ export const opticsDefaults: OpticsConfig = {
   waterAttenuationPerCm: 0.010,
 };
 
+/**
+ * Zero is water that takes nothing — the clear-water limit, and meaningful.
+ * One takes 63 % of the PAR in the first centimetre, which is no longer water
+ * a tank holds. A coefficient outside [0, 1] is a typo, and a negative one is
+ * worse than a typo: it turns Beer–Lambert into gain and the light infinite.
+ */
+export const MAX_WATER_ATTENUATION_PER_CM = 1;
+
 export interface OpticsConfigMeta {
   key: keyof OpticsConfig;
   label: string;

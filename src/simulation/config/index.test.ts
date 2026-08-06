@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   DEFAULT_CONFIG,
   cloneConfig,
+  configRange,
   isModified,
   isSectionModified,
   isConfigModified,
@@ -117,6 +118,44 @@ describe('isConfigModified', () => {
     modified.decay.q10 = 3.0;
     modified.ph.neutralPh = 6.5;
     expect(isConfigModified(modified)).toBe(true);
+  });
+});
+
+describe('configRange', () => {
+  const leafPaths = (value: object, prefix = ''): string[] =>
+    Object.entries(value).flatMap(([key, child]) => {
+      const path = prefix ? `${prefix}.${key}` : key;
+      return typeof child === 'object' && child !== null ? leafPaths(child, path) : [path];
+    });
+
+  const paths = leafPaths(DEFAULT_CONFIG);
+
+  it('reads the bounds the meta declares', () => {
+    expect(configRange('optics.waterAttenuationPerCm')).toEqual({ min: 0.001, max: 0.05 });
+    expect(configRange('nutrients.fertilizerFormula.nitrate')).toEqual({ min: 1, max: 100 });
+  });
+
+  it('answers nothing for a path the config does not have', () => {
+    expect(configRange('optics.attenuation')).toBeUndefined();
+    expect(configRange('optiks.waterAttenuationPerCm')).toBeUndefined();
+    expect(configRange('__proto__.pwned')).toBeUndefined();
+  });
+
+  it('bounds every tunable outside the nitrogen cycle', () => {
+    const unbounded = paths.filter(
+      (path) => !path.startsWith('nitrogenCycle.') && configRange(path) === undefined
+    );
+    expect(unbounded).toEqual([]);
+  });
+
+  // Nitrification rates come off doubling times and no bound was ever derived
+  // for them, so `config set` has nothing to hold them to. Deriving bounds
+  // turns this red — the gap is stated here rather than left to be discovered.
+  it('bounds nothing in the nitrogen cycle', () => {
+    const bounded = paths.filter(
+      (path) => path.startsWith('nitrogenCycle.') && configRange(path) !== undefined
+    );
+    expect(bounded).toEqual([]);
   });
 });
 

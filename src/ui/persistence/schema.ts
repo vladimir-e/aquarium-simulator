@@ -5,6 +5,7 @@
 
 import { z } from 'zod';
 import { MAX_LIGHT_PAR } from '../../simulation/index.js';
+import { MAX_WATER_ATTENUATION_PER_CM } from '../../simulation/config/index.js';
 import { PERSISTENCE_VERSION } from './types.js';
 
 // ============================================================================
@@ -369,7 +370,7 @@ const AlgaeConfigSchema = z
 
 const OpticsConfigSchema = z
   .object({
-    waterAttenuationPerCm: z.number(),
+    waterAttenuationPerCm: z.number().min(0).max(MAX_WATER_ATTENUATION_PER_CM),
   })
   .strict();
 
