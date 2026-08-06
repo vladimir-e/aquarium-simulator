@@ -522,6 +522,11 @@ describe('PersistedStateSchema', () => {
     expect(PersistedStateSchema.safeParse(v16).success).toBe(false);
   });
 
+  it('rejects prior version 18 (breaking bump for the collapsed carbon yield)', () => {
+    const v18 = { ...validState, version: 18 };
+    expect(PersistedStateSchema.safeParse(v18).success).toBe(false);
+  });
+
   it('rejects a tank with no stream to resume', () => {
     const streamless: Record<string, unknown> = { ...validState.simulation };
     delete streamless.rng;
@@ -531,8 +536,8 @@ describe('PersistedStateSchema', () => {
     ).toBe(false);
   });
 
-  it('PERSISTENCE_VERSION is 18', () => {
-    expect(PERSISTENCE_VERSION).toBe(18);
+  it('PERSISTENCE_VERSION is 19', () => {
+    expect(PERSISTENCE_VERSION).toBe(19);
   });
 });
 
