@@ -102,10 +102,24 @@ Fish mass drives all metabolism numbers:
 
 ```
 food_needed = base_food_rate * fish.mass
-oxygen_consumed = base_respiration * fish.mass
+oxygen_consumed = base_respiration * fish.mass * oxygen_factor
 waste_produced = food_consumed * waste_ratio
-co2_produced = oxygen_consumed * respiratory_quotient
+co2_produced = oxygen_consumed * respiratory_quotient * MW_CO2 / MW_O2
 ```
+
+The respiratory quotient is a *molar* ratio, as the literature defines it, so
+converting it to a mass takes the molar step.
+
+A fish regulates its uptake until the water falls past its critical oxygen
+tension — around 1–2 mg/L for warm-water teleosts — and below that the gills
+cannot extract what is not there. `oxygen_factor` is the shared Monod term
+(`4-CORE-SYSTEMS.md` § Oxygen-limited processes) with `K` = 1.0 mg/L, the
+highest in the tank: fish feel a shortage before the bacteria do.
+
+**Damage is a separate reading.** The oxygen stressor still charges a fish for
+the water it is in, so a suffocating fish draws less oxygen *and* suffers more.
+Excretion is separate too — ammonia output does not scale with the factor, so a
+fish that stops breathing goes on producing nitrogen.
 
 ### Waste Production
 

@@ -11,6 +11,41 @@ Core systems are the "engine" of the simulation. They:
 
 ---
 
+## Oxygen-limited processes
+
+Every aerobic process in the tank — decomposition, plant respiration, fish
+respiration — multiplies its rate by how much oxygen there is to run on:
+
+```
+oxygen_factor = O2 / (K + O2)
+```
+
+`K` is the half-saturation constant, the dissolved oxygen at which the process
+runs at half its base rate, and each process quotes its own. This is Monod
+saturation, the measured kinetics of oxygen-limited metabolism, and it is the
+same shape as the Q10 term: a multiplicative modifier on a rate, quoted against
+a constant of its own.
+
+| Process | K (mg/L) | Rate left at 8 mg/L |
+|---------|----------|---------------------|
+| Aerobic decomposition | 0.20 | 98 % |
+| Plant respiration | 0.50 | 94 % |
+| Fish respiration | 1.00 | 89 % |
+
+Two consequences follow, and both are the point:
+
+- **Demand falls with supply.** A tank cannot draw oxygen it does not have,
+  because the draw shrinks as the stock does. There is no clamp at the zero
+  boundary and no tick-wide ration — the rate carries it.
+- **The derived carbon falls with the oxygen.** Each of these processes emits CO2
+  derived from the oxygen it consumed, so a suffocating tank stops emitting
+  carbon rather than manufacturing it out of oxygen that was never there.
+
+Base rates are therefore quoted at saturating oxygen, as measured biological
+rates are.
+
+---
+
 ## Waste Stock
 
 Waste is an abstract resource representing organic matter that feeds the nitrogen cycle. Multiple systems contribute to the waste stock.
@@ -68,17 +103,23 @@ C6H12O6 + 6O2 → 6CO2 + 6H2O
 ### Behavior
 
 ```
-decay_amount = base_rate * temperature_factor * food
+decay_amount = base_rate * temperature_factor * oxygen_factor * food
 waste_output = decay_amount * 0.4
 oxidized_amount = decay_amount * 0.6
-co2_increase = oxidized_amount * 250mg / water_volume  (mg/L)
-o2_decrease = oxidized_amount * 250mg / water_volume   (mg/L)
+o2_demand_mg = oxidized_amount * 250mg
+o2_decrease = o2_demand_mg / water_volume                        (mg/L)
+co2_increase = o2_decrease * MW_CO2 / MW_O2                      (mg/L)
 phosphate_produced = decay_amount * PHOSPHATE_PER_DECAY  (trace)
 ```
 
 - Higher temperature = faster decay (Q10 = 2, rate doubles per 10°C)
+- Less oxygen = slower decay — the whole process, not only its gas side, so an
+  anoxic tank builds sludge instead of mineralising it and the nitrogen bound in
+  that sludge stays bound
 - More food = more decay, waste, and gas exchange
 - Smaller tanks see larger concentration changes (same mass, less volume)
+- `250 mg/g` is an oxygen demand; the CO2 is derived from it at the molar ratio,
+  so the two gases are one reaction rather than two coefficients
 
 ### Phosphate from Decay
 
@@ -92,13 +133,13 @@ This creates a natural phosphate source from fish bioload, supporting low-demand
 
 ### Tank Size Impact
 
-Example: 1g food decaying 5% per hour at 25°C
+Example: 1g food decaying at 25°C in air-saturated water
 
-| Tank | CO2 Δ/hr | O2 Δ/hr | Effect |
-|------|----------|---------|--------|
-| 40L  | 0.19 mg/L | 0.19 mg/L | Noticeable |
-| 100L | 0.08 mg/L | 0.08 mg/L | Mild |
-| 200L | 0.04 mg/L | 0.04 mg/L | Minimal |
+| Tank | O2 Δ/hr | CO2 Δ/hr | Effect |
+|------|---------|----------|--------|
+| 40L  | 0.18 mg/L | 0.25 mg/L | Noticeable |
+| 100L | 0.07 mg/L | 0.10 mg/L | Mild |
+| 200L | 0.04 mg/L | 0.05 mg/L | Minimal |
 
 ### Thresholds
 

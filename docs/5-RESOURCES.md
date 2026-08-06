@@ -191,6 +191,9 @@ moves a 300 L.
 - Saturation decreases with temperature
 - Critical for fish survival
 - Plants produce O2 in light, consume at night
+- Every consumer's rate saturates against the stock it draws from, so demand
+  falls as the water empties rather than overdrawing it — see
+  `4-CORE-SYSTEMS.md` § Oxygen-limited processes
 
 ---
 

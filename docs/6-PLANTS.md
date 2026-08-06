@@ -217,8 +217,16 @@ Respiration is photosynthesis run backwards, so it runs on the same
 molar ratio. The day/night asymmetry is `base_respiration`, ~15 % of the
 photosynthetic rate — not a second, disagreeing coefficient.
 
+The rate also saturates against the oxygen there is to burn, on the Monod curve
+every aerobic process in the engine uses (see `4-CORE-SYSTEMS.md` §
+Oxygen-limited processes). Submerged tissue takes its oxygen out of the water
+across a boundary layer, so a plant in a suffocating tank respires slower — and
+releases proportionally less carbon, because the carbon is derived from the
+oxygen.
+
 ```
-respiration_rate = base_respiration * temperature_factor * total_plant_size
+respiration_rate = base_respiration * temperature_factor * oxygen_factor
+                   * total_plant_size
 co2_released_mg = respiration_rate * co2_per_rate_unit
 o2_burnt_mg = co2_released_mg * MW_O2 / MW_CO2
 

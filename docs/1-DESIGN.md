@@ -420,6 +420,15 @@ lived on the old bed.
 - More flow = faster O2/CO2 equilibrium with atmosphere
 - High flow is also a stressor for fish
 
+### Oxygen-Limited Metabolism
+- Every aerobic process multiplies its rate by `O2 / (K + O2)`, each quoting
+  its own half-saturation constant — see `4-CORE-SYSTEMS.md` §
+  Oxygen-limited processes
+- Demand therefore falls with supply: a tank approaches zero oxygen rather
+  than overdrawing it, with no clamp or ration at the boundary
+- The CO2 each process emits is derived from the oxygen it consumed, so a
+  suffocating tank stops emitting carbon instead of manufacturing it
+
 ### Light & Photoperiod
 - Each light fixture has its own on/off schedule
 - Photoperiod affects plant growth and algae
