@@ -457,8 +457,10 @@ describe('bacteria colony dynamics', () => {
     it('leaves an ordinary roster nowhere near the surface ceiling', () => {
       // Surface is a cap for the overstocked, not a target a normal tank grows
       // into. Single-sex so the run measures the biofilter rather than the
-      // breeding curve; weekly change so nitrate does not end it early.
-      let state = stock(cycledTank(40), 'neon_tetra', 12, { sex: 'male' });
+      // breeding curve; weekly change so nitrate does not end it early. Seeded
+      // to the stream the ammonia probe's own 40 L runs on, so the anchor and
+      // the measurement read one tank rather than two rosters.
+      let state = stock(cycledTank(40, { rngSeed: 4242 }), 'neon_tetra', 12, { sex: 'male' });
 
       for (let day = 1; day <= 120; day++) {
         for (let hour = 0; hour < DAY; hour++) {

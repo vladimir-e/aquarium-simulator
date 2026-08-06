@@ -126,8 +126,12 @@ None of them a widened band.
 
 - **`cycledTank` and `fishlessTank` took a fresh RNG roll**, so anything stocked
   on top of one ran a different life every time — the probe's own rows moved by
-  1.7 % between runs before this was pinned. Both now take an optional
-  `rngSeed`, and the probe names one. The 40 L / 12 tetra anchor in
-  `bacteria-colony.test.ts` still runs unseeded; its bands are loose enough to
-  have absorbed it so far, but it is a latent flake rather than a determinism
-  guarantee.
+  1.7 % between runs before this was pinned. Both now take an `rngSeed` and
+  default it, so a fixture that names none still runs one tank rather than a new
+  one each time.
+- **Three anchors were being decided by that roll**, all of them pre-existing:
+  the 40 L / 12 tetra biofilter anchor in `bacteria-colony.test.ts`, the shipped
+  presets and the community roster in `flow-tolerance.test.ts` — which is the
+  "a sane preset survives 90 days" anchor — and the 90-day guard run in
+  `seeded-tank.test.ts`. All four permissive anchors pass at 1234, 7, 99991 and
+  20260806, so the seed pins the tank rather than choosing the outcome.

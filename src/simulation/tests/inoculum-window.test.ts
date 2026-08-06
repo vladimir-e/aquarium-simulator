@@ -41,7 +41,7 @@ function outcome(litres: number, config: TunableConfig): Outcome {
     peakPpm: nitritePeakPpm,
     peakDay: nitritePeakDay,
     cycledDay,
-    dose24h: doseClearance(cycledTank(litres, config), { config }),
+    dose24h: doseClearance(cycledTank(litres, { config }), { config }),
   };
 }
 

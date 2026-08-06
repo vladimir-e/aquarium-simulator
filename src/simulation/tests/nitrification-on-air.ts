@@ -179,7 +179,7 @@ function cycling(label: string, config: TunableConfig): Record<string, unknown>[
       'NO2 peak': nitritePeakPpm.toFixed(3),
       'peak day': nitritePeakDay.toFixed(2),
       'cycled day': cycledDay === null ? '—' : cycledDay.toFixed(2),
-      'dose 24 h': doseClearance(cycledTank(litres, config), { config }).toFixed(4),
+      'dose 24 h': doseClearance(cycledTank(litres, { config }), { config }).toFixed(4),
     };
   });
 }

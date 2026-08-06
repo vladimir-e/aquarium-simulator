@@ -9,6 +9,7 @@ import { cycledColony, type PresetSeed } from '../seed.js';
 import { getPpm } from '../resources/helpers.js';
 import {
   DAY,
+  DEFAULT_RNG_SEED,
   colonyFill,
   cycledTank,
   doseClearance,
@@ -165,10 +166,11 @@ describe('a seeded community tank', () => {
   const ROSTER: PresetSeed['fish'] = [{ species: 'neon_tetra', count: 12, sex: 'male' }];
 
   it('runs 90 days on a keeper routine without anything running away', () => {
-    const state = keep(createSimulation(TANK, { bacteria: 'cycled', fish: ROSTER }), 90, {
-      feed: 0.15,
-      waterChange: 0.25,
-    });
+    const state = keep(
+      createSimulation(TANK, { bacteria: 'cycled', fish: ROSTER }, DEFAULT_RNG_SEED),
+      90,
+      { feed: 0.15, waterChange: 0.25 }
+    );
 
     expect(state.fish).toHaveLength(12);
     expect(Math.min(...state.fish.map((f) => f.health))).toBeGreaterThan(90);
@@ -187,7 +189,7 @@ describe('a seeded community tank', () => {
         { species: 'anubias', count: 2, size: 100 },
       ],
     };
-    const planted = createSimulation(TANK, seed);
+    const planted = createSimulation(TANK, seed, DEFAULT_RNG_SEED);
     const after = keep(planted, 30, { feed: 0.15, waterChange: 0.25 });
 
     expect(planted.plants).toHaveLength(5);

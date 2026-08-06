@@ -12,7 +12,7 @@
 import { createSimulation, type SimulationConfig, type SimulationState } from '../state.js';
 import type { PresetSeed } from '../seed.js';
 import type { PlantSpecies } from '../plants/species.js';
-import { DAY, keep, type KeeperRoutine } from './tanks.js';
+import { DAY, DEFAULT_RNG_SEED, keep, type KeeperRoutine } from './tanks.js';
 
 /** The planting and the dissolved gases read off a tank at one hour of one day. */
 export interface Sample {
@@ -85,7 +85,7 @@ export function runTank({
   seed,
   days,
   routine = {},
-  rngSeed = 1234,
+  rngSeed = DEFAULT_RNG_SEED,
   sampleEvery = DAY,
   sampleHour = 12,
   watch,

@@ -29,6 +29,16 @@ import type { PowerheadFlowRate } from '../equipment/powerhead.js';
 
 export const DAY = 24;
 
+/**
+ * The draw stream every scenario here opens on unless it names another.
+ *
+ * A default rather than an option left empty: `createSimulation` takes a
+ * time-derived seed when it is handed none, so a fixture that forgets to name
+ * one runs a different life every time — and the fixtures that stock fish on
+ * top of these are exactly the ones an anchor reads.
+ */
+export const DEFAULT_RNG_SEED = 1234;
+
 /** Advance a tank by `hours` ticks. */
 export function run(
   state: SimulationState,
@@ -90,14 +100,14 @@ export function fishlessTank(
     // because what the water is getting is the variable these traces vary.
     circulation = { filter: 'sponge' },
     seed,
-    rngSeed,
+    rngSeed = DEFAULT_RNG_SEED,
   }: {
     capacity?: number;
     ato?: boolean;
     temperature?: number;
     circulation?: Circulation;
     seed?: PresetSeed;
-    /** Name it and the tank runs the same life every time — see `createSimulation`. */
+    /** The stream this tank's life is drawn from — see `createSimulation`. */
     rngSeed?: number;
   } = {}
 ): SimulationState {
@@ -125,9 +135,11 @@ export function fishlessTank(
  */
 export function cycledTank(
   capacity: number,
-  config: TunableConfig = DEFAULT_CONFIG,
-  days = 30,
-  rngSeed?: number
+  {
+    config = DEFAULT_CONFIG,
+    days = 30,
+    rngSeed = DEFAULT_RNG_SEED,
+  }: { config?: TunableConfig; days?: number; rngSeed?: number } = {}
 ): SimulationState {
   return run(fishlessTank('aqua_soil', { capacity, rngSeed }), days * DAY, config);
 }

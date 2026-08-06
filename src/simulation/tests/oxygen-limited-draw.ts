@@ -248,7 +248,7 @@ const pinnedAt =
 function season(oxygen: number, config: TunableConfig): Record<string, unknown> {
   // Seeded, because the roster's hardiness is a draw: on an unnamed stream the
   // rows below would differ by the luck of the fish as well as by the factor.
-  const stocked = stock(cycledTank(40, config, 30, 4242), 'neon_tetra', 12, { sex: 'male' });
+  const stocked = stock(cycledTank(40, { config, rngSeed: 4242 }), 'neon_tetra', 12, { sex: 'male' });
   let peakAmmonia = 0;
   let peakNitrite = 0;
 
