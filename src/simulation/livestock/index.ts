@@ -13,6 +13,7 @@ import { livestockDefaults } from '../config/livestock.js';
 import { processMetabolism } from '../systems/metabolism.js';
 import { processHealth } from '../systems/fish-health.js';
 import { createLog } from '../core/logging.js';
+import { getPpm } from '../resources/index.js';
 
 export interface LivestockProcessingResult {
   /** Updated state with modified fish */
@@ -83,28 +84,27 @@ export function processLivestock(
     });
   }
 
-  // Respiration effects: convert absolute mg to mg/L concentration delta
-  // using the tank's current water volume. Gas concentrations live in mg/L,
-  // while metabolism produces an intrinsic per-fish mass rate.
+  // Metabolism produces an intrinsic per-fish mass rate; the gases are stored
+  // as concentrations, so they convert through the tank's water volume.
   const waterVolume = state.resources.water;
-  if (waterVolume > 0) {
-    if (metabolismResult.oxygenConsumedMg > 0) {
-      effects.push({
-        tier: 'active',
-        resource: 'oxygen',
-        delta: -metabolismResult.oxygenConsumedMg / waterVolume,
-        source: 'fish-respiration',
-      });
-    }
+  const oxygenDrawn = getPpm(metabolismResult.oxygenConsumedMg, waterVolume);
+  if (oxygenDrawn > 0) {
+    effects.push({
+      tier: 'active',
+      resource: 'oxygen',
+      delta: -oxygenDrawn,
+      source: 'fish-respiration',
+    });
+  }
 
-    if (metabolismResult.co2ProducedMg > 0) {
-      effects.push({
-        tier: 'active',
-        resource: 'co2',
-        delta: metabolismResult.co2ProducedMg / waterVolume,
-        source: 'fish-respiration',
-      });
-    }
+  const co2Exhaled = getPpm(metabolismResult.co2ProducedMg, waterVolume);
+  if (co2Exhaled > 0) {
+    effects.push({
+      tier: 'active',
+      resource: 'co2',
+      delta: co2Exhaled,
+      source: 'fish-respiration',
+    });
   }
 
   // 2. Process health (stressors, recovery, death)

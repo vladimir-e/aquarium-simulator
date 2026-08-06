@@ -15,6 +15,7 @@ import { produce } from 'immer';
 import type { Effect } from '../core/effects.js';
 import type { SimulationState } from '../state.js';
 import { isScheduleActive } from '../core/schedule.js';
+import { getPpm } from '../resources/index.js';
 
 // ============================================================================
 // Constants
@@ -54,9 +55,7 @@ export type BubbleRate = (typeof BUBBLE_RATE_OPTIONS)[number];
  * @returns CO2 added in mg/L per hour
  */
 export function calculateCo2Injection(bubbleRate: number, waterVolume: number): number {
-  if (waterVolume <= 0) return 0;
-  const massPerHour = bubbleRate * CO2_MASS_RATE;
-  return massPerHour / waterVolume;
+  return getPpm(bubbleRate * CO2_MASS_RATE, waterVolume);
 }
 
 /**

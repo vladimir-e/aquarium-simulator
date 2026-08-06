@@ -27,6 +27,7 @@ import type { NutrientsConfig, FertilizerFormula } from '../config/nutrients.js'
 import { nutrientsDefaults, getNutrientRatio } from '../config/nutrients.js';
 import type { Resources } from '../state.js';
 import { CO2_TO_O2_MASS_RATIO } from '../core/chemistry.js';
+import { getMassFromPpm } from '../resources/index.js';
 import { getDemandMultiplier } from './nutrients.js';
 
 /**
@@ -174,12 +175,9 @@ export function calculatePhotosynthesis(
   const potassiumDelta = drawFrom(potassiumRatio, resources.potassium);
   const ironDelta = drawFrom(ironRatio, resources.iron);
 
-  // Carbon fixation scales with the actual (Liebig-gated) rate, and can't
-  // exceed what is dissolved. Oxygen comes off the carbon that was actually
-  // fixed, so a carbon-starved tank stops producing it.
   const co2ConsumedMg = Math.min(
     actualRate * plantsConfig.co2PerPhotosynthesis,
-    co2 * waterVolume
+    getMassFromPpm(co2, waterVolume)
   );
   const oxygenProducedMg = co2ConsumedMg * CO2_TO_O2_MASS_RATIO;
 

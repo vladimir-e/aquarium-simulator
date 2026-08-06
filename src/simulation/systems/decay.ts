@@ -11,6 +11,7 @@ import { type DecayConfig, decayDefaults } from '../config/decay.js';
 import { nutrientsDefaults } from '../config/nutrients.js';
 import { q10Factor } from '../core/kinetics.js';
 import { O2_TO_CO2_MASS_RATIO } from '../core/chemistry.js';
+import { getPpm } from '../resources/index.js';
 
 /**
  * Calculate temperature factor for decay rate using Q10 coefficient.
@@ -86,15 +87,14 @@ export const decaySystem: System = {
           source: 'decay',
         });
 
-        // Oxidized portion consumes O2 and produces CO2, one mole for one.
         // CO2/O2 are concentrations (mg/L), so divide by water volume.
         const oxidizedAmount = decayAmount * (1 - decayConfig.wasteConversionRatio);
-        const waterVolume = state.resources.water;
+        const oxygenDemandMgPerL = getPpm(
+          oxidizedAmount * decayConfig.gasExchangePerGramDecay,
+          state.resources.water
+        );
 
-        if (waterVolume > 0) {
-          const oxygenDemandMgPerL =
-            (oxidizedAmount * decayConfig.gasExchangePerGramDecay) / waterVolume;
-
+        if (oxygenDemandMgPerL > 0) {
           effects.push({
             tier: 'passive',
             resource: 'co2',

@@ -45,6 +45,17 @@ Living or organic components:
 Note: algae is no longer a resource. It's a top-level organism on
 `state.algae` — see `6-PLANTS.md` § Algae as an organism.
 
+## Mass and concentration
+
+An organism system answers a biological question — how much of a compound this
+biomass moves — so it returns a **mass in mg**, with no volume term in it.
+Turning that into a stock is the resource layer's job, and it is one conversion
+everywhere: `getPpm` / `getMassFromPpm` against `resources.water`. Nitrogen
+compounds store the mass and derive ppm for display; the dissolved gases store
+the concentration, so plants, fish and decay each divide before pushing their
+effect. That division is why the same planting moves a nano further than it
+moves a 300 L.
+
 ---
 
 ## Resource Details
