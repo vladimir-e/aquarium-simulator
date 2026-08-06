@@ -8,7 +8,7 @@
  * thing still free to hurt the planting. One species per run, so nothing is
  * competing for the light either. Run it:
  *
- *     npx tsx src/simulation/tests/default-fixture-survival.ts
+ *     npm run probe:default-fixture-survival
  */
 
 import { produce } from 'immer';

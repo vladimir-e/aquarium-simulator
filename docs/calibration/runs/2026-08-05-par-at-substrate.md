@@ -22,7 +22,7 @@ filter, aqua soil, full lid, ATO, CO₂ on, the shipped default fixture, one
 plant at size 35, 60 days, seed 5:
 
 ```bash
-npx tsx src/simulation/tests/default-fixture-survival.ts
+npm run probe:default-fixture-survival
 ```
 
 On `main` the default fixture was 100 W. On the branch it is 50 PAR at the
@@ -179,8 +179,8 @@ reproduce identically on `main`.
 ## 6. Reproduction
 
 ```bash
-npx tsx src/simulation/tests/default-fixture-survival.ts   # §1, branch column
-npx tsx src/simulation/tests/par-dose-response.ts          # §3, both tables
+npm run probe:default-fixture-survival   # §1, branch column
+npm run probe:par-dose-response          # §3, both tables
 ```
 
 §2 is `calculateParAtDepth(1, calculateTankHeight(litres), opticsDefaults)`,
