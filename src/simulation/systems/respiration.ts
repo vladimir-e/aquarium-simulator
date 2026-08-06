@@ -4,14 +4,10 @@
  * Respiration occurs 24/7 (day and night):
  * - Consumes oxygen
  * - Produces CO2
- * - Both are masses in mg; the caller converts through the water volume
  * - Rate scales with temperature (Q10 = 2)
  *
  * During day: photosynthesis > respiration = net O2 production
  * During night: respiration only = net O2 consumption
- *
- * Stoichiometry (reverse of photosynthesis):
- * C6H12O6 + 6O2 → 6CO2 + 6H2O + energy
  */
 
 import type { PlantsConfig } from '../config/plants.js';
@@ -39,9 +35,6 @@ export function getRespirationTemperatureFactor(
 
 /**
  * Calculate plant respiration rate and the gas masses it moves.
- *
- * Burning sugar back to CO2 is photosynthesis run backwards, so the oxygen
- * consumed comes off the carbon released at the same molar ratio.
  *
  * @param totalPlantSize - Sum of all plant sizes (%)
  * @param temperature - Current water temperature (C)

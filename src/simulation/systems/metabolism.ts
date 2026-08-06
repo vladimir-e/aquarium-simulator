@@ -151,9 +151,6 @@ export function processMetabolism(
     // physiological rate, independent of tank volume. The caller converts
     // the returned absolute mass into a mg/L concentration delta using the
     // current water volume.
-    //
-    // The respiratory quotient is a ratio of gas *volumes*, so it counts
-    // molecules; the mass of CO2 those molecules carry takes the molar step.
     const oxygenConsumedMg = config.baseRespirationRate * f.mass;
     totalOxygenConsumedMg += oxygenConsumedMg;
     totalCo2ProducedMg += oxygenConsumedMg * config.respiratoryQuotient * O2_TO_CO2_MASS_RATIO;
