@@ -268,6 +268,19 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
     setAggregates(emptyAggregates());
   }, []);
 
+  // Optics decide how much of the fixture's PAR reaches the substrate, so
+  // retuning them moves a resource the way swapping a filter does. A paused
+  // tank would otherwise render — and persist — the old figure until the next
+  // tick. Immer returns the same state when nothing moved, so this is inert
+  // on mount and on a reset that restores the value already in force.
+  useEffect(() => {
+    setState((current) =>
+      produce(current, (draft) => {
+        refreshPassiveResources(draft, config.optics);
+      })
+    );
+  }, [config.optics]);
+
   // Notify persistence when state or preset changes
   useEffect(() => {
     onSimulationChange(stateToPersistedSimulation(state, currentPreset));

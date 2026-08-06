@@ -122,13 +122,16 @@ describe('isConfigModified', () => {
 });
 
 describe('configRange', () => {
-  const leafPaths = (value: object, prefix = ''): string[] =>
+  const leaves = (value: object, prefix = ''): Array<[string, number]> =>
     Object.entries(value).flatMap(([key, child]) => {
       const path = prefix ? `${prefix}.${key}` : key;
-      return typeof child === 'object' && child !== null ? leafPaths(child, path) : [path];
+      return typeof child === 'object' && child !== null
+        ? leaves(child, path)
+        : [[path, child as number] as [string, number]];
     });
 
-  const paths = leafPaths(DEFAULT_CONFIG);
+  const tunables = leaves(DEFAULT_CONFIG);
+  const paths = tunables.map(([path]) => path);
 
   it('reads the bounds the meta declares', () => {
     expect(configRange('optics.waterAttenuationPerCm')).toEqual({ min: 0.001, max: 0.05 });
@@ -139,6 +142,16 @@ describe('configRange', () => {
     expect(configRange('optics.attenuation')).toBeUndefined();
     expect(configRange('optiks.waterAttenuationPerCm')).toBeUndefined();
     expect(configRange('__proto__.pwned')).toBeUndefined();
+  });
+
+  // A slider whose range excludes the shipped value cannot restore it: the
+  // CLI refuses to set it back and the panel clamps it away on blur.
+  it('brackets the shipped default of every tunable it bounds', () => {
+    const excluded = tunables.filter(([path, value]) => {
+      const range = configRange(path);
+      return range !== undefined && (value < range.min || value > range.max);
+    });
+    expect(excluded).toEqual([]);
   });
 
   it('bounds every tunable outside the nitrogen cycle', () => {

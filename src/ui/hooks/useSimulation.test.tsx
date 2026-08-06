@@ -1,9 +1,9 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import React from 'react';
-import { renderHook, act } from '@testing-library/react';
+import { renderHook, act, type RenderHookResult } from '@testing-library/react';
 import { useSimulation } from './useSimulation';
 import { createPresetSimulation, getPresetById, type PresetId } from '../../simulation/presets';
-import { ConfigProvider } from './useConfig';
+import { ConfigProvider, useConfig } from './useConfig';
 import { PersistenceProvider } from '../persistence/index.js';
 import { createSimulation, type SimulationState } from '../../simulation/state.js';
 import {
@@ -507,6 +507,58 @@ describe('useSimulation', () => {
       });
 
       expect(result.current.state.resources.light / before).toBeCloseTo(150 / 90, 6);
+    });
+  });
+
+  describe('optics', () => {
+    type Harness = {
+      sim: ReturnType<typeof useSimulation>;
+      config: ReturnType<typeof useConfig>;
+    };
+
+    function litTank(): RenderHookResult<Harness, unknown> {
+      let lit = createPresetSimulation(getPresetById('planted')!);
+      for (let i = 0; i < 9; i++) lit = tick(lit, DEFAULT_CONFIG);
+      seedSession(lit, 'planted');
+      return renderHook(() => ({ sim: useSimulation('planted'), config: useConfig() }), {
+        wrapper,
+      });
+    }
+
+    it('relights the substrate when the water is retuned, without a tick', () => {
+      const { result } = litTank();
+      const { par } = result.current.sim.state.equipment.light;
+      const before = result.current.sim.state.resources.light;
+      const tickBefore = result.current.sim.state.tick;
+      expect(before).toBeGreaterThan(0);
+
+      act(() => {
+        result.current.config.updateConfig(
+          'optics',
+          'waterAttenuationPerCm',
+          DEFAULT_CONFIG.optics.waterAttenuationPerCm * 2
+        );
+      });
+
+      // Beer–Lambert: doubling the coefficient squares the surviving fraction.
+      const after = result.current.sim.state.resources.light;
+      expect(after / par).toBeCloseTo((before / par) ** 2, 10);
+      expect(result.current.sim.state.tick).toBe(tickBefore);
+    });
+
+    it('puts the light back when the section is reset', () => {
+      const { result } = litTank();
+      const before = result.current.sim.state.resources.light;
+
+      act(() => {
+        result.current.config.updateConfig('optics', 'waterAttenuationPerCm', 0.04);
+      });
+      expect(result.current.sim.state.resources.light).toBeLessThan(before);
+
+      act(() => {
+        result.current.config.resetSection('optics');
+      });
+      expect(result.current.sim.state.resources.light).toBeCloseTo(before, 10);
     });
   });
 
