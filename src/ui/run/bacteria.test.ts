@@ -18,7 +18,13 @@ import {
   type SimulationState,
 } from '../../simulation/index.js';
 import { getPpm } from '../../simulation/resources/index.js';
-import { cycledTank, fishlessTank, run as runUnfed, stock } from '../../simulation/tests/tanks.js';
+import {
+  cycledTank,
+  fishlessTank,
+  run as runUnfed,
+  saturatedColony,
+  stock,
+} from '../../simulation/tests/tanks.js';
 
 const config = DEFAULT_CONFIG;
 const perCm2 = nitrogenCycleDefaults.bacteriaPerCm2;
@@ -364,6 +370,30 @@ describe('bacteriaSummary', () => {
     const summary = bacteriaSummary(readout, projectNitritePeak(state, config), nc);
     expect(summary).toContain('NOB trail AOB by');
     expect(summary).toContain('Nitrite peaks in');
+  });
+
+  it('calls out the surface as the limit once both colonies have filled it', () => {
+    // Reachable only on the circulation that keeps NOB in oxygen — a canister
+    // and an air pump — and the same tank without the air pump is the control:
+    // there the biofilm is not what binds, and the card must not say it is.
+    const filled = saturatedColony(200, 40, {
+      circulation: { filter: 'canister', airPump: true },
+    });
+    const readout = bacteriaReadout(filled, config);
+
+    // Decay is unconditional, so neither colony ever arrives at 100 % of its
+    // ceiling; and under a load this size nitrite is always still climbing.
+    expect(readout.aob.pct).toBeLessThan(100);
+    expect(readout.nob.pct).toBeLessThan(100);
+    expect(readout.rates.netNitrite).toBeGreaterThan(0);
+    expect(bacteriaSummary(readout, null, nc)).toContain('more load has nowhere to go');
+
+    const airless = bacteriaReadout(
+      saturatedColony(200, 40, { circulation: { filter: 'canister' } }),
+      config
+    );
+    expect(airless.nob.pct).toBeLessThan(readout.nob.pct);
+    expect(bacteriaSummary(airless, null, nc)).toContain('NOB trail AOB by');
   });
 
   it('reads a colony below its ceiling as room left rather than as a shortfall', () => {

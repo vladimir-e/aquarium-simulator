@@ -28,6 +28,22 @@ import type { NitrogenCycleConfig, TunableConfig } from '../../simulation/config
 import { getPpm } from '../../simulation/resources/index.js';
 import { mineralisationBase, wasteInflow } from './waste.js';
 
+/**
+ * The share of its own ceiling at which a colony counts as having filled it.
+ *
+ * Not 100: unconditional decay puts the arithmetic limit at
+ * `1 − deathRate/growthRate` — 96 % for AOB, 94 % for NOB — and oxygen stops
+ * NOB short of even that. Under a saturating load the circulation ladder is
+ * bimodal: NOB reach 89.5–90.1 % on a canister with an air pump, 53–61 % on
+ * anything less. This sits under the lower of those two and far above the best
+ * of the rest, so the line it gates reads as circulation rather than as luck.
+ *
+ * Only a tank held under a saturating load gets near it at all: an ordinary
+ * stocked tank rests at a couple of percent, because a colony grows to its load
+ * and not to its surface.
+ */
+const SURFACE_BOUND_PCT = 85;
+
 /** How far ahead the cycle projection will look before giving up, in ticks. */
 const PROJECTION_HORIZON = 24 * 180;
 
@@ -356,6 +372,13 @@ export function bacteriaSummary(
 
   if (aob.count === 0) {
     return `Uncycled. Ammonia has to reach ${config.aobSpawnThreshold} ppm before AOB colonise, and nitrite follows them.${peakClause(projection)}`;
+  }
+
+  // Ahead of the lagging-colony line, which promises a colony that catches up:
+  // one already on its surface has nowhere left to do it, and under a load big
+  // enough to fill a biofilm nitrite is always climbing.
+  if (aob.pct >= SURFACE_BOUND_PCT && nob.pct >= SURFACE_BOUND_PCT) {
+    return 'Both colonies have filled the surface they live on — until the tank offers more biofilm, more load has nowhere to go.';
   }
 
   if (nob.count < aob.count && rates.netNitrite > 0) {
