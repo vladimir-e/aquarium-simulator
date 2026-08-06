@@ -477,59 +477,28 @@ describe('PersistedStateSchema', () => {
     expect(PersistedStateSchema.safeParse(withExtra).success).toBe(false);
   });
 
-  it('rejects prior version 4 (breaking bump to 5 for hardinessOffset)', () => {
-    const v4 = { ...validState, version: 4 };
-    expect(PersistedStateSchema.safeParse(v4).success).toBe(false);
-  });
+  /** Every breaking bump the schema has taken, and what broke at it. */
+  const PRIOR_VERSIONS: ReadonlyArray<[number, string]> = [
+    [4, 'hardinessOffset'],
+    [9, 'plant surplus + supply chain'],
+    [10, 'satiation rename + curve'],
+    [11, 'algae-as-organism'],
+    [12, 'surplus cap config field'],
+    [13, 'substrate organic reserve'],
+    [14, 'the bacteria gauge and inoculum'],
+    [15, 'flow tolerance as a turnover'],
+    [16, 'the tank-carried draw stream'],
+    [18, 'the collapsed carbon yield'],
+    [19, 'the oxygen term every consumer carries'],
+  ];
 
-  it('rejects prior version 9 (breaking bump for plant surplus + supply chain)', () => {
-    const v9 = { ...validState, version: 9 };
-    expect(PersistedStateSchema.safeParse(v9).success).toBe(false);
-  });
-
-  it('rejects prior version 10 (breaking bump for satiation rename + curve)', () => {
-    const v10 = { ...validState, version: 10 };
-    expect(PersistedStateSchema.safeParse(v10).success).toBe(false);
-  });
-
-  it('rejects prior version 11 (breaking bump for algae-as-organism)', () => {
-    const v11 = { ...validState, version: 11 };
-    expect(PersistedStateSchema.safeParse(v11).success).toBe(false);
-  });
-
-  it('rejects prior version 12 (breaking bump for surplus cap config field)', () => {
-    const v12 = { ...validState, version: 12 };
-    expect(PersistedStateSchema.safeParse(v12).success).toBe(false);
-  });
-
-  it('rejects prior version 13 (breaking bump for substrate organic reserve)', () => {
-    const v13 = { ...validState, version: 13 };
-    expect(PersistedStateSchema.safeParse(v13).success).toBe(false);
-  });
-
-  it('rejects prior version 14 (breaking bump for the bacteria gauge and inoculum)', () => {
-    const v14 = { ...validState, version: 14 };
-    expect(PersistedStateSchema.safeParse(v14).success).toBe(false);
-  });
-
-  it('rejects prior version 15 (breaking bump for flow tolerance as a turnover)', () => {
-    const v15 = { ...validState, version: 15 };
-    expect(PersistedStateSchema.safeParse(v15).success).toBe(false);
-  });
-
-  it('rejects prior version 16 (breaking bump for the tank-carried draw stream)', () => {
-    const v16 = { ...validState, version: 16 };
-    expect(PersistedStateSchema.safeParse(v16).success).toBe(false);
-  });
-
-  it('rejects prior version 18 (breaking bump for the collapsed carbon yield)', () => {
-    const v18 = { ...validState, version: 18 };
-    expect(PersistedStateSchema.safeParse(v18).success).toBe(false);
-  });
-
-  it('rejects prior version 19 (breaking bump for the oxygen term every consumer carries)', () => {
-    const v19 = { ...validState, version: 19 };
-    expect(PersistedStateSchema.safeParse(v19).success).toBe(false);
+  it('rejects every prior version, so no save survives a breaking bump', () => {
+    for (const [version, broke] of PRIOR_VERSIONS) {
+      expect(
+        PersistedStateSchema.safeParse({ ...validState, version }),
+        `version ${version} (${broke}) should be rejected`
+      ).toMatchObject({ success: false });
+    }
   });
 
   it('rejects a tank with no stream to resume', () => {

@@ -10,7 +10,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { produce } from 'immer';
-import { createSimulation, type SimulationState } from '../state.js';
+import { type SimulationState } from '../state.js';
 import { tick } from '../tick.js';
 import { applyAction } from '../actions/index.js';
 import { getPpm, getMassFromPpm } from '../resources/helpers.js';
@@ -35,6 +35,7 @@ import {
   cycledTank,
   doseClearance,
   saturatedColony,
+  seededColony,
   fishlessTank,
   run,
   stock,
@@ -56,10 +57,7 @@ const ceiling = (s: SimulationState, config: TunableConfig = DEFAULT_CONFIG): nu
 
 /** Hours for a colony to double with its substrate held non-limiting. */
 function doublingHours(capacity: number, resource: 'aob' | 'nob'): number {
-  let state = produce(createSimulation({ tankCapacity: capacity, ato: { enabled: true } }), (draft) => {
-    draft.resources.aob = 1;
-    draft.resources.nob = 1;
-  });
+  let state = seededColony(capacity, { aob: 1, nob: 1 });
 
   for (let hour = 1; hour <= 500; hour++) {
     state = produce(state, (draft) => {
@@ -87,10 +85,7 @@ function settle(
       draft.resources.ammonia += getMassFromPpm(inflowPpmPerHour, draft.resources.water);
     });
 
-  let state = produce(createSimulation({ tankCapacity: capacity, ato: { enabled: true } }), (draft) => {
-    draft.resources.aob = 5;
-    draft.resources.nob = 5;
-  });
+  let state = seededColony(capacity, { aob: 5, nob: 5 });
   for (let hour = 0; hour < 300 * DAY; hour++) state = tick(feed(state), config);
 
   const settled = feed(state);
@@ -136,18 +131,13 @@ describe('bacteria colony dynamics', () => {
       // The units claim, read through the whole system rather than the
       // conversion function: a colony's throughput is a property of its cells.
       const cleared = (capacity: number): number => {
-        const seeded = produce(
-          createSimulation({ tankCapacity: capacity, ato: { enabled: true } }),
-          (draft) => {
-            draft.resources.aob = 1000;
-            draft.resources.ammonia = getMassFromPpm(50, draft.resources.water);
-          }
-        );
+        const seeded = seededColony(capacity, { aob: 1000, ammoniaPpm: 50 });
         const after = tick(seeded, DEFAULT_CONFIG);
         return seeded.resources.ammonia - after.resources.ammonia;
       };
 
       expect(cleared(150)).toBeCloseTo(cleared(20), 10);
+      expect(cleared(20)).toBeGreaterThan(0);
     });
 
     it('spends the same oxygen per bacterium whatever the tank holds', () => {
@@ -155,15 +145,12 @@ describe('bacteria colony dynamics', () => {
       // both oxidations bill the water in mg/L, so the mass behind that bill
       // has to be a property of the cells the way the throughput above is.
       const spent = (capacity: number): number => {
-        const seeded = produce(
-          createSimulation({ tankCapacity: capacity, ato: { enabled: true } }),
-          (draft) => {
-            draft.resources.aob = 1000;
-            draft.resources.nob = 1000;
-            draft.resources.ammonia = getMassFromPpm(50, draft.resources.water);
-            draft.resources.nitrite = getMassFromPpm(50, draft.resources.water);
-          }
-        );
+        const seeded = seededColony(capacity, {
+          aob: 1000,
+          nob: 1000,
+          ammoniaPpm: 50,
+          nitritePpm: 50,
+        });
         const drawn = nitrogenCycleSystem
           .update(seeded, DEFAULT_CONFIG)
           .filter((effect) => effect.resource === 'oxygen')

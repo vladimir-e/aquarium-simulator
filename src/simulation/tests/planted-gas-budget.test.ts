@@ -60,6 +60,21 @@ const PLANTING: PresetSeed['plants'] = [
   { species: 'anubias', count: 2, size: 50 },
 ];
 
+/**
+ * 982 total plant size and a full roster of neon tetras, handed over at tick 0.
+ * That size is the roadmap's case rather than an outcome of the engine — the
+ * 90-day run of `docs/calibration/runs/2026-08-06-gas-volume-stoichiometry.md`
+ * brackets it, settling at 987 on four species instead of these two.
+ */
+const SETTLED: PresetSeed = {
+  bacteria: 'cycled',
+  fish: [{ species: 'neon_tetra', count: 12, sex: 'female' }],
+  plants: [
+    { species: 'amazon_sword', count: 3, size: 164 },
+    { species: 'java_fern', count: 3, size: 163 },
+  ],
+};
+
 const O2_HELD = 4;
 /**
  * Carbon held where the rate has long since saturated, mg/L — the same three
@@ -88,9 +103,18 @@ const holding =
       draft.resources.iron = nutrientsDefaults.optimalIronPpm * water * 3;
     });
 
-/** Mean oxygen a tank gains in one lit hour, from O2 held at 4 mg/L. */
-function read(capacity: number, plants: PresetSeed['plants'], co2 = CO2_HELD): number {
-  const gains: number[] = [];
+/**
+ * Read something off every lit hour past the settling days, in a tank whose
+ * carbon, nutrients and opening oxygen are all held — so what differs between
+ * two of these runs is the water volume and nothing else.
+ */
+function litHours<T>(
+  capacity: number,
+  plants: PresetSeed['plants'],
+  co2: number,
+  read: (before: SimulationState, after: SimulationState) => T
+): T[] {
+  const readings: T[] = [];
 
   runTank({
     setup: plantedTank(capacity),
@@ -99,11 +123,16 @@ function read(capacity: number, plants: PresetSeed['plants'], co2 = CO2_HELD): n
     rngSeed: 4242,
     routine: { hold: holding(co2), config: CLEAR_WATER },
     watch: (hour, before, after) => {
-      if (hour > 2 * DAY && before.resources.light > 0) {
-        gains.push(after.resources.oxygen - O2_HELD);
-      }
+      if (hour > 2 * DAY && before.resources.light > 0) readings.push(read(before, after));
     },
   });
+
+  return readings;
+}
+
+/** Mean oxygen a tank gains in one lit hour, from O2 held at 4 mg/L. */
+function read(capacity: number, plants: PresetSeed['plants'], co2 = CO2_HELD): number {
+  const gains = litHours(capacity, plants, co2, (_, after) => after.resources.oxygen - O2_HELD);
 
   return gains.reduce((sum, gain) => sum + gain, 0) / gains.length;
 }
@@ -127,21 +156,11 @@ function carbonDrawn(
   plants: PresetSeed['plants'],
   co2 = CO2_HELD
 ): { least: number; most: number } {
-  const shares: number[] = [];
-
-  runTank({
-    setup: plantedTank(capacity),
-    seed: { bacteria: 'cycled', plants },
-    days: 3,
-    rngSeed: 4242,
-    routine: { hold: holding(co2), config: CLEAR_WATER },
-    watch: (hour, before) => {
-      if (hour <= 2 * DAY || before.resources.light <= 0) return;
-      const fixed = processPlants(before, CLEAR_WATER).effects.find(
-        (effect) => effect.resource === 'co2' && effect.source === 'photosynthesis'
-      );
-      shares.push(-(fixed?.delta ?? 0) / before.resources.co2);
-    },
+  const shares = litHours(capacity, plants, co2, (before) => {
+    const fixed = processPlants(before, CLEAR_WATER).effects.find(
+      (effect) => effect.resource === 'co2' && effect.source === 'photosynthesis'
+    );
+    return -(fixed?.delta ?? 0) / before.resources.co2;
   });
 
   if (shares.length === 0) throw new Error(`no lit hour to read in the ${capacity} L`);
@@ -197,26 +216,13 @@ describe('the carbon in the water is what pays for the oxygen', () => {
  * against, so a feature PR may not widen the band to go green.
  */
 describe('a grown-in planted 150 L, through a day and a night', () => {
-  /** The tank of `docs/calibration/runs/2026-08-06-gas-volume-stoichiometry.md`. */
+  /**
+   * The tank of `docs/calibration/runs/2026-08-06-gas-volume-stoichiometry.md`:
+   * the planted fixture above, plus the carbon injection that tank runs on.
+   */
   const GROWN_IN: SimulationConfig = {
-    tankCapacity: 150,
-    heater: { enabled: true, targetTemperature: 25, wattage: 150 },
-    filter: { enabled: true, type: 'canister' },
-    substrate: { type: 'aqua_soil' },
-    light: { enabled: true, par: 90, schedule: { startHour: 8, duration: 12 } },
+    ...plantedTank(150),
     co2Generator: { enabled: true, bubbleRate: 2, schedule: { startHour: 8, duration: 10 } },
-    autoDoser: { enabled: true, doseAmountMl: 3, schedule: { startHour: 8, duration: 1 } },
-    ato: { enabled: true },
-  };
-
-  /** 982 total plant size — what the 90-day run settles at, handed over at tick 0. */
-  const SETTLED: PresetSeed = {
-    bacteria: 'cycled',
-    fish: [{ species: 'neon_tetra', count: 12, sex: 'female' }],
-    plants: [
-      { species: 'amazon_sword', count: 3, size: 164 },
-      { species: 'java_fern', count: 3, size: 163 },
-    ],
   };
 
   /**
@@ -283,15 +289,6 @@ describe('a heavily planted tank of neon tetras', () => {
     autoDoser: { enabled: false },
   });
 
-  const HEAVY: PresetSeed = {
-    bacteria: 'cycled',
-    fish: [{ species: 'neon_tetra', count: 12, sex: 'female' }],
-    plants: [
-      { species: 'amazon_sword', count: 3, size: 164 },
-      { species: 'java_fern', count: 3, size: 163 },
-    ],
-  };
-
   const DAYS = 20;
 
   /**
@@ -307,7 +304,7 @@ describe('a heavily planted tank of neon tetras', () => {
     let peakOxygenStress = 0;
     const { final } = runTank({
       setup: unaided(capacity),
-      seed: HEAVY,
+      seed: SETTLED,
       days: DAYS,
       rngSeed: 4242,
       routine: { feed: 0.5 },

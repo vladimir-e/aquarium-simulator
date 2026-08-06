@@ -128,6 +128,33 @@ export function cycledTank(
 }
 
 /**
+ * A tank handed a colony and the substrate to read it against, written straight
+ * into the resources — the starting point for every measurement of the colony's
+ * own arithmetic, where growing one first would only add a history to explain.
+ *
+ * The ATO is on so evaporation cannot move a concentration underneath a reading.
+ */
+export function seededColony(
+  capacity: number,
+  {
+    aob = 0,
+    nob = 0,
+    ammoniaPpm = 0,
+    nitritePpm = 0,
+  }: { aob?: number; nob?: number; ammoniaPpm?: number; nitritePpm?: number } = {}
+): SimulationState {
+  return produce(
+    createSimulation({ tankCapacity: capacity, ato: { enabled: true } }),
+    (draft) => {
+      draft.resources.aob = aob;
+      draft.resources.nob = nob;
+      draft.resources.ammonia = getMassFromPpm(ammoniaPpm, draft.resources.water);
+      draft.resources.nitrite = getMassFromPpm(nitritePpm, draft.resources.water);
+    }
+  );
+}
+
+/**
  * A bare tank held under more ammonia than its colonies can clear, which is the
  * only regime where a biofilm grows toward its surface at all rather than to
  * the load it is given. Dosed each hour through the resource rather than fed,
@@ -139,16 +166,13 @@ export function saturatedColony(
   {
     config = DEFAULT_CONFIG,
     dosePpmPerHour = 2,
-    circulation,
+    // The sponge every fresh tank starts with, named the way `fishlessTank`
+    // names it. Pass `{}` to strip the tank of everything that moves water.
+    circulation = { filter: 'sponge' },
   }: { config?: TunableConfig; dosePpmPerHour?: number; circulation?: Circulation } = {}
 ): SimulationState {
-  // Unnamed leaves the tank on the sponge every fresh one starts with, rather
-  // than stripping it: `circulationOf` reads an absent key as equipment off.
   let state = produce(
-    createSimulation({
-      tankCapacity: capacity,
-      ...(circulation === undefined ? {} : circulationOf(circulation)),
-    }),
+    createSimulation({ tankCapacity: capacity, ...circulationOf(circulation) }),
     (draft) => {
       draft.resources.aob = 1;
       draft.resources.nob = 1;

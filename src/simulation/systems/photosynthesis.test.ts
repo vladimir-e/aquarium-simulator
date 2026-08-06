@@ -7,15 +7,13 @@ import {
 } from './photosynthesis.js';
 import { calculateNutrientSufficiency } from './nutrients.js';
 import { calculateRespiration } from './respiration.js';
-import { plantsDefaults } from '../config/plants.js';
+import { plantsDefaults, type PlantsConfig } from '../config/plants.js';
 import { nutrientsDefaults, getNutrientRatio } from '../config/nutrients.js';
+import { AIR_SATURATED_O2 } from '../config/nitrogen-cycle.js';
 import type { Plant, Resources } from '../state.js';
 import type { PlantSpecies } from '../plants/species.js';
 import { CO2_TO_O2_MASS_RATIO, MW_CO2, MW_O2 } from '../core/chemistry.js';
 import { monodFactor } from '../core/kinetics.js';
-
-/** Air-saturated water at 25 °C, where respiration is not oxygen-limited. */
-const SATURATED_O2 = 8;
 
 /**
  * Build a resources snapshot with nutrient mass chosen so that concentration
@@ -179,11 +177,13 @@ describe('calculatePhotosynthesis', () => {
       resources = buildResources(waterVolume),
       volume = waterVolume,
       lightPar = light,
+      config = plantsDefaults,
     }: {
       co2?: number;
       resources?: Resources;
       volume?: number;
       lightPar?: number;
+      config?: PlantsConfig;
     } = {}
   ): PhotosynthesisResult {
     return calculatePhotosynthesis(
@@ -192,7 +192,8 @@ describe('calculatePhotosynthesis', () => {
       co2,
       resources,
       volume,
-      suffMap(plants, resources, volume)
+      suffMap(plants, resources, volume),
+      config
     );
   }
 
@@ -262,18 +263,9 @@ describe('calculatePhotosynthesis', () => {
     });
 
     it('holds the ratio however the carbon yield is tuned', () => {
-      const tuned = { ...plantsDefaults, co2PerRateUnit: 7 };
-      const plants = [plant(100, 'java_fern')];
-      const resources = buildResources(waterVolume);
-      const result = calculatePhotosynthesis(
-        plants,
-        light,
-        plantsDefaults.optimalCo2,
-        resources,
-        waterVolume,
-        suffMap(plants, resources, waterVolume),
-        tuned
-      );
+      const result = photosynthesis([plant(100, 'java_fern')], {
+        config: { ...plantsDefaults, co2PerRateUnit: 7 },
+      });
 
       expect(result.oxygenProducedMg / MW_O2).toBeCloseTo(result.co2ConsumedMg / MW_CO2, 10);
     });
@@ -284,23 +276,13 @@ describe('calculatePhotosynthesis', () => {
       // the yield has to leave the ratio where it was — one side reading a
       // figure of its own is exactly what collapsing four constants removed.
       const ratio = (config = plantsDefaults): number => {
-        const plants = [plant(100, 'java_fern')];
-        const resources = buildResources(waterVolume);
-        const fixed = calculatePhotosynthesis(
-          plants,
-          light,
-          plantsDefaults.optimalCo2,
-          resources,
-          waterVolume,
-          suffMap(plants, resources, waterVolume),
-          config
-        ).co2ConsumedMg;
+        const fixed = photosynthesis([plant(100, 'java_fern')], { config }).co2ConsumedMg;
 
-        return calculateRespiration(100, 25, SATURATED_O2, config).co2ProducedMg / fixed;
+        return calculateRespiration(100, 25, AIR_SATURATED_O2, config).co2ProducedMg / fixed;
       };
       const expected =
         (plantsDefaults.baseRespirationRate / plantsDefaults.basePhotosynthesisRate) *
-        monodFactor(SATURATED_O2, plantsDefaults.respirationOxygenHalfSaturation);
+        monodFactor(AIR_SATURATED_O2, plantsDefaults.respirationOxygenHalfSaturation);
 
       expect(ratio()).toBeCloseTo(expected, 6);
       expect(ratio({ ...plantsDefaults, co2PerRateUnit: 7 })).toBeCloseTo(expected, 6);
