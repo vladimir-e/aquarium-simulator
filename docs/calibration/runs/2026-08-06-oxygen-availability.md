@@ -89,6 +89,11 @@ rationing pass this design exists to avoid. Recorded rather than fixed.
 
 ## Nitrification: measured, not shipped
 
+> **Superseded.** It ships. The wall below was real and the way through it was
+> that the nitrifier rate constants had to be re-quoted as Monod maxima, which
+> this pass had not tried — see `2026-08-07-nitrification-on-air.md`. Everything
+> under this heading is the measurement as it stood on the day.
+
 Nitrification is strictly aerobic and reads no oxygen at all. It was built —
 Monod on both guilds with separate half-saturation constants, plus the textbook
 3.43 / 1.14 mg O₂ per mg N derived through `core/chemistry.ts` — and then held
