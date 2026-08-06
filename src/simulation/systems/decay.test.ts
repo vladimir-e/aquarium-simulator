@@ -13,7 +13,7 @@ import { monodFactor } from '../core/kinetics.js';
 
 /** Air-saturated water at 25 °C, where decomposition is not oxygen-limited. */
 const SATURATED_O2 = 8;
-const AEROBIC = monodFactor(SATURATED_O2, decayDefaults.oxygenHalfSaturation);
+const AT_SATURATION = monodFactor(SATURATED_O2, decayDefaults.oxygenHalfSaturation);
 
 describe('getTemperatureFactor', () => {
   it('returns 1.0 at reference temperature (25°C)', () => {
@@ -67,17 +67,17 @@ describe('calculateDecay', () => {
 
   it('takes the base fraction per hour at reference temperature', () => {
     const decay = calculateDecay(1, 25, SATURATED_O2);
-    expect(decay).toBeCloseTo(decayDefaults.baseDecayRate * AEROBIC, 6);
+    expect(decay).toBeCloseTo(decayDefaults.baseDecayRate * AT_SATURATION, 6);
   });
 
   it('runs at sqrt(Q10) five degrees above reference', () => {
     const decay = calculateDecay(1, 30, SATURATED_O2);
-    expect(decay).toBeCloseTo(decayDefaults.baseDecayRate * AEROBIC * Math.sqrt(2), 6);
+    expect(decay).toBeCloseTo(decayDefaults.baseDecayRate * AT_SATURATION * Math.sqrt(2), 6);
   });
 
   it('runs at 1/sqrt(Q10) five degrees below reference', () => {
     const decay = calculateDecay(1, 20, SATURATED_O2);
-    expect(decay).toBeCloseTo((decayDefaults.baseDecayRate * AEROBIC) / Math.sqrt(2), 6);
+    expect(decay).toBeCloseTo((decayDefaults.baseDecayRate * AT_SATURATION) / Math.sqrt(2), 6);
   });
 
   it('doubles ten degrees above reference', () => {
