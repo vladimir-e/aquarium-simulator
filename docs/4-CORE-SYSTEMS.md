@@ -59,7 +59,7 @@ not, and what decides it is what each constant *claims*. A 20 h AOB doubling, a
 their comments state and the anchors test; uncorrected, the same tank would read
 20.7 h and 40.7 h — still inside the published bands, but no longer the numbers
 claimed. Fish respiration quotes a band instead, 0.2–0.5 mg O₂/g/h, and 0.3
-taken to 0.267 sits inside it; plant respiration and decay lose 6 % and 2 %,
+taken to 0.268 sits inside it; plant respiration and decay lose 6 % and 2 %,
 which is finer than either was ever picked to. Dividing those three out as well
 would move three systems' calibration to make nothing truer, and that is the
 calibration pass's call rather than this one's.

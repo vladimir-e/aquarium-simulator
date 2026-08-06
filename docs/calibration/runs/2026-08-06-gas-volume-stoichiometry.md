@@ -64,6 +64,14 @@ ceiling. **30** sits mid-band on both readings with room on either side, and
 ties break low — a planted tank that gasses its fish is the failure this
 subtask exists to remove.
 
+**The anchor reads the same claim off a lighter tank and lands lower.**
+`tests/planted-gas-budget.test.ts` hands 982 over at tick 0 as two species
+rather than growing a four-species planting for 90 days, so at yield 30 it
+measures **0.581** gross against the 0.670 here — 13 % apart — and the window it
+admits is **25.4 – 54.1** rather than 20 – 50, with 30 sitting 15 % over that
+floor and 80 % under that ceiling. Same pinning, two plantings; a
+re-derivation off the table above should expect the assertion to move with it.
+
 The day side self-throttles as designed: at 30 the water column sits around 5.7
 mg/L of CO₂ against an optimum of 20, so `co2Factor` ≈ 0.29 and the planting
 caps its own rate within the hour.

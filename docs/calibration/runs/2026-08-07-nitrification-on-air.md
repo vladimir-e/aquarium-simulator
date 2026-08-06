@@ -194,16 +194,19 @@ figure that was wrong:
 
 - `bacteriaSummary`'s "Both colonies have filled the surface they live on" line
   required both guilds past 90 % of ceiling, and was removed with its
-  `SURFACE_BOUND_PCT` threshold as unreachable copy. **It is reachable.** The
-  probe's saturating dose puts a canister-and-air-pump 200 L at 95.9 / 90.1, and
-  a reachability check through the engine's own actions — no resource written by
-  hand — gets there on feeding alone: 200 L on the same equipment reads 93.6 /
-  89.8 at 320 g of food a day and 95.9 / 91.8 at 640, against the ~2 g/day that
-  tank would normally take. So the honest statement is not "no state reaches it"
-  but "no tank a keeper would build reaches it", which is a weaker reason to
-  delete a readout. **Open, and now a decision rather than a cleanup:** restore
-  the line, or leave it out and give the card the sentence for what *does* bind
-  a mature colony — that its biofilter is oxygen-limited.
+  `SURFACE_BOUND_PCT` threshold as unreachable copy. **It is reachable, and only
+  just.** One rung of the ladder above clears the threshold — canister, air pump
+  and a 400 GPH powerhead, at 95.9 / 90.1, over by a tenth of a point — and that
+  is under the probe's saturating dose, 2 ppm/h written into the water by hand
+  for forty days. A reachability check through the engine's own actions gets
+  there too, but only on a ration nothing eats: 200 L on the same equipment
+  reads 93.6 / **89.8** at 320 g of food a day, still short of the threshold,
+  and 95.9 / 91.8 at 640 g — some 320× what that tank would normally take.
+  So what is out of reach is the **load**, not the tank: the equipment is
+  ordinary, and no husbandry practised on it fills both biofilms. **Open, and
+  now a decision rather than a cleanup:** restore the line, or leave it out and
+  give the card the sentence for what *does* bind a mature colony — that its
+  biofilter is oxygen-limited.
 - The finding itself is pinned in `bacteria-colony.test.ts` rather than left in
   this file, as a circulation ladder rather than a threshold.
 

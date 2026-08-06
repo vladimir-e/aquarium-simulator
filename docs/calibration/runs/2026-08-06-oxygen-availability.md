@@ -146,6 +146,13 @@ Two further findings from the same build, worth keeping:
   powerhead. The `bacteriaSummary` "both colonies have filled the surface"
   branch would become unreachable copy.
 
+  > **Superseded.** The conclusion does not hold on the shipped rates. A
+  > canister, an air pump and a 400 GPH powerhead put a saturating-dosed 200 L
+  > at 95.9 % / 90.1 % — over the threshold rather than short of it — so the
+  > branch is reachable and the readout's fate is a design call rather than a
+  > cleanup. The measured circulation ladder is in
+  > `2026-08-07-nitrification-on-air.md`.
+
 ---
 
 ## Anchors
