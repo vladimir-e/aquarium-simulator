@@ -27,7 +27,11 @@ import type { Effect } from '../core/effects.js';
 import type { SimulationState } from '../state.js';
 import type { System } from './types.js';
 import type { TunableConfig } from '../config/index.js';
-import { type NitrogenCycleConfig, nitrogenCycleDefaults } from '../config/nitrogen-cycle.js';
+import {
+  AIR_SATURATED_O2,
+  type NitrogenCycleConfig,
+  nitrogenCycleDefaults,
+} from '../config/nitrogen-cycle.js';
 import { monodFactor, q10Factor } from '../core/kinetics.js';
 import {
   NH3_TO_NO2_MASS_RATIO,
@@ -36,26 +40,6 @@ import {
   O2_PER_NO2_OXIDIZED,
 } from '../core/chemistry.js';
 import { getPpm } from '../resources/index.js';
-
-/**
- * NOB per-bacterium processing rate multiplier relative to AOB.
- *
- * N-mass is conserved across the chain, but compound mass is not — AOB
- * consume NH3 and produce NO2 at `NH3_TO_NO2_MASS_RATIO` ≈ 2.702. If AOB and
- * NOB had the same per-bacterium "compound mass processed per tick" rate, NOB
- * could clear only 1 / 2.702 ≈ 37 % of the NO2 mass AOB produce, and nitrite
- * would run away.
- *
- * Scaling NOB's effective rate by that same ratio keeps per-atom N throughput
- * equal between the two steps — i.e. at population parity the NO3 produced per
- * tick equals the NH3 consumed per tick in N-atom terms.
- *
- * Biologically legitimate: real NOB (Nitrobacter / Nitrospira) are
- * faster per cell than AOB (Nitrosomonas / Nitrosospira). The engine
- * exposes a single `bacteriaProcessingRate` knob as the AOB baseline;
- * NOB inherits `rate × multiplier`.
- */
-export const NOB_PROCESSING_RATE_MULTIPLIER = NH3_TO_NO2_MASS_RATIO;
 
 /**
  * Fraction of total ammonia (TAN = NH3 + NH4⁺) that exists as unionized
@@ -109,6 +93,39 @@ export function nitrifierOxygenFactor(
   return monodFactor(
     oxygen,
     stage === 'aob' ? config.aobOxygenHalfSaturation : config.nobOxygenHalfSaturation
+  );
+}
+
+/**
+ * How much more compound mass a NOB cell puts through than an AOB one.
+ *
+ * N-mass is conserved across the chain, but compound mass is not — AOB consume
+ * NH3 and produce NO2 at `NH3_TO_NO2_MASS_RATIO` ≈ 2.702. On one shared
+ * per-bacterium rate NOB could clear only 1 / 2.702 ≈ 37 % of the NO2 mass AOB
+ * produce, and nitrite would run away. Scaling by that ratio is what puts the
+ * two steps in per-atom N balance at population parity.
+ *
+ * Both rates are Monod maxima, though, and `bacteriaProcessingRate` is divided
+ * back up by *AOB's* factor in air-saturated water. The mass ratio alone would
+ * hand NOB that correction on top of their own and leave them 8 % under the
+ * parity it exists to hold, so the ratio is re-quoted through each guild's own
+ * factor: the balance sits in the water both figures were measured in, and
+ * below it the K gap opens and nitrite stands. Read off the config rather than
+ * frozen at the defaults, so the balance survives a tuned half-saturation
+ * constant — and so neutralising both of them reproduces an engine with no
+ * oxygen term at all.
+ *
+ * Biologically legitimate: real NOB (Nitrobacter / Nitrospira) are faster per
+ * cell than AOB (Nitrosomonas / Nitrosospira). The engine exposes a single
+ * `bacteriaProcessingRate` knob as the AOB baseline; NOB inherits
+ * `rate × multiplier`.
+ */
+export function nobProcessingRateMultiplier(
+  config: NitrogenCycleConfig = nitrogenCycleDefaults
+): number {
+  return (
+    (NH3_TO_NO2_MASS_RATIO * nitrifierOxygenFactor('aob', AIR_SATURATED_O2, config)) /
+    nitrifierOxygenFactor('nob', AIR_SATURATED_O2, config)
   );
 }
 
@@ -222,10 +239,11 @@ export function aobCapacity(
 
 /**
  * The mg of NO₂⁻ a NOB colony can put through in one tick — the same gauge
- * scaled by `NOB_PROCESSING_RATE_MULTIPLIER`, which is what keeps the two
- * stages in stoichiometric balance at population parity.
+ * scaled by `nobProcessingRateMultiplier`, which is what keeps the two stages
+ * in stoichiometric balance at population parity in air-saturated water.
+ * Thinner water is where they part, NOB first.
  *
- * Spelled out rather than composed as `aobCapacity(…) × MULTIPLIER`: that
+ * Spelled out rather than composed as `aobCapacity(…) × multiplier`: that
  * reassociates the product and lands on a different float for roughly a third
  * of the (population, temperature) pairs, and the cycling anchors are pinned to
  * this order of operations.
@@ -239,7 +257,7 @@ export function nobCapacity(
   return (
     population *
     config.bacteriaProcessingRate *
-    NOB_PROCESSING_RATE_MULTIPLIER *
+    nobProcessingRateMultiplier(config) *
     nitrificationFactor(temperature, config) *
     nitrifierOxygenFactor('nob', oxygen, config)
   );
@@ -289,10 +307,9 @@ export function calculateAmmoniaToNitrite(
  * N-mass is conserved; compound mass scales with MW. NO3⁻ produced =
  * NO2⁻ consumed × MW_NO3 / MW_NO2 ≈ 1.348.
  *
- * NOB's per-bacterium throughput is scaled by
- * `NOB_PROCESSING_RATE_MULTIPLIER` relative to AOB so the two steps are
- * in stoichiometric balance at population parity — see that constant's
- * docstring.
+ * NOB's per-bacterium throughput is scaled by `nobProcessingRateMultiplier`
+ * relative to AOB so the two steps are in stoichiometric balance at population
+ * parity in air-saturated water — see that function's docstring.
  *
  * @param nitriteMass - Current nitrite mass in mg
  * @param nobPopulation - NOB bacteria population

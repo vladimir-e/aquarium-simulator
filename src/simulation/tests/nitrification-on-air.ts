@@ -16,6 +16,7 @@ import { produce } from 'immer';
 import { DEFAULT_CONFIG, type TunableConfig } from '../config/index.js';
 import { AIR_SATURATED_O2 } from '../config/nitrogen-cycle.js';
 import { getPpm } from '../resources/index.js';
+import { NH3_TO_NO2_MASS_RATIO } from '../core/chemistry.js';
 import { aobCapacity, nitrifierOxygenFactor, nobCapacity } from '../systems/nitrogen-cycle.js';
 import { formatTable, tuned } from './sweep.js';
 import {
@@ -52,18 +53,28 @@ const PRE_OXYGEN: TunableConfig = produce(NO_OXYGEN_TERM, (draft) => {
 const nc = DEFAULT_CONFIG.nitrogenCycle;
 const colony = cycledTank(20);
 
+/**
+ * Read at population parity, which is where the two rates are quoted against
+ * each other: the share of the nitrogen AOB put through that NOB clear behind
+ * them. One in the water both rates were measured in, by construction — what
+ * the table shows is how far it falls below that as the water thins.
+ */
+function parity(aobMassPerHour: number, nobMassPerHour: number, populations: number): number {
+  return nobMassPerHour / (aobMassPerHour * NH3_TO_NO2_MASS_RATIO * populations);
+}
+
 function atOxygen(oxygen: number): Record<string, unknown> {
   const { aob, nob, temperature, water } = colony.resources;
-  const aobShare = nitrifierOxygenFactor('aob', oxygen, nc);
-  const nobShare = nitrifierOxygenFactor('nob', oxygen, nc);
+  const aobThroughput = aobCapacity(aob, temperature, oxygen, nc);
+  const nobThroughput = nobCapacity(nob, temperature, oxygen, nc);
 
   return {
     'O2 mg/L': oxygen.toFixed(2),
-    'NH3 ppm/h': getPpm(aobCapacity(aob, temperature, oxygen, nc), water).toFixed(4),
-    'of max': aobShare.toFixed(3),
-    'NO2 ppm/h': getPpm(nobCapacity(nob, temperature, oxygen, nc), water).toFixed(4),
-    'of max ': nobShare.toFixed(3),
-    'NOB : AOB': aobShare > 0 ? (nobShare / aobShare).toFixed(3) : '—',
+    'NH3 ppm/h': getPpm(aobThroughput, water).toFixed(4),
+    'of max': nitrifierOxygenFactor('aob', oxygen, nc).toFixed(3),
+    'NO2 ppm/h': getPpm(nobThroughput, water).toFixed(4),
+    'of max ': nitrifierOxygenFactor('nob', oxygen, nc).toFixed(3),
+    'NOB : AOB': oxygen > 0 ? parity(aobThroughput, nobThroughput, nob / aob).toFixed(3) : '—',
   };
 }
 
@@ -71,8 +82,8 @@ process.stdout.write(
   '\nWhat a cycled 20 L colony can put through, against the oxygen it is asking of\n' +
     '(ppm/h, beside the share of its own maximum each guild is left with)\n\n' +
     `${formatTable([AIR_SATURATED_O2, 6, 4, 2, 1, 0.5, 0.25, 0.1, 0].map(atOxygen))}\n` +
-    '\nThe last column is the mechanism in one number: NOB keep less of their rate\n' +
-    'than AOB at every oxygen, so what leaves the first step outruns the second.\n'
+    '\nThe last column is the mechanism in one number: the two guilds balance in the\n' +
+    'water their rates were quoted in, and NOB fall behind in every thinner one.\n'
 );
 
 // ---------------------------------------------------------------------------

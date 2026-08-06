@@ -78,13 +78,12 @@ export const nitrogenCycleDefaults: NitrogenCycleConfig = {
   // gauge pinned at `bacteriaPerCm2` — the pair lands on real biology, not only
   // on the anchors.
   //
-  // NOB take the same per-cell throughput scaled by the N mass ratio and their
-  // own oxygen term, so the two guilds share this constant and diverge on air
-  // alone: at saturation NOB clear 8 % less nitrite per cell than AOB clear
-  // ammonia. That 8 % is the deficit in a *healthy* tank; what makes nitrite the
-  // species that stands is the gap between the two half-saturation constants
-  // widening as the water thins, and it runs the whole way from 0.916 at
-  // saturation to 0.333 at 0.10 mg/L.
+  // NOB take the same per-cell throughput scaled by the N mass ratio, re-quoted
+  // through their own oxygen term instead of inheriting AOB's — so the two
+  // guilds balance per N atom in the water both figures were measured in, and
+  // part company in every thinner one. That parting is what makes nitrite the
+  // species that stands: the gap between the two half-saturation constants runs
+  // from 1.000 at saturation to 0.364 at 0.10 mg/L.
   bacteriaProcessingRate: 0.0002 / AOB_AT_AIR_SATURATION,
   // Spawn thresholds set to "detectable by hobbyist" ranges — 0.5 ppm
   // NH3 and 0.5 ppm NO2 are the levels where a nitrifier lag-phase
@@ -93,8 +92,8 @@ export const nitrogenCycleDefaults: NitrogenCycleConfig = {
   // (cycle visible only after 10+ days in a fresh tank).
   aobSpawnThreshold: 0.5,
   nobSpawnThreshold: 0.5,
-  // Nitrifiers the tank is born with, per litre of fill water — 6.5×10⁵ cells,
-  // ~650 per mL. See `calculateInoculum` for why the seed is counted in litres.
+  // Nitrifiers the tank is born with, per litre of fill water — 6.4×10⁵ cells,
+  // ~640 per mL. See `calculateInoculum` for why the seed is counted in litres.
   //
   // Everything after the seed is doublings, so the inoculum sets the clock —
   // this is the one constant of the three read off the cycling timeline rather
@@ -102,13 +101,14 @@ export const nitrogenCycleDefaults: NitrogenCycleConfig = {
   // knobs: the bed's nitrogen budget is fixed, so every day the peak is delayed
   // is another day of it standing as nitrite.
   //
-  // Swept at 10 L through 1000 L, every value that passes lies in 0.637 – 0.728
+  // Swept at 10 L through 1000 L, every value that passes lies in 0.597 – 0.680
   // units/L: below it the nitrite peak clears the 5 ppm ceiling, above it a
-  // tank cycles before day 21. The value below sits inside that, 0.055 ppm
-  // under the peak ceiling and 0.167 d over the cycled-day floor. Those margins
-  // are the widest the window allows — they trade against each other one for
-  // one. `tests/inoculum-window.test.ts` re-runs the sweep.
-  inoculumPerLiter: 0.685,
+  // tank cycles before day 21. Room at one edge is bought with room at the
+  // other, one for one, so the value below is the middle of that window — the
+  // furthest either edge can be held off. It leaves 0.047 ppm under the peak
+  // ceiling and 0.208 d over the cycled-day floor.
+  // `tests/inoculum-window.test.ts` re-runs the sweep.
+  inoculumPerLiter: 0.6385,
   // Growth is per-capita at *full* utilization, so each rate is read straight
   // off a saturated doubling time: rate = ln2 / hours. AOB double in 15–24 h
   // under non-limiting ammonia, NOB in 24–48 h; the midpoints below keep the

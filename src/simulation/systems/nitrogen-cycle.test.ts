@@ -12,7 +12,7 @@ import {
   aobCapacity,
   nobCapacity,
   nitrifierOxygenFactor,
-  NOB_PROCESSING_RATE_MULTIPLIER,
+  nobProcessingRateMultiplier,
 } from './nitrogen-cycle.js';
 import {
   NH3_TO_NO2_MASS_RATIO,
@@ -27,7 +27,7 @@ import { decaySystem } from './decay.js';
 import { gasExchangeSystem } from './gas-exchange.js';
 import { getPpm, getMassFromPpm } from '../resources/index.js';
 import { DEFAULT_CONFIG } from '../config/index.js';
-import { nitrogenCycleDefaults } from '../config/nitrogen-cycle.js';
+import { AIR_SATURATED_O2, nitrogenCycleDefaults } from '../config/nitrogen-cycle.js';
 
 /** The temperature every rate in the config is quoted at. */
 const REF = nitrogenCycleDefaults.referenceTemp;
@@ -280,7 +280,7 @@ describe('aobCapacity / nobCapacity', () => {
     expect(aobCapacity(100, 18, AIR)).toBeLessThan(aobCapacity(100, REF, AIR));
     expect(aobCapacity(100, REF, 1)).toBeLessThan(aobCapacity(100, REF, AIR));
     expect(nobCapacity(100, REF, AIR) / aobCapacity(100, REF, AIR)).toBeCloseTo(
-      (NOB_PROCESSING_RATE_MULTIPLIER * nitrifierOxygenFactor('nob', AIR)) /
+      (nobProcessingRateMultiplier() * nitrifierOxygenFactor('nob', AIR)) /
         nitrifierOxygenFactor('aob', AIR),
       12
     );
@@ -315,7 +315,7 @@ describe('calculateNitriteToNitrate', () => {
     expect(nitriteConsumed).toBeCloseTo(
       bacteria *
         nitrogenCycleDefaults.bacteriaProcessingRate *
-        NOB_PROCESSING_RATE_MULTIPLIER *
+        nobProcessingRateMultiplier() *
         nitrifierOxygenFactor('nob', AIR),
       10
     );
@@ -348,20 +348,35 @@ describe('calculateNitriteToNitrate', () => {
     expect(calculateNitriteToNitrate(1000, 100, REF, 0).oxygenConsumedMg).toBe(0);
   });
 
-  it('NOB throughput trails AOB at population parity by exactly the air between them', () => {
-    // At equal populations and non-limiting substrate the chain is balanced
-    // per N atom, up to the one thing the two guilds do not share: how much of
-    // the oxygen they need each is getting.
+  it('clears exactly what AOB produce at population parity, in the water both rates are quoted in', () => {
+    // The two rates are quoted at air saturation, so that is where the chain
+    // balances per N atom: what the first step puts out, the second takes.
     const bacteria = 100;
-    const { ammoniaConsumed, nitriteProduced } = calculateAmmoniaToNitrite(1e6, bacteria, REF, AIR);
-    const { nitriteConsumed } = calculateNitriteToNitrate(1e6, bacteria, REF, AIR);
-    const air = nitrifierOxygenFactor('nob', AIR) / nitrifierOxygenFactor('aob', AIR);
+    const saturated = AIR_SATURATED_O2;
+    const { ammoniaConsumed, nitriteProduced } = calculateAmmoniaToNitrite(1e6, bacteria, REF, saturated);
+    const { nitriteConsumed } = calculateNitriteToNitrate(1e6, bacteria, REF, saturated);
 
-    expect(nitriteConsumed).toBeCloseTo(nitriteProduced * air, 10);
+    expect(nitriteConsumed).toBeCloseTo(nitriteProduced, 10);
 
     const nFromAob = ammoniaConsumed * (14.01 / 17.03);
     const nFromNob = nitriteConsumed * (14.01 / 46.01);
-    expect(nFromNob).toBeCloseTo(nFromAob * air, 10);
+    expect(nFromNob).toBeCloseTo(nFromAob, 10);
+  });
+
+  it('falls behind that parity in every thinner water, and by more the thinner it gets', () => {
+    // The K gap, and the only thing between the two guilds once the rates are
+    // quoted against each other: NOB keep less of their maximum than AOB at
+    // every oxygen below the one both were measured at.
+    const bacteria = 100;
+    const shortfall = (oxygen: number): number =>
+      calculateNitriteToNitrate(1e6, bacteria, REF, oxygen).nitriteConsumed /
+      calculateAmmoniaToNitrite(1e6, bacteria, REF, oxygen).nitriteProduced;
+
+    let previous = 1;
+    for (const oxygen of [8, 4, 2, 1, 0.5, 0.25, 0.1]) {
+      expect(shortfall(oxygen)).toBeLessThan(previous);
+      previous = shortfall(oxygen);
+    }
   });
 });
 
@@ -395,13 +410,45 @@ describe('nitrifierOxygenFactor', () => {
   });
 });
 
-describe('NOB_PROCESSING_RATE_MULTIPLIER', () => {
-  it('is the mass a milligram of NH3 gains on its way to NO2', () => {
-    expect(NOB_PROCESSING_RATE_MULTIPLIER).toBeCloseTo(46.01 / 17.03, 10);
+describe('nobProcessingRateMultiplier', () => {
+  /** Both guilds' oxygen term neutralised — the ratio with no air left in it. */
+  const airless = {
+    ...nitrogenCycleDefaults,
+    aobOxygenHalfSaturation: 0,
+    nobOxygenHalfSaturation: 0,
+  };
+
+  it('is the mass a milligram of NH3 gains on its way to NO2, once the air is out of it', () => {
+    expect(nobProcessingRateMultiplier(airless)).toBeCloseTo(46.01 / 17.03, 10);
   });
 
   it('is that mass as `chemistry.ts` states it, so the two cannot drift apart', () => {
-    expect(NOB_PROCESSING_RATE_MULTIPLIER).toBeCloseTo(NH3_TO_NO2_MASS_RATIO, 12);
+    expect(nobProcessingRateMultiplier(airless)).toBeCloseTo(NH3_TO_NO2_MASS_RATIO, 12);
+  });
+
+  it('lifts NOB above it in real water, because their own costs them more', () => {
+    expect(nobProcessingRateMultiplier()).toBeGreaterThan(NH3_TO_NO2_MASS_RATIO);
+  });
+
+  it('balances the chain at air saturation whatever the two constants are', () => {
+    // Read off the config rather than frozen at the defaults, so that the claim
+    // survives the debug panel moving either K — and so the counterfactual
+    // above is an engine with no oxygen term rather than a half-corrected one.
+    for (const [aobK, nobK] of [
+      [0.3, 1.1],
+      [0.6, 0.6],
+      [1.5, 0.2],
+    ]) {
+      const config = {
+        ...nitrogenCycleDefaults,
+        aobOxygenHalfSaturation: aobK,
+        nobOxygenHalfSaturation: nobK,
+      };
+      const { nitriteProduced } = calculateAmmoniaToNitrite(1e6, 100, REF, AIR_SATURATED_O2, config);
+      const { nitriteConsumed } = calculateNitriteToNitrate(1e6, 100, REF, AIR_SATURATED_O2, config);
+
+      expect(nitriteConsumed).toBeCloseTo(nitriteProduced, 10);
+    }
   });
 });
 
