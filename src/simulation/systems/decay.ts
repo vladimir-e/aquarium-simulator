@@ -94,7 +94,6 @@ export const decaySystem: System = {
           source: 'decay',
         });
 
-        // CO2/O2 are concentrations (mg/L), so divide by water volume.
         const oxidizedAmount = decayAmount * (1 - decayConfig.wasteConversionRatio);
         const oxygenDemandMgPerL = getPpm(
           oxidizedAmount * decayConfig.gasExchangePerGramDecay,

@@ -182,15 +182,18 @@ export interface LivestockConfig {
 export const livestockDefaults: LivestockConfig = {
   // Metabolism - a 1g fish eats ~0.01g/hr = 0.24g/day
   baseFoodRate: 0.01,
-  // 0.3 mg O2 / g fish / hr — midpoint of real-world 0.2–0.5 at 25°C for
-  // small freshwater teleosts. Applied as absolute mg/hr and converted to
-  // mg/L by the livestock pipeline using tank volume.
+  // 0.3 mg O2 / g fish / hr, inside the real-world 0.2–0.5 at 25°C for small
+  // freshwater teleosts. Applied as absolute mg/hr and converted to mg/L by the
+  // livestock pipeline using tank volume.
   baseRespirationRate: 0.3,
   // A fish regulates its uptake until the water falls past its critical oxygen
   // tension, which for warm-water teleosts sits around 1–2 mg/L; below it the
   // gills simply cannot extract what is not there and the fish conforms. Half
-  // rate at 1.0 puts the taper across that band. It costs 11 % of the base rate
-  // in saturated water, which is what a base rate quoted at saturation means.
+  // rate at 1.0 puts the taper across that band. That makes the rate above a
+  // Monod maximum rather than a figure read in real water: a healthy tank runs
+  // it at 89 %, so what the model reproduces is 0.267 — still inside the band it
+  // was picked from, which is why this rate is not divided back up the way the
+  // nitrifier rates are. `docs/4-CORE-SYSTEMS.md` carries the rule.
   //
   // Damage is a separate reading: `oxygenStressThreshold` still charges a fish
   // for the water it is in, so a suffocating fish draws less and suffers more.

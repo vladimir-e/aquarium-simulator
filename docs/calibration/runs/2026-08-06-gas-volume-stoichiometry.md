@@ -124,6 +124,14 @@ figures by under 0.1 % — and takes the ratio from 29.93 to exactly 30.)
 
 ## The lethality case
 
+> **Superseded in part.** Nitrification became the fourth aerobic consumer after
+> this was measured, and it draws from the same water — see
+> `2026-08-07-nitrification-on-air.md`. Two *after* rows moved, re-measured on
+> the shipped branch: the unaided 150 L reads min O₂ **5.84** rather than 7.35,
+> and the unaided 40 L loses the whole roster rather than keeping 10 of it. The
+> finding the table is here for is untouched — the floor moves with the water,
+> and the 40 L is the tank this planting genuinely threatens.
+
 982 total plant size and 12 neon tetras, fed 0.5 g/day, 20 days.
 
 | tank | equipment | before | after |

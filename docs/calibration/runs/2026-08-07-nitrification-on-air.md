@@ -62,6 +62,19 @@ ceiling and 0.167 d over the cycled-day floor — so the comment's claim about
 where the value sits in its window survives verbatim. `inoculum-window.test.ts`
 re-runs the sweep.
 
+**Which of the two that is, plainly.** From outside, "re-derived and landed on
+the test's numbers" and "fitted to the test's numbers" look identical, so: the
+value was *derived*, and the derivation is the rule the constant already
+carried. The two margins trade against each other one for one — the bed's
+nitrogen budget is fixed, so a day of delay in the peak is a day of it standing
+as nitrite — and the rule is to sit where they are equal, which is the widest
+either can be. That point moved with the window, from 0.648 to 0.685, and it
+was read off the sweep above rather than searched for against a target. Landing
+on 0.055 and 0.167 again is a consequence of the window having merely shifted
+rather than narrowed, not the thing that was aimed at. Had the sweep put the
+equal-margin point anywhere else, the value would have gone there and these two
+figures would have moved with it.
+
 ---
 
 ## The control: the pre-oxygen engine, reproduced

@@ -150,11 +150,6 @@ export function processMetabolism(
     // excreting a few tenths of a mg of NH3 per gram per day.
     totalAmmonia += config.basalAmmoniaRate * f.mass;
 
-    // Respiration: absolute mg O2 consumed and CO2 produced based on mass.
-    // `baseRespirationRate` is mg O2 per gram fish per hour — an intrinsic
-    // physiological rate, independent of tank volume. The caller converts
-    // the returned absolute mass into a mg/L concentration delta using the
-    // current water volume.
     const oxygenConsumedMg = config.baseRespirationRate * f.mass * oxygenFactor;
     totalOxygenConsumedMg += oxygenConsumedMg;
     totalCo2ProducedMg += oxygenConsumedMg * config.respiratoryQuotient * O2_TO_CO2_MASS_RATIO;

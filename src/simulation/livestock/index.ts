@@ -85,8 +85,6 @@ export function processLivestock(
     });
   }
 
-  // Metabolism produces an intrinsic per-fish mass rate; the gases are stored
-  // as concentrations, so they convert through the tank's water volume.
   const waterVolume = state.resources.water;
   const oxygenDrawn = getPpm(metabolismResult.oxygenConsumedMg, waterVolume);
   if (oxygenDrawn > 0) {

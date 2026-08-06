@@ -49,11 +49,20 @@ Three consequences follow, and all three are the point:
   becomes. Standing nitrite in an under-aerated tank is a thing keepers see, and
   this is where it comes from.
 
-Base rates are therefore quoted at saturating oxygen, as measured biological
-rates are. The nitrifier rates go one step further and are quoted as Monod
-*maxima*: the factor reaches 1 only at infinite oxygen, so the doubling times
-and per-cell throughput the constants claim are what the model reproduces in
-air-saturated water rather than what the constants themselves hold.
+Every base rate multiplied by that factor is a Monod **maximum**, because the
+factor reaches 1 only at infinite oxygen. What a tank at air saturation
+reproduces is therefore the last column above, not the constant itself.
+
+The three nitrifier rates divide that shortfall back out and the other three do
+not, and what decides it is what each constant *claims*. A 20 h AOB doubling, a
+36 h NOB doubling and 2×10⁻¹³ g of ammonia per cell per hour are single figures
+their comments state and the anchors test; uncorrected, the same tank would read
+20.7 h and 40.7 h — still inside the published bands, but no longer the numbers
+claimed. Fish respiration quotes a band instead, 0.2–0.5 mg O₂/g/h, and 0.3
+taken to 0.267 sits inside it; plant respiration and decay lose 6 % and 2 %,
+which is finer than either was ever picked to. Dividing those three out as well
+would move three systems' calibration to make nothing truer, and that is the
+calibration pass's call rather than this one's.
 
 ---
 

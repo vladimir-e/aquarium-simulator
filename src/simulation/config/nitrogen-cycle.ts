@@ -6,13 +6,10 @@
  * what makes `bacteriaPerCm2` a biofilm density you can look up rather than
  * an arbitrary score. See `bacteriaPerCm2` below for the pin.
  *
- * **The three rates the oxygen term scales are Monod maxima, not rates you
- * would measure.** That term reaches 1 only at infinite oxygen, so a figure
- * read off a real aerated culture already sits below the maximum it multiplies
- * down from; `bacteriaProcessingRate` and the two growth rates divide the quoted
- * figure back up by exactly that shortfall. Read them at
- * {@link AIR_SATURATED_O2} to get the numbers the literature and the anchors are
- * stated in. `bacteriaDeathRate` is deliberately outside that term.
+ * Three of the rates below are Monod maxima read at {@link AIR_SATURATED_O2}
+ * rather than figures a culture would hand you, and each says so where it is
+ * defined. `docs/4-CORE-SYSTEMS.md` carries the rule and which constants in the
+ * engine follow it.
  */
 
 import { monodFactor } from '../core/kinetics.js';
@@ -20,8 +17,12 @@ import { monodFactor } from '../core/kinetics.js';
 /**
  * Dissolved O2 in air-saturated freshwater at `referenceTemp`, mg/L — the water
  * every rate below is quoted in, being the water a stirred culture and a healthy
- * tank both sit in. `config/index.test.ts` holds it to the engine's own
- * Henry's-law fit at that temperature.
+ * tank both sit in.
+ *
+ * A literal rather than `calculateO2Saturation(referenceTemp)`: that function
+ * lives in `systems/`, and no other constant in `config/` reaches across that
+ * boundary. `config/index.test.ts` holds the two together to a part in a
+ * million, which buys the same protection without the dependency.
  */
 export const AIR_SATURATED_O2 = 8.38;
 
@@ -80,7 +81,10 @@ export const nitrogenCycleDefaults: NitrogenCycleConfig = {
   // NOB take the same per-cell throughput scaled by the N mass ratio and their
   // own oxygen term, so the two guilds share this constant and diverge on air
   // alone: at saturation NOB clear 8 % less nitrite per cell than AOB clear
-  // ammonia, which is the whole reason nitrite is the species that stands.
+  // ammonia. That 8 % is the deficit in a *healthy* tank; what makes nitrite the
+  // species that stands is the gap between the two half-saturation constants
+  // widening as the water thins, and it runs the whole way from 0.916 at
+  // saturation to 0.333 at 0.10 mg/L.
   bacteriaProcessingRate: 0.0002 / AOB_AT_AIR_SATURATION,
   // Spawn thresholds set to "detectable by hobbyist" ranges — 0.5 ppm
   // NH3 and 0.5 ppm NO2 are the levels where a nitrifier lag-phase
