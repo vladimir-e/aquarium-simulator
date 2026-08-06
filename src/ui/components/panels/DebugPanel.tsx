@@ -4,6 +4,7 @@ import { Button } from '../ui/Button';
 import { useConfig } from '../../hooks/useConfig';
 import {
   type TunableConfig,
+  configRange,
   decayConfigMeta,
   nitrogenCycleConfigMeta,
   gasExchangeConfigMeta,
@@ -18,6 +19,7 @@ import {
 
 interface ConfigInputProps {
   label: string;
+  path: string;
   value: number;
   onChange: (value: number) => void;
   step: number;
@@ -27,53 +29,62 @@ interface ConfigInputProps {
 
 function ConfigInput({
   label,
+  path,
   value,
   onChange,
   step,
   unit,
   isModified,
 }: ConfigInputProps): React.JSX.Element {
-  // Use local state to allow empty string while editing
+  const range = configRange(path);
   const [localValue, setLocalValue] = useState(String(value));
 
-  // Sync local value when prop changes (e.g., reset)
   React.useEffect(() => {
     setLocalValue(String(value));
   }, [value]);
 
+  // Typing walks through states the range refuses — "0.0" on the way to
+  // "0.05" — so an out-of-range value holds the field without reaching the
+  // config, and blur settles it rather than clamping mid-keystroke.
   const handleChange: React.ChangeEventHandler<globalThis.HTMLInputElement> = (e) => {
-    const rawValue = e.target.value;
-    setLocalValue(rawValue);
-
-    // Only propagate valid numbers
-    if (rawValue !== '' && rawValue !== '-') {
-      const newValue = parseFloat(rawValue);
-      if (!isNaN(newValue)) {
-        onChange(newValue);
-      }
-    }
+    setLocalValue(e.target.value);
+    const parsed = parseFloat(e.target.value);
+    if (!Number.isFinite(parsed)) return;
+    if (range && (parsed < range.min || parsed > range.max)) return;
+    onChange(parsed);
   };
 
   const handleBlur = (): void => {
-    // On blur, restore to current value if empty/invalid
     const parsed = parseFloat(localValue);
-    if (isNaN(parsed)) {
+    if (!Number.isFinite(parsed)) {
       setLocalValue(String(value));
+      return;
     }
+    if (!range) return;
+    const clamped = Math.min(range.max, Math.max(range.min, parsed));
+    if (clamped === parsed) return;
+    setLocalValue(String(clamped));
+    onChange(clamped);
   };
 
   return (
     <div className="flex items-center justify-between gap-2 py-1">
-      <label className={`text-xs ${isModified ? 'text-yellow-400' : 'text-gray-400'}`}>
+      <label
+        htmlFor={path}
+        className={`text-xs ${isModified ? 'text-yellow-400' : 'text-gray-400'}`}
+      >
         {label}
         {unit && <span className="text-gray-500 ml-1">({unit})</span>}
       </label>
       <input
+        id={path}
         type="number"
         value={localValue}
         onChange={handleChange}
         onBlur={handleBlur}
         step={step}
+        min={range?.min}
+        max={range?.max}
         className={`w-24 px-2 py-1 text-xs text-right rounded border ${
           isModified
             ? 'bg-yellow-400/10 border-yellow-400/30 text-yellow-400'
@@ -204,6 +215,7 @@ export function DebugPanel(): React.JSX.Element | null {
             <ConfigInput
               key={meta.key}
               label={meta.label}
+              path={`decay.${meta.key}`}
               value={config.decay[meta.key]}
               onChange={(value) => updateConfig('decay', meta.key, value)}
               step={meta.step}
@@ -225,6 +237,7 @@ export function DebugPanel(): React.JSX.Element | null {
             <ConfigInput
               key={meta.key}
               label={meta.label}
+              path={`nitrogenCycle.${meta.key}`}
               value={config.nitrogenCycle[meta.key]}
               onChange={(value) => updateConfig('nitrogenCycle', meta.key, value)}
               step={meta.step}
@@ -246,6 +259,7 @@ export function DebugPanel(): React.JSX.Element | null {
             <ConfigInput
               key={meta.key}
               label={meta.label}
+              path={`gasExchange.${meta.key}`}
               value={config.gasExchange[meta.key]}
               onChange={(value) => updateConfig('gasExchange', meta.key, value)}
               step={meta.step}
@@ -267,6 +281,7 @@ export function DebugPanel(): React.JSX.Element | null {
             <ConfigInput
               key={meta.key}
               label={meta.label}
+              path={`temperature.${meta.key}`}
               value={config.temperature[meta.key]}
               onChange={(value) => updateConfig('temperature', meta.key, value)}
               step={meta.step}
@@ -288,6 +303,7 @@ export function DebugPanel(): React.JSX.Element | null {
             <ConfigInput
               key={meta.key}
               label={meta.label}
+              path={`evaporation.${meta.key}`}
               value={config.evaporation[meta.key]}
               onChange={(value) => updateConfig('evaporation', meta.key, value)}
               step={meta.step}
@@ -309,6 +325,7 @@ export function DebugPanel(): React.JSX.Element | null {
             <ConfigInput
               key={meta.key}
               label={meta.label}
+              path={`algae.${meta.key}`}
               value={config.algae[meta.key]}
               onChange={(value) => updateConfig('algae', meta.key, value)}
               step={meta.step}
@@ -330,6 +347,7 @@ export function DebugPanel(): React.JSX.Element | null {
             <ConfigInput
               key={meta.key}
               label={meta.label}
+              path={`optics.${meta.key}`}
               value={config.optics[meta.key]}
               onChange={(value) => updateConfig('optics', meta.key, value)}
               step={meta.step}
@@ -351,6 +369,7 @@ export function DebugPanel(): React.JSX.Element | null {
             <ConfigInput
               key={meta.key}
               label={meta.label}
+              path={`ph.${meta.key}`}
               value={config.ph[meta.key]}
               onChange={(value) => updateConfig('ph', meta.key, value)}
               step={meta.step}
@@ -372,6 +391,7 @@ export function DebugPanel(): React.JSX.Element | null {
             <ConfigInput
               key={meta.key}
               label={meta.label}
+              path={`plants.${meta.key}`}
               value={config.plants[meta.key]}
               onChange={(value) => updateConfig('plants', meta.key, value)}
               step={meta.step}
@@ -393,6 +413,7 @@ export function DebugPanel(): React.JSX.Element | null {
             <ConfigInput
               key={meta.key}
               label={meta.label}
+              path={`nutrients.${meta.key}`}
               value={config.nutrients[meta.key] as number}
               onChange={(value) => updateConfig('nutrients', meta.key, value)}
               step={meta.step}
