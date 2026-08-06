@@ -67,9 +67,9 @@ export interface PlantsConfig {
   // Vitality stressor severities — see systems/plant-vitality.ts. Each is
   // a pre-hardiness damage rate (%/h per unit deviation); the species
   // hardiness multiplies the sum centrally.
-  /** Damage per W of light below the species' tolerable lower bound. */
+  /** Damage per PAR unit below the species' tolerable lower bound. */
   lightInsufficientSeverity: number;
-  /** Damage per W of light above the species' tolerable upper bound. */
+  /** Damage per PAR unit above the species' tolerable upper bound. */
   lightExcessiveSeverity: number;
   /** Damage per mg/L of CO2 below the species' tolerable lower bound. */
   co2InsufficientSeverity: number;
@@ -162,8 +162,12 @@ export const plantsDefaults: PlantsConfig = {
   // within ~24 sim hours when CO2 falls from 20 mg/L to 5 mg/L (gap of
   // 5 mg/L below tolerableCO2 lower bound) — matches the spec acceptance
   // scenario.
-  lightInsufficientSeverity: 0.2,
-  lightExcessiveSeverity: 0.05,
+  // %/h per PAR unit outside the species band, against a 0.5 %/h benefit
+  // budget: 10 PAR out costs 0.15 %/h pre-hardiness, and the brightest
+  // fixture in the smallest tank puts Anubias 51 PAR over at 0.77 %/h —
+  // measured as a dent (condition 98.3 at 30 days), not a melt.
+  lightInsufficientSeverity: 0.02,
+  lightExcessiveSeverity: 0.015,
   co2InsufficientSeverity: 1.5,
   temperatureStressSeverity: 0.4,
   phStressSeverity: 3.0,
@@ -284,8 +288,8 @@ export const plantsConfigMeta: PlantsConfigMeta[] = [
   { key: 'surplusCap', label: 'Surplus Cap', unit: '%', min: 0, max: 100, step: 5 },
 
   // Vitality stressor severities
-  { key: 'lightInsufficientSeverity', label: 'Light Insuff. Severity', unit: '%/W/hr', min: 0.01, max: 1.0, step: 0.05 },
-  { key: 'lightExcessiveSeverity', label: 'Light Excess Severity', unit: '%/W/hr', min: 0.01, max: 0.5, step: 0.01 },
+  { key: 'lightInsufficientSeverity', label: 'Light Insuff. Severity', unit: '%/PAR/hr', min: 0.005, max: 0.1, step: 0.005 },
+  { key: 'lightExcessiveSeverity', label: 'Light Excess Severity', unit: '%/PAR/hr', min: 0.005, max: 0.1, step: 0.005 },
   { key: 'co2InsufficientSeverity', label: 'CO2 Insuff. Severity', unit: '%/(mg/L)/hr', min: 0.1, max: 5.0, step: 0.1 },
   { key: 'temperatureStressSeverity', label: 'Plant Temp Severity', unit: '%/°C/hr', min: 0.1, max: 2.0, step: 0.1 },
   { key: 'phStressSeverity', label: 'Plant pH Severity', unit: '%/pH/hr', min: 0.5, max: 10, step: 0.5 },

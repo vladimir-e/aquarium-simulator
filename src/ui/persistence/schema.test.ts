@@ -132,7 +132,7 @@ describe('PersistedSimulationSchema', () => {
       powerhead: { enabled: false, flowRateGPH: 240 },
       substrate: { type: 'gravel', organicReserve: 0.5 },
       hardscape: { items: [] },
-      light: { enabled: true, wattage: 10, schedule: { startHour: 8, duration: 8 } },
+      light: { enabled: true, par: 50, schedule: { startHour: 8, duration: 8 } },
       co2Generator: { enabled: false, bubbleRate: 1, isOn: false, schedule: { startHour: 8, duration: 8 } },
       airPump: { enabled: false },
       autoDoser: { enabled: false, doseAmountMl: 2, schedule: { startHour: 8, duration: 1 }, dosedToday: false },
@@ -214,7 +214,7 @@ describe('PersistedSimulationSchema', () => {
       ...validSimulation,
       equipment: {
         ...validSimulation.equipment,
-        light: { enabled: true, wattage: 10, schedule: { startHour: 25, duration: 8 } },
+        light: { enabled: true, par: 50, schedule: { startHour: 25, duration: 8 } },
       },
     };
     expect(PersistedSimulationSchema.safeParse(invalidSchedule).success).toBe(false);
@@ -405,7 +405,7 @@ describe('PersistedStateSchema', () => {
       powerhead: { enabled: false, flowRateGPH: 240 },
       substrate: { type: 'gravel', organicReserve: 0.5 },
       hardscape: { items: [] },
-      light: { enabled: true, wattage: 10, schedule: { startHour: 8, duration: 8 } },
+      light: { enabled: true, par: 50, schedule: { startHour: 8, duration: 8 } },
       co2Generator: { enabled: false, bubbleRate: 1, isOn: false, schedule: { startHour: 8, duration: 8 } },
       airPump: { enabled: false },
       autoDoser: { enabled: false, doseAmountMl: 2, schedule: { startHour: 8, duration: 1 }, dosedToday: false },
@@ -514,7 +514,7 @@ describe('PersistedStateSchema', () => {
     ).toBe(false);
   });
 
-  it('PERSISTENCE_VERSION is 17', () => {
-    expect(PERSISTENCE_VERSION).toBe(17);
+  it('PERSISTENCE_VERSION is 18', () => {
+    expect(PERSISTENCE_VERSION).toBe(18);
   });
 });

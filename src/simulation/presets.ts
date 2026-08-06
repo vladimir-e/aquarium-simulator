@@ -61,7 +61,7 @@ export const PRESETS: PresetDefinition[] = [
       },
       light: {
         enabled: true,
-        wattage: 5,
+        par: 25,
         schedule: { startHour: 8, duration: 8 },
       },
       substrate: { type: 'gravel' },
@@ -90,7 +90,7 @@ export const PRESETS: PresetDefinition[] = [
       },
       light: {
         enabled: true,
-        wattage: 10,
+        par: 90,
         schedule: { startHour: 8, duration: 12 },
       },
       substrate: { type: 'aqua_soil' },
@@ -128,7 +128,7 @@ export const PRESETS: PresetDefinition[] = [
       },
       light: {
         enabled: true,
-        wattage: 50,
+        par: 50,
         schedule: { startHour: 8, duration: 10 },
       },
       substrate: { type: 'aqua_soil' },
@@ -166,7 +166,7 @@ export const PRESETS: PresetDefinition[] = [
       },
       light: {
         enabled: true,
-        wattage: 100,
+        par: 50,
         schedule: { startHour: 8, duration: 12 }, // Default duration
       },
       substrate: { type: 'sand' },

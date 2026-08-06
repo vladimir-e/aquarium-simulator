@@ -76,7 +76,7 @@ The process of converting light energy, CO2, and nutrients into biomass and oxyg
 
 | Resource | Role |
 |----------|------|
-| Light | Energy source (watts) |
+| Light | Energy source (PAR at the substrate, µmol/m²/s) |
 | CO2 | Carbon source |
 | Nitrate (NO3) | Nitrogen source |
 | Phosphate (PO4) | Macronutrient |
@@ -236,8 +236,9 @@ reserves, not thriving** — the plant reads full while its bank bleeds.
 
 ### Stressor coverage
 
-Each species' tolerance bands (`tolerableLight`, `tolerableCO2`,
-`tolerableTemp`, `tolerablePH`) define when a stressor activates:
+Each species' tolerance bands (`tolerableLight` in PAR at the plant,
+`tolerableCO2`, `tolerableTemp`, `tolerablePH`) define when a stressor
+activates:
 
 | Stressor | Trigger | Severity (per unit deviation) |
 |----------|---------|-------------------------------|
@@ -422,7 +423,7 @@ Capped at peak: `min(peak, severity × deviation)`.
 
 | Benefit | Trigger | Magnitude |
 |---------|---------|-----------|
-| Excess light | `light > lightExcessThreshold` (W/L) | `min(peak, severity × (wpl − threshold))` |
+| Excess light | `light > lightExcessThreshold` (PAR) | `min(peak, severity × (PAR − threshold))` |
 | Excess nutrients | NO3 ppm or PO4 ppm above plant optimum | `min(peak, severity × max(no3Excess, po4Excess))` |
 | Nutrient deficiency | NO3 ppm or PO4 ppm below plant optimum | `min(peak, severity × max(no3Def, po4Def))` (small) |
 | Low plant power | `plantPower < weaknessThreshold` | `min(peak, severity × (threshold − power))` |
@@ -576,7 +577,7 @@ if excess_nutrients AND poor_plant_health:
 ### Plants Receive From:
 | Resource | Source |
 |----------|--------|
-| Light | Light equipment (watts) |
+| Light | Light equipment, attenuated to the substrate |
 | CO2 | CO2 system, fish respiration |
 | Nitrate | Nitrogen cycle, fertilizer dosing |
 | Phosphate | Decay (trace), fertilizer dosing |

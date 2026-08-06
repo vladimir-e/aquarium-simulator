@@ -10,6 +10,7 @@ import {
   temperatureConfigMeta,
   evaporationConfigMeta,
   algaeVitalityConfigMeta,
+  lightConfigMeta,
   phConfigMeta,
   plantsConfigMeta,
   nutrientsConfigMeta,
@@ -313,6 +314,27 @@ export function DebugPanel(): React.JSX.Element | null {
               step={meta.step}
               unit={meta.unit}
               isModified={isValueModified('algae', meta.key)}
+            />
+          ))}
+        </ConfigSection>
+
+        {/* Light Section */}
+        <ConfigSection
+          title="Light"
+          isExpanded={expandedSections.has('light')}
+          onToggle={() => toggleSection('light')}
+          onReset={() => resetSection('light')}
+          isModified={isSectionModified('light')}
+        >
+          {lightConfigMeta.map((meta) => (
+            <ConfigInput
+              key={meta.key}
+              label={meta.label}
+              value={config.light[meta.key]}
+              onChange={(value) => updateConfig('light', meta.key, value)}
+              step={meta.step}
+              unit={meta.unit}
+              isModified={isValueModified('light', meta.key)}
             />
           ))}
         </ConfigSection>

@@ -10,7 +10,7 @@ import {
   type FilterType,
   type PowerheadFlowRate,
 } from '../../../simulation/index.js';
-import { LIGHT_WATTAGE_OPTIONS } from '../../../simulation/equipment/light.js';
+import { LIGHT_PAR_OPTIONS } from '../../../simulation/equipment/light.js';
 import { BUBBLE_RATE_OPTIONS } from '../../../simulation/equipment/co2-generator.js';
 import { DOSE_AMOUNT_OPTIONS } from '../../../simulation/equipment/auto-doser.js';
 import type { TunableConfig } from '../../../simulation/config/index.js';
@@ -119,12 +119,12 @@ function DeviceSettings({ id, sim }: { id: EquipmentId; sim: Sim }): React.JSX.E
           <FieldRow label="Enabled">
             <Toggle ariaLabel="Light enabled" checked={l.enabled} onChange={sim.updateLightEnabled} />
           </FieldRow>
-          <FieldRow label="Wattage">
+          <FieldRow label="Output">
             <Select
-              ariaLabel="Light wattage"
-              value={String(l.wattage)}
-              onChange={(v) => sim.updateLightWattage(Number(v))}
-              options={numberOptions(LIGHT_WATTAGE_OPTIONS, 'W')}
+              ariaLabel="Light output"
+              value={String(l.par)}
+              onChange={(v) => sim.updateLightPar(Number(v))}
+              options={numberOptions(LIGHT_PAR_OPTIONS, ' PAR')}
             />
           </FieldRow>
           <FieldRow label="Start">

@@ -12,7 +12,7 @@
  *   --seed              : seed bacteria at carrying capacity (pure fishless/composite probe)
  *   --dose=N            : ml/day of fertilizer (default 1 for A, 0 for B)
  *   --co2               : enable CO2 injection (default true)
- *   --light=W           : light wattage (default 18)
+ *   --light=PAR         : fixture PAR at the water surface (default 90)
  *   --startSize=P       : starting plant size % (default 35)
  *   --foodPerDay=G      : daily feed amount (default 0.05 g — lean)
  *
@@ -84,8 +84,8 @@ export interface PlantedScenarioOptions {
   foodPerDay?: number;
   /** Starting plant size % (default 35). */
   startingSize?: number;
-  /** Light wattage (default 18). */
-  lightWattage?: number;
+  /** Fixture PAR at the water surface (default 90). */
+  lightPar?: number;
   /** Custom tunable config (defaults to DEFAULT_CONFIG). */
   config?: TunableConfig;
   /** Override plant species list. */
@@ -133,7 +133,7 @@ export function runPlantedScenario(
     seedBacteria = false,
     foodPerDay = 0.05,
     startingSize = 35,
-    lightWattage = 18,
+    lightPar = 90,
     config = DEFAULT_CONFIG,
     plantSetup = DEFAULT_PLANTS,
   } = options;
@@ -153,7 +153,7 @@ export function runPlantedScenario(
     filter: { enabled: true, type: 'canister' },
     light: {
       enabled: true,
-      wattage: lightWattage,
+      par: lightPar,
       schedule: { startHour: 8, duration: 8 },
     },
     substrate: { type: 'aqua_soil' },
@@ -370,7 +370,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   const foodPerDay = args.food !== undefined ? Number(args.food) : undefined;
   const startingSize =
     args.startSize !== undefined ? Number(args.startSize) : undefined;
-  const lightWattage =
+  const lightPar =
     args.light !== undefined ? Number(args.light) : undefined;
 
   const { rows } = runPlantedScenario({
@@ -383,7 +383,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     dosePerDay,
     foodPerDay,
     startingSize,
-    lightWattage,
+    lightPar,
   });
   const label =
     args.label ??

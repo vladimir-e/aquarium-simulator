@@ -91,7 +91,6 @@ export function processAlgae(
   const { net } = computeAlgaePopulation({
     plants: state.plants,
     resources: state.resources,
-    tankCapacity: state.tank.capacity,
     algaeConfig,
     nutrientsConfig,
   });

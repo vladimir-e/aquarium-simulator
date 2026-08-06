@@ -5,8 +5,9 @@
 import { produce } from 'immer';
 import type { Effect } from '../core/effects.js';
 import type { SimulationState } from '../state.js';
-import { calculateTankGlassSurface } from '../state.js';
+import { calculateTankDepth, calculateTankGlassSurface } from '../state.js';
 import type { TunableConfig } from '../config/index.js';
+import { type LightConfig, lightDefaults } from '../config/light.js';
 import {
   heaterUpdate,
   applyHeaterStateChange,
@@ -38,7 +39,7 @@ import {
   BUBBLE_RATE_OPTIONS,
   type BubbleRate,
 } from './co2-generator.js';
-import { getLightOutput, type Light, type LightWattage, DEFAULT_LIGHT, LIGHT_WATTAGE_OPTIONS } from './light.js';
+import { getLightOutput, calculateParAtDepth, type Light, type LightPar, DEFAULT_LIGHT, LIGHT_PAR_OPTIONS } from './light.js';
 import {
   getAirPumpOutput,
   getAirPumpFlow,
@@ -83,7 +84,7 @@ export {
   BUBBLE_RATE_OPTIONS,
   type BubbleRate,
 };
-export { getLightOutput, type Light, type LightWattage, DEFAULT_LIGHT, LIGHT_WATTAGE_OPTIONS };
+export { getLightOutput, calculateParAtDepth, type Light, type LightPar, DEFAULT_LIGHT, LIGHT_PAR_OPTIONS };
 export {
   getAirPumpOutput,
   getAirPumpFlow,
@@ -169,13 +170,17 @@ export interface PassiveResourceValues {
  * - Air pump (when enabled, small contribution from bubble uplift)
  *
  * Light sources:
- * - Light fixture (when enabled and schedule active)
+ * - Light fixture (when enabled and schedule active), rated at the water
+ *   surface and attenuated down the column to the substrate
  *
  * Aeration sources:
  * - Air pump (when enabled)
  * - Air-driven filter (sponge filter)
  */
-export function calculatePassiveResources(state: SimulationState): PassiveResourceValues {
+export function calculatePassiveResources(
+  state: SimulationState,
+  lightConfig: LightConfig = lightDefaults
+): PassiveResourceValues {
   const { tank, equipment, tick } = state;
   const hourOfDay = tick % 24;
 
@@ -203,8 +208,13 @@ export function calculatePassiveResources(state: SimulationState): PassiveResour
     flow += getAirPumpFlow(tank.capacity);
   }
 
-  // Light (based on schedule)
-  const light = getLightOutput(equipment.light, hourOfDay);
+  // Light: the fixture is rated at the surface, the tank runs on what
+  // reaches the substrate.
+  const light = calculateParAtDepth(
+    getLightOutput(equipment.light, hourOfDay),
+    calculateTankDepth(tank.capacity),
+    lightConfig
+  );
 
   // Aeration: active if air pump is on OR filter is air-driven (sponge)
   const filterAerates = equipment.filter.enabled && isFilterAirDriven(equipment.filter.type);

@@ -106,7 +106,7 @@ function deviceSummary(id: DeviceId, state: SimulationState, units: UnitSystem):
     }
     case 'light': {
       const l = equipment.light;
-      return l.enabled ? `${l.wattage} W · ${scheduleRange(l.schedule)}` : 'off';
+      return l.enabled ? `${l.par} PAR · ${scheduleRange(l.schedule)}` : 'off';
     }
     case 'airPump':
       return equipment.airPump.enabled ? 'on' : 'off';

@@ -15,7 +15,8 @@
  *   damages algae growth.
  *
  * Benefits:
- * - `excess_light` — W/L above `lightExcessThreshold` (capped peak).
+ * - `excess_light` — substrate PAR above `lightExcessThreshold`
+ *   (capped peak).
  * - `excess_nutrients` — NO3 / PO4 ratio above plant optimum
  *   (capped peak; dominant nutrient lever).
  * - `nutrient_deficiency` — small benefit when nutrients fall below
@@ -44,8 +45,6 @@ import type { VitalityFactor } from './vitality.js';
 export interface AlgaeVitalityContext {
   plants: readonly Plant[];
   resources: Resources;
-  /** Tank capacity in liters — used for W/L. */
-  tankCapacity: number;
   algaeConfig: AlgaeVitalityConfig;
   nutrientsConfig: NutrientsConfig;
 }
@@ -116,14 +115,12 @@ export function buildAlgaeStressors(ctx: AlgaeVitalityContext): VitalityFactor[]
  * has a stable shape.
  */
 export function buildAlgaeBenefits(ctx: AlgaeVitalityContext): VitalityFactor[] {
-  const { plants, resources, tankCapacity, algaeConfig, nutrientsConfig } = ctx;
+  const { plants, resources, algaeConfig, nutrientsConfig } = ctx;
 
-  // Excess light — W/L above the threshold. Photoperiod-gated by
+  // Excess light — substrate PAR above the threshold. Photoperiod-gated by
   // `resources.light` itself, which is already 0 at night.
-  const wattsPerLiter =
-    tankCapacity > 0 ? resources.light / tankCapacity : 0;
   const excessLight = cappedAmount(
-    wattsPerLiter - algaeConfig.lightExcessThreshold,
+    resources.light - algaeConfig.lightExcessThreshold,
     algaeConfig.excessLightSeverity,
     algaeConfig.excessLightPeak
   );

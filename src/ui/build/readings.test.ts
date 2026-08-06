@@ -348,14 +348,33 @@ describe('light readings', () => {
     for (let i = 0; i < 9; i++) lit = tick(lit, DEFAULT_CONFIG);
     expect(value(read('light', lit), 'Output now')).toEqual({
       label: 'Output now',
-      value: '100 W',
+      value: '50 PAR',
       note: 'lit until 18:00',
     });
     expect(value(read('light'), 'Output now')).toEqual({
       label: 'Output now',
-      value: '0 W',
+      value: '0 PAR',
       note: 'next on at 08:00',
     });
+  });
+
+  it('reports what survives the water column, and how deep it had to go', () => {
+    let lit = base;
+    for (let i = 0; i < 9; i++) lit = tick(lit, DEFAULT_CONFIG);
+    const surface = Number(value(read('light', lit), 'Output now').value.split(' ')[0]);
+    const substrate = value(read('light', lit), 'At substrate');
+    expect(Number(substrate.value.split(' ')[0])).toBeLessThan(surface);
+    expect(substrate.note).toBe('through 27 cm of water');
+  });
+
+  it('lands the same fixture harder on a shallow tank than a deep one', () => {
+    const atHour = (capacity: number): number => {
+      let state = createSimulation({ tankCapacity: capacity });
+      for (let i = 0; i < 9; i++) state = tick(state, DEFAULT_CONFIG);
+      return Number(value(read('light', state), 'At substrate').value.split(' ')[0]);
+    };
+
+    expect(atHour(20)).toBeGreaterThan(atHour(300));
   });
 
   it('says a round-the-clock photoperiod is on all day, not on until it started', () => {

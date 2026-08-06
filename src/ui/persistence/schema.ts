@@ -141,7 +141,7 @@ const HardscapeSchema = z
 const LightSchema = z
   .object({
     enabled: z.boolean(),
-    wattage: z.number().min(0).max(500),
+    par: z.number().min(0).max(500),
     schedule: DailyScheduleSchema,
   })
   .strict();
@@ -365,6 +365,12 @@ const AlgaeConfigSchema = z
   })
   .strict();
 
+const LightConfigSchema = z
+  .object({
+    waterAttenuationPerCm: z.number(),
+  })
+  .strict();
+
 const PhConfigSchema = z
   .object({
     calciteTargetPh: z.number(),
@@ -488,6 +494,7 @@ export const TunableConfigSchema = z
     temperature: TemperatureConfigSchema,
     evaporation: EvaporationConfigSchema,
     algae: AlgaeConfigSchema,
+    light: LightConfigSchema,
     ph: PhConfigSchema,
     plants: PlantsConfigSchema,
     nutrients: NutrientsConfigSchema,

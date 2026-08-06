@@ -11,6 +11,7 @@ Format: - **Feature name** (#PR) - One short sentence (under ~150 chars)
 
 ## Unreleased
 
+- **Light is PAR, not watts** - a fixture is rated at the surface, the tank runs on what reaches the substrate, and depth comes from capacity (v18).
 - **Age decides whether a fish can spawn** - the gate asks `age ≥ maturityAge`; a stocked adult arrives grown, one seeded at `age: 0` waits it out.
 - **A tank runs the same life twice** - a seed and counter on the state: one `rngSeed`, one life, ids too. Breaking: no `generateFishId` (v17, v4).
 - **The CLI rejects unknown flags** - `sim new --capacity=200` no longer builds the default tank and reports success; each subcommand names its flags.

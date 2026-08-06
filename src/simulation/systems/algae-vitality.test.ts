@@ -38,7 +38,7 @@ function makeResources(overrides: Partial<Resources> = {}): Resources {
     temperature: 25,
     surface: 1000,
     flow: 100,
-    light: 30, // ~0.3 W/L for capacity 100 — under default lightExcessThreshold (0.5)
+    light: 30, // under the default lightExcessThreshold (70 PAR)
     aeration: true,
     food: 0,
     waste: 0,
@@ -61,7 +61,6 @@ function ctx(overrides: Partial<AlgaeVitalityContext> = {}): AlgaeVitalityContex
   return {
     plants: [],
     resources: makeResources(),
-    tankCapacity: 100,
     algaeConfig: algaeVitalityDefaults,
     nutrientsConfig: nutrientsDefaults,
     ...overrides,
@@ -128,8 +127,8 @@ describe('buildAlgaeBenefits', () => {
     expect(keys).toContain('low_plant_power');
   });
 
-  it('fires excess_light only above the W/L threshold', () => {
-    // Default threshold 0.5 W/L on 100L tank → above 50W.
+  it('fires excess_light only above the substrate-PAR threshold', () => {
+    // Default threshold 70 PAR at the substrate.
     const lowLight = ctx({ resources: makeResources({ light: 30 }) });
     expect(buildAlgaeBenefits(lowLight).find((b) => b.key === 'excess_light')?.amount).toBe(0);
 
@@ -190,11 +189,6 @@ describe('buildAlgaeBenefits', () => {
 });
 
 describe('buildAlgaeBenefits — pathological config guards', () => {
-  it('handles tankCapacity = 0 without dividing by zero', () => {
-    const benefits = buildAlgaeBenefits(ctx({ tankCapacity: 0 }));
-    expect(benefits.find((b) => b.key === 'excess_light')?.amount).toBe(0);
-  });
-
   it('handles waterVolume = 0 without dividing by zero', () => {
     const benefits = buildAlgaeBenefits(ctx({ resources: makeResources({ water: 0 }) }));
     // Both nutrient channels read 0 ppm and no excess fires.
@@ -227,11 +221,11 @@ describe('computeAlgaePopulation (aggregate)', () => {
   });
 
   it('pure-light tank with no plants and no dosing produces a positive net', () => {
-    // No plants, baseline nutrients, lots of W/L.
+    // No plants, baseline nutrients, PAR well past the algae threshold.
     const result = computeAlgaePopulation(
       ctx({
         plants: [],
-        resources: makeResources({ light: 100, nitrate: 0, phosphate: 0 }),
+        resources: makeResources({ light: 120, nitrate: 0, phosphate: 0 }),
       })
     );
     // Excess light + low plant power + nutrient deficiency stack as

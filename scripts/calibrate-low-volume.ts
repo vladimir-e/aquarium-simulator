@@ -158,7 +158,7 @@ export function runLowVolumeScenario(
     filter: { enabled: false, type: 'hob' },
     light: {
       enabled: true,
-      wattage: 5,
+      par: 25,
       schedule: { startHour: 8, duration: 8 },
     },
     substrate: { type: 'gravel' },

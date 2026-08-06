@@ -20,6 +20,7 @@ import {
   type DailySchedule,
 } from '../../simulation/index.js';
 import { createLog } from '../../simulation/core/logging.js';
+import type { LightConfig } from '../../simulation/config/index.js';
 import {
   PRESETS,
   DEFAULT_PRESET_ID,
@@ -88,7 +89,7 @@ interface UseSimulationReturn {
   addHardscapeItem: (type: HardscapeType) => void;
   removeHardscapeItem: (id: string) => void;
   updateLightEnabled: (enabled: boolean) => void;
-  updateLightWattage: (wattage: number) => void;
+  updateLightPar: (par: number) => void;
   updateLightSchedule: (schedule: DailySchedule) => void;
   updateCo2GeneratorEnabled: (enabled: boolean) => void;
   updateCo2GeneratorBubbleRate: (bubbleRate: number) => void;
@@ -144,7 +145,8 @@ function stateToPersistedSimulation(
 function createInitialResources(
   tankCapacity: number,
   environment: SimulationState['environment'],
-  equipment: SimulationState['equipment']
+  equipment: SimulationState['equipment'],
+  lightConfig: LightConfig
 ): SimulationState['resources'] {
   // Create a temporary simulation to get initial resource values
   const tempState = createSimulation({
@@ -159,7 +161,7 @@ function createInitialResources(
     ...tempState,
     equipment,
   };
-  const passiveValues = calculatePassiveResources(fullState);
+  const passiveValues = calculatePassiveResources(fullState, lightConfig);
 
   return {
     ...tempState.resources,
@@ -387,7 +389,8 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
         const freshResources = createInitialResources(
           current.tank.capacity,
           current.environment,
-          current.equipment
+          current.equipment,
+          configRef.current.light
         );
         draft.resources = freshResources;
 
@@ -546,7 +549,7 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
         const log = createLog(draft.tick, 'equipment', 'info', message);
         draft.equipment.filter.enabled = enabled;
         draft.logs.push(log);
-        const passiveValues = calculatePassiveResources(draft);
+        const passiveValues = calculatePassiveResources(draft, configRef.current.light);
         draft.resources.surface = passiveValues.surface;
         draft.resources.flow = passiveValues.flow;
         draft.resources.light = passiveValues.light;
@@ -568,7 +571,7 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
           );
           draft.equipment.filter.type = type;
           draft.logs.push(log);
-          const passiveValues = calculatePassiveResources(draft);
+          const passiveValues = calculatePassiveResources(draft, configRef.current.light);
           draft.resources.surface = passiveValues.surface;
           draft.resources.flow = passiveValues.flow;
           draft.resources.light = passiveValues.light;
@@ -585,7 +588,7 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
         const log = createLog(draft.tick, 'equipment', 'info', message);
         draft.equipment.airPump.enabled = enabled;
         draft.logs.push(log);
-        const passiveValues = calculatePassiveResources(draft);
+        const passiveValues = calculatePassiveResources(draft, configRef.current.light);
         draft.resources.surface = passiveValues.surface;
         draft.resources.flow = passiveValues.flow;
         draft.resources.light = passiveValues.light;
@@ -601,7 +604,7 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
         const log = createLog(draft.tick, 'equipment', 'info', message);
         draft.equipment.powerhead.enabled = enabled;
         draft.logs.push(log);
-        const passiveValues = calculatePassiveResources(draft);
+        const passiveValues = calculatePassiveResources(draft, configRef.current.light);
         draft.resources.surface = passiveValues.surface;
         draft.resources.flow = passiveValues.flow;
         draft.resources.light = passiveValues.light;
@@ -623,7 +626,7 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
           );
           draft.equipment.powerhead.flowRateGPH = flowRateGPH;
           draft.logs.push(log);
-          const passiveValues = calculatePassiveResources(draft);
+          const passiveValues = calculatePassiveResources(draft, configRef.current.light);
           draft.resources.surface = passiveValues.surface;
           draft.resources.flow = passiveValues.flow;
           draft.resources.light = passiveValues.light;
@@ -664,7 +667,7 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
           `Added ${getHardscapeName(type)} hardscape`
         );
         draft.logs.push(log);
-        const passiveValues = calculatePassiveResources(draft);
+        const passiveValues = calculatePassiveResources(draft, configRef.current.light);
         draft.resources.surface = passiveValues.surface;
         draft.resources.flow = passiveValues.flow;
         draft.resources.light = passiveValues.light;
@@ -690,7 +693,7 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
           `Removed ${getHardscapeName(item.type)} hardscape`
         );
         draft.logs.push(log);
-        const passiveValues = calculatePassiveResources(draft);
+        const passiveValues = calculatePassiveResources(draft, configRef.current.light);
         draft.resources.surface = passiveValues.surface;
         draft.resources.flow = passiveValues.flow;
         draft.resources.light = passiveValues.light;
@@ -703,12 +706,12 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
     setState((current) =>
       produce(current, (draft) => {
         const message = enabled
-          ? `Light enabled (${draft.equipment.light.wattage}W)`
+          ? `Light enabled (${draft.equipment.light.par} PAR)`
           : 'Light disabled';
         const log = createLog(draft.tick, 'user', 'info', message);
         draft.equipment.light.enabled = enabled;
         draft.logs.push(log);
-        const passiveValues = calculatePassiveResources(draft);
+        const passiveValues = calculatePassiveResources(draft, configRef.current.light);
         draft.resources.surface = passiveValues.surface;
         draft.resources.flow = passiveValues.flow;
         draft.resources.light = passiveValues.light;
@@ -717,20 +720,20 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
     );
   }, []);
 
-  const updateLightWattage = useCallback((wattage: number) => {
+  const updateLightPar = useCallback((par: number) => {
     setState((current) =>
       produce(current, (draft) => {
-        const oldWattage = draft.equipment.light.wattage;
-        if (oldWattage !== wattage) {
+        const oldPar = draft.equipment.light.par;
+        if (oldPar !== par) {
           const log = createLog(
             draft.tick,
             'user',
             'info',
-            `Light wattage: ${oldWattage}W → ${wattage}W`
+            `Light output: ${oldPar} PAR → ${par} PAR`
           );
-          draft.equipment.light.wattage = wattage;
+          draft.equipment.light.par = par;
           draft.logs.push(log);
-          const passiveValues = calculatePassiveResources(draft);
+          const passiveValues = calculatePassiveResources(draft, configRef.current.light);
           draft.resources.surface = passiveValues.surface;
           draft.resources.flow = passiveValues.flow;
           draft.resources.light = passiveValues.light;
@@ -752,7 +755,7 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
           );
           draft.equipment.light.schedule = schedule;
           draft.logs.push(log);
-          const passiveValues = calculatePassiveResources(draft);
+          const passiveValues = calculatePassiveResources(draft, configRef.current.light);
           draft.resources.surface = passiveValues.surface;
           draft.resources.flow = passiveValues.flow;
           draft.resources.light = passiveValues.light;
@@ -907,7 +910,7 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
           },
           light: {
             enabled: current.equipment.light.enabled,
-            wattage: current.equipment.light.wattage,
+            par: current.equipment.light.par,
             schedule: current.equipment.light.schedule,
           },
           co2Generator: {
@@ -976,7 +979,7 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
     addHardscapeItem,
     removeHardscapeItem,
     updateLightEnabled,
-    updateLightWattage,
+    updateLightPar,
     updateLightSchedule,
     updateCo2GeneratorEnabled,
     updateCo2GeneratorBubbleRate,

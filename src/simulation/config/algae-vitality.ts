@@ -40,18 +40,18 @@ export interface AlgaeVitalityConfig {
   // Benefits ---------------------------------------------------------
 
   /**
-   * W/L threshold above which excess light boosts algae. Set roughly
+   * Substrate PAR above which excess light boosts algae. Set roughly
    * above where most plants saturate — below the threshold light is
    * "what plants are using" and algae gets nothing.
    */
   lightExcessThreshold: number;
   /**
    * Peak benefit (%/h) from excess light. Capped: the function is
-   * `min(peak, severity × (wpl - threshold))`.
+   * `min(peak, severity × (PAR - threshold))`.
    */
   excessLightPeak: number;
   /**
-   * Severity multiplier on (wpl - lightExcessThreshold) before the
+   * Severity multiplier on (PAR - lightExcessThreshold) before the
    * peak cap is applied.
    */
   excessLightSeverity: number;
@@ -129,9 +129,9 @@ export const algaeVitalityDefaults: AlgaeVitalityConfig = {
   suppressionThreshold: 1.0,
   plantSuppressionSeverity: 0.2,
 
-  lightExcessThreshold: 0.5, // W/L
+  lightExcessThreshold: 70, // PAR at the substrate — the top of the hobby's high band
   excessLightPeak: 0.4,
-  excessLightSeverity: 0.2,
+  excessLightSeverity: 0.004,
 
   excessNutrientPeak: 0.4,
   excessNutrientSeverity: 0.4,
@@ -164,9 +164,9 @@ export const algaeVitalityConfigMeta: AlgaeVitalityConfigMeta[] = [
   { key: 'suppressionThreshold', label: 'Suppression Threshold', unit: 'power', min: 0, max: 5, step: 0.1 },
   { key: 'plantSuppressionSeverity', label: 'Plant Suppression Severity', unit: '%/power/hr', min: 0, max: 1, step: 0.05 },
   // Benefits
-  { key: 'lightExcessThreshold', label: 'Light Excess Threshold', unit: 'W/L', min: 0, max: 2, step: 0.05 },
+  { key: 'lightExcessThreshold', label: 'Light Excess Threshold', unit: 'PAR', min: 0, max: 200, step: 5 },
   { key: 'excessLightPeak', label: 'Excess Light Peak', unit: '%/hr', min: 0, max: 1, step: 0.05 },
-  { key: 'excessLightSeverity', label: 'Excess Light Severity', unit: '%/(W/L)/hr', min: 0, max: 1, step: 0.05 },
+  { key: 'excessLightSeverity', label: 'Excess Light Severity', unit: '%/PAR/hr', min: 0, max: 0.05, step: 0.001 },
   { key: 'excessNutrientPeak', label: 'Excess Nutrient Peak', unit: '%/hr', min: 0, max: 1, step: 0.05 },
   { key: 'excessNutrientSeverity', label: 'Excess Nutrient Severity', unit: '%/ratio/hr', min: 0, max: 2, step: 0.05 },
   { key: 'nutrientDeficiencyPeak', label: 'Nutrient Deficiency Peak', unit: '%/hr', min: 0, max: 0.5, step: 0.01 },

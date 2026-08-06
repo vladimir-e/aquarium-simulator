@@ -233,7 +233,7 @@ describe('EquipmentSection', () => {
 
     const band = screen.getByRole('heading', { level: 2, name: 'Schedules' }).closest('section')!;
     expect(within(band).getByText('24 h · now 20:00')).toBeTruthy();
-    expect(within(band).getByText('08:00–18:00 · 100 W')).toBeTruthy();
+    expect(within(band).getByText('08:00–18:00 · 50 PAR')).toBeTruthy();
     expect(within(band).getByText('off · would dose at 08:00')).toBeTruthy();
   });
 });

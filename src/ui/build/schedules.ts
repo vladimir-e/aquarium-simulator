@@ -71,7 +71,7 @@ export function scheduleBand(state: SimulationState): ScheduleBand {
         active: light.enabled && isScheduleActive(hour, light.schedule),
         spans: light.enabled ? scheduleSpans(light.schedule) : [],
         detail: light.enabled
-          ? `${scheduleRange(light.schedule)} · ${light.wattage} W`
+          ? `${scheduleRange(light.schedule)} · ${light.par} PAR`
           : `off · would run ${scheduleRange(light.schedule)}`,
       },
       {

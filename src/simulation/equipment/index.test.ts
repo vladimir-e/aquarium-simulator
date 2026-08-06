@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { biofilmKept, calculatePassiveResources } from './index.js';
 import { getSubstrateSurface, type SubstrateType } from './substrate.js';
-import { createSimulation, type SimulationState } from '../state.js';
+import { calculateTankDepth, createSimulation, type SimulationState } from '../state.js';
+import { calculateParAtDepth } from './light.js';
 import { FILTER_SURFACE, getFilterFlow } from './filter.js';
 import { POWERHEAD_FLOW_LPH } from './powerhead.js';
 import { HARDSCAPE_SURFACE, type HardscapeItem } from './hardscape.js';
@@ -396,6 +397,10 @@ describe('calculatePassiveResources', () => {
   });
 
   describe('light calculation', () => {
+    /** What the engine should land on the substrate of a `capacity` tank. */
+    const atSubstrate = (capacity: number, surfacePar: number): number =>
+      calculateParAtDepth(surfacePar, calculateTankDepth(capacity));
+
     it('returns 0 light when light disabled', () => {
       const state = createSimulation({ tankCapacity: 100 });
       state.equipment.light.enabled = false;
@@ -403,21 +408,35 @@ describe('calculatePassiveResources', () => {
       expect(resources.light).toBe(0);
     });
 
-    it('returns wattage when schedule active', () => {
+    it('returns the fixture attenuated to the substrate when schedule active', () => {
       const state = createSimulation({ tankCapacity: 100 });
       state.tick = 10; // hourOfDay = 10
       state.equipment.light.enabled = true;
-      state.equipment.light.wattage = 150;
+      state.equipment.light.par = 150;
       state.equipment.light.schedule = { startHour: 8, duration: 10 }; // 8am-6pm
       const resources = calculatePassiveResources(state);
-      expect(resources.light).toBe(150);
+      expect(resources.light).toBeCloseTo(atSubstrate(100, 150), 10);
+      expect(resources.light).toBeLessThan(150);
+    });
+
+    it('lands the same fixture harder on a shallow tank than a deep one', () => {
+      const lit = (capacity: number): number => {
+        const state = createSimulation({ tankCapacity: capacity });
+        state.tick = 10;
+        state.equipment.light.par = 90;
+        return calculatePassiveResources(state).light;
+      };
+
+      expect(lit(20)).toBeGreaterThan(lit(40));
+      expect(lit(40)).toBeGreaterThan(lit(150));
+      expect(lit(150)).toBeGreaterThan(lit(300));
     });
 
     it('returns 0 when outside schedule', () => {
       const state = createSimulation({ tankCapacity: 100 });
       state.tick = 20; // hourOfDay = 20 (8pm)
       state.equipment.light.enabled = true;
-      state.equipment.light.wattage = 150;
+      state.equipment.light.par = 150;
       state.equipment.light.schedule = { startHour: 8, duration: 10 }; // 8am-6pm
       const resources = calculatePassiveResources(state);
       expect(resources.light).toBe(0);
@@ -426,30 +445,32 @@ describe('calculatePassiveResources', () => {
     it('handles 24-hour duration (always-on)', () => {
       const state = createSimulation({ tankCapacity: 100 });
       state.equipment.light.enabled = true;
-      state.equipment.light.wattage = 100;
+      state.equipment.light.par = 50;
       state.equipment.light.schedule = { startHour: 0, duration: 24 };
+      const lit = atSubstrate(100, 50);
 
       // Test various hours - all should be on
       state.tick = 0;
-      expect(calculatePassiveResources(state).light).toBe(100);
+      expect(calculatePassiveResources(state).light).toBeCloseTo(lit, 10);
       state.tick = 12;
-      expect(calculatePassiveResources(state).light).toBe(100);
+      expect(calculatePassiveResources(state).light).toBeCloseTo(lit, 10);
       state.tick = 23;
-      expect(calculatePassiveResources(state).light).toBe(100);
+      expect(calculatePassiveResources(state).light).toBeCloseTo(lit, 10);
     });
 
     it('handles midnight wrap-around schedule', () => {
       const state = createSimulation({ tankCapacity: 100 });
       state.equipment.light.enabled = true;
-      state.equipment.light.wattage = 100;
+      state.equipment.light.par = 50;
       state.equipment.light.schedule = { startHour: 22, duration: 8 }; // 10pm-6am
+      const lit = atSubstrate(100, 50);
 
       // Test hours during active period
       state.tick = 23; // 11pm - should be on
-      expect(calculatePassiveResources(state).light).toBe(100);
+      expect(calculatePassiveResources(state).light).toBeCloseTo(lit, 10);
 
       state.tick = 2; // 2am - should be on
-      expect(calculatePassiveResources(state).light).toBe(100);
+      expect(calculatePassiveResources(state).light).toBeCloseTo(lit, 10);
 
       state.tick = 10; // 10am - should be off
       expect(calculatePassiveResources(state).light).toBe(0);
@@ -458,7 +479,7 @@ describe('calculatePassiveResources', () => {
     it('light initializes with default values', () => {
       const state = createSimulation({ tankCapacity: 100 });
       expect(state.equipment.light.enabled).toBe(true);
-      expect(state.equipment.light.wattage).toBe(100);
+      expect(state.equipment.light.par).toBe(50);
       expect(state.equipment.light.schedule.startHour).toBe(8);
       expect(state.equipment.light.schedule.duration).toBe(10);
     });
@@ -470,18 +491,18 @@ describe('calculatePassiveResources', () => {
       expect(calculatePassiveResources(state).light).toBe(0);
     });
 
-    it('can have wattage changed', () => {
+    it('can have the fixture changed', () => {
       const state = createSimulation({ tankCapacity: 100 });
       state.tick = 10; // During schedule (8am-6pm default)
-      state.equipment.light.wattage = 200;
-      expect(calculatePassiveResources(state).light).toBe(200);
+      state.equipment.light.par = 150;
+      expect(calculatePassiveResources(state).light).toBeCloseTo(atSubstrate(100, 150), 10);
     });
 
     it('can have schedule updated', () => {
       const state = createSimulation({ tankCapacity: 100 });
       state.equipment.light.schedule = { startHour: 6, duration: 12 };
       state.tick = 6; // Start of new schedule
-      expect(calculatePassiveResources(state).light).toBe(100);
+      expect(calculatePassiveResources(state).light).toBeCloseTo(atSubstrate(100, 50), 10);
       state.tick = 18; // End of new schedule
       expect(calculatePassiveResources(state).light).toBe(0);
     });
@@ -493,21 +514,22 @@ describe('calculatePassiveResources', () => {
       // Verify light is on at any time
       for (let hour = 0; hour < 24; hour++) {
         state.tick = hour;
-        expect(calculatePassiveResources(state).light).toBe(100);
+        expect(calculatePassiveResources(state).light).toBeCloseTo(atSubstrate(100, 50), 10);
       }
     });
 
     it('correctly calculates hourOfDay from tick across multiple days', () => {
       const state = createSimulation({ tankCapacity: 100 });
       state.equipment.light.schedule = { startHour: 8, duration: 10 }; // 8am-6pm
+      const lit = atSubstrate(100, 50);
 
       // Day 0, hour 10
       state.tick = 10;
-      expect(calculatePassiveResources(state).light).toBe(100);
+      expect(calculatePassiveResources(state).light).toBeCloseTo(lit, 10);
 
       // Day 1, hour 10 (tick 34)
       state.tick = 34;
-      expect(calculatePassiveResources(state).light).toBe(100);
+      expect(calculatePassiveResources(state).light).toBeCloseTo(lit, 10);
 
       // Day 2, hour 20 (tick 68) - outside schedule
       state.tick = 68;

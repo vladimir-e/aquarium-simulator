@@ -60,7 +60,7 @@ export function runUncycledScenario(options: {
     filter: { enabled: true, type: 'hob' },
     light: {
       enabled: true,
-      wattage: 8,
+      par: 25,
       schedule: { startHour: 8, duration: 10 },
     },
     substrate: { type: 'none' }, // bare bottom per scenario

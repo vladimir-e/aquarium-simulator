@@ -22,6 +22,14 @@ import type { TunableConfig } from '../../simulation/config/index.js';
  * Increment this when the structure changes in a breaking way.
  * On version mismatch, stored data is discarded.
  *
+ * v18: Light is PAR, not watts. `Light.wattage` becomes `Light.par` — the
+ *      fixture's rated PAR at the water surface — and `Resources.light`
+ *      holds PAR at the substrate rather than a raw watt count, so the
+ *      species bands, the plant light severities and the algae excess-light
+ *      threshold are all redenominated with it. `TunableConfig` gains a
+ *      `light` section carrying the water column's attenuation coefficient.
+ *      A v17 tank read as v18 would put a 200 W fixture's number into a
+ *      field where 200 means the brightest light in the catalog.
  * v17: The tank carries its own randomness. `SimulationState` gains
  *      `rng: { seed, counter }` — the seed and stream position every draw
  *      comes off — and organism ids are cut from that counter rather than
@@ -110,7 +118,7 @@ import type { TunableConfig } from '../../simulation/config/index.js';
  *     nutrient sufficiency) but its persisted shape is identical, so
  *     the bump is purely the new Fish field.
  */
-export const PERSISTENCE_VERSION = 17;
+export const PERSISTENCE_VERSION = 18;
 
 /**
  * Storage key for the unified persisted state.

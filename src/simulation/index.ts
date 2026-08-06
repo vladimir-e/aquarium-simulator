@@ -21,6 +21,7 @@ export type {
 } from './state.js';
 export {
   createSimulation,
+  calculateTankDepth,
   calculateTankGlassSurface,
   calculateHardscapeSlots,
   DEFAULT_HEATER,
@@ -185,7 +186,7 @@ export {
   type DoseAmount,
   type AutoDoser,
   type Light,
-  type LightWattage,
+  type LightPar,
 } from './equipment/index.js';
 
 // Hardscape

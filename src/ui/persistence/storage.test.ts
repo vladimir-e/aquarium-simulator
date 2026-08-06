@@ -383,7 +383,7 @@ function createValidSimulation(): PersistedSimulation {
       powerhead: { enabled: false, flowRateGPH: 240 },
       substrate: { type: 'gravel', organicReserve: 0.5 },
       hardscape: { items: [] },
-      light: { enabled: true, wattage: 10, schedule: { startHour: 8, duration: 8 } },
+      light: { enabled: true, par: 50, schedule: { startHour: 8, duration: 8 } },
       co2Generator: { enabled: false, bubbleRate: 1, isOn: false, schedule: { startHour: 8, duration: 8 } },
       airPump: { enabled: false },
       autoDoser: { enabled: false, doseAmountMl: 2, schedule: { startHour: 8, duration: 1 }, dosedToday: false },

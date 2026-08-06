@@ -157,7 +157,7 @@ export interface Resources {
   surface: number;
   /** Total water flow from all equipment (L/h) */
   flow: number;
-  /** Light intensity in watts (0 when lights off) */
+  /** PAR reaching the substrate in µmol/m²/s (0 when lights off) */
   light: number;
   /** Whether aeration is active (air pump or air-driven filter) */
   aeration: boolean;
@@ -401,15 +401,23 @@ export function calculateHardscapeSlots(capacityLiters: number): number {
 }
 
 /**
+ * Water depth in cm from tank capacity.
+ * Assumes standard rectangular shape (length:width:height ≈ 2:1:1), so
+ * height = cbrt(volume / 2) in dm. 20 L is 21.5 cm deep, 300 L is 53.1.
+ */
+export function calculateTankDepth(capacity: number): number {
+  const heightDm = Math.cbrt(capacity / 2); // liters = dm³
+  return heightDm * 10;
+}
+
+/**
  * Calculates tank bacteria surface area from capacity.
  * Assumes standard rectangular shape (length:width:height ≈ 2:1:1).
  * Includes 4 walls + bottom (excludes top which is open).
  */
 export function calculateTankGlassSurface(capacity: number): number {
   // Approximation: 4 walls + bottom
-  // Assuming standard proportions (length:width:height ≈ 2:1:1)
-  const volume = capacity; // liters = dm³
-  const height = Math.cbrt(volume / 2); // dm
+  const height = calculateTankDepth(capacity) / 10; // dm
   const width = height;
   const length = 2 * height;
 
@@ -661,7 +669,6 @@ function calculateInitialPassiveResources(
   // Aeration is active if air pump is on OR filter is air-driven (sponge)
   const aeration = airPump.enabled || (filter.enabled && isFilterAirDriven);
 
-  // Light is calculated based on schedule each tick - starts at 0
-  // Will be properly calculated by updatePassiveResources based on tick
+  // Light is calculated from the schedule each tick - starts at 0
   return { surface, flow, light: 0, aeration };
 }
