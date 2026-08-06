@@ -1,15 +1,16 @@
 /**
- * Light resource - illumination power in watts.
- * Calculated from light fixture + schedule each tick.
+ * Light resource - PAR reaching the substrate (µmol/m²/s, 400-700 nm).
+ * The fixture's rated surface PAR attenuated through the water column,
+ * recalculated from fixture + schedule each tick.
  */
 
 import type { ResourceDefinition } from './types.js';
 
 export const LightResource: ResourceDefinition<'light'> = {
   key: 'light',
-  unit: 'W',
+  unit: 'PAR',
   bounds: { min: 0, max: Infinity },
   defaultValue: 0, // Based on schedule
   precision: 0,
-  format: (value: number) => `${Math.round(value)}W`,
+  format: (value: number) => `${Math.round(value)} PAR`,
 };

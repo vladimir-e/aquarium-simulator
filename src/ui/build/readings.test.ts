@@ -348,14 +348,45 @@ describe('light readings', () => {
     for (let i = 0; i < 9; i++) lit = tick(lit, DEFAULT_CONFIG);
     expect(value(read('light', lit), 'Output now')).toEqual({
       label: 'Output now',
-      value: '100 W',
+      value: '50 PAR',
       note: 'lit until 18:00',
     });
     expect(value(read('light'), 'Output now')).toEqual({
       label: 'Output now',
-      value: '0 W',
+      value: '0 PAR',
       note: 'next on at 08:00',
     });
+  });
+
+  it('reports what survives the water column, and how deep it had to go', () => {
+    let lit = base;
+    for (let i = 0; i < 9; i++) lit = tick(lit, DEFAULT_CONFIG);
+    const surface = Number(value(read('light', lit), 'Output now').value.split(' ')[0]);
+    const substrate = value(read('light', lit), 'At substrate');
+    const reading = Number(substrate.value.split(' ')[0]);
+    expect(reading).toBeLessThan(surface);
+    expect(reading).toBe(Math.round(lit.resources.light));
+    expect(substrate.note).toBe('through 27 cm of water');
+  });
+
+  it('offers what the fixture would land rather than reading it as current', () => {
+    let lit = base;
+    for (let i = 0; i < 9; i++) lit = tick(lit, DEFAULT_CONFIG);
+    const running = value(read('light', lit), 'At substrate').value;
+
+    const dark = value(read('light'), 'At substrate');
+    expect(dark.value).toBe('0 PAR');
+    expect(dark.note).toBe(`would land ${running} through 27 cm of water`);
+  });
+
+  it('lands the same fixture harder on a shallow tank than a deep one', () => {
+    const atSubstrate = (capacity: number): number => {
+      let state = createSimulation({ tankCapacity: capacity });
+      for (let i = 0; i < 9; i++) state = tick(state, DEFAULT_CONFIG);
+      return Number(value(read('light', state), 'At substrate').value.split(' ')[0]);
+    };
+
+    expect(atSubstrate(20)).toBeGreaterThan(atSubstrate(300));
   });
 
   it('says a round-the-clock photoperiod is on all day, not on until it started', () => {
@@ -367,6 +398,20 @@ describe('light readings', () => {
       },
     };
     expect(value(read('light', always), 'Output now').note).toBe('lit all day');
+  });
+
+  it('does not read a lit fixture against a dark substrate before the first tick', () => {
+    const fresh = createSimulation({
+      tankCapacity: 40,
+      light: { enabled: true, par: 90, schedule: { startHour: 0, duration: 24 } },
+    });
+
+    expect(value(read('light', fresh), 'Output now').value).toBe('90 PAR');
+    expect(value(read('light', fresh), 'At substrate')).toEqual({
+      label: 'At substrate',
+      value: '69 PAR',
+      note: 'through 27 cm of water',
+    });
   });
 });
 

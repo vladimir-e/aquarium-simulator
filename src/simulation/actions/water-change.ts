@@ -41,7 +41,7 @@ export function waterChange(
   const { amount } = action;
 
   // Validate amount
-  if (amount <= 0 || amount > 1) {
+  if (!Number.isFinite(amount) || amount <= 0 || amount > 1) {
     return {
       state,
       message: 'Invalid water change amount',

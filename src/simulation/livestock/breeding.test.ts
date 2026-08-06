@@ -389,7 +389,7 @@ describe('the age a pair is seeded at, through tick()', () => {
     substrate: { type: 'aqua_soil' },
     filter: { enabled: true, type: 'sponge' },
     heater: { enabled: true, targetTemperature: 26, wattage: 100 },
-    light: { enabled: true, wattage: 15, schedule: { startHour: 8, duration: 10 } },
+    light: { enabled: true, par: 50, schedule: { startHour: 8, duration: 10 } },
     ato: { enabled: true },
   };
 

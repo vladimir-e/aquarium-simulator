@@ -88,8 +88,50 @@ export function renderObserve(session: Session): string {
   return lines.join('\n');
 }
 
-/** Fields that require ppm conversion from their underlying mass. */
-const PPM_FIELDS = new Set(['nh3_ppm', 'no2_ppm', 'no3_ppm', 'po4_ppm']);
+/**
+ * Every resource a snapshot carries, spelled out so that adding one to
+ * `HistorySnapshot` without offering it to `trace` is a compile error.
+ */
+const RESOURCE_FIELDS: Record<keyof HistorySnapshot['resources'], true> = {
+  water: true,
+  temperature: true,
+  surface: true,
+  flow: true,
+  light: true,
+  aeration: true,
+  food: true,
+  waste: true,
+  ammonia: true,
+  nitrite: true,
+  nitrate: true,
+  phosphate: true,
+  potassium: true,
+  iron: true,
+  oxygen: true,
+  co2: true,
+  ph: true,
+  aob: true,
+  nob: true,
+};
+
+const DERIVED_FIELDS = [
+  'tick',
+  'fish_count',
+  'fish_avg_health',
+  'plant_count',
+  'plant_avg_condition',
+  'algae_mass',
+  'algae_surplus',
+  'nh3_ppm',
+  'no2_ppm',
+  'no3_ppm',
+  'po4_ppm',
+] as const;
+
+export const TRACE_FIELDS: readonly string[] = [
+  ...DERIVED_FIELDS,
+  ...Object.keys(RESOURCE_FIELDS),
+];
 
 function getFieldValue(entry: HistorySnapshot, field: string): string {
   const r = entry.resources;
@@ -104,6 +146,10 @@ function getFieldValue(entry: HistorySnapshot, field: string): string {
       return String(entry.plants.count);
     case 'plant_avg_condition':
       return String(round(entry.plants.avgCondition, 2));
+    case 'algae_mass':
+      return String(round(entry.algae.mass, 2));
+    case 'algae_surplus':
+      return String(round(entry.algae.surplus, 2));
     case 'nh3_ppm':
       return String(round(toPpm(r.ammonia, r.water), 4));
     case 'no2_ppm':
@@ -113,12 +159,12 @@ function getFieldValue(entry: HistorySnapshot, field: string): string {
     case 'po4_ppm':
       return String(round(toPpm(r.phosphate, r.water), 4));
     default: {
-      if (field in r) {
-        const v = r[field as keyof typeof r];
-        if (typeof v === 'boolean') return v ? '1' : '0';
-        return String(round(v as number, 4));
+      if (!Object.hasOwn(RESOURCE_FIELDS, field)) {
+        throw new Error(`Trace field "${field}" is offered but renders nothing.`);
       }
-      return '';
+      const v = r[field as keyof typeof r];
+      if (typeof v === 'boolean') return v ? '1' : '0';
+      return String(round(v, 4));
     }
   }
 }
@@ -145,10 +191,15 @@ export function renderTrace(
   const sampled = window.filter((h) => h.tick % every === 0);
 
   const header = ['tick', ...fields.filter((f) => f !== 'tick')];
+  // Up front, so a typo is named before any output rather than read as a
+  // column of blanks — and on an empty history, where no row would check it.
+  for (const field of header) {
+    if (!TRACE_FIELDS.includes(field)) {
+      throw new Error(`Unknown trace field "${field}". Valid: ${TRACE_FIELDS.join(', ')}.`);
+    }
+  }
   const rows = sampled.map((entry) =>
     header.map((f) => getFieldValue(entry, f)).join(',')
   );
   return [header.join(','), ...rows].join('\n');
 }
-
-export { PPM_FIELDS };

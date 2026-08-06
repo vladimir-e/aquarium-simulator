@@ -98,7 +98,7 @@ function emptyResult(): PhotosynthesisResult {
  *   co2      = actual × co2PerPhotosynthesis (same gate as oxygen)
  *
  * @param plants            Individual plants (for per-species Liebig gating)
- * @param light             Current light output (watts, 0 when off)
+ * @param light             Substrate PAR (µmol/m²/s, 0 when off)
  * @param co2               Current CO2 concentration (mg/L)
  * @param resources         Full resource state (for the uptake clamping)
  * @param waterVolume       Tank water volume (L)

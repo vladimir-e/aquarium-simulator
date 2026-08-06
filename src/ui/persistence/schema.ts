@@ -4,6 +4,8 @@
  */
 
 import { z } from 'zod';
+import { MAX_LIGHT_PAR } from '../../simulation/index.js';
+import { MAX_WATER_ATTENUATION_PER_CM } from '../../simulation/config/index.js';
 import { PERSISTENCE_VERSION } from './types.js';
 
 // ============================================================================
@@ -88,7 +90,8 @@ const HeaterSchema = z
     enabled: z.boolean(),
     isOn: z.boolean(),
     targetTemperature: z.number().min(15).max(35),
-    wattage: z.number().min(10).max(500),
+    // A 15 A household circuit — the ceiling on anything you can plug in.
+    wattage: z.number().min(10).max(1800),
   })
   .strict();
 
@@ -141,7 +144,7 @@ const HardscapeSchema = z
 const LightSchema = z
   .object({
     enabled: z.boolean(),
-    wattage: z.number().min(0).max(500),
+    par: z.number().min(0).max(MAX_LIGHT_PAR),
     schedule: DailyScheduleSchema,
   })
   .strict();
@@ -365,6 +368,12 @@ const AlgaeConfigSchema = z
   })
   .strict();
 
+const OpticsConfigSchema = z
+  .object({
+    waterAttenuationPerCm: z.number().min(0).max(MAX_WATER_ATTENUATION_PER_CM),
+  })
+  .strict();
+
 const PhConfigSchema = z
   .object({
     calciteTargetPh: z.number(),
@@ -488,6 +497,7 @@ export const TunableConfigSchema = z
     temperature: TemperatureConfigSchema,
     evaporation: EvaporationConfigSchema,
     algae: AlgaeConfigSchema,
+    optics: OpticsConfigSchema,
     ph: PhConfigSchema,
     plants: PlantsConfigSchema,
     nutrients: NutrientsConfigSchema,

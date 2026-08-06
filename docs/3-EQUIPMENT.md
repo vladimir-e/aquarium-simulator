@@ -13,7 +13,7 @@ Equipment modifies the tank environment by:
 
 **Passive Effects (always provided when equipment exists):**
 - Flow (L/h)
-- Light (watts)
+- Light (PAR at the substrate, µmol/m²/s)
 - Bacteria Surface Area (cm²)
 - Aeration (boolean)
 
@@ -247,13 +247,21 @@ Aquarium lighting system.
 
 | Property | Description |
 |----------|-------------|
-| **Watts** | Power (e.g., 50W, 100W) |
+| **PAR** | Rated PAR at the water surface, µmol/m²/s (25, 50, 90, 150) |
 | **Schedule** | Start hour + duration |
 
 **Outputs:**
-- +Light (watts for photosynthesis)
+- +Light (PAR at the substrate, for photosynthesis)
 
 **Behavior:**
+- A fixture is rated at the water surface; the tank runs on what reaches the
+  substrate. Depth comes from capacity (the 2:1:1 box the glass surface
+  already assumes) and the water column attenuates 1 %/cm, so the same
+  fixture lands 81 % of its rating on a 20 L floor and 59 % on a 300 L
+- On the 150 L reference tank the four fixtures read 16 / 33 / 59 / 98 PAR at
+  the substrate — the hobby's low / medium / high / very high tiers
+- A rating is capped at `MAX_LIGHT_PAR` (2000, full noon sunlight at the
+  surface); `createSimulation` refuses anything past it
 - Drives plant photosynthesis when on
 - Promotes algae growth (especially if excessive)
 - Follows schedule: starts at Start Hour, runs for Duration

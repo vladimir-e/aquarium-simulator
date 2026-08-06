@@ -133,7 +133,7 @@ describe('processAlgae', () => {
     // there is no condition gate any more.
     const state = produce(baseState(), (draft) => {
       draft.algae = { mass: 0, surplus: 0 };
-      draft.resources.light = 100; // 1.0 W/L on a 100L tank — well above threshold
+      draft.resources.light = 100; // substrate PAR, well above the excess threshold
       draft.resources.nitrate = 0;
       draft.resources.phosphate = 0;
     });

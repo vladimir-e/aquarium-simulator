@@ -21,6 +21,7 @@ export type {
 } from './state.js';
 export {
   createSimulation,
+  calculateTankHeight,
   calculateTankGlassSurface,
   calculateHardscapeSlots,
   DEFAULT_HEATER,
@@ -137,6 +138,7 @@ export {
 export {
   processEquipment,
   calculatePassiveResources,
+  calculateSurface,
   biofilmKept,
   rescape,
   heaterUpdate,
@@ -171,6 +173,8 @@ export {
   DEFAULT_SUBSTRATE,
   SUBSTRATE_SURFACE_PER_LITER,
   SUBSTRATE_ORGANIC_PER_LITER,
+  BUBBLE_RATE_OPTIONS,
+  type BubbleRate,
   getAirPumpOutput,
   getAirPumpFlow,
   isAirPumpUndersized,
@@ -184,8 +188,12 @@ export {
   DOSE_AMOUNT_OPTIONS,
   type DoseAmount,
   type AutoDoser,
+  getLightOutput,
+  calculateParAtDepth,
+  LIGHT_PAR_OPTIONS,
+  MAX_LIGHT_PAR,
   type Light,
-  type LightWattage,
+  type LightPar,
 } from './equipment/index.js';
 
 // Hardscape

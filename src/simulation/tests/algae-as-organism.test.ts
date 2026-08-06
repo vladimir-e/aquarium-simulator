@@ -32,7 +32,7 @@ function setupTank(): SimulationState {
   return createSimulation({
     tankCapacity: 100,
     initialTemperature: 25,
-    light: { enabled: true, wattage: 30, schedule: { startHour: 8, duration: 8 } },
+    light: { enabled: true, par: 50, schedule: { startHour: 8, duration: 8 } },
     co2Generator: { enabled: true, bubbleRate: 1.0, schedule: { startHour: 7, duration: 10 } },
     filter: { enabled: true, type: 'canister' },
     substrate: { type: 'aqua_soil' },
@@ -64,10 +64,11 @@ describe('algae as population — heavy planted tank suppresses an existing bloo
 
 describe('algae as population — pure-light tank grows mass via excess light alone', () => {
   it('with no plants, no dosing, the bloom accumulates mass over a week', () => {
-    // High light setup — well above algaeVitalityDefaults.lightExcessThreshold (0.5 W/L).
+    // Brightest fixture in the catalog on a 100 L: 104 PAR at the substrate,
+    // well above algaeVitalityDefaults.lightExcessThreshold (70 PAR).
     let state = createSimulation({
       tankCapacity: 100,
-      light: { enabled: true, wattage: 80, schedule: { startHour: 8, duration: 8 } },
+      light: { enabled: true, par: 150, schedule: { startHour: 8, duration: 8 } },
       filter: { enabled: true, type: 'canister' },
     });
 

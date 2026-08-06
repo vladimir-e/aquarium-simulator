@@ -14,7 +14,7 @@ Resources are measurable quantities that:
 ### Passive Resources
 Provided by equipment, calculated each tick:
 - **Bacteria Surface** - Area for bacterial colonization (cm²)
-- **Light** - Illumination for photosynthesis (watts)
+- **Light** - PAR reaching the substrate, for photosynthesis (µmol/m²/s)
 - **Flow** - Water circulation rate (L/h)
 - **Aeration** - Active air injection (boolean)
 
@@ -70,13 +70,15 @@ Note: algae is no longer a resource. It's a top-level organism on
 | Property | Value |
 |----------|-------|
 | **Type** | Passive |
-| **Unit** | Watts (W) |
+| **Unit** | PAR, µmol/m²/s (400–700 nm) |
 | **Providers** | Light fixtures |
 | **Consumers** | Plants (photosynthesis), Algae (growth) |
 
 **Notes:**
+- Measured at the substrate: the fixture's rated surface PAR attenuated
+  through the water column (Beer–Lambert, 1 %/cm), so a deeper tank reads
+  less of the same fixture
 - Follows equipment photoperiod schedule
-- Wattage affects plant/algae growth rate
 - Zero when lights are off
 
 ---

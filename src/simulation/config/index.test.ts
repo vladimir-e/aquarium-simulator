@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   DEFAULT_CONFIG,
   cloneConfig,
+  configRange,
   isModified,
   isSectionModified,
   isConfigModified,
@@ -11,6 +12,7 @@ import {
   temperatureDefaults,
   evaporationDefaults,
   algaeVitalityDefaults,
+  opticsDefaults,
   phDefaults,
   plantsDefaults,
   nutrientsDefaults,
@@ -18,13 +20,14 @@ import {
 } from './index.js';
 
 describe('DEFAULT_CONFIG', () => {
-  it('contains all 10 system configs', () => {
+  it('contains all 11 system configs', () => {
     expect(DEFAULT_CONFIG.decay).toBeDefined();
     expect(DEFAULT_CONFIG.nitrogenCycle).toBeDefined();
     expect(DEFAULT_CONFIG.gasExchange).toBeDefined();
     expect(DEFAULT_CONFIG.temperature).toBeDefined();
     expect(DEFAULT_CONFIG.evaporation).toBeDefined();
     expect(DEFAULT_CONFIG.algae).toBeDefined();
+    expect(DEFAULT_CONFIG.optics).toBeDefined();
     expect(DEFAULT_CONFIG.ph).toBeDefined();
     expect(DEFAULT_CONFIG.plants).toBeDefined();
     expect(DEFAULT_CONFIG.nutrients).toBeDefined();
@@ -38,6 +41,7 @@ describe('DEFAULT_CONFIG', () => {
     expect(DEFAULT_CONFIG.temperature).toEqual(temperatureDefaults);
     expect(DEFAULT_CONFIG.evaporation).toEqual(evaporationDefaults);
     expect(DEFAULT_CONFIG.algae).toEqual(algaeVitalityDefaults);
+    expect(DEFAULT_CONFIG.optics).toEqual(opticsDefaults);
     expect(DEFAULT_CONFIG.ph).toEqual(phDefaults);
     expect(DEFAULT_CONFIG.plants).toEqual(plantsDefaults);
     expect(DEFAULT_CONFIG.nutrients).toEqual(nutrientsDefaults);
@@ -114,6 +118,57 @@ describe('isConfigModified', () => {
     modified.decay.q10 = 3.0;
     modified.ph.neutralPh = 6.5;
     expect(isConfigModified(modified)).toBe(true);
+  });
+});
+
+describe('configRange', () => {
+  const leaves = (value: object, prefix = ''): Array<[string, number]> =>
+    Object.entries(value).flatMap(([key, child]) => {
+      const path = prefix ? `${prefix}.${key}` : key;
+      return typeof child === 'object' && child !== null
+        ? leaves(child, path)
+        : [[path, child as number] as [string, number]];
+    });
+
+  const tunables = leaves(DEFAULT_CONFIG);
+  const paths = tunables.map(([path]) => path);
+
+  it('reads the bounds the meta declares', () => {
+    expect(configRange('optics.waterAttenuationPerCm')).toEqual({ min: 0.001, max: 0.05 });
+    expect(configRange('nutrients.fertilizerFormula.nitrate')).toEqual({ min: 1, max: 100 });
+  });
+
+  it('answers nothing for a path the config does not have', () => {
+    expect(configRange('optics.attenuation')).toBeUndefined();
+    expect(configRange('optiks.waterAttenuationPerCm')).toBeUndefined();
+    expect(configRange('__proto__.pwned')).toBeUndefined();
+  });
+
+  // A slider whose range excludes the shipped value cannot restore it: the
+  // CLI refuses to set it back and the panel clamps it away on blur.
+  it('brackets the shipped default of every tunable it bounds', () => {
+    const excluded = tunables.filter(([path, value]) => {
+      const range = configRange(path);
+      return range !== undefined && (value < range.min || value > range.max);
+    });
+    expect(excluded).toEqual([]);
+  });
+
+  it('bounds every tunable outside the nitrogen cycle', () => {
+    const unbounded = paths.filter(
+      (path) => !path.startsWith('nitrogenCycle.') && configRange(path) === undefined
+    );
+    expect(unbounded).toEqual([]);
+  });
+
+  // Nitrification rates come off doubling times and no bound was ever derived
+  // for them, so `config set` has nothing to hold them to. Deriving bounds
+  // turns this red — the gap is stated here rather than left to be discovered.
+  it('bounds nothing in the nitrogen cycle', () => {
+    const bounded = paths.filter(
+      (path) => path.startsWith('nitrogenCycle.') && configRange(path) !== undefined
+    );
+    expect(bounded).toEqual([]);
   });
 });
 

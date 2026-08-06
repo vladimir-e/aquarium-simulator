@@ -1,13 +1,14 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import React from 'react';
-import { renderHook, act } from '@testing-library/react';
+import { renderHook, act, type RenderHookResult } from '@testing-library/react';
 import { useSimulation } from './useSimulation';
 import { createPresetSimulation, getPresetById, type PresetId } from '../../simulation/presets';
-import { ConfigProvider } from './useConfig';
+import { ConfigProvider, useConfig } from './useConfig';
 import { PersistenceProvider } from '../persistence/index.js';
 import { createSimulation, type SimulationState } from '../../simulation/state.js';
 import {
   applyAction,
+  calculateTankHeight,
   getSubstrateOrganicReserve,
   getSubstrateSurface,
   tick,
@@ -489,6 +490,102 @@ describe('useSimulation', () => {
       expect(result.current.state.equipment.light.enabled).toBe(false);
       expect(result.current.state.equipment.ato.enabled).toBe(false);
       expect(result.current.state.equipment.co2Generator.enabled).toBe(false);
+    });
+  });
+
+  describe('equipment updates', () => {
+    it('relights the substrate when the fixture is swapped', () => {
+      let lit = createPresetSimulation(getPresetById('planted')!);
+      for (let i = 0; i < 9; i++) lit = tick(lit, DEFAULT_CONFIG);
+      seedSession(lit, 'planted');
+
+      const { result } = renderHook(() => useSimulation('planted'), { wrapper });
+      const before = result.current.state.resources.light;
+      expect(before).toBeGreaterThan(0);
+
+      act(() => {
+        result.current.updateLightPar(150);
+      });
+
+      expect(result.current.state.resources.light / before).toBeCloseTo(150 / 90, 6);
+    });
+  });
+
+  describe('optics', () => {
+    type Harness = {
+      sim: ReturnType<typeof useSimulation>;
+      config: ReturnType<typeof useConfig>;
+    };
+
+    function litTank(): RenderHookResult<Harness, unknown> {
+      let lit = createPresetSimulation(getPresetById('planted')!);
+      for (let i = 0; i < 9; i++) lit = tick(lit, DEFAULT_CONFIG);
+      seedSession(lit, 'planted');
+      return renderHook(() => ({ sim: useSimulation('planted'), config: useConfig() }), {
+        wrapper,
+      });
+    }
+
+    it('relights the substrate when the water is retuned, without a tick', () => {
+      const { result } = litTank();
+      const { par } = result.current.sim.state.equipment.light;
+      const before = result.current.sim.state.resources.light;
+      const tickBefore = result.current.sim.state.tick;
+      expect(before).toBeGreaterThan(0);
+
+      act(() => {
+        result.current.config.updateConfig(
+          'optics',
+          'waterAttenuationPerCm',
+          DEFAULT_CONFIG.optics.waterAttenuationPerCm * 2
+        );
+      });
+
+      // Beer–Lambert: doubling the coefficient squares the surviving fraction.
+      const after = result.current.sim.state.resources.light;
+      expect(after / par).toBeCloseTo((before / par) ** 2, 10);
+      expect(result.current.sim.state.tick).toBe(tickBefore);
+    });
+
+    // A resized tank is built by `createSimulation`, which takes no tunable
+    // config and so opens on `opticsDefaults`. Nothing downstream corrects it:
+    // the relight effect is keyed on the optics, and these did not move.
+    it('opens a resized tank in the water the config describes', () => {
+      const lit = createPresetSimulation(getPresetById('planted')!);
+      lit.equipment.light.schedule = { startHour: 0, duration: 24 };
+      seedSession(lit, 'planted');
+
+      const { result } = renderHook(
+        () => ({ sim: useSimulation('planted'), config: useConfig() }),
+        { wrapper }
+      );
+
+      const tuned = DEFAULT_CONFIG.optics.waterAttenuationPerCm * 4;
+      act(() => {
+        result.current.config.updateConfig('optics', 'waterAttenuationPerCm', tuned);
+      });
+      act(() => {
+        result.current.sim.changeTankCapacity(200);
+      });
+
+      const { par } = result.current.sim.state.equipment.light;
+      const surviving = Math.exp(-tuned * calculateTankHeight(200));
+      expect(result.current.sim.state.resources.light).toBeCloseTo(par * surviving, 8);
+    });
+
+    it('puts the light back when the section is reset', () => {
+      const { result } = litTank();
+      const before = result.current.sim.state.resources.light;
+
+      act(() => {
+        result.current.config.updateConfig('optics', 'waterAttenuationPerCm', 0.04);
+      });
+      expect(result.current.sim.state.resources.light).toBeLessThan(before);
+
+      act(() => {
+        result.current.config.resetSection('optics');
+      });
+      expect(result.current.sim.state.resources.light).toBeCloseTo(before, 10);
     });
   });
 

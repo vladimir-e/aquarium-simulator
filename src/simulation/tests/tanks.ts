@@ -295,6 +295,11 @@ export interface KeeperRoutine {
   /** Whether the keeper tops the tank back up each day. */
   topOff?: boolean;
   config?: TunableConfig;
+  /**
+   * Rewrite the tank before each tick. A probe pins the inputs it is not
+   * varying here, so one channel can be read with the rest held still.
+   */
+  hold?: (state: SimulationState) => SimulationState;
 }
 
 /**
@@ -310,7 +315,7 @@ export interface KeeperRoutine {
 export function keep(
   state: SimulationState,
   days: number,
-  { feed, waterChange, topOff = false, config = DEFAULT_CONFIG }: KeeperRoutine = {},
+  { feed, waterChange, topOff = false, config = DEFAULT_CONFIG, hold }: KeeperRoutine = {},
   watch?: (hour: number, before: SimulationState, after: SimulationState) => void
 ): SimulationState {
   let running = state;
@@ -326,6 +331,7 @@ export function keep(
       running = applyAction(running, { type: 'waterChange', amount: waterChange }).state;
     }
 
+    if (hold !== undefined) running = hold(running);
     const before = running;
     running = tick(running, config);
     watch?.(hour, before, running);

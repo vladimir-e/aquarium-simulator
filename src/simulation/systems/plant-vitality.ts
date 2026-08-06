@@ -8,7 +8,8 @@
  *
  * Stressor coverage (each gated by species config so not every species
  * triggers every channel):
- * - Light insufficient / excessive (two-sided around `tolerableLight`)
+ * - Light insufficient / excessive (two-sided around `tolerableLight`,
+ *   in PAR at the substrate)
  * - CO2 insufficient (high-tech species suffer when CO2 falls)
  * - Temperature out of `tolerableTemp` (per °C, two-sided)
  * - pH out of `tolerablePH` (per pH unit, two-sided)
@@ -67,8 +68,8 @@ export function buildPlantStressors(ctx: PlantVitalityContext): VitalityFactor[]
   // Light — two-sided, and only during the photoperiod. Light = 0
   // here means "lights off, it's night" — plants aren't trying to
   // photosynthesize, so a lights-off tick isn't a "light insufficient"
-  // event. The light-excessive side is always-on (excess UV/PAR can
-  // burn leaves any time the lamps are on, but if they're off there's
+  // event. The light-excessive side is always-on (excess PAR can burn
+  // leaves any time the lamps are on, but if they're off there's
   // nothing to burn).
   const [lightLo, lightHi] = species.tolerableLight;
   let lightAmount = 0;

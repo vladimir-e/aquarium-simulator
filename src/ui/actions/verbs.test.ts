@@ -1,13 +1,13 @@
 import { describe, it, expect } from 'vitest';
 import {
   applyAction,
+  calculateSurface,
   createSimulation,
   MIN_ALGAE_TO_SCRUB,
   WATER_CHANGE_AMOUNTS,
   type SimulationState,
 } from '../../simulation/index.js';
 import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
-import { calculatePassiveResources } from '../../simulation/equipment/index.js';
 import { TRIM_TARGETS } from '../run';
 import {
   DEFAULT_SETTINGS,
@@ -26,7 +26,7 @@ import {
 function tank(): SimulationState {
   const state = createSimulation({ tankCapacity: 200, tapWaterTemperature: 18, tapWaterPH: 7.4 });
   state.equipment.substrate.type = 'aqua_soil';
-  state.resources.surface = calculatePassiveResources(state).surface;
+  state.resources.surface = calculateSurface(state);
   state.resources.water = 196.4;
   state.algae.mass = 47;
   return state;

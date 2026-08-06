@@ -18,7 +18,13 @@ import {
 import type { Hardscape } from './equipment/hardscape.js';
 import { DEFAULT_HARDSCAPE, calculateHardscapeTotalSurface } from './equipment/hardscape.js';
 import type { Light } from './equipment/light.js';
-import { DEFAULT_LIGHT } from './equipment/light.js';
+import {
+  DEFAULT_LIGHT,
+  MAX_LIGHT_PAR,
+  getLightOutput,
+  calculateParAtDepth,
+} from './equipment/light.js';
+import { opticsDefaults } from './config/optics.js';
 import type { AirPump } from './equipment/air-pump.js';
 import { DEFAULT_AIR_PUMP, getAirPumpFlow } from './equipment/air-pump.js';
 import type { AutoDoser } from './equipment/auto-doser.js';
@@ -157,7 +163,7 @@ export interface Resources {
   surface: number;
   /** Total water flow from all equipment (L/h) */
   flow: number;
-  /** Light intensity in watts (0 when lights off) */
+  /** PAR reaching the substrate in µmol/m²/s (0 when lights off) */
   light: number;
   /** Whether aeration is active (air pump or air-driven filter) */
   aeration: boolean;
@@ -401,21 +407,45 @@ export function calculateHardscapeSlots(capacityLiters: number): number {
 }
 
 /**
- * Calculates tank bacteria surface area from capacity.
- * Assumes standard rectangular shape (length:width:height ≈ 2:1:1).
+ * Height in cm of the box a capacity implies, assuming the standard
+ * rectangular shape (length:width:height ≈ 2:1:1). A litre is a dm³, so the
+ * cube root comes out in dm and ×10 reads it as cm: 20 L stands 21.5 cm,
+ * 300 L stands 53.1.
+ */
+export function calculateTankHeight(capacity: number): number {
+  return Math.cbrt(capacity / 2) * 10;
+}
+
+/**
+ * Calculates tank bacteria surface area in cm² from capacity.
  * Includes 4 walls + bottom (excludes top which is open).
  */
 export function calculateTankGlassSurface(capacity: number): number {
-  // Approximation: 4 walls + bottom
-  // Assuming standard proportions (length:width:height ≈ 2:1:1)
-  const volume = capacity; // liters = dm³
-  const height = Math.cbrt(volume / 2); // dm
+  const height = calculateTankHeight(capacity);
   const width = height;
   const length = 2 * height;
 
-  // Surface area: 2*(length*height) + 2*(width*height) + (length*width)
-  const surfaceDm2 = 2 * (length * height) + 2 * (width * height) + length * width;
-  return Math.round(surfaceDm2 * 100); // convert dm² to cm²
+  return Math.round(2 * (length * height) + 2 * (width * height) + length * width);
+}
+
+/**
+ * Every threshold in the engine is a comparison, and `NaN` fails all of them —
+ * so one that reaches a resource is never noticed and never leaves: the tank is
+ * poisoned for the rest of its life. Construction is the last place it can be
+ * refused, and it is refused wherever it sits in the input.
+ */
+function refuseNonFinite(value: unknown, path: string): void {
+  if (typeof value === 'number') {
+    if (!Number.isFinite(value)) throw new Error(`createSimulation: ${path} is ${value}`);
+    return;
+  }
+  if (Array.isArray(value)) {
+    value.forEach((item, index) => refuseNonFinite(item, `${path}[${index}]`));
+    return;
+  }
+  if (typeof value === 'object' && value !== null) {
+    for (const [key, item] of Object.entries(value)) refuseNonFinite(item, `${path}.${key}`);
+  }
 }
 
 /**
@@ -424,12 +454,26 @@ export function calculateTankGlassSurface(capacity: number): number {
  * `rngSeed` opens the tank's draw stream — name one and the tank runs the
  * same life every time, organisms, ids and all; leave it out and it takes a
  * time-derived one.
+ *
+ * Throws on a number the tank could not survive: anything non-finite anywhere
+ * in the config or seed, a capacity that isn't positive, or a fixture rated
+ * past {@link MAX_LIGHT_PAR}.
  */
 export function createSimulation(
   config: SimulationConfig,
   seed?: PresetSeed,
   rngSeed?: number
 ): SimulationState {
+  refuseNonFinite(config, 'config');
+  refuseNonFinite(seed, 'seed');
+  if (config.tankCapacity <= 0) {
+    throw new Error(`createSimulation: tankCapacity must be positive, got ${config.tankCapacity}`);
+  }
+  const par = config.light?.par;
+  if (par !== undefined && (par < 0 || par > MAX_LIGHT_PAR)) {
+    throw new Error(`createSimulation: light.par must be within 0–${MAX_LIGHT_PAR}, got ${par}`);
+  }
+
   const {
     tankCapacity,
     initialTemperature,
@@ -543,6 +587,7 @@ export function createSimulation(
     powerheadConfig,
     substrateConfig,
     hardscapeConfig,
+    lightConfig,
     airPumpConfig
   );
 
@@ -632,6 +677,7 @@ function calculateInitialPassiveResources(
   powerhead: Powerhead,
   substrate: Substrate,
   hardscape: Hardscape,
+  light: Light,
   airPump: AirPump
 ): { surface: number; flow: number; light: number; aeration: boolean } {
   // Import isFilterAirDriven inline to avoid circular dependency
@@ -661,7 +707,14 @@ function calculateInitialPassiveResources(
   // Aeration is active if air pump is on OR filter is air-driven (sponge)
   const aeration = airPump.enabled || (filter.enabled && isFilterAirDriven);
 
-  // Light is calculated based on schedule each tick - starts at 0
-  // Will be properly calculated by updatePassiveResources based on tick
-  return { surface, flow, light: 0, aeration };
+  // The constructor takes no tunable config, so hour 0 reads on the shipped
+  // optics. A caller running tuned optics owes this a recompute — a paused
+  // tank has no next tick, and both of the UI's rebuild paths got that wrong.
+  const substratePar = calculateParAtDepth(
+    getLightOutput(light, 0),
+    calculateTankHeight(tankCapacity),
+    opticsDefaults
+  );
+
+  return { surface, flow, light: substratePar, aeration };
 }

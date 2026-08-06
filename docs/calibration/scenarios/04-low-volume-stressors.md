@@ -5,7 +5,7 @@ Small-volume edge cases where problems amplify. Two sub-scenarios on the same ha
 ## Setup — shared
 
 - **Tank:** 19L (5 gal), gravel substrate (~15,200 cm² at 800 cm²/L), mesh lid (betta jumpers), no CO2, no powerhead, no air pump
-- **Equipment:** Heater at 26°C, 50W (variant A.1 disables or reduces); light 5W, 8 hr/day; **no filter** (filter.enabled = false)
+- **Equipment:** Heater at 26°C, 50W (variant A.1 disables or reduces); light rated 25 PAR, 8 hr/day, landing 20 PAR on the substrate through 21 cm of water; **no filter** (filter.enabled = false)
 - **Plants:** 1 × Anubias attached to a small piece of driftwood. Low demand, tolerates no-filter condition, adds some surface area and mild nutrient uptake.
 - **Hardscape:** 1 small driftwood (650 cm² surface), 1 small rock (400 cm²)
 - **Surface area total:** tank glass (~4,000 cm² at this size) + gravel (~15,200) + driftwood (~650) + rock (~400) = **~20,000 cm²** available for bacteria. Modest but adequate for a single betta at steady state. Insufficient for 10 tetras under feeding pressure.

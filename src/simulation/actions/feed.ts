@@ -17,7 +17,13 @@ export function feed(
 ): ActionResult {
   const { amount } = action;
 
-  // Validate amount
+  if (!Number.isFinite(amount)) {
+    return {
+      state,
+      message: 'Feed amount must be a number',
+    };
+  }
+
   if (amount <= 0) {
     return {
       state,

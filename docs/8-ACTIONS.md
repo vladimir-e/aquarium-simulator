@@ -10,6 +10,15 @@ Actions allow the user to:
 - Manage livestock (stocking fish, selling fry)
 - Request professional help (maintenance service)
 
+## Refused inputs
+
+Every bound an action applies is a comparison, and a comparison against `NaN`
+is false — so an unguarded action writes it straight into a resource, where
+nothing downstream ever clears it again. Every action that takes a number
+therefore refuses a non-finite one *before* its own bounds, returning the
+state unchanged with a message. `createSimulation` does the same across the
+whole config and seed, and throws rather than building a poisoned tank.
+
 ---
 
 ## Feed
@@ -206,7 +215,7 @@ Manually remove algae from glass and surfaces.
 ### Inputs
 | Parameter | Description |
 |-----------|-------------|
-| Percentage | Optional: the exact share to take off, in place of the drawn one |
+| Percentage | Optional: the exact share to take off, in place of the drawn one. Must be within 0.1–0.3 |
 
 ### Effects
 | Resource | Change |
@@ -216,6 +225,7 @@ Manually remove algae from glass and surfaces.
 ### Behavior
 
 ```
+if randomPercent is given and outside 0.1–0.3: refuse, tank unchanged
 percent = randomPercent ?? 0.1 + draw(state.rng) * 0.2
 algae_removed = tank.algae * percent
 tank.algae -= algae_removed
@@ -224,8 +234,10 @@ tank.algae -= algae_removed
 
 How much a scrub takes off is drawn from the tank's own stream (see
 `docs/1-DESIGN.md` § Starting State), so two tanks on one `rngSeed` are scrubbed
-identically and a saved tank resumes where it left off. Disabled below 5 mass —
-too little to mechanically remove.
+identically and a saved tank resumes where it left off. A named percentage
+stands in for that draw, but only inside the same 10–30 % band a scrub can
+physically take — outside it the action is refused rather than clamped.
+Disabled below 5 mass — too little to mechanically remove.
 
 ### Considerations
 - Regular scrubbing prevents buildup

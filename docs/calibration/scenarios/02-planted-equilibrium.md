@@ -12,7 +12,7 @@
 
 ## Setup
 - **Tank:** 38L (10 gal), aqua soil substrate (~45,600 cm² surface at 1200 cm²/L), full glass lid (evaporation suppressed)
-- **Equipment:** Canister filter (high surface, strong flow ~380 L/h = 10× turnover); heater at 25°C, 50W; light 15–20W high-output LED on 8 hr/day (shorter photoperiod is the high-tech convention to suppress algae); CO2 generator at 1.5 bps, schedule 7:00–17:00 (one hour before/after lights); no air pump (would off-gas CO2)
+- **Equipment:** Canister filter (high surface, strong flow ~380 L/h = 10× turnover); heater at 25°C, 50W; high-output LED rated 90 PAR on 8 hr/day (shorter photoperiod is the high-tech convention to suppress algae), landing 69 PAR on the substrate through 27 cm of water; CO2 generator at 1.5 bps, schedule 7:00–17:00 (one hour before/after lights); no air pump (would off-gas CO2)
 - **Plants:** 5 specimens, mixed demand to exercise the nutrient system:
   - 2× `amazon_sword` (medium demand, `sand`/aqua-soil-compatible)
   - 2× `monte_carlo` (high demand, aqua soil required — the carpet)

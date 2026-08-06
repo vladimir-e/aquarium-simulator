@@ -29,7 +29,7 @@ function makeResources(overrides: Partial<Resources> = {}): Resources {
     temperature: 25,
     surface: 1000,
     flow: 100,
-    light: 30, // Mid-range for most species
+    light: 40, // Mid-range PAR for all five species
     aeration: true,
     food: 0,
     waste: 0,
@@ -100,17 +100,17 @@ describe('buildPlantStressors', () => {
   });
 
   it('flags low light for high-light species', () => {
-    // MC tolerableLight = [15, 150]. Light = 5 → gap 10 W below.
+    // MC tolerableLight = [30, 200]. Light = 5 → gap 25 PAR below.
     const plant = makePlant('monte_carlo');
     const resources = makeResources({ light: 5 });
     const stressors = buildPlantStressors(ctx(plant, resources));
     const light = stressors.find((s) => s.key === 'light');
-    expect(light?.amount).toBeCloseTo(plantsDefaults.lightInsufficientSeverity * 10, 6);
+    expect(light?.amount).toBeCloseTo(plantsDefaults.lightInsufficientSeverity * 25, 6);
     expect(light?.label).toContain('low');
   });
 
   it('flags excessive light for shade species', () => {
-    // Anubias tolerableLight = [3, 70]. Light = 100 → gap 30 W above.
+    // Anubias tolerableLight = [8, 70]. Light = 100 → gap 30 PAR above.
     const plant = makePlant('anubias');
     const resources = makeResources({ light: 100 });
     const stressors = buildPlantStressors(ctx(plant, resources));

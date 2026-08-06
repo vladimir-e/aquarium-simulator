@@ -11,11 +11,11 @@ import { DEFAULT_CONFIG } from '../../../simulation/config/index.js';
 import { verbRow } from '../../actions';
 import {
   applyAction,
+  calculateSurface,
   createSimulation,
   type Action,
   type SimulationState,
 } from '../../../simulation/index.js';
-import { calculatePassiveResources } from '../../../simulation/equipment/index.js';
 
 let media: MatchMediaStub;
 
@@ -33,7 +33,7 @@ afterEach(() => {
 function tank(): SimulationState {
   const state = createSimulation({ tankCapacity: 200, tapWaterTemperature: 18, tapWaterPH: 7.4 });
   state.equipment.substrate.type = 'aqua_soil';
-  state.resources.surface = calculatePassiveResources(state).surface;
+  state.resources.surface = calculateSurface(state);
   state.resources.water = 196.4;
   state.resources.nitrite = 0.412 * 196.4;
   state.algae.mass = 47;

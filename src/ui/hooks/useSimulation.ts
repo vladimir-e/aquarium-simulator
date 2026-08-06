@@ -20,6 +20,7 @@ import {
   type DailySchedule,
 } from '../../simulation/index.js';
 import { createLog } from '../../simulation/core/logging.js';
+import type { OpticsConfig } from '../../simulation/config/index.js';
 import {
   PRESETS,
   DEFAULT_PRESET_ID,
@@ -55,6 +56,28 @@ function generateHardscapeId(): string {
   return `hardscape_${Date.now().toString(36)}_${(hardscapeSeq++).toString(36)}`;
 }
 
+/** The tick does the same thing to the same four. */
+function refreshPassiveResources(draft: SimulationState, optics: OpticsConfig): void {
+  const passive = calculatePassiveResources(draft, optics);
+  draft.resources.surface = passive.surface;
+  draft.resources.flow = passive.flow;
+  draft.resources.light = passive.light;
+  draft.resources.aeration = passive.aeration;
+}
+
+/**
+ * `createSimulation` and `createPresetSimulation` take no tunable config, so a
+ * tank they mint opens on `opticsDefaults`. Every path here that builds or
+ * swaps one hands it through this first: the relight effect is keyed on the
+ * optics, and swapping a tank is not an optics change, so nothing downstream
+ * of a rebuild would otherwise correct the water it opens in.
+ */
+function withPassiveResources(state: SimulationState, optics: OpticsConfig): SimulationState {
+  return produce(state, (draft) => {
+    refreshPassiveResources(draft, optics);
+  });
+}
+
 interface UseSimulationReturn {
   state: SimulationState;
   /** Bumped whenever the tank itself is replaced, never on a reset or a tick. */
@@ -88,7 +111,7 @@ interface UseSimulationReturn {
   addHardscapeItem: (type: HardscapeType) => void;
   removeHardscapeItem: (id: string) => void;
   updateLightEnabled: (enabled: boolean) => void;
-  updateLightWattage: (wattage: number) => void;
+  updateLightPar: (par: number) => void;
   updateLightSchedule: (schedule: DailySchedule) => void;
   updateCo2GeneratorEnabled: (enabled: boolean) => void;
   updateCo2GeneratorBubbleRate: (bubbleRate: number) => void;
@@ -144,7 +167,8 @@ function stateToPersistedSimulation(
 function createInitialResources(
   tankCapacity: number,
   environment: SimulationState['environment'],
-  equipment: SimulationState['equipment']
+  equipment: SimulationState['equipment'],
+  optics: OpticsConfig
 ): SimulationState['resources'] {
   // Create a temporary simulation to get initial resource values
   const tempState = createSimulation({
@@ -159,7 +183,7 @@ function createInitialResources(
     ...tempState,
     equipment,
   };
-  const passiveValues = calculatePassiveResources(fullState);
+  const passiveValues = calculatePassiveResources(fullState, optics);
 
   return {
     ...tempState.resources,
@@ -194,6 +218,7 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
       const log = createLog(restoredState.tick, 'simulation', 'info', 'Session restored');
       return produce(restoredState, (draft) => {
         draft.logs.push(log);
+        refreshPassiveResources(draft, config.optics);
       });
     }
 
@@ -202,7 +227,7 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
     if (!preset) {
       throw new Error(`Unknown preset: ${initialPreset}`);
     }
-    return createPresetSimulation(preset);
+    return withPassiveResources(createPresetSimulation(preset), config.optics);
   });
 
   const [tankId, setTankId] = useState(0);
@@ -256,6 +281,19 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
     setHistory([]);
     setAggregates(emptyAggregates());
   }, []);
+
+  // Optics decide how much of the fixture's PAR reaches the substrate, so
+  // retuning them moves a resource the way swapping a filter does. A paused
+  // tank would otherwise render — and persist — the old figure until the next
+  // tick. Immer returns the same state when nothing moved, so this is inert
+  // on mount and on a reset that restores the value already in force.
+  useEffect(() => {
+    setState((current) =>
+      produce(current, (draft) => {
+        refreshPassiveResources(draft, config.optics);
+      })
+    );
+  }, [config.optics]);
 
   // Notify persistence when state or preset changes
   useEffect(() => {
@@ -361,7 +399,7 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
 
       const fresh = createPresetSimulation(preset);
       fresh.logs.push(createLog(0, 'user', 'info', `Loaded preset: ${preset.name}`));
-      setState(fresh);
+      setState(withPassiveResources(fresh, configRef.current.optics));
     },
     [isPlaying, stopAutoPlay, resetRun, replaceTank]
   );
@@ -387,7 +425,8 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
         const freshResources = createInitialResources(
           current.tank.capacity,
           current.environment,
-          current.equipment
+          current.equipment,
+          configRef.current.optics
         );
         draft.resources = freshResources;
 
@@ -546,11 +585,7 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
         const log = createLog(draft.tick, 'equipment', 'info', message);
         draft.equipment.filter.enabled = enabled;
         draft.logs.push(log);
-        const passiveValues = calculatePassiveResources(draft);
-        draft.resources.surface = passiveValues.surface;
-        draft.resources.flow = passiveValues.flow;
-        draft.resources.light = passiveValues.light;
-        draft.resources.aeration = passiveValues.aeration;
+        refreshPassiveResources(draft, configRef.current.optics);
       })
     );
   }, []);
@@ -568,11 +603,7 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
           );
           draft.equipment.filter.type = type;
           draft.logs.push(log);
-          const passiveValues = calculatePassiveResources(draft);
-          draft.resources.surface = passiveValues.surface;
-          draft.resources.flow = passiveValues.flow;
-          draft.resources.light = passiveValues.light;
-          draft.resources.aeration = passiveValues.aeration;
+          refreshPassiveResources(draft, configRef.current.optics);
         }
       })
     );
@@ -585,11 +616,7 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
         const log = createLog(draft.tick, 'equipment', 'info', message);
         draft.equipment.airPump.enabled = enabled;
         draft.logs.push(log);
-        const passiveValues = calculatePassiveResources(draft);
-        draft.resources.surface = passiveValues.surface;
-        draft.resources.flow = passiveValues.flow;
-        draft.resources.light = passiveValues.light;
-        draft.resources.aeration = passiveValues.aeration;
+        refreshPassiveResources(draft, configRef.current.optics);
       })
     );
   }, []);
@@ -601,11 +628,7 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
         const log = createLog(draft.tick, 'equipment', 'info', message);
         draft.equipment.powerhead.enabled = enabled;
         draft.logs.push(log);
-        const passiveValues = calculatePassiveResources(draft);
-        draft.resources.surface = passiveValues.surface;
-        draft.resources.flow = passiveValues.flow;
-        draft.resources.light = passiveValues.light;
-        draft.resources.aeration = passiveValues.aeration;
+        refreshPassiveResources(draft, configRef.current.optics);
       })
     );
   }, []);
@@ -623,10 +646,7 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
           );
           draft.equipment.powerhead.flowRateGPH = flowRateGPH;
           draft.logs.push(log);
-          const passiveValues = calculatePassiveResources(draft);
-          draft.resources.surface = passiveValues.surface;
-          draft.resources.flow = passiveValues.flow;
-          draft.resources.light = passiveValues.light;
+          refreshPassiveResources(draft, configRef.current.optics);
         }
       })
     );
@@ -664,11 +684,7 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
           `Added ${getHardscapeName(type)} hardscape`
         );
         draft.logs.push(log);
-        const passiveValues = calculatePassiveResources(draft);
-        draft.resources.surface = passiveValues.surface;
-        draft.resources.flow = passiveValues.flow;
-        draft.resources.light = passiveValues.light;
-        draft.resources.aeration = passiveValues.aeration;
+        refreshPassiveResources(draft, configRef.current.optics);
       })
     );
   }, []);
@@ -690,11 +706,7 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
           `Removed ${getHardscapeName(item.type)} hardscape`
         );
         draft.logs.push(log);
-        const passiveValues = calculatePassiveResources(draft);
-        draft.resources.surface = passiveValues.surface;
-        draft.resources.flow = passiveValues.flow;
-        draft.resources.light = passiveValues.light;
-        draft.resources.aeration = passiveValues.aeration;
+        refreshPassiveResources(draft, configRef.current.optics);
       })
     );
   }, []);
@@ -703,37 +715,30 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
     setState((current) =>
       produce(current, (draft) => {
         const message = enabled
-          ? `Light enabled (${draft.equipment.light.wattage}W)`
+          ? `Light enabled (${draft.equipment.light.par} PAR)`
           : 'Light disabled';
         const log = createLog(draft.tick, 'user', 'info', message);
         draft.equipment.light.enabled = enabled;
         draft.logs.push(log);
-        const passiveValues = calculatePassiveResources(draft);
-        draft.resources.surface = passiveValues.surface;
-        draft.resources.flow = passiveValues.flow;
-        draft.resources.light = passiveValues.light;
-        draft.resources.aeration = passiveValues.aeration;
+        refreshPassiveResources(draft, configRef.current.optics);
       })
     );
   }, []);
 
-  const updateLightWattage = useCallback((wattage: number) => {
+  const updateLightPar = useCallback((par: number) => {
     setState((current) =>
       produce(current, (draft) => {
-        const oldWattage = draft.equipment.light.wattage;
-        if (oldWattage !== wattage) {
+        const oldPar = draft.equipment.light.par;
+        if (oldPar !== par) {
           const log = createLog(
             draft.tick,
             'user',
             'info',
-            `Light wattage: ${oldWattage}W → ${wattage}W`
+            `Light output: ${oldPar} PAR → ${par} PAR`
           );
-          draft.equipment.light.wattage = wattage;
+          draft.equipment.light.par = par;
           draft.logs.push(log);
-          const passiveValues = calculatePassiveResources(draft);
-          draft.resources.surface = passiveValues.surface;
-          draft.resources.flow = passiveValues.flow;
-          draft.resources.light = passiveValues.light;
+          refreshPassiveResources(draft, configRef.current.optics);
         }
       })
     );
@@ -752,10 +757,7 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
           );
           draft.equipment.light.schedule = schedule;
           draft.logs.push(log);
-          const passiveValues = calculatePassiveResources(draft);
-          draft.resources.surface = passiveValues.surface;
-          draft.resources.flow = passiveValues.flow;
-          draft.resources.light = passiveValues.light;
+          refreshPassiveResources(draft, configRef.current.optics);
         }
       })
     );
@@ -876,7 +878,7 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
         const newSlots = calculateHardscapeSlots(capacity);
         const preservedItems = current.equipment.hardscape.items.slice(0, newSlots);
 
-        return createSimulation({
+        const resized = createSimulation({
           tankCapacity: capacity,
           initialTemperature: 25,
           roomTemperature: current.environment.roomTemperature,
@@ -907,7 +909,7 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
           },
           light: {
             enabled: current.equipment.light.enabled,
-            wattage: current.equipment.light.wattage,
+            par: current.equipment.light.par,
             schedule: current.equipment.light.schedule,
           },
           co2Generator: {
@@ -924,6 +926,8 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
             schedule: current.equipment.autoDoser.schedule,
           },
         });
+
+        return withPassiveResources(resized, configRef.current.optics);
       });
     },
     [isPlaying, stopAutoPlay, resetRun, replaceTank]
@@ -976,7 +980,7 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
     addHardscapeItem,
     removeHardscapeItem,
     updateLightEnabled,
-    updateLightWattage,
+    updateLightPar,
     updateLightSchedule,
     updateCo2GeneratorEnabled,
     updateCo2GeneratorBubbleRate,

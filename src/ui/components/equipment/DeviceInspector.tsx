@@ -2,17 +2,17 @@ import React, { useEffect, useMemo, useRef } from 'react';
 import { ChevronLeft } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
+  BUBBLE_RATE_OPTIONS,
+  DOSE_AMOUNT_OPTIONS,
   FILTER_TYPES,
   HEATER_WATTAGE_OPTIONS,
+  LIGHT_PAR_OPTIONS,
   POWERHEAD_FLOW_LPH,
   POWERHEAD_FLOW_RATES,
   type DailySchedule,
   type FilterType,
   type PowerheadFlowRate,
 } from '../../../simulation/index.js';
-import { LIGHT_WATTAGE_OPTIONS } from '../../../simulation/equipment/light.js';
-import { BUBBLE_RATE_OPTIONS } from '../../../simulation/equipment/co2-generator.js';
-import { DOSE_AMOUNT_OPTIONS } from '../../../simulation/equipment/auto-doser.js';
 import type { TunableConfig } from '../../../simulation/config/index.js';
 import type { useSimulation } from '../../hooks/useSimulation';
 import { useUnits } from '../../hooks/useUnits';
@@ -36,8 +36,11 @@ type Sim = ReturnType<typeof useSimulation>;
 
 const FILTER_TYPE_OPTIONS = FILTER_TYPES.map((value) => ({ value, label: FILTER_LABEL[value] }));
 
-function numberOptions(values: number[], suffix: string): { value: string; label: string }[] {
-  return values.map((v) => ({ value: String(v), label: `${v}${suffix}` }));
+function numberOptions(
+  values: readonly number[],
+  label: (value: number) => string
+): { value: string; label: string }[] {
+  return values.map((v) => ({ value: String(v), label: label(v) }));
 }
 
 function setStart(schedule: DailySchedule, startHour: number): DailySchedule {
@@ -106,7 +109,7 @@ function DeviceSettings({ id, sim }: { id: EquipmentId; sim: Sim }): React.JSX.E
               ariaLabel="Heater wattage"
               value={String(h.wattage)}
               onChange={(v) => sim.updateHeaterWattage(Number(v))}
-              options={numberOptions(HEATER_WATTAGE_OPTIONS, 'W')}
+              options={numberOptions(HEATER_WATTAGE_OPTIONS, (w) => `${w}W`)}
             />
           </FieldRow>
         </>
@@ -119,12 +122,12 @@ function DeviceSettings({ id, sim }: { id: EquipmentId; sim: Sim }): React.JSX.E
           <FieldRow label="Enabled">
             <Toggle ariaLabel="Light enabled" checked={l.enabled} onChange={sim.updateLightEnabled} />
           </FieldRow>
-          <FieldRow label="Wattage">
+          <FieldRow label="Output">
             <Select
-              ariaLabel="Light wattage"
-              value={String(l.wattage)}
-              onChange={(v) => sim.updateLightWattage(Number(v))}
-              options={numberOptions(LIGHT_WATTAGE_OPTIONS, 'W')}
+              ariaLabel="Light output"
+              value={String(l.par)}
+              onChange={(v) => sim.updateLightPar(Number(v))}
+              options={numberOptions(LIGHT_PAR_OPTIONS, (par) => `${par} PAR`)}
             />
           </FieldRow>
           <FieldRow label="Start">
@@ -186,7 +189,7 @@ function DeviceSettings({ id, sim }: { id: EquipmentId; sim: Sim }): React.JSX.E
               ariaLabel="CO₂ bubble rate"
               value={String(c.bubbleRate)}
               onChange={(v) => sim.updateCo2GeneratorBubbleRate(Number(v))}
-              options={BUBBLE_RATE_OPTIONS.map((r) => ({ value: String(r), label: `${r.toFixed(1)} bps` }))}
+              options={numberOptions(BUBBLE_RATE_OPTIONS, (r) => `${r.toFixed(1)} bps`)}
             />
           </FieldRow>
           <FieldRow label="Start">
@@ -253,7 +256,7 @@ function DeviceSettings({ id, sim }: { id: EquipmentId; sim: Sim }): React.JSX.E
               ariaLabel="Auto doser amount"
               value={String(d.doseAmountMl)}
               onChange={(v) => sim.updateAutoDoserAmount(Number(v))}
-              options={DOSE_AMOUNT_OPTIONS.map((ml) => ({ value: String(ml), label: `${ml.toFixed(1)} ml` }))}
+              options={numberOptions(DOSE_AMOUNT_OPTIONS, (ml) => `${ml.toFixed(1)} ml`)}
             />
           </FieldRow>
           <FieldRow label="Dose hour">

@@ -18,6 +18,13 @@ import type { HistorySnapshot } from './history.js';
  * missing field. Parallel to the UI's `PERSISTENCE_VERSION`. Pre-launch
  * rule is reject, not migrate.
  *
+ * v5 made light PAR, not watts: `Light.wattage` became `Light.par` — the
+ *    fixture's rated PAR at the water surface — `Resources.light` and the
+ *    history snapshots recording it hold PAR at the substrate rather than a
+ *    watt count, and `TunableConfig` gained an `optics` section carrying the
+ *    water column's attenuation coefficient. A v4 session parses, and runs
+ *    fine while the photoperiod is off; the first lit tick reads an
+ *    attenuation off the `optics` it does not have and throws.
  * v4 put the tank's randomness on the state: `SimulationState` gains
  *    `rng: { seed, counter }`, the seed and stream position every draw comes
  *    off. A v3 session parses but carries no stream, so the first fish it
@@ -32,7 +39,7 @@ import type { HistorySnapshot } from './history.js';
  * v2 added `Fish.stage` + `state.clutches` (breeding) and the saturating
  *    surplus bank.
  */
-export const SESSION_VERSION = 4;
+export const SESSION_VERSION = 5;
 export const DEFAULT_SESSION_PATH = resolve(process.cwd(), '.simstate/current.json');
 
 export interface Session {

@@ -4,7 +4,7 @@
 
 ## Setup
 - **Tank:** 38L (10 gal), bare-bottom (substrate type `none`), no lid or mesh lid
-- **Equipment:** HOB filter, fresh media with effectively zero bacteria surface seeding; heater at 25°C, 50W; light 8W on 10 hr/day (typical beginner default); no CO2, no air pump
+- **Equipment:** HOB filter, fresh media with effectively zero bacteria surface seeding; heater at 25°C, 50W; light rated 25 PAR on 10 hr/day (typical beginner default), landing 19 PAR on the substrate through 27 cm of water; no CO2, no air pump
 - **Plants:** none
 - **Stock:** 10 × Neon Tetra (`neon_tetra`, 0.5 g adult mass each, hardiness 0.5, temp range 22–28°C). Total bioload ~5 g of fish
 - **Food regimen:** 0.10 g/day at tick 0 (generous — ~2× maintenance for 5 g of fish). This mimics the beginner pattern of "two pinches, morning and evening"; treat as single daily dose for simplicity

@@ -52,11 +52,12 @@ export interface PlantSpeciesData {
    */
   hardiness: number;
   /**
-   * Tolerable light range in watts. Outside this band a light-insufficient
-   * (low) or light-excessive (high) stressor activates. The two-sided
-   * shape lets shade species like Anubias take damage when blasted with
-   * 100 W of LED, in addition to the usual carpet-species low-light
-   * complaints.
+   * Tolerable PAR range (µmol/m²/s) at the substrate. Outside this band a
+   * light-insufficient (low) or light-excessive (high) stressor activates.
+   * The two-sided shape lets shade species like Anubias burn under a
+   * high-output fixture, in addition to the usual carpet-species low-light
+   * complaints. The hobby's published tiers are low 15-30, medium 30-50,
+   * high 50-80+.
    */
   tolerableLight: [number, number];
   /**
@@ -87,11 +88,9 @@ export const PLANT_SPECIES_DATA: Record<PlantSpecies, PlantSpeciesData> = {
     // factor at peak = 1 - 54/600 = 0.91 → calibration-safe.
     maxSize: 600,
     hardiness: 0.7, // Forgiving — survives most beginner setups
-    // Light bands: lower bound 5 W matches "alive in a dim 5 W desk
-    // lamp tank"; upper bound 80 W is where leaves start bleaching
-    // under high-output LED. Mid-range covers everything from a stock
-    // 10-gallon kit to a planted nano.
-    tolerableLight: [5, 80],
+    // Alive at 10 PAR — below anything the hobby calls low light — and
+    // bleaches past 90, which takes the brightest fixture in the catalog.
+    tolerableLight: [10, 90],
     // No CO2 dependency — atmospheric (~3 mg/L) is enough.
     tolerableCO2: [1, 40],
     tolerableTemp: [18, 30],
@@ -108,8 +107,9 @@ export const PLANT_SPECIES_DATA: Record<PlantSpecies, PlantSpeciesData> = {
     // factor at peak = 1 - 68/700 = 0.903 → calibration-safe.
     maxSize: 700,
     hardiness: 0.75, // Hardiest of the bunch — bombproof
-    // Shade plant, but tolerates a wide range. Burns above ~70 W.
-    tolerableLight: [3, 70],
+    // Deepest-shade tolerance of the five — 8 PAR is the understory of a
+    // stocked scape. Its thick slow leaves scorch past 70.
+    tolerableLight: [8, 70],
     tolerableCO2: [1, 40],
     tolerableTemp: [18, 30],
     tolerablePH: [6.0, 8.0],
@@ -125,10 +125,10 @@ export const PLANT_SPECIES_DATA: Record<PlantSpecies, PlantSpeciesData> = {
     // factor at peak = 1 - 73/800 = 0.909 → calibration-safe.
     maxSize: 800,
     hardiness: 0.5,
-    // Lower bound 10 W / 90 W upper. Real swords live happily in
-    // standard 18 W planted-kit lighting (S2 baseline scenario uses
-    // exactly that).
-    tolerableLight: [10, 90],
+    // Medium-light plant, and a big one: it holds on at 20 PAR but only
+    // fills out toward the middle of the band, and 120 is past anything
+    // a sword is asked to take.
+    tolerableLight: [20, 120],
     // Mild CO2 dependence — sword grows happily on atmospheric (~4 mg/L)
     // CO2 in low-tech tanks, so the lower bound sits just above
     // atmospheric. The spec's "high-tech tank loses CO2" scenario has
@@ -150,10 +150,9 @@ export const PLANT_SPECIES_DATA: Record<PlantSpecies, PlantSpeciesData> = {
     // since both are high-demand carpet species with similar growth rates.
     maxSize: 1100,
     hardiness: 0.3, // Fussy — needs everything dialled in
-    // Lower bound 15 W. S2 calibration uses 18 W, which lands a fussy
-    // carpet in its tolerable-but-not-thriving zone. The benefit
-    // ramps in at 15 W and full-thrives by 30 W.
-    tolerableLight: [15, 150],
+    // High-light carpet — below 25 PAR at the substrate it grows upward
+    // instead of across. Tolerates the 200 PAR a high-tech scape runs.
+    tolerableLight: [25, 200],
     tolerableCO2: [10, 40], // Stalls without CO2 — high-tech species
     tolerableTemp: [20, 28],
     tolerablePH: [6.0, 7.5],
@@ -169,7 +168,9 @@ export const PLANT_SPECIES_DATA: Record<PlantSpecies, PlantSpeciesData> = {
     // factor at peak = 1 - 103/1100 = 0.906 → calibration-safe.
     maxSize: 1100,
     hardiness: 0.3, // Fussy — same band as hairgrass
-    tolerableLight: [15, 150],
+    // Hungrier for light than hairgrass — 30 PAR at the substrate is the
+    // usual advice for a carpet that actually carpets.
+    tolerableLight: [30, 200],
     tolerableCO2: [10, 40], // Same — needs CO2 to thrive
     tolerableTemp: [20, 28],
     tolerablePH: [6.0, 7.5],

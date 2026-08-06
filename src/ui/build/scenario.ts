@@ -116,7 +116,7 @@ function presetSettings(state: SimulationState): string {
     powerhead: [e.powerhead.enabled, e.powerhead.flowRateGPH],
     substrate: e.substrate.type,
     hardscape: e.hardscape.items.map((item) => item.type).sort(),
-    light: [e.light.enabled, e.light.wattage, ...schedule(e.light.schedule)],
+    light: [e.light.enabled, e.light.par, ...schedule(e.light.schedule)],
     co2: [e.co2Generator.enabled, e.co2Generator.bubbleRate, ...schedule(e.co2Generator.schedule)],
     airPump: e.airPump.enabled,
     autoDoser: [e.autoDoser.enabled, e.autoDoser.doseAmountMl, ...schedule(e.autoDoser.schedule)],

@@ -73,4 +73,21 @@ describe('feed action', () => {
     // Should be rounded to 2 decimal places
     expect(result.state.resources.food).toBeCloseTo(0.12, 2);
   });
+
+  describe('non-finite amounts', () => {
+    it('refuses food that is not a number, and says so', () => {
+      const state = createSimulation({ tankCapacity: 100 });
+      const result = feed(state, { type: 'feed', amount: NaN });
+
+      expect(result.state).toBe(state);
+      expect(result.message).toBe('Feed amount must be a number');
+    });
+
+    it('refuses an unbounded feeding', () => {
+      const state = createSimulation({ tankCapacity: 100 });
+
+      expect(feed(state, { type: 'feed', amount: Infinity }).state).toBe(state);
+      expect(feed(state, { type: 'feed', amount: -Infinity }).state).toBe(state);
+    });
+  });
 });

@@ -81,13 +81,18 @@ modification.
 
 ## Runner
 
-`scripts/calibrate-low-volume.ts` — mirrors the
-`calibrate-planted.ts` structure. Flags: `--variant=A|A1|B`,
-`--days=N`, `--every=H`, `--wc=FRACTION`, `--wcInterval=H`,
-`--failTick=N`, `--seed=true|false`, `--food=G`. Default
-`seedBacteria` varies per variant (A/A1 seeded, B not). WC skips the
-heater-failure tick to isolate thermal-drift diagnostics from a
-simultaneous water-mixing event.
+Each variant is the shared setup above with one thing changed: **A** the
+filterless betta baseline, **A.1** the same tank with the heater failing at a
+named tick, **B** the overstocked tetra tank. What a re-run has to pin is the
+run length, the sampling interval, the water-change fraction and interval, the
+heater-failure tick, the daily ration, and whether the colony starts seeded —
+A and A.1 do, B does not. A water change skips the heater-failure tick, so
+thermal drift is not read through a simultaneous water-mixing event.
+
+The figures below came off a one-off runner script, which stopped building on
+2026-04-27 and was deleted on 2026-08-05. The parameters above are the
+scenario's, not the script's: they are what a re-run has to pin, on whatever
+harness runs it.
 
 ## Results vs expected
 

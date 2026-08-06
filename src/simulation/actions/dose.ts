@@ -68,7 +68,13 @@ export function dose(
 ): ActionResult {
   const { amountMl } = action;
 
-  // Validate amount
+  if (!Number.isFinite(amountMl)) {
+    return {
+      state,
+      message: 'Dose amount must be a number',
+    };
+  }
+
   if (amountMl <= 0) {
     return {
       state,

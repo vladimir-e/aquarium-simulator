@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   applyAction,
+  calculateSurface,
   createSimulation,
   MAX_SCRUB_PERCENT,
   MIN_SCRUB_PERCENT,
@@ -10,7 +11,6 @@ import {
 } from '../../simulation/index.js';
 import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
 import { blendConcentration, blendTemperature } from '../../simulation/core/blending.js';
-import { calculatePassiveResources } from '../../simulation/equipment/index.js';
 import { calculateO2Saturation } from '../../simulation/systems/gas-exchange.js';
 import { gasExchangeDefaults } from '../../simulation/config/gas-exchange.js';
 import {
@@ -41,7 +41,7 @@ function fixture(species: FishSpecies[] = ['neon_tetra', 'corydoras', 'betta']):
     tapWaterPH: 7.4,
   });
   state.equipment.substrate.type = 'aqua_soil';
-  state.resources.surface = calculatePassiveResources(state).surface;
+  state.resources.surface = calculateSurface(state);
 
   state.resources.water = 196.4;
   state.resources.temperature = 25.4;

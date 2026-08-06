@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { applyAction } from './index';
-import { createSimulation } from '../state';
+import type { Action } from './types';
+import { createSimulation, type SimulationState } from '../state';
 import { produce } from 'immer';
 
 describe('applyAction', () => {
@@ -69,6 +70,36 @@ describe('applyAction', () => {
     const lastLog = result.state.logs[result.state.logs.length - 1];
     expect(lastLog.source).toBe('user');
     expect(lastLog.message).toContain('Topped off water');
+  });
+
+  describe('a number the tank could not recover from', () => {
+    const tank = (): SimulationState => {
+      const planted = applyAction(
+        createSimulation({ tankCapacity: 100, substrate: { type: 'aqua_soil' } }),
+        { type: 'addPlant', species: 'anubias' }
+      ).state;
+      return produce(planted, (draft) => {
+        draft.algae.mass = 50;
+      });
+    };
+
+    const carriers: Array<(value: number) => Action> = [
+      (amountMl): Action => ({ type: 'dose', amountMl }),
+      (amount): Action => ({ type: 'feed', amount }),
+      (amount): Action => ({ type: 'waterChange', amount }),
+      (targetSize): Action => ({ type: 'trimPlants', targetSize }),
+      (initialSize): Action => ({ type: 'addPlant', species: 'anubias', initialSize }),
+      (randomPercent): Action => ({ type: 'scrubAlgae', randomPercent }),
+    ];
+
+    for (const value of [NaN, Infinity, -Infinity]) {
+      it(`is refused as ${value} by every action that takes one`, () => {
+        const start = tank();
+        for (const carry of carriers) {
+          expect(applyAction(start, carry(value)).state).toBe(start);
+        }
+      });
+    }
   });
 
   it('dispatches sellFry action to correct handler', () => {

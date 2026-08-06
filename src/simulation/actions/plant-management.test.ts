@@ -464,6 +464,16 @@ describe('addPlant', () => {
       expect(state.plants.length).toBe(originalPlantCount);
     });
   });
+
+  describe('an initial size the action cannot honour', () => {
+    it('refuses one that is not a number', () => {
+      const state = createSimulation({ tankCapacity: 100, substrate: { type: 'aqua_soil' } });
+      const result = addPlant(state, { type: 'addPlant', species: 'anubias', initialSize: NaN });
+
+      expect(result.state).toBe(state);
+      expect(result.message).toContain('Invalid initial size');
+    });
+  });
 });
 
 describe('removePlant', () => {

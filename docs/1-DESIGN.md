@@ -48,9 +48,10 @@ tank flows through equipment or actions.
 
 The physical and chemical state of the tank: water volume, temperature,
 pH, dissolved gases (O2, CO2), nitrogen species (NH3, NO2, NO3),
-nutrients (PO4, K, Fe), light intensity, flow, surface area, food,
-waste, bacteria (AOB, NOB). Resources are continuous floats; the
-tank is a stock for each. See `5-RESOURCES.md` for the catalogue.
+nutrients (PO4, K, Fe), light (PAR at the substrate), flow, surface
+area, food, waste, bacteria (AOB, NOB). Resources are continuous
+floats; the tank is a stock for each. See `5-RESOURCES.md` for the
+catalogue.
 
 Algae used to live here as a single number; it has been promoted to
 an organism in the vitality layer (`state.algae`). See `6-PLANTS.md`
@@ -422,6 +423,9 @@ lived on the old bed.
 ### Light & Photoperiod
 - Each light fixture has its own on/off schedule
 - Photoperiod affects plant growth and algae
+- A fixture is rated in PAR at the water surface; the resource layer holds
+  PAR at the substrate, so tank depth — derived from capacity — is what
+  scales light with tank size
 
 ### Simplified Chemistry
 - **In scope:** pH, ammonia, nitrite, nitrate
@@ -443,7 +447,7 @@ Each simulation tick (1 hour) executes in this order:
 Aggregate values from equipment used throughout the tick:
 - **Surface** - Tank glass + filter media + substrate + hardscape (cm²)
 - **Flow** - Filter + powerhead circulation (L/h)
-- **Light** - Current light intensity based on schedule (watts)
+- **Light** - Fixture PAR attenuated to the substrate, gated by schedule
 
 ### 2. Tier: IMMEDIATE
 Run environmental systems (emit effects):

@@ -147,7 +147,6 @@ export function algaeRow(state: SimulationState, config: TunableConfig): AlgaeRo
   const population = computeAlgaePopulation({
     plants: state.plants,
     resources: state.resources,
-    tankCapacity: state.tank.capacity,
     algaeConfig: config.algae,
     nutrientsConfig: config.nutrients,
   });

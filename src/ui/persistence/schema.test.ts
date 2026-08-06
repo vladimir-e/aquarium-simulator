@@ -6,7 +6,25 @@ import {
   PersistedUISchema,
 } from './schema.js';
 import { PERSISTENCE_VERSION } from './types.js';
-import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
+import { DEFAULT_CONFIG, MAX_WATER_ATTENUATION_PER_CM } from '../../simulation/config/index.js';
+import {
+  createSimulation,
+  BUBBLE_RATE_OPTIONS,
+  DOSE_AMOUNT_OPTIONS,
+  FILTER_TYPES,
+  FISH_SPECIES_DATA,
+  HEATER_WATTAGE_OPTIONS,
+  LIGHT_PAR_OPTIONS,
+  PLANT_SPECIES_DATA,
+  POWERHEAD_FLOW_RATES,
+  type FishSpecies,
+  type PlantSpecies,
+  type SimulationConfig,
+  type SimulationState,
+} from '../../simulation/index.js';
+import { HARDSCAPE_TYPES, SUBSTRATE_TYPES } from '../build/scape.js';
+import { LID_TYPES } from '../build/scenario.js';
+import { getTankSizeOptions } from '../utils/units.js';
 
 describe('PersistedUISchema', () => {
   it('validates valid UI state', () => {
@@ -54,20 +72,6 @@ describe('TunableConfigSchema', () => {
     expect(result.success).toBe(true);
   });
 
-  it('validates all sections have correct structure', () => {
-    const result = TunableConfigSchema.safeParse(DEFAULT_CONFIG);
-    if (result.success) {
-      expect(result.data.decay).toBeDefined();
-      expect(result.data.nitrogenCycle).toBeDefined();
-      expect(result.data.gasExchange).toBeDefined();
-      expect(result.data.temperature).toBeDefined();
-      expect(result.data.evaporation).toBeDefined();
-      expect(result.data.algae).toBeDefined();
-      expect(result.data.ph).toBeDefined();
-      expect(result.data.plants).toBeDefined();
-    }
-  });
-
   it('rejects missing sections', () => {
     const partial = { decay: DEFAULT_CONFIG.decay };
     expect(TunableConfigSchema.safeParse(partial).success).toBe(false);
@@ -82,6 +86,19 @@ describe('TunableConfigSchema', () => {
       },
     };
     expect(TunableConfigSchema.safeParse(withExtra).success).toBe(false);
+  });
+
+  it.each([-100, -0.001, MAX_WATER_ATTENUATION_PER_CM + 1])(
+    'rejects an attenuation of %s, which is not a water column',
+    (waterAttenuationPerCm) => {
+      const config = { ...DEFAULT_CONFIG, optics: { waterAttenuationPerCm } };
+      expect(TunableConfigSchema.safeParse(config).success).toBe(false);
+    }
+  );
+
+  it('takes an attenuation of zero — water that costs the light nothing', () => {
+    const config = { ...DEFAULT_CONFIG, optics: { waterAttenuationPerCm: 0 } };
+    expect(TunableConfigSchema.safeParse(config).success).toBe(true);
   });
 
   it('rejects the old v12 config shape (livestock missing surplusCap)', () => {
@@ -132,7 +149,7 @@ describe('PersistedSimulationSchema', () => {
       powerhead: { enabled: false, flowRateGPH: 240 },
       substrate: { type: 'gravel', organicReserve: 0.5 },
       hardscape: { items: [] },
-      light: { enabled: true, wattage: 10, schedule: { startHour: 8, duration: 8 } },
+      light: { enabled: true, par: 50, schedule: { startHour: 8, duration: 8 } },
       co2Generator: { enabled: false, bubbleRate: 1, isOn: false, schedule: { startHour: 8, duration: 8 } },
       airPump: { enabled: false },
       autoDoser: { enabled: false, doseAmountMl: 2, schedule: { startHour: 8, duration: 1 }, dosedToday: false },
@@ -214,7 +231,7 @@ describe('PersistedSimulationSchema', () => {
       ...validSimulation,
       equipment: {
         ...validSimulation.equipment,
-        light: { enabled: true, wattage: 10, schedule: { startHour: 25, duration: 8 } },
+        light: { enabled: true, par: 50, schedule: { startHour: 25, duration: 8 } },
       },
     };
     expect(PersistedSimulationSchema.safeParse(invalidSchedule).success).toBe(false);
@@ -405,7 +422,7 @@ describe('PersistedStateSchema', () => {
       powerhead: { enabled: false, flowRateGPH: 240 },
       substrate: { type: 'gravel', organicReserve: 0.5 },
       hardscape: { items: [] },
-      light: { enabled: true, wattage: 10, schedule: { startHour: 8, duration: 8 } },
+      light: { enabled: true, par: 50, schedule: { startHour: 8, duration: 8 } },
       co2Generator: { enabled: false, bubbleRate: 1, isOn: false, schedule: { startHour: 8, duration: 8 } },
       airPump: { enabled: false },
       autoDoser: { enabled: false, doseAmountMl: 2, schedule: { startHour: 8, duration: 1 }, dosedToday: false },
@@ -514,7 +531,111 @@ describe('PersistedStateSchema', () => {
     ).toBe(false);
   });
 
-  it('PERSISTENCE_VERSION is 17', () => {
-    expect(PERSISTENCE_VERSION).toBe(17);
+  it('PERSISTENCE_VERSION is 18', () => {
+    expect(PERSISTENCE_VERSION).toBe(18);
+  });
+});
+
+/**
+ * A bound written against a catalog goes stale the moment the catalog grows,
+ * and `loadPersistedState` answers a rejected simulation section with `null` —
+ * so a fixture the picker offers but the schema refuses destroys the tank on
+ * the next load. Each case names a list the UI can pick from; anything in it
+ * the schema will not take comes back in the array.
+ */
+describe('every fixture the UI offers survives a save', () => {
+  const saved = ({ logs: _logs, ...state }: SimulationState): Record<string, unknown> => ({
+    ...state,
+    currentPreset: 'planted',
+  });
+
+  const refused = <T>(offered: readonly T[], build: (value: T) => unknown): T[] =>
+    offered.filter((value) => !PersistedSimulationSchema.safeParse(build(value)).success);
+
+  const built = (config: Omit<SimulationConfig, 'tankCapacity'>): Record<string, unknown> =>
+    saved(createSimulation({ tankCapacity: 40, ...config }));
+
+  it('heater wattages', () => {
+    expect(refused(HEATER_WATTAGE_OPTIONS, (wattage) => built({ heater: { wattage } }))).toEqual([]);
+  });
+
+  it('light fixtures', () => {
+    expect(refused(LIGHT_PAR_OPTIONS, (par) => built({ light: { par } }))).toEqual([]);
+  });
+
+  it('powerhead flow rates', () => {
+    expect(
+      refused(POWERHEAD_FLOW_RATES, (flowRateGPH) => built({ powerhead: { flowRateGPH } }))
+    ).toEqual([]);
+  });
+
+  it('CO2 bubble rates', () => {
+    expect(
+      refused(BUBBLE_RATE_OPTIONS, (bubbleRate) => built({ co2Generator: { bubbleRate } }))
+    ).toEqual([]);
+  });
+
+  it('auto-doser amounts', () => {
+    expect(
+      refused(DOSE_AMOUNT_OPTIONS, (doseAmountMl) => built({ autoDoser: { doseAmountMl } }))
+    ).toEqual([]);
+  });
+
+  it('filter types', () => {
+    expect(refused(FILTER_TYPES, (type) => built({ filter: { type } }))).toEqual([]);
+  });
+
+  it('lid types', () => {
+    expect(refused(LID_TYPES, (type) => built({ lid: { type } }))).toEqual([]);
+  });
+
+  it('substrate types', () => {
+    expect(refused(SUBSTRATE_TYPES, (type) => built({ substrate: { type } }))).toEqual([]);
+  });
+
+  it('hardscape types', () => {
+    expect(
+      refused(HARDSCAPE_TYPES, (type) => built({ hardscape: { items: [{ id: 'h1', type }] } }))
+    ).toEqual([]);
+  });
+
+  it('tank sizes, in both unit systems', () => {
+    const sizes = [...getTankSizeOptions('metric'), ...getTankSizeOptions('imperial')];
+    expect(
+      refused(sizes, ({ liters }) => saved(createSimulation({ tankCapacity: liters })))
+    ).toEqual([]);
+  });
+
+  it('plant species', () => {
+    const species = Object.keys(PLANT_SPECIES_DATA) as PlantSpecies[];
+    expect(
+      refused(species, (s) => ({
+        ...built({}),
+        plants: [{ id: 'p1', species: s, size: 50, condition: 100, surplus: 0 }],
+      }))
+    ).toEqual([]);
+  });
+
+  it('fish species', () => {
+    const species = Object.keys(FISH_SPECIES_DATA) as FishSpecies[];
+    expect(
+      refused(species, (s) => ({
+        ...built({}),
+        fish: [
+          {
+            id: 'f1',
+            species: s,
+            mass: 1,
+            health: 100,
+            age: 0,
+            satiation: 50,
+            sex: 'male',
+            stage: 'adult',
+            hardinessOffset: 0,
+            surplus: 0,
+          },
+        ],
+      }))
+    ).toEqual([]);
   });
 });

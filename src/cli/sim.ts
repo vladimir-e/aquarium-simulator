@@ -8,10 +8,7 @@
  */
 
 import { tick, applyAction, type Action, type SimulationState } from '../simulation/index.js';
-import {
-  DEFAULT_CONFIG,
-  type TunableConfig,
-} from '../simulation/config/index.js';
+import { DEFAULT_CONFIG } from '../simulation/config/index.js';
 import {
   createPresetSimulation,
   PRESETS,
@@ -25,6 +22,7 @@ import {
   createSession,
   type Session,
 } from './session.js';
+import { applyConfigSet } from './config-set.js';
 import { parseDuration } from './duration.js';
 import { appendSnapshot, snapshot } from './history.js';
 import { renderObserve, renderTrace } from './format.js';
@@ -100,36 +98,6 @@ function getByPath(obj: unknown, path: string[]): unknown {
     cur = (cur as Record<string, unknown>)[key];
   }
   return cur;
-}
-
-function setByPath(obj: Record<string, unknown>, path: string[], value: unknown): void {
-  if (path.length === 0) return;
-  let cur: Record<string, unknown> = obj;
-  for (let i = 0; i < path.length - 1; i++) {
-    const key = path[i]!;
-    const next = cur[key];
-    if (next === null || typeof next !== 'object') {
-      cur[key] = {};
-    }
-    cur = cur[key] as Record<string, unknown>;
-  }
-  cur[path[path.length - 1]!] = value;
-}
-
-function coerceValue(raw: string): unknown {
-  if (raw === 'true') return true;
-  if (raw === 'false') return false;
-  const num = Number(raw);
-  if (!Number.isNaN(num) && raw.trim() !== '') return num;
-  // Try JSON for arrays/objects
-  if (raw.startsWith('[') || raw.startsWith('{')) {
-    try {
-      return JSON.parse(raw);
-    } catch {
-      // fall through to string
-    }
-  }
-  return raw;
 }
 
 /** Build an Action from `action <type> [args...]`. Throws on invalid input. */
@@ -264,6 +232,9 @@ function cmdNew(flags: Record<string, string>): void {
   } else if (flags['tank-liters']) {
     capacity = Number(flags['tank-liters']);
   }
+  if (capacity !== undefined && (!Number.isFinite(capacity) || capacity <= 0)) {
+    throw new Error('new requires a positive tank size.');
+  }
   const preset = resolvePreset(presetId, { capacity, seeded: flags['no-seed'] === undefined });
   const state = createPresetSimulation(preset);
   const session = createSession(state, DEFAULT_CONFIG, flags.name ?? preset.name);
@@ -390,9 +361,7 @@ function cmdConfigSet(path: string | undefined, rawValue: string | undefined): v
     throw new Error('config set requires <dotted.path> <value>.');
   }
   const session = loadSession();
-  const next: TunableConfig = JSON.parse(JSON.stringify(session.config));
-  setByPath(next as unknown as Record<string, unknown>, path.split('.'), coerceValue(rawValue));
-  saveSession({ ...session, config: next });
+  saveSession({ ...session, config: applyConfigSet(session.config, path, rawValue) });
   process.stdout.write(`Set ${path} = ${rawValue}\n`);
 }
 

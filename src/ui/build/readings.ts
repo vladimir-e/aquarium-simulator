@@ -7,9 +7,12 @@
 
 import {
   calculateHeatingRate,
+  calculateParAtDepth,
+  calculateTankHeight,
   getFilterFlow,
   getAirPumpFlow,
   getAirPumpOutput,
+  getLightOutput,
   isAirPumpUndersized,
   isScheduleActive,
   FILTER_SPECS,
@@ -21,7 +24,6 @@ import {
   type FishSpeciesData,
   type SimulationState,
 } from '../../simulation/index.js';
-import { getLightOutput } from '../../simulation/equipment/light.js';
 import { WATER_LEVEL_THRESHOLD } from '../../simulation/equipment/ato.js';
 import { formatCo2Rate } from '../../simulation/equipment/co2-generator.js';
 import { Co2Resource, SurfaceResource } from '../../simulation/resources/index.js';
@@ -148,20 +150,29 @@ function filterReadings({ state, units }: DeviceReadingInput): DeviceReading[] {
   ];
 }
 
-function lightReadings({ state }: DeviceReadingInput): DeviceReading[] {
+function lightReadings({ state, config }: DeviceReadingInput): DeviceReading[] {
   const { light } = state.equipment;
   const hour = state.tick % 24;
   const lit = light.enabled && isScheduleActive(hour, light.schedule);
+  const depth = calculateTankHeight(state.tank.capacity);
+  const surfacePar = getLightOutput(light, hour);
+  const wouldLand = Math.round(calculateParAtDepth(light.par, depth, config.optics));
+  const column = `${Math.round(depth)} cm of water`;
 
   return [
     {
       label: 'Output now',
-      value: `${getLightOutput(light, hour)} W`,
+      value: `${surfacePar} PAR`,
       note: !light.enabled
         ? 'fixture off'
         : lit
           ? `lit ${runsUntil(light.schedule)}`
           : `next on at ${hourLabel(light.schedule.startHour)}`,
+    },
+    {
+      label: 'At substrate',
+      value: `${Math.round(state.resources.light)} PAR`,
+      note: lit ? `through ${column}` : `would land ${wouldLand} PAR through ${column}`,
     },
     { label: 'Photoperiod', value: `${light.schedule.duration} h/day` },
   ];

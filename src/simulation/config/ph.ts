@@ -53,7 +53,7 @@ export const phConfigMeta: PhConfigMeta[] = [
   { key: 'calciteTargetPh', label: 'Calcite Target pH', unit: '', min: 7.5, max: 9, step: 0.1 },
   { key: 'driftwoodTargetPh', label: 'Driftwood Target pH', unit: '', min: 5, max: 7, step: 0.1 },
   { key: 'neutralPh', label: 'Neutral pH', unit: '', min: 6.5, max: 7.5, step: 0.1 },
-  { key: 'basePgDriftRate', label: 'Base pH Drift Rate', unit: '/tick', min: 0.01, max: 0.2, step: 0.01 },
+  { key: 'basePgDriftRate', label: 'Base pH Drift Rate', unit: '/tick', min: 0.01, max: 0.5, step: 0.01 },
   { key: 'co2PhCoefficient', label: 'CO2 pH Coefficient', unit: 'pH/decade', min: 0, max: 2.0, step: 0.05 },
   { key: 'co2NeutralLevel', label: 'CO2 Neutral Level', unit: 'mg/L', min: 2, max: 8, step: 0.5 },
   { key: 'hardscapeDiminishingFactor', label: 'Hardscape Diminishing Factor', unit: '', min: 0.4, max: 0.9, step: 0.05 },

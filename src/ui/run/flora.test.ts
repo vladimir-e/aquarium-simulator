@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   applyAction,
+  calculateSurface,
   createSimulation,
   getDosePreview,
   getPlantsToTrimCount,
@@ -9,7 +10,6 @@ import {
   type SimulationState,
 } from '../../simulation/index.js';
 import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
-import { calculatePassiveResources } from '../../simulation/equipment/index.js';
 import {
   ailingPlants,
   algaeRow,
@@ -33,7 +33,7 @@ const FORMULA = DEFAULT_CONFIG.nutrients.fertilizerFormula;
 function tank(capacity = 200): SimulationState {
   const state = createSimulation({ tankCapacity: capacity });
   state.equipment.substrate.type = 'aqua_soil';
-  state.resources.surface = calculatePassiveResources(state).surface;
+  state.resources.surface = calculateSurface(state);
   return state;
 }
 

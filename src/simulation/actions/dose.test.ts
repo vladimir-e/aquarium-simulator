@@ -243,4 +243,21 @@ describe('dose action', () => {
       expect(large.ironPpm).toBe(small.ironPpm * 5);
     });
   });
+
+  describe('non-finite amounts', () => {
+    it('refuses a dose that is not a number, and says so', () => {
+      const state = createSimulation({ tankCapacity: 100 });
+      const result = dose(state, { type: 'dose', amountMl: NaN });
+
+      expect(result.state).toBe(state);
+      expect(result.message).toBe('Dose amount must be a number');
+    });
+
+    it('refuses an unbounded dose', () => {
+      const state = createSimulation({ tankCapacity: 100 });
+
+      expect(dose(state, { type: 'dose', amountMl: Infinity }).state).toBe(state);
+      expect(dose(state, { type: 'dose', amountMl: -Infinity }).state).toBe(state);
+    });
+  });
 });

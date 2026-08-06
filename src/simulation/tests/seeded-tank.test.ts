@@ -157,7 +157,7 @@ describe('a seeded community tank', () => {
     substrate: { type: 'aqua_soil' },
     filter: { enabled: true, type: 'canister' },
     heater: { enabled: true, targetTemperature: 26, wattage: 200 },
-    light: { enabled: true, wattage: 50, schedule: { startHour: 8, duration: 10 } },
+    light: { enabled: true, par: 50, schedule: { startHour: 8, duration: 10 } },
     ato: { enabled: true },
   };
 
