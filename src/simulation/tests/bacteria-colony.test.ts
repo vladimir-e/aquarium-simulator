@@ -208,14 +208,39 @@ describe('bacteria colony dynamics', () => {
       // A load big enough to fill the surface is a load big enough to strip the
       // oxygen first, so the biofilm ceiling is not what a real biofilter meets.
       // Take the term out and both colonies go back to resting on the surface,
-      // at the fill where growth cancels decay.
+      // at the fill where growth cancels decay: u = 1 leaves 1 − d/g.
       const held = saturatedColony(200, 40);
-      const unlimited = saturatedColony(200, 40, AIRLESS);
+      const unlimited = saturatedColony(200, 40, { config: AIRLESS });
 
       expect(held.resources.oxygen).toBeLessThan(2);
       expect(colonyFill(held, 'nob')).toBeLessThan(colonyFill(held, 'aob'));
       expect(colonyFill(held, 'nob')).toBeLessThan(colonyFill(unlimited, 'nob') * 0.7);
-      expect(colonyFill(unlimited, 'nob')).toBeGreaterThan(0.9);
+      expect(colonyFill(unlimited, 'nob')).toBeCloseTo(
+        1 - nc.bacteriaDeathRate / nc.nobGrowthRate,
+        2
+      );
+    });
+
+    it('leaves NOB where the circulation leaves the oxygen, and AOB barely notice', () => {
+      // How far short the air stops a colony is a reading on the pumps, not a
+      // property of the model: strip the tank of everything that moves water and
+      // NOB hold a fiftieth of a ceiling AOB have all but reached, and every
+      // point of that gap comes back with the circulation.
+      const settles = (growthRate: number): number => 1 - nc.bacteriaDeathRate / growthRate;
+      const still = saturatedColony(200, 40, { circulation: {} });
+      const aerated = saturatedColony(200, 40, {
+        circulation: { filter: 'canister', powerhead: 400, airPump: true },
+      });
+
+      expect(still.resources.oxygen).toBeLessThan(aerated.resources.oxygen);
+      expect(colonyFill(still, 'aob')).toBeGreaterThan(settles(nc.aobGrowthRate) * 0.9);
+      expect(colonyFill(still, 'nob')).toBeLessThan(settles(nc.nobGrowthRate) * 0.05);
+      expect(colonyFill(aerated, 'nob')).toBeGreaterThan(settles(nc.nobGrowthRate) * 0.9);
+
+      // Neither guild passes that fixed point whatever the air, because it is
+      // the colony's own arithmetic and no amount of oxygen lifts it.
+      expect(colonyFill(aerated, 'aob')).toBeLessThan(settles(nc.aobGrowthRate));
+      expect(colonyFill(aerated, 'nob')).toBeLessThan(settles(nc.nobGrowthRate));
     });
 
     it('never lets a colony past its ceiling', () => {

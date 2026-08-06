@@ -140,7 +140,7 @@ process.stdout.write(
           ['no oxygen term', NO_OXYGEN_TERM],
         ] as const
       ).map(([label, config]) => {
-        const state = saturatedColony(200, 40, config);
+        const state = saturatedColony(200, 40, { config });
         return {
           nitrification: label,
           'AOB % of surface': (colonyFill(state, 'aob') * 100).toFixed(1),

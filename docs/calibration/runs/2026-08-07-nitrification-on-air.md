@@ -155,20 +155,44 @@ A bare 200 L held under more ammonia than it can clear, forty days:
 
 Any load big enough to fill the biofilm is a load whose oxygen demand strips the
 water first, so **a biofilter's practical ceiling is oxygen, not surface** — and
-NOB are the guild that meets it. With the best circulation the engine offers
-(canister + air pump + 400 GPH powerhead) NOB reach 72.9 %, still nowhere near.
+NOB are the guild that meets it.
 
-Two consequences shipped with that finding:
+> **Corrected 2026-08-08.** The line under this heading read "with the best
+> circulation the engine offers NOB reach 72.9 %, still nowhere near", and that
+> figure does not reproduce. The table above is the shipped default — the sponge
+> a fresh tank starts with — and the ladder above it was never run. It reads:
+
+| circulation | O₂ mg/L | AOB % of surface | NOB % of surface |
+|---|---|---|---|
+| none at all | 0.20 | 90.5 | 1.4 |
+| sponge (the row above) | 0.89 | 94.9 | 53.3 |
+| sponge + air | 0.95 | 95.0 | 61.4 |
+| canister | 1.40 | 95.3 | 57.5 |
+| canister + air | 4.35 | 95.9 | 89.5 |
+| canister + air + 400 GPH | 5.06 | 95.9 | **90.1** |
+| no oxygen term | 0.89 | 96.2 | 93.6 |
+
+The last row is the fixed point `1 − d/g` for each guild — 96.17 % and 93.69 %
+— which nothing passes, air or no air. What the air decides is how far short of
+it a guild stops, and for NOB that is the whole range from 1.4 % to 90.1 %.
+
+Two consequences shipped with that finding, and the first of them rests on the
+figure that was wrong:
 
 - `bacteriaSummary`'s "Both colonies have filled the surface they live on" line
-  required both guilds past 90 % of ceiling, which no state the engine produces
-  now reaches. Unreachable copy, so it and its `SURFACE_BOUND_PCT` threshold are
-  gone; the readout falls through to the colonisation line, which reads
-  correctly. **Open:** the card has no line for the thing that *does* bind a
-  mature colony. Telling a player their biofilter is oxygen-limited is the
-  natural replacement and is a design call, not a cleanup.
+  required both guilds past 90 % of ceiling, and was removed with its
+  `SURFACE_BOUND_PCT` threshold as unreachable copy. **It is reachable.** The
+  probe's saturating dose puts a canister-and-air-pump 200 L at 95.9 / 90.1, and
+  a reachability check through the engine's own actions — no resource written by
+  hand — gets there on feeding alone: 200 L on the same equipment reads 93.6 /
+  89.8 at 320 g of food a day and 95.9 / 91.8 at 640, against the ~2 g/day that
+  tank would normally take. So the honest statement is not "no state reaches it"
+  but "no tank a keeper would build reaches it", which is a weaker reason to
+  delete a readout. **Open, and now a decision rather than a cleanup:** restore
+  the line, or leave it out and give the card the sentence for what *does* bind
+  a mature colony — that its biofilter is oxygen-limited.
 - The finding itself is pinned in `bacteria-colony.test.ts` rather than left in
-  this file.
+  this file, as a circulation ladder rather than a threshold.
 
 ---
 

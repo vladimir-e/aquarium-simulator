@@ -136,13 +136,24 @@ export function cycledTank(
 export function saturatedColony(
   capacity: number,
   days = 30,
-  config: TunableConfig = DEFAULT_CONFIG,
-  dosePpmPerHour = 2
+  {
+    config = DEFAULT_CONFIG,
+    dosePpmPerHour = 2,
+    circulation,
+  }: { config?: TunableConfig; dosePpmPerHour?: number; circulation?: Circulation } = {}
 ): SimulationState {
-  let state = produce(createSimulation({ tankCapacity: capacity }), (draft) => {
-    draft.resources.aob = 1;
-    draft.resources.nob = 1;
-  });
+  // Unnamed leaves the tank on the sponge every fresh one starts with, rather
+  // than stripping it: `circulationOf` reads an absent key as equipment off.
+  let state = produce(
+    createSimulation({
+      tankCapacity: capacity,
+      ...(circulation === undefined ? {} : circulationOf(circulation)),
+    }),
+    (draft) => {
+      draft.resources.aob = 1;
+      draft.resources.nob = 1;
+    }
+  );
 
   for (let hour = 1; hour <= days * DAY; hour++) {
     state = tick(
