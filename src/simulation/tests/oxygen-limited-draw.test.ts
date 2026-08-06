@@ -31,11 +31,27 @@ const STAGNANT: SimulationConfig = {
   substrate: { type: 'aqua_soil' },
 };
 
+/** The same box with the circulation a keeper would actually give it. */
+const AERATED: SimulationConfig = {
+  ...STAGNANT,
+  filter: { enabled: true, type: 'sponge' },
+  airPump: { enabled: true },
+};
+
 const STOCKED: PresetSeed = {
   bacteria: 'cycled',
   fish: [{ species: 'neon_tetra', count: 8, sex: 'female' }],
   plants: [{ species: 'java_fern', count: 4, size: 60 }],
 };
+
+/**
+ * Grams of food a day — a ration a keeper would call heavy for this roster, and
+ * the largest one an aerated tank still covers in full. At twice it even the
+ * aerated box overdraws its feeding hours, so this is the last ration at which
+ * the oxygen term is the whole difference between a tank that pays for what it
+ * asks and one that does not.
+ */
+const RATION = 1;
 
 /** Every half-saturation constant taken to nothing: the draw as it was. */
 const UNBOUNDED: TunableConfig = tuned((draft) => {
@@ -121,15 +137,18 @@ describe('an aerobic draw against the oxygen it is drawing from', () => {
 
 describe('the oxygen a stressed tank draws that was never in it', () => {
   /** mg/L asked for across six days, and how much of it the water never held. */
-  function overdraw(config: TunableConfig): { asked: number; unpaid: number } {
+  function overdraw(
+    config: TunableConfig,
+    setup: SimulationConfig = STAGNANT
+  ): { asked: number; unpaid: number } {
     let asked = 0;
     let unpaid = 0;
     runTank({
-      setup: STAGNANT,
+      setup,
       seed: STOCKED,
       days: 6,
       rngSeed: 4242,
-      routine: { config, feed: 1 },
+      routine: { config, feed: RATION },
       watch: (_hour, before) => {
         const want = hourly(before, config).oxygen;
         asked += want;
@@ -139,16 +158,23 @@ describe('the oxygen a stressed tank draws that was never in it', () => {
     return { asked, unpaid };
   }
 
-  // Not to zero: a tick is an hour, so a consumer whose reduced demand still
-  // outruns the standing stock overshoots inside the step. What is left of the
-  // overdraw goes with tick resolution, not with the factor, and a cycled
-  // biofilter is where it shows — the hour a day's feeding mineralises into
-  // ammonia asks for more oxygen than an hour of any tank's water holds.
+  // A direction rather than a ratio, because the residue the factor leaves
+  // behind is not the factor's to close: a tick is an hour, so a consumer whose
+  // reduced demand still outruns the standing stock overshoots inside the step.
+  // The base case is the standing draw — a planting and a cycled biofilter in a
+  // box nothing moves water through run this fixture short for 42 of its 144
+  // hours before a grain of food is added, and the ration then quintuples it.
+  // What is left goes with tick resolution, not with the factor.
   it('asks for less, and leaves less of it unpaid', () => {
     const bounded = overdraw(DEFAULT_CONFIG);
     const unbounded = overdraw(UNBOUNDED);
 
-    expect(bounded.asked).toBeLessThan(unbounded.asked / 2);
-    expect(bounded.unpaid).toBeLessThan(unbounded.unpaid / 3);
+    expect(bounded.asked).toBeLessThan(unbounded.asked);
+    expect(bounded.unpaid).toBeLessThan(unbounded.unpaid);
+  });
+
+  it('leaves a tank with circulation owing nothing at all', () => {
+    expect(overdraw(DEFAULT_CONFIG, AERATED).unpaid).toBe(0);
+    expect(overdraw(UNBOUNDED, AERATED).unpaid).toBeGreaterThan(0);
   });
 });

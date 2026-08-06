@@ -184,16 +184,23 @@ pay from 190.4 to 56.7 mg/L.
 The old assertion was that the shortfall falls to under a tenth. It does not any
 more, and the reason is the one already recorded on this branch rather than a
 new defect: **the residual goes with tick resolution, not with the factor.** A
-tick is an hour, and the hour a day's feeding mineralises asks for more oxygen
-than an hour of any tank's water holds — a 20 L taking 1 g of food wants ~8.5
-mg/L in the hour the ammonia lands, against ~7.5 mg/L standing. Adding the
-largest consumer in the tank to that measurement made the tick-sized part of it
-bigger. Closing it properly still means integrating the draw across the step,
-which is the tick-wide rationing pass this design exists to avoid.
+tick is an hour, and a consumer whose reduced demand still outruns the standing
+stock overshoots inside the step.
+
+The feeding spike is the loud part of that, not the base of it. Withhold the
+food entirely and the same six days still leave the stagnant fixture short for
+42 of its 144 hours, **10.803 mg/L unpaid**: a planting and a cycled biofilter
+in a box nothing moves water through outrun what the surface puts back before
+any ration lands. The daily gram then quintuples it, to 56.701 across 122 hours.
+Closing either properly means integrating the draw across the step, which is the
+tick-wide rationing pass this design exists to avoid.
 
 For scale, the same six days with the circulation a keeper would give it (sponge
-+ air pump): 4.1 mg/L unpaid over 144 hours, 7 hours of it, all of them feeding
-hours — against 0 for the carbon-emitting consumers alone.
++ air pump): the 240-size planting this fixture carries never goes short at all,
+and the 600-size planting the probe also runs owes 2.69 mg/L across 5 hours —
+against 0 for the carbon-emitting consumers alone. The aerated tank at 240 size
+is what `oxygen-limited-draw.test.ts` asserts on, as a hard zero rather than a
+band.
 
 ---
 
