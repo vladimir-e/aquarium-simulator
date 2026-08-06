@@ -20,7 +20,7 @@ import {
   type DailySchedule,
 } from '../../simulation/index.js';
 import { createLog } from '../../simulation/core/logging.js';
-import type { LightConfig } from '../../simulation/config/index.js';
+import type { OpticsConfig } from '../../simulation/config/index.js';
 import {
   PRESETS,
   DEFAULT_PRESET_ID,
@@ -56,12 +56,9 @@ function generateHardscapeId(): string {
   return `hardscape_${Date.now().toString(36)}_${(hardscapeSeq++).toString(36)}`;
 }
 
-/**
- * Re-read the resources the equipment sets, for the handlers that change a
- * piece of it between ticks. The tick does the same thing to the same four.
- */
-function refreshPassiveResources(draft: SimulationState, lightConfig: LightConfig): void {
-  const passive = calculatePassiveResources(draft, lightConfig);
+/** The tick does the same thing to the same four. */
+function refreshPassiveResources(draft: SimulationState, optics: OpticsConfig): void {
+  const passive = calculatePassiveResources(draft, optics);
   draft.resources.surface = passive.surface;
   draft.resources.flow = passive.flow;
   draft.resources.light = passive.light;
@@ -158,7 +155,7 @@ function createInitialResources(
   tankCapacity: number,
   environment: SimulationState['environment'],
   equipment: SimulationState['equipment'],
-  lightConfig: LightConfig
+  optics: OpticsConfig
 ): SimulationState['resources'] {
   // Create a temporary simulation to get initial resource values
   const tempState = createSimulation({
@@ -173,7 +170,7 @@ function createInitialResources(
     ...tempState,
     equipment,
   };
-  const passiveValues = calculatePassiveResources(fullState, lightConfig);
+  const passiveValues = calculatePassiveResources(fullState, optics);
 
   return {
     ...tempState.resources,
@@ -402,7 +399,7 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
           current.tank.capacity,
           current.environment,
           current.equipment,
-          configRef.current.light
+          configRef.current.optics
         );
         draft.resources = freshResources;
 
@@ -561,7 +558,7 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
         const log = createLog(draft.tick, 'equipment', 'info', message);
         draft.equipment.filter.enabled = enabled;
         draft.logs.push(log);
-        refreshPassiveResources(draft, configRef.current.light);
+        refreshPassiveResources(draft, configRef.current.optics);
       })
     );
   }, []);
@@ -579,7 +576,7 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
           );
           draft.equipment.filter.type = type;
           draft.logs.push(log);
-          refreshPassiveResources(draft, configRef.current.light);
+          refreshPassiveResources(draft, configRef.current.optics);
         }
       })
     );
@@ -592,7 +589,7 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
         const log = createLog(draft.tick, 'equipment', 'info', message);
         draft.equipment.airPump.enabled = enabled;
         draft.logs.push(log);
-        refreshPassiveResources(draft, configRef.current.light);
+        refreshPassiveResources(draft, configRef.current.optics);
       })
     );
   }, []);
@@ -604,7 +601,7 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
         const log = createLog(draft.tick, 'equipment', 'info', message);
         draft.equipment.powerhead.enabled = enabled;
         draft.logs.push(log);
-        refreshPassiveResources(draft, configRef.current.light);
+        refreshPassiveResources(draft, configRef.current.optics);
       })
     );
   }, []);
@@ -622,7 +619,7 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
           );
           draft.equipment.powerhead.flowRateGPH = flowRateGPH;
           draft.logs.push(log);
-          refreshPassiveResources(draft, configRef.current.light);
+          refreshPassiveResources(draft, configRef.current.optics);
         }
       })
     );
@@ -660,7 +657,7 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
           `Added ${getHardscapeName(type)} hardscape`
         );
         draft.logs.push(log);
-        refreshPassiveResources(draft, configRef.current.light);
+        refreshPassiveResources(draft, configRef.current.optics);
       })
     );
   }, []);
@@ -682,7 +679,7 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
           `Removed ${getHardscapeName(item.type)} hardscape`
         );
         draft.logs.push(log);
-        refreshPassiveResources(draft, configRef.current.light);
+        refreshPassiveResources(draft, configRef.current.optics);
       })
     );
   }, []);
@@ -696,7 +693,7 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
         const log = createLog(draft.tick, 'user', 'info', message);
         draft.equipment.light.enabled = enabled;
         draft.logs.push(log);
-        refreshPassiveResources(draft, configRef.current.light);
+        refreshPassiveResources(draft, configRef.current.optics);
       })
     );
   }, []);
@@ -714,7 +711,7 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
           );
           draft.equipment.light.par = par;
           draft.logs.push(log);
-          refreshPassiveResources(draft, configRef.current.light);
+          refreshPassiveResources(draft, configRef.current.optics);
         }
       })
     );
@@ -733,7 +730,7 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
           );
           draft.equipment.light.schedule = schedule;
           draft.logs.push(log);
-          refreshPassiveResources(draft, configRef.current.light);
+          refreshPassiveResources(draft, configRef.current.optics);
         }
       })
     );

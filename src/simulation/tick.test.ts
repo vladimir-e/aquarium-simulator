@@ -351,7 +351,7 @@ describe('tick passive resources', () => {
     });
     const murky: TunableConfig = {
       ...DEFAULT_CONFIG,
-      light: { waterAttenuationPerCm: DEFAULT_CONFIG.light.waterAttenuationPerCm * 4 },
+      optics: { waterAttenuationPerCm: DEFAULT_CONFIG.optics.waterAttenuationPerCm * 4 },
     };
 
     expect(tick(state, murky).resources.light).toBeLessThan(

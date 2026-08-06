@@ -6,6 +6,7 @@ import { PersistenceProvider } from '../persistence/index.js';
 import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
 import {
   applyAction,
+  calculateSurface,
   createSimulation,
   getDosePreview,
   tick,
@@ -13,7 +14,6 @@ import {
   type PlantSpecies,
   type SimulationState,
 } from '../../simulation/index.js';
-import { calculatePassiveResources } from '../../simulation/equipment/index.js';
 import { navFigures } from '../nav/figures';
 import { ailingPlants, emptyAggregates, plantRows, plantsAndAlgae, TRIM_TARGETS } from '../run';
 import type { useSimulation } from '../hooks/useSimulation';
@@ -43,7 +43,7 @@ function headline(): string {
 function tank(capacity = 200): SimulationState {
   const state = createSimulation({ tankCapacity: capacity });
   state.equipment.substrate.type = 'aqua_soil';
-  state.resources.surface = calculatePassiveResources(state, DEFAULT_CONFIG.light).surface;
+  state.resources.surface = calculateSurface(state);
   return state;
 }
 
@@ -224,7 +224,7 @@ describe('FloraSection', () => {
   it('reads the scape out with each piece’s surface, and the biofilter ceiling it sums to', () => {
     const scaped = tank();
     scaped.equipment.hardscape.items = [{ id: 'h1', type: 'driftwood' }];
-    scaped.resources.surface = calculatePassiveResources(scaped, DEFAULT_CONFIG.light).surface;
+    scaped.resources.surface = calculateSurface(scaped);
     const state = applyAction(scaped, { type: 'addPlant', species: 'java_fern' }).state;
     const spy = renderFlora(state);
 

@@ -18,7 +18,13 @@ import {
 import type { Hardscape } from './equipment/hardscape.js';
 import { DEFAULT_HARDSCAPE, calculateHardscapeTotalSurface } from './equipment/hardscape.js';
 import type { Light } from './equipment/light.js';
-import { DEFAULT_LIGHT, MAX_LIGHT_PAR } from './equipment/light.js';
+import {
+  DEFAULT_LIGHT,
+  MAX_LIGHT_PAR,
+  getLightOutput,
+  calculateParAtDepth,
+} from './equipment/light.js';
+import { opticsDefaults } from './config/optics.js';
 import type { AirPump } from './equipment/air-pump.js';
 import { DEFAULT_AIR_PUMP, getAirPumpFlow } from './equipment/air-pump.js';
 import type { AutoDoser } from './equipment/auto-doser.js';
@@ -581,6 +587,7 @@ export function createSimulation(
     powerheadConfig,
     substrateConfig,
     hardscapeConfig,
+    lightConfig,
     airPumpConfig
   );
 
@@ -670,6 +677,7 @@ function calculateInitialPassiveResources(
   powerhead: Powerhead,
   substrate: Substrate,
   hardscape: Hardscape,
+  light: Light,
   airPump: AirPump
 ): { surface: number; flow: number; light: number; aeration: boolean } {
   // Import isFilterAirDriven inline to avoid circular dependency
@@ -699,6 +707,13 @@ function calculateInitialPassiveResources(
   // Aeration is active if air pump is on OR filter is air-driven (sponge)
   const aeration = airPump.enabled || (filter.enabled && isFilterAirDriven);
 
-  // Light is calculated from the schedule each tick - starts at 0
-  return { surface, flow, light: 0, aeration };
+  // The constructor takes no tunable config, so hour 0 reads on the shipped
+  // optics; the first tick recalculates against the live one.
+  const substratePar = calculateParAtDepth(
+    getLightOutput(light, 0),
+    calculateTankHeight(tankCapacity),
+    opticsDefaults
+  );
+
+  return { surface, flow, light: substratePar, aeration };
 }

@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef } from 'react';
 import { ChevronLeft } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
+  BUBBLE_RATE_OPTIONS,
   DOSE_AMOUNT_OPTIONS,
   FILTER_TYPES,
   HEATER_WATTAGE_OPTIONS,
@@ -12,7 +13,6 @@ import {
   type FilterType,
   type PowerheadFlowRate,
 } from '../../../simulation/index.js';
-import { BUBBLE_RATE_OPTIONS } from '../../../simulation/equipment/co2-generator.js';
 import type { TunableConfig } from '../../../simulation/config/index.js';
 import type { useSimulation } from '../../hooks/useSimulation';
 import { useUnits } from '../../hooks/useUnits';

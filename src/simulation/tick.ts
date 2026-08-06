@@ -52,7 +52,7 @@ export function tick(
     // Calculate passive resources before processing effects
     // (used by gas exchange that depends on aeration, by algae
     // vitality, and by plant photosynthesis).
-    const passiveValues = calculatePassiveResources(draft, config.light);
+    const passiveValues = calculatePassiveResources(draft, config.optics);
     draft.resources.surface = passiveValues.surface;
     draft.resources.flow = passiveValues.flow;
     draft.resources.light = passiveValues.light;

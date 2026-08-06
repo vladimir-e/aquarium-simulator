@@ -68,7 +68,6 @@ export function dose(
 ): ActionResult {
   const { amountMl } = action;
 
-  // `NaN` is false against every bound below, so it has to go before them.
   if (!Number.isFinite(amountMl)) {
     return {
       state,

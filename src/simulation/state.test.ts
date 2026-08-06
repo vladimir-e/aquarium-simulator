@@ -5,10 +5,13 @@ import {
   calculateTankGlassSurface,
   DEFAULT_HEATER,
 } from './state.js';
+import { DEFAULT_CONFIG } from './config/index.js';
+import { opticsDefaults } from './config/optics.js';
 import { DEFAULT_FILTER, FILTER_SURFACE } from './equipment/filter.js';
-import { MAX_LIGHT_PAR } from './equipment/light.js';
+import { calculateParAtDepth, MAX_LIGHT_PAR } from './equipment/light.js';
 import { DEFAULT_POWERHEAD } from './equipment/powerhead.js';
 import { DEFAULT_SUBSTRATE } from './equipment/substrate.js';
+import { tick } from './tick.js';
 
 describe('createSimulation', () => {
   it('creates simulation with specified tank capacity', () => {
@@ -431,11 +434,31 @@ describe('calculateTankHeight', () => {
   });
 });
 
-/**
- * A resource that reaches `NaN` never comes back: every threshold downstream is
- * a comparison, and all of them are false against it. Construction is the last
- * place the engine can still say no.
- */
+describe('createSimulation - the light a tank opens on', () => {
+  const lit = (startHour: number): number =>
+    createSimulation({
+      tankCapacity: 40,
+      light: { enabled: true, par: 90, schedule: { startHour, duration: 12 } },
+    }).resources.light;
+
+  it('reads what the fixture lands at hour 0, not zero', () => {
+    expect(lit(0)).toBeCloseTo(calculateParAtDepth(90, calculateTankHeight(40), opticsDefaults), 10);
+  });
+
+  it('reads nothing when the photoperiod has not started', () => {
+    expect(lit(8)).toBe(0);
+  });
+
+  it('agrees with the first tick, which recalculates the same hour', () => {
+    const state = createSimulation({
+      tankCapacity: 40,
+      light: { enabled: true, par: 90, schedule: { startHour: 0, duration: 24 } },
+    });
+
+    expect(tick(state, DEFAULT_CONFIG).resources.light).toBeCloseTo(state.resources.light, 10);
+  });
+});
+
 describe('createSimulation - numbers a tank could not survive', () => {
   it('refuses a non-finite number wherever it sits in the config', () => {
     expect(() => createSimulation({ tankCapacity: NaN })).toThrow(/tankCapacity is NaN/);

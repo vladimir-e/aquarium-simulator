@@ -399,6 +399,20 @@ describe('light readings', () => {
     };
     expect(value(read('light', always), 'Output now').note).toBe('lit all day');
   });
+
+  it('does not read a lit fixture against a dark substrate before the first tick', () => {
+    const fresh = createSimulation({
+      tankCapacity: 40,
+      light: { enabled: true, par: 90, schedule: { startHour: 0, duration: 24 } },
+    });
+
+    expect(value(read('light', fresh), 'Output now').value).toBe('90 PAR');
+    expect(value(read('light', fresh), 'At substrate')).toEqual({
+      label: 'At substrate',
+      value: '69 PAR',
+      note: 'through 27 cm of water',
+    });
+  });
 });
 
 describe('auto doser readings', () => {

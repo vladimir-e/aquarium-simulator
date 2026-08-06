@@ -5,7 +5,7 @@
 
 import type { DailySchedule } from '../core/schedule.js';
 import { isScheduleActive } from '../core/schedule.js';
-import type { LightConfig } from '../config/light.js';
+import type { OpticsConfig } from '../config/optics.js';
 
 export type LightPar = 25 | 50 | 90 | 150;
 
@@ -65,16 +65,16 @@ export function getLightOutput(light: Light, hourOfDay: number): number {
  *
  * @param surfacePar - PAR at the water surface (µmol/m²/s)
  * @param depthCm - Depth of water the light travels through
- * @param config - Light configuration (attenuation coefficient)
+ * @param optics - Water column optics (attenuation coefficient)
  * @returns PAR at that depth (µmol/m²/s)
  */
 export function calculateParAtDepth(
   surfacePar: number,
   depthCm: number,
-  config: LightConfig
+  optics: OpticsConfig
 ): number {
   if (surfacePar <= 0) return 0;
 
-  const attenuation = config.waterAttenuationPerCm * Math.max(0, depthCm);
+  const attenuation = optics.waterAttenuationPerCm * Math.max(0, depthCm);
   return surfacePar * Math.exp(-attenuation);
 }

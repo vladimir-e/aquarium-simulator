@@ -156,7 +156,7 @@ function lightReadings({ state, config }: DeviceReadingInput): DeviceReading[] {
   const lit = light.enabled && isScheduleActive(hour, light.schedule);
   const depth = calculateTankHeight(state.tank.capacity);
   const surfacePar = getLightOutput(light, hour);
-  const wouldLand = Math.round(calculateParAtDepth(light.par, depth, config.light));
+  const wouldLand = Math.round(calculateParAtDepth(light.par, depth, config.optics));
   const column = `${Math.round(depth)} cm of water`;
 
   return [

@@ -72,11 +72,6 @@ describe('applyAction', () => {
     expect(lastLog.message).toContain('Topped off water');
   });
 
-  /**
-   * A bound written as `<` or `>` is false against `NaN`, so an unguarded
-   * action hands it straight to a resource — and nothing downstream ever
-   * clears it again. Every action that takes a number turns one away.
-   */
   describe('a number the tank could not recover from', () => {
     const tank = (): SimulationState => {
       const planted = applyAction(

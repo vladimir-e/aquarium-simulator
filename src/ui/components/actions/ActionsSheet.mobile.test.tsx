@@ -11,16 +11,16 @@ import { DEFAULT_CONFIG } from '../../../simulation/config/index.js';
 import { verbRow } from '../../actions';
 import {
   applyAction,
+  calculateSurface,
   createSimulation,
   type Action,
   type SimulationState,
 } from '../../../simulation/index.js';
-import { calculatePassiveResources } from '../../../simulation/equipment/index.js';
 
 function tank(): SimulationState {
   const state = createSimulation({ tankCapacity: 200, tapWaterTemperature: 18, tapWaterPH: 7.4 });
   state.equipment.substrate.type = 'aqua_soil';
-  state.resources.surface = calculatePassiveResources(state, DEFAULT_CONFIG.light).surface;
+  state.resources.surface = calculateSurface(state);
   state.resources.water = 196.4;
   state.algae.mass = 47;
   return applyAction(applyAction(state, { type: 'addFish', species: 'betta' }).state, {

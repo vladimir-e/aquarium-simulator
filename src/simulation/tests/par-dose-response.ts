@@ -10,17 +10,28 @@
  *     npx tsx src/simulation/tests/par-dose-response.ts
  */
 
-import { calculateTankHeight } from '../state.js';
+import { calculateTankHeight, type SimulationConfig } from '../state.js';
 import { calculateParAtDepth } from '../equipment/light.js';
-import { lightDefaults } from '../config/light.js';
+import { opticsDefaults } from '../config/optics.js';
 import { algaeVitalityDefaults as algae } from '../config/algae-vitality.js';
 import { getPresetById } from '../presets.js';
 import type { PresetSeed } from '../seed.js';
 import { formatTable } from './sweep.js';
-import { runTank, withLight } from './metrics.js';
+import { runTank } from './metrics.js';
+
+/** The same tank under a different fixture, and optionally a different box. */
+function withLight(setup: SimulationConfig, par: number, capacity?: number): SimulationConfig {
+  return {
+    ...setup,
+    tankCapacity: capacity ?? setup.tankCapacity,
+    light: { ...setup.light, enabled: par > 0, par },
+  };
+}
 
 const CAPACITY = 40;
 const DAYS = 90;
+/** Samples are taken at noon, so a 90-day run's last one is day 89's, not 90's. */
+const LAST_DAY = DAYS - 1;
 const RNG_SEED = 4242;
 
 /** Substrate PAR readings to sweep, straddling the threshold. */
@@ -40,7 +51,7 @@ const depth = calculateTankHeight(CAPACITY);
  * inverting through the model itself rather than restating Beer–Lambert here.
  */
 function fixtureFor(target: number): number {
-  return target / calculateParAtDepth(1, depth, lightDefaults);
+  return target / calculateParAtDepth(1, depth, opticsDefaults);
 }
 
 /** What the excess-light stressor charges at a given substrate PAR, %/h. */
@@ -63,18 +74,21 @@ function sweepAt(seed: PresetSeed): string {
         rngSeed: RNG_SEED,
       });
       const last = run.samples[run.samples.length - 1]!;
-      const onDay = (day: number): number =>
-        (run.samples.find((sample) => Math.floor(sample.day) === day) ?? last).algae;
+      const onDay = (day: number): number => {
+        const sample = run.samples.find((s) => Math.floor(s.day) === day);
+        if (sample === undefined) throw new Error(`no sample on day ${day} of a ${DAYS} d run`);
+        return sample.algae;
+      };
 
       return {
-        subPAR: calculateParAtDepth(fixtureFor(target), depth, lightDefaults),
+        subPAR: calculateParAtDepth(fixtureFor(target), depth, opticsDefaults),
         excessLight: excessLightRate(target),
         algae30: onDay(30),
         algae60: onDay(60),
-        algae90: onDay(90),
-        plants90: last.plants,
-        size90: last.totalSize,
-        cond90: last.avgCondition,
+        algae89: onDay(LAST_DAY),
+        plants89: last.plants,
+        size89: last.totalSize,
+        cond89: last.avgCondition,
         deaths: run.plantDeaths
           .map((death) => `${death.species.slice(0, 2)}@${death.day.toFixed(0)}`)
           .join(' '),

@@ -6,7 +6,7 @@ import { produce } from 'immer';
 import type { Effect } from '../core/effects.js';
 import type { SimulationState } from '../state.js';
 import { calculateTankHeight, calculateTankGlassSurface } from '../state.js';
-import { type LightConfig, type TunableConfig, lightDefaults } from '../config/index.js';
+import { type OpticsConfig, type TunableConfig } from '../config/index.js';
 import {
   heaterUpdate,
   applyHeaterStateChange,
@@ -154,14 +154,28 @@ export interface PassiveResourceValues {
 }
 
 /**
- * Calculates passive resources from all equipment.
- * Called each tick to recalculate surface, flow, light, and aeration based on current state.
- *
- * Surface area sources:
+ * Every cm² in the tank a biofilm can colonise:
  * - Tank glass walls (calculated from capacity)
  * - Filter media (when enabled)
  * - Substrate (based on type and tank capacity)
  * - Hardscape items (rocks, driftwood, decorations)
+ */
+export function calculateSurface(state: SimulationState): number {
+  const { tank, equipment } = state;
+
+  let surface = calculateTankGlassSurface(tank.capacity);
+  if (equipment.filter.enabled) {
+    surface += getFilterSurface(equipment.filter.type);
+  }
+  surface += getSubstrateSurface(equipment.substrate.type, tank.capacity);
+  surface += calculateHardscapeTotalSurface(equipment.hardscape.items);
+
+  return surface;
+}
+
+/**
+ * Calculates passive resources from all equipment.
+ * Called each tick to recalculate surface, flow, light, and aeration based on current state.
  *
  * Flow sources:
  * - Filter (when enabled)
@@ -178,21 +192,12 @@ export interface PassiveResourceValues {
  */
 export function calculatePassiveResources(
   state: SimulationState,
-  lightConfig: LightConfig
+  optics: OpticsConfig
 ): PassiveResourceValues {
   const { tank, equipment, tick } = state;
   const hourOfDay = tick % 24;
 
-  // Calculate tank glass surface from capacity
-  const tankGlassSurface = calculateTankGlassSurface(tank.capacity);
-
-  // Surface area
-  let surface = tankGlassSurface;
-  if (equipment.filter.enabled) {
-    surface += getFilterSurface(equipment.filter.type);
-  }
-  surface += getSubstrateSurface(equipment.substrate.type, tank.capacity);
-  surface += calculateHardscapeTotalSurface(equipment.hardscape.items);
+  const surface = calculateSurface(state);
 
   // Flow rate (scaled to tank capacity)
   let flow = 0;
@@ -210,7 +215,7 @@ export function calculatePassiveResources(
   const light = calculateParAtDepth(
     getLightOutput(equipment.light, hourOfDay),
     calculateTankHeight(tank.capacity),
-    lightConfig
+    optics
   );
 
   // Aeration: active if air pump is on OR filter is air-driven (sponge)
@@ -234,7 +239,7 @@ export function calculatePassiveResources(
  */
 export function biofilmKept(state: SimulationState): number {
   const bed = state.equipment.substrate;
-  const surface = calculatePassiveResources(state, lightDefaults).surface;
+  const surface = calculateSurface(state);
   const lost = getSubstrateSurface(bed.type, state.tank.capacity);
   return surface > 0 ? 1 - lost / surface : 1;
 }
@@ -256,6 +261,6 @@ export function rescape(state: SimulationState, type: SubstrateType): Simulation
     draft.equipment.substrate = laid;
     draft.resources.aob *= kept;
     draft.resources.nob *= kept;
-    draft.resources.surface = calculatePassiveResources(draft, lightDefaults).surface;
+    draft.resources.surface = calculateSurface(draft);
   });
 }

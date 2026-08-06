@@ -138,6 +138,7 @@ export {
 export {
   processEquipment,
   calculatePassiveResources,
+  calculateSurface,
   biofilmKept,
   rescape,
   heaterUpdate,
@@ -172,6 +173,8 @@ export {
   DEFAULT_SUBSTRATE,
   SUBSTRATE_SURFACE_PER_LITER,
   SUBSTRATE_ORGANIC_PER_LITER,
+  BUBBLE_RATE_OPTIONS,
+  type BubbleRate,
   getAirPumpOutput,
   getAirPumpFlow,
   isAirPumpUndersized,

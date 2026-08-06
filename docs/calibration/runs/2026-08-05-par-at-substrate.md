@@ -9,7 +9,7 @@ engine run driven through `src/simulation/tests/metrics.ts` — the same
 reproducible rather than retold.
 
 Branch health at the time of writing: `npm run typecheck` clean on all three
-configs, `npm test` 2504 passed / 143 files, `npm run lint` 0 errors and the
+configs, `npm test` 2513 passed / 144 files, `npm run lint` 0 errors and the
 3 standing `no-console` warnings.
 
 ---
@@ -19,18 +19,22 @@ configs, `npm test` 2504 passed / 143 files, `npm run lint` 0 errors and the
 A pinned probe — nutrients, CO₂, pH and temperature held at optimum before
 every tick, so the light channel is the only thing that moves. 40 L, canister
 filter, aqua soil, full lid, ATO, CO₂ on, the shipped default fixture, one
-plant at size 35, 60 days, seed 5.
+plant at size 35, 60 days, seed 5:
+
+```bash
+npx tsx src/simulation/tests/default-fixture-survival.ts
+```
 
 On `main` the default fixture was 100 W. On the branch it is 50 PAR at the
 surface, which lands **38.1 PAR** on the floor of a 40 L box (27.1 cm deep).
 
 | species | band | `main` (100 W) | branch (38.1 substrate PAR) |
 |---|---|---|---|
-| anubias | 8–70 | size 22 / cond 11 | **size 68.1 / cond 100** |
-| java_fern | 10–90 | dead d56 | **size 88.3 / cond 100** |
-| amazon_sword | 20–120 | dead d44 | **size 140.7 / cond 100** |
-| dwarf_hairgrass | 25–200 | dead d42 | **size 194.5 / cond 100** |
-| monte_carlo | 30–200 | dead d44 | **size 223.4 / cond 100** |
+| anubias | 8–70 | size 22 / cond 11 | **size 68.3 / cond 100** |
+| java_fern | 10–90 | dead d56 | **size 88.8 / cond 100** |
+| amazon_sword | 20–120 | dead d44 | **size 141.6 / cond 100** |
+| dwarf_hairgrass | 25–200 | dead d42 | **size 195.8 / cond 100** |
+| monte_carlo | 30–200 | dead d44 | **size 224.9 / cond 100** |
 | algae at d60 | | 71–73 | **0.00–0.12** |
 
 Every species now sits inside its tolerance band on the default tank, and the
@@ -38,8 +42,7 @@ one that used to survive limps no longer. The `main` column killed four of
 five plantings inside two months on a tank a player gets by pressing nothing.
 
 The `main` figures were measured on a `main` worktree during the empirical
-pass; the branch column was re-measured against the committed harness for
-this document.
+pass; the branch column is what the committed probe prints.
 
 ---
 
@@ -80,11 +83,12 @@ invariant.**
 
 Same tank throughout, fixture solved backwards so substrate PAR hits each
 target exactly (`src/simulation/tests/par-dose-response.ts`), 40 L, 90 days,
-seed 4242, top-off only.
+seed 4242, top-off only. Samples are taken at noon, so the last one a 90-day
+run reaches is day 89's — the columns say what they read.
 
 Planted — 2 amazon sword, 2 monte carlo, 1 java fern, all at size 35:
 
-| substrate PAR | excess-light %/h | algae d30 | algae d60 | algae d90 | plants left |
+| substrate PAR | excess-light %/h | algae d30 | algae d60 | algae d89 | plants left |
 |---|---|---|---|---|---|
 | 40 | 0.000 | 5.26 | 13.42 | **20.63** | 1 |
 | 50 | 0.000 | 5.26 | 13.42 | **20.63** | 1 |
@@ -100,6 +104,13 @@ Planted — 2 amazon sword, 2 monte carlo, 1 java fern, all at size 35:
 | 114.3 | 0.177 | 29.98 | 55.27 | **75.57** | **0** |
 | 126 | 0.224 | 36.54 | 64.68 | **82.22** | **0** |
 
+The 4-of-5 loss in the right-hand column is not the light channel and not a
+contradiction of §1: this tank is never dosed, so the same
+`nutrient_deficiency` that drives the flat 20.63 baseline below takes the two
+monte carlo by d17 and the two amazon sword by d63 at every light level,
+including the ones where the light term is exactly zero. §1 pins that channel;
+§3 deliberately leaves it free.
+
 Three things this settles:
 
 1. **Below the line the light channel contributes exactly nothing.** 40 PAR
@@ -111,9 +122,9 @@ Three things this settles:
    `min(0.4, 0.004 × (PAR − 70))` %/h, so the first PAR over the line buys
    0.004 %/h. An A/B either side at the same volume — an 88 PAR fixture
    (67.1 substrate) against a 92 (70.1) — reads **20.63 vs 20.83** algae at
-   d90. There is no cliff at 70 to fall off.
+   d89. There is no cliff at 70 to fall off.
 3. **The destructive zone starts near 100, not 70.** At 100 substrate PAR the
-   planting is wiped out by d90; at 90 it survives at condition 60. That is
+   planting is wiped out by d78; at 90 it survives at condition 60. That is
    where a warning would be worth writing, and it is 30 PAR above the
    threshold.
 
@@ -128,7 +139,7 @@ algae regardless of the threshold:
 
 | substrate PAR | 40–70 | 80 | 100 | 126 |
 |---|---|---|---|---|
-| algae d90 | **59.85** | 67.61 | 78.92 | 87.95 |
+| algae d89 | **59.85** | 67.61 | 78.92 | 87.95 |
 
 Driven by `low_plant_power`, which is arguably right for an empty lit tank.
 Pre-existing, unchanged by this branch.
@@ -170,14 +181,12 @@ reproduce identically on `main`.
 ## 6. Reproduction
 
 ```bash
-npx tsx src/simulation/tests/par-dose-response.ts   # §3, both tables
+npx tsx src/simulation/tests/default-fixture-survival.ts   # §1, branch column
+npx tsx src/simulation/tests/par-dose-response.ts          # §3, both tables
 ```
 
-§1's pinned probe is `runTank` with a `hold` that rewrites nutrients to
-`nutrientsDefaults.optimal*Ppm`, CO₂ to 20, pH to 7.0 and temperature to 25
-before each tick, over the setup named there. §2 is
-`calculateParAtDepth(1, calculateTankHeight(litres), lightDefaults)`, which is
-retention by definition.
+§2 is `calculateParAtDepth(1, calculateTankHeight(litres), opticsDefaults)`,
+which is retention by definition.
 
 The harness is committed at `src/simulation/tests/metrics.ts` and drives
 `keep()` from `tanks.ts`, so a figure here and a figure in an anchor come off

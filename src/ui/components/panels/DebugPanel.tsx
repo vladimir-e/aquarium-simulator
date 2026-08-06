@@ -10,7 +10,7 @@ import {
   temperatureConfigMeta,
   evaporationConfigMeta,
   algaeVitalityConfigMeta,
-  lightConfigMeta,
+  opticsConfigMeta,
   phConfigMeta,
   plantsConfigMeta,
   nutrientsConfigMeta,
@@ -318,23 +318,23 @@ export function DebugPanel(): React.JSX.Element | null {
           ))}
         </ConfigSection>
 
-        {/* Light Section */}
+        {/* Water Optics Section */}
         <ConfigSection
-          title="Light"
-          isExpanded={expandedSections.has('light')}
-          onToggle={() => toggleSection('light')}
-          onReset={() => resetSection('light')}
-          isModified={isSectionModified('light')}
+          title="Water Optics"
+          isExpanded={expandedSections.has('optics')}
+          onToggle={() => toggleSection('optics')}
+          onReset={() => resetSection('optics')}
+          isModified={isSectionModified('optics')}
         >
-          {lightConfigMeta.map((meta) => (
+          {opticsConfigMeta.map((meta) => (
             <ConfigInput
               key={meta.key}
               label={meta.label}
-              value={config.light[meta.key]}
-              onChange={(value) => updateConfig('light', meta.key, value)}
+              value={config.optics[meta.key]}
+              onChange={(value) => updateConfig('optics', meta.key, value)}
               step={meta.step}
               unit={meta.unit}
-              isModified={isValueModified('light', meta.key)}
+              isModified={isValueModified('optics', meta.key)}
             />
           ))}
         </ConfigSection>

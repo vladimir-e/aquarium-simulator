@@ -9,10 +9,12 @@ import { PERSISTENCE_VERSION } from './types.js';
 import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
 import {
   createSimulation,
+  BUBBLE_RATE_OPTIONS,
   DOSE_AMOUNT_OPTIONS,
   FILTER_TYPES,
   FISH_SPECIES_DATA,
   HEATER_WATTAGE_OPTIONS,
+  LIGHT_PAR_OPTIONS,
   PLANT_SPECIES_DATA,
   POWERHEAD_FLOW_RATES,
   type FishSpecies,
@@ -20,8 +22,6 @@ import {
   type SimulationConfig,
   type SimulationState,
 } from '../../simulation/index.js';
-import { LIGHT_PAR_OPTIONS } from '../../simulation/equipment/light.js';
-import { BUBBLE_RATE_OPTIONS } from '../../simulation/equipment/co2-generator.js';
 import { HARDSCAPE_TYPES, SUBSTRATE_TYPES } from '../build/scape.js';
 import { LID_TYPES } from '../build/scenario.js';
 import { getTankSizeOptions } from '../utils/units.js';
@@ -70,20 +70,6 @@ describe('TunableConfigSchema', () => {
   it('validates DEFAULT_CONFIG', () => {
     const result = TunableConfigSchema.safeParse(DEFAULT_CONFIG);
     expect(result.success).toBe(true);
-  });
-
-  it('validates all sections have correct structure', () => {
-    const result = TunableConfigSchema.safeParse(DEFAULT_CONFIG);
-    if (result.success) {
-      expect(result.data.decay).toBeDefined();
-      expect(result.data.nitrogenCycle).toBeDefined();
-      expect(result.data.gasExchange).toBeDefined();
-      expect(result.data.temperature).toBeDefined();
-      expect(result.data.evaporation).toBeDefined();
-      expect(result.data.algae).toBeDefined();
-      expect(result.data.ph).toBeDefined();
-      expect(result.data.plants).toBeDefined();
-    }
   });
 
   it('rejects missing sections', () => {

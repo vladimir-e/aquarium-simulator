@@ -367,7 +367,7 @@ const AlgaeConfigSchema = z
   })
   .strict();
 
-const LightConfigSchema = z
+const OpticsConfigSchema = z
   .object({
     waterAttenuationPerCm: z.number(),
   })
@@ -496,7 +496,7 @@ export const TunableConfigSchema = z
     temperature: TemperatureConfigSchema,
     evaporation: EvaporationConfigSchema,
     algae: AlgaeConfigSchema,
-    light: LightConfigSchema,
+    optics: OpticsConfigSchema,
     ph: PhConfigSchema,
     plants: PlantsConfigSchema,
     nutrients: NutrientsConfigSchema,

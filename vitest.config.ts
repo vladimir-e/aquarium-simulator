@@ -15,6 +15,9 @@ export default defineConfig({
         'src/**/*.test.tsx',
         'src/**/index.ts',
         'src/ui/**/*',
+        // One-shot calibration probes: a `tsx` entry point each, run by hand.
+        'src/simulation/tests/par-dose-response.ts',
+        'src/simulation/tests/default-fixture-survival.ts',
       ],
     },
   },

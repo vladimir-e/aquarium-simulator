@@ -3,13 +3,13 @@ import { biofilmKept, calculatePassiveResources, type PassiveResourceValues } fr
 import { getSubstrateSurface, type SubstrateType } from './substrate.js';
 import { calculateTankHeight, createSimulation, type SimulationState } from '../state.js';
 import { calculateParAtDepth } from './light.js';
-import { lightDefaults } from '../config/light.js';
+import { opticsDefaults } from '../config/optics.js';
 import { FILTER_SURFACE, getFilterFlow } from './filter.js';
 import { POWERHEAD_FLOW_LPH } from './powerhead.js';
 import { HARDSCAPE_SURFACE, type HardscapeItem } from './hardscape.js';
 
 const passive = (state: SimulationState): PassiveResourceValues =>
-  calculatePassiveResources(state, lightDefaults);
+  calculatePassiveResources(state, opticsDefaults);
 
 describe('calculatePassiveResources', () => {
   describe('surface calculation', () => {
@@ -402,7 +402,7 @@ describe('calculatePassiveResources', () => {
 
   describe('light calculation', () => {
     const atSubstrate = (capacity: number, surfacePar: number): number =>
-      calculateParAtDepth(surfacePar, calculateTankHeight(capacity), lightDefaults);
+      calculateParAtDepth(surfacePar, calculateTankHeight(capacity), opticsDefaults);
 
     it('returns 0 light when light disabled', () => {
       const state = createSimulation({ tankCapacity: 100 });

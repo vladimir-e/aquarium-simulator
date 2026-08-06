@@ -31,7 +31,7 @@ export {
   algaeVitalityDefaults,
   algaeVitalityConfigMeta,
 } from './algae-vitality.js';
-export { type LightConfig, lightDefaults, lightConfigMeta } from './light.js';
+export { type OpticsConfig, opticsDefaults, opticsConfigMeta } from './optics.js';
 export { type PhConfig, phDefaults, phConfigMeta } from './ph.js';
 export { type PlantsConfig, plantsDefaults, plantsConfigMeta } from './plants.js';
 export {
@@ -55,7 +55,7 @@ import { type GasExchangeConfig, gasExchangeDefaults } from './gas-exchange.js';
 import { type TemperatureConfig, temperatureDefaults } from './temperature.js';
 import { type EvaporationConfig, evaporationDefaults } from './evaporation.js';
 import { type AlgaeVitalityConfig, algaeVitalityDefaults } from './algae-vitality.js';
-import { type LightConfig, lightDefaults } from './light.js';
+import { type OpticsConfig, opticsDefaults } from './optics.js';
 import { type PhConfig, phDefaults } from './ph.js';
 import { type PlantsConfig, plantsDefaults } from './plants.js';
 import { type NutrientsConfig, nutrientsDefaults } from './nutrients.js';
@@ -71,7 +71,7 @@ export interface TunableConfig {
   temperature: TemperatureConfig;
   evaporation: EvaporationConfig;
   algae: AlgaeVitalityConfig;
-  light: LightConfig;
+  optics: OpticsConfig;
   ph: PhConfig;
   plants: PlantsConfig;
   nutrients: NutrientsConfig;
@@ -88,7 +88,7 @@ export const DEFAULT_CONFIG: TunableConfig = {
   temperature: temperatureDefaults,
   evaporation: evaporationDefaults,
   algae: algaeVitalityDefaults,
-  light: lightDefaults,
+  optics: opticsDefaults,
   ph: phDefaults,
   plants: plantsDefaults,
   nutrients: nutrientsDefaults,
