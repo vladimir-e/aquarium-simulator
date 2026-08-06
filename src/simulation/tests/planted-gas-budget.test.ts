@@ -49,7 +49,7 @@ const PLANTING: PresetSeed['plants'] = [
 
 const O2_HELD = 4;
 const CO2_HELD = 20;
-/** Carbon a rate unit would exhaust in a fraction of an hour. */
+/** A water column all but stripped of carbon, mg/L. */
 const CO2_STARVED = 0.02;
 
 /**
