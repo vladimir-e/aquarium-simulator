@@ -193,6 +193,10 @@ export const livestockDefaults: LivestockConfig = {
   // Monod maximum rather than a figure read in real water: air-saturated water
   // leaves 89 % of it, so what the model reproduces is 0.268.
   //
+  // It scales `basalAmmoniaRate` and the post-prandial gill stream as well as
+  // the draw — deamination is the same metabolism — so this one constant sets
+  // both what a roster breathes and what it loads the water with.
+  //
   // Damage is a separate reading: `oxygenStressThreshold` still charges a fish
   // for the water it is in, so a suffocating fish draws less and suffers more.
   respirationOxygenHalfSaturation: 1.0,
@@ -201,12 +205,16 @@ export const livestockDefaults: LivestockConfig = {
   foodNitrogenFraction: 0.05,
   // 80 % of ingested N excreted directly through gills; 20 % via feces.
   gillNFraction: 0.8,
-  // 0.03 mg NH3 / g fish / hr = 0.72 mg/g/day — mid of the 0.3–1.0
-  // mg N/g/day range (converted via MW_NH3/MW_N), representative of a
-  // small freshwater teleost at 25 °C. For 5 g of neon tetras this
-  // is 3.6 mg NH3/day, roughly equal to the food-driven contribution
-  // at lean feeding — matching the real-world observation that
-  // basal output is non-negligible.
+  // Body protein turnover, mg NH3 / g fish / hr, in the 0.3–1.0 mg N/g/day
+  // measured for a small freshwater teleost at 25 °C (converted via
+  // MW_NH3/MW_N).
+  //
+  // A Monod maximum like the draw it rides on, and read the same way: air-
+  // saturated water leaves 89 % of it, so what the model reproduces is 0.0268
+  // — 0.529 mg N/g/day, a third of the way into that band rather than the
+  // middle of it, and 3.2 mg NH3/day for 5 g of neon tetras. That is roughly
+  // the food-driven contribution at lean feeding, which is the real-world
+  // observation the term exists for: basal output is not negligible.
   basalAmmoniaRate: 0.03,
   respiratoryQuotient: 0.8, // textbook mixed-diet value
 

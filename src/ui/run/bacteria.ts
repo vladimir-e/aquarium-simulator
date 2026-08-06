@@ -32,13 +32,15 @@ import { mineralisationBase, wasteInflow } from './waste.js';
  * The share of its own ceiling at which a colony counts as having filled it.
  *
  * Not 100: unconditional decay puts the arithmetic limit at
- * `1 − deathRate/growthRate` — 96 % for AOB, 94 % for NOB — and oxygen stops
- * NOB short of even that. Under a saturating load the circulation ladder is
- * bimodal: NOB reach 89.5–90.1 % on a canister with an air pump, 53–61 % on
- * anything less. This sits under the lower of those two and far above the best
- * of the rest, so the line it gates reads as circulation rather than as luck.
+ * `1 − deathRate/growthRate`, and oxygen stops NOB short of even that. Where
+ * this number sits against both is measured, not asserted here —
+ * `bacteria-colony.test.ts` pins the circulation ladder and
+ * `docs/calibration/runs/2026-08-07-nitrification-on-air.md` carries it. The
+ * margin is wide on that ladder, which is dosed straight into the resource, and
+ * narrow on the feed path, whose two measured rungs straddle this number rather
+ * than clearing it.
  *
- * Only a tank held under a saturating load gets near it at all: an ordinary
+ * Only a tank held under a load like that gets near it at all: an ordinary
  * stocked tank rests at a couple of percent, because a colony grows to its load
  * and not to its surface.
  */
@@ -377,6 +379,11 @@ export function bacteriaSummary(
   // Ahead of the lagging-colony line, which promises a colony that catches up:
   // one already on its surface has nowhere left to do it, and under a load big
   // enough to fill a biofilm nitrite is always climbing.
+  //
+  // No projection either, and for the same reason: a peak is where a growing
+  // colony overtakes its load, so a colony with no growth left in it has none.
+  // On a tank fed hard enough to reach this state the projector returns the
+  // 180-day horizon rather than a peak the tank passes through.
   if (aob.pct >= SURFACE_BOUND_PCT && nob.pct >= SURFACE_BOUND_PCT) {
     return 'Both colonies have filled the surface they live on — until the tank offers more biofilm, more load has nowhere to go.';
   }

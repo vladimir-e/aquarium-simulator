@@ -116,9 +116,7 @@ export function nitrifierOxygenFactor(
  * oxygen term at all.
  *
  * Biologically legitimate: real NOB (Nitrobacter / Nitrospira) are faster per
- * cell than AOB (Nitrosomonas / Nitrosospira). The engine exposes a single
- * `bacteriaProcessingRate` knob as the AOB baseline; NOB inherits
- * `rate × multiplier`.
+ * cell than AOB (Nitrosomonas / Nitrosospira).
  */
 export function nobProcessingRateMultiplier(
   config: NitrogenCycleConfig = nitrogenCycleDefaults

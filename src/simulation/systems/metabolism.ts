@@ -163,8 +163,6 @@ export function processMetabolism(
     // excreting a few tenths of a mg of NH3 per gram per day.
     const basalNH3 = config.basalAmmoniaRate * f.mass;
 
-    // Both streams are deamination, and deamination is metabolism: the same
-    // factor the draw below runs on, because it is the same metabolism.
     totalAmmonia += (nToGills * NH3_MG_PER_G_N + basalNH3) * oxygenFactor;
 
     const oxygenConsumedMg = config.baseRespirationRate * f.mass * oxygenFactor;

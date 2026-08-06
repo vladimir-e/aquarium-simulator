@@ -21,6 +21,8 @@ import {
 import { AIR_SATURATED_O2 } from './nitrogen-cycle.js';
 import { monodFactor } from '../core/kinetics.js';
 import { calculateO2Saturation } from '../systems/gas-exchange.js';
+import { nobProcessingRateMultiplier } from '../systems/nitrogen-cycle.js';
+import { MW_N, MW_NH3, NH3_TO_NO2_MASS_RATIO } from '../core/chemistry.js';
 
 describe('DEFAULT_CONFIG', () => {
   it('contains all 11 system configs', () => {
@@ -206,12 +208,47 @@ describe('nitrogenCycleDefaults quoted in the water they were measured in', () =
     expect(nitrogenCycleDefaults.bacteriaProcessingRate * inAir(aobK)).toBeCloseTo(0.0002, 12);
   });
 
+  it('hands NOB the NH₃→NO₂ mass ratio and nothing else there', () => {
+    // The multiplier carries each guild's own oxygen term so neither pays the
+    // other's; what is left in the water both were measured in is the ratio.
+    expect((nobProcessingRateMultiplier() * inAir(nobK)) / inAir(aobK)).toBeCloseTo(
+      NH3_TO_NO2_MASS_RATIO,
+      12
+    );
+  });
+
   it('keeps both half-saturation constants inside the published range, NOB above AOB', () => {
     expect(aobK).toBeGreaterThanOrEqual(0.3);
     expect(aobK).toBeLessThanOrEqual(0.6);
     expect(nobK).toBeGreaterThanOrEqual(0.6);
     expect(nobK).toBeLessThanOrEqual(1.5);
     expect(nobK).toBeGreaterThan(aobK);
+  });
+});
+
+/**
+ * Two livestock rates are Monod maxima as well, and neither is divided back up
+ * by its factor the way the nitrifier rates above are. What decides that is
+ * whether the constant quotes a single figure or a band: re-quoting a band would
+ * move the livestock calibration to make nothing truer. It holds only while what
+ * the tank reproduces is still inside the band, which is what this asserts.
+ */
+describe('livestockDefaults inside the bands that let them keep their haircut', () => {
+  const inAir = monodFactor(
+    AIR_SATURATED_O2,
+    livestockDefaults.respirationOxygenHalfSaturation
+  );
+
+  it('breathes 0.2–0.5 mg O₂ per gram per hour in air-saturated water', () => {
+    const reproduced = livestockDefaults.baseRespirationRate * inAir;
+    expect(reproduced).toBeGreaterThanOrEqual(0.2);
+    expect(reproduced).toBeLessThanOrEqual(0.5);
+  });
+
+  it('excretes 0.3–1.0 mg basal N per gram per day there', () => {
+    const perDay = livestockDefaults.basalAmmoniaRate * inAir * 24;
+    expect((perDay * MW_N) / MW_NH3).toBeGreaterThanOrEqual(0.3);
+    expect((perDay * MW_N) / MW_NH3).toBeLessThanOrEqual(1.0);
   });
 });
 
