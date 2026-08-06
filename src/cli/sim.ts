@@ -28,7 +28,7 @@ import {
 } from './session.js';
 import { parseDuration } from './duration.js';
 import { appendSnapshot, snapshot } from './history.js';
-import { renderObserve, renderTrace } from './format.js';
+import { renderObserve, renderTrace, TRACE_FIELDS } from './format.js';
 import { runSmoke } from './smoke.js';
 
 function parseFlags(args: string[]): { flags: Record<string, string>; rest: string[] } {
@@ -247,6 +247,7 @@ function printHelp(): void {
       '  tick <duration>           (e.g. 5d, 48h, 1)',
       '  observe',
       '  trace --fields=<csv> [--last=<duration>] [--every=<duration>]',
+      `      fields: ${TRACE_FIELDS.join(', ')}`,
       '  config get [<dotted.path>]',
       '  config set <dotted.path> <value>',
       '  action <type> [args...]   (feed 2.5, waterChange 40, dose 1, topOff,',

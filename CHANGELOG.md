@@ -12,6 +12,7 @@ Format: - **Feature name** (#PR) - One short sentence (under ~150 chars)
 ## Unreleased
 
 - **A 1000 W heater no longer destroys the tank** - the picker offered a wattage the save schema refused, and a refused save discards the tank.
+- **`trace` rejects unknown fields** - a mistyped `--fields` name emitted a column of blanks that reads as absent data; the valid list is in `--help`, and algae is on it.
 - **`config set` takes a finite number or nothing** - `Infinity` and `1e309` were stored as strings that arithmetic turned back into `NaN`, and a typo'd path grew the config a key nothing reads.
 - **Dead calibration scripts removed** - `scripts/calibrate-*.ts` stopped building in April; the committed harness in `src/simulation/tests/` covers their ground.
 - **Light is PAR, not watts** - a fixture is rated at the surface, the tank runs on what reaches the substrate, and depth comes from capacity (v18, v5).
