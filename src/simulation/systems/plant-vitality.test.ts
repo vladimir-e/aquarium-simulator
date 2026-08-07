@@ -56,7 +56,8 @@ function makeResources(overrides: Partial<Resources> = {}): Resources {
 function ctx(
   plant: Plant,
   resources: Resources,
-  algaeMass: number = 0
+  algaeMass: number = 0,
+  plantsConfig = plantsDefaults
 ): PlantVitalityContext {
   // Tests compute sufficiency the same way the orchestrator does so the
   // vitality math sees the value the production path would supply.
@@ -70,7 +71,7 @@ function ctx(
     plant,
     resources,
     waterVolume: resources.water,
-    plantsConfig: plantsDefaults,
+    plantsConfig,
     nutrientSufficiency,
     algaeMass,
   };
@@ -255,6 +256,37 @@ describe('buildPlantBenefits', () => {
 
     it('pays nothing in the dark', () => {
       expect(lightBenefit('anubias', 0)).toBe(0);
+    });
+
+    it('pays each species on its own Ik, so a shade plant is nearer its ceiling', () => {
+      const species = Object.keys(PLANT_SPECIES_DATA) as PlantSpecies[];
+
+      for (const one of species) {
+        for (const other of species) {
+          if (getSaturationIrradiance(one) < getSaturationIrradiance(other)) {
+            expect(lightBenefit(one, 50)).toBeGreaterThan(lightBenefit(other, 50));
+          }
+        }
+      }
+    });
+
+    it('reads Ik off the tuned factor rather than a constant of its own', () => {
+      // The knob has to reach this channel: raising it moves a species'
+      // saturation up, so one fixture buys a smaller share of the peak.
+      const earned = (saturationIrradianceFactor: number): number => {
+        const benefits = buildPlantBenefits(
+          ctx(makePlant('anubias'), makeResources({ light: 20 }), 0, {
+            ...plantsDefaults,
+            saturationIrradianceFactor,
+          })
+        );
+        return benefits.find((b) => b.key === 'light')?.amount ?? 0;
+      };
+
+      expect(earned(4)).toBeLessThan(earned(2));
+      expect(earned(2)).toBeLessThan(earned(1));
+      // A species that saturates at no light at all is one nothing holds back.
+      expect(earned(0)).toBe(plantsDefaults.lightBenefitPeak);
     });
   });
 });

@@ -430,6 +430,22 @@ describe('calculatePhotosynthesis', () => {
       expect(share('monte_carlo')).toBeLessThan(0.8);
     });
 
+    it('reads Ik off the tuned factor rather than a constant of its own', () => {
+      // The knob has to reach this channel: raising it moves a species'
+      // saturation up, so one fixture buys a smaller share of the rate.
+      const made = (saturationIrradianceFactor: number): number =>
+        photosynthesis([plant(100, 'java_fern')], {
+          lightPar: 20,
+          resources: buildResources(waterVolume, {}, 10),
+          config: { ...plantsDefaults, saturationIrradianceFactor },
+        }).oxygenProducedMg;
+
+      expect(made(4)).toBeLessThan(made(2));
+      expect(made(2)).toBeLessThan(made(1));
+      // A species that saturates at no light at all is one nothing holds back.
+      expect(made(0)).toBeGreaterThan(made(1));
+    });
+
     it('reads each plant at its own species, not the tank at an average', () => {
       const shade = at(30, 'anubias').oxygenProducedMg;
       const sun = at(30, 'monte_carlo').oxygenProducedMg;

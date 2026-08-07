@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { processPlants } from './index.js';
 import { createSimulation, type SimulationState, type Plant } from '../state.js';
+import type { PlantSpecies } from './species.js';
 import { produce } from 'immer';
 import { DEFAULT_CONFIG } from '../config/index.js';
 import { plantsDefaults } from '../config/plants.js';
@@ -507,6 +508,58 @@ describe('processPlants', () => {
 
       // Day O2 production should be greater than night consumption
       expect(dayO2).toBeGreaterThan(Math.abs(nightO2));
+    });
+
+    /**
+     * Net oxygen a 100 % planting of one species moves in a lit hour, with
+     * carbon and nutrients held past where either limits the rate — so what
+     * decides the sign is the fixture against the plant's own respiration.
+     */
+    const netOxygen = (species: PlantSpecies, light: number): number =>
+      processPlants(
+        createTestState({
+          plants: [{ id: 'p1', species, size: 100, condition: C, surplus: 0 }],
+          light,
+          co2: plantsDefaults.optimalCo2,
+          // Three times optimal, which clears even a high-demand species'
+          // Liebig gate — a crossover read on a starved plant would be
+          // measuring the nutrients.
+          nitrate: plantsDefaults.optimalNitrate * 100 * 3,
+          phosphate: nutrientsDefaults.optimalPhosphatePpm * 100 * 3,
+          potassium: nutrientsDefaults.optimalPotassiumPpm * 100 * 3,
+          iron: nutrientsDefaults.optimalIronPpm * 100 * 3,
+          water: 100,
+          temperature: 25,
+        }),
+        DEFAULT_CONFIG
+      )
+        .effects.filter((e) => e.resource === 'oxygen')
+        .reduce((sum, e) => sum + e.delta, 0);
+
+    /** The dimmest fixture the planting still breaks even under, by bisection. */
+    const crossover = (species: PlantSpecies): number => {
+      let dark = 0;
+      let lit = 400;
+      for (let step = 0; step < 40; step++) {
+        const mid = (dark + lit) / 2;
+        if (netOxygen(species, mid) < 0) dark = mid;
+        else lit = mid;
+      }
+      return lit;
+    };
+
+    it('runs a planting under too dim a fixture at a net loss, lamps on', () => {
+      for (const species of ['java_fern', 'monte_carlo'] as const) {
+        expect(netOxygen(species, 1)).toBeLessThan(0);
+        expect(netOxygen(species, 400)).toBeGreaterThan(0);
+      }
+    });
+
+    it('breaks even in dimmer light the lower a species saturates', () => {
+      // Respiration is the same charge whatever is planted, so what decides
+      // where a species clears it is its own Ik — a shade plant is in credit
+      // in light a carpet starves in.
+      expect(crossover('java_fern')).toBeLessThan(crossover('monte_carlo'));
     });
   });
 
