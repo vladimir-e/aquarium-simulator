@@ -19,10 +19,10 @@ export interface PlantsConfig {
   /** Optimal nitrate concentration for max growth (ppm) */
   optimalNitrate: number;
   /**
-   * Multiple of a species' `tolerableLight` lower bound at which it saturates —
-   * the `Ik` of the Jassby–Platt curve, in PAR. One number ties both light
-   * channels to the band: where damage starts is also where the plant sits at
-   * 76 % of its rate.
+   * Multiple of a species' `tolerableLight` lower bound at which it saturates.
+   * The product is the `Ik` of the Jassby–Platt curve, in PAR. One number ties
+   * both light channels to the band: where damage starts is also where the
+   * plant sits at 76 % of its rate.
    */
   saturationIrradianceFactor: number;
   /**
@@ -105,8 +105,11 @@ export interface PlantsConfig {
 
   // Vitality benefit peaks (%/h) when the corresponding factor is in
   // its tolerable band. Sum at all-good ≈ 0.5 %/h — the calibration
-  // budget the plant recovery curves were pinned against.
-  /** Light in tolerable range. */
+  // budget the plant recovery curves were pinned against. Light is the
+  // exception: it pays on the saturating PAR curve rather than off the
+  // band, so its peak is what a plant earns at saturation and not what
+  // it earns for sitting in range.
+  /** Light at saturating PAR. */
   lightBenefitPeak: number;
   /** CO2 in tolerable range. */
   co2BenefitPeak: number;
@@ -137,9 +140,9 @@ export const plantsDefaults: PlantsConfig = {
   basePhotosynthesisRate: 1.0,
   optimalCo2: 20.0, // mg/L - typical target for planted tanks
   optimalNitrate: 10.0, // ppm - typical target for planted tanks
-  // Across the roster this reads anubias 16, java fern 20, amazon sword 40,
-  // dwarf hairgrass 50, monte carlo 60 PAR — inside the published macrophyte
-  // range, where shade species saturate at 10–30 and sun species at 50–150.
+  // A species saturates at twice the PAR its band starts at. What that reads
+  // across the roster, and why it lands where the literature does, is in
+  // `plants/species.ts`.
   saturationIrradianceFactor: 2.0,
   // Calibrated against scenario 02: at ~300 % total plant size with 8 hr
   // photoperiod and optimal CO2, potential photosynthesis ≈ 1.0 × 3.0 × 1.0
@@ -219,9 +222,10 @@ export const plantsDefaults: PlantsConfig = {
   algaeShadingSeverity: 0.05,
   algaeShadingThreshold: 30,
 
-  // Vitality benefit peaks. Sum at all-good = 0.5 %/h. With a healthy
-  // tank the plant heals to 100 in under 4 sim days, then surplus
-  // drives growth.
+  // Vitality benefit peaks. Sum at all-good ≈ 0.5 %/h — light pays
+  // tanh(PAR / Ik) of its peak, so a monte carlo at 30 PAR earns 0.046
+  // of the 0.1 rather than the whole of it. With a healthy tank the
+  // plant heals to 100 in under 4 sim days, then surplus drives growth.
   lightBenefitPeak: 0.1,
   co2BenefitPeak: 0.1,
   temperatureBenefitPeak: 0.1,

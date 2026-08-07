@@ -47,9 +47,6 @@ export function monodFactor(concentration: number, halfSaturation: number): numb
  * the pool, and the leaf's own is the one the literature fits. Its shoulder is
  * sharper than the rectangular hyperbola's, whose tail goes on paying for more
  * light forever.
- *
- * A species saturating at no light at all is one nothing holds back, the same
- * reading `monodFactor` gives a process with no affinity term.
  */
 export function lightSaturationFactor(par: number, saturationIrradiance: number): number {
   if (par <= 0) return 0;

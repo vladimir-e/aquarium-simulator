@@ -50,7 +50,7 @@ const STOCKED: PresetSeed = {
 /**
  * Grams of food a day — a ration a keeper would call heavy for this roster, and
  * one the aerated box covers with room to spare: at the tightest hour of the
- * six days it still holds 2.91 mg/L beyond what the tick asks for. The hard
+ * six days it still holds 2.86 mg/L beyond what the tick asks for. The hard
  * zero asserted below is a margin, not a knife-edge.
  */
 const RATION = 1;

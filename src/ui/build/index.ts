@@ -61,5 +61,4 @@ export {
   scapeSummary,
   type PlantOption,
   plantOptions,
-  lightTier,
 } from './scape.js';

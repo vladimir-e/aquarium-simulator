@@ -19,6 +19,7 @@ export default defineConfig({
         'src/simulation/tests/par-dose-response.ts',
         'src/simulation/tests/default-fixture-survival.ts',
         'src/simulation/tests/oxygen-limited-draw.ts',
+        'src/simulation/tests/light-response.ts',
         'src/simulation/tests/nitrification-on-air.ts',
       ],
     },
