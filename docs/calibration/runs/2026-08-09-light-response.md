@@ -17,6 +17,12 @@ anchors run, at `rngSeed` 4242. The probe is `npm run probe:light-response`.
 > `tests/planted-gas-budget.test.ts` fails its dark-hours assertion at 2.28
 > mg/L against a band of 2. The constant has not been moved and the anchor band
 > has not been widened; both are decisions for the maintainer.
+>
+> Still open after `2026-08-10-plant-respiration.md`, which corrected
+> `baseRespirationRate` on the same branch. The give-back turned out not to be a
+> respiration measurement — it is 2.145 with respiration at exactly zero — so
+> the window only shifted to 21.6–26.2 and 22.4–27.3. The tables below are
+> re-read on that engine; the sections they sit in are otherwise as measured.
 
 ---
 
@@ -121,22 +127,22 @@ and lowest any hour of the window closed on, dark hours counted.
 
 | yield | gross O₂ (mg/L/h) | O₂ high | O₂ low | dark give-back | size | hours | fish |
 |---|---|---|---|---|---|---|---|
-| 10 | 0.249 | 8.92 | 7.48 | 0.80 | 959 | 423 | 12 |
-| 20 | 0.478 | 9.64 | 6.84 | 1.63 | 973 | 392 | 12 |
-| **30** | **0.688** | **10.28** | **7.42** | **2.30** | **972** | **376** | **12** |
-| 32 | 0.732 | 10.40 | 6.91 | 2.46 | 976 | 373 | 12 |
-| 35 | 0.793 | 10.57 | 6.58 | 2.67 | 974 | 359 | 12 |
-| 40 | 0.891 | 10.84 | 7.15 | 2.95 | 975 | 349 | 12 |
-| 45 | 0.986 | 11.09 | 7.04 | 3.26 | 978 | 327 | 12 |
-| 50 | 1.083 | 11.33 | 6.10 | 3.59 | 977 | 330 | 12 |
-| 57 | 1.213 | 11.64 | 6.61 | 3.95 | 975 | 345 | 12 |
-| 60 | 1.270 | 11.76 | 5.75 | 4.15 | 972 | 360 | 12 |
-| 80 | 1.612 | 12.50 | 6.10 | 5.12 | 966 | 398 | 12 |
+| 10 | 0.245 | 9.11 | 7.73 | 0.79 | 953 | 399 | 12 |
+| 20 | 0.467 | 9.99 | 7.55 | 1.59 | 963 | 400 | 12 |
+| **30** | **0.667** | **10.75** | **7.77** | **2.26** | **958** | **384** | **12** |
+| 32 | 0.704 | 10.89 | 8.14 | 2.36 | 955 | 384 | 12 |
+| 35 | 0.758 | 11.10 | 7.99 | 2.54 | 953 | 386 | 12 |
+| 40 | 0.845 | 11.42 | 8.13 | 2.83 | 942 | 374 | 12 |
+| 45 | 0.925 | 11.73 | 8.13 | 3.09 | 934 | 329 | 12 |
+| 50 | 1.004 | 12.01 | 8.12 | 3.33 | 927 | 292 | 12 |
+| 57 | 1.108 | 12.38 | 8.12 | 3.65 | 918 | 228 | 12 |
+| 60 | 1.168 | 12.52 | 8.15 | 3.84 | 929 | 151 | 12 |
+| 80 | 1.413 | 13.35 | 8.09 | 4.52 | 919 | 156 | 12 |
 
-Swept finer across the edges, the gross floor opens at **≈21.0** and the
-dark-hours ceiling closes at **≈25.5** — 25 reads 0.585 gross and 1.970
-give-back, 26 reads 0.606 and 2.028. The gross ceiling of 1 mg/L/h is no longer
-the binding one; it sits out at ≈45.6, twenty points above where the night
+Swept finer across the edges, the gross floor opens at **≈21.6** and the
+dark-hours ceiling closes at **≈26.2** — 26 reads 0.589 gross and 1.986
+give-back, 27 reads 0.610 and 2.052. The gross ceiling of 1 mg/L/h is no longer
+the binding one; it sits out at ≈49.8, twenty points above where the night
 closes the window.
 
 The same sweep on the anchor's own planting — the 982 that
@@ -145,24 +151,25 @@ second reading, and the one the window keeps whole:
 
 | yield | gross O₂ (mg/L/h) | O₂ high | O₂ low | dark give-back | size | hours | fish |
 |---|---|---|---|---|---|---|---|
-| 10 | 0.240 | 8.81 | 7.94 | 0.77 | 1013 | 96 | 12 |
-| 20 | 0.468 | 9.47 | 7.72 | 1.56 | 1013 | 96 | 12 |
-| **30** | **0.685** | **10.07** | **7.49** | **2.28** | **1013** | **96** | **12** |
-| 32 | 0.727 | 10.19 | 7.44 | 2.41 | 1013 | 96 | 12 |
-| 35 | 0.789 | 10.35 | 7.37 | 2.62 | 1013 | 96 | 12 |
-| 40 | 0.891 | 10.62 | 7.25 | 2.94 | 1013 | 96 | 12 |
-| 45 | 0.990 | 10.87 | 7.14 | 3.25 | 1014 | 96 | 12 |
-| 50 | 1.087 | 11.11 | 7.02 | 3.55 | 1014 | 96 | 12 |
-| 57 | 1.219 | 11.42 | 6.85 | 3.95 | 1014 | 96 | 12 |
-| 60 | 1.274 | 11.55 | 6.78 | 4.11 | 1014 | 96 | 12 |
-| 80 | 1.625 | 12.32 | 6.30 | 5.11 | 1014 | 96 | 12 |
+| 10 | 0.236 | 9.02 | 8.16 | 0.76 | 1013 | 96 | 12 |
+| 20 | 0.452 | 9.87 | 8.16 | 1.51 | 1013 | 96 | 12 |
+| **30** | **0.650** | **10.64** | **8.15** | **2.17** | **1014** | **96** | **12** |
+| 32 | 0.687 | 10.78 | 8.14 | 2.30 | 1014 | 96 | 12 |
+| 35 | 0.742 | 10.99 | 8.14 | 2.48 | 1014 | 96 | 12 |
+| 40 | 0.830 | 11.33 | 8.13 | 2.76 | 1014 | 96 | 12 |
+| 45 | 0.914 | 11.65 | 8.12 | 3.02 | 1014 | 96 | 12 |
+| 50 | 0.995 | 11.95 | 8.11 | 3.27 | 1014 | 96 | 12 |
+| 57 | 1.102 | 12.35 | 8.09 | 3.59 | 1014 | 96 | 12 |
+| 60 | 1.146 | 12.51 | 8.08 | 3.72 | 1014 | 96 | 12 |
+| 80 | 1.409 | 13.45 | 8.03 | 4.48 | 1014 | 96 | 12 |
 
-It admits **≈21.4 – 26.1** — 26 reads 0.600 gross and 1.997 give-back, 27 reads
-0.621 and 2.067. Two plantings, two independently derived windows, and they
-agree to under a point at both edges: **21.0 – 25.5** and **21.4 – 26.1**.
+It admits **≈22.4 – 27.3** — 27 reads 0.593 gross and 1.983 give-back, 28 reads
+0.612 and 2.048. Two plantings, two independently derived windows, and they
+agree to under a point and a half at both edges: **21.6 – 26.2** and
+**22.4 – 27.3**.
 
-**30 does not sit inside either.** It clears the gross band comfortably — 0.688
-and 0.685 against 0.5–1 — and it is the night that excludes it, at 2.30 and 2.28
+**30 does not sit inside either.** It clears the gross band comfortably — 0.667
+and 0.650 against 0.5–1 — and it is the night that excludes it, at 2.26 and 2.17
 mg/L against a ceiling of 2. Both edges moved for the same reason: the reading
 that put 30 mid-band was taken an hour late, and the night it was taken over was
 missing a dark hour.
@@ -179,8 +186,8 @@ This pair was read through the out-of-phase window on both engines, and only the
 
 | planting | 2b | 2c, as published | 2c, corrected |
 |---|---|---|---|
-| grown-in, 90 d | 0.608 | 0.569 | **0.688** |
-| anchor's planting, 10 d | 0.579 | 0.565 | **0.685** |
+| grown-in, 90 d | 0.608 | 0.569 | **0.667** |
+| anchor's planting, 10 d | 0.579 | 0.565 | **0.650** |
 
 The bias is common-mode — the same reader, the same schedule, two engines — so
 the *direction* of the 2c change survives; the levels do not, and the 2b column
@@ -199,10 +206,10 @@ saturates at no light, so the response reads 1 everywhere) beside the shipped 2.
 
 | Ik | gross | uptake (mg) | NO₃ ppm | PO₄ ppm | size at 90 d | plants | condition |
 |---|---|---|---|---|---|---|---|
-| out | 0.740 | 12.86 | 10.98 | 4.36 | 987 | 6 | 100 |
-| ×2 | 0.688 | 11.95 | 12.74 | 4.45 | 978 | 6 | 100 |
+| out | 0.705 | 12.15 | 12.31 | 4.52 | 988 | 6 | 100 |
+| ×2 | 0.667 | 11.50 | 13.77 | 4.62 | 978 | 6 | 100 |
 
-**On a well-lit tank the light response costs almost nothing — 7 %.** That is
+**On a well-lit tank the light response costs almost nothing — 5 %.** That is
 the whole point of a saturating curve: at 90 PAR this planting is at or past
 saturation for most of what is in it (java fern reads 1.000 of its maximum,
 anubias 1.000, amazon sword 0.978, monte carlo 0.905), so the term it multiplies
@@ -213,8 +220,8 @@ by is nearly 1 and there is nothing to take away.
 carlo at 0.32; at 5 PAR a monte carlo runs at 0.08. Before this change all of
 those read 1.0 and a 5 W closet tank fixed carbon like a high-tech one.
 
-`nutrientsPerPhotosynthesis` **holds at 4.0**. Uptake falls 7.1 % with gross, so
-nitrate settles 10.98 → 12.74 ppm — up, but a healthy planted-tank figure, well
+`nutrientsPerPhotosynthesis` **holds at 4.0**. Uptake falls 5.4 % with gross, so
+nitrate settles 12.31 → 13.77 ppm — up, but a healthy planted-tank figure, well
 under the 40 ppm where damage starts and the 100 ppm toxicity threshold.
 Phosphate barely moves and plant condition is 100 either way. Nothing
 misbehaves, so nothing moves.
@@ -414,10 +421,10 @@ them. The claim re-tested here is the direction and its reason, not the ratio.)
 
 `tests/planted-gas-budget.test.ts` — the calibration anchor that reads
 `co2PerRateUnit` directly — **fails one of its three assertions** on the
-corrected reader: the dark-hours give-back is 2.277 mg/L against a band of 2.
+corrected reader: the dark-hours give-back is 2.174 mg/L against a band of 2.
 The band has not been widened. Its other two hold, and the one that pins the
 instrument holds exactly: the window still keeps **96 of 96** lit hours, because
-the phase moved which hours are counted and not how many. Gross reads 0.685,
+the phase moved which hours are counted and not how many. Gross reads 0.650,
 inside 0.5–1.
 
 The same file's other reader — the one the volume-term and carbon-clamp tests
@@ -433,4 +440,5 @@ One thing this branch reverted rather than shipped: `oxygen-limited-draw.test.ts
 had been rewritten from a hard-zero assertion to a share-based one while the
 yield was provisionally at 40. At 30 the original assertions pass untouched, so
 the rewrite went back. Its one genuinely stale figure — the aerated tank's
-tightest margin, which the curve moves — is corrected in place, 3.05 → 2.86 mg/L.
+tightest margin, which the curve moves — is corrected in place, 3.05 → 2.86 mg/L,
+and the respiration pass moved it again to 5.46.

@@ -251,21 +251,27 @@ Plants respire continuously, consuming oxygen and producing CO2.
 - Net CO2 PRODUCTION
 
 "Usually" because the day side is the one that reads light. Respiration
-runs at ~15 % of the photosynthetic rate, so a planting under a fixture
-too dim to clear that respires more than it fixes and consumes oxygen
-with the lamps on. With carbon at optimum and nutrients past every
-species' demand, the crossover sits at 2.8 PAR for a java fern (`Ik` 20)
-and 8.5 PAR for a monte carlo (`Ik` 60) — a shade plant stays in credit
-in light a carpet starves in. Liebig sufficiency scales the same rate, so
-it moves the line too: at plain optimal nutrients, which feed a
-low-demand plant and starve a high-demand one, the java fern is unchanged
-and the monte carlo needs 12.9 PAR. A carbon-stripped column does the
-same thing through `co2_factor`.
+runs at 15 % of the light-saturated rate *at the carbon a tank without an
+injector carries* — a fifth of `base_photosynthesis`, which is the rate at
+`optimal_co2` — so a planting under a fixture too dim to clear that
+respires more than it fixes and consumes oxygen with the lamps on. With
+carbon at optimum and nutrients past every species' demand, the crossover
+sits at 0.57 PAR for a java fern (`Ik` 20) and 1.69 PAR for a monte carlo
+(`Ik` 60) — a shade plant stays in credit in light a carpet starves in.
+Liebig sufficiency scales the same rate, so it moves the line too: at plain
+optimal nutrients, which feed a low-demand plant and starve a high-demand
+one, the java fern is unchanged and the monte carlo needs 2.54 PAR. A
+carbon-stripped column does the same thing through `co2_factor`.
+
+Over a whole day the two sides are what decide whether a planting is worth
+having: a tank on ambient carbon produces 1.9–3.5× what its plants burn in
+24 hours, and an injected one 8×. That surplus is why a planted tank
+supports more fish than a bare one.
 
 Respiration is photosynthesis run backwards, so it runs on the same
 `co2_per_rate_unit`: the carbon released decides the oxygen burnt, at the same
-molar ratio. The day/night asymmetry is `base_respiration`, ~15 % of the
-photosynthetic rate — not a second, disagreeing coefficient.
+molar ratio. The day/night asymmetry is `base_respiration` — not a second,
+disagreeing coefficient.
 
 The rate also saturates against the oxygen there is to burn, on the Monod curve
 every aerobic process in the engine uses (see `4-CORE-SYSTEMS.md` §

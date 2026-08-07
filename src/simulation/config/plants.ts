@@ -3,7 +3,7 @@
  *
  * Calibration targets:
  * - Photosynthesis: a grown-in planted 150 L runs 0.5–1.0 mg/L O2/hr by day
- * - Respiration: ~10-20% of max photosynthesis rate
+ * - Respiration: 5–15 % of the light-saturated rate at ambient carbon
  * - Growth: ~1-2% size increase per day at ideal conditions
  * - Nitrate consumption: ~5-10 mg/day
  */
@@ -156,10 +156,17 @@ export const plantsDefaults: PlantsConfig = {
   // starved limiting factor.
   nutrientsPerPhotosynthesis: 4.0,
 
-  // Respiration - ~15% of photosynthesis, runs 24/7. A Monod maximum against
-  // the half-saturation below: air-saturated water leaves 94 % of it, so what
-  // the model reproduces is 0.142.
-  baseRespirationRate: 0.15,
+  // Dark respiration, runs 24/7 — a share of the light-saturated rate at the
+  // carbon a tank actually carries, which is not `basePhotosynthesisRate`. That
+  // is the rate at `optimalCo2`, five times the 4 mg/L `atmosphericCo2` an
+  // aquarium without an injector equilibrates to, so a fraction quoted against
+  // it is a fraction of an injected tank's ceiling. The ambient-carbon ceiling
+  // is 0.2 rate units/h, and 0.03 is 15 % of it — the top of the 5–15 % the
+  // macrophyte literature reports against light-saturated gross photosynthesis,
+  // with the Monod below leaving 14 % standing in air-saturated water. It is
+  // 3 % of the injected-carbon rate, which is what the old figure was quoting.
+  // See `docs/calibration/runs/2026-08-10-plant-respiration.md`.
+  baseRespirationRate: 0.03,
   respirationQ10: 2.0, // Rate doubles per 10°C increase
   respirationReferenceTemp: 25.0, // °C
   // Submerged tissue takes its oxygen out of the water across a boundary layer
@@ -177,6 +184,10 @@ export const plantsDefaults: PlantsConfig = {
   // `tests/planted-gas-budget.test.ts` asserts that tank; the derivations are in
   // `docs/calibration/runs/2026-08-06-gas-volume-stoichiometry.md` and
   // `docs/calibration/runs/2026-08-09-light-response.md`.
+  // Unresolved: on the corrected gas reader the window admits 21.6–27.3 and 30
+  // sits above it, on the give-back. That reading is a day-side one — it holds
+  // at 2.145 with respiration taken to zero — so the night side of the engine
+  // cannot reach it either. See `2026-08-10-plant-respiration.md`.
   co2PerRateUnit: 30.0,
 
   // Surplus-driven growth — vitality banks surplus when condition is
@@ -283,9 +294,9 @@ export const plantsConfigMeta: PlantsConfigMeta[] = [
     key: 'baseRespirationRate',
     label: 'Base Respiration Rate',
     unit: '/hr',
-    min: 0.01,
-    max: 0.5,
-    step: 0.01,
+    min: 0.005,
+    max: 0.2,
+    step: 0.005,
   },
   { key: 'respirationQ10', label: 'Respiration Q10', unit: '', min: 1.5, max: 3.0, step: 0.1 },
   {

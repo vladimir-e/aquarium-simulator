@@ -549,7 +549,10 @@ describe('processPlants', () => {
 
     it('runs a planting under too dim a fixture at a net loss, lamps on', () => {
       for (const species of ['java_fern', 'monte_carlo'] as const) {
-        expect(netOxygen(species, 1)).toBeLessThan(0);
+        // Read either side of the species' own crossover rather than at a
+        // named PAR: where it sits is a calibration, that it exists is the
+        // mechanism, and only the second is this test's to hold.
+        expect(netOxygen(species, crossover(species) / 2)).toBeLessThan(0);
         expect(netOxygen(species, 400)).toBeGreaterThan(0);
       }
     });
