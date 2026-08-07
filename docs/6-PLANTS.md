@@ -250,10 +250,14 @@ Plants respire continuously, consuming oxygen and producing CO2.
 "Usually" because the day side is the one that reads light. Respiration
 runs at ~15 % of the photosynthetic rate, so a planting under a fixture
 too dim to clear that respires more than it fixes and consumes oxygen
-with the lamps on. With carbon at optimum the crossover sits at 8.6 PAR
-for a monte carlo (`Ik` 60) and 2.9 PAR for a java fern (`Ik` 20) — a
-shade plant stays in credit in light a carpet starves in. A
-carbon-stripped column does the same thing through `co2_factor`.
+with the lamps on. With carbon at optimum and nutrients past every
+species' demand, the crossover sits at 2.8 PAR for a java fern (`Ik` 20)
+and 8.6 PAR for a monte carlo (`Ik` 60) — a shade plant stays in credit
+in light a carpet starves in. Liebig sufficiency scales the same rate, so
+it moves the line too: at plain optimal nutrients, which feed a
+low-demand plant and starve a high-demand one, the java fern is unchanged
+and the monte carlo needs 12.9 PAR. A carbon-stripped column does the
+same thing through `co2_factor`.
 
 Respiration is photosynthesis run backwards, so it runs on the same
 `co2_per_rate_unit`: the carbon released decides the oxygen burnt, at the same
