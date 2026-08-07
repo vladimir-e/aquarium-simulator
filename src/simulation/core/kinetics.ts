@@ -30,3 +30,29 @@ export function monodFactor(concentration: number, halfSaturation: number): numb
   if (concentration <= 0) return 0;
   return concentration / (halfSaturation + concentration);
 }
+
+/**
+ * Irradiance scaling for photosynthesis — `tanh(I / Ik)`, the Jassby–Platt
+ * photosynthesis–irradiance curve.
+ *
+ * `Ik` is the saturating irradiance, where the leaf already runs at 76 % of its
+ * maximum. Below it the response is close to linear — twice the light, nearly
+ * twice the rate; above it the curve flattens hard, so a brighter fixture stops
+ * buying anything.
+ *
+ * Not Monod, though the shapes rhyme. Monod is there to stop a *stock* being
+ * overdrawn: demand falls with supply, so the pool approaches zero instead of
+ * crossing it. Light is not a stock — nothing depletes photons, and no rate can
+ * overdraw an intensity — so the curve is taken from the leaf rather than from
+ * the pool, and the leaf's own is the one the literature fits. Its shoulder is
+ * sharper than the rectangular hyperbola's, whose tail goes on paying for more
+ * light forever.
+ *
+ * A species saturating at no light at all is one nothing holds back, the same
+ * reading `monodFactor` gives a process with no affinity term.
+ */
+export function lightSaturationFactor(par: number, saturationIrradiance: number): number {
+  if (par <= 0) return 0;
+  if (saturationIrradiance <= 0) return 1;
+  return Math.tanh(par / saturationIrradiance);
+}

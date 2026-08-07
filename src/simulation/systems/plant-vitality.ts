@@ -17,8 +17,10 @@
  * - Nutrient toxicity (gross NO3 overdose — auto-doser failure case)
  * - Algae shading (when algae density crosses the shading threshold)
  *
- * Benefit coverage (in-range = peak, out-of-range = 0):
- * - Light, CO2, Temperature, pH, Nutrients sufficient
+ * Benefit coverage:
+ * - Light, on the same saturating PAR curve photosynthesis runs
+ * - CO2, Temperature, pH — in-range = peak, out-of-range = 0
+ * - Nutrients, scaling with Liebig sufficiency
  *
  * Sum at all-good ≈ 0.5 %/h, so a healthy plant heals at familiar
  * speed and only starts growing once condition is full (surplus-
@@ -26,8 +28,9 @@
  */
 
 import type { Plant, Resources } from '../state.js';
-import { PLANT_SPECIES_DATA } from '../plants/species.js';
+import { PLANT_SPECIES_DATA, getSaturationIrradiance } from '../plants/species.js';
 import type { PlantsConfig } from '../config/plants.js';
+import { lightSaturationFactor } from '../core/kinetics.js';
 import { getPpm } from '../resources/index.js';
 import {
   computeVitality,
@@ -157,13 +160,11 @@ export function buildPlantStressors(ctx: PlantVitalityContext): VitalityFactor[]
 }
 
 /**
- * Build the benefit list for a plant — five factors, all binary
- * in-range/out-of-range.
+ * Build the benefit list for a plant — five factors.
  */
 export function buildPlantBenefits(ctx: PlantVitalityContext): VitalityFactor[] {
   const { plant, resources, plantsConfig, nutrientSufficiency } = ctx;
   const species = PLANT_SPECIES_DATA[plant.species];
-  const [lightLo, lightHi] = species.tolerableLight;
   const [co2Lo, co2Hi] = species.tolerableCO2;
   const [tempLo, tempHi] = species.tolerableTemp;
   const [phLo, phHi] = species.tolerablePH;
@@ -172,7 +173,17 @@ export function buildPlantBenefits(ctx: PlantVitalityContext): VitalityFactor[] 
     {
       key: 'light',
       label: 'Light',
-      amount: inRangeBenefit(resources.light, lightLo, lightHi, plantsConfig.lightBenefitPeak),
+      // Light is the plant's energy income, not a comfort band like
+      // temperature or pH — a plant at 80 PAR earns more than one at 20, and a
+      // flat in-band award is a gate where the model wants a rate. It also
+      // takes out a cliff: one PAR over `tolerableLight[1]` used to cost a
+      // plant its whole light income on top of the excess stressor.
+      amount:
+        plantsConfig.lightBenefitPeak *
+        lightSaturationFactor(
+          resources.light,
+          getSaturationIrradiance(plant.species, plantsConfig)
+        ),
     },
     {
       key: 'co2',

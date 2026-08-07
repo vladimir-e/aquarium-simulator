@@ -3,6 +3,7 @@ import { PLANT_SPECIES_DATA } from '../../simulation/index.js';
 import {
   hardscapeRows,
   hardscapeSummary,
+  lightTier,
   plantOptions,
   scapeSummary,
   substrateConsequence,
@@ -46,12 +47,21 @@ describe('plantOptions', () => {
 
   it('states what a species asks of the light and the injector', () => {
     const byId = Object.fromEntries(plantOptions('aqua_soil').map((o) => [o.species, o.facts]));
-    expect(PLANT_SPECIES_DATA.java_fern.lightRequirement).toBe('low');
     expect(PLANT_SPECIES_DATA.monte_carlo.co2Requirement).toBe('high');
 
     expect(byId.java_fern).toBe('low light · low CO₂');
     expect(byId.amazon_sword).toBe('medium light · medium CO₂');
     expect(byId.monte_carlo).toBe('high light · high CO₂');
+  });
+
+  it('reads the light tier off the PAR each species saturates at', () => {
+    // The tier was a declared species field until the saturating curve gave the
+    // band a second reading; these five are the values it used to carry.
+    expect(lightTier('anubias')).toBe('low');
+    expect(lightTier('java_fern')).toBe('low');
+    expect(lightTier('amazon_sword')).toBe('medium');
+    expect(lightTier('dwarf_hairgrass')).toBe('high');
+    expect(lightTier('monte_carlo')).toBe('high');
   });
 
   it('keeps the facts on a species the substrate rejects — they are why you would switch', () => {

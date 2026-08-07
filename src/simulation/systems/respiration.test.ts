@@ -228,7 +228,7 @@ describe('calculateRespiration', () => {
     });
 
     it('moves both gases together when the carbon yield changes', () => {
-      const customConfig = { ...plantsDefaults, co2PerRateUnit: 60 };
+      const customConfig = { ...plantsDefaults, co2PerRateUnit: plantsDefaults.co2PerRateUnit * 2 };
       const defaultResult = calculateRespiration(100, 25, AIR_SATURATED_O2, plantsDefaults);
       const customResult = calculateRespiration(100, 25, AIR_SATURATED_O2, customConfig);
 

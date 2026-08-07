@@ -1,3 +1,5 @@
+import { plantsDefaults, type PlantsConfig } from '../config/plants.js';
+
 /**
  * Plant species types.
  * Each species has different light/CO2 requirements and growth rates.
@@ -21,8 +23,6 @@ export type NutrientDemand = 'low' | 'medium' | 'high';
 export interface PlantSpeciesData {
   /** Display name */
   name: string;
-  /** Light requirement level */
-  lightRequirement: 'low' | 'medium' | 'high';
   /** CO2 requirement level */
   co2Requirement: 'low' | 'medium' | 'high';
   /** Relative growth rate (higher = faster biomass distribution) */
@@ -79,7 +79,6 @@ export interface PlantSpeciesData {
 export const PLANT_SPECIES_DATA: Record<PlantSpecies, PlantSpeciesData> = {
   java_fern: {
     name: 'Java Fern',
-    lightRequirement: 'low',
     co2Requirement: 'low',
     growthRate: 0.5,
     substrateRequirement: 'none', // Attaches to hardscape
@@ -98,7 +97,6 @@ export const PLANT_SPECIES_DATA: Record<PlantSpecies, PlantSpeciesData> = {
   },
   anubias: {
     name: 'Anubias',
-    lightRequirement: 'low',
     co2Requirement: 'low',
     growthRate: 0.3,
     substrateRequirement: 'none', // Attaches to hardscape
@@ -116,7 +114,6 @@ export const PLANT_SPECIES_DATA: Record<PlantSpecies, PlantSpeciesData> = {
   },
   amazon_sword: {
     name: 'Amazon Sword',
-    lightRequirement: 'medium',
     co2Requirement: 'medium',
     growthRate: 1.0,
     substrateRequirement: 'sand',
@@ -141,7 +138,6 @@ export const PLANT_SPECIES_DATA: Record<PlantSpecies, PlantSpeciesData> = {
   },
   dwarf_hairgrass: {
     name: 'Dwarf Hairgrass',
-    lightRequirement: 'high',
     co2Requirement: 'high',
     growthRate: 1.5,
     substrateRequirement: 'aqua_soil',
@@ -159,7 +155,6 @@ export const PLANT_SPECIES_DATA: Record<PlantSpecies, PlantSpeciesData> = {
   },
   monte_carlo: {
     name: 'Monte Carlo',
-    lightRequirement: 'high',
     co2Requirement: 'high',
     growthRate: 1.8,
     substrateRequirement: 'aqua_soil',
@@ -176,3 +171,21 @@ export const PLANT_SPECIES_DATA: Record<PlantSpecies, PlantSpeciesData> = {
     tolerablePH: [6.0, 7.5],
   },
 };
+
+/**
+ * The PAR a species stops answering more of — `Ik` of the Jassby–Platt curve
+ * both light channels run on.
+ *
+ * Derived from the band rather than declared, at `saturationIrradianceFactor ×
+ * tolerableLight[0]`: anubias 16, java fern 20, amazon sword 40, dwarf
+ * hairgrass 50, monte carlo 60. That is inside the published macrophyte range —
+ * shade species saturate at 10–30 µmol/m²/s, sun species at 50–150 — and it
+ * ties the two readings of the band together, since the lower bound is where
+ * damage starts and also where the plant already runs at 76 % of its rate.
+ */
+export function getSaturationIrradiance(
+  species: PlantSpecies,
+  config: PlantsConfig = plantsDefaults
+): number {
+  return config.saturationIrradianceFactor * PLANT_SPECIES_DATA[species].tolerableLight[0];
+}

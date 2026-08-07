@@ -10,7 +10,12 @@ import { plantsDefaults } from '../config/plants.js';
 import { nutrientsDefaults } from '../config/nutrients.js';
 import { getMassFromPpm } from '../resources/helpers.js';
 import type { Plant, Resources } from '../state.js';
-import type { PlantSpecies } from '../plants/species.js';
+import {
+  getSaturationIrradiance,
+  PLANT_SPECIES_DATA,
+  type PlantSpecies,
+} from '../plants/species.js';
+import { lightSaturationFactor } from '../core/kinetics.js';
 
 function makePlant(species: PlantSpecies, overrides: Partial<Plant> = {}): Plant {
   return {
@@ -187,8 +192,14 @@ describe('buildPlantBenefits', () => {
     const benefits = buildPlantBenefits(ctx(plant, resources));
     const keys = benefits.map((b) => b.key).sort();
     expect(keys).toEqual(['co2', 'light', 'nutrients', 'ph', 'temperature']);
-    // Light, CO2, temp, pH all at peak; nutrients = peak × sufficiency.
-    expect(benefits.find((b) => b.key === 'light')?.amount).toBe(plantsDefaults.lightBenefitPeak);
+    // CO2, temp, pH at peak; nutrients = peak × sufficiency; light is a rate on
+    // the same curve photosynthesis runs, so it reaches the peak only
+    // asymptotically — 30 PAR is 1.9 Ik for an anubias, which is most of it.
+    expect(benefits.find((b) => b.key === 'light')?.amount).toBeCloseTo(
+      plantsDefaults.lightBenefitPeak *
+        lightSaturationFactor(30, getSaturationIrradiance('anubias')),
+      12
+    );
     expect(benefits.find((b) => b.key === 'co2')?.amount).toBe(plantsDefaults.co2BenefitPeak);
     expect(benefits.find((b) => b.key === 'temperature')?.amount).toBe(
       plantsDefaults.temperatureBenefitPeak
@@ -206,6 +217,45 @@ describe('buildPlantBenefits', () => {
     const resources = makeResources({ co2: 5 });
     const benefits = buildPlantBenefits(ctx(plant, resources));
     expect(benefits.find((b) => b.key === 'co2')?.amount).toBe(0);
+  });
+
+  describe('the light benefit is income, not a comfort band', () => {
+    const lightBenefit = (species: PlantSpecies, light: number): number => {
+      const benefits = buildPlantBenefits(ctx(makePlant(species), makeResources({ light })));
+      return benefits.find((b) => b.key === 'light')?.amount ?? 0;
+    };
+
+    it('pays a brighter plant more than a dim one, both inside the band', () => {
+      // Anubias tolerates 8–70 PAR, so both readings used to earn the same flat
+      // award — which is why photoperiod alone decided growth.
+      expect(lightBenefit('anubias', 60)).toBeGreaterThan(lightBenefit('anubias', 12));
+    });
+
+    it('climbs with PAR the whole way and never passes the peak', () => {
+      let previous = 0;
+      for (const par of [1, 5, 15, 30, 70, 150, 400]) {
+        const benefit = lightBenefit('anubias', par);
+        expect(benefit).toBeGreaterThan(previous);
+        expect(benefit).toBeLessThanOrEqual(plantsDefaults.lightBenefitPeak);
+        previous = benefit;
+      }
+    });
+
+    it('has no cliff at the top of the band', () => {
+      // Anubias burns above 70 PAR, and used to lose its entire light income
+      // there on top of the excess stressor. The two channels are separate now:
+      // crossing costs a plant damage, not its earnings.
+      const [, hi] = PLANT_SPECIES_DATA.anubias.tolerableLight;
+      const under = lightBenefit('anubias', hi - 0.01);
+      const over = lightBenefit('anubias', hi + 0.01);
+
+      expect(over).toBeGreaterThan(under);
+      expect(over - under).toBeLessThan(1e-4);
+    });
+
+    it('pays nothing in the dark', () => {
+      expect(lightBenefit('anubias', 0)).toBe(0);
+    });
   });
 });
 

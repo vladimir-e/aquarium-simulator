@@ -394,6 +394,7 @@ const PlantsConfigSchema = z
     basePhotosynthesisRate: z.number(),
     optimalCo2: z.number(),
     optimalNitrate: z.number(),
+    saturationIrradianceFactor: z.number(),
     nutrientsPerPhotosynthesis: z.number(),
     baseRespirationRate: z.number(),
     respirationQ10: z.number(),

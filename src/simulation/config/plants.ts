@@ -19,6 +19,13 @@ export interface PlantsConfig {
   /** Optimal nitrate concentration for max growth (ppm) */
   optimalNitrate: number;
   /**
+   * Multiple of a species' `tolerableLight` lower bound at which it saturates —
+   * the `Ik` of the Jassby–Platt curve, in PAR. One number ties both light
+   * channels to the band: where damage starts is also where the plant sits at
+   * 76 % of its rate.
+   */
+  saturationIrradianceFactor: number;
+  /**
    * Total plant nutrients (NO3 + PO4 + K + Fe) consumed per unit of "potential
    * photosynthesis" (plant size × light × CO2, pre-Liebig). Consumption is
    * split across the four nutrients by the fertilizer formula ratio.
@@ -130,6 +137,10 @@ export const plantsDefaults: PlantsConfig = {
   basePhotosynthesisRate: 1.0,
   optimalCo2: 20.0, // mg/L - typical target for planted tanks
   optimalNitrate: 10.0, // ppm - typical target for planted tanks
+  // Across the roster this reads anubias 16, java fern 20, amazon sword 40,
+  // dwarf hairgrass 50, monte carlo 60 PAR — inside the published macrophyte
+  // range, where shade species saturate at 10–30 and sun species at 50–150.
+  saturationIrradianceFactor: 2.0,
   // Calibrated against scenario 02: at ~300 % total plant size with 8 hr
   // photoperiod and optimal CO2, potential photosynthesis ≈ 1.0 × 3.0 × 1.0
   // = 3.0 / hr → 24 units / day. 4 mg/unit × 24 × 1.2 (active biomass +
@@ -158,9 +169,11 @@ export const plantsDefaults: PlantsConfig = {
 
   // mg CO2 per rate unit. Pinned against a grown-in planted 150 L (≈1000 total
   // plant size): it produces 0.5–1 mg/L/h of oxygen through the photoperiod and
-  // gives back under 2 mg/L over the dark hours.
-  // `tests/planted-gas-budget.test.ts` asserts that tank; the derivation is in
-  // `docs/calibration/runs/2026-08-06-gas-volume-stoichiometry.md`.
+  // gives back under 2 mg/L over the dark hours. A rate unit is an hour of
+  // 100 % plant size at full carbon *and* saturating light.
+  // `tests/planted-gas-budget.test.ts` asserts that tank; the derivations are in
+  // `docs/calibration/runs/2026-08-06-gas-volume-stoichiometry.md` and
+  // `docs/calibration/runs/2026-08-09-light-response.md`.
   co2PerRateUnit: 30.0,
 
   // Surplus-driven growth — vitality banks surplus when condition is
@@ -245,6 +258,14 @@ export const plantsConfigMeta: PlantsConfigMeta[] = [
   },
   { key: 'optimalCo2', label: 'Optimal CO2', unit: 'mg/L', min: 5, max: 40, step: 1 },
   { key: 'optimalNitrate', label: 'Optimal Nitrate', unit: 'ppm', min: 5, max: 30, step: 1 },
+  {
+    key: 'saturationIrradianceFactor',
+    label: 'Saturation Irradiance Factor',
+    unit: '× band low',
+    min: 0.5,
+    max: 5,
+    step: 0.1,
+  },
   {
     key: 'nutrientsPerPhotosynthesis',
     label: 'Nutrients per Photosynthesis',
