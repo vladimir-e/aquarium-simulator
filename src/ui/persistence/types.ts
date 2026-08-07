@@ -22,6 +22,12 @@ import type { TunableConfig } from '../../simulation/config/index.js';
  * Increment this when the structure changes in a breaking way.
  * On version mismatch, stored data is discarded.
  *
+ * v21: Photosynthesis reads the intensity. `PlantsConfig` gains
+ *      `saturationIrradianceFactor`, the multiple of a species' band low at
+ *      which it saturates, and both light channels — the photosynthetic rate
+ *      and the vitality benefit — run through it. A v20 config is missing it,
+ *      and the strict schema refuses that section; a refused section reverts
+ *      every other one to its defaults.
  * v20: Every oxygen consumer saturates against the oxygen it is drawing from,
  *      and each carries the half-saturation constant it does so at:
  *      `DecayConfig` gains `oxygenHalfSaturation`, `PlantsConfig` and
@@ -136,7 +142,7 @@ import type { TunableConfig } from '../../simulation/config/index.js';
  *     nutrient sufficiency) but its persisted shape is identical, so
  *     the bump is purely the new Fish field.
  */
-export const PERSISTENCE_VERSION = 20;
+export const PERSISTENCE_VERSION = 21;
 
 /**
  * Storage key for the unified persisted state.
