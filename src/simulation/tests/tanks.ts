@@ -10,11 +10,14 @@
 
 import { produce } from 'immer';
 import {
+  calculateTankHeight,
   createSimulation,
   DEFAULT_ROOM_TEMPERATURE,
   type SimulationConfig,
   type SimulationState,
 } from '../state.js';
+import { calculateParAtDepth } from '../equipment/light.js';
+import { opticsDefaults } from '../config/optics.js';
 import type { FishSex, FishSpecies } from '../livestock/species.js';
 import { tick } from '../tick.js';
 import { applySeed, type PresetSeed } from '../seed.js';
@@ -48,6 +51,17 @@ export function run(
   let running = state;
   for (let hour = 0; hour < hours; hour++) running = tick(running, config);
   return running;
+}
+
+/**
+ * The fixture that lands `target` PAR on the substrate of a `capacity` tank —
+ * a fixture cannot be pointed at a substrate reading directly, because the box
+ * in between decides. Attenuation is linear in the fixture, so the reading a
+ * 1 PAR fixture lands is the whole ratio, inverting through the model itself
+ * rather than restating Beer–Lambert here.
+ */
+export function fixtureFor(target: number, capacity: number): number {
+  return target / calculateParAtDepth(1, calculateTankHeight(capacity), opticsDefaults);
 }
 
 /** There is no chiller, so a tank only sits below the room if the room is that cold. */

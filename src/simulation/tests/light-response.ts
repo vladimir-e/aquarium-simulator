@@ -11,19 +11,16 @@
  */
 
 import { produce } from 'immer';
-import { calculateTankHeight, type SimulationConfig, type SimulationState } from '../state.js';
-import { calculateParAtDepth } from '../equipment/light.js';
-import { opticsDefaults } from '../config/optics.js';
+import type { SimulationConfig, SimulationState } from '../state.js';
 import type { PresetSeed } from '../seed.js';
 import type { PlantSpecies } from '../plants/species.js';
 import { getSaturationIrradiance } from '../plants/species.js';
 import { DEFAULT_CONFIG, type TunableConfig } from '../config/index.js';
 import { nutrientsDefaults } from '../config/nutrients.js';
 import { plantsDefaults } from '../config/plants.js';
-import { processPlants } from '../plants/index.js';
 import { getPpm } from '../resources/index.js';
-import { runTank } from './metrics.js';
-import { DAY } from './tanks.js';
+import { gasCurve, runTank, type GasCurve } from './metrics.js';
+import { fixtureFor } from './tanks.js';
 import { formatTable, tuned } from './sweep.js';
 
 const RNG_SEED = 4242;
@@ -71,131 +68,29 @@ const SETTLED: PresetSeed = {
   ],
 };
 
-const mean = (values: readonly number[]): number =>
-  values.length === 0 ? 0 : values.reduce((sum, value) => sum + value, 0) / values.length;
-
 const totalSize = (state: SimulationState): number =>
   state.plants.reduce((sum, plant) => sum + plant.size, 0);
-
-const depth = calculateTankHeight(CAPACITY);
-
-/**
- * The fixture that lands `target` PAR on this substrate. Attenuation is linear
- * in the fixture, so the reading a 1 PAR fixture lands is the whole ratio.
- */
-const fixtureFor = (target: number): number =>
-  target / calculateParAtDepth(1, depth, opticsDefaults);
 
 const withLight = (setup: SimulationConfig, par: number, duration: number): SimulationConfig => ({
   ...setup,
   light: { enabled: par > 0, par, schedule: { startHour: 8, duration } },
 });
 
-/**
- * How far off the grown-in planting an hour may be read and still count, as a
- * share of it.
- */
-const SETTLED_TOLERANCE = 0.1;
-
-interface GasReading {
-  /** Mean gross oxygen photosynthesis releases in a lit hour of the window, mg/L. */
-  gross: number;
-  /** Mean nitrate the same hours draw, mg. */
-  uptake: number;
-  o2High: number;
-  o2Low: number;
-  /** Mean fall across a night, dusk to first light, mg/L. */
-  giveBack: number;
-  /** Mean total plant size across the hours the window kept. */
-  size: number;
-  /** Lit hours read, of the lit hours the run offered. */
-  hours: number;
-  fish: number;
-  final: SimulationState;
-  condition: number;
-}
-
-/** An hourly reading, tagged with the planting that produced it. */
-interface Reading {
-  value: number;
-  size: number;
-}
-
-/**
- * Run a tank and read its gas curve off the lit hours where the planting is
- * grown-in — gross rather than net, since what the yield is quoted on is what
- * photosynthesis makes before the tank spends any of it.
- *
- * The window is taken on plant size rather than on a day, because this tank has
- * no plateau to take it on: it climbs from 350 the whole 90 days, and the ≈987
- * it is quoted at is where the run *ends* — after the monte carlos starve out
- * and hand their biomass back — not somewhere it settles. Gross oxygen is very
- * nearly linear in plant size, so a mean over the whole run is a mean over the
- * ramp and reads a tank half this one's size. What the observable names is a
- * grown-in tank, and the hours that answer it are the ones the planting is
- * grown-in for.
- */
-function gasCurve(
+/** The keeper's routine every gas reading in this probe is taken under. */
+const curveOf = (
   setup: SimulationConfig,
   seed: PresetSeed,
   days: number,
   config: TunableConfig = DEFAULT_CONFIG,
   hold?: (state: SimulationState) => SimulationState
-): GasReading {
-  const made: Reading[] = [];
-  const drawn: Reading[] = [];
-  const falls: Reading[] = [];
-  let o2High = -Infinity;
-  let o2Low = Infinity;
-  let dusk: number | null = null;
-
-  const { final, samples } = runTank({
+): GasCurve =>
+  gasCurve({
     setup,
     seed,
     days,
     rngSeed: RNG_SEED,
     routine: { feed: 0.6, waterChange: 0.3, config, hold },
-    watch: (hour, before, after) => {
-      if (hour <= 2 * DAY) return;
-      o2High = Math.max(o2High, after.resources.oxygen);
-      o2Low = Math.min(o2Low, after.resources.oxygen);
-      if (before.resources.light <= 0) {
-        dusk ??= before.resources.oxygen;
-        return;
-      }
-      const { effects } = processPlants(before, config);
-      const off = (resource: string): number =>
-        effects.find((e) => e.resource === resource && e.source === 'photosynthesis')?.delta ?? 0;
-      const size = totalSize(before);
-      made.push({ value: off('oxygen'), size });
-      drawn.push({ value: -off('nitrate'), size });
-      if (dusk !== null) {
-        falls.push({ value: dusk - before.resources.oxygen, size });
-        dusk = null;
-      }
-    },
   });
-
-  const grownIn = totalSize(final);
-  const isSettled = (r: Reading): boolean =>
-    Math.abs(r.size - grownIn) <= SETTLED_TOLERANCE * grownIn;
-  const settled = (readings: readonly Reading[]): number[] =>
-    readings.filter(isSettled).map((r) => r.value);
-  const lit = made.filter(isSettled);
-
-  return {
-    gross: mean(lit.map((r) => r.value)),
-    uptake: mean(settled(drawn)),
-    o2High,
-    o2Low,
-    giveBack: mean(settled(falls)),
-    size: mean(lit.map((r) => r.size)),
-    hours: lit.length,
-    fish: final.fish.length,
-    final,
-    condition: samples[samples.length - 1]?.avgCondition ?? 0,
-  };
-}
 
 const YIELDS = [10, 20, 30, 32, 35, 40, 45, 50, 57, 60, 80];
 
@@ -203,7 +98,7 @@ const YIELDS = [10, 20, 30, 32, 35, 40, 45, 50, 57, 60, 80];
 function yieldSweep(seed: PresetSeed, days: number): string {
   return formatTable(
     YIELDS.map((co2PerRateUnit) => {
-      const curve = gasCurve(
+      const curve = curveOf(
         GROWN_IN,
         seed,
         days,
@@ -219,7 +114,7 @@ function yieldSweep(seed: PresetSeed, days: number): string {
         giveBack: curve.giveBack,
         size: curve.size,
         hours: curve.hours,
-        fish: curve.fish,
+        fish: curve.final.fish.length,
       };
     })
   );
@@ -235,7 +130,7 @@ function yieldSweep(seed: PresetSeed, days: number): string {
 function termOut(): string {
   return formatTable(
     [0, plantsDefaults.saturationIrradianceFactor].map((factor) => {
-      const curve = gasCurve(
+      const curve = curveOf(
         GROWN_IN,
         FRESH,
         90,
@@ -243,7 +138,7 @@ function termOut(): string {
           draft.plants.saturationIrradianceFactor = factor;
         })
       );
-      const { final } = curve;
+      const { final, samples } = curve;
       const { water } = final.resources;
 
       return {
@@ -254,7 +149,7 @@ function termOut(): string {
         po4: getPpm(final.resources.phosphate, water),
         size90: totalSize(final),
         plants: final.plants.length,
-        cond: curve.condition,
+        cond: samples[samples.length - 1]!.avgCondition,
       };
     })
   );
@@ -326,8 +221,8 @@ function doseTable(species: PlantSpecies, bandHigh: number): string {
   const ik = getSaturationIrradiance(species);
   return formatTable(
     TARGETS.filter((target) => target <= bandHigh).map((subPar) => {
-      const setup = withLight(GROWN_IN, fixtureFor(subPar), 12);
-      const production = gasCurve(setup, monoculture(species), 3, DEFAULT_CONFIG, fed);
+      const setup = withLight(GROWN_IN, fixtureFor(subPar, CAPACITY), 12);
+      const production = curveOf(setup, monoculture(species), 3, DEFAULT_CONFIG, fed);
       const keeper = grow(setup, species, DEFAULT_CONFIG);
 
       return {
@@ -356,7 +251,7 @@ function dliTrade(species: PlantSpecies): string {
       { subPar: 100, hours: 6 },
       { subPar: 150, hours: 4 },
     ].map(({ subPar, hours }) => {
-      const setup = withLight(GROWN_IN, fixtureFor(subPar), hours);
+      const setup = withLight(GROWN_IN, fixtureFor(subPar, CAPACITY), hours);
       const keeper = grow(setup, species, DEFAULT_CONFIG);
 
       return {

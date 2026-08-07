@@ -18,6 +18,7 @@ import { getPresetById } from '../presets.js';
 import type { PresetSeed } from '../seed.js';
 import { formatTable } from './sweep.js';
 import { runTank } from './metrics.js';
+import { fixtureFor } from './tanks.js';
 
 /** The same tank under a different fixture, and optionally a different box. */
 function withLight(setup: SimulationConfig, par: number, capacity?: number): SimulationConfig {
@@ -45,15 +46,6 @@ const PLANTING: PresetSeed['plants'] = [
 
 const depth = calculateTankHeight(CAPACITY);
 
-/**
- * The fixture that lands `target` PAR on this substrate. Attenuation is linear
- * in the fixture, so the reading a 1 PAR fixture lands is the whole ratio —
- * inverting through the model itself rather than restating Beer–Lambert here.
- */
-function fixtureFor(target: number): number {
-  return target / calculateParAtDepth(1, depth, opticsDefaults);
-}
-
 /** What the excess-light stressor charges at a given substrate PAR, %/h. */
 function excessLightRate(substratePar: number): number {
   const over = Math.max(0, substratePar - algae.lightExcessThreshold);
@@ -67,7 +59,7 @@ function sweepAt(seed: PresetSeed): string {
   return formatTable(
     TARGETS.map((target) => {
       const run = runTank({
-        setup: withLight(planted.config, fixtureFor(target), CAPACITY),
+        setup: withLight(planted.config, fixtureFor(target, CAPACITY), CAPACITY),
         seed,
         days: DAYS,
         routine: { topOff: true },
@@ -81,7 +73,7 @@ function sweepAt(seed: PresetSeed): string {
       };
 
       return {
-        subPAR: calculateParAtDepth(fixtureFor(target), depth, opticsDefaults),
+        subPAR: calculateParAtDepth(fixtureFor(target, CAPACITY), depth, opticsDefaults),
         excessLight: excessLightRate(target),
         algae30: onDay(30),
         algae60: onDay(60),

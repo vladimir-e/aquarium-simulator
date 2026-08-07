@@ -3,7 +3,7 @@ import { produce } from 'immer';
 import type { SimulationConfig, SimulationState } from '../state.js';
 import type { PresetSeed } from '../seed.js';
 import { DAY } from './tanks.js';
-import { runTank } from './metrics.js';
+import { gasCurve, runTank } from './metrics.js';
 
 const TANK: SimulationConfig = {
   tankCapacity: 40,
@@ -140,5 +140,30 @@ describe('runTank', () => {
     const options = { setup: TANK, seed: PLANTED, days: 4, rngSeed: 77 };
 
     expect(runTank(options).samples).toEqual(runTank(options).samples);
+  });
+});
+
+describe('gasCurve', () => {
+  /** The injected tank with a fixture on it, so there are lit hours to read. */
+  const LIT: SimulationConfig = {
+    ...INJECTED,
+    light: { enabled: true, par: 90, schedule: { startHour: 8, duration: 12 } },
+  };
+
+  it('reads what the planting made off the lit hours of the window', () => {
+    const curve = gasCurve({ setup: LIT, seed: PLANTED, days: 5 });
+
+    expect(curve.hours).toBeGreaterThan(0);
+    expect(curve.gross).toBeGreaterThan(0);
+    expect(curve.uptake).toBeGreaterThan(0);
+  });
+
+  it('refuses a run whose planting did not survive to define a window', () => {
+    // A dead planting finishes at size 0, and a window taken as a share of
+    // that keeps only the tank's plantless hours — whose mean is a zero
+    // indistinguishable from a measured one.
+    expect(() =>
+      gasCurve({ setup: LIT, seed: PLANTED, days: 5, routine: { hold: condemnAt(2.5 * DAY) } })
+    ).toThrow();
   });
 });

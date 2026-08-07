@@ -20,7 +20,7 @@ import { nutrientsDefaults } from '../config/nutrients.js';
 import { plantsDefaults } from '../config/plants.js';
 import { processPlants } from '../plants/index.js';
 import { computeFishVitality } from '../systems/fish-health.js';
-import { runTank } from './metrics.js';
+import { gasCurve, runTank } from './metrics.js';
 import { DAY } from './tanks.js';
 
 /** A lit, filtered, dosed planted tank at any volume. */
@@ -225,47 +225,13 @@ describe('a grown-in planted 150 L, through a day and a night', () => {
     co2Generator: { enabled: true, bubbleRate: 2, schedule: { startHour: 8, duration: 10 } },
   };
 
-  /**
-   * Gross oxygen the planting releases in a lit hour, mg/L, and the fall the
-   * water takes across a night — from the last hour of light to the first of
-   * the next day's. Gross rather than net: what the constant is quoted on is
-   * what photosynthesis makes, before the tank spends any of it.
-   */
-  function gasCurve(): { gross: number; giveBack: number } {
-    const made: number[] = [];
-    const falls: number[] = [];
-    let dusk: number | null = null;
-
-    runTank({
-      setup: GROWN_IN,
-      seed: SETTLED,
-      days: 10,
-      rngSeed: 4242,
-      routine: { feed: 0.6, waterChange: 0.3 },
-      watch: (hour, before) => {
-        if (hour <= 2 * DAY) return;
-        if (before.resources.light <= 0) {
-          dusk ??= before.resources.oxygen;
-          return;
-        }
-        made.push(
-          processPlants(before, DEFAULT_CONFIG).effects.find(
-            (effect) => effect.resource === 'oxygen' && effect.source === 'photosynthesis'
-          )?.delta ?? 0
-        );
-        if (dusk !== null) {
-          falls.push(dusk - before.resources.oxygen);
-          dusk = null;
-        }
-      },
-    });
-
-    const mean = (values: number[]): number =>
-      values.reduce((sum, value) => sum + value, 0) / values.length;
-    return { gross: mean(made), giveBack: mean(falls) };
-  }
-
-  const curve = gasCurve();
+  const curve = gasCurve({
+    setup: GROWN_IN,
+    seed: SETTLED,
+    days: 10,
+    rngSeed: 4242,
+    routine: { feed: 0.6, waterChange: 0.3 },
+  });
 
   it('runs 0.5–1 mg/L/h of oxygen through the photoperiod', () => {
     expect(curve.gross).toBeGreaterThanOrEqual(0.5);

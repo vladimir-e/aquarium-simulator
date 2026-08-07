@@ -12,6 +12,8 @@
 import { createSimulation, type SimulationConfig, type SimulationState } from '../state.js';
 import type { PresetSeed } from '../seed.js';
 import type { PlantSpecies } from '../plants/species.js';
+import { DEFAULT_CONFIG } from '../config/index.js';
+import { processPlants } from '../plants/index.js';
 import { DAY, DEFAULT_RNG_SEED, keep, type KeeperRoutine } from './tanks.js';
 
 /** The planting and the dissolved gases read off a tank at one hour of one day. */
@@ -113,4 +115,125 @@ export function runTank({
   });
 
   return { samples, final, plantDeaths };
+}
+
+/** Days a tank is given to settle before any hour of it is read for gas. */
+const SETTLING_DAYS = 2;
+
+/**
+ * How far off the planting a run finishes at an hour may sit and still count
+ * as grown-in, as a share of it.
+ */
+const SETTLED_TOLERANCE = 0.1;
+
+const totalSize = (state: SimulationState): number =>
+  state.plants.reduce((sum, plant) => sum + plant.size, 0);
+
+/** An hourly reading, tagged with the planting that produced it. */
+interface Reading {
+  value: number;
+  size: number;
+}
+
+/**
+ * An empty window is not a measurement — a mean over nothing reads zero, and a
+ * zero that was never measured is indistinguishable from one that was.
+ */
+function meanOf(values: readonly number[], what: string): number {
+  if (values.length === 0) throw new Error(`no ${what} in the grown-in window to read`);
+  return values.reduce((sum, value) => sum + value, 0) / values.length;
+}
+
+/** What a planting does to the dissolved gases, over the window it is grown-in for. */
+export interface GasCurve extends RunResult {
+  /** Mean gross oxygen photosynthesis releases in a lit hour of the window, mg/L. */
+  gross: number;
+  /** Mean nitrate those same hours draw, mg. */
+  uptake: number;
+  /** Mean fall across a night in the window, dusk to first light, mg/L. */
+  giveBack: number;
+  /** Highest oxygen an hour of the window closed on, mg/L. */
+  o2High: number;
+  /** Lowest, over those same hours — the dark ones counted, so this is the floor. */
+  o2Low: number;
+  /** Mean total plant size across the lit hours the window kept. */
+  size: number;
+  /** Lit hours the window kept. */
+  hours: number;
+}
+
+/** The reader installs its own {@link RunOptions.watch}; everything else is a run's. */
+export type GasCurveOptions = Omit<RunOptions, 'watch'>;
+
+/**
+ * Run a tank and read its gas curve off the hours its planting is grown-in —
+ * gross rather than net, since what a carbon yield is quoted on is what
+ * photosynthesis makes before the tank spends any of it.
+ *
+ * The window is taken on plant size rather than on a day, because a planting
+ * that climbs the whole run has no plateau to take it on, and the size such a
+ * run is quoted at is where it *ends* rather than somewhere it settles. Gross
+ * oxygen is very nearly linear in plant size, so a mean over the whole run is a
+ * mean over the ramp and reads a tank half the size of the one the observable
+ * names. A run handed its planting at tick 0 keeps every lit hour it has, so
+ * the window is inert exactly where there is no ramp to leave out.
+ */
+export function gasCurve({ routine = {}, ...options }: GasCurveOptions): GasCurve {
+  const config = routine.config ?? DEFAULT_CONFIG;
+  const made: Reading[] = [];
+  const drawn: Reading[] = [];
+  const falls: Reading[] = [];
+  const held: Reading[] = [];
+  let dusk: number | null = null;
+
+  const run = runTank({
+    ...options,
+    routine,
+    watch: (hour, before, after) => {
+      if (hour <= SETTLING_DAYS * DAY) return;
+      const size = totalSize(before);
+      held.push({ value: after.resources.oxygen, size });
+
+      if (before.resources.light <= 0) {
+        dusk ??= before.resources.oxygen;
+        return;
+      }
+
+      const { effects } = processPlants(before, config);
+      const off = (resource: string): number =>
+        effects.find((e) => e.resource === resource && e.source === 'photosynthesis')?.delta ?? 0;
+      made.push({ value: off('oxygen'), size });
+      drawn.push({ value: -off('nitrate'), size });
+      if (dusk !== null) {
+        falls.push({ value: dusk - before.resources.oxygen, size });
+        dusk = null;
+      }
+    },
+  });
+
+  const grownIn = totalSize(run.final);
+  if (grownIn <= 0) throw new Error('the run ends with no planting to take a window on');
+
+  const settled = (readings: readonly Reading[]): Reading[] =>
+    readings.filter((reading) => Math.abs(reading.size - grownIn) <= SETTLED_TOLERANCE * grownIn);
+  const values = (readings: readonly Reading[]): number[] =>
+    readings.map((reading) => reading.value);
+
+  const lit = settled(made);
+  const water = values(settled(held));
+  if (water.length === 0) throw new Error('no hour in the grown-in window to read');
+
+  return {
+    ...run,
+    gross: meanOf(values(lit), 'lit hour'),
+    uptake: meanOf(values(settled(drawn)), 'lit hour'),
+    giveBack: meanOf(values(settled(falls)), 'night'),
+    o2High: Math.max(...water),
+    o2Low: Math.min(...water),
+    size: meanOf(
+      lit.map((reading) => reading.size),
+      'lit hour'
+    ),
+    hours: lit.length,
+  };
 }
