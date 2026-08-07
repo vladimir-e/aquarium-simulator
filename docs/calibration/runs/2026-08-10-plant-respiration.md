@@ -5,9 +5,10 @@ Date: 2026-08-10 · Branch: `light-response` · Register defect #35
 `baseRespirationRate` was 0.15, documented as "~15 % of photosynthesis". It is
 15 % of `basePhotosynthesisRate`, which is the rate at `optimalCo2` — 20 mg/L,
 five times the 4 mg/L an aquarium without an injector equilibrates to. No plant
-in the engine has ever run there. Against the rate a planting *does* run at,
-0.15 was 76–109 % on a low-tech tank, and the consequence is that a planting was
-a net oxygen sink around the clock at every fixture in the catalogue.
+in the engine has ever run there: against the rate a planting *does* reach,
+0.15 is 75 %. Over 24 hours that put respiration at 99–209 % of photosynthesis
+across the tanks below, so a planting was a net oxygen sink around the clock at
+every fixture in the catalogue.
 
 The mechanism is right and is unchanged: respiration is biomass × Q10 × an O₂
 availability term, running 24 h, reading neither light nor carbon. That is what
@@ -79,20 +80,21 @@ tick applies rather than off the water afterwards — the surface is moving the
 same stock in the same hour and it moves most of it. `P:R` above 1 is a planting
 in credit over the day; below 1 it is a planting the keeper is subsidising.
 
-| tank | produced/d | burnt/d, 0.15 | P:R, 0.15 | burnt/d, 0.03 | P:R, 0.03 |
-|---|---|---|---|---|---|
-| sealed 40 L, 50 PAR, 8 neon | 1.63 | 3.22 | **1.01** | 0.68 | **2.40** |
-| sealed 40 L, 10 PAR, 8 neon | 1.27 | 3.16 | **0.78** | 0.67 | **1.89** |
-| low-tech 20 L, 50 PAR | 1.59 | 3.35 | **0.51** | 0.68 | **2.35** |
-| low-tech 40 L, 50 PAR | 1.49 | 3.38 | **0.48** | 0.68 | **2.19** |
-| low-tech 150 L, 90 PAR | 2.29 | 3.37 | **0.57** | 0.68 | **3.37** |
-| low-tech 300 L, 90 PAR | 2.35 | 3.39 | **0.65** | 0.68 | **3.46** |
-| injected 150 L, 90 PAR | 5.37 | 3.40 | **1.66** | 0.68 | **7.86** |
+| tank | made, 0.15 | burnt, 0.15 | P:R | made, 0.03 | burnt, 0.03 | P:R |
+|---|---|---|---|---|---|---|
+| sealed 40 L, 50 PAR, 8 neon | 3.24 | 3.22 | **1.01** | 1.63 | 0.68 | **2.40** |
+| sealed 40 L, 10 PAR, 8 neon | 2.46 | 3.16 | **0.78** | 1.27 | 0.67 | **1.89** |
+| low-tech 20 L, 50 PAR | 1.70 | 3.35 | **0.51** | 1.59 | 0.68 | **2.35** |
+| low-tech 40 L, 50 PAR | 1.61 | 3.38 | **0.48** | 1.49 | 0.68 | **2.19** |
+| low-tech 150 L, 90 PAR | 1.92 | 3.37 | **0.57** | 2.29 | 0.68 | **3.37** |
+| low-tech 300 L, 90 PAR | 2.19 | 3.39 | **0.65** | 2.35 | 0.68 | **3.46** |
+| injected 150 L, 90 PAR | 5.65 | 3.40 | **1.66** | 5.37 | 0.68 | **7.86** |
 
-(`produced/d` is the 0.03 column; on the old rate it is higher, because the
-plants were breathing carbon back into their own water — the sealed 40 L read
-3.24 against 1.63. A planting that fed itself carbon out of its own respiration
-still could not clear the bill.)
+The `made` columns are not equal, and the sealed tanks are where they part
+worst: 3.24 falling to 1.63. That is the carbon feedback again — a sealed box on
+the old rate was breathing a quarter of its own carbon supply back into the
+water and photosynthesising on it. A planting that fed itself out of its own
+respiration still could not clear the bill.
 
 Every low-tech tank was a sink and is now a producer at 1.9–3.5×. Net-autotrophic
 freshwater systems run P:R of 2–4; a planted tank at 0.5 is a heterotrophic pond.
@@ -141,8 +143,8 @@ greenery. 0.075 keeps the roster too and floors at 4.11–4.26 across 10–90 PA
 off for the plants. 0.03 clears the bare tank by more than a milligram at every
 fixture, which is a planting that is worth having wherever it is put.
 
-The dead runs are what the register recorded: 0/8 with plants, 8/8 without, and
-first deaths from d3.0 to d7.5 across the ladder.
+The 0.15 rows reproduce what the register recorded — 0/8 with plants against 8/8
+without — at d3.0–d7.5 across this ladder where its own run read d1.7–d6.4.
 
 ## The night was never the planting's
 
