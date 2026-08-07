@@ -35,6 +35,16 @@ CO₂ derived from it.
 
 ## Why 30
 
+> **Read the grown-in table with its instrument in mind.** Its rows average a
+> tank that is still growing — this planting climbs from 350 for the whole 90
+> days and never plateaus, so the figure depends entirely on which hours are
+> counted. Re-measured at grown-in size on the shipped engine, the yield-30 row
+> reads **0.608** rather than 0.670. The choice of 30 is unaffected: the window
+> moves both the row and the band it sits in, and 30 stays mid-band on both
+> plantings. The anchor row did not drift (0.579 against 0.581 here). See
+> `2026-08-09-light-response.md`, which re-derives against the same observable
+> and keeps 30.
+
 A grown-in planted 150 L has to run **0.5–1 mg/L/h of gross O₂ through the
 photoperiod** and give back **under ~2 mg/L across the dark hours**. Pinning
 that needs to know what total plant size such a tank reaches, which is a
