@@ -141,8 +141,6 @@ export function calculatePhotosynthesis(
 
   for (const plant of plants) {
     if (plant.size <= 0) continue;
-    // Per-plant rather than tank-wide: the species sets where the curve
-    // saturates, and 2d gives each plant its own PAR to read.
     const lightResponse = lightSaturationFactor(
       light,
       getSaturationIrradiance(plant.species, plantsConfig)

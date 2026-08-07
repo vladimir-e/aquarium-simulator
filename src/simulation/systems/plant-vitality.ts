@@ -173,11 +173,6 @@ export function buildPlantBenefits(ctx: PlantVitalityContext): VitalityFactor[] 
     {
       key: 'light',
       label: 'Light',
-      // Light is the plant's energy income, not a comfort band like
-      // temperature or pH — a plant at 80 PAR earns more than one at 20, and a
-      // flat in-band award is a gate where the model wants a rate. It also
-      // takes out a cliff: one PAR over `tolerableLight[1]` used to cost a
-      // plant its whole light income on top of the excess stressor.
       amount:
         plantsConfig.lightBenefitPeak *
         lightSaturationFactor(
