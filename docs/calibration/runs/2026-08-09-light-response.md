@@ -7,8 +7,12 @@ Light reached photosynthesis exactly once, as a `light <= 0` guard, so 5 PAR and
 Jassby–Platt photosynthesis–irradiance curve — multiplied into `potentialRate`,
 and the same term replacing vitality's flat in-band light award.
 
-Every figure below is an engine run driven through `keep()`, the same loop the
-anchors run, at `rngSeed` 4242. The probe is `npm run probe:light-response`.
+Every table below is an engine run driven through `keep()`, the same loop the
+anchors run, at `rngSeed` 4242, and reproduces from `npm run
+probe:light-response`. Two things below are not the probe's and say so where
+they appear: the reader's own before/after check, which lives in
+`tests/metrics.test.ts`, and figures quoted from an earlier engine — 2b's, and
+this branch's own first sweep.
 
 > **Closed.** The gas reader was measuring an hour out of phase — see *The
 > measurement had to be fixed twice* below — and correcting it put the anchor's
@@ -32,7 +36,7 @@ anchors run, at `rngSeed` 4242. The probe is `npm run probe:light-response`.
 |---|---|---|---|
 | `saturationIrradianceFactor` | — | **2.0 × band low** | new; `Ik` per species |
 | `lightRequirement` (species field) | `low`/`medium`/`high` | *deleted* | derivable from the band |
-| `co2PerRateUnit` | 30 mg | **30 mg, unmoved** | the corrected band admits 21.6–44.6 |
+| `co2PerRateUnit` | 30 mg | **30 mg, unmoved** | corrected, the two plantings admit 22.3–44.6 and 21.6–43.4 |
 | `nutrientsPerPhotosynthesis` | 4.0 | **4.0** | re-checked, did not move |
 
 `Ik` reads anubias 16, java fern 20, amazon sword 40, dwarf hairgrass 50, monte
@@ -117,7 +121,8 @@ corrected figure is exactly the fall from the close of 19:00 to the close of
 
 ## The yield sweep, corrected
 
-Grown-in planted 150 L: canister, aqua soil, 90 PAR on a 12 h photoperiod,
+Grown-in planted 150 L: canister, aqua soil, a fixture rated 90 PAR on a 12 h
+photoperiod — 59.03 at the substrate, which is where the plants stand —
 carbon 10 h/day, 3 ml/day dosed, ATO, 0.6 g/day fed, 30 % weekly change. Planted
 with 3 amazon sword, 4 monte carlo, 2 java fern and 1 anubias at size 35 — 350
 total — plus 12 neon tetras, run 90 days. `hours` is the window and `size` the
@@ -168,16 +173,15 @@ It admits **≈22.3 – 44.6** against the re-derived bands. Two plantings, two
 independently derived windows, and they agree to under a point and a half at
 both edges: **21.6 – 43.4** and **22.3 – 44.6**.
 
-**30 does not sit inside either.** It clears the gross band comfortably — 0.667
-and 0.650 against 0.5–1 — and it is the night that excludes it, at 2.26 and 2.17
-mg/L against a ceiling of 2. Both edges moved for the same reason: the reading
-that put 30 mid-band was taken an hour late, and the night it was taken over was
-missing a dark hour.
+**30 sits inside both**, a little below centre. It clears the gross band
+comfortably — 0.667 and 0.650 against 0.5–1 — and the night no longer excludes
+it: the ceiling of 2 it was read against had itself been set through this
+reader, and re-derived against a real planted tank's diel curve the night admits
+1–3 mg/L, which 2.26 and 2.17 sit inside (`2026-08-10-plant-respiration.md`).
 
-The constant has **not** been moved here. Nothing about the corrected
-measurement says what should give — the yield, the ≲2 mg/L ceiling that was
-itself only ever read through this reader, or the night side of the engine — and
-choosing is a calibration decision rather than a fix.
+The constant has **not** been moved. What reopened the window was correcting the
+ceiling, not loosening it, and the yield the two plantings had already agreed on
+was still in there when it reopened.
 
 ## Like for like against 2b
 
@@ -189,11 +193,16 @@ This pair was read through the out-of-phase window on both engines, and only the
 | grown-in, 90 d | 0.608 | 0.569 | **0.667** |
 | anchor's planting, 10 d | 0.579 | 0.565 | **0.650** |
 
-The bias is common-mode — the same reader, the same schedule, two engines — so
-the *direction* of the 2c change survives; the levels do not, and the 2b column
-needs re-measuring on the corrected reader before the two can be subtracted
-again. The branch's own counterfactual, which is measured on one engine and is
-in the table below, is the comparison that still stands.
+Two confounds separate the last column from the one before it, not one. The
+reader bias is common-mode — the same reader, the same schedule, two engines —
+so the *direction* of the 2c change survives it. But the corrected column was
+also re-read after `baseRespirationRate` moved 0.15 → 0.03, and that moves gross
+on its own: 0.685 against 0.650 on this planting at this yield
+(`2026-08-10-plant-respiration.md`), because respiration is one of the tank's
+carbon sources. So the 2b column needs re-measuring on the corrected reader
+*and* the corrected engine before either subtraction means anything. The
+branch's own counterfactual, which is measured on one engine and is in the table
+below, is the comparison that still stands.
 
 2b's own report records **0.670** for the grown-in row, where its shipped engine
 measured 0.608 under this window — that table predates the nitrifiers that
@@ -210,10 +219,19 @@ saturates at no light, so the response reads 1 everywhere) beside the shipped 2.
 | ×2 | 0.667 | 11.50 | 13.77 | 4.62 | 978 | 6 | 100 |
 
 **On a well-lit tank the light response costs almost nothing — 5 %.** That is
-the whole point of a saturating curve: at 90 PAR this planting is at or past
-saturation for most of what is in it (java fern reads 1.000 of its maximum,
-anubias 1.000, amazon sword 0.978, monte carlo 0.905), so the term it multiplies
-by is nearly 1 and there is nothing to take away.
+the whole point of a saturating curve. The fixture is *rated* 90 PAR; 42 cm of
+water leaves **59.03** at the substrate, and that is what the planting sits on:
+
+| species | count | Ik | response at 59.03 PAR |
+|---|---|---|---|
+| anubias | 1 | 16 | 0.999 |
+| java fern | 2 | 20 | 0.995 |
+| amazon sword | 3 | 40 | 0.901 |
+| monte carlo | 4 | 60 | 0.755 |
+
+The shade species are done; the carpet is not, and four of the ten plants are
+carpet. So the term this tank multiplies by is not 1 — but it is high enough,
+and flat enough, that taking it out gives back only 5 %.
 
 **On a dim tank it costs nearly everything**, which is the defect closing. At
 20 PAR at the substrate an amazon sword now runs at 0.46 of its rate and a monte
@@ -230,7 +248,7 @@ misbehaves, so nothing moves.
 
 `main` awarded `lightBenefitPeak` only *inside* `tolerableLight` and nothing
 outside it. 2c awards `peak × tanh(PAR / Ik)`, and by the top of any species'
-band that term is within a thousandth of 1 — so the award above the band is
+band that term is within half a percent of 1 — so the award above the band is
 effectively the whole peak, 20 % of the benefit budget, paid to a plant that
 `lightExcessiveSeverity` is burning at the same time.
 
@@ -313,10 +331,14 @@ by day 28.5. Monte carlo tolerates 30–200 PAR, so the light-excessive stressor
 not firing at 160. Java fern shows the same shape earlier — 326 → 296 → 273
 across 70/80/90 PAR.
 
-Measured rather than reasoned about, on the stressor breakdown of every hour of
-every run: **`algae` is the only non-zero stressor in the entire table.** Peak
-algae mass tracks the deaths exactly — 24.7 at 90 PAR (under the shading
-threshold of 30, so no stressor at all), 35.8 at 120, 92.6 at 160.
+Measured rather than reasoned about — the `stressors` column names every
+stressor that charged any plant at any hour of that row's run. **`Light high`
+appears nowhere in either table**, and above a species' band low `Algae shading`
+is the only thing that ever charges: the monte carlo rows from 30 to 90 PAR
+carry no stressor at all, and 120, 160 and 200 carry algae alone. Peak algae
+mass tracks the deaths exactly — 24.7 at 90 PAR, under the shading threshold of
+30; 35.8 at 120; 92.6 at 160. (`Light low` charges below a species' band low,
+which is the dim arm and a different story — see below.)
 
 The counterfactual proves causation rather than correlation. With
 `algaeShadingThreshold` lifted out of reach and nothing else changed:
@@ -325,7 +347,7 @@ The counterfactual proves causation rather than correlation. With
 |---|---|---|
 | monte carlo, 160 PAR | 0 (dead d28.5) | **1033**, condition 100 |
 | monte carlo, 200 PAR | 0 (dead d26.5) | **1034**, condition 100 |
-| java fern, 90 PAR | 273, condition 80 | **396**, condition 100 |
+| java fern, 90 PAR | 273, condition 78.6 | **396**, condition 100 |
 
 So the chain is: high PAR with no matching uptake grows algae → the bloom passes
 `algaeShadingThreshold` → the shading stressor takes the planting down. That is

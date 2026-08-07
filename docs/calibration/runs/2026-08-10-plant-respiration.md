@@ -45,7 +45,10 @@ against: a P–I curve for a submersed macrophyte is measured in the plant's own
 medium, at the dissolved carbon that medium carries, not at a carbon the tank
 never sees.
 
-Measured, over the lit hours of seven tanks, the realised `co2Factor`:
+Measured, over the lit hours of seven tanks, the realised `co2Factor`. PAR is
+at the substrate in every row but the last, where the 90 is the *fixture
+rating* the anchor sets — 42 cm of water leaves 59.0 of it, so the injected tank
+stands in two thirds of the light the low-tech 150 L does:
 
 | tank | at 0.15 | at 0.03 |
 |---|---|---|
@@ -55,7 +58,7 @@ Measured, over the lit hours of seven tanks, the realised `co2Factor`:
 | low-tech 40 L, 50 PAR | 0.238 | 0.184 |
 | low-tech 150 L, 90 PAR | 0.227 | 0.192 |
 | low-tech 300 L, 90 PAR | 0.210 | 0.196 |
-| injected 150 L, 90 PAR | 0.585 | 0.545 |
+| injected 150 L, 90 PAR fixture | 0.585 | 0.545 |
 
 The column moves because respiration is itself one of a tank's carbon sources —
 a sealed box on the old rate was breathing a quarter of its own carbon supply
@@ -88,7 +91,7 @@ in credit over the day; below 1 it is a planting the keeper is subsidising.
 | low-tech 40 L, 50 PAR | 1.61 | 3.38 | **0.48** | 1.49 | 0.68 | **2.19** |
 | low-tech 150 L, 90 PAR | 1.92 | 3.37 | **0.57** | 2.29 | 0.68 | **3.37** |
 | low-tech 300 L, 90 PAR | 2.19 | 3.39 | **0.65** | 2.35 | 0.68 | **3.46** |
-| injected 150 L, 90 PAR | 5.65 | 3.40 | **1.66** | 5.37 | 0.68 | **7.86** |
+| injected 150 L, 90 PAR fixture | 5.65 | 3.40 | **1.66** | 5.37 | 0.68 | **7.86** |
 
 The `made` columns are not equal, and the sealed tanks are where they part
 worst: 3.24 falling to 1.63. That is the carbon feedback again — a sealed box on
@@ -101,12 +104,20 @@ freshwater systems run P:R of 2–4; a planted tank at 0.5 is a heterotrophic po
 The injected tank was the only one in credit before, at 1.66, and it is the tank
 the whole day side was calibrated on — which is how the defect stayed hidden.
 
+The injected tank's 7.86 against the low-tech 150 L's 3.37 is **not** a clean
+read of what carbon is worth: the two carry the PAR convention above, so the
+injected tank is doing that on 59 PAR at the substrate where the low-tech tank
+gets 90. Carbon is buying more than 2.3× here, not less — the comparison
+understates it by a light handicap of 1.5×. What the row is here to say is that
+both are in credit, which does not turn on either figure.
+
 ## The acid test: does planting a tank help the fish in it
 
 The gate's own scenario. A sealed, unfiltered 40 L (10.6 gal) — no filter and a
 full lid is the least gas exchange the engine offers — eight female neon tetras,
 0.2 g/day, a 25 % change a week, 60 days, five plants at size 60 (300 total,
-three java fern and two anubias), across the PAR ladder.
+three java fern and two anubias), across the PAR ladder — every rung of it a
+reading at the substrate, solved back to the fixture that lands it.
 
 The bare tank is the control the planted rows have to *beat*, not merely
 survive: an oxygen floor below the empty box's is a planting the keeper would be
@@ -346,14 +357,15 @@ it measures.
 
 The edges against the middle — 22.5, 30, 44.5 — on the tanks that break first.
 The gate's sealed 40 L is the least gas exchange the engine offers; its bare
-control floors at **4.975 mg/L** and keeps 8/8.
+control floors at **4.975 mg/L** and keeps 8/8. PAR is at the substrate again
+except on the injected row, whose 90 is the anchor's fixture rating.
 
 | tank | yield | fish | O₂ floor | O₂ high | peak % sat | algae |
 |---|---|---|---|---|---|---|
-| injected 150 L, 982, 12 neon | 22.5 | 12/12 | 8.038 | 10.504 | 125.3 | 0 |
+| injected 150 L, 90 PAR fixture, 982, 12 neon | 22.5 | 12/12 | 8.038 | 10.504 | 125.3 | 0 |
 | | 30 | 12/12 | 8.030 | 11.200 | 133.7 | 0 |
 | | 44.5 | 12/12 | 8.015 | 12.247 | **146.2** | 0 |
-| low-tech 150 L, 982, 12 neon | 22.5 | 12/12 | 6.448 | 8.469 | 101.1 | 0 |
+| low-tech 150 L, 90 PAR, 982, 12 neon | 22.5 | 12/12 | 6.448 | 8.469 | 101.1 | 0 |
 | | 30 | 12/12 | 6.488 | 8.565 | 102.2 | 0 |
 | | 44.5 | 12/12 | 6.539 | 8.742 | 104.3 | 0 |
 | sealed 40 L, 300, 8 neon, 10 PAR | 22.5 | 8/8 | 5.971 | 7.939 | 94.7 | 1.50 |

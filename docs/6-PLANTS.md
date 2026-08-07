@@ -57,8 +57,10 @@ Each species has different requirements:
 | Nutrient Demand | Low / Medium / High |
 
 **Light Tier (low / medium / high)** is a *display* label, not a stored field.
-The build UI derives it from the PAR a species saturates at, against the hobby's
-published bands — low under 30, medium 30–50, high 50 and up.
+The build UI derives it from where a species' tolerable band opens, against the
+hobby's published bands — low under 15 PAR, medium 15–25, high 25 and up. It
+reads the band rather than `Ik` so that a recalibration of
+`saturationIrradianceFactor` cannot move a rendered tier.
 
 **Nutrient Demand Levels:**
 - **Low**: Can survive on nitrate alone (from nitrogen cycle). K, Fe, PO4 boost growth but aren't required. Examples: Java Fern, Anubias
@@ -119,10 +121,11 @@ the fixture stops meaning twice the growth. At the default factor of 2.0 the
 roster reads anubias 16, java fern 20, amazon sword 40, dwarf hairgrass 50,
 monte carlo 60 PAR.
 
-Deriving `Ik` from the tolerance band gives the band two readings off one
-number: `tolerableLight[0]` is where the light-insufficient stressor starts
-*and* where the plant sits at 76 % of its rate. No separate species field
-declares it.
+`Ik` is derived rather than declared: a species' saturating irradiance is a
+fixed multiple of the PAR its band opens at, so one number carries both light
+channels and no separate species field is needed. At the shipped factor that
+puts the bottom of a band at `tanh(0.5)` — a plant scraping its lower bound
+runs at **46 %** of its rate while the light-insufficient stressor charges it.
 
 It is not Monod, though the shapes rhyme. Monod exists to stop a *stock* being
 overdrawn: demand falls with supply, so the pool approaches zero instead of
@@ -311,9 +314,10 @@ source over the anchor tank's nights:
 Half the night leaves across the surface, because what the water sheds after
 dark is the supersaturation the day built relaxing back toward saturation. That
 also makes the fall insensitive to everything inside the tank: taking
-`base_respiration` to exactly zero moves it under 6 %, since oxygen a plant does
-not burn is oxygen the surface sheds instead at a higher gradient. Every sink in
-the tank is buffered against every other by the same first-order exchange.
+`base_respiration` from the shipped rate to exactly zero moves it 1.3 %, since
+oxygen a plant does not burn is oxygen the surface sheds instead at a higher
+gradient. Every sink in the tank is buffered against every other by the same
+first-order exchange.
 
 So the sag is a **day-side quantity**: it runs at 3.3× gross photosynthesis
 across the whole calibrated range of `co2_per_rate_unit`, and the dawn trough

@@ -180,8 +180,10 @@ export const PLANT_SPECIES_DATA: Record<PlantSpecies, PlantSpeciesData> = {
  * tolerableLight[0]`: anubias 16, java fern 20, amazon sword 40, dwarf
  * hairgrass 50, monte carlo 60. That is inside the published macrophyte range —
  * shade species saturate at 10–30 µmol/m²/s, sun species at 50–150 — and it
- * ties the two readings of the band together, since the lower bound is where
- * damage starts and also where the plant already runs at 76 % of its rate.
+ * makes a species' saturating irradiance a fixed multiple of where its damage
+ * threshold sits, so one number carries both light channels. At the shipped
+ * factor a plant at its lower bound runs at 46 % of its rate while the
+ * light-insufficient stressor charges it.
  */
 export function getSaturationIrradiance(species: PlantSpecies, config: PlantsConfig): number {
   return config.saturationIrradianceFactor * PLANT_SPECIES_DATA[species].tolerableLight[0];

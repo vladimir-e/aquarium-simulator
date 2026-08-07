@@ -27,12 +27,11 @@ import { processPlants } from '../plants/index.js';
 import { processAlgae } from '../algae/index.js';
 import { processLivestock } from '../livestock/index.js';
 import { processBreeding } from '../livestock/breeding.js';
-import { applyAction } from '../actions/index.js';
 import { calculateCo2Factor } from '../systems/photosynthesis.js';
 import { calculateO2Saturation } from '../systems/gas-exchange.js';
-import { settleEnvironment, tick } from '../tick.js';
+import { settleEnvironment } from '../tick.js';
 import { gasCurve, runTank, totalSize, type GasCurve } from './metrics.js';
-import { DAY, fixtureFor } from './tanks.js';
+import { DAY, fixtureFor, keep, substrateFor } from './tanks.js';
 import { formatTable, tuned } from './sweep.js';
 
 const RNG_SEED = 4242;
@@ -50,6 +49,9 @@ const SATURATION = calculateO2Saturation(25, gasExchangeDefaults);
  * The gate's own tank: a sealed, unfiltered 40 L (10.6 gal). No filter and a
  * full lid is the least gas exchange the engine offers, so what a planting does
  * to the oxygen has nowhere to hide — this is the tank the roster died in.
+ *
+ * `par` is the reading at the substrate, and `fixtureFor` solves the fixture
+ * that lands it.
  */
 const sealed = (par: number): SimulationConfig => ({
   tankCapacity: 40,
@@ -61,7 +63,10 @@ const sealed = (par: number): SimulationConfig => ({
   light: { enabled: par > 0, par: fixtureFor(par, 40), schedule: { startHour: 8, duration: 12 } },
 });
 
-/** A tank on ambient carbon: canister, aqua soil, no injector and no doser. */
+/**
+ * A tank on ambient carbon: canister, aqua soil, no injector and no doser.
+ * `par` is the reading at the substrate, as it is for {@link sealed}.
+ */
 const lowTech = (capacity: number, par: number): SimulationConfig => ({
   tankCapacity: capacity,
   heater: { enabled: true, targetTemperature: 25, wattage: Math.max(100, capacity) },
@@ -75,17 +80,35 @@ const lowTech = (capacity: number, par: number): SimulationConfig => ({
   },
 });
 
+/** The anchor's fixture is a *rating*, and this is the tank it is rated on. */
+const INJECTED_FIXTURE = 90;
+
+/** What the water above the bed leaves of it — where the plants actually stand. */
+const INJECTED_SUBSTRATE = substrateFor(INJECTED_FIXTURE, 150);
+
 /**
  * The tank the carbon yield is pinned on, from
- * `docs/calibration/runs/2026-08-06-gas-volume-stoichiometry.md`: 150 L, 90 PAR
- * on a 12 h photoperiod, carbon 10 h a day, dosed, topped up.
+ * `docs/calibration/runs/2026-08-06-gas-volume-stoichiometry.md`: 150 L, carbon
+ * 10 h a day, dosed, topped up, on a 12 h photoperiod.
+ *
+ * The `light` below overrides the one `lowTech` builds, and the two quote
+ * different quantities: `lowTech`'s argument is a substrate reading, while this
+ * `par` is a fixture rating — the convention
+ * `tests/planted-gas-budget.test.ts` sets its own light by, and the reason this
+ * tank is here at all. So this tank's plants stand in
+ * {@link INJECTED_SUBSTRATE}, not in 90, and every label that prints it says so.
  */
 const INJECTED: SimulationConfig = {
   ...lowTech(150, 90),
-  light: { enabled: true, par: 90, schedule: { startHour: 8, duration: 12 } },
+  light: { enabled: true, par: INJECTED_FIXTURE, schedule: { startHour: 8, duration: 12 } },
   co2Generator: { enabled: true, bubbleRate: 2, schedule: { startHour: 8, duration: 10 } },
   autoDoser: { enabled: true, doseAmountMl: 3, schedule: { startHour: 8, duration: 1 } },
 };
+
+/** What "PAR" means in a table that carries both conventions at once. */
+const PAR_NOTE =
+  `PAR is at the substrate, except the injected tank: its ${INJECTED_FIXTURE} is a fixture` +
+  ` rating, and the water above the bed leaves ${INJECTED_SUBSTRATE.toFixed(1)} of it.`;
 
 /** The gate's planting: five plants at size 60, 300 total, java fern and anubias. */
 const GATE_PLANTING: PresetSeed['plants'] = [
@@ -159,7 +182,7 @@ interface Budget {
 }
 
 function budget({ setup, seed, days, feed, waterChange }: Case, config: TunableConfig): Budget {
-  const plants = config.plants ?? plantsDefaults;
+  const plants = config.plants;
   let hours = 0;
   let lit = 0;
   let produced = 0;
@@ -241,12 +264,15 @@ const BUDGET_CASES: Array<[string, Case]> = [
     'low-tech 300 L, 90 PAR, 982 size',
     { setup: lowTech(300, 90), seed: SETTLED, days: 10, feed: 0.6, waterChange: 0.3 },
   ],
-  ['injected 150 L, 90 PAR, 982 size', { setup: INJECTED, seed: SETTLED, days: 10, feed: 0.6, waterChange: 0.3 }],
+  [
+    `injected 150 L, ${INJECTED_FIXTURE} PAR fixture, 982 size`,
+    { setup: INJECTED, seed: SETTLED, days: 10, feed: 0.6, waterChange: 0.3 },
+  ],
 ];
 
 /** § 1 — the same tanks on both rates, so the defect and the fix read side by side. */
 function budgets(rate: number): string {
-  return formatTable(
+  return `${PAR_NOTE}\n\n${formatTable(
     BUDGET_CASES.map(([tank, options]) => {
       const b = budget(options, at(rate));
       return {
@@ -260,7 +286,7 @@ function budgets(rate: number): string {
         fish: b.fish,
       };
     })
-  );
+  )}`;
 }
 
 // ── § 2 — the reference the constant is a fraction of ────────────────────────
@@ -428,9 +454,13 @@ function collectSystemEffects(
  * keeps no ledger of them, and a decomposition is the only way to say what a
  * night is made of rather than what removing one sink does to it.
  *
- * A mirror rots when the original moves, so `nights` below re-runs the real
- * `tick` on the same hour and throws unless the two agree to 1e-9. That check
- * is what makes this safe to keep: it cannot drift quietly, only loudly.
+ * Its first four stages are `settleEnvironment`'s body verbatim — clock,
+ * passive resources, immediate tier, equipment — and that seam is the one to
+ * keep it in step with; the rest follows `tick`'s own tier order.
+ *
+ * A mirror rots when the original moves, so `nights` below reads the engine's
+ * own tick for the same hour and throws unless the two agree to 1e-9. That
+ * check is what makes this safe to keep: it cannot drift quietly, only loudly.
  */
 function tracedTick(
   state: SimulationState,
@@ -474,10 +504,11 @@ function tracedTick(
  * Every whole night a run contains, each booked by source.
  *
  * The night runs from the hour the lights went out to the water first light
- * opened on — the same bounds `gasCurve` measures the sag between, so the
- * `fall` here and the assertion's figure are one number. Unlike `gasCurve` this
- * takes no window on plant size, which is what lets it read a tank that has no
- * planting to take one on: the controls the sag floor is drawn against.
+ * opened on — the same bounds `gasCurve` measures the sag between, on the same
+ * `keep` schedule, so the `fall` here and the assertion's figure are one
+ * number. Unlike `gasCurve` this takes no window on plant size, which is what
+ * lets it read a tank that has no planting to take one on: the controls the sag
+ * floor is drawn against.
  */
 function nights(
   setup: SimulationConfig,
@@ -485,45 +516,42 @@ function nights(
   days: number,
   config: TunableConfig = DEFAULT_CONFIG
 ): Night[] {
-  let running = createSimulation(setup, seed, RNG_SEED);
   const measured: Night[] = [];
   let open: { dusk: number; ledger: Ledger } | null = null;
 
-  for (let hour = 1; hour <= days * DAY; hour++) {
-    if (hour % DAY === 9) running = applyAction(running, { type: 'feed', amount: 0.6 }).state;
-    if (hour % (7 * DAY) === 0) {
-      running = applyAction(running, { type: 'waterChange', amount: 0.3 }).state;
-    }
+  keep(
+    createSimulation(setup, seed, RNG_SEED),
+    days,
+    { feed: 0.6, waterChange: 0.3, config },
+    (hour, before, after) => {
+      const { next, ledger } = tracedTick(before, config);
+      if (Math.abs(after.resources.oxygen - next.resources.oxygen) > 1e-9) {
+        throw new Error(
+          `the traced tick no longer mirrors the engine's at hour ${hour}:` +
+            ` ${next.resources.oxygen} against ${after.resources.oxygen}`
+        );
+      }
 
-    const before = running;
-    const { next, ledger } = tracedTick(before, config);
-    running = tick(before, config);
-    if (Math.abs(running.resources.oxygen - next.resources.oxygen) > 1e-9) {
-      throw new Error(
-        `the traced tick no longer mirrors the engine's at hour ${hour}:` +
-          ` ${next.resources.oxygen} against ${running.resources.oxygen}`
-      );
-    }
+      if (hour <= 2 * DAY) return;
+      const lit = after.resources.light > 0;
 
-    if (hour <= 2 * DAY) continue;
-    const lit = next.resources.light > 0;
-
-    if (!lit && before.resources.light > 0) open = { dusk: before.resources.oxygen, ledger: {} };
-    if (open === null) continue;
-    if (lit) {
-      measured.push({
-        fall: open.dusk - before.resources.oxygen,
-        ledger: open.ledger,
-        dusk: open.dusk,
-        dawn: before.resources.oxygen,
-      });
-      open = null;
-      continue;
+      if (!lit && before.resources.light > 0) open = { dusk: before.resources.oxygen, ledger: {} };
+      if (open === null) return;
+      if (lit) {
+        measured.push({
+          fall: open.dusk - before.resources.oxygen,
+          ledger: open.ledger,
+          dusk: open.dusk,
+          dawn: before.resources.oxygen,
+        });
+        open = null;
+        return;
+      }
+      for (const [source, delta] of Object.entries(ledger)) {
+        open.ledger[source] = (open.ledger[source] ?? 0) + delta;
+      }
     }
-    for (const [source, delta] of Object.entries(ledger)) {
-      open.ledger[source] = (open.ledger[source] ?? 0) + delta;
-    }
-  }
+  );
 
   return measured;
 }
@@ -741,8 +769,8 @@ const SAMPLED_YIELDS = [22.5, 30, 44.5];
 function acrossTheBand(): string {
   const heavy = { seed: SETTLED, days: 30, feed: 0.6, waterChange: 0.3 };
   const cases: Array<[string, Case]> = [
-    ['injected 150 L, 982, 12 neon', { setup: INJECTED, ...heavy }],
-    ['low-tech 150 L, 982, 12 neon', { setup: lowTech(150, 90), ...heavy }],
+    [`injected 150 L, ${INJECTED_FIXTURE} PAR fixture, 982, 12 neon`, { setup: INJECTED, ...heavy }],
+    ['low-tech 150 L, 90 PAR, 982, 12 neon', { setup: lowTech(150, 90), ...heavy }],
     ...[10, 50, 120].map((par): [string, Case] => [
       `sealed 40 L, 300, 8 neon, ${par} PAR`,
       {
@@ -757,7 +785,7 @@ function acrossTheBand(): string {
 
   const bare = survival(50, DEFAULT_CONFIG);
   return (
-    `the gate's bare control: ${bare.fish}/${GATE_FISH[0]!.count} fish, O₂ floor` +
+    `${PAR_NOTE}\nthe gate's bare control: ${bare.fish}/${GATE_FISH[0]!.count} fish, O₂ floor` +
     ` ${bare.o2Low.toFixed(3)}\n\n` +
     formatTable(
       cases.flatMap(([tank, options]) =>

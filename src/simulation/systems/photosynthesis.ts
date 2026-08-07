@@ -122,7 +122,7 @@ export function calculatePhotosynthesis(
 ): PhotosynthesisResult {
   const totalSize = plants.reduce((s, p) => s + p.size, 0);
 
-  if (light <= 0 || totalSize <= 0 || waterVolume <= 0) {
+  if (totalSize <= 0 || waterVolume <= 0) {
     return emptyResult();
   }
 

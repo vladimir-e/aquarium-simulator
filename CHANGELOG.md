@@ -11,11 +11,8 @@ Format: - **Feature name** (#PR) - One short sentence (under ~150 chars)
 
 ## Unreleased
 
-- **The anchor's night measures the tank, not the planting** - the dark-hours assertion is re-derived as the tank's overnight oxygen sag, banded 1–3 mg/L against a real planted tank's diel curve; the old ceiling of 2 was set through the phase bug this branch fixed.
-- **A planted tank makes more oxygen than it burns** - `baseRespirationRate` 0.15 → 0.03, re-derived against the light-saturated rate at ambient carbon rather than the injected-carbon ceiling it never reaches.
-- **The gas reader measures the hour the tick ran** - `settleEnvironment` is the tick's first stage, and the reader rebuilds each hour through it instead of classifying on the state the tick was handed, which was an hour stale.
-- **A brighter fixture grows more plant, up to a point** - photosynthesis and the light benefit both scale on `tanh(PAR/Ik)`, saturating at twice each species' band low; `lightRequirement` is derived, not declared (v21, v8).
-- **`getSaturationIrradiance` requires a config** - breaking: an omitted argument read the shipped defaults whatever the caller had tuned.
+- **A brighter fixture grows more plant, up to a point** - photosynthesis and the light benefit scale on `tanh(PAR/Ik)`, saturating at twice each species' band low; breaking: no `lightRequirement` (v21, v8).
+- **A planted tank makes more oxygen than it burns** - `baseRespirationRate` 0.15 → 0.03, against the rate a tank on ambient carbon actually reaches.
 - **A hypoxic fish excretes less nitrogen** - deamination is metabolism, so both NH₃ streams carry the same oxygen factor as the respiratory draw; feces do not.
 - **An under-aerated tank stands nitrite** - nitrification joins the oxygen-limited processes and pays 4.57 mg O₂ per mg N; NOB are the fussier guild, so the second step stalls before the first.
 - **An aerobic process runs on the oxygen there is** - decay, plants and fish scale their rate by `O2/(K+O2)`, so demand falls with the stock and a suffocating tank stops emitting carbon it never paid for (v20, v7).

@@ -20,9 +20,11 @@ export interface PlantsConfig {
   optimalNitrate: number;
   /**
    * Multiple of a species' `tolerableLight` lower bound at which it saturates.
-   * The product is the `Ik` of the Jassby–Platt curve, in PAR. One number ties
-   * both light channels to the band: where damage starts is also where the
-   * plant sits at 76 % of its rate.
+   * The product is the `Ik` of the Jassby–Platt curve, in PAR: a species'
+   * saturating irradiance is a fixed multiple of where its damage threshold
+   * sits, so one number carries both light channels. At the shipped 2.0 a plant
+   * at the bottom of its band runs at 46 % of its rate while the
+   * light-insufficient stressor charges it.
    */
   saturationIrradianceFactor: number;
   /**

@@ -54,14 +54,23 @@ export function run(
 }
 
 /**
+ * What a `fixture`-rated light lands on the substrate of a `capacity` tank.
+ * Attenuation is linear in the fixture, so the reading a 1 PAR fixture lands is
+ * the whole ratio, and the model itself supplies it rather than a restatement
+ * of Beer–Lambert here.
+ */
+export function substrateFor(fixture: number, capacity: number): number {
+  return fixture * calculateParAtDepth(1, calculateTankHeight(capacity), opticsDefaults);
+}
+
+/**
  * The fixture that lands `target` PAR on the substrate of a `capacity` tank —
  * a fixture cannot be pointed at a substrate reading directly, because the box
- * in between decides. Attenuation is linear in the fixture, so the reading a
- * 1 PAR fixture lands is the whole ratio, inverting through the model itself
- * rather than restating Beer–Lambert here.
+ * in between decides. The inverse of {@link substrateFor}, so the two cannot
+ * disagree about the water between them.
  */
 export function fixtureFor(target: number, capacity: number): number {
-  return target / calculateParAtDepth(1, calculateTankHeight(capacity), opticsDefaults);
+  return target / substrateFor(1, capacity);
 }
 
 /** There is no chiller, so a tank only sits below the room if the room is that cold. */

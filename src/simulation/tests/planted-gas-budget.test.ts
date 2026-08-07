@@ -261,12 +261,15 @@ describe('a grown-in planted 150 L, through a day and a night', () => {
    * relaxes back across the surface while respiration, decay and the nitrifiers
    * keep drawing. Published diel curves for planted freshwater aquaria fall
    * **1–3 mg/L** between the dusk peak and the dawn trough, and this tank —
-   * heavily planted, carbon-injected, 90 PAR — belongs at the top of it.
+   * heavily planted, carbon-injected, under a 90 PAR fixture — reads 2.17,
+   * 59 % of the way up that band.
    *
    * The floor is this same 150 L measured with the planting taken out: it sags
    * nothing at all (−0.09 mg/L — the surface holds it at saturation through the
    * night), and a 300-size planting sags 0.23. A milligram is the line between
    * a tank running a diel curve and a tank whose surface is doing all the work.
+   * It is drawn to say what the band means rather than to bite: the yield
+   * reaches it at 13, well under the 22.3 the assertion above already demands.
    *
    * The ceiling is where the dusk peak stops being an aquarium's. Dawn is a
    * fixed point here — 8.16 mg/L, 97 % of saturation, at every yield the
