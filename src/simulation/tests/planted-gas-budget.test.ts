@@ -233,6 +233,14 @@ describe('a grown-in planted 150 L, through a day and a night', () => {
     routine: { feed: 0.6, waterChange: 0.3 },
   });
 
+  it('is read across every lit hour past settling — 8 days of a 12 h photoperiod', () => {
+    // The planting is handed over grown-in, so the size window has no ramp to
+    // leave out. Let it ever ramp past the window's tolerance and the early
+    // hours drop out — the band below would go on reading in-band, on a smaller
+    // tank than the one named here.
+    expect(curve.hours).toBe(8 * 12);
+  });
+
   it('runs 0.5–1 mg/L/h of oxygen through the photoperiod', () => {
     expect(curve.gross).toBeGreaterThanOrEqual(0.5);
     expect(curve.gross).toBeLessThanOrEqual(1);

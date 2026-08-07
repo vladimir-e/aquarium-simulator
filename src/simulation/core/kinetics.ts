@@ -40,13 +40,9 @@ export function monodFactor(concentration: number, halfSaturation: number): numb
  * twice the rate; above it the curve flattens hard, so a brighter fixture stops
  * buying anything.
  *
- * Not Monod, though the shapes rhyme. Monod is there to stop a *stock* being
- * overdrawn: demand falls with supply, so the pool approaches zero instead of
- * crossing it. Light is not a stock — nothing depletes photons, and no rate can
- * overdraw an intensity — so the curve is taken from the leaf rather than from
- * the pool, and the leaf's own is the one the literature fits. Its shoulder is
- * sharper than the rectangular hyperbola's, whose tail goes on paying for more
- * light forever.
+ * Not Monod, though the shapes rhyme: light is not a stock anything can
+ * overdraw, so the curve comes from the leaf rather than from the pool. Why
+ * that distinction picks this curve is in `docs/6-PLANTS.md` § Light factor.
  */
 export function lightSaturationFactor(par: number, saturationIrradiance: number): number {
   if (par <= 0) return 0;

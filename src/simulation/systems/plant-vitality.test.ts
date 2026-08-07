@@ -198,7 +198,7 @@ describe('buildPlantBenefits', () => {
     // asymptotically — 30 PAR is 1.9 Ik for an anubias, which is most of it.
     expect(benefits.find((b) => b.key === 'light')?.amount).toBeCloseTo(
       plantsDefaults.lightBenefitPeak *
-        lightSaturationFactor(30, getSaturationIrradiance('anubias')),
+        lightSaturationFactor(30, getSaturationIrradiance('anubias', plantsDefaults)),
       12
     );
     expect(benefits.find((b) => b.key === 'co2')?.amount).toBe(plantsDefaults.co2BenefitPeak);
@@ -227,8 +227,8 @@ describe('buildPlantBenefits', () => {
     };
 
     it('pays a brighter plant more than a dim one, both inside the band', () => {
-      // Anubias tolerates 8–70 PAR, so both readings used to earn the same flat
-      // award — which is why photoperiod alone decided growth.
+      // Both readings sit inside the 8–70 PAR anubias tolerates, so a band-shaped
+      // award would pay them the same and only the photoperiod would decide growth.
       expect(lightBenefit('anubias', 60)).toBeGreaterThan(lightBenefit('anubias', 12));
     });
 
@@ -243,9 +243,9 @@ describe('buildPlantBenefits', () => {
     });
 
     it('has no cliff at the top of the band', () => {
-      // Anubias burns above 70 PAR, and used to lose its entire light income
-      // there on top of the excess stressor. The two channels are separate now:
-      // crossing costs a plant damage, not its earnings.
+      // Anubias burns above 70 PAR, and that charge is `lightExcessiveSeverity`'s
+      // alone: crossing the top of the band costs a plant damage, not its light
+      // income, which by then is a thousandth off the peak either side.
       const [, hi] = PLANT_SPECIES_DATA.anubias.tolerableLight;
       const under = lightBenefit('anubias', hi - 0.01);
       const over = lightBenefit('anubias', hi + 0.01);
@@ -263,7 +263,10 @@ describe('buildPlantBenefits', () => {
 
       for (const one of species) {
         for (const other of species) {
-          if (getSaturationIrradiance(one) < getSaturationIrradiance(other)) {
+          if (
+            getSaturationIrradiance(one, plantsDefaults) <
+            getSaturationIrradiance(other, plantsDefaults)
+          ) {
             expect(lightBenefit(one, 50)).toBeGreaterThan(lightBenefit(other, 50));
           }
         }

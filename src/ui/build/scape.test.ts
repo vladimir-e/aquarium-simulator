@@ -54,9 +54,9 @@ describe('plantOptions', () => {
     expect(byId.monte_carlo).toBe('high light · high CO₂');
   });
 
-  it('reads the light tier off the PAR each species saturates at', () => {
-    // The tier was a declared species field until the saturating curve gave the
-    // band a second reading; these five are the values it used to carry.
+  it('reads the light tier off where each species’ band opens', () => {
+    // The bands open at 8, 10, 20, 25 and 30 PAR, and the hobby cuts low from
+    // medium at 15 and medium from high at 25.
     expect(lightTier('anubias')).toBe('low');
     expect(lightTier('java_fern')).toBe('low');
     expect(lightTier('amazon_sword')).toBe('medium');

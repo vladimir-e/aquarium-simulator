@@ -125,9 +125,12 @@ number: `tolerableLight[0]` is where the light-insufficient stressor starts
 declares it.
 
 It is not Monod, though the shapes rhyme. Monod exists to stop a *stock* being
-overdrawn; light is not a stock — nothing depletes photons and no rate can
-overdraw an intensity — so the curve is taken from the leaf, and the leaf's
-shoulder is sharper than the rectangular hyperbola's tail.
+overdrawn: demand falls with supply, so the pool approaches zero instead of
+crossing it. Light is not a stock — nothing depletes photons and no rate can
+overdraw an intensity — so the curve is taken from the leaf rather than from the
+pool, and the leaf's own is the one the literature fits. Its shoulder is sharper
+than the rectangular hyperbola's, whose tail goes on paying for more light
+forever.
 
 **More light never lowers the rate.** There is no photoinhibition term here;
 excess PAR is the *light excessive* stressor's job (see § Stressor coverage).
@@ -252,7 +255,7 @@ runs at ~15 % of the photosynthetic rate, so a planting under a fixture
 too dim to clear that respires more than it fixes and consumes oxygen
 with the lamps on. With carbon at optimum and nutrients past every
 species' demand, the crossover sits at 2.8 PAR for a java fern (`Ik` 20)
-and 8.6 PAR for a monte carlo (`Ik` 60) — a shade plant stays in credit
+and 8.5 PAR for a monte carlo (`Ik` 60) — a shade plant stays in credit
 in light a carpet starves in. Liebig sufficiency scales the same rate, so
 it moves the line too: at plain optimal nutrients, which feed a
 low-demand plant and starve a high-demand one, the java fern is unchanged

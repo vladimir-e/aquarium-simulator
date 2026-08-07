@@ -1,4 +1,4 @@
-import { plantsDefaults, type PlantsConfig } from '../config/plants.js';
+import type { PlantsConfig } from '../config/plants.js';
 
 /**
  * Plant species types.
@@ -183,9 +183,6 @@ export const PLANT_SPECIES_DATA: Record<PlantSpecies, PlantSpeciesData> = {
  * ties the two readings of the band together, since the lower bound is where
  * damage starts and also where the plant already runs at 76 % of its rate.
  */
-export function getSaturationIrradiance(
-  species: PlantSpecies,
-  config: PlantsConfig = plantsDefaults
-): number {
+export function getSaturationIrradiance(species: PlantSpecies, config: PlantsConfig): number {
   return config.saturationIrradianceFactor * PLANT_SPECIES_DATA[species].tolerableLight[0];
 }

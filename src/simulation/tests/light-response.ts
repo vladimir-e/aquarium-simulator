@@ -2,10 +2,10 @@
  * The light response, and what it does to the carbon yield.
  *
  * Three questions, in the order they have to be answered. Where does
- * `co2PerRateUnit` sit now that a rate unit is no longer quoted against light
- * nobody was reading? Does a brighter fixture buy more, and does it stop buying?
- * And what becomes of the daily-light-integral trade the photoperiod used to win
- * on its own. Run it:
+ * `co2PerRateUnit` sit when a rate unit is an hour at saturating light? Does a
+ * brighter fixture buy more, and does it stop buying? And which way does the
+ * daily-light-integral trade fall — a long dim day against a short bright one?
+ * Run it:
  *
  *     npm run probe:light-response
  */
@@ -19,7 +19,7 @@ import { DEFAULT_CONFIG, type TunableConfig } from '../config/index.js';
 import { nutrientsDefaults } from '../config/nutrients.js';
 import { plantsDefaults } from '../config/plants.js';
 import { getPpm } from '../resources/index.js';
-import { gasCurve, runTank, type GasCurve } from './metrics.js';
+import { gasCurve, runTank, totalSize, type GasCurve } from './metrics.js';
 import { fixtureFor } from './tanks.js';
 import { formatTable, tuned } from './sweep.js';
 
@@ -68,22 +68,21 @@ const SETTLED: PresetSeed = {
   ],
 };
 
-const totalSize = (state: SimulationState): number =>
-  state.plants.reduce((sum, plant) => sum + plant.size, 0);
-
 const withLight = (setup: SimulationConfig, par: number, duration: number): SimulationConfig => ({
   ...setup,
   light: { enabled: par > 0, par, schedule: { startHour: 8, duration } },
 });
 
+interface CurveOptions {
+  setup: SimulationConfig;
+  seed: PresetSeed;
+  days: number;
+  config?: TunableConfig;
+  hold?: (state: SimulationState) => SimulationState;
+}
+
 /** The keeper's routine every gas reading in this probe is taken under. */
-const curveOf = (
-  setup: SimulationConfig,
-  seed: PresetSeed,
-  days: number,
-  config: TunableConfig = DEFAULT_CONFIG,
-  hold?: (state: SimulationState) => SimulationState
-): GasCurve =>
+const curveOf = ({ setup, seed, days, config = DEFAULT_CONFIG, hold }: CurveOptions): GasCurve =>
   gasCurve({
     setup,
     seed,
@@ -98,14 +97,14 @@ const YIELDS = [10, 20, 30, 32, 35, 40, 45, 50, 57, 60, 80];
 function yieldSweep(seed: PresetSeed, days: number): string {
   return formatTable(
     YIELDS.map((co2PerRateUnit) => {
-      const curve = curveOf(
-        GROWN_IN,
+      const curve = curveOf({
+        setup: GROWN_IN,
         seed,
         days,
-        tuned((draft) => {
+        config: tuned((draft) => {
           draft.plants.co2PerRateUnit = co2PerRateUnit;
-        })
-      );
+        }),
+      });
       return {
         yield: co2PerRateUnit,
         gross: curve.gross,
@@ -130,14 +129,14 @@ function yieldSweep(seed: PresetSeed, days: number): string {
 function termOut(): string {
   return formatTable(
     [0, plantsDefaults.saturationIrradianceFactor].map((factor) => {
-      const curve = curveOf(
-        GROWN_IN,
-        FRESH,
-        90,
-        tuned((draft) => {
+      const curve = curveOf({
+        setup: GROWN_IN,
+        seed: FRESH,
+        days: 90,
+        config: tuned((draft) => {
           draft.plants.saturationIrradianceFactor = factor;
-        })
-      );
+        }),
+      });
       const { final, samples } = curve;
       const { water } = final.resources;
 
@@ -218,11 +217,11 @@ function grow(
  * response on its own: it rises and then flattens, and never falls.
  */
 function doseTable(species: PlantSpecies, bandHigh: number): string {
-  const ik = getSaturationIrradiance(species);
+  const ik = getSaturationIrradiance(species, DEFAULT_CONFIG.plants);
   return formatTable(
     TARGETS.filter((target) => target <= bandHigh).map((subPar) => {
       const setup = withLight(GROWN_IN, fixtureFor(subPar, CAPACITY), 12);
-      const production = curveOf(setup, monoculture(species), 3, DEFAULT_CONFIG, fed);
+      const production = curveOf({ setup, seed: monoculture(species), days: 3, hold: fed });
       const keeper = grow(setup, species, DEFAULT_CONFIG);
 
       return {

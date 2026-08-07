@@ -12,6 +12,7 @@ Format: - **Feature name** (#PR) - One short sentence (under ~150 chars)
 ## Unreleased
 
 - **A brighter fixture grows more plant, up to a point** - photosynthesis and the light benefit both scale on `tanh(PAR/Ik)`, saturating at twice each species' band low; `lightRequirement` is derived, not declared (v21, v8).
+- **`getSaturationIrradiance` requires a config** - breaking: an omitted argument read the shipped defaults whatever the caller had tuned.
 - **A hypoxic fish excretes less nitrogen** - deamination is metabolism, so both NH₃ streams carry the same oxygen factor as the respiratory draw; feces do not.
 - **An under-aerated tank stands nitrite** - nitrification joins the oxygen-limited processes and pays 4.57 mg O₂ per mg N; NOB are the fussier guild, so the second step stalls before the first.
 - **An aerobic process runs on the oxygen there is** - decay, plants and fish scale their rate by `O2/(K+O2)`, so demand falls with the stock and a suffocating tank stops emitting carbon it never paid for (v20, v7).

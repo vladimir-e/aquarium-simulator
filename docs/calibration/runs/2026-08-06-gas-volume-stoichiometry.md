@@ -38,10 +38,10 @@ CO₂ derived from it.
 > **Read the grown-in table with its instrument in mind.** Its rows average a
 > tank that is still growing — this planting climbs from 350 for the whole 90
 > days and never plateaus, so the figure depends entirely on which hours are
-> counted. Re-measured at grown-in size on the shipped engine, the yield-30 row
-> reads **0.608** rather than 0.670. The choice of 30 is unaffected: the window
-> moves both the row and the band it sits in, and 30 stays mid-band on both
-> plantings. The anchor row did not drift (0.579 against 0.581 here). See
+> counted. Re-measured at grown-in size on the 2b engine this document pins, the
+> yield-30 row reads **0.608** rather than 0.670. The choice of 30 is unaffected:
+> the window moves both the row and the band it sits in, and 30 stays mid-band on
+> both plantings. The anchor row did not drift (0.579 against 0.581 here). See
 > `2026-08-09-light-response.md`, which re-derives against the same observable
 > and keeps 30.
 
@@ -55,9 +55,9 @@ bps for 10 h, 3 ml/day dosed, ATO, 0.6 g/day fed, 30 % weekly change. Planted
 with 3 amazon sword, 4 monte carlo, 2 java fern and 1 anubias at size 35 — 350
 total — plus 12 neon tetras. Run 90 days.
 
-It settles at **≈ 987 total plant size** (the four monte carlos starve out around
-day 60 — defect #13, untouched here). That is the tank the yield is pinned on,
-and it brackets the 982-size case the roadmap names.
+It ends at **≈ 987 total plant size**, still climbing (the four monte carlos
+starve out around day 60 — defect #13, untouched here). That is the tank the
+yield is pinned on, and it brackets the 982-size case the roadmap names.
 
 | yield | gross O₂ (mg/L/h) | O₂ high | O₂ low | dark-hours give-back | fish |
 |---|---|---|---|---|---|

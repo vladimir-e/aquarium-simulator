@@ -159,9 +159,6 @@ export function buildPlantStressors(ctx: PlantVitalityContext): VitalityFactor[]
   return factors;
 }
 
-/**
- * Build the benefit list for a plant — five factors.
- */
 export function buildPlantBenefits(ctx: PlantVitalityContext): VitalityFactor[] {
   const { plant, resources, plantsConfig, nutrientSufficiency } = ctx;
   const species = PLANT_SPECIES_DATA[plant.species];

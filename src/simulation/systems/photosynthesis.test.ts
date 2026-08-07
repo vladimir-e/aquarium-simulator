@@ -285,7 +285,7 @@ describe('calculatePhotosynthesis', () => {
       const expected =
         (plantsDefaults.baseRespirationRate / plantsDefaults.basePhotosynthesisRate) *
         monodFactor(AIR_SATURATED_O2, plantsDefaults.respirationOxygenHalfSaturation) /
-        lightSaturationFactor(light, getSaturationIrradiance('java_fern'));
+        lightSaturationFactor(light, getSaturationIrradiance('java_fern', plantsDefaults));
 
       expect(ratio()).toBeCloseTo(expected, 6);
       expect(ratio({ ...plantsDefaults, co2PerRateUnit: 7 })).toBeCloseTo(expected, 6);

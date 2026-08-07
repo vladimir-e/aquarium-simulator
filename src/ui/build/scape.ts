@@ -8,7 +8,6 @@ import {
   getHardscapeName,
   getHardscapePHEffect,
   getHardscapeSurface,
-  getSaturationIrradiance,
   isSubstrateCompatible,
   PLANT_SPECIES_DATA,
   type HardscapeItem,
@@ -87,13 +86,13 @@ export function scapeSummary(substrate: SubstrateType, items: HardscapeItem[]): 
 }
 
 /**
- * The hobby's light tier for a species, read off the PAR it saturates at
- * against the published bands — low 15–30, medium 30–50, high 50–80+.
+ * The hobby's light tier for a species, read off where its tolerable band opens
+ * — the PAR it wants at the substrate, against the hobby's own cuts.
  */
 export function lightTier(species: PlantSpecies): 'low' | 'medium' | 'high' {
-  const saturates = getSaturationIrradiance(species);
-  if (saturates < 30) return 'low';
-  return saturates < 50 ? 'medium' : 'high';
+  const [wants] = PLANT_SPECIES_DATA[species].tolerableLight;
+  if (wants < 15) return 'low';
+  return wants < 25 ? 'medium' : 'high';
 }
 
 export interface PlantOption {

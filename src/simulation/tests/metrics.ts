@@ -1,10 +1,12 @@
 /**
- * A tank read as a trajectory rather than an end state: samples on a fixed
- * cadence — one a day by default, hourly when the question is a day/night
- * curve — and the day each plant left.
+ * A tank read as a trajectory rather than an end state. {@link runTank} samples
+ * on a fixed cadence — one a day by default, hourly when the question is a
+ * day/night curve — and records the day each plant left. {@link gasCurve} runs
+ * one and reduces it to what the planting does to the dissolved gases, over the
+ * hours it is grown-in for.
  *
  * An anchor asserts a number; a run report has to show the shape that number
- * sits on, and the shape is what this returns. It drives {@link keep}, the
+ * sits on, and the shape is what these return. Both drive {@link keep}, the
  * same loop the anchors run, so a figure in a report and a figure in an
  * assertion come off one schedule.
  */
@@ -69,12 +71,16 @@ function mean(values: readonly number[]): number {
   return values.length === 0 ? 0 : values.reduce((sum, value) => sum + value, 0) / values.length;
 }
 
+/** The whole planting of a tank, summed — the size a run is quoted at. */
+export const totalSize = (state: SimulationState): number =>
+  state.plants.reduce((sum, plant) => sum + plant.size, 0);
+
 function sampleOf(state: SimulationState): Sample {
   return {
     day: state.tick / DAY,
     algae: state.algae.mass,
     plants: state.plants.length,
-    totalSize: state.plants.reduce((sum, plant) => sum + plant.size, 0),
+    totalSize: totalSize(state),
     avgCondition: mean(state.plants.map((plant) => plant.condition)),
     oxygen: state.resources.oxygen,
     co2: state.resources.co2,
@@ -126,9 +132,6 @@ const SETTLING_DAYS = 2;
  */
 const SETTLED_TOLERANCE = 0.1;
 
-const totalSize = (state: SimulationState): number =>
-  state.plants.reduce((sum, plant) => sum + plant.size, 0);
-
 /** An hourly reading, tagged with the planting that produced it. */
 interface Reading {
   value: number;
@@ -175,8 +178,9 @@ export type GasCurveOptions = Omit<RunOptions, 'watch'>;
  * run is quoted at is where it *ends* rather than somewhere it settles. Gross
  * oxygen is very nearly linear in plant size, so a mean over the whole run is a
  * mean over the ramp and reads a tank half the size of the one the observable
- * names. A run handed its planting at tick 0 keeps every lit hour it has, so
- * the window is inert exactly where there is no ramp to leave out.
+ * names. A run that ends within {@link SETTLED_TOLERANCE} of the planting it
+ * started with — one handed a grown-in tank at tick 0 — keeps every lit hour it
+ * has, so the window is inert where there is no ramp worth leaving out.
  */
 export function gasCurve({ routine = {}, ...options }: GasCurveOptions): GasCurve {
   const config = routine.config ?? DEFAULT_CONFIG;

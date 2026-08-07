@@ -23,8 +23,10 @@ anchors run, at `rngSeed` 4242. The probe is `npm run probe:light-response`.
 
 `Ik` reads anubias 16, java fern 20, amazon sword 40, dwarf hairgrass 50, monte
 carlo 60 PAR — inside the published macrophyte range, shade species 10–30 and
-sun species 50–150. The deleted tier reproduces exactly off the band (<30 low,
-30–<50 medium, ≥50 high), which is the evidence it was always derivable.
+sun species 50–150. The deleted tier reproduces exactly off where the band opens
+(<15 PAR low, <25 medium, else high — the same cuts at 30 and 50 in `Ik`), which
+is the evidence it was always derivable. The UI reads it off the band, so a
+recalibration of the factor cannot move a species' rendered tier.
 
 ## The measurement had to be fixed before the constant could be read
 
@@ -73,10 +75,29 @@ and lowest any hour of the window closed on, dark hours counted.
 | 60 | 1.002 | 11.76 | 5.75 | 2.43 | 973 | 360 | 12 |
 | 80 | 1.234 | 12.50 | 6.10 | 2.80 | 966 | 399 | 12 |
 
-The gross band opens at ≈25.9 and the dark-hours ceiling closes it at ≈46.2. On
-the anchor's own planting the same sweep admits **26.2 – 55.9**, against the
-25.4 – 54.1 that 2b measured on it — two engines, the same tank, a window whose
-edges moved by under two points.
+The gross band opens at ≈25.9 and the dark-hours ceiling closes it at ≈46.2.
+
+The same sweep on the anchor's own planting — the 982 that
+`tests/planted-gas-budget.test.ts` hands over at tick 0, run 10 days — is the
+second reading, and the one the window keeps whole:
+
+| yield | gross O₂ (mg/L/h) | O₂ high | O₂ low | dark give-back | size | hours | fish |
+|---|---|---|---|---|---|---|---|
+| 10 | 0.204 | 8.81 | 7.94 | 0.42 | 1013 | 96 | 12 |
+| 20 | 0.392 | 9.47 | 7.72 | 0.87 | 1014 | 96 | 12 |
+| **30** | **0.565** | **10.07** | **7.49** | **1.25** | **1014** | **96** | **12** |
+| 32 | 0.598 | 10.19 | 7.44 | 1.32 | 1014 | 96 | 12 |
+| 35 | 0.646 | 10.35 | 7.37 | 1.42 | 1014 | 96 | 12 |
+| 40 | 0.724 | 10.62 | 7.25 | 1.58 | 1014 | 96 | 12 |
+| 45 | 0.799 | 10.87 | 7.14 | 1.73 | 1014 | 96 | 12 |
+| 50 | 0.871 | 11.11 | 7.02 | 1.86 | 1014 | 96 | 12 |
+| 57 | 0.967 | 11.42 | 6.85 | 2.03 | 1014 | 96 | 12 |
+| 60 | 1.006 | 11.55 | 6.78 | 2.09 | 1014 | 96 | 12 |
+| 80 | 1.245 | 12.32 | 6.30 | 2.43 | 1015 | 96 | 12 |
+
+It admits **26.2 – 55.9** — the gross floor between 20 and 30, the dark-hours
+ceiling between 50 and 57 — against the 25.4 – 54.1 that 2b measured on it: two
+engines, the same tank, a window whose edges moved by under two points.
 
 **30 stays.** It sits inside both windows with room either side, it is where
 ties break, and nothing in the corrected measurement asks it to move. The
@@ -173,6 +194,7 @@ with algae shading out of reach.
 | 40 | 2.00 | 0.214 | 3.65 | 324 | 54.1 | 394 |
 | 60 | 3.00 | 0.221 | 3.77 | 326 | 53.9 | 395.3 |
 | 70 | 3.50 | 0.221 | 3.78 | 326 | 53.9 | 395.5 |
+| 80 | 4.00 | 0.222 | 3.78 | 296 | 61.4 | 395.5 |
 | 90 | 4.50 | 0.222 | 3.79 | 273 | 68.3 | 395.6 |
 
 **Monte carlo, Ik 60** — a high-Ik sun species:
@@ -183,6 +205,7 @@ with algae shading out of reach.
 | 15 | 0.25 | 0.057 | 0.97 | 347 | 48.3 | 550 |
 | 30 | 0.50 | 0.120 | 2.05 | 948 | 19.1 | 948 |
 | 60 | 1.00 | 0.201 | 3.43 | 996 | 18.0 | 996 |
+| 70 | 1.17 | 0.218 | 3.72 | 1006 | 17.8 | 1006 |
 | 90 | 1.50 | 0.240 | 4.11 | 1019 | 24.7 | 1019 |
 | 120 | 2.00 | 0.257 | 4.39 | 969 | 35.8 | 1029 |
 | 160 | 2.67 | 0.264 | 4.51 | 0 | 92.6 | 1033 |
@@ -196,7 +219,8 @@ closed** — a high-PAR fixture measurably out-produces a low one, and stops
 paying.
 
 Growth does the same *once the algae channel is held out*: 395.3 / 395.5 / 395.6
-for java fern, 1029 / 1033 / 1034 for monte carlo. Rises, flattens, never falls.
+for java fern across 60/70/90 PAR, 1029 / 1033 / 1034 for monte carlo across
+120/160/200. Rises, flattens, never falls.
 
 ## The deaths at high PAR are algae, and they are correct
 
@@ -290,10 +314,13 @@ them. The claim re-tested here is the direction and its reason, not the ratio.)
 ## Anchors
 
 `tests/planted-gas-budget.test.ts` — the calibration anchor that reads
-`co2PerRateUnit` directly — passes unmodified at yield 30, band untouched. All
-four permissive anchors stay green.
+`co2PerRateUnit` directly — passes at yield 30 with its band untouched. Its one
+addition is a tripwire on the instrument rather than on the claim: the window
+has to keep all 96 lit hours, so a planting that ever starts ramping cannot
+quietly shrink the tank the band is read on. All four permissive anchors stay
+green.
 
-`npm test` 2661 passed / 152 files · `npx tsc --noEmit` clean · `npm run lint`
+`npm test` 2663 passed / 152 files · `npx tsc --noEmit` clean · `npm run lint`
 clean apart from the 3 standing `no-console` warnings in `src/ui/`.
 
 One thing this branch reverted rather than shipped: `oxygen-limited-draw.test.ts`

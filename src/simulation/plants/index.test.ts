@@ -521,9 +521,8 @@ describe('processPlants', () => {
           plants: [{ id: 'p1', species, size: 100, condition: C, surplus: 0 }],
           light,
           co2: plantsDefaults.optimalCo2,
-          // Three times optimal, which clears even a high-demand species'
-          // Liebig gate — a crossover read on a starved plant would be
-          // measuring the nutrients.
+          // Held past every species' Liebig gate — a crossover read on a
+          // starved plant would be measuring the nutrients.
           nitrate: plantsDefaults.optimalNitrate * 100 * 3,
           phosphate: nutrientsDefaults.optimalPhosphatePpm * 100 * 3,
           potassium: nutrientsDefaults.optimalPotassiumPpm * 100 * 3,
