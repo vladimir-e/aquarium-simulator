@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { tick, getHourOfDay, getDayNumber } from './tick.js';
+import { tick, getHourOfDay, getDayNumber, settleEnvironment } from './tick.js';
 import { createSimulation, type SimulationConfig, type SimulationState } from './state.js';
 import { applyAction } from './actions/index.js';
 import { DEFAULT_CONFIG, type TunableConfig } from './config/index.js';
@@ -357,6 +357,27 @@ describe('tick passive resources', () => {
     expect(tick(state, murky).resources.light).toBeLessThan(
       tick(state, DEFAULT_CONFIG).resources.light
     );
+  });
+});
+
+describe('settleEnvironment', () => {
+  it('lands the hour the tick runs, not the one it was handed', () => {
+    let state = createSimulation({
+      tankCapacity: 100,
+      light: { enabled: true, par: 90, schedule: { startHour: 8, duration: 12 } },
+    });
+    while (state.tick < 7) state = tick(state);
+
+    // Standing at 07:00, the tick about to run is 08:00 — the first lit hour of
+    // the photoperiod. Anything measuring what that tick did to the plants has
+    // to read the light it settled and not the dark it was handed.
+    const settled = settleEnvironment(state);
+
+    expect(state.resources.light).toBe(0);
+    expect(settled.tick).toBe(8);
+    expect(settled.resources.light).toBeGreaterThan(0);
+    // And nothing past the living tier moves it again.
+    expect(tick(state).resources.light).toBe(settled.resources.light);
   });
 });
 

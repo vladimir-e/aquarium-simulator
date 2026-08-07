@@ -50,7 +50,7 @@ const STOCKED: PresetSeed = {
 /**
  * Grams of food a day — a ration a keeper would call heavy for this roster, and
  * one the aerated box covers with room to spare: at the tightest hour of the
- * six days it still holds 3.05 mg/L beyond what the tick asks for. The hard
+ * six days it still holds 5.46 mg/L beyond what the tick asks for. The hard
  * zero asserted below is a margin, not a knife-edge.
  */
 const RATION = 1;
@@ -217,7 +217,7 @@ describe('the oxygen a stressed tank draws that was never in it', () => {
   // behind is not the factor's to close: a tick is an hour, so a consumer whose
   // reduced demand still outruns the standing stock overshoots inside the step.
   // The base case is the standing draw — a planting and a cycled biofilter in a
-  // box nothing moves water through run this fixture short for 41 of its 144
+  // box nothing moves water through run this fixture short for 22 of its 144
   // hours before a grain of food is added, and the ration then quintuples it.
   // What is left goes with tick resolution, not with the factor.
   it('asks for less, and leaves less of it unpaid', () => {
@@ -228,8 +228,17 @@ describe('the oxygen a stressed tank draws that was never in it', () => {
     expect(bounded.unpaid).toBeLessThan(unbounded.unpaid);
   });
 
+  // In this tank it is the circulation that keeps the draw inside the water and
+  // not the bound: the control asks 2.8 % more and the tank covers that too.
+  // What the bound still does here is shave the ask — its own work is the
+  // stagnant tank above, where the water runs out and the shaving is the
+  // difference between a shortfall and a bigger one.
   it('leaves a tank with circulation owing nothing at all', () => {
-    expect(overdraw(DEFAULT_CONFIG, AERATED).unpaid).toBe(0);
-    expect(overdraw(UNBOUNDED, AERATED).unpaid).toBeGreaterThan(0);
+    const bounded = overdraw(DEFAULT_CONFIG, AERATED);
+    const unbounded = overdraw(UNBOUNDED, AERATED);
+
+    expect(bounded.unpaid).toBe(0);
+    expect(unbounded.unpaid).toBe(0);
+    expect(bounded.asked).toBeLessThan(unbounded.asked);
   });
 });

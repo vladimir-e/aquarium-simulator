@@ -3,7 +3,7 @@
  *
  * Calibration targets:
  * - Photosynthesis: a grown-in planted 150 L runs 0.5–1.0 mg/L O2/hr by day
- * - Respiration: ~10-20% of max photosynthesis rate
+ * - Respiration: 5–15 % of the light-saturated rate at ambient carbon
  * - Growth: ~1-2% size increase per day at ideal conditions
  * - Nitrate consumption: ~5-10 mg/day
  */
@@ -18,6 +18,15 @@ export interface PlantsConfig {
   optimalCo2: number;
   /** Optimal nitrate concentration for max growth (ppm) */
   optimalNitrate: number;
+  /**
+   * Multiple of a species' `tolerableLight` lower bound at which it saturates.
+   * The product is the `Ik` of the Jassby–Platt curve, in PAR: a species'
+   * saturating irradiance is a fixed multiple of where its damage threshold
+   * sits, so one number carries both light channels. At the shipped 2.0 a plant
+   * at the bottom of its band runs at 46 % of its rate while the
+   * light-insufficient stressor charges it.
+   */
+  saturationIrradianceFactor: number;
   /**
    * Total plant nutrients (NO3 + PO4 + K + Fe) consumed per unit of "potential
    * photosynthesis" (plant size × light × CO2, pre-Liebig). Consumption is
@@ -98,8 +107,11 @@ export interface PlantsConfig {
 
   // Vitality benefit peaks (%/h) when the corresponding factor is in
   // its tolerable band. Sum at all-good ≈ 0.5 %/h — the calibration
-  // budget the plant recovery curves were pinned against.
-  /** Light in tolerable range. */
+  // budget the plant recovery curves were pinned against. Light is the
+  // exception: it pays on the saturating PAR curve rather than off the
+  // band, so its peak is what a plant earns at saturation and not what
+  // it earns for sitting in range.
+  /** Light at saturating PAR. */
   lightBenefitPeak: number;
   /** CO2 in tolerable range. */
   co2BenefitPeak: number;
@@ -130,6 +142,10 @@ export const plantsDefaults: PlantsConfig = {
   basePhotosynthesisRate: 1.0,
   optimalCo2: 20.0, // mg/L - typical target for planted tanks
   optimalNitrate: 10.0, // ppm - typical target for planted tanks
+  // A species saturates at twice the PAR its band starts at. What that reads
+  // across the roster, and why it lands where the literature does, is in
+  // `plants/species.ts`.
+  saturationIrradianceFactor: 2.0,
   // Calibrated against scenario 02: at ~300 % total plant size with 8 hr
   // photoperiod and optimal CO2, potential photosynthesis ≈ 1.0 × 3.0 × 1.0
   // = 3.0 / hr → 24 units / day. 4 mg/unit × 24 × 1.2 (active biomass +
@@ -142,10 +158,17 @@ export const plantsDefaults: PlantsConfig = {
   // starved limiting factor.
   nutrientsPerPhotosynthesis: 4.0,
 
-  // Respiration - ~15% of photosynthesis, runs 24/7. A Monod maximum against
-  // the half-saturation below: air-saturated water leaves 94 % of it, so what
-  // the model reproduces is 0.142.
-  baseRespirationRate: 0.15,
+  // Dark respiration, runs 24/7 — a share of the light-saturated rate at the
+  // carbon a tank actually carries, which is not `basePhotosynthesisRate`. That
+  // is the rate at `optimalCo2`, five times the 4 mg/L `atmosphericCo2` an
+  // aquarium without an injector equilibrates to, so a fraction quoted against
+  // it is a fraction of an injected tank's ceiling. The ambient-carbon ceiling
+  // is 0.2 rate units/h, and 0.03 is 15 % of it — the top of the 5–15 % the
+  // macrophyte literature reports against light-saturated gross photosynthesis,
+  // with the Monod below leaving 14 % standing in air-saturated water. It is
+  // 3 % of the injected-carbon rate, which is what the old figure was quoting.
+  // See `docs/calibration/runs/2026-08-10-plant-respiration.md`.
+  baseRespirationRate: 0.03,
   respirationQ10: 2.0, // Rate doubles per 10°C increase
   respirationReferenceTemp: 25.0, // °C
   // Submerged tissue takes its oxygen out of the water across a boundary layer
@@ -157,10 +180,13 @@ export const plantsDefaults: PlantsConfig = {
   respirationOxygenHalfSaturation: 0.5,
 
   // mg CO2 per rate unit. Pinned against a grown-in planted 150 L (≈1000 total
-  // plant size): it produces 0.5–1 mg/L/h of oxygen through the photoperiod and
-  // gives back under 2 mg/L over the dark hours.
-  // `tests/planted-gas-budget.test.ts` asserts that tank; the derivation is in
-  // `docs/calibration/runs/2026-08-06-gas-volume-stoichiometry.md`.
+  // plant size): it produces 0.5–1 mg/L/h of gross oxygen through the
+  // photoperiod. A rate unit is an hour of 100 % plant size at full carbon
+  // *and* saturating light. On the corrected gas reader that tank admits
+  // 22.3–44.6, and the same claim read on a planting grown in from 350 admits
+  // 21.6–43.4. `tests/planted-gas-budget.test.ts` asserts that tank; the
+  // derivations are in `docs/calibration/runs/2026-08-09-light-response.md` and
+  // `docs/calibration/runs/2026-08-10-plant-respiration.md`.
   co2PerRateUnit: 30.0,
 
   // Surplus-driven growth — vitality banks surplus when condition is
@@ -206,9 +232,10 @@ export const plantsDefaults: PlantsConfig = {
   algaeShadingSeverity: 0.05,
   algaeShadingThreshold: 30,
 
-  // Vitality benefit peaks. Sum at all-good = 0.5 %/h. With a healthy
-  // tank the plant heals to 100 in under 4 sim days, then surplus
-  // drives growth.
+  // Vitality benefit peaks. Sum at all-good ≈ 0.5 %/h — light pays
+  // tanh(PAR / Ik) of its peak, so a monte carlo at 30 PAR earns 0.046
+  // of the 0.1 rather than the whole of it. With a healthy tank the
+  // plant heals to 100 in under 4 sim days, then surplus drives growth.
   lightBenefitPeak: 0.1,
   co2BenefitPeak: 0.1,
   temperatureBenefitPeak: 0.1,
@@ -246,6 +273,14 @@ export const plantsConfigMeta: PlantsConfigMeta[] = [
   { key: 'optimalCo2', label: 'Optimal CO2', unit: 'mg/L', min: 5, max: 40, step: 1 },
   { key: 'optimalNitrate', label: 'Optimal Nitrate', unit: 'ppm', min: 5, max: 30, step: 1 },
   {
+    key: 'saturationIrradianceFactor',
+    label: 'Saturation Irradiance Factor',
+    unit: '× band low',
+    min: 0.5,
+    max: 5,
+    step: 0.1,
+  },
+  {
     key: 'nutrientsPerPhotosynthesis',
     label: 'Nutrients per Photosynthesis',
     unit: 'mg',
@@ -258,9 +293,9 @@ export const plantsConfigMeta: PlantsConfigMeta[] = [
     key: 'baseRespirationRate',
     label: 'Base Respiration Rate',
     unit: '/hr',
-    min: 0.01,
-    max: 0.5,
-    step: 0.01,
+    min: 0.005,
+    max: 0.2,
+    step: 0.005,
   },
   { key: 'respirationQ10', label: 'Respiration Q10', unit: '', min: 1.5, max: 3.0, step: 0.1 },
   {

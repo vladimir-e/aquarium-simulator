@@ -50,11 +50,17 @@ Each species has different requirements:
 
 | Characteristic | Description |
 |----------------|-------------|
-| Light Requirement | Low / Medium / High |
+| Tolerable Light | PAR band at the substrate; also sets where the species saturates |
 | CO2 Requirement | Low / Medium / High |
 | Growth Rate | How fast the species grows |
 | Substrate Requirement | None / Sand / Aqua Soil |
 | Nutrient Demand | Low / Medium / High |
+
+**Light Tier (low / medium / high)** is a *display* label, not a stored field.
+The build UI derives it from where a species' tolerable band opens, against the
+hobby's published bands — low under 15 PAR, medium 15–25, high 25 and up. It
+reads the band rather than `Ik` so that a recalibration of
+`saturationIrradianceFactor` cannot move a rendered tier.
 
 **Nutrient Demand Levels:**
 - **Low**: Can survive on nitrate alone (from nitrogen cycle). K, Fe, PO4 boost growth but aren't required. Examples: Java Fern, Anubias
@@ -97,6 +103,41 @@ Photosynthesis only occurs when light is on (photoperiod).
 ```
 photosynthesis_rate = base_rate * light_factor * co2_factor * nutrient_sufficiency
 ```
+
+**Light factor (photosynthesis–irradiance curve):**
+
+Rate scales with PAR on a saturating curve, evaluated **per plant** against its
+own species' saturating irradiance:
+
+```
+light_factor = tanh(light_par / Ik)
+Ik           = saturationIrradianceFactor * species.tolerableLight[0]
+```
+
+This is the Jassby–Platt curve the literature fits to leaves. `Ik` is the
+saturating irradiance: below it the response is close to linear, at it the plant
+already runs at 76 % of maximum, and above it the curve flattens hard — twice
+the fixture stops meaning twice the growth. At the default factor of 2.0 the
+roster reads anubias 16, java fern 20, amazon sword 40, dwarf hairgrass 50,
+monte carlo 60 PAR.
+
+`Ik` is derived rather than declared: a species' saturating irradiance is a
+fixed multiple of the PAR its band opens at, so one number carries both light
+channels and no separate species field is needed. At the shipped factor that
+puts the bottom of a band at `tanh(0.5)` — a plant scraping its lower bound
+runs at **46 %** of its rate while the light-insufficient stressor charges it.
+
+It is not Monod, though the shapes rhyme. Monod exists to stop a *stock* being
+overdrawn: demand falls with supply, so the pool approaches zero instead of
+crossing it. Light is not a stock — nothing depletes photons and no rate can
+overdraw an intensity — so the curve is taken from the leaf rather than from the
+pool, and the leaf's own is the one the literature fits. Its shoulder is sharper
+than the rectangular hyperbola's, whose tail goes on paying for more light
+forever.
+
+**More light never lowers the rate.** There is no photoinhibition term here;
+excess PAR is the *light excessive* stressor's job (see § Stressor coverage).
+Two channels for one observation would double-count.
 
 **Nutrient Sufficiency (Liebig's Law):**
 
@@ -203,7 +244,7 @@ each plant's per-tick growth.
 Plants respire continuously, consuming oxygen and producing CO2.
 
 ### Day (Lights On)
-- Photosynthesis > Respiration
+- Photosynthesis usually > Respiration
 - Net O2 PRODUCTION
 - Net CO2 CONSUMPTION
 
@@ -212,10 +253,28 @@ Plants respire continuously, consuming oxygen and producing CO2.
 - Net O2 CONSUMPTION
 - Net CO2 PRODUCTION
 
+"Usually" because the day side is the one that reads light. Respiration
+runs at 15 % of the light-saturated rate *at the carbon a tank without an
+injector carries* — a fifth of `base_photosynthesis`, which is the rate at
+`optimal_co2` — so a planting under a fixture too dim to clear that
+respires more than it fixes and consumes oxygen with the lamps on. With
+carbon at optimum and nutrients past every species' demand, the crossover
+sits at 0.57 PAR for a java fern (`Ik` 20) and 1.69 PAR for a monte carlo
+(`Ik` 60) — a shade plant stays in credit in light a carpet starves in.
+Liebig sufficiency scales the same rate, so it moves the line too: at plain
+optimal nutrients, which feed a low-demand plant and starve a high-demand
+one, the java fern is unchanged and the monte carlo needs 2.54 PAR. A
+carbon-stripped column does the same thing through `co2_factor`.
+
+Over a whole day the two sides are what decide whether a planting is worth
+having: a tank on ambient carbon produces 1.9–3.5× what its plants burn in
+24 hours, and an injected one 8×. That surplus is why a planted tank
+supports more fish than a bare one.
+
 Respiration is photosynthesis run backwards, so it runs on the same
 `co2_per_rate_unit`: the carbon released decides the oxygen burnt, at the same
-molar ratio. The day/night asymmetry is `base_respiration`, ~15 % of the
-photosynthetic rate — not a second, disagreeing coefficient.
+molar ratio. The day/night asymmetry is `base_respiration` — not a second,
+disagreeing coefficient.
 
 The rate also saturates against the oxygen there is to burn, on the Monod curve
 every aerobic process in the engine uses (see `4-CORE-SYSTEMS.md` §
@@ -237,6 +296,35 @@ else:
     O2_change = -respiration_O2  # negative
     CO2_change = +respiration_CO2  # positive
 ```
+
+### The overnight sag
+
+A planted tank's dissolved oxygen peaks at lights-out and troughs at first
+light. The engine's grown-in, carbon-injected 150 L falls **2.17 mg/L** across
+its dark hours, inside the 1–3 mg/L a real planted aquarium shows;
+`tests/planted-gas-budget.test.ts` anchors it there.
+
+**The planting is not most of that fall, and it cannot move it.** Booked by
+source over the anchor tank's nights:
+
+| gas exchange to the surface | plant respiration | decay | nitrification | fish |
+|---|---|---|---|---|
+| 50 % | 23 % | 10 % | 11 % | 6 % |
+
+Half the night leaves across the surface, because what the water sheds after
+dark is the supersaturation the day built relaxing back toward saturation. That
+also makes the fall insensitive to everything inside the tank: taking
+`base_respiration` from the shipped rate to exactly zero moves it 1.3 %, since
+oxygen a plant does not burn is oxygen the surface sheds instead at a higher
+gradient. Every sink in the tank is buffered against every other by the same
+first-order exchange.
+
+So the sag is a **day-side quantity**: it runs at 3.3× gross photosynthesis
+across the whole calibrated range of `co2_per_rate_unit`, and the dawn trough
+does not move with the yield at all — 96–97 % of saturation throughout. The tank
+comes back to the same water every morning whatever it did with its day. A tank
+that *stops* sagging has stopped building a day, not stopped spending a night:
+the same 150 L with no planting in it does not sag at all.
 
 ---
 
@@ -289,17 +377,29 @@ same stressor.
 
 ### Benefit coverage
 
-Each species also gets a benefit when an environmental factor is
-inside its tolerable band. Benefits stack into a positive recovery
-rate; in a fully-comfortable tank they sum to roughly 0.5 %/h.
+Benefits stack into a positive recovery rate; in a fully-comfortable
+tank they sum to roughly 0.5 %/h. Most are awarded when an
+environmental factor is inside its tolerable band; light and nutrients
+are rates rather than bands.
 
 | Benefit | Trigger | Magnitude |
 |---------|---------|-----------|
-| Light | inside `tolerableLight` | `lightBenefitPeak` |
+| Light | any PAR at all | `lightBenefitPeak × tanh(light / Ik)` |
 | CO2 | inside `tolerableCO2` | `co2BenefitPeak` |
 | Temperature | inside `tolerableTemp` | `temperatureBenefitPeak` |
 | pH | inside `tolerablePH` | `phBenefitPeak` |
 | Nutrients | sufficiency × peak | `nutrientBenefitPeak × sufficiency` |
+
+**Light is income, not comfort.** Temperature and pH have an optimum a
+plant sits *inside*; light is the plant's energy supply, so a plant at
+80 PAR earns more than one at 20 and a flat in-band award would be a
+gate where the model wants a rate. It runs on the same curve
+photosynthesis does, so the benefit reaches its peak only
+asymptotically and pays nothing in the dark.
+
+The two light channels stay separate at the top of the band: crossing
+`tolerableLight[1]` costs a plant damage through the excess stressor,
+not its income. Earnings are continuous across that boundary.
 
 Benefits are **not** scaled by hardiness — a hardy plant tolerates
 poor conditions better, but isn't more energised by good ones.

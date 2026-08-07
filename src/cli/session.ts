@@ -18,6 +18,12 @@ import type { HistorySnapshot } from './history.js';
  * missing field. Parallel to the UI's `PERSISTENCE_VERSION`. Pre-launch
  * rule is reject, not migrate.
  *
+ * v8 put the intensity back in the rate. `PlantsConfig` gains
+ *    `saturationIrradianceFactor`, the multiple of a species' band low at which
+ *    it saturates, and both light channels run through the `tanh(PAR / Ik)` it
+ *    derives. A v7 session parses, and `getSaturationIrradiance` multiplies the
+ *    key it does not carry by the band: every gas figure the tank reads is
+ *    `NaN` from the first lit tick.
  * v7 made every oxygen consumer saturate against the oxygen it draws from.
  *    `DecayConfig` gains `oxygenHalfSaturation`, `PlantsConfig` and
  *    `LivestockConfig` gain `respirationOxygenHalfSaturation`, and
@@ -53,7 +59,7 @@ import type { HistorySnapshot } from './history.js';
  * v2 added `Fish.stage` + `state.clutches` (breeding) and the saturating
  *    surplus bank.
  */
-export const SESSION_VERSION = 7;
+export const SESSION_VERSION = 8;
 export const DEFAULT_SESSION_PATH = resolve(process.cwd(), '.simstate/current.json');
 
 export interface Session {

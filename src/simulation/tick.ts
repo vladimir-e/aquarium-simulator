@@ -34,6 +34,36 @@ function collectSystemEffects(
 }
 
 /**
+ * The hour as the living tier meets it: the clock advanced, the passive
+ * resources recalculated off the new hour — light among them — the environment's
+ * own drift and evaporation applied, and the equipment's response to what they
+ * left.
+ *
+ * Plants, algae and livestock all run against this rather than against the state
+ * the tick was handed, so this is also the state anything measuring what a tick
+ * did to them has to read. It is a pure function of `state`, so a measurement
+ * can rebuild it from the same input and get the hour the tick actually ran.
+ */
+export function settleEnvironment(
+  state: SimulationState,
+  config: TunableConfig = DEFAULT_CONFIG
+): SimulationState {
+  let settled = produce(state, (draft) => {
+    draft.tick += 1;
+    const passiveValues = calculatePassiveResources(draft, config.optics);
+    draft.resources.surface = passiveValues.surface;
+    draft.resources.flow = passiveValues.flow;
+    draft.resources.light = passiveValues.light;
+    draft.resources.aeration = passiveValues.aeration;
+  });
+
+  settled = applyEffects(settled, collectSystemEffects(settled, 'immediate', config), config);
+
+  const equipmentResult = processEquipment(settled, config);
+  return applyEffects(equipmentResult.state, equipmentResult.effects, config);
+}
+
+/**
  * Advances the simulation by one tick (1 hour).
  * Processes effects in three tiers: immediate → active → passive.
  * Then checks alerts and adds any triggered logs.
@@ -46,28 +76,8 @@ export function tick(
   state: SimulationState,
   config: TunableConfig = DEFAULT_CONFIG
 ): SimulationState {
-  // Increment tick counter and calculate passive resources
-  let newState = produce(state, (draft) => {
-    draft.tick += 1;
-    // Calculate passive resources before processing effects
-    // (used by gas exchange that depends on aeration, by algae
-    // vitality, and by plant photosynthesis).
-    const passiveValues = calculatePassiveResources(draft, config.optics);
-    draft.resources.surface = passiveValues.surface;
-    draft.resources.flow = passiveValues.flow;
-    draft.resources.light = passiveValues.light;
-    draft.resources.aeration = passiveValues.aeration;
-  });
-
   // Tier 1: IMMEDIATE - Environmental effects, then equipment responses
-  // First apply environmental effects (drift, evaporation)
-  const immediateEffects = collectSystemEffects(newState, 'immediate', config);
-  newState = applyEffects(newState, immediateEffects, config);
-
-  // Then equipment responds to the updated state
-  const equipmentResult = processEquipment(newState, config);
-  newState = equipmentResult.state;
-  newState = applyEffects(newState, equipmentResult.effects, config);
+  let newState = settleEnvironment(state, config);
 
   // Tier 2: ACTIVE - Living processes (plants, algae, livestock).
   // Order matters: algae stressors / benefits read freshly-updated

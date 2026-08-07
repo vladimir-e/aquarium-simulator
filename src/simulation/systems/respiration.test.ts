@@ -219,16 +219,18 @@ describe('calculateRespiration', () => {
 
   describe('uses custom config', () => {
     it('respects custom base respiration rate', () => {
-      const customConfig = { ...plantsDefaults, baseRespirationRate: 0.3 };
+      const customConfig = {
+        ...plantsDefaults,
+        baseRespirationRate: plantsDefaults.baseRespirationRate * 2,
+      };
       const defaultResult = calculateRespiration(100, 25, AIR_SATURATED_O2, plantsDefaults);
       const customResult = calculateRespiration(100, 25, AIR_SATURATED_O2, customConfig);
 
-      // Custom should be 2x default (0.3 vs 0.15)
       expect(customResult.oxygenConsumedMg).toBeCloseTo(defaultResult.oxygenConsumedMg * 2, 6);
     });
 
     it('moves both gases together when the carbon yield changes', () => {
-      const customConfig = { ...plantsDefaults, co2PerRateUnit: 60 };
+      const customConfig = { ...plantsDefaults, co2PerRateUnit: plantsDefaults.co2PerRateUnit * 2 };
       const defaultResult = calculateRespiration(100, 25, AIR_SATURATED_O2, plantsDefaults);
       const customResult = calculateRespiration(100, 25, AIR_SATURATED_O2, customConfig);
 

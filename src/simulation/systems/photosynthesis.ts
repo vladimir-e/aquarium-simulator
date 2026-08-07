@@ -27,6 +27,8 @@ import type { NutrientsConfig, FertilizerFormula } from '../config/nutrients.js'
 import { nutrientsDefaults, getNutrientRatio } from '../config/nutrients.js';
 import type { Resources } from '../state.js';
 import { CO2_TO_O2_MASS_RATIO } from '../core/chemistry.js';
+import { lightSaturationFactor } from '../core/kinetics.js';
+import { getSaturationIrradiance } from '../plants/species.js';
 import { getMassFromPpm } from '../resources/index.js';
 import { getDemandMultiplier } from './nutrients.js';
 
@@ -88,7 +90,8 @@ function emptyResult(): PhotosynthesisResult {
  * Calculate photosynthesis resource effects.
  *
  * Per-plant contribution:
- *   potential_i = size_i × co2Factor (driven by light/CO2/size only)
+ *   lightResponse_i = tanh(PAR / Ik_i), the species' saturating light curve
+ *   potential_i = size_i × co2Factor × lightResponse_i
  *   actual_i    = potential_i × sufficiency_i × basePhotosynthesisRate
  *
  * Aggregate outputs, all masses in mg:
@@ -119,7 +122,7 @@ export function calculatePhotosynthesis(
 ): PhotosynthesisResult {
   const totalSize = plants.reduce((s, p) => s + p.size, 0);
 
-  if (light <= 0 || totalSize <= 0 || waterVolume <= 0) {
+  if (totalSize <= 0 || waterVolume <= 0) {
     return emptyResult();
   }
 
@@ -138,7 +141,11 @@ export function calculatePhotosynthesis(
 
   for (const plant of plants) {
     if (plant.size <= 0) continue;
-    const potential = (plant.size / 100) * co2Factor;
+    const lightResponse = lightSaturationFactor(
+      light,
+      getSaturationIrradiance(plant.species, plantsConfig)
+    );
+    const potential = (plant.size / 100) * co2Factor * lightResponse;
     potentialSum += potential;
     // Sufficiency is precomputed by the orchestrator. Default to 0 for
     // plants the caller hasn't supplied (defensive — should not happen

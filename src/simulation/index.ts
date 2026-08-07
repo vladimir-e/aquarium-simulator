@@ -38,7 +38,7 @@ export type { RngState } from './core/rng.js';
 
 // Species
 export type { PlantSpecies, PlantSpeciesData, NutrientDemand } from './plants/species.js';
-export { PLANT_SPECIES_DATA } from './plants/species.js';
+export { PLANT_SPECIES_DATA, getSaturationIrradiance } from './plants/species.js';
 export type {
   FishSpecies,
   FishSpeciesData,

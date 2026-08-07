@@ -85,6 +85,16 @@ export function scapeSummary(substrate: SubstrateType, items: HardscapeItem[]): 
     : SUBSTRATE_NAME[substrate];
 }
 
+/**
+ * The hobby's light tier for a species, read off where its tolerable band opens
+ * — the PAR it wants at the substrate, against the hobby's own cuts.
+ */
+export function lightTier(species: PlantSpecies): 'low' | 'medium' | 'high' {
+  const [wants] = PLANT_SPECIES_DATA[species].tolerableLight;
+  if (wants < 15) return 'low';
+  return wants < 25 ? 'medium' : 'high';
+}
+
 export interface PlantOption {
   species: PlantSpecies;
   name: string;
@@ -108,7 +118,7 @@ export function plantOptions(substrate: SubstrateType): PlantOption[] {
       name: data.name,
       compatible,
       hint: compatible ? `${data.nutrientDemand} demand` : `needs ${takes.join(' or ')}`,
-      facts: `${data.lightRequirement} light · ${data.co2Requirement} CO₂`,
+      facts: `${lightTier(species)} light · ${data.co2Requirement} CO₂`,
     };
   });
 }

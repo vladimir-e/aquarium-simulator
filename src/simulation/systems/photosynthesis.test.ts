@@ -13,7 +13,8 @@ import { AIR_SATURATED_O2 } from '../config/nitrogen-cycle.js';
 import type { Plant, Resources } from '../state.js';
 import type { PlantSpecies } from '../plants/species.js';
 import { CO2_TO_O2_MASS_RATIO, MW_CO2, MW_O2 } from '../core/chemistry.js';
-import { monodFactor } from '../core/kinetics.js';
+import { lightSaturationFactor, monodFactor } from '../core/kinetics.js';
+import { getSaturationIrradiance } from '../plants/species.js';
 
 /**
  * Build a resources snapshot with nutrient mass chosen so that concentration
@@ -272,9 +273,10 @@ describe('calculatePhotosynthesis', () => {
 
     it('shares the carbon yield with respiration, which is why there is one of it', () => {
       // The reaction run both ways off one constant. What separates the two
-      // numbers is the base rates and the air respiration breathes, and moving
-      // the yield has to leave the ratio where it was — one side reading a
-      // figure of its own is exactly what collapsing four constants removed.
+      // numbers is the base rates, the air respiration breathes, and the light
+      // only the day side reads — and moving the yield has to leave the ratio
+      // where it was, since one side reading a figure of its own is exactly
+      // what collapsing four constants removed.
       const ratio = (config = plantsDefaults): number => {
         const fixed = photosynthesis([plant(100, 'java_fern')], { config }).co2ConsumedMg;
 
@@ -282,7 +284,8 @@ describe('calculatePhotosynthesis', () => {
       };
       const expected =
         (plantsDefaults.baseRespirationRate / plantsDefaults.basePhotosynthesisRate) *
-        monodFactor(AIR_SATURATED_O2, plantsDefaults.respirationOxygenHalfSaturation);
+        monodFactor(AIR_SATURATED_O2, plantsDefaults.respirationOxygenHalfSaturation) /
+        lightSaturationFactor(light, getSaturationIrradiance('java_fern', plantsDefaults));
 
       expect(ratio()).toBeCloseTo(expected, 6);
       expect(ratio({ ...plantsDefaults, co2PerRateUnit: 7 })).toBeCloseTo(expected, 6);
@@ -372,6 +375,86 @@ describe('calculatePhotosynthesis', () => {
 
       expect(half.oxygenProducedMg).toBeCloseTo(full.oxygenProducedMg / 2, 4);
       expect(half.co2ConsumedMg).toBeCloseTo(full.co2ConsumedMg / 2, 4);
+    });
+  });
+
+  describe('scaling with light intensity', () => {
+    /** Oxygen and nitrate a planting moves at one substrate PAR. */
+    function at(lightPar: number, species: PlantSpecies = 'java_fern'): PhotosynthesisResult {
+      return photosynthesis([plant(100, species)], {
+        lightPar,
+        resources: buildResources(waterVolume, {}, 10),
+      });
+    }
+
+    it('makes more of everything under a brighter fixture', () => {
+      const dim = at(10);
+      const bright = at(40);
+
+      expect(bright.oxygenProducedMg).toBeGreaterThan(dim.oxygenProducedMg);
+      expect(bright.co2ConsumedMg).toBeGreaterThan(dim.co2ConsumedMg);
+      expect(bright.nitrateDelta).toBeLessThan(dim.nitrateDelta);
+    });
+
+    it('stops making more of it once the light saturates', () => {
+      // Each doubling buys less than the one before, and the last buys almost
+      // nothing — which is what stops a bigger fixture paying forever.
+      const steps = [10, 20, 40, 80, 160].map((par) => at(par).oxygenProducedMg);
+      const gains = steps.slice(1).map((made, i) => made - steps[i]!);
+
+      for (let i = 1; i < gains.length; i++) {
+        expect(gains[i]!).toBeGreaterThan(0);
+        expect(gains[i]!).toBeLessThan(gains[i - 1]!);
+      }
+      expect(gains[gains.length - 1]! / gains[0]!).toBeLessThan(0.05);
+    });
+
+    it('draws nutrients on the same curve, since uptake rides the potential rate', () => {
+      const drawn = [10, 20, 40, 80, 160].map((par) => -at(par).nitrateDelta);
+      const gains = drawn.slice(1).map((draw, i) => draw - drawn[i]!);
+
+      for (let i = 1; i < gains.length; i++) {
+        expect(gains[i]!).toBeGreaterThan(0);
+        expect(gains[i]!).toBeLessThan(gains[i - 1]!);
+      }
+    });
+
+    it('saturates a shade species before a sun species', () => {
+      // Anubias saturates at 16 PAR and monte carlo at 60, so at one fixture
+      // the shade plant is closer to its own ceiling than the carpet is to its.
+      const share = (species: PlantSpecies): number =>
+        at(50, species).oxygenProducedMg / at(1e4, species).oxygenProducedMg;
+
+      expect(share('anubias')).toBeGreaterThan(share('monte_carlo'));
+      expect(share('anubias')).toBeGreaterThan(0.99);
+      expect(share('monte_carlo')).toBeLessThan(0.8);
+    });
+
+    it('reads Ik off the tuned factor rather than a constant of its own', () => {
+      // The knob has to reach this channel: raising it moves a species'
+      // saturation up, so one fixture buys a smaller share of the rate.
+      const made = (saturationIrradianceFactor: number): number =>
+        photosynthesis([plant(100, 'java_fern')], {
+          lightPar: 20,
+          resources: buildResources(waterVolume, {}, 10),
+          config: { ...plantsDefaults, saturationIrradianceFactor },
+        }).oxygenProducedMg;
+
+      expect(made(4)).toBeLessThan(made(2));
+      expect(made(2)).toBeLessThan(made(1));
+      // A species that saturates at no light at all is one nothing holds back.
+      expect(made(0)).toBeGreaterThan(made(1));
+    });
+
+    it('reads each plant at its own species, not the tank at an average', () => {
+      const shade = at(30, 'anubias').oxygenProducedMg;
+      const sun = at(30, 'monte_carlo').oxygenProducedMg;
+      const together = photosynthesis([plant(100, 'anubias'), plant(100, 'monte_carlo')], {
+        lightPar: 30,
+        resources: buildResources(waterVolume, {}, 10),
+      });
+
+      expect(together.oxygenProducedMg).toBeCloseTo(shade + sun, 10);
     });
   });
 
