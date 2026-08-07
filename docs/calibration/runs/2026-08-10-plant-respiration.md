@@ -17,13 +17,13 @@ a plant does. Only the magnitude moved, and the reference it is quoted against.
 Every figure below is an engine run driven through `keep()`, the same loop the
 anchors run, at `rngSeed` 4242. The probe is `npm run probe:plant-respiration`.
 
-> **Open, and unresolved.** The dark-hours give-back is not a respiration
-> measurement — see *The night was never the planting's* below. The anchor's
-> band is missed at 2.174 mg/L against a ceiling of 2, and it is missed at
-> **2.145 with respiration taken to exactly zero**, so no value of this constant
-> reaches it. The admissible window for `co2PerRateUnit` reads 22.4–27.3 on one
-> planting and 21.6–26.2 on the other, and 30 sits outside both. Nothing has
-> been moved and no band has been widened; the yield is the maintainer's call.
+> **Resolved.** The dark-hours ceiling of 2 mg/L encoded the phase bug it was
+> read through, and its assertion measured the whole tank's night while naming
+> the planting's share of it. Both are fixed: the anchor states the tank's
+> overnight oxygen sag against a real planted tank's diel curve, 1–3 mg/L, and
+> the engine reads 2.174 — mid-band. `co2PerRateUnit` has not moved, and the
+> re-derived window admits it comfortably. See *The night is the whole tank's*
+> and *The carbon yield, re-derived* below.
 
 ---
 
@@ -32,7 +32,7 @@ anchors run, at `rngSeed` 4242. The probe is `npm run probe:plant-respiration`.
 | constant | was | is | note |
 |---|---|---|---|
 | `baseRespirationRate` | 0.15 | **0.03** | 15 % of the ambient-carbon rate |
-| `co2PerRateUnit` | 30 | **30, unresolved** | the re-derived band admits 21.6–27.3 |
+| `co2PerRateUnit` | 30 | **30, unmoved** | the re-derived band admits 22.3–44.6 |
 
 ## What the fraction is a fraction of
 
@@ -146,14 +146,34 @@ fixture, which is a planting that is worth having wherever it is put.
 The 0.15 rows reproduce what the register recorded — 0/8 with plants against 8/8
 without — at d3.0–d7.5 across this ladder where its own run read d1.7–d6.4.
 
-## The night was never the planting's
+## The night is the whole tank's
 
-`tests/planted-gas-budget.test.ts` reads the dark-hours give-back on the
-injected 150 L and asserts it under 2 mg/L. It read 2.277 before this change and
-reads 2.174 after — a 4.5 % move on a 5× cut to the constant. Taken all the way
-to zero:
+`tests/planted-gas-budget.test.ts` read the injected 150 L's dark hours and
+asserted the tank *gives back* under 2 mg/L, as though the figure were the
+planting's contribution. It is not. Every oxygen effect of every dark hour,
+booked against the source that raised it — the mean over the run's seven whole
+nights, and it sums to the assertion's own 2.174 to the last digit:
 
-| respiration | gross | dark give-back | O₂ high | O₂ low |
+| source | mg/L | share of the fall |
+|---|---|---|
+| gas exchange, to the surface | −1.095 | **50.4 %** |
+| plant respiration | −0.504 | 23.2 % |
+| decay | −0.218 | 10.0 % |
+| nitrification, AOB | −0.179 | 8.2 % |
+| fish respiration | −0.130 | 6.0 % |
+| nitrification, NOB | −0.060 | 2.7 % |
+| ATO top-up | +0.002 | −0.1 % |
+
+Half the night leaves across the surface. The planting is a *quarter* of it, and
+the other quarter is the bacterial and animal load the planting has nothing to
+do with. So the name was wrong twice over: the planting neither owns the figure
+nor gives anything back — it spends, alongside four other consumers, out of a
+stock the day built.
+
+**And yet no value of `baseRespirationRate` reaches the old ceiling.** Taken from
+the shipped rate down to nothing:
+
+| respiration | gross | sag | O₂ high | O₂ low |
 |---|---|---|---|---|
 | 0.15 | 0.685 | 2.277 | 10.074 | 7.486 |
 | 0.10 | 0.671 | 2.235 | 10.306 | 7.764 |
@@ -162,70 +182,206 @@ to zero:
 | 0.01 | 0.644 | 2.155 | 10.733 | 8.253 |
 | **0** | 0.641 | **2.145** | 10.781 | 8.305 |
 
-The planting's own night draw over those twelve dark hours is 2.50 mg/L at 0.15
-and 0.50 at 0.03 — an 80 % cut. The give-back moves 4.5 %. The whole O₂ curve
-lifts instead: the high goes 10.07 → 10.64 and the low 7.49 → 8.15, and the
+An 80 % cut to the planting's night draw moves the sag 4.5 %; deleting
+respiration outright moves it 5.8 %, and lands at 2.145 — still over 2.
+
+The two readings look contradictory and are not. Respiration is 23 % of the
+fall, but it cannot *move* the fall, because the surface term is a first-order
+relaxation toward saturation: oxygen a plant does not burn is oxygen the water
+carries into the next hour at a higher gradient, and the surface sheds it
+instead. Every sink inside the tank is buffered against every other. The whole
+curve lifts — the high goes 10.07 → 10.64, the low 7.49 → 8.15 — and the
 *distance* between dusk and dawn barely notices.
 
-The reason is that respiration runs in daylight too. Take it away and the day
-peak rises by as much as the night fall would have shrunk, and what the water
-sheds overnight is the supersaturation the day built, relaxing toward saturation
-at `baseExchangeRate × flowFactor`. The give-back is a **day-side measurement
-wearing a night-side name**: it tracks `gross` almost exactly — 0.758 at yield
-10, 1.510 at 20, 2.174 at 30 — and it is very nearly `3.3 × gross` across the
-whole sweep.
+What the distance answers to is the day. The sag tracks `gross` at **3.21–3.35 ×
+across yields 10 through 60**, and the dawn trough does not move at all: 96.5–
+97.4 % of saturation across that entire sweep. The tank returns to the same
+water every morning whatever it did with its day, so the sag *is* the day's
+supersaturation, read at dusk. It is a **day-side measurement that was wearing a
+night-side name.**
 
-At 2.174 mg/L the engine's overnight sag is *inside* the 1–3 mg/L a real planted
-tank shows, on a heavily-planted 150 L with carbon injection that would sag 3–4
-in the hobby. The band is tighter than the observable, and the band was itself
-read through a reader that was an hour out of phase until this branch corrected
-it (`2026-08-09-light-response.md`). It has not been widened here.
+## What the sag should be asserted against
+
+The ceiling of 2 was set in 2b against a reading of **1.48** for this tank, taken
+through the `before.resources.light` reader this branch proved is an hour out of
+phase (`2026-08-09-light-response.md`). The corrected reading of the same tank on
+the same engine is **2.28**. The headroom the ceiling was chosen with — 0.52 —
+is smaller than the measurement error it was chosen through — 0.80. The ceiling
+encodes the bug, which is why no constant can reach it.
+
+Re-derived against the observable instead. A real planted aquarium's dissolved
+oxygen falls **1–3 mg/L** between the dusk peak and the dawn trough, and this
+tank — heavily planted, carbon-injected, 90 PAR on a 12 h photoperiod — belongs
+at the top of that range.
+
+**The floor.** Measured, not asserted: the same 150 L with the planting thinned
+out from under it, everything else held.
+
+| tank | sag | dusk % sat | dawn % sat |
+|---|---|---|---|
+| no planting, no injector | **−0.093** | 96.4 | 97.5 |
+| no planting, injected | −0.093 | 96.4 | 97.5 |
+| one java fern at 60 | −0.023 | 97.2 | 97.4 |
+| the gate's 300, no injector | 0.230 | 99.9 | 97.1 |
+| 982, no injector | 0.525 | 100.3 | 94.1 |
+| **982, injected — the anchor's tank** | **2.174** | **123.3** | **97.4** |
+
+An unplanted 150 L does not sag at all — it *rises* a hundredth of a milligram
+overnight, because the surface holds it at saturation and the night's sinks
+cannot outrun the gradient. One plant does not change that. A milligram is the
+line between a tank running a diel curve and a tank whose surface is doing all
+the work, and a tank that stops sagging is as wrong as one that craters: it
+means the day built nothing, or the night spends nothing.
+
+**The ceiling.** Dawn is a fixed point at 8.16 mg/L, so the sag is arithmetic on
+the dusk peak: 3 mg/L puts dusk at 11.2, which is 133 % of the 8.38 mg/L this
+water saturates at. That is where a real tank stops holding the excess and pearls
+it off the leaves. Past it the curve is not an aquarium's. The old ceiling of 2
+sat at a dusk peak of 124 % — a defensible number for the wrong quantity, chosen
+off a reading that was 35 % low.
+
+**Two-sided, and honest about what it brackets.** The band is 1–3 and the engine
+reads 2.174, 59 % of the way up it — mid-band, admitted comfortably rather than
+by a hair.
+
+It is an anchor on the diel curve rather than a second bracket on the yield.
+Because the sag tracks `gross` at 3.3×, the old ceiling of 2 was really the
+statement `gross < 0.60` — it cut the gross band's own 0.5–1 down to a sliver
+sitting just above its floor, which is why the admissible window collapsed.
+
+What the sag holds that `gross` does not is the ratio of the night's loss to the
+day's gain: surface exchange against the tank's whole aerobic load. Move
+`baseExchangeRate` either way and the two part company —
+
+| `baseExchangeRate` | gross | in 0.5–1 | sag | in 1–3 |
+|---|---|---|---|---|
+| 0.125 | 0.776 | ✓ | **3.901** | ✗ |
+| **0.25** (shipped) | **0.650** | ✓ | **2.174** | ✓ |
+| 0.50 | 0.535 | ✓ | **0.618** | ✗ |
+
+— gross stays inside its band at half and double the surface exchange, moving
+19 %, while the sag moves 79 % and leaves the band in both directions. That is
+the anchor's own bite, and the reason it is worth asserting rather than
+deleting.
 
 ## The carbon yield, re-derived
 
-Both plantings, on the corrected engine, at respiration 0.03. Gross has to clear
-0.5 mg/L/h and the dark hours have to give back under 2.
+Both plantings, on the corrected engine, at respiration 0.03, against both
+corrected bands: gross 0.5–1 mg/L/h, sag 1–3 mg/L.
 
 The anchor's own planting — 982 total size handed over at tick 0, 10 days:
 
-| yield | gross O₂ (mg/L/h) | O₂ high | O₂ low | dark give-back | size | hours | fish |
+| yield | gross O₂ (mg/L/h) | sag | sag/gross | O₂ high | dusk % sat | O₂ low | dawn % sat |
 |---|---|---|---|---|---|---|---|
-| 10 | 0.236 | 9.019 | 8.163 | 0.758 | 1013 | 96 | 12 |
-| 20 | 0.452 | 9.866 | 8.159 | 1.510 | 1013 | 96 | 12 |
-| 22 | 0.493 | 10.026 | 8.156 | 1.650 | 1013 | 96 | 12 |
-| 23 | 0.514 | 10.105 | 8.156 | 1.718 | 1013 | 96 | 12 |
-| 25 | 0.553 | 10.261 | 8.152 | 1.852 | 1014 | 96 | 12 |
-| 27 | 0.593 | 10.414 | 8.151 | 1.983 | 1014 | 96 | 12 |
-| 28 | 0.612 | 10.489 | 8.148 | 2.048 | 1014 | 96 | 12 |
-| **30** | **0.650** | **10.637** | **8.147** | **2.174** | **1014** | **96** | **12** |
-| 35 | 0.742 | 10.993 | 8.139 | 2.475 | 1014 | 96 | 12 |
-| 40 | 0.830 | 11.331 | 8.127 | 2.757 | 1014 | 96 | 12 |
+| 10 | 0.236 | 0.758 | 3.21 | 9.019 | 107.6 | 8.163 | 97.4 |
+| 15 | 0.347 | 1.145 | 3.30 | 9.452 | 112.8 | 8.161 | 97.4 |
+| 20 | 0.452 | 1.510 | 3.34 | 9.866 | 117.7 | 8.159 | 97.4 |
+| 22 | 0.493 | 1.650 | 3.34 | 10.026 | 119.6 | 8.156 | 97.3 |
+| 25 | 0.553 | 1.852 | 3.35 | 10.261 | 122.4 | 8.152 | 97.3 |
+| 27 | 0.593 | 1.983 | 3.35 | 10.414 | 124.3 | 8.151 | 97.3 |
+| **30** | **0.650** | **2.174** | **3.34** | **10.637** | **126.9** | **8.147** | **97.2** |
+| 35 | 0.742 | 2.475 | 3.34 | 10.993 | 131.2 | 8.139 | 97.1 |
+| 40 | 0.830 | 2.757 | 3.32 | 11.331 | 135.2 | 8.127 | 97.0 |
+| 45 | 0.914 | 3.022 | 3.31 | 11.651 | 139.0 | 8.119 | 96.9 |
+| 48 | 0.963 | 3.173 | 3.29 | 11.835 | 141.2 | 8.111 | 96.8 |
+| 50 | 0.995 | 3.272 | 3.29 | 11.953 | 142.6 | 8.107 | 96.7 |
+| 55 | 1.072 | 3.505 | 3.27 | 12.240 | 146.1 | 8.095 | 96.6 |
+| 60 | 1.146 | 3.724 | 3.25 | 12.511 | 149.3 | 8.084 | 96.5 |
 
-Band **22.4 – 27.3**.
+Every row keeps 12/12 fish at 96 of 96 lit hours and ≈1014 size, so the columns
+that would have said so are left out.
 
 Grown in from 350 total size over 90 days, same tank:
 
-| yield | gross O₂ (mg/L/h) | O₂ high | O₂ low | dark give-back | size | hours | fish |
+| yield | gross O₂ (mg/L/h) | sag | sag/gross | O₂ high | O₂ low | size | hours |
 |---|---|---|---|---|---|---|---|
-| 10 | 0.245 | 9.111 | 7.729 | 0.791 | 953 | 399 | 12 |
-| 20 | 0.467 | 9.991 | 7.547 | 1.587 | 963 | 400 | 12 |
-| 21 | 0.487 | 10.068 | 7.418 | 1.664 | 962 | 398 | 12 |
-| 22 | 0.508 | 10.150 | 7.426 | 1.734 | 961 | 396 | 12 |
-| 24 | 0.550 | 10.306 | 7.469 | 1.876 | 960 | 391 | 12 |
-| 26 | 0.589 | 10.460 | 8.071 | 1.986 | 959 | 386 | 12 |
-| 27 | 0.610 | 10.538 | 8.086 | 2.052 | 959 | 384 | 12 |
-| **30** | **0.667** | **10.754** | **7.767** | **2.258** | **958** | **384** | **12** |
-| 35 | 0.758 | 11.100 | 7.989 | 2.542 | 953 | 386 | 12 |
-| 40 | 0.845 | 11.422 | 8.130 | 2.827 | 942 | 374 | 12 |
+| 10 | 0.245 | 0.791 | 3.23 | 9.111 | 7.729 | 953 | 399 |
+| 15 | 0.359 | 1.193 | 3.32 | 9.564 | 7.834 | 963 | 400 |
+| 20 | 0.467 | 1.587 | 3.40 | 9.991 | 7.547 | 963 | 400 |
+| 22 | 0.508 | 1.734 | 3.41 | 10.150 | 7.426 | 961 | 396 |
+| 25 | 0.570 | 1.932 | 3.39 | 10.386 | 7.773 | 960 | 388 |
+| 27 | 0.610 | 2.052 | 3.37 | 10.538 | 8.086 | 959 | 384 |
+| **30** | **0.667** | **2.258** | **3.38** | **10.754** | **7.767** | **958** | **384** |
+| 35 | 0.758 | 2.542 | 3.35 | 11.100 | 7.989 | 953 | 386 |
+| 40 | 0.845 | 2.827 | 3.35 | 11.422 | 8.130 | 942 | 374 |
+| 45 | 0.925 | 3.086 | 3.34 | 11.725 | 8.128 | 934 | 329 |
+| 48 | 0.971 | 3.229 | 3.32 | 11.895 | 8.122 | 930 | 310 |
+| 50 | 1.004 | 3.329 | 3.32 | 12.005 | 8.122 | 927 | 292 |
+| 55 | 1.077 | 3.551 | 3.30 | 12.271 | 8.121 | 920 | 255 |
+| 60 | 1.168 | 3.836 | 3.28 | 12.521 | 8.145 | 929 | 151 |
 
-Band **21.6 – 26.2**.
+Each edge bisected to 0.05 rather than read off the grid:
 
-The two plantings agree to under a point at both edges, as they did before, and
-the window is barely wider than the one 2c measured (21.0–25.5 and 21.4–26.1).
-**The night did not stop being the binding edge**, because the night was never
-the planting's to move. 30 sits 10 % above the ceiling on both.
+| edge | anchor's planting | grown in from 350 |
+|---|---|---|
+| gross ≥ 0.5 | **22.33** | **21.62** |
+| sag ≥ 1 | 13.07 | 12.57 |
+| sag ≤ 3 | **44.57** | **43.37** |
+| gross ≤ 1 | 50.34 | 49.76 |
 
-Per the brief, the yield has not been moved and the band has not been widened.
+Band **22.3 – 44.6** on the anchor's planting, **21.6 – 43.4** on the other. The
+two agree to under a point and a half at both edges. **30 sits inside both**, 35 %
+of the way up the first and 39 % up the second — a little below centre, with 26 %
+of headroom below and 49 % above.
+
+Two things worth naming. The gross *floor* is what binds the bottom, as it did
+in 2b; the sag ceiling binds the top, but only just — it arrives at 44.6 where
+gross's own ceiling arrives at 50.3, 11 % later. And the sag floor never binds
+at all: it admits everything down to 13. **The night is not the yield's second
+bracket and never was.** What reopened the window was correcting the ceiling, not
+loosening it.
+
+The independent check is that this lands where 2b did. 2b measured 20–50 on the
+growing planting and 25.4–54.1 on the anchor's, off a reader an hour out of phase
+and an engine whose plantings were still net oxygen sinks. Corrected on both
+counts, the same claim on the same tanks reads 22.3–44.6 and 21.6–43.4 — two
+derivations either side of two defects, landing on the same window with 30
+inside it.
+
+Per the brief, the yield has not been moved and no band has been widened; the
+ceiling was re-derived against the observable and the assertion renamed to what
+it measures.
+
+## Does the band admit a tank a keeper would refuse
+
+The edges against the middle — 22.5, 30, 44.5 — on the tanks that break first.
+The gate's sealed 40 L is the least gas exchange the engine offers; its bare
+control floors at **4.975 mg/L** and keeps 8/8.
+
+| tank | yield | fish | O₂ floor | O₂ high | peak % sat | algae |
+|---|---|---|---|---|---|---|
+| injected 150 L, 982, 12 neon | 22.5 | 12/12 | 8.038 | 10.504 | 125.3 | 0 |
+| | 30 | 12/12 | 8.030 | 11.200 | 133.7 | 0 |
+| | 44.5 | 12/12 | 8.015 | 12.247 | **146.2** | 0 |
+| low-tech 150 L, 982, 12 neon | 22.5 | 12/12 | 6.448 | 8.469 | 101.1 | 0 |
+| | 30 | 12/12 | 6.488 | 8.565 | 102.2 | 0 |
+| | 44.5 | 12/12 | 6.539 | 8.742 | 104.3 | 0 |
+| sealed 40 L, 300, 8 neon, 10 PAR | 22.5 | 8/8 | 5.971 | 7.939 | 94.7 | 1.50 |
+| | 30 | 8/8 | 6.060 | 8.079 | 96.4 | 0.26 |
+| | 44.5 | 8/8 | 6.122 | 8.479 | 101.2 | 0 |
+| sealed 40 L, 300, 8 neon, 50 PAR | 22.5 | 8/8 | 6.709 | 8.923 | 106.5 | 0 |
+| | 30 | 8/8 | 6.846 | 9.170 | 109.4 | 0 |
+| | 44.5 | 8/8 | 6.862 | 9.417 | 112.4 | 0 |
+| sealed 40 L, 300, 8 neon, 120 PAR | 22.5 | 8/8 | 6.713 | 8.678 | 103.6 | 59.6 |
+| | 30 | 8/8 | 6.860 | 8.967 | 107.0 | 59.6 |
+| | 44.5 | 8/8 | 6.969 | 9.277 | 110.7 | 59.4 |
+
+No roster loses a fish anywhere in the band, at any fixture, in 30–60 days; no
+fish falls below 96.49 health, which is the ambient floor these tanks all sit on;
+every planted O₂ floor clears the bare tank's 4.975 by a milligram or more. The
+dim 10 PAR row lets a trace of algae in at the band's floor (1.50 against 0.26 at
+30) because a planting fixing less carbon suppresses less — gone by 30. The
+120 PAR bloom is the known high-light one and does not move with the yield.
+
+**One thing in the band is wrong, and it is not the fish.** At 44.5 the injected
+150 L reaches 12.25 mg/L — 146 % of saturation. No aquarium does that: past about
+120–130 % the excess leaves as bubbles on the leaves. The engine has no pearling
+channel (see *Not fixed* below), so nothing stops it, and neither corrected band
+catches it — gross reaches its own ceiling at 50, by which point the dusk peak is
+already 142 %. **The yield's missing second bracket is a cap on supersaturation,
+not the night.** That is a mechanism to add, not a band to tighten, and it is
+left for the maintainer: adding it would put a real ceiling on `co2PerRateUnit`
+for the first time, and quite possibly a tighter one than 44.6.
 
 ## Where the anchors landed
 
@@ -235,13 +391,13 @@ Per the brief, the yield has not been moved and the band has not been widened.
 |---|---|---|
 | 96 of 96 lit hours in the window | 96 | green |
 | gross 0.5–1 mg/L/h | 0.650 | green |
-| dark give-back < 2 mg/L | **2.174** | **red** |
+| sag 1–3 mg/L, dusk to first light | **2.174** | **green** |
 | a small tank moves as far as it is smaller | ratios | green |
 | the carbon in the water pays for the oxygen | — | green |
 | a planting in a stripped column takes more than it gives | — | green |
 | the roster holds twenty days, no fish charged for the water | 12/12, 0 | green |
 
-Every other anchor in the suite is green. Three tests elsewhere read the old
+The whole suite is green. Three tests elsewhere read the old
 magnitude and were re-derived rather than relaxed:
 
 - `plants/index.test.ts`, *runs a planting under too dim a fixture at a net
@@ -263,9 +419,9 @@ magnitude and were re-derived rather than relaxed:
   standing-draw figure moved with it: the unfed stagnant box runs short for 22
   of its 144 hours, not 41.
 
-`npm test` 2667 passed / 1 failed (the give-back band) / 152 files ·
-`npm run typecheck` clean on all three configs · `npm run lint` clean apart from
-the 3 standing `no-console` warnings in `src/ui/`.
+`npm test` 2668 passed / 0 failed / 152 files · `npm run typecheck` clean on all
+three configs · `npm run lint` clean apart from the 3 standing `no-console`
+warnings in `src/ui/`.
 
 ## What moved in the 2c tables
 
@@ -293,8 +449,22 @@ Menten term with a low half-saturation, or a bicarbonate channel per species,
 would put the day side where it belongs and would move this constant back up its
 band. Out of scope here; named because it is the mechanism under the defect.
 
-**Nothing caps supersaturation.** The injected 150 L reaches 10.6–10.8 mg/L at
-dusk, 129 % of saturation, and sheds it overnight through the same first-order
-gas exchange that filled it. Real tanks past ~120 % lose oxygen as bubbles on
-the leaves — pearling — which is a channel the engine does not have. It is the
-term that would bend the give-back away from tracking `gross` linearly.
+**Nothing caps supersaturation, and that is the yield's missing bracket.** The
+injected 150 L reaches 10.6–10.8 mg/L at dusk, 127 % of saturation, and sheds it
+overnight through the same first-order gas exchange that filled it. Real tanks
+past ~120 % lose the excess as bubbles on the leaves — pearling — which is a
+channel the engine does not have. Two consequences, and the second is the one
+that matters here. It is the term that would bend the sag away from tracking
+`gross` linearly. And it is the only real-tank constraint that bites the carbon
+yield from above: the sag never was, gross's own ceiling arrives too late (142 %
+of saturation), and the band's top edge is therefore softer than it looks. Adding
+a pearling channel would put a physical ceiling on `co2PerRateUnit` for the first
+time.
+
+**A low-tech planted tank barely sags.** The 982-size planting without its
+injector falls 0.525 mg/L overnight against the injected tank's 2.174, and a real
+low-tech planted tank does show something closer to a milligram. It follows from
+the `co2Factor` ramp above — a tank at a fifth of its rate builds a fifth of the
+day's supersaturation — so it is the same defect read at the night end, and it
+is why the sag anchor is scoped to the injected tank rather than to planted tanks
+generally.

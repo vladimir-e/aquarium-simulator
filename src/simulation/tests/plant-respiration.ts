@@ -4,24 +4,34 @@
  * Photosynthesis reads carbon, light and Liebig sufficiency; respiration reads
  * none of them. So the only place the two rates can be compared is the tank —
  * measured over 24 h, in rate units, against the rate the plants actually run
- * rather than the one `basePhotosynthesisRate` names. Four questions, in the
+ * rather than the one `basePhotosynthesisRate` names. Five questions, in the
  * order they have to be answered. What is the ratio, and is the planting in
  * credit or in debt? What reference is the constant a fraction of? Does a
- * planting help the fish or gas them? And where does that leave the carbon
- * yield the day side is pinned on? Run it:
+ * planting help the fish or gas them? Where does that leave the carbon yield
+ * the day side is pinned on — and what, exactly, is the tank's overnight sag a
+ * measurement of? Run it:
  *
  *     npm run probe:plant-respiration
  */
 
-import type { SimulationConfig } from '../state.js';
+import { produce } from 'immer';
+import { createSimulation, type SimulationConfig, type SimulationState } from '../state.js';
 import type { PresetSeed } from '../seed.js';
 import { DEFAULT_CONFIG, type TunableConfig } from '../config/index.js';
 import { plantsDefaults } from '../config/plants.js';
 import { gasExchangeDefaults } from '../config/gas-exchange.js';
+import { applyEffects, type Effect, type EffectTier } from '../core/effects.js';
+import { coreSystems } from '../systems/index.js';
+import { calculatePassiveResources, processEquipment } from '../equipment/index.js';
 import { processPlants } from '../plants/index.js';
+import { processAlgae } from '../algae/index.js';
+import { processLivestock } from '../livestock/index.js';
+import { processBreeding } from '../livestock/breeding.js';
+import { applyAction } from '../actions/index.js';
 import { calculateCo2Factor } from '../systems/photosynthesis.js';
-import { settleEnvironment } from '../tick.js';
-import { gasCurve, runTank, totalSize } from './metrics.js';
+import { calculateO2Saturation } from '../systems/gas-exchange.js';
+import { settleEnvironment, tick } from '../tick.js';
+import { gasCurve, runTank, totalSize, type GasCurve } from './metrics.js';
 import { DAY, fixtureFor } from './tanks.js';
 import { formatTable, tuned } from './sweep.js';
 
@@ -30,6 +40,9 @@ const RNG_SEED = 4242;
 /** The rate the branch shipped with, and the one it ships. */
 const WAS = 0.15;
 const IS = plantsDefaults.baseRespirationRate;
+
+/** What the water holds at the temperature every tank here is held to, mg/L. */
+const SATURATION = calculateO2Saturation(25, gasExchangeDefaults);
 
 // ── the tanks ────────────────────────────────────────────────────────────────
 
@@ -347,11 +360,13 @@ function acidTest(): string {
 
 // ── § 4 — the carbon yield, re-derived ───────────────────────────────────────
 
-const YIELDS = [10, 15, 20, 21, 22, 23, 24, 25, 26, 27, 28, 30, 35, 40];
+const YIELDS = [10, 15, 20, 22, 25, 27, 30, 35, 40, 45, 48, 50, 55, 60];
 
 /**
  * § 4 — the band `co2PerRateUnit` has to sit in, read on the corrected engine.
- * Gross has to clear 0.5 mg/L/h and the dark hours have to give back under 2.
+ * Gross has to clear 0.5–1 mg/L/h and the tank has to sag 1–3 mg/L overnight.
+ * `sag/gross` is beside them because it is what decides whether the second
+ * band brackets the yield independently of the first.
  */
 function yieldSweep(seed: PresetSeed, days: number): string {
   return formatTable(
@@ -372,9 +387,12 @@ function yieldSweep(seed: PresetSeed, days: number): string {
       return {
         yield: co2PerRateUnit,
         gross: curve.gross,
-        giveBack: curve.giveBack,
+        sag: curve.sag,
+        'sag/gross': (curve.sag ?? NaN) / curve.gross,
         o2High: curve.o2High,
+        'dusk % sat': (curve.o2High / SATURATION) * 100,
         o2Low: curve.o2Low,
+        'dawn % sat': (curve.o2Low / SATURATION) * 100,
         size: curve.size,
         hours: curve.hours,
         fish: curve.final.fish.length,
@@ -383,11 +401,175 @@ function yieldSweep(seed: PresetSeed, days: number): string {
   );
 }
 
+/** Oxygen a night moved, mg/L, by the source that moved it. */
+type Ledger = Record<string, number>;
+
+interface Night {
+  /** Dusk oxygen minus first light's, mg/L — the quantity the anchor asserts. */
+  fall: number;
+  ledger: Ledger;
+  dusk: number;
+  dawn: number;
+}
+
+function collectSystemEffects(
+  state: SimulationState,
+  tier: EffectTier,
+  config: TunableConfig
+): Effect[] {
+  return coreSystems
+    .filter((system) => system.tier === tier)
+    .flatMap((system) => system.update(state, config));
+}
+
 /**
- * § 4b — how much of the anchor's dark-hours fall belongs to the planting at
- * all. Respiration taken from the shipped rate down to nothing: what moves is
- * the level the whole curve sits at, not the distance it falls overnight, and
- * that is the answer to whether the give-back is a respiration measurement.
+ * One tick, mirrored from `tick.ts` stage for stage, with every oxygen delta
+ * booked against the source that raised it — the engine applies effects but
+ * keeps no ledger of them, and a decomposition is the only way to say what a
+ * night is made of rather than what removing one sink does to it.
+ *
+ * A mirror rots when the original moves, so `nights` below re-runs the real
+ * `tick` on the same hour and throws unless the two agree to 1e-9. That check
+ * is what makes this safe to keep: it cannot drift quietly, only loudly.
+ */
+function tracedTick(
+  state: SimulationState,
+  config: TunableConfig
+): { next: SimulationState; ledger: Ledger } {
+  const ledger: Ledger = {};
+  const book = (effects: Effect[]): Effect[] => {
+    for (const effect of effects) {
+      if (effect.resource === 'oxygen') {
+        ledger[effect.source] = (ledger[effect.source] ?? 0) + effect.delta;
+      }
+    }
+    return effects;
+  };
+
+  let settled = produce(state, (draft) => {
+    draft.tick += 1;
+    const passive = calculatePassiveResources(draft, config.optics);
+    draft.resources.surface = passive.surface;
+    draft.resources.flow = passive.flow;
+    draft.resources.light = passive.light;
+    draft.resources.aeration = passive.aeration;
+  });
+  settled = applyEffects(settled, book(collectSystemEffects(settled, 'immediate', config)), config);
+  const equipment = processEquipment(settled, config);
+  settled = applyEffects(equipment.state, book(equipment.effects), config);
+
+  const plants = processPlants(settled, config);
+  settled = applyEffects(plants.state, book(plants.effects), config);
+  settled = processAlgae(settled, config).state;
+  const livestock = processLivestock(settled, config);
+  settled = applyEffects(livestock.state, book(livestock.effects), config);
+  settled = processBreeding(settled, config, livestock.netByFishId).state;
+  settled = applyEffects(settled, book(collectSystemEffects(settled, 'active', config)), config);
+  settled = applyEffects(settled, book(collectSystemEffects(settled, 'passive', config)), config);
+
+  return { next: settled, ledger };
+}
+
+/**
+ * Every whole night a run contains, each booked by source.
+ *
+ * The night runs from the hour the lights went out to the water first light
+ * opened on — the same bounds `gasCurve` measures the sag between, so the
+ * `fall` here and the assertion's figure are one number. Unlike `gasCurve` this
+ * takes no window on plant size, which is what lets it read a tank that has no
+ * planting to take one on: the controls the sag floor is drawn against.
+ */
+function nights(
+  setup: SimulationConfig,
+  seed: PresetSeed,
+  days: number,
+  config: TunableConfig = DEFAULT_CONFIG
+): Night[] {
+  let running = createSimulation(setup, seed, RNG_SEED);
+  const measured: Night[] = [];
+  let open: { dusk: number; ledger: Ledger } | null = null;
+
+  for (let hour = 1; hour <= days * DAY; hour++) {
+    if (hour % DAY === 9) running = applyAction(running, { type: 'feed', amount: 0.6 }).state;
+    if (hour % (7 * DAY) === 0) {
+      running = applyAction(running, { type: 'waterChange', amount: 0.3 }).state;
+    }
+
+    const before = running;
+    const { next, ledger } = tracedTick(before, config);
+    running = tick(before, config);
+    if (Math.abs(running.resources.oxygen - next.resources.oxygen) > 1e-9) {
+      throw new Error(
+        `the traced tick no longer mirrors the engine's at hour ${hour}:` +
+          ` ${next.resources.oxygen} against ${running.resources.oxygen}`
+      );
+    }
+
+    if (hour <= 2 * DAY) continue;
+    const lit = next.resources.light > 0;
+
+    if (!lit && before.resources.light > 0) open = { dusk: before.resources.oxygen, ledger: {} };
+    if (open === null) continue;
+    if (lit) {
+      measured.push({
+        fall: open.dusk - before.resources.oxygen,
+        ledger: open.ledger,
+        dusk: open.dusk,
+        dawn: before.resources.oxygen,
+      });
+      open = null;
+      continue;
+    }
+    for (const [source, delta] of Object.entries(ledger)) {
+      open.ledger[source] = (open.ledger[source] ?? 0) + delta;
+    }
+  }
+
+  return measured;
+}
+
+/**
+ * § 4b — the anchor's night booked by source: every oxygen effect of every dark
+ * hour, summed over the night the assertion measures.
+ *
+ * This is the direct answer to what the sag is made of, where § 4c is only the
+ * counterfactual — and the two disagree, which is the finding. Removing a sink
+ * does not remove its share of the fall, because the surface term is a
+ * first-order relaxation toward saturation: oxygen respiration leaves standing
+ * is oxygen the surface sheds instead.
+ */
+function nightBudget(): string {
+  const measured = nights(INJECTED, SETTLED, 10);
+  const sources = [...new Set(measured.flatMap((night) => Object.keys(night.ledger)))];
+  const mean = (of: (night: Night) => number): number =>
+    measured.reduce((sum, night) => sum + of(night), 0) / measured.length;
+  const fall = mean((night) => night.fall);
+
+  return (
+    formatTable(
+      measured.map((night, index) => ({
+        night: index + 1,
+        dusk: night.dusk,
+        dawn: night.dawn,
+        fall: night.fall,
+        ...Object.fromEntries(sources.map((source) => [source, night.ledger[source] ?? 0])),
+      }))
+    ) +
+    `\n\nmean fall ${fall.toFixed(3)} mg/L over ${measured.length} nights, of which\n` +
+    sources
+      .map((source) => {
+        const booked = mean((night) => night.ledger[source] ?? 0);
+        return `  ${source.padEnd(20)} ${booked.toFixed(4)}  ${((booked / -fall) * 100).toFixed(1)} %`;
+      })
+      .join('\n')
+  );
+}
+
+/**
+ * § 4c — how much of the anchor's dark-hours fall the planting can *move*.
+ * Respiration taken from the shipped rate down to nothing: what moves is the
+ * level the whole curve sits at, not the distance it falls overnight, and that
+ * is the answer to whether the sag is a respiration measurement.
  */
 function nightShare(): string {
   return formatTable(
@@ -402,11 +584,217 @@ function nightShare(): string {
       return {
         resp: rate,
         gross: curve.gross,
-        giveBack: curve.giveBack,
+        sag: curve.sag,
         o2High: curve.o2High,
         o2Low: curve.o2Low,
       };
     })
+  );
+}
+
+/**
+ * § 4d — the controls the sag floor is drawn against: the anchor's own 150 L
+ * with the planting thinned out from under it, down to none at all.
+ *
+ * A floor saying "a planted tank sags" is only worth the assertion if an
+ * unplanted one does not, and that is a measurement rather than a premise.
+ */
+function sagControls(): string {
+  const NO_INJECTOR: SimulationConfig = { ...INJECTED, co2Generator: { enabled: false } };
+  const stocked = (plants?: PresetSeed['plants']): PresetSeed => ({
+    bacteria: 'cycled',
+    fish: SETTLED.fish,
+    plants,
+  });
+
+  const CONTROLS: Array<[string, SimulationConfig, PresetSeed]> = [
+    ['no planting, no injector', NO_INJECTOR, stocked()],
+    ['no planting, injected', INJECTED, stocked()],
+    ['one java fern at 60', NO_INJECTOR, stocked([{ species: 'java_fern', count: 1, size: 60 }])],
+    ["the gate's 300, no injector", NO_INJECTOR, stocked(GATE_PLANTING)],
+    ['982, no injector', NO_INJECTOR, SETTLED],
+    ["982, injected — the anchor's tank", INJECTED, SETTLED],
+  ];
+
+  return formatTable(
+    CONTROLS.map(([tank, setup, seed]) => {
+      const measured = nights(setup, seed, 10);
+      const mean = (of: (night: Night) => number): number =>
+        measured.reduce((sum, night) => sum + of(night), 0) / measured.length;
+      const dusk = mean((night) => night.dusk);
+      const dawn = mean((night) => night.dawn);
+      return {
+        tank,
+        sag: mean((night) => night.fall),
+        dusk,
+        'dusk % sat': (dusk / SATURATION) * 100,
+        dawn,
+        'dawn % sat': (dawn / SATURATION) * 100,
+      };
+    })
+  );
+}
+
+const yieldAt = (co2PerRateUnit: number): TunableConfig =>
+  tuned((draft) => {
+    draft.plants.co2PerRateUnit = co2PerRateUnit;
+  });
+
+// ── § 4e — where each band edge actually falls ───────────────────────────────
+
+/** What a band reads a run against, and the value it has to reach. */
+const BAND_EDGES: Array<[string, (curve: GasCurve) => number, number]> = [
+  ['gross ≥ 0.5', (curve): number => curve.gross, 0.5],
+  ['sag ≥ 1', (curve): number => curve.sag ?? NaN, 1],
+  ['sag ≤ 3', (curve): number => curve.sag ?? NaN, 3],
+  ['gross ≤ 1', (curve): number => curve.gross, 1],
+];
+
+/**
+ * § 4e — the yield at which each edge is met, bisected rather than read off the
+ * grid above. Every reading here rises monotonically in the yield, which is
+ * what makes a bisection the right instrument and the grid only an illustration.
+ */
+function bandEdges(): string {
+  const yieldWhere = (
+    seed: PresetSeed,
+    days: number,
+    read: (curve: GasCurve) => number,
+    target: number
+  ): number => {
+    let low = 5;
+    let high = 90;
+    while (high - low > 0.05) {
+      const mid = (low + high) / 2;
+      const curve = gasCurve({
+        setup: INJECTED,
+        seed,
+        days,
+        rngSeed: RNG_SEED,
+        routine: { feed: 0.6, waterChange: 0.3, config: yieldAt(mid) },
+      });
+      if (read(curve) < target) low = mid;
+      else high = mid;
+    }
+    return (low + high) / 2;
+  };
+
+  return formatTable(
+    BAND_EDGES.map(([edge, read, target]) => ({
+      edge,
+      "anchor's planting, 10 d": yieldWhere(SETTLED, 10, read, target),
+      'grown in from 350, 90 d': yieldWhere(FRESH, 90, read, target),
+    }))
+  );
+}
+
+/**
+ * § 4f — what the sag catches that `gross` does not.
+ *
+ * The two move together along the carbon yield, which is why the sag is no
+ * second bracket on it. They part along the surface: move `baseExchangeRate`
+ * either way and gross stays inside 0.5–1 while the sag leaves 1–3. That is the
+ * anchor's own bite, and the reason it is worth asserting at all.
+ */
+function surfaceSensitivity(): string {
+  const shipped = gasExchangeDefaults.baseExchangeRate;
+
+  return formatTable(
+    [shipped / 2, shipped, shipped * 2].map((baseExchangeRate) => {
+      const curve = gasCurve({
+        setup: INJECTED,
+        seed: SETTLED,
+        days: 10,
+        rngSeed: RNG_SEED,
+        routine: {
+          feed: 0.6,
+          waterChange: 0.3,
+          config: tuned((draft) => {
+            draft.gasExchange.baseExchangeRate = baseExchangeRate;
+          }),
+        },
+      });
+      const sag = curve.sag ?? NaN;
+      return {
+        baseExchangeRate,
+        gross: curve.gross,
+        'gross in 0.5–1': curve.gross >= 0.5 && curve.gross <= 1,
+        sag,
+        'sag in 1–3': sag >= 1 && sag <= 3,
+        o2High: curve.o2High,
+        o2Low: curve.o2Low,
+      };
+    })
+  );
+}
+
+// ── § 5 — does the admitted band hold a tank a keeper would refuse ───────────
+
+/** The band's floor, its middle, and its ceiling. */
+const SAMPLED_YIELDS = [22.5, 30, 44.5];
+
+/**
+ * § 5 — the band's edges against its middle, on the tanks that break first. A
+ * window is only as good as the worst tank it admits, and an argument about
+ * that is worth less than a sweep of it.
+ */
+function acrossTheBand(): string {
+  const heavy = { seed: SETTLED, days: 30, feed: 0.6, waterChange: 0.3 };
+  const cases: Array<[string, Case]> = [
+    ['injected 150 L, 982, 12 neon', { setup: INJECTED, ...heavy }],
+    ['low-tech 150 L, 982, 12 neon', { setup: lowTech(150, 90), ...heavy }],
+    ...[10, 50, 120].map((par): [string, Case] => [
+      `sealed 40 L, 300, 8 neon, ${par} PAR`,
+      {
+        setup: sealed(par),
+        seed: planted(GATE_PLANTING, GATE_FISH),
+        days: 60,
+        feed: 0.2,
+        waterChange: 0.25,
+      },
+    ]),
+  ];
+
+  const bare = survival(50, DEFAULT_CONFIG);
+  return (
+    `the gate's bare control: ${bare.fish}/${GATE_FISH[0]!.count} fish, O₂ floor` +
+    ` ${bare.o2Low.toFixed(3)}\n\n` +
+    formatTable(
+      cases.flatMap(([tank, options]) =>
+        SAMPLED_YIELDS.map((co2PerRateUnit) => {
+          let o2Low = Infinity;
+          let o2High = 0;
+          let minHealth = 100;
+          const run = runTank({
+            setup: options.setup,
+            seed: options.seed,
+            days: options.days,
+            rngSeed: RNG_SEED,
+            routine: {
+              feed: options.feed,
+              waterChange: options.waterChange,
+              config: yieldAt(co2PerRateUnit),
+            },
+            watch: (_hour, _before, after) => {
+              o2Low = Math.min(o2Low, after.resources.oxygen);
+              o2High = Math.max(o2High, after.resources.oxygen);
+              for (const fish of after.fish) minHealth = Math.min(minHealth, fish.health);
+            },
+          });
+          return {
+            tank,
+            yield: co2PerRateUnit,
+            fish: run.final.fish.length,
+            minHealth,
+            o2Low,
+            o2High,
+            'peak % sat': (o2High / SATURATION) * 100,
+            algae: run.final.algae.mass,
+            size: totalSize(run.final),
+          };
+        })
+      )
+    )
   );
 }
 
@@ -417,7 +805,12 @@ const SECTIONS: Array<[string, () => string]> = [
   ["the gate's sealed 40 L across the PAR ladder, 60 d", acidTest],
   ["the carbon yield on the anchor's planting, 10 d", (): string => yieldSweep(SETTLED, 10)],
   ['the same, grown in from 350 over 90 d', (): string => yieldSweep(FRESH, 90)],
-  ["how much of the anchor's night is the planting", nightShare],
+  ["the anchor's night, booked by source", nightBudget],
+  ['how much of that night the planting can move', nightShare],
+  ['the same 150 L with the planting thinned out', sagControls],
+  ['where each band edge falls, bisected', bandEdges],
+  ['what the sag catches that gross does not', surfaceSensitivity],
+  ["the band's edges against its middle", acrossTheBand],
 ];
 
 for (const [label, section] of SECTIONS) {

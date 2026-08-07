@@ -111,7 +111,7 @@ function yieldSweep(seed: PresetSeed, days: number): string {
         gross: curve.gross,
         o2High: curve.o2High,
         o2Low: curve.o2Low,
-        giveBack: curve.giveBack,
+        sag: curve.sag,
         size: curve.size,
         hours: curve.hours,
         fish: curve.final.fish.length,

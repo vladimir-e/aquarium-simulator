@@ -155,10 +155,12 @@ export interface GasCurve extends RunResult {
   /** Mean nitrate those same hours draw, mg. */
   uptake: number;
   /**
-   * Mean fall across a night in the window, dusk to first light, mg/L — null
-   * when the window spans no whole night, as a run of a few days can.
+   * Mean oxygen a night of the window sheds, dusk to first light, mg/L — null
+   * when the window spans no whole night, as a run of a few days can. Half of
+   * it is the day's supersaturation relaxing across the surface, so this is the
+   * whole tank's fall and not the planting's own draw.
    */
-  giveBack: number | null;
+  sag: number | null;
   /** Highest oxygen an hour of the window closed on, mg/L. */
   o2High: number;
   /** Lowest, over those same hours — the dark ones counted, so this is the floor. */
@@ -245,7 +247,7 @@ export function gasCurve({ routine = {}, ...options }: GasCurveOptions): GasCurv
     ...run,
     gross: meanOf(values(lit), 'lit hour'),
     uptake: meanOf(values(inWindow(drawn)), 'lit hour'),
-    giveBack: nights.length === 0 ? null : mean(nights),
+    sag: nights.length === 0 ? null : mean(nights),
     o2High: Math.max(...water),
     o2Low: Math.min(...water),
     size: meanOf(

@@ -220,6 +220,10 @@ describe('the carbon in the water is what pays for the oxygen', () => {
  * one that reads the constant rather than a relation between constants. Every
  * other reference to it survives any value; this is the tank it was chosen
  * against, so a feature PR may not widen the band to go green.
+ *
+ * The gross band is the pin. The sag below it reads the same tank's night, and
+ * is here because a day curve nothing spends is not a tank — but it brackets
+ * the diel curve rather than the yield, for the reason given against it.
  */
 describe('a grown-in planted 150 L, through a day and a night', () => {
   /**
@@ -252,9 +256,34 @@ describe('a grown-in planted 150 L, through a day and a night', () => {
     expect(curve.gross).toBeLessThanOrEqual(1);
   });
 
-  it('gives back under 2 mg/L across the dark hours', () => {
-    expect(curve.giveBack).toBeGreaterThan(0);
-    expect(curve.giveBack).toBeLessThan(2);
+  /**
+   * A planted tank's oxygen sags overnight: the supersaturation the day built
+   * relaxes back across the surface while respiration, decay and the nitrifiers
+   * keep drawing. Published diel curves for planted freshwater aquaria fall
+   * **1–3 mg/L** between the dusk peak and the dawn trough, and this tank —
+   * heavily planted, carbon-injected, 90 PAR — belongs at the top of it.
+   *
+   * The floor is this same 150 L measured with the planting taken out: it sags
+   * nothing at all (−0.09 mg/L — the surface holds it at saturation through the
+   * night), and a 300-size planting sags 0.23. A milligram is the line between
+   * a tank running a diel curve and a tank whose surface is doing all the work.
+   *
+   * The ceiling is where the dusk peak stops being an aquarium's. Dawn is a
+   * fixed point here — 8.16 mg/L, 97 % of saturation, at every yield the
+   * calibration sweep admits — so the sag *is* the day's supersaturation, and a
+   * 3 mg/L fall puts dusk at 11.2 mg/L. That is 133 % of saturation, which is
+   * where a real tank pearls the excess off rather than holding it dissolved.
+   *
+   * This anchors the diel curve, not `co2PerRateUnit`: the sag tracks `gross` at
+   * 3.3× across the whole yield sweep, so along that axis it says little the
+   * assertion above does not. Where the two part is the surface — at half and at
+   * double `baseExchangeRate`, gross stays inside its band while the sag leaves
+   * this one in both directions. What it holds is the ratio of the night's loss
+   * to the day's gain, which no other anchor reads.
+   */
+  it('sags 1–3 mg/L of oxygen between dusk and first light', () => {
+    expect(curve.sag).toBeGreaterThanOrEqual(1);
+    expect(curve.sag).toBeLessThanOrEqual(3);
   });
 });
 

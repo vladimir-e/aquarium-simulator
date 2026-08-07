@@ -21,6 +21,7 @@ export default defineConfig({
         'src/simulation/tests/oxygen-limited-draw.ts',
         'src/simulation/tests/light-response.ts',
         'src/simulation/tests/nitrification-on-air.ts',
+        'src/simulation/tests/plant-respiration.ts',
       ],
     },
   },

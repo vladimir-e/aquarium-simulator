@@ -294,6 +294,34 @@ else:
     CO2_change = +respiration_CO2  # positive
 ```
 
+### The overnight sag
+
+A planted tank's dissolved oxygen peaks at lights-out and troughs at first
+light. The engine's grown-in, carbon-injected 150 L falls **2.17 mg/L** across
+its dark hours, inside the 1–3 mg/L a real planted aquarium shows;
+`tests/planted-gas-budget.test.ts` anchors it there.
+
+**The planting is not most of that fall, and it cannot move it.** Booked by
+source over the anchor tank's nights:
+
+| gas exchange to the surface | plant respiration | decay | nitrification | fish |
+|---|---|---|---|---|
+| 50 % | 23 % | 10 % | 11 % | 6 % |
+
+Half the night leaves across the surface, because what the water sheds after
+dark is the supersaturation the day built relaxing back toward saturation. That
+also makes the fall insensitive to everything inside the tank: taking
+`base_respiration` to exactly zero moves it under 6 %, since oxygen a plant does
+not burn is oxygen the surface sheds instead at a higher gradient. Every sink in
+the tank is buffered against every other by the same first-order exchange.
+
+So the sag is a **day-side quantity**: it runs at 3.3× gross photosynthesis
+across the whole calibrated range of `co2_per_rate_unit`, and the dawn trough
+does not move with the yield at all — 96–97 % of saturation throughout. The tank
+comes back to the same water every morning whatever it did with its day. A tank
+that *stops* sagging has stopped building a day, not stopped spending a night:
+the same 150 L with no planting in it does not sag at all.
+
 ---
 
 ## Plant Condition (Vitality)

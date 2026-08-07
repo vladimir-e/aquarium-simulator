@@ -11,6 +11,7 @@ Format: - **Feature name** (#PR) - One short sentence (under ~150 chars)
 
 ## Unreleased
 
+- **The anchor's night measures the tank, not the planting** - the dark-hours assertion is re-derived as the tank's overnight oxygen sag, banded 1–3 mg/L against a real planted tank's diel curve; the old ceiling of 2 was set through the phase bug this branch fixed.
 - **A planted tank makes more oxygen than it burns** - `baseRespirationRate` 0.15 → 0.03, re-derived against the light-saturated rate at ambient carbon rather than the injected-carbon ceiling it never reaches.
 - **The gas reader measures the hour the tick ran** - `settleEnvironment` is the tick's first stage, and the reader rebuilds each hour through it instead of classifying on the state the tick was handed, which was an hour stale.
 - **A brighter fixture grows more plant, up to a point** - photosynthesis and the light benefit both scale on `tanh(PAR/Ik)`, saturating at twice each species' band low; `lightRequirement` is derived, not declared (v21, v8).

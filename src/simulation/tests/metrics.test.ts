@@ -262,12 +262,12 @@ describe('the hours gasCurve reads', () => {
     );
 
     expect(nights).toHaveLength(2);
-    expect(curve.giveBack).toBeCloseTo(nights.reduce((a, b) => a + b, 0) / nights.length, 12);
+    expect(curve.sag).toBeCloseTo(nights.reduce((a, b) => a + b, 0) / nights.length, 12);
   });
 
   it('has no night to report in a window that spans none', () => {
     // Three days, two of them settling: the window opens after the only dusk
     // the run has, and a fall measured from a half-spent night is not one.
-    expect(gasCurve({ setup: PHOTOPERIOD, seed: GROWN, days: 3 }).giveBack).toBeNull();
+    expect(gasCurve({ setup: PHOTOPERIOD, seed: GROWN, days: 3 }).sag).toBeNull();
   });
 });

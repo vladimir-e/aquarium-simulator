@@ -10,19 +10,19 @@ and the same term replacing vitality's flat in-band light award.
 Every figure below is an engine run driven through `keep()`, the same loop the
 anchors run, at `rngSeed` 4242. The probe is `npm run probe:light-response`.
 
-> **Open, and blocking.** The gas reader was measuring an hour out of phase —
-> see *The measurement had to be fixed twice* below. Corrected, the admissible
-> window for `co2PerRateUnit` closes at **≈25.5** on one planting and **≈26.1**
-> on the other, so **30 no longer sits inside it** and
-> `tests/planted-gas-budget.test.ts` fails its dark-hours assertion at 2.28
-> mg/L against a band of 2. The constant has not been moved and the anchor band
-> has not been widened; both are decisions for the maintainer.
+> **Closed.** The gas reader was measuring an hour out of phase — see *The
+> measurement had to be fixed twice* below — and correcting it put the anchor's
+> dark-hours figure at 2.28 mg/L against a ceiling of 2, which appeared to shut
+> `co2PerRateUnit` 30 out of its own window.
 >
-> Still open after `2026-08-10-plant-respiration.md`, which corrected
-> `baseRespirationRate` on the same branch. The give-back turned out not to be a
-> respiration measurement — it is 2.145 with respiration at exactly zero — so
-> the window only shifted to 21.6–26.2 and 22.4–27.3. The tables below are
-> re-read on that engine; the sections they sit in are otherwise as measured.
+> The ceiling was the fault. It had been set against a reading of 1.48 taken
+> through this very phase bug, and its assertion measured the whole tank's night
+> under a name that claimed the planting's share of it. Both are re-derived in
+> `2026-08-10-plant-respiration.md`: the anchor now states the tank's overnight
+> oxygen sag against a real planted tank's 1–3 mg/L, the engine reads 2.174, and
+> the window reopens to 22.3–44.6 with 30 inside it. **The ceiling figures in
+> the two sweeps below are therefore superseded; the gross figures are not.**
+> The tables are as re-read on the corrected-respiration engine.
 
 ---
 
@@ -32,7 +32,7 @@ anchors run, at `rngSeed` 4242. The probe is `npm run probe:light-response`.
 |---|---|---|---|
 | `saturationIrradianceFactor` | — | **2.0 × band low** | new; `Ik` per species |
 | `lightRequirement` (species field) | `low`/`medium`/`high` | *deleted* | derivable from the band |
-| `co2PerRateUnit` | 30 mg | **30 mg, unresolved** | the corrected band admits 21–26 |
+| `co2PerRateUnit` | 30 mg | **30 mg, unmoved** | the corrected band admits 21.6–44.6 |
 | `nutrientsPerPhotosynthesis` | 4.0 | **4.0** | re-checked, did not move |
 
 `Ik` reads anubias 16, java fern 20, amazon sword 40, dwarf hairgrass 50, monte
@@ -109,7 +109,7 @@ noticed.
 The same pass fixed a second edge on the same reading: a window opening
 mid-night used to take that half-night as a night. The night is now armed at the
 hour the lights go out and nowhere else, so a run too short to contain one
-reports no give-back rather than a diluted one. On the anchor's 10-day tank the
+reports no sag rather than a diluted one. On the anchor's 10-day tank the
 two corrections separate cleanly — 1.251 as published, 2.052 with the phase
 alone, 2.277 with whole nights — and the phase is what carries it past 2. The
 corrected figure is exactly the fall from the close of 19:00 to the close of
@@ -125,7 +125,7 @@ mean planting across it. Every column is read inside that window: the means
 either side of the O₂ pair are per lit hour, and the pair itself is the highest
 and lowest any hour of the window closed on, dark hours counted.
 
-| yield | gross O₂ (mg/L/h) | O₂ high | O₂ low | dark give-back | size | hours | fish |
+| yield | gross O₂ (mg/L/h) | O₂ high | O₂ low | sag | size | hours | fish |
 |---|---|---|---|---|---|---|---|
 | 10 | 0.245 | 9.11 | 7.73 | 0.79 | 953 | 399 | 12 |
 | 20 | 0.467 | 9.99 | 7.55 | 1.59 | 963 | 400 | 12 |
@@ -139,17 +139,18 @@ and lowest any hour of the window closed on, dark hours counted.
 | 60 | 1.168 | 12.52 | 8.15 | 3.84 | 929 | 151 | 12 |
 | 80 | 1.413 | 13.35 | 8.09 | 4.52 | 919 | 156 | 12 |
 
-Swept finer across the edges, the gross floor opens at **≈21.6** and the
-dark-hours ceiling closes at **≈26.2** — 26 reads 0.589 gross and 1.986
-give-back, 27 reads 0.610 and 2.052. The gross ceiling of 1 mg/L/h is no longer
-the binding one; it sits out at ≈49.8, twenty points above where the night
-closes the window.
+Swept finer across the edges, the gross floor opens at **≈21.6**. The night
+appeared to close the window at ≈26.2, twenty points inside the gross ceiling's
+own ≈49.8 — which is what made the sag look like the binding edge. It was the
+ceiling of 2 that was wrong rather than the yield; against the re-derived 1–3
+the night closes at **≈43.4** and the window is 21.6–43.4
+(`2026-08-10-plant-respiration.md`).
 
 The same sweep on the anchor's own planting — the 982 that
 `tests/planted-gas-budget.test.ts` hands over at tick 0, run 10 days — is the
 second reading, and the one the window keeps whole:
 
-| yield | gross O₂ (mg/L/h) | O₂ high | O₂ low | dark give-back | size | hours | fish |
+| yield | gross O₂ (mg/L/h) | O₂ high | O₂ low | sag | size | hours | fish |
 |---|---|---|---|---|---|---|---|
 | 10 | 0.236 | 9.02 | 8.16 | 0.76 | 1013 | 96 | 12 |
 | 20 | 0.452 | 9.87 | 8.16 | 1.51 | 1013 | 96 | 12 |
@@ -163,10 +164,9 @@ second reading, and the one the window keeps whole:
 | 60 | 1.146 | 12.51 | 8.08 | 3.72 | 1014 | 96 | 12 |
 | 80 | 1.409 | 13.45 | 8.03 | 4.48 | 1014 | 96 | 12 |
 
-It admits **≈22.4 – 27.3** — 27 reads 0.593 gross and 1.983 give-back, 28 reads
-0.612 and 2.048. Two plantings, two independently derived windows, and they
-agree to under a point and a half at both edges: **21.6 – 26.2** and
-**22.4 – 27.3**.
+It admits **≈22.3 – 44.6** against the re-derived bands. Two plantings, two
+independently derived windows, and they agree to under a point and a half at
+both edges: **21.6 – 43.4** and **22.3 – 44.6**.
 
 **30 does not sit inside either.** It clears the gross band comfortably — 0.667
 and 0.650 against 0.5–1 — and it is the night that excludes it, at 2.26 and 2.17
@@ -420,19 +420,21 @@ them. The claim re-tested here is the direction and its reason, not the ratio.)
 ## Anchors
 
 `tests/planted-gas-budget.test.ts` — the calibration anchor that reads
-`co2PerRateUnit` directly — **fails one of its three assertions** on the
-corrected reader: the dark-hours give-back is 2.174 mg/L against a band of 2.
-The band has not been widened. Its other two hold, and the one that pins the
-instrument holds exactly: the window still keeps **96 of 96** lit hours, because
-the phase moved which hours are counted and not how many. Gross reads 0.650,
-inside 0.5–1.
+`co2PerRateUnit` directly — failed one of its three assertions on the corrected
+reader: the dark-hours figure read 2.174 mg/L against a ceiling of 2. That
+ceiling was itself set through this phase bug and is re-derived in
+`2026-08-10-plant-respiration.md`; the assertion now bands the tank's overnight
+sag at 1–3 and reads 2.174, green. Its other two held throughout, and the one
+that pins the instrument holds exactly: the window still keeps **96 of 96** lit
+hours, because the phase moved which hours are counted and not how many. Gross
+reads 0.650, inside 0.5–1.
 
 The same file's other reader — the one the volume-term and carbon-clamp tests
 run on — carried the identical off-by-an-hour and is corrected with it. Every
 one of those assertions still passes: they are ratios between tanks, and the
 bias was common to all of them. All four permissive anchors stay green.
 
-`npm test` 2667 passed / 1 failed (the give-back band above) / 152 files ·
+`npm test` 2668 passed / 0 failed / 152 files ·
 `npm run typecheck` clean on all three configs · `npm run lint` clean apart from
 the 3 standing `no-console` warnings in `src/ui/`.
 

@@ -178,16 +178,13 @@ export const plantsDefaults: PlantsConfig = {
   respirationOxygenHalfSaturation: 0.5,
 
   // mg CO2 per rate unit. Pinned against a grown-in planted 150 L (≈1000 total
-  // plant size): it produces 0.5–1 mg/L/h of oxygen through the photoperiod and
-  // gives back under 2 mg/L over the dark hours. A rate unit is an hour of
-  // 100 % plant size at full carbon *and* saturating light.
-  // `tests/planted-gas-budget.test.ts` asserts that tank; the derivations are in
-  // `docs/calibration/runs/2026-08-06-gas-volume-stoichiometry.md` and
-  // `docs/calibration/runs/2026-08-09-light-response.md`.
-  // Unresolved: on the corrected gas reader the window admits 21.6–27.3 and 30
-  // sits above it, on the give-back. That reading is a day-side one — it holds
-  // at 2.145 with respiration taken to zero — so the night side of the engine
-  // cannot reach it either. See `2026-08-10-plant-respiration.md`.
+  // plant size): it produces 0.5–1 mg/L/h of gross oxygen through the
+  // photoperiod. A rate unit is an hour of 100 % plant size at full carbon
+  // *and* saturating light. On the corrected gas reader that tank admits
+  // 22.3–44.6, and the same claim read on a planting grown in from 350 admits
+  // 21.6–43.4. `tests/planted-gas-budget.test.ts` asserts that tank; the
+  // derivations are in `docs/calibration/runs/2026-08-09-light-response.md` and
+  // `docs/calibration/runs/2026-08-10-plant-respiration.md`.
   co2PerRateUnit: 30.0,
 
   // Surplus-driven growth — vitality banks surplus when condition is
