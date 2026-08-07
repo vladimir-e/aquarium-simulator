@@ -10,6 +10,14 @@ and the same term replacing vitality's flat in-band light award.
 Every figure below is an engine run driven through `keep()`, the same loop the
 anchors run, at `rngSeed` 4242. The probe is `npm run probe:light-response`.
 
+> **Open, and blocking.** The gas reader was measuring an hour out of phase —
+> see *The measurement had to be fixed twice* below. Corrected, the admissible
+> window for `co2PerRateUnit` closes at **≈25.5** on one planting and **≈26.1**
+> on the other, so **30 no longer sits inside it** and
+> `tests/planted-gas-budget.test.ts` fails its dark-hours assertion at 2.28
+> mg/L against a band of 2. The constant has not been moved and the anchor band
+> has not been widened; both are decisions for the maintainer.
+
 ---
 
 ## The constants
@@ -18,7 +26,7 @@ anchors run, at `rngSeed` 4242. The probe is `npm run probe:light-response`.
 |---|---|---|---|
 | `saturationIrradianceFactor` | — | **2.0 × band low** | new; `Ik` per species |
 | `lightRequirement` (species field) | `low`/`medium`/`high` | *deleted* | derivable from the band |
-| `co2PerRateUnit` | 30 mg | **30 mg** | re-swept, **did not move** |
+| `co2PerRateUnit` | 30 mg | **30 mg, unresolved** | the corrected band admits 21–26 |
 | `nutrientsPerPhotosynthesis` | 4.0 | **4.0** | re-checked, did not move |
 
 `Ik` reads anubias 16, java fern 20, amazon sword 40, dwarf hairgrass 50, monte
@@ -28,7 +36,9 @@ sun species 50–150. The deleted tier reproduces exactly off where the band ope
 is the evidence it was always derivable. The UI reads it off the band, so a
 recalibration of the factor cannot move a species' rendered tier.
 
-## The measurement had to be fixed before the constant could be read
+## The measurement had to be fixed twice
+
+### First: the window
 
 The first sweep of this branch reported the grown-in tank's gross oxygen as a
 **mean over every lit hour of the 90-day run**, and read 0.470 at yield 30
@@ -51,6 +61,54 @@ from each run rather than hard-coded, and it is self-checking — on the anchor'
 own planting, which is handed 982 at tick 0, it keeps **96 of 96** lit hours and
 is therefore inert exactly where it should be.
 
+### Second: the phase
+
+The window was right and the hour it was taken on was not. `tick()` advances the
+clock and settles the light and the equipment *before* it processes plants, so
+the state handed to a watcher as `before` still carries the previous hour's
+light. The reader classified each hour on it, and computed the plant effects
+from it, which put the whole measurement an hour late:
+
+- **dawn** read dark and was dropped, though the tick ran it lit;
+- **dusk** read lit and was counted, and `processPlants` was asked for a full
+  lit-hour figure on an hour the tick ran in the dark;
+- the night ran from the close of 20:00 to the close of 08:00 — eleven dark
+  hours and one lit one, instead of the twelve dark hours it names;
+- the hour's own CO₂ injection and dosing had not landed yet in the water the
+  rate was computed against.
+
+The fix is a seam rather than a correction factor. `settleEnvironment()` is now
+the tick's own first stage — clock, passive resources, immediate tier,
+equipment — and the reader rebuilds the hour through it, so what it measures is
+what the tick ran, by construction rather than by reconstruction.
+
+It is checked behaviourally, in `tests/metrics.test.ts`. Hold every input the
+rate reads pinned at the top of each hour so no hour can reach the next, strip
+the carbon out of one named hour, and watch whether `gross` moves:
+
+| carbon stripped at | old reader | corrected |
+|---|---|---|
+| 07:00 (dark) | 0.0000 % | 0.0000 % |
+| **08:00 (first lit hour)** | −0.24 % | **−8.53 %** |
+| 12:00 (lit) | −8.54 % | −8.55 % |
+| 19:00 (last lit hour) | −8.43 % | −8.44 % |
+| **20:00 (first dark hour)** | **−8.35 %** | **0.0000 %** |
+| 21:00 (dark) | 0.0000 % | 0.0000 % |
+
+−8.5 % is one hour of twelve. The old reader's counted set was 09:00–20:00; the
+corrected one is 08:00–19:00, and a dark hour now reaches the reading not at all
+— bit for bit. The count per day is 12 either way, which is why `hours` never
+noticed.
+
+The same pass fixed a second edge on the same reading: a window opening
+mid-night used to take that half-night as a night. The night is now armed at the
+hour the lights go out and nowhere else, so a run too short to contain one
+reports no give-back rather than a diluted one. On the anchor's 10-day tank the
+two corrections separate cleanly — 1.251 as published, 2.052 with the phase
+alone, 2.277 with whole nights — and the phase is what carries it past 2. The
+corrected figure is exactly the fall from the close of 19:00 to the close of
+07:00 read off the run's own hourly trajectory, to twelve decimal places.
+
 ## The yield sweep, corrected
 
 Grown-in planted 150 L: canister, aqua soil, 90 PAR on a 12 h photoperiod,
@@ -63,19 +121,23 @@ and lowest any hour of the window closed on, dark hours counted.
 
 | yield | gross O₂ (mg/L/h) | O₂ high | O₂ low | dark give-back | size | hours | fish |
 |---|---|---|---|---|---|---|---|
-| 10 | 0.212 | 8.92 | 7.48 | 0.51 | 959 | 424 | 12 |
-| 20 | 0.400 | 9.64 | 6.84 | 1.04 | 973 | 392 | 12 |
-| **30** | **0.569** | **10.28** | **7.42** | **1.43** | **972** | **376** | **12** |
-| 32 | 0.603 | 10.40 | 6.91 | 1.53 | 976 | 373 | 12 |
-| 35 | 0.650 | 10.57 | 6.58 | 1.65 | 975 | 360 | 12 |
-| 40 | 0.726 | 10.84 | 7.15 | 1.82 | 975 | 349 | 12 |
-| 45 | 0.796 | 11.09 | 7.04 | 1.95 | 978 | 328 | 12 |
-| 50 | 0.868 | 11.33 | 6.10 | 2.15 | 977 | 330 | 12 |
-| 57 | 0.962 | 11.64 | 6.61 | 2.31 | 975 | 346 | 12 |
-| 60 | 1.002 | 11.76 | 5.75 | 2.43 | 973 | 360 | 12 |
-| 80 | 1.234 | 12.50 | 6.10 | 2.80 | 966 | 399 | 12 |
+| 10 | 0.249 | 8.92 | 7.48 | 0.80 | 959 | 423 | 12 |
+| 20 | 0.478 | 9.64 | 6.84 | 1.63 | 973 | 392 | 12 |
+| **30** | **0.688** | **10.28** | **7.42** | **2.30** | **972** | **376** | **12** |
+| 32 | 0.732 | 10.40 | 6.91 | 2.46 | 976 | 373 | 12 |
+| 35 | 0.793 | 10.57 | 6.58 | 2.67 | 974 | 359 | 12 |
+| 40 | 0.891 | 10.84 | 7.15 | 2.95 | 975 | 349 | 12 |
+| 45 | 0.986 | 11.09 | 7.04 | 3.26 | 978 | 327 | 12 |
+| 50 | 1.083 | 11.33 | 6.10 | 3.59 | 977 | 330 | 12 |
+| 57 | 1.213 | 11.64 | 6.61 | 3.95 | 975 | 345 | 12 |
+| 60 | 1.270 | 11.76 | 5.75 | 4.15 | 972 | 360 | 12 |
+| 80 | 1.612 | 12.50 | 6.10 | 5.12 | 966 | 398 | 12 |
 
-The gross band opens at ≈25.9 and the dark-hours ceiling closes it at ≈46.2.
+Swept finer across the edges, the gross floor opens at **≈21.0** and the
+dark-hours ceiling closes at **≈25.5** — 25 reads 0.585 gross and 1.970
+give-back, 26 reads 0.606 and 2.028. The gross ceiling of 1 mg/L/h is no longer
+the binding one; it sits out at ≈45.6, twenty points above where the night
+closes the window.
 
 The same sweep on the anchor's own planting — the 982 that
 `tests/planted-gas-budget.test.ts` hands over at tick 0, run 10 days — is the
@@ -83,44 +145,52 @@ second reading, and the one the window keeps whole:
 
 | yield | gross O₂ (mg/L/h) | O₂ high | O₂ low | dark give-back | size | hours | fish |
 |---|---|---|---|---|---|---|---|
-| 10 | 0.204 | 8.81 | 7.94 | 0.42 | 1013 | 96 | 12 |
-| 20 | 0.392 | 9.47 | 7.72 | 0.87 | 1014 | 96 | 12 |
-| **30** | **0.565** | **10.07** | **7.49** | **1.25** | **1014** | **96** | **12** |
-| 32 | 0.598 | 10.19 | 7.44 | 1.32 | 1014 | 96 | 12 |
-| 35 | 0.646 | 10.35 | 7.37 | 1.42 | 1014 | 96 | 12 |
-| 40 | 0.724 | 10.62 | 7.25 | 1.58 | 1014 | 96 | 12 |
-| 45 | 0.799 | 10.87 | 7.14 | 1.73 | 1014 | 96 | 12 |
-| 50 | 0.871 | 11.11 | 7.02 | 1.86 | 1014 | 96 | 12 |
-| 57 | 0.967 | 11.42 | 6.85 | 2.03 | 1014 | 96 | 12 |
-| 60 | 1.006 | 11.55 | 6.78 | 2.09 | 1014 | 96 | 12 |
-| 80 | 1.245 | 12.32 | 6.30 | 2.43 | 1015 | 96 | 12 |
+| 10 | 0.240 | 8.81 | 7.94 | 0.77 | 1013 | 96 | 12 |
+| 20 | 0.468 | 9.47 | 7.72 | 1.56 | 1013 | 96 | 12 |
+| **30** | **0.685** | **10.07** | **7.49** | **2.28** | **1013** | **96** | **12** |
+| 32 | 0.727 | 10.19 | 7.44 | 2.41 | 1013 | 96 | 12 |
+| 35 | 0.789 | 10.35 | 7.37 | 2.62 | 1013 | 96 | 12 |
+| 40 | 0.891 | 10.62 | 7.25 | 2.94 | 1013 | 96 | 12 |
+| 45 | 0.990 | 10.87 | 7.14 | 3.25 | 1014 | 96 | 12 |
+| 50 | 1.087 | 11.11 | 7.02 | 3.55 | 1014 | 96 | 12 |
+| 57 | 1.219 | 11.42 | 6.85 | 3.95 | 1014 | 96 | 12 |
+| 60 | 1.274 | 11.55 | 6.78 | 4.11 | 1014 | 96 | 12 |
+| 80 | 1.625 | 12.32 | 6.30 | 5.11 | 1014 | 96 | 12 |
 
-It admits **26.2 – 55.9** — the gross floor between 20 and 30, the dark-hours
-ceiling between 50 and 57 — against the 25.4 – 54.1 that 2b measured on it: two
-engines, the same tank, a window whose edges moved by under two points.
+It admits **≈21.4 – 26.1** — 26 reads 0.600 gross and 1.997 give-back, 27 reads
+0.621 and 2.067. Two plantings, two independently derived windows, and they
+agree to under a point at both edges: **21.0 – 25.5** and **21.4 – 26.1**.
 
-**30 stays.** It sits inside both windows with room either side, it is where
-ties break, and nothing in the corrected measurement asks it to move. The
-comment on it keeps only what is newly true: a rate unit is now an hour of
-100 % plant size at full carbon *and* saturating light.
+**30 does not sit inside either.** It clears the gross band comfortably — 0.688
+and 0.685 against 0.5–1 — and it is the night that excludes it, at 2.30 and 2.28
+mg/L against a ceiling of 2. Both edges moved for the same reason: the reading
+that put 30 mid-band was taken an hour late, and the night it was taken over was
+missing a dark hour.
+
+The constant has **not** been moved here. Nothing about the corrected
+measurement says what should give — the yield, the ≲2 mg/L ceiling that was
+itself only ever read through this reader, or the night side of the engine — and
+choosing is a calibration decision rather than a fix.
 
 ## Like for like against 2b
 
-Same instrument, same window, shipped 2b (`HEAD`) against this branch, yield 30:
+This pair was read through the out-of-phase window on both engines, and only the
+2c side has been re-read since:
 
-| planting | 2b | 2c | change |
+| planting | 2b | 2c, as published | 2c, corrected |
 |---|---|---|---|
-| grown-in, 90 d | 0.608 | 0.569 | −6.5 % |
-| anchor's planting, 10 d | 0.579 | 0.565 | −2.5 % |
+| grown-in, 90 d | 0.608 | 0.569 | **0.688** |
+| anchor's planting, 10 d | 0.579 | 0.565 | **0.685** |
 
-Two notes on the comparison. 2b's report records **0.670** for the grown-in row,
-where its own shipped engine measures 0.608 under this window — that table
-predates the nitrifiers that landed later in the same branch, the way its
-lethality table says of itself. Its anchor row does not drift: 0.581 there,
-0.579 here, measured across two engines.
+The bias is common-mode — the same reader, the same schedule, two engines — so
+the *direction* of the 2c change survives; the levels do not, and the 2b column
+needs re-measuring on the corrected reader before the two can be subtracted
+again. The branch's own counterfactual, which is measured on one engine and is
+in the table below, is the comparison that still stands.
 
-And the branch's own counterfactual closes the loop — taking the curve out
-reproduces shipped 2b to four significant figures.
+2b's own report records **0.670** for the grown-in row, where its shipped engine
+measured 0.608 under this window — that table predates the nitrifiers that
+landed later in the same branch, the way its lethality table says of itself.
 
 ## What the curve costs
 
@@ -129,10 +199,10 @@ saturates at no light, so the response reads 1 everywhere) beside the shipped 2.
 
 | Ik | gross | uptake (mg) | NO₃ ppm | PO₄ ppm | size at 90 d | plants | condition |
 |---|---|---|---|---|---|---|---|
-| out | 0.608 | 10.57 | 10.98 | 4.36 | 987 | 6 | 100 |
-| ×2 | 0.569 | 9.87 | 12.74 | 4.45 | 978 | 6 | 100 |
+| out | 0.740 | 12.86 | 10.98 | 4.36 | 987 | 6 | 100 |
+| ×2 | 0.688 | 11.95 | 12.74 | 4.45 | 978 | 6 | 100 |
 
-**On a well-lit tank the light response costs almost nothing — 6 %.** That is
+**On a well-lit tank the light response costs almost nothing — 7 %.** That is
 the whole point of a saturating curve: at 90 PAR this planting is at or past
 saturation for most of what is in it (java fern reads 1.000 of its maximum,
 anubias 1.000, amazon sword 0.978, monte carlo 0.905), so the term it multiplies
@@ -143,7 +213,7 @@ by is nearly 1 and there is nothing to take away.
 carlo at 0.32; at 5 PAR a monte carlo runs at 0.08. Before this change all of
 those read 1.0 and a 5 W closet tank fixed carbon like a high-tech one.
 
-`nutrientsPerPhotosynthesis` **holds at 4.0**. Uptake falls 6.6 % with gross, so
+`nutrientsPerPhotosynthesis` **holds at 4.0**. Uptake falls 7.1 % with gross, so
 nitrate settles 10.98 → 12.74 ppm — up, but a healthy planted-tank figure, well
 under the 40 ppm where damage starts and the 100 ppm toxicity threshold.
 Phosphate barely moves and plant condition is 100 either way. Nothing
@@ -189,34 +259,40 @@ with algae shading out of reach.
 | substrate PAR | PAR/Ik | gross | NO₃ draw | size60 | peak algae | noAlgae |
 |---|---|---|---|---|---|---|
 | 5 | 0.25 | 0.053 | 0.91 | 259 | 59.6 | 344 |
-| 10 | 0.50 | 0.102 | 1.74 | 291 | 56.8 | 370 |
+| 10 | 0.50 | 0.101 | 1.73 | 291 | 56.8 | 370 |
 | 20 | 1.00 | 0.168 | 2.87 | 311 | 55.2 | 384 |
-| 40 | 2.00 | 0.214 | 3.65 | 324 | 54.1 | 394 |
-| 60 | 3.00 | 0.221 | 3.77 | 326 | 53.9 | 395.3 |
-| 70 | 3.50 | 0.221 | 3.78 | 326 | 53.9 | 395.5 |
-| 80 | 4.00 | 0.222 | 3.78 | 296 | 61.4 | 395.5 |
-| 90 | 4.50 | 0.222 | 3.79 | 273 | 68.3 | 395.6 |
+| 40 | 2.00 | 0.213 | 3.64 | 324 | 54.1 | 394 |
+| 60 | 3.00 | 0.220 | 3.76 | 326 | 53.9 | 395.3 |
+| 70 | 3.50 | 0.221 | 3.77 | 326 | 53.9 | 395.5 |
+| 80 | 4.00 | 0.221 | 3.78 | 296 | 61.4 | 395.5 |
+| 90 | 4.50 | 0.221 | 3.78 | 273 | 68.3 | 395.6 |
 
 **Monte carlo, Ik 60** — a high-Ik sun species:
 
 | substrate PAR | PAR/Ik | gross | NO₃ draw | size60 | peak algae | noAlgae |
 |---|---|---|---|---|---|---|
 | 5 | 0.08 | 0.018 | 0.30 | 0 | 76.7 | 255 |
-| 15 | 0.25 | 0.057 | 0.97 | 347 | 48.3 | 550 |
-| 30 | 0.50 | 0.120 | 2.05 | 948 | 19.1 | 948 |
-| 60 | 1.00 | 0.201 | 3.43 | 996 | 18.0 | 996 |
-| 70 | 1.17 | 0.218 | 3.72 | 1006 | 17.8 | 1006 |
-| 90 | 1.50 | 0.240 | 4.11 | 1019 | 24.7 | 1019 |
-| 120 | 2.00 | 0.257 | 4.39 | 969 | 35.8 | 1029 |
-| 160 | 2.67 | 0.264 | 4.51 | 0 | 92.6 | 1033 |
-| 200 | 3.33 | 0.266 | 4.55 | 0 | 94.0 | 1034 |
+| 15 | 0.25 | 0.056 | 0.97 | 347 | 48.3 | 550 |
+| 30 | 0.50 | 0.119 | 2.04 | 948 | 19.1 | 948 |
+| 60 | 1.00 | 0.200 | 3.41 | 996 | 18.0 | 996 |
+| 70 | 1.17 | 0.216 | 3.69 | 1006 | 17.8 | 1006 |
+| 90 | 1.50 | 0.239 | 4.08 | 1019 | 24.7 | 1019 |
+| 120 | 2.00 | 0.255 | 4.35 | 969 | 35.8 | 1029 |
+| 160 | 2.67 | 0.262 | 4.48 | 0 | 92.6 | 1033 |
+| 200 | 3.33 | 0.264 | 4.51 | 0 | 94.0 | 1034 |
 
 Production rises and then flattens, on both species, and it flattens where the
-curve says it should: java fern gains nothing measurable past 3 Ik (0.221 →
-0.222 across 60–90 PAR), monte carlo 0.264 → 0.266 across 160–200. The shade
+curve says it should: java fern gains nothing measurable past 3 Ik (0.220 →
+0.221 across 60–90 PAR), monte carlo 0.262 → 0.264 across 160–200. The shade
 species is done by 60 PAR; the sun species is still climbing there. **#9 is
 closed** — a high-PAR fixture measurably out-produces a low one, and stops
 paying.
+
+These two tables barely moved under the phase correction — third decimal only —
+because they hold the water at optimum before every tick, so one lit hour reads
+much like the next and swapping which twelve are counted changes almost nothing.
+Their growth columns come off the run rather than the window and did not move at
+all. The reachability finding is untouched by any of the above.
 
 Growth does the same *once the algae channel is held out*: 395.3 / 395.5 / 395.6
 for java fern across 60/70/90 PAR, 1029 / 1033 / 1034 for monte carlo across
@@ -337,14 +413,21 @@ them. The claim re-tested here is the direction and its reason, not the ratio.)
 ## Anchors
 
 `tests/planted-gas-budget.test.ts` — the calibration anchor that reads
-`co2PerRateUnit` directly — passes at yield 30 with its band untouched. Its one
-addition is a tripwire on the instrument rather than on the claim: the window
-has to keep all 96 lit hours, so a planting that ever starts ramping cannot
-quietly shrink the tank the band is read on. All four permissive anchors stay
-green.
+`co2PerRateUnit` directly — **fails one of its three assertions** on the
+corrected reader: the dark-hours give-back is 2.277 mg/L against a band of 2.
+The band has not been widened. Its other two hold, and the one that pins the
+instrument holds exactly: the window still keeps **96 of 96** lit hours, because
+the phase moved which hours are counted and not how many. Gross reads 0.685,
+inside 0.5–1.
 
-`npm test` 2663 passed / 152 files · `npx tsc --noEmit` clean · `npm run lint`
-clean apart from the 3 standing `no-console` warnings in `src/ui/`.
+The same file's other reader — the one the volume-term and carbon-clamp tests
+run on — carried the identical off-by-an-hour and is corrected with it. Every
+one of those assertions still passes: they are ratios between tanks, and the
+bias was common to all of them. All four permissive anchors stay green.
+
+`npm test` 2667 passed / 1 failed (the give-back band above) / 152 files ·
+`npm run typecheck` clean on all three configs · `npm run lint` clean apart from
+the 3 standing `no-console` warnings in `src/ui/`.
 
 One thing this branch reverted rather than shipped: `oxygen-limited-draw.test.ts`
 had been rewritten from a hard-zero assertion to a share-based one while the

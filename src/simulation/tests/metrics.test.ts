@@ -2,6 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { produce } from 'immer';
 import type { SimulationConfig, SimulationState } from '../state.js';
 import type { PresetSeed } from '../seed.js';
+import { nutrientsDefaults } from '../config/nutrients.js';
+import { plantsDefaults } from '../config/plants.js';
 import { DAY } from './tanks.js';
 import { gasCurve, runTank, totalSize } from './metrics.js';
 
@@ -181,5 +183,91 @@ describe('gasCurve', () => {
     expect(() =>
       gasCurve({ setup: LIT, seed: PLANTED, days: 5, routine: { hold: condemnAt(2.5 * DAY) } })
     ).toThrow(/no planting/);
+  });
+});
+
+/**
+ * The tick advances the clock and settles the light before it processes plants,
+ * so the hour a reading belongs to is the tick's own and not the one it was
+ * handed. Off by that one hour the window counts dusk and skips dawn, and the
+ * night it measures loses a dark hour at one end and gains a lit one at the
+ * other.
+ */
+describe('the hours gasCurve reads', () => {
+  /** A 12 h photoperiod from 08:00, so the lit hours are 8 through 19. */
+  const PHOTOPERIOD: SimulationConfig = {
+    tankCapacity: 150,
+    substrate: { type: 'aqua_soil' },
+    filter: { enabled: true, type: 'canister' },
+    ato: { enabled: true },
+    light: { enabled: true, par: 90, schedule: { startHour: 8, duration: 12 } },
+  };
+
+  /** Handed over near its ceiling, so the size window has no ramp to drop. */
+  const GROWN: PresetSeed = {
+    bacteria: 'cycled',
+    plants: [{ species: 'java_fern', count: 3, size: 195 }],
+  };
+
+  /**
+   * Everything the rate reads, pinned at the top of every hour — so no hour's
+   * water can reach the hour after it — with the carbon stripped out of the one
+   * hour named. What that hour then contributes to a gross reading is nothing,
+   * and an hour the window does not count contributes nothing either way.
+   */
+  const replete =
+    (starved?: number) =>
+    (state: SimulationState): SimulationState =>
+      produce(state, (draft) => {
+        const { water } = draft.resources;
+        draft.resources.oxygen = 6;
+        draft.resources.co2 =
+          (state.tick + 1) % DAY === starved ? 0 : plantsDefaults.optimalCo2 * 3;
+        draft.resources.nitrate = nutrientsDefaults.optimalNitratePpm * water * 3;
+        draft.resources.phosphate = nutrientsDefaults.optimalPhosphatePpm * water * 3;
+        draft.resources.potassium = nutrientsDefaults.optimalPotassiumPpm * water * 3;
+        draft.resources.iron = nutrientsDefaults.optimalIronPpm * water * 3;
+      });
+
+  const grossWithout = (hour?: number): number =>
+    gasCurve({ setup: PHOTOPERIOD, seed: GROWN, days: 6, routine: { hold: replete(hour) } }).gross;
+
+  it('counts the hour the lights come on, and not the hour they go out', () => {
+    const whole = grossWithout();
+
+    // 08:00 is lit and read: strip its carbon and the mean loses that hour,
+    // one of the twelve. 20:00 is the hour the lights go out — the state the
+    // tick was handed still carries the light, and the state it ran on does
+    // not — so nothing about it reaches the reading at all.
+    expect(grossWithout(8)).toBeLessThan(whole * 0.95);
+    expect(grossWithout(20)).toBe(whole);
+  });
+
+  it('keeps the photoperiod in every whole day of the window', () => {
+    const days = 6;
+    const curve = gasCurve({ setup: PHOTOPERIOD, seed: GROWN, days });
+
+    expect(curve.hours).toBe((days - 2) * 12);
+  });
+
+  it('reads a night from the last lit hour to the last dark one', () => {
+    const days = 5;
+    const curve = gasCurve({ setup: PHOTOPERIOD, seed: GROWN, days, sampleEvery: 1 });
+    const closed = new Map(curve.samples.map((sample) => [sample.day * DAY, sample.oxygen]));
+
+    // Dusk is the hour 19:00 closed on and first light the hour 07:00 closed
+    // on, twelve dark hours later — read off the run's own trajectory.
+    const nights = [2, 3].map(
+      (day) => closed.get(day * DAY + 19)! - closed.get(day * DAY + 31)!
+    );
+
+    expect(nights).toHaveLength(2);
+    expect(curve.giveBack).toBeCloseTo(nights.reduce((a, b) => a + b, 0) / nights.length, 12);
+  });
+
+  it('has no night to report in a window that spans none', () => {
+    // Three days, two of them settling: the window opens after the only dusk
+    // the run has, and a fall measured from a half-spent night is not one.
+    expect(gasCurve({ setup: PHOTOPERIOD, seed: GROWN, days: 3 }).giveBack).toBeNull();
   });
 });

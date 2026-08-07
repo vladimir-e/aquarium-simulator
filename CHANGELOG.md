@@ -11,6 +11,7 @@ Format: - **Feature name** (#PR) - One short sentence (under ~150 chars)
 
 ## Unreleased
 
+- **The gas reader measures the hour the tick ran** - `settleEnvironment` is the tick's first stage, and the reader rebuilds each hour through it instead of classifying on the state the tick was handed, which was an hour stale.
 - **A brighter fixture grows more plant, up to a point** - photosynthesis and the light benefit both scale on `tanh(PAR/Ik)`, saturating at twice each species' band low; `lightRequirement` is derived, not declared (v21, v8).
 - **`getSaturationIrradiance` requires a config** - breaking: an omitted argument read the shipped defaults whatever the caller had tuned.
 - **A hypoxic fish excretes less nitrogen** - deamination is metabolism, so both NH₃ streams carry the same oxygen factor as the respiratory draw; feces do not.

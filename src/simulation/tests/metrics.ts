@@ -16,6 +16,7 @@ import type { PresetSeed } from '../seed.js';
 import type { PlantSpecies } from '../plants/species.js';
 import { DEFAULT_CONFIG } from '../config/index.js';
 import { processPlants } from '../plants/index.js';
+import { settleEnvironment } from '../tick.js';
 import { DAY, DEFAULT_RNG_SEED, keep, type KeeperRoutine } from './tanks.js';
 
 /** The planting and the dissolved gases read off a tank at one hour of one day. */
@@ -153,8 +154,11 @@ export interface GasCurve extends RunResult {
   gross: number;
   /** Mean nitrate those same hours draw, mg. */
   uptake: number;
-  /** Mean fall across a night in the window, dusk to first light, mg/L. */
-  giveBack: number;
+  /**
+   * Mean fall across a night in the window, dusk to first light, mg/L — null
+   * when the window spans no whole night, as a run of a few days can.
+   */
+  giveBack: number | null;
   /** Highest oxygen an hour of the window closed on, mg/L. */
   o2High: number;
   /** Lowest, over those same hours — the dark ones counted, so this is the floor. */
@@ -181,6 +185,12 @@ export type GasCurveOptions = Omit<RunOptions, 'watch'>;
  * names. A run that ends within {@link SETTLED_TOLERANCE} of the planting it
  * started with — one handed a grown-in tank at tick 0 — keeps every lit hour it
  * has, so the window is inert where there is no ramp worth leaving out.
+ *
+ * Every hour is read off {@link settleEnvironment}, which is the hour the tick
+ * ran: `before` is the state the tick was *handed*, and it carries the previous
+ * hour's light, so classifying on it counts dusk as lit and skips dawn. What
+ * `before` is authoritative for is the water the hour opened on, which is what
+ * bounds a night.
  */
 export function gasCurve({ routine = {}, ...options }: GasCurveOptions): GasCurve {
   const config = routine.config ?? DEFAULT_CONFIG;
@@ -195,15 +205,18 @@ export function gasCurve({ routine = {}, ...options }: GasCurveOptions): GasCurv
     routine,
     watch: (hour, before, after) => {
       if (hour <= SETTLING_DAYS * DAY) return;
-      const size = totalSize(before);
+      const settled = settleEnvironment(before, config);
+      const size = totalSize(settled);
       held.push({ value: after.resources.oxygen, size });
 
-      if (before.resources.light <= 0) {
-        dusk ??= before.resources.oxygen;
+      if (settled.resources.light <= 0) {
+        // A night opens at the hour the lights go out and not at any dark hour
+        // after it, so a window opening mid-night has no dusk to measure from.
+        if (before.resources.light > 0) dusk = before.resources.oxygen;
         return;
       }
 
-      const { effects } = processPlants(before, config);
+      const { effects } = processPlants(settled, config);
       const off = (resource: string): number =>
         effects.find((e) => e.resource === resource && e.source === 'photosynthesis')?.delta ?? 0;
       made.push({ value: off('oxygen'), size });
@@ -218,20 +231,21 @@ export function gasCurve({ routine = {}, ...options }: GasCurveOptions): GasCurv
   const grownIn = totalSize(run.final);
   if (grownIn <= 0) throw new Error('the run ends with no planting to take a window on');
 
-  const settled = (readings: readonly Reading[]): Reading[] =>
+  const inWindow = (readings: readonly Reading[]): Reading[] =>
     readings.filter((reading) => Math.abs(reading.size - grownIn) <= SETTLED_TOLERANCE * grownIn);
   const values = (readings: readonly Reading[]): number[] =>
     readings.map((reading) => reading.value);
 
-  const lit = settled(made);
-  const water = values(settled(held));
+  const lit = inWindow(made);
+  const water = values(inWindow(held));
+  const nights = values(inWindow(falls));
   if (water.length === 0) throw new Error('no hour in the grown-in window to read');
 
   return {
     ...run,
     gross: meanOf(values(lit), 'lit hour'),
-    uptake: meanOf(values(settled(drawn)), 'lit hour'),
-    giveBack: meanOf(values(settled(falls)), 'night'),
+    uptake: meanOf(values(inWindow(drawn)), 'lit hour'),
+    giveBack: nights.length === 0 ? null : mean(nights),
     o2High: Math.max(...water),
     o2Low: Math.min(...water),
     size: meanOf(

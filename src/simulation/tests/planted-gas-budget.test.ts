@@ -19,6 +19,7 @@ import { DEFAULT_CONFIG } from '../config/index.js';
 import { nutrientsDefaults } from '../config/nutrients.js';
 import { plantsDefaults } from '../config/plants.js';
 import { processPlants } from '../plants/index.js';
+import { settleEnvironment } from '../tick.js';
 import { computeFishVitality } from '../systems/fish-health.js';
 import { gasCurve, runTank } from './metrics.js';
 import { DAY } from './tanks.js';
@@ -107,12 +108,15 @@ const holding =
  * Read something off every lit hour past the settling days, in a tank whose
  * carbon, nutrients and opening oxygen are all held — so what differs between
  * two of these runs is the water volume and nothing else.
+ *
+ * `settled` is the hour as the tick ran it, light included; the state the tick
+ * was handed still carries the hour before's.
  */
 function litHours<T>(
   capacity: number,
   plants: PresetSeed['plants'],
   co2: number,
-  read: (before: SimulationState, after: SimulationState) => T
+  read: (settled: SimulationState, after: SimulationState) => T
 ): T[] {
   const readings: T[] = [];
 
@@ -123,7 +127,9 @@ function litHours<T>(
     rngSeed: 4242,
     routine: { hold: holding(co2), config: CLEAR_WATER },
     watch: (hour, before, after) => {
-      if (hour > 2 * DAY && before.resources.light > 0) readings.push(read(before, after));
+      if (hour <= 2 * DAY) return;
+      const settled = settleEnvironment(before, CLEAR_WATER);
+      if (settled.resources.light > 0) readings.push(read(settled, after));
     },
   });
 
@@ -147,20 +153,20 @@ const plantOxygen = (capacity: number, co2 = CO2_HELD, plants = PLANTING): numbe
 /**
  * The share of the dissolved carbon photosynthesis takes in one lit hour, at
  * its narrowest and its widest across the run — 1 is a planting that took the
- * whole column. Read off the effects the tick would apply rather than off the
- * water afterwards, because respiration and the surface are moving the same
- * stock in the same hour.
+ * whole column. Read off the effects the tick applies rather than off the water
+ * afterwards, because respiration and the surface are moving the same stock in
+ * the same hour.
  */
 function carbonDrawn(
   capacity: number,
   plants: PresetSeed['plants'],
   co2 = CO2_HELD
 ): { least: number; most: number } {
-  const shares = litHours(capacity, plants, co2, (before) => {
-    const fixed = processPlants(before, CLEAR_WATER).effects.find(
+  const shares = litHours(capacity, plants, co2, (settled) => {
+    const fixed = processPlants(settled, CLEAR_WATER).effects.find(
       (effect) => effect.resource === 'co2' && effect.source === 'photosynthesis'
     );
-    return -(fixed?.delta ?? 0) / before.resources.co2;
+    return -(fixed?.delta ?? 0) / settled.resources.co2;
   });
 
   if (shares.length === 0) throw new Error(`no lit hour to read in the ${capacity} L`);

@@ -35,15 +35,26 @@ CO₂ derived from it.
 
 ## Why 30
 
-> **Read the grown-in table with its instrument in mind.** Its rows average a
-> tank that is still growing — this planting climbs from 350 for the whole 90
-> days and never plateaus, so the figure depends entirely on which hours are
-> counted. Re-measured at grown-in size on the 2b engine this document pins, the
-> yield-30 row reads **0.608** rather than 0.670. The choice of 30 is unaffected:
-> the window moves both the row and the band it sits in, and 30 stays mid-band on
-> both plantings. The anchor row did not drift (0.579 against 0.581 here). See
-> `2026-08-09-light-response.md`, which re-derives against the same observable
-> and keeps 30.
+> **Read the grown-in table with its instrument in mind — it has two faults.**
+>
+> *Which hours.* Its rows average a tank that is still growing — this planting
+> climbs from 350 for the whole 90 days and never plateaus, so the figure depends
+> entirely on which hours are counted. Re-measured at grown-in size on the 2b
+> engine this document pins, the yield-30 row reads **0.608** rather than 0.670,
+> and the anchor row does not drift (0.579 against 0.581 here).
+>
+> *Which hour.* The reader that produced every gross and give-back figure below
+> classified each hour on the state the tick was *handed*, which still carries
+> the hour before's light. It therefore skipped dawn, counted the hour the lights
+> went out, computed the plant effects on water the hour's CO₂ injection had not
+> reached, and measured the night one hour short of a night. Corrected, gross
+> rises ≈20 % and give-back ≈60–80 %; **the bands quoted below — 20–50 here and
+> 25.4–54.1 on the anchor's planting — are not comparable to a corrected
+> reading**, and the corrected window is 21–26 on both plantings. The figures in
+> this table have not been re-measured, because doing so means re-running the 2b
+> engine rather than re-reading this document. See
+> `2026-08-09-light-response.md`, where the fault is described and 2c is
+> re-derived against the same observable.
 
 A grown-in planted 150 L has to run **0.5–1 mg/L/h of gross O₂ through the
 photoperiod** and give back **under ~2 mg/L across the dark hours**. Pinning
