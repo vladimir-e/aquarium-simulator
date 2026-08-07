@@ -282,10 +282,33 @@ with shading in and 255 with it out.
 
 The hump's depth is the size of the mismatch, not a property of the light. A
 monte carlo (Ik 60) at 5 PAR carries **4.3×** the algae it carries at its 70 PAR
-minimum. Two java fern and two anubias at size 35 (Ik 20 and 16) in a low-tech
-40 L with six tetras carry **1.09×** theirs across the same stretch — 61.6 at
-2 PAR against 56.7 at 50 — the same shape, and all but flat. The bright arm is
-the same in both.
+minimum. Put a planting that matches the light under the same ladder and the
+hump nearly disappears: two java fern and two anubias at size 35 (Ik 20 and 16)
+in a low-tech 40 L — no injector, no doser, six neon tetras, 0.6 g/day fed and
+30 % weekly change, and the water *not* held, because a keeper of shade plants
+does not run one replete. 60 days.
+
+| substrate PAR | size60 | peak algae | noAlgae |
+|---|---|---|---|
+| 2 | 230 | 61.6 | 294 |
+| 5 | 244 | 60.3 | 307 |
+| 10 | 266 | 58.5 | 326 |
+| 20 | 280 | 57.4 | 338 |
+| 30 | 286 | 56.9 | 343 |
+| 50 | 289 | 56.7 | 346 |
+| 70 | 290 | 56.7 | 346 |
+| 90 | 240 | 70.4 | 335 |
+| 120 | 0 | 85.9 | 284 |
+
+**1.09×** across the dim stretch — 61.6 at 2 PAR against 56.7 at the 70 PAR
+minimum — where the sun species carries 4.3× across its own. Same shape, all but
+flat.
+
+Past 70 the two tanks agree again: algae's own channel opens, the bloom climbs,
+and by 120 PAR it has taken the planting with it — the same death spiral, on
+plants that had no trouble at 70. `noAlgae` falls over those last two rows as
+well, which is the other channel a fixture that bright turns on: 70 PAR is where
+the anubias band closes, so past it `lightExcessiveSeverity` is charging too.
 
 ## The daily-light-integral trade, re-measured
 

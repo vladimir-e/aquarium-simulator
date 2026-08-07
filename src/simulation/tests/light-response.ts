@@ -25,6 +25,7 @@ import { formatTable, tuned } from './sweep.js';
 
 const RNG_SEED = 4242;
 const CAPACITY = 150;
+const SHADE_CAPACITY = 40;
 
 /**
  * The tank `co2PerRateUnit` was pinned on in
@@ -186,18 +187,21 @@ const NO_SHADING = tuned((draft) => {
   draft.plants.algaeShadingThreshold = Number.MAX_SAFE_INTEGER;
 });
 
+interface GrowOptions {
+  setup: SimulationConfig;
+  seed: PresetSeed;
+  config: TunableConfig;
+  hold?: (state: SimulationState) => SimulationState;
+}
+
 /** Growth over 60 days, and the heaviest bloom the tank carried getting there. */
-function grow(
-  setup: SimulationConfig,
-  species: PlantSpecies,
-  config: TunableConfig
-): { size: number; algae: number } {
+function grow({ setup, seed, config, hold }: GrowOptions): { size: number; algae: number } {
   const { final, samples } = runTank({
     setup,
-    seed: monoculture(species),
+    seed,
     days: 60,
     rngSeed: RNG_SEED,
-    routine: { feed: 0.6, waterChange: 0.3, hold: fed, config },
+    routine: { feed: 0.6, waterChange: 0.3, hold, config },
   });
   return { size: totalSize(final), algae: Math.max(...samples.map((s) => s.algae)) };
 }
@@ -221,8 +225,9 @@ function doseTable(species: PlantSpecies, bandHigh: number): string {
   return formatTable(
     TARGETS.filter((target) => target <= bandHigh).map((subPar) => {
       const setup = withLight(GROWN_IN, fixtureFor(subPar, CAPACITY), 12);
-      const production = curveOf({ setup, seed: monoculture(species), days: 3, hold: fed });
-      const keeper = grow(setup, species, DEFAULT_CONFIG);
+      const seed = monoculture(species);
+      const production = curveOf({ setup, seed, days: 3, hold: fed });
+      const keeper = grow({ setup, seed, config: DEFAULT_CONFIG, hold: fed });
 
       return {
         subPAR: subPar,
@@ -231,7 +236,52 @@ function doseTable(species: PlantSpecies, bandHigh: number): string {
         nitrateDraw: production.uptake,
         size60: keeper.size,
         algae: keeper.algae,
-        noAlgae: grow(setup, species, NO_SHADING).size,
+        noAlgae: grow({ setup, seed, config: NO_SHADING, hold: fed }).size,
+      };
+    })
+  );
+}
+
+/** A 40 L a keeper would actually build for shade plants: no injector, no doser. */
+const LOW_TECH: SimulationConfig = {
+  tankCapacity: SHADE_CAPACITY,
+  heater: { enabled: true, targetTemperature: 25, wattage: 50 },
+  filter: { enabled: true, type: 'canister' },
+  substrate: { type: 'aqua_soil' },
+  ato: { enabled: true },
+};
+
+/** Two java fern and two anubias — Ik 20 and 16 — and the fish that feed them. */
+const SHADE: PresetSeed = {
+  bacteria: 'cycled',
+  fish: [{ species: 'neon_tetra', count: 6, sex: 'female' }],
+  plants: [
+    { species: 'java_fern', count: 2, size: 35 },
+    { species: 'anubias', count: 2, size: 35 },
+  ],
+};
+
+const SHADE_TARGETS = [2, 5, 10, 20, 30, 50, 70, 90, 120];
+
+/**
+ * § 2b — the dim end, on a planting that matches the light. The tables above
+ * put a sun species under a fixture too dim for it and hold the water replete
+ * while they do; the bloom that follows is the size of that mismatch, so a
+ * planting without one has to read flat over the same stretch. The last two
+ * rows are past 70 PAR, where the anubias band closes and algae's own light
+ * channel opens — the arm that is a light response in either tank.
+ */
+function shadePairing(): string {
+  return formatTable(
+    SHADE_TARGETS.map((subPar) => {
+      const setup = withLight(LOW_TECH, fixtureFor(subPar, SHADE_CAPACITY), 12);
+      const keeper = grow({ setup, seed: SHADE, config: DEFAULT_CONFIG });
+
+      return {
+        subPAR: subPar,
+        size60: keeper.size,
+        algae: keeper.algae,
+        noAlgae: grow({ setup, seed: SHADE, config: NO_SHADING }).size,
       };
     })
   );
@@ -251,7 +301,8 @@ function dliTrade(species: PlantSpecies): string {
       { subPar: 150, hours: 4 },
     ].map(({ subPar, hours }) => {
       const setup = withLight(GROWN_IN, fixtureFor(subPar, CAPACITY), hours);
-      const keeper = grow(setup, species, DEFAULT_CONFIG);
+      const seed = monoculture(species);
+      const keeper = grow({ setup, seed, config: DEFAULT_CONFIG, hold: fed });
 
       return {
         subPAR: subPar,
@@ -259,7 +310,7 @@ function dliTrade(species: PlantSpecies): string {
         dli: subPar * hours,
         size60: keeper.size,
         algae: keeper.algae,
-        noAlgae: grow(setup, species, NO_SHADING).size,
+        noAlgae: grow({ setup, seed, config: NO_SHADING, hold: fed }).size,
       };
     })
   );
@@ -271,6 +322,7 @@ const SECTIONS: Array<[string, () => string]> = [
   ['the same tank with the curve taken out, 90 d', termOut],
   ['fixed photoperiod, java fern (Ik 20), water held', (): string => doseTable('java_fern', 90)],
   ['fixed photoperiod, monte carlo (Ik 60), water held', (): string => doseTable('monte_carlo', 200)],
+  ['fixed photoperiod, shade pairing in a low-tech 40 L', shadePairing],
   ['matched daily light integral, java fern, water held', (): string => dliTrade('java_fern')],
 ];
 
