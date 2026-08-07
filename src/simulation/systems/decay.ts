@@ -8,7 +8,6 @@ import type { SimulationState } from '../state.js';
 import type { System } from './types.js';
 import type { TunableConfig } from '../config/index.js';
 import { type DecayConfig, decayDefaults } from '../config/decay.js';
-import { nutrientsDefaults } from '../config/nutrients.js';
 import { monodFactor, q10Factor } from '../core/kinetics.js';
 import { O2_TO_CO2_MASS_RATIO } from '../core/chemistry.js';
 import { getPpm } from '../resources/index.js';
@@ -62,7 +61,7 @@ export const decaySystem: System = {
   update(state: SimulationState, config: TunableConfig): Effect[] {
     const effects: Effect[] = [];
     const decayConfig = config.decay;
-    const nutrientsConfig = config.nutrients ?? nutrientsDefaults;
+    const nutrientsConfig = config.nutrients;
 
     // Decay food → waste + CO2 + O2 consumption + trace phosphate
     if (state.resources.food > 0) {

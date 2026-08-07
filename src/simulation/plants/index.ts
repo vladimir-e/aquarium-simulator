@@ -34,8 +34,6 @@ import type { SimulationState, Plant } from '../state.js';
 import { PLANT_SPECIES_DATA } from './species.js';
 import type { Effect } from '../core/effects.js';
 import type { TunableConfig } from '../config/index.js';
-import { plantsDefaults } from '../config/plants.js';
-import { nutrientsDefaults } from '../config/nutrients.js';
 import {
   calculatePhotosynthesis,
   getTotalPlantSize,
@@ -72,8 +70,8 @@ export function processPlants(
   config: TunableConfig
 ): PlantsProcessingResult {
   const effects: Effect[] = [];
-  const plantsConfig = config.plants ?? plantsDefaults;
-  const nutrientsConfig = config.nutrients ?? nutrientsDefaults;
+  const plantsConfig = config.plants;
+  const nutrientsConfig = config.nutrients;
 
   // Get total plant size
   const totalPlantSize = getTotalPlantSize(state.plants);

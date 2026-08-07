@@ -36,8 +36,6 @@
 import { produce } from 'immer';
 import type { SimulationState, AlgaeState } from '../state.js';
 import type { TunableConfig } from '../config/index.js';
-import { algaeVitalityDefaults } from '../config/algae-vitality.js';
-import { nutrientsDefaults } from '../config/nutrients.js';
 import { computeAlgaePopulation } from '../systems/algae-vitality.js';
 import { bankSurplus } from '../systems/vitality.js';
 import type { AlgaeVitalityConfig } from '../config/algae-vitality.js';
@@ -85,8 +83,8 @@ export function processAlgae(
   state: SimulationState,
   config: TunableConfig
 ): AlgaeProcessingResult {
-  const algaeConfig = config.algae ?? algaeVitalityDefaults;
-  const nutrientsConfig = config.nutrients ?? nutrientsDefaults;
+  const algaeConfig = config.algae;
+  const nutrientsConfig = config.nutrients;
 
   const { net } = computeAlgaePopulation({
     plants: state.plants,
