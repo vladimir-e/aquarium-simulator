@@ -54,22 +54,24 @@ is therefore inert exactly where it should be.
 Grown-in planted 150 L: canister, aqua soil, 90 PAR on a 12 h photoperiod,
 carbon 10 h/day, 3 ml/day dosed, ATO, 0.6 g/day fed, 30 % weekly change. Planted
 with 3 amazon sword, 4 monte carlo, 2 java fern and 1 anubias at size 35 — 350
-total — plus 12 neon tetras, run 90 days. `hours` is the window; `size` is the
-mean planting across it.
+total — plus 12 neon tetras, run 90 days. `hours` is the window and `size` the
+mean planting across it. Every column is read inside that window: the means
+either side of the O₂ pair are per lit hour, and the pair itself is the highest
+and lowest any hour of the window closed on, dark hours counted.
 
 | yield | gross O₂ (mg/L/h) | O₂ high | O₂ low | dark give-back | size | hours | fish |
 |---|---|---|---|---|---|---|---|
 | 10 | 0.212 | 8.92 | 7.48 | 0.51 | 959 | 424 | 12 |
 | 20 | 0.400 | 9.64 | 6.84 | 1.04 | 973 | 392 | 12 |
-| **30** | **0.569** | **10.28** | **7.40** | **1.43** | **972** | **376** | **12** |
+| **30** | **0.569** | **10.28** | **7.42** | **1.43** | **972** | **376** | **12** |
 | 32 | 0.603 | 10.40 | 6.91 | 1.53 | 976 | 373 | 12 |
 | 35 | 0.650 | 10.57 | 6.58 | 1.65 | 975 | 360 | 12 |
-| 40 | 0.726 | 10.84 | 7.13 | 1.82 | 975 | 349 | 12 |
-| 45 | 0.796 | 11.09 | 6.97 | 1.95 | 978 | 328 | 12 |
+| 40 | 0.726 | 10.84 | 7.15 | 1.82 | 975 | 349 | 12 |
+| 45 | 0.796 | 11.09 | 7.04 | 1.95 | 978 | 328 | 12 |
 | 50 | 0.868 | 11.33 | 6.10 | 2.15 | 977 | 330 | 12 |
 | 57 | 0.962 | 11.64 | 6.61 | 2.31 | 975 | 346 | 12 |
 | 60 | 1.002 | 11.76 | 5.75 | 2.43 | 973 | 360 | 12 |
-| 80 | 1.234 | 12.50 | 6.04 | 2.80 | 966 | 399 | 12 |
+| 80 | 1.234 | 12.50 | 6.10 | 2.80 | 966 | 399 | 12 |
 
 The gross band opens at ≈25.9 and the dark-hours ceiling closes it at ≈46.2. On
 the anchor's own planting the same sweep admits **26.2 – 55.9**, against the
@@ -125,6 +127,32 @@ nitrate settles 10.98 → 12.74 ppm — up, but a healthy planted-tank figure, w
 under the 40 ppm where damage starts and the 100 ppm toxicity threshold.
 Phosphate barely moves and plant condition is 100 either way. Nothing
 misbehaves, so nothing moves.
+
+## The vitality benefit now pays above the band
+
+`main` awarded `lightBenefitPeak` only *inside* `tolerableLight` and nothing
+outside it. 2c awards `peak × tanh(PAR / Ik)`, and by the top of any species'
+band that term is within a thousandth of 1 — so the award above the band is
+effectively the whole peak, 20 % of the benefit budget, paid to a plant that
+`lightExcessiveSeverity` is burning at the same time.
+
+What that is worth: 40 L, water held at the optimum the tables above hold it at,
+algae shading out of reach, 60 days, against a `lightBenefitPeak: 0` run that
+reproduces `main` exactly for these rows.
+
+| species | band high | substrate PAR | this branch | at benefit 0 |
+|---|---|---|---|---|
+| java fern | 90 | 300 | alive, condition 64.8 | dead d48.3 |
+| amazon sword | 120 | 250 | alive, condition 43.2 | dead d40.8 |
+| anubias | 70 | 300 | condition 97.7 | condition 52.2 |
+| monte carlo | 200 | 300 | dead d46.8 | dead d28.7 |
+| anubias | 70 | 100 | size 264.2 | size 232.7 |
+
+It reads this way by design. A plant above its band really is photosynthesising
+at its maximum, and the rate carries no photoinhibition term — the harm from too
+much light is `lightExcessiveSeverity`'s to charge, on its own channel. The
+constant carrying that charge was pinned when this benefit was zero above the
+band.
 
 ---
 
@@ -194,20 +222,46 @@ The counterfactual proves causation rather than correlation. With
 
 So the chain is: high PAR with no matching uptake grows algae → the bloom passes
 `algaeShadingThreshold` → the shading stressor takes the planting down. That is
-**correct emergent behaviour**, not a defect — it is the death spiral the
-`algae_shading` stressor was built for, and it is what every keeper who has
-pointed a big fixture at a tank without the plant mass to use it has seen. No
-fix; it is recorded here as a finding.
+the death spiral the `algae_shading` stressor was built for, and it is what every
+keeper who has pointed a big fixture at a tank without the plant mass to use it
+has seen. The probe holds nutrients at three times optimal to isolate the light,
+which is a permanently replete water column — exactly the condition under which
+light alone decides whether plants or algae win.
 
-Two things sharpen it. The probe holds nutrients at three times optimal to
-isolate the light, which is a permanently replete water column — exactly the
-condition under which light alone decides whether plants or algae win. And peak
-algae is **U-shaped in PAR**, not monotone: 76.7 at 5 PAR, a minimum of 17.8 at
-70, then 94.0 at 200. At the dim end the plants are too weak to suppress algae;
-at the bright end the light outruns what they can use. Both ends of that curve
-are the plant-suppression channel and the light channel trading places, and the
-dim-end deaths are algae-mediated too — at 5 PAR monte carlo survives to 255
-with shading out.
+## The dim end of that curve is an artifact
+
+Peak algae is **U-shaped in PAR** on the monte carlo table — 76.7 at 5 PAR, a
+minimum of 17.8 at 70, then 94.0 at 200. The bright arm is a light response.
+The dim arm is not: it is the plant side of the comparison moving while the
+algae side cannot.
+
+Algae has exactly one light channel. `systems/algae-vitality.ts` gives it the
+`excess_light` benefit, `min(peak, severity × (PAR − lightExcessThreshold))`,
+which is zero at or below the 70 PAR threshold; `algae/index.ts` gates growth
+and surplus on `light > 0`, and nothing else in the population reads intensity.
+So below 70 PAR the light is a switch, not a dial. Driven with the plants taken
+out and the water held the way the tables above hold it, the same 150 L over
+60 days reads that straight off:
+
+| substrate PAR | 1 | 5 | 10 | 20 | 30 | 50 | 69 | 70 | 90 | 120 | 200 |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| peak algae | 84.374 | 84.374 | 84.374 | 84.374 | 84.374 | 84.374 | 84.374 | 84.374 | 88.261 | 92.357 | 96.265 |
+| crosses shading | d12.5 | d12.5 | d12.5 | d12.5 | d12.5 | d12.5 | d12.5 | d12.5 | d10.5 | d8.5 | d7.5 |
+
+**1 PAR grows algae exactly as fast as 70 PAR**, to the digit, crossing the
+shading threshold on the same day. Only past 70 does the curve move.
+
+2c weakens the plants at the dim end — correctly, that is the defect closing —
+and weakens algae not at all, so algae wins by default and the hump appears. The
+dim-end deaths are algae's too: at 5 PAR the monte carlo planting reaches zero
+with shading in and 255 with it out.
+
+The hump's depth is the size of the mismatch, not a property of the light. A
+monte carlo (Ik 60) at 5 PAR carries **4.3×** the algae it carries at its 70 PAR
+minimum. Two java fern and two anubias at size 35 (Ik 20 and 16) in a low-tech
+40 L with six tetras carry **1.09×** theirs across the same stretch — 61.6 at
+2 PAR against 56.7 at 50 — the same shape, and all but flat. The bright arm is
+the same in both.
 
 ## The daily-light-integral trade, re-measured
 
@@ -239,11 +293,11 @@ them. The claim re-tested here is the direction and its reason, not the ratio.)
 `co2PerRateUnit` directly — passes unmodified at yield 30, band untouched. All
 four permissive anchors stay green.
 
-`npm test` 2654 passed / 152 files · `npx tsc --noEmit` clean · `npm run lint`
+`npm test` 2661 passed / 152 files · `npx tsc --noEmit` clean · `npm run lint`
 clean apart from the 3 standing `no-console` warnings in `src/ui/`.
 
 One thing this branch reverted rather than shipped: `oxygen-limited-draw.test.ts`
 had been rewritten from a hard-zero assertion to a share-based one while the
 yield was provisionally at 40. At 30 the original assertions pass untouched, so
 the rewrite went back. Its one genuinely stale figure — the aerated tank's
-tightest margin, which the curve moves — is corrected in place, 3.05 → 2.91 mg/L.
+tightest margin, which the curve moves — is corrected in place, 3.05 → 2.86 mg/L.
