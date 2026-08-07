@@ -11,6 +11,7 @@ Format: - **Feature name** (#PR) - One short sentence (under ~150 chars)
 
 ## Unreleased
 
+- **A plant banks what it can't grow on** - growth draws a share of the reserve and withdraws only what became size, so a maxed plant fills its bank instead of burning it (§2e, v22).
 - **A brighter fixture grows more plant, up to a point** - photosynthesis and the light benefit scale on `tanh(PAR/Ik)`, saturating at twice each species' band low; breaking: no `lightRequirement` (v21, v8).
 - **A planted tank makes more oxygen than it burns** - `baseRespirationRate` 0.15 → 0.03, against the rate a tank on ambient carbon actually reaches.
 - **A hypoxic fish excretes less nitrogen** - deamination is metabolism, so both NH₃ streams carry the same oxygen factor as the respiratory draw; feces do not.

@@ -401,7 +401,7 @@ const PlantsConfigSchema = z
     respirationReferenceTemp: z.number(),
     respirationOxygenHalfSaturation: z.number(),
     co2PerRateUnit: z.number(),
-    plantGrowthPerTickCap: z.number(),
+    growthDrawRate: z.number(),
     sizePerSurplus: z.number(),
     surplusCap: z.number().min(0),
     // Vitality stressor severities

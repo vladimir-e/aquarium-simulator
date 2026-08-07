@@ -3,12 +3,16 @@
  *
  * Each plant's vitality banks surplus on `Plant.surplus` when condition
  * is full and net is positive (capped at `surplusCap`). This module
- * spends the bank: every tick, drain up to `plantGrowthPerTickCap` units;
- * convert the drained portion into a size delta scaled by species
- * growth rate, the per-`sizePerSurplus` knob, and an asymptotic factor
- * that decays toward zero as the plant approaches its species
- * `maxSize`. The bank's leftover stays — future propagation work will
- * read it.
+ * spends the bank: every lit tick a plant mobilises `growthDrawRate` of
+ * it toward new tissue, and the asymptotic factor decides how much of
+ * that becomes size. **Only what became size leaves the bank** — a
+ * plant at its ceiling converts nothing and pays nothing, so its whole
+ * income banks instead of burning. That reserve is what rides out a
+ * dark spell, and what propagation will spend on runners.
+ *
+ * The bank therefore settles where the draw meets the income rather
+ * than emptying: growth stays limited by what the plant earns, and a
+ * plant that earns more both grows faster and holds more in reserve.
  *
  * No tank-wide overgrowth penalty, no biomass redistribution, no
  * 200 % waste-dump backstop. Each plant runs against its own bank and
@@ -36,9 +40,9 @@ export function getSpeciesMaxSize(species: PlantSpecies): number {
 
 /**
  * Asymptotic growth throttle: `factor = max(0, 1 - size / maxSize)`.
- * At size = 0 the plant gains size at full efficiency; as it
- * approaches `maxSize` the factor decays smoothly toward zero, so
- * each plant self-limits to its species ceiling.
+ * The share of mobilised surplus a plant can still turn into size — 1
+ * at size 0, decaying to 0 at `maxSize`, so each plant self-limits to
+ * its species ceiling and the rest stays banked.
  */
 export function asymptoticGrowthFactor(size: number, maxSize: number): number {
   if (maxSize <= 0) return 0;
@@ -48,12 +52,11 @@ export function asymptoticGrowthFactor(size: number, maxSize: number): number {
 /**
  * Spend a plant's banked surplus on growth for one tick.
  *
- * Drains `min(plant.surplus, plantGrowthPerTickCap)` from the bank.
- * The drained units convert to size at rate
- * `drained × asymptoticFactor × speciesGrowthRate × sizePerSurplus`,
- * so the asymptotic factor reduces *spending efficiency* rather than
- * *withdrawal amount* — a plant near `maxSize` keeps drawing surplus
- * at full rate but gets less size per unit drawn.
+ * The plant mobilises `growthDrawRate` of its bank and converts the
+ * asymptotic share of that into size at
+ * `speciesGrowthRate × sizePerSurplus`. The converted units are what
+ * leaves the bank, so the withdrawal is the price of the growth
+ * delivered and nothing else.
  *
  * Returns a new plant with updated `surplus` and `size`. The original
  * is untouched.
@@ -64,14 +67,15 @@ export function spendSurplusOnGrowth(
 ): Plant {
   if (plant.surplus <= 0) return plant;
 
-  const drained = Math.min(plant.surplus, config.plantGrowthPerTickCap);
-  const factor = asymptoticGrowthFactor(plant.size, getSpeciesMaxSize(plant.species));
-  const speciesRate = getSpeciesGrowthRate(plant.species);
-  const sizeIncrease = drained * factor * speciesRate * config.sizePerSurplus;
+  const converted =
+    plant.surplus *
+    config.growthDrawRate *
+    asymptoticGrowthFactor(plant.size, getSpeciesMaxSize(plant.species));
+  const sizeGained = converted * getSpeciesGrowthRate(plant.species) * config.sizePerSurplus;
 
   return {
     ...plant,
-    size: plant.size + sizeIncrease,
-    surplus: plant.surplus - drained,
+    size: plant.size + sizeGained,
+    surplus: plant.surplus - converted,
   };
 }

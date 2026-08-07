@@ -26,6 +26,7 @@
     "probe:par-dose-response": "tsx src/simulation/tests/par-dose-response.ts",
     "probe:light-response": "tsx src/simulation/tests/light-response.ts",
     "probe:plant-respiration": "tsx src/simulation/tests/plant-respiration.ts",
+    "probe:surplus-bank": "tsx src/simulation/tests/surplus-bank.ts",
     "probe:oxygen-limited-draw": "tsx src/simulation/tests/oxygen-limited-draw.ts",
     "probe:nitrification-on-air": "tsx src/simulation/tests/nitrification-on-air.ts",
     "lint": "eslint 'src/**/*.{ts,tsx}'",

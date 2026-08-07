@@ -400,10 +400,10 @@ describe('processPlants', () => {
       });
       const result = processPlants(state, DEFAULT_CONFIG);
       expect(result.state.plants[0].size).toBeGreaterThan(50);
-      // Bank drained by at most plantGrowthPerTickCap (it could also
-      // accrue this tick's positive overflow — net direction depends on
-      // whether accrual > drain). Either way, less than the starting 10.
-      expect(result.state.plants[0].surplus).toBeLessThan(10 + plantsDefaults.plantGrowthPerTickCap);
+      // Growth costs a share of the bank and this tick's accrual refills it,
+      // so the bank ends above where it started — a growing plant in a good
+      // tank earns more than it spends on height.
+      expect(result.state.plants[0].surplus).toBeGreaterThan(10);
     });
 
     it('day/night/day cycle: surplus and size advance only during lit periods', () => {

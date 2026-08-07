@@ -51,9 +51,8 @@ const MASS_MAX = 100;
  * Drain up to `algaeGrowthPerTickCap` from the surplus bank and
  * convert to mass via the asymptotic factor `max(0, 1 - mass / 100)`.
  *
- * Asymptotic-factor self-limits at `MASS_MAX` exactly the way
- * `spendSurplusOnGrowth` does for plants: the bloom keeps drawing
- * surplus at full rate but gets less mass per unit drawn as it
+ * The asymptotic factor self-limits the bloom at `MASS_MAX`: it keeps
+ * drawing surplus at full rate but gets less mass per unit drawn as it
  * approaches saturation. Returns the post-spend `AlgaeState`.
  */
 export function spendAlgaeSurplus(

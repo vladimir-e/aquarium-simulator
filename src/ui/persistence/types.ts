@@ -22,6 +22,13 @@ import type { TunableConfig } from '../../simulation/config/index.js';
  * Increment this when the structure changes in a breaking way.
  * On version mismatch, stored data is discarded.
  *
+ * v22: Growth draws a share of the bank instead of a flat ceiling.
+ *      `PlantsConfig` swaps `plantGrowthPerTickCap` (surplus units per tick)
+ *      for `growthDrawRate` (share of the bank per lit hour), and only the
+ *      units that became size leave the bank. A v21 config carries a key the
+ *      strict schema refuses, and a refused section reverts every other one to
+ *      its defaults; read as a rate, its 2.0 would mobilise twice the whole
+ *      bank every hour.
  * v21: Photosynthesis reads the intensity. `PlantsConfig` gains
  *      `saturationIrradianceFactor`, the multiple of a species' band low at
  *      which it saturates, and both light channels — the photosynthetic rate
@@ -142,7 +149,7 @@ import type { TunableConfig } from '../../simulation/config/index.js';
  *     nutrient sufficiency) but its persisted shape is identical, so
  *     the bump is purely the new Fish field.
  */
-export const PERSISTENCE_VERSION = 21;
+export const PERSISTENCE_VERSION = 22;
 
 /**
  * Storage key for the unified persisted state.
