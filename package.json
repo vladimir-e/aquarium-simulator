@@ -24,6 +24,7 @@
     "test:coverage": "vitest run --coverage",
     "probe:default-fixture-survival": "tsx src/simulation/tests/default-fixture-survival.ts",
     "probe:par-dose-response": "tsx src/simulation/tests/par-dose-response.ts",
+    "probe:light-response": "tsx src/simulation/tests/light-response.ts",
     "probe:oxygen-limited-draw": "tsx src/simulation/tests/oxygen-limited-draw.ts",
     "probe:nitrification-on-air": "tsx src/simulation/tests/nitrification-on-air.ts",
     "lint": "eslint 'src/**/*.{ts,tsx}'",
