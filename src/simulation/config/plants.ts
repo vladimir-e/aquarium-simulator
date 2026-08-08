@@ -191,7 +191,7 @@ export const plantsDefaults: PlantsConfig = {
   // macrophyte literature reports against light-saturated gross photosynthesis,
   // with the Monod below leaving 14 % standing in air-saturated water. It is
   // 3 % of the injected-carbon rate, which is what the old figure was quoting.
-  // See `docs/calibration/runs/2026-08-08-plant-respiration.md`.
+  // See `docs/calibration/runs/2026-08-07-plant-respiration.md`.
   baseRespirationRate: 0.03,
   respirationQ10: 2.0, // Rate doubles per 10°C increase
   respirationReferenceTemp: 25.0, // °C
@@ -209,8 +209,8 @@ export const plantsDefaults: PlantsConfig = {
   // *and* saturating light. On the corrected gas reader that tank admits
   // 22.3–44.6, and the same claim read on a planting grown in from 350 admits
   // 21.6–43.4. `tests/planted-gas-budget.test.ts` asserts that tank; the
-  // derivations are in `docs/calibration/runs/2026-08-08-light-response.md` and
-  // `docs/calibration/runs/2026-08-08-plant-respiration.md`.
+  // derivations are in `docs/calibration/runs/2026-08-07-light-response.md` and
+  // `docs/calibration/runs/2026-08-07-plant-respiration.md`.
   co2PerRateUnit: 30.0,
 
   // Surplus-driven growth — vitality banks surplus when condition is full and

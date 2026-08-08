@@ -22,6 +22,11 @@ import type { TunableConfig } from '../../simulation/config/index.js';
  * Increment this when the structure changes in a breaking way.
  * On version mismatch, stored data is discarded.
  *
+ * v24: `maintenanceCost` became `upkeepCost` — one mechanic had been
+ *      shipping under two identifier names. A v23 save carries the old key
+ *      and the strict schema would otherwise revert every tuned constant
+ *      to defaults behind a console warning rather than announcing itself.
+ *
  * v23: Darkness costs a plant, and it is paid in tissue. `PlantsConfig` gains
  *      the always-on `upkeepCost` and the `upkeepReserveHours` that says
  *      how much of the bank is held back to pay it, and drops two keys:
@@ -161,7 +166,7 @@ import type { TunableConfig } from '../../simulation/config/index.js';
  *     nutrient sufficiency) but its persisted shape is identical, so
  *     the bump is purely the new Fish field.
  */
-export const PERSISTENCE_VERSION = 23;
+export const PERSISTENCE_VERSION = 24;
 
 /**
  * Storage key for the unified persisted state.
