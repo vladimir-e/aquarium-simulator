@@ -260,8 +260,15 @@ because it was never the multiple's.
 The blackout, which is what the mechanic was built for, is unmoved: every
 species still dies in permanent darkness, one to two days later than before
 (anubias d60, java fern d51, sword d31, hairgrass d23, monte carlo d23; from
-d59 / d49 / d30 / d22 / d22). The melt trace is the same shape — bank drains
-for six days at condition 100, then size goes.
+d59 / d49 / d30 / d22 / d22). The melt trace is the same shape — the bank
+drains for seven days at condition 100, then the size goes:
+
+```
+d30  size 81.4  cond 100.0  bank 8.4      lights off
+d36  size 81.4  cond 100.0  bank 1.1
+d37  size 78.3  cond 100.0  bank 0.0      the bill goes unpaid
+d40  size 18.3  cond 100.0  bank 0.0
+```
 
 ---
 
