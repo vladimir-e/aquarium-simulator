@@ -92,34 +92,46 @@ that the player's choices ultimately produce.
 ## The Vitality Engine
 
 A single pure module (`src/simulation/systems/vitality.ts`) is the
-universal organism interface. It takes a list of stressors, a list of
-benefits, a hardiness factor, the current condition, and the current
-surplus bank (plus its cap); it returns a new condition, the new bank,
-and a per-factor breakdown for UI and telemetry.
+universal organism interface. It takes a list of stressors, an optional
+list of upkeep costs, a list of benefits, a hardiness factor, the
+current condition, and the current surplus bank (plus its cap); it
+returns a new condition, the new bank, and a per-factor breakdown for UI
+and telemetry.
 
 ```
-input  : { stressors[], benefits[], hardiness, condition,
-           surplus, surplusCap, accrueSurplus? }
+input  : { stressors[], upkeep?, upkeepReserveHours?, benefits[],
+           hardiness, condition, surplus, surplusCap, accrueSurplus? }
 output : { newCondition, surplus, breakdown }
 ```
 
 Algorithm:
 
-1. `damageRate = Σ stressor.amount × (1 − hardiness)`
-2. `benefitRate = Σ benefit.amount` (no hardiness scaling)
-3. `net = benefitRate − damageRate`
+1. `upkeepRate = Σ upkeep.amount × (1 − hardiness)`
+2. `damageRate = Σ stressor.amount × (1 − hardiness)`
+3. `benefitRate = Σ benefit.amount` (no hardiness scaling)
 4. Bank clamps into `[0, surplusCap]` on entry (an over-cap value from
    an old save self-heals on the first tick).
-5. Condition + bank update:
-   - `net < 0` → the bank absorbs the damage first
-     (`drain = min(bank, |net|)`); condition declines only by the
-     shortfall the bank can't cover (clamped at 0).
-   - `net > 0`, condition < 100 → condition heals; the bank is idle
-     (overshoot past 100 is spent on the final fraction, not banked).
-   - `net > 0`, condition = 100 → condition stays full; overflow
-     accrues into the bank up to `surplusCap`, discarding the rest.
+5. Energy ledger — `benefitRate − upkeepRate`. A deficit drains the bank
+   to the last unit; what neither income nor bank covered is reported as
+   `starved`, a share of the bill for the caller to take out of its own
+   tissue. It reaches no stock here.
+6. Health ledger — the income left over against `damageRate`:
+   - negative → the bank absorbs it down to the survival reserve
+     (`upkeepRate × upkeepReserveHours`); condition declines only by the
+     shortfall the spare couldn't cover (clamped at 0).
+   - positive, condition < 100, no upkeep declared → condition heals;
+     the bank is idle (overshoot past 100 is spent on the final
+     fraction, not banked).
+   - positive otherwise → overflow accrues into the bank up to
+     `surplusCap`, discarding the rest.
 
-Step 5's branching enforces the "recover then grow" trajectory: a
+The two ledgers are one bank in an order, and the order is what keeps a
+poisoned organism from starving itself: upkeep is senior and spends to
+the floor, damage may only reach the spare above the survival reserve.
+An organism declaring no upkeep reserves nothing and runs the single
+balance the module always ran.
+
+Step 6's branching enforces the "recover then grow" trajectory: a
 stressed organism cannot make progress while its condition is below
 100 %. The healing burns the entire benefit budget until the deficit is
 paid down. The reserve bank sits one layer above — it protects

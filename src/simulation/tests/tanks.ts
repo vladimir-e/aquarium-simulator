@@ -25,6 +25,7 @@ import { tick } from '../tick.js';
 import { applySeed, type PresetSeed, type SeedPlantGroup } from '../seed.js';
 import { applyAction } from '../actions/index.js';
 import { DEFAULT_CONFIG, type TunableConfig } from '../config/index.js';
+import { nutrientsDefaults } from '../config/nutrients.js';
 import { getMassFromPpm, getPpm } from '../resources/helpers.js';
 import { calculateMaxBacteria } from '../systems/nitrogen-cycle.js';
 import { computeFishVitality } from '../systems/fish-health.js';
@@ -74,6 +75,25 @@ export function substrateFor(fixture: number, capacity: number): number {
 export function fixtureFor(target: number, capacity: number): number {
   return target / substrateFor(1, capacity);
 }
+
+/**
+ * Every channel a plant answers to except light, rewritten to optimum — the
+ * {@link KeeperRoutine.hold} a run uses when the fixture, or one named outage,
+ * is meant to be the only thing free to hurt anything. A run that does not pin
+ * these is measuring its own water drawdown alongside whatever it set out to
+ * measure.
+ */
+export const atOptimum = (state: SimulationState): SimulationState =>
+  produce(state, (draft) => {
+    const { water } = draft.resources;
+    draft.resources.nitrate = getMassFromPpm(nutrientsDefaults.optimalNitratePpm, water);
+    draft.resources.phosphate = getMassFromPpm(nutrientsDefaults.optimalPhosphatePpm, water);
+    draft.resources.potassium = getMassFromPpm(nutrientsDefaults.optimalPotassiumPpm, water);
+    draft.resources.iron = getMassFromPpm(nutrientsDefaults.optimalIronPpm, water);
+    draft.resources.co2 = 20;
+    draft.resources.ph = 7.0;
+    draft.resources.temperature = 25;
+  });
 
 /** There is no chiller, so a tank only sits below the room if the room is that cold. */
 const roomFor = (temperature: number): number =>

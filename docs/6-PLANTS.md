@@ -251,8 +251,12 @@ Note what it is *not*: a growing plant does not settle at `surplusCap`,
 and cannot. A day's withdrawal at the cap is more than a day's income,
 so the cap is reachable only once the asymptotic factor has closed the
 withdrawal down. Anything reading the bank as a fraction of health has
-to be scaled against the settling point, not against the cap — see the
-starvation stressor under *Plant Condition*.
+to be scaled against the settling point, not against the cap — which is
+why `upkeepReserveHours` is quoted as a duration rather than as a share
+of the cap. The line is `maintenance × (1 − hardiness) ×
+upkeepReserveHours` in banked units: the same number of hours for every
+species, a different stock for each, because the bank *empties* at the
+post-hardiness rate.
 
 A share saturates too, at `surplusCap × growthDrawRate` — 1.0 units an
 hour on the shipped numbers. A plant reaches it when its settling point
@@ -396,7 +400,6 @@ activates:
 | Stressor | Trigger | Severity (per unit deviation) |
 |----------|---------|-------------------------------|
 | Maintenance | always | `maintenanceCost × q10(temperature)` |
-| Starvation | always | `maintenance × starvationMultiplier × (1 − provisioned)` |
 | Light insufficient | `light < tolerableLight[0]` *and* lights on | `lightInsufficientSeverity` × gap |
 | Light excessive | `light > tolerableLight[1]` | `lightExcessiveSeverity` × gap |
 | CO2 insufficient | `co2 < tolerableCO2[0]` *and* lights on | `co2InsufficientSeverity` × gap |
@@ -421,20 +424,12 @@ own `Ik`, and hardiness carries the shade species below that. Dim light
 is not free — below that PAR a plant runs a deficit however perfect the
 water is.
 
-**Starvation is the extra a spent plant pays** on top of the
-maintenance it can no longer cover, which is why it derives from that
-rate rather than carrying a severity of its own: `starvationMultiplier ×
-max(0, maintenance − surplus / drainHours)`, where `drainHours` is
-`starvationReserveHours × (1 − hardiness)`. Zero at or above the
-reserve, the full multiple at an empty bank, continuous between. The
-reserve carries the hardiness factor because the bank *empties* at the
-post-hardiness rate: reading it as a duration makes the line the same
-number of hours for every species and a different stock for each.
-
-The reserve is hours of the plant's own drain rather than a share of
-`surplusCap` because growth withdraws `growthDrawRate` of the bank every
-lit hour, more per day than a plant can earn, so a growing plant settles
-well below the cap and would never read as fed there.
+There is no separate starvation severity. Once an unpaid bill drives
+shedding directly, the acceleration is the feedback loop — bank drains,
+more of the bill goes unpaid, more tissue goes — rather than a constant
+tuned to imitate one. A multiple on top of maintenance was measured
+against a blackout and moved the death day by one in forty either way,
+so it went.
 
 Night and darkness cost the same per hour. What differs is whether the
 bank ever refills — so the bank tells them apart without the light
@@ -442,13 +437,13 @@ stressors having to know which is which. A plant at night is respiring
 on reserve; a plant in a week-long blackout is starving, and pays in
 tissue.
 
-`starvationMultiplier` is unpinned and honestly so. It no longer decides
-how fast a starved plant melts — shedding reads the *share* of the bill
-left standing, and at an empty bank that share is 1 whatever the
-multiple is — so all it does is make the last of a bank go faster than
-the first of it. Measured across the roster, moving it from 0 to 3 moves
-a blackout death by one day either way. §9 is where it gets pinned or
-dropped.
+**Nutrient deficiency is pinned from both ends**, which is the rule for
+every plant severity from here on: a marginal shortfall is *outlived* and
+a severe one kills on a timescale a keeper would recognise. At the
+shipped 0.3, water with no nitrogen in it at all melts a monte carlo in
+19 days, while the shipped `planted` and `betta` presets — undosed,
+planted with the java fern and anubias every beginner guide names — hold
+all five plants at full condition for 180 days.
 
 Damage rates are pre-hardiness; the species `hardiness` (0–1)
 multiplier is applied centrally inside the vitality engine (`damage *
@@ -501,18 +496,21 @@ ends in the bank and then in `size`. Health — damage done *to* the
 plant — ends in `condition`.
 
 ```
-upkeepRate  = Σ upkeep.amount   × (1 - hardiness)   // maintenance + starvation
+upkeepRate  = Σ upkeep.amount   × (1 - hardiness)   // maintenance
 damageRate  = Σ stressor.amount × (1 - hardiness)
 benefitRate = Σ benefit.amount
 bank        = clamp(plant.surplus, 0, surplusCap)   // self-heals old saves
+reserved    = upkeepRate × upkeepReserveHours       // survival rations
 
 energyNet   = benefitRate − upkeepRate
-if energyNet < 0:   drain   = min(bank, |energyNet|)
+if energyNet < 0:   drain   = min(bank, |energyNet|)          // to the last unit
                     bank   −= drain
                     starved = (|energyNet| − drain) / upkeepRate   // → shedding
 
 conditionNet = max(0, energyNet) − damageRate
-if conditionNet < 0:  newCondition = max(0, condition + conditionNet)
+if conditionNet < 0:  buffered = min(max(0, bank − reserved), |conditionNet|)
+                      bank    −= buffered
+                      newCondition = max(0, condition + conditionNet + buffered)
 if conditionNet > 0:  newCondition = condition
                       bank = accrue ? min(surplusCap, bank + conditionNet) : bank
 ```
@@ -522,22 +520,30 @@ clamp apply regardless.
 
 Three consequences worth internalising:
 
-- **The bank answers to the cost of living, not to damage.** Spending it
-  on repair would leave nothing to pay the dark hours with, and a plant
-  that melts every night it is less than perfect is no model at all.
+- **One bank, two claims, in an order.** Upkeep is senior and may spend
+  the reserve to the last unit; damage may only spend what stands above
+  `upkeepReserveHours` of upkeep. Separating them instead was tried and
+  measured: it deletes the burning-reserves reading. Letting damage
+  spend to the floor was tried too, and it turns any nagging channel
+  into starvation — damage outweighs upkeep by an order of magnitude, so
+  the bank damage empties is the bank the next dark hour finds empty. A
+  fortnight without fertiliser kills both carpets without the line and
+  neither with it.
 - **Nothing here repairs condition.** Repair is a *withdrawal*, made by
   `spendSurplus` alongside growth and ahead of it — the same heal-then-
   grow ladder, with the bank as the pool both rungs draw from. A bank
   unit is a condition point; the bank accrued out of the same %/h the
   deficit is measured in.
-- **Damage is met out of income first.** A nagging channel costs a plant
-  its banking rate — which is to say its growth — before it costs any
-  condition, and only what outruns the income reaches condition.
+- **Damage is met out of income first, then out of the spare.** A
+  nagging channel costs a plant its banking rate — which is to say its
+  growth — before it costs any reserve, and its reserve before it costs
+  any condition.
 
 Fish and algae declare no upkeep, so `energyNet` is their whole income
 and the shape collapses back to the single balance they always ran:
 income repairs them on the spot, damage drains the bank before condition
-falls, and the bank fills only from what a full condition leaves over.
+falls with nothing reserved against it, and the bank fills only from
+what a full condition leaves over.
 
 ### Heal-or-decline trajectory
 

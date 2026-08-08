@@ -19,12 +19,14 @@ import type { HistorySnapshot } from './history.js';
  * rule is reject, not migrate.
  *
  * v10 put a compensation point under the plant. `PlantsConfig` gains
- *    `maintenanceCost` and the `starvationMultiplier` /
- *    `starvationReserveHours` pair, and drops `lightBenefitPeak` now that the
+ *    `maintenanceCost` and the `upkeepReserveHours` that says how much of the
+ *    bank is held back to pay it, and drops `lightBenefitPeak` now that the
  *    light term multiplies the other four peaks instead of standing beside
- *    them. A v9 session parses, and the first tick charges a maintenance the
- *    config does not carry: every plant's condition and bank are `NaN` from
- *    there on, and the session is written back that way.
+ *    them, and `sheddingConditionThreshold` now that shedding reads an unpaid
+ *    bill rather than a condition. A v9 session parses, and the first tick
+ *    charges a maintenance the config does not carry: every plant's condition
+ *    and bank are `NaN` from there on, and the session is written back that
+ *    way.
  * v9 made growth draw a share of the bank rather than a flat ration.
  *    `PlantsConfig` swapped `plantGrowthPerTickCap` — units per tick — for
  *    `growthDrawRate`, the fraction of the reserve a plant mobilises per lit

@@ -115,29 +115,20 @@ export interface PlantsConfig {
    */
   maintenanceCost: number;
   /**
-   * Multiple of `maintenanceCost` an empty reserve adds on top of it: what
-   * a plant with nothing banked pays for the same hour of being alive.
-   *
-   * Unpinned, and honestly so — it is what makes the last of a bank go
-   * faster than the first of it, and nothing measures that directly. It no
-   * longer sets how fast a starved plant melts: shedding reads the *share*
-   * of the bill left standing, and at an empty bank that share is 1
-   * whatever the multiple is. §9 argues with the value.
-   */
-  starvationMultiplier: number;
-  /**
-   * Hours of its own drain a plant counts as provisioned for — the reserve
-   * `starvationMultiplier` ramps against, zero starvation at or above it
-   * and the full multiple at an empty bank.
+   * Hours of upkeep the reserve keeps back from damage — the survival
+   * rations. Above the line the bank is spare and buffers a stressor
+   * before condition falls; at or below it the bank belongs to staying
+   * alive, and damage takes condition instead.
    *
    * Real hours: the bank empties at the post-hardiness rate, so the line is
    * `maintenance × (1 − hardiness) × this` in banked units and the same
    * number of hours for every species. Quoted as a duration rather than a
    * share of `surplusCap` because growth withdraws `growthDrawRate` of the
    * bank every lit hour, more per day than a plant can earn, so a growing
-   * plant settles far below the cap and would never read as fed there.
+   * plant settles far below the cap and would never read as provisioned
+   * there.
    */
-  starvationReserveHours: number;
+  upkeepReserveHours: number;
 
   // Vitality benefit peaks (%/h) when the corresponding factor is in its
   // tolerable band. Every one of them is realised through photosynthesis, so
@@ -249,14 +240,25 @@ export const plantsDefaults: PlantsConfig = {
   co2InsufficientSeverity: 1.5,
   temperatureStressSeverity: 0.4,
   phStressSeverity: 3.0,
-  // Nutrient deficiency severity: drives how fast plants decline when
-  // their Liebig sufficiency falls. Calibrated against scenario 02
-  // Variant B: a Monte Carlo with Fe limited (sufficiency drops to
-  // ~0.1 by day 14 as substrate-leach Fe runs out) should bottom out
-  // in the 30–55 condition band by day 28 rather than dying. Severity
-  // 0.6 keeps the MC trajectory inside the band; tighter severities
-  // crash MC mid-scenario.
-  nutrientDeficiencySeverity: 0.7,
+  // Pinned from both ends against a starved carpet and a neglected nano.
+  //
+  // Severe: a monte carlo under a fixture that suits it, in water with no
+  // nitrogen in it at all, melts in **19 days** — weeks, which is what a
+  // carpet does when it is starved, and not the eleven weeks 0.2 would give
+  // it. Marginal: the shipped `planted` and `betta` presets, undosed and
+  // planted with the java fern and anubias every beginner guide names, keep
+  // all five plants at full condition for **180 days** — a hardy plant in a
+  // tank nobody doses is outlived, not killed. Between the ends the
+  // dose–response is a real one: a carpet at half every optimum takes five
+  // months, at a quarter ten weeks, at a tenth six.
+  //
+  // The old 0.7 was quoted against an income that paid 0.4 %/h in the dark,
+  // and its own docstring's reference — "bottoms out at 30–55 by day 28
+  // rather than dying" — became day 4 when the light term took that income
+  // away. `docs/calibration/runs/2026-08-14-reserve-by-priority.md` § 2 has
+  // the sweep and the one claim this value does not satisfy, which belongs to
+  // the sufficiency curve rather than to the severity.
+  nutrientDeficiencySeverity: 0.3,
   // Toxicity threshold is high (100 ppm NO3) so normal dosing never
   // triggers — only the auto-doser massive-overdose case. Severity
   // is small so the stress climbs gradually past the threshold
@@ -278,15 +280,14 @@ export const plantsDefaults: PlantsConfig = {
   // adaptation goes. Below a species' band the light-insufficient stressor
   // sits on top of this, so the PAR a plant actually needs is the band.
   maintenanceCost: 0.075,
-  // An empty reserve doubles what staying alive costs, and four days of a
-  // plant's own drain is what counts as provisioned — 5.3 banked units for
-  // monte carlo against 1.9 for anubias, because the hardy plant makes the
-  // same reserve last longer. What the pair produces is in
-  // `docs/calibration/runs/2026-08-11-light-deficiency.md`, and what the
-  // multiple is worth now that shedding reads a share is in
-  // `2026-08-13-tissue-not-condition.md` § 7 — one day in forty, either way.
-  starvationMultiplier: 1,
-  starvationReserveHours: 100,
+  // Four days of a plant's own drain is what it keeps back for staying alive
+  // — 5.3 banked units for monte carlo against 1.9 for anubias, because the
+  // hardy plant makes the same reserve last longer. It is the line that lets
+  // one bank serve two claims: damage burns the ~20 units a working plant
+  // carries above it, a day or two of buffer, and stops there rather than
+  // leaving the next dark hour unpayable. What the line is worth either side
+  // of it is in `docs/calibration/runs/2026-08-14-reserve-by-priority.md`.
+  upkeepReserveHours: 100,
 
   // Vitality benefit peaks. Four channels at 0.125 sum to the 0.5 %/h budget
   // at saturating light, and the light term takes the whole of it down
@@ -307,7 +308,9 @@ export const plantsDefaults: PlantsConfig = {
   // its reference is not — a bill rather than a condition. The alternative,
   // converting the unpaid bill back into tissue as the mirror of
   // `sizePerSurplus`, is measured and rejected in
-  // `docs/calibration/runs/2026-08-13-tissue-not-condition.md` § 6.
+  // `docs/calibration/runs/2026-08-13-tissue-not-condition.md` § 6. Only an
+  // energy shortfall reaches it: damage is buffered down to
+  // `upkeepReserveHours`, so a poisoned plant never sheds for want of a bank.
   maxSheddingRate: 0.02,
   wastePerShedSize: 0.005, // 0.005 g waste per % size shed
   deathConditionThreshold: 10, // death at condition < 10 %
@@ -397,8 +400,7 @@ export const plantsConfigMeta: PlantsConfigMeta[] = [
   { key: 'algaeShadingSeverity', label: 'Algae Shading Severity', unit: '%/algae/hr', min: 0.001, max: 0.1, step: 0.005 },
   { key: 'algaeShadingThreshold', label: 'Algae Shading Threshold', unit: '', min: 20, max: 80, step: 5 },
   { key: 'maintenanceCost', label: 'Maintenance Cost', unit: '%/hr', min: 0, max: 0.5, step: 0.005 },
-  { key: 'starvationMultiplier', label: 'Starvation Multiplier', unit: '× maintenance', min: 0, max: 10, step: 0.1 },
-  { key: 'starvationReserveHours', label: 'Starvation Reserve', unit: 'hr maintenance', min: 10, max: 500, step: 10 },
+  { key: 'upkeepReserveHours', label: 'Upkeep Reserve', unit: 'hr maintenance', min: 10, max: 500, step: 10 },
 
   // Vitality benefit peaks
   { key: 'co2BenefitPeak', label: 'CO2 Benefit Peak', unit: '%/hr', min: 0.0, max: 0.5, step: 0.05 },

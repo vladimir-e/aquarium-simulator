@@ -24,7 +24,14 @@ import { plantsDefaults } from '../config/plants.js';
 import { getSpeciesMaxSize } from '../systems/plant-growth.js';
 import { PLANT_SPECIES_DATA } from '../plants/species.js';
 import { runTank, totalSize } from './metrics.js';
-import { ATTACHED_PLANTING, DAY, fixtureFor, plantedTank, planting } from './tanks.js';
+import {
+  ATTACHED_PLANTING,
+  atOptimum,
+  DAY,
+  fixtureFor,
+  plantedTank,
+  planting,
+} from './tanks.js';
 
 const CAPACITY = 150;
 
@@ -57,6 +64,29 @@ const DARK_HOURS = DAY - 12;
 
 const growToHour = (seed: PresetSeed, days: number, hour: number): ReturnType<typeof runTank> =>
   runTank({ setup: TANK, seed, days, sampleEvery: DAY, sampleHour: hour });
+
+/**
+ * The same run with the water rewritten to optimum before every tick.
+ *
+ * Every claim below that names `surplusCap` needs it: the bank is one stock
+ * with two claims on it, and the reserve above the survival line is what
+ * damage is buffered by — so a planting this size drawing a 150 L down carries
+ * a nutrient deficiency into the ledger the reading is about. Held at optimum,
+ * the only thing in the ledger is what the plant pays to stay alive.
+ */
+const growToHourHeld = (
+  seed: PresetSeed,
+  days: number,
+  hour: number
+): ReturnType<typeof runTank> =>
+  runTank({
+    setup: TANK,
+    seed,
+    days,
+    routine: { hold: atOptimum },
+    sampleEvery: DAY,
+    sampleHour: hour,
+  });
 
 const growToDusk = (seed: PresetSeed, days: number): ReturnType<typeof runTank> =>
   growToHour(seed, days, DUSK);
@@ -100,15 +130,14 @@ describe('the bank a plant runs on', () => {
 
   it('gives back exactly the night it slept through', () => {
     // The sawtooth the reading above sits on top of, measured end to end:
-    // a maxed planting tops out at the cap at dusk and is short of it at
-    // the last dark hour by what it spent staying alive in between, and by
-    // nothing else. Nothing else *can* be in it — damage no longer reaches
-    // the bank, and a bank this near the cap is far above the line
-    // starvation ramps from.
-    // Three decimals rather than an exact equality because the heater lets
-    // the tank sit a few hundredths under 25 °C for an hour or two a night,
-    // and the Q10 moves the bill with it — 0.03 % of the figure.
-    const dawn = growToHour(MAXED, 30, DAWN);
+    // a maxed planting tops out at the cap at dusk and is short of it at the
+    // last dark hour by what it spent staying alive in between, and by nothing
+    // else. Held at optimum, nothing else *can* be in it — no channel is
+    // charging the plant, so the only claim on the bank is the upkeep.
+    // Three decimals rather than an exact equality because the tank sits a few
+    // hundredths off 25 °C for an hour or two a night while the hold and the
+    // heater argue, and the Q10 moves the bill with it — 0.03 % of the figure.
+    const dawn = growToHourHeld(MAXED, 30, DAWN);
     const shortfall = plantsDefaults.surplusCap - dawn.samples[30]!.avgSurplus;
 
     expect(shortfall).toBeCloseTo(DARK_HOURS * UPKEEP_PER_HOUR, 3);
@@ -131,7 +160,7 @@ describe('the bank a plant runs on', () => {
     // withdrawal has stopped tracking the income, so the bank only goes up.
     // It passes 99 % of the cap on d99 and never comes back down, so the run
     // closes three weeks past the crossing rather than on top of it.
-    const pegged = growToDusk(PEGGED, 120);
+    const pegged = growToHourHeld(PEGGED, 120, DUSK);
 
     for (const day of [20, 40, 60, 80, 100, 120]) {
       expect(pegged.samples[day]!.avgSurplus).toBeGreaterThan(

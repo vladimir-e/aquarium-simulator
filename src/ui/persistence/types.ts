@@ -22,21 +22,18 @@ import type { TunableConfig } from '../../simulation/config/index.js';
  * Increment this when the structure changes in a breaking way.
  * On version mismatch, stored data is discarded.
  *
- * v24: Starvation is paid in tissue. Shedding stops reading condition and
- *      reads the share of its upkeep a plant failed to pay, so
- *      `PlantsConfig` drops `sheddingConditionThreshold` — there is no
- *      threshold left to cross — and `maxSheddingRate` is redenominated
- *      against a bill rather than against condition 0. A v23 config carries
- *      the dropped key, and the strict schema refuses that section; a
+ * v23: Darkness costs a plant, and it is paid in tissue. `PlantsConfig` gains
+ *      the always-on `maintenanceCost` and the `upkeepReserveHours` that says
+ *      how much of the bank is held back to pay it, and drops two keys:
+ *      `lightBenefitPeak`, because light is no longer a channel of its own but
+ *      the term the other four are multiplied by (so those four move
+ *      0.1 → 0.125 to hold the same 0.5 %/h budget), and
+ *      `sheddingConditionThreshold`, because shedding reads the share of its
+ *      upkeep a plant failed to pay and there is no threshold left to cross.
+ *      `maxSheddingRate` is redenominated with it, against a bill rather than
+ *      against condition 0. A v22 config carries the two dropped keys and is
+ *      missing the two new ones, and the strict schema refuses that section; a
  *      refused section reverts every other one to its defaults.
- * v23: Darkness costs a plant. `PlantsConfig` gains the always-on
- *      `maintenanceCost` and the `starvationMultiplier` /
- *      `starvationReserveHours` pair that charges an empty bank, and drops
- *      `lightBenefitPeak` — light is no longer a channel of its own but the
- *      term the other four are multiplied by, so those four move 0.1 → 0.125
- *      to hold the same 0.5 %/h budget. A v22 config carries the dropped key
- *      and is missing the three new ones, and the strict schema refuses that
- *      section; a refused section reverts every other one to its defaults.
  * v22: Growth draws a share of the bank instead of a flat ceiling.
  *      `PlantsConfig` swaps `plantGrowthPerTickCap` (surplus units per tick)
  *      for `growthDrawRate` (share of the bank per lit hour), and only the
@@ -164,7 +161,7 @@ import type { TunableConfig } from '../../simulation/config/index.js';
  *     nutrient sufficiency) but its persisted shape is identical, so
  *     the bump is purely the new Fish field.
  */
-export const PERSISTENCE_VERSION = 24;
+export const PERSISTENCE_VERSION = 23;
 
 /**
  * Storage key for the unified persisted state.

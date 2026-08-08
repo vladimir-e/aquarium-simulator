@@ -15,14 +15,14 @@
  *
  * Measurements: `docs/calibration/runs/2026-08-12-ordinary-tanks.md` against
  * `main`, then `2026-08-13-tissue-not-condition.md` for what the ledger split
- * moved.
+ * moved and `2026-08-14-reserve-by-priority.md` for what the reserve line and
+ * the re-derived nutrient severity moved back.
  */
 
 import { produce } from 'immer';
 import type { SimulationConfig, SimulationState } from '../state.js';
 import type { PresetSeed } from '../seed.js';
 import { DEFAULT_CONFIG } from '../config/index.js';
-import { nutrientsDefaults as nutrients } from '../config/nutrients.js';
 import { calculateNutrientSufficiency } from '../systems/nutrients.js';
 import {
   buildPlantStressors,
@@ -34,7 +34,7 @@ import { PLANT_SPECIES_DATA, type PlantSpecies } from '../plants/species.js';
 import { PRESETS, type PresetId } from '../presets.js';
 import { formatTable } from './sweep.js';
 import { runTank, totalSize, type RunResult } from './metrics.js';
-import { DAY, fixtureFor, substrateFor } from './tanks.js';
+import { atOptimum, DAY, fixtureFor, substrateFor } from './tanks.js';
 
 const RNG_SEEDS = [5, 1234, 4242];
 
@@ -87,19 +87,6 @@ function outcome(run: RunResult): Outcome {
     algae: round(final.algae.mass),
   };
 }
-
-/** Everything a plant answers to except light, rewritten to optimum each tick. */
-const atOptimum = (state: SimulationState): SimulationState =>
-  produce(state, (draft) => {
-    const { water } = draft.resources;
-    draft.resources.nitrate = getMassFromPpm(nutrients.optimalNitratePpm, water);
-    draft.resources.phosphate = getMassFromPpm(nutrients.optimalPhosphatePpm, water);
-    draft.resources.potassium = getMassFromPpm(nutrients.optimalPotassiumPpm, water);
-    draft.resources.iron = getMassFromPpm(nutrients.optimalIronPpm, water);
-    draft.resources.co2 = 20;
-    draft.resources.ph = 7.0;
-    draft.resources.temperature = 25;
-  });
 
 /** The same tank, with one channel taken away from the plant and held away. */
 const deprived =

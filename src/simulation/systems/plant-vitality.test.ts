@@ -6,6 +6,7 @@ import {
   computePlantVitality,
   type PlantVitalityContext,
 } from './plant-vitality.js';
+import type { VitalityResult } from './vitality.js';
 import { calculateNutrientSufficiency } from './nutrients.js';
 import { plantsDefaults } from '../config/plants.js';
 import { nutrientsDefaults } from '../config/nutrients.js';
@@ -80,7 +81,7 @@ function ctx(
 
 describe('buildPlantUpkeep', () => {
   const charge = (
-    key: 'maintenance' | 'starvation',
+    key: 'maintenance',
     plant: Plant,
     resources = makeResources(),
     plantsConfig = plantsDefaults
@@ -100,72 +101,72 @@ describe('buildPlantUpkeep', () => {
     expect(cost(35)).toBeGreaterThan(cost(15));
   });
 
-  describe('starvation ramps on the reserve the bank still holds', () => {
-    const starvation = (surplus: number, plantsConfig = plantsDefaults): number =>
-      charge('starvation', makePlant('anubias', { surplus }), makeResources(), plantsConfig);
+  describe('the reserve upkeep keeps back from damage', () => {
+    /** Banked units that buy `upkeepReserveHours` of a species' own drain. */
+    const line = (species: PlantSpecies, plantsConfig = plantsDefaults): number =>
+      plantsConfig.maintenanceCost *
+      (1 - PLANT_SPECIES_DATA[species].hardiness) *
+      plantsConfig.upkeepReserveHours;
 
-    /** Banked units that buy `starvationReserveHours` of anubias's own drain. */
-    const reserve =
-      plantsDefaults.maintenanceCost *
-      (1 - PLANT_SPECIES_DATA.anubias.hardiness) *
-      plantsDefaults.starvationReserveHours;
+    /** A tank that damages a plant rather than starving it: bright, but sour. */
+    const sour = makeResources({ ph: 4.5 });
 
-    it('charges nothing to a plant holding its reserve, and no less above it', () => {
-      expect(starvation(reserve)).toBe(0);
-      expect(starvation(plantsDefaults.surplusCap)).toBe(0);
+    const tick = (
+      species: PlantSpecies,
+      surplus: number,
+      resources = sour,
+      plantsConfig = plantsDefaults
+    ): VitalityResult =>
+      computePlantVitality(ctx(makePlant(species, { surplus }), resources, 0, plantsConfig));
+
+    it('spends the spare above the line and leaves condition alone', () => {
+      const result = tick('anubias', plantsDefaults.surplusCap);
+
+      expect(result.newCondition).toBe(100);
+      expect(result.breakdown.drained).toBeGreaterThan(0);
+      expect(result.surplus).toBeLessThan(plantsDefaults.surplusCap);
     });
 
-    it('charges the full multiple of maintenance at an empty bank', () => {
-      expect(starvation(0)).toBeCloseTo(
-        plantsDefaults.maintenanceCost * plantsDefaults.starvationMultiplier,
-        12
-      );
+    it('stops at the line and takes the rest out of condition', () => {
+      const result = tick('anubias', line('anubias'));
+
+      expect(result.surplus).toBe(line('anubias'));
+      expect(result.breakdown.drained).toBe(0);
+      expect(result.newCondition).toBeLessThan(100);
     });
 
-    it('falls the whole way as the bank fills, and reaches zero at the reserve', () => {
-      let previous = starvation(0);
-      for (const share of [0.1, 0.25, 0.5, 0.75, 0.9, 1]) {
-        const amount = starvation(share * reserve);
-        expect(amount).toBeLessThan(previous);
-        previous = amount;
-      }
-      expect(previous).toBe(0);
+    it('leaves the upkeep payable at the line, which is what the line is for', () => {
+      // The whole point of the reservation: however hard a plant is being
+      // damaged, it never wakes up unable to pay for being alive — so it
+      // takes the damage on condition and sheds nothing.
+      expect(tick('anubias', line('anubias')).breakdown.starved).toBe(0);
     });
 
-    it('measures the reserve in the hours it actually lasts, not in banked units', () => {
-      // The bank drains post-hardiness, so the same banked units go further in
-      // a hardy plant: the line is one duration for the whole roster and a
-      // different stock for every species on it.
-      const line = (species: PlantSpecies): number => {
-        const drain =
-          plantsDefaults.maintenanceCost * (1 - PLANT_SPECIES_DATA[species].hardiness);
-        const banked = drain * plantsDefaults.starvationReserveHours;
-        const plant = makePlant(species, { surplus: banked });
-        return charge('starvation', plant);
-      };
-
+    it('measures the line in hours — one duration, a different stock per species', () => {
       for (const species of ['anubias', 'java_fern', 'monte_carlo'] as const) {
-        expect(line(species)).toBe(0);
+        const own = line(species);
+        expect(tick(species, own).breakdown.drained).toBe(0);
+        expect(tick(species, own + 1).breakdown.drained).toBeGreaterThan(0);
       }
-      // One unit short of the line, every species is already being charged.
-      expect(
-        charge('starvation', makePlant('monte_carlo', { surplus: reserve - 1 }))
-      ).toBeGreaterThan(0);
-    });
-
-    it('charges nothing at all when nothing is charged for staying alive', () => {
-      // A plant that pays no maintenance has no reserve to run out of.
-      const free = { ...plantsDefaults, maintenanceCost: 0 };
-      expect(starvation(0, free)).toBe(0);
-      expect(starvation(plantsDefaults.surplusCap, free)).toBe(0);
     });
 
     it('asks a warm tank for more reserve than a cool one', () => {
-      // The reserve is hours of maintenance, and a warm plant burns faster —
-      // so the same bank reads thinner at 35 °C than at 25 °C.
+      // The line is hours of maintenance, and a warm plant burns faster — so
+      // the same bank is spare at 25 °C and already survival rations at 35 °C.
+      const banked = 1.5 * line('anubias');
+
+      expect(tick('anubias', banked).breakdown.drained).toBeGreaterThan(0);
       expect(
-        charge('starvation', makePlant('anubias', { surplus: reserve }), makeResources({ temperature: 35 }))
-      ).toBeGreaterThan(0);
+        tick('anubias', banked, makeResources({ ph: 4.5, temperature: 35 })).breakdown.drained
+      ).toBe(0);
+    });
+
+    it('lets damage spend the whole bank when nothing is charged for staying alive', () => {
+      const free = { ...plantsDefaults, maintenanceCost: 0 };
+      const result = tick('anubias', 0.001, sour, free);
+
+      expect(result.surplus).toBe(0);
+      expect(result.breakdown.drained).toBeCloseTo(0.001, 12);
     });
   });
 });

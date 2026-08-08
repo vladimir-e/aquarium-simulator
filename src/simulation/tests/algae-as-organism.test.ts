@@ -133,11 +133,12 @@ describe('algae as population — plant-side feedback (algae shading)', () => {
 
     // Plant should still be alive.
     expect(state.plants.length).toBe(1);
-    // Shade is damage, not a bill, so it comes out of condition — and out of
-    // condition even on a hardy species with a full reserve, because the
-    // reserve is what pays for the dark hours rather than for repair.
-    expect(state.plants[0].condition).toBeLessThan(startCondition);
-    expect(state.plants[0].surplus).toBeGreaterThan(0);
+    // Shade is damage, and damage is what the reserve is a buffer against —
+    // so a hardy plant with a bank spends the bank first and reads full
+    // condition while it lasts. Condition 100 with the reserve going down is
+    // the signal, not the absence of one.
+    expect(state.plants[0].condition).toBe(startCondition);
+    expect(state.plants[0].surplus).toBeLessThan(startBank);
     expect(startBank).toBeGreaterThan(0);
   });
 });

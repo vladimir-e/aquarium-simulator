@@ -6,14 +6,15 @@
  * onto plant state. The breakdown drives both the per-plant condition
  * update and the surplus-gated growth path.
  *
- * A plant runs two ledgers, and they end in different stocks.
+ * A plant runs two ledgers, and they end in different stocks. Both draw
+ * on one reserve, in an order: maintenance may spend it to the last
+ * unit, damage only what stands above `upkeepReserveHours` of it.
  *
  * **Energy** — the benefit budget is income, not comfort: every channel
  * is realised *through* photosynthesis, which is why light multiplies
  * all four rather than standing beside them. Against that income sits
- * the upkeep — maintenance, plus the starvation multiple an empty
- * reserve adds to it — which sets a compensation point: below the PAR
- * where income covers upkeep a plant runs a deficit however perfect the
+ * the maintenance cost, which sets a compensation point: below the PAR
+ * where income covers it a plant runs a deficit however perfect the
  * water is, spends its bank, and then pays in tissue. A blacked-out
  * rhizome with no leaves left is a live plant that regrows, so an
  * unpayable bill costs `size` and not condition.
@@ -67,26 +68,16 @@ export interface PlantVitalityContext {
  * stressors; `computeVitality` applies the species factor centrally.
  */
 export function buildPlantUpkeep(ctx: PlantVitalityContext): VitalityFactor[] {
-  const { plant, resources, plantsConfig } = ctx;
-  const species = PLANT_SPECIES_DATA[plant.species];
-
-  const maintenance =
-    plantsConfig.maintenanceCost *
-    getRespirationTemperatureFactor(resources.temperature, plantsConfig);
-
-  // Starvation is the extra a spent plant pays on top of maintenance, so
-  // it derives from that rate rather than carrying a severity of its
-  // own. The reserve it ramps against is real hours of this plant's own
-  // drain: the bank empties at the *post-hardiness* rate, which is why
-  // the divisor carries `1 − hardiness` and the line is 400 h of anubias
-  // against 143 h of monte carlo for the same banked units.
-  const drainHours = plantsConfig.starvationReserveHours * (1 - species.hardiness);
-  const starvation =
-    plantsConfig.starvationMultiplier * Math.max(0, maintenance - plant.surplus / drainHours);
+  const { resources, plantsConfig } = ctx;
 
   return [
-    { key: 'maintenance', label: 'Maintenance', amount: maintenance },
-    { key: 'starvation', label: 'Starvation', amount: starvation },
+    {
+      key: 'maintenance',
+      label: 'Maintenance',
+      amount:
+        plantsConfig.maintenanceCost *
+        getRespirationTemperatureFactor(resources.temperature, plantsConfig),
+    },
   ];
 }
 
@@ -252,6 +243,7 @@ export function computePlantVitality(ctx: PlantVitalityContext): VitalityResult 
   return computeVitality({
     stressors: buildPlantStressors(ctx),
     upkeep: buildPlantUpkeep(ctx),
+    upkeepReserveHours: ctx.plantsConfig.upkeepReserveHours,
     benefits: buildPlantBenefits(ctx),
     hardiness: species.hardiness,
     condition: ctx.plant.condition,

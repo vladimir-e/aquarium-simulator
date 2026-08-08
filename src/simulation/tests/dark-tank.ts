@@ -15,9 +15,7 @@
 
 import { produce } from 'immer';
 import type { SimulationConfig, SimulationState } from '../state.js';
-import { nutrientsDefaults as nutrients } from '../config/nutrients.js';
 import { DEFAULT_CONFIG } from '../config/index.js';
-import { getMassFromPpm } from '../resources/helpers.js';
 import { DEFAULT_LIGHT } from '../equipment/light.js';
 import {
   getSaturationIrradiance,
@@ -27,7 +25,7 @@ import {
 import { computePlantVitality } from '../systems/plant-vitality.js';
 import { formatTable } from './sweep.js';
 import { runTank } from './metrics.js';
-import { fixtureFor, substrateFor } from './tanks.js';
+import { atOptimum, fixtureFor, substrateFor } from './tanks.js';
 
 const CAPACITY = 40;
 const DAYS = 90;
@@ -65,17 +63,8 @@ const withLight = (par: number, hours: number): SimulationConfig => ({
  * Everything the light channel is not, held where a plant would want it — and
  * on a blackout run, the fixture switched off once the plant has grown in.
  */
-const atOptimum = (mode: Mode) => (state: SimulationState): SimulationState =>
-  produce(state, (draft) => {
-    const { water } = draft.resources;
-    draft.resources.nitrate = getMassFromPpm(nutrients.optimalNitratePpm, water);
-    draft.resources.phosphate = getMassFromPpm(nutrients.optimalPhosphatePpm, water);
-    draft.resources.potassium = getMassFromPpm(nutrients.optimalPotassiumPpm, water);
-    draft.resources.iron = getMassFromPpm(nutrients.optimalIronPpm, water);
-    draft.resources.co2 = 20;
-    draft.resources.ph = 7.0;
-    draft.resources.temperature = 25;
-
+const held = (mode: Mode) => (state: SimulationState): SimulationState =>
+  produce(atOptimum(state), (draft) => {
     if (mode === 'blackout' && draft.tick >= GROW_DAYS * 24) {
       draft.equipment.light.enabled = false;
     }
@@ -105,7 +94,7 @@ function threeWays(): string {
           setup: setup(mode !== 'off'),
           seed: one(species),
           days: DAYS,
-          routine: { hold: atOptimum(mode) },
+          routine: { hold: held(mode) },
           rngSeed: RNG_SEED,
         });
 
@@ -143,7 +132,7 @@ function blackoutTrace(species: PlantSpecies): string {
     setup: setup(true),
     seed: one(species),
     days: GROW_DAYS + TRACE_DAYS,
-    routine: { hold: atOptimum('blackout') },
+    routine: { hold: held('blackout') },
     rngSeed: RNG_SEED,
     watch: (hour, _before, after) => {
       const day = hour / 24;
@@ -175,7 +164,7 @@ function photoperiod(): string {
           setup: withLight(DEFAULT_LIGHT.par, hours),
           seed: one(species),
           days: DAYS,
-          routine: { hold: atOptimum('on') },
+          routine: { hold: held('on') },
           rngSeed: RNG_SEED,
         });
         const plant = run.final.plants[0];
@@ -237,7 +226,7 @@ function holds(species: PlantSpecies, substratePar: number): boolean {
     setup: withLight(fixtureFor(substratePar, CAPACITY), DEFAULT_LIGHT.schedule.duration),
     seed: one(species),
     days: DAYS,
-    routine: { hold: atOptimum('on') },
+    routine: { hold: held('on') },
     rngSeed: RNG_SEED,
   });
   return run.final.plants[0]?.condition === 100;
@@ -300,7 +289,7 @@ function establishment(): string {
         setup: setup(true),
         seed: one(species),
         days: 7,
-        routine: { hold: atOptimum('on') },
+        routine: { hold: held('on') },
         rngSeed: RNG_SEED,
         watch: (hour, _before, after) => {
           const day = hour / 24;

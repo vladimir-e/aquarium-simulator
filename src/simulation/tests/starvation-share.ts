@@ -3,14 +3,16 @@
  *
  * The branch changed two things at once: income became light-gated (the four
  * benefits multiply by `tanh(PAR / Ik)` instead of paying a flat 0.4 %/h in the
- * dark), and a maintenance/starvation pair went in. A scenario that dies on the
- * shipped config says nothing about which one to reach for, so each is switched
- * off in turn:
+ * dark), and a maintenance cost went in that runs around the clock. A scenario
+ * that dies on the shipped config says nothing about which one to reach for, so
+ * each is switched off in turn:
  *
- * - `shipped` — both.
- * - `no starvation` — `starvationMultiplier` 0, maintenance still charged.
- * - `no upkeep` — `maintenanceCost` 0, which zeroes starvation with it, leaving
- *   only the income change.
+ * - `shipped` — both, with the reserve line where it ships.
+ * - `no reserve` — `upkeepReserveHours` 0, so damage may spend the bank to the
+ *   floor and the next dark hour finds it empty. This is the ordering without
+ *   the reservation, and it is the run that says whether the line earns its
+ *   keep.
+ * - `no upkeep` — `maintenanceCost` 0, leaving only the income change.
  *
  * The income change cannot be switched off from config — it is the benefit
  * array's shape — so `no upkeep` is the floor this probe can reach, and the gap
@@ -25,13 +27,12 @@ import { produce } from 'immer';
 import type { SimulationConfig, SimulationState } from '../state.js';
 import type { PresetSeed } from '../seed.js';
 import type { TunableConfig } from '../config/index.js';
-import { nutrientsDefaults as nutrients } from '../config/nutrients.js';
 import { getMassFromPpm, getPpm } from '../resources/helpers.js';
 import { PLANT_SPECIES_DATA, type PlantSpecies } from '../plants/species.js';
 import { PRESETS } from '../presets.js';
 import { formatTable, tuned } from './sweep.js';
 import { runTank, totalSize } from './metrics.js';
-import { DAY, fixtureFor } from './tanks.js';
+import { atOptimum, DAY, fixtureFor } from './tanks.js';
 
 const round = (value: number, places = 1): number =>
   Math.round(value * 10 ** places) / 10 ** places;
@@ -39,16 +40,15 @@ const round = (value: number, places = 1): number =>
 const VARIANTS: Array<[string, TunableConfig]> = [
   ['shipped', tuned(() => {})],
   [
-    'no starvation',
+    'no reserve',
     tuned((draft) => {
-      draft.plants.starvationMultiplier = 0;
+      draft.plants.upkeepReserveHours = 0;
     }),
   ],
   [
     'no upkeep',
     tuned((draft) => {
       draft.plants.maintenanceCost = 0;
-      draft.plants.starvationMultiplier = 0;
     }),
   ],
 ];
@@ -60,18 +60,6 @@ const SPECIES: PlantSpecies[] = [
   'dwarf_hairgrass',
   'monte_carlo',
 ];
-
-const atOptimum = (state: SimulationState): SimulationState =>
-  produce(state, (draft) => {
-    const { water } = draft.resources;
-    draft.resources.nitrate = getMassFromPpm(nutrients.optimalNitratePpm, water);
-    draft.resources.phosphate = getMassFromPpm(nutrients.optimalPhosphatePpm, water);
-    draft.resources.potassium = getMassFromPpm(nutrients.optimalPotassiumPpm, water);
-    draft.resources.iron = getMassFromPpm(nutrients.optimalIronPpm, water);
-    draft.resources.co2 = 20;
-    draft.resources.ph = 7.0;
-    draft.resources.temperature = 25;
-  });
 
 const starved = (state: SimulationState): SimulationState =>
   produce(atOptimum(state), (draft) => {

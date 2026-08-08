@@ -328,6 +328,86 @@ describe('computeVitality', () => {
     });
   });
 
+  describe('two claims on one bank, in an order', () => {
+    /** An organism owing 1/h for being alive, holding 20, reserving 5 hours of it. */
+    const storing = (
+      partial: Partial<VitalityInput> & Pick<VitalityInput, 'condition'>
+    ): VitalityInput =>
+      input({
+        upkeep: [stressor('alive', 1)],
+        upkeepReserveHours: 5,
+        hardiness: 0,
+        surplus: 20,
+        ...partial,
+      });
+
+    it('lets upkeep spend the bank to the last unit', () => {
+      // No income, so the whole bill falls on the bank — reserve and all,
+      // because upkeep is what the reserve is reserved *for*.
+      const result = computeVitality(storing({ condition: 100, surplus: 3 }));
+
+      expect(result.surplus).toBe(2);
+      expect(result.breakdown.starved).toBe(0);
+    });
+
+    it('reports the share of the bill even the empty bank could not pay', () => {
+      const result = computeVitality(storing({ condition: 100, surplus: 0.25 }));
+
+      expect(result.surplus).toBe(0);
+      expect(result.breakdown.starved).toBe(0.75);
+    });
+
+    it('buffers damage on the spare above the reserve, holding condition', () => {
+      // Income 4 pays the 1 upkeep; damage 6 outruns the 3 left over by 3,
+      // and the bank has 15 spare above its 5-hour line to meet it with.
+      const result = computeVitality(
+        storing({ benefits: [benefit('light', 4)], stressors: [stressor('ph', 6)], condition: 100 })
+      );
+
+      expect(result.newCondition).toBe(100);
+      expect(result.surplus).toBe(17);
+      expect(result.breakdown.drained).toBe(3);
+    });
+
+    it('stops at the reserve and lets the rest reach condition', () => {
+      const result = computeVitality(
+        storing({
+          benefits: [benefit('light', 4)],
+          stressors: [stressor('ph', 6)],
+          condition: 100,
+          surplus: 6,
+        })
+      );
+
+      expect(result.surplus).toBe(5);
+      expect(result.breakdown.drained).toBe(1);
+      expect(result.newCondition).toBe(98);
+    });
+
+    it('leaves the next hour of upkeep payable however hard the damage is', () => {
+      // The point of the ordering: damage can never be what starves an
+      // organism, so `starved` stays 0 no matter how big the stressor is.
+      const result = computeVitality(
+        storing({
+          benefits: [benefit('light', 4)],
+          stressors: [stressor('ph', 500)],
+          condition: 100,
+        })
+      );
+
+      expect(result.breakdown.starved).toBe(0);
+      expect(result.surplus).toBe(5);
+      expect(result.newCondition).toBe(0);
+    });
+
+    it('banks its whole surplus at any condition, rather than healing on it', () => {
+      const result = computeVitality(storing({ benefits: [benefit('light', 4)], condition: 40 }));
+
+      expect(result.newCondition).toBe(40);
+      expect(result.surplus).toBe(23);
+    });
+  });
+
   describe('hardiness scaling', () => {
     it('halves stressor impact at hardiness 0.5', () => {
       const result = computeVitality(
@@ -441,5 +521,38 @@ describe('bankSurplus', () => {
     expect(bankSurplus(8, 5, -10, true).surplus).toBe(0);
     expect(bankSurplus(8, -2, -10, true).surplus).toBe(0);
     expect(bankSurplus(8, 0, -10, true).surplus).toBe(0);
+  });
+
+  describe('a reserved depth a claim may not reach', () => {
+    it('drains only the spare above it, overflowing the rest', () => {
+      // bank 10, 4 reserved → 6 spendable against damage 9.
+      expect(bankSurplus(10, -9, CAP, true, 4)).toEqual({
+        surplus: 4,
+        drained: 6,
+        overflowDamage: 3,
+      });
+    });
+
+    it('spends nothing at or below the line', () => {
+      expect(bankSurplus(4, -9, CAP, true, 4)).toEqual({
+        surplus: 4,
+        drained: 0,
+        overflowDamage: 9,
+      });
+      expect(bankSurplus(2, -9, CAP, true, 4)).toEqual({
+        surplus: 2,
+        drained: 0,
+        overflowDamage: 9,
+      });
+    });
+
+    it('is a floor on spending, not a ceiling on saving', () => {
+      expect(bankSurplus(10, 5, CAP, true, 40).surplus).toBe(15);
+    });
+
+    it('defaults to reserving nothing, and floors a negative reservation', () => {
+      expect(bankSurplus(10, -9, CAP, true)).toEqual(bankSurplus(10, -9, CAP, true, 0));
+      expect(bankSurplus(10, -9, CAP, true, -5)).toEqual(bankSurplus(10, -9, CAP, true, 0));
+    });
   });
 });

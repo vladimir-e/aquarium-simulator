@@ -895,23 +895,38 @@ describe('processPlants', () => {
       expect(bareOut.condition).toBe(100);
     });
 
-    it('lets damage past it into condition, banked or not', () => {
-      // Hostile pH at night is damage, not a bill — both plants take it
-      // on the chin, and the banked one still holds its reserve.
+    it('buffers damage on the spare, and lets it past once only the reserve is left', () => {
+      // Hostile pH at night is damage, not a bill. A banked plant spends the
+      // spare on it and holds condition; one down to its survival reserve has
+      // nothing to spend, so the same hour reaches condition instead — and the
+      // reserve is still there to pay the rest of the night's upkeep with.
       const hostilePh = (s: SimulationState): SimulationState =>
         produce(s, (draft) => {
           draft.resources.ph = 9.5;
         });
-      const state = createTestState({
-        plants: [{ id: 'p1', species: 'java_fern', size: 50, condition: 100, surplus: 20 }],
-        light: 0,
-        water: 100,
-      });
+      const overnight = (surplus: number): Plant =>
+        processPlants(
+          hostilePh(
+            createTestState({
+              plants: [{ id: 'p1', species: 'java_fern', size: 50, condition: 100, surplus }],
+              light: 0,
+              water: 100,
+            })
+          ),
+          DEFAULT_CONFIG
+        ).state.plants[0];
 
-      const out = processPlants(hostilePh(state), DEFAULT_CONFIG).state.plants[0];
+      const banked = overnight(20);
+      expect(banked.condition).toBe(100);
+      expect(banked.surplus).toBeLessThan(20);
 
-      expect(out.condition).toBeLessThan(100);
-      expect(out.surplus).toBeGreaterThan(19);
+      const reserve =
+        plantsDefaults.maintenanceCost *
+        (1 - PLANT_SPECIES_DATA.java_fern.hardiness) *
+        plantsDefaults.upkeepReserveHours;
+      const spent = overnight(reserve);
+      expect(spent.condition).toBeLessThan(100);
+      expect(spent.size).toBe(50);
     });
 
     it('self-heals an over-cap bank on the first tick', () => {
