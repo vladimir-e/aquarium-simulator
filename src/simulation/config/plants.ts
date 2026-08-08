@@ -106,9 +106,9 @@ export interface PlantsConfig {
   /**
    * Damage per hour of simply being alive, quoted at
    * `respirationReferenceTemp` and moved off it by the same Q10 factor the
-   * gas layer's respiration runs on. Its reference is the compensation
-   * point — the irradiance where photosynthesis pays for respiration, which
-   * the macrophyte literature puts at 10–20 % of saturating irradiance.
+   * gas layer's respiration runs on. Its reference is the compensation point
+   * — the irradiance where photosynthesis pays for respiration; where the
+   * shipped value puts that is derived in `plantsDefaults`.
    */
   maintenanceCost: number;
   /**
@@ -383,7 +383,7 @@ export const plantsConfigMeta: PlantsConfigMeta[] = [
   { key: 'algaeShadingSeverity', label: 'Algae Shading Severity', unit: '%/algae/hr', min: 0.001, max: 0.1, step: 0.005 },
   { key: 'algaeShadingThreshold', label: 'Algae Shading Threshold', unit: '', min: 20, max: 80, step: 5 },
   { key: 'maintenanceCost', label: 'Maintenance Cost', unit: '%/hr', min: 0, max: 0.5, step: 0.005 },
-  { key: 'starvationMultiplier', label: 'Starvation Multiplier', unit: '× maintenance', min: 0, max: 10, step: 0.5 },
+  { key: 'starvationMultiplier', label: 'Starvation Multiplier', unit: '× maintenance', min: 0, max: 10, step: 0.1 },
   { key: 'starvationReserveHours', label: 'Starvation Reserve', unit: 'hr maintenance', min: 10, max: 500, step: 10 },
 
   // Vitality benefit peaks

@@ -21,17 +21,12 @@
  * - Nutrient toxicity (gross NO3 overdose — auto-doser failure case)
  * - Algae shading (when algae density crosses the shading threshold)
  *
- * Benefit coverage — CO2, temperature and pH in-band, nutrients on
- * Liebig sufficiency, and every one of them multiplied by the same
- * saturating PAR curve photosynthesis runs on. A plant realises all
- * four *through* photosynthesis, so the budget is income rather than
- * comfort: good carbon and warm water are worth nothing at midnight.
- *
- * Sum at saturating light ≈ 0.5 %/h, so a lit healthy plant heals at
- * familiar speed and only starts growing once condition is full
- * (surplus-overflow rule). Against it the maintenance cost sets a
- * compensation point: below the PAR where the budget covers it, the
- * plant is running a deficit and spending its bank.
+ * The benefit budget is income, not comfort: every channel is realised
+ * *through* photosynthesis, which is why light multiplies all four
+ * rather than standing beside them. Against that budget the maintenance
+ * cost sets a compensation point — below the PAR where income covers
+ * it, a plant runs a deficit and spends its bank however perfect the
+ * water is.
  */
 
 import type { Plant, Resources } from '../state.js';

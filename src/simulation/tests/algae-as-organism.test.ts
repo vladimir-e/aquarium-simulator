@@ -110,7 +110,7 @@ describe('algae as population — monotonicity while net ≥ 0', () => {
 });
 
 describe('algae as population — plant-side feedback (algae shading)', () => {
-  it('a heavy bloom drives plant condition down via algae_shading', () => {
+  it('a heavy bloom is charged to the plant, and the bank pays it', () => {
     let state = setupTank();
     // Start with a bloom well above the 30-mass shading threshold.
     state = produce(state, (draft) => {
@@ -133,11 +133,10 @@ describe('algae as population — plant-side feedback (algae shading)', () => {
 
     // Plant should still be alive.
     expect(state.plants.length).toBe(1);
-    // And be paying for the bloom. A plant arrives with a reserve, and the
-    // reserve is what a hostile tick comes out of first, so a hardy species
-    // reads full condition while its bank goes down — that drain is the
-    // signal, and condition is what it is protecting.
+    // And be paying for the bloom out of the bank. A plant arrives with a
+    // reserve, and the reserve is what a hostile tick comes out of first, so
+    // over a day a hardy species holds condition and the drain is the signal.
     expect(state.plants[0].surplus).toBeLessThan(startBank);
-    expect(state.plants[0].condition).toBeLessThanOrEqual(startCondition);
+    expect(state.plants[0].condition).toBe(startCondition);
   });
 });

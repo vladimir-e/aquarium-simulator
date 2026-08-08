@@ -59,6 +59,7 @@ describe('the bank a plant runs on', () => {
   const growing = grow(GROWING, 30);
   const maxedEarly = grow(MAXED, 5);
   const maxed = grow(MAXED, 30);
+  const maxedAtDusk = growToDusk(MAXED, 30);
 
   it('fills on a thriving planting, and keeps filling', () => {
     expect(growing.final.plants).toHaveLength(3);
@@ -77,10 +78,7 @@ describe('the bank a plant runs on', () => {
   it('saturates a plant that has nowhere left to grow', () => {
     expect(maxedEarly.samples[5]!.avgSurplus).toBeGreaterThan(0);
     expect(maxed.samples[30]!.avgSurplus).toBeGreaterThan(maxedEarly.samples[5]!.avgSurplus);
-    expect(growToDusk(MAXED, 30).samples[30]!.avgSurplus).toBeCloseTo(
-      plantsDefaults.surplusCap,
-      5
-    );
+    expect(maxedAtDusk.samples[30]!.avgSurplus).toBeCloseTo(plantsDefaults.surplusCap, 5);
   });
 
   it('gives back only the night it slept through', () => {

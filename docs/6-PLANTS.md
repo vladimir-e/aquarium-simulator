@@ -481,8 +481,8 @@ not its income. Earnings are continuous across that boundary.
 Income arrives only in the lit hours while every stressor is charged in
 all 24, so the balance a plant lives on is a daily one and the
 photoperiod is a real lever. The PAR that holds a plant across a whole
-day is roughly double its instantaneous compensation point on the
-shipped 10 h schedule.
+day is 1.5–2.3 × its instantaneous compensation point on the shipped
+10 h schedule, the shade species at the top of that range.
 
 Benefits are **not** scaled by hardiness — a hardy plant tolerates
 poor conditions better, but isn't more energised by good ones.

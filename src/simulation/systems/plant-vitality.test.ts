@@ -136,7 +136,7 @@ describe('buildPlantStressors', () => {
       );
     });
 
-    it('climbs continuously between, with no step at either end', () => {
+    it('falls the whole way as the bank fills, and reaches zero at the reserve', () => {
       let previous = starvation(0);
       for (const share of [0.1, 0.25, 0.5, 0.75, 0.9, 1]) {
         const amount = starvation(share * reserve);
@@ -288,11 +288,14 @@ describe('buildPlantBenefits', () => {
       0
     );
 
-  const PEAKS =
-    plantsDefaults.co2BenefitPeak +
-    plantsDefaults.temperatureBenefitPeak +
-    plantsDefaults.phBenefitPeak +
-    plantsDefaults.nutrientBenefitPeak;
+  const PEAK: Record<string, number> = {
+    co2: plantsDefaults.co2BenefitPeak,
+    temperature: plantsDefaults.temperatureBenefitPeak,
+    ph: plantsDefaults.phBenefitPeak,
+    nutrients: plantsDefaults.nutrientBenefitPeak,
+  };
+
+  const PEAKS = Object.values(PEAK).reduce((sum, peak) => sum + peak, 0);
 
   it('emits all four channels at their peak share of the light term', () => {
     const plant = makePlant('anubias');
@@ -314,7 +317,7 @@ describe('buildPlantBenefits', () => {
       getSaturationIrradiance('anubias', plantsDefaults)
     );
     for (const benefit of benefits) {
-      expect(benefit.amount).toBeCloseTo(0.25 * PEAKS * saturation, 12);
+      expect(benefit.amount).toBeCloseTo(PEAK[benefit.key]! * saturation, 12);
     }
   });
 
