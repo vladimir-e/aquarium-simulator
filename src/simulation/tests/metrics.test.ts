@@ -146,17 +146,10 @@ describe('runTank', () => {
 });
 
 describe('gasCurve', () => {
-  /**
-   * The injected tank with a fixture on it, so there are lit hours to read,
-   * and a doser so the month-long run has a planting left to read them off:
-   * nothing else in this tank puts nutrients back, and a planting that runs
-   * its water down to a sufficiency it cannot pay maintenance out of spends
-   * its reserve and dies before the window opens.
-   */
+  /** The injected tank with a fixture on it, so there are lit hours to read. */
   const LIT: SimulationConfig = {
     ...INJECTED,
     light: { enabled: true, par: 90, schedule: { startHour: 8, duration: 12 } },
-    autoDoser: { enabled: true, doseAmountMl: 0.8, schedule: { startHour: 8, duration: 1 } },
   };
 
   it('reads what the planting made off the lit hours of the window', () => {
