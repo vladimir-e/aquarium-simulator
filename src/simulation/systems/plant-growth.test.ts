@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  spendSurplusOnGrowth,
+  spendSurplus,
   getSpeciesGrowthRate,
   getSpeciesMaxSize,
   asymptoticGrowthFactor,
@@ -68,25 +68,25 @@ describe('getSpeciesMaxSize', () => {
 
 /** What the bank paid for the size a spend delivered. */
 function withdrawal(plant: Plant): number {
-  return plant.surplus - spendSurplusOnGrowth(plant).surplus;
+  return plant.surplus - spendSurplus(plant).surplus;
 }
 
 /** The size a spend delivered. */
 function growth(plant: Plant): number {
-  return spendSurplusOnGrowth(plant).size - plant.size;
+  return spendSurplus(plant).size - plant.size;
 }
 
-describe('spendSurplusOnGrowth', () => {
+describe('spendSurplus', () => {
   it('returns the plant unchanged when surplus is 0', () => {
     const plant = makePlant('java_fern', { surplus: 0, size: 50 });
-    const after = spendSurplusOnGrowth(plant);
+    const after = spendSurplus(plant);
     expect(after.size).toBe(50);
     expect(after.surplus).toBe(0);
   });
 
   it('returns the plant unchanged when surplus is negative (defensive)', () => {
     const plant = makePlant('java_fern', { surplus: -1, size: 50 });
-    const after = spendSurplusOnGrowth(plant);
+    const after = spendSurplus(plant);
     expect(after).toBe(plant); // identity-equal — early return
   });
 
@@ -99,7 +99,7 @@ describe('spendSurplusOnGrowth', () => {
   it('leaves the rest of the bank alone', () => {
     const plant = makePlant('java_fern', { surplus: 20, size: 300 });
     expect(withdrawal(plant)).toBeLessThan(plant.surplus);
-    expect(spendSurplusOnGrowth(plant).surplus).toBeGreaterThan(0);
+    expect(spendSurplus(plant).surplus).toBeGreaterThan(0);
   });
 
   it('size gain = surplus × growthDrawRate × asymptoticFactor × speciesRate × sizePerSurplus', () => {
@@ -153,7 +153,7 @@ describe('spendSurplusOnGrowth', () => {
       surplus: 25,
       size: getSpeciesMaxSize('java_fern'),
     });
-    const after = spendSurplusOnGrowth(plant);
+    const after = spendSurplus(plant);
     expect(after.size).toBe(plant.size);
     expect(after.surplus).toBe(plant.surplus);
   });
@@ -171,7 +171,7 @@ describe('spendSurplusOnGrowth', () => {
 
     for (const growthDrawRate of [maxTunable!, 1, 1.5, 100]) {
       const plant = makePlant('monte_carlo', { surplus: plantsDefaults.surplusCap, size: 0 });
-      const after = spendSurplusOnGrowth(plant, { ...plantsDefaults, growthDrawRate });
+      const after = spendSurplus(plant, { ...plantsDefaults, growthDrawRate });
       expect(after.surplus).toBeGreaterThanOrEqual(0);
       expect(after.size - plant.size).toBeCloseTo(
         (plant.surplus - after.surplus) *

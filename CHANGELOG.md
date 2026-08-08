@@ -11,6 +11,7 @@ Format: - **Feature name** (#PR) - One short sentence (under ~150 chars)
 
 ## Unreleased
 
+- **A starving plant eats itself, not its health** - upkeep is its own ledger paid out of the bank and then out of `size`; shedding fires on the unpaid share of the bill rather than on condition < 30, and repair joins growth as a withdrawal (v24).
 - **Darkness costs a plant** - the whole benefit budget is realised through photosynthesis and pays nothing at night, and an always-on maintenance cost puts a compensation point under it; peaks 0.1 → 0.125 to hold the ≈0.5 %/h budget (v23).
 - **A new plant is stocked out of the tank's own bank** - half the live `surplusCap`, not half the shipped one; breaking: `addPlant` takes a `PlantsConfig`, `applyAction` an optional config.- **A plant banks what it can't grow on** - growth draws a share of the reserve and withdraws only what became size, so a maxed plant fills its bank instead of burning it (v22).
 - **A brighter fixture grows more plant, up to a point** - photosynthesis and the light benefit scale on `tanh(PAR/Ik)`, saturating at twice each species' band low; breaking: no `lightRequirement` (v21, v8).

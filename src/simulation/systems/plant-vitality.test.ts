@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   buildPlantStressors,
+  buildPlantUpkeep,
   buildPlantBenefits,
   computePlantVitality,
   type PlantVitalityContext,
@@ -16,7 +17,6 @@ import {
   type PlantSpecies,
 } from '../plants/species.js';
 import { lightSaturationFactor } from '../core/kinetics.js';
-import { DEFAULT_LIGHT } from '../equipment/light.js';
 
 function makePlant(species: PlantSpecies, overrides: Partial<Plant> = {}): Plant {
   return {
@@ -78,21 +78,19 @@ function ctx(
   };
 }
 
-describe('buildPlantStressors', () => {
-  it('charges an Anubias in good conditions nothing but staying alive', () => {
-    const plant = makePlant('anubias', { surplus: plantsDefaults.surplusCap });
-    const resources = makeResources();
-    const stressors = buildPlantStressors(ctx(plant, resources));
-    for (const s of stressors) {
-      expect(s.amount).toBe(s.key === 'maintenance' ? plantsDefaults.maintenanceCost : 0);
-    }
-  });
+describe('buildPlantUpkeep', () => {
+  const charge = (
+    key: 'maintenance' | 'starvation',
+    plant: Plant,
+    resources = makeResources(),
+    plantsConfig = plantsDefaults
+  ): number =>
+    buildPlantUpkeep(ctx(plant, resources, 0, plantsConfig)).find((f) => f.key === key)!.amount;
 
   it('scales maintenance on the same Q10 the gas layer respires on', () => {
     const plant = makePlant('anubias', { surplus: plantsDefaults.surplusCap });
     const cost = (temperature: number): number =>
-      buildPlantStressors(ctx(plant, makeResources({ temperature })))
-        .find((s) => s.key === 'maintenance')!.amount;
+      charge('maintenance', plant, makeResources({ temperature }));
 
     expect(cost(plantsDefaults.respirationReferenceTemp)).toBe(plantsDefaults.maintenanceCost);
     expect(cost(plantsDefaults.respirationReferenceTemp + 10)).toBeCloseTo(
@@ -102,27 +100,15 @@ describe('buildPlantStressors', () => {
     expect(cost(35)).toBeGreaterThan(cost(15));
   });
 
-  it('breaks even at a tenth of Ik, which is where the compensation point belongs', () => {
-    // The constant's whole referent: with everything else at optimum, a plant
-    // covers maintenance out of income above ~0.1 × Ik and runs a deficit
-    // below it. Read on a species whose band reaches that low, so the
-    // light-insufficient stressor isn't in the answer.
-    const plant = makePlant('anubias', { surplus: plantsDefaults.surplusCap });
-    const ik = getSaturationIrradiance('anubias', plantsDefaults);
-    const net = (light: number): number =>
-      computePlantVitality(ctx(plant, makeResources({ light }))).breakdown.net;
-
-    expect(net(0.2 * ik)).toBeGreaterThan(0);
-    expect(net(0.02 * ik)).toBeLessThan(0);
-  });
-
   describe('starvation ramps on the reserve the bank still holds', () => {
     const starvation = (surplus: number, plantsConfig = plantsDefaults): number =>
-      buildPlantStressors(
-        ctx(makePlant('anubias', { surplus }), makeResources(), 0, plantsConfig)
-      ).find((s) => s.key === 'starvation')!.amount;
+      charge('starvation', makePlant('anubias', { surplus }), makeResources(), plantsConfig);
 
-    const reserve = plantsDefaults.maintenanceCost * plantsDefaults.starvationReserveHours;
+    /** Banked units that buy `starvationReserveHours` of anubias's own drain. */
+    const reserve =
+      plantsDefaults.maintenanceCost *
+      (1 - PLANT_SPECIES_DATA.anubias.hardiness) *
+      plantsDefaults.starvationReserveHours;
 
     it('charges nothing to a plant holding its reserve, and no less above it', () => {
       expect(starvation(reserve)).toBe(0);
@@ -146,26 +132,29 @@ describe('buildPlantStressors', () => {
       expect(previous).toBe(0);
     });
 
-    it('leaves an empty bank recoverable across a whole day', () => {
-      // The ceiling on `starvationMultiplier`, and the reason it is not a free
-      // judgement call: a plant banks reserve only at full condition, so an
-      // empty bank is a state it has to *heal* out of. Income arrives in the
-      // lit hours and starvation is charged in all of them, so if the day does
-      // not balance, every plant that ever spends its reserve is dead whatever
-      // the keeper does next. Read on the fussiest species, in water with
-      // nothing else wrong with it, at the top of its own band.
-      const spent = makePlant('monte_carlo', { condition: 50, surplus: 0 });
-      const [, bandHi] = PLANT_SPECIES_DATA.monte_carlo.tolerableLight;
-      const net = (light: number): number =>
-        computePlantVitality(ctx(spent, makeResources({ light }))).breakdown.net;
-      const lit = DEFAULT_LIGHT.schedule.duration;
+    it('measures the reserve in the hours it actually lasts, not in banked units', () => {
+      // The bank drains post-hardiness, so the same banked units go further in
+      // a hardy plant: the line is one duration for the whole roster and a
+      // different stock for every species on it.
+      const line = (species: PlantSpecies): number => {
+        const drain =
+          plantsDefaults.maintenanceCost * (1 - PLANT_SPECIES_DATA[species].hardiness);
+        const banked = drain * plantsDefaults.starvationReserveHours;
+        const plant = makePlant(species, { surplus: banked });
+        return charge('starvation', plant);
+      };
 
-      expect(lit * net(bandHi) + (24 - lit) * net(0)).toBeGreaterThan(0);
+      for (const species of ['anubias', 'java_fern', 'monte_carlo'] as const) {
+        expect(line(species)).toBe(0);
+      }
+      // One unit short of the line, every species is already being charged.
+      expect(
+        charge('starvation', makePlant('monte_carlo', { surplus: reserve - 1 }))
+      ).toBeGreaterThan(0);
     });
 
     it('charges nothing at all when nothing is charged for staying alive', () => {
-      // A plant that pays no maintenance has no reserve to run out of, and
-      // the ramp has no denominator either.
+      // A plant that pays no maintenance has no reserve to run out of.
       const free = { ...plantsDefaults, maintenanceCost: 0 };
       expect(starvation(0, free)).toBe(0);
       expect(starvation(plantsDefaults.surplusCap, free)).toBe(0);
@@ -173,13 +162,35 @@ describe('buildPlantStressors', () => {
 
     it('asks a warm tank for more reserve than a cool one', () => {
       // The reserve is hours of maintenance, and a warm plant burns faster —
-      // so the same bank reads thinner at 35 °C than at 15 °C.
-      const warm = buildPlantStressors(
-        ctx(makePlant('anubias', { surplus: reserve }), makeResources({ temperature: 35 }))
-      ).find((s) => s.key === 'starvation')!.amount;
-
-      expect(warm).toBeGreaterThan(0);
+      // so the same bank reads thinner at 35 °C than at 25 °C.
+      expect(
+        charge('starvation', makePlant('anubias', { surplus: reserve }), makeResources({ temperature: 35 }))
+      ).toBeGreaterThan(0);
     });
+  });
+});
+
+describe('buildPlantStressors', () => {
+  it('charges an Anubias in good conditions nothing at all', () => {
+    const plant = makePlant('anubias', { surplus: plantsDefaults.surplusCap });
+    const resources = makeResources();
+    for (const s of buildPlantStressors(ctx(plant, resources))) {
+      expect(s.amount).toBe(0);
+    }
+  });
+
+  it('breaks even at a tenth of Ik, which is where the compensation point belongs', () => {
+    // The constant's whole referent: with everything else at optimum, a plant
+    // covers maintenance out of income above ~0.1 × Ik and runs a deficit
+    // below it. Read on a species whose band reaches that low, so the
+    // light-insufficient stressor isn't in the answer.
+    const plant = makePlant('anubias', { surplus: plantsDefaults.surplusCap });
+    const ik = getSaturationIrradiance('anubias', plantsDefaults);
+    const net = (light: number): number =>
+      computePlantVitality(ctx(plant, makeResources({ light }))).breakdown.net;
+
+    expect(net(0.2 * ik)).toBeGreaterThan(0);
+    expect(net(0.02 * ik)).toBeLessThan(0);
   });
 
   it('flags low CO2 for high-tech species', () => {
@@ -401,12 +412,14 @@ describe('buildPlantBenefits', () => {
 });
 
 describe('computePlantVitality', () => {
-  it('Anubias in ideal conditions heals when below 100 condition', () => {
+  it('banks for an Anubias below 100 rather than repairing it on the spot', () => {
+    // Repair is a withdrawal (`spendSurplus`), not a use of income: what a
+    // damaged plant earns goes to the bank, which is what leaves it something
+    // to pay the night with while it recovers.
     const plant = makePlant('anubias', { condition: 80 });
-    const resources = makeResources();
-    const result = computePlantVitality(ctx(plant, resources));
-    expect(result.newCondition).toBeGreaterThan(80);
-    expect(result.surplus).toBe(0); // no surplus while sub-100
+    const result = computePlantVitality(ctx(plant, makeResources()));
+    expect(result.newCondition).toBe(80);
+    expect(result.surplus).toBeGreaterThan(0);
   });
 
   it('Monte Carlo declines when CO2 falls below tolerable', () => {
@@ -415,7 +428,6 @@ describe('computePlantVitality', () => {
     const result = computePlantVitality(ctx(plant, resources));
     // Damage outweighs benefit → newCondition drops below 100.
     expect(result.newCondition).toBeLessThan(100);
-    expect(result.surplus).toBe(0);
   });
 
   it('Anubias holds at 100 even with low CO2 (low-tech tolerance)', () => {
@@ -426,7 +438,7 @@ describe('computePlantVitality', () => {
     expect(result.surplus).toBeGreaterThan(0);
   });
 
-  it('produces surplus only at full condition', () => {
+  it('produces surplus out of whatever income the upkeep left', () => {
     // Healthy plant in ideal conditions: net positive, condition 100,
     // surplus > 0.
     const plant = makePlant('java_fern', { condition: 100 });

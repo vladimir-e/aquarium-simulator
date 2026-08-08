@@ -36,7 +36,7 @@ export {
 } from './respiration.js';
 
 export {
-  spendSurplusOnGrowth,
+  spendSurplus,
   getSpeciesGrowthRate,
   getSpeciesMaxSize,
   asymptoticGrowthFactor,

@@ -8,6 +8,15 @@
  * `condition` is full accrues into a `surplus` bank — energy the
  * organism can spend on growth, breeding, longevity bonuses, etc.
  *
+ * Income splits into two ledgers, and which one a deficit belongs to
+ * decides which stock it reaches. `upkeep` is the cost of simply being
+ * alive: income pays it first, the bank pays what income couldn't, and
+ * what neither could cover is reported as `starved` for the caller to
+ * take out of its own tissue. Only `stressors` — damage done *to* the
+ * organism rather than energy it failed to earn — spend condition. An
+ * organism that declares no upkeep runs the single-ledger balance
+ * unchanged.
+ *
  * The surplus bank doubles as a **protective reserve buffer** above
  * condition. When damage outweighs benefit, it drains the bank before
  * condition falls: a well-stocked organism shrugs off a bad tick by
@@ -54,6 +63,13 @@ export interface VitalityInput {
    */
   stressors: VitalityFactor[];
   /**
+   * Cost-of-living factors (units: %/h), charged against `benefits`
+   * before anything else and hardiness-scaled like stressors. Unpaid
+   * upkeep drains the bank and then leaves the balance as `starved`;
+   * it never reaches condition. Defaults to none.
+   */
+  upkeep?: VitalityFactor[];
+  /**
    * Benefit factors (units: %/h). Caller-provided severities exactly as
    * with stressors. Hardiness does not scale benefits — a hardy organism
    * is damaged less, not energised more.
@@ -92,21 +108,31 @@ export interface VitalityInput {
 export interface VitalityBreakdown {
   /** Stressor factors with hardiness already applied to `amount`. */
   stressors: VitalityFactor[];
+  /** Upkeep factors with hardiness already applied to `amount`. */
+  upkeep: VitalityFactor[];
   /** Benefit factors (unchanged from input). */
   benefits: VitalityFactor[];
   /** Total damage rate (%/h), post-hardiness. */
   damageRate: number;
+  /** Total cost of living (%/h), post-hardiness. */
+  upkeepRate: number;
   /** Total benefit rate (%/h). */
   benefitRate: number;
-  /** Net rate (benefit − damage). Positive = recovering. */
+  /** Net rate (benefit − upkeep − damage). Positive = recovering. */
   net: number;
   /**
-   * Reserve drained from the bank to absorb damage this tick (%/h,
-   * ≥ 0). Non-zero only when `net < 0` and the bank had something to
-   * spend. Condition-100 with `drained > 0` is the "burning reserves"
-   * signal — the organism reads full but is spending down its buffer.
+   * Reserve drained from the bank this tick (%/h, ≥ 0), whichever
+   * ledger spent it. Condition-100 with `drained > 0` is the "burning
+   * reserves" signal — the organism reads full but is spending down its
+   * buffer.
    */
   drained: number;
+  /**
+   * Share of `upkeepRate` (0–1) that neither income nor the bank could
+   * pay. The caller turns this into tissue loss; a plant with nothing
+   * banked and no light reads 1.
+   */
+  starved: number;
 }
 
 /** Result of a vitality tick. */
@@ -183,10 +209,15 @@ export function bankSurplus(
  * Compute one tick of vitality for an organism.
  *
  * Algorithm:
- * 1. damageRate = Σ stressor.amount × (1 - hardiness)
- * 2. benefitRate = Σ benefit.amount  (no hardiness scaling)
- * 3. net = benefitRate − damageRate
- * 4. Condition + bank update:
+ * 1. upkeepRate = Σ upkeep.amount × (1 - hardiness)
+ * 2. damageRate = Σ stressor.amount × (1 - hardiness)
+ * 3. benefitRate = Σ benefit.amount  (no hardiness scaling)
+ * 4. Energy ledger — `benefitRate − upkeepRate`. A deficit drains the
+ *    bank; what the bank can't cover is reported as `starved` and
+ *    reaches no stock here. A surplus is the income the health ledger
+ *    below gets to spend.
+ * 5. Health ledger — that income against `damageRate`, into condition
+ *    and the bank:
  *    - net < 0: the bank absorbs the damage first (drain = min(bank,
  *      |net|)); condition falls only by the shortfall the bank can't
  *      cover. Condition stays put while the bank holds the line.
@@ -197,11 +228,14 @@ export function bankSurplus(
  *      `surplusCap` (when `accrueSurplus`), discarding the rest.
  *    - net == 0: condition and bank unchanged (bank still clamped).
  *
- * Step 4's branching enforces the "recover then grow" trajectory: a
+ * Step 5's branching enforces the "recover then grow" trajectory: a
  * stressed organism cannot make progress while its condition is below
  * 100 %. The healing burns the entire benefit budget until the deficit
  * is paid down. The reserve buffer sits one layer above: it protects
  * condition from damage and only fills once condition is full.
+ *
+ * With no upkeep declared, step 4 is a pass-through and the whole thing
+ * reduces to the single balance `benefitRate − damageRate`.
  */
 export function computeVitality(input: VitalityInput): VitalityResult {
   // Clamp hardiness to [0, 1]; out-of-range values shouldn't poison the
@@ -211,16 +245,21 @@ export function computeVitality(input: VitalityInput): VitalityResult {
   const clampedHardiness = Math.max(0, Math.min(1, input.hardiness));
   const hardinessFactor = 1 - clampedHardiness;
 
-  // Apply hardiness to each stressor so the breakdown the UI shows
+  // Apply hardiness to each charged factor so the breakdown the UI shows
   // matches the actual damage being inflicted.
-  const scaledStressors = input.stressors.map((s) => ({
-    ...s,
-    amount: s.amount * hardinessFactor,
-  }));
+  const scale = (factor: VitalityFactor): VitalityFactor => ({
+    ...factor,
+    amount: factor.amount * hardinessFactor,
+  });
+  const sum = (factors: VitalityFactor[]): number =>
+    factors.reduce((total, factor) => total + factor.amount, 0);
 
-  const damageRate = scaledStressors.reduce((sum, s) => sum + s.amount, 0);
-  const benefitRate = input.benefits.reduce((sum, b) => sum + b.amount, 0);
-  const net = benefitRate - damageRate;
+  const scaledUpkeep = (input.upkeep ?? []).map(scale);
+  const scaledStressors = input.stressors.map(scale);
+
+  const upkeepRate = sum(scaledUpkeep);
+  const damageRate = sum(scaledStressors);
+  const benefitRate = sum(input.benefits);
 
   const condition = Math.max(0, Math.min(100, input.condition));
   // Floor the cap at 0 — a negative saturation ceiling is nonsensical and
@@ -230,33 +269,62 @@ export function computeVitality(input: VitalityInput): VitalityResult {
   const cap = Math.max(0, input.surplusCap);
   const accrue = input.accrueSurplus ?? true;
 
-  let newCondition: number;
-  let surplus: number;
-  let drained: number;
+  // An organism that declares an upkeep stores its energy: whatever its
+  // income survives goes to the reserve however low its condition reads,
+  // and the caller spends the reserve on repair and on growth. One that
+  // declares none has no store to run — income repairs it on the spot,
+  // it banks only what a full condition leaves over, and the reserve is
+  // a buffer damage drains before condition falls.
+  const stores = input.upkeep !== undefined;
 
-  if (net < 0) {
+  let surplus = clampBank(input.surplus, cap);
+  let drained = 0;
+  let unpaidUpkeep = 0;
+
+  // The energy ledger. Income pays the cost of living first, the reserve
+  // pays what income couldn't, and what neither covered is `starved` —
+  // reaching no stock here, because the tissue it comes out of is the
+  // caller's to spend.
+  const energyNet = benefitRate - upkeepRate;
+  if (energyNet < 0) {
+    const bank = bankSurplus(surplus, energyNet, cap, accrue);
+    surplus = bank.surplus;
+    drained += bank.drained;
+    unpaidUpkeep = bank.overflowDamage;
+  }
+
+  const net = energyNet - damageRate;
+  const conditionNet = Math.max(0, energyNet) - damageRate;
+  let newCondition: number;
+
+  if (stores) {
+    // Damage is met out of the income first, so a nagging channel costs a
+    // storing organism its banking rate — which is to say its growth —
+    // before it costs any condition. Past the income it reaches condition
+    // and stops there: spending the reserve on repair would leave nothing
+    // to pay the dark hours with.
+    newCondition = Math.max(0, condition + Math.min(0, conditionNet));
+    if (conditionNet > 0) {
+      surplus = bankSurplus(surplus, conditionNet, cap, accrue).surplus;
+    }
+  } else if (conditionNet < 0) {
     // Damage exceeds benefit — the reserve buffer soaks it up before
     // condition takes the hit. Only the shortfall the bank couldn't
     // cover bleeds condition (clamped at 0; downstream death checks
     // compare against configured thresholds).
-    const bank = bankSurplus(input.surplus, net, cap, accrue);
-    drained = bank.drained;
+    const bank = bankSurplus(surplus, conditionNet, cap, accrue);
     surplus = bank.surplus;
+    drained += bank.drained;
     newCondition = Math.max(0, condition - bank.overflowDamage);
-  } else if (net > 0 && condition >= 100) {
+  } else if (conditionNet > 0 && condition >= 100) {
     // Healthy organism with extra capacity — condition stays full,
     // overflow accrues into the bank (capped) for the caller to spend.
-    const bank = bankSurplus(input.surplus, net, cap, accrue);
-    drained = 0;
-    surplus = bank.surplus;
+    surplus = bankSurplus(surplus, conditionNet, cap, accrue).surplus;
     newCondition = 100;
   } else {
-    // net > 0 and condition < 100 → heal first, overshoot discarded.
-    // (Or net === 0 → no change.) The bank is idle but still clamps to
-    // the cap so an oversized old-save value self-heals.
-    drained = 0;
-    surplus = clampBank(input.surplus, cap);
-    newCondition = Math.min(100, condition + net);
+    // conditionNet > 0 and condition < 100 → heal first, overshoot
+    // discarded. (Or conditionNet === 0 → no change.)
+    newCondition = Math.min(100, condition + conditionNet);
   }
 
   return {
@@ -264,11 +332,14 @@ export function computeVitality(input: VitalityInput): VitalityResult {
     surplus,
     breakdown: {
       stressors: scaledStressors,
+      upkeep: scaledUpkeep,
       benefits: input.benefits,
       damageRate,
+      upkeepRate,
       benefitRate,
       net,
       drained,
+      starved: upkeepRate > 0 ? unpaidUpkeep / upkeepRate : 0,
     },
   };
 }

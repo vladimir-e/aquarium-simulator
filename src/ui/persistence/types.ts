@@ -22,6 +22,13 @@ import type { TunableConfig } from '../../simulation/config/index.js';
  * Increment this when the structure changes in a breaking way.
  * On version mismatch, stored data is discarded.
  *
+ * v24: Starvation is paid in tissue. Shedding stops reading condition and
+ *      reads the share of its upkeep a plant failed to pay, so
+ *      `PlantsConfig` drops `sheddingConditionThreshold` — there is no
+ *      threshold left to cross — and `maxSheddingRate` is redenominated
+ *      against a bill rather than against condition 0. A v23 config carries
+ *      the dropped key, and the strict schema refuses that section; a
+ *      refused section reverts every other one to its defaults.
  * v23: Darkness costs a plant. `PlantsConfig` gains the always-on
  *      `maintenanceCost` and the `starvationMultiplier` /
  *      `starvationReserveHours` pair that charges an empty bank, and drops
@@ -157,7 +164,7 @@ import type { TunableConfig } from '../../simulation/config/index.js';
  *     nutrient sufficiency) but its persisted shape is identical, so
  *     the bump is purely the new Fish field.
  */
-export const PERSISTENCE_VERSION = 23;
+export const PERSISTENCE_VERSION = 24;
 
 /**
  * Storage key for the unified persisted state.

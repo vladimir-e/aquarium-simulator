@@ -9,7 +9,6 @@
 import {
   calculateNutrientSufficiency,
   computeAlgaePopulation,
-  computePlantVitality,
   getDosePreview,
   getMaxPlants,
   getPlantsToTrimCount,
@@ -21,6 +20,7 @@ import {
   type VitalityFactor,
 } from '../../simulation/index.js';
 import { getDemandMultiplier } from '../../simulation/systems/nutrients.js';
+import { readPlantVitality } from '../../simulation/plants/index.js';
 import {
   getMassFromPpm,
   getPpm,
@@ -82,8 +82,9 @@ export interface PlantRow {
   condition: number;
   status: Status;
   word: string;
-  /** Condition change per hour: what the breakdown below it sums to. */
+  /** Change per hour: what the breakdown below it sums to. */
   net: number;
+  /** Everything charged this hour — upkeep first, then damage, so the rows sum to `net`. */
   stressors: VitalityFactor[];
   benefits: VitalityFactor[];
 }
@@ -93,22 +94,10 @@ function acting(factors: VitalityFactor[]): VitalityFactor[] {
 }
 
 export function plantRows(state: SimulationState, config: TunableConfig): PlantRow[] {
-  const { plants, resources, algae } = state;
+  const vitalities = readPlantVitality(state, config);
 
-  return plants.map((plant) => {
-    const vitality = computePlantVitality({
-      plant,
-      resources,
-      waterVolume: resources.water,
-      plantsConfig: config.plants,
-      nutrientSufficiency: calculateNutrientSufficiency(
-        resources,
-        resources.water,
-        plant.species,
-        config.nutrients
-      ),
-      algaeMass: algae.mass,
-    });
+  return state.plants.map((plant, i) => {
+    const vitality = vitalities[i];
 
     return {
       id: plant.id,
@@ -119,7 +108,7 @@ export function plantRows(state: SimulationState, config: TunableConfig): PlantR
       status: conditionStatus(plant.condition),
       word: conditionWord(plant.condition),
       net: vitality.breakdown.net,
-      stressors: acting(vitality.breakdown.stressors),
+      stressors: acting([...vitality.breakdown.upkeep, ...vitality.breakdown.stressors]),
       benefits: acting(vitality.breakdown.benefits),
     };
   });

@@ -1,16 +1,21 @@
 /**
- * Plant growth — surplus-driven, per plant, no cross-plant sharing.
+ * Plant spending — the bank, and the ladder it is spent down.
  *
- * Each plant's vitality banks surplus on `Plant.surplus` when condition
- * is full and net is positive (capped at `surplusCap`). This module
- * spends the bank: every lit tick a plant mobilises `growthDrawRate` of
- * it toward new tissue, and the asymptotic factor decides how much of
- * that becomes size. Only what became size leaves the bank — a plant
- * at its ceiling converts nothing and pays nothing, so its whole
- * income banks instead of burning. That reserve is what rides out a
- * dark spell, and what propagation will spend on runners.
- * `docs/6-PLANTS.md` § Growth and Size carries why the draw is a share
- * of the bank rather than a flat per-tick ceiling.
+ * Each plant's vitality banks what its income left after upkeep, on
+ * `Plant.surplus` and capped at `surplusCap`. This module spends it:
+ * every lit tick a plant mobilises `growthDrawRate` of the bank and puts
+ * it into condition first and new tissue second. Repair before growth is
+ * the ladder vitality has always run — a stressed organism cannot make
+ * progress until the deficit is paid down — with the bank as the pool
+ * both rungs draw from, which is what leaves a recovering plant with
+ * something to pay the night with.
+ *
+ * Only what was spent leaves the bank — a plant at full condition and at
+ * its ceiling converts nothing and pays nothing, so its whole income
+ * banks instead of burning. That reserve is what rides out a dark spell,
+ * and what propagation will spend on runners. `docs/6-PLANTS.md`
+ * § Growth and Size carries why the draw is a share of the bank rather
+ * than a flat per-tick ceiling.
  *
  * No tank-wide overgrowth penalty, no biomass redistribution, no
  * 200 % waste-dump backstop. Each plant runs against its own bank and
@@ -47,25 +52,25 @@ export function asymptoticGrowthFactor(size: number, maxSize: number): number {
   return Math.max(0, 1 - size / maxSize);
 }
 
-export function spendSurplusOnGrowth(
-  plant: Plant,
-  config: PlantsConfig = plantsDefaults
-): Plant {
+export function spendSurplus(plant: Plant, config: PlantsConfig = plantsDefaults): Plant {
   if (plant.surplus <= 0) return plant;
 
   // The bank bounds the withdrawal whatever the config says the rate is: a
   // restored save carries any finite `growthDrawRate`, and one above 1 would
   // otherwise drive the bank negative and latch it there on the early return.
-  const converted = Math.min(
-    plant.surplus,
-    plant.surplus *
-      config.growthDrawRate *
-      asymptoticGrowthFactor(plant.size, getSpeciesMaxSize(plant.species))
-  );
+  const mobilised = Math.min(plant.surplus, plant.surplus * config.growthDrawRate);
+
+  // A bank unit is a condition point — the bank accrued out of the same
+  // %/h the condition deficit is measured in.
+  const repaired = Math.min(mobilised, 100 - plant.condition);
+  const converted =
+    (mobilised - repaired) *
+    asymptoticGrowthFactor(plant.size, getSpeciesMaxSize(plant.species));
 
   return {
     ...plant,
+    condition: plant.condition + repaired,
     size: plant.size + converted * getSpeciesGrowthRate(plant.species) * config.sizePerSurplus,
-    surplus: plant.surplus - converted,
+    surplus: plant.surplus - repaired - converted,
   };
 }

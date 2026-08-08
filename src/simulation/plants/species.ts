@@ -33,7 +33,7 @@ export interface PlantSpeciesData {
   nutrientDemand: NutrientDemand;
   /**
    * Per-plant biological maximum size (% units, same scale as `Plant.size`).
-   * Drives the asymptotic growth factor in `spendSurplusOnGrowth`:
+   * Drives the asymptotic growth factor in `spendSurplus`:
    * `factor = max(0, 1 - size / maxSize)`. The factor reduces spending
    * efficiency as the plant approaches `maxSize` so it self-limits.
    *

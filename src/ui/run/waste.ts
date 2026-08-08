@@ -12,7 +12,7 @@ import {
   processMetabolism,
   type SimulationState,
 } from '../../simulation/index.js';
-import { calculateShedding } from '../../simulation/plants/index.js';
+import { calculateShedding, readPlantVitality } from '../../simulation/plants/index.js';
 import { calculateWasteToAmmonia } from '../../simulation/systems/index.js';
 import type { TunableConfig } from '../../simulation/config/index.js';
 
@@ -54,11 +54,12 @@ const LABEL: Record<WasteSourceKey, string> = {
 export function wasteInflow(state: SimulationState, config: TunableConfig): WasteInflowReadout {
   const r = state.resources;
   const decayed = calculateDecay(r.food, r.temperature, r.oxygen, config.decay);
+  const starved = readPlantVitality(state, config).map((v) => v.breakdown.starved);
   const grams: Record<WasteSourceKey, number> = {
     food: decayed * config.decay.wasteConversionRatio,
     fish: processMetabolism(state.fish, r.food, r.oxygen, config.livestock).wasteProduced,
     plants: state.plants.reduce(
-      (sum, plant) => sum + calculateShedding(plant, config.plants).wasteProduced,
+      (sum, plant, i) => sum + calculateShedding(plant, starved[i], config.plants).wasteProduced,
       0
     ),
     substrate: calculateSubstrateLeach(state.equipment.substrate.organicReserve, config.decay),

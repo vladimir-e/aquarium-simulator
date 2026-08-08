@@ -22,6 +22,7 @@ import { describe, it, expect } from 'vitest';
 import type { PresetSeed } from '../seed.js';
 import { plantsDefaults } from '../config/plants.js';
 import { getSpeciesMaxSize } from '../systems/plant-growth.js';
+import { PLANT_SPECIES_DATA } from '../plants/species.js';
 import { runTank, totalSize } from './metrics.js';
 import { ATTACHED_PLANTING, DAY, fixtureFor, plantedTank, planting } from './tanks.js';
 
@@ -49,11 +50,27 @@ const PEGGED: PresetSeed = {
 const grow = (seed: PresetSeed, days: number, setup = TANK): ReturnType<typeof runTank> =>
   runTank({ setup, seed, days, sampleEvery: DAY, sampleHour: 0 });
 
-/** The last lit hour of the 08:00 + 12 h photoperiod `plantedTank` runs. */
+/** Either end of the dark stretch of the 08:00 + 12 h photoperiod `plantedTank` runs. */
 const DUSK = 19;
+const DAWN = 7;
+const DARK_HOURS = DAY - 12;
+
+const growToHour = (seed: PresetSeed, days: number, hour: number): ReturnType<typeof runTank> =>
+  runTank({ setup: TANK, seed, days, sampleEvery: DAY, sampleHour: hour });
 
 const growToDusk = (seed: PresetSeed, days: number): ReturnType<typeof runTank> =>
-  runTank({ setup: TANK, seed, days, sampleEvery: DAY, sampleHour: DUSK });
+  growToHour(seed, days, DUSK);
+
+/** What the planting pays per hour for being alive, post-hardiness, at 25 °C. */
+const UPKEEP_PER_HOUR =
+  ATTACHED_PLANTING.reduce(
+    (sum, group) =>
+      sum +
+      group.count *
+        plantsDefaults.maintenanceCost *
+        (1 - PLANT_SPECIES_DATA[group.species].hardiness),
+    0
+  ) / ATTACHED_PLANTING.reduce((sum, group) => sum + group.count, 0);
 
 describe('the bank a plant runs on', () => {
   const growing = grow(GROWING, 30);
@@ -81,14 +98,20 @@ describe('the bank a plant runs on', () => {
     expect(maxedAtDusk.samples[30]!.avgSurplus).toBeCloseTo(plantsDefaults.surplusCap, 5);
   });
 
-  it('gives back only the night it slept through', () => {
-    // The sawtooth the two readings above sit on either side of: a maxed
-    // planting tops out at the cap every afternoon and is short of it by
-    // morning by exactly what it spent staying alive in the dark.
-    const shortfall = plantsDefaults.surplusCap - maxed.samples[30]!.avgSurplus;
+  it('gives back exactly the night it slept through', () => {
+    // The sawtooth the reading above sits on top of, measured end to end:
+    // a maxed planting tops out at the cap at dusk and is short of it at
+    // the last dark hour by what it spent staying alive in between, and by
+    // nothing else. Nothing else *can* be in it — damage no longer reaches
+    // the bank, and a bank this near the cap is far above the line
+    // starvation ramps from.
+    // Three decimals rather than an exact equality because the heater lets
+    // the tank sit a few hundredths under 25 °C for an hour or two a night,
+    // and the Q10 moves the bill with it — 0.03 % of the figure.
+    const dawn = growToHour(MAXED, 30, DAWN);
+    const shortfall = plantsDefaults.surplusCap - dawn.samples[30]!.avgSurplus;
 
-    expect(shortfall).toBeGreaterThan(0);
-    expect(shortfall).toBeLessThan(DAY * plantsDefaults.maintenanceCost);
+    expect(shortfall).toBeCloseTo(DARK_HOURS * UPKEEP_PER_HOUR, 3);
   });
 
   it('holds a maxed plant at its ceiling rather than shrinking it', () => {
@@ -103,18 +126,19 @@ describe('the bank a plant runs on', () => {
 
   it('climbs to the peg past half of maxSize, and grows on the way', () => {
     // Months rather than weeks: what fills the bank is the income left after
-    // maintenance, and a planting this size in 150 L is drawing its water down
-    // far enough that what is left is a trickle. The regime is the claim — the
+    // upkeep, and a planting this size in 150 L is drawing its water down far
+    // enough that what is left is a trickle. The regime is the claim — the
     // withdrawal has stopped tracking the income, so the bank only goes up.
-    const pegged = growToDusk(PEGGED, 180);
-    const days = [20, 60, 120, 180];
+    // It passes 99 % of the cap on d99 and never comes back down, so the run
+    // closes three weeks past the crossing rather than on top of it.
+    const pegged = growToDusk(PEGGED, 120);
 
-    for (const day of days) {
+    for (const day of [20, 40, 60, 80, 100, 120]) {
       expect(pegged.samples[day]!.avgSurplus).toBeGreaterThan(
-        pegged.samples[day - 10]!.avgSurplus
+        pegged.samples[day - 20]!.avgSurplus
       );
     }
-    expect(pegged.samples[180]!.avgSurplus).toBeGreaterThan(plantsDefaults.surplusCap * 0.99);
+    expect(pegged.samples[120]!.avgSurplus).toBeGreaterThan(plantsDefaults.surplusCap * 0.99);
     expect(totalSize(pegged.final)).toBeGreaterThan(pegged.samples[0]!.totalSize);
   });
 

@@ -6,12 +6,19 @@
  * onto plant state. The breakdown drives both the per-plant condition
  * update and the surplus-gated growth path.
  *
- * Stressor coverage (each gated by species config so not every species
- * triggers every channel):
- * - Maintenance, always on, on the respiration Q10 — so the two layers
- *   describe one plant and a warm blackout kills faster than a cool one
- * - Starvation, the same cost at a multiple, scaling from nothing at a
- *   full reserve to everything at an empty one
+ * A plant runs two ledgers, and they end in different stocks.
+ *
+ * **Energy** — the benefit budget is income, not comfort: every channel
+ * is realised *through* photosynthesis, which is why light multiplies
+ * all four rather than standing beside them. Against that income sits
+ * the upkeep — maintenance, plus the starvation multiple an empty
+ * reserve adds to it — which sets a compensation point: below the PAR
+ * where income covers upkeep a plant runs a deficit however perfect the
+ * water is, spends its bank, and then pays in tissue. A blacked-out
+ * rhizome with no leaves left is a live plant that regrows, so an
+ * unpayable bill costs `size` and not condition.
+ *
+ * **Health** — damage done *to* the plant, which spends condition:
  * - Light insufficient / excessive (two-sided around `tolerableLight`,
  *   in PAR at the substrate)
  * - CO2 insufficient (high-tech species suffer when CO2 falls)
@@ -20,13 +27,6 @@
  * - Nutrient deficiency (per (1 − Liebig sufficiency))
  * - Nutrient toxicity (gross NO3 overdose — auto-doser failure case)
  * - Algae shading (when algae density crosses the shading threshold)
- *
- * The benefit budget is income, not comfort: every channel is realised
- * *through* photosynthesis, which is why light multiplies all four
- * rather than standing beside them. Against that budget the maintenance
- * cost sets a compensation point — below the PAR where income covers
- * it, a plant runs a deficit and spends its bank however perfect the
- * water is.
  */
 
 import type { Plant, Resources } from '../state.js';
@@ -62,6 +62,35 @@ export interface PlantVitalityContext {
 }
 
 /**
+ * Build the upkeep list for a plant — what it owes for being alive,
+ * charged against income before anything else. Pre-hardiness, like the
+ * stressors; `computeVitality` applies the species factor centrally.
+ */
+export function buildPlantUpkeep(ctx: PlantVitalityContext): VitalityFactor[] {
+  const { plant, resources, plantsConfig } = ctx;
+  const species = PLANT_SPECIES_DATA[plant.species];
+
+  const maintenance =
+    plantsConfig.maintenanceCost *
+    getRespirationTemperatureFactor(resources.temperature, plantsConfig);
+
+  // Starvation is the extra a spent plant pays on top of maintenance, so
+  // it derives from that rate rather than carrying a severity of its
+  // own. The reserve it ramps against is real hours of this plant's own
+  // drain: the bank empties at the *post-hardiness* rate, which is why
+  // the divisor carries `1 − hardiness` and the line is 400 h of anubias
+  // against 143 h of monte carlo for the same banked units.
+  const drainHours = plantsConfig.starvationReserveHours * (1 - species.hardiness);
+  const starvation =
+    plantsConfig.starvationMultiplier * Math.max(0, maintenance - plant.surplus / drainHours);
+
+  return [
+    { key: 'maintenance', label: 'Maintenance', amount: maintenance },
+    { key: 'starvation', label: 'Starvation', amount: starvation },
+  ];
+}
+
+/**
  * Build the stressor list for a plant. Severities are pre-hardiness;
  * the species `hardiness` factor is applied centrally inside
  * `computeVitality`.
@@ -71,33 +100,14 @@ export function buildPlantStressors(ctx: PlantVitalityContext): VitalityFactor[]
   const species = PLANT_SPECIES_DATA[plant.species];
   const factors: VitalityFactor[] = [];
 
-  const maintenance =
-    plantsConfig.maintenanceCost *
-    getRespirationTemperatureFactor(resources.temperature, plantsConfig);
-  factors.push({ key: 'maintenance', label: 'Maintenance', amount: maintenance });
-
-  // Starvation is the plant eating itself at a multiple of the
-  // maintenance it can no longer pay, so it derives from that rate
-  // rather than carrying a severity of its own. The reserve it ramps
-  // against is hours of maintenance banked, which is what a plant that
-  // burns faster needs more of; a plant that pays nothing to stay alive
-  // has no reserve to run out of either.
-  const reserve = maintenance * plantsConfig.starvationReserveHours;
-  const provisioned = reserve > 0 ? Math.min(1, Math.max(0, plant.surplus / reserve)) : 1;
-  factors.push({
-    key: 'starvation',
-    label: 'Starvation',
-    amount: maintenance * plantsConfig.starvationMultiplier * (1 - provisioned),
-  });
-
   // Light — two-sided, and only during the photoperiod. Light = 0
   // here means "lights off, it's night" — plants aren't trying to
   // photosynthesize, so a lights-off tick isn't a "light insufficient"
-  // event. Darkness is charged above instead: night and blackout cost
-  // the same maintenance per hour, and what tells them apart is whether
-  // the bank ever refills. The light-excessive side is always-on
-  // (excess PAR can burn leaves any time the lamps are on, but if
-  // they're off there's nothing to burn).
+  // event. Darkness is charged through the upkeep instead: night and
+  // blackout cost the same maintenance per hour, and what tells them
+  // apart is whether the bank ever refills. The light-excessive side is
+  // always-on (excess PAR can burn leaves any time the lamps are on, but
+  // if they're off there's nothing to burn).
   const [lightLo, lightHi] = species.tolerableLight;
   let lightAmount = 0;
   let lightLabel = 'Light';
@@ -241,6 +251,7 @@ export function computePlantVitality(ctx: PlantVitalityContext): VitalityResult 
   const species = PLANT_SPECIES_DATA[ctx.plant.species];
   return computeVitality({
     stressors: buildPlantStressors(ctx),
+    upkeep: buildPlantUpkeep(ctx),
     benefits: buildPlantBenefits(ctx),
     hardiness: species.hardiness,
     condition: ctx.plant.condition,

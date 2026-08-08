@@ -104,35 +104,38 @@ export interface PlantsConfig {
   /** Algae level (0–100) above which shading stress kicks in. */
   algaeShadingThreshold: number;
   /**
-   * Damage per hour of simply being alive, quoted at
+   * Cost per hour of simply being alive, quoted at
    * `respirationReferenceTemp` and moved off it by the same Q10 factor the
    * gas layer's respiration runs on. Its reference is the compensation point
    * — the irradiance where photosynthesis pays for respiration; where the
    * shipped value puts that is derived in `plantsDefaults`.
+   *
+   * It is upkeep rather than damage, so a plant that cannot pay it sheds
+   * tissue instead of losing condition.
    */
   maintenanceCost: number;
   /**
-   * Multiple of `maintenanceCost` an empty reserve costs on top of it: the
-   * rate a plant with nothing banked consumes itself at.
+   * Multiple of `maintenanceCost` an empty reserve adds on top of it: what
+   * a plant with nothing banked pays for the same hour of being alive.
    *
-   * Its ceiling is recovery, and that is what the shipped value is quoted
-   * against. A plant only banks reserve at full condition, so an empty bank
-   * is a state it has to *heal* out of: the day's income has to cover
-   * `24 × maintenance × (1 + this)` before it can climb. Under the shipped
-   * fixture that caps the multiple just above 1 for the fussiest species,
-   * and past it any plant that ever spends its reserve is dead whatever the
-   * keeper does next.
+   * Unpinned, and honestly so — it is what makes the last of a bank go
+   * faster than the first of it, and nothing measures that directly. It no
+   * longer sets how fast a starved plant melts: shedding reads the *share*
+   * of the bill left standing, and at an empty bank that share is 1
+   * whatever the multiple is. §9 argues with the value.
    */
   starvationMultiplier: number;
   /**
-   * Hours of maintenance banked at which a plant counts as provisioned —
-   * the reserve `starvationMultiplier` ramps against, zero starvation at or
-   * above it and the full multiple at an empty bank.
+   * Hours of its own drain a plant counts as provisioned for — the reserve
+   * `starvationMultiplier` ramps against, zero starvation at or above it
+   * and the full multiple at an empty bank.
    *
-   * Quoted against the bank a fed plant holds rather than against
-   * `surplusCap`: growth withdraws `growthDrawRate` of the bank every lit
-   * hour, which is more per day than a plant can earn, so a growing plant
-   * settles far below the cap and never reads as full there.
+   * Real hours: the bank empties at the post-hardiness rate, so the line is
+   * `maintenance × (1 − hardiness) × this` in banked units and the same
+   * number of hours for every species. Quoted as a duration rather than a
+   * share of `surplusCap` because growth withdraws `growthDrawRate` of the
+   * bank every lit hour, more per day than a plant can earn, so a growing
+   * plant settles far below the cap and would never read as fed there.
    */
   starvationReserveHours: number;
 
@@ -152,10 +155,11 @@ export interface PlantsConfig {
   nutrientBenefitPeak: number;
 
   // Lifecycle (shedding + death) — see `systems/plant-lifecycle.ts`.
-  // These fire once vitality has driven condition below their thresholds.
-  /** Condition below this triggers shedding. */
-  sheddingConditionThreshold: number;
-  /** Maximum shedding rate (fraction of size per tick at condition 0). */
+  /**
+   * Share of itself a plant sheds per hour when it can pay none of its
+   * upkeep. Scales down with the share it *can* pay, so the same number
+   * covers a blackout and a dim afternoon.
+   */
   maxSheddingRate: number;
   /** Waste produced per unit of shed size (g per % size shed). */
   wastePerShedSize: number;
@@ -274,10 +278,10 @@ export const plantsDefaults: PlantsConfig = {
   // adaptation goes. Below a species' band the light-insufficient stressor
   // sits on top of this, so the PAR a plant actually needs is the band.
   maintenanceCost: 0.075,
-  // An empty reserve doubles what staying alive costs, and four days of
-  // maintenance — 7.5 units of the 50-unit cap — is what counts as
-  // provisioned. What the pair produces, and the runs the ceiling on the
-  // multiple was read off, are in
+  // An empty reserve doubles what staying alive costs, and four days of a
+  // plant's own drain is what counts as provisioned — 5.3 banked units for
+  // monte carlo against 1.9 for anubias, because the hardy plant makes the
+  // same reserve last longer. What the pair produces is in
   // `docs/calibration/runs/2026-08-11-light-deficiency.md`.
   starvationMultiplier: 1,
   starvationReserveHours: 100,
@@ -293,8 +297,13 @@ export const plantsDefaults: PlantsConfig = {
   nutrientBenefitPeak: 0.125,
 
   // Lifecycle thresholds — forgiving by default.
-  sheddingConditionThreshold: 30, // shedding starts at condition < 30 %
-  maxSheddingRate: 0.02, // 2 % size loss per tick at condition 0
+  //
+  // 2 %/h is the melt of a plant paying nothing at all: an e-folding every
+  // two days, so a grown-in carpet is gone within a week of its bank
+  // running out and a plant that only misses part of its bill loses that
+  // share of the rate. The value is unchanged from when it was the rate at
+  // condition 0, but its reference is not — see `plant-lifecycle.ts`.
+  maxSheddingRate: 0.02,
   wastePerShedSize: 0.005, // 0.005 g waste per % size shed
   deathConditionThreshold: 10, // death at condition < 10 %
   deathSizeThreshold: 10, // death if size < 10 %
@@ -393,7 +402,6 @@ export const plantsConfigMeta: PlantsConfigMeta[] = [
   { key: 'nutrientBenefitPeak', label: 'Nutrient Benefit Peak', unit: '%/hr', min: 0.0, max: 0.5, step: 0.05 },
 
   // Lifecycle (shedding + death)
-  { key: 'sheddingConditionThreshold', label: 'Shedding Threshold', unit: '%', min: 10, max: 50, step: 5 },
   { key: 'maxSheddingRate', label: 'Max Shedding Rate', unit: '/hr', min: 0.005, max: 0.1, step: 0.005 },
   { key: 'wastePerShedSize', label: 'Waste per Shed Size', unit: 'g/%', min: 0.001, max: 0.05, step: 0.001 },
   { key: 'deathConditionThreshold', label: 'Death Condition Threshold', unit: '%', min: 5, max: 20, step: 1 },
