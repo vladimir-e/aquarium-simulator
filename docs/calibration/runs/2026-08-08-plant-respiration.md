@@ -1,6 +1,6 @@
 # A planting that breathed more than it made: `light-response`
 
-Date: 2026-08-10 · Branch: `light-response` · Register defect #35
+Date: 2026-08-08 · Branch: `light-response` · Register defect #35
 
 `baseRespirationRate` was 0.15, documented as "~15 % of photosynthesis". It is
 15 % of `basePhotosynthesisRate`, which is the rate at `optimalCo2` — 20 mg/L,
@@ -215,7 +215,7 @@ night-side name.**
 
 The ceiling of 2 was set in 2b against a reading of **1.48** for this tank, taken
 through the `before.resources.light` reader this branch proved is an hour out of
-phase (`2026-08-09-light-response.md`). The corrected reading of the same tank on
+phase (`2026-08-08-light-response.md`). The corrected reading of the same tank on
 the same engine is **2.28**. The headroom the ceiling was chosen with — 0.52 —
 is smaller than the measurement error it was chosen through — 0.80. The ceiling
 encodes the bug, which is why no constant can reach it.
@@ -441,7 +441,7 @@ warnings in `src/ui/`.
 run. The reachability tables, the shade pairing and the DLI trade hold the water
 at optimum before every tick, so they are unmoved to the third decimal. The two
 yield sweeps and the curve-in/curve-out pair moved with the carbon a tank
-carries, and are corrected in place in `2026-08-09-light-response.md`.
+carries, and are corrected in place in `2026-08-08-light-response.md`.
 
 `probe:par-dose-response` moves on its planted rows only, and by about 1.5 % —
 the 126 PAR row reads 35.97 / 63.50 / 81.62 against the 36.54 / 64.68 / 82.22 of

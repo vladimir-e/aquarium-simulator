@@ -23,7 +23,7 @@ describe('createPlant', () => {
     // this tank's: at a cap of 20 a plant reading defaults is born over it,
     // and at a low enough one it is born short of the reserve it owes its own
     // upkeep — with nothing spare to meet a bad night on.
-    const reserve = plantsDefaults.maintenanceCost * plantsDefaults.upkeepReserveHours;
+    const reserve = plantsDefaults.upkeepCost * plantsDefaults.upkeepReserveHours;
 
     for (const surplusCap of [20, 80]) {
       const plant = createPlant({

@@ -23,7 +23,7 @@ import type { TunableConfig } from '../../simulation/config/index.js';
  * On version mismatch, stored data is discarded.
  *
  * v23: Darkness costs a plant, and it is paid in tissue. `PlantsConfig` gains
- *      the always-on `maintenanceCost` and the `upkeepReserveHours` that says
+ *      the always-on `upkeepCost` and the `upkeepReserveHours` that says
  *      how much of the bank is held back to pay it, and drops two keys:
  *      `lightBenefitPeak`, because light is no longer a channel of its own but
  *      the term the other four are multiplied by (so those four move

@@ -399,7 +399,7 @@ activates:
 
 | Stressor | Trigger | Severity (per unit deviation) |
 |----------|---------|-------------------------------|
-| Maintenance | always | `maintenanceCost × q10(temperature)` |
+| Upkeep | always | `upkeepCost × q10(temperature)` |
 | Light insufficient | `light < tolerableLight[0]` *and* lights on | `lightInsufficientSeverity` × gap |
 | Light excessive | `light > tolerableLight[1]` | `lightExcessiveSeverity` × gap |
 | CO2 insufficient | `co2 < tolerableCO2[0]` *and* lights on | `co2InsufficientSeverity` × gap |
@@ -414,11 +414,11 @@ night the plant is dormant and doesn't suffer from low CO2 or low
 light. Light excess remains active any time the lamps are bright
 enough to burn leaves.
 
-**Maintenance is the compensation point.** It runs on the same Q10 the
+**Upkeep is the compensation point.** It runs on the same Q10 the
 gas layer's respiration does, so the two layers describe one plant and a
 warm blackout kills faster than a cool one. Its reference is the
 irradiance where photosynthesis pays for respiration, 10–20 % of
-saturating irradiance in the macrophyte literature: `maintenanceCost`
+saturating irradiance in the macrophyte literature: `upkeepCost`
 against the benefit budget puts a hardiness-0.3 species at 10.5 % of its
 own `Ik`, and hardiness carries the shade species below that. Dim light
 is not free — below that PAR a plant runs a deficit however perfect the
@@ -496,7 +496,7 @@ ends in the bank and then in `size`. Health — damage done *to* the
 plant — ends in `condition`.
 
 ```
-upkeepRate  = Σ upkeep.amount   × (1 - hardiness)   // maintenance
+upkeepRate  = Σ upkeep.amount   × (1 - hardiness)
 damageRate  = Σ stressor.amount × (1 - hardiness)
 benefitRate = Σ benefit.amount
 bank        = clamp(plant.surplus, 0, surplusCap)   // self-heals old saves

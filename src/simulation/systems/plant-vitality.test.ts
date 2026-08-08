@@ -81,21 +81,21 @@ function ctx(
 
 describe('buildPlantUpkeep', () => {
   const charge = (
-    key: 'maintenance',
+    key: 'upkeep',
     plant: Plant,
     resources = makeResources(),
     plantsConfig = plantsDefaults
   ): number =>
     buildPlantUpkeep(ctx(plant, resources, 0, plantsConfig)).find((f) => f.key === key)!.amount;
 
-  it('scales maintenance on the same Q10 the gas layer respires on', () => {
+  it('scales upkeep on the same Q10 the gas layer respires on', () => {
     const plant = makePlant('anubias', { surplus: plantsDefaults.surplusCap });
     const cost = (temperature: number): number =>
-      charge('maintenance', plant, makeResources({ temperature }));
+      charge('upkeep', plant, makeResources({ temperature }));
 
-    expect(cost(plantsDefaults.respirationReferenceTemp)).toBe(plantsDefaults.maintenanceCost);
+    expect(cost(plantsDefaults.respirationReferenceTemp)).toBe(plantsDefaults.upkeepCost);
     expect(cost(plantsDefaults.respirationReferenceTemp + 10)).toBeCloseTo(
-      plantsDefaults.maintenanceCost * plantsDefaults.respirationQ10,
+      plantsDefaults.upkeepCost * plantsDefaults.respirationQ10,
       12
     );
     expect(cost(35)).toBeGreaterThan(cost(15));
@@ -104,7 +104,7 @@ describe('buildPlantUpkeep', () => {
   describe('the reserve upkeep keeps back from damage', () => {
     /** Banked units that buy `upkeepReserveHours` of a species' own drain. */
     const line = (species: PlantSpecies, plantsConfig = plantsDefaults): number =>
-      plantsConfig.maintenanceCost *
+      plantsConfig.upkeepCost *
       (1 - PLANT_SPECIES_DATA[species].hardiness) *
       plantsConfig.upkeepReserveHours;
 
@@ -162,7 +162,7 @@ describe('buildPlantUpkeep', () => {
     });
 
     it('lets damage spend the whole bank when nothing is charged for staying alive', () => {
-      const free = { ...plantsDefaults, maintenanceCost: 0 };
+      const free = { ...plantsDefaults, upkeepCost: 0 };
       const result = tick('anubias', 0.001, sour, free);
 
       expect(result.surplus).toBe(0);

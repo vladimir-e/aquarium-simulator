@@ -104,7 +104,7 @@ export function addPlant(
     };
   }
 
-  // Validate initial size (0-200% allowed, plants can start overgrown)
+  // Validate initial size
   if (!Number.isFinite(initialSize) || initialSize < 0 || initialSize > 200) {
     return {
       state,

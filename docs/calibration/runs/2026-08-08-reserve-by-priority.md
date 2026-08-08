@@ -1,6 +1,6 @@
 # One reserve, two claims, and the severity that was hiding behind the old income
 
-Date: 2026-08-14 · Branch: `light-deficiency`, against the same branch @ `06c9950`
+Date: 2026-08-08 · Branch: `light-deficiency`, against the same branch @ `06c9950`
 ("before") and `main` @ `bbe8249`
 
 Three probes, unchanged seeds: `npm run probe:ordinary-tanks`,
@@ -277,7 +277,7 @@ d40  size 18.3  cond 100.0  bank 0.0
 `PERSISTENCE_VERSION` claimed 22 → 23 → 24 for a branch nobody has loaded a
 save from. v23's shape never left a developer's machine, so there is no reader
 of it to describe. Collapsed to a single v22 → **23** covering the whole
-branch: `PlantsConfig` gains `maintenanceCost` and `upkeepReserveHours`, drops
+branch: `PlantsConfig` gains `upkeepCost` and `upkeepReserveHours`, drops
 `lightBenefitPeak` and `sheddingConditionThreshold`. `SESSION_VERSION` already
 treated the branch as one bump (9 → 10) and is unchanged.
 

@@ -97,7 +97,7 @@ const UPKEEP_PER_HOUR =
     (sum, group) =>
       sum +
       group.count *
-        plantsDefaults.maintenanceCost *
+        plantsDefaults.upkeepCost *
         (1 - PLANT_SPECIES_DATA[group.species].hardiness),
     0
   ) / ATTACHED_PLANTING.reduce((sum, group) => sum + group.count, 0);

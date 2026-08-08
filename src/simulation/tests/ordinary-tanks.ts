@@ -13,9 +13,9 @@
  *
  *     npx tsx src/simulation/tests/ordinary-tanks.ts [section ...]
  *
- * Measurements: `docs/calibration/runs/2026-08-12-ordinary-tanks.md` against
- * `main`, then `2026-08-13-tissue-not-condition.md` for what the ledger split
- * moved and `2026-08-14-reserve-by-priority.md` for what the reserve line and
+ * Measurements: `docs/calibration/runs/2026-08-08-ordinary-tanks.md` against
+ * `main`, then `2026-08-08-tissue-not-condition.md` for what the ledger split
+ * moved and `2026-08-08-reserve-by-priority.md` for what the reserve line and
  * the re-derived nutrient severity moved back.
  */
 

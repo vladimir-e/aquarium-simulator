@@ -1,6 +1,6 @@
 # Darkness had no price: `light-deficiency`
 
-Date: 2026-08-11 · Branch: `light-deficiency` · Register defect #37, low side
+Date: 2026-08-08 · Branch: `light-deficiency` · Register defect #37, low side
 
 Ninety days with a fixture that never came on left every species at condition
 100, size unchanged, net **+0.400 %/h**. The engine scored pitch black as

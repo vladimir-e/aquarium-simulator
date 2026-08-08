@@ -1,8 +1,8 @@
 # What darkness costs the tanks that are not dark: `light-deficiency`
 
-Date: 2026-08-12 · Branch: `light-deficiency` against `main` @ `bbe8249`
+Date: 2026-08-08 · Branch: `light-deficiency` against `main` @ `bbe8249`
 
-`2026-08-11-light-deficiency.md` measures the scenarios the mechanic was built
+`2026-08-08-light-deficiency.md` measures the scenarios the mechanic was built
 for. This is the empirical gate on the ones it reaches on the way there — a
 planted tank on a normal photoperiod, at every volume, every species across its
 own band, the shipped presets, and a keeper's ordinary mistake.

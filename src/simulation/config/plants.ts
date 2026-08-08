@@ -113,7 +113,7 @@ export interface PlantsConfig {
    * It is upkeep rather than damage, so a plant that cannot pay it sheds
    * tissue instead of losing condition.
    */
-  maintenanceCost: number;
+  upkeepCost: number;
   /**
    * Hours of upkeep the reserve keeps back from damage — the survival
    * rations. Above the line the bank is spare and buffers a stressor
@@ -191,7 +191,7 @@ export const plantsDefaults: PlantsConfig = {
   // macrophyte literature reports against light-saturated gross photosynthesis,
   // with the Monod below leaving 14 % standing in air-saturated water. It is
   // 3 % of the injected-carbon rate, which is what the old figure was quoting.
-  // See `docs/calibration/runs/2026-08-10-plant-respiration.md`.
+  // See `docs/calibration/runs/2026-08-08-plant-respiration.md`.
   baseRespirationRate: 0.03,
   respirationQ10: 2.0, // Rate doubles per 10°C increase
   respirationReferenceTemp: 25.0, // °C
@@ -209,8 +209,8 @@ export const plantsDefaults: PlantsConfig = {
   // *and* saturating light. On the corrected gas reader that tank admits
   // 22.3–44.6, and the same claim read on a planting grown in from 350 admits
   // 21.6–43.4. `tests/planted-gas-budget.test.ts` asserts that tank; the
-  // derivations are in `docs/calibration/runs/2026-08-09-light-response.md` and
-  // `docs/calibration/runs/2026-08-10-plant-respiration.md`.
+  // derivations are in `docs/calibration/runs/2026-08-08-light-response.md` and
+  // `docs/calibration/runs/2026-08-08-plant-respiration.md`.
   co2PerRateUnit: 30.0,
 
   // Surplus-driven growth — vitality banks surplus when condition is full and
@@ -255,7 +255,7 @@ export const plantsDefaults: PlantsConfig = {
   // The old 0.7 was quoted against an income that paid 0.4 %/h in the dark,
   // and its own docstring's reference — "bottoms out at 30–55 by day 28
   // rather than dying" — became day 4 when the light term took that income
-  // away. `docs/calibration/runs/2026-08-14-reserve-by-priority.md` § 2 has
+  // away. `docs/calibration/runs/2026-08-08-reserve-by-priority.md` § 2 has
   // the sweep and the one claim this value does not satisfy, which belongs to
   // the sufficiency curve rather than to the severity.
   nutrientDeficiencySeverity: 0.3,
@@ -279,14 +279,14 @@ export const plantsDefaults: PlantsConfig = {
   // lower point (anubias 3.8 % of its Ik), which is the direction shade
   // adaptation goes. Below a species' band the light-insufficient stressor
   // sits on top of this, so the PAR a plant actually needs is the band.
-  maintenanceCost: 0.075,
+  upkeepCost: 0.075,
   // Four days of a plant's own drain is what it keeps back for staying alive
   // — 5.3 banked units for monte carlo against 1.9 for anubias, because the
   // hardy plant makes the same reserve last longer. It is the line that lets
   // one bank serve two claims: damage burns the ~20 units a working plant
   // carries above it, a day or two of buffer, and stops there rather than
   // leaving the next dark hour unpayable. What the line is worth either side
-  // of it is in `docs/calibration/runs/2026-08-14-reserve-by-priority.md`.
+  // of it is in `docs/calibration/runs/2026-08-08-reserve-by-priority.md`.
   upkeepReserveHours: 100,
 
   // Vitality benefit peaks. Four channels at 0.125 sum to the 0.5 %/h budget
@@ -308,7 +308,7 @@ export const plantsDefaults: PlantsConfig = {
   // its reference is not — a bill rather than a condition. The alternative,
   // converting the unpaid bill back into tissue as the mirror of
   // `sizePerSurplus`, is measured and rejected in
-  // `docs/calibration/runs/2026-08-13-tissue-not-condition.md` § 6. Only an
+  // `docs/calibration/runs/2026-08-08-tissue-not-condition.md` § 6. Only an
   // energy shortfall reaches it: damage is buffered down to
   // `upkeepReserveHours`, so a poisoned plant never sheds for want of a bank.
   maxSheddingRate: 0.02,
@@ -399,8 +399,8 @@ export const plantsConfigMeta: PlantsConfigMeta[] = [
   { key: 'nutrientToxicityThresholdNitrate', label: 'NO3 Tox. Threshold', unit: 'ppm', min: 50, max: 300, step: 10 },
   { key: 'algaeShadingSeverity', label: 'Algae Shading Severity', unit: '%/algae/hr', min: 0.001, max: 0.1, step: 0.005 },
   { key: 'algaeShadingThreshold', label: 'Algae Shading Threshold', unit: '', min: 20, max: 80, step: 5 },
-  { key: 'maintenanceCost', label: 'Maintenance Cost', unit: '%/hr', min: 0, max: 0.5, step: 0.005 },
-  { key: 'upkeepReserveHours', label: 'Upkeep Reserve', unit: 'hr maintenance', min: 10, max: 500, step: 10 },
+  { key: 'upkeepCost', label: 'Upkeep Cost', unit: '%/hr', min: 0, max: 0.5, step: 0.005 },
+  { key: 'upkeepReserveHours', label: 'Upkeep Reserve', unit: 'hr upkeep', min: 10, max: 500, step: 10 },
 
   // Vitality benefit peaks
   { key: 'co2BenefitPeak', label: 'CO2 Benefit Peak', unit: '%/hr', min: 0.0, max: 0.5, step: 0.05 },

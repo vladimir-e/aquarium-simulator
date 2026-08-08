@@ -1,9 +1,9 @@
 # What moves when starvation eats tissue: the ledger split
 
-Date: 2026-08-13 · Branch: `light-deficiency` @ `a2093e9` against the same
+Date: 2026-08-08 · Branch: `light-deficiency` @ `a2093e9` against the same
 branch @ `f489972`
 
-`2026-08-12-ordinary-tanks.md` is the gate this pass had to beat. Every figure
+`2026-08-08-ordinary-tanks.md` is the gate this pass had to beat. Every figure
 below is the same three probes on the same seeds — `npm run probe:ordinary-tanks`,
 `probe:dark-tank`, `probe:starvation-share` — so "before" is that document's
 branch column and nothing else has moved between them.

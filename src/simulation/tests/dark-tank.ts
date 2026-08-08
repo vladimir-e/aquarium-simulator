@@ -250,7 +250,7 @@ function holdingPar(species: PlantSpecies): number {
  *
  * Two readings, and the distance between them is the photoperiod. `net = 0`
  * is the hour's own balance for a provisioned plant — the compensation point
- * `maintenanceCost` is quoted against, and for the two shade species it lands
+ * `upkeepCost` is quoted against, and for the two shade species it lands
  * where the macrophyte literature puts it. `holds` is the dimmest fixture the
  * whole day balances under: income arrives for 10 hours and maintenance is
  * charged for 24, so a plant needs several times its compensation point on the

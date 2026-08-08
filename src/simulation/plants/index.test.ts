@@ -21,8 +21,8 @@ describe('processPlants', () => {
    * at `respirationReferenceTemp` — which is the temperature every state here
    * is built at, so the Q10 factor is 1.
    */
-  const NIGHTLY_MAINTENANCE =
-    plantsDefaults.maintenanceCost * (1 - PLANT_SPECIES_DATA.java_fern.hardiness);
+  const NIGHTLY_UPKEEP =
+    plantsDefaults.upkeepCost * (1 - PLANT_SPECIES_DATA.java_fern.hardiness);
 
   function createTestState(overrides: Partial<{
     plants: Plant[];
@@ -375,7 +375,7 @@ describe('processPlants', () => {
       });
       const result = processPlants(state, DEFAULT_CONFIG);
       expect(result.state.plants[0].size).toBe(50);
-      expect(result.state.plants[0].surplus).toBeCloseTo(40 - NIGHTLY_MAINTENANCE, 12);
+      expect(result.state.plants[0].surplus).toBeCloseTo(40 - NIGHTLY_UPKEEP, 12);
     });
 
     it('banks surplus during the day under ideal conditions', () => {
@@ -921,7 +921,7 @@ describe('processPlants', () => {
       expect(banked.surplus).toBeLessThan(20);
 
       const reserve =
-        plantsDefaults.maintenanceCost *
+        plantsDefaults.upkeepCost *
         (1 - PLANT_SPECIES_DATA.java_fern.hardiness) *
         plantsDefaults.upkeepReserveHours;
       const spent = overnight(reserve);
@@ -936,7 +936,7 @@ describe('processPlants', () => {
         water: 100,
       });
       const out = processPlants(state, DEFAULT_CONFIG).state.plants[0];
-      expect(out.surplus).toBeCloseTo(plantsDefaults.surplusCap - NIGHTLY_MAINTENANCE, 12);
+      expect(out.surplus).toBeCloseTo(plantsDefaults.surplusCap - NIGHTLY_UPKEEP, 12);
     });
   });
 });

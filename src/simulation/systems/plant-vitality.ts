@@ -72,10 +72,10 @@ export function buildPlantUpkeep(ctx: PlantVitalityContext): VitalityFactor[] {
 
   return [
     {
-      key: 'maintenance',
-      label: 'Maintenance',
+      key: 'upkeep',
+      label: 'Upkeep',
       amount:
-        plantsConfig.maintenanceCost *
+        plantsConfig.upkeepCost *
         getRespirationTemperatureFactor(resources.temperature, plantsConfig),
     },
   ];

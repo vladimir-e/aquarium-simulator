@@ -12,7 +12,7 @@
  *   floor and the next dark hour finds it empty. This is the ordering without
  *   the reservation, and it is the run that says whether the line earns its
  *   keep.
- * - `no upkeep` — `maintenanceCost` 0, leaving only the income change.
+ * - `no upkeep` — `upkeepCost` 0, leaving only the income change.
  *
  * The income change cannot be switched off from config — it is the benefit
  * array's shape — so `no upkeep` is the floor this probe can reach, and the gap
@@ -48,7 +48,7 @@ const VARIANTS: Array<[string, TunableConfig]> = [
   [
     'no upkeep',
     tuned((draft) => {
-      draft.plants.maintenanceCost = 0;
+      draft.plants.upkeepCost = 0;
     }),
   ],
 ];

@@ -1,6 +1,6 @@
 # Putting intensity back in the rate: `light-response`
 
-Date: 2026-08-09 · Branch: `light-response` · Roadmap §2, subtask 2c
+Date: 2026-08-08 · Branch: `light-response` · Roadmap §2, subtask 2c
 
 Light reached photosynthesis exactly once, as a `light <= 0` guard, so 5 PAR and
 200 PAR produced identical oxygen. The fix is one term — `tanh(PAR / Ik)`, the
@@ -22,7 +22,7 @@ this branch's own first sweep.
 > The ceiling was the fault. It had been set against a reading of 1.48 taken
 > through this very phase bug, and its assertion measured the whole tank's night
 > under a name that claimed the planting's share of it. Both are re-derived in
-> `2026-08-10-plant-respiration.md`: the anchor now states the tank's overnight
+> `2026-08-08-plant-respiration.md`: the anchor now states the tank's overnight
 > oxygen sag against a real planted tank's 1–3 mg/L, the engine reads 2.174, and
 > the window reopens to 22.3–44.6 with 30 inside it. **The ceiling figures in
 > the two sweeps below are therefore superseded; the gross figures are not.**
@@ -149,7 +149,7 @@ appeared to close the window at ≈26.2, twenty points inside the gross ceiling'
 own ≈49.8 — which is what made the sag look like the binding edge. It was the
 ceiling of 2 that was wrong rather than the yield; against the re-derived 1–3
 the night closes at **≈43.4** and the window is 21.6–43.4
-(`2026-08-10-plant-respiration.md`).
+(`2026-08-08-plant-respiration.md`).
 
 The same sweep on the anchor's own planting — the 982 that
 `tests/planted-gas-budget.test.ts` hands over at tick 0, run 10 days — is the
@@ -177,7 +177,7 @@ both edges: **21.6 – 43.4** and **22.3 – 44.6**.
 comfortably — 0.667 and 0.650 against 0.5–1 — and the night no longer excludes
 it: the ceiling of 2 it was read against had itself been set through this
 reader, and re-derived against a real planted tank's diel curve the night admits
-1–3 mg/L, which 2.26 and 2.17 sit inside (`2026-08-10-plant-respiration.md`).
+1–3 mg/L, which 2.26 and 2.17 sit inside (`2026-08-08-plant-respiration.md`).
 
 The constant has **not** been moved. What reopened the window was correcting the
 ceiling, not loosening it, and the yield the two plantings had already agreed on
@@ -198,7 +198,7 @@ reader bias is common-mode — the same reader, the same schedule, two engines �
 so the *direction* of the 2c change survives it. But the corrected column was
 also re-read after `baseRespirationRate` moved 0.15 → 0.03, and that moves gross
 on its own: 0.685 against 0.650 on this planting at this yield
-(`2026-08-10-plant-respiration.md`), because respiration is one of the tank's
+(`2026-08-08-plant-respiration.md`), because respiration is one of the tank's
 carbon sources. So the 2b column needs re-measuring on the corrected reader
 *and* the corrected engine before either subtraction means anything. The
 branch's own counterfactual, which is measured on one engine and is in the table
@@ -445,7 +445,7 @@ them. The claim re-tested here is the direction and its reason, not the ratio.)
 `co2PerRateUnit` directly — failed one of its three assertions on the corrected
 reader: the dark-hours figure read 2.174 mg/L against a ceiling of 2. That
 ceiling was itself set through this phase bug and is re-derived in
-`2026-08-10-plant-respiration.md`; the assertion now bands the tank's overnight
+`2026-08-08-plant-respiration.md`; the assertion now bands the tank's overnight
 sag at 1–3 and reads 2.174, green. Its other two held throughout, and the one
 that pins the instrument holds exactly: the window still keeps **96 of 96** lit
 hours, because the phase moved which hours are counted and not how many. Gross
