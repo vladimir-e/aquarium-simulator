@@ -400,9 +400,6 @@ describe('processPlants', () => {
       });
       const result = processPlants(state, DEFAULT_CONFIG);
       expect(result.state.plants[0].size).toBeGreaterThan(50);
-      // Growth costs a share of the bank and this tick's accrual refills it,
-      // so the bank ends above where it started — a growing plant in a good
-      // tank earns more than it spends on height.
       expect(result.state.plants[0].surplus).toBeGreaterThan(10);
     });
 

@@ -7,7 +7,7 @@ import {
 } from './plant-growth.js';
 import type { Plant } from '../state.js';
 import type { PlantSpecies } from '../plants/species.js';
-import { plantsDefaults } from '../config/plants.js';
+import { plantsConfigMeta, plantsDefaults } from '../config/plants.js';
 
 function makePlant(
   species: PlantSpecies,
@@ -128,8 +128,6 @@ describe('spendSurplusOnGrowth', () => {
   });
 
   it('costs the same bank whatever the species does with it', () => {
-    // The asymptotic share is what leaves the bank; the species rate only
-    // decides how much size it buys. Same size fraction, same withdrawal.
     const surplus = 10;
     const slow = makePlant('anubias', { surplus, size: getSpeciesMaxSize('anubias') * 0.5 });
     const fast = makePlant('monte_carlo', {
@@ -160,11 +158,27 @@ describe('spendSurplusOnGrowth', () => {
     expect(after.surplus).toBe(plant.surplus);
   });
 
-  it('never withdraws more than the bank holds', () => {
-    const plant = makePlant('monte_carlo', {
-      surplus: plantsDefaults.surplusCap,
-      size: 0, // factor = 1 — the largest draw a bank of this size can fund
-    });
-    expect(spendSurplusOnGrowth(plant).surplus).toBeGreaterThan(0);
+  /**
+   * At size 0 the asymptotic factor is 1, so the withdrawal is the whole draw
+   * rate against the whole bank — the largest one the shape can produce. The
+   * default rate makes that 2 % and the claim trivial; a config is not pinned
+   * to the default. The tuner reaches 0.2, and the persistence schema takes any
+   * finite number, so a restored save can hand this a rate above 1.
+   */
+  it('never withdraws more than the bank holds, at any rate a config can carry', () => {
+    const maxTunable = plantsConfigMeta.find((knob) => knob.key === 'growthDrawRate')?.max;
+    expect(maxTunable).toBeGreaterThan(plantsDefaults.growthDrawRate);
+
+    for (const growthDrawRate of [maxTunable!, 1, 1.5, 100]) {
+      const plant = makePlant('monte_carlo', { surplus: plantsDefaults.surplusCap, size: 0 });
+      const after = spendSurplusOnGrowth(plant, { ...plantsDefaults, growthDrawRate });
+      expect(after.surplus).toBeGreaterThanOrEqual(0);
+      expect(after.size - plant.size).toBeCloseTo(
+        (plant.surplus - after.surplus) *
+          getSpeciesGrowthRate('monte_carlo') *
+          plantsDefaults.sizePerSurplus,
+        10
+      );
+    }
   });
 });

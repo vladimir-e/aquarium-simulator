@@ -174,12 +174,16 @@ stores it and spends from it.
     of the bank; an asymptotic factor that decays toward zero as size
     approaches species `maxSize` decides how much of it becomes size,
     at a rate scaled by species growth rate, and only the converted
-    units leave the bank. So a young plant grows fast, a mature plant
-    slows down and banks the difference, and a plant at its ceiling
-    stops growing entirely without paying for it. Growth is also
-    photoperiod-gated: overnight respiration burns sugars for
-    maintenance, not net biomass accumulation, so the bank doesn't
-    convert at night either.
+    units leave the bank. While the bank sits below `surplusCap` it
+    settles where the withdrawal matches the income, so an hour's gain
+    is set by what the plant earns and not by how big it is — growth
+    over the first half of a plant's life is roughly linear. Past
+    about half of `maxSize` the bank pegs at the cap and size takes
+    over: the plant slows down while holding a full reserve, and at
+    its ceiling it stops growing entirely without paying for it.
+    Growth is also photoperiod-gated: overnight respiration burns
+    sugars for maintenance, not net biomass accumulation, so the bank
+    doesn't convert at night either.
   - Once a plant reaches `species.maxSize`, growth stops; surplus
     continues to bank on `Plant.surplus` up to the cap. The bank is the
     canonical lifecycle-outcome stock for plants — the field exists, it

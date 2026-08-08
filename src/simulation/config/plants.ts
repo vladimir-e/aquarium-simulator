@@ -59,12 +59,8 @@ export interface PlantsConfig {
   // Surplus-driven growth knobs.
   /**
    * Share of the banked reserve a plant mobilises toward new tissue each lit
-   * hour. A rate against a stock rather than a flat ceiling: a flat one either
-   * sits above what an hour can earn (and empties the bank every tick) or
-   * below it (and growth saturates there, so a brighter fixture stops buying
-   * size). Drawing a share does neither — the bank settles where the draw
-   * meets the income, so growth stays income-limited and the reserve is
-   * proportional to how well the plant is doing.
+   * hour. Why a share of the stock rather than a flat ceiling on the flow:
+   * `docs/6-PLANTS.md` § Growth and Size.
    */
   growthDrawRate: number;
   /**
@@ -196,12 +192,11 @@ export const plantsDefaults: PlantsConfig = {
   // net is positive; growth converts a share of the bank into size, and only
   // what became size leaves the bank.
   //
-  // 2 %/h is a ~50-lit-hour time constant — four days of photoperiod, which is
-  // both how long a cutting takes to stop sulking and start growing and how
-  // long a grown-in plant can keep building tissue after the lights stop. At a
-  // full bank it mobilises 1.0 units/h, twice the most an hour of perfect
-  // conditions can earn, so a long-banked reserve accelerates growth without
-  // dumping itself into one tick.
+  // 2 %/h is a ~50-lit-hour time constant, four days of photoperiod: how long a
+  // cutting takes to stop sulking and start growing. Against the 0.5 %/h a
+  // plant earns at its best it settles a young plant's reserve just under 28
+  // units, over half the cap, which is what such a plant carries into a bad
+  // night; a plant past half its `maxSize` settles above the cap and pegs there.
   growthDrawRate: 0.02,
   sizePerSurplus: 0.4, // size % per (surplus × growthRate) unit converted
   surplusCap: SURPLUS_CAP_DEFAULT,

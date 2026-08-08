@@ -26,6 +26,7 @@ export interface Sample {
   plants: number;
   totalSize: number;
   avgCondition: number;
+  avgSurplus: number;
   /** mg/L. */
   oxygen: number;
   /** mg/L. */
@@ -83,6 +84,7 @@ function sampleOf(state: SimulationState): Sample {
     plants: state.plants.length,
     totalSize: totalSize(state),
     avgCondition: mean(state.plants.map((plant) => plant.condition)),
+    avgSurplus: mean(state.plants.map((plant) => plant.surplus)),
     oxygen: state.resources.oxygen,
     co2: state.resources.co2,
   };

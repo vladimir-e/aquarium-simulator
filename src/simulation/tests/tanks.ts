@@ -19,8 +19,10 @@ import {
 import { calculateParAtDepth } from '../equipment/light.js';
 import { opticsDefaults } from '../config/optics.js';
 import type { FishSex, FishSpecies } from '../livestock/species.js';
+import type { PlantSpecies } from '../plants/species.js';
+import { getSpeciesMaxSize } from '../systems/plant-growth.js';
 import { tick } from '../tick.js';
-import { applySeed, type PresetSeed } from '../seed.js';
+import { applySeed, type PresetSeed, type SeedPlantGroup } from '../seed.js';
 import { applyAction } from '../actions/index.js';
 import { DEFAULT_CONFIG, type TunableConfig } from '../config/index.js';
 import { getMassFromPpm, getPpm } from '../resources/helpers.js';
@@ -236,6 +238,56 @@ export function saturatedColony(
  */
 export function seededCycledTank(capacity: number): SimulationState {
   return fishlessTank('aqua_soil', { capacity, seed: { bacteria: 'cycled' } });
+}
+
+/**
+ * A lit, filtered, dosed planted tank at any volume — the tank every reading of
+ * a planting is taken in.
+ *
+ * The heater and the daily dose scale with the water so a comparison across
+ * volumes reads the planting rather than the equipment, and `par` is the
+ * fixture's own rating: what lands at the substrate is the tank's depth
+ * multiplied through {@link substrateFor}.
+ */
+export function plantedTank(
+  capacity: number,
+  { par = 90, carbonInjection = false }: { par?: number; carbonInjection?: boolean } = {}
+): SimulationConfig {
+  return {
+    tankCapacity: capacity,
+    heater: { enabled: true, targetTemperature: 25, wattage: Math.max(100, capacity) },
+    filter: { enabled: true, type: 'canister' },
+    light: { enabled: true, par, schedule: { startHour: 8, duration: 12 } },
+    substrate: { type: 'aqua_soil' },
+    ato: { enabled: true },
+    autoDoser: { enabled: true, doseAmountMl: capacity / 50, schedule: { startHour: 8, duration: 1 } },
+    co2Generator: carbonInjection
+      ? { enabled: true, bubbleRate: 2, schedule: { startHour: 8, duration: 10 } }
+      : { enabled: false },
+  };
+}
+
+/** What a planting is made of, before a size is chosen for it. */
+export interface PlantMix {
+  species: PlantSpecies;
+  count: number;
+}
+
+/** Java fern and anubias — the two species that attach to hardscape. */
+export const ATTACHED_PLANTING: readonly PlantMix[] = [
+  { species: 'java_fern', count: 2 },
+  { species: 'anubias', count: 1 },
+];
+
+/**
+ * One species mix at one size, or at each species' own ceiling — so a run can
+ * be handed the same planting at any point on its growth curve.
+ */
+export function planting(mix: readonly PlantMix[], size: number | 'maxSize'): SeedPlantGroup[] {
+  return mix.map((group) => ({
+    ...group,
+    size: size === 'maxSize' ? getSpeciesMaxSize(group.species) : size,
+  }));
 }
 
 /**

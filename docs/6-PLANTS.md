@@ -230,14 +230,29 @@ pipeline is:
 
 So a plant at its ceiling converts nothing, pays nothing, and banks
 every unit it earns; a plant with room converts a share and banks the
-rest. The draw is a *share* of the bank rather than a flat per-tick
-ceiling because a flat one has no good value: set above what an hour
-can earn it empties the bank every tick, and set below it growth
-saturates there, so a brighter fixture stops buying size. A share does
-neither — the bank settles where the draw meets the income, which
-leaves growth limited by what the plant earns and makes the reserve
-itself a reading of how well it is doing. A young plant growing flat
-out carries less of one than a mature plant that has been banking.
+rest.
+
+The draw is a *share* of the bank rather than a flat per-tick ceiling
+so that a plant still growing carries a reserve at all. Either shape
+fills the bank of a plant with nowhere left to grow — the asymptotic
+factor is zero there, so nothing is withdrawn either way. They part on
+the plant that is still growing. Under a flat ceiling the bank settles
+wherever the withdrawal matches the income: about half a surplus unit
+of the 50-unit cap, which is no reserve. Under a share it settles at
+`income / (growthDrawRate × asymptoticFactor)`, which is proportional
+to what the plant earns — just under 28 units for a young plant in a
+tank it has no complaints about. That reserve is what meets damage
+before condition falls, and what tells a fed plant from a starving one.
+
+A share saturates too, at `surplusCap × growthDrawRate` — 1.0 units an
+hour on the shipped numbers. A plant reaches it when its settling point
+passes the cap, which for one earning the full 0.5 %/h is at about half
+of `maxSize`. Past that the bank pegs at `surplusCap` and the
+withdrawal is `surplusCap × growthDrawRate × asymptoticFactor`, with
+the income dropped out of it: size is what slows growth from there, not
+conditions. Below the peg the reverse holds — the withdrawal tracks the
+income and the plant's size does not enter, so growth over the first
+half of its life is roughly linear rather than asymptotic.
 
 Photosynthesis is decoupled from growth: it emits resource effects
 only (O2, CO2, nutrient uptake). Plant size never gets photosynthesis

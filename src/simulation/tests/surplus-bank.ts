@@ -2,36 +2,35 @@
  * The bank a plant runs on.
  *
  * Three readings. What a thriving planting holds in `Plant.surplus` over a run,
- * and what one already at `maxSize` does with income it cannot spend on height.
- * And then the check the draw shape exists for: growth has to stay monotone in
- * the fixture. A flat per-tick ceiling below the accrual rate fills the bank
- * too, but growth then saturates at the ceiling and a brighter light buys
- * nothing — 2c's result, undone. Run it:
+ * what one already at `maxSize` does with income it cannot spend on height, and
+ * then sixty days under four fixtures — where the draw shape shows, because a
+ * plant below the peg spends what it earns and more light is more income.
+ *
+ * The tank total in that sweep is not monotone in the fixture and is not meant
+ * to be: this mix carries species a brighter light hurts. Monte carlo spends
+ * 43 / 77 / 87 % of its lit hours under condition 100 at the three brightest
+ * fixtures, and nothing accrues below 100, so it stalls near the size it was
+ * planted at; past 90 PAR at the substrate java fern and anubias are over their
+ * bands as well. Amazon sword is the one species in band and at full condition
+ * across the whole sweep, which is why its column is the one that climbs at
+ * every step. `banked-photosynthate.test.ts` asserts the claim on a planting
+ * that stays in band. Run it:
  *
  *     npm run probe:surplus-bank
  */
 
-import type { SimulationConfig, SimulationState } from '../state.js';
 import type { PresetSeed } from '../seed.js';
-import { getSpeciesMaxSize } from '../systems/plant-growth.js';
-import { runTank, totalSize } from './metrics.js';
-import { DAY } from './tanks.js';
+import type { SimulationState } from '../state.js';
+import { runTank } from './metrics.js';
+import { ATTACHED_PLANTING, DAY, plantedTank, planting, substrateFor } from './tanks.js';
 import { formatTable } from './sweep.js';
 
 const RNG_SEED = 4242;
 const DAYS = 60;
+const CAPACITY = 150;
 
 /** The grown-in 150 L the carbon yield was pinned against. */
-const TANK: SimulationConfig = {
-  tankCapacity: 150,
-  heater: { enabled: true, targetTemperature: 25, wattage: 150 },
-  filter: { enabled: true, type: 'canister' },
-  substrate: { type: 'aqua_soil' },
-  light: { enabled: true, par: 90, schedule: { startHour: 8, duration: 12 } },
-  co2Generator: { enabled: true, bubbleRate: 2, schedule: { startHour: 8, duration: 10 } },
-  autoDoser: { enabled: true, doseAmountMl: 3, schedule: { startHour: 8, duration: 1 } },
-  ato: { enabled: true },
-};
+const TANK = plantedTank(CAPACITY, { carbonInjection: true });
 
 /** The planting `light-response` grew from: 350 total size across four species. */
 const FRESH: PresetSeed = {
@@ -46,45 +45,38 @@ const FRESH: PresetSeed = {
 };
 
 /** The same tank, handed plants that have nowhere left to grow. */
-const MAXED: PresetSeed = {
-  ...FRESH,
-  plants: [
-    { species: 'java_fern', count: 2, size: getSpeciesMaxSize('java_fern') },
-    { species: 'anubias', count: 1, size: getSpeciesMaxSize('anubias') },
-  ],
-};
+const MAXED: PresetSeed = { ...FRESH, plants: planting(ATTACHED_PLANTING, 'maxSize') };
 
 const ROUTINE = { feed: 0.6, waterChange: 0.3 };
 
-const meanOf = (state: SimulationState, read: (plant: SimulationState['plants'][0]) => number): number =>
-  state.plants.length === 0
-    ? 0
-    : state.plants.reduce((sum, plant) => sum + read(plant), 0) / state.plants.length;
-
-const bankOf = (state: SimulationState): number => meanOf(state, (plant) => plant.surplus);
+/** A sample a day, taken at midnight so `samples[day]` is that day. */
+const DAILY = { rngSeed: RNG_SEED, routine: ROUTINE, sampleEvery: DAY, sampleHour: 0 };
 
 const REPORTED_DAYS = [1, 2, 3, 5, 10, 20, 30, 45, 60];
 
+/** Mean size per species — the column the fixture sweep is read down. */
+function bySpecies(state: SimulationState): Record<string, string> {
+  const sizes = new Map<string, number[]>();
+  for (const plant of state.plants) {
+    sizes.set(plant.species, [...(sizes.get(plant.species) ?? []), plant.size]);
+  }
+  return Object.fromEntries(
+    [...sizes].map(([species, all]) => [
+      species,
+      (all.reduce((sum, size) => sum + size, 0) / all.length).toFixed(1),
+    ])
+  );
+}
+
 function trace(label: string, seed: PresetSeed): void {
-  const rows: Record<string, unknown>[] = [];
-  const { final } = runTank({
-    setup: TANK,
-    seed,
-    days: DAYS,
-    rngSeed: RNG_SEED,
-    routine: ROUTINE,
-    watch: (hour, _before, after) => {
-      const day = hour / DAY;
-      if (Number.isInteger(day) && REPORTED_DAYS.includes(day)) {
-        rows.push({
-          day,
-          bank: bankOf(after).toFixed(2),
-          size: totalSize(after).toFixed(1),
-          condition: meanOf(after, (plant) => plant.condition).toFixed(1),
-        });
-      }
-    },
-  });
+  const { final, samples } = runTank({ setup: TANK, seed, days: DAYS, ...DAILY });
+
+  const rows = REPORTED_DAYS.map((day) => ({
+    day,
+    bank: samples[day]!.avgSurplus.toFixed(2),
+    size: samples[day]!.totalSize.toFixed(1),
+    condition: samples[day]!.avgCondition.toFixed(1),
+  }));
 
   const plants = final.plants
     .map(
@@ -99,22 +91,23 @@ function trace(label: string, seed: PresetSeed): void {
 
 function fixtureSweep(): void {
   const rows = [25, 50, 90, 150].map((par) => {
-    const { final } = runTank({
-      setup: { ...TANK, light: { enabled: true, par, schedule: { startHour: 8, duration: 12 } } },
+    const { final, samples } = runTank({
+      setup: plantedTank(CAPACITY, { par, carbonInjection: true }),
       seed: FRESH,
       days: DAYS,
-      rngSeed: RNG_SEED,
-      routine: ROUTINE,
+      ...DAILY,
     });
     return {
       fixture: par,
-      size: totalSize(final).toFixed(1),
-      bank: bankOf(final).toFixed(2),
+      substrate: substrateFor(par, CAPACITY).toFixed(1),
+      total: samples[DAYS]!.totalSize.toFixed(1),
+      bank: samples[DAYS]!.avgSurplus.toFixed(2),
       plants: final.plants.length,
+      ...bySpecies(final),
     };
   });
 
-  process.stdout.write(`\n— Sixty days under four fixtures —\n${formatTable(rows)}\n`);
+  process.stdout.write(`\n— Sixty days under four fixtures, mean size by species —\n${formatTable(rows)}\n`);
 }
 
 trace('A planting grown in from 35', FRESH);

@@ -22,18 +22,7 @@ import { processPlants } from '../plants/index.js';
 import { settleEnvironment } from '../tick.js';
 import { computeFishVitality } from '../systems/fish-health.js';
 import { gasCurve, runTank } from './metrics.js';
-import { DAY } from './tanks.js';
-
-/** A lit, filtered, dosed planted tank at any volume. */
-const plantedTank = (capacity: number): SimulationConfig => ({
-  tankCapacity: capacity,
-  heater: { enabled: true, targetTemperature: 25, wattage: Math.max(100, capacity) },
-  filter: { enabled: true, type: 'canister' },
-  light: { enabled: true, par: 90, schedule: { startHour: 8, duration: 12 } },
-  substrate: { type: 'aqua_soil' },
-  ato: { enabled: true },
-  autoDoser: { enabled: true, doseAmountMl: capacity / 50, schedule: { startHour: 8, duration: 1 } },
-});
+import { DAY, plantedTank } from './tanks.js';
 
 /**
  * Water that takes nothing out of the light on its way down, so every tank in a
@@ -230,10 +219,7 @@ describe('a grown-in planted 150 L, through a day and a night', () => {
    * The tank of `docs/calibration/runs/2026-08-06-gas-volume-stoichiometry.md`:
    * the planted fixture above, plus the carbon injection that tank runs on.
    */
-  const GROWN_IN: SimulationConfig = {
-    ...plantedTank(150),
-    co2Generator: { enabled: true, bubbleRate: 2, schedule: { startHour: 8, duration: 10 } },
-  };
+  const GROWN_IN: SimulationConfig = plantedTank(150, { carbonInjection: true });
 
   const curve = gasCurve({
     setup: GROWN_IN,

@@ -111,7 +111,7 @@ export interface AlgaeVitalityConfig {
 
   /**
    * Mass gained per surplus unit drained, before the asymptotic
-   * factor.
+   * factor. Mirrors `sizePerSurplus` in the plant-growth knob.
    */
   massPerSurplus: number;
 
