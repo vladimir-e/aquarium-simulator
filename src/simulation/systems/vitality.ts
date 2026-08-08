@@ -17,22 +17,25 @@
  * organism that declares no upkeep runs the single-ledger balance
  * unchanged.
  *
- * The surplus bank doubles as a **protective reserve buffer** above
- * condition. When damage outweighs benefit, it drains the bank before
- * condition falls: a well-stocked organism shrugs off a bad tick by
- * burning reserves, and only starts losing condition once the reserve
- * is spent. Accrual saturates at a cap (`surplusCap`) — a body banks
- * only so much reserve, like vitamin absorption; overflow beyond the
- * cap is discarded, not queued. A consequence worth internalising:
- * **condition 100 with negative net means burning reserves, not
- * thriving** — a buffered organism under attack reads 100 while its
- * bank drains (`net < 0` with `breakdown.drained > 0`).
+ * The surplus bank is the reserve, and what it answers to depends on
+ * whether there is an upkeep claiming it. With one, it is what the
+ * organism pays the dark hours out of, and damage goes past it into
+ * condition — spending it on repair would leave nothing to survive the
+ * night on. Without one, it is a **protective buffer** damage drains
+ * before condition falls, so a well-stocked organism shrugs off a bad
+ * tick by burning reserves. Either way accrual saturates at a cap
+ * (`surplusCap`) — a body banks only so much reserve, like vitamin
+ * absorption; overflow beyond the cap is discarded, not queued. A
+ * consequence worth internalising: **condition 100 with negative net
+ * means burning reserves, not thriving** (`net < 0` with
+ * `breakdown.drained > 0`).
  *
  * The module is **organism-agnostic about how surplus is spent.** Plants
- * route surplus to biomass production; fish capture it for future use.
- * Both share the same vitality math so behaviour stays consistent across
- * lifeforms (and so a stressed plant heals before it grows, just like a
- * stressed fish heals before it breeds).
+ * route surplus to repair and then to biomass; fish capture it for
+ * future use. Both share the same vitality math so behaviour stays
+ * consistent across lifeforms — and either way a stressed organism
+ * heals before it grows or breeds, whether the healing comes out of its
+ * income or out of its bank.
  *
  * Pure / framework-free — no Immer, no state mutation. Returns a fresh
  * value the caller folds into its own state shape.
@@ -84,10 +87,11 @@ export interface VitalityInput {
   /** Current condition (0–100). */
   condition: number;
   /**
-   * Current banked surplus — the reserve buffer sitting above condition.
-   * Damage drains it before condition falls; positive overflow accrues
-   * back into it (capped). Clamped into `[0, surplusCap]` on entry, so an
-   * over-cap value from an old save self-heals on the first tick.
+   * Current banked surplus — the reserve. Unpaid upkeep drains it, as
+   * does damage when there is no upkeep to claim it first; positive
+   * overflow accrues back into it (capped). Clamped into
+   * `[0, surplusCap]` on entry, so an over-cap value from an old save
+   * self-heals on the first tick.
    */
   surplus: number;
   /**
@@ -214,10 +218,21 @@ export function bankSurplus(
  * 3. benefitRate = Σ benefit.amount  (no hardiness scaling)
  * 4. Energy ledger — `benefitRate − upkeepRate`. A deficit drains the
  *    bank; what the bank can't cover is reported as `starved` and
- *    reaches no stock here. A surplus is the income the health ledger
- *    below gets to spend.
- * 5. Health ledger — that income against `damageRate`, into condition
- *    and the bank:
+ *    reaches no stock here. A surplus is the income step 5 spends.
+ * 5. Health ledger — that income against `damageRate`, in one of two
+ *    shapes depending on whether the organism stores its energy.
+ *
+ * **Storing** (an upkeep is declared): the balance banks when it is
+ * positive, whatever condition reads, and reaches condition directly
+ * when it is negative. So a nagging channel costs the organism its
+ * banking rate — its growth — before it costs any condition, and the
+ * reserve stays intact for the dark hours. Nothing here repairs
+ * condition: repair is a withdrawal the caller makes from the bank,
+ * ahead of growth, which is the "recover then grow" ladder with the
+ * bank as the pool both rungs draw from.
+ *
+ * **Not storing**: the single balance this module always ran, where
+ * income repairs on the spot and the bank is a buffer.
  *    - net < 0: the bank absorbs the damage first (drain = min(bank,
  *      |net|)); condition falls only by the shortfall the bank can't
  *      cover. Condition stays put while the bank holds the line.
@@ -228,14 +243,10 @@ export function bankSurplus(
  *      `surplusCap` (when `accrueSurplus`), discarding the rest.
  *    - net == 0: condition and bank unchanged (bank still clamped).
  *
- * Step 5's branching enforces the "recover then grow" trajectory: a
- * stressed organism cannot make progress while its condition is below
- * 100 %. The healing burns the entire benefit budget until the deficit
- * is paid down. The reserve buffer sits one layer above: it protects
- * condition from damage and only fills once condition is full.
- *
- * With no upkeep declared, step 4 is a pass-through and the whole thing
- * reduces to the single balance `benefitRate − damageRate`.
+ * That branching is the same ladder from the other end: a stressed
+ * organism cannot make progress while its condition is below 100 %,
+ * because healing burns the whole benefit budget until the deficit is
+ * paid down.
  */
 export function computeVitality(input: VitalityInput): VitalityResult {
   // Clamp hardiness to [0, 1]; out-of-range values shouldn't poison the
