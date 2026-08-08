@@ -23,6 +23,8 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "probe:dark-tank": "tsx src/simulation/tests/dark-tank.ts",
+    "probe:ordinary-tanks": "tsx src/simulation/tests/ordinary-tanks.ts",
+    "probe:starvation-share": "tsx src/simulation/tests/starvation-share.ts",
     "probe:default-fixture-survival": "tsx src/simulation/tests/default-fixture-survival.ts",
     "probe:par-dose-response": "tsx src/simulation/tests/par-dose-response.ts",
     "probe:light-response": "tsx src/simulation/tests/light-response.ts",
