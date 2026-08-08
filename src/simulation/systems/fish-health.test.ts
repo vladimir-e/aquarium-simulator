@@ -51,7 +51,6 @@ function makeResources(overrides: Partial<Resources> = {}): Resources {
     aeration: true,
     food: 1,
     waste: 0,
-    algae: 0,
     ammonia: 0,
     nitrite: 0,
     nitrate: 0,
