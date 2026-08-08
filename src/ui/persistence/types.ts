@@ -22,6 +22,14 @@ import type { TunableConfig } from '../../simulation/config/index.js';
  * Increment this when the structure changes in a breaking way.
  * On version mismatch, stored data is discarded.
  *
+ * v23: Darkness costs a plant. `PlantsConfig` gains the always-on
+ *      `maintenanceCost` and the `starvationMultiplier` /
+ *      `starvationReserveHours` pair that charges an empty bank, and drops
+ *      `lightBenefitPeak` — light is no longer a channel of its own but the
+ *      term the other four are multiplied by, so those four move 0.1 → 0.125
+ *      to hold the same 0.5 %/h budget. A v22 config carries the dropped key
+ *      and is missing the three new ones, and the strict schema refuses that
+ *      section; a refused section reverts every other one to its defaults.
  * v22: Growth draws a share of the bank instead of a flat ceiling.
  *      `PlantsConfig` swaps `plantGrowthPerTickCap` (surplus units per tick)
  *      for `growthDrawRate` (share of the bank per lit hour), and only the
@@ -149,7 +157,7 @@ import type { TunableConfig } from '../../simulation/config/index.js';
  *     nutrient sufficiency) but its persisted shape is identical, so
  *     the bump is purely the new Fish field.
  */
-export const PERSISTENCE_VERSION = 22;
+export const PERSISTENCE_VERSION = 23;
 
 /**
  * Storage key for the unified persisted state.

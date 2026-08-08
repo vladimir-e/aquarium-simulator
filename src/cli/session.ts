@@ -18,6 +18,13 @@ import type { HistorySnapshot } from './history.js';
  * missing field. Parallel to the UI's `PERSISTENCE_VERSION`. Pre-launch
  * rule is reject, not migrate.
  *
+ * v10 put a compensation point under the plant. `PlantsConfig` gains
+ *    `maintenanceCost` and the `starvationMultiplier` /
+ *    `starvationReserveHours` pair, and drops `lightBenefitPeak` now that the
+ *    light term multiplies the other four peaks instead of standing beside
+ *    them. A v9 session parses, and the first tick charges a maintenance the
+ *    config does not carry: every plant's condition and bank are `NaN` from
+ *    there on, and the session is written back that way.
  * v9 made growth draw a share of the bank rather than a flat ration.
  *    `PlantsConfig` swapped `plantGrowthPerTickCap` — units per tick — for
  *    `growthDrawRate`, the fraction of the reserve a plant mobilises per lit
@@ -65,7 +72,7 @@ import type { HistorySnapshot } from './history.js';
  * v2 added `Fish.stage` + `state.clutches` (breeding) and the saturating
  *    surplus bank.
  */
-export const SESSION_VERSION = 9;
+export const SESSION_VERSION = 10;
 export const DEFAULT_SESSION_PATH = resolve(process.cwd(), '.simstate/current.json');
 
 export interface Session {
