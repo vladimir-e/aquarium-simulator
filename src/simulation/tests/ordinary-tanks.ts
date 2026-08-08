@@ -7,13 +7,15 @@
  * and one that doesn't, the shipped presets a player actually presses — and the
  * two extremes that have to stay safe.
  *
- * Every section compiles and runs unchanged on `main`, so each figure has a
- * baseline. Nothing here reads a config key the branch introduced.
+ * Every section but `preset-why` compiles and runs unchanged on `main`, so
+ * each figure has a baseline; that one reads the plant's upkeep ledger, which
+ * only exists here. Nothing reads a config key the branch introduced.
  *
  *     npx tsx src/simulation/tests/ordinary-tanks.ts [section ...]
  *
- * Measurements, both sides:
- * `docs/calibration/runs/2026-08-12-ordinary-tanks.md`.
+ * Measurements: `docs/calibration/runs/2026-08-12-ordinary-tanks.md` against
+ * `main`, then `2026-08-13-tissue-not-condition.md` for what the ledger split
+ * moved.
  */
 
 import { produce } from 'immer';
@@ -22,7 +24,11 @@ import type { PresetSeed } from '../seed.js';
 import { DEFAULT_CONFIG } from '../config/index.js';
 import { nutrientsDefaults as nutrients } from '../config/nutrients.js';
 import { calculateNutrientSufficiency } from '../systems/nutrients.js';
-import { buildPlantStressors, buildPlantBenefits } from '../systems/plant-vitality.js';
+import {
+  buildPlantStressors,
+  buildPlantUpkeep,
+  buildPlantBenefits,
+} from '../systems/plant-vitality.js';
 import { getMassFromPpm, getPpm } from '../resources/helpers.js';
 import { PLANT_SPECIES_DATA, type PlantSpecies } from '../plants/species.js';
 import { PRESETS, type PresetId } from '../presets.js';
@@ -357,7 +363,11 @@ function presetDiagnosis(): string {
         ),
         algaeMass: after.algae.mass,
       };
-      const charged = buildPlantStressors(ctx).filter((factor) => factor.amount > 0);
+      // The whole bill, both ledgers: what the plant owes for being alive
+      // next to what is being done to it.
+      const charged = [...buildPlantUpkeep(ctx), ...buildPlantStressors(ctx)].filter(
+        (factor) => factor.amount > 0
+      );
       const earned = buildPlantBenefits(ctx);
       rows.push({
         day,

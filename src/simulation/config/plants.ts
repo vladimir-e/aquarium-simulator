@@ -282,7 +282,9 @@ export const plantsDefaults: PlantsConfig = {
   // plant's own drain is what counts as provisioned — 5.3 banked units for
   // monte carlo against 1.9 for anubias, because the hardy plant makes the
   // same reserve last longer. What the pair produces is in
-  // `docs/calibration/runs/2026-08-11-light-deficiency.md`.
+  // `docs/calibration/runs/2026-08-11-light-deficiency.md`, and what the
+  // multiple is worth now that shedding reads a share is in
+  // `2026-08-13-tissue-not-condition.md` § 7 — one day in forty, either way.
   starvationMultiplier: 1,
   starvationReserveHours: 100,
 
@@ -299,10 +301,13 @@ export const plantsDefaults: PlantsConfig = {
   // Lifecycle thresholds — forgiving by default.
   //
   // 2 %/h is the melt of a plant paying nothing at all: an e-folding every
-  // two days, so a grown-in carpet is gone within a week of its bank
-  // running out and a plant that only misses part of its bill loses that
-  // share of the rate. The value is unchanged from when it was the rate at
-  // condition 0, but its reference is not — see `plant-lifecycle.ts`.
+  // two days, so a grown-in carpet is gone within a week of its bank running
+  // out and a plant that only misses part of its bill loses that share of the
+  // rate. The value is unchanged from when it was the rate at condition 0, but
+  // its reference is not — a bill rather than a condition. The alternative,
+  // converting the unpaid bill back into tissue as the mirror of
+  // `sizePerSurplus`, is measured and rejected in
+  // `docs/calibration/runs/2026-08-13-tissue-not-condition.md` § 6.
   maxSheddingRate: 0.02,
   wastePerShedSize: 0.005, // 0.005 g waste per % size shed
   deathConditionThreshold: 10, // death at condition < 10 %
