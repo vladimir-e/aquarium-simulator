@@ -2,7 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { createSimulation, type SimulationConfig } from './state.js';
 import { FISH_SPECIES_DATA } from './livestock/species.js';
 import { cycledColony, cycledNitrate, cycledReserve, type PresetSeed } from './seed.js';
-import { DEFAULT_PLANT_SIZE, ESTABLISHMENT_SURPLUS } from './plants/create-plant.js';
+import { DEFAULT_PLANT_SIZE, establishmentSurplus } from './plants/create-plant.js';
+import { plantsDefaults } from './config/plants.js';
 
 const TANK: SimulationConfig = { tankCapacity: 40, substrate: { type: 'aqua_soil' } };
 
@@ -270,7 +271,9 @@ describe('createSimulation seeding', () => {
       expect(state.plants[3].species).toBe('anubias');
       expect(state.plants[3].size).toBe(DEFAULT_PLANT_SIZE);
       expect(
-        state.plants.every((p) => p.condition === 100 && p.surplus === ESTABLISHMENT_SURPLUS)
+        state.plants.every(
+          (p) => p.condition === 100 && p.surplus === establishmentSurplus(plantsDefaults)
+        )
       ).toBe(true);
     });
   });

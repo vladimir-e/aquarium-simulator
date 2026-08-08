@@ -5,7 +5,7 @@
  */
 
 import type { Plant } from '../state.js';
-import { plantsDefaults } from '../config/plants.js';
+import type { PlantsConfig } from '../config/plants.js';
 import { drawId, type RngState } from '../core/rng.js';
 import type { PlantSpecies } from './species.js';
 
@@ -13,30 +13,31 @@ import type { PlantSpecies } from './species.js';
 export const DEFAULT_PLANT_SIZE = 50;
 
 /**
- * Reserve a plant arrives with — half of `PlantsConfig.surplusCap`, what a
- * young plant in a tank it has no complaints about settles at. A specimen
- * comes out of the shop's tank with stores, and one starting at an empty bank
- * would read as fully starving on its first tick and melt on the way into a
- * perfect tank.
+ * Reserve a plant arrives with — half the bank it is given. A specimen comes
+ * out of the shop's tank with stores, and one starting at an empty bank would
+ * read as fully starving on its first tick and melt on the way into a perfect
+ * tank.
  */
-export const ESTABLISHMENT_SURPLUS = plantsDefaults.surplusCap / 2;
+export const establishmentSurplus = (plantsConfig: PlantsConfig): number =>
+  plantsConfig.surplusCap / 2;
 
 export interface CreatePlantParams {
   species: PlantSpecies;
   /** Size %, same scale as `Plant.size`. */
   size?: number;
+  plantsConfig: PlantsConfig;
   /** The tank's draw stream — a plant carries no variation, only a name. */
   rng: RngState;
 }
 
 export function createPlant(params: CreatePlantParams): Plant {
-  const { species, size = DEFAULT_PLANT_SIZE, rng } = params;
+  const { species, size = DEFAULT_PLANT_SIZE, plantsConfig, rng } = params;
 
   return {
     id: drawId(rng, 'plant'),
     species,
     size,
     condition: 100,
-    surplus: ESTABLISHMENT_SURPLUS,
+    surplus: establishmentSurplus(plantsConfig),
   };
 }

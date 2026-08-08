@@ -6,13 +6,15 @@ import { produce } from 'immer';
 import { DEFAULT_CONFIG } from '../config/index.js';
 import { plantsDefaults } from '../config/plants.js';
 import { nutrientsDefaults } from '../config/nutrients.js';
-import { ESTABLISHMENT_SURPLUS } from './create-plant.js';
+import { establishmentSurplus } from './create-plant.js';
 import { PLANT_SPECIES_DATA } from './species.js';
 
 describe('processPlants', () => {
   // Default per-plant condition for test stubs — new in the per-plant Liebig
   // engine (before, plants were a raw {id, species, size} bag).
   const C = 100;
+  /** The bank a plant is stocked with, so a stub starts where a real one does. */
+  const BANK = establishmentSurplus(plantsDefaults);
 
   /**
    * What a java fern is charged for an hour of staying alive, post-hardiness,
@@ -425,7 +427,7 @@ describe('processPlants', () => {
             species: 'java_fern',
             size: 50,
             condition: 100,
-            surplus: ESTABLISHMENT_SURPLUS,
+            surplus: BANK,
           },
         ],
         light: 50,
@@ -689,14 +691,14 @@ describe('processPlants', () => {
     it('processes multiple plants correctly', () => {
       const state = createTestState({
         plants: [
-          { id: 'p1', species: 'java_fern', size: 50, condition: C, surplus: ESTABLISHMENT_SURPLUS },
-          { id: 'p2', species: 'anubias', size: 60, condition: C, surplus: ESTABLISHMENT_SURPLUS },
+          { id: 'p1', species: 'java_fern', size: 50, condition: C, surplus: BANK },
+          { id: 'p2', species: 'anubias', size: 60, condition: C, surplus: BANK },
           {
             id: 'p3',
             species: 'amazon_sword',
             size: 70,
             condition: C,
-            surplus: ESTABLISHMENT_SURPLUS,
+            surplus: BANK,
           },
         ],
         light: 50,

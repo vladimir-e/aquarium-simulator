@@ -1,43 +1,67 @@
 import { describe, it, expect } from 'vitest';
-import { createPlant, DEFAULT_PLANT_SIZE, ESTABLISHMENT_SURPLUS } from './create-plant.js';
+import { createPlant, DEFAULT_PLANT_SIZE, establishmentSurplus } from './create-plant.js';
 import { plantsDefaults } from '../config/plants.js';
 import { createRng } from '../core/rng.js';
 
 describe('createPlant', () => {
   it('builds a plant at full condition with the reserve it arrives on', () => {
-    const plant = createPlant({ species: 'anubias', size: 140, rng: createRng(1) });
+    const plant = createPlant({
+      species: 'anubias',
+      size: 140,
+      plantsConfig: plantsDefaults,
+      rng: createRng(1),
+    });
 
     expect(plant.species).toBe('anubias');
     expect(plant.size).toBe(140);
     expect(plant.condition).toBe(100);
-    expect(plant.surplus).toBe(ESTABLISHMENT_SURPLUS);
-    expect(ESTABLISHMENT_SURPLUS).toBe(plantsDefaults.surplusCap / 2);
+    expect(plant.surplus).toBe(establishmentSurplus(plantsDefaults));
   });
 
-  it('arrives provisioned, so a fresh plant is not a starving one', () => {
-    // A bank below `maintenanceCost × starvationReserveHours` reads as short
-    // of reserve and the starvation stressor starts charging; a specimen out
-    // of a shop tank is not that.
-    expect(ESTABLISHMENT_SURPLUS).toBeGreaterThan(
-      plantsDefaults.maintenanceCost * plantsDefaults.starvationReserveHours
-    );
+  it('arrives provisioned at the cap the tank was tuned to', () => {
+    // `surplusCap` is a live slider, and half the shipped bank is not half
+    // this tank's: at a cap of 20 a plant reading defaults is born over it,
+    // and at a low enough one it is born short of the reserve the starvation
+    // stressor ramps against — melting on the way into a perfect tank.
+    const reserve = plantsDefaults.maintenanceCost * plantsDefaults.starvationReserveHours;
+
+    for (const surplusCap of [20, 80]) {
+      const plant = createPlant({
+        species: 'anubias',
+        plantsConfig: { ...plantsDefaults, surplusCap },
+        rng: createRng(1),
+      });
+
+      expect(plant.surplus).toBe(surplusCap / 2);
+      expect(plant.surplus).toBeLessThanOrEqual(surplusCap);
+      expect(plant.surplus).toBeGreaterThan(reserve);
+    }
   });
 
   it('falls back to the default size', () => {
-    expect(createPlant({ species: 'java_fern', rng: createRng(1) }).size).toBe(DEFAULT_PLANT_SIZE);
+    const plant = createPlant({
+      species: 'java_fern',
+      plantsConfig: plantsDefaults,
+      rng: createRng(1),
+    });
+
+    expect(plant.size).toBe(DEFAULT_PLANT_SIZE);
   });
 
   it('names every plant off the stream, never twice the same', () => {
     const rng = createRng(1);
     const ids = new Set<string>();
-    for (let i = 0; i < 1000; i++) ids.add(createPlant({ species: 'anubias', rng }).id);
+    for (let i = 0; i < 1000; i++) {
+      ids.add(createPlant({ species: 'anubias', plantsConfig: plantsDefaults, rng }).id);
+    }
+
     expect(ids.size).toBe(1000);
   });
 
   it('gives two tanks on one seed the same plant', () => {
-    const first = createPlant({ species: 'anubias', rng: createRng(7) });
-    const second = createPlant({ species: 'anubias', rng: createRng(7) });
+    const born = (): ReturnType<typeof createPlant> =>
+      createPlant({ species: 'anubias', plantsConfig: plantsDefaults, rng: createRng(7) });
 
-    expect(first).toEqual(second);
+    expect(born()).toEqual(born());
   });
 });

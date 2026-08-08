@@ -11,7 +11,8 @@ Format: - **Feature name** (#PR) - One short sentence (under ~150 chars)
 
 ## Unreleased
 
-- **Darkness costs a plant** - the whole benefit budget is realised through photosynthesis and pays nothing at night, and an always-on maintenance cost puts a compensation point under it; peaks 0.1 → 0.125 to hold the ≈0.5 %/h budget (v23).- **A plant banks what it can't grow on** - growth draws a share of the reserve and withdraws only what became size, so a maxed plant fills its bank instead of burning it (v22).
+- **Darkness costs a plant** - the whole benefit budget is realised through photosynthesis and pays nothing at night, and an always-on maintenance cost puts a compensation point under it; peaks 0.1 → 0.125 to hold the ≈0.5 %/h budget (v23).
+- **A new plant is stocked out of the tank's own bank** - half the live `surplusCap`, not half the shipped one; breaking: `addPlant` takes a `PlantsConfig`, `applyAction` an optional config.- **A plant banks what it can't grow on** - growth draws a share of the reserve and withdraws only what became size, so a maxed plant fills its bank instead of burning it (v22).
 - **A brighter fixture grows more plant, up to a point** - photosynthesis and the light benefit scale on `tanh(PAR/Ik)`, saturating at twice each species' band low; breaking: no `lightRequirement` (v21, v8).
 - **A planted tank makes more oxygen than it burns** - `baseRespirationRate` 0.15 → 0.03, against the rate a tank on ambient carbon actually reaches.
 - **A hypoxic fish excretes less nitrogen** - deamination is metabolism, so both NH₃ streams carry the same oxygen factor as the respiratory draw; feces do not.

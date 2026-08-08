@@ -12,6 +12,7 @@ import {
   type SubstrateType,
 } from './equipment/substrate.js';
 import { nitrogenCycleDefaults } from './config/nitrogen-cycle.js';
+import { plantsDefaults } from './config/plants.js';
 import { NH3_TO_NO2_MASS_RATIO, NO2_TO_NO3_MASS_RATIO } from './core/chemistry.js';
 import { createFish } from './livestock/create-fish.js';
 import { createPlant } from './plants/create-plant.js';
@@ -202,7 +203,16 @@ export function applySeed(state: SimulationState, seed: PresetSeed): void {
 
   for (const group of seed.plants ?? []) {
     for (let i = 0; i < (group.count ?? 1); i++) {
-      state.plants.push(createPlant({ species: group.species, size: group.size, rng: state.rng }));
+      state.plants.push(
+        createPlant({
+          species: group.species,
+          size: group.size,
+          // Tunables bind to the tick, not to `createSimulation` — a seeded
+          // tank is built before there is a live config to read.
+          plantsConfig: plantsDefaults,
+          rng: state.rng,
+        })
+      );
     }
   }
 }
