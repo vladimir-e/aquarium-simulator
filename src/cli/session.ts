@@ -18,6 +18,12 @@ import type { HistorySnapshot } from './history.js';
  * missing field. Parallel to the UI's `PERSISTENCE_VERSION`. Pre-launch
  * rule is reject, not migrate.
  *
+ * v9 made growth draw a share of the bank rather than a flat ration.
+ *    `PlantsConfig` swapped `plantGrowthPerTickCap` — units per tick — for
+ *    `growthDrawRate`, the fraction of the reserve a plant mobilises per lit
+ *    hour. A v8 session parses, and the first lit tick multiplies the bank by
+ *    the key it does not carry: the plant's size and surplus are `NaN` from
+ *    there on, and the session is written back that way.
  * v8 put the intensity back in the rate. `PlantsConfig` gains
  *    `saturationIrradianceFactor`, the multiple of a species' band low at which
  *    it saturates, and both light channels run through the `tanh(PAR / Ik)` it
@@ -59,7 +65,7 @@ import type { HistorySnapshot } from './history.js';
  * v2 added `Fish.stage` + `state.clutches` (breeding) and the saturating
  *    surplus bank.
  */
-export const SESSION_VERSION = 8;
+export const SESSION_VERSION = 9;
 export const DEFAULT_SESSION_PATH = resolve(process.cwd(), '.simstate/current.json');
 
 export interface Session {
