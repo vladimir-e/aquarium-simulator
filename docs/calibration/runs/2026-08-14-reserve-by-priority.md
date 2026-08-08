@@ -9,7 +9,7 @@ Three probes, unchanged seeds: `npm run probe:ordinary-tanks`,
 lines that read `buildPlantUpkeep` dropped — every other figure is the same code
 on both sides. `starvation-share` is branch-only.
 
-**Suite green: 153 files, 2688 tests.**
+**Suite green: 153 files, 2698 tests.**
 
 ---
 
