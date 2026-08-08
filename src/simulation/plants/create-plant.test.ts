@@ -1,15 +1,26 @@
 import { describe, it, expect } from 'vitest';
-import { createPlant, DEFAULT_PLANT_SIZE } from './create-plant.js';
+import { createPlant, DEFAULT_PLANT_SIZE, ESTABLISHMENT_SURPLUS } from './create-plant.js';
+import { plantsDefaults } from '../config/plants.js';
 import { createRng } from '../core/rng.js';
 
 describe('createPlant', () => {
-  it('builds a plant at full condition with an empty bank', () => {
+  it('builds a plant at full condition with the reserve it arrives on', () => {
     const plant = createPlant({ species: 'anubias', size: 140, rng: createRng(1) });
 
     expect(plant.species).toBe('anubias');
     expect(plant.size).toBe(140);
     expect(plant.condition).toBe(100);
-    expect(plant.surplus).toBe(0);
+    expect(plant.surplus).toBe(ESTABLISHMENT_SURPLUS);
+    expect(ESTABLISHMENT_SURPLUS).toBe(plantsDefaults.surplusCap / 2);
+  });
+
+  it('arrives provisioned, so a fresh plant is not a starving one', () => {
+    // A bank below `maintenanceCost × starvationReserveHours` reads as short
+    // of reserve and the starvation stressor starts charging; a specimen out
+    // of a shop tank is not that.
+    expect(ESTABLISHMENT_SURPLUS).toBeGreaterThan(
+      plantsDefaults.maintenanceCost * plantsDefaults.starvationReserveHours
+    );
   });
 
   it('falls back to the default size', () => {

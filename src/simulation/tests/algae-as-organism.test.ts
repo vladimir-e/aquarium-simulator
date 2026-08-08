@@ -123,6 +123,7 @@ describe('algae as population — plant-side feedback (algae shading)', () => {
     state = applyAction(state, { type: 'addPlant', species: 'anubias', initialSize: 80 }).state;
 
     const startCondition = state.plants[0].condition;
+    const startBank = state.plants[0].surplus;
 
     // Run for a single sim day — long enough to see the signal
     // start, short enough to not enter scrub-or-die territory. The
@@ -132,7 +133,11 @@ describe('algae as population — plant-side feedback (algae shading)', () => {
 
     // Plant should still be alive.
     expect(state.plants.length).toBe(1);
-    // And its condition should have dropped from the starting value.
-    expect(state.plants[0].condition).toBeLessThan(startCondition);
+    // And be paying for the bloom. A plant arrives with a reserve, and the
+    // reserve is what a hostile tick comes out of first, so a hardy species
+    // reads full condition while its bank goes down — that drain is the
+    // signal, and condition is what it is protecting.
+    expect(state.plants[0].surplus).toBeLessThan(startBank);
+    expect(state.plants[0].condition).toBeLessThanOrEqual(startCondition);
   });
 });

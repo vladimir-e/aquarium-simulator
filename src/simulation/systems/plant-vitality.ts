@@ -8,6 +8,10 @@
  *
  * Stressor coverage (each gated by species config so not every species
  * triggers every channel):
+ * - Maintenance, always on, on the respiration Q10 — so the two layers
+ *   describe one plant and a warm blackout kills faster than a cool one
+ * - Starvation, the same cost at a multiple, scaling from nothing at a
+ *   full reserve to everything at an empty one
  * - Light insufficient / excessive (two-sided around `tolerableLight`,
  *   in PAR at the substrate)
  * - CO2 insufficient (high-tech species suffer when CO2 falls)
@@ -17,14 +21,17 @@
  * - Nutrient toxicity (gross NO3 overdose — auto-doser failure case)
  * - Algae shading (when algae density crosses the shading threshold)
  *
- * Benefit coverage:
- * - Light, on the same saturating PAR curve photosynthesis runs
- * - CO2, Temperature, pH — in-range = peak, out-of-range = 0
- * - Nutrients, scaling with Liebig sufficiency
+ * Benefit coverage — CO2, temperature and pH in-band, nutrients on
+ * Liebig sufficiency, and every one of them multiplied by the same
+ * saturating PAR curve photosynthesis runs on. A plant realises all
+ * four *through* photosynthesis, so the budget is income rather than
+ * comfort: good carbon and warm water are worth nothing at midnight.
  *
- * Sum at all-good ≈ 0.5 %/h, so a healthy plant heals at familiar
- * speed and only starts growing once condition is full (surplus-
- * overflow rule).
+ * Sum at saturating light ≈ 0.5 %/h, so a lit healthy plant heals at
+ * familiar speed and only starts growing once condition is full
+ * (surplus-overflow rule). Against it the maintenance cost sets a
+ * compensation point: below the PAR where the budget covers it, the
+ * plant is running a deficit and spending its bank.
  */
 
 import type { Plant, Resources } from '../state.js';
@@ -32,6 +39,7 @@ import { PLANT_SPECIES_DATA, getSaturationIrradiance } from '../plants/species.j
 import type { PlantsConfig } from '../config/plants.js';
 import { lightSaturationFactor } from '../core/kinetics.js';
 import { getPpm } from '../resources/index.js';
+import { getRespirationTemperatureFactor } from './respiration.js';
 import {
   computeVitality,
   inRangeBenefit,
@@ -68,12 +76,33 @@ export function buildPlantStressors(ctx: PlantVitalityContext): VitalityFactor[]
   const species = PLANT_SPECIES_DATA[plant.species];
   const factors: VitalityFactor[] = [];
 
+  const maintenance =
+    plantsConfig.maintenanceCost *
+    getRespirationTemperatureFactor(resources.temperature, plantsConfig);
+  factors.push({ key: 'maintenance', label: 'Maintenance', amount: maintenance });
+
+  // Starvation is the plant eating itself at a multiple of the
+  // maintenance it can no longer pay, so it derives from that rate
+  // rather than carrying a severity of its own. The reserve it ramps
+  // against is hours of maintenance banked, which is what a plant that
+  // burns faster needs more of; a plant that pays nothing to stay alive
+  // has no reserve to run out of either.
+  const reserve = maintenance * plantsConfig.starvationReserveHours;
+  const provisioned = reserve > 0 ? Math.min(1, Math.max(0, plant.surplus / reserve)) : 1;
+  factors.push({
+    key: 'starvation',
+    label: 'Starvation',
+    amount: maintenance * plantsConfig.starvationMultiplier * (1 - provisioned),
+  });
+
   // Light — two-sided, and only during the photoperiod. Light = 0
   // here means "lights off, it's night" — plants aren't trying to
   // photosynthesize, so a lights-off tick isn't a "light insufficient"
-  // event. The light-excessive side is always-on (excess PAR can burn
-  // leaves any time the lamps are on, but if they're off there's
-  // nothing to burn).
+  // event. Darkness is charged above instead: night and blackout cost
+  // the same maintenance per hour, and what tells them apart is whether
+  // the bank ever refills. The light-excessive side is always-on
+  // (excess PAR can burn leaves any time the lamps are on, but if
+  // they're off there's nothing to burn).
   const [lightLo, lightHi] = species.tolerableLight;
   let lightAmount = 0;
   let lightLabel = 'Light';
@@ -165,37 +194,33 @@ export function buildPlantBenefits(ctx: PlantVitalityContext): VitalityFactor[] 
   const [co2Lo, co2Hi] = species.tolerableCO2;
   const [tempLo, tempHi] = species.tolerableTemp;
   const [phLo, phHi] = species.tolerablePH;
+  const saturation = lightSaturationFactor(
+    resources.light,
+    getSaturationIrradiance(plant.species, plantsConfig)
+  );
 
   return [
     {
-      key: 'light',
-      label: 'Light',
-      amount:
-        plantsConfig.lightBenefitPeak *
-        lightSaturationFactor(
-          resources.light,
-          getSaturationIrradiance(plant.species, plantsConfig)
-        ),
-    },
-    {
       key: 'co2',
       label: 'CO2',
-      amount: inRangeBenefit(resources.co2, co2Lo, co2Hi, plantsConfig.co2BenefitPeak),
+      amount: saturation * inRangeBenefit(resources.co2, co2Lo, co2Hi, plantsConfig.co2BenefitPeak),
     },
     {
       key: 'temperature',
       label: 'Temperature',
-      amount: inRangeBenefit(
-        resources.temperature,
-        tempLo,
-        tempHi,
-        plantsConfig.temperatureBenefitPeak
-      ),
+      amount:
+        saturation *
+        inRangeBenefit(
+          resources.temperature,
+          tempLo,
+          tempHi,
+          plantsConfig.temperatureBenefitPeak
+        ),
     },
     {
       key: 'ph',
       label: 'pH',
-      amount: inRangeBenefit(resources.ph, phLo, phHi, plantsConfig.phBenefitPeak),
+      amount: saturation * inRangeBenefit(resources.ph, phLo, phHi, plantsConfig.phBenefitPeak),
     },
     {
       key: 'nutrients',
@@ -206,6 +231,7 @@ export function buildPlantBenefits(ctx: PlantVitalityContext): VitalityFactor[] 
       // two together let condition track sufficiency continuously for
       // plants whose only knob is nutrients.
       amount:
+        saturation *
         plantsConfig.nutrientBenefitPeak *
         Math.max(0, Math.min(1, nutrientSufficiency)),
     },

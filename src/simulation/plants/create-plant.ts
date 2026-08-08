@@ -5,11 +5,21 @@
  */
 
 import type { Plant } from '../state.js';
+import { plantsDefaults } from '../config/plants.js';
 import { drawId, type RngState } from '../core/rng.js';
 import type { PlantSpecies } from './species.js';
 
 /** Size a plant goes in at when the caller doesn't say — a young specimen. */
 export const DEFAULT_PLANT_SIZE = 50;
+
+/**
+ * Reserve a plant arrives with — half of `PlantsConfig.surplusCap`, what a
+ * young plant in a tank it has no complaints about settles at. A specimen
+ * comes out of the shop's tank with stores, and one starting at an empty bank
+ * would read as fully starving on its first tick and melt on the way into a
+ * perfect tank.
+ */
+export const ESTABLISHMENT_SURPLUS = plantsDefaults.surplusCap / 2;
 
 export interface CreatePlantParams {
   species: PlantSpecies;
@@ -27,6 +37,6 @@ export function createPlant(params: CreatePlantParams): Plant {
     species,
     size,
     condition: 100,
-    surplus: 0,
+    surplus: ESTABLISHMENT_SURPLUS,
   };
 }

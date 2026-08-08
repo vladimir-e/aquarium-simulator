@@ -103,15 +103,45 @@ export interface PlantsConfig {
   algaeShadingSeverity: number;
   /** Algae level (0–100) above which shading stress kicks in. */
   algaeShadingThreshold: number;
+  /**
+   * Damage per hour of simply being alive, quoted at
+   * `respirationReferenceTemp` and moved off it by the same Q10 factor the
+   * gas layer's respiration runs on. Its reference is the compensation
+   * point — the irradiance where photosynthesis pays for respiration, which
+   * the macrophyte literature puts at 10–20 % of saturating irradiance.
+   */
+  maintenanceCost: number;
+  /**
+   * Multiple of `maintenanceCost` an empty reserve costs on top of it: the
+   * rate a plant with nothing banked consumes itself at.
+   *
+   * Its ceiling is recovery, and that is what the shipped value is quoted
+   * against. A plant only banks reserve at full condition, so an empty bank
+   * is a state it has to *heal* out of: the day's income has to cover
+   * `24 × maintenance × (1 + this)` before it can climb. Under the shipped
+   * fixture that caps the multiple just above 1 for the fussiest species,
+   * and past it any plant that ever spends its reserve is dead whatever the
+   * keeper does next.
+   */
+  starvationMultiplier: number;
+  /**
+   * Hours of maintenance banked at which a plant counts as provisioned —
+   * the reserve `starvationMultiplier` ramps against, zero starvation at or
+   * above it and the full multiple at an empty bank.
+   *
+   * Quoted against the bank a fed plant holds rather than against
+   * `surplusCap`: growth withdraws `growthDrawRate` of the bank every lit
+   * hour, which is more per day than a plant can earn, so a growing plant
+   * settles far below the cap and never reads as full there.
+   */
+  starvationReserveHours: number;
 
-  // Vitality benefit peaks (%/h) when the corresponding factor is in
-  // its tolerable band. Sum at all-good ≈ 0.5 %/h — the calibration
-  // budget the plant recovery curves were pinned against. Light is the
-  // exception: it pays on the saturating PAR curve rather than off the
-  // band, so its peak is what a plant earns at saturation and not what
-  // it earns for sitting in range.
-  /** Light at saturating PAR. */
-  lightBenefitPeak: number;
+  // Vitality benefit peaks (%/h) when the corresponding factor is in its
+  // tolerable band. Every one of them is realised through photosynthesis, so
+  // all four are multiplied by the light term `tanh(PAR / Ik)`: the budget is
+  // the plant's income, and good water is worth nothing at midnight. Sum at
+  // saturating light ≈ 0.5 %/h — the calibration budget the plant recovery
+  // curves were pinned against.
   /** CO2 in tolerable range. */
   co2BenefitPeak: number;
   /** Temperature in tolerable range. */
@@ -235,16 +265,32 @@ export const plantsDefaults: PlantsConfig = {
   // (calibration-grade — task 42 first-pass; recalibration follows).
   algaeShadingSeverity: 0.05,
   algaeShadingThreshold: 30,
+  // The compensation point, put where the macrophyte literature puts it: a
+  // hardiness-0.3 species breaks even at 10.5 % of its own Ik — 6.3 PAR for
+  // monte carlo, 5.3 for dwarf hairgrass — which is the bottom of the 10–20 %
+  // of saturating irradiance the published figures span. 0.075 × (1 − 0.3) is
+  // 0.0525, and 0.5 %/h × tanh(0.105) is the same. Hardier species carry a
+  // lower point (anubias 3.8 % of its Ik), which is the direction shade
+  // adaptation goes. Below a species' band the light-insufficient stressor
+  // sits on top of this, so the PAR a plant actually needs is the band.
+  maintenanceCost: 0.075,
+  // An empty reserve doubles what staying alive costs, and four days of
+  // maintenance — 7.5 units of the 50-unit cap — is what counts as
+  // provisioned. What the pair produces, and the runs the ceiling on the
+  // multiple was read off, are in
+  // `docs/calibration/runs/2026-08-11-light-deficiency.md`.
+  starvationMultiplier: 1,
+  starvationReserveHours: 100,
 
-  // Vitality benefit peaks. Sum at all-good ≈ 0.5 %/h — light pays
-  // tanh(PAR / Ik) of its peak, so a monte carlo at 30 PAR earns 0.046
-  // of the 0.1 rather than the whole of it. With a healthy tank the
-  // plant heals to 100 in under 4 sim days, then surplus drives growth.
-  lightBenefitPeak: 0.1,
-  co2BenefitPeak: 0.1,
-  temperatureBenefitPeak: 0.1,
-  phBenefitPeak: 0.1,
-  nutrientBenefitPeak: 0.1,
+  // Vitality benefit peaks. Four channels at 0.125 sum to the 0.5 %/h budget
+  // at saturating light, and the light term takes the whole of it down
+  // together: a monte carlo at 30 PAR earns 0.46 of the budget, and every
+  // plant earns none of it in the dark. With a healthy lit tank the plant
+  // heals to 100 in a few sim days, then surplus drives growth.
+  co2BenefitPeak: 0.125,
+  temperatureBenefitPeak: 0.125,
+  phBenefitPeak: 0.125,
+  nutrientBenefitPeak: 0.125,
 
   // Lifecycle thresholds — forgiving by default.
   sheddingConditionThreshold: 30, // shedding starts at condition < 30 %
@@ -336,9 +382,11 @@ export const plantsConfigMeta: PlantsConfigMeta[] = [
   { key: 'nutrientToxicityThresholdNitrate', label: 'NO3 Tox. Threshold', unit: 'ppm', min: 50, max: 300, step: 10 },
   { key: 'algaeShadingSeverity', label: 'Algae Shading Severity', unit: '%/algae/hr', min: 0.001, max: 0.1, step: 0.005 },
   { key: 'algaeShadingThreshold', label: 'Algae Shading Threshold', unit: '', min: 20, max: 80, step: 5 },
+  { key: 'maintenanceCost', label: 'Maintenance Cost', unit: '%/hr', min: 0, max: 0.5, step: 0.005 },
+  { key: 'starvationMultiplier', label: 'Starvation Multiplier', unit: '× maintenance', min: 0, max: 10, step: 0.5 },
+  { key: 'starvationReserveHours', label: 'Starvation Reserve', unit: 'hr maintenance', min: 10, max: 500, step: 10 },
 
   // Vitality benefit peaks
-  { key: 'lightBenefitPeak', label: 'Light Benefit Peak', unit: '%/hr', min: 0.0, max: 0.5, step: 0.05 },
   { key: 'co2BenefitPeak', label: 'CO2 Benefit Peak', unit: '%/hr', min: 0.0, max: 0.5, step: 0.05 },
   { key: 'temperatureBenefitPeak', label: 'Temp Benefit Peak', unit: '%/hr', min: 0.0, max: 0.5, step: 0.05 },
   { key: 'phBenefitPeak', label: 'pH Benefit Peak', unit: '%/hr', min: 0.0, max: 0.5, step: 0.05 },

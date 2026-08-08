@@ -12,9 +12,9 @@
  *    `Plant.surplus` bank. The bank is a reserve buffer — damage drains
  *    it before condition falls; positive overflow at full condition
  *    accrues back into it (capped at `surplusCap`). Runs every tick —
- *    condition heals at night from non-light benefits, and the buffer
- *    protects condition 24/7. Accrual is **photoperiod-gated** inside
- *    vitality (`accrueSurplus: light > 0`): surplus represents stored
+ *    the plant pays maintenance around the clock and the buffer is what
+ *    it pays out of. Accrual is **photoperiod-gated** inside vitality
+ *    (`accrueSurplus: light > 0`): surplus represents stored
  *    photosynthate, so overnight overflow is discarded.
  * 5. Store the returned bank on `Plant.surplus` (no separate banking
  *    step — vitality already produced the final value).
@@ -175,15 +175,12 @@ export function processPlants(
   //    day, held (but drained / cap-clamped) at night. Growth *spending*
   //    is gated here: no light → overnight respiration consumes sugars
   //    for maintenance, not net biomass, so the bank doesn't convert into
-  //    size. Condition healing is NOT gated — vitality's non-light
-  //    benefits (pH, temp, nutrients) still drive recovery at night, and
-  //    the reserve buffer still protects condition from damage 24/7.
+  //    size.
   //
-  //    Vitality runs every tick regardless; the light-keyed factors
-  //    inside vitality (light stressor / light benefit / CO2 low
-  //    stressor) already self-zero at light = 0, so condition tracks
-  //    the real non-light environment overnight without needing a
-  //    second gate here.
+  //    Vitality runs every tick regardless. Every benefit is multiplied
+  //    by the light term and the light-keyed stressors self-zero at
+  //    light = 0, so a dark tick is maintenance and starvation against
+  //    no income — which is the night the reserve exists for.
   const photoperiodActive = state.resources.light > 0;
   const mergedPlants: Plant[] = state.plants.map((plant, i) => {
     const v = vitalities[i];

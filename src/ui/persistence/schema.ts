@@ -415,8 +415,10 @@ const PlantsConfigSchema = z
     nutrientToxicityThresholdNitrate: z.number(),
     algaeShadingSeverity: z.number(),
     algaeShadingThreshold: z.number(),
+    maintenanceCost: z.number(),
+    starvationMultiplier: z.number(),
+    starvationReserveHours: z.number(),
     // Vitality benefit peaks
-    lightBenefitPeak: z.number(),
     co2BenefitPeak: z.number(),
     temperatureBenefitPeak: z.number(),
     phBenefitPeak: z.number(),

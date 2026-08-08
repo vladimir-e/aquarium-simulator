@@ -167,9 +167,9 @@ stores it and spends from it.
     stored photosynthate (sugars from carbon fixation), so overflow at
     full condition only banks when `resources.light > 0`. Overnight
     overflow is discarded — no photosynthesis means no energy capture.
-    (Plant *condition* still heals at night from non-light benefits, and
-    the reserve still buffers damage overnight; only the accrual step
-    pauses.)
+    (There is none to discard: every plant benefit is multiplied by the
+    light term, so a dark tick earns nothing. What the reserve does
+    overnight is pay the plant's maintenance.)
   - Each tick of the photoperiod, growth mobilises a configured share
     of the bank; an asymptotic factor that decays toward zero as size
     approaches species `maxSize` decides how much of it becomes size,

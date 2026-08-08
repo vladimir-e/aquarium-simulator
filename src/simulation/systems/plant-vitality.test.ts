@@ -16,6 +16,7 @@ import {
   type PlantSpecies,
 } from '../plants/species.js';
 import { lightSaturationFactor } from '../core/kinetics.js';
+import { DEFAULT_LIGHT } from '../equipment/light.js';
 
 function makePlant(species: PlantSpecies, overrides: Partial<Plant> = {}): Plant {
   return {
@@ -78,13 +79,107 @@ function ctx(
 }
 
 describe('buildPlantStressors', () => {
-  it('returns zero damage for an Anubias in good conditions', () => {
-    const plant = makePlant('anubias');
+  it('charges an Anubias in good conditions nothing but staying alive', () => {
+    const plant = makePlant('anubias', { surplus: plantsDefaults.surplusCap });
     const resources = makeResources();
     const stressors = buildPlantStressors(ctx(plant, resources));
     for (const s of stressors) {
-      expect(s.amount).toBe(0);
+      expect(s.amount).toBe(s.key === 'maintenance' ? plantsDefaults.maintenanceCost : 0);
     }
+  });
+
+  it('scales maintenance on the same Q10 the gas layer respires on', () => {
+    const plant = makePlant('anubias', { surplus: plantsDefaults.surplusCap });
+    const cost = (temperature: number): number =>
+      buildPlantStressors(ctx(plant, makeResources({ temperature })))
+        .find((s) => s.key === 'maintenance')!.amount;
+
+    expect(cost(plantsDefaults.respirationReferenceTemp)).toBe(plantsDefaults.maintenanceCost);
+    expect(cost(plantsDefaults.respirationReferenceTemp + 10)).toBeCloseTo(
+      plantsDefaults.maintenanceCost * plantsDefaults.respirationQ10,
+      12
+    );
+    expect(cost(35)).toBeGreaterThan(cost(15));
+  });
+
+  it('breaks even at a tenth of Ik, which is where the compensation point belongs', () => {
+    // The constant's whole referent: with everything else at optimum, a plant
+    // covers maintenance out of income above ~0.1 × Ik and runs a deficit
+    // below it. Read on a species whose band reaches that low, so the
+    // light-insufficient stressor isn't in the answer.
+    const plant = makePlant('anubias', { surplus: plantsDefaults.surplusCap });
+    const ik = getSaturationIrradiance('anubias', plantsDefaults);
+    const net = (light: number): number =>
+      computePlantVitality(ctx(plant, makeResources({ light }))).breakdown.net;
+
+    expect(net(0.2 * ik)).toBeGreaterThan(0);
+    expect(net(0.02 * ik)).toBeLessThan(0);
+  });
+
+  describe('starvation ramps on the reserve the bank still holds', () => {
+    const starvation = (surplus: number, plantsConfig = plantsDefaults): number =>
+      buildPlantStressors(
+        ctx(makePlant('anubias', { surplus }), makeResources(), 0, plantsConfig)
+      ).find((s) => s.key === 'starvation')!.amount;
+
+    const reserve = plantsDefaults.maintenanceCost * plantsDefaults.starvationReserveHours;
+
+    it('charges nothing to a plant holding its reserve, and no less above it', () => {
+      expect(starvation(reserve)).toBe(0);
+      expect(starvation(plantsDefaults.surplusCap)).toBe(0);
+    });
+
+    it('charges the full multiple of maintenance at an empty bank', () => {
+      expect(starvation(0)).toBeCloseTo(
+        plantsDefaults.maintenanceCost * plantsDefaults.starvationMultiplier,
+        12
+      );
+    });
+
+    it('climbs continuously between, with no step at either end', () => {
+      let previous = starvation(0);
+      for (const share of [0.1, 0.25, 0.5, 0.75, 0.9, 1]) {
+        const amount = starvation(share * reserve);
+        expect(amount).toBeLessThan(previous);
+        previous = amount;
+      }
+      expect(previous).toBe(0);
+    });
+
+    it('leaves an empty bank recoverable across a whole day', () => {
+      // The ceiling on `starvationMultiplier`, and the reason it is not a free
+      // judgement call: a plant banks reserve only at full condition, so an
+      // empty bank is a state it has to *heal* out of. Income arrives in the
+      // lit hours and starvation is charged in all of them, so if the day does
+      // not balance, every plant that ever spends its reserve is dead whatever
+      // the keeper does next. Read on the fussiest species, in water with
+      // nothing else wrong with it, at the top of its own band.
+      const spent = makePlant('monte_carlo', { condition: 50, surplus: 0 });
+      const [, bandHi] = PLANT_SPECIES_DATA.monte_carlo.tolerableLight;
+      const net = (light: number): number =>
+        computePlantVitality(ctx(spent, makeResources({ light }))).breakdown.net;
+      const lit = DEFAULT_LIGHT.schedule.duration;
+
+      expect(lit * net(bandHi) + (24 - lit) * net(0)).toBeGreaterThan(0);
+    });
+
+    it('charges nothing at all when nothing is charged for staying alive', () => {
+      // A plant that pays no maintenance has no reserve to run out of, and
+      // the ramp has no denominator either.
+      const free = { ...plantsDefaults, maintenanceCost: 0 };
+      expect(starvation(0, free)).toBe(0);
+      expect(starvation(plantsDefaults.surplusCap, free)).toBe(0);
+    });
+
+    it('asks a warm tank for more reserve than a cool one', () => {
+      // The reserve is hours of maintenance, and a warm plant burns faster —
+      // so the same bank reads thinner at 35 °C than at 15 °C.
+      const warm = buildPlantStressors(
+        ctx(makePlant('anubias', { surplus: reserve }), makeResources({ temperature: 35 }))
+      ).find((s) => s.key === 'starvation')!.amount;
+
+      expect(warm).toBeGreaterThan(0);
+    });
   });
 
   it('flags low CO2 for high-tech species', () => {
@@ -182,35 +277,45 @@ describe('buildPlantStressors', () => {
 });
 
 describe('buildPlantBenefits', () => {
-  it('emits all five benefit factors at full peak in ideal conditions', () => {
+  /** Every channel summed — the income the plant actually earns that tick. */
+  const budget = (
+    species: PlantSpecies,
+    resources: Resources,
+    plantsConfig = plantsDefaults
+  ): number =>
+    buildPlantBenefits(ctx(makePlant(species), resources, 0, plantsConfig)).reduce(
+      (sum, b) => sum + b.amount,
+      0
+    );
+
+  const PEAKS =
+    plantsDefaults.co2BenefitPeak +
+    plantsDefaults.temperatureBenefitPeak +
+    plantsDefaults.phBenefitPeak +
+    plantsDefaults.nutrientBenefitPeak;
+
+  it('emits all four channels at their peak share of the light term', () => {
     const plant = makePlant('anubias');
     const resources = makeResources({
-      light: 30, // in anubias range [3, 70]
+      light: 30, // in anubias range [8, 70]
       co2: 5, // in anubias range [1, 40]
       temperature: 25, // in [18, 30]
       ph: 7.0, // in [6.0, 8.0]
     });
     const benefits = buildPlantBenefits(ctx(plant, resources));
     const keys = benefits.map((b) => b.key).sort();
-    expect(keys).toEqual(['co2', 'light', 'nutrients', 'ph', 'temperature']);
-    // CO2, temp, pH at peak; nutrients = peak × sufficiency; light is a rate on
-    // the same curve photosynthesis runs, so it reaches the peak only
-    // asymptotically — 30 PAR is 1.9 Ik for an anubias, which is most of it.
-    expect(benefits.find((b) => b.key === 'light')?.amount).toBeCloseTo(
-      plantsDefaults.lightBenefitPeak *
-        lightSaturationFactor(30, getSaturationIrradiance('anubias', plantsDefaults)),
-      12
+    expect(keys).toEqual(['co2', 'nutrients', 'ph', 'temperature']);
+
+    // Anubias is low-demand → only NO3 required, and NO3 is well fed, so every
+    // channel is at its peak. What each one pays is that peak times the share
+    // of photosynthesis the light supports: 30 PAR is 1.9 Ik for an anubias.
+    const saturation = lightSaturationFactor(
+      30,
+      getSaturationIrradiance('anubias', plantsDefaults)
     );
-    expect(benefits.find((b) => b.key === 'co2')?.amount).toBe(plantsDefaults.co2BenefitPeak);
-    expect(benefits.find((b) => b.key === 'temperature')?.amount).toBe(
-      plantsDefaults.temperatureBenefitPeak
-    );
-    expect(benefits.find((b) => b.key === 'ph')?.amount).toBe(plantsDefaults.phBenefitPeak);
-    // Anubias is low-demand → only NO3 required, with NO3 well-fed
-    // sufficiency = 1.0 → full peak.
-    expect(benefits.find((b) => b.key === 'nutrients')?.amount).toBe(
-      plantsDefaults.nutrientBenefitPeak
-    );
+    for (const benefit of benefits) {
+      expect(benefit.amount).toBeCloseTo(0.25 * PEAKS * saturation, 12);
+    }
   });
 
   it('drops the CO2 benefit to zero when CO2 leaves the species range', () => {
@@ -220,42 +325,44 @@ describe('buildPlantBenefits', () => {
     expect(benefits.find((b) => b.key === 'co2')?.amount).toBe(0);
   });
 
-  describe('the light benefit is income, not a comfort band', () => {
-    const lightBenefit = (species: PlantSpecies, light: number): number => {
-      const benefits = buildPlantBenefits(ctx(makePlant(species), makeResources({ light })));
-      return benefits.find((b) => b.key === 'light')?.amount ?? 0;
-    };
+  describe('the budget is income realised through photosynthesis', () => {
+    const earned = (species: PlantSpecies, light: number): number =>
+      budget(species, makeResources({ light }));
 
     it('pays a brighter plant more than a dim one, both inside the band', () => {
       // Both readings sit inside the 8–70 PAR anubias tolerates, so a band-shaped
       // award would pay them the same and only the photoperiod would decide growth.
-      expect(lightBenefit('anubias', 60)).toBeGreaterThan(lightBenefit('anubias', 12));
+      expect(earned('anubias', 60)).toBeGreaterThan(earned('anubias', 12));
     });
 
-    it('climbs with PAR the whole way and never passes the peak', () => {
+    it('climbs with PAR the whole way and never passes the summed peaks', () => {
       let previous = 0;
       for (const par of [1, 5, 15, 30, 70, 150, 400]) {
-        const benefit = lightBenefit('anubias', par);
-        expect(benefit).toBeGreaterThan(previous);
-        expect(benefit).toBeLessThanOrEqual(plantsDefaults.lightBenefitPeak);
-        previous = benefit;
+        const income = earned('anubias', par);
+        expect(income).toBeGreaterThan(previous);
+        expect(income).toBeLessThanOrEqual(PEAKS);
+        previous = income;
       }
     });
 
     it('has no cliff at the top of the band', () => {
       // Anubias burns above 70 PAR, and that charge is `lightExcessiveSeverity`'s
-      // alone: crossing the top of the band costs a plant damage, not its light
-      // income, which by then is a thousandth off the peak either side.
+      // alone: crossing the top of the band costs a plant damage, not its income,
+      // which by then is a thousandth off the peak either side.
       const [, hi] = PLANT_SPECIES_DATA.anubias.tolerableLight;
-      const under = lightBenefit('anubias', hi - 0.01);
-      const over = lightBenefit('anubias', hi + 0.01);
+      const under = earned('anubias', hi - 0.01);
+      const over = earned('anubias', hi + 0.01);
 
       expect(over).toBeGreaterThan(under);
       expect(over - under).toBeLessThan(1e-4);
     });
 
-    it('pays nothing in the dark', () => {
-      expect(lightBenefit('anubias', 0)).toBe(0);
+    it('pays nothing in the dark, whatever the water is doing', () => {
+      const perfect = makeResources({ light: 0, co2: 20, temperature: 25, ph: 7.0 });
+      expect(budget('anubias', perfect)).toBe(0);
+      for (const benefit of buildPlantBenefits(ctx(makePlant('anubias'), perfect))) {
+        expect(benefit.amount).toBe(0);
+      }
     });
 
     it('pays each species on its own Ik, so a shade plant is nearer its ceiling', () => {
@@ -267,7 +374,7 @@ describe('buildPlantBenefits', () => {
             getSaturationIrradiance(one, plantsDefaults) <
             getSaturationIrradiance(other, plantsDefaults)
           ) {
-            expect(lightBenefit(one, 50)).toBeGreaterThan(lightBenefit(other, 50));
+            expect(earned(one, 50)).toBeGreaterThan(earned(other, 50));
           }
         }
       }
@@ -275,21 +382,17 @@ describe('buildPlantBenefits', () => {
 
     it('reads Ik off the tuned factor rather than a constant of its own', () => {
       // The knob has to reach this channel: raising it moves a species'
-      // saturation up, so one fixture buys a smaller share of the peak.
-      const earned = (saturationIrradianceFactor: number): number => {
-        const benefits = buildPlantBenefits(
-          ctx(makePlant('anubias'), makeResources({ light: 20 }), 0, {
-            ...plantsDefaults,
-            saturationIrradianceFactor,
-          })
-        );
-        return benefits.find((b) => b.key === 'light')?.amount ?? 0;
-      };
+      // saturation up, so one fixture buys a smaller share of the peaks.
+      const atFactor = (saturationIrradianceFactor: number): number =>
+        budget('anubias', makeResources({ light: 20 }), {
+          ...plantsDefaults,
+          saturationIrradianceFactor,
+        });
 
-      expect(earned(4)).toBeLessThan(earned(2));
-      expect(earned(2)).toBeLessThan(earned(1));
+      expect(atFactor(4)).toBeLessThan(atFactor(2));
+      expect(atFactor(2)).toBeLessThan(atFactor(1));
       // A species that saturates at no light at all is one nothing holds back.
-      expect(earned(0)).toBe(plantsDefaults.lightBenefitPeak);
+      expect(atFactor(0)).toBeCloseTo(PEAKS, 12);
     });
   });
 });

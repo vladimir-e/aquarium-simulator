@@ -6,11 +6,21 @@ import { produce } from 'immer';
 import { DEFAULT_CONFIG } from '../config/index.js';
 import { plantsDefaults } from '../config/plants.js';
 import { nutrientsDefaults } from '../config/nutrients.js';
+import { ESTABLISHMENT_SURPLUS } from './create-plant.js';
+import { PLANT_SPECIES_DATA } from './species.js';
 
 describe('processPlants', () => {
   // Default per-plant condition for test stubs — new in the per-plant Liebig
   // engine (before, plants were a raw {id, species, size} bag).
   const C = 100;
+
+  /**
+   * What a java fern is charged for an hour of staying alive, post-hardiness,
+   * at `respirationReferenceTemp` — which is the temperature every state here
+   * is built at, so the Q10 factor is 1.
+   */
+  const NIGHTLY_MAINTENANCE =
+    plantsDefaults.maintenanceCost * (1 - PLANT_SPECIES_DATA.java_fern.hardiness);
 
   function createTestState(overrides: Partial<{
     plants: Plant[];
@@ -331,15 +341,14 @@ describe('processPlants', () => {
     // Plant surplus represents stored photosynthate (sugars from carbon
     // fixation). Both banking and spending gate on `resources.light > 0`:
     // no photosynthesis = no energy capture and no net biomass
-    // accumulation. Vitality runs every tick regardless — condition
-    // can still heal at night from non-light benefits — but the
-    // surplus pipeline pauses overnight.
+    // accumulation. Vitality runs every tick regardless — the plant is
+    // still paying maintenance out of the bank — but the surplus
+    // pipeline pauses overnight.
 
-    it('does not bank surplus at night even with otherwise-ideal conditions', () => {
-      // Plant is at full condition with all non-light vitality factors
-      // in their tolerable bands. Net is positive (pH/temp/nutrients),
-      // but the photoperiod gate (accrueSurplus false at night) discards
-      // the overflow, so the bank is unchanged.
+    it('spends the bank rather than banking at night, however good the water', () => {
+      // Every benefit is realised through photosynthesis, so a dark tick earns
+      // nothing whatever the water is doing and the accrual gate is handed no
+      // overflow. What is left is the night's own cost, drawn off the bank.
       const state = createTestState({
         plants: [{ id: 'p1', species: 'java_fern', size: 50, condition: 100, surplus: 5 }],
         light: 0,
@@ -349,12 +358,13 @@ describe('processPlants', () => {
         water: 100,
       });
       const result = processPlants(state, DEFAULT_CONFIG);
-      expect(result.state.plants[0].surplus).toBe(5);
+      expect(result.state.plants[0].surplus).toBeLessThan(5);
+      expect(result.state.plants[0].condition).toBe(100);
     });
 
     it('does not grow at night even with banked surplus', () => {
-      // A plant entering night with a within-cap bank should NOT spend
-      // any of it on growth. Both the bank and the size stay put.
+      // A plant entering night with a bank above its reserve should NOT spend
+      // any of it on growth. Size stays put and the bank pays only maintenance.
       const state = createTestState({
         plants: [{ id: 'p1', species: 'java_fern', size: 50, condition: 100, surplus: 40 }],
         light: 0,
@@ -363,7 +373,7 @@ describe('processPlants', () => {
       });
       const result = processPlants(state, DEFAULT_CONFIG);
       expect(result.state.plants[0].size).toBe(50);
-      expect(result.state.plants[0].surplus).toBe(40);
+      expect(result.state.plants[0].surplus).toBeCloseTo(40 - NIGHTLY_MAINTENANCE, 12);
     });
 
     it('banks surplus during the day under ideal conditions', () => {
@@ -408,8 +418,16 @@ describe('processPlants', () => {
       // each segment. Night segment must leave surplus and size
       // exactly as the prior day segment ended; day segments must
       // both advance them.
-      let state = createTestState({
-        plants: [{ id: 'p1', species: 'java_fern', size: 50, condition: 100, surplus: 0 }],
+      const state = createTestState({
+        plants: [
+          {
+            id: 'p1',
+            species: 'java_fern',
+            size: 50,
+            condition: 100,
+            surplus: ESTABLISHMENT_SURPLUS,
+          },
+        ],
         light: 50,
         co2: plantsDefaults.optimalCo2,
         nitrate: plantsDefaults.optimalNitrate * 100,
@@ -436,11 +454,12 @@ describe('processPlants', () => {
       expect(sizeDay1).toBeGreaterThan(50);
 
       const afterNight = runTicks(afterDay1, 5, 0);
-      // Night freezes both: surplus banking and growth-driven size
-      // changes are gated. (Shedding/death paths could touch size,
-      // but with condition 100 in this scenario neither fires.)
+      // Night freezes size — banking and growth are both gated on light — and
+      // runs the bank down by what the plant spends staying alive.
+      // (Shedding/death paths could touch size, but with condition 100 in this
+      // scenario neither fires.)
       expect(afterNight.plants[0].size).toBe(sizeDay1);
-      expect(afterNight.plants[0].surplus).toBe(surplusDay1);
+      expect(afterNight.plants[0].surplus).toBeLessThan(surplusDay1);
 
       const afterDay2 = runTicks(afterNight, 5, 50);
       // Resumes advance once lights return.
@@ -670,9 +689,15 @@ describe('processPlants', () => {
     it('processes multiple plants correctly', () => {
       const state = createTestState({
         plants: [
-          { id: 'p1', species: 'java_fern', size: 50, condition: C, surplus: 0 },
-          { id: 'p2', species: 'anubias', size: 60, condition: C, surplus: 0 },
-          { id: 'p3', species: 'amazon_sword', size: 70, condition: C, surplus: 0 },
+          { id: 'p1', species: 'java_fern', size: 50, condition: C, surplus: ESTABLISHMENT_SURPLUS },
+          { id: 'p2', species: 'anubias', size: 60, condition: C, surplus: ESTABLISHMENT_SURPLUS },
+          {
+            id: 'p3',
+            species: 'amazon_sword',
+            size: 70,
+            condition: C,
+            surplus: ESTABLISHMENT_SURPLUS,
+          },
         ],
         light: 50,
         co2: plantsDefaults.optimalCo2,
@@ -878,7 +903,7 @@ describe('processPlants', () => {
         water: 100,
       });
       const out = processPlants(state, DEFAULT_CONFIG).state.plants[0];
-      expect(out.surplus).toBe(plantsDefaults.surplusCap);
+      expect(out.surplus).toBeCloseTo(plantsDefaults.surplusCap - NIGHTLY_MAINTENANCE, 12);
     });
   });
 });
