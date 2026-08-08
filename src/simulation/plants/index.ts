@@ -18,11 +18,11 @@
  *    photosynthate, so overnight overflow is discarded.
  * 5. Store the returned bank on `Plant.surplus` (no separate banking
  *    step — vitality already produced the final value).
- * 6. Spend surplus on growth: drains up to `plantGrowthPerTickCap`
- *    per tick, converts to size at species-rate × asymptotic-factor.
- *    Also photoperiod-gated — no carbon fixation overnight, no net
- *    biomass accumulation. Anything left in the bank stays for
- *    future propagation work.
+ * 6. Spend surplus on growth: mobilises `growthDrawRate` of the bank,
+ *    converts the asymptotic share of it to size, and withdraws only
+ *    what converted. Also photoperiod-gated — no carbon fixation
+ *    overnight, no net biomass accumulation. What growth can't use
+ *    stays banked, for a dark spell and for propagation.
  * 7. Shedding + death (lifecycle module) — applied last, can remove
  *    plants from the tank.
  *
@@ -174,7 +174,7 @@ export function processPlants(
   //    `v.surplus` is already the correct new bank — accrued during the
   //    day, held (but drained / cap-clamped) at night. Growth *spending*
   //    is gated here: no light → overnight respiration consumes sugars
-  //    for maintenance, not net biomass, so the bank doesn't drain into
+  //    for maintenance, not net biomass, so the bank doesn't convert into
   //    size. Condition healing is NOT gated — vitality's non-light
   //    benefits (pH, temp, nutrients) still drive recovery at night, and
   //    the reserve buffer still protects condition from damage 24/7.

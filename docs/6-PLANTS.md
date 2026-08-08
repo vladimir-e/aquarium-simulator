@@ -28,8 +28,9 @@ Plants are modeled as **individual specimens**, each with their own species char
 2. **Vitality** banks per-plant **surplus** on `Plant.surplus` when
    condition is full and net is positive (saturating at `surplusCap`);
    the same bank drains to buffer damage before condition falls.
-3. **Growth** drains the bank each tick, scaled by species growth
-   rate and an asymptotic factor against species `maxSize`.
+3. **Growth** converts a share of the bank into size each lit tick,
+   scaled by species growth rate and an asymptotic factor against
+   species `maxSize`. Only what became size leaves the bank.
 4. Plants can grow past 100% up to their species `maxSize`; growth
    slows asymptotically as size approaches the cap.
 
@@ -208,26 +209,50 @@ pipeline is:
    keeps healing at night from non-light benefits — pH, temperature,
    nutrients — and the reserve still buffers damage overnight; only the
    accrual step pauses.)
-3. While the photoperiod is active, growth drains up to
-   `plantGrowthPerTickCap` units from the bank. The drained units
-   convert to size at:
+3. While the photoperiod is active, the plant mobilises
+   `growthDrawRate` of the bank toward new tissue, and the asymptotic
+   factor decides how much of that becomes size:
 
    ```
-   size_gain = drained × asymptoticFactor × speciesGrowthRate × sizePerSurplus
+   converted = surplus × growthDrawRate × asymptoticFactor
    asymptoticFactor = max(0, 1 − size / species.maxSize)
+   size_gain = converted × speciesGrowthRate × sizePerSurplus
    ```
 
    Growth pauses at night for the same biological reason: overnight
    respiration burns sugars for maintenance, but net biomass
    accumulation requires active carbon fixation. The bank doesn't
-   drain in the dark.
-4. Whatever is left in `Plant.surplus` stays banked. The bank is
-   the canonical lifecycle-outcome stock for plants.
+   convert in the dark.
+4. **`converted` is the whole withdrawal** — the bank pays for the
+   growth delivered and nothing else. What growth couldn't use stays
+   banked. The bank is the canonical lifecycle-outcome stock for
+   plants.
 
-The asymptotic factor reduces *spending efficiency*, not withdrawal
-amount: a plant near `maxSize` still drains the cap from its bank
-each daylight tick, but gets less size for the spend. A plant at its
-ceiling stops growing visibly while the bank keeps filling.
+So a plant at its ceiling converts nothing, pays nothing, and banks
+every unit it earns; a plant with room converts a share and banks the
+rest.
+
+The draw is a *share* of the bank rather than a flat per-tick ceiling
+so that a plant still growing carries a reserve at all. Either shape
+fills the bank of a plant with nowhere left to grow — the asymptotic
+factor is zero there, so nothing is withdrawn either way. They part on
+the plant that is still growing. Under a flat ceiling the bank settles
+wherever the withdrawal matches the income: about half a surplus unit
+of the 50-unit cap, which is no reserve. Under a share it settles at
+`income / (growthDrawRate × asymptoticFactor)`, which is proportional
+to what the plant earns — just under 28 units for a young plant in a
+tank it has no complaints about. That reserve is what meets damage
+before condition falls, and what tells a fed plant from a starving one.
+
+A share saturates too, at `surplusCap × growthDrawRate` — 1.0 units an
+hour on the shipped numbers. A plant reaches it when its settling point
+passes the cap, which for one earning the full 0.5 %/h is at about half
+of `maxSize`. Past that the bank pegs at `surplusCap` and the
+withdrawal is `surplusCap × growthDrawRate × asymptoticFactor`, with
+the income dropped out of it: size is what slows growth from there, not
+conditions. Below the peg the reverse holds — the withdrawal tracks the
+income and the plant's size does not enter, so growth over the first
+half of its life is roughly linear rather than asymptotic.
 
 Photosynthesis is decoupled from growth: it emits resource effects
 only (O2, CO2, nutrient uptake). Plant size never gets photosynthesis
@@ -425,9 +450,9 @@ if net > 0 and condition == 100: newCondition = 100
 clamp apply regardless. While condition is below 100 no overflow banks,
 so the bank doesn't fill from healing and growth doesn't happen. Once
 condition reaches 100, daylight overflow accrues (up to the cap), the
-growth pipeline drains some each daylight tick, and the leftover stays
-banked. See *Growth and Size* above for the
-full supply chain.
+growth pipeline converts a share of it each daylight tick, and
+everything it couldn't use stays banked. See *Growth and Size* above
+for the full supply chain.
 
 ### Heal-or-decline trajectory
 

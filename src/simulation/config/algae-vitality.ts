@@ -105,7 +105,7 @@ export interface AlgaeVitalityConfig {
   /**
    * Max surplus units the bloom can spend on mass growth in one
    * tick. Caps a long-banked surplus from suddenly dumping into a
-   * single tick of growth. Mirrors `plantGrowthPerTickCap`.
+   * single tick of growth.
    */
   algaeGrowthPerTickCap: number;
 

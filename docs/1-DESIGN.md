@@ -170,15 +170,20 @@ stores it and spends from it.
     (Plant *condition* still heals at night from non-light benefits, and
     the reserve still buffers damage overnight; only the accrual step
     pauses.)
-  - Each tick of the photoperiod, growth drains up to a configured
-    cap from the bank; the drained units convert to size at a rate
-    scaled by species growth rate and an asymptotic factor that
-    decays toward zero as size approaches species `maxSize`. So a
-    young plant grows fast, a mature plant slows down, and a plant
-    at its ceiling stops growing entirely. Growth is also
-    photoperiod-gated: overnight respiration burns sugars for
-    maintenance, not net biomass accumulation, so growth doesn't
-    drain the bank at night either.
+  - Each tick of the photoperiod, growth mobilises a configured share
+    of the bank; an asymptotic factor that decays toward zero as size
+    approaches species `maxSize` decides how much of it becomes size,
+    at a rate scaled by species growth rate, and only the converted
+    units leave the bank. While the bank sits below `surplusCap` it
+    settles where the withdrawal matches the income, so an hour's gain
+    is set by what the plant earns and not by how big it is — growth
+    over the first half of a plant's life is roughly linear. Past
+    about half of `maxSize` the bank pegs at the cap and size takes
+    over: the plant slows down while holding a full reserve, and at
+    its ceiling it stops growing entirely without paying for it.
+    Growth is also photoperiod-gated: overnight respiration burns
+    sugars for maintenance, not net biomass accumulation, so the bank
+    doesn't convert at night either.
   - Once a plant reaches `species.maxSize`, growth stops; surplus
     continues to bank on `Plant.surplus` up to the cap. The bank is the
     canonical lifecycle-outcome stock for plants — the field exists, it
@@ -194,9 +199,9 @@ stores it and spends from it.
   before mass shrinks, so a stocked bloom rides out a hostile tick.
 
 A planted tank illustrates the loop: a healthy plant heals to
-condition 100, banks surplus on each subsequent daylight tick, drains
-some to grow, and as it approaches `maxSize` the asymptotic dampener
-slows visible growth while the bank fills toward the cap.
+condition 100, banks surplus on each subsequent daylight tick, converts
+some of it to size, and as it approaches `maxSize` the asymptotic
+dampener slows visible growth while the bank fills toward the cap.
 
 This is the player's loop in one line: **stack positives, fix
 negatives, accumulate surplus.** A barely-surviving tank stays alive

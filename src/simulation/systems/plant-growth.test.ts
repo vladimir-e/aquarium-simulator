@@ -7,7 +7,7 @@ import {
 } from './plant-growth.js';
 import type { Plant } from '../state.js';
 import type { PlantSpecies } from '../plants/species.js';
-import { plantsDefaults } from '../config/plants.js';
+import { plantsConfigMeta, plantsDefaults } from '../config/plants.js';
 
 function makePlant(
   species: PlantSpecies,
@@ -66,6 +66,16 @@ describe('getSpeciesMaxSize', () => {
   });
 });
 
+/** What the bank paid for the size a spend delivered. */
+function withdrawal(plant: Plant): number {
+  return plant.surplus - spendSurplusOnGrowth(plant).surplus;
+}
+
+/** The size a spend delivered. */
+function growth(plant: Plant): number {
+  return spendSurplusOnGrowth(plant).size - plant.size;
+}
+
 describe('spendSurplusOnGrowth', () => {
   it('returns the plant unchanged when surplus is 0', () => {
     const plant = makePlant('java_fern', { surplus: 0, size: 50 });
@@ -80,74 +90,95 @@ describe('spendSurplusOnGrowth', () => {
     expect(after).toBe(plant); // identity-equal — early return
   });
 
-  it('drains the cap from a high bank, not the whole bank', () => {
-    const plant = makePlant('java_fern', {
-      surplus: plantsDefaults.plantGrowthPerTickCap * 5,
-      size: 0, // factor = 1 at size 0
-    });
-    const after = spendSurplusOnGrowth(plant);
-    expect(after.surplus).toBe(plant.surplus - plantsDefaults.plantGrowthPerTickCap);
+  it('the withdrawal buys the growth and nothing else', () => {
+    const plant = makePlant('java_fern', { surplus: 20, size: 300 });
+    const rate = getSpeciesGrowthRate('java_fern') * plantsDefaults.sizePerSurplus;
+    expect(growth(plant)).toBeCloseTo(withdrawal(plant) * rate, 10);
   });
 
-  it('drains the entire bank when below the cap', () => {
-    const plant = makePlant('java_fern', {
-      surplus: 0.5,
-      size: 0,
-    });
-    const after = spendSurplusOnGrowth(plant);
-    expect(after.surplus).toBe(0);
+  it('leaves the rest of the bank alone', () => {
+    const plant = makePlant('java_fern', { surplus: 20, size: 300 });
+    expect(withdrawal(plant)).toBeLessThan(plant.surplus);
+    expect(spendSurplusOnGrowth(plant).surplus).toBeGreaterThan(0);
   });
 
-  it('size gain = drained × asymptoticFactor × speciesRate × sizePerSurplus', () => {
-    const plant = makePlant('java_fern', { surplus: 1.0, size: 0 });
-    const after = spendSurplusOnGrowth(plant);
+  it('size gain = surplus × growthDrawRate × asymptoticFactor × speciesRate × sizePerSurplus', () => {
+    const plant = makePlant('java_fern', { surplus: 10, size: 200 });
     const expected =
-      1.0 *
-      asymptoticGrowthFactor(0, getSpeciesMaxSize('java_fern')) *
+      10 *
+      plantsDefaults.growthDrawRate *
+      asymptoticGrowthFactor(200, getSpeciesMaxSize('java_fern')) *
       getSpeciesGrowthRate('java_fern') *
       plantsDefaults.sizePerSurplus;
-    expect(after.size).toBeCloseTo(expected, 10);
+    expect(growth(plant)).toBeCloseTo(expected, 10);
+  });
+
+  it('doubling the bank doubles both the growth and the withdrawal', () => {
+    const lean = makePlant('java_fern', { surplus: 5, size: 200 });
+    const fat = makePlant('java_fern', { surplus: 10, size: 200 });
+    expect(growth(fat)).toBeCloseTo(growth(lean) * 2, 10);
+    expect(withdrawal(fat)).toBeCloseTo(withdrawal(lean) * 2, 10);
   });
 
   it('faster species grow more from the same surplus and size', () => {
-    const surplus = 2.0;
-    const slow = spendSurplusOnGrowth(makePlant('anubias', { surplus, size: 50 }));
-    const fast = spendSurplusOnGrowth(makePlant('monte_carlo', { surplus, size: 50 }));
-    expect(fast.size - 50).toBeGreaterThan(slow.size - 50);
-  });
-
-  it('asymptotic factor reduces spending efficiency near maxSize', () => {
-    // Same species, same surplus, two sizes — larger size yields less growth.
-    const small = spendSurplusOnGrowth(
-      makePlant('java_fern', { surplus: 1.0, size: 10 })
-    );
-    const large = spendSurplusOnGrowth(
-      makePlant('java_fern', { surplus: 1.0, size: getSpeciesMaxSize('java_fern') * 0.9 })
-    );
-    expect(small.size - 10).toBeGreaterThan(
-      large.size - getSpeciesMaxSize('java_fern') * 0.9
+    const surplus = 10;
+    expect(growth(makePlant('monte_carlo', { surplus, size: 50 }))).toBeGreaterThan(
+      growth(makePlant('anubias', { surplus, size: 50 }))
     );
   });
 
-  it('drains surplus at full rate even when size is near maxSize', () => {
-    // Per spec: asymptotic factor reduces spending *efficiency*, not
-    // withdrawal amount. A plant at 90 % of maxSize still drains the
-    // cap from its bank — it just gets less size for the spend.
-    const plant = makePlant('java_fern', {
-      surplus: plantsDefaults.plantGrowthPerTickCap * 5,
+  it('costs the same bank whatever the species does with it', () => {
+    const surplus = 10;
+    const slow = makePlant('anubias', { surplus, size: getSpeciesMaxSize('anubias') * 0.5 });
+    const fast = makePlant('monte_carlo', {
+      surplus,
+      size: getSpeciesMaxSize('monte_carlo') * 0.5,
+    });
+    expect(withdrawal(fast)).toBeCloseTo(withdrawal(slow), 10);
+  });
+
+  it('a plant near maxSize grows less and pays less for it', () => {
+    const surplus = 10;
+    const small = makePlant('java_fern', { surplus, size: 10 });
+    const large = makePlant('java_fern', {
+      surplus,
       size: getSpeciesMaxSize('java_fern') * 0.9,
     });
-    const after = spendSurplusOnGrowth(plant);
-    expect(after.surplus).toBe(plant.surplus - plantsDefaults.plantGrowthPerTickCap);
+    expect(growth(large)).toBeLessThan(growth(small));
+    expect(withdrawal(large)).toBeLessThan(withdrawal(small));
   });
 
-  it('a plant at maxSize gains zero size from surplus but still drains the bank', () => {
+  it('a plant at maxSize keeps its whole bank instead of burning it', () => {
     const plant = makePlant('java_fern', {
-      surplus: 5.0,
+      surplus: 25,
       size: getSpeciesMaxSize('java_fern'),
     });
     const after = spendSurplusOnGrowth(plant);
-    expect(after.size).toBe(plant.size); // factor = 0 → no growth
-    expect(after.surplus).toBe(plant.surplus - plantsDefaults.plantGrowthPerTickCap);
+    expect(after.size).toBe(plant.size);
+    expect(after.surplus).toBe(plant.surplus);
+  });
+
+  /**
+   * At size 0 the asymptotic factor is 1, so the withdrawal is the whole draw
+   * rate against the whole bank — the largest one the shape can produce. The
+   * default rate makes that 2 % and the claim trivial; a config is not pinned
+   * to the default. The tuner reaches 0.2, and the persistence schema takes any
+   * finite number, so a restored save can hand this a rate above 1.
+   */
+  it('never withdraws more than the bank holds, at any rate a config can carry', () => {
+    const maxTunable = plantsConfigMeta.find((knob) => knob.key === 'growthDrawRate')?.max;
+    expect(maxTunable).toBeGreaterThan(plantsDefaults.growthDrawRate);
+
+    for (const growthDrawRate of [maxTunable!, 1, 1.5, 100]) {
+      const plant = makePlant('monte_carlo', { surplus: plantsDefaults.surplusCap, size: 0 });
+      const after = spendSurplusOnGrowth(plant, { ...plantsDefaults, growthDrawRate });
+      expect(after.surplus).toBeGreaterThanOrEqual(0);
+      expect(after.size - plant.size).toBeCloseTo(
+        (plant.surplus - after.surplus) *
+          getSpeciesGrowthRate('monte_carlo') *
+          plantsDefaults.sizePerSurplus,
+        10
+      );
+    }
   });
 });

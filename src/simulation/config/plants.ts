@@ -58,15 +58,14 @@ export interface PlantsConfig {
 
   // Surplus-driven growth knobs.
   /**
-   * Max surplus units a plant can spend on growth in one tick. Caps
-   * supply-chain drain so a long-banked surplus doesn't suddenly
-   * produce massive growth in a single tick.
+   * Share of the banked reserve a plant mobilises toward new tissue each lit
+   * hour. Why a share of the stock rather than a flat ceiling on the flow:
+   * `docs/6-PLANTS.md` § Growth and Size.
    */
-  plantGrowthPerTickCap: number;
+  growthDrawRate: number;
   /**
-   * Size gained per surplus unit drained, before species growth-rate
-   * and asymptotic-factor scaling. With species growth rates in the
-   * 0.3–1.8 band and a per-tick cap of 2.0, this knob roughly sets
+   * Size gained per surplus unit converted, before the species growth-rate
+   * multiplier. With species growth rates in the 0.3–1.8 band this knob sets
    * the order of magnitude of the surplus → size conversion.
    */
   sizePerSurplus: number;
@@ -189,12 +188,17 @@ export const plantsDefaults: PlantsConfig = {
   // `docs/calibration/runs/2026-08-10-plant-respiration.md`.
   co2PerRateUnit: 30.0,
 
-  // Surplus-driven growth — vitality banks surplus when condition is
-  // full and net is positive; growth drains it (capped per tick), the
-  // asymptotic factor dampens spending efficiency near maxSize, and
-  // species growth rate is the per-species multiplier on conversion.
-  plantGrowthPerTickCap: 2.0,
-  sizePerSurplus: 0.4, // size % per (surplus × growthRate × asymptoticFactor) unit
+  // Surplus-driven growth — vitality banks surplus when condition is full and
+  // net is positive; growth converts a share of the bank into size, and only
+  // what became size leaves the bank.
+  //
+  // 2 %/h is a ~50-lit-hour time constant, four days of photoperiod: how long a
+  // cutting takes to stop sulking and start growing. Against the 0.5 %/h a
+  // plant earns at its best it settles a young plant's reserve just under 28
+  // units, over half the cap, which is what such a plant carries into a bad
+  // night; a plant past half its `maxSize` settles above the cap and pegs there.
+  growthDrawRate: 0.02,
+  sizePerSurplus: 0.4, // size % per (surplus × growthRate) unit converted
   surplusCap: SURPLUS_CAP_DEFAULT,
 
   // Vitality stressor severities (pre-hardiness; the species hardiness
@@ -317,7 +321,7 @@ export const plantsConfigMeta: PlantsConfigMeta[] = [
   // Gas exchange
   { key: 'co2PerRateUnit', label: 'CO2 per Rate Unit', unit: 'mg', min: 1, max: 200, step: 1 },
   // Surplus-driven growth
-  { key: 'plantGrowthPerTickCap', label: 'Plant Growth per Tick Cap', unit: 'surplus', min: 0.1, max: 10, step: 0.1 },
+  { key: 'growthDrawRate', label: 'Growth Draw Rate', unit: '/hr', min: 0.005, max: 0.2, step: 0.005 },
   { key: 'sizePerSurplus', label: 'Size per Surplus', unit: '%', min: 0.01, max: 2.0, step: 0.01 },
   { key: 'surplusCap', label: 'Surplus Cap', unit: '%', min: 0, max: 100, step: 5 },
 
