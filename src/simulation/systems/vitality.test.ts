@@ -407,22 +407,23 @@ describe('computeVitality', () => {
       expect(result.surplus).toBe(23);
     });
 
-    it('reads the bill as a rate, so owing nothing is owing nothing', () => {
-      // An empty list is the natural way to say "no cost of living", and so is
-      // a list of zeroes — an organism with no bill has no store to run, and
-      // heals out of income on the spot like one that declared no list at all.
+    it('reads the ledger off the array, not off what it sums to', () => {
+      // A ledger that owes nothing is still a ledger: income banks, and the
+      // condition comes back as a withdrawal the caller makes. Only an
+      // organism that declares no upkeep at all heals on income instead.
       const earning = { benefits: [benefit('light', 4)], condition: 40 };
-      const free = [
-        storing({ ...earning, upkeep: [] }),
-        storing({ ...earning, upkeep: [stressor('alive', 0)] }),
-        input({ ...earning, upkeepReserveHours: 5, hardiness: 0, surplus: 20 }),
-      ];
 
-      for (const owes of free) {
-        const result = computeVitality(owes);
-        expect(result.newCondition).toBe(44);
-        expect(result.surplus).toBe(20);
+      for (const owes of [[], [stressor('alive', 0)]]) {
+        const banked = computeVitality(storing({ ...earning, upkeep: owes }));
+        expect(banked.newCondition).toBe(40);
+        expect(banked.surplus).toBe(24);
       }
+
+      const noLedger = computeVitality(
+        input({ ...earning, upkeepReserveHours: 5, hardiness: 0, surplus: 20 })
+      );
+      expect(noLedger.newCondition).toBe(44);
+      expect(noLedger.surplus).toBe(20);
     });
   });
 

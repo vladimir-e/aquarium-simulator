@@ -425,6 +425,20 @@ describe('computePlantVitality', () => {
     expect(result.surplus).toBeGreaterThan(0);
   });
 
+  it('banks the same at the bottom of the upkeep slider', () => {
+    // `upkeepCost` declares `min: 0`, and a plant tuned there still owns an
+    // energy ledger — so the storing arm cannot be keyed off a rate a reachable
+    // config drives to zero, or the bank freezes and growth stalls with it.
+    const free = { ...plantsDefaults, upkeepCost: 0 };
+    const result = computePlantVitality(
+      ctx(makePlant('anubias', { condition: 80 }), makeResources(), 0, free)
+    );
+
+    expect(result.breakdown.upkeepRate).toBe(0);
+    expect(result.newCondition).toBe(80);
+    expect(result.surplus).toBeGreaterThan(0);
+  });
+
   it('Monte Carlo declines when CO2 falls below tolerable', () => {
     const plant = makePlant('monte_carlo', { condition: 100 });
     const resources = makeResources({ co2: 2 }); // gap 8 mg/L below tolerable [10, 40]

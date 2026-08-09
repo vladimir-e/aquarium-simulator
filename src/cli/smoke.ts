@@ -73,7 +73,7 @@ export function runSmokeScenario(options: { path?: string; cleanup?: boolean } =
     let state: SimulationState = session.state;
     let history = session.history;
     for (let i = 0; i < 3; i++) {
-      state = applyAction(state, { type: 'addFish', species: 'neon_tetra' }).state;
+      state = applyAction(state, { type: 'addFish', species: 'neon_tetra' }, session.config).state;
       history = appendSnapshot(history, snapshot(state));
     }
     saveSession({ ...session, state, history }, { path });
@@ -84,7 +84,11 @@ export function runSmokeScenario(options: { path?: string; cleanup?: boolean } =
     const session = loadSession({ path });
     const target = session.state.fish[0];
     if (!target) throw new Error('no fish to remove');
-    const { state } = applyAction(session.state, { type: 'removeFish', fishId: target.id });
+    const { state } = applyAction(
+      session.state,
+      { type: 'removeFish', fishId: target.id },
+      session.config
+    );
     saveSession(
       { ...session, state, history: appendSnapshot(session.history, snapshot(state)) },
       { path }
@@ -94,7 +98,7 @@ export function runSmokeScenario(options: { path?: string; cleanup?: boolean } =
 
   step('feed action', () => {
     const session = loadSession({ path });
-    const { state } = applyAction(session.state, { type: 'feed', amount: 0.5 });
+    const { state } = applyAction(session.state, { type: 'feed', amount: 0.5 }, session.config);
     saveSession(
       { ...session, state, history: appendSnapshot(session.history, snapshot(state)) },
       { path }
@@ -117,7 +121,7 @@ export function runSmokeScenario(options: { path?: string; cleanup?: boolean } =
 
   step('dose action', () => {
     const session = loadSession({ path });
-    const { state } = applyAction(session.state, { type: 'dose', amountMl: 1 });
+    const { state } = applyAction(session.state, { type: 'dose', amountMl: 1 }, session.config);
     saveSession(
       { ...session, state, history: appendSnapshot(session.history, snapshot(state)) },
       { path }
@@ -126,7 +130,11 @@ export function runSmokeScenario(options: { path?: string; cleanup?: boolean } =
 
   step('waterChange action', () => {
     const session = loadSession({ path });
-    const { state } = applyAction(session.state, { type: 'waterChange', amount: 0.25 });
+    const { state } = applyAction(
+      session.state,
+      { type: 'waterChange', amount: 0.25 },
+      session.config
+    );
     saveSession(
       { ...session, state, history: appendSnapshot(session.history, snapshot(state)) },
       { path }
@@ -138,7 +146,7 @@ export function runSmokeScenario(options: { path?: string; cleanup?: boolean } =
 
   step('topOff action', () => {
     const session = loadSession({ path });
-    const { state } = applyAction(session.state, { type: 'topOff' });
+    const { state } = applyAction(session.state, { type: 'topOff' }, session.config);
     saveSession(
       { ...session, state, history: appendSnapshot(session.history, snapshot(state)) },
       { path }
@@ -152,7 +160,7 @@ export function runSmokeScenario(options: { path?: string; cleanup?: boolean } =
       ...session.state,
       plants: session.state.plants.map((p) => ({ ...p, size: 120 })),
     };
-    const { state } = applyAction(inflated, { type: 'trimPlants', targetSize: 85 });
+    const { state } = applyAction(inflated, { type: 'trimPlants', targetSize: 85 }, session.config);
     saveSession(
       { ...session, state, history: appendSnapshot(session.history, snapshot(state)) },
       { path }
@@ -161,7 +169,7 @@ export function runSmokeScenario(options: { path?: string; cleanup?: boolean } =
 
   step('scrubAlgae action (no-op when clean)', () => {
     const session = loadSession({ path });
-    applyAction(session.state, { type: 'scrubAlgae', randomPercent: 0.2 });
+    applyAction(session.state, { type: 'scrubAlgae', randomPercent: 0.2 }, session.config);
   });
 
   step('config set (nitrogenCycle.wasteConversionRate)', () => {

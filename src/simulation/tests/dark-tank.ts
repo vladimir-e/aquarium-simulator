@@ -30,15 +30,14 @@ import {
   blackoutFrom,
   fixtureFor,
   fixtureTank,
+  LIGHT_RUN_DAYS,
+  LIGHT_RUN_SEED,
   onePlant,
   PLANTED_AT,
   PROBE_TANK_CAPACITY,
   SPECIES_BY_LIGHT,
   substrateFor,
 } from './tanks.js';
-
-const DAYS = 90;
-const RNG_SEED = 5;
 
 /** Days after the switch the blackout trace prints, one row each. */
 const TRACE_DAYS = 10;
@@ -68,9 +67,9 @@ function threeWays(): string {
         const run = runTank({
           setup: fixtureTank(mode !== 'off'),
           seed: onePlant(species),
-          days: DAYS,
+          days: LIGHT_RUN_DAYS,
           routine: { hold: held(mode) },
-          rngSeed: RNG_SEED,
+          rngSeed: LIGHT_RUN_SEED,
         });
 
         const plant = run.final.plants[0];
@@ -108,7 +107,7 @@ function blackoutTrace(species: PlantSpecies): string {
     seed: onePlant(species),
     days: BLACKOUT_DAY + TRACE_DAYS,
     routine: { hold: held('blackout') },
-    rngSeed: RNG_SEED,
+    rngSeed: LIGHT_RUN_SEED,
     watch: (hour, _before, after) => {
       const day = hour / 24;
       if (!Number.isInteger(day) || day < BLACKOUT_DAY - 1) return;
@@ -138,9 +137,9 @@ function photoperiod(): string {
         const run = runTank({
           setup: withLight(DEFAULT_LIGHT.par, hours),
           seed: onePlant(species),
-          days: DAYS,
+          days: LIGHT_RUN_DAYS,
           routine: { hold: held('on') },
-          rngSeed: RNG_SEED,
+          rngSeed: LIGHT_RUN_SEED,
         });
         const plant = run.final.plants[0];
         return {
@@ -203,9 +202,9 @@ function holds(species: PlantSpecies, substratePar: number): boolean {
   const run = runTank({
     setup: withLight(fixtureFor(substratePar, PROBE_TANK_CAPACITY), DEFAULT_LIGHT.schedule.duration),
     seed: onePlant(species),
-    days: DAYS,
+    days: LIGHT_RUN_DAYS,
     routine: { hold: held('on') },
-    rngSeed: RNG_SEED,
+    rngSeed: LIGHT_RUN_SEED,
   });
   return run.final.plants[0]?.condition === 100;
 }
@@ -268,7 +267,7 @@ function establishment(): string {
         seed: onePlant(species),
         days: 7,
         routine: { hold: held('on') },
-        rngSeed: RNG_SEED,
+        rngSeed: LIGHT_RUN_SEED,
         watch: (hour, _before, after) => {
           const day = hour / 24;
           if (!Number.isInteger(day) || day > 7) return;
@@ -291,10 +290,10 @@ function establishment(): string {
 const SUBSTRATE_PAR = substrateFor(DEFAULT_LIGHT.par, PROBE_TANK_CAPACITY);
 
 const SECTIONS: Array<[string, () => string]> = [
-  [`three ways, ${DAYS} d`, threeWays],
+  [`three ways, ${LIGHT_RUN_DAYS} d`, threeWays],
   [`monte carlo, lights out on day ${BLACKOUT_DAY}`, (): string => blackoutTrace('monte_carlo')],
   [`anubias, lights out on day ${BLACKOUT_DAY}`, (): string => blackoutTrace('anubias')],
-  [`the default fixture for fewer hours, ${DAYS} d`, photoperiod],
+  [`the default fixture for fewer hours, ${LIGHT_RUN_DAYS} d`, photoperiod],
   ['the compensation point, against the fixture a day balances under', compensationPoint],
   ['the first week of a plant that has just gone in — size/bank', establishment],
 ];

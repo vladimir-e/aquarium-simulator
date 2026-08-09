@@ -11,7 +11,7 @@ Format: - **Feature name** (#PR) - One short sentence (under ~150 chars)
 
 ## Unreleased
 
-- **One reserve, two claims, in an order** - upkeep is its own ledger, paid from income and then from the bank to the last unit, and the share neither covered eats `size` rather than health; damage and repair reach only the spare above `upkeepReserveHours`.
+- **One reserve, two claims, in an order** - upkeep is its own ledger, paid from income then the bank; the unpaid share eats `size`; damage and repair reach only the spare above the reserve.
 - **A nutrient shortfall is pinned from both ends** - `nutrientDeficiencySeverity` 0.7 → 0.3, re-derived against the corrected photosynthate income.
 - **Darkness costs a plant** - an always-on upkeep cost sets a compensation point under a benefit budget that now pays nothing at night; peaks 0.1 → 0.125 to hold it (v24, v11).
 - **A new plant is stocked out of the tank's own bank** - half the live `surplusCap`, not half the shipped one; breaking: `addPlant` takes a `PlantsConfig`, `applyAction` an optional one.

@@ -61,7 +61,7 @@ export const OPTIMUM_TEMPERATURE = 25;
  * and so the order is a fact about the species rather than a habit of whoever
  * typed the array — every probe that walks the roster is walking a light axis.
  */
-export const SPECIES_BY_LIGHT: PlantSpecies[] = (
+export const SPECIES_BY_LIGHT: readonly PlantSpecies[] = (
   Object.keys(PLANT_SPECIES_DATA) as PlantSpecies[]
 ).sort(
   (a, b) => PLANT_SPECIES_DATA[a].tolerableLight[0] - PLANT_SPECIES_DATA[b].tolerableLight[0]
@@ -366,6 +366,14 @@ export function fixtureTank(lit: boolean): SimulationConfig {
     light: { enabled: lit },
   };
 }
+
+/**
+ * Days a run of the light channel covers, and the stream it draws from — long
+ * enough for the dimmest fixture to finish what it starts, and one seed so the
+ * probe and the suite are reading the same tank.
+ */
+export const LIGHT_RUN_DAYS = 90;
+export const LIGHT_RUN_SEED = 5;
 
 /** Days a blackout run spends lit before the switch — long enough to fill a bank. */
 export const BLACKOUT_DAY = 30;

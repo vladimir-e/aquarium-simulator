@@ -15,10 +15,12 @@
  * the way the anchors stay while the plant seam is open. The magnitudes, the
  * blackout traces and the compensation points they sit on are the probe's:
  * `npm run probe:dark-tank`, written up in
- * `docs/calibration/runs/2026-08-08-reserve-by-priority.md`.
+ * `docs/calibration/runs/2026-08-08-reserve-by-priority.md` and moved a third
+ * of a PAR unit by `2026-08-08-reserve-against-repair.md`, which is the run
+ * the probe reproduces today.
  */
 
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import type { SimulationState } from '../state.js';
 import type { PlantSpecies } from '../plants/species.js';
 import { runTank, type RunResult } from './metrics.js';
@@ -27,13 +29,12 @@ import {
   BLACKOUT_DAY,
   blackoutFrom,
   fixtureTank,
+  LIGHT_RUN_DAYS,
+  LIGHT_RUN_SEED,
   onePlant,
   PLANTED_AT,
   SPECIES_BY_LIGHT,
 } from './tanks.js';
-
-const DAYS = 90;
-const RNG_SEED = 5;
 
 type Lighting = 'lit' | 'dark' | 'blackout';
 
@@ -62,9 +63,9 @@ function watchOne(lighting: Lighting, species: PlantSpecies): Run {
   const run = runTank({
     setup: fixtureTank(lit),
     seed: onePlant(species),
-    days: DAYS,
+    days: LIGHT_RUN_DAYS,
     routine: { hold },
-    rngSeed: RNG_SEED,
+    rngSeed: LIGHT_RUN_SEED,
     sampleHour: 0,
     watch: (_hour, _before, after) => {
       const plant = after.plants[0];
@@ -78,9 +79,15 @@ function watchOne(lighting: Lighting, species: PlantSpecies): Run {
 const runsOf = (lighting: Lighting): Map<PlantSpecies, Run> =>
   new Map(SPECIES_BY_LIGHT.map((species) => [species, watchOne(lighting, species)]));
 
-const lit = runsOf('lit');
-const dark = runsOf('dark');
-const blackout = runsOf('blackout');
+let lit: Map<PlantSpecies, Run>;
+let dark: Map<PlantSpecies, Run>;
+let blackout: Map<PlantSpecies, Run>;
+
+beforeAll(() => {
+  lit = runsOf('lit');
+  dark = runsOf('dark');
+  blackout = runsOf('blackout');
+});
 
 describe('a fixture that never comes on', () => {
   it('kills every species inside ninety days', () => {
@@ -89,11 +96,17 @@ describe('a fixture that never comes on', () => {
     }
   });
 
-  it('takes them in the order they ask for light', () => {
-    // The roster is sorted by the PAR each species' band starts at, so a shade
-    // plant outlasting a carpet is the model grading darkness by species rather
-    // than applying one rate to all five.
+  it('takes them in the order hardiness pays the bill', () => {
+    // Darkness is graded by species, not by one rate applied to all five — and
+    // in the dark it is hardiness that grades it: the light stressors self-zero
+    // at light 0, leaving `upkeepCost × (1 − hardiness) × q10` as the only rate
+    // still running. The roster is sorted by the PAR each band starts at, which
+    // happens to agree with hardiness (0.75 / 0.7 / 0.5 / 0.3 / 0.3) on today's
+    // five; a sixth species dim-banded and fussy would break the chain without
+    // saying anything about light.
     const days = SPECIES_BY_LIGHT.map((species) => dark.get(species)!.deathDay!);
+
+    expect(days[0]!).toBeGreaterThan(days[days.length - 1]!);
     for (const [i, day] of days.entries()) {
       if (i > 0) expect(day).toBeLessThanOrEqual(days[i - 1]!);
     }

@@ -14,8 +14,8 @@
  * what neither could cover is reported as `starved` for the caller to
  * take out of its own tissue. Only `stressors` — damage done *to* the
  * organism rather than energy it failed to earn — spend condition. An
- * organism that owes no upkeep runs the single-ledger balance
- * unchanged.
+ * organism that declares no upkeep ledger runs the single-ledger
+ * balance unchanged.
  *
  * The surplus bank is a **protective buffer**: damage drains it before
  * condition falls, so a well-stocked organism shrugs off a bad tick by
@@ -70,7 +70,12 @@ export interface VitalityInput {
    * Cost-of-living factors (units: %/h), charged against `benefits`
    * before anything else and hardiness-scaled like stressors. Unpaid
    * upkeep drains the bank and then leaves the balance as `starved`;
-   * it never reaches condition. Defaults to none.
+   * it never reaches condition.
+   *
+   * The array's presence is what declares the energy ledger, not what it
+   * sums to: an empty array is a ledger that owes nothing — income banks
+   * and repair is a withdrawal — and absence is an organism with no
+   * separate energy ledger at all, healing on income instead.
    */
   upkeep?: VitalityFactor[];
   /**
@@ -265,9 +270,10 @@ export function bankSurplus(
  *      couldn't cover bleeds condition. Condition stays put while the
  *      reserve holds the line, which is the "burning reserves" reading.
  *    - Positive: it accrues into the bank up to `surplusCap` (when
- *      `accrueSurplus`), except that an organism owing no upkeep heals
- *      with it first — it has no store to run, so income repairs it on
- *      the spot and only a full condition leaves anything over.
+ *      `accrueSurplus`), except that an organism declaring no upkeep
+ *      ledger heals with it first — it has no store to run, so income
+ *      repairs it on the spot and only a full condition leaves anything
+ *      over.
  *    - Zero: condition and bank unchanged (bank still clamped).
  *
  * The ordering in step 5 is the whole point of the reserve line. Damage
@@ -319,10 +325,10 @@ export function computeVitality(input: VitalityInput): VitalityResult {
   const cap = Math.max(0, input.surplusCap);
   const accrue = input.accrueSurplus ?? true;
 
-  // Owing an upkeep is what makes an organism a storing one — the rate and not
-  // the shape of the array it arrived in, so `upkeep: []`, an upkeep list of
-  // zeroes and no list at all are one organism.
-  const stores = upkeepRate > 0;
+  // Declaring the ledger is what makes an organism a storing one, not owing
+  // anything on it: `upkeepCost` reaches 0 on its own slider, and a plant there
+  // still banks its income and repairs by withdrawal.
+  const stores = input.upkeep !== undefined;
   // What that upkeep has already spoken for, and therefore how deep into
   // the bank the damage below may reach.
   const reserved = upkeepRate * (input.upkeepReserveHours ?? 0);
@@ -382,7 +388,7 @@ export function computeVitality(input: VitalityInput): VitalityResult {
       benefitRate,
       net,
       drained,
-      starved: upkeepRate > 0 ? unpaidUpkeep / upkeepRate : 0,
+      starved: unpaidUpkeep > 0 ? unpaidUpkeep / upkeepRate : 0,
     },
   };
 }
