@@ -106,9 +106,9 @@ describe('buildPlantUpkeep', () => {
     const sour = makeResources({ ph: 4.5 });
 
     /**
-     * Banked units that buy `upkeepReserveHours` of a species' own drain, read
-     * off the engine's own arithmetic rather than restated here — the
-     * temperature is in it through the Q10, and a copy would forget that.
+     * The reading `create-plant.test.ts` takes of the same line, against a
+     * named tank: the banked units that buy `upkeepReserveHours` of this
+     * species' own drain in this water.
      */
     const line = (species: PlantSpecies, resources = sour): number =>
       computePlantVitality(ctx(makePlant(species), resources)).breakdown.reserved;

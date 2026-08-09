@@ -559,7 +559,7 @@ Three consequences worth internalising:
   growth — before it costs any reserve, and its reserve before it costs
   any condition.
 
-Fish and algae owe no upkeep, so `energyNet` is their whole income
+Fish and algae declare no upkeep, so `energyNet` is their whole income
 and the shape collapses back to the single balance they always ran:
 income repairs them on the spot, damage drains the bank before condition
 falls with nothing reserved against it, and the bank fills only from

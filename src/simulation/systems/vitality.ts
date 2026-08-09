@@ -73,9 +73,11 @@ export interface VitalityInput {
    * it never reaches condition.
    *
    * The array's presence is what declares the energy ledger, not what it
-   * sums to: an empty array is a ledger that owes nothing — income banks
-   * and repair is a withdrawal — and absence is an organism with no
-   * separate energy ledger at all, healing on income instead.
+   * sums to: an array summing to zero — empty, or the all-zero factors a
+   * plant at `upkeepCost: 0` builds — is a ledger that owes nothing, so
+   * income banks and repair is a withdrawal the caller makes. Absence is
+   * an organism with no separate energy ledger at all, healing on income
+   * instead.
    */
   upkeep?: VitalityFactor[];
   /**

@@ -18,6 +18,7 @@ import {
   type SimulationState,
 } from '../../simulation/index.js';
 import { cycledTank } from '../../simulation/tests/tanks.js';
+import { establishmentSurplus } from '../../simulation/plants/create-plant.js';
 
 function tank(overrides: Partial<SimulationState> = {}): SimulationState {
   return { ...createSimulation({ tankCapacity: 200 }), ...overrides };
@@ -42,8 +43,20 @@ function saturated(): SimulationState {
   return state;
 }
 
+/**
+ * A plant on the bank the engine stocks one with, so `condition` is the only
+ * thing these cases vary. A bare `surplus: 0` is a plant with nothing left to
+ * buffer damage or pay its upkeep with, which reads as trouble however healthy
+ * its condition is — and that is the reading, not a quirk of it.
+ */
 function plant(condition: number): Plant {
-  return { id: `p${condition}`, species: 'amazon_sword', size: 60, condition, surplus: 0 };
+  return {
+    id: `p${condition}`,
+    species: 'amazon_sword',
+    size: 60,
+    condition,
+    surplus: establishmentSurplus(DEFAULT_CONFIG.plants),
+  };
 }
 
 function clutch(id: string): Clutch {

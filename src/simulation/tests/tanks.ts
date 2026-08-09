@@ -67,6 +67,20 @@ export const SPECIES_BY_LIGHT: readonly PlantSpecies[] = (
   (a, b) => PLANT_SPECIES_DATA[a].tolerableLight[0] - PLANT_SPECIES_DATA[b].tolerableLight[0]
 );
 
+/**
+ * The same roster, hardiest first — the axis a run with the lamps off is graded
+ * on, since the light stressors self-zero at light 0 and leave
+ * `upkeepCost × (1 − hardiness) × q10` as the only rate still running.
+ *
+ * Sorted for the same reason {@link SPECIES_BY_LIGHT} is: a claim about
+ * hardiness asserted along a light-sorted roster only holds while the two
+ * orders happen to agree, and a sixth species dim-banded and fussy would break
+ * it without saying anything about either.
+ */
+export const SPECIES_BY_HARDINESS: readonly PlantSpecies[] = (
+  Object.keys(PLANT_SPECIES_DATA) as PlantSpecies[]
+).sort((a, b) => PLANT_SPECIES_DATA[b].hardiness - PLANT_SPECIES_DATA[a].hardiness);
+
 /** Advance a tank by `hours` ticks. */
 export function run(
   state: SimulationState,
@@ -368,11 +382,12 @@ export function fixtureTank(lit: boolean): SimulationConfig {
 }
 
 /**
- * Days a run of the light channel covers, and the stream it draws from — long
- * enough for the dimmest fixture to finish what it starts, and one seed so the
- * probe and the suite are reading the same tank.
+ * Days a run of the light channel covers — long enough for the dimmest fixture
+ * to finish what it starts.
  */
 export const LIGHT_RUN_DAYS = 90;
+
+/** The stream those runs draw from, so the probe and the suite read one tank. */
 export const LIGHT_RUN_SEED = 5;
 
 /** Days a blackout run spends lit before the switch — long enough to fill a bank. */

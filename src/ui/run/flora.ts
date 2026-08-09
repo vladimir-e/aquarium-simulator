@@ -35,7 +35,7 @@ import type {
   NutrientsConfig,
   TunableConfig,
 } from '../../simulation/config/index.js';
-import { conditionStatus, conditionWord, type Status } from './status.js';
+import { STATUS_SEVERITY, vitalReading, type Status } from './status.js';
 
 /**
  * Trim targets, in % of a plant's size. A calibrated planted tank settles at
@@ -80,7 +80,9 @@ export interface PlantRow {
   /** Above every rung of the trim ladder. */
   overTrim: boolean;
   condition: number;
+  /** Read across both stocks — condition, and the energy ledger that spends `size`. */
   status: Status;
+  /** The word for it: a plant shedding tissue says so rather than "thriving". */
   word: string;
   /** Change per hour: what the breakdown below it sums to. */
   net: number;
@@ -110,8 +112,7 @@ export function plantRows(state: SimulationState, config: TunableConfig): PlantR
       size: plant.size,
       overTrim: plant.size > TRIM_CEILING,
       condition: plant.condition,
-      status: conditionStatus(plant.condition),
-      word: conditionWord(plant.condition),
+      ...vitalReading(plant.condition, plant.surplus, vitality.breakdown),
       net: vitality.breakdown.net,
       charged: acting([...vitality.breakdown.upkeep, ...vitality.breakdown.stressors]),
       benefits: acting(vitality.breakdown.benefits),
@@ -122,9 +123,18 @@ export function plantRows(state: SimulationState, config: TunableConfig): PlantR
 /**
  * The plants in trouble, worst first. One definition of ailing, so the card's
  * count and the rail's named plant can never disagree.
+ *
+ * Ordered by the status each row actually shows, then by condition: a plant can
+ * now be alerting on an energy ledger its condition knows nothing about, so
+ * sorting on condition alone would file it behind milder trouble.
  */
 export function ailingPlants(rows: PlantRow[]): PlantRow[] {
-  return rows.filter((row) => row.status !== 'ok').sort((a, b) => a.condition - b.condition);
+  return rows
+    .filter((row) => row.status !== 'ok')
+    .sort(
+      (a, b) =>
+        STATUS_SEVERITY[b.status] - STATUS_SEVERITY[a.status] || a.condition - b.condition
+    );
 }
 
 /** The algae, read the same way as a plant — but a stressor here is good news. */

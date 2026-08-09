@@ -33,6 +33,7 @@ import {
   LIGHT_RUN_SEED,
   onePlant,
   PLANTED_AT,
+  SPECIES_BY_HARDINESS,
   SPECIES_BY_LIGHT,
 } from './tanks.js';
 
@@ -100,12 +101,14 @@ describe('a fixture that never comes on', () => {
     // Darkness is graded by species, not by one rate applied to all five — and
     // in the dark it is hardiness that grades it: the light stressors self-zero
     // at light 0, leaving `upkeepCost × (1 − hardiness) × q10` as the only rate
-    // still running. The roster is sorted by the PAR each band starts at, which
-    // happens to agree with hardiness (0.75 / 0.7 / 0.5 / 0.3 / 0.3) on today's
-    // five; a sixth species dim-banded and fussy would break the chain without
-    // saying anything about light.
-    const days = SPECIES_BY_LIGHT.map((species) => dark.get(species)!.deathDay!);
+    // still running. So the chain walks the hardiness order and not the light
+    // one, which is the axis the claim is actually about.
+    const days = SPECIES_BY_HARDINESS.map((species) => dark.get(species)!.deathDay!);
 
+    // Hairgrass and monte carlo share a hardiness (0.3) and land on the same
+    // day to the hour, so the chain has to permit equality. Which leaves it
+    // satisfiable by five identical days: the spread is what rules that out and
+    // makes the ordering a measurement rather than a tautology.
     expect(days[0]!).toBeGreaterThan(days[days.length - 1]!);
     for (const [i, day] of days.entries()) {
       if (i > 0) expect(day).toBeLessThanOrEqual(days[i - 1]!);

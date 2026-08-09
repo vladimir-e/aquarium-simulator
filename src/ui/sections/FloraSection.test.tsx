@@ -163,7 +163,16 @@ describe('FloraSection', () => {
     expect(rail(state).flora.lines[1]).toBe(`${ailing[0].name} ${ailing[0].word}`);
     cleanup();
 
-    const healthy = { ...state, plants: state.plants.map((p) => ({ ...p, condition: 90 })) };
+    // Fine on both stocks: the day in an undosed tank left the carpet down to
+    // its survival rations, which is trouble whatever its condition reads.
+    const healthy = {
+      ...state,
+      plants: state.plants.map((p) => ({
+        ...p,
+        condition: 90,
+        surplus: DEFAULT_CONFIG.plants.surplusCap,
+      })),
+    };
     renderFlora(healthy);
     expect(screen.queryByText(/ailing/)).toBeNull();
     expect(rail(healthy).flora.lines[1]).toBe('Aqua Soil');

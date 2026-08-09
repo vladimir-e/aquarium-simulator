@@ -119,7 +119,7 @@ Algorithm:
    - negative → the bank absorbs it down to the survival reserve
      (`upkeepRate × upkeepReserveHours`); condition declines only by the
      shortfall the spare couldn't cover (clamped at 0).
-   - positive, condition < 100, no upkeep owed → condition heals;
+   - positive, condition < 100, no upkeep declared → condition heals;
      the bank is idle (overshoot past 100 is spent on the final
      fraction, not banked).
    - positive otherwise → overflow accrues into the bank up to
@@ -128,7 +128,7 @@ Algorithm:
 The two ledgers are one bank in an order, and the order is what keeps a
 poisoned organism from starving itself: upkeep is senior and spends to
 the floor, damage may only reach the spare above the survival reserve.
-An organism owing no upkeep reserves nothing and runs the single
+An organism declaring no upkeep reserves nothing and runs the single
 balance the module always ran.
 
 Step 6's branching enforces the "recover then grow" trajectory, and the
@@ -141,9 +141,13 @@ reaches growth or breeding while a deficit stands.
 
 With the buffer, **condition 100 with negative net means burning
 reserves, not thriving**: an organism under attack reads 100 while its
-bank drains. The breakdown exposes `drained` (reserve spent this tick)
-so consumers derive the "burning reserves" signal from
-`condition 100 + net < 0`.
+bank drains. What a consumer reads to see it depends on whether the
+organism earns continuously. A fish does, so the tick's own flow says
+it: `condition 100 + drained > 0`. A plant earns only in the light and
+pays the night out of the bank by design, so its flow is negative every
+dark hour of a thriving tank — the reading has to be taken on the stock
+instead, and the warning is a bank holding nothing above `reserved`,
+with `starved > 0` the rung below it.
 
 Each species module decides which resources count as stressors vs.
 benefits and at what severity; they all share the same vitality math.

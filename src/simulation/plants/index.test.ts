@@ -936,4 +936,38 @@ describe('processPlants', () => {
       expect(out.surplus).toBeCloseTo(plantsDefaults.surplusCap - NIGHTLY_UPKEEP, 12);
     });
   });
+
+  describe('the bottom of the upkeep slider', () => {
+    // `upkeepCost` declares `min: 0`, and a plant tuned there owns an energy
+    // ledger like any other — the storing arm is keyed off the ledger being
+    // declared, never off what it charges. Keying it off the rate froze the
+    // bank, and a frozen bank is a plant that never grows again, so banking
+    // and growth both have to be pinned: either alone passes with the other
+    // stalled.
+    const free = { ...DEFAULT_CONFIG, plants: { ...plantsDefaults, upkeepCost: 0 } };
+
+    const lit = (): SimulationState =>
+      createTestState({
+        plants: [{ id: 'p1', species: 'java_fern', size: 50, condition: 100, surplus: 0 }],
+        light: 50,
+        co2: plantsDefaults.optimalCo2,
+        nitrate: plantsDefaults.optimalNitrate * 100,
+        temperature: 25,
+        water: 100,
+      });
+
+    const grownIn = (config: typeof DEFAULT_CONFIG): Plant => {
+      let state = lit();
+      for (let hour = 0; hour < 12; hour++) state = processPlants(state, config).state;
+      return state.plants[0];
+    };
+
+    it('turns a lit day into tissue, and more of it than a charged plant does', () => {
+      const owing = grownIn(DEFAULT_CONFIG);
+      const owingNothing = grownIn(free);
+
+      expect(owingNothing.size).toBeGreaterThan(50);
+      expect(owingNothing.size).toBeGreaterThan(owing.size);
+    });
+  });
 });

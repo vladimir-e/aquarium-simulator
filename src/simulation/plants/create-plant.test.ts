@@ -45,7 +45,6 @@ describe('createPlant', () => {
       const plant = createPlant({ species: 'anubias', plantsConfig, rng: createRng(1) });
 
       expect(plant.surplus).toBe(surplusCap / 2);
-      expect(plant.surplus).toBeLessThanOrEqual(surplusCap);
       expect(plant.surplus).toBeGreaterThan(reserveOwed(plant, plantsConfig));
     }
   });
