@@ -213,15 +213,19 @@ export const plantsDefaults: PlantsConfig = {
   // `docs/calibration/runs/2026-08-07-plant-respiration.md`.
   co2PerRateUnit: 30.0,
 
-  // Surplus-driven growth — vitality banks surplus when condition is full and
-  // net is positive; growth converts a share of the bank into size, and only
-  // what became size leaves the bank.
+  // Surplus-driven growth — vitality banks whatever income upkeep and damage
+  // left; growth withdraws a share of the bank and spends it on condition and
+  // then on size, and only what repaired or became size leaves it.
   //
   // 2 %/h is a ~50-lit-hour time constant, four days of photoperiod: how long a
-  // cutting takes to stop sulking and start growing. Against the 0.5 %/h a
-  // plant earns at its best it settles a young plant's reserve just under 28
-  // units, over half the cap, which is what such a plant carries into a bad
-  // night; a plant past half its `maxSize` settles above the cap and pegs there.
+  // cutting takes to stop sulking and start growing. Against the income a plant
+  // clears under the shipped fixture it settles a young plant's reserve at 9 to
+  // 26 units across the roster — a shade species holds more than a carpet,
+  // because the same PAR is nearer its saturation — and that is what such a
+  // plant carries into a bad night. `surplusCap` is not a settling point at
+  // all: a day's withdrawal there is more than a day's income, so a plant only
+  // pegs once its asymptotic factor has closed the withdrawal down, which takes
+  // most of its growth curve. `docs/6-PLANTS.md` § Growth and Size derives both.
   growthDrawRate: 0.02,
   sizePerSurplus: 0.4, // size % per (surplus × growthRate) unit converted
   surplusCap: SURPLUS_CAP_DEFAULT,
@@ -255,9 +259,11 @@ export const plantsDefaults: PlantsConfig = {
   // The old 0.7 was quoted against an income that paid 0.4 %/h in the dark,
   // and its own docstring's reference — "bottoms out at 30–55 by day 28
   // rather than dying" — became day 4 when the light term took that income
-  // away. `docs/calibration/runs/2026-08-08-reserve-by-priority.md` § 2 has
-  // the sweep and the one claim this value does not satisfy, which belongs to
-  // the sufficiency curve rather than to the severity.
+  // away. `docs/calibration/runs/2026-08-08-reserve-by-priority.md` § 2 has the
+  // derivation and the one claim this value does not satisfy, which belongs to
+  // the sufficiency curve rather than to the severity; the sweep as it now
+  // reads is `2026-08-08-reserve-against-repair.md` § 4, which moved the severe
+  // end from 19 days to 28 without moving either binding end off 0.30.
   nutrientDeficiencySeverity: 0.3,
   // Toxicity threshold is high (100 ppm NO3) so normal dosing never
   // triggers — only the auto-doser massive-overdose case. Severity
@@ -280,13 +286,14 @@ export const plantsDefaults: PlantsConfig = {
   // adaptation goes. Below a species' band the light-insufficient stressor
   // sits on top of this, so the PAR a plant actually needs is the band.
   upkeepCost: 0.075,
-  // Four days of a plant's own drain is what it keeps back for staying alive
-  // — 5.3 banked units for monte carlo against 1.9 for anubias, because the
-  // hardy plant makes the same reserve last longer. It is the line that lets
-  // one bank serve two claims: damage burns the ~20 units a working plant
-  // carries above it, a day or two of buffer, and stops there rather than
-  // leaving the next dark hour unpayable. What the line is worth either side
-  // of it is in `docs/calibration/runs/2026-08-08-reserve-by-priority.md`.
+  // A hundred hours of a plant's own drain — a little over four days — is what
+  // it keeps back for staying alive: 5.3 banked units for monte carlo against
+  // 1.9 for anubias, because the hardy plant makes the same reserve last
+  // longer. It is the line that lets one bank serve two claims: damage burns
+  // the ~20 units a working plant carries above it, a day or two of buffer,
+  // and stops there rather than leaving the next dark hour unpayable. What the
+  // line is worth either side of it is in
+  // `docs/calibration/runs/2026-08-08-reserve-by-priority.md`.
   upkeepReserveHours: 100,
 
   // Vitality benefit peaks. Four channels at 0.125 sum to the 0.5 %/h budget

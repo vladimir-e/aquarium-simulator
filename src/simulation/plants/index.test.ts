@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { processPlants } from './index.js';
+import { processPlants, readPlantVitality } from './index.js';
 import { createSimulation, type SimulationState, type Plant } from '../state.js';
 import type { PlantSpecies } from './species.js';
 import { produce } from 'immer';
@@ -904,26 +904,23 @@ describe('processPlants', () => {
         produce(s, (draft) => {
           draft.resources.ph = 9.5;
         });
+      const sour = (surplus: number): SimulationState =>
+        hostilePh(
+          createTestState({
+            plants: [{ id: 'p1', species: 'java_fern', size: 50, condition: 100, surplus }],
+            light: 0,
+            water: 100,
+          })
+        );
       const overnight = (surplus: number): Plant =>
-        processPlants(
-          hostilePh(
-            createTestState({
-              plants: [{ id: 'p1', species: 'java_fern', size: 50, condition: 100, surplus }],
-              light: 0,
-              water: 100,
-            })
-          ),
-          DEFAULT_CONFIG
-        ).state.plants[0];
+        processPlants(sour(surplus), DEFAULT_CONFIG).state.plants[0];
 
       const banked = overnight(20);
       expect(banked.condition).toBe(100);
       expect(banked.surplus).toBeLessThan(20);
 
-      const reserve =
-        plantsDefaults.upkeepCost *
-        (1 - PLANT_SPECIES_DATA.java_fern.hardiness) *
-        plantsDefaults.upkeepReserveHours;
+      // The line off the engine's own arithmetic, not a copy of the formula.
+      const reserve = readPlantVitality(sour(0), DEFAULT_CONFIG)[0].breakdown.reserved;
       const spent = overnight(reserve);
       expect(spent.condition).toBeLessThan(100);
       expect(spent.size).toBe(50);

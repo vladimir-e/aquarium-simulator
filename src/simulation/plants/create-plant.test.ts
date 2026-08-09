@@ -19,12 +19,12 @@ describe('createPlant', () => {
   });
 
   it('arrives provisioned at the cap the tank was tuned to', () => {
-    // `surplusCap` is a live slider, and half the shipped bank is not half
-    // this tank's: at a cap of 20 a plant reading defaults is born over it,
-    // and at a low enough one it is born short of the reserve it owes its own
-    // upkeep — with nothing spare to meet a bad night on.
-    const reserve = plantsDefaults.upkeepCost * plantsDefaults.upkeepReserveHours;
-
+    // `surplusCap` is a live slider and half the shipped bank is not half this
+    // tank's: at a cap of 20 a plant reading defaults would be born over it.
+    // What it is born with is a share of the live cap and nothing else — the
+    // slider reaches 0, so a low enough tank stocks a plant under the reserve
+    // its own upkeep has spoken for, and the engine lets it. A clamp at that
+    // boundary is the shape this engine does not build.
     for (const surplusCap of [20, 80]) {
       const plant = createPlant({
         species: 'anubias',
@@ -34,7 +34,6 @@ describe('createPlant', () => {
 
       expect(plant.surplus).toBe(surplusCap / 2);
       expect(plant.surplus).toBeLessThanOrEqual(surplusCap);
-      expect(plant.surplus).toBeGreaterThan(reserve);
     }
   });
 

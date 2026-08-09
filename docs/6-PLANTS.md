@@ -25,12 +25,14 @@ Plants are modeled as **individual specimens**, each with their own species char
 1. **Photosynthesis** emits resource effects (O2 production, CO2 and
    nutrient uptake). It does NOT directly produce plant size — that
    flows through the surplus supply chain.
-2. **Vitality** banks per-plant **surplus** on `Plant.surplus` when
-   condition is full and net is positive (saturating at `surplusCap`);
-   the same bank drains to buffer damage before condition falls.
-3. **Growth** converts a share of the bank into size each lit tick,
-   scaled by species growth rate and an asymptotic factor against
-   species `maxSize`. Only what became size leaves the bank.
+2. **Vitality** banks per-plant **surplus** on `Plant.surplus` out of
+   whatever income upkeep and damage left, at any condition (saturating
+   at `surplusCap`); the same bank pays the upkeep and buffers damage
+   before condition falls.
+3. **Growth** withdraws a share of the bank each lit tick and spends it
+   on condition first and size second, the size scaled by species growth
+   rate and an asymptotic factor against species `maxSize`. Only what
+   repaired or became size leaves the bank.
 4. Plants can grow past 100% up to their species `maxSize`; growth
    slows asymptotically as size approaches the cap.
 
@@ -198,9 +200,10 @@ the same planting moves a nano further than it moves a 300 L.
 Growth is **surplus-driven**, per plant, no cross-plant sharing. The
 pipeline is:
 
-1. Vitality returns the new `Plant.surplus` bank each tick. Positive
-   overflow at full condition accrues into it (up to `surplusCap`);
-   negative net drains it before condition falls (see § Plant Condition).
+1. Vitality returns the new `Plant.surplus` bank each tick. Whatever
+   income upkeep and damage left accrues into it at any condition (up to
+   `surplusCap`); a deficit drains it before condition falls (see
+   § Plant Condition).
 2. Accrual is **photoperiod-gated** (`accrueSurplus: light > 0`): at
    night the overflow is discarded. Plant surplus represents stored
    photosynthate (glucose reserves from carbon fixation); plants need
@@ -249,7 +252,7 @@ the plant that is still growing. Under a flat ceiling the bank settles
 wherever the withdrawal matches the income: about half a surplus unit
 of the 50-unit cap, which is no reserve. Under a share it settles at
 `(income − maintenance) / (growthDrawRate × asymptoticFactor)`, which is
-proportional to what the plant clears — 11 to 26 units for a young plant
+proportional to what the plant clears — 9 to 26 units for a young plant
 across the roster under the shipped fixture, a shade species holding
 more than a carpet because the same PAR is nearer its saturation. That
 reserve is what meets damage before condition falls, and what tells a
@@ -407,7 +410,6 @@ activates:
 
 | Stressor | Trigger | Severity (per unit deviation) |
 |----------|---------|-------------------------------|
-| Upkeep | always | `upkeepCost × q10(temperature)` |
 | Light insufficient | `light < tolerableLight[0]` *and* lights on | `lightInsufficientSeverity` × gap |
 | Light excessive | `light > tolerableLight[1]` | `lightExcessiveSeverity` × gap |
 | CO2 insufficient | `co2 < tolerableCO2[0]` *and* lights on | `co2InsufficientSeverity` × gap |
@@ -422,7 +424,15 @@ night the plant is dormant and doesn't suffer from low CO2 or low
 light. Light excess remains active any time the lamps are bright
 enough to burn leaves.
 
-**Upkeep is the compensation point.** It runs on the same Q10 the
+**Upkeep is not on that table, and that is the point.** It is charged
+every hour at `upkeepCost × q10(temperature)`, but against income rather
+than against condition: it is what the plant owes for being alive, and
+an hour it cannot pay costs it tissue, not health. The two ledgers are
+set out below (§ Vitality math). The plant cards merge them into one
+list for display, which is a rendering choice and not a claim about
+where the cost lands.
+
+**Upkeep is also the compensation point.** It runs on the same Q10 the
 gas layer's respiration does, so the two layers describe one plant and a
 warm blackout kills faster than a cool one. Its reference is the
 irradiance where photosynthesis pays for respiration, 10–20 % of
@@ -449,9 +459,9 @@ tissue.
 every plant severity from here on: a marginal shortfall is *outlived* and
 a severe one kills on a timescale a keeper would recognise. At the
 shipped 0.3, water with no nitrogen in it at all melts a monte carlo in
-19 days, while the shipped `planted` and `betta` presets — undosed,
+28 days, while the shipped `planted` and `betta` presets — undosed,
 planted with the java fern and anubias every beginner guide names — hold
-all five plants at full condition for 180 days.
+all five plants alive at condition 96–100 for 180 days.
 
 Damage rates are pre-hardiness; the species `hardiness` (0–1)
 multiplier is applied centrally inside the vitality engine (`damage *
@@ -549,7 +559,7 @@ Three consequences worth internalising:
   growth — before it costs any reserve, and its reserve before it costs
   any condition.
 
-Fish and algae declare no upkeep, so `energyNet` is their whole income
+Fish and algae owe no upkeep, so `energyNet` is their whole income
 and the shape collapses back to the single balance they always ran:
 income repairs them on the spot, damage drains the bank before condition
 falls with nothing reserved against it, and the bank fills only from

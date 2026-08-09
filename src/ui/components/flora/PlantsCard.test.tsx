@@ -17,7 +17,7 @@ function plant(net: number): PlantRow {
     status: 'ok',
     word: 'thriving',
     net,
-    stressors: [{ key: 'nutrients', label: 'Nutrient deficiency', amount: Math.max(0, -net) }],
+    charged: [{ key: 'nutrients', label: 'Nutrient deficiency', amount: Math.max(0, -net) }],
     benefits: [{ key: 'light', label: 'Light', amount: Math.max(0, net) }],
   };
 }

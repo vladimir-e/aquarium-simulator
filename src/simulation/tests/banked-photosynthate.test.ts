@@ -129,18 +129,20 @@ describe('the bank a plant runs on', () => {
   });
 
   it('gives back exactly the night it slept through', () => {
-    // The sawtooth the reading above sits on top of, measured end to end:
-    // a maxed planting tops out at the cap at dusk and is short of it at the
-    // last dark hour by what it spent staying alive in between, and by nothing
-    // else. Held at optimum, nothing else *can* be in it — no channel is
-    // charging the plant, so the only claim on the bank is the upkeep.
-    // Three decimals rather than an exact equality because the tank sits a few
-    // hundredths off 25 °C for an hour or two a night while the hold and the
-    // heater argue, and the Q10 moves the bill with it — 0.03 % of the figure.
-    const dawn = growToHourHeld(MAXED, 30, DAWN);
-    const shortfall = plantsDefaults.surplusCap - dawn.samples[30]!.avgSurplus;
+    // The sawtooth the reading above sits on top of, measured end to end and
+    // across one night of one run: a maxed planting tops out at the cap at
+    // dusk and is short of it at first light by what it spent staying alive in
+    // between, and by nothing else. Held at optimum, nothing else *can* be in
+    // it — no channel is charging the plant, so the only claim on the bank is
+    // the upkeep. Three decimals rather than an exact equality because the tank
+    // sits a few hundredths off 25 °C for an hour or two a night while the hold
+    // and the heater argue, and the Q10 moves the bill with it — 0.03 % of the
+    // figure.
+    const dusk = growToHourHeld(MAXED, 31, DUSK).samples[30]!.avgSurplus;
+    const dawn = growToHourHeld(MAXED, 31, DAWN).samples[31]!.avgSurplus;
 
-    expect(shortfall).toBeCloseTo(DARK_HOURS * UPKEEP_PER_HOUR, 3);
+    expect(dusk).toBeCloseTo(plantsDefaults.surplusCap, 5);
+    expect(dusk - dawn).toBeCloseTo(DARK_HOURS * UPKEEP_PER_HOUR, 3);
   });
 
   it('holds a maxed plant at its ceiling rather than shrinking it', () => {

@@ -40,6 +40,14 @@ export function sweep<A extends Axes, O extends Record<string, unknown>>(
   return grid(axes).map((point) => ({ ...point, ...measure(point) }));
 }
 
+/**
+ * A measurement cut to the precision it is worth reading at, before it reaches
+ * a table. {@link cell} decides how a number *prints*; this decides how much of
+ * it a row is claiming.
+ */
+export const round = (value: number, places = 1): number =>
+  Math.round(value * 10 ** places) / 10 ** places;
+
 function cell(value: unknown): string {
   if (value === null || value === undefined) return '—';
   if (typeof value === 'number') {

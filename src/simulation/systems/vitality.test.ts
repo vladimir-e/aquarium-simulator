@@ -406,6 +406,24 @@ describe('computeVitality', () => {
       expect(result.newCondition).toBe(40);
       expect(result.surplus).toBe(23);
     });
+
+    it('reads the bill as a rate, so owing nothing is owing nothing', () => {
+      // An empty list is the natural way to say "no cost of living", and so is
+      // a list of zeroes — an organism with no bill has no store to run, and
+      // heals out of income on the spot like one that declared no list at all.
+      const earning = { benefits: [benefit('light', 4)], condition: 40 };
+      const free = [
+        storing({ ...earning, upkeep: [] }),
+        storing({ ...earning, upkeep: [stressor('alive', 0)] }),
+        input({ ...earning, upkeepReserveHours: 5, hardiness: 0, surplus: 20 }),
+      ];
+
+      for (const owes of free) {
+        const result = computeVitality(owes);
+        expect(result.newCondition).toBe(44);
+        expect(result.surplus).toBe(20);
+      }
+    });
   });
 
   describe('hardiness scaling', () => {

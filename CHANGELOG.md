@@ -11,11 +11,9 @@ Format: - **Feature name** (#PR) - One short sentence (under ~150 chars)
 
 ## Unreleased
 
-- **The reserve holds against repair too** - a plant's growth and its repair spend only what stands above the survival rations, so damage that stopped at the line is not undone from under it the next tick.
+- **One reserve, two claims, in an order** - upkeep is its own ledger, paid from income and then from the bank to the last unit, and the share neither covered eats `size` rather than health; damage and repair reach only the spare above `upkeepReserveHours`.
 - **A nutrient shortfall is pinned from both ends** - `nutrientDeficiencySeverity` 0.7 → 0.3, re-derived against the corrected photosynthate income.
-- **One reserve, two claims, in an order** - upkeep may spend the bank to the last unit, damage only what stands above `upkeepReserveHours` of it; `starvationMultiplier` deleted.
-- **A starving plant eats itself, not its health** - upkeep is its own ledger, paid out of the bank and then out of `size`; shedding fires on the unpaid share of the bill.
-- **Darkness costs a plant** - an always-on upkeep cost sets a compensation point under a benefit budget that now pays nothing at night; peaks 0.1 → 0.125 to hold it (v23, v10).
+- **Darkness costs a plant** - an always-on upkeep cost sets a compensation point under a benefit budget that now pays nothing at night; peaks 0.1 → 0.125 to hold it (v24, v11).
 - **A new plant is stocked out of the tank's own bank** - half the live `surplusCap`, not half the shipped one; breaking: `addPlant` takes a `PlantsConfig`, `applyAction` an optional one.
 - **A plant banks what it can't grow on** - growth draws a share of the reserve and withdraws only what became size, so a maxed plant fills its bank instead of burning it (v22).
 - **A brighter fixture grows more plant, up to a point** - photosynthesis and the light benefit scale on `tanh(PAR/Ik)`, saturating at twice each species' band low; breaking: no `lightRequirement` (v21, v8).

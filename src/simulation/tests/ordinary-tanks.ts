@@ -20,7 +20,7 @@
  */
 
 import { produce } from 'immer';
-import type { SimulationConfig, SimulationState } from '../state.js';
+import type { SimulationState } from '../state.js';
 import type { PresetSeed } from '../seed.js';
 import { DEFAULT_CONFIG } from '../config/index.js';
 import { calculateNutrientSufficiency } from '../systems/nutrients.js';
@@ -29,25 +29,24 @@ import {
   buildPlantUpkeep,
   buildPlantBenefits,
 } from '../systems/plant-vitality.js';
-import { getMassFromPpm, getPpm } from '../resources/helpers.js';
+import { getPpm } from '../resources/helpers.js';
 import { PLANT_SPECIES_DATA, type PlantSpecies } from '../plants/species.js';
 import { PRESETS, type PresetId } from '../presets.js';
-import { formatTable } from './sweep.js';
+import { formatTable, round } from './sweep.js';
 import { runTank, totalSize, type RunResult } from './metrics.js';
-import { atOptimum, DAY, fixtureFor, substrateFor } from './tanks.js';
+import {
+  atOptimum,
+  DAY,
+  deprived,
+  litTank,
+  SCENARIO_02_ROUTINE,
+  SCENARIO_02_SEED,
+  scenario02Tank,
+  SPECIES_BY_LIGHT,
+  substrateFor,
+} from './tanks.js';
 
 const RNG_SEEDS = [5, 1234, 4242];
-
-const SPECIES: PlantSpecies[] = [
-  'anubias',
-  'java_fern',
-  'amazon_sword',
-  'dwarf_hairgrass',
-  'monte_carlo',
-];
-
-const round = (value: number, places = 1): number =>
-  Math.round(value * 10 ** places) / 10 ** places;
 
 const mean = (values: readonly number[]): number =>
   values.length === 0 ? 0 : values.reduce((sum, value) => sum + value, 0) / values.length;
@@ -88,69 +87,9 @@ function outcome(run: RunResult): Outcome {
   };
 }
 
-/** The same tank, with one channel taken away from the plant and held away. */
-const deprived =
-  (channel: 'none' | 'nutrients' | 'co2'): ((state: SimulationState) => SimulationState) =>
-  (state) =>
-    produce(atOptimum(state), (draft) => {
-      const { water } = draft.resources;
-      if (channel === 'nutrients') {
-        draft.resources.nitrate = getMassFromPpm(0.5, water);
-        draft.resources.phosphate = 0;
-        draft.resources.potassium = 0;
-        draft.resources.iron = 0;
-      }
-      if (channel === 'co2') draft.resources.co2 = 3;
-    });
-
-/** A 40 L on a named substrate PAR, everything else a plant could want present. */
-const litTank = (substratePar: number, capacity = 40, hours = 12): SimulationConfig => ({
-  tankCapacity: capacity,
-  heater: { enabled: true, targetTemperature: 25, wattage: Math.max(100, capacity) },
-  filter: { enabled: true, type: 'canister' },
-  light: {
-    enabled: true,
-    par: fixtureFor(substratePar, capacity),
-    schedule: { startHour: 8, duration: hours },
-  },
-  substrate: { type: 'aqua_soil' },
-  lid: { type: 'full' },
-  ato: { enabled: true },
-  co2Generator: { enabled: false },
-  powerhead: { enabled: false },
-});
-
 // ---------------------------------------------------------------------------
 // § scenario 02 — the heavily planted 38 L the plants subsystem is pinned on
 // ---------------------------------------------------------------------------
-
-/** Scenario 02's tank, as `docs/calibration/scenarios/02-planted-equilibrium.md` sets it. */
-const s02Setup = (dosed: boolean): SimulationConfig => ({
-  tankCapacity: 38,
-  heater: { enabled: true, targetTemperature: 25, wattage: 50 },
-  filter: { enabled: true, type: 'canister' },
-  light: { enabled: true, par: 90, schedule: { startHour: 8, duration: 8 } },
-  substrate: { type: 'aqua_soil' },
-  lid: { type: 'full' },
-  ato: { enabled: true },
-  co2Generator: { enabled: true, bubbleRate: 1.5, schedule: { startHour: 7, duration: 10 } },
-  powerhead: { enabled: false },
-  autoDoser: dosed
-    ? { enabled: true, doseAmountMl: 1, schedule: { startHour: 8, duration: 1 } }
-    : { enabled: false },
-});
-
-const S02_SEED: PresetSeed = {
-  bacteria: 'cycled',
-  fish: [{ species: 'neon_tetra', count: 10, sex: 'female' }],
-  plants: [
-    { species: 'amazon_sword', count: 2, size: 35 },
-    { species: 'monte_carlo', count: 2, size: 35 },
-    { species: 'java_fern', count: 1, size: 35 },
-  ],
-};
-
-const s02Routine = { feed: 0.05, topOff: true };
 
 function scenario02(): string {
   return formatTable(
@@ -160,10 +99,10 @@ function scenario02(): string {
         rngSeed,
         ...outcome(
           runTank({
-            setup: s02Setup(variant === 'A'),
-            seed: S02_SEED,
+            setup: scenario02Tank(variant === 'A'),
+            seed: SCENARIO_02_SEED,
             days: 90,
-            routine: s02Routine,
+            routine: SCENARIO_02_ROUTINE,
             rngSeed,
           })
         ),
@@ -177,10 +116,10 @@ function scenario02Trace(variant: 'A' | 'B'): string {
   const marks = [7, 14, 28, 42, 56, 70, 80, 90];
   const rows: Record<string, unknown>[] = [];
   runTank({
-    setup: s02Setup(variant === 'A'),
-    seed: S02_SEED,
+    setup: scenario02Tank(variant === 'A'),
+    seed: SCENARIO_02_SEED,
     days: 90,
-    routine: s02Routine,
+    routine: SCENARIO_02_ROUTINE,
     rngSeed: 5,
     watch: (hour, _before, after) => {
       const day = hour / DAY;
@@ -209,10 +148,10 @@ function scenario02Fish(): string {
   const rows: Record<string, unknown>[] = [];
   let standing = 10;
   runTank({
-    setup: s02Setup(true),
-    seed: S02_SEED,
+    setup: scenario02Tank(true),
+    seed: SCENARIO_02_SEED,
     days: 120,
-    routine: s02Routine,
+    routine: SCENARIO_02_ROUTINE,
     rngSeed: 5,
     watch: (hour, _before, after) => {
       if (after.fish.length >= standing) return;
@@ -348,8 +287,8 @@ function presetDiagnosis(): string {
     // Midday and midnight of each mark: the always-on channels read the same in
     // both, and what the plant *earns* only exists in one of them.
     watch: (hour, _before, after) => {
-      const day = (hour - (hour % DAY === 12 ? 12 : 0)) / DAY;
       if (hour % DAY !== 12 && hour % DAY !== 0) return;
+      const day = Math.floor(hour / DAY);
       if (!marks.includes(day)) return;
       const plant = after.plants.find((p) => p.species === 'java_fern');
       if (plant === undefined) return;
@@ -443,7 +382,7 @@ const BAND_POINTS: Array<[string, (low: number, high: number) => number]> = [
  */
 function speciesFixtures(): string {
   return formatTable(
-    SPECIES.flatMap((species) => {
+    SPECIES_BY_LIGHT.flatMap((species) => {
       const [low, high] = PLANT_SPECIES_DATA[species].tolerableLight;
       return BAND_POINTS.map(([label, at]) => {
         const par = at(low, high);
@@ -488,7 +427,7 @@ function speciesFixtures(): string {
  */
 function compounding(): string {
   return formatTable(
-    SPECIES.flatMap((species) => {
+    SPECIES_BY_LIGHT.flatMap((species) => {
       const [low] = PLANT_SPECIES_DATA[species].tolerableLight;
       return (['none', 'nutrients', 'co2'] as const).map((channel) => {
         const run = runTank({
@@ -525,7 +464,7 @@ const OUTAGES = [3, 7, 14, 21];
 
 function transient(): string {
   return formatTable(
-    SPECIES.flatMap((species) => {
+    SPECIES_BY_LIGHT.flatMap((species) => {
       const [low] = PLANT_SPECIES_DATA[species].tolerableLight;
       return OUTAGES.flatMap((days) =>
         (['nutrients', 'co2'] as const).map((channel) => {
@@ -570,7 +509,7 @@ function transient(): string {
  */
 function establishment(): string {
   return formatTable(
-    SPECIES.flatMap((species) => {
+    SPECIES_BY_LIGHT.flatMap((species) => {
       const [low] = PLANT_SPECIES_DATA[species].tolerableLight;
       return [0.5, 0.75, 1.0].map((multiple) => {
         let bankGone: number | null = null;
@@ -614,7 +553,7 @@ function establishment(): string {
  */
 function safeExtremes(): string {
   return formatTable(
-    SPECIES.map((species) => {
+    SPECIES_BY_LIGHT.map((species) => {
       const [low, high] = PLANT_SPECIES_DATA[species].tolerableLight;
       const par = (low + high) / 2;
       const run = runTank({

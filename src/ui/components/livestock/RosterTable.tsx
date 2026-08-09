@@ -187,7 +187,7 @@ function FishDetailRow({ row }: { row: FishRosterRow }): React.JSX.Element {
             {row.reserve.toFixed(1)} / {row.reserveCap}
           </span>
         </div>
-        <Breakdown stressors={row.stressors} benefits={row.benefits} net={row.net} />
+        <Breakdown charged={row.stressors} benefits={row.benefits} net={row.net} />
       </td>
     </tr>
   );

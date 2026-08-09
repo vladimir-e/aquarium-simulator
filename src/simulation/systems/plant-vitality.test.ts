@@ -102,14 +102,16 @@ describe('buildPlantUpkeep', () => {
   });
 
   describe('the reserve upkeep keeps back from damage', () => {
-    /** Banked units that buy `upkeepReserveHours` of a species' own drain. */
-    const line = (species: PlantSpecies, plantsConfig = plantsDefaults): number =>
-      plantsConfig.upkeepCost *
-      (1 - PLANT_SPECIES_DATA[species].hardiness) *
-      plantsConfig.upkeepReserveHours;
-
     /** A tank that damages a plant rather than starving it: bright, but sour. */
     const sour = makeResources({ ph: 4.5 });
+
+    /**
+     * Banked units that buy `upkeepReserveHours` of a species' own drain, read
+     * off the engine's own arithmetic rather than restated here — the
+     * temperature is in it through the Q10, and a copy would forget that.
+     */
+    const line = (species: PlantSpecies, resources = sour): number =>
+      computePlantVitality(ctx(makePlant(species), resources)).breakdown.reserved;
 
     const tick = (
       species: PlantSpecies,

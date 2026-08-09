@@ -1,6 +1,7 @@
 # Darkness had no price: `light-deficiency`
 
-Date: 2026-08-08 · Branch: `light-deficiency` · Register defect #37, low side
+Date: 2026-08-08 · Branch: `light-deficiency` @ `e6ee75e` · Register defect #37,
+low side
 
 Ninety days with a fixture that never came on left every species at condition
 100, size unchanged, net **+0.400 %/h**. The engine scored pitch black as
@@ -17,6 +18,17 @@ anchors run, at `rngSeed` 5. The probe is `npm run probe:dark-tank`: a 40 L on
 the shipped fixture (50 PAR, 10 h, landing 38.1 PAR on the substrate), one
 plant at size 35, every channel but light rewritten to optimum before each
 tick.
+
+**Superseded three times on the same branch, and kept as the evidence for the
+mechanism rather than as a reading of the shipped constants.** Since `e6ee75e`:
+`2026-08-08-tissue-not-condition.md` split the two ledgers, so an unpaid bill
+comes out of `size` and not out of `condition`;
+`2026-08-08-reserve-by-priority.md` ordered the two claims on the bank, deleted
+`starvationMultiplier` and re-derived `nutrientDeficiencySeverity` 0.7 → 0.3;
+`2026-08-08-reserve-against-repair.md` held the reserve against repair as well
+as against damage. `maintenanceCost` and `starvationReserveHours` below are
+today's `upkeepCost` and `upkeepReserveHours`, and the starvation ramp the
+tables sweep no longer exists. Every figure here is the state at `e6ee75e`.
 
 ---
 

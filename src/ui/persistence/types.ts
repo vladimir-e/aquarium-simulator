@@ -28,8 +28,9 @@ import type { TunableConfig } from '../../simulation/config/index.js';
  *      to defaults behind a console warning rather than announcing itself.
  *
  * v23: Darkness costs a plant, and it is paid in tissue. `PlantsConfig` gains
- *      the always-on `upkeepCost` and the `upkeepReserveHours` that says
- *      how much of the bank is held back to pay it, and drops two keys:
+ *      the always-on `maintenanceCost` (v24's `upkeepCost`) and the
+ *      `upkeepReserveHours` that says how much of the bank is held back to
+ *      pay it, and drops two keys:
  *      `lightBenefitPeak`, because light is no longer a channel of its own but
  *      the term the other four are multiplied by (so those four move
  *      0.1 → 0.125 to hold the same 0.5 %/h budget), and

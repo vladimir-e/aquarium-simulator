@@ -23,19 +23,22 @@
  * Branch-only: reads config keys `main` does not have.
  */
 
-import { produce } from 'immer';
-import type { SimulationConfig, SimulationState } from '../state.js';
-import type { PresetSeed } from '../seed.js';
 import type { TunableConfig } from '../config/index.js';
-import { getMassFromPpm, getPpm } from '../resources/helpers.js';
-import { PLANT_SPECIES_DATA, type PlantSpecies } from '../plants/species.js';
+import { getPpm } from '../resources/helpers.js';
+import { PLANT_SPECIES_DATA } from '../plants/species.js';
 import { PRESETS } from '../presets.js';
-import { formatTable, tuned } from './sweep.js';
+import { formatTable, round, tuned } from './sweep.js';
 import { runTank, totalSize } from './metrics.js';
-import { atOptimum, DAY, fixtureFor } from './tanks.js';
-
-const round = (value: number, places = 1): number =>
-  Math.round(value * 10 ** places) / 10 ** places;
+import {
+  atOptimum,
+  DAY,
+  deprived,
+  litTank,
+  SCENARIO_02_ROUTINE,
+  SCENARIO_02_SEED,
+  scenario02Tank,
+  SPECIES_BY_LIGHT,
+} from './tanks.js';
 
 const VARIANTS: Array<[string, TunableConfig]> = [
   ['shipped', tuned(() => {})],
@@ -53,43 +56,12 @@ const VARIANTS: Array<[string, TunableConfig]> = [
   ],
 ];
 
-const SPECIES: PlantSpecies[] = [
-  'anubias',
-  'java_fern',
-  'amazon_sword',
-  'dwarf_hairgrass',
-  'monte_carlo',
-];
-
-const starved = (state: SimulationState): SimulationState =>
-  produce(atOptimum(state), (draft) => {
-    const { water } = draft.resources;
-    draft.resources.nitrate = getMassFromPpm(0.5, water);
-    draft.resources.phosphate = 0;
-    draft.resources.potassium = 0;
-    draft.resources.iron = 0;
-  });
-
-const litTank = (substratePar: number, capacity = 40): SimulationConfig => ({
-  tankCapacity: capacity,
-  heater: { enabled: true, targetTemperature: 25, wattage: Math.max(100, capacity) },
-  filter: { enabled: true, type: 'canister' },
-  light: {
-    enabled: true,
-    par: fixtureFor(substratePar, capacity),
-    schedule: { startHour: 8, duration: 12 },
-  },
-  substrate: { type: 'aqua_soil' },
-  lid: { type: 'full' },
-  ato: { enabled: true },
-  co2Generator: { enabled: false },
-  powerhead: { enabled: false },
-});
+const starved = deprived('nutrients');
 
 /** The fourteen-day fertiliser outage, the case `main` recovers from entirely. */
 function outage(): string {
   return formatTable(
-    SPECIES.flatMap((species) => {
+    SPECIES_BY_LIGHT.flatMap((species) => {
       const [low] = PLANT_SPECIES_DATA[species].tolerableLight;
       return VARIANTS.map(([label, config]) => {
         const run = runTank({
@@ -118,37 +90,14 @@ function outage(): string {
 }
 
 /** Scenario 02 variant A — the run whose neons all die on the shipped config. */
-const S02: SimulationConfig = {
-  tankCapacity: 38,
-  heater: { enabled: true, targetTemperature: 25, wattage: 50 },
-  filter: { enabled: true, type: 'canister' },
-  light: { enabled: true, par: 90, schedule: { startHour: 8, duration: 8 } },
-  substrate: { type: 'aqua_soil' },
-  lid: { type: 'full' },
-  ato: { enabled: true },
-  co2Generator: { enabled: true, bubbleRate: 1.5, schedule: { startHour: 7, duration: 10 } },
-  powerhead: { enabled: false },
-  autoDoser: { enabled: true, doseAmountMl: 1, schedule: { startHour: 8, duration: 1 } },
-};
-
-const S02_SEED: PresetSeed = {
-  bacteria: 'cycled',
-  fish: [{ species: 'neon_tetra', count: 10, sex: 'female' }],
-  plants: [
-    { species: 'amazon_sword', count: 2, size: 35 },
-    { species: 'monte_carlo', count: 2, size: 35 },
-    { species: 'java_fern', count: 1, size: 35 },
-  ],
-};
-
 function scenario02(): string {
   return formatTable(
     VARIANTS.map(([label, config]) => {
       const run = runTank({
-        setup: S02,
-        seed: S02_SEED,
+        setup: scenario02Tank(true),
+        seed: SCENARIO_02_SEED,
         days: 90,
-        routine: { feed: 0.05, topOff: true, config },
+        routine: { ...SCENARIO_02_ROUTINE, config },
         rngSeed: 5,
       });
       const { final } = run;

@@ -14,7 +14,7 @@
  * what neither could cover is reported as `starved` for the caller to
  * take out of its own tissue. Only `stressors` — damage done *to* the
  * organism rather than energy it failed to earn — spend condition. An
- * organism that declares no upkeep runs the single-ledger balance
+ * organism that owes no upkeep runs the single-ledger balance
  * unchanged.
  *
  * The surplus bank is a **protective buffer**: damage drains it before
@@ -265,9 +265,9 @@ export function bankSurplus(
  *      couldn't cover bleeds condition. Condition stays put while the
  *      reserve holds the line, which is the "burning reserves" reading.
  *    - Positive: it accrues into the bank up to `surplusCap` (when
- *      `accrueSurplus`), except that an organism declaring no upkeep
- *      heals with it first — it has no store to run, so income repairs
- *      it on the spot and only a full condition leaves anything over.
+ *      `accrueSurplus`), except that an organism owing no upkeep heals
+ *      with it first — it has no store to run, so income repairs it on
+ *      the spot and only a full condition leaves anything over.
  *    - Zero: condition and bank unchanged (bank still clamped).
  *
  * The ordering in step 5 is the whole point of the reserve line. Damage
@@ -319,8 +319,10 @@ export function computeVitality(input: VitalityInput): VitalityResult {
   const cap = Math.max(0, input.surplusCap);
   const accrue = input.accrueSurplus ?? true;
 
-  // Declaring an upkeep is what makes an organism a storing one.
-  const stores = input.upkeep !== undefined;
+  // Owing an upkeep is what makes an organism a storing one — the rate and not
+  // the shape of the array it arrived in, so `upkeep: []`, an upkeep list of
+  // zeroes and no list at all are one organism.
+  const stores = upkeepRate > 0;
   // What that upkeep has already spoken for, and therefore how deep into
   // the bank the damage below may reach.
   const reserved = upkeepRate * (input.upkeepReserveHours ?? 0);

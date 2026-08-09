@@ -81,8 +81,8 @@ describe('plantRows', () => {
 
     for (const row of rows) {
       const benefits = row.benefits.reduce((sum, f) => sum + f.amount, 0);
-      const stressors = row.stressors.reduce((sum, f) => sum + f.amount, 0);
-      expect(row.net).toBeCloseTo(benefits - stressors, 6);
+      const charged = row.charged.reduce((sum, f) => sum + f.amount, 0);
+      expect(row.net).toBeCloseTo(benefits - charged, 6);
     }
   });
 

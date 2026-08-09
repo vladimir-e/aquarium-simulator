@@ -84,8 +84,13 @@ export interface PlantRow {
   word: string;
   /** Change per hour: what the breakdown below it sums to. */
   net: number;
-  /** Everything charged this hour — upkeep first, then damage, so the rows sum to `net`. */
-  stressors: VitalityFactor[];
+  /**
+   * Everything charged this hour — upkeep first, then damage, so the rows sum
+   * to `net`. Two ledgers merged for one list, which is a display choice: what
+   * a plant owes for being alive is not a stressor, and lands in a different
+   * stock (`6-PLANTS.md` § Stressor coverage).
+   */
+  charged: VitalityFactor[];
   benefits: VitalityFactor[];
 }
 
@@ -108,7 +113,7 @@ export function plantRows(state: SimulationState, config: TunableConfig): PlantR
       status: conditionStatus(plant.condition),
       word: conditionWord(plant.condition),
       net: vitality.breakdown.net,
-      stressors: acting([...vitality.breakdown.upkeep, ...vitality.breakdown.stressors]),
+      charged: acting([...vitality.breakdown.upkeep, ...vitality.breakdown.stressors]),
       benefits: acting(vitality.breakdown.benefits),
     };
   });

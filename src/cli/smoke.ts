@@ -56,11 +56,11 @@ export function runSmokeScenario(options: { path?: string; cleanup?: boolean } =
 
   step('add plant', () => {
     const session = loadSession({ path });
-    const { state } = applyAction(session.state, {
-      type: 'addPlant',
-      species: 'amazon_sword',
-      initialSize: 50,
-    });
+    const { state } = applyAction(
+      session.state,
+      { type: 'addPlant', species: 'amazon_sword', initialSize: 50 },
+      session.config
+    );
     saveSession(
       { ...session, state, history: appendSnapshot(session.history, snapshot(state)) },
       { path }

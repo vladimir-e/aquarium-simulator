@@ -13,7 +13,6 @@
  *     npm run probe:dark-tank
  */
 
-import { produce } from 'immer';
 import type { SimulationConfig, SimulationState } from '../state.js';
 import { DEFAULT_CONFIG } from '../config/index.js';
 import { DEFAULT_LIGHT } from '../equipment/light.js';
@@ -25,37 +24,30 @@ import {
 import { computePlantVitality } from '../systems/plant-vitality.js';
 import { formatTable } from './sweep.js';
 import { runTank } from './metrics.js';
-import { atOptimum, fixtureFor, substrateFor } from './tanks.js';
+import {
+  atOptimum,
+  BLACKOUT_DAY,
+  blackoutFrom,
+  fixtureFor,
+  fixtureTank,
+  onePlant,
+  PLANTED_AT,
+  PROBE_TANK_CAPACITY,
+  SPECIES_BY_LIGHT,
+  substrateFor,
+} from './tanks.js';
 
-const CAPACITY = 40;
 const DAYS = 90;
-const PLANTED_AT = 35;
 const RNG_SEED = 5;
-
-/** Days the blackout run spends lit first — long enough to fill a bank. */
-const GROW_DAYS = 30;
 
 /** Days after the switch the blackout trace prints, one row each. */
 const TRACE_DAYS = 10;
 
 type Mode = 'on' | 'off' | 'blackout';
 
-const setup = (lit: boolean): SimulationConfig => ({
-  tankCapacity: CAPACITY,
-  heater: { enabled: false },
-  filter: { enabled: true, type: 'canister' },
-  substrate: { type: 'aqua_soil' },
-  hardscape: { items: [] },
-  lid: { type: 'full' },
-  ato: { enabled: true },
-  co2Generator: { enabled: true, bubbleRate: 1.0, schedule: { startHour: 7, duration: 10 } },
-  powerhead: { enabled: false },
-  light: { enabled: lit },
-});
-
 /** The same tank on a named fixture and photoperiod rather than the default one. */
 const withLight = (par: number, hours: number): SimulationConfig => ({
-  ...setup(true),
+  ...fixtureTank(true),
   light: { enabled: true, par, schedule: { startHour: 8, duration: hours } },
 });
 
@@ -63,36 +55,19 @@ const withLight = (par: number, hours: number): SimulationConfig => ({
  * Everything the light channel is not, held where a plant would want it — and
  * on a blackout run, the fixture switched off once the plant has grown in.
  */
-const held = (mode: Mode) => (state: SimulationState): SimulationState =>
-  produce(atOptimum(state), (draft) => {
-    if (mode === 'blackout' && draft.tick >= GROW_DAYS * 24) {
-      draft.equipment.light.enabled = false;
-    }
-  });
-
-const SPECIES: PlantSpecies[] = [
-  'anubias',
-  'java_fern',
-  'amazon_sword',
-  'dwarf_hairgrass',
-  'monte_carlo',
-];
+const held = (mode: Mode): ((state: SimulationState) => SimulationState) =>
+  mode === 'blackout' ? blackoutFrom(BLACKOUT_DAY) : atOptimum;
 
 const MODES: Mode[] = ['on', 'off', 'blackout'];
-
-const one = (species: PlantSpecies, size = PLANTED_AT): { plants: [{ species: PlantSpecies; count: number; size: number }]; bacteria: 'cycled' } => ({
-  bacteria: 'cycled',
-  plants: [{ species, count: 1, size }],
-});
 
 /** § 1 — the three runs, and what each planting reads at 90 days. */
 function threeWays(): string {
   return formatTable(
-    SPECIES.flatMap((species) =>
+    SPECIES_BY_LIGHT.flatMap((species) =>
       MODES.map((mode) => {
         const run = runTank({
-          setup: setup(mode !== 'off'),
-          seed: one(species),
+          setup: fixtureTank(mode !== 'off'),
+          seed: onePlant(species),
           days: DAYS,
           routine: { hold: held(mode) },
           rngSeed: RNG_SEED,
@@ -113,7 +88,7 @@ function threeWays(): string {
         return {
           species,
           lightLo: PLANT_SPECIES_DATA[species].tolerableLight[0],
-          lights: mode === 'on' ? 'on' : mode === 'off' ? 'never on' : `off d${GROW_DAYS}`,
+          lights: mode === 'on' ? 'on' : mode === 'off' ? 'never on' : `off d${BLACKOUT_DAY}`,
           size: plant?.size.toFixed(1) ?? '—',
           condition: plant?.condition.toFixed(1) ?? '—',
           surplus: plant?.surplus.toFixed(1) ?? '—',
@@ -129,14 +104,14 @@ function threeWays(): string {
 function blackoutTrace(species: PlantSpecies): string {
   const trace: string[] = [];
   runTank({
-    setup: setup(true),
-    seed: one(species),
-    days: GROW_DAYS + TRACE_DAYS,
+    setup: fixtureTank(true),
+    seed: onePlant(species),
+    days: BLACKOUT_DAY + TRACE_DAYS,
     routine: { hold: held('blackout') },
     rngSeed: RNG_SEED,
     watch: (hour, _before, after) => {
       const day = hour / 24;
-      if (!Number.isInteger(day) || day < GROW_DAYS - 1) return;
+      if (!Number.isInteger(day) || day < BLACKOUT_DAY - 1) return;
       const plant = after.plants[0];
       trace.push(
         `  d${String(day).padStart(3)}  size ${(plant?.size ?? 0).toFixed(1).padStart(6)}` +
@@ -158,11 +133,11 @@ const PHOTOPERIODS = [4, 6, 8, 10, 12, 16];
  */
 function photoperiod(): string {
   return formatTable(
-    SPECIES.flatMap((species) =>
+    SPECIES_BY_LIGHT.flatMap((species) =>
       PHOTOPERIODS.map((hours) => {
         const run = runTank({
           setup: withLight(DEFAULT_LIGHT.par, hours),
-          seed: one(species),
+          seed: onePlant(species),
           days: DAYS,
           routine: { hold: held('on') },
           rngSeed: RNG_SEED,
@@ -181,8 +156,11 @@ function photoperiod(): string {
   );
 }
 
-/** The water of a fresh tank of this size, so a net can be read off a state. */
-const PROBE_WATER = runTank({ setup: setup(true), days: 0 }).final.resources;
+/**
+ * A fresh tank of this size with every channel but light written to optimum, so
+ * a net can be read off a state — the same optimum the runs above are held at.
+ */
+const PROBE_WATER = atOptimum(runTank({ setup: fixtureTank(true), days: 0 }).final).resources;
 
 /** Net rate for a provisioned plant of `species` at `light`, everything else optimum. */
 function netAt(species: PlantSpecies, light: number): number {
@@ -194,8 +172,8 @@ function netAt(species: PlantSpecies, light: number): number {
       condition: 100,
       surplus: DEFAULT_CONFIG.plants.surplusCap,
     },
-    resources: { ...PROBE_WATER, light, co2: 20, ph: 7, temperature: 25 },
-    waterVolume: CAPACITY,
+    resources: { ...PROBE_WATER, light },
+    waterVolume: PROBE_TANK_CAPACITY,
     plantsConfig: DEFAULT_CONFIG.plants,
     nutrientSufficiency: 1,
     algaeMass: 0,
@@ -223,8 +201,8 @@ function compensationPar(species: PlantSpecies): number {
 /** Whether a 90 d run under a fixture landing `substratePar` ends at full condition. */
 function holds(species: PlantSpecies, substratePar: number): boolean {
   const run = runTank({
-    setup: withLight(fixtureFor(substratePar, CAPACITY), DEFAULT_LIGHT.schedule.duration),
-    seed: one(species),
+    setup: withLight(fixtureFor(substratePar, PROBE_TANK_CAPACITY), DEFAULT_LIGHT.schedule.duration),
+    seed: onePlant(species),
     days: DAYS,
     routine: { hold: held('on') },
     rngSeed: RNG_SEED,
@@ -259,7 +237,7 @@ function holdingPar(species: PlantSpecies): number {
  */
 function compensationPoint(): string {
   return formatTable(
-    SPECIES.map((species) => {
+    SPECIES_BY_LIGHT.map((species) => {
       const ik = getSaturationIrradiance(species, DEFAULT_CONFIG.plants);
       const par = compensationPar(species);
       const day = holdingPar(species);
@@ -269,9 +247,9 @@ function compensationPoint(): string {
         ik,
         bandLo: PLANT_SPECIES_DATA[species].tolerableLight[0],
         'net = 0 at': par.toFixed(1),
-        '× Ik': (par / ik).toFixed(3),
+        'net = 0 × Ik': (par / ik).toFixed(3),
         'holds above': day.toFixed(1),
-        '× Ik ': (day / ik).toFixed(3),
+        'holds × Ik': (day / ik).toFixed(3),
       };
     })
   );
@@ -283,11 +261,11 @@ function compensationPoint(): string {
  */
 function establishment(): string {
   return formatTable(
-    SPECIES.map((species) => {
+    SPECIES_BY_LIGHT.map((species) => {
       const days: Record<string, string> = {};
       const run = runTank({
-        setup: setup(true),
-        seed: one(species),
+        setup: fixtureTank(true),
+        seed: onePlant(species),
         days: 7,
         routine: { hold: held('on') },
         rngSeed: RNG_SEED,
@@ -310,19 +288,19 @@ function establishment(): string {
   );
 }
 
-const SUBSTRATE_PAR = substrateFor(DEFAULT_LIGHT.par, CAPACITY);
+const SUBSTRATE_PAR = substrateFor(DEFAULT_LIGHT.par, PROBE_TANK_CAPACITY);
 
 const SECTIONS: Array<[string, () => string]> = [
   [`three ways, ${DAYS} d`, threeWays],
-  [`monte carlo, lights out on day ${GROW_DAYS}`, (): string => blackoutTrace('monte_carlo')],
-  [`anubias, lights out on day ${GROW_DAYS}`, (): string => blackoutTrace('anubias')],
+  [`monte carlo, lights out on day ${BLACKOUT_DAY}`, (): string => blackoutTrace('monte_carlo')],
+  [`anubias, lights out on day ${BLACKOUT_DAY}`, (): string => blackoutTrace('anubias')],
   [`the default fixture for fewer hours, ${DAYS} d`, photoperiod],
   ['the compensation point, against the fixture a day balances under', compensationPoint],
   ['the first week of a plant that has just gone in — size/bank', establishment],
 ];
 
 process.stdout.write(
-  `\n${CAPACITY} L, one plant at size ${PLANTED_AT}, everything but light at optimum.` +
+  `\n${PROBE_TANK_CAPACITY} L, one plant at size ${PLANTED_AT}, everything but light at optimum.` +
     ` The default fixture is ${DEFAULT_LIGHT.par} PAR for ${DEFAULT_LIGHT.schedule.duration} h,` +
     ` ${SUBSTRATE_PAR.toFixed(1)} at the substrate.\n`
 );

@@ -72,9 +72,9 @@ into NH3 → NO2 → NO3 dynamics. See `4-CORE-SYSTEMS.md`.
 ### 4. Vitality layer
 
 Every organism (plants, fish) experiences resources as **stressors**
-(damage rate) and **benefits** (recovery rate). Net rate drives
-`condition` (0–100); when net is positive at full condition the
-overflow accrues into **surplus** — a saturating reserve bank that
+(damage rate), **benefits** (income rate) and, for the ones that store
+their energy, an **upkeep** (the cost of being alive). What income is
+left over accrues into **surplus** — a saturating reserve bank that
 doubles as a lifecycle-outcome stock. The bank also buffers damage:
 when net is negative it drains before condition falls, so a
 well-stocked organism shrugs off a bad tick by burning reserves. The
@@ -85,9 +85,9 @@ species. See § The Vitality Engine below.
 ### 5. Outcome layer
 
 Growth, biomass cap, death. Outcomes are gated by the vitality +
-surplus path: a stressed organism heals first, surplus only flows once
-condition is full. This is the trajectory shape — recover, then grow —
-that the player's choices ultimately produce.
+surplus path: a stressed organism heals first, and only what healing
+did not need reaches growth or breeding. This is the trajectory shape —
+recover, then grow — that the player's choices ultimately produce.
 
 ## The Vitality Engine
 
@@ -119,7 +119,7 @@ Algorithm:
    - negative → the bank absorbs it down to the survival reserve
      (`upkeepRate × upkeepReserveHours`); condition declines only by the
      shortfall the spare couldn't cover (clamped at 0).
-   - positive, condition < 100, no upkeep declared → condition heals;
+   - positive, condition < 100, no upkeep owed → condition heals;
      the bank is idle (overshoot past 100 is spent on the final
      fraction, not banked).
    - positive otherwise → overflow accrues into the bank up to
@@ -128,14 +128,16 @@ Algorithm:
 The two ledgers are one bank in an order, and the order is what keeps a
 poisoned organism from starving itself: upkeep is senior and spends to
 the floor, damage may only reach the spare above the survival reserve.
-An organism declaring no upkeep reserves nothing and runs the single
+An organism owing no upkeep reserves nothing and runs the single
 balance the module always ran.
 
-Step 6's branching enforces the "recover then grow" trajectory: a
-stressed organism cannot make progress while its condition is below
-100 %. The healing burns the entire benefit budget until the deficit is
-paid down. The reserve bank sits one layer above — it protects
-condition from damage and only fills once condition is full.
+Step 6's branching enforces the "recover then grow" trajectory, and the
+two arms are the same ladder from opposite ends. An organism that does
+not store heals on the spot: income burns down the deficit before
+anything is banked. One that does store banks at any condition and
+repairs by *withdrawing*, which is the caller's job — a plant's
+`spendSurplus` pays condition before it pays tissue. Either way nothing
+reaches growth or breeding while a deficit stands.
 
 With the buffer, **condition 100 with negative net means burning
 reserves, not thriving**: an organism under attack reads 100 while its
@@ -154,12 +156,17 @@ lists.
 ## The Surplus Economy
 
 Surplus is a **saturating reserve bank** that doubles as the
-lifecycle-outcome stock. It accumulates when an organism is at full
-condition with positive net rate — *the player has stocked good
-conditions and maintained them well enough that the organism has energy
-to spare* — up to a shared cap (`surplusCap`, default 50, half the
-condition scale). Accrual beyond the cap is discarded, not queued: a
-body banks only so much reserve, like vitamin absorption.
+lifecycle-outcome stock. It accumulates out of whatever income upkeep
+and damage did not claim — *the player has stocked good conditions and
+maintained them well enough that the organism has energy to spare* — up
+to a shared cap (`surplusCap`, default 50, half the condition scale).
+Accrual beyond the cap is discarded, not queued: a body banks only so
+much reserve, like vitamin absorption.
+
+An organism that stores accrues at any condition, because repair is a
+withdrawal rather than a use of income; one that does not store only
+leaves something over once its condition is full. Both spend the deficit
+first — what differs is which side of the bank they spend it from.
 
 The bank protects condition. When net turns negative the reserve drains
 before condition falls, so a well-stocked organism holds full condition
@@ -176,24 +183,27 @@ stores it and spends from it.
 - **Plants.**
   - Vitality returns the new `Plant.surplus` bank each tick.
   - **Accrual** is **photoperiod-gated**: plant surplus represents
-    stored photosynthate (sugars from carbon fixation), so overflow at
-    full condition only banks when `resources.light > 0`. Overnight
-    overflow is discarded — no photosynthesis means no energy capture.
-    (There is none to discard: every plant benefit is multiplied by the
-    light term, so a dark tick earns nothing. What the reserve does
-    overnight is pay the plant's maintenance.)
-  - Each tick of the photoperiod, growth mobilises a configured share
-    of the bank; an asymptotic factor that decays toward zero as size
-    approaches species `maxSize` decides how much of it becomes size,
-    at a rate scaled by species growth rate, and only the converted
-    units leave the bank. While the bank sits below `surplusCap` it
-    settles where the withdrawal matches the income, so an hour's gain
-    is set by what the plant earns and not by how big it is — growth
-    over the first half of a plant's life is roughly linear. Past
-    about half of `maxSize` the bank pegs at the cap and size takes
-    over: the plant slows down while holding a full reserve, and at
-    its ceiling it stops growing entirely without paying for it.
-    Growth is also photoperiod-gated: overnight respiration burns
+    stored photosynthate (sugars from carbon fixation), so overflow
+    only banks when `resources.light > 0`. Overnight overflow is
+    discarded — no photosynthesis means no energy capture. (There is
+    none to discard: every plant benefit is multiplied by the light
+    term, so a dark tick earns nothing. What the reserve does overnight
+    is pay the plant's maintenance.)
+  - Each tick of the photoperiod the plant mobilises a configured share
+    of the bank — never reaching under the survival rations upkeep has
+    spoken for — and spends it in a ladder: **condition first, tissue
+    second.** An asymptotic factor that decays toward zero as size
+    approaches species `maxSize` decides how much of what repair left
+    becomes size, at a rate scaled by species growth rate, and only the
+    units that repaired or converted leave the bank. While the bank
+    sits below `surplusCap` it settles where the withdrawal matches the
+    income, so an hour's gain is set by what the plant earns and not by
+    how big it is — growth over the first part of its life is roughly
+    linear. The cap is reachable only once the asymptotic factor has
+    closed the withdrawal down, which takes most of the growth curve;
+    past that peg the income drops out and size is what slows the plant,
+    until at its ceiling it stops growing entirely without paying for
+    it. Growth is also photoperiod-gated: overnight respiration burns
     sugars for maintenance, not net biomass accumulation, so the bank
     doesn't convert at night either.
   - Once a plant reaches `species.maxSize`, growth stops; surplus
@@ -210,10 +220,10 @@ stores it and spends from it.
   accrues (capped, photoperiod-gated); negative net drains the reserve
   before mass shrinks, so a stocked bloom rides out a hostile tick.
 
-A planted tank illustrates the loop: a healthy plant heals to
-condition 100, banks surplus on each subsequent daylight tick, converts
-some of it to size, and as it approaches `maxSize` the asymptotic
-dampener slows visible growth while the bank fills toward the cap.
+A planted tank illustrates the loop: a healthy plant banks what each
+daylight tick earns, spends a share of the bank back on condition and
+then on size, and as it approaches `maxSize` the asymptotic dampener
+slows visible growth while the bank fills toward the cap.
 
 This is the player's loop in one line: **stack positives, fix
 negatives, accumulate surplus.** A barely-surviving tank stays alive

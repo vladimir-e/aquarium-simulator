@@ -10,10 +10,12 @@
  * 3. Respiration: O2/CO2 effects, 24/7.
  * 4. Vitality per plant: settles both ledgers and returns the new
  *    `Plant.surplus` bank. The bank is a reserve buffer — a deficit
- *    drains it before either stock falls; positive overflow at full
- *    condition accrues back into it (capped at `surplusCap`). Runs every
- *    tick — the plant pays upkeep around the clock and the buffer is
- *    what it pays out of. Accrual is **photoperiod-gated** inside
+ *    drains it before either stock falls; whatever income upkeep and
+ *    damage left accrues back into it at any condition, because a plant
+ *    repairs by withdrawing rather than out of income (capped at
+ *    `surplusCap`). Runs every tick — the plant pays upkeep around the
+ *    clock and the buffer is what it pays out of. Accrual is
+ *    **photoperiod-gated** inside
  *    vitality (`accrueSurplus: light > 0`): surplus represents stored
  *    photosynthate, so overnight overflow is discarded.
  * 5. Store the returned bank on `Plant.surplus` (no separate banking

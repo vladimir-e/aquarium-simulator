@@ -18,8 +18,10 @@ import {
 } from '../state.js';
 import { calculateParAtDepth } from '../equipment/light.js';
 import { opticsDefaults } from '../config/optics.js';
+import { plantsDefaults } from '../config/plants.js';
+import { phDefaults } from '../config/ph.js';
 import type { FishSex, FishSpecies } from '../livestock/species.js';
-import type { PlantSpecies } from '../plants/species.js';
+import { PLANT_SPECIES_DATA, type PlantSpecies } from '../plants/species.js';
 import { getSpeciesMaxSize } from '../systems/plant-growth.js';
 import { tick } from '../tick.js';
 import { applySeed, type PresetSeed, type SeedPlantGroup } from '../seed.js';
@@ -44,6 +46,26 @@ export const DAY = 24;
  * top of these are exactly the ones an anchor reads.
  */
 export const DEFAULT_RNG_SEED = 1234;
+
+/**
+ * The water temperature every scenario here heats to, and the one
+ * {@link atOptimum} rewrites to — one number, so a hold and the heater under it
+ * cannot spend the run arguing over a tenth of a degree.
+ */
+export const OPTIMUM_TEMPERATURE = 25;
+
+/**
+ * The plant roster, dimmest band first.
+ *
+ * Sorted rather than listed so a sixth species joins the sweeps by existing,
+ * and so the order is a fact about the species rather than a habit of whoever
+ * typed the array — every probe that walks the roster is walking a light axis.
+ */
+export const SPECIES_BY_LIGHT: PlantSpecies[] = (
+  Object.keys(PLANT_SPECIES_DATA) as PlantSpecies[]
+).sort(
+  (a, b) => PLANT_SPECIES_DATA[a].tolerableLight[0] - PLANT_SPECIES_DATA[b].tolerableLight[0]
+);
 
 /** Advance a tank by `hours` ticks. */
 export function run(
@@ -90,10 +112,29 @@ export const atOptimum = (state: SimulationState): SimulationState =>
     draft.resources.phosphate = getMassFromPpm(nutrientsDefaults.optimalPhosphatePpm, water);
     draft.resources.potassium = getMassFromPpm(nutrientsDefaults.optimalPotassiumPpm, water);
     draft.resources.iron = getMassFromPpm(nutrientsDefaults.optimalIronPpm, water);
-    draft.resources.co2 = 20;
-    draft.resources.ph = 7.0;
-    draft.resources.temperature = 25;
+    draft.resources.co2 = plantsDefaults.optimalCo2;
+    draft.resources.ph = phDefaults.neutralPh;
+    draft.resources.temperature = OPTIMUM_TEMPERATURE;
   });
+
+/**
+ * The same hold with one channel taken away and held away — the shape of a
+ * keeper's own outage, and the only way to read what a *second* empty channel
+ * costs a plant the light is already pricing.
+ */
+export const deprived =
+  (channel: 'none' | 'nutrients' | 'co2'): ((state: SimulationState) => SimulationState) =>
+  (state) =>
+    produce(atOptimum(state), (draft) => {
+      const { water } = draft.resources;
+      if (channel === 'nutrients') {
+        draft.resources.nitrate = getMassFromPpm(0.5, water);
+        draft.resources.phosphate = 0;
+        draft.resources.potassium = 0;
+        draft.resources.iron = 0;
+      }
+      if (channel === 'co2') draft.resources.co2 = 3;
+    });
 
 /** There is no chiller, so a tank only sits below the room if the room is that cold. */
 const roomFor = (temperature: number): number =>
@@ -140,7 +181,7 @@ export function fishlessTank(
   {
     capacity = 20,
     ato = true,
-    temperature = 25,
+    temperature = OPTIMUM_TEMPERATURE,
     // The sponge every fresh tank starts with. Named rather than inherited,
     // because what the water is getting is the variable these traces vary.
     circulation = { filter: 'sponge' },
@@ -275,7 +316,11 @@ export function plantedTank(
 ): SimulationConfig {
   return {
     tankCapacity: capacity,
-    heater: { enabled: true, targetTemperature: 25, wattage: Math.max(100, capacity) },
+    heater: {
+      enabled: true,
+      targetTemperature: OPTIMUM_TEMPERATURE,
+      wattage: Math.max(100, capacity),
+    },
     filter: { enabled: true, type: 'canister' },
     light: { enabled: true, par, schedule: { startHour: 8, duration: 12 } },
     substrate: { type: 'aqua_soil' },
@@ -286,6 +331,122 @@ export function plantedTank(
       : { enabled: false },
   };
 }
+
+/** The size a plant goes into these tanks at — a cutting, not a specimen. */
+export const PLANTED_AT = 35;
+
+/** A cycled tank holding one plant of one species, which is most of these runs. */
+export const onePlant = (species: PlantSpecies, size = PLANTED_AT): PresetSeed => ({
+  bacteria: 'cycled',
+  plants: [{ species, count: 1, size }],
+});
+
+/** The nano every single-plant reading is taken in, litres. */
+export const PROBE_TANK_CAPACITY = 40;
+
+/**
+ * The tank a reading of the light channel is taken in: lid on, carbon injected,
+ * no heater — every channel but light comes from the run's own hold, so the
+ * fixture is the only thing left free to hurt anything.
+ *
+ * `lit: false` is a fixture that never comes on, the extreme that says whether
+ * the channel exists at all.
+ */
+export function fixtureTank(lit: boolean): SimulationConfig {
+  return {
+    tankCapacity: PROBE_TANK_CAPACITY,
+    heater: { enabled: false },
+    filter: { enabled: true, type: 'canister' },
+    substrate: { type: 'aqua_soil' },
+    hardscape: { items: [] },
+    lid: { type: 'full' },
+    ato: { enabled: true },
+    co2Generator: { enabled: true, bubbleRate: 1.0, schedule: { startHour: 7, duration: 10 } },
+    powerhead: { enabled: false },
+    light: { enabled: lit },
+  };
+}
+
+/** Days a blackout run spends lit before the switch — long enough to fill a bank. */
+export const BLACKOUT_DAY = 30;
+
+/**
+ * {@link atOptimum}, with the lights cut on `day` and never switched back on —
+ * the outage a keeper actually produces, and the only run where the lag between
+ * darkness and damage has a full bank to show up against.
+ */
+export const blackoutFrom =
+  (day: number) =>
+  (state: SimulationState): SimulationState =>
+    produce(atOptimum(state), (draft) => {
+      if (draft.tick >= day * DAY) draft.equipment.light.enabled = false;
+    });
+
+/**
+ * A tank aimed at a *substrate* reading rather than a fixture rating, with
+ * nothing dosed and no carbon injected — so a run across it varies the light
+ * and the hold supplies everything else.
+ *
+ * The sibling of {@link plantedTank}, and the difference is what each is for:
+ * that one is a keeper's dosed high-tech tank, this one is an instrument.
+ */
+export function litTank(substratePar: number, capacity = PROBE_TANK_CAPACITY, hours = 12): SimulationConfig {
+  return {
+    tankCapacity: capacity,
+    heater: {
+      enabled: true,
+      targetTemperature: OPTIMUM_TEMPERATURE,
+      wattage: Math.max(100, capacity),
+    },
+    filter: { enabled: true, type: 'canister' },
+    light: {
+      enabled: true,
+      par: fixtureFor(substratePar, capacity),
+      schedule: { startHour: 8, duration: hours },
+    },
+    substrate: { type: 'aqua_soil' },
+    lid: { type: 'full' },
+    ato: { enabled: true },
+    co2Generator: { enabled: false },
+    powerhead: { enabled: false },
+  };
+}
+
+/**
+ * Scenario 02's tank, as `docs/calibration/scenarios/02-planted-equilibrium.md`
+ * sets it: the heavily planted 38 L the plants subsystem is pinned on. `dosed`
+ * is the variant — A runs the auto-doser, B does not.
+ */
+export function scenario02Tank(dosed: boolean): SimulationConfig {
+  return {
+    tankCapacity: 38,
+    heater: { enabled: true, targetTemperature: OPTIMUM_TEMPERATURE, wattage: 50 },
+    filter: { enabled: true, type: 'canister' },
+    light: { enabled: true, par: 90, schedule: { startHour: 8, duration: 8 } },
+    substrate: { type: 'aqua_soil' },
+    lid: { type: 'full' },
+    ato: { enabled: true },
+    co2Generator: { enabled: true, bubbleRate: 1.5, schedule: { startHour: 7, duration: 10 } },
+    powerhead: { enabled: false },
+    autoDoser: dosed
+      ? { enabled: true, doseAmountMl: 1, schedule: { startHour: 8, duration: 1 } }
+      : { enabled: false },
+  };
+}
+
+/** Scenario 02's roster: ten neons over a mixed planting, all one sex so it stays ten. */
+export const SCENARIO_02_SEED: PresetSeed = {
+  bacteria: 'cycled',
+  fish: [{ species: 'neon_tetra', count: 10, sex: 'female' }],
+  plants: [
+    { species: 'amazon_sword', count: 2, size: 35 },
+    { species: 'monte_carlo', count: 2, size: 35 },
+    { species: 'java_fern', count: 1, size: 35 },
+  ],
+};
+
+/** Scenario 02's keeper: a daily pinch of food and a top-off, nothing else. */
+export const SCENARIO_02_ROUTINE: KeeperRoutine = { feed: 0.05, topOff: true };
 
 /** What a planting is made of, before a size is chosen for it. */
 export interface PlantMix {
@@ -527,13 +688,13 @@ export function keep(
 
   for (let hour = 1; hour <= days * DAY; hour++) {
     if (feed !== undefined && hour % DAY === 9) {
-      running = applyAction(running, { type: 'feed', amount: feed }).state;
+      running = applyAction(running, { type: 'feed', amount: feed }, config).state;
     }
     if (topOff && hour % DAY === 10) {
-      running = applyAction(running, { type: 'topOff' }).state;
+      running = applyAction(running, { type: 'topOff' }, config).state;
     }
     if (waterChange !== undefined && hour % (7 * DAY) === 0) {
-      running = applyAction(running, { type: 'waterChange', amount: waterChange }).state;
+      running = applyAction(running, { type: 'waterChange', amount: waterChange }, config).state;
     }
 
     if (hold !== undefined) running = hold(running);

@@ -18,15 +18,24 @@ import type { HistorySnapshot } from './history.js';
  * missing field. Parallel to the UI's `PERSISTENCE_VERSION`. Pre-launch
  * rule is reject, not migrate.
  *
- * v10 put a compensation point under the plant. `PlantsConfig` gains
- *    `upkeepCost` and the `upkeepReserveHours` that says how much of the
- *    bank is held back to pay it, and drops `lightBenefitPeak` now that the
- *    light term multiplies the other four peaks instead of standing beside
- *    them, and `sheddingConditionThreshold` now that shedding reads an unpaid
- *    bill rather than a condition. A v9 session parses, and the first tick
- *    charges an upkeep the config does not carry: every plant's condition
- *    and bank are `NaN` from there on, and the session is written back that
- *    way.
+ * v11 gave the maintenance term one name and dropped the multiple that stood
+ *    on top of it. `PlantsConfig`'s `maintenanceCost` became `upkeepCost` and
+ *    `starvationReserveHours` became `upkeepReserveHours`, and
+ *    `starvationMultiplier` went — shedding reads the unpaid share of the bill
+ *    itself, so there is nothing left for a multiple to scale. A v10 session
+ *    parses carrying neither new key: every plant is charged an `undefined`
+ *    upkeep against an `undefined` reserve, so its condition and bank are
+ *    `NaN` from the first tick, and the session is written back that way.
+ * v10 put a compensation point under the plant. `PlantsConfig` gains three
+ *    keys — `maintenanceCost` (v11's `upkeepCost`), the
+ *    `starvationReserveHours` that says how much of the bank is held back to
+ *    pay it, and the `starvationMultiplier` an empty bank cost on top — and
+ *    drops two: `lightBenefitPeak`, now that the light term multiplies the
+ *    other four peaks instead of standing beside them, and
+ *    `sheddingConditionThreshold`, now that shedding reads an unpaid bill
+ *    rather than a condition. A v9 session parses, and the first tick charges
+ *    an upkeep the config does not carry: every plant's condition and bank are
+ *    `NaN` from there on, and the session is written back that way.
  * v9 made growth draw a share of the bank rather than a flat ration.
  *    `PlantsConfig` swapped `plantGrowthPerTickCap` — units per tick — for
  *    `growthDrawRate`, the fraction of the reserve a plant mobilises per lit
