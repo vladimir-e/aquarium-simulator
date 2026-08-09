@@ -11,6 +11,7 @@ Format: - **Feature name** (#PR) - One short sentence (under ~150 chars)
 
 ## Unreleased
 
+- **The reserve holds against repair too** - a plant's growth and its repair spend only what stands above the survival rations, so damage that stopped at the line is not undone from under it the next tick.
 - **A nutrient shortfall is pinned from both ends** - `nutrientDeficiencySeverity` 0.7 → 0.3, re-derived against the corrected photosynthate income.
 - **One reserve, two claims, in an order** - upkeep may spend the bank to the last unit, damage only what stands above `upkeepReserveHours` of it; `starvationMultiplier` deleted.
 - **A starving plant eats itself, not its health** - upkeep is its own ledger, paid out of the bank and then out of `size`; shedding fires on the unpaid share of the bill.

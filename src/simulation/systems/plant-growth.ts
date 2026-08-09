@@ -10,6 +10,13 @@
  * both rungs draw from, which is what leaves a recovering plant with
  * something to pay the night with.
  *
+ * Both rungs are junior to upkeep, so both stop at the same floor damage
+ * stops at: the withdrawal comes out of `spendableSurplus`, never out of
+ * the survival rations. Without that a lit plant under mild stress hands
+ * the ration back through repair — damage stops at the floor and takes
+ * condition, repair reaches under the floor and gives the condition back,
+ * and the plant starves a tick later having paid twice for one hour.
+ *
  * Only what was spent leaves the bank — a plant at full condition and at
  * its ceiling converts nothing and pays nothing, so its whole income
  * banks instead of burning. That reserve is what rides out a dark spell,
@@ -27,6 +34,7 @@ import type { PlantSpecies } from '../plants/species.js';
 import { PLANT_SPECIES_DATA } from '../plants/species.js';
 import type { PlantsConfig } from '../config/plants.js';
 import { plantsDefaults } from '../config/plants.js';
+import { spendableSurplus } from './vitality.js';
 
 /**
  * Get the growth rate for a plant species. Per-species multiplier on
@@ -52,13 +60,18 @@ export function asymptoticGrowthFactor(size: number, maxSize: number): number {
   return Math.max(0, 1 - size / maxSize);
 }
 
-export function spendSurplus(plant: Plant, config: PlantsConfig = plantsDefaults): Plant {
-  if (plant.surplus <= 0) return plant;
+export function spendSurplus(
+  plant: Plant,
+  reserved: number,
+  config: PlantsConfig = plantsDefaults
+): Plant {
+  const spendable = spendableSurplus(plant.surplus, reserved);
+  if (spendable <= 0) return plant;
 
-  // The bank bounds the withdrawal whatever the config says the rate is: a
-  // restored save carries any finite `growthDrawRate`, and one above 1 would
-  // otherwise drive the bank negative and latch it there on the early return.
-  const mobilised = Math.min(plant.surplus, plant.surplus * config.growthDrawRate);
+  // The spendable bank bounds the withdrawal whatever the config says the rate
+  // is: a restored save carries any finite `growthDrawRate`, and one above 1
+  // would otherwise drive the bank negative and latch it there.
+  const mobilised = Math.min(spendable, plant.surplus * config.growthDrawRate);
 
   // A bank unit is a condition point — the bank accrued out of the same
   // %/h the condition deficit is measured in.

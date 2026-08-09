@@ -18,11 +18,12 @@
  *    photosynthate, so overnight overflow is discarded.
  * 5. Store the returned bank on `Plant.surplus` (no separate banking
  *    step — vitality already produced the final value).
- * 6. Spend surplus on growth: mobilises `growthDrawRate` of the bank,
- *    converts the asymptotic share of it to size, and withdraws only
- *    what converted. Also photoperiod-gated — no carbon fixation
- *    overnight, no net biomass accumulation. What growth can't use
- *    stays banked, for a dark spell and for propagation.
+ * 6. Spend surplus on repair and then growth: mobilises `growthDrawRate`
+ *    of the bank down to the depth upkeep reserved, converts the
+ *    asymptotic share of it to size, and withdraws only what repaired or
+ *    converted. Also photoperiod-gated — no carbon fixation overnight, no
+ *    net biomass accumulation. What growth can't use stays banked, for a
+ *    dark spell and for propagation.
  * 7. Shedding + death (lifecycle module) — applied last, can remove
  *    plants from the tank. Shedding is the other side of step 6: what
  *    the bank could not pay of the upkeep comes back out of size.
@@ -217,7 +218,7 @@ export function processPlants(
       condition: v.newCondition,
       surplus: v.surplus,
     };
-    return photoperiodActive ? spendSurplus(updated, plantsConfig) : updated;
+    return photoperiodActive ? spendSurplus(updated, v.breakdown.reserved, plantsConfig) : updated;
   });
 
   // 5. Shedding (a plant pays an unpayable upkeep bill in tissue) and death.

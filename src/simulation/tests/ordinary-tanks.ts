@@ -242,13 +242,15 @@ interface Keeping {
   waterChange?: number;
   /** Whether the keeper switches the preset's auto-doser on. */
   dose?: boolean;
+  /** How long the keeper is away for. */
+  days?: number;
 }
 
 function presetRun(
   id: PresetId,
   plants: PresetSeed['plants'],
   fish: number,
-  { waterChange, dose = false }: Keeping = {}
+  { waterChange, dose = false, days = 90 }: Keeping = {}
 ): Outcome {
   const preset = PRESETS.find((p) => p.id === id);
   if (preset === undefined) throw new Error(`no preset ${id}`);
@@ -273,7 +275,7 @@ function presetRun(
           ? { fish: [{ species: 'neon_tetra' as const, count: fish, sex: 'female' as const }] }
           : {}),
       },
-      days: 90,
+      days,
       routine: { feed: fish > 0 ? 0.005 * fish : undefined, topOff: true, waterChange },
       rngSeed: 5,
     })
@@ -310,6 +312,20 @@ function presets(): string {
     { preset: 'community 150L', planting: 'fern+anubias', ...presetRun('community', EASY, 12) },
     { preset: 'betta 20L', planting: 'fern+anubias', ...presetRun('betta', EASY, 1) },
     { preset: 'angelfish 300L', planting: 'fern+anubias', ...presetRun('angelfish', EASY, 8) },
+  ]);
+}
+
+/**
+ * The marginal end `nutrientDeficiencySeverity` is pinned on — the two shipped
+ * presets a beginner presses, planted with the two plants every guide names, no
+ * doser, no water changes, half a year. `2026-08-08-reserve-by-priority.md` § 2
+ * binds the severity at 0.30 on this run keeping all five plants alive and the
+ * nano's fish with them; nothing committed measured it until now.
+ */
+function marginal(): string {
+  return formatTable([
+    { preset: 'planted 40L', ...presetRun('planted', EASY, 6, { days: 180 }) },
+    { preset: 'betta 20L', ...presetRun('betta', EASY, 1, { days: 180 }) },
   ]);
 }
 
@@ -632,6 +648,7 @@ const SECTIONS: Record<string, [string, () => string]> = {
   's02-b': ['scenario 02 variant B, by day, seed 5', (): string => scenario02Trace('B')],
   's02-fish': ['scenario 02 variant A, the hour each neon goes', scenario02Fish],
   presets: ['shipped presets, planted by a player, 90 d', presets],
+  marginal: ['the two presets a beginner presses, undosed, 180 d', marginal],
   'preset-why': ['the planted preset, what charges a java fern', presetDiagnosis],
   volumes: ['one planting, every volume, water pinned, 90 d', volumes],
   species: ['every species across its own band, water pinned, 90 d', speciesFixtures],

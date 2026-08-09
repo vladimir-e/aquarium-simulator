@@ -211,23 +211,31 @@ pipeline is:
    night the reserve buffers the maintenance the plant is still paying,
    and the cap clamp still applies.)
 3. While the photoperiod is active, the plant mobilises
-   `growthDrawRate` of the bank toward new tissue, and the asymptotic
-   factor decides how much of that becomes size:
+   `growthDrawRate` of the bank — but never past the survival rations —
+   and pays condition first and new tissue second, the asymptotic factor
+   deciding how much of what is left becomes size:
 
    ```
-   converted = surplus × growthDrawRate × asymptoticFactor
+   mobilised = min(max(0, surplus − reserved), surplus × growthDrawRate)
+   repaired  = min(mobilised, 100 − condition)
+   converted = (mobilised − repaired) × asymptoticFactor
    asymptoticFactor = max(0, 1 − size / species.maxSize)
    size_gain = converted × speciesGrowthRate × sizePerSurplus
    ```
+
+   `reserved` is the same line damage stops at (§ Vitality math), and
+   both rungs of the ladder are junior to upkeep for the same reason:
+   a plant that could repair out of its rations would hand back the
+   condition damage just took and starve an hour later.
 
    Growth pauses at night for the same biological reason: overnight
    respiration burns sugars for maintenance, but net biomass
    accumulation requires active carbon fixation. The bank doesn't
    convert in the dark.
-4. **`converted` is the whole withdrawal** — the bank pays for the
-   growth delivered and nothing else. What growth couldn't use stays
-   banked. The bank is the canonical lifecycle-outcome stock for
-   plants.
+4. **`repaired + converted` is the whole withdrawal** — the bank pays
+   for the condition and the growth delivered and nothing else. What
+   the ladder couldn't use stays banked. The bank is the canonical
+   lifecycle-outcome stock for plants.
 
 So a plant at its ceiling converts nothing, pays nothing, and banks
 every unit it earns; a plant with room converts a share and banks the
@@ -533,7 +541,9 @@ Three consequences worth internalising:
   `spendSurplus` alongside growth and ahead of it — the same heal-then-
   grow ladder, with the bank as the pool both rungs draw from. A bank
   unit is a condition point; the bank accrued out of the same %/h the
-  deficit is measured in.
+  deficit is measured in. Both rungs stop where damage stops: the
+  withdrawal comes out of `max(0, bank − reserved)`, so the line holds
+  for more than the tick that drew it.
 - **Damage is met out of income first, then out of the spare.** A
   nagging channel costs a plant its banking rate — which is to say its
   growth — before it costs any reserve, and its reserve before it costs

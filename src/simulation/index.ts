@@ -329,6 +329,7 @@ export {
 export {
   computeVitality,
   bankSurplus,
+  spendableSurplus,
   type VitalityFactor,
   type VitalityInput,
   type VitalityResult,

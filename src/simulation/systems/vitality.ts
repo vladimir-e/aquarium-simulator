@@ -131,6 +131,12 @@ export interface VitalityBreakdown {
   damageRate: number;
   /** Total cost of living (%/h), post-hardiness. */
   upkeepRate: number;
+  /**
+   * Depth of the bank upkeep has spoken for — `upkeepRate ×
+   * upkeepReserveHours`. Nothing but upkeep may spend below it, here or in
+   * whatever the caller does with the bank afterwards.
+   */
+  reserved: number;
   /** Total benefit rate (%/h). */
   benefitRate: number;
   /** Net rate (benefit − upkeep − damage). Positive = recovering. */
@@ -186,6 +192,19 @@ function clampBank(bank: number, cap: number): number {
 }
 
 /**
+ * What a bank holds above a reserved depth — the only part of it any claim
+ * junior to upkeep may take.
+ *
+ * The one definition of the floor. `bankSurplus` bounds a tick's damage by it,
+ * and every caller that spends the bank on something else — a plant's repair,
+ * its growth — bounds its withdrawal by the same call. A floor each claimant
+ * subtracts for itself is a floor one of them forgets.
+ */
+export function spendableSurplus(bank: number, reserved: number): number {
+  return Math.max(0, bank - Math.max(0, reserved));
+}
+
+/**
  * Fold one tick's net vitality rate into a saturating reserve bank.
  *
  * The bank is a protective buffer above the organism's stock (fish /
@@ -219,7 +238,7 @@ export function bankSurplus(
   const safeCap = Math.max(0, cap);
   const start = clampBank(bank, safeCap);
   if (net < 0) {
-    const drained = Math.min(Math.max(0, start - Math.max(0, reserved)), -net);
+    const drained = Math.min(spendableSurplus(start, reserved), -net);
     return { surplus: start - drained, drained, overflowDamage: -net - drained };
   }
   if (net > 0 && accrue) {
@@ -261,9 +280,12 @@ export function bankSurplus(
  * For an organism that stores its energy, nothing here repairs
  * condition: repair is a withdrawal the caller makes from the bank,
  * ahead of growth, which is the "recover then grow" ladder with the bank
- * as the pool both rungs draw from. For one that does not, healing burns
- * the whole benefit budget until the deficit is paid down — the same
- * ladder from the other end.
+ * as the pool both rungs draw from. That withdrawal is junior to upkeep
+ * exactly as damage is, so it is bounded by `breakdown.reserved` through
+ * {@link spendableSurplus} — a floor damage stops at and repair steps over
+ * gives the condition back one tick later out of the rations. For an
+ * organism that does not store, healing burns the whole benefit budget
+ * until the deficit is paid down — the same ladder from the other end.
  */
 export function computeVitality(input: VitalityInput): VitalityResult {
   // Clamp hardiness to [0, 1]; out-of-range values shouldn't poison the
@@ -354,6 +376,7 @@ export function computeVitality(input: VitalityInput): VitalityResult {
       benefits: input.benefits,
       damageRate,
       upkeepRate,
+      reserved,
       benefitRate,
       net,
       drained,

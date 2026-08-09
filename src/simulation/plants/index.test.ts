@@ -210,7 +210,7 @@ describe('processPlants', () => {
 
     it('updates plant sizes due to growth', () => {
       const state = createTestState({
-        plants: [{ id: 'p1', species: 'java_fern', size: 50, condition: C, surplus: 0 }],
+        plants: [{ id: 'p1', species: 'java_fern', size: 50, condition: C, surplus: BANK }],
         light: 50,
         co2: plantsDefaults.optimalCo2,
         nitrate: plantsDefaults.optimalNitrate * 100,
@@ -228,7 +228,7 @@ describe('processPlants', () => {
       // photosynthate flows to maintenance, not new tissue.
       const state = createTestState({
         plants: [
-          { id: 'p1', species: 'java_fern', size: 50, condition: 80, surplus: 0 },
+          { id: 'p1', species: 'java_fern', size: 50, condition: 80, surplus: BANK },
         ],
         light: 50,
         co2: plantsDefaults.optimalCo2,
@@ -249,8 +249,8 @@ describe('processPlants', () => {
       // unhealthy sibling is excluded from the share calculation.
       const state = createTestState({
         plants: [
-          { id: 'healthy', species: 'java_fern', size: 50, condition: 100, surplus: 0 },
-          { id: 'stressed', species: 'java_fern', size: 50, condition: 70, surplus: 0 },
+          { id: 'healthy', species: 'java_fern', size: 50, condition: 100, surplus: BANK },
+          { id: 'stressed', species: 'java_fern', size: 50, condition: 70, surplus: BANK },
         ],
         light: 50,
         co2: plantsDefaults.optimalCo2,
