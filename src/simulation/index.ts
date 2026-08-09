@@ -297,9 +297,10 @@ export {
   calculateCo2Factor,
   calculateRespiration,
   getRespirationTemperatureFactor,
-  spendSurplusOnGrowth,
+  spendSurplus,
   getSpeciesGrowthRate,
   computePlantVitality,
+  buildPlantUpkeep,
   buildPlantStressors,
   buildPlantBenefits,
 } from './plants/index.js';
@@ -328,6 +329,7 @@ export {
 export {
   computeVitality,
   bankSurplus,
+  spendableSurplus,
   type VitalityFactor,
   type VitalityInput,
   type VitalityResult,

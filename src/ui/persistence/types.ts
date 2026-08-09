@@ -22,6 +22,29 @@ import type { TunableConfig } from '../../simulation/config/index.js';
  * Increment this when the structure changes in a breaking way.
  * On version mismatch, stored data is discarded.
  *
+ * v24: The maintenance term got one name and lost the multiple that stood on
+ *      top of it. `PlantsConfig`'s `maintenanceCost` became `upkeepCost` and
+ *      `starvationReserveHours` became `upkeepReserveHours`, and
+ *      `starvationMultiplier` went — shedding reads the unpaid share of the
+ *      bill itself, so there is nothing left for a multiple to scale. A v23
+ *      save carries the two old names and the deleted key, and the strict
+ *      schema would otherwise revert every tuned constant to defaults behind a
+ *      console warning rather than announcing itself.
+ *
+ * v23: Darkness costs a plant, and it is paid in tissue. `PlantsConfig` gains
+ *      three keys — the always-on `maintenanceCost` (v24's `upkeepCost`), the
+ *      `starvationReserveHours` (v24's `upkeepReserveHours`) that says how much
+ *      of the bank is held back to pay it, and the `starvationMultiplier` an
+ *      empty bank cost on top — and drops two:
+ *      `lightBenefitPeak`, because light is no longer a channel of its own but
+ *      the term the other four are multiplied by (so those four move
+ *      0.1 → 0.125 to hold the same 0.5 %/h budget), and
+ *      `sheddingConditionThreshold`, because shedding reads the share of its
+ *      upkeep a plant failed to pay and there is no threshold left to cross.
+ *      `maxSheddingRate` is redenominated with it, against a bill rather than
+ *      against condition 0. A v22 config carries the two dropped keys and is
+ *      missing the three new ones, and the strict schema refuses that section;
+ *      a refused section reverts every other one to its defaults.
  * v22: Growth draws a share of the bank instead of a flat ceiling.
  *      `PlantsConfig` swaps `plantGrowthPerTickCap` (surplus units per tick)
  *      for `growthDrawRate` (share of the bank per lit hour), and only the
@@ -149,7 +172,7 @@ import type { TunableConfig } from '../../simulation/config/index.js';
  *     nutrient sufficiency) but its persisted shape is identical, so
  *     the bump is purely the new Fish field.
  */
-export const PERSISTENCE_VERSION = 22;
+export const PERSISTENCE_VERSION = 24;
 
 /**
  * Storage key for the unified persisted state.

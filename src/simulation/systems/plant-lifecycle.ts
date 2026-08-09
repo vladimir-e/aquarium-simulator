@@ -1,17 +1,20 @@
 /**
  * Plant lifecycle — shedding, death, and death-waste production.
  *
- * Downstream of the vitality engine: condition is set by
- * {@link computePlantVitality}, and this module decides what happens
- * once condition crosses the configured shedding / death thresholds.
+ * Downstream of the vitality engine: {@link computePlantVitality} settles
+ * both ledgers, and this module spends what the energy one could not pay.
  *
- * - Shedding is a "negative growth" path that fires only when condition
- *   is low: a stressed plant loses size proportional to how far below
- *   the shedding threshold it has fallen, releasing waste in the
- *   process.
+ * - Shedding is the outlet for an unpayable upkeep bill. A plant that
+ *   earns and banks nothing drops a share of itself every hour, and the
+ *   tissue leaves as waste rather than as fuel — melting plants foul the
+ *   water, which is why `wastePerShedSize` exists at all. Between full
+ *   payment and none the rate is the share of the bill left standing:
+ *   a rate reading a rate, with no threshold anywhere in it.
  * - Death is a hard cutoff: condition or size below their respective
- *   thresholds removes the plant from the tank. The remaining biomass
- *   is converted to waste.
+ *   thresholds removes the plant from the tank. Shedding down past
+ *   `deathSizeThreshold` is the honest end of a starved plant — nothing
+ *   left of it — while condition carries the plants that were damaged
+ *   rather than starved.
  *
  * All knobs live on `PlantsConfig` alongside the rest of the plant-
  * lifecycle calibration (vitality severities, growth, biomass cap).
@@ -22,31 +25,21 @@ import type { PlantsConfig } from '../config/plants.js';
 import { plantsDefaults } from '../config/plants.js';
 
 /**
- * Calculate shedding for a plant with low condition.
+ * Tissue a plant drops this tick, and the waste it makes doing it.
  *
  * @param plant - Current plant state
+ * @param starved - Share of its upkeep (0–1) neither income nor the bank
+ *   covered, off `VitalityBreakdown.starved`
  * @param config - Plants configuration
- * @returns Object with size reduction and waste produced
  */
 export function calculateShedding(
   plant: Plant,
+  starved: number,
   config: PlantsConfig = plantsDefaults
 ): { sizeReduction: number; wasteProduced: number } {
-  if (plant.condition >= config.sheddingConditionThreshold) {
-    return { sizeReduction: 0, wasteProduced: 0 };
-  }
+  const sizeReduction = plant.size * starved * config.maxSheddingRate;
 
-  // Shedding rate scales with how low the condition is.
-  // At condition 0: rate = maxSheddingRate.
-  // At sheddingConditionThreshold: rate = 0.
-  const sheddingIntensity =
-    (config.sheddingConditionThreshold - plant.condition) / config.sheddingConditionThreshold;
-  const sheddingRate = sheddingIntensity * config.maxSheddingRate;
-
-  const sizeReduction = plant.size * sheddingRate;
-  const wasteProduced = sizeReduction * config.wastePerShedSize;
-
-  return { sizeReduction, wasteProduced };
+  return { sizeReduction, wasteProduced: sizeReduction * config.wastePerShedSize };
 }
 
 /**

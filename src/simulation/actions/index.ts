@@ -1,4 +1,5 @@
 import type { SimulationState } from '../state.js';
+import { DEFAULT_CONFIG, type TunableConfig } from '../config/index.js';
 import type { Action, ActionResult } from './types.js';
 import { topOff } from './top-off.js';
 import { feed } from './feed.js';
@@ -26,7 +27,8 @@ export * from './fish-management.js';
  */
 export function applyAction(
   state: SimulationState,
-  action: Action
+  action: Action,
+  config: TunableConfig = DEFAULT_CONFIG
 ): ActionResult {
   // Note: When adding new action types:
   // 1. Add the type to ActionType in types.ts
@@ -43,7 +45,7 @@ export function applyAction(
     case 'trimPlants':
       return trimPlants(state, action);
     case 'addPlant':
-      return addPlant(state, action);
+      return addPlant(state, action, config.plants);
     case 'removePlant':
       return removePlant(state, action);
     case 'dose':

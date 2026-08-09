@@ -18,7 +18,6 @@ describe('nutrients system', () => {
       aeration: false,
       food: 0,
       waste: 0,
-      algae: 0,
       ammonia: 0,
       nitrite: 0,
       nitrate: 0,

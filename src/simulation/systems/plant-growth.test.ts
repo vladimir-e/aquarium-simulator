@@ -1,10 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import {
-  spendSurplusOnGrowth,
+  spendSurplus,
   getSpeciesGrowthRate,
   getSpeciesMaxSize,
   asymptoticGrowthFactor,
 } from './plant-growth.js';
+import { computeVitality, type VitalityResult } from './vitality.js';
 import type { Plant } from '../state.js';
 import type { PlantSpecies } from '../plants/species.js';
 import { plantsConfigMeta, plantsDefaults } from '../config/plants.js';
@@ -68,25 +69,25 @@ describe('getSpeciesMaxSize', () => {
 
 /** What the bank paid for the size a spend delivered. */
 function withdrawal(plant: Plant): number {
-  return plant.surplus - spendSurplusOnGrowth(plant).surplus;
+  return plant.surplus - spendSurplus(plant, 0).surplus;
 }
 
 /** The size a spend delivered. */
 function growth(plant: Plant): number {
-  return spendSurplusOnGrowth(plant).size - plant.size;
+  return spendSurplus(plant, 0).size - plant.size;
 }
 
-describe('spendSurplusOnGrowth', () => {
+describe('spendSurplus', () => {
   it('returns the plant unchanged when surplus is 0', () => {
     const plant = makePlant('java_fern', { surplus: 0, size: 50 });
-    const after = spendSurplusOnGrowth(plant);
+    const after = spendSurplus(plant, 0);
     expect(after.size).toBe(50);
     expect(after.surplus).toBe(0);
   });
 
   it('returns the plant unchanged when surplus is negative (defensive)', () => {
     const plant = makePlant('java_fern', { surplus: -1, size: 50 });
-    const after = spendSurplusOnGrowth(plant);
+    const after = spendSurplus(plant, 0);
     expect(after).toBe(plant); // identity-equal — early return
   });
 
@@ -99,7 +100,7 @@ describe('spendSurplusOnGrowth', () => {
   it('leaves the rest of the bank alone', () => {
     const plant = makePlant('java_fern', { surplus: 20, size: 300 });
     expect(withdrawal(plant)).toBeLessThan(plant.surplus);
-    expect(spendSurplusOnGrowth(plant).surplus).toBeGreaterThan(0);
+    expect(spendSurplus(plant, 0).surplus).toBeGreaterThan(0);
   });
 
   it('size gain = surplus × growthDrawRate × asymptoticFactor × speciesRate × sizePerSurplus', () => {
@@ -153,7 +154,7 @@ describe('spendSurplusOnGrowth', () => {
       surplus: 25,
       size: getSpeciesMaxSize('java_fern'),
     });
-    const after = spendSurplusOnGrowth(plant);
+    const after = spendSurplus(plant, 0);
     expect(after.size).toBe(plant.size);
     expect(after.surplus).toBe(plant.surplus);
   });
@@ -171,7 +172,7 @@ describe('spendSurplusOnGrowth', () => {
 
     for (const growthDrawRate of [maxTunable!, 1, 1.5, 100]) {
       const plant = makePlant('monte_carlo', { surplus: plantsDefaults.surplusCap, size: 0 });
-      const after = spendSurplusOnGrowth(plant, { ...plantsDefaults, growthDrawRate });
+      const after = spendSurplus(plant, 0, { ...plantsDefaults, growthDrawRate });
       expect(after.surplus).toBeGreaterThanOrEqual(0);
       expect(after.size - plant.size).toBeCloseTo(
         (plant.surplus - after.surplus) *
@@ -180,5 +181,63 @@ describe('spendSurplusOnGrowth', () => {
         10
       );
     }
+  });
+});
+
+/**
+ * The bank serves two claims in an order, and the spend is the junior one.
+ * Damage stops at the survival rations and takes condition instead; if repair
+ * could reach under that line it would hand the condition straight back out of
+ * the rations, and the plant would starve a tick later having paid twice for
+ * one bad hour. Driven through `computeVitality` rather than asserted on
+ * `spendSurplus` alone, because the defect lived in the seam between them.
+ */
+describe('the reserved depth, against repair and growth', () => {
+  const UPKEEP_RATE = 0.05;
+  const RESERVE_HOURS = 100;
+  const RESERVE = UPKEEP_RATE * RESERVE_HOURS;
+
+  /** One tick of a plant that earns its upkeep exactly and is damaged on top. */
+  const settle = (plant: Plant): VitalityResult =>
+    computeVitality({
+      upkeep: [{ key: 'upkeep', label: 'Upkeep', amount: UPKEEP_RATE }],
+      upkeepReserveHours: RESERVE_HOURS,
+      stressors: [{ key: 'stress', label: 'Stress', amount: 0.5 }],
+      benefits: [{ key: 'light', label: 'Light', amount: UPKEEP_RATE }],
+      hardiness: 0,
+      condition: plant.condition,
+      surplus: plant.surplus,
+      surplusCap: plantsDefaults.surplusCap,
+    });
+
+  it('damage takes the condition, and the next tick may not buy it back', () => {
+    const plant = makePlant('java_fern', { surplus: RESERVE, size: 200 });
+    const hit = settle(plant);
+
+    expect(hit.breakdown.reserved).toBeCloseTo(RESERVE, 10);
+    expect(hit.surplus).toBeCloseTo(RESERVE, 10);
+    expect(hit.newCondition).toBeLessThan(100);
+
+    const damaged: Plant = { ...plant, condition: hit.newCondition, surplus: hit.surplus };
+    const next = spendSurplus(damaged, hit.breakdown.reserved);
+    expect(next.condition).toBe(damaged.condition);
+    expect(next.surplus).toBe(damaged.surplus);
+    expect(next.size).toBe(damaged.size);
+
+    // Without the floor the rations pay the condition back within the hour,
+    // which is the defect and what keeps the assertions above from passing
+    // on an empty bank.
+    expect(spendSurplus(damaged, 0).condition).toBeGreaterThan(damaged.condition);
+  });
+
+  it('spends the whole spare on the ladder and stops at the line', () => {
+    const plant = makePlant('java_fern', { surplus: RESERVE + 4, size: 200, condition: 99 });
+    let running = plant;
+    for (let hour = 0; hour < 2000; hour++) {
+      running = spendSurplus(running, RESERVE);
+    }
+    expect(running.condition).toBe(100);
+    expect(running.size).toBeGreaterThan(plant.size);
+    expect(running.surplus).toBeCloseTo(RESERVE, 6);
   });
 });

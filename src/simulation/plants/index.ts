@@ -8,23 +8,27 @@
  *    uptake, nutrient draw. Does NOT directly produce size growth;
  *    that flows through surplus. Light-gated: zero output at night.
  * 3. Respiration: O2/CO2 effects, 24/7.
- * 4. Vitality per plant: drives condition update and returns the new
- *    `Plant.surplus` bank. The bank is a reserve buffer — damage drains
- *    it before condition falls; positive overflow at full condition
- *    accrues back into it (capped at `surplusCap`). Runs every tick —
- *    condition heals at night from non-light benefits, and the buffer
- *    protects condition 24/7. Accrual is **photoperiod-gated** inside
+ * 4. Vitality per plant: settles both ledgers and returns the new
+ *    `Plant.surplus` bank. The bank is a reserve buffer — a deficit
+ *    drains it before either stock falls; whatever income upkeep and
+ *    damage left accrues back into it at any condition, because a plant
+ *    repairs by withdrawing rather than out of income (capped at
+ *    `surplusCap`). Runs every tick — the plant pays upkeep around the
+ *    clock and the buffer is what it pays out of. Accrual is
+ *    **photoperiod-gated** inside
  *    vitality (`accrueSurplus: light > 0`): surplus represents stored
  *    photosynthate, so overnight overflow is discarded.
  * 5. Store the returned bank on `Plant.surplus` (no separate banking
  *    step — vitality already produced the final value).
- * 6. Spend surplus on growth: mobilises `growthDrawRate` of the bank,
- *    converts the asymptotic share of it to size, and withdraws only
- *    what converted. Also photoperiod-gated — no carbon fixation
- *    overnight, no net biomass accumulation. What growth can't use
- *    stays banked, for a dark spell and for propagation.
+ * 6. Spend surplus on repair and then growth: mobilises `growthDrawRate`
+ *    of the bank down to the depth upkeep reserved, converts the
+ *    asymptotic share of it to size, and withdraws only what repaired or
+ *    converted. Also photoperiod-gated — no carbon fixation overnight, no
+ *    net biomass accumulation. What growth can't use stays banked, for a
+ *    dark spell and for propagation.
  * 7. Shedding + death (lifecycle module) — applied last, can remove
- *    plants from the tank.
+ *    plants from the tank. Shedding is the other side of step 6: what
+ *    the bank could not pay of the upkeep comes back out of size.
  *
  * Called during ACTIVE tier processing in tick.ts.
  */
@@ -40,7 +44,7 @@ import {
 } from '../systems/photosynthesis.js';
 import { calculateNutrientSufficiency } from '../systems/nutrients.js';
 import { calculateRespiration } from '../systems/respiration.js';
-import { spendSurplusOnGrowth } from '../systems/plant-growth.js';
+import { spendSurplus } from '../systems/plant-growth.js';
 import { computePlantVitality } from '../systems/plant-vitality.js';
 import {
   calculateShedding,
@@ -49,6 +53,34 @@ import {
 } from '../systems/plant-lifecycle.js';
 import { createLog } from '../core/logging.js';
 import { getPpm } from '../resources/index.js';
+import type { VitalityResult } from '../systems/vitality.js';
+
+/**
+ * What every plant in the tank is doing this hour, in `state.plants`
+ * order. `processPlants` runs the same numbers inside the tick off a
+ * sufficiency map it shares with photosynthesis; this is the reader for
+ * everything outside it — plant cards, the waste readout, probes.
+ */
+export function readPlantVitality(
+  state: SimulationState,
+  config: TunableConfig
+): VitalityResult[] {
+  return state.plants.map((plant) =>
+    computePlantVitality({
+      plant,
+      resources: state.resources,
+      waterVolume: state.resources.water,
+      plantsConfig: config.plants,
+      nutrientSufficiency: calculateNutrientSufficiency(
+        state.resources,
+        state.resources.water,
+        plant.species,
+        config.nutrients
+      ),
+      algaeMass: state.algae.mass,
+    })
+  );
+}
 
 export interface PlantsProcessingResult {
   /** Updated state with modified plant sizes */
@@ -165,25 +197,21 @@ export function processPlants(
     })
   );
 
-  // 4. Apply condition update + bank surplus + spend on growth in one
+  // 4. Apply the damage and the new bank, then spend the bank, in one
   //    pass.
   //
   //    Plant surplus represents stored photosynthate (sugars from
   //    carbon fixation). Surplus *accrual* is photoperiod-gated inside
   //    `computePlantVitality` (via `accrueSurplus: light > 0`), so
   //    `v.surplus` is already the correct new bank — accrued during the
-  //    day, held (but drained / cap-clamped) at night. Growth *spending*
-  //    is gated here: no light → overnight respiration consumes sugars
-  //    for maintenance, not net biomass, so the bank doesn't convert into
-  //    size. Condition healing is NOT gated — vitality's non-light
-  //    benefits (pH, temp, nutrients) still drive recovery at night, and
-  //    the reserve buffer still protects condition from damage 24/7.
+  //    day, held (but drained / cap-clamped) at night. *Spending* is
+  //    gated here: no light → overnight respiration consumes sugars for
+  //    upkeep, not for repair or net biomass.
   //
-  //    Vitality runs every tick regardless; the light-keyed factors
-  //    inside vitality (light stressor / light benefit / CO2 low
-  //    stressor) already self-zero at light = 0, so condition tracks
-  //    the real non-light environment overnight without needing a
-  //    second gate here.
+  //    Vitality runs every tick regardless. Every benefit is multiplied
+  //    by the light term and the light-keyed stressors self-zero at
+  //    light = 0, so a dark tick is upkeep against no income — which is
+  //    the night the reserve exists for.
   const photoperiodActive = state.resources.light > 0;
   const mergedPlants: Plant[] = state.plants.map((plant, i) => {
     const v = vitalities[i];
@@ -192,17 +220,20 @@ export function processPlants(
       condition: v.newCondition,
       surplus: v.surplus,
     };
-    return photoperiodActive ? spendSurplusOnGrowth(updated, plantsConfig) : updated;
+    return photoperiodActive ? spendSurplus(updated, v.breakdown.reserved, plantsConfig) : updated;
   });
 
-  // 5. Shedding (low-condition plants lose biomass) and death.
+  // 5. Shedding (a plant pays an unpayable upkeep bill in tissue) and death.
   let totalConditionWaste = 0;
   const deadPlantNames: string[] = [];
   const processedPlants: Plant[] = [];
 
-  for (const plant of mergedPlants) {
-    // Shedding scales with how low condition is.
-    const { sizeReduction, wasteProduced } = calculateShedding(plant, plantsConfig);
+  for (const [i, plant] of mergedPlants.entries()) {
+    const { sizeReduction, wasteProduced } = calculateShedding(
+      plant,
+      vitalities[i].breakdown.starved,
+      plantsConfig
+    );
     let updated: Plant = plant;
     if (sizeReduction > 0) {
       updated = { ...plant, size: Math.max(0, plant.size - sizeReduction) };
@@ -257,7 +288,7 @@ export {
   getRespirationTemperatureFactor,
 } from '../systems/respiration.js';
 export {
-  spendSurplusOnGrowth,
+  spendSurplus,
   getSpeciesGrowthRate,
   getSpeciesMaxSize,
   asymptoticGrowthFactor,
@@ -273,6 +304,7 @@ export {
 } from '../systems/plant-lifecycle.js';
 export {
   computePlantVitality,
+  buildPlantUpkeep,
   buildPlantStressors,
   buildPlantBenefits,
 } from '../systems/plant-vitality.js';

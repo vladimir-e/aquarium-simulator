@@ -9,60 +9,47 @@ import type { Plant } from '../state.js';
 
 describe('plant lifecycle', () => {
   describe('calculateShedding', () => {
-    it('returns no shedding when condition above threshold', () => {
-      const plant: Plant = {
-        id: 'test',
-        species: 'java_fern',
-        size: 100,
-        condition: 50, // Above default threshold of 30
-      };
+    const plant: Plant = { id: 'test', species: 'java_fern', size: 100, condition: 100 };
 
-      const result = calculateShedding(plant);
+    it('sheds nothing from a plant paying its whole bill, whatever its condition', () => {
+      for (const condition of [100, 50, 15, 0]) {
+        const result = calculateShedding({ ...plant, condition }, 0);
 
-      expect(result.sizeReduction).toBe(0);
-      expect(result.wasteProduced).toBe(0);
+        expect(result.sizeReduction).toBe(0);
+        expect(result.wasteProduced).toBe(0);
+      }
     });
 
-    it('calculates shedding when condition below threshold', () => {
-      const plant: Plant = {
-        id: 'test',
-        species: 'java_fern',
-        size: 100,
-        condition: 15, // Below threshold of 30
-      };
-
-      const result = calculateShedding(plant);
-
-      expect(result.sizeReduction).toBeGreaterThan(0);
-      expect(result.wasteProduced).toBeGreaterThan(0);
+    it('sheds harder the more of the bill is left standing', () => {
+      let previous = 0;
+      for (const starved of [0.1, 0.25, 0.5, 0.75, 1]) {
+        const { sizeReduction } = calculateShedding(plant, starved);
+        expect(sizeReduction).toBeGreaterThan(previous);
+        previous = sizeReduction;
+      }
     });
 
-    it('increases shedding rate as condition decreases', () => {
-      const plantLow: Plant = { id: '1', species: 'java_fern', size: 100, condition: 10 };
-      const plantVeryLow: Plant = { id: '2', species: 'java_fern', size: 100, condition: 0 };
-
-      const resultLow = calculateShedding(plantLow);
-      const resultVeryLow = calculateShedding(plantVeryLow);
-
-      expect(resultVeryLow.sizeReduction).toBeGreaterThan(resultLow.sizeReduction);
+    it('sheds the max rate from a plant paying none of it', () => {
+      expect(calculateShedding(plant, 1).sizeReduction).toBeCloseTo(
+        plant.size * plantsDefaults.maxSheddingRate,
+        5
+      );
     });
 
-    it('shedding at condition 0 equals max shedding rate', () => {
-      const plant: Plant = { id: 'test', species: 'java_fern', size: 100, condition: 0 };
+    it('takes a share of the plant, so a big one loses more of the tank', () => {
+      const small = calculateShedding({ ...plant, size: 50 }, 1);
+      const large = calculateShedding({ ...plant, size: 150 }, 1);
 
-      const result = calculateShedding(plant);
-
-      const expectedSizeReduction = 100 * plantsDefaults.maxSheddingRate;
-      expect(result.sizeReduction).toBeCloseTo(expectedSizeReduction, 5);
+      expect(large.sizeReduction).toBe(small.sizeReduction * 3);
     });
 
     it('waste scales with size reduction', () => {
-      const plant: Plant = { id: 'test', species: 'java_fern', size: 100, condition: 0 };
+      const result = calculateShedding(plant, 1);
 
-      const result = calculateShedding(plant);
-
-      const expectedWaste = result.sizeReduction * plantsDefaults.wastePerShedSize;
-      expect(result.wasteProduced).toBeCloseTo(expectedWaste, 5);
+      expect(result.wasteProduced).toBeCloseTo(
+        result.sizeReduction * plantsDefaults.wastePerShedSize,
+        5
+      );
     });
   });
 

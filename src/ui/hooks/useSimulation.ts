@@ -946,7 +946,7 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
       }
     }
     setState((currentState) => {
-      const result = applyAction(currentState, action);
+      const result = applyAction(currentState, action, configRef.current);
       return result.state;
     });
   }, []);

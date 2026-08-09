@@ -103,15 +103,39 @@ export interface PlantsConfig {
   algaeShadingSeverity: number;
   /** Algae level (0–100) above which shading stress kicks in. */
   algaeShadingThreshold: number;
+  /**
+   * Cost per hour of simply being alive, quoted at
+   * `respirationReferenceTemp` and moved off it by the same Q10 factor the
+   * gas layer's respiration runs on. Its reference is the compensation point
+   * — the irradiance where photosynthesis pays for respiration; where the
+   * shipped value puts that is derived in `plantsDefaults`.
+   *
+   * It is upkeep rather than damage, so a plant that cannot pay it sheds
+   * tissue instead of losing condition.
+   */
+  upkeepCost: number;
+  /**
+   * Hours of upkeep the reserve keeps back from damage — the survival
+   * rations. Above the line the bank is spare and buffers a stressor
+   * before condition falls; at or below it the bank belongs to staying
+   * alive, and damage takes condition instead.
+   *
+   * Real hours: the bank empties at the post-hardiness rate, so the line is
+   * `maintenance × (1 − hardiness) × this` in banked units and the same
+   * number of hours for every species. Quoted as a duration rather than a
+   * share of `surplusCap` because growth withdraws `growthDrawRate` of the
+   * bank every lit hour, more per day than a plant can earn, so a growing
+   * plant settles far below the cap and would never read as provisioned
+   * there.
+   */
+  upkeepReserveHours: number;
 
-  // Vitality benefit peaks (%/h) when the corresponding factor is in
-  // its tolerable band. Sum at all-good ≈ 0.5 %/h — the calibration
-  // budget the plant recovery curves were pinned against. Light is the
-  // exception: it pays on the saturating PAR curve rather than off the
-  // band, so its peak is what a plant earns at saturation and not what
-  // it earns for sitting in range.
-  /** Light at saturating PAR. */
-  lightBenefitPeak: number;
+  // Vitality benefit peaks (%/h) when the corresponding factor is in its
+  // tolerable band. Every one of them is realised through photosynthesis, so
+  // all four are multiplied by the light term `tanh(PAR / Ik)`: the budget is
+  // the plant's income, and good water is worth nothing at midnight. Sum at
+  // saturating light ≈ 0.5 %/h — the calibration budget the plant recovery
+  // curves were pinned against.
   /** CO2 in tolerable range. */
   co2BenefitPeak: number;
   /** Temperature in tolerable range. */
@@ -122,10 +146,11 @@ export interface PlantsConfig {
   nutrientBenefitPeak: number;
 
   // Lifecycle (shedding + death) — see `systems/plant-lifecycle.ts`.
-  // These fire once vitality has driven condition below their thresholds.
-  /** Condition below this triggers shedding. */
-  sheddingConditionThreshold: number;
-  /** Maximum shedding rate (fraction of size per tick at condition 0). */
+  /**
+   * Share of itself a plant sheds per hour when it can pay none of its
+   * upkeep. Scales down with the share it *can* pay, so the same number
+   * covers a blackout and a dim afternoon.
+   */
   maxSheddingRate: number;
   /** Waste produced per unit of shed size (g per % size shed). */
   wastePerShedSize: number;
@@ -166,7 +191,7 @@ export const plantsDefaults: PlantsConfig = {
   // macrophyte literature reports against light-saturated gross photosynthesis,
   // with the Monod below leaving 14 % standing in air-saturated water. It is
   // 3 % of the injected-carbon rate, which is what the old figure was quoting.
-  // See `docs/calibration/runs/2026-08-10-plant-respiration.md`.
+  // See `docs/calibration/runs/2026-08-07-plant-respiration.md`.
   baseRespirationRate: 0.03,
   respirationQ10: 2.0, // Rate doubles per 10°C increase
   respirationReferenceTemp: 25.0, // °C
@@ -184,19 +209,23 @@ export const plantsDefaults: PlantsConfig = {
   // *and* saturating light. On the corrected gas reader that tank admits
   // 22.3–44.6, and the same claim read on a planting grown in from 350 admits
   // 21.6–43.4. `tests/planted-gas-budget.test.ts` asserts that tank; the
-  // derivations are in `docs/calibration/runs/2026-08-09-light-response.md` and
-  // `docs/calibration/runs/2026-08-10-plant-respiration.md`.
+  // derivations are in `docs/calibration/runs/2026-08-07-light-response.md` and
+  // `docs/calibration/runs/2026-08-07-plant-respiration.md`.
   co2PerRateUnit: 30.0,
 
-  // Surplus-driven growth — vitality banks surplus when condition is full and
-  // net is positive; growth converts a share of the bank into size, and only
-  // what became size leaves the bank.
+  // Surplus-driven growth — vitality banks whatever income upkeep and damage
+  // left; growth withdraws a share of the bank and spends it on condition and
+  // then on size, and only what repaired or became size leaves it.
   //
   // 2 %/h is a ~50-lit-hour time constant, four days of photoperiod: how long a
-  // cutting takes to stop sulking and start growing. Against the 0.5 %/h a
-  // plant earns at its best it settles a young plant's reserve just under 28
-  // units, over half the cap, which is what such a plant carries into a bad
-  // night; a plant past half its `maxSize` settles above the cap and pegs there.
+  // cutting takes to stop sulking and start growing. Against the income a plant
+  // clears under the shipped fixture it settles a young plant's reserve at 9 to
+  // 26 units across the roster — a shade species holds more than a carpet,
+  // because the same PAR is nearer its saturation — and that is what such a
+  // plant carries into a bad night. `surplusCap` is not a settling point at
+  // all: a day's withdrawal there is more than a day's income, so a plant only
+  // pegs once its asymptotic factor has closed the withdrawal down, which takes
+  // most of its growth curve. `docs/6-PLANTS.md` § Growth and Size derives both.
   growthDrawRate: 0.02,
   sizePerSurplus: 0.4, // size % per (surplus × growthRate) unit converted
   surplusCap: SURPLUS_CAP_DEFAULT,
@@ -215,14 +244,27 @@ export const plantsDefaults: PlantsConfig = {
   co2InsufficientSeverity: 1.5,
   temperatureStressSeverity: 0.4,
   phStressSeverity: 3.0,
-  // Nutrient deficiency severity: drives how fast plants decline when
-  // their Liebig sufficiency falls. Calibrated against scenario 02
-  // Variant B: a Monte Carlo with Fe limited (sufficiency drops to
-  // ~0.1 by day 14 as substrate-leach Fe runs out) should bottom out
-  // in the 30–55 condition band by day 28 rather than dying. Severity
-  // 0.6 keeps the MC trajectory inside the band; tighter severities
-  // crash MC mid-scenario.
-  nutrientDeficiencySeverity: 0.7,
+  // Pinned from both ends against a starved carpet and a neglected nano.
+  //
+  // Severe: a monte carlo under a fixture that suits it, in water with no
+  // nitrogen in it at all, melts in **28 days** — weeks, which is what a
+  // carpet does when it is starved, and not the eleven weeks 0.2 would give
+  // it. Marginal: the shipped `planted` and `betta` presets, undosed and
+  // planted with the java fern and anubias every beginner guide names, keep
+  // all five plants alive at condition 96–100 for **180 days** — a hardy
+  // plant in a tank nobody doses is outlived, not killed. Between the ends
+  // the dose–response is a real one: a carpet at half every optimum takes
+  // five months, at a quarter ten weeks, at a tenth six.
+  //
+  // The old 0.7 was quoted against an income that paid 0.4 %/h in the dark,
+  // and its own docstring's reference — "bottoms out at 30–55 by day 28
+  // rather than dying" — became day 4 when the light term took that income
+  // away. `docs/calibration/runs/2026-08-08-reserve-by-priority.md` § 2 has the
+  // derivation and the one claim this value does not satisfy, which belongs to
+  // the sufficiency curve rather than to the severity; the sweep as it now
+  // reads is `2026-08-08-reserve-against-repair.md` § 4, which moved the severe
+  // end from 19 days to 28 without moving either binding end off 0.30.
+  nutrientDeficiencySeverity: 0.3,
   // Toxicity threshold is high (100 ppm NO3) so normal dosing never
   // triggers — only the auto-doser massive-overdose case. Severity
   // is small so the stress climbs gradually past the threshold
@@ -235,20 +277,48 @@ export const plantsDefaults: PlantsConfig = {
   // (calibration-grade — task 42 first-pass; recalibration follows).
   algaeShadingSeverity: 0.05,
   algaeShadingThreshold: 30,
+  // The compensation point, put where the macrophyte literature puts it: a
+  // hardiness-0.3 species breaks even at 10.5 % of its own Ik — 6.3 PAR for
+  // monte carlo, 5.3 for dwarf hairgrass — which is the bottom of the 10–20 %
+  // of saturating irradiance the published figures span. 0.075 × (1 − 0.3) is
+  // 0.0525, and 0.5 %/h × tanh(0.105) is the same. Hardier species carry a
+  // lower point (anubias 3.8 % of its Ik), which is the direction shade
+  // adaptation goes. Below a species' band the light-insufficient stressor
+  // sits on top of this, so the PAR a plant actually needs is the band.
+  upkeepCost: 0.075,
+  // A hundred hours of a plant's own drain — a little over four days — is what
+  // it keeps back for staying alive: 5.3 banked units for monte carlo against
+  // 1.9 for anubias, because the hardy plant makes the same reserve last
+  // longer. It is the line that lets one bank serve two claims: damage burns
+  // the ~20 units a working plant carries above it, a day or two of buffer,
+  // and stops there rather than leaving the next dark hour unpayable. What the
+  // line is worth either side of it is in
+  // `docs/calibration/runs/2026-08-08-reserve-by-priority.md`.
+  upkeepReserveHours: 100,
 
-  // Vitality benefit peaks. Sum at all-good ≈ 0.5 %/h — light pays
-  // tanh(PAR / Ik) of its peak, so a monte carlo at 30 PAR earns 0.046
-  // of the 0.1 rather than the whole of it. With a healthy tank the
-  // plant heals to 100 in under 4 sim days, then surplus drives growth.
-  lightBenefitPeak: 0.1,
-  co2BenefitPeak: 0.1,
-  temperatureBenefitPeak: 0.1,
-  phBenefitPeak: 0.1,
-  nutrientBenefitPeak: 0.1,
+  // Vitality benefit peaks. Four channels at 0.125 sum to the 0.5 %/h budget
+  // at saturating light, and the light term takes the whole of it down
+  // together: a monte carlo at 30 PAR earns 0.46 of the budget, and every
+  // plant earns none of it in the dark. With a healthy lit tank the plant
+  // heals to 100 in a few sim days, then surplus drives growth.
+  co2BenefitPeak: 0.125,
+  temperatureBenefitPeak: 0.125,
+  phBenefitPeak: 0.125,
+  nutrientBenefitPeak: 0.125,
 
   // Lifecycle thresholds — forgiving by default.
-  sheddingConditionThreshold: 30, // shedding starts at condition < 30 %
-  maxSheddingRate: 0.02, // 2 % size loss per tick at condition 0
+  //
+  // 2 %/h is the melt of a plant paying nothing at all: an e-folding every
+  // two days, so a grown-in carpet is gone within a week of its bank running
+  // out and a plant that only misses part of its bill loses that share of the
+  // rate. The value is unchanged from when it was the rate at condition 0, but
+  // its reference is not — a bill rather than a condition. The alternative,
+  // converting the unpaid bill back into tissue as the mirror of
+  // `sizePerSurplus`, is measured and rejected in
+  // `docs/calibration/runs/2026-08-08-tissue-not-condition.md` § 6. Only an
+  // energy shortfall reaches it: damage is buffered down to
+  // `upkeepReserveHours`, so a poisoned plant never sheds for want of a bank.
+  maxSheddingRate: 0.02,
   wastePerShedSize: 0.005, // 0.005 g waste per % size shed
   deathConditionThreshold: 10, // death at condition < 10 %
   deathSizeThreshold: 10, // death if size < 10 %
@@ -336,16 +406,16 @@ export const plantsConfigMeta: PlantsConfigMeta[] = [
   { key: 'nutrientToxicityThresholdNitrate', label: 'NO3 Tox. Threshold', unit: 'ppm', min: 50, max: 300, step: 10 },
   { key: 'algaeShadingSeverity', label: 'Algae Shading Severity', unit: '%/algae/hr', min: 0.001, max: 0.1, step: 0.005 },
   { key: 'algaeShadingThreshold', label: 'Algae Shading Threshold', unit: '', min: 20, max: 80, step: 5 },
+  { key: 'upkeepCost', label: 'Upkeep Cost', unit: '%/hr', min: 0, max: 0.5, step: 0.005 },
+  { key: 'upkeepReserveHours', label: 'Upkeep Reserve', unit: 'hr upkeep', min: 10, max: 500, step: 10 },
 
   // Vitality benefit peaks
-  { key: 'lightBenefitPeak', label: 'Light Benefit Peak', unit: '%/hr', min: 0.0, max: 0.5, step: 0.05 },
   { key: 'co2BenefitPeak', label: 'CO2 Benefit Peak', unit: '%/hr', min: 0.0, max: 0.5, step: 0.05 },
   { key: 'temperatureBenefitPeak', label: 'Temp Benefit Peak', unit: '%/hr', min: 0.0, max: 0.5, step: 0.05 },
   { key: 'phBenefitPeak', label: 'pH Benefit Peak', unit: '%/hr', min: 0.0, max: 0.5, step: 0.05 },
   { key: 'nutrientBenefitPeak', label: 'Nutrient Benefit Peak', unit: '%/hr', min: 0.0, max: 0.5, step: 0.05 },
 
   // Lifecycle (shedding + death)
-  { key: 'sheddingConditionThreshold', label: 'Shedding Threshold', unit: '%', min: 10, max: 50, step: 5 },
   { key: 'maxSheddingRate', label: 'Max Shedding Rate', unit: '/hr', min: 0.005, max: 0.1, step: 0.005 },
   { key: 'wastePerShedSize', label: 'Waste per Shed Size', unit: 'g/%', min: 0.001, max: 0.05, step: 0.001 },
   { key: 'deathConditionThreshold', label: 'Death Condition Threshold', unit: '%', min: 5, max: 20, step: 1 },

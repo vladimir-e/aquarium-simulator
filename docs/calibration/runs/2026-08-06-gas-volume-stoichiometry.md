@@ -53,7 +53,7 @@ CO₂ derived from it.
 > reading**, and the corrected window is 21–26 on both plantings. The figures in
 > this table have not been re-measured, because doing so means re-running the 2b
 > engine rather than re-reading this document. See
-> `2026-08-09-light-response.md`, where the fault is described and 2c is
+> `2026-08-07-light-response.md`, where the fault is described and 2c is
 > re-derived against the same observable.
 
 A grown-in planted 150 L has to run **0.5–1 mg/L/h of gross O₂ through the

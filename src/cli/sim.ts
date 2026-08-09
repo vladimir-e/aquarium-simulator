@@ -80,7 +80,7 @@ function advanceTicks(session: Session, count: number): Session {
 }
 
 function applyAndRecord(session: Session, action: Action): { session: Session; message: string } {
-  const { state, message } = applyAction(session.state, action);
+  const { state, message } = applyAction(session.state, action, session.config);
   let history = session.history;
   // Replace the latest snapshot (same tick) so observe reflects the action.
   if (history.length > 0 && history[history.length - 1]!.tick === state.tick) {

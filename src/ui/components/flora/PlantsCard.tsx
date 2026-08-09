@@ -103,7 +103,7 @@ export function PlantsCard({
               expanded={expanded.has(row.id)}
               onToggle={() => onToggle(row.id)}
             >
-              <Breakdown stressors={row.stressors} benefits={row.benefits} net={row.net} />
+              <Breakdown charged={row.charged} benefits={row.benefits} net={row.net} />
               <div className="flex justify-end pb-2 pr-1">
                 <button
                   type="button"
@@ -132,7 +132,7 @@ export function PlantsCard({
             onToggle={() => onToggle('algae')}
           >
             <Breakdown
-              stressors={algae.stressors}
+              charged={algae.stressors}
               benefits={algae.benefits}
               net={algae.net}
               invert

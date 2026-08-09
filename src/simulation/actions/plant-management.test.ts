@@ -10,6 +10,7 @@ import {
 import { createSimulation, type SimulationState } from '../state.js';
 import type { PlantSpecies } from '../plants/species.js';
 import type { SubstrateType } from '../equipment/substrate.js';
+import { plantsDefaults } from '../config/plants.js';
 import { produce } from 'immer';
 
 describe('getMaxPlants', () => {
@@ -205,7 +206,7 @@ describe('addPlant', () => {
   describe('with compatible substrate', () => {
     it('adds epiphyte to tank with no substrate', () => {
       const state = createStateWithSubstrate('none');
-      const result = addPlant(state, { type: 'addPlant', species: 'java_fern' });
+      const result = addPlant(state, { type: 'addPlant', species: 'java_fern' }, plantsDefaults);
 
       expect(result.state.plants).toHaveLength(1);
       expect(result.state.plants[0].species).toBe('java_fern');
@@ -213,7 +214,7 @@ describe('addPlant', () => {
 
     it('adds sand-requiring plant to sand substrate', () => {
       const state = createStateWithSubstrate('sand');
-      const result = addPlant(state, { type: 'addPlant', species: 'amazon_sword' });
+      const result = addPlant(state, { type: 'addPlant', species: 'amazon_sword' }, plantsDefaults);
 
       expect(result.state.plants).toHaveLength(1);
       expect(result.state.plants[0].species).toBe('amazon_sword');
@@ -221,7 +222,7 @@ describe('addPlant', () => {
 
     it('adds aqua_soil-requiring plant to aqua_soil substrate', () => {
       const state = createStateWithSubstrate('aqua_soil');
-      const result = addPlant(state, { type: 'addPlant', species: 'monte_carlo' });
+      const result = addPlant(state, { type: 'addPlant', species: 'monte_carlo' }, plantsDefaults);
 
       expect(result.state.plants).toHaveLength(1);
       expect(result.state.plants[0].species).toBe('monte_carlo');
@@ -229,7 +230,7 @@ describe('addPlant', () => {
 
     it('plant gets unique ID', () => {
       const state = createStateWithSubstrate('none');
-      const result = addPlant(state, { type: 'addPlant', species: 'java_fern' });
+      const result = addPlant(state, { type: 'addPlant', species: 'java_fern' }, plantsDefaults);
 
       expect(result.state.plants[0].id).toBeDefined();
       expect(result.state.plants[0].id.length).toBeGreaterThan(0);
@@ -237,22 +238,22 @@ describe('addPlant', () => {
 
     it('plant IDs are unique', () => {
       let state = createStateWithSubstrate('none');
-      state = addPlant(state, { type: 'addPlant', species: 'java_fern' }).state;
-      state = addPlant(state, { type: 'addPlant', species: 'java_fern' }).state;
+      state = addPlant(state, { type: 'addPlant', species: 'java_fern' }, plantsDefaults).state;
+      state = addPlant(state, { type: 'addPlant', species: 'java_fern' }, plantsDefaults).state;
 
       expect(state.plants[0].id).not.toBe(state.plants[1].id);
     });
 
     it('default initial size is 50%', () => {
       const state = createStateWithSubstrate('none');
-      const result = addPlant(state, { type: 'addPlant', species: 'java_fern' });
+      const result = addPlant(state, { type: 'addPlant', species: 'java_fern' }, plantsDefaults);
 
       expect(result.state.plants[0].size).toBe(50);
     });
 
     it('returns success message with plant name', () => {
       const state = createStateWithSubstrate('none');
-      const result = addPlant(state, { type: 'addPlant', species: 'java_fern' });
+      const result = addPlant(state, { type: 'addPlant', species: 'java_fern' }, plantsDefaults);
 
       expect(result.message).toBe('Added Java Fern');
     });
@@ -260,14 +261,14 @@ describe('addPlant', () => {
     it('creates log entry', () => {
       const state = createStateWithSubstrate('none');
       const initialLogCount = state.logs.length;
-      const result = addPlant(state, { type: 'addPlant', species: 'java_fern' });
+      const result = addPlant(state, { type: 'addPlant', species: 'java_fern' }, plantsDefaults);
 
       expect(result.state.logs.length).toBe(initialLogCount + 1);
     });
 
     it('log entry contains plant name and size', () => {
       const state = createStateWithSubstrate('none');
-      const result = addPlant(state, { type: 'addPlant', species: 'java_fern' });
+      const result = addPlant(state, { type: 'addPlant', species: 'java_fern' }, plantsDefaults);
 
       const lastLog = result.state.logs[result.state.logs.length - 1];
       expect(lastLog.source).toBe('user');
@@ -280,28 +281,44 @@ describe('addPlant', () => {
   describe('with custom initial size', () => {
     it('uses provided initial size', () => {
       const state = createStateWithSubstrate('none');
-      const result = addPlant(state, { type: 'addPlant', species: 'java_fern', initialSize: 75 });
+      const result = addPlant(
+        state,
+        { type: 'addPlant', species: 'java_fern', initialSize: 75 },
+        plantsDefaults
+      );
 
       expect(result.state.plants[0].size).toBe(75);
     });
 
     it('allows small initial size', () => {
       const state = createStateWithSubstrate('none');
-      const result = addPlant(state, { type: 'addPlant', species: 'java_fern', initialSize: 10 });
+      const result = addPlant(
+        state,
+        { type: 'addPlant', species: 'java_fern', initialSize: 10 },
+        plantsDefaults
+      );
 
       expect(result.state.plants[0].size).toBe(10);
     });
 
     it('allows large initial size', () => {
       const state = createStateWithSubstrate('none');
-      const result = addPlant(state, { type: 'addPlant', species: 'java_fern', initialSize: 100 });
+      const result = addPlant(
+        state,
+        { type: 'addPlant', species: 'java_fern', initialSize: 100 },
+        plantsDefaults
+      );
 
       expect(result.state.plants[0].size).toBe(100);
     });
 
     it('log entry shows custom size', () => {
       const state = createStateWithSubstrate('none');
-      const result = addPlant(state, { type: 'addPlant', species: 'java_fern', initialSize: 80 });
+      const result = addPlant(
+        state,
+        { type: 'addPlant', species: 'java_fern', initialSize: 80 },
+        plantsDefaults
+      );
 
       const lastLog = result.state.logs[result.state.logs.length - 1];
       expect(lastLog.message).toContain('80%');
@@ -309,14 +326,22 @@ describe('addPlant', () => {
 
     it('allows overgrown initial size up to 200%', () => {
       const state = createStateWithSubstrate('none');
-      const result = addPlant(state, { type: 'addPlant', species: 'java_fern', initialSize: 200 });
+      const result = addPlant(
+        state,
+        { type: 'addPlant', species: 'java_fern', initialSize: 200 },
+        plantsDefaults
+      );
 
       expect(result.state.plants[0].size).toBe(200);
     });
 
     it('rejects negative initial size', () => {
       const state = createStateWithSubstrate('none');
-      const result = addPlant(state, { type: 'addPlant', species: 'java_fern', initialSize: -10 });
+      const result = addPlant(
+        state,
+        { type: 'addPlant', species: 'java_fern', initialSize: -10 },
+        plantsDefaults
+      );
 
       expect(result.state.plants).toHaveLength(0);
       expect(result.message).toContain('Invalid initial size');
@@ -324,7 +349,11 @@ describe('addPlant', () => {
 
     it('rejects initial size over 200%', () => {
       const state = createStateWithSubstrate('none');
-      const result = addPlant(state, { type: 'addPlant', species: 'java_fern', initialSize: 250 });
+      const result = addPlant(
+        state,
+        { type: 'addPlant', species: 'java_fern', initialSize: 250 },
+        plantsDefaults
+      );
 
       expect(result.state.plants).toHaveLength(0);
       expect(result.message).toContain('Invalid initial size');
@@ -335,7 +364,7 @@ describe('addPlant', () => {
   describe('rejection with incompatible substrate', () => {
     it('rejects amazon_sword without substrate', () => {
       const state = createStateWithSubstrate('none');
-      const result = addPlant(state, { type: 'addPlant', species: 'amazon_sword' });
+      const result = addPlant(state, { type: 'addPlant', species: 'amazon_sword' }, plantsDefaults);
 
       expect(result.state.plants).toHaveLength(0);
       expect(result.message).toContain('sand');
@@ -344,7 +373,7 @@ describe('addPlant', () => {
 
     it('rejects monte_carlo without substrate', () => {
       const state = createStateWithSubstrate('none');
-      const result = addPlant(state, { type: 'addPlant', species: 'monte_carlo' });
+      const result = addPlant(state, { type: 'addPlant', species: 'monte_carlo' }, plantsDefaults);
 
       expect(result.state.plants).toHaveLength(0);
       expect(result.message).toContain('aqua soil');
@@ -352,7 +381,11 @@ describe('addPlant', () => {
 
     it('rejects dwarf_hairgrass with sand', () => {
       const state = createStateWithSubstrate('sand');
-      const result = addPlant(state, { type: 'addPlant', species: 'dwarf_hairgrass' });
+      const result = addPlant(
+        state,
+        { type: 'addPlant', species: 'dwarf_hairgrass' },
+        plantsDefaults
+      );
 
       expect(result.state.plants).toHaveLength(0);
       expect(result.message).toContain('aqua soil');
@@ -361,14 +394,14 @@ describe('addPlant', () => {
     it('does not create log entry when rejected', () => {
       const state = createStateWithSubstrate('none');
       const initialLogCount = state.logs.length;
-      const result = addPlant(state, { type: 'addPlant', species: 'monte_carlo' });
+      const result = addPlant(state, { type: 'addPlant', species: 'monte_carlo' }, plantsDefaults);
 
       expect(result.state.logs.length).toBe(initialLogCount);
     });
 
     it('state is unchanged when rejected', () => {
       const state = createStateWithSubstrate('none');
-      const result = addPlant(state, { type: 'addPlant', species: 'monte_carlo' });
+      const result = addPlant(state, { type: 'addPlant', species: 'monte_carlo' }, plantsDefaults);
 
       expect(result.state).toBe(state);
     });
@@ -379,14 +412,14 @@ describe('addPlant', () => {
       // 19L tank = 3 plants max
       let state = createSimulation({ tankCapacity: 19 });
       // Add 3 plants to reach capacity
-      state = addPlant(state, { type: 'addPlant', species: 'java_fern' }).state;
-      state = addPlant(state, { type: 'addPlant', species: 'java_fern' }).state;
-      state = addPlant(state, { type: 'addPlant', species: 'java_fern' }).state;
+      state = addPlant(state, { type: 'addPlant', species: 'java_fern' }, plantsDefaults).state;
+      state = addPlant(state, { type: 'addPlant', species: 'java_fern' }, plantsDefaults).state;
+      state = addPlant(state, { type: 'addPlant', species: 'java_fern' }, plantsDefaults).state;
 
       expect(state.plants).toHaveLength(3);
 
       // Try to add 4th plant
-      const result = addPlant(state, { type: 'addPlant', species: 'java_fern' });
+      const result = addPlant(state, { type: 'addPlant', species: 'java_fern' }, plantsDefaults);
       expect(result.state.plants).toHaveLength(3);
       expect(result.message).toContain('capacity');
     });
@@ -399,7 +432,7 @@ describe('addPlant', () => {
         draft.plants.push({ id: 'p3', species: 'java_fern', size: 50 });
       });
 
-      const result = addPlant(state, { type: 'addPlant', species: 'java_fern' });
+      const result = addPlant(state, { type: 'addPlant', species: 'java_fern' }, plantsDefaults);
       expect(result.message).toContain('3 plants max');
     });
 
@@ -412,7 +445,7 @@ describe('addPlant', () => {
       });
       const initialLogCount = state.logs.length;
 
-      const result = addPlant(state, { type: 'addPlant', species: 'java_fern' });
+      const result = addPlant(state, { type: 'addPlant', species: 'java_fern' }, plantsDefaults);
       expect(result.state.logs.length).toBe(initialLogCount);
     });
 
@@ -425,7 +458,7 @@ describe('addPlant', () => {
         draft.plants.push({ id: 'p3', species: 'java_fern', size: 50 });
       });
 
-      const result = addPlant(state, { type: 'addPlant', species: 'monte_carlo' });
+      const result = addPlant(state, { type: 'addPlant', species: 'monte_carlo' }, plantsDefaults);
       expect(result.message).toContain('capacity'); // Not substrate error
     });
   });
@@ -433,9 +466,9 @@ describe('addPlant', () => {
   describe('adding multiple plants', () => {
     it('can add multiple plants sequentially', () => {
       let state = createStateWithSubstrate('aqua_soil');
-      state = addPlant(state, { type: 'addPlant', species: 'java_fern' }).state;
-      state = addPlant(state, { type: 'addPlant', species: 'amazon_sword' }).state;
-      state = addPlant(state, { type: 'addPlant', species: 'monte_carlo' }).state;
+      state = addPlant(state, { type: 'addPlant', species: 'java_fern' }, plantsDefaults).state;
+      state = addPlant(state, { type: 'addPlant', species: 'amazon_sword' }, plantsDefaults).state;
+      state = addPlant(state, { type: 'addPlant', species: 'monte_carlo' }, plantsDefaults).state;
 
       expect(state.plants).toHaveLength(3);
       expect(state.plants[0].species).toBe('java_fern');
@@ -445,8 +478,8 @@ describe('addPlant', () => {
 
     it('can add same species multiple times', () => {
       let state = createStateWithSubstrate('none');
-      state = addPlant(state, { type: 'addPlant', species: 'java_fern' }).state;
-      state = addPlant(state, { type: 'addPlant', species: 'java_fern' }).state;
+      state = addPlant(state, { type: 'addPlant', species: 'java_fern' }, plantsDefaults).state;
+      state = addPlant(state, { type: 'addPlant', species: 'java_fern' }, plantsDefaults).state;
 
       expect(state.plants).toHaveLength(2);
       expect(state.plants[0].species).toBe('java_fern');
@@ -459,7 +492,7 @@ describe('addPlant', () => {
       const state = createStateWithSubstrate('none');
       const originalPlantCount = state.plants.length;
 
-      addPlant(state, { type: 'addPlant', species: 'java_fern' });
+      addPlant(state, { type: 'addPlant', species: 'java_fern' }, plantsDefaults);
 
       expect(state.plants.length).toBe(originalPlantCount);
     });
@@ -468,7 +501,11 @@ describe('addPlant', () => {
   describe('an initial size the action cannot honour', () => {
     it('refuses one that is not a number', () => {
       const state = createSimulation({ tankCapacity: 100, substrate: { type: 'aqua_soil' } });
-      const result = addPlant(state, { type: 'addPlant', species: 'anubias', initialSize: NaN });
+      const result = addPlant(
+        state,
+        { type: 'addPlant', species: 'anubias', initialSize: NaN },
+        plantsDefaults
+      );
 
       expect(result.state).toBe(state);
       expect(result.message).toContain('Invalid initial size');
@@ -483,8 +520,8 @@ describe('removePlant', () => {
       draft.equipment.substrate.type = substrateType;
     });
     // Add some plants
-    state = addPlant(state, { type: 'addPlant', species: 'java_fern' }).state;
-    state = addPlant(state, { type: 'addPlant', species: 'anubias' }).state;
+    state = addPlant(state, { type: 'addPlant', species: 'java_fern' }, plantsDefaults).state;
+    state = addPlant(state, { type: 'addPlant', species: 'anubias' }, plantsDefaults).state;
     return state;
   }
 

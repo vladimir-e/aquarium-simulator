@@ -24,12 +24,13 @@ export function rateText(rate: number, digits = 2): string {
  * plant and the algae answer "why is this one sick" in the same shape.
  */
 export function Breakdown({
-  stressors,
+  charged,
   benefits,
   net,
   invert = false,
 }: {
-  stressors: VitalityFactor[];
+  /** Everything subtracted this hour, whichever ledger it came out of. */
+  charged: VitalityFactor[];
   benefits: VitalityFactor[];
   net: number;
   invert?: boolean;
@@ -38,7 +39,7 @@ export function Breakdown({
 
   return (
     <div className="pb-2 pl-6 pr-1 text-[12px]">
-      {stressors.map((factor) => (
+      {charged.map((factor) => (
         <div key={`s-${factor.key}`} className={`flex min-h-[26px] items-center ${down}`}>
           <span>{factor.label}</span>
           <span className="ml-auto font-mono tabular-nums">−{factor.amount.toFixed(2)} %/h</span>

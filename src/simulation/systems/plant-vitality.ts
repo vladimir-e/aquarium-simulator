@@ -6,8 +6,20 @@
  * onto plant state. The breakdown drives both the per-plant condition
  * update and the surplus-gated growth path.
  *
- * Stressor coverage (each gated by species config so not every species
- * triggers every channel):
+ * A plant runs two ledgers, and they end in different stocks. Both draw
+ * on one reserve, in an order: maintenance may spend it to the last
+ * unit, damage only what stands above `upkeepReserveHours` of it.
+ *
+ * **Energy** — the benefit budget is income, not comfort: every channel
+ * is realised *through* photosynthesis, which is why light multiplies
+ * all four rather than standing beside them. Against that income sits
+ * the maintenance cost, which sets a compensation point: below the PAR
+ * where income covers it a plant runs a deficit however perfect the
+ * water is, spends its bank, and then pays in tissue. A blacked-out
+ * rhizome with no leaves left is a live plant that regrows, so an
+ * unpayable bill costs `size` and not condition.
+ *
+ * **Health** — damage done *to* the plant, which spends condition:
  * - Light insufficient / excessive (two-sided around `tolerableLight`,
  *   in PAR at the substrate)
  * - CO2 insufficient (high-tech species suffer when CO2 falls)
@@ -16,15 +28,6 @@
  * - Nutrient deficiency (per (1 − Liebig sufficiency))
  * - Nutrient toxicity (gross NO3 overdose — auto-doser failure case)
  * - Algae shading (when algae density crosses the shading threshold)
- *
- * Benefit coverage:
- * - Light, on the same saturating PAR curve photosynthesis runs
- * - CO2, Temperature, pH — in-range = peak, out-of-range = 0
- * - Nutrients, scaling with Liebig sufficiency
- *
- * Sum at all-good ≈ 0.5 %/h, so a healthy plant heals at familiar
- * speed and only starts growing once condition is full (surplus-
- * overflow rule).
  */
 
 import type { Plant, Resources } from '../state.js';
@@ -32,6 +35,7 @@ import { PLANT_SPECIES_DATA, getSaturationIrradiance } from '../plants/species.j
 import type { PlantsConfig } from '../config/plants.js';
 import { lightSaturationFactor } from '../core/kinetics.js';
 import { getPpm } from '../resources/index.js';
+import { getRespirationTemperatureFactor } from './respiration.js';
 import {
   computeVitality,
   inRangeBenefit,
@@ -59,6 +63,25 @@ export interface PlantVitalityContext {
 }
 
 /**
+ * Build the upkeep list for a plant — what it owes for being alive,
+ * charged against income before anything else. Pre-hardiness, like the
+ * stressors; `computeVitality` applies the species factor centrally.
+ */
+export function buildPlantUpkeep(ctx: PlantVitalityContext): VitalityFactor[] {
+  const { resources, plantsConfig } = ctx;
+
+  return [
+    {
+      key: 'upkeep',
+      label: 'Upkeep',
+      amount:
+        plantsConfig.upkeepCost *
+        getRespirationTemperatureFactor(resources.temperature, plantsConfig),
+    },
+  ];
+}
+
+/**
  * Build the stressor list for a plant. Severities are pre-hardiness;
  * the species `hardiness` factor is applied centrally inside
  * `computeVitality`.
@@ -71,9 +94,11 @@ export function buildPlantStressors(ctx: PlantVitalityContext): VitalityFactor[]
   // Light — two-sided, and only during the photoperiod. Light = 0
   // here means "lights off, it's night" — plants aren't trying to
   // photosynthesize, so a lights-off tick isn't a "light insufficient"
-  // event. The light-excessive side is always-on (excess PAR can burn
-  // leaves any time the lamps are on, but if they're off there's
-  // nothing to burn).
+  // event. Darkness is charged through the upkeep instead: night and
+  // blackout cost the same maintenance per hour, and what tells them
+  // apart is whether the bank ever refills. The light-excessive side is
+  // always-on (excess PAR can burn leaves any time the lamps are on, but
+  // if they're off there's nothing to burn).
   const [lightLo, lightHi] = species.tolerableLight;
   let lightAmount = 0;
   let lightLabel = 'Light';
@@ -165,37 +190,33 @@ export function buildPlantBenefits(ctx: PlantVitalityContext): VitalityFactor[] 
   const [co2Lo, co2Hi] = species.tolerableCO2;
   const [tempLo, tempHi] = species.tolerableTemp;
   const [phLo, phHi] = species.tolerablePH;
+  const saturation = lightSaturationFactor(
+    resources.light,
+    getSaturationIrradiance(plant.species, plantsConfig)
+  );
 
   return [
     {
-      key: 'light',
-      label: 'Light',
-      amount:
-        plantsConfig.lightBenefitPeak *
-        lightSaturationFactor(
-          resources.light,
-          getSaturationIrradiance(plant.species, plantsConfig)
-        ),
-    },
-    {
       key: 'co2',
       label: 'CO2',
-      amount: inRangeBenefit(resources.co2, co2Lo, co2Hi, plantsConfig.co2BenefitPeak),
+      amount: saturation * inRangeBenefit(resources.co2, co2Lo, co2Hi, plantsConfig.co2BenefitPeak),
     },
     {
       key: 'temperature',
       label: 'Temperature',
-      amount: inRangeBenefit(
-        resources.temperature,
-        tempLo,
-        tempHi,
-        plantsConfig.temperatureBenefitPeak
-      ),
+      amount:
+        saturation *
+        inRangeBenefit(
+          resources.temperature,
+          tempLo,
+          tempHi,
+          plantsConfig.temperatureBenefitPeak
+        ),
     },
     {
       key: 'ph',
       label: 'pH',
-      amount: inRangeBenefit(resources.ph, phLo, phHi, plantsConfig.phBenefitPeak),
+      amount: saturation * inRangeBenefit(resources.ph, phLo, phHi, plantsConfig.phBenefitPeak),
     },
     {
       key: 'nutrients',
@@ -206,6 +227,7 @@ export function buildPlantBenefits(ctx: PlantVitalityContext): VitalityFactor[] 
       // two together let condition track sufficiency continuously for
       // plants whose only knob is nutrients.
       amount:
+        saturation *
         plantsConfig.nutrientBenefitPeak *
         Math.max(0, Math.min(1, nutrientSufficiency)),
     },
@@ -220,6 +242,8 @@ export function computePlantVitality(ctx: PlantVitalityContext): VitalityResult 
   const species = PLANT_SPECIES_DATA[ctx.plant.species];
   return computeVitality({
     stressors: buildPlantStressors(ctx),
+    upkeep: buildPlantUpkeep(ctx),
+    upkeepReserveHours: ctx.plantsConfig.upkeepReserveHours,
     benefits: buildPlantBenefits(ctx),
     hardiness: species.hardiness,
     condition: ctx.plant.condition,

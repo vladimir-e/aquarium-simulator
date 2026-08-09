@@ -55,7 +55,7 @@ const MASS_MAX = 100;
  * drawing surplus at full rate but gets less mass per unit drawn as it
  * approaches saturation. Returns the post-spend `AlgaeState`.
  *
- * `spendSurplusOnGrowth` is the plant twin and no longer drains this
+ * `spendSurplus` is the plant twin and no longer drains this
  * way — it withdraws only what converted, so a saturated plant banks
  * its income rather than burning it. The bloom still burns its own,
  * which is why `AlgaeState.surplus` reads zero the way `Plant.surplus`

@@ -8,8 +8,10 @@ import {
   tick,
   type PlantSpecies,
   type SimulationState,
+  type VitalityBreakdown,
 } from '../../simulation/index.js';
 import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
+import { readPlantVitality } from '../../simulation/plants/index.js';
 import {
   ailingPlants,
   algaeRow,
@@ -26,7 +28,7 @@ import {
   tankDemand,
   TRIM_TARGETS,
 } from './flora';
-import { conditionStatus, conditionWord } from './status';
+import { conditionStatus, conditionWord, vitalReading } from './status';
 
 const FORMULA = DEFAULT_CONFIG.nutrients.fertilizerFormula;
 
@@ -71,6 +73,56 @@ describe('condition + algae words', () => {
   });
 });
 
+describe('vitalReading', () => {
+  /** A plant paying 0.02 %/h to stay alive, reserving 100 hours of it. */
+  const ledger = (over: Partial<VitalityBreakdown> = {}): VitalityBreakdown => ({
+    stressors: [],
+    upkeep: [],
+    benefits: [],
+    damageRate: 0,
+    upkeepRate: 0.02,
+    reserved: 2,
+    benefitRate: 0,
+    net: -0.02,
+    drained: 0,
+    starved: 0,
+    ...over,
+  });
+
+  it('will not call a plant thriving while it is paying the bill in tissue', () => {
+    expect(vitalReading(100, 0, ledger({ starved: 1 }))).toEqual({
+      status: 'alert',
+      word: 'starving',
+    });
+  });
+
+  it('warns once the bank is down to the rations, and they are what is paying', () => {
+    expect(vitalReading(100, 2, ledger({ drained: 0.02 }))).toEqual({
+      status: 'warn',
+      word: 'burning',
+    });
+  });
+
+  it('says nothing about a bank spending its spare', () => {
+    // The reading has to survive this one: every plant in a thriving tank
+    // spends bank every dark hour, so `drained > 0` on its own would paint the
+    // whole planting amber for half of every day.
+    expect(vitalReading(100, 20, ledger({ drained: 0.02 }))).toEqual({
+      status: 'ok',
+      word: 'thriving',
+    });
+  });
+
+  it('leaves the word to condition once condition is the worse news', () => {
+    // Starving is an alert and so is a condition of 22, and a tie goes to the
+    // stock the bar beside the word is already showing.
+    expect(vitalReading(22, 0, ledger({ starved: 1 })).word).toBe('struggling');
+    expect(vitalReading(5, 0, ledger({ starved: 1 })).word).toBe('dying');
+    // An alert still outranks the warn a middling condition reads on its own.
+    expect(vitalReading(50, 0, ledger({ starved: 1 })).word).toBe('starving');
+  });
+});
+
 describe('plantRows', () => {
   it('carries the engine’s own vitality, and its factors sum to the net it prints', () => {
     let state = planted(['java_fern', 'monte_carlo']);
@@ -81,9 +133,49 @@ describe('plantRows', () => {
 
     for (const row of rows) {
       const benefits = row.benefits.reduce((sum, f) => sum + f.amount, 0);
-      const stressors = row.stressors.reduce((sum, f) => sum + f.amount, 0);
-      expect(row.net).toBeCloseTo(benefits - stressors, 6);
+      const charged = row.charged.reduce((sum, f) => sum + f.amount, 0);
+      expect(row.net).toBeCloseTo(benefits - charged, 6);
     }
+  });
+
+  it('holds the word through the night a healthy plant banks against', () => {
+    // The engine really is draining a bank here — every dark hour costs upkeep
+    // no income covers — so this is the run the reading has to stay quiet on.
+    let state = planted(['java_fern', 'anubias']);
+    while (state.resources.light > 0) state = tick(state, DEFAULT_CONFIG);
+
+    const [vitality] = readPlantVitality(state, DEFAULT_CONFIG);
+    expect(vitality.breakdown.drained).toBeGreaterThan(0);
+    expect(vitality.breakdown.starved).toBe(0);
+
+    expect(plantRows(state, DEFAULT_CONFIG).map((row) => row.word)).toEqual([
+      'thriving',
+      'thriving',
+    ]);
+  });
+
+  it('escalates off thriving before a blacked-out plant has shed anything', () => {
+    let state = planted(['anubias']);
+    const planted_ = state.plants[0].size;
+    const words: string[] = [];
+
+    for (let hour = 0; hour < 24 * 30; hour++) {
+      state = tick(
+        { ...state, equipment: { ...state.equipment, light: { ...state.equipment.light, enabled: false } } },
+        DEFAULT_CONFIG
+      );
+      if (state.plants.length === 0) break;
+      const [row] = plantRows(state, DEFAULT_CONFIG);
+      words.push(row.word);
+      if (row.word !== 'thriving') break;
+    }
+
+    // The plant leaves `thriving` while it is still whole, and while condition
+    // on its own would still be calling it thriving — which is the whole miss:
+    // reading one stock reported a shedding plant as healthy down to nothing.
+    expect(words[words.length - 1]).not.toBe('thriving');
+    expect(state.plants[0].size).toBe(planted_);
+    expect(conditionWord(state.plants[0].condition)).toBe('thriving');
   });
 
   it('names the plant declining and the plant thriving', () => {
@@ -113,6 +205,27 @@ describe('ailingPlants', () => {
     const ailing = ailingPlants(plantRows(mixed, DEFAULT_CONFIG));
     expect(ailing.map((row) => row.name)).toEqual(['Anubias', 'Java Fern']);
     expect(ailing.map((row) => row.word)).toEqual(['struggling', 'fair']);
+  });
+
+  it('files an alert above a warning, whatever the two conditions read', () => {
+    // Status stopped being a function of condition, so the order stopped being
+    // one too: a plant shedding tissue at full condition outranks one merely
+    // dipping, and sorting on the number alone would file it second.
+    const state = planted(['anubias', 'java_fern']);
+    const dark: SimulationState = {
+      ...state,
+      resources: { ...state.resources, light: 0 },
+      plants: [
+        { ...state.plants[0], condition: 100, surplus: 0 },
+        { ...state.plants[1], condition: 45 },
+      ],
+    };
+
+    const ailing = ailingPlants(plantRows(dark, DEFAULT_CONFIG));
+    expect(ailing.map((row) => [row.name, row.word])).toEqual([
+      ['Anubias', 'starving'],
+      ['Java Fern', 'fair'],
+    ]);
   });
 
   it('has nothing to name while every plant is fine', () => {

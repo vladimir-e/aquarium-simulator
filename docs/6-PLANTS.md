@@ -25,12 +25,14 @@ Plants are modeled as **individual specimens**, each with their own species char
 1. **Photosynthesis** emits resource effects (O2 production, CO2 and
    nutrient uptake). It does NOT directly produce plant size — that
    flows through the surplus supply chain.
-2. **Vitality** banks per-plant **surplus** on `Plant.surplus` when
-   condition is full and net is positive (saturating at `surplusCap`);
-   the same bank drains to buffer damage before condition falls.
-3. **Growth** converts a share of the bank into size each lit tick,
-   scaled by species growth rate and an asymptotic factor against
-   species `maxSize`. Only what became size leaves the bank.
+2. **Vitality** banks per-plant **surplus** on `Plant.surplus` out of
+   whatever income upkeep and damage left, at any condition (saturating
+   at `surplusCap`); the same bank pays the upkeep and buffers damage
+   before condition falls.
+3. **Growth** withdraws a share of the bank each lit tick and spends it
+   on condition first and size second, the size scaled by species growth
+   rate and an asymptotic factor against species `maxSize`. Only what
+   repaired or became size leaves the bank.
 4. Plants can grow past 100% up to their species `maxSize`; growth
    slows asymptotically as size approaches the cap.
 
@@ -43,6 +45,7 @@ Plants are modeled as **individual specimens**, each with their own species char
 | **Species** | Determines characteristics and requirements |
 | **Size** | Current size as % (can exceed 100%) |
 | **Condition** | Health state 0-100% (affects growth and survival) |
+| **Surplus** | Banked photosynthate, the reserve above condition. A plant goes in holding half of `surplusCap` — a specimen arrives with stores, and one starting empty would read as fully starving on its first tick |
 | **Substrate Requirement** | None, Sand, or Aqua Soil |
 
 ### Species Characteristics
@@ -197,36 +200,45 @@ the same planting moves a nano further than it moves a 300 L.
 Growth is **surplus-driven**, per plant, no cross-plant sharing. The
 pipeline is:
 
-1. Vitality returns the new `Plant.surplus` bank each tick. Positive
-   overflow at full condition accrues into it (up to `surplusCap`);
-   negative net drains it before condition falls (see § Plant Condition).
+1. Vitality returns the new `Plant.surplus` bank each tick. Whatever
+   income upkeep and damage left accrues into it at any condition (up to
+   `surplusCap`); a deficit drains it before condition falls (see
+   § Plant Condition).
 2. Accrual is **photoperiod-gated** (`accrueSurplus: light > 0`): at
    night the overflow is discarded. Plant surplus represents stored
    photosynthate (glucose reserves from carbon fixation); plants need
    active photosynthesis to fix carbon, so without light there's no
-   energy actually captured even if vitality's other channels are
-   positive. (Vitality itself runs every tick, so plant *condition*
-   keeps healing at night from non-light benefits — pH, temperature,
-   nutrients — and the reserve still buffers damage overnight; only the
-   accrual step pauses.)
+   energy actually captured. The gate is belt and braces — every benefit
+   is multiplied by the light term, so a dark tick has no overflow to
+   discard in the first place. (Vitality itself runs every tick: at
+   night the reserve buffers the maintenance the plant is still paying,
+   and the cap clamp still applies.)
 3. While the photoperiod is active, the plant mobilises
-   `growthDrawRate` of the bank toward new tissue, and the asymptotic
-   factor decides how much of that becomes size:
+   `growthDrawRate` of the bank — but never past the survival rations —
+   and pays condition first and new tissue second, the asymptotic factor
+   deciding how much of what is left becomes size:
 
    ```
-   converted = surplus × growthDrawRate × asymptoticFactor
+   mobilised = min(max(0, surplus − reserved), surplus × growthDrawRate)
+   repaired  = min(mobilised, 100 − condition)
+   converted = (mobilised − repaired) × asymptoticFactor
    asymptoticFactor = max(0, 1 − size / species.maxSize)
    size_gain = converted × speciesGrowthRate × sizePerSurplus
    ```
+
+   `reserved` is the same line damage stops at (§ Vitality math), and
+   both rungs of the ladder are junior to upkeep for the same reason:
+   a plant that could repair out of its rations would hand back the
+   condition damage just took and starve an hour later.
 
    Growth pauses at night for the same biological reason: overnight
    respiration burns sugars for maintenance, but net biomass
    accumulation requires active carbon fixation. The bank doesn't
    convert in the dark.
-4. **`converted` is the whole withdrawal** — the bank pays for the
-   growth delivered and nothing else. What growth couldn't use stays
-   banked. The bank is the canonical lifecycle-outcome stock for
-   plants.
+4. **`repaired + converted` is the whole withdrawal** — the bank pays
+   for the condition and the growth delivered and nothing else. What
+   the ladder couldn't use stays banked. The bank is the canonical
+   lifecycle-outcome stock for plants.
 
 So a plant at its ceiling converts nothing, pays nothing, and banks
 every unit it earns; a plant with room converts a share and banks the
@@ -239,20 +251,38 @@ factor is zero there, so nothing is withdrawn either way. They part on
 the plant that is still growing. Under a flat ceiling the bank settles
 wherever the withdrawal matches the income: about half a surplus unit
 of the 50-unit cap, which is no reserve. Under a share it settles at
-`income / (growthDrawRate × asymptoticFactor)`, which is proportional
-to what the plant earns — just under 28 units for a young plant in a
-tank it has no complaints about. That reserve is what meets damage
-before condition falls, and what tells a fed plant from a starving one.
+`(income − maintenance) / (growthDrawRate × asymptoticFactor)`, which is
+proportional to what the plant clears — 9 to 26 units for a young plant
+across the roster under the shipped fixture, a shade species holding
+more than a carpet because the same PAR is nearer its saturation. That
+reserve is what meets damage before condition falls, and what tells a
+fed plant from a starving one.
+
+Note what it is *not*: a growing plant does not settle at `surplusCap`,
+and cannot. A day's withdrawal at the cap is more than a day's income,
+so the cap is reachable only once the asymptotic factor has closed the
+withdrawal down. Anything reading the bank as a fraction of health has
+to be scaled against the settling point, not against the cap — which is
+why `upkeepReserveHours` is quoted as a duration rather than as a share
+of the cap. The line is `maintenance × (1 − hardiness) ×
+upkeepReserveHours` in banked units: the same number of hours for every
+species, a different stock for each, because the bank *empties* at the
+post-hardiness rate.
 
 A share saturates too, at `surplusCap × growthDrawRate` — 1.0 units an
 hour on the shipped numbers. A plant reaches it when its settling point
-passes the cap, which for one earning the full 0.5 %/h is at about half
-of `maxSize`. Past that the bank pegs at `surplusCap` and the
-withdrawal is `surplusCap × growthDrawRate × asymptoticFactor`, with
-the income dropped out of it: size is what slows growth from there, not
-conditions. Below the peg the reverse holds — the withdrawal tracks the
-income and the plant's size does not enter, so growth over the first
-half of its life is roughly linear rather than asymptotic.
+passes the cap, which takes most of its growth curve. Past that the bank
+pegs at `surplusCap` and the withdrawal is
+`surplusCap × growthDrawRate × asymptoticFactor`, with the income
+dropped out of it: size is what slows growth from there, not conditions.
+Below the peg the reverse holds — the withdrawal tracks the income and
+the plant's size does not enter, so growth over the first part of its
+life is roughly linear rather than asymptotic.
+
+The bank at the peg is a bank at the peg *at dusk*. Income arrives only
+in the lit hours and maintenance is charged in all of them, so even a
+saturated plant gives back the night's maintenance and earns it again
+the next morning.
 
 Photosynthesis is decoupled from growth: it emits resource effects
 only (O2, CO2, nutrient uptake). Plant size never gets photosynthesis
@@ -394,6 +424,45 @@ night the plant is dormant and doesn't suffer from low CO2 or low
 light. Light excess remains active any time the lamps are bright
 enough to burn leaves.
 
+**Upkeep is not on that table, and that is the point.** It is charged
+every hour at `upkeepCost × q10(temperature)`, but against income rather
+than against condition: it is what the plant owes for being alive, and
+an hour it cannot pay costs it tissue, not health. The two ledgers are
+set out below (§ Vitality math). The plant cards merge them into one
+list for display, which is a rendering choice and not a claim about
+where the cost lands.
+
+**Upkeep is also the compensation point.** It runs on the same Q10 the
+gas layer's respiration does, so the two layers describe one plant and a
+warm blackout kills faster than a cool one. Its reference is the
+irradiance where photosynthesis pays for respiration, 10–20 % of
+saturating irradiance in the macrophyte literature: `upkeepCost`
+against the benefit budget puts a hardiness-0.3 species at 10.5 % of its
+own `Ik`, and hardiness carries the shade species below that. Dim light
+is not free — below that PAR a plant runs a deficit however perfect the
+water is.
+
+There is no separate starvation severity. Once an unpaid bill drives
+shedding directly, the acceleration is the feedback loop — bank drains,
+more of the bill goes unpaid, more tissue goes — rather than a constant
+tuned to imitate one. A multiple on top of maintenance was measured
+against a blackout and moved the death day by one in forty either way,
+so it went.
+
+Night and darkness cost the same per hour. What differs is whether the
+bank ever refills — so the bank tells them apart without the light
+stressors having to know which is which. A plant at night is respiring
+on reserve; a plant in a week-long blackout is starving, and pays in
+tissue.
+
+**Nutrient deficiency is pinned from both ends**, which is the rule for
+every plant severity from here on: a marginal shortfall is *outlived* and
+a severe one kills on a timescale a keeper would recognise. At the
+shipped 0.3, water with no nitrogen in it at all melts a monte carlo in
+28 days, while the shipped `planted` and `betta` presets — undosed,
+planted with the java fern and anubias every beginner guide names — hold
+all five plants alive at condition 96–100 for 180 days.
+
 Damage rates are pre-hardiness; the species `hardiness` (0–1)
 multiplier is applied centrally inside the vitality engine (`damage *
 (1 - hardiness)`). A high-hardiness species (Anubias 0.75) takes
@@ -402,90 +471,152 @@ same stressor.
 
 ### Benefit coverage
 
-Benefits stack into a positive recovery rate; in a fully-comfortable
-tank they sum to roughly 0.5 %/h. Most are awarded when an
-environmental factor is inside its tolerable band; light and nutrients
-are rates rather than bands.
+Benefits stack into a positive recovery rate; at saturating light in a
+fully-comfortable tank they sum to roughly 0.5 %/h. Each is awarded on
+its own channel — a tolerance band for CO2, temperature and pH, Liebig
+sufficiency for nutrients — and every one of them is then multiplied by
+the light term, which is the saturating PAR curve photosynthesis runs
+on.
 
 | Benefit | Trigger | Magnitude |
 |---------|---------|-----------|
-| Light | any PAR at all | `lightBenefitPeak × tanh(light / Ik)` |
-| CO2 | inside `tolerableCO2` | `co2BenefitPeak` |
-| Temperature | inside `tolerableTemp` | `temperatureBenefitPeak` |
-| pH | inside `tolerablePH` | `phBenefitPeak` |
-| Nutrients | sufficiency × peak | `nutrientBenefitPeak × sufficiency` |
+| CO2 | inside `tolerableCO2` | `co2BenefitPeak × tanh(light / Ik)` |
+| Temperature | inside `tolerableTemp` | `temperatureBenefitPeak × tanh(light / Ik)` |
+| pH | inside `tolerablePH` | `phBenefitPeak × tanh(light / Ik)` |
+| Nutrients | sufficiency × peak | `nutrientBenefitPeak × sufficiency × tanh(light / Ik)` |
 
-**Light is income, not comfort.** Temperature and pH have an optimum a
-plant sits *inside*; light is the plant's energy supply, so a plant at
-80 PAR earns more than one at 20 and a flat in-band award would be a
-gate where the model wants a rate. It runs on the same curve
-photosynthesis does, so the benefit reaches its peak only
-asymptotically and pays nothing in the dark.
+**The budget is income, not comfort.** A plant realises every one of
+those channels *through* photosynthesis: good carbon and warm water are
+worth nothing at midnight. So light is not one input among five, it is
+the term the other four modulate — a plant at 80 PAR earns more than one
+at 20, and one in the dark earns nothing at all. The curve reaches its
+peak only asymptotically, so a species deep in its band is still earning
+more for every extra photon.
 
 The two light channels stay separate at the top of the band: crossing
 `tolerableLight[1]` costs a plant damage through the excess stressor,
 not its income. Earnings are continuous across that boundary.
+
+Income arrives only in the lit hours while every stressor is charged in
+all 24, so the balance a plant lives on is a daily one and the
+photoperiod is a real lever. The PAR that holds a plant across a whole
+day is 1.5–2.3 × its instantaneous compensation point on the shipped
+10 h schedule, the shade species at the top of that range.
 
 Benefits are **not** scaled by hardiness — a hardy plant tolerates
 poor conditions better, but isn't more energised by good ones.
 
 ### Vitality math (per tick)
 
+A plant runs two ledgers, and which one a deficit belongs to decides
+which stock it reaches. Energy — income against the cost of living —
+ends in the bank and then in `size`. Health — damage done *to* the
+plant — ends in `condition`.
+
 ```
+upkeepRate  = Σ upkeep.amount   × (1 - hardiness)
 damageRate  = Σ stressor.amount × (1 - hardiness)
 benefitRate = Σ benefit.amount
-net         = benefitRate − damageRate
 bank        = clamp(plant.surplus, 0, surplusCap)   // self-heals old saves
+reserved    = upkeepRate × upkeepReserveHours       // survival rations
 
-if net < 0:                      drain        = min(bank, |net|)
-                                 newCondition = max(0, condition − (|net| − drain))
-                                 surplus      = bank − drain
-if net > 0 and condition < 100:  newCondition = min(100, condition + net)
-                                 surplus      = bank            // idle, capped
-if net > 0 and condition == 100: newCondition = 100
-                                 surplus      = accrue ? min(surplusCap, bank + net) : bank
+energyNet   = benefitRate − upkeepRate
+if energyNet < 0:   drain   = min(bank, |energyNet|)          // to the last unit
+                    bank   −= drain
+                    starved = (|energyNet| − drain) / upkeepRate   // → shedding
+
+conditionNet = max(0, energyNet) − damageRate
+if conditionNet < 0:  buffered = min(max(0, bank − reserved), |conditionNet|)
+                      bank    −= buffered
+                      newCondition = max(0, condition + conditionNet + buffered)
+if conditionNet > 0:  newCondition = condition
+                      bank = accrue ? min(surplusCap, bank + conditionNet) : bank
 ```
 
 `accrue` is the photoperiod gate (`light > 0`); draining and the cap
-clamp apply regardless. While condition is below 100 no overflow banks,
-so the bank doesn't fill from healing and growth doesn't happen. Once
-condition reaches 100, daylight overflow accrues (up to the cap), the
-growth pipeline converts a share of it each daylight tick, and
-everything it couldn't use stays banked. See *Growth and Size* above
-for the full supply chain.
+clamp apply regardless.
+
+Three consequences worth internalising:
+
+- **One bank, two claims, in an order.** Upkeep is senior and may spend
+  the reserve to the last unit; damage may only spend what stands above
+  `upkeepReserveHours` of upkeep. Separating them instead was tried and
+  measured: it deletes the burning-reserves reading. Letting damage
+  spend to the floor was tried too, and it turns any nagging channel
+  into starvation — damage outweighs upkeep by an order of magnitude, so
+  the bank damage empties is the bank the next dark hour finds empty. A
+  fortnight without fertiliser kills both carpets without the line and
+  neither with it.
+- **Nothing here repairs condition.** Repair is a *withdrawal*, made by
+  `spendSurplus` alongside growth and ahead of it — the same heal-then-
+  grow ladder, with the bank as the pool both rungs draw from. A bank
+  unit is a condition point; the bank accrued out of the same %/h the
+  deficit is measured in. Both rungs stop where damage stops: the
+  withdrawal comes out of `max(0, bank − reserved)`, so the line holds
+  for more than the tick that drew it.
+- **Damage is met out of income first, then out of the spare.** A
+  nagging channel costs a plant its banking rate — which is to say its
+  growth — before it costs any reserve, and its reserve before it costs
+  any condition.
+
+Fish and algae declare no upkeep, so `energyNet` is their whole income
+and the shape collapses back to the single balance they always ran:
+income repairs them on the spot, damage drains the bank before condition
+falls with nothing reserved against it, and the bank fills only from
+what a full condition leaves over.
 
 ### Heal-or-decline trajectory
 
 There is no intermediate steady state for plant condition: any organism
 whose net rate is non-negative heals to 100, and any organism whose
-net rate is negative declines toward 0. A plant whose stressors are
-all zero will reach 100 even when its conditions are merely
+net rate is negative declines toward 0. A plant whose income covers
+maintenance will reach 100 even when its conditions are merely
 "adequate" — there is no homeostatic parking. This is the same
 trajectory shape used for fish.
+
+For a plant the balance is a daily one, because maintenance never stops
+and income only arrives with the light. A plant reads as parked at a
+condition only while its reserve is absorbing the shortfall: **condition
+100 with a draining bank is a plant on its way down**, and the bank is
+where to look for it.
 
 ---
 
 ## Shedding and Death
 
-Plants with low condition begin shedding (losing size) and can eventually die.
+A plant that cannot pay for itself sheds tissue, and one that runs out
+of either stock leaves the tank.
 
 ### Shedding
 
-When condition drops below 30%, plants begin shedding leaves:
+Shedding is the outlet for an unpayable upkeep bill — not a state a
+condition threshold switches on:
 
 ```
-if condition < 30:
-    shedding_rate = (30 - condition) / 30 * MAX_SHEDDING_RATE
-    size_lost = size * shedding_rate
-    size -= size_lost
-
-    # Shed material becomes waste
-    tank.waste += size_lost * WASTE_PER_SHED
+starved   = share of upkeepRate the income and the bank both failed to cover
+size_lost = size * starved * maxSheddingRate
+size     -= size_lost
+tank.waste += size_lost * WASTE_PER_SHED
 ```
 
-- Shedding rate increases as condition drops
-- At condition = 0, shedding is at maximum rate
-- Shed material adds organic waste to the tank
+- A plant paying its whole bill sheds nothing, whatever its condition.
+- A plant paying none of it sheds `maxSheddingRate` of itself an hour.
+- Between the two the rate is the share of the bill left standing, so a
+  dim afternoon and a blackout are the same mechanic at two strengths.
+
+**The tissue leaves as waste, not as fuel.** That is what separates
+shedding from the growth line it otherwise mirrors: a starving plant
+abscises its oldest leaves rather than digesting them, which is why
+melting plants foul the water. Measured, the alternative does not work
+— routing the shortfall back through `sizePerSurplus` as an energy
+conversion costs about a tenth of what growth invested, so a blacked-out
+anubias still reads alive at 90 days.
+
+Nothing shrinks a plant for being *damaged*, only for being unfed.
+Nitrate burn, wrong pH and shade take condition; measured, letting them
+take tissue as well kills an anubias in a nutrient-free tank in 5 days
+against 90 on `main`, because the health deficit is five to twenty times
+the size of the bill and saturates the shed rate on the first tick.
 
 ### Plant Death
 
@@ -502,12 +633,20 @@ if condition < 10 OR size < 10:
 
 Dead plants add significant waste to the system (decaying biomass).
 
+The two thresholds now name two different deaths. Condition is what
+takes a plant that was *damaged* — poisoned, cooked, shaded. Size is
+what takes a plant that *starved*: it holds condition 100 the whole way
+down and simply runs out of itself.
+
 ### Recovery
 
-Plants can recover from low condition if nutrients are restored before death:
-- Condition must climb back above 30% to stop shedding
-- Size lost to shedding is permanent
-- Full recovery to 100% condition takes time
+Plants recover if the tank is put right before either stock runs out:
+- Size lost to shedding is permanent — a recovered plant is a smaller
+  plant, and grows again from there.
+- Repair is a withdrawal from the bank, so a plant recovers as fast as
+  its income lets it bank, and never at the cost of the night's upkeep.
+- Full recovery to 100 % condition takes time, and growth resumes only
+  once repair stops claiming the whole withdrawal.
 
 ---
 
@@ -738,7 +877,7 @@ if excess_nutrients AND poor_plant_health:
 | Resource | Destination |
 |----------|-------------|
 | Oxygen | Tank dissolved O2 |
-| Waste | From overgrowth (>200%), shedding, death |
+| Waste | Shedding, death |
 | Shelter | Reduces fish stress |
 
 ---
@@ -754,11 +893,9 @@ if excess_nutrients AND poor_plant_health:
 | K or Fe = 0 | Growth limited (high demand plants suffer) |
 | Nutrient sufficiency < 50% | Condition begins declining |
 | Nutrient sufficiency < 20% | Rapid condition decline |
-| Plant condition < 30% | Shedding begins |
+| Upkeep unpaid | Shedding begins, in proportion to the share unpaid |
 | Plant condition < 10% | Plant dies |
 | Plant size < 10% | Plant dies |
-| Any plant > 100% | Growth slowed for all plants |
-| Any plant > 200% | Releases waste to tank |
 
 ---
 

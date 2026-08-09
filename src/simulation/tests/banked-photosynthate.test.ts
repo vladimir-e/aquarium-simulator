@@ -8,17 +8,30 @@
  * worth anything if the planting stopped growing to pay for them.
  *
  * The bank has two regimes, split at the size where its settling point passes
- * `surplusCap` — about half of `maxSize` for a plant earning the full 0.5 %/h.
- * Below it the withdrawal tracks the income; past it the bank pegs at the cap
- * and the income drops out. Each claim below names the regime it holds in.
+ * `surplusCap`. Below it the withdrawal tracks the income; past it the bank
+ * climbs to the cap and the income drops out. Each claim below names the
+ * regime it holds in.
+ *
+ * Income arrives only in the lit hours and maintenance is charged in all of
+ * them, so a bank at the cap is a bank at the cap *at dusk*: it gives back the
+ * night's maintenance and earns it again the next morning. Every reading here
+ * that names the cap is taken inside the photoperiod for that reason.
  */
 
 import { describe, it, expect } from 'vitest';
 import type { PresetSeed } from '../seed.js';
 import { plantsDefaults } from '../config/plants.js';
 import { getSpeciesMaxSize } from '../systems/plant-growth.js';
+import { PLANT_SPECIES_DATA } from '../plants/species.js';
 import { runTank, totalSize } from './metrics.js';
-import { ATTACHED_PLANTING, DAY, fixtureFor, plantedTank, planting } from './tanks.js';
+import {
+  ATTACHED_PLANTING,
+  atOptimum,
+  DAY,
+  fixtureFor,
+  plantedTank,
+  planting,
+} from './tanks.js';
 
 const CAPACITY = 150;
 
@@ -44,10 +57,56 @@ const PEGGED: PresetSeed = {
 const grow = (seed: PresetSeed, days: number, setup = TANK): ReturnType<typeof runTank> =>
   runTank({ setup, seed, days, sampleEvery: DAY, sampleHour: 0 });
 
+/** Either end of the dark stretch of the 08:00 + 12 h photoperiod `plantedTank` runs. */
+const DUSK = 19;
+const DAWN = 7;
+const DARK_HOURS = DAY - 12;
+
+const growToHour = (seed: PresetSeed, days: number, hour: number): ReturnType<typeof runTank> =>
+  runTank({ setup: TANK, seed, days, sampleEvery: DAY, sampleHour: hour });
+
+/**
+ * The same run with the water rewritten to optimum before every tick.
+ *
+ * Every claim below that names `surplusCap` needs it: the bank is one stock
+ * with two claims on it, and the reserve above the survival line is what
+ * damage is buffered by — so a planting this size drawing a 150 L down carries
+ * a nutrient deficiency into the ledger the reading is about. Held at optimum,
+ * the only thing in the ledger is what the plant pays to stay alive.
+ */
+const growToHourHeld = (
+  seed: PresetSeed,
+  days: number,
+  hour: number
+): ReturnType<typeof runTank> =>
+  runTank({
+    setup: TANK,
+    seed,
+    days,
+    routine: { hold: atOptimum },
+    sampleEvery: DAY,
+    sampleHour: hour,
+  });
+
+const growToDusk = (seed: PresetSeed, days: number): ReturnType<typeof runTank> =>
+  growToHour(seed, days, DUSK);
+
+/** What the planting pays per hour for being alive, post-hardiness, at 25 °C. */
+const UPKEEP_PER_HOUR =
+  ATTACHED_PLANTING.reduce(
+    (sum, group) =>
+      sum +
+      group.count *
+        plantsDefaults.upkeepCost *
+        (1 - PLANT_SPECIES_DATA[group.species].hardiness),
+    0
+  ) / ATTACHED_PLANTING.reduce((sum, group) => sum + group.count, 0);
+
 describe('the bank a plant runs on', () => {
   const growing = grow(GROWING, 30);
   const maxedEarly = grow(MAXED, 5);
   const maxed = grow(MAXED, 30);
+  const maxedAtDusk = growToDusk(MAXED, 30);
 
   it('fills on a thriving planting, and keeps filling', () => {
     expect(growing.final.plants).toHaveLength(3);
@@ -66,7 +125,24 @@ describe('the bank a plant runs on', () => {
   it('saturates a plant that has nowhere left to grow', () => {
     expect(maxedEarly.samples[5]!.avgSurplus).toBeGreaterThan(0);
     expect(maxed.samples[30]!.avgSurplus).toBeGreaterThan(maxedEarly.samples[5]!.avgSurplus);
-    expect(maxed.samples[30]!.avgSurplus).toBeCloseTo(plantsDefaults.surplusCap, 5);
+    expect(maxedAtDusk.samples[30]!.avgSurplus).toBeCloseTo(plantsDefaults.surplusCap, 5);
+  });
+
+  it('gives back exactly the night it slept through', () => {
+    // The sawtooth the reading above sits on top of, measured end to end and
+    // across one night of one run: a maxed planting tops out at the cap at
+    // dusk and is short of it at first light by what it spent staying alive in
+    // between, and by nothing else. Held at optimum, nothing else *can* be in
+    // it — no channel is charging the plant, so the only claim on the bank is
+    // the upkeep. Three decimals rather than an exact equality because the tank
+    // sits a few hundredths off 25 °C for an hour or two a night while the hold
+    // and the heater argue, and the Q10 moves the bill with it — 0.03 % of the
+    // figure.
+    const dusk = growToHourHeld(MAXED, 31, DUSK).samples[30]!.avgSurplus;
+    const dawn = growToHourHeld(MAXED, 31, DAWN).samples[31]!.avgSurplus;
+
+    expect(dusk).toBeCloseTo(plantsDefaults.surplusCap, 5);
+    expect(dusk - dawn).toBeCloseTo(DARK_HOURS * UPKEEP_PER_HOUR, 3);
   });
 
   it('holds a maxed plant at its ceiling rather than shrinking it', () => {
@@ -79,11 +155,21 @@ describe('the bank a plant runs on', () => {
     expect(maxed.samples[30]!.avgSurplus).toBeGreaterThan(growing.samples[30]!.avgSurplus);
   });
 
-  it('pegs the bank at the cap past half of maxSize, and grows on the peg', () => {
-    const pegged = grow(PEGGED, 30);
+  it('climbs to the peg past half of maxSize, and grows on the way', () => {
+    // Months rather than weeks: what fills the bank is the income left after
+    // upkeep, and a planting this size in 150 L is drawing its water down far
+    // enough that what is left is a trickle. The regime is the claim — the
+    // withdrawal has stopped tracking the income, so the bank only goes up.
+    // It passes 99 % of the cap on d99 and never comes back down, so the run
+    // closes three weeks past the crossing rather than on top of it.
+    const pegged = growToHourHeld(PEGGED, 120, DUSK);
 
-    expect(pegged.samples[20]!.avgSurplus).toBeGreaterThan(plantsDefaults.surplusCap * 0.99);
-    expect(pegged.samples[30]!.avgSurplus).toBeGreaterThan(plantsDefaults.surplusCap * 0.99);
+    for (const day of [20, 40, 60, 80, 100, 120]) {
+      expect(pegged.samples[day]!.avgSurplus).toBeGreaterThan(
+        pegged.samples[day - 20]!.avgSurplus
+      );
+    }
+    expect(pegged.samples[120]!.avgSurplus).toBeGreaterThan(plantsDefaults.surplusCap * 0.99);
     expect(totalSize(pegged.final)).toBeGreaterThan(pegged.samples[0]!.totalSize);
   });
 

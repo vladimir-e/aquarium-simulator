@@ -7,6 +7,7 @@ import type { SimulationState } from '../state.js';
 import type { PlantSpecies } from '../plants/species.js';
 import type { SubstrateType } from '../equipment/substrate.js';
 import { PLANT_SPECIES_DATA } from '../plants/species.js';
+import type { PlantsConfig } from '../config/plants.js';
 import { createLog } from '../core/logging.js';
 import { createPlant, DEFAULT_PLANT_SIZE } from '../plants/create-plant.js';
 import type { ActionResult, AddPlantAction, RemovePlantAction } from './types.js';
@@ -90,7 +91,8 @@ export function getSubstrateIncompatibilityReason(
  */
 export function addPlant(
   state: SimulationState,
-  action: AddPlantAction
+  action: AddPlantAction,
+  plantsConfig: PlantsConfig
 ): ActionResult {
   const { species, initialSize = DEFAULT_PLANT_SIZE } = action;
 
@@ -102,7 +104,7 @@ export function addPlant(
     };
   }
 
-  // Validate initial size (0-200% allowed, plants can start overgrown)
+  // Validate initial size
   if (!Number.isFinite(initialSize) || initialSize < 0 || initialSize > 200) {
     return {
       state,
@@ -132,7 +134,7 @@ export function addPlant(
   const plantData = PLANT_SPECIES_DATA[species];
 
   const newState = produce(state, (draft) => {
-    draft.plants.push(createPlant({ species, size: initialSize, rng: draft.rng }));
+    draft.plants.push(createPlant({ species, size: initialSize, plantsConfig, rng: draft.rng }));
 
     draft.logs.push(
       createLog(

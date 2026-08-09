@@ -429,57 +429,6 @@ function algaeAlone(): string {
   );
 }
 
-/** `main` reproduced for these rows: the light award paid inside the band only. */
-const NO_BENEFIT = tuned((draft) => {
-  draft.plants.algaeShadingThreshold = Number.MAX_SAFE_INTEGER;
-  draft.plants.lightBenefitPeak = 0;
-});
-
-/** Species and substrate PAR, each well past where the species' band closes. */
-const ABOVE_BAND: Array<[PlantSpecies, number]> = [
-  ['java_fern', 300],
-  ['amazon_sword', 250],
-  ['anubias', 300],
-  ['monte_carlo', 300],
-  ['anubias', 100],
-];
-
-/**
- * § 2d — what the light benefit is worth above the band it used to stop at.
- *
- * `main` awarded `lightBenefitPeak` only inside `tolerableLight`; this branch
- * awards `peak × tanh(PAR / Ik)`, and by the top of any species' band that term
- * is within half a percent of 1 — so a plant `lightExcessiveSeverity` is burning
- * now draws its full income while it burns. The `peak 0` row of each pair is
- * `main` for these rows exactly, and the distance between the two is the
- * change. Algae shading is out of reach on both, so what moves is the light.
- */
-function benefitAboveBand(): string {
-  return formatTable(
-    ABOVE_BAND.flatMap(([species, subPar]) => {
-      const setup = withLight(LOW_TECH, fixtureFor(subPar, SHADE_CAPACITY), 12);
-      const seed = monoculture(species);
-      return [DEFAULT_CONFIG.plants.lightBenefitPeak, 0].map((peak) => {
-        const run = grow({
-          setup,
-          seed,
-          config: peak === 0 ? NO_BENEFIT : NO_SHADING,
-          hold: fed,
-        });
-        return {
-          species: PLANT_SPECIES_DATA[species].name,
-          bandHigh: PLANT_SPECIES_DATA[species].tolerableLight[1],
-          subPAR: subPar,
-          lightBenefitPeak: peak,
-          size60: run.size,
-          cond60: run.condition,
-          died: dayLabel(run.died),
-        };
-      });
-    })
-  );
-}
-
 /**
  * § 3 — the daily-light-integral trade, re-measured. The same photons a day
  * spread differently: a long dim day against a short bright one, on one species,
@@ -517,7 +466,6 @@ const SECTIONS: Array<[string, () => string]> = [
   ['fixed photoperiod, monte carlo (Ik 60), water held', (): string => doseTable('monte_carlo', 200)],
   ['fixed photoperiod, shade pairing in a low-tech 40 L', shadePairing],
   ['the same ladder with no planting in the tank, water held', algaeAlone],
-  ['the light benefit above the band, against a benefit of 0', benefitAboveBand],
   ['matched daily light integral, java fern, water held', (): string => dliTrade('java_fern')],
 ];
 

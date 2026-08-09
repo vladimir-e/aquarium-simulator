@@ -110,7 +110,7 @@ describe('algae as population — monotonicity while net ≥ 0', () => {
 });
 
 describe('algae as population — plant-side feedback (algae shading)', () => {
-  it('a heavy bloom drives plant condition down via algae_shading', () => {
+  it('a heavy bloom is charged to the plant, and condition pays it', () => {
     let state = setupTank();
     // Start with a bloom well above the 30-mass shading threshold.
     state = produce(state, (draft) => {
@@ -123,6 +123,7 @@ describe('algae as population — plant-side feedback (algae shading)', () => {
     state = applyAction(state, { type: 'addPlant', species: 'anubias', initialSize: 80 }).state;
 
     const startCondition = state.plants[0].condition;
+    const startBank = state.plants[0].surplus;
 
     // Run for a single sim day — long enough to see the signal
     // start, short enough to not enter scrub-or-die territory. The
@@ -132,7 +133,12 @@ describe('algae as population — plant-side feedback (algae shading)', () => {
 
     // Plant should still be alive.
     expect(state.plants.length).toBe(1);
-    // And its condition should have dropped from the starting value.
-    expect(state.plants[0].condition).toBeLessThan(startCondition);
+    // Shade is damage, and damage is what the reserve is a buffer against —
+    // so a hardy plant with a bank spends the bank first and reads full
+    // condition while it lasts. Condition 100 with the reserve going down is
+    // the signal, not the absence of one.
+    expect(state.plants[0].condition).toBe(startCondition);
+    expect(state.plants[0].surplus).toBeLessThan(startBank);
+    expect(startBank).toBeGreaterThan(0);
   });
 });
