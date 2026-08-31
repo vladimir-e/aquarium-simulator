@@ -183,24 +183,24 @@ colony ceiling, reserve is the ammonia source.
 
 ## Key tunables
 
-| Constant | Meaning | Unit | Source |
-|---|---|---|---|
-| `wasteConversionRate` | Share of standing waste mineralized per tick | `0.3` /tick | `config/nitrogen-cycle.ts` |
-| `wasteToAmmoniaRatio` | NH₃ yielded per gram of waste — waste is ≈ 5 % N by dry mass | `60` mg/g | `config/nitrogen-cycle.ts` |
-| `bacteriaProcessingRate` | NH₃ one bacteria unit oxidises per tick, Monod maximum | `2.07e-4` mg/unit/tick | `config/nitrogen-cycle.ts` |
-| `aobSpawnThreshold` | Ammonia at which AOB appear | `0.5` ppm | `config/nitrogen-cycle.ts` |
-| `nobSpawnThreshold` | Nitrite at which NOB appear | `0.5` ppm | `config/nitrogen-cycle.ts` |
-| `inoculumPerLiter` | Nitrifiers a tank is born with, per litre of fill water | `0.6385` units/L | `config/nitrogen-cycle.ts` |
-| `aobGrowthRate` | Per-capita growth at full utilization — a 20 h doubling | `0.035898` /tick | `config/nitrogen-cycle.ts` |
-| `nobGrowthRate` | Per-capita growth at full utilization — a 36 h doubling | `0.021781` /tick | `config/nitrogen-cycle.ts` |
-| `bacteriaPerCm2` | Biofilm carrying capacity — 10⁷ cells/cm² | `10` units/cm² | `config/nitrogen-cycle.ts` |
-| `bacteriaDeathRate` | Maintenance loss — a 21-day half-life | `0.0013753` /tick | `config/nitrogen-cycle.ts` |
-| `q10` | Factor every nitrifier rate multiplies by per 10 °C | `2.5` | `config/nitrogen-cycle.ts` |
-| `referenceTemp` | Temperature the nitrifier rates are quoted at | `25` °C | `config/nitrogen-cycle.ts` |
-| `aobOxygenHalfSaturation` | O₂ at which AOB run at half rate | `0.3` mg/L | `config/nitrogen-cycle.ts` |
-| `nobOxygenHalfSaturation` | O₂ at which NOB run at half rate | `1.1` mg/L | `config/nitrogen-cycle.ts` |
-| `AIR_SATURATED_O2` | The water every rate above is quoted in | `8.38` mg/L | `config/nitrogen-cycle.ts` |
-| `substrateLeachRate` | Share of the bed's remaining reserve released per tick | `0.003` /hr | `config/decay.ts` |
+| Constant | Meaning | Unit |
+|---|---|---|
+| `wasteConversionRate` | Share of standing waste mineralized per tick | `0.3` /tick |
+| `wasteToAmmoniaRatio` | NH₃ yielded per gram of waste — waste is ≈ 5 % N by dry mass | `60` mg/g |
+| `bacteriaProcessingRate` | NH₃ one bacteria unit oxidises per tick, Monod maximum | `2.07e-4` mg/unit/tick |
+| `aobSpawnThreshold` | Ammonia at which AOB appear | `0.5` ppm |
+| `nobSpawnThreshold` | Nitrite at which NOB appear | `0.5` ppm |
+| `inoculumPerLiter` | Nitrifiers a tank is born with, per litre of fill water | `0.6385` units/L |
+| `aobGrowthRate` | Per-capita growth at full utilization — a 20 h doubling | `0.035898` /tick |
+| `nobGrowthRate` | Per-capita growth at full utilization — a 36 h doubling | `0.021781` /tick |
+| `bacteriaPerCm2` | Biofilm carrying capacity — 10⁷ cells/cm² | `10` units/cm² |
+| `bacteriaDeathRate` | Maintenance loss — a 21-day half-life | `0.0013753` /tick |
+| `q10` | Factor every nitrifier rate multiplies by per 10 °C | `2.5` |
+| `referenceTemp` | Temperature the nitrifier rates are quoted at | `25` °C |
+| `aobOxygenHalfSaturation` | O₂ at which AOB run at half rate | `0.3` mg/L |
+| `nobOxygenHalfSaturation` | O₂ at which NOB run at half rate | `1.1` mg/L |
+| `AIR_SATURATED_O2` | The water every rate above is quoted in | `8.38` mg/L |
+| `substrateLeachRate` | Share of the bed's remaining reserve released per tick | `0.003` /hr |
 
 A **bacteria unit is 10⁶ cells**, which is what makes `bacteriaPerCm2` a biofilm
 density you can look up rather than a score. Throughput, ceiling density and
@@ -221,19 +221,8 @@ one pinned to a real measurement.
 | [Actions](/subsystems/actions/) | — | A water change removes `ammonia`, `nitrite` and `nitrate` mass proportionally; dosing adds `nitrate` |
 | [Alerts & logging](/subsystems/alerts-and-logging/) | — | Ammonia > 0.1 ppm, nitrite > 1.0 ppm and nitrate > 80 ppm each raise an alert once per crossing |
 
-## Source map
+## Source
 
-| File | Role |
-|---|---|
-| `src/simulation/systems/nitrogen-cycle.ts` | The system. All three stages, colony dynamics, and the pure functions each is built from |
-| `src/simulation/config/nitrogen-cycle.ts` | Tunables, their units and their declared ranges |
-| `src/simulation/core/chemistry.ts` | Molecular weights and the mass ratios derived from them. Not tunable |
-| `src/simulation/core/kinetics.ts` | `monodFactor` and `q10Factor` — the two shapes every rate here is modified by |
-| `src/simulation/resources/helpers.ts` | `getPpm` / `getMassFromPpm` — the single mass ↔ concentration conversion |
-| `src/simulation/equipment/substrate.ts` | The bed's organic reserve and its leach into the waste pool |
-| `src/simulation/systems/decay.ts` | Food → waste, upstream of stage 1 |
-| `src/simulation/systems/nitrogen-cycle.test.ts` | Unit tests — mechanism |
-| `src/simulation/tests/n-mass-conservation.test.ts` | End-to-end N accounting, and the named sinks it controls for |
-| `src/simulation/tests/inoculum-window.test.ts` | The sweep that pins `inoculumPerLiter` between the nitrite ceiling and the cycled-day floor |
-| `src/simulation/tests/bacteria-colony.test.ts` | Colony growth, decay and surface-cap behaviour |
-| `src/simulation/tests/substrate-leaching.test.ts` | The bed as a depleting ammonia source |
+`src/simulation/systems/` — with tunables in `config/`, molecular weights and
+rate shapes in `core/`, the mass ↔ ppm conversion in `resources/`, the bed in
+`equipment/`, and the cross-system accounting in `tests/`.
