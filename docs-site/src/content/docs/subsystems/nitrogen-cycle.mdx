@@ -18,7 +18,7 @@ tank has to keep earning.
 
 | Mechanic | Status | Why |
 |---|---|---|
-| Three-stage chain | <Badge text="settled" variant="success" /> | Compound mass converts through the molecular weights in `core/chemistry.ts`; no constant in `config/` restates one. |
+| Three-stage chain | <Badge text="settled" variant="success" /> | Compound mass converts through the molecular weights in `src/simulation/core/`; no tunable restates one. |
 | Ammonia source | <Badge text="settled" variant="success" /> | A physical, depleting bed reserve rather than a flat ambient constant. |
 | Processing capacity | <Badge text="settled" variant="success" /> | Population × per-cell throughput × warmth × air, with no volume term — the same colony clears the same mass in a nano and a 300 L. |
 | Colony growth and decay | <Badge text="settled" variant="success" /> | Logistic growth scaled by utilization; unconditional maintenance decay on a 21-day half-life. |
@@ -26,11 +26,11 @@ tank has to keep earning.
 | Temperature | <Badge text="settled" variant="success" /> | One Q10 factor across oxidation, growth and decay, because they are one metabolism. |
 | Guild spawn | <Badge text="scaffolding" variant="caution" /> | A switch, not a rate: population jumps 0 → full inoculum on the first tick `pop === 0` and its feedstock reads ≥ 0.5 ppm. |
 | Mineralization rate | <Badge text="scaffolding" variant="caution" /> | A flat fraction of standing waste with no temperature and no oxygen term, in the one aerobic step of the chain that has neither. |
-| N mass conservation | <Badge text="scaffolding" variant="caution" /> | The chain conserves N per atom, but decay oxidation, plant uptake and metabolic retention are untracked sinks. `tests/n-mass-conservation.test.ts` controls for them rather than closing them. |
+| N mass conservation | <Badge text="scaffolding" variant="caution" /> | The chain conserves N per atom, but decay oxidation, plant uptake and metabolic retention are untracked sinks. The end-to-end mass accounting controls for them rather than closing them. |
 | Colony sizing on inert beds | <Badge text="scaffolding" variant="caution" /> | `'cycled'` seeding hands gravel and sand the colony a soil tank gets. |
 | Nitrogen alerts | <Badge text="scaffolding" variant="caution" /> | Ammonia alerts on TAN where toxicity is unionized, and nitrite at 1.0 ppm where fish damage starts at any presence. |
 | Denitrification | <Badge text="missing" variant="danger" /> | Nitrate has no biological sink. It leaves only through plant uptake and water changes, so an unplanted tank accumulates it without bound. |
-| Nitrification acidity | <Badge text="missing" variant="danger" /> | Ammonia oxidation releases 2 H⁺ per NH₄⁺. `ph-drift.ts` reads only hardscape and CO₂, so a cycling tank never acidifies. |
+| Nitrification acidity | <Badge text="missing" variant="danger" /> | Ammonia oxidation releases 2 H⁺ per NH₄⁺. pH drift reads only hardscape and CO₂, so a cycling tank never acidifies. |
 
 ## How it works
 
@@ -43,8 +43,9 @@ tank has to keep earning.
 | 3 · Nitrite oxidation | NO₂⁻ + 0.5 O₂ → NO₃⁻ | NOB, capped by what is dissolved |
 
 Nitrogen is conserved atom for atom across the chain. Compound mass is not — it
-grows with molecular weight, and every conversion reads its ratio from
-`core/chemistry.ts` so the whole engine agrees on the arithmetic.
+grows with molecular weight, and every conversion reads its ratio from the
+shared chemistry in `src/simulation/core/` so the whole engine agrees on the
+arithmetic.
 
 | Conversion | Factor | Derivation |
 |---|---|---|
@@ -74,15 +75,15 @@ it.
 
 ### Storage is mass, not concentration
 
-Nitrogen compounds are stored as mass in mg, and `getPpm(mass, water)` derives a
-concentration only where a threshold or a display needs one. Storing the
-conserved quantity is what makes evaporation concentrate the tank for free: same
-mass, less water, higher ppm, no code. Oxygen is the exception — it is stored as
-a concentration, so both oxidation steps divide their oxygen bill by standing
-water before pushing the effect.
+Nitrogen compounds are stored as mass in mg, and a concentration is derived from
+that mass and the standing water only where a threshold or a display needs one.
+Storing the conserved quantity is what makes evaporation concentrate the tank for
+free: same mass, less water, higher ppm, no code. Oxygen is the exception — it is
+stored as a concentration, so both oxidation steps divide their oxygen bill by
+standing water before pushing the effect.
 
-On a drained tank `getPpm` returns 0, and both oxidation stages are gated on
-`water > 0`: nitrifiers oxidise what is dissolved. Maintenance decay sits
+On a drained tank that derivation returns 0, and both oxidation stages are gated
+on `water > 0`: nitrifiers oxidise what is dissolved. Maintenance decay sits
 outside that gate on purpose, so a colony in a drained tank dies back rather
 than waiting.
 
