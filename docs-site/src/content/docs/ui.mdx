@@ -8,8 +8,11 @@ deployed at [engine.fishroom.app](https://engine.fishroom.app). It is the
 engine's showcase and its calibration instrument — the surface where a
 month-long run becomes something you can watch, scrub back through, and explain.
 
-It holds no privileged access. The dashboard imports the same public surface any
-host imports, so anything it shows, a consumer can compute.
+It runs on the engine's API — build a tank, tick it, dispatch actions, read the
+state back — and it does not stop there. It imports source directly rather than
+the built package, and a handful of the numbers it displays come off thresholds
+and formatters the package never exports. What it shows is therefore wider than
+the published surface on its own.
 
 ## What it is
 
@@ -17,7 +20,7 @@ host imports, so anything it shows, a consumer can compute.
 |---|---|
 | Source | `src/ui/` |
 | Stack | React, Vite, Tailwind, client-side routing |
-| Relationship to the engine | A host like any other. It calls `tick`, dispatches actions, and reads state |
+| Relationship to the engine | A host with reach past the barrel. It calls `tick`, dispatches actions and reads state, and imports internals besides |
 | Shipped in the package | No. The npm package is the engine; the dashboard deploys as a static site |
 | Session state | The browser's local storage. There is no server and no account |
 | Scope | One tank at a time |

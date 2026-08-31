@@ -66,15 +66,16 @@ have been written to do.
 | Monod | `[S] / (K + [S])` | A stock something consumes — dissolved oxygen, a nutrient |
 | Q10 | `q10 ^ ((T − Tref) / 10)` | Temperature, on anything enzymatic |
 | Jassby–Platt | `tanh(PAR / Ik)` | Light. Nothing can overdraw it, so the curve comes from the leaf rather than from the pool |
-| Piecewise anchors | Linear ramps between named points, zero at every crossing | A tolerance axis, where the real response has inflections but no cliffs |
+| Piecewise anchors | Linear ramps between named points, continuous at every crossing | A tolerance axis, where the real response has inflections but no cliffs |
 
 ## The canonical curve
 
 Satiation is the pattern everything else is measured against. A fish's hunger
 axis carries five labelled bands — overfed, well fed, peckish, hungry, starving —
 but the labels sit on one continuous piecewise-linear curve rather than on
-branches. The curve passes through zero at every band boundary, so a fish
-crossing a boundary crosses nothing.
+branches. Three of the four boundaries are zero crossings; the fourth, from
+hungry into starving, hands the hungry ramp's own value to the steeper slope
+that continues it. What a fish never crosses is a step.
 
 One curve produces both sides of the ledger. Above the neutral zone it emits a
 benefit that peaks mid-band and returns to zero at both edges; below it, a

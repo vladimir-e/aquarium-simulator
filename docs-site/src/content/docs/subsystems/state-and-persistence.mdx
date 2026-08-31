@@ -137,7 +137,7 @@ preferences under one version integer.
 | Version check | A mismatch discards everything. There are no migration shims — a save format change is breaking on purpose |
 | Full validation | A strict schema that rejects unknown keys as well as bad values |
 | Section recovery | If the whole fails, simulation, config and preferences are each retried alone |
-| Config merge | A section that validates is overlaid on the defaults, so a tunable added since the save arrives at its default rather than missing |
+| Config merge | A config that validates is overlaid on the defaults. The schema requires every leaf, though, so a save written before a tunable was added fails it outright and the whole config reloads as defaults rather than the one new leaf filling in |
 | Write | Debounced, with an explicit flush for page unload |
 
 The save surface itself is not part of the engine. `SimulationState` is plain

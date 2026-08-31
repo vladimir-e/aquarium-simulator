@@ -56,8 +56,9 @@ potential_i     = (size_i / 100) × co2Factor × lightResponse_i
 actual_i        = potential_i × sufficiency_i
 ```
 
-Potential drives nutrient uptake; actual — the Liebig-gated rate — drives the
-gases. Both are summed across the planting and multiplied by
+Actual — the Liebig-gated rate — drives the gases and the bulk of nutrient
+uptake; potential adds the maintenance draw underneath it. Both are summed
+across the planting and multiplied by
 `basePhotosynthesisRate` to give the tank's rate in *rate units*, where one unit
 is an hour of 100 % plant size at full carbon and saturating light.
 
@@ -90,7 +91,7 @@ to clear that respires more than it fixes and draws oxygen with the lamps on.
 | `surplus` | Income left after upkeep and damage, while the lights are on | Unpaid upkeep, buffered damage, repair, growth | bank units, capped at `surplusCap` |
 | `oxygen` | Photosynthesis | Respiration | mg/L |
 | `co2` | Respiration | Photosynthesis, clamped to what is dissolved | mg/L |
-| `nitrate` · `phosphate` · `potassium` · `iron` | Dosing; nitrification for NO₃ and decay for PO₄, elsewhere | Uptake at the potential rate, split by the fertilizer ratio | mg |
+| `nitrate` · `phosphate` · `potassium` · `iron` | Dosing; nitrification for NO₃ and decay for PO₄, elsewhere | Uptake at the gated rate plus the maintenance fraction of potential, split by the fertilizer ratio | mg |
 | `waste` | Shed tissue and plant death | Mineralization, elsewhere | g |
 
 A bank unit is a condition point — the bank accrues out of the same %/h the
@@ -111,12 +112,15 @@ A missing required nutrient caps sufficiency. A booster reads 1.0 whether it is
 there or not, so it has no effect in either direction — a low-demand species is
 entirely indifferent to potassium and iron.
 
-Uptake is deliberately *not* Liebig-gated. A plant draws
+Uptake is Liebig-gated with a floor under it. A plant draws
 `(actual + 0.2 × potential) × nutrientsPerPhotosynthesis` and splits it across
-the four nutrients by the fertilizer formula's own ratio, so a planting keeps
-pulling nitrogen and phosphate down even when a starved potassium caps its
-growth. The consequence to know: because uptake reads the same ratio the doser
-meters by, dosing cannot correct an imbalance it did not create.
+the four nutrients by the fertilizer formula's own ratio. Since actual is
+potential already multiplied by sufficiency, a starved potassium drops the draw
+on nitrogen and phosphate to the `0.2` maintenance fraction — a sixth of what
+the same planting takes at full sufficiency — rather than ending it, so the
+water column keeps falling while growth is capped. The consequence to know:
+because uptake reads the same ratio the doser meters by, dosing cannot correct
+an imbalance it did not create.
 
 ### Income, upkeep and the compensation point
 
@@ -190,7 +194,7 @@ plant leaves the array.
 | `saturationIrradianceFactor` | Multiple of a species' band low at which it saturates — the `Ik` of the light curve | `2.0` × band low |
 | `optimalCo2` | Carbon at which `co2Factor` reaches 1 | `20` mg/L |
 | `co2PerRateUnit` | Carbon one rate unit moves, in either direction | `30` mg |
-| `nutrientsPerPhotosynthesis` | Total nutrient draw per unit of potential photosynthesis | `4.0` mg |
+| `nutrientsPerPhotosynthesis` | Total nutrient draw per rate unit the uptake term resolves to | `4.0` mg |
 | `baseRespirationRate` | Dark respiration as a share of the light-saturated rate | `0.03` /hr |
 | `respirationQ10` | Factor respiration and upkeep multiply by per 10 °C | `2.0` |
 | `respirationOxygenHalfSaturation` | O₂ at which respiration runs at half rate | `0.5` mg/L |
