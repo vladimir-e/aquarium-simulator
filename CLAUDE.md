@@ -5,14 +5,14 @@ Building a comprehensive aquarium ecosystem simulation engine that models all as
 ## Spec-Driven Development
 
 This project follows spec-driven development:
-1. **Documentation is complete** - Full specs live in `docs/`
+1. **Documentation is complete** - The docs portal covers the whole system
 2. **Code is iterative** - Implementation happens in scoped tasks, each with a clearly defined brief
-3. **Keep specs current** - If you find inconsistencies or conflicts between specs and your task, flag them! Update docs when implementation reveals better approaches
+3. **Keep docs current** - If you find inconsistencies or conflicts between the docs and your task, flag them! Update docs when implementation reveals better approaches
 
 ### Understanding the Project
 
-1. **Start here:** Read `docs/1-DESIGN.md` for architecture and doc index
-2. **Check what to trust:** `docs/system-status.md` — settled vs scaffolding vs missing. Read it before building on, defending, or "fixing" any system
+1. **Start here:** Documentation lives in `docs-site/src/content/docs/` and is published at docs.fishroom.app — read the Overview for the architecture and how the pages are organised
+2. **Check what to trust:** Each subsystem page carries a Status table — settled vs scaffolding vs missing. Read it before building on, defending, or "fixing" that system
 3. **Check progress:** Read `CHANGELOG.md` to see what's implemented
 4. **Task briefs** come from the maintainer/orchestrator per task; `docs/tasks/` holds earlier briefs as historical reference only
 
@@ -68,12 +68,22 @@ Task briefs are provided by the maintainer or orchestrator per task — there's 
 3. Create unit tests, aim for 90% coverage
 4. Run `npm run lint` and fix any issues
 5. Run all unit tests and build to validate your work
-6. Add an entry to `CHANGELOG.md`
-7. Commit with a short message and raise a PR
+6. Update the docs pages your change touched — a behaviour change lands in the matching subsystem or concept page
+7. Add an entry to `CHANGELOG.md`
+8. Commit with a short message and raise a PR
+
+**Docs discipline:**
+
+- A page describes how the system works, in present tense, for a human reader — not a changelog, not a statement of intent
+- Tables over prose wherever the content is a set of values, statuses or seams
+- Source pointers name directories only, never filenames or signatures
+- Docs change when behaviour changes, not when code gets refactored
+- Never mention downstream consumers of the engine
 
 ## Gotchas
 
 - **Ids are tank-unique, not process-unique** — two tanks emit the same id sequence, so UI state keyed by organism id must reset when the tank is replaced (`useExpandedRows` is the pattern). A tank's UI identity is `tankId`; seeds are nameable and two tanks can share one.
-- **Three config writers, one rule** — CLI `applyConfigSet`, the debug panel and the persistence schema all validate against `configRange(path)` off each tunable's `*ConfigMeta`. A new tunable without a declared range is a defect; a test walks every leaf.
+- **Three config writers, two sets of bounds** — CLI `applyConfigSet` and the debug panel both validate against `configRange(path)` off each tunable's `*ConfigMeta`; the persistence schema carries its own hand-written zod bounds. Widening a range means touching both sides, or a value the CLI accepts is one the save schema rejects, and a rejected config section reloads as defaults.
+- **A range is enforced only where it's declared** — every tunable declares a min/max except the nitrogen cycle's, where only the two oxygen half-saturation constants do; the rest come off doubling times and were never bounded, so `config set` has nothing to hold them to. A test walks every leaf and pins exactly that split — deriving a bound turns it red on purpose.
 - **Measured evidence is committed under `docs/calibration/runs/` with its probe** — a measurement is only evidence if it's still there to read. `baselines/` and `scenarios/` are pre-vitality, historical intent only.
 - **Releasing is automated** — bump version + GitHub Release → Actions publishes with provenance. `aquarium-simulator@0.1.x`, MIT, engine-only dist, sole runtime dep immer.
