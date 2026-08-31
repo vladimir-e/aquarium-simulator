@@ -1,5 +1,5 @@
 import React from 'react';
-import { Github, Menu, Settings } from 'lucide-react';
+import { BookOpen, Github, Menu, Settings } from 'lucide-react';
 import type { LogEntry } from '../../../simulation/index.js';
 import { latestLog } from '../../run';
 import { useConfig } from '../../hooks/useConfig';
@@ -9,6 +9,7 @@ import { Select } from '../ui/Select';
 import { ThemeToggle } from '../ui/ThemeToggle';
 
 const REPO_URL = 'https://github.com/vladimir-e/aquarium-simulator';
+const DOCS_URL = 'https://docs.fishroom.app';
 
 const UTILITY =
   'flex h-8 w-8 shrink-0 items-center justify-center rounded-control border border-hairline text-ink-2 transition-colors hover:border-hairline-2 hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus';
@@ -75,7 +76,18 @@ export function ChromeRow({ logs, onOpenIndex }: ChromeRowProps): React.JSX.Elem
 
       <div className="ml-auto flex shrink-0 items-center gap-2 md:ml-0">
         <ThemeToggle />
-        {/* Named, not an icon: the mark is the credibility on an open-source demo. */}
+        {/* Named, not icons: the marks are the credibility on an open-source demo. */}
+        <a
+          href={DOCS_URL}
+          target="_blank"
+          rel="noreferrer"
+          aria-label="Documentation"
+          title="Documentation"
+          className={`${UTILITY} w-auto gap-1.5 px-2.5 text-[13px] font-medium`}
+        >
+          <BookOpen className="h-4 w-4" />
+          <span className="hidden sm:inline">Docs</span>
+        </a>
         <a
           href={REPO_URL}
           target="_blank"

@@ -111,6 +111,10 @@ describe('ChromeRow', () => {
     const source = screen.getByRole('link', { name: 'Source on GitHub' });
     expect(source.getAttribute('href')).toContain('github.com');
     expect(source.getAttribute('rel')).toContain('noreferrer');
+
+    const docs = screen.getByRole('link', { name: 'Documentation' });
+    expect(docs.getAttribute('href')).toContain('docs.fishroom.app');
+    expect(docs.getAttribute('rel')).toContain('noreferrer');
   });
 
   it('drops the Menu button when the rail stands on its own', () => {
