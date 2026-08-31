@@ -42,7 +42,7 @@ export function monodFactor(concentration: number, halfSaturation: number): numb
  *
  * Not Monod, though the shapes rhyme: light is not a stock anything can
  * overdraw, so the curve comes from the leaf rather than from the pool. Why
- * that distinction picks this curve is in `docs/6-PLANTS.md` § Light factor.
+ * that distinction picks this curve is in the docs portal, Light § Saturation.
  */
 export function lightSaturationFactor(par: number, saturationIrradiance: number): number {
   if (par <= 0) return 0;

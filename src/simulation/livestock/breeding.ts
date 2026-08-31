@@ -13,7 +13,7 @@
  * riding old savings through a crashing tank can't breed. Re-accruing the
  * spent surplus is the cooldown — there are no timers.
  *
- * See `docs/7-LIVESTOCK.md` § Reproduction for the full pipeline (grow /
+ * See the docs portal, Livestock § Breeding for the full pipeline (grow /
  * mature fry → hatch clutches → spawn) and the per-species parameters.
  */
 

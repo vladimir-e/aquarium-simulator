@@ -80,7 +80,7 @@ export interface SeedPlantGroup {
   size?: number;
 }
 
-/** Nothing here is validated or clamped — see `docs/1-DESIGN.md` § Starting State. */
+/** Nothing here is validated or clamped — see the docs portal, State & persistence § Starting state. */
 export interface PresetSeed {
   bacteria?: SeedBacteria;
   substrate?: SeedSubstrate;

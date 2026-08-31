@@ -20,9 +20,9 @@
  * Only what was spent leaves the bank — a plant at full condition and at
  * its ceiling converts nothing and pays nothing, so its whole income
  * banks instead of burning. That reserve is what rides out a dark spell,
- * and what propagation will spend on runners. `docs/6-PLANTS.md`
- * § Growth and Size carries why the draw is a share of the bank rather
- * than a flat per-tick ceiling.
+ * and what propagation will spend on runners. The docs portal, Plants
+ * § The bank and the ladder carries why the draw is a share of the bank
+ * rather than a flat per-tick ceiling.
  *
  * No tank-wide overgrowth penalty, no biomass redistribution, no
  * 200 % waste-dump backstop. Each plant runs against its own bank and

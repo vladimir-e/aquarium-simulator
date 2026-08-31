@@ -59,7 +59,7 @@ export function calculateNutrientSufficiency(
   const speciesData = PLANT_SPECIES_DATA[species];
   const demand = getDemandMultiplier(speciesData.nutrientDemand, config);
 
-  // Per-demand-tier required-vs-boosting split (per `docs/6-PLANTS.md`):
+  // Per-demand-tier required-vs-boosting split (the docs portal, Plants § Nutrition):
   //   - Low  (Java Fern, Anubias):   NO3 required; PO4/K/Fe are boosters.
   //   - Med  (Amazon Sword):          NO3 + PO4 required; K/Fe are boosters.
   //   - High (Monte Carlo, Hairgrass): all four required (no shortcuts).
