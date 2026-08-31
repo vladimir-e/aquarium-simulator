@@ -4,6 +4,12 @@ import starlight from '@astrojs/starlight';
 
 export default defineConfig({
   site: 'https://docs.fishroom.app',
+  vite: {
+    server: {
+      // LAN preview loop: Vlad reviews from his devices via clarity.local
+      allowedHosts: ['clarity.local'],
+    },
+  },
   integrations: [
     starlight({
       title: 'Aquarium Simulator',
