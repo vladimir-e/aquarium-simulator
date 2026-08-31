@@ -22,7 +22,7 @@ one algae benefit.
 | Saturation curve | <Badge text="settled" variant="success" /> | `tanh(PAR / Ik)`, the Jassby–Platt response. Near-linear below `Ik`, flat above it — a brighter fixture stops buying anything. |
 | Light multiplies the benefit budget | <Badge text="settled" variant="success" /> | Every benefit a plant earns is realised *through* photosynthesis, so light scales all four channels rather than standing beside them. Good water is worth nothing at midnight. |
 | `Ik` derived from the species band | <Badge text="settled" variant="success" /> | A fixed multiple of the band's lower bound, so one number carries both the saturation curve and the damage threshold and they cannot drift apart. |
-| Photoperiod shape | <Badge text="scaffolding" variant="caution" /> | A rectangular window: rated PAR or zero, with no ramp at either edge. A surviving discontinuity. |
+| Photoperiod shape | <Badge text="scaffolding" variant="caution" /> | A rectangular window: rated PAR or zero, with no ramp at either edge. |
 | What rides on that edge | <Badge text="scaffolding" variant="caution" /> | The four `light > 0` gates — the plant light-low and CO₂-low stressors, plant surplus accrual, and algae surplus accrual. A carbon-starved plant swings between 0 and 9 %/h as the lamp flips while its benefits ramp smoothly. |
 | Depth tracks standing water | <Badge text="scaffolding" variant="caution" /> | Attenuation runs over the height the *capacity* implies. A half-drained tank lights its substrate as if it were full. |
 | Self-shading and canopy | <Badge text="missing" variant="danger" /> | One scalar for the whole tank. Every plant reads the same PAR whatever its height and whatever biomass stands above it, so an overgrown tank never shades itself. |

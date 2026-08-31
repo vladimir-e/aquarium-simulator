@@ -159,7 +159,7 @@ declare bounds — enforced across the config layer by a test that walks each le
 |---|---|---|
 | [Environment](/subsystems/environment/) | `water` and `temperature` size the heater's rate and the ATO's refill; capacity gives the box | `temperature`, `water` |
 | [Nitrogen cycle](/subsystems/nitrogen-cycle/) | — | `surface` is the colony ceiling; the bed's leach is `waste`, and a bed swap scales both guilds by the surface fraction it kept |
-| [Water & gases](/subsystems/water-and-gases/) | — | `flow` and `aeration` set the exchange rate; CO₂ injection adds `co2`; hardscape sets the pH target |
+| [Water & gases](/subsystems/water-and-gases/) | — | `flow` and `aeration` set the exchange rate; CO₂ injection adds `co2`; hardscape sets the pH target; the ATO blends `oxygen`, `co2` and `ph` toward tap values as it refills |
 | [Light](/subsystems/light/) | — | The fixture's rating and photoperiod are the whole of the light chain's input |
 | [Plants](/subsystems/plants/) | — | The doser writes `nitrate`, `phosphate`, `potassium` and `iron`; the bed decides what can root |
 | [Livestock](/subsystems/livestock/) | — | Nothing directly. Fish meet equipment through the water it conditions |

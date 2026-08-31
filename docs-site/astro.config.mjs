@@ -7,7 +7,7 @@ export default defineConfig({
   server: { port: 2050, host: true },
   vite: {
     server: {
-      allowedHosts: true,
+      allowedHosts: ['.local'],
     },
   },
   integrations: [

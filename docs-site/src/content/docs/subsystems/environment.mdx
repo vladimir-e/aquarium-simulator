@@ -123,13 +123,13 @@ outside the range-declaration rule the rest of the engine follows.
 
 | Neighbour | Read | Written |
 |---|---|---|
-| [Equipment](/subsystems/equipment/) | The lid type, for the evaporation multiplier | `temperature` — the heater fights drift on the same volume scale; `water` — the ATO refills what evaporated |
+| [Equipment](/subsystems/equipment/) | The lid type, for the evaporation multiplier | `temperature` — the heater fights drift on the same volume scale; `water` — the ATO refills what evaporated, blending toward tap temperature and tap pH as it does |
 | [Water & gases](/subsystems/water-and-gases/) | — | `temperature` sets O₂ saturation, and standing `water` is the divisor every gas mass passes through |
 | [Nitrogen cycle](/subsystems/nitrogen-cycle/) | — | `temperature` drives the nitrifier Q10; `water` turns stored mass into the ppm every threshold reads |
 | [Light](/subsystems/light/) | — | Depth, from the same box capacity implies |
 | [Plants](/subsystems/plants/) · [Livestock](/subsystems/livestock/) | — | `temperature` is a two-sided stressor and a benefit channel for both |
 | [Algae](/subsystems/algae/) | — | Standing `water`, to turn stored nutrient mass into the ppm the ratio needs |
-| [Actions](/subsystems/actions/) | — | Tap temperature and tap pH are what a water change or the ATO blends toward |
+| [Actions](/subsystems/actions/) | — | Tap temperature and tap pH are what a water change blends toward |
 | [Alerts & logging](/subsystems/alerts-and-logging/) | — | `water` below 20 % of capacity raises the critical water-level alert |
 | [State & persistence](/subsystems/state-and-persistence/) | — | `tank.capacity` — what every per-litre seed figure resolves against |
 

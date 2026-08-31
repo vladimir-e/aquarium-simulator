@@ -24,7 +24,7 @@ it was handed, so the state a tick began with is still readable when it ends.
 | Construction refusal | <Badge text="settled" variant="success" /> | A non-finite number anywhere in the config or the seed throws. Every threshold in the engine is a comparison and `NaN` fails all of them, so one that gets in is never noticed and never leaves. |
 | Declared ranges | <Badge text="settled" variant="success" /> | Every tunable declares its bounds beside its label and unit, and a test walks every leaf — a new tunable without a range is a caught defect, not a silent one. |
 | Versioned saves | <Badge text="settled" variant="success" /> | One integer, no migration shims. A mismatch discards the stored tank rather than reading old numbers under new meanings. |
-| Nitrogen-cycle bounds | <Badge text="scaffolding" variant="caution" /> | The one section with unbounded leaves: only its two oxygen half-saturation constants declare a range, and the twelve rates above them come off doubling times and half-lives, so a writer asking for them gets nothing to hold them to. |
+| Nitrogen-cycle bounds | <Badge text="scaffolding" variant="caution" /> | The one section with unbounded leaves: only its two oxygen half-saturation constants declare a range, so a writer asking for any of the others gets nothing to hold them to. |
 | `'cycled'` seeding | <Badge text="scaffolding" variant="caution" /> | Resolved per litre of water against the tank, which is right for an ammonia-fed colony — but it hands gravel and sand the colony a soil tank earns, and those beds do not clear a dose a month in. |
 | Unnamed streams | <Badge text="scaffolding" variant="caution" /> | A tank with no named seed takes one off the clock plus a count of streams opened in this process. Two tanks in separate processes have only the millisecond between them. |
 | Section recovery on load | <Badge text="scaffolding" variant="caution" /> | Sections validate independently, but a refused config section is replaced wholesale rather than leaf by leaf — so one bad number costs every tuned constant in the file. |
@@ -111,9 +111,8 @@ shipped tanks are on the [presets](/reference/presets/) page.
 `TunableConfig` is numbers all the way to its leaves, and each leaf declares its
 own range alongside its label and unit. The nitrogen cycle is the one section
 that only partly does: its two oxygen half-saturation constants are measured
-concentrations and carry a range, while the twelve rates above them are derived
-from doubling times and half-lives and were never given bounds, so a writer
-asking for a range there gets nothing back.
+concentrations and carry a range, while the other twelve leaves were never given
+bounds, so a writer asking for a range there gets nothing back.
 
 | Writer | Checks against |
 |---|---|
