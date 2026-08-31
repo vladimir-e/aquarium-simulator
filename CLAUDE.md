@@ -5,7 +5,7 @@ Building a comprehensive aquarium ecosystem simulation engine that models all as
 ## Documentation-Driven Development
 
 This project follows documentation-driven development:
-1. **Docs describe the system as it is** - the portal covers the whole system in present tense
+1. **Docs describe the system as it is** - the portal covers the whole system (rules in **Docs discipline** below)
 2. **Code is iterative** - Implementation happens in scoped tasks, each with a clearly defined brief
 3. **Keep docs current** - If you find inconsistencies or conflicts between the docs and your task, flag them! Update docs when implementation reveals better approaches
 
@@ -61,7 +61,7 @@ Three more traps, all real: **a constant is only as good as the reference its do
 
 **Task workflow:**
 
-Task briefs are provided by the maintainer or orchestrator per task — there's no task file to open or update. (`docs/tasks/` holds the briefs from earlier development and is historical reference only; new work is not tracked there.) For each task:
+Task briefs are provided by the maintainer or orchestrator per task — there's no task file to open or update. For each task:
 
 1. Create a new branch
 2. Implement the task
