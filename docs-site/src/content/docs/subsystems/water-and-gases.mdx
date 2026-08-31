@@ -1,0 +1,203 @@
+---
+title: Water & gases
+description: Two dissolved gases relaxing toward the atmosphere, one carbon–oxygen budget every aerobic process draws on, and a pH that reads hardscape and CO₂ through a stand-in for alkalinity.
+---
+
+import { Badge } from '@astrojs/starlight/components';
+
+## What it models
+
+Oxygen and CO₂ are stored as concentrations and relax toward equilibrium at a
+rate flow and aeration set. Between those relaxations sits the tick's real
+budget: every aerobic process in the tank — fish, plants at night, decay, both
+nitrifier guilds — takes its oxygen out of the same stock, and each one's rate
+saturates against what is left. pH is the third number here, and it is the least
+finished thing on the page.
+
+## Status
+
+| Mechanic | Status | Why |
+|---|---|---|
+| Oxygen limits every aerobic path | <Badge text="settled" variant="success" /> | One Monod factor per process, each quoting its own half-saturation. Demand falls with supply, so no stock is ever overdrawn and no clamp is needed. |
+| Gas exchange | <Badge text="settled" variant="success" /> | A fraction of the distance to equilibrium per tick, scaled by turnover. Exponential approach, no target ever overshot. |
+| O₂ saturation vs temperature | <Badge text="settled" variant="success" /> | A linear Henry's-law fit, `10.08` mg/L at 15 °C falling `0.17` per °C — inside 5 % of measured values across the aquarium band. |
+| Carbon derived from oxygen | <Badge text="settled" variant="success" /> | One yield for the whole engine, `32/44`. A process that cannot get the oxygen stops emitting the carbon rather than manufacturing it. |
+| Still-water diffusion floor | <Badge text="settled" variant="success" /> | A filterless tank still exchanges across its surface, at 10 % of the full-flow rate. A rate that starts from a floor, not a switch. |
+| Aeration | <Badge text="scaffolding" variant="caution" /> | A boolean. Any aerating fitting multiplies exchange by exactly 3, off-gasses CO₂ 1.5× faster and injects the same `0.05` mg/L/hr, whatever the tank. |
+| pH from hardscape | <Badge text="scaffolding" variant="caution" /> | A per-type item count pulling toward two hand-set target pH values with diminishing returns. There is no acid or base stock behind it. |
+| pH from CO₂ | <Badge text="scaffolding" variant="caution" /> | The log coupling is the right shape, but `co2PhCoefficient` is an admitted stand-in for alkalinity: it is the pH swing per decade of CO₂, held flat across every tank. |
+| pH from nitrification | <Badge text="missing" variant="danger" /> | Ammonia oxidation releases 2 H⁺ per NH₄⁺ and pH drift never sees it, so a cycling tank never acidifies. |
+| KH — carbonate hardness | <Badge text="missing" variant="danger" /> | Buffer capacity *and* the bicarbonate pool low-tech plants run on. Without it no single dissolved-CO₂ target can be right, which is what makes the pH coefficient a stand-in rather than a constant. |
+| GH — general hardness | <Badge text="missing" variant="danger" /> | Calcium and magnesium have zero presence in the engine. |
+| Supersaturation | <Badge text="missing" variant="danger" /> | Oxygen above saturation is resisted only by the same linear relaxation and then truncated at the `20` mg/L resource bound, which discards the mass. No ebullition. |
+
+## How it works
+
+### Storage
+
+Gases are stored as **concentration** in mg/L, and nitrogen compounds as
+**mass** in mg. That asymmetry is deliberate and it decides who divides: an
+organism system answers a biological question and returns a mass, so plants,
+fish and decay each divide their gas mass by standing water before pushing the
+effect. It is why the same planting moves a nano further than it moves a 300 L.
+
+Bounds clamp oxygen to `0`–`20` mg/L, CO₂ to `0`–`100` and pH to `0`–`14`.
+
+### Gas exchange
+
+```
+saturation = 10.08 − 0.17 × (temperature − 15)      mg/L, floored at 4
+turnovers  = flow / capacity
+flowFactor = max(minFlowFactor, min(1, turnovers / optimalFlowTurnover))
+delta      = baseExchangeRate × aerationFactor × flowFactor × (target − current)
+```
+
+Oxygen's target is that saturation; CO₂'s is a flat atmospheric `4.0` mg/L.
+Aeration multiplies the rate by 3, and for CO₂ by a further 1.5 — which is the
+mechanism behind the oldest trade-off in a planted tank, since an air stone
+buys oxygen by stripping the carbon.
+
+| Temperature | O₂ saturation |
+|---|---|
+| 18 °C | `9.57` mg/L |
+| 22 °C | `8.89` mg/L |
+| 25 °C | `8.38` mg/L |
+| 28 °C | `7.87` mg/L |
+| 30 °C | `7.53` mg/L |
+
+| 100 L setup | Flow factor | Effective rate | Half-life of a gas deficit |
+|---|---|---|---|
+| Nothing running | `0.10` — the diffusion floor | 2.5 %/h | 27 h |
+| Canister, no aeration | `0.80` | 20 %/h | 3.1 h |
+| Sponge filter, which aerates | `0.30` × 3 | 22.5 %/h | 2.7 h |
+| Canister + powerhead | `1.00` | 25 %/h | 2.4 h |
+| Canister + powerhead + air pump | `1.00` × 3 | 75 %/h | 0.5 h |
+
+A sponge filter beats a bare canister on gas exchange in the same tank while
+moving well under half the water, because it aerates and the canister does not.
+Aeration, not flow, is the dominant lever.
+
+### The tick's carbon–oxygen budget
+
+Every aerobic process multiplies its rate by `O₂ / (K + O₂)` and quotes its own
+`K`. The carbon each releases is derived from the oxygen it actually spent, so
+the two gases are one reaction rather than two coefficients.
+
+| Process | Oxygen | Carbon | `K` (mg/L) |
+|---|---|---|---|
+| Photosynthesis | + fixed CO₂ × `0.727` | − from the dissolved pool, clamped to it | light-gated, not oxygen-gated |
+| Plant respiration | − CO₂ released × `0.727` | + | `0.50` |
+| Fish metabolism | − `0.3` mg per g of fish per hour | + drawn O₂ × RQ `0.8` × `1.375` | `1.00` |
+| Aerobic decay | − `250` mg per g of matter oxidised | + drawn O₂ × `1.375` | `0.20` |
+| Ammonia oxidation | − `2.819` mg per mg NH₃ | — | `0.30` |
+| Nitrite oxidation | − `0.348` mg per mg NO₂⁻ | — | `1.10` |
+| Aeration bubbles | + `0.05` mg/L/hr, capped by the gap to saturation | — | — |
+| Gas exchange | ± toward saturation | ± toward atmospheric | — |
+
+| `K` | Rate left at 8.38 mg/L | Rate left at 2.0 mg/L |
+|---|---|---|
+| `0.20` — decay | 97.7 % | 90.9 % |
+| `0.30` — AOB | 96.5 % | 87.0 % |
+| `0.50` — plant respiration | 94.4 % | 80.0 % |
+| `1.00` — fish | 89.3 % | 66.7 % |
+| `1.10` — NOB | 88.4 % | 64.5 % |
+
+Three consequences, and all three are the point. **Demand falls with supply** —
+a tank cannot draw oxygen it does not have, because the draw shrinks as the
+stock does. **The derived carbon falls with it** — a suffocating tank stops
+emitting CO₂ rather than making it out of oxygen that was never there. **The
+guild that needs the most air suffers first** — NOB carry nearly four times
+AOB's constant, which is where standing nitrite in an under-aerated tank comes
+from.
+
+Every base rate multiplied by that factor is a Monod *maximum*, reached only at
+infinite oxygen, so what a tank at air saturation reproduces is the fourth
+column above rather than the constant itself.
+
+### Ordering within the tick
+
+The budget is not solved simultaneously. Environment and equipment settle first,
+so CO₂ injection is in the water before plants run. Plants, then algae, then
+livestock each apply their effects before the next reads the stock. Decay, the
+nitrogen cycle, gas exchange and pH drift run last and **share one snapshot** —
+all three oxygen consumers size their draw against the same starting
+concentration, and their deltas add.
+
+That is what makes the Monod term load-bearing rather than decorative: nothing
+rations the passive tier, so the only thing keeping three simultaneous draws
+from crossing zero is that each shrinks as the stock does.
+
+### pH
+
+```
+target = neutralPh + hardscape pulls − log10(co2 / co2NeutralLevel) × co2PhCoefficient
+delta  = basePgDriftRate × (target − ph)
+```
+
+pH is a relaxation toward a target, at 25 % of the remaining distance per hour —
+a 2.4-hour half-life, which is why an injected tank swings through the day and
+rebounds overnight. Hardscape moves the target by counting items of each type
+and pulling toward `8.0` for calcite or `6.0` for driftwood, each item worth 30 %
+of what is left.
+
+| CO₂ | pH with no hardscape |
+|---|---|
+| `4` mg/L — atmospheric | `7.00` |
+| `15` mg/L | `6.57` |
+| `25` mg/L | `6.40` |
+| `40` mg/L | `6.25` |
+
+Read the honest version: pH here is two stand-ins stacked. The hardscape term is
+a lookup of target values rather than a mineral dissolving, and the CO₂ term's
+coefficient is doing the job alkalinity would do — its own docstring says a
+higher-KH tank would need a smaller one. Nitrification, the largest real acid
+source in a young tank, is not connected at all.
+
+### Stocks and rates
+
+| Stock | Fills it | Drains it | Unit |
+|---|---|---|---|
+| `oxygen` | Gas exchange toward saturation; aeration bubbles; photosynthesis | Fish, plant respiration, decay, both nitrifier guilds | mg/L |
+| `co2` | Injection; fish, plant respiration, decay | Off-gassing toward atmospheric; photosynthesis | mg/L |
+| `ph` | Drift toward the hardscape + CO₂ target; blending on any water addition | The same drift, in the other direction | — |
+
+## Key tunables
+
+| Constant | Meaning | Unit |
+|---|---|---|
+| `o2SaturationBase` | O₂ saturation at the reference temperature | `10.08` mg/L |
+| `o2SaturationSlope` | Saturation lost per °C | `−0.17` mg/L/°C |
+| `atmosphericCo2` | The CO₂ level a tank off-gasses toward | `4.0` mg/L |
+| `baseExchangeRate` | Share of the gap to equilibrium closed per tick at full flow | `0.25` /tick |
+| `optimalFlowTurnover` | Turnovers per hour at which the flow factor saturates | `10` /hr |
+| `minFlowFactor` | Still-surface diffusion floor, as a share of the full-flow rate | `0.1` |
+| `aerationExchangeMultiplier` | What aeration does to the exchange rate | `3.0` × |
+| `aerationDirectO2` | Bubble dissolution, only below saturation | `0.05` mg/L/hr |
+| `aerationCo2OffgasMultiplier` | Extra CO₂ stripping on top of that | `1.5` × |
+| `gasExchangePerGramDecay` | Oxygen demanded per gram of organic matter oxidised | `250` mg/g |
+| `neutralPh` | pH target with no hardscape in the tank | `7.0` |
+| `basePgDriftRate` | Share of the distance to the pH target closed per tick | `0.25` /tick |
+| `co2PhCoefficient` | pH swing per decade of CO₂ — the alkalinity stand-in | `0.75` pH/decade |
+| `hardscapeDiminishingFactor` | What each further item of a type is worth | `0.7` |
+
+The five oxygen half-saturation constants are tunables too, but each lives with
+the system that quotes it rather than here; their values are in the table above.
+
+## Seams
+
+| Neighbour | Read | Written |
+|---|---|---|
+| [Environment](/subsystems/environment/) | `temperature` sets O₂ saturation; standing `water` is the divisor every gas mass passes through | — |
+| [Equipment](/subsystems/equipment/) | `flow` and `aeration` set the exchange rate; hardscape sets the pH target | — |
+| [Nitrogen cycle](/subsystems/nitrogen-cycle/) | — | Both guilds draw `oxygen`, and their Monod factor is what standing nitrite is made of |
+| [Plants](/subsystems/plants/) | — | Photosynthesis adds `oxygen` and takes `co2`; respiration does the reverse, day and night |
+| [Livestock](/subsystems/livestock/) | — | Fish draw `oxygen` and exhale `co2`; the same factor scales their ammonia output |
+| [Algae](/subsystems/algae/) | — | Nothing. Algae moves no gas in either direction |
+| [Actions](/subsystems/actions/) | — | A water change or top-off blends `oxygen`, `co2` and `ph` toward tap values |
+| [Alerts & logging](/subsystems/alerts-and-logging/) | — | Oxygen below `4.0` mg/L and CO₂ above `30` mg/L each raise an alert once per crossing |
+
+## Source
+
+`src/simulation/systems/` for gas exchange and pH drift,
+`src/simulation/core/` for the molecular weights and the Monod and Q10 shapes,
+`src/simulation/config/` for the tunables.

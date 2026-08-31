@@ -1,0 +1,172 @@
+---
+title: Equipment
+description: Eleven fittings, four passive resources recomputed every tick, and a handful of active emitters — flow as turnover, surface as a colony ceiling, and no wear anywhere.
+---
+
+import { Badge } from '@astrojs/starlight/components';
+
+## What it models
+
+Every fitting a tank can carry, and the two ways one acts. A **passive**
+contributor is recomputed from scratch at the top of each tick into one of four
+shared resources — surface, flow, light, aeration — so unplugging a filter takes
+its contribution away the same hour. An **active** emitter pushes a delta
+instead: heat, water, CO₂, fertiliser, or the bed's own organics.
+
+## Status
+
+| Mechanic | Status | Why |
+|---|---|---|
+| Flow as turnover | <Badge text="settled" variant="success" /> | Flow is capacity × target turnover, capped at a class ceiling. The same filter is worth less in a bigger tank, which is the physical claim. |
+| Surface as colony ceiling | <Badge text="settled" variant="success" /> | Every colonisable cm² in one number, and the biofilm is a stock spread over it. Surface leaving the tank takes its share of the colony. |
+| Passive resources hold no state | <Badge text="settled" variant="success" /> | Rebuilt each tick from the fittings that are there. Nothing accumulates, so nothing can go stale. |
+| The bed as a depleting ammonia source | <Badge text="settled" variant="success" /> | A per-litre organic reserve releasing a fraction of what is left each tick — physical, and it never refills. |
+| CO₂ as a metered mass | <Badge text="settled" variant="success" /> | Bubble rate buys milligrams, not ppm, so an evaporated tank reads higher off the same setting. |
+| Heater thermostat | <Badge text="scaffolding" variant="caution" /> | A switch: full wattage below setpoint, nothing at or above it. No hysteresis, no proportional band, and no failure state. |
+| Air pump sizing | <Badge text="scaffolding" variant="caution" /> | Four capacity bands, not a rate. A 150 L tank gets twice the air of a 151 L one on the far side of the same step. |
+| Aeration as a boolean | <Badge text="scaffolding" variant="caution" /> | On or off. A sponge filter in a nano and a full air stone in a 400 L deliver the identical multiplier and the identical direct O₂. |
+| Lid | <Badge text="scaffolding" variant="caution" /> | Four hardcoded multipliers outside `config/`, and they reach evaporation only. |
+| ATO trigger | <Badge text="scaffolding" variant="caution" /> | A switch at 99 % of capacity that refills to exactly 100 % in a single tick, however far it fell. |
+| The doser | <Badge text="scaffolding" variant="caution" /> | Plant uptake is split by the same fertiliser formula the doser meters by, so the doser cannot correct a ratio it did not create. |
+| Hardscape pH | <Badge text="scaffolding" variant="caution" /> | A per-type count driving a pull toward two hand-set target pH values. No acid or base stock, no buffering capacity. |
+| Filter class limits | <Badge text="scaffolding" variant="caution" /> | `maxCapacityLiters` is display only — the tick never reads it. A sponge on a 500 L tank is undersized in the readout and unpunished in the model. |
+| Wear, clogging, failure | <Badge text="missing" variant="danger" /> | No fitting ages, fouls or breaks. Media is never consumed and never cleaned; the only maintenance the engine models at all is swapping the bed. |
+| Cooling | <Badge text="missing" variant="danger" /> | There is no chiller. Heat has one direction. |
+| Lid as a gas boundary | <Badge text="missing" variant="danger" /> | Sealing a tank stops its evaporation and changes nothing about its gas exchange. |
+
+## How it works
+
+### The four passive resources
+
+| Resource | Contributed by | Unit |
+|---|---|---|
+| `surface` | Tank glass, filter media, substrate, hardscape | cm² |
+| `flow` | Filter, powerhead, air-pump bubble uplift | L/h |
+| `light` | The light fixture, if enabled and inside its schedule, attenuated to the substrate | µmol/m²/s |
+| `aeration` | Air pump, or an air-driven filter | boolean |
+
+All four are overwritten every tick before anything reads them, so they describe
+the tank as it is right now rather than as it was assembled.
+
+### Filters
+
+Flow is `capacity × targetTurnover`, capped at the class ceiling.
+
+| Type | Target turnover | Flow ceiling | Media surface | Air-driven |
+|---|---|---|---|---|
+| `sponge` | 4 ×/h | `300` L/h | `8,000` cm² | yes |
+| `hob` | 6 ×/h | `1,250` L/h | `15,000` cm² | no |
+| `canister` | 8 ×/h | `4,500` L/h | `25,000` cm² | no |
+| `sump` | 10 ×/h | none | `40,000` cm² | no |
+
+The ceiling bites at 75 L for a sponge, 208 L for a HOB and 562 L for a canister
+— which is under the 568 L the canister class is rated to, so a canister on the
+largest tank it is sold for is already delivering below its own target turnover.
+The two limits are independent numbers and were never reconciled.
+
+Only the sponge aerates, because only the sponge moves water with air. That one
+boolean is worth more to a tank's oxygen than the flow it comes with.
+
+### Surface
+
+| Source | Contribution |
+|---|---|
+| Tank glass | Four walls plus the bottom of the box capacity implies |
+| Filter media | `8,000`–`40,000` cm² by class, only while the filter is enabled |
+| Substrate | `0`/`400`/`800`/`1,200` cm² per litre for none / sand / gravel / aqua soil |
+| Hardscape | `400` cm² a rock, `650` driftwood, `100` a plastic decoration |
+
+In any tank with a bed, the bed dominates. That is why pulling the substrate is
+the most expensive thing that can be done to a biofilter: the colony is a stock
+spread over total surface, so a swap removes the share that was living there and
+lays sterile material in its place.
+
+Slots cap hardscape at two per gallon of capacity, to a hard maximum of eight.
+
+### Heater
+
+Below setpoint the heater delivers `wattage / water` °C per hour, scaled by the
+same volume term temperature drift uses — which is what makes an underpowered
+heater plateau below its target instead of asymptoting to it. At or above
+setpoint it emits nothing. It reads the shipped temperature constants directly,
+so a tuned volume exponent moves drift but not heating.
+
+### Lid and ATO
+
+The lid multiplies evaporation and does nothing else. The ATO watches the fill
+fraction, and the moment it drops below 99 % it adds enough water to reach
+capacity in one tick — blending temperature, pH, O₂ and CO₂ toward the tap in
+the process. Nitrogen compounds are stored as mass, so they need no blending;
+their ppm falls out of the new volume.
+
+### Air pump
+
+| Capacity | Air output | Flow from bubble uplift |
+|---|---|---|
+| ≤ 40 L | `60` L/h | `6` L/h |
+| 41–150 L | `120` L/h | `12` L/h |
+| 151–400 L | `240` L/h | `24` L/h |
+| &gt; 400 L | `400` L/h | `40` L/h |
+
+Nothing downstream reads the air output. It sets the flow contribution and then
+stops mattering, because aeration itself is a boolean.
+
+### CO₂ and the doser
+
+The CO₂ generator meters `200` mg per bubble-per-second per hour into the
+standing water, on its own schedule. The doser fires once at its schedule's start
+hour and adds one dose of the four-nutrient formula, then latches until midnight.
+Both land in the settle pass, so plants meet the day's carbon and fertiliser in
+the same tick it was metered.
+
+### The bed
+
+Substrate carries two independent per-litre properties: colony surface, and an
+organic reserve that leaches into the waste pool and never refills. What that
+reserve does downstream belongs to the
+[nitrogen cycle](/subsystems/nitrogen-cycle/).
+
+### Stocks and rates
+
+| Stock | Fills it | Drains it | Unit |
+|---|---|---|---|
+| `organicReserve` | A bed swap, at the new type's rate × capacity | `0.3 %` of what remains per tick, into `waste` | g |
+| `dosedToday` | Firing the dose | The midnight reset | flag |
+
+Everything else on this page is either recomputed from nothing each tick or
+pushed straight out as an effect. Equipment holds almost no state, which is what
+makes its contribution reversible the instant a fitting is switched off.
+
+## Key tunables
+
+| Constant | Meaning | Unit |
+|---|---|---|
+| `substrateLeachRate` | Share of the bed's remaining reserve released per tick | `0.003` /hr |
+| `CO2_MASS_RATE` | CO₂ metered per bubble per second | `200` mg/hr/bps |
+| `WATER_LEVEL_THRESHOLD` | Fill fraction below which the ATO refills to full | `0.99` |
+| `baseOutputLph` | Air output of the smallest pump band | `60` L/h |
+| `flowPerAirLph` | Share of air output that becomes water movement | `0.1` |
+| `MAX_LIGHT_PAR` | Ceiling on a fixture rating — full noon sun at the surface | `2000` µmol/m²/s |
+
+Only the leach rate lives in `config/`. Every other number on this page is a
+module constant with no declared range, so the rule that every tunable must
+declare bounds — enforced across the config layer by a test that walks each leaf
+— does not reach the equipment layer at all.
+
+## Seams
+
+| Neighbour | Read | Written |
+|---|---|---|
+| [Environment](/subsystems/environment/) | `water` and `temperature` size the heater's rate and the ATO's refill; capacity gives the box | `temperature`, `water` |
+| [Nitrogen cycle](/subsystems/nitrogen-cycle/) | — | `surface` is the colony ceiling; the bed's leach is `waste`, and a bed swap scales both guilds by the surface fraction it kept |
+| [Water & gases](/subsystems/water-and-gases/) | — | `flow` and `aeration` set the exchange rate; CO₂ injection adds `co2`; hardscape sets the pH target |
+| [Light](/subsystems/light/) | — | The fixture's rating and photoperiod are the whole of the light chain's input |
+| [Plants](/subsystems/plants/) | — | The doser writes `nitrate`, `phosphate`, `potassium` and `iron`; the bed decides what can root |
+| [Livestock](/subsystems/livestock/) | — | Nothing directly. Fish meet equipment through the water it conditions |
+| [Actions](/subsystems/actions/) | Equipment settings are what most actions change | A bed swap is the one action that costs an organism stock |
+| [State & persistence](/subsystems/state-and-persistence/) | — | Every fitting's settings serialise; the passive four are recomputed rather than stored |
+
+## Source
+
+`src/simulation/equipment/` for the fittings and the passive-resource
+collection; `src/simulation/config/` for the one tunable among them.
