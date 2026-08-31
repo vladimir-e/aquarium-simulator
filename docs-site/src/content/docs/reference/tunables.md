@@ -64,9 +64,9 @@ off — which is the part that makes a number checkable.
 | `nobOxygenHalfSaturation` | Dissolved O₂ at which NOB oxidise and grow at half rate | mg/L |
 
 The two half-saturation constants are measured concentrations and carry a range.
-The rates above them come off doubling times and half-lives, and no bound was
-ever derived for them, so a writer that asks gets nothing back. A test asserts
-exactly that split, so the gap is stated rather than discovered.
+The twelve leaves above them were never given bounds, so a writer that asks
+gets nothing back. A test asserts exactly that split, so the gap is stated
+rather than discovered.
 
 A bacteria unit is 10⁶ cells, which is what makes `bacteriaPerCm2` a biofilm
 density you can look up rather than a score.
