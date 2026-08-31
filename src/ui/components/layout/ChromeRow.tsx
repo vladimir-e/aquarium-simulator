@@ -68,7 +68,7 @@ export function ChromeRow({ logs, onOpenIndex }: ChromeRowProps): React.JSX.Elem
         value={current}
         onChange={(v) => request(v as PresetId)}
         options={PRESETS.map((preset) => ({ value: preset.id, label: preset.name }))}
-        className="max-w-[9rem] shrink-0"
+        className="max-w-[9rem] min-w-0 shrink"
         selectClassName="truncate"
       />
 
