@@ -23,7 +23,8 @@
  * - s =   0 → starving stress at "severe" severity
  *
  * Linear ramps connect adjacent anchors. The function is continuous —
- * passes smoothly through zero at every band boundary, no cliffs.
+ * no steps anywhere; it crosses zero at the 99/75/50 boundaries, and the
+ * hungry→starving boundary hands its nonzero value to a steeper ramp.
  *
  * The helper returns `{ stressor, benefit }` separately so the vitality
  * engine can keep stressors and benefits as independent factor lists.
@@ -89,9 +90,9 @@ export function classifySatiationBandPosition(
 /**
  * Map satiation to its current band only. Boundaries belong to the
  * *upper* of the two adjacent bands — satiation 99 is `overfed`, 75 is
- * `wellFed`, 50 is `peckish`, 25 is `hungry`. The contribution is zero
- * at every boundary regardless, so the choice is purely cosmetic for
- * the band label.
+ * `wellFed`, 50 is `peckish`, 25 is `hungry`. The contribution is
+ * continuous across every boundary, so the choice is purely cosmetic
+ * for the band label.
  */
 export function classifySatiationBand(
   satiation: number,
