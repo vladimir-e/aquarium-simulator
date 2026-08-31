@@ -1,0 +1,144 @@
+---
+title: Alerts & logging
+description: Two observability channels — a latched flag per warning condition, and an append-only event stream that is the tank's whole memory of itself.
+---
+
+import { Badge } from '@astrojs/starlight/components';
+
+## What it models
+
+Seven threshold checks run at the end of every tick, after every effect has
+landed. Each holds a flag: it writes one line when the reading crosses into
+trouble, stays quiet while the condition persists, and clears silently when the
+reading comes back. Alongside them the log collects everything the tank did that
+a reader would want to see afterwards.
+
+## Status
+
+| Mechanic | Status | Why |
+|---|---|---|
+| The latch | <Badge text="settled" variant="success" /> | One line per crossing, a flag that lives in state, and no repetition while the condition holds. It does exactly what it says. |
+| Log entry shape | <Badge text="settled" variant="success" /> | Free text for humans, a typed `event` discriminator for code, and a `count` wherever an entry accounts for more than one organism. |
+| Ammonia threshold | <Badge text="scaffolding" variant="caution" /> | Fires on total ammonia, where toxicity is the unionized fraction — which moves by more than an order of magnitude across the pH range a tank actually sits in. |
+| Nitrite · nitrate · oxygen thresholds | <Badge text="scaffolding" variant="caution" /> | All three sit past the point damage begins. Nitrite alerts at 1.0 ppm where fish take damage at any presence, nitrate at 80 where damage starts at 40, oxygen at 4.0 where damage starts below 5. |
+| Algae · water-level thresholds | <Badge text="scaffolding" variant="caution" /> | The same shape one layer out: algae alerts at 80 where it starts shading plants at 30, and water level at a fifth of capacity where fish start suffering at half. |
+| CO₂ threshold | <Badge text="scaffolding" variant="caution" /> | The alert with nothing behind it — no organism in the engine reads dissolved CO₂ as a stressor, so it warns about a harm that is never inflicted. |
+| Behaviour on a drained tank | <Badge text="scaffolding" variant="caution" /> | Concentrations read 0 when there is no water and the water-level check requires `water > 0`, so the alert layer goes silent exactly when the tank is empty — while fish health reads the same ammonia as 100 ppm. |
+| Clearing | <Badge text="missing" variant="danger" /> | A condition resolving writes nothing. The log records that a tank got into trouble and never that it got out. |
+| Retention | <Badge text="missing" variant="danger" /> | The array is appended to and never trimmed, so a long-running tank grows its log without bound. |
+| Log persistence | <Badge text="missing" variant="danger" /> | Logs are not saved. A reload starts a fresh history while the latch flags survive it, so an alert already tripped never re-fires its line for the same episode. |
+
+## How it works
+
+### Two channels
+
+| Channel | Lives in | Shape | Survives a save |
+|---|---|---|---|
+| Alert flags | `state.alertState` | one boolean per condition | yes |
+| Log | `state.logs` | an append-only array of entries | no |
+
+The flags are what make an alert stateful. The check compares the reading
+against its threshold, compares that against the flag, and emits a line only on
+the transition into trouble.
+
+### The alerts
+
+| Alert | Fires when | Where damage actually starts |
+|---|---|---|
+| Water level critical | below 20 % of capacity, and only while some water remains | fish take water-level damage below 50 % |
+| High ammonia | total ammonia above 0.1 ppm | any free NH₃ at all, and the free fraction moves with pH and temperature |
+| High nitrite | above 1.0 ppm | any presence |
+| High nitrate | above 80 ppm | 40 ppm |
+| Low oxygen | below 4.0 mg/L | below 5 mg/L |
+| High CO₂ | above 30 mg/L | nowhere — nothing reads it |
+| High algae | mass at or above 80 | plants are shaded from mass 30 |
+
+Five of the seven wait: water level, nitrite, nitrate, oxygen and algae all fire
+only once the reading is worse than the point where damage began. Ammonia fails
+differently — reading total ammonia rather than the free fraction makes how
+early it fires a function of the tank's pH. The seventh has no harm behind it at
+all.
+
+The honest edges are the engine's own severity thresholds, and they live in the
+livestock and plant configs rather than here.
+
+### What gets logged
+
+The log is an event stream, not a time series. A quiet tank running for a
+thousand ticks writes nothing at all: no readings are sampled, no summary is
+emitted per hour, and nothing is written unless something happened.
+
+| Source | Written when |
+|---|---|
+| `simulation` | The tank is built; a fish or plant dies; a spawn, a laying or a hatch |
+| `user` | Any applied action — a refused one logs nothing |
+| `scrub` | The scrub action, filed under its own channel |
+| `evaporation` · `nitrogen-cycle` · `gas-exchange` · `algae` | The alert lines, each under the system whose reading tripped |
+
+Severity has two values. Every alert line and every death is a `warning`;
+everything else is `info`.
+
+### The entry
+
+| Field | Holds |
+|---|---|
+| `tick` | The hour it happened, which is what makes the log reconstructable |
+| `source` | The system that emitted it |
+| `severity` | `info` or `warning` |
+| `message` | Free text, for humans only |
+| `event` | Present only on the lifecycle moments a caller reacts to |
+| `count` | Present where one entry accounts for many organisms |
+
+Six typed events exist: `fish-spawned`, `eggs-laid`, `eggs-hatched`,
+`fish-died`, `plant-died` and `fry-sold`. Three of them carry a count — a live
+birth, a hatch and a fry sale — because the number is the point. Deaths are
+one entry per organism, so they need none.
+
+The discriminator is the contract. A caller that parses the free text is
+reading a field that exists to be rewritten.
+
+### The log as the tank's history
+
+Every line carries the tick it happened at, so the array is a reconstructable
+timeline of everything the tank did. It is also the only such record: no other
+stock remembers its own past, and the tank's state is a snapshot of one hour
+with no history behind it.
+
+That makes two absences load-bearing. The array is never trimmed, so it grows
+for as long as the tank runs. And it is not part of the persisted state, so
+saving and reloading gives a tank with its full biology intact and no memory of
+how it got there.
+
+## Key tunables
+
+None of these is a `TunableConfig` leaf. They are module constants with no
+declared range, so they cannot be moved through the config layer the way a
+severity or a rate can.
+
+| Constant | Meaning | Unit |
+|---|---|---|
+| `WATER_LEVEL_CRITICAL_THRESHOLD` | Share of capacity below which the level is critical | `0.2` |
+| `HIGH_AMMONIA_THRESHOLD` | Total ammonia at which the alert fires | `0.1` ppm |
+| `HIGH_NITRITE_THRESHOLD` | Nitrite at which the alert fires | `1.0` ppm |
+| `HIGH_NITRATE_THRESHOLD` | Nitrate at which the alert fires | `80` ppm |
+| `LOW_OXYGEN_THRESHOLD` | Dissolved oxygen below which the alert fires | `4.0` mg/L |
+| `HIGH_CO2_THRESHOLD` | Dissolved CO₂ above which the alert fires | `30` mg/L |
+| `HIGH_ALGAE_THRESHOLD` | Algae mass at which the bloom is called | `80` of 100 |
+
+## Seams
+
+| Neighbour | Read | Written |
+|---|---|---|
+| [Water & gases](/subsystems/water-and-gases/) | `oxygen` and `co2`, as concentrations | — |
+| [Nitrogen cycle](/subsystems/nitrogen-cycle/) | `ammonia`, `nitrite` and `nitrate`, converted from mass to ppm against standing water | — |
+| [Environment](/subsystems/environment/) | `water` against `tank.capacity` | — |
+| [Algae](/subsystems/algae/) | `algae.mass` directly — algae is an organism, not a resource | — |
+| [Plants](/subsystems/plants/) | — | Receives a `plant-died` entry per plant lost |
+| [Livestock](/subsystems/livestock/) | — | Receives death, spawn, laying and hatch entries |
+| [Actions](/subsystems/actions/) | — | Receives one entry per applied action |
+| [State & persistence](/subsystems/state-and-persistence/) | — | `alertState` is persisted; `logs` are not |
+
+## Source
+
+`src/simulation/alerts/` — the registry and one module per condition;
+`src/simulation/core/` — the entry shape and the typed event union.
