@@ -7,13 +7,28 @@ import { Badge } from '@astrojs/starlight/components';
 
 A freshwater aquarium modelled as an hourly simulation: water chemistry, the
 nitrogen cycle, plants, algae, livestock and equipment. `tick(state)` returns a
-new state and mutates nothing, so the host owns persistence, scheduling and
-rendering.
+new state and mutates nothing, so whatever hosts the engine keeps ownership of
+persistence, scheduling and rendering.
 
 One shape runs through all of it. **Subsystems compute rates; the resource layer
 integrates those rates into stocks.** A subsystem answers a biological question —
 how much of a compound this biomass moves in one hour — and returns a mass. It
-never divides by volume, and it never writes a stock.
+never writes a stock of its own.
+
+## Two first-class parts
+
+The repository holds the engine and the dashboard that drives it. Both are
+maintained here; only the engine is published.
+
+| | Engine | Dashboard |
+|---|---|---|
+| What it is | The simulation itself — pure TypeScript, no framework, no rendering | A React app that runs one tank and exposes every number in it |
+| Lives in | `src/simulation/` | `src/ui/` |
+| Ships as | `aquarium-simulator` on npm, MIT | Deployed to [engine.fishroom.app](https://engine.fishroom.app) |
+| Reads as | A library any host advances one hour at a time | A control panel — step, inspect, act, and edit the tunables live |
+
+The dashboard is not a demo. It is how a tank gets read by hand, which is what
+makes a mechanic arguable before it is a constant.
 
 ## The engine
 
@@ -24,23 +39,26 @@ never divides by volume, and it never writes a stock.
 | Tick | One hour |
 | Resolution | Three tiers per tick: immediate → active → passive |
 | Randomness | Seeded and serializable; `Math.random` appears nowhere in `src/` |
-| Published surface | `dist/` only — the `files` allowlist in `package.json` |
-| UI | Not in the package. `src/ui/` is a development control panel, deployed separately |
+| Published surface | The built `dist/` only — the dashboard and the CLI stay in the repo |
 
-## Two repos, one product
+```bash
+npm install aquarium-simulator
+```
 
-| | Aquarium Simulator | The game |
-|---|---|---|
-| Visibility | Open source, MIT | Private |
-| Contains | The engine and its control panel | Presentation, progression, saves |
-| Relationship | Publishes to npm | Consumes the engine from npm |
-| Knows about | Water, organisms, equipment | Players, sessions, tanks-as-content |
+```ts
+import { createSimulation, tick } from 'aquarium-simulator';
 
-The engine has no opinion about a game. It does not know what a level is, what a
-player owns, or what a session is. Everything it exposes is a tank and the hour
-that just passed to it — which is what lets the game iterate on progression
-without touching biology, and lets the biology be calibrated against real
-aquariums rather than against fun.
+let state = createSimulation({ tankCapacity: 60 });
+
+for (let hour = 0; hour < 24; hour++) {
+  state = tick(state);
+}
+
+console.log(state.resources.ammonia); // mg
+```
+
+Only `tankCapacity` is required. Every other parameter — heater, lid, substrate,
+lighting — falls back to a default.
 
 ## How to read these docs
 
@@ -48,18 +66,19 @@ aquariums rather than against fun.
 |---|---|
 | **Concepts** | The four ideas every subsystem is built on. Read these first. |
 | **Subsystems** | One page per mechanism, each in the same fixed anatomy. |
+| **UI** | What the dashboard shows, and how it is laid out. |
 | **Reference** | Lookup tables: constants, presets, exported surface. |
 
-Every subsystem page carries the same six sections, in this order:
+Every subsystem page carries the same five sections, in this order, and closes
+with a pointer to the directories it lives in.
 
 | Section | Contents |
 |---|---|
 | What it models | Two or three sentences. The scope, and nothing else. |
 | Status | Each mechanic badged `settled`, `scaffolding` or `missing`, with one clause of why. |
 | How it works | Short subsections per mechanic. Stocks and rates as tables. |
-| Key tunables | Constant, meaning, unit, source file. |
+| Key tunables | Constant, meaning, unit. |
 | Seams | What this subsystem reads and writes, and which neighbour owns the other end. |
-| Source map | File → role. |
 
 ## Status legend
 
@@ -81,24 +100,3 @@ discontinuity.
 Mechanics are named on purpose. A redesign renames things, so a status row
 naming a mechanic that no longer exists is self-evidently stale, and should be
 resolved rather than trusted.
-
-## Install
-
-```bash
-npm install aquarium-simulator
-```
-
-```ts
-import { createSimulation, tick } from 'aquarium-simulator';
-
-let state = createSimulation({ tankCapacity: 60 });
-
-for (let hour = 0; hour < 24; hour++) {
-  state = tick(state);
-}
-
-console.log(state.resources.ammonia); // mg
-```
-
-Only `tankCapacity` is required. Every other parameter — heater, lid, substrate,
-lighting — falls back to a default.
