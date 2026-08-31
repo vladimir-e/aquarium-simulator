@@ -34,7 +34,7 @@ the room, and water leaves for the air.
 | Field | What it sets | Unit |
 |---|---|---|
 | `roomTemperature` | The target temperature drift pulls toward, and the reference evaporation reads its differential against | °C |
-| `tapWaterTemperature` | Temperature of every litre added by top-off, water change or ATO | °C |
+| `tapWaterTemperature` | Temperature of every litre added by a water change or the ATO | °C |
 | `tapWaterPH` | pH of that same water, blended in through H⁺ concentration rather than by averaging pH | — |
 
 Defaults are 22 °C, 20 °C and 6.5. None of the three is a stock and none of them
@@ -101,7 +101,7 @@ the atmosphere exactly as freely as an open one.
 | Stock | Fills it | Drains it | Unit |
 |---|---|---|---|
 | `water` | ATO, top-off, water change — each clamped at capacity | Evaporation, and the removal half of a water change | L |
-| `temperature` | Heater; blending whenever water is added | Drift toward the room — which is also its fill when the room is warmer | °C |
+| `temperature` | Heater; blending on an ATO refill or a water change | Drift toward the room — which is also its fill when the room is warmer | °C |
 
 Evaporation removes water without solutes. Every dissolved mass stays exactly
 where it was, so every ppm rises, and no system had to be told.
@@ -128,8 +128,10 @@ outside the range-declaration rule the rest of the engine follows.
 | [Nitrogen cycle](/subsystems/nitrogen-cycle/) | — | `temperature` drives the nitrifier Q10; `water` turns stored mass into the ppm every threshold reads |
 | [Light](/subsystems/light/) | — | Depth, from the same box capacity implies |
 | [Plants](/subsystems/plants/) · [Livestock](/subsystems/livestock/) | — | `temperature` is a two-sided stressor and a benefit channel for both |
-| [Actions](/subsystems/actions/) | — | Tap temperature and tap pH are what a water change or top-off blends toward |
+| [Algae](/subsystems/algae/) | — | Standing `water`, to turn stored nutrient mass into the ppm the ratio needs |
+| [Actions](/subsystems/actions/) | — | Tap temperature and tap pH are what a water change or the ATO blends toward |
 | [Alerts & logging](/subsystems/alerts-and-logging/) | — | `water` below 20 % of capacity raises the critical water-level alert |
+| [State & persistence](/subsystems/state-and-persistence/) | — | `tank.capacity` — what every per-litre seed figure resolves against |
 
 ## Source
 

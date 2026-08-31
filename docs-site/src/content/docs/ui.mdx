@@ -15,7 +15,7 @@ host imports, so anything it shows, a consumer can compute.
 
 | Property | Value |
 |---|---|
-| Source | `src/ui` |
+| Source | `src/ui/` |
 | Stack | React, Vite, Tailwind, client-side routing |
 | Relationship to the engine | A host like any other. It calls `tick`, dispatches actions, and reads state |
 | Shipped in the package | No. The npm package is the engine; the dashboard deploys as a static site |
@@ -37,7 +37,7 @@ host imports, so anything it shows, a consumer can compute.
 
 | Element | Role |
 |---|---|
-| Chrome row | Identity, the preset selector, a ticker showing the latest event, and the utilities — theme, source link, debug panel |
+| Chrome row | Identity, the preset selector, a ticker showing the latest event, and the utilities — theme, docs link, source link, debug panel |
 | Index rail | The six sections as rows, each carrying live figures — a status pill, device dots, micro-meters. The rail is meant to answer most questions without a visit |
 | Timeline card | The transport: play/pause, step, speed, and where the day sits against the photoperiod |
 | Stage | The section itself, with its own title, summary line and footer |

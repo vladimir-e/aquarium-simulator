@@ -95,7 +95,6 @@
 
 .sl-markdown-content td:first-child {
   color: var(--sl-color-white);
-  white-space: nowrap;
 }
 
 .sl-markdown-content td:first-child code {

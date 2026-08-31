@@ -110,7 +110,7 @@ density you can look up rather than a score.
 | `plantSuppressionSeverity` | Damage per unit of plant power above that threshold | %/power/hr |
 | `weaknessThreshold` | Plant power below which a weak planting becomes a benefit to algae | power |
 | `lightExcessThreshold` | Substrate PAR above which light stops being what plants use and starts feeding algae | PAR |
-| `excessLightPeak` · `excessLightSeverity` | The excess-light benefit: its rate per PAR over the threshold, and its ceiling | %/hr · %/PAR/hr |
+| `excessLightPeak` · `excessLightSeverity` | The excess-light benefit: its ceiling, and its rate per PAR over the threshold | %/hr · %/PAR/hr |
 | `excessNutrientPeak` · `excessNutrientSeverity` | The excess-nutrient benefit, against the larger of the NO₃ and PO₄ ratios over optimum | %/hr · %/ratio/hr |
 | `nutrientDeficiencyPeak` · `nutrientDeficiencySeverity` | The starved-plants benefit — deliberately small, a canary rather than a lever | %/hr · %/(1−ratio)/hr |
 | `lowPlantPowerPeak` · `lowPlantPowerSeverity` | The weak-planting benefit, per unit of power below `weaknessThreshold` | %/hr · %/power/hr |
@@ -158,8 +158,8 @@ density you can look up rather than a score.
 | `lightInsufficientSeverity` · `lightExcessiveSeverity` | Damage per PAR unit below and above the species' tolerable band | %/PAR/hr |
 | `co2InsufficientSeverity` · `temperatureStressSeverity` · `phStressSeverity` | Damage per unit outside the species' tolerable band, one per factor | %/unit/hr |
 | `nutrientDeficiencySeverity` | Damage per unit of missing sufficiency, Liebig-gated | %/(1−suff)/hr |
-| `nutrientToxicitySeverity` · `nutrientToxicityThresholdNitrate` | The gross-overdose channel: where it starts, and what it costs per ppm past it | %/ppm/hr · ppm |
-| `algaeShadingSeverity` · `algaeShadingThreshold` | Bloom mass above which algae shades plants, and the damage per point past it | %/algae/hr · — |
+| `nutrientToxicitySeverity` · `nutrientToxicityThresholdNitrate` | The gross-overdose channel: what it costs per ppm past the threshold, and where that threshold starts | %/ppm/hr · ppm |
+| `algaeShadingSeverity` · `algaeShadingThreshold` | Damage per point of bloom past the threshold, and the mass above which algae shades plants | %/algae/hr · — |
 | `co2BenefitPeak` · `temperatureBenefitPeak` · `phBenefitPeak` · `nutrientBenefitPeak` | Recovery earned per factor in its tolerable band; all four are scaled by the light term | %/hr |
 | `maxSheddingRate` | Share of itself a plant sheds per hour when it can pay none of its upkeep | /hr |
 | `wastePerShedSize` · `wastePerPlantDeath` | Waste produced per unit of size shed, and per unit of size on death | g/% |

@@ -23,7 +23,7 @@ instead: heat, water, CO₂, fertiliser, or the bed's own organics.
 | The bed as a depleting ammonia source | <Badge text="settled" variant="success" /> | A per-litre organic reserve releasing a fraction of what is left each tick — physical, and it never refills. |
 | CO₂ as a metered mass | <Badge text="settled" variant="success" /> | Bubble rate buys milligrams, not ppm, so an evaporated tank reads higher off the same setting. |
 | Heater thermostat | <Badge text="scaffolding" variant="caution" /> | A switch: full wattage below setpoint, nothing at or above it. No hysteresis, no proportional band, and no failure state. |
-| Air pump sizing | <Badge text="scaffolding" variant="caution" /> | Four capacity bands, not a rate. A 150 L tank gets twice the air of a 151 L one on the far side of the same step. |
+| Air pump sizing | <Badge text="scaffolding" variant="caution" /> | Four capacity bands, not a rate. A 151 L tank gets twice the air of a 150 L one on the far side of the same step. |
 | Aeration as a boolean | <Badge text="scaffolding" variant="caution" /> | On or off. A sponge filter in a nano and a full air stone in a 400 L deliver the identical multiplier and the identical direct O₂. |
 | Lid | <Badge text="scaffolding" variant="caution" /> | Four hardcoded multipliers outside `config/`, and they reach evaporation only. |
 | ATO trigger | <Badge text="scaffolding" variant="caution" /> | A switch at 99 % of capacity that refills to exactly 100 % in a single tick, however far it fell. |
