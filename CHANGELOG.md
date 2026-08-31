@@ -6,12 +6,12 @@ All notable changes to this project will be documented in this file.
 Format: - **Feature name** (#PR) - One short sentence (under ~150 chars)
 - Group by date, newest first
 - Skip UI-only tweaks and minor fixes
-- Implementation details belong in the task file (`docs/tasks/XX.md`), not here
+- Implementation details belong in the PR description, not here (`docs/tasks/` is historical)
 -->
 
 ## Unreleased
 
-- **Docs portal** - (#PR): Starlight documentation site at docs.fishroom.app supersedes the docs/ specs; Docs link in the UI chrome.
+- **Docs portal** - the whole system documented at docs.fishroom.app, linked from the dashboard.
 - **A starving plant stops reading as thriving** - the plant status word reads the energy ledger beside condition, so a plant shedding tissue in the dark says so.
 - **One reserve, two claims, in an order** - upkeep is its own ledger, paid from income then the bank; the unpaid share eats `size`; damage and repair reach only the spare above the reserve.
 - **A nutrient shortfall is pinned from both ends** - `nutrientDeficiencySeverity` 0.7 → 0.3, re-derived against the corrected photosynthate income.

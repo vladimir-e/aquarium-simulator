@@ -7,8 +7,7 @@ export default defineConfig({
   server: { port: 2050, host: true },
   vite: {
     server: {
-      // LAN preview loop: Vlad reviews from his devices via clarity.local
-      allowedHosts: ['clarity.local'],
+      allowedHosts: true,
     },
   },
   integrations: [

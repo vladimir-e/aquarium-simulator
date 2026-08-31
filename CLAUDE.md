@@ -2,10 +2,10 @@
 
 Building a comprehensive aquarium ecosystem simulation engine that models all aspects of a fish tank environment.
 
-## Spec-Driven Development
+## Documentation-Driven Development
 
-This project follows spec-driven development:
-1. **Documentation is complete** - The docs portal covers the whole system
+This project follows documentation-driven development:
+1. **Docs describe the system as it is** - the portal covers the whole system in present tense
 2. **Code is iterative** - Implementation happens in scoped tasks, each with a clearly defined brief
 3. **Keep docs current** - If you find inconsistencies or conflicts between the docs and your task, flag them! Update docs when implementation reveals better approaches
 
