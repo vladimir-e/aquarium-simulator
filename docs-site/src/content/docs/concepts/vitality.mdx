@@ -1,0 +1,105 @@
+---
+title: Vitality
+description: One damage, benefit and condition model shared by fish, plants and algae — two ledgers, a reserve bank, and a ladder that repairs before it grows.
+---
+
+import { Badge } from '@astrojs/starlight/components';
+
+## One model, every organism
+
+Fish, plants and algae experience the tank through the same interface. Each hour
+an organism declares what is harming it, what it costs to stay alive, and what is
+doing it good; one shared module turns those three lists into a condition and a
+reserve. Species configs decide which resources map to which factors — the
+arithmetic is identical across lifeforms.
+
+```
+net = Σbenefits − (Σupkeep + Σstressors) × (1 − hardiness)
+```
+
+| Term | Is | Scaled by hardiness |
+|---|---|---|
+| Benefits | Income from favourable conditions, in %/h | No |
+| Upkeep | The cost of simply being alive, in %/h | Yes |
+| Stressors | Damage done *to* the organism, in %/h | Yes |
+| Hardiness | Species tolerance plus a per-individual offset, `0`–`1` | — |
+
+Hardiness scales the charged side only. A hardy fish tolerates bad water; it is
+not more energised by good water.
+
+## The two ledgers
+
+Which list a deficit lands in decides which stock it reaches. That split is the
+whole model.
+
+| Ledger | Weighs | A shortfall is paid in |
+|---|---|---|
+| Energy | Benefits against upkeep | Tissue. The organism shrinks and survives |
+| Health | Whatever income the energy ledger left, against stressors | Condition. The organism is intact but damaged |
+
+The energy ledger settles first, and a deficit on it never doubles as condition
+damage. A starving plant loses biomass rather than health, which is the
+difference between a plant that is small and a plant that is dying.
+
+## The surplus bank
+
+Income that is not spent accrues into a saturating reserve, and the reserve
+buffers damage before condition falls. A well-stocked organism shrugs off a bad
+hour by burning stores; the same hour flattens one that has nothing banked.
+
+Two claims reach different depths of the same bank, and the ordering is what
+keeps a poisoned organism from starving itself.
+
+| Claim | Seniority | May spend |
+|---|---|---|
+| Upkeep | Senior | The bank to its last unit |
+| Damage | Junior | Only what stands above a reserved depth — a few hours of upkeep, held back as survival rations |
+| Repair and growth | Junior | The same spendable part, above the same floor |
+
+Accrual saturates at a cap and overflow beyond it is discarded rather than
+queued, the way a body absorbs only so much of a vitamin. One reading follows
+from all of this and is easy to misread: **condition 100 with a negative net
+means burning reserves, not thriving.**
+
+## Recover, then grow
+
+Nothing in the balance repairs an organism that stores its energy. Repair is a
+withdrawal from the bank, taken ahead of growth, so a stressed organism pays down
+its deficit before it makes any progress. An organism with no energy ledger runs
+the same ladder from the other end — its income heals it on the spot, and only a
+full condition leaves anything to bank.
+
+Either way the trajectory is the same shape: recover, then grow. There is no
+middle position where an organism parks, damaged but stable.
+
+| Organism | Ledgers | Damage reaches | The bank buys |
+|---|---|---|---|
+| Fish | Health only — income heals first and banks what a full condition leaves | `condition` | Breeding, which spends a share of the cap from both parents |
+| Plants | Both — income pays upkeep first, and what neither income nor bank covers is starvation | `condition`, and tissue for unpaid upkeep | Repair first, then new size, both stopping at the survival floor |
+| Algae | Neither — a bloom has no condition at all, so net folds straight into the bank | `mass` | Mass, capped per hour and asymptotic toward a ceiling |
+
+## Deliberate absences
+
+Three things are missing on purpose, and each has been re-proposed before.
+
+| Absent | Why |
+|---|---|
+| A condition-equilibrium term | Behaviour that reads as "everything dies eventually" is severity constants too harsh at the margin — a real defect, but a number, never a missing mechanism |
+| Husbandry re-tests on outcomes | Outcomes spend the stock. The husbandry is already priced into how the bank filled, so breeding's one guard is that the female's net is non-negative this hour, which tests trend rather than conditions |
+| Hardiness on the benefit side | Tolerance is protection from harm, not an appetite for good conditions |
+
+## Status
+
+| Mechanic | Status | Why |
+|---|---|---|
+| The balance | <Badge text="settled" variant="success" /> | One formula for every organism, with hardiness applied centrally rather than by each caller |
+| The two ledgers | <Badge text="settled" variant="success" /> | Energy deficits are paid in tissue, environmental stress in condition |
+| The bank and its reserved depth | <Badge text="settled" variant="success" /> | One definition of the floor, subtracted once, so no claimant can forget it |
+| Recover-then-grow | <Badge text="settled" variant="success" /> | No middle-parking; the missing equilibrium term is a decision, not a gap |
+| Tolerance-band benefits | <Badge text="scaffolding" variant="caution" /> | A step by its own account — crossing a tolerance edge loses the whole benefit at once *and* starts damage |
+
+## Source
+
+`src/simulation/systems/` holds the shared model and each organism's factor
+builders; `src/simulation/plants/`, `src/simulation/algae/` and
+`src/simulation/livestock/` decide what their surplus is spent on.
