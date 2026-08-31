@@ -4,6 +4,7 @@ import starlight from '@astrojs/starlight';
 
 export default defineConfig({
   site: 'https://docs.fishroom.app',
+  server: { port: 2050, host: true },
   vite: {
     server: {
       // LAN preview loop: Vlad reviews from his devices via clarity.local
