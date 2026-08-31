@@ -1,0 +1,239 @@
+---
+title: Nitrogen cycle
+description: Waste to ammonia to nitrite to nitrate — two bacterial guilds, an oxygen bill at every step, and a colony the tank has to keep earning.
+---
+
+import { Badge } from '@astrojs/starlight/components';
+
+## What it models
+
+Waste becomes ammonia, ammonia becomes nitrite, nitrite becomes nitrate. Two
+bacterial guilds run the last two stages, and both pay for the reaction in
+dissolved oxygen — 4.57 mg of O₂ per mg of nitrogen carried the whole way, three
+quarters of it on the first step. The colonies grow on the work they actually do
+and fade on a maintenance clock that never stops, so a biofilter is a stock the
+tank has to keep earning.
+
+## Status
+
+| Mechanic | Status | Why |
+|---|---|---|
+| Three-stage chain | <Badge text="settled" variant="success" /> | Compound mass converts through the molecular weights in `core/chemistry.ts`; no constant in `config/` restates one. |
+| Ammonia source | <Badge text="settled" variant="success" /> | A physical, depleting bed reserve rather than a flat ambient constant. |
+| Processing capacity | <Badge text="settled" variant="success" /> | Population × per-cell throughput × warmth × air, with no volume term — the same colony clears the same mass in a nano and a 300 L. |
+| Colony growth and decay | <Badge text="settled" variant="success" /> | Logistic growth scaled by utilization; unconditional maintenance decay on a 21-day half-life. |
+| Oxygen limitation | <Badge text="settled" variant="success" /> | Monod on both guilds, NOB's half-saturation nearly 4× AOB's — which is where standing nitrite comes from. |
+| Temperature | <Badge text="settled" variant="success" /> | One Q10 factor across oxidation, growth and decay, because they are one metabolism. |
+| Guild spawn | <Badge text="scaffolding" variant="caution" /> | A switch, not a rate: population jumps 0 → full inoculum on the first tick `pop === 0` and its feedstock reads ≥ 0.5 ppm. |
+| Mineralization rate | <Badge text="scaffolding" variant="caution" /> | A flat fraction of standing waste with no temperature and no oxygen term, in the one aerobic step of the chain that has neither. |
+| N mass conservation | <Badge text="scaffolding" variant="caution" /> | The chain conserves N per atom, but decay oxidation, plant uptake and metabolic retention are untracked sinks. `tests/n-mass-conservation.test.ts` controls for them rather than closing them. |
+| Colony sizing on inert beds | <Badge text="scaffolding" variant="caution" /> | `'cycled'` seeding hands gravel and sand the colony a soil tank gets. |
+| Nitrogen alerts | <Badge text="scaffolding" variant="caution" /> | Ammonia alerts on TAN where toxicity is unionized, and nitrite at 1.0 ppm where fish damage starts at any presence. |
+| Denitrification | <Badge text="missing" variant="danger" /> | Nitrate has no biological sink. It leaves only through plant uptake and water changes, so an unplanted tank accumulates it without bound. |
+| Nitrification acidity | <Badge text="missing" variant="danger" /> | Ammonia oxidation releases 2 H⁺ per NH₄⁺. `ph-drift.ts` reads only hardscape and CO₂, so a cycling tank never acidifies. |
+
+## How it works
+
+### The three stages
+
+| Stage | Reaction | Run by |
+|---|---|---|
+| 1 · Mineralization | waste (g) → NH₃ (mg) | No organism. A flat fraction of standing waste, times a stoichiometric N content. |
+| 2 · Ammonia oxidation | NH₄⁺ + 1.5 O₂ → NO₂⁻ + 2 H⁺ + H₂O | AOB, capped by what is dissolved |
+| 3 · Nitrite oxidation | NO₂⁻ + 0.5 O₂ → NO₃⁻ | NOB, capped by what is dissolved |
+
+Nitrogen is conserved atom for atom across the chain. Compound mass is not — it
+grows with molecular weight, and every conversion reads its ratio from
+`core/chemistry.ts` so the whole engine agrees on the arithmetic.
+
+| Conversion | Factor | Derivation |
+|---|---|---|
+| NH₃ → NO₂⁻ | `2.702` | `MW_NO2 / MW_NH3` |
+| NO₂⁻ → NO₃⁻ | `1.348` | `MW_NO3 / MW_NO2` |
+| O₂ spent per mg NH₃ | `2.819` | `1.5 × MW_O2 / MW_NH3` |
+| O₂ spent per mg NO₂⁻ | `0.348` | `0.5 × MW_O2 / MW_NO2` |
+
+The oxygen draw is derived from the nitrogen actually oxidised, never quoted
+separately. A tank that cannot run the reaction does not pay for it.
+
+### Stocks and rates
+
+| Stock | Fills it | Drains it | Unit |
+|---|---|---|---|
+| `waste` | Food decay, fish feces, fish death, plant tissue loss, substrate leaching | Mineralization to ammonia — and nothing else | g |
+| `ammonia` | Mineralization; fish gill excretion | AOB oxidation; water change removes proportional mass | mg |
+| `nitrite` | AOB oxidation, × 2.702 | NOB oxidation; water change | mg |
+| `nitrate` | NOB oxidation, × 1.348; fertilizer dosing | Plant uptake; water change | mg |
+| `aob` | Spawn inoculum; logistic growth on utilization | Maintenance decay; surface-area cap | units of 10⁶ cells |
+| `nob` | Spawn inoculum; logistic growth on utilization | Maintenance decay; surface-area cap | units of 10⁶ cells |
+| `oxygen` | Gas exchange, elsewhere | 2.819 mg per mg NH₃ and 0.348 mg per mg NO₂⁻ oxidised | mg/L |
+
+`waste` has exactly one drain. A water change dilutes the three nitrogen
+compounds but leaves waste untouched, and no filter, vacuum or action removes
+it.
+
+### Storage is mass, not concentration
+
+Nitrogen compounds are stored as mass in mg, and `getPpm(mass, water)` derives a
+concentration only where a threshold or a display needs one. Storing the
+conserved quantity is what makes evaporation concentrate the tank for free: same
+mass, less water, higher ppm, no code. Oxygen is the exception — it is stored as
+a concentration, so both oxidation steps divide their oxygen bill by standing
+water before pushing the effect.
+
+On a drained tank `getPpm` returns 0, and both oxidation stages are gated on
+`water > 0`: nitrifiers oxidise what is dissolved. Maintenance decay sits
+outside that gate on purpose, so a colony in a drained tank dies back rather
+than waiting.
+
+### Processing capacity
+
+```
+capacity    = population × processingRate × warmth × air
+consumed    = min(capacity, standing mass)
+utilization = consumed / capacity          // 0..1, dimensionless
+```
+
+Capacity carries no volume term. Throughput is a property of the cell, so the
+same colony clears the same milligrams in a nano and in a 150 L — which is what
+makes a ppm reading fall with volume the way it does in a real tank.
+
+NOB use the same gauge scaled by `nobProcessingRateMultiplier` ≈ `2.951`. That
+is the 2.702 mass ratio re-quoted through each guild's own oxygen factor at air
+saturation, rather than the bare ratio, which would hand NOB AOB's correction on
+top of their own and leave them 8.4 % under parity.
+
+### Colony dynamics
+
+| Flow | Form | Gated on |
+|---|---|---|
+| Spawn | Population jumps `0` → `tankCapacity × inoculumPerLiter` | `pop === 0` **and** its own feedstock ≥ 0.5 ppm — ammonia for AOB, nitrite for NOB |
+| Growth | `pop × growthRate × warmth × air × utilization × (1 − pop/max)` | Utilization — nothing to oxidise means no growth |
+| Decay | `pop × deathRate × warmth` | Nothing. It is unconditional |
+| Surface cap | Population truncated to `surface × bacteriaPerCm2` | Surface leaving the tank — a rescape, a media change |
+
+`air` scales oxidation and growth alike, because a colony cannot divide on a
+reaction it cannot run. It deliberately does not scale maintenance decay, which
+is what makes an anoxic tank lose its biofilter rather than merely pause it.
+
+Decay is maintenance loss, not starvation. Bacteria fade over weeks rather than
+collapsing when the meal ends, which is why a tank survives a holiday.
+
+A colony under a steady load settles where the two flows cancel:
+
+```
+utilization_rest = deathRate / (growthRate × air × (1 − pop/max))
+```
+
+In air-saturated water with the ceiling far off, that is **4.0 % for AOB** and
+**7.1 % for NOB**. The rest point moves with oxygen, and not with temperature —
+`warmth` cancels out of it, because a cell that oxidises half as fast also
+divides and starves half as fast.
+
+### Oxygen: why nitrite stands
+
+| Guild | Half-saturation `K` | Rate left at 8.38 mg/L | Rate left at 0.10 mg/L |
+|---|---|---|---|
+| AOB | `0.30` mg/L | 96.5 % | 25.0 % |
+| NOB | `1.10` mg/L | 88.4 % | 8.3 % |
+
+Every base rate multiplied by that factor is a Monod **maximum**, reached only
+at infinite oxygen. The three nitrifier rates divide the shortfall back out, so
+what a tank at air saturation reproduces is the quoted 20 h doubling rather than
+the 20.7 h an uncorrected constant would give.
+
+The ratio between the two guilds runs from `1.000` at air saturation to `0.364`
+at 0.10 mg/L. That gap is the whole story of standing nitrite: a tank short of
+air goes on oxidising its ammonia long after it has stopped clearing the nitrite
+that ammonia becomes.
+
+Oxygen, not surface, is the binding constraint on a mature colony. Held under a
+saturating dose, a bare 200 L settles at 95 % of its surface ceiling for AOB and
+53 % for NOB — against 96 % / 94 % with the oxygen term switched off.
+Circulation decides how far short a guild stops: NOB run from 1.4 % with nothing
+moving the water to 90.1 % on a canister, an air pump and a powerhead.
+
+### Temperature
+
+```
+warmth = q10 ^ ((temperature − referenceTemp) / 10)
+```
+
+One metabolism, one factor: oxidation, growth and maintenance all carry it. A
+cold tank therefore needs a larger colony to clear the same load and takes
+longer to build it — an 18 °C cycle runs about twice the days a 25 °C one does —
+while the utilization the colony rests at does not move.
+
+### Where the ammonia comes from
+
+The bed. A fresh substrate holds a fixed organic reserve per litre and releases
+a fraction of whatever is left each tick, so the source tapers as the bed is
+spent and never refills. Only swapping the substrate for a different type
+restores it — new soil is new material.
+
+| Substrate | Colony surface | Organic reserve |
+|---|---|---|
+| `none` | `0` cm²/L | `0` g/L |
+| `sand` | `400` cm²/L | `0.011` g/L |
+| `gravel` | `800` cm²/L | `0.013` g/L |
+| `aqua_soil` | `1200` cm²/L | `0.05` g/L |
+
+Surface and reserve are separate properties of the same bed: surface is the
+colony ceiling, reserve is the ammonia source.
+
+## Key tunables
+
+| Constant | Meaning | Unit | Source |
+|---|---|---|---|
+| `wasteConversionRate` | Share of standing waste mineralized per tick | `0.3` /tick | `config/nitrogen-cycle.ts` |
+| `wasteToAmmoniaRatio` | NH₃ yielded per gram of waste — waste is ≈ 5 % N by dry mass | `60` mg/g | `config/nitrogen-cycle.ts` |
+| `bacteriaProcessingRate` | NH₃ one bacteria unit oxidises per tick, Monod maximum | `2.07e-4` mg/unit/tick | `config/nitrogen-cycle.ts` |
+| `aobSpawnThreshold` | Ammonia at which AOB appear | `0.5` ppm | `config/nitrogen-cycle.ts` |
+| `nobSpawnThreshold` | Nitrite at which NOB appear | `0.5` ppm | `config/nitrogen-cycle.ts` |
+| `inoculumPerLiter` | Nitrifiers a tank is born with, per litre of fill water | `0.6385` units/L | `config/nitrogen-cycle.ts` |
+| `aobGrowthRate` | Per-capita growth at full utilization — a 20 h doubling | `0.035898` /tick | `config/nitrogen-cycle.ts` |
+| `nobGrowthRate` | Per-capita growth at full utilization — a 36 h doubling | `0.021781` /tick | `config/nitrogen-cycle.ts` |
+| `bacteriaPerCm2` | Biofilm carrying capacity — 10⁷ cells/cm² | `10` units/cm² | `config/nitrogen-cycle.ts` |
+| `bacteriaDeathRate` | Maintenance loss — a 21-day half-life | `0.0013753` /tick | `config/nitrogen-cycle.ts` |
+| `q10` | Factor every nitrifier rate multiplies by per 10 °C | `2.5` | `config/nitrogen-cycle.ts` |
+| `referenceTemp` | Temperature the nitrifier rates are quoted at | `25` °C | `config/nitrogen-cycle.ts` |
+| `aobOxygenHalfSaturation` | O₂ at which AOB run at half rate | `0.3` mg/L | `config/nitrogen-cycle.ts` |
+| `nobOxygenHalfSaturation` | O₂ at which NOB run at half rate | `1.1` mg/L | `config/nitrogen-cycle.ts` |
+| `AIR_SATURATED_O2` | The water every rate above is quoted in | `8.38` mg/L | `config/nitrogen-cycle.ts` |
+| `substrateLeachRate` | Share of the bed's remaining reserve released per tick | `0.003` /hr | `config/decay.ts` |
+
+A **bacteria unit is 10⁶ cells**, which is what makes `bacteriaPerCm2` a biofilm
+density you can look up rather than a score. Throughput, ceiling density and
+inoculum carry an exact gauge symmetry — three numbers, two physical degrees of
+freedom — so one of them is a units convention, and the ceiling density is the
+one pinned to a real measurement.
+
+## Seams
+
+| Neighbour | Read | Written |
+|---|---|---|
+| [Water & gases](/subsystems/water-and-gases/) | `oxygen` — sets both guilds' Monod factor, and with it their oxidation and growth | `oxygen` — the derived draw of both oxidation steps |
+| [Environment](/subsystems/environment/) | `water` for ppm and the submerged gate, `temperature` for the Q10 factor | — |
+| [Equipment](/subsystems/equipment/) | `surface` — the colony ceiling, from filter media, substrate, hardscape and glass | `waste` — the substrate's organic reserve leaches into it |
+| [Livestock](/subsystems/livestock/) | — | Fish write `ammonia` directly through gill excretion, and `waste` as feces and death mass |
+| [Plants](/subsystems/plants/) | — | Plants drain `nitrate` on uptake and add `waste` from tissue loss |
+| [Algae](/subsystems/algae/) | — | Algae reads `nitrate` as a growth benefit but consumes none of it |
+| [Actions](/subsystems/actions/) | — | A water change removes `ammonia`, `nitrite` and `nitrate` mass proportionally; dosing adds `nitrate` |
+| [Alerts & logging](/subsystems/alerts-and-logging/) | — | Ammonia > 0.1 ppm, nitrite > 1.0 ppm and nitrate > 80 ppm each raise an alert once per crossing |
+
+## Source map
+
+| File | Role |
+|---|---|
+| `src/simulation/systems/nitrogen-cycle.ts` | The system. All three stages, colony dynamics, and the pure functions each is built from |
+| `src/simulation/config/nitrogen-cycle.ts` | Tunables, their units and their declared ranges |
+| `src/simulation/core/chemistry.ts` | Molecular weights and the mass ratios derived from them. Not tunable |
+| `src/simulation/core/kinetics.ts` | `monodFactor` and `q10Factor` — the two shapes every rate here is modified by |
+| `src/simulation/resources/helpers.ts` | `getPpm` / `getMassFromPpm` — the single mass ↔ concentration conversion |
+| `src/simulation/equipment/substrate.ts` | The bed's organic reserve and its leach into the waste pool |
+| `src/simulation/systems/decay.ts` | Food → waste, upstream of stage 1 |
+| `src/simulation/systems/nitrogen-cycle.test.ts` | Unit tests — mechanism |
+| `src/simulation/tests/n-mass-conservation.test.ts` | End-to-end N accounting, and the named sinks it controls for |
+| `src/simulation/tests/inoculum-window.test.ts` | The sweep that pins `inoculumPerLiter` between the nitrite ceiling and the cycled-day floor |
+| `src/simulation/tests/bacteria-colony.test.ts` | Colony growth, decay and surface-cap behaviour |
+| `src/simulation/tests/substrate-leaching.test.ts` | The bed as a depleting ammonia source |

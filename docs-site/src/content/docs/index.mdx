@@ -1,0 +1,104 @@
+---
+title: Overview
+description: A pure-TypeScript aquarium ecosystem simulation engine — what it models, how it is packaged, and how to read these docs.
+---
+
+import { Badge } from '@astrojs/starlight/components';
+
+A freshwater aquarium modelled as an hourly simulation: water chemistry, the
+nitrogen cycle, plants, algae, livestock and equipment. `tick(state)` returns a
+new state and mutates nothing, so the host owns persistence, scheduling and
+rendering.
+
+One shape runs through all of it. **Subsystems compute rates; the resource layer
+integrates those rates into stocks.** A subsystem answers a biological question —
+how much of a compound this biomass moves in one hour — and returns a mass. It
+never divides by volume, and it never writes a stock.
+
+## The engine
+
+| Property | Value |
+|---|---|
+| Package | `aquarium-simulator` — npm, MIT |
+| Entry point | `tick(state, config) → state`, pure and immutable |
+| Tick | One hour |
+| Resolution | Three tiers per tick: immediate → active → passive |
+| Randomness | Seeded and serializable; `Math.random` appears nowhere in `src/` |
+| Published surface | `dist/` only — the `files` allowlist in `package.json` |
+| UI | Not in the package. `src/ui/` is a development control panel, deployed separately |
+
+## Two repos, one product
+
+| | Aquarium Simulator | The game |
+|---|---|---|
+| Visibility | Open source, MIT | Private |
+| Contains | The engine and its control panel | Presentation, progression, saves |
+| Relationship | Publishes to npm | Consumes the engine from npm |
+| Knows about | Water, organisms, equipment | Players, sessions, tanks-as-content |
+
+The engine has no opinion about a game. It does not know what a level is, what a
+player owns, or what a session is. Everything it exposes is a tank and the hour
+that just passed to it — which is what lets the game iterate on progression
+without touching biology, and lets the biology be calibrated against real
+aquariums rather than against fun.
+
+## How to read these docs
+
+| Section | Answers |
+|---|---|
+| **Concepts** | The four ideas every subsystem is built on. Read these first. |
+| **Subsystems** | One page per mechanism, each in the same fixed anatomy. |
+| **Reference** | Lookup tables: constants, presets, exported surface. |
+
+Every subsystem page carries the same six sections, in this order:
+
+| Section | Contents |
+|---|---|
+| What it models | Two or three sentences. The scope, and nothing else. |
+| Status | Each mechanic badged `settled`, `scaffolding` or `missing`, with one clause of why. |
+| How it works | Short subsections per mechanic. Stocks and rates as tables. |
+| Key tunables | Constant, meaning, unit, source file. |
+| Seams | What this subsystem reads and writes, and which neighbour owns the other end. |
+| Source map | File → role. |
+
+## Status legend
+
+In the source, a crystallized decision and a proof-of-concept look identical.
+The badges are the sorting, and they are the first thing to read on any
+subsystem page.
+
+| Badge | Means | How to treat it |
+|---|---|---|
+| <Badge text="settled" variant="success" /> | The commitment is deliberate and the tests pin the mechanism. | Changing one is a design conversation, not a refactor. |
+| <Badge text="scaffolding" variant="caution" /> | Predates the abstraction it now sits inside. Its tests pin a placeholder. | Don't build on it, defend it, or preserve its behaviour. |
+| <Badge text="missing" variant="danger" /> | Absent — and the absence distorts the mechanics next to it. | Read it as a known bias in its neighbours, not as a gap to be filled in passing. |
+
+The sorting test is the design philosophy itself: **rates into stocks is
+settled; bands and switches are scaffolding.** Two caveats hold. A band edge
+where a rate *starts from zero* is a rate, not a switch. And death is a real
+discontinuity.
+
+Mechanics are named on purpose. A redesign renames things, so a status row
+naming a mechanic that no longer exists is self-evidently stale, and should be
+resolved rather than trusted.
+
+## Install
+
+```bash
+npm install aquarium-simulator
+```
+
+```ts
+import { createSimulation, tick } from 'aquarium-simulator';
+
+let state = createSimulation({ tankCapacity: 60 });
+
+for (let hour = 0; hour < 24; hour++) {
+  state = tick(state);
+}
+
+console.log(state.resources.ammonia); // mg
+```
+
+Only `tankCapacity` is required. Every other parameter — heater, lid, substrate,
+lighting — falls back to a default.
