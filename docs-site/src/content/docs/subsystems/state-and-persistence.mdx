@@ -1,0 +1,176 @@
+---
+title: State & persistence
+description: One plain serializable object per tank, randomness included — so a named seed runs the same life twice and a saved tank resumes its stream where it stopped.
+---
+
+import { Badge } from '@astrojs/starlight/components';
+
+## What it models
+
+A tank is a single JSON-shaped object: stocks, equipment, organisms, the log,
+and the position of its own random stream. Nothing in it is a class instance, a
+closure or a date. Every system returns a new tree rather than mutating the one
+it was handed, so the state a tick began with is still readable when it ends.
+
+## Status
+
+| Mechanic | Status | Why |
+|---|---|---|
+| Immutable tree | <Badge text="settled" variant="success" /> | Every write goes through a producer. Systems emit bounded effects; only the orchestrators that add or remove organisms return state, because an effect cannot express an array growing. |
+| Serializability | <Badge text="settled" variant="success" /> | Numbers, strings, booleans and arrays all the way down. A host persists a tank with nothing but a stringify. |
+| The random seam | <Badge text="settled" variant="success" /> | Seed and counter as a pair rather than a generator, because a pair serializes. `Math.random` appears nowhere in the source. |
+| Tank-unique ids | <Badge text="settled" variant="success" /> | Cut from a stream position that is never revisited, so an id is unique within its tank by construction. |
+| `PresetSeed` | <Badge text="settled" variant="success" /> | A seed sets starting stocks and nothing else — no new dynamics, no gates, no catch-up. Whatever it writes, the tick loop takes from there. |
+| Construction refusal | <Badge text="settled" variant="success" /> | A non-finite number anywhere in the config or the seed throws. Every threshold in the engine is a comparison and `NaN` fails all of them, so one that gets in is never noticed and never leaves. |
+| Declared ranges | <Badge text="settled" variant="success" /> | Every tunable declares its bounds beside its label and unit, and a test walks every leaf — a new tunable without a range is a caught defect, not a silent one. |
+| Versioned saves | <Badge text="settled" variant="success" /> | One integer, no migration shims. A mismatch discards the stored tank rather than reading old numbers under new meanings. |
+| Nitrogen-cycle bounds | <Badge text="scaffolding" variant="caution" /> | The one section whose leaves declare no range. Its rates are derived from doubling times and were never given bounds, so a writer asking for them gets nothing to hold them to. |
+| `'cycled'` seeding | <Badge text="scaffolding" variant="caution" /> | Resolved per litre of water against the tank, which is right for an ammonia-fed colony — but it hands gravel and sand the colony a soil tank earns, and those beds do not clear a dose a month in. |
+| Unnamed streams | <Badge text="scaffolding" variant="caution" /> | A tank with no named seed takes one off the clock plus a count of streams opened in this process. Two tanks in separate processes have only the millisecond between them. |
+| Section recovery on load | <Badge text="scaffolding" variant="caution" /> | Sections validate independently, but a refused config section is replaced wholesale rather than leaf by leaf — so one bad number costs every tuned constant in the file. |
+| Log persistence | <Badge text="missing" variant="danger" /> | Logs are outside the persisted shape. A reload returns the tank's whole biology and none of its history. |
+
+## How it works
+
+### The tree
+
+| Branch | Holds |
+|---|---|
+| `tick` | Hours since the tank was built. One tick is one hour |
+| `tank` | Capacity and hardscape slots — the only physical constants |
+| `resources` | Every stock: water, temperature, the passives, food and waste, the nitrogen chain, the nutrients, the two gases, pH, the two colonies |
+| `environment` | Room temperature, tap temperature, tap pH — what the tank sits in |
+| `equipment` | Eleven fixtures, each with its own settings and schedule |
+| `plants` · `fish` · `clutches` | The organisms, as arrays of individuals |
+| `algae` | One population, mass and bank — not an array |
+| `rng` | The seed and the stream position every draw comes off |
+| `logs` | The event stream |
+| `alertState` | One latched flag per warning condition |
+
+Passive resources — surface, flow, light and aeration — are stored on the tree
+but derived: the tick recomputes all four from the equipment before anything
+reads them.
+
+### Randomness
+
+```
+RngState = { seed, counter }
+```
+
+A pair rather than a closure, because a pair serializes and a generator identity
+would be lost on a save. Every draw mixes the position through splitmix32 and
+advances the counter by one, so the stream is a pure function of where it is.
+
+Name a seed at construction and the tank runs the same life every time —
+organisms, individual variation, scrub bites and ids all replay. Leave it out
+and the tank takes a time-derived one.
+
+Everything the engine cannot derive from physics comes off this stream: a fish's
+sex, its hardiness offset, its health jitter, a scrub's bite, and every
+organism's name. That last one is what makes ids replay too.
+
+### Ids
+
+`drawId` cuts a name from the counter and advances it, so no position is used
+twice and an id is unique within its tank without a registry.
+
+It is not unique across tanks. Two tanks on one seed emit the same id sequence,
+which means host state keyed by organism id has to be reset when the tank is
+replaced rather than trusted to differ. The engine gives a tank no identity of
+its own — that belongs to whoever is holding more than one.
+
+### Starting state
+
+A seed writes stocks onto a freshly built tank and stops. It declares no
+behaviour, so nothing downstream has to know a tank was seeded.
+
+| Seedable | Accepts |
+|---|---|
+| `bacteria` | Absolute AOB and NOB counts, or the literal `'cycled'` |
+| `substrate` | The bed's remaining organic reserve |
+| `resources` | The three nitrogen compounds, the four nutrients, and both dissolved gases |
+| `fish` | Groups of species, count, age, sex and stage |
+| `plants` | Groups of species, count and size |
+
+Nothing here is validated or clamped beyond the non-finite refusal. A seed can
+say anything the state shape can hold.
+
+`'cycled'` is the exception that resolves against the tank rather than being
+copied into it. It is a claim about a month of running, not only about the
+filter, so it carries three figures at once: the colony that month grew, the bed
+reserve that month spent, and the nitrate that month made net of the water
+changes a keeper would have done. A preset resized or rescaped at the door still
+gets all three sized to fit.
+
+Rosters go through the same factories stocking uses, so a seeded fish and a
+bought one are identical in shape and both cost the stream the same draws. The
+shipped tanks are on the [presets](/reference/presets/) page.
+
+### Config validation
+
+`TunableConfig` is numbers all the way to its leaves, and each leaf declares its
+own range alongside its label and unit. The nitrogen cycle is the one section
+that does not: its rates are derived from doubling times and were never given
+bounds, so a writer asking for a range there gets nothing back.
+
+| Writer | Checks against |
+|---|---|
+| The CLI's `config set` | the declared range, plus a finite-number and known-path check |
+| The debug panel | the same declared range, as slider bounds |
+| The save schema | a second, independent set of bounds written into the schema itself |
+
+Addressing is by dotted path, and a path that does not already name a number is
+refused — a stored key nothing reads is a setting the operator only believes
+they made. A coefficient outside its declared range is one the engine was never
+solved for: a negative attenuation turns Beer–Lambert into gain and every lit
+tick after it infinite.
+
+### Save and load
+
+The persisted shape is a subset of the tree with the logs dropped and the
+current preset id added, wrapped alongside the tunable config and the host's UI
+preferences under one version integer.
+
+| Step | Behaviour |
+|---|---|
+| Version check | A mismatch discards everything. There are no migration shims — a save format change is breaking on purpose |
+| Full validation | A strict schema that rejects unknown keys as well as bad values |
+| Section recovery | If the whole fails, simulation, config and preferences are each retried alone |
+| Config merge | A section that validates is overlaid on the defaults, so a tunable added since the save arrives at its default rather than missing |
+| Write | Debounced, with an explicit flush for page unload |
+
+The save surface itself is not part of the engine. `SimulationState` is plain
+data and the host decides where it goes; the shipped implementation puts it in
+browser storage.
+
+## Key tunables
+
+| Constant | Meaning | Unit |
+|---|---|---|
+| `PERSISTENCE_VERSION` | The one integer a stored tank is checked against | integer |
+| Save debounce | Delay before a state change reaches storage | `2000` ms |
+| `CYCLED_AOB_PER_LITER` | Ammonia oxidisers a `'cycled'` tank carries, rounded up off a measured fishless soil tank | `300` units/L |
+| `CYCLED_NOB_PER_LITER` | Nitrite oxidisers, off the same measurement and rounded the same way | `200` units/L |
+| `CYCLED_RESERVE_FRACTION` | Share of a fresh bed's organics still in it on day 30 — one curve every bed type follows | `0.1` |
+| `CYCLED_NITRATE_RETAINED` | Share of the leached nitrogen still in the water, rounded to the low side because the handed-over tank has just been changed | `0.25` |
+| `HARDINESS_OFFSET_SPAN` | Per-individual hardiness spread, as a fraction of the species baseline | `0.15` |
+| Tank capacity bounds | What the save schema will accept as a tank | `1`–`10000` L |
+
+## Seams
+
+| Neighbour | Read | Written |
+|---|---|---|
+| [Nitrogen cycle](/subsystems/nitrogen-cycle/) | — | A seed writes both colonies, and `'cycled'` writes the nitrate a month of leaching left behind |
+| [Equipment](/subsystems/equipment/) | `substrate.type`, which decides what a `'cycled'` bed resolves to | The bed's remaining organic reserve |
+| [Livestock](/subsystems/livestock/) | — | Seeded rosters, built through the same factory stocking uses and drawing on the same stream |
+| [Plants](/subsystems/plants/) | — | Seeded plantings, at a named size and a full establishment bank |
+| [Water & gases](/subsystems/water-and-gases/) | — | Both dissolved gases, where a seed names them |
+| [Environment](/subsystems/environment/) | `tank.capacity` — every per-litre seed figure resolves against it | — |
+| [Actions](/subsystems/actions/) | — | Supplies the draw stream for ids and the scrub's bite, and takes back the advanced position |
+| [Alerts & logging](/subsystems/alerts-and-logging/) | — | `alertState` crosses a save; `logs` do not |
+
+## Source
+
+`src/simulation/` — the state shape, the seed and the draw stream;
+`src/simulation/config/` — declared ranges and the lookup all three writers
+share; `src/ui/persistence/` — the versioned save format and its schema.

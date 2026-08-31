@@ -1,0 +1,150 @@
+---
+title: Actions
+description: The keeper's verbs — eleven discrete moves applied outside the tick, each writing a stock directly and returning a message rather than throwing.
+---
+
+import { Badge } from '@astrojs/starlight/components';
+
+## What it models
+
+Everything the keeper does to the tank between hours. An action takes the state
+and returns a new one plus a human-readable message, applied immediately rather
+than queued for the next tick. A refused action returns the state it was handed,
+unchanged, with the message explaining why.
+
+## Status
+
+| Mechanic | Status | Why |
+|---|---|---|
+| Dispatch | <Badge text="settled" variant="success" /> | One exhaustive switch over a discriminated union, so a new verb that forgets its case fails to compile. |
+| Refusal discipline | <Badge text="settled" variant="success" /> | Every action taking a number refuses a non-finite one *before* its own bounds. A comparison against `NaN` is false, so an unguarded bound would write it into a resource nothing downstream ever clears. |
+| Water change | <Badge text="settled" variant="success" /> | Removes proportional dissolved mass, then blends temperature, both gases and pH by volume against the tap. The one verb with real physics in it. |
+| Feed · dose · stocking | <Badge text="settled" variant="success" /> | Bounded writes to a single stock, with the consequences left to the tick. |
+| Scrub | <Badge text="settled" variant="success" /> | The bite is drawn off the tank's own stream, so a replayed tank is scrubbed identically. |
+| Top-off | <Badge text="scaffolding" variant="caution" /> | Fills to capacity and nothing else. The tap water it adds carries no temperature, no oxygen, no CO₂ and no pH — while the auto top-off doing the same job blends all four. |
+| Trim | <Badge text="scaffolding" variant="caution" /> | The target is validated in `[0, 100]` against species ceilings of 600–1100, so an overgrown plant can only be cut back to a hundred or less. |
+| Dosing against the config layer | <Badge text="scaffolding" variant="caution" /> | Both the manual dose and the auto-doser meter by the *shipped* fertilizer formula, while plant uptake reads the tuned one. Retuning the formula changes what plants take out and not what dosing puts in. |
+| Water-change shock | <Badge text="missing" variant="danger" /> | A 90 % change costs a fish nothing beyond the temperature, pH and gases the blend leaves behind. |
+| Substrate vacuuming | <Badge text="missing" variant="danger" /> | No action removes waste. Mineralization is its only drain, and a water change dilutes the nitrogen compounds while leaving the waste that makes them. |
+| Config changes as actions | <Badge text="missing" variant="danger" /> | Equipment settings are plain fields the host writes directly. There is no action type, no validation and no log for them inside the engine. |
+
+## How it works
+
+### The shape of a verb
+
+```
+applyAction(state, action, config?) → { state, message }
+```
+
+Immediate, pure, and outside the tick loop entirely — an action never advances
+the clock or settles the environment. The message is for the host to show; a
+refusal is not an exception.
+
+Three verbs draw on the tank's random stream: scrubbing takes its bite from it,
+and stocking a fish or a plant cuts an id from it. The keeper's hand is
+therefore part of the replay — two tanks on one seed diverge the moment their
+keepers act differently.
+
+### The verbs
+
+| Verb | Input | What it moves | Refused when |
+|---|---|---|---|
+| Feed | grams | `food` up, rounded to two decimals | non-finite or not positive |
+| Top off | — | `water` set to capacity | already at capacity |
+| Water change | a fraction in `(0, 1]` | see below | non-finite, outside the range, or the tank is empty |
+| Dose | millilitres | the four nutrient pools, by the fertilizer ratio | non-finite, below the minimum or above the maximum |
+| Scrub algae | an optional explicit share | `algae.mass` down 10–30 % | mass below the scrub floor, or a named share outside the band |
+| Trim plants | a target size, optionally one plant id | every plant above the target down to it, or just the named one | target outside `[0, 100]`, nothing above the target, plant not found |
+| Add plant | species, optional size | a plant at condition 100 holding half a bank | unknown species, size outside `[0, 200]`, tank at plant capacity, substrate incompatible |
+| Remove plant | plant id | the plant leaves the array | not found |
+| Add fish | species | an adult at `maturityAge`, with sampled sex, hardiness offset and health jitter | unknown species, or the physical mass ceiling reached |
+| Remove fish | fish id | the fish leaves the array | not found |
+| Sell fry | — | every fish carrying `stage: 'fry'` | no fry in the tank |
+
+Trimmed tissue and scrubbed algae leave the system outright. Neither becomes
+waste — the convention is that the keeper carried it out of the room.
+
+### What a water change actually does
+
+| Step | Effect |
+|---|---|
+| Dissolved mass | `ammonia`, `nitrite`, `nitrate`, `phosphate`, `potassium` and `iron` each scaled by `1 − amount` |
+| Temperature | blended against tap by volume |
+| Oxygen | blended against tap water at saturation for the tap's temperature |
+| CO₂ | blended against atmospheric |
+| pH | blended through hydrogen-ion concentration, not by averaging the pH numbers |
+| Water | refilled to capacity, so a change is also a top-off |
+
+What it does **not** touch: `waste`, the two bacterial colonies, and the
+organisms. A change dilutes the products of the nitrogen chain while leaving
+every gram of the material still feeding it.
+
+### Granularity
+
+| Stock | Resolution a verb writes at |
+|---|---|
+| `food` | two decimal places of a gram |
+| Nutrients | milligrams, from a dose in millilitres |
+| Water | whole tank — top-off and water change both end at capacity, never in between |
+| `algae.mass` | a drawn share of the standing mass, never an absolute figure |
+| Plant `size` | an absolute target, not a delta |
+| Organisms | one at a time, except selling fry, which is the whole cohort |
+
+### Config changes
+
+Equipment settings — the heater's target, the lid, the light's schedule and
+rating, the filter and powerhead, the doser's amount and schedule — are ordinary
+fields on `state.equipment` that the host writes directly. They are not actions:
+no dispatch, no message, no refusal.
+
+The engine ships two helpers for the changes with a consequence behind them.
+Swapping the bed scales both colonies by the share of colonisable surface that
+went out with it. Writing doser settings clamps the amount into the doser's own
+range. Every other setting is a plain assignment, and the colony feels it only
+when the next tick truncates it to whatever surface is left.
+
+Tunables are a separate surface again. `TunableConfig` is validated against each
+leaf's declared range — see
+[state & persistence](/subsystems/state-and-persistence/).
+
+## Key tunables
+
+Most action bounds are module constants rather than `TunableConfig` leaves, so
+they are not reachable through the config layer or a declared range.
+
+| Constant | Meaning | Unit |
+|---|---|---|
+| `fertilizerFormula` | Nitrate, phosphate, potassium and iron per millilitre — the one config-layer leaf here, and the ratio plant uptake splits by | `50` · `5` · `40` · `1` mg/ml |
+| Dose bounds, manual | Floor and ceiling on a hand dose | `0.1`–`50` ml |
+| Dose bounds, automatic | Floor and ceiling on a scheduled dose | `0.5`–`10` ml |
+| `MIN_SCRUB_PERCENT` · `MAX_SCRUB_PERCENT` | The band a scrub's bite is drawn from | `0.1`–`0.3` |
+| `MIN_ALGAE_TO_SCRUB` | Mass below which there is nothing to mechanically remove | `5` |
+| `MAX_FISH_VOLUME_FRACTION` | Share of the water stocked fish may occupy — a plausibility ceiling, not a husbandry one | `0.5` |
+| Plants per five gallons | The planting ceiling, floored at one plant | `3` |
+| `DEFAULT_PLANT_SIZE` | Size a plant goes in at when the caller says nothing | `50` % |
+| Water change presets | The steps the demo offers; the action itself takes any fraction | `0.1` · `0.25` · `0.5` · `0.9` |
+
+The stocking ceiling blocks the physically impossible rather than the unwise. A
+tank crammed far past its sane bioload is allowed, and the vitality engine plays
+out the ammonia and the oxygen crash; only a tank that would hold more solid
+fish than water is refused. Breeding is exempt, so a bred cohort can push past
+the ceiling and simply lock further stocking out.
+
+## Seams
+
+| Neighbour | Read | Written |
+|---|---|---|
+| [Water & gases](/subsystems/water-and-gases/) | `oxygen`, `co2` and `ph` for the blend | All three, on a water change; none of them on a top-off |
+| [Nitrogen cycle](/subsystems/nitrogen-cycle/) | — | `ammonia`, `nitrite` and `nitrate` diluted proportionally; `nitrate` raised by a dose |
+| [Environment](/subsystems/environment/) | `tapWaterTemperature` and `tapWaterPH` as the thing being blended toward; `water` and `tank.capacity` for every refill | `water` and `temperature` |
+| [Plants](/subsystems/plants/) | `plants` for the capacity gate and the trim target | The array, and `size` directly |
+| [Livestock](/subsystems/livestock/) | `fish` for the mass ceiling and the fry count | The array; `food` for the fish to eat next tick |
+| [Algae](/subsystems/algae/) | `algae.mass` for the scrub floor | `algae.mass`, down by a drawn share |
+| [Equipment](/subsystems/equipment/) | `substrate.type` — which species may be planted at all | Nothing through the action layer; settings are written by the host |
+| [Alerts & logging](/subsystems/alerts-and-logging/) | — | Every applied action appends a `user` entry; a scrub files itself under `scrub`. A refusal logs nothing |
+| [State & persistence](/subsystems/state-and-persistence/) | The draw stream, for a scrub's bite and every new organism's id | The advanced stream position |
+
+## Source
+
+`src/simulation/actions/` — the union, the dispatcher and one module per verb.
+The two equipment-side helpers live in `src/simulation/equipment/`.
