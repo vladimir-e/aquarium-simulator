@@ -15,7 +15,7 @@ export default defineConfig({
     starlight({
       title: 'Aquarium Simulator',
       description:
-        'The open-source aquarium ecosystem simulation engine behind fishroom.app — water chemistry, nitrogen cycle, plants, algae, livestock and equipment.',
+        'An open-source aquarium ecosystem simulation engine — water chemistry, nitrogen cycle, plants, algae, livestock and equipment.',
       social: [
         {
           icon: 'github',
@@ -58,6 +58,10 @@ export default defineConfig({
             { label: 'Alerts & logging', link: '/subsystems/alerts-and-logging/' },
             { label: 'State & persistence', link: '/subsystems/state-and-persistence/' },
           ],
+        },
+        {
+          label: 'UI',
+          items: [{ label: 'The dashboard', link: '/ui/' }],
         },
         {
           label: 'Reference',
