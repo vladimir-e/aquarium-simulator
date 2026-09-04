@@ -60,7 +60,7 @@ export interface PlantsConfig {
   /**
    * Share of the banked reserve a plant mobilises toward new tissue each lit
    * hour. Why a share of the stock rather than a flat ceiling on the flow:
-   * `docs/6-PLANTS.md` § Growth and Size.
+   * the docs portal, Plants § The bank and the ladder.
    */
   growthDrawRate: number;
   /**
@@ -225,7 +225,8 @@ export const plantsDefaults: PlantsConfig = {
   // plant carries into a bad night. `surplusCap` is not a settling point at
   // all: a day's withdrawal there is more than a day's income, so a plant only
   // pegs once its asymptotic factor has closed the withdrawal down, which takes
-  // most of its growth curve. `docs/6-PLANTS.md` § Growth and Size derives both.
+  // most of its growth curve. The docs portal, Plants § The bank and the
+  // ladder derives both.
   growthDrawRate: 0.02,
   sizePerSurplus: 0.4, // size % per (surplus × growthRate) unit converted
   surplusCap: SURPLUS_CAP_DEFAULT,

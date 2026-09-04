@@ -1,0 +1,149 @@
+---
+title: "Web UI"
+description: "The dashboard the engine ships with — six views over one tank, a transport for time, and a panel for every constant."
+---
+
+The engine has a face: a browser dashboard that drives one tank in real time,
+deployed at [engine.fishroom.app](https://engine.fishroom.app). It is the
+engine's showcase and its calibration instrument — the surface where a
+month-long run becomes something you can watch, scrub back through, and explain.
+
+It runs on the engine's API — build a tank, tick it, dispatch actions, read the
+state back — and it does not stop there. It imports source directly rather than
+the built package, and a handful of the numbers it displays come off thresholds
+and formatters the package never exports. What it shows is therefore wider than
+the published surface on its own.
+
+## What it is
+
+| Property | Value |
+|---|---|
+| Source | `src/ui/` |
+| Stack | React, Vite, Tailwind, client-side routing |
+| Relationship to the engine | A host with reach past the barrel. It calls `tick`, dispatches actions and reads state, and imports internals besides |
+| Shipped in the package | No. The npm package is the engine; the dashboard deploys as a static site |
+| Session state | The browser's local storage. There is no server and no account |
+| Scope | One tank at a time |
+
+## The six views
+
+| View | Route | What it shows |
+|---|---|---|
+| Water | `/` | The tank as gauges: level, temperature, pH, the three nitrogen compounds, dissolved O₂ and CO₂. Below them the biofilter — colony size against its ceiling, whether the tank reads as cycled, a projected nitrite peak — and the waste pool feeding it |
+| Equipment | `/equipment` | Every device as a row, and one device's inspector beside it. Selection lives in the URL, so each inspector is a link and back walks between devices. A band along the foot lays the day's schedules — light, CO₂, doser — against each other |
+| Flora & Scape | `/flora` | Plants as rows that open into their per-factor vitality breakdown, the algae competing with them on the same axis, the four nutrients with what one millilitre of fertilizer would move, and the hardscape |
+| Livestock | `/livestock` | The roster, expandable per fish into what is helping and hurting it, with bioload against the stocking guideline pinned below and fry sellable when they appear |
+| Analytics | `/analytics` | Four charts over the run — nitrogen, pH and CO₂, O₂ with temperature and level, populations — plus run tallies, the filtered event log, and a scrubber |
+| Scenario | `/scenario` | What the tank *is*, rather than how it is doing: the preset it came from, its size, lid, room and tap water, and the figures those imply. Also the unit toggle and the run reset |
+
+## The frame
+
+| Element | Role |
+|---|---|
+| Chrome row | Identity, the preset selector, a ticker showing the latest event, and the utilities — theme, docs link, source link, debug panel |
+| Index rail | The six sections as rows, each carrying live figures — a status pill, device dots, micro-meters. The rail is meant to answer most questions without a visit |
+| Timeline card | The transport: play/pause, step, speed, and where the day sits against the photoperiod |
+| Stage | The section itself, with its own title, summary line and footer |
+| Actions trigger | Docked at the foot of the rail, always reachable, showing the verb you last used and what it is set to |
+
+Below the tablet breakpoint the rail has nowhere to stand, so it becomes a
+drawer, the actions trigger moves to a bar across the foot, and the equipment
+inspector takes the whole screen instead of sitting beside the list.
+
+## Time
+
+The dashboard owns the clock; the engine only knows how to advance an hour.
+
+| Control | Behaviour |
+|---|---|
+| Play / pause | Autoplay ticks on an interval — one, six or twenty-four simulated hours per real second |
+| Step | Advances a full simulated day, whatever the speed, and takes the clock so autoplay cannot carry you past the day you asked to look at |
+| Space | Steps when paused, pauses when running |
+
+Every tick is recorded as a compact vitals snapshot in a rolling buffer of the
+last thirty days. That buffer is what the charts and the scrubber read, so
+scrubbing never touches the simulation — the tank can keep running while you
+look at last Tuesday.
+
+## Acting on the tank
+
+Six husbandry verbs sit behind the actions trigger: feed, water change, top-off,
+dose, trim, scrub. Each one opens on the amounts it can take, a preview of what
+committing would move, and the commit itself.
+
+| Property | How it works |
+|---|---|
+| Options | The engine's own sets — the water-change fractions it accepts, the scrub range it rolls within |
+| Refusals | The engine's own guards, stated where the verb would otherwise say what it is about to do, so an unavailable verb is never a dead end |
+| Preview | The action is applied to a throwaway state and the difference is read off it. What you see is the outcome, not an estimate of it |
+| Dispatch | One call into the engine, which works whether the tank is running or paused |
+
+Construction is not husbandry and does not go through this path. Swapping a
+filter, resizing the tank, adding a plant or a rock edits the tank directly and
+writes its own line into the log.
+
+## Reading the engine
+
+Nothing the dashboard displays is stored twice. Every gauge, breakdown, pill and
+projection is derived from the state the last tick returned, so a reading and
+the tank can never disagree.
+
+| Surface | Derived from |
+|---|---|
+| Gauges and status pills | Current resources, against the thresholds the engine alerts on |
+| Vitality breakdowns | The engine's own per-factor stressor and benefit lists, per organism |
+| Charts | The snapshot buffer, each series normalised to its own extent so a compound at 0.1 ppm and one at 40 ppm share a frame without sharing a scale |
+| Event log | The log entries the tick appends, filtered by category, exportable as text |
+| Alert markers | Log entries of alert severity, placed on the charts and the scrubber at the tick they fired |
+| Run tallies | Folded from the same log stream — deaths, births, alerts, water changed |
+
+In Analytics the tick cursor is the URL. A parked tick is a link, back walks out
+of a scrub rather than out of the app, and a window that cannot honour the tick
+resolves it and rewrites the address to match.
+
+## The debug panel
+
+The panel behind the settings icon exposes the engine's tunable constants,
+grouped the way the config layer groups them, editable live. A changed value
+takes effect on the next tick — no rebuild, no reload.
+
+| Behaviour | Detail |
+|---|---|
+| Coverage | Ten of the eleven config sections. The livestock section and the nested fertilizer formula are not reachable from the panel |
+| Validation | Each field is bounded by the range its tunable declares. Typing walks through values the range refuses, so a bad value holds the field and blur settles it rather than clamping mid-keystroke |
+| Modified state | A changed value and its section are both marked, and a dot on the icon says the tank is no longer running on stock constants |
+| Reset | Per section, or the whole config at once |
+
+Tuned constants persist with the session, which means a tank reopened tomorrow
+is still running the constants you left it on.
+
+## Units
+
+Every value the engine holds is metric. The unit system is a display choice,
+converted at the edge and converted back on the way in, so switching it never
+touches the tank.
+
+| Quantity | Metric | Imperial |
+|---|---|---|
+| Temperature | °C | °F |
+| Volume | L | gal |
+| Flow | L/h | GPH |
+
+The toggle lives in Scenario. The initial choice comes from the browser's
+locale, and the tank-size picker offers round numbers in whichever system is
+active — litres in one, gallons in the other.
+
+## What persists
+
+| Kept | Dropped |
+|---|---|
+| The tank: clock, resources, environment, equipment, plants, fish, clutches, algae, random stream, alert state | The event log, which starts fresh each session |
+| The preset the tank came from | Transport speed and play state |
+| Tuned constants | The Analytics view — it lives in the URL instead |
+| Units and whether the debug panel was open | |
+
+Saves are validated section by section against a strict schema, so one corrupt
+section falls back to its defaults rather than taking the rest with it. The
+format carries a version, and a version it does not recognise is discarded
+rather than migrated — the same no-backward-compatibility rule the engine holds
+itself to.

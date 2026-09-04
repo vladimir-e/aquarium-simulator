@@ -90,7 +90,7 @@ export interface PlantRow {
    * Everything charged this hour — upkeep first, then damage, so the rows sum
    * to `net`. Two ledgers merged for one list, which is a display choice: what
    * a plant owes for being alive is not a stressor, and lands in a different
-   * stock (`6-PLANTS.md` § Stressor coverage).
+   * stock (the docs portal, Vitality § The two ledgers).
    */
   charged: VitalityFactor[];
   benefits: VitalityFactor[];

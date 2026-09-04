@@ -1,0 +1,109 @@
+---
+title: Rates into stocks
+description: The engine's governing shape — subsystems compute rates, the resource layer integrates them into stocks, and a mechanic that needs a switch is a mechanic that isn't finished.
+---
+
+import { Badge } from '@astrojs/starlight/components';
+
+## The rule
+
+**Subsystems compute rates; the resource layer integrates those rates into
+stocks.** A subsystem answers one biological question — how much of a compound
+this biomass moves in one hour — and hands back a mass. It does not decide what
+the tank then holds.
+
+| | Computes | Owns |
+|---|---|---|
+| Subsystem | A rate, as the mass moved this hour | The biology — what that rate depends on |
+| Resource layer | Nothing | The stock, and the physical bounds it is held inside |
+
+The two halves never blur. A subsystem that wrote a stock would be settling the
+tank's state from inside one mechanism, and the next mechanism to touch the same
+compound would be arguing with it rather than adding to it.
+
+Every transfer is a plain value: a resource, a signed amount, and the mechanism
+that produced it. Nothing changes a stock by any other route.
+
+## Stocks hold the conserved quantity
+
+A stock stores what is actually conserved, and concentration is derived from it
+wherever a threshold or a display needs one. Nitrogen compounds are held as mass,
+so evaporation concentrates a tank for free — same mass, less water, a higher
+reading, no code.
+
+Dissolved gases are the exception, held as concentrations because that is what
+their equilibria are quoted in. A system that moves a gas therefore divides its
+mass by standing water before handing the effect over.
+
+## No gates, no clamps, no special cases
+
+| Rejected | Why | Instead |
+|---|---|---|
+| A gate | A condition flipping a rate between zero and full puts a cliff in the tank's behaviour that no real tank has | A rate that reaches zero on its own as its driver does |
+| A clamp | A rate that only stays sane because something truncated it is wrong just below the truncation too | A response shape that cannot overdraw the stock it reads |
+| A special case | A branch for one species, one tank size or one preset is an admission the model doesn't hold, carried as code instead of fixed | A term that produces the special case as an ordinary output |
+
+The resource layer does hold each stock inside declared physical bounds. That is
+a floor under the arithmetic, not a mechanism — a mechanic that relies on it to
+stay sane is a defect the bound is hiding.
+
+## Monod is the default answer
+
+Consumption of a stock is `[S] / (K + [S])`: full rate while the substrate is
+plentiful, half rate at the half-saturation constant, nothing once it is gone.
+Each process quotes its own `K`, the way each quotes its own Q10.
+
+The property that earns it the default is that **a stock drawn through a Monod
+factor is never overdrawn.** Demand falls with supply, so the stock approaches
+zero rather than crossing it. Two systems drawing on one pool in the same hour
+both slow down, which is exactly the job a rationing scheduler would otherwise
+have been written to do.
+
+## The shapes a rate is allowed to have
+
+| Shape | Form | Reads |
+|---|---|---|
+| Monod | `[S] / (K + [S])` | A stock something consumes — dissolved oxygen, a nutrient |
+| Q10 | `q10 ^ ((T − Tref) / 10)` | Temperature, on anything enzymatic |
+| Jassby–Platt | `tanh(PAR / Ik)` | Light. Nothing can overdraw it, so the curve comes from the leaf rather than from the pool |
+| Piecewise anchors | Linear ramps between named points, continuous at every crossing | A tolerance axis, where the real response has inflections but no cliffs |
+
+## The canonical curve
+
+Satiation is the pattern everything else is measured against. A fish's hunger
+axis carries five labelled bands — overfed, well fed, peckish, hungry, starving —
+but the labels sit on one continuous piecewise-linear curve rather than on
+branches. Three of the four boundaries are zero crossings; the fourth, from
+hungry into starving, hands the hungry ramp's own value to the steeper slope
+that continues it. What a fish never crosses is a step.
+
+One curve produces both sides of the ledger. Above the neutral zone it emits a
+benefit that peaks mid-band and returns to zero at both edges; below it, a
+stressor that steepens as the fish starves. The band is a display label; what the
+vitality engine reads is the curve's value.
+
+The shape is already in the repo. A mechanic that needs a smooth response copies
+it rather than inventing one again.
+
+## Where switches still live
+
+<Badge text="scaffolding" variant="caution" /> — four discontinuities are still
+live in the organism layer, and none of them is intent.
+
+| Switch | What it does | Consequence |
+|---|---|---|
+| Plant light-insufficient stressor gates on light | Absent in the dark, at full magnitude the hour the lamp comes on | Damage steps while the benefits it opposes ramp smoothly |
+| Plant CO₂-insufficient stressor gates on the same signal | A carbon-starved plant is stressed only during the photoperiod | The same step, on a second channel |
+| Surplus accrual gates on light, in plants and again in algae | No photoperiod, no new photosynthate to bank | The largest surviving discontinuity in the engine |
+| Nitrifier guild spawn | Population jumps from zero to a full inoculum the first hour its feedstock crosses a threshold | A colony appears rather than establishes |
+
+Two things look like switches and are not. A band edge where a rate *starts from
+zero* is a rate — nothing jumps, the slope merely stops being zero. And death is
+a real discontinuity, because an organism past its threshold is genuinely a
+different thing.
+
+## Source
+
+`src/simulation/systems/` and `src/simulation/core/` hold the rates and the
+shapes they are built from; `src/simulation/resources/` holds the stocks and
+their bounds.

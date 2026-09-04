@@ -1,0 +1,152 @@
+---
+title: Algae
+description: One tank-wide population with a mass and a bank, no condition and no metabolism — it reads light, nutrients and plant health, and consumes none of them.
+---
+
+import { Badge } from '@astrojs/starlight/components';
+
+## What it models
+
+Algae is a single tank-wide population: a coverage mass on a 0–100 scale and a
+surplus bank, with no condition in between. Conditions that favour it grow it;
+conditions hostile to it shrink it. It is a pure reader — it fixes no carbon,
+releases no oxygen, and draws no nutrient out of the water it is fed by.
+
+## Status
+
+| Mechanic | Status | Why |
+|---|---|---|
+| Surplus bank and mass conversion | <Badge text="settled" variant="success" /> | The shared vitality primitive. A negative rate drains the bank before it touches mass; growth spends the bank through an asymptotic factor that self-limits at 100. |
+| Net rate | <Badge text="settled" variant="success" /> | `Σbenefits − Σstressors × (1 − hardiness)`, the same shape every organism in the engine runs. |
+| Population without condition | <Badge text="settled" variant="success" /> | Deliberate. Algae is a population, not an individual. |
+| Excess-light channel | <Badge text="scaffolding" variant="caution" /> | A hard floor at `70` PAR then a capped linear ramp. Light is a bonus term, never a photosynthetic drive. |
+| Nutrient channels | <Badge text="scaffolding" variant="caution" /> | Two capped ramps on the same NO₃/PO₄ ratio pointing opposite ways, and they are not mutually exclusive — a tank rich in nitrate and starved of phosphate earns both. |
+| Plant suppression and low plant power | <Badge text="scaffolding" variant="caution" /> | Two mirror-image threshold terms with a deadband between plant power `0.3` and `1.0` where neither fires. |
+| The `low_plant_power` cap | <Badge text="scaffolding" variant="caution" /> | Its peak is `0.2` %/h but its severity can only reach `0.12` at plant power zero, so the cap never binds. |
+| Photoperiod gate | <Badge text="scaffolding" variant="caution" /> | A switch on `light > 0` for both banking and growth spend, not a term in the rate. |
+| Scrubbing | <Badge text="scaffolding" variant="caution" /> | A random 10–30 % bite off the standing mass, refused below mass `5`. A proportional removal with a hard floor. |
+| Calibration | <Badge text="scaffolding" variant="caution" /> | The config states it outright: first-pass values chosen for mechanism correctness, not ecological accuracy. |
+| Gas and nutrient exchange | <Badge text="missing" variant="danger" /> | Algae moves no resource at all. It reads nitrate as a ratio and never consumes a milligram, so its own food source cannot self-limit. |
+| Surfaces | <Badge text="missing" variant="danger" /> | One aggregate coverage number. No glass, hardscape or plant-film distinction, and no species — the green dust on the glass and the hair algae on a leaf are the same variable. |
+| Algae as a livestock stressor | <Badge text="missing" variant="danger" /> | A full bloom never touches a fish. It reaches plants only, through shading. |
+| Mass decay to waste | <Badge text="missing" variant="danger" /> | Mass lost to hostile conditions or to a scrub leaves the system. It does not become waste and never re-enters the nitrogen cycle. |
+
+## How it works
+
+### The loop
+
+Four steps every tick, in order:
+
+1. Sum the benefits, sum the stressors, apply hardiness centrally — that is the net rate.
+2. Fold the net into the bank. Negative drains it; positive accrues it, capped, and only while the lamp is on.
+3. Shrink mass by whatever damage the bank could not cover. This runs 24 hours a day — a hostile bloom dies back at night too.
+4. Spend the bank on mass, while lit, through the asymptotic factor.
+
+Algae runs **after plants** in the tick, so suppression reads plant condition
+updated this hour. The reverse direction — algae shading plants — lags by one
+tick, which is the accepted cost of that ordering.
+
+### What it reads
+
+| Channel | Reads | Shape | Peak |
+|---|---|---|---|
+| `excess_light` | Substrate PAR | `0.004` per PAR above `70`, capped | `0.4` %/h at 170 PAR |
+| `excess_nutrients` | The larger of NO₃/`15` and PO₄/`1.0` | `0.4` per unit of overshoot above 1×, capped | `0.4` %/h at 2× optimum |
+| `nutrient_deficiency` | The same ratio, below 1× | `0.1` per unit of shortfall, capped | `0.05` %/h at half optimum |
+| `low_plant_power` | Plant power below `0.3` | `0.4` per unit of shortfall | `0.12` %/h at zero plants |
+| `plant_suppression` | Plant power above `1.0` | `0.2` per unit, then × `0.6` for hardiness | unbounded — the only stressor |
+
+Plant power is `Σ (size/100) × (condition/100)`: one full-grown healthy plant is
+worth 1.0. Suppression is the only unbounded term on the list, which is what
+makes a thriving planting able to hold a bloom down no matter what else is going
+right for it.
+
+There is no direct CO₂, temperature, pH, oxygen or ammonia channel. All of them
+reach algae through plant condition, which is the meta-signal: anything that
+hurts plants shows up here as falling plant power, and shifts the bloom from
+suppressed to fuelled.
+
+### Where it diverges from the plant light model
+
+Plants answer light along `tanh(PAR / Ik)` — a curve from the origin, per
+species, that multiplies their entire benefit budget. Algae answers it with
+`max(0, PAR − 70) × 0.004`, capped — one additive term among four, with no
+species variation and no multiplier role. Three consequences follow:
+
+- **Below 70 PAR light is worth nothing to algae**, while every plant on the roster is photosynthesising well below that. The threshold sits roughly where plants saturate, so the term is meant to read as "light the plants are not using".
+- **Light never gates the rest of the budget.** A bloom under a dim fixture earns its full nutrient and low-plant-power benefits and converts them to mass for exactly as many hours as the lamp is on. The photoperiod is a switch on banking, not a term in the rate.
+- **There is no compensation point.** Algae declares no upkeep ledger, so there is no PAR below which it is losing energy. It shrinks only when suppression outweighs its benefits, never because the tank is too dark to pay for it.
+
+### Nitrate it never consumes
+
+The `excess_nutrients` channel divides standing nitrate by the plant optimum and
+turns the overshoot into a growth rate. It never emits a nitrate effect. Neither
+does any other algae channel — the system produces no resource deltas at all.
+
+That is worth saying plainly because of what it removes: a bloom fed by nitrate
+does not draw the nitrate down, so the channel cannot self-limit. Only plant
+uptake, a water change or dilution moves the number that is feeding it.
+
+### Stocks and rates
+
+| Stock | Fills it | Drains it | Unit |
+|---|---|---|---|
+| `mass` | Bank spend while lit, × `(1 − mass/100)` × `0.5` | Damage the bank could not cover, at any hour; a scrub | 0–100 coverage |
+| `surplus` | Positive net rate while lit, capped at `50` | Damage first; then up to `2.0` a tick spent on mass | banked %/h |
+
+The asymptotic factor is what caps a bloom: near mass 100 the bank still drains
+at full rate but buys almost nothing. At an empty tank and a net of `0.4` %/h,
+mass gains `0.2` a lit hour.
+
+### Scrubbing
+
+A scrub takes a uniform random 10–30 % of standing mass off, drawn from the
+tank's seeded stream so a run is reproducible. It is refused below mass `5` —
+too little to remove mechanically. The removed mass leaves the simulation
+entirely.
+
+### Back onto plants
+
+Above mass `30`, algae charges plants `0.05` %/h per point of mass — a 60 %
+bloom delivers `1.5` %/h pre-hardiness. That is the death spiral's return leg:
+shading drags plant condition down, which weakens suppression, which grows the
+bloom. Scrubbing and restoring plant health are the two ways out.
+
+## Key tunables
+
+| Constant | Meaning | Unit |
+|---|---|---|
+| `hardiness` | Central scaling on every stressor | `0.4` |
+| `suppressionThreshold` | Plant power above which suppression starts | `1.0` power |
+| `plantSuppressionSeverity` | Damage per unit of power above it | `0.2` %/power/hr |
+| `weaknessThreshold` | Plant power below which the bloom starts earning | `0.3` power |
+| `lightExcessThreshold` | Substrate PAR above which light starts paying | `70` PAR |
+| `excessLightSeverity` | Benefit per PAR above that line | `0.004` %/PAR/hr |
+| `excessNutrientSeverity` | Benefit per unit of nutrient overshoot | `0.4` %/ratio/hr |
+| `algaeGrowthPerTickCap` | Bank the bloom may spend on mass in one tick | `2.0` surplus |
+| `massPerSurplus` | Mass bought per surplus unit, before the asymptotic factor | `0.5` |
+| `surplusCap` | Ceiling on the bank | `50` |
+| `algaeShadingThreshold` | Mass above which plants start paying for the bloom | `30` |
+| `algaeShadingSeverity` | Plant damage per mass point above it | `0.05` %/mass/hr |
+
+The last two live with the plants config, because they describe what algae does
+to a plant rather than what conditions do to algae.
+
+## Seams
+
+| Neighbour | Read | Written |
+|---|---|---|
+| [Plants](/subsystems/plants/) | Plant power — the suppression stressor and the weakness benefit, both off freshly-updated condition | `mass` above `30` is a shading stressor on every plant, read one tick later |
+| [Light](/subsystems/light/) | Substrate PAR for the excess-light benefit, and `light > 0` as the gate on banking and growth | — |
+| [Nitrogen cycle](/subsystems/nitrogen-cycle/) | `nitrate` as a ratio against the plant optimum | Nothing. Not one milligram is consumed |
+| [Water & gases](/subsystems/water-and-gases/) | — | Nothing. Algae moves no gas in either direction |
+| [Environment](/subsystems/environment/) | Standing `water`, to turn stored nutrient mass into the ppm the ratio needs | — |
+| [Actions](/subsystems/actions/) | A scrub removes 10–30 % of standing mass | — |
+| [Alerts & logging](/subsystems/alerts-and-logging/) | — | Mass at or above `80` raises the bloom alert once per crossing |
+| [Livestock](/subsystems/livestock/) | — | Nothing in either direction |
+
+## Source
+
+`src/simulation/algae/` for the orchestrator and `src/simulation/systems/` for
+the population math; `src/simulation/config/` for the tunables and
+`src/simulation/actions/` for scrubbing.

@@ -6,11 +6,12 @@ All notable changes to this project will be documented in this file.
 Format: - **Feature name** (#PR) - One short sentence (under ~150 chars)
 - Group by date, newest first
 - Skip UI-only tweaks and minor fixes
-- Implementation details belong in the task file (`docs/tasks/XX.md`), not here
+- Implementation details belong in the PR description, not here (`docs/tasks/` is historical)
 -->
 
 ## Unreleased
 
+- **Docs portal** - the whole system documented at docs.fishroom.app, linked from the dashboard.
 - **A starving plant stops reading as thriving** - the plant status word reads the energy ledger beside condition, so a plant shedding tissue in the dark says so.
 - **One reserve, two claims, in an order** - upkeep is its own ledger, paid from income then the bank; the unpaid share eats `size`; damage and repair reach only the spare above the reserve.
 - **A nutrient shortfall is pinned from both ends** - `nutrientDeficiencySeverity` 0.7 → 0.3, re-derived against the corrected photosynthate income.
@@ -26,7 +27,7 @@ Format: - **Feature name** (#PR) - One short sentence (under ~150 chars)
 - **A 1000 W heater no longer destroys the tank** - the picker offered a wattage the save schema refused, and a refused save discards the tank.
 - **`trace` rejects unknown fields** - a mistyped `--fields` name emitted a column of blanks that reads as absent data; the refusal names the valid set, and algae is on it.
 - **`config set` takes a finite number or nothing** - `Infinity` and `1e309` were stored as strings that arithmetic turned back into `NaN`, and a typo'd path grew the config a key nothing reads.
-- **A tunable is held to the range it declares** - `config set`, the debug panel and the save schema all read the leaf's own min/max, so a negative attenuation can no longer make the tank's light infinite.
+- **A tunable is held to the range it declares** - `config set` and the debug panel read the leaf's own min/max, and the save schema bounds the attenuation constants, so a negative attenuation can no longer make the tank's light infinite.
 - **Light is PAR, not watts** - a fixture is rated at the surface, the tank runs on what reaches the substrate, and depth comes from capacity (v18, v5).
 - **Age decides whether a fish can spawn** - the gate asks `age ≥ maturityAge`; a stocked adult arrives grown, one seeded at `age: 0` waits it out.
 - **A tank runs the same life twice** - a seed and counter on the state: one `rngSeed`, one life, ids too. Breaking: no `generateFishId` (v17, v4).

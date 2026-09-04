@@ -95,9 +95,10 @@ function emptyResult(): PhotosynthesisResult {
  *   actual_i    = potential_i × sufficiency_i × basePhotosynthesisRate
  *
  * Aggregate outputs, all masses in mg:
- *   uptake   = Σ potential_i × basePhotosynthesisRate × nutrientsPerPhotosynthesis
+ *   uptake   = Σ (actual_i + 0.2 × potential_i) × nutrientsPerPhotosynthesis
  *              (split by fertilizer formula ratio across the 4 nutrients;
- *              not gated by sufficiency — plants draw what they pull in)
+ *              sufficiency-gated, with a maintenance fraction that keeps
+ *              a nutrient-limited plant trickling)
  *   co2      = actual × co2PerRateUnit, clamped to the dissolved mass
  *   oxygen   = co2 × CO2_TO_O2_MASS_RATIO
  *

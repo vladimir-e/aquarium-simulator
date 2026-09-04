@@ -8,8 +8,8 @@
  *
  * Three of the rates below are Monod maxima read at {@link AIR_SATURATED_O2}
  * rather than figures a culture would hand you, and each says so where it is
- * defined. `docs/4-CORE-SYSTEMS.md` carries the rule and which constants in the
- * engine follow it.
+ * defined. The docs portal, Water & gases § The tick's carbon–oxygen budget
+ * carries the rule and which constants in the engine follow it.
  */
 
 import { monodFactor } from '../core/kinetics.js';

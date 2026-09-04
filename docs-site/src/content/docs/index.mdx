@@ -1,0 +1,102 @@
+---
+title: Overview
+description: A pure-TypeScript aquarium ecosystem simulation engine — what it models, how it is packaged, and how to read these docs.
+---
+
+import { Badge } from '@astrojs/starlight/components';
+
+A freshwater aquarium modelled as an hourly simulation: water chemistry, the
+nitrogen cycle, plants, algae, livestock and equipment. `tick(state)` returns a
+new state and mutates nothing, so whatever hosts the engine keeps ownership of
+persistence, scheduling and rendering.
+
+One shape runs through all of it. **Subsystems compute rates; the resource layer
+integrates those rates into stocks.** A subsystem answers a biological question —
+how much of a compound this biomass moves in one hour — and returns a mass. It
+never writes a stock of its own.
+
+## Two first-class parts
+
+The repository holds the engine and the dashboard that drives it. Both are
+maintained here; only the engine is published.
+
+| | Engine | Dashboard |
+|---|---|---|
+| What it is | The simulation itself — pure TypeScript, no framework, no rendering | A React app that runs one tank and exposes every number in it |
+| Lives in | `src/simulation/` | `src/ui/` |
+| Ships as | `aquarium-simulator` on npm, MIT | Deployed to [engine.fishroom.app](https://engine.fishroom.app) |
+| Reads as | A library any host advances one hour at a time | A control panel — step, inspect, act, and edit the tunables live |
+
+The dashboard is not a demo. It is how a tank gets read by hand, which is what
+makes a mechanic arguable before it is a constant.
+
+## The engine
+
+| Property | Value |
+|---|---|
+| Package | `aquarium-simulator` — npm, MIT |
+| Entry point | `tick(state, config) → state`, pure and immutable |
+| Tick | One hour |
+| Resolution | Three tiers per tick: immediate → active → passive |
+| Randomness | Seeded and serializable; `Math.random` appears nowhere in `src/` |
+| Published surface | The built `dist/` only — the dashboard and the CLI stay in the repo |
+
+```bash
+npm install aquarium-simulator
+```
+
+```ts
+import { createSimulation, tick } from 'aquarium-simulator';
+
+let state = createSimulation({ tankCapacity: 60 });
+
+for (let hour = 0; hour < 24; hour++) {
+  state = tick(state);
+}
+
+console.log(state.resources.ammonia); // mg
+```
+
+Only `tankCapacity` is required. Every other parameter — heater, lid, substrate,
+lighting — falls back to a default.
+
+## How to read these docs
+
+| Section | Answers |
+|---|---|
+| **Concepts** | The four ideas every subsystem is built on. Read these first. |
+| **Subsystems** | One page per mechanism, each in the same fixed anatomy. |
+| **UI** | What the dashboard shows, and how it is laid out. |
+| **Reference** | Lookup tables: constants, presets, exported surface. |
+
+Every subsystem page carries the same five sections, in this order, and closes
+with a pointer to the directories it lives in.
+
+| Section | Contents |
+|---|---|
+| What it models | Two or three sentences. The scope, and nothing else. |
+| Status | Each mechanic badged `settled`, `scaffolding` or `missing`, with one clause of why. |
+| How it works | Short subsections per mechanic. Stocks and rates as tables. |
+| Key tunables | Constant, meaning, unit. |
+| Seams | What this subsystem reads and writes, and which neighbour owns the other end. |
+
+## Status legend
+
+In the source, a crystallized decision and a proof-of-concept look identical.
+The badges are the sorting, and they are the first thing to read on any
+subsystem page.
+
+| Badge | Means | How to treat it |
+|---|---|---|
+| <Badge text="settled" variant="success" /> | The commitment is deliberate and the tests pin the mechanism. | Changing one is a design conversation, not a refactor. |
+| <Badge text="scaffolding" variant="caution" /> | Predates the abstraction it now sits inside. Its tests pin a placeholder. | Don't build on it, defend it, or preserve its behaviour. |
+| <Badge text="missing" variant="danger" /> | Absent — and the absence distorts the mechanics next to it. | Read it as a known bias in its neighbours, not as a gap to be filled in passing. |
+
+The sorting test is the design philosophy itself: **rates into stocks is
+settled; bands and switches are scaffolding.** Two caveats hold. A band edge
+where a rate *starts from zero* is a rate, not a switch. And death is a real
+discontinuity.
+
+Mechanics are named on purpose. A redesign renames things, so a status row
+naming a mechanic that no longer exists is self-evidently stale, and should be
+resolved rather than trusted.

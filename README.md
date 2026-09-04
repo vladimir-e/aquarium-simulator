@@ -2,7 +2,7 @@
 
 A comprehensive aquarium ecosystem simulation engine that models all aspects of a fish tank environment.
 
-**Live Demo:** https://sim.fishroom.app
+**Live Demo:** https://engine.fishroom.app · **Documentation:** https://docs.fishroom.app
 
 ## Install
 
@@ -30,8 +30,9 @@ console.log(`  ammonia:     ${state.resources.ammonia.toFixed(2)} mg`);
 ```
 
 The engine is pure and immutable: `tick(state)` returns a new state and never
-mutates its input, so you own persistence, scheduling, and rendering. See the
-[`docs/`](docs/) folder for the full API surface and simulation model.
+mutates its input, so you own persistence, scheduling, and rendering. See
+[docs.fishroom.app](https://docs.fishroom.app) for the full API surface and
+simulation model.
 
 ### Starting a tank at a state
 
@@ -81,4 +82,5 @@ npm run test:coverage  # Run tests with coverage report
 
 ## Documentation
 
-Full specifications are in the [`docs/`](docs/) folder. Start with [1-DESIGN.md](docs/1-DESIGN.md) for architecture overview.
+[docs.fishroom.app](https://docs.fishroom.app) documents the whole system — concepts,
+one page per subsystem, and reference tables. Its source is in [`docs-site/`](docs-site/).
