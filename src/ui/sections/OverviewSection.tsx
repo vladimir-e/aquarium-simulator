@@ -1,7 +1,6 @@
-import React, { useMemo } from 'react';
+import React from 'react';
 import { TriangleAlert } from 'lucide-react';
-import type { useSimulation } from '../hooks/useSimulation';
-import { activeNeeds } from '../nav';
+import { useStage } from '../components/layout/AppShell';
 import { Widget } from '../components/ui/Widget';
 
 /** The grid, as Vlad drew it: the cycle anchors top-left across two columns. */
@@ -13,12 +12,8 @@ const WIDGETS = [
   { title: 'Nutrients', caption: 'what the plants are eating', to: '/water', span: false },
 ];
 
-export function OverviewSection({
-  sim,
-}: {
-  sim: ReturnType<typeof useSimulation>;
-}): React.JSX.Element {
-  const needs = useMemo(() => activeNeeds(sim.state), [sim.state]);
+export function OverviewSection(): React.JSX.Element {
+  const { needs } = useStage();
 
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3 overflow-y-auto p-3">
@@ -28,7 +23,12 @@ export function OverviewSection({
           className="flex shrink-0 flex-wrap items-center gap-x-5 gap-y-1 rounded-card border border-hairline bg-surface px-3 py-2.5"
         >
           {needs.map((need) => (
-            <span key={need.id} className="flex items-center gap-1.5 text-[13px] font-medium text-warn">
+            <span
+              key={need.id}
+              className={`flex items-center gap-1.5 text-[13px] font-medium ${
+                need.tone === 'alert' ? 'text-alert' : 'text-warn'
+              }`}
+            >
               <TriangleAlert className="h-3.5 w-3.5" />
               {need.text}
             </span>

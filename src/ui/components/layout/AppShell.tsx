@@ -1,29 +1,25 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Outlet } from 'react-router-dom';
+import { Outlet, useOutletContext } from 'react-router-dom';
 import type { TunableConfig } from '../../../simulation/config/index.js';
-import { DEFAULT_CONFIG, isModified } from '../../../simulation/config/index.js';
+import { countModified } from '../../../simulation/config/index.js';
 import { useConfig } from '../../hooks/useConfig';
 import { useIsMobile } from '../../hooks/useMediaQuery';
 import { PresetLoadProvider } from '../../hooks/usePresetLoad';
 import type { useSimulation } from '../../hooks/useSimulation';
-import { activeNeeds, needySections } from '../../nav';
+import { type Need, activeNeeds, needySections } from '../../nav';
 import { DebugPanel } from '../panels/DebugPanel';
 import { Drawer } from '../ui/Drawer';
 import { IconRail, MoreSections, TabBar } from './IconRail';
 import { Spine } from './Spine';
 import { TopBar } from './TopBar';
 
-function modifiedTunables(config: TunableConfig): number {
-  return (Object.keys(DEFAULT_CONFIG) as (keyof TunableConfig)[]).reduce(
-    (count, section) =>
-      count +
-      Object.entries(DEFAULT_CONFIG[section]).filter(
-        ([key, value]) =>
-          typeof value === 'number' &&
-          isModified(config, section, key as keyof TunableConfig[typeof section])
-      ).length,
-    0
-  );
+/** What the shell has already worked out, for the module standing on the stage. */
+export interface StageContext {
+  needs: Need[];
+}
+
+export function useStage(): StageContext {
+  return useOutletContext<StageContext>();
 }
 
 interface AppShellProps {
@@ -32,18 +28,19 @@ interface AppShellProps {
 }
 
 /**
- * Top bar, fixed rail, stage, spine — four bands that never move. Everything
- * that inspects lays over the stage in the one drawer, so a module page and
- * its inspector are never fighting for the same width.
+ * Top bar, fixed rail, stage, spine — four bands that never move, with the one
+ * drawer laying over the stage, so a module page and its inspector are never
+ * fighting for the same width.
  */
 export function AppShell({ sim, config }: AppShellProps): React.JSX.Element {
   const isMobile = useIsMobile();
   const { isDebugPanelOpen, setDebugPanelOpen } = useConfig();
   const [drawer, setDrawer] = useState<'act' | 'more' | null>(null);
-  const [parked, setParked] = useState<number | null>(null);
 
   const needs = useMemo(() => activeNeeds(sim.state), [sim.state]);
   const alerts = useMemo(() => needySections(needs), [needs]);
+  const stage = useMemo<StageContext>(() => ({ needs }), [needs]);
+  const tunablesModified = useMemo(() => countModified(config), [config]);
 
   const openDrawer = useCallback(
     (kind: 'act' | 'more') => {
@@ -93,11 +90,11 @@ export function AppShell({ sim, config }: AppShellProps): React.JSX.Element {
           onPlayPause={sim.togglePlayPause}
           onStep={sim.step}
           onSpeedChange={sim.changeSpeed}
-          needsCount={needs.length}
+          needs={needs}
           actOpen={drawer === 'act'}
           onAct={() => openDrawer('act')}
           tunablesOpen={isDebugPanelOpen}
-          tunablesModified={modifiedTunables(config)}
+          tunablesModified={tunablesModified}
           onTunables={toggleTunables}
         />
 
@@ -105,7 +102,7 @@ export function AppShell({ sim, config }: AppShellProps): React.JSX.Element {
           {!isMobile && <IconRail alerts={alerts} />}
 
           <main className="relative flex min-h-0 min-w-0 flex-1 flex-col">
-            <Outlet />
+            <Outlet context={stage} />
 
             <Drawer open={drawer === 'act'} onClose={closeDrawers} title="Act">
               <p className="p-3 text-[13px] text-ink-2">No verbs wired up yet.</p>
@@ -125,13 +122,9 @@ export function AppShell({ sim, config }: AppShellProps): React.JSX.Element {
           <TabBar alerts={alerts} moreOpen={drawer === 'more'} onMore={() => openDrawer('more')} />
         )}
 
-        <Spine
-          history={sim.history}
-          logs={sim.state.logs}
-          tick={sim.state.tick}
-          parked={parked}
-          onScrub={setParked}
-        />
+        <footer aria-label="Run timeline" className="shrink-0">
+          <Spine history={sim.history} logs={sim.state.logs} tick={sim.state.tick} />
+        </footer>
       </div>
     </PresetLoadProvider>
   );

@@ -1,7 +1,7 @@
 import React from 'react';
 import { Fish, LayoutGrid, LineChart, Droplets, Plug, Settings, MoreHorizontal } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
-import { MORE_IDS, SECTIONS, TAB_IDS, type SectionDef, type SectionId } from '../../nav';
+import { MORE_IDS, SECTIONS, TAB_IDS, type NeedTone, type SectionDef, type SectionId } from '../../nav';
 import { DRAWER_TOGGLE } from '../ui/Drawer';
 
 const ICON: Record<SectionId, typeof Fish> = {
@@ -20,13 +20,22 @@ function tone(active: boolean): string {
   return active ? 'bg-accent-tint text-accent' : 'text-ink-2 hover:text-ink';
 }
 
+function Dot({ tone, className = '' }: { tone: NeedTone; className?: string }): React.JSX.Element {
+  return (
+    <span
+      aria-hidden
+      className={`h-1.5 w-1.5 rounded-full ${tone === 'alert' ? 'bg-alert' : 'bg-warn'} ${className}`}
+    />
+  );
+}
+
 function Item({
   section,
   alert,
   onNavigate,
 }: {
   section: SectionDef;
-  alert: boolean;
+  alert: NeedTone | undefined;
   onNavigate?: () => void;
 }): React.JSX.Element {
   const Glyph = ICON[section.id];
@@ -39,9 +48,7 @@ function Item({
     >
       <span className="relative">
         <Glyph className="h-5 w-5" />
-        {alert && (
-          <span aria-hidden className="absolute -right-1 -top-0.5 h-1.5 w-1.5 rounded-full bg-alert" />
-        )}
+        {alert && <Dot tone={alert} className="absolute -right-1 -top-0.5" />}
       </span>
       {section.label}
     </NavLink>
@@ -49,8 +56,8 @@ function Item({
 }
 
 interface NavProps {
-  /** Sections with an engine alert standing against them. */
-  alerts: Set<SectionId>;
+  /** Sections with an engine alert standing against them, in its tone. */
+  alerts: ReadonlyMap<SectionId, NeedTone>;
 }
 
 /**
@@ -65,7 +72,7 @@ export function IconRail({ alerts }: NavProps): React.JSX.Element {
       className="flex w-14 shrink-0 flex-col gap-0.5 overflow-hidden border-r border-hairline p-1.5"
     >
       {SECTIONS.map((section) => (
-        <Item key={section.id} section={section} alert={alerts.has(section.id)} />
+        <Item key={section.id} section={section} alert={alerts.get(section.id)} />
       ))}
     </nav>
   );
@@ -77,14 +84,14 @@ export function TabBar({
   moreOpen,
   onMore,
 }: NavProps & { moreOpen: boolean; onMore: () => void }): React.JSX.Element {
-  const moreAlert = MORE_IDS.some((id) => alerts.has(id));
+  const moreAlert = MORE_IDS.map((id) => alerts.get(id)).find(Boolean);
   return (
     <nav
       aria-label="Sections"
       className="grid shrink-0 grid-cols-5 gap-0.5 border-t border-hairline px-1.5 pb-[env(safe-area-inset-bottom)] pt-1.5"
     >
       {SECTIONS.filter((s) => TAB_IDS.includes(s.id)).map((section) => (
-        <Item key={section.id} section={section} alert={alerts.has(section.id)} />
+        <Item key={section.id} section={section} alert={alerts.get(section.id)} />
       ))}
       <button
         type="button"
@@ -95,9 +102,7 @@ export function TabBar({
       >
         <span className="relative">
           <MoreHorizontal className="h-5 w-5" />
-          {moreAlert && (
-            <span aria-hidden className="absolute -right-1 -top-0.5 h-1.5 w-1.5 rounded-full bg-alert" />
-          )}
+          {moreAlert && <Dot tone={moreAlert} className="absolute -right-1 -top-0.5" />}
         </span>
         More
       </button>
@@ -114,6 +119,7 @@ export function MoreSections({
     <div className="flex flex-col p-1.5">
       {SECTIONS.filter((s) => MORE_IDS.includes(s.id)).map((section) => {
         const Glyph = ICON[section.id];
+        const alert = alerts.get(section.id);
         return (
           <NavLink
             key={section.id}
@@ -127,9 +133,7 @@ export function MoreSections({
           >
             <Glyph className="h-5 w-5 text-ink-2" />
             {section.label}
-            {alerts.has(section.id) && (
-              <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-alert" />
-            )}
+            {alert && <Dot tone={alert} />}
           </NavLink>
         );
       })}

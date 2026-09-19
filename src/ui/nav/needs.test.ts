@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { createSimulation } from '../../simulation/index.js';
-import { activeNeeds, needySections } from './needs.js';
+import { NEEDS, activeNeeds, needySections } from './needs.js';
 
 const base = createSimulation({ tankCapacity: 40 });
 
@@ -23,9 +23,20 @@ describe('activeNeeds', () => {
     ]);
   });
 
-  it('sends each need to the section that answers it', () => {
-    const state = withAlerts({ lowOxygen: true, highAlgae: true });
+  it('sends each need to the section that answers it, in its worst tone', () => {
+    const state = withAlerts({ lowOxygen: true, highNitrate: true, highAlgae: true });
 
-    expect(needySections(activeNeeds(state))).toEqual(new Set(['water', 'life']));
+    expect(needySections(activeNeeds(state))).toEqual(
+      new Map([
+        ['water', 'alert'],
+        ['life', 'warn'],
+      ])
+    );
+  });
+});
+
+describe('NEEDS', () => {
+  it('speaks for every alert the engine latches, and for no other', () => {
+    expect([...NEEDS.map((need) => need.id)].sort()).toEqual(Object.keys(base.alertState).sort());
   });
 });

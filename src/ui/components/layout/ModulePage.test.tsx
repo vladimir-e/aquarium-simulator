@@ -20,10 +20,10 @@ describe('ModulePage', () => {
     expect(screen.getByRole('button', { name: 'Add' })).toBeTruthy();
   });
 
-  it('leaves no empty slots in the header when a module has neither', () => {
+  it('offers neither when a module brings neither', () => {
     render(<ModulePage title="Water">rows</ModulePage>);
-    const header = screen.getByRole('heading', { level: 1 }).parentElement;
-    expect(header?.children).toHaveLength(1);
+    expect(screen.queryByRole('button')).toBeNull();
+    expect(screen.getByRole('heading', { level: 1 }).parentElement?.textContent).toBe('Water');
   });
 
   it('is a section, not a landmark — the stage owns the one main', () => {

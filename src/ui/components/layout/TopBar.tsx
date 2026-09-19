@@ -2,6 +2,7 @@ import React from 'react';
 import { BookOpen, Github, Pause, Play, SkipForward, SlidersHorizontal, TriangleAlert } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { PRESETS, type PresetId } from '../../../simulation/presets.js';
+import type { Need } from '../../nav';
 import { usePresetLoad } from '../../hooks/usePresetLoad';
 import { SPEED_LABELS, SPEED_PRESETS, type SpeedPreset } from '../../run';
 import { formatDayClock } from '../../utils/clock';
@@ -22,12 +23,18 @@ const CONTROL =
   'flex h-8 items-center gap-1.5 rounded-control border border-hairline px-2 text-[13px] text-ink transition-colors hover:bg-surface-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent';
 const ICON = `${CONTROL} w-8 justify-center px-0 text-ink-2 hover:text-ink`;
 
-function Badge({ count, tone }: { count: number; tone: 'accent' | 'alert' }): React.JSX.Element {
+type BadgeTone = 'accent' | 'warn' | 'alert';
+
+const BADGE_TONE: Record<BadgeTone, string> = {
+  accent: 'bg-accent',
+  warn: 'bg-warn',
+  alert: 'bg-alert',
+};
+
+function Badge({ count, tone }: { count: number; tone: BadgeTone }): React.JSX.Element {
   return (
     <span
-      className={`min-w-4 rounded-full px-1.5 text-center text-[11px] font-medium leading-4 tabular-nums text-accent-ink ${
-        tone === 'alert' ? 'bg-alert' : 'bg-accent'
-      }`}
+      className={`min-w-4 rounded-full px-1.5 text-center text-[11px] font-medium leading-4 tabular-nums text-accent-ink ${BADGE_TONE[tone]}`}
     >
       {count}
     </span>
@@ -41,7 +48,8 @@ interface TopBarProps {
   onPlayPause: () => void;
   onStep: () => void;
   onSpeedChange: (speed: SpeedPreset) => void;
-  needsCount: number;
+  /** Worst first, as the engine latched them. */
+  needs: Need[];
   actOpen: boolean;
   onAct: () => void;
   tunablesOpen: boolean;
@@ -62,7 +70,7 @@ export function TopBar({
   onPlayPause,
   onStep,
   onSpeedChange,
-  needsCount,
+  needs,
   actOpen,
   onAct,
   tunablesOpen,
@@ -70,6 +78,7 @@ export function TopBar({
   onTunables,
 }: TopBarProps): React.JSX.Element {
   const { current, request } = usePresetLoad();
+  const tone = needs[0]?.tone ?? 'warn';
 
   return (
     <header className="grid h-12 shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-2 border-b border-hairline px-2">
@@ -111,11 +120,15 @@ export function TopBar({
       </div>
 
       <div className="flex items-center justify-end gap-1.5">
-        {needsCount > 0 && (
-          <Link to="/" className={`${CONTROL} text-warn`} aria-label={`${needsCount} needs you`}>
+        {needs.length > 0 && (
+          <Link
+            to="/"
+            className={`${CONTROL} ${tone === 'alert' ? 'text-alert' : 'text-warn'}`}
+            aria-label={`${needs.length} needs you`}
+          >
             <TriangleAlert className="h-3.5 w-3.5" />
             <span className="max-lg:hidden">Needs you</span>
-            <Badge count={needsCount} tone="alert" />
+            <Badge count={needs.length} tone={tone} />
           </Link>
         )}
         <button

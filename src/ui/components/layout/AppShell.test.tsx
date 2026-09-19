@@ -9,6 +9,7 @@ import { UnitsProvider } from '../../hooks/useUnits';
 import { ConfigProvider, useConfig } from '../../hooks/useConfig';
 import { PersistenceProvider } from '../../persistence/index.js';
 import { useSimulation } from '../../hooks/useSimulation';
+import type { AlertState } from '../../../simulation/index.js';
 import { stubMatchMedia, viewport, type MatchMediaStub } from '../../test/matchMedia';
 
 let media: MatchMediaStub;
@@ -23,9 +24,13 @@ afterEach(() => {
   cleanup();
 });
 
-function Harness(): React.JSX.Element {
-  const sim = useSimulation();
+function Harness({ latched }: { latched: Partial<AlertState> }): React.JSX.Element {
+  const live = useSimulation();
   const { config } = useConfig();
+  const sim = {
+    ...live,
+    state: { ...live.state, alertState: { ...live.state.alertState, ...latched } },
+  };
   return (
     <Routes>
       <Route element={<AppShell sim={sim} config={config} />}>
@@ -41,14 +46,14 @@ function Address(): React.JSX.Element {
   return <p data-testid="address">{`${pathname}${search}`}</p>;
 }
 
-function renderShell(): void {
+function renderShell(latched: Partial<AlertState> = {}): void {
   render(
     <ThemeProvider>
       <PersistenceProvider>
         <ConfigProvider>
           <UnitsProvider>
             <MemoryRouter initialEntries={['/']}>
-              <Harness />
+              <Harness latched={latched} />
               <Address />
             </MemoryRouter>
           </UnitsProvider>
@@ -92,6 +97,27 @@ describe('AppShell — the frame', () => {
     expect(address()).toBe('/setup');
     expect(screen.getByRole('button', { name: 'Play' })).toBeTruthy();
     expect(screen.getByRole('slider', { name: 'Run timeline' })).toBeTruthy();
+  });
+});
+
+describe('AppShell — what needs the keeper', () => {
+  it('dots the rail icon of the section an alert stands against', () => {
+    renderShell({ highAmmonia: true });
+
+    expect(screen.getByRole('link', { name: 'Water' }).querySelector('.bg-alert')).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Life' }).querySelector('.bg-alert')).toBeNull();
+  });
+
+  it('dots in the tone the engine gives the alert', () => {
+    renderShell({ highAlgae: true });
+
+    expect(screen.getByRole('link', { name: 'Life' }).querySelector('.bg-warn')).toBeTruthy();
+  });
+
+  it('counts the same needs in the top bar', () => {
+    renderShell({ highAmmonia: true, highAlgae: true });
+
+    expect(screen.getByRole('link', { name: '2 needs you' })).toBeTruthy();
   });
 });
 

@@ -5,4 +5,4 @@ export {
   TAB_IDS,
   MORE_IDS,
 } from './sections.js';
-export { type Need, activeNeeds, needySections } from './needs.js';
+export { type Need, type NeedTone, NEEDS, activeNeeds, needySections } from './needs.js';
