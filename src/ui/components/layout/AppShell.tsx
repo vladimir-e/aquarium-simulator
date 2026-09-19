@@ -16,6 +16,8 @@ import { TopBar } from './TopBar';
 /** What the shell has already worked out, for the module standing on the stage. */
 export interface StageContext {
   needs: Need[];
+  /** Opens the Act palette — where a widget's contextual verbs land. */
+  onAct: () => void;
 }
 
 export function useStage(): StageContext {
@@ -39,7 +41,6 @@ export function AppShell({ sim, config }: AppShellProps): React.JSX.Element {
 
   const needs = useMemo(() => activeNeeds(sim.state), [sim.state]);
   const alerts = useMemo(() => needySections(needs), [needs]);
-  const stage = useMemo<StageContext>(() => ({ needs }), [needs]);
   const tunablesModified = useMemo(() => countModified(config), [config]);
 
   const openDrawer = useCallback(
@@ -49,6 +50,9 @@ export function AppShell({ sim, config }: AppShellProps): React.JSX.Element {
     },
     [setDebugPanelOpen]
   );
+
+  const openAct = useCallback(() => openDrawer('act'), [openDrawer]);
+  const stage = useMemo<StageContext>(() => ({ needs, onAct: openAct }), [needs, openAct]);
 
   const toggleTunables = useCallback(() => {
     setDrawer(null);

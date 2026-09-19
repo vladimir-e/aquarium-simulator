@@ -6,11 +6,7 @@
  * verb can never quietly under-report a consequence it happens not to expect.
  */
 
-import {
-  FISH_SPECIES_DATA,
-  type FishSpeciesData,
-  type SimulationState,
-} from '../../simulation/index.js';
+import type { SimulationState } from '../../simulation/index.js';
 import {
   HIGH_AMMONIA_THRESHOLD,
   HIGH_CO2_THRESHOLD,
@@ -29,7 +25,14 @@ import {
   PhosphateResource,
   PotassiumResource,
 } from '../../simulation/resources/index.js';
-import { algaeStatus, classifyVital, NITRATE_LOW_PPM, type Status } from '../run';
+import {
+  algaeStatus,
+  classifyVital,
+  NITRATE_LOW_PPM,
+  stockedBand,
+  toleranceStatus,
+  type Status,
+} from '../run';
 import {
   formatTemperature,
   getTemperatureUnit,
@@ -47,41 +50,6 @@ export interface PreviewRow {
   status: Status;
   /** The engine fact that qualifies the new value, when there is one. */
   note: string | null;
-}
-
-interface StockedBand {
-  min: number;
-  max: number;
-  minSpecies: string;
-  maxSpecies: string;
-}
-
-/**
- * The span every stocked species tolerates. Outside it `fish-health` charges a
- * temperature or pH stressor against the species named here, so this is the
- * tank's own band and not a comfort range invented for the panel.
- */
-function stockedBand(
-  state: SimulationState,
-  range: (data: FishSpeciesData) => [number, number]
-): StockedBand | null {
-  let band: StockedBand | null = null;
-  for (const fish of state.fish) {
-    const data = FISH_SPECIES_DATA[fish.species];
-    const [min, max] = range(data);
-    if (band === null) {
-      band = { min, max, minSpecies: data.name, maxSpecies: data.name };
-      continue;
-    }
-    if (min > band.min) band = { ...band, min, minSpecies: data.name };
-    if (max < band.max) band = { ...band, max, maxSpecies: data.name };
-  }
-  return band;
-}
-
-function bandStatus(value: number, band: StockedBand | null): Status {
-  if (band === null) return 'neutral';
-  return value < band.min || value > band.max ? 'warn' : 'neutral';
 }
 
 function temperatureNote(
@@ -210,7 +178,7 @@ const READINGS: Reading[] = [
     unit: getTemperatureUnit,
     display: toDisplayTemperature,
     decimals: 1,
-    status: (value, state) => bandStatus(value, stockedBand(state, (d) => d.temperatureRange)),
+    status: (value, state) => toleranceStatus(value, stockedBand(state, (d) => d.temperatureRange)),
     note: (value, _before, state, units) => temperatureNote(value, state, units),
   },
   {
@@ -220,7 +188,7 @@ const READINGS: Reading[] = [
     unit: () => '',
     display: same,
     decimals: 2,
-    status: (value, state) => bandStatus(value, stockedBand(state, (d) => d.phRange)),
+    status: (value, state) => toleranceStatus(value, stockedBand(state, (d) => d.phRange)),
     note: (value, _before, state) => phNote(value, state),
   },
   {

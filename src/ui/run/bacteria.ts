@@ -110,6 +110,8 @@ export interface ConversionRates {
   wasteToAmmonia: number;
   /** NH₃ ppm excreted straight through fish gills this hour. */
   gillsToAmmonia: number;
+  /** NH₃ ppm the AOB colony takes out of the water this hour. */
+  ammoniaOxidised: number;
   /** NO₂ ppm the AOB colony produces this hour. */
   ammoniaToNitrite: number;
   /** NO₂ ppm the NOB colony clears this hour. */
@@ -198,7 +200,7 @@ export function bacteriaReadout(
     mineralisationBase(r.waste, wasteInflow(state, config)),
     nc
   );
-  const { nitriteProduced } = calculateAmmoniaToNitrite(
+  const { ammoniaConsumed, nitriteProduced } = calculateAmmoniaToNitrite(
     r.ammonia + gills + ammoniaProduced,
     r.aob,
     r.temperature,
@@ -218,6 +220,7 @@ export function bacteriaReadout(
   const rates: ConversionRates = {
     wasteToAmmonia: getPpm(ammoniaProduced, water),
     gillsToAmmonia: getPpm(gills, water),
+    ammoniaOxidised: getPpm(ammoniaConsumed, water),
     ammoniaToNitrite: getPpm(nitriteProduced, water),
     nitriteToNitrate: getPpm(nitriteConsumed, water),
     netNitrite: getPpm(nitriteProduced - nitriteConsumed, water),

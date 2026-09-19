@@ -1,4 +1,5 @@
 export {
+  type DeviceId,
   type DeviceRow,
   type EquipmentId,
   type EquipmentRow,
@@ -26,6 +27,7 @@ export {
   deviceHint,
   deviceReadings,
   turnover,
+  turnoverShort,
 } from './readings.js';
 export {
   LID_LABEL,

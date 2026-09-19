@@ -6,6 +6,7 @@
  */
 
 import type { AlertState, SimulationState } from '../../simulation/index.js';
+import type { ReadingId } from '../readings';
 import type { SectionId } from './sections.js';
 
 /** `alert` is what the engine calls toxic; `warn` is what it says to consider. */
@@ -17,17 +18,78 @@ export interface Need {
   tone: NeedTone;
   /** The reading and the direction it went, as the strip states it. */
   text: string;
+  /** The reading behind it, so the strip can state the band in the engine's words. */
+  reading: ReadingId;
+  /** The verb that answers it, and the module that owns that verb. */
+  verb: string;
+  to: string;
 }
 
 /** Worst first: what poisons fish outranks what merely looks bad. */
 export const NEEDS: readonly Need[] = [
-  { id: 'highAmmonia', section: 'water', tone: 'alert', text: 'NH₃ high' },
-  { id: 'highNitrite', section: 'water', tone: 'alert', text: 'NO₂ high' },
-  { id: 'lowOxygen', section: 'water', tone: 'alert', text: 'O₂ low' },
-  { id: 'highCo2', section: 'water', tone: 'alert', text: 'CO₂ high' },
-  { id: 'waterLevelCritical', section: 'water', tone: 'alert', text: 'Water level critical' },
-  { id: 'highNitrate', section: 'water', tone: 'warn', text: 'NO₃ high' },
-  { id: 'highAlgae', section: 'life', tone: 'warn', text: 'Algae bloom' },
+  {
+    id: 'highAmmonia',
+    section: 'water',
+    tone: 'alert',
+    text: 'NH₃ high',
+    reading: 'ammonia',
+    verb: 'Water change',
+    to: '/water',
+  },
+  {
+    id: 'highNitrite',
+    section: 'water',
+    tone: 'alert',
+    text: 'NO₂ high',
+    reading: 'nitrite',
+    verb: 'Water change',
+    to: '/water',
+  },
+  {
+    id: 'lowOxygen',
+    section: 'water',
+    tone: 'alert',
+    text: 'O₂ low',
+    reading: 'oxygen',
+    verb: 'Air pump',
+    to: '/gear',
+  },
+  {
+    id: 'highCo2',
+    section: 'water',
+    tone: 'alert',
+    text: 'CO₂ high',
+    reading: 'co2',
+    verb: 'CO₂ injector',
+    to: '/gear',
+  },
+  {
+    id: 'waterLevelCritical',
+    section: 'water',
+    tone: 'alert',
+    text: 'Water level critical',
+    reading: 'level',
+    verb: 'Top off',
+    to: '/water',
+  },
+  {
+    id: 'highNitrate',
+    section: 'water',
+    tone: 'warn',
+    text: 'NO₃ high',
+    reading: 'nitrate',
+    verb: 'Water change',
+    to: '/water',
+  },
+  {
+    id: 'highAlgae',
+    section: 'life',
+    tone: 'warn',
+    text: 'Algae bloom',
+    reading: 'algae',
+    verb: 'Scrub',
+    to: '/life',
+  },
 ];
 
 export function activeNeeds(state: SimulationState): Need[] {

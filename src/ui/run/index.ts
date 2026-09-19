@@ -20,6 +20,7 @@ export {
   STEP_TICKS,
 } from './speed.js';
 export { type Status, conditionStatus, conditionWord } from './status.js';
+export { type StockedBand, stockedBand, toleranceStatus } from './tolerance.js';
 export {
   classifyVital,
   NITRATE_LOW_PPM,
@@ -83,6 +84,7 @@ export {
 export { latestLog } from './log.js';
 export {
   algaeStatus,
+  algaeWord,
   type PlantRow,
   plantRows,
   ailingPlants,
