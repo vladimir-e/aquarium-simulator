@@ -10,6 +10,35 @@
   --radius-control: 6px;
   --radius-card: 8px;
   --radius-sheet: 12px;
+
+  --animate-drawer-in: aq-drawer-in 180ms cubic-bezier(0.32, 0.72, 0, 1);
+  --animate-sheet-in: aq-sheet-in 180ms cubic-bezier(0.32, 0.72, 0, 1);
+  --animate-push-in: aq-push-in 200ms ease-out;
+
+  @keyframes aq-drawer-in {
+    from {
+      transform: translateX(100%);
+    }
+    to {
+      transform: translateX(0);
+    }
+  }
+  @keyframes aq-sheet-in {
+    from {
+      transform: translateY(100%);
+    }
+    to {
+      transform: translateY(0);
+    }
+  }
+  @keyframes aq-push-in {
+    from {
+      transform: translateX(100%);
+    }
+    to {
+      transform: translateX(0);
+    }
+  }
 }
 
 /* A lab bench at night: green-black room, one lit thing. */
@@ -88,9 +117,7 @@
   --color-chart-3: var(--chart-3);
   --color-chart-4: var(--chart-4);
 
-  /* Surfaces the modules still to be rebuilt paint with. Green is retired as a
-     status colour, so "ok" resolves to ink — silence — and every second
-     background collapses onto the one inset tone. */
+  /* Old names the not-yet-rebuilt modules still paint with; they go with unit 8. */
   --color-hairline-2: var(--hairline);
   --color-track: var(--surface-2);
   --color-ok: var(--ink-2);
@@ -113,39 +140,6 @@
   background-color: var(--bg);
 }
 
-@keyframes aq-drawer-in {
-  from {
-    transform: translateX(100%);
-  }
-  to {
-    transform: translateX(0);
-  }
-}
-@keyframes aq-sheet-in {
-  from {
-    transform: translateY(100%);
-  }
-  to {
-    transform: translateY(0);
-  }
-}
-@keyframes aq-push-in {
-  from {
-    transform: translateX(100%);
-  }
-  to {
-    transform: translateX(0);
-  }
-}
-.animate-drawer-in {
-  animation: aq-drawer-in 180ms cubic-bezier(0.32, 0.72, 0, 1);
-}
-.animate-sheet-in {
-  animation: aq-sheet-in 180ms cubic-bezier(0.32, 0.72, 0, 1);
-}
-.animate-push-in {
-  animation: aq-push-in 200ms ease-out;
-}
 @media (prefers-reduced-motion: reduce) {
   .animate-drawer-in,
   .animate-sheet-in,

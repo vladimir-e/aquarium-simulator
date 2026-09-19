@@ -51,7 +51,7 @@ function setDuration(schedule: DailySchedule, duration: number): DailySchedule {
   return { ...schedule, duration };
 }
 
-function ReadingRow({ label, value, note }: DeviceReading): React.JSX.Element {
+function InspectorRow({ label, value, note }: DeviceReading): React.JSX.Element {
   return (
     <div className="flex items-baseline justify-between gap-3 py-2">
       <span className="shrink-0 text-[13px] text-ink-2">{label}</span>
@@ -308,7 +308,7 @@ export function DeviceInspector({
       <div className="divide-y divide-hairline">
         <DeviceSettings id={row.id} sim={sim} />
         {readings.map((reading) => (
-          <ReadingRow key={reading.label} {...reading} />
+          <InspectorRow key={reading.label} {...reading} />
         ))}
       </div>
       {hint && (

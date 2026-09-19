@@ -1,11 +1,7 @@
 import { useEffect, useState } from 'react';
 
-/**
- * The one layout breakpoint. Below Tailwind's `md` the 264 px index rail has
- * nowhere to stand beside the stage, so it folds into a drawer, the Actions
- * sheet drills in, and every section that adapts adapts here — one line, or the
- * chrome and the stage disagree about which form factor they are on.
- */
+/** The one layout breakpoint: below Tailwind's `md` the rail folds into the tab
+ * bar, the drawer becomes a sheet, and every section that adapts adapts here. */
 const MOBILE_QUERY = '(max-width: 767.98px)';
 
 function matchesQuery(query: string): boolean {

@@ -53,7 +53,7 @@ export function ReadingRow({
         {value}
         {unit && <span className="ml-0.5 text-[12px] font-normal text-ink-2">{unit}</span>}
       </span>
-      {at === undefined ? <span /> : <RangeStrip at={at} band={band} tone={tone} />}
+      {at === undefined ? <span aria-hidden /> : <RangeStrip at={at} band={band} tone={tone} />}
       <span className="flex min-w-0 items-baseline justify-end gap-2 text-[12px]">
         {trend && (
           <span className={`shrink-0 tabular-nums ${tone === 'ink' ? 'text-ink-3' : VALUE_TONE[tone]}`}>
