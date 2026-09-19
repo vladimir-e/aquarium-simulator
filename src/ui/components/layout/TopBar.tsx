@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 import { PRESETS, type PresetId } from '../../../simulation/presets.js';
 import { usePresetLoad } from '../../hooks/usePresetLoad';
 import { SPEED_LABELS, SPEED_PRESETS, type SpeedPreset } from '../../run';
-import { dayNumber, formatDayClock } from '../../utils/clock';
+import { formatDayClock } from '../../utils/clock';
 import { DRAWER_TOGGLE } from '../ui/Drawer';
 import { Segmented } from '../ui/Segmented';
 import { Select } from '../ui/Select';
@@ -99,9 +99,6 @@ export function TopBar({
         <p className="px-1.5 text-[15px] tabular-nums max-md:px-0">
           {formatDayClock(tick)}
           <span className="ml-2 text-[13px] text-ink-2 max-lg:hidden">tick {tick}</span>
-          <span className="ml-2 hidden text-[13px] text-ink-2 max-md:inline">
-            d{dayNumber(tick) - 1}
-          </span>
         </p>
 
         <Segmented

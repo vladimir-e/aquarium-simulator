@@ -17,8 +17,10 @@ function modifiedTunables(config: TunableConfig): number {
   return (Object.keys(DEFAULT_CONFIG) as (keyof TunableConfig)[]).reduce(
     (count, section) =>
       count +
-      Object.keys(DEFAULT_CONFIG[section]).filter((key) =>
-        isModified(config, section, key as keyof TunableConfig[typeof section])
+      Object.entries(DEFAULT_CONFIG[section]).filter(
+        ([key, value]) =>
+          typeof value === 'number' &&
+          isModified(config, section, key as keyof TunableConfig[typeof section])
       ).length,
     0
   );
