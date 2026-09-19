@@ -220,6 +220,23 @@ export function isSectionModified<K extends keyof TunableConfig>(
   return false;
 }
 
+function countModifiedLeaves(current: unknown, defaults: unknown): number {
+  if (typeof defaults !== 'object' || defaults === null) return current === defaults ? 0 : 1;
+  const values = current as Record<string, unknown>;
+  return Object.entries(defaults as Record<string, unknown>).reduce(
+    (count, [key, value]) => count + countModifiedLeaves(values?.[key], value),
+    0
+  );
+}
+
+/**
+ * How many values differ from default, nested formulae counted leaf by leaf —
+ * the figure the tunables badge carries.
+ */
+export function countModified(config: TunableConfig): number {
+  return countModifiedLeaves(config, DEFAULT_CONFIG);
+}
+
 /**
  * Check if any value in the config differs from default.
  */

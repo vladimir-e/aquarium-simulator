@@ -6,6 +6,7 @@ import {
   isModified,
   isSectionModified,
   isConfigModified,
+  countModified,
   decayDefaults,
   nitrogenCycleDefaults,
   gasExchangeDefaults,
@@ -104,6 +105,26 @@ describe('isSectionModified', () => {
     const modified = cloneConfig(DEFAULT_CONFIG);
     modified.decay.q10 = 3.0;
     expect(isSectionModified(modified, 'temperature')).toBe(false);
+  });
+});
+
+describe('countModified', () => {
+  it('counts nothing on an untouched config', () => {
+    expect(countModified(DEFAULT_CONFIG)).toBe(0);
+  });
+
+  it('counts each touched value once, across sections', () => {
+    const modified = cloneConfig(DEFAULT_CONFIG);
+    modified.decay.q10 = 3.0;
+    modified.ph.neutralPh = DEFAULT_CONFIG.ph.neutralPh + 1;
+    expect(countModified(modified)).toBe(2);
+  });
+
+  it('reaches the leaves of a nested value', () => {
+    const modified = cloneConfig(DEFAULT_CONFIG);
+    modified.nutrients.fertilizerFormula.nitrate += 1;
+    modified.nutrients.fertilizerFormula.phosphate += 1;
+    expect(countModified(modified)).toBe(2);
   });
 });
 
