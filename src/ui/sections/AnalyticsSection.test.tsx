@@ -77,7 +77,7 @@ function Address(): React.JSX.Element {
 }
 
 function renderAnalytics(
-  path = '/analytics',
+  path = '/history',
   sim = fakeSim()
 ): (next: ReturnType<typeof useSimulation>) => void {
   const tree = (s: ReturnType<typeof useSimulation>): React.JSX.Element => (
@@ -153,7 +153,7 @@ describe('AnalyticsSection', () => {
   /** The header states the run off the one summary, not a second count of it. */
   it('states the run in the page header', () => {
     const sim = fakeSim();
-    renderAnalytics('/analytics', sim);
+    renderAnalytics('/history', sim);
 
     expect(headline()).toBe(summaryLines(sim.aggregates, sim.state.logs, 'metric').join(' · '));
     expect(headline()).toContain('39 ticks');
@@ -161,7 +161,7 @@ describe('AnalyticsSection', () => {
 
   it('says there is no history rather than counting an empty run', () => {
     renderAnalytics(
-      '/analytics',
+      '/history',
       fakeSim(snapshots(0, 0), [], {
         ticks: 0,
         deaths: 0,
@@ -234,14 +234,14 @@ describe('AnalyticsSection — the view is the URL', () => {
   });
 
   it('parks the cursor where a deep link names', () => {
-    renderAnalytics('/analytics?tick=20&window=24h&log=user');
+    renderAnalytics('/history?tick=20&window=24h&log=user');
     expect(cursor()).toBe('20');
     expect(slider().getAttribute('aria-valuemin')).toBe('16');
     expect(screen.getByRole('button', { name: 'user' }).getAttribute('aria-pressed')).toBe('true');
   });
 
   it('ignores a tick the run cannot honour', () => {
-    renderAnalytics('/analytics?tick=chapter-two');
+    renderAnalytics('/history?tick=chapter-two');
     expect(cursor()).toBe('39');
     expect(screen.getByRole('button', { name: /Live edge/ }).hasAttribute('disabled')).toBe(true);
   });
@@ -265,7 +265,7 @@ describe('AnalyticsSection — the view is the URL', () => {
   });
 
   it('holds the cursor across a window change, clamped into the new span', () => {
-    renderAnalytics('/analytics?tick=4');
+    renderAnalytics('/history?tick=4');
     expect(cursor()).toBe('4');
 
     fireEvent.click(screen.getByRole('button', { name: '24h' }));
@@ -276,7 +276,7 @@ describe('AnalyticsSection — the view is the URL', () => {
   });
 
   it('widens the window when a summary tile names a tick outside it', () => {
-    renderAnalytics('/analytics?window=24h');
+    renderAnalytics('/history?window=24h');
     // The run's only death is at tick 5; the 24h window starts at 16.
     fireEvent.click(screen.getByRole('button', { name: 'last T5' }));
     expect(search()).toBe('?tick=5');
@@ -284,7 +284,7 @@ describe('AnalyticsSection — the view is the URL', () => {
   });
 
   it('resolves a deep link the window cannot honour, and says so in the URL', () => {
-    renderAnalytics('/analytics?tick=4&window=24h');
+    renderAnalytics('/history?tick=4&window=24h');
     // Tick 4 predates the 24h window, so the cursor lands on its oldest
     // snapshot — and the address stops naming a tick nothing is showing.
     expect(cursor()).toBe('16');
@@ -292,13 +292,13 @@ describe('AnalyticsSection — the view is the URL', () => {
   });
 
   it('drops a deep-linked tick the run has run past, rather than parking on it', () => {
-    renderAnalytics('/analytics?tick=900');
+    renderAnalytics('/history?tick=900');
     expect(cursor()).toBe('39');
     expect(search()).toBe('');
   });
 
   it('leaves a parked cursor where it is as the run grows under it', () => {
-    const rerender = renderAnalytics('/analytics?tick=20');
+    const rerender = renderAnalytics('/history?tick=20');
     expect(cursor()).toBe('20');
 
     rerender(fakeSim(snapshots(0, 120)));
@@ -310,13 +310,13 @@ describe('AnalyticsSection — the view is the URL', () => {
 
 describe('AnalyticsSection — a run longer than the buffer', () => {
   it('scopes the widest window to what the buffer still holds', () => {
-    renderAnalytics('/analytics', cappedSim());
+    renderAnalytics('/history', cappedSim());
     expect(slider().getAttribute('aria-valuemin')).toBe(String(1622 - RUN_HISTORY_CAP));
     expect(slider().getAttribute('aria-valuemax')).toBe('1621');
   });
 
   it('states a dropped tick without offering to scrub to it', () => {
-    renderAnalytics('/analytics', cappedSim());
+    renderAnalytics('/history', cappedSim());
     // The run's only death is at tick 5, which the buffer dropped long ago.
     expect(screen.getByText('last T5')).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'last T5' })).toBeNull();
@@ -324,7 +324,7 @@ describe('AnalyticsSection — a run longer than the buffer', () => {
   });
 
   it('still offers a tick the buffer kept', () => {
-    renderAnalytics('/analytics', cappedSim());
+    renderAnalytics('/history', cappedSim());
     fireEvent.click(screen.getByRole('button', { name: 'latest T1600' }));
     expect(search()).toBe('?tick=1600');
     expect(cursor()).toBe('1600');
@@ -464,7 +464,7 @@ describe('AnalyticsSection — a preset load starts a new run', () => {
         <PersistenceProvider>
           <ConfigProvider>
             <UnitsProvider>
-              <MemoryRouter initialEntries={['/analytics']}>
+              <MemoryRouter initialEntries={['/history']}>
                 <Live />
               </MemoryRouter>
             </UnitsProvider>

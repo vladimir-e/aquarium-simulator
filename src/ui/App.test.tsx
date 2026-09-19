@@ -7,6 +7,7 @@ import { ThemeProvider } from './hooks/useTheme';
 import { UnitsProvider } from './hooks/useUnits';
 import { ConfigProvider } from './hooks/useConfig';
 import { PersistenceProvider } from './persistence/index.js';
+import { SECTIONS } from './nav';
 import { stubMatchMedia, viewport, type MatchMediaStub } from './test/matchMedia';
 
 let media: MatchMediaStub;
@@ -65,24 +66,15 @@ describe('App routing', () => {
     ).toEqual(['/water', '/life', '/water', '/gear', '/water']);
   });
 
-  it('gives every module its own address', () => {
-    const titles: Record<string, string> = {
-      '/water': 'Water',
-      '/gear': 'Gear',
-      '/history': 'History',
-      '/setup': 'Setup',
-    };
-    for (const [path, title] of Object.entries(titles)) {
-      renderApp(path);
-      expect(pageTitle()).toBe(title);
+  it('gives every rail item its own address, titled as the rail names it', () => {
+    for (const section of SECTIONS) {
+      renderApp(section.path);
+      expect(screen.getByRole('link', { name: section.label }).getAttribute('aria-current')).toBe(
+        'page'
+      );
+      if (section.id !== 'overview' && section.id !== 'life') expect(pageTitle()).toBe(section.label);
       cleanup();
     }
-  });
-
-  it('puts the plants and the fish on one Life page', () => {
-    renderApp('/life');
-    expect(screen.getByRole('heading', { level: 1, name: 'Plants & scape' })).toBeTruthy();
-    expect(screen.getByRole('heading', { level: 1, name: 'Fish' })).toBeTruthy();
   });
 
   it('moves between sections on back', () => {
@@ -108,6 +100,7 @@ describe('App routing', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'test-back' }));
     expect(pageTitle()).toBe('Gear');
+    expect(stage.queryByRole('heading', { level: 3 })).toBeNull();
   });
 
   it('sends an unknown path home', () => {

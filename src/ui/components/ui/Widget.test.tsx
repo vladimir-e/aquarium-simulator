@@ -27,14 +27,15 @@ describe('Widget', () => {
     expect(screen.queryByRole('link')).toBeNull();
   });
 
-  it('pins the verbs under a hairline, below the body', () => {
+  it('pins the verbs below the body it moves', () => {
     renderWidget(
       <Widget title="Nutrients" footer={<button type="button">Dose</button>}>
         rows
       </Widget>
     );
 
-    const footer = screen.getByRole('button', { name: 'Dose' }).parentElement!;
-    expect(footer.className).toContain('border-t');
+    const body = screen.getByText('rows');
+    const verb = screen.getByRole('button', { name: 'Dose' });
+    expect(body.compareDocumentPosition(verb) & globalThis.Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 });

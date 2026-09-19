@@ -41,7 +41,7 @@ function Address(): React.JSX.Element {
   );
 }
 
-function renderAnalytics(path = '/analytics'): void {
+function renderAnalytics(path = '/history'): void {
   render(
     <ThemeProvider>
       <PersistenceProvider>
@@ -106,7 +106,7 @@ describe('AnalyticsSection (mobile)', () => {
   });
 
   it('opens on the chart a deep link names', () => {
-    renderAnalytics('/analytics?chart=o2-temp');
+    renderAnalytics('/history?chart=o2-temp');
     expect(screen.getByText('O₂, temp & level')).toBeTruthy();
     expect(screen.queryByText('Nitrogen cycle')).toBeNull();
   });
