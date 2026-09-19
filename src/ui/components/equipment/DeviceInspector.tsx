@@ -339,7 +339,7 @@ export function PushedInspector({ row, sim, config }: InspectorProps): React.JSX
   // Pop when there is something to pop; a deep link opened straight into the
   // editor has nothing behind it, so it goes to the list instead of leaving.
   const back = (): void => {
-    if (location.key === 'default') navigate('/equipment', { replace: true });
+    if (location.key === 'default') navigate('/gear', { replace: true });
     else navigate(-1);
   };
 

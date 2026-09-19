@@ -6,8 +6,6 @@ import { UnitsProvider, useUnits } from '../hooks/useUnits';
 import { PresetLoadProvider } from '../hooks/usePresetLoad';
 import { PersistenceProvider } from '../persistence/index.js';
 import { RESET_CONFIRM_TICKS, scenarioSummary } from '../build';
-import { navFigures } from '../nav/figures';
-import { emptyAggregates } from '../run';
 import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
 import { applyAction, type SimulationState } from '../../simulation/index.js';
 import type { useSimulation } from '../hooks/useSimulation';
@@ -59,10 +57,10 @@ function renderSection(
 }
 
 describe('ScenarioSection', () => {
-  it('lets the stage title stand alone — no card repeats it', () => {
+  it('lets the page title stand alone — no card repeats it', () => {
     renderSection(stubSim(planted));
-    expect(screen.getAllByText('Scenario')).toHaveLength(1);
-    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Scenario');
+    expect(screen.getAllByText('Setup')).toHaveLength(1);
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Setup');
   });
 
   it('offers every preset, naming the tank each one sets up', () => {
@@ -227,26 +225,13 @@ describe('ScenarioSection', () => {
     expect(screen.getByText('2.0 × tank volume/h')).toBeTruthy();
   });
 
-  /**
-   * The rail exists so the reader need not open the section; Scenario's row and
-   * its header read one derivation, so they cannot name different tanks.
-   */
-  it('names the preset and its tank exactly as the rail row does', () => {
+  /** The header names the tank off the one derivation, not a second count. */
+  it('names the preset and its tank in the page header', () => {
     renderSection(stubSim(planted));
 
-    const rail = navFigures({
-      state: planted,
-      config: DEFAULT_CONFIG,
-      aggregates: emptyAggregates(),
-      logs: planted.logs,
-      presetName: 'Planted Tank',
-      presetModified: false,
-      units: 'metric',
-    }).scenario;
-
-    const header = screen.getByRole('heading', { level: 1, name: 'Scenario' }).parentElement!;
+    const header = screen.getByRole('heading', { level: 1, name: 'Setup' }).parentElement!;
     expect(within(header).getByText(scenarioSummary(planted, 'Planted Tank', 'metric'))).toBeTruthy();
-    expect(rail.lines[0]).toBe('Planted Tank · 40 L');
+    expect(scenarioSummary(planted, 'Planted Tank', 'metric')).toContain('Planted Tank · 40 L');
   });
 
   it('stands the preset column beside the environment column', () => {
@@ -268,10 +253,10 @@ describe('ScenarioSection', () => {
     expect(within(band).getByRole('button', { name: /Duplicate scenario/ })).toBeTruthy();
     expect(within(band).getByText(/Reset clears the clock/)).toBeTruthy();
     // Outside the scrolling body, so the cost is on screen wherever the body is.
-    expect(band.parentElement).toBe(screen.getByRole('main'));
+    expect(band.parentElement!.tagName).toBe('SECTION');
   });
 
-  it('offers the lids in the one wording the rail and the cards use', () => {
+  it('offers the lids in the one wording the cards use', () => {
     renderSection(stubSim(planted));
     const lid = screen.getByRole('combobox', { name: 'Lid type' });
     expect([...lid.querySelectorAll('option')].map((o) => o.textContent)).toEqual([

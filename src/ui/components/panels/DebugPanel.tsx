@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ChevronDown, ChevronRight, RotateCcw, X } from 'lucide-react';
+import { ChevronDown, ChevronRight, RotateCcw } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { useConfig } from '../../hooks/useConfig';
 import {
@@ -146,7 +146,7 @@ function ConfigSection({
   );
 }
 
-export function DebugPanel(): React.JSX.Element | null {
+export function DebugPanel(): React.JSX.Element {
   const {
     config,
     updateConfig,
@@ -155,17 +155,11 @@ export function DebugPanel(): React.JSX.Element | null {
     isValueModified,
     isSectionModified,
     isAnyModified,
-    isDebugPanelOpen,
-    setDebugPanelOpen,
   } = useConfig();
 
   const [expandedSections, setExpandedSections] = useState<Set<keyof TunableConfig>>(
     new Set(['decay'])
   );
-
-  if (!isDebugPanelOpen) {
-    return null;
-  }
 
   const toggleSection = (section: keyof TunableConfig): void => {
     setExpandedSections((prev) => {
@@ -180,29 +174,23 @@ export function DebugPanel(): React.JSX.Element | null {
   };
 
   return (
-    <div className="fixed right-4 top-20 w-80 max-h-[calc(100vh-6rem)] bg-panel rounded-lg border border-border shadow-xl z-50 flex flex-col">
-      <div className="flex items-center justify-between p-3 border-b border-border">
-        <h3 className="text-sm font-semibold text-gray-300">Debug: Simulation Constants</h3>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="secondary"
-            className="text-xs px-2 py-0.5 flex items-center gap-1"
-            onClick={resetConfig}
-            disabled={!isAnyModified}
-          >
-            <RotateCcw className="w-3 h-3" />
-            Reset All
-          </Button>
-          <button
-            onClick={() => setDebugPanelOpen(false)}
-            className="p-1 text-gray-500 hover:text-gray-300"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
+    <div className="flex min-h-0 flex-col">
+      <div className="flex items-center justify-between gap-2 border-b border-hairline px-3 py-2">
+        <p className="text-[13px] text-ink-2">
+          Simulation constants — a change takes on the next tick.
+        </p>
+        <Button
+          variant="secondary"
+          className="text-xs px-2 py-0.5 flex items-center gap-1"
+          onClick={resetConfig}
+          disabled={!isAnyModified}
+        >
+          <RotateCcw className="w-3 h-3" />
+          Reset all
+        </Button>
       </div>
 
-      <div className="overflow-y-auto flex-1 p-2">
+      <div className="flex-1 p-2">
         {/* Decay Section */}
         <ConfigSection
           title="Decay"

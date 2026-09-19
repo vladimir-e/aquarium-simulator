@@ -4,7 +4,7 @@ import type { useSimulation } from '../hooks/useSimulation';
 import { useExpandedRows } from '../hooks/useExpandedRows';
 import { useIsMobile } from '../hooks/useMediaQuery';
 import { useUnits } from '../hooks/useUnits';
-import { Stage } from '../components/layout/Stage';
+import { ModulePage } from '../components/layout/ModulePage';
 import { Card, CardFooter, EmptyState } from '../components/run/Card';
 import { Bar, RunButton } from '../components/run/elements';
 import { AddFish } from '../components/livestock/AddFish';
@@ -37,8 +37,8 @@ export function LivestockSection({
   const fryCount = countFry(state.fish);
 
   return (
-    <Stage
-      title="Livestock"
+    <ModulePage
+      title="Fish"
       meta={rosterSummary(state)}
       actions={!isMobile && <AddFish sim={sim} opens="down" />}
       fills
@@ -78,6 +78,6 @@ export function LivestockSection({
           {isMobile && <AddFish sim={sim} opens="up" />}
         </CardFooter>
       </Card>
-    </Stage>
+    </ModulePage>
   );
 }

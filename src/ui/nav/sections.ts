@@ -1,6 +1,6 @@
-/** The six sections, in rail order. Water is home, so it owns the root. */
+/** The six rail items, in rail order. Overview is home, so it owns the root. */
 
-export type SectionId = 'water' | 'equipment' | 'flora' | 'livestock' | 'analytics' | 'scenario';
+export type SectionId = 'overview' | 'water' | 'life' | 'gear' | 'history' | 'setup';
 
 export interface SectionDef {
   id: SectionId;
@@ -9,10 +9,14 @@ export interface SectionDef {
 }
 
 export const SECTIONS: readonly SectionDef[] = [
-  { id: 'water', path: '/', label: 'Water' },
-  { id: 'equipment', path: '/equipment', label: 'Equipment' },
-  { id: 'flora', path: '/flora', label: 'Flora & Scape' },
-  { id: 'livestock', path: '/livestock', label: 'Livestock' },
-  { id: 'analytics', path: '/analytics', label: 'Analytics' },
-  { id: 'scenario', path: '/scenario', label: 'Scenario' },
+  { id: 'overview', path: '/', label: 'Overview' },
+  { id: 'water', path: '/water', label: 'Water' },
+  { id: 'life', path: '/life', label: 'Life' },
+  { id: 'gear', path: '/gear', label: 'Gear' },
+  { id: 'history', path: '/history', label: 'History' },
+  { id: 'setup', path: '/setup', label: 'Setup' },
 ];
+
+/** The rail is five tabs wide on a phone; the last two live behind More. */
+export const TAB_IDS: readonly SectionId[] = ['overview', 'water', 'life', 'gear'];
+export const MORE_IDS: readonly SectionId[] = ['history', 'setup'];

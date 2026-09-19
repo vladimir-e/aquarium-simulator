@@ -3,7 +3,7 @@ import type { TunableConfig } from '../../simulation/config/index.js';
 import type { useSimulation } from '../hooks/useSimulation';
 import { useExpandedRows } from '../hooks/useExpandedRows';
 import { useIsMobile } from '../hooks/useMediaQuery';
-import { Stage } from '../components/layout/Stage';
+import { ModulePage } from '../components/layout/ModulePage';
 import { AddHardscape, AddPlant } from '../components/flora/AddControls';
 import { NutrientsCard } from '../components/flora/NutrientsCard';
 import { PlantsCard } from '../components/flora/PlantsCard';
@@ -40,8 +40,8 @@ export function FloraSection({
   const readings = useMemo(() => nutrientReadings(state, config), [state, config]);
 
   return (
-    <Stage
-      title="Flora & Scape"
+    <ModulePage
+      title="Plants & scape"
       meta={plantsAndAlgae(state)}
       actions={
         !isMobile && (
@@ -73,6 +73,6 @@ export function FloraSection({
           <ScapeCard sim={sim} footer={isMobile && <AddHardscape sim={sim} opens="up" />} />
         </div>
       </div>
-    </Stage>
+    </ModulePage>
   );
 }

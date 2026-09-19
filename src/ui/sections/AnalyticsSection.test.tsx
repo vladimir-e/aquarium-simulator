@@ -12,7 +12,7 @@ import { RUN_HISTORY_CAP, snapshotFromState } from '../run/index.js';
 import { createSimulation, createLog, type SimulationState } from '../../simulation/index.js';
 import { useSimulation } from '../hooks/useSimulation';
 import { getPresetById } from '../../simulation/presets';
-import { navFigures } from '../nav/figures';
+import { summaryLines } from '../review/index.js';
 import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
 import { stubMatchMedia, viewport, type MatchMediaStub } from '../test/matchMedia';
 import { bandsOf, isRigid, pinnedPx } from '../test/layout';
@@ -150,26 +150,12 @@ describe('AnalyticsSection', () => {
     expect(slider()).toBeTruthy();
   });
 
-  /**
-   * The rail exists so the reader need not open the section. Analytics is the
-   * one row whose figures are the run itself, so the header quotes the rail's
-   * own lines rather than a second count of the same run.
-   */
-  it('states the run in the stage header, in the rail’s own words', () => {
+  /** The header states the run off the one summary, not a second count of it. */
+  it('states the run in the page header', () => {
     const sim = fakeSim();
     renderAnalytics('/analytics', sim);
 
-    const rail = navFigures({
-      state: sim.state,
-      config: DEFAULT_CONFIG,
-      aggregates: sim.aggregates,
-      logs: sim.state.logs,
-      presetName: 'Planted Tank',
-      presetModified: false,
-      units: 'metric',
-    }).analytics;
-
-    expect(headline()).toBe(rail.lines.join(' · '));
+    expect(headline()).toBe(summaryLines(sim.aggregates, sim.state.logs, 'metric').join(' · '));
     expect(headline()).toContain('39 ticks');
   });
 

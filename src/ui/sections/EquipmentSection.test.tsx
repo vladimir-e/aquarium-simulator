@@ -5,8 +5,8 @@ import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { EquipmentSection } from './EquipmentSection';
 import { UnitsProvider, useUnits, type UnitSystem } from '../hooks/useUnits';
 import { PersistenceProvider } from '../persistence/index.js';
-import { navFigures } from '../nav/figures.js';
-import { emptyAggregates } from '../run/index.js';
+import { bacteriaReadout } from '../run/index.js';
+import { equipmentSummary } from '../build/index.js';
 import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
 import {
   createSimulation,
@@ -49,7 +49,7 @@ function ForceUnits({ system }: { system: UnitSystem }): null {
 }
 
 function renderSection(
-  path = '/equipment',
+  path = '/gear',
   sim: ReturnType<typeof useSimulation> = stubSim(base),
   units?: UnitSystem
 ): void {
@@ -60,7 +60,7 @@ function renderSection(
         <MemoryRouter initialEntries={[path]}>
           <Routes>
             <Route
-              path="/equipment/:deviceId?"
+              path="/gear/:deviceId?"
               element={<EquipmentSection sim={sim} config={DEFAULT_CONFIG} />}
             />
           </Routes>
@@ -103,40 +103,32 @@ describe('EquipmentSection', () => {
     expect(screen.queryByRole('heading', { level: 3 })).toBeNull();
   });
 
-  it('reports the same figure the index rail carries for this section', () => {
+  it('heads the page with the rack’s own summary', () => {
     renderSection();
-    const header = screen.getByRole('heading', { level: 1, name: 'Equipment' }).parentElement!;
-    const railLine = navFigures({
-      state: base,
-      config: DEFAULT_CONFIG,
-      presetName: 'Community',
-      presetModified: false,
-      units: 'metric',
-      aggregates: emptyAggregates(),
-      logs: base.logs,
-    }).equipment.lines[0];
-    expect(within(header).getByText(railLine)).toBeTruthy();
-    expect(railLine).toBe('3 of 8 on · biofilter uncycled');
+    const header = screen.getByRole('heading', { level: 1, name: 'Gear' }).parentElement!;
+    const summary = equipmentSummary(base, bacteriaReadout(base, DEFAULT_CONFIG));
+    expect(within(header).getByText(summary)).toBeTruthy();
+    expect(summary).toBe('3 of 8 on · biofilter uncycled');
   });
 
   it('opens a device inspector at its own address', () => {
     renderSection();
     fireEvent.click(screen.getByRole('link', { name: /Heater/ }));
 
-    expect(address()).toBe('/equipment/heater');
+    expect(address()).toBe('/gear/heater');
     expect(screen.getByRole('heading', { level: 3, name: 'Heater' })).toBeTruthy();
     expect(screen.getByRole('group', { name: 'Heater target temperature' })).toBeTruthy();
   });
 
   it('opens the device named in the URL on a cold start', () => {
-    renderSection('/equipment/co2Generator');
+    renderSection('/gear/co2Generator');
     expect(screen.getByRole('heading', { level: 3, name: 'CO₂ injector' })).toBeTruthy();
     expect(screen.getByText('Bubble rate')).toBeTruthy();
   });
 
   it('sends an unknown device back to the list', () => {
-    renderSection('/equipment/skimmer');
-    expect(address()).toBe('/equipment');
+    renderSection('/gear/skimmer');
+    expect(address()).toBe('/gear');
     expect(screen.getByRole('link', { name: /Filter/ })).toBeTruthy();
   });
 
@@ -154,7 +146,7 @@ describe('EquipmentSection', () => {
   });
 
   it('keeps the open device open when a search hides its row', () => {
-    renderSection('/equipment/powerhead');
+    renderSection('/gear/powerhead');
     fireEvent.change(screen.getByRole('searchbox', { name: 'Search equipment' }), {
       target: { value: 'filter' },
     });
@@ -172,14 +164,14 @@ describe('EquipmentSection', () => {
 
   it('wires an inspector control to its update callback', () => {
     const sim = stubSim(base);
-    renderSection('/equipment/filter', sim);
+    renderSection('/gear/filter', sim);
     fireEvent.click(screen.getByRole('switch', { name: 'Filter enabled' }));
     expect(sim.updateFilterEnabled).toHaveBeenCalledWith(!base.equipment.filter.enabled);
   });
 
   it('round-trips the heater target through the display unit (°F → internal °C)', () => {
     const sim = stubSim(base);
-    renderSection('/equipment/heater', sim, 'imperial');
+    renderSection('/gear/heater', sim, 'imperial');
     // The default 25°C shows as 77°F; +1 stores 78°F back as its Celsius value.
     const group = screen.getByRole('group', { name: 'Heater target temperature' });
     expect(within(group).getByText('77°F')).toBeTruthy();
@@ -191,7 +183,7 @@ describe('EquipmentSection', () => {
 
   it('offers every fixture in the catalog by its surface rating', () => {
     const sim = stubSim(base);
-    renderSection('/equipment/light', sim);
+    renderSection('/gear/light', sim);
     const select = screen.getByRole('combobox', { name: 'Light output' });
     expect(within(select).getAllByRole('option').map((o) => o.textContent)).toEqual(
       LIGHT_PAR_OPTIONS.map((par) => `${par} PAR`)
@@ -202,7 +194,7 @@ describe('EquipmentSection', () => {
 
   it('offers every heater in the catalog by its wattage', () => {
     const sim = stubSim(base);
-    renderSection('/equipment/heater', sim);
+    renderSection('/gear/heater', sim);
     const select = screen.getByRole('combobox', { name: 'Heater wattage' });
     expect(within(select).getAllByRole('option').map((o) => o.textContent)).toEqual(
       HEATER_WATTAGE_OPTIONS.map((watts) => `${watts}W`)
@@ -213,7 +205,7 @@ describe('EquipmentSection', () => {
 
   it('wires both light schedule steppers to updateLightSchedule', () => {
     const sim = stubSim(base); // default light schedule { startHour: 8, duration: 10 }
-    renderSection('/equipment/light', sim);
+    renderSection('/gear/light', sim);
     fireEvent.click(step('Light start hour', 'increase'));
     expect(sim.updateLightSchedule).toHaveBeenCalledWith({ startHour: 9, duration: 10 });
     fireEvent.click(step('Light duration', 'increase'));
@@ -228,26 +220,26 @@ describe('EquipmentSection', () => {
         light: { ...base.equipment.light, schedule: { startHour: 23, duration: 10 } },
       },
     };
-    renderSection('/equipment/light', stubSim(atMax));
+    renderSection('/gear/light', stubSim(atMax));
     expect((step('Light start hour', 'increase') as HTMLButtonElement).disabled).toBe(true);
   });
 
   it('wires the CO₂ schedule stepper to updateCo2GeneratorSchedule', () => {
     const sim = stubSim(base); // default CO₂ schedule { startHour: 7, duration: 10 }
-    renderSection('/equipment/co2Generator', sim);
+    renderSection('/gear/co2Generator', sim);
     fireEvent.click(step('CO₂ start hour', 'increase'));
     expect(sim.updateCo2GeneratorSchedule).toHaveBeenCalledWith({ startHour: 8, duration: 10 });
   });
 
   it('reads the tank back at the device it belongs to', () => {
-    renderSection('/equipment/heater', stubSim(base), 'metric');
+    renderSection('/gear/heater', stubSim(base), 'metric');
     expect(screen.getByText('Water now')).toBeTruthy();
     expect(screen.getByText('25.0°C')).toBeTruthy();
     expect(screen.getByText('· at target')).toBeTruthy();
   });
 
   it('offers no settings for the biofilter, only its readings', () => {
-    renderSection('/equipment/biofilter');
+    renderSection('/gear/biofilter');
     expect(screen.getByRole('heading', { level: 3, name: 'Biofilter' })).toBeTruthy();
     expect(screen.queryByRole('switch')).toBeNull();
     expect(screen.getByText('Cycle')).toBeTruthy();
@@ -257,7 +249,7 @@ describe('EquipmentSection', () => {
   it('plots the day’s schedules against the hour the tank is on', () => {
     let evening = base;
     for (let hour = 0; hour < 20; hour++) evening = tick(evening, DEFAULT_CONFIG);
-    renderSection('/equipment', stubSim(evening));
+    renderSection('/gear', stubSim(evening));
 
     const band = screen.getByRole('heading', { level: 2, name: 'Schedules' }).closest('section')!;
     expect(within(band).getByText('24 h · now 20:00')).toBeTruthy();

@@ -25,7 +25,7 @@ export function DeviceList({
         return (
           <li key={row.id}>
             <Link
-              to={`/equipment/${row.id}`}
+              to={`/gear/${row.id}`}
               data-device={row.id}
               aria-current={isSelected ? 'page' : undefined}
               className={`flex min-h-[44px] items-center gap-2.5 rounded px-2 py-2 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-focus ${

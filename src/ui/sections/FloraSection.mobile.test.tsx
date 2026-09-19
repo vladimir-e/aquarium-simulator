@@ -36,7 +36,7 @@ describe('FloraSection (mobile)', () => {
   it('moves each construction verb out of the header and into the card it builds', () => {
     renderFlora();
 
-    const header = screen.getByRole('heading', { level: 1, name: 'Flora & Scape' }).parentElement!;
+    const header = screen.getByRole('heading', { level: 1, name: 'Plants & scape' }).parentElement!;
     expect(within(header).queryByRole('button')).toBeNull();
 
     const plants = screen.getByRole('heading', { level: 2, name: 'Plants' }).closest('section')!;

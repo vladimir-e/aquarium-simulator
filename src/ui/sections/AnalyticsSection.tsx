@@ -4,7 +4,7 @@ import type { useSimulation } from '../hooks/useSimulation';
 import { useTheme } from '../hooks/useTheme';
 import { useUnits } from '../hooks/useUnits';
 import { useIsMobile } from '../hooks/useMediaQuery';
-import { Stage } from '../components/layout/Stage';
+import { ModulePage } from '../components/layout/ModulePage';
 import { Segmented } from '../components/ui/Segmented';
 import { SummaryTiles } from '../components/review/SummaryTiles';
 import { ReviewLogPanel } from '../components/review/ReviewLogPanel';
@@ -175,8 +175,8 @@ export function AnalyticsSection({
   );
 
   return (
-    <Stage
-      title="Analytics"
+    <ModulePage
+      title="History"
       meta={summaryLines(sim.aggregates, logs, unitSystem).join(' · ')}
       actions={
         <Segmented
@@ -230,6 +230,6 @@ export function AnalyticsSection({
 
         <div className="min-h-[200px] flex-1">{logPanel}</div>
       </div>
-    </Stage>
+    </ModulePage>
   );
 }

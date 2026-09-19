@@ -13,8 +13,8 @@ import {
   type SimulationState,
 } from '../../simulation/index.js';
 import type { useSimulation } from '../hooks/useSimulation';
-import { navFigures, type NavFigure } from '../nav/figures';
-import { emptyAggregates } from '../run/index.js';
+import { bandStatus, hungerOf, rosterSummary } from '../run/index.js';
+import { bioload } from '../build/index.js';
 
 afterEach(() => {
   globalThis.localStorage.clear();
@@ -349,7 +349,7 @@ describe('LivestockSection', () => {
     const clutch: Clutch = { id: 'c1', species: 'neon_tetra', eggCount: 25, laidTick: 0 };
     renderRoster(tank(fish, [clutch], 4));
 
-    const header = screen.getByRole('heading', { level: 1, name: 'Livestock' }).parentElement!;
+    const header = screen.getByRole('heading', { level: 1, name: 'Fish' }).parentElement!;
     expect(within(header).getByText('3 fish · 3 species · 1 clutch · 1 fry')).toBeTruthy();
   });
 });
@@ -373,43 +373,33 @@ describe('the rail carries the Livestock section’s own roster', () => {
     return tank(fish, clutches, 12);
   }
 
-  function railFigure(state: SimulationState): NavFigure {
-    return navFigures({
-      state,
-      config: DEFAULT_CONFIG,
-      presetName: 'Planted Tank',
-      presetModified: false,
-      units: 'metric',
-      aggregates: emptyAggregates(),
-      logs: state.logs,
-    }).livestock;
-  }
-
-  it('prints the rail’s roster line verbatim in the stage header', () => {
+  it('heads the page with the engine’s own roster line', () => {
     const state = stocked();
     renderRoster(state);
 
-    const header = screen.getByRole('heading', { level: 1, name: 'Livestock' }).parentElement!;
-    expect(railFigure(state).lines[0]).toBe('3 fish · 3 species · 2 clutches · 2 fry');
-    expect(within(header).getByText(railFigure(state).lines[0])).toBeTruthy();
+    const header = screen.getByRole('heading', { level: 1, name: 'Fish' }).parentElement!;
+    expect(rosterSummary(state)).toBe('3 fish · 3 species · 2 clutches · 2 fry');
+    expect(within(header).getByText(rosterSummary(state))).toBeTruthy();
   });
 
-  it('reads the same bioload figure the pinned foot does', () => {
+  it('reads the engine’s bioload figure in the pinned foot', () => {
     const state = stocked();
     renderRoster(state);
 
-    // Both must land on the engine's own ratio for this stocking, to one decimal.
-    expect(railFigure(state).lines[1]).toBe('bioload 0.1× vs guideline');
+    // The foot must land on the engine's own ratio for this stocking, to one decimal.
+    expect(bioload(state.fish, state.tank.capacity).ratio.toFixed(1)).toBe('0.1');
     expect(screen.getByText('0.1×')).toBeTruthy();
   });
 
-  it('raises the hungry pill on the same fish the table calls hungry', () => {
+  it('counts the hungry fish the table calls hungry', () => {
     const state = stocked();
     renderRoster(state);
 
     // One adult sits at satiation 40 (hungry) and one fry at 10 (starving), so
-    // the pill counts both and takes the worse of the two bands.
-    expect(railFigure(state).pill).toEqual({ text: '2 hungry', status: 'alert' });
+    // the reading counts both and takes the worse of the two bands.
+    const hunger = hungerOf(state.fish, DEFAULT_CONFIG.livestock)!;
+    expect(hunger.count).toBe(2);
+    expect(bandStatus(hunger.band)).toBe('alert');
 
     const neon = screen.getByRole('button', { name: 'Neon Tetra — 2 fish' }).closest('tr')!;
     const fry = screen.getByText(/Guppy fry/).closest('tr')!;

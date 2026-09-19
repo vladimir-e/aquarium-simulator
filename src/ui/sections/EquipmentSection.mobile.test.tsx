@@ -29,14 +29,14 @@ function Address(): React.JSX.Element {
   return <span data-testid="address">{useLocation().pathname}</span>;
 }
 
-function renderSection(path = '/equipment'): void {
+function renderSection(path = '/gear'): void {
   render(
     <PersistenceProvider>
       <UnitsProvider>
         <MemoryRouter initialEntries={[path]}>
           <Routes>
             <Route
-              path="/equipment/:deviceId?"
+              path="/gear/:deviceId?"
               element={<EquipmentSection sim={stubSim(base)} config={DEFAULT_CONFIG} />}
             />
           </Routes>
@@ -59,11 +59,11 @@ describe('EquipmentSection (mobile)', () => {
     fireEvent.click(screen.getByRole('link', { name: /Heater/ }));
     const dialog = screen.getByRole('dialog', { name: /Heater/ });
     expect(within(dialog).getByText('Target')).toBeTruthy();
-    expect(address()).toBe('/equipment/heater');
+    expect(address()).toBe('/gear/heater');
 
     fireEvent.click(within(dialog).getByRole('button', { name: /back/i }));
     expect(screen.queryByRole('dialog')).toBeNull();
-    expect(address()).toBe('/equipment');
+    expect(address()).toBe('/gear');
   });
 
   it('leaves nothing behind the editor to tab into, and builds only the one', () => {
@@ -78,12 +78,12 @@ describe('EquipmentSection (mobile)', () => {
   });
 
   it('opens straight into the editor for a deep link, and back still reaches the list', () => {
-    renderSection('/equipment/co2Generator');
+    renderSection('/gear/co2Generator');
     const dialog = screen.getByRole('dialog', { name: /CO₂ injector/ });
     expect(within(dialog).getByText('Bubble rate')).toBeTruthy();
 
     fireEvent.click(within(dialog).getByRole('button', { name: /back/i }));
-    expect(address()).toBe('/equipment');
+    expect(address()).toBe('/gear');
     expect(screen.getByRole('link', { name: /Filter/ })).toBeTruthy();
   });
 

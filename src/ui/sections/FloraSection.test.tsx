@@ -14,26 +14,12 @@ import {
   type PlantSpecies,
   type SimulationState,
 } from '../../simulation/index.js';
-import { navFigures } from '../nav/figures';
-import { ailingPlants, emptyAggregates, plantRows, plantsAndAlgae, TRIM_TARGETS } from '../run';
+import { ailingPlants, plantRows, plantsAndAlgae, TRIM_TARGETS } from '../run';
 import type { useSimulation } from '../hooks/useSimulation';
 
 afterEach(cleanup);
 
 const FORMULA = DEFAULT_CONFIG.nutrients.fertilizerFormula;
-
-/** The index-rail figures for the same state the section is rendering. */
-function rail(state: SimulationState): ReturnType<typeof navFigures> {
-  return navFigures({
-    state,
-    config: DEFAULT_CONFIG,
-    presetName: 'Planted Tank',
-    presetModified: false,
-    units: 'metric',
-    aggregates: emptyAggregates(),
-    logs: state.logs,
-  });
-}
 
 /** The stage header's meta line: the section's headline figure. */
 function headline(): string {
@@ -148,19 +134,14 @@ describe('FloraSection', () => {
     expect(screen.getByText(line(state.resources.water))).toBeTruthy();
   });
 
-  /**
-   * The rail exists so the reader need not open the section, which only holds
-   * while the two agree on what ails: the card counts them, the rail names the
-   * worst of the same set.
-   */
-  it('counts the ailing plants the rail names, and goes quiet with the rail', () => {
+  /** The card counts exactly the plants the engine's own reading calls ailing. */
+  it('counts the ailing plants, and goes quiet when none are', () => {
     const state = grown();
     const ailing = ailingPlants(plantRows(state, DEFAULT_CONFIG));
     expect(ailing.length).toBeGreaterThan(0);
 
     renderFlora(state);
     expect(screen.getByText(`${ailing.length} ailing`)).toBeTruthy();
-    expect(rail(state).flora.lines[1]).toBe(`${ailing[0].name} ${ailing[0].word}`);
     cleanup();
 
     // Fine on both stocks: the day in an undosed tank left the carpet down to
@@ -175,25 +156,19 @@ describe('FloraSection', () => {
     };
     renderFlora(healthy);
     expect(screen.queryByText(/ailing/)).toBeNull();
-    expect(rail(healthy).flora.lines[1]).toBe('Aqua Soil');
   });
 
-  /** The rail's Flora row and the section header quote one derivation. */
-  it('carries the same headline as the rail row', () => {
+  /** The header quotes the one derivation rather than counting the tank again. */
+  it('heads the page with the engine’s own plants-and-algae line', () => {
     for (const state of [grown(), tank()]) {
       renderFlora(state);
       expect(headline()).toBe(plantsAndAlgae(state));
-      expect(headline()).toBe(rail(state).flora.lines[0]);
       cleanup();
     }
   });
 
-  /**
-   * Trimming is a verb in the Actions sheet, so the section has to be where the
-   * reason for it shows up — and the rail has to agree, or reading the rail
-   * stops replacing a visit.
-   */
-  it('flags the plants above every trim rung, on the row and in both summaries', () => {
+  /** Trimming is a verb, so the section has to be where the reason for it shows. */
+  it('flags the plants above every trim rung, on the row and in the headline', () => {
     const ceiling = Math.max(...TRIM_TARGETS);
     const big = applyAction(tank(), {
       type: 'addPlant',
@@ -214,7 +189,6 @@ describe('FloraSection', () => {
     expect(within(calm).queryByText('trim')).toBeNull();
 
     expect(headline()).toContain('1 to trim');
-    expect(rail(state).flora.lines[0]).toContain('1 to trim');
   });
 
   it('says nothing about trimming a tank with nothing to trim', () => {
@@ -227,7 +201,7 @@ describe('FloraSection', () => {
     renderFlora(state);
     expect(headline()).toContain('1 of 31 plants');
     expect(screen.queryByText('trim')).toBeNull();
-    expect(rail(state).flora.lines[0]).not.toContain('to trim');
+    expect(headline()).not.toContain('to trim');
   });
 
   it('reads the scape out with each piece’s surface, and the biofilter ceiling it sums to', () => {

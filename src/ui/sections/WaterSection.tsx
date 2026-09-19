@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import type { TunableConfig } from '../../simulation/config/index.js';
 import type { useSimulation } from '../hooks/useSimulation';
 import { useUnits } from '../hooks/useUnits';
-import { Stage } from '../components/layout/Stage';
+import { ModulePage } from '../components/layout/ModulePage';
 import { DissolvedGases, GaugeGroup } from '../components/run/Gauge';
 import { BacteriaCard } from '../components/run/BacteriaCard';
 import { WasteCard } from '../components/run/WasteCard';
@@ -38,7 +38,7 @@ export function WaterSection({
   const alert = waterAlert([...gauges, ...gases], bacteria.cycled);
 
   return (
-    <Stage title="Water" meta={alert && <Pill variant={alert.status}>{alert.text}</Pill>}>
+    <ModulePage title="Water" meta={alert && <Pill variant={alert.status}>{alert.text}</Pill>}>
       <div className="flex min-h-full flex-col gap-3">
         <div className="grid shrink-0 grid-cols-1 gap-3 md:grid-cols-2">
           <GaugeGroup
@@ -59,6 +59,6 @@ export function WaterSection({
           <WasteCard readout={waste} config={config} />
         </div>
       </div>
-    </Stage>
+    </ModulePage>
   );
 }

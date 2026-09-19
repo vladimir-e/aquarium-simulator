@@ -1,22 +1,28 @@
-import React, { useCallback, useEffect, useState } from 'react';
-import { X } from 'lucide-react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import type { TunableConfig } from '../../../simulation/config/index.js';
-import type { useSimulation } from '../../hooks/useSimulation';
-import { useActionsSheet } from '../../hooks/useActionsSheet';
-import { useFocusTrap } from '../../hooks/useFocusTrap';
+import { DEFAULT_CONFIG, isModified } from '../../../simulation/config/index.js';
+import { useConfig } from '../../hooks/useConfig';
 import { useIsMobile } from '../../hooks/useMediaQuery';
 import { PresetLoadProvider } from '../../hooks/usePresetLoad';
-import { useUnits } from '../../hooks/useUnits';
-import { verbRow } from '../../actions';
-import { driftsFromPreset } from '../../build';
-import { navFigures } from '../../nav';
-import { presetName } from '../../../simulation/presets.js';
-import { ActionsSheet } from '../actions/ActionsSheet';
-import { ActionsTrigger } from '../actions/ActionsTrigger';
+import type { useSimulation } from '../../hooks/useSimulation';
+import { activeNeeds, needySections } from '../../nav';
 import { DebugPanel } from '../panels/DebugPanel';
-import { ChromeRow } from './ChromeRow';
-import { IndexRail } from './IndexRail';
+import { Drawer } from '../ui/Drawer';
+import { IconRail, MoreSections, TabBar } from './IconRail';
+import { Spine } from './Spine';
+import { TopBar } from './TopBar';
+
+function modifiedTunables(config: TunableConfig): number {
+  return (Object.keys(DEFAULT_CONFIG) as (keyof TunableConfig)[]).reduce(
+    (count, section) =>
+      count +
+      Object.keys(DEFAULT_CONFIG[section]).filter((key) =>
+        isModified(config, section, key as keyof TunableConfig[typeof section])
+      ).length,
+    0
+  );
+}
 
 interface AppShellProps {
   sim: ReturnType<typeof useSimulation>;
@@ -24,110 +30,106 @@ interface AppShellProps {
 }
 
 /**
- * Chrome row over index rail plus stage. Below `md` the rail has nowhere to
- * stand, so it becomes a drawer — component state, never a route, or the back
- * gesture would close the drawer instead of changing section.
+ * Top bar, fixed rail, stage, spine — four bands that never move. Everything
+ * that inspects lays over the stage in the one drawer, so a module page and
+ * its inspector are never fighting for the same width.
  */
 export function AppShell({ sim, config }: AppShellProps): React.JSX.Element {
-  const { unitSystem } = useUnits();
-  const railStands = !useIsMobile();
-  const [indexOpen, setIndexOpen] = useState(false);
-  const openIndex = useCallback(() => setIndexOpen(true), []);
-  const closeIndex = useCallback(() => setIndexOpen(false), []);
-  const drawerRef = useFocusTrap(indexOpen);
+  const isMobile = useIsMobile();
+  const { isDebugPanelOpen, setDebugPanelOpen } = useConfig();
+  const [drawer, setDrawer] = useState<'act' | 'more' | null>(null);
+  const [parked, setParked] = useState<number | null>(null);
 
-  // A drawer left open across a resize would mount the rail twice.
+  const needs = useMemo(() => activeNeeds(sim.state), [sim.state]);
+  const alerts = useMemo(() => needySections(needs), [needs]);
+
+  const openDrawer = useCallback(
+    (kind: 'act' | 'more') => {
+      setDebugPanelOpen(false);
+      setDrawer((open) => (open === kind ? null : kind));
+    },
+    [setDebugPanelOpen]
+  );
+
+  const toggleTunables = useCallback(() => {
+    setDrawer(null);
+    setDebugPanelOpen(!isDebugPanelOpen);
+  }, [isDebugPanelOpen, setDebugPanelOpen]);
+
+  const closeDrawers = useCallback(() => {
+    setDrawer(null);
+    setDebugPanelOpen(false);
+  }, [setDebugPanelOpen]);
+
+  // A sheet left open across a resize would outlive the tab bar that opened it.
   useEffect(() => {
-    if (railStands) setIndexOpen(false);
-  }, [railStands]);
+    if (!isMobile) setDrawer((open) => (open === 'more' ? null : open));
+  }, [isMobile]);
 
   useEffect(() => {
-    if (!indexOpen) return;
     const onKeyDown = (e: KeyboardEvent): void => {
-      if (e.key === 'Escape') setIndexOpen(false);
+      if (!(e.metaKey || e.ctrlKey)) return;
+      if (e.key === 'k') {
+        e.preventDefault();
+        openDrawer('act');
+      } else if (e.key === ',') {
+        e.preventDefault();
+        toggleTunables();
+      }
     };
     window.addEventListener('keydown', onKeyDown);
     return (): void => window.removeEventListener('keydown', onKeyDown);
-  }, [indexOpen]);
-
-  const sheet = useActionsSheet(sim.executeAction);
-  const promoted = verbRow(sim.state, sheet.promoted, sheet.settings, unitSystem);
-  const trigger = (
-    <ActionsTrigger
-      label={`${promoted.name} ${promoted.value}`}
-      open={sheet.open}
-      onClick={sheet.toggle}
-    />
-  );
-
-  const figures = navFigures({
-    state: sim.state,
-    config,
-    presetName: presetName(sim.currentPreset),
-    presetModified: driftsFromPreset(sim.state, sim.currentPreset),
-    units: unitSystem,
-    aggregates: sim.aggregates,
-    logs: sim.state.logs,
-  });
-
-  const rail = (
-    <IndexRail
-      figures={figures}
-      tick={sim.state.tick}
-      isPlaying={sim.isPlaying}
-      speed={sim.speed}
-      lightSchedule={sim.state.equipment.light.schedule}
-      lightOn={sim.state.equipment.light.enabled}
-      onPlayPause={sim.togglePlayPause}
-      onStep={sim.step}
-      onSpeedChange={sim.changeSpeed}
-      onNavigate={closeIndex}
-      footer={railStands ? trigger : undefined}
-    />
-  );
+  }, [openDrawer, toggleTunables]);
 
   return (
     <PresetLoadProvider current={sim.currentPreset} state={sim.state} onLoad={sim.loadPreset}>
       <div className="flex h-dvh flex-col bg-bg text-ink">
-        <ChromeRow logs={sim.state.logs} onOpenIndex={railStands ? null : openIndex} />
+        <TopBar
+          tick={sim.state.tick}
+          isPlaying={sim.isPlaying}
+          speed={sim.speed}
+          onPlayPause={sim.togglePlayPause}
+          onStep={sim.step}
+          onSpeedChange={sim.changeSpeed}
+          needsCount={needs.length}
+          actOpen={drawer === 'act'}
+          onAct={() => openDrawer('act')}
+          tunablesOpen={isDebugPanelOpen}
+          tunablesModified={modifiedTunables(config)}
+          onTunables={toggleTunables}
+        />
 
-        <div className="flex min-h-0 flex-1 gap-3 p-3">
-          {railStands && rail}
-          <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3">
+        <div className="flex min-h-0 flex-1">
+          {!isMobile && <IconRail alerts={alerts} />}
+
+          <main className="relative flex min-h-0 min-w-0 flex-1 flex-col">
             <Outlet />
-          </div>
+
+            <Drawer open={drawer === 'act'} onClose={closeDrawers} title="Act">
+              <p className="p-3 text-[13px] text-ink-2">No verbs wired up yet.</p>
+            </Drawer>
+
+            <Drawer open={drawer === 'more'} onClose={closeDrawers} title="More">
+              <MoreSections alerts={alerts} onNavigate={closeDrawers} />
+            </Drawer>
+
+            <Drawer open={isDebugPanelOpen} onClose={closeDrawers} title="Tunables">
+              <DebugPanel />
+            </Drawer>
+          </main>
         </div>
 
-        {!railStands && (
-          <div className="shrink-0 border-t border-hairline-2 bg-surface px-2.5 py-2">{trigger}</div>
+        {isMobile && (
+          <TabBar alerts={alerts} moreOpen={drawer === 'more'} onMore={() => openDrawer('more')} />
         )}
 
-        {sheet.open && <ActionsSheet sheet={sheet} state={sim.state} config={config} />}
-
-        {indexOpen && (
-          <div className="fixed inset-0 z-40">
-            <div aria-hidden onClick={closeIndex} className="absolute inset-0 bg-ink/30" />
-            <div
-              ref={drawerRef}
-              role="dialog"
-              aria-modal="true"
-              aria-label="Index"
-              className="absolute inset-y-0 left-0 flex flex-col gap-3 border-r border-hairline-2 bg-surface p-3 shadow-2xl"
-            >
-              <button
-                type="button"
-                aria-label="Close index"
-                onClick={closeIndex}
-                className="flex h-11 w-11 shrink-0 items-center justify-center self-end rounded-control border border-hairline text-ink-2 transition-colors hover:border-hairline-2 hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
-              >
-                <X className="h-4 w-4" />
-              </button>
-              {rail}
-            </div>
-          </div>
-        )}
-
-        <DebugPanel />
+        <Spine
+          history={sim.history}
+          logs={sim.state.logs}
+          tick={sim.state.tick}
+          parked={parked}
+          onScrub={setParked}
+        />
       </div>
     </PresetLoadProvider>
   );

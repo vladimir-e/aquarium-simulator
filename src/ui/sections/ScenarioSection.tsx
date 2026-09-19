@@ -5,7 +5,7 @@ import type { TunableConfig } from '../../simulation/config/index.js';
 import type { useSimulation } from '../hooks/useSimulation';
 import { usePresetLoad } from '../hooks/usePresetLoad';
 import { useUnits } from '../hooks/useUnits';
-import { Stage } from '../components/layout/Stage';
+import { ModulePage } from '../components/layout/ModulePage';
 import { PresetPicker } from '../components/scenario/PresetPicker';
 import { DataRow, FieldLabel, RunButton } from '../components/run/elements';
 import { ConfirmDialog } from '../components/ui/ConfirmDialog';
@@ -68,8 +68,8 @@ export function ScenarioSection({
   };
 
   return (
-    <Stage
-      title="Scenario"
+    <ModulePage
+      title="Setup"
       meta={scenarioSummary(sim.state, presetName(current), unitSystem)}
       actions={
         <Segmented
@@ -190,6 +190,6 @@ export function ScenarioSection({
         }}
         onCancel={() => setConfirmReset(false)}
       />
-    </Stage>
+    </ModulePage>
   );
 }

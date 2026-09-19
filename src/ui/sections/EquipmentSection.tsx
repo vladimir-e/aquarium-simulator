@@ -5,7 +5,7 @@ import type { TunableConfig } from '../../simulation/config/index.js';
 import type { useSimulation } from '../hooks/useSimulation';
 import { useUnits } from '../hooks/useUnits';
 import { useIsMobile } from '../hooks/useMediaQuery';
-import { Stage } from '../components/layout/Stage';
+import { ModulePage } from '../components/layout/ModulePage';
 import { Card } from '../components/run/Card';
 import { DeviceList } from '../components/equipment/DeviceList';
 import { DeviceInspector, PushedInspector } from '../components/equipment/DeviceInspector';
@@ -60,7 +60,7 @@ export function EquipmentSection({
   }, [selected, isMobile]);
 
   if (deviceId !== undefined && selected === null) {
-    return <Navigate to="/equipment" replace />;
+    return <Navigate to="/gear" replace />;
   }
 
   // The pushed inspector owns the whole phone screen, so the section behind it
@@ -87,7 +87,7 @@ export function EquipmentSection({
   );
 
   return (
-    <Stage title="Equipment" meta={equipmentSummary(sim.state, bacteria)} actions={search}>
+    <ModulePage title="Gear" meta={equipmentSummary(sim.state, bacteria)} actions={search}>
       <div className="flex min-h-full flex-col gap-3">
         <Card className="min-h-0 flex-1">
           <div className="flex min-h-0 flex-1 flex-col md:flex-row">
@@ -111,6 +111,6 @@ export function EquipmentSection({
 
         <SchedulesBand band={band} />
       </div>
-    </Stage>
+    </ModulePage>
   );
 }

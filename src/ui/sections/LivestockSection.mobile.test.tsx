@@ -36,7 +36,7 @@ describe('LivestockSection (mobile)', () => {
   it('moves the construction verb out of the header and onto the pinned foot', () => {
     renderRoster();
 
-    const header = screen.getByRole('heading', { level: 1, name: 'Livestock' }).parentElement!;
+    const header = screen.getByRole('heading', { level: 1, name: 'Fish' }).parentElement!;
     expect(within(header).queryByRole('button')).toBeNull();
     expect(screen.getByRole('button', { name: 'Add fish' })).toBeTruthy();
   });
