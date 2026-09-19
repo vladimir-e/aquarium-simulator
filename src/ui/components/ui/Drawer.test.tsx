@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import { Drawer, DRAWER_TOGGLE } from './Drawer';
-import { FOCUSABLE } from '../../hooks/useFocusTrap';
 import { stubMatchMedia, viewport, type MatchMediaStub } from '../../test/matchMedia';
 
 let media: MatchMediaStub;
@@ -76,24 +75,33 @@ describe('Drawer', () => {
     expect(screen.queryByRole('dialog')).toBeNull();
   });
 
-  it('wraps Tab at both edges and hands focus back on close', () => {
+  it('takes focus on open and hands it back to the trigger on close', () => {
     render(<Harness />);
     const drawer = open();
-    const stops = Array.from(drawer.querySelectorAll<HTMLElement>(FOCUSABLE));
-    const [first, last] = [stops[0], stops[stops.length - 1]];
 
-    last.focus();
-    fireEvent.keyDown(document, { key: 'Tab' });
-    expect(document.activeElement).toBe(first);
+    expect(drawer.contains(document.activeElement)).toBe(true);
 
     fireEvent.keyDown(document, { key: 'Escape' });
     expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Act' }));
   });
 
-  it('is a sheet from the bottom below the tablet breakpoint', () => {
+  it('lets Tab walk out of its last stop rather than wrapping it', () => {
+    render(<Harness />);
+    open();
+    const last = screen.getByRole('button', { name: 'Trim' });
+
+    last.focus();
+    fireEvent.keyDown(document, { key: 'Tab' });
+
+    expect(document.activeElement).toBe(last);
+  });
+
+  it('is a full-height sheet from the bottom below the tablet breakpoint', () => {
     media.set(viewport(390));
     render(<Harness />);
 
-    expect(open().className).toContain('fixed');
+    const sheet = open().className;
+    expect(sheet).toContain('fixed inset-0');
+    expect(sheet).not.toContain('border-l');
   });
 });
