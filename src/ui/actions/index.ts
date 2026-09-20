@@ -19,4 +19,5 @@ export {
   verbRow,
   verbRows,
   verbDetail,
+  withAmount,
 } from './verbs.js';

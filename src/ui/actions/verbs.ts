@@ -38,6 +38,11 @@ export function isSettable(id: VerbId): id is SettableVerb {
   return id !== 'topOff' && id !== 'scrubAlgae';
 }
 
+/** The settings a surface asked for, where the verb takes an amount at all. */
+export function withAmount(settings: VerbSettings, id: VerbId, at?: number): VerbSettings {
+  return at !== undefined && isSettable(id) ? { ...settings, [id]: at } : settings;
+}
+
 /** The order the master list reads in, on either form factor. */
 export const VERB_IDS: VerbId[] = [
   'feed',

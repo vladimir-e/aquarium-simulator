@@ -2,8 +2,8 @@ import { useCallback, useMemo, useState } from 'react';
 import type { Action } from '../../simulation/index.js';
 import {
   DEFAULT_SETTINGS,
-  isSettable,
   verbAction,
+  withAmount,
   type SettableVerb,
   type VerbId,
   type VerbSettings,
@@ -46,13 +46,15 @@ export function useActs(executeAction: (action: Action) => void): Acts {
     setPalette((was) => !was);
   }, []);
 
-  const open = useCallback((id: VerbId, at?: number) => {
-    setPalette(false);
-    if (at !== undefined && isSettable(id)) {
-      setSettings((current) => ({ ...current, [id]: at }));
-    }
-    setVerb((was) => (was === id ? null : id));
-  }, []);
+  const open = useCallback(
+    (id: VerbId, at?: number) => {
+      const opening = verb !== id;
+      setPalette(false);
+      setVerb(opening ? id : null);
+      if (opening) setSettings((current) => withAmount(current, id, at));
+    },
+    [verb]
+  );
 
   const setAmount = useCallback((id: SettableVerb, value: number) => {
     setSettings((current) => ({ ...current, [id]: value }));
