@@ -1,7 +1,17 @@
 import React from 'react';
-import { Fish, LayoutGrid, LineChart, Droplets, Plug, Settings, MoreHorizontal } from 'lucide-react';
+import {
+  Fish,
+  LayoutGrid,
+  LineChart,
+  Droplets,
+  Plug,
+  Settings,
+  SlidersHorizontal,
+  MoreHorizontal,
+} from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 import { MORE_IDS, SECTIONS, TAB_IDS, type NeedTone, type SectionDef, type SectionId } from '../../nav';
+import { Badge } from '../ui/Badge';
 import { DRAWER_TOGGLE } from '../ui/Drawer';
 import { INSET_FOCUS } from '../ui/focus';
 
@@ -13,6 +23,9 @@ const ICON: Record<SectionId, typeof Fish> = {
   history: LineChart,
   setup: Settings,
 };
+
+const MORE_ITEM =
+  `flex h-11 items-center gap-3 rounded-control px-3 text-[14px] transition-colors ${INSET_FOCUS}`;
 
 const ITEM =
   `relative flex flex-col items-center gap-1 rounded-control py-2 text-[10px] leading-3 transition-colors ${INSET_FOCUS}`;
@@ -111,11 +124,20 @@ export function TabBar({
   );
 }
 
-/** The two sections that live behind More, as rows for its sheet. */
+/**
+ * What did not fit the tab bar: the two sections behind More, and the tunables
+ * — the drawer the phone has no room for a control of its own for.
+ */
 export function MoreSections({
   alerts,
   onNavigate,
-}: NavProps & { onNavigate: () => void }): React.JSX.Element {
+  tunablesModified,
+  onTunables,
+}: NavProps & {
+  onNavigate: () => void;
+  tunablesModified: number;
+  onTunables: () => void;
+}): React.JSX.Element {
   return (
     <div className="flex flex-col p-1.5">
       {SECTIONS.filter((s) => MORE_IDS.includes(s.id)).map((section) => {
@@ -127,9 +149,7 @@ export function MoreSections({
             to={section.path}
             onClick={onNavigate}
             className={({ isActive }) =>
-              `flex h-11 items-center gap-3 rounded-control px-3 text-[14px] transition-colors ${
-                isActive ? 'bg-accent-tint text-accent' : 'text-ink hover:bg-surface-2'
-              }`
+              `${MORE_ITEM} ${isActive ? 'bg-accent-tint text-accent' : 'text-ink hover:bg-surface-2'}`
             }
           >
             <Glyph className="h-5 w-5 text-ink-2" />
@@ -138,6 +158,17 @@ export function MoreSections({
           </NavLink>
         );
       })}
+
+      <button
+        type="button"
+        onClick={onTunables}
+        className={`${MORE_ITEM} text-ink hover:bg-surface-2`}
+        {...DRAWER_TOGGLE}
+      >
+        <SlidersHorizontal className="h-5 w-5 text-ink-2" />
+        Tunables
+        {tunablesModified > 0 && <Badge count={tunablesModified} tone="accent" />}
+      </button>
     </div>
   );
 }

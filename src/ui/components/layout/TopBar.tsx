@@ -6,6 +6,7 @@ import { DOCS_URL, REPO_URL, type Need } from '../../nav';
 import { usePresetLoad } from '../../hooks/usePresetLoad';
 import { SPEED_LABELS, SPEED_PRESETS, type SpeedPreset } from '../../run';
 import { formatDayClock } from '../../utils/clock';
+import { Badge } from '../ui/Badge';
 import { DRAWER_TOGGLE } from '../ui/Drawer';
 import { Segmented } from '../ui/Segmented';
 import { Select } from '../ui/Select';
@@ -20,24 +21,6 @@ const SPEED_OPTIONS = SPEED_PRESETS.map((preset) => ({
 const CONTROL =
   `flex h-8 items-center gap-1.5 rounded-control border border-hairline px-2 text-[13px] text-ink transition-colors hover:bg-surface-2 ${CONTROL_FOCUS}`;
 const ICON = `${CONTROL} w-8 justify-center px-0 text-ink-2 hover:text-ink`;
-
-type BadgeTone = 'accent' | 'warn' | 'alert';
-
-const BADGE_TONE: Record<BadgeTone, string> = {
-  accent: 'bg-accent',
-  warn: 'bg-warn',
-  alert: 'bg-alert',
-};
-
-function Badge({ count, tone }: { count: number; tone: BadgeTone }): React.JSX.Element {
-  return (
-    <span
-      className={`min-w-4 rounded-full px-1.5 text-center text-[11px] font-medium leading-4 tabular-nums text-accent-ink ${BADGE_TONE[tone]}`}
-    >
-      {count}
-    </span>
-  );
-}
 
 interface TopBarProps {
   tick: number;

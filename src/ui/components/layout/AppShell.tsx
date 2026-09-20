@@ -157,7 +157,12 @@ export function AppShell({ sim, config }: AppShellProps): React.JSX.Element {
             />
 
             <Drawer open={more} onClose={closeDrawers} title="More">
-              <MoreSections alerts={alerts} onNavigate={closeDrawers} />
+              <MoreSections
+                alerts={alerts}
+                onNavigate={closeDrawers}
+                tunablesModified={tunablesModified}
+                onTunables={toggleTunables}
+              />
             </Drawer>
 
             <TunablesDrawer open={tunablesOpen} onClose={closeDrawers} />

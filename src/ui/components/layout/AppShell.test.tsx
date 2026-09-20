@@ -188,6 +188,17 @@ describe('AppShell on a phone', () => {
     expect(screen.queryByRole('dialog')).toBeNull();
   });
 
+  it('offers the tunables in the sheet, where the top bar has no room for them', () => {
+    renderShell();
+    fireEvent.click(screen.getByRole('button', { name: 'More' }));
+
+    const sheet = screen.getByRole('dialog', { name: 'More' });
+    fireEvent.click(within(sheet).getByRole('button', { name: /Tunables/ }));
+
+    expect(screen.getByRole('dialog', { name: 'Tunables' })).toBeTruthy();
+    expect(screen.queryByRole('dialog', { name: 'More' })).toBeNull();
+  });
+
   it('hands the tabs back to the rail once the viewport grows', () => {
     renderShell();
     act(() => media.set(viewport(1180)));
