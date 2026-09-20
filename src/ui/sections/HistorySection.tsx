@@ -1,28 +1,21 @@
-import React, { useEffect, useMemo } from 'react';
+import React from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { ModulePage } from '../components/layout/ModulePage';
 import { LogLane } from '../components/review/LogLane';
 import { Track, TrackCaption, TimeAxis } from '../components/review/Track';
 import { Segmented } from '../components/ui/Segmented';
 import { useIsMobile } from '../hooks/useMediaQuery';
-import { useScrub } from '../hooks/useScrub';
 import type { useSimulation } from '../hooks/useSimulation';
+import { useTimeline } from '../hooks/useTimeline';
 import { useUnits } from '../hooks/useUnits';
 import { dayNumber } from '../utils/clock';
 import {
-  alertMarkers,
-  categorizeLog,
   nextScrubPosition,
-  photoperiodSpans,
   readFilter,
   readTick,
   readWindow,
   runSummary,
-  sliceHistory,
-  sliceLogs,
-  snapshotAtTick,
   summaryLines,
-  trackLines,
   windowRange,
   DEFAULT_FILTER,
   DEFAULT_WINDOW,
@@ -59,43 +52,15 @@ export function HistorySection({
   const reviewWindow = readWindow(params.get(WINDOW_PARAM));
   const filter = readFilter(params.get(LOG_PARAM));
 
-  const logs = sim.state.logs;
-  const history = useMemo(
-    () => sliceHistory(sim.history, reviewWindow),
-    [sim.history, reviewWindow]
-  );
-  const range = useMemo(() => windowRange(sim.history, reviewWindow), [sim.history, reviewWindow]);
-  const scrub = useScrub(range, 'History timeline');
-
-  const windowLogs = useMemo(() => sliceLogs(logs, range), [logs, range]);
-  const alerts = useMemo(() => alertMarkers(logs, range), [logs, range]);
-  const actions = useMemo(
-    () => [
-      ...new Set(windowLogs.filter((log) => categorizeLog(log) === 'user').map((log) => log.tick)),
-    ],
-    [windowLogs]
-  );
-
   const light = sim.state.equipment.light;
-  const lit = useMemo(
-    () => photoperiodSpans(range, light.enabled ? light.schedule : null),
-    [range, light.enabled, light.schedule]
+  const { range, ticks, lines, lit, actions, alerts, logs, snapshot, scrub } = useTimeline(
+    sim.history,
+    sim.state.logs,
+    reviewWindow,
+    light.enabled ? light.schedule : null
   );
 
-  const ticks = history.map((snapshot) => snapshot.tick);
-  const snapshot = snapshotAtTick(history, scrub.at);
-  const tallies = runSummary(sim.aggregates, logs, unitSystem);
-
-  /**
-   * A `?tick=` the window cannot honour resolves to something else — its oldest
-   * snapshot, or the live edge — and the address has to follow, or a cold deep
-   * link leaves the URL naming a tick the playhead is not on.
-   */
-  const raw = params.get(TICK_PARAM);
-  useEffect(() => {
-    const resolved = scrub.parked === null ? null : String(scrub.parked);
-    if (raw !== resolved) scrub.park(scrub.parked, 'resolve');
-  }, [raw, scrub]);
+  const tallies = runSummary(sim.aggregates, sim.state.logs, unitSystem);
 
   /**
    * Resolve the cursor against the window it is about to land in, so the URL
@@ -103,7 +68,10 @@ export function HistorySection({
    * narrower window clamps to its oldest snapshot rather than lingering.
    */
   const changeWindow = (next: ReviewWindow): void => {
-    const landing = scrub.parked === null ? null : readTick(String(scrub.parked), windowRange(sim.history, next));
+    const landing =
+      scrub.parked === null
+        ? null
+        : readTick(String(scrub.parked), windowRange(sim.history, next));
     scrub.write(
       {
         [WINDOW_PARAM]: next === DEFAULT_WINDOW ? null : next,
@@ -116,7 +84,7 @@ export function HistorySection({
   return (
     <ModulePage
       title="History"
-      meta={summaryLines(sim.aggregates, logs, unitSystem)[0]}
+      meta={summaryLines(sim.aggregates, sim.state.logs, unitSystem)[0]}
       fills={!isMobile}
       actions={
         <Segmented
@@ -130,50 +98,47 @@ export function HistorySection({
       <div className="grid grid-cols-1 gap-x-4 gap-y-3 md:h-full md:min-h-0 md:grid-cols-[3fr_2fr]">
         <div className="flex flex-col gap-2 md:min-h-0">
           <div
-            ref={scrub.ref}
-            {...scrub.surface}
+            {...scrub.surface('History timeline')}
             className="flex cursor-ew-resize touch-none flex-col gap-3 focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent md:min-h-0 md:flex-1"
           >
-            {TRACKS.map((def) => {
-              const lines = trackLines(history, def);
-              return (
-                <div key={def.id} className="flex flex-col gap-1 max-md:h-24 md:min-h-0 md:flex-1">
-                  <TrackCaption
-                    def={def}
-                    lines={lines}
-                    snapshot={snapshot}
-                    displayTemp={displayTemp}
-                    extents={!isMobile}
-                    className="shrink-0"
-                  />
-                  <Track
-                    lines={lines}
-                    ticks={ticks}
-                    range={range}
-                    lit={lit}
-                    at={scrub.at}
-                    label={def.title}
-                    className="min-h-0 flex-1"
-                  />
-                </div>
-              );
-            })}
+            {TRACKS.map((def) => (
+              <div key={def.id} className="flex flex-col gap-1 max-md:h-24 md:min-h-0 md:flex-1">
+                <TrackCaption
+                  def={def}
+                  lines={lines[def.id]}
+                  snapshot={snapshot}
+                  displayTemp={displayTemp}
+                  extents={!isMobile}
+                  className="shrink-0"
+                />
+                <Track
+                  lines={lines[def.id]}
+                  ticks={ticks}
+                  range={range}
+                  lit={lit}
+                  at={scrub.at}
+                  label={def.title}
+                  className="min-h-0 flex-1"
+                />
+              </div>
+            ))}
           </div>
 
           {/* The axis spans the same width as the tracks, so one tick is one x. */}
-          <div className="shrink-0">
-            <div className="relative h-3.5">
-              <TimeAxis
-                range={range}
-                actions={actions}
-                alerts={alerts}
-                at={scrub.at}
-                parked={scrub.parked !== null}
-              />
-            </div>
+          <div
+            {...scrub.surface('History axis')}
+            className="shrink-0 cursor-ew-resize touch-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+          >
+            <TimeAxis
+              range={range}
+              actions={actions}
+              alerts={alerts}
+              at={scrub.at}
+              parked={scrub.parked !== null}
+            />
             <div className="flex justify-between text-[11px] leading-[14px] text-ink-3">
-              <span className="tabular-nums">Day {range ? dayNumber(range.minTick) : 1}</span>
-              <span className="tabular-nums">Day {range ? dayNumber(range.maxTick) : 1}</span>
+              <span className="tabular-nums">Day {dayNumber(range?.minTick ?? 0)}</span>
+              <span className="tabular-nums">Day {dayNumber(range?.maxTick ?? 0)}</span>
             </div>
           </div>
         </div>
@@ -194,7 +159,7 @@ export function HistorySection({
           </div>
 
           <LogLane
-            logs={windowLogs}
+            logs={logs}
             filter={filter}
             onFilter={(next) =>
               scrub.write({ [LOG_PARAM]: next === DEFAULT_FILTER ? null : next }, 'commit')

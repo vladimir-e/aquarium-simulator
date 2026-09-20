@@ -179,7 +179,6 @@ export function AppShell({ sim, config }: AppShellProps): React.JSX.Element {
           <Spine
             history={sim.history}
             logs={sim.state.logs}
-            tick={sim.state.tick}
             schedule={light.enabled ? light.schedule : null}
           />
         </footer>

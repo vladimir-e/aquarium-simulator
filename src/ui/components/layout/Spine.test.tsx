@@ -59,7 +59,7 @@ function mount(path = '/'): void {
     <PersistenceProvider>
       <UnitsProvider>
         <MemoryRouter initialEntries={[path]}>
-          <Spine history={history} logs={logs} tick={TICKS} schedule={{ startHour: 8, duration: 8 }} />
+          <Spine history={history} logs={logs} schedule={{ startHour: 8, duration: 8 }} />
           <Address />
         </MemoryRouter>
       </UnitsProvider>
