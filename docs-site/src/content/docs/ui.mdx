@@ -30,7 +30,7 @@ the published surface on its own.
 | Module | Route | What it shows |
 |---|---|---|
 | Overview | `/` | The tank as a grid of widgets — the nitrogen cycle as a chain of stocks across the top-left, life beside it, water, gear and nutrients below — each a window onto its module. Anything the engine has latched an alert on is named above the grid, one line each, with the verb that answers it |
-| Water | `/water` | The tank as gauges: level, temperature, pH, the three nitrogen compounds, dissolved O₂ and CO₂. Below them the biofilter — colony size against its ceiling, whether the tank reads as cycled, a projected nitrite peak — and the waste pool feeding it |
+| Water | `/water` | The tank as a lab sheet, two columns of headed reading rows. Left: water (temperature, pH, level), the dissolved gases, and the four nutrients against what the plants ask for. Right: the nitrogen compounds on their alert lines, then the biofilter — each guild against its ceiling, what it converts an hour, whether the tank reads as cycled and where the nitrite peak falls — and the waste pool feeding it. Any row opens its reading in the drawer |
 | Life | `/life` | Plants as rows that open into their per-factor vitality breakdown, the algae competing with them on the same axis, the four nutrients with what one millilitre of fertilizer would move, the hardscape, and the fish roster — expandable per fish into what is helping and hurting it, with bioload against the stocking guideline |
 | Gear | `/gear` | Every device as a row, and one device's inspector beside it. Selection lives in the URL, so each inspector is a link and back walks between devices. A band along the foot lays the day's schedules — light, CO₂, doser — against each other |
 | History | `/history` | Four charts over the run — nitrogen, pH and CO₂, O₂ with temperature and level, populations — plus run tallies, the filtered event log, and a scrubber |
@@ -67,11 +67,17 @@ Where the engine has no threshold of its own, the band is the tank's: the
 temperature and pH spans every stocked species tolerates, plant demand for the
 four nutrients. An unstocked tank has neither, and those readings go quiet.
 
-Tapping a reading on the Overview opens it in the drawer: the number at hero
-size, the band stated in the engine's words, the last seven days for a reading
-the snapshot buffer records, and — for the stocks of the nitrogen cycle — what
-fills them and what drains them, at the rate the next tick will use. The Water
-module follows; its readings still open their own gauges.
+Tapping a reading anywhere — the Overview or the Water module — opens the same
+inspector in the drawer: the number at hero size, the band stated in the
+engine's words, the last seven days for a reading the snapshot buffer records,
+and — for the stocks of the nitrogen cycle — what fills them and what drains
+them, at the rate the next tick will use. A flow smaller than the precision its
+unit is read to prints as `steady` rather than as a signed zero.
+
+Bands are stated at the precision their reading is, so a value sitting on the
+edge of its band reads as sitting on the edge. A tolerance band is hard on both
+sides: the engine charges a temperature or pH stressor from the moment the
+value leaves the span, and the strip tints on the same step.
 
 ## Time
 
@@ -107,13 +113,15 @@ writes its own line into the log.
 
 ## Reading the engine
 
-Nothing the dashboard displays is stored twice. Every gauge, breakdown, pill and
-projection is derived from the state the last tick returned, so a reading and
-the tank can never disagree.
+Nothing the dashboard displays is stored twice. Every reading, breakdown, pill
+and projection is derived from the state the last tick returned, so a reading
+and the tank can never disagree. The Overview widgets and the Water module draw
+their rows from one reading set, so the same reading cannot carry a different
+band or a different word depending on which surface is showing it.
 
 | Surface | Derived from |
 |---|---|
-| Gauges and status pills | Current resources, against the thresholds the engine alerts on |
+| Reading values and status | Current resources, against the thresholds the engine alerts on |
 | Reading bands | An engine threshold where there is one, the stocked species' tolerance or the plants' demand where there is not |
 | The cycle chain | The engine's own mineralisation, oxidation and clearance rates, read for the hour ahead |
 | Vitality breakdowns | The engine's own per-factor stressor and benefit lists, per organism |

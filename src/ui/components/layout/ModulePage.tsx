@@ -27,9 +27,9 @@ export function ModulePage({
 }: ModulePageProps): React.JSX.Element {
   return (
     <section className="flex min-h-0 min-w-0 flex-1 flex-col">
-      <div className="flex min-h-12 shrink-0 items-center gap-2.5 px-3">
+      <div className="flex min-h-12 shrink-0 flex-wrap items-center gap-x-2.5 gap-y-1.5 px-3 py-1.5">
         <h1 className="text-[20px] font-medium leading-6">{title}</h1>
-        {meta && <span className="truncate text-[13px] text-ink-2">{meta}</span>}
+        {meta && <span className="min-w-0 truncate text-[13px] text-ink-2">{meta}</span>}
         {actions && <div className="ml-auto flex shrink-0 items-center gap-2">{actions}</div>}
       </div>
       <div className={`min-h-0 flex-1 px-3 pb-3 ${fills ? 'overflow-hidden' : 'overflow-y-auto'}`}>

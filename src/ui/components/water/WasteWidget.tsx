@@ -25,7 +25,6 @@ export function WasteWidget({
   return (
     <Widget
       title="Waste"
-      caption={`${waste.standing.toFixed(2)} g standing`}
       footer={<p className="text-[12px] leading-4 text-ink-3">{wasteSummary(waste, config)}</p>}
     >
       <ReadingRows book={book} ids={STANDING} onOpen={onOpen} />

@@ -60,7 +60,7 @@ export function ReadingRow({
   );
 
   const shape =
-    'grid h-9 w-full grid-cols-[minmax(40px,auto)_84px_minmax(48px,1fr)_minmax(0,auto)] items-center gap-2.5 border-t border-hairline text-left first:border-t-0';
+    'grid h-9 w-full grid-cols-[minmax(40px,auto)_84px_minmax(48px,1fr)_minmax(96px,auto)] items-center gap-2.5 border-t border-hairline text-left first:border-t-0';
 
   if (!onClick) return <div className={shape}>{body}</div>;
 

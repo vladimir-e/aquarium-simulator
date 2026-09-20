@@ -11,6 +11,7 @@ Format: - **Feature name** (#PR) - One short sentence (under ~150 chars)
 
 ## Unreleased
 
+- **The Water module is a lab sheet** - two columns of headed reading rows — water, gases and nutrients beside the cycle, its two guilds and the waste pool — every row opening the same inspector the Overview does.
 - **The Overview reads the whole tank** - the nitrogen cycle as a chain of tappable stocks with its two guilds under it, the rack with live power and schedule ribbons, the roster with a dot per individual, and every reading opening the same drawer.
 - **The dashboard is a console** - top bar with the transport, fixed icon rail, widget grid and a timeline spine; readings share one range-strip encoding and inspectors lay over the stage in a drawer.
 - **Docs portal** - the whole system documented at docs.fishroom.app, linked from the dashboard.
