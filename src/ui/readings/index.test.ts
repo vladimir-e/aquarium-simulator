@@ -60,11 +60,23 @@ describe('readTank', () => {
 
   it('reads nitrate twice — against the alert line, and against plant demand', () => {
     const book = read(stocked());
-    const asFood = book.demand.find((reading) => reading.id === 'nitrate')!;
+    const asFood = book.byId.nitrateDemand;
 
+    expect(book.demand[0]).toBe(asFood);
     expect(asFood.value).toBe(book.byId.nitrate.value);
     expect(asFood.band).not.toEqual(book.byId.nitrate.band);
     expect(asFood.need).toMatch(/^need /);
+    expect(asFood.sentence).not.toBe(book.byId.nitrate.sentence);
+  });
+
+  it('gives the demand reading the same stock to inspect as the toxin', () => {
+    const run = stocked();
+    const book = read(run);
+    const asFood = book.byId.nitrateDemand;
+    const latest = run.history[run.history.length - 1];
+
+    expect(asFood.fills).toEqual(book.byId.nitrate.fills);
+    expect(asFood.series!(latest)).toBe(book.byId.nitrate.series!(latest));
   });
 
   it('leaves a nutrient unbanded when there is nothing planted to want it', () => {

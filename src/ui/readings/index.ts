@@ -69,6 +69,7 @@ export type ReadingId =
   | 'ammonia'
   | 'nitrite'
   | 'nitrate'
+  | 'nitrateDemand'
   | 'temperature'
   | 'ph'
   | 'level'
@@ -107,10 +108,24 @@ export interface ReadingView {
   series: ((snapshot: RunSnapshot) => number) | null;
 }
 
+/** The four plant foods, read as demand rather than against an alert line. */
+type DemandId = Extract<ReadingId, 'nitrateDemand' | 'phosphate' | 'potassium' | 'iron'>;
+
+const DEMAND_ID: Record<NutrientKey, DemandId> = {
+  nitrate: 'nitrateDemand',
+  phosphate: 'phosphate',
+  potassium: 'potassium',
+  iron: 'iron',
+};
+
 /** A plant food, with what the plants are asking for beside it. */
 export interface NutrientView extends ReadingView {
   need: string;
 }
+
+export type ReadingsById = {
+  [K in ReadingId]: K extends DemandId ? NutrientView : ReadingView;
+};
 
 /** Who lives here, folded the way every roster reads them. */
 export interface Roster {
@@ -135,7 +150,7 @@ export interface Dosing {
 export interface ReadingBook {
   /** What the tank is running on, for the line beside a title. */
   caption: string;
-  byId: Record<ReadingId, ReadingView>;
+  byId: ReadingsById;
   /**
    * The four plant foods banded on demand rather than on an alert line — the
    * one reading the tank judges twice, since NO₃ is both a toxin the engine
@@ -177,6 +192,7 @@ function tapeOf(history: RunSnapshot[], units: UnitSystem): Tape {
       ammonia: (s) => s.ammonia,
       nitrite: (s) => s.nitrite,
       nitrate: (s) => s.nitrate,
+      nitrateDemand: (s) => s.nitrate,
       temperature: (s) => toDisplayTemperature(s.temperature, units),
       ph: (s) => s.ph,
       level: (s) => s.waterPct,
@@ -192,6 +208,7 @@ const DECIMALS: Record<ReadingId, number> = {
   ammonia: 3,
   nitrite: 3,
   nitrate: 1,
+  nitrateDemand: 1,
   temperature: 1,
   ph: 2,
   level: 0,
@@ -303,9 +320,10 @@ export function ratePerHour(value: number, unit: RateUnit): string {
 
 /** A nutrient banded on what the plants ask for, rather than on an alert line. */
 function nutrientView(
-  id: ReadingId,
+  id: DemandId,
   reading: NutrientReading,
-  tape: Tape
+  tape: Tape,
+  fills: ReadingFlow[] = []
 ): NutrientView {
   const at = scale(NUTRIENT_SCALE_PPM[reading.key]);
   return {
@@ -323,7 +341,7 @@ function nutrientView(
         ? `Plants ask for ${reading.neededText} ppm — below it the engine's own sufficiency drops.`
         : 'Nothing planted, so nothing is asking for it.',
     net: null,
-    fills: [],
+    fills,
     drains: [],
     series: tape.series[id] ?? null,
   };
@@ -358,7 +376,11 @@ export function readTank({ state, config, history, units }: TankInput): ReadingB
   const oxygenAt = scale(12);
   const co2At = scale(HIGH_CO2_THRESHOLD * 1.5);
 
-  const byId: Record<ReadingId, ReadingView> = {
+  const nitrateFills: ReadingFlow[] = [
+    { label: 'NOB clearing NO₂', rate: ratePerHour(rates.nitriteToNitrate, 'ppm') },
+  ];
+
+  const byId: ReadingsById = {
     waste: {
       id: 'waste',
       name: 'Waste',
@@ -400,7 +422,7 @@ export function readTank({ state, config, history, units }: TankInput): ReadingB
     nitrate: fromGauge('nitrate', tape, {
       gauge: gauge('nitrate'),
       sentence: `Plants go short under ${NITRATE_LOW_PPM} ppm; the engine alerts over ${HIGH_NITRATE_THRESHOLD}.`,
-      fills: [{ label: 'NOB clearing NO₂', rate: ratePerHour(rates.nitriteToNitrate, 'ppm') }],
+      fills: nitrateFills,
       drains: [],
     }),
     temperature: fromGauge('temperature', tape, {
@@ -461,6 +483,7 @@ export function readTank({ state, config, history, units }: TankInput): ReadingB
       drains: [],
       series: tape.series.co2 ?? null,
     },
+    nitrateDemand: nutrientView('nitrateDemand', nutrient('nitrate'), tape, nitrateFills),
     phosphate: nutrientView('phosphate', nutrient('phosphate'), tape),
     potassium: nutrientView('potassium', nutrient('potassium'), tape),
     iron: nutrientView('iron', nutrient('iron'), tape),
@@ -481,7 +504,7 @@ export function readTank({ state, config, history, units }: TankInput): ReadingB
     },
   };
 
-  const demand = nutrients.map((reading) => nutrientView(reading.key, reading, tape));
+  const demand = nutrients.map((reading) => byId[DEMAND_ID[reading.key]]);
 
   return {
     caption: [
