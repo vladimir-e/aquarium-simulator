@@ -2,7 +2,7 @@ import React from 'react';
 import { BookOpen, Github, Pause, Play, SkipForward, SlidersHorizontal, TriangleAlert } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { PRESETS, type PresetId } from '../../../simulation/presets.js';
-import type { Need } from '../../nav';
+import { DOCS_URL, REPO_URL, type Need } from '../../nav';
 import { usePresetLoad } from '../../hooks/usePresetLoad';
 import { SPEED_LABELS, SPEED_PRESETS, type SpeedPreset } from '../../run';
 import { formatDayClock } from '../../utils/clock';
@@ -11,9 +11,6 @@ import { Segmented } from '../ui/Segmented';
 import { Select } from '../ui/Select';
 import { ThemeToggle } from '../ui/ThemeToggle';
 import { CONTROL_FOCUS } from '../ui/focus';
-
-const REPO_URL = 'https://github.com/vladimir-e/aquarium-simulator';
-const DOCS_URL = 'https://docs.fishroom.app';
 
 const SPEED_OPTIONS = SPEED_PRESETS.map((preset) => ({
   value: preset,

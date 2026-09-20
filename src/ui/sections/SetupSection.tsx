@@ -14,6 +14,7 @@ import { usePresetLoad } from '../hooks/usePresetLoad';
 import type { useSimulation } from '../hooks/useSimulation';
 import { useTheme, type ThemeMode } from '../hooks/useTheme';
 import { useUnits, type UnitSystem } from '../hooks/useUnits';
+import { DOCS_URL, REPO_URL } from '../nav';
 import {
   LID_LABEL,
   LID_TYPES,
@@ -26,9 +27,6 @@ import {
 import { TICKS_PER_DAY, formatDayClock, formatElapsed } from '../utils/clock';
 import { formatVolume, getTankSizeOptions } from '../utils/units';
 import { CONTROL_FOCUS } from '../components/ui/focus';
-
-const DOCS_URL = 'https://docs.fishroom.app';
-const REPO_URL = 'https://github.com/vladimir-e/aquarium-simulator';
 
 const PRESET_OPTIONS = PRESETS.map((preset) => ({ value: preset.id, label: preset.name }));
 const LID_OPTIONS = LID_TYPES.map((value) => ({ value, label: LID_LABEL[value] }));

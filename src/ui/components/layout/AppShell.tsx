@@ -5,6 +5,7 @@ import { countModified } from '../../../simulation/config/index.js';
 import { verbLabel, withAmount, type VerbId } from '../../actions';
 import { useActs } from '../../hooks/useActs';
 import { useConfig } from '../../hooks/useConfig';
+import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts';
 import { useIsMobile } from '../../hooks/useMediaQuery';
 import { PresetLoadProvider } from '../../hooks/usePresetLoad';
 import type { useSimulation } from '../../hooks/useSimulation';
@@ -102,20 +103,15 @@ export function AppShell({ sim, config }: AppShellProps): React.JSX.Element {
     if (!isMobile) setMore(false);
   }, [isMobile]);
 
-  useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent): void => {
-      if (!(e.metaKey || e.ctrlKey)) return;
-      if (e.key === 'k') {
-        e.preventDefault();
-        onAct();
-      } else if (e.key === ',') {
-        e.preventDefault();
-        toggleTunables();
-      }
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return (): void => window.removeEventListener('keydown', onKeyDown);
-  }, [onAct, toggleTunables]);
+  const shortcuts = useMemo(
+    () => ({
+      Space: (): void => (sim.isPlaying ? sim.togglePlayPause() : sim.step()),
+      '⌘k': (): void => onAct(),
+      '⌘,': toggleTunables,
+    }),
+    [sim, onAct, toggleTunables]
+  );
+  useKeyboardShortcuts(shortcuts);
 
   return (
     <PresetLoadProvider current={sim.currentPreset} state={sim.state} onLoad={sim.loadPreset}>

@@ -9,13 +9,10 @@ import { HistorySection } from './sections/HistorySection';
 import { SetupSection } from './sections/SetupSection';
 import { useSimulation } from './hooks/useSimulation';
 import { useConfig } from './hooks/useConfig';
-import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 
 function App(): React.JSX.Element {
   const sim = useSimulation();
   const { config } = useConfig();
-
-  useKeyboardShortcuts(sim.step, sim.togglePlayPause, sim.isPlaying);
 
   return (
     <Routes>
