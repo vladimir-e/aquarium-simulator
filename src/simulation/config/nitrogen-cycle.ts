@@ -174,7 +174,7 @@ export interface NitrogenCycleConfigMeta {
   max?: number;
 }
 
-// `step` is the debug panel's spinner increment. The rates above are derived
+// `step` is the tunables drawer's spinner increment. The rates above are derived
 // from doubling times, so no decimal grid contains them: each step is fine
 // enough that a click nudges its value instead of snapping it to a round one.
 export const nitrogenCycleConfigMeta: NitrogenCycleConfigMeta[] = [

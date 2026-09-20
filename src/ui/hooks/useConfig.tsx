@@ -65,10 +65,6 @@ export function ConfigProvider({ children }: ConfigProviderProps): React.JSX.Ele
   return <ConfigContext.Provider value={value}>{children}</ConfigContext.Provider>;
 }
 
-/**
- * Hook to access tunable configuration.
- * Must be used within a ConfigProvider.
- */
 export function useConfig(): ConfigContextValue {
   const context = useContext(ConfigContext);
   if (!context) {

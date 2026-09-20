@@ -437,7 +437,7 @@ describe('nobProcessingRateMultiplier', () => {
 
   it('balances the chain at air saturation whatever the two constants are', () => {
     // Read off the config rather than frozen at the defaults, so that the claim
-    // survives the debug panel moving either K — and so the counterfactual
+    // survives the tunables drawer moving either K — and so the counterfactual
     // above is an engine with no oxygen term rather than a half-corrected one.
     for (const [aobK, nobK] of [
       [0.3, 1.1],

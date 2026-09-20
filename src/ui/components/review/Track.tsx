@@ -115,7 +115,7 @@ interface TrackCaptionProps {
   lines: TrackLine[];
   /** The snapshot the playhead is on, where the window holds one. */
   snapshot: RunSnapshot | null;
-  /** Canonical °C → the reader's unit, so a caption matches the gauges. */
+  /** Canonical °C → the reader's unit, so a caption matches the readings. */
   displayTemp: (celsius: number) => number;
   /** State each line's extent too — the scale it was normalised against. */
   extents?: boolean;

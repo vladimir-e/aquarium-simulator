@@ -213,7 +213,6 @@ export function withTunable(config: TunableConfig, path: string, value: number):
   return next;
 }
 
-
 /**
  * Check if a config value differs from default.
  */
