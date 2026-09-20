@@ -11,8 +11,8 @@ import { equipmentSummary, hourLabel, isDeviceId, turnover } from '../build';
 import { formatFlowRate } from '../utils/units';
 import type { useSimulation } from '../hooks/useSimulation';
 import { useQueryParam } from '../hooks/useQueryParam';
+import { useReadingBook } from '../hooks/useReadingBook';
 import { useUnits } from '../hooks/useUnits';
-import { readTank } from '../readings';
 import { bacteriaReadout } from '../run';
 
 /** The palette's "Add hardscape" lands here, the way its pickers land on Life. */
@@ -41,10 +41,7 @@ export function GearSection({
   const { unitSystem } = useUnits();
   const { state } = sim;
 
-  const book = useMemo(
-    () => readTank({ state, config, history: sim.history, units: unitSystem }),
-    [state, config, sim.history, unitSystem]
-  );
+  const book = useReadingBook(sim, config);
   const bacteria = useMemo(() => bacteriaReadout(state, config), [state, config]);
   const close = useCallback(() => navigate('/gear', { replace: true }), [navigate]);
 

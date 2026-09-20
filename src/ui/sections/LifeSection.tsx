@@ -13,8 +13,9 @@ import { bioload, bioloadNote, type PickerKind } from '../build';
 import { useExpandedRows } from '../hooks/useExpandedRows';
 import { useQueryParam } from '../hooks/useQueryParam';
 import type { useSimulation } from '../hooks/useSimulation';
+import { useReadingBook } from '../hooks/useReadingBook';
 import { useUnits } from '../hooks/useUnits';
-import { readTank, toneOf } from '../readings';
+import {toneOf} from '../readings';
 import {
   groupFry,
   readLedger,
@@ -60,10 +61,7 @@ export function LifeSection({
   const [inspecting, setInspecting] = useState<Inspecting | null>(null);
   const [picker, setAdding] = useQueryParam<PickerKind>('add');
 
-  const book = useMemo(
-    () => readTank({ state, config, history: sim.history, units: unitSystem }),
-    [state, config, sim.history, unitSystem]
-  );
+  const book = useReadingBook(sim, config);
 
   const tables = useMemo(
     () =>

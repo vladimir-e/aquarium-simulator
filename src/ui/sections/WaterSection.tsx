@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import type { TunableConfig } from '../../simulation/config/index.js';
 import { useStage } from '../components/layout/AppShell';
 import { ModuleGroup, ModulePage } from '../components/layout/ModulePage';
@@ -8,8 +8,8 @@ import { NutrientRows, ReadingRows } from '../components/water/rows';
 import { WasteWidget } from '../components/water/WasteWidget';
 import { VerbButton } from '../components/ui/VerbButton';
 import type { useSimulation } from '../hooks/useSimulation';
-import { useUnits } from '../hooks/useUnits';
-import { readTank, type ReadingId } from '../readings';
+import { useReadingBook } from '../hooks/useReadingBook';
+import {type ReadingId} from '../readings';
 
 const WATER: ReadingId[] = ['temperature', 'ph', 'level'];
 const GASES: ReadingId[] = ['oxygen', 'co2'];
@@ -29,14 +29,10 @@ export function WaterSection({
   config: TunableConfig;
 }): React.JSX.Element {
   const { onAct, actLabel } = useStage();
-  const { unitSystem } = useUnits();
-  const { state, history } = sim;
+  const { history } = sim;
   const [reading, setReading] = useState<ReadingId | null>(null);
 
-  const book = useMemo(
-    () => readTank({ state, config, history, units: unitSystem }),
-    [state, config, history, unitSystem]
-  );
+  const book = useReadingBook(sim, config);
 
   return (
     <>
