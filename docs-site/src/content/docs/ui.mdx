@@ -51,7 +51,9 @@ drawer that lays over them.
 
 Below the tablet breakpoint the rail folds into a five-tab bar with the last two
 modules behind More, the transport keeps play and the clock, the drawer becomes
-a full-height sheet from the bottom.
+a full-height sheet from the bottom. The top bar sheds its tunables badge at
+that width, so the More sheet carries the tunables under the two modules it
+already holds.
 
 ### Reading a value
 
@@ -181,11 +183,12 @@ showing the tank as it is now.
 
 ## The tunables
 
-Behind the top bar's badge and ⌘, is the drawer of the engine's constants,
-grouped the way the config layer groups them and editable live. It lays over
-the stage like any other inspector, so a constant can be moved while the chart
-it moves is on screen. A changed value takes effect on the next tick — no
-rebuild, no reload.
+Behind the top bar's badge, ⌘, and — on a phone, where the bar has no room for
+the badge — the More sheet, is the drawer of the engine's constants, grouped
+the way the config layer groups them and editable live. It lays over the stage
+like any other inspector, so a constant can be moved while the chart it moves
+is on screen. A changed value takes effect on the next tick — no rebuild, no
+reload.
 
 | Behaviour | Detail |
 |---|---|

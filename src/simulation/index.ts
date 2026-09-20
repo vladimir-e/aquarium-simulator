@@ -72,7 +72,7 @@ export {
 } from './presets.js';
 
 // Configuration
-export type { TunableConfig } from './config/index.js';
+export type { TunableConfig, FertilizerFormula } from './config/index.js';
 export { DEFAULT_CONFIG } from './config/index.js';
 
 // Resources
