@@ -5,7 +5,7 @@ import App from '../../App';
 import { ThemeProvider } from '../../hooks/useTheme';
 import { UnitsProvider } from '../../hooks/useUnits';
 import { ConfigProvider } from '../../hooks/useConfig';
-import { PersistenceProvider } from '../../persistence/index.js';
+import { flushPendingSave, PersistenceProvider } from '../../persistence/index.js';
 import { stubMatchMedia, viewport, type MatchMediaStub } from '../../test/matchMedia';
 
 let media: MatchMediaStub;
@@ -14,10 +14,12 @@ beforeEach(() => {
   media = stubMatchMedia(viewport(1180));
 });
 
+// Unmount first: the provider flushes its pending save on the way out, and a
+// tank that saved after the wipe would be the next test's opening state.
 afterEach(() => {
+  cleanup();
   media.restore();
   globalThis.localStorage.clear();
-  cleanup();
 });
 
 /**
@@ -186,6 +188,22 @@ describe('a verb sheet', () => {
     expect(drawer.getByText('no plants to fertilise')).toBeTruthy();
     expect(drawer.queryByRole('button', { name: /^Dose \d/ })).toBeNull();
     expect(drawer.queryByText('After')).toBeNull();
+  });
+});
+
+describe('the amounts a keeper settles on', () => {
+  it('outlive the session that chose them, with the verb Act is named for', () => {
+    renderApp();
+    fireEvent.click(within(palette()).getByRole('button', { name: /^Feed/ }));
+    fireEvent.click(within(sheet('Feed')).getByRole('button', { name: /^1 g/ }));
+    fireEvent.click(within(sheet('Feed')).getByRole('button', { name: 'Feed 1 g' }));
+    flushPendingSave();
+    cleanup();
+
+    renderApp();
+    expect(screen.getByRole('button', { name: /^Act/ }).textContent).toContain('Feed · 1 g');
+    fireEvent.click(within(palette()).getByRole('button', { name: /^Feed/ }));
+    expect(within(sheet('Feed')).getByRole('button', { name: 'Feed 1 g' })).toBeTruthy();
   });
 });
 

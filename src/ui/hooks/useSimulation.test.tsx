@@ -5,6 +5,7 @@ import { useSimulation } from './useSimulation';
 import { createPresetSimulation, getPresetById, type PresetId } from '../../simulation/presets';
 import { ConfigProvider, useConfig } from './useConfig';
 import { PersistenceProvider } from '../persistence/index.js';
+import { DEFAULT_SETTINGS } from '../actions/verbs.js';
 import { createSimulation, type SimulationState } from '../../simulation/state.js';
 import {
   applyAction,
@@ -47,7 +48,7 @@ function seedSession(
       ...overrides,
     },
     tunableConfig: DEFAULT_CONFIG,
-    ui: { units: 'metric', debugPanelOpen: false },
+    ui: { units: 'metric', debugPanelOpen: false, acts: { settings: DEFAULT_SETTINGS, promoted: null } },
   };
   globalThis.localStorage.setItem(STORAGE_KEY, JSON.stringify(persisted));
 }

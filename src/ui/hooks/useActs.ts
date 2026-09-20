@@ -1,13 +1,13 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { Action } from '../../simulation/index.js';
 import {
-  DEFAULT_SETTINGS,
   verbAction,
   withAmount,
   type SettableVerb,
   type VerbId,
   type VerbSettings,
 } from '../actions';
+import { usePersistence } from '../persistence/index.js';
 
 export interface Acts {
   palette: boolean;
@@ -25,16 +25,22 @@ export interface Acts {
 }
 
 /**
- * What the reader has chosen but not yet done. Amounts outlive a dismissal on
+ * What the reader has chosen but not yet done, kept with the tank so it
+ * outlives a reload as well. Amounts outlive a dismissal on
  * purpose — the footer buttons and the palette name them while every sheet is
  * shut, so closing has to mean "not now" rather than "discard" or those labels
  * would be a lie. Nothing reaches the simulation until a commit.
  */
 export function useActs(executeAction: (action: Action) => void): Acts {
+  const { initialUI, onUIChange } = usePersistence();
   const [palette, setPalette] = useState(false);
   const [verb, setVerb] = useState<VerbId | null>(null);
-  const [promoted, setPromoted] = useState<VerbId | null>(null);
-  const [settings, setSettings] = useState<VerbSettings>(DEFAULT_SETTINGS);
+  const [promoted, setPromoted] = useState<VerbId | null>(initialUI.acts.promoted);
+  const [settings, setSettings] = useState<VerbSettings>(initialUI.acts.settings);
+
+  useEffect(() => {
+    onUIChange({ acts: { settings, promoted } });
+  }, [settings, promoted, onUIChange]);
 
   const close = useCallback(() => {
     setPalette(false);

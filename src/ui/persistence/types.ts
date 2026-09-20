@@ -15,12 +15,19 @@ import type {
   AlertState,
 } from '../../simulation/state.js';
 import type { RngState } from '../../simulation/core/rng.js';
+import type { VerbId, VerbSettings } from '../actions/verbs.js';
 import type { TunableConfig } from '../../simulation/config/index.js';
 
 /**
  * Schema version for persisted state.
  * Increment this when the structure changes in a breaking way.
  * On version mismatch, stored data is discarded.
+ *
+ * v25: The keeper's own amounts outlive a reload. `PersistedUI` gains `acts` —
+ *      the amount each settable verb is standing on and the verb the Act
+ *      button is named for — so a keeper who always feeds 1 g is not back at
+ *      0.5 g after a refresh. A v24 save has no `acts`, and the strict schema
+ *      refuses the UI section without it.
  *
  * v24: The maintenance term got one name and lost the multiple that stood on
  *      top of it. `PlantsConfig`'s `maintenanceCost` became `upkeepCost` and
@@ -172,7 +179,7 @@ import type { TunableConfig } from '../../simulation/config/index.js';
  *     nutrient sufficiency) but its persisted shape is identical, so
  *     the bump is purely the new Fish field.
  */
-export const PERSISTENCE_VERSION = 24;
+export const PERSISTENCE_VERSION = 25;
 
 /**
  * Storage key for the unified persisted state.
@@ -205,6 +212,8 @@ export interface PersistedSimulation {
 export interface PersistedUI {
   units: 'metric' | 'imperial';
   debugPanelOpen: boolean;
+  /** What the keeper has chosen but not yet done, and the verb Act is named for. */
+  acts: { settings: VerbSettings; promoted: VerbId | null };
 }
 
 /**

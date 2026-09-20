@@ -11,7 +11,13 @@ import {
   getDefaultUI,
   createPersistedState,
 } from './storage.js';
-import { PERSISTENCE_VERSION, STORAGE_KEY, type PersistedSimulation } from './types.js';
+import {
+  PERSISTENCE_VERSION,
+  STORAGE_KEY,
+  type PersistedSimulation,
+  type PersistedUI,
+} from './types.js';
+import { DEFAULT_SETTINGS } from '../actions/verbs.js';
 import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
 
 // Mock location
@@ -69,7 +75,7 @@ describe('loadPersistedState', () => {
       version: PERSISTENCE_VERSION - 1,
       simulation: createValidSimulation(),
       tunableConfig: DEFAULT_CONFIG,
-      ui: { units: 'metric', debugPanelOpen: false },
+      ui: { units: 'metric', debugPanelOpen: false, acts: { settings: DEFAULT_SETTINGS, promoted: null } },
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(olderState));
     const result = loadPersistedState();
@@ -84,7 +90,7 @@ describe('loadPersistedState', () => {
       version: PERSISTENCE_VERSION,
       simulation: validSimulation,
       tunableConfig: DEFAULT_CONFIG,
-      ui: { units: 'metric', debugPanelOpen: false },
+      ui: { units: 'metric', debugPanelOpen: false, acts: { settings: DEFAULT_SETTINGS, promoted: null } },
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(validState));
 
@@ -101,7 +107,7 @@ describe('loadPersistedState', () => {
       version: PERSISTENCE_VERSION,
       simulation: { invalid: 'data' },
       tunableConfig: DEFAULT_CONFIG,
-      ui: { units: 'imperial', debugPanelOpen: true },
+      ui: { units: 'imperial', debugPanelOpen: true, acts: { settings: DEFAULT_SETTINGS, promoted: null } },
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
 
@@ -333,7 +339,7 @@ describe('getDefaultUI', () => {
 describe('createPersistedState', () => {
   it('creates valid persisted state', () => {
     const simulation = createValidSimulation();
-    const ui = { units: 'metric' as const, debugPanelOpen: false };
+    const ui = { units: 'metric' as const, debugPanelOpen: false, acts: { settings: DEFAULT_SETTINGS, promoted: null } };
 
     const state = createPersistedState(simulation, DEFAULT_CONFIG, ui);
 
@@ -410,12 +416,12 @@ function createValidPersistedState(): {
   version: number;
   simulation: PersistedSimulation;
   tunableConfig: typeof DEFAULT_CONFIG;
-  ui: { units: 'metric'; debugPanelOpen: boolean };
+  ui: PersistedUI;
 } {
   return {
     version: PERSISTENCE_VERSION,
     simulation: createValidSimulation(),
     tunableConfig: DEFAULT_CONFIG,
-    ui: { units: 'metric' as const, debugPanelOpen: false },
+    ui: { units: 'metric' as const, debugPanelOpen: false, acts: { settings: DEFAULT_SETTINGS, promoted: null } },
   };
 }
