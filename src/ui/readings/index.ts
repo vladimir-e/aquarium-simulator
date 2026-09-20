@@ -32,7 +32,7 @@ import {
   doseToCover,
   formatDose,
   gasReadings,
-  gaugeFill,
+  readingAt,
   groupBySpecies,
   groupPlantsBySpecies,
   nutrientReadings,
@@ -40,7 +40,7 @@ import {
   projectNitritePeak,
   stockedBand,
   toleranceStatus,
-  waterGauges,
+  waterReadings,
   wasteReadout,
   type AlgaeRow,
   type BacteriaReadout,
@@ -55,7 +55,7 @@ import {
   type Status,
   type StockedBand,
   type WasteReadout,
-  type WaterGauge,
+  type WaterReading,
   NITRATE_LOW_PPM,
 } from '../run';
 import {
@@ -282,9 +282,9 @@ function toleranceSentence(
   return `${span} — the span every stocked species tolerates`;
 }
 
-interface GaugeSource {
-  gauge: WaterGauge;
-  /** Overrides the gauge's own band, which temp and pH deliberately lack. */
+interface WaterSource {
+  reading: WaterReading;
+  /** Overrides the reading's own band, which temp and pH deliberately lack. */
   band?: StripBand | null;
   tone?: StripTone;
   sentence: string;
@@ -293,16 +293,16 @@ interface GaugeSource {
   drains?: ReadingFlow[];
 }
 
-function fromGauge(id: ReadingId, tape: Tape, source: GaugeSource): ReadingView {
-  const { gauge } = source;
+function fromWater(id: ReadingId, tape: Tape, source: WaterSource): ReadingView {
+  const { reading } = source;
   return {
     id,
-    name: gauge.name,
-    value: gauge.text,
-    unit: gauge.unit,
-    at: gauge.fill,
-    band: source.band === undefined ? gauge.band : source.band,
-    tone: source.tone ?? toneOf(gauge.status),
+    name: reading.name,
+    value: reading.text,
+    unit: reading.unit,
+    at: reading.fill,
+    band: source.band === undefined ? reading.band : source.band,
+    tone: source.tone ?? toneOf(reading.status),
     trend: trendOf(tape, id),
     sentence: source.sentence,
     net: source.net ?? null,
@@ -366,7 +366,7 @@ function nutrientView(
  */
 export function readTank({ state, config, history, units }: TankInput): ReadingBook {
   const tape = tapeOf(history, units);
-  const gauges = waterGauges(state, units);
+  const water = waterReadings(state, units);
   const gases = gasReadings(state);
   const nutrients = nutrientReadings(state, config);
   const bacteria = bacteriaReadout(state, config);
@@ -374,7 +374,7 @@ export function readTank({ state, config, history, units }: TankInput): ReadingB
   const projection = projectNitritePeak(state, config);
   const specimens = plantRows(state, config);
 
-  const gauge = (key: WaterGauge['key']): WaterGauge => gauges.find((g) => g.key === key)!;
+  const read = (key: WaterReading['key']): WaterReading => water.find((r) => r.key === key)!;
   const gas = (key: GasReading['key']): GasReading => gases.find((g) => g.key === key)!;
   const nutrient = (key: NutrientKey): NutrientReading =>
     nutrients.find((n) => n.key === key)!;
@@ -411,8 +411,8 @@ export function readTank({ state, config, history, units }: TankInput): ReadingB
       drains: [{ label: 'Mineralising to NH₃', rate: ratePerHour(-waste.mineralised, 'g') }],
       series: null,
     },
-    ammonia: fromGauge('ammonia', tape, {
-      gauge: gauge('ammonia'),
+    ammonia: fromWater('ammonia', tape, {
+      reading: read('ammonia'),
       sentence: `Safe at or under ${said('ammonia', HIGH_AMMONIA_THRESHOLD)} ppm — the line the engine alerts on.`,
       net: netPerHour(
         rates.wasteToAmmonia + rates.gillsToAmmonia - rates.ammoniaOxidised,
@@ -424,25 +424,25 @@ export function readTank({ state, config, history, units }: TankInput): ReadingB
       ],
       drains: [{ label: 'AOB oxidising', rate: ratePerHour(-rates.ammoniaOxidised, 'ppm') }],
     }),
-    nitrite: fromGauge('nitrite', tape, {
-      gauge: gauge('nitrite'),
+    nitrite: fromWater('nitrite', tape, {
+      reading: read('nitrite'),
       sentence: `Safe at or under ${said('nitrite', HIGH_NITRITE_THRESHOLD)} ppm — the line the engine alerts on.`,
       net: netPerHour(rates.netNitrite, 'ppm'),
       fills: [{ label: 'AOB oxidising NH₃', rate: ratePerHour(rates.ammoniaToNitrite, 'ppm') }],
       drains: [{ label: 'NOB clearing', rate: ratePerHour(-rates.nitriteToNitrate, 'ppm') }],
     }),
-    nitrate: fromGauge('nitrate', tape, {
-      gauge: gauge('nitrate'),
+    nitrate: fromWater('nitrate', tape, {
+      reading: read('nitrate'),
       sentence: `Plants go short under ${said('nitrate', NITRATE_LOW_PPM)} ppm; the engine alerts over ${said('nitrate', HIGH_NITRATE_THRESHOLD)}.`,
       fills: nitrateFills,
       drains: [],
     }),
-    temperature: fromGauge('temperature', tape, {
-      gauge: gauge('temperature'),
+    temperature: fromWater('temperature', tape, {
+      reading: read('temperature'),
       band: tempBand
-        ? { from: gaugeFill('temperature', tempBand.min), to: gaugeFill('temperature', tempBand.max) }
+        ? { from: readingAt('temperature', tempBand.min), to: readingAt('temperature', tempBand.max) }
         : null,
-      tone: toneOf(toleranceStatus(gauge('temperature').value, tempBand)),
+      tone: toneOf(toleranceStatus(read('temperature').value, tempBand)),
       sentence: toleranceSentence(
         tempBand,
         tempBand
@@ -451,20 +451,20 @@ export function readTank({ state, config, history, units }: TankInput): ReadingB
         'Nothing stocked, so nothing in the tank has a temperature to prefer.'
       ),
     }),
-    ph: fromGauge('ph', tape, {
-      gauge: gauge('ph'),
+    ph: fromWater('ph', tape, {
+      reading: read('ph'),
       band: phBand
-        ? { from: gaugeFill('ph', phBand.min), to: gaugeFill('ph', phBand.max) }
+        ? { from: readingAt('ph', phBand.min), to: readingAt('ph', phBand.max) }
         : null,
-      tone: toneOf(toleranceStatus(gauge('ph').value, phBand)),
+      tone: toneOf(toleranceStatus(read('ph').value, phBand)),
       sentence: toleranceSentence(
         phBand,
         phBand ? `pH ${said('ph', phBand.min)}–${said('ph', phBand.max)}` : '',
         'Nothing stocked, so nothing in the tank has a pH to prefer.'
       ),
     }),
-    level: fromGauge('level', tape, {
-      gauge: gauge('water'),
+    level: fromWater('level', tape, {
+      reading: read('water'),
       sentence: `Under ${said('level', WATER_LEVEL_CRITICAL_THRESHOLD * 100)} % of capacity the engine calls the level critical.`,
     }),
     oxygen: {

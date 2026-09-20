@@ -16,12 +16,12 @@ import { getTemperatureUnit, toDisplayTemperature, type UnitSystem } from '../ut
 import type { Status } from './status.js';
 import { classifyVital, NITRATE_LOW_PPM, type VitalKey } from './vitals.js';
 
-export type GaugeKey = Extract<
+export type WaterKey = Extract<
   VitalKey,
   'temperature' | 'ph' | 'water' | 'ammonia' | 'nitrite' | 'nitrate'
 >;
 
-export const GAUGE_KEYS: GaugeKey[] = [
+export const WATER_KEYS: WaterKey[] = [
   'temperature',
   'ph',
   'water',
@@ -41,7 +41,7 @@ export const GAS_KEYS: GasKey[] = ['oxygen', 'co2'];
  * nitrite peak above 2 ppm on a modest bioload, so a track that stopped at the
  * threshold would peg through the whole event it exists to show.
  */
-const GAUGE_SCALE: Record<GaugeKey, [min: number, max: number]> = {
+const WATER_SCALE: Record<WaterKey, [min: number, max: number]> = {
   temperature: [15, 35],
   ph: [5.5, 8.5],
   water: [0, 100],
@@ -51,13 +51,13 @@ const GAUGE_SCALE: Record<GaugeKey, [min: number, max: number]> = {
 };
 
 /** Position of a value on its track, 0 (floor) to 1 (ceiling). */
-export function gaugeFill(key: GaugeKey, value: number): number {
-  const [min, max] = GAUGE_SCALE[key];
+export function readingAt(key: WaterKey, value: number): number {
+  const [min, max] = WATER_SCALE[key];
   return Math.max(0, Math.min(1, (value - min) / (max - min)));
 }
 
-/** The six canonical readings, in gauge order: °C, pH, % of capacity, ppm. */
-export function gaugeValues(state: SimulationState): Record<GaugeKey, number> {
+/** The six canonical readings, in reading order: °C, pH, % of capacity, ppm. */
+export function waterValues(state: SimulationState): Record<WaterKey, number> {
   const r = state.resources;
   const capacity = state.tank.capacity;
   return {
@@ -71,13 +71,13 @@ export function gaugeValues(state: SimulationState): Record<GaugeKey, number> {
 }
 
 /** A shaded region, in track fractions. */
-export interface GaugeBand {
+export interface ReadingBand {
   from: number;
   to: number;
 }
 
-export interface WaterGauge {
-  key: GaugeKey;
+export interface WaterReading {
+  key: WaterKey;
   name: string;
   unit: string;
   /** Canonical value — °C even when the reader is on Fahrenheit. */
@@ -88,7 +88,7 @@ export interface WaterGauge {
   /** Position on the display scale, 0–1. */
   fill: number;
   /** The span the engine does not alert on; null where it has no thresholds. */
-  band: GaugeBand | null;
+  band: ReadingBand | null;
 }
 
 const NAME: Record<VitalKey, string> = {
@@ -102,7 +102,7 @@ const NAME: Record<VitalKey, string> = {
   co2: 'CO₂',
 };
 
-const DECIMALS: Record<GaugeKey, number> = {
+const DECIMALS: Record<WaterKey, number> = {
   temperature: 1,
   ph: 2,
   water: 0,
@@ -112,19 +112,19 @@ const DECIMALS: Record<GaugeKey, number> = {
 };
 
 /** Temperature is the one reading whose value changes with the reader's units. */
-function display(key: GaugeKey, value: number, units: UnitSystem): number {
+function display(key: WaterKey, value: number, units: UnitSystem): number {
   return key === 'temperature' ? toDisplayTemperature(value, units) : value;
 }
 
-function band(key: GaugeKey, from: number, to: number): GaugeBand {
-  return { from: gaugeFill(key, from), to: gaugeFill(key, to) };
+function band(key: WaterKey, from: number, to: number): ReadingBand {
+  return { from: readingAt(key, from), to: readingAt(key, to) };
 }
 
-export function waterGauges(state: SimulationState, units: UnitSystem): WaterGauge[] {
-  const values = gaugeValues(state);
+export function waterReadings(state: SimulationState, units: UnitSystem): WaterReading[] {
+  const values = waterValues(state);
   const levelLimit = WATER_LEVEL_CRITICAL_THRESHOLD * 100;
 
-  const spec: Record<GaugeKey, Pick<WaterGauge, 'unit' | 'band'>> = {
+  const spec: Record<WaterKey, Pick<WaterReading, 'unit' | 'band'>> = {
     temperature: { unit: getTemperatureUnit(units), band: null },
     ph: { unit: '', band: null },
     water: { unit: '%', band: band('water', levelLimit, 100) },
@@ -133,7 +133,7 @@ export function waterGauges(state: SimulationState, units: UnitSystem): WaterGau
     nitrate: { unit: 'ppm', band: band('nitrate', NITRATE_LOW_PPM, HIGH_NITRATE_THRESHOLD) },
   };
 
-  return GAUGE_KEYS.map((key): WaterGauge => {
+  return WATER_KEYS.map((key): WaterReading => {
     const value = values[key];
     return {
       key,
@@ -141,7 +141,7 @@ export function waterGauges(state: SimulationState, units: UnitSystem): WaterGau
       value,
       text: display(key, value, units).toFixed(DECIMALS[key]),
       status: classifyVital(key, value).status,
-      fill: gaugeFill(key, value),
+      fill: readingAt(key, value),
       ...spec[key],
     };
   });

@@ -759,7 +759,7 @@ describe('biofilter readings', () => {
   });
 
   it('never says a gauge is reading when both of them are at zero', () => {
-    // A tank starved until its colony faded reads uncycled on two gauges at
+    // A tank starved until its colony faded reads uncycled on two surfaces at
     // zero — the note has to be about the colony, not about a toxin.
     const starved = runUnfed(cycledTank(150), 150 * 24);
     const readout = bacteriaReadout(starved, DEFAULT_CONFIG);

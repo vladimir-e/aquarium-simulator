@@ -28,17 +28,14 @@ export {
   type VitalClassification,
 } from './vitals.js';
 export {
-  GAUGE_KEYS,
-  GAS_KEYS,
-  gaugeFill,
-  gaugeValues,
+  readingAt,
   gasReadings,
-  waterGauges,
-  type GaugeKey,
+  waterReadings,
+  type WaterKey,
   type GasKey,
   type GasReading,
-  type WaterGauge,
-} from './gauges.js';
+  type WaterReading,
+} from './water.js';
 export {
   bacteriaReadout,
   bacteriaSummary,
