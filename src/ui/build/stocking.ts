@@ -4,7 +4,7 @@
  * section renders these and wires the actions.
  */
 
-import { FISH_SPECIES_DATA, type Fish } from '../../simulation/index.js';
+import { FISH_SPECIES_DATA, type Fish, type FishSpecies } from '../../simulation/index.js';
 import type { Status } from '../run';
 import { getVolumeUnit, toInternalVolume, type UnitSystem } from '../utils/units.js';
 
@@ -41,14 +41,22 @@ export interface Bioload {
   status: Status;
 }
 
+/** Fish the tank does not hold yet — what the picker is about to commit to. */
+export interface Stocking {
+  species: FishSpecies;
+  count: number;
+}
+
 /**
- * Bioload against the husbandry guideline. Thresholds: under 0.7× reads calm
- * (room to spare); 0.7–1.0× warns (well stocked — approaching the guideline,
- * watch water params); at/over 1.0× alerts (past the guideline — expect
+ * Bioload against the husbandry guideline, for the tank as it stands or as a
+ * `stocking` would leave it. Thresholds: under 0.7× reads calm (room to
+ * spare); 0.7–1.0× warns (well stocked — approaching the guideline, watch
+ * water params); at/over 1.0× alerts (past the guideline — expect
  * ammonia/nitrate pressure).
  */
-export function bioload(fish: Fish[], tankLiters: number): Bioload {
-  const massG = projectedAdultMass(fish);
+export function bioload(fish: Fish[], tankLiters: number, stocking?: Stocking): Bioload {
+  const adding = stocking ? stocking.count * FISH_SPECIES_DATA[stocking.species].adultMass : 0;
+  const massG = projectedAdultMass(fish) + adding;
   const guidelineG = tankLiters * GUIDELINE_G_PER_L;
   const ratio = guidelineG > 0 ? massG / guidelineG : 0;
   const status: Status = ratio >= 1 ? 'alert' : ratio >= 0.7 ? 'warn' : 'ok';

@@ -7,6 +7,7 @@
 
 import {
   checkFishCapacity,
+  checkPlantCapacity,
   FISH_SPECIES_DATA,
   getMaxFishMass,
   getMaxPlants,
@@ -19,7 +20,7 @@ import {
   type SimulationState,
 } from '../../simulation/index.js';
 import type { Status } from '../run';
-import { GUIDELINE_G_PER_L, projectedAdultMass } from './stocking.js';
+import { bioload } from './stocking.js';
 import { lightTier } from './scape.js';
 import {
   formatTemperature,
@@ -64,9 +65,7 @@ function fishOption(
     Math.floor((getMaxFishMass(state.tank.capacity) - totalFishMass(state.fish)) / data.adultMass)
   );
 
-  const guideline = state.tank.capacity * GUIDELINE_G_PER_L;
-  const after = projectedAdultMass(state.fish) + count * data.adultMass;
-  const ratio = guideline > 0 ? after / guideline : 0;
+  const load = bioload(state.fish, state.tank.capacity, { species, count });
 
   return {
     species,
@@ -78,8 +77,8 @@ function fishOption(
       ? `wants ${formatTemperatureRange(data.temperatureRange, units)} — tank holds ` +
         `${formatTemperature(temperature, units)}`
       : `in band at ${formatTemperature(temperature, units)} · ` +
-        `bioload ${ratio.toFixed(1)}× after`,
-    status: outside || ratio >= 1 ? 'warn' : 'neutral',
+        `bioload ${load.ratio.toFixed(1)}× after`,
+    status: outside ? 'warn' : load.status === 'ok' ? 'neutral' : load.status,
     headroom,
     refusal: capacity.ok ? null : capacity.message,
   };
@@ -91,6 +90,7 @@ function plantOption(state: SimulationState, species: PlantSpecies): PickerOptio
   const compatible = isSubstrateCompatible(species, substrate);
   const max = getMaxPlants(state.tank.capacity);
   const free = Math.max(0, max - state.plants.length);
+  const capacity = checkPlantCapacity(state.plants, state.tank.capacity);
   const reason = getSubstrateIncompatibilityReason(species, substrate);
 
   return {
@@ -100,11 +100,7 @@ function plantOption(state: SimulationState, species: PlantSpecies): PickerOptio
     fit: compatible ? `${free} of ${max} slots free` : (reason ?? ''),
     status: compatible && free > 0 ? 'neutral' : 'warn',
     headroom: compatible ? free : 0,
-    refusal: !compatible
-      ? reason
-      : free === 0
-        ? `Tank at plant capacity (${max} plants max)`
-        : null,
+    refusal: !compatible ? reason : capacity.ok ? null : capacity.message,
   };
 }
 
