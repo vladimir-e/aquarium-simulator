@@ -39,7 +39,6 @@ export function ReadingRows({
   );
 }
 
-/** The four plant foods, banded on what the plants are asking for. */
 export function NutrientRows({
   book,
   onOpen,
@@ -88,10 +87,7 @@ function ColonyRow({
   );
 }
 
-/**
- * The two guilds against the biofilm they live on, each carrying the step it
- * runs. A colony is a population, not a level — it takes no strip.
- */
+/** A colony is a population, not a level — it takes no strip. */
 export function ColonyRows({ bacteria }: { bacteria: BacteriaReadout }): React.JSX.Element {
   const { rates } = bacteria;
   return (
