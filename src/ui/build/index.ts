@@ -6,7 +6,6 @@ export {
   DEVICE_ORDER,
   FILTER_LABEL,
   isDeviceId,
-  buildDeviceList,
   equipmentRows,
   equipmentSummary,
 } from './devices.js';

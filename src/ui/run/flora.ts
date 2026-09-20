@@ -9,7 +9,6 @@ import {
   calculateNutrientSufficiency,
   computeAlgaePopulation,
   getDosePreview,
-  getMaxPlants,
   getPlantsToTrimCount,
   MAX_DOSE_ML,
   PLANT_SPECIES_DATA,
@@ -168,23 +167,6 @@ export function groupPlantsBySpecies(rows: PlantRow[]): PlantSpeciesGroup[] {
       plants: members,
     };
   });
-}
-
-/**
- * The plants in trouble, worst first. One definition of ailing, so the card's
- * count and the rail's named plant can never disagree.
- *
- * Ordered by the status each row actually shows, then by condition: a plant can
- * now be alerting on an energy ledger its condition knows nothing about, so
- * sorting on condition alone would file it behind milder trouble.
- */
-export function ailingPlants(rows: PlantRow[]): PlantRow[] {
-  return rows
-    .filter((row) => row.status !== 'ok')
-    .sort(
-      (a, b) =>
-        STATUS_SEVERITY[b.status] - STATUS_SEVERITY[a.status] || a.condition - b.condition
-    );
 }
 
 /** The algae, read the same way as a plant — but a stressor here is good news. */
@@ -411,14 +393,4 @@ export function doseToCover(
     overSingleDose: whole > MAX_DOSE_ML,
     covers: short.map((r) => r.label),
   };
-}
-
-/** The section's headline figure, shared with the rail's Flora row. */
-export function plantsAndAlgae(state: SimulationState): string {
-  const algaePct = Math.round(state.algae.mass);
-  const algae = algaePct < 1 ? 'no algae' : `algae ${algaePct} %`;
-  const overTrim = overTrimCount(state);
-  const clauses = [`${state.plants.length} of ${getMaxPlants(state.tank.capacity)} plants`, algae];
-  if (overTrim > 0) clauses.push(`${overTrim} to trim`);
-  return clauses.join(' · ');
 }

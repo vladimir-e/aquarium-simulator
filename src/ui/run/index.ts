@@ -64,7 +64,6 @@ export {
   type WasteSourceKey,
 } from './waste.js';
 export {
-  isHungryBand,
   bandOf,
   bandStatus,
   type Hunger,
@@ -99,7 +98,6 @@ export {
   type LedgerTarget,
   readLedger,
 } from './ledger.js';
-export { latestLog } from './log.js';
 export {
   algaeStatus,
   algaeWord,
@@ -107,7 +105,6 @@ export {
   plantRows,
   type PlantSpeciesGroup,
   groupPlantsBySpecies,
-  ailingPlants,
   type AlgaeRow,
   algaeRow,
   type NutrientKey,
@@ -120,7 +117,5 @@ export {
   formatDose,
   type DoseAdvice,
   doseToCover,
-  tankDemand,
   TRIM_TARGETS,
-  plantsAndAlgae,
 } from './flora.js';
