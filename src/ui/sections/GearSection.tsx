@@ -55,6 +55,7 @@ export function GearSection({
       : null;
 
   useInspector(selected !== null, close);
+  useInspector(add === HARDSCAPE_PARAM, close);
 
   if (deviceId !== undefined && selected === null) return <Navigate to="/gear" replace />;
 

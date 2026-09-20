@@ -29,7 +29,7 @@ export function StageOutlet(): React.JSX.Element {
         needs: [],
         onAct: (): void => {},
         actLabel: (): string => '',
-        onInspect: (): void => {},
+        onInspect: () => (): void => {},
       }}
     />
   );
@@ -45,7 +45,7 @@ export function renderStage(
     onAct = (): void => {},
     actLabel = (verb: VerbId, at?: number): string =>
       verbLabel(state, verb, withAmount(DEFAULT_SETTINGS, verb, at), 'metric'),
-    onInspect = (): void => {},
+    onInspect = () => (): void => {},
   }: Partial<StageContext> & { path?: string; state?: SimulationState } = {}
 ): void {
   render(

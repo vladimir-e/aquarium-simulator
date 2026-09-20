@@ -30,11 +30,14 @@ export interface StageContext {
   /** The verb and the amount it is standing on, or the one asked for here. */
   actLabel: (verb: VerbId, at?: number) => string;
   /**
-   * A module's inspector announcing itself, and withdrawing with `null`. The
-   * shell holds the one that is open so the stage carries a single drawer:
-   * opening this closes the shell's own, and opening one of those closes this.
+   * A module's inspector announcing itself, for as long as it is open, and the
+   * withdrawal it hands back. The shell holds the one that is standing so the
+   * stage carries a single drawer: announcing closes the shell's own and
+   * whichever module inspector was already there, and opening one of the
+   * shell's closes this. A withdrawal that has already been displaced is a
+   * no-op, so the one leaving never takes the one standing with it.
    */
-  onInspect: (close: (() => void) | null) => void;
+  onInspect: (close: () => void) => () => void;
 }
 
 export function useStage(): StageContext {
@@ -91,12 +94,16 @@ export function AppShell({ sim, config }: AppShellProps): React.JSX.Element {
   );
 
   const onInspect = useCallback(
-    (close: (() => void) | null) => {
+    (close: () => void) => {
+      const displaced = inspector.current;
       inspector.current = close;
-      if (close === null) return;
       closeActs();
       setMore(false);
       setTunablesOpen(false);
+      displaced?.();
+      return (): void => {
+        if (inspector.current === close) inspector.current = null;
+      };
     },
     [closeActs, setTunablesOpen]
   );

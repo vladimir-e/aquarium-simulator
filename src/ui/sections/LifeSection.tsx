@@ -61,8 +61,11 @@ export function LifeSection({
   const [expanded, toggle] = useExpandedRows(sim.tankId);
   const [inspecting, setInspecting] = useState<Inspecting | null>(null);
   const [picker, setAdding] = useQueryParam<PickerKind>('add');
+  const adding = PICKERS.find((kind) => kind === picker) ?? null;
   const closeLedger = useCallback(() => setInspecting(null), []);
+  const closePicker = useCallback(() => setAdding(null), [setAdding]);
   useInspector(inspecting !== null, closeLedger);
+  useInspector(adding !== null, closePicker);
 
   const book = useReadingBook(sim, config);
 
@@ -81,8 +84,6 @@ export function LifeSection({
       ),
     [book.roster, state, config.livestock, expanded]
   );
-
-  const adding = PICKERS.find((kind) => kind === picker) ?? null;
 
   const load = useMemo(() => bioload(state.fish, state.tank.capacity), [state]);
   const ledger = inspecting && readLedger(state, config, inspecting.target, inspecting.subtitle);
@@ -210,7 +211,7 @@ export function LifeSection({
         key={adding}
         kind={adding}
         state={state}
-        onClose={() => setAdding(null)}
+        onClose={closePicker}
         onAdd={add}
       />
     </>

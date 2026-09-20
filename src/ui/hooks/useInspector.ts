@@ -13,7 +13,6 @@ export function useInspector(open: boolean, close: () => void): void {
 
   useEffect(() => {
     if (!open) return;
-    onInspect(() => closing.current());
-    return (): void => onInspect(null);
+    return onInspect(() => closing.current());
   }, [open, onInspect]);
 }

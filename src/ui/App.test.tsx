@@ -116,6 +116,35 @@ describe('App routing', () => {
   });
 });
 
+function dialogs(): (string | null)[] {
+  return screen.queryAllByRole('dialog').map((d) => d.getAttribute('aria-label'));
+}
+
+describe('one drawer on the stage', () => {
+  it('hands the stage from a module inspector to the picker that displaces it', () => {
+    renderApp('/life');
+    fireEvent.click(screen.getByRole('button', { name: /^Algae — / }));
+    expect(dialogs()).toEqual(['Algae']);
+
+    const header = screen.getByRole('heading', { level: 1, name: 'Life' }).parentElement!;
+    fireEvent.click(within(header).getByRole('button', { name: '+ Add' }));
+    fireEvent.click(within(header).getByRole('button', { name: 'Add fish' }));
+
+    expect(dialogs()).toEqual(['Add fish']);
+  });
+
+  it('leaves an inspector behind with the module it belonged to', () => {
+    renderApp('/gear');
+    fireEvent.click(within(screen.getByRole('main')).getByRole('link', { name: /^Heater —/ }));
+    fireEvent.click(screen.getByRole('link', { name: 'Water' }));
+
+    fireEvent.keyDown(window, { key: 'k', metaKey: true });
+
+    expect(dialogs()).toEqual(['Act']);
+    expect(pageTitle()).toBe('Water');
+  });
+});
+
 /**
  * 700 px — between Tailwind's `sm` and `md`, the band a second breakpoint would
  * hide in. The rail cannot stand here, so the frame is compact; every module
