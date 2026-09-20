@@ -1,8 +1,6 @@
 /**
  * Equipment model: the fixed device set, the one-line summary each list row
- * carries, and the section's own headline figure. Pure — the Equipment list and
- * the index rail both render these, which is what keeps their counts in
- * agreement.
+ * carries, and the section's own headline figure.
  */
 
 import {

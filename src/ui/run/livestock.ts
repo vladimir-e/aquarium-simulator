@@ -311,10 +311,8 @@ function clutchRow(clutch: Clutch, tick: number): ClutchRosterRow {
 }
 
 /**
- * What the tank holds, in one line — the index rail's livestock figure and the
- * stage's own meta are the same sentence, so the rail can never claim a roster
- * the section does not show. Fry are counted apart from adults: they are stock
- * the tank is carrying, but not yet fish that breed.
+ * What the tank holds, in one line. Fry are counted apart from adults: they are
+ * stock the tank is carrying, but not yet fish that breed.
  */
 export function rosterSummary(state: SimulationState): string {
   const { fish, clutches } = state;

@@ -1,9 +1,8 @@
 /**
  * Flora derivations: what each plant and the algae are doing right now, and the
- * nutrient readings the Nutrients panel and the index rail share. Nothing here
- * invents a band — a nutrient reads short when the engine's own sufficiency
- * would rise if that one were topped up, so the panel can never name a
- * deficiency the plants are not actually feeling.
+ * tank's nutrient readings. Nothing here invents a band — a nutrient reads
+ * short when the engine's own sufficiency would rise if that one were topped
+ * up, so no surface can name a deficiency the plants are not actually feeling.
  */
 
 import {
@@ -338,10 +337,7 @@ export interface NutrientAlert {
   status: Status;
 }
 
-/**
- * The one thing to say about the tank's nutrients. Shared by the index rail and
- * the Nutrients header so the two can never name different deficiencies.
- */
+/** The one thing to say about the tank's nutrients. */
 export function nutrientAlert(readings: NutrientReading[]): NutrientAlert | null {
   const short = readings.filter((r) => r.limiting);
   if (short.length === 0) return null;
