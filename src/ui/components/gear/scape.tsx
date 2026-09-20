@@ -79,15 +79,18 @@ export function ScapeRows({ sim }: { sim: Sim }): React.JSX.Element {
 
   return (
     <div>
-      <div className={`${ROW} grid-cols-[minmax(0,1fr)_88px_auto]`}>
+      <div className={SCAPE_ROW}>
         <span className="truncate text-[14px] text-ink">
           Substrate
-          <span className="ml-2 text-[13px] text-ink-3">{substrateConsequence(substrate)}</span>
+          <span className="ml-2 hidden text-[13px] text-ink-3 md:inline">
+            {substrateConsequence(substrate)}
+          </span>
         </span>
         <span className="text-right text-[13px] tabular-nums text-ink-2">
           {SurfaceResource.format(getSubstrateSurface(substrate, tank.capacity))}
         </span>
         <Select
+          className="col-span-2 justify-self-end w-[134px]"
           ariaLabel="Substrate"
           value={substrate}
           onChange={(value) => sim.updateSubstrateType(value as SubstrateType)}

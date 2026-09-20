@@ -8,6 +8,7 @@ import { ScapeRows } from '../components/gear/scape';
 import { ModuleGroup, ModulePage } from '../components/layout/ModulePage';
 import { ReadingRow } from '../components/ui/ReadingRow';
 import { equipmentSummary, hourLabel, isDeviceId, turnover } from '../build';
+import { formatFlowRate } from '../utils/units';
 import type { useSimulation } from '../hooks/useSimulation';
 import { useUnits } from '../hooks/useUnits';
 import { readTank } from '../readings';
@@ -90,12 +91,17 @@ export function GearSection({
             />
             <ReadingRow
               name="Circulation"
-              value={turnover(resources.flow, resources.water)}
-              note={resources.flow > 0 ? 'filter, powerhead and air' : 'nothing moving the water'}
+              value={formatFlowRate(resources.flow, unitSystem)}
+              note={
+                resources.flow > 0
+                  ? turnover(resources.flow, resources.water)
+                  : 'nothing moving the water'
+              }
             />
             <ReadingRow
               name="PAR at substrate"
               value={Math.round(resources.light).toString()}
+              unit="PAR"
               note={resources.light > 0 ? 'through the water column' : 'lights out'}
             />
             <ReadingRow

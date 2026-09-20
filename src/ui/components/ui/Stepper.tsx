@@ -48,7 +48,7 @@ export function Stepper({
       <StepBtn side="l" aria-label="decrease" disabled={atMin} onClick={() => onChange(value - step)}>
         −
       </StepBtn>
-      <span className="min-w-[3.25rem] px-1 text-center font-mono text-[14px] tabular-nums text-ink">
+      <span className="min-w-[3.25rem] px-1 text-center text-[14px] tabular-nums text-ink">
         {display ?? value}
       </span>
       <StepBtn side="r" aria-label="increase" disabled={atMax} onClick={() => onChange(value + step)}>

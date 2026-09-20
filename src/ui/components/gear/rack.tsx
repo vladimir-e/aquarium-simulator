@@ -35,7 +35,7 @@ export interface RackEntry {
 }
 
 const TEMPLATE: Record<RackLayout, string> = {
-  page: 'grid-cols-[26px_16px_minmax(88px,150px)_minmax(0,1fr)_56px_16px]',
+  page: 'grid-cols-[26px_16px_minmax(72px,1fr)_minmax(0,1.4fr)_44px] md:grid-cols-[26px_16px_minmax(88px,160px)_minmax(0,460px)_56px_minmax(0,1fr)_16px]',
   widget: 'grid-cols-[26px_16px_88px_minmax(0,1fr)_42px]',
 };
 
@@ -43,6 +43,9 @@ const ROW =
   'relative grid h-11 w-full items-center gap-2.5 border-t border-hairline first:border-t-0';
 
 const CELL = 'relative pointer-events-none truncate';
+
+/** A column only a tablet-wide stage has room for. */
+const WIDE = 'hidden md:block';
 
 /**
  * The biofilter is in the book's rack but not on it: it has no switch and no
@@ -136,8 +139,12 @@ export function DeviceLine({
       <span className={`${CELL} text-right text-[12px] tabular-nums text-ink-3`}>
         {lit ? schedule.hours : ''}
       </span>
+      {layout === 'page' && <span aria-hidden className={WIDE} />}
       {layout === 'page' && (
-        <ChevronRight className="relative pointer-events-none h-4 w-4 text-ink-3" aria-hidden />
+        <ChevronRight
+          className={`relative pointer-events-none h-4 w-4 text-ink-3 ${WIDE}`}
+          aria-hidden
+        />
       )}
     </div>
   );
