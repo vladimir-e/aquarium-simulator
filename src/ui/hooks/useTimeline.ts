@@ -24,8 +24,11 @@ export interface Timeline {
   range: TickRange | null;
   /** Tick of each sample, sharing its index with every line's values. */
   ticks: number[];
-  /** The window's lines, by track id. */
-  lines: Record<string, TrackLine[]>;
+  /**
+   * The window's lines, by track id, derived on the first call and held for
+   * as long as the window holds. A collapsed spine never asks.
+   */
+  lines: () => Record<string, TrackLine[]>;
   lit: TickSpan[];
   /** Ticks the keeper acted on. */
   actions: number[];
@@ -42,6 +45,11 @@ export interface Timeline {
  * run two ways. The window decides the span — the buffer's last snapshot is the
  * live edge everywhere, and an empty buffer claims nothing — and everything the
  * tracks, the axis and the transcript read comes off it.
+ *
+ * The axis costs a tick; the four tracks cost a pass over the whole window, and
+ * the spine is mounted under every route whether or not it is drawn. So `lines`
+ * is the one thing this does not compute up front: the surface that draws them
+ * asks, and pays.
  */
 export function useTimeline(
   history: RunSnapshot[],
@@ -54,10 +62,11 @@ export function useTimeline(
   const scrub = useScrub(range);
 
   const ticks = useMemo(() => slice.map((snapshot) => snapshot.tick), [slice]);
-  const lines = useMemo(
-    () => Object.fromEntries(TRACKS.map((def) => [def.id, trackLines(slice, def)])),
-    [slice]
-  );
+  const lines = useMemo(() => {
+    let derived: Record<string, TrackLine[]> | null = null;
+    return (): Record<string, TrackLine[]> =>
+      (derived ??= Object.fromEntries(TRACKS.map((def) => [def.id, trackLines(slice, def)])));
+  }, [slice]);
   const lit = useMemo(() => photoperiodSpans(range, schedule), [range, schedule]);
 
   const windowLogs = useMemo(() => sliceLogs(logs, range), [logs, range]);

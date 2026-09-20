@@ -70,7 +70,7 @@ export function Spine({ history, logs, schedule }: SpineProps): React.JSX.Elemen
       {expanded && (
         <TrackStack
           defs={shown}
-          lines={lines}
+          lines={lines()}
           ticks={ticks}
           range={range}
           lit={lit}

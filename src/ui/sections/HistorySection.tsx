@@ -100,7 +100,7 @@ export function HistorySection({
         <div className="flex flex-col gap-2 md:min-h-0">
           <TrackStack
             defs={TRACKS}
-            lines={lines}
+            lines={lines()}
             ticks={ticks}
             range={range}
             lit={lit}
