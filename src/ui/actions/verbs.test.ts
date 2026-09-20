@@ -3,6 +3,7 @@ import {
   applyAction,
   calculateSurface,
   createSimulation,
+  MAX_DOSE_ML,
   MIN_ALGAE_TO_SCRUB,
   WATER_CHANGE_AMOUNTS,
   type SimulationState,
@@ -30,6 +31,11 @@ function tank(): SimulationState {
   state.resources.water = 196.4;
   state.algae.mass = 47;
   return state;
+}
+
+/** 200 L under one hungry plant: more than a single dose could cover. */
+function starved(): SimulationState {
+  return applyAction(tank(), { type: 'addPlant', species: 'monte_carlo' }).state;
 }
 
 function planted(sizes: number[]): SimulationState {
@@ -68,6 +74,32 @@ describe('the six verbs', () => {
     expect(detail(state, 'dose').options.find((o) => o.value === advice!.ml)?.hint).toBe(
       'covers the ask'
     );
+  });
+
+  it('sets the advised dose among the presets rather than after them', () => {
+    const state = planted([80, 60]);
+    const asking = doseToCover(nutrientReadings(state, DEFAULT_CONFIG), state, DEFAULT_CONFIG)!;
+    const nearly = applyAction(state, { type: 'dose', amountMl: asking.ml - 3 }).state;
+    const advice = doseToCover(nutrientReadings(nearly, DEFAULT_CONFIG), nearly, DEFAULT_CONFIG)!;
+
+    // A ladder rung, not a step past the top of the ladder.
+    expect(advice.ml).toBeGreaterThan(DOSE_PRESETS[0]);
+    expect(advice.ml).toBeLessThan(DOSE_PRESETS[DOSE_PRESETS.length - 1]);
+
+    const values = detail(nearly, 'dose').options.map((o) => o.value);
+    expect(values).toEqual([...values].sort((a, b) => a - b));
+    expect(values).toContain(advice.ml);
+  });
+
+  it('offers the engine’s biggest single dose where the ask is bigger still', () => {
+    const state = starved();
+    const advice = doseToCover(nutrientReadings(state, DEFAULT_CONFIG), state, DEFAULT_CONFIG)!;
+    expect(advice.overSingleDose).toBe(true);
+
+    const options = detail(state, 'dose').options;
+    expect(options.map((o) => o.value)).toEqual([...DOSE_PRESETS, MAX_DOSE_ML]);
+    expect(options.find((o) => o.value === MAX_DOSE_ML)?.hint).toBe(`capped at ${MAX_DOSE_ML} ml`);
+    expect(options.some((o) => o.value === advice.ml)).toBe(false);
   });
 
   it('keeps the rung the reader chose on the ladder once the tank stops asking for it', () => {

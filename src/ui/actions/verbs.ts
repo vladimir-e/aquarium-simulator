@@ -12,6 +12,7 @@ import {
   canDose,
   canScrubAlgae,
   getPlantsToTrimCount,
+  MAX_DOSE_ML,
   MAX_SCRUB_PERCENT,
   MIN_ALGAE_TO_SCRUB,
   MIN_SCRUB_PERCENT,
@@ -317,14 +318,21 @@ function rungsFor(
       };
     case 'dose': {
       const advice = doseToCover(nutrientReadings(state, config), state, config);
+      // The engine takes 50 ml in one dose; a bigger ask is offered as far as it goes.
+      const advised = advice === null ? null : Math.min(advice.ml, MAX_DOSE_ML);
+      const asked =
+        advice?.overSingleDose === true ? `capped at ${MAX_DOSE_ML} ml` : 'covers the ask';
       return {
-        values: advice ? [...new Set([...DOSE_PRESETS, advice.ml])] : DOSE_PRESETS,
+        values:
+          advised === null
+            ? DOSE_PRESETS
+            : [...new Set([...DOSE_PRESETS, advised])].sort((a, b) => a - b),
         rung: (ml) => ({
           value: ml,
           label: `${ml} ml`,
           hint:
-            advice && ml === advice.ml
-              ? 'covers the ask'
+            ml === advised
+              ? asked
               : `+${nitrateRise(state, ml).toFixed(NitrateResource.precision)} NO₃`,
           disabled: false,
         }),
