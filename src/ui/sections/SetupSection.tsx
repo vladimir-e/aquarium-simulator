@@ -21,9 +21,10 @@ import {
   driftsFromPreset,
   environmentNotes,
   resetConsequence,
+  resizeConsequence,
 } from '../build';
 import { TICKS_PER_DAY, formatDayClock, formatElapsed } from '../utils/clock';
-import { findClosestTankSize, getTankSizeOptions } from '../utils/units';
+import { formatVolume, getTankSizeOptions } from '../utils/units';
 
 const DOCS_URL = 'https://docs.fishroom.app';
 const REPO_URL = 'https://github.com/vladimir-e/aquarium-simulator';
@@ -67,6 +68,7 @@ export function SetupSection({
   const { mode, setMode } = useTheme();
   const { current, request } = usePresetLoad();
   const [confirmReset, setConfirmReset] = useState(false);
+  const [resizeTo, setResizeTo] = useState<number | null>(null);
 
   const { environment, equipment, tank, tick } = sim.state;
   const notes = useMemo(
@@ -81,11 +83,16 @@ export function SetupSection({
   const minTemp = unitSystem === 'imperial' ? 50 : 10;
   const maxTemp = unitSystem === 'imperial' ? 104 : 40;
   const minTapTemp = unitSystem === 'imperial' ? 41 : 5;
-  const capacity = findClosestTankSize(tank.capacity, unitSystem);
+  const sizes = getTankSizeOptions(unitSystem, tank.capacity);
 
   const askReset = (): void => {
     if (tick > RESET_CONFIRM_TICKS) setConfirmReset(true);
     else sim.reset();
+  };
+
+  const askResize = (capacity: number): void => {
+    if (tick > RESET_CONFIRM_TICKS) setResizeTo(capacity);
+    else sim.changeTankCapacity(capacity);
   };
 
   return (
@@ -111,11 +118,15 @@ export function SetupSection({
               </FieldRow>
 
               <FieldRow label="Capacity">
+                <Figure>{formatVolume(tank.capacity, unitSystem, 0)}</Figure>
+              </FieldRow>
+
+              <FieldRow label="Resize" note="a new tank at hour zero">
                 <Select
                   ariaLabel="Tank size"
-                  value={String(capacity.liters)}
-                  onChange={(value) => sim.changeTankCapacity(Number(value))}
-                  options={getTankSizeOptions(unitSystem).map((size) => ({
+                  value={String(tank.capacity)}
+                  onChange={(value) => askResize(Number(value))}
+                  options={sizes.map((size) => ({
                     value: String(size.liters),
                     label: size.display,
                   }))}
@@ -247,6 +258,18 @@ export function SetupSection({
           sim.reset();
         }}
         onCancel={() => setConfirmReset(false)}
+      />
+
+      <ConfirmDialog
+        isOpen={resizeTo !== null}
+        title="Resize tank?"
+        message={resizeTo === null ? '' : resizeConsequence(sim.state, resizeTo, unitSystem)}
+        confirmLabel="Resize"
+        onConfirm={() => {
+          if (resizeTo !== null) sim.changeTankCapacity(resizeTo);
+          setResizeTo(null);
+        }}
+        onCancel={() => setResizeTo(null)}
       />
     </ModulePage>
   );

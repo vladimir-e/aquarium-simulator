@@ -24,7 +24,7 @@ import {
 } from '../../simulation/index.js';
 import { DEFAULT_SETTINGS } from '../actions/verbs.js';
 import { HARDSCAPE_TYPES, SUBSTRATE_TYPES } from '../build/scape.js';
-import { LID_TYPES } from '../build/scenario.js';
+import { LID_TYPES } from '../build/setup.js';
 import { getTankSizeOptions } from '../utils/units.js';
 
 describe('PersistedUISchema', () => {

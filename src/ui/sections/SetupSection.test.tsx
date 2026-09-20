@@ -136,21 +136,60 @@ describe('SetupSection', () => {
     ]);
   });
 
-  it('re-reads the capacity picker in the reader’s units, on round numbers', () => {
+  it('states the tank’s own capacity, in the reader’s units, whichever they are', () => {
     renderSection(stubSim(planted));
-    const sizes = (): (string | null)[] =>
-      [...screen.getByRole('combobox', { name: 'Tank size' }).querySelectorAll('option')].map(
-        (o) => o.textContent
-      );
+    const capacity = (): string =>
+      within(group('Tank')).getByText('Capacity').nextElementSibling!.textContent!;
 
-    expect(sizes()).toContain('40 L');
-    expect(sizes().every((size) => size?.endsWith(' L'))).toBe(true);
+    expect(capacity()).toBe('40 L');
 
     fireEvent.click(screen.getByRole('button', { name: 'gal/°F' }));
 
-    expect(sizes().every((size) => size?.endsWith(' gal'))).toBe(true);
-    expect(sizes()).toContain('10 gal');
+    // 40 L is 10.57 gal — a picker that snapped to "10 gal" would be claiming
+    // the tank holds two litres less than it does.
+    expect(capacity()).toBe('11 gal');
     expect(within(group('Room')).getAllByText(/°F/).length).toBeGreaterThan(0);
+  });
+
+  it('offers the round sizes to resize to, and stands on the one the tank is', () => {
+    renderSection(stubSim(planted));
+    const picker = (): HTMLSelectElement =>
+      screen.getByRole('combobox', { name: 'Tank size' }) as HTMLSelectElement;
+    const sizes = (): (string | null)[] =>
+      [...picker().querySelectorAll('option')].map((o) => o.textContent);
+
+    expect(sizes()).toContain('40 L');
+    expect(sizes().every((size) => size?.endsWith(' L'))).toBe(true);
+    expect(picker().value).toBe(String(planted.tank.capacity));
+
+    fireEvent.click(screen.getByRole('button', { name: 'gal/°F' }));
+
+    // Every option a round gallon size, plus the tank's own so the row reads back.
+    expect(sizes()).toContain('10 gal');
+    expect(sizes()).toContain('10.6 gal');
+    expect(picker().value).toBe(String(planted.tank.capacity));
+  });
+
+  it('stops to confirm a resize on the same threshold a reset stops on', () => {
+    const sim = stubSim({ ...planted, tick: RESET_CONFIRM_TICKS + 1 });
+    renderSection(sim);
+
+    fireEvent.change(screen.getByRole('combobox', { name: 'Tank size' }), {
+      target: { value: '20' },
+    });
+    expect(sim.changeTankCapacity).not.toHaveBeenCalled();
+
+    const dialog = screen.getByText('Resize tank?').parentElement as HTMLElement;
+    expect(within(dialog).getByText(/Rebuilding at 20 L starts the tank over/)).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(sim.changeTankCapacity).not.toHaveBeenCalled();
+
+    fireEvent.change(screen.getByRole('combobox', { name: 'Tank size' }), {
+      target: { value: '20' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Resize' }));
+    expect(sim.changeTankCapacity).toHaveBeenCalledWith(20);
   });
 
   it('states what the environment does to the tank, in the engine’s own terms', () => {

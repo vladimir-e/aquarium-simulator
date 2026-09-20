@@ -43,7 +43,8 @@ export {
   presetLoadDestroys,
   presetLoadMessage,
   resetConsequence,
-} from './scenario.js';
+  resizeConsequence,
+} from './setup.js';
 export {
   type Bioload,
   bioload,

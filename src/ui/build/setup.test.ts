@@ -8,7 +8,8 @@ import {
   presetLoadDestroys,
   presetLoadMessage,
   resetConsequence,
-} from './scenario.js';
+  resizeConsequence,
+} from './setup.js';
 import { PRESETS, type PresetId } from '../../simulation/presets.js';
 import { presetTank } from '../test/presetTank';
 import { TICKS_PER_DAY } from '../utils/clock.js';
@@ -214,5 +215,38 @@ describe('driftsFromPreset', () => {
 describe('LID_TYPES', () => {
   it('covers every lid the label map names', () => {
     expect([...LID_TYPES].sort()).toEqual(Object.keys(LID_LABEL).sort());
+  });
+});
+
+describe('resizeConsequence', () => {
+  const tank = presetTank('planted');
+
+  it('names the new size and everything the rebuild costs', () => {
+    const said = resizeConsequence(tank, 150, 'metric');
+
+    expect(said).toContain('Rebuilding at 150 L');
+    expect(said).toContain('hour zero');
+    expect(said).toMatch(/biofilter/);
+    expect(resizeConsequence(tank, 150, 'imperial')).toContain('40 gal');
+  });
+
+  it('counts the hardscape the new slots cannot hold', () => {
+    const packed = {
+      ...tank,
+      equipment: {
+        ...tank.equipment,
+        hardscape: {
+          ...tank.equipment.hardscape,
+          items: Array.from({ length: 6 }, (_, i) => ({
+            ...tank.equipment.hardscape.items[0],
+            id: `h${i}`,
+          })),
+        },
+      },
+    };
+
+    // 4 L holds two slots, so four of the six go with the rebuild.
+    expect(resizeConsequence(packed, 4, 'metric')).toContain('4 hardscape pieces past the 2 slots');
+    expect(resizeConsequence(packed, 150, 'metric')).not.toContain('hardscape');
   });
 });
