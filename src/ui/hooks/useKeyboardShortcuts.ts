@@ -9,7 +9,9 @@ const KEY_IS_THEIRS = ['INPUT', 'TEXTAREA', 'BUTTON', 'SELECT', 'A'];
  * ⌃K in a search box kills to the end of the line, and that is not ours.
  */
 function ctrlStandsForCommand(): boolean {
-  const nav = window.navigator as Navigator & { userAgentData?: { platform?: string } };
+  const nav = window.navigator as typeof window.navigator & {
+    userAgentData?: { platform?: string };
+  };
   return !/mac/i.test(nav.userAgentData?.platform ?? nav.platform ?? '');
 }
 

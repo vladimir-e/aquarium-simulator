@@ -24,8 +24,9 @@ function press(init: Chord, from: HTMLElement = document.body): void {
 
 /** What the hook reads to tell a ⌘ keyboard from one without. */
 function running(on: { platform?: string; agentData?: string }): void {
-  Object.defineProperty(navigator, 'platform', { value: on.platform ?? '', configurable: true });
-  Object.defineProperty(navigator, 'userAgentData', {
+  const nav = window.navigator;
+  Object.defineProperty(nav, 'platform', { value: on.platform ?? '', configurable: true });
+  Object.defineProperty(nav, 'userAgentData', {
     value: on.agentData === undefined ? undefined : { platform: on.agentData },
     configurable: true,
   });
