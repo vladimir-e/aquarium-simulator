@@ -141,8 +141,8 @@ const PPM = (): string => 'ppm';
 const PERCENT = (): string => '%';
 const same = (value: number): number => value;
 const quiet = (): Status => 'neutral';
-const unqualified = (): null => null;
-const unbanded = (): null => null;
+/** No band to be outside of, or nothing to qualify the new value with. */
+const none = (): null => null;
 
 /** A reading the water sheet already read, band and all. */
 function fromWater(
@@ -189,7 +189,7 @@ function nutrient(key: NutrientKey, label: string, decimals: number): Reading {
       const { needed } = sheet.nutrients[key];
       return needed > 0 ? { from: at(needed), to: 1 } : null;
     },
-    note: unqualified,
+    note: none,
   };
 }
 
@@ -290,8 +290,8 @@ const READINGS: Reading[] = [
     decimals: FoodResource.precision,
     status: quiet,
     at: (value) => onScale(DISPLAY_CEILING.food, value),
-    band: unbanded,
-    note: unqualified,
+    band: none,
+    note: none,
   },
   {
     key: 'algae',
@@ -303,7 +303,7 @@ const READINGS: Reading[] = [
     status: (value) => algaeStatus(value),
     at: (value) => onScale(DISPLAY_CEILING.algae, value),
     band: () => ({ from: 0, to: onScale(DISPLAY_CEILING.algae, HIGH_ALGAE_THRESHOLD) }),
-    note: unqualified,
+    note: none,
   },
   {
     key: 'tallest',
@@ -314,8 +314,8 @@ const READINGS: Reading[] = [
     decimals: 0,
     status: quiet,
     at: (value) => onScale(DISPLAY_CEILING.plantSize, value),
-    band: unbanded,
-    note: unqualified,
+    band: none,
+    note: none,
   },
 ];
 

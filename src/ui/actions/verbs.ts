@@ -66,23 +66,17 @@ export const DEFAULT_SETTINGS: VerbSettings = {
   trimPlants: 75,
 };
 
-const NAME: Record<VerbId, string> = {
-  feed: 'Feed',
-  waterChange: 'Water change',
-  topOff: 'Top off',
-  dose: 'Dose',
-  trimPlants: 'Trim',
-  scrubAlgae: 'Scrub',
-};
-
-/** Where the verb lives on the stage — the module whose footer carries it. */
-const HOME: Record<VerbId, string> = {
-  feed: 'Life',
-  waterChange: 'Water',
-  topOff: 'Water',
-  dose: 'Nutrients',
-  trimPlants: 'Life',
-  scrubAlgae: 'Life',
+/**
+ * What each verb is called where it is listed, what its own sheet is titled,
+ * and the module whose footer carries it.
+ */
+const VERB: Record<VerbId, { name: string; title: string; home: string }> = {
+  feed: { name: 'Feed', title: 'Feed', home: 'Life' },
+  waterChange: { name: 'Water change', title: 'Water change', home: 'Water' },
+  topOff: { name: 'Top off', title: 'Top off', home: 'Water' },
+  dose: { name: 'Dose', title: 'Dose fertiliser', home: 'Nutrients' },
+  trimPlants: { name: 'Trim', title: 'Trim plants', home: 'Life' },
+  scrubAlgae: { name: 'Scrub', title: 'Scrub algae', home: 'Life' },
 };
 
 /**
@@ -102,15 +96,6 @@ export const BUILD_VERBS: BuildVerb[] = [
   { id: 'addPlant', name: 'Add plant', home: 'Life', to: '/life?add=plant' },
   { id: 'addHardscape', name: 'Add hardscape', home: 'Gear', to: '/gear?add=hardscape' },
 ];
-
-const TITLE: Record<VerbId, string> = {
-  feed: 'Feed',
-  waterChange: 'Water change',
-  topOff: 'Top off',
-  dose: 'Dose fertiliser',
-  trimPlants: 'Trim plants',
-  scrubAlgae: 'Scrub algae',
-};
 
 /** The action a commit dispatches. Scrub takes no seed — the engine rolls it. */
 export function verbAction(id: VerbId, settings: VerbSettings): Action {
@@ -163,10 +148,6 @@ function dailyRation(state: SimulationState, config: TunableConfig): number {
   return state.fish.reduce((total, fish) => total + dayOfDecay * fish.mass * baseFoodRate, 0);
 }
 
-function trimCount(state: SimulationState, target: number): number {
-  return getPlantsToTrimCount(state, target);
-}
-
 function daysOfFood(days: number): string {
   return days < 10 ? `${days.toFixed(1)} d` : `${Math.round(days)} d`;
 }
@@ -191,7 +172,7 @@ function blockedReason(
     case 'dose':
       return canDose(state) ? null : 'no plants to fertilise';
     case 'trimPlants':
-      return trimCount(state, settings.trimPlants) > 0
+      return getPlantsToTrimCount(state, settings.trimPlants) > 0
         ? null
         : `nothing above ${settings.trimPlants} %`;
     case 'scrubAlgae':
@@ -242,9 +223,9 @@ export function verbRow(
 ): VerbRow {
   return {
     id,
-    name: NAME[id],
+    name: VERB[id].name,
     value: rowValue(state, id, settings, units),
-    home: HOME[id],
+    home: VERB[id].home,
     blocked: blockedReason(state, id, settings),
   };
 }
@@ -259,7 +240,7 @@ export function verbRows(
 
 /** What the verb is called wherever it appears. */
 export function verbName(id: VerbId): string {
-  return NAME[id];
+  return VERB[id].name;
 }
 
 /**
@@ -272,7 +253,7 @@ export function verbLabel(
   settings: VerbSettings,
   units: UnitSystem
 ): string {
-  return `${NAME[id]} · ${rowValue(state, id, settings, units)}`;
+  return `${VERB[id].name} · ${rowValue(state, id, settings, units)}`;
 }
 
 export interface VerbOption {
@@ -292,7 +273,7 @@ interface Rungs {
 
 function rungsFor(
   state: SimulationState,
-  id: VerbId,
+  id: SettableVerb,
   units: UnitSystem,
   config: TunableConfig
 ): Rungs {
@@ -347,7 +328,7 @@ function rungsFor(
       return {
         values: TRIM_TARGETS,
         rung: (target): VerbOption => {
-          const count = trimCount(state, target);
+          const count = getPlantsToTrimCount(state, target);
           return {
             value: target,
             label: `${target} %`,
@@ -356,9 +337,6 @@ function rungsFor(
           };
         },
       };
-    case 'topOff':
-    case 'scrubAlgae':
-      return { values: [], rung: () => ({ value: 0, label: '', hint: '', disabled: true }) };
   }
 }
 
@@ -400,7 +378,7 @@ function meta(
       return `into ${formatVolume(water, units, 1)}`;
     case 'trimPlants': {
       const tallest = state.plants.reduce((most, plant) => Math.max(most, plant.size), 0);
-      return `${trimCount(state, settings.trimPlants)} of ${plural(state.plants.length, 'plant')} · tallest ${Math.round(tallest)} %`;
+      return `${getPlantsToTrimCount(state, settings.trimPlants)} of ${plural(state.plants.length, 'plant')} · tallest ${Math.round(tallest)} %`;
     }
     case 'scrubAlgae':
       return `algae ${Math.round(state.algae.mass)} %`;
@@ -443,9 +421,9 @@ export interface VerbDetail {
   id: VerbId;
   title: string;
   meta: string;
-  optionsLabel: string;
-  /** The setting the chips write to — null for the two verbs that fire bare. */
-  setting: { verb: SettableVerb; value: number } | null;
+  /** The setting the chips write to, and what they are headed — null for the
+   * two verbs that fire bare. */
+  setting: { verb: SettableVerb; value: number; label: string } | null;
   options: VerbOption[];
   /** Replaces the chip row when the verb takes no setting. */
   note: string | null;
@@ -455,16 +433,14 @@ export interface VerbDetail {
 }
 
 function settingOf(id: VerbId, settings: VerbSettings): VerbDetail['setting'] {
-  return isSettable(id) ? { verb: id, value: settings[id] } : null;
+  return isSettable(id) ? { verb: id, value: settings[id], label: OPTIONS_LABEL[id] } : null;
 }
 
-const OPTIONS_LABEL: Record<VerbId, string> = {
+const OPTIONS_LABEL: Record<SettableVerb, string> = {
   feed: 'Amount',
   waterChange: 'Replace',
-  topOff: 'Amount',
   dose: 'Amount',
   trimPlants: 'Trim to',
-  scrubAlgae: 'Amount',
 };
 
 /**
@@ -474,17 +450,14 @@ const OPTIONS_LABEL: Record<VerbId, string> = {
  */
 function rungs(
   state: SimulationState,
-  id: VerbId,
-  setting: VerbDetail['setting'],
+  setting: NonNullable<VerbDetail['setting']>,
   units: UnitSystem,
   config: TunableConfig
 ): VerbOption[] {
-  const { values, rung } = rungsFor(state, id, units, config);
-  const chosen = setting?.value;
-  const all =
-    chosen !== undefined && !values.includes(chosen)
-      ? [...values, chosen].sort((a, b) => a - b)
-      : values;
+  const { values, rung } = rungsFor(state, setting.verb, units, config);
+  const all = values.includes(setting.value)
+    ? values
+    : [...values, setting.value].sort((a, b) => a - b);
   return all.map(rung);
 }
 
@@ -502,11 +475,10 @@ export function verbDetail(
   const setting = settingOf(id, settings);
   return {
     id,
-    title: TITLE[id],
+    title: VERB[id].title,
     meta: meta(state, id, settings, units, config),
-    optionsLabel: OPTIONS_LABEL[id],
     setting,
-    options: rungs(state, id, setting, units, config),
+    options: setting === null ? [] : rungs(state, setting, units, config),
     note: BARE_NOTE[id] ?? null,
     preview: previewRows({
       before: state,

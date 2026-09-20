@@ -12,7 +12,7 @@ afterEach(cleanup);
 function renderWater(run: Run = bare()): { onAct: ReturnType<typeof vi.fn> } {
   const onAct = vi.fn();
   const sim = stubSim(run.state, run.history);
-  renderStage(<WaterSection sim={sim} config={DEFAULT_CONFIG} />, { onAct });
+  renderStage(<WaterSection sim={sim} config={DEFAULT_CONFIG} />, { onAct, state: run.state });
   return { onAct };
 }
 
@@ -51,8 +51,8 @@ describe('WaterSection', () => {
     const header = screen.getByRole('heading', { level: 1, name: 'Water' }).parentElement!;
     expect(within(header).getByText(/^(no heater|heater on) · ATO (on|off)$/)).toBeTruthy();
 
-    fireEvent.click(within(header).getByRole('button', { name: 'Water change' }));
-    fireEvent.click(within(header).getByRole('button', { name: 'Top off' }));
+    fireEvent.click(within(header).getByRole('button', { name: 'Water change · 25 %' }));
+    fireEvent.click(within(header).getByRole('button', { name: /^Top off/ }));
     expect(onAct.mock.calls).toEqual([['waterChange'], ['topOff']]);
   });
 

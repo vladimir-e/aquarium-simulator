@@ -1,7 +1,9 @@
 import React from 'react';
 import { render, screen, within } from '@testing-library/react';
 import { MemoryRouter, Outlet, Route, Routes, useLocation } from 'react-router-dom';
-import { verbName } from '../actions';
+import { DEFAULT_SETTINGS, verbLabel, withAmount, type VerbId } from '../actions';
+import type { SimulationState } from '../../simulation/index.js';
+import { bare } from './run';
 import type { StageContext } from '../components/layout/AppShell';
 import { ThemeProvider } from '../hooks/useTheme';
 import { UnitsProvider } from '../hooks/useUnits';
@@ -21,10 +23,12 @@ export function renderStage(
   section: React.JSX.Element,
   {
     path = '/',
+    state = bare().state,
     needs = [],
     onAct = (): void => {},
-    actLabel = verbName,
-  }: Partial<StageContext> & { path?: string } = {}
+    actLabel = (verb: VerbId, at?: number): string =>
+      verbLabel(state, verb, withAmount(DEFAULT_SETTINGS, verb, at), 'metric'),
+  }: Partial<StageContext> & { path?: string; state?: SimulationState } = {}
 ): void {
   render(
     <ThemeProvider>

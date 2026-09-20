@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Outlet, useOutletContext } from 'react-router-dom';
 import type { TunableConfig } from '../../../simulation/config/index.js';
 import { countModified } from '../../../simulation/config/index.js';
-import { verbLabel, type VerbId } from '../../actions';
+import { verbLabel, withAmount, type VerbId } from '../../actions';
 import { useActs } from '../../hooks/useActs';
 import { useConfig } from '../../hooks/useConfig';
 import { useIsMobile } from '../../hooks/useMediaQuery';
@@ -26,8 +26,8 @@ export interface StageContext {
    * with no verb, the Act palette.
    */
   onAct: (verb?: VerbId, at?: number) => void;
-  /** The verb and the amount it is standing on, for a footer button's face. */
-  actLabel: (verb: VerbId) => string;
+  /** The verb and the amount it is standing on, or the one asked for here. */
+  actLabel: (verb: VerbId, at?: number) => string;
 }
 
 export function useStage(): StageContext {
@@ -68,7 +68,8 @@ export function AppShell({ sim, config }: AppShellProps): React.JSX.Element {
   );
 
   const actLabel = useCallback(
-    (verb: VerbId) => verbLabel(sim.state, verb, acts.settings, unitSystem),
+    (verb: VerbId, at?: number) =>
+      verbLabel(sim.state, verb, withAmount(acts.settings, verb, at), unitSystem),
     [sim.state, acts.settings, unitSystem]
   );
 

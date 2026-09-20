@@ -12,7 +12,8 @@ interface NutrientsWidgetProps {
   state: SimulationState;
   onOpenReading: (id: ReadingId) => void;
   onAct: (verb: VerbId, at?: number) => void;
-  actLabel: (verb: VerbId) => string;
+  /** The dose the plants are short of is a label the widget can ask for. */
+  actLabel: (verb: VerbId, at?: number) => string;
 }
 
 /**
@@ -42,7 +43,7 @@ export function NutrientsWidget({
       footer={
         <>
           <VerbButton
-            label={advice ? `Dose · ${advice.ml} ml` : actLabel('dose')}
+            label={actLabel('dose', advice?.ml)}
             hot={advice !== null}
             onClick={() => onAct('dose', advice?.ml)}
           />

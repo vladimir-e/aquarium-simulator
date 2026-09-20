@@ -199,9 +199,17 @@ describe('the six verbs', () => {
     expect(detail(tank(), 'topOff').note).toContain('diluted');
   });
 
-  it('points the chips at the verb they configure', () => {
-    expect(detail(tank(), 'waterChange').setting).toEqual({ verb: 'waterChange', value: 0.25 });
-    expect(detail(planted([80]), 'trimPlants').setting).toEqual({ verb: 'trimPlants', value: 75 });
+  it('points the chips at the verb they configure, under the heading they read', () => {
+    expect(detail(tank(), 'waterChange').setting).toEqual({
+      verb: 'waterChange',
+      value: 0.25,
+      label: 'Replace',
+    });
+    expect(detail(planted([80]), 'trimPlants').setting).toEqual({
+      verb: 'trimPlants',
+      value: 75,
+      label: 'Trim to',
+    });
   });
 
   it('labels the commit with the action and its amount', () => {

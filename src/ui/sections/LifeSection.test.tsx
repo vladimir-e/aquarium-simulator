@@ -29,7 +29,7 @@ function Live({ run }: { run: Run }): React.JSX.Element {
 
 function renderLife(run: Run = stocked()): { onAct: ReturnType<typeof vi.fn> } {
   const onAct = vi.fn();
-  renderStage(<Live run={run} />, { onAct });
+  renderStage(<Live run={run} />, { onAct, state: run.state });
   return { onAct };
 }
 
@@ -181,11 +181,11 @@ describe('LifeSection', () => {
     expect(screen.getByRole('dialog', { name: /Add fish/ })).toBeTruthy();
   });
 
-  it('hands the husbandry verbs to the Act drawer', () => {
+  it('hands the husbandry verbs to the Act drawer, each naming its amount', () => {
     const { onAct } = renderLife();
     const header = screen.getByRole('heading', { level: 1, name: 'Life' }).parentElement!;
 
-    for (const verb of ['Feed', 'Trim', 'Scrub']) {
+    for (const verb of [/^Feed · 0\.5 g$/, /^Trim · to 75 %$/, /^Scrub · \d+ %$/]) {
       fireEvent.click(within(header).getByRole('button', { name: verb }));
     }
     expect(onAct.mock.calls).toEqual([['feed'], ['trimPlants'], ['scrubAlgae']]);

@@ -107,10 +107,10 @@ export function VerbDrawer({
 
         {setting && detail.options.length > 0 && (
           <div data-rungs className="flex flex-col gap-1.5">
-            <h3 className="text-[11px] text-ink-3">{detail.optionsLabel}</h3>
+            <h3 className="text-[11px] text-ink-3">{setting.label}</h3>
             <Segmented
               fill
-              ariaLabel={detail.optionsLabel}
+              ariaLabel={setting.label}
               value={String(setting.value)}
               onChange={(value) => onAmount(setting.verb, Number(value))}
               options={detail.options.map((option) => ({
