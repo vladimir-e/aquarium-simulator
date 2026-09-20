@@ -108,20 +108,23 @@ you type. Either route opens the identical sheet in the drawer.
 
 | Part of the sheet | What it is |
 |---|---|
-| Amount rungs | The engine's own option sets — the water-change fractions it accepts, the trim targets, the feed and dose presets, plus the dose the plants are currently short of |
+| Amount rungs | The engine's own option sets — the water-change fractions it accepts, the trim targets, the feed and dose presets, plus the dose the plants are currently short of, capped at the 50 ml the engine takes in one dose |
 | Preview | The action applied to a throwaway state, read back as reading rows: the standing value as a ghost marker, the value the commit would leave as the live one, on the strip the reading is read on everywhere else. Only what moves is listed |
-| Commit | One button, named for the verb and its amount — "Feed 0.5 g", "Change 25 % water" |
+| Commit | One button, named for the verb and its amount — "Feed 0.5 g", "Change 25 % water". The sheet opens on it, so Enter commits without a click first |
 | Refusals | The engine's own guards, standing where the commit would be, so an unavailable verb is never a dead end |
 | Dispatch | One call into the engine, which works whether the tank is running or paused, and writes the log line the spine marks |
 
 The amount chosen for a verb outlives a dismissal: closing the sheet means "not
 now", the footer buttons and the palette go on naming that amount, and the top
-bar's Act button takes the name of the last verb committed.
+bar's Act button takes the name of the last verb committed. Both are kept with
+the tank, so a keeper who always feeds 1 g opens on 1 g after a reload.
 
 Construction is not husbandry and does not go through this path. Swapping a
 filter, resizing the tank, adding a plant or a rock edits the tank directly and
 writes its own line into the log; the palette's construction verbs hand the
-reader to the picker that owns them.
+reader to the picker that owns them — each picker is a parameter of its module's
+address (`/life?add=fish`, `/gear?add=hardscape`), so the palette opens one from
+anywhere and the rest of the query stays where it is.
 
 ## Reading the engine
 

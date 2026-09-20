@@ -11,6 +11,7 @@ Format: - **Feature name** (#PR) - One short sentence (under ~150 chars)
 
 ## Unreleased
 
+- **The verb sheet commits on Enter, and remembers the amount** - the sheet opens on its commit button, and the amounts and promoted verb are kept with the tank (v25).
 - **The dashboard is a console** - transport, rail, spine and widgets over one reading set; any row on the Overview, Water or Life opens one inspector.
 - **Docs portal** - the whole system documented at docs.fishroom.app, linked from the dashboard.
 - **A starving plant stops reading as thriving** - the plant status word reads the energy ledger beside condition, so a plant shedding tissue in the dark says so.
