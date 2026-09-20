@@ -66,7 +66,7 @@ export function LifeWidget({
   return (
     <Widget
       title="Life"
-      caption={`${state.fish.length} fish · ${state.plants.length} plants`}
+      caption={`${state.fish.length} fish · ${state.plants.length} ${state.plants.length === 1 ? 'plant' : 'plants'}`}
       to="/life"
       footer={
         <>

@@ -33,16 +33,16 @@ function Column({
       <h3 className="text-[11px] text-ink-3">{title}</h3>
       {factors.length === 0 && <p className="py-1 text-[13px] text-ink-3">nothing</p>}
       {factors.map((factor) => (
-        <div key={factor.key} className="grid grid-cols-[minmax(0,1fr)_40px_36px] items-center gap-2">
-          <span className="truncate text-[13px] text-ink-2">{factor.label}</span>
-          <span className="h-1 bg-surface-2">
+        <div key={factor.key} className="flex flex-col gap-1 py-1">
+          <div className="flex items-baseline justify-between gap-2 text-[13px]">
+            <span className="truncate text-ink-2">{factor.label}</span>
+            <span className="shrink-0 tabular-nums text-ink">{signed(factor.perDay, sign)}</span>
+          </div>
+          <span className="block h-1 bg-surface-2">
             <span
               className="block h-1 bg-band"
               style={{ width: `${scale > 0 ? (factor.perDay / scale) * 100 : 0}%` }}
             />
-          </span>
-          <span className="text-right text-[13px] tabular-nums text-ink">
-            {signed(factor.perDay, sign)}
           </span>
         </div>
       ))}
@@ -75,6 +75,7 @@ export function LedgerDrawer({
   if (!ledger) return null;
 
   const tone = toneOf(ledger.status);
+  const heroTone = toneOf(ledger.valueStatus);
   const scale = Math.max(
     ...ledger.helping.map((factor) => factor.perDay),
     ...ledger.hurting.map((factor) => factor.perDay),
@@ -91,13 +92,13 @@ export function LedgerDrawer({
       <div className="flex flex-col gap-4 p-3">
         <div className="flex flex-col gap-2">
           <div className="flex items-baseline gap-1.5">
-            <span className={`text-[28px] font-medium leading-8 tabular-nums ${TONE_TEXT[tone]}`}>
+            <span className={`text-[28px] font-medium leading-8 tabular-nums ${TONE_TEXT[heroTone]}`}>
               {ledger.value}
             </span>
             <span className="text-[13px] text-ink-2">{ledger.unit}</span>
             <span className="ml-auto text-[13px] tabular-nums text-ink-2">{ledger.trend}</span>
           </div>
-          <RangeStrip at={ledger.at} band={ledger.band} tone={tone} />
+          <RangeStrip at={ledger.at} band={ledger.band} tone={heroTone} />
           {ledger.subtitle && <p className="text-[13px] text-ink-3">{ledger.subtitle}</p>}
         </div>
 

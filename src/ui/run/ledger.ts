@@ -19,7 +19,7 @@ import type { TunableConfig } from '../../simulation/config/index.js';
 import { algaeStatus, algaeWord } from './flora.js';
 import { bandOf, bandStatus } from './livestock.js';
 import { CONDITION_BAND, type Satiation, type SpeciesId } from './roster.js';
-import { vitalReading, worstReading, type Status } from './status.js';
+import { conditionStatus, vitalReading, worstReading, type Status } from './status.js';
 import type { ReadingBand } from './water.js';
 
 /** What the ledger is open on. Algae is a population, so it carries no id. */
@@ -51,10 +51,13 @@ export interface Ledger {
   title: string;
   /** Which individual this is, when the group chose it. */
   subtitle: string;
+  /** The worst channel: what the header word says. */
   status: Status;
   word: string;
   /** The hero figure: condition for an organism, coverage for the algae. */
   value: string;
+  /** How the hero figure itself reads — a fed-up fish at full condition is ink. */
+  valueStatus: Status;
   unit: string;
   at: number;
   band: ReadingBand | null;
@@ -142,6 +145,7 @@ function fishLedger(
     status: reading.status,
     word: reading.word,
     value: Math.round(fish.health).toString(),
+    valueStatus: conditionStatus(fish.health),
     unit: '% condition',
     at: fish.health / 100,
     band: CONDITION_BAND,
@@ -192,6 +196,7 @@ function plantLedger(
     status: reading.status,
     word: reading.word,
     value: Math.round(plant.condition).toString(),
+    valueStatus: conditionStatus(plant.condition),
     unit: '% condition',
     at: plant.condition / 100,
     band: CONDITION_BAND,
@@ -229,6 +234,7 @@ function algaeLedger(state: SimulationState, config: TunableConfig): Ledger {
     status: algaeStatus(mass),
     word: algaeWord(mass),
     value: Math.round(mass).toString(),
+    valueStatus: algaeStatus(mass),
     unit: '% coverage',
     at: mass / 100,
     band: { from: 0, to: 0.3 },

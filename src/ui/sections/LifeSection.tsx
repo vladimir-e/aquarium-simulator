@@ -24,6 +24,10 @@ import {
   type RosterRow,
 } from '../run';
 
+function plural(count: number, noun: string): string {
+  return `${count} ${noun}${count === 1 ? '' : 's'}`;
+}
+
 /** Bioload is read against the guideline, on a track that runs to twice it. */
 const BIOLOAD_SCALE = 2;
 
@@ -141,7 +145,7 @@ export function LifeSection({
     <>
       <ModulePage
         title="Life"
-        meta={`${state.fish.length} fish · ${state.plants.length} plants · algae ${algae.figure}`}
+        meta={`${state.fish.length} fish · ${plural(state.plants.length, 'plant')} · algae ${algae.figure}`}
         actions={
           <>
             <VerbButton label="Feed" onClick={onAct} />
