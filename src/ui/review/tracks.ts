@@ -6,12 +6,15 @@
  * extent is stated in the caption rather than left implied.
  */
 
+import { DECIMALS } from '../readings/index.js';
 import type { RunSnapshot } from '../run/index.js';
 import type { AlertKind } from './category.js';
 
 export interface TrackSeries {
   key: string;
   label: string;
+  /** Precision the caption reads this line to — a reading's own, where it has one. */
+  decimals: number;
   accessor: (snapshot: RunSnapshot) => number;
 }
 
@@ -32,9 +35,9 @@ export const TRACKS: TrackDef[] = [
     shortLabel: 'cycle',
     alertKinds: ['ammonia', 'nitrite', 'nitrate'],
     series: [
-      { key: 'ammonia', label: 'NH₃', accessor: (s) => s.ammonia },
-      { key: 'nitrite', label: 'NO₂', accessor: (s) => s.nitrite },
-      { key: 'nitrate', label: 'NO₃', accessor: (s) => s.nitrate },
+      { key: 'ammonia', label: 'NH₃', decimals: DECIMALS.ammonia, accessor: (s) => s.ammonia },
+      { key: 'nitrite', label: 'NO₂', decimals: DECIMALS.nitrite, accessor: (s) => s.nitrite },
+      { key: 'nitrate', label: 'NO₃', decimals: DECIMALS.nitrate, accessor: (s) => s.nitrate },
     ],
   },
   {
@@ -43,8 +46,8 @@ export const TRACKS: TrackDef[] = [
     shortLabel: 'pH·CO₂',
     alertKinds: ['co2'],
     series: [
-      { key: 'ph', label: 'pH', accessor: (s) => s.ph },
-      { key: 'co2', label: 'CO₂', accessor: (s) => s.co2 },
+      { key: 'ph', label: 'pH', decimals: DECIMALS.ph, accessor: (s) => s.ph },
+      { key: 'co2', label: 'CO₂', decimals: DECIMALS.co2, accessor: (s) => s.co2 },
     ],
   },
   {
@@ -53,9 +56,9 @@ export const TRACKS: TrackDef[] = [
     shortLabel: 'O₂·temp',
     alertKinds: ['oxygen', 'water'],
     series: [
-      { key: 'oxygen', label: 'O₂', accessor: (s) => s.oxygen },
-      { key: 'temperature', label: 'temp', accessor: (s) => s.temperature },
-      { key: 'waterPct', label: 'level', accessor: (s) => s.waterPct },
+      { key: 'oxygen', label: 'O₂', decimals: DECIMALS.oxygen, accessor: (s) => s.oxygen },
+      { key: 'temperature', label: 'temp', decimals: DECIMALS.temperature, accessor: (s) => s.temperature },
+      { key: 'waterPct', label: 'level', decimals: DECIMALS.level, accessor: (s) => s.waterPct },
     ],
   },
   {
@@ -65,10 +68,10 @@ export const TRACKS: TrackDef[] = [
     shortLabel: 'pop.',
     alertKinds: ['algae', 'plant'],
     series: [
-      { key: 'fishCount', label: 'fish', accessor: (s) => s.fishCount },
-      { key: 'fryCount', label: 'fry', accessor: (s) => s.fryCount },
-      { key: 'plantAvgSize', label: 'plants', accessor: (s) => s.plantAvgSize },
-      { key: 'algaeMass', label: 'algae', accessor: (s) => s.algaeMass },
+      { key: 'fishCount', label: 'fish', decimals: 0, accessor: (s) => s.fishCount },
+      { key: 'fryCount', label: 'fry', decimals: 0, accessor: (s) => s.fryCount },
+      { key: 'plantAvgSize', label: 'plants', decimals: 0, accessor: (s) => s.plantAvgSize },
+      { key: 'algaeMass', label: 'algae', decimals: DECIMALS.algae, accessor: (s) => s.algaeMass },
     ],
   },
 ];

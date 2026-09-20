@@ -1,5 +1,5 @@
 import React from 'react';
-import type { ReadingBook, ReadingFlow, ReadingId } from '../../readings';
+import { DECIMALS, type ReadingBook, type ReadingFlow, type ReadingId } from '../../readings';
 import { seriesExtent, TRACK_COLORS } from '../../review';
 import type { RunSnapshot } from '../../run';
 import { Track, formatTrackValue } from '../review/Track';
@@ -13,9 +13,11 @@ const WINDOW_HOURS = 24 * 7;
 function Week({
   history,
   read,
+  decimals,
 }: {
   history: RunSnapshot[];
   read: (snapshot: RunSnapshot) => number;
+  decimals: number;
 }): React.JSX.Element {
   const window = history.slice(-WINDOW_HOURS);
   const values = window.map(read);
@@ -34,7 +36,7 @@ function Week({
         }
         lines={[
           {
-            series: { key: 'reading', label: '', accessor: read },
+            series: { key: 'reading', label: '', decimals, accessor: read },
             color: TRACK_COLORS[0],
             values,
             extent,
@@ -48,7 +50,7 @@ function Week({
             : `${Math.max(1, Math.round(window.length / 24))} d so far`}
         </span>
         <span className="tabular-nums">
-          {formatTrackValue(extent.min)} – {formatTrackValue(extent.max)}
+          {formatTrackValue(extent.min, decimals)} – {formatTrackValue(extent.max, decimals)}
         </span>
       </div>
     </div>
@@ -111,7 +113,7 @@ export function ReadingDrawer({
 
         {reading.series && (
           <div className="border-t border-hairline pt-3">
-            <Week history={history} read={reading.series} />
+            <Week history={history} read={reading.series} decimals={DECIMALS[reading.id]} />
           </div>
         )}
 

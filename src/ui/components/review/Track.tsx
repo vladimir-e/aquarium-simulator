@@ -18,11 +18,8 @@ const VIEW_H = 100;
 /** Head- and footroom, so a peak or a trough is not clipped by the band edge. */
 const PAD = 6;
 
-/** A raw series value, at the precision its magnitude can carry. */
-export function formatTrackValue(value: number): string {
-  if (Number.isInteger(value)) return String(value);
-  const abs = Math.abs(value);
-  const decimals = abs >= 100 ? 0 : abs >= 10 ? 1 : abs >= 1 ? 2 : 3;
+/** A series value at the precision its reading is read to everywhere else. */
+export function formatTrackValue(value: number, decimals: number): string {
   return value.toFixed(decimals);
 }
 
@@ -36,6 +33,7 @@ interface TrackProps {
   /** The playhead, drawn across the band. */
   at?: number | null;
   label: string;
+  /** The band has no height of its own — whatever sizes it says how tall. */
   className?: string;
 }
 
@@ -44,7 +42,7 @@ interface TrackProps {
  * to its own extent. No fill under a line — a band is a shape to compare, not
  * an area to read — and the only colour in it is the series palette.
  */
-export function Track({
+export const Track = React.memo(function Track({
   lines,
   ticks,
   range,
@@ -63,11 +61,12 @@ export function Track({
       preserveAspectRatio="none"
       role="img"
       aria-label={label}
-      className={`block h-full w-full ${className}`}
+      className={`block w-full ${className}`}
     >
       {lit.map((span) => (
         <rect
           key={`lit-${span.from}`}
+          data-lit
           x={x(span.from)}
           y={0}
           width={Math.max(0, x(span.to) - x(span.from))}
@@ -80,6 +79,7 @@ export function Track({
       {lines.map((line) => (
         <polyline
           key={line.series.key}
+          data-line={line.series.key}
           points={ticks
             .map((tick, i) => `${x(tick)},${y(normalize(line.values[i], line.extent))}`)
             .join(' ')}
@@ -94,6 +94,7 @@ export function Track({
 
       {at !== null && (
         <line
+          data-playhead
           x1={x(at)}
           x2={x(at)}
           y1={0}
@@ -105,7 +106,7 @@ export function Track({
       )}
     </svg>
   );
-}
+});
 
 interface TrackCaptionProps {
   def: TrackDef;
@@ -131,8 +132,11 @@ export function TrackCaption({
   extents = false,
   className = '',
 }: TrackCaptionProps): React.JSX.Element {
-  const shown = (line: TrackLine, celsius: number): string =>
-    formatTrackValue(line.series.key === 'temperature' ? displayTemp(celsius) : celsius);
+  const text = (line: TrackLine, value: number): string =>
+    formatTrackValue(
+      line.series.key === 'temperature' ? displayTemp(value) : value,
+      line.series.decimals
+    );
 
   return (
     <div className={`flex flex-wrap items-baseline gap-x-2.5 gap-y-0.5 ${className}`}>
@@ -147,12 +151,12 @@ export function TrackCaption({
           <span className="text-ink-3">{line.series.label}</span>
           {snapshot && (
             <span className="tabular-nums text-ink">
-              {shown(line, line.series.accessor(snapshot))}
+              {text(line, line.series.accessor(snapshot))}
             </span>
           )}
           {extents && (
             <span className="tabular-nums text-ink-3">
-              {shown(line, line.extent.min)}–{shown(line, line.extent.max)}
+              {text(line, line.extent.min)}–{text(line, line.extent.max)}
             </span>
           )}
         </span>
@@ -195,6 +199,8 @@ export function TimeAxis({
         <span
           key={`day-${day}`}
           aria-hidden
+          data-mark="day"
+          data-tick={day}
           className="absolute top-1 h-1.5 w-px bg-hairline"
           style={{ left: left(day) }}
         />
@@ -203,6 +209,8 @@ export function TimeAxis({
         <span
           key={`act-${tick}`}
           aria-hidden
+          data-mark="action"
+          data-tick={tick}
           className="absolute top-0.5 h-2.5 w-0.5 bg-accent"
           style={{ left: left(tick) }}
         />
@@ -211,6 +219,8 @@ export function TimeAxis({
         <span
           key={`alert-${mark.kind}-${mark.tick}`}
           aria-hidden
+          data-mark="alert"
+          data-tick={mark.tick}
           title={`${ALERT_LABEL[mark.kind]} @${mark.tick}`}
           className="absolute top-0.5 h-2.5 w-0.5 bg-alert"
           style={{ left: left(mark.tick) }}
@@ -218,6 +228,9 @@ export function TimeAxis({
       ))}
       <span
         aria-hidden
+        data-mark="playhead"
+        data-tick={at}
+        data-parked={parked}
         className={`absolute top-0.5 h-2.5 w-2.5 -translate-x-1/2 rounded-full ${parked ? 'bg-accent' : 'bg-ink'}`}
         style={{ left: left(at) }}
       />

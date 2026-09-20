@@ -203,7 +203,8 @@ function tapeOf(history: RunSnapshot[], units: UnitSystem): Tape {
   };
 }
 
-const DECIMALS: Record<ReadingId, number> = {
+/** Fixed precision per reading — the one place a reading's decimals are set. */
+export const DECIMALS: Record<ReadingId, number> = {
   waste: 3,
   ammonia: 3,
   nitrite: 3,

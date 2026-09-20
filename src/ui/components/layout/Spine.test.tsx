@@ -153,7 +153,7 @@ describe('the tracks', () => {
 
     const charts = screen.getByRole('slider', { name: 'Timeline charts' });
     // NO₃ is the tick number in this fixture, so the caption names the tick.
-    expect(within(charts).getAllByText('24').length).toBeGreaterThan(0);
+    expect(within(charts).getAllByText('24.0').length).toBeGreaterThan(0);
   });
 
   it('opens on the tracks when the session was left on them', () => {
