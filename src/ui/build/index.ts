@@ -37,15 +37,12 @@ export {
   LID_LABEL,
   LID_TYPES,
   RESET_CONFIRM_TICKS,
-  type DerivedReading,
-  type PresetCard,
+  type EnvironmentNotes,
   driftsFromPreset,
-  environmentDerived,
-  presetCards,
+  environmentNotes,
   presetLoadDestroys,
   presetLoadMessage,
   resetConsequence,
-  scenarioSummary,
 } from './scenario.js';
 export {
   type Bioload,

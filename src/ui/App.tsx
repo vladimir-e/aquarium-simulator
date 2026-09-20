@@ -6,7 +6,7 @@ import { WaterSection } from './sections/WaterSection';
 import { GearSection } from './sections/GearSection';
 import { LifeSection } from './sections/LifeSection';
 import { HistorySection } from './sections/HistorySection';
-import { ScenarioSection } from './sections/ScenarioSection';
+import { SetupSection } from './sections/SetupSection';
 import { useSimulation } from './hooks/useSimulation';
 import { useConfig } from './hooks/useConfig';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
@@ -25,7 +25,7 @@ function App(): React.JSX.Element {
         <Route path="life" element={<LifeSection sim={sim} config={config} />} />
         <Route path="gear/:deviceId?" element={<GearSection sim={sim} config={config} />} />
         <Route path="history" element={<HistorySection sim={sim} />} />
-        <Route path="setup" element={<ScenarioSection sim={sim} config={config} />} />
+        <Route path="setup" element={<SetupSection sim={sim} config={config} />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>

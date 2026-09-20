@@ -76,6 +76,19 @@ export function formatTemperatureRange(
 }
 
 /**
+ * Format a temperature difference — a gap or a rate, not a point on the
+ * scale, so the conversion scales without the freezing-point offset.
+ */
+export function formatTemperatureDelta(
+  celsius: number,
+  system: UnitSystem,
+  precision = 1
+): string {
+  const value = system === 'imperial' ? (celsius * 9) / 5 : celsius;
+  return `${value.toFixed(precision)}${getTemperatureUnit(system)}`;
+}
+
+/**
  * Get temperature unit label based on unit system.
  */
 export function getTemperatureUnit(system: UnitSystem): string {

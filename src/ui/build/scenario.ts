@@ -1,32 +1,25 @@
 /**
- * The scenario model: what each preset actually builds, what the environment
- * fields imply, and what the destructive actions cost. Preset copy is read off
- * the state the engine itself creates from the preset, so a card cannot promise
- * something the preset does not build.
+ * The scenario model: whether the tank still matches the preset it came from,
+ * what the environment fields imply, and what the destructive actions cost.
+ * Drift is measured against the state the engine itself creates from the
+ * preset, so the tank is never compared to a second description of it.
  */
 
 import {
   calculateEvaporationRatePerDay,
-  getFilterFlow,
-  getMaxPlants,
+  calculateTemperatureDrift,
   type LidType,
   type SimulationState,
 } from '../../simulation/index.js';
 import type { TunableConfig } from '../../simulation/config/index.js';
-import { SurfaceResource } from '../../simulation/resources/index.js';
 import { PRESETS, createPresetSimulation, type PresetId } from '../../simulation/presets.js';
 import { TICKS_PER_DAY, formatElapsed } from '../utils/clock.js';
-import { formatVolume, type UnitSystem } from '../utils/units.js';
-import { turnover } from './readings.js';
-import { scapeSummary } from './scape.js';
+import { formatTemperatureDelta, type UnitSystem } from '../utils/units.js';
 
 /** Lids in the order the picker offers them. */
 export const LID_TYPES: readonly LidType[] = ['none', 'mesh', 'full', 'sealed'];
 
-/**
- * The lid in prose — the rail, the preset cards, the evaporation row and the
- * lid picker all read it from here, so there is one wording to disagree with.
- */
+/** The lid in prose, for the picker that sets it and the row that reads it. */
 export const LID_LABEL: Record<LidType, string> = {
   none: 'no lid',
   mesh: 'mesh lid',
@@ -34,66 +27,10 @@ export const LID_LABEL: Record<LidType, string> = {
   sealed: 'sealed lid',
 };
 
-export interface PresetCard {
-  id: PresetId;
-  name: string;
-  /** Tank capacity in the reader's units. */
-  volume: string;
-  /** The scape it lays down and the gear it switches on, in one line. */
-  build: string;
-}
-
-function buildSummary(state: SimulationState): string {
-  const {
-    airPump,
-    ato,
-    autoDoser,
-    co2Generator,
-    filter,
-    heater,
-    hardscape,
-    light,
-    lid,
-    powerhead,
-    substrate,
-  } = state.equipment;
-  const gear: string[] = [];
-
-  if (filter.enabled) gear.push(`${filter.type} filter`);
-  if (heater.enabled) gear.push('heater');
-  if (light.enabled) gear.push('light');
-  if (co2Generator.enabled) gear.push('CO₂');
-  if (airPump.enabled) gear.push('air pump');
-  if (powerhead.enabled) gear.push('powerhead');
-  if (ato.enabled) gear.push('ATO');
-  if (autoDoser.enabled) gear.push('auto doser');
-  if (gear.length === 0) gear.push('no equipment');
-
-  return [scapeSummary(substrate.type, hardscape.items), ...gear, LID_LABEL[lid.type]].join(' · ');
-}
-
-/** The section's headline figure, shared with the rail's Scenario row. */
-export function scenarioSummary(
-  state: SimulationState,
-  presetName: string,
-  units: UnitSystem
-): string {
-  return `${presetName} · ${formatVolume(state.tank.capacity, units, 0)}`;
-}
-
 /** The tank each preset builds, built once — every figure below reads off these. */
 const PRESET_TANKS = PRESETS.map(
   (preset) => [preset, createPresetSimulation(preset)] as const
 );
-
-export function presetCards(units: UnitSystem): PresetCard[] {
-  return PRESET_TANKS.map(([preset, built]) => ({
-    id: preset.id,
-    name: preset.name,
-    volume: formatVolume(built.tank.capacity, units, 0),
-    build: buildSummary(built),
-  }));
-}
 
 /**
  * The tank, environment and equipment a preset configures, flattened to
@@ -136,44 +73,40 @@ export function driftsFromPreset(state: SimulationState, presetId: PresetId): bo
   return presetSettings(state) !== PRESET_SETTINGS.get(presetId);
 }
 
-export interface DerivedReading {
-  label: string;
-  value: string;
-  note?: string;
+export interface EnvironmentNotes {
+  /** What the lid lets the tank lose, at the temperatures it is standing on. */
+  lid: string;
+  /** What the room does to the water between ticks. */
+  room: string;
 }
 
 /** What the environment fields do to the tank, in the engine's own terms. */
-export function environmentDerived(
+export function environmentNotes(
   state: SimulationState,
-  config: TunableConfig
-): DerivedReading[] {
-  const { environment, equipment, resources, tank } = state;
+  config: TunableConfig,
+  units: UnitSystem
+): EnvironmentNotes {
+  const { environment, equipment, resources } = state;
   const evaporation = calculateEvaporationRatePerDay(
     resources.temperature,
     environment.roomTemperature,
     equipment.lid.type,
     config.evaporation
   );
-  const flow = getFilterFlow(equipment.filter.type, tank.capacity);
+  const drift = calculateTemperatureDrift(
+    resources.temperature,
+    environment.roomTemperature,
+    resources.water,
+    config.temperature
+  );
 
-  return [
-    {
-      label: 'Evaporation',
-      value: evaporation === 0 ? 'none' : `${evaporation.toFixed(1)} %/d`,
-      note: LID_LABEL[equipment.lid.type],
-    },
-    { label: 'Bacteria surface', value: SurfaceResource.format(resources.surface) },
-    {
-      label: 'Filter turnover',
-      value: equipment.filter.enabled ? turnover(flow, resources.water) : 'none',
-      note: equipment.filter.enabled ? undefined : 'filter off',
-    },
-    {
-      label: 'Plant slots',
-      value: String(getMaxPlants(tank.capacity)),
-      note: `${state.plants.length} used`,
-    },
-  ];
+  return {
+    lid: evaporation === 0 ? 'nothing evaporates' : `${evaporation.toFixed(1)} %/d evaporates`,
+    room:
+      drift === 0
+        ? 'the water is already there'
+        : `the water drifts ${formatTemperatureDelta(Math.abs(drift), units)}/h toward it`,
+  };
 }
 
 /**

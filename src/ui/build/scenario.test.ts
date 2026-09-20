@@ -4,8 +4,7 @@ import {
   LID_TYPES,
   RESET_CONFIRM_TICKS,
   driftsFromPreset,
-  environmentDerived,
-  presetCards,
+  environmentNotes,
   presetLoadDestroys,
   presetLoadMessage,
   resetConsequence,
@@ -17,52 +16,13 @@ import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
 import {
   applyAction,
   calculateEvaporationRatePerDay,
-  getFilterFlow,
-  getMaxPlants,
+  calculateTemperatureDrift,
   tick,
   type SimulationState,
 } from '../../simulation/index.js';
-import { SurfaceResource } from '../../simulation/resources/index.js';
 
-describe('presetCards', () => {
-  it('covers every preset, in the order the selector lists them', () => {
-    expect(presetCards('metric').map((c) => c.id)).toEqual(PRESETS.map((p) => p.id));
-  });
-
-  it('quotes the capacity the engine actually builds, in the reader’s units', () => {
-    const metric = presetCards('metric');
-    const imperial = presetCards('imperial');
-
-    expect(metric.find((c) => c.id === 'angelfish')?.volume).toBe('300 L');
-    expect(imperial.find((c) => c.id === 'angelfish')?.volume).toBe('79 gal');
-    expect(metric.find((c) => c.id === 'betta')?.volume).toBe('20 L');
-  });
-
-  it('describes only what the preset sets up, never stocking it does not carry', () => {
-    for (const card of presetCards('metric')) {
-      expect(presetTank(card.id).fish).toHaveLength(0);
-      expect(presetTank(card.id).plants).toHaveLength(0);
-      expect(card.build).not.toMatch(/fish|betta|angelfish|shoal|plant|stock/i);
-    }
-  });
-
-  it('lists only the gear a preset switches on, and always says what the lid is', () => {
-    const cards = presetCards('metric');
-    const planted = cards.find((c) => c.id === 'planted')!;
-    const bare = cards.find((c) => c.id === 'bare')!;
-
-    expect(presetTank('planted').equipment.heater.enabled).toBe(false);
-    expect(planted.build).not.toContain('heater');
-    expect(planted.build).toBe('Aqua Soil + rock + driftwood ×2 · canister filter · light · CO₂ · ATO · no lid');
-
-    expect(bare.build).toBe('Bare · no equipment · no lid');
-    expect(cards.find((c) => c.id === 'angelfish')?.build).toContain('Sand + rock ×3');
-    expect(cards.find((c) => c.id === 'betta')?.build.endsWith(LID_LABEL.mesh)).toBe(true);
-  });
-});
-
-describe('environmentDerived', () => {
-  it('reports the engine’s evaporation rate and the lid driving it', () => {
+describe('environmentNotes', () => {
+  it('reports the engine’s own evaporation rate under the lid the tank has', () => {
     const state = presetTank('community');
     const expected = calculateEvaporationRatePerDay(
       state.resources.temperature,
@@ -71,57 +31,51 @@ describe('environmentDerived', () => {
       DEFAULT_CONFIG.evaporation
     );
 
-    const [evaporation] = environmentDerived(state, DEFAULT_CONFIG);
     expect(expected).toBeGreaterThan(0);
-    expect(evaporation.value).toBe(`${expected.toFixed(1)} %/d`);
-    expect(evaporation.note).toBe('no lid');
+    expect(environmentNotes(state, DEFAULT_CONFIG, 'metric').lid).toBe(
+      `${expected.toFixed(1)} %/d evaporates`
+    );
   });
 
-  it('says none under a sealed lid rather than 0.0 %/d', () => {
+  it('says nothing evaporates under a sealed lid rather than 0.0 %/d', () => {
     const state = presetTank('community');
     const sealed = { ...state, equipment: { ...state.equipment, lid: { type: 'sealed' as const } } };
 
-    const [evaporation] = environmentDerived(sealed, DEFAULT_CONFIG);
-    expect(evaporation.value).toBe('none');
-    expect(evaporation.note).toBe('sealed lid');
+    expect(environmentNotes(sealed, DEFAULT_CONFIG, 'metric').lid).toBe('nothing evaporates');
   });
 
-  it('reads surface, turnover and plant slots off the same engine the sections do', () => {
+  it('quotes the drift the room pulls, as a difference rather than a reading', () => {
     const state = presetTank('community');
-    const [, surface, turnover, slots] = environmentDerived(state, DEFAULT_CONFIG);
+    const cold = { ...state, environment: { ...state.environment, roomTemperature: 15 } };
+    const drift = Math.abs(
+      calculateTemperatureDrift(
+        cold.resources.temperature,
+        15,
+        cold.resources.water,
+        DEFAULT_CONFIG.temperature
+      )
+    );
 
-    expect(surface.value).toBe(SurfaceResource.format(state.resources.surface));
-    // 150 L on a canister: 1200 L/h ÷ 150 L, under the 4500 L/h cap.
-    expect(turnover.value).toBe('8.0 × tank volume/h');
-    expect(slots.value).toBe(String(getMaxPlants(state.tank.capacity)));
-    expect(slots.note).toBe('0 used');
+    expect(drift).toBeGreaterThan(0);
+    expect(environmentNotes(cold, DEFAULT_CONFIG, 'metric').room).toBe(
+      `the water drifts ${drift.toFixed(1)}°C/h toward it`
+    );
+    // A gap scales without the freezing-point offset: 1 °C of drift is 1.8 °F.
+    expect(environmentNotes(cold, DEFAULT_CONFIG, 'imperial').room).toBe(
+      `the water drifts ${((drift * 9) / 5).toFixed(1)}°F/h toward it`
+    );
   });
 
-  it('reports the flow the filter actually delivers once its cap bites', () => {
-    const state = presetTank('community'); // 150 L
-    const sponge = {
+  it('says so when the water is already at room temperature', () => {
+    const state = presetTank('community');
+    const settled = {
       ...state,
-      equipment: { ...state.equipment, filter: { enabled: true, type: 'sponge' as const } },
+      environment: { ...state.environment, roomTemperature: state.resources.temperature },
     };
-    // 150 L × 4 turnovers = 600 L/h, capped at the sponge's 300 L/h ⇒ 2.0, not 4.0.
-    expect(environmentDerived(sponge, DEFAULT_CONFIG)[2].value).toBe('2.0 × tank volume/h');
 
-    const big = presetTank('angelfish'); // 300 L
-    const hob = {
-      ...big,
-      equipment: { ...big.equipment, filter: { enabled: true, type: 'hob' as const } },
-    };
-    // 300 L × 6 = 1800 L/h, capped at the HOB's 1250 L/h ⇒ 4.2, not 6.0.
-    expect(environmentDerived(hob, DEFAULT_CONFIG)[2].value).toBe('4.2 × tank volume/h');
-  });
-
-  it('does not report a turnover the tank is not getting while the filter is off', () => {
-    const state = presetTank('bare');
-    const [, , turnover] = environmentDerived(state, DEFAULT_CONFIG);
-
-    expect(getFilterFlow(state.equipment.filter.type, state.tank.capacity)).toBeGreaterThan(0);
-    expect(turnover.value).toBe('none');
-    expect(turnover.note).toBe('filter off');
+    expect(environmentNotes(settled, DEFAULT_CONFIG, 'metric').room).toBe(
+      'the water is already there'
+    );
   });
 });
 
