@@ -3,13 +3,7 @@ import type { ReadingBook, ReadingFlow, ReadingId } from '../../readings';
 import { normalize, seriesExtent } from '../../review/charts.js';
 import type { RunSnapshot } from '../../run';
 import { Drawer } from '../ui/Drawer';
-import { RangeStrip } from '../ui/RangeStrip';
-
-const HERO_TONE = {
-  ink: 'text-ink',
-  warn: 'text-warn',
-  alert: 'text-alert',
-};
+import { RangeStrip, TONE_TEXT } from '../ui/RangeStrip';
 
 /** A week of hourly samples — as far back as the reading rows' trend can reach. */
 const WINDOW_HOURS = 24 * 7;
@@ -93,7 +87,7 @@ export function ReadingDrawer({
       <div className="flex flex-col gap-4 p-3">
         <div className="flex flex-col gap-2">
           <div className="flex items-baseline gap-1.5">
-            <span className={`text-[28px] leading-8 font-medium tabular-nums ${HERO_TONE[reading.tone]}`}>
+            <span className={`text-[28px] leading-8 font-medium tabular-nums ${TONE_TEXT[reading.tone]}`}>
               {reading.value}
             </span>
             {reading.unit && <span className="text-[13px] text-ink-2">{reading.unit}</span>}

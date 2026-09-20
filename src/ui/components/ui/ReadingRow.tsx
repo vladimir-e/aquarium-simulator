@@ -1,11 +1,5 @@
 import React from 'react';
-import { RangeStrip, type StripBand, type StripTone } from './RangeStrip';
-
-const VALUE_TONE: Record<StripTone, string> = {
-  ink: 'text-ink',
-  warn: 'text-warn',
-  alert: 'text-alert',
-};
+import { RangeStrip, TONE_TEXT, type StripBand, type StripTone } from './RangeStrip';
 
 const VALUE_SIZE = {
   md: 'text-[16px] leading-5',
@@ -49,14 +43,14 @@ export function ReadingRow({
   const body = (
     <>
       <span className="truncate text-ink-2">{name}</span>
-      <span className={`tabular-nums font-medium ${VALUE_SIZE[size]} ${VALUE_TONE[tone]}`}>
+      <span className={`tabular-nums font-medium ${VALUE_SIZE[size]} ${TONE_TEXT[tone]}`}>
         {value}
         {unit && <span className="ml-0.5 text-[12px] font-normal text-ink-2">{unit}</span>}
       </span>
       {at === undefined ? <span aria-hidden /> : <RangeStrip at={at} band={band} tone={tone} />}
       <span className="flex min-w-0 items-baseline justify-end gap-2 text-[12px]">
         {trend && (
-          <span className={`shrink-0 tabular-nums ${tone === 'ink' ? 'text-ink-3' : VALUE_TONE[tone]}`}>
+          <span className={`shrink-0 tabular-nums ${tone === 'ink' ? 'text-ink-3' : TONE_TEXT[tone]}`}>
             {trend}
           </span>
         )}

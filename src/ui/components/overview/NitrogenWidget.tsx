@@ -2,14 +2,9 @@ import React from 'react';
 import type { TunableConfig } from '../../../simulation/config/index.js';
 import { ratePerHour, type ReadingBook, type ReadingId, type ReadingView } from '../../readings';
 import { bacteriaSummary, colonyCount, cycleWord, type Colony } from '../../run';
+import { TONE_TEXT } from '../ui/RangeStrip';
 import { ReadingRow } from '../ui/ReadingRow';
 import { Widget } from '../ui/Widget';
-
-const STOCK_TONE = {
-  ink: 'text-ink',
-  warn: 'text-warn',
-  alert: 'text-alert',
-};
 
 type ChainId = Extract<ReadingId, 'waste' | 'ammonia' | 'nitrite' | 'nitrate'>;
 
@@ -32,7 +27,7 @@ function Stock({
       className="flex min-w-0 flex-col items-center gap-0.5 rounded-control py-1 transition-colors hover:bg-surface-2 focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent"
     >
       <span className="text-[12px] leading-4 text-ink-2">{reading.name}</span>
-      <span className={`text-[20px] leading-6 font-medium tabular-nums ${STOCK_TONE[reading.tone]}`}>
+      <span className={`text-[20px] leading-6 font-medium tabular-nums ${TONE_TEXT[reading.tone]}`}>
         {reading.value}
         <span className="ml-0.5 text-[11px] font-normal text-ink-2">{reading.unit}</span>
       </span>

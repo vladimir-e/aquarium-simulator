@@ -18,6 +18,13 @@ const MARKER: Record<StripTone, string> = {
   alert: 'bg-alert',
 };
 
+/** The one place a tone becomes text colour — numbers, words and trends alike. */
+export const TONE_TEXT: Record<StripTone, string> = {
+  ink: 'text-ink',
+  warn: 'text-warn',
+  alert: 'text-alert',
+};
+
 function clamp(value: number): number {
   return Math.max(0, Math.min(1, value));
 }

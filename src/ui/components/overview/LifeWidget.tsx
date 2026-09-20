@@ -1,26 +1,15 @@
 import React from 'react';
 import type { SimulationState } from '../../../simulation/index.js';
-import type { ReadingBook, ReadingId } from '../../readings';
+import { toneOf, type ReadingBook, type ReadingId } from '../../readings';
 import { conditionStatus, conditionWord, type Status } from '../../run';
 import { DotStrip } from '../ui/DotStrip';
 import { Glyph } from '../ui/Glyph';
-import { RangeStrip, type StripBand } from '../ui/RangeStrip';
+import { RangeStrip, TONE_TEXT, type StripBand } from '../ui/RangeStrip';
 import { VerbButton } from '../ui/VerbButton';
 import { Widget } from '../ui/Widget';
 
 /** Condition is scored 0–100; the engine calls 60 and up healthy. */
 const CONDITION_BAND = { from: 0.6, to: 1 };
-
-const WORD_TONE: Record<Status, string> = {
-  ok: 'text-ink-2',
-  neutral: 'text-ink-2',
-  warn: 'text-warn',
-  alert: 'text-alert',
-};
-
-function toneOf(status: Status): 'ink' | 'warn' | 'alert' {
-  return status === 'warn' || status === 'alert' ? status : 'ink';
-}
 
 function Row({
   name,
@@ -43,6 +32,7 @@ function Row({
   word: string;
   onClick?: () => void;
 }): React.JSX.Element {
+  const tone = toneOf(status);
   const body = (
     <>
       <Glyph />
@@ -52,9 +42,9 @@ function Row({
       </span>
       <span className="flex flex-col justify-center gap-1.5">
         {dots.length > 0 && <DotStrip statuses={dots} label={`${name} by individual`} />}
-        {at !== null && <RangeStrip at={at} band={band} tone={toneOf(status)} />}
+        {at !== null && <RangeStrip at={at} band={band} tone={tone} />}
       </span>
-      <span className={`truncate text-right text-[13px] ${WORD_TONE[status]}`}>{word}</span>
+      <span className={`truncate text-right text-[13px] ${TONE_TEXT[tone]}`}>{word}</span>
     </>
   );
 
