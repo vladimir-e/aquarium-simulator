@@ -64,7 +64,7 @@ function actionMarks(): number {
 describe('the Act palette', () => {
   it('lists every verb with the amount it would use and the module it lives in', () => {
     renderApp();
-    const rows = within(palette()).getAllByRole('button').filter((row) => row.dataset.verb);
+    const rows = within(palette()).getAllByRole('option');
 
     expect(rows.map((row) => row.getAttribute('data-verb'))).toEqual([
       'feed',
@@ -83,7 +83,7 @@ describe('the Act palette', () => {
 
   it('states a refusal where a verb would otherwise carry its amount', () => {
     renderApp();
-    const dose = within(palette()).getByRole('button', { name: /^Dose/ });
+    const dose = within(palette()).getByRole('option', { name: /^Dose/ });
 
     expect(dose.textContent).toContain('no plants to fertilise');
   });
@@ -92,17 +92,33 @@ describe('the Act palette', () => {
     renderApp();
     const list = palette();
 
-    fireEvent.change(within(list).getByRole('textbox'), { target: { value: 'top' } });
-    expect(within(list).getAllByRole('button', { name: /Top off/ })).toHaveLength(1);
+    fireEvent.change(within(list).getByRole('combobox'), { target: { value: 'top' } });
+    expect(within(list).getAllByRole('option', { name: /Top off/ })).toHaveLength(1);
 
-    fireEvent.keyDown(within(list).getByRole('textbox'), { key: 'Enter' });
+    fireEvent.keyDown(within(list).getByRole('combobox'), { key: 'Enter' });
     expect(sheet('Top off')).toBeTruthy();
     expect(screen.queryByRole('dialog', { name: 'Act' })).toBeNull();
   });
 
+  it('says which row the filter is standing on, and moves it with the arrows', () => {
+    renderApp();
+    const list = palette();
+    const input = within(list).getByRole('combobox');
+    const rows = within(list).getAllByRole('option');
+
+    expect(input.getAttribute('aria-controls')).toBe(within(list).getByRole('listbox').id);
+    expect(input.getAttribute('aria-activedescendant')).toBe(rows[0].id);
+    expect(rows[0].getAttribute('aria-selected')).toBe('true');
+
+    fireEvent.keyDown(input, { key: 'ArrowDown' });
+    expect(input.getAttribute('aria-activedescendant')).toBe(rows[1].id);
+    expect(rows[1].getAttribute('aria-selected')).toBe('true');
+    expect(rows[0].getAttribute('aria-selected')).toBe('false');
+  });
+
   it('hands a construction verb to the module that owns the picker', () => {
     renderApp();
-    fireEvent.click(within(palette()).getByRole('button', { name: /Add fish/ }));
+    fireEvent.click(within(palette()).getByRole('option', { name: /Add fish/ }));
 
     expect(screen.getByRole('dialog', { name: /Add fish/ })).toBeTruthy();
   });
@@ -111,7 +127,7 @@ describe('the Act palette', () => {
 describe('a verb sheet', () => {
   it('commits the amount on the rung the reader is standing on', () => {
     renderApp();
-    fireEvent.click(within(palette()).getByRole('button', { name: /^Feed/ }));
+    fireEvent.click(within(palette()).getByRole('option', { name: /^Feed/ }));
 
     expect(preview('food')).toContain('0.00');
     const marks = actionMarks();
@@ -120,17 +136,17 @@ describe('a verb sheet', () => {
     expect(screen.queryByRole('dialog', { name: 'Feed' })).toBeNull();
     expect(actionMarks()).toBe(marks + 1);
     // The engine took the food, so the next preview starts where the last one left off.
-    fireEvent.click(within(palette()).getByRole('button', { name: /^Feed/ }));
+    fireEvent.click(within(palette()).getByRole('option', { name: /^Feed/ }));
     expect(preview('food')).toContain('0.50');
   });
 
   it('keeps the amount chosen for a verb until it is chosen again', () => {
     renderApp();
-    fireEvent.click(within(palette()).getByRole('button', { name: /^Feed/ }));
+    fireEvent.click(within(palette()).getByRole('option', { name: /^Feed/ }));
     fireEvent.click(within(sheet('Feed')).getByRole('button', { name: /^1 g/ }));
     fireEvent.keyDown(document, { key: 'Escape' });
 
-    fireEvent.click(within(palette()).getByRole('button', { name: /^Feed/ }));
+    fireEvent.click(within(palette()).getByRole('option', { name: /^Feed/ }));
     expect(within(sheet('Feed')).getByRole('button', { name: 'Feed 1 g' })).toBeTruthy();
   });
 
@@ -138,7 +154,7 @@ describe('a verb sheet', () => {
     renderApp();
     expect(screen.getByRole('button', { name: 'Act' })).toBeTruthy();
 
-    fireEvent.click(within(palette()).getByRole('button', { name: /^Feed/ }));
+    fireEvent.click(within(palette()).getByRole('option', { name: /^Feed/ }));
     fireEvent.click(within(sheet('Feed')).getByRole('button', { name: 'Feed 0.5 g' }));
 
     // The label the reader sees is the name the reader hears.
@@ -149,7 +165,7 @@ describe('a verb sheet', () => {
 
   it('commits on Enter, the way the palette opens on ⌘K', () => {
     renderApp();
-    fireEvent.click(within(palette()).getByRole('button', { name: /^Feed/ }));
+    fireEvent.click(within(palette()).getByRole('option', { name: /^Feed/ }));
     const marks = actionMarks();
     const commit = within(sheet('Feed')).getByRole('button', { name: 'Feed 0.5 g' });
 
@@ -163,7 +179,7 @@ describe('a verb sheet', () => {
 
   it('leaves Enter on a rung to the rung, rather than committing on it', () => {
     renderApp();
-    fireEvent.click(within(palette()).getByRole('button', { name: /^Feed/ }));
+    fireEvent.click(within(palette()).getByRole('option', { name: /^Feed/ }));
     const marks = actionMarks();
 
     fireEvent.keyDown(within(sheet('Feed')).getByRole('button', { name: /^1 g/ }), {
@@ -176,7 +192,7 @@ describe('a verb sheet', () => {
 
   it('opens on the first rung where a refusal leaves no commit to stand on', () => {
     renderApp();
-    fireEvent.click(within(palette()).getByRole('button', { name: /^Dose/ }));
+    fireEvent.click(within(palette()).getByRole('option', { name: /^Dose/ }));
 
     expect(document.activeElement).toBe(
       within(sheet('Dose fertiliser')).getByRole('button', { name: /^1 ml/ })
@@ -185,7 +201,7 @@ describe('a verb sheet', () => {
 
   it('puts the engine’s refusal where the commit would be, and previews nothing', () => {
     renderApp();
-    fireEvent.click(within(palette()).getByRole('button', { name: /^Dose/ }));
+    fireEvent.click(within(palette()).getByRole('option', { name: /^Dose/ }));
     const drawer = within(sheet('Dose fertiliser'));
 
     expect(drawer.getByText('no plants to fertilise')).toBeTruthy();
@@ -197,7 +213,7 @@ describe('a verb sheet', () => {
 describe('the amounts a keeper settles on', () => {
   it('outlive the session that chose them, with the verb Act is named for', () => {
     renderApp();
-    fireEvent.click(within(palette()).getByRole('button', { name: /^Feed/ }));
+    fireEvent.click(within(palette()).getByRole('option', { name: /^Feed/ }));
     fireEvent.click(within(sheet('Feed')).getByRole('button', { name: /^1 g/ }));
     fireEvent.click(within(sheet('Feed')).getByRole('button', { name: 'Feed 1 g' }));
     flushPendingSave();
@@ -205,7 +221,7 @@ describe('the amounts a keeper settles on', () => {
 
     renderApp();
     expect(screen.getByRole('button', { name: /^Act/ }).textContent).toContain('Feed · 1 g');
-    fireEvent.click(within(palette()).getByRole('button', { name: /^Feed/ }));
+    fireEvent.click(within(palette()).getByRole('option', { name: /^Feed/ }));
     expect(within(sheet('Feed')).getByRole('button', { name: 'Feed 1 g' })).toBeTruthy();
   });
 });

@@ -5,9 +5,14 @@ import { BUILD_VERBS, verbRows, type VerbId, type VerbSettings } from '../../act
 import { useUnits } from '../../hooks/useUnits';
 import { DRAWER_FOCUS, Drawer } from '../ui/Drawer';
 
+const LIST_ID = 'act-verbs';
+
+function optionId(key: string): string {
+  return `${LIST_ID}-${key}`;
+}
+
 interface Entry {
   key: string;
-  /** The tank kept, or the tank built — the two runs the palette reads in. */
   kind: 'keep' | 'build';
   name: string;
   /** The amount the verb is standing on, or nothing for a verb that builds. */
@@ -29,6 +34,9 @@ function Row({
   return (
     <button
       type="button"
+      role="option"
+      id={optionId(entry.key)}
+      aria-selected={active}
       data-verb={entry.key}
       onClick={entry.choose}
       onMouseMove={onHover}
@@ -118,6 +126,11 @@ export function ActPalette({
         <div className="p-3">
           <input
             {...DRAWER_FOCUS}
+            role="combobox"
+            aria-controls={LIST_ID}
+            aria-expanded={matches.length > 0}
+            aria-autocomplete="list"
+            aria-activedescendant={matches[at] && optionId(matches[at].key)}
             value={query}
             onChange={(e) => {
               setQuery(e.target.value);
@@ -132,25 +145,16 @@ export function ActPalette({
         {matches.length === 0 ? (
           <p className="px-3 pb-3 text-[13px] text-ink-3">No verb answers to that.</p>
         ) : (
-          (['keep', 'build'] as const).map((kind) => {
-            const run = matches.filter((entry) => entry.kind === kind);
-            if (run.length === 0) return null;
-            return (
-              <div key={kind} className="border-t border-hairline">
-                {run.map((entry) => {
-                  const i = matches.indexOf(entry);
-                  return (
-                    <Row
-                      key={entry.key}
-                      entry={entry}
-                      active={i === at}
-                      onHover={() => setActive(i)}
-                    />
-                  );
-                })}
-              </div>
-            );
-          })
+          <div role="listbox" id={LIST_ID} aria-label="Verbs" className="border-t border-hairline">
+            {matches.map((entry, i) => (
+              <Row
+                key={entry.key}
+                entry={entry}
+                active={i === at}
+                onHover={() => setActive(i)}
+              />
+            ))}
+          </div>
         )}
       </div>
     </Drawer>
