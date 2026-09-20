@@ -88,7 +88,8 @@ export function VerbDrawer({
     <Drawer open onClose={onClose} title={detail.title}>
       <div
         onKeyDown={(e) => {
-          if (e.key === 'Enter' && !e.shiftKey) commit();
+          // A rung answers its own Enter; only the sheet at large commits on one.
+          if (e.key === 'Enter' && !(e.target as HTMLElement).closest('button')) commit();
         }}
         className="flex flex-col gap-4 p-3"
       >

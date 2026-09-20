@@ -96,20 +96,32 @@ look at last Tuesday.
 
 ## Acting on the tank
 
-The Act button in the top bar (and ⌘K) opens the palette in the drawer. It
-carries no verbs yet — the six husbandry verbs land in it as the verb drawer is
-built. The rules each one is built to follow are already the engine's:
+Every husbandry verb has a home: Feed, Trim and Scrub on Life, Water change and
+Top-off on Water, Dose on Nutrients. Each appears as a button in that widget's
+footer and in its module header, carrying the amount it is standing on — a
+footer says what would happen rather than opening a menu to ask. The **Needs
+you** strip carries the same verb beside the condition that calls for it.
 
-| Property | How it works |
+The Act button in the top bar (and ⌘K) opens the palette: the six verbs with
+their amounts and their modules, then the three construction verbs, filtered as
+you type. Either route opens the identical sheet in the drawer.
+
+| Part of the sheet | What it is |
 |---|---|
-| Options | The engine's own sets — the water-change fractions it accepts, the scrub range it rolls within |
-| Refusals | The engine's own guards, stated where the verb would otherwise say what it is about to do, so an unavailable verb is never a dead end |
-| Preview | The action is applied to a throwaway state and the difference is read off it. What you see is the outcome, not an estimate of it |
-| Dispatch | One call into the engine, which works whether the tank is running or paused |
+| Amount rungs | The engine's own option sets — the water-change fractions it accepts, the trim targets, the feed and dose presets, plus the dose the plants are currently short of |
+| Preview | The action applied to a throwaway state, read back as reading rows: the standing value as a ghost marker, the value the commit would leave as the live one, on the strip the reading is read on everywhere else. Only what moves is listed |
+| Commit | One button, named for the verb and its amount — "Feed 0.5 g", "Change 25 % water" |
+| Refusals | The engine's own guards, standing where the commit would be, so an unavailable verb is never a dead end |
+| Dispatch | One call into the engine, which works whether the tank is running or paused, and writes the log line the spine marks |
+
+The amount chosen for a verb outlives a dismissal: closing the sheet means "not
+now", the footer buttons and the palette go on naming that amount, and the top
+bar's Act button takes the name of the last verb committed.
 
 Construction is not husbandry and does not go through this path. Swapping a
 filter, resizing the tank, adding a plant or a rock edits the tank directly and
-writes its own line into the log.
+writes its own line into the log; the palette's construction verbs hand the
+reader to the picker that owns them.
 
 ## Reading the engine
 

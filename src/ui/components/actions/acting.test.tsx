@@ -147,10 +147,23 @@ describe('a verb sheet', () => {
     fireEvent.click(within(palette()).getByRole('button', { name: /^Feed/ }));
     const marks = actionMarks();
 
-    fireEvent.keyDown(within(sheet('Feed')).getByText('Feed 0.5 g'), { key: 'Enter' });
+    fireEvent.keyDown(within(sheet('Feed')).getByText('After'), { key: 'Enter' });
 
     expect(screen.queryByRole('dialog', { name: 'Feed' })).toBeNull();
     expect(actionMarks()).toBe(marks + 1);
+  });
+
+  it('leaves Enter on a rung to the rung, rather than committing on it', () => {
+    renderApp();
+    fireEvent.click(within(palette()).getByRole('button', { name: /^Feed/ }));
+    const marks = actionMarks();
+
+    fireEvent.keyDown(within(sheet('Feed')).getByRole('button', { name: /^1 g/ }), {
+      key: 'Enter',
+    });
+
+    expect(sheet('Feed')).toBeTruthy();
+    expect(actionMarks()).toBe(marks);
   });
 
   it('puts the engine’s refusal where the commit would be, and previews nothing', () => {
