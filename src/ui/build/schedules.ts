@@ -20,16 +20,40 @@ export function hourLabel(hour: number): string {
   return `${String(hour).padStart(2, '0')}:00`;
 }
 
+/** Any hour, on the clock face: −1 is 23, 24 is 0. */
+function wrapHour(hour: number): number {
+  return ((hour % 24) + 24) % 24;
+}
+
+/** The hour a schedule stops, which is where the engine stores a duration. */
+export function scheduleEnd(schedule: DailySchedule): number {
+  return wrapHour(schedule.startHour + schedule.duration);
+}
+
 /** The same span where a rack row has room for five characters: `08–20`. */
 export function scheduleHours(schedule: DailySchedule): string {
   if (schedule.duration >= 24) return 'all day';
-  const end = (schedule.startHour + schedule.duration) % 24;
-  return `${String(schedule.startHour).padStart(2, '0')}–${String(end).padStart(2, '0')}`;
+  return `${String(schedule.startHour).padStart(2, '0')}–${String(scheduleEnd(schedule)).padStart(2, '0')}`;
 }
 
 export function scheduleRange(schedule: DailySchedule): string {
   if (schedule.duration >= 24) return 'all day';
-  return `${hourLabel(schedule.startHour)}–${hourLabel((schedule.startHour + schedule.duration) % 24)}`;
+  return `${hourLabel(schedule.startHour)}–${hourLabel(scheduleEnd(schedule))}`;
+}
+
+/**
+ * A schedule is edited on the two ends it is stated by, but stored as a start
+ * and a duration — so moving one end holds the other where it was, and either
+ * end walked onto the other means the whole day rather than none of it. Both
+ * ends walk through midnight, in either direction.
+ */
+export function scheduleWithStart(schedule: DailySchedule, startHour: number): DailySchedule {
+  const start = wrapHour(startHour);
+  return { startHour: start, duration: wrapHour(scheduleEnd(schedule) - start) || 24 };
+}
+
+export function scheduleWithEnd(schedule: DailySchedule, endHour: number): DailySchedule {
+  return { ...schedule, duration: wrapHour(endHour - schedule.startHour) || 24 };
 }
 
 /** A schedule crossing midnight lights both ends of the track. */

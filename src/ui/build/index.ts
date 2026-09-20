@@ -17,9 +17,12 @@ export {
   type ScheduledDeviceId,
   hourLabel,
   scheduleBand,
+  scheduleEnd,
   scheduleHours,
   scheduleRange,
   scheduleSpans,
+  scheduleWithEnd,
+  scheduleWithStart,
 } from './schedules.js';
 export {
   type DeviceHint,

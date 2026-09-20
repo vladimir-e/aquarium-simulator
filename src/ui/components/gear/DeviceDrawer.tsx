@@ -19,7 +19,10 @@ import {
   deviceHint,
   deviceReadings,
   hourLabel,
+  scheduleEnd,
   scheduleSpans,
+  scheduleWithEnd,
+  scheduleWithStart,
   FILTER_LABEL,
   type DeviceId,
   type DeviceReading,
@@ -58,10 +61,8 @@ function Figure({ label, value, note }: DeviceReading): React.JSX.Element {
 }
 
 /**
- * The day a device keeps, edited on the ends it is stated by. Duration is what
- * the engine stores, so moving the end moves the duration under it — and an
- * end dragged back past the start wraps forward through midnight rather than
- * collapsing the schedule.
+ * The day a device keeps, edited on the two ends it is stated by — both of
+ * which walk through midnight, so neither end is a wall the other one isn't.
  */
 function ScheduleField({
   schedule,
@@ -74,7 +75,7 @@ function ScheduleField({
   active: boolean;
   onChange: (schedule: DailySchedule) => void;
 }): React.JSX.Element {
-  const end = (schedule.startHour + schedule.duration) % 24;
+  const end = scheduleEnd(schedule);
 
   return (
     <div className="py-2">
@@ -88,22 +89,16 @@ function ScheduleField({
         <Stepper
           ariaLabel="Start hour"
           value={schedule.startHour}
-          min={0}
-          max={23}
           display={hourLabel(schedule.startHour)}
-          onChange={(startHour) =>
-            onChange({ startHour, duration: (end - startHour + 24) % 24 || 24 })
-          }
+          onChange={(next) => onChange(scheduleWithStart(schedule, next))}
         />
       </FieldRow>
-      <FieldRow label="End">
+      <FieldRow label="End" note="onto Start is all day">
         <Stepper
           ariaLabel="End hour"
           value={end}
           display={hourLabel(end)}
-          onChange={(next) =>
-            onChange({ ...schedule, duration: (next - schedule.startHour + 24) % 24 || 24 })
-          }
+          onChange={(next) => onChange(scheduleWithEnd(schedule, next))}
         />
       </FieldRow>
     </div>
