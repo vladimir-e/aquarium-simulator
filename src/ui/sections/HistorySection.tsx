@@ -130,6 +130,7 @@ export function HistorySection({
       <div className="grid grid-cols-1 gap-x-4 gap-y-3 md:h-full md:min-h-0 md:grid-cols-[3fr_2fr]">
         <div className="flex flex-col gap-2 md:min-h-0">
           <div
+            ref={scrub.ref}
             {...scrub.surface}
             className="flex cursor-ew-resize touch-none flex-col gap-3 focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent md:min-h-0 md:flex-1"
           >
@@ -142,7 +143,7 @@ export function HistorySection({
                     lines={lines}
                     snapshot={snapshot}
                     displayTemp={displayTemp}
-                    extents
+                    extents={!isMobile}
                     className="shrink-0"
                   />
                   <Track
@@ -159,9 +160,9 @@ export function HistorySection({
             })}
           </div>
 
-          <div className="flex shrink-0 items-center gap-3 text-[11px] text-ink-3">
-            <span className="tabular-nums">Day {range ? dayNumber(range.minTick) : 1}</span>
-            <div className="relative h-3.5 flex-1">
+          {/* The axis spans the same width as the tracks, so one tick is one x. */}
+          <div className="shrink-0">
+            <div className="relative h-3.5">
               <TimeAxis
                 range={range}
                 actions={actions}
@@ -170,7 +171,10 @@ export function HistorySection({
                 parked={scrub.parked !== null}
               />
             </div>
-            <span className="tabular-nums">Day {range ? dayNumber(range.maxTick) : 1}</span>
+            <div className="flex justify-between text-[11px] leading-[14px] text-ink-3">
+              <span className="tabular-nums">Day {range ? dayNumber(range.minTick) : 1}</span>
+              <span className="tabular-nums">Day {range ? dayNumber(range.maxTick) : 1}</span>
+            </div>
           </div>
         </div>
 

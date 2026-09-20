@@ -1,4 +1,3 @@
-import React from 'react';
 import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
 import { cleanup, fireEvent, screen, within } from '@testing-library/react';
 import { HistorySection } from './HistorySection';
@@ -85,7 +84,7 @@ describe('History', () => {
   });
 
   it('exports the transcript as text', () => {
-    const createObjectURL = vi.fn(() => 'blob:log');
+    const createObjectURL = vi.fn((_blob: { type: string }) => 'blob:log');
     const revokeObjectURL = vi.fn();
     vi.stubGlobal('URL', { ...globalThis.URL, createObjectURL, revokeObjectURL });
     const click = vi
@@ -96,7 +95,7 @@ describe('History', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Export log' }));
 
     expect(createObjectURL).toHaveBeenCalledOnce();
-    expect((createObjectURL.mock.calls[0][0] as { type: string }).type).toBe('text/plain');
+    expect(createObjectURL.mock.calls[0][0].type).toBe('text/plain');
 
     click.mockRestore();
     vi.unstubAllGlobals();

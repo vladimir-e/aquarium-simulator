@@ -67,12 +67,13 @@ export function Spine({ history, logs, tick, schedule }: SpineProps): React.JSX.
 
   return (
     <div
-      className={`flex flex-col border-t border-hairline ${open ? 'h-40 max-md:h-[120px]' : 'h-8 max-md:h-6'}`}
+      className={`flex flex-col gap-0.5 border-t border-hairline px-3 py-0.5 ${open ? 'h-40 max-md:h-[120px]' : 'h-8 max-md:h-7'}`}
     >
       {open && (
         <div
+          ref={tracks.ref}
           {...tracks.surface}
-          className="flex min-h-0 flex-1 cursor-ew-resize touch-none flex-col gap-1.5 px-3 pt-1 focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent"
+          className="flex min-h-0 flex-1 cursor-ew-resize touch-none flex-col gap-1.5 focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent"
         >
           {isMobile && (
             <Segmented
@@ -109,23 +110,25 @@ export function Spine({ history, logs, tick, schedule }: SpineProps): React.JSX.
         </div>
       )}
 
-      <div className="flex h-8 shrink-0 items-center gap-3 px-3 text-[11px] text-ink-3 max-md:h-6 max-md:gap-2">
-        <span className="tabular-nums">Day {dayNumber(range.minTick)}</span>
+      {/* The axis spans the same width as the tracks, so one tick is one x. */}
+      <div
+        ref={axis.ref}
+        {...axis.surface}
+        className="relative h-3.5 shrink-0 cursor-ew-resize touch-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+      >
+        <TimeAxis
+          range={range}
+          actions={actions}
+          alerts={alerts}
+          at={axis.at}
+          parked={axis.parked !== null}
+        />
+      </div>
 
-        <div
-          {...axis.surface}
-          className="relative h-3.5 flex-1 cursor-ew-resize touch-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-        >
-          <TimeAxis
-            range={range}
-            actions={actions}
-            alerts={alerts}
-            at={axis.at}
-            parked={axis.parked !== null}
-          />
-        </div>
-
-        <span className="tabular-nums">Day {dayNumber(range.maxTick)}</span>
+      <div className="flex shrink-0 items-center gap-3 text-[11px] leading-[14px] text-ink-3">
+        <span className="tabular-nums max-md:hidden">Day {dayNumber(range.minTick)}</span>
+        <span className="flex-1" />
+        <span className="tabular-nums max-md:hidden">Day {dayNumber(range.maxTick)}</span>
 
         <button
           type="button"
@@ -139,6 +142,7 @@ export function Spine({ history, logs, tick, schedule }: SpineProps): React.JSX.
 
         <Link
           to={{ pathname: '/history', search: params.toString() }}
+          aria-label="History module"
           className="shrink-0 text-ink-2 transition-colors hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent max-md:hidden"
         >
           history

@@ -104,7 +104,7 @@ describe('the axis', () => {
     fireEvent.keyDown(slider(), { key: 'ArrowLeft' });
     expect(slider().getAttribute('aria-valuenow')).toBe(String(TICKS - 1));
     expect(search()).toBe(`?tick=${TICKS - 1}`);
-    expect(screen.getByRole('link', { name: 'history' }).getAttribute('href')).toBe(
+    expect(screen.getByRole('link', { name: 'History module' }).getAttribute('href')).toBe(
       `/history?tick=${TICKS - 1}`
     );
 
@@ -117,7 +117,7 @@ describe('the axis', () => {
     mount('/history?window=24h&tick=24');
 
     expect(slider().getAttribute('aria-valuenow')).toBe('24');
-    expect(screen.getByRole('link', { name: 'history' }).getAttribute('href')).toBe(
+    expect(screen.getByRole('link', { name: 'History module' }).getAttribute('href')).toBe(
       '/history?window=24h&tick=24'
     );
   });

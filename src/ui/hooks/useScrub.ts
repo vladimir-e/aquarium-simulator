@@ -20,9 +20,10 @@ export interface Scrub {
   park: (tick: number | null, intent: ScrubIntent) => void;
   /** Rewrite other view params, honouring the same back-button rule. */
   write: (patch: Record<string, string | null>, intent: ScrubIntent) => void;
+  /** The region the range is measured across — where `surface` is spread. */
+  ref: React.RefObject<HTMLDivElement>;
   /** Props for a region that scrubs the whole range under the pointer. */
   surface: React.HTMLAttributes<HTMLDivElement> & {
-    ref: React.RefObject<HTMLDivElement>;
     role: 'slider';
     tabIndex: number;
   };
@@ -101,8 +102,8 @@ export function useScrub(range: TickRange | null, label: string): Scrub {
     at,
     park,
     write,
+    ref,
     surface: {
-      ref,
       role: 'slider',
       tabIndex: 0,
       'aria-label': label,

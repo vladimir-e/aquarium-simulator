@@ -73,7 +73,7 @@ export function Track({
           width={Math.max(0, x(span.to) - x(span.from))}
           height={VIEW_H}
           className="fill-band"
-          opacity={0.45}
+          opacity={0.3}
         />
       ))}
 

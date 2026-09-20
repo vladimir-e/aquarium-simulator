@@ -11,6 +11,7 @@ Format: - **Feature name** (#PR) - One short sentence (under ~150 chars)
 
 ## Unreleased
 
+- **The timeline is the spine, expanded** - the strip at the foot of every screen opens onto four tracks over the run, and History is those tracks at full height beside the event log (v26).
 - **The verb sheet commits on Enter, and remembers the amount** - the sheet opens on its commit button, and the amounts and promoted verb are kept with the tank (v25).
 - **The dashboard is a console** - transport, rail, spine and widgets over one reading set; any row on the Overview, Water or Life opens one inspector.
 - **Docs portal** - the whole system documented at docs.fishroom.app, linked from the dashboard.
