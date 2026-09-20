@@ -4,8 +4,9 @@ import { FOCUSABLE } from '../../hooks/useFocusTrap';
 import { useIsMobile } from '../../hooks/useMediaQuery';
 
 /**
- * Marks a control that owns a drawer's open state, so the outside-click close
- * doesn't race the control's own toggle.
+ * Marks a region whose own clicks govern the drawer — the control that opens
+ * it, the rows that swap it for another subject, the switches beside them — so
+ * the outside-click close doesn't race what the click was for.
  */
 export const DRAWER_TOGGLE = { 'data-drawer-toggle': '' };
 

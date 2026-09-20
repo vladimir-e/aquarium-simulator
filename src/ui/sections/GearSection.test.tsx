@@ -1,7 +1,7 @@
 import React from 'react';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, cleanup, within } from '@testing-library/react';
-import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
+import { Link, MemoryRouter, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { GearSection } from './GearSection';
 import { UnitsProvider } from '../hooks/useUnits';
 import { PersistenceProvider } from '../persistence/index.js';
@@ -36,6 +36,20 @@ function Address(): React.JSX.Element {
   return <span data-testid="address">{useLocation().pathname}</span>;
 }
 
+/** Somewhere else in the app that links straight into an inspector. */
+function Elsewhere(): React.JSX.Element {
+  return <Link to="/gear/light">the Light row</Link>;
+}
+
+function Back(): React.JSX.Element {
+  const navigate = useNavigate();
+  return (
+    <button type="button" onClick={() => navigate(-1)}>
+      back
+    </button>
+  );
+}
+
 function renderGear(
   path = '/gear',
   sim: ReturnType<typeof useSimulation> = stubSim(base)
@@ -45,12 +59,14 @@ function renderGear(
       <UnitsProvider>
         <MemoryRouter initialEntries={[path]}>
           <Routes>
+            <Route path="/" element={<Elsewhere />} />
             <Route
               path="/gear/:deviceId?"
               element={<GearSection sim={sim} config={DEFAULT_CONFIG} />}
             />
           </Routes>
           <Address />
+          <Back />
         </MemoryRouter>
       </UnitsProvider>
     </PersistenceProvider>
@@ -122,6 +138,45 @@ describe('GearSection', () => {
 
     expect(screen.queryByRole('dialog')).toBeNull();
     expect(address()).toBe('/gear');
+  });
+
+  it('swaps the open inspector for the row that was clicked, one entry deeper', () => {
+    renderGear('/gear/light');
+    const filter = screen.getByRole('link', { name: /^Filter —/ });
+
+    fireEvent.pointerDown(filter);
+    fireEvent.click(filter);
+
+    expect(screen.getByRole('dialog', { name: 'Filter' })).toBeTruthy();
+    expect(address()).toBe('/gear/filter');
+
+    fireEvent.click(screen.getByRole('button', { name: 'back' }));
+
+    expect(address()).toBe('/gear/light');
+    expect(screen.getByRole('dialog', { name: 'Light' })).toBeTruthy();
+  });
+
+  it('closes onto the rack, not back out of Gear', () => {
+    renderGear('/');
+
+    fireEvent.click(screen.getByRole('link', { name: 'the Light row' }));
+    expect(screen.getByRole('dialog', { name: 'Light' })).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Close Light' }));
+
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(address()).toBe('/gear');
+  });
+
+  it('leaves the inspector open when a switch behind it is flipped', () => {
+    const sim = renderGear('/gear/light');
+    const heater = screen.getByRole('switch', { name: 'Heater power' });
+
+    fireEvent.pointerDown(heater);
+    fireEvent.click(heater);
+
+    expect(sim.updateHeaterEnabled).toHaveBeenCalledWith(false);
+    expect(screen.getByRole('dialog', { name: 'Light' })).toBeTruthy();
   });
 
   it('sends a device the engine does not configure back to the rack', () => {

@@ -42,7 +42,6 @@ function AddHardscape({ onPick }: { onPick: (type: HardscapeType) => void }): Re
         type="button"
         aria-expanded={open}
         onClick={() => setOpen(!open)}
-        {...DRAWER_TOGGLE}
         className="inline-flex h-7 shrink-0 items-center rounded-control border border-hairline px-2.5 text-[13px] text-ink transition-colors hover:bg-surface-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent"
       >
         + Hardscape
@@ -58,7 +57,6 @@ function AddHardscape({ onPick }: { onPick: (type: HardscapeType) => void }): Re
                 setOpen(false);
                 onPick(type);
               }}
-              {...DRAWER_TOGGLE}
               className="flex h-9 w-full items-center px-3 text-left text-[13px] text-ink transition-colors hover:bg-surface-2 focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent"
             >
               + {getHardscapeName(type)}
@@ -78,7 +76,7 @@ export function ScapeRows({ sim }: { sim: Sim }): React.JSX.Element {
   const capacity = checkHardscapeCapacity(equipment.hardscape.items, tank.hardscapeSlots);
 
   return (
-    <div>
+    <div {...DRAWER_TOGGLE}>
       <div className={SCAPE_ROW}>
         <span className="truncate text-[14px] text-ink">
           Substrate

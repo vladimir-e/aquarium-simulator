@@ -5,6 +5,7 @@ import type { DeviceId, EquipmentRow, ScheduleRow } from '../../build';
 import type { useSimulation } from '../../hooks/useSimulation';
 import type { Rack } from '../../readings';
 import { DeviceGlyph } from '../ui/DeviceGlyph';
+import { DRAWER_TOGGLE } from '../ui/Drawer';
 import { Toggle } from '../ui/Toggle';
 
 type Sim = ReturnType<typeof useSimulation>;
@@ -108,7 +109,7 @@ export function DeviceLine({
   const ink = row.on ? 'text-ink-2' : 'text-ink-3';
 
   return (
-    <div className={`${ROW} ${TEMPLATE[layout]}`}>
+    <div {...DRAWER_TOGGLE} className={`${ROW} ${TEMPLATE[layout]}`}>
       <Link
         to={`/gear/${row.id}`}
         aria-label={`${row.name} — ${row.summary}`}

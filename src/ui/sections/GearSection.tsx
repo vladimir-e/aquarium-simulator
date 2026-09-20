@@ -1,5 +1,5 @@
-import React, { useMemo } from 'react';
-import { Navigate, useLocation, useNavigate, useParams } from 'react-router-dom';
+import React, { useCallback, useMemo } from 'react';
+import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import { SurfaceResource } from '../../simulation/resources/index.js';
 import type { TunableConfig } from '../../simulation/config/index.js';
 import { DeviceDrawer } from '../components/gear/DeviceDrawer';
@@ -20,8 +20,9 @@ import { bacteriaReadout } from '../run';
  * than a band beneath them. Under it what the tank is built of, and under that
  * what the fittings add up to, which is what the tick actually reads.
  *
- * The open device is the URL, so back walks between devices and every
- * inspector is a link someone can send.
+ * The open device is the URL: rows push, so back walks between devices, and
+ * closing replaces, so it lands on the rack from wherever it was opened rather
+ * than popping out of Gear. Every inspector is a link someone can send.
  */
 export function GearSection({
   sim,
@@ -32,7 +33,6 @@ export function GearSection({
 }): React.JSX.Element {
   const { deviceId } = useParams();
   const navigate = useNavigate();
-  const location = useLocation();
   const { unitSystem } = useUnits();
   const { state } = sim;
 
@@ -41,6 +41,7 @@ export function GearSection({
     [state, config, sim.history, unitSystem]
   );
   const bacteria = useMemo(() => bacteriaReadout(state, config), [state, config]);
+  const close = useCallback(() => navigate('/gear', { replace: true }), [navigate]);
 
   const entries = rackEntries(book.rack);
   const { hour } = book.rack.schedules;
@@ -51,13 +52,6 @@ export function GearSection({
       : null;
 
   if (deviceId !== undefined && selected === null) return <Navigate to="/gear" replace />;
-
-  // A deep link into an inspector has nothing behind it, so closing it goes to
-  // the rack rather than leaving the app.
-  const close = (): void => {
-    if (location.key === 'default') navigate('/gear', { replace: true });
-    else navigate(-1);
-  };
 
   const { resources } = state;
   const slots = state.equipment.hardscape.items.length;
