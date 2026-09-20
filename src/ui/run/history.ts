@@ -4,7 +4,7 @@
  * window; oldest entries drop past the cap. Session-scoped — not persisted.
  */
 
-import type { SimulationState } from '../../simulation/index.js';
+import { getLightOutput, type SimulationState } from '../../simulation/index.js';
 import { getPpm } from '../../simulation/resources/index.js';
 import { countFry } from './livestock.js';
 
@@ -27,6 +27,7 @@ export interface RunSnapshot {
   plantAvgSize: number;
   algaeMass: number;
   food: number;
+  lightOn: boolean;
 }
 
 function average(values: number[]): number {
@@ -53,6 +54,7 @@ export function snapshotFromState(state: SimulationState): RunSnapshot {
     plantAvgSize: average(state.plants.map((p) => p.size)),
     algaeMass: state.algae.mass,
     food: r.food,
+    lightOn: getLightOutput(state.equipment.light, state.tick % 24) > 0,
   };
 }
 

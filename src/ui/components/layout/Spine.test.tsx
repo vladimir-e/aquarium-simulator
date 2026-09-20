@@ -31,6 +31,7 @@ const history: RunSnapshot[] = Array.from({ length: TICKS + 1 }, (_, tick) => ({
   plantAvgSize: 30,
   algaeMass: 12,
   food: 0,
+  lightOn: tick % 24 >= 8 && tick % 24 < 16,
 }));
 
 const logs: LogEntry[] = [
@@ -67,7 +68,7 @@ function mount(path = '/', buffer: RunSnapshot[] = history): void {
     <PersistenceProvider>
       <UnitsProvider>
         <MemoryRouter initialEntries={[path]}>
-          <Spine history={buffer} logs={logs} schedule={{ startHour: 8, duration: 8 }} />
+          <Spine history={buffer} logs={logs} />
           <Address />
         </MemoryRouter>
       </UnitsProvider>

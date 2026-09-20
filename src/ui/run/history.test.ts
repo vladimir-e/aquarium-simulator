@@ -49,6 +49,7 @@ function makeSnapshot(tick: number): RunSnapshot {
     plantAvgSize: 0,
     algaeMass: 0,
     food: 0,
+    lightOn: false,
   };
 }
 
@@ -98,6 +99,28 @@ describe('snapshotFromState', () => {
     expect(snap.nitrite).toBe(getPpm(r.nitrite, r.water));
     expect(snap.nitrate).toBe(getPpm(r.nitrate, r.water));
     expect(snap.ammonia).not.toBe(r.ammonia);
+  });
+
+  it('records whether the fixture was running that hour', () => {
+    const lit = (tick: number): boolean =>
+      snapshotFromState(
+        makeState((d) => {
+          d.tick = tick;
+          d.equipment.light.enabled = true;
+          d.equipment.light.schedule = { startHour: 8, duration: 6 };
+        })
+      ).lightOn;
+
+    expect(lit(9)).toBe(true);
+    expect(lit(15)).toBe(false);
+    expect(
+      snapshotFromState(
+        makeState((d) => {
+          d.tick = 9;
+          d.equipment.light.enabled = false;
+        })
+      ).lightOn
+    ).toBe(false);
   });
 
   it('computes water as a percentage of capacity', () => {

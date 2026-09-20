@@ -53,13 +53,7 @@ export function HistorySection({
   const reviewWindow = readWindow(params.get(WINDOW_PARAM));
   const filter = readFilter(params.get(LOG_PARAM));
 
-  const light = sim.state.equipment.light;
-  const timeline = useTimeline(
-    sim.history,
-    sim.state.logs,
-    reviewWindow,
-    light.enabled ? light.schedule : null
-  );
+  const timeline = useTimeline(sim.history, sim.state.logs, reviewWindow);
   const { range, actions, alerts, logs, scrub } = timeline;
 
   const tallies = runSummary(sim.aggregates, sim.state.logs, unitSystem);

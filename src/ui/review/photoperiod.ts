@@ -1,6 +1,4 @@
-import type { DailySchedule } from '../../simulation/index.js';
-import { TICKS_PER_DAY } from '../utils/clock.js';
-import type { TickRange } from './window.js';
+import type { RunSnapshot } from '../run/index.js';
 
 export interface TickSpan {
   from: number;
@@ -8,23 +6,28 @@ export interface TickSpan {
 }
 
 /**
- * The lit hours the fixture ran, clipped to the window — the faint band behind
- * every track, so a plant's flat night and an oxygen sag read against the
- * light that caused them. An unpowered or zero-hour fixture lights nothing.
+ * The lit hours the run actually had, read off the buffer — the faint band
+ * behind every track, so a plant's flat night and an oxygen sag read against
+ * the light that caused them. Each snapshot recorded whether its own hour was
+ * lit, so retiming the fixture moves the band from there on and leaves the
+ * hours it already ran where they were.
  */
-export function photoperiodSpans(
-  range: TickRange | null,
-  schedule: DailySchedule | null
-): TickSpan[] {
-  if (!range || !schedule || schedule.duration <= 0) return [];
+export function photoperiodSpans(snapshots: RunSnapshot[]): TickSpan[] {
+  const last = snapshots[snapshots.length - 1];
+  if (last === undefined) return [];
+
   const spans: TickSpan[] = [];
-  const firstDay = Math.floor(range.minTick / TICKS_PER_DAY) - 1;
-  const lastDay = Math.floor(range.maxTick / TICKS_PER_DAY);
-  for (let day = firstDay; day <= lastDay; day++) {
-    const dawn = day * TICKS_PER_DAY + schedule.startHour;
-    const from = Math.max(range.minTick, dawn);
-    const to = Math.min(range.maxTick, dawn + schedule.duration);
-    if (to > from) spans.push({ from, to });
+  let dawn: number | null = null;
+
+  for (const snapshot of snapshots) {
+    if (snapshot.lightOn) {
+      dawn ??= snapshot.tick;
+      continue;
+    }
+    if (dawn !== null) spans.push({ from: dawn, to: snapshot.tick });
+    dawn = null;
   }
-  return spans;
+  if (dawn !== null) spans.push({ from: dawn, to: last.tick });
+
+  return spans.filter((span) => span.to > span.from);
 }

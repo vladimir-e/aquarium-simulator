@@ -1,32 +1,52 @@
 import { describe, it, expect } from 'vitest';
 import { photoperiodSpans } from './photoperiod';
+import type { RunSnapshot } from '../run/index.js';
 
-const SCHEDULE = { startHour: 8, duration: 6 };
+/** A buffer of `count` ticks from `from`, lit on the hours the predicate names. */
+function buffer(from: number, count: number, lit: (tick: number) => boolean): RunSnapshot[] {
+  return Array.from({ length: count }, (_, i) => {
+    const tick = from + i;
+    return { tick, lightOn: lit(tick) } as RunSnapshot;
+  });
+}
+
+/** The fixture the run was on: 08:00 for six hours. */
+const eightToTwo = (tick: number): boolean => tick % 24 >= 8 && tick % 24 < 14;
 
 describe('photoperiodSpans', () => {
-  it('lights the fixture hours of every day in the window', () => {
-    expect(photoperiodSpans({ minTick: 0, maxTick: 48 }, SCHEDULE)).toEqual([
+  it('lights the hours the buffer recorded the fixture running', () => {
+    expect(photoperiodSpans(buffer(0, 49, eightToTwo))).toEqual([
       { from: 8, to: 14 },
       { from: 32, to: 38 },
     ]);
   });
 
-  it('clips a period the window opens or closes inside', () => {
-    expect(photoperiodSpans({ minTick: 10, maxTick: 34 }, SCHEDULE)).toEqual([
+  it('clips a period the buffer opens or closes inside', () => {
+    expect(photoperiodSpans(buffer(10, 25, eightToTwo))).toEqual([
       { from: 10, to: 14 },
       { from: 32, to: 34 },
     ]);
   });
 
-  it('lights nothing without a fixture, or with one that never comes on', () => {
-    expect(photoperiodSpans({ minTick: 0, maxTick: 48 }, null)).toEqual([]);
-    expect(photoperiodSpans({ minTick: 0, maxTick: 48 }, { startHour: 8, duration: 0 })).toEqual([]);
-    expect(photoperiodSpans(null, SCHEDULE)).toEqual([]);
+  it('lights nothing on an empty buffer, or one that never saw the fixture on', () => {
+    expect(photoperiodSpans([])).toEqual([]);
+    expect(photoperiodSpans(buffer(0, 49, () => false))).toEqual([]);
   });
 
   it('carries a period that runs past midnight into the day it ends on', () => {
-    expect(photoperiodSpans({ minTick: 24, maxTick: 30 }, { startHour: 20, duration: 8 })).toEqual([
-      { from: 24, to: 28 },
+    const eightPmToFour = (tick: number): boolean => tick % 24 >= 20 || tick % 24 < 4;
+    expect(photoperiodSpans(buffer(24, 7, eightPmToFour))).toEqual([{ from: 24, to: 28 }]);
+  });
+
+  it('leaves the hours already run where they were when the fixture is retimed', () => {
+    const retimed = [
+      ...buffer(0, 24, eightToTwo),
+      ...buffer(24, 25, (tick) => tick % 24 >= 18 && tick % 24 < 22),
+    ];
+
+    expect(photoperiodSpans(retimed)).toEqual([
+      { from: 8, to: 14 },
+      { from: 42, to: 46 },
     ]);
   });
 });

@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import type { DailySchedule, LogEntry } from '../../simulation/index.js';
+import type { LogEntry } from '../../simulation/index.js';
 import {
   alertMarkers,
   categorizeLog,
@@ -55,8 +55,7 @@ export interface Timeline {
 export function useTimeline(
   history: RunSnapshot[],
   logs: LogEntry[],
-  window: ReviewWindow,
-  schedule: DailySchedule | null
+  window: ReviewWindow
 ): Timeline {
   const slice = useMemo(() => sliceHistory(history, window), [history, window]);
   const range = useMemo(() => windowRange(history, window), [history, window]);
@@ -74,7 +73,7 @@ export function useTimeline(
         })
       );
   }, [slice]);
-  const lit = useMemo(() => photoperiodSpans(range, schedule), [range, schedule]);
+  const lit = useMemo(() => photoperiodSpans(slice), [slice]);
 
   const windowLogs = useMemo(() => sliceLogs(logs, range), [logs, range]);
   const actions = useMemo(

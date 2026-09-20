@@ -19,6 +19,7 @@ function snap(tick: number): RunSnapshot {
     plantAvgSize: 0,
     algaeMass: 0,
     food: 0,
+    lightOn: false,
   };
 }
 

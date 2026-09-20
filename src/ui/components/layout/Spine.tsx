@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import { Link, useLocation, useSearchParams } from 'react-router-dom';
-import type { DailySchedule, LogEntry } from '../../../simulation/index.js';
+import type { LogEntry } from '../../../simulation/index.js';
 import { DEFAULT_WINDOW, TRACKS, TRACK_PAIRS, type TrackDef } from '../../review';
 import type { RunSnapshot } from '../../run';
 import { useIsMobile } from '../../hooks/useMediaQuery';
@@ -20,8 +20,6 @@ const HISTORY_PATH = '/history';
 interface SpineProps {
   history: RunSnapshot[];
   logs: LogEntry[];
-  /** The fixture's hours, where one is running — the band behind the tracks. */
-  schedule: DailySchedule | null;
 }
 
 /**
@@ -33,7 +31,7 @@ interface SpineProps {
  * `?tick=`, so wherever the reader is standing the spine and History are
  * parked on the same tick, and back walks out of a scrub.
  */
-export function Spine({ history, logs, schedule }: SpineProps): React.JSX.Element {
+export function Spine({ history, logs }: SpineProps): React.JSX.Element {
   const [open, toggle] = useSpineOpen();
   const isMobile = useIsMobile();
   const { displayTemp } = useUnits();
@@ -42,7 +40,7 @@ export function Spine({ history, logs, schedule }: SpineProps): React.JSX.Elemen
   const { pathname } = useLocation();
   const expanded = open && pathname !== HISTORY_PATH;
 
-  const timeline = useTimeline(history, logs, DEFAULT_WINDOW, schedule);
+  const timeline = useTimeline(history, logs, DEFAULT_WINDOW);
   const { range, actions, alerts, scrub } = timeline;
 
   const shown: TrackDef[] = isMobile
