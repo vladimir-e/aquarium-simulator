@@ -102,17 +102,23 @@ describe('snapshotFromState', () => {
   });
 
   it('records whether the fixture was running that hour', () => {
-    const lit = (tick: number): boolean =>
+    const lit = (tick: number, schedule = { startHour: 8, duration: 6 }): boolean =>
       snapshotFromState(
         makeState((d) => {
           d.tick = tick;
           d.equipment.light.enabled = true;
-          d.equipment.light.schedule = { startHour: 8, duration: 6 };
+          d.equipment.light.schedule = schedule;
         })
       ).lightOn;
 
     expect(lit(9)).toBe(true);
     expect(lit(15)).toBe(false);
+    // The hour it comes on is lit; the hour it goes off is not.
+    expect(lit(8)).toBe(true);
+    expect(lit(14)).toBe(false);
+    // A period that runs past midnight is still running on the far side of it.
+    expect(lit(2, { startHour: 20, duration: 8 })).toBe(true);
+    expect(lit(5, { startHour: 20, duration: 8 })).toBe(false);
     expect(
       snapshotFromState(
         makeState((d) => {

@@ -21,11 +21,15 @@ describe('photoperiodSpans', () => {
     ]);
   });
 
-  it('clips a period the buffer opens or closes inside', () => {
+  it('clips a period the buffer opens inside, and lights one it ends inside through', () => {
     expect(photoperiodSpans(buffer(10, 25, eightToTwo))).toEqual([
       { from: 10, to: 14 },
-      { from: 32, to: 34 },
+      { from: 32, to: 35 },
     ]);
+  });
+
+  it('lights the last hour the buffer recorded, where that hour is the only one lit', () => {
+    expect(photoperiodSpans(buffer(6, 3, eightToTwo))).toEqual([{ from: 8, to: 9 }]);
   });
 
   it('lights nothing on an empty buffer, or one that never saw the fixture on', () => {

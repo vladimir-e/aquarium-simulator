@@ -27,7 +27,7 @@ export function photoperiodSpans(snapshots: RunSnapshot[]): TickSpan[] {
     if (dawn !== null) spans.push({ from: dawn, to: snapshot.tick });
     dawn = null;
   }
-  if (dawn !== null) spans.push({ from: dawn, to: last.tick });
+  if (dawn !== null) spans.push({ from: dawn, to: last.tick + 1 });
 
-  return spans.filter((span) => span.to > span.from);
+  return spans;
 }
