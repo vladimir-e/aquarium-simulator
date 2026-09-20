@@ -25,7 +25,6 @@ export {
   classifyVital,
   NITRATE_LOW_PPM,
   type VitalKey,
-  type VitalClassification,
 } from './vitals.js';
 export {
   readingAt,

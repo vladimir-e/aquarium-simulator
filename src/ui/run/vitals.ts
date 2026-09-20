@@ -1,7 +1,7 @@
 /**
  * Water-reading classification. Each of the eight readings maps its live value
- * to a status — which drives the gauge's outline, number, sparkline colour and
- * pill — using the engine's own alert thresholds, so no surface invents a band.
+ * to a status — which drives its marker, number and trend colour — using the
+ * engine's own alert thresholds, so no surface invents a band.
  */
 
 import {
@@ -24,50 +24,38 @@ export type VitalKey =
   | 'temperature'
   | 'water';
 
-type VitalPill = 'HIGH' | 'LOW' | null;
-
-export interface VitalClassification {
-  status: Status;
-  pill: VitalPill;
-}
-
-/** Nitrate below this (ppm) reads as depleted plant food — a LOW glance. */
+/** Nitrate below this (ppm) reads as depleted plant food. */
 export const NITRATE_LOW_PPM = 5;
 /** Dissolved oxygen at or above this (mg/L) reads as comfortable. */
 const OXYGEN_OK_MGL = 6;
 /** Water level below this (% of capacity) is the engine's critical threshold. */
 const WATER_LOW_PCT = WATER_LEVEL_CRITICAL_THRESHOLD * 100;
 
-const HIGH: VitalClassification = { status: 'alert', pill: 'HIGH' };
-const LOW: VitalClassification = { status: 'warn', pill: 'LOW' };
-const OK: VitalClassification = { status: 'ok', pill: null };
-const NEUTRAL: VitalClassification = { status: 'neutral', pill: null };
-
 /**
- * Classify a vital by its canonical value: toxins (ammonia/nitrite) go coral
- * over threshold and green otherwise; nitrate is plant food, so it reads LOW
- * when depleted and HIGH when it climbs past the alert line; the physical
- * readouts (pH, temp) stay quiet, oxygen and CO₂ colour only at their extremes,
- * and water tracks its critical-level threshold.
+ * Classify a vital by its canonical value: toxins (ammonia/nitrite) alert over
+ * threshold and read ok otherwise; nitrate is plant food, so it warns when
+ * depleted and alerts when it climbs past the alert line; the physical readouts
+ * (pH, temp) stay quiet, oxygen and CO₂ colour only at their extremes, and
+ * water tracks its critical-level threshold.
  */
-export function classifyVital(key: VitalKey, value: number): VitalClassification {
+export function classifyVital(key: VitalKey, value: number): Status {
   switch (key) {
     case 'ammonia':
-      return value > HIGH_AMMONIA_THRESHOLD ? HIGH : OK;
+      return value > HIGH_AMMONIA_THRESHOLD ? 'alert' : 'ok';
     case 'nitrite':
-      return value > HIGH_NITRITE_THRESHOLD ? HIGH : OK;
+      return value > HIGH_NITRITE_THRESHOLD ? 'alert' : 'ok';
     case 'nitrate':
-      if (value > HIGH_NITRATE_THRESHOLD) return HIGH;
-      return value < NITRATE_LOW_PPM ? LOW : OK;
+      if (value > HIGH_NITRATE_THRESHOLD) return 'alert';
+      return value < NITRATE_LOW_PPM ? 'warn' : 'ok';
     case 'oxygen':
-      if (value < LOW_OXYGEN_THRESHOLD) return LOW;
-      return value >= OXYGEN_OK_MGL ? OK : NEUTRAL;
+      if (value < LOW_OXYGEN_THRESHOLD) return 'warn';
+      return value >= OXYGEN_OK_MGL ? 'ok' : 'neutral';
     case 'co2':
-      return value > HIGH_CO2_THRESHOLD ? HIGH : NEUTRAL;
+      return value > HIGH_CO2_THRESHOLD ? 'alert' : 'neutral';
     case 'water':
-      return value < WATER_LOW_PCT ? LOW : OK;
+      return value < WATER_LOW_PCT ? 'warn' : 'ok';
     case 'ph':
     case 'temperature':
-      return NEUTRAL;
+      return 'neutral';
   }
 }

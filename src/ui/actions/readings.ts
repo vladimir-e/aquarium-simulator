@@ -142,7 +142,7 @@ const READINGS: Reading[] = [
     unit: PPM,
     display: same,
     decimals: 3,
-    status: (value) => classifyVital('ammonia', value).status,
+    status: (value) => classifyVital('ammonia', value),
     note: (value, before) => overLine(value, before, HIGH_AMMONIA_THRESHOLD),
   },
   {
@@ -152,7 +152,7 @@ const READINGS: Reading[] = [
     unit: PPM,
     display: same,
     decimals: 3,
-    status: (value) => classifyVital('nitrite', value).status,
+    status: (value) => classifyVital('nitrite', value),
     note: (value, before) => overLine(value, before, HIGH_NITRITE_THRESHOLD),
   },
   {
@@ -162,7 +162,7 @@ const READINGS: Reading[] = [
     unit: PPM,
     display: same,
     decimals: NitrateResource.precision,
-    status: (value) => classifyVital('nitrate', value).status,
+    status: (value) => classifyVital('nitrate', value),
     note: (value, _before, state): string | null => {
       if (value > HIGH_NITRATE_THRESHOLD) return `above ${HIGH_NITRATE_THRESHOLD}`;
       if (value >= NITRATE_LOW_PPM) return null;
@@ -199,7 +199,7 @@ const READINGS: Reading[] = [
     unit: PERCENT,
     display: same,
     decimals: 0,
-    status: (value) => classifyVital('water', value).status,
+    status: (value) => classifyVital('water', value),
     note: (value) =>
       value < WATER_LEVEL_CRITICAL_THRESHOLD * 100
         ? `below ${WATER_LEVEL_CRITICAL_THRESHOLD * 100} %`
@@ -212,7 +212,7 @@ const READINGS: Reading[] = [
     unit: () => OxygenResource.unit,
     display: same,
     decimals: OxygenResource.precision,
-    status: (value) => classifyVital('oxygen', value).status,
+    status: (value) => classifyVital('oxygen', value),
     note: (value) =>
       value < LOW_OXYGEN_THRESHOLD ? `below ${LOW_OXYGEN_THRESHOLD.toFixed(1)}` : null,
   },
@@ -223,7 +223,7 @@ const READINGS: Reading[] = [
     unit: () => Co2Resource.unit,
     display: same,
     decimals: Co2Resource.precision,
-    status: (value) => classifyVital('co2', value).status,
+    status: (value) => classifyVital('co2', value),
     note: (value, before) => overLine(value, before, HIGH_CO2_THRESHOLD),
   },
   nutrient('phosphate', 'PO₄', PhosphateResource.precision),

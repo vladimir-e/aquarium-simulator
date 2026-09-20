@@ -140,7 +140,7 @@ export function waterReadings(state: SimulationState, units: UnitSystem): WaterR
       name: NAME[key],
       value,
       text: display(key, value, units).toFixed(DECIMALS[key]),
-      status: classifyVital(key, value).status,
+      status: classifyVital(key, value),
       fill: readingAt(key, value),
       ...spec[key],
     };
@@ -175,7 +175,7 @@ export function gasReadings(state: SimulationState): GasReading[] {
       value,
       text: value.toFixed(1),
       unit: 'mg/L',
-      status: classifyVital(key, value).status,
+      status: classifyVital(key, value),
     };
   });
 }
