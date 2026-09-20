@@ -5,6 +5,8 @@ import { LifeSection } from './LifeSection';
 import { OverviewSection } from './OverviewSection';
 import { WaterSection } from './WaterSection';
 import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
+import { rackEntries, shownInPlace } from '../components/gear/rack';
+import { readTank } from '../readings';
 import { group, renderStage, row } from '../test/stage';
 import { stocked } from '../test/run';
 import { stubSim } from '../test/stubSim';
@@ -96,10 +98,20 @@ describe('one rack, two surfaces', () => {
     renderStage(<GearSection sim={sim} config={DEFAULT_CONFIG} />);
     const page = rackRows(group('Fittings'));
 
-    // The widget collapses what is off into one row; what is on it reads out in
-    // the module's own words, in the module's own order.
+    // The widget collapses what it does not show in place into one row; the
+    // rest read out in the module's own words, in the module's own order.
+    const entries = rackEntries(
+      readTank({
+        state: run.state,
+        config: DEFAULT_CONFIG,
+        history: run.history,
+        units: 'metric',
+      }).rack
+    );
+    const inPlace = entries.flatMap((entry, i) => (shownInPlace(entry) ? [page[i]] : []));
+
     expect(page).toHaveLength(8);
-    expect(widget.slice(0, -1)).toEqual(page.filter((row) => !row.endsWith(' — off')));
+    expect(widget.slice(0, -1)).toEqual(inPlace);
     expect(widget[widget.length - 1]).toMatch(/^Others — /);
   });
 });

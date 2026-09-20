@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import { turnoverShort } from '../../build';
 import type { useSimulation } from '../../hooks/useSimulation';
 import type { ReadingBook } from '../../readings';
-import { DeviceLine, OthersLine, powerSwitch, rackEntries } from '../gear/rack';
+import { DeviceLine, OthersLine, powerSwitch, rackEntries, shownInPlace } from '../gear/rack';
 import { Widget } from '../ui/Widget';
 
 function Passive({ label, value }: { label: string; value: string }): React.JSX.Element {
@@ -26,8 +26,8 @@ export function GearWidget({
 }): React.JSX.Element {
   const { state } = sim;
   const entries = useMemo(() => rackEntries(book.rack), [book.rack]);
-  const on = entries.filter((entry) => entry.row.on);
-  const off = entries.filter((entry) => !entry.row.on);
+  const on = entries.filter(shownInPlace);
+  const off = entries.filter((entry) => !shownInPlace(entry));
   const onPower = powerSwitch(sim);
 
   return (
