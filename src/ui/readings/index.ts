@@ -108,7 +108,11 @@ export interface ReadingView {
   series: ((snapshot: RunSnapshot) => number) | null;
 }
 
-/** The four plant foods, read as demand rather than against an alert line. */
+/**
+ * The four plant foods, banded on what the plants ask for rather than on an
+ * alert line — which is why NO₃ has two readings: the toxin the engine alerts
+ * on, and the plants' nitrogen.
+ */
 type DemandId = Extract<ReadingId, 'nitrateDemand' | 'phosphate' | 'potassium' | 'iron'>;
 
 const DEMAND_ID: Record<NutrientKey, DemandId> = {
@@ -151,11 +155,6 @@ export interface ReadingBook {
   /** What the tank is running on, for the line beside a title. */
   caption: string;
   byId: ReadingsById;
-  /**
-   * The four plant foods banded on demand rather than on an alert line — the
-   * one reading the tank judges twice, since NO₃ is both a toxin the engine
-   * alerts on and the plants' nitrogen.
-   */
   demand: NutrientView[];
   nutrients: NutrientReading[];
   bacteria: BacteriaReadout;
