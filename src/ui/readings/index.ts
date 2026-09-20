@@ -42,7 +42,7 @@ import {
   type WaterGauge,
   NITRATE_LOW_PPM,
 } from '../run';
-import { formatTemperature, type UnitSystem } from '../utils/units.js';
+import { formatTemperature, toDisplayTemperature, type UnitSystem } from '../utils/units.js';
 
 export type ReadingId =
   | 'waste'
@@ -83,7 +83,7 @@ export interface ReadingView {
   sentence: string;
   fills: ReadingFlow[];
   drains: ReadingFlow[];
-  /** Where this reading lives in the history buffer, when it is recorded. */
+  /** The reading's line in the history buffer, in display units, where it has one. */
   series: ((snapshot: RunSnapshot) => number) | null;
 }
 
@@ -110,17 +110,34 @@ export interface TankInput {
   units: UnitSystem;
 }
 
-const SERIES: Partial<Record<ReadingId, (snapshot: RunSnapshot) => number>> = {
-  ammonia: (s) => s.ammonia,
-  nitrite: (s) => s.nitrite,
-  nitrate: (s) => s.nitrate,
-  temperature: (s) => s.temperature,
-  ph: (s) => s.ph,
-  level: (s) => s.waterPct,
-  oxygen: (s) => s.oxygen,
-  co2: (s) => s.co2,
-  algae: (s) => s.algaeMass,
-};
+type Series = (snapshot: RunSnapshot) => number;
+
+/**
+ * The buffer and the readings taken off it, in the units the reader is on — so
+ * the trend, the chart and the number it sits under can never be in different
+ * scales.
+ */
+interface Tape {
+  history: RunSnapshot[];
+  series: Partial<Record<ReadingId, Series>>;
+}
+
+function tapeOf(history: RunSnapshot[], units: UnitSystem): Tape {
+  return {
+    history,
+    series: {
+      ammonia: (s) => s.ammonia,
+      nitrite: (s) => s.nitrite,
+      nitrate: (s) => s.nitrate,
+      temperature: (s) => toDisplayTemperature(s.temperature, units),
+      ph: (s) => s.ph,
+      level: (s) => s.waterPct,
+      oxygen: (s) => s.oxygen,
+      co2: (s) => s.co2,
+      algae: (s) => s.algaeMass,
+    },
+  };
+}
 
 const DECIMALS: Record<ReadingId, number> = {
   waste: 3,
@@ -156,10 +173,10 @@ function scale(max: number): (value: number) => number {
  * the last 24 samples where there are that many, and extrapolated from what
  * there is where there are not.
  */
-function trendOf(history: RunSnapshot[], id: ReadingId): string {
-  const read = SERIES[id];
+function trendOf(tape: Tape, id: ReadingId): string {
+  const read = tape.series[id];
   if (!read) return '';
-  const window = history.slice(-24);
+  const window = tape.history.slice(-24);
   if (window.length < 2) return '';
   const hours = window.length - 1;
   const perDay = ((read(window[hours]) - read(window[0])) / hours) * 24;
@@ -188,7 +205,7 @@ interface GaugeSource {
   drains?: ReadingFlow[];
 }
 
-function fromGauge(id: ReadingId, history: RunSnapshot[], source: GaugeSource): ReadingView {
+function fromGauge(id: ReadingId, tape: Tape, source: GaugeSource): ReadingView {
   const { gauge } = source;
   return {
     id,
@@ -198,12 +215,12 @@ function fromGauge(id: ReadingId, history: RunSnapshot[], source: GaugeSource): 
     at: gauge.fill,
     band: source.band === undefined ? gauge.band : source.band,
     tone: source.tone ?? toneOf(gauge.status),
-    trend: trendOf(history, id),
+    trend: trendOf(tape, id),
     note: source.note ?? '',
     sentence: source.sentence,
     fills: source.fills ?? [],
     drains: source.drains ?? [],
-    series: SERIES[id] ?? null,
+    series: tape.series[id] ?? null,
   };
 }
 
@@ -219,7 +236,7 @@ function gramsPerHour(value: number): string {
 function nutrientView(
   id: ReadingId,
   reading: NutrientReading,
-  history: RunSnapshot[]
+  tape: Tape
 ): ReadingView {
   const at = scale(Math.max(reading.needed * 2, reading.ppm, 0.001));
   return {
@@ -230,7 +247,7 @@ function nutrientView(
     at: at(reading.ppm),
     band: reading.needed > 0 ? { from: at(reading.needed), to: 1 } : null,
     tone: toneOf(reading.status),
-    trend: trendOf(history, id),
+    trend: trendOf(tape, id),
     note: reading.needed > 0 ? `need ${reading.neededText}` : '',
     sentence:
       reading.needed > 0
@@ -238,7 +255,7 @@ function nutrientView(
         : 'Nothing planted, so nothing is asking for it.',
     fills: [],
     drains: [],
-    series: SERIES[id] ?? null,
+    series: tape.series[id] ?? null,
   };
 }
 
@@ -248,6 +265,7 @@ function nutrientView(
  * behind the waste ledger, the nitrite projection — happen once per tick.
  */
 export function readTank({ state, config, history, units }: TankInput): ReadingBook {
+  const tape = tapeOf(history, units);
   const gauges = waterGauges({ state, phConfig: config.ph, history, units });
   const gases = gasReadings(state);
   const nutrients = nutrientReadings(state, config);
@@ -288,7 +306,7 @@ export function readTank({ state, config, history, units }: TankInput): ReadingB
       drains: [{ label: 'Mineralising to NH₃', rate: gramsPerHour(-waste.mineralised) }],
       series: null,
     },
-    ammonia: fromGauge('ammonia', history, {
+    ammonia: fromGauge('ammonia', tape, {
       gauge: gauge('ammonia'),
       note: `safe ≤ ${HIGH_AMMONIA_THRESHOLD.toFixed(2)}`,
       sentence: `Safe at or under ${HIGH_AMMONIA_THRESHOLD.toFixed(2)} ppm — the line the engine alerts on.`,
@@ -298,21 +316,21 @@ export function readTank({ state, config, history, units }: TankInput): ReadingB
       ],
       drains: [{ label: 'AOB oxidising', rate: ppmPerHour(-rates.ammoniaOxidised) }],
     }),
-    nitrite: fromGauge('nitrite', history, {
+    nitrite: fromGauge('nitrite', tape, {
       gauge: gauge('nitrite'),
       note: `safe ≤ ${HIGH_NITRITE_THRESHOLD.toFixed(2)}`,
       sentence: `Safe at or under ${HIGH_NITRITE_THRESHOLD.toFixed(2)} ppm — the line the engine alerts on.`,
       fills: [{ label: 'AOB oxidising NH₃', rate: ppmPerHour(rates.ammoniaToNitrite) }],
       drains: [{ label: 'NOB clearing', rate: ppmPerHour(-rates.nitriteToNitrate) }],
     }),
-    nitrate: fromGauge('nitrate', history, {
+    nitrate: fromGauge('nitrate', tape, {
       gauge: gauge('nitrate'),
       note: `${NITRATE_LOW_PPM}–${HIGH_NITRATE_THRESHOLD}`,
       sentence: `Plants go short under ${NITRATE_LOW_PPM} ppm; the engine alerts over ${HIGH_NITRATE_THRESHOLD}.`,
       fills: [{ label: 'NOB clearing NO₂', rate: ppmPerHour(rates.nitriteToNitrate) }],
       drains: [],
     }),
-    temperature: fromGauge('temperature', history, {
+    temperature: fromGauge('temperature', tape, {
       gauge: gauge('temperature'),
       band: tempBand
         ? { from: gaugeFill('temperature', tempBand.min), to: gaugeFill('temperature', tempBand.max) }
@@ -327,7 +345,7 @@ export function readTank({ state, config, history, units }: TankInput): ReadingB
         'Nothing stocked, so nothing in the tank has a temperature to prefer.'
       ),
     }),
-    ph: fromGauge('ph', history, {
+    ph: fromGauge('ph', tape, {
       gauge: gauge('ph'),
       band: phBand
         ? { from: gaugeFill('ph', phBand.min), to: gaugeFill('ph', phBand.max) }
@@ -340,7 +358,7 @@ export function readTank({ state, config, history, units }: TankInput): ReadingB
         'Nothing stocked, so nothing in the tank has a pH to prefer.'
       ),
     }),
-    level: fromGauge('level', history, {
+    level: fromGauge('level', tape, {
       gauge: gauge('water'),
       note: gauge('water').caption,
       sentence: `Under ${WATER_LEVEL_CRITICAL_THRESHOLD * 100} % of capacity the engine calls the level critical.`,
@@ -353,12 +371,12 @@ export function readTank({ state, config, history, units }: TankInput): ReadingB
       at: oxygenAt(gas('oxygen').value),
       band: { from: oxygenAt(LOW_OXYGEN_THRESHOLD), to: 1 },
       tone: toneOf(gas('oxygen').status),
-      trend: trendOf(history, 'oxygen'),
+      trend: trendOf(tape, 'oxygen'),
       note: `alerts under ${LOW_OXYGEN_THRESHOLD.toFixed(1)}`,
       sentence: `Under ${LOW_OXYGEN_THRESHOLD.toFixed(1)} mg/L the engine alerts and fish start paying for it.`,
       fills: [],
       drains: [],
-      series: SERIES.oxygen ?? null,
+      series: tape.series.oxygen ?? null,
     },
     co2: {
       id: 'co2',
@@ -368,16 +386,16 @@ export function readTank({ state, config, history, units }: TankInput): ReadingB
       at: co2At(gas('co2').value),
       band: { from: 0, to: co2At(HIGH_CO2_THRESHOLD) },
       tone: toneOf(gas('co2').status),
-      trend: trendOf(history, 'co2'),
+      trend: trendOf(tape, 'co2'),
       note: `alerts over ${HIGH_CO2_THRESHOLD.toFixed(0)}`,
       sentence: `Over ${HIGH_CO2_THRESHOLD.toFixed(0)} mg/L the engine alerts — plants take it up, surface exchange drives it off.`,
       fills: [],
       drains: [],
-      series: SERIES.co2 ?? null,
+      series: tape.series.co2 ?? null,
     },
-    phosphate: nutrientView('phosphate', nutrient('phosphate'), history),
-    potassium: nutrientView('potassium', nutrient('potassium'), history),
-    iron: nutrientView('iron', nutrient('iron'), history),
+    phosphate: nutrientView('phosphate', nutrient('phosphate'), tape),
+    potassium: nutrientView('potassium', nutrient('potassium'), tape),
+    iron: nutrientView('iron', nutrient('iron'), tape),
     algae: {
       id: 'algae',
       name: 'Algae',
@@ -386,16 +404,16 @@ export function readTank({ state, config, history, units }: TankInput): ReadingB
       at: algaeAt(algae),
       band: { from: 0, to: algaeAt(HIGH_ALGAE_THRESHOLD) },
       tone: toneOf(algaeStatus(algae)),
-      trend: trendOf(history, 'algae'),
+      trend: trendOf(tape, 'algae'),
       note: algaeWord(algae),
       sentence: `Coverage the plants are competing with; over ${HIGH_ALGAE_THRESHOLD} % the engine calls it a bloom.`,
       fills: [],
       drains: [],
-      series: SERIES.algae ?? null,
+      series: tape.series.algae ?? null,
     },
   };
 
-  const demand = nutrients.map((reading) => nutrientView(reading.key, reading, history));
+  const demand = nutrients.map((reading) => nutrientView(reading.key, reading, tape));
 
   return { byId, demand, gauges, gases, nutrients, bacteria, waste, projection };
 }

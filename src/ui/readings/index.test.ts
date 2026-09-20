@@ -105,6 +105,22 @@ describe('readTank', () => {
     expect(read(stocked(1), 'imperial').byId.temperature.unit).toBe('°F');
   });
 
+  it('takes the trend off the same scale as the number above it', () => {
+    const { state } = stocked(1);
+    const base = snapshotFromState(state);
+    // A day of hourly samples climbing 20 → 24 °C: 4.0/d metric, 7.2/d imperial.
+    const history = Array.from({ length: 25 }, (_, hour) => ({
+      ...base,
+      temperature: 20 + hour / 6,
+    }));
+
+    const trend = (units: 'metric' | 'imperial'): string =>
+      readTank({ state, config: DEFAULT_CONFIG, history, units }).byId.temperature.trend;
+
+    expect(trend('metric')).toBe('↗ 4.0/d');
+    expect(trend('imperial')).toBe('↗ 7.2/d');
+  });
+
   it('gives every reading a home in the buffer, or admits it has none', () => {
     const { byId } = read(stocked(1));
     expect(byId.oxygen.series).not.toBeNull();
