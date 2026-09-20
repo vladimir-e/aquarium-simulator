@@ -12,37 +12,22 @@ export type UnitSystem = 'metric' | 'imperial';
 
 const LITERS_PER_GALLON = 3.785411784;
 
-/**
- * Convert Celsius to Fahrenheit.
- */
 function celsiusToFahrenheit(celsius: number): number {
   return (celsius * 9) / 5 + 32;
 }
 
-/**
- * Convert Fahrenheit to Celsius.
- */
 function fahrenheitToCelsius(fahrenheit: number): number {
   return ((fahrenheit - 32) * 5) / 9;
 }
 
-/**
- * Convert liters to gallons.
- */
 function litersToGallons(liters: number): number {
   return liters / LITERS_PER_GALLON;
 }
 
-/**
- * Convert gallons to liters.
- */
 function gallonsToLiters(gallons: number): number {
   return gallons * LITERS_PER_GALLON;
 }
 
-/**
- * Format temperature for display based on unit system.
- */
 export function formatTemperature(celsius: number, system: UnitSystem, precision = 1): string {
   if (system === 'imperial') {
     const fahrenheit = celsiusToFahrenheit(celsius);
@@ -51,9 +36,6 @@ export function formatTemperature(celsius: number, system: UnitSystem, precision
   return `${celsius.toFixed(precision)}°C`;
 }
 
-/**
- * Format volume for display based on unit system.
- */
 export function formatVolume(liters: number, system: UnitSystem, precision = 1): string {
   if (system === 'imperial') {
     const gallons = litersToGallons(liters);
@@ -88,44 +70,26 @@ export function formatTemperatureDelta(
   return `${value.toFixed(precision)}${getTemperatureUnit(system)}`;
 }
 
-/**
- * Get temperature unit label based on unit system.
- */
 export function getTemperatureUnit(system: UnitSystem): string {
   return system === 'imperial' ? '°F' : '°C';
 }
 
-/**
- * Get volume unit label based on unit system.
- */
 export function getVolumeUnit(system: UnitSystem): string {
   return system === 'imperial' ? 'gal' : 'L';
 }
 
-/**
- * Convert displayed temperature to internal Celsius value.
- */
 export function toInternalTemperature(value: number, system: UnitSystem): number {
   return system === 'imperial' ? fahrenheitToCelsius(value) : value;
 }
 
-/**
- * Convert internal Celsius to display value.
- */
 export function toDisplayTemperature(celsius: number, system: UnitSystem): number {
   return system === 'imperial' ? celsiusToFahrenheit(celsius) : celsius;
 }
 
-/**
- * Convert displayed volume to internal liters value.
- */
 export function toInternalVolume(value: number, system: UnitSystem): number {
   return system === 'imperial' ? gallonsToLiters(value) : value;
 }
 
-/**
- * Convert internal liters to display value.
- */
 export function toDisplayVolume(liters: number, system: UnitSystem): number {
   return system === 'imperial' ? litersToGallons(liters) : liters;
 }
@@ -197,9 +161,6 @@ export function getTankSizeOptions(system: UnitSystem, capacity?: number): TankS
 
 const LITERS_PER_HOUR_PER_GPH = 3.785411784;
 
-/**
- * Convert L/h to GPH.
- */
 function lphToGph(lph: number): number {
   return lph / LITERS_PER_HOUR_PER_GPH;
 }

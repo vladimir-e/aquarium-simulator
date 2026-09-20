@@ -12,6 +12,7 @@ Format: - **Feature name** (#PR) - One short sentence (under ~150 chars)
 ## Unreleased
 
 - **The dashboard is a console** - transport, rail, spine and widgets over one reading set; any row opens the one inspector; the spine opens onto the tracks History shows at full height. Persistence v24 → v26.
+- **A resize asks before it rebuilds** - changing tank size starts a new tank at hour zero, so past a month's run it confirms first.
 - **Every constant is reachable** - the tunables drawer opens over any screen (⌘,) with a search; livestock and the fertiliser formula are in it at last.
 - **Docs portal** - the whole system documented at docs.fishroom.app, linked from the dashboard.
 - **A starving plant stops reading as thriving** - the plant status word reads the energy ledger beside condition, so a plant shedding tissue in the dark says so.

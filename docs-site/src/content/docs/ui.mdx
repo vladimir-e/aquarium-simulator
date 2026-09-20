@@ -34,7 +34,7 @@ the published surface on its own.
 | Life | `/life` | Two tables on one row shape: the fish, and the plants with the algae riding along at their top as a population row. A species row carries a silhouette, the count, the figure each, a dot per individual and the group's condition, and opens onto the individuals under it; bioload sits under the fish against the stocking guideline. Under the fish rows sit the clutches counting down to hatch and one row for every fry in the tank, which is the unit the sell-all-fry verb takes. Any row opens the vitality ledger in the drawer — helping against hurting, each factor at its rate per day, the bank between them — and the module's "+" stocks a species through the same drawer |
 | Gear | `/gear` | A rack of eight device rows: a power switch, a silhouette, the name, and what it is set to — or, for the three that keep a clock, that day as a 24 h ribbon against the hour the tank is on. A row opens the device's inspector in the drawer, addressed by the URL, so each inspector is a link and back walks between devices; closing one lands on the rack. Under the rack the scape — the substrate, and each piece of hardscape with the surface it adds — and under that what the fittings add up to, which is what the tick reads |
 | History | `/history` | The spine at full height: the four tracks stacked over one axis on the left, and on the right what the run cost — deaths, births, alerts, water changed — over the event log. A window switch scopes both. Dragging a track or the axis, or tapping a log line, parks the same playhead the spine writes |
-| Setup | `/setup` | What the tank *is*, rather than how it is doing: the preset it came from and whether the tank still matches it, the capacity, the lid, the room and the tap water, each row carrying what it does to the tank. Beside them the display choices — units and theme — what the run has cost so far and the reset that ends it, and what this simulation claims to be |
+| Setup | `/setup` | What the tank *is*, rather than how it is doing: the preset it came from and whether the tank still matches it, the capacity, the lid, the room and the tap water, each row carrying what it does to the tank. Beside them the display choices — units and theme — what the run has cost so far and the reset that ends it, and what this simulation claims to be. Capacity is read-only — resizing is a separate row, because a new size builds a new tank at hour zero; past a month's run both it and the reset confirm first |
 
 ## The frame
 
@@ -90,6 +90,7 @@ The dashboard owns the clock; the engine only knows how to advance an hour.
 | Space | Steps when paused, pauses when running |
 | ⌘K | Opens the Act palette |
 | ⌘, | Opens the tunables drawer |
+| Ctrl | Stands in for ⌘ on a keyboard without one; on a Mac it is left to the system and the text fields |
 
 Every tick is recorded as a compact vitals snapshot in a rolling buffer of the
 last thirty days. That buffer is what the tracks read, so scrubbing never
