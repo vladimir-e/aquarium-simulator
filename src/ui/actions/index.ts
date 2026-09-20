@@ -1,4 +1,4 @@
-export { type PreviewRow, previewRows } from './readings.js';
+export { type PreviewRow, type PreviewInput, previewRows } from './readings.js';
 export {
   type VerbId,
   type SettableVerb,
@@ -6,11 +6,16 @@ export {
   type VerbRow,
   type VerbOption,
   type VerbDetail,
+  type BuildVerb,
   VERB_IDS,
+  BUILD_VERBS,
   FEED_PRESETS,
   DOSE_PRESETS,
   DEFAULT_SETTINGS,
+  isSettable,
   verbAction,
+  verbLabel,
+  verbName,
   verbRow,
   verbRows,
   verbDetail,

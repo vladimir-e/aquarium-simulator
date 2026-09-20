@@ -51,6 +51,8 @@ interface TopBarProps {
   /** Worst first, as the engine latched them. */
   needs: Need[];
   actOpen: boolean;
+  /** The last verb committed and its amount, once one has been. */
+  actLabel: string | null;
   onAct: () => void;
   tunablesOpen: boolean;
   tunablesModified: number;
@@ -72,6 +74,7 @@ export function TopBar({
   onSpeedChange,
   needs,
   actOpen,
+  actLabel,
   onAct,
   tunablesOpen,
   tunablesModified,
@@ -134,11 +137,12 @@ export function TopBar({
         <button
           type="button"
           onClick={onAct}
+          aria-label="Act"
           aria-expanded={actOpen}
-          className={`${CONTROL} border-transparent bg-accent-tint font-medium text-accent`}
+          className={`${CONTROL} max-w-[13rem] border-transparent bg-accent-tint font-medium text-accent`}
           {...DRAWER_TOGGLE}
         >
-          Act
+          <span className="truncate">{actLabel ?? 'Act'}</span>
           <span className="text-ink-3 max-lg:hidden">⌘K</span>
         </button>
         <button

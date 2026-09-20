@@ -20,8 +20,10 @@ export interface Need {
   text: string;
   /** The reading behind it, so the strip can state the band in the engine's words. */
   reading: ReadingId;
-  /** The verb that answers it, and the module that owns that verb. */
+  /** The verb that answers it, and where the reader goes to use it. */
   verb: string;
+  /** The husbandry verb the strip opens; a need answered by gear has none. */
+  act?: 'feed' | 'waterChange' | 'topOff' | 'dose' | 'trimPlants' | 'scrubAlgae';
   to: string;
 }
 
@@ -34,6 +36,7 @@ export const NEEDS: readonly Need[] = [
     text: 'NH₃ high',
     reading: 'ammonia',
     verb: 'Water change',
+    act: 'waterChange',
     to: '/water',
   },
   {
@@ -43,6 +46,7 @@ export const NEEDS: readonly Need[] = [
     text: 'NO₂ high',
     reading: 'nitrite',
     verb: 'Water change',
+    act: 'waterChange',
     to: '/water',
   },
   {
@@ -70,6 +74,7 @@ export const NEEDS: readonly Need[] = [
     text: 'Water level critical',
     reading: 'level',
     verb: 'Top off',
+    act: 'topOff',
     to: '/water',
   },
   {
@@ -79,6 +84,7 @@ export const NEEDS: readonly Need[] = [
     text: 'NO₃ high',
     reading: 'nitrate',
     verb: 'Water change',
+    act: 'waterChange',
     to: '/water',
   },
   {
@@ -88,6 +94,7 @@ export const NEEDS: readonly Need[] = [
     text: 'Algae bloom',
     reading: 'algae',
     verb: 'Scrub',
+    act: 'scrubAlgae',
     to: '/life',
   },
 ];

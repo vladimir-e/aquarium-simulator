@@ -1,4 +1,5 @@
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { getMaxPlants, type FishSpecies, type PlantSpecies } from '../../simulation/index.js';
 import type { TunableConfig } from '../../simulation/config/index.js';
 import { useStage } from '../components/layout/AppShell';
@@ -28,6 +29,9 @@ function plural(count: number, noun: string): string {
   return `${count} ${noun}${count === 1 ? '' : 's'}`;
 }
 
+/** Which picker is open is a route, so the Act palette can open one from anywhere. */
+const PICKERS: PickerKind[] = ['fish', 'plant'];
+
 /** Bioload is read against the guideline, on a track that runs to twice it. */
 const BIOLOAD_SCALE = 2;
 
@@ -49,12 +53,12 @@ export function LifeSection({
   sim: ReturnType<typeof useSimulation>;
   config: TunableConfig;
 }): React.JSX.Element {
-  const { onAct } = useStage();
+  const { onAct, actLabel } = useStage();
   const { unitSystem } = useUnits();
   const { state } = sim;
   const [expanded, toggle] = useExpandedRows(sim.tankId);
   const [inspecting, setInspecting] = useState<Inspecting | null>(null);
-  const [adding, setAdding] = useState<PickerKind | null>(null);
+  const [params, setParams] = useSearchParams();
 
   const book = useMemo(
     () => readTank({ state, config, history: sim.history, units: unitSystem }),
@@ -75,6 +79,14 @@ export function LifeSection({
         expanded
       ),
     [book.roster, state, config.livestock, expanded]
+  );
+
+  const adding = PICKERS.find((kind) => kind === params.get('add')) ?? null;
+  const setAdding = useCallback(
+    (kind: PickerKind | null) => {
+      setParams(kind ? { add: kind } : {}, { replace: true });
+    },
+    [setParams]
   );
 
   const load = useMemo(() => bioload(state.fish, state.tank.capacity), [state]);
@@ -148,9 +160,9 @@ export function LifeSection({
         meta={`${state.fish.length} fish · ${plural(state.plants.length, 'plant')} · algae ${algae.figure}`}
         actions={
           <>
-            <VerbButton label="Feed" onClick={onAct} />
-            <VerbButton label="Trim" onClick={onAct} />
-            <VerbButton label="Scrub" onClick={onAct} />
+            <VerbButton label={actLabel('feed')} onClick={() => onAct('feed')} />
+            <VerbButton label={actLabel('trimPlants')} onClick={() => onAct('trimPlants')} />
+            <VerbButton label={actLabel('scrubAlgae')} onClick={() => onAct('scrubAlgae')} />
             <AddMenu onPick={setAdding} />
           </>
         }
@@ -195,6 +207,7 @@ export function LifeSection({
         ledger={ledger}
         onClose={() => setInspecting(null)}
         onAct={onAct}
+        actLabel={actLabel}
         onRemove={inspecting?.target.kind === 'algae' ? null : remove}
       />
 

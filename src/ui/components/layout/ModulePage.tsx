@@ -4,17 +4,21 @@ import React from 'react';
 export function ModuleGroup({
   title,
   meta,
+  action,
   children,
 }: {
   title: string;
   meta?: string;
+  /** The verb this run of rows owns, where one of them does. */
+  action?: React.ReactNode;
   children: React.ReactNode;
 }): React.JSX.Element {
   return (
     <section className="pt-3 first:pt-0">
-      <div className="flex items-baseline gap-2 pb-1">
+      <div className="flex min-h-[26px] items-center gap-2 pb-1">
         <h2 className="text-[13px] font-medium leading-[18px] text-ink-2">{title}</h2>
         {meta && <span className="min-w-0 truncate text-[12px] text-ink-3">{meta}</span>}
+        {action && <div className="ml-auto shrink-0">{action}</div>}
       </div>
       {children}
     </section>

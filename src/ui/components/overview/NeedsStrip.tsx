@@ -1,8 +1,12 @@
 import React from 'react';
 import { ChevronRight, TriangleAlert } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import type { VerbId } from '../../actions';
 import type { Need } from '../../nav';
 import type { ReadingBook } from '../../readings';
+
+const VERB_LINK =
+  'flex shrink-0 items-center gap-0.5 rounded-control px-1 text-[13px] font-medium text-accent transition-colors hover:bg-surface-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent';
 
 /**
  * What needs the keeper, one line each, worst first — and beside every line the
@@ -12,9 +16,11 @@ import type { ReadingBook } from '../../readings';
 export function NeedsStrip({
   needs,
   book,
+  onAct,
 }: {
   needs: Need[];
   book: ReadingBook;
+  onAct: (verb: VerbId) => void;
 }): React.JSX.Element | null {
   if (needs.length === 0) return null;
 
@@ -25,6 +31,7 @@ export function NeedsStrip({
     >
       {needs.map((need) => {
         const reading = book.byId[need.reading];
+        const { act } = need;
         return (
           <div
             key={need.id}
@@ -44,13 +51,17 @@ export function NeedsStrip({
               </span>{' '}
               — {reading.sentence}
             </p>
-            <Link
-              to={need.to}
-              className="flex shrink-0 items-center gap-0.5 rounded-control px-1 text-[13px] font-medium text-accent transition-colors hover:bg-surface-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent"
-            >
-              {need.verb}
-              <ChevronRight className="h-3.5 w-3.5" />
-            </Link>
+            {act ? (
+              <button type="button" onClick={() => onAct(act)} className={VERB_LINK}>
+                {need.verb}
+                <ChevronRight className="h-3.5 w-3.5" />
+              </button>
+            ) : (
+              <Link to={need.to} className={VERB_LINK}>
+                {need.verb}
+                <ChevronRight className="h-3.5 w-3.5" />
+              </Link>
+            )}
           </div>
         );
       })}

@@ -32,6 +32,8 @@ function clamp(value: number): number {
 interface RangeStripProps {
   /** The value's position along the track, 0–1. */
   at: number;
+  /** Where the value stands now, when the live marker is where it would go. */
+  ghost?: number | null;
   /** The reference band; null leaves the track unlit and the reading quiet. */
   band?: StripBand | null;
   tone?: StripTone;
@@ -45,6 +47,7 @@ interface RangeStripProps {
  */
 export function RangeStrip({
   at,
+  ghost = null,
   band = null,
   tone = 'ink',
   className = '',
@@ -59,6 +62,13 @@ export function RangeStrip({
           data-band
           className="absolute inset-y-0 bg-band"
           style={{ left: `${from * 100}%`, width: `${(to - from) * 100}%` }}
+        />
+      )}
+      {ghost !== null && (
+        <span
+          data-ghost
+          className="absolute -top-[3px] h-2.5 w-0.5 bg-ink-3 opacity-60"
+          style={{ left: `calc(${clamp(ghost) * 100}% - 1px)` }}
         />
       )}
       <span

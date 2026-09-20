@@ -2,11 +2,16 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Outlet, useOutletContext } from 'react-router-dom';
 import type { TunableConfig } from '../../../simulation/config/index.js';
 import { countModified } from '../../../simulation/config/index.js';
+import { verbLabel, type VerbId } from '../../actions';
+import { useActs } from '../../hooks/useActs';
 import { useConfig } from '../../hooks/useConfig';
 import { useIsMobile } from '../../hooks/useMediaQuery';
 import { PresetLoadProvider } from '../../hooks/usePresetLoad';
 import type { useSimulation } from '../../hooks/useSimulation';
+import { useUnits } from '../../hooks/useUnits';
 import { type Need, activeNeeds, needySections } from '../../nav';
+import { ActPalette } from '../actions/ActPalette';
+import { VerbDrawer } from '../actions/VerbDrawer';
 import { DebugPanel } from '../panels/DebugPanel';
 import { Drawer } from '../ui/Drawer';
 import { IconRail, MoreSections, TabBar } from './IconRail';
@@ -16,8 +21,13 @@ import { TopBar } from './TopBar';
 /** What the shell has already worked out, for the module standing on the stage. */
 export interface StageContext {
   needs: Need[];
-  /** Opens the Act palette — where a widget's contextual verbs land. */
-  onAct: () => void;
+  /**
+   * Opens a verb's sheet, on the amount the surface asks for where it has one;
+   * with no verb, the Act palette.
+   */
+  onAct: (verb?: VerbId, at?: number) => void;
+  /** The verb and the amount it is standing on, for a footer button's face. */
+  actLabel: (verb: VerbId) => string;
 }
 
 export function useStage(): StageContext {
@@ -36,37 +46,58 @@ interface AppShellProps {
  */
 export function AppShell({ sim, config }: AppShellProps): React.JSX.Element {
   const isMobile = useIsMobile();
+  const { unitSystem } = useUnits();
   const { isDebugPanelOpen, setDebugPanelOpen } = useConfig();
-  const [drawer, setDrawer] = useState<'act' | 'more' | null>(null);
+  const [more, setMore] = useState(false);
+  const acts = useActs(sim.executeAction);
 
   const needs = useMemo(() => activeNeeds(sim.state), [sim.state]);
   const alerts = useMemo(() => needySections(needs), [needs]);
   const tunablesModified = useMemo(() => countModified(config), [config]);
 
-  const openDrawer = useCallback(
-    (kind: 'act' | 'more') => {
+  const { openPalette, open } = acts;
+
+  const onAct = useCallback(
+    (verb?: VerbId, at?: number) => {
       setDebugPanelOpen(false);
-      setDrawer((open) => (open === kind ? null : kind));
+      setMore(false);
+      if (verb === undefined) openPalette();
+      else open(verb, at);
     },
-    [setDebugPanelOpen]
+    [open, openPalette, setDebugPanelOpen]
   );
 
-  const openAct = useCallback(() => openDrawer('act'), [openDrawer]);
-  const stage = useMemo<StageContext>(() => ({ needs, onAct: openAct }), [needs, openAct]);
+  const actLabel = useCallback(
+    (verb: VerbId) => verbLabel(sim.state, verb, acts.settings, unitSystem),
+    [sim.state, acts.settings, unitSystem]
+  );
+
+  const stage = useMemo<StageContext>(
+    () => ({ needs, onAct, actLabel }),
+    [needs, onAct, actLabel]
+  );
+
+  const openMore = useCallback(() => {
+    acts.close();
+    setDebugPanelOpen(false);
+    setMore((was) => !was);
+  }, [acts, setDebugPanelOpen]);
 
   const toggleTunables = useCallback(() => {
-    setDrawer(null);
+    acts.close();
+    setMore(false);
     setDebugPanelOpen(!isDebugPanelOpen);
-  }, [isDebugPanelOpen, setDebugPanelOpen]);
+  }, [acts, isDebugPanelOpen, setDebugPanelOpen]);
 
   const closeDrawers = useCallback(() => {
-    setDrawer(null);
+    acts.close();
+    setMore(false);
     setDebugPanelOpen(false);
-  }, [setDebugPanelOpen]);
+  }, [acts, setDebugPanelOpen]);
 
   // A sheet left open across a resize would outlive the tab bar that opened it.
   useEffect(() => {
-    if (!isMobile) setDrawer((open) => (open === 'more' ? null : open));
+    if (!isMobile) setMore(false);
   }, [isMobile]);
 
   useEffect(() => {
@@ -74,7 +105,7 @@ export function AppShell({ sim, config }: AppShellProps): React.JSX.Element {
       if (!(e.metaKey || e.ctrlKey)) return;
       if (e.key === 'k') {
         e.preventDefault();
-        openDrawer('act');
+        onAct();
       } else if (e.key === ',') {
         e.preventDefault();
         toggleTunables();
@@ -82,7 +113,7 @@ export function AppShell({ sim, config }: AppShellProps): React.JSX.Element {
     };
     window.addEventListener('keydown', onKeyDown);
     return (): void => window.removeEventListener('keydown', onKeyDown);
-  }, [openDrawer, toggleTunables]);
+  }, [onAct, toggleTunables]);
 
   return (
     <PresetLoadProvider current={sim.currentPreset} state={sim.state} onLoad={sim.loadPreset}>
@@ -95,8 +126,9 @@ export function AppShell({ sim, config }: AppShellProps): React.JSX.Element {
           onStep={sim.step}
           onSpeedChange={sim.changeSpeed}
           needs={needs}
-          actOpen={drawer === 'act'}
-          onAct={() => openDrawer('act')}
+          actOpen={acts.palette}
+          actLabel={acts.promoted === null ? null : actLabel(acts.promoted)}
+          onAct={() => onAct()}
           tunablesOpen={isDebugPanelOpen}
           tunablesModified={tunablesModified}
           onTunables={toggleTunables}
@@ -108,11 +140,26 @@ export function AppShell({ sim, config }: AppShellProps): React.JSX.Element {
           <main className="relative flex min-h-0 min-w-0 flex-1 flex-col">
             <Outlet context={stage} />
 
-            <Drawer open={drawer === 'act'} onClose={closeDrawers} title="Act">
-              <p className="p-3 text-[13px] text-ink-2">No verbs wired up yet.</p>
-            </Drawer>
+            {acts.palette && (
+              <ActPalette
+                state={sim.state}
+                settings={acts.settings}
+                onPick={(verb) => onAct(verb)}
+                onClose={closeDrawers}
+              />
+            )}
 
-            <Drawer open={drawer === 'more'} onClose={closeDrawers} title="More">
+            <VerbDrawer
+              verb={acts.verb}
+              state={sim.state}
+              config={config}
+              settings={acts.settings}
+              onAmount={acts.setAmount}
+              onCommit={acts.commit}
+              onClose={closeDrawers}
+            />
+
+            <Drawer open={more} onClose={closeDrawers} title="More">
               <MoreSections alerts={alerts} onNavigate={closeDrawers} />
             </Drawer>
 
@@ -123,7 +170,7 @@ export function AppShell({ sim, config }: AppShellProps): React.JSX.Element {
         </div>
 
         {isMobile && (
-          <TabBar alerts={alerts} moreOpen={drawer === 'more'} onMore={() => openDrawer('more')} />
+          <TabBar alerts={alerts} moreOpen={more} onMore={openMore} />
         )}
 
         <footer aria-label="Run timeline" className="shrink-0">

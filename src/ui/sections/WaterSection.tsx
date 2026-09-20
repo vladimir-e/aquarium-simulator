@@ -28,7 +28,7 @@ export function WaterSection({
   sim: ReturnType<typeof useSimulation>;
   config: TunableConfig;
 }): React.JSX.Element {
-  const { onAct } = useStage();
+  const { onAct, actLabel } = useStage();
   const { unitSystem } = useUnits();
   const { state, history } = sim;
   const [reading, setReading] = useState<ReadingId | null>(null);
@@ -45,8 +45,8 @@ export function WaterSection({
         meta={book.caption}
         actions={
           <>
-            <VerbButton label="Water change · 25 %" onClick={onAct} />
-            <VerbButton label="Top off" onClick={onAct} />
+            <VerbButton label={actLabel('waterChange')} onClick={() => onAct('waterChange')} />
+            <VerbButton label={actLabel('topOff')} onClick={() => onAct('topOff')} />
           </>
         }
       >
@@ -58,7 +58,10 @@ export function WaterSection({
             <ModuleGroup title="Gases">
               <ReadingRows book={book} ids={GASES} onOpen={setReading} />
             </ModuleGroup>
-            <ModuleGroup title="Nutrients">
+            <ModuleGroup
+              title="Nutrients"
+              action={<VerbButton label={actLabel('dose')} onClick={() => onAct('dose')} />}
+            >
               <NutrientRows book={book} onOpen={setReading} />
             </ModuleGroup>
           </div>

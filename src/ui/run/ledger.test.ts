@@ -100,6 +100,6 @@ describe('readLedger', () => {
 
     expect(algae.species).toBe('algae');
     expect(algae.bank).toBeNull();
-    expect(algae.verb).toBe('Scrub');
+    expect(algae.verb).toBe('scrubAlgae');
   });
 });

@@ -13,14 +13,15 @@ afterEach(cleanup);
 
 function renderOverview(
   run: Run = bare(),
-  flags: Partial<AlertState> = {}
+  flags: Partial<AlertState> = {},
+  onAct = vi.fn()
 ): ReturnType<typeof useSimulation> {
   const state = { ...run.state, alertState: { ...run.state.alertState, ...flags } };
   const sim = stubSim(state, run.history);
 
   renderStage(<OverviewSection sim={sim} config={DEFAULT_CONFIG} />, {
     needs: activeNeeds(state),
-    onAct: vi.fn(),
+    onAct,
   });
   return sim;
 }
@@ -67,14 +68,22 @@ describe('OverviewSection', () => {
 
     expect(screen.getByText('NH₃ high').className).toContain('text-alert');
     expect(screen.getByText('NO₃ high').className).toContain('text-warn');
-    expect(within(strip()!).getAllByRole('link', { name: /Water change/ })).toHaveLength(2);
+    expect(within(strip()!).getAllByRole('button', { name: /Water change/ })).toHaveLength(2);
   });
 
-  it('routes a need into the module that owns its verb', () => {
-    renderOverview(bare(), { highAlgae: true });
+  it('opens the verb that answers a need, rather than routing to the module', () => {
+    const onAct = vi.fn();
+    renderOverview(bare(), { highAlgae: true }, onAct);
 
-    expect(within(strip()!).getByRole('link', { name: /Scrub/ }).getAttribute('href')).toBe(
-      '/life'
+    fireEvent.click(within(strip()!).getByRole('button', { name: /Scrub/ }));
+    expect(onAct).toHaveBeenCalledWith('scrubAlgae');
+  });
+
+  it('routes a need no husbandry verb answers into the module that owns the gear', () => {
+    renderOverview(bare(), { lowOxygen: true });
+
+    expect(within(strip()!).getByRole('link', { name: /Air pump/ }).getAttribute('href')).toBe(
+      '/gear'
     );
   });
 

@@ -72,8 +72,8 @@ export interface Ledger {
   bank: LedgerBank | null;
   /** What the species asks of the two devices set for it; plants only. */
   demand: string | null;
-  /** The verb that moves this organism, or none where the reader has no lever. */
-  verb: 'Feed' | 'Trim' | 'Scrub';
+  /** The verb that moves this organism — an id the stage opens the sheet on. */
+  verb: 'feed' | 'trimPlants' | 'scrubAlgae';
 }
 
 const PER_DAY = 24;
@@ -161,7 +161,7 @@ function fishLedger(
     net: breakdown.net * PER_DAY,
     bank: bankOf(fish.surplus, livestock.surplusCap, breakdown.drained > 0),
     demand: null,
-    verb: 'Feed',
+    verb: 'feed',
   };
 }
 
@@ -206,7 +206,7 @@ function plantLedger(
     demand:
       `${data.nutrientDemand} demand · light ${lightLow}–${lightHigh} PAR · ` +
       `CO₂ ${co2Low}–${co2High} mg/L`,
-    verb: 'Trim',
+    verb: 'trimPlants',
   };
 }
 
@@ -242,7 +242,7 @@ function algaeLedger(state: SimulationState, config: TunableConfig): Ledger {
     net: population.net * PER_DAY,
     bank: null,
     demand: null,
-    verb: 'Scrub',
+    verb: 'scrubAlgae',
   };
 }
 

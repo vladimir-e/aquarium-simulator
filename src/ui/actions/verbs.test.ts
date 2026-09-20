@@ -8,7 +8,7 @@ import {
   type SimulationState,
 } from '../../simulation/index.js';
 import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
-import { TRIM_TARGETS } from '../run';
+import { doseToCover, nutrientReadings, TRIM_TARGETS } from '../run';
 import {
   DEFAULT_SETTINGS,
   DOSE_PRESETS,
@@ -60,7 +60,24 @@ describe('the six verbs', () => {
     ]);
     expect(detail(state, 'trimPlants').options.map((o) => o.value)).toEqual(TRIM_TARGETS);
     expect(detail(state, 'feed').options.map((o) => o.value)).toEqual(FEED_PRESETS);
-    expect(detail(state, 'dose').options.map((o) => o.value)).toEqual(DOSE_PRESETS);
+    // Dosing carries one rung the engine works out: what the plants are short of.
+    const advice = doseToCover(nutrientReadings(state, DEFAULT_CONFIG), state, DEFAULT_CONFIG);
+    expect(detail(state, 'dose').options.map((o) => o.value)).toEqual(
+      [...DOSE_PRESETS, advice!.ml].sort((a, b) => a - b)
+    );
+    expect(detail(state, 'dose').options.find((o) => o.value === advice!.ml)?.hint).toBe(
+      'covers the ask'
+    );
+  });
+
+  it('keeps the rung the reader chose on the ladder once the tank stops asking for it', () => {
+    const state = planted([80, 60]);
+    const advice = doseToCover(nutrientReadings(state, DEFAULT_CONFIG), state, DEFAULT_CONFIG)!;
+    const fed = applyAction(state, { type: 'dose', amountMl: advice.ml }).state;
+    const chosen = { ...DEFAULT_SETTINGS, dose: advice.ml };
+
+    expect(detail(fed, 'dose', chosen).options.map((o) => o.value)).toContain(advice.ml);
+    expect(detail(fed, 'dose', chosen).setting?.value).toBe(advice.ml);
   });
 
   it('prices each water-change rung in litres of this tank', () => {
@@ -114,7 +131,7 @@ describe('the six verbs', () => {
     const clean = { ...bare, algae: { ...bare.algae, mass: MIN_ALGAE_TO_SCRUB - 2 } };
 
     expect(row(bare, 'dose').blocked).toBe('no plants to fertilise');
-    expect(row(bare, 'dose').value).toBe('no plants to fertilise');
+    expect(row(bare, 'dose').value).toBe('2 ml');
     expect(row(empty, 'waterChange').blocked).toBe('no water to change');
     expect(row(full, 'topOff').blocked).toBe('already at capacity');
     expect(row(clean, 'scrubAlgae').blocked).toBe(`needs ${MIN_ALGAE_TO_SCRUB} % algae, now 3 %`);
@@ -161,8 +178,8 @@ describe('the six verbs', () => {
 
     expect(labels).toEqual([
       'Feed 0.5 g',
-      'Change water · 25 %',
-      'Top off · +3.6 L',
+      'Change 25 % water',
+      'Top off +3.6 L',
       'Dose 2 ml',
       'Trim to 75 %',
       'Scrub algae',

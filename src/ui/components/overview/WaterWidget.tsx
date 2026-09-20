@@ -1,4 +1,5 @@
 import React from 'react';
+import type { VerbId } from '../../actions';
 import type { ReadingBook, ReadingId } from '../../readings';
 import { ReadingRows } from '../water/rows';
 import { VerbButton } from '../ui/VerbButton';
@@ -11,10 +12,12 @@ export function WaterWidget({
   book,
   onOpenReading,
   onAct,
+  actLabel,
 }: {
   book: ReadingBook;
   onOpenReading: (id: ReadingId) => void;
-  onAct: () => void;
+  onAct: (verb: VerbId) => void;
+  actLabel: (verb: VerbId) => string;
 }): React.JSX.Element {
   return (
     <Widget
@@ -23,8 +26,8 @@ export function WaterWidget({
       to="/water"
       footer={
         <>
-          <VerbButton label="Water change · 25 %" onClick={onAct} />
-          <VerbButton label="Top off" onClick={onAct} />
+          <VerbButton label={actLabel('waterChange')} onClick={() => onAct('waterChange')} />
+          <VerbButton label={actLabel('topOff')} onClick={() => onAct('topOff')} />
         </>
       }
     >

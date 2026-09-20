@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { X } from 'lucide-react';
-import { FOCUSABLE } from '../../hooks/useFocusTrap';
+import { FOCUSABLE } from './focusable';
 import { useIsMobile } from '../../hooks/useMediaQuery';
 
 /**

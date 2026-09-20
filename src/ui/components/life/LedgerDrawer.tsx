@@ -1,4 +1,5 @@
 import React from 'react';
+import type { VerbId } from '../../actions';
 import { toneOf } from '../../readings';
 import type { Ledger, LedgerFactor } from '../../run';
 import { Drawer } from '../ui/Drawer';
@@ -64,11 +65,13 @@ export function LedgerDrawer({
   ledger,
   onClose,
   onAct,
+  actLabel,
   onRemove,
 }: {
   ledger: Ledger | null;
   onClose: () => void;
-  onAct: () => void;
+  onAct: (verb: VerbId) => void;
+  actLabel: (verb: VerbId) => string;
   /** Absent for the algae, which is scrubbed rather than removed. */
   onRemove: (() => void) | null;
 }): React.JSX.Element | null {
@@ -157,7 +160,7 @@ export function LedgerDrawer({
         )}
 
         <div className="flex items-center gap-1.5 border-t border-hairline pt-3">
-          <VerbButton label={ledger.verb} onClick={onAct} />
+          <VerbButton label={actLabel(ledger.verb)} onClick={() => onAct(ledger.verb)} />
           {onRemove && (
             <button
               type="button"

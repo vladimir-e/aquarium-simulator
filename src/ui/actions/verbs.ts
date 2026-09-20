@@ -21,7 +21,7 @@ import {
 } from '../../simulation/index.js';
 import { getPpm, NitrateResource } from '../../simulation/resources/index.js';
 import type { TunableConfig } from '../../simulation/config/index.js';
-import { TRIM_TARGETS } from '../run';
+import { doseToCover, nutrientReadings, TRIM_TARGETS } from '../run';
 import { formatVolume, type UnitSystem } from '../utils/units.js';
 import { previewRows, type PreviewRow } from './readings.js';
 
@@ -31,6 +31,11 @@ export type VerbId = 'feed' | 'waterChange' | 'topOff' | 'dose' | 'trimPlants' |
 export type SettableVerb = Extract<VerbId, 'feed' | 'waterChange' | 'dose' | 'trimPlants'>;
 
 export type VerbSettings = Record<SettableVerb, number>;
+
+/** Top-off refills to capacity and a scrub is a roll: neither takes an amount. */
+export function isSettable(id: VerbId): id is SettableVerb {
+  return id !== 'topOff' && id !== 'scrubAlgae';
+}
 
 /** The order the master list reads in, on either form factor. */
 export const VERB_IDS: VerbId[] = [
@@ -57,12 +62,40 @@ export const DEFAULT_SETTINGS: VerbSettings = {
 
 const NAME: Record<VerbId, string> = {
   feed: 'Feed',
-  waterChange: 'Water Δ',
-  topOff: 'Top-off',
+  waterChange: 'Water change',
+  topOff: 'Top off',
   dose: 'Dose',
   trimPlants: 'Trim',
   scrubAlgae: 'Scrub',
 };
+
+/** Where the verb lives on the stage — the module whose footer carries it. */
+const HOME: Record<VerbId, string> = {
+  feed: 'Life',
+  waterChange: 'Water',
+  topOff: 'Water',
+  dose: 'Nutrients',
+  trimPlants: 'Life',
+  scrubAlgae: 'Life',
+};
+
+/**
+ * The verbs that build the tank rather than keep it. They take no preview and
+ * no amount: each one is the "+" of its module, and the palette hands the
+ * reader straight to it.
+ */
+export interface BuildVerb {
+  id: string;
+  name: string;
+  home: string;
+  to: string;
+}
+
+export const BUILD_VERBS: BuildVerb[] = [
+  { id: 'addFish', name: 'Add fish', home: 'Life', to: '/life?add=fish' },
+  { id: 'addPlant', name: 'Add plant', home: 'Life', to: '/life?add=plant' },
+  { id: 'addHardscape', name: 'Add hardscape', home: 'Gear', to: '/gear' },
+];
 
 const TITLE: Record<VerbId, string> = {
   feed: 'Feed',
@@ -188,8 +221,10 @@ function rowValue(
 export interface VerbRow {
   id: VerbId;
   name: string;
-  /** The setting or reading, replaced by the refusal when the verb is off. */
+  /** The amount this verb would use, or the reading it acts on. */
   value: string;
+  /** The module the verb lives in, so the palette is never the only way back. */
+  home: string;
   blocked: string | null;
 }
 
@@ -199,12 +234,12 @@ export function verbRow(
   settings: VerbSettings,
   units: UnitSystem
 ): VerbRow {
-  const blocked = blockedReason(state, id, settings);
   return {
     id,
     name: NAME[id],
-    value: blocked ?? rowValue(state, id, settings, units),
-    blocked,
+    value: rowValue(state, id, settings, units),
+    home: HOME[id],
+    blocked: blockedReason(state, id, settings),
   };
 }
 
@@ -216,6 +251,24 @@ export function verbRows(
   return VERB_IDS.map((id) => verbRow(state, id, settings, units));
 }
 
+/** What the verb is called wherever it appears. */
+export function verbName(id: VerbId): string {
+  return NAME[id];
+}
+
+/**
+ * The verb as a footer button reads it: the name and the amount it is standing
+ * on, so a widget says what would happen rather than opening a menu to ask.
+ */
+export function verbLabel(
+  state: SimulationState,
+  id: VerbId,
+  settings: VerbSettings,
+  units: UnitSystem
+): string {
+  return `${NAME[id]} · ${rowValue(state, id, settings, units)}`;
+}
+
 export interface VerbOption {
   /** Canonical value, exactly as the action carries it. */
   value: number;
@@ -225,51 +278,74 @@ export interface VerbOption {
   disabled: boolean;
 }
 
-function options(
+/** The rungs a verb offers, and how any one amount reads on this tank. */
+interface Rungs {
+  values: number[];
+  rung: (value: number) => VerbOption;
+}
+
+function rungsFor(
   state: SimulationState,
   id: VerbId,
   units: UnitSystem,
   config: TunableConfig
-): VerbOption[] {
+): Rungs {
   const water = state.resources.water;
 
   switch (id) {
     case 'feed': {
       const ration = dailyRation(state, config);
-      return FEED_PRESETS.map((amount) => ({
-        value: amount,
-        label: `${amount} g`,
-        hint: ration > 0 ? daysOfFood(amount / ration) : '—',
-        disabled: false,
-      }));
+      return {
+        values: FEED_PRESETS,
+        rung: (amount) => ({
+          value: amount,
+          label: `${amount} g`,
+          hint: ration > 0 ? daysOfFood(amount / ration) : '—',
+          disabled: false,
+        }),
+      };
     }
     case 'waterChange':
-      return WATER_CHANGE_AMOUNTS.map((amount) => ({
-        value: amount,
-        label: `${Math.round(amount * 100)} %`,
-        hint: formatVolume(water * amount, units, 0),
-        disabled: water <= 0,
-      }));
-    case 'dose':
-      return DOSE_PRESETS.map((ml) => ({
-        value: ml,
-        label: `${ml} ml`,
-        hint: `+${nitrateRise(state, ml).toFixed(NitrateResource.precision)} NO₃`,
-        disabled: false,
-      }));
+      return {
+        values: [...WATER_CHANGE_AMOUNTS],
+        rung: (amount) => ({
+          value: amount,
+          label: `${Math.round(amount * 100)} %`,
+          hint: formatVolume(water * amount, units, 0),
+          disabled: water <= 0,
+        }),
+      };
+    case 'dose': {
+      const advice = doseToCover(nutrientReadings(state, config), state, config);
+      return {
+        values: advice ? [...new Set([...DOSE_PRESETS, advice.ml])] : DOSE_PRESETS,
+        rung: (ml) => ({
+          value: ml,
+          label: `${ml} ml`,
+          hint:
+            advice && ml === advice.ml
+              ? 'covers the ask'
+              : `+${nitrateRise(state, ml).toFixed(NitrateResource.precision)} NO₃`,
+          disabled: false,
+        }),
+      };
+    }
     case 'trimPlants':
-      return TRIM_TARGETS.map((target) => {
-        const count = trimCount(state, target);
-        return {
-          value: target,
-          label: `${target} %`,
-          hint: count > 0 ? plural(count, 'plant') : 'none',
-          disabled: count === 0,
-        };
-      });
+      return {
+        values: TRIM_TARGETS,
+        rung: (target): VerbOption => {
+          const count = trimCount(state, target);
+          return {
+            value: target,
+            label: `${target} %`,
+            hint: count > 0 ? plural(count, 'plant') : 'none',
+            disabled: count === 0,
+          };
+        },
+      };
     case 'topOff':
     case 'scrubAlgae':
-      return [];
+      return { values: [], rung: () => ({ value: 0, label: '', hint: '', disabled: true }) };
   }
 }
 
@@ -338,9 +414,9 @@ function commitLabel(
     case 'feed':
       return `Feed ${settings.feed} g`;
     case 'waterChange':
-      return `Change water · ${Math.round(settings.waterChange * 100)} %`;
+      return `Change ${Math.round(settings.waterChange * 100)} % water`;
     case 'topOff':
-      return `Top off · +${formatVolume(headroom(state), units, 1)}`;
+      return `Top off +${formatVolume(headroom(state), units, 1)}`;
     case 'dose':
       return `Dose ${settings.dose} ml`;
     case 'trimPlants':
@@ -366,8 +442,7 @@ export interface VerbDetail {
 }
 
 function settingOf(id: VerbId, settings: VerbSettings): VerbDetail['setting'] {
-  if (id === 'topOff' || id === 'scrubAlgae') return null;
-  return { verb: id, value: settings[id] };
+  return isSettable(id) ? { verb: id, value: settings[id] } : null;
 }
 
 const OPTIONS_LABEL: Record<VerbId, string> = {
@@ -380,6 +455,27 @@ const OPTIONS_LABEL: Record<VerbId, string> = {
 };
 
 /**
+ * The rungs, with the one the reader is standing on among them: a tank that
+ * stops asking for 3 ml does not move a reader who chose 3 ml onto another
+ * rung behind their back.
+ */
+function rungs(
+  state: SimulationState,
+  id: VerbId,
+  setting: VerbDetail['setting'],
+  units: UnitSystem,
+  config: TunableConfig
+): VerbOption[] {
+  const { values, rung } = rungsFor(state, id, units, config);
+  const chosen = setting?.value;
+  const all =
+    chosen !== undefined && !values.includes(chosen)
+      ? [...values, chosen].sort((a, b) => a - b)
+      : values;
+  return all.map(rung);
+}
+
+/**
  * Everything the settings step shows for one verb. Only the selected verb is
  * read this far: the preview applies the action to find its rows.
  */
@@ -390,15 +486,21 @@ export function verbDetail(
   units: UnitSystem,
   config: TunableConfig
 ): VerbDetail {
+  const setting = settingOf(id, settings);
   return {
     id,
     title: TITLE[id],
     meta: meta(state, id, settings, units, config),
     optionsLabel: OPTIONS_LABEL[id],
-    setting: settingOf(id, settings),
-    options: options(state, id, units, config),
+    setting,
+    options: rungs(state, id, setting, units, config),
     note: BARE_NOTE[id] ?? null,
-    preview: previewRows(state, outcomes(state, id, settings), units),
+    preview: previewRows({
+      before: state,
+      outcomes: outcomes(state, id, settings),
+      config,
+      units,
+    }),
     commitLabel: commitLabel(state, id, settings, units),
     blocked: blockedReason(state, id, settings),
   };

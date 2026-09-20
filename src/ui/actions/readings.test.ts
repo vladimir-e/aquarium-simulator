@@ -178,7 +178,7 @@ describe('preview readings', () => {
     const state = fixture();
     const quarter = applyAction(state, { type: 'waterChange', amount: 0.25 }).state;
 
-    expect(detail(state, 'waterChange').preview).toEqual(previewRows(state, [quarter], 'metric'));
+    expect(detail(state, 'waterChange').preview).toEqual(previewRows({ before: state, outcomes: [quarter], config: DEFAULT_CONFIG, units: 'metric' }));
     // A 25 that meant 25× would be rejected outright and change nothing.
     expect(applyAction(state, { type: 'waterChange', amount: 25 }).state.resources.water).toBe(
       state.resources.water

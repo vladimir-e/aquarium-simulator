@@ -1,5 +1,6 @@
 import React from 'react';
 import type { SimulationState } from '../../../simulation/index.js';
+import type { VerbId } from '../../actions';
 import type { ReadingBook, ReadingId } from '../../readings';
 import { nutrientAlert } from '../../run';
 import { NutrientRows } from '../water/rows';
@@ -10,7 +11,8 @@ interface NutrientsWidgetProps {
   book: ReadingBook;
   state: SimulationState;
   onOpenReading: (id: ReadingId) => void;
-  onAct: () => void;
+  onAct: (verb: VerbId, at?: number) => void;
+  actLabel: (verb: VerbId) => string;
 }
 
 /**
@@ -23,6 +25,7 @@ export function NutrientsWidget({
   state,
   onOpenReading,
   onAct,
+  actLabel,
 }: NutrientsWidgetProps): React.JSX.Element {
   const { advice, perMl } = book.dose;
   const alert = nutrientAlert(book.nutrients);
@@ -39,9 +42,9 @@ export function NutrientsWidget({
       footer={
         <>
           <VerbButton
-            label={advice ? `Dose · ${advice.ml} ml` : 'Dose'}
+            label={advice ? `Dose · ${advice.ml} ml` : actLabel('dose')}
             hot={advice !== null}
-            onClick={onAct}
+            onClick={() => onAct('dose', advice?.ml)}
           />
           <p className="text-[12px] text-ink-3">1 ml moves {perMl}</p>
         </>

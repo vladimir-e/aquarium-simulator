@@ -220,18 +220,29 @@ const DECIMALS: Record<ReadingId, number> = {
 };
 
 /**
- * Display scales for the readings the engine draws no line on. Fixed, because a
- * scale taken off the value it is showing pins the marker wherever the value
- * goes, and the strip then reads the same on an empty tank and a filthy one.
+ * Display scales for the readings the engine draws no line on — shared with the
+ * action preview, so a marker cannot sit at one place on a widget row and
+ * another on the row that predicts it. Fixed, because a scale taken off the
+ * value it is showing pins the marker wherever the value goes, and the strip
+ * then reads the same on an empty tank and a filthy one.
  */
-const WASTE_SCALE_G = 2;
-
-const NUTRIENT_SCALE_PPM: Record<NutrientKey, number> = {
+export const DISPLAY_CEILING = {
+  waste: 2,
+  food: 2,
+  oxygen: 12,
+  co2: HIGH_CO2_THRESHOLD * 1.5,
+  algae: 100,
+  plantSize: 100,
   nitrate: 100,
   phosphate: 4,
   potassium: 30,
   iron: 1,
-};
+} as const;
+
+/** Position of a value on a scale that starts at zero. */
+export function onScale(ceiling: number, value: number): number {
+  return ceiling > 0 ? clamp(value / ceiling) : 0;
+}
 
 /** A figure in a band's sentence, at the precision its reading is read to. */
 function said(id: ReadingId, value: number): string {
@@ -248,7 +259,7 @@ function clamp(value: number): number {
 
 /** Position and band on a scale that starts at zero. */
 function scale(max: number): (value: number) => number {
-  return (value) => (max > 0 ? clamp(value / max) : 0);
+  return (value) => onScale(max, value);
 }
 
 function belowPrecision(value: number, decimals: number): boolean {
@@ -336,7 +347,7 @@ function nutrientView(
   tape: Tape,
   fills: ReadingFlow[] = []
 ): NutrientView {
-  const at = scale(NUTRIENT_SCALE_PPM[reading.key]);
+  const at = scale(DISPLAY_CEILING[reading.key]);
   return {
     id,
     name: reading.label,
@@ -382,10 +393,10 @@ export function readTank({ state, config, history, units }: TankInput): ReadingB
   const tempBand = stockedBand(state, (data) => data.temperatureRange);
   const phBand = stockedBand(state, (data) => data.phRange);
   const algae = state.algae.mass;
-  const algaeAt = scale(100);
-  const wasteAt = scale(WASTE_SCALE_G);
-  const oxygenAt = scale(12);
-  const co2At = scale(HIGH_CO2_THRESHOLD * 1.5);
+  const algaeAt = scale(DISPLAY_CEILING.algae);
+  const wasteAt = scale(DISPLAY_CEILING.waste);
+  const oxygenAt = scale(DISPLAY_CEILING.oxygen);
+  const co2At = scale(DISPLAY_CEILING.co2);
 
   const nitrateFills: ReadingFlow[] = [
     { label: 'NOB clearing NO₂', rate: ratePerHour(rates.nitriteToNitrate, 'ppm') },

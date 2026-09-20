@@ -51,9 +51,9 @@ describe('WaterSection', () => {
     const header = screen.getByRole('heading', { level: 1, name: 'Water' }).parentElement!;
     expect(within(header).getByText(/^(no heater|heater on) · ATO (on|off)$/)).toBeTruthy();
 
-    fireEvent.click(within(header).getByRole('button', { name: 'Water change · 25 %' }));
+    fireEvent.click(within(header).getByRole('button', { name: 'Water change' }));
     fireEvent.click(within(header).getByRole('button', { name: 'Top off' }));
-    expect(onAct).toHaveBeenCalledTimes(2);
+    expect(onAct.mock.calls).toEqual([['waterChange'], ['topOff']]);
   });
 
   it('opens the same inspector from any row it is tapped on', () => {

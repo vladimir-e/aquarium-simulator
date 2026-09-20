@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { SimulationState } from '../../../simulation/index.js';
 import type { LivestockConfig } from '../../../simulation/config/livestock.js';
+import type { VerbId } from '../../actions';
 import type { ReadingBook, ReadingId } from '../../readings';
 import { rosterTables, type PopulationRosterRow } from '../../run';
 import { Roster, type RosterHandlers } from '../life/roster';
@@ -13,7 +14,8 @@ interface LifeWidgetProps {
   state: SimulationState;
   config: LivestockConfig;
   onOpenReading: (id: ReadingId) => void;
-  onAct: () => void;
+  onAct: (verb: VerbId) => void;
+  actLabel: (verb: VerbId) => string;
 }
 
 /**
@@ -27,6 +29,7 @@ export function LifeWidget({
   config,
   onOpenReading,
   onAct,
+  actLabel,
 }: LifeWidgetProps): React.JSX.Element {
   const navigate = useNavigate();
   const algaeReading = book.byId.algae;
@@ -70,9 +73,9 @@ export function LifeWidget({
       to="/life"
       footer={
         <>
-          <VerbButton label="Feed" onClick={onAct} />
-          <VerbButton label="Trim" onClick={onAct} />
-          <VerbButton label="Scrub" onClick={onAct} />
+          <VerbButton label={actLabel('feed')} onClick={() => onAct('feed')} />
+          <VerbButton label={actLabel('trimPlants')} onClick={() => onAct('trimPlants')} />
+          <VerbButton label={actLabel('scrubAlgae')} onClick={() => onAct('scrubAlgae')} />
           <VerbButton label="+ Add" onClick={() => navigate('/life')} className="ml-auto" />
         </>
       }
