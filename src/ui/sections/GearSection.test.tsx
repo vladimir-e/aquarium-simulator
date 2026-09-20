@@ -86,8 +86,9 @@ function rackRows(): string[] {
     .filter((label) => label.includes(' — '));
 }
 
+/** The row a device owns, by the name it is announced under. */
 function rowNamed(name: string): HTMLElement {
-  return screen.getByRole('link', { name: new RegExp(`^${name} —`) }).parentElement!;
+  return screen.getByRole('group', { name });
 }
 
 describe('GearSection', () => {

@@ -113,12 +113,13 @@ export function DeviceLine({
   const ink = row.on ? 'text-ink-2' : 'text-ink-3';
 
   return (
-    <div {...DRAWER_TOGGLE} className={`${ROW} ${TEMPLATE[layout]}`}>
-      <Link
-        to={`/gear/${row.id}`}
-        aria-label={`${row.name} — ${row.summary}`}
-        className={OVERLAY}
-      />
+    <div
+      role="group"
+      aria-label={row.name}
+      {...DRAWER_TOGGLE}
+      className={`${ROW} ${TEMPLATE[layout]}`}
+    >
+      <Link to={`/gear/${row.id}`} aria-label={`${row.name} — ${row.summary}`} className={OVERLAY} />
       <span className="relative">
         <Toggle
           checked={row.on}

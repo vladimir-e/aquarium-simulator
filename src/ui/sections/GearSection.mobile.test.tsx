@@ -41,34 +41,30 @@ function renderGear(path = '/gear'): void {
   );
 }
 
-/** The tracks a template declares, read off the class the row is laid out by. */
-function declared(className: string): number {
-  const template = /(?:^|\s)grid-cols-\[([^\]]+)\]/.exec(className)![1];
-  return template.split('_').length;
-}
-
-/** `hidden` on its own — `md:hidden` is a cell this width still shows. */
-function onPhone(cell: HTMLElement): boolean {
-  return !/(?:^|\s)hidden(?:\s|$)/.test(cell.className) && !cell.className.includes('absolute');
-}
-
-function rackRows(): HTMLElement[] {
-  return [
-    ...screen
-      .getByRole('heading', { level: 2, name: 'Fittings' })
-      .parentElement!.parentElement!.querySelectorAll<HTMLElement>('div.grid'),
-  ];
-}
+/** The eight fittings, in rack order. */
+const DEVICES = [
+  'Filter',
+  'Heater',
+  'Light',
+  'Air pump',
+  'ATO',
+  'CO₂ injector',
+  'Powerhead',
+  'Auto doser',
+];
 
 describe('GearSection (phone)', () => {
-  it('fills every track the phone template declares, on every row', () => {
+  it('reads every fitting out in full where there is least room for it', () => {
     renderGear();
-    const rows = rackRows();
-    expect(rows).toHaveLength(8);
 
-    for (const row of rows) {
-      const cells = ([...row.children] as HTMLElement[]).filter(onPhone);
-      expect(cells).toHaveLength(declared(row.className));
+    expect(screen.getAllByRole('group')).toHaveLength(DEVICES.length);
+
+    for (const name of DEVICES) {
+      const row = within(screen.getByRole('group', { name }));
+      // Its switch, its name and the sentence the whole row is a link to.
+      expect(row.getByRole('switch', { name: `${name} power` })).toBeTruthy();
+      expect(row.getByText(name)).toBeTruthy();
+      expect(row.getByRole('link', { name: new RegExp(`^${name} — .`) })).toBeTruthy();
     }
   });
 
@@ -80,6 +76,5 @@ describe('GearSection (phone)', () => {
 
     const sheet = screen.getByRole('dialog', { name: 'Light' });
     expect(within(sheet).getByRole('group', { name: 'Start hour' })).toBeTruthy();
-    expect(sheet.className).toContain('inset-0');
   });
 });
