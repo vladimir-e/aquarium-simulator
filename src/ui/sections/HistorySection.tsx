@@ -136,10 +136,12 @@ export function HistorySection({
               at={scrub.at}
               parked={scrub.parked !== null}
             />
-            <div className="flex justify-between text-[11px] leading-[14px] text-ink-3">
-              <span className="tabular-nums">Day {dayNumber(range?.minTick ?? 0)}</span>
-              <span className="tabular-nums">Day {dayNumber(range?.maxTick ?? 0)}</span>
-            </div>
+            {range && (
+              <div className="flex justify-between text-[11px] leading-[14px] text-ink-3">
+                <span className="tabular-nums">Day {dayNumber(range.minTick)}</span>
+                <span className="tabular-nums">Day {dayNumber(range.maxTick)}</span>
+              </div>
+            )}
           </div>
         </div>
 

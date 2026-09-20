@@ -109,9 +109,14 @@ export function Spine({ history, logs, schedule }: SpineProps): React.JSX.Elemen
       </div>
 
       <div className="flex shrink-0 items-center gap-3 text-[11px] leading-[14px] text-ink-3">
-        <span className="tabular-nums max-md:hidden">Day {dayNumber(range?.minTick ?? 0)}</span>
-        <span className="flex-1" />
-        <span className="tabular-nums max-md:hidden">Day {dayNumber(range?.maxTick ?? 0)}</span>
+        {range && (
+          <>
+            <span className="tabular-nums max-md:hidden">Day {dayNumber(range.minTick)}</span>
+            <span className="flex-1" />
+            <span className="tabular-nums max-md:hidden">Day {dayNumber(range.maxTick)}</span>
+          </>
+        )}
+        {!range && <span className="flex-1" />}
 
         <button
           type="button"
