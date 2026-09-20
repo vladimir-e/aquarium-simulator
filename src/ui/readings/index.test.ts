@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { readTank, type ReadingBook } from './index.js';
+import { netPerHour, ratePerHour, readTank, type ReadingBook } from './index.js';
 import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
 import {
   applyAction,
@@ -165,5 +165,24 @@ describe('readTank', () => {
     const { byId } = read(stocked(1));
     expect(byId.oxygen.series).not.toBeNull();
     expect(byId.potassium.series).toBeNull();
+  });
+});
+
+describe('hourly rates', () => {
+  it('prints a movement at the precision its unit is read to', () => {
+    expect(ratePerHour(0.00005, 'ppm')).toBe('+0.0001 ppm/h');
+    expect(ratePerHour(-0.0005, 'g')).toBe('−0.001 g/h');
+  });
+
+  it('calls a flow arm under that precision none, and a stock’s net steady', () => {
+    expect(ratePerHour(0.00004999, 'ppm')).toBe('none');
+    expect(ratePerHour(0.0004999, 'g')).toBe('none');
+    expect(netPerHour(0.00004999, 'ppm')).toBe('steady');
+    expect(netPerHour(0.0004999, 'g')).toBe('steady');
+  });
+
+  it('holds ppm to four decimals where grams stop at three', () => {
+    expect(ratePerHour(0.0001, 'ppm')).toBe('+0.0001 ppm/h');
+    expect(ratePerHour(0.0001, 'g')).toBe('none');
   });
 });

@@ -71,8 +71,9 @@ Tapping a reading anywhere — the Overview or the Water module — opens the sa
 inspector in the drawer: the number at hero size, the band stated in the
 engine's words, the last seven days for a reading the snapshot buffer records,
 and — for the stocks of the nitrogen cycle — what fills them and what drains
-them, at the rate the next tick will use. A flow smaller than the precision its
-unit is read to prints as `steady` rather than as a signed zero.
+them, at the rate the next tick will use. A flow arm moving less than the
+precision its unit is read to prints as `none`, and only a stock's net — its
+fills against its drains — ever prints as `steady`; neither prints a signed zero.
 
 Bands are stated at the precision their reading is, so a value sitting on the
 edge of its band reads as sitting on the edge. A tolerance band is hard on both

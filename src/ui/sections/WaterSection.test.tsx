@@ -167,12 +167,13 @@ describe('WaterSection', () => {
     expect(within(waste).getByText(/%\/h decay · .+ % to waste · Q10/)).toBeTruthy();
   });
 
-  it('prints a rate under its own precision as steady rather than a signed zero', () => {
+  it('prints a flow arm under its own precision as none rather than a signed zero', () => {
     renderWater();
     fireEvent.click(row('Waste'));
 
     const drawer = screen.getByRole('dialog', { name: 'Waste' });
     expect(within(drawer).queryByText(/[+−]0\.000 g\/h/)).toBeNull();
-    expect(within(drawer).getAllByText('steady').length).toBeGreaterThan(0);
+    expect(within(drawer).queryByText('steady')).toBeNull();
+    expect(within(drawer).getAllByText('none').length).toBeGreaterThan(0);
   });
 });

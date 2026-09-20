@@ -247,6 +247,10 @@ function scale(max: number): (value: number) => number {
   return (value) => (max > 0 ? clamp(value / max) : 0);
 }
 
+function belowPrecision(value: number, decimals: number): boolean {
+  return Math.abs(value) < 0.5 / 10 ** decimals;
+}
+
 /**
  * Change per day, measured off the history buffer rather than modelled — over
  * the last 24 samples where there are that many, and extrapolated from what
@@ -260,7 +264,7 @@ function trendOf(tape: Tape, id: ReadingId): string {
   const hours = window.length - 1;
   const perDay = ((read(window[hours]) - read(window[0])) / hours) * 24;
   const decimals = DECIMALS[id];
-  if (Math.abs(perDay) < 0.5 / 10 ** decimals) return '';
+  if (belowPrecision(perDay, decimals)) return '';
   return `${perDay > 0 ? '↗' : '↘'} ${Math.abs(perDay).toFixed(decimals)}/d`;
 }
 
@@ -307,15 +311,18 @@ export type RateUnit = 'ppm' | 'g';
 
 const RATE_DECIMALS: Record<RateUnit, number> = { ppm: 4, g: 3 };
 
-/**
- * A signed hourly rate, at the precision its unit is read to — or `steady`,
- * where the movement is under that precision and a sign would be the only
- * thing left of it.
- */
+function signedRate(value: number, unit: RateUnit): string {
+  return `${value >= 0 ? '+' : '−'}${Math.abs(value).toFixed(RATE_DECIMALS[unit])} ${unit}/h`;
+}
+
+/** One arm of a balance, or `none` where it is moving less than it can print. */
 export function ratePerHour(value: number, unit: RateUnit): string {
-  const decimals = RATE_DECIMALS[unit];
-  if (Math.abs(value) < 0.5 / 10 ** decimals) return 'steady';
-  return `${value >= 0 ? '+' : '−'}${Math.abs(value).toFixed(decimals)} ${unit}/h`;
+  return belowPrecision(value, RATE_DECIMALS[unit]) ? 'none' : signedRate(value, unit);
+}
+
+/** A stock's fills minus its drains, or `steady` where the two cancel. */
+export function netPerHour(value: number, unit: RateUnit): string {
+  return belowPrecision(value, RATE_DECIMALS[unit]) ? 'steady' : signedRate(value, unit);
 }
 
 /** A nutrient banded on what the plants ask for, rather than on an alert line. */
@@ -392,7 +399,7 @@ export function readTank({ state, config, history, units }: TankInput): ReadingB
       trend: '',
       sentence:
         'A pool with no safe line: it settles where what mineralises out matches what falls in.',
-      net: ratePerHour(waste.perHour - waste.mineralised, 'g'),
+      net: netPerHour(waste.perHour - waste.mineralised, 'g'),
       fills: waste.sources
         .filter((source) => source.gramsPerHour > 0)
         .map((source) => ({ label: source.label, rate: ratePerHour(source.gramsPerHour, 'g') })),
@@ -402,7 +409,7 @@ export function readTank({ state, config, history, units }: TankInput): ReadingB
     ammonia: fromGauge('ammonia', tape, {
       gauge: gauge('ammonia'),
       sentence: `Safe at or under ${HIGH_AMMONIA_THRESHOLD.toFixed(2)} ppm — the line the engine alerts on.`,
-      net: ratePerHour(
+      net: netPerHour(
         rates.wasteToAmmonia + rates.gillsToAmmonia - rates.ammoniaOxidised,
         'ppm'
       ),
@@ -415,7 +422,7 @@ export function readTank({ state, config, history, units }: TankInput): ReadingB
     nitrite: fromGauge('nitrite', tape, {
       gauge: gauge('nitrite'),
       sentence: `Safe at or under ${HIGH_NITRITE_THRESHOLD.toFixed(2)} ppm — the line the engine alerts on.`,
-      net: ratePerHour(rates.netNitrite, 'ppm'),
+      net: netPerHour(rates.netNitrite, 'ppm'),
       fills: [{ label: 'AOB oxidising NH₃', rate: ratePerHour(rates.ammoniaToNitrite, 'ppm') }],
       drains: [{ label: 'NOB clearing', rate: ratePerHour(-rates.nitriteToNitrate, 'ppm') }],
     }),
