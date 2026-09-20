@@ -50,10 +50,14 @@ export {
   bioloadNote,
   projectedAdultMass,
   GUIDELINE_G_PER_L,
-  FISH_SPECIES,
-  type FishOption,
-  fishOptions,
 } from './stocking.js';
+export {
+  type PickerKind,
+  type PickerOption,
+  FISH_SPECIES,
+  PLANT_SPECIES,
+  pickerOptions,
+} from './picker.js';
 export {
   HARDSCAPE_TYPES,
   SUBSTRATE_NAME,
@@ -62,6 +66,5 @@ export {
   type HardscapeRow,
   hardscapeRows,
   scapeSummary,
-  type PlantOption,
-  plantOptions,
+  lightTier,
 } from './scape.js';

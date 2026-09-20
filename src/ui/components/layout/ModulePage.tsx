@@ -1,5 +1,26 @@
 import React from 'react';
 
+/** A headed run of rows — the only structure a module has below its columns. */
+export function ModuleGroup({
+  title,
+  meta,
+  children,
+}: {
+  title: string;
+  meta?: string;
+  children: React.ReactNode;
+}): React.JSX.Element {
+  return (
+    <section className="pt-3 first:pt-0">
+      <div className="flex items-baseline gap-2 pb-1">
+        <h2 className="text-[13px] font-medium leading-[18px] text-ink-2">{title}</h2>
+        {meta && <span className="min-w-0 truncate text-[12px] text-ink-3">{meta}</span>}
+      </div>
+      {children}
+    </section>
+  );
+}
+
 interface ModulePageProps {
   title: string;
   meta?: React.ReactNode;

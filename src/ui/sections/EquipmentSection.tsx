@@ -10,6 +10,7 @@ import { Card } from '../components/run/Card';
 import { DeviceList } from '../components/equipment/DeviceList';
 import { DeviceInspector, PushedInspector } from '../components/equipment/DeviceInspector';
 import { SchedulesBand } from '../components/equipment/SchedulesBand';
+import { ScapeCard } from '../components/equipment/ScapeCard';
 import { CONTROL_FOCUS } from '../components/ui/focus';
 import { bacteriaReadout } from '../run';
 import {
@@ -110,6 +111,7 @@ export function EquipmentSection({
         </Card>
 
         <SchedulesBand band={band} />
+        <ScapeCard sim={sim} />
       </div>
     </ModulePage>
   );

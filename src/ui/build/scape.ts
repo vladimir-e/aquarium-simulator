@@ -1,6 +1,6 @@
 /**
  * Scape model: substrate surface math, the substrate's plant-compatibility
- * consequence, the substrate-gated plant options, and the hardscape rows with
+ * consequence, the light tier a species asks for, and the hardscape rows with
  * the surface and pH effect the engine gives each piece.
  */
 
@@ -8,7 +8,6 @@ import {
   getHardscapeName,
   getHardscapePHEffect,
   getHardscapeSurface,
-  isSubstrateCompatible,
   PLANT_SPECIES_DATA,
   type HardscapeItem,
   type HardscapeType,
@@ -93,32 +92,4 @@ export function lightTier(species: PlantSpecies): 'low' | 'medium' | 'high' {
   const [wants] = PLANT_SPECIES_DATA[species].tolerableLight;
   if (wants < 15) return 'low';
   return wants < 25 ? 'medium' : 'high';
-}
-
-export interface PlantOption {
-  species: PlantSpecies;
-  name: string;
-  compatible: boolean;
-  /** Demand tier when it can go in; the substrates that would take it when it cannot. */
-  hint: string;
-  /** What the species wants from the two devices you would set for it. */
-  facts: string;
-}
-
-/** Every plant species with its compatibility against the current substrate. */
-export function plantOptions(substrate: SubstrateType): PlantOption[] {
-  return (Object.keys(PLANT_SPECIES_DATA) as PlantSpecies[]).map((species) => {
-    const data = PLANT_SPECIES_DATA[species];
-    const compatible = isSubstrateCompatible(species, substrate);
-    const takes = SUBSTRATE_TYPES.filter((type) => isSubstrateCompatible(species, type)).map(
-      (type) => SUBSTRATE_NAME[type].toLowerCase()
-    );
-    return {
-      species,
-      name: data.name,
-      compatible,
-      hint: compatible ? `${data.nutrientDemand} demand` : `needs ${takes.join(' or ')}`,
-      facts: `${lightTier(species)} light · ${data.co2Requirement} CO₂`,
-    };
-  });
 }

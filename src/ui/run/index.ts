@@ -19,7 +19,14 @@ export {
   SPEED_LABELS,
   STEP_TICKS,
 } from './speed.js';
-export { type Status, conditionStatus, conditionWord } from './status.js';
+export {
+  type Status,
+  type Reading,
+  STATUS_SEVERITY,
+  conditionStatus,
+  conditionWord,
+  vitalReading,
+} from './status.js';
 export { type StockedBand, stockedBand, toleranceStatus } from './tolerance.js';
 export {
   classifyVital,
@@ -27,6 +34,7 @@ export {
   type VitalKey,
 } from './vitals.js';
 export {
+  type ReadingBand,
   readingAt,
   gasReadings,
   waterReadings,
@@ -67,14 +75,28 @@ export {
   groupBySpecies,
   type FryBatch,
   groupFryBatches,
-  type RosterRow,
-  type SpeciesRosterRow,
-  type FishRosterRow,
-  type ClutchRosterRow,
-  type FryRosterRow,
-  rosterRows,
   rosterSummary,
 } from './livestock.js';
+export {
+  CONDITION_BAND,
+  type SpeciesId,
+  type Satiation,
+  type RosterRow,
+  type SpeciesRosterRow,
+  type IndividualRosterRow,
+  type PopulationRosterRow,
+  type FryRosterRow,
+  type ClutchRosterRow,
+  type RosterInput,
+  rosterTables,
+} from './roster.js';
+export {
+  type Ledger,
+  type LedgerFactor,
+  type LedgerBank,
+  type LedgerTarget,
+  readLedger,
+} from './ledger.js';
 export { latestLog } from './log.js';
 export {
   algaeStatus,

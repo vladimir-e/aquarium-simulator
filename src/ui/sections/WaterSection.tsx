@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import type { TunableConfig } from '../../simulation/config/index.js';
 import { useStage } from '../components/layout/AppShell';
-import { ModulePage } from '../components/layout/ModulePage';
+import { ModuleGroup, ModulePage } from '../components/layout/ModulePage';
 import { BiofilterWidget } from '../components/water/BiofilterWidget';
 import { ReadingDrawer } from '../components/water/ReadingDrawer';
 import { NutrientRows, ReadingRows } from '../components/water/rows';
@@ -14,22 +14,6 @@ import { readTank, type ReadingId } from '../readings';
 const WATER: ReadingId[] = ['temperature', 'ph', 'level'];
 const GASES: ReadingId[] = ['oxygen', 'co2'];
 const NITROGEN: ReadingId[] = ['ammonia', 'nitrite', 'nitrate'];
-
-/** A headed run of reading rows — the sheet's only structure below the column. */
-function Group({
-  title,
-  children,
-}: {
-  title: string;
-  children: React.ReactNode;
-}): React.JSX.Element {
-  return (
-    <section className="pt-3 first:pt-0">
-      <h2 className="pb-1 text-[13px] font-medium leading-[18px] text-ink-2">{title}</h2>
-      {children}
-    </section>
-  );
-}
 
 /**
  * The lab sheet: every reading the tank takes, in two columns that read top to
@@ -68,21 +52,21 @@ export function WaterSection({
       >
         <div className="grid grid-cols-1 items-start gap-x-6 gap-y-2.5 md:grid-cols-2">
           <div>
-            <Group title="Water">
+            <ModuleGroup title="Water">
               <ReadingRows book={book} ids={WATER} onOpen={setReading} />
-            </Group>
-            <Group title="Gases">
+            </ModuleGroup>
+            <ModuleGroup title="Gases">
               <ReadingRows book={book} ids={GASES} onOpen={setReading} />
-            </Group>
-            <Group title="Nutrients">
+            </ModuleGroup>
+            <ModuleGroup title="Nutrients">
               <NutrientRows book={book} onOpen={setReading} />
-            </Group>
+            </ModuleGroup>
           </div>
 
           <div className="flex flex-col gap-3">
-            <Group title="Nitrogen">
+            <ModuleGroup title="Nitrogen">
               <ReadingRows book={book} ids={NITROGEN} onOpen={setReading} />
-            </Group>
+            </ModuleGroup>
             <BiofilterWidget book={book} config={config} />
             <WasteWidget book={book} config={config} onOpen={setReading} />
           </div>

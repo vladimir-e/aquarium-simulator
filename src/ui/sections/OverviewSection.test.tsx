@@ -157,7 +157,7 @@ describe('OverviewSection', () => {
     renderOverview(stocked());
     const life = within(widget('Life'));
 
-    expect(life.getByText(/×2 · \d+ % size/)).toBeTruthy();
+    expect(life.getByText('×2')).toBeTruthy();
     expect(life.getByRole('img', { name: /Anubias by individual/i }).children).toHaveLength(2);
   });
 

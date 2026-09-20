@@ -9,12 +9,7 @@ import {
   groupFryBatches,
   hungerOf,
   isHungryBand,
-  rosterRows,
   rosterSummary,
-  type ClutchRosterRow,
-  type FishRosterRow,
-  type FryRosterRow,
-  type SpeciesRosterRow,
 } from './livestock';
 
 function makeFish(overrides: Partial<Fish> & { id: string }): Fish {
@@ -34,10 +29,6 @@ function makeFish(overrides: Partial<Fish> & { id: string }): Fish {
 
 function tank(fish: Fish[], clutches: Clutch[] = [], tick = 0): SimulationState {
   return { ...createSimulation({ tankCapacity: 200 }), fish, clutches, tick };
-}
-
-function expanded(...keys: string[]): Set<string> {
-  return new Set(keys);
 }
 
 // Band floors (config defaults): overfed ≥99, wellFed ≥75, peckish ≥50, hungry ≥25, else starving.
@@ -166,94 +157,6 @@ describe('groupFryBatches', () => {
   });
 });
 
-describe('rosterRows', () => {
-  const roster = [
-    makeFish({ id: 'fish_a_1', species: 'neon_tetra', satiation: 80 }),
-    makeFish({ id: 'fish_a_2', species: 'neon_tetra', satiation: 40, sex: 'female' }),
-    makeFish({ id: 'fish_a_3', species: 'corydoras', mass: 4 }),
-  ];
-
-  it('lists one row per species while everything is collapsed', () => {
-    const rows = rosterRows(tank(roster), livestockDefaults, expanded());
-    expect(rows.map((r) => r.kind)).toEqual(['species', 'species']);
-    expect((rows[0] as SpeciesRosterRow).expanded).toBe(false);
-  });
-
-  it('opens one species without opening the other, and puts its fish beneath it', () => {
-    const rows = rosterRows(tank(roster), livestockDefaults, expanded('species-neon_tetra'));
-
-    expect(rows.map((r) => r.kind)).toEqual(['species', 'fish', 'fish', 'species']);
-    expect((rows[0] as SpeciesRosterRow).species).toBe('neon_tetra');
-    expect((rows[3] as SpeciesRosterRow).species).toBe('corydoras');
-    expect((rows[3] as SpeciesRosterRow).expanded).toBe(false);
-
-    const second = rows[2] as FishRosterRow;
-    expect(second.id).toBe('fish_a_2');
-    expect(second.sex).toBe('female');
-    expect(second.satiation).toBe(40);
-  });
-
-  it('strips the id’s kind prefix, keeping the part that tells two fish apart', () => {
-    const rows = rosterRows(tank(roster), livestockDefaults, expanded('species-neon_tetra'));
-    expect((rows[1] as FishRosterRow).shortId).toBe('a_1');
-    expect((rows[2] as FishRosterRow).shortId).toBe('a_2');
-  });
-
-  it('counts down to hatch from the current tick, not from when the clutch was laid', () => {
-    const clutch: Clutch = {
-      id: 'clutch_x_7',
-      species: 'angelfish', // hatchTime 60
-      eggCount: 24,
-      laidTick: 1602,
-    };
-    const [row] = rosterRows(tank([], [clutch], 1622), livestockDefaults, expanded());
-
-    expect(row.kind).toBe('clutch');
-    const clutchRow = row as ClutchRosterRow;
-    expect(clutchRow.name).toBe('Angelfish clutch');
-    expect(clutchRow.shortId).toBe('x_7');
-    expect(clutchRow.hatchTick).toBe(1662);
-    expect(clutchRow.hoursToHatch).toBe(40);
-  });
-
-  it('gives fry batches their own rows after the adults and the clutches', () => {
-    const fish = [
-      ...roster,
-      makeFish({ id: 'fry1', species: 'guppy', stage: 'fry', age: 24 * 6, mass: 0.4 }),
-      makeFish({ id: 'fry2', species: 'guppy', stage: 'fry', age: 24 * 12, mass: 0.6 }),
-    ];
-    const clutch: Clutch = { id: 'c_1', species: 'neon_tetra', eggCount: 25, laidTick: 0 };
-    const rows = rosterRows(tank(fish, [clutch], 12), livestockDefaults, expanded());
-
-    expect(rows.map((r) => r.kind)).toEqual(['species', 'species', 'clutch', 'fry']);
-    const fry = rows[3] as FryRosterRow;
-    expect(fry.count).toBe(2);
-    expect(fry.massG).toBeCloseTo(1, 10);
-    expect(fry.ageDays).toBe(9); // mean of 6 d and 12 d
-    expect(fry.graduationDay).toBe(60);
-    // Fry never appear as a species row of their own.
-    expect(rows.filter((r) => r.kind === 'species').map((r) => r.key)).toEqual([
-      'species-neon_tetra',
-      'species-corydoras',
-    ]);
-  });
-
-  it('has nothing to show for an empty tank', () => {
-    expect(rosterRows(tank([]), livestockDefaults, expanded())).toEqual([]);
-  });
-
-  it('opens one fish inside an opened species without opening its shoalmate', () => {
-    const rows = rosterRows(
-      tank(roster),
-      livestockDefaults,
-      expanded('species-neon_tetra', 'fish_a_1')
-    );
-
-    expect((rows[1] as FishRosterRow).expanded).toBe(true);
-    expect((rows[2] as FishRosterRow).expanded).toBe(false);
-  });
-});
-
 describe('fishVitals', () => {
   /** The tank at a given total ammonia, in ppm of its 200 L. */
   function poisoned(fish: Fish[], ppm: number): SimulationState {
@@ -313,22 +216,18 @@ describe('fishVitals', () => {
       ],
       20
     );
-    const rows = rosterRows(state, livestockDefaults, expanded('species-neon_tetra'));
+    const [group] = groupBySpecies(state, livestockDefaults);
 
     // Both read 100 %, so the group row would say nothing without the bank.
-    expect((rows[0] as SpeciesRosterRow).condition).toBe(100);
-    expect((rows[0] as SpeciesRosterRow).burning).toBe(true);
-    expect((rows[1] as FishRosterRow).burning).toBe(false);
-    expect((rows[2] as FishRosterRow).burning).toBe(true);
+    expect(group.condition).toBe(100);
+    expect(group.burning).toBe(true);
+    expect(fishVitals(state.fish[0], state, livestockDefaults).burning).toBe(false);
+    expect(fishVitals(state.fish[1], state, livestockDefaults).burning).toBe(true);
   });
 
   it('says nothing about a group with nothing to say', () => {
-    const rows = rosterRows(
-      tank([makeFish({ id: 'a', health: 100, surplus: 5 })]),
-      livestockDefaults,
-      expanded()
-    );
-    expect((rows[0] as SpeciesRosterRow).burning).toBe(false);
+    const state = tank([makeFish({ id: 'a', health: 100, surplus: 5 })]);
+    expect(groupBySpecies(state, livestockDefaults)[0].burning).toBe(false);
   });
 });
 

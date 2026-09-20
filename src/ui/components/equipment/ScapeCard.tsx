@@ -1,22 +1,26 @@
 import React from 'react';
 import { X } from 'lucide-react';
-import { getSubstrateSurface, type SubstrateType } from '../../../simulation/index.js';
+import {
+  getHardscapeName,
+  getSubstrateSurface,
+  type SubstrateType,
+} from '../../../simulation/index.js';
 import { SurfaceResource } from '../../../simulation/resources/index.js';
 import type { useSimulation } from '../../hooks/useSimulation';
-import { hardscapeRows, SUBSTRATE_NAME, SUBSTRATE_TYPES, substrateConsequence } from '../../build';
+import {
+  HARDSCAPE_TYPES,
+  hardscapeRows,
+  SUBSTRATE_NAME,
+  SUBSTRATE_TYPES,
+  substrateConsequence,
+} from '../../build';
 import { Card, CardBody, CardHeader } from '../run/Card';
 import { Select } from '../ui/Select';
+import { VerbButton } from '../ui/VerbButton';
 
 type Sim = ReturnType<typeof useSimulation>;
 
-export function ScapeCard({
-  sim,
-  footer,
-}: {
-  sim: Sim;
-  /** The add-hardscape control, when it belongs in the card rather than the header. */
-  footer?: React.ReactNode;
-}): React.JSX.Element {
+export function ScapeCard({ sim }: { sim: Sim }): React.JSX.Element {
   const { equipment, tank, resources } = sim.state;
   const substrate = equipment.substrate.type;
   const rows = hardscapeRows(equipment.hardscape.items);
@@ -87,7 +91,18 @@ export function ScapeCard({
           </p>
         </div>
 
-        {footer && <div className="flex border-t border-hairline pt-2">{footer}</div>}
+        <div className="flex flex-wrap items-center gap-1.5 border-t border-hairline pt-2">
+          {HARDSCAPE_TYPES.map((type) => (
+            <VerbButton
+              key={type}
+              label={`+ ${getHardscapeName(type)}`}
+              onClick={() => sim.addHardscapeItem(type)}
+            />
+          ))}
+          {rows.length >= tank.hardscapeSlots && (
+            <span className="text-[12px] text-ink-3">every slot filled</span>
+          )}
+        </div>
       </CardBody>
     </Card>
   );

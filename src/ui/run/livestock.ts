@@ -9,9 +9,7 @@ import {
   FISH_SPECIES_DATA,
   classifySatiationBandPosition,
   computeFishVitality,
-  type Clutch,
   type Fish,
-  type FishSex,
   type FishSpecies,
   type SatiationBand,
   type SimulationState,
@@ -164,16 +162,6 @@ export interface FryBatch extends RosterGroup {
   graduationDay: number;
 }
 
-function fishFigures(f: Fish, config: LivestockConfig): RosterFigures {
-  return {
-    massG: f.mass,
-    ageDays: Math.floor(f.age / 24),
-    satiation: f.satiation,
-    band: bandOf(f.satiation, config),
-    condition: f.health,
-  };
-}
-
 function groupFigures(
   species: FishSpecies,
   group: Fish[],
@@ -210,104 +198,6 @@ export function groupFryBatches(state: SimulationState, config: LivestockConfig)
     ...groupFigures(species, group, state, config),
     graduationDay: Math.max(1, Math.floor(FISH_SPECIES_DATA[species].breeding.maturityAge / 24)),
   }));
-}
-
-function shortId(id: string): string {
-  return id.slice(id.indexOf('_') + 1);
-}
-
-interface RosterRowBase {
-  /** Stable React key — the engine id where there is one, the species where not. */
-  key: string;
-}
-
-export interface SpeciesRosterRow extends RosterRowBase, Omit<SpeciesGroup, 'fish'> {
-  kind: 'species';
-  expanded: boolean;
-}
-
-export interface FishRosterRow extends RosterRowBase, RosterFigures, FishVitals {
-  kind: 'fish';
-  id: string;
-  shortId: string;
-  name: string;
-  sex: FishSex;
-  /** Open on its own conditions breakdown. */
-  expanded: boolean;
-}
-
-export interface ClutchRosterRow extends RosterRowBase {
-  kind: 'clutch';
-  shortId: string;
-  name: string;
-  eggCount: number;
-  hatchTick: number;
-  /** Ticks (hours) until hatch. */
-  hoursToHatch: number;
-}
-
-export interface FryRosterRow extends RosterRowBase, FryBatch {
-  kind: 'fry';
-}
-
-export type RosterRow = SpeciesRosterRow | FishRosterRow | ClutchRosterRow | FryRosterRow;
-
-/**
- * The roster in render order: each species row, its individuals directly
- * beneath it when expanded, then the clutches waiting to hatch and the fry
- * batches growing out. Rows disclose by their own key, so one set opens both a
- * species and any individual inside it.
- */
-export function rosterRows(
-  state: SimulationState,
-  config: LivestockConfig,
-  expanded: ReadonlySet<string>
-): RosterRow[] {
-  const rows: RosterRow[] = [];
-
-  for (const group of groupBySpecies(state, config)) {
-    const key = `species-${group.species}`;
-    const open = expanded.has(key);
-    const { fish, ...figures } = group;
-    rows.push({ kind: 'species', key, expanded: open, ...figures });
-    if (!open) continue;
-    for (const f of fish) {
-      rows.push({
-        kind: 'fish',
-        key: f.id,
-        id: f.id,
-        shortId: shortId(f.id),
-        name: group.name,
-        sex: f.sex,
-        expanded: expanded.has(f.id),
-        ...fishFigures(f, config),
-        ...fishVitals(f, state, config),
-      });
-    }
-  }
-
-  for (const clutch of state.clutches) {
-    rows.push(clutchRow(clutch, state.tick));
-  }
-
-  for (const batch of groupFryBatches(state, config)) {
-    rows.push({ kind: 'fry', key: `fry-${batch.species}`, ...batch });
-  }
-
-  return rows;
-}
-
-function clutchRow(clutch: Clutch, tick: number): ClutchRosterRow {
-  const hatchTick = clutch.laidTick + FISH_SPECIES_DATA[clutch.species].breeding.hatchTime;
-  return {
-    kind: 'clutch',
-    key: clutch.id,
-    shortId: shortId(clutch.id),
-    name: `${FISH_SPECIES_DATA[clutch.species].name} clutch`,
-    eggCount: clutch.eggCount,
-    hatchTick,
-    hoursToHatch: hatchTick - tick,
-  };
 }
 
 /**

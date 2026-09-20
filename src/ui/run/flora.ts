@@ -140,6 +140,8 @@ export interface PlantSpeciesGroup {
   /** The worst specimen's reading: a group is as urgent as its worst member. */
   status: Status;
   word: string;
+  /** The specimens themselves, in planting order. */
+  plants: PlantRow[];
 }
 
 export function groupPlantsBySpecies(rows: PlantRow[]): PlantSpeciesGroup[] {
@@ -163,6 +165,7 @@ export function groupPlantsBySpecies(rows: PlantRow[]): PlantSpeciesGroup[] {
       statuses: members.map((member) => member.status),
       status: worst.status,
       word: worst.word,
+      plants: members,
     };
   });
 }

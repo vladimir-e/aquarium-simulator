@@ -4,19 +4,9 @@
  * section renders these and wires the actions.
  */
 
-import {
-  checkFishCapacity,
-  FISH_SPECIES_DATA,
-  type Fish,
-  type FishSpecies,
-} from '../../simulation/index.js';
+import { FISH_SPECIES_DATA, type Fish } from '../../simulation/index.js';
 import type { Status } from '../run';
-import {
-  formatTemperatureRange,
-  getVolumeUnit,
-  toInternalVolume,
-  type UnitSystem,
-} from '../utils/units.js';
+import { getVolumeUnit, toInternalVolume, type UnitSystem } from '../utils/units.js';
 
 /**
  * Grams of projected adult fish per litre a well-run planted community tank
@@ -76,56 +66,4 @@ export function bioloadNote(load: Bioload, units: UnitSystem): string {
     `${load.massG.toFixed(1)} g projected adult mass · ` +
     `guideline ${load.guidelineG.toFixed(0)} g at ${perUnit.toFixed(1)} g/${getVolumeUnit(units)}`
   );
-}
-
-/** The species the section offers, in the catalog's own order. */
-export const FISH_SPECIES: FishSpecies[] = [
-  'neon_tetra',
-  'betta',
-  'guppy',
-  'angelfish',
-  'corydoras',
-];
-
-export interface FishOption {
-  species: FishSpecies;
-  name: string;
-  /** Adults of this species already in the tank. */
-  count: number;
-  /** Adult mass one more of these would add to the bioload (g). */
-  addsG: number;
-  disabled: boolean;
-  /** The consequence of taking one, or the engine's own reason it cannot. */
-  hint: string;
-  /** What the species is: the bands you check against the heater and the tap. */
-  facts: string;
-}
-
-/**
- * Every species with what adding one costs the tank. Disabled options carry the
- * engine's rejection message rather than a UI paraphrase of it.
- */
-export function fishOptions(fish: Fish[], tankLiters: number, units: UnitSystem): FishOption[] {
-  return FISH_SPECIES.map((species) => {
-    const data = FISH_SPECIES_DATA[species];
-    const capacity = checkFishCapacity(fish, tankLiters, species);
-    const count = fish.reduce(
-      (n, f) => n + (f.species === species && f.stage === 'adult' ? 1 : 0),
-      0
-    );
-    const addsG = data.adultMass;
-    const [phLo, phHi] = data.phRange;
-    return {
-      species,
-      name: data.name,
-      count,
-      addsG,
-      disabled: !capacity.ok,
-      hint: capacity.ok ? `${count} in tank · +${addsG} g` : capacity.message,
-      facts:
-        `${formatTemperatureRange(data.temperatureRange, units)} · ` +
-        `pH ${phLo.toFixed(1)}–${phHi.toFixed(1)} · ` +
-        `flow to ${data.maxTurnover} ×/h · hardiness ${data.hardiness}`,
-    };
-  });
 }
