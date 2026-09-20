@@ -1,7 +1,7 @@
 import React from 'react';
-import { describe, it, expect, afterEach, beforeEach } from 'vitest';
+import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
 import { render, screen, fireEvent, cleanup, within } from '@testing-library/react';
-import { MemoryRouter, useLocation } from 'react-router-dom';
+import { MemoryRouter, useLocation, useNavigate } from 'react-router-dom';
 import { Spine } from './Spine';
 import { createLog, type LogEntry } from '../../../simulation/index.js';
 import { PersistenceProvider } from '../../persistence/index.js';
@@ -51,20 +51,47 @@ afterEach(() => {
 });
 
 function Address(): React.JSX.Element {
-  return <span data-testid="search">{useLocation().search}</span>;
+  const navigate = useNavigate();
+  return (
+    <>
+      <span data-testid="search">{useLocation().search}</span>
+      <button type="button" onClick={() => navigate(-1)}>
+        back
+      </button>
+    </>
+  );
 }
 
-function mount(path = '/'): void {
+function mount(path = '/', buffer: RunSnapshot[] = history): void {
   render(
     <PersistenceProvider>
       <UnitsProvider>
         <MemoryRouter initialEntries={[path]}>
-          <Spine history={history} logs={logs} schedule={{ startHour: 8, duration: 8 }} />
+          <Spine history={buffer} logs={logs} schedule={{ startHour: 8, duration: 8 }} />
           <Address />
         </MemoryRouter>
       </UnitsProvider>
     </PersistenceProvider>
   );
+}
+
+function back(): void {
+  fireEvent.click(screen.getByRole('button', { name: 'back' }));
+}
+
+function marks(kind: string): HTMLElement[] {
+  return Array.from(globalThis.document.querySelectorAll(`[data-mark="${kind}"]`));
+}
+
+/** One pointer gesture across a surface one pixel wide per tick. */
+function drag(surface: HTMLElement, ...xs: number[]): void {
+  vi.spyOn(surface, 'getBoundingClientRect').mockReturnValue({
+    left: 0,
+    width: TICKS,
+  } as DOMRect);
+  fireEvent.pointerDown(surface, { pointerId: 1, clientX: xs[0] });
+  for (const x of xs.slice(1)) fireEvent.pointerMove(surface, { pointerId: 1, clientX: x });
+  fireEvent.pointerUp(surface, { pointerId: 1 });
 }
 
 function search(): string {
@@ -88,14 +115,42 @@ describe('the axis', () => {
     expect(slider().getAttribute('aria-valuemax')).toBe(String(TICKS));
   });
 
-  it('marks what happened: actions in accent, alerts in alert', () => {
+  it('marks what happened: the action the keeper took, the alert the tank hit', () => {
     mount();
-    const marks = Array.from(slider().firstElementChild!.children) as HTMLElement[];
 
-    const action = marks.find((m) => m.className.includes('bg-accent'))!;
-    const alert = marks.find((m) => m.className.includes('bg-alert'))!;
-    expect(action.style.left).toBe(`${(12 / TICKS) * 100}%`);
-    expect(alert.style.left).toBe(`${(36 / TICKS) * 100}%`);
+    expect(marks('action').map((m) => m.dataset.tick)).toEqual(['12']);
+    expect(marks('alert').map((m) => m.dataset.tick)).toEqual(['36']);
+    expect(marks('action')[0].style.left).toBe(`${(12 / TICKS) * 100}%`);
+  });
+
+  it('parks the tick under a drag, and leaves one entry behind it', () => {
+    mount();
+
+    drag(slider(), 10, 20, 30);
+
+    expect(search()).toBe('?tick=30');
+    expect(marks('playhead')[0].dataset.parked).toBe('true');
+
+    back();
+    expect(search()).toBe('');
+    expect(marks('playhead')[0].dataset.parked).toBe('false');
+  });
+
+  it('takes Home to the oldest tick it holds, and End back to the live edge', () => {
+    mount();
+
+    fireEvent.keyDown(slider(), { key: 'Home' });
+    expect(search()).toBe('?tick=0');
+
+    fireEvent.keyDown(slider(), { key: 'End' });
+    expect(search()).toBe('');
+  });
+
+  it('clamps a tick the buffer has already dropped, and says so in the address', () => {
+    mount('/?tick=10', history.slice(30));
+
+    expect(search()).toBe('?tick=30');
+    expect(slider().getAttribute('aria-valuenow')).toBe('30');
   });
 
   it('parks the playhead in the address, and re-follows on the way back', () => {
@@ -176,13 +231,13 @@ describe('the tracks', () => {
     expect(screen.getByRole('slider', { name: 'Timeline charts' })).toBeTruthy();
   });
 
-  it('grows the strip to its expanded height', () => {
-    mount();
-    const strip = handle().closest('div')!.parentElement!;
-    expect(strip.className).toContain('h-8');
-
+  it('leaves them to History, which is already the tracks at full height', () => {
+    mount('/history');
     fireEvent.click(handle());
-    expect(strip.className).toContain('h-40');
+
+    expect(handle().getAttribute('aria-expanded')).toBe('true');
+    expect(screen.queryByRole('slider', { name: 'Timeline charts' })).toBeNull();
+    expect(screen.getByRole('slider', { name: 'Run timeline' })).toBeTruthy();
   });
 
   it('shows two of the four on a phone, and the rest behind the chips', () => {
@@ -197,6 +252,8 @@ describe('the tracks', () => {
         .map((img) => img.getAttribute('aria-label') ?? '');
 
     expect(drawn()).toEqual(TRACK_PAIRS[0].tracks.map((def) => def.title));
+    // The chips are a row above the scrub surface, not buttons inside a slider.
+    expect(within(charts).queryByRole('button', { name: TRACK_PAIRS[1].label })).toBeNull();
 
     fireEvent.click(screen.getByRole('button', { name: TRACK_PAIRS[1].label }));
     expect(drawn()).toEqual(TRACK_PAIRS[1].tracks.map((def) => def.title));

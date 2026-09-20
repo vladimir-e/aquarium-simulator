@@ -31,6 +31,21 @@ function tracks(): HTMLElement {
   return screen.getByRole('slider', { name: 'History timeline' });
 }
 
+function axis(): HTMLElement {
+  return screen.getByRole('slider', { name: 'History axis' });
+}
+
+/** One pointer gesture across a surface one pixel wide per tick of the run. */
+function drag(surface: HTMLElement, ...xs: number[]): void {
+  vi.spyOn(surface, 'getBoundingClientRect').mockReturnValue({
+    left: 0,
+    width: run.state.tick,
+  } as DOMRect);
+  fireEvent.pointerDown(surface, { pointerId: 1, clientX: xs[0] });
+  for (const x of xs.slice(1)) fireEvent.pointerMove(surface, { pointerId: 1, clientX: x });
+  fireEvent.pointerUp(surface, { pointerId: 1 });
+}
+
 describe('History', () => {
   it('stacks the four tracks over one axis', () => {
     mount();
@@ -99,6 +114,26 @@ describe('History', () => {
 
     click.mockRestore();
     vi.unstubAllGlobals();
+  });
+
+  it('drags the axis under the tracks onto the same playhead', () => {
+    mount();
+
+    drag(axis(), 40, 60);
+
+    expect(query().get('tick')).toBe('60');
+    expect(tracks().getAttribute('aria-valuenow')).toBe('60');
+  });
+
+  it('clamps a parked tick the narrower window cannot hold, in the same render', () => {
+    mount('/history?tick=10');
+
+    fireEvent.click(screen.getByRole('button', { name: '24h' }));
+
+    const oldest = Number(tracks().getAttribute('aria-valuemin'));
+    expect(oldest).toBe(run.state.tick - 23);
+    expect(query().get('tick')).toBe(String(oldest));
+    expect(tracks().getAttribute('aria-valuenow')).toBe(String(oldest));
   });
 
   it('resolves a tick the window cannot honour, and says so in the address', () => {

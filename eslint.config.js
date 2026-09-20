@@ -24,6 +24,8 @@ export default [
         HTMLButtonElement: 'readonly',
         HTMLSelectElement: 'readonly',
         HTMLDivElement: 'readonly',
+        SVGElement: 'readonly',
+        DOMRect: 'readonly',
         KeyboardEvent: 'readonly',
         PointerEvent: 'readonly',
         clearInterval: 'readonly',
