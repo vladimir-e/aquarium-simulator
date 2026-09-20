@@ -18,6 +18,23 @@ export function query(): globalThis.URLSearchParams {
   return new globalThis.URLSearchParams(screen.getByTestId('address').textContent ?? '');
 }
 
+/**
+ * The stage context, for a harness that lays out its own routes: the shell
+ * answers nothing, which is all a section needs of it to render.
+ */
+export function StageOutlet(): React.JSX.Element {
+  return (
+    <Outlet
+      context={{
+        needs: [],
+        onAct: (): void => {},
+        actLabel: (): string => '',
+        onInspect: (): void => {},
+      }}
+    />
+  );
+}
+
 /** A section on the stage: the providers it reads, and the context the shell gives it. */
 export function renderStage(
   section: React.JSX.Element,
@@ -28,6 +45,7 @@ export function renderStage(
     onAct = (): void => {},
     actLabel = (verb: VerbId, at?: number): string =>
       verbLabel(state, verb, withAmount(DEFAULT_SETTINGS, verb, at), 'metric'),
+    onInspect = (): void => {},
   }: Partial<StageContext> & { path?: string; state?: SimulationState } = {}
 ): void {
   render(
@@ -37,7 +55,7 @@ export function renderStage(
           <MemoryRouter initialEntries={[path]}>
             <Address />
             <Routes>
-              <Route element={<Outlet context={{ needs, onAct, actLabel }} />}>
+              <Route element={<Outlet context={{ needs, onAct, actLabel, onInspect }} />}>
                 <Route path="*" element={section} />
               </Route>
             </Routes>

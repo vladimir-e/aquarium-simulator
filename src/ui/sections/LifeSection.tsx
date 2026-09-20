@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { getMaxPlants, type FishSpecies, type PlantSpecies } from '../../simulation/index.js';
 import type { TunableConfig } from '../../simulation/config/index.js';
 import { useStage } from '../components/layout/AppShell';
@@ -11,6 +11,7 @@ import { ReadingRow } from '../components/ui/ReadingRow';
 import { VerbButton } from '../components/ui/VerbButton';
 import { bioload, bioloadNote, type PickerKind } from '../build';
 import { useExpandedRows } from '../hooks/useExpandedRows';
+import { useInspector } from '../hooks/useInspector';
 import { useQueryParam } from '../hooks/useQueryParam';
 import type { useSimulation } from '../hooks/useSimulation';
 import { useReadingBook } from '../hooks/useReadingBook';
@@ -60,6 +61,8 @@ export function LifeSection({
   const [expanded, toggle] = useExpandedRows(sim.tankId);
   const [inspecting, setInspecting] = useState<Inspecting | null>(null);
   const [picker, setAdding] = useQueryParam<PickerKind>('add');
+  const closeLedger = useCallback(() => setInspecting(null), []);
+  useInspector(inspecting !== null, closeLedger);
 
   const book = useReadingBook(sim, config);
 
@@ -197,7 +200,7 @@ export function LifeSection({
 
       <LedgerDrawer
         ledger={ledger}
-        onClose={() => setInspecting(null)}
+        onClose={closeLedger}
         onAct={onAct}
         actLabel={actLabel}
         onRemove={inspecting?.target.kind === 'algae' ? null : remove}

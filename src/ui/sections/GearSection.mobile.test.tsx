@@ -7,6 +7,7 @@ import { PersistenceProvider } from '../persistence/index.js';
 import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
 import { createSimulation, type SimulationState } from '../../simulation/index.js';
 import { stubMatchMedia, viewport, type MatchMediaStub } from '../test/matchMedia';
+import { StageOutlet } from '../test/stage';
 import { stubSim } from '../test/stubSim';
 
 let media: MatchMediaStub;
@@ -30,10 +31,12 @@ function renderGear(path = '/gear'): void {
       <UnitsProvider>
         <MemoryRouter initialEntries={[path]}>
           <Routes>
-            <Route
-              path="/gear/:deviceId?"
-              element={<GearSection sim={stubSim(base)} config={DEFAULT_CONFIG} />}
-            />
+            <Route element={<StageOutlet />}>
+              <Route
+                path="/gear/:deviceId?"
+                element={<GearSection sim={stubSim(base)} config={DEFAULT_CONFIG} />}
+              />
+            </Route>
           </Routes>
         </MemoryRouter>
       </UnitsProvider>

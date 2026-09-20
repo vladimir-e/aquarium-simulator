@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback, useState } from 'react';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, cleanup, act, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
@@ -11,6 +11,8 @@ import { PersistenceProvider } from '../../persistence/index.js';
 import { useSimulation } from '../../hooks/useSimulation';
 import type { AlertState } from '../../../simulation/index.js';
 import { stubMatchMedia, viewport, type MatchMediaStub } from '../../test/matchMedia';
+import { useInspector } from '../../hooks/useInspector';
+import { Drawer, DRAWER_TOGGLE } from '../ui/Drawer';
 
 let media: MatchMediaStub;
 
@@ -24,6 +26,24 @@ afterEach(() => {
   cleanup();
 });
 
+/** A module's own inspector, opened from a row that governs the drawer. */
+function Inspector(): React.JSX.Element {
+  const [open, setOpen] = useState(false);
+  const close = useCallback(() => setOpen(false), []);
+  useInspector(open, close);
+
+  return (
+    <>
+      <button type="button" onClick={() => setOpen(true)} {...DRAWER_TOGGLE}>
+        Ammonia
+      </button>
+      <Drawer open={open} onClose={close} title="Ammonia">
+        the reading
+      </Drawer>
+    </>
+  );
+}
+
 function Harness({ latched }: { latched: Partial<AlertState> }): React.JSX.Element {
   const live = useSimulation();
   const { config } = useConfig();
@@ -34,7 +54,15 @@ function Harness({ latched }: { latched: Partial<AlertState> }): React.JSX.Eleme
   return (
     <Routes>
       <Route element={<AppShell sim={sim} config={config} />}>
-        <Route index element={<ModulePage title="Overview">overview</ModulePage>} />
+        <Route
+          index
+          element={
+            <ModulePage title="Overview">
+              overview
+              <Inspector />
+            </ModulePage>
+          }
+        />
         <Route path="setup" element={<ModulePage title="Setup">setup</ModulePage>} />
       </Route>
     </Routes>
@@ -160,6 +188,27 @@ describe('AppShell — the drawer', () => {
 
     expect(screen.getByRole('dialog', { name: 'Tunables' })).toBeTruthy();
     expect(screen.queryByRole('dialog', { name: 'Act' })).toBeNull();
+  });
+
+  it('holds one drawer at a time — Act replaces a module inspector', () => {
+    renderShell();
+    fireEvent.click(screen.getByRole('button', { name: 'Ammonia' }));
+    expect(screen.getByRole('dialog', { name: 'Ammonia' })).toBeTruthy();
+
+    fireEvent.keyDown(window, { key: 'k', metaKey: true });
+
+    expect(screen.getAllByRole('dialog').map((d) => d.getAttribute('aria-label'))).toEqual(['Act']);
+  });
+
+  it('holds one drawer at a time — a module inspector replaces Act', () => {
+    renderShell();
+    fireEvent.click(screen.getByRole('button', { name: /Act/ }));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Ammonia' }));
+
+    expect(screen.getAllByRole('dialog').map((d) => d.getAttribute('aria-label'))).toEqual([
+      'Ammonia',
+    ]);
   });
 
   it('reaches Act from the keyboard, the way the palette is named', () => {

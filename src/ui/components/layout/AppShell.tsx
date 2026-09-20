@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Outlet, useOutletContext } from 'react-router-dom';
 import type { TunableConfig } from '../../../simulation/config/index.js';
 import { countModified } from '../../../simulation/config/index.js';
@@ -29,6 +29,12 @@ export interface StageContext {
   onAct: (verb?: VerbId, at?: number) => void;
   /** The verb and the amount it is standing on, or the one asked for here. */
   actLabel: (verb: VerbId, at?: number) => string;
+  /**
+   * A module's inspector announcing itself, and withdrawing with `null`. The
+   * shell holds the one that is open so the stage carries a single drawer:
+   * opening this closes the shell's own, and opening one of those closes this.
+   */
+  onInspect: (close: (() => void) | null) => void;
 }
 
 export function useStage(): StageContext {
@@ -56,16 +62,26 @@ export function AppShell({ sim, config }: AppShellProps): React.JSX.Element {
   const alerts = useMemo(() => needySections(needs), [needs]);
   const tunablesModified = useMemo(() => countModified(config), [config]);
 
-  const { openPalette, open } = acts;
+  const { openPalette, open, close: closeActs } = acts;
+
+  /** The open module inspector's own close, held so the shell can dismiss it. */
+  const inspector = useRef<(() => void) | null>(null);
+
+  const closeInspector = useCallback(() => {
+    const close = inspector.current;
+    inspector.current = null;
+    close?.();
+  }, []);
 
   const onAct = useCallback(
     (verb?: VerbId, at?: number) => {
       setTunablesOpen(false);
       setMore(false);
+      closeInspector();
       if (verb === undefined) openPalette();
       else open(verb, at);
     },
-    [open, openPalette, setTunablesOpen]
+    [open, openPalette, setTunablesOpen, closeInspector]
   );
 
   const actLabel = useCallback(
@@ -74,28 +90,41 @@ export function AppShell({ sim, config }: AppShellProps): React.JSX.Element {
     [sim.state, acts.settings, unitSystem]
   );
 
+  const onInspect = useCallback(
+    (close: (() => void) | null) => {
+      inspector.current = close;
+      if (close === null) return;
+      closeActs();
+      setMore(false);
+      setTunablesOpen(false);
+    },
+    [closeActs, setTunablesOpen]
+  );
+
   const stage = useMemo<StageContext>(
-    () => ({ needs, onAct, actLabel }),
-    [needs, onAct, actLabel]
+    () => ({ needs, onAct, actLabel, onInspect }),
+    [needs, onAct, actLabel, onInspect]
   );
 
   const openMore = useCallback(() => {
-    acts.close();
+    closeActs();
     setTunablesOpen(false);
+    closeInspector();
     setMore((was) => !was);
-  }, [acts, setTunablesOpen]);
+  }, [closeActs, setTunablesOpen, closeInspector]);
 
   const toggleTunables = useCallback(() => {
-    acts.close();
+    closeActs();
     setMore(false);
+    closeInspector();
     setTunablesOpen(!tunablesOpen);
-  }, [acts, tunablesOpen, setTunablesOpen]);
+  }, [closeActs, tunablesOpen, setTunablesOpen, closeInspector]);
 
   const closeDrawers = useCallback(() => {
-    acts.close();
+    closeActs();
     setMore(false);
     setTunablesOpen(false);
-  }, [acts, setTunablesOpen]);
+  }, [closeActs, setTunablesOpen]);
 
   // A sheet left open across a resize would outlive the tab bar that opened it.
   useEffect(() => {

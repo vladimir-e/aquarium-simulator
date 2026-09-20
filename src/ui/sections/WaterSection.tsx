@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import type { TunableConfig } from '../../simulation/config/index.js';
 import { useStage } from '../components/layout/AppShell';
 import { ModuleGroup, ModulePage } from '../components/layout/ModulePage';
@@ -8,6 +8,7 @@ import { NutrientRows, ReadingRows } from '../components/water/rows';
 import { WasteWidget } from '../components/water/WasteWidget';
 import { VerbButton } from '../components/ui/VerbButton';
 import type { useSimulation } from '../hooks/useSimulation';
+import { useInspector } from '../hooks/useInspector';
 import { useReadingBook } from '../hooks/useReadingBook';
 import {type ReadingId} from '../readings';
 
@@ -31,6 +32,8 @@ export function WaterSection({
   const { onAct, actLabel } = useStage();
   const { history } = sim;
   const [reading, setReading] = useState<ReadingId | null>(null);
+  const close = useCallback(() => setReading(null), []);
+  useInspector(reading !== null, close);
 
   const book = useReadingBook(sim, config);
 
@@ -72,7 +75,7 @@ export function WaterSection({
         </div>
       </ModulePage>
 
-      <ReadingDrawer id={reading} book={book} history={history} onClose={() => setReading(null)} />
+      <ReadingDrawer id={reading} book={book} history={history} onClose={close} />
     </>
   );
 }

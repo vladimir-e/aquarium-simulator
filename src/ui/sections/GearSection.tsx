@@ -10,6 +10,7 @@ import { ReadingRow } from '../components/ui/ReadingRow';
 import { equipmentSummary, hourLabel, isDeviceId, turnover } from '../build';
 import { formatFlowRate } from '../utils/units';
 import type { useSimulation } from '../hooks/useSimulation';
+import { useInspector } from '../hooks/useInspector';
 import { useQueryParam } from '../hooks/useQueryParam';
 import { useReadingBook } from '../hooks/useReadingBook';
 import { useUnits } from '../hooks/useUnits';
@@ -52,6 +53,8 @@ export function GearSection({
     deviceId && isDeviceId(deviceId)
       ? (entries.find((entry) => entry.row.id === deviceId) ?? null)
       : null;
+
+  useInspector(selected !== null, close);
 
   if (deviceId !== undefined && selected === null) return <Navigate to="/gear" replace />;
 

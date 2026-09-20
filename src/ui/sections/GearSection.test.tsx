@@ -14,6 +14,7 @@ import {
 import { scheduleHours } from '../build';
 import type { useSimulation } from '../hooks/useSimulation';
 import { stubMatchMedia, viewport, type MatchMediaStub } from '../test/matchMedia';
+import { StageOutlet } from '../test/stage';
 import { stubSim } from '../test/stubSim';
 
 let media: MatchMediaStub;
@@ -59,11 +60,13 @@ function renderGear(
       <UnitsProvider>
         <MemoryRouter initialEntries={[path]}>
           <Routes>
-            <Route path="/" element={<Elsewhere />} />
-            <Route
-              path="/gear/:deviceId?"
-              element={<GearSection sim={sim} config={DEFAULT_CONFIG} />}
-            />
+            <Route element={<StageOutlet />}>
+              <Route path="/" element={<Elsewhere />} />
+              <Route
+                path="/gear/:deviceId?"
+                element={<GearSection sim={sim} config={DEFAULT_CONFIG} />}
+              />
+            </Route>
           </Routes>
           <Address />
           <Back />
