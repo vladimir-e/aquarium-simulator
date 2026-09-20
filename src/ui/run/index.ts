@@ -39,6 +39,7 @@ export {
   readingAt,
   gasReadings,
   waterReadings,
+  WATER_SCALE,
   type WaterKey,
   type GasKey,
   type GasReading,

@@ -6,6 +6,7 @@
  */
 
 import type { AlertState, SimulationState } from '../../simulation/index.js';
+import { verbName, type VerbId } from '../actions';
 import type { ReadingId } from '../readings';
 import type { SectionId } from './sections.js';
 
@@ -23,19 +24,29 @@ export interface Need {
   /** The verb that answers it, and where the reader goes to use it. */
   verb: string;
   /** The husbandry verb the strip opens; a need answered by gear has none. */
-  act?: 'feed' | 'waterChange' | 'topOff' | 'dose' | 'trimPlants' | 'scrubAlgae';
+  act?: VerbId;
   to: string;
 }
 
+/**
+ * A need as it is written down: a husbandry verb names itself, and only the two
+ * answered by a fitting have a verb of their own to state.
+ */
+type NeedSpec = Omit<Need, 'verb' | 'act'> &
+  ({ act: VerbId; verb?: never } | { act?: never; verb: string });
+
+function stated(spec: NeedSpec): Need {
+  return spec.act === undefined ? spec : { ...spec, verb: verbName(spec.act) };
+}
+
 /** Worst first: what poisons fish outranks what merely looks bad. */
-export const NEEDS: readonly Need[] = [
+const WRITTEN: readonly NeedSpec[] = [
   {
     id: 'highAmmonia',
     section: 'water',
     tone: 'alert',
     text: 'NH₃ high',
     reading: 'ammonia',
-    verb: 'Water change',
     act: 'waterChange',
     to: '/water',
   },
@@ -45,7 +56,6 @@ export const NEEDS: readonly Need[] = [
     tone: 'alert',
     text: 'NO₂ high',
     reading: 'nitrite',
-    verb: 'Water change',
     act: 'waterChange',
     to: '/water',
   },
@@ -73,7 +83,6 @@ export const NEEDS: readonly Need[] = [
     tone: 'alert',
     text: 'Water level critical',
     reading: 'level',
-    verb: 'Top off',
     act: 'topOff',
     to: '/water',
   },
@@ -83,7 +92,6 @@ export const NEEDS: readonly Need[] = [
     tone: 'warn',
     text: 'NO₃ high',
     reading: 'nitrate',
-    verb: 'Water change',
     act: 'waterChange',
     to: '/water',
   },
@@ -93,11 +101,12 @@ export const NEEDS: readonly Need[] = [
     tone: 'warn',
     text: 'Algae bloom',
     reading: 'algae',
-    verb: 'Scrub',
     act: 'scrubAlgae',
     to: '/life',
   },
 ];
+
+export const NEEDS: readonly Need[] = WRITTEN.map(stated);
 
 export function activeNeeds(state: SimulationState): Need[] {
   return NEEDS.filter((need) => state.alertState[need.id]);

@@ -57,6 +57,7 @@ import {
   type WasteReadout,
   type WaterReading,
   NITRATE_LOW_PPM,
+  WATER_SCALE,
 } from '../run';
 import {
   formatTemperatureRange,
@@ -233,7 +234,8 @@ export const DISPLAY_CEILING = {
   co2: HIGH_CO2_THRESHOLD * 1.5,
   algae: 100,
   plantSize: 100,
-  nitrate: 100,
+  // The one nitrate track: the lab sheet and the preview read it at one scale.
+  nitrate: WATER_SCALE.nitrate[1],
   phosphate: 4,
   potassium: 30,
   iron: 1,

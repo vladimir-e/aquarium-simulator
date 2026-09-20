@@ -16,6 +16,7 @@ import {
 } from '../../simulation/index.js';
 import { readPlantVitality } from '../../simulation/plants/index.js';
 import type { TunableConfig } from '../../simulation/config/index.js';
+import type { VerbId } from '../actions/verbs.js';
 import { algaeStatus, algaeWord } from './flora.js';
 import { bandOf, bandStatus, fishReading } from './livestock.js';
 import { CONDITION_BAND, type Satiation, type SpeciesId } from './roster.js';
@@ -73,7 +74,7 @@ export interface Ledger {
   /** What the species asks of the two devices set for it; plants only. */
   demand: string | null;
   /** The verb that moves this organism — an id the stage opens the sheet on. */
-  verb: 'feed' | 'trimPlants' | 'scrubAlgae';
+  verb: Extract<VerbId, 'feed' | 'trimPlants' | 'scrubAlgae'>;
 }
 
 const PER_DAY = 24;
