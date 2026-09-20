@@ -17,7 +17,7 @@ import {
   WATER_LEVEL_CRITICAL_THRESHOLD,
 } from '../../simulation/alerts/index.js';
 import type { TunableConfig } from '../../simulation/config/index.js';
-import type { StripBand, StripTone } from '../components/ui/RangeStrip';
+import type { StripBand, StripTone } from '../components/ui/strip.js';
 import {
   equipmentRows,
   rackSchedules,

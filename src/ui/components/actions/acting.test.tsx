@@ -140,6 +140,20 @@ describe('a verb sheet', () => {
     expect(preview('food')).toContain('0.50');
   });
 
+  it('reads the preview on the reading’s own track: a ghost where it stands', () => {
+    renderApp();
+    fireEvent.click(within(palette()).getByRole('option', { name: /^Feed/ }));
+
+    const ghost = document.querySelector<HTMLElement>('[data-reading="food"] [data-ghost]')!;
+    const track = ghost.parentElement!;
+    const marker = track.lastElementChild as HTMLElement;
+
+    // Nothing in the water, and half a gram of it on a track that runs to two.
+    expect(ghost.style.left).toBe('calc(0% - 1px)');
+    expect(marker.style.left).toBe('calc(25% - 1px)');
+    expect(track.querySelector('[data-band]')).toBeNull();
+  });
+
   it('keeps the amount chosen for a verb until it is chosen again', () => {
     renderApp();
     fireEvent.click(within(palette()).getByRole('option', { name: /^Feed/ }));

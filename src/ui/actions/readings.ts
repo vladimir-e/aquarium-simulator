@@ -30,7 +30,7 @@ import {
   PhosphateResource,
   PotassiumResource,
 } from '../../simulation/resources/index.js';
-import type { StripBand } from '../components/ui/RangeStrip';
+import type { StripBand } from '../components/ui/strip.js';
 import { DISPLAY_CEILING, onScale } from '../readings';
 import {
   algaeStatus,

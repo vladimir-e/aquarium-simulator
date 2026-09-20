@@ -29,6 +29,26 @@ describe('RangeStrip', () => {
     expect(marker.className).toContain('bg-ink');
   });
 
+  it('stands a ghost where the reading is now, and the marker where it would go', () => {
+    const { container } = render(
+      <RangeStrip at={0.75} ghost={0.25} band={{ from: 0, to: 0.5 }} tone="warn" />
+    );
+    const track = container.firstElementChild!;
+    const ghost = track.querySelector<HTMLElement>('[data-ghost]')!;
+    const marker = track.lastElementChild as HTMLElement;
+
+    expect(ghost.style.left).toBe('calc(25% - 1px)');
+    expect(marker.style.left).toBe('calc(75% - 1px)');
+    // The ghost is where it stands, not what it is: only the live marker is tinted.
+    expect(ghost.className).not.toContain('bg-warn');
+    expect(marker.className).toContain('bg-warn');
+  });
+
+  it('raises no ghost for a reading nobody is previewing', () => {
+    const { container } = render(<RangeStrip at={0.5} band={{ from: 0, to: 1 }} />);
+    expect(container.querySelector('[data-ghost]')).toBeNull();
+  });
+
   it('tints only the marker, by the severity the engine gave the reading', () => {
     const { container } = render(<RangeStrip at={2} band={{ from: 0.8, to: 0.2 }} tone="alert" />);
     const { band, marker } = parts(container);

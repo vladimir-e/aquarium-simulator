@@ -1,5 +1,6 @@
 import React from 'react';
-import { RangeStrip, TONE_TEXT, type StripBand, type StripTone } from './RangeStrip';
+import { RangeStrip, TONE_TEXT } from './RangeStrip';
+import type { StripBand, StripTone } from './strip.js';
 
 const VALUE_SIZE = {
   md: 'text-[16px] leading-5',
