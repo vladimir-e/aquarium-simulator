@@ -20,7 +20,7 @@ import {
   type Action,
   type SimulationState,
 } from '../../simulation/index.js';
-import { getPpm, NitrateResource } from '../../simulation/resources/index.js';
+import { FoodResource, getPpm, NitrateResource } from '../../simulation/resources/index.js';
 import type { TunableConfig } from '../../simulation/config/index.js';
 import { doseToCover, nutrientReadings, TRIM_TARGETS } from '../run';
 import { formatVolume, type UnitSystem } from '../utils/units.js';
@@ -148,12 +148,24 @@ function dailyRation(state: SimulationState, config: TunableConfig): number {
   return state.fish.reduce((total, fish) => total + dayOfDecay * fish.mass * baseFoodRate, 0);
 }
 
+/** A ration that outlasts a month says so rather than counting the years. */
+const FOOD_HORIZON_DAYS = 30;
+
 function daysOfFood(days: number): string {
+  if (days >= FOOD_HORIZON_DAYS) return `${FOOD_HORIZON_DAYS}+ d`;
   return days < 10 ? `${days.toFixed(1)} d` : `${Math.round(days)} d`;
 }
 
-function plural(count: number, noun: string): string {
-  return `${count} ${noun}${count === 1 ? '' : 's'}`;
+/** Grams at the precision the engine keeps food to, or the floor it sits under. */
+function grams(value: number): string {
+  const floor = 10 ** -FoodResource.precision;
+  return value < floor
+    ? `under ${floor.toFixed(FoodResource.precision)} g`
+    : `${value.toFixed(FoodResource.precision)} g`;
+}
+
+function plural(count: number, noun: string, many = `${noun}s`): string {
+  return `${count} ${count === 1 ? noun : many}`;
 }
 
 /** Why this verb cannot be committed right now, in the engine's own terms. */
@@ -363,9 +375,9 @@ function meta(
       const mouths =
         state.fish.length === 0
           ? 'no fish to feed'
-          : `${state.fish.length} fish eat ${dailyRation(state, config).toFixed(2)} g a day`;
+          : `${plural(state.fish.length, 'fish', 'fish')} ${state.fish.length === 1 ? 'eats' : 'eat'} ${grams(dailyRation(state, config))} a day`;
       return state.resources.food > 0
-        ? `${mouths} · ${state.resources.food.toFixed(2)} g still in the water`
+        ? `${mouths} · ${grams(state.resources.food)} still in the water`
         : mouths;
     }
     case 'waterChange': {

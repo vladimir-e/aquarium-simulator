@@ -244,6 +244,24 @@ describe('the six verbs', () => {
     expect(detail(stocked, 'feed').meta).toMatch(/^8 fish eat \d+\.\d\d g a day$/);
   });
 
+  it('stops counting days once a ration would outlast the month', () => {
+    const lean = applyAction(tank(), { type: 'addFish', species: 'neon_tetra' }).state;
+    let crowded = tank();
+    for (let i = 0; i < 8; i++) {
+      crowded = applyAction(crowded, { type: 'addFish', species: 'corydoras' }).state;
+    }
+
+    expect(detail(lean, 'feed').options.map((o) => o.hint)).toEqual(FEED_PRESETS.map(() => '30+ d'));
+    expect(detail(crowded, 'feed').options[0].hint).toMatch(/^\d/);
+  });
+
+  it('says a ration under the engine’s precision is under it, rather than zero', () => {
+    const fry = applyAction(tank(), { type: 'addFish', species: 'neon_tetra' }).state;
+    const tiny = { ...fry, fish: fry.fish.map((fish) => ({ ...fish, mass: 0.001 })) };
+
+    expect(detail(tiny, 'feed').meta).toBe('1 fish eats under 0.01 g a day');
+  });
+
   it('names the food already standing in the water, which left Livestock with the verb', () => {
     const state = tank();
     const fed = applyAction(
