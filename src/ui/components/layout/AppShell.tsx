@@ -52,6 +52,7 @@ export function AppShell({ sim, config }: AppShellProps): React.JSX.Element {
   const acts = useActs(sim.executeAction);
 
   const needs = useMemo(() => activeNeeds(sim.state), [sim.state]);
+  const light = sim.state.equipment.light;
   const alerts = useMemo(() => needySections(needs), [needs]);
   const tunablesModified = useMemo(() => countModified(config), [config]);
 
@@ -175,7 +176,12 @@ export function AppShell({ sim, config }: AppShellProps): React.JSX.Element {
         )}
 
         <footer aria-label="Run timeline" className="shrink-0">
-          <Spine history={sim.history} logs={sim.state.logs} tick={sim.state.tick} />
+          <Spine
+            history={sim.history}
+            logs={sim.state.logs}
+            tick={sim.state.tick}
+            schedule={light.enabled ? light.schedule : null}
+          />
         </footer>
       </div>
     </PresetLoadProvider>

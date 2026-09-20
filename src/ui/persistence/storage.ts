@@ -258,6 +258,7 @@ export function getDefaultUI(): PersistedUI {
   return {
     units: detectUnitSystem(),
     debugPanelOpen: false,
+    spineOpen: false,
     acts: { settings: DEFAULT_SETTINGS, promoted: null },
   };
 }

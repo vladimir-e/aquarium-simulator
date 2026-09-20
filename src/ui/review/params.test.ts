@@ -1,6 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { readChart, readWindow, readFilter, readTick, viewParams } from './params';
-import { REVIEW_CHARTS } from './charts';
+import { readWindow, readFilter, readTick, withParams } from './params';
 import type { TickRange } from './window';
 
 const RANGE: TickRange = { minTick: 100, maxTick: 200 };
@@ -52,34 +51,22 @@ describe('readTick', () => {
   });
 });
 
-describe('readChart', () => {
-  it('takes a chart it draws, and falls back to the first otherwise', () => {
-    expect(readChart('ph-co2').id).toBe('ph-co2');
-    expect(readChart(null)).toBe(REVIEW_CHARTS[0]);
-    expect(readChart('bacteria-population')).toBe(REVIEW_CHARTS[0]);
-  });
-});
+describe('withParams', () => {
+  const at = (query: string): globalThis.URLSearchParams => new globalThis.URLSearchParams(query);
 
-describe('viewParams', () => {
-  const DEFAULTS = { window: 'run', filter: 'all', tick: null, chart: REVIEW_CHARTS[0].id } as const;
-
-  it('spells out nothing for the default view', () => {
-    expect(viewParams(DEFAULTS)).toEqual({});
+  it('writes what it is given and leaves the rest of the address alone', () => {
+    expect(withParams(at('add=fish'), { tick: '150' }).toString()).toBe('add=fish&tick=150');
   });
 
-  it('carries only what differs from the default', () => {
-    expect(viewParams({ ...DEFAULTS, window: '24h' })).toEqual({ window: '24h' });
-    expect(viewParams({ ...DEFAULTS, filter: 'life' })).toEqual({ log: 'life' });
-    expect(viewParams({ ...DEFAULTS, tick: 0 })).toEqual({ tick: '0' });
-    expect(viewParams({ ...DEFAULTS, chart: 'ph-co2' })).toEqual({ chart: 'ph-co2' });
+  it('drops a param a null names, which is how a default leaves the URL', () => {
+    expect(withParams(at('window=24h&tick=150'), { window: null }).toString()).toBe('tick=150');
+    expect(withParams(at('tick=150'), { tick: null }).toString()).toBe('');
   });
 
   it('round-trips a fully specified view', () => {
-    const view = { window: '24h', filter: 'user', tick: 1584, chart: 'o2-temp' } as const;
-    const params = new globalThis.URLSearchParams(viewParams(view));
-    expect(readWindow(params.get('window'))).toBe(view.window);
-    expect(readFilter(params.get('log'))).toBe(view.filter);
-    expect(readChart(params.get('chart')).id).toBe(view.chart);
-    expect(readTick(params.get('tick'), { minTick: 1560, maxTick: 1622 })).toBe(view.tick);
+    const params = withParams(at(''), { window: '24h', log: 'user', tick: '1584' });
+    expect(readWindow(params.get('window'))).toBe('24h');
+    expect(readFilter(params.get('log'))).toBe('user');
+    expect(readTick(params.get('tick'), { minTick: 1560, maxTick: 1622 })).toBe(1584);
   });
 });

@@ -1,48 +1,38 @@
 /**
- * Analytics' view state lives in the query string, so browser-back walks back
- * out of a scrub and every view is addressable within the session. Defaults are
- * absent rather than spelled out — `/history` is the widest window at the live
- * edge, and a running sim never rewrites the URL because following has no param.
+ * The time view lives in the query string, so browser-back walks back out of a
+ * scrub and every view is addressable within the session. Defaults are absent
+ * rather than spelled out — `/history` is the widest window at the live edge,
+ * and a running sim never rewrites the URL because following has no param.
  *
  * `?tick=` is the one playhead: the spine parks it from whatever route the
- * reader is standing on and the charts read it back, so the two can never hold
+ * reader is standing on and the tracks read it back, so the two can never hold
  * different ticks. It does not outlive the session that made it — history is
  * session-scoped, so a reload leaves nothing for a tick to name — and nothing
- * but the spine and the charts honours it: `RunSnapshot` carries no AOB/NOB,
+ * but the spine and the tracks honours it: `RunSnapshot` carries no AOB/NOB,
  * waste, nutrients or roster for a module to draw at a historical cursor.
  */
 
 import { type LogFilter, LOG_FILTERS } from './category.js';
-import { type ChartDef, REVIEW_CHARTS } from './charts.js';
 import { type ReviewWindow, REVIEW_WINDOWS, type TickRange } from './window.js';
 
 export const TICK_PARAM = 'tick';
 export const WINDOW_PARAM = 'window';
 export const LOG_PARAM = 'log';
-export const CHART_PARAM = 'chart';
 
-const DEFAULT_WINDOW: ReviewWindow = 'run';
-const DEFAULT_FILTER: LogFilter = 'all';
-const DEFAULT_CHART: ChartDef = REVIEW_CHARTS[0];
-
-export interface AnalyticsView {
-  window: ReviewWindow;
-  filter: LogFilter;
-  /** Parked tick, or null to follow the live edge. */
-  tick: number | null;
-  /** Id of the chart the chips are on — the only chart on a phone. */
-  chart: string;
-}
+export const DEFAULT_WINDOW: ReviewWindow = 'run';
+export const DEFAULT_FILTER: LogFilter = 'all';
 
 /**
  * What a scrub means for the back button. `adjust` refines a cursor that is
  * already parked — a drag in flight, ±1, an arrow key — and replaces the entry
  * it started from, or back would replay every tick the drag passed through.
- * `commit` names a place: a log line, a typed tick, an end of the run, the live
- * edge. Leaving the live edge always pushes, whatever the intent, so back is
- * the way out of a parked cursor rather than the way out of the app.
+ * `commit` names a place: a log line, a window change, an end of the run, the
+ * live edge. Leaving the live edge always pushes, whatever the intent, so back
+ * is the way out of a parked cursor rather than the way out of the app.
+ * `resolve` is not a move at all — it is the address catching up with a tick
+ * the window could not honour, and it never earns a back step.
  */
-export type ScrubIntent = 'adjust' | 'commit';
+export type ScrubIntent = 'adjust' | 'commit' | 'resolve';
 
 export function readWindow(raw: string | null): ReviewWindow {
   return REVIEW_WINDOWS.find((w) => w === raw) ?? DEFAULT_WINDOW;
@@ -52,15 +42,11 @@ export function readFilter(raw: string | null): LogFilter {
   return LOG_FILTERS.find((f) => f === raw) ?? DEFAULT_FILTER;
 }
 
-export function readChart(raw: string | null): ChartDef {
-  return REVIEW_CHARTS.find((c) => c.id === raw) ?? DEFAULT_CHART;
-}
-
 /**
  * The cursor a `?tick=` names inside the window it lands in. Anything at or
  * past the live edge follows it instead of pinning to a tick that is about to
  * move; anything before the window clamps to its oldest snapshot, which is the
- * earliest state the charts can actually draw.
+ * earliest state the tracks can actually draw.
  */
 export function readTick(raw: string | null, range: TickRange | null): number | null {
   if (raw === null || range === null) return null;
@@ -72,12 +58,18 @@ export function readTick(raw: string | null, range: TickRange | null): number | 
   return Math.max(tick, range.minTick);
 }
 
-/** The view as query params, with every default left out. */
-export function viewParams(view: AnalyticsView): Record<string, string> {
-  const params: Record<string, string> = {};
-  if (view.tick !== null) params[TICK_PARAM] = String(view.tick);
-  if (view.window !== DEFAULT_WINDOW) params[WINDOW_PARAM] = view.window;
-  if (view.filter !== DEFAULT_FILTER) params[LOG_PARAM] = view.filter;
-  if (view.chart !== DEFAULT_CHART.id) params[CHART_PARAM] = view.chart;
-  return params;
+/**
+ * The address with some params rewritten. A `null` value drops its param, which
+ * is how a default leaves the URL — a view at its defaults has no query at all.
+ */
+export function withParams(
+  params: globalThis.URLSearchParams,
+  patch: Record<string, string | null>
+): globalThis.URLSearchParams {
+  const next = new globalThis.URLSearchParams(params);
+  for (const [key, value] of Object.entries(patch)) {
+    if (value === null) next.delete(key);
+    else next.set(key, value);
+  }
+  return next;
 }

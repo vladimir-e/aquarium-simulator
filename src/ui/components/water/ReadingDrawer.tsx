@@ -1,14 +1,16 @@
 import React from 'react';
 import type { ReadingBook, ReadingFlow, ReadingId } from '../../readings';
-import { normalize, seriesExtent } from '../../review/charts.js';
+import { seriesExtent, TRACK_COLORS } from '../../review';
 import type { RunSnapshot } from '../../run';
+import { Track, formatTrackValue } from '../review/Track';
 import { Drawer } from '../ui/Drawer';
 import { RangeStrip, TONE_TEXT } from '../ui/RangeStrip';
 
 /** A week of hourly samples — as far back as the reading rows' trend can reach. */
 const WINDOW_HOURS = 24 * 7;
 
-function Chart({
+/** The reading's own line, drawn on the same band the timeline tracks use. */
+function Week({
   history,
   read,
 }: {
@@ -18,27 +20,35 @@ function Chart({
   const window = history.slice(-WINDOW_HOURS);
   const values = window.map(read);
   const extent = seriesExtent(values);
-  const points = values
-    .map(
-      (value, i) =>
-        `${1 + (i / Math.max(1, values.length - 1)) * 98},${(1 - normalize(value, extent)) * 36 + 2}`
-    )
-    .join(' ');
 
   return (
     <div className="flex flex-col gap-1">
-      <svg
-        viewBox="0 0 100 40"
-        preserveAspectRatio="none"
-        aria-hidden
-        className="h-10 w-full"
-      >
-        <polyline points={points} fill="none" stroke="var(--chart-1)" strokeWidth="1.5" vectorEffect="non-scaling-stroke" />
-      </svg>
+      <Track
+        className="h-10"
+        label="The last week"
+        ticks={window.map((snapshot) => snapshot.tick)}
+        range={
+          window.length === 0
+            ? null
+            : { minTick: window[0].tick, maxTick: window[window.length - 1].tick }
+        }
+        lines={[
+          {
+            series: { key: 'reading', label: '', accessor: read },
+            color: TRACK_COLORS[0],
+            values,
+            extent,
+          },
+        ]}
+      />
       <div className="flex justify-between text-[11px] text-ink-3">
-        <span>{window.length >= WINDOW_HOURS ? '7 days' : `${Math.max(1, Math.round(window.length / 24))} d so far`}</span>
+        <span>
+          {window.length >= WINDOW_HOURS
+            ? '7 days'
+            : `${Math.max(1, Math.round(window.length / 24))} d so far`}
+        </span>
         <span className="tabular-nums">
-          {extent.min.toFixed(2)} – {extent.max.toFixed(2)}
+          {formatTrackValue(extent.min)} – {formatTrackValue(extent.max)}
         </span>
       </div>
     </div>
@@ -101,7 +111,7 @@ export function ReadingDrawer({
 
         {reading.series && (
           <div className="border-t border-hairline pt-3">
-            <Chart history={history} read={reading.series} />
+            <Week history={history} read={reading.series} />
           </div>
         )}
 

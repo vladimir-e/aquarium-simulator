@@ -533,6 +533,7 @@ export const PersistedUISchema = z
   .object({
     units: z.enum(['metric', 'imperial']),
     debugPanelOpen: z.boolean(),
+    spineOpen: z.boolean(),
     acts: ActsSchema,
   })
   .strict();

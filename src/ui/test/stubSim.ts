@@ -8,14 +8,22 @@
 import { vi } from 'vitest';
 import type { SimulationState } from '../../simulation/index.js';
 import type { useSimulation } from '../hooks/useSimulation';
-import type { RunSnapshot } from '../run/index.js';
+import { accrueLogs, accrueTicks, emptyAggregates, type RunSnapshot } from '../run/index.js';
 
 export function stubSim(
   state: SimulationState,
   history: RunSnapshot[] = []
 ): ReturnType<typeof useSimulation> {
   const cache = new Map<string, ReturnType<typeof vi.fn>>();
-  const values: Record<string, unknown> = { state, tankId: 0, history };
+  const values: Record<string, unknown> = {
+    state,
+    tankId: 0,
+    history,
+    aggregates: accrueTicks(
+      accrueLogs(emptyAggregates(), state.logs),
+      Math.max(0, history.length - 1)
+    ),
+  };
   return new Proxy(values, {
     get(target: Record<string, unknown>, prop: string): unknown {
       if (prop in target) return target[prop];

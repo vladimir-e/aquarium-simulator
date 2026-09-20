@@ -5,7 +5,7 @@ import { OverviewSection } from './sections/OverviewSection';
 import { WaterSection } from './sections/WaterSection';
 import { GearSection } from './sections/GearSection';
 import { LifeSection } from './sections/LifeSection';
-import { AnalyticsSection } from './sections/AnalyticsSection';
+import { HistorySection } from './sections/HistorySection';
 import { ScenarioSection } from './sections/ScenarioSection';
 import { useSimulation } from './hooks/useSimulation';
 import { useConfig } from './hooks/useConfig';
@@ -24,7 +24,7 @@ function App(): React.JSX.Element {
         <Route path="water" element={<WaterSection sim={sim} config={config} />} />
         <Route path="life" element={<LifeSection sim={sim} config={config} />} />
         <Route path="gear/:deviceId?" element={<GearSection sim={sim} config={config} />} />
-        <Route path="history" element={<AnalyticsSection sim={sim} />} />
+        <Route path="history" element={<HistorySection sim={sim} />} />
         <Route path="setup" element={<ScenarioSection sim={sim} config={config} />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>

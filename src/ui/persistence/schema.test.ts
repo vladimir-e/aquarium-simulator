@@ -32,6 +32,7 @@ describe('PersistedUISchema', () => {
     const validUI = {
       units: 'metric',
       debugPanelOpen: false,
+      spineOpen: false,
       acts: { settings: DEFAULT_SETTINGS, promoted: null },
     };
     expect(PersistedUISchema.safeParse(validUI).success).toBe(true);
@@ -41,6 +42,7 @@ describe('PersistedUISchema', () => {
     const validUI = {
       units: 'imperial',
       debugPanelOpen: true,
+      spineOpen: true,
       acts: { settings: DEFAULT_SETTINGS, promoted: null },
     };
     expect(PersistedUISchema.safeParse(validUI).success).toBe(true);
@@ -50,6 +52,7 @@ describe('PersistedUISchema', () => {
     const invalidUI = {
       units: 'invalid',
       debugPanelOpen: false,
+      spineOpen: false,
       acts: { settings: DEFAULT_SETTINGS, promoted: null },
     };
     expect(PersistedUISchema.safeParse(invalidUI).success).toBe(false);
@@ -59,6 +62,7 @@ describe('PersistedUISchema', () => {
     const withExtra = {
       units: 'metric',
       debugPanelOpen: false,
+      spineOpen: false,
       acts: { settings: DEFAULT_SETTINGS, promoted: null },
       extraKey: 'value',
     };
@@ -453,7 +457,7 @@ describe('PersistedStateSchema', () => {
     version: PERSISTENCE_VERSION,
     simulation: validSimulation,
     tunableConfig: DEFAULT_CONFIG,
-    ui: { units: 'metric', debugPanelOpen: false, acts: { settings: DEFAULT_SETTINGS, promoted: null } },
+    ui: { units: 'metric', debugPanelOpen: false, spineOpen: false, acts: { settings: DEFAULT_SETTINGS, promoted: null } },
   };
 
   it('validates complete valid state', () => {
@@ -515,8 +519,8 @@ describe('PersistedStateSchema', () => {
     ).toBe(false);
   });
 
-  it('PERSISTENCE_VERSION is 25', () => {
-    expect(PERSISTENCE_VERSION).toBe(25);
+  it('PERSISTENCE_VERSION is 26', () => {
+    expect(PERSISTENCE_VERSION).toBe(26);
   });
 });
 

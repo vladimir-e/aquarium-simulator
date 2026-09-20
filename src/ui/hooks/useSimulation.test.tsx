@@ -48,7 +48,7 @@ function seedSession(
       ...overrides,
     },
     tunableConfig: DEFAULT_CONFIG,
-    ui: { units: 'metric', debugPanelOpen: false, acts: { settings: DEFAULT_SETTINGS, promoted: null } },
+    ui: { units: 'metric', debugPanelOpen: false, spineOpen: false, acts: { settings: DEFAULT_SETTINGS, promoted: null } },
   };
   globalThis.localStorage.setItem(STORAGE_KEY, JSON.stringify(persisted));
 }

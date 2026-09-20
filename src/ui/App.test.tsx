@@ -8,6 +8,7 @@ import { UnitsProvider } from './hooks/useUnits';
 import { ConfigProvider } from './hooks/useConfig';
 import { PersistenceProvider } from './persistence/index.js';
 import { SECTIONS } from './nav';
+import { TRACKS } from './review';
 import { stubMatchMedia, viewport, type MatchMediaStub } from './test/matchMedia';
 
 let media: MatchMediaStub;
@@ -132,12 +133,14 @@ describe('App at 700 px', () => {
     expect(screen.getByRole('button', { name: 'More' })).toBeTruthy();
   });
 
-  it('gives History the chart chips, not the 2×2 grid it has no room for', () => {
+  it('stacks History in one column — every track, then the transcript', () => {
     renderApp('/history');
+    const stage = screen.getByRole('main');
 
-    expect(screen.getByRole('group', { name: 'Chart' })).toBeTruthy();
-    expect(screen.getByText('Nitrogen cycle')).toBeTruthy();
-    expect(screen.queryByText('pH & CO₂')).toBeNull();
+    for (const def of TRACKS) {
+      expect(within(stage).getByRole('img', { name: def.title })).toBeTruthy();
+    }
+    expect(within(stage).getByRole('group', { name: 'Log category' })).toBeTruthy();
   });
 
   it('opens the Gear inspector as a sheet over the rack', () => {

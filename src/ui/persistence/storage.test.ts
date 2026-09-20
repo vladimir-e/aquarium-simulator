@@ -75,7 +75,7 @@ describe('loadPersistedState', () => {
       version: PERSISTENCE_VERSION - 1,
       simulation: createValidSimulation(),
       tunableConfig: DEFAULT_CONFIG,
-      ui: { units: 'metric', debugPanelOpen: false, acts: { settings: DEFAULT_SETTINGS, promoted: null } },
+      ui: { units: 'metric', debugPanelOpen: false, spineOpen: false, acts: { settings: DEFAULT_SETTINGS, promoted: null } },
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(olderState));
     const result = loadPersistedState();
@@ -90,7 +90,7 @@ describe('loadPersistedState', () => {
       version: PERSISTENCE_VERSION,
       simulation: validSimulation,
       tunableConfig: DEFAULT_CONFIG,
-      ui: { units: 'metric', debugPanelOpen: false, acts: { settings: DEFAULT_SETTINGS, promoted: null } },
+      ui: { units: 'metric', debugPanelOpen: false, spineOpen: false, acts: { settings: DEFAULT_SETTINGS, promoted: null } },
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(validState));
 
@@ -107,7 +107,7 @@ describe('loadPersistedState', () => {
       version: PERSISTENCE_VERSION,
       simulation: { invalid: 'data' },
       tunableConfig: DEFAULT_CONFIG,
-      ui: { units: 'imperial', debugPanelOpen: true, acts: { settings: DEFAULT_SETTINGS, promoted: null } },
+      ui: { units: 'imperial', debugPanelOpen: true, spineOpen: true, acts: { settings: DEFAULT_SETTINGS, promoted: null } },
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
 
@@ -324,6 +324,7 @@ describe('getDefaultUI', () => {
     const ui = getDefaultUI();
     expect(ui.units).toBe('metric');
     expect(ui.debugPanelOpen).toBe(false);
+    expect(ui.spineOpen).toBe(false);
   });
 
   it('returns imperial units for US locale', () => {
@@ -339,7 +340,7 @@ describe('getDefaultUI', () => {
 describe('createPersistedState', () => {
   it('creates valid persisted state', () => {
     const simulation = createValidSimulation();
-    const ui = { units: 'metric' as const, debugPanelOpen: false, acts: { settings: DEFAULT_SETTINGS, promoted: null } };
+    const ui = { units: 'metric' as const, debugPanelOpen: false, spineOpen: false, acts: { settings: DEFAULT_SETTINGS, promoted: null } };
 
     const state = createPersistedState(simulation, DEFAULT_CONFIG, ui);
 
@@ -422,6 +423,6 @@ function createValidPersistedState(): {
     version: PERSISTENCE_VERSION,
     simulation: createValidSimulation(),
     tunableConfig: DEFAULT_CONFIG,
-    ui: { units: 'metric' as const, debugPanelOpen: false, acts: { settings: DEFAULT_SETTINGS, promoted: null } },
+    ui: { units: 'metric' as const, debugPanelOpen: false, spineOpen: false, acts: { settings: DEFAULT_SETTINGS, promoted: null } },
   };
 }
