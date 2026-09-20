@@ -169,6 +169,20 @@ describe('OverviewSection', () => {
     expect(screen.queryByRole('dialog', { name: 'NO₂' })).toBeNull();
   });
 
+  it('draws no chart for a reading the buffer never recorded', () => {
+    renderOverview(stocked());
+
+    fireEvent.click(within(widget('Nitrogen')).getByRole('button', { name: /Waste/ }));
+    const waste = within(screen.getByRole('dialog', { name: 'Waste' }));
+    expect(waste.getByText(/A pool with no safe line/)).toBeTruthy();
+    expect(waste.getByText('What fills it')).toBeTruthy();
+    expect(waste.queryByText(/days|d so far/)).toBeNull();
+
+    fireEvent.click(waste.getByRole('button', { name: 'Close Waste' }));
+    fireEvent.click(within(widget('Nitrogen')).getByRole('button', { name: /NO₂/ }));
+    expect(within(screen.getByRole('dialog')).getByText(/days|d so far/)).toBeTruthy();
+  });
+
   it('bands temperature on what is stocked, and leaves it unbanded when nothing is', () => {
     renderOverview(stocked());
     fireEvent.click(within(widget('Water')).getByRole('button', { name: /Temp/ }));

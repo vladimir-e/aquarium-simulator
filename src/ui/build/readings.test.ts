@@ -17,7 +17,14 @@ import { cycledTank, run as runUnfed } from '../../simulation/tests/tanks.js';
 import { getPresetById } from '../../simulation/presets.js';
 import type { UnitSystem } from '../utils/units.js';
 import type { EquipmentId } from './devices';
-import { deviceHint, deviceReadings, type DeviceHint, type DeviceReading } from './readings';
+import {
+  deviceHint,
+  deviceReadings,
+  turnover,
+  turnoverShort,
+  type DeviceHint,
+  type DeviceReading,
+} from './readings';
 
 const base: SimulationState = createSimulation({ tankCapacity: 40 });
 
@@ -809,5 +816,18 @@ describe('deviceHint', () => {
     expect(hint('autoDoser', base)?.text).toBe(
       'Each dose adds +2.5 NO₃ · +0.25 PO₄ · +2.0 K · +0.05 Fe ppm.'
     );
+  });
+});
+
+describe('turnover', () => {
+  it('reads flow against the water it is actually moving', () => {
+    expect(turnover(160, 40)).toBe('4.0 × tank volume/h');
+    expect(turnoverShort(160, 40)).toBe('4.0×/h');
+  });
+
+  it('says nothing rather than dividing by a tank with no water in it', () => {
+    expect(turnover(160, 0)).toBe('—');
+    expect(turnoverShort(160, 0)).toBe('—');
+    expect(turnoverShort(160, -1)).toBe('—');
   });
 });
