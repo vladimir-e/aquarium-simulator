@@ -259,6 +259,7 @@ export {
   getSubstrateIncompatibilityReason,
   getMaxPlants,
   canAddPlant,
+  checkPlantCapacity,
   dose,
   canDose,
   getDosePreview,

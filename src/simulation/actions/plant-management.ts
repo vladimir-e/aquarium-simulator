@@ -28,12 +28,32 @@ export function getMaxPlants(tankCapacity: number): number {
   return Math.max(1, Math.floor((tankCapacity / LITERS_PER_5_GALLONS) * PLANTS_PER_5_GALLONS));
 }
 
+export interface PlantCapacityResult {
+  /** True if one more plant fits under the tank's slot ceiling. */
+  ok: boolean;
+  /** Rejection message when `!ok`; empty string when it fits. */
+  message: string;
+}
+
+/**
+ * Single source of truth for the {@link addPlant} slot ceiling — the comparison
+ * and its rejection message. Both the action and the demo UI call this, so the
+ * count and the message can't drift apart. Mirrors {@link checkFishCapacity}.
+ */
+export function checkPlantCapacity(
+  plants: SimulationState['plants'],
+  tankCapacity: number
+): PlantCapacityResult {
+  const maxPlants = getMaxPlants(tankCapacity);
+  const ok = plants.length < maxPlants;
+  return { ok, message: ok ? '' : `Tank at plant capacity (${maxPlants} plants max)` };
+}
+
 /**
  * Check if more plants can be added to the tank.
  */
 export function canAddPlant(state: SimulationState): boolean {
-  const maxPlants = getMaxPlants(state.tank.capacity);
-  return state.plants.length < maxPlants;
+  return checkPlantCapacity(state.plants, state.tank.capacity).ok;
 }
 
 /**
@@ -113,12 +133,9 @@ export function addPlant(
   }
 
   // Check plant capacity
-  const maxPlants = getMaxPlants(state.tank.capacity);
-  if (state.plants.length >= maxPlants) {
-    return {
-      state,
-      message: `Tank at plant capacity (${maxPlants} plants max)`,
-    };
+  const capacity = checkPlantCapacity(state.plants, state.tank.capacity);
+  if (!capacity.ok) {
+    return { state, message: capacity.message };
   }
 
   // Check substrate compatibility
