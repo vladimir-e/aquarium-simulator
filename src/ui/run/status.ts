@@ -56,6 +56,11 @@ function energyReading(surplus: number, breakdown: VitalityBreakdown): Reading |
   return null;
 }
 
+/** Of two readings of the same organism, the one that needs the reader first. */
+export function worstReading(a: Reading, b: Reading): Reading {
+  return STATUS_SEVERITY[b.status] > STATUS_SEVERITY[a.status] ? b : a;
+}
+
 /**
  * How an organism is doing, read across both stocks it keeps — the worse of the
  * two channels, with condition taking a tie because it is the stock the bar

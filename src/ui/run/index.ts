@@ -26,6 +26,7 @@ export {
   conditionStatus,
   conditionWord,
   vitalReading,
+  worstReading,
 } from './status.js';
 export { type StockedBand, stockedBand, toleranceStatus } from './tolerance.js';
 export {

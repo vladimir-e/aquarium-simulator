@@ -81,7 +81,8 @@ export function LifeSection({
     kind: 'population',
     key: 'algae',
     name: 'Algae',
-    figure: `${algaeReading.value} % coverage`,
+    figure: `${algaeReading.value} %`,
+    caption: 'coverage',
     trend: algaeReading.trend,
     at: algaeReading.at,
     band: algaeReading.band,
@@ -140,7 +141,7 @@ export function LifeSection({
     <>
       <ModulePage
         title="Life"
-        meta={`${state.fish.length} fish · ${state.plants.length} plants · ${algae.figure}`}
+        meta={`${state.fish.length} fish · ${state.plants.length} plants · algae ${algae.figure}`}
         actions={
           <>
             <VerbButton label="Feed" onClick={onAct} />
@@ -165,7 +166,7 @@ export function LifeSection({
             <ReadingRow
               name="Bioload"
               value={load.ratio.toFixed(1)}
-              unit="× guideline"
+              unit="×"
               at={Math.min(1, load.ratio / BIOLOAD_SCALE)}
               band={{ from: 0, to: 1 / BIOLOAD_SCALE }}
               tone={toneOf(load.status)}
@@ -195,6 +196,7 @@ export function LifeSection({
       />
 
       <AddDrawer
+        key={adding}
         kind={adding}
         state={state}
         onClose={() => setAdding(null)}

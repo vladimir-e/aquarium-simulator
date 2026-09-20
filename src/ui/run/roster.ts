@@ -41,6 +41,8 @@ interface Vital {
 }
 
 export interface SpeciesRosterRow extends Vital {
+  /** Present where the group eats: the mean, and how many are hungry. */
+  satiation: Satiation | null;
   kind: 'species';
   key: string;
   species: SpeciesId;
@@ -92,6 +94,8 @@ export interface PopulationRosterRow extends Vital {
   name: string;
   /** Coverage, as the reading book states it. */
   figure: string;
+  /** What the figure counts, where there is room to say it. */
+  caption: string;
   /** How fast it is moving, over the last day. */
   trend: string;
   band: ReadingBand | null;
@@ -141,6 +145,23 @@ function fishVital(fish: Fish, config: LivestockConfig): Vital {
   };
 }
 
+/**
+ * A group is as urgent as its worst channel, the same way one fish is: a shoal
+ * every member of which is hungry does not read `thriving` off its condition.
+ */
+function groupVital(group: SpeciesGroup): Omit<Vital, 'at'> {
+  const health: Omit<Vital, 'at'> = {
+    status: conditionStatus(group.condition),
+    word: conditionWord(group.condition),
+  };
+  if (!group.hunger) return health;
+
+  const hunger = bandStatus(group.hunger.band);
+  return STATUS_SEVERITY[hunger] > STATUS_SEVERITY[health.status]
+    ? { status: hunger, word: `${group.hunger.count} hungry` }
+    : health;
+}
+
 function fishSatiation(satiation: number, config: LivestockConfig): Satiation {
   const band = bandOf(satiation, config);
   return {
@@ -183,9 +204,15 @@ function fishRows(
       figure: `${(group.massG / group.count).toFixed(2)} g each`,
       age: days(group.ageDays * 24),
       dots: vitals.map((vital) => vital.status),
+      satiation: {
+        ...fishSatiation(group.satiation, config),
+        ...(group.hunger && {
+          status: bandStatus(group.hunger.band),
+          word: `${group.hunger.count} hungry`,
+        }),
+      },
       at: group.condition / 100,
-      status: conditionStatus(group.condition),
-      word: conditionWord(group.condition),
+      ...groupVital(group),
       worstKey: worstOf(group.fish, (fish) => fishVital(fish, config).status, (fish) => fish.id),
       expanded: open,
     });
@@ -228,9 +255,10 @@ function plantRowsOf(
       species: group.species,
       name: group.name,
       count: group.count,
-      figure: `${Math.round(group.size)} % size each`,
+      figure: `${Math.round(group.size)} % each`,
       age: '',
       dots: group.statuses,
+      satiation: null,
       at: group.condition / 100,
       status: group.status,
       word: group.word,

@@ -22,7 +22,7 @@ const PATHS: Record<SpeciesKey, React.ReactNode> = {
     <>
       <path d="M2.2 8c2-2.6 5.6-2.6 7.6 0-2 2.6-5.6 2.6-7.6 0z" />
       <path d="M9.8 8 13.6 5.6v4.8z" />
-      <path d="M6.6 5.6 7.4 4.2" />
+      <path d="M3.4 7.4h5.6" />
     </>
   ),
   betta: (
@@ -34,9 +34,9 @@ const PATHS: Record<SpeciesKey, React.ReactNode> = {
   ),
   guppy: (
     <>
-      <path d="M2.4 8c1.8-2.4 4.8-2.4 6.6 0-1.8 2.4-4.8 2.4-6.6 0z" />
-      <path d="M9 8 13.8 4.4v7.2z" />
-      <path d="M5.6 10c-.2 1.2 0 2 .6 2.6" />
+      <path d="M2.6 8c1.4-2.2 3.8-2.2 5.2 0-1.4 2.2-3.8 2.2-5.2 0z" />
+      <path d="M8 8c1.6-2.8 4-4.4 5.8-4.4-1 2.8-1 6 0 8.8C12 12.4 9.6 10.8 8 8z" />
+      <path d="M4.4 9.8c-.2 1.4 0 2.4.6 3" />
     </>
   ),
   angelfish: (

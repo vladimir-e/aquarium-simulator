@@ -17,26 +17,59 @@ import { SpeciesGlyph, type SpeciesKey } from '../ui/SpeciesGlyph';
  * The roster's two tables and the Overview's window onto them are one row, laid
  * out three ways: the fish table carries satiation and age, the plant table
  * neither, and the widget keeps only what survives at 340 px — the name, the
- * count and how the individuals are doing.
+ * count and how the individuals are doing. Below the tablet breakpoint both
+ * tables shed the same columns the widget never had, which is why the figure
+ * cells are marked {@link WIDE} rather than dropped by a second component.
  */
 export type RosterLayout = 'fish' | 'plants' | 'widget';
 
 const TEMPLATE: Record<RosterLayout, string> = {
-  fish: 'grid-cols-[16px_minmax(0,1fr)_44px_78px_56px_84px_92px_76px_28px]',
-  plants: 'grid-cols-[16px_minmax(0,1fr)_44px_78px_92px_76px_28px]',
+  fish: 'grid-cols-[16px_minmax(0,1fr)_44px_84px_68px_24px] md:grid-cols-[16px_minmax(0,1fr)_52px_92px_64px_140px_160px_88px_28px]',
+  plants:
+    'grid-cols-[16px_minmax(0,1fr)_44px_84px_68px_24px] md:grid-cols-[16px_minmax(0,1fr)_52px_92px_160px_88px_28px]',
   widget: 'grid-cols-[16px_minmax(0,1fr)_40px_80px_68px]',
 };
 
-const HEADINGS: Record<RosterLayout, string[]> = {
-  fish: ['', 'species', 'count', 'mass', 'age', 'satiation', 'condition', 'status', ''],
-  plants: ['', 'species', 'count', 'size', 'condition', 'status', ''],
+/** A column only a tablet-wide stage has room for. */
+const WIDE = 'hidden md:block';
+
+interface Heading {
+  label: string;
+  wide?: boolean;
+}
+
+const HEADINGS: Record<RosterLayout, Heading[]> = {
+  fish: [
+    { label: '' },
+    { label: 'species' },
+    { label: 'count' },
+    { label: 'mass', wide: true },
+    { label: 'age', wide: true },
+    { label: 'satiation', wide: true },
+    { label: 'condition' },
+    { label: 'status' },
+    { label: '' },
+  ],
+  plants: [
+    { label: '' },
+    { label: 'species' },
+    { label: 'count' },
+    { label: 'size', wide: true },
+    { label: 'condition' },
+    { label: 'status' },
+    { label: '' },
+  ],
   widget: [],
 };
 
 const ROW =
   'relative grid h-11 w-full items-center gap-2.5 border-t border-hairline first:border-t-0';
 
-const CELL = 'pointer-events-none truncate';
+/**
+ * Cells sit above the row-wide button: it is positioned, so without a
+ * stacking position of their own the hover background would paint over them.
+ */
+const CELL = 'relative pointer-events-none truncate';
 const FIGURE = `${CELL} text-right tabular-nums text-[13px] text-ink-2`;
 
 /** The row-wide target, under every cell so the columns stay one grid. */
@@ -66,10 +99,16 @@ function Word({ status, word }: { status: Status; word: string }): React.JSX.Ele
   );
 }
 
-function SatiationCell({ satiation }: { satiation: Satiation | null }): React.JSX.Element {
-  if (!satiation) return <span aria-hidden />;
+function SatiationCell({
+  satiation,
+  wide = false,
+}: {
+  satiation: Satiation | null;
+  wide?: boolean;
+}): React.JSX.Element {
+  if (!satiation) return <span aria-hidden className={wide ? WIDE : ''} />;
   return (
-    <span className="pointer-events-none">
+    <span className={`relative pointer-events-none ${wide ? WIDE : ''}`}>
       <RangeStrip at={satiation.at} band={satiation.band} tone={toneOf(satiation.status)} />
     </span>
   );
@@ -88,7 +127,7 @@ function ConditionCell({
   label: string;
 }): React.JSX.Element {
   return (
-    <span className="pointer-events-none flex flex-col justify-center gap-1.5">
+    <span className="relative pointer-events-none flex flex-col justify-center gap-1.5">
       {dots && dots.length > 0 && <DotStrip statuses={dots} label={label} />}
       <RangeStrip at={at} band={CONDITION_BAND} tone={toneOf(status)} />
     </span>
@@ -106,7 +145,7 @@ function Name({
 }): React.JSX.Element {
   return (
     <>
-      <SpeciesGlyph species={species} className="pointer-events-none" />
+      <SpeciesGlyph species={species} className="relative pointer-events-none" />
       <span className={`${CELL} text-[14px] ${strong ? 'font-medium text-ink' : 'text-ink-2'}`}>
         {name}
       </span>
@@ -136,11 +175,11 @@ function SpeciesLine({
       />
       <Name species={row.species} name={row.name} strong />
       <span className={`${CELL} flex items-center justify-end gap-0.5 text-[13px] text-ink-2`}>
-        <Caret className="h-3 w-3 text-ink-3" aria-hidden />×{row.count}
+        {layout !== 'widget' && <Caret className="h-3 w-3 text-ink-3" aria-hidden />}×{row.count}
       </span>
-      {layout !== 'widget' && <span className={FIGURE}>{row.figure}</span>}
-      {layout === 'fish' && <span className={FIGURE}>{row.age}</span>}
-      {layout === 'fish' && <span aria-hidden />}
+      {layout !== 'widget' && <span className={`${FIGURE} ${WIDE}`}>{row.figure}</span>}
+      {layout === 'fish' && <span className={`${FIGURE} ${WIDE}`}>{row.age}</span>}
+      {layout === 'fish' && <SatiationCell satiation={row.satiation} wide />}
       <ConditionCell
         at={row.at}
         status={row.status}
@@ -151,7 +190,7 @@ function SpeciesLine({
         type="button"
         onClick={onInspect}
         aria-label={`${row.name} — inspect the worst of ${row.count}`}
-        className={`truncate text-right text-[13px] underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent ${TONE_TEXT[toneOf(row.status)]}`}
+        className={`relative truncate text-right text-[13px] underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent ${TONE_TEXT[toneOf(row.status)]}`}
       >
         {row.word}
       </button>
@@ -186,16 +225,16 @@ function IndividualLine({
         )}
       </span>
       <span aria-hidden />
-      <span className={FIGURE}>{row.figure}</span>
-      {layout === 'fish' && <span className={FIGURE}>{row.age}</span>}
-      {layout === 'fish' && <SatiationCell satiation={row.satiation} />}
+      <span className={`${FIGURE} ${WIDE}`}>{row.figure}</span>
+      {layout === 'fish' && <span className={`${FIGURE} ${WIDE}`}>{row.age}</span>}
+      {layout === 'fish' && <SatiationCell satiation={row.satiation} wide />}
       <ConditionCell at={row.at} status={row.status} label={`${row.name} condition`} />
       <Word status={row.status} word={row.word} />
       <button
         type="button"
         onClick={onRemove}
         aria-label={`Remove ${row.name} ${row.shortId}`}
-        className="flex h-6 w-6 items-center justify-center justify-self-center rounded-control text-ink-3 transition-colors hover:text-alert focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent"
+        className="relative flex h-6 w-6 items-center justify-center justify-self-center rounded-control text-ink-3 transition-colors hover:text-alert focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent"
       >
         <X className="h-3.5 w-3.5" />
       </button>
@@ -243,22 +282,25 @@ function Line({
       return (
         <div className={`${ROW} ${TEMPLATE[layout]}`}>
           <RowButton label={`${row.name} — ${row.word}`} onClick={() => handlers.onInspect(row)} />
-          <SpeciesGlyph species="algae" className="pointer-events-none" />
+          <SpeciesGlyph species="algae" className="relative pointer-events-none" />
           <span className={`${CELL} text-[14px] font-medium text-ink`}>
             {row.name}
-            {layout === 'widget' && (
-              <span className="ml-1.5 text-[13px] font-normal text-ink-2">{row.figure}</span>
-            )}
+            <span className={`ml-1.5 text-[13px] font-normal text-ink-2 ${layout === 'widget' ? '' : 'md:hidden'}`}>
+              {row.figure}
+            </span>
           </span>
           {layout === 'widget' ? (
             <span aria-hidden />
           ) : (
-            <span className={`${CELL} col-span-2 text-right text-[13px] text-ink-2`}>
-              {row.figure}
-              {row.trend && <span className="ml-1.5 tabular-nums text-ink-3">{row.trend}</span>}
-            </span>
+            <>
+              <span aria-hidden className="md:hidden" />
+              <span className={`${CELL} col-span-2 text-right text-[13px] text-ink-2 ${WIDE}`}>
+                {row.figure} {row.caption}
+                {row.trend && <span className="ml-1.5 tabular-nums text-ink-3">{row.trend}</span>}
+              </span>
+            </>
           )}
-          <span className="pointer-events-none">
+          <span className="relative pointer-events-none">
             <RangeStrip at={row.at} band={row.band} tone={toneOf(row.status)} />
           </span>
           <Word status={row.status} word={row.word} />
@@ -270,16 +312,16 @@ function Line({
         <div className={`${ROW} ${TEMPLATE[layout]}`}>
           <Name species={row.species} name={row.name} />
           <span className={`${CELL} text-right text-[13px] text-ink-2`}>×{row.count}</span>
-          <span className={FIGURE}>{row.figure}</span>
-          <span className={FIGURE}>{row.age}</span>
-          <SatiationCell satiation={row.satiation} />
+          <span className={`${FIGURE} ${WIDE}`}>{row.figure}</span>
+          <span className={`${FIGURE} ${WIDE}`}>{row.age}</span>
+          <SatiationCell satiation={row.satiation} wide />
           <ConditionCell at={row.at} status={row.status} label={`${row.name} condition`} />
           <Word status={row.status} word={row.word} />
           <button
             type="button"
             onClick={handlers.onSellFry}
             aria-label={`Sell ${row.count} fry`}
-            className="flex h-6 w-6 items-center justify-center justify-self-center rounded-control text-ink-3 transition-colors hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent"
+            className="relative flex h-6 w-6 items-center justify-center justify-self-center rounded-control text-ink-3 transition-colors hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent"
           >
             <Coins className="h-3.5 w-3.5" />
           </button>
@@ -290,9 +332,11 @@ function Line({
         <div className={`${ROW} ${TEMPLATE[layout]}`}>
           <Name species={row.species} name={row.name} />
           <span aria-hidden />
-          <span className={FIGURE}>{row.figure}</span>
-          <span className={`${CELL} col-span-4 text-[13px] text-ink-3`}>{row.age}</span>
-          <span aria-hidden />
+          <span className={`${FIGURE} ${WIDE}`}>{row.figure}</span>
+          <span className={`${CELL} col-span-3 text-right text-[13px] text-ink-3 md:col-span-4`}>
+            {row.age}
+          </span>
+          <span aria-hidden className={WIDE} />
         </div>
       );
   }
@@ -315,9 +359,11 @@ export function Roster({
           {HEADINGS[layout].map((heading, i) => (
             <span
               key={i}
-              className={`truncate text-[11px] text-ink-3 ${i > 2 ? 'text-right' : ''}`}
+              className={`truncate text-[11px] text-ink-3 ${i > 2 ? 'text-right' : ''} ${
+                heading.wide ? WIDE : ''
+              }`}
             >
-              {heading}
+              {heading.label}
             </span>
           ))}
         </div>

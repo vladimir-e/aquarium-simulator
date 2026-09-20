@@ -46,6 +46,7 @@ export function LifeWidget({
     key: 'algae',
     name: 'Algae',
     figure: `${algaeReading.value} %`,
+    caption: 'coverage',
     trend: algaeReading.trend,
     at: algaeReading.at,
     band: algaeReading.band,
