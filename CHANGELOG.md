@@ -11,11 +11,8 @@ Format: - **Feature name** (#PR) - One short sentence (under ~150 chars)
 
 ## Unreleased
 
-- **Setup is what the tank is** - preset, capacity, lid, room and tap water as fields that say what they do, beside units, theme and the run's reset.
+- **The dashboard is a console** - transport, rail, spine and widgets over one reading set; any row opens the one inspector; the spine opens onto the tracks History shows at full height. Persistence v24 → v26.
 - **Every constant is reachable** - the tunables drawer opens over any screen (⌘,) with a search; livestock and the fertiliser formula are in it at last.
-- **The timeline is the spine, expanded** - the strip at the foot of every screen opens onto four tracks, and History is those tracks at full height (v26).
-- **The verb sheet commits on Enter** - it opens on its commit button, and the amounts and the promoted verb are kept with the tank (v25).
-- **The dashboard is a console** - transport, rail, spine and widgets over one reading set; any row anywhere opens the one inspector.
 - **Docs portal** - the whole system documented at docs.fishroom.app, linked from the dashboard.
 - **A starving plant stops reading as thriving** - the plant status word reads the energy ledger beside condition, so a plant shedding tissue in the dark says so.
 - **One reserve, two claims, in an order** - upkeep is its own ledger, paid from income then the bank; the unpaid share eats `size`; damage and repair reach only the spare above the reserve.
