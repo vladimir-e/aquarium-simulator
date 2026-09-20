@@ -93,14 +93,14 @@ describe('App routing', () => {
   it('addresses a drill-in, and steps back out of it', () => {
     renderApp('/gear');
     const stage = within(screen.getByRole('main'));
-    expect(stage.queryByRole('heading', { level: 3 })).toBeNull();
+    expect(stage.queryByRole('dialog')).toBeNull();
 
-    fireEvent.click(stage.getByRole('link', { name: /Heater/ }));
-    expect(stage.getByRole('heading', { level: 3, name: 'Heater' })).toBeTruthy();
+    fireEvent.click(stage.getByRole('link', { name: /^Heater —/ }));
+    expect(stage.getByRole('dialog', { name: 'Heater' })).toBeTruthy();
 
     fireEvent.click(screen.getByRole('button', { name: 'test-back' }));
     expect(pageTitle()).toBe('Gear');
-    expect(stage.queryByRole('heading', { level: 3 })).toBeNull();
+    expect(stage.queryByRole('dialog')).toBeNull();
   });
 
   it('sends an unknown path home', () => {
@@ -140,11 +140,11 @@ describe('App at 700 px', () => {
     expect(screen.queryByText('pH & CO₂')).toBeNull();
   });
 
-  it('pushes the Gear inspector over the list instead of beside it', () => {
+  it('opens the Gear inspector as a sheet over the rack', () => {
     renderApp('/gear');
 
-    fireEvent.click(within(screen.getByRole('main')).getByRole('link', { name: /Heater/ }));
+    fireEvent.click(within(screen.getByRole('main')).getByRole('link', { name: /^Heater —/ }));
 
-    expect(screen.getByRole('dialog', { name: 'Heater settings' })).toBeTruthy();
+    expect(screen.getByRole('dialog', { name: 'Heater' })).toBeTruthy();
   });
 });

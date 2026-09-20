@@ -61,8 +61,6 @@ export const DEVICE_ORDER: DeviceId[] = [
   'autoDoser',
 ];
 
-const EQUIPMENT_ORDER: EquipmentId[] = [...DEVICE_ORDER, 'biofilter'];
-
 const DEVICE_NAME: Record<DeviceId, string> = {
   filter: 'Filter',
   heater: 'Heater',
@@ -82,8 +80,8 @@ export const FILTER_LABEL: Record<FilterType, string> = {
   sump: 'Sump',
 };
 
-export function isEquipmentId(value: string): value is EquipmentId {
-  return EQUIPMENT_ORDER.some((id) => id === value);
+export function isDeviceId(value: string): value is DeviceId {
+  return DEVICE_ORDER.some((id) => id === value);
 }
 
 export function buildDeviceList(equipment: Equipment): DeviceRow[] {

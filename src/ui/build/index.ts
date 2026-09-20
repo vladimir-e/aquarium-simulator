@@ -5,7 +5,7 @@ export {
   type EquipmentRow,
   DEVICE_ORDER,
   FILTER_LABEL,
-  isEquipmentId,
+  isDeviceId,
   buildDeviceList,
   equipmentRows,
   equipmentSummary,
