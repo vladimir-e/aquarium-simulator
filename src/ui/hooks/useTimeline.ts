@@ -9,11 +9,11 @@ import {
   snapshotAtTick,
   trackLines,
   windowRange,
-  TRACKS,
   type AlertMark,
   type ReviewWindow,
   type TickRange,
   type TickSpan,
+  type TrackDef,
   type TrackLine,
 } from '../review';
 import type { RunSnapshot } from '../run';
@@ -25,10 +25,11 @@ export interface Timeline {
   /** Tick of each sample, sharing its index with every line's values. */
   ticks: number[];
   /**
-   * The window's lines, by track id, derived on the first call and held for
-   * as long as the window holds. A collapsed spine never asks.
+   * The lines of the tracks asked for, by track id — derived on the first ask
+   * and held for as long as the window holds. A collapsed spine never asks,
+   * and a pair of tracks pays for two.
    */
-  lines: () => Record<string, TrackLine[]>;
+  lines: (defs: TrackDef[]) => Record<string, TrackLine[]>;
   lit: TickSpan[];
   /** Ticks the keeper acted on. */
   actions: number[];
@@ -46,10 +47,10 @@ export interface Timeline {
  * live edge everywhere, and an empty buffer claims nothing — and everything the
  * tracks, the axis and the transcript read comes off it.
  *
- * The axis costs a tick; the four tracks cost a pass over the whole window, and
- * the spine is mounted under every route whether or not it is drawn. So `lines`
- * is the one thing this does not compute up front: the surface that draws them
- * asks, and pays.
+ * The axis costs a tick; a track costs a pass over the whole window, and the
+ * spine is mounted under every route whether or not it is drawn. So `lines` is
+ * the one thing this does not compute up front: the surface names the tracks it
+ * draws, and pays for those.
  */
 export function useTimeline(
   history: RunSnapshot[],
@@ -63,9 +64,15 @@ export function useTimeline(
 
   const ticks = useMemo(() => slice.map((snapshot) => snapshot.tick), [slice]);
   const lines = useMemo(() => {
-    let derived: Record<string, TrackLine[]> | null = null;
-    return (): Record<string, TrackLine[]> =>
-      (derived ??= Object.fromEntries(TRACKS.map((def) => [def.id, trackLines(slice, def)])));
+    const derived = new Map<string, TrackLine[]>();
+    return (defs: TrackDef[]): Record<string, TrackLine[]> =>
+      Object.fromEntries(
+        defs.map((def) => {
+          const held = derived.get(def.id) ?? trackLines(slice, def);
+          derived.set(def.id, held);
+          return [def.id, held];
+        })
+      );
   }, [slice]);
   const lit = useMemo(() => photoperiodSpans(range, schedule), [range, schedule]);
 

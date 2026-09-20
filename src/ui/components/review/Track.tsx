@@ -11,7 +11,7 @@ import {
   type TrackLine,
 } from '../../review';
 import type { RunSnapshot } from '../../run';
-import type { Scrub } from '../../hooks/useScrub';
+import type { Timeline } from '../../hooks/useTimeline';
 import { INSET_FOCUS } from '../ui/focus';
 
 /** The band's own coordinate space; the SVG stretches it to whatever slot it gets. */
@@ -254,16 +254,11 @@ const BAND: Record<StackLayout, string> = {
 };
 
 interface TrackStackProps {
+  timeline: Timeline;
+  /** The tracks to draw, in the order they stack. */
   defs: TrackDef[];
-  /** The window's lines, by track id. */
-  lines: Record<string, TrackLine[]>;
-  ticks: number[];
-  range: TickRange | null;
-  lit: TickSpan[];
-  scrub: Scrub;
   /** What the drag region reads out as. */
   label: string;
-  snapshot: RunSnapshot | null;
   displayTemp: (celsius: number) => number;
   extents?: boolean;
   layout: StackLayout;
@@ -275,18 +270,16 @@ interface TrackStackProps {
  * `useTimeline` holds on the data side.
  */
 export function TrackStack({
+  timeline,
   defs,
-  lines,
-  ticks,
-  range,
-  lit,
-  scrub,
   label,
-  snapshot,
   displayTemp,
   extents = false,
   layout,
 }: TrackStackProps): React.JSX.Element {
+  const { ticks, range, lit, snapshot, scrub } = timeline;
+  const lines = timeline.lines(defs);
+
   return (
     <div
       {...scrub.surface(label)}

@@ -42,12 +42,8 @@ export function Spine({ history, logs, schedule }: SpineProps): React.JSX.Elemen
   const { pathname } = useLocation();
   const expanded = open && pathname !== HISTORY_PATH;
 
-  const { range, ticks, lines, lit, actions, alerts, snapshot, scrub } = useTimeline(
-    history,
-    logs,
-    DEFAULT_WINDOW,
-    schedule
-  );
+  const timeline = useTimeline(history, logs, DEFAULT_WINDOW, schedule);
+  const { range, actions, alerts, scrub } = timeline;
 
   const shown: TrackDef[] = isMobile
     ? (TRACK_PAIRS.find((pair) => pair.id === pairId) ?? TRACK_PAIRS[0]).tracks
@@ -69,14 +65,9 @@ export function Spine({ history, logs, schedule }: SpineProps): React.JSX.Elemen
 
       {expanded && (
         <TrackStack
+          timeline={timeline}
           defs={shown}
-          lines={lines()}
-          ticks={ticks}
-          range={range}
-          lit={lit}
-          scrub={scrub}
           label="Timeline charts"
-          snapshot={snapshot}
           displayTemp={displayTemp}
           layout="spine"
         />

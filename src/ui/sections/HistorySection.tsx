@@ -54,12 +54,13 @@ export function HistorySection({
   const filter = readFilter(params.get(LOG_PARAM));
 
   const light = sim.state.equipment.light;
-  const { range, ticks, lines, lit, actions, alerts, logs, snapshot, scrub } = useTimeline(
+  const timeline = useTimeline(
     sim.history,
     sim.state.logs,
     reviewWindow,
     light.enabled ? light.schedule : null
   );
+  const { range, actions, alerts, logs, scrub } = timeline;
 
   const tallies = runSummary(sim.aggregates, sim.state.logs, unitSystem);
 
@@ -99,14 +100,9 @@ export function HistorySection({
       <div className="grid grid-cols-1 gap-x-4 gap-y-3 md:h-full md:min-h-0 md:grid-cols-[3fr_2fr]">
         <div className="flex flex-col gap-2 md:min-h-0">
           <TrackStack
+            timeline={timeline}
             defs={TRACKS}
-            lines={lines()}
-            ticks={ticks}
-            range={range}
-            lit={lit}
-            scrub={scrub}
             label="History timeline"
-            snapshot={snapshot}
             displayTemp={displayTemp}
             extents={!isMobile}
             layout="page"
