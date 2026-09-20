@@ -87,6 +87,8 @@ export {
   algaeWord,
   type PlantRow,
   plantRows,
+  type PlantSpeciesGroup,
+  groupPlantsBySpecies,
   ailingPlants,
   type AlgaeRow,
   algaeRow,

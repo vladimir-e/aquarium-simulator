@@ -7,6 +7,7 @@ import {
   conditionStatus,
   conditionWord,
   groupBySpecies,
+  groupPlantsBySpecies,
   plantRows,
   type Status,
 } from '../../run';
@@ -33,7 +34,7 @@ function toneOf(status: Status): 'ink' | 'warn' | 'alert' {
 function Row({
   name,
   detail,
-  dots,
+  dots = [],
   at,
   band,
   status,
@@ -42,7 +43,8 @@ function Row({
 }: {
   name: string;
   detail: string;
-  dots: Status[];
+  /** One per individual; a row with none carries no strip of dots. */
+  dots?: Status[];
   /** Where the row's own strip sits, or null where it carries none. */
   at: number | null;
   band: StripBand | null;
@@ -58,7 +60,7 @@ function Row({
         <span className="ml-1.5 text-[13px] text-ink-2">{detail}</span>
       </span>
       <span className="flex flex-col justify-center gap-1.5">
-        <DotStrip statuses={dots} label={`${name} by individual`} />
+        {dots.length > 0 && <DotStrip statuses={dots} label={`${name} by individual`} />}
         {at !== null && <RangeStrip at={at} band={band} tone={toneOf(status)} />}
       </span>
       <span className={`truncate text-right text-[13px] ${WORD_TONE[status]}`}>{word}</span>
@@ -89,8 +91,8 @@ interface LifeWidgetProps {
 }
 
 /**
- * Who lives here and how they are doing — fish folded into species rows, plants
- * one row each, and the algae as the population it competes with them as.
+ * Who lives here and how they are doing — fish and plants folded into species
+ * rows, and the algae as the population it competes with them as.
  */
 export function LifeWidget({
   book,
@@ -100,16 +102,17 @@ export function LifeWidget({
   onAct,
 }: LifeWidgetProps): React.JSX.Element {
   const species = groupBySpecies(state, config.livestock);
-  const plants = plantRows(state, config);
+  const specimens = plantRows(state, config);
+  const plants = groupPlantsBySpecies(specimens);
   const algae = algaeRow(state, config);
   const algaeReading = book.byId.algae;
 
-  const empty = species.length === 0 && plants.length === 0;
+  const empty = species.length === 0 && specimens.length === 0;
 
   return (
     <Widget
       title="Life"
-      caption={`${state.fish.length} fish · ${plants.length} plants`}
+      caption={`${state.fish.length} fish · ${specimens.length} plants`}
       to="/life"
       footer={
         <>
@@ -137,16 +140,16 @@ export function LifeWidget({
         />
       ))}
 
-      {plants.map((plant) => (
+      {plants.map((group) => (
         <Row
-          key={plant.id}
-          name={plant.name}
-          detail={`${Math.round(plant.size)} % size`}
-          dots={[]}
-          at={plant.condition / 100}
+          key={group.species}
+          name={group.name}
+          detail={`×${group.count} · ${Math.round(group.size)} % size`}
+          dots={group.statuses}
+          at={group.condition / 100}
           band={CONDITION_BAND}
-          status={plant.status}
-          word={plant.word}
+          status={group.status}
+          word={group.word}
         />
       ))}
 
@@ -155,7 +158,6 @@ export function LifeWidget({
         detail={`${algaeReading.value} % coverage${
           algaeReading.trend ? ` · ${algaeReading.trend} %` : ''
         }`}
-        dots={[]}
         at={algaeReading.at}
         band={algaeReading.band}
         status={algae.status}

@@ -23,6 +23,7 @@ import {
   nutrientAlert,
   nutrientReadings,
   overTrimCount,
+  groupPlantsBySpecies,
   plantRows,
   plantsAndAlgae,
   tankDemand,
@@ -120,6 +121,33 @@ describe('vitalReading', () => {
     expect(vitalReading(5, 0, ledger({ starved: 1 })).word).toBe('dying');
     // An alert still outranks the warn a middling condition reads on its own.
     expect(vitalReading(50, 0, ledger({ starved: 1 })).word).toBe('starving');
+  });
+});
+
+describe('groupPlantsBySpecies', () => {
+  it('folds a species into one row carrying a status per specimen', () => {
+    let state = planted(['java_fern', 'java_fern', 'monte_carlo']);
+    for (let hour = 0; hour < 24; hour++) state = tick(state, DEFAULT_CONFIG);
+
+    const groups = groupPlantsBySpecies(plantRows(state, DEFAULT_CONFIG));
+    expect(groups.map((group) => group.name)).toEqual(['Java Fern', 'Monte Carlo']);
+
+    const [ferns] = groups;
+    expect(ferns.count).toBe(2);
+    expect(ferns.statuses).toHaveLength(2);
+  });
+
+  it('takes the group’s word from its worst specimen, and its strip from the mean', () => {
+    const rows = plantRows(planted(['java_fern', 'java_fern']), DEFAULT_CONFIG);
+    const ailing = [
+      { ...rows[0], condition: 20, status: 'alert' as const, word: 'dying' },
+      { ...rows[1], condition: 80, status: 'ok' as const, word: 'thriving' },
+    ];
+
+    const [group] = groupPlantsBySpecies(ailing);
+    expect(group.status).toBe('alert');
+    expect(group.word).toBe('dying');
+    expect(group.condition).toBe(50);
   });
 });
 

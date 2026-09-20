@@ -36,7 +36,9 @@ function stocked(): Run {
   for (let i = 0; i < 6; i++) {
     state = applyAction(state, { type: 'addFish', species: 'neon_tetra' }).state;
   }
-  state = applyAction(state, { type: 'addPlant', species: 'anubias' }).state;
+  for (let i = 0; i < 2; i++) {
+    state = applyAction(state, { type: 'addPlant', species: 'anubias' }).state;
+  }
 
   const history = [snapshotFromState(state)];
   for (let hour = 0; hour < 24 * 10; hour++) {
@@ -188,6 +190,19 @@ describe('OverviewSection', () => {
 
     expect(life.getAllByText(/Neon/i)).toHaveLength(1);
     expect(life.getByRole('img', { name: /Neon.* by individual/i }).children).toHaveLength(6);
+  });
+
+  it('lists a plant species once, with a dot for every specimen', () => {
+    renderOverview(stocked());
+    const life = within(widget('Life'));
+
+    expect(life.getByText(/×2 · \d+ % size/)).toBeTruthy();
+    expect(life.getByRole('img', { name: /Anubias by individual/i }).children).toHaveLength(2);
+  });
+
+  it('gives the algae row no dots to speak of', () => {
+    renderOverview(stocked());
+    expect(within(widget('Life')).queryByRole('img', { name: /Algae/i })).toBeNull();
   });
 
   it('invites stocking when the tank is bare', () => {

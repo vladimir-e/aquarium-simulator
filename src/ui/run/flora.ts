@@ -15,6 +15,7 @@ import {
   MAX_DOSE_ML,
   PLANT_SPECIES_DATA,
   type NutrientDemand,
+  type PlantSpecies,
   type Resources,
   type SimulationState,
   type VitalityFactor,
@@ -74,6 +75,7 @@ export function algaeWord(mass: number): string {
 /** One row of the plant list, with the vitality behind it already resolved. */
 export interface PlantRow {
   id: string;
+  species: PlantSpecies;
   name: string;
   /** % of normal full size — plants grow past 100 % toward their species ceiling. */
   size: number;
@@ -108,6 +110,7 @@ export function plantRows(state: SimulationState, config: TunableConfig): PlantR
 
     return {
       id: plant.id,
+      species: plant.species,
       name: PLANT_SPECIES_DATA[plant.species].name,
       size: plant.size,
       overTrim: plant.size > TRIM_CEILING,
@@ -116,6 +119,51 @@ export function plantRows(state: SimulationState, config: TunableConfig): PlantR
       net: vitality.breakdown.net,
       charged: acting([...vitality.breakdown.upkeep, ...vitality.breakdown.stressors]),
       benefits: acting(vitality.breakdown.benefits),
+    };
+  });
+}
+
+function mean(values: number[]): number {
+  return values.length ? values.reduce((sum, v) => sum + v, 0) / values.length : 0;
+}
+
+/** A species folded into one row — the shape the fish roster already groups into. */
+export interface PlantSpeciesGroup {
+  species: PlantSpecies;
+  name: string;
+  count: number;
+  /** Mean % of normal full size across the specimens. */
+  size: number;
+  /** Mean condition across the specimens. */
+  condition: number;
+  /** One per specimen, in planting order. */
+  statuses: Status[];
+  /** The worst specimen's reading: a group is as urgent as its worst member. */
+  status: Status;
+  word: string;
+}
+
+export function groupPlantsBySpecies(rows: PlantRow[]): PlantSpeciesGroup[] {
+  const groups = new Map<PlantSpecies, PlantRow[]>();
+  for (const row of rows) {
+    const existing = groups.get(row.species);
+    if (existing) existing.push(row);
+    else groups.set(row.species, [row]);
+  }
+
+  return [...groups].map(([species, members]) => {
+    const worst = members.reduce((a, b) =>
+      STATUS_SEVERITY[b.status] > STATUS_SEVERITY[a.status] ? b : a
+    );
+    return {
+      species,
+      name: members[0].name,
+      count: members.length,
+      size: mean(members.map((member) => member.size)),
+      condition: mean(members.map((member) => member.condition)),
+      statuses: members.map((member) => member.status),
+      status: worst.status,
+      word: worst.word,
     };
   });
 }
