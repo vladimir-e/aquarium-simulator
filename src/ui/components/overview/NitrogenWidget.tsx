@@ -1,10 +1,8 @@
 import React from 'react';
 import type { TunableConfig } from '../../../simulation/config/index.js';
 import type { ReadingBook, ReadingId, ReadingView } from '../../readings';
-import { bacteriaSummary, cycleWord } from '../../run';
 import { TONE_TEXT } from '../ui/RangeStrip';
-import { Widget } from '../ui/Widget';
-import { ColonyRows } from '../water/rows';
+import { BiofilterWidget } from '../water/BiofilterWidget';
 
 type ChainId = Extract<ReadingId, 'waste' | 'ammonia' | 'nitrite' | 'nitrate'>;
 
@@ -44,9 +42,9 @@ interface NitrogenWidgetProps {
 }
 
 /**
- * The cycle as the chain it is: what stands in each stock, how fast it is
- * moving, and the two guilds doing the moving against the biofilm they have to
- * live on. Every stock opens its own reading; the title opens the module.
+ * The cycle as the chain it is: what stands in each stock and how fast it is
+ * moving, over the biofilter's own reading of the two guilds doing the moving.
+ * Every stock opens its own reading; the title opens the module.
  */
 export function NitrogenWidget({
   book,
@@ -54,7 +52,7 @@ export function NitrogenWidget({
   onOpenReading,
   className,
 }: NitrogenWidgetProps): React.JSX.Element {
-  const { bacteria, byId } = book;
+  const { byId } = book;
 
   // Nitrate is the one stock whose balance the run layer cannot close — plants
   // and water changes take it out from outside the cycle — so a stock with no
@@ -63,17 +61,7 @@ export function NitrogenWidget({
     byId[id].net ?? (byId[id].trend.replace('/d', ' ppm/d') || 'steady');
 
   return (
-    <Widget
-      title="Nitrogen"
-      caption={cycleWord(bacteria.cycled)}
-      to="/water"
-      className={className}
-      footer={
-        <p className="text-[12px] leading-4 text-ink-3">
-          {bacteriaSummary(bacteria, book.projection, config.nitrogenCycle)}
-        </p>
-      }
-    >
+    <BiofilterWidget title="Nitrogen" to="/water" book={book} config={config} className={className}>
       <div className="grid grid-cols-[1fr_16px_1fr_16px_1fr_16px_1fr] items-center py-1 max-md:grid-cols-1">
         {CHAIN.map((id, i) => (
           <React.Fragment key={id}>
@@ -86,10 +74,6 @@ export function NitrogenWidget({
           </React.Fragment>
         ))}
       </div>
-
-      <div className="mt-1 border-t border-hairline pt-0.5">
-        <ColonyRows bacteria={bacteria} />
-      </div>
-    </Widget>
+    </BiofilterWidget>
   );
 }
