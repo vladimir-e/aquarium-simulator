@@ -14,7 +14,7 @@ import { produce } from 'immer';
 import type { Effect } from '../core/effects.js';
 import type { SimulationState } from '../state.js';
 import type { DailySchedule } from '../core/schedule.js';
-import { nutrientsDefaults, type FertilizerFormula } from '../config/nutrients.js';
+import type { FertilizerFormula } from '../config/nutrients.js';
 import { calculateDoseNutrients } from '../actions/dose.js';
 
 // ============================================================================
@@ -115,11 +115,11 @@ export interface AutoDoserUpdateResult {
  * Returns updated state, effects, and whether dosing occurred.
  *
  * @param state - Current simulation state
- * @param formula - Optional fertilizer formula override
+ * @param formula - Fertilizer formula the doser is filled with
  */
 export function autoDoserUpdate(
   state: SimulationState,
-  formula: FertilizerFormula = nutrientsDefaults.fertilizerFormula
+  formula: FertilizerFormula
 ): AutoDoserUpdateResult {
   const { autoDoser } = state.equipment;
   const hourOfDay = state.tick % 24;

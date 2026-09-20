@@ -1,12 +1,14 @@
 import { describe, it, expect } from 'vitest';
 import { calculateDoseNutrients, canDose, dose, getDosePreview } from './dose.js';
 import { createSimulation } from '../state.js';
-import type { FertilizerFormula } from '../config/nutrients.js';
+import { nutrientsDefaults, type FertilizerFormula } from '../config/nutrients.js';
+
+const FORMULA = nutrientsDefaults.fertilizerFormula;
 
 describe('dose action', () => {
   describe('calculateDoseNutrients', () => {
-    it('calculates nutrients for given dose amount with default formula', () => {
-      const result = calculateDoseNutrients(1.0);
+    it('calculates nutrients for given dose amount', () => {
+      const result = calculateDoseNutrients(1.0, FORMULA);
 
       // Default formula: nitrate 50, phosphate 5, potassium 40, iron 1
       expect(result.nitrate).toBe(50);
@@ -16,7 +18,7 @@ describe('dose action', () => {
     });
 
     it('scales nutrients linearly with dose amount', () => {
-      const result = calculateDoseNutrients(2.0);
+      const result = calculateDoseNutrients(2.0, FORMULA);
 
       expect(result.nitrate).toBe(100);
       expect(result.phosphate).toBe(10);
@@ -25,7 +27,7 @@ describe('dose action', () => {
     });
 
     it('handles small dose amounts', () => {
-      const result = calculateDoseNutrients(0.1);
+      const result = calculateDoseNutrients(0.1, FORMULA);
 
       expect(result.nitrate).toBe(5);
       expect(result.phosphate).toBe(0.5);
@@ -71,7 +73,7 @@ describe('dose action', () => {
   describe('dose', () => {
     it('adds nutrients to resources', () => {
       const state = createSimulation({ tankCapacity: 40 });
-      const result = dose(state, { type: 'dose', amountMl: 1.0 });
+      const result = dose(state, { type: 'dose', amountMl: 1.0 }, FORMULA);
 
       // Default formula: nitrate 50, phosphate 5, potassium 40, iron 1
       expect(result.state.resources.nitrate).toBe(50);
@@ -93,7 +95,7 @@ describe('dose action', () => {
         },
       };
 
-      const result = dose(state, { type: 'dose', amountMl: 1.0 });
+      const result = dose(state, { type: 'dose', amountMl: 1.0 }, FORMULA);
 
       expect(result.state.resources.nitrate).toBe(60);
       expect(result.state.resources.phosphate).toBe(6);
@@ -103,7 +105,7 @@ describe('dose action', () => {
 
     it('rejects zero amount', () => {
       const state = createSimulation({ tankCapacity: 40 });
-      const result = dose(state, { type: 'dose', amountMl: 0 });
+      const result = dose(state, { type: 'dose', amountMl: 0 }, FORMULA);
 
       expect(result.state.resources.nitrate).toBe(0);
       expect(result.message).toContain('Cannot dose');
@@ -111,7 +113,7 @@ describe('dose action', () => {
 
     it('rejects negative amount', () => {
       const state = createSimulation({ tankCapacity: 40 });
-      const result = dose(state, { type: 'dose', amountMl: -1 });
+      const result = dose(state, { type: 'dose', amountMl: -1 }, FORMULA);
 
       expect(result.state.resources.nitrate).toBe(0);
       expect(result.message).toContain('Cannot dose');
@@ -119,7 +121,7 @@ describe('dose action', () => {
 
     it('rejects amount below minimum (0.1ml)', () => {
       const state = createSimulation({ tankCapacity: 40 });
-      const result = dose(state, { type: 'dose', amountMl: 0.05 });
+      const result = dose(state, { type: 'dose', amountMl: 0.05 }, FORMULA);
 
       expect(result.state.resources.nitrate).toBe(0);
       expect(result.message).toContain('Minimum dose');
@@ -127,7 +129,7 @@ describe('dose action', () => {
 
     it('rejects amount above maximum (50ml)', () => {
       const state = createSimulation({ tankCapacity: 40 });
-      const result = dose(state, { type: 'dose', amountMl: 60 });
+      const result = dose(state, { type: 'dose', amountMl: 60 }, FORMULA);
 
       expect(result.state.resources.nitrate).toBe(0);
       expect(result.message).toContain('Maximum dose');
@@ -137,11 +139,11 @@ describe('dose action', () => {
       const state = createSimulation({ tankCapacity: 40 });
 
       // Test minimum
-      const minResult = dose(state, { type: 'dose', amountMl: 0.1 });
+      const minResult = dose(state, { type: 'dose', amountMl: 0.1 }, FORMULA);
       expect(minResult.state.resources.nitrate).toBeGreaterThan(0);
 
       // Test maximum
-      const maxResult = dose(state, { type: 'dose', amountMl: 50 });
+      const maxResult = dose(state, { type: 'dose', amountMl: 50 }, FORMULA);
       expect(maxResult.state.resources.nitrate).toBe(2500);
     });
 
@@ -164,7 +166,7 @@ describe('dose action', () => {
 
     it('logs the action with nutrient details', () => {
       const state = createSimulation({ tankCapacity: 40 });
-      const result = dose(state, { type: 'dose', amountMl: 2.0 });
+      const result = dose(state, { type: 'dose', amountMl: 2.0 }, FORMULA);
 
       const doseLog = result.state.logs.find(
         (log) => log.source === 'user' && log.message.includes('Dosed')
@@ -180,7 +182,7 @@ describe('dose action', () => {
 
     it('returns success message', () => {
       const state = createSimulation({ tankCapacity: 40 });
-      const result = dose(state, { type: 'dose', amountMl: 2.5 });
+      const result = dose(state, { type: 'dose', amountMl: 2.5 }, FORMULA);
 
       expect(result.message).toContain('2.5ml');
       expect(result.message).toContain('fertilizer');
@@ -189,7 +191,7 @@ describe('dose action', () => {
 
   describe('getDosePreview', () => {
     it('calculates ppm increases for a given dose', () => {
-      const result = getDosePreview(1.0, 40);
+      const result = getDosePreview(1.0, 40, FORMULA);
 
       // 1ml in 40L: nitrate 50mg/40L = 1.25 ppm
       expect(result.nitratePpm).toBe(1.25);
@@ -199,7 +201,7 @@ describe('dose action', () => {
     });
 
     it('returns zeros for zero water volume', () => {
-      const result = getDosePreview(1.0, 0);
+      const result = getDosePreview(1.0, 0, FORMULA);
 
       expect(result.nitratePpm).toBe(0);
       expect(result.phosphatePpm).toBe(0);
@@ -208,7 +210,7 @@ describe('dose action', () => {
     });
 
     it('returns zeros for negative water volume', () => {
-      const result = getDosePreview(1.0, -10);
+      const result = getDosePreview(1.0, -10, FORMULA);
 
       expect(result.nitratePpm).toBe(0);
       expect(result.phosphatePpm).toBe(0);
@@ -234,8 +236,8 @@ describe('dose action', () => {
     });
 
     it('scales with dose amount', () => {
-      const small = getDosePreview(1.0, 40);
-      const large = getDosePreview(5.0, 40);
+      const small = getDosePreview(1.0, 40, FORMULA);
+      const large = getDosePreview(5.0, 40, FORMULA);
 
       expect(large.nitratePpm).toBe(small.nitratePpm * 5);
       expect(large.phosphatePpm).toBe(small.phosphatePpm * 5);
@@ -247,7 +249,7 @@ describe('dose action', () => {
   describe('non-finite amounts', () => {
     it('refuses a dose that is not a number, and says so', () => {
       const state = createSimulation({ tankCapacity: 100 });
-      const result = dose(state, { type: 'dose', amountMl: NaN });
+      const result = dose(state, { type: 'dose', amountMl: NaN }, FORMULA);
 
       expect(result.state).toBe(state);
       expect(result.message).toBe('Dose amount must be a number');
@@ -256,8 +258,8 @@ describe('dose action', () => {
     it('refuses an unbounded dose', () => {
       const state = createSimulation({ tankCapacity: 100 });
 
-      expect(dose(state, { type: 'dose', amountMl: Infinity }).state).toBe(state);
-      expect(dose(state, { type: 'dose', amountMl: -Infinity }).state).toBe(state);
+      expect(dose(state, { type: 'dose', amountMl: Infinity }, FORMULA).state).toBe(state);
+      expect(dose(state, { type: 'dose', amountMl: -Infinity }, FORMULA).state).toBe(state);
     });
   });
 });

@@ -122,14 +122,15 @@ export function verbAction(id: VerbId, settings: VerbSettings): Action {
 function outcomes(
   state: SimulationState,
   id: VerbId,
-  settings: VerbSettings
+  settings: VerbSettings,
+  config: TunableConfig
 ): SimulationState[] {
   if (id === 'scrubAlgae') {
     return [MIN_SCRUB_PERCENT, MAX_SCRUB_PERCENT].map(
-      (randomPercent) => applyAction(state, { type: 'scrubAlgae', randomPercent }).state
+      (randomPercent) => applyAction(state, { type: 'scrubAlgae', randomPercent }, config).state
     );
   }
-  return [applyAction(state, verbAction(id, settings)).state];
+  return [applyAction(state, verbAction(id, settings), config).state];
 }
 
 function headroom(state: SimulationState): number {
@@ -331,7 +332,7 @@ function rungsFor(
           hint:
             ml === advised
               ? asked
-              : `+${nitrateRise(state, ml).toFixed(NitrateResource.precision)} NO₃`,
+              : `+${nitrateRise(state, ml, config).toFixed(NitrateResource.precision)} NO₃`,
           disabled: false,
         }),
       };
@@ -352,8 +353,8 @@ function rungsFor(
   }
 }
 
-function nitrateRise(state: SimulationState, ml: number): number {
-  const after = applyAction(state, { type: 'dose', amountMl: ml }).state;
+function nitrateRise(state: SimulationState, ml: number, config: TunableConfig): number {
+  const after = applyAction(state, { type: 'dose', amountMl: ml }, config).state;
   return (
     getPpm(after.resources.nitrate, after.resources.water) -
     getPpm(state.resources.nitrate, state.resources.water)
@@ -494,7 +495,7 @@ export function verbDetail(
     note: BARE_NOTE[id] ?? null,
     preview: previewRows({
       before: state,
-      outcomes: outcomes(state, id, settings),
+      outcomes: outcomes(state, id, settings, config),
       config,
       units,
     }),

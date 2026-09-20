@@ -6,12 +6,7 @@ import { produce } from 'immer';
 import type { SimulationState } from '../state.js';
 import { createLog } from '../core/logging.js';
 import type { ActionResult, DoseAction } from './types.js';
-import { nutrientsDefaults, type FertilizerFormula } from '../config/nutrients.js';
-
-/**
- * Default fertilizer formula - can be overridden by config
- */
-const DEFAULT_FORMULA = nutrientsDefaults.fertilizerFormula;
+import type { FertilizerFormula } from '../config/nutrients.js';
 
 /**
  * Minimum dose amount (ml)
@@ -32,7 +27,7 @@ export const MAX_DOSE_ML = 50;
  */
 export function calculateDoseNutrients(
   amountMl: number,
-  formula: FertilizerFormula = DEFAULT_FORMULA
+  formula: FertilizerFormula
 ): { nitrate: number; phosphate: number; potassium: number; iron: number } {
   return {
     nitrate: amountMl * formula.nitrate,
@@ -58,13 +53,13 @@ export function canDose(state: SimulationState): boolean {
  *
  * @param state - Current simulation state
  * @param action - Dose action with amount in ml
- * @param formula - Optional fertilizer formula override
+ * @param formula - Fertilizer formula the dose is mixed to
  * @returns Action result with updated state and message
  */
 export function dose(
   state: SimulationState,
   action: DoseAction,
-  formula: FertilizerFormula = DEFAULT_FORMULA
+  formula: FertilizerFormula
 ): ActionResult {
   const { amountMl } = action;
 
@@ -135,7 +130,7 @@ export function dose(
 export function getDosePreview(
   amountMl: number,
   waterVolume: number,
-  formula: FertilizerFormula = DEFAULT_FORMULA
+  formula: FertilizerFormula
 ): { nitratePpm: number; phosphatePpm: number; potassiumPpm: number; ironPpm: number } {
   if (waterVolume <= 0) {
     return { nitratePpm: 0, phosphatePpm: 0, potassiumPpm: 0, ironPpm: 0 };

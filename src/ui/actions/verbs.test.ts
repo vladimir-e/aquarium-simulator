@@ -8,7 +8,8 @@ import {
   WATER_CHANGE_AMOUNTS,
   type SimulationState,
 } from '../../simulation/index.js';
-import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
+import { DEFAULT_CONFIG, type TunableConfig } from '../../simulation/config/index.js';
+import { produce } from 'immer';
 import { doseToCover, nutrientReadings, TRIM_TARGETS } from '../run';
 import {
   DEFAULT_SETTINGS,
@@ -74,6 +75,22 @@ describe('the six verbs', () => {
     expect(detail(state, 'dose').options.find((o) => o.value === advice!.ml)?.hint).toBe(
       'covers the ask'
     );
+  });
+
+  it('prices a dose by the formula the config carries', () => {
+    const state = planted([80, 60]);
+    const fifth = produce(DEFAULT_CONFIG, (draft) => {
+      draft.nutrients.fertilizerFormula.nitrate /= 5;
+    });
+    const rise = (config: TunableConfig): number => {
+      const hint = verbDetail(state, 'dose', DEFAULT_SETTINGS, 'metric', config).options.find(
+        (option) => option.value === DEFAULT_SETTINGS.dose
+      )?.hint;
+      return Number(hint?.match(/[\d.]+/)?.[0]);
+    };
+
+    expect(rise(DEFAULT_CONFIG)).toBeGreaterThan(0);
+    expect(rise(fifth)).toBeCloseTo(rise(DEFAULT_CONFIG) / 5, 5);
   });
 
   it('sets the advised dose among the presets rather than after them', () => {
