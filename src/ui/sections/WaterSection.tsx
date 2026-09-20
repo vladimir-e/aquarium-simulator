@@ -24,7 +24,7 @@ function Group({
   children: React.ReactNode;
 }): React.JSX.Element {
   return (
-    <section className="pt-2.5 first:pt-0">
+    <section className="pt-3 first:pt-0">
       <h2 className="pb-1 text-[13px] font-medium leading-[18px] text-ink-2">{title}</h2>
       {children}
     </section>
@@ -66,7 +66,7 @@ export function WaterSection({
           </>
         }
       >
-        <div className="grid grid-cols-1 items-start gap-x-6 md:grid-cols-2">
+        <div className="grid grid-cols-1 items-start gap-x-6 gap-y-2.5 md:grid-cols-2">
           <div>
             <Group title="Water">
               <ReadingRows book={book} ids={WATER} onOpen={setReading} />
@@ -79,7 +79,7 @@ export function WaterSection({
             </Group>
           </div>
 
-          <div className="flex flex-col gap-3 max-md:pt-2.5">
+          <div className="flex flex-col gap-3">
             <Group title="Nitrogen">
               <ReadingRows book={book} ids={NITROGEN} onOpen={setReading} />
             </Group>
