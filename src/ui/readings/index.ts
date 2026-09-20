@@ -155,6 +155,20 @@ const DECIMALS: Record<ReadingId, number> = {
   algae: 0,
 };
 
+/**
+ * Display scales for the readings the engine draws no line on. Fixed, because a
+ * scale taken off the value it is showing pins the marker wherever the value
+ * goes, and the strip then reads the same on an empty tank and a filthy one.
+ */
+const WASTE_SCALE_G = 2;
+
+const NUTRIENT_SCALE_PPM: Record<NutrientKey, number> = {
+  nitrate: 100,
+  phosphate: 4,
+  potassium: 30,
+  iron: 1,
+};
+
 export function toneOf(status: Status): StripTone {
   return status === 'warn' || status === 'alert' ? status : 'ink';
 }
@@ -238,7 +252,7 @@ function nutrientView(
   reading: NutrientReading,
   tape: Tape
 ): ReadingView {
-  const at = scale(Math.max(reading.needed * 2, reading.ppm, 0.001));
+  const at = scale(NUTRIENT_SCALE_PPM[reading.key]);
   return {
     id,
     name: reading.label,
@@ -283,7 +297,7 @@ export function readTank({ state, config, history, units }: TankInput): ReadingB
   const phBand = stockedBand(state, (data) => data.phRange);
   const algae = state.algae.mass;
   const algaeAt = scale(100);
-  const wasteAt = scale(Math.max(waste.standing * 1.4, waste.perHour * 24, 0.01));
+  const wasteAt = scale(WASTE_SCALE_G);
   const oxygenAt = scale(12);
   const co2At = scale(HIGH_CO2_THRESHOLD * 1.5);
 

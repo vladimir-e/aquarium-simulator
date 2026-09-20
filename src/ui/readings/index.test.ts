@@ -92,6 +92,29 @@ describe('readTank', () => {
     expect(book.byId.waste.series).toBeNull();
   });
 
+  it('leaves the waste marker where the pool stands, on a scale that does not follow it', () => {
+    const settled = stocked();
+    let dirty = applyAction(settled.state, { type: 'feed', amount: 3 }).state;
+    for (let hour = 0; hour < 3; hour++) dirty = tick(dirty, DEFAULT_CONFIG);
+
+    const quiet = read(settled).byId.waste;
+    const fouled = read({ state: dirty, history: settled.history }).byId.waste;
+
+    expect(fouled.at).toBeGreaterThan(quiet.at);
+    expect(fouled.band).toBeNull();
+  });
+
+  it('holds a nutrient’s band still while the value moves across it', () => {
+    const settled = stocked();
+    const dosed = applyAction(settled.state, { type: 'dose', amountMl: 5 }).state;
+
+    const before = read(settled).byId.potassium;
+    const after = read({ state: dosed, history: settled.history }).byId.potassium;
+
+    expect(after.at).toBeGreaterThan(before.at);
+    expect(after.band).toEqual(before.band);
+  });
+
   it('says nothing about a trend it has not watched for an hour', () => {
     const fresh = Object.values(read(bare()).byId);
     expect(fresh.every((reading) => reading.trend === '')).toBe(true);
