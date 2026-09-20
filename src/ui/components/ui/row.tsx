@@ -21,15 +21,11 @@ export const WIDE = 'hidden md:block';
 
 const OVERLAY = `absolute inset-0 rounded-none transition-colors hover:bg-surface-2 ${INSET_FOCUS}`;
 
-interface OverlayProps {
-  /** What the row reads out as, since the cells under it are inert. */
-  label: string;
-  /** Where the row opens, for a row that navigates. */
-  to?: string;
-  /** What the row does, for a row that acts in place. */
-  onClick?: () => void;
-  expanded?: boolean;
-}
+/** What the row reads out as, since the cells under it are inert. */
+type OverlayProps = { label: string } & (
+  | { to: string; onClick?: never; expanded?: never }
+  | { to?: never; onClick: () => void; expanded?: boolean }
+);
 
 /**
  * The row-wide hit target, laid under every cell so the columns stay one grid.
