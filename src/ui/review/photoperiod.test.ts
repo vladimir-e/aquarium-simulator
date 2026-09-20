@@ -1,13 +1,13 @@
 import { describe, it, expect } from 'vitest';
 import { photoperiodSpans } from './photoperiod';
 import type { RunSnapshot } from '../run/index.js';
+import { snapshot } from '../test/snapshot';
 
 /** A buffer of `count` ticks from `from`, lit on the hours the predicate names. */
 function buffer(from: number, count: number, lit: (tick: number) => boolean): RunSnapshot[] {
-  return Array.from({ length: count }, (_, i) => {
-    const tick = from + i;
-    return { tick, lightOn: lit(tick) } as RunSnapshot;
-  });
+  return Array.from({ length: count }, (_, i) =>
+    snapshot(from + i, { lightOn: lit(from + i) })
+  );
 }
 
 /** The fixture the run was on: 08:00 for six hours. */

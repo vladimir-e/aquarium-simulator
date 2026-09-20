@@ -1,12 +1,13 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, cleanup, within } from '@testing-library/react';
-import { MemoryRouter, useLocation } from 'react-router-dom';
+import { MemoryRouter } from 'react-router-dom';
 import App from '../../App';
 import { ThemeProvider } from '../../hooks/useTheme';
 import { UnitsProvider } from '../../hooks/useUnits';
 import { ConfigProvider } from '../../hooks/useConfig';
 import { flushPendingSave, PersistenceProvider } from '../../persistence/index.js';
 import { stubMatchMedia, viewport, type MatchMediaStub } from '../../test/matchMedia';
+import { Address, query } from '../../test/stage';
 
 let media: MatchMediaStub;
 
@@ -26,17 +27,6 @@ afterEach(() => {
  * The whole instrument, on the tank it opens with: bare, so the two verbs that
  * need plants refuse and the one that needs nothing commits.
  */
-function Address(): React.JSX.Element {
-  const { pathname, search } = useLocation();
-  return (
-    <span data-testid="address" hidden>{`${pathname}${search}`}</span>
-  );
-}
-
-function address(): string {
-  return screen.getByTestId('address').textContent ?? '';
-}
-
 function renderApp(path = '/'): void {
   render(
     <ThemeProvider>
@@ -139,7 +129,9 @@ describe('the Act palette', () => {
     renderApp('/?window=7d');
     fireEvent.click(within(palette()).getByRole('option', { name: /Add fish/ }));
 
-    expect(address()).toBe('/life?window=7d&add=fish');
+    expect(screen.getByRole('heading', { level: 1, name: 'Life' })).toBeTruthy();
+    expect(query().get('window')).toBe('7d');
+    expect(query().get('add')).toBe('fish');
   });
 });
 

@@ -9,6 +9,7 @@ import {
 import { createSimulation, type SimulationState } from '../../simulation/index.js';
 import { getPpm } from '../../simulation/resources/index.js';
 import type { Fish, Plant } from '../../simulation/state.js';
+import { snapshot } from '../test/snapshot';
 
 function makeState(mutate: (draft: SimulationState) => void): SimulationState {
   return produce(createSimulation({ tankCapacity: 100 }), mutate);
@@ -30,26 +31,6 @@ function makeFish(id: string, stage: Fish['stage']): Fish {
     stage,
     hardinessOffset: 0,
     surplus: 0,
-  };
-}
-
-function makeSnapshot(tick: number): RunSnapshot {
-  return {
-    tick,
-    ammonia: 0,
-    nitrite: 0,
-    nitrate: 0,
-    ph: 7,
-    oxygen: 8,
-    co2: 5,
-    temperature: 25,
-    waterPct: 100,
-    fishCount: 0,
-    fryCount: 0,
-    plantAvgSize: 0,
-    algaeMass: 0,
-    food: 0,
-    lightOn: false,
   };
 }
 
@@ -168,15 +149,15 @@ describe('snapshotFromState', () => {
 describe('appendRunSnapshot', () => {
   it('appends below the cap and preserves order', () => {
     let history: RunSnapshot[] = [];
-    history = appendRunSnapshot(history, makeSnapshot(0));
-    history = appendRunSnapshot(history, makeSnapshot(1));
-    history = appendRunSnapshot(history, makeSnapshot(2));
+    history = appendRunSnapshot(history, snapshot(0));
+    history = appendRunSnapshot(history, snapshot(1));
+    history = appendRunSnapshot(history, snapshot(2));
     expect(history.map((s) => s.tick)).toEqual([0, 1, 2]);
   });
 
   it('does not mutate the input array', () => {
-    const history: RunSnapshot[] = [makeSnapshot(0)];
-    const next = appendRunSnapshot(history, makeSnapshot(1));
+    const history: RunSnapshot[] = [snapshot(0)];
+    const next = appendRunSnapshot(history, snapshot(1));
     expect(history).toHaveLength(1);
     expect(next).toHaveLength(2);
   });
@@ -184,7 +165,7 @@ describe('appendRunSnapshot', () => {
   it('drops the oldest entries once past the cap', () => {
     let history: RunSnapshot[] = [];
     for (let tick = 0; tick < RUN_HISTORY_CAP + 5; tick++) {
-      history = appendRunSnapshot(history, makeSnapshot(tick));
+      history = appendRunSnapshot(history, snapshot(tick));
     }
     expect(history).toHaveLength(RUN_HISTORY_CAP);
     // Oldest five dropped; window ends on the newest tick.
@@ -195,7 +176,7 @@ describe('appendRunSnapshot', () => {
   it('keeps exactly the cap on the boundary', () => {
     let history: RunSnapshot[] = [];
     for (let tick = 0; tick < RUN_HISTORY_CAP; tick++) {
-      history = appendRunSnapshot(history, makeSnapshot(tick));
+      history = appendRunSnapshot(history, snapshot(tick));
     }
     expect(history).toHaveLength(RUN_HISTORY_CAP);
     expect(history[0].tick).toBe(0);

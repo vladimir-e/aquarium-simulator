@@ -8,6 +8,7 @@ import { PersistenceProvider } from '../../persistence/index.js';
 import { UnitsProvider } from '../../hooks/useUnits';
 import { TRACKS, TRACK_PAIRS } from '../../review';
 import type { RunSnapshot } from '../../run';
+import { snapshot } from '../../test/snapshot';
 import { stubMatchMedia, viewport, type MatchMediaStub } from '../../test/matchMedia';
 import { DEFAULT_SETTINGS } from '../../actions';
 import { DEFAULT_CONFIG } from '../../../simulation/config/index.js';
@@ -16,23 +17,20 @@ import { PERSISTENCE_VERSION, STORAGE_KEY } from '../../persistence/types.js';
 const TICKS = 72;
 
 /** NO₃ carries the tick, so a caption's value names the tick it was read at. */
-const history: RunSnapshot[] = Array.from({ length: TICKS + 1 }, (_, tick) => ({
-  tick,
-  ammonia: tick / 1000,
-  nitrite: tick / 500,
-  nitrate: tick,
-  ph: 6.8,
-  oxygen: 8,
-  co2: 7,
-  temperature: 25,
-  waterPct: 99,
-  fishCount: 4,
-  fryCount: 0,
-  plantAvgSize: 30,
-  algaeMass: 12,
-  food: 0,
-  lightOn: tick % 24 >= 8 && tick % 24 < 16,
-}));
+const history: RunSnapshot[] = Array.from({ length: TICKS + 1 }, (_, tick) =>
+  snapshot(tick, {
+    ammonia: tick / 1000,
+    nitrite: tick / 500,
+    nitrate: tick,
+    ph: 6.8,
+    co2: 7,
+    waterPct: 99,
+    fishCount: 4,
+    plantAvgSize: 30,
+    algaeMass: 12,
+    lightOn: tick % 24 >= 8 && tick % 24 < 16,
+  })
+);
 
 const logs: LogEntry[] = [
   createLog(12, 'user', 'info', 'Fed 0.5 g'),

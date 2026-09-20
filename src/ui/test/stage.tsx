@@ -9,7 +9,8 @@ import { ThemeProvider } from '../hooks/useTheme';
 import { UnitsProvider } from '../hooks/useUnits';
 import { PersistenceProvider } from '../persistence/index.js';
 
-function Address(): React.JSX.Element {
+/** The address the stage is standing on, for a harness that reads it back. */
+export function Address(): React.JSX.Element {
   return <span data-testid="address" hidden>{useLocation().search}</span>;
 }
 
