@@ -136,12 +136,15 @@ describe('a verb sheet', () => {
 
   it('names the promoted verb on the top bar once one has been committed', () => {
     renderApp();
-    expect(screen.getByRole('button', { name: 'Act' }).textContent).toContain('Act');
+    expect(screen.getByRole('button', { name: 'Act' })).toBeTruthy();
 
     fireEvent.click(within(palette()).getByRole('button', { name: /^Feed/ }));
     fireEvent.click(within(sheet('Feed')).getByRole('button', { name: 'Feed 0.5 g' }));
 
-    expect(screen.getByRole('button', { name: 'Act' }).textContent).toContain('Feed · 0.5 g');
+    // The label the reader sees is the name the reader hears.
+    expect(screen.getByRole('button', { name: 'Act — Feed · 0.5 g' }).textContent).toContain(
+      'Feed · 0.5 g'
+    );
   });
 
   it('commits on Enter, the way the palette opens on ⌘K', () => {

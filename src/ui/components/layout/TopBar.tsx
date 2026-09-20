@@ -137,7 +137,7 @@ export function TopBar({
         <button
           type="button"
           onClick={onAct}
-          aria-label="Act"
+          aria-label={actLabel === null ? 'Act' : `Act — ${actLabel}`}
           aria-expanded={actOpen}
           className={`${CONTROL} max-w-[13rem] border-transparent bg-accent-tint font-medium text-accent`}
           {...DRAWER_TOGGLE}
