@@ -8,12 +8,6 @@ deployed at [engine.fishroom.app](https://engine.fishroom.app). It is the
 engine's showcase and its calibration instrument — the surface where a
 month-long run becomes something you can watch, scrub back through, and explain.
 
-It runs on the engine's API — build a tank, tick it, dispatch actions, read the
-state back — and it does not stop there. It imports source directly rather than
-the built package, and a handful of the numbers it displays come off thresholds
-and formatters the package never exports. What it shows is therefore wider than
-the published surface on its own.
-
 ## What it is
 
 | Property | Value |
@@ -100,9 +94,13 @@ touches the simulation — the tank can keep running while you look at last
 Tuesday. The buffer belongs to the session: a reloaded tank opens with nothing
 to draw, however old it is.
 
+Nothing but the timeline honours the tick cursor: a snapshot carries the vitals
+the tracks draw, and none of the bacteria, waste, nutrients or roster a module
+would need to redraw itself at a historical cursor — the reading rows go on
+showing the tank as it is now.
+
 The spine is that buffer along the bottom of every screen. Collapsed it is the
-axis alone; the handle expands it onto four tracks sharing that axis. On History
-it stays the axis: that page is already those tracks at full height.
+axis alone; the handle expands it onto four tracks sharing that axis.
 
 | Track | Lines |
 |---|---|
@@ -171,15 +169,6 @@ band or a different word depending on which surface is showing it.
 | Event log | The log entries the tick appends, filtered by category, exportable as text |
 | Alert markers | Log entries of alert severity, placed on the timeline axis at the tick they fired |
 | Run tallies | Folded from the same log stream — deaths, births, alerts, water changed |
-
-The tick cursor is the URL, wherever it was parked from. A parked tick is a
-link, a drag replaces the entry it started from rather than pushing one per
-tick it passed through, back walks out of a scrub rather than out of the app,
-and a window that cannot honour the tick resolves it and rewrites the address
-to match. Nothing but the timeline honours it: a snapshot carries the vitals
-the tracks draw, and none of the bacteria, waste, nutrients or roster a module
-would need to redraw itself at a historical cursor — the reading rows go on
-showing the tank as it is now.
 
 ## The tunables
 
