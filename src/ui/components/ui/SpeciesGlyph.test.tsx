@@ -1,4 +1,3 @@
-import React from 'react';
 import { describe, it, expect, afterEach } from 'vitest';
 import { cleanup, render } from '@testing-library/react';
 import { FISH_SPECIES_DATA, PLANT_SPECIES_DATA } from '../../../simulation/index.js';
