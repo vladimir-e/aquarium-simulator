@@ -203,6 +203,7 @@ export {
   calculateHardscapeTotalSurface,
   getHardscapeName,
   getHardscapePHEffect,
+  checkHardscapeCapacity,
   DEFAULT_HARDSCAPE,
   HARDSCAPE_SURFACE,
   type HardscapeType,

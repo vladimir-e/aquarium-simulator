@@ -1,6 +1,7 @@
 import React from 'react';
 import { X } from 'lucide-react';
 import {
+  checkHardscapeCapacity,
   getHardscapeName,
   getSubstrateSurface,
   type SubstrateType,
@@ -24,6 +25,7 @@ export function ScapeCard({ sim }: { sim: Sim }): React.JSX.Element {
   const { equipment, tank, resources } = sim.state;
   const substrate = equipment.substrate.type;
   const rows = hardscapeRows(equipment.hardscape.items);
+  const capacity = checkHardscapeCapacity(equipment.hardscape.items, tank.hardscapeSlots);
 
   return (
     <Card className="min-h-0 flex-1">
@@ -92,15 +94,16 @@ export function ScapeCard({ sim }: { sim: Sim }): React.JSX.Element {
         </div>
 
         <div className="flex flex-wrap items-center gap-1.5 border-t border-hairline pt-2">
-          {HARDSCAPE_TYPES.map((type) => (
-            <VerbButton
-              key={type}
-              label={`+ ${getHardscapeName(type)}`}
-              onClick={() => sim.addHardscapeItem(type)}
-            />
-          ))}
-          {rows.length >= tank.hardscapeSlots && (
-            <span className="text-[12px] text-ink-3">every slot filled</span>
+          {capacity.ok ? (
+            HARDSCAPE_TYPES.map((type) => (
+              <VerbButton
+                key={type}
+                label={`+ ${getHardscapeName(type)}`}
+                onClick={() => sim.addHardscapeItem(type)}
+              />
+            ))
+          ) : (
+            <span className="text-[12px] text-ink-3">{capacity.message}</span>
           )}
         </div>
       </CardBody>

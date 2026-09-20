@@ -6,6 +6,7 @@ import {
   applyAction,
   calculatePassiveResources,
   calculateHardscapeSlots,
+  checkHardscapeCapacity,
   rescape,
   getHardscapeName,
   formatSchedule,
@@ -665,10 +666,11 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
   const addHardscapeItem = useCallback((type: HardscapeType) => {
     setState((current) =>
       produce(current, (draft) => {
-        // Check slot limit
-        if (draft.equipment.hardscape.items.length >= draft.tank.hardscapeSlots) {
-          return; // Can't add more
-        }
+        const capacity = checkHardscapeCapacity(
+          draft.equipment.hardscape.items,
+          draft.tank.hardscapeSlots
+        );
+        if (!capacity.ok) return;
 
         const newItem: HardscapeItem = {
           id: generateHardscapeId(),

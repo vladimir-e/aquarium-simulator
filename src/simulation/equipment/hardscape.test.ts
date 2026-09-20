@@ -4,6 +4,7 @@ import {
   calculateHardscapeTotalSurface,
   getHardscapeName,
   getHardscapePHEffect,
+  checkHardscapeCapacity,
   HARDSCAPE_SURFACE,
   type HardscapeItem,
   type HardscapeType,
@@ -147,6 +148,22 @@ describe('getHardscapePHEffect', () => {
 
   it('plastic_decoration returns null', () => {
     expect(getHardscapePHEffect('plastic_decoration')).toBeNull();
+  });
+});
+
+describe('checkHardscapeCapacity', () => {
+  const items = (n: number): HardscapeItem[] =>
+    Array.from({ length: n }, (_, i) => ({ id: `rock_${i}`, type: 'neutral_rock' }));
+
+  it('says nothing while a slot is free', () => {
+    expect(checkHardscapeCapacity(items(4), 5)).toEqual({ ok: true, message: '' });
+  });
+
+  it('refuses with the ceiling it was measured against', () => {
+    expect(checkHardscapeCapacity(items(5), 5)).toEqual({
+      ok: false,
+      message: 'Tank at hardscape capacity (5 slots max)',
+    });
   });
 });
 

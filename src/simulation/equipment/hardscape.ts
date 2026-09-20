@@ -45,6 +45,26 @@ export function calculateHardscapeTotalSurface(items: HardscapeItem[]): number {
   }, 0);
 }
 
+export interface HardscapeCapacityResult {
+  /** True if one more piece fits in the tank's slots. */
+  ok: boolean;
+  /** Rejection message when `!ok`; empty string when it fits. */
+  message: string;
+}
+
+/**
+ * Single source of truth for the hardscape slot ceiling — the comparison and
+ * its rejection message, so an "add" the tank has no room for is refused in
+ * one set of words wherever it is attempted.
+ */
+export function checkHardscapeCapacity(
+  items: HardscapeItem[],
+  slots: number
+): HardscapeCapacityResult {
+  const ok = items.length < slots;
+  return { ok, message: ok ? '' : `Tank at hardscape capacity (${slots} slots max)` };
+}
+
 /**
  * Get human-readable name for hardscape type.
  */
