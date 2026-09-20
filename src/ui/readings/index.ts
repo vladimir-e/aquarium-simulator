@@ -234,6 +234,11 @@ const NUTRIENT_SCALE_PPM: Record<NutrientKey, number> = {
   iron: 1,
 };
 
+/** A figure in a band's sentence, at the precision its reading is read to. */
+function said(id: ReadingId, value: number): string {
+  return value.toFixed(DECIMALS[id]);
+}
+
 export function toneOf(status: Status): StripTone {
   return status === 'warn' || status === 'alert' ? status : 'ink';
 }
@@ -408,7 +413,7 @@ export function readTank({ state, config, history, units }: TankInput): ReadingB
     },
     ammonia: fromGauge('ammonia', tape, {
       gauge: gauge('ammonia'),
-      sentence: `Safe at or under ${HIGH_AMMONIA_THRESHOLD.toFixed(2)} ppm — the line the engine alerts on.`,
+      sentence: `Safe at or under ${said('ammonia', HIGH_AMMONIA_THRESHOLD)} ppm — the line the engine alerts on.`,
       net: netPerHour(
         rates.wasteToAmmonia + rates.gillsToAmmonia - rates.ammoniaOxidised,
         'ppm'
@@ -421,14 +426,14 @@ export function readTank({ state, config, history, units }: TankInput): ReadingB
     }),
     nitrite: fromGauge('nitrite', tape, {
       gauge: gauge('nitrite'),
-      sentence: `Safe at or under ${HIGH_NITRITE_THRESHOLD.toFixed(2)} ppm — the line the engine alerts on.`,
+      sentence: `Safe at or under ${said('nitrite', HIGH_NITRITE_THRESHOLD)} ppm — the line the engine alerts on.`,
       net: netPerHour(rates.netNitrite, 'ppm'),
       fills: [{ label: 'AOB oxidising NH₃', rate: ratePerHour(rates.ammoniaToNitrite, 'ppm') }],
       drains: [{ label: 'NOB clearing', rate: ratePerHour(-rates.nitriteToNitrate, 'ppm') }],
     }),
     nitrate: fromGauge('nitrate', tape, {
       gauge: gauge('nitrate'),
-      sentence: `Plants go short under ${NITRATE_LOW_PPM} ppm; the engine alerts over ${HIGH_NITRATE_THRESHOLD}.`,
+      sentence: `Plants go short under ${said('nitrate', NITRATE_LOW_PPM)} ppm; the engine alerts over ${said('nitrate', HIGH_NITRATE_THRESHOLD)}.`,
       fills: nitrateFills,
       drains: [],
     }),
@@ -440,7 +445,9 @@ export function readTank({ state, config, history, units }: TankInput): ReadingB
       tone: toneOf(toleranceStatus(gauge('temperature').value, tempBand)),
       sentence: toleranceSentence(
         tempBand,
-        tempBand ? formatTemperatureRange([tempBand.min, tempBand.max], units, 1) : '',
+        tempBand
+          ? formatTemperatureRange([tempBand.min, tempBand.max], units, DECIMALS.temperature)
+          : '',
         'Nothing stocked, so nothing in the tank has a temperature to prefer.'
       ),
     }),
@@ -452,13 +459,13 @@ export function readTank({ state, config, history, units }: TankInput): ReadingB
       tone: toneOf(toleranceStatus(gauge('ph').value, phBand)),
       sentence: toleranceSentence(
         phBand,
-        phBand ? `pH ${phBand.min.toFixed(1)}–${phBand.max.toFixed(1)}` : '',
+        phBand ? `pH ${said('ph', phBand.min)}–${said('ph', phBand.max)}` : '',
         'Nothing stocked, so nothing in the tank has a pH to prefer.'
       ),
     }),
     level: fromGauge('level', tape, {
       gauge: gauge('water'),
-      sentence: `Under ${WATER_LEVEL_CRITICAL_THRESHOLD * 100} % of capacity the engine calls the level critical.`,
+      sentence: `Under ${said('level', WATER_LEVEL_CRITICAL_THRESHOLD * 100)} % of capacity the engine calls the level critical.`,
     }),
     oxygen: {
       id: 'oxygen',
@@ -469,7 +476,7 @@ export function readTank({ state, config, history, units }: TankInput): ReadingB
       band: { from: oxygenAt(LOW_OXYGEN_THRESHOLD), to: 1 },
       tone: toneOf(gas('oxygen').status),
       trend: trendOf(tape, 'oxygen'),
-      sentence: `Under ${LOW_OXYGEN_THRESHOLD.toFixed(1)} mg/L the engine alerts and fish start paying for it.`,
+      sentence: `Under ${said('oxygen', LOW_OXYGEN_THRESHOLD)} mg/L the engine alerts and fish start paying for it.`,
       net: null,
       fills: [],
       drains: [],
@@ -484,7 +491,7 @@ export function readTank({ state, config, history, units }: TankInput): ReadingB
       band: { from: 0, to: co2At(HIGH_CO2_THRESHOLD) },
       tone: toneOf(gas('co2').status),
       trend: trendOf(tape, 'co2'),
-      sentence: `Over ${HIGH_CO2_THRESHOLD.toFixed(0)} mg/L the engine alerts — plants take it up, surface exchange drives it off.`,
+      sentence: `Over ${said('co2', HIGH_CO2_THRESHOLD)} mg/L the engine alerts — plants take it up, surface exchange drives it off.`,
       net: null,
       fills: [],
       drains: [],
@@ -503,7 +510,7 @@ export function readTank({ state, config, history, units }: TankInput): ReadingB
       band: { from: 0, to: algaeAt(HIGH_ALGAE_THRESHOLD) },
       tone: toneOf(algaeStatus(algae)),
       trend: trendOf(tape, 'algae'),
-      sentence: `Coverage the plants are competing with; over ${HIGH_ALGAE_THRESHOLD} % the engine calls it a bloom.`,
+      sentence: `Coverage the plants are competing with; over ${said('algae', HIGH_ALGAE_THRESHOLD)} % the engine calls it a bloom.`,
       net: null,
       fills: [],
       drains: [],

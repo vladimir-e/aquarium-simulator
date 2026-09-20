@@ -7,7 +7,10 @@ import {
   tick,
   type SimulationState,
 } from '../../simulation/index.js';
-import { HIGH_AMMONIA_THRESHOLD } from '../../simulation/alerts/index.js';
+import {
+  HIGH_AMMONIA_THRESHOLD,
+  HIGH_NITRITE_THRESHOLD,
+} from '../../simulation/alerts/index.js';
 import { snapshotFromState, type RunSnapshot } from '../run/index.js';
 
 interface Run {
@@ -53,9 +56,17 @@ describe('readTank', () => {
     expect(read(bare()).byId.ph.band).toBeNull();
   });
 
+  it('states every band at the precision its own reading is read to', () => {
+    const { byId } = read(stocked());
+
+    expect(byId.ph.sentence).toMatch(/^pH \d+\.\d{2}–\d+\.\d{2} — the span/);
+    expect(byId.nitrite.sentence).toContain(`${HIGH_NITRITE_THRESHOLD.toFixed(3)} ppm`);
+    expect(byId.nitrate.sentence).toMatch(/under \d+\.\d ppm; the engine alerts over \d+\.\d\./);
+  });
+
   it('takes the ammonia band off the engine threshold, and states it', () => {
     const { byId } = read(stocked());
-    expect(byId.ammonia.sentence).toContain(HIGH_AMMONIA_THRESHOLD.toFixed(2));
+    expect(byId.ammonia.sentence).toContain(HIGH_AMMONIA_THRESHOLD.toFixed(3));
   });
 
   it('reads nitrate twice — against the alert line, and against plant demand', () => {

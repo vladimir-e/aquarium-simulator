@@ -1,6 +1,7 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import {
   formatTemperature,
+  formatTemperatureRange,
   formatVolume,
   getTemperatureUnit,
   getVolumeUnit,
@@ -23,6 +24,18 @@ describe('formatTemperature', () => {
   it('respects precision parameter', () => {
     expect(formatTemperature(25.456, 'metric', 2)).toBe('25.46°C');
     expect(formatTemperature(25.456, 'imperial', 0)).toBe('78°F');
+  });
+});
+
+describe('formatTemperatureRange', () => {
+  it('carries one unit for the span, in the reader’s own scale', () => {
+    expect(formatTemperatureRange([22, 28], 'metric')).toBe('22–28°C');
+    expect(formatTemperatureRange([22, 28], 'imperial')).toBe('72–82°F');
+  });
+
+  it('states both ends at the precision it is asked for', () => {
+    expect(formatTemperatureRange([22.35, 27.84], 'metric', 1)).toBe('22.4–27.8°C');
+    expect(formatTemperatureRange([22, 28], 'imperial', 1)).toBe('71.6–82.4°F');
   });
 });
 
