@@ -1,8 +1,9 @@
 import React, { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import type { SimulationState } from '../../../simulation/index.js';
 import { BUILD_VERBS, verbRows, type VerbId, type VerbSettings } from '../../actions';
 import { useUnits } from '../../hooks/useUnits';
+import { withParams } from '../../review';
 import { DRAWER_FOCUS, Drawer } from '../ui/Drawer';
 import { INSET_FOCUS } from '../ui/focus';
 
@@ -75,6 +76,7 @@ export function ActPalette({
 }): React.JSX.Element {
   const { unitSystem } = useUnits();
   const navigate = useNavigate();
+  const [params] = useSearchParams();
   const [query, setQuery] = useState('');
   const [active, setActive] = useState(0);
 
@@ -97,11 +99,14 @@ export function ActPalette({
       blocked: null,
       choose: (): void => {
         onClose();
-        navigate(verb.to);
+        navigate({
+          pathname: verb.path,
+          search: withParams(params, { add: verb.add }).toString(),
+        });
       },
     }));
     return [...husbandry, ...build];
-  }, [state, settings, unitSystem, onPick, onClose, navigate]);
+  }, [state, settings, unitSystem, onPick, onClose, navigate, params]);
 
   const matches = entries.filter((entry) =>
     entry.name.toLowerCase().includes(query.trim().toLowerCase())

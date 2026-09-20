@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, cleanup, within } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, useLocation } from 'react-router-dom';
 import App from '../../App';
 import { ThemeProvider } from '../../hooks/useTheme';
 import { UnitsProvider } from '../../hooks/useUnits';
@@ -26,6 +26,17 @@ afterEach(() => {
  * The whole instrument, on the tank it opens with: bare, so the two verbs that
  * need plants refuse and the one that needs nothing commits.
  */
+function Address(): React.JSX.Element {
+  const { pathname, search } = useLocation();
+  return (
+    <span data-testid="address" hidden>{`${pathname}${search}`}</span>
+  );
+}
+
+function address(): string {
+  return screen.getByTestId('address').textContent ?? '';
+}
+
 function renderApp(path = '/'): void {
   render(
     <ThemeProvider>
@@ -34,6 +45,7 @@ function renderApp(path = '/'): void {
           <UnitsProvider>
             <MemoryRouter initialEntries={[path]}>
               <App />
+              <Address />
             </MemoryRouter>
           </UnitsProvider>
         </ConfigProvider>
@@ -121,6 +133,13 @@ describe('the Act palette', () => {
     fireEvent.click(within(palette()).getByRole('option', { name: /Add fish/ }));
 
     expect(screen.getByRole('dialog', { name: /Add fish/ })).toBeTruthy();
+  });
+
+  it('leaves the view the reader is parked on where it is', () => {
+    renderApp('/?window=7d');
+    fireEvent.click(within(palette()).getByRole('option', { name: /Add fish/ }));
+
+    expect(address()).toBe('/life?window=7d&add=fish');
   });
 });
 
