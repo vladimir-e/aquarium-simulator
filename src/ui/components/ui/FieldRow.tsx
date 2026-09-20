@@ -12,11 +12,11 @@ export function FieldRow({
 }): React.JSX.Element {
   return (
     <div className="flex items-center justify-between gap-3 py-2">
-      <span className="shrink-0 text-[13px] text-ink-2">
+      <span className="min-w-0 text-[13px] text-ink-2">
         {label}
         {note && <span className="block text-[11px] leading-4 text-ink-3">{note}</span>}
       </span>
-      <div className="flex min-w-0 items-center gap-2">{children}</div>
+      <div className="flex shrink-0 items-center gap-2">{children}</div>
     </div>
   );
 }

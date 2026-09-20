@@ -63,9 +63,9 @@ function Field({
           <label htmlFor={field.path} className="text-ink-2">
             {field.label}
           </label>
+          {field.unit && <span className="text-[11px] text-ink-3">{field.unit}</span>}
         </span>
       }
-      note={field.unit || undefined}
     >
       <input
         id={field.path}
