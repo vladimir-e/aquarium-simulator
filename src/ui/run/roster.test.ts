@@ -3,8 +3,10 @@ import type { Clutch, Fish, SimulationState } from '../../simulation/index.js';
 import { createSimulation } from '../../simulation/index.js';
 import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
 import { livestockDefaults } from '../../simulation/config/livestock.js';
-import { groupBySpecies, groupFryBatches } from './livestock.js';
+import { groupBySpecies, groupFry } from './livestock.js';
 import { groupPlantsBySpecies, plantRows } from './flora.js';
+import { readLedger } from './ledger.js';
+import { computeFishVitality } from '../../simulation/index.js';
 import {
   rosterTables,
   type ClutchRosterRow,
@@ -37,7 +39,7 @@ function input(state: SimulationState): RosterInput {
   return {
     fish: groupBySpecies(state, livestockDefaults),
     plants: groupPlantsBySpecies(plantRows(state, DEFAULT_CONFIG)),
-    fry: groupFryBatches(state, livestockDefaults),
+    fry: groupFry(state, livestockDefaults),
     clutches: state.clutches,
     tick: state.tick,
   };
@@ -122,20 +124,68 @@ describe('rosterTables', () => {
     expect(row.age).toBe('hatches in 40 h');
   });
 
-  it('gives fry batches their own rows after the adults and the clutches', () => {
+  it('puts every fry in one row after the adults and the clutches', () => {
     const fish = [
       ...roster,
       makeFish({ id: 'fry1', species: 'guppy', stage: 'fry', age: 24 * 6, mass: 0.4 }),
       makeFish({ id: 'fry2', species: 'guppy', stage: 'fry', age: 24 * 12, mass: 0.6 }),
+      makeFish({ id: 'fry3', species: 'betta', stage: 'fry', age: 24 * 9, mass: 0.5 }),
     ];
     const clutch: Clutch = { id: 'c_1', species: 'neon_tetra', eggCount: 25, laidTick: 0 };
     const { fish: rows } = tables(tank(fish, [clutch], 12));
 
     expect(rows.map((row) => row.kind)).toEqual(['species', 'species', 'clutch', 'fry']);
     const fry = rows[3] as FryRosterRow;
-    expect(fry.name).toBe('Guppy fry');
-    expect(fry.count).toBe(2);
-    expect(fry.age).toBe('day 9 of 60');
+    expect(fry.name).toBe('Fry');
+    expect(fry.count).toBe(3);
+    expect(fry.caption).toBe('2 species');
+    expect(fry.age).toBe('9 d');
+  });
+
+  it('names the one species where that is all there is', () => {
+    const fish = [makeFish({ id: 'fry1', species: 'guppy', stage: 'fry', mass: 0.4 })];
+    const [fry] = tables(tank(fish)).fish as FryRosterRow[];
+
+    expect(fry.caption).toBe('Guppy');
+    expect(fry.count).toBe(1);
+  });
+
+  it('reads a group by its hungry members, even at full condition', () => {
+    const hungry = [
+      makeFish({ id: 'fish_a_1', satiation: 90 }),
+      makeFish({ id: 'fish_a_2', satiation: 40 }),
+      makeFish({ id: 'fish_a_3', satiation: 30 }),
+    ];
+    const [group] = tables(tank(hungry)).fish as SpeciesRosterRow[];
+
+    expect(group.status).toBe('warn');
+    expect(group.word).toBe('2 hungry');
+    expect(group.satiation!.word).toBe('2 hungry');
+  });
+
+  it('gives a fish the word its ledger gives it, bank and all', () => {
+    const fish = makeFish({ id: 'fish_a_1', health: 100, surplus: 5 });
+    const base = tank([fish]);
+    const state: SimulationState = {
+      ...base,
+      resources: { ...base.resources, ammonia: 20 * base.resources.water },
+    };
+    const { breakdown } = computeFishVitality(
+      state.fish[0],
+      state.resources,
+      state.plants,
+      state.resources.water,
+      state.tank.capacity,
+      DEFAULT_CONFIG.livestock
+    );
+    // The case the two surfaces used to disagree on: condition full, bank paying.
+    expect(breakdown.drained).toBeGreaterThan(0);
+
+    const row = tables(state, 'species-neon_tetra').fish[1] as IndividualRosterRow;
+    const ledger = readLedger(state, DEFAULT_CONFIG, { kind: 'fish', id: 'fish_a_1' })!;
+
+    expect(row.word).toBe(ledger.word);
+    expect(row.status).toBe(ledger.status);
   });
 
   it('has nothing to show for a bare tank', () => {

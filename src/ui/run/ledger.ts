@@ -17,9 +17,9 @@ import {
 import { readPlantVitality } from '../../simulation/plants/index.js';
 import type { TunableConfig } from '../../simulation/config/index.js';
 import { algaeStatus, algaeWord } from './flora.js';
-import { bandOf, bandStatus } from './livestock.js';
+import { bandOf, bandStatus, fishReading } from './livestock.js';
 import { CONDITION_BAND, type Satiation, type SpeciesId } from './roster.js';
-import { conditionStatus, vitalReading, worstReading, type Status } from './status.js';
+import { conditionStatus, vitalReading, type Status } from './status.js';
 import type { ReadingBand } from './water.js';
 
 /** What the ledger is open on. Algae is a population, so it carries no id. */
@@ -130,12 +130,7 @@ function fishLedger(
   const helping = factors(breakdown.benefits);
   const hurting = factors([...breakdown.upkeep, ...breakdown.stressors]);
   const band = bandOf(fish.satiation, livestock);
-  // A fish holding full condition on a draining bank still reads `hungry`, the
-  // same way its roster row does.
-  const reading = worstReading(vitalReading(fish.health, fish.surplus, breakdown), {
-    status: bandStatus(band),
-    word: SATIATION_BAND_LABEL[band].toLowerCase(),
-  });
+  const reading = fishReading(fish, breakdown, livestock);
 
   return {
     target: { kind: 'fish', id },

@@ -4,9 +4,8 @@ import { applyAction, createSimulation, FISH_SPECIES_DATA } from '../../simulati
 import { livestockDefaults } from '../../simulation/config/livestock.js';
 import {
   bandStatus,
-  fishVitals,
   groupBySpecies,
-  groupFryBatches,
+  groupFry,
   hungerOf,
   isHungryBand,
   rosterSummary,
@@ -126,108 +125,80 @@ describe('groupBySpecies', () => {
   });
 });
 
-describe('groupFryBatches', () => {
-  it('groups fry by species with derived maturation and combined mass', () => {
+describe('groupFry', () => {
+  it('folds every fry in the tank into one batch, whatever they are', () => {
     const fish = [
       makeFish({ id: 'f1', species: 'guppy', stage: 'fry', age: 24, mass: 0.03 }),
-      makeFish({ id: 'f2', species: 'guppy', stage: 'fry', age: 72, mass: 0.09 }),
+      makeFish({ id: 'f2', species: 'betta', stage: 'fry', age: 72, mass: 0.09 }),
       makeFish({ id: 'a1', species: 'guppy', stage: 'adult', mass: 1 }),
     ];
-    const batches = groupFryBatches(tank(fish), livestockDefaults);
-    expect(batches).toHaveLength(1);
-    expect(batches[0].species).toBe('guppy');
-    expect(batches[0].count).toBe(2);
+    const batch = groupFry(tank(fish), livestockDefaults)!;
+
+    expect(batch.count).toBe(2);
+    expect(batch.species).toEqual(['guppy', 'betta']);
     // The adult's 1 g must stay out of the batch mass.
-    expect(batches[0].massG).toBeCloseTo(0.12, 10);
-    // Mean age 48 ticks = day 2; guppy maturityAge 24 * 60 → graduates day 60.
-    expect(batches[0].ageDays).toBe(2);
-    expect(batches[0].graduationDay).toBe(60);
+    expect(batch.massG).toBeCloseTo(0.12, 10);
+    expect(batch.ageDays).toBe(2); // mean age 48 h
   });
 
-  it('gives a batch the same satiation and condition figures a species row gets', () => {
+  it('gives the batch the same satiation and condition figures a species row gets', () => {
     const fish = [
       makeFish({ id: 'f1', species: 'guppy', stage: 'fry', satiation: 80, health: 90 }),
       makeFish({ id: 'f2', species: 'guppy', stage: 'fry', satiation: 10, health: 50 }),
     ];
-    const [batch] = groupFryBatches(tank(fish), livestockDefaults);
+    const batch = groupFry(tank(fish), livestockDefaults)!;
 
     expect(batch.satiation).toBe(45);
     expect(batch.condition).toBe(70);
     expect(batch.hunger).toEqual({ count: 1, band: 'starving' });
   });
+
+  it('has nothing to sell where nothing is growing out', () => {
+    expect(groupFry(tank([makeFish({ id: 'a' })]), livestockDefaults)).toBeNull();
+  });
 });
 
-describe('fishVitals', () => {
+describe('the reading behind a fish', () => {
   /** The tank at a given total ammonia, in ppm of its 200 L. */
   function poisoned(fish: Fish[], ppm: number): SimulationState {
     const state = tank(fish);
     return { ...state, resources: { ...state.resources, ammonia: ppm * state.resources.water } };
   }
 
-  it('carries the engine’s factors, keeping only the ones actually acting', () => {
-    const state = poisoned([makeFish({ id: 'a' })], 20);
-    const vitals = fishVitals(state.fish[0], state, livestockDefaults);
+  it('reads a fish across every channel it keeps, not just its condition', () => {
+    const state = tank([makeFish({ id: 'a', health: 100, satiation: 5 })]);
+    const [group] = groupBySpecies(state, livestockDefaults);
 
-    expect(vitals.stressors.every((f) => f.amount > 0)).toBe(true);
-    expect(vitals.benefits.every((f) => f.amount > 0)).toBe(true);
-    expect(vitals.stressors.map((f) => f.key)).toContain('ammonia');
-
-    const benefits = vitals.benefits.reduce((sum, f) => sum + f.amount, 0);
-    const stressors = vitals.stressors.reduce((sum, f) => sum + f.amount, 0);
-    expect(vitals.net).toBeCloseTo(benefits - stressors, 6);
-  });
-
-  it('reads a full fish spending down its bank as burning reserves', () => {
-    // The whole point of the reading: health 100 and net < 0 at the same time.
-    const fish = makeFish({ id: 'a', health: 100, surplus: 5 });
-    const state = poisoned([fish], 20);
-    const vitals = fishVitals(state.fish[0], state, livestockDefaults);
-
-    expect(state.fish[0].health).toBe(100);
-    expect(vitals.net).toBeLessThan(0);
-    expect(vitals.burning).toBe(true);
-    expect(vitals.reserve).toBe(5);
-    expect(vitals.reserveCap).toBe(livestockDefaults.surplusCap);
-  });
-
-  it('stops calling it burning once there is nothing left to burn', () => {
-    // Same water, same full health — but an empty bank, so the damage lands on
-    // condition instead and the fish will visibly fall next tick.
-    const state = poisoned([makeFish({ id: 'a', health: 100, surplus: 0 })], 20);
-    const vitals = fishVitals(state.fish[0], state, livestockDefaults);
-
-    expect(vitals.net).toBeLessThan(0);
-    expect(vitals.burning).toBe(false);
+    expect(group.members[0].reading).toEqual({ status: 'alert', word: 'starving' });
   });
 
   it('leaves a thriving fish alone, bank or no bank', () => {
     const state = tank([makeFish({ id: 'a', health: 100, surplus: 5 })]);
-    const vitals = fishVitals(state.fish[0], state, livestockDefaults);
+    const [group] = groupBySpecies(state, livestockDefaults);
 
-    expect(vitals.net).toBeGreaterThan(0);
-    expect(vitals.burning).toBe(false);
+    expect(group.members[0].reading).toEqual({ status: 'ok', word: 'thriving' });
   });
 
-  it('surfaces one burning fish through the group row that hides it', () => {
+  it('gives every member its own reading, so the group cannot hide one', () => {
     const state = poisoned(
       [
-        makeFish({ id: 'fish_a_1', health: 100, surplus: 0 }),
-        makeFish({ id: 'fish_a_2', health: 100, surplus: 5 }),
+        makeFish({ id: 'fish_a_1', health: 100, satiation: 90 }),
+        makeFish({ id: 'fish_a_2', health: 100, satiation: 2 }),
       ],
       20
     );
     const [group] = groupBySpecies(state, livestockDefaults);
 
-    // Both read 100 %, so the group row would say nothing without the bank.
+    // Both read 100 %, so the mean condition would say nothing on its own.
     expect(group.condition).toBe(100);
-    expect(group.burning).toBe(true);
-    expect(fishVitals(state.fish[0], state, livestockDefaults).burning).toBe(false);
-    expect(fishVitals(state.fish[1], state, livestockDefaults).burning).toBe(true);
+    expect(group.members.map((member) => member.reading.word)).toEqual(['thriving', 'starving']);
   });
 
-  it('says nothing about a group with nothing to say', () => {
-    const state = tank([makeFish({ id: 'a', health: 100, surplus: 5 })]);
-    expect(groupBySpecies(state, livestockDefaults)[0].burning).toBe(false);
+  it('reads each fish once, and hands the reading to the row', () => {
+    const state = tank([makeFish({ id: 'a' }), makeFish({ id: 'b' })]);
+    const [group] = groupBySpecies(state, livestockDefaults);
+
+    expect(group.members.map((member) => member.fish.id)).toEqual(['a', 'b']);
   });
 });
 

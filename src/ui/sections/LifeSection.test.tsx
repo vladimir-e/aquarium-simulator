@@ -10,6 +10,8 @@ import {
   applyAction,
   computeFishVitality,
   type Action,
+  type Fish,
+  type FishSpecies,
   type SimulationState,
 } from '../../simulation/index.js';
 
@@ -128,6 +130,34 @@ describe('LifeSection', () => {
     fireEvent.click(drawer.getByRole('button', { name: 'Add 2 Neon Tetra' }));
 
     expect(speciesRow('Fish', 'Neon Tetra').parentElement!.textContent).toContain('×2');
+  });
+
+  it('sells the whole tank’s fry from the one row they share', () => {
+    const run = stocked();
+    const fry = (id: string, species: FishSpecies): Fish => ({
+      ...run.state.fish[0],
+      id,
+      species,
+      stage: 'fry',
+      mass: 0.05,
+    });
+    const state: SimulationState = {
+      ...run.state,
+      fish: [
+        ...run.state.fish.filter((fish) => fish.stage === 'adult'),
+        fry('fish_z_1', 'guppy'),
+        fry('fish_z_2', 'guppy'),
+        fry('fish_z_3', 'betta'),
+      ],
+    };
+    renderLife({ ...run, state });
+
+    expect(within(group('Fish')).getByText('Fry')).toBeTruthy();
+    expect(within(group('Fish')).getByText('2 species')).toBeTruthy();
+
+    fireEvent.click(within(group('Fish')).getByRole('button', { name: 'Sell all fry (3)' }));
+
+    expect(within(group('Fish')).queryByText('Fry')).toBeNull();
   });
 
   it('hands the husbandry verbs to the Act drawer', () => {

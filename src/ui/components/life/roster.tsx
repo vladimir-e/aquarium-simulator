@@ -14,14 +14,15 @@ import { RangeStrip, TONE_TEXT } from '../ui/RangeStrip';
 import { SpeciesGlyph, type SpeciesKey } from '../ui/SpeciesGlyph';
 
 /**
- * The roster's two tables and the Overview's window onto them are one row, laid
- * out three ways: the fish table carries satiation and age, the plant table
- * neither, and the widget keeps only what survives at 340 px — the name, the
- * count and how the individuals are doing. Below the tablet breakpoint both
- * tables shed the same columns the widget never had, which is why the figure
- * cells are marked {@link WIDE} rather than dropped by a second component.
+ * One row, laid out three ways. Each layout fixes its column count, so a row
+ * kind must emit exactly that many cells: nine for the fish table at tablet
+ * width, seven for the plants, five for the widget, and six for either table on
+ * a phone — which is what the {@link WIDE} cells fall out to.
  */
 export type RosterLayout = 'fish' | 'plants' | 'widget';
+
+/** The layouts that print headings, and the figures the widget has no room for. */
+type TableLayout = Exclude<RosterLayout, 'widget'>;
 
 const TEMPLATE: Record<RosterLayout, string> = {
   fish: 'grid-cols-[16px_minmax(0,1fr)_44px_84px_68px_24px] md:grid-cols-[16px_minmax(0,1fr)_52px_92px_64px_140px_160px_88px_28px]',
@@ -38,7 +39,7 @@ interface Heading {
   wide?: boolean;
 }
 
-const HEADINGS: Record<RosterLayout, Heading[]> = {
+const HEADINGS: Record<TableLayout, Heading[]> = {
   fish: [
     { label: '' },
     { label: 'species' },
@@ -59,7 +60,6 @@ const HEADINGS: Record<RosterLayout, Heading[]> = {
     { label: 'status' },
     { label: '' },
   ],
-  widget: [],
 };
 
 const ROW =
@@ -225,11 +225,12 @@ function IndividualLine({
         )}
       </span>
       <span aria-hidden />
-      <span className={`${FIGURE} ${WIDE}`}>{row.figure}</span>
+      {layout !== 'widget' && <span className={`${FIGURE} ${WIDE}`}>{row.figure}</span>}
       {layout === 'fish' && <span className={`${FIGURE} ${WIDE}`}>{row.age}</span>}
       {layout === 'fish' && <SatiationCell satiation={row.satiation} wide />}
       <ConditionCell at={row.at} status={row.status} label={`${row.name} condition`} />
       <Word status={row.status} word={row.word} />
+      {layout !== 'widget' && (
       <button
         type="button"
         onClick={onRemove}
@@ -238,6 +239,7 @@ function IndividualLine({
       >
         <X className="h-3.5 w-3.5" />
       </button>
+      )}
     </div>
   );
 }
@@ -246,7 +248,6 @@ export interface RosterHandlers {
   onToggle: (key: string) => void;
   onInspect: (row: RosterRow) => void;
   onRemove: (id: string) => void;
-  /** Sells every fry in the tank — the engine's action takes no batch. */
   onSellFry: () => void;
 }
 
@@ -310,21 +311,31 @@ function Line({
     case 'fry':
       return (
         <div className={`${ROW} ${TEMPLATE[layout]}`}>
-          <Name species={row.species} name={row.name} />
+          <span aria-hidden />
+          <span className={`${CELL} text-[14px] font-medium text-ink`}>
+            {row.name}
+            <span className="ml-1.5 text-[13px] font-normal text-ink-2">{row.caption}</span>
+          </span>
           <span className={`${CELL} text-right text-[13px] text-ink-2`}>×{row.count}</span>
-          <span className={`${FIGURE} ${WIDE}`}>{row.figure}</span>
-          <span className={`${FIGURE} ${WIDE}`}>{row.age}</span>
-          <SatiationCell satiation={row.satiation} wide />
+          {layout !== 'widget' && (
+            <>
+              <span className={`${FIGURE} ${WIDE}`}>{row.figure}</span>
+              <span className={`${FIGURE} ${WIDE}`}>{row.age}</span>
+              <SatiationCell satiation={row.satiation} wide />
+            </>
+          )}
           <ConditionCell at={row.at} status={row.status} label={`${row.name} condition`} />
           <Word status={row.status} word={row.word} />
-          <button
-            type="button"
-            onClick={handlers.onSellFry}
-            aria-label={`Sell ${row.count} fry`}
-            className="relative flex h-6 w-6 items-center justify-center justify-self-center rounded-control text-ink-3 transition-colors hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent"
-          >
-            <Coins className="h-3.5 w-3.5" />
-          </button>
+          {layout !== 'widget' && (
+            <button
+              type="button"
+              onClick={handlers.onSellFry}
+              aria-label={`Sell all fry (${row.count})`}
+              className="relative flex h-6 w-6 items-center justify-center justify-self-center rounded-control text-ink-3 transition-colors hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent"
+            >
+              <Coins className="h-3.5 w-3.5" />
+            </button>
+          )}
         </div>
       );
     case 'clutch':
@@ -332,11 +343,15 @@ function Line({
         <div className={`${ROW} ${TEMPLATE[layout]}`}>
           <Name species={row.species} name={row.name} />
           <span aria-hidden />
-          <span className={`${FIGURE} ${WIDE}`}>{row.figure}</span>
-          <span className={`${CELL} col-span-3 text-right text-[13px] text-ink-3 md:col-span-4`}>
+          {layout !== 'widget' && <span className={`${FIGURE} ${WIDE}`}>{row.figure}</span>}
+          <span
+            className={`${CELL} text-right text-[13px] text-ink-3 ${
+              layout === 'widget' ? 'col-span-2' : 'col-span-3 md:col-span-4'
+            }`}
+          >
             {row.age}
           </span>
-          <span aria-hidden className={WIDE} />
+          {layout !== 'widget' && <span aria-hidden className={WIDE} />}
         </div>
       );
   }
@@ -359,7 +374,7 @@ export function Roster({
           {HEADINGS[layout].map((heading, i) => (
             <span
               key={i}
-              className={`truncate text-[11px] text-ink-3 ${i > 2 ? 'text-right' : ''} ${
+              className={`truncate text-[11px] text-ink-3 ${i >= 2 ? 'text-right' : ''} ${
                 heading.wide ? WIDE : ''
               }`}
             >

@@ -15,7 +15,7 @@ import type { useSimulation } from '../hooks/useSimulation';
 import { useUnits } from '../hooks/useUnits';
 import { readTank, toneOf } from '../readings';
 import {
-  groupFryBatches,
+  groupFry,
   readLedger,
   rosterSummary,
   rosterTables,
@@ -67,7 +67,7 @@ export function LifeSection({
         {
           fish: book.roster.fish,
           plants: book.roster.plants,
-          fry: groupFryBatches(state, config.livestock),
+          fry: groupFry(state, config.livestock),
           clutches: state.clutches,
           tick: state.tick,
         },
@@ -157,15 +157,14 @@ export function LifeSection({
       >
         <div className="flex flex-col gap-1">
           <ModuleGroup title="Fish" meta={rosterSummary(state)}>
-            {tables.fish.length === 0 ? (
+            <Roster layout="fish" rows={tables.fish} handlers={handlers('fish')} />
+            {tables.fish.length === 0 && (
               <RosterEmpty
                 species="neon_tetra"
                 line="No fish yet"
                 verb="Add fish"
                 onAdd={() => setAdding('fish')}
               />
-            ) : (
-              <Roster layout="fish" rows={tables.fish} handlers={handlers('fish')} />
             )}
             <ReadingRow
               name="Bioload"

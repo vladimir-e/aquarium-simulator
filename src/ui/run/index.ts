@@ -69,13 +69,13 @@ export {
   type Hunger,
   hungerOf,
   countFry,
-  type FishVitals,
-  fishVitals,
+  type FishRead,
+  fishReading,
   type RosterFigures,
   type SpeciesGroup,
   groupBySpecies,
   type FryBatch,
-  groupFryBatches,
+  groupFry,
   rosterSummary,
 } from './livestock.js';
 export {

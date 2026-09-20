@@ -8,16 +8,28 @@
 import {
   SATIATION_BAND_LABEL,
   type Clutch,
-  type Fish,
   type FishSex,
   type FishSpecies,
   type PlantSpecies,
   FISH_SPECIES_DATA,
 } from '../../simulation/index.js';
 import type { LivestockConfig } from '../../simulation/config/livestock.js';
-import { bandOf, bandStatus, type FryBatch, type SpeciesGroup } from './livestock.js';
+import {
+  bandOf,
+  bandStatus,
+  type FryBatch,
+  type Hunger,
+  type SpeciesGroup,
+} from './livestock.js';
 import type { PlantSpeciesGroup } from './flora.js';
-import { conditionStatus, conditionWord, STATUS_SEVERITY, type Status } from './status.js';
+import {
+  conditionStatus,
+  conditionWord,
+  STATUS_SEVERITY,
+  worstReading,
+  type Reading,
+  type Status,
+} from './status.js';
 import type { ReadingBand } from './water.js';
 
 /** The engine calls 60 and up healthy, on the 0–100 axis every organism is scored on. */
@@ -72,13 +84,17 @@ export interface IndividualRosterRow extends Vital {
   satiation: Satiation | null;
 }
 
-/** A batch of fry growing out: stock the tank carries, not yet fish that breed. */
+/**
+ * Every fry in the tank in one row: stock it carries, not yet fish that breed,
+ * and — because the sell action takes no batch — one row to sell them from.
+ */
 export interface FryRosterRow extends Vital {
   kind: 'fry';
-  key: string;
-  species: FishSpecies;
+  key: 'fry';
   name: string;
   count: number;
+  /** The species mix behind the count. */
+  caption: string;
   figure: string;
   age: string;
   satiation: Satiation | null;
@@ -129,37 +145,35 @@ function satiationBand(config: LivestockConfig): ReadingBand {
   };
 }
 
-/**
- * How one fish is doing, read off the two stocks a row can show without a
- * vitality pass: its condition, and how recently it ate.
- */
-function fishVital(fish: Fish, config: LivestockConfig): Vital {
-  const band = bandOf(fish.satiation, config);
-  const hunger = bandStatus(band);
-  const health = conditionStatus(fish.health);
-  const worst = STATUS_SEVERITY[hunger] > STATUS_SEVERITY[health] ? hunger : health;
-  return {
-    at: fish.health / 100,
-    status: worst,
-    word: worst === health ? conditionWord(fish.health) : SATIATION_BAND_LABEL[band].toLowerCase(),
-  };
+interface Grouped {
+  condition: number;
+  satiation: number;
+  hunger: Hunger | null;
 }
 
 /**
  * A group is as urgent as its worst channel, the same way one fish is: a shoal
  * every member of which is hungry does not read `thriving` off its condition.
  */
-function groupVital(group: SpeciesGroup): Omit<Vital, 'at'> {
-  const health: Omit<Vital, 'at'> = {
+function groupVital(group: Grouped): Reading {
+  const health: Reading = {
     status: conditionStatus(group.condition),
     word: conditionWord(group.condition),
   };
   if (!group.hunger) return health;
 
-  const hunger = bandStatus(group.hunger.band);
-  return STATUS_SEVERITY[hunger] > STATUS_SEVERITY[health.status]
-    ? { status: hunger, word: `${group.hunger.count} hungry` }
-    : health;
+  return worstReading(health, {
+    status: bandStatus(group.hunger.band),
+    word: `${group.hunger.count} hungry`,
+  });
+}
+
+/** The group's mean, spoken for by its hungry members where it has any. */
+function groupSatiation(group: Grouped, config: LivestockConfig): Satiation {
+  const mean = fishSatiation(group.satiation, config);
+  return group.hunger
+    ? { ...mean, status: bandStatus(group.hunger.band), word: `${group.hunger.count} hungry` }
+    : mean;
 }
 
 function fishSatiation(satiation: number, config: LivestockConfig): Satiation {
@@ -193,7 +207,6 @@ function fishRows(
   for (const group of groups) {
     const key = `species-${group.species}`;
     const open = expanded.has(key);
-    const vitals = group.fish.map((fish) => fishVital(fish, config));
 
     rows.push({
       kind: 'species',
@@ -202,24 +215,22 @@ function fishRows(
       name: group.name,
       count: group.count,
       figure: `${(group.massG / group.count).toFixed(2)} g each`,
-      age: days(group.ageDays * 24),
-      dots: vitals.map((vital) => vital.status),
-      satiation: {
-        ...fishSatiation(group.satiation, config),
-        ...(group.hunger && {
-          status: bandStatus(group.hunger.band),
-          word: `${group.hunger.count} hungry`,
-        }),
-      },
+      age: `${group.ageDays} d`,
+      dots: group.members.map((member) => member.reading.status),
+      satiation: groupSatiation(group, config),
       at: group.condition / 100,
       ...groupVital(group),
-      worstKey: worstOf(group.fish, (fish) => fishVital(fish, config).status, (fish) => fish.id),
+      worstKey: worstOf(
+        group.members,
+        (member) => member.reading.status,
+        (member) => member.fish.id
+      ),
       expanded: open,
     });
 
     if (!open) continue;
 
-    for (const [i, fish] of group.fish.entries()) {
+    for (const { fish, reading } of group.members) {
       rows.push({
         kind: 'individual',
         key: fish.id,
@@ -231,7 +242,8 @@ function fishRows(
         figure: `${fish.mass.toFixed(2)} g`,
         age: days(fish.age),
         satiation: fishSatiation(fish.satiation, config),
-        ...vitals[i],
+        at: fish.health / 100,
+        ...reading,
       });
     }
   }
@@ -293,16 +305,18 @@ function plantRowsOf(
 function fryRow(batch: FryBatch, config: LivestockConfig): FryRosterRow {
   return {
     kind: 'fry',
-    key: `fry-${batch.species}`,
-    species: batch.species,
-    name: `${batch.name} fry`,
+    key: 'fry',
+    name: 'Fry',
     count: batch.count,
+    caption:
+      batch.species.length === 1
+        ? FISH_SPECIES_DATA[batch.species[0]].name
+        : `${batch.species.length} species`,
     figure: `${(batch.massG / batch.count).toFixed(2)} g each`,
-    age: `day ${batch.ageDays} of ${batch.graduationDay}`,
-    satiation: fishSatiation(batch.satiation, config),
+    age: `${batch.ageDays} d`,
+    satiation: groupSatiation(batch, config),
     at: batch.condition / 100,
-    status: conditionStatus(batch.condition),
-    word: conditionWord(batch.condition),
+    ...groupVital(batch),
   };
 }
 
@@ -322,7 +336,8 @@ function clutchRow(clutch: Clutch, tick: number): ClutchRosterRow {
 export interface RosterInput {
   fish: SpeciesGroup[];
   plants: PlantSpeciesGroup[];
-  fry: FryBatch[];
+  /** Every fry in the tank, as the one row the sell action matches. */
+  fry: FryBatch | null;
   clutches: Clutch[];
   tick: number;
 }
@@ -341,7 +356,7 @@ export function rosterTables(
     fish: [
       ...fishRows(input.fish, config, expanded),
       ...input.clutches.map((clutch) => clutchRow(clutch, input.tick)),
-      ...input.fry.map((batch) => fryRow(batch, config)),
+      ...(input.fry ? [fryRow(input.fry, config)] : []),
     ],
     plants: plantRowsOf(input.plants, expanded),
   };

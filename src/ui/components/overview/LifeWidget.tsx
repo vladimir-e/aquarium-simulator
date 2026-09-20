@@ -34,7 +34,7 @@ export function LifeWidget({
   const rows = useMemo(
     () =>
       rosterTables(
-        { fish: book.roster.fish, plants: book.roster.plants, fry: [], clutches: [], tick: 0 },
+        { fish: book.roster.fish, plants: book.roster.plants, fry: null, clutches: [], tick: 0 },
         config,
         new Set()
       ),
@@ -82,7 +82,7 @@ export function LifeWidget({
       )}
       <Roster
         layout="widget"
-        rows={[...rows.fish, ...rows.plants, algae]}
+        rows={[...rows.fish, algae, ...rows.plants]}
         handlers={handlers}
       />
     </Widget>
