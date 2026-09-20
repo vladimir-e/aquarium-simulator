@@ -5,3 +5,7 @@ export const CONTROL_FOCUS =
 /** A control that fills its slot — a row, a cell, a scroll pane — rings inside it. */
 export const INSET_FOCUS =
   'focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent';
+
+/** A small control sitting on a row that rings itself: theirs would meet at offset-2. */
+export const TIGHT_FOCUS =
+  'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent';

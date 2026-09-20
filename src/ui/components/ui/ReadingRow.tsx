@@ -1,7 +1,7 @@
 import React from 'react';
 import { INSET_FOCUS } from './focus';
 import { RangeStrip, TONE_TEXT } from './RangeStrip';
-import { CELL, ROW } from './row';
+import { ROW } from './row';
 import type { StripBand, StripTone } from './strip.js';
 
 const VALUE_SIZE = {
@@ -45,7 +45,7 @@ export function ReadingRow({
 }: ReadingRowProps): React.JSX.Element {
   const body = (
     <>
-      <span className={`${CELL} text-ink-2`}>{name}</span>
+      <span className="truncate text-ink-2">{name}</span>
       <span className={`tabular-nums font-medium ${VALUE_SIZE[size]} ${TONE_TEXT[tone]}`}>
         {value}
         {unit && <span className="ml-0.5 text-[12px] font-normal text-ink-2">{unit}</span>}

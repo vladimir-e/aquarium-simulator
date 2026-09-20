@@ -10,6 +10,9 @@ import { INSET_FOCUS } from './focus';
 export const ROW =
   'relative grid w-full items-center gap-2.5 border-t border-hairline first:border-t-0';
 
+/** The rhythm the roster and the rack both keep. */
+export const ROW_H = 'h-11';
+
 /**
  * Cells sit above the row-wide overlay: it is positioned, so without a
  * stacking position of their own the hover background would paint over them.
@@ -19,7 +22,7 @@ export const CELL = 'relative pointer-events-none truncate';
 /** A column only a tablet-wide stage has room for. */
 export const WIDE = 'hidden md:block';
 
-const OVERLAY = `absolute inset-0 rounded-none transition-colors hover:bg-surface-2 ${INSET_FOCUS}`;
+const OVERLAY = `absolute inset-0 transition-colors hover:bg-surface-2 ${INSET_FOCUS}`;
 
 /** What the row reads out as, since the cells under it are inert. */
 type OverlayProps = { label: string } & (

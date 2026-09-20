@@ -10,9 +10,9 @@ import {
   type Status,
 } from '../../run';
 import { DotStrip } from '../ui/DotStrip';
-import { CONTROL_FOCUS } from '../ui/focus';
+import { CONTROL_FOCUS, TIGHT_FOCUS } from '../ui/focus';
 import { RangeStrip, TONE_TEXT } from '../ui/RangeStrip';
-import { CELL, ROW, RowOverlay, WIDE } from '../ui/row';
+import { CELL, ROW, ROW_H, RowOverlay, WIDE } from '../ui/row';
 import { SpeciesGlyph, type SpeciesKey } from '../ui/SpeciesGlyph';
 
 /**
@@ -25,8 +25,6 @@ export type RosterLayout = 'fish' | 'plants' | 'widget';
 
 /** The layouts that print headings, and the figures the widget has no room for. */
 type TableLayout = Exclude<RosterLayout, 'widget'>;
-
-const HEIGHT = 'h-11';
 
 const TEMPLATE: Record<RosterLayout, string> = {
   fish: 'grid-cols-[16px_minmax(0,1fr)_44px_84px_68px_24px] md:grid-cols-[16px_minmax(0,1fr)_52px_92px_64px_140px_160px_88px_28px]',
@@ -139,7 +137,7 @@ function SpeciesLine({
   const Caret = row.expanded ? ChevronDown : ChevronRight;
 
   return (
-    <div className={`${ROW} ${HEIGHT} ${TEMPLATE[layout]}`}>
+    <div className={`${ROW} ${ROW_H} ${TEMPLATE[layout]}`}>
       <RowOverlay
         label={`${row.name} — ${row.count}, ${row.word}`}
         onClick={onToggle}
@@ -162,7 +160,7 @@ function SpeciesLine({
         type="button"
         onClick={onInspect}
         aria-label={`${row.name} — inspect the worst of ${row.count}`}
-        className={`relative truncate text-right text-[13px] underline-offset-2 hover:underline ${CONTROL_FOCUS} ${TONE_TEXT[toneOf(row.status)]}`}
+        className={`relative truncate text-right text-[13px] underline-offset-2 hover:underline ${TIGHT_FOCUS} ${TONE_TEXT[toneOf(row.status)]}`}
       >
         {row.word}
       </button>
@@ -185,7 +183,7 @@ function IndividualLine({
   onRemove: () => void;
 }): React.JSX.Element {
   return (
-    <div className={`${ROW} ${HEIGHT} ${TEMPLATE[layout]}`}>
+    <div className={`${ROW} ${ROW_H} ${TEMPLATE[layout]}`}>
       <RowOverlay label={`${row.name} ${row.shortId} — ${row.word}`} onClick={onInspect} />
       <span aria-hidden />
       <span className={`${CELL} pl-6 text-[13px] tabular-nums text-ink-2`}>
@@ -207,7 +205,7 @@ function IndividualLine({
           type="button"
           onClick={onRemove}
           aria-label={`Remove ${row.name} ${row.shortId}`}
-          className={`relative flex h-6 w-6 items-center justify-center justify-self-center rounded-control text-ink-3 transition-colors hover:text-alert ${CONTROL_FOCUS}`}
+          className={`relative flex h-6 w-6 items-center justify-center justify-self-center rounded-control text-ink-3 transition-colors hover:text-alert ${TIGHT_FOCUS}`}
         >
           <X className="h-3.5 w-3.5" />
         </button>
@@ -253,7 +251,7 @@ function Line({
       );
     case 'population':
       return (
-        <div className={`${ROW} ${HEIGHT} ${TEMPLATE[layout]}`}>
+        <div className={`${ROW} ${ROW_H} ${TEMPLATE[layout]}`}>
           <RowOverlay label={`${row.name} — ${row.word}`} onClick={() => handlers.onInspect(row)} />
           <SpeciesGlyph species="algae" className="relative pointer-events-none" />
           <span className={`${CELL} text-[14px] font-medium text-ink`}>
@@ -282,7 +280,7 @@ function Line({
       );
     case 'fry':
       return (
-        <div className={`${ROW} ${HEIGHT} ${TEMPLATE[layout]}`}>
+        <div className={`${ROW} ${ROW_H} ${TEMPLATE[layout]}`}>
           <span aria-hidden />
           <span className={`${CELL} text-[14px] font-medium text-ink`}>
             {row.name}
@@ -303,7 +301,7 @@ function Line({
               type="button"
               onClick={handlers.onSellFry}
               aria-label={`Sell all fry (${row.count})`}
-              className={`relative flex h-6 w-6 items-center justify-center justify-self-center rounded-control text-ink-3 transition-colors hover:text-ink ${CONTROL_FOCUS}`}
+              className={`relative flex h-6 w-6 items-center justify-center justify-self-center rounded-control text-ink-3 transition-colors hover:text-ink ${TIGHT_FOCUS}`}
             >
               <Coins className="h-3.5 w-3.5" />
             </button>
@@ -312,7 +310,7 @@ function Line({
       );
     case 'clutch':
       return (
-        <div className={`${ROW} ${HEIGHT} ${TEMPLATE[layout]}`}>
+        <div className={`${ROW} ${ROW_H} ${TEMPLATE[layout]}`}>
           <Name species={row.species} name={row.name} />
           <span aria-hidden />
           {layout !== 'widget' && <span className={`${FIGURE} ${WIDE}`}>{row.figure}</span>}

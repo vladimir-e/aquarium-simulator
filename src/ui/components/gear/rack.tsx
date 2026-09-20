@@ -5,12 +5,10 @@ import type { useSimulation } from '../../hooks/useSimulation';
 import type { Rack } from '../../readings';
 import { DeviceGlyph } from '../ui/DeviceGlyph';
 import { DRAWER_TOGGLE } from '../ui/Drawer';
-import { CELL, ROW, RowOverlay, WIDE } from '../ui/row';
+import { CELL, ROW, ROW_H, RowOverlay, WIDE } from '../ui/row';
 import { Toggle } from '../ui/Toggle';
 
 type Sim = ReturnType<typeof useSimulation>;
-
-const HEIGHT = 'h-11';
 
 /** Which callback each device's switch dispatches. */
 const POWER: Record<DeviceId, keyof Sim> = {
@@ -107,7 +105,7 @@ export function DeviceLine({
       role="group"
       aria-label={row.name}
       {...DRAWER_TOGGLE}
-      className={`${ROW} ${HEIGHT} ${TEMPLATE[layout]}`}
+      className={`${ROW} ${ROW_H} ${TEMPLATE[layout]}`}
     >
       <RowOverlay to={`/gear/${row.id}`} label={`${row.name} — ${row.summary}`} />
       <span className="relative">
@@ -158,7 +156,7 @@ export function shownInPlace(entry: RackEntry): boolean {
 /** The one row that stands for all of them. */
 export function OthersLine({ off }: { off: RackEntry[] }): React.JSX.Element {
   return (
-    <div className={`${ROW} ${HEIGHT} ${TEMPLATE.widget}`}>
+    <div className={`${ROW} ${ROW_H} ${TEMPLATE.widget}`}>
       <RowOverlay
         to="/gear"
         label={`Others — ${off.map((entry) => entry.row.name.toLowerCase()).join(', ')} off`}
