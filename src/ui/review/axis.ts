@@ -1,7 +1,7 @@
 /**
- * Scrubber geometry — the pure math that keeps the handle, the chart guides, and
- * the log highlight on one timeline. All of it degenerates cleanly to a single
- * tick (empty or one-entry history), where the domain has zero width.
+ * Axis geometry — the pure math that stands the playhead, the tracks and the
+ * transcript on one timeline. All of it degenerates cleanly to a single tick
+ * (empty or one-entry history), where the domain has zero width.
  */
 
 import type { LogEntry } from '../../simulation/index.js';
@@ -10,9 +10,9 @@ import { classifyAlert, type AlertMark } from './category.js';
 import type { TickRange } from './window.js';
 
 /**
- * Where a scrub request parks the handle: `null` (follow the live edge) when it
- * lands at or past the latest tick, otherwise the requested tick. Landing on the
- * end re-engages follow so a still-running sim keeps growing under the handle.
+ * Where a scrub request parks the playhead: `null` (follow the live edge) when
+ * it lands at or past the latest tick, otherwise the requested tick. Landing on
+ * the end re-engages follow, so a still-running sim keeps growing under it.
  */
 export function nextScrubPosition(tick: number, range: TickRange | null): number | null {
   if (!range) return null;
@@ -25,13 +25,13 @@ export function clampTick(tick: number, minTick: number, maxTick: number): numbe
   return tick;
 }
 
-/** Tick → 0..1 position along the track. A zero-width domain pins to the start. */
+/** Tick → 0..1 position along the axis. A zero-width domain pins to the start. */
 export function tickToFraction(tick: number, minTick: number, maxTick: number): number {
   if (maxTick <= minTick) return 0;
   return (clampTick(tick, minTick, maxTick) - minTick) / (maxTick - minTick);
 }
 
-/** 0..1 track position → nearest whole tick in the domain. */
+/** 0..1 axis position → nearest whole tick in the domain. */
 export function fractionToTick(fraction: number, minTick: number, maxTick: number): number {
   if (maxTick <= minTick) return minTick;
   const clamped = Math.min(1, Math.max(0, fraction));
@@ -39,7 +39,7 @@ export function fractionToTick(fraction: number, minTick: number, maxTick: numbe
 }
 
 /**
- * Index of the last log at or before `tick`, for the line the scrubber lands on.
+ * Index of the last log at or before `tick`, for the line the playhead lands on.
  * Assumes `logs` is ascending by tick (as the engine emits them); −1 if none.
  */
 export function nearestLogIndexAtOrBefore(logs: LogEntry[], tick: number): number {
@@ -52,7 +52,7 @@ export function nearestLogIndexAtOrBefore(logs: LogEntry[], tick: number): numbe
 }
 
 /**
- * Midnight boundaries strictly inside the range, as the scrubber's minor grid.
+ * Midnight boundaries strictly inside the range, as the axis' minor grid.
  * Both ends already carry their tick label, so a mark on either is noise.
  */
 export function dayGridTicks(range: TickRange | null): number[] {
@@ -63,7 +63,7 @@ export function dayGridTicks(range: TickRange | null): number[] {
   return marks;
 }
 
-/** Alert warnings inside the window, as markers for a chart baseline. */
+/** Alert warnings inside the window, as marks for the axis. */
 export function alertMarkers(logs: LogEntry[], range: TickRange | null): AlertMark[] {
   const marks: AlertMark[] = [];
   for (const log of logs) {

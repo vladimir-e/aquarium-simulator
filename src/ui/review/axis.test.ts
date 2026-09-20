@@ -7,7 +7,7 @@ import {
   nearestLogIndexAtOrBefore,
   dayGridTicks,
   alertMarkers,
-} from './scrubber';
+} from './axis';
 import { createLog, type LogEntry } from '../../simulation/index.js';
 
 describe('nextScrubPosition', () => {

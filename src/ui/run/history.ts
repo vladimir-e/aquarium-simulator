@@ -1,5 +1,5 @@
 /**
- * Per-tick history ring buffer for the Run/Review charts. Records a compact
+ * Per-tick history ring buffer for the timeline tracks. Records a compact
  * snapshot of the tank's vitals after each tick and keeps a bounded rolling
  * window; oldest entries drop past the cap. Session-scoped — not persisted.
  */

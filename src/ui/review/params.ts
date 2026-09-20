@@ -1,15 +1,9 @@
 /**
- * The time view lives in the query string, so browser-back walks back out of a
- * scrub and every view is addressable within the session. Defaults are absent
- * rather than spelled out — `/history` is the widest window at the live edge,
- * and a running sim never rewrites the URL because following has no param.
- *
- * `?tick=` is the one playhead: the spine parks it from whatever route the
- * reader is standing on and the tracks read it back, so the two can never hold
- * different ticks. It does not outlive the session that made it — history is
- * session-scoped, so a reload leaves nothing for a tick to name — and nothing
- * but the spine and the tracks honours it: `RunSnapshot` carries no AOB/NOB,
- * waste, nutrients or roster for a module to draw at a historical cursor.
+ * The time view lives in the query string. A default is absent rather than
+ * spelled out, so a running sim never rewrites the URL — following has no
+ * param. Nothing but the spine and the tracks honours `?tick=`: `RunSnapshot`
+ * carries no AOB/NOB, waste, nutrients or roster for another module to draw at
+ * a historical cursor.
  */
 
 import { type LogFilter, LOG_FILTERS } from './category.js';

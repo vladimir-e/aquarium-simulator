@@ -1,9 +1,10 @@
 /**
  * The run summary, derived once. The History tallies render these and the page
- * header reads the same list, so the two cannot quote different run lengths. Every figure is a run aggregate or a tick read
- * off the log that produced it — nothing here re-counts the engine. The counts
- * and the transcript are the same run's: every path that rebaselines the
- * aggregates replaces the log in the same commit.
+ * header reads the same list, so the two cannot quote different run lengths.
+ * Every figure is a run aggregate or a tick read off the log that produced it —
+ * nothing here re-counts the engine. The counts and the transcript are the same
+ * run's: every path that rebaselines the aggregates replaces the log in the
+ * same commit.
  */
 
 import type { LogEntry } from '../../simulation/index.js';

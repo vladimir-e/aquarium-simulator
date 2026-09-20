@@ -30,7 +30,7 @@ export {
   nearestLogIndexAtOrBefore,
   dayGridTicks,
   alertMarkers,
-} from './scrubber.js';
+} from './axis.js';
 export {
   type ScrubIntent,
   TICK_PARAM,

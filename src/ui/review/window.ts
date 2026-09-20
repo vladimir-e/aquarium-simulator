@@ -1,8 +1,9 @@
 /**
- * Window scoping for Review. One tick range drives the charts, the scrubber
- * domain, and the log view together, so "24h" means the same last-24-ticks span
- * everywhere. `run` is the whole history buffer, which is a trailing span too —
- * the ring buffer drops what falls off the back, so it is never "the whole run".
+ * Window scoping for the review layer. One tick range drives the tracks, the
+ * playhead's domain and the transcript together, so "24h" means the same
+ * last-24-ticks span everywhere. `run` is the whole history buffer, which is a
+ * trailing span too — the ring buffer drops what falls off the back, so it is
+ * never "the whole run".
  */
 
 import type { LogEntry } from '../../simulation/index.js';
