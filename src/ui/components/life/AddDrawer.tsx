@@ -7,6 +7,7 @@ import { Drawer } from '../ui/Drawer';
 import { SpeciesGlyph, type SpeciesKey } from '../ui/SpeciesGlyph';
 import { Stepper } from '../ui/Stepper';
 import { TONE_TEXT } from '../ui/RangeStrip';
+import { CONTROL_FOCUS, INSET_FOCUS } from '../ui/focus';
 
 const TITLE: Record<PickerKind, string> = { fish: 'Add fish', plant: 'Add plant' };
 
@@ -24,7 +25,7 @@ function Option({
       type="button"
       onClick={onSelect}
       aria-pressed={selected}
-      className={`grid w-full grid-cols-[16px_minmax(0,1fr)] items-center gap-x-2.5 gap-y-0.5 border-t border-hairline px-3 py-2 text-left transition-colors first:border-t-0 focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent ${
+      className={`grid w-full grid-cols-[16px_minmax(0,1fr)] items-center gap-x-2.5 gap-y-0.5 border-t border-hairline px-3 py-2 text-left transition-colors first:border-t-0 ${INSET_FOCUS} ${
         selected ? 'bg-accent-tint' : 'hover:bg-surface-2'
       }`}
     >
@@ -100,7 +101,7 @@ export function AddDrawer({
             <button
               type="button"
               onClick={() => onAdd(option.species, count)}
-              className="h-9 w-full rounded-control bg-accent-tint text-[14px] font-medium text-accent transition-colors hover:brightness-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+              className={`h-9 w-full rounded-control bg-accent-tint text-[14px] font-medium text-accent transition-colors hover:brightness-110 ${CONTROL_FOCUS}`}
             >
               Add {count} {option.name}
             </button>

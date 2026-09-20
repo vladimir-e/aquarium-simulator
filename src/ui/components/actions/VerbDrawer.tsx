@@ -14,6 +14,7 @@ import { toneOf } from '../../readings';
 import { Drawer, DRAWER_FOCUS } from '../ui/Drawer';
 import { RangeStrip, TONE_TEXT } from '../ui/RangeStrip';
 import { Segmented } from '../ui/Segmented';
+import { CONTROL_FOCUS } from '../ui/focus';
 
 /**
  * One reading the commit would move: the standing value, the value it would
@@ -151,7 +152,7 @@ export function VerbDrawer({
             type="button"
             onClick={commit}
             {...DRAWER_FOCUS}
-            className="flex h-9 items-center justify-center rounded-control bg-accent text-[13px] font-medium text-accent-ink transition-opacity hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+            className={`flex h-9 items-center justify-center rounded-control bg-accent text-[13px] font-medium text-accent-ink transition-opacity hover:opacity-90 ${CONTROL_FOCUS}`}
           >
             {detail.commitLabel}
           </button>

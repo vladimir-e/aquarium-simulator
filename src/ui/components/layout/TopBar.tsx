@@ -10,6 +10,7 @@ import { DRAWER_TOGGLE } from '../ui/Drawer';
 import { Segmented } from '../ui/Segmented';
 import { Select } from '../ui/Select';
 import { ThemeToggle } from '../ui/ThemeToggle';
+import { CONTROL_FOCUS } from '../ui/focus';
 
 const REPO_URL = 'https://github.com/vladimir-e/aquarium-simulator';
 const DOCS_URL = 'https://docs.fishroom.app';
@@ -20,7 +21,7 @@ const SPEED_OPTIONS = SPEED_PRESETS.map((preset) => ({
 }));
 
 const CONTROL =
-  'flex h-8 items-center gap-1.5 rounded-control border border-hairline px-2 text-[13px] text-ink transition-colors hover:bg-surface-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent';
+  `flex h-8 items-center gap-1.5 rounded-control border border-hairline px-2 text-[13px] text-ink transition-colors hover:bg-surface-2 ${CONTROL_FOCUS}`;
 const ICON = `${CONTROL} w-8 justify-center px-0 text-ink-2 hover:text-ink`;
 
 type BadgeTone = 'accent' | 'warn' | 'alert';

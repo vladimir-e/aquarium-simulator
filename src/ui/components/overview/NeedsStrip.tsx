@@ -4,9 +4,10 @@ import { Link } from 'react-router-dom';
 import type { VerbId } from '../../actions';
 import type { Need } from '../../nav';
 import type { ReadingBook } from '../../readings';
+import { CONTROL_FOCUS } from '../ui/focus';
 
 const VERB_LINK =
-  'flex shrink-0 items-center gap-0.5 rounded-control px-1 text-[13px] font-medium text-accent transition-colors hover:bg-surface-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent';
+  `flex shrink-0 items-center gap-0.5 rounded-control px-1 text-[13px] font-medium text-accent transition-colors hover:bg-surface-2 ${CONTROL_FOCUS}`;
 
 /**
  * What needs the keeper, one line each, worst first — and beside every line the

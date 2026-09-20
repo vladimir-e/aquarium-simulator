@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import type { PickerKind } from '../../build';
 import { DRAWER_TOGGLE } from '../ui/Drawer';
 import { SpeciesGlyph } from '../ui/SpeciesGlyph';
+import { CONTROL_FOCUS, INSET_FOCUS } from '../ui/focus';
 
 const CHOICES: { kind: PickerKind; label: string; glyph: 'neon_tetra' | 'anubias' }[] = [
   { kind: 'fish', label: 'Add fish', glyph: 'neon_tetra' },
@@ -27,7 +28,7 @@ export function AddMenu({ onPick }: { onPick: (kind: PickerKind) => void }): Rea
         aria-expanded={open}
         onClick={() => setOpen(!open)}
         {...DRAWER_TOGGLE}
-        className="inline-flex h-7 shrink-0 items-center rounded-control border border-hairline px-2.5 text-[13px] text-ink transition-colors hover:bg-surface-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent"
+        className={`inline-flex h-7 shrink-0 items-center rounded-control border border-hairline px-2.5 text-[13px] text-ink transition-colors hover:bg-surface-2 ${CONTROL_FOCUS}`}
       >
         + Add
       </button>
@@ -43,7 +44,7 @@ export function AddMenu({ onPick }: { onPick: (kind: PickerKind) => void }): Rea
                 onPick(choice.kind);
               }}
               {...DRAWER_TOGGLE}
-              className="flex h-9 w-full items-center gap-2.5 px-3 text-left text-[13px] text-ink transition-colors hover:bg-surface-2 focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent"
+              className={`flex h-9 w-full items-center gap-2.5 px-3 text-left text-[13px] text-ink transition-colors hover:bg-surface-2 ${INSET_FOCUS}`}
             >
               <SpeciesGlyph species={choice.glyph} />
               {choice.label}

@@ -3,6 +3,7 @@ import type { TunableConfig } from '../../../simulation/config/index.js';
 import type { ReadingBook, ReadingId, ReadingView } from '../../readings';
 import { TONE_TEXT } from '../ui/RangeStrip';
 import { BiofilterWidget } from '../water/BiofilterWidget';
+import { INSET_FOCUS } from '../ui/focus';
 
 type ChainId = Extract<ReadingId, 'waste' | 'ammonia' | 'nitrite' | 'nitrate'>;
 
@@ -22,7 +23,7 @@ function Stock({
     <button
       type="button"
       onClick={onOpen}
-      className="flex min-w-0 flex-col items-center gap-0.5 rounded-control py-1 transition-colors hover:bg-surface-2 focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent"
+      className={`flex min-w-0 flex-col items-center gap-0.5 rounded-control py-1 transition-colors hover:bg-surface-2 ${INSET_FOCUS}`}
     >
       <span className="text-[12px] leading-4 text-ink-2">{reading.name}</span>
       <span className={`text-[20px] leading-6 font-medium tabular-nums ${TONE_TEXT[reading.tone]}`}>

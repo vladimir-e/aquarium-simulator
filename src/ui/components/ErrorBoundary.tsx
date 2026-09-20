@@ -5,6 +5,7 @@
  */
 
 import { Component, type ReactNode, type ErrorInfo } from 'react';
+import { CONTROL_FOCUS } from './ui/focus';
 
 interface ErrorBoundaryProps {
   children: ReactNode;
@@ -15,7 +16,7 @@ interface ErrorBoundaryState {
 }
 
 const BUTTON_BASE =
-  'rounded-control px-3 py-1.5 text-[13px] font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent';
+  `rounded-control px-3 py-1.5 text-[13px] font-medium transition-colors ${CONTROL_FOCUS}`;
 
 function describeError(error: unknown): string {
   try {

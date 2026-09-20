@@ -1,6 +1,7 @@
 import React from 'react';
 import { ChevronRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { INSET_FOCUS } from './focus';
 
 interface WidgetProps {
   title: string;
@@ -43,7 +44,7 @@ export function Widget({
         <Link
           to={to}
           aria-label={`${title} module`}
-          className="flex items-baseline gap-2 px-3 pb-1.5 pt-2.5 transition-colors hover:bg-surface-2 focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent"
+          className={`flex items-baseline gap-2 px-3 pb-1.5 pt-2.5 transition-colors hover:bg-surface-2 ${INSET_FOCUS}`}
         >
           {head}
         </Link>

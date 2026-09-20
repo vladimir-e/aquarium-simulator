@@ -2,6 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { X } from 'lucide-react';
 import { FOCUSABLE } from './focusable';
 import { useIsMobile } from '../../hooks/useMediaQuery';
+import { CONTROL_FOCUS } from './focus';
 
 /**
  * Marks a region whose own clicks govern the drawer — the control that opens
@@ -93,7 +94,7 @@ export function Drawer({ open, onClose, title, meta, children }: DrawerProps): R
           type="button"
           onClick={onClose}
           aria-label={`Close ${title}`}
-          className="ml-auto flex h-8 w-8 shrink-0 items-center justify-center rounded-control text-ink-2 transition-colors hover:bg-surface-2 hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+          className={`ml-auto flex h-8 w-8 shrink-0 items-center justify-center rounded-control text-ink-2 transition-colors hover:bg-surface-2 hover:text-ink ${CONTROL_FOCUS}`}
         >
           <X className="h-4 w-4" />
         </button>

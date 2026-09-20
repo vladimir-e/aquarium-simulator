@@ -10,7 +10,9 @@ import {
   type Status,
 } from '../../run';
 import { DotStrip } from '../ui/DotStrip';
+import { CONTROL_FOCUS } from '../ui/focus';
 import { RangeStrip, TONE_TEXT } from '../ui/RangeStrip';
+import { CELL, ROW, RowOverlay, WIDE } from '../ui/row';
 import { SpeciesGlyph, type SpeciesKey } from '../ui/SpeciesGlyph';
 
 /**
@@ -24,15 +26,14 @@ export type RosterLayout = 'fish' | 'plants' | 'widget';
 /** The layouts that print headings, and the figures the widget has no room for. */
 type TableLayout = Exclude<RosterLayout, 'widget'>;
 
+const HEIGHT = 'h-11';
+
 const TEMPLATE: Record<RosterLayout, string> = {
   fish: 'grid-cols-[16px_minmax(0,1fr)_44px_84px_68px_24px] md:grid-cols-[16px_minmax(0,1fr)_52px_92px_64px_140px_160px_88px_28px]',
   plants:
     'grid-cols-[16px_minmax(0,1fr)_44px_84px_68px_24px] md:grid-cols-[16px_minmax(0,1fr)_52px_92px_160px_88px_28px]',
   widget: 'grid-cols-[16px_minmax(0,1fr)_40px_80px_68px]',
 };
-
-/** A column only a tablet-wide stage has room for. */
-const WIDE = 'hidden md:block';
 
 interface Heading {
   label: string;
@@ -62,36 +63,7 @@ const HEADINGS: Record<TableLayout, Heading[]> = {
   ],
 };
 
-const ROW =
-  'relative grid h-11 w-full items-center gap-2.5 border-t border-hairline first:border-t-0';
-
-/**
- * Cells sit above the row-wide button: it is positioned, so without a
- * stacking position of their own the hover background would paint over them.
- */
-const CELL = 'relative pointer-events-none truncate';
 const FIGURE = `${CELL} text-right tabular-nums text-[13px] text-ink-2`;
-
-/** The row-wide target, under every cell so the columns stay one grid. */
-function RowButton({
-  label,
-  onClick,
-  expanded,
-}: {
-  label: string;
-  onClick: () => void;
-  expanded?: boolean;
-}): React.JSX.Element {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-label={label}
-      aria-expanded={expanded}
-      className="absolute inset-0 rounded-none transition-colors hover:bg-surface-2 focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent"
-    />
-  );
-}
 
 function Word({ status, word }: { status: Status; word: string }): React.JSX.Element {
   return (
@@ -167,8 +139,8 @@ function SpeciesLine({
   const Caret = row.expanded ? ChevronDown : ChevronRight;
 
   return (
-    <div className={`${ROW} ${TEMPLATE[layout]}`}>
-      <RowButton
+    <div className={`${ROW} ${HEIGHT} ${TEMPLATE[layout]}`}>
+      <RowOverlay
         label={`${row.name} — ${row.count}, ${row.word}`}
         onClick={onToggle}
         expanded={row.expanded}
@@ -190,7 +162,7 @@ function SpeciesLine({
         type="button"
         onClick={onInspect}
         aria-label={`${row.name} — inspect the worst of ${row.count}`}
-        className={`relative truncate text-right text-[13px] underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent ${TONE_TEXT[toneOf(row.status)]}`}
+        className={`relative truncate text-right text-[13px] underline-offset-2 hover:underline ${CONTROL_FOCUS} ${TONE_TEXT[toneOf(row.status)]}`}
       >
         {row.word}
       </button>
@@ -213,8 +185,8 @@ function IndividualLine({
   onRemove: () => void;
 }): React.JSX.Element {
   return (
-    <div className={`${ROW} ${TEMPLATE[layout]}`}>
-      <RowButton label={`${row.name} ${row.shortId} — ${row.word}`} onClick={onInspect} />
+    <div className={`${ROW} ${HEIGHT} ${TEMPLATE[layout]}`}>
+      <RowOverlay label={`${row.name} ${row.shortId} — ${row.word}`} onClick={onInspect} />
       <span aria-hidden />
       <span className={`${CELL} pl-6 text-[13px] tabular-nums text-ink-2`}>
         {row.shortId}
@@ -231,14 +203,14 @@ function IndividualLine({
       <ConditionCell at={row.at} status={row.status} label={`${row.name} condition`} />
       <Word status={row.status} word={row.word} />
       {layout !== 'widget' && (
-      <button
-        type="button"
-        onClick={onRemove}
-        aria-label={`Remove ${row.name} ${row.shortId}`}
-        className="relative flex h-6 w-6 items-center justify-center justify-self-center rounded-control text-ink-3 transition-colors hover:text-alert focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent"
-      >
-        <X className="h-3.5 w-3.5" />
-      </button>
+        <button
+          type="button"
+          onClick={onRemove}
+          aria-label={`Remove ${row.name} ${row.shortId}`}
+          className={`relative flex h-6 w-6 items-center justify-center justify-self-center rounded-control text-ink-3 transition-colors hover:text-alert ${CONTROL_FOCUS}`}
+        >
+          <X className="h-3.5 w-3.5" />
+        </button>
       )}
     </div>
   );
@@ -281,8 +253,8 @@ function Line({
       );
     case 'population':
       return (
-        <div className={`${ROW} ${TEMPLATE[layout]}`}>
-          <RowButton label={`${row.name} — ${row.word}`} onClick={() => handlers.onInspect(row)} />
+        <div className={`${ROW} ${HEIGHT} ${TEMPLATE[layout]}`}>
+          <RowOverlay label={`${row.name} — ${row.word}`} onClick={() => handlers.onInspect(row)} />
           <SpeciesGlyph species="algae" className="relative pointer-events-none" />
           <span className={`${CELL} text-[14px] font-medium text-ink`}>
             {row.name}
@@ -310,7 +282,7 @@ function Line({
       );
     case 'fry':
       return (
-        <div className={`${ROW} ${TEMPLATE[layout]}`}>
+        <div className={`${ROW} ${HEIGHT} ${TEMPLATE[layout]}`}>
           <span aria-hidden />
           <span className={`${CELL} text-[14px] font-medium text-ink`}>
             {row.name}
@@ -331,7 +303,7 @@ function Line({
               type="button"
               onClick={handlers.onSellFry}
               aria-label={`Sell all fry (${row.count})`}
-              className="relative flex h-6 w-6 items-center justify-center justify-self-center rounded-control text-ink-3 transition-colors hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent"
+              className={`relative flex h-6 w-6 items-center justify-center justify-self-center rounded-control text-ink-3 transition-colors hover:text-ink ${CONTROL_FOCUS}`}
             >
               <Coins className="h-3.5 w-3.5" />
             </button>
@@ -340,7 +312,7 @@ function Line({
       );
     case 'clutch':
       return (
-        <div className={`${ROW} ${TEMPLATE[layout]}`}>
+        <div className={`${ROW} ${HEIGHT} ${TEMPLATE[layout]}`}>
           <Name species={row.species} name={row.name} />
           <span aria-hidden />
           {layout !== 'widget' && <span className={`${FIGURE} ${WIDE}`}>{row.figure}</span>}
@@ -410,7 +382,7 @@ export function RosterEmpty({
         <button
           type="button"
           onClick={onAdd}
-          className="text-accent underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+          className={`text-accent underline-offset-2 hover:underline ${CONTROL_FOCUS}`}
         >
           {verb}
         </button>

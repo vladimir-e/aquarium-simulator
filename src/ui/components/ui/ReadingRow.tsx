@@ -1,5 +1,7 @@
 import React from 'react';
+import { INSET_FOCUS } from './focus';
 import { RangeStrip, TONE_TEXT } from './RangeStrip';
+import { CELL, ROW } from './row';
 import type { StripBand, StripTone } from './strip.js';
 
 const VALUE_SIZE = {
@@ -43,7 +45,7 @@ export function ReadingRow({
 }: ReadingRowProps): React.JSX.Element {
   const body = (
     <>
-      <span className="truncate text-ink-2">{name}</span>
+      <span className={`${CELL} text-ink-2`}>{name}</span>
       <span className={`tabular-nums font-medium ${VALUE_SIZE[size]} ${TONE_TEXT[tone]}`}>
         {value}
         {unit && <span className="ml-0.5 text-[12px] font-normal text-ink-2">{unit}</span>}
@@ -60,8 +62,7 @@ export function ReadingRow({
     </>
   );
 
-  const shape =
-    'grid h-9 w-full grid-cols-[minmax(40px,auto)_84px_minmax(48px,1fr)_minmax(96px,auto)] items-center gap-2.5 border-t border-hairline text-left first:border-t-0';
+  const shape = `${ROW} h-9 grid-cols-[minmax(40px,auto)_84px_minmax(48px,1fr)_minmax(96px,auto)] text-left`;
 
   if (!onClick) return <div className={shape}>{body}</div>;
 
@@ -69,7 +70,7 @@ export function ReadingRow({
     <button
       type="button"
       onClick={onClick}
-      className={`${shape} transition-colors hover:bg-surface-2 focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent`}
+      className={`${shape} transition-colors hover:bg-surface-2 ${INSET_FOCUS}`}
     >
       {body}
     </button>

@@ -3,6 +3,7 @@ import { Fish, LayoutGrid, LineChart, Droplets, Plug, Settings, MoreHorizontal }
 import { NavLink } from 'react-router-dom';
 import { MORE_IDS, SECTIONS, TAB_IDS, type NeedTone, type SectionDef, type SectionId } from '../../nav';
 import { DRAWER_TOGGLE } from '../ui/Drawer';
+import { INSET_FOCUS } from '../ui/focus';
 
 const ICON: Record<SectionId, typeof Fish> = {
   overview: LayoutGrid,
@@ -14,7 +15,7 @@ const ICON: Record<SectionId, typeof Fish> = {
 };
 
 const ITEM =
-  'relative flex flex-col items-center gap-1 rounded-control py-2 text-[10px] leading-3 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent';
+  `relative flex flex-col items-center gap-1 rounded-control py-2 text-[10px] leading-3 transition-colors ${INSET_FOCUS}`;
 
 function tone(active: boolean): string {
   return active ? 'bg-accent-tint text-accent' : 'text-ink-2 hover:text-ink';

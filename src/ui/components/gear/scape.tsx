@@ -18,6 +18,7 @@ import {
 } from '../../build';
 import { DRAWER_TOGGLE } from '../ui/Drawer';
 import { Select } from '../ui/Select';
+import { CONTROL_FOCUS, INSET_FOCUS } from '../ui/focus';
 
 type Sim = ReturnType<typeof useSimulation>;
 
@@ -48,7 +49,7 @@ function AddHardscape({
         type="button"
         aria-expanded={open}
         onClick={() => onOpen(!open)}
-        className="inline-flex h-7 shrink-0 items-center rounded-control border border-hairline px-2.5 text-[13px] text-ink transition-colors hover:bg-surface-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent"
+        className={`inline-flex h-7 shrink-0 items-center rounded-control border border-hairline px-2.5 text-[13px] text-ink transition-colors hover:bg-surface-2 ${CONTROL_FOCUS}`}
       >
         + Hardscape
       </button>
@@ -63,7 +64,7 @@ function AddHardscape({
                 onOpen(false);
                 onPick(type);
               }}
-              className="flex h-9 w-full items-center px-3 text-left text-[13px] text-ink transition-colors hover:bg-surface-2 focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent"
+              className={`flex h-9 w-full items-center px-3 text-left text-[13px] text-ink transition-colors hover:bg-surface-2 ${INSET_FOCUS}`}
             >
               + {getHardscapeName(type)}
             </button>
@@ -122,7 +123,7 @@ export function ScapeRows({
             type="button"
             onClick={() => sim.removeHardscapeItem(row.id)}
             aria-label={`Remove ${row.name}`}
-            className="flex h-6 w-6 items-center justify-center justify-self-center rounded-control text-ink-3 transition-colors hover:text-alert focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent"
+            className={`flex h-6 w-6 items-center justify-center justify-self-center rounded-control text-ink-3 transition-colors hover:text-alert ${CONTROL_FOCUS}`}
           >
             <X className="h-3.5 w-3.5" />
           </button>

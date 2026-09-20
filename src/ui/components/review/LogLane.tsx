@@ -12,6 +12,7 @@ import {
 } from '../../review';
 import { Segmented } from '../ui/Segmented';
 import { VerbButton } from '../ui/VerbButton';
+import { INSET_FOCUS } from '../ui/focus';
 
 const FILTER_OPTIONS = LOG_FILTERS.map((value) => ({ value, label: value }));
 
@@ -96,7 +97,7 @@ export function LogLane({
                   type="button"
                   onClick={() => onPark(log.tick)}
                   aria-current={active}
-                  className={`flex w-full items-baseline gap-2 rounded px-1 py-0.5 text-left font-mono text-[12px] leading-[17px] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent ${
+                  className={`flex w-full items-baseline gap-2 rounded px-1 py-0.5 text-left font-mono text-[12px] leading-[17px] transition-colors ${INSET_FOCUS} ${
                     active ? 'bg-accent-tint' : 'hover:bg-surface-2'
                   }`}
                 >

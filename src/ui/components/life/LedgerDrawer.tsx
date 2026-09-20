@@ -6,6 +6,7 @@ import { Drawer } from '../ui/Drawer';
 import { RangeStrip, TONE_TEXT } from '../ui/RangeStrip';
 import { ReadingRow } from '../ui/ReadingRow';
 import { VerbButton } from '../ui/VerbButton';
+import { CONTROL_FOCUS } from '../ui/focus';
 
 function signed(value: number, sign: '+' | '−'): string {
   return `${sign}${Math.abs(value).toFixed(1)}`;
@@ -165,7 +166,7 @@ export function LedgerDrawer({
             <button
               type="button"
               onClick={onRemove}
-              className="ml-auto h-7 rounded-control px-2.5 text-[13px] text-ink-3 transition-colors hover:text-alert focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent"
+              className={`ml-auto h-7 rounded-control px-2.5 text-[13px] text-ink-3 transition-colors hover:text-alert ${CONTROL_FOCUS}`}
             >
               Remove
             </button>

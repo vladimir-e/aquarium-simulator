@@ -4,6 +4,7 @@ import type { SimulationState } from '../../../simulation/index.js';
 import { BUILD_VERBS, verbRows, type VerbId, type VerbSettings } from '../../actions';
 import { useUnits } from '../../hooks/useUnits';
 import { DRAWER_FOCUS, Drawer } from '../ui/Drawer';
+import { INSET_FOCUS } from '../ui/focus';
 
 const LIST_ID = 'act-verbs';
 
@@ -40,7 +41,7 @@ function Row({
       data-verb={entry.key}
       onClick={entry.choose}
       onMouseMove={onHover}
-      className={`flex h-11 w-full items-center gap-2 border-t border-hairline px-3 text-left transition-colors first:border-t-0 focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent ${
+      className={`flex h-11 w-full items-center gap-2 border-t border-hairline px-3 text-left transition-colors first:border-t-0 ${INSET_FOCUS} ${
         active ? 'bg-surface-2' : ''
       }`}
     >
@@ -138,7 +139,7 @@ export function ActPalette({
             }}
             aria-label="Filter verbs"
             placeholder="Filter verbs"
-            className="h-8 w-full rounded-control border border-hairline bg-surface-2 px-2 text-[13px] text-ink placeholder:text-ink-3 focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-1 focus-visible:outline-accent"
+            className={`h-8 w-full rounded-control border border-hairline bg-surface-2 px-2 text-[13px] text-ink placeholder:text-ink-3 ${INSET_FOCUS}`}
           />
         </div>
 

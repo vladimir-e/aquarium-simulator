@@ -1,14 +1,16 @@
 import React from 'react';
 import { ChevronRight } from 'lucide-react';
-import { Link } from 'react-router-dom';
 import type { DeviceId, EquipmentRow, ScheduleRow } from '../../build';
 import type { useSimulation } from '../../hooks/useSimulation';
 import type { Rack } from '../../readings';
 import { DeviceGlyph } from '../ui/DeviceGlyph';
 import { DRAWER_TOGGLE } from '../ui/Drawer';
+import { CELL, ROW, RowOverlay, WIDE } from '../ui/row';
 import { Toggle } from '../ui/Toggle';
 
 type Sim = ReturnType<typeof useSimulation>;
+
+const HEIGHT = 'h-11';
 
 /** Which callback each device's switch dispatches. */
 const POWER: Record<DeviceId, keyof Sim> = {
@@ -39,18 +41,6 @@ const TEMPLATE: Record<RackLayout, string> = {
   page: 'grid-cols-[26px_16px_minmax(72px,1fr)_minmax(0,1.4fr)_44px] md:grid-cols-[26px_16px_minmax(88px,160px)_minmax(0,460px)_56px_minmax(0,1fr)_16px]',
   widget: 'grid-cols-[26px_16px_88px_minmax(0,1fr)_42px]',
 };
-
-const ROW =
-  'relative grid h-11 w-full items-center gap-2.5 border-t border-hairline first:border-t-0';
-
-const CELL = 'relative pointer-events-none truncate';
-
-/** A column only a tablet-wide stage has room for. */
-const WIDE = 'hidden md:block';
-
-/** The whole row is the link, laid over the cells it reads out. */
-const OVERLAY =
-  'absolute inset-0 transition-colors hover:bg-surface-2 focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent';
 
 /**
  * The biofilter is in the book's rack but not on it: it has no switch and no
@@ -117,9 +107,9 @@ export function DeviceLine({
       role="group"
       aria-label={row.name}
       {...DRAWER_TOGGLE}
-      className={`${ROW} ${TEMPLATE[layout]}`}
+      className={`${ROW} ${HEIGHT} ${TEMPLATE[layout]}`}
     >
-      <Link to={`/gear/${row.id}`} aria-label={`${row.name} — ${row.summary}`} className={OVERLAY} />
+      <RowOverlay to={`/gear/${row.id}`} label={`${row.name} — ${row.summary}`} />
       <span className="relative">
         <Toggle
           checked={row.on}
@@ -168,11 +158,10 @@ export function shownInPlace(entry: RackEntry): boolean {
 /** The one row that stands for all of them. */
 export function OthersLine({ off }: { off: RackEntry[] }): React.JSX.Element {
   return (
-    <div className={`${ROW} ${TEMPLATE.widget}`}>
-      <Link
+    <div className={`${ROW} ${HEIGHT} ${TEMPLATE.widget}`}>
+      <RowOverlay
         to="/gear"
-        aria-label={`Others — ${off.map((entry) => entry.row.name.toLowerCase()).join(', ')} off`}
-        className={OVERLAY}
+        label={`Others — ${off.map((entry) => entry.row.name.toLowerCase()).join(', ')} off`}
       />
       <span aria-hidden />
       <span aria-hidden />

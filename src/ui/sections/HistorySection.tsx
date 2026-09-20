@@ -9,6 +9,7 @@ import type { useSimulation } from '../hooks/useSimulation';
 import { useTimeline } from '../hooks/useTimeline';
 import { useUnits } from '../hooks/useUnits';
 import { dayNumber } from '../utils/clock';
+import { CONTROL_FOCUS, INSET_FOCUS } from '../components/ui/focus';
 import {
   nextScrubPosition,
   readFilter,
@@ -99,7 +100,7 @@ export function HistorySection({
         <div className="flex flex-col gap-2 md:min-h-0">
           <div
             {...scrub.surface('History timeline')}
-            className="flex cursor-ew-resize touch-none flex-col gap-3 focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent md:min-h-0 md:flex-1"
+            className={`flex cursor-ew-resize touch-none flex-col gap-3 ${INSET_FOCUS} md:min-h-0 md:flex-1`}
           >
             {TRACKS.map((def) => (
               <div key={def.id} className="flex flex-col gap-1 max-md:h-24 md:min-h-0 md:flex-1">
@@ -127,7 +128,7 @@ export function HistorySection({
           {/* The axis spans the same width as the tracks, so one tick is one x. */}
           <div
             {...scrub.surface('History axis')}
-            className="shrink-0 cursor-ew-resize touch-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+            className={`shrink-0 cursor-ew-resize touch-none ${CONTROL_FOCUS}`}
           >
             <TimeAxis
               range={range}

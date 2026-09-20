@@ -1,4 +1,5 @@
 import React from 'react';
+import { CONTROL_FOCUS } from './focus';
 
 interface ConfirmDialogProps {
   isOpen: boolean;
@@ -35,14 +36,14 @@ export function ConfirmDialog({
           <button
             type="button"
             onClick={onCancel}
-            className="rounded-control border border-hairline bg-surface px-3 py-1.5 text-[13px] font-medium text-ink-2 transition-colors hover:bg-surface-2 hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+            className={`rounded-control border border-hairline bg-surface px-3 py-1.5 text-[13px] font-medium text-ink-2 transition-colors hover:bg-surface-2 hover:text-ink ${CONTROL_FOCUS}`}
           >
             {cancelLabel}
           </button>
           <button
             type="button"
             onClick={onConfirm}
-            className="rounded-control bg-accent px-3 py-1.5 text-[13px] font-medium text-accent-ink transition-colors hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+            className={`rounded-control bg-accent px-3 py-1.5 text-[13px] font-medium text-accent-ink transition-colors hover:opacity-90 ${CONTROL_FOCUS}`}
           >
             {confirmLabel}
           </button>

@@ -1,4 +1,5 @@
 import React from 'react';
+import { CONTROL_FOCUS } from './focus';
 
 /**
  * A verb where the thing it moves is read. The same control appears in the Act
@@ -21,7 +22,7 @@ export function VerbButton({
     <button
       type="button"
       onClick={onClick}
-      className={`inline-flex h-7 shrink-0 items-center rounded-control px-2.5 text-[13px] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent ${
+      className={`inline-flex h-7 shrink-0 items-center rounded-control px-2.5 text-[13px] transition-colors ${CONTROL_FOCUS} ${
         hot
           ? 'bg-accent-tint font-medium text-accent'
           : 'border border-hairline text-ink hover:bg-surface-2'

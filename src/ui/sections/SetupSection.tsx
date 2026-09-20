@@ -25,6 +25,7 @@ import {
 } from '../build';
 import { TICKS_PER_DAY, formatDayClock, formatElapsed } from '../utils/clock';
 import { formatVolume, getTankSizeOptions } from '../utils/units';
+import { CONTROL_FOCUS } from '../components/ui/focus';
 
 const DOCS_URL = 'https://docs.fishroom.app';
 const REPO_URL = 'https://github.com/vladimir-e/aquarium-simulator';
@@ -44,7 +45,7 @@ const THEME_OPTIONS: { value: ThemeMode; label: string }[] = [
 ];
 
 const LINK =
-  'text-[13px] text-accent underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent';
+  `text-[13px] text-accent underline-offset-2 hover:underline ${CONTROL_FOCUS}`;
 
 /** A row whose right-hand side is a figure rather than a control. */
 function Figure({ children }: { children: React.ReactNode }): React.JSX.Element {

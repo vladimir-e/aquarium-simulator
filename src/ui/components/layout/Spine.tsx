@@ -11,6 +11,7 @@ import { useUnits } from '../../hooks/useUnits';
 import { Track, TrackCaption, TimeAxis } from '../review/Track';
 import { Segmented } from '../ui/Segmented';
 import { dayNumber } from '../../utils/clock';
+import { CONTROL_FOCUS, INSET_FOCUS } from '../ui/focus';
 
 const PAIR_OPTIONS = TRACK_PAIRS.map((pair) => ({ value: pair.id, label: pair.label }));
 
@@ -69,7 +70,7 @@ export function Spine({ history, logs, schedule }: SpineProps): React.JSX.Elemen
       {expanded && (
         <div
           {...scrub.surface('Timeline charts')}
-          className="flex min-h-0 flex-1 cursor-ew-resize touch-none flex-col gap-1.5 focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent"
+          className={`flex min-h-0 flex-1 cursor-ew-resize touch-none flex-col gap-1.5 ${INSET_FOCUS}`}
         >
           {shown.map((def) => (
             <div key={def.id} className="flex min-h-0 flex-1 flex-col gap-0.5">
@@ -97,7 +98,7 @@ export function Spine({ history, logs, schedule }: SpineProps): React.JSX.Elemen
       {/* The axis spans the same width as the tracks, so one tick is one x. */}
       <div
         {...scrub.surface('Run timeline')}
-        className="shrink-0 cursor-ew-resize touch-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+        className={`shrink-0 cursor-ew-resize touch-none ${CONTROL_FOCUS}`}
       >
         <TimeAxis
           range={range}
@@ -122,7 +123,7 @@ export function Spine({ history, logs, schedule }: SpineProps): React.JSX.Elemen
           type="button"
           onClick={toggle}
           aria-expanded={open}
-          className="flex shrink-0 items-center gap-1 text-ink-2 transition-colors hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+          className={`flex shrink-0 items-center gap-1 text-ink-2 transition-colors hover:text-ink ${CONTROL_FOCUS}`}
         >
           {open ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronUp className="h-3.5 w-3.5" />}
           charts
@@ -131,7 +132,7 @@ export function Spine({ history, logs, schedule }: SpineProps): React.JSX.Elemen
         <Link
           to={{ pathname: HISTORY_PATH, search: params.toString() }}
           aria-label="History module"
-          className="shrink-0 text-ink-2 transition-colors hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent max-md:hidden"
+          className={`shrink-0 text-ink-2 transition-colors hover:text-ink ${CONTROL_FOCUS} max-md:hidden`}
         >
           history
         </Link>

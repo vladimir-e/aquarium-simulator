@@ -6,6 +6,7 @@ import { useConfig } from '../../hooks/useConfig';
 import { Drawer } from '../ui/Drawer';
 import { FieldRow } from '../ui/FieldRow';
 import { VerbButton } from '../ui/VerbButton';
+import { CONTROL_FOCUS, INSET_FOCUS } from '../ui/focus';
 
 /** Says a value stands off stock — beside the field, and on its section. */
 function ModifiedDot({ on }: { on: boolean }): React.JSX.Element {
@@ -76,7 +77,7 @@ function Field({
         step={field.step}
         min={range?.min}
         max={range?.max}
-        className={`w-24 rounded-control border bg-surface-2 px-2 py-1 text-right font-mono text-[12px] tabular-nums focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent ${
+        className={`w-24 rounded-control border bg-surface-2 px-2 py-1 text-right font-mono text-[12px] tabular-nums ${CONTROL_FOCUS} ${
           field.modified ? 'border-accent text-accent' : 'border-hairline text-ink'
         }`}
       />
@@ -149,7 +150,7 @@ export function TunablesDrawer({
                     type="button"
                     onClick={() => toggle(section.key)}
                     aria-expanded={isOpen}
-                    className="flex min-w-0 flex-1 items-center gap-1.5 py-2 text-left focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent"
+                    className={`flex min-w-0 flex-1 items-center gap-1.5 py-2 text-left ${INSET_FOCUS}`}
                   >
                     <Chevron aria-hidden className="h-3.5 w-3.5 shrink-0 text-ink-3" />
                     <h3 className="truncate text-[13px] font-medium">{section.label}</h3>
