@@ -12,11 +12,11 @@ export {
 } from './devices.js';
 export {
   type DaySpan,
-  type ScheduleBand,
+  type RackSchedules,
   type ScheduleRow,
   type ScheduledDeviceId,
   hourLabel,
-  scheduleBand,
+  rackSchedules,
   scheduleEnd,
   scheduleHours,
   scheduleRange,

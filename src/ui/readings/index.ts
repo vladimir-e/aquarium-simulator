@@ -20,9 +20,9 @@ import type { TunableConfig } from '../../simulation/config/index.js';
 import type { StripBand, StripTone } from '../components/ui/RangeStrip';
 import {
   equipmentRows,
-  scheduleBand,
+  rackSchedules,
   type EquipmentRow,
-  type ScheduleBand,
+  type RackSchedules,
 } from '../build';
 import {
   algaeRow,
@@ -141,7 +141,7 @@ export interface Roster {
 /** The rack, and the clock the scheduled devices keep. */
 export interface Rack {
   devices: EquipmentRow[];
-  schedules: ScheduleBand;
+  schedules: RackSchedules;
 }
 
 /** The millilitre that moves the plant foods, and how many of them it takes. */
@@ -537,7 +537,7 @@ export function readTank({ state, config, history, units }: TankInput): ReadingB
     },
     rack: {
       devices: equipmentRows(state, bacteria, units),
-      schedules: scheduleBand(state),
+      schedules: rackSchedules(state),
     },
     dose: {
       advice: doseToCover(nutrients, state, config),

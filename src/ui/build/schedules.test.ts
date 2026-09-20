@@ -8,7 +8,7 @@ import {
 import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
 import {
   hourLabel,
-  scheduleBand,
+  rackSchedules,
   scheduleEnd,
   scheduleHours,
   scheduleRange,
@@ -108,14 +108,14 @@ describe('editing a schedule on its ends', () => {
   });
 });
 
-describe('scheduleBand', () => {
+describe('rackSchedules', () => {
   it('puts the cursor on the tank’s hour of day', () => {
-    expect(scheduleBand(base).hour).toBe(0);
-    expect(scheduleBand(atHour(14)).hour).toBe(14);
+    expect(rackSchedules(base).hour).toBe(0);
+    expect(rackSchedules(atHour(14)).hour).toBe(14);
   });
 
-  it('carries the three scheduled devices, in band order', () => {
-    expect(scheduleBand(base).rows.map((r) => r.id)).toEqual([
+  it('carries the three scheduled devices, in rack order', () => {
+    expect(rackSchedules(base).rows.map((r) => r.id)).toEqual([
       'light',
       'co2Generator',
       'autoDoser',
@@ -124,7 +124,7 @@ describe('scheduleBand', () => {
 
   it('marks the light active only while its photoperiod covers the hour', () => {
     const light = (state: SimulationState): boolean =>
-      scheduleBand(state).rows[0].active;
+      rackSchedules(state).rows[0].active;
     // Default photoperiod is 08:00–18:00.
     expect(light(atHour(7))).toBe(false);
     expect(light(atHour(9))).toBe(true);
@@ -139,20 +139,18 @@ describe('scheduleBand', () => {
         autoDoser: { ...base.equipment.autoDoser, enabled: true },
       },
     };
-    const row = scheduleBand(dosing).rows[2];
+    const row = rackSchedules(dosing).rows[2];
     expect(row.spans).toEqual([{ from: 8 / 24, to: 9 / 24 }]);
-    expect(row.detail).toBe('08:00 · 2.0 ml');
-    expect(scheduleBand(atHour(8, dosing)).rows[2].active).toBe(true);
-    expect(scheduleBand(atHour(9, dosing)).rows[2].active).toBe(false);
+    expect(row.hours).toBe('08:00');
+    expect(rackSchedules(atHour(8, dosing)).rows[2].active).toBe(true);
+    expect(rackSchedules(atHour(9, dosing)).rows[2].active).toBe(false);
   });
 
-  it('states what an off device would do instead of plotting it', () => {
-    const row = scheduleBand(base).rows[1];
+  it('plots nothing for a device that is off, and claims no hours for it', () => {
+    const row = rackSchedules(base).rows[1];
     expect(row.enabled).toBe(false);
     expect(row.spans).toEqual([]);
     expect(row.hours).toBe('');
-    expect(row.detail).toBe('off · would run 07:00–17:00');
-    expect(scheduleBand(base).rows[2].detail).toBe('off · would dose at 08:00');
-    expect(scheduleBand(base).rows[2].hours).toBe('');
+    expect(rackSchedules(base).rows[2].hours).toBe('');
   });
 });
