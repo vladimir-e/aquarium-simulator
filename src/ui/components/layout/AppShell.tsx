@@ -109,7 +109,7 @@ export function AppShell({ sim, config }: AppShellProps): React.JSX.Element {
       '⌘k': (): void => onAct(),
       '⌘,': toggleTunables,
     }),
-    [sim, onAct, toggleTunables]
+    [sim.isPlaying, sim.togglePlayPause, sim.step, onAct, toggleTunables]
   );
   useKeyboardShortcuts(shortcuts);
 
