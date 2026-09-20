@@ -48,6 +48,29 @@ function read({ state, history }: Run, units: 'metric' | 'imperial' = 'metric'):
 }
 
 describe('readTank', () => {
+  it('captions the tank on the two devices that change what it is', () => {
+    const { state, history } = bare();
+    const caption = (heater: boolean, ato: boolean): string =>
+      readTank({
+        state: {
+          ...state,
+          equipment: {
+            ...state.equipment,
+            heater: { ...state.equipment.heater, enabled: heater },
+            ato: { ...state.equipment.ato, enabled: ato },
+          },
+        },
+        config: DEFAULT_CONFIG,
+        history,
+        units: 'metric',
+      }).caption;
+
+    expect(caption(true, true)).toBe('heater on · ATO on');
+    expect(caption(true, false)).toBe('heater on · ATO off');
+    expect(caption(false, true)).toBe('no heater · ATO on');
+    expect(caption(false, false)).toBe('no heater · ATO off');
+  });
+
   it('bands temperature and pH on what is stocked, and not at all when nothing is', () => {
     expect(read(stocked()).byId.temperature.band).not.toBeNull();
     expect(read(stocked()).byId.ph.band).not.toBeNull();

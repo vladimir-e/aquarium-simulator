@@ -56,6 +56,7 @@ export function RangeStrip({
     <span aria-hidden className={`relative block h-1 bg-surface-2 ${className}`}>
       {band && (
         <span
+          data-band
           className="absolute inset-y-0 bg-band"
           style={{ left: `${from * 100}%`, width: `${(to - from) * 100}%` }}
         />

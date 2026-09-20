@@ -1,77 +1,19 @@
 import { describe, it, expect, afterEach, vi } from 'vitest';
-import { render, screen, cleanup, fireEvent, within } from '@testing-library/react';
-import { MemoryRouter, Outlet, Route, Routes } from 'react-router-dom';
+import { screen, cleanup, fireEvent, within } from '@testing-library/react';
 import { WaterSection } from './WaterSection';
-import { ThemeProvider } from '../hooks/useTheme';
-import { UnitsProvider } from '../hooks/useUnits';
-import { PersistenceProvider } from '../persistence/index.js';
-import { snapshotFromState, type RunSnapshot } from '../run/index.js';
+import { bare, stocked, type Run } from '../test/run';
+import { group, renderStage, row } from '../test/stage';
 import { stubSim } from '../test/stubSim';
 import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
-import {
-  applyAction,
-  createSimulation,
-  tick,
-  type SimulationState,
-} from '../../simulation/index.js';
-import type { useSimulation } from '../hooks/useSimulation';
+import { createSimulation } from '../../simulation/index.js';
 
 afterEach(cleanup);
 
-interface Run {
-  state: SimulationState;
-  history: RunSnapshot[];
-}
-
-function bare(state: SimulationState = createSimulation({ tankCapacity: 200 })): Run {
-  return { state, history: [snapshotFromState(state)] };
-}
-
-/** Ten days of a stocked, planted, fed tank — every section has real figures. */
-function stocked(): Run {
-  let state = createSimulation({ tankCapacity: 200 });
-  for (let i = 0; i < 6; i++) {
-    state = applyAction(state, { type: 'addFish', species: 'neon_tetra' }).state;
-  }
-  for (let i = 0; i < 2; i++) {
-    state = applyAction(state, { type: 'addPlant', species: 'anubias' }).state;
-  }
-
-  const history = [snapshotFromState(state)];
-  for (let hour = 0; hour < 24 * 10; hour++) {
-    if (hour % 24 === 0) state = applyAction(state, { type: 'feed', amount: 0.5 }).state;
-    state = tick(state, DEFAULT_CONFIG);
-    history.push(snapshotFromState(state));
-  }
-  return { state, history };
-}
-
 function renderWater(run: Run = bare()): { onAct: ReturnType<typeof vi.fn> } {
-  const sim = stubSim(run.state) as ReturnType<typeof useSimulation> & { history: RunSnapshot[] };
-  Object.assign(sim, { history: run.history });
   const onAct = vi.fn();
-
-  render(
-    <ThemeProvider>
-      <PersistenceProvider>
-        <UnitsProvider>
-          <MemoryRouter>
-            <Routes>
-              <Route element={<Outlet context={{ needs: [], onAct }} />}>
-                <Route index element={<WaterSection sim={sim} config={DEFAULT_CONFIG} />} />
-              </Route>
-            </Routes>
-          </MemoryRouter>
-        </UnitsProvider>
-      </PersistenceProvider>
-    </ThemeProvider>
-  );
+  const sim = stubSim(run.state, run.history);
+  renderStage(<WaterSection sim={sim} config={DEFAULT_CONFIG} />, { onAct });
   return { onAct };
-}
-
-/** A reading row, found by the name it leads with. */
-function row(name: string): HTMLElement {
-  return screen.getByRole('button', { name: new RegExp(`^${name} `) });
 }
 
 describe('WaterSection', () => {
@@ -91,9 +33,6 @@ describe('WaterSection', () => {
   it('names every reading the tank takes, each in its own section', () => {
     renderWater(stocked());
 
-    const section = (title: string): HTMLElement =>
-      screen.getByRole('heading', { level: 2, name: title }).parentElement!;
-
     for (const [title, names] of [
       ['Water', ['Temp', 'pH', 'Level']],
       ['Gases', ['O₂', 'CO₂']],
@@ -101,7 +40,7 @@ describe('WaterSection', () => {
       ['Nitrogen', ['NH₃', 'NO₂', 'NO₃']],
     ] as const) {
       for (const name of names) {
-        expect(within(section(title)).getByText(name)).toBeTruthy();
+        expect(within(group(title)).getByText(name)).toBeTruthy();
       }
     }
   });
@@ -121,35 +60,47 @@ describe('WaterSection', () => {
     renderWater(stocked());
     expect(screen.queryByRole('dialog')).toBeNull();
 
-    fireEvent.click(row('NH₃'));
+    fireEvent.click(row('Nitrogen', 'NH₃'));
     const drawer = screen.getByRole('dialog', { name: 'NH₃' });
     expect(within(drawer).getByText(/Safe at or under/)).toBeTruthy();
 
-    fireEvent.click(row('Temp'));
+    fireEvent.click(row('Water', 'Temp'));
     expect(screen.getByRole('dialog', { name: 'Temp' })).toBeTruthy();
   });
 
   it('leaves temperature unbanded until something in the tank prefers one', () => {
     renderWater();
-    expect(row('Temp').querySelector('.bg-band')).toBeNull();
+    expect(row('Water', 'Temp').querySelector('[data-band]')).toBeNull();
 
     cleanup();
     renderWater(stocked());
-    expect(row('Temp').querySelector('.bg-band')).toBeTruthy();
+    expect(row('Water', 'Temp').querySelector('[data-band]')).toBeTruthy();
   });
 
   it('states the band at the precision the reading is read to', () => {
     renderWater(stocked());
-    fireEvent.click(row('Temp'));
+    fireEvent.click(row('Water', 'Temp'));
 
     const drawer = screen.getByRole('dialog', { name: 'Temp' });
     expect(within(drawer).getByText(/^\d+\.\d–\d+\.\d°[CF] — the span/)).toBeTruthy();
   });
 
+  it('opens the toxin from the cycle’s NO₃ and the plant food from the nutrients’', () => {
+    renderWater(stocked());
+
+    fireEvent.click(row('Nitrogen', 'NO₃'));
+    const toxin = screen.getByRole('dialog', { name: 'NO₃' });
+    expect(within(toxin).getByText(/the engine alerts over/)).toBeTruthy();
+    fireEvent.click(within(toxin).getByRole('button', { name: 'Close NO₃' }));
+
+    fireEvent.click(row('Nutrients', 'NO₃'));
+    expect(within(screen.getByRole('dialog', { name: 'NO₃' })).getByText(/Plants ask for/)).toBeTruthy();
+  });
+
   it('carries the biofilter, its guilds and where the nitrite peak falls', () => {
     renderWater();
 
-    const biofilter = screen.getByRole('heading', { level: 2, name: 'Biofilter' }).closest('section')!;
+    const biofilter = group('Biofilter');
     expect(within(biofilter).getByText('uncycled')).toBeTruthy();
     expect(within(biofilter).getByText('AOB')).toBeTruthy();
     expect(within(biofilter).getByText('NOB')).toBeTruthy();
@@ -160,7 +111,7 @@ describe('WaterSection', () => {
   it('names every waste source, substrate included, on an unstocked soil tank', () => {
     renderWater(bare(createSimulation({ tankCapacity: 200, substrate: { type: 'aqua_soil' } })));
 
-    const waste = screen.getByRole('heading', { level: 2, name: 'Waste' }).closest('section')!;
+    const waste = group('Waste');
     for (const label of ['Food decay', 'Fish', 'Plants', 'Substrate']) {
       expect(within(waste).getByText(label)).toBeTruthy();
     }
@@ -169,7 +120,7 @@ describe('WaterSection', () => {
 
   it('prints a flow arm under its own precision as none rather than a signed zero', () => {
     renderWater();
-    fireEvent.click(row('Waste'));
+    fireEvent.click(row('Waste', 'Waste'));
 
     const drawer = screen.getByRole('dialog', { name: 'Waste' });
     expect(within(drawer).queryByText(/[+−]0\.000 g\/h/)).toBeNull();

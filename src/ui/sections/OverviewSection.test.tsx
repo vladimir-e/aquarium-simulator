@@ -1,80 +1,27 @@
 import { describe, it, expect, afterEach, vi } from 'vitest';
-import { render, screen, cleanup, fireEvent, within } from '@testing-library/react';
-import { MemoryRouter, Outlet, Route, Routes } from 'react-router-dom';
+import { screen, cleanup, fireEvent, within } from '@testing-library/react';
 import { OverviewSection } from './OverviewSection';
 import { activeNeeds } from '../nav';
-import { ThemeProvider } from '../hooks/useTheme';
-import { UnitsProvider } from '../hooks/useUnits';
-import { PersistenceProvider } from '../persistence/index.js';
-import { snapshotFromState, type RunSnapshot } from '../run/index.js';
+import { bare, stocked, type Run } from '../test/run';
+import { renderStage } from '../test/stage';
 import { stubSim } from '../test/stubSim';
 import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
-import {
-  applyAction,
-  createSimulation,
-  tick,
-  type AlertState,
-  type SimulationState,
-} from '../../simulation/index.js';
+import type { AlertState } from '../../simulation/index.js';
 import type { useSimulation } from '../hooks/useSimulation';
 
 afterEach(cleanup);
-
-interface Run {
-  state: SimulationState;
-  history: RunSnapshot[];
-}
-
-function bare(): Run {
-  const state = createSimulation({ tankCapacity: 200 });
-  return { state, history: [snapshotFromState(state)] };
-}
-
-/** Ten days of a stocked, planted, fed tank — every widget has real figures. */
-function stocked(): Run {
-  let state = createSimulation({ tankCapacity: 200 });
-  for (let i = 0; i < 6; i++) {
-    state = applyAction(state, { type: 'addFish', species: 'neon_tetra' }).state;
-  }
-  for (let i = 0; i < 2; i++) {
-    state = applyAction(state, { type: 'addPlant', species: 'anubias' }).state;
-  }
-
-  const history = [snapshotFromState(state)];
-  for (let hour = 0; hour < 24 * 10; hour++) {
-    if (hour % 24 === 0) state = applyAction(state, { type: 'feed', amount: 0.5 }).state;
-    state = tick(state, DEFAULT_CONFIG);
-    history.push(snapshotFromState(state));
-  }
-  return { state, history };
-}
 
 function renderOverview(
   run: Run = bare(),
   flags: Partial<AlertState> = {}
 ): ReturnType<typeof useSimulation> {
   const state = { ...run.state, alertState: { ...run.state.alertState, ...flags } };
-  const sim = stubSim(state) as ReturnType<typeof useSimulation> & { history: RunSnapshot[] };
-  Object.assign(sim, { history: run.history });
+  const sim = stubSim(state, run.history);
 
-  render(
-    <ThemeProvider>
-      <PersistenceProvider>
-        <UnitsProvider>
-          <MemoryRouter>
-            <Routes>
-              <Route element={<Outlet context={{ needs: activeNeeds(state), onAct: vi.fn() }} />}>
-                <Route
-                  index
-                  element={<OverviewSection sim={sim} config={DEFAULT_CONFIG} />}
-                />
-              </Route>
-            </Routes>
-          </MemoryRouter>
-        </UnitsProvider>
-      </PersistenceProvider>
-    </ThemeProvider>
-  );
+  renderStage(<OverviewSection sim={sim} config={DEFAULT_CONFIG} />, {
+    needs: activeNeeds(state),
+    onAct: vi.fn(),
+  });
   return sim;
 }
 
