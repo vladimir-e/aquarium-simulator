@@ -1,10 +1,10 @@
 import React from 'react';
 import type { TunableConfig } from '../../../simulation/config/index.js';
-import { ratePerHour, type ReadingBook, type ReadingId, type ReadingView } from '../../readings';
-import { bacteriaSummary, colonyCount, cycleWord, type Colony } from '../../run';
+import type { ReadingBook, ReadingId, ReadingView } from '../../readings';
+import { bacteriaSummary, cycleWord } from '../../run';
 import { TONE_TEXT } from '../ui/RangeStrip';
-import { ReadingRow } from '../ui/ReadingRow';
 import { Widget } from '../ui/Widget';
+import { ColonyRows } from '../water/rows';
 
 type ChainId = Extract<ReadingId, 'waste' | 'ammonia' | 'nitrite' | 'nitrate'>;
 
@@ -36,27 +36,6 @@ function Stock({
   );
 }
 
-function ColonyRow({
-  name,
-  colony,
-  throughput,
-}: {
-  name: string;
-  colony: Colony;
-  throughput: string;
-}): React.JSX.Element {
-  const { pct } = colony;
-  return (
-    <ReadingRow
-      name={name}
-      value={colonyCount(colony.count)}
-      unit="cells"
-      trend={throughput}
-      note={`${pct > 0 && pct < 1 ? '<1' : Math.round(pct)} % of ceiling`}
-    />
-  );
-}
-
 interface NitrogenWidgetProps {
   book: ReadingBook;
   config: TunableConfig;
@@ -76,7 +55,6 @@ export function NitrogenWidget({
   className,
 }: NitrogenWidgetProps): React.JSX.Element {
   const { bacteria, byId } = book;
-  const { rates } = bacteria;
 
   // Nitrate is the one stock whose balance the run layer cannot close — plants
   // and water changes take it out from outside the cycle — so a stock with no
@@ -110,16 +88,7 @@ export function NitrogenWidget({
       </div>
 
       <div className="mt-1 border-t border-hairline pt-0.5">
-        <ColonyRow
-          name="AOB"
-          colony={bacteria.aob}
-          throughput={ratePerHour(rates.ammoniaToNitrite, 'ppm')}
-        />
-        <ColonyRow
-          name="NOB"
-          colony={bacteria.nob}
-          throughput={ratePerHour(rates.nitriteToNitrate, 'ppm')}
-        />
+        <ColonyRows bacteria={bacteria} />
       </div>
     </Widget>
   );

@@ -33,12 +33,10 @@ export {
   gaugeFill,
   gaugeValues,
   gasReadings,
-  waterAlert,
   waterGauges,
   type GaugeKey,
   type GasKey,
   type GasReading,
-  type VitalReading,
   type WaterGauge,
 } from './gauges.js';
 export {

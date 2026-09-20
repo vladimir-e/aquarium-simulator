@@ -47,7 +47,7 @@ export function OverviewSection({
             className="col-span-2 max-md:col-span-1"
           />
           <LifeWidget book={book} state={state} onOpenReading={setReading} onAct={onAct} />
-          <WaterWidget book={book} state={state} onOpenReading={setReading} onAct={onAct} />
+          <WaterWidget book={book} onOpenReading={setReading} onAct={onAct} />
           <GearWidget book={book} sim={sim} />
           <NutrientsWidget book={book} state={state} onOpenReading={setReading} onAct={onAct} />
         </div>

@@ -58,7 +58,11 @@ import {
   type WaterGauge,
   NITRATE_LOW_PPM,
 } from '../run';
-import { formatTemperature, toDisplayTemperature, type UnitSystem } from '../utils/units.js';
+import {
+  formatTemperatureRange,
+  toDisplayTemperature,
+  type UnitSystem,
+} from '../utils/units.js';
 
 export type ReadingId =
   | 'waste'
@@ -129,6 +133,8 @@ export interface Dosing {
 }
 
 export interface ReadingBook {
+  /** What the tank is running on, for the line beside a title. */
+  caption: string;
   byId: Record<ReadingId, ReadingView>;
   /**
    * The four plant foods banded on demand rather than on an alert line — the
@@ -284,9 +290,15 @@ export type RateUnit = 'ppm' | 'g';
 
 const RATE_DECIMALS: Record<RateUnit, number> = { ppm: 4, g: 3 };
 
-/** A signed hourly rate, at the precision its unit is read to. */
+/**
+ * A signed hourly rate, at the precision its unit is read to — or `steady`,
+ * where the movement is under that precision and a sign would be the only
+ * thing left of it.
+ */
 export function ratePerHour(value: number, unit: RateUnit): string {
-  return `${value >= 0 ? '+' : '−'}${Math.abs(value).toFixed(RATE_DECIMALS[unit])} ${unit}/h`;
+  const decimals = RATE_DECIMALS[unit];
+  if (Math.abs(value) < 0.5 / 10 ** decimals) return 'steady';
+  return `${value >= 0 ? '+' : '−'}${Math.abs(value).toFixed(decimals)} ${unit}/h`;
 }
 
 /** A nutrient banded on what the plants ask for, rather than on an alert line. */
@@ -324,7 +336,7 @@ function nutrientView(
  */
 export function readTank({ state, config, history, units }: TankInput): ReadingBook {
   const tape = tapeOf(history, units);
-  const gauges = waterGauges({ state, phConfig: config.ph, history, units });
+  const gauges = waterGauges(state, units);
   const gases = gasReadings(state);
   const nutrients = nutrientReadings(state, config);
   const bacteria = bacteriaReadout(state, config);
@@ -399,9 +411,7 @@ export function readTank({ state, config, history, units }: TankInput): ReadingB
       tone: toneOf(toleranceStatus(gauge('temperature').value, tempBand)),
       sentence: toleranceSentence(
         tempBand,
-        tempBand
-          ? `${formatTemperature(tempBand.min, units, 0)}–${formatTemperature(tempBand.max, units, 0)}`
-          : '',
+        tempBand ? formatTemperatureRange([tempBand.min, tempBand.max], units, 1) : '',
         'Nothing stocked, so nothing in the tank has a temperature to prefer.'
       ),
     }),
@@ -474,6 +484,10 @@ export function readTank({ state, config, history, units }: TankInput): ReadingB
   const demand = nutrients.map((reading) => nutrientView(reading.key, reading, tape));
 
   return {
+    caption: [
+      state.equipment.heater.enabled ? 'heater on' : 'no heater',
+      state.equipment.ato.enabled ? 'ATO on' : 'ATO off',
+    ].join(' · '),
     byId,
     demand,
     nutrients,

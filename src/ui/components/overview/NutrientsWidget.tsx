@@ -2,7 +2,7 @@ import React from 'react';
 import type { SimulationState } from '../../../simulation/index.js';
 import type { ReadingBook, ReadingId } from '../../readings';
 import { nutrientAlert } from '../../run';
-import { ReadingRow } from '../ui/ReadingRow';
+import { NutrientRows } from '../water/rows';
 import { VerbButton } from '../ui/VerbButton';
 import { Widget } from '../ui/Widget';
 
@@ -47,19 +47,7 @@ export function NutrientsWidget({
         </>
       }
     >
-      {book.demand.map((reading) => (
-        <ReadingRow
-          key={reading.id}
-          name={reading.name}
-          value={reading.value}
-          unit={reading.unit}
-          at={reading.at}
-          band={reading.band}
-          tone={reading.tone}
-          note={reading.need}
-          onClick={() => onOpenReading(reading.id)}
-        />
-      ))}
+      <NutrientRows book={book} onOpen={onOpenReading} />
     </Widget>
   );
 }
