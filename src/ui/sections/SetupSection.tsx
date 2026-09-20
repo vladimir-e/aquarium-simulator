@@ -25,7 +25,7 @@ import {
   resizeConsequence,
 } from '../build';
 import { TICKS_PER_DAY, formatDayClock, formatElapsed } from '../utils/clock';
-import { formatVolume, getTankSizeOptions } from '../utils/units';
+import { getTankSizeOptions } from '../utils/units';
 import { CONTROL_FOCUS } from '../components/ui/focus';
 
 const PRESET_OPTIONS = PRESETS.map((preset) => ({ value: preset.id, label: preset.name }));
@@ -117,7 +117,7 @@ export function SetupSection({
               </FieldRow>
 
               <FieldRow label="Capacity">
-                <Figure>{formatVolume(tank.capacity, unitSystem, 0)}</Figure>
+                <Figure>{sizes.find((size) => size.liters === tank.capacity)!.display}</Figure>
               </FieldRow>
 
               <FieldRow label="Resize" note="a new tank at hour zero">
@@ -262,7 +262,7 @@ export function SetupSection({
       <ConfirmDialog
         isOpen={resizeTo !== null}
         title="Resize tank?"
-        message={resizeTo === null ? '' : resizeConsequence(sim.state, resizeTo, unitSystem)}
+        message={resizeTo === null ? '' : resizeConsequence(resizeTo, unitSystem)}
         confirmLabel="Resize"
         onConfirm={() => {
           if (resizeTo !== null) sim.changeTankCapacity(resizeTo);

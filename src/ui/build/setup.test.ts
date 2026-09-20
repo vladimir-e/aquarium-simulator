@@ -219,34 +219,12 @@ describe('LID_TYPES', () => {
 });
 
 describe('resizeConsequence', () => {
-  const tank = presetTank('planted');
-
   it('names the new size and everything the rebuild costs', () => {
-    const said = resizeConsequence(tank, 150, 'metric');
+    const said = resizeConsequence(150, 'metric');
 
     expect(said).toContain('Rebuilding at 150 L');
     expect(said).toContain('hour zero');
     expect(said).toMatch(/biofilter/);
-    expect(resizeConsequence(tank, 150, 'imperial')).toContain('40 gal');
-  });
-
-  it('counts the hardscape the new slots cannot hold', () => {
-    const packed = {
-      ...tank,
-      equipment: {
-        ...tank.equipment,
-        hardscape: {
-          ...tank.equipment.hardscape,
-          items: Array.from({ length: 6 }, (_, i) => ({
-            ...tank.equipment.hardscape.items[0],
-            id: `h${i}`,
-          })),
-        },
-      },
-    };
-
-    // 4 L holds two slots, so four of the six go with the rebuild.
-    expect(resizeConsequence(packed, 4, 'metric')).toContain('4 hardscape pieces past the 2 slots');
-    expect(resizeConsequence(packed, 150, 'metric')).not.toContain('hardscape');
+    expect(resizeConsequence(150, 'imperial')).toContain('40 gal');
   });
 });

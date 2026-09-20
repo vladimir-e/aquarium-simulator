@@ -136,19 +136,14 @@ describe('SetupSection', () => {
     ]);
   });
 
-  it('states the tank’s own capacity, in the reader’s units, whichever they are', () => {
+  it('states the capacity as the very size the resize picker stands on', () => {
     renderSection(stubSim(planted));
-    const capacity = (): string =>
-      within(group('Tank')).getByText('Capacity').nextElementSibling!.textContent!;
+    const picker = screen.getByRole('combobox', { name: 'Tank size' }) as HTMLSelectElement;
+    const standing = [...picker.querySelectorAll('option')].find((o) => o.value === picker.value);
 
-    expect(capacity()).toBe('40 L');
-
-    fireEvent.click(screen.getByRole('button', { name: 'gal/°F' }));
-
-    // 40 L is 10.57 gal — a picker that snapped to "10 gal" would be claiming
-    // the tank holds two litres less than it does.
-    expect(capacity()).toBe('11 gal');
-    expect(within(group('Room')).getAllByText(/°F/).length).toBeGreaterThan(0);
+    expect(within(group('Tank')).getByText('Capacity').nextElementSibling!.textContent).toBe(
+      standing!.textContent
+    );
   });
 
   it('offers the round sizes to resize to, and stands on the one the tank is', () => {

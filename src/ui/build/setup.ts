@@ -7,7 +7,6 @@
 
 import {
   calculateEvaporationRatePerDay,
-  calculateHardscapeSlots,
   calculateTemperatureDrift,
   type LidType,
   type SimulationState,
@@ -131,21 +130,9 @@ export function resetConsequence(state: SimulationState): string {
 /**
  * A resize does not stretch the tank — it builds a new one and moves the
  * fittings across, so it costs everything a reset costs and the stock besides.
- * The hardscape only keeps what the new slot count holds.
  */
-export function resizeConsequence(
-  state: SimulationState,
-  capacity: number,
-  units: UnitSystem
-): string {
-  const slots = calculateHardscapeSlots(capacity);
-  const dropped = Math.max(0, state.equipment.hardscape.items.length - slots);
-  const truncated =
-    dropped > 0
-      ? ` ${dropped} hardscape piece${dropped === 1 ? '' : 's'} past the ${slots} slots it would have ${dropped === 1 ? 'goes' : 'go'} with it.`
-      : '';
-
-  return `Rebuilding at ${formatVolume(capacity, units, 0)} starts the tank over at hour zero — the clock, the water, the biofilter, the fish and plants, and this run's charts.${truncated}`;
+export function resizeConsequence(capacity: number, units: UnitSystem): string {
+  return `Rebuilding at ${formatVolume(capacity, units, 0)} starts the tank over at hour zero — the clock, the water, the biofilter, the fish and plants, and this run's charts.`;
 }
 
 /** What the tank holds that a preset load takes with it. */
