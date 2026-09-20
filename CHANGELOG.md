@@ -11,7 +11,7 @@ Format: - **Feature name** (#PR) - One short sentence (under ~150 chars)
 
 ## Unreleased
 
-- **The dashboard is a console** - transport, rail, spine and widgets over one reading set; the Overview and the Water sheet open one inspector for any row, and Life is two rosters on one row shape — species groups over their individuals, drawn species silhouettes, a vitality ledger and the pickers that stock it.
+- **The dashboard is a console** - transport, rail, spine and widgets over one reading set; any row on the Overview, Water or Life opens one inspector.
 - **Docs portal** - the whole system documented at docs.fishroom.app, linked from the dashboard.
 - **A starving plant stops reading as thriving** - the plant status word reads the energy ledger beside condition, so a plant shedding tissue in the dark says so.
 - **One reserve, two claims, in an order** - upkeep is its own ledger, paid from income then the bank; the unpaid share eats `size`; damage and repair reach only the spare above the reserve.
