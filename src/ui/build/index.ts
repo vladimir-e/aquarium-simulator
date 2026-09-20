@@ -3,12 +3,12 @@ export {
   type DeviceRow,
   type EquipmentId,
   type EquipmentRow,
+  DEVICE_ORDER,
   FILTER_LABEL,
   isEquipmentId,
   buildDeviceList,
   equipmentRows,
   equipmentSummary,
-  filterRows,
 } from './devices.js';
 export {
   type DaySpan,

@@ -49,7 +49,8 @@ export interface EquipmentRow {
   summary: string;
 }
 
-const DEVICE_ORDER: DeviceId[] = [
+/** Every configurable device, in rack order. */
+export const DEVICE_ORDER: DeviceId[] = [
   'filter',
   'heater',
   'light',
@@ -145,13 +146,6 @@ export function equipmentRows(
       summary: `${cycleWord(bacteria.cycled)} · ${SurfaceResource.format(bacteria.surface)}`,
     },
   ];
-}
-
-/** Case-insensitive name filter for the search field. Blank query = all. */
-export function filterRows(rows: EquipmentRow[], query: string): EquipmentRow[] {
-  const q = query.trim().toLowerCase();
-  if (!q) return rows;
-  return rows.filter((row) => row.name.toLowerCase().includes(q));
 }
 
 /** The section's headline figure, shared with the rail's Equipment row. */
