@@ -2,14 +2,14 @@ import React from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { ModulePage } from '../components/layout/ModulePage';
 import { LogLane } from '../components/review/LogLane';
-import { Track, TrackCaption, TimeAxis } from '../components/review/Track';
+import { TimeAxis, TrackStack } from '../components/review/Track';
 import { Segmented } from '../components/ui/Segmented';
 import { useIsMobile } from '../hooks/useMediaQuery';
 import type { useSimulation } from '../hooks/useSimulation';
 import { useTimeline } from '../hooks/useTimeline';
 import { useUnits } from '../hooks/useUnits';
 import { dayNumber } from '../utils/clock';
-import { CONTROL_FOCUS, INSET_FOCUS } from '../components/ui/focus';
+import { CONTROL_FOCUS } from '../components/ui/focus';
 import {
   nextScrubPosition,
   readFilter,
@@ -98,32 +98,19 @@ export function HistorySection({
     >
       <div className="grid grid-cols-1 gap-x-4 gap-y-3 md:h-full md:min-h-0 md:grid-cols-[3fr_2fr]">
         <div className="flex flex-col gap-2 md:min-h-0">
-          <div
-            {...scrub.surface('History timeline')}
-            className={`flex cursor-ew-resize touch-none flex-col gap-3 ${INSET_FOCUS} md:min-h-0 md:flex-1`}
-          >
-            {TRACKS.map((def) => (
-              <div key={def.id} className="flex flex-col gap-1 max-md:h-24 md:min-h-0 md:flex-1">
-                <TrackCaption
-                  def={def}
-                  lines={lines[def.id]}
-                  snapshot={snapshot}
-                  displayTemp={displayTemp}
-                  extents={!isMobile}
-                  className="shrink-0"
-                />
-                <Track
-                  lines={lines[def.id]}
-                  ticks={ticks}
-                  range={range}
-                  lit={lit}
-                  at={scrub.at}
-                  label={def.title}
-                  className="min-h-0 flex-1"
-                />
-              </div>
-            ))}
-          </div>
+          <TrackStack
+            defs={TRACKS}
+            lines={lines}
+            ticks={ticks}
+            range={range}
+            lit={lit}
+            scrub={scrub}
+            label="History timeline"
+            snapshot={snapshot}
+            displayTemp={displayTemp}
+            extents={!isMobile}
+            layout="page"
+          />
 
           {/* The axis spans the same width as the tracks, so one tick is one x. */}
           <div

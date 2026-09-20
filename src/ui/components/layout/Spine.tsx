@@ -8,10 +8,10 @@ import { useIsMobile } from '../../hooks/useMediaQuery';
 import { useSpineOpen } from '../../hooks/useSpineOpen';
 import { useTimeline } from '../../hooks/useTimeline';
 import { useUnits } from '../../hooks/useUnits';
-import { Track, TrackCaption, TimeAxis } from '../review/Track';
+import { TimeAxis, TrackStack } from '../review/Track';
 import { Segmented } from '../ui/Segmented';
 import { dayNumber } from '../../utils/clock';
-import { CONTROL_FOCUS, INSET_FOCUS } from '../ui/focus';
+import { CONTROL_FOCUS } from '../ui/focus';
 
 const PAIR_OPTIONS = TRACK_PAIRS.map((pair) => ({ value: pair.id, label: pair.label }));
 
@@ -68,31 +68,18 @@ export function Spine({ history, logs, schedule }: SpineProps): React.JSX.Elemen
       )}
 
       {expanded && (
-        <div
-          {...scrub.surface('Timeline charts')}
-          className={`flex min-h-0 flex-1 cursor-ew-resize touch-none flex-col gap-1.5 ${INSET_FOCUS}`}
-        >
-          {shown.map((def) => (
-            <div key={def.id} className="flex min-h-0 flex-1 flex-col gap-0.5">
-              <TrackCaption
-                def={def}
-                lines={lines[def.id]}
-                snapshot={snapshot}
-                displayTemp={displayTemp}
-                className="shrink-0"
-              />
-              <Track
-                lines={lines[def.id]}
-                ticks={ticks}
-                range={range}
-                lit={lit}
-                at={scrub.at}
-                label={def.title}
-                className="min-h-0 flex-1"
-              />
-            </div>
-          ))}
-        </div>
+        <TrackStack
+          defs={shown}
+          lines={lines}
+          ticks={ticks}
+          range={range}
+          lit={lit}
+          scrub={scrub}
+          label="Timeline charts"
+          snapshot={snapshot}
+          displayTemp={displayTemp}
+          layout="spine"
+        />
       )}
 
       {/* The axis spans the same width as the tracks, so one tick is one x. */}

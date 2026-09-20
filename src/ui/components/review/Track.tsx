@@ -11,6 +11,8 @@ import {
   type TrackLine,
 } from '../../review';
 import type { RunSnapshot } from '../../run';
+import type { Scrub } from '../../hooks/useScrub';
+import { INSET_FOCUS } from '../ui/focus';
 
 /** The band's own coordinate space; the SVG stretches it to whatever slot it gets. */
 const VIEW_W = 1000;
@@ -234,6 +236,83 @@ export function TimeAxis({
         className={`absolute top-0.5 h-2.5 w-2.5 -translate-x-1/2 rounded-full ${parked ? 'bg-accent' : 'bg-ink'}`}
         style={{ left: left(at) }}
       />
+    </div>
+  );
+}
+
+/** The stack laid out two ways: the strip the spine has room for, or the page. */
+export type StackLayout = 'spine' | 'page';
+
+const STACK: Record<StackLayout, string> = {
+  spine: 'min-h-0 flex-1 gap-1.5',
+  page: 'gap-3 md:min-h-0 md:flex-1',
+};
+
+const BAND: Record<StackLayout, string> = {
+  spine: 'min-h-0 flex-1 gap-0.5',
+  page: 'gap-1 max-md:h-24 md:min-h-0 md:flex-1',
+};
+
+interface TrackStackProps {
+  defs: TrackDef[];
+  /** The window's lines, by track id. */
+  lines: Record<string, TrackLine[]>;
+  ticks: number[];
+  range: TickRange | null;
+  lit: TickSpan[];
+  scrub: Scrub;
+  /** What the drag region reads out as. */
+  label: string;
+  snapshot: RunSnapshot | null;
+  displayTemp: (celsius: number) => number;
+  extents?: boolean;
+  layout: StackLayout;
+}
+
+/**
+ * Every track over one axis, under one drag. The spine and History draw the
+ * same run, so they draw it with this — the render half of the invariant that
+ * `useTimeline` holds on the data side.
+ */
+export function TrackStack({
+  defs,
+  lines,
+  ticks,
+  range,
+  lit,
+  scrub,
+  label,
+  snapshot,
+  displayTemp,
+  extents = false,
+  layout,
+}: TrackStackProps): React.JSX.Element {
+  return (
+    <div
+      {...scrub.surface(label)}
+      className={`flex cursor-ew-resize touch-none flex-col ${STACK[layout]} ${INSET_FOCUS}`}
+    >
+      {defs.map((def) => (
+        <div key={def.id} className={`flex flex-col ${BAND[layout]}`}>
+          <TrackCaption
+            def={def}
+            lines={lines[def.id]}
+            snapshot={snapshot}
+            displayTemp={displayTemp}
+            extents={extents}
+            className="shrink-0"
+          />
+          <Track
+            lines={lines[def.id]}
+            ticks={ticks}
+            range={range}
+            lit={lit}
+            at={scrub.at}
+            label={def.title}
+            className="min-h-0 flex-1"
+          />
+        </div>
+      ))}
     </div>
   );
 }
