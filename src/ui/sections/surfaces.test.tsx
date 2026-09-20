@@ -1,5 +1,6 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import { cleanup, within } from '@testing-library/react';
+import { GearSection } from './GearSection';
 import { LifeSection } from './LifeSection';
 import { OverviewSection } from './OverviewSection';
 import { WaterSection } from './WaterSection';
@@ -72,5 +73,33 @@ describe('one roster, two surfaces', () => {
 
     expect(plants[0]).toMatch(/^Algae — /);
     expect(widget[fish.length]).toBe(plants[0]);
+  });
+});
+
+/** Every rack row that speaks, as the reader hears it: `name — what it is set to`. */
+function rackRows(scope: HTMLElement): string[] {
+  return within(scope)
+    .getAllByRole('link')
+    .map((link) => link.getAttribute('aria-label') ?? '')
+    .filter((label) => label.includes(' — '));
+}
+
+describe('one rack, two surfaces', () => {
+  it('reads a powered device the same on the Gear module and its widget', () => {
+    const run = stocked();
+    const sim = stubSim(run.state, run.history);
+
+    renderStage(<OverviewSection sim={sim} config={DEFAULT_CONFIG} />);
+    const widget = rackRows(group('Gear'));
+    cleanup();
+
+    renderStage(<GearSection sim={sim} config={DEFAULT_CONFIG} />);
+    const page = rackRows(group('Fittings'));
+
+    // The widget collapses what is off into one row; what is on it reads out in
+    // the module's own words, in the module's own order.
+    expect(page).toHaveLength(8);
+    expect(widget.slice(0, -1)).toEqual(page.filter((row) => !row.endsWith(' — off')));
+    expect(widget[widget.length - 1]).toMatch(/^Others — /);
   });
 });

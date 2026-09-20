@@ -1,0 +1,217 @@
+import React from 'react';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { render, screen, fireEvent, cleanup, within } from '@testing-library/react';
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
+import { GearSection } from './GearSection';
+import { UnitsProvider } from '../hooks/useUnits';
+import { PersistenceProvider } from '../persistence/index.js';
+import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
+import {
+  createSimulation,
+  LIGHT_PAR_OPTIONS,
+  type SimulationState,
+} from '../../simulation/index.js';
+import { scheduleHours } from '../build';
+import type { useSimulation } from '../hooks/useSimulation';
+import { stubMatchMedia, viewport, type MatchMediaStub } from '../test/matchMedia';
+import { stubSim } from '../test/stubSim';
+
+let media: MatchMediaStub;
+
+// Tablet: the inspector lays over the rack rather than covering the screen.
+beforeEach(() => {
+  media = stubMatchMedia(viewport(1180));
+});
+
+afterEach(() => {
+  media.restore();
+  globalThis.localStorage.clear();
+  cleanup();
+});
+
+/** Defaults: filter, heater and light on; the other five off. */
+const base: SimulationState = createSimulation({ tankCapacity: 40 });
+
+function Address(): React.JSX.Element {
+  return <span data-testid="address">{useLocation().pathname}</span>;
+}
+
+function renderGear(
+  path = '/gear',
+  sim: ReturnType<typeof useSimulation> = stubSim(base)
+): ReturnType<typeof useSimulation> {
+  render(
+    <PersistenceProvider>
+      <UnitsProvider>
+        <MemoryRouter initialEntries={[path]}>
+          <Routes>
+            <Route
+              path="/gear/:deviceId?"
+              element={<GearSection sim={sim} config={DEFAULT_CONFIG} />}
+            />
+          </Routes>
+          <Address />
+        </MemoryRouter>
+      </UnitsProvider>
+    </PersistenceProvider>
+  );
+  return sim;
+}
+
+function address(): string {
+  return screen.getByTestId('address').textContent ?? '';
+}
+
+/** Every rack row as the reader hears it: `name — what it is set to`. */
+function rackRows(): string[] {
+  return screen
+    .getAllByRole('link')
+    .map((link) => link.getAttribute('aria-label') ?? '')
+    .filter((label) => label.includes(' — '));
+}
+
+function rowNamed(name: string): HTMLElement {
+  return screen.getByRole('link', { name: new RegExp(`^${name} —`) }).parentElement!;
+}
+
+describe('GearSection', () => {
+  it('racks the eight devices, and nothing the engine cannot install', () => {
+    renderGear();
+    // Exact, not merely present: the device set is fixed, so an extra row —
+    // an "install fitting" affordance, say — has to fail here.
+    expect(rackRows().map((label) => label.split(' — ')[0])).toEqual([
+      'Filter',
+      'Heater',
+      'Light',
+      'Air pump',
+      'ATO',
+      'CO₂ injector',
+      'Powerhead',
+      'Auto doser',
+    ]);
+  });
+
+  it('carries the day inline for a device that keeps one, and the setting for one that does not', () => {
+    renderGear();
+
+    expect(
+      within(rowNamed('Light')).getByText(scheduleHours(base.equipment.light.schedule))
+    ).toBeTruthy();
+    expect(within(rowNamed('Filter')).getByText(/^sponge · /)).toBeTruthy();
+    // Off, so the clock it would keep is not a claim about now.
+    expect(within(rowNamed('CO₂ injector')).getByText('off')).toBeTruthy();
+  });
+
+  it('switches a device from its row', () => {
+    const sim = renderGear();
+
+    fireEvent.click(screen.getByRole('switch', { name: 'Heater power' }));
+    expect(sim.updateHeaterEnabled).toHaveBeenCalledWith(false);
+
+    fireEvent.click(screen.getByRole('switch', { name: 'Powerhead power' }));
+    expect(sim.updatePowerheadEnabled).toHaveBeenCalledWith(true);
+  });
+
+  it('opens the inspector the address names, and closes it back to the rack', () => {
+    renderGear('/gear/light');
+    const drawer = screen.getByRole('dialog', { name: 'Light' });
+
+    expect(within(drawer).getByRole('combobox', { name: 'Light output' })).toBeTruthy();
+
+    fireEvent.click(within(drawer).getByRole('button', { name: 'Close Light' }));
+
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(address()).toBe('/gear');
+  });
+
+  it('sends a device the engine does not configure back to the rack', () => {
+    renderGear('/gear/biofilter');
+
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(address()).toBe('/gear');
+  });
+
+  it('dispatches a setting from the inspector', () => {
+    const sim = renderGear('/gear/light');
+    const drawer = within(screen.getByRole('dialog', { name: 'Light' }));
+
+    const par = LIGHT_PAR_OPTIONS.find((option) => option !== base.equipment.light.par)!;
+    fireEvent.change(drawer.getByRole('combobox', { name: 'Light output' }), {
+      target: { value: String(par) },
+    });
+    expect(sim.updateLightPar).toHaveBeenCalledWith(par);
+  });
+
+  it('edits a schedule on the ends it is stated by, and stores the span between them', () => {
+    const sim = renderGear('/gear/light');
+    const { schedule } = base.equipment.light;
+
+    fireEvent.click(
+      within(screen.getByRole('group', { name: 'End hour' })).getByRole('button', {
+        name: 'increase',
+      })
+    );
+
+    expect(sim.updateLightSchedule).toHaveBeenCalledWith({
+      startHour: schedule.startHour,
+      duration: schedule.duration + 1,
+    });
+  });
+
+  it('reads what the fittings add up to, which is what the tick reads', () => {
+    renderGear();
+    const summed = screen.getByRole('heading', { level: 2, name: 'What the tank gets' })
+      .parentElement!.parentElement!;
+
+    for (const name of ['Bacteria surface', 'Circulation', 'PAR at substrate', 'Aeration']) {
+      expect(within(summed).getByText(name)).toBeTruthy();
+    }
+  });
+});
+
+describe('GearSection — the scape', () => {
+  it('adds a piece through the menu that offers it', () => {
+    const sim = renderGear();
+
+    fireEvent.click(screen.getByRole('button', { name: '+ Hardscape' }));
+    fireEvent.click(screen.getByRole('button', { name: '+ Driftwood' }));
+
+    expect(sim.addHardscapeItem).toHaveBeenCalledWith('driftwood');
+  });
+
+  it('refuses a piece past the ceiling, in the engine’s words', () => {
+    const full: SimulationState = {
+      ...base,
+      equipment: {
+        ...base.equipment,
+        hardscape: {
+          items: Array.from({ length: base.tank.hardscapeSlots }, (_, i) => ({
+            id: `hardscape_${i}`,
+            type: 'neutral_rock' as const,
+          })),
+        },
+      },
+    };
+    renderGear('/gear', stubSim(full));
+
+    expect(screen.queryByRole('button', { name: '+ Hardscape' })).toBeNull();
+    expect(
+      screen.getByText(`Tank at hardscape capacity (${base.tank.hardscapeSlots} slots max)`)
+    ).toBeTruthy();
+  });
+
+  it('removes a piece by the row it sits on', () => {
+    const scaped: SimulationState = {
+      ...base,
+      equipment: {
+        ...base.equipment,
+        hardscape: { items: [{ id: 'hardscape_1', type: 'driftwood' }] },
+      },
+    };
+    const sim = renderGear('/gear', stubSim(scaped));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Remove Driftwood' }));
+
+    expect(sim.removeHardscapeItem).toHaveBeenCalledWith('hardscape_1');
+  });
+});
