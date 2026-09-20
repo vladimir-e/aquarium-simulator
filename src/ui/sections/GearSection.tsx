@@ -43,7 +43,7 @@ export function GearSection({
   const bacteria = useMemo(() => bacteriaReadout(state, config), [state, config]);
   const close = useCallback(() => navigate('/gear', { replace: true }), [navigate]);
 
-  const entries = rackEntries(book.rack);
+  const entries = useMemo(() => rackEntries(book.rack), [book.rack]);
   const { hour } = book.rack.schedules;
   const onPower = powerSwitch(sim);
   const selected =

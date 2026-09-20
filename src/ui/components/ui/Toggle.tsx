@@ -1,4 +1,5 @@
 import React from 'react';
+import { CONTROL_FOCUS } from './focus';
 
 /**
  * The one switch in the app, and it only ever means power. Accent because the
@@ -21,7 +22,7 @@ export function Toggle({
       aria-checked={checked}
       aria-label={ariaLabel}
       onClick={() => onChange(!checked)}
-      className="shrink-0 rounded-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+      className={`shrink-0 rounded-full ${CONTROL_FOCUS}`}
     >
       <span
         className={`relative block h-4 w-[26px] rounded-full border transition-colors motion-reduce:transition-none ${

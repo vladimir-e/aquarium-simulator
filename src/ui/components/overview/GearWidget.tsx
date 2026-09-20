@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { turnoverShort } from '../../build';
 import type { useSimulation } from '../../hooks/useSimulation';
 import type { ReadingBook } from '../../readings';
@@ -25,7 +25,7 @@ export function GearWidget({
   sim: ReturnType<typeof useSimulation>;
 }): React.JSX.Element {
   const { state } = sim;
-  const entries = rackEntries(book.rack);
+  const entries = useMemo(() => rackEntries(book.rack), [book.rack]);
   const on = entries.filter((entry) => entry.row.on);
   const off = entries.filter((entry) => !entry.row.on);
   const onPower = powerSwitch(sim);

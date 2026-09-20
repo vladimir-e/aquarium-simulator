@@ -280,10 +280,14 @@ export function DeviceDrawer({
     [id, sim.state, config, unitSystem]
   );
 
+  const hint = useMemo(
+    () => (id ? deviceHint(id, sim.state, config, unitSystem) : null),
+    [id, sim.state, config, unitSystem]
+  );
+
   if (!entry) return null;
 
   const { row, schedule } = entry;
-  const hint = deviceHint(row.id, sim.state, config, unitSystem);
 
   return (
     <Drawer
