@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import type { SimulationState } from '../../../simulation/index.js';
 import { BUILD_VERBS, verbRows, type VerbId, type VerbSettings } from '../../actions';
@@ -77,6 +77,10 @@ export function ActPalette({
   const { unitSystem } = useUnits();
   const navigate = useNavigate();
   const [params] = useSearchParams();
+  // Read where the reader is parked at the click, so a tick scrubbing under the
+  // open palette does not rebuild every row.
+  const parked = useRef(params);
+  parked.current = params;
   const [query, setQuery] = useState('');
   const [active, setActive] = useState(0);
 
@@ -101,12 +105,12 @@ export function ActPalette({
         onClose();
         navigate({
           pathname: verb.path,
-          search: withParams(params, { add: verb.add }).toString(),
+          search: withParams(parked.current, { add: verb.add }).toString(),
         });
       },
     }));
     return [...husbandry, ...build];
-  }, [state, settings, unitSystem, onPick, onClose, navigate, params]);
+  }, [state, settings, unitSystem, onPick, onClose, navigate]);
 
   const matches = entries.filter((entry) =>
     entry.name.toLowerCase().includes(query.trim().toLowerCase())
