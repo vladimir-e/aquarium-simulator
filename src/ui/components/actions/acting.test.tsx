@@ -146,8 +146,11 @@ describe('a verb sheet', () => {
     renderApp();
     fireEvent.click(within(palette()).getByRole('button', { name: /^Feed/ }));
     const marks = actionMarks();
+    const commit = within(sheet('Feed')).getByRole('button', { name: 'Feed 0.5 g' });
 
-    fireEvent.keyDown(within(sheet('Feed')).getByText('After'), { key: 'Enter' });
+    // The sheet opens on its commit, so Enter lands there without a click first.
+    expect(document.activeElement).toBe(commit);
+    fireEvent.keyDown(commit, { key: 'Enter' });
 
     expect(screen.queryByRole('dialog', { name: 'Feed' })).toBeNull();
     expect(actionMarks()).toBe(marks + 1);
@@ -164,6 +167,15 @@ describe('a verb sheet', () => {
 
     expect(sheet('Feed')).toBeTruthy();
     expect(actionMarks()).toBe(marks);
+  });
+
+  it('opens on the first rung where a refusal leaves no commit to stand on', () => {
+    renderApp();
+    fireEvent.click(within(palette()).getByRole('button', { name: /^Dose/ }));
+
+    expect(document.activeElement).toBe(
+      within(sheet('Dose fertiliser')).getByRole('button', { name: /^1 ml/ })
+    );
   });
 
   it('puts the engine’s refusal where the commit would be, and previews nothing', () => {

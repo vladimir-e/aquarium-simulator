@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useCallback, useEffect, useMemo } from 'react';
 import { ArrowRight } from 'lucide-react';
 import type { TunableConfig } from '../../../simulation/config/index.js';
 import type { SimulationState } from '../../../simulation/index.js';
@@ -11,7 +11,7 @@ import {
 } from '../../actions';
 import { useUnits } from '../../hooks/useUnits';
 import { toneOf } from '../../readings';
-import { Drawer } from '../ui/Drawer';
+import { Drawer, DRAWER_FOCUS } from '../ui/Drawer';
 import { RangeStrip, TONE_TEXT } from '../ui/RangeStrip';
 import { Segmented } from '../ui/Segmented';
 
@@ -77,26 +77,36 @@ export function VerbDrawer({
     [verb, state, settings, unitSystem, config]
   );
 
+  const commit = useCallback((): void => {
+    if (detail !== null && detail.blocked === null) onCommit(detail.id);
+  }, [detail, onCommit]);
+
+  // Enter commits the sheet, the way ⌘K opens the palette. A rung answers its
+  // own Enter, and the × is the header's rather than the sheet's.
+  useEffect(() => {
+    if (verb === null) return;
+    const onKeyDown = (e: KeyboardEvent): void => {
+      const target = e.target as HTMLElement | null;
+      if (e.key !== 'Enter' || !target?.closest('[data-verb-sheet]')) return;
+      if (target.closest('[data-rungs]')) return;
+      e.preventDefault();
+      commit();
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return (): void => document.removeEventListener('keydown', onKeyDown);
+  }, [verb, commit]);
+
   if (detail === null) return null;
 
   const { setting } = detail;
-  const commit = (): void => {
-    if (detail.blocked === null) onCommit(detail.id);
-  };
 
   return (
     <Drawer open onClose={onClose} title={detail.title}>
-      <div
-        onKeyDown={(e) => {
-          // A rung answers its own Enter; only the sheet at large commits on one.
-          if (e.key === 'Enter' && !(e.target as HTMLElement).closest('button')) commit();
-        }}
-        className="flex flex-col gap-4 p-3"
-      >
+      <div data-verb-sheet className="flex flex-col gap-4 p-3">
         <p className="text-[13px] text-ink-2">{detail.meta}</p>
 
         {setting && detail.options.length > 0 && (
-          <div className="flex flex-col gap-1.5">
+          <div data-rungs className="flex flex-col gap-1.5">
             <h3 className="text-[11px] text-ink-3">{detail.optionsLabel}</h3>
             <Segmented
               fill
@@ -140,6 +150,7 @@ export function VerbDrawer({
           <button
             type="button"
             onClick={commit}
+            {...DRAWER_FOCUS}
             className="flex h-9 items-center justify-center rounded-control bg-accent text-[13px] font-medium text-accent-ink transition-opacity hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
           >
             {detail.commitLabel}

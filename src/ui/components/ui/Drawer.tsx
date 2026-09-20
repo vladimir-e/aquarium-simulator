@@ -12,7 +12,9 @@ export const DRAWER_TOGGLE = { 'data-drawer-toggle': '' };
 
 /**
  * Where the keyboard lands when the drawer opens, for a drawer whose first
- * stop is not the one to start on — the palette opens on its filter, not on ×.
+ * stop is not the one to start on — the verb sheet opens on its commit, not on
+ * the amount above it. Failing that the drawer starts on the first stop in its
+ * body, so opening never lands on ×.
  */
 export const DRAWER_FOCUS = { 'data-drawer-focus': '' };
 
@@ -37,14 +39,16 @@ interface DrawerProps {
 export function Drawer({ open, onClose, title, meta, children }: DrawerProps): React.JSX.Element | null {
   const isMobile = useIsMobile();
   const ref = useRef<HTMLDivElement>(null);
+  const bodyRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!open) return;
     const opener = document.activeElement as HTMLElement | null;
-    const body = ref.current;
+    const body = bodyRef.current;
     (
       body?.querySelector<HTMLElement>('[data-drawer-focus]') ??
-      body?.querySelector<HTMLElement>(FOCUSABLE)
+      body?.querySelector<HTMLElement>(FOCUSABLE) ??
+      ref.current?.querySelector<HTMLElement>(FOCUSABLE)
     )?.focus();
     return (): void => opener?.focus();
   }, [open]);
@@ -95,7 +99,9 @@ export function Drawer({ open, onClose, title, meta, children }: DrawerProps): R
         </button>
       </header>
 
-      <div className="min-h-0 flex-1 overflow-y-auto">{children}</div>
+      <div ref={bodyRef} className="min-h-0 flex-1 overflow-y-auto">
+        {children}
+      </div>
     </div>
   );
 }
