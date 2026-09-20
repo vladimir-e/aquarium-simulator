@@ -175,6 +175,44 @@ export function cloneConfig(config: TunableConfig): TunableConfig {
   return JSON.parse(JSON.stringify(config));
 }
 
+function own(node: Record<string, unknown>, key: string): unknown {
+  return Object.prototype.hasOwnProperty.call(node, key) ? node[key] : undefined;
+}
+
+function leafOwner(
+  config: TunableConfig,
+  path: string
+): [owner: Record<string, unknown>, leaf: string] | null {
+  const keys = path.split('.');
+  const leaf = keys.pop();
+  if (leaf === undefined) return null;
+  let node = config as unknown as Record<string, unknown>;
+  for (const key of keys) {
+    const nested = own(node, key);
+    if (nested === null || typeof nested !== 'object') return null;
+    node = nested as Record<string, unknown>;
+  }
+  return typeof own(node, leaf) === 'number' ? [node, leaf] : null;
+}
+
+/**
+ * The number a path names, the way `config set` and the tunables drawer
+ * address one, or `undefined` where the path names nothing numeric.
+ */
+export function tunableAt(config: TunableConfig, path: string): number | undefined {
+  const found = leafOwner(config, path);
+  return found === null ? undefined : (found[0][found[1]] as number);
+}
+
+/** A copy of the config with the leaf at `path` set; the path must name one. */
+export function withTunable(config: TunableConfig, path: string, value: number): TunableConfig {
+  const next = cloneConfig(config);
+  const found = leafOwner(next, path);
+  if (found === null) throw new Error(`Unknown config path "${path}".`);
+  found[0][found[1]] = value;
+  return next;
+}
+
 /**
  * Check if a config value differs from default.
  */
@@ -218,6 +256,23 @@ export function isSectionModified<K extends keyof TunableConfig>(
     }
   }
   return false;
+}
+
+function countModifiedLeaves(current: unknown, defaults: unknown): number {
+  if (typeof defaults !== 'object' || defaults === null) return current === defaults ? 0 : 1;
+  const values = current as Record<string, unknown>;
+  return Object.entries(defaults as Record<string, unknown>).reduce(
+    (count, [key, value]) => count + countModifiedLeaves(values?.[key], value),
+    0
+  );
+}
+
+/**
+ * How many values differ from default, nested formulae counted leaf by leaf —
+ * the figure the tunables badge carries.
+ */
+export function countModified(config: TunableConfig): number {
+  return countModifiedLeaves(config, DEFAULT_CONFIG);
 }
 
 /**

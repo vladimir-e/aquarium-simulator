@@ -85,6 +85,12 @@ export function turnover(litersPerHour: number, waterVolume: number): string {
   return `${volumesPerHour(litersPerHour, waterVolume).toFixed(1)} × tank volume/h`;
 }
 
+/** The same figure where a widget row has room for four characters: `8.1×/h`. */
+export function turnoverShort(litersPerHour: number, waterVolume: number): string {
+  if (waterVolume <= 0) return '—';
+  return `${volumesPerHour(litersPerHour, waterVolume).toFixed(1)}×/h`;
+}
+
 /** How much longer a running schedule has, for one that ever stops. */
 function runsUntil(schedule: DailySchedule): string {
   if (schedule.duration >= 24) return 'all day';

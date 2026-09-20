@@ -5,6 +5,7 @@ import { useSimulation } from './useSimulation';
 import { createPresetSimulation, getPresetById, type PresetId } from '../../simulation/presets';
 import { ConfigProvider, useConfig } from './useConfig';
 import { PersistenceProvider } from '../persistence/index.js';
+import { DEFAULT_SETTINGS } from '../actions/verbs.js';
 import { createSimulation, type SimulationState } from '../../simulation/state.js';
 import {
   applyAction,
@@ -47,7 +48,7 @@ function seedSession(
       ...overrides,
     },
     tunableConfig: DEFAULT_CONFIG,
-    ui: { units: 'metric', debugPanelOpen: false },
+    ui: { units: 'metric', tunablesOpen: false, spineOpen: false, acts: { settings: DEFAULT_SETTINGS, promoted: null } },
   };
   globalThis.localStorage.setItem(STORAGE_KEY, JSON.stringify(persisted));
 }
@@ -534,9 +535,8 @@ describe('useSimulation', () => {
       expect(before).toBeGreaterThan(0);
 
       act(() => {
-        result.current.config.updateConfig(
-          'optics',
-          'waterAttenuationPerCm',
+        result.current.config.setTunable(
+          'optics.waterAttenuationPerCm',
           DEFAULT_CONFIG.optics.waterAttenuationPerCm * 2
         );
       });
@@ -562,7 +562,7 @@ describe('useSimulation', () => {
 
       const tuned = DEFAULT_CONFIG.optics.waterAttenuationPerCm * 4;
       act(() => {
-        result.current.config.updateConfig('optics', 'waterAttenuationPerCm', tuned);
+        result.current.config.setTunable('optics.waterAttenuationPerCm', tuned);
       });
       act(() => {
         result.current.sim.changeTankCapacity(200);
@@ -578,7 +578,7 @@ describe('useSimulation', () => {
       const before = result.current.sim.state.resources.light;
 
       act(() => {
-        result.current.config.updateConfig('optics', 'waterAttenuationPerCm', 0.04);
+        result.current.config.setTunable('optics.waterAttenuationPerCm', 0.04);
       });
       expect(result.current.sim.state.resources.light).toBeLessThan(before);
 

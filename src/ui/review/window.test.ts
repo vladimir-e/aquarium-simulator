@@ -1,30 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import { sliceHistory, windowRange, sliceLogs, WINDOW_TICKS } from './window';
 import type { RunSnapshot } from '../run/index.js';
+import { snapshot } from '../test/snapshot';
 import { createLog, type LogEntry } from '../../simulation/index.js';
-
-function snap(tick: number): RunSnapshot {
-  return {
-    tick,
-    ammonia: 0,
-    nitrite: 0,
-    nitrate: 0,
-    ph: 7,
-    oxygen: 8,
-    co2: 5,
-    temperature: 25,
-    waterPct: 100,
-    fishCount: 0,
-    fryCount: 0,
-    plantAvgSize: 0,
-    algaeMass: 0,
-    food: 0,
-  };
-}
 
 /** Contiguous history [0..last], one snapshot per tick. */
 function history(last: number): RunSnapshot[] {
-  return Array.from({ length: last + 1 }, (_, i) => snap(i));
+  return Array.from({ length: last + 1 }, (_, i) => snapshot(i));
 }
 
 describe('sliceHistory', () => {
@@ -67,7 +49,7 @@ describe('windowRange', () => {
   });
 
   it('collapses to one tick for a single-entry buffer', () => {
-    expect(windowRange([snap(0)], 'run')).toEqual({ minTick: 0, maxTick: 0 });
+    expect(windowRange([snapshot(0)], 'run')).toEqual({ minTick: 0, maxTick: 0 });
   });
 });
 

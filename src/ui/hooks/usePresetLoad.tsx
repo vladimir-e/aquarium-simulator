@@ -13,9 +13,9 @@ export interface PresetLoad {
 const PresetLoadContext = createContext<PresetLoad | null>(null);
 
 /**
- * The preset selector sits in the chrome row and the preset picker sits in the
- * Scenario section; both come through here, so a load is confirmed once, in one
- * wording, wherever it was asked for.
+ * The preset selector sits in the top bar and the preset picker sits on Setup;
+ * both come through here, so a load is confirmed once, in one wording, wherever
+ * it was asked for.
  */
 export function PresetLoadProvider({
   current,

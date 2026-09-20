@@ -1,0 +1,142 @@
+import React from 'react';
+import { X } from 'lucide-react';
+import {
+  checkHardscapeCapacity,
+  getHardscapeName,
+  getSubstrateSurface,
+  type HardscapeType,
+  type SubstrateType,
+} from '../../../simulation/index.js';
+import { SurfaceResource } from '../../../simulation/resources/index.js';
+import type { useSimulation } from '../../hooks/useSimulation';
+import {
+  HARDSCAPE_TYPES,
+  hardscapeRows,
+  SUBSTRATE_NAME,
+  SUBSTRATE_TYPES,
+  substrateConsequence,
+} from '../../build';
+import { DRAWER_TOGGLE } from '../ui/Drawer';
+import { Select } from '../ui/Select';
+import { CONTROL_FOCUS, INSET_FOCUS } from '../ui/focus';
+
+type Sim = ReturnType<typeof useSimulation>;
+
+const ROW = 'grid h-11 items-center gap-2.5 border-t border-hairline first:border-t-0';
+const SCAPE_ROW = `${ROW} grid-cols-[minmax(0,1fr)_88px_minmax(0,110px)_24px]`;
+
+/** The pieces the tank has room for, one button deep. */
+function AddHardscape({
+  open,
+  onOpen,
+  onPick,
+}: {
+  open: boolean;
+  onOpen: (open: boolean) => void;
+  onPick: (type: HardscapeType) => void;
+}): React.JSX.Element {
+  return (
+    <div
+      className="relative"
+      onBlur={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget as HTMLElement | null)) onOpen(false);
+      }}
+      onKeyDown={(e) => {
+        if (e.key === 'Escape') onOpen(false);
+      }}
+    >
+      <button
+        type="button"
+        aria-expanded={open}
+        onClick={() => onOpen(!open)}
+        className={`inline-flex h-7 shrink-0 items-center rounded-control border border-hairline px-2.5 text-[13px] text-ink transition-colors hover:bg-surface-2 ${CONTROL_FOCUS}`}
+      >
+        + Hardscape
+      </button>
+
+      {open && (
+        <div className="absolute right-0 top-8 z-40 w-44 rounded-card border border-hairline bg-surface py-1 shadow-[var(--shadow-drawer)]">
+          {HARDSCAPE_TYPES.map((type) => (
+            <button
+              key={type}
+              type="button"
+              onClick={() => {
+                onOpen(false);
+                onPick(type);
+              }}
+              className={`flex h-9 w-full items-center px-3 text-left text-[13px] text-ink transition-colors hover:bg-surface-2 ${INSET_FOCUS}`}
+            >
+              + {getHardscapeName(type)}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** What the tank is built of, under what runs in it: the surface both feed. */
+export function ScapeRows({
+  sim,
+  adding,
+  onAdding,
+}: {
+  sim: Sim;
+  /** Whether the hardscape menu is open — a route, so the palette can open it. */
+  adding: boolean;
+  onAdding: (open: boolean) => void;
+}): React.JSX.Element {
+  const { equipment, tank } = sim.state;
+  const substrate = equipment.substrate.type;
+  const rows = hardscapeRows(equipment.hardscape.items);
+  const capacity = checkHardscapeCapacity(equipment.hardscape.items, tank.hardscapeSlots);
+
+  return (
+    <div {...DRAWER_TOGGLE}>
+      <div className={SCAPE_ROW}>
+        <span className="truncate text-[14px] text-ink">
+          Substrate
+          <span className="ml-2 hidden text-[13px] text-ink-3 md:inline">
+            {substrateConsequence(substrate)}
+          </span>
+        </span>
+        <span className="text-right text-[13px] tabular-nums text-ink-2">
+          {SurfaceResource.format(getSubstrateSurface(substrate, tank.capacity))}
+        </span>
+        <Select
+          className="col-span-2 justify-self-end w-[134px]"
+          ariaLabel="Substrate"
+          value={substrate}
+          onChange={(value) => sim.updateSubstrateType(value as SubstrateType)}
+          options={SUBSTRATE_TYPES.map((type) => ({ value: type, label: SUBSTRATE_NAME[type] }))}
+        />
+      </div>
+
+      {rows.map((row) => (
+        <div key={row.id} className={SCAPE_ROW}>
+          <span className="truncate text-[14px] text-ink">{row.name}</span>
+          <span className="text-right text-[13px] tabular-nums text-ink-2">
+            {SurfaceResource.format(row.surface)}
+          </span>
+          <span className="truncate text-right text-[13px] text-ink-3">{row.effect ?? 'inert'}</span>
+          <button
+            type="button"
+            onClick={() => sim.removeHardscapeItem(row.id)}
+            aria-label={`Remove ${row.name}`}
+            className={`flex h-6 w-6 items-center justify-center justify-self-center rounded-control text-ink-3 transition-colors hover:text-alert ${CONTROL_FOCUS}`}
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      ))}
+
+      <div className="flex items-center gap-2.5 border-t border-hairline pt-2">
+        {capacity.ok ? (
+          <AddHardscape open={adding} onOpen={onAdding} onPick={sim.addHardscapeItem} />
+        ) : (
+          <span className="text-[13px] text-ink-3">{capacity.message}</span>
+        )}
+      </div>
+    </div>
+  );
+}

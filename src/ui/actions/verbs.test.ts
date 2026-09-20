@@ -3,12 +3,14 @@ import {
   applyAction,
   calculateSurface,
   createSimulation,
+  MAX_DOSE_ML,
   MIN_ALGAE_TO_SCRUB,
   WATER_CHANGE_AMOUNTS,
   type SimulationState,
 } from '../../simulation/index.js';
-import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
-import { TRIM_TARGETS } from '../run';
+import { DEFAULT_CONFIG, type TunableConfig } from '../../simulation/config/index.js';
+import { produce } from 'immer';
+import { doseToCover, nutrientReadings, TRIM_TARGETS } from '../run';
 import {
   DEFAULT_SETTINGS,
   DOSE_PRESETS,
@@ -30,6 +32,11 @@ function tank(): SimulationState {
   state.resources.water = 196.4;
   state.algae.mass = 47;
   return state;
+}
+
+/** 200 L under one hungry plant: more than a single dose could cover. */
+function starved(): SimulationState {
+  return applyAction(tank(), { type: 'addPlant', species: 'monte_carlo' }).state;
 }
 
 function planted(sizes: number[]): SimulationState {
@@ -60,7 +67,66 @@ describe('the six verbs', () => {
     ]);
     expect(detail(state, 'trimPlants').options.map((o) => o.value)).toEqual(TRIM_TARGETS);
     expect(detail(state, 'feed').options.map((o) => o.value)).toEqual(FEED_PRESETS);
-    expect(detail(state, 'dose').options.map((o) => o.value)).toEqual(DOSE_PRESETS);
+    // Dosing carries one rung the engine works out: what the plants are short of.
+    const advice = doseToCover(nutrientReadings(state, DEFAULT_CONFIG), state, DEFAULT_CONFIG);
+    expect(detail(state, 'dose').options.map((o) => o.value)).toEqual(
+      [...DOSE_PRESETS, advice!.ml].sort((a, b) => a - b)
+    );
+    expect(detail(state, 'dose').options.find((o) => o.value === advice!.ml)?.hint).toBe(
+      'covers the ask'
+    );
+  });
+
+  it('prices a dose by the formula the config carries', () => {
+    const state = planted([80, 60]);
+    const fifth = produce(DEFAULT_CONFIG, (draft) => {
+      draft.nutrients.fertilizerFormula.nitrate /= 5;
+    });
+    const rise = (config: TunableConfig): number => {
+      const hint = verbDetail(state, 'dose', DEFAULT_SETTINGS, 'metric', config).options.find(
+        (option) => option.value === DEFAULT_SETTINGS.dose
+      )?.hint;
+      return Number(hint?.match(/[\d.]+/)?.[0]);
+    };
+
+    expect(rise(DEFAULT_CONFIG)).toBeGreaterThan(0);
+    expect(rise(fifth)).toBeCloseTo(rise(DEFAULT_CONFIG) / 5, 5);
+  });
+
+  it('sets the advised dose among the presets rather than after them', () => {
+    const state = planted([80, 60]);
+    const asking = doseToCover(nutrientReadings(state, DEFAULT_CONFIG), state, DEFAULT_CONFIG)!;
+    const nearly = applyAction(state, { type: 'dose', amountMl: asking.ml - 3 }).state;
+    const advice = doseToCover(nutrientReadings(nearly, DEFAULT_CONFIG), nearly, DEFAULT_CONFIG)!;
+
+    // A ladder rung, not a step past the top of the ladder.
+    expect(advice.ml).toBeGreaterThan(DOSE_PRESETS[0]);
+    expect(advice.ml).toBeLessThan(DOSE_PRESETS[DOSE_PRESETS.length - 1]);
+
+    const values = detail(nearly, 'dose').options.map((o) => o.value);
+    expect(values).toEqual([...values].sort((a, b) => a - b));
+    expect(values).toContain(advice.ml);
+  });
+
+  it('offers the engine’s biggest single dose where the ask is bigger still', () => {
+    const state = starved();
+    const advice = doseToCover(nutrientReadings(state, DEFAULT_CONFIG), state, DEFAULT_CONFIG)!;
+    expect(advice.overSingleDose).toBe(true);
+
+    const options = detail(state, 'dose').options;
+    expect(options.map((o) => o.value)).toEqual([...DOSE_PRESETS, MAX_DOSE_ML]);
+    expect(options.find((o) => o.value === MAX_DOSE_ML)?.hint).toBe(`capped at ${MAX_DOSE_ML} ml`);
+    expect(options.some((o) => o.value === advice.ml)).toBe(false);
+  });
+
+  it('keeps the rung the reader chose on the ladder once the tank stops asking for it', () => {
+    const state = planted([80, 60]);
+    const advice = doseToCover(nutrientReadings(state, DEFAULT_CONFIG), state, DEFAULT_CONFIG)!;
+    const fed = applyAction(state, { type: 'dose', amountMl: advice.ml }).state;
+    const chosen = { ...DEFAULT_SETTINGS, dose: advice.ml };
+
+    expect(detail(fed, 'dose', chosen).options.map((o) => o.value)).toContain(advice.ml);
+    expect(detail(fed, 'dose', chosen).setting?.value).toBe(advice.ml);
   });
 
   it('prices each water-change rung in litres of this tank', () => {
@@ -114,7 +180,7 @@ describe('the six verbs', () => {
     const clean = { ...bare, algae: { ...bare.algae, mass: MIN_ALGAE_TO_SCRUB - 2 } };
 
     expect(row(bare, 'dose').blocked).toBe('no plants to fertilise');
-    expect(row(bare, 'dose').value).toBe('no plants to fertilise');
+    expect(row(bare, 'dose').value).toBe('2 ml');
     expect(row(empty, 'waterChange').blocked).toBe('no water to change');
     expect(row(full, 'topOff').blocked).toBe('already at capacity');
     expect(row(clean, 'scrubAlgae').blocked).toBe(`needs ${MIN_ALGAE_TO_SCRUB} % algae, now 3 %`);
@@ -150,9 +216,17 @@ describe('the six verbs', () => {
     expect(detail(tank(), 'topOff').note).toContain('diluted');
   });
 
-  it('points the chips at the verb they configure', () => {
-    expect(detail(tank(), 'waterChange').setting).toEqual({ verb: 'waterChange', value: 0.25 });
-    expect(detail(planted([80]), 'trimPlants').setting).toEqual({ verb: 'trimPlants', value: 75 });
+  it('points the chips at the verb they configure, under the heading they read', () => {
+    expect(detail(tank(), 'waterChange').setting).toEqual({
+      verb: 'waterChange',
+      value: 0.25,
+      label: 'Replace',
+    });
+    expect(detail(planted([80]), 'trimPlants').setting).toEqual({
+      verb: 'trimPlants',
+      value: 75,
+      label: 'Trim to',
+    });
   });
 
   it('labels the commit with the action and its amount', () => {
@@ -161,8 +235,8 @@ describe('the six verbs', () => {
 
     expect(labels).toEqual([
       'Feed 0.5 g',
-      'Change water · 25 %',
-      'Top off · +3.6 L',
+      'Change 25 % water',
+      'Top off +3.6 L',
       'Dose 2 ml',
       'Trim to 75 %',
       'Scrub algae',
@@ -185,6 +259,24 @@ describe('the six verbs', () => {
     // More mouths, fewer days out of the same gram — the overfeeding signal.
     expect(days(stocked)).toBeLessThan(days(lean));
     expect(detail(stocked, 'feed').meta).toMatch(/^8 fish eat \d+\.\d\d g a day$/);
+  });
+
+  it('stops counting days once a ration would outlast the month', () => {
+    const lean = applyAction(tank(), { type: 'addFish', species: 'neon_tetra' }).state;
+    let crowded = tank();
+    for (let i = 0; i < 8; i++) {
+      crowded = applyAction(crowded, { type: 'addFish', species: 'corydoras' }).state;
+    }
+
+    expect(detail(lean, 'feed').options.map((o) => o.hint)).toEqual(FEED_PRESETS.map(() => '30+ d'));
+    expect(detail(crowded, 'feed').options[0].hint).toMatch(/^\d/);
+  });
+
+  it('says a ration under the engine’s precision is under it, rather than zero', () => {
+    const fry = applyAction(tank(), { type: 'addFish', species: 'neon_tetra' }).state;
+    const tiny = { ...fry, fish: fry.fish.map((fish) => ({ ...fish, mass: 0.001 })) };
+
+    expect(detail(tiny, 'feed').meta).toBe('1 fish eats under 0.01 g a day');
   });
 
   it('names the food already standing in the water, which left Livestock with the verb', () => {

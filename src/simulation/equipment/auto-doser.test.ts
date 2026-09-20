@@ -7,7 +7,9 @@ import {
   DEFAULT_AUTO_DOSER,
 } from './auto-doser.js';
 import { createSimulation } from '../state.js';
-import type { FertilizerFormula } from '../config/nutrients.js';
+import { nutrientsDefaults, type FertilizerFormula } from '../config/nutrients.js';
+
+const FORMULA = nutrientsDefaults.fertilizerFormula;
 
 describe('auto-doser equipment', () => {
   describe('shouldDose', () => {
@@ -59,7 +61,7 @@ describe('auto-doser equipment', () => {
   describe('autoDoserUpdate', () => {
     it('does nothing when disabled', () => {
       const state = createSimulation({ tankCapacity: 40 });
-      const result = autoDoserUpdate(state);
+      const result = autoDoserUpdate(state, FORMULA);
 
       expect(result.effects).toHaveLength(0);
       expect(result.dosed).toBe(false);
@@ -81,7 +83,7 @@ describe('auto-doser equipment', () => {
         },
       };
 
-      const result = autoDoserUpdate(state);
+      const result = autoDoserUpdate(state, FORMULA);
 
       expect(result.dosed).toBe(true);
       expect(result.effects).toHaveLength(4); // nitrate, phosphate, potassium, iron
@@ -104,7 +106,7 @@ describe('auto-doser equipment', () => {
         },
       };
 
-      const result = autoDoserUpdate(state);
+      const result = autoDoserUpdate(state, FORMULA);
 
       const nitrateEffect = result.effects.find((e) => e.resource === 'nitrate');
       const phosphateEffect = result.effects.find((e) => e.resource === 'phosphate');
@@ -141,7 +143,7 @@ describe('auto-doser equipment', () => {
         },
       };
 
-      const result = autoDoserUpdate(state);
+      const result = autoDoserUpdate(state, FORMULA);
 
       expect(result.dosed).toBe(false);
       expect(result.effects).toHaveLength(0);
@@ -163,7 +165,7 @@ describe('auto-doser equipment', () => {
         },
       };
 
-      const result = autoDoserUpdate(state);
+      const result = autoDoserUpdate(state, FORMULA);
 
       expect(result.dosed).toBe(false);
       expect(result.effects).toHaveLength(0);
@@ -185,7 +187,7 @@ describe('auto-doser equipment', () => {
         },
       };
 
-      const result = autoDoserUpdate(state);
+      const result = autoDoserUpdate(state, FORMULA);
 
       expect(result.state.equipment.autoDoser.dosedToday).toBe(false);
     });
@@ -206,7 +208,7 @@ describe('auto-doser equipment', () => {
         },
       };
 
-      const result = autoDoserUpdate(state);
+      const result = autoDoserUpdate(state, FORMULA);
 
       const nitrateEffect = result.effects.find((e) => e.resource === 'nitrate');
       expect(nitrateEffect!.delta).toBe(250); // 5ml * 50 mg/ml

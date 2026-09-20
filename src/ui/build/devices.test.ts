@@ -7,8 +7,7 @@ import {
   buildDeviceList,
   equipmentRows,
   equipmentSummary,
-  filterRows,
-  isEquipmentId,
+  isDeviceId,
 } from './devices';
 
 /** Defaults: filter, heater and light on; the other five off. */
@@ -79,35 +78,20 @@ describe('equipmentRows', () => {
   });
 });
 
-describe('isEquipmentId', () => {
-  it('admits every list row and nothing else', () => {
-    for (const row of rows) expect(isEquipmentId(row.id)).toBe(true);
-    expect(isEquipmentId('skimmer')).toBe(false);
-    expect(isEquipmentId('')).toBe(false);
+describe('isDeviceId', () => {
+  it('admits every device the rack racks, and nothing else', () => {
+    for (const device of buildDeviceList(base.equipment)) {
+      expect(isDeviceId(device.id)).toBe(true);
+    }
+    expect(isDeviceId('biofilter')).toBe(false);
+    expect(isDeviceId('skimmer')).toBe(false);
+    expect(isDeviceId('')).toBe(false);
   });
 
   it('rejects Object.prototype keys — a route is arbitrary user input', () => {
     for (const key of ['toString', 'constructor', 'valueOf', 'hasOwnProperty', '__proto__']) {
-      expect(isEquipmentId(key)).toBe(false);
+      expect(isDeviceId(key)).toBe(false);
     }
-  });
-});
-
-describe('filterRows', () => {
-  it('returns every row for a blank query', () => {
-    expect(filterRows(rows, '')).toHaveLength(9);
-    expect(filterRows(rows, '   ')).toHaveLength(9);
-  });
-
-  it('matches on name, case-insensitively', () => {
-    expect(filterRows(rows, 'air').map((r) => r.id)).toEqual(['airPump']);
-    expect(filterRows(rows, 'PUMP').map((r) => r.id)).toEqual(['airPump']);
-    expect(filterRows(rows, 'co₂').map((r) => r.id)).toEqual(['co2Generator']);
-    expect(filterRows(rows, 'bio').map((r) => r.id)).toEqual(['biofilter']);
-  });
-
-  it('returns nothing when no name matches', () => {
-    expect(filterRows(rows, 'skimmer')).toEqual([]);
   });
 });
 

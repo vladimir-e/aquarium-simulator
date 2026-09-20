@@ -1,20 +1,19 @@
 /**
  * Flora derivations: what each plant and the algae are doing right now, and the
- * nutrient readings the Nutrients panel and the index rail share. Nothing here
- * invents a band — a nutrient reads short when the engine's own sufficiency
- * would rise if that one were topped up, so the panel can never name a
- * deficiency the plants are not actually feeling.
+ * tank's nutrient readings. Nothing here invents a band — a nutrient reads
+ * short when the engine's own sufficiency would rise if that one were topped
+ * up, so no surface can name a deficiency the plants are not actually feeling.
  */
 
 import {
   calculateNutrientSufficiency,
   computeAlgaePopulation,
   getDosePreview,
-  getMaxPlants,
   getPlantsToTrimCount,
   MAX_DOSE_ML,
   PLANT_SPECIES_DATA,
   type NutrientDemand,
+  type PlantSpecies,
   type Resources,
   type SimulationState,
   type VitalityFactor,
@@ -74,6 +73,7 @@ export function algaeWord(mass: number): string {
 /** One row of the plant list, with the vitality behind it already resolved. */
 export interface PlantRow {
   id: string;
+  species: PlantSpecies;
   name: string;
   /** % of normal full size — plants grow past 100 % toward their species ceiling. */
   size: number;
@@ -108,6 +108,7 @@ export function plantRows(state: SimulationState, config: TunableConfig): PlantR
 
     return {
       id: plant.id,
+      species: plant.species,
       name: PLANT_SPECIES_DATA[plant.species].name,
       size: plant.size,
       overTrim: plant.size > TRIM_CEILING,
@@ -120,21 +121,52 @@ export function plantRows(state: SimulationState, config: TunableConfig): PlantR
   });
 }
 
-/**
- * The plants in trouble, worst first. One definition of ailing, so the card's
- * count and the rail's named plant can never disagree.
- *
- * Ordered by the status each row actually shows, then by condition: a plant can
- * now be alerting on an energy ledger its condition knows nothing about, so
- * sorting on condition alone would file it behind milder trouble.
- */
-export function ailingPlants(rows: PlantRow[]): PlantRow[] {
-  return rows
-    .filter((row) => row.status !== 'ok')
-    .sort(
-      (a, b) =>
-        STATUS_SEVERITY[b.status] - STATUS_SEVERITY[a.status] || a.condition - b.condition
+function mean(values: number[]): number {
+  return values.length ? values.reduce((sum, v) => sum + v, 0) / values.length : 0;
+}
+
+/** A species folded into one row — the shape the fish roster already groups into. */
+export interface PlantSpeciesGroup {
+  species: PlantSpecies;
+  name: string;
+  count: number;
+  /** Mean % of normal full size across the specimens. */
+  size: number;
+  /** Mean condition across the specimens. */
+  condition: number;
+  /** One per specimen, in planting order. */
+  statuses: Status[];
+  /** The worst specimen's reading: a group is as urgent as its worst member. */
+  status: Status;
+  word: string;
+  /** The specimens themselves, in planting order. */
+  plants: PlantRow[];
+}
+
+export function groupPlantsBySpecies(rows: PlantRow[]): PlantSpeciesGroup[] {
+  const groups = new Map<PlantSpecies, PlantRow[]>();
+  for (const row of rows) {
+    const existing = groups.get(row.species);
+    if (existing) existing.push(row);
+    else groups.set(row.species, [row]);
+  }
+
+  return [...groups].map(([species, members]) => {
+    const worst = members.reduce((a, b) =>
+      STATUS_SEVERITY[b.status] > STATUS_SEVERITY[a.status] ? b : a
     );
+    return {
+      species,
+      name: members[0].name,
+      count: members.length,
+      size: mean(members.map((member) => member.size)),
+      condition: mean(members.map((member) => member.condition)),
+      statuses: members.map((member) => member.status),
+      status: worst.status,
+      word: worst.word,
+      plants: members,
+    };
+  });
 }
 
 /** The algae, read the same way as a plant — but a stressor here is good news. */
@@ -290,10 +322,7 @@ export interface NutrientAlert {
   status: Status;
 }
 
-/**
- * The one thing to say about the tank's nutrients. Shared by the index rail and
- * the Nutrients header so the two can never name different deficiencies.
- */
+/** The one thing to say about the tank's nutrients. */
 export function nutrientAlert(readings: NutrientReading[]): NutrientAlert | null {
   const short = readings.filter((r) => r.limiting);
   if (short.length === 0) return null;
@@ -364,14 +393,4 @@ export function doseToCover(
     overSingleDose: whole > MAX_DOSE_ML,
     covers: short.map((r) => r.label),
   };
-}
-
-/** The section's headline figure, shared with the rail's Flora row. */
-export function plantsAndAlgae(state: SimulationState): string {
-  const algaePct = Math.round(state.algae.mass);
-  const algae = algaePct < 1 ? 'no algae' : `algae ${algaePct} %`;
-  const overTrim = overTrimCount(state);
-  const clauses = [`${state.plants.length} of ${getMaxPlants(state.tank.capacity)} plants`, algae];
-  if (overTrim > 0) clauses.push(`${overTrim} to trim`);
-  return clauses.join(' · ');
 }

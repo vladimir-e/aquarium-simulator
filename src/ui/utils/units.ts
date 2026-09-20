@@ -12,37 +12,22 @@ export type UnitSystem = 'metric' | 'imperial';
 
 const LITERS_PER_GALLON = 3.785411784;
 
-/**
- * Convert Celsius to Fahrenheit.
- */
 function celsiusToFahrenheit(celsius: number): number {
   return (celsius * 9) / 5 + 32;
 }
 
-/**
- * Convert Fahrenheit to Celsius.
- */
 function fahrenheitToCelsius(fahrenheit: number): number {
   return ((fahrenheit - 32) * 5) / 9;
 }
 
-/**
- * Convert liters to gallons.
- */
 function litersToGallons(liters: number): number {
   return liters / LITERS_PER_GALLON;
 }
 
-/**
- * Convert gallons to liters.
- */
 function gallonsToLiters(gallons: number): number {
   return gallons * LITERS_PER_GALLON;
 }
 
-/**
- * Format temperature for display based on unit system.
- */
 export function formatTemperature(celsius: number, system: UnitSystem, precision = 1): string {
   if (system === 'imperial') {
     const fahrenheit = celsiusToFahrenheit(celsius);
@@ -51,9 +36,6 @@ export function formatTemperature(celsius: number, system: UnitSystem, precision
   return `${celsius.toFixed(precision)}°C`;
 }
 
-/**
- * Format volume for display based on unit system.
- */
 export function formatVolume(liters: number, system: UnitSystem, precision = 1): string {
   if (system === 'imperial') {
     const gallons = litersToGallons(liters);
@@ -76,43 +58,38 @@ export function formatTemperatureRange(
 }
 
 /**
- * Get temperature unit label based on unit system.
+ * Format a temperature difference — a gap or a rate, not a point on the
+ * scale, so the conversion scales without the freezing-point offset.
  */
+export function formatTemperatureDelta(
+  celsius: number,
+  system: UnitSystem,
+  precision = 1
+): string {
+  const value = system === 'imperial' ? (celsius * 9) / 5 : celsius;
+  return `${value.toFixed(precision)}${getTemperatureUnit(system)}`;
+}
+
 export function getTemperatureUnit(system: UnitSystem): string {
   return system === 'imperial' ? '°F' : '°C';
 }
 
-/**
- * Get volume unit label based on unit system.
- */
 export function getVolumeUnit(system: UnitSystem): string {
   return system === 'imperial' ? 'gal' : 'L';
 }
 
-/**
- * Convert displayed temperature to internal Celsius value.
- */
 export function toInternalTemperature(value: number, system: UnitSystem): number {
   return system === 'imperial' ? fahrenheitToCelsius(value) : value;
 }
 
-/**
- * Convert internal Celsius to display value.
- */
 export function toDisplayTemperature(celsius: number, system: UnitSystem): number {
   return system === 'imperial' ? celsiusToFahrenheit(celsius) : celsius;
 }
 
-/**
- * Convert displayed volume to internal liters value.
- */
 export function toInternalVolume(value: number, system: UnitSystem): number {
   return system === 'imperial' ? gallonsToLiters(value) : value;
 }
 
-/**
- * Convert internal liters to display value.
- */
 export function toDisplayVolume(liters: number, system: UnitSystem): number {
   return system === 'imperial' ? litersToGallons(liters) : liters;
 }
@@ -148,11 +125,7 @@ export function detectUnitSystem(): UnitSystem {
 // ============================================================================
 
 export interface TankSizeOption {
-  /** Internal value in liters (used by simulation) */
   liters: number;
-  /** Display value (liters for metric, gallons for imperial) */
-  displayValue: number;
-  /** Formatted display string */
   display: string;
 }
 
@@ -163,42 +136,23 @@ const METRIC_TANK_SIZES = [20, 40, 75, 150, 200, 300, 400];
 const IMPERIAL_TANK_SIZES = [5, 10, 20, 40, 55, 75, 100];
 
 /**
- * Get tank size options based on unit system.
- * Returns options with internal liter values and formatted display strings.
+ * The sizes a tank can be resized to: the round ones in the reader's system,
+ * plus `capacity` itself wherever it is not one of them — a picker offers only
+ * what it can set, and must read back the tank it is standing on.
  */
-export function getTankSizeOptions(system: UnitSystem): TankSizeOption[] {
-  if (system === 'imperial') {
-    return IMPERIAL_TANK_SIZES.map((gallons) => ({
-      liters: gallonsToLiters(gallons),
-      displayValue: gallons,
-      display: `${gallons} gal`,
-    }));
-  }
-  return METRIC_TANK_SIZES.map((liters) => ({
-    liters,
-    displayValue: liters,
-    display: `${liters} L`,
-  }));
-}
+export function getTankSizeOptions(system: UnitSystem, capacity?: number): TankSizeOption[] {
+  const sizes: TankSizeOption[] =
+    system === 'imperial'
+      ? IMPERIAL_TANK_SIZES.map((gallons) => ({
+          liters: gallonsToLiters(gallons),
+          display: `${gallons} gal`,
+        }))
+      : METRIC_TANK_SIZES.map((liters) => ({ liters, display: `${liters} L` }));
 
-/**
- * Find the closest tank size option for a given liter value.
- * Useful when switching unit systems to snap to nearest "nice" value.
- */
-export function findClosestTankSize(liters: number, system: UnitSystem): TankSizeOption {
-  const options = getTankSizeOptions(system);
-  let closest = options[0];
-  let minDiff = Math.abs(liters - closest.liters);
-
-  for (const option of options) {
-    const diff = Math.abs(liters - option.liters);
-    if (diff < minDiff) {
-      minDiff = diff;
-      closest = option;
-    }
-  }
-
-  return closest;
+  if (capacity === undefined || sizes.some((size) => size.liters === capacity)) return sizes;
+  return [...sizes, { liters: capacity, display: formatVolume(capacity, system, 1) }].sort(
+    (a, b) => a.liters - b.liters
+  );
 }
 
 // ============================================================================
@@ -207,9 +161,6 @@ export function findClosestTankSize(liters: number, system: UnitSystem): TankSiz
 
 const LITERS_PER_HOUR_PER_GPH = 3.785411784;
 
-/**
- * Convert L/h to GPH.
- */
 function lphToGph(lph: number): number {
   return lph / LITERS_PER_HOUR_PER_GPH;
 }

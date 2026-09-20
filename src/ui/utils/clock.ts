@@ -1,6 +1,6 @@
 /**
  * Ticks are simulated hours. One home for turning them into calendar language,
- * so the timeline's clock, the scrubber's readout and the run-length tile can
+ * so the timeline's clock, the playhead's readout and the run-length tile can
  * never disagree about which day a tick falls on.
  */
 

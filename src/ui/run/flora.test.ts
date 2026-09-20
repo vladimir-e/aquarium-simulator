@@ -13,7 +13,6 @@ import {
 import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
 import { readPlantVitality } from '../../simulation/plants/index.js';
 import {
-  ailingPlants,
   algaeRow,
   algaeStatus,
   algaeWord,
@@ -23,8 +22,8 @@ import {
   nutrientAlert,
   nutrientReadings,
   overTrimCount,
+  groupPlantsBySpecies,
   plantRows,
-  plantsAndAlgae,
   tankDemand,
   TRIM_TARGETS,
 } from './flora';
@@ -123,6 +122,33 @@ describe('vitalReading', () => {
   });
 });
 
+describe('groupPlantsBySpecies', () => {
+  it('folds a species into one row carrying a status per specimen', () => {
+    let state = planted(['java_fern', 'java_fern', 'monte_carlo']);
+    for (let hour = 0; hour < 24; hour++) state = tick(state, DEFAULT_CONFIG);
+
+    const groups = groupPlantsBySpecies(plantRows(state, DEFAULT_CONFIG));
+    expect(groups.map((group) => group.name)).toEqual(['Java Fern', 'Monte Carlo']);
+
+    const [ferns] = groups;
+    expect(ferns.count).toBe(2);
+    expect(ferns.statuses).toHaveLength(2);
+  });
+
+  it('takes the group’s word from its worst specimen, and its strip from the mean', () => {
+    const rows = plantRows(planted(['java_fern', 'java_fern']), DEFAULT_CONFIG);
+    const ailing = [
+      { ...rows[0], condition: 20, status: 'alert' as const, word: 'dying' },
+      { ...rows[1], condition: 80, status: 'ok' as const, word: 'thriving' },
+    ];
+
+    const [group] = groupPlantsBySpecies(ailing);
+    expect(group.status).toBe('alert');
+    expect(group.word).toBe('dying');
+    expect(group.condition).toBe(50);
+  });
+});
+
 describe('plantRows', () => {
   it('carries the engine’s own vitality, and its factors sum to the net it prints', () => {
     let state = planted(['java_fern', 'monte_carlo']);
@@ -190,47 +216,6 @@ describe('plantRows', () => {
       word: 'struggling',
       status: 'alert',
     });
-  });
-});
-
-describe('ailingPlants', () => {
-  it('takes every plant off the ok band, worst first', () => {
-    const state = planted(['java_fern', 'monte_carlo', 'anubias']);
-    const conditions = [45, 90, 20];
-    const mixed = {
-      ...state,
-      plants: state.plants.map((p, i) => ({ ...p, condition: conditions[i] })),
-    };
-
-    const ailing = ailingPlants(plantRows(mixed, DEFAULT_CONFIG));
-    expect(ailing.map((row) => row.name)).toEqual(['Anubias', 'Java Fern']);
-    expect(ailing.map((row) => row.word)).toEqual(['struggling', 'fair']);
-  });
-
-  it('files an alert above a warning, whatever the two conditions read', () => {
-    // Status stopped being a function of condition, so the order stopped being
-    // one too: a plant shedding tissue at full condition outranks one merely
-    // dipping, and sorting on the number alone would file it second.
-    const state = planted(['anubias', 'java_fern']);
-    const dark: SimulationState = {
-      ...state,
-      resources: { ...state.resources, light: 0 },
-      plants: [
-        { ...state.plants[0], condition: 100, surplus: 0 },
-        { ...state.plants[1], condition: 45 },
-      ],
-    };
-
-    const ailing = ailingPlants(plantRows(dark, DEFAULT_CONFIG));
-    expect(ailing.map((row) => [row.name, row.word])).toEqual([
-      ['Anubias', 'starving'],
-      ['Java Fern', 'fair'],
-    ]);
-  });
-
-  it('has nothing to name while every plant is fine', () => {
-    const state = planted(['java_fern']);
-    expect(ailingPlants(plantRows(state, DEFAULT_CONFIG))).toEqual([]);
   });
 });
 
@@ -456,29 +441,3 @@ describe('overTrimCount', () => {
   });
 });
 
-describe('plantsAndAlgae', () => {
-  it('counts plants against the tank’s capacity and reads the algae', () => {
-    expect(plantsAndAlgae(tank(40))).toBe('0 of 6 plants · no algae');
-
-    const state = planted(['java_fern'], 40);
-    expect(plantsAndAlgae({ ...state, algae: { ...state.algae, mass: 47 } })).toBe(
-      '1 of 6 plants · algae 47 %'
-    );
-  });
-
-  it('names the reason to trim once there is one', () => {
-    const grown = applyAction(tank(40), {
-      type: 'addPlant',
-      species: 'monte_carlo',
-      initialSize: 95,
-    }).state;
-
-    expect(plantsAndAlgae(grown)).toBe('1 of 6 plants · no algae · 1 to trim');
-    // Trimming to the loosest rung retires the clause it motivated.
-    const trimmed = applyAction(grown, {
-      type: 'trimPlants',
-      targetSize: Math.max(...TRIM_TARGETS),
-    }).state;
-    expect(plantsAndAlgae(trimmed)).toBe('1 of 6 plants · no algae');
-  });
-});

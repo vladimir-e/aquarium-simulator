@@ -9,7 +9,7 @@ import {
   type CycleProjection,
 } from './bacteria';
 import { DEFAULT_CONFIG, nitrogenCycleDefaults } from '../../simulation/config/index.js';
-import { NO2_TO_NO3_MASS_RATIO } from '../../simulation/core/chemistry.js';
+import { NH3_TO_NO2_MASS_RATIO, NO2_TO_NO3_MASS_RATIO } from '../../simulation/core/chemistry.js';
 import {
   applyAction,
   createSimulation,
@@ -232,6 +232,14 @@ describe('bacteriaReadout', () => {
     expect(rates.gillsToAmmonia).toBe(0);
     expect(rates.ammoniaToNitrite).toBe(0);
     expect(rates.netNitrite).toBe(0);
+  });
+
+  it('charges the ammonia the AOB take out against the nitrite they make of it', () => {
+    const state = cycled(24 * 20);
+    const { rates } = bacteriaReadout(state, config);
+
+    expect(rates.ammoniaOxidised).toBeGreaterThan(0);
+    expect(rates.ammoniaToNitrite).toBeCloseTo(rates.ammoniaOxidised * NH3_TO_NO2_MASS_RATIO, 12);
   });
 
   it('nets nitrite as what AOB produce minus what NOB clear', () => {

@@ -3,71 +3,95 @@
 /* Fonts are self-hosted via @fontsource, imported in main.tsx. */
 
 @theme {
-  --font-sans: 'Hanken Grotesk', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-sans: 'IBM Plex Sans', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
   --font-mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
 
   --radius-badge: 6px;
-  --radius-control: 8px;
-  --radius-card: 12px;
-  --radius-sheet: 14px;
+  --radius-control: 6px;
+  --radius-card: 8px;
+  --radius-sheet: 12px;
+
+  --animate-drawer-in: aq-drawer-in 180ms cubic-bezier(0.32, 0.72, 0, 1);
+  --animate-sheet-in: aq-sheet-in 180ms cubic-bezier(0.32, 0.72, 0, 1);
+  --animate-push-in: aq-push-in 200ms ease-out;
+
+  @keyframes aq-drawer-in {
+    from {
+      transform: translateX(100%);
+    }
+    to {
+      transform: translateX(0);
+    }
+  }
+  @keyframes aq-sheet-in {
+    from {
+      transform: translateY(100%);
+    }
+    to {
+      transform: translateY(0);
+    }
+  }
+  @keyframes aq-push-in {
+    from {
+      transform: translateX(100%);
+    }
+    to {
+      transform: translateX(0);
+    }
+  }
 }
 
-/* Warm-paper light theme (sampled from mockups 6). */
-:root.light {
-  --bg: #ebe9e1;
-  --surface: #f5f3ed;
-  --surface-2: #fbfaf5;
-  --hairline: #dcd8ce;
-  --hairline-2: #c9c4b6;
-  --track: #e3e0d6;
-  --ink: #282e2d;
-  --ink-2: #5c625c;
-  --ink-3: #8a8e84;
-
-  --ok: #4a8a47;
-  --ok-text: #3e7a3e;
-  --ok-tint: #dfe9dc;
-  --warn: #a7732a;
-  --warn-text: #97671f;
-  --warn-tint: #efe2c8;
-  --alert: #b34935;
-  --alert-text: #a23f2c;
-  --alert-tint: #f1dbd4;
-
-  --accent: #3c7869;
-  --accent-tint: #dce8e2;
-
-  --scrub: #c79a3a;
-  --focus: #3c7869;
-}
-
-/* Deep-navy dark theme (sampled from mockup 7). */
+/* A lab bench at night: green-black room, one lit thing. */
 :root.dark {
-  --bg: #0d131b;
-  --surface: #131c25;
-  --surface-2: #18232e;
-  --hairline: #243240;
-  --hairline-2: #2e3e4d;
-  --track: #1b2732;
-  --ink: #eaf1f4;
-  --ink-2: #93a0ad;
-  --ink-3: #63707d;
+  --bg: #0f1514;
+  --surface: #151c1b;
+  --surface-2: #1b2422;
+  --hairline: #26312f;
+  --ink: #e7ecea;
+  --ink-2: #9aa6a3;
+  --ink-3: #66736f;
+  --band: #2a3a37;
 
-  --ok: #94d97b;
-  --ok-text: #94d97b;
-  --ok-tint: rgba(148, 217, 123, 0.16);
-  --warn: #f4b765;
-  --warn-text: #f4b765;
-  --warn-tint: rgba(244, 183, 101, 0.16);
-  --alert: #ee816d;
-  --alert-text: #ee816d;
-  --alert-tint: rgba(238, 129, 109, 0.16);
+  --accent: #63c7b2;
+  --accent-tint: rgba(99, 199, 178, 0.14);
+  --accent-ink: #0d1a17;
+  --warn: #e0a852;
+  --warn-tint: rgba(224, 168, 82, 0.14);
+  --alert: #f0705c;
+  --alert-tint: rgba(240, 112, 92, 0.14);
 
-  --accent: #77d5c4;
-  --accent-tint: rgba(119, 213, 196, 0.16);
+  --chart-1: #63c7b2;
+  --chart-2: #8fa8e8;
+  --chart-3: #d9b15e;
+  --chart-4: #c98bb9;
 
-  --scrub: #e8c34e;
-  --focus: #77d5c4;
+  --shadow-drawer: none;
+}
+
+:root.light {
+  --bg: #eef1f0;
+  --surface: #ffffff;
+  --surface-2: #f3f6f5;
+  --hairline: #d8dfdd;
+  --ink: #1b2321;
+  --ink-2: #5b6763;
+  --ink-3: #8a9490;
+  --band: #dce7e3;
+
+  --accent: #1e8a7a;
+  --accent-tint: rgba(30, 138, 122, 0.12);
+  --accent-ink: #ffffff;
+  --warn: #a86a16;
+  --warn-tint: rgba(168, 106, 22, 0.12);
+  --alert: #c2452f;
+  --alert-tint: rgba(194, 69, 47, 0.12);
+
+  --chart-1: #1e8a7a;
+  --chart-2: #4a63b8;
+  --chart-3: #a8781c;
+  --chart-4: #9a5a8c;
+
+  --shadow-drawer: 0 1px 2px rgba(0, 0, 0, 0.06);
 }
 
 @theme inline {
@@ -75,35 +99,23 @@
   --color-surface: var(--surface);
   --color-surface-2: var(--surface-2);
   --color-hairline: var(--hairline);
-  --color-hairline-2: var(--hairline-2);
-  --color-track: var(--track);
   --color-ink: var(--ink);
   --color-ink-2: var(--ink-2);
   --color-ink-3: var(--ink-3);
-
-  --color-ok: var(--ok);
-  --color-ok-text: var(--ok-text);
-  --color-ok-tint: var(--ok-tint);
-  --color-warn: var(--warn);
-  --color-warn-text: var(--warn-text);
-  --color-warn-tint: var(--warn-tint);
-  --color-alert: var(--alert);
-  --color-alert-text: var(--alert-text);
-  --color-alert-tint: var(--alert-tint);
+  --color-band: var(--band);
 
   --color-accent: var(--accent);
   --color-accent-tint: var(--accent-tint);
-  --color-scrub: var(--scrub);
-  --color-focus: var(--focus);
+  --color-accent-ink: var(--accent-ink);
+  --color-warn: var(--warn);
+  --color-warn-tint: var(--warn-tint);
+  --color-alert: var(--alert);
+  --color-alert-tint: var(--alert-tint);
 
-  /* Legacy aliases: the DebugPanel (a dev tool) and its Button still paint with
-     these pre-redesign names. They resolve to the current tokens so the panel
-     themes correctly. */
-  --color-background: var(--bg);
-  --color-panel: var(--surface);
-  --color-border: var(--hairline);
-  --color-accent-blue: var(--accent);
-  --color-accent-green: var(--ok);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
 }
 
 /* Theme the root element too, so the overscroll canvas (outside app content)
@@ -112,19 +124,9 @@
   background-color: var(--bg);
 }
 
-/* Mobile pushed editor (equipment inspector): slides in from the right. */
-@keyframes aq-push-in {
-  from {
-    transform: translateX(100%);
-  }
-  to {
-    transform: translateX(0);
-  }
-}
-.animate-push-in {
-  animation: aq-push-in 200ms ease-out;
-}
 @media (prefers-reduced-motion: reduce) {
+  .animate-drawer-in,
+  .animate-sheet-in,
   .animate-push-in {
     animation: none;
   }
@@ -137,6 +139,8 @@ body {
      AppShell's h-dvh and the whole page scrolls by that difference. */
   min-height: 100dvh;
   font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 20px;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   background-color: var(--bg);
@@ -151,31 +155,15 @@ body {
   }
 }
 
-/* Light-mode remaps for the DebugPanel's built-in gray utilities (grays are
-   Tailwind built-ins, not tokens, so the theme class can't reach them). */
-:root.light .text-gray-200 {
-  color: var(--ink);
-}
-:root.light .text-gray-300,
-:root.light .text-gray-400 {
-  color: var(--ink-2);
-}
-:root.light .text-gray-500 {
-  color: var(--ink-3);
-}
-:root.light .hover\:text-gray-100:hover {
-  color: var(--ink);
-}
-
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 ::-webkit-scrollbar-track {
-  background: var(--track);
+  background: var(--surface-2);
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--hairline-2);
+  background: var(--hairline);
   border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {

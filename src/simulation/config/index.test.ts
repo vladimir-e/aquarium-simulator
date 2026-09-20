@@ -3,9 +3,12 @@ import {
   DEFAULT_CONFIG,
   cloneConfig,
   configRange,
+  tunableAt,
+  withTunable,
   isModified,
   isSectionModified,
   isConfigModified,
+  countModified,
   decayDefaults,
   nitrogenCycleDefaults,
   gasExchangeDefaults,
@@ -104,6 +107,26 @@ describe('isSectionModified', () => {
     const modified = cloneConfig(DEFAULT_CONFIG);
     modified.decay.q10 = 3.0;
     expect(isSectionModified(modified, 'temperature')).toBe(false);
+  });
+});
+
+describe('countModified', () => {
+  it('counts nothing on an untouched config', () => {
+    expect(countModified(DEFAULT_CONFIG)).toBe(0);
+  });
+
+  it('counts each touched value once, across sections', () => {
+    const modified = cloneConfig(DEFAULT_CONFIG);
+    modified.decay.q10 = 3.0;
+    modified.ph.neutralPh = DEFAULT_CONFIG.ph.neutralPh + 1;
+    expect(countModified(modified)).toBe(2);
+  });
+
+  it('reaches the leaves of a nested value', () => {
+    const modified = cloneConfig(DEFAULT_CONFIG);
+    modified.nutrients.fertilizerFormula.nitrate += 1;
+    modified.nutrients.fertilizerFormula.phosphate += 1;
+    expect(countModified(modified)).toBe(2);
   });
 });
 
@@ -292,5 +315,40 @@ describe('phDefaults', () => {
     expect(phDefaults.driftwoodTargetPh).toBe(6.0);
     expect(phDefaults.neutralPh).toBe(7.0);
     expect(phDefaults.basePgDriftRate).toBe(0.25);
+  });
+});
+
+describe('tunableAt', () => {
+  it('reads the leaf a dotted path names', () => {
+    expect(tunableAt(DEFAULT_CONFIG, 'ph.neutralPh')).toBe(DEFAULT_CONFIG.ph.neutralPh);
+  });
+
+  it('names nothing numeric, and says so', () => {
+    // A section, a leaf that is not a number, a key that is not there, and a
+    // key off Object.prototype — every one of them is "no such tunable".
+    expect(tunableAt(DEFAULT_CONFIG, 'ph')).toBeUndefined();
+    expect(tunableAt(DEFAULT_CONFIG, 'ph.nothing')).toBeUndefined();
+    expect(tunableAt(DEFAULT_CONFIG, 'nothing.at.all')).toBeUndefined();
+    expect(tunableAt(DEFAULT_CONFIG, 'toString')).toBeUndefined();
+    expect(tunableAt(DEFAULT_CONFIG, 'constructor.name')).toBeUndefined();
+  });
+});
+
+describe('withTunable', () => {
+  it('sets the leaf and leaves the config it was given alone', () => {
+    const was = DEFAULT_CONFIG.ph.neutralPh;
+    const next = withTunable(DEFAULT_CONFIG, 'ph.neutralPh', 6.4);
+
+    expect(tunableAt(next, 'ph.neutralPh')).toBe(6.4);
+    expect(DEFAULT_CONFIG.ph.neutralPh).toBe(was);
+    expect(next.temperature).toEqual(DEFAULT_CONFIG.temperature);
+  });
+
+  it('throws on a path that names no tunable, rather than writing one', () => {
+    expect(() => withTunable(DEFAULT_CONFIG, 'ph.nothing', 1)).toThrow(
+      'Unknown config path "ph.nothing".'
+    );
+    expect(() => withTunable(DEFAULT_CONFIG, 'ph', 1)).toThrow();
+    expect(() => withTunable(DEFAULT_CONFIG, 'toString', 1)).toThrow();
   });
 });

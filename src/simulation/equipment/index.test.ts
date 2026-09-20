@@ -1,5 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { biofilmKept, calculatePassiveResources, type PassiveResourceValues } from './index.js';
+import { produce } from 'immer';
+import {
+  biofilmKept,
+  calculatePassiveResources,
+  processEquipment,
+  type PassiveResourceValues,
+} from './index.js';
+import { DEFAULT_CONFIG } from '../config/index.js';
 import { getSubstrateSurface, type SubstrateType } from './substrate.js';
 import { calculateTankHeight, createSimulation, type SimulationState } from '../state.js';
 import { calculateParAtDepth } from './light.js';
@@ -561,5 +568,25 @@ describe('biofilmKept', () => {
 
   it('costs a tank with no bed nothing at all', () => {
     expect(biofilmKept(tank('none'))).toBe(1);
+  });
+});
+
+describe('processEquipment', () => {
+  it('fills the auto doser with the formula the config carries', () => {
+    const tuned = produce(DEFAULT_CONFIG, (draft) => {
+      draft.nutrients.fertilizerFormula.nitrate = 10;
+    });
+    const state = produce(createSimulation({ tankCapacity: 100 }), (draft) => {
+      draft.tick = draft.equipment.autoDoser.schedule.startHour;
+      draft.equipment.autoDoser.enabled = true;
+      draft.equipment.autoDoser.doseAmountMl = 2;
+    });
+
+    const { effects } = processEquipment(state, tuned);
+
+    const nitrate = effects.find(
+      (effect) => effect.source === 'auto-doser' && effect.resource === 'nitrate'
+    );
+    expect(nitrate?.delta).toBe(20);
   });
 });

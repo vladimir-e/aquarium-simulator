@@ -1,7 +1,11 @@
 import React from 'react';
 import { CONTROL_FOCUS } from './focus';
 
-/** Pill toggle: on = ok-tint track + ok knob + "on"; off = track + ink-3 knob + "off". */
+/**
+ * The one switch in the app, and it only ever means power. Accent because the
+ * device is drawing current and the switch is interactive — never because the
+ * device is healthy.
+ */
 export function Toggle({
   checked,
   onChange,
@@ -18,17 +22,18 @@ export function Toggle({
       aria-checked={checked}
       aria-label={ariaLabel}
       onClick={() => onChange(!checked)}
-      className={`inline-flex items-center gap-2 rounded-control ${CONTROL_FOCUS}`}
+      className={`shrink-0 rounded-full ${CONTROL_FOCUS}`}
     >
       <span
-        className={`relative h-5 w-9 rounded-full transition-colors motion-reduce:transition-none ${checked ? 'bg-ok-tint' : 'bg-track'}`}
+        className={`relative block h-4 w-[26px] rounded-full border transition-colors motion-reduce:transition-none ${
+          checked ? 'border-accent bg-accent' : 'border-hairline bg-surface-2'
+        }`}
       >
         <span
-          className={`absolute top-0.5 left-0.5 h-4 w-4 rounded-full transition-transform motion-reduce:transition-none ${checked ? 'translate-x-4 bg-ok' : 'bg-ink-3'}`}
+          className={`absolute left-[2px] top-[2px] h-2.5 w-2.5 rounded-full transition-transform motion-reduce:transition-none ${
+            checked ? 'translate-x-2.5 bg-accent-ink' : 'bg-ink-3'
+          }`}
         />
-      </span>
-      <span className={`text-[12px] font-medium ${checked ? 'text-ok-text' : 'text-ink-3'}`}>
-        {checked ? 'on' : 'off'}
       </span>
     </button>
   );

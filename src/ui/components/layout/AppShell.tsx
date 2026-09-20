@@ -1,22 +1,48 @@
-import React, { useCallback, useEffect, useState } from 'react';
-import { X } from 'lucide-react';
-import { Outlet } from 'react-router-dom';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Outlet, useOutletContext } from 'react-router-dom';
 import type { TunableConfig } from '../../../simulation/config/index.js';
-import type { useSimulation } from '../../hooks/useSimulation';
-import { useActionsSheet } from '../../hooks/useActionsSheet';
-import { useFocusTrap } from '../../hooks/useFocusTrap';
+import { countModified } from '../../../simulation/config/index.js';
+import { verbLabel, withAmount, type VerbId } from '../../actions';
+import { useActs } from '../../hooks/useActs';
+import { useConfig } from '../../hooks/useConfig';
+import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts';
 import { useIsMobile } from '../../hooks/useMediaQuery';
 import { PresetLoadProvider } from '../../hooks/usePresetLoad';
+import type { useSimulation } from '../../hooks/useSimulation';
 import { useUnits } from '../../hooks/useUnits';
-import { verbRow } from '../../actions';
-import { driftsFromPreset } from '../../build';
-import { navFigures } from '../../nav';
-import { presetName } from '../../../simulation/presets.js';
-import { ActionsSheet } from '../actions/ActionsSheet';
-import { ActionsTrigger } from '../actions/ActionsTrigger';
-import { DebugPanel } from '../panels/DebugPanel';
-import { ChromeRow } from './ChromeRow';
-import { IndexRail } from './IndexRail';
+import { type Need, activeNeeds, needySections } from '../../nav';
+import { ActPalette } from '../actions/ActPalette';
+import { VerbDrawer } from '../actions/VerbDrawer';
+import { TunablesDrawer } from '../tunables/TunablesDrawer';
+import { Drawer } from '../ui/Drawer';
+import { IconRail, MoreSections, TabBar } from './IconRail';
+import { Spine } from './Spine';
+import { TopBar } from './TopBar';
+
+/** What the shell has already worked out, for the module standing on the stage. */
+export interface StageContext {
+  needs: Need[];
+  /**
+   * Opens a verb's sheet, on the amount the surface asks for where it has one;
+   * with no verb, the Act palette.
+   */
+  onAct: (verb?: VerbId, at?: number) => void;
+  /** The verb and the amount it is standing on, or the one asked for here. */
+  actLabel: (verb: VerbId, at?: number) => string;
+  /**
+   * A module's inspector announcing itself, for as long as it is open, and the
+   * withdrawal it hands back. The shell holds the one that is standing so the
+   * stage carries a single drawer: announcing closes the shell's own and
+   * whichever module inspector was already there, and opening one of the
+   * shell's closes this. A withdrawal that has already been displaced is a
+   * no-op, so the one leaving never takes the one standing with it.
+   */
+  onInspect: (close: () => void) => () => void;
+}
+
+export function useStage(): StageContext {
+  return useOutletContext<StageContext>();
+}
 
 interface AppShellProps {
   sim: ReturnType<typeof useSimulation>;
@@ -24,110 +50,168 @@ interface AppShellProps {
 }
 
 /**
- * Chrome row over index rail plus stage. Below `md` the rail has nowhere to
- * stand, so it becomes a drawer — component state, never a route, or the back
- * gesture would close the drawer instead of changing section.
+ * Top bar, fixed rail, stage, spine — four bands that never move, with the one
+ * drawer laying over the stage, so a module page and its inspector are never
+ * fighting for the same width.
  */
 export function AppShell({ sim, config }: AppShellProps): React.JSX.Element {
+  const isMobile = useIsMobile();
   const { unitSystem } = useUnits();
-  const railStands = !useIsMobile();
-  const [indexOpen, setIndexOpen] = useState(false);
-  const openIndex = useCallback(() => setIndexOpen(true), []);
-  const closeIndex = useCallback(() => setIndexOpen(false), []);
-  const drawerRef = useFocusTrap(indexOpen);
+  const { tunablesOpen, setTunablesOpen } = useConfig();
+  const [more, setMore] = useState(false);
+  const acts = useActs(sim.executeAction);
 
-  // A drawer left open across a resize would mount the rail twice.
-  useEffect(() => {
-    if (railStands) setIndexOpen(false);
-  }, [railStands]);
+  const needs = useMemo(() => activeNeeds(sim.state), [sim.state]);
+  const alerts = useMemo(() => needySections(needs), [needs]);
+  const tunablesModified = useMemo(() => countModified(config), [config]);
 
-  useEffect(() => {
-    if (!indexOpen) return;
-    const onKeyDown = (e: KeyboardEvent): void => {
-      if (e.key === 'Escape') setIndexOpen(false);
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return (): void => window.removeEventListener('keydown', onKeyDown);
-  }, [indexOpen]);
+  const { openPalette, open, close: closeActs } = acts;
 
-  const sheet = useActionsSheet(sim.executeAction);
-  const promoted = verbRow(sim.state, sheet.promoted, sheet.settings, unitSystem);
-  const trigger = (
-    <ActionsTrigger
-      label={`${promoted.name} ${promoted.value}`}
-      open={sheet.open}
-      onClick={sheet.toggle}
-    />
+  /** The open module inspector's own close, held so the shell can dismiss it. */
+  const inspector = useRef<(() => void) | null>(null);
+
+  const closeInspector = useCallback(() => {
+    const close = inspector.current;
+    inspector.current = null;
+    close?.();
+  }, []);
+
+  const onAct = useCallback(
+    (verb?: VerbId, at?: number) => {
+      setTunablesOpen(false);
+      setMore(false);
+      closeInspector();
+      if (verb === undefined) openPalette();
+      else open(verb, at);
+    },
+    [open, openPalette, setTunablesOpen, closeInspector]
   );
 
-  const figures = navFigures({
-    state: sim.state,
-    config,
-    presetName: presetName(sim.currentPreset),
-    presetModified: driftsFromPreset(sim.state, sim.currentPreset),
-    units: unitSystem,
-    aggregates: sim.aggregates,
-    logs: sim.state.logs,
-  });
-
-  const rail = (
-    <IndexRail
-      figures={figures}
-      tick={sim.state.tick}
-      isPlaying={sim.isPlaying}
-      speed={sim.speed}
-      lightSchedule={sim.state.equipment.light.schedule}
-      lightOn={sim.state.equipment.light.enabled}
-      onPlayPause={sim.togglePlayPause}
-      onStep={sim.step}
-      onSpeedChange={sim.changeSpeed}
-      onNavigate={closeIndex}
-      footer={railStands ? trigger : undefined}
-    />
+  const actLabel = useCallback(
+    (verb: VerbId, at?: number) =>
+      verbLabel(sim.state, verb, withAmount(acts.settings, verb, at), unitSystem),
+    [sim.state, acts.settings, unitSystem]
   );
+
+  const onInspect = useCallback(
+    (close: () => void) => {
+      const displaced = inspector.current;
+      inspector.current = close;
+      closeActs();
+      setMore(false);
+      setTunablesOpen(false);
+      displaced?.();
+      return (): void => {
+        if (inspector.current === close) inspector.current = null;
+      };
+    },
+    [closeActs, setTunablesOpen]
+  );
+
+  const stage = useMemo<StageContext>(
+    () => ({ needs, onAct, actLabel, onInspect }),
+    [needs, onAct, actLabel, onInspect]
+  );
+
+  const openMore = useCallback(() => {
+    closeActs();
+    setTunablesOpen(false);
+    closeInspector();
+    setMore((was) => !was);
+  }, [closeActs, setTunablesOpen, closeInspector]);
+
+  const toggleTunables = useCallback(() => {
+    closeActs();
+    setMore(false);
+    closeInspector();
+    setTunablesOpen(!tunablesOpen);
+  }, [closeActs, tunablesOpen, setTunablesOpen, closeInspector]);
+
+  const closeDrawers = useCallback(() => {
+    closeActs();
+    setMore(false);
+    setTunablesOpen(false);
+  }, [closeActs, setTunablesOpen]);
+
+  // A sheet left open across a resize would outlive the tab bar that opened it.
+  useEffect(() => {
+    if (!isMobile) setMore(false);
+  }, [isMobile]);
+
+  const shortcuts = useMemo(
+    () => ({
+      Space: (): void => (sim.isPlaying ? sim.togglePlayPause() : sim.step()),
+      '⌘k': (): void => onAct(),
+      '⌘,': toggleTunables,
+    }),
+    [sim.isPlaying, sim.togglePlayPause, sim.step, onAct, toggleTunables]
+  );
+  useKeyboardShortcuts(shortcuts);
 
   return (
     <PresetLoadProvider current={sim.currentPreset} state={sim.state} onLoad={sim.loadPreset}>
       <div className="flex h-dvh flex-col bg-bg text-ink">
-        <ChromeRow logs={sim.state.logs} onOpenIndex={railStands ? null : openIndex} />
+        <TopBar
+          tick={sim.state.tick}
+          isPlaying={sim.isPlaying}
+          speed={sim.speed}
+          onPlayPause={sim.togglePlayPause}
+          onStep={sim.step}
+          onSpeedChange={sim.changeSpeed}
+          needs={needs}
+          actOpen={acts.palette}
+          actLabel={acts.promoted === null ? null : actLabel(acts.promoted)}
+          onAct={() => onAct()}
+          tunablesOpen={tunablesOpen}
+          tunablesModified={tunablesModified}
+          onTunables={toggleTunables}
+        />
 
-        <div className="flex min-h-0 flex-1 gap-3 p-3">
-          {railStands && rail}
-          <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3">
-            <Outlet />
-          </div>
+        <div className="flex min-h-0 flex-1">
+          {!isMobile && <IconRail alerts={alerts} />}
+
+          <main className="relative flex min-h-0 min-w-0 flex-1 flex-col">
+            <Outlet context={stage} />
+
+            {acts.palette && (
+              <ActPalette
+                state={sim.state}
+                settings={acts.settings}
+                onPick={(verb) => onAct(verb)}
+                onClose={closeDrawers}
+              />
+            )}
+
+            <VerbDrawer
+              verb={acts.verb}
+              state={sim.state}
+              config={config}
+              settings={acts.settings}
+              onAmount={acts.setAmount}
+              onCommit={acts.commit}
+              onClose={closeDrawers}
+            />
+
+            <Drawer open={more} onClose={closeDrawers} title="More">
+              <MoreSections
+                alerts={alerts}
+                onNavigate={closeDrawers}
+                tunablesModified={tunablesModified}
+                onTunables={toggleTunables}
+              />
+            </Drawer>
+
+            <TunablesDrawer open={tunablesOpen} onClose={closeDrawers} />
+          </main>
         </div>
 
-        {!railStands && (
-          <div className="shrink-0 border-t border-hairline-2 bg-surface px-2.5 py-2">{trigger}</div>
+        {isMobile && (
+          <TabBar alerts={alerts} moreOpen={more} onMore={openMore} />
         )}
 
-        {sheet.open && <ActionsSheet sheet={sheet} state={sim.state} config={config} />}
-
-        {indexOpen && (
-          <div className="fixed inset-0 z-40">
-            <div aria-hidden onClick={closeIndex} className="absolute inset-0 bg-ink/30" />
-            <div
-              ref={drawerRef}
-              role="dialog"
-              aria-modal="true"
-              aria-label="Index"
-              className="absolute inset-y-0 left-0 flex flex-col gap-3 border-r border-hairline-2 bg-surface p-3 shadow-2xl"
-            >
-              <button
-                type="button"
-                aria-label="Close index"
-                onClick={closeIndex}
-                className="flex h-11 w-11 shrink-0 items-center justify-center self-end rounded-control border border-hairline text-ink-2 transition-colors hover:border-hairline-2 hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
-              >
-                <X className="h-4 w-4" />
-              </button>
-              {rail}
-            </div>
-          </div>
-        )}
-
-        <DebugPanel />
+        <footer aria-label="Run timeline" className="shrink-0">
+          <Spine history={sim.history} logs={sim.state.logs} />
+        </footer>
       </div>
     </PresetLoadProvider>
   );

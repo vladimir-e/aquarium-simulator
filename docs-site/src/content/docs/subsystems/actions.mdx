@@ -23,7 +23,6 @@ unchanged, with the message explaining why.
 | Scrub | <Badge text="settled" variant="success" /> | The bite is drawn off the tank's own stream, so a replayed tank is scrubbed identically. |
 | Top-off | <Badge text="scaffolding" variant="caution" /> | Fills to capacity and nothing else. The tap water it adds carries no temperature, no oxygen, no CO₂ and no pH — while the auto top-off doing the same job blends all four. |
 | Trim | <Badge text="scaffolding" variant="caution" /> | The target is validated in `[0, 100]` against species ceilings of 600–1100, so an overgrown plant can only be cut back to a hundred or less. |
-| Dosing against the config layer | <Badge text="scaffolding" variant="caution" /> | Both the manual dose and the auto-doser meter by the *shipped* fertilizer formula, while plant uptake reads the tuned one. Retuning the formula changes what plants take out and not what dosing puts in. |
 | Water-change shock | <Badge text="missing" variant="danger" /> | A 90 % change costs a fish nothing beyond the temperature, pH and gases the blend leaves behind. |
 | Substrate vacuuming | <Badge text="missing" variant="danger" /> | No action removes waste. Mineralization is its only drain, and a water change dilutes the nitrogen compounds while leaving the waste that makes them. |
 | Config changes as actions | <Badge text="missing" variant="danger" /> | Equipment settings are plain fields the host writes directly. There is no action type, no validation and no log for them inside the engine. |

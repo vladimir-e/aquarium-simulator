@@ -6,6 +6,7 @@ import {
   removePlant,
   getMaxPlants,
   canAddPlant,
+  checkPlantCapacity,
 } from './plant-management.js';
 import { createSimulation, type SimulationState } from '../state.js';
 import type { PlantSpecies } from '../plants/species.js';
@@ -80,6 +81,31 @@ describe('canAddPlant', () => {
       draft.plants.push({ id: 'plant_2', species: 'anubias', size: 50 });
     });
     expect(canAddPlant(state)).toBe(true);
+  });
+});
+
+describe('checkPlantCapacity', () => {
+  function planted(count: number, tankCapacity = 19): SimulationState {
+    return produce(createSimulation({ tankCapacity }), (draft) => {
+      for (let i = 0; i < count; i++) {
+        draft.plants.push({ id: `plant_${i}`, species: 'java_fern', size: 50 });
+      }
+    });
+  }
+
+  it('says nothing while a slot is free', () => {
+    expect(checkPlantCapacity(planted(2).plants, 19)).toEqual({ ok: true, message: '' });
+  });
+
+  it('refuses in the words addPlant itself emits', () => {
+    const state = planted(3);
+    const capacity = checkPlantCapacity(state.plants, state.tank.capacity);
+
+    expect(capacity.ok).toBe(false);
+    expect(capacity.message).toBe('Tank at plant capacity (3 plants max)');
+    expect(addPlant(state, { type: 'addPlant', species: 'java_fern' }, plantsDefaults).message).toBe(
+      capacity.message
+    );
   });
 });
 

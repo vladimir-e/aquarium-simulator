@@ -6,6 +6,7 @@
 import { z } from 'zod';
 import { MAX_LIGHT_PAR } from '../../simulation/index.js';
 import { MAX_WATER_ATTENUATION_PER_CM } from '../../simulation/config/index.js';
+import { VERB_IDS, type VerbId } from '../actions/verbs.js';
 import { PERSISTENCE_VERSION } from './types.js';
 
 // ============================================================================
@@ -512,10 +513,28 @@ export const TunableConfigSchema = z
 // UI Schema
 // ============================================================================
 
+const VerbSettingsSchema = z
+  .object({
+    feed: z.number().min(0),
+    waterChange: z.number().min(0).max(1),
+    dose: z.number().min(0),
+    trimPlants: z.number().min(0).max(100),
+  })
+  .strict();
+
+const ActsSchema = z
+  .object({
+    settings: VerbSettingsSchema,
+    promoted: z.enum(VERB_IDS as [VerbId, ...VerbId[]]).nullable(),
+  })
+  .strict();
+
 export const PersistedUISchema = z
   .object({
     units: z.enum(['metric', 'imperial']),
-    debugPanelOpen: z.boolean(),
+    tunablesOpen: z.boolean(),
+    spineOpen: z.boolean(),
+    acts: ActsSchema,
   })
   .strict();
 

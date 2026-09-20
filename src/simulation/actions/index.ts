@@ -49,7 +49,7 @@ export function applyAction(
     case 'removePlant':
       return removePlant(state, action);
     case 'dose':
-      return dose(state, action);
+      return dose(state, action, config.nutrients.fertilizerFormula);
     case 'addFish':
       return addFish(state, action);
     case 'removeFish':

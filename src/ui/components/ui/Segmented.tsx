@@ -1,9 +1,12 @@
 import React from 'react';
+import { CONTROL_FOCUS } from './focus';
 
 export interface SegmentedOption<T extends string> {
   value: T;
   label: React.ReactNode;
   title?: string;
+  /** The tank cannot take this one — a trim rung with nothing above it. */
+  disabled?: boolean;
 }
 
 interface SegmentedProps<T extends string> {
@@ -38,8 +41,9 @@ export function Segmented<T extends string>({
             type="button"
             aria-pressed={active}
             title={option.title}
+            disabled={option.disabled}
             onClick={() => onChange(option.value)}
-            className={`rounded-badge px-2.5 py-1 text-sm font-medium leading-none transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus ${
+            className={`rounded-badge px-2.5 py-1 text-sm font-medium leading-none transition-colors disabled:opacity-40 ${CONTROL_FOCUS} ${
               fill ? 'flex-1' : ''
             } ${active ? 'bg-accent-tint text-accent' : 'text-ink-2 hover:text-ink'}`}
           >

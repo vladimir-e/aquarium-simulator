@@ -1,180 +1,130 @@
-import { describe, it, expect, afterEach } from 'vitest';
-import { render, screen, cleanup, within } from '@testing-library/react';
+import { describe, it, expect, afterEach, vi } from 'vitest';
+import { screen, cleanup, fireEvent, within } from '@testing-library/react';
 import { WaterSection } from './WaterSection';
-import { ThemeProvider } from '../hooks/useTheme';
-import { UnitsProvider } from '../hooks/useUnits';
-import { PersistenceProvider } from '../persistence/index.js';
-import { snapshotFromState, type RunSnapshot } from '../run/index.js';
+import { bare, stocked, type Run } from '../test/run';
+import { group, renderStage, row } from '../test/stage';
+import { stubSim } from '../test/stubSim';
 import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
-import {
-  applyAction,
-  createSimulation,
-  tick,
-  type SimulationState,
-} from '../../simulation/index.js';
-import type { useSimulation } from '../hooks/useSimulation';
+import { createSimulation } from '../../simulation/index.js';
 
 afterEach(cleanup);
 
-/** A tank and the run behind it — captions read the history, not just the state. */
-interface Run {
-  state: SimulationState;
-  history: RunSnapshot[];
-}
-
-function tank(): SimulationState {
-  return createSimulation({ tankCapacity: 200 });
-}
-
-/** A tank as the app first shows it: one snapshot, nothing to trend against yet. */
-function day0(state: SimulationState = tank()): Run {
-  return { state, history: [snapshotFromState(state)] };
-}
-
-/** Nine days of a stocked, fed tank: AOB established, NOB still behind. */
-function cycling(): Run {
-  let state = tank();
-  for (let i = 0; i < 6; i++) {
-    state = applyAction(state, { type: 'addFish', species: 'neon_tetra' }).state;
-  }
-  const history = [snapshotFromState(state)];
-  for (let hour = 0; hour < 24 * 9; hour++) {
-    if (hour % 24 === 0) state = applyAction(state, { type: 'feed', amount: 0.5 }).state;
-    state = tick(state, DEFAULT_CONFIG);
-    history.push(snapshotFromState(state));
-  }
-  return { state, history };
-}
-
-function renderWater({ state, history }: Run): void {
-  const sim = { state, history } as unknown as ReturnType<typeof useSimulation>;
-
-  render(
-    <ThemeProvider>
-      <PersistenceProvider>
-        <UnitsProvider>
-          <WaterSection sim={sim} config={DEFAULT_CONFIG} />
-        </UnitsProvider>
-      </PersistenceProvider>
-    </ThemeProvider>
-  );
+function renderWater(run: Run = bare()): { onAct: ReturnType<typeof vi.fn> } {
+  const onAct = vi.fn();
+  const sim = stubSim(run.state, run.history);
+  renderStage(<WaterSection sim={sim} config={DEFAULT_CONFIG} />, { onAct, state: run.state });
+  return { onAct };
 }
 
 describe('WaterSection', () => {
-  it('mounts six gauges in two groups, plus Bacteria and Waste', () => {
-    renderWater(cycling());
+  it('reads down the left column and then the right, cycle above its bacteria', () => {
+    renderWater(stocked());
 
-    const groups = screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent);
-    expect(groups).toEqual(['Water', 'Nitrogen cycle', 'Bacteria', 'Waste']);
+    expect(screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent)).toEqual([
+      'Water',
+      'Gases',
+      'Nutrients',
+      'Nitrogen',
+      'Biofilter',
+      'Waste',
+    ]);
+  });
 
-    for (const name of ['Temp', 'pH', 'Level', 'NH₃', 'NO₂', 'NO₃']) {
-      expect(screen.getByText(name)).toBeTruthy();
+  it('names every reading the tank takes, each in its own section', () => {
+    renderWater(stocked());
+
+    for (const [title, names] of [
+      ['Water', ['Temp', 'pH', 'Level']],
+      ['Gases', ['O₂', 'CO₂']],
+      ['Nutrients', ['NO₃', 'PO₄', 'K', 'Fe']],
+      ['Nitrogen', ['NH₃', 'NO₂', 'NO₃']],
+    ] as const) {
+      for (const name of names) {
+        expect(within(group(title)).getByText(name)).toBeTruthy();
+      }
     }
   });
 
-  it('reads as an instrument at day 0 rather than pointing somewhere else', () => {
-    renderWater(day0());
-    expect(screen.getByText(/ · ATO (on|off)$/)).toBeTruthy();
-    expect(screen.getByText(/^heater holds /)).toBeTruthy();
-    const bacteria = screen.getByRole('heading', { level: 2, name: 'Bacteria' }).parentElement!;
-    expect(within(bacteria).getByText('uncycled')).toBeTruthy();
-    expect(screen.getByText('0.00 g standing')).toBeTruthy();
-    expect(screen.getByText(/Uncycled\./)).toBeTruthy();
-    expect(screen.getByText(/No nitrite peak within|Nitrite peaks in/)).toBeTruthy();
-    expect(document.body.textContent).not.toMatch(/add fish|go to|get started/i);
+  it('says what the tank is running on, and offers the two verbs that move it', () => {
+    const { onAct } = renderWater();
+
+    const header = screen.getByRole('heading', { level: 1, name: 'Water' }).parentElement!;
+    expect(within(header).getByText(/^(no heater|heater on) · ATO (on|off)$/)).toBeTruthy();
+
+    fireEvent.click(within(header).getByRole('button', { name: 'Water change · 25 %' }));
+    fireEvent.click(within(header).getByRole('button', { name: /^Top off/ }));
+    expect(onAct.mock.calls).toEqual([['waterChange'], ['topOff']]);
+  });
+
+  it('opens the same inspector from any row it is tapped on', () => {
+    renderWater(stocked());
+    expect(screen.queryByRole('dialog')).toBeNull();
+
+    fireEvent.click(row('Nitrogen', 'NH₃'));
+    const drawer = screen.getByRole('dialog', { name: 'NH₃' });
+    expect(within(drawer).getByText(/Safe at or under/)).toBeTruthy();
+
+    fireEvent.click(row('Water', 'Temp'));
+    expect(screen.getByRole('dialog', { name: 'Temp' })).toBeTruthy();
+  });
+
+  it('leaves temperature unbanded until something in the tank prefers one', () => {
+    renderWater();
+    expect(row('Water', 'Temp').querySelector('[data-band]')).toBeNull();
+
+    cleanup();
+    renderWater(stocked());
+    expect(row('Water', 'Temp').querySelector('[data-band]')).toBeTruthy();
+  });
+
+  it('states the band at the precision the reading is read to', () => {
+    renderWater(stocked());
+    fireEvent.click(row('Water', 'Temp'));
+
+    const drawer = screen.getByRole('dialog', { name: 'Temp' });
+    expect(within(drawer).getByText(/^\d+\.\d–\d+\.\d°[CF] — the span/)).toBeTruthy();
+  });
+
+  it('opens the toxin from the cycle’s NO₃ and the plant food from the nutrients’', () => {
+    renderWater(stocked());
+
+    fireEvent.click(row('Nitrogen', 'NO₃'));
+    const toxin = screen.getByRole('dialog', { name: 'NO₃' });
+    expect(within(toxin).getByText(/the engine alerts over/)).toBeTruthy();
+    fireEvent.click(within(toxin).getByRole('button', { name: 'Close NO₃' }));
+
+    fireEvent.click(row('Nutrients', 'NO₃'));
+    expect(within(screen.getByRole('dialog', { name: 'NO₃' })).getByText(/Plants ask for/)).toBeTruthy();
+  });
+
+  it('carries the biofilter, its guilds and where the nitrite peak falls', () => {
+    renderWater();
+
+    const biofilter = group('Biofilter');
+    expect(within(biofilter).getByText('uncycled')).toBeTruthy();
+    expect(within(biofilter).getByText('AOB')).toBeTruthy();
+    expect(within(biofilter).getByText('NOB')).toBeTruthy();
+    expect(within(biofilter).getByText(/Uncycled\./)).toBeTruthy();
+    expect(within(biofilter).getByText(/Nitrite peaks in|No nitrite peak within/)).toBeTruthy();
   });
 
   it('names every waste source, substrate included, on an unstocked soil tank', () => {
-    renderWater(day0(createSimulation({ tankCapacity: 200, substrate: { type: 'aqua_soil' } })));
+    renderWater(bare(createSimulation({ tankCapacity: 200, substrate: { type: 'aqua_soil' } })));
+
+    const waste = group('Waste');
     for (const label of ['Food decay', 'Fish', 'Plants', 'Substrate']) {
-      expect(screen.getByText(label)).toBeTruthy();
+      expect(within(waste).getByText(label)).toBeTruthy();
     }
-    expect(screen.getByText('100 % substrate')).toBeTruthy();
+    expect(within(waste).getByText(/%\/h decay · .+ % to waste · Q10/)).toBeTruthy();
   });
 
-  it('shows both colonies against the same ceiling', () => {
-    renderWater(cycling());
-    const ceiling = screen.getByText(/^ceiling /).textContent ?? '';
-    expect(ceiling).toMatch(/cm² biofilm/);
-    expect(screen.getByText('AOB')).toBeTruthy();
-    expect(screen.getByText('NOB')).toBeTruthy();
-  });
+  it('prints a flow arm under its own precision as none rather than a signed zero', () => {
+    renderWater();
+    fireEvent.click(row('Waste', 'Waste'));
 
-  it('flags the section with the same reading the gauges carry', () => {
-    const state = tank();
-    state.resources.ammonia = state.resources.water * 4;
-    renderWater(day0(state));
-
-    const header = screen.getByRole('heading', { level: 1, name: 'Water' }).parentElement!;
-    expect(within(header).getByText('NH₃ high')).toBeTruthy();
-    expect(screen.getByText('HIGH')).toBeTruthy();
-  });
-
-  it('says the tank is uncycled when nothing else is wrong', () => {
-    const state = tank();
-    state.resources.nitrate = state.resources.water * 12;
-    renderWater(day0(state));
-
-    const header = screen.getByRole('heading', { level: 1, name: 'Water' }).parentElement!;
-    expect(within(header).getByText('uncycled')).toBeTruthy();
-  });
-
-  it('reads both dissolved gases without leaving the section', () => {
-    const state = tank();
-    state.resources.oxygen = 7.2;
-    state.resources.co2 = 12.4;
-    renderWater(day0(state));
-
-    // The pair sits with the tank-condition gauges, not the nitrogen cycle.
-    const water = screen.getByRole('heading', { level: 2, name: 'Water' }).parentElement!;
-    expect(within(water).getByText('O₂')).toBeTruthy();
-    expect(within(water).getByText('7.2')).toBeTruthy();
-    expect(within(water).getByText('CO₂')).toBeTruthy();
-    expect(within(water).getByText('12.4')).toBeTruthy();
-    expect(within(water).getAllByText('mg/L')).toHaveLength(2);
-  });
-
-  it('marks oxygen low right where the reading is', () => {
-    const state = tank();
-    state.resources.oxygen = 3;
-    renderWater(day0(state));
-
-    const water = screen.getByRole('heading', { level: 2, name: 'Water' }).parentElement!;
-    expect(within(water).getByText('LOW')).toBeTruthy();
-  });
-
-  it('carries a gas past its threshold up to the section header', () => {
-    // CO₂ over 30 mg/L is an alert, so it outranks the day-0 “uncycled” note.
-    const state = tank();
-    state.resources.co2 = 45;
-    renderWater(day0(state));
-
-    const header = screen.getByRole('heading', { level: 1, name: 'Water' }).parentElement!;
-    expect(within(header).getByText('CO₂ high')).toBeTruthy();
-  });
-
-  it('says nothing about gases the fish are comfortable in', () => {
-    const state = tank();
-    state.resources.oxygen = 7;
-    state.resources.co2 = 12;
-    renderWater(day0(state));
-
-    const water = screen.getByRole('heading', { level: 2, name: 'Water' }).parentElement!;
-    expect(within(water).queryByText('LOW')).toBeNull();
-    expect(within(water).queryByText('HIGH')).toBeNull();
-
-    const header = screen.getByRole('heading', { level: 1, name: 'Water' }).parentElement!;
-    expect(within(header).getByText('uncycled')).toBeTruthy();
-  });
-
-  it('captions each toxin with which way it is moving, once a run has history', () => {
-    const moving = / · (steady|[+−][\d.]+\/h)$/;
-
-    renderWater(day0());
-    expect(screen.queryAllByText(moving)).toHaveLength(0);
-
-    cleanup();
-    renderWater(cycling());
-    expect(screen.getAllByText(moving)).toHaveLength(3);
+    const drawer = screen.getByRole('dialog', { name: 'Waste' });
+    expect(within(drawer).queryByText(/[+−]0\.000 g\/h/)).toBeNull();
+    expect(within(drawer).queryByText('steady')).toBeNull();
+    expect(within(drawer).getAllByText('none').length).toBeGreaterThan(0);
   });
 });

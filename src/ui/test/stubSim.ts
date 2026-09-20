@@ -1,6 +1,6 @@
 /**
- * The sim hook as a section sees it: real engine state and tank identity, and
- * a fresh `vi.fn()` conjured for every callback the section reaches for.
+ * The sim hook as a section sees it: real engine state, the buffer behind it,
+ * and a fresh `vi.fn()` conjured for every callback the section reaches for.
  * Sections drive the world only through those callbacks, so a test asserts on
  * the call rather than on the state that would have come back.
  */
@@ -8,10 +8,22 @@
 import { vi } from 'vitest';
 import type { SimulationState } from '../../simulation/index.js';
 import type { useSimulation } from '../hooks/useSimulation';
+import { accrueLogs, accrueTicks, emptyAggregates, type RunSnapshot } from '../run/index.js';
 
-export function stubSim(state: SimulationState): ReturnType<typeof useSimulation> {
+export function stubSim(
+  state: SimulationState,
+  history: RunSnapshot[] = []
+): ReturnType<typeof useSimulation> {
   const cache = new Map<string, ReturnType<typeof vi.fn>>();
-  const values: Record<string, unknown> = { state, tankId: 0 };
+  const values: Record<string, unknown> = {
+    state,
+    tankId: 0,
+    history,
+    aggregates: accrueTicks(
+      accrueLogs(emptyAggregates(), state.logs),
+      Math.max(0, history.length - 1)
+    ),
+  };
   return new Proxy(values, {
     get(target: Record<string, unknown>, prop: string): unknown {
       if (prop in target) return target[prop];

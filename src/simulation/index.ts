@@ -72,7 +72,7 @@ export {
 } from './presets.js';
 
 // Configuration
-export type { TunableConfig } from './config/index.js';
+export type { TunableConfig, FertilizerFormula } from './config/index.js';
 export { DEFAULT_CONFIG } from './config/index.js';
 
 // Resources
@@ -203,6 +203,7 @@ export {
   calculateHardscapeTotalSurface,
   getHardscapeName,
   getHardscapePHEffect,
+  checkHardscapeCapacity,
   DEFAULT_HARDSCAPE,
   HARDSCAPE_SURFACE,
   type HardscapeType,
@@ -259,6 +260,7 @@ export {
   getSubstrateIncompatibilityReason,
   getMaxPlants,
   canAddPlant,
+  checkPlantCapacity,
   dose,
   canDose,
   getDosePreview,

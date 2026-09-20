@@ -8,13 +8,14 @@ import { UnitsProvider } from './hooks/useUnits';
 import { ConfigProvider } from './hooks/useConfig';
 import { PersistenceProvider } from './persistence/index.js';
 import { SECTIONS } from './nav';
+import { TRACKS } from './review';
 import { stubMatchMedia, viewport, type MatchMediaStub } from './test/matchMedia';
 
 let media: MatchMediaStub;
 
-// Desktop: the rail stands beside the stage rather than living in a drawer.
+// iPad landscape: the rail stands beside the stage rather than folding to tabs.
 beforeEach(() => {
-  media = stubMatchMedia(viewport(1280));
+  media = stubMatchMedia(viewport(1180));
 });
 
 afterEach(() => {
@@ -50,74 +51,103 @@ function renderApp(path = '/'): void {
   );
 }
 
-function stageTitle(): string {
-  return screen.getByRole('heading', { level: 1 }).textContent ?? '';
+function pageTitle(): string {
+  return screen.getAllByRole('heading', { level: 1 })[0].textContent ?? '';
 }
 
 describe('App routing', () => {
-  it('opens on Water, with the tank chemistry on the stage', () => {
+  it('opens on the Overview, with every widget a window onto its module', () => {
     renderApp();
-    expect(stageTitle()).toBe('Water');
-    // Scoped to the stage: the rail carries NH₃/NO₂/NO₃ too, so an unscoped
-    // query passes on an empty section.
     const stage = within(screen.getByRole('main'));
-    for (const label of ['Temp', 'pH', 'Level', 'NH₃', 'NO₂', 'NO₃']) {
-      expect(stage.getByText(label)).toBeTruthy();
-    }
+
+    expect(
+      ['Nitrogen', 'Life', 'Water', 'Gear', 'Nutrients'].map(
+        (title) => stage.getByRole('link', { name: `${title} module` }).getAttribute('href')
+      )
+    ).toEqual(['/water', '/life', '/water', '/gear', '/water']);
   });
 
-  it('gives every section its own address', () => {
+  it('gives every rail item its own address, titled as the rail names it', () => {
     for (const section of SECTIONS) {
       renderApp(section.path);
-      expect(stageTitle()).toBe(section.label);
+      expect(screen.getByRole('link', { name: section.label }).getAttribute('aria-current')).toBe(
+        'page'
+      );
+      if (section.id !== 'overview' && section.id !== 'life') expect(pageTitle()).toBe(section.label);
       cleanup();
     }
   });
 
-  it('moves between sections on back — the requirement the reset was gated on', () => {
+  it('moves between sections on back', () => {
     renderApp();
 
-    fireEvent.click(screen.getByRole('link', { name: /Livestock/ }));
-    expect(stageTitle()).toBe('Livestock');
+    fireEvent.click(screen.getByRole('link', { name: 'Water' }));
+    expect(pageTitle()).toBe('Water');
 
-    fireEvent.click(screen.getByRole('link', { name: /Scenario/ }));
-    expect(stageTitle()).toBe('Scenario');
-
-    fireEvent.click(screen.getByRole('button', { name: 'test-back' }));
-    expect(stageTitle()).toBe('Livestock');
+    fireEvent.click(screen.getByRole('link', { name: 'Setup' }));
+    expect(pageTitle()).toBe('Setup');
 
     fireEvent.click(screen.getByRole('button', { name: 'test-back' }));
-    expect(stageTitle()).toBe('Water');
+    expect(pageTitle()).toBe('Water');
   });
 
   it('addresses a drill-in, and steps back out of it', () => {
-    renderApp('/equipment');
+    renderApp('/gear');
     const stage = within(screen.getByRole('main'));
-    expect(stage.queryByRole('heading', { level: 3 })).toBeNull();
+    expect(stage.queryByRole('dialog')).toBeNull();
 
-    fireEvent.click(stage.getByRole('link', { name: /Heater/ }));
-    expect(stage.getByRole('heading', { level: 3, name: 'Heater' })).toBeTruthy();
+    fireEvent.click(stage.getByRole('link', { name: /^Heater —/ }));
+    expect(stage.getByRole('dialog', { name: 'Heater' })).toBeTruthy();
 
     fireEvent.click(screen.getByRole('button', { name: 'test-back' }));
-    expect(stageTitle()).toBe('Equipment');
-    expect(stage.queryByRole('heading', { level: 3 })).toBeNull();
+    expect(pageTitle()).toBe('Gear');
+    expect(stage.queryByRole('dialog')).toBeNull();
   });
 
   it('sends an unknown path home', () => {
     renderApp('/nowhere');
-    expect(stageTitle()).toBe('Water');
+    expect(screen.getByRole('link', { name: 'Nitrogen module' })).toBeTruthy();
   });
 
   it('marks the section you are standing in', () => {
-    renderApp('/flora');
-    expect(screen.getByRole('link', { name: /Flora/ }).getAttribute('aria-current')).toBe('page');
-    expect(screen.getByRole('link', { name: /Water/ }).getAttribute('aria-current')).toBeNull();
+    renderApp('/water');
+    expect(screen.getByRole('link', { name: 'Water' }).getAttribute('aria-current')).toBe('page');
+    expect(screen.getByRole('link', { name: 'Gear' }).getAttribute('aria-current')).toBeNull();
+  });
+});
+
+function dialogs(): (string | null)[] {
+  return screen.queryAllByRole('dialog').map((d) => d.getAttribute('aria-label'));
+}
+
+describe('one drawer on the stage', () => {
+  it('hands the stage from a module inspector to the picker that displaces it', () => {
+    renderApp('/life');
+    fireEvent.click(screen.getByRole('button', { name: /^Algae — / }));
+    expect(dialogs()).toEqual(['Algae']);
+
+    const header = screen.getByRole('heading', { level: 1, name: 'Life' }).parentElement!;
+    fireEvent.click(within(header).getByRole('button', { name: '+ Add' }));
+    fireEvent.click(within(header).getByRole('button', { name: 'Add fish' }));
+
+    expect(dialogs()).toEqual(['Add fish']);
+  });
+
+  it('leaves an inspector behind with the module it belonged to', () => {
+    renderApp('/gear');
+    fireEvent.click(within(screen.getByRole('main')).getByRole('link', { name: /^Heater —/ }));
+    fireEvent.click(screen.getByRole('link', { name: 'Water' }));
+
+    fireEvent.keyDown(window, { key: 'k', metaKey: true });
+
+    expect(dialogs()).toEqual(['Act']);
+    expect(pageTitle()).toBe('Water');
   });
 });
 
 /**
  * 700 px — between Tailwind's `sm` and `md`, the band a second breakpoint would
- * hide in. The rail cannot stand here, so the chrome is compact; every section
+ * hide in. The rail cannot stand here, so the frame is compact; every module
  * has to be compact with it, or the stage lays out for a width it does not have.
  */
 describe('App at 700 px', () => {
@@ -125,35 +155,28 @@ describe('App at 700 px', () => {
     media.set(viewport(700));
   });
 
-  it('folds the index into the drawer rather than standing it beside the stage', () => {
+  it('folds the rail into the tab bar', () => {
     renderApp();
-    expect(screen.getByRole('button', { name: 'Open index' })).toBeTruthy();
-    expect(screen.queryByRole('navigation', { name: 'Sections' })).toBeNull();
+    const nav = screen.getByRole('navigation', { name: 'Sections' });
+    expect(within(nav).getAllByRole('link')).toHaveLength(4);
+    expect(screen.getByRole('button', { name: 'More' })).toBeTruthy();
   });
 
-  it('gives Analytics the chart chips, not the 2×2 grid it has no room for', () => {
-    renderApp('/analytics');
+  it('stacks History in one column — every track, then the transcript', () => {
+    renderApp('/history');
+    const stage = screen.getByRole('main');
 
-    expect(screen.getByRole('group', { name: 'Chart' })).toBeTruthy();
-    expect(screen.getByText('Nitrogen cycle')).toBeTruthy();
-    expect(screen.queryByText('pH & CO₂')).toBeNull();
+    for (const def of TRACKS) {
+      expect(within(stage).getByRole('img', { name: def.title })).toBeTruthy();
+    }
+    expect(within(stage).getByRole('group', { name: 'Log category' })).toBeTruthy();
   });
 
-  it('pushes the Equipment inspector over the list instead of beside it', () => {
-    renderApp('/equipment');
+  it('opens the Gear inspector as a sheet over the rack', () => {
+    renderApp('/gear');
 
-    fireEvent.click(within(screen.getByRole('main')).getByRole('link', { name: /Heater/ }));
+    fireEvent.click(within(screen.getByRole('main')).getByRole('link', { name: /^Heater —/ }));
 
-    expect(screen.getByRole('dialog', { name: 'Heater settings' })).toBeTruthy();
-  });
-
-  it('drills the Actions sheet in rather than floating it beside the rail', () => {
-    renderApp();
-
-    fireEvent.click(screen.getByRole('button', { name: /Feed/ }));
-    const sheet = screen.getByRole('dialog', { name: 'Actions' });
-
-    expect(within(sheet).queryByRole('heading')).toBeNull();
-    expect(within(sheet).getByRole('group', { name: 'Verbs' })).toBeTruthy();
+    expect(screen.getByRole('dialog', { name: 'Heater' })).toBeTruthy();
   });
 });

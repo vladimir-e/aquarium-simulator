@@ -22,15 +22,18 @@ import {
   type SimulationConfig,
   type SimulationState,
 } from '../../simulation/index.js';
+import { DEFAULT_SETTINGS } from '../actions/verbs.js';
 import { HARDSCAPE_TYPES, SUBSTRATE_TYPES } from '../build/scape.js';
-import { LID_TYPES } from '../build/scenario.js';
+import { LID_TYPES } from '../build/setup.js';
 import { getTankSizeOptions } from '../utils/units.js';
 
 describe('PersistedUISchema', () => {
   it('validates valid UI state', () => {
     const validUI = {
       units: 'metric',
-      debugPanelOpen: false,
+      tunablesOpen: false,
+      spineOpen: false,
+      acts: { settings: DEFAULT_SETTINGS, promoted: null },
     };
     expect(PersistedUISchema.safeParse(validUI).success).toBe(true);
   });
@@ -38,7 +41,9 @@ describe('PersistedUISchema', () => {
   it('validates imperial units', () => {
     const validUI = {
       units: 'imperial',
-      debugPanelOpen: true,
+      tunablesOpen: true,
+      spineOpen: true,
+      acts: { settings: DEFAULT_SETTINGS, promoted: null },
     };
     expect(PersistedUISchema.safeParse(validUI).success).toBe(true);
   });
@@ -46,7 +51,9 @@ describe('PersistedUISchema', () => {
   it('rejects invalid unit system', () => {
     const invalidUI = {
       units: 'invalid',
-      debugPanelOpen: false,
+      tunablesOpen: false,
+      spineOpen: false,
+      acts: { settings: DEFAULT_SETTINGS, promoted: null },
     };
     expect(PersistedUISchema.safeParse(invalidUI).success).toBe(false);
   });
@@ -54,7 +61,9 @@ describe('PersistedUISchema', () => {
   it('rejects extra keys (strict mode)', () => {
     const withExtra = {
       units: 'metric',
-      debugPanelOpen: false,
+      tunablesOpen: false,
+      spineOpen: false,
+      acts: { settings: DEFAULT_SETTINGS, promoted: null },
       extraKey: 'value',
     };
     expect(PersistedUISchema.safeParse(withExtra).success).toBe(false);
@@ -448,7 +457,7 @@ describe('PersistedStateSchema', () => {
     version: PERSISTENCE_VERSION,
     simulation: validSimulation,
     tunableConfig: DEFAULT_CONFIG,
-    ui: { units: 'metric', debugPanelOpen: false },
+    ui: { units: 'metric', tunablesOpen: false, spineOpen: false, acts: { settings: DEFAULT_SETTINGS, promoted: null } },
   };
 
   it('validates complete valid state', () => {
@@ -510,8 +519,8 @@ describe('PersistedStateSchema', () => {
     ).toBe(false);
   });
 
-  it('PERSISTENCE_VERSION is 24', () => {
-    expect(PERSISTENCE_VERSION).toBe(24);
+  it('PERSISTENCE_VERSION is 26', () => {
+    expect(PERSISTENCE_VERSION).toBe(26);
   });
 });
 

@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { applyAction } from './index';
 import type { Action } from './types';
 import { createSimulation, type SimulationState } from '../state';
+import { DEFAULT_CONFIG } from '../config/index.js';
 import { produce } from 'immer';
 
 describe('applyAction', () => {
@@ -100,6 +101,17 @@ describe('applyAction', () => {
         }
       });
     }
+  });
+
+  it('mixes a dose to the formula the config carries', () => {
+    const tuned = produce(DEFAULT_CONFIG, (draft) => {
+      draft.nutrients.fertilizerFormula.nitrate = 10;
+    });
+    const state = createSimulation({ tankCapacity: 100 });
+
+    const result = applyAction(state, { type: 'dose', amountMl: 1 }, tuned);
+
+    expect(result.state.resources.nitrate - state.resources.nitrate).toBe(10);
   });
 
   it('dispatches sellFry action to correct handler', () => {

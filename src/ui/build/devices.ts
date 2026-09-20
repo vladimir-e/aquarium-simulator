@@ -1,8 +1,6 @@
 /**
  * Equipment model: the fixed device set, the one-line summary each list row
- * carries, and the section's own headline figure. Pure — the Equipment list and
- * the index rail both render these, which is what keeps their counts in
- * agreement.
+ * carries, and the section's own headline figure.
  */
 
 import {
@@ -51,7 +49,8 @@ export interface EquipmentRow {
   summary: string;
 }
 
-const DEVICE_ORDER: DeviceId[] = [
+/** Every configurable device, in rack order. */
+export const DEVICE_ORDER: DeviceId[] = [
   'filter',
   'heater',
   'light',
@@ -61,8 +60,6 @@ const DEVICE_ORDER: DeviceId[] = [
   'powerhead',
   'autoDoser',
 ];
-
-const EQUIPMENT_ORDER: EquipmentId[] = [...DEVICE_ORDER, 'biofilter'];
 
 const DEVICE_NAME: Record<DeviceId, string> = {
   filter: 'Filter',
@@ -83,8 +80,8 @@ export const FILTER_LABEL: Record<FilterType, string> = {
   sump: 'Sump',
 };
 
-export function isEquipmentId(value: string): value is EquipmentId {
-  return EQUIPMENT_ORDER.some((id) => id === value);
+export function isDeviceId(value: string): value is DeviceId {
+  return DEVICE_ORDER.some((id) => id === value);
 }
 
 export function buildDeviceList(equipment: Equipment): DeviceRow[] {
@@ -147,13 +144,6 @@ export function equipmentRows(
       summary: `${cycleWord(bacteria.cycled)} · ${SurfaceResource.format(bacteria.surface)}`,
     },
   ];
-}
-
-/** Case-insensitive name filter for the search field. Blank query = all. */
-export function filterRows(rows: EquipmentRow[], query: string): EquipmentRow[] {
-  const q = query.trim().toLowerCase();
-  if (!q) return rows;
-  return rows.filter((row) => row.name.toLowerCase().includes(q));
 }
 
 /** The section's headline figure, shared with the rail's Equipment row. */

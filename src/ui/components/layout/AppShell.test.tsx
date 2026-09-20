@@ -1,22 +1,23 @@
-import React from 'react';
+import React, { useCallback, useState } from 'react';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, cleanup, act, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { AppShell } from './AppShell';
-import { Stage } from './Stage';
+import { ModulePage } from './ModulePage';
 import { ThemeProvider } from '../../hooks/useTheme';
 import { UnitsProvider } from '../../hooks/useUnits';
 import { ConfigProvider, useConfig } from '../../hooks/useConfig';
 import { PersistenceProvider } from '../../persistence/index.js';
 import { useSimulation } from '../../hooks/useSimulation';
-import { FOCUSABLE } from '../../hooks/useFocusTrap';
+import type { AlertState } from '../../../simulation/index.js';
 import { stubMatchMedia, viewport, type MatchMediaStub } from '../../test/matchMedia';
+import { useInspector } from '../../hooks/useInspector';
+import { Drawer, DRAWER_TOGGLE } from '../ui/Drawer';
 
 let media: MatchMediaStub;
 
-// Phone: the rail has nowhere to stand, so it lives behind the Menu button.
 beforeEach(() => {
-  media = stubMatchMedia(viewport(390));
+  media = stubMatchMedia(viewport(1180));
 });
 
 afterEach(() => {
@@ -25,14 +26,44 @@ afterEach(() => {
   cleanup();
 });
 
-function Harness(): React.JSX.Element {
-  const sim = useSimulation();
+/** A module's own inspector, opened from a row that governs the drawer. */
+function Inspector(): React.JSX.Element {
+  const [open, setOpen] = useState(false);
+  const close = useCallback(() => setOpen(false), []);
+  useInspector(open, close);
+
+  return (
+    <>
+      <button type="button" onClick={() => setOpen(true)} {...DRAWER_TOGGLE}>
+        Ammonia
+      </button>
+      <Drawer open={open} onClose={close} title="Ammonia">
+        the reading
+      </Drawer>
+    </>
+  );
+}
+
+function Harness({ latched }: { latched: Partial<AlertState> }): React.JSX.Element {
+  const live = useSimulation();
   const { config } = useConfig();
+  const sim = {
+    ...live,
+    state: { ...live.state, alertState: { ...live.state.alertState, ...latched } },
+  };
   return (
     <Routes>
       <Route element={<AppShell sim={sim} config={config} />}>
-        <Route index element={<Stage title="Water">water</Stage>} />
-        <Route path="scenario" element={<Stage title="Scenario">scenario</Stage>} />
+        <Route
+          index
+          element={
+            <ModulePage title="Overview">
+              overview
+              <Inspector />
+            </ModulePage>
+          }
+        />
+        <Route path="setup" element={<ModulePage title="Setup">setup</ModulePage>} />
       </Route>
     </Routes>
   );
@@ -43,14 +74,14 @@ function Address(): React.JSX.Element {
   return <p data-testid="address">{`${pathname}${search}`}</p>;
 }
 
-function renderShell(): void {
+function renderShell(latched: Partial<AlertState> = {}): void {
   render(
     <ThemeProvider>
       <PersistenceProvider>
         <ConfigProvider>
           <UnitsProvider>
             <MemoryRouter initialEntries={['/']}>
-              <Harness />
+              <Harness latched={latched} />
               <Address />
             </MemoryRouter>
           </UnitsProvider>
@@ -64,159 +95,165 @@ function address(): string {
   return screen.getByTestId('address').textContent ?? '';
 }
 
-function actionsTrigger(): HTMLElement {
-  return screen.getByRole('button', { name: /Actions/ });
-}
-
-function openDrawer(): HTMLElement {
-  const opener = screen.getByRole('button', { name: 'Open index' });
-  // fireEvent.click does not focus the way a real pointer does, and the trap's
-  // focus restore is only meaningful against a focused opener.
-  opener.focus();
-  fireEvent.click(opener);
-  return screen.getByRole('dialog', { name: 'Index' });
-}
-
-/** The dismiss overlay is presentational, so it answers to no role. */
-function scrim(drawer: HTMLElement): HTMLElement {
-  return drawer.previousElementSibling as HTMLElement;
-}
-
-describe('AppShell — the index drawer', () => {
-  it('stays shut until the Menu button asks for it', () => {
+describe('AppShell — the frame', () => {
+  it('stands the rail beside the stage, with no live figure on it', () => {
     renderShell();
-    expect(screen.queryByRole('dialog')).toBeNull();
+    const rail = screen.getByRole('navigation', { name: 'Sections' });
 
-    expect(openDrawer()).toBeTruthy();
+    expect(within(rail).getAllByRole('link').map((a) => a.textContent)).toEqual([
+      'Overview',
+      'Water',
+      'Life',
+      'Gear',
+      'History',
+      'Setup',
+    ]);
   });
 
-  it('is a modal that opens on its own close button, so its name is announced first', () => {
+  it('drives the run from the top bar, wherever the reader is standing', () => {
     renderShell();
-    const drawer = openDrawer();
 
-    expect(drawer.getAttribute('aria-modal')).toBe('true');
-    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Close index' }));
+    expect(screen.getByText('Day 1 · 00:00')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Play' }));
+    expect(screen.getByRole('button', { name: 'Pause' })).toBeTruthy();
   });
 
-  it('wraps Tab at both edges of the panel', () => {
+  it('keeps the transport and the spine in place across a section change', () => {
     renderShell();
-    const drawer = openDrawer();
-    const stops = Array.from(drawer.querySelectorAll<HTMLElement>(FOCUSABLE));
-    const [first, last] = [stops[0], stops[stops.length - 1]];
+    fireEvent.click(screen.getByRole('link', { name: 'Setup' }));
 
-    last.focus();
-    fireEvent.keyDown(document, { key: 'Tab' });
-    expect(document.activeElement).toBe(first);
-
-    fireEvent.keyDown(document, { key: 'Tab', shiftKey: true });
-    expect(document.activeElement).toBe(last);
-  });
-
-  it('closes on Escape and hands focus back to the Menu button', () => {
-    renderShell();
-    const opener = screen.getByRole('button', { name: 'Open index' });
-    openDrawer();
-
-    fireEvent.keyDown(window, { key: 'Escape' });
-
-    expect(screen.queryByRole('dialog')).toBeNull();
-    expect(document.activeElement).toBe(opener);
-  });
-
-  it('closes on its own close button', () => {
-    renderShell();
-    openDrawer();
-
-    fireEvent.click(screen.getByRole('button', { name: 'Close index' }));
-
-    expect(screen.queryByRole('dialog')).toBeNull();
-  });
-
-  it('closes on the scrim', () => {
-    renderShell();
-
-    fireEvent.click(scrim(openDrawer()));
-
-    expect(screen.queryByRole('dialog')).toBeNull();
-  });
-
-  it('closes once a section is followed, so the stage is not left covered', () => {
-    renderShell();
-    const drawer = openDrawer();
-
-    fireEvent.click(within(drawer).getByRole('link', { name: /Scenario/ }));
-
-    expect(screen.queryByRole('dialog')).toBeNull();
-    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Scenario');
-  });
-
-  it('hands the index to the standing rail once the viewport grows, mounting it once either way', () => {
-    renderShell();
-    const drawer = openDrawer();
-    // getByRole throws on a second match: the index exists exactly once, and
-    // while the drawer is up it lives inside it.
-    expect(drawer.contains(screen.getByRole('navigation', { name: 'Sections' }))).toBe(true);
-
-    act(() => media.set(viewport(1280)));
-
-    expect(screen.queryByRole('dialog')).toBeNull();
-    expect(screen.getByRole('navigation', { name: 'Sections' })).toBeTruthy();
-    expect(screen.queryByRole('button', { name: 'Open index' })).toBeNull();
+    expect(address()).toBe('/setup');
+    expect(screen.getByRole('button', { name: 'Play' })).toBeTruthy();
+    expect(screen.getByRole('slider', { name: 'Run timeline' })).toBeTruthy();
   });
 });
 
-describe('AppShell — the Actions sheet', () => {
-  it('docks the trigger at the foot of whichever column persists', () => {
-    renderShell();
-    // Phone: the rail is behind the Menu button, so the trigger cannot ride it.
-    expect(actionsTrigger()).toBeTruthy();
-    expect(openDrawer().contains(actionsTrigger())).toBe(false);
-    fireEvent.keyDown(window, { key: 'Escape' });
+describe('AppShell — what needs the keeper', () => {
+  it('dots the rail icon of the section an alert stands against', () => {
+    renderShell({ highAmmonia: true });
 
-    act(() => media.set(viewport(1280)));
-
-    const rail = screen.getByRole('navigation', { name: 'Sections' }).parentElement!;
-    expect(rail.contains(actionsTrigger())).toBe(true);
+    expect(screen.getByRole('link', { name: 'Water' }).querySelector('.bg-alert')).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Life' }).querySelector('.bg-alert')).toBeNull();
   });
 
-  it('names the promoted verb while it is shut', () => {
-    renderShell();
-    expect(actionsTrigger().textContent).toContain('Feed 0.5 g');
+  it('dots in the tone the engine gives the alert', () => {
+    renderShell({ highAlgae: true });
+
+    expect(screen.getByRole('link', { name: 'Life' }).querySelector('.bg-warn')).toBeTruthy();
   });
 
-  it('is component state, not a view — the address bar keeps naming the section', () => {
+  it('counts the same needs in the top bar', () => {
+    renderShell({ highAmmonia: true, highAlgae: true });
+
+    expect(screen.getByRole('link', { name: '2 needs you' })).toBeTruthy();
+  });
+});
+
+describe('AppShell — the drawer', () => {
+  it('opens Act over the stage, leaving the module mounted behind it', () => {
     renderShell();
-    const before = address();
+    expect(screen.queryByRole('dialog')).toBeNull();
 
-    fireEvent.click(actionsTrigger());
-    expect(screen.getByRole('dialog', { name: 'Actions' })).toBeTruthy();
-    expect(address()).toBe(before);
+    fireEvent.click(screen.getByRole('button', { name: /Act/ }));
 
-    fireEvent.click(screen.getByRole('button', { name: /^Water Δ/ }));
-    fireEvent.click(screen.getByRole('button', { name: 'Change water · 25 %' }));
-
-    expect(screen.queryByRole('dialog', { name: 'Actions' })).toBeNull();
-    expect(address()).toBe(before);
+    expect(screen.getByRole('dialog', { name: 'Act' })).toBeTruthy();
+    expect(screen.getByText('overview')).toBeTruthy();
+    expect(address()).toBe('/');
   });
 
-  it('answers ⌘K from anywhere, and closes on the second press', () => {
+  it('closes on Escape and on its own close button', () => {
     renderShell();
+    fireEvent.click(screen.getByRole('button', { name: /Act/ }));
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(screen.queryByRole('dialog')).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: /Act/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Close Act' }));
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('closes on a pointer landing outside it', () => {
+    renderShell();
+    fireEvent.click(screen.getByRole('button', { name: /Act/ }));
+
+    fireEvent.pointerDown(screen.getByText('overview'));
+
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('holds one drawer at a time — Tunables replaces Act', () => {
+    renderShell();
+    fireEvent.click(screen.getByRole('button', { name: /Act/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Tunables' }));
+
+    expect(screen.getByRole('dialog', { name: 'Tunables' })).toBeTruthy();
+    expect(screen.queryByRole('dialog', { name: 'Act' })).toBeNull();
+  });
+
+  it('holds one drawer at a time — Act replaces a module inspector', () => {
+    renderShell();
+    fireEvent.click(screen.getByRole('button', { name: 'Ammonia' }));
+    expect(screen.getByRole('dialog', { name: 'Ammonia' })).toBeTruthy();
 
     fireEvent.keyDown(window, { key: 'k', metaKey: true });
-    expect(screen.getByRole('dialog', { name: 'Actions' })).toBeTruthy();
 
-    fireEvent.keyDown(window, { key: 'k', metaKey: true });
-    expect(screen.queryByRole('dialog', { name: 'Actions' })).toBeNull();
+    expect(screen.getAllByRole('dialog').map((d) => d.getAttribute('aria-label'))).toEqual(['Act']);
   });
 
-  it('never evicts the index — the rail is still there behind it', () => {
+  it('holds one drawer at a time — a module inspector replaces Act', () => {
     renderShell();
-    act(() => media.set(viewport(1280)));
+    fireEvent.click(screen.getByRole('button', { name: /Act/ }));
 
-    fireEvent.click(actionsTrigger());
+    fireEvent.click(screen.getByRole('button', { name: 'Ammonia' }));
 
-    expect(screen.getByRole('dialog', { name: 'Actions' })).toBeTruthy();
-    expect(screen.getByRole('navigation', { name: 'Sections' })).toBeTruthy();
-    expect(actionsTrigger()).toBeTruthy();
+    expect(screen.getAllByRole('dialog').map((d) => d.getAttribute('aria-label'))).toEqual([
+      'Ammonia',
+    ]);
+  });
+
+  it('reaches Act from the keyboard, the way the palette is named', () => {
+    renderShell();
+    fireEvent.keyDown(window, { key: 'k', metaKey: true });
+    expect(screen.getByRole('dialog', { name: 'Act' })).toBeTruthy();
+  });
+});
+
+describe('AppShell on a phone', () => {
+  beforeEach(() => {
+    media.set(viewport(390));
+  });
+
+  it('folds the rail into a tab bar, with the rest behind More', () => {
+    renderShell();
+    const nav = screen.getByRole('navigation', { name: 'Sections' });
+    expect(within(nav).getAllByRole('link')).toHaveLength(4);
+
+    fireEvent.click(screen.getByRole('button', { name: 'More' }));
+    const sheet = screen.getByRole('dialog', { name: 'More' });
+    expect(within(sheet).getByRole('link', { name: 'History' })).toBeTruthy();
+
+    fireEvent.click(within(sheet).getByRole('link', { name: 'Setup' }));
+    expect(address()).toBe('/setup');
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('offers the tunables in the sheet, where the top bar has no room for them', () => {
+    renderShell();
+    fireEvent.click(screen.getByRole('button', { name: 'More' }));
+
+    const sheet = screen.getByRole('dialog', { name: 'More' });
+    fireEvent.click(within(sheet).getByRole('button', { name: /Tunables/ }));
+
+    expect(screen.getByRole('dialog', { name: 'Tunables' })).toBeTruthy();
+    expect(screen.queryByRole('dialog', { name: 'More' })).toBeNull();
+  });
+
+  it('hands the tabs back to the rail once the viewport grows', () => {
+    renderShell();
+    act(() => media.set(viewport(1180)));
+
+    const nav = screen.getByRole('navigation', { name: 'Sections' });
+    expect(within(nav).getAllByRole('link')).toHaveLength(6);
+    expect(screen.queryByRole('button', { name: 'More' })).toBeNull();
   });
 });

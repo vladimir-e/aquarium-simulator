@@ -1,6 +1,7 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import {
   formatTemperature,
+  formatTemperatureRange,
   formatVolume,
   getTemperatureUnit,
   getVolumeUnit,
@@ -9,6 +10,7 @@ import {
   toInternalVolume,
   toDisplayVolume,
   detectUnitSystem,
+  getTankSizeOptions,
 } from './units';
 
 describe('formatTemperature', () => {
@@ -23,6 +25,18 @@ describe('formatTemperature', () => {
   it('respects precision parameter', () => {
     expect(formatTemperature(25.456, 'metric', 2)).toBe('25.46°C');
     expect(formatTemperature(25.456, 'imperial', 0)).toBe('78°F');
+  });
+});
+
+describe('formatTemperatureRange', () => {
+  it('carries one unit for the span, in the reader’s own scale', () => {
+    expect(formatTemperatureRange([22, 28], 'metric')).toBe('22–28°C');
+    expect(formatTemperatureRange([22, 28], 'imperial')).toBe('72–82°F');
+  });
+
+  it('states both ends at the precision it is asked for', () => {
+    expect(formatTemperatureRange([22.35, 27.84], 'metric', 1)).toBe('22.4–27.8°C');
+    expect(formatTemperatureRange([22, 28], 'imperial', 1)).toBe('71.6–82.4°F');
   });
 });
 
@@ -174,5 +188,46 @@ describe('detectUnitSystem', () => {
       writable: true,
     });
     expect(detectUnitSystem()).toBe('imperial');
+  });
+});
+
+describe('getTankSizeOptions', () => {
+  it('offers round sizes in the reader’s own system', () => {
+    expect(getTankSizeOptions('metric').map((size) => size.display)).toEqual([
+      '20 L',
+      '40 L',
+      '75 L',
+      '150 L',
+      '200 L',
+      '300 L',
+      '400 L',
+    ]);
+    expect(getTankSizeOptions('imperial').map((size) => size.display)).toEqual([
+      '5 gal',
+      '10 gal',
+      '20 gal',
+      '40 gal',
+      '55 gal',
+      '75 gal',
+      '100 gal',
+    ]);
+  });
+
+  it('carries a capacity that is round in the other system, in its place', () => {
+    const options = getTankSizeOptions('imperial', 40);
+    const displays = options.map((size) => size.display);
+
+    expect(displays).toContain('10.6 gal');
+    expect(displays.indexOf('10.6 gal')).toBe(displays.indexOf('10 gal') + 1);
+    expect(options.map((size) => size.liters)).toEqual(
+      [...options].sort((a, b) => a.liters - b.liters).map((size) => size.liters)
+    );
+  });
+
+  it('adds nothing when the capacity is already one of them', () => {
+    expect(getTankSizeOptions('metric', 75)).toEqual(getTankSizeOptions('metric'));
+    expect(getTankSizeOptions('imperial', toInternalVolume(20, 'imperial'))).toEqual(
+      getTankSizeOptions('imperial')
+    );
   });
 });

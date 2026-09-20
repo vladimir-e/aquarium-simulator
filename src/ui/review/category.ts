@@ -1,6 +1,6 @@
 /**
- * Log categorisation for Analytics' filter chips and the alert language shared
- * by the summary tile and the chart markers. Both are derived from the engine's
+ * Log categorisation for History's filter chips and the alert language shared
+ * by the summary tile and the axis marks. Both are derived from the engine's
  * own `source` / `severity` / `event` fields — nothing here re-tags the log, it
  * only buckets what the simulation already emitted.
  */
@@ -10,7 +10,7 @@ import type { LogEntry } from '../../simulation/index.js';
 /** Bucket a log line belongs to; `sim` is the catch-all for engine chatter. */
 export type LogCategory = 'cycle' | 'user' | 'life' | 'sim';
 
-/** Filter chips in the panel. `all` passes everything; `sim` has no chip. */
+/** Filter chips over the transcript. `all` passes everything; `sim` has no chip. */
 export type LogFilter = 'all' | 'cycle' | 'user' | 'life';
 
 export const LOG_FILTERS: readonly LogFilter[] = ['all', 'cycle', 'user', 'life'];

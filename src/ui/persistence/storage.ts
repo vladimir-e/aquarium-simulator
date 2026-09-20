@@ -18,6 +18,7 @@ import {
   PersistedUISchema,
 } from './schema.js';
 import { type TunableConfig, DEFAULT_CONFIG } from '../../simulation/config/index.js';
+import { DEFAULT_SETTINGS } from '../actions/verbs.js';
 import { detectUnitSystem } from '../utils/units.js';
 
 /**
@@ -256,7 +257,9 @@ export function handleResetQueryParam(): boolean {
 export function getDefaultUI(): PersistedUI {
   return {
     units: detectUnitSystem(),
-    debugPanelOpen: false,
+    tunablesOpen: false,
+    spineOpen: false,
+    acts: { settings: DEFAULT_SETTINGS, promoted: null },
   };
 }
 

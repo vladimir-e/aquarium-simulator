@@ -136,7 +136,7 @@ export function processEquipment(
   updatedState = applyCo2GeneratorStateChange(updatedState, co2Result.isOn);
 
   // Process auto doser
-  const autoDoserResult = autoDoserUpdate(updatedState);
+  const autoDoserResult = autoDoserUpdate(updatedState, config.nutrients.fertilizerFormula);
   effects.push(...autoDoserResult.effects);
   updatedState = autoDoserResult.state;
 

@@ -1,21 +1,27 @@
-import React, { useMemo } from 'react';
+import React, { useCallback, useState } from 'react';
 import type { TunableConfig } from '../../simulation/config/index.js';
+import { useStage } from '../components/layout/AppShell';
+import { ModuleGroup, ModulePage } from '../components/layout/ModulePage';
+import { BiofilterWidget } from '../components/water/BiofilterWidget';
+import { ReadingDrawer } from '../components/water/ReadingDrawer';
+import { NutrientRows, ReadingRows } from '../components/water/rows';
+import { WasteWidget } from '../components/water/WasteWidget';
+import { VerbButton } from '../components/ui/VerbButton';
 import type { useSimulation } from '../hooks/useSimulation';
-import { useUnits } from '../hooks/useUnits';
-import { Stage } from '../components/layout/Stage';
-import { DissolvedGases, GaugeGroup } from '../components/run/Gauge';
-import { BacteriaCard } from '../components/run/BacteriaCard';
-import { WasteCard } from '../components/run/WasteCard';
-import { Pill } from '../components/run/elements';
-import {
-  bacteriaReadout,
-  gasReadings,
-  projectNitritePeak,
-  waterAlert,
-  waterGauges,
-  wasteReadout,
-} from '../run';
+import { useInspector } from '../hooks/useInspector';
+import { useReadingBook } from '../hooks/useReadingBook';
+import {type ReadingId} from '../readings';
 
+const WATER: ReadingId[] = ['temperature', 'ph', 'level'];
+const GASES: ReadingId[] = ['oxygen', 'co2'];
+const NITROGEN: ReadingId[] = ['ammonia', 'nitrite', 'nitrate'];
+
+/**
+ * The lab sheet: every reading the tank takes, in two columns that read top to
+ * bottom — the water and what is dissolved in it on the left, the cycle and
+ * the bacteria running it on the right. Any row opens the same inspector the
+ * Overview opens.
+ */
 export function WaterSection({
   sim,
   config,
@@ -23,42 +29,53 @@ export function WaterSection({
   sim: ReturnType<typeof useSimulation>;
   config: TunableConfig;
 }): React.JSX.Element {
-  const { unitSystem } = useUnits();
-  const { state, history } = sim;
+  const { onAct, actLabel } = useStage();
+  const { history } = sim;
+  const [reading, setReading] = useState<ReadingId | null>(null);
+  const close = useCallback(() => setReading(null), []);
+  useInspector(reading !== null, close);
 
-  const gauges = useMemo(
-    () => waterGauges({ state, phConfig: config.ph, history, units: unitSystem }),
-    [state, config.ph, history, unitSystem]
-  );
-  const gases = useMemo(() => gasReadings(state), [state]);
-  const bacteria = useMemo(() => bacteriaReadout(state, config), [state, config]);
-  const projection = useMemo(() => projectNitritePeak(state, config), [state, config]);
-  const waste = useMemo(() => wasteReadout(state, config), [state, config]);
-
-  const alert = waterAlert([...gauges, ...gases], bacteria.cycled);
+  const book = useReadingBook(sim, config);
 
   return (
-    <Stage title="Water" meta={alert && <Pill variant={alert.status}>{alert.text}</Pill>}>
-      <div className="flex min-h-full flex-col gap-3">
-        <div className="grid shrink-0 grid-cols-1 gap-3 md:grid-cols-2">
-          <GaugeGroup
-            title="Water"
-            gauges={gauges.filter((g) => g.group === 'water')}
-            footer={<DissolvedGases readings={gases} />}
-          />
-          <GaugeGroup title="Nitrogen cycle" gauges={gauges.filter((g) => g.group === 'nitrogen')} />
+    <>
+      <ModulePage
+        title="Water"
+        meta={book.caption}
+        actions={
+          <>
+            <VerbButton label={actLabel('waterChange')} onClick={() => onAct('waterChange')} />
+            <VerbButton label={actLabel('topOff')} onClick={() => onAct('topOff')} />
+          </>
+        }
+      >
+        <div className="grid grid-cols-1 items-start gap-x-6 gap-y-2.5 md:grid-cols-2">
+          <div>
+            <ModuleGroup title="Water">
+              <ReadingRows book={book} ids={WATER} onOpen={setReading} />
+            </ModuleGroup>
+            <ModuleGroup title="Gases">
+              <ReadingRows book={book} ids={GASES} onOpen={setReading} />
+            </ModuleGroup>
+            <ModuleGroup
+              title="Nutrients"
+              action={<VerbButton label={actLabel('dose')} onClick={() => onAct('dose')} />}
+            >
+              <NutrientRows book={book} onOpen={setReading} />
+            </ModuleGroup>
+          </div>
+
+          <div className="flex flex-col gap-3">
+            <ModuleGroup title="Nitrogen">
+              <ReadingRows book={book} ids={NITROGEN} onOpen={setReading} />
+            </ModuleGroup>
+            <BiofilterWidget book={book} config={config} />
+            <WasteWidget book={book} config={config} onOpen={setReading} />
+          </div>
         </div>
-        {/* Measured off the wireframe, like the 240 px gauge track above: the
-            floor this row keeps when the two cards have little to show. */}
-        <div className="grid min-h-[249px] flex-1 grid-cols-1 gap-3 md:grid-cols-2">
-          <BacteriaCard
-            readout={bacteria}
-            projection={projection}
-            config={config.nitrogenCycle}
-          />
-          <WasteCard readout={waste} config={config} />
-        </div>
-      </div>
-    </Stage>
+      </ModulePage>
+
+      <ReadingDrawer id={reading} book={book} history={history} onClose={close} />
+    </>
   );
 }

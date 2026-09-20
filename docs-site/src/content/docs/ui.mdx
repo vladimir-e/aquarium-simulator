@@ -1,18 +1,12 @@
 ---
 title: "Web UI"
-description: "The dashboard the engine ships with — six views over one tank, a transport for time, and a panel for every constant."
+description: "The dashboard the engine ships with — a console over one tank, a transport for time, and a panel for every constant."
 ---
 
 The engine has a face: a browser dashboard that drives one tank in real time,
 deployed at [engine.fishroom.app](https://engine.fishroom.app). It is the
 engine's showcase and its calibration instrument — the surface where a
 month-long run becomes something you can watch, scrub back through, and explain.
-
-It runs on the engine's API — build a tank, tick it, dispatch actions, read the
-state back — and it does not stop there. It imports source directly rather than
-the built package, and a handful of the numbers it displays come off thresholds
-and formatters the package never exports. What it shows is therefore wider than
-the published surface on its own.
 
 ## What it is
 
@@ -25,30 +19,61 @@ the published surface on its own.
 | Session state | The browser's local storage. There is no server and no account |
 | Scope | One tank at a time |
 
-## The six views
+## The six modules
 
-| View | Route | What it shows |
+| Module | Route | What it shows |
 |---|---|---|
-| Water | `/` | The tank as gauges: level, temperature, pH, the three nitrogen compounds, dissolved O₂ and CO₂. Below them the biofilter — colony size against its ceiling, whether the tank reads as cycled, a projected nitrite peak — and the waste pool feeding it |
-| Equipment | `/equipment` | Every device as a row, and one device's inspector beside it. Selection lives in the URL, so each inspector is a link and back walks between devices. A band along the foot lays the day's schedules — light, CO₂, doser — against each other |
-| Flora & Scape | `/flora` | Plants as rows that open into their per-factor vitality breakdown, the algae competing with them on the same axis, the four nutrients with what one millilitre of fertilizer would move, and the hardscape |
-| Livestock | `/livestock` | The roster, expandable per fish into what is helping and hurting it, with bioload against the stocking guideline pinned below and fry sellable when they appear |
-| Analytics | `/analytics` | Four charts over the run — nitrogen, pH and CO₂, O₂ with temperature and level, populations — plus run tallies, the filtered event log, and a scrubber |
-| Scenario | `/scenario` | What the tank *is*, rather than how it is doing: the preset it came from, its size, lid, room and tap water, and the figures those imply. Also the unit toggle and the run reset |
+| Overview | `/` | The tank as a grid of widgets — the nitrogen cycle as a chain of stocks across the top-left, life beside it, water, gear and nutrients below — each a window onto its module. Anything the engine has latched an alert on is named above the grid, one line each, with the verb that answers it |
+| Water | `/water` | The tank as a lab sheet, two columns of headed reading rows. Left: water (temperature, pH, level), the dissolved gases, and the four nutrients against what the plants ask for. Right: the nitrogen compounds on their alert lines, then the biofilter — each guild against its ceiling, what it converts an hour, whether the tank reads as cycled and where the nitrite peak falls — and the waste pool feeding it. Any row opens its reading in the drawer |
+| Life | `/life` | Two tables on one row shape: the fish, and the plants with the algae riding along at their top as a population row. A species row carries a silhouette, the count, the figure each, a dot per individual and the group's condition, and opens onto the individuals under it; bioload sits under the fish against the stocking guideline. Under the fish rows sit the clutches counting down to hatch and one row for every fry in the tank, which is the unit the sell-all-fry verb takes. Any row opens the vitality ledger in the drawer — helping against hurting, each factor at its rate per day, the bank between them — and the module's "+" stocks a species through the same drawer |
+| Gear | `/gear` | A rack of eight device rows: a power switch, a silhouette, the name, and what it is set to — or, for the three that keep a clock, that day as a 24 h ribbon against the hour the tank is on. A row opens the device's inspector in the drawer, addressed by the URL, so each inspector is a link and back walks between devices; closing one lands on the rack. Under the rack the scape — the substrate, and each piece of hardscape with the surface it adds — and under that what the fittings add up to, which is what the tick reads |
+| History | `/history` | The spine at full height: the four tracks stacked over one axis on the left, and on the right what the run cost — deaths, births, alerts, water changed — over the event log. A window switch scopes both. Dragging a track or the axis, or tapping a log line, parks the same playhead the spine writes |
+| Setup | `/setup` | What the tank *is*, rather than how it is doing: the preset it came from and whether the tank still matches it, the capacity, the lid, the room and the tap water, each row carrying what it does to the tank. Beside them the display choices — units and theme — what the run has cost so far and the reset that ends it, and what this simulation claims to be. Capacity is read-only — resizing is a separate row, because a new size builds a new tank at hour zero; past a month's run both it and the reset confirm first |
 
 ## The frame
 
+Four bands that never move, whichever module is on the stage, and the one
+drawer that lays over them.
+
 | Element | Role |
 |---|---|
-| Chrome row | Identity, the preset selector, a ticker showing the latest event, and the utilities — theme, docs link, source link, debug panel |
-| Index rail | The six sections as rows, each carrying live figures — a status pill, device dots, micro-meters. The rail is meant to answer most questions without a visit |
-| Timeline card | The transport: play/pause, step, speed, and where the day sits against the photoperiod |
-| Stage | The section itself, with its own title, summary line and footer |
-| Actions trigger | Docked at the foot of the rail, always reachable, showing the verb you last used and what it is set to |
+| Top bar | The tank's preset on the left, the transport centred — play/pause, step, speed, the clock — and on the right the count of what needs the keeper, the Act palette, the tunables badge, theme, docs and source |
+| Icon rail | The six modules, fixed, never scrolling, carrying no figures. A dot on an icon says that module has an engine alert standing against it |
+| Stage | The module itself, with its own title and summary line |
+| Spine | The run along the bottom: day ticks, alert and action marks, and the playhead. Dragging parks the playhead in the address, so the spine and History are never on different ticks and back walks out of a scrub. The handle expands it onto the four tracks, except on History, which is already showing them; the link beside it opens History wherever the playhead is parked |
+| Drawer | The one inspector, laid over the right of the stage — no scrim, and the tank keeps ticking behind it. One at a time; Escape, a pointer outside it, or its own close button dismisses it |
 
-Below the tablet breakpoint the rail has nowhere to stand, so it becomes a
-drawer, the actions trigger moves to a bar across the foot, and the equipment
-inspector takes the whole screen instead of sitting beside the list.
+Below the tablet breakpoint the rail folds into a five-tab bar with the last two
+modules behind More, the transport keeps play and the clock, the drawer becomes
+a full-height sheet from the bottom. The top bar sheds its tunables badge at
+that width, so the More sheet carries the tunables under the two modules it
+already holds.
+
+### Reading a value
+
+Every reading in the dashboard is the same shape: name, value and unit, a range
+strip, a trend, and — where the number alone does not say it — a note. The strip is a 4 px track with the engine's own
+reference band lit on it and the value as a marker — inside the band the marker
+and the number stay ink, outside they take the engine's severity. Fullness never
+carries meaning, and a reading with no band shows an unlit track and stays
+quiet.
+
+Where the engine has no threshold of its own, the band is the tank's: the
+temperature and pH spans every stocked species tolerates, plant demand for the
+four nutrients. An unstocked tank has neither, and those readings go quiet.
+
+Tapping a reading anywhere — the Overview or the Water module — opens the same
+inspector in the drawer: the number at hero size, the band stated in the
+engine's words, the last seven days for a reading the snapshot buffer records,
+and — for the stocks of the nitrogen cycle — what fills them and what drains
+them, at the rate the next tick will use. A flow arm moving less than the
+precision its unit is read to prints as `none`, and only a stock's net — its
+fills against its drains — ever prints as `steady`; neither prints a signed zero.
+
+Bands are stated at the precision their reading is, so a value sitting on the
+edge of its band reads as sitting on the edge. A tolerance band is hard on both
+sides: the engine charges a temperature or pH stressor from the moment the
+value leaves the span, and the strip tints on the same step.
 
 ## Time
 
@@ -59,59 +84,107 @@ The dashboard owns the clock; the engine only knows how to advance an hour.
 | Play / pause | Autoplay ticks on an interval — one, six or twenty-four simulated hours per real second |
 | Step | Advances a full simulated day, whatever the speed, and takes the clock so autoplay cannot carry you past the day you asked to look at |
 | Space | Steps when paused, pauses when running |
+| ⌘K | Opens the Act palette |
+| ⌘, | Opens the tunables drawer |
+| Ctrl | Stands in for ⌘ on a keyboard without one; on a Mac it is left to the system and the text fields |
 
 Every tick is recorded as a compact vitals snapshot in a rolling buffer of the
-last thirty days. That buffer is what the charts and the scrubber read, so
-scrubbing never touches the simulation — the tank can keep running while you
-look at last Tuesday.
+last thirty days. That buffer is what the tracks read, so scrubbing never
+touches the simulation — the tank can keep running while you look at last
+Tuesday. The buffer belongs to the session: a reloaded tank opens with nothing
+to draw, however old it is.
+
+Nothing but the timeline honours the tick cursor: a snapshot carries the vitals
+the tracks draw, and none of the bacteria, waste, nutrients or roster a module
+would need to redraw itself at a historical cursor — the reading rows go on
+showing the tank as it is now.
+
+The spine is that buffer along the bottom of every screen. Collapsed it is the
+axis alone; the handle expands it onto four tracks sharing that axis.
+
+| Track | Lines |
+|---|---|
+| Nitrogen | NH₃, NO₂, NO₃ |
+| pH & CO₂ | pH, CO₂ |
+| O₂, temp & level | oxygen, temperature, water level |
+| Populations | fish, fry, plant size, algae |
+
+Each line is normalised to its own extent, so a compound at 0.1 ppm and one at
+40 ppm share a band without sharing a scale; the caption carries the value at
+the playhead — at the precision its reading is read to everywhere else — and on
+History the extent the line was drawn against. Behind the
+lines the hours the fixture ran are a faint band. Colour is spent on the series
+alone — a track never tints for status; the alert and action marks live on the
+axis under it, where the playhead stands.
+
+A phone has room for two tracks at a time, and a chip row picks the pair.
 
 ## Acting on the tank
 
-Six husbandry verbs sit behind the actions trigger: feed, water change, top-off,
-dose, trim, scrub. Each one opens on the amounts it can take, a preview of what
-committing would move, and the commit itself.
+Every husbandry verb has a home: Feed, Trim and Scrub on Life, Water change and
+Top-off on Water, Dose on Nutrients. Each appears as a button in that widget's
+footer and in its module header, carrying the amount it is standing on — a
+footer says what would happen rather than opening a menu to ask. The **Needs
+you** strip carries the same verb beside the condition that calls for it.
 
-| Property | How it works |
+The Act button in the top bar (and ⌘K) opens the palette: the six verbs with
+their amounts and their modules, then the three construction verbs, filtered as
+you type. Either route opens the identical sheet in the drawer.
+
+| Part of the sheet | What it is |
 |---|---|
-| Options | The engine's own sets — the water-change fractions it accepts, the scrub range it rolls within |
-| Refusals | The engine's own guards, stated where the verb would otherwise say what it is about to do, so an unavailable verb is never a dead end |
-| Preview | The action is applied to a throwaway state and the difference is read off it. What you see is the outcome, not an estimate of it |
-| Dispatch | One call into the engine, which works whether the tank is running or paused |
+| Amount rungs | The engine's own option sets — the water-change fractions it accepts, the trim targets, the feed and dose presets, plus the dose the plants are currently short of, capped at the 50 ml the engine takes in one dose |
+| Preview | The action applied to a throwaway state, read back as reading rows: the standing value as a ghost marker, the value the commit would leave as the live one, on the strip the reading is read on everywhere else. Only what moves is listed |
+| Commit | One button, named for the verb and its amount — "Feed 0.5 g", "Change 25 % water". The sheet opens on it, so Enter commits without a click first |
+| Refusals | The engine's own guards, standing where the commit would be, so an unavailable verb is never a dead end |
+| Dispatch | One call into the engine, which works whether the tank is running or paused, and writes the log line the spine marks |
+
+The amount chosen for a verb outlives a dismissal: closing the sheet means "not
+now", the footer buttons and the palette go on naming that amount, and the top
+bar's Act button takes the name of the last verb committed. Both are kept with
+the tank, so a keeper who always feeds 1 g opens on 1 g after a reload.
 
 Construction is not husbandry and does not go through this path. Swapping a
 filter, resizing the tank, adding a plant or a rock edits the tank directly and
-writes its own line into the log.
+writes its own line into the log; the palette's construction verbs hand the
+reader to the picker that owns them — each picker is a parameter of its module's
+address (`/life?add=fish`, `/gear?add=hardscape`), so the palette opens one from
+anywhere and the rest of the query stays where it is.
 
 ## Reading the engine
 
-Nothing the dashboard displays is stored twice. Every gauge, breakdown, pill and
-projection is derived from the state the last tick returned, so a reading and
-the tank can never disagree.
+Nothing the dashboard displays is stored twice. Every reading, breakdown and
+projection is derived from the state the last tick returned, so a reading
+and the tank can never disagree. The Overview widgets and the Water module draw
+their rows from one reading set, so the same reading cannot carry a different
+band or a different word depending on which surface is showing it.
 
 | Surface | Derived from |
 |---|---|
-| Gauges and status pills | Current resources, against the thresholds the engine alerts on |
+| Reading values and status | Current resources, against the thresholds the engine alerts on |
+| Reading bands | An engine threshold where there is one, the stocked species' tolerance or the plants' demand where there is not |
+| The cycle chain | The engine's own mineralisation, oxidation and clearance rates, read for the hour ahead |
 | Vitality breakdowns | The engine's own per-factor stressor and benefit lists, per organism |
-| Charts | The snapshot buffer, each series normalised to its own extent so a compound at 0.1 ppm and one at 40 ppm share a frame without sharing a scale |
+| Tracks | The snapshot buffer, each series normalised to its own extent |
 | Event log | The log entries the tick appends, filtered by category, exportable as text |
-| Alert markers | Log entries of alert severity, placed on the charts and the scrubber at the tick they fired |
+| Alert markers | Log entries of alert severity, placed on the timeline axis at the tick they fired |
 | Run tallies | Folded from the same log stream — deaths, births, alerts, water changed |
 
-In Analytics the tick cursor is the URL. A parked tick is a link, back walks out
-of a scrub rather than out of the app, and a window that cannot honour the tick
-resolves it and rewrites the address to match.
+## The tunables
 
-## The debug panel
-
-The panel behind the settings icon exposes the engine's tunable constants,
-grouped the way the config layer groups them, editable live. A changed value
-takes effect on the next tick — no rebuild, no reload.
+Behind the top bar's badge, ⌘, and — on a phone, where the bar has no room for
+the badge — the More sheet, is the drawer of the engine's constants, grouped
+the way the config layer groups them and editable live. It lays over the stage
+like any other inspector, so a constant can be moved while the chart it moves
+is on screen. A changed value takes effect on the next tick — no rebuild, no
+reload.
 
 | Behaviour | Detail |
 |---|---|
-| Coverage | Ten of the eleven config sections. The livestock section and the nested fertilizer formula are not reachable from the panel |
+| Coverage | Every config section, with a nested formula as a group inside the section that holds it |
+| Search | One box filters by name across the whole set, matching a constant's label or the path `config set` names it with; matching sections open themselves |
 | Validation | Each field is bounded by the range its tunable declares. Typing walks through values the range refuses, so a bad value holds the field and blur settles it rather than clamping mid-keystroke |
-| Modified state | A changed value and its section are both marked, and a dot on the icon says the tank is no longer running on stock constants |
+| Modified state | A dot marks a moved constant, its section carries the count of them, and the top bar's badge carries the count for the whole config |
 | Reset | Per section, or the whole config at once |
 
 Tuned constants persist with the session, which means a tank reopened tomorrow
@@ -129,9 +202,11 @@ touches the tank.
 | Volume | L | gal |
 | Flow | L/h | GPH |
 
-The toggle lives in Scenario. The initial choice comes from the browser's
-locale, and the tank-size picker offers round numbers in whichever system is
-active — litres in one, gallons in the other.
+The toggle lives in Setup, beside the theme. The initial choice comes from the
+browser's locale, and the tank-size picker offers round numbers in whichever
+system is active — litres in one, gallons in the other. A difference converts
+without the freezing-point offset, so a drift of 1 °C/h reads as 1.8 °F/h
+rather than a temperature.
 
 ## What persists
 
@@ -139,8 +214,8 @@ active — litres in one, gallons in the other.
 |---|---|
 | The tank: clock, resources, environment, equipment, plants, fish, clutches, algae, random stream, alert state | The event log, which starts fresh each session |
 | The preset the tank came from | Transport speed and play state |
-| Tuned constants | The Analytics view — it lives in the URL instead |
-| Units and whether the debug panel was open | |
+| Tuned constants, and the amounts the verbs are standing on | The History view — it lives in the URL instead |
+| Units, the theme, and whether the tunables drawer and the spine's tracks were open | |
 
 Saves are validated section by section against a strict schema, so one corrupt
 section falls back to its defaults rather than taking the rest with it. The

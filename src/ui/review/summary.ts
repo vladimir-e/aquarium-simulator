@@ -1,10 +1,10 @@
 /**
- * The run summary, derived once. The Analytics tiles render these and the index
- * rail's Analytics row reads the same list, so the rail and the stage cannot
- * quote different run lengths. Every figure is a run aggregate or a tick read
- * off the log that produced it — nothing here re-counts the engine. The counts
- * and the transcript are the same run's: every path that rebaselines the
- * aggregates replaces the log in the same commit.
+ * The run summary, derived once. The History tallies render these and the page
+ * header reads the same list, so the two cannot quote different run lengths.
+ * Every figure is a run aggregate or a tick read off the log that produced it —
+ * nothing here re-counts the engine. The counts and the transcript are the same
+ * run's: every path that rebaselines the aggregates replaces the log in the
+ * same commit.
  */
 
 import type { LogEntry } from '../../simulation/index.js';
@@ -101,8 +101,7 @@ function phrase(tile: SummaryTile): string {
 }
 
 /**
- * The run in two lines — how long it is, then what it cost. The rail's row and
- * the Analytics header both read these, so they cannot quote different runs.
+ * The run in two lines — how long it is, then what it cost.
  * Both count what this run recorded rather than the tank's age: a restored save
  * opens with an empty history buffer and has nothing to draw however old it is.
  */

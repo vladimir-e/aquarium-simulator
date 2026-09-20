@@ -7,18 +7,17 @@
 
 import {
   FISH_SPECIES_DATA,
+  SATIATION_BAND_LABEL,
   classifySatiationBandPosition,
   computeFishVitality,
-  type Clutch,
   type Fish,
-  type FishSex,
   type FishSpecies,
   type SatiationBand,
   type SimulationState,
-  type VitalityFactor,
+  type VitalityBreakdown,
 } from '../../simulation/index.js';
 import type { LivestockConfig } from '../../simulation/config/livestock.js';
-import type { Status } from './status.js';
+import { vitalReading, worstReading, type Reading, type Status } from './status.js';
 
 /** Hungry and starving are the two bands that count toward "N hungry". */
 export function isHungryBand(band: SatiationBand): boolean {
@@ -69,34 +68,29 @@ export function countFry(fish: Fish[]): number {
 }
 
 /**
- * What vitality is doing to one fish this hour: the factors behind its net rate,
- * and the reserve bank standing between that rate and its condition.
+ * How one fish reads, across every channel it keeps: condition, the energy
+ * ledger that can be emptying while condition holds, and how recently it ate.
+ * One definition, so the roster row and the ledger header carry one word.
  */
-export interface FishVitals {
-  /** Condition change per hour — what the breakdown sums to. */
-  net: number;
-  stressors: VitalityFactor[];
-  benefits: VitalityFactor[];
-  /** Banked reserve: condition points the bank absorbs before condition falls. */
-  reserve: number;
-  reserveCap: number;
-  /**
-   * Condition reads full while the bank drains to hold it there. Without this
-   * a fish thriving at 100 and a fish spending down its buffer at 100 are the
-   * same reading.
-   */
-  burning: boolean;
-}
-
-function acting(factors: VitalityFactor[]): VitalityFactor[] {
-  return factors.filter((f) => f.amount > 0);
-}
-
-export function fishVitals(
+export function fishReading(
   fish: Fish,
-  state: SimulationState,
+  breakdown: VitalityBreakdown,
   config: LivestockConfig
-): FishVitals {
+): Reading {
+  const band = bandOf(fish.satiation, config);
+  return worstReading(vitalReading(fish.health, fish.surplus, breakdown), {
+    status: bandStatus(band),
+    word: SATIATION_BAND_LABEL[band].toLowerCase(),
+  });
+}
+
+/** One fish, with the vitality pass behind its row already spent. */
+export interface FishRead {
+  fish: Fish;
+  reading: Reading;
+}
+
+function readFish(fish: Fish, state: SimulationState, config: LivestockConfig): FishRead {
   const { breakdown } = computeFishVitality(
     fish,
     state.resources,
@@ -106,14 +100,7 @@ export function fishVitals(
     config
   );
 
-  return {
-    net: breakdown.net,
-    stressors: acting(breakdown.stressors),
-    benefits: acting(breakdown.benefits),
-    reserve: fish.surplus,
-    reserveCap: config.surplusCap,
-    burning: fish.health >= 100 && breakdown.net < 0 && breakdown.drained > 0,
-  };
+  return { fish, reading: fishReading(fish, breakdown, config) };
 }
 
 function groupBySpeciesKey(fish: Fish[]): Map<FishSpecies, Fish[]> {
@@ -147,43 +134,30 @@ export interface RosterFigures {
 }
 
 interface RosterGroup extends RosterFigures {
-  species: FishSpecies;
-  name: string;
   count: number;
   hunger: Hunger | null;
-  /** Any member holding condition by draining its reserve. */
-  burning: boolean;
+  /** The fish behind the row, each already read. */
+  members: FishRead[];
 }
 
 export interface SpeciesGroup extends RosterGroup {
-  fish: Fish[];
+  species: FishSpecies;
+  name: string;
 }
 
+/** Every fry in the tank as one batch — the unit {@link sellFry} takes. */
 export interface FryBatch extends RosterGroup {
-  /** Day number at which the batch reaches adulthood. */
-  graduationDay: number;
-}
-
-function fishFigures(f: Fish, config: LivestockConfig): RosterFigures {
-  return {
-    massG: f.mass,
-    ageDays: Math.floor(f.age / 24),
-    satiation: f.satiation,
-    band: bandOf(f.satiation, config),
-    condition: f.health,
-  };
+  /** The species mix behind the count. */
+  species: FishSpecies[];
 }
 
 function groupFigures(
-  species: FishSpecies,
   group: Fish[],
   state: SimulationState,
   config: LivestockConfig
 ): RosterGroup {
   const satiation = mean(group.map((f) => f.satiation));
   return {
-    species,
-    name: FISH_SPECIES_DATA[species].name,
     count: group.length,
     massG: group.reduce((sum, f) => sum + f.mass, 0),
     ageDays: Math.floor(mean(group.map((f) => f.age)) / 24),
@@ -191,7 +165,7 @@ function groupFigures(
     band: bandOf(satiation, config),
     condition: mean(group.map((f) => f.health)),
     hunger: hungerOf(group, config),
-    burning: group.some((f) => fishVitals(f, state, config).burning),
+    members: group.map((fish) => readFish(fish, state, config)),
   };
 }
 
@@ -199,122 +173,26 @@ function groupFigures(
 export function groupBySpecies(state: SimulationState, config: LivestockConfig): SpeciesGroup[] {
   const adults = state.fish.filter((f) => f.stage === 'adult');
   return [...groupBySpeciesKey(adults)].map(([species, group]) => ({
-    ...groupFigures(species, group, state, config),
-    fish: group,
+    species,
+    name: FISH_SPECIES_DATA[species].name,
+    ...groupFigures(group, state, config),
   }));
 }
 
-export function groupFryBatches(state: SimulationState, config: LivestockConfig): FryBatch[] {
+/** The tank's fry as one batch, or nothing if none are growing out. */
+export function groupFry(state: SimulationState, config: LivestockConfig): FryBatch | null {
   const fry = state.fish.filter((f) => f.stage === 'fry');
-  return [...groupBySpeciesKey(fry)].map(([species, group]) => ({
-    ...groupFigures(species, group, state, config),
-    graduationDay: Math.max(1, Math.floor(FISH_SPECIES_DATA[species].breeding.maturityAge / 24)),
-  }));
-}
+  if (fry.length === 0) return null;
 
-function shortId(id: string): string {
-  return id.slice(id.indexOf('_') + 1);
-}
-
-interface RosterRowBase {
-  /** Stable React key — the engine id where there is one, the species where not. */
-  key: string;
-}
-
-export interface SpeciesRosterRow extends RosterRowBase, Omit<SpeciesGroup, 'fish'> {
-  kind: 'species';
-  expanded: boolean;
-}
-
-export interface FishRosterRow extends RosterRowBase, RosterFigures, FishVitals {
-  kind: 'fish';
-  id: string;
-  shortId: string;
-  name: string;
-  sex: FishSex;
-  /** Open on its own conditions breakdown. */
-  expanded: boolean;
-}
-
-export interface ClutchRosterRow extends RosterRowBase {
-  kind: 'clutch';
-  shortId: string;
-  name: string;
-  eggCount: number;
-  hatchTick: number;
-  /** Ticks (hours) until hatch. */
-  hoursToHatch: number;
-}
-
-export interface FryRosterRow extends RosterRowBase, FryBatch {
-  kind: 'fry';
-}
-
-export type RosterRow = SpeciesRosterRow | FishRosterRow | ClutchRosterRow | FryRosterRow;
-
-/**
- * The roster in render order: each species row, its individuals directly
- * beneath it when expanded, then the clutches waiting to hatch and the fry
- * batches growing out. Rows disclose by their own key, so one set opens both a
- * species and any individual inside it.
- */
-export function rosterRows(
-  state: SimulationState,
-  config: LivestockConfig,
-  expanded: ReadonlySet<string>
-): RosterRow[] {
-  const rows: RosterRow[] = [];
-
-  for (const group of groupBySpecies(state, config)) {
-    const key = `species-${group.species}`;
-    const open = expanded.has(key);
-    const { fish, ...figures } = group;
-    rows.push({ kind: 'species', key, expanded: open, ...figures });
-    if (!open) continue;
-    for (const f of fish) {
-      rows.push({
-        kind: 'fish',
-        key: f.id,
-        id: f.id,
-        shortId: shortId(f.id),
-        name: group.name,
-        sex: f.sex,
-        expanded: expanded.has(f.id),
-        ...fishFigures(f, config),
-        ...fishVitals(f, state, config),
-      });
-    }
-  }
-
-  for (const clutch of state.clutches) {
-    rows.push(clutchRow(clutch, state.tick));
-  }
-
-  for (const batch of groupFryBatches(state, config)) {
-    rows.push({ kind: 'fry', key: `fry-${batch.species}`, ...batch });
-  }
-
-  return rows;
-}
-
-function clutchRow(clutch: Clutch, tick: number): ClutchRosterRow {
-  const hatchTick = clutch.laidTick + FISH_SPECIES_DATA[clutch.species].breeding.hatchTime;
   return {
-    kind: 'clutch',
-    key: clutch.id,
-    shortId: shortId(clutch.id),
-    name: `${FISH_SPECIES_DATA[clutch.species].name} clutch`,
-    eggCount: clutch.eggCount,
-    hatchTick,
-    hoursToHatch: hatchTick - tick,
+    species: [...new Set(fry.map((f) => f.species))],
+    ...groupFigures(fry, state, config),
   };
 }
 
 /**
- * What the tank holds, in one line — the index rail's livestock figure and the
- * stage's own meta are the same sentence, so the rail can never claim a roster
- * the section does not show. Fry are counted apart from adults: they are stock
- * the tank is carrying, but not yet fish that breed.
+ * What the tank holds, in one line. Fry are counted apart from adults: they are
+ * stock the tank is carrying, but not yet fish that breed.
  */
 export function rosterSummary(state: SimulationState): string {
   const { fish, clutches } = state;
