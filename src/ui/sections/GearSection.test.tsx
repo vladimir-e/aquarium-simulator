@@ -246,6 +246,12 @@ describe('GearSection — the scape', () => {
     expect(sim.addHardscapeItem).toHaveBeenCalledWith('driftwood');
   });
 
+  it('opens the menu on a direct load of the address the palette hands out', () => {
+    renderGear('/gear?add=hardscape');
+
+    expect(screen.getByRole('button', { name: '+ Driftwood' })).toBeTruthy();
+  });
+
   it('refuses a piece past the ceiling, in the engine’s words', () => {
     const full: SimulationState = {
       ...base,

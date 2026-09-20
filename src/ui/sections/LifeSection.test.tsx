@@ -3,7 +3,7 @@ import { describe, it, expect, afterEach, vi } from 'vitest';
 import { cleanup, fireEvent, screen, within } from '@testing-library/react';
 import { LifeSection } from './LifeSection';
 import { bare, stocked, type Run } from '../test/run';
-import { group, renderStage } from '../test/stage';
+import { group, query, renderStage } from '../test/stage';
 import { stubSim } from '../test/stubSim';
 import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
 import {
@@ -158,6 +158,27 @@ describe('LifeSection', () => {
     fireEvent.click(within(group('Fish')).getByRole('button', { name: 'Sell all fry (3)' }));
 
     expect(within(group('Fish')).queryByText('Fry')).toBeNull();
+  });
+
+  it('opens the picker the address names, and leaves the rest of the query alone', () => {
+    renderStage(<Live run={stocked()} />, { path: '/life?tick=300' });
+
+    const header = screen.getByRole('heading', { level: 1, name: 'Life' }).parentElement!;
+    fireEvent.click(within(header).getByRole('button', { name: '+ Add' }));
+    fireEvent.click(within(header).getByRole('button', { name: 'Add fish' }));
+
+    expect(screen.getByRole('dialog', { name: /Add fish/ })).toBeTruthy();
+    expect(query().get('tick')).toBe('300');
+
+    fireEvent.click(screen.getByRole('button', { name: /^Close/ }));
+    expect(query().get('add')).toBeNull();
+    expect(query().get('tick')).toBe('300');
+  });
+
+  it('opens the picker on a direct load of its address', () => {
+    renderStage(<Live run={stocked()} />, { path: '/life?add=fish' });
+
+    expect(screen.getByRole('dialog', { name: /Add fish/ })).toBeTruthy();
   });
 
   it('hands the husbandry verbs to the Act drawer', () => {

@@ -1,5 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import React, { useMemo, useState } from 'react';
 import { getMaxPlants, type FishSpecies, type PlantSpecies } from '../../simulation/index.js';
 import type { TunableConfig } from '../../simulation/config/index.js';
 import { useStage } from '../components/layout/AppShell';
@@ -12,6 +11,7 @@ import { ReadingRow } from '../components/ui/ReadingRow';
 import { VerbButton } from '../components/ui/VerbButton';
 import { bioload, bioloadNote, type PickerKind } from '../build';
 import { useExpandedRows } from '../hooks/useExpandedRows';
+import { useQueryParam } from '../hooks/useQueryParam';
 import type { useSimulation } from '../hooks/useSimulation';
 import { useUnits } from '../hooks/useUnits';
 import { readTank, toneOf } from '../readings';
@@ -58,7 +58,7 @@ export function LifeSection({
   const { state } = sim;
   const [expanded, toggle] = useExpandedRows(sim.tankId);
   const [inspecting, setInspecting] = useState<Inspecting | null>(null);
-  const [params, setParams] = useSearchParams();
+  const [picker, setAdding] = useQueryParam<PickerKind>('add');
 
   const book = useMemo(
     () => readTank({ state, config, history: sim.history, units: unitSystem }),
@@ -81,13 +81,7 @@ export function LifeSection({
     [book.roster, state, config.livestock, expanded]
   );
 
-  const adding = PICKERS.find((kind) => kind === params.get('add')) ?? null;
-  const setAdding = useCallback(
-    (kind: PickerKind | null) => {
-      setParams(kind ? { add: kind } : {}, { replace: true });
-    },
-    [setParams]
-  );
+  const adding = PICKERS.find((kind) => kind === picker) ?? null;
 
   const load = useMemo(() => bioload(state.fish, state.tank.capacity), [state]);
   const ledger = inspecting && readLedger(state, config, inspecting.target, inspecting.subtitle);

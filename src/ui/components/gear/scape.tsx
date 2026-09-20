@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { X } from 'lucide-react';
 import {
   checkHardscapeCapacity,
@@ -25,23 +25,29 @@ const ROW = 'grid h-11 items-center gap-2.5 border-t border-hairline first:borde
 const SCAPE_ROW = `${ROW} grid-cols-[minmax(0,1fr)_88px_minmax(0,110px)_24px]`;
 
 /** The pieces the tank has room for, one button deep. */
-function AddHardscape({ onPick }: { onPick: (type: HardscapeType) => void }): React.JSX.Element {
-  const [open, setOpen] = useState(false);
-
+function AddHardscape({
+  open,
+  onOpen,
+  onPick,
+}: {
+  open: boolean;
+  onOpen: (open: boolean) => void;
+  onPick: (type: HardscapeType) => void;
+}): React.JSX.Element {
   return (
     <div
       className="relative"
       onBlur={(e) => {
-        if (!e.currentTarget.contains(e.relatedTarget as HTMLElement | null)) setOpen(false);
+        if (!e.currentTarget.contains(e.relatedTarget as HTMLElement | null)) onOpen(false);
       }}
       onKeyDown={(e) => {
-        if (e.key === 'Escape') setOpen(false);
+        if (e.key === 'Escape') onOpen(false);
       }}
     >
       <button
         type="button"
         aria-expanded={open}
-        onClick={() => setOpen(!open)}
+        onClick={() => onOpen(!open)}
         className="inline-flex h-7 shrink-0 items-center rounded-control border border-hairline px-2.5 text-[13px] text-ink transition-colors hover:bg-surface-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent"
       >
         + Hardscape
@@ -54,7 +60,7 @@ function AddHardscape({ onPick }: { onPick: (type: HardscapeType) => void }): Re
               key={type}
               type="button"
               onClick={() => {
-                setOpen(false);
+                onOpen(false);
                 onPick(type);
               }}
               className="flex h-9 w-full items-center px-3 text-left text-[13px] text-ink transition-colors hover:bg-surface-2 focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent"
@@ -69,7 +75,16 @@ function AddHardscape({ onPick }: { onPick: (type: HardscapeType) => void }): Re
 }
 
 /** What the tank is built of, under what runs in it: the surface both feed. */
-export function ScapeRows({ sim }: { sim: Sim }): React.JSX.Element {
+export function ScapeRows({
+  sim,
+  adding,
+  onAdding,
+}: {
+  sim: Sim;
+  /** Whether the hardscape menu is open — a route, so the palette can open it. */
+  adding: boolean;
+  onAdding: (open: boolean) => void;
+}): React.JSX.Element {
   const { equipment, tank } = sim.state;
   const substrate = equipment.substrate.type;
   const rows = hardscapeRows(equipment.hardscape.items);
@@ -116,7 +131,7 @@ export function ScapeRows({ sim }: { sim: Sim }): React.JSX.Element {
 
       <div className="flex items-center gap-2.5 border-t border-hairline pt-2">
         {capacity.ok ? (
-          <AddHardscape onPick={sim.addHardscapeItem} />
+          <AddHardscape open={adding} onOpen={onAdding} onPick={sim.addHardscapeItem} />
         ) : (
           <span className="text-[13px] text-ink-3">{capacity.message}</span>
         )}

@@ -10,9 +10,13 @@ import { ReadingRow } from '../components/ui/ReadingRow';
 import { equipmentSummary, hourLabel, isDeviceId, turnover } from '../build';
 import { formatFlowRate } from '../utils/units';
 import type { useSimulation } from '../hooks/useSimulation';
+import { useQueryParam } from '../hooks/useQueryParam';
 import { useUnits } from '../hooks/useUnits';
 import { readTank } from '../readings';
 import { bacteriaReadout } from '../run';
+
+/** The palette's "Add hardscape" lands here, the way its pickers land on Life. */
+const HARDSCAPE_PARAM = 'hardscape';
 
 /**
  * The rack: every fitting as a row you can switch, read and open, the three
@@ -32,6 +36,7 @@ export function GearSection({
   config: TunableConfig;
 }): React.JSX.Element {
   const { deviceId } = useParams();
+  const [add, setAdding] = useQueryParam<typeof HARDSCAPE_PARAM>('add');
   const navigate = useNavigate();
   const { unitSystem } = useUnits();
   const { state } = sim;
@@ -73,7 +78,11 @@ export function GearSection({
           </ModuleGroup>
 
           <ModuleGroup title="Scape" meta={`${slots} of ${state.tank.hardscapeSlots} slots`}>
-            <ScapeRows sim={sim} />
+            <ScapeRows
+              sim={sim}
+              adding={add === HARDSCAPE_PARAM}
+              onAdding={(open) => setAdding(open ? HARDSCAPE_PARAM : null)}
+            />
           </ModuleGroup>
 
           <ModuleGroup title="What the tank gets" meta="summed from the fittings">

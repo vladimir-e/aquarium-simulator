@@ -1,25 +1,40 @@
 import React from 'react';
 import { render, screen, within } from '@testing-library/react';
-import { MemoryRouter, Outlet, Route, Routes } from 'react-router-dom';
+import { MemoryRouter, Outlet, Route, Routes, useLocation } from 'react-router-dom';
 import { verbName } from '../actions';
 import type { StageContext } from '../components/layout/AppShell';
 import { ThemeProvider } from '../hooks/useTheme';
 import { UnitsProvider } from '../hooks/useUnits';
 import { PersistenceProvider } from '../persistence/index.js';
 
+function Address(): React.JSX.Element {
+  return <span data-testid="address" hidden>{useLocation().search}</span>;
+}
+
+/** The query the stage is standing on, for a surface that keeps state in it. */
+export function query(): globalThis.URLSearchParams {
+  return new globalThis.URLSearchParams(screen.getByTestId('address').textContent ?? '');
+}
+
 /** A section on the stage: the providers it reads, and the context the shell gives it. */
 export function renderStage(
   section: React.JSX.Element,
-  { needs = [], onAct = (): void => {}, actLabel = verbName }: Partial<StageContext> = {}
+  {
+    path = '/',
+    needs = [],
+    onAct = (): void => {},
+    actLabel = verbName,
+  }: Partial<StageContext> & { path?: string } = {}
 ): void {
   render(
     <ThemeProvider>
       <PersistenceProvider>
         <UnitsProvider>
-          <MemoryRouter>
+          <MemoryRouter initialEntries={[path]}>
+            <Address />
             <Routes>
               <Route element={<Outlet context={{ needs, onAct, actLabel }} />}>
-                <Route index element={section} />
+                <Route path="*" element={section} />
               </Route>
             </Routes>
           </MemoryRouter>

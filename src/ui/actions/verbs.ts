@@ -94,7 +94,7 @@ export interface BuildVerb {
 export const BUILD_VERBS: BuildVerb[] = [
   { id: 'addFish', name: 'Add fish', home: 'Life', to: '/life?add=fish' },
   { id: 'addPlant', name: 'Add plant', home: 'Life', to: '/life?add=plant' },
-  { id: 'addHardscape', name: 'Add hardscape', home: 'Gear', to: '/gear' },
+  { id: 'addHardscape', name: 'Add hardscape', home: 'Gear', to: '/gear?add=hardscape' },
 ];
 
 const TITLE: Record<VerbId, string> = {
