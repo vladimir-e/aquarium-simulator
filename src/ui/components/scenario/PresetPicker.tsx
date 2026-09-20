@@ -10,9 +10,9 @@ function Build({ card }: { card: PresetCard }): React.JSX.Element {
     <>
       <div className="flex flex-wrap items-baseline gap-x-2">
         <span className="text-[14px] font-semibold text-ink">{card.name}</span>
-        <span className="font-mono text-[12px] tabular-nums text-ink-2">{card.volume}</span>
+        <span className="text-[12px] tabular-nums text-ink-2">{card.volume}</span>
       </div>
-      <p className="mt-1 font-mono text-[11px] leading-[1.5] text-ink-3">{card.build}</p>
+      <p className="mt-1 text-[11.5px] leading-[1.5] tabular-nums text-ink-3">{card.build}</p>
     </>
   );
 }
