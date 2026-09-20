@@ -56,8 +56,6 @@ function ColonyRow({
       name={name}
       value={colonyCount(colony.count)}
       unit="cells"
-      at={pct / 100}
-      band={{ from: 0, to: 1 }}
       trend={throughput}
       note={`${pct > 0 && pct < 1 ? '<1' : Math.round(pct)} % of ceiling`}
     />
