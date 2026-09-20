@@ -1,6 +1,5 @@
 import React from 'react';
 import type { SimulationState } from '../../../simulation/index.js';
-import { turnoverShort } from '../../build';
 import type { ReadingBook, ReadingId } from '../../readings';
 import { ReadingRow } from '../ui/ReadingRow';
 import { VerbButton } from '../ui/VerbButton';
@@ -91,12 +90,6 @@ export function WaterWidget({
           unit={byId.co2.unit}
           onClick={() => onOpenReading('co2')}
         />
-        <span className="ml-auto text-ink-2">
-          turnover{' '}
-          <span className="font-medium tabular-nums text-ink">
-            {turnoverShort(state.resources.flow, state.resources.water)}
-          </span>
-        </span>
       </div>
     </Widget>
   );

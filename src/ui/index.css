@@ -117,7 +117,8 @@
   --color-chart-3: var(--chart-3);
   --color-chart-4: var(--chart-4);
 
-  /* Old names the not-yet-rebuilt modules still paint with; they go with unit 8. */
+  /* The names the not-yet-rebuilt modules still paint with. Green is retired as
+     a status colour, so every one of them resolves to ink or to a surface. */
   --color-hairline-2: var(--hairline);
   --color-track: var(--surface-2);
   --color-ok: var(--ink-2);

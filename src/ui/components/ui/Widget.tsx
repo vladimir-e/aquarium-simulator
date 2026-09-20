@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 
 interface WidgetProps {
   title: string;
-  /** What the widget has to say about itself in a glance — never a figure. */
+  /** What the widget has to say about itself in a glance — a tally, a status word. */
   caption?: string;
   /** The module this widget is a window onto. */
   to?: string;

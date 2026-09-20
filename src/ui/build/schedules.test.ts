@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { createSimulation, tick, type SimulationState } from '../../simulation/index.js';
 import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
-import { hourLabel, scheduleBand, scheduleRange, scheduleSpans } from './schedules';
+import { hourLabel, scheduleBand, scheduleHours, scheduleRange, scheduleSpans } from './schedules';
 
 const base: SimulationState = createSimulation({ tankCapacity: 40 });
 
@@ -34,6 +34,18 @@ describe('scheduleSpans', () => {
 
   it('lights nothing for a schedule with no hours in it', () => {
     expect(scheduleSpans({ startHour: 8, duration: 0 })).toEqual([]);
+  });
+});
+
+describe('scheduleHours', () => {
+  it('fits the span into five characters, and wraps past midnight', () => {
+    expect(scheduleHours({ startHour: 8, duration: 10 })).toBe('08–18');
+    expect(scheduleHours({ startHour: 22, duration: 5 })).toBe('22–03');
+  });
+
+  it('names a full day rather than printing a zero-length span', () => {
+    expect(scheduleHours({ startHour: 8, duration: 24 })).toBe('all day');
+    expect(scheduleHours({ startHour: 8, duration: 48 })).toBe('all day');
   });
 });
 
@@ -92,7 +104,9 @@ describe('scheduleBand', () => {
     const row = scheduleBand(base).rows[1];
     expect(row.enabled).toBe(false);
     expect(row.spans).toEqual([]);
+    expect(row.hours).toBe('');
     expect(row.detail).toBe('off · would run 07:00–17:00');
     expect(scheduleBand(base).rows[2].detail).toBe('off · would dose at 08:00');
+    expect(scheduleBand(base).rows[2].hours).toBe('');
   });
 });

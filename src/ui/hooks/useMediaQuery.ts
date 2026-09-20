@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 
-/** The one layout breakpoint: below Tailwind's `md` the rail folds into the tab
- * bar, the drawer becomes a sheet, and every section that adapts adapts here. */
+/** The one layout breakpoint — one query, or the chrome and the stage disagree
+ *  about which form factor they are on. */
 const MOBILE_QUERY = '(max-width: 767.98px)';
 
 function matchesQuery(query: string): boolean {
