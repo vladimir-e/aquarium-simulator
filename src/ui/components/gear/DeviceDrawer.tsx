@@ -297,7 +297,7 @@ export function DeviceDrawer({
             onChange={(next) => onPower(row.id, next)}
             ariaLabel={`${row.name} power`}
           />
-          <span className={`text-[13px] ${row.on ? 'text-accent' : 'text-ink-3'}`}>
+          <span aria-hidden className={`text-[13px] ${row.on ? 'text-accent' : 'text-ink-3'}`}>
             {row.on ? 'on' : 'off'}
           </span>
         </span>

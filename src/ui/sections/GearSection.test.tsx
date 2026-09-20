@@ -179,6 +179,17 @@ describe('GearSection', () => {
     expect(screen.getByRole('dialog', { name: 'Light' })).toBeTruthy();
   });
 
+  it('states the inspector’s power once, on the switch', () => {
+    renderGear('/gear/light');
+    const drawer = within(screen.getByRole('dialog', { name: 'Light' }));
+
+    expect(drawer.getByRole('switch', { name: 'Light power' }).getAttribute('aria-checked')).toBe(
+      'true'
+    );
+    // The word beside it is the same claim, drawn: not a second one to hear.
+    expect(drawer.queryByText('on', { ignore: '[aria-hidden="true"]' })).toBeNull();
+  });
+
   it('sends a device the engine does not configure back to the rack', () => {
     renderGear('/gear/biofilter');
 
