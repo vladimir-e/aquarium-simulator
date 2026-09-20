@@ -38,7 +38,7 @@ function PreviewLine({ row }: { row: PreviewRow }): React.JSX.Element {
         </span>
         {row.unit && <span className="text-[12px] text-ink-2">{row.unit}</span>}
       </span>
-      <span className="flex min-w-0 flex-col justify-center gap-1">
+      <span className="flex min-w-0 flex-col justify-center gap-1 pr-0.5">
         <RangeStrip at={row.to} ghost={row.from} band={row.band} tone={tone} />
         {row.note && <span className="truncate text-[11px] text-ink-3">{row.note}</span>}
       </span>
@@ -120,14 +120,16 @@ export function VerbDrawer({
 
         {detail.note && <p className="text-[13px] text-ink-2">{detail.note}</p>}
 
-        <div className="flex flex-col gap-1.5">
-          <h3 className="text-[11px] text-ink-3">After</h3>
-          {detail.preview.length === 0 ? (
-            <p className="py-1 text-[13px] text-ink-3">nothing moves</p>
-          ) : (
-            detail.preview.map((row) => <PreviewLine key={row.key} row={row} />)
-          )}
-        </div>
+        {detail.blocked === null && (
+          <div className="flex flex-col gap-1.5">
+            <h3 className="text-[11px] text-ink-3">After</h3>
+            {detail.preview.length === 0 ? (
+              <p className="py-1 text-[13px] text-ink-3">nothing moves</p>
+            ) : (
+              detail.preview.map((row) => <PreviewLine key={row.key} row={row} />)
+            )}
+          </div>
+        )}
 
         {detail.blocked ? (
           <p className="flex min-h-9 items-center justify-center rounded-control border border-hairline px-3 text-center text-[13px] text-warn">

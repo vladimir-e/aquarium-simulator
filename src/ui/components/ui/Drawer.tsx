@@ -10,6 +10,12 @@ import { useIsMobile } from '../../hooks/useMediaQuery';
  */
 export const DRAWER_TOGGLE = { 'data-drawer-toggle': '' };
 
+/**
+ * Where the keyboard lands when the drawer opens, for a drawer whose first
+ * stop is not the one to start on — the palette opens on its filter, not on ×.
+ */
+export const DRAWER_FOCUS = { 'data-drawer-focus': '' };
+
 interface DrawerProps {
   open: boolean;
   onClose: () => void;
@@ -35,7 +41,11 @@ export function Drawer({ open, onClose, title, meta, children }: DrawerProps): R
   useEffect(() => {
     if (!open) return;
     const opener = document.activeElement as HTMLElement | null;
-    ref.current?.querySelector<HTMLElement>(FOCUSABLE)?.focus();
+    const body = ref.current;
+    (
+      body?.querySelector<HTMLElement>('[data-drawer-focus]') ??
+      body?.querySelector<HTMLElement>(FOCUSABLE)
+    )?.focus();
     return (): void => opener?.focus();
   }, [open]);
 

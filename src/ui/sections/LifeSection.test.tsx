@@ -167,6 +167,6 @@ describe('LifeSection', () => {
     for (const verb of ['Feed', 'Trim', 'Scrub']) {
       fireEvent.click(within(header).getByRole('button', { name: verb }));
     }
-    expect(onAct).toHaveBeenCalledTimes(3);
+    expect(onAct.mock.calls).toEqual([['feed'], ['trimPlants'], ['scrubAlgae']]);
   });
 });

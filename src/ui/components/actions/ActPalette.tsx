@@ -3,10 +3,12 @@ import { useNavigate } from 'react-router-dom';
 import type { SimulationState } from '../../../simulation/index.js';
 import { BUILD_VERBS, verbRows, type VerbId, type VerbSettings } from '../../actions';
 import { useUnits } from '../../hooks/useUnits';
-import { Drawer } from '../ui/Drawer';
+import { DRAWER_FOCUS, Drawer } from '../ui/Drawer';
 
 interface Entry {
   key: string;
+  /** The tank kept, or the tank built — the two runs the palette reads in. */
+  kind: 'keep' | 'build';
   name: string;
   /** The amount the verb is standing on, or nothing for a verb that builds. */
   value: string;
@@ -70,6 +72,7 @@ export function ActPalette({
   const entries = useMemo((): Entry[] => {
     const husbandry = verbRows(state, settings, unitSystem).map((row) => ({
       key: row.id,
+      kind: 'keep' as const,
       name: row.name,
       value: row.value,
       home: row.home,
@@ -78,6 +81,7 @@ export function ActPalette({
     }));
     const build = BUILD_VERBS.map((verb) => ({
       key: verb.id,
+      kind: 'build' as const,
       name: verb.name,
       value: '',
       home: verb.home,
@@ -110,10 +114,10 @@ export function ActPalette({
 
   return (
     <Drawer open onClose={onClose} title="Act">
-      <div onKeyDown={onKeyDown} className="flex flex-col">
+      <div onKeyDown={onKeyDown} className="flex flex-col gap-2">
         <div className="p-3">
           <input
-            autoFocus
+            {...DRAWER_FOCUS}
             value={query}
             onChange={(e) => {
               setQuery(e.target.value);
@@ -128,16 +132,25 @@ export function ActPalette({
         {matches.length === 0 ? (
           <p className="px-3 pb-3 text-[13px] text-ink-3">No verb answers to that.</p>
         ) : (
-          <div className="border-t border-hairline">
-            {matches.map((entry, i) => (
-              <Row
-                key={entry.key}
-                entry={entry}
-                active={i === at}
-                onHover={() => setActive(i)}
-              />
-            ))}
-          </div>
+          (['keep', 'build'] as const).map((kind) => {
+            const run = matches.filter((entry) => entry.kind === kind);
+            if (run.length === 0) return null;
+            return (
+              <div key={kind} className="border-t border-hairline">
+                {run.map((entry) => {
+                  const i = matches.indexOf(entry);
+                  return (
+                    <Row
+                      key={entry.key}
+                      entry={entry}
+                      active={i === at}
+                      onHover={() => setActive(i)}
+                    />
+                  );
+                })}
+              </div>
+            );
+          })
         )}
       </div>
     </Drawer>
