@@ -2,9 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { PLANT_SPECIES_DATA } from '../../simulation/index.js';
 import {
   hardscapeRows,
-  hardscapeSummary,
   lightTier,
-  scapeSummary,
   substrateConsequence,
 } from './scape';
 
@@ -45,9 +43,4 @@ describe('hardscape', () => {
     ]);
   });
 
-  it('collapses the summary by type with counts, behind the substrate', () => {
-    expect(hardscapeSummary(items)).toBe('rock + driftwood ×2');
-    expect(scapeSummary('aqua_soil', items)).toBe('Aqua Soil + rock + driftwood ×2');
-    expect(scapeSummary('aqua_soil', [])).toBe('Aqua Soil');
-  });
 });

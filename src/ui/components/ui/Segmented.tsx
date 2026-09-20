@@ -42,7 +42,7 @@ export function Segmented<T extends string>({
             title={option.title}
             disabled={option.disabled}
             onClick={() => onChange(option.value)}
-            className={`rounded-badge px-2.5 py-1 text-sm font-medium leading-none transition-colors disabled:opacity-40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus ${
+            className={`rounded-badge px-2.5 py-1 text-sm font-medium leading-none transition-colors disabled:opacity-40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${
               fill ? 'flex-1' : ''
             } ${active ? 'bg-accent-tint text-accent' : 'text-ink-2 hover:text-ink'}`}
           >

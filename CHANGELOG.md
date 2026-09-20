@@ -11,9 +11,11 @@ Format: - **Feature name** (#PR) - One short sentence (under ~150 chars)
 
 ## Unreleased
 
-- **The timeline is the spine, expanded** - the strip at the foot of every screen opens onto four tracks over the run, and History is those tracks at full height beside the event log (v26).
-- **The verb sheet commits on Enter, and remembers the amount** - the sheet opens on its commit button, and the amounts and promoted verb are kept with the tank (v25).
-- **The dashboard is a console** - transport, rail, spine and widgets over one reading set; any row on the Overview, Water or Life opens one inspector.
+- **Setup is what the tank is** - preset, capacity, lid, room and tap water as fields that say what they do, beside units, theme and the run's reset.
+- **Every constant is reachable** - the tunables drawer opens over any screen (⌘,) with a search; livestock and the fertiliser formula are in it at last.
+- **The timeline is the spine, expanded** - the strip at the foot of every screen opens onto four tracks, and History is those tracks at full height (v26).
+- **The verb sheet commits on Enter** - it opens on its commit button, and the amounts and the promoted verb are kept with the tank (v25).
+- **The dashboard is a console** - transport, rail, spine and widgets over one reading set; any row anywhere opens the one inspector.
 - **Docs portal** - the whole system documented at docs.fishroom.app, linked from the dashboard.
 - **A starving plant stops reading as thriving** - the plant status word reads the energy ledger beside condition, so a plant shedding tissue in the dark says so.
 - **One reserve, two claims, in an order** - upkeep is its own ledger, paid from income then the bank; the unpaid share eats `size`; damage and repair reach only the spare above the reserve.
@@ -30,7 +32,7 @@ Format: - **Feature name** (#PR) - One short sentence (under ~150 chars)
 - **A 1000 W heater no longer destroys the tank** - the picker offered a wattage the save schema refused, and a refused save discards the tank.
 - **`trace` rejects unknown fields** - a mistyped `--fields` name emitted a column of blanks that reads as absent data; the refusal names the valid set, and algae is on it.
 - **`config set` takes a finite number or nothing** - `Infinity` and `1e309` were stored as strings that arithmetic turned back into `NaN`, and a typo'd path grew the config a key nothing reads.
-- **A tunable is held to the range it declares** - `config set` and the debug panel read the leaf's own min/max, and the save schema bounds the attenuation constants, so a negative attenuation can no longer make the tank's light infinite.
+- **A tunable is held to the range it declares** - `config set` and the tunables drawer read the leaf's own min/max, and the save schema bounds the attenuation constants, so a negative attenuation can no longer make the tank's light infinite.
 - **Light is PAR, not watts** - a fixture is rated at the surface, the tank runs on what reaches the substrate, and depth comes from capacity (v18, v5).
 - **Age decides whether a fish can spawn** - the gate asks `age ≥ maturityAge`; a stocked adult arrives grown, one seeded at `age: 0` waits it out.
 - **A tank runs the same life twice** - a seed and counter on the state: one `rngSeed`, one life, ids too. Breaking: no `generateFishId` (v17, v4).
@@ -49,16 +51,8 @@ Format: - **Feature name** (#PR) - One short sentence (under ~150 chars)
 - **`processEquipment` requires a config** - breaking: the old default ran on `decayDefaults` whatever the caller tuned; `DEFAULT_CONFIG` is exported.
 - **`formatDosePreview` removed from the public API** - breaking: string formatting living in the engine; the Flora section derives the preview now.
 - **Action previews include dissolved gases** - water changes now show what they do to O₂ and CO₂, not just temperature and pH.
-- **Actions sheet** - one transient surface for all six husbandry verbs, previewing each by applying the action and diffing the engine's own readings.
-- **Scenario section** - five preset cards stating the tank each builds, the environment fields with their consequences, and the confirmations back.
-- **Preset drift is derived** - the "modified" pill compares the tank against its preset's config, so an undo clears it and a reload cannot lose it.
-- **Analytics section** - four full-width charts over a full-width log; the scrubbed tick lives in `?tick=`, so a cursor is a link for the session.
+- **Preset drift is derived** - Setup's caption compares the tank against its preset's config, so an undo clears it and a reload cannot lose it.
 - **Error boundary keeps your tank** - render errors show a recovery screen instead of wiping the save and reloading; reset is now an explicit button.
-- **Livestock section** - the roster as a table: species rows open into individuals, individuals into their own vitality breakdown, fry into batches.
-- **Flora & Scape section** - per-stressor vitality breakdowns beside the algae, trim targets flagged, nutrients read against what the plants need.
-- **Equipment section** - device list and inspector side by side, selection addressed as `/equipment/:deviceId`, plus a 24 h schedule band.
-- **Water section** - six vertical gauges with engine-derived bands and 24 h traces, a dissolved-gases pair, and Bacteria and Waste cards.
-- **Dashboard UI redesign** - index+stage shell replaces Build/Run/Review: six routed sections, a live-figure index rail, browser back between views.
 - **Vitality reserve buffer** - fish `surplus` becomes a saturating bank (cap 50) that drains before condition falls; 100 can read "burning" (v13).
 - **Fish reproduction** - adult pairs spend banked surplus to spawn; livebearers drop fry, egg-layers lay clutches; fry grow and mature into adults.
 - **npm packaging** - publish-ready as `aquarium-simulator` v0.1.0: the build ships only the pure-TS engine, MIT license, trusted publishing.

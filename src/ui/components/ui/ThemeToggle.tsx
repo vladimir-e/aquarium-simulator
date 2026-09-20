@@ -29,7 +29,7 @@ export function ThemeToggle(): React.JSX.Element {
       onClick={() => setMode(next)}
       aria-label={label}
       title={label}
-      className="relative flex h-8 w-8 items-center justify-center rounded-control border border-hairline text-ink-2 transition-colors hover:border-hairline-2 hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus max-sm:after:absolute max-sm:after:inset-[-6px] max-sm:after:content-['']"
+      className="relative flex h-8 w-8 items-center justify-center rounded-control border border-hairline text-ink-2 transition-colors hover:bg-surface-2 hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent max-sm:after:absolute max-sm:after:inset-[-6px] max-sm:after:content-['']"
     >
       <Icon className="h-4 w-4" />
     </button>

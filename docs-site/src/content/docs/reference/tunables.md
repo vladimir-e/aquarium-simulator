@@ -10,7 +10,7 @@ that reads it. All of them live in `src/simulation/config/`, addressed as
 Every tunable declares its own metadata alongside its default — a label, a unit,
 a spinner step and, for everything but the derived nitrification rates, a
 `min`/`max`. Two writers consult that range: the CLI refuses a `config set`
-outside it, and the debug panel makes it the slider's ends. The save path does
+outside it, and the tunables drawer holds its field to it. The save path does
 not — its bounds are hand-written per leaf and mostly assert shape rather than
 range, so a stored `satiationDecayRate` of −1 loads without complaint against a
 declared minimum of `0.1`.

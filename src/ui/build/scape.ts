@@ -24,13 +24,6 @@ export const SUBSTRATE_NAME: Record<SubstrateType, string> = {
   aqua_soil: 'Aqua Soil',
 };
 
-const HARDSCAPE_SHORT: Record<HardscapeType, string> = {
-  neutral_rock: 'rock',
-  calcite_rock: 'calcite',
-  driftwood: 'driftwood',
-  plastic_decoration: 'decor',
-};
-
 export const HARDSCAPE_TYPES: HardscapeType[] = [
   'neutral_rock',
   'calcite_rock',
@@ -68,20 +61,6 @@ export function hardscapeRows(items: HardscapeItem[]): HardscapeRow[] {
     surface: getHardscapeSurface(item.type),
     effect: getHardscapePHEffect(item.type),
   }));
-}
-
-export function hardscapeSummary(items: HardscapeItem[]): string {
-  const counts = new Map<HardscapeType, number>();
-  for (const item of items) counts.set(item.type, (counts.get(item.type) ?? 0) + 1);
-  return [...counts]
-    .map(([type, n]) => (n > 1 ? `${HARDSCAPE_SHORT[type]} ×${n}` : HARDSCAPE_SHORT[type]))
-    .join(' + ');
-}
-
-export function scapeSummary(substrate: SubstrateType, items: HardscapeItem[]): string {
-  return items.length
-    ? `${SUBSTRATE_NAME[substrate]} + ${hardscapeSummary(items)}`
-    : SUBSTRATE_NAME[substrate];
 }
 
 /**

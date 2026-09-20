@@ -65,6 +65,5 @@ export {
   substrateConsequence,
   type HardscapeRow,
   hardscapeRows,
-  scapeSummary,
   lightTier,
 } from './scape.js';
