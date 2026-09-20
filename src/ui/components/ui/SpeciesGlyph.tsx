@@ -115,15 +115,20 @@ export const GLYPH_KEYS: SpeciesKey[] = [
 export function SpeciesGlyph({
   species,
   className = '',
+  size = 'h-4 w-4',
+  tone = 'text-ink-2',
 }: {
   species: SpeciesKey;
   className?: string;
+  /** Replaces the default box rather than racing it in the stylesheet. */
+  size?: string;
+  tone?: string;
 }): React.JSX.Element {
   return (
     <svg
       viewBox="0 0 16 16"
       aria-hidden
-      className={`h-4 w-4 shrink-0 text-ink-2 ${className}`}
+      className={`shrink-0 ${size} ${tone} ${className}`}
       fill="none"
       stroke="currentColor"
       strokeWidth="1.2"

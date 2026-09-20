@@ -92,12 +92,7 @@ export function AddDrawer({
             />
           </div>
 
-          {kind === 'fish' && (
-            <p className="text-[12px] text-ink-3">
-              Sex is sampled when the fish is created, the same as for fry — the engine takes no
-              sex to stock.
-            </p>
-          )}
+          {kind === 'fish' && <p className="text-[12px] text-ink-3">Sex is random.</p>}
 
           {refusal ? (
             <p className={`text-[13px] ${TONE_TEXT.warn}`}>{refusal}</p>

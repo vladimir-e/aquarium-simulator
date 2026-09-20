@@ -32,6 +32,19 @@ describe('SpeciesGlyph', () => {
     expect(svg.getAttribute('stroke')).toBe('currentColor');
   });
 
+  it('takes the caller’s box and tone in place of its own, not beside them', () => {
+    const { container } = render(
+      <SpeciesGlyph species="betta" size="h-6 w-6" tone="text-ink-3" className="relative" />
+    );
+    const className = container.querySelector('svg')!.getAttribute('class')!;
+
+    expect(className).toContain('h-6 w-6');
+    expect(className).toContain('text-ink-3');
+    expect(className).not.toContain('h-4');
+    expect(className).not.toContain('text-ink-2');
+    expect(className).toContain('relative');
+  });
+
   it('falls back to an outline rather than an empty cell', () => {
     expect(paths('shrimp' as SpeciesKey)).toBe(1);
   });

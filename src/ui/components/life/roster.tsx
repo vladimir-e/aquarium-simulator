@@ -404,7 +404,7 @@ export function RosterEmpty({
 }): React.JSX.Element {
   return (
     <div className="flex h-24 flex-col items-center justify-center gap-1.5 text-[13px] text-ink-2">
-      <SpeciesGlyph species={species} className="h-6 w-6 text-ink-3" />
+      <SpeciesGlyph species={species} size="h-6 w-6" tone="text-ink-3" />
       <p>
         {line} —{' '}
         <button
