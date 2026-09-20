@@ -1,8 +1,7 @@
 import React from 'react';
-import type { TunableConfig } from '../../../simulation/config/index.js';
 import type { SimulationState } from '../../../simulation/index.js';
 import type { ReadingBook, ReadingId } from '../../readings';
-import { doseDeltas, doseToCover, formatDose, nutrientAlert } from '../../run';
+import { nutrientAlert } from '../../run';
 import { ReadingRow } from '../ui/ReadingRow';
 import { VerbButton } from '../ui/VerbButton';
 import { Widget } from '../ui/Widget';
@@ -10,7 +9,6 @@ import { Widget } from '../ui/Widget';
 interface NutrientsWidgetProps {
   book: ReadingBook;
   state: SimulationState;
-  config: TunableConfig;
   onOpenReading: (id: ReadingId) => void;
   onAct: () => void;
 }
@@ -23,15 +21,11 @@ interface NutrientsWidgetProps {
 export function NutrientsWidget({
   book,
   state,
-  config,
   onOpenReading,
   onAct,
 }: NutrientsWidgetProps): React.JSX.Element {
-  const advice = doseToCover(book.nutrients, state, config);
+  const { advice, perMl } = book.dose;
   const alert = nutrientAlert(book.nutrients);
-  const perMl = formatDose(
-    doseDeltas(1, state.resources.water, config.nutrients.fertilizerFormula)
-  );
 
   return (
     <Widget
@@ -62,7 +56,7 @@ export function NutrientsWidget({
           at={reading.at}
           band={reading.band}
           tone={reading.tone}
-          note={reading.note}
+          note={reading.need}
           onClick={() => onOpenReading(reading.id)}
         />
       ))}

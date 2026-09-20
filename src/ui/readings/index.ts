@@ -19,21 +19,37 @@ import {
 import type { TunableConfig } from '../../simulation/config/index.js';
 import type { StripBand, StripTone } from '../components/ui/RangeStrip';
 import {
+  equipmentRows,
+  scheduleBand,
+  type EquipmentRow,
+  type ScheduleBand,
+} from '../build';
+import {
+  algaeRow,
   algaeStatus,
-  algaeWord,
   bacteriaReadout,
+  doseDeltas,
+  doseToCover,
+  formatDose,
   gasReadings,
   gaugeFill,
+  groupBySpecies,
+  groupPlantsBySpecies,
   nutrientReadings,
+  plantRows,
   projectNitritePeak,
   stockedBand,
   toleranceStatus,
   waterGauges,
   wasteReadout,
+  type AlgaeRow,
   type BacteriaReadout,
   type CycleProjection,
+  type DoseAdvice,
   type GasReading,
   type NutrientKey,
+  type PlantSpeciesGroup,
+  type SpeciesGroup,
   type NutrientReading,
   type RunSnapshot,
   type Status,
@@ -77,8 +93,6 @@ export interface ReadingView {
   tone: StripTone;
   /** Direction and rate over the last day; empty while it is steady. */
   trend: string;
-  /** The short qualifier a row carries beside the strip. */
-  note: string;
   /** What the band means, in the engine's words. */
   sentence: string;
   /** Fills minus drains, where the run layer can close the balance. */
@@ -89,6 +103,31 @@ export interface ReadingView {
   series: ((snapshot: RunSnapshot) => number) | null;
 }
 
+/** A plant food, with what the plants are asking for beside it. */
+export interface NutrientView extends ReadingView {
+  need: string;
+}
+
+/** Who lives here, folded the way every roster reads them. */
+export interface Roster {
+  fish: SpeciesGroup[];
+  plants: PlantSpeciesGroup[];
+  algae: AlgaeRow;
+}
+
+/** The rack, and the clock the scheduled devices keep. */
+export interface Rack {
+  devices: EquipmentRow[];
+  schedules: ScheduleBand;
+}
+
+/** The millilitre that moves the plant foods, and how many of them it takes. */
+export interface Dosing {
+  advice: DoseAdvice | null;
+  /** What a single millilitre adds, one line. */
+  perMl: string;
+}
+
 export interface ReadingBook {
   byId: Record<ReadingId, ReadingView>;
   /**
@@ -96,13 +135,14 @@ export interface ReadingBook {
    * one reading the tank judges twice, since NO₃ is both a toxin the engine
    * alerts on and the plants' nitrogen.
    */
-  demand: ReadingView[];
-  gauges: WaterGauge[];
-  gases: GasReading[];
+  demand: NutrientView[];
   nutrients: NutrientReading[];
   bacteria: BacteriaReadout;
   waste: WasteReadout;
   projection: CycleProjection | null;
+  roster: Roster;
+  rack: Rack;
+  dose: Dosing;
 }
 
 export interface TankInput {
@@ -215,7 +255,6 @@ interface GaugeSource {
   /** Overrides the gauge's own band, which temp and pH deliberately lack. */
   band?: StripBand | null;
   tone?: StripTone;
-  note?: string;
   sentence: string;
   net?: string;
   fills?: ReadingFlow[];
@@ -233,7 +272,6 @@ function fromGauge(id: ReadingId, tape: Tape, source: GaugeSource): ReadingView 
     band: source.band === undefined ? gauge.band : source.band,
     tone: source.tone ?? toneOf(gauge.status),
     trend: trendOf(tape, id),
-    note: source.note ?? '',
     sentence: source.sentence,
     net: source.net ?? null,
     fills: source.fills ?? [],
@@ -256,7 +294,7 @@ function nutrientView(
   id: ReadingId,
   reading: NutrientReading,
   tape: Tape
-): ReadingView {
+): NutrientView {
   const at = scale(NUTRIENT_SCALE_PPM[reading.key]);
   return {
     id,
@@ -267,7 +305,7 @@ function nutrientView(
     band: reading.needed > 0 ? { from: at(reading.needed), to: 1 } : null,
     tone: toneOf(reading.status),
     trend: trendOf(tape, id),
-    note: reading.needed > 0 ? `need ${reading.neededText}` : '',
+    need: reading.needed > 0 ? `need ${reading.neededText}` : '',
     sentence:
       reading.needed > 0
         ? `Plants ask for ${reading.neededText} ppm — below it the engine's own sufficiency drops.`
@@ -292,6 +330,7 @@ export function readTank({ state, config, history, units }: TankInput): ReadingB
   const bacteria = bacteriaReadout(state, config);
   const waste = wasteReadout(state, config);
   const projection = projectNitritePeak(state, config);
+  const specimens = plantRows(state, config);
 
   const gauge = (key: WaterGauge['key']): WaterGauge => gauges.find((g) => g.key === key)!;
   const gas = (key: GasReading['key']): GasReading => gases.find((g) => g.key === key)!;
@@ -317,7 +356,6 @@ export function readTank({ state, config, history, units }: TankInput): ReadingB
       band: null,
       tone: 'ink',
       trend: '',
-      note: '',
       sentence:
         'A pool with no safe line: it settles where what mineralises out matches what falls in.',
       net: ratePerHour(waste.perHour - waste.mineralised, 'g'),
@@ -329,7 +367,6 @@ export function readTank({ state, config, history, units }: TankInput): ReadingB
     },
     ammonia: fromGauge('ammonia', tape, {
       gauge: gauge('ammonia'),
-      note: `safe ≤ ${HIGH_AMMONIA_THRESHOLD.toFixed(2)}`,
       sentence: `Safe at or under ${HIGH_AMMONIA_THRESHOLD.toFixed(2)} ppm — the line the engine alerts on.`,
       net: ratePerHour(
         rates.wasteToAmmonia + rates.gillsToAmmonia - rates.ammoniaOxidised,
@@ -343,7 +380,6 @@ export function readTank({ state, config, history, units }: TankInput): ReadingB
     }),
     nitrite: fromGauge('nitrite', tape, {
       gauge: gauge('nitrite'),
-      note: `safe ≤ ${HIGH_NITRITE_THRESHOLD.toFixed(2)}`,
       sentence: `Safe at or under ${HIGH_NITRITE_THRESHOLD.toFixed(2)} ppm — the line the engine alerts on.`,
       net: ratePerHour(rates.netNitrite, 'ppm'),
       fills: [{ label: 'AOB oxidising NH₃', rate: ratePerHour(rates.ammoniaToNitrite, 'ppm') }],
@@ -351,7 +387,6 @@ export function readTank({ state, config, history, units }: TankInput): ReadingB
     }),
     nitrate: fromGauge('nitrate', tape, {
       gauge: gauge('nitrate'),
-      note: `${NITRATE_LOW_PPM}–${HIGH_NITRATE_THRESHOLD}`,
       sentence: `Plants go short under ${NITRATE_LOW_PPM} ppm; the engine alerts over ${HIGH_NITRATE_THRESHOLD}.`,
       fills: [{ label: 'NOB clearing NO₂', rate: ratePerHour(rates.nitriteToNitrate, 'ppm') }],
       drains: [],
@@ -362,7 +397,6 @@ export function readTank({ state, config, history, units }: TankInput): ReadingB
         ? { from: gaugeFill('temperature', tempBand.min), to: gaugeFill('temperature', tempBand.max) }
         : null,
       tone: toneOf(toleranceStatus(gauge('temperature').value, tempBand)),
-      note: gauge('temperature').caption,
       sentence: toleranceSentence(
         tempBand,
         tempBand
@@ -377,7 +411,6 @@ export function readTank({ state, config, history, units }: TankInput): ReadingB
         ? { from: gaugeFill('ph', phBand.min), to: gaugeFill('ph', phBand.max) }
         : null,
       tone: toneOf(toleranceStatus(gauge('ph').value, phBand)),
-      note: gauge('ph').caption,
       sentence: toleranceSentence(
         phBand,
         phBand ? `pH ${phBand.min.toFixed(1)}–${phBand.max.toFixed(1)}` : '',
@@ -386,7 +419,6 @@ export function readTank({ state, config, history, units }: TankInput): ReadingB
     }),
     level: fromGauge('level', tape, {
       gauge: gauge('water'),
-      note: gauge('water').caption,
       sentence: `Under ${WATER_LEVEL_CRITICAL_THRESHOLD * 100} % of capacity the engine calls the level critical.`,
     }),
     oxygen: {
@@ -398,7 +430,6 @@ export function readTank({ state, config, history, units }: TankInput): ReadingB
       band: { from: oxygenAt(LOW_OXYGEN_THRESHOLD), to: 1 },
       tone: toneOf(gas('oxygen').status),
       trend: trendOf(tape, 'oxygen'),
-      note: `alerts under ${LOW_OXYGEN_THRESHOLD.toFixed(1)}`,
       sentence: `Under ${LOW_OXYGEN_THRESHOLD.toFixed(1)} mg/L the engine alerts and fish start paying for it.`,
       net: null,
       fills: [],
@@ -414,7 +445,6 @@ export function readTank({ state, config, history, units }: TankInput): ReadingB
       band: { from: 0, to: co2At(HIGH_CO2_THRESHOLD) },
       tone: toneOf(gas('co2').status),
       trend: trendOf(tape, 'co2'),
-      note: `alerts over ${HIGH_CO2_THRESHOLD.toFixed(0)}`,
       sentence: `Over ${HIGH_CO2_THRESHOLD.toFixed(0)} mg/L the engine alerts — plants take it up, surface exchange drives it off.`,
       net: null,
       fills: [],
@@ -433,7 +463,6 @@ export function readTank({ state, config, history, units }: TankInput): ReadingB
       band: { from: 0, to: algaeAt(HIGH_ALGAE_THRESHOLD) },
       tone: toneOf(algaeStatus(algae)),
       trend: trendOf(tape, 'algae'),
-      note: algaeWord(algae),
       sentence: `Coverage the plants are competing with; over ${HIGH_ALGAE_THRESHOLD} % the engine calls it a bloom.`,
       net: null,
       fills: [],
@@ -444,5 +473,27 @@ export function readTank({ state, config, history, units }: TankInput): ReadingB
 
   const demand = nutrients.map((reading) => nutrientView(reading.key, reading, tape));
 
-  return { byId, demand, gauges, gases, nutrients, bacteria, waste, projection };
+  return {
+    byId,
+    demand,
+    nutrients,
+    bacteria,
+    waste,
+    projection,
+    roster: {
+      fish: groupBySpecies(state, config.livestock),
+      plants: groupPlantsBySpecies(specimens),
+      algae: algaeRow(state, config),
+    },
+    rack: {
+      devices: equipmentRows(state, bacteria, units),
+      schedules: scheduleBand(state),
+    },
+    dose: {
+      advice: doseToCover(nutrients, state, config),
+      perMl: formatDose(
+        doseDeltas(1, state.resources.water, config.nutrients.fertilizerFormula)
+      ),
+    },
+  };
 }

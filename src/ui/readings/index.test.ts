@@ -64,13 +64,13 @@ describe('readTank', () => {
 
     expect(asFood.value).toBe(book.byId.nitrate.value);
     expect(asFood.band).not.toEqual(book.byId.nitrate.band);
-    expect(asFood.note).toMatch(/^need /);
+    expect(asFood.need).toMatch(/^need /);
   });
 
   it('leaves a nutrient unbanded when there is nothing planted to want it', () => {
     for (const reading of read(bare()).demand) {
       expect(reading.band).toBeNull();
-      expect(reading.note).toBe('');
+      expect(reading.need).toBe('');
     }
   });
 

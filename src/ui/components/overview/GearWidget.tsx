@@ -1,15 +1,12 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import {
-  equipmentRows,
-  scheduleBand,
   turnoverShort,
   type DeviceId,
   type EquipmentRow,
   type ScheduleRow,
 } from '../../build';
 import type { useSimulation } from '../../hooks/useSimulation';
-import { useUnits } from '../../hooks/useUnits';
 import type { ReadingBook } from '../../readings';
 import { Glyph } from '../ui/Glyph';
 import { PowerToggle } from '../ui/PowerToggle';
@@ -67,13 +64,12 @@ interface GearWidgetProps {
  * read and the rack is for reading.
  */
 export function GearWidget({ book, sim }: GearWidgetProps): React.JSX.Element {
-  const { unitSystem } = useUnits();
   const { state } = sim;
-  const rows = equipmentRows(state, book.bacteria, unitSystem).filter(
+  const rows = book.rack.devices.filter(
     (row): row is EquipmentRow & { id: DeviceId } => row.id !== 'biofilter'
   );
-  const band = scheduleBand(state);
-  const schedules = new Map(band.rows.map((row) => [row.id as string, row]));
+  const band = book.rack.schedules;
+  const schedules = new Map<DeviceId, ScheduleRow>(band.rows.map((row) => [row.id, row]));
 
   const on = rows.filter((row) => row.on);
   const off = rows.filter((row) => !row.on);

@@ -10,6 +10,7 @@ afterEach(cleanup);
 function plant(net: number): PlantRow {
   return {
     id: 'p1',
+    species: 'java_fern',
     name: 'Java Fern',
     size: 60,
     overTrim: false,

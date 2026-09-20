@@ -1,16 +1,7 @@
 import React from 'react';
-import type { TunableConfig } from '../../../simulation/config/index.js';
 import type { SimulationState } from '../../../simulation/index.js';
 import type { ReadingBook, ReadingId } from '../../readings';
-import {
-  algaeRow,
-  conditionStatus,
-  conditionWord,
-  groupBySpecies,
-  groupPlantsBySpecies,
-  plantRows,
-  type Status,
-} from '../../run';
+import { conditionStatus, conditionWord, type Status } from '../../run';
 import { DotStrip } from '../ui/DotStrip';
 import { Glyph } from '../ui/Glyph';
 import { RangeStrip, type StripBand } from '../ui/RangeStrip';
@@ -85,7 +76,6 @@ function Row({
 interface LifeWidgetProps {
   book: ReadingBook;
   state: SimulationState;
-  config: TunableConfig;
   onOpenReading: (id: ReadingId) => void;
   onAct: () => void;
 }
@@ -97,22 +87,18 @@ interface LifeWidgetProps {
 export function LifeWidget({
   book,
   state,
-  config,
   onOpenReading,
   onAct,
 }: LifeWidgetProps): React.JSX.Element {
-  const species = groupBySpecies(state, config.livestock);
-  const specimens = plantRows(state, config);
-  const plants = groupPlantsBySpecies(specimens);
-  const algae = algaeRow(state, config);
+  const { fish: species, plants, algae } = book.roster;
   const algaeReading = book.byId.algae;
 
-  const empty = species.length === 0 && specimens.length === 0;
+  const empty = species.length === 0 && plants.length === 0;
 
   return (
     <Widget
       title="Life"
-      caption={`${state.fish.length} fish · ${specimens.length} plants`}
+      caption={`${state.fish.length} fish · ${state.plants.length} plants`}
       to="/life"
       footer={
         <>
