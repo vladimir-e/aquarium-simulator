@@ -9,7 +9,12 @@
  * Beer–Lambert into gain and every lit tick after it infinite.
  */
 
-import { cloneConfig, configRange, type TunableConfig } from '../simulation/config/index.js';
+import {
+  configRange,
+  tunableAt,
+  withTunable,
+  type TunableConfig,
+} from '../simulation/config/index.js';
 
 export function applyConfigSet(config: TunableConfig, path: string, raw: string): TunableConfig {
   const value = Number(raw);
@@ -17,18 +22,7 @@ export function applyConfigSet(config: TunableConfig, path: string, raw: string)
     throw new Error(`config set requires a finite number, got "${raw}".`);
   }
 
-  const keys = path.split('.');
-  const leaf = keys.pop()!;
-  const next = cloneConfig(config);
-  let section = next as unknown as Record<string, unknown>;
-  for (const key of keys) {
-    const nested = Object.hasOwn(section, key) ? section[key] : null;
-    if (nested === null || typeof nested !== 'object') {
-      throw new Error(`Unknown config path "${path}".`);
-    }
-    section = nested as Record<string, unknown>;
-  }
-  if (!Object.hasOwn(section, leaf) || typeof section[leaf] !== 'number') {
+  if (tunableAt(config, path) === undefined) {
     throw new Error(`Unknown config path "${path}".`);
   }
 
@@ -37,6 +31,5 @@ export function applyConfigSet(config: TunableConfig, path: string, raw: string)
     throw new Error(`${path} takes ${range.min} to ${range.max}, got ${value}.`);
   }
 
-  section[leaf] = value;
-  return next;
+  return withTunable(config, path, value);
 }

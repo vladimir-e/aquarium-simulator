@@ -5,7 +5,11 @@ import { renderHook, act } from '@testing-library/react';
 import React, { type ReactNode, type ComponentType } from 'react';
 import { ConfigProvider, useConfig } from './useConfig.js';
 import { PersistenceProvider } from '../persistence/index.js';
-import { DEFAULT_CONFIG, type TunableConfig } from '../../simulation/config/index.js';
+import {
+  DEFAULT_CONFIG,
+  countModified,
+  type TunableConfig,
+} from '../../simulation/config/index.js';
 
 function createWrapper(): ComponentType<{ children: ReactNode }> {
   return function Wrapper({ children }: { children: ReactNode }): React.JSX.Element {
@@ -26,141 +30,62 @@ describe('useConfig', () => {
     localStorage.clear();
   });
 
-  describe('initialization', () => {
-    it('loads defaults when localStorage is empty', () => {
-      const { result } = renderHook(() => useConfig(), { wrapper: createWrapper() });
-      expect(result.current.config).toEqual(DEFAULT_CONFIG);
-    });
+  it('opens on the stock config, every section of it', () => {
+    const { result } = renderHook(() => useConfig(), { wrapper: createWrapper() });
 
-    it('has all sections that DEFAULT_CONFIG has', () => {
-      const { result } = renderHook(() => useConfig(), { wrapper: createWrapper() });
-
-      const defaultSections = Object.keys(DEFAULT_CONFIG) as (keyof TunableConfig)[];
-      const configSections = Object.keys(result.current.config) as (keyof TunableConfig)[];
-
-      expect(configSections.sort()).toEqual(defaultSections.sort());
-    });
+    expect(result.current.config).toEqual(DEFAULT_CONFIG);
+    const sections = Object.keys(DEFAULT_CONFIG) as (keyof TunableConfig)[];
+    expect(Object.keys(result.current.config).sort()).toEqual([...sections].sort());
   });
 
-  describe('updating config', () => {
-    it('updates config values', () => {
-      const { result } = renderHook(() => useConfig(), { wrapper: createWrapper() });
+  it('writes a constant by the path `config set` names it with', () => {
+    const { result } = renderHook(() => useConfig(), { wrapper: createWrapper() });
 
-      act(() => {
-        result.current.updateConfig('decay', 'wasteConversionRatio', 0.7);
-      });
+    act(() => result.current.setTunable('decay.wasteConversionRatio', 0.7));
 
-      expect(result.current.config.decay.wasteConversionRatio).toBe(0.7);
-    });
-
-    it('marks value as modified after update', () => {
-      const { result } = renderHook(() => useConfig(), { wrapper: createWrapper() });
-
-      expect(result.current.isValueModified('decay', 'wasteConversionRatio')).toBe(false);
-
-      act(() => {
-        result.current.updateConfig('decay', 'wasteConversionRatio', 0.7);
-      });
-
-      expect(result.current.isValueModified('decay', 'wasteConversionRatio')).toBe(true);
-    });
-
-    it('marks section as modified after update', () => {
-      const { result } = renderHook(() => useConfig(), { wrapper: createWrapper() });
-
-      expect(result.current.isSectionModified('decay')).toBe(false);
-
-      act(() => {
-        result.current.updateConfig('decay', 'wasteConversionRatio', 0.7);
-      });
-
-      expect(result.current.isSectionModified('decay')).toBe(true);
-    });
-
-    it('marks isAnyModified as true after update', () => {
-      const { result } = renderHook(() => useConfig(), { wrapper: createWrapper() });
-
-      expect(result.current.isAnyModified).toBe(false);
-
-      act(() => {
-        result.current.updateConfig('decay', 'wasteConversionRatio', 0.7);
-      });
-
-      expect(result.current.isAnyModified).toBe(true);
-    });
+    expect(result.current.config.decay.wasteConversionRatio).toBe(0.7);
+    expect(countModified(result.current.config)).toBe(1);
   });
 
-  describe('resetting config', () => {
-    it('resetConfig restores all defaults', () => {
-      const { result } = renderHook(() => useConfig(), { wrapper: createWrapper() });
+  it('reaches a nested formula the section list cannot address', () => {
+    const { result } = renderHook(() => useConfig(), { wrapper: createWrapper() });
 
-      act(() => {
-        result.current.updateConfig('decay', 'wasteConversionRatio', 0.7);
-        result.current.updateConfig('algae', 'hardiness', 0.5);
-      });
+    act(() => result.current.setTunable('nutrients.fertilizerFormula.iron', 0.5));
 
-      expect(result.current.isAnyModified).toBe(true);
-
-      act(() => {
-        result.current.resetConfig();
-      });
-
-      expect(result.current.config).toEqual(DEFAULT_CONFIG);
-      expect(result.current.isAnyModified).toBe(false);
-    });
-
-    it('resetSection restores single section defaults', () => {
-      const { result } = renderHook(() => useConfig(), { wrapper: createWrapper() });
-
-      act(() => {
-        result.current.updateConfig('decay', 'wasteConversionRatio', 0.7);
-        result.current.updateConfig('algae', 'hardiness', 0.5);
-      });
-
-      expect(result.current.isSectionModified('decay')).toBe(true);
-      expect(result.current.isSectionModified('algae')).toBe(true);
-
-      act(() => {
-        result.current.resetSection('decay');
-      });
-
-      expect(result.current.isSectionModified('decay')).toBe(false);
-      expect(result.current.isSectionModified('algae')).toBe(true);
-    });
+    expect(result.current.config.nutrients.fertilizerFormula.iron).toBe(0.5);
+    expect(countModified(result.current.config)).toBe(1);
   });
 
-  describe('debug panel state', () => {
-    it('debug panel is closed by default', () => {
-      const { result } = renderHook(() => useConfig(), { wrapper: createWrapper() });
-      expect(result.current.isDebugPanelOpen).toBe(false);
+  it('resets a section without touching its neighbours', () => {
+    const { result } = renderHook(() => useConfig(), { wrapper: createWrapper() });
+
+    act(() => {
+      result.current.setTunable('decay.wasteConversionRatio', 0.7);
+      result.current.setTunable('algae.hardiness', 0.5);
     });
+    act(() => result.current.resetSection('decay'));
 
-    it('toggleDebugPanel toggles state', () => {
-      const { result } = renderHook(() => useConfig(), { wrapper: createWrapper() });
+    expect(result.current.config.decay).toEqual(DEFAULT_CONFIG.decay);
+    expect(result.current.config.algae.hardiness).toBe(0.5);
+  });
 
-      act(() => {
-        result.current.toggleDebugPanel();
-      });
-      expect(result.current.isDebugPanelOpen).toBe(true);
+  it('resets the whole config at once', () => {
+    const { result } = renderHook(() => useConfig(), { wrapper: createWrapper() });
 
-      act(() => {
-        result.current.toggleDebugPanel();
-      });
-      expect(result.current.isDebugPanelOpen).toBe(false);
+    act(() => {
+      result.current.setTunable('decay.wasteConversionRatio', 0.7);
+      result.current.setTunable('nutrients.fertilizerFormula.iron', 0.5);
     });
+    act(() => result.current.resetAll());
 
-    it('setDebugPanelOpen sets state directly', () => {
-      const { result } = renderHook(() => useConfig(), { wrapper: createWrapper() });
+    expect(result.current.config).toEqual(DEFAULT_CONFIG);
+  });
 
-      act(() => {
-        result.current.setDebugPanelOpen(true);
-      });
-      expect(result.current.isDebugPanelOpen).toBe(true);
+  it('keeps the drawer shut until something opens it', () => {
+    const { result } = renderHook(() => useConfig(), { wrapper: createWrapper() });
+    expect(result.current.tunablesOpen).toBe(false);
 
-      act(() => {
-        result.current.setDebugPanelOpen(false);
-      });
-      expect(result.current.isDebugPanelOpen).toBe(false);
-    });
+    act(() => result.current.setTunablesOpen(true));
+    expect(result.current.tunablesOpen).toBe(true);
   });
 });

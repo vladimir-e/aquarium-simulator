@@ -532,7 +532,7 @@ const ActsSchema = z
 export const PersistedUISchema = z
   .object({
     units: z.enum(['metric', 'imperial']),
-    debugPanelOpen: z.boolean(),
+    tunablesOpen: z.boolean(),
     spineOpen: z.boolean(),
     acts: ActsSchema,
   })

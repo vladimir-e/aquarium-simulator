@@ -11,40 +11,18 @@ import {
   type TunableConfig,
   DEFAULT_CONFIG,
   cloneConfig,
-  isModified,
-  isSectionModified,
-  isConfigModified,
+  withTunable,
 } from '../../simulation/config/index.js';
 import { usePersistence } from '../persistence/index.js';
 
 interface ConfigContextValue {
-  /** Current tunable configuration */
   config: TunableConfig;
-  /** Update a specific value in the config */
-  updateConfig: <K extends keyof TunableConfig>(
-    section: K,
-    key: keyof TunableConfig[K],
-    value: number
-  ) => void;
-  /** Reset all config to defaults */
-  resetConfig: () => void;
-  /** Reset a specific section to defaults */
+  /** Write one constant, addressed the way `config set` addresses it. */
+  setTunable: (path: string, value: number) => void;
   resetSection: (section: keyof TunableConfig) => void;
-  /** Check if a specific value is modified from default */
-  isValueModified: <K extends keyof TunableConfig>(
-    section: K,
-    key: keyof TunableConfig[K]
-  ) => boolean;
-  /** Check if a section has any modifications */
-  isSectionModified: (section: keyof TunableConfig) => boolean;
-  /** Check if any value is modified */
-  isAnyModified: boolean;
-  /** Debug panel visibility state */
-  isDebugPanelOpen: boolean;
-  /** Toggle debug panel visibility */
-  toggleDebugPanel: () => void;
-  /** Set debug panel visibility */
-  setDebugPanelOpen: (open: boolean) => void;
+  resetAll: () => void;
+  tunablesOpen: boolean;
+  setTunablesOpen: (open: boolean) => void;
 }
 
 const ConfigContext = createContext<ConfigContextValue | null>(null);
@@ -57,72 +35,31 @@ export function ConfigProvider({ children }: ConfigProviderProps): React.JSX.Ele
   const { initialTunableConfig, initialUI, onTunableConfigChange, onUIChange } = usePersistence();
 
   const [config, setConfig] = useState<TunableConfig>(initialTunableConfig);
-  const [isDebugPanelOpen, setDebugPanelOpenState] = useState(initialUI.debugPanelOpen);
+  const [tunablesOpen, setTunablesOpen] = useState(initialUI.tunablesOpen);
 
-  // Notify persistence when config changes
   useEffect(() => {
     onTunableConfigChange(config);
   }, [config, onTunableConfigChange]);
 
-  // Notify persistence when debug panel state changes
   useEffect(() => {
-    onUIChange({ debugPanelOpen: isDebugPanelOpen });
-  }, [isDebugPanelOpen, onUIChange]);
+    onUIChange({ tunablesOpen });
+  }, [tunablesOpen, onUIChange]);
 
-  const updateConfig = useCallback(
-    <K extends keyof TunableConfig>(
-      section: K,
-      key: keyof TunableConfig[K],
-      value: number
-    ) => {
-      setConfig((prev) => ({
-        ...prev,
-        [section]: {
-          ...prev[section],
-          [key]: value,
-        },
-      }));
-    },
-    []
-  );
+  const setTunable = useCallback((path: string, value: number) => {
+    setConfig((prev) => withTunable(prev, path, value));
+  }, []);
 
-  const resetConfig = useCallback(() => {
+  const resetAll = useCallback(() => {
     setConfig(cloneConfig(DEFAULT_CONFIG));
   }, []);
 
   const resetSection = useCallback((section: keyof TunableConfig) => {
-    setConfig((prev) => ({
-      ...prev,
-      [section]: { ...DEFAULT_CONFIG[section] },
-    }));
-  }, []);
-
-  const toggleDebugPanel = useCallback(() => {
-    setDebugPanelOpenState((prev) => !prev);
-  }, []);
-
-  const setDebugPanelOpen = useCallback((open: boolean) => {
-    setDebugPanelOpenState(open);
+    setConfig((prev) => ({ ...prev, [section]: cloneConfig(DEFAULT_CONFIG)[section] }));
   }, []);
 
   const value = useMemo<ConfigContextValue>(
-    () => ({
-      config,
-      updateConfig,
-      resetConfig,
-      resetSection,
-      isValueModified: <K extends keyof TunableConfig>(
-        section: K,
-        key: keyof TunableConfig[K]
-      ): boolean => isModified(config, section, key),
-      isSectionModified: (section: keyof TunableConfig): boolean =>
-        isSectionModified(config, section),
-      isAnyModified: isConfigModified(config),
-      isDebugPanelOpen,
-      toggleDebugPanel,
-      setDebugPanelOpen,
-    }),
-    [config, updateConfig, resetConfig, resetSection, isDebugPanelOpen, toggleDebugPanel, setDebugPanelOpen]
+    () => ({ config, setTunable, resetSection, resetAll, tunablesOpen, setTunablesOpen }),
+    [config, setTunable, resetSection, resetAll, tunablesOpen]
   );
 
   return <ConfigContext.Provider value={value}>{children}</ConfigContext.Provider>;

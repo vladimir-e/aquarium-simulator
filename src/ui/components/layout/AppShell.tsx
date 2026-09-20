@@ -12,7 +12,7 @@ import { useUnits } from '../../hooks/useUnits';
 import { type Need, activeNeeds, needySections } from '../../nav';
 import { ActPalette } from '../actions/ActPalette';
 import { VerbDrawer } from '../actions/VerbDrawer';
-import { DebugPanel } from '../panels/DebugPanel';
+import { TunablesDrawer } from '../tunables/TunablesDrawer';
 import { Drawer } from '../ui/Drawer';
 import { IconRail, MoreSections, TabBar } from './IconRail';
 import { Spine } from './Spine';
@@ -47,7 +47,7 @@ interface AppShellProps {
 export function AppShell({ sim, config }: AppShellProps): React.JSX.Element {
   const isMobile = useIsMobile();
   const { unitSystem } = useUnits();
-  const { isDebugPanelOpen, setDebugPanelOpen } = useConfig();
+  const { tunablesOpen, setTunablesOpen } = useConfig();
   const [more, setMore] = useState(false);
   const acts = useActs(sim.executeAction);
 
@@ -60,12 +60,12 @@ export function AppShell({ sim, config }: AppShellProps): React.JSX.Element {
 
   const onAct = useCallback(
     (verb?: VerbId, at?: number) => {
-      setDebugPanelOpen(false);
+      setTunablesOpen(false);
       setMore(false);
       if (verb === undefined) openPalette();
       else open(verb, at);
     },
-    [open, openPalette, setDebugPanelOpen]
+    [open, openPalette, setTunablesOpen]
   );
 
   const actLabel = useCallback(
@@ -81,21 +81,21 @@ export function AppShell({ sim, config }: AppShellProps): React.JSX.Element {
 
   const openMore = useCallback(() => {
     acts.close();
-    setDebugPanelOpen(false);
+    setTunablesOpen(false);
     setMore((was) => !was);
-  }, [acts, setDebugPanelOpen]);
+  }, [acts, setTunablesOpen]);
 
   const toggleTunables = useCallback(() => {
     acts.close();
     setMore(false);
-    setDebugPanelOpen(!isDebugPanelOpen);
-  }, [acts, isDebugPanelOpen, setDebugPanelOpen]);
+    setTunablesOpen(!tunablesOpen);
+  }, [acts, tunablesOpen, setTunablesOpen]);
 
   const closeDrawers = useCallback(() => {
     acts.close();
     setMore(false);
-    setDebugPanelOpen(false);
-  }, [acts, setDebugPanelOpen]);
+    setTunablesOpen(false);
+  }, [acts, setTunablesOpen]);
 
   // A sheet left open across a resize would outlive the tab bar that opened it.
   useEffect(() => {
@@ -131,7 +131,7 @@ export function AppShell({ sim, config }: AppShellProps): React.JSX.Element {
           actOpen={acts.palette}
           actLabel={acts.promoted === null ? null : actLabel(acts.promoted)}
           onAct={() => onAct()}
-          tunablesOpen={isDebugPanelOpen}
+          tunablesOpen={tunablesOpen}
           tunablesModified={tunablesModified}
           onTunables={toggleTunables}
         />
@@ -165,9 +165,7 @@ export function AppShell({ sim, config }: AppShellProps): React.JSX.Element {
               <MoreSections alerts={alerts} onNavigate={closeDrawers} />
             </Drawer>
 
-            <Drawer open={isDebugPanelOpen} onClose={closeDrawers} title="Tunables">
-              <DebugPanel />
-            </Drawer>
+            <TunablesDrawer open={tunablesOpen} onClose={closeDrawers} />
           </main>
         </div>
 

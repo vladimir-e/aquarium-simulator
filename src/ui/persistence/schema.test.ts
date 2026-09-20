@@ -31,7 +31,7 @@ describe('PersistedUISchema', () => {
   it('validates valid UI state', () => {
     const validUI = {
       units: 'metric',
-      debugPanelOpen: false,
+      tunablesOpen: false,
       spineOpen: false,
       acts: { settings: DEFAULT_SETTINGS, promoted: null },
     };
@@ -41,7 +41,7 @@ describe('PersistedUISchema', () => {
   it('validates imperial units', () => {
     const validUI = {
       units: 'imperial',
-      debugPanelOpen: true,
+      tunablesOpen: true,
       spineOpen: true,
       acts: { settings: DEFAULT_SETTINGS, promoted: null },
     };
@@ -51,7 +51,7 @@ describe('PersistedUISchema', () => {
   it('rejects invalid unit system', () => {
     const invalidUI = {
       units: 'invalid',
-      debugPanelOpen: false,
+      tunablesOpen: false,
       spineOpen: false,
       acts: { settings: DEFAULT_SETTINGS, promoted: null },
     };
@@ -61,7 +61,7 @@ describe('PersistedUISchema', () => {
   it('rejects extra keys (strict mode)', () => {
     const withExtra = {
       units: 'metric',
-      debugPanelOpen: false,
+      tunablesOpen: false,
       spineOpen: false,
       acts: { settings: DEFAULT_SETTINGS, promoted: null },
       extraKey: 'value',
@@ -457,7 +457,7 @@ describe('PersistedStateSchema', () => {
     version: PERSISTENCE_VERSION,
     simulation: validSimulation,
     tunableConfig: DEFAULT_CONFIG,
-    ui: { units: 'metric', debugPanelOpen: false, spineOpen: false, acts: { settings: DEFAULT_SETTINGS, promoted: null } },
+    ui: { units: 'metric', tunablesOpen: false, spineOpen: false, acts: { settings: DEFAULT_SETTINGS, promoted: null } },
   };
 
   it('validates complete valid state', () => {

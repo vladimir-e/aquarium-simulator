@@ -219,7 +219,7 @@ describe('the tracks', () => {
         tunableConfig: DEFAULT_CONFIG,
         ui: {
           units: 'metric',
-          debugPanelOpen: false,
+          tunablesOpen: false,
           spineOpen: true,
           acts: { settings: DEFAULT_SETTINGS, promoted: null },
         },

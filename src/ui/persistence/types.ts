@@ -24,7 +24,7 @@ import type { TunableConfig } from '../../simulation/config/index.js';
  * On version mismatch, stored data is discarded.
  *
  * v26: The spine remembers whether it was showing its tracks. `PersistedUI`
- *      gains `spineOpen`, beside the `debugPanelOpen` it mirrors. A v25 save
+ *      gains `spineOpen`, beside the `tunablesOpen` it mirrors. A v25 save
  *      has no `spineOpen`, and the strict schema refuses the UI section
  *      without it.
  *
@@ -216,7 +216,7 @@ export interface PersistedSimulation {
  */
 export interface PersistedUI {
   units: 'metric' | 'imperial';
-  debugPanelOpen: boolean;
+  tunablesOpen: boolean;
   /** Whether the timeline spine is expanded to its tracks. */
   spineOpen: boolean;
   /** What the keeper has chosen but not yet done, and the verb Act is named for. */

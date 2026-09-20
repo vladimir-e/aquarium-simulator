@@ -48,7 +48,7 @@ function seedSession(
       ...overrides,
     },
     tunableConfig: DEFAULT_CONFIG,
-    ui: { units: 'metric', debugPanelOpen: false, spineOpen: false, acts: { settings: DEFAULT_SETTINGS, promoted: null } },
+    ui: { units: 'metric', tunablesOpen: false, spineOpen: false, acts: { settings: DEFAULT_SETTINGS, promoted: null } },
   };
   globalThis.localStorage.setItem(STORAGE_KEY, JSON.stringify(persisted));
 }
@@ -535,9 +535,8 @@ describe('useSimulation', () => {
       expect(before).toBeGreaterThan(0);
 
       act(() => {
-        result.current.config.updateConfig(
-          'optics',
-          'waterAttenuationPerCm',
+        result.current.config.setTunable(
+          'optics.waterAttenuationPerCm',
           DEFAULT_CONFIG.optics.waterAttenuationPerCm * 2
         );
       });
@@ -563,7 +562,7 @@ describe('useSimulation', () => {
 
       const tuned = DEFAULT_CONFIG.optics.waterAttenuationPerCm * 4;
       act(() => {
-        result.current.config.updateConfig('optics', 'waterAttenuationPerCm', tuned);
+        result.current.config.setTunable('optics.waterAttenuationPerCm', tuned);
       });
       act(() => {
         result.current.sim.changeTankCapacity(200);
@@ -579,7 +578,7 @@ describe('useSimulation', () => {
       const before = result.current.sim.state.resources.light;
 
       act(() => {
-        result.current.config.updateConfig('optics', 'waterAttenuationPerCm', 0.04);
+        result.current.config.setTunable('optics.waterAttenuationPerCm', 0.04);
       });
       expect(result.current.sim.state.resources.light).toBeLessThan(before);
 
