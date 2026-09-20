@@ -1,6 +1,6 @@
 import React from 'react';
 import type { TunableConfig } from '../../../simulation/config/index.js';
-import type { ReadingBook, ReadingId, ReadingView } from '../../readings';
+import { ratePerHour, type ReadingBook, type ReadingId, type ReadingView } from '../../readings';
 import { bacteriaSummary, colonyCount, cycleWord, type Colony } from '../../run';
 import { ReadingRow } from '../ui/ReadingRow';
 import { Widget } from '../ui/Widget';
@@ -62,10 +62,6 @@ function ColonyRow({
   );
 }
 
-function perHour(value: number, unit: string, decimals: number): string {
-  return `${value >= 0 ? '+' : '−'}${Math.abs(value).toFixed(decimals)} ${unit}/h`;
-}
-
 interface NitrogenWidgetProps {
   book: ReadingBook;
   config: TunableConfig;
@@ -84,22 +80,14 @@ export function NitrogenWidget({
   onOpenReading,
   className,
 }: NitrogenWidgetProps): React.JSX.Element {
-  const { bacteria, waste, byId } = book;
+  const { bacteria, byId } = book;
   const { rates } = bacteria;
 
-  const chainRate: Record<ChainId, string> = {
-    waste: perHour(waste.perHour - waste.mineralised, 'g', 3),
-    ammonia: perHour(
-      rates.wasteToAmmonia + rates.gillsToAmmonia - rates.ammoniaOxidised,
-      'ppm',
-      4
-    ),
-    nitrite: perHour(rates.netNitrite, 'ppm', 4),
-    // The one stock whose balance the run layer cannot close — plants and water
-    // changes take nitrate out from outside the cycle — so it reports what the
-    // history buffer measured rather than a rate that would ignore them.
-    nitrate: byId.nitrate.trend.replace('/d', ' ppm/d') || 'steady',
-  };
+  // Nitrate is the one stock whose balance the run layer cannot close — plants
+  // and water changes take it out from outside the cycle — so a stock with no
+  // net falls back to what the history buffer measured.
+  const chainRate = (id: ChainId): string =>
+    byId[id].net ?? (byId[id].trend.replace('/d', ' ppm/d') || 'steady');
 
   return (
     <Widget
@@ -121,7 +109,7 @@ export function NitrogenWidget({
                 →
               </span>
             )}
-            <Stock reading={byId[id]} rate={chainRate[id]} onOpen={() => onOpenReading(id)} />
+            <Stock reading={byId[id]} rate={chainRate(id)} onOpen={() => onOpenReading(id)} />
           </React.Fragment>
         ))}
       </div>
@@ -130,12 +118,12 @@ export function NitrogenWidget({
         <ColonyRow
           name="AOB"
           colony={bacteria.aob}
-          throughput={perHour(rates.ammoniaToNitrite, 'ppm', 4)}
+          throughput={ratePerHour(rates.ammoniaToNitrite, 'ppm')}
         />
         <ColonyRow
           name="NOB"
           colony={bacteria.nob}
-          throughput={perHour(rates.nitriteToNitrate, 'ppm', 4)}
+          throughput={ratePerHour(rates.nitriteToNitrate, 'ppm')}
         />
       </div>
     </Widget>

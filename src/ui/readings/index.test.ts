@@ -82,6 +82,11 @@ describe('readTank', () => {
       'Fish gills',
     ]);
     expect(byId.ammonia.drains[0].label).toBe('AOB oxidising');
+    expect(byId.ammonia.net).toMatch(/^[+−]\d+\.\d{4} ppm\/h$/);
+  });
+
+  it('leaves the net open on the one stock the cycle does not close', () => {
+    expect(read(stocked()).byId.nitrate.net).toBeNull();
   });
 
   it('names every waste source that is producing, and nothing that is not', () => {

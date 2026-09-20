@@ -81,6 +81,8 @@ export interface ReadingView {
   note: string;
   /** What the band means, in the engine's words. */
   sentence: string;
+  /** Fills minus drains, where the run layer can close the balance. */
+  net: string | null;
   fills: ReadingFlow[];
   drains: ReadingFlow[];
   /** The reading's line in the history buffer, in display units, where it has one. */
@@ -215,6 +217,7 @@ interface GaugeSource {
   tone?: StripTone;
   note?: string;
   sentence: string;
+  net?: string;
   fills?: ReadingFlow[];
   drains?: ReadingFlow[];
 }
@@ -232,18 +235,20 @@ function fromGauge(id: ReadingId, tape: Tape, source: GaugeSource): ReadingView 
     trend: trendOf(tape, id),
     note: source.note ?? '',
     sentence: source.sentence,
+    net: source.net ?? null,
     fills: source.fills ?? [],
     drains: source.drains ?? [],
     series: tape.series[id] ?? null,
   };
 }
 
-function ppmPerHour(value: number): string {
-  return `${value >= 0 ? '+' : '−'}${Math.abs(value).toFixed(4)} ppm/h`;
-}
+export type RateUnit = 'ppm' | 'g';
 
-function gramsPerHour(value: number): string {
-  return `${value >= 0 ? '+' : '−'}${Math.abs(value).toFixed(3)} g/h`;
+const RATE_DECIMALS: Record<RateUnit, number> = { ppm: 4, g: 3 };
+
+/** A signed hourly rate, at the precision its unit is read to. */
+export function ratePerHour(value: number, unit: RateUnit): string {
+  return `${value >= 0 ? '+' : '−'}${Math.abs(value).toFixed(RATE_DECIMALS[unit])} ${unit}/h`;
 }
 
 /** A nutrient banded on what the plants ask for, rather than on an alert line. */
@@ -267,6 +272,7 @@ function nutrientView(
       reading.needed > 0
         ? `Plants ask for ${reading.neededText} ppm — below it the engine's own sufficiency drops.`
         : 'Nothing planted, so nothing is asking for it.',
+    net: null,
     fills: [],
     drains: [],
     series: tape.series[id] ?? null,
@@ -314,34 +320,40 @@ export function readTank({ state, config, history, units }: TankInput): ReadingB
       note: '',
       sentence:
         'A pool with no safe line: it settles where what mineralises out matches what falls in.',
+      net: ratePerHour(waste.perHour - waste.mineralised, 'g'),
       fills: waste.sources
         .filter((source) => source.gramsPerHour > 0)
-        .map((source) => ({ label: source.label, rate: gramsPerHour(source.gramsPerHour) })),
-      drains: [{ label: 'Mineralising to NH₃', rate: gramsPerHour(-waste.mineralised) }],
+        .map((source) => ({ label: source.label, rate: ratePerHour(source.gramsPerHour, 'g') })),
+      drains: [{ label: 'Mineralising to NH₃', rate: ratePerHour(-waste.mineralised, 'g') }],
       series: null,
     },
     ammonia: fromGauge('ammonia', tape, {
       gauge: gauge('ammonia'),
       note: `safe ≤ ${HIGH_AMMONIA_THRESHOLD.toFixed(2)}`,
       sentence: `Safe at or under ${HIGH_AMMONIA_THRESHOLD.toFixed(2)} ppm — the line the engine alerts on.`,
+      net: ratePerHour(
+        rates.wasteToAmmonia + rates.gillsToAmmonia - rates.ammoniaOxidised,
+        'ppm'
+      ),
       fills: [
-        { label: 'Waste mineralising', rate: ppmPerHour(rates.wasteToAmmonia) },
-        { label: 'Fish gills', rate: ppmPerHour(rates.gillsToAmmonia) },
+        { label: 'Waste mineralising', rate: ratePerHour(rates.wasteToAmmonia, 'ppm') },
+        { label: 'Fish gills', rate: ratePerHour(rates.gillsToAmmonia, 'ppm') },
       ],
-      drains: [{ label: 'AOB oxidising', rate: ppmPerHour(-rates.ammoniaOxidised) }],
+      drains: [{ label: 'AOB oxidising', rate: ratePerHour(-rates.ammoniaOxidised, 'ppm') }],
     }),
     nitrite: fromGauge('nitrite', tape, {
       gauge: gauge('nitrite'),
       note: `safe ≤ ${HIGH_NITRITE_THRESHOLD.toFixed(2)}`,
       sentence: `Safe at or under ${HIGH_NITRITE_THRESHOLD.toFixed(2)} ppm — the line the engine alerts on.`,
-      fills: [{ label: 'AOB oxidising NH₃', rate: ppmPerHour(rates.ammoniaToNitrite) }],
-      drains: [{ label: 'NOB clearing', rate: ppmPerHour(-rates.nitriteToNitrate) }],
+      net: ratePerHour(rates.netNitrite, 'ppm'),
+      fills: [{ label: 'AOB oxidising NH₃', rate: ratePerHour(rates.ammoniaToNitrite, 'ppm') }],
+      drains: [{ label: 'NOB clearing', rate: ratePerHour(-rates.nitriteToNitrate, 'ppm') }],
     }),
     nitrate: fromGauge('nitrate', tape, {
       gauge: gauge('nitrate'),
       note: `${NITRATE_LOW_PPM}–${HIGH_NITRATE_THRESHOLD}`,
       sentence: `Plants go short under ${NITRATE_LOW_PPM} ppm; the engine alerts over ${HIGH_NITRATE_THRESHOLD}.`,
-      fills: [{ label: 'NOB clearing NO₂', rate: ppmPerHour(rates.nitriteToNitrate) }],
+      fills: [{ label: 'NOB clearing NO₂', rate: ratePerHour(rates.nitriteToNitrate, 'ppm') }],
       drains: [],
     }),
     temperature: fromGauge('temperature', tape, {
@@ -388,6 +400,7 @@ export function readTank({ state, config, history, units }: TankInput): ReadingB
       trend: trendOf(tape, 'oxygen'),
       note: `alerts under ${LOW_OXYGEN_THRESHOLD.toFixed(1)}`,
       sentence: `Under ${LOW_OXYGEN_THRESHOLD.toFixed(1)} mg/L the engine alerts and fish start paying for it.`,
+      net: null,
       fills: [],
       drains: [],
       series: tape.series.oxygen ?? null,
@@ -403,6 +416,7 @@ export function readTank({ state, config, history, units }: TankInput): ReadingB
       trend: trendOf(tape, 'co2'),
       note: `alerts over ${HIGH_CO2_THRESHOLD.toFixed(0)}`,
       sentence: `Over ${HIGH_CO2_THRESHOLD.toFixed(0)} mg/L the engine alerts — plants take it up, surface exchange drives it off.`,
+      net: null,
       fills: [],
       drains: [],
       series: tape.series.co2 ?? null,
@@ -421,6 +435,7 @@ export function readTank({ state, config, history, units }: TankInput): ReadingB
       trend: trendOf(tape, 'algae'),
       note: algaeWord(algae),
       sentence: `Coverage the plants are competing with; over ${HIGH_ALGAE_THRESHOLD} % the engine calls it a bloom.`,
+      net: null,
       fills: [],
       drains: [],
       series: tape.series.algae ?? null,
