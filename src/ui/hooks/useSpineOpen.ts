@@ -2,8 +2,9 @@ import { useCallback, useEffect, useState } from 'react';
 import { usePersistence } from '../persistence/index.js';
 
 /**
- * Whether the spine is showing its tracks. Kept with the session the way the
- * tunables drawer is: a keeper who reads the run off the charts opens on them.
+ * Whether the spine is showing its tracks — remembered across reloads the way
+ * the tunables drawer is, so a keeper who reads the run off the tracks opens
+ * on them.
  */
 export function useSpineOpen(): [open: boolean, toggle: () => void] {
   const { initialUI, onUIChange } = usePersistence();

@@ -33,7 +33,7 @@ the published surface on its own.
 | Water | `/water` | The tank as a lab sheet, two columns of headed reading rows. Left: water (temperature, pH, level), the dissolved gases, and the four nutrients against what the plants ask for. Right: the nitrogen compounds on their alert lines, then the biofilter — each guild against its ceiling, what it converts an hour, whether the tank reads as cycled and where the nitrite peak falls — and the waste pool feeding it. Any row opens its reading in the drawer |
 | Life | `/life` | Two tables on one row shape: the fish, and the plants with the algae riding along at their top as a population row. A species row carries a silhouette, the count, the figure each, a dot per individual and the group's condition, and opens onto the individuals under it; bioload sits under the fish against the stocking guideline. Under the fish rows sit the clutches counting down to hatch and one row for every fry in the tank, which is the unit the sell-all-fry verb takes. Any row opens the vitality ledger in the drawer — helping against hurting, each factor at its rate per day, the bank between them — and the module's "+" stocks a species through the same drawer |
 | Gear | `/gear` | A rack of eight device rows: a power switch, a silhouette, the name, and what it is set to — or, for the three that keep a clock, that day as a 24 h ribbon against the hour the tank is on. A row opens the device's inspector in the drawer, addressed by the URL, so each inspector is a link and back walks between devices; closing one lands on the rack. Under the rack the scape — the substrate, and each piece of hardscape with the surface it adds — and under that what the fittings add up to, which is what the tick reads |
-| History | `/history` | The spine at full height: the four tracks stacked over one axis on the left, and on the right what the run cost — deaths, births, alerts, water changed — over the event log. A window switch scopes both. Dragging a track or tapping a log line parks the same playhead the spine writes |
+| History | `/history` | The spine at full height: the four tracks stacked over one axis on the left, and on the right what the run cost — deaths, births, alerts, water changed — over the event log. A window switch scopes both. Dragging a track or the axis, or tapping a log line, parks the same playhead the spine writes |
 | Setup | `/setup` | What the tank *is*, rather than how it is doing: the preset it came from, its size, lid, room and tap water, and the figures those imply. Also the unit toggle and the run reset |
 
 ## The frame
@@ -46,7 +46,7 @@ drawer that lays over them.
 | Top bar | The tank's preset on the left, the transport centred — play/pause, step, speed, the clock — and on the right the count of what needs the keeper, the Act palette, the tunables badge, theme, docs and source |
 | Icon rail | The six modules, fixed, never scrolling, carrying no figures. A dot on an icon says that module has an engine alert standing against it |
 | Stage | The module itself, with its own title and summary line |
-| Spine | The run along the bottom: day ticks, alert and action marks, and the playhead. Dragging parks the playhead in the address, so the spine and History are never on different ticks and back walks out of a scrub. The handle expands it onto the four tracks; the link beside it opens History wherever the playhead is parked |
+| Spine | The run along the bottom: day ticks, alert and action marks, and the playhead. Dragging parks the playhead in the address, so the spine and History are never on different ticks and back walks out of a scrub. The handle expands it onto the four tracks, except on History, which is already showing them; the link beside it opens History wherever the playhead is parked |
 | Drawer | The one inspector, laid over the right of the stage — no scrim, and the tank keeps ticking behind it. One at a time; Escape, a pointer outside it, or its own close button dismisses it |
 
 Below the tablet breakpoint the rail folds into a five-tab bar with the last two
@@ -96,7 +96,8 @@ Tuesday. The buffer belongs to the session: a reloaded tank opens with nothing
 to draw, however old it is.
 
 The spine is that buffer along the bottom of every screen. Collapsed it is the
-axis alone; the handle expands it onto four tracks sharing that axis.
+axis alone; the handle expands it onto four tracks sharing that axis. On History
+it stays the axis: that page is already those tracks at full height.
 
 | Track | Lines |
 |---|---|
@@ -107,13 +108,13 @@ axis alone; the handle expands it onto four tracks sharing that axis.
 
 Each line is normalised to its own extent, so a compound at 0.1 ppm and one at
 40 ppm share a band without sharing a scale; the caption carries the value at
-the playhead, and on History the extent the line was drawn against. Behind the
+the playhead — at the precision its reading is read to everywhere else — and on
+History the extent the line was drawn against. Behind the
 lines the hours the fixture ran are a faint band. Colour is spent on the series
 alone — a track never tints for status; the alert and action marks live on the
 axis under it, where the playhead stands.
 
 A phone has room for two tracks at a time, and a chip row picks the pair.
-Whether the spine was left open is kept with the session.
 
 ## Acting on the tank
 
