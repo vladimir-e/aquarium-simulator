@@ -231,7 +231,7 @@ function nutrientView(
     band: reading.needed > 0 ? { from: at(reading.needed), to: 1 } : null,
     tone: toneOf(reading.status),
     trend: trendOf(history, id),
-    note: reading.needed > 0 ? `need ${reading.neededText}` : 'nothing planted',
+    note: reading.needed > 0 ? `need ${reading.neededText}` : '',
     sentence:
       reading.needed > 0
         ? `Plants ask for ${reading.neededText} ppm — below it the engine's own sufficiency drops.`

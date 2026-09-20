@@ -70,7 +70,7 @@ describe('readTank', () => {
   it('leaves a nutrient unbanded when there is nothing planted to want it', () => {
     for (const reading of read(bare()).demand) {
       expect(reading.band).toBeNull();
-      expect(reading.note).toBe('nothing planted');
+      expect(reading.note).toBe('');
     }
   });
 

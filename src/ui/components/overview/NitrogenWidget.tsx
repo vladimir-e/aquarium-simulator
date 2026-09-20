@@ -115,10 +115,14 @@ export function NitrogenWidget({
         </p>
       }
     >
-      <div className="grid grid-cols-[1fr_16px_1fr_16px_1fr_16px_1fr] items-center py-1">
+      <div className="grid grid-cols-[1fr_16px_1fr_16px_1fr_16px_1fr] items-center py-1 max-md:grid-cols-1">
         {CHAIN.map((id, i) => (
           <React.Fragment key={id}>
-            {i > 0 && <span aria-hidden className="text-center text-ink-3">→</span>}
+            {i > 0 && (
+              <span aria-hidden className="text-center text-ink-3 max-md:rotate-90">
+                →
+              </span>
+            )}
             <Stock reading={byId[id]} rate={chainRate[id]} onOpen={() => onOpenReading(id)} />
           </React.Fragment>
         ))}

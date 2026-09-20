@@ -9,7 +9,7 @@ export function Glyph({ className = '' }: { className?: string }): React.JSX.Ele
   return (
     <span
       aria-hidden
-      className={`block h-4 w-4 shrink-0 rounded-full border border-ink-3 ${className}`}
+      className={`block h-4 w-4 shrink-0 rounded-[3px] bg-surface-2 ${className}`}
     />
   );
 }

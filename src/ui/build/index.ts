@@ -17,6 +17,7 @@ export {
   type ScheduledDeviceId,
   hourLabel,
   scheduleBand,
+  scheduleHours,
   scheduleRange,
   scheduleSpans,
 } from './schedules.js';

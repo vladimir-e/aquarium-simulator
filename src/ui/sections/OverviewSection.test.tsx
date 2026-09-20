@@ -219,6 +219,9 @@ describe('OverviewSection', () => {
 
   it('says nothing is asking for the nutrients when nothing is planted', () => {
     renderOverview(bare());
-    expect(within(widget('Nutrients')).getAllByText('nothing planted')).toHaveLength(4);
+    const nutrients = within(widget('Nutrients'));
+
+    expect(nutrients.getByText('no plants to feed')).toBeTruthy();
+    expect(nutrients.queryByText(/^need /)).toBeNull();
   });
 });

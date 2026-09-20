@@ -29,7 +29,7 @@ the published surface on its own.
 
 | Module | Route | What it shows |
 |---|---|---|
-| Overview | `/` | The tank as a grid of widgets — nitrogen across the top-left, life beside it, water, gear and nutrients below — each a window onto its module. Anything the engine has latched an alert on is named above the grid |
+| Overview | `/` | The tank as a grid of widgets — the nitrogen cycle as a chain of stocks across the top-left, life beside it, water, gear and nutrients below — each a window onto its module. Anything the engine has latched an alert on is named above the grid, one line each, with the verb that answers it |
 | Water | `/water` | The tank as gauges: level, temperature, pH, the three nitrogen compounds, dissolved O₂ and CO₂. Below them the biofilter — colony size against its ceiling, whether the tank reads as cycled, a projected nitrite peak — and the waste pool feeding it |
 | Life | `/life` | Plants as rows that open into their per-factor vitality breakdown, the algae competing with them on the same axis, the four nutrients with what one millilitre of fertilizer would move, the hardscape, and the fish roster — expandable per fish into what is helping and hurting it, with bioload against the stocking guideline |
 | Gear | `/gear` | Every device as a row, and one device's inspector beside it. Selection lives in the URL, so each inspector is a link and back walks between devices. A band along the foot lays the day's schedules — light, CO₂, doser — against each other |
@@ -62,6 +62,15 @@ reference band lit on it and the value as a marker — inside the band the marke
 and the number stay ink, outside they take the engine's severity. Fullness never
 carries meaning, and a reading with no band shows an unlit track and stays
 quiet.
+
+Where the engine has no threshold of its own, the band is the tank's: the
+temperature and pH spans every stocked species tolerates, plant demand for the
+four nutrients. An unstocked tank has neither, and those readings go quiet.
+
+Tapping a reading anywhere opens the same inspector in the drawer: the number at
+hero size, the band stated in the engine's words, the last seven days from the
+snapshot buffer, and — for the stocks of the nitrogen cycle — what fills them and
+what drains them, at the rate the next tick will use.
 
 ## Time
 
@@ -104,6 +113,8 @@ the tank can never disagree.
 | Surface | Derived from |
 |---|---|
 | Gauges and status pills | Current resources, against the thresholds the engine alerts on |
+| Reading bands | An engine threshold where there is one, the stocked species' tolerance or the plants' demand where there is not |
+| The cycle chain | The engine's own mineralisation, oxidation and clearance rates, read for the hour ahead |
 | Vitality breakdowns | The engine's own per-factor stressor and benefit lists, per organism |
 | Charts | The snapshot buffer, each series normalised to its own extent so a compound at 0.1 ppm and one at 40 ppm share a frame without sharing a scale |
 | Event log | The log entries the tick appends, filtered by category, exportable as text |

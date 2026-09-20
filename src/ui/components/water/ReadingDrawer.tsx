@@ -25,7 +25,10 @@ function Chart({
   const values = window.map(read);
   const extent = seriesExtent(values);
   const points = values
-    .map((value, i) => `${(i / Math.max(1, values.length - 1)) * 100},${(1 - normalize(value, extent)) * 36 + 2}`)
+    .map(
+      (value, i) =>
+        `${1 + (i / Math.max(1, values.length - 1)) * 98},${(1 - normalize(value, extent)) * 36 + 2}`
+    )
     .join(' ');
 
   return (

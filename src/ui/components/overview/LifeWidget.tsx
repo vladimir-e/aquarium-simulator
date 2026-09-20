@@ -142,7 +142,7 @@ export function LifeWidget({
           key={plant.id}
           name={plant.name}
           detail={`${Math.round(plant.size)} % size`}
-          dots={[plant.status]}
+          dots={[]}
           at={plant.condition / 100}
           band={CONDITION_BAND}
           status={plant.status}
@@ -152,12 +152,14 @@ export function LifeWidget({
 
       <Row
         name="Algae"
-        detail={`${algaeReading.value} % coverage`}
+        detail={`${algaeReading.value} % coverage${
+          algaeReading.trend ? ` · ${algaeReading.trend} %` : ''
+        }`}
         dots={[]}
         at={algaeReading.at}
         band={algaeReading.band}
         status={algae.status}
-        word={algaeReading.trend || algae.word}
+        word={algae.word}
         onClick={() => onOpenReading('algae')}
       />
     </Widget>

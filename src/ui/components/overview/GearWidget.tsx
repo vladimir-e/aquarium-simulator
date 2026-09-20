@@ -100,7 +100,7 @@ export function GearWidget({ book, sim }: GearWidgetProps): React.JSX.Element {
         return (
           <div
             key={row.id}
-            className="grid h-9 grid-cols-[26px_16px_64px_minmax(0,1fr)_46px] items-center gap-2 border-t border-hairline text-[13px] first:border-t-0"
+            className="grid h-9 grid-cols-[26px_16px_88px_minmax(0,1fr)_42px] items-center gap-2 border-t border-hairline text-[13px] first:border-t-0"
           >
             <PowerToggle
               checked
@@ -115,7 +115,7 @@ export function GearWidget({ book, sim }: GearWidgetProps): React.JSX.Element {
               <span className="truncate text-ink-2">{row.summary}</span>
             )}
             <span className="truncate text-right text-[12px] tabular-nums text-ink-3">
-              {schedule ? schedule.detail.split(' · ')[0] : ''}
+              {schedule?.hours ?? ''}
             </span>
           </div>
         );

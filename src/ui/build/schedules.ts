@@ -20,6 +20,13 @@ export function hourLabel(hour: number): string {
   return `${String(hour).padStart(2, '0')}:00`;
 }
 
+/** The same span where a rack row has room for five characters: `08–20`. */
+export function scheduleHours(schedule: DailySchedule): string {
+  if (schedule.duration >= 24) return 'all day';
+  const end = (schedule.startHour + schedule.duration) % 24;
+  return `${String(schedule.startHour).padStart(2, '0')}–${String(end).padStart(2, '0')}`;
+}
+
 export function scheduleRange(schedule: DailySchedule): string {
   if (schedule.duration >= 24) return 'all day';
   return `${hourLabel(schedule.startHour)}–${hourLabel((schedule.startHour + schedule.duration) % 24)}`;
@@ -46,6 +53,8 @@ export interface ScheduleRow {
   /** Running at the current hour. */
   active: boolean;
   spans: DaySpan[];
+  /** The span in the five characters a rack row has for it. */
+  hours: string;
   detail: string;
 }
 
@@ -70,6 +79,7 @@ export function scheduleBand(state: SimulationState): ScheduleBand {
         enabled: light.enabled,
         active: light.enabled && isScheduleActive(hour, light.schedule),
         spans: light.enabled ? scheduleSpans(light.schedule) : [],
+        hours: scheduleHours(light.schedule),
         detail: light.enabled
           ? `${scheduleRange(light.schedule)} · ${light.par} PAR at surface`
           : `off · would run ${scheduleRange(light.schedule)}`,
@@ -80,6 +90,7 @@ export function scheduleBand(state: SimulationState): ScheduleBand {
         enabled: co2Generator.enabled,
         active: co2Generator.enabled && isScheduleActive(hour, co2Generator.schedule),
         spans: co2Generator.enabled ? scheduleSpans(co2Generator.schedule) : [],
+        hours: scheduleHours(co2Generator.schedule),
         detail: co2Generator.enabled
           ? `${scheduleRange(co2Generator.schedule)} · ${co2Generator.bubbleRate.toFixed(1)} bps`
           : `off · would run ${scheduleRange(co2Generator.schedule)}`,
@@ -90,6 +101,7 @@ export function scheduleBand(state: SimulationState): ScheduleBand {
         enabled: autoDoser.enabled,
         active: autoDoser.enabled && hour === autoDoser.schedule.startHour,
         spans: autoDoser.enabled ? scheduleSpans(doserSchedule) : [],
+        hours: hourLabel(autoDoser.schedule.startHour),
         detail: autoDoser.enabled
           ? `${hourLabel(autoDoser.schedule.startHour)} · ${autoDoser.doseAmountMl.toFixed(1)} ml`
           : `off · would dose at ${hourLabel(autoDoser.schedule.startHour)}`,
