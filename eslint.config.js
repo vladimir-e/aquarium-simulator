@@ -47,9 +47,7 @@ export default [
     },
   },
   {
-    // CLI entry point and its helpers run in Node, as do the measurement
-    // probes — neither is bundled and neither reaches a browser.
-    files: ['src/cli/**/*.ts', 'src/simulation/tests/**/*.ts'],
+    files: ['src/cli/**/*.ts'],
     languageOptions: {
       globals: {
         process: 'readonly',

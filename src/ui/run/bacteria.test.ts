@@ -384,9 +384,7 @@ describe('bacteriaSummary', () => {
     // Reachable only on the circulation that keeps NOB in oxygen — a canister
     // and an air pump — and the same tank without the air pump is the control:
     // there the biofilm is not what binds, and the card must not say it is.
-    const filled = saturatedColony(200, 40, {
-      circulation: { filter: 'canister', airPump: true },
-    });
+    const filled = saturatedColony(200, 40, { filter: 'canister', airPump: true });
     const readout = bacteriaReadout(filled, config);
 
     // Decay is unconditional, so neither colony ever arrives at 100 % of its
@@ -396,10 +394,7 @@ describe('bacteriaSummary', () => {
     expect(readout.rates.netNitrite).toBeGreaterThan(0);
     expect(bacteriaSummary(readout, null, nc)).toContain('more load has nowhere to go');
 
-    const airless = bacteriaReadout(
-      saturatedColony(200, 40, { circulation: { filter: 'canister' } }),
-      config
-    );
+    const airless = bacteriaReadout(saturatedColony(200, 40, { filter: 'canister' }), config);
     expect(airless.nob.pct).toBeLessThan(readout.nob.pct);
     expect(bacteriaSummary(airless, null, nc)).toContain('NOB trail AOB by');
   });

@@ -78,7 +78,10 @@ npm run lint           # Run ESLint
 npm run test           # Run tests
 npm run test:watch     # Run tests in watch mode
 npm run test:coverage  # Run tests with coverage report
+npm run scenarios      # Run the preset tanks headless, readings banded green/amber/red
 ```
+
+The `sim` CLI and the scenario runner's flags are in [`docs/cli.md`](docs/cli.md).
 
 ## Documentation
 

@@ -1,91 +1,48 @@
 ---
 title: Calibration
-description: Unit tests pin mechanism, anchors pin real-tank outcome — and a constant is a claim about aquariums, not a knob for turning a test green.
+description: Mechanics are built first and tuned last; the scenario runner judges whole tanks, and tests pin formulas and invariants.
 ---
 
-## Two kinds of test
+## Build first, tune last
 
-The suite holds two things that look alike and are not equal.
+A mechanic is done when it works and moves the right stock in the right
+direction. Tuning its constants to real-tank numbers comes after the mechanics
+around it exist, because every new mechanic shifts the chemistry the old ones
+were tuned against.
 
-| | Unit test | Calibration anchor |
-|---|---|---|
-| Pins | Mechanism | Outcome — how a tank behaves over weeks |
-| Encodes | What the engine does | What a real aquarium does |
-| Belongs to | The code it describes; edit it freely alongside | The reality it describes |
-| Goes red when | The mechanism changed | The tank stopped behaving like a tank |
+## Whole tanks: the scenario runner
 
-A feature may not edit an anchor band to go green. If a feature breaks an anchor,
-either the feature is wrong or the constants need re-deriving — the anchor holds.
-That asymmetry is the only thing standing between a plausible local change and a
-silent global one.
+Whole-tank behaviour is judged by running the preset tanks headless — nano,
+low-tech, high-tech, community, low-flow and cold — on a keeper's schedule for
+90 or 300 days. Each reading is graded against a plausibility band:
 
-Prefer invariants to magic numbers either way. Asserting that a flow equals 160
-is a tripwire on a coefficient; asserting that doubling capacity doubles flow is
-a statement about the model, and it survives recalibration.
-
-## Constants are claims
-
-A value in the engine's config is a claim about how real aquariums behave. It is
-not a free parameter, and editing one changes the simulation everywhere at once,
-silently — while the failing test was the only thing that noticed.
-
-A constant is also only as good as the reference it names. When work invalidates
-that reference, the constant is broken rather than awaiting calibration.
-
-## When a test fails
-
-The default assumption is that the code is wrong, not the number.
-
-| | |
+| Grade | Meaning |
 |---|---|
-| 1 | Work out *why* it fails, and name the mechanism |
-| 2 | If the mechanism is wrong, fix the mechanism |
-| 3 | If the constant genuinely has to move, say it out loud: the old value, the new one, the real behaviour that justifies it, and what else it touches |
-| 4 | If you can't tell, stop and raise it — an unresolved question beats a quietly tuned constant |
+| Green | Inside what a real tank of that kind shows |
+| Amber | Unusual but possible — worth a look |
+| Red | Not something a real tank does |
 
-Never widen a tolerance, delete an assertion, or scale a coefficient to make a
-scenario pass. Watch for the subtle version of the same move: a fixture
-conditioned rather than a band widened passes by changing the tank instead of the
-claim.
+Per-action flags replay a tank under a different keeper: more food, no water
+changes, extra fish. Amber and red are questions to reason about, not failures
+to fix — a constant is never moved during build-out just to turn a cell green.
 
-## The instrument can be wrong
+## Tests: formulas and invariants
 
-A measurement instrument is a thing that can be wrong. The runner that samples a
-tank on a schedule and the probes that reduce a month into a curve are code, and
-a defect in either produces a number that looks exactly like evidence.
+The test suite pins what holds regardless of tuning:
 
-The failure to expect is not an inaccurate reading but an incomparable one. A gas
-figure taken an hour out of phase with the process it measures is not a slightly
-wrong version of the right number; it is a different quantity wearing the same
-units.
+| Kind | Example |
+|---|---|
+| Formula | A function computes what it says |
+| Scaling | Doubling capacity doubles flow |
+| Conservation | Nitrogen mass survives NH₃ → NO₂ → NO₃ |
+| Soundness | No reading goes NaN or infinite |
+| Determinism | The same seed runs the same life |
 
-Anchors and run reports come off the same runner on purpose. A figure quoted in a
-report and a figure asserted in a test are then one measurement on one schedule,
-so a report cannot flatter a mechanism the suite would fail.
-
-## Reading red
-
-A test's tier comes from its fixture, not its topic — a tank with fish in it is
-livestock-tier however much the test is about the cycle. Below the tier being
-changed, green is required. Above it red is expected, and reconciling it is the
-closing task rather than a mid-change signal.
-
-A neighbour's red is not a verdict on the change. A silenced tier is red-listed
-with a reason and a return point, never quietly skipped.
-
-## Evidence stays in the tree
-
-A measurement is only evidence if it is still there to read. Run reports are
-committed under `docs/calibration/runs/` alongside the probe that produced them:
-the script is the ephemeral half, the report is not.
-
-The scenarios and baselines kept next to those runs describe an earlier engine.
-They are preserved as intent rather than as current behaviour, and reading them
-as the latter is the standard way to be misled.
+A test never pins a whole-tank outcome or a coefficient's value; those move
+every time a mechanic lands.
 
 ## Source
 
-`docs/calibration/` holds the committed evidence. The runner and the probe
-scripts live under `src/simulation/tests/`, the constants they judge under
-`src/simulation/config/`, and the stateful driver a person steers a tank with
-under `src/cli/`.
+The scenario runner and its bands live under `src/cli/scenarios/`, the invariant
+tests under `src/simulation/tests/`, and the constants under
+`src/simulation/config/`.
