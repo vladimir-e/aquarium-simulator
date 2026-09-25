@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { createSimulation, type SimulationState } from '../../simulation/index.js';
 import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
-import { cycledTank } from '../../simulation/tests/tanks.js';
+import { getFilterFlow } from '../../simulation/equipment/filter.js';
+import { POWERHEAD_FLOW_LPH } from '../../simulation/equipment/powerhead.js';
 import { bacteriaReadout, type BacteriaReadout } from '../run/index.js';
 import {
   buildDeviceList,
@@ -10,7 +11,6 @@ import {
   isDeviceId,
 } from './devices';
 
-/** Defaults: filter, heater and light on; the other five off. */
 const base: SimulationState = createSimulation({ tankCapacity: 40 });
 const withPowerhead: SimulationState = createSimulation({
   tankCapacity: 40,
@@ -55,21 +55,19 @@ describe('equipmentRows', () => {
   });
 
   it('reads filter and powerhead flow in the reader’s units', () => {
-    // Engine values: the sponge turns a 40 L tank over 4× an hour; the 400 GPH
-    // powerhead preset is 1514 L/h.
     const imperialRows = equipmentRows(withPowerhead, readout(withPowerhead), 'imperial');
     const metricRows = equipmentRows(withPowerhead, readout(withPowerhead), 'metric');
     const summary = (list: typeof rows, id: string): string | undefined =>
       list.find((r) => r.id === id)?.summary;
 
-    expect(summary(metricRows, 'filter')).toBe('sponge · 160 L/h');
-    expect(summary(metricRows, 'powerhead')).toBe('1514 L/h');
-    expect(summary(imperialRows, 'filter')).toBe('sponge · 42 GPH');
+    expect(summary(metricRows, 'filter')).toBe(`sponge · ${getFilterFlow('sponge', 40)} L/h`);
+    expect(summary(metricRows, 'powerhead')).toBe(`${POWERHEAD_FLOW_LPH[400]} L/h`);
+    expect(summary(imperialRows, 'filter')).toMatch(/^sponge · \d+ GPH$/);
     expect(summary(imperialRows, 'powerhead')).toBe('400 GPH');
   });
 
   it('marks the biofilter on once it is cycled, and says so', () => {
-    const cycled = cycledTank(40);
+    const cycled = createSimulation({ tankCapacity: 40 }, { bacteria: 'cycled' });
     const row = equipmentRows(cycled, readout(cycled), 'metric')[8];
 
     expect(row.on).toBe(true);

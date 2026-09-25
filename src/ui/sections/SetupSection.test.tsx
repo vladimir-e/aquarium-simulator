@@ -22,16 +22,12 @@ afterEach(() => {
 const planted = presetTank('planted');
 const progressed = presetTank('planted', { days: 5 });
 
-/** The planted tank with its heater switched on — drift a restore would clear. */
 const heated: SimulationState = {
   ...planted,
   equipment: { ...planted.equipment, heater: { ...planted.equipment.heater, enabled: true } },
 };
 
-/**
- * The reader's units come from their locale, so every test names one. Set on
- * mount only — a test that reaches for the toggle must not be undone by it.
- */
+// Runs on mount only, so a test that flips the units toggle isn't undone by it.
 function ForceUnits(): null {
   const { setUnitSystem } = useUnits();
   useEffect(() => setUnitSystem('metric'), [setUnitSystem]);
@@ -76,7 +72,6 @@ describe('SetupSection', () => {
     const header = screen.getByRole('heading', { level: 1, name: 'Setup' }).parentElement!;
     expect(within(header).getByText('Planted Tank · modified')).toBeTruthy();
 
-    // Restoring is a preset load like any other, dialog and all.
     fireEvent.click(screen.getByRole('button', { name: 'Restore defaults' }));
     expect(onLoad).not.toHaveBeenCalled();
     expect(screen.getByText(/Starts “Planted Tank” as a new tank at hour zero\./)).toBeTruthy();
@@ -159,7 +154,6 @@ describe('SetupSection', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'gal/°F' }));
 
-    // Every option a round gallon size, plus the tank's own so the row reads back.
     expect(sizes()).toContain('10 gal');
     expect(sizes()).toContain('10.6 gal');
     expect(picker().value).toBe(String(planted.tank.capacity));

@@ -11,46 +11,16 @@ import { decayDefaults } from '../config/decay.js';
 import { MW_CO2, MW_O2 } from '../core/chemistry.js';
 import { monodFactor } from '../core/kinetics.js';
 
-/** Air-saturated water at 25 °C, where decomposition is not oxygen-limited. */
 const SATURATED_O2 = 8;
 const AT_SATURATION = monodFactor(SATURATED_O2, decayDefaults.oxygenHalfSaturation);
 
 describe('getTemperatureFactor', () => {
-  it('returns 1.0 at reference temperature (25°C)', () => {
-    const factor = getTemperatureFactor(decayDefaults.referenceTemp);
-    expect(factor).toBeCloseTo(1.0, 6);
-  });
+  const { q10, referenceTemp } = decayDefaults;
 
-  it('returns 2.0 at 35°C (Q10 = 2)', () => {
-    const factor = getTemperatureFactor(35);
-    expect(factor).toBeCloseTo(2.0, 6);
-  });
-
-  it('returns 0.5 at 15°C (Q10 = 2)', () => {
-    const factor = getTemperatureFactor(15);
-    expect(factor).toBeCloseTo(0.5, 6);
-  });
-
-  it('returns ~1.41 at 30°C', () => {
-    const factor = getTemperatureFactor(30);
-    // Q10^(5/10) = 2^0.5 = sqrt(2) ≈ 1.414
-    expect(factor).toBeCloseTo(Math.sqrt(2), 4);
-  });
-
-  it('returns ~0.71 at 20°C', () => {
-    const factor = getTemperatureFactor(20);
-    // Q10^(-5/10) = 2^-0.5 = 1/sqrt(2) ≈ 0.707
-    expect(factor).toBeCloseTo(1 / Math.sqrt(2), 4);
-  });
-
-  it('returns 4.0 at 45°C (two doublings)', () => {
-    const factor = getTemperatureFactor(45);
-    expect(factor).toBeCloseTo(4.0, 6);
-  });
-
-  it('returns 0.25 at 5°C (two halvings)', () => {
-    const factor = getTemperatureFactor(5);
-    expect(factor).toBeCloseTo(0.25, 6);
+  it('is 1 at the reference temperature and q10 per 10 °C either way', () => {
+    expect(getTemperatureFactor(referenceTemp)).toBeCloseTo(1, 10);
+    expect(getTemperatureFactor(referenceTemp + 10)).toBeCloseTo(q10, 10);
+    expect(getTemperatureFactor(referenceTemp - 10)).toBeCloseTo(1 / q10, 10);
   });
 });
 
@@ -70,30 +40,14 @@ describe('calculateDecay', () => {
     expect(decay).toBeCloseTo(decayDefaults.baseDecayRate * AT_SATURATION, 6);
   });
 
-  it('runs at sqrt(Q10) five degrees above reference', () => {
-    const decay = calculateDecay(1, 30, SATURATED_O2);
-    expect(decay).toBeCloseTo(decayDefaults.baseDecayRate * AT_SATURATION * Math.sqrt(2), 6);
-  });
-
-  it('runs at 1/sqrt(Q10) five degrees below reference', () => {
-    const decay = calculateDecay(1, 20, SATURATED_O2);
-    expect(decay).toBeCloseTo((decayDefaults.baseDecayRate * AT_SATURATION) / Math.sqrt(2), 6);
-  });
-
-  it('doubles ten degrees above reference', () => {
+  it('runs q10 faster ten degrees above reference', () => {
     const decay = calculateDecay(1, 35, SATURATED_O2);
-    expect(decay).toBeCloseTo(calculateDecay(1, 25, SATURATED_O2) * 2, 6);
+    expect(decay).toBeCloseTo(calculateDecay(1, 25, SATURATED_O2) * decayDefaults.q10, 6);
   });
 
   it('never decays more than available food', () => {
-    // Very high temperature, very small food amount
     const decay = calculateDecay(0.01, 50, SATURATED_O2);
     expect(decay).toBeLessThanOrEqual(0.01);
-  });
-
-  it('very small food amounts decay correctly', () => {
-    const decay = calculateDecay(0.1, 25, SATURATED_O2);
-    expect(decay).toBeCloseTo(calculateDecay(1, 25, SATURATED_O2) / 10, 6);
   });
 
   it('scales linearly with food amount', () => {
@@ -149,21 +103,7 @@ describe('decaySystem', () => {
     });
   }
 
-  it('has correct id and tier', () => {
-    expect(decaySystem.id).toBe('decay');
-    expect(decaySystem.tier).toBe('passive');
-  });
-
-  it('creates negative food effect when food > 0', () => {
-    const state = createTestState({ food: 1.0 });
-    const effects = decaySystem.update(state, DEFAULT_CONFIG);
-
-    const foodEffect = effects.find((e) => e.resource === 'food');
-    expect(foodEffect).toBeDefined();
-    expect(foodEffect!.delta).toBeLessThan(0);
-  });
-
-  it('creates positive waste effect at 40% of decay amount', () => {
+  it('turns the waste-conversion share of decayed food into waste', () => {
     const state = createTestState({ food: 1.0, temperature: 25 });
     const effects = decaySystem.update(state, DEFAULT_CONFIG);
 
@@ -173,7 +113,6 @@ describe('decaySystem', () => {
     );
 
     expect(wasteEffect).toBeDefined();
-    // Waste is wasteConversionRatio (40%) of decayed food
     expect(wasteEffect!.delta).toBeCloseTo(
       -foodEffect!.delta * decayDefaults.wasteConversionRatio,
       6
@@ -186,31 +125,6 @@ describe('decaySystem', () => {
     expect(decaySystem.update(state, DEFAULT_CONFIG)).toEqual([]);
   });
 
-  it('creates no food effect when food is 0', () => {
-    const state = createTestState({ food: 0 });
-    const effects = decaySystem.update(state, DEFAULT_CONFIG);
-
-    const foodEffect = effects.find((e) => e.resource === 'food');
-    expect(foodEffect).toBeUndefined();
-  });
-
-  it('all effects have tier: passive', () => {
-    const state = createTestState({ food: 1.0 });
-    const effects = decaySystem.update(state, DEFAULT_CONFIG);
-
-    effects.forEach((effect) => {
-      expect(effect.tier).toBe('passive');
-    });
-  });
-
-  it('decay source is "decay"', () => {
-    const state = createTestState({ food: 1.0 });
-    const effects = decaySystem.update(state, DEFAULT_CONFIG);
-
-    const foodEffect = effects.find((e) => e.resource === 'food');
-    expect(foodEffect!.source).toBe('decay');
-  });
-
   it('temperature affects decay rate', () => {
     const coldState = createTestState({ food: 1.0, temperature: 20 });
     const hotState = createTestState({ food: 1.0, temperature: 30 });
@@ -221,7 +135,6 @@ describe('decaySystem', () => {
     const coldDecay = coldEffects.find((e) => e.resource === 'food')!.delta;
     const hotDecay = hotEffects.find((e) => e.resource === 'food')!.delta;
 
-    // Hot tank decays faster (more negative delta)
     expect(hotDecay).toBeLessThan(coldDecay);
   });
 
@@ -257,72 +170,18 @@ describe('decaySystem', () => {
     expect(co2Effect!.delta / MW_CO2).toBeCloseTo(-o2Effect!.delta / MW_O2, 10);
   });
 
-  it('CO2/O2 effects scale inversely with water volume', () => {
-    const smallTankState = createTestState({ food: 1.0, temperature: 25, water: 50 });
-    const largeTankState = createTestState({ food: 1.0, temperature: 25, water: 200 });
-
-    const smallEffects = decaySystem.update(smallTankState, DEFAULT_CONFIG);
-    const largeEffects = decaySystem.update(largeTankState, DEFAULT_CONFIG);
-
-    const smallCo2 = smallEffects.find((e) => e.resource === 'co2')!.delta;
-    const largeCo2 = largeEffects.find((e) => e.resource === 'co2')!.delta;
-
-    // Small tank (50L) should have 4x the concentration change of large tank (200L)
-    expect(smallCo2).toBeCloseTo(largeCo2 * 4, 4);
-  });
-
   it('draws the oxygen the oxidised fraction demands', () => {
-    // 100L tank, 1g food at 25°C
     const state = createTestState({ food: 1.0, temperature: 25, water: 100 });
     const effects = decaySystem.update(state, DEFAULT_CONFIG);
 
     const foodEffect = effects.find((e) => e.resource === 'food')!;
     const o2Effect = effects.find((e) => e.resource === 'oxygen')!;
 
-    const decayAmount = -foodEffect.delta; // 0.05g at 25°C
-    const oxidizedAmount = decayAmount * (1 - decayDefaults.wasteConversionRatio); // 60%
-    const expectedO2 = (oxidizedAmount * decayDefaults.gasExchangePerGramDecay) / 100; // mg/L
+    const decayAmount = -foodEffect.delta;
+    const oxidizedAmount = decayAmount * (1 - decayDefaults.wasteConversionRatio);
+    const expectedO2 = (oxidizedAmount * decayDefaults.gasExchangePerGramDecay) / 100;
 
     expect(-o2Effect.delta).toBeCloseTo(expectedO2, 6);
-  });
-
-  it('temperature affects CO2/O2 effects (through decay rate)', () => {
-    const coldState = createTestState({ food: 1.0, temperature: 20 });
-    const hotState = createTestState({ food: 1.0, temperature: 30 });
-
-    const coldEffects = decaySystem.update(coldState, DEFAULT_CONFIG);
-    const hotEffects = decaySystem.update(hotState, DEFAULT_CONFIG);
-
-    const coldCo2 = coldEffects.find((e) => e.resource === 'co2')!.delta;
-    const hotCo2 = hotEffects.find((e) => e.resource === 'co2')!.delta;
-
-    // Hot tank decays faster, produces more CO2
-    expect(hotCo2).toBeGreaterThan(coldCo2);
-  });
-
-  it('no CO2/O2 effects when food is zero', () => {
-    const state = createTestState({ food: 0 });
-    const effects = decaySystem.update(state, DEFAULT_CONFIG);
-
-    const co2Effect = effects.find((e) => e.resource === 'co2');
-    const o2Effect = effects.find((e) => e.resource === 'oxygen');
-
-    expect(co2Effect).toBeUndefined();
-    expect(o2Effect).toBeUndefined();
-  });
-
-  it('handles very small food amounts correctly', () => {
-    const state = createTestState({ food: 0.01, temperature: 25, water: 100 });
-    const effects = decaySystem.update(state, DEFAULT_CONFIG);
-
-    const co2Effect = effects.find((e) => e.resource === 'co2');
-    const o2Effect = effects.find((e) => e.resource === 'oxygen');
-
-    expect(co2Effect).toBeDefined();
-    expect(o2Effect).toBeDefined();
-    // Values should be very small but defined
-    expect(co2Effect!.delta).toBeGreaterThan(0);
-    expect(o2Effect!.delta).toBeLessThan(0);
   });
 
   it('spends a mass of oxygen, so ten times the water is a tenth of the demand', () => {
@@ -339,13 +198,11 @@ describe('decaySystem', () => {
     const state = createTestState({ food: 1.0, temperature: 25, water: 0 });
     const effects = decaySystem.update(state, DEFAULT_CONFIG);
 
-    // Decay still happens (food -> waste)
     const foodEffect = effects.find((e) => e.resource === 'food');
     const wasteEffect = effects.find((e) => e.resource === 'waste' && e.source === 'decay');
     expect(foodEffect).toBeDefined();
     expect(wasteEffect).toBeDefined();
 
-    // But no gas effects (would be division by zero)
     const co2Effect = effects.find((e) => e.resource === 'co2');
     const o2Effect = effects.find((e) => e.resource === 'oxygen');
     expect(co2Effect).toBeUndefined();

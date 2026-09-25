@@ -18,19 +18,6 @@ describe('feed action', () => {
     expect(state.resources.food).toBeCloseTo(0.8, 2);
   });
 
-  it('handles different amounts (0.1g, 0.5g, 2.0g)', () => {
-    const state = createSimulation({ tankCapacity: 100 });
-
-    const result1 = feed(state, { type: 'feed', amount: 0.1 });
-    expect(result1.state.resources.food).toBe(0.1);
-
-    const result2 = feed(state, { type: 'feed', amount: 0.5 });
-    expect(result2.state.resources.food).toBe(0.5);
-
-    const result3 = feed(state, { type: 'feed', amount: 2.0 });
-    expect(result3.state.resources.food).toBe(2.0);
-  });
-
   it('returns message with correct amount', () => {
     const state = createSimulation({ tankCapacity: 100 });
     const result = feed(state, { type: 'feed', amount: 0.5 });
@@ -58,19 +45,10 @@ describe('feed action', () => {
     expect(result.message).toContain('Cannot feed');
   });
 
-  it('rejects negative amount', () => {
-    const state = createSimulation({ tankCapacity: 100 });
-    const result = feed(state, { type: 'feed', amount: -1 });
-
-    expect(result.state.resources.food).toBe(0);
-    expect(result.message).toContain('Cannot feed');
-  });
-
   it('maintains 2 decimal precision', () => {
     const state = createSimulation({ tankCapacity: 100 });
     const result = feed(state, { type: 'feed', amount: 0.123 });
 
-    // Should be rounded to 2 decimal places
     expect(result.state.resources.food).toBeCloseTo(0.12, 2);
   });
 

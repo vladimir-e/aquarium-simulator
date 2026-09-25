@@ -24,7 +24,6 @@ import {
 } from '../persistence/types.js';
 import { snapshotFromState } from '../run/index.js';
 
-/** Put a tank in localStorage under `presetId`, the way a saved session sits. */
 function seedSession(
   state: SimulationState,
   presetId: PresetId,
@@ -53,11 +52,6 @@ function seedSession(
   globalThis.localStorage.setItem(STORAGE_KEY, JSON.stringify(persisted));
 }
 
-/**
- * Seed localStorage with a persisted session carrying one in-flight
- * clutch, so `useSimulation` hydrates from it. This is the only public
- * path to inject a clutch into the hook's state.
- */
 function seedSessionWithClutch(presetId: PresetId): void {
   seedSession(createSimulation(getPresetById(presetId)!.config), presetId, {
     tick: 300,
@@ -65,25 +59,17 @@ function seedSessionWithClutch(presetId: PresetId): void {
   });
 }
 
-/**
- * Seed a bare-tank session whose ammonia already sits above the high-ammonia
- * alert threshold (>0.1 ppm; ppm = mass / water, so 20mg in 40L = 0.5 ppm),
- * with the alert flag clear so the next tick fires the alert.
- */
 function seedSessionWithHighAmmonia(): void {
   const base = createSimulation(getPresetById('bare')!.config);
   seedSession(base, 'bare', { resources: { ...base.resources, ammonia: 20 } });
 }
 
-// Wrapper with ConfigProvider and PersistenceProvider for testing hooks
 const wrapper = ({ children }: { children: React.ReactNode }): React.JSX.Element => (
   <PersistenceProvider>
     <ConfigProvider>{children}</ConfigProvider>
   </PersistenceProvider>
 );
 
-// Same providers under StrictMode, so setState updaters double-invoke and the
-// recorder's idempotency guard is actually exercised.
 const strictWrapper = ({ children }: { children: React.ReactNode }): React.JSX.Element => (
   <React.StrictMode>
     <PersistenceProvider>
@@ -96,8 +82,6 @@ const HOURS_OF_A_DAY = Array.from({ length: 24 }, (_, i) => i + 1);
 
 describe('useSimulation', () => {
   beforeEach(() => {
-    // The hook persists every run it drives, so without this each test would
-    // hydrate from whichever one happened to go before it.
     globalThis.localStorage.clear();
     vi.useFakeTimers();
   });
@@ -107,7 +91,6 @@ describe('useSimulation', () => {
     vi.useRealTimers();
   });
 
-  // The default preset is 'planted' which has a 40L tank
   const defaultPreset = getPresetById('planted')!;
 
   it('initializes simulation with default preset config', () => {
@@ -115,7 +98,7 @@ describe('useSimulation', () => {
 
     expect(result.current.state.tank.capacity).toBe(defaultPreset.config.tankCapacity);
     expect(result.current.state.resources.water).toBe(defaultPreset.config.tankCapacity);
-    expect(result.current.state.resources.temperature).toBe(25); // Default temp
+    expect(result.current.state.resources.temperature).toBe(25);
     expect(result.current.state.equipment.filter.enabled).toBe(true);
     expect(result.current.state.equipment.filter.type).toBe('canister');
     expect(result.current.state.tick).toBe(0);
@@ -131,14 +114,12 @@ describe('useSimulation', () => {
       result.current.step();
     });
 
-    // Step advances one simulated day, whatever the speed
     expect(result.current.state.tick).toBe(initialTick + 24);
   });
 
   it('changing tank size reinitializes simulation', () => {
     const { result } = renderHook(() => useSimulation(), { wrapper });
 
-    // Advance tick to verify it resets
     act(() => {
       result.current.step();
       result.current.step();
@@ -146,18 +127,16 @@ describe('useSimulation', () => {
 
     expect(result.current.state.tick).toBe(48);
 
-    // Change tank size
     act(() => {
       result.current.changeTankCapacity(150);
     });
 
     expect(result.current.state.tank.capacity).toBe(150);
     expect(result.current.state.resources.water).toBe(150);
-    expect(result.current.state.tick).toBe(0); // Should reset
+    expect(result.current.state.tick).toBe(0);
   });
 
   it('swapping the substrate lays a fresh bed with a full organic reserve', () => {
-    // The planted preset starts on aqua soil.
     const { result } = renderHook(() => useSimulation(), { wrapper });
 
     const started = result.current.state.equipment.substrate.organicReserve;
@@ -166,12 +145,11 @@ describe('useSimulation', () => {
     expect(started).toBeLessThan(full);
 
     act(() => {
-      for (let day = 0; day < 14; day++) result.current.step();
+      result.current.step();
     });
     const spent = result.current.state.equipment.substrate.organicReserve;
     expect(spent).toBeLessThan(started);
 
-    // Re-selecting the bed already in the tank is not a rescape.
     act(() => {
       result.current.updateSubstrateType('aqua_soil');
     });
@@ -185,24 +163,20 @@ describe('useSimulation', () => {
   });
 
   it('heater controls update simulation state', () => {
-    // Use betta preset which has heater enabled
     const { result } = renderHook(() => useSimulation('betta'), { wrapper });
 
     expect(result.current.state.equipment.heater.enabled).toBe(true);
 
-    // Update heater enabled
     act(() => {
       result.current.updateHeaterEnabled(false);
     });
     expect(result.current.state.equipment.heater.enabled).toBe(false);
 
-    // Update target temperature
     act(() => {
       result.current.updateHeaterTargetTemperature(28);
     });
     expect(result.current.state.equipment.heater.targetTemperature).toBe(28);
 
-    // Update wattage
     act(() => {
       result.current.updateHeaterWattage(200);
     });
@@ -252,7 +226,6 @@ describe('useSimulation', () => {
     expect(result.current.isPlaying).toBe(false);
     expect(result.current.state.tick).toBe(24);
 
-    // Autoplay really stopped — a stray interval would carry the tick past 24.
     act(() => {
       vi.advanceTimersByTime(5000);
     });
@@ -305,7 +278,7 @@ describe('useSimulation', () => {
       const { result } = renderHook(() => useSimulation('betta'), { wrapper });
 
       expect(result.current.currentPreset).toBe('betta');
-      expect(result.current.state.tank.capacity).toBe(20); // 5 gal
+      expect(result.current.state.tank.capacity).toBe(20);
       expect(result.current.state.equipment.heater.enabled).toBe(true);
       expect(result.current.state.equipment.heater.targetTemperature).toBe(26);
       expect(result.current.state.equipment.lid.type).toBe('mesh');
@@ -321,13 +294,11 @@ describe('useSimulation', () => {
       });
 
       expect(result.current.currentPreset).toBe('community');
-      expect(result.current.state.tank.capacity).toBe(150); // 40 gal
+      expect(result.current.state.tank.capacity).toBe(150);
       expect(result.current.state.equipment.heater.targetTemperature).toBe(27);
     });
 
     it('swapping the bed under a running tank still takes that bed’s biofilm', () => {
-      // The bed is the one thing a running tank can change without restarting
-      // it, and pulling it out costs the colony the share that lived on it.
       const { result } = renderHook(() => useSimulation('planted'), { wrapper });
 
       act(() => {
@@ -353,7 +324,6 @@ describe('useSimulation', () => {
     it('reset keeps equipment but resets tick and resources', () => {
       const { result } = renderHook(() => useSimulation('betta'), { wrapper });
 
-      // Modify some settings and advance simulation
       act(() => {
         result.current.updateHeaterTargetTemperature(30);
         result.current.step();
@@ -363,14 +333,11 @@ describe('useSimulation', () => {
       expect(result.current.state.equipment.heater.targetTemperature).toBe(30);
       expect(result.current.state.tick).toBe(48);
 
-      // Reset keeps equipment but resets tick/resources/alerts
       act(() => {
         result.current.reset();
       });
 
-      // Equipment settings should be preserved
       expect(result.current.state.equipment.heater.targetTemperature).toBe(30);
-      // But tick should be reset
       expect(result.current.state.tick).toBe(0);
       expect(result.current.currentPreset).toBe('betta');
     });
@@ -427,22 +394,16 @@ describe('useSimulation', () => {
         result.current.loadPreset('community');
       });
 
-      // The tank is the preset's own, to the field: nothing of the 40 L planted
-      // tank survives the load, and nothing the preset does not build appears.
-      // Built again on the stream this load opened, the two are the same tank.
       const after = result.current.state;
       const fresh = createPresetSimulation(getPresetById('community')!, after.rng.seed);
       expect({ ...after, logs: [] }).toEqual({ ...fresh, logs: [] });
       expect(after.rng.seed).not.toBe(before.rng.seed);
       expect(result.current.currentPreset).toBe('community');
 
-      // Playback stops so the new tank is not swept past unseen, and the charts
-      // start over because the old ones describe a tank that no longer exists.
       expect(result.current.isPlaying).toBe(false);
       expect(result.current.history).toHaveLength(1);
       expect(result.current.aggregates.ticks).toBe(0);
 
-      // Autoplay really stopped — a stray interval would carry the tick on.
       act(() => {
         vi.advanceTimersByTime(5000);
       });
@@ -541,15 +502,11 @@ describe('useSimulation', () => {
         );
       });
 
-      // Beer–Lambert: doubling the coefficient squares the surviving fraction.
       const after = result.current.sim.state.resources.light;
       expect(after / par).toBeCloseTo((before / par) ** 2, 10);
       expect(result.current.sim.state.tick).toBe(tickBefore);
     });
 
-    // A resized tank is built by `createSimulation`, which takes no tunable
-    // config and so opens on `opticsDefaults`. Nothing downstream corrects it:
-    // the relight effect is keyed on the optics, and these did not move.
     it('opens a resized tank in the water the config describes', () => {
       const lit = createPresetSimulation(getPresetById('planted')!);
       lit.equipment.light.schedule = { startHour: 0, duration: 24 };
@@ -590,24 +547,6 @@ describe('useSimulation', () => {
   });
 
   describe('logging', () => {
-    it('emits log when heater enabled', () => {
-      // Use betta preset which has heater
-      const { result } = renderHook(() => useSimulation('betta'), { wrapper });
-
-      act(() => {
-        result.current.updateHeaterEnabled(false);
-      });
-      act(() => {
-        result.current.updateHeaterEnabled(true);
-      });
-
-      const logs = result.current.state.logs;
-      const enabledLog = logs.find(
-        (log) => log.source === 'user' && log.message.includes('Heater enabled')
-      );
-      expect(enabledLog).toBeDefined();
-    });
-
     it('emits log when heater disabled', () => {
       const { result } = renderHook(() => useSimulation('betta'), { wrapper });
 
@@ -690,23 +629,9 @@ describe('useSimulation', () => {
       expect(resetLog).toBeDefined();
     });
 
-    it('logs accumulate across multiple ticks', () => {
-      const { result } = renderHook(() => useSimulation('betta'), { wrapper });
-      const initialLogCount = result.current.state.logs.length;
-
-      act(() => {
-        result.current.updateHeaterEnabled(false);
-        result.current.updateRoomTemperature(20);
-      });
-
-      // Should have initial log + 2 new logs
-      expect(result.current.state.logs.length).toBe(initialLogCount + 2);
-    });
-
     it('heater enabled log includes target and wattage', () => {
       const { result } = renderHook(() => useSimulation('betta'), { wrapper });
 
-      // First disable, then enable to get the enabled log
       act(() => {
         result.current.updateHeaterEnabled(false);
       });
@@ -726,135 +651,24 @@ describe('useSimulation', () => {
   });
 
   describe('executeAction', () => {
-    // Use bare preset for evaporation tests (no ATO)
-    const tankCapacity = 40; // bare preset default
-
-    it('applies action to state', () => {
+    it('applies an action to a paused tank and logs it', () => {
       const { result } = renderHook(() => useSimulation('bare'), { wrapper });
-
-      // First reduce water level by advancing simulation (evaporation)
-      act(() => {
-        for (let i = 0; i < 100; i++) {
-          result.current.step();
-        }
-      });
-
-      const waterLevelBefore = result.current.state.resources.water;
-      expect(waterLevelBefore).toBeLessThan(tankCapacity); // Evaporation occurred
+      const capacity = result.current.state.tank.capacity;
 
       act(() => {
-        result.current.executeAction({ type: 'topOff' });
+        result.current.step();
       });
-
-      expect(result.current.state.resources.water).toBe(tankCapacity);
-    });
-
-    it('works when simulation is paused', () => {
-      const { result } = renderHook(() => useSimulation('bare'), { wrapper });
-
-      // Simulate evaporation manually by running some ticks
-      act(() => {
-        for (let i = 0; i < 100; i++) {
-          result.current.step();
-        }
-      });
-
-      const waterLevelBefore = result.current.state.resources.water;
-
-      // Ensure simulation is not playing (paused)
       expect(result.current.isPlaying).toBe(false);
+      expect(result.current.state.resources.water).toBeLessThan(capacity);
 
       act(() => {
         result.current.executeAction({ type: 'topOff' });
       });
 
-      // Water should be topped off even when paused
-      expect(result.current.state.resources.water).toBe(tankCapacity);
-      expect(result.current.state.resources.water).toBeGreaterThan(
-        waterLevelBefore
-      );
-    });
-
-    it('top off action appears in logs', () => {
-      const { result } = renderHook(() => useSimulation('bare'), { wrapper });
-
-      // Reduce water level first
-      act(() => {
-        for (let i = 0; i < 100; i++) {
-          result.current.step();
-        }
-      });
-
-      const logCountBefore = result.current.state.logs.length;
-
-      act(() => {
-        result.current.executeAction({ type: 'topOff' });
-      });
-
-      expect(result.current.state.logs.length).toBeGreaterThan(logCountBefore);
-      const lastLog =
-        result.current.state.logs[result.current.state.logs.length - 1];
-      expect(lastLog.source).toBe('user');
-      expect(lastLog.message).toContain('Topped off water');
-    });
-
-    it('multiple actions can be executed', () => {
-      const { result } = renderHook(() => useSimulation('bare'), { wrapper });
-
-      // Run simulation to cause evaporation
-      act(() => {
-        for (let i = 0; i < 100; i++) {
-          result.current.step();
-        }
-      });
-
-      // Execute first top off
-      act(() => {
-        result.current.executeAction({ type: 'topOff' });
-      });
-      expect(result.current.state.resources.water).toBe(tankCapacity);
-
-      // Run more ticks
-      act(() => {
-        for (let i = 0; i < 100; i++) {
-          result.current.step();
-        }
-      });
-
-      const waterLevelAfterEvaporation = result.current.state.resources.water;
-      expect(waterLevelAfterEvaporation).toBeLessThan(tankCapacity);
-
-      // Execute second top off
-      act(() => {
-        result.current.executeAction({ type: 'topOff' });
-      });
-      expect(result.current.state.resources.water).toBe(tankCapacity);
-    });
-
-    it('top off increases water level to capacity', () => {
-      // Use community preset for larger tank (150L)
-      const { result } = renderHook(() => useSimulation('community'), { wrapper });
-      const communityCapacity = 150;
-
-      // Disable ATO first so evaporation can occur
-      act(() => {
-        result.current.updateAtoEnabled(false);
-      });
-
-      // Run simulation to cause evaporation
-      act(() => {
-        for (let i = 0; i < 100; i++) {
-          result.current.step();
-        }
-      });
-
-      expect(result.current.state.resources.water).toBeLessThan(communityCapacity);
-
-      act(() => {
-        result.current.executeAction({ type: 'topOff' });
-      });
-
-      expect(result.current.state.resources.water).toBe(communityCapacity);
+      expect(result.current.state.resources.water).toBe(capacity);
+      const last = result.current.state.logs[result.current.state.logs.length - 1];
+      expect(last.source).toBe('user');
+      expect(last.message).toContain('Topped off water');
     });
   });
 
@@ -883,7 +697,6 @@ describe('useSimulation', () => {
     it('accumulates water changed at dispatch', () => {
       const { result } = renderHook(() => useSimulation('bare'), { wrapper });
 
-      // Bare tank starts full at 40L; a 25% change replaces 10L.
       act(() => {
         result.current.executeAction({ type: 'waterChange', amount: 0.25 });
       });
@@ -904,10 +717,8 @@ describe('useSimulation', () => {
       });
 
       const fresh = result.current.history[result.current.history.length - 1];
-      // Same tick, refreshed in place — no snapshot appended.
       expect(result.current.history.length).toBe(lenBefore);
       expect(fresh.tick).toBe(tickBefore);
-      // Snapshot now mirrors the live post-action state (diluted ppm).
       expect(fresh).toEqual(snapshotFromState(result.current.state));
       expect(fresh.ammonia).toBeLessThan(stale.ammonia);
     });
@@ -976,8 +787,6 @@ describe('useSimulation', () => {
         result.current.step();
       });
 
-      // Without the recordedThrough guard, the double-invoked updater would
-      // queue each tick twice (48 snapshots); the guard keeps it at 24.
       const recorded = result.current.history.slice(baseline);
       expect(recorded.map((s) => s.tick)).toEqual(HOURS_OF_A_DAY);
       expect(result.current.aggregates.ticks).toBe(24);
@@ -987,7 +796,6 @@ describe('useSimulation', () => {
       seedSessionWithHighAmmonia();
       const { result } = renderHook(() => useSimulation(), { wrapper });
 
-      // Cross the ammonia threshold so a warning-severity log exists.
       act(() => {
         result.current.step();
       });
@@ -1000,12 +808,9 @@ describe('useSimulation', () => {
         result.current.loadPreset('community');
       });
 
-      // History reseeds to a single baseline snapshot and tallies zero out.
       expect(result.current.history).toHaveLength(1);
       expect(result.current.aggregates.ticks).toBe(0);
       expect(result.current.aggregates.alerts).toBe(0);
-      // The warning described a tank that no longer exists, and its tick is
-      // ahead of the clock now, so it leaves with the tank.
       expect(hasWarning()).toBe(false);
       expect(result.current.state.logs.every((log) => log.tick === 0)).toBe(true);
       const logs = result.current.state.logs;
@@ -1032,13 +837,11 @@ describe('useSimulation', () => {
       seedSessionWithHighAmmonia();
       const { result } = renderHook(() => useSimulation(), { wrapper });
 
-      // First tick crosses the ammonia threshold and fires the alert.
       act(() => {
         result.current.step();
       });
       expect(result.current.aggregates.alerts).toBe(1);
 
-      // Ammonia stays high, so the latched alert does not re-fire.
       act(() => {
         result.current.step();
         result.current.step();

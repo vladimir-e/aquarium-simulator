@@ -107,7 +107,6 @@ export const nitrogenCycleDefaults: NitrogenCycleConfig = {
   // other, one for one, so the value below is the middle of that window — the
   // furthest either edge can be held off. It leaves 0.047 ppm under the peak
   // ceiling and 0.208 d over the cycled-day floor.
-  // `tests/inoculum-window.test.ts` re-runs the sweep.
   inoculumPerLiter: 0.6385,
   // Growth is per-capita at *full* utilization, so each rate is read straight
   // off a saturated doubling time: rate = ln2 / hours. AOB double in 15–24 h

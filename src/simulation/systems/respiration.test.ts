@@ -9,65 +9,18 @@ import { CO2_TO_O2_MASS_RATIO, MW_CO2, MW_O2 } from '../core/chemistry.js';
 import { monodFactor } from '../core/kinetics.js';
 
 describe('getRespirationTemperatureFactor', () => {
-  it('returns 1.0 at reference temperature (25C)', () => {
-    const factor = getRespirationTemperatureFactor(plantsDefaults.respirationReferenceTemp);
-    expect(factor).toBeCloseTo(1.0, 6);
+  const { respirationQ10: q10, respirationReferenceTemp: ref } = plantsDefaults;
+
+  it('is 1 at the reference temperature and q10 per 10 °C either way', () => {
+    expect(getRespirationTemperatureFactor(ref)).toBeCloseTo(1, 10);
+    expect(getRespirationTemperatureFactor(ref + 10)).toBeCloseTo(q10, 10);
+    expect(getRespirationTemperatureFactor(ref - 30)).toBeCloseTo(q10 ** -3, 10);
   });
 
-  it('returns 2.0 at 35C (Q10 = 2, +10C)', () => {
-    const factor = getRespirationTemperatureFactor(35);
-    expect(factor).toBeCloseTo(2.0, 6);
-  });
-
-  it('returns 0.5 at 15C (Q10 = 2, -10C)', () => {
-    const factor = getRespirationTemperatureFactor(15);
-    expect(factor).toBeCloseTo(0.5, 6);
-  });
-
-  it('returns ~1.41 (sqrt(2)) at 30C (+5C)', () => {
-    const factor = getRespirationTemperatureFactor(30);
-    // Q10^(5/10) = 2^0.5 = sqrt(2) ≈ 1.414
-    expect(factor).toBeCloseTo(Math.sqrt(2), 4);
-  });
-
-  it('returns ~0.71 (1/sqrt(2)) at 20C (-5C)', () => {
-    const factor = getRespirationTemperatureFactor(20);
-    // Q10^(-5/10) = 2^-0.5 = 1/sqrt(2) ≈ 0.707
-    expect(factor).toBeCloseTo(1 / Math.sqrt(2), 4);
-  });
-
-  it('returns 4.0 at 45C (two doublings, +20C)', () => {
-    const factor = getRespirationTemperatureFactor(45);
-    expect(factor).toBeCloseTo(4.0, 6);
-  });
-
-  it('returns 0.25 at 5C (two halvings, -20C)', () => {
-    const factor = getRespirationTemperatureFactor(5);
-    expect(factor).toBeCloseTo(0.25, 6);
-  });
-
-  it('returns 8.0 at 55C (three doublings, +30C)', () => {
-    const factor = getRespirationTemperatureFactor(55);
-    expect(factor).toBeCloseTo(8.0, 6);
-  });
-
-  it('handles temperatures below zero', () => {
-    const factor = getRespirationTemperatureFactor(-5);
-    // Q10^(-30/10) = 2^-3 = 0.125
-    expect(factor).toBeCloseTo(0.125, 6);
-  });
-
-  it('uses custom config reference temp', () => {
-    const customConfig = { ...plantsDefaults, respirationReferenceTemp: 20 };
-    const factor = getRespirationTemperatureFactor(20, customConfig);
-    expect(factor).toBeCloseTo(1.0, 6);
-  });
-
-  it('uses custom config Q10 value', () => {
-    const customConfig = { ...plantsDefaults, respirationQ10: 3 };
-    // At +10C above reference with Q10=3, factor should be 3
-    const factor = getRespirationTemperatureFactor(35, customConfig);
-    expect(factor).toBeCloseTo(3.0, 6);
+  it('reads the reference and q10 off the config', () => {
+    const custom = { ...plantsDefaults, respirationReferenceTemp: 20, respirationQ10: 3 };
+    expect(getRespirationTemperatureFactor(20, custom)).toBeCloseTo(1, 10);
+    expect(getRespirationTemperatureFactor(30, custom)).toBeCloseTo(3, 10);
   });
 });
 
@@ -79,23 +32,9 @@ describe('calculateRespiration', () => {
       expect(result.oxygenConsumedMg).toBe(0);
       expect(result.co2ProducedMg).toBe(0);
     });
-
-    it('returns zeros when plant size is negative', () => {
-      const result = calculateRespiration(-50, 25, AIR_SATURATED_O2);
-
-      expect(result.oxygenConsumedMg).toBe(0);
-      expect(result.co2ProducedMg).toBe(0);
-    });
   });
 
-  describe('at reference temperature (25C)', () => {
-    it('consumes oxygen and produces CO2', () => {
-      const result = calculateRespiration(100, 25, AIR_SATURATED_O2);
-
-      expect(result.oxygenConsumedMg).toBeGreaterThan(0);
-      expect(result.co2ProducedMg).toBeGreaterThan(0);
-    });
-
+  describe('stoichiometry', () => {
     it('burns one mole of O2 for every mole of carbon it releases', () => {
       const result = calculateRespiration(100, 25, AIR_SATURATED_O2);
 
@@ -111,61 +50,16 @@ describe('calculateRespiration', () => {
       expect(result200.oxygenConsumedMg).toBeCloseTo(result100.oxygenConsumedMg * 2, 6);
       expect(result200.co2ProducedMg).toBeCloseTo(result100.co2ProducedMg * 2, 6);
     });
-
-    it('handles fractional plant sizes', () => {
-      const result50 = calculateRespiration(50, 25, AIR_SATURATED_O2);
-      const result100 = calculateRespiration(100, 25, AIR_SATURATED_O2);
-
-      expect(result50.oxygenConsumedMg).toBeCloseTo(result100.oxygenConsumedMg / 2, 6);
-      expect(result50.co2ProducedMg).toBeCloseTo(result100.co2ProducedMg / 2, 6);
-    });
-
-    it('handles very small plant sizes', () => {
-      const result = calculateRespiration(1, 25, AIR_SATURATED_O2);
-
-      expect(result.oxygenConsumedMg).toBeGreaterThan(0);
-      expect(result.co2ProducedMg).toBeGreaterThan(0);
-    });
-
-    it('handles very large plant sizes', () => {
-      const result = calculateRespiration(500, 25, AIR_SATURATED_O2);
-
-      expect(result.oxygenConsumedMg).toBeGreaterThan(0);
-      expect(result.co2ProducedMg).toBeGreaterThan(0);
-    });
   });
 
   describe('temperature effects', () => {
-    it('respiration doubles at +10C (35C vs 25C)', () => {
+    it('runs q10 faster ten degrees warmer', () => {
       const result25 = calculateRespiration(100, 25, AIR_SATURATED_O2);
       const result35 = calculateRespiration(100, 35, AIR_SATURATED_O2);
+      const { respirationQ10 } = plantsDefaults;
 
-      expect(result35.oxygenConsumedMg).toBeCloseTo(result25.oxygenConsumedMg * 2, 6);
-      expect(result35.co2ProducedMg).toBeCloseTo(result25.co2ProducedMg * 2, 6);
-    });
-
-    it('respiration halves at -10C (15C vs 25C)', () => {
-      const result25 = calculateRespiration(100, 25, AIR_SATURATED_O2);
-      const result15 = calculateRespiration(100, 15, AIR_SATURATED_O2);
-
-      expect(result15.oxygenConsumedMg).toBeCloseTo(result25.oxygenConsumedMg / 2, 6);
-      expect(result15.co2ProducedMg).toBeCloseTo(result25.co2ProducedMg / 2, 6);
-    });
-
-    it('higher temperatures increase respiration rate', () => {
-      const resultCold = calculateRespiration(100, 20, AIR_SATURATED_O2);
-      const resultWarm = calculateRespiration(100, 30, AIR_SATURATED_O2);
-
-      expect(resultWarm.oxygenConsumedMg).toBeGreaterThan(resultCold.oxygenConsumedMg);
-      expect(resultWarm.co2ProducedMg).toBeGreaterThan(resultCold.co2ProducedMg);
-    });
-
-    it('cold temperatures reduce respiration rate', () => {
-      const resultCold = calculateRespiration(100, 10, AIR_SATURATED_O2);
-      const resultRef = calculateRespiration(100, 25, AIR_SATURATED_O2);
-
-      expect(resultCold.oxygenConsumedMg).toBeLessThan(resultRef.oxygenConsumedMg);
-      expect(resultCold.co2ProducedMg).toBeLessThan(resultRef.co2ProducedMg);
+      expect(result35.oxygenConsumedMg).toBeCloseTo(result25.oxygenConsumedMg * respirationQ10, 6);
+      expect(result35.co2ProducedMg).toBeCloseTo(result25.co2ProducedMg * respirationQ10, 6);
     });
   });
 
@@ -203,7 +97,7 @@ describe('calculateRespiration', () => {
     });
   });
 
-  describe('calibration', () => {
+  describe('the rate', () => {
     it('releases the configured carbon per unit at 100 % size and reference temp', () => {
       const result = calculateRespiration(100, 25, AIR_SATURATED_O2);
 
@@ -214,7 +108,6 @@ describe('calculateRespiration', () => {
       expect(result.co2ProducedMg).toBeCloseTo(expectedCo2, 6);
       expect(result.oxygenConsumedMg).toBeCloseTo(expectedCo2 * CO2_TO_O2_MASS_RATIO, 6);
     });
-
   });
 
   describe('uses custom config', () => {

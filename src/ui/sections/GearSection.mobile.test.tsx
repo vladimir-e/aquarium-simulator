@@ -12,7 +12,6 @@ import { stubSim } from '../test/stubSim';
 
 let media: MatchMediaStub;
 
-// Phone: the rack keeps its switch, its name and its setting, and drops the rest.
 beforeEach(() => {
   media = stubMatchMedia(viewport(390));
 });
@@ -44,7 +43,6 @@ function renderGear(path = '/gear'): void {
   );
 }
 
-/** The eight fittings, in rack order. */
 const DEVICES = [
   'Filter',
   'Heater',
@@ -64,7 +62,6 @@ describe('GearSection (phone)', () => {
 
     for (const name of DEVICES) {
       const row = within(screen.getByRole('group', { name }));
-      // Its switch, its name and the sentence the whole row is a link to.
       expect(row.getByRole('switch', { name: `${name} power` })).toBeTruthy();
       expect(row.getByText(name)).toBeTruthy();
       expect(row.getByRole('link', { name: new RegExp(`^${name} — .`) })).toBeTruthy();

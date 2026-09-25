@@ -13,7 +13,6 @@ import { stubMatchMedia, viewport, type MatchMediaStub } from './test/matchMedia
 
 let media: MatchMediaStub;
 
-// iPad landscape: the rail stands beside the stage rather than folding to tabs.
 beforeEach(() => {
   media = stubMatchMedia(viewport(1180));
 });
@@ -24,7 +23,6 @@ afterEach(() => {
   cleanup();
 });
 
-/** Drives the router's history the way the browser's back gesture does. */
 function BackButton(): React.JSX.Element {
   const navigate = useNavigate();
   return (
@@ -145,11 +143,6 @@ describe('one drawer on the stage', () => {
   });
 });
 
-/**
- * 700 px — between Tailwind's `sm` and `md`, the band a second breakpoint would
- * hide in. The rail cannot stand here, so the frame is compact; every module
- * has to be compact with it, or the stage lays out for a width it does not have.
- */
 describe('App at 700 px', () => {
   beforeEach(() => {
     media.set(viewport(700));

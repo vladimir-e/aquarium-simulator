@@ -112,7 +112,7 @@ describe('rosterTables', () => {
   it('counts down to hatch from the current tick, not from when the clutch was laid', () => {
     const clutch: Clutch = {
       id: 'clutch_x_7',
-      species: 'angelfish', // hatchTime 60
+      species: 'angelfish',
       eggCount: 24,
       laidTick: 1602,
     };
@@ -178,7 +178,6 @@ describe('rosterTables', () => {
       state.tank.capacity,
       DEFAULT_CONFIG.livestock
     );
-    // The case the two surfaces used to disagree on: condition full, bank paying.
     expect(breakdown.drained).toBeGreaterThan(0);
 
     const row = tables(state, 'species-neon_tetra').fish[1] as IndividualRosterRow;

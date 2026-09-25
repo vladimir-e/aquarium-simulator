@@ -44,8 +44,6 @@ describe('monodFactor', () => {
     expect(monodFactor(2, 1.1)).toBeLessThan(monodFactor(2, 0.3));
   });
 
-  // A process with no affinity term is one nothing limits, which is what the
-  // engine's rates meant before there was a factor at all.
   it('never limits anything at a half-saturation of nothing', () => {
     expect(monodFactor(0.001, 0)).toBe(1);
   });
@@ -89,12 +87,9 @@ describe('lightSaturationFactor', () => {
   });
 
   it('answers more light for longer the higher a species saturates', () => {
-    // A sun species is still climbing where a shade species has finished.
     expect(lightSaturationFactor(60, 60)).toBeLessThan(lightSaturationFactor(60, 16));
   });
 
-  // A species that saturates at no light at all is one nothing holds back —
-  // the counterfactual that takes the curve out of a run.
   it('never limits anything at a saturating irradiance of nothing', () => {
     expect(lightSaturationFactor(0.001, 0)).toBe(1);
     expect(lightSaturationFactor(200, -5)).toBe(1);

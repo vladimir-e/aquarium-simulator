@@ -35,7 +35,6 @@ function axis(): HTMLElement {
   return screen.getByRole('slider', { name: 'History axis' });
 }
 
-/** One pointer gesture across a surface one pixel wide per tick of the run. */
 function drag(surface: HTMLElement, ...xs: number[]): void {
   vi.spyOn(surface, 'getBoundingClientRect').mockReturnValue({
     left: 0,

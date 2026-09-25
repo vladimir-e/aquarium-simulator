@@ -20,7 +20,6 @@ afterEach(() => {
   globalThis.localStorage.clear();
 });
 
-/** The badge the top bar carries, read off the same config the drawer edits. */
 function Badge(): React.JSX.Element {
   const { config } = useConfig();
   return <output data-testid="badge">{countModified(config)}</output>;
@@ -98,11 +97,9 @@ describe('TunablesDrawer', () => {
     const optics = expand('Water optics');
     const input = within(optics).getByLabelText(/Water Attenuation/);
 
-    // Out of range, the value holds the field and never reaches the config.
     fireEvent.change(input, { target: { value: '-100' } });
     expect(badge()).toBe('0');
 
-    // Blur settles it on the bound rather than clamping mid-keystroke.
     fireEvent.blur(input);
     const { min } = configRange('optics.waterAttenuationPerCm')!;
     expect((input as globalThis.HTMLInputElement).value).toBe(String(min));
@@ -156,7 +153,6 @@ describe('TunablesDrawer', () => {
   });
 });
 
-/** A tank already running on one tuned constant before the drawer mounts. */
 function Tuned(): React.JSX.Element | null {
   const { setTunable } = useConfig();
   const [tuned, setTuned] = React.useState(false);

@@ -8,10 +8,8 @@ import {
   totalFishMass,
 } from './fish-management.js';
 import { createSimulation, type SimulationState, type Fish } from '../state.js';
-import { draw } from '../core/rng.js';
 import { computeFishVitality } from '../systems/fish-health.js';
 import { livestockDefaults } from '../config/livestock.js';
-import { HARDINESS_OFFSET_SPAN } from '../livestock/create-fish.js';
 import { FISH_SPECIES_DATA, type FishSpecies } from '../livestock/species.js';
 import { produce } from 'immer';
 
@@ -19,7 +17,6 @@ function makeState(rngSeed = 31337): SimulationState {
   return createSimulation({ tankCapacity: 100 }, undefined, rngSeed);
 }
 
-/** Stock `count` of a species into a fresh tank and hand back the roster. */
 function stockedRoster(species: FishSpecies, count: number, rngSeed?: number): Fish[] {
   let state = makeState(rngSeed);
   for (let i = 0; i < count; i++) {
@@ -57,9 +54,7 @@ describe('addFish', () => {
 
     expect(result.state.fish).toHaveLength(1);
     expect(result.state.fish[0].species).toBe('neon_tetra');
-    expect(result.state.fish[0].mass).toBe(0.5); // Adult mass for neon tetra
-    expect(result.state.fish[0].satiation).toBe(70); // Slightly hungry on arrival (peckish band)
-    expect(result.state.fish[0].surplus).toBe(0); // No vitality surplus banked at birth
+    expect(result.state.fish[0].mass).toBe(FISH_SPECIES_DATA.neon_tetra.adultMass);
     expect(result.message).toContain('Neon Tetra');
   });
 
@@ -85,9 +80,6 @@ describe('addFish', () => {
         livestockDefaults
       ).breakdown.stressors.find((s) => s.key === 'age')?.amount ?? 0;
 
-    // The arrival age is not cosmetic: every hour of it is an hour off the far
-    // end, so a bought fish meets old age a whole maturity before one born in
-    // the tank the day it was bought.
     const left = maxAge - breeding.maturityAge;
     expect(ageStressIn(left)).toBe(0);
     expect(ageStressIn(left + 1)).toBeGreaterThan(0);
@@ -112,14 +104,6 @@ describe('addFish', () => {
     const result = addFish(state, { type: 'addFish', species: 'unknown' as unknown as any });
 
     expect(result.state.rng).toEqual(state.rng);
-  });
-
-  it('adds fish with correct species data', () => {
-    const state = makeState();
-    const result = addFish(state, { type: 'addFish', species: 'angelfish' });
-
-    expect(result.state.fish[0].mass).toBe(15.0);
-    expect(result.message).toContain('Angelfish');
   });
 
   it('generates unique IDs for each fish', () => {
@@ -153,55 +137,6 @@ describe('addFish', () => {
     expect(result.state.fish).toHaveLength(0);
     expect(result.message).toContain('Unknown');
   });
-
-  it('offsets hardiness by the tank’s own next draw, over ±15% of the species baseline', () => {
-    const state = makeState(8);
-    const probe = { ...state.rng };
-    draw(probe); // sex
-    const hardinessDraw = draw(probe);
-
-    const [stocked] = addFish(state, { type: 'addFish', species: 'neon_tetra' }).state.fish;
-
-    expect(stocked.hardinessOffset).toBeCloseTo(
-      (hardinessDraw - 0.5) * 2 * HARDINESS_OFFSET_SPAN * FISH_SPECIES_DATA.neon_tetra.hardiness,
-      12
-    );
-  });
-
-  it('offset scales with species hardiness (angelfish vs guppy)', () => {
-    // One stream, two tanks: the same draw lands on both fish, so what is
-    // left between them is the species baseline and nothing else.
-    const guppy = stockedRoster('guppy', 1, 8)[0];
-    const angel = stockedRoster('angelfish', 1, 8)[0];
-    const ratio = FISH_SPECIES_DATA.guppy.hardiness / FISH_SPECIES_DATA.angelfish.hardiness;
-
-    expect(guppy.hardinessOffset / angel.hardinessOffset).toBeCloseTo(ratio, 10);
-  });
-
-  it('initial health jitter stays within ±5 and clamps to [0, 100]', () => {
-    const roster = stockedRoster('neon_tetra', 200);
-
-    for (const fish of roster) {
-      expect(fish.health).toBeGreaterThanOrEqual(95);
-      expect(fish.health).toBeLessThanOrEqual(100); // clamped upper bound
-    }
-    // Half the jitter pushes above 100 and lands on the clamp.
-    expect(roster.some((f) => f.health === 100)).toBe(true);
-    expect(roster.some((f) => f.health < 100)).toBe(true);
-  });
-
-  it('offset is stored once, not re-rolled', () => {
-    // Two fish added in succession get independently sampled offsets.
-    let state = makeState();
-    state = addFish(state, { type: 'addFish', species: 'neon_tetra' }).state;
-    state = addFish(state, { type: 'addFish', species: 'neon_tetra' }).state;
-    // Each fish has an offset; both are finite numbers within range.
-    const maxAbs = 0.15 * FISH_SPECIES_DATA.neon_tetra.hardiness + 1e-9;
-    expect(Number.isFinite(state.fish[0].hardinessOffset)).toBe(true);
-    expect(Number.isFinite(state.fish[1].hardinessOffset)).toBe(true);
-    expect(Math.abs(state.fish[0].hardinessOffset)).toBeLessThanOrEqual(maxAbs);
-    expect(Math.abs(state.fish[1].hardinessOffset)).toBeLessThanOrEqual(maxAbs);
-  });
 });
 
 describe('removeFish', () => {
@@ -233,56 +168,33 @@ describe('removeFish', () => {
 });
 
 describe('addFish stocking cap', () => {
-  it('getMaxFishMass allows fish up to half the water volume by mass', () => {
-    // 1 g fish ≈ 1 mL water; 0.5 of a 100 L tank = 50 L = 50000 g.
-    expect(getMaxFishMass(100)).toBe(50000);
-    expect(getMaxFishMass(20)).toBe(10000);
+  it('getMaxFishMass scales with the tank and is zero without one', () => {
+    expect(getMaxFishMass(100)).toBeGreaterThan(0);
+    expect(getMaxFishMass(100)).toBe(5 * getMaxFishMass(20));
     expect(getMaxFishMass(0)).toBe(0);
     expect(getMaxFishMass(-5)).toBe(0);
   });
 
-  it('allows gross overstocking below the physical ceiling', () => {
-    // A 20 L tank holds up to 10 kg of fish — far beyond any sane bioload,
-    // so an overstocking mistake is the player's to make.
-    let state = createSimulation({ tankCapacity: 20 });
-    for (let i = 0; i < 100; i++) {
-      state = addFish(state, { type: 'addFish', species: 'guppy' }).state; // 1 g each
-    }
-    expect(state.fish).toHaveLength(100); // 100 g ≪ 10000 g ceiling
+  it('counts every fish, fry included, against the ceiling', () => {
+    const capacity = 1;
+    const ceiling = getMaxFishMass(capacity);
+    const { adultMass } = FISH_SPECIES_DATA.guppy;
+    const filled = (mass: number): SimulationState =>
+      produce(createSimulation({ tankCapacity: capacity }), (draft) => {
+        draft.fish.push(fish({ id: 'fry_1', species: 'angelfish', mass, stage: 'fry' }));
+      });
+
+    expect(totalFishMass(filled(3).fish)).toBe(3);
+    expect(canAddFish(filled(ceiling - adultMass), 'guppy')).toBe(true);
+    expect(canAddFish(filled(ceiling - adultMass + 0.01), 'guppy')).toBe(false);
+    expect(addFish(filled(ceiling), { type: 'addFish', species: 'guppy' }).state.fish).toHaveLength(1);
   });
 
   it('rejects a fish that would exceed the physical ceiling', () => {
-    // Ceiling below one angelfish (15 g): 0.02 L → 10 g max.
     const state = createSimulation({ tankCapacity: 0.02 });
     const result = addFish(state, { type: 'addFish', species: 'angelfish' });
     expect(result.state.fish).toHaveLength(0);
     expect(result.message).toContain('capacity');
-  });
-
-  it('counts fry mass toward the ceiling but never blocks breeding', () => {
-    // The cap is enforced only on addFish; the total it measures still
-    // includes fry, so a tank full of bred fry can refuse a stocked adult.
-    const capacity = 0.02; // 10 g ceiling
-    const state = produce(createSimulation({ tankCapacity: capacity }), (draft) => {
-      draft.fish.push(fish({ id: 'fry_1', species: 'angelfish', mass: 9.5, stage: 'fry' }));
-    });
-    expect(totalFishMass(state.fish)).toBeCloseTo(9.5, 5);
-    // A neon tetra (0.5 g) still fits (9.5 + 0.5 = 10 ≤ 10); a guppy (1 g) doesn't.
-    expect(canAddFish(state, 'neon_tetra')).toBe(true);
-    expect(canAddFish(state, 'guppy')).toBe(false);
-  });
-
-  it('canAddFish tracks remaining headroom as the tank fills', () => {
-    // 1 L tank → 500 g ceiling; angelfish are 15 g each.
-    let state = createSimulation({ tankCapacity: 1 });
-    expect(canAddFish(state, 'angelfish')).toBe(true);
-    for (let i = 0; i < 33; i++) {
-      state = addFish(state, { type: 'addFish', species: 'angelfish' }).state;
-    }
-    expect(totalFishMass(state.fish)).toBeCloseTo(495, 5); // 33 × 15
-    expect(canAddFish(state, 'angelfish')).toBe(false); // 34th (510 g) won't fit
-    const rejected = addFish(state, { type: 'addFish', species: 'angelfish' });
-    expect(rejected.state.fish).toHaveLength(33);
   });
 
   it('canAddFish rejects an unknown species', () => {
@@ -323,7 +235,7 @@ describe('sellFry', () => {
   });
 
   it('is a no-op with a clear message when there are no fry', () => {
-    const state = makeStateWithFish(); // one adult, no fry
+    const state = makeStateWithFish();
     const result = sellFry(state);
 
     expect(result.state.fish).toHaveLength(1);

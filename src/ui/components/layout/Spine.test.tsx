@@ -16,7 +16,6 @@ import { PERSISTENCE_VERSION, STORAGE_KEY } from '../../persistence/types.js';
 
 const TICKS = 72;
 
-/** NO₃ carries the tick, so a caption's value names the tick it was read at. */
 const history: RunSnapshot[] = Array.from({ length: TICKS + 1 }, (_, tick) =>
   snapshot(tick, {
     ammonia: tick / 1000,
@@ -82,7 +81,6 @@ function marks(kind: string): HTMLElement[] {
   return Array.from(globalThis.document.querySelectorAll(`[data-mark="${kind}"]`));
 }
 
-/** One pointer gesture across a surface one pixel wide per tick. */
 function drag(surface: HTMLElement, ...xs: number[]): void {
   vi.spyOn(surface, 'getBoundingClientRect').mockReturnValue({
     left: 0,
@@ -206,7 +204,6 @@ describe('the tracks', () => {
     fireEvent.click(handle());
 
     const charts = screen.getByRole('slider', { name: 'Timeline charts' });
-    // NO₃ is the tick number in this fixture, so the caption names the tick.
     expect(within(charts).getAllByText('24.0').length).toBeGreaterThan(0);
   });
 
@@ -251,7 +248,6 @@ describe('the tracks', () => {
         .map((img) => img.getAttribute('aria-label') ?? '');
 
     expect(drawn()).toEqual(TRACK_PAIRS[0].tracks.map((def) => def.title));
-    // The chips are a row above the scrub surface, not buttons inside a slider.
     expect(within(charts).queryByRole('button', { name: TRACK_PAIRS[1].label })).toBeNull();
 
     fireEvent.click(screen.getByRole('button', { name: TRACK_PAIRS[1].label }));

@@ -1,15 +1,3 @@
-/**
- * The arithmetic six systems convert through.
- *
- * The failure this module exists to prevent is a basis error, and it is quiet:
- * 2.819 mg of O2 per gram of *ammonia* and 3.43 per gram of *nitrogen* are one
- * reaction read two ways, so a system that takes one for the other is out by a
- * factor of 1.22 and every rate around it still looks plausible. Each figure
- * below is therefore stated the way the literature states it — per gram of N —
- * and derived from the per-compound constants the engine actually multiplies by,
- * so the two bases have to agree for the test to pass.
- */
-
 import { describe, it, expect } from 'vitest';
 import {
   MW_N,
@@ -27,7 +15,6 @@ import {
   O2_PER_NO2_OXIDIZED,
 } from './chemistry.js';
 
-/** What a mass of the named compound is carrying as elemental nitrogen. */
 const asNitrogen = (mass: number, molecularWeight: number): number =>
   (mass * MW_N) / molecularWeight;
 
@@ -72,8 +59,6 @@ describe('the oxygen nitrification pays, per gram of nitrogen', () => {
   });
 
   it('spends three quarters of it before the nitrite exists', () => {
-    // 1.5 moles of O2 on the first step against 0.5 on the second, which is
-    // the split `systems/nitrogen-cycle.ts` states in prose.
     const firstStep = O2_PER_NH3_OXIDIZED;
     const secondStep = NH3_TO_NO2_MASS_RATIO * O2_PER_NO2_OXIDIZED;
 

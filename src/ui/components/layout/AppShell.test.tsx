@@ -26,7 +26,6 @@ afterEach(() => {
   cleanup();
 });
 
-/** A module's own inspector, opened from a row that governs the drawer. */
 function Inspector(): React.JSX.Element {
   const [open, setOpen] = useState(false);
   const close = useCallback(() => setOpen(false), []);

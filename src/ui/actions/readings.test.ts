@@ -27,13 +27,6 @@ import {
 } from './verbs';
 import { previewRows, type PreviewRow } from './readings';
 
-/**
- * A tank parked where a broken preview would still look plausible: part full so
- * a top-off and a water change cannot be confused, nitrite already over the
- * line so its caveat has something to get wrong, a Betta pulling the tolerated
- * floor up to 24 °C that 18 °C tap will breach, and plants either side of the
- * middle trim rung.
- */
 function fixture(species: FishSpecies[] = ['neon_tetra', 'corydoras', 'betta']): SimulationState {
   let state = createSimulation({
     tankCapacity: 200,
@@ -63,7 +56,6 @@ function fixture(species: FishSpecies[] = ['neon_tetra', 'corydoras', 'betta']):
   return { ...state, plants: state.plants.map((plant, i) => ({ ...plant, size: sizes[i] })) };
 }
 
-/** The same tank on CO₂, its oxygen already under the engine's alert line. */
 function gassed(): SimulationState {
   const state = fixture();
   return { ...state, resources: { ...state.resources, co2: 28, oxygen: 3.2 } };
@@ -90,10 +82,8 @@ describe('preview readings', () => {
 
     const rows = detail(state, 'waterChange').preview;
 
-    // Dissolved mass leaves in proportion; the tank then refills to capacity.
     expect(row(rows, 'nitrite').after).toBe(((state.resources.nitrite * 0.75) / capacity).toFixed(3));
     expect(row(rows, 'nitrate').after).toBe(((state.resources.nitrate * 0.75) / capacity).toFixed(1));
-    // Temperature blends by heat capacity between what stayed and what came in.
     expect(row(rows, 'temperature').after).toBe(
       blendTemperature(25.4, remaining, 18, added).toFixed(1)
     );
@@ -110,15 +100,12 @@ describe('preview readings', () => {
 
     const rows = detail(state, 'waterChange', { ...DEFAULT_SETTINGS, waterChange: 0.5 }).preview;
 
-    // Tap arrives saturated with O₂ at its own temperature and at atmospheric CO₂.
     expect(row(rows, 'oxygen').after).toBe(
       blendConcentration(3.2, remaining, calculateO2Saturation(tapTemp), added).toFixed(1)
     );
     expect(row(rows, 'co2').after).toBe(
       blendConcentration(28, remaining, gasExchangeDefaults.atmosphericCo2, added).toFixed(1)
     );
-    // Half the tank carries the oxygen back over the line, so the caveat goes
-    // with it; a tenth leaves the tank suffocating and says so.
     expect(row(rows, 'oxygen').note).toBeNull();
     expect(row(rows, 'oxygen').status).toBe('ok');
 
@@ -135,7 +122,6 @@ describe('preview readings', () => {
     expect(row(rows, 'ph').before).toBe('6.82');
   });
 
-  /** The row that carries each resource a verb can move. */
   const REPORTED_BY: Partial<Record<keyof Resources, string>> = {
     water: 'level',
     temperature: 'temperature',
@@ -161,8 +147,6 @@ describe('preview readings', () => {
   }
 
   it.each<VerbId>(VERB_IDS)('reports every resource %s moves', (id) => {
-    // Injected CO₂ over an oxygen-starved tank: both gases are in play, so a
-    // verb that moves one has nowhere to hide it.
     const state = gassed();
     const committed = applyAction(state, verbAction(id, DEFAULT_SETTINGS)).state;
     const shown = detail(state, id).preview.map((r) => r.key);
@@ -179,7 +163,6 @@ describe('preview readings', () => {
     const quarter = applyAction(state, { type: 'waterChange', amount: 0.25 }).state;
 
     expect(detail(state, 'waterChange').preview).toEqual(previewRows({ before: state, outcomes: [quarter], config: DEFAULT_CONFIG, units: 'metric' }));
-    // A 25 that meant 25× would be rejected outright and change nothing.
     expect(applyAction(state, { type: 'waterChange', amount: 25 }).state.resources.water).toBe(
       state.resources.water
     );
@@ -193,7 +176,6 @@ describe('preview readings', () => {
       (state.resources.nitrite / state.tank.capacity).toFixed(3)
     );
     expect(row(rows, 'level').after).toBe('100');
-    // Nothing tap-borne comes with it, so the blended readings hold.
     expect(rows.map((r) => r.key)).not.toContain('temperature');
     expect(rows.map((r) => r.key)).not.toContain('ph');
   });
@@ -214,7 +196,6 @@ describe('preview readings', () => {
 
   it('warns on temperature only where a stocked species minds', () => {
     const withBetta = detail(fixture(), 'waterChange').preview;
-    // Same water, same tap, same 23.4 °C landing — a roster tolerating 22 °C.
     const withoutBetta = detail(fixture(['neon_tetra', 'corydoras']), 'waterChange').preview;
 
     expect(row(withBetta, 'temperature').after).toBe(row(withoutBetta, 'temperature').after);
@@ -241,7 +222,6 @@ describe('preview readings', () => {
 
   it('says "still above" only where the engine’s line was already crossed', () => {
     const state = fixture();
-    // A quarter off 1.6 ppm still lands over the alert line; the caveat persists.
     const cycling = {
       ...state,
       resources: { ...state.resources, nitrite: 1.6 * state.resources.water },
@@ -250,7 +230,6 @@ describe('preview readings', () => {
     expect(nitrite.note).toBe(`still above ${HIGH_NITRITE_THRESHOLD.toFixed(2)}`);
     expect(nitrite.status).toBe('alert');
 
-    // Nitrate crosses on the way up, so the caveat is news rather than a state.
     const loaded = {
       ...state,
       resources: {
@@ -263,8 +242,6 @@ describe('preview readings', () => {
   });
 
   it('reads its lines off the engine, not off the sketch they were drawn from', () => {
-    // The wireframe drew 0.25 ppm as the nitrite line; the engine's is 1.0, so
-    // a 0.412 ppm tank is not in alert and the preview must not claim it is.
     const nitrite = row(detail(fixture(), 'waterChange').preview, 'nitrite');
 
     expect(nitrite.note).toBeNull();

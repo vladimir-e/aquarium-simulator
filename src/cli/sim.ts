@@ -26,6 +26,8 @@ import { parseDuration } from './duration.js';
 import { appendSnapshot, snapshot } from './history.js';
 import { renderObserve, renderTrace } from './format.js';
 import { runSmoke } from './smoke.js';
+import { SCENARIO_FLAGS, scenariosCommand } from './scenarios/command.js';
+import { LITERS_PER_GALLON } from './units.js';
 
 function parseFlags(args: string[]): { flags: Record<string, string>; rest: string[] } {
   const flags: Record<string, string> = {};
@@ -43,10 +45,6 @@ function parseFlags(args: string[]): { flags: Record<string, string>; rest: stri
     }
   }
   return { flags, rest };
-}
-
-function gallonsToLiters(gal: number): number {
-  return gal * 3.785;
 }
 
 export function resolvePreset(
@@ -171,6 +169,7 @@ const COMMAND_FLAGS: Record<string, readonly string[]> = {
   config: [],
   action: [],
   smoke: [],
+  scenarios: SCENARIO_FLAGS,
   help: [],
 };
 
@@ -200,12 +199,12 @@ export function assertKnownFlags(command: string, flags: Record<string, string>)
 function printHelp(): void {
   process.stdout.write(
     [
-      'sim — calibration CLI for the aquarium simulator',
+      'sim — headless CLI for the aquarium simulator',
       '',
       'Commands:',
       '  new --preset=<id> [--tank-gal=<n>|--tank-liters=<n>] [--name=<label>]',
-      '      [--no-seed]           (every preset but bare opens on a cycled',
-      '                             biofilter; --no-seed starts it uncycled)',
+      '      [--no-seed]           (every preset but bare opens a month into',
+      '                             its life; --no-seed starts it brand new)',
       '  add fish --species=<id> --count=<n>',
       '  add plant --species=<id> [--size=<0-1>]',
       '  remove fish <id>',
@@ -217,6 +216,13 @@ function printHelp(): void {
       '  action <type> [args...]   (feed 2.5, waterChange 40, dose 1, topOff,',
       '                             scrubAlgae 20, trimPlants 85, sellFry)',
       '  smoke',
+      '  scenarios [<setup>...] [--days=<n>] [--json[=<file>]] [--diff=<file>] [--trace=<day>] [--bands]',
+      '      [--plant=<species>:<n>[:<size>]] [--fish=<species>:<n>] [--light=<factor>]',
+      '      [--gal=<n>] [--set=<dotted.path>=<value>] [--uncycled]',
+      '      [--feed=<n>g|<n>%[/<period>]] [--water-change=<n>%[/<period>]] [--dose=<n>ml[/<period>]]',
+      '      [--trim[=<period>]] [--scrub[=<period>]] [--top-off[=<period>]]',
+      '                            (<period> is <n>d or <n>w; overrides the keeper; =off drops a chore)',
+      '                            (headless preset tanks, readings banded G/A/R; no session)',
       '',
       'Session persists at .simstate/current.json.',
     ].join('\n') + '\n'
@@ -227,7 +233,7 @@ function cmdNew(flags: Record<string, string>): void {
   const presetId = (flags.preset as PresetId | undefined) ?? 'planted';
   let capacity: number | undefined;
   if (flags['tank-gal']) {
-    capacity = gallonsToLiters(Number(flags['tank-gal']));
+    capacity = Number(flags['tank-gal']) * LITERS_PER_GALLON;
   } else if (flags['tank-liters']) {
     capacity = Number(flags['tank-liters']);
   }
@@ -424,6 +430,9 @@ export function main(argv: string[]): void {
       return;
     case 'smoke':
       cmdSmoke();
+      return;
+    case 'scenarios':
+      scenariosCommand(rest);
       return;
     default:
       throw new Error(`Unknown command "${cmd}". Run "sim help" for usage.`);

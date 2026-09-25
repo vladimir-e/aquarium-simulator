@@ -7,7 +7,6 @@ import { plantsDefaults } from './config/plants.js';
 
 const TANK: SimulationConfig = { tankCapacity: 40, substrate: { type: 'aqua_soil' } };
 
-/** Everything a seed writes, ids and all. */
 function stocked(seed: PresetSeed, rngSeed: number): unknown {
   const state = createSimulation(TANK, seed, rngSeed);
   return { resources: state.resources, fish: state.fish, plants: state.plants };

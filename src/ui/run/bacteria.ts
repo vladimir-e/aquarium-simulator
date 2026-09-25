@@ -32,15 +32,9 @@ import { mineralisationBase, wasteInflow } from './waste.js';
  * The share of its own ceiling at which a colony counts as having filled it.
  *
  * Not 100: unconditional decay puts the arithmetic limit at
- * `1 − deathRate/growthRate`, and oxygen stops NOB short of even that. Where
- * this number sits against both is measured, not asserted here —
- * `bacteria-colony.test.ts` pins the circulation ladder and
- * `docs/calibration/runs/2026-08-07-nitrification-on-air.md` carries it. The
- * margin is wide on that ladder, which is dosed straight into the resource, and
- * narrow on the feed path, whose two measured rungs straddle this number rather
- * than clearing it.
+ * `1 − deathRate/growthRate`, and oxygen stops NOB short of even that.
  *
- * Only a tank held under a load like that gets near it at all: an ordinary
+ * Only a tank held under a heavy load gets near it at all: an ordinary
  * stocked tank rests at a couple of percent, because a colony grows to its load
  * and not to its surface.
  */
@@ -136,9 +130,8 @@ export interface BacteriaReadout {
   atTrace: boolean;
   /**
    * The keeper's own test: both toxins at trace, and colonies big enough to
-   * keep them there. Same reading `traceCycle` calls `cycledDay`, minus the one
-   * thing a single tick cannot see — that a nitrite peak was passed rather than
-   * never reached.
+   * keep them there. A single tick cannot see the one thing a run can — that
+   * a nitrite peak was passed rather than never reached.
    *
    * Nitrite standing at trace is what keeps this off a tank at its nitrite
    * peak, where "produced no longer exceeds consumed" first goes true and a

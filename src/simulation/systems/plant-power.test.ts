@@ -1,20 +1,11 @@
-/**
- * Tests for the shared `getPlantPower` helper.
- *
- * Used by both fish vitality (shelter benefit) and algae vitality
- * (suppression stressor + low_plant_power benefit). Linear in
- * size × condition.
- */
-
 import { describe, it, expect } from 'vitest';
 import { getPlantPower } from './plant-power.js';
 import type { Plant } from '../state.js';
-import type { PlantSpecies } from '../plants/species.js';
 
 function makePlant(overrides: Partial<Plant> = {}): Plant {
   return {
     id: 'p1',
-    species: 'java_fern' as PlantSpecies,
+    species: 'java_fern',
     size: 100,
     condition: 100,
     surplus: 0,
@@ -49,7 +40,6 @@ describe('getPlantPower', () => {
       makePlant({ id: 'b', size: 50, condition: 80 }),
       makePlant({ id: 'c', size: 200, condition: 50 }),
     ];
-    // 1.0 + 0.4 + 1.0 = 2.4
     expect(getPlantPower(plants)).toBeCloseTo(2.4, 6);
   });
 });

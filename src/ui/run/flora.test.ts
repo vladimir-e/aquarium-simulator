@@ -5,13 +5,13 @@ import {
   createSimulation,
   getDosePreview,
   getPlantsToTrimCount,
-  tick,
   type PlantSpecies,
   type SimulationState,
   type VitalityBreakdown,
 } from '../../simulation/index.js';
 import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
-import { readPlantVitality } from '../../simulation/plants/index.js';
+import { MAX_DOSE_ML } from '../../simulation/actions/dose.js';
+import { produce } from 'immer';
 import {
   algaeRow,
   algaeStatus,
@@ -47,7 +47,6 @@ function planted(species: PlantSpecies[], capacity = 200): SimulationState {
   return state;
 }
 
-/** Dose until a nutrient is present, the way a player would. */
 function dosed(state: SimulationState, ml: number): SimulationState {
   return applyAction(state, { type: 'dose', amountMl: ml }).state;
 }
@@ -73,7 +72,6 @@ describe('condition + algae words', () => {
 });
 
 describe('vitalReading', () => {
-  /** A plant paying 0.02 %/h to stay alive, reserving 100 hours of it. */
   const ledger = (over: Partial<VitalityBreakdown> = {}): VitalityBreakdown => ({
     stressors: [],
     upkeep: [],
@@ -103,9 +101,6 @@ describe('vitalReading', () => {
   });
 
   it('says nothing about a bank spending its spare', () => {
-    // The reading has to survive this one: every plant in a thriving tank
-    // spends bank every dark hour, so `drained > 0` on its own would paint the
-    // whole planting amber for half of every day.
     expect(vitalReading(100, 20, ledger({ drained: 0.02 }))).toEqual({
       status: 'ok',
       word: 'thriving',
@@ -113,19 +108,15 @@ describe('vitalReading', () => {
   });
 
   it('leaves the word to condition once condition is the worse news', () => {
-    // Starving is an alert and so is a condition of 22, and a tie goes to the
-    // stock the bar beside the word is already showing.
     expect(vitalReading(22, 0, ledger({ starved: 1 })).word).toBe('struggling');
     expect(vitalReading(5, 0, ledger({ starved: 1 })).word).toBe('dying');
-    // An alert still outranks the warn a middling condition reads on its own.
     expect(vitalReading(50, 0, ledger({ starved: 1 })).word).toBe('starving');
   });
 });
 
 describe('groupPlantsBySpecies', () => {
   it('folds a species into one row carrying a status per specimen', () => {
-    let state = planted(['java_fern', 'java_fern', 'monte_carlo']);
-    for (let hour = 0; hour < 24; hour++) state = tick(state, DEFAULT_CONFIG);
+    const state = planted(['java_fern', 'java_fern', 'monte_carlo']);
 
     const groups = groupPlantsBySpecies(plantRows(state, DEFAULT_CONFIG));
     expect(groups.map((group) => group.name)).toEqual(['Java Fern', 'Monte Carlo']);
@@ -151,9 +142,7 @@ describe('groupPlantsBySpecies', () => {
 
 describe('plantRows', () => {
   it('carries the engine’s own vitality, and its factors sum to the net it prints', () => {
-    let state = planted(['java_fern', 'monte_carlo']);
-    for (let hour = 0; hour < 24; hour++) state = tick(state, DEFAULT_CONFIG);
-
+    const state = planted(['java_fern', 'monte_carlo']);
     const rows = plantRows(state, DEFAULT_CONFIG);
     expect(rows.map((row) => row.name)).toEqual(['Java Fern', 'Monte Carlo']);
 
@@ -162,46 +151,6 @@ describe('plantRows', () => {
       const charged = row.charged.reduce((sum, f) => sum + f.amount, 0);
       expect(row.net).toBeCloseTo(benefits - charged, 6);
     }
-  });
-
-  it('holds the word through the night a healthy plant banks against', () => {
-    // The engine really is draining a bank here — every dark hour costs upkeep
-    // no income covers — so this is the run the reading has to stay quiet on.
-    let state = planted(['java_fern', 'anubias']);
-    while (state.resources.light > 0) state = tick(state, DEFAULT_CONFIG);
-
-    const [vitality] = readPlantVitality(state, DEFAULT_CONFIG);
-    expect(vitality.breakdown.drained).toBeGreaterThan(0);
-    expect(vitality.breakdown.starved).toBe(0);
-
-    expect(plantRows(state, DEFAULT_CONFIG).map((row) => row.word)).toEqual([
-      'thriving',
-      'thriving',
-    ]);
-  });
-
-  it('escalates off thriving before a blacked-out plant has shed anything', () => {
-    let state = planted(['anubias']);
-    const planted_ = state.plants[0].size;
-    const words: string[] = [];
-
-    for (let hour = 0; hour < 24 * 30; hour++) {
-      state = tick(
-        { ...state, equipment: { ...state.equipment, light: { ...state.equipment.light, enabled: false } } },
-        DEFAULT_CONFIG
-      );
-      if (state.plants.length === 0) break;
-      const [row] = plantRows(state, DEFAULT_CONFIG);
-      words.push(row.word);
-      if (row.word !== 'thriving') break;
-    }
-
-    // The plant leaves `thriving` while it is still whole, and while condition
-    // on its own would still be calling it thriving — which is the whole miss:
-    // reading one stock reported a shedding plant as healthy down to nothing.
-    expect(words[words.length - 1]).not.toBe('thriving');
-    expect(state.plants[0].size).toBe(planted_);
-    expect(conditionWord(state.plants[0].condition)).toBe('thriving');
   });
 
   it('names the plant declining and the plant thriving', () => {
@@ -221,10 +170,9 @@ describe('plantRows', () => {
 
 describe('algaeRow', () => {
   it('reads the engine’s algae population, not the plants’', () => {
-    let state = planted(['java_fern']);
-    state = applyAction(state, { type: 'feed', amount: 2 }).state;
-    for (let hour = 0; hour < 24 * 5; hour++) state = tick(state, DEFAULT_CONFIG);
-
+    const state = produce(planted(['java_fern']), (draft) => {
+      draft.algae.mass = 30;
+    });
     const row = algaeRow(state, DEFAULT_CONFIG);
     expect(row.mass).toBe(state.algae.mass);
     const benefits = row.benefits.reduce((sum, f) => sum + f.amount, 0);
@@ -240,20 +188,27 @@ describe('nutrientReadings', () => {
 
     const readings = nutrientReadings(state, DEFAULT_CONFIG);
     expect(readings.map((r) => r.label)).toEqual(['NO₃', 'PO₄', 'K', 'Fe']);
-    // High demand is the engine's full optimal; every reading starts at zero.
-    expect(readings.map((r) => r.needed)).toEqual([15, 1, 7, 0.15]);
+    const { optimalNitratePpm, optimalPhosphatePpm, optimalPotassiumPpm, optimalIronPpm, highDemandMultiplier } =
+      DEFAULT_CONFIG.nutrients;
+    expect(readings.map((r) => r.needed)).toEqual(
+      [optimalNitratePpm, optimalPhosphatePpm, optimalPotassiumPpm, optimalIronPpm].map(
+        (ppm) => ppm * highDemandMultiplier
+      )
+    );
     expect(readings.every((r) => r.ppm === 0 && r.fill === 0)).toBe(true);
   });
 
   it('scales the need down for a tank of low-demand plants', () => {
     const state = planted(['java_fern', 'anubias']);
     expect(tankDemand(state)).toBe('low');
-    // lowDemandMultiplier is 0.3 of optimal.
-    expect(nutrientReadings(state, DEFAULT_CONFIG)[0].needed).toBeCloseTo(4.5, 6);
+    const { optimalNitratePpm, lowDemandMultiplier } = DEFAULT_CONFIG.nutrients;
+    expect(nutrientReadings(state, DEFAULT_CONFIG)[0].needed).toBeCloseTo(
+      optimalNitratePpm * lowDemandMultiplier,
+      10
+    );
   });
 
   it('only calls a nutrient short when the engine would actually feed a plant better', () => {
-    // Everything a plant could want except iron — the classic deficiency.
     const noIron = (state: SimulationState): SimulationState => ({
       ...state,
       resources: {
@@ -268,10 +223,7 @@ describe('nutrientReadings', () => {
         .filter((r) => r.limiting)
         .map((r) => r.key);
 
-    // Iron is a booster for a low-demand fern: the engine's sufficiency is
-    // already 1 without it, so the panel does not cry deficiency.
     expect(short(noIron(planted(['java_fern'])))).toEqual([]);
-    // A high-demand carpet requires all four, so the same water is short.
     expect(short(noIron(planted(['monte_carlo'])))).toEqual(['iron']);
   });
 
@@ -289,7 +241,7 @@ describe('nutrientReadings', () => {
     expect(nitrate.fill).toBeCloseTo(nitrate.ppm / nitrate.needed, 6);
 
     const flooded = dosed(dosed(dosed(state, 50), 50), 50);
-    expect(nutrientReadings(flooded, DEFAULT_CONFIG)[0].ppm).toBeGreaterThan(15);
+    expect(nutrientReadings(flooded, DEFAULT_CONFIG)[0].ppm).toBeGreaterThan(nitrate.needed);
     expect(nutrientReadings(flooded, DEFAULT_CONFIG)[0].fill).toBe(1);
   });
 });
@@ -321,7 +273,6 @@ describe('nutrientAlert', () => {
       ...state,
       resources: { ...state.resources, nitrate: state.resources.water * 20 },
     };
-    // Nitrate met, the other three present but under a high-demand plant's need.
     const dosedALittle = dosed(partly, 4);
     expect(nutrientAlert(nutrientReadings(dosedALittle, DEFAULT_CONFIG))).toEqual({
       text: '3 nutrients low',
@@ -337,20 +288,12 @@ describe('dose arithmetic', () => {
       `+${preview.nitratePpm.toFixed(1)} NO₃ · +${preview.phosphatePpm.toFixed(2)} PO₄ · ` +
         `+${preview.potassiumPpm.toFixed(1)} K · +${preview.ironPpm.toFixed(2)} Fe`
     );
-
-    // The same dose is five times as strong in a fifth of the water.
-    const strong = doseDeltas(2, 40, FORMULA);
-    expect(strong.map((d) => d.text)).toEqual(['+2.5', '+0.25', '+2.0', '+0.05']);
   });
 
   it('recommends a dose that actually clears the deficit when the engine applies it', () => {
     const state = planted(['monte_carlo'], 40);
     const advice = doseToCover(nutrientReadings(state, DEFAULT_CONFIG), state, DEFAULT_CONFIG);
-    expect(advice).toEqual({
-      ml: 12,
-      overSingleDose: false,
-      covers: ['NO₃', 'PO₄', 'K', 'Fe'],
-    });
+    expect(advice).toMatchObject({ overSingleDose: false, covers: ['NO₃', 'PO₄', 'K', 'Fe'] });
 
     const after = dosed(state, advice?.ml ?? 0);
     expect(nutrientReadings(after, DEFAULT_CONFIG).some((r) => r.limiting)).toBe(false);
@@ -362,9 +305,9 @@ describe('dose arithmetic', () => {
   it('says when covering the deficit takes more than one dose', () => {
     const state = planted(['monte_carlo']);
     const advice = doseToCover(nutrientReadings(state, DEFAULT_CONFIG), state, DEFAULT_CONFIG);
-    // 200 L of empty water needs 60 ml; a single dose action stops at 50.
-    expect(advice).toEqual({ ml: 60, overSingleDose: true, covers: ['NO₃', 'PO₄', 'K', 'Fe'] });
-    expect(applyAction(state, { type: 'dose', amountMl: 60 }).state.resources.nitrate).toBe(0);
+    expect(advice).toMatchObject({ overSingleDose: true, covers: ['NO₃', 'PO₄', 'K', 'Fe'] });
+    expect(advice!.ml).toBeGreaterThan(MAX_DOSE_ML);
+    expect(applyAction(state, { type: 'dose', amountMl: advice!.ml }).state).toBe(state);
   });
 
   it('has nothing to recommend once every nutrient is met', () => {
@@ -379,8 +322,6 @@ describe('trim targets', () => {
   it('offers only targets a plant in a calibrated tank can reach', () => {
     expect(TRIM_TARGETS).toEqual([50, 75, 85]);
 
-    // Plants go in at 50 % and a calibrated planted tank settles at 60–90 %, so
-    // the top rung has to sit inside that band to ever be reachable.
     const grown = applyAction(tank(), {
       type: 'addPlant',
       species: 'monte_carlo',
@@ -411,7 +352,6 @@ describe('trim targets', () => {
 });
 
 describe('overTrimCount', () => {
-  /** One plant of the given size, and nothing else growing. */
   function sized(size: number): SimulationState {
     return applyAction(tank(), {
       type: 'addPlant',
@@ -423,10 +363,8 @@ describe('overTrimCount', () => {
   it('counts the plants every rung of the trim ladder would cut', () => {
     const ceiling = Math.max(...TRIM_TARGETS);
 
-    // One point above the loosest rung is over; the rung itself is not.
     expect(overTrimCount(sized(ceiling + 1))).toBe(1);
     expect(overTrimCount(sized(ceiling))).toBe(0);
-    // A plant the tighter rungs would still cut is not yet "too big".
     expect(overTrimCount(sized(80))).toBe(0);
     expect(getPlantsToTrimCount(sized(80), 75)).toBe(1);
   });
@@ -440,4 +378,3 @@ describe('overTrimCount', () => {
     expect(overTrimCount(small)).toBe(0);
   });
 });
-

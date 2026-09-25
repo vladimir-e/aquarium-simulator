@@ -44,8 +44,6 @@ describe('readingAt', () => {
 });
 
 describe('display scales', () => {
-  // A track that stopped at the alert line would peg through the whole event it
-  // exists to show, so every threshold has to sit inside its own track.
   it('keeps every alert threshold on the track it belongs to', () => {
     expect(readingAt('ammonia', HIGH_AMMONIA_THRESHOLD)).toBeLessThan(1);
     expect(readingAt('nitrite', HIGH_NITRITE_THRESHOLD)).toBeLessThan(1);
@@ -99,7 +97,6 @@ describe('waterReadings', () => {
     const state = tank();
     state.resources.ammonia = state.resources.water * (HIGH_AMMONIA_THRESHOLD + 0.1);
     expect(byKey(state, 'ammonia').status).toBe('alert');
-    // pH sits mid-scale and still reads neutral — the classifier gives it no band.
     expect(byKey(state, 'ph').status).toBe('neutral');
   });
 
@@ -112,7 +109,6 @@ describe('waterReadings', () => {
     expect(imperial.text).toBe('77.0');
     expect(imperial.fill).toBeCloseTo(metric.fill, 10);
   });
-
 });
 
 describe('gasReadings', () => {
@@ -134,11 +130,8 @@ describe('gasReadings', () => {
 
   it('calls oxygen low at the engine’s own alert threshold, and not before', () => {
     expect(LOW_OXYGEN_THRESHOLD).toBe(4);
-    // Below the alert line the water is failing the fish…
     expect(gas(3.9, 12, 'oxygen')).toMatchObject({ status: 'warn' });
-    // …between the alert line and comfortable it is neither…
     expect(gas(5, 12, 'oxygen')).toMatchObject({ status: 'neutral' });
-    // …and at 6 mg/L it is comfortable.
     expect(gas(6, 12, 'oxygen')).toMatchObject({ status: 'ok' });
   });
 
@@ -148,4 +141,3 @@ describe('gasReadings', () => {
     expect(gas(7, 30, 'co2')).toMatchObject({ status: 'neutral' });
   });
 });
-

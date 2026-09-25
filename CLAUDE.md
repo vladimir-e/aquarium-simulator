@@ -26,33 +26,15 @@ This project follows documentation-driven development:
 - When removing code, clean it up completely as if it never existed
 - No deprecated functions, no compatibility shims, no "kept for backward compatibility" comments
 
-## Constants are not adjustable to make tests pass
+## Build first, tune last
 
-When a test fails, the default assumption is that the **code** is wrong, not the number.
+Build out mechanics first; tune last. The bar for a mechanic is that it works and moves the right stock in the right direction.
 
-A value in `src/simulation/config/*` is a claim about how real aquariums behave. Editing one to turn a test green changes the simulation everywhere, silently — and the failing test was the only thing that noticed.
+Whole-tank behaviour is checked with `npm run scenarios` — every preset tank headless, each reading banded green/amber/red, replayable under a different keeper; flags and defaults live in `docs/cli.md`. Amber or red is a question to reason about. Never tune a constant during build-out just to turn a cell green, and never add complexity to hit a number.
 
-**Before changing any value in `src/simulation/config/`:**
+Tests pin formulas and invariants, never whole-tank outcomes or coefficient values. `expect(flow).toBe(160)` is a tripwire; "doubling capacity doubles flow" is a statement about the model. When a change breaks a test that pins a number rather than a behaviour, delete or rewrite it without ceremony.
 
-1. Work out *why* the test fails, and name the mechanism.
-2. If the mechanism is wrong, fix the mechanism.
-3. If the constant genuinely needs to move — you changed the model and the old value no longer describes it — say so explicitly in the PR: the old value, the new one, the real-world behaviour that justifies it, and what else it affects.
-4. If you can't tell, **stop and raise it**. An unresolved question is a better outcome than a quietly tuned constant.
-
-Never widen a tolerance, delete an assertion, or scale a coefficient "to make the scenario pass." If a test is genuinely wrong, fix the test as its own change, and say why.
-
-**This is not hypothetical.** `ambientWaste` was cut 10× because it dominated the nitrogen budget in one 38 L planted scenario. The scenario passed. Because the constant was a flat g/hr while the AOB spawn threshold is a *concentration*, that same edit pushed a 150 L tank's cycling from ~3 weeks to 51 days, and nothing caught it for months. The real defect was that ambient ammonia wasn't sourced from anything physical.
-
-Two kinds of test live in this repo, and they are not equal:
-
-- **Unit tests** pin mechanism. Edit them freely alongside the code they describe.
-- **Calibration anchors** pin outcome — how a tank behaves over weeks. They encode real aquarium behaviour, not engine behaviour. **A feature PR may not edit an anchor band to go green.** If a feature breaks an anchor, either the feature is wrong or the constants need re-deriving; the anchor holds.
-
-Prefer invariants over magic numbers when writing tests. `expect(flow).toBe(160)` is a tripwire on a coefficient; "doubling capacity doubles flow" is a statement about the model, and it survives recalibration.
-
-**Tiers are decided by a test's fixture, not its topic** — a tank with fish in it is livestock-tier however much the test is about the cycle. Below your module's tier must stay green; above it, red is expected and reconciling is the module's closing task, never a mid-change signal — a neighbour's red is not a verdict on your change. A silenced tier is red-listed with a reason and a return point, never skipped.
-
-Three more traps, all real: **a constant is only as good as the reference its docstring names** — when work invalidates the reference, the constant is broken, not awaiting calibration. **A measurement instrument is a thing that can be wrong** — a gas reader once classified hours one tick out of phase and nearly moved a yield constant on a statistic that was never comparable. **Watch for a fixture conditioned rather than a band widened** — a feature PR may not widen an anchor, and the subtle version passes by changing the tank instead.
+Verify your own mechanic change headless. Save a baseline first (`npm run scenarios -- --json=/tmp/before.json`); after the change, run `npm run scenarios -- --diff=/tmp/before.json`, plus one ad-hoc run built to push the mechanic hard at its favourable extreme — many plants and no CO₂ for a CO₂ mechanic. If the mechanic doesn't visibly fire there, it isn't done. Hand-back reports carry the diff and the targeted run's relevant lines, never full tables. Runs take seconds; don't build elaborate verification.
 
 ## Quick Start for AI Agents
 
@@ -65,10 +47,10 @@ Task briefs are provided by the maintainer or orchestrator per task — there's 
 
 1. Create a new branch
 2. Implement the task
-3. Create unit tests, aim for 90% coverage
+3. Write tests for new formulas and invariants — no coverage target
 4. Run `npm run lint` and fix any issues
 5. Run all unit tests and build to validate your work
-6. Update the docs pages your change touched — a behaviour change lands in the matching subsystem or concept page
+6. Update the docs pages your change touched — a behaviour change rewrites the matching subsystem or concept page (`docs-site/`), kept short; quirks go in code comments
 7. Add an entry to `CHANGELOG.md`
 8. Commit with a short message and raise a PR
 
@@ -85,6 +67,5 @@ Task briefs are provided by the maintainer or orchestrator per task — there's 
 - **Ids are tank-unique, not process-unique** — two tanks emit the same id sequence, so UI state keyed by organism id must reset when the tank is replaced (`useExpandedRows` is the pattern). A tank's UI identity is `tankId`; seeds are nameable and two tanks can share one.
 - **Three config writers, two sets of bounds** — CLI `applyConfigSet` and the tunables drawer both validate against `configRange(path)` off each tunable's `*ConfigMeta`; the persistence schema carries its own hand-written zod bounds. Widening a range means touching both sides, or a value the CLI accepts is one the save schema rejects, and a rejected config section reloads as defaults.
 - **A range is enforced only where it's declared** — every tunable declares a min/max except the nitrogen cycle's, where only the two oxygen half-saturation constants do; the rest come off doubling times and were never bounded, so `config set` and the drawer have nothing to hold them to. A test walks every leaf and pins exactly that split — deriving a bound turns it red on purpose.
-- **Measured evidence is committed under `docs/calibration/runs/` with its probe** — a measurement is only evidence if it's still there to read. `baselines/` and `scenarios/` are pre-vitality, historical intent only.
 - **Releasing is automated** — bump version + GitHub Release → Actions publishes with provenance. `aquarium-simulator@0.1.x`, MIT, engine-only dist, sole runtime dep immer.
 - **Two Vercel projects deploy this repo** — the engine UI off the root `vercel.json`, the docs off `docs-site/vercel.json`. Without its own file the docs project inherits the root one and runs the UI build; both stay.

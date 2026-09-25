@@ -42,5 +42,4 @@ describe('hardscape', () => {
       { id: '3', name: 'Driftwood', surface: 650, effect: 'Lowers pH' },
     ]);
   });
-
 });

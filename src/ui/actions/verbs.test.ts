@@ -34,7 +34,6 @@ function tank(): SimulationState {
   return state;
 }
 
-/** 200 L under one hungry plant: more than a single dose could cover. */
 function starved(): SimulationState {
   return applyAction(tank(), { type: 'addPlant', species: 'monte_carlo' }).state;
 }
@@ -67,7 +66,6 @@ describe('the six verbs', () => {
     ]);
     expect(detail(state, 'trimPlants').options.map((o) => o.value)).toEqual(TRIM_TARGETS);
     expect(detail(state, 'feed').options.map((o) => o.value)).toEqual(FEED_PRESETS);
-    // Dosing carries one rung the engine works out: what the plants are short of.
     const advice = doseToCover(nutrientReadings(state, DEFAULT_CONFIG), state, DEFAULT_CONFIG);
     expect(detail(state, 'dose').options.map((o) => o.value)).toEqual(
       [...DOSE_PRESETS, advice!.ml].sort((a, b) => a - b)
@@ -99,7 +97,6 @@ describe('the six verbs', () => {
     const nearly = applyAction(state, { type: 'dose', amountMl: asking.ml - 3 }).state;
     const advice = doseToCover(nutrientReadings(nearly, DEFAULT_CONFIG), nearly, DEFAULT_CONFIG)!;
 
-    // A ladder rung, not a step past the top of the ladder.
     expect(advice.ml).toBeGreaterThan(DOSE_PRESETS[0]);
     expect(advice.ml).toBeLessThan(DOSE_PRESETS[DOSE_PRESETS.length - 1]);
 
@@ -256,7 +253,6 @@ describe('the six verbs', () => {
     const lean = applyAction(bare, { type: 'addFish', species: 'neon_tetra' }).state;
     const days = (state: SimulationState): number =>
       parseFloat(detail(state, 'feed').options[1].hint);
-    // More mouths, fewer days out of the same gram — the overfeeding signal.
     expect(days(stocked)).toBeLessThan(days(lean));
     expect(detail(stocked, 'feed').meta).toMatch(/^8 fish eat \d+\.\d\d g a day$/);
   });

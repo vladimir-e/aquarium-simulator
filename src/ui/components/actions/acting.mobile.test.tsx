@@ -10,7 +10,6 @@ import { stubMatchMedia, viewport, type MatchMediaStub } from '../../test/matchM
 
 let media: MatchMediaStub;
 
-// Phone: no room beside the stage, so palette and sheet are both full-height.
 beforeEach(() => {
   media = stubMatchMedia(viewport(390));
   render(

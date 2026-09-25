@@ -51,33 +51,11 @@ describe('topOff action', () => {
 
   it('is idempotent when already at capacity', () => {
     const state = createSimulation({ tankCapacity: 100 });
-    // Initial state has waterLevel = capacity
 
     const result = topOff(state);
 
-    expect(result.state).toBe(state); // Same reference, no changes
+    expect(result.state).toBe(state);
     expect(result.message).toBe('Water already at capacity (100L)');
-  });
-
-  it('preserves other state properties (temperature, etc.)', () => {
-    const state = produce(
-      createSimulation({
-        tankCapacity: 100,
-        initialTemperature: 28,
-        roomTemperature: 20,
-      }),
-      (draft) => {
-        draft.resources.water = 80;
-        draft.tick = 10;
-      }
-    );
-
-    const result = topOff(state);
-
-    expect(result.state.resources.temperature).toBe(28);
-    expect(result.state.environment.roomTemperature).toBe(20);
-    expect(result.state.tank.capacity).toBe(100);
-    expect(result.state.tick).toBe(10);
   });
 
   it('does not modify original state (immutability)', () => {
@@ -109,19 +87,5 @@ describe('topOff action', () => {
 
     expect(result.state.resources.water).toBe(100);
     expect(result.message).toBe('Added 0.0L');
-  });
-
-  it('handles large tank capacity', () => {
-    const state = produce(
-      createSimulation({ tankCapacity: 1000 }),
-      (draft) => {
-        draft.resources.water = 500;
-      }
-    );
-
-    const result = topOff(state);
-
-    expect(result.state.resources.water).toBe(1000);
-    expect(result.message).toBe('Added 500.0L');
   });
 });

@@ -81,9 +81,7 @@ export interface Fish {
 /**
  * Algae as a pure population — coverage and a surplus bank.
  *
- * `mass` is aggregate biomass / coverage on the same 0–100 scale the
- * old `Resources.algae` field used (so calibration anchors translate
- * directly). When the net rate from stressors and benefits is
+ * `mass` is aggregate biomass / coverage on a 0–100 scale. When the net rate from stressors and benefits is
  * positive, the surplus tank fills (photoperiod-gated); when it's
  * negative, the reserve buffer drains first and mass shrinks only by
  * the shortfall. No intermediate `condition` — conditions favouring
@@ -362,7 +360,7 @@ export interface SimulationConfig {
 }
 
 const DEFAULT_TEMPERATURE = 25;
-export const DEFAULT_ROOM_TEMPERATURE = 22;
+const DEFAULT_ROOM_TEMPERATURE = 22;
 const DEFAULT_TAP_WATER_TEMPERATURE = 20;
 const DEFAULT_TAP_WATER_PH = 6.5;
 const DEFAULT_INITIAL_PH = 6.5;

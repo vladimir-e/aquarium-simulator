@@ -19,7 +19,6 @@ import {
 
 const base: SimulationState = createSimulation({ tankCapacity: 40 });
 
-/** Advance the tank to a given hour of day 1. */
 function atHour(hour: number, state: SimulationState = base): SimulationState {
   let next = state;
   for (let i = 0; i < hour; i++) next = tick(next, DEFAULT_CONFIG);
@@ -77,7 +76,7 @@ describe('scheduleRange', () => {
 });
 
 describe('editing a schedule on its ends', () => {
-  const noon: DailySchedule = { startHour: 8, duration: 10 }; // 08:00–18:00
+  const noon: DailySchedule = { startHour: 8, duration: 10 };
 
   const cases: [name: string, from: DailySchedule, end: number, want: DailySchedule][] = [
     ['an end past the start wraps forward through midnight', noon, 7, { startHour: 8, duration: 23 }],
@@ -125,7 +124,6 @@ describe('rackSchedules', () => {
   it('marks the light active only while its photoperiod covers the hour', () => {
     const light = (state: SimulationState): boolean =>
       rackSchedules(state).rows[0].active;
-    // Default photoperiod is 08:00–18:00.
     expect(light(atHour(7))).toBe(false);
     expect(light(atHour(9))).toBe(true);
     expect(light(atHour(19))).toBe(false);

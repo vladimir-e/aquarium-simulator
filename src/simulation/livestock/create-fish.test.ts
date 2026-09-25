@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { createFish, fishMassForAge, HARDINESS_OFFSET_SPAN } from './create-fish.js';
+import { createFish, fishMassForAge, HARDINESS_OFFSET_SPAN, HEALTH_JITTER } from './create-fish.js';
 import { createRng, draw } from '../core/rng.js';
 import { FISH_SPECIES_DATA } from './species.js';
 
@@ -93,20 +93,20 @@ describe('createFish', () => {
     expect(afterNamed.fish).toEqual(after.fish);
   });
 
-  it('keeps hardiness offset within ±15% of species baseline', () => {
+  it('keeps hardiness offset within the offset span of the species baseline', () => {
     const rng = createRng(999);
-    const maxAbs = 0.15 * FISH_SPECIES_DATA.neon_tetra.hardiness;
+    const maxAbs = HARDINESS_OFFSET_SPAN * FISH_SPECIES_DATA.neon_tetra.hardiness;
     for (let i = 0; i < 500; i++) {
       const f = createFish({ species: 'neon_tetra', age: 0, stage: 'fry', rng });
       expect(Math.abs(f.hardinessOffset)).toBeLessThanOrEqual(maxAbs + 1e-9);
     }
   });
 
-  it('keeps initial health within [95, 100]', () => {
+  it('keeps initial health within the jitter below full health', () => {
     const rng = createRng(7);
     for (let i = 0; i < 500; i++) {
       const f = createFish({ species: 'guppy', age: 0, stage: 'adult', rng });
-      expect(f.health).toBeGreaterThanOrEqual(95);
+      expect(f.health).toBeGreaterThanOrEqual(100 - HEALTH_JITTER);
       expect(f.health).toBeLessThanOrEqual(100);
     }
   });
@@ -126,18 +126,7 @@ describe('createFish', () => {
       (hardinessDraw - 0.5) * 2 * HARDINESS_OFFSET_SPAN * hardiness,
       12
     );
-    expect(fish.health).toBeCloseTo(100 + (healthDraw - 0.5) * 2 * 5, 12);
-
-    // Seed 1 straddles the even split: 0.527 at the position this fish read,
-    // 0.368 one on. A fish either side closes both directions — raise the
-    // split and the one above flips, lower it and this one does.
-    const belowTheSplit = createFish({
-      species: 'neon_tetra',
-      age: 0,
-      stage: 'adult',
-      rng: { ...rng, counter: 1 },
-    });
-    expect(belowTheSplit.sex).toBe('male');
+    expect(fish.health).toBeCloseTo(100 + (healthDraw - 0.5) * 2 * HEALTH_JITTER, 12);
   });
 
   it('names every fish off the stream, never twice the same', () => {

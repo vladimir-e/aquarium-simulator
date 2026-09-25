@@ -26,7 +26,6 @@ function renderOverview(
   return sim;
 }
 
-/** The devices the rack lists, and the switch label each one carries. */
 const DEVICES = [
   'filter',
   'heater',

@@ -111,8 +111,6 @@ describe('TunableConfigSchema', () => {
   });
 
   it('rejects the old v12 config shape (livestock missing surplusCap)', () => {
-    // The v13 bump made `surplusCap` required on every organism config.
-    // A pre-bump config lacking it must not validate — no silent default.
     const livestockWithoutCap = { ...DEFAULT_CONFIG.livestock } as Record<string, unknown>;
     delete livestockWithoutCap.surplusCap;
     const oldShape = { ...DEFAULT_CONFIG, livestock: livestockWithoutCap };
@@ -343,7 +341,6 @@ describe('PersistedSimulationSchema', () => {
           sex: 'male',
           hardinessOffset: 0,
           surplus: 0,
-          // stage intentionally omitted
         },
       ],
     };
@@ -364,7 +361,6 @@ describe('PersistedSimulationSchema', () => {
           sex: 'male',
           stage: 'adult',
           surplus: 0,
-          // hardinessOffset intentionally omitted
         },
       ],
     };
@@ -385,7 +381,6 @@ describe('PersistedSimulationSchema', () => {
           sex: 'male',
           stage: 'adult',
           hardinessOffset: 0,
-          // surplus intentionally omitted
         },
       ],
     };
@@ -486,7 +481,6 @@ describe('PersistedStateSchema', () => {
     expect(PersistedStateSchema.safeParse(withExtra).success).toBe(false);
   });
 
-  /** Every breaking bump the schema has taken, and what broke at it. */
   const PRIOR_VERSIONS: ReadonlyArray<[number, string]> = [
     [4, 'hardinessOffset'],
     [9, 'plant surplus + supply chain'],
@@ -524,13 +518,6 @@ describe('PersistedStateSchema', () => {
   });
 });
 
-/**
- * A bound written against a catalog goes stale the moment the catalog grows,
- * and `loadPersistedState` answers a rejected simulation section with `null` —
- * so a fixture the picker offers but the schema refuses destroys the tank on
- * the next load. Each case names a list the UI can pick from; anything in it
- * the schema will not take comes back in the array.
- */
 describe('every fixture the UI offers survives a save', () => {
   const saved = ({ logs: _logs, ...state }: SimulationState): Record<string, unknown> => ({
     ...state,

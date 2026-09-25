@@ -44,7 +44,6 @@ describe('Track', () => {
     );
     const lit = band(container).querySelector('[data-lit]')!;
 
-    // The band's own coordinate space is 1000 wide, whatever slot it gets.
     expect(lit.getAttribute('x')).toBe('200');
     expect(lit.getAttribute('width')).toBe('200');
   });

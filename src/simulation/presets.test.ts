@@ -49,7 +49,6 @@ describe('presets', () => {
     expect(bare.resources.nob).toBe(0);
   });
 
-  /** A preset that actually seeds something, so a stream has work to do. */
   const seeded: PresetDefinition = {
     id: 'community',
     name: 'Seeded',

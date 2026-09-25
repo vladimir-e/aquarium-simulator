@@ -19,7 +19,6 @@ import { stubSim } from '../test/stubSim';
 
 let media: MatchMediaStub;
 
-// Tablet: the inspector lays over the rack rather than covering the screen.
 beforeEach(() => {
   media = stubMatchMedia(viewport(1180));
 });
@@ -30,14 +29,12 @@ afterEach(() => {
   cleanup();
 });
 
-/** Defaults: filter, heater and light on; the other five off. */
 const base: SimulationState = createSimulation({ tankCapacity: 40 });
 
 function Address(): React.JSX.Element {
   return <span data-testid="address">{useLocation().pathname}</span>;
 }
 
-/** Somewhere else in the app that links straight into an inspector. */
 function Elsewhere(): React.JSX.Element {
   return <Link to="/gear/light">the Light row</Link>;
 }
@@ -81,7 +78,6 @@ function address(): string {
   return screen.getByTestId('address').textContent ?? '';
 }
 
-/** Every rack row as the reader hears it: `name — what it is set to`. */
 function rackRows(): string[] {
   return screen
     .getAllByRole('link')
@@ -89,7 +85,6 @@ function rackRows(): string[] {
     .filter((label) => label.includes(' — '));
 }
 
-/** The row a device owns, by the name it is announced under. */
 function rowNamed(name: string): HTMLElement {
   return screen.getByRole('group', { name });
 }
@@ -97,8 +92,6 @@ function rowNamed(name: string): HTMLElement {
 describe('GearSection', () => {
   it('racks the eight devices, and nothing the engine cannot install', () => {
     renderGear();
-    // Exact, not merely present: the device set is fixed, so an extra row —
-    // an "install fitting" affordance, say — has to fail here.
     expect(rackRows().map((label) => label.split(' — ')[0])).toEqual([
       'Filter',
       'Heater',
@@ -118,7 +111,6 @@ describe('GearSection', () => {
       within(rowNamed('Light')).getByText(scheduleHours(base.equipment.light.schedule))
     ).toBeTruthy();
     expect(within(rowNamed('Filter')).getByText(/^sponge · /)).toBeTruthy();
-    // Off, so the clock it would keep is not a claim about now.
     expect(within(rowNamed('CO₂ injector')).getByText('off')).toBeTruthy();
   });
 
@@ -190,7 +182,6 @@ describe('GearSection', () => {
     expect(drawer.getByRole('switch', { name: 'Light power' }).getAttribute('aria-checked')).toBe(
       'true'
     );
-    // The word beside it is the same claim, drawn: not a second one to hear.
     expect(drawer.queryByText('on', { ignore: '[aria-hidden="true"]' })).toBeNull();
   });
 

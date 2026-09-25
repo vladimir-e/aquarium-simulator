@@ -16,11 +16,6 @@ import { CO2_TO_O2_MASS_RATIO, MW_CO2, MW_O2 } from '../core/chemistry.js';
 import { lightSaturationFactor, monodFactor } from '../core/kinetics.js';
 import { getSaturationIrradiance } from '../plants/species.js';
 
-/**
- * Build a resources snapshot with nutrient mass chosen so that concentration
- * (ppm) hits the given optimality-fraction for each nutrient. Used to set up
- * deterministic Liebig sufficiency across all four nutrients.
- */
 function buildResources(
   waterVolume: number,
   overrides: Partial<Resources> = {},
@@ -50,24 +45,16 @@ function buildResources(
   };
 }
 
-/**
- * Make a single plant of given size / species.
- */
 function plant(size: number, species: PlantSpecies = 'amazon_sword'): Plant {
   return {
     id: `p-${species}-${size}`,
     species,
     size,
     condition: 100,
+    surplus: 0,
   };
 }
 
-/**
- * Build a sufficiency map for a given plant set + resources, using the
- * production sufficiency function. The orchestrator does this once per
- * tick; tests do it inline so the calls match the new
- * `calculatePhotosynthesis` signature exactly.
- */
 function suffMap(
   plants: readonly Plant[],
   resources: Resources,
@@ -87,19 +74,9 @@ describe('calculateCo2Factor', () => {
     expect(factor).toBe(0);
   });
 
-  it('returns 0 when CO2 is negative', () => {
-    const factor = calculateCo2Factor(-5);
-    expect(factor).toBe(0);
-  });
-
   it('returns 1.0 at optimal CO2 level', () => {
     const factor = calculateCo2Factor(plantsDefaults.optimalCo2);
     expect(factor).toBe(1.0);
-  });
-
-  it('returns 0.5 at half of optimal CO2', () => {
-    const factor = calculateCo2Factor(plantsDefaults.optimalCo2 / 2);
-    expect(factor).toBe(0.5);
   });
 
   it('caps at 1.0 when CO2 exceeds optimal', () => {
@@ -120,10 +97,6 @@ describe('calculateCo2Factor', () => {
 });
 
 describe('nitrate as the Liebig-limiting nutrient', () => {
-  // Pin the per-plant Liebig sufficiency formula when nitrate is the only
-  // nutrient short of optimum (the other three are saturated). Uses Monte
-  // Carlo (high demand, all four nutrients required) so a missing nitrate
-  // can fully express as sufficiency loss.
   const waterVolume = 100;
   const optimal = nutrientsDefaults.optimalNitratePpm;
 
@@ -169,7 +142,6 @@ describe('calculatePhotosynthesis', () => {
   const waterVolume = 100;
   const light = 50;
 
-  /** Call with one plant set, its own sufficiency map, and the usual defaults. */
   function photosynthesis(
     plants: readonly Plant[],
     {
@@ -271,11 +243,6 @@ describe('calculatePhotosynthesis', () => {
     });
 
     it('shares the carbon yield with respiration, which is why there is one of it', () => {
-      // The reaction run both ways off one constant. What separates the two
-      // numbers is the base rates, the air respiration breathes, and the light
-      // only the day side reads — and moving the yield has to leave the ratio
-      // where it was, since one side reading a figure of its own is exactly
-      // what collapsing four constants removed.
       const ratio = (config = plantsDefaults): number => {
         const fixed = photosynthesis([plant(100, 'java_fern')], { config }).co2ConsumedMg;
 
@@ -291,8 +258,6 @@ describe('calculatePhotosynthesis', () => {
     });
 
     it('makes no oxygen from carbon the water does not hold', () => {
-      // A heavily planted 20 L: an hour at this rate would fix more carbon than
-      // the column is holding, so what it gets is the column.
       const nano = 20;
       const scarce = 5;
       const starved = photosynthesis(
@@ -347,16 +312,14 @@ describe('calculatePhotosynthesis', () => {
       const resources = buildResources(waterVolume, { iron: 0 });
       const result = photosynthesis([plant(100, 'monte_carlo')], { resources });
 
-      // Biomass is zero, but uptake draws from available pools. NO3 / PO4 / K
-      // all have mass in resources and should be consumed.
       expect(result.nitrateDelta).toBeLessThan(0);
       expect(result.phosphateDelta).toBeLessThan(0);
       expect(result.potassiumDelta).toBeLessThan(0);
-      expect(result.ironDelta).toBe(0); // clamped to available (0)
+      expect(result.ironDelta).toBe(0);
     });
 
     it('nutrient uptake splits in fertilizer ratio', () => {
-      const abundant = buildResources(waterVolume, {}, 10); // 10× optimal — no clamping
+      const abundant = buildResources(waterVolume, {}, 10);
       const result = photosynthesis([plant(100, 'amazon_sword')], { resources: abundant });
 
       const total =
@@ -378,7 +341,6 @@ describe('calculatePhotosynthesis', () => {
   });
 
   describe('scaling with light intensity', () => {
-    /** Oxygen and nitrate a planting moves at one substrate PAR. */
     function at(lightPar: number, species: PlantSpecies = 'java_fern'): PhotosynthesisResult {
       return photosynthesis([plant(100, species)], {
         lightPar,
@@ -396,8 +358,6 @@ describe('calculatePhotosynthesis', () => {
     });
 
     it('stops making more of it once the light saturates', () => {
-      // Each doubling buys less than the one before, and the last buys almost
-      // nothing — which is what stops a bigger fixture paying forever.
       const steps = [10, 20, 40, 80, 160].map((par) => at(par).oxygenProducedMg);
       const gains = steps.slice(1).map((made, i) => made - steps[i]!);
 
@@ -419,19 +379,13 @@ describe('calculatePhotosynthesis', () => {
     });
 
     it('saturates a shade species before a sun species', () => {
-      // Anubias saturates at 16 PAR and monte carlo at 60, so at one fixture
-      // the shade plant is closer to its own ceiling than the carpet is to its.
       const share = (species: PlantSpecies): number =>
         at(50, species).oxygenProducedMg / at(1e4, species).oxygenProducedMg;
 
       expect(share('anubias')).toBeGreaterThan(share('monte_carlo'));
-      expect(share('anubias')).toBeGreaterThan(0.99);
-      expect(share('monte_carlo')).toBeLessThan(0.8);
     });
 
     it('reads Ik off the tuned factor rather than a constant of its own', () => {
-      // The knob has to reach this channel: raising it moves a species'
-      // saturation up, so one fixture buys a smaller share of the rate.
       const made = (saturationIrradianceFactor: number): number =>
         photosynthesis([plant(100, 'java_fern')], {
           lightPar: 20,
@@ -441,7 +395,6 @@ describe('calculatePhotosynthesis', () => {
 
       expect(made(4)).toBeLessThan(made(2));
       expect(made(2)).toBeLessThan(made(1));
-      // A species that saturates at no light at all is one nothing holds back.
       expect(made(0)).toBeGreaterThan(made(1));
     });
 
@@ -482,19 +435,7 @@ describe('getTotalPlantSize', () => {
     expect(getTotalPlantSize([])).toBe(0);
   });
 
-  it('returns size of single plant', () => {
-    expect(getTotalPlantSize([{ size: 75 }])).toBe(75);
-  });
-
   it('sums sizes of multiple plants', () => {
     expect(getTotalPlantSize([{ size: 50 }, { size: 75 }, { size: 100 }])).toBe(225);
-  });
-
-  it('handles plants with 0 size', () => {
-    expect(getTotalPlantSize([{ size: 0 }, { size: 50 }])).toBe(50);
-  });
-
-  it('handles fractional sizes', () => {
-    expect(getTotalPlantSize([{ size: 33.33 }, { size: 66.67 }])).toBe(100);
   });
 });

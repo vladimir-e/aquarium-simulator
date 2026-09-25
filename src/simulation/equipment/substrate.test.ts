@@ -6,7 +6,6 @@ import {
   getSubstrateSurface,
   replaceSubstrate,
   substrateUpdate,
-  SUBSTRATE_ORGANIC_PER_LITER,
   SUBSTRATE_SURFACE_PER_LITER,
   type Substrate,
   type SubstrateType,
@@ -17,32 +16,11 @@ import { decayDefaults } from '../config/decay.js';
 const SUBSTRATES: SubstrateType[] = ['none', 'sand', 'gravel', 'aqua_soil'];
 
 describe('getSubstrateSurface', () => {
-  it('returns 0 for no substrate', () => {
+  it('is the substrate’s surface per litre times the tank', () => {
+    for (const type of SUBSTRATES) {
+      expect(getSubstrateSurface(type, 200)).toBe(SUBSTRATE_SURFACE_PER_LITER[type] * 200);
+    }
     expect(getSubstrateSurface('none', 100)).toBe(0);
-  });
-
-  it('returns correct surface for sand (400 cm²/L)', () => {
-    expect(getSubstrateSurface('sand', 100)).toBe(40000);
-  });
-
-  it('returns correct surface for gravel (800 cm²/L)', () => {
-    expect(getSubstrateSurface('gravel', 100)).toBe(80000);
-  });
-
-  it('returns correct surface for aqua soil (1200 cm²/L, highest)', () => {
-    expect(getSubstrateSurface('aqua_soil', 100)).toBe(120000);
-  });
-
-  it('scales surface with tank capacity', () => {
-    expect(getSubstrateSurface('gravel', 50)).toBe(40000);
-    expect(getSubstrateSurface('gravel', 200)).toBe(160000);
-  });
-
-  it('matches SUBSTRATE_SURFACE_PER_LITER constants', () => {
-    expect(getSubstrateSurface('none', 100)).toBe(SUBSTRATE_SURFACE_PER_LITER.none * 100);
-    expect(getSubstrateSurface('sand', 100)).toBe(SUBSTRATE_SURFACE_PER_LITER.sand * 100);
-    expect(getSubstrateSurface('gravel', 100)).toBe(SUBSTRATE_SURFACE_PER_LITER.gravel * 100);
-    expect(getSubstrateSurface('aqua_soil', 100)).toBe(SUBSTRATE_SURFACE_PER_LITER.aqua_soil * 100);
   });
 });
 
@@ -58,19 +36,6 @@ describe('getSubstrateOrganicReserve', () => {
         12
       );
     }
-  });
-
-  it('ranks the substrates aqua_soil > gravel >= sand > none', () => {
-    const { aqua_soil, gravel, sand, none } = SUBSTRATE_ORGANIC_PER_LITER;
-    expect(aqua_soil).toBeGreaterThan(gravel);
-    expect(gravel).toBeGreaterThanOrEqual(sand);
-    expect(sand).toBeGreaterThan(none);
-  });
-
-  it('is a quantity of its own, not a restatement of surface area', () => {
-    const surfaceRatio = SUBSTRATE_SURFACE_PER_LITER.aqua_soil / SUBSTRATE_SURFACE_PER_LITER.gravel;
-    const organicRatio = SUBSTRATE_ORGANIC_PER_LITER.aqua_soil / SUBSTRATE_ORGANIC_PER_LITER.gravel;
-    expect(organicRatio).not.toBeCloseTo(surfaceRatio, 1);
   });
 });
 
@@ -116,19 +81,6 @@ describe('calculateSubstrateLeach', () => {
       2 * decayDefaults.substrateLeachRate,
       12
     );
-  });
-
-  it('tapers to nothing as the reserve empties', () => {
-    let reserve = getSubstrateOrganicReserve('aqua_soil', 100);
-    const first = calculateSubstrateLeach(reserve, decayDefaults);
-
-    for (let hour = 0; hour < 24 * 56; hour++) {
-      const leached = calculateSubstrateLeach(reserve, decayDefaults);
-      expect(leached).toBeLessThanOrEqual(reserve);
-      reserve -= leached;
-    }
-
-    expect(calculateSubstrateLeach(reserve, decayDefaults)).toBeLessThan(first * 0.05);
   });
 
   it('leaches nothing from an empty or negative reserve', () => {

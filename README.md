@@ -1,8 +1,12 @@
 # Aquarium Simulator
 
-A comprehensive aquarium ecosystem simulation engine that models all aspects of a fish tank environment.
+A simulation engine for a freshwater aquarium. One hourly tick moves the whole
+tank: heat, light, water chemistry, the nitrogen cycle, plants, algae and fish,
+each reading from and writing to the same shared stocks. The engine is pure and
+immutable — `tick(state)` returns a new state — so persistence, scheduling and
+rendering are yours.
 
-**Live Demo:** https://engine.fishroom.app · **Documentation:** https://docs.fishroom.app
+**Demo:** [engine.fishroom.app](https://engine.fishroom.app) · **Docs:** [docs.fishroom.app](https://docs.fishroom.app)
 
 ## Install
 
@@ -10,77 +14,52 @@ A comprehensive aquarium ecosystem simulation engine that models all aspects of 
 npm install aquarium-simulator
 ```
 
-## Quick Start
+## Usage
 
 ```ts
-import { createSimulation, tick } from 'aquarium-simulator';
+import { applyAction, createSimulation, tick } from 'aquarium-simulator';
 
-// Create a 60 L tank. Only `tankCapacity` is required; every other
-// parameter (heater, lid, substrate, lighting, …) falls back to a default.
-let state = createSimulation({ tankCapacity: 60 });
+const GALLON = 3.785; // the engine works in litres and °C
 
-// Each tick advances the ecosystem by one hour. Simulate a full day.
-for (let hour = 0; hour < 24; hour++) {
-  state = tick(state);
-}
-
-console.log(`After ${state.tick} ticks:`);
-console.log(`  temperature: ${state.resources.temperature.toFixed(1)} °C`);
-console.log(`  ammonia:     ${state.resources.ammonia.toFixed(2)} mg`);
-```
-
-The engine is pure and immutable: `tick(state)` returns a new state and never
-mutates its input, so you own persistence, scheduling, and rendering. See
-[docs.fishroom.app](https://docs.fishroom.app) for the full API surface and
-simulation model.
-
-### Starting a tank at a state
-
-A fresh tank is empty and uncycled. Pass a `PresetSeed` to start it wherever
-you want to watch it from — a colony, a part-spent bed, chemistry stocks, fish
-at an age and sex, plants at a size — and it needs no simulated weeks to get
-there. A tank that says `bacteria: 'cycled'` starts a month into its life, so
-it opens on a nitrate reading as well as a biofilter.
-
-```ts
-import { createSimulation, createPresetSimulation, getPresetById } from 'aquarium-simulator';
-
-const stocked = createSimulation(
-  { tankCapacity: 150 },
-  {
-    bacteria: 'cycled', // a month in: colony, bed and nitrate, sized to this tank
-    fish: [{ species: 'neon_tetra', count: 12 }],
-    plants: [{ species: 'java_fern', count: 3, size: 100 }],
-  }
+let state = createSimulation(
+  { tankCapacity: 20 * GALLON },
+  { bacteria: 'cycled', fish: [{ species: 'neon_tetra', count: 10 }] }
 );
 
-// The tanks the app ships — `PRESETS` pairs each config with its starting state.
-const planted = createPresetSimulation(getPresetById('planted')!);
+for (let hour = 0; hour < 24 * 7; hour++) state = tick(state);
+
+state = applyAction(state, { type: 'waterChange', amount: 0.25 }).state;
+
+const { nitrate, water, temperature } = state.resources;
+console.log(`NO₃ ${(nitrate / water).toFixed(1)} ppm at ${(temperature * 1.8 + 32).toFixed(1)} °F`);
 ```
 
-Nothing in a seed is validated or clamped, so a scenario can construct states
-no keeper could reach. A third `rngSeed` argument opens the tank's draw stream
-at a known point, so two tanks built on one seed live the same life — the same
-organisms, the same offspring, the same ids.
-
-## Setup
+## Demo UI
 
 ```bash
 npm install
+npm run ui
 ```
 
-## Commands
+## Scenarios
+
+`npm run scenarios` runs six preset tanks headless on a keeper's schedule and
+grades each reading green, amber or red against what a real tank shows.
 
 ```bash
-npm run ui             # Launch the dashboard
-npm run build          # Compile TypeScript
-npm run lint           # Run ESLint
-npm run test           # Run tests
-npm run test:watch     # Run tests in watch mode
-npm run test:coverage  # Run tests with coverage report
+npm run scenarios                                           # every tank
+npm run scenarios -- low-tech --water-change=off --days=30  # skip water changes, watch nitrate climb
+npm run scenarios -- --json=/tmp/before.json                # save a baseline…
+npm run scenarios -- --diff=/tmp/before.json                # …and show only what moved
 ```
+
+Flags are in [`docs/cli.md`](docs/cli.md).
 
 ## Documentation
 
-[docs.fishroom.app](https://docs.fishroom.app) documents the whole system — concepts,
-one page per subsystem, and reference tables. Its source is in [`docs-site/`](docs-site/).
+[docs.fishroom.app](https://docs.fishroom.app) covers the whole system: concepts,
+one page per subsystem, and reference tables.
+
+## License
+
+MIT

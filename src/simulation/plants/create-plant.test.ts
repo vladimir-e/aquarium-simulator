@@ -7,11 +7,6 @@ import { computePlantVitality } from '../systems/plant-vitality.js';
 
 const RESOURCES = createSimulation({ tankCapacity: 40 }).resources;
 
-/**
- * Banked units a plant's own upkeep has already spoken for, read off the
- * engine's arithmetic rather than restated here — the species' hardiness and
- * the tank's temperature are both in it, and a copy would forget them.
- */
 const reserveOwed = (plant: Plant, plantsConfig: PlantsConfig): number =>
   computePlantVitality({
     plant,
@@ -38,8 +33,6 @@ describe('createPlant', () => {
   });
 
   it('arrives provisioned at the cap the tank was tuned to', () => {
-    // `surplusCap` is a live slider, and half the shipped bank is not half this
-    // tank's: at a cap of 20 a plant reading defaults is born over it.
     for (const surplusCap of [20, 80]) {
       const plantsConfig = { ...plantsDefaults, surplusCap };
       const plant = createPlant({ species: 'anubias', plantsConfig, rng: createRng(1) });

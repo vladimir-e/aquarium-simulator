@@ -5,7 +5,6 @@ import { stubMatchMedia, viewport } from '../test/matchMedia';
 
 afterEach(cleanup);
 
-/** Controllable matchMedia whose match can be flipped and broadcast to listeners. */
 function installMatchMedia(initial: boolean): {
   flip: (next: boolean) => void;
   listenerCount: () => number;
@@ -78,10 +77,6 @@ describe('useIsMobile', () => {
     }
   });
 
-  /**
-   * The whole point of one breakpoint: the tablet band between Tailwind's `sm`
-   * and `md` is mobile, because that is where the rail stops fitting.
-   */
   it.each([
     [390, true],
     [700, true],

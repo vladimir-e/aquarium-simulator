@@ -1,106 +1,188 @@
 import { describe, it, expect } from 'vitest';
-import { alerts, checkAlerts, waterLevelAlert } from './index.js';
-import { createSimulation } from '../state.js';
-import { produce } from 'immer';
+import { produce, type Draft } from 'immer';
+import {
+  alerts,
+  checkAlerts,
+  highAlgaeAlert,
+  highAmmoniaAlert,
+  highCo2Alert,
+  highNitrateAlert,
+  highNitriteAlert,
+  lowOxygenAlert,
+  waterLevelAlert,
+  HIGH_ALGAE_THRESHOLD,
+  HIGH_AMMONIA_THRESHOLD,
+  HIGH_CO2_THRESHOLD,
+  HIGH_NITRATE_THRESHOLD,
+  HIGH_NITRITE_THRESHOLD,
+  LOW_OXYGEN_THRESHOLD,
+  WATER_LEVEL_CRITICAL_THRESHOLD,
+  type Alert,
+} from './index.js';
+import { createSimulation, type AlertState, type SimulationState } from '../state.js';
 
-describe('alerts registry', () => {
-  it('contains waterLevelAlert', () => {
-    expect(alerts).toContain(waterLevelAlert);
+const CAPACITY = 100;
+
+type Setter = (draft: Draft<SimulationState>, value: number) => void;
+
+interface Case {
+  alert: Alert;
+  flag: keyof AlertState;
+  source: string;
+  set: Setter;
+  firing: number;
+  quiet: number;
+  edge: { value: number; fires: boolean };
+}
+
+const ppm =
+  (resource: 'ammonia' | 'nitrite' | 'nitrate'): Setter =>
+  (draft, value): void => {
+    draft.resources[resource] = value * draft.resources.water;
+  };
+
+const CASES: Case[] = [
+  {
+    alert: waterLevelAlert,
+    flag: 'waterLevelCritical',
+    source: 'evaporation',
+    set: (draft, share): void => {
+      draft.resources.water = share * CAPACITY;
+    },
+    firing: WATER_LEVEL_CRITICAL_THRESHOLD / 2,
+    quiet: 0.5,
+    edge: { value: WATER_LEVEL_CRITICAL_THRESHOLD, fires: false },
+  },
+  {
+    alert: highAlgaeAlert,
+    flag: 'highAlgae',
+    source: 'algae',
+    set: (draft, mass): void => {
+      draft.algae.mass = mass;
+    },
+    firing: HIGH_ALGAE_THRESHOLD + 5,
+    quiet: HIGH_ALGAE_THRESHOLD / 2,
+    edge: { value: HIGH_ALGAE_THRESHOLD, fires: true },
+  },
+  {
+    alert: highAmmoniaAlert,
+    flag: 'highAmmonia',
+    source: 'nitrogen-cycle',
+    set: ppm('ammonia'),
+    firing: HIGH_AMMONIA_THRESHOLD * 2,
+    quiet: HIGH_AMMONIA_THRESHOLD / 2,
+    edge: { value: HIGH_AMMONIA_THRESHOLD, fires: false },
+  },
+  {
+    alert: highNitriteAlert,
+    flag: 'highNitrite',
+    source: 'nitrogen-cycle',
+    set: ppm('nitrite'),
+    firing: HIGH_NITRITE_THRESHOLD * 2,
+    quiet: HIGH_NITRITE_THRESHOLD / 2,
+    edge: { value: HIGH_NITRITE_THRESHOLD, fires: false },
+  },
+  {
+    alert: highNitrateAlert,
+    flag: 'highNitrate',
+    source: 'nitrogen-cycle',
+    set: ppm('nitrate'),
+    firing: HIGH_NITRATE_THRESHOLD * 2,
+    quiet: HIGH_NITRATE_THRESHOLD / 2,
+    edge: { value: HIGH_NITRATE_THRESHOLD, fires: false },
+  },
+  {
+    alert: lowOxygenAlert,
+    flag: 'lowOxygen',
+    source: 'gas-exchange',
+    set: (draft, oxygen): void => {
+      draft.resources.oxygen = oxygen;
+    },
+    firing: LOW_OXYGEN_THRESHOLD / 2,
+    quiet: LOW_OXYGEN_THRESHOLD * 2,
+    edge: { value: LOW_OXYGEN_THRESHOLD, fires: false },
+  },
+  {
+    alert: highCo2Alert,
+    flag: 'highCo2',
+    source: 'gas-exchange',
+    set: (draft, co2): void => {
+      draft.resources.co2 = co2;
+    },
+    firing: HIGH_CO2_THRESHOLD + 5,
+    quiet: HIGH_CO2_THRESHOLD / 2,
+    edge: { value: HIGH_CO2_THRESHOLD, fires: false },
+  },
+];
+
+function tank({ set }: Case, value: number, triggered = false, tick = 0): SimulationState {
+  return produce(createSimulation({ tankCapacity: CAPACITY }), (draft) => {
+    set(draft, value);
+    draft.tick = tick;
+    for (const flag of Object.keys(draft.alertState) as (keyof AlertState)[]) {
+      draft.alertState[flag] = triggered;
+    }
+  });
+}
+
+describe.each(CASES)('$alert.id', (c) => {
+  it('fires one warning on crossing, stamped with the tick', () => {
+    const result = c.alert.check(tank(c, c.firing, false, 42));
+
+    expect(result.log).toMatchObject({ severity: 'warning', source: c.source, tick: 42 });
+    expect(result.alertState[c.flag]).toBe(true);
   });
 
-  it('is an array of alerts', () => {
-    expect(Array.isArray(alerts)).toBe(true);
-    expect(alerts.length).toBeGreaterThan(0);
+  it('stays quiet while latched, and clears once the condition passes', () => {
+    const held = c.alert.check(tank(c, c.firing, true));
+    expect(held.log).toBeNull();
+    expect(held.alertState[c.flag]).toBe(true);
+
+    const cleared = c.alert.check(tank(c, c.quiet, true));
+    expect(cleared.log).toBeNull();
+    expect(cleared.alertState[c.flag]).toBe(false);
+  });
+
+  it('treats the threshold itself as the documented side', () => {
+    expect(c.alert.check(tank(c, c.edge.value)).log !== null).toBe(c.edge.fires);
+  });
+});
+
+describe('waterLevelAlert', () => {
+  it('stays quiet on an empty tank', () => {
+    expect(waterLevelAlert.check(tank(CASES[0]!, 0)).log).toBeNull();
+  });
+
+  it('reports the level and the share of capacity', () => {
+    const message = waterLevelAlert.check(tank(CASES[0]!, 0.15)).log!.message;
+    expect(message).toContain('15.0L');
+    expect(message).toContain('15.0%');
   });
 });
 
 describe('checkAlerts', () => {
-  it('returns result with logs array and updated alertState', () => {
-    const state = createSimulation({ tankCapacity: 100 });
-    const lowWaterState = produce(state, (draft) => {
-      draft.resources.water = 15;
-      draft.tick = 10;
-    });
-
-    const result = checkAlerts(lowWaterState);
-
-    expect(Array.isArray(result.logs)).toBe(true);
-    expect(result.logs.length).toBe(1);
-    expect(result.logs[0].severity).toBe('warning');
-    expect(result.alertState.waterLevelCritical).toBe(true);
+  it('registers every alert once', () => {
+    expect(new Set(alerts.map((a) => a.id)).size).toBe(alerts.length);
+    for (const { alert } of CASES) expect(alerts).toContain(alert);
   });
 
-  it('returns empty logs array when no alerts triggered', () => {
-    const state = createSimulation({ tankCapacity: 100 });
+  it('is silent on a fresh tank', () => {
+    const result = checkAlerts(createSimulation({ tankCapacity: CAPACITY }));
 
+    expect(result.logs).toEqual([]);
+    expect(Object.values(result.alertState).every((flag) => !flag)).toBe(true);
+  });
+
+  it('collects the logs that fire and merges every flag', () => {
+    const state = produce(createSimulation({ tankCapacity: CAPACITY }), (draft) => {
+      draft.resources.water = 10;
+      draft.resources.co2 = HIGH_CO2_THRESHOLD + 5;
+      draft.alertState.highCo2 = true;
+    });
     const result = checkAlerts(state);
 
-    expect(result.logs).toEqual([]);
-    expect(result.alertState.waterLevelCritical).toBe(false);
-  });
-
-  it('filters out null log results', () => {
-    const state = createSimulation({ tankCapacity: 100 });
-    // Full tank - no alerts should trigger
-    const fullTankState = produce(state, (draft) => {
-      draft.resources.water = 100;
-    });
-
-    const result = checkAlerts(fullTankState);
-
-    expect(result.logs).toEqual([]);
-    expect(result.logs.every((log) => log !== null)).toBe(true);
-  });
-
-  it('works with multiple alert conditions', () => {
-    const state = createSimulation({ tankCapacity: 100 });
-    // Set up a state that triggers water level alert
-    const lowWaterState = produce(state, (draft) => {
-      draft.resources.water = 10;
-    });
-
-    const result = checkAlerts(lowWaterState);
-
-    // Should have at least the water level alert
-    expect(result.logs.length).toBeGreaterThanOrEqual(1);
-    expect(result.logs.some((log) => log.source === 'evaporation')).toBe(true);
-  });
-
-  it('includes tick information from state', () => {
-    const state = createSimulation({ tankCapacity: 100 });
-    const lowWaterState = produce(state, (draft) => {
-      draft.resources.water = 10;
-      draft.tick = 42;
-    });
-
-    const result = checkAlerts(lowWaterState);
-
-    expect(result.logs[0].tick).toBe(42);
-  });
-
-  it('does not re-trigger already triggered alerts', () => {
-    const state = createSimulation({ tankCapacity: 100 });
-    const alreadyTriggeredState = produce(state, (draft) => {
-      draft.resources.water = 10;
-      draft.alertState.waterLevelCritical = true;
-    });
-
-    const result = checkAlerts(alreadyTriggeredState);
-
-    expect(result.logs).toEqual([]);
+    expect(result.logs.map((l) => l.source)).toEqual(['evaporation']);
     expect(result.alertState.waterLevelCritical).toBe(true);
-  });
-
-  it('clears alert state when condition no longer true', () => {
-    const state = createSimulation({ tankCapacity: 100 });
-    const recoveredState = produce(state, (draft) => {
-      draft.resources.water = 50;
-      draft.alertState.waterLevelCritical = true;
-    });
-
-    const result = checkAlerts(recoveredState);
-
-    expect(result.logs).toEqual([]);
-    expect(result.alertState.waterLevelCritical).toBe(false);
+    expect(result.alertState.highCo2).toBe(true);
   });
 });
