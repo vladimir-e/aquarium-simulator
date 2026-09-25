@@ -38,7 +38,6 @@ export function OverviewSection({
         <div className="grid grid-cols-3 content-start items-start gap-3 max-md:grid-cols-1">
           <NitrogenWidget
             book={book}
-            config={config}
             onOpenReading={setReading}
             className="col-span-2 max-md:col-span-1"
           />

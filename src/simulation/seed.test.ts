@@ -88,14 +88,26 @@ describe('createSimulation seeding', () => {
     expect(seeded.resources.nob).toBe(0);
   });
 
-  it("sizes a 'cycled' colony against the capacity the tank was actually built at", () => {
+  it("sizes a 'cycled' colony against the surface the tank was actually built with", () => {
     for (const tankCapacity of [20, 150]) {
       const seeded = createSimulation({ ...TANK, tankCapacity }, { bacteria: 'cycled' });
 
-      expect(seeded.resources.aob).toBe(cycledColony(tankCapacity).aob);
-      expect(seeded.resources.nob).toBe(cycledColony(tankCapacity).nob);
+      expect(seeded.resources.aob).toBe(cycledColony(seeded.resources.surface).aob);
+      expect(seeded.resources.nob).toBe(cycledColony(seeded.resources.surface).nob);
     }
   });
+
+  it("grows a 'cycled' colony on an inert bed with its filter and its bed", () => {
+    const aob = (config: Omit<SimulationConfig, 'tankCapacity'>): number =>
+      createSimulation({ tankCapacity: 100, ...config }, { bacteria: 'cycled' }).resources.aob;
+
+    expect(aob({ substrate: { type: 'gravel' }, filter: { type: 'canister' } })).toBeGreaterThan(
+      aob({ substrate: { type: 'gravel' }, filter: { type: 'sponge' } })
+    );
+    expect(aob({ substrate: { type: 'gravel' } })).toBeGreaterThan(aob({ substrate: { type: 'sand' } }));
+    expect(aob({ substrate: { type: 'aqua_soil' } })).toBeGreaterThan(aob({ substrate: { type: 'gravel' } }));
+  });
+
 
   describe('the bed', () => {
     it("ages a 'cycled' bed against the type and capacity the tank was built with", () => {
@@ -138,7 +150,7 @@ describe('createSimulation seeding', () => {
       });
 
       expect(seeded.equipment.substrate.organicReserve).toBe(1.5);
-      expect(seeded.resources.aob).toBe(cycledColony(TANK.tankCapacity).aob);
+      expect(seeded.resources.aob).toBe(cycledColony(seeded.resources.surface).aob);
     });
   });
 
@@ -240,7 +252,6 @@ describe('createSimulation seeding', () => {
         { bacteria: 'cycled' }
       );
 
-      expect(bedless.resources.aob).toBe(gravel.resources.aob);
       expect(gravel.resources.nitrate).toBeGreaterThan(0);
       expect(bedless.resources.nitrate).toBe(0);
     });
@@ -360,7 +371,7 @@ describe('createSimulation seeding', () => {
 
   describe('determinism', () => {
     const SEED: PresetSeed = {
-      bacteria: cycledColony(40),
+      bacteria: { aob: 12000, nob: 8000 },
       resources: { nitrate: 400 },
       fish: [
         { species: 'neon_tetra', count: 8 },
@@ -399,7 +410,7 @@ describe('createSimulation seeding', () => {
     });
 
     it('takes a colony with no ammonia history', () => {
-      const state = createSimulation(TANK, { bacteria: cycledColony(40) });
+      const state = createSimulation(TANK, { bacteria: { aob: 12000, nob: 8000 } });
 
       expect(state.resources.aob).toBeGreaterThan(0);
       expect(state.resources.ammonia).toBe(0);

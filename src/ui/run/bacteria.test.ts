@@ -20,7 +20,6 @@ import {
 import { getMassFromPpm } from '../../simulation/resources/index.js';
 
 const config = DEFAULT_CONFIG;
-const nc = config.nitrogenCycle;
 const perCm2 = nitrogenCycleDefaults.bacteriaPerCm2;
 const RNG_SEED = 2026;
 
@@ -151,7 +150,7 @@ describe('bacteriaReadout', () => {
 
     expect(readout.atTrace).toBe(true);
     expect(readout.cycled).toBe(false);
-    expect(bacteriaSummary(readout, null, nc)).toBe(
+    expect(bacteriaSummary(readout, null)).toBe(
       `Both toxins read zero, on colonies too small to hold a feeding — ${Math.round(readout.colonisation)} % of the biofilm this tank offers.`
     );
   });
@@ -228,21 +227,19 @@ describe('projectNitritePeak', () => {
 });
 
 describe('bacteriaSummary', () => {
-  it('explains an uncycled tank by the threshold AOB are waiting for', () => {
+  it('explains an uncycled tank by the colony it is still waiting to grow', () => {
     const state = tank();
     const summary = bacteriaSummary(
       bacteriaReadout(state, config),
-      projectNitritePeak(state, config, 24),
-      nc
+      projectNitritePeak(state, config, 24)
     );
     expect(summary).toContain('Uncycled');
-    expect(summary).toContain(`${nc.aobSpawnThreshold} ppm`);
     expect(summary).toContain('No nitrite peak within');
   });
 
   it('blames the lagging colony while nitrite is climbing', () => {
     const readout = bacteriaReadout(colonised(stocked(), { aob: 0.5, nob: 0.001, ammonia: 1 }), config);
-    const summary = bacteriaSummary(readout, { hours: 30, ppm: 2 }, nc);
+    const summary = bacteriaSummary(readout, { hours: 30, ppm: 2 });
 
     expect(summary).toContain('NOB trail AOB by');
     expect(summary).toContain('Nitrite peaks in');
@@ -250,14 +247,13 @@ describe('bacteriaSummary', () => {
 
   it('calls out the surface as the limit once both colonies have filled it', () => {
     const readout = bacteriaReadout(colonised(stocked(), { aob: 0.95, nob: 0.9, ammonia: 1 }), config);
-    expect(bacteriaSummary(readout, null, nc)).toContain('more load has nowhere to go');
+    expect(bacteriaSummary(readout, null)).toContain('more load has nowhere to go');
   });
 
   it('reads a colony below its ceiling as room left rather than as a shortfall', () => {
     const summary = bacteriaSummary(
       bacteriaReadout(colonised(tank(), { aob: 0.5, nob: 0.5 }), config),
-      null,
-      nc
+      null
     );
     expect(summary).toContain('clearing nitrite');
     expect(summary).toContain('50 % of the biofilm this tank offers');

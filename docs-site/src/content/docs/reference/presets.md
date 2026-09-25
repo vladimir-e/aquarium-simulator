@@ -36,7 +36,7 @@ readings that fit it. Hardscape starts as bought.
 
 | Stock | Seeded to |
 |---|---|
-| AOB and NOB | The colony a tank of that capacity rests at once cycled, per litre of water |
+| AOB and NOB | A month-old colony's share of the tank's surface ceiling — filter, bed, glass and hardscape |
 | Substrate organic reserve | The share of a fresh bed still unleached on day 30 |
 | Substrate KH reserve | The share of a fresh soil bed's buffer left on day 30 |
 | KH | The tap's, or a fraction of it over aqua soil |

@@ -2,7 +2,7 @@
  * Nitrogen cycle system tunable configuration.
  *
  * **A bacteria unit is 10⁶ cells.** Populations, the surface ceiling, the
- * inoculum and the throughput rate are all quoted in those units, which is
+ * seeding rate and the throughput rate are all quoted in those units, which is
  * what makes `bacteriaPerCm2` a biofilm density you can look up rather than
  * an arbitrary score. See `bacteriaPerCm2` below for the pin.
  *
@@ -40,12 +40,8 @@ export interface NitrogenCycleConfig {
   wasteToAmmoniaRatio: number;
   /** mg NH₃ processed per bacteria unit per tick */
   bacteriaProcessingRate: number;
-  /** ppm ammonia to trigger AOB spawn */
-  aobSpawnThreshold: number;
-  /** ppm nitrite to trigger NOB spawn */
-  nobSpawnThreshold: number;
-  /** Bacteria units the tank is seeded with per litre of water, on spawn */
-  inoculumPerLiter: number;
+  /** Bacteria units settling into the tank per litre of water per tick, each guild */
+  seedingRate: number;
   /** AOB growth rate per tick at full utilization */
   aobGrowthRate: number;
   /** NOB growth rate per tick at full utilization */
@@ -85,29 +81,16 @@ export const nitrogenCycleDefaults: NitrogenCycleConfig = {
   // species that stands: the gap between the two half-saturation constants runs
   // from 1.000 at saturation to 0.364 at 0.10 mg/L.
   bacteriaProcessingRate: 0.0002 / AOB_AT_AIR_SATURATION,
-  // Spawn thresholds set to "detectable by hobbyist" ranges — 0.5 ppm
-  // NH3 and 0.5 ppm NO2 are the levels where a nitrifier lag-phase
-  // typically ends. Previous 0.02 / 0.125 led to bacteria colonising
-  // within the first day, which contradicted the scenario 1 timeline
-  // (cycle visible only after 10+ days in a fresh tank).
-  aobSpawnThreshold: 0.5,
-  nobSpawnThreshold: 0.5,
-  // Nitrifiers the tank is born with, per litre of fill water — 6.4×10⁵ cells,
-  // ~640 per mL. See `calculateInoculum` for why the seed is counted in litres.
+  // Nitrifiers settling out of the fill water and the air: 100 cells per litre
+  // an hour, which a tank with nothing to feed them holds at ~73 cells/mL
+  // (rate / deathRate). See `calculateSeeding` for why it is counted in litres.
   //
-  // Everything after the seed is doublings, so the inoculum sets the clock —
-  // this is the one constant of the three read off the cycling timeline rather
-  // than pinned to a measurement. Peak height and cycled day are not separate
-  // knobs: the bed's nitrogen budget is fixed, so every day the peak is delayed
-  // is another day of it standing as nitrite.
-  //
-  // Swept at 10 L through 1000 L, every value that passes lies in 0.597 – 0.680
-  // units/L: below it the nitrite peak clears the 5 ppm ceiling, above it a
-  // tank cycles before day 21. Room at one edge is bought with room at the
-  // other, one for one, so the value below is the middle of that window — the
-  // furthest either edge can be held off. It leaves 0.047 ppm under the peak
-  // ceiling and 0.208 d over the cycled-day floor.
-  inoculumPerLiter: 0.6385,
+  // Everything after the first cells is doublings, so this is the clock, and
+  // the one constant here read off the cycling timeline rather than pinned to a
+  // measurement. It is logarithmic in it — each tenfold cut adds three to four
+  // days — and this value puts a fishless soil tank's nitrite back to zero in
+  // about three weeks and a fish-in cycle in about four.
+  seedingRate: 0.0001,
   // Growth is per-capita at *full* utilization, so each rate is read straight
   // off a saturated doubling time: rate = ln2 / hours. AOB double in 15–24 h
   // under non-limiting ammonia, NOB in 24–48 h; the midpoints below keep the
@@ -124,7 +107,7 @@ export const nitrogenCycleDefaults: NitrogenCycleConfig = {
   // for mature nitrifying media.
   //
   // This constant is the units convention rather than a fitted value. The three
-  // constants above and here — throughput R, ceiling density K, inoculum s —
+  // constants above and here — throughput R, ceiling density K, seeding rate s —
   // carry an exact gauge symmetry: (R → αR, K → K/α, s → s/α)
   // produces bit-identical trajectories, because a population only ever enters
   // the model multiplied by R or divided by K. Three numbers, two physical
@@ -180,9 +163,7 @@ export const nitrogenCycleConfigMeta: NitrogenCycleConfigMeta[] = [
   { key: 'wasteConversionRate', label: 'Waste Conversion Rate', unit: '/tick', step: 0.05 },
   { key: 'wasteToAmmoniaRatio', label: 'Waste to Ammonia Ratio', unit: 'mg/g', step: 5 },
   { key: 'bacteriaProcessingRate', label: 'Bacteria Processing Rate', unit: 'mg/unit/tick', step: 0.00005 },
-  { key: 'aobSpawnThreshold', label: 'AOB Spawn Threshold', unit: 'ppm', step: 0.005 },
-  { key: 'nobSpawnThreshold', label: 'NOB Spawn Threshold', unit: 'ppm', step: 0.025 },
-  { key: 'inoculumPerLiter', label: 'Inoculum', unit: 'units/L', step: 0.005 },
+  { key: 'seedingRate', label: 'Seeding Rate', unit: 'units/L/tick', step: 0.00001 },
   { key: 'aobGrowthRate', label: 'AOB Growth Rate', unit: '/tick', step: 0.0001 },
   { key: 'nobGrowthRate', label: 'NOB Growth Rate', unit: '/tick', step: 0.0001 },
   { key: 'bacteriaPerCm2', label: 'Max Bacteria per cm²', unit: 'units/cm²', step: 0.5 },

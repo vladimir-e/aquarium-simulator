@@ -54,9 +54,7 @@ off — which is the part that makes a number checkable.
 | `wasteConversionRate` | Share of standing waste mineralized to ammonia per tick | /tick |
 | `wasteToAmmoniaRatio` | Ammonia yielded per gram of waste | mg/g |
 | `bacteriaProcessingRate` | Ammonia one bacteria unit oxidises per tick, at saturating oxygen | mg/unit/tick |
-| `aobSpawnThreshold` | Ammonia concentration at which the AOB guild appears | ppm |
-| `nobSpawnThreshold` | Nitrite concentration at which the NOB guild appears | ppm |
-| `inoculumPerLiter` | Nitrifiers a tank is born with, per litre of fill water | units/L |
+| `seedingRate` | Nitrifiers settling into the tank per litre of water per tick, each guild | units/L/tick |
 | `aobGrowthRate` | AOB per-capita growth at full utilization | /tick |
 | `nobGrowthRate` | NOB per-capita growth at full utilization | /tick |
 | `bacteriaPerCm2` | Biofilm carrying capacity — the colony's ceiling per cm² of surface | units/cm² |

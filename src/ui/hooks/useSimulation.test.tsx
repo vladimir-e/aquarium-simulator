@@ -553,8 +553,8 @@ describe('useSimulation', () => {
         const { result, unmount } = renderHook(() => useSimulation(id), { wrapper });
         const { aob, nob } = result.current.state.resources;
 
-        expect(aob).toBe(cycledColony(result.current.state.tank.capacity).aob);
-        expect(nob).toBe(cycledColony(result.current.state.tank.capacity).nob);
+        expect(aob).toBe(cycledColony(result.current.state.resources.surface).aob);
+        expect(nob).toBe(cycledColony(result.current.state.resources.surface).nob);
         unmount();
         globalThis.localStorage.clear();
       }

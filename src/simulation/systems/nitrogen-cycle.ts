@@ -8,7 +8,7 @@
  * 3. Nitrite → Nitrate (NOB bacteria) - processes mass in mg
  *
  * Storage model: Nitrogen compounds stored as mass (mg).
- * Concentration (ppm) derived as mass/water for threshold checks.
+ * Concentration (ppm) derived as mass/water where a reading needs one.
  *
  * Stoichiometry: N-mass is conserved across the chain (same number of
  * nitrogen atoms before and after). Compound mass grows with molecular
@@ -139,32 +139,29 @@ export function calculateMaxBacteria(
 }
 
 /**
- * The colony a tank starts with once its spawn threshold is crossed.
+ * Nitrifiers settling into the tank each tick, out of the water and the air
+ * above it — a trickle that never stops, so a guild is always present and
+ * grows the moment it has something to oxidise.
  *
- * Nitrifiers arrive dissolved in the fill water and out of the air above it, so
- * what a tank is born with is set by how much water went into it. They settle
- * onto whatever is going — bed, glass, filter media — but attachment never
- * rations the seed: an ordinary colony rests at a couple of percent of
- * `calculateMaxBacteria`, so there is always somewhere to land.
- *
- * Per litre and not per cm² of surface, which is also the only form that holds
- * the cycling clock volume-independent: glass area grows with the square of a
- * tank's linear size and filter media is a flat cm² per filter type, so a seed
- * quoted per cm² hands a nano nearly twice the head start per litre a stock
- * tank gets.
+ * Per litre of standing water rather than per cm² of surface, which is also the
+ * only form that holds the cycling clock volume-independent: glass area grows
+ * with the square of a tank's linear size and filter media is a flat cm² per
+ * filter type, so a seed quoted per cm² would hand a nano nearly twice the head
+ * start per litre a stock tank gets.
  */
-export function calculateInoculum(
-  tankCapacity: number,
+export function calculateSeeding(
+  water: number,
   config: NitrogenCycleConfig = nitrogenCycleDefaults
 ): number {
-  return tankCapacity * config.inoculumPerLiter;
+  return Math.max(0, water) * config.seedingRate;
 }
 
 /**
- * A colony's two flows for one tick: growth and maintenance decay.
+ * A colony's two flows for one tick: gain and maintenance decay.
  *
- * Growth is the logistic form scaled by `utilization` — the share of its
- * processing capacity the colony actually used this tick.
+ * Gain is the seeding trickle plus logistic growth scaled by `utilization` —
+ * the share of its processing capacity the colony actually used this tick —
+ * and never carries the colony past its surface ceiling.
  *
  * Utilization is dimensionless (consumed / capacity), so per-capita growth reads
  * how hard the colony is working rather than how big it or the tank is.
@@ -177,16 +174,15 @@ export function calculateColonyFlows(
   utilization: number,
   growthRate: number,
   deathRate: number,
-  maxPopulation: number
+  maxPopulation: number,
+  seeding: number
 ): { growth: number; death: number } {
-  if (population <= 0) return { growth: 0, death: 0 };
-
   const death = population * deathRate;
   if (maxPopulation <= 0) return { growth: 0, death };
 
   const logistic = population * growthRate * utilization * (1 - population / maxPopulation);
   return {
-    growth: Math.max(0, Math.min(population + logistic, maxPopulation) - population),
+    growth: Math.max(0, Math.min(population + seeding + logistic, maxPopulation) - population),
     death,
   };
 }
@@ -361,6 +357,7 @@ function colonyEffects(
   temperatureFactor: number,
   oxygenFactor: number,
   maxPopulation: number,
+  seeding: number,
   config: NitrogenCycleConfig
 ): Effect[] {
   const { growth, death } = calculateColonyFlows(
@@ -370,7 +367,8 @@ function colonyEffects(
       temperatureFactor *
       oxygenFactor,
     config.bacteriaDeathRate * temperatureFactor,
-    maxPopulation
+    maxPopulation,
+    seeding
   );
 
   const effects: Effect[] = [];
@@ -540,39 +538,9 @@ export const nitrogenCycleSystem: System = {
     }
 
     // ========================================================================
-    // Bacterial Dynamics: Spawning (thresholds in ppm, derived from mass)
+    // Bacterial Dynamics: Seeding, growth and maintenance decay
     // ========================================================================
-    // Derive ppm for threshold checks
-    const ammoniaPpm = getPpm(currentAmmonia, waterVolume);
-    const nitritePpm = getPpm(currentNitrite, waterVolume);
-
-    const inoculum = calculateInoculum(state.tank.capacity, ncConfig);
-
-    // AOB spawns when ammonia reaches threshold and population is zero
-    if (currentAob === 0 && ammoniaPpm >= ncConfig.aobSpawnThreshold) {
-      effects.push({
-        tier: 'passive',
-        resource: 'aob',
-        delta: inoculum,
-        source: 'nitrogen-cycle-spawn',
-      });
-      currentAob = inoculum;
-    }
-
-    // NOB spawns when nitrite reaches threshold and population is zero
-    if (currentNob === 0 && nitritePpm >= ncConfig.nobSpawnThreshold) {
-      effects.push({
-        tier: 'passive',
-        resource: 'nob',
-        delta: inoculum,
-        source: 'nitrogen-cycle-spawn',
-      });
-      currentNob = inoculum;
-    }
-
-    // ========================================================================
-    // Bacterial Dynamics: Growth and maintenance decay
-    // ========================================================================
+    const seeding = calculateSeeding(waterVolume, ncConfig);
     effects.push(
       ...colonyEffects(
         'aob',
@@ -581,6 +549,7 @@ export const nitrogenCycleSystem: System = {
         temperatureFactor,
         aobOxygenFactor,
         maxBacteria,
+        seeding,
         ncConfig
       ),
       ...colonyEffects(
@@ -590,6 +559,7 @@ export const nitrogenCycleSystem: System = {
         temperatureFactor,
         nobOxygenFactor,
         maxBacteria,
+        seeding,
         ncConfig
       )
     );

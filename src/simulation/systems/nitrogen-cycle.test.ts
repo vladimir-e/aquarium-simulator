@@ -4,7 +4,7 @@ import {
   nitrogenCycleSystem,
   nitrificationFactor,
   calculateMaxBacteria,
-  calculateInoculum,
+  calculateSeeding,
   calculateColonyFlows,
   calculateWasteToAmmonia,
   calculateAmmoniaToNitrite,
@@ -44,16 +44,21 @@ describe('calculateMaxBacteria', () => {
   });
 });
 
-describe('calculateInoculum', () => {
+describe('calculateSeeding', () => {
   it('scales with the water, so a ten times bigger tank seeds ten times heavier', () => {
-    expect(calculateInoculum(200)).toBeCloseTo(calculateInoculum(20) * 10, 10);
+    expect(calculateSeeding(200)).toBeCloseTo(calculateSeeding(20) * 10, 10);
   });
 
-  it('starts a colony far below the ceiling it will grow into', () => {
+  it('seeds nothing into a drained tank', () => {
+    expect(calculateSeeding(0)).toBe(0);
+    expect(calculateSeeding(-5)).toBe(0);
+  });
+
+  it('trickles in far below the ceiling a colony grows into', () => {
     const surface = createSimulation({ tankCapacity: 40, substrate: { type: 'none' } }).resources
       .surface;
 
-    expect(calculateInoculum(40)).toBeLessThan(calculateMaxBacteria(surface) / 1000);
+    expect(calculateSeeding(40)).toBeLessThan(calculateMaxBacteria(surface) / 1e6);
   });
 });
 
@@ -91,12 +96,26 @@ describe('calculateColonyFlows', () => {
   const flows = (
     population: number,
     utilization: number,
-    maxPopulation = 1000
+    maxPopulation = 1000,
+    seeding = 0
   ): { growth: number; death: number } =>
-    calculateColonyFlows(population, utilization, growthRate, deathRate, maxPopulation);
+    calculateColonyFlows(population, utilization, growthRate, deathRate, maxPopulation, seeding);
 
-  it('has nothing to give or lose without a population', () => {
+  it('has nothing to give or lose without a population or a seed', () => {
     expect(flows(0, 1)).toEqual({ growth: 0, death: 0 });
+  });
+
+  it('starts an empty colony on the seed alone', () => {
+    expect(flows(0, 1, 1000, 0.5)).toEqual({ growth: 0.5, death: 0 });
+  });
+
+  it('adds the seed to growth, idle or working', () => {
+    expect(flows(100, 0, 1000, 0.5).growth).toBeCloseTo(0.5, 12);
+    expect(flows(100, 1, 1000, 0.5).growth).toBeCloseTo(flows(100, 1).growth + 0.5, 12);
+  });
+
+  it('never seeds a colony past its ceiling', () => {
+    expect(1000 + flows(1000, 1, 1000, 0.5).growth).toBe(1000);
   });
 
   it('cannot grow onto surface that does not exist', () => {
@@ -635,58 +654,45 @@ describe('nitrogenCycleSystem', () => {
     });
   });
 
-  describe('Bacteria Spawning (ppm thresholds)', () => {
-    const seeded = (
-      overrides: Parameters<typeof createTestState>[0] = {}
-    ): SimulationState => createTestState({ substrate: 'aqua_soil', ...overrides });
-
-    const spawn = (state: SimulationState, resource: 'aob' | 'nob'): number | undefined =>
+  describe('Seeding', () => {
+    const gain = (state: SimulationState, resource: 'aob' | 'nob'): number =>
       nitrogenCycleSystem
         .update(state, DEFAULT_CONFIG)
-        .find((e) => e.resource === resource && e.source === 'nitrogen-cycle-spawn')?.delta;
+        .filter((e) => e.resource === resource && e.source === 'nitrogen-cycle-growth')
+        .reduce((sum, e) => sum + e.delta, 0);
 
-    it('spawns AOB when ammonia ppm reaches threshold', () => {
-      const state = seeded({ ammonia: ppmToMass(nitrogenCycleDefaults.aobSpawnThreshold), aob: 0 });
+    it('seeds both guilds with nothing yet to feed them', () => {
+      const state = createTestState({ aob: 0, nob: 0 });
 
-      expect(spawn(state, 'aob')).toBe(calculateInoculum(state.tank.capacity));
-    });
-
-    it('does not spawn AOB when already present', () => {
-      const state = seeded({ ammonia: ppmToMass(nitrogenCycleDefaults.aobSpawnThreshold), aob: 1 });
-
-      expect(spawn(state, 'aob')).toBeUndefined();
-    });
-
-    it('does not spawn AOB when ammonia ppm below threshold', () => {
-      const state = seeded({
-        ammonia: ppmToMass(nitrogenCycleDefaults.aobSpawnThreshold - 0.01),
-        aob: 0,
-      });
-
-      expect(spawn(state, 'aob')).toBeUndefined();
-    });
-
-    it('spawns NOB when nitrite ppm reaches threshold', () => {
-      const state = seeded({ nitrite: ppmToMass(nitrogenCycleDefaults.nobSpawnThreshold), nob: 0 });
-
-      expect(spawn(state, 'nob')).toBe(calculateInoculum(state.tank.capacity));
+      expect(gain(state, 'aob')).toBeCloseTo(calculateSeeding(state.resources.water), 12);
+      expect(gain(state, 'nob')).toBeCloseTo(calculateSeeding(state.resources.water), 12);
     });
 
     it('seeds every scape alike, bare bottom included', () => {
-      const onEach = (substrate: SubstrateType): number | undefined =>
-        spawn(
-          createTestState({
-            substrate,
-            ammonia: ppmToMass(nitrogenCycleDefaults.aobSpawnThreshold),
-            aob: 0,
-          }),
-          'aob'
-        );
+      const onEach = (substrate: SubstrateType): number =>
+        gain(createTestState({ substrate, aob: 0 }), 'aob');
 
       for (const substrate of ['sand', 'gravel', 'aqua_soil'] as SubstrateType[]) {
         expect(onEach(substrate)).toBe(onEach('none'));
       }
       expect(onEach('none')).toBeGreaterThan(0);
+    });
+
+    it('grows a colony with no step at any ammonia level, from the seed alone at none', () => {
+      const aob = 100;
+      const state = createTestState({ aob, surface: 100000 });
+      const { temperature, oxygen } = state.resources;
+      const capacity = aobCapacity(aob, temperature, oxygen);
+      const at = (ammonia: number): number =>
+        gain(produce(state, (draft) => void (draft.resources.ammonia = ammonia)), 'aob');
+
+      const growths = Array.from({ length: 41 }, (_, i) => at((i / 20) * capacity));
+      const steps = growths.slice(1).map((g, i) => g - growths[i]);
+      const span = growths[growths.length - 1] - growths[0];
+
+      expect(growths[0]).toBeCloseTo(calculateSeeding(state.resources.water), 12);
+      expect(Math.min(...steps)).toBeGreaterThanOrEqual(0);
+      expect(Math.max(...steps)).toBeLessThanOrEqual(span / 20 + 1e-12);
     });
   });
 
@@ -747,9 +753,10 @@ describe('nitrogenCycleSystem', () => {
       expect(at(30)!).toBeGreaterThan(at(25)!);
     });
 
-    it('does not grow a colony with nothing to eat', () => {
-      expect(growth('aob', createTestState({ ammonia: 0, aob: 100, surface: ROOMY }))).toBeUndefined();
-      expect(growth('nob', createTestState({ nitrite: 0, nob: 100, surface: ROOMY }))).toBeUndefined();
+    it('adds only the seed to a colony with nothing to eat', () => {
+      const seed = calculateSeeding(40);
+      expect(growth('aob', createTestState({ ammonia: 0, aob: 100, surface: ROOMY }))).toBeCloseTo(seed, 12);
+      expect(growth('nob', createTestState({ nitrite: 0, nob: 100, surface: ROOMY }))).toBeCloseTo(seed, 12);
     });
   });
 

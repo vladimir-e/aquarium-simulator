@@ -9,9 +9,9 @@ import {
   calculateAmmoniaToNitrite,
   calculateColonyFlows,
   calculateEvaporation,
-  calculateInoculum,
   calculateMaxBacteria,
   calculateNitriteToNitrate,
+  calculateSeeding,
   calculateWasteToAmmonia,
   nitrificationFactor,
   nitrifierOxygenFactor,
@@ -276,7 +276,6 @@ export function projectNitritePeak(
   const nc = config.nitrogenCycle;
   const ceiling = calculateMaxBacteria(r.surface, nc);
   if (r.water <= 0 || ceiling <= 0) return null;
-  const inoculum = calculateInoculum(state.tank.capacity, nc);
   const warmth = nitrificationFactor(r.temperature, nc);
   const aobAir = nitrifierOxygenFactor('aob', r.oxygen, nc);
   const nobAir = nitrifierOxygenFactor('nob', r.oxygen, nc);
@@ -316,25 +315,24 @@ export function projectNitritePeak(
     const cleared = calculateNitriteToNitrate(nitrite, nob, r.temperature, r.oxygen, nc);
     nitrite -= cleared.nitriteConsumed;
 
-    const ammoniaPpm = getPpm(ammonia, water);
     const nitritePpm = getPpm(nitrite, water);
-
-    if (aob === 0 && ammoniaPpm >= nc.aobSpawnThreshold) aob = inoculum;
-    if (nob === 0 && nitritePpm >= nc.nobSpawnThreshold) nob = inoculum;
+    const seeding = calculateSeeding(water, nc);
 
     const aobFlows = calculateColonyFlows(
       aob,
       oxidised.utilization,
       nc.aobGrowthRate * warmth * aobAir,
       nc.bacteriaDeathRate * warmth,
-      ceiling
+      ceiling,
+      seeding
     );
     const nobFlows = calculateColonyFlows(
       nob,
       cleared.utilization,
       nc.nobGrowthRate * warmth * nobAir,
       nc.bacteriaDeathRate * warmth,
-      ceiling
+      ceiling,
+      seeding
     );
     aob += aobFlows.growth - aobFlows.death;
     nob += nobFlows.growth - nobFlows.death;
@@ -363,13 +361,12 @@ function peakClause(projection: CycleProjection | null): string {
 /** What the two colonies mean together — the sentence the numbers add up to. */
 export function bacteriaSummary(
   readout: BacteriaReadout,
-  projection: CycleProjection | null,
-  config: NitrogenCycleConfig
+  projection: CycleProjection | null
 ): string {
   const { aob, nob, rates, atTrace, cycled } = readout;
 
   if (aob.count === 0) {
-    return `Uncycled. Ammonia has to reach ${config.aobSpawnThreshold} ppm before AOB colonise, and nitrite follows them.${peakClause(projection)}`;
+    return `Uncycled. Nitrifiers settle out of the water a few cells at a time, and grow once there is ammonia to feed them.${peakClause(projection)}`;
   }
 
   // Ahead of the lagging-colony line, which promises a colony that catches up:

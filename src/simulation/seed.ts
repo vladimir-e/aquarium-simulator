@@ -13,6 +13,7 @@ import {
   type SubstrateType,
 } from './equipment/substrate.js';
 import { nitrogenCycleDefaults } from './config/nitrogen-cycle.js';
+import { calculateMaxBacteria } from './systems/nitrogen-cycle.js';
 import { plantsDefaults } from './config/plants.js';
 import { NH3_TO_NO2_MASS_RATIO, NO2_TO_NO3_MASS_RATIO } from './core/chemistry.js';
 import { getGhMass, getKhMass } from './resources/helpers.js';
@@ -103,18 +104,15 @@ export interface PresetSeed extends TankSeed {
 }
 
 /**
- * AOB units per litre a tank that cycled itself carries. A fishless soil
- * tank measured from 10 L to 1000 L rests at ~261 once cycled; rounding up
- * means a scenario that says "cycled" is never handed a weaker biofilter
- * than one that waited three weeks for it. That soil tank sits at ~2 % of
- * its surface ceiling once seeded, so the cap stays out of the way; a bare
- * 300 L with no filter has so little surface that the same figure fills 40 %
- * of it.
+ * Share of its surface ceiling a month-old AOB colony covers. A fishless soil
+ * tank that cycles itself sits at 1.3–1.8 % on day 30 from a 5 gal sponge to a
+ * 150 gal canister; rounding up means a scenario that says "cycled" is never
+ * handed a weaker biofilter than one that waited for it.
  */
-const CYCLED_AOB_PER_LITER = 300;
+const CYCLED_AOB_COVERAGE = 0.02;
 
-/** NOB units per litre, off the same measurement (~181) and rounded the same way. */
-const CYCLED_NOB_PER_LITER = 200;
+/** NOB coverage, off the same measurement (0.7–0.9 %) and rounded the same way. */
+const CYCLED_NOB_COVERAGE = 0.01;
 
 /**
  * Share of a fresh bed's organic reserve still in it on day 30 — the same tank
@@ -129,16 +127,15 @@ const CYCLED_NOB_PER_LITER = 200;
 const CYCLED_RESERVE_FRACTION = 0.1;
 
 /**
- * The colony a cycled tank of `capacity` litres carries.
- *
- * Per litre rather than per cm² of surface for the reason the inoculum is:
- * a colony is sized by its ammonia supply, which scales with the water,
- * while surface is only a ceiling.
+ * The colony a cycled tank with `surface` cm² of biofilm carries — a share of
+ * the same ceiling a growing colony is held under, so the filter and the bed
+ * the tank actually has decide it, and an inert bed gets less than soil.
  */
-export function cycledColony(capacity: number): { aob: number; nob: number } {
+export function cycledColony(surface: number): { aob: number; nob: number } {
+  const ceiling = calculateMaxBacteria(surface, nitrogenCycleDefaults);
   return {
-    aob: capacity * CYCLED_AOB_PER_LITER,
-    nob: capacity * CYCLED_NOB_PER_LITER,
+    aob: ceiling * CYCLED_AOB_COVERAGE,
+    nob: ceiling * CYCLED_NOB_COVERAGE,
   };
 }
 
@@ -243,7 +240,7 @@ function seedTank(state: SimulationState, seed: TankSeed): void {
   state.seed = seed;
 
   if (seed.bacteria === 'cycled') {
-    writeStocks(state.resources, SEEDABLE_BACTERIA, cycledColony(capacity));
+    writeStocks(state.resources, SEEDABLE_BACTERIA, cycledColony(state.resources.surface));
     writeStocks(state.equipment.substrate, SEEDABLE_SUBSTRATE, {
       organicReserve: cycledReserve(type, capacity),
       khReserve: cycledKhReserve(type, capacity),

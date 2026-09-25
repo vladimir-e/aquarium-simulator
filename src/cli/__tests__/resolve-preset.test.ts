@@ -26,9 +26,10 @@ describe('resolvePreset', () => {
     const shipped = createPresetSimulation(resolvePreset('planted', { seeded: true }));
 
     expect(built.tank.capacity).toBe(200);
-    expect(built.resources.aob / 200).toBeCloseTo(
-      shipped.resources.aob / shipped.tank.capacity
+    expect(built.resources.aob / built.resources.surface).toBeCloseTo(
+      shipped.resources.aob / shipped.resources.surface
     );
+    expect(built.resources.aob).toBeGreaterThan(shipped.resources.aob);
   });
 
   it('leaves the shipped preset untouched', () => {

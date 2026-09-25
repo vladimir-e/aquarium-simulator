@@ -24,6 +24,11 @@ import type { TunableConfig } from '../../simulation/config/index.js';
  * Increment this when the structure changes in a breaking way.
  * On version mismatch, stored data is discarded.
  *
+ * v28: Nitrifiers seed continuously. `NitrogenCycleConfig` drops
+ *      `aobSpawnThreshold`, `nobSpawnThreshold` and `inoculumPerLiter` and
+ *      gains `seedingRate` (units per litre per tick). A v27 config carries
+ *      three keys the strict schema refuses, and a refused section reverts
+ *      every other one to its defaults.
  * v27: pH is derived from CO₂ and KH, not stored. `Resources` swaps `ph` for
  *      `kh` (alkalinity as mg of CaCO3) and gains `gh` (general hardness, the
  *      same unit), `Environment` swaps `tapWaterPH` for `tapKh` and gains
@@ -197,7 +202,7 @@ import type { TunableConfig } from '../../simulation/config/index.js';
  *     nutrient sufficiency) but its persisted shape is identical, so
  *     the bump is purely the new Fish field.
  */
-export const PERSISTENCE_VERSION = 27;
+export const PERSISTENCE_VERSION = 28;
 
 /**
  * Storage key for the unified persisted state.

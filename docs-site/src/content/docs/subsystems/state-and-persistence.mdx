@@ -25,7 +25,7 @@ it was handed, so the state a tick began with is still readable when it ends.
 | Declared ranges | <Badge text="settled" variant="success" /> | Every tunable declares its bounds beside its label and unit, and a test walks every leaf — a new tunable without a range is a caught defect, not a silent one. |
 | Versioned saves | <Badge text="settled" variant="success" /> | One integer, no migration shims. A mismatch discards the stored tank rather than reading old numbers under new meanings. |
 | Nitrogen-cycle bounds | <Badge text="scaffolding" variant="caution" /> | The one section with unbounded leaves: only its two oxygen half-saturation constants declare a range, so a writer asking for any of the others gets nothing to hold them to. |
-| `'cycled'` seeding | <Badge text="scaffolding" variant="caution" /> | Resolved per litre of water against the tank, which is right for an ammonia-fed colony — but it hands gravel and sand the colony a soil tank earns, and those beds do not clear a dose a month in. |
+| `'cycled'` seeding | <Badge text="settled" variant="success" /> | Resolved against the tank: the colony is a share of its surface ceiling, the bed, nitrate and hardness off its capacity and tap. |
 | Unnamed streams | <Badge text="scaffolding" variant="caution" /> | A tank with no named seed takes one off the clock plus a count of streams opened in this process. Two tanks in separate processes have only the millisecond between them. |
 | Section recovery on load | <Badge text="scaffolding" variant="caution" /> | Sections validate independently, but a refused config section is replaced wholesale rather than leaf by leaf — so one bad number costs every tuned constant in the file. |
 | Log persistence | <Badge text="missing" variant="danger" /> | Logs are outside the persisted shape. A reload returns the tank's whole biology and none of its history. |
@@ -154,8 +154,8 @@ browser storage.
 |---|---|---|
 | `PERSISTENCE_VERSION` | The one integer a stored tank is checked against | integer |
 | Save debounce | Delay before a state change reaches storage | `2000` ms |
-| `CYCLED_AOB_PER_LITER` | Ammonia oxidisers a `'cycled'` tank carries, rounded up off a measured fishless soil tank | `300` units/L |
-| `CYCLED_NOB_PER_LITER` | Nitrite oxidisers, off the same measurement and rounded the same way | `200` units/L |
+| `CYCLED_AOB_COVERAGE` | Share of its surface ceiling a `'cycled'` AOB colony covers, rounded up off fishless soil tanks on day 30 (1.3–1.8 %) | `0.02` |
+| `CYCLED_NOB_COVERAGE` | NOB coverage, off the same measurement (0.7–0.9 %) and rounded the same way | `0.01` |
 | `CYCLED_RESERVE_FRACTION` | Share of a fresh bed's organics still in it on day 30 — one curve every bed type follows | `0.1` |
 | `CYCLED_SOIL_KH_RESERVE_FRACTION` | Share of a fresh soil bed's KH reserve left on day 30 under weekly 25 % changes | `0.8` |
 | `CYCLED_SOIL_KH_RETAINED` | Share of the tap's KH an aqua soil tank holds a month in, under weekly 25 % changes; inert beds keep all of it | `0.15` |

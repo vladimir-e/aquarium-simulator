@@ -48,7 +48,7 @@ export {
   nitrificationFactor,
   nitrifierOxygenFactor,
   calculateMaxBacteria,
-  calculateInoculum,
+  calculateSeeding,
   calculateColonyFlows,
   calculateWasteToAmmonia,
   calculateAmmoniaToNitrite,

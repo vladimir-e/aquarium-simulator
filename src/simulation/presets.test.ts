@@ -38,7 +38,7 @@ describe('presets', () => {
   it('opens the established tanks on a working biofilter, and the bare one on none', () => {
     for (const id of ['betta', 'planted', 'community', 'angelfish'] as const) {
       const state = createPresetSimulation(getPresetById(id)!);
-      const cycled = cycledColony(state.tank.capacity);
+      const cycled = cycledColony(state.resources.surface);
 
       expect(state.resources.aob).toBe(cycled.aob);
       expect(state.resources.nob).toBe(cycled.nob);
@@ -53,13 +53,13 @@ describe('presets', () => {
     id: 'community',
     name: 'Seeded',
     config: { tankCapacity: 150 },
-    seed: { bacteria: cycledColony(150), fish: [{ species: 'guppy', count: 4, sex: 'female' }] },
+    seed: { bacteria: { aob: 1500, nob: 900 }, fish: [{ species: 'guppy', count: 4, sex: 'female' }] },
   };
 
   it('honours a seed when the preset carries one', () => {
     const state = createPresetSimulation(seeded);
 
-    expect(state.resources.aob).toBe(cycledColony(150).aob);
+    expect(state.resources.aob).toBe(1500);
     expect(state.fish).toHaveLength(4);
     expect(state.fish.every((f) => f.sex === 'female')).toBe(true);
   });
