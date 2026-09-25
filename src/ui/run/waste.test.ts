@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { produce } from 'immer';
-import { wasteInflow, wasteReadout, wasteSummary } from './waste';
+import { wasteInflow, wasteLevel, wasteReadout, wasteSummary } from './waste';
 import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
 import {
   applyAction,
@@ -132,13 +132,17 @@ describe('wasteSummary', () => {
     expect(wasteSummary(wasteReadout(state, config), config)).toContain('falling to');
   });
 
-  it('names the level the engine holds the pool at', () => {
-    const state = soilTank();
+  it.each([
+    ['a bare soil tank', soilTank],
+    ['a fed, stocked tank', stocked],
+  ])('names the level the engine holds the pool at, on %s', (_, setup) => {
+    const state = setup();
     const readout = wasteReadout(state, config);
-    const level = Number(/ ([\d.]+) g\.$/.exec(wasteSummary(readout, config))![1]);
+    const level = wasteLevel(readout, config);
     const held = produce(state, (draft) => void (draft.resources.waste = level));
 
     expect(readout.settlingShare).toBeGreaterThan(0);
+    expect(wasteSummary(readout, config)).toContain(`${level.toFixed(3)} g.`);
     expect(Math.abs(tick(held, config).resources.waste - level)).toBeLessThan(readout.perHour * 0.01);
   });
 

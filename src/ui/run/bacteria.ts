@@ -53,9 +53,8 @@ const TRACE_PPM = 0.1;
  * trace cleared over a day. Below it the colonies are turning over less than
  * the keeper's kit could ever show, which is the state an unfed tank fades into
  * — bed spent, both toxins at zero, and nothing left that a feeding would not
- * spike. An unfed tank crosses it around day 80–120; one on an ordinary ration
- * runs at ~12× it, and only a token ration — hundredths of a gram a day —
- * settles within 2×.
+ * spike. An unfed tank falls under it as its bed's leach runs down; a fed one
+ * stays over it for as long as the ration keeps the colonies turning over.
  *
  * A ppm figure, so it is the same test at every volume for a load that scales
  * with volume, which bed leaching does. A fixed ration does not: the pinch of

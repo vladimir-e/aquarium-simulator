@@ -233,10 +233,8 @@ export const DECIMALS: Record<ReadingId, number> = {
  * action preview, so a marker cannot sit at one place on a widget row and
  * another on the row that predicts it. Fixed, because a scale taken off the
  * value it is showing pins the marker wherever the value goes, and the strip
- * then reads the same on an empty tank and a filthy one.
- *
- * Ammonia's scale stretches with its line instead, so when an action moves pH
- * the preview places both its markers on the after-state's ammonia scale.
+ * then reads the same on an empty tank and a filthy one. Ammonia's scale
+ * stretches with its line instead.
  */
 export const DISPLAY_CEILING = {
   waste: 2,
