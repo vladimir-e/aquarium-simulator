@@ -59,7 +59,14 @@ export type {
   SeedFishGroup,
   SeedPlantGroup,
 } from './seed.js';
-export { cycledColony, cycledKh, cycledNitrate, cycledReserve } from './seed.js';
+export {
+  cycledColony,
+  cycledKh,
+  cycledKhReserve,
+  cycledNitrate,
+  cycledReserve,
+  cycledTannins,
+} from './seed.js';
 
 // Presets
 export type { PresetId, PresetDefinition } from './presets.js';
@@ -107,7 +114,7 @@ export { createLog } from './core/logging.js';
 export { blendTemperature, blendConcentration } from './core/blending.js';
 
 // Carbonate chemistry
-export { carbonatePh, carbonateKh, getPh } from './core/carbonate.js';
+export { carbonatePh, getPh } from './core/carbonate.js';
 
 export type { Effect, EffectTier } from './core/effects.js';
 export { applyEffects } from './core/effects.js';
@@ -129,10 +136,6 @@ export {
   calculateDecay,
   LID_MULTIPLIERS,
   getLidMultiplier,
-  waterChemistrySystem,
-  calculateCalciteDissolution,
-  calculateDriftwoodAcid,
-  calculateSubstrateKhUptake,
 } from './systems/index.js';
 
 // Equipment
@@ -166,14 +169,18 @@ export {
   POWERHEAD_FLOW_RATES,
   getSubstrateSurface,
   getSubstrateOrganicReserve,
+  getSubstrateKhReserve,
+  freshSubstrate,
   replaceSubstrate,
   calculateSubstrateLeach,
+  calculateSubstrateKhUptake,
   substrateUpdate,
   type SubstrateType,
   type Substrate,
   DEFAULT_SUBSTRATE,
   SUBSTRATE_SURFACE_PER_LITER,
   SUBSTRATE_ORGANIC_PER_LITER,
+  SUBSTRATE_KH_RESERVE_PER_LITER,
   BUBBLE_RATE_OPTIONS,
   type BubbleRate,
   getAirPumpOutput,
@@ -204,8 +211,13 @@ export {
   getHardscapeName,
   getHardscapeKhEffect,
   checkHardscapeCapacity,
+  createHardscapeItem,
+  calculateCalciteDissolution,
+  calculateTanninLeach,
+  hardscapeUpdate,
   DEFAULT_HARDSCAPE,
   HARDSCAPE_SURFACE,
+  HARDSCAPE_TANNINS,
   type HardscapeType,
   type HardscapeItem,
   type Hardscape,

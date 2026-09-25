@@ -19,16 +19,27 @@ import { getPowerheadFlow, type PowerheadFlowRate, type Powerhead, DEFAULT_POWER
 import {
   getSubstrateSurface,
   getSubstrateOrganicReserve,
+  getSubstrateKhReserve,
+  freshSubstrate,
   replaceSubstrate,
   calculateSubstrateLeach,
+  calculateSubstrateKhUptake,
   substrateUpdate,
   type SubstrateType,
   type Substrate,
   DEFAULT_SUBSTRATE,
   SUBSTRATE_SURFACE_PER_LITER,
   SUBSTRATE_ORGANIC_PER_LITER,
+  SUBSTRATE_KH_RESERVE_PER_LITER,
 } from './substrate.js';
-import { calculateHardscapeTotalSurface } from './hardscape.js';
+import {
+  calculateHardscapeTotalSurface,
+  calculateCalciteDissolution,
+  calculateTanninLeach,
+  createHardscapeItem,
+  hardscapeUpdate,
+  HARDSCAPE_TANNINS,
+} from './hardscape.js';
 import {
   co2GeneratorUpdate,
   applyCo2GeneratorStateChange,
@@ -65,14 +76,25 @@ export { getPowerheadFlow, type PowerheadFlowRate, type Powerhead, DEFAULT_POWER
 export {
   getSubstrateSurface,
   getSubstrateOrganicReserve,
+  getSubstrateKhReserve,
+  freshSubstrate,
   replaceSubstrate,
   calculateSubstrateLeach,
+  calculateSubstrateKhUptake,
   substrateUpdate,
   type SubstrateType,
   type Substrate,
   DEFAULT_SUBSTRATE,
   SUBSTRATE_SURFACE_PER_LITER,
   SUBSTRATE_ORGANIC_PER_LITER,
+  SUBSTRATE_KH_RESERVE_PER_LITER,
+};
+export {
+  calculateCalciteDissolution,
+  calculateTanninLeach,
+  createHardscapeItem,
+  hardscapeUpdate,
+  HARDSCAPE_TANNINS,
 };
 export {
   co2GeneratorUpdate,
@@ -116,10 +138,15 @@ export function processEquipment(
   const effects: Effect[] = [];
   let updatedState = state;
 
-  // Process substrate leaching
-  const substrateResult = substrateUpdate(updatedState, config.decay);
+  // Process substrate leaching and buffering
+  const substrateResult = substrateUpdate(updatedState, config.decay, config.waterChemistry);
   effects.push(...substrateResult.effects);
   updatedState = substrateResult.state;
+
+  // Process hardscape chemistry
+  const hardscapeResult = hardscapeUpdate(updatedState, config.waterChemistry);
+  effects.push(...hardscapeResult.effects);
+  updatedState = hardscapeResult.state;
 
   // Process heater
   const heaterResult = heaterUpdate(updatedState);

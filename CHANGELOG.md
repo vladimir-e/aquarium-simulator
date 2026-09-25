@@ -11,7 +11,7 @@ Format: - **Feature name** (#PR) - One short sentence (under ~150 chars)
 
 ## Unreleased
 
-- **pH is read off CO₂ and KH** - KH is a stock that tap water, nitrification, calcite, driftwood and aqua soil move; pH derives from the hobby relation, so old tank syndrome and mineral creep emerge. Breaking: `tapWaterPH` → `tapKh`, `ph` config → `waterChemistry` (v27).
+- **pH follows CO₂ and KH** - KH is a tank stock moved by tap water, nitrification and scape; breaking: `tapWaterPH` → `tapKh`, `ph` config → `waterChemistry`.
 - **Scenario runner** - `npm run scenarios` runs preset tanks headless and grades each reading against real-tank bands; `--diff` shows what moved.
 - **A retuned fertiliser formula reaches the bottle** - the manual dose and the auto-doser meter by the tuned formula plant uptake already read; breaking: `dose`, `getDosePreview`, `calculateDoseNutrients` and `autoDoserUpdate` require one.
 - **The tunables reach the phone** - the constants drawer opens from the More sheet, where the top bar has no room for its control.

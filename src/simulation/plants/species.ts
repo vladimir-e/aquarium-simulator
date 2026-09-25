@@ -93,7 +93,7 @@ export const PLANT_SPECIES_DATA: Record<PlantSpecies, PlantSpeciesData> = {
     // No CO2 dependency — atmospheric (~3 mg/L) is enough.
     tolerableCO2: [1, 40],
     tolerableTemp: [18, 30],
-    tolerablePH: [6.0, 8.0],
+    tolerablePH: [5.5, 8.0],
   },
   anubias: {
     name: 'Anubias',
@@ -110,7 +110,7 @@ export const PLANT_SPECIES_DATA: Record<PlantSpecies, PlantSpeciesData> = {
     tolerableLight: [8, 70],
     tolerableCO2: [1, 40],
     tolerableTemp: [18, 30],
-    tolerablePH: [6.0, 8.0],
+    tolerablePH: [5.5, 8.0],
   },
   amazon_sword: {
     name: 'Amazon Sword',
@@ -134,7 +134,7 @@ export const PLANT_SPECIES_DATA: Record<PlantSpecies, PlantSpeciesData> = {
     // offsets, so sword degrades over weeks rather than days.
     tolerableCO2: [6, 40],
     tolerableTemp: [20, 28],
-    tolerablePH: [6.0, 7.5],
+    tolerablePH: [5.5, 7.8],
   },
   dwarf_hairgrass: {
     name: 'Dwarf Hairgrass',
@@ -151,7 +151,7 @@ export const PLANT_SPECIES_DATA: Record<PlantSpecies, PlantSpeciesData> = {
     tolerableLight: [25, 200],
     tolerableCO2: [10, 40], // Stalls without CO2 — high-tech species
     tolerableTemp: [20, 28],
-    tolerablePH: [6.0, 7.5],
+    tolerablePH: [5.5, 7.8],
   },
   monte_carlo: {
     name: 'Monte Carlo',
@@ -168,7 +168,7 @@ export const PLANT_SPECIES_DATA: Record<PlantSpecies, PlantSpeciesData> = {
     tolerableLight: [30, 200],
     tolerableCO2: [10, 40], // Same — needs CO2 to thrive
     tolerableTemp: [20, 28],
-    tolerablePH: [6.0, 7.5],
+    tolerablePH: [5.5, 7.8],
   },
 };
 

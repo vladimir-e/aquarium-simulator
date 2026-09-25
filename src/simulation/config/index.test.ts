@@ -101,7 +101,7 @@ describe('countModified', () => {
   it('counts each touched value once, across sections', () => {
     const modified = cloneConfig(DEFAULT_CONFIG);
     modified.decay.q10 = 3.0;
-    modified.waterChemistry.driftwoodAcidRate = DEFAULT_CONFIG.waterChemistry.driftwoodAcidRate + 1;
+    modified.waterChemistry.calciteDissolutionRate = DEFAULT_CONFIG.waterChemistry.calciteDissolutionRate + 1;
     expect(countModified(modified)).toBe(2);
   });
 
@@ -180,8 +180,8 @@ describe('AIR_SATURATED_O2', () => {
 
 describe('tunableAt', () => {
   it('reads the leaf a dotted path names', () => {
-    expect(tunableAt(DEFAULT_CONFIG, 'waterChemistry.driftwoodAcidRate')).toBe(
-      DEFAULT_CONFIG.waterChemistry.driftwoodAcidRate
+    expect(tunableAt(DEFAULT_CONFIG, 'waterChemistry.calciteDissolutionRate')).toBe(
+      DEFAULT_CONFIG.waterChemistry.calciteDissolutionRate
     );
   });
 
@@ -196,11 +196,11 @@ describe('tunableAt', () => {
 
 describe('withTunable', () => {
   it('sets the leaf and leaves the config it was given alone', () => {
-    const was = DEFAULT_CONFIG.waterChemistry.driftwoodAcidRate;
-    const next = withTunable(DEFAULT_CONFIG, 'waterChemistry.driftwoodAcidRate', 6.4);
+    const was = DEFAULT_CONFIG.waterChemistry.calciteDissolutionRate;
+    const next = withTunable(DEFAULT_CONFIG, 'waterChemistry.calciteDissolutionRate', 6.4);
 
-    expect(tunableAt(next, 'waterChemistry.driftwoodAcidRate')).toBe(6.4);
-    expect(DEFAULT_CONFIG.waterChemistry.driftwoodAcidRate).toBe(was);
+    expect(tunableAt(next, 'waterChemistry.calciteDissolutionRate')).toBe(6.4);
+    expect(DEFAULT_CONFIG.waterChemistry.calciteDissolutionRate).toBe(was);
     expect(next.temperature).toEqual(DEFAULT_CONFIG.temperature);
   });
 

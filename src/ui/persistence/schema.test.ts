@@ -154,7 +154,7 @@ describe('PersistedSimulationSchema', () => {
       ato: { enabled: false },
       filter: { enabled: true, type: 'hob' },
       powerhead: { enabled: false, flowRateGPH: 240 },
-      substrate: { type: 'gravel', organicReserve: 0.5 },
+      substrate: { type: 'gravel', organicReserve: 0.5, khReserve: 0 },
       hardscape: { items: [] },
       light: { enabled: true, par: 50, schedule: { startHour: 8, duration: 8 } },
       co2Generator: { enabled: false, bubbleRate: 1, isOn: false, schedule: { startHour: 8, duration: 8 } },
@@ -200,8 +200,8 @@ describe('PersistedSimulationSchema', () => {
         ...validSimulation.equipment,
         hardscape: {
           items: [
-            { id: 'rock-1', type: 'neutral_rock' },
-            { id: 'wood-1', type: 'driftwood' },
+            { id: 'rock-1', type: 'neutral_rock', tannins: 0 },
+            { id: 'wood-1', type: 'driftwood', tannins: 2400 },
           ],
         },
       },
@@ -424,7 +424,7 @@ describe('PersistedStateSchema', () => {
       ato: { enabled: false },
       filter: { enabled: true, type: 'hob' },
       powerhead: { enabled: false, flowRateGPH: 240 },
-      substrate: { type: 'gravel', organicReserve: 0.5 },
+      substrate: { type: 'gravel', organicReserve: 0.5, khReserve: 0 },
       hardscape: { items: [] },
       light: { enabled: true, par: 50, schedule: { startHour: 8, duration: 8 } },
       co2Generator: { enabled: false, bubbleRate: 1, isOn: false, schedule: { startHour: 8, duration: 8 } },

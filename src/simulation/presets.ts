@@ -18,7 +18,9 @@ export interface PresetDefinition {
 }
 
 // Helper to create hardscape items with unique IDs
-function createHardscapeItems(items: Array<{ type: HardscapeItem['type'] }>): HardscapeItem[] {
+function createHardscapeItems(
+  items: Array<{ type: HardscapeItem['type'] }>
+): Array<Pick<HardscapeItem, 'id' | 'type'>> {
   return items.map((item, index) => ({
     id: `preset-${item.type}-${index}`,
     type: item.type,

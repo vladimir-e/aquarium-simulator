@@ -27,9 +27,9 @@ needs it.
 | Aeration | <Badge text="scaffolding" variant="caution" /> | A boolean. Any aerating fitting multiplies exchange by exactly 3, off-gasses CO₂ 1.5× faster and injects the same `0.05` mg/L/hr, whatever the tank. |
 | pH from CO₂ and KH | <Badge text="settled" variant="success" /> | The hobby relation `CO₂ = 3 × KH × 10^(7 − pH)`, derived on read and never stored, so it cannot lag or drift. |
 | Soft-water floor | <Badge text="scaffolding" variant="caution" /> | A fixed `0.1` dKH of background buffer and `0.1` mg/L of residual CO₂ keep pH finite at KH 0 and CO₂ 0. Stand-ins for the phosphate and humic buffers a real tank carries. |
-| Nitrification spends KH | <Badge text="settled" variant="success" /> | Stoichiometric: the 2 H⁺ each NH₄⁺ releases cost 7.14 mg CaCO₃ per mg of nitrogen. |
+| Nitrification spends KH | <Badge text="settled" variant="success" /> | Stoichiometric — see [Nitrogen cycle](/subsystems/nitrogen-cycle/). |
 | Tap, top-off and evaporation | <Badge text="settled" variant="success" /> | KH is a mass, so evaporation concentrates it and every litre of tap water brings `tapKh` with it. |
-| Hardscape and substrate | <Badge text="scaffolding" variant="caution" /> | Hand-set rates. Calcite dissolves in proportion to [H⁺]; driftwood's acid is a flat drain that never tapers; aqua soil takes a flat share of KH per hour and never exhausts. |
+| Hardscape and substrate | <Badge text="scaffolding" variant="caution" /> | Hand-set rates and reserves. Calcite dissolves in proportion to [H⁺] and never runs out; driftwood's tannins and aqua soil's buffer are finite and taper as they are spent. |
 | Bicarbonate uptake by plants | <Badge text="missing" variant="danger" /> | Plants take only free CO₂, so a CO₂-starved planted tank never pulls its KH down or its pH up past the residual. |
 | GH — general hardness | <Badge text="missing" variant="danger" /> | Calcium and magnesium have zero presence in the engine. |
 | Supersaturation | <Badge text="missing" variant="danger" /> | Oxygen above saturation is resisted only by the same linear relaxation and then truncated at the `20` mg/L resource bound, which discards the mass. No ebullition. |
@@ -44,8 +44,8 @@ organism system answers a biological question and returns a mass, so plants,
 fish and decay each divide their gas mass by standing water before pushing the
 effect. It is why the same planting moves a nano further than it moves a 300 L.
 
-Alkalinity is stored as **mass** too, in mg of CaCO₃, and read as dKH
-(`1` dKH = `17.848` mg/L CaCO₃).
+Alkalinity is stored as **mass** too, in mg of CaCO₃, and read as dKH: a
+degree is `10` mg/L of CaO, so `10 × MW_CaCO₃ / MW_CaO` mg/L of CaCO₃.
 
 Bounds clamp oxygen to `0`–`20` mg/L, CO₂ to `0`–`100` and KH to no less than
 zero.
@@ -126,7 +126,7 @@ column above rather than the constant itself.
 The budget is not solved simultaneously. Environment and equipment settle first,
 so CO₂ injection is in the water before plants run. Plants, then algae, then
 livestock each apply their effects before the next reads the stock. Decay, the
-nitrogen cycle, gas exchange and water chemistry run last and **share one snapshot** —
+nitrogen cycle and gas exchange run last and **share one snapshot** —
 all three oxygen consumers size their draw against the same starting
 concentration, and their deltas add.
 
@@ -137,7 +137,7 @@ from crossing zero is that each shrinks as the stock does.
 ### KH and pH
 
 ```
-dKH = kh / water / 17.848
+dKH = kh / water / CACO3_PER_DKH
 pH  = 7 − log10((co2 + 0.1) / (3 × (dKH + 0.1)))
 ```
 
@@ -158,15 +158,18 @@ What moves KH:
 |---|---|---|
 | Tap water | + | `tapKh` per litre added — a fill, a water change, a top-off or the ATO |
 | Evaporation | concentrates | the mass stays, the water goes |
-| Nitrification | − | `7.14` mg CaCO₃ per mg of ammonia-nitrogen oxidised |
+| Nitrification | − | per mg of ammonia oxidised — see [Nitrogen cycle](/subsystems/nitrogen-cycle/) |
 | Calcite rock | + | `calciteDissolutionRate` per rock at pH 7, ×10 per pH unit lower |
-| Driftwood | − | `driftwoodAcidRate` per piece |
-| Aqua soil | − | `aquaSoilKhUptake` of the tank's KH per hour |
+| Driftwood | − | `tanninLeachRate` of the piece's remaining tannins per hour |
+| Aqua soil | − | `aquaSoilKhUptake` of the tank's KH per hour, scaled by the share of the bed's buffer left |
 
-Three hobby behaviours fall out. A heavily stocked tank left without water
+Four hobby behaviours fall out. A heavily stocked tank left without water
 changes drains its KH and its pH sags — old tank syndrome. A lightly stocked
-one topped off with hard tap water creeps the other way. And a calcite scape
+one topped off with hard tap water creeps the other way. A calcite scape
 settles where dissolution, slowing as pH climbs, balances what the tank spends.
+And a fresh soil tank starts acidic and drifts toward tap chemistry over the
+months its buffer takes to run down — the reserves themselves are on
+[Equipment](/subsystems/equipment/).
 
 ### Stocks and rates
 
@@ -191,8 +194,8 @@ settles where dissolution, slowing as pH climbs, balances what the tank spends.
 | `aerationCo2OffgasMultiplier` | Extra CO₂ stripping on top of that | `1.5` × |
 | `gasExchangePerGramDecay` | Oxygen demanded per gram of organic matter oxidised | `250` mg/g |
 | `calciteDissolutionRate` | CaCO₃ one calcite rock dissolves per hour at pH 7 | `20` mg/h |
-| `driftwoodAcidRate` | CaCO₃ one piece of driftwood neutralises per hour | `1` mg/h |
-| `aquaSoilKhUptake` | Share of the tank's KH aqua soil takes per hour | `0.01` /h |
+| `tanninLeachRate` | Share of a driftwood piece's remaining tannins leached per hour | `0.0003` /h |
+| `aquaSoilKhUptake` | Share of the tank's KH a fresh aqua soil bed takes per hour | `0.01` /h |
 
 The five oxygen half-saturation constants are tunables too, but each lives with
 the system that quotes it rather than here; their values are in the table above.
@@ -213,6 +216,7 @@ the system that quotes it rather than here; their values are in the table above.
 
 ## Source
 
-`src/simulation/systems/` for gas exchange and water chemistry,
+`src/simulation/systems/` for gas exchange,
+`src/simulation/equipment/` for what the scape does to KH,
 `src/simulation/core/` for the molecular weights, the carbonate relation and the Monod and Q10 shapes,
 `src/simulation/config/` for the tunables.

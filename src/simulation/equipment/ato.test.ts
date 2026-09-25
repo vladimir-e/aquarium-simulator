@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { produce } from 'immer';
 import { atoUpdate, WATER_LEVEL_THRESHOLD } from './ato.js';
 import { createSimulation } from '../state.js';
+import { getKhMass } from '../resources/helpers.js';
 
 describe('atoUpdate', () => {
   it('returns no effects when disabled', () => {
@@ -30,6 +31,17 @@ describe('atoUpdate', () => {
     const effects = atoUpdate(thresholdState);
 
     expect(effects).toEqual([]);
+  });
+
+  it('adds the tap KH the top-off water carries', () => {
+    const state = produce(createSimulation({ tankCapacity: 100, tapKh: 6, ato: { enabled: true } }), (draft) => {
+      draft.resources.water = 90;
+    });
+
+    const kh = atoUpdate(state).filter((effect) => effect.resource === 'kh');
+
+    expect(kh).toHaveLength(1);
+    expect(kh[0]!.delta).toBeCloseTo(getKhMass(6, 10), 10);
   });
 
   it('tops the tank back up to capacity below the threshold', () => {

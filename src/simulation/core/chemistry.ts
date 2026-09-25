@@ -51,12 +51,11 @@ export const O2_PER_NO2_OXIDIZED = (0.5 * MW_O2) / MW_NO2;
 
 /** Calcium carbonate (g/mol). */
 export const MW_CACO3 = 100.09;
+/** Calcium oxide (g/mol). */
+export const MW_CAO = 56.08;
 
-/**
- * mg/L of alkalinity, as CaCO3, in one degree of carbonate hardness: a dKH is
- * 10 mg/L of CaO, and CaCO3 outweighs CaO by 100.09 / 56.08.
- */
-export const CACO3_PER_DKH = 17.848;
+/** ≈ 17.848. mg/L of alkalinity, as CaCO3, in one degree of carbonate hardness: a dKH is 10 mg/L of CaO. */
+export const CACO3_PER_DKH = (10 * MW_CACO3) / MW_CAO;
 
 /**
  * ≈ 5.877. The 2 H⁺ that ammonia oxidation releases each spend a bicarbonate —

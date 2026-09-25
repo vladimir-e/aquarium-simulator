@@ -25,7 +25,9 @@ import type { TunableConfig } from '../../simulation/config/index.js';
  *
  * v27: pH is derived from CO₂ and KH, not stored. `Resources` swaps `ph` for
  *      `kh` (alkalinity as mg of CaCO3), `Environment` swaps `tapWaterPH` for
- *      `tapKh`, and the `ph` tunables section becomes `waterChemistry`.
+ *      `tapKh`, and the `ph` tunables section becomes `waterChemistry`. The
+ *      scape's buffers run down: `Substrate` gains `khReserve` and each
+ *      `HardscapeItem` its `tannins`.
  *
  * v26: The spine remembers whether it was showing its tracks. `PersistedUI`
  *      gains `spineOpen`, beside the `tunablesOpen` it mirrors. A v25 save

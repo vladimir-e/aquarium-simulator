@@ -126,6 +126,7 @@ const SubstrateSchema = z
   .object({
     type: z.enum(['none', 'sand', 'gravel', 'aqua_soil']),
     organicReserve: z.number(),
+    khReserve: z.number(),
   })
   .strict();
 
@@ -133,6 +134,7 @@ const HardscapeItemSchema = z
   .object({
     id: z.string(),
     type: z.enum(['neutral_rock', 'calcite_rock', 'driftwood', 'plastic_decoration']),
+    tannins: z.number(),
   })
   .strict();
 
@@ -380,9 +382,9 @@ const OpticsConfigSchema = z
 
 const WaterChemistryConfigSchema = z
   .object({
-    calciteDissolutionRate: z.number().min(0).max(200),
-    driftwoodAcidRate: z.number().min(0).max(20),
-    aquaSoilKhUptake: z.number().min(0).max(0.1),
+    calciteDissolutionRate: z.number().min(0),
+    tanninLeachRate: z.number().min(0),
+    aquaSoilKhUptake: z.number().min(0),
   })
   .strict();
 

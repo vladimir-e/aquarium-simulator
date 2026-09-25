@@ -132,8 +132,8 @@ density you can look up rather than a score.
 | Tunable | Meaning | Unit |
 |---|---|---|
 | `calciteDissolutionRate` | CaCO₃ one calcite rock dissolves per hour at pH 7, scaled by [H⁺] | mg/h |
-| `driftwoodAcidRate` | CaCO₃ one piece of driftwood's tannic acid neutralises per hour | mg/h |
-| `aquaSoilKhUptake` | Share of the tank's KH an aqua soil bed takes up per hour | /h |
+| `tanninLeachRate` | Share of a driftwood piece's remaining tannins leached per hour | /h |
+| `aquaSoilKhUptake` | Share of the tank's KH a fresh aqua soil bed takes up per hour, scaled by the buffer left | /h |
 
 ## Plants
 
@@ -211,8 +211,8 @@ can move them at runtime.
 | Fish species | Per species: adult mass, lifespan, hardiness, temperature / pH / flow tolerance bands, and a full breeding block — mode, clutch size, spawn cost, hatch time, maturity age |
 | Plant species | Per species: growth rate, max size, hardiness, CO₂ requirement, substrate requirement, nutrient demand tier, and the PAR band it tolerates |
 | Filters | Per type: biological surface, target turnover, flow ceiling, tank-size ceiling, and whether it is air-driven |
-| Substrates | Per type: colony surface per litre, and the organic reserve a fresh bed holds per litre |
-| Hardscape | Per type: colony surface |
+| Substrates | Per type: colony surface per litre, and the organic and KH reserves a fresh bed holds per litre |
+| Hardscape | Per type: colony surface, and the tannins a fresh piece carries |
 | Lids | Per type: the multiplier applied to evaporation |
 | Fixtures and pumps | The catalog of ratings a device can be built with — heater wattages, light PAR ratings, powerhead flow rates, CO₂ bubble rates, doser amounts |
 | Chemistry | Molecular weights and the mass ratios derived from them, and the dKH-to-CaCO₃ conversion. Derived, never quoted twice |

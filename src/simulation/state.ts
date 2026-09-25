@@ -10,13 +10,13 @@ import { DEFAULT_FILTER, getFilterSurface, getFilterFlow } from './equipment/fil
 import type { Powerhead } from './equipment/powerhead.js';
 import { DEFAULT_POWERHEAD, getPowerheadFlow } from './equipment/powerhead.js';
 import type { Substrate } from './equipment/substrate.js';
+import { DEFAULT_SUBSTRATE, freshSubstrate, getSubstrateSurface } from './equipment/substrate.js';
+import type { Hardscape, HardscapeItem } from './equipment/hardscape.js';
 import {
-  DEFAULT_SUBSTRATE,
-  getSubstrateSurface,
-  getSubstrateOrganicReserve,
-} from './equipment/substrate.js';
-import type { Hardscape } from './equipment/hardscape.js';
-import { DEFAULT_HARDSCAPE, calculateHardscapeTotalSurface } from './equipment/hardscape.js';
+  DEFAULT_HARDSCAPE,
+  calculateHardscapeTotalSurface,
+  createHardscapeItem,
+} from './equipment/hardscape.js';
 import type { Light } from './equipment/light.js';
 import {
   DEFAULT_LIGHT,
@@ -348,8 +348,8 @@ export interface SimulationConfig {
   powerhead?: Partial<Powerhead>;
   /** Initial substrate configuration */
   substrate?: Pick<Substrate, 'type'>;
-  /** Initial hardscape configuration */
-  hardscape?: Partial<Hardscape>;
+  /** Initial hardscape — each piece goes in fresh */
+  hardscape?: { items: Array<Pick<HardscapeItem, 'id' | 'type'>> };
   /** Initial light configuration */
   light?: Partial<Light>;
   /** Initial CO2 generator configuration */
@@ -516,15 +516,12 @@ export function createSimulation(
     ...powerhead,
   };
 
-  const substrateType = substrate?.type ?? DEFAULT_SUBSTRATE.type;
-  const substrateConfig: Substrate = {
-    type: substrateType,
-    organicReserve: getSubstrateOrganicReserve(substrateType, tankCapacity),
-  };
+  const substrateConfig = freshSubstrate(substrate?.type ?? DEFAULT_SUBSTRATE.type, tankCapacity);
 
   const hardscapeConfig: Hardscape = {
-    ...DEFAULT_HARDSCAPE,
-    ...hardscape,
+    items: (hardscape?.items ?? DEFAULT_HARDSCAPE.items).map((item) =>
+      createHardscapeItem(item.id, item.type)
+    ),
   };
 
   const lightConfig: Light = {

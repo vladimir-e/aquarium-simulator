@@ -64,13 +64,6 @@ export {
 } from './gas-exchange.js';
 
 export {
-  waterChemistrySystem,
-  calculateCalciteDissolution,
-  calculateDriftwoodAcid,
-  calculateSubstrateKhUptake,
-} from './water-chemistry.js';
-
-export {
   computeVitality,
   bankSurplus,
   spendableSurplus,
@@ -87,7 +80,6 @@ import { evaporationSystem } from './evaporation.js';
 import { decaySystem } from './decay.js';
 import { nitrogenCycleSystem } from './nitrogen-cycle.js';
 import { gasExchangeSystem } from './gas-exchange.js';
-import { waterChemistrySystem } from './water-chemistry.js';
 
 /** All core systems in the simulation */
 export const coreSystems: System[] = [
@@ -96,5 +88,4 @@ export const coreSystems: System[] = [
   decaySystem,
   nitrogenCycleSystem,
   gasExchangeSystem,
-  waterChemistrySystem,
 ];

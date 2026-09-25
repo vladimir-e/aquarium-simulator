@@ -17,8 +17,9 @@ import {
   type PowerheadFlowRate,
   type SubstrateType,
   type HardscapeType,
-  type HardscapeItem,
   type DailySchedule,
+  createHardscapeItem,
+  getKhMass,
 } from '../../simulation/index.js';
 import { createLog } from '../../simulation/core/logging.js';
 import type { OpticsConfig } from '../../simulation/config/index.js';
@@ -542,6 +543,9 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
           `Tap water KH: ${oldKh.toFixed(1)} → ${dkh.toFixed(1)} dKH`
         );
         draft.environment.tapKh = dkh;
+        if (draft.tick === 0) {
+          draft.resources.kh = getKhMass(dkh, draft.resources.water);
+        }
         draft.logs.push(log);
       })
     );
@@ -672,12 +676,7 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
         );
         if (!capacity.ok) return;
 
-        const newItem: HardscapeItem = {
-          id: generateHardscapeId(),
-          type,
-        };
-
-        draft.equipment.hardscape.items.push(newItem);
+        draft.equipment.hardscape.items.push(createHardscapeItem(generateHardscapeId(), type));
 
         const log = createLog(
           draft.tick,
@@ -884,6 +883,8 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
           tankCapacity: capacity,
           initialTemperature: 25,
           roomTemperature: current.environment.roomTemperature,
+          tapWaterTemperature: current.environment.tapWaterTemperature,
+          tapKh: current.environment.tapKh,
           heater: {
             enabled: current.equipment.heater.enabled,
             targetTemperature: current.equipment.heater.targetTemperature,

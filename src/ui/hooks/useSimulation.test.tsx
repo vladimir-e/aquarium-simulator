@@ -10,6 +10,7 @@ import { createSimulation, type SimulationState } from '../../simulation/state.j
 import {
   applyAction,
   calculateTankHeight,
+  getDkh,
   getSubstrateOrganicReserve,
   getSubstrateSurface,
   tick,
@@ -134,6 +135,37 @@ describe('useSimulation', () => {
     expect(result.current.state.tank.capacity).toBe(150);
     expect(result.current.state.resources.water).toBe(150);
     expect(result.current.state.tick).toBe(0);
+  });
+
+  it('carries the tap water through a resize', () => {
+    const { result } = renderHook(() => useSimulation(), { wrapper });
+
+    act(() => {
+      result.current.updateTapKh(9);
+      result.current.updateTapWaterTemperature(14);
+    });
+    act(() => {
+      result.current.changeTankCapacity(150);
+    });
+
+    expect(result.current.state.environment.tapKh).toBe(9);
+    expect(result.current.state.environment.tapWaterTemperature).toBe(14);
+    expect(getDkh(result.current.state.resources.kh, result.current.state.resources.water)).toBeCloseTo(9, 10);
+  });
+
+  it('fills the tank from a retuned tap only before it has run', () => {
+    const { result } = renderHook(() => useSimulation(), { wrapper });
+
+    act(() => result.current.updateTapKh(9));
+    const { resources } = result.current.state;
+    expect(getDkh(resources.kh, resources.water)).toBeCloseTo(9, 10);
+
+    act(() => result.current.step());
+    const ran = result.current.state.resources.kh;
+    act(() => result.current.updateTapKh(2));
+
+    expect(result.current.state.environment.tapKh).toBe(2);
+    expect(result.current.state.resources.kh).toBe(ran);
   });
 
   it('swapping the substrate lays a fresh bed with a full organic reserve', () => {
