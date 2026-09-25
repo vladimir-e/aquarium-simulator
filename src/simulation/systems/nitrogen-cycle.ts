@@ -348,23 +348,61 @@ export function calculateNitriteToNitrate(
 // System Implementation
 // ============================================================================
 
+/** A colony's per-cell growth and maintenance-decay rates at this temperature and oxygen. */
+export function colonyRates(
+  stage: 'aob' | 'nob',
+  temperature: number,
+  oxygen: number,
+  config: NitrogenCycleConfig = nitrogenCycleDefaults
+): { growthRate: number; deathRate: number } {
+  const temperatureFactor = nitrificationFactor(temperature, config);
+  return {
+    growthRate:
+      (stage === 'aob' ? config.aobGrowthRate : config.nobGrowthRate) *
+      temperatureFactor *
+      nitrifierOxygenFactor(stage, oxygen, config),
+    deathRate: config.bacteriaDeathRate * temperatureFactor,
+  };
+}
+
+/**
+ * The population a colony settles at on a steady supply of its substrate, mg a
+ * tick: where the logistic growth that supply's utilization drives meets
+ * maintenance decay. The seeding trickle is left out — it is orders of
+ * magnitude under either flow at any colony that is doing work.
+ */
+export function restingColony(
+  stage: 'aob' | 'nob',
+  supply: number,
+  temperature: number,
+  oxygen: number,
+  maxPopulation: number,
+  config: NitrogenCycleConfig = nitrogenCycleDefaults
+): number {
+  if (supply <= 0 || maxPopulation <= 0) return 0;
+  const capacity = stage === 'aob' ? aobCapacity : nobCapacity;
+  const capacityPerCell = capacity(1, temperature, oxygen, config);
+  const { growthRate, deathRate } = colonyRates(stage, temperature, oxygen, config);
+  const unbounded = (supply * growthRate) / (capacityPerCell * deathRate);
+  return unbounded / (1 + unbounded / maxPopulation);
+}
+
 function colonyEffects(
   resource: 'aob' | 'nob',
   population: number,
   utilization: number,
-  temperatureFactor: number,
-  oxygenFactor: number,
+  temperature: number,
+  oxygen: number,
   maxPopulation: number,
   seeding: number,
   config: NitrogenCycleConfig
 ): Effect[] {
+  const { growthRate, deathRate } = colonyRates(resource, temperature, oxygen, config);
   const { growth, death } = calculateColonyFlows(
     population,
     utilization,
-    (resource === 'aob' ? config.aobGrowthRate : config.nobGrowthRate) *
-      temperatureFactor *
-      oxygenFactor,
-    config.bacteriaDeathRate * temperatureFactor,
+    growthRate,
+    deathRate,
     maxPopulation,
     seeding
   );
@@ -391,9 +429,6 @@ export const nitrogenCycleSystem: System = {
     const waterVolume = resources.water;
     const temperature = resources.temperature;
     const oxygen = resources.oxygen;
-    const temperatureFactor = nitrificationFactor(temperature, ncConfig);
-    const aobOxygenFactor = nitrifierOxygenFactor('aob', oxygen, ncConfig);
-    const nobOxygenFactor = nitrifierOxygenFactor('nob', oxygen, ncConfig);
 
     // Track current values for calculations (effects accumulate)
     // Nitrogen compounds are stored as mass (mg)
@@ -543,8 +578,8 @@ export const nitrogenCycleSystem: System = {
         'aob',
         currentAob,
         aobStage.utilization,
-        temperatureFactor,
-        aobOxygenFactor,
+        temperature,
+        oxygen,
         maxBacteria,
         seeding,
         ncConfig
@@ -553,8 +588,8 @@ export const nitrogenCycleSystem: System = {
         'nob',
         currentNob,
         nobStage.utilization,
-        temperatureFactor,
-        nobOxygenFactor,
+        temperature,
+        oxygen,
         maxBacteria,
         seeding,
         ncConfig

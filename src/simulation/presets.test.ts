@@ -38,7 +38,7 @@ describe('presets', () => {
   it('opens the established tanks on a working biofilter, and the bare one on none', () => {
     for (const id of ['betta', 'planted', 'community', 'angelfish'] as const) {
       const state = createPresetSimulation(getPresetById(id)!);
-      const cycled = cycledColony(state.resources.surface);
+      const cycled = cycledColony(state);
 
       expect(state.resources.aob).toBe(cycled.aob);
       expect(state.resources.nob).toBe(cycled.nob);

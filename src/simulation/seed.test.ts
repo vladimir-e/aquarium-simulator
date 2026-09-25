@@ -10,6 +10,7 @@ import {
   type PresetSeed,
 } from './seed.js';
 import { getSubstrateKhReserve } from './equipment/substrate.js';
+import { calculateMaxBacteria } from './systems/nitrogen-cycle.js';
 import { HARDSCAPE_TANNINS } from './equipment/hardscape.js';
 import { DEFAULT_PLANT_SIZE, establishmentSurplus } from './plants/create-plant.js';
 import { plantsDefaults } from './config/plants.js';
@@ -88,14 +89,23 @@ describe('createSimulation seeding', () => {
     expect(seeded.resources.nob).toBe(0);
   });
 
-  it("sizes a 'cycled' colony off the surface its capacity, filter and bed give it", () => {
+  it("floors a fishless 'cycled' colony on the surface its capacity, filter and bed give it", () => {
     const cycled = (config: Omit<SimulationConfig, 'tankCapacity'>, tankCapacity = 100): Resources =>
       createSimulation({ tankCapacity, ...config }, { bacteria: 'cycled' }).resources;
 
-    for (const tankCapacity of [20, 150]) {
-      const { aob, nob, surface } = cycled({}, tankCapacity);
-      expect(aob).toBe(cycledColony(surface).aob);
-      expect(nob).toBe(cycledColony(surface).nob);
+    const share = (resources: Resources): [number, number] => {
+      const ceiling = calculateMaxBacteria(resources.surface);
+      return [resources.aob / ceiling, resources.nob / ceiling];
+    };
+    const [aobShare, nobShare] = share(cycled({}, 20));
+    const others = [
+      cycled({}, 150),
+      cycled({ filter: { type: 'canister' } }),
+      cycled({ substrate: { type: 'sand' } }),
+    ];
+    for (const tank of others) {
+      expect(share(tank)[0]).toBeCloseTo(aobShare, 12);
+      expect(share(tank)[1]).toBeCloseTo(nobShare, 12);
     }
     expect(cycled({ filter: { type: 'canister' } }).aob).toBeGreaterThan(
       cycled({ filter: { type: 'sponge' } }).aob
@@ -106,6 +116,23 @@ describe('createSimulation seeding', () => {
     expect(cycled({ substrate: { type: 'gravel' } }).aob).toBeGreaterThan(
       cycled({ substrate: { type: 'sand' } }).aob
     );
+  });
+
+  it("grows a 'cycled' colony into the stock it carries, under the surface ceiling", () => {
+    const cycled = (count: number): Resources =>
+      createSimulation(TANK, { bacteria: 'cycled', fish: [{ species: 'angelfish', count }] }).resources;
+
+    const few = cycled(2);
+    const many = cycled(6);
+    expect(many.aob).toBeGreaterThan(few.aob);
+    expect(many.nob).toBeGreaterThan(few.nob);
+    expect(few.aob).toBeGreaterThan(cycled(0).aob);
+
+    const packed = cycled(10_000);
+    const ceiling = calculateMaxBacteria(packed.surface);
+    expect(packed.aob).toBeLessThanOrEqual(ceiling);
+    expect(packed.nob).toBeLessThanOrEqual(ceiling);
+    expect(packed.aob).toBeGreaterThan(ceiling * 0.9);
   });
 
   describe('the bed', () => {
@@ -149,7 +176,7 @@ describe('createSimulation seeding', () => {
       });
 
       expect(seeded.equipment.substrate.organicReserve).toBe(1.5);
-      expect(seeded.resources.aob).toBe(cycledColony(seeded.resources.surface).aob);
+      expect(seeded.resources.aob).toBe(cycledColony(seeded).aob);
     });
   });
 

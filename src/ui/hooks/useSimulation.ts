@@ -20,6 +20,7 @@ import {
   type HardscapeType,
   type DailySchedule,
   createHardscapeItem,
+  cycledColony,
   startingHardness,
   type SimulationConfig,
 } from '../../simulation/index.js';
@@ -466,6 +467,7 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
         draft.equipment.substrate = fresh.equipment.substrate;
         draft.equipment.hardscape = fresh.equipment.hardscape;
         refreshPassiveResources(draft, configRef.current.optics);
+        if (draft.seed?.bacteria === 'cycled') Object.assign(draft.resources, cycledColony(draft));
 
         // Clear in-flight clutches: they hatch at an absolute
         // `laidTick + hatchTime`, so rewinding the clock to 0 would

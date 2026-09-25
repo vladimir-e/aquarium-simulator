@@ -29,7 +29,7 @@ tank has to keep earning.
 | Mineralization rate | <Badge text="scaffolding" variant="caution" /> | A flat fraction of standing waste with no temperature and no oxygen term, in the one aerobic step of the chain that has neither. |
 | N mass conservation | <Badge text="scaffolding" variant="caution" /> | The chain conserves N per atom, but decay oxidation, plant uptake and metabolic retention are untracked sinks. The end-to-end mass accounting controls for them rather than closing them. |
 | Colony sizing on inert beds | <Badge text="settled" variant="success" /> | Every bed cycles in four to six weeks under fish. |
-| Cycled seed | <Badge text="scaffolding" variant="caution" /> | A `'cycled'` colony is a share of the surface ceiling read off fishless tanks, not sized to the stock. A stocked tank opens on a colony under its load and runs a mini-cycle in week one — a few tenths of a ppm of nitrite — and the 75 gal community, at thirteen times its seed, crashes. |
+| Cycled seed | <Badge text="settled" variant="success" /> | A `'cycled'` colony is the one the tank's load sustains at rest — its fish fed to satiety and its bed's leach — floored at a fishless month's share of the surface ceiling. Every stocked setup opens on hundredths of a ppm. |
 | Nitrogen alerts | <Badge text="scaffolding" variant="caution" /> | Ammonia alerts on free NH₃ where harm starts; nitrite still alerts at 1.0 ppm where fish damage starts at any presence. |
 | Bed disturbance | <Badge text="scaffolding" variant="caution" /> | A rescape now shows, but small: the bed holds only about a day of the tank's waste, so a stock `--rescape` lifts a cycled tank's ammonia and nitrite by about half again — a few hundredths of a ppm — for half a day. |
 | Denitrification | <Badge text="missing" variant="danger" /> | Nitrate has no biological sink. It leaves only through plant uptake and water changes, so an unplanted tank accumulates it without bound. |
@@ -239,8 +239,9 @@ bump until worked down. An established bed holds only its mulm, so a stock
 rescape of a cycled tank shows a few hundredths of a ppm for half a day; digging
 up most of the bed at once shows more. An inert bed leaches a quarter of
 what soil does, so its colony grows to a smaller load, but it cycles on the same
-seeding clock; a `'cycled'` seed sizes the colony off the surface, not the
-water.
+seeding clock. A `'cycled'` seed skips the clock: each guild opens at the
+population where growth on its resting load meets decay, never below a fishless
+month's share of the ceiling.
 
 ## Key tunables
 

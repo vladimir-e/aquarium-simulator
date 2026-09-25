@@ -473,6 +473,20 @@ describe('useSimulation', () => {
       );
     });
 
+    it('reset sizes a cycled colony to the fish the tank keeps', () => {
+      const { result } = renderHook(() => useSimulation('community'), { wrapper });
+      const fishless = result.current.state.resources.aob;
+
+      act(() => {
+        for (let i = 0; i < 20; i++) result.current.executeAction({ type: 'addFish', species: 'angelfish' });
+      });
+      act(() => result.current.reset());
+
+      expect(result.current.state.fish).toHaveLength(20);
+      expect(result.current.state.resources.aob).toBeGreaterThan(fishless);
+      expect(result.current.state.resources.aob).toBe(cycledColony(result.current.state).aob);
+    });
+
     it('reset fills an unseeded soil tank from the tap, however far its bed ran down', () => {
       const { result } = renderHook(() => useSimulation('planted'), { wrapper });
       act(() => result.current.changeTankCapacity(result.current.state.tank.capacity));
@@ -553,8 +567,8 @@ describe('useSimulation', () => {
         const { result, unmount } = renderHook(() => useSimulation(id), { wrapper });
         const { aob, nob } = result.current.state.resources;
 
-        expect(aob).toBe(cycledColony(result.current.state.resources.surface).aob);
-        expect(nob).toBe(cycledColony(result.current.state.resources.surface).nob);
+        expect(aob).toBe(cycledColony(result.current.state).aob);
+        expect(nob).toBe(cycledColony(result.current.state).nob);
         unmount();
         globalThis.localStorage.clear();
       }
