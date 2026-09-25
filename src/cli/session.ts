@@ -61,7 +61,7 @@ import type { HistorySnapshot } from './history.js';
  *    `co2PerRespiration` for `co2PerRateUnit`, mg of CO2 per rate unit where
  *    the pair held mg/L, 0.5 against 30. A v5 session parses, and the first
  *    tick with a plant in it multiplies a rate by the key it does not carry:
- *    every gas figure a calibration run reads off it is `NaN`.
+ *    every gas figure a run reads off it is `NaN`.
  * v5 made light PAR, not watts: `Light.wattage` became `Light.par` — the
  *    fixture's rated PAR at the water surface — `Resources.light` and the
  *    history snapshots recording it hold PAR at the substrate rather than a
@@ -78,8 +78,7 @@ import type { HistorySnapshot } from './history.js';
  *    session carries was redenominated with it — `flowStressSeverity` is
  *    %/h per turnover-unit, 0.3, where v2 stored 0.01 %/h per L/h. The
  *    shape still parses, so nothing downstream would notice: a v2 session
- *    would go on charging a thirtieth of every flow stressor, in the runs
- *    calibration is read from.
+ *    would go on charging a thirtieth of every flow stressor in every run.
  * v2 added `Fish.stage` + `state.clutches` (breeding) and the saturating
  *    surplus bank.
  */

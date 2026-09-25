@@ -62,7 +62,7 @@ describe('processAlgae', () => {
     expect(out.algae.surplus).toBe(0);
   });
 
-  it('photoperiod gates surplus banking — an established mass holds at night when net ≥ 0', () => {
+  it('photoperiod gates surplus banking — an established mass does not shrink at night when net ≥ 0', () => {
     const state = produce(baseState(), (draft) => {
       draft.algae = { mass: 50, surplus: 0 };
       draft.resources.light = 0;

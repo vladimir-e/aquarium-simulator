@@ -2,7 +2,7 @@
  * Per-tick history recorder for the headless CLI.
  *
  * Keeps a bounded rolling window of snapshots. When the cap is exceeded we
- * drop the oldest entries — calibration runs rarely care about ancient state,
+ * drop the oldest entries — headless runs rarely care about ancient state,
  * and a hard cap keeps the session file size predictable.
  */
 
