@@ -8,7 +8,12 @@ import { nitrogenCycleDefaults } from '../config/nitrogen-cycle.js';
 import { MW_N, MW_NH3, MW_NO2, MW_NO3 } from '../core/chemistry.js';
 import { SETUPS, toConfig, toSeed, type Setup } from '../../cli/scenarios/setups.js';
 import { dueActions } from '../../cli/scenarios/keeper.js';
-import { run } from './tanks.js';
+
+function run(state: SimulationState, hours: number): SimulationState {
+  let running = state;
+  for (let hour = 0; hour < hours; hour++) running = tick(running);
+  return running;
+}
 
 function nitrogenInPools({ resources }: SimulationState): number {
   const { food, waste, ammonia, nitrite, nitrate } = resources;

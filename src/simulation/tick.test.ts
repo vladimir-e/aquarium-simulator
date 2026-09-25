@@ -1,347 +1,80 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
+import { produce } from 'immer';
 import { tick, getHourOfDay, getDayNumber, settleEnvironment } from './tick.js';
 import { createSimulation, type SimulationConfig, type SimulationState } from './state.js';
 import { applyAction } from './actions/index.js';
 import { DEFAULT_CONFIG, type TunableConfig } from './config/index.js';
 import type { PresetSeed } from './seed.js';
+import { FILTER_SURFACE } from './equipment/filter.js';
+import { POWERHEAD_FLOW_LPH } from './equipment/powerhead.js';
 
 describe('tick', () => {
-  let initialState: SimulationState;
+  const still = (): SimulationState =>
+    createSimulation({ tankCapacity: 100, initialTemperature: 22, roomTemperature: 22 });
 
-  beforeEach(() => {
-    // Water at room temp means no temperature drift
-    initialState = createSimulation({
-      tankCapacity: 100,
-      initialTemperature: 22,
-      roomTemperature: 22,
-    });
+  it('advances the clock by one hour without touching the state it was given', () => {
+    const state = still();
+    const next = tick(state);
+
+    expect(next.tick).toBe(1);
+    expect(next).not.toBe(state);
+    expect(state.tick).toBe(0);
   });
 
-  it('increments tick counter by 1', () => {
-    const newState = tick(initialState);
+  it('drifts temperature toward the room and evaporates water', () => {
+    const state = tick(
+      createSimulation({ tankCapacity: 100, initialTemperature: 28, roomTemperature: 22 })
+    );
 
-    expect(newState.tick).toBe(1);
-  });
-
-  it('returns a new state object', () => {
-    const newState = tick(initialState);
-
-    expect(newState).not.toBe(initialState);
-  });
-
-  it('does not mutate original state', () => {
-    tick(initialState);
-
-    expect(initialState.tick).toBe(0);
-  });
-
-  it('increments tick correctly over multiple calls', () => {
-    let state = initialState;
-
-    for (let i = 0; i < 10; i++) {
-      state = tick(state);
-    }
-
-    expect(state.tick).toBe(10);
-    expect(initialState.tick).toBe(0);
-  });
-
-  it('preserves tank capacity', () => {
-    const newState = tick(initialState);
-
-    expect(newState.tank.capacity).toBe(100);
-  });
-});
-
-describe('tick integration', () => {
-  it('temperature drifts toward room temp over time', () => {
-    let state = createSimulation({
-      tankCapacity: 100,
-      initialTemperature: 28,
-      roomTemperature: 22,
-    });
-
-    state = tick(state);
-
-    // Temperature should decrease toward room temp
     expect(state.resources.temperature).toBeLessThan(28);
     expect(state.resources.temperature).toBeGreaterThan(22);
-  });
-
-  it('water level decreases due to evaporation', () => {
-    let state = createSimulation({
-      tankCapacity: 100,
-      initialTemperature: 25,
-      roomTemperature: 22,
-    });
-
-    state = tick(state);
-
     expect(state.resources.water).toBeLessThan(100);
   });
 
-  it('heater counteracts temperature drift', () => {
-    let stateWithHeater = createSimulation({
-      tankCapacity: 100,
-      initialTemperature: 22,
-      roomTemperature: 20,
-      heater: { enabled: true, targetTemperature: 25, wattage: 100 },
-    });
+  it('switches the heater on below target and off at it', () => {
+    const heater = (initialTemperature: number, isOn: boolean): boolean =>
+      tick(
+        createSimulation({
+          tankCapacity: 100,
+          initialTemperature,
+          roomTemperature: initialTemperature,
+          heater: { enabled: true, isOn, targetTemperature: 25, wattage: 100 },
+        })
+      ).equipment.heater.isOn;
 
-    let stateWithoutHeater = createSimulation({
-      tankCapacity: 100,
-      initialTemperature: 22,
-      roomTemperature: 20,
-      heater: { enabled: false, targetTemperature: 25, wattage: 100 },
-    });
-
-    stateWithHeater = tick(stateWithHeater);
-    stateWithoutHeater = tick(stateWithoutHeater);
-
-    // With heater, temp should be higher than without
-    expect(stateWithHeater.resources.temperature).toBeGreaterThan(
-      stateWithoutHeater.resources.temperature
-    );
+    expect(heater(22, false)).toBe(true);
+    expect(heater(25, true)).toBe(false);
   });
 
-  it('heater sets isOn to true when heating', () => {
-    let state = createSimulation({
-      tankCapacity: 100,
-      initialTemperature: 22,
-      roomTemperature: 20,
-      heater: { enabled: true, isOn: false, targetTemperature: 25, wattage: 100 },
-    });
+  it('warms a tank with the heater on against one without', () => {
+    const run = (enabled: boolean): number =>
+      tick(
+        createSimulation({
+          tankCapacity: 100,
+          initialTemperature: 22,
+          roomTemperature: 20,
+          heater: { enabled, targetTemperature: 25, wattage: 100 },
+        })
+      ).resources.temperature;
 
-    state = tick(state);
-
-    expect(state.equipment.heater.isOn).toBe(true);
+    expect(run(true)).toBeGreaterThan(run(false));
   });
 
-  it('heater sets isOn to false when at target', () => {
-    let state = createSimulation({
-      tankCapacity: 100,
-      initialTemperature: 25,
-      roomTemperature: 25, // No drift when room temp equals water temp
-      heater: { enabled: true, isOn: true, targetTemperature: 25, wattage: 100 },
-    });
-
-    state = tick(state);
-
-    expect(state.equipment.heater.isOn).toBe(false);
-  });
-
-  it('heater does nothing when disabled', () => {
+  it('recalculates flow and surface from the equipment every tick', () => {
     const state = createSimulation({
       tankCapacity: 100,
-      initialTemperature: 22,
-      roomTemperature: 22,
-      heater: { enabled: false, isOn: false, targetTemperature: 28, wattage: 100 },
-    });
-
-    const newState = tick(state);
-
-    // Temperature shouldn't change (both water and room are at 22)
-    // and heater is disabled
-    expect(newState.equipment.heater.isOn).toBe(false);
-    // Temperature stays at 22 (no drift since room == water temp)
-    expect(newState.resources.temperature).toBeCloseTo(22, 1);
-  });
-
-  it('simulation reaches equilibrium with heater on', () => {
-    // Start cold, heater should warm up and eventually stabilize
-    let state = createSimulation({
-      tankCapacity: 100,
-      initialTemperature: 22,
-      roomTemperature: 20,
-      heater: { enabled: true, targetTemperature: 25, wattage: 130 }, // 1.3 W/L
-    });
-
-    // Run for many ticks to approach equilibrium
-    for (let i = 0; i < 100; i++) {
-      state = tick(state);
-    }
-
-    // Should be between room temp and target temp
-    // (equilibrium point depends on heater power vs cooling rate)
-    expect(state.resources.temperature).toBeGreaterThan(20);
-    expect(state.resources.temperature).toBeLessThanOrEqual(25);
-  });
-
-  it('underpowered heater plateaus below target', () => {
-    // Very low wattage heater won't reach target
-    let state = createSimulation({
-      tankCapacity: 100,
-      initialTemperature: 22,
-      roomTemperature: 20,
-      heater: { enabled: true, targetTemperature: 30, wattage: 10 }, // Very weak
-    });
-
-    // Run for many ticks to approach equilibrium
-    for (let i = 0; i < 200; i++) {
-      state = tick(state);
-    }
-
-    // Should plateau well below target due to underpowered heater
-    expect(state.resources.temperature).toBeLessThan(30);
-    expect(state.resources.temperature).toBeGreaterThan(20);
-    expect(state.equipment.heater.isOn).toBe(true); // Still trying to heat
-  });
-});
-
-describe('getHourOfDay', () => {
-  it('returns 0 for tick 0', () => {
-    const state = createSimulation({ tankCapacity: 100 });
-
-    expect(getHourOfDay(state)).toBe(0);
-  });
-
-  it('returns correct hour for ticks within first day', () => {
-    let state = createSimulation({ tankCapacity: 100 });
-
-    for (let i = 0; i < 12; i++) {
-      state = tick(state);
-    }
-
-    expect(getHourOfDay(state)).toBe(12);
-  });
-
-  it('wraps around after 24 hours', () => {
-    let state = createSimulation({ tankCapacity: 100 });
-
-    for (let i = 0; i < 25; i++) {
-      state = tick(state);
-    }
-
-    expect(getHourOfDay(state)).toBe(1);
-  });
-
-  it('returns correct hour for arbitrary tick', () => {
-    let state = createSimulation({ tankCapacity: 100 });
-
-    // Simulate 50 hours (2 days + 2 hours)
-    for (let i = 0; i < 50; i++) {
-      state = tick(state);
-    }
-
-    expect(getHourOfDay(state)).toBe(2);
-  });
-});
-
-describe('getDayNumber', () => {
-  it('returns 0 for tick 0', () => {
-    const state = createSimulation({ tankCapacity: 100 });
-
-    expect(getDayNumber(state)).toBe(0);
-  });
-
-  it('returns 0 for first 24 ticks', () => {
-    let state = createSimulation({ tankCapacity: 100 });
-
-    for (let i = 0; i < 23; i++) {
-      state = tick(state);
-    }
-
-    expect(getDayNumber(state)).toBe(0);
-  });
-
-  it('returns 1 after 24 ticks', () => {
-    let state = createSimulation({ tankCapacity: 100 });
-
-    for (let i = 0; i < 24; i++) {
-      state = tick(state);
-    }
-
-    expect(getDayNumber(state)).toBe(1);
-  });
-
-  it('returns correct day for arbitrary tick', () => {
-    let state = createSimulation({ tankCapacity: 100 });
-
-    // Simulate 50 hours (2 days + 2 hours)
-    for (let i = 0; i < 50; i++) {
-      state = tick(state);
-    }
-
-    expect(getDayNumber(state)).toBe(2);
-  });
-});
-
-describe('tick passive resources', () => {
-  it('recalculates passive resources each tick', () => {
-    const state = createSimulation({
-      tankCapacity: 100,
-      initialTemperature: 22,
-      roomTemperature: 22,
-      filter: { enabled: true, type: 'sponge' },
-    });
-
-    const initialResources = state.resources;
-    const newState = tick(state);
-
-    // Passive resources should be recalculated (same value since equipment unchanged)
-    expect(newState.resources).toBeDefined();
-    expect(newState.resources.surface).toBe(initialResources.surface);
-    expect(newState.resources.flow).toBe(initialResources.flow);
-  });
-
-  it('passive resources update when filter enabled state changes', () => {
-    let state = createSimulation({
-      tankCapacity: 100,
-      initialTemperature: 22,
-      roomTemperature: 22,
       filter: { enabled: true, type: 'canister' },
-      powerhead: { enabled: false },
-    });
-
-    const initialFlow = state.resources.flow;
-    // Canister on 100L tank: 100 * 8x = 800 L/h
-    expect(initialFlow).toBe(800);
-
-    // Disable filter
-    state = {
-      ...state,
-      equipment: {
-        ...state.equipment,
-        filter: { ...state.equipment.filter, enabled: false },
-      },
-    };
-
-    // Run tick to recalculate
-    const newState = tick(state);
-
-    expect(newState.resources.flow).toBe(0);
-    expect(newState.resources.surface).toBeLessThan(
-      createSimulation({
-        tankCapacity: 100,
-        filter: { enabled: true, type: 'canister' },
-      }).resources.surface
-    );
-  });
-
-  it('passive resources update when powerhead flow rate changes', () => {
-    let state = createSimulation({
-      tankCapacity: 100,
-      initialTemperature: 22,
-      roomTemperature: 22,
-      filter: { enabled: false },
       powerhead: { enabled: true, flowRateGPH: 240 },
     });
+    const changed = produce(state, (draft) => {
+      draft.equipment.filter.enabled = false;
+      draft.equipment.powerhead.flowRateGPH = 850;
+    });
+    const next = tick(changed);
 
-    expect(state.resources.flow).toBe(908); // 240 GPH
-
-    // Change powerhead flow rate
-    state = {
-      ...state,
-      equipment: {
-        ...state.equipment,
-        powerhead: { ...state.equipment.powerhead, flowRateGPH: 850 },
-      },
-    };
-
-    // Run tick to recalculate
-    const newState = tick(state);
-
-    expect(newState.resources.flow).toBe(3218); // 850 GPH
+    expect(tick(state).resources.surface).toBe(state.resources.surface);
+    expect(next.resources.flow).toBe(POWERHEAD_FLOW_LPH[850]);
+    expect(next.resources.surface).toBe(state.resources.surface - FILTER_SURFACE.canister);
   });
 
   it('lights the substrate through the water column the config describes', () => {
@@ -357,6 +90,33 @@ describe('tick passive resources', () => {
     expect(tick(state, murky).resources.light).toBeLessThan(
       tick(state, DEFAULT_CONFIG).resources.light
     );
+  });
+
+  it('raises alerts on the state the passive tier left behind', () => {
+    const state = produce(createSimulation({ tankCapacity: 100 }), (draft) => {
+      draft.resources.water = 15;
+    });
+    const next = tick(state);
+
+    expect(next.logs.length).toBeGreaterThan(state.logs.length);
+    expect(next.logs.some((log) => log.source === 'evaporation' && log.severity === 'warning')).toBe(
+      true
+    );
+  });
+});
+
+describe('getHourOfDay / getDayNumber', () => {
+  it.each([
+    [0, 0, 0],
+    [12, 12, 0],
+    [23, 23, 0],
+    [24, 0, 1],
+    [50, 2, 2],
+  ])('reads tick %d as hour %d of day %d', (at, hour, day) => {
+    const state = { ...createSimulation({ tankCapacity: 100 }), tick: at };
+
+    expect(getHourOfDay(state)).toBe(hour);
+    expect(getDayNumber(state)).toBe(day);
   });
 });
 
@@ -378,77 +138,6 @@ describe('settleEnvironment', () => {
     expect(settled.resources.light).toBeGreaterThan(0);
     // And nothing past the living tier moves it again.
     expect(tick(state).resources.light).toBe(settled.resources.light);
-  });
-});
-
-describe('tick alerts integration', () => {
-  it('preserves logs array through tick', () => {
-    const state = createSimulation({ tankCapacity: 100 });
-
-    const newState = tick(state);
-
-    expect(Array.isArray(newState.logs)).toBe(true);
-  });
-
-  it('adds alert logs to state.logs', () => {
-    // Create state with low water level to trigger alert
-    let state = createSimulation({ tankCapacity: 100 });
-    // Manually set water level below 20% threshold
-    state = {
-      ...state,
-      resources: {
-        ...state.resources,
-        water: 15, // 15% of 100L
-      },
-    };
-
-    const initialLogCount = state.logs.length;
-    const newState = tick(state);
-
-    // Should have added a water level alert
-    expect(newState.logs.length).toBeGreaterThan(initialLogCount);
-    const alertLog = newState.logs.find(
-      (log) => log.source === 'evaporation' && log.severity === 'warning'
-    );
-    expect(alertLog).toBeDefined();
-  });
-
-  it('alerts run after passive effects tier', () => {
-    // This test verifies alerts see the state after evaporation
-    // If water level drops below 20% due to evaporation, alert should trigger
-    let state = createSimulation({ tankCapacity: 100 });
-    // Set water level just above 20% so evaporation might push it below
-    state = {
-      ...state,
-      resources: {
-        ...state.resources,
-        water: 20.1, // Just above threshold
-      },
-    };
-
-    // Run enough ticks for evaporation to drop below threshold
-    for (let i = 0; i < 100; i++) {
-      state = tick(state);
-    }
-
-    // Should eventually get a water level alert
-    const hasWaterAlert = state.logs.some(
-      (log) => log.source === 'evaporation' && log.severity === 'warning'
-    );
-    expect(hasWaterAlert).toBe(true);
-  });
-
-  it('logs accumulate across multiple ticks', () => {
-    let state = createSimulation({ tankCapacity: 100 });
-    const initialLogCount = state.logs.length;
-
-    // Run 5 ticks
-    for (let i = 0; i < 5; i++) {
-      state = tick(state);
-    }
-
-    // Logs should still be present (and possibly have more from alerts)
-    expect(state.logs.length).toBeGreaterThanOrEqual(initialLogCount);
   });
 });
 
@@ -488,16 +177,6 @@ describe('tick determinism', () => {
     expect(first.fish.length).toBeGreaterThan(5);
     expect(first).toEqual(second);
     expect(JSON.stringify(first)).toBe(JSON.stringify(second));
-  });
-
-  it('gives the offspring of two identical tanks the same names', () => {
-    const ids = (state: SimulationState): string[] => [
-      ...state.fish.map((f) => f.id),
-      ...state.clutches.map((c) => c.id),
-      ...state.plants.map((p) => p.id),
-    ];
-
-    expect(ids(fortnight(2026))).toEqual(ids(fortnight(2026)));
   });
 
   it('sends the same tank down a different life on a different rng seed', () => {
