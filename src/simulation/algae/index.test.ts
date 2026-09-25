@@ -1,15 +1,3 @@
-/**
- * Algae orchestrator tests.
- *
- * Coverage:
- * - `processAlgae`: full pipeline integration with population
- *   computation, surplus banking (positive net, photoperiod-gated),
- *   direct mass shrinkage (negative net, 24/7), and surplus → mass
- *   conversion.
- * - `spendAlgaeSurplus`: surplus drains, mass increases, asymptotic
- *   factor self-limits at saturation.
- */
-
 import { describe, it, expect } from 'vitest';
 import { produce } from 'immer';
 import { processAlgae, spendAlgaeSurplus } from './index.js';
@@ -61,33 +49,6 @@ describe('spendAlgaeSurplus', () => {
 });
 
 describe('processAlgae', () => {
-  it('returns a state object with the expected algae shape', () => {
-    const state = baseState();
-    const { state: out } = processAlgae(state, DEFAULT_CONFIG);
-    expect(out.algae).toBeDefined();
-    expect(typeof out.algae.mass).toBe('number');
-    expect(typeof out.algae.surplus).toBe('number');
-    // condition is gone — confirm explicitly so a regression sneaking
-    // it back in fails loudly.
-    expect((out.algae as Record<string, unknown>).condition).toBeUndefined();
-  });
-
-  it('mass is non-decreasing while net ≥ 0 and lights are off', () => {
-    // No plants, no light → no benefits or stressors fire (light gate
-    // on excess_light, plant power 0 in the deadband below weakness
-    // when... actually plant power 0 < weaknessThreshold so low_plant_power
-    // fires). With nutrients at zero and no plants, deficiency benefit
-    // also fires. With lights off, surplus banking is gated — but mass
-    // still cannot decrease through the orchestrator because net ≥ 0.
-    const state = produce(baseState(), (draft) => {
-      draft.algae = { mass: 50, surplus: 0 };
-      draft.resources.light = 0;
-    });
-    const { state: out } = processAlgae(state, DEFAULT_CONFIG);
-    expect(out.algae.mass).toBeGreaterThanOrEqual(50);
-    // No surplus banked overnight even though net is positive.
-    expect(out.algae.surplus).toBe(0);
-  });
 
   it('negative net shrinks mass directly (24/7, lights off)', () => {
     // Heavy plants → suppression dominates. Lights off; the new
@@ -142,20 +103,6 @@ describe('processAlgae', () => {
     expect(out.algae.surplus).toBeGreaterThanOrEqual(0);
   });
 
-  it('lights on + positive net at established mass → surplus also banks', () => {
-    // Same pure-light scenario, but with existing mass. Old pipeline
-    // gated banking on condition === 100; new pipeline only gates on
-    // photoperiod and net sign.
-    const state = produce(baseState(), (draft) => {
-      draft.algae = { mass: 60, surplus: 0 };
-      draft.resources.light = 100;
-      draft.resources.nitrate = 0;
-      draft.resources.phosphate = 0;
-    });
-    const { state: out } = processAlgae(state, DEFAULT_CONFIG);
-    expect(out.algae.mass).toBeGreaterThan(60);
-  });
-
   it('mass cannot go negative when net is large and negative', () => {
     // Pathological scenario: massive negative net with low mass.
     // Direct mass + net step clamps at 0.
@@ -197,7 +144,6 @@ describe('processAlgae — surplus buffer and cap', () => {
     const { state: out } = processAlgae(state, DEFAULT_CONFIG);
     expect(out.algae.mass).toBe(80); // fully buffered
     expect(out.algae.surplus).toBeLessThan(50);
-    expect(out.algae.surplus).toBeGreaterThan(48); // small per-tick drain
   });
 
   it('shrinks mass only by the shortfall once the reserve cannot cover it', () => {

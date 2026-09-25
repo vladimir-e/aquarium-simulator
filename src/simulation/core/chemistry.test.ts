@@ -1,15 +1,3 @@
-/**
- * The arithmetic six systems convert through.
- *
- * The failure this module exists to prevent is a basis error, and it is quiet:
- * 2.819 mg of O2 per gram of *ammonia* and 3.43 per gram of *nitrogen* are one
- * reaction read two ways, so a system that takes one for the other is out by a
- * factor of 1.22 and every rate around it still looks plausible. Each figure
- * below is therefore stated the way the literature states it — per gram of N —
- * and derived from the per-compound constants the engine actually multiplies by,
- * so the two bases have to agree for the test to pass.
- */
-
 import { describe, it, expect } from 'vitest';
 import {
   MW_N,

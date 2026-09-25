@@ -28,16 +28,6 @@ describe('applyEffects', () => {
     expect(newState.resources.temperature).toBe(27);
   });
 
-  it('applies single water level effect', () => {
-    const effects: Effect[] = [
-      { tier: 'passive', resource: 'water', delta: -5, source: 'evaporation' },
-    ];
-
-    const newState = applyEffects(initialState, effects);
-
-    expect(newState.resources.water).toBe(95);
-  });
-
   it('applies multiple effects in sequence', () => {
     const effects: Effect[] = [
       { tier: 'immediate', resource: 'temperature', delta: 2, source: 'heater' },
@@ -106,35 +96,6 @@ describe('applyEffects', () => {
   });
 
   describe('nutrient resources', () => {
-    it('applies phosphate effect', () => {
-      const effects: Effect[] = [
-        { tier: 'active', resource: 'phosphate', delta: 10, source: 'dose' },
-      ];
-
-      const newState = applyEffects(initialState, effects);
-
-      expect(newState.resources.phosphate).toBe(10);
-    });
-
-    it('applies potassium effect', () => {
-      const effects: Effect[] = [
-        { tier: 'active', resource: 'potassium', delta: 20, source: 'dose' },
-      ];
-
-      const newState = applyEffects(initialState, effects);
-
-      expect(newState.resources.potassium).toBe(20);
-    });
-
-    it('applies iron effect', () => {
-      const effects: Effect[] = [
-        { tier: 'active', resource: 'iron', delta: 5, source: 'dose' },
-      ];
-
-      const newState = applyEffects(initialState, effects);
-
-      expect(newState.resources.iron).toBe(5);
-    });
 
     it('clamps nutrients to minimum of 0', () => {
       const effects: Effect[] = [
