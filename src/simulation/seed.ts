@@ -104,14 +104,11 @@ export interface PresetSeed extends TankSeed {
 }
 
 /**
- * Share of its surface ceiling a month-old AOB colony covers. A fishless soil
- * tank that cycles itself sits at 1.3–1.8 % on day 30 from a 5 gal sponge to a
- * 150 gal canister; rounding up means a scenario that says "cycled" is never
- * handed a weaker biofilter than one that waited for it.
+ * Share of its surface ceiling a month-old colony covers, read off fishless
+ * soil tanks on day 30 and rounded up, so a scenario that says "cycled" is
+ * never handed a weaker biofilter than one that waited for it.
  */
 const CYCLED_AOB_COVERAGE = 0.02;
-
-/** NOB coverage, off the same measurement (0.7–0.9 %) and rounded the same way. */
 const CYCLED_NOB_COVERAGE = 0.01;
 
 /**

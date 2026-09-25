@@ -98,7 +98,7 @@ describe('WaterSection', () => {
   });
 
   it('carries the biofilter, its guilds and where the nitrite peak falls', () => {
-    renderWater();
+    renderWater(stocked());
 
     const biofilter = group('Biofilter');
     expect(within(biofilter).getByText('uncycled')).toBeTruthy();

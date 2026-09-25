@@ -106,6 +106,8 @@ export interface ConversionRates {
   gillsToAmmonia: number;
   /** NH₃ ppm the AOB colony takes out of the water this hour. */
   ammoniaOxidised: number;
+  /** Arriving minus oxidised — positive means ammonia is climbing. */
+  netAmmonia: number;
   /** NO₂ ppm the AOB colony produces this hour. */
   ammoniaToNitrite: number;
   /** NO₂ ppm the NOB colony clears this hour. */
@@ -214,6 +216,7 @@ export function bacteriaReadout(
     wasteToAmmonia: getPpm(ammoniaProduced, water),
     gillsToAmmonia: getPpm(gills, water),
     ammoniaOxidised: getPpm(ammoniaConsumed, water),
+    netAmmonia: getPpm(gills + ammoniaProduced - ammoniaConsumed, water),
     ammoniaToNitrite: getPpm(nitriteProduced, water),
     nitriteToNitrate: getPpm(nitriteConsumed, water),
     netNitrite: getPpm(nitriteProduced - nitriteConsumed, water),
@@ -298,6 +301,7 @@ export function projectNitritePeak(
   let peakAt = 0;
 
   for (let hour = 1; hour <= horizon; hour++) {
+    const seeding = calculateSeeding(water, nc);
     water = nextVolume(water, state, config);
 
     const leached = calculateSubstrateLeach(reserve, config.decay);
@@ -316,7 +320,6 @@ export function projectNitritePeak(
     nitrite -= cleared.nitriteConsumed;
 
     const nitritePpm = getPpm(nitrite, water);
-    const seeding = calculateSeeding(water, nc);
 
     const aobFlows = calculateColonyFlows(
       aob,
@@ -365,11 +368,7 @@ export function bacteriaSummary(
 ): string {
   const { aob, nob, rates, atTrace, cycled } = readout;
 
-  if (aob.count === 0) {
-    return `Uncycled. Nitrifiers settle out of the water a few cells at a time, and grow once there is ammonia to feed them.${peakClause(projection)}`;
-  }
-
-  // Ahead of the lagging-colony line, which promises a colony that catches up:
+  // Ahead of the growing-colony lines, which promise a colony that catches up:
   // one already on its surface has nowhere left to do it, and under a load big
   // enough to fill a biofilm nitrite is always climbing.
   //
@@ -379,6 +378,10 @@ export function bacteriaSummary(
   // 180-day horizon rather than a peak the tank passes through.
   if (aob.pct >= SURFACE_BOUND_PCT && nob.pct >= SURFACE_BOUND_PCT) {
     return 'Both colonies have filled the surface they live on — until the tank offers more biofilm, more load has nowhere to go.';
+  }
+
+  if (rates.netAmmonia > 0) {
+    return `Uncycled. Ammonia arrives faster than the young AOB colony can oxidise it, and climbs until the colony grows into it.${peakClause(projection)}`;
   }
 
   if (nob.count < aob.count && rates.netNitrite > 0) {

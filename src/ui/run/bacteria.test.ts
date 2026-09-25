@@ -227,14 +227,15 @@ describe('projectNitritePeak', () => {
 });
 
 describe('bacteriaSummary', () => {
-  it('explains an uncycled tank by the colony it is still waiting to grow', () => {
-    const state = tank();
-    const summary = bacteriaSummary(
-      bacteriaReadout(state, config),
-      projectNitritePeak(state, config, 24)
-    );
+  it('reads a fresh tank as uncycled while its ammonia climbs, seeded colony and all', () => {
+    let state = soilTank();
+    for (let hour = 0; hour < 24 * 5; hour++) state = tick(state, config);
+    const readout = bacteriaReadout(state, config);
+    const summary = bacteriaSummary(readout, projectNitritePeak(state, config));
+
+    expect(readout.aob.count).toBeGreaterThan(0);
     expect(summary).toContain('Uncycled');
-    expect(summary).toContain('No nitrite peak within');
+    expect(summary).toContain('Nitrite peaks in');
   });
 
   it('blames the lagging colony while nitrite is climbing', () => {

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { createSimulation, type SimulationConfig } from './state.js';
+import { createSimulation, type Resources, type SimulationConfig } from './state.js';
 import { FISH_SPECIES_DATA } from './livestock/species.js';
 import {
   cycledColony,
@@ -88,26 +88,25 @@ describe('createSimulation seeding', () => {
     expect(seeded.resources.nob).toBe(0);
   });
 
-  it("sizes a 'cycled' colony against the surface the tank was actually built with", () => {
+  it("sizes a 'cycled' colony off the surface its capacity, filter and bed give it", () => {
+    const cycled = (config: Omit<SimulationConfig, 'tankCapacity'>, tankCapacity = 100): Resources =>
+      createSimulation({ tankCapacity, ...config }, { bacteria: 'cycled' }).resources;
+
     for (const tankCapacity of [20, 150]) {
-      const seeded = createSimulation({ ...TANK, tankCapacity }, { bacteria: 'cycled' });
-
-      expect(seeded.resources.aob).toBe(cycledColony(seeded.resources.surface).aob);
-      expect(seeded.resources.nob).toBe(cycledColony(seeded.resources.surface).nob);
+      const { aob, nob, surface } = cycled({}, tankCapacity);
+      expect(aob).toBe(cycledColony(surface).aob);
+      expect(nob).toBe(cycledColony(surface).nob);
     }
-  });
-
-  it("grows a 'cycled' colony on an inert bed with its filter and its bed", () => {
-    const aob = (config: Omit<SimulationConfig, 'tankCapacity'>): number =>
-      createSimulation({ tankCapacity: 100, ...config }, { bacteria: 'cycled' }).resources.aob;
-
-    expect(aob({ substrate: { type: 'gravel' }, filter: { type: 'canister' } })).toBeGreaterThan(
-      aob({ substrate: { type: 'gravel' }, filter: { type: 'sponge' } })
+    expect(cycled({ filter: { type: 'canister' } }).aob).toBeGreaterThan(
+      cycled({ filter: { type: 'sponge' } }).aob
     );
-    expect(aob({ substrate: { type: 'gravel' } })).toBeGreaterThan(aob({ substrate: { type: 'sand' } }));
-    expect(aob({ substrate: { type: 'aqua_soil' } })).toBeGreaterThan(aob({ substrate: { type: 'gravel' } }));
+    expect(cycled({ substrate: { type: 'aqua_soil' } }).aob).toBeGreaterThan(
+      cycled({ substrate: { type: 'gravel' } }).aob
+    );
+    expect(cycled({ substrate: { type: 'gravel' } }).aob).toBeGreaterThan(
+      cycled({ substrate: { type: 'sand' } }).aob
+    );
   });
-
 
   describe('the bed', () => {
     it("ages a 'cycled' bed against the type and capacity the tank was built with", () => {

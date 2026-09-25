@@ -82,14 +82,12 @@ export const nitrogenCycleDefaults: NitrogenCycleConfig = {
   // from 1.000 at saturation to 0.364 at 0.10 mg/L.
   bacteriaProcessingRate: 0.0002 / AOB_AT_AIR_SATURATION,
   // Nitrifiers settling out of the fill water and the air: 100 cells per litre
-  // an hour, which a tank with nothing to feed them holds at ~73 cells/mL
-  // (rate / deathRate). See `calculateSeeding` for why it is counted in litres.
+  // an hour. See `calculateSeeding` for why it is counted in litres.
   //
   // Everything after the first cells is doublings, so this is the clock, and
   // the one constant here read off the cycling timeline rather than pinned to a
-  // measurement. It is logarithmic in it — each tenfold cut adds three to four
-  // days — and this value puts a fishless soil tank's nitrite back to zero in
-  // about three weeks and a fish-in cycle in about four.
+  // measurement: it puts a fishless soil tank's nitrite back to zero in about
+  // three weeks and a fish-in cycle in about four.
   seedingRate: 0.0001,
   // Growth is per-capita at *full* utilization, so each rate is read straight
   // off a saturated doubling time: rate = ln2 / hours. AOB double in 15–24 h

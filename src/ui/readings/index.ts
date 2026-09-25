@@ -434,10 +434,7 @@ export function readTank({ state, config, history, units }: TankInput): ReadingB
     ammonia: fromWater('ammonia', tape, {
       reading: read('ammonia'),
       sentence: `Safe at or under ${said('ammonia', HIGH_AMMONIA_THRESHOLD)} ppm — the line the engine alerts on.`,
-      net: netPerHour(
-        rates.wasteToAmmonia + rates.gillsToAmmonia - rates.ammoniaOxidised,
-        'ppm'
-      ),
+      net: netPerHour(rates.netAmmonia, 'ppm'),
       fills: [
         { label: 'Waste mineralising', rate: ratePerHour(rates.wasteToAmmonia, 'ppm') },
         { label: 'Fish gills', rate: ratePerHour(rates.gillsToAmmonia, 'ppm') },

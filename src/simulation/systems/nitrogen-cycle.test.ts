@@ -678,6 +678,11 @@ describe('nitrogenCycleSystem', () => {
       expect(onEach('none')).toBeGreaterThan(0);
     });
 
+    it('settles nothing onto a tank with no surface to hold it', () => {
+      expect(gain(createTestState({ aob: 0, nob: 0, surface: 0 }), 'aob')).toBe(0);
+      expect(gain(createTestState({ aob: 0, nob: 0, surface: 0 }), 'nob')).toBe(0);
+    });
+
     it('grows a colony with no step at any ammonia level, from the seed alone at none', () => {
       const aob = 100;
       const state = createTestState({ aob, surface: 100000 });
@@ -754,9 +759,11 @@ describe('nitrogenCycleSystem', () => {
     });
 
     it('adds only the seed to a colony with nothing to eat', () => {
-      const seed = calculateSeeding(40);
-      expect(growth('aob', createTestState({ ammonia: 0, aob: 100, surface: ROOMY }))).toBeCloseTo(seed, 12);
-      expect(growth('nob', createTestState({ nitrite: 0, nob: 100, surface: ROOMY }))).toBeCloseTo(seed, 12);
+      const aob = createTestState({ ammonia: 0, aob: 100, surface: ROOMY });
+      const nob = createTestState({ nitrite: 0, nob: 100, surface: ROOMY });
+
+      expect(growth('aob', aob)).toBeCloseTo(calculateSeeding(aob.resources.water), 12);
+      expect(growth('nob', nob)).toBeCloseTo(calculateSeeding(nob.resources.water), 12);
     });
   });
 
