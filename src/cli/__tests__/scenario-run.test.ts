@@ -49,3 +49,13 @@ describe('keepTank', () => {
     expect(refused).toEqual(['dose']);
   });
 });
+
+describe('the keeper’s gravel vac', () => {
+  it('pulls mulm out of the bed at each water change', () => {
+    const nano = findSetup('nano');
+    const reserve = (vacuum: number): number =>
+      keepTank({ ...nano, vacuum }, { config: DEFAULT_CONFIG, untilTick: 8 * 24 }).equipment.substrate
+        .organicReserve;
+    expect(reserve(0.5)).toBeLessThan(reserve(0));
+  });
+});

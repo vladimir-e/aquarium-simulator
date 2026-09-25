@@ -19,7 +19,7 @@ tank has to keep earning.
 | Mechanic | Status | Why |
 |---|---|---|
 | Three-stage chain | <Badge text="settled" variant="success" /> | Compound mass converts through the molecular weights in `src/simulation/core/`; no tunable restates one. |
-| Ammonia source | <Badge text="settled" variant="success" /> | A physical, depleting bed reserve rather than a flat ambient constant. |
+| Ammonia source | <Badge text="settled" variant="success" /> | A physical bed reserve — filled by settling waste, drained by leaching — rather than a flat ambient constant. |
 | Processing capacity | <Badge text="settled" variant="success" /> | Population × per-cell throughput × warmth × air, with no volume term — the same colony clears the same mass in a nano and a 300 L. |
 | Colony growth and decay | <Badge text="settled" variant="success" /> | Logistic growth scaled by utilization; unconditional maintenance decay on a 21-day half-life. |
 | Oxygen limitation | <Badge text="settled" variant="success" /> | Monod on both guilds, NOB's half-saturation nearly 4× AOB's — which is where standing nitrite comes from. |
@@ -29,7 +29,7 @@ tank has to keep earning.
 | N mass conservation | <Badge text="scaffolding" variant="caution" /> | The chain conserves N per atom, but decay oxidation, plant uptake and metabolic retention are untracked sinks. The end-to-end mass accounting controls for them rather than closing them. |
 | Colony sizing on inert beds | <Badge text="settled" variant="success" /> | Every bed cycles in about four weeks under fish, and a `'cycled'` seed is a share of the tank's own surface ceiling, so filter and bed decide it. |
 | Nitrogen alerts | <Badge text="scaffolding" variant="caution" /> | Ammonia alerts on free NH₃ where harm starts; nitrite still alerts at 1.0 ppm where fish damage starts at any presence. |
-| Bed disturbance | <Badge text="scaffolding" variant="caution" /> | Uprooting and lifting hardscape stir the bed, but the only organics it stores are its leaching reserve — nearly spent by month two — so an established tank barely registers a rescape. Settled mulm is not modelled. |
+| Bed disturbance | <Badge text="scaffolding" variant="caution" /> | The bed now holds mulm, but only about a day of the tank's waste, and a mature colony clears anything short of ~25× its hourly load without a trace. A stock `--rescape` stirs a few percent of the bed and shows nothing; digging up nearly all of it shows a few tenths of a ppm of nitrite. |
 | Denitrification | <Badge text="missing" variant="danger" /> | Nitrate has no biological sink. It leaves only through plant uptake and water changes, so an unplanted tank accumulates it without bound. |
 | Nitrification acidity | <Badge text="settled" variant="success" /> | The 2 H⁺ each NH₄⁺ releases spend KH at 7.14 mg CaCO₃ per mg of nitrogen, so a tank that nitrifies without water changes loses its buffer and its pH. |
 
@@ -63,7 +63,7 @@ separately. A tank that cannot run the reaction does not pay for it.
 
 | Stock | Fills it | Drains it | Unit |
 |---|---|---|---|
-| `waste` | Food decay, fish feces, fish death, plant tissue loss, substrate leaching | Mineralization to ammonia — and nothing else | g |
+| `waste` | Food decay, fish feces, fish death, plant tissue loss, substrate leaching | Mineralization to ammonia; settling into the bed | g |
 | `ammonia` | Mineralization; fish gill excretion | AOB oxidation; water change removes proportional mass | mg |
 | `nitrite` | AOB oxidation, × 2.702 | NOB oxidation; water change | mg |
 | `nitrate` | NOB oxidation, × 1.348; fertilizer dosing | Plant uptake; water change | mg |
@@ -176,10 +176,18 @@ while the utilization the colony rests at does not move.
 
 ### Where the ammonia comes from
 
-The bed. A fresh substrate holds a fixed organic reserve per litre and releases
-a fraction of whatever is left each tick, so the source tapers as the bed is
-spent and never refills. Only swapping the substrate for a different type
-restores it — new soil is new material.
+The bed. Its organic reserve is a living store: a fresh substrate starts with a
+fixed amount per litre, a fraction of whatever it holds leaches back out as
+waste each tick, and a share of the tank's standing waste settles into it as
+mulm. Settling is fastest in still water and halves at `settlingHalfTurnover`
+tank turnovers an hour, since flow keeps particles suspended; a bare bottom
+holds nothing. Settling and leaching move grams of waste gram for gram, so the
+nitrogen in the bed is the nitrogen that left the water.
+
+A fresh bed's reserve tapers to where settling balances the leach, roughly a
+day of the tank's waste production; a 75 gal sand community holds ~1 g, about
+a third of what the bed came with. A water change can vacuum the bed, taking a
+share of the reserve out of the tank.
 
 | Substrate | Colony surface | Organic reserve |
 |---|---|---|
@@ -202,9 +210,10 @@ as waste, and that share of the bed's biofilm is scraped off.
 | Swapping the bed | all of it — the colony on it goes out with it and the new bed brings a fresh reserve |
 
 A mature colony rests at a few percent of its throughput, so the release has to
-outrun that headroom to show. On a young bed it does — a cycled 40 gal soil tank
-rescaped two days in shows a quarter ppm of nitrite that clears within a day —
-and by the second month the reserve is too spent to register. An inert bed leaches a quarter of
+outrun that headroom to show. On a young soil bed it does — a cycled 40 gal soil
+tank rescaped two days in shows a quarter ppm of nitrite that clears within a
+day. An established bed holds only its mulm, and it shows only when most of the
+bed is dug up at once. An inert bed leaches a quarter of
 what soil does, so its colony grows to a smaller load, but it cycles on the same
 seeding clock; a `'cycled'` seed sizes the colony off the surface, not the
 water.
@@ -227,6 +236,8 @@ water.
 | `nobOxygenHalfSaturation` | O₂ at which NOB run at half rate | `1.1` mg/L |
 | `AIR_SATURATED_O2` | The water every rate above is quoted in | `8.38` mg/L |
 | `substrateLeachRate` | Share of the bed's remaining reserve released per tick | `0.003` /hr |
+| `wasteSettlingRate` | Share of standing waste settling into the bed per tick in still water | `0.1` /hr |
+| `settlingHalfTurnover` | Tank turnovers an hour at which flow halves settling | `4` /hr |
 
 A **bacteria unit is 10⁶ cells**, which is what makes `bacteriaPerCm2` a biofilm
 density you can look up rather than a score. Throughput, ceiling density and
@@ -240,11 +251,11 @@ one pinned to a real measurement.
 |---|---|---|
 | [Water & gases](/subsystems/water-and-gases/) | `oxygen` — sets both guilds' Monod factor, and with it their oxidation and growth | `oxygen` — the derived draw of both oxidation steps; `kh`, spent by ammonia oxidation |
 | [Environment](/subsystems/environment/) | `water` for ppm and the submerged gate, `temperature` for the Q10 factor | — |
-| [Equipment](/subsystems/equipment/) | `surface` — the colony ceiling, from filter media, substrate, hardscape and glass | `waste` — the substrate's organic reserve leaches into it |
+| [Equipment](/subsystems/equipment/) | `surface` — the colony ceiling, from filter media, substrate, hardscape and glass | `waste` — settles into the substrate's organic reserve and leaches back out of it |
 | [Livestock](/subsystems/livestock/) | — | Fish write `ammonia` directly through gill excretion, and `waste` as feces and death mass |
 | [Plants](/subsystems/plants/) | — | Plants drain `nitrate` on uptake and add `waste` from tissue loss |
 | [Algae](/subsystems/algae/) | — | Algae reads `nitrate` as a growth benefit but consumes none of it |
-| [Actions](/subsystems/actions/) | — | A water change removes `ammonia`, `nitrite` and `nitrate` mass proportionally; dosing adds `nitrate`; uprooting a plant disturbs the bed |
+| [Actions](/subsystems/actions/) | — | A water change removes `ammonia`, `nitrite` and `nitrate` mass proportionally, and a gravel vac a share of the bed's reserve; dosing adds `nitrate`; uprooting a plant disturbs the bed |
 | [Alerts & logging](/subsystems/alerts-and-logging/) | — | Free NH₃ > 0.02 ppm, nitrite > 1.0 ppm and nitrate > 80 ppm each raise an alert once per crossing |
 
 ## Source

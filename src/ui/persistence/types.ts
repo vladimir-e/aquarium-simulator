@@ -28,7 +28,8 @@ import type { TunableConfig } from '../../simulation/config/index.js';
  *      `aobSpawnThreshold`, `nobSpawnThreshold` and `inoculumPerLiter` and
  *      gains `seedingRate` (units per litre per tick). A v27 config carries
  *      three keys the strict schema refuses, and a refused section reverts
- *      every other one to its defaults.
+ *      every other one to its defaults. Waste settles into the bed:
+ *      `DecayConfig` gains `wasteSettlingRate` and `settlingHalfTurnover`.
  * v27: pH is derived from CO₂ and KH, not stored. `Resources` swaps `ph` for
  *      `kh` (alkalinity as mg of CaCO3) and gains `gh` (general hardness, the
  *      same unit), `Environment` swaps `tapWaterPH` for `tapKh` and gains

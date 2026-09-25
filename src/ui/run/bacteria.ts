@@ -19,6 +19,7 @@ import {
 } from '../../simulation/systems/index.js';
 import {
   calculateSubstrateLeach,
+  wasteSettlingShare,
   processMetabolism,
   type Resources,
   type SimulationState,
@@ -192,7 +193,7 @@ export function bacteriaReadout(
   // ahead of the passive nitrogen cycle, and mineralisation runs first inside it.
   const gills = processMetabolism(state.fish, r.food, r.oxygen, config.livestock).ammoniaProduced;
   const { ammoniaProduced } = calculateWasteToAmmonia(
-    mineralisationBase(r.waste, wasteInflow(state, config)),
+    mineralisationBase(state, config, wasteInflow(state, config)),
     nc
   );
   const { ammoniaConsumed, nitriteProduced } = calculateAmmoniaToNitrite(
@@ -266,9 +267,9 @@ function nextVolume(water: number, state: SimulationState, config: TunableConfig
  *
  * Waste inflow, biofilm surface, temperature and dissolved oxygen are held at
  * today's values, so this answers "if nothing else changes" — feeding more,
- * adding fish or a water change all move it. Evaporation and substrate leaching
- * are not choices: both run every tick whatever the keeper does, so the
- * projection carries them.
+ * adding fish or a water change all move it. Evaporation and the bed's leaching
+ * and settling are not choices: they run every tick whatever the keeper does,
+ * so the projection carries them.
  */
 export function projectNitritePeak(
   state: SimulationState,
@@ -289,6 +290,7 @@ export function projectNitritePeak(
     .reduce((total, source) => total + source.gramsPerHour, 0);
   const gills = processMetabolism(state.fish, r.food, r.oxygen, config.livestock).ammoniaProduced;
 
+  const settlingShare = wasteSettlingShare(state, config.decay);
   let reserve = state.equipment.substrate.organicReserve;
   let water = r.water;
   let waste = r.waste;
@@ -305,8 +307,9 @@ export function projectNitritePeak(
     water = nextVolume(water, state, config);
 
     const leached = calculateSubstrateLeach(reserve, config.decay);
-    reserve -= leached;
-    waste += steadyInflow + leached;
+    const settled = waste * settlingShare;
+    reserve += settled - leached;
+    waste += steadyInflow + leached - settled;
 
     const mineralised = calculateWasteToAmmonia(waste, nc);
     waste -= mineralised.wasteConsumed;

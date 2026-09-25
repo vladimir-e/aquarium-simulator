@@ -90,6 +90,22 @@ describe('waterChange', () => {
     }
   });
 
+  it('leaves the bed alone unless asked to vacuum it', () => {
+    const before = produce(tank(), (draft) => {
+      draft.equipment.substrate.organicReserve = 2;
+    });
+    expect(change(before, 0.25).state.equipment.substrate.organicReserve).toBe(2);
+
+    const vacuumed = waterChange(before, { type: 'waterChange', amount: 0.25, vacuum: 0.3 });
+    expect(vacuumed.state.equipment.substrate.organicReserve).toBeCloseTo(2 * 0.7, 12);
+    expect(vacuumed.message).toContain('vacuumed 30%');
+  });
+
+  it.each([-0.1, 1.5, Number.NaN])('refuses a vacuum share of %d', (vacuum) => {
+    const before = tank();
+    expect(waterChange(before, { type: 'waterChange', amount: 0.25, vacuum }).state).toBe(before);
+  });
+
   it('leaves an empty tank alone', () => {
     const empty = tank({ water: 0 });
     const result = change(empty, 0.25);

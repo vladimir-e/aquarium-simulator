@@ -424,12 +424,15 @@ export function readTank({ state, config, history, units }: TankInput): ReadingB
       tone: 'ink',
       trend: '',
       sentence:
-        'A pool with no safe line: it settles where what mineralises out matches what falls in.',
-      net: netPerHour(waste.perHour - waste.mineralised, 'g'),
+        'A pool with no safe line: it levels off where what mineralises and settles out matches what falls in.',
+      net: netPerHour(waste.perHour - waste.mineralised - waste.settled, 'g'),
       fills: waste.sources
         .filter((source) => source.gramsPerHour > 0)
         .map((source) => ({ label: source.label, rate: ratePerHour(source.gramsPerHour, 'g') })),
-      drains: [{ label: 'Mineralising to NH₃', rate: ratePerHour(-waste.mineralised, 'g') }],
+      drains: [
+        { label: 'Mineralising to NH₃', rate: ratePerHour(-waste.mineralised, 'g') },
+        { label: 'Settling into the bed', rate: ratePerHour(-waste.settled, 'g') },
+      ],
       series: null,
     },
     ammonia: fromWater('ammonia', tape, {

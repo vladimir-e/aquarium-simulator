@@ -27,6 +27,7 @@ export const TWEAK_FLAGS = [
   'set',
   'uncycled',
   'rescape',
+  'vac',
   ...SCHEDULE_FLAG_NAMES,
 ];
 
@@ -42,6 +43,13 @@ function count(raw: string | undefined, what: string): number {
   const value = positive(raw ?? '1', what);
   if (!Number.isInteger(value)) throw new Error(`${what} must be a whole number, got "${raw}".`);
   return value;
+}
+
+function share(raw: string | undefined, what: string): number {
+  const match = /^(\d+(?:\.\d+)?)%$/.exec(raw ?? '');
+  const percent = Number(match?.[1]);
+  if (match === null || percent > 100) throw new Error(`${what} takes a share from 0% to 100% or off, got "${raw ?? ''}".`);
+  return percent / 100;
 }
 
 function hardness(raw: string | undefined, what: string, unit: string): number {
@@ -127,6 +135,10 @@ function tweakApply(flag: string, value: string | undefined): Tweak['apply'] {
     case 'rescape': {
       const rescapeOn = count(value, 'rescape day');
       return onSetup((setup) => ({ ...setup, rescapeOn }));
+    }
+    case 'vac': {
+      const vacuum = value === 'off' ? 0 : share(value, 'vac');
+      return onSetup((setup) => ({ ...setup, vacuum }));
     }
     default: {
       const override = parseScheduleFlag(flag, value);

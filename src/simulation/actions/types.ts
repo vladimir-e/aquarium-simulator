@@ -44,6 +44,8 @@ export interface WaterChangeAction extends BaseAction {
   type: 'waterChange';
   /** Fraction of water to change, in (0, 1]. */
   amount: WaterChangeAmount;
+  /** Share of the bed's organic reserve the gravel vac pulls out, in [0, 1]. Off when absent. */
+  vacuum?: number;
 }
 
 export interface TrimPlantsAction extends BaseAction {

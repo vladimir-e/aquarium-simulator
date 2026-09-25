@@ -132,10 +132,23 @@ describe('wasteSummary', () => {
     expect(wasteSummary(wasteReadout(state, config), config)).toContain('falling to');
   });
 
-  it('reads the settled mass as production over the mineralisation rate', () => {
+  it('reads the level as production over the mineralisation and settling rates', () => {
     const readout = wasteReadout(soilTank(), config);
-    const settled = readout.perHour / config.nitrogenCycle.wasteConversionRate;
-    expect(wasteSummary(readout, config)).toContain(settled.toFixed(3));
+    const level =
+      readout.perHour / (config.nitrogenCycle.wasteConversionRate + readout.settlingShare);
+    expect(readout.settlingShare).toBeGreaterThan(0);
+    expect(wasteSummary(readout, config)).toContain(level.toFixed(3));
+  });
+
+  it('counts what settles into the bed as an outflow of the pool', () => {
+    const state = soilTank();
+    state.resources.waste = 1;
+    const readout = wasteReadout(state, config);
+    expect(readout.settled).toBeCloseTo(readout.settlingShare, 12);
+    expect(wasteReadout(produce(state, (d) => void (d.resources.waste = 2)), config).settled).toBeCloseTo(
+      2 * readout.settled,
+      12
+    );
   });
 
   it('says so plainly when nothing produces waste at all', () => {

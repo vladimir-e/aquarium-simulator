@@ -334,6 +334,8 @@ const DecayConfigSchema = z
     gasExchangePerGramDecay: z.number(),
     oxygenHalfSaturation: z.number(),
     substrateLeachRate: z.number(),
+    wasteSettlingRate: z.number(),
+    settlingHalfTurnover: z.number(),
   })
   .strict();
 

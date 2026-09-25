@@ -23,6 +23,7 @@ Tweaks apply to every setup in the run:
 | --- | --- |
 | `--feed=2g/1d`, `--feed=3%` | Feed grams, or a share of stocked fish mass; optional period |
 | `--water-change=30%/1w` | Water-change share, optional period |
+| `--vac=15%`, `--vac=off` | Share of the bed's mulm vacuumed at every water change; setups vac 15 % |
 | `--dose=2ml/1w` | Fertilizer dose, optional period |
 | `--trim[=2w]`, `--scrub[=1w]`, `--top-off[=1d]` | Maintenance chores, optional period |
 | `--<chore>=off` | Drop that chore from the schedule |

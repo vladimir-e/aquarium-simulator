@@ -15,12 +15,13 @@ function run(state: SimulationState, hours: number): SimulationState {
   return running;
 }
 
-function nitrogenInPools({ resources }: SimulationState): number {
+function nitrogenInPools({ resources, equipment }: SimulationState): number {
   const { food, waste, ammonia, nitrite, nitrate } = resources;
+  const organics = waste + equipment.substrate.organicReserve;
   const { livestock, nitrogenCycle } = DEFAULT_CONFIG;
   return (
     food * livestock.foodNitrogenFraction +
-    (waste * nitrogenCycle.wasteToAmmoniaRatio * MW_N) / MW_NH3 / 1000 +
+    (organics * nitrogenCycle.wasteToAmmoniaRatio * MW_N) / MW_NH3 / 1000 +
     ((ammonia / MW_NH3 + nitrite / MW_NO2 + nitrate / MW_NO3) * MW_N) / 1000
   );
 }
@@ -61,6 +62,19 @@ describe('nitrogen mass', () => {
     const end = run(start, 2000);
 
     expect(end.resources.waste).toBeLessThan(0.05);
+    expect(nitrogenInPools(end) / nitrogenInPools(start)).toBeCloseTo(1, 2);
+  });
+
+  it('is conserved through the bed, as waste settles in and leaches back out', () => {
+    const start = produce(cycledBareTank(), (draft) => {
+      draft.equipment.substrate.type = 'gravel';
+      draft.resources.waste = 10;
+    });
+    const mid = run(start, 24);
+    const end = run(mid, 2000);
+
+    expect(mid.equipment.substrate.organicReserve).toBeGreaterThan(0);
+    expect(nitrogenInPools(mid) / nitrogenInPools(start)).toBeCloseTo(1, 2);
     expect(nitrogenInPools(end) / nitrogenInPools(start)).toBeCloseTo(1, 2);
   });
 });

@@ -182,6 +182,7 @@ export {
   freshSubstrate,
   replaceSubstrate,
   calculateSubstrateLeach,
+  wasteSettlingShare,
   calculateSubstrateKhUptake,
   substrateUpdate,
   type SubstrateType,

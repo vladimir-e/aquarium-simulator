@@ -46,6 +46,8 @@ off — which is the part that makes a number checkable.
 | `gasExchangePerGramDecay` | Oxygen the decomposers demand per gram oxidised; their CO₂ derives from it | mg O₂/g |
 | `oxygenHalfSaturation` | Dissolved O₂ at which decomposition runs at half rate | mg/L |
 | `substrateLeachRate` | Share of the bed's remaining organic reserve released per hour | /hr |
+| `wasteSettlingRate` | Share of standing waste settling into the bed per hour in still water | /hr |
+| `settlingHalfTurnover` | Tank turnovers per hour at which flow halves settling | turnovers/hr |
 
 ## Nitrogen cycle
 

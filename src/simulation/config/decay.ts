@@ -20,6 +20,10 @@ export interface DecayConfig {
   oxygenHalfSaturation: number;
   /** Fraction of the substrate's remaining organic reserve released per hour */
   substrateLeachRate: number;
+  /** Fraction of standing waste settling into the bed per hour in still water */
+  wasteSettlingRate: number;
+  /** Tank turnovers per hour at which flow halves settling */
+  settlingHalfTurnover: number;
 }
 
 export const decayDefaults: DecayConfig = {
@@ -37,6 +41,8 @@ export const decayDefaults: DecayConfig = {
   oxygenHalfSaturation: 0.2,
   // ~10-day half-life, so a fresh bed is 98 % spent by week 8.
   substrateLeachRate: 0.003,
+  wasteSettlingRate: 0.1,
+  settlingHalfTurnover: 4,
 };
 
 export interface DecayConfigMeta {
@@ -56,4 +62,6 @@ export const decayConfigMeta: DecayConfigMeta[] = [
   { key: 'gasExchangePerGramDecay', label: 'O2 Demand per Gram Decay', unit: 'mg O2/g', min: 50, max: 500, step: 10 },
   { key: 'oxygenHalfSaturation', label: 'Decay O2 Half-Saturation', unit: 'mg/L', min: 0.02, max: 2, step: 0.02 },
   { key: 'substrateLeachRate', label: 'Substrate Leach Rate', unit: '/hr', min: 0, max: 0.02, step: 0.0005 },
+  { key: 'wasteSettlingRate', label: 'Waste Settling Rate', unit: '/hr', min: 0, max: 1, step: 0.01 },
+  { key: 'settlingHalfTurnover', label: 'Settling Half-Turnover', unit: 'turnovers/hr', min: 0.5, max: 20, step: 0.5 },
 ];

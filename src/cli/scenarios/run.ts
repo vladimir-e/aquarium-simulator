@@ -57,7 +57,8 @@ export function keepTank(setup: Setup, { config, untilTick, observe, onRefusal }
     if (setup.rescapeOn !== undefined && isKeeperHourOf(setup.rescapeOn, state.tick)) {
       state = rescapeTank(state, config);
     }
-    for (const action of dueActions(setup.schedule, state)) {
+    for (const due of dueActions(setup.schedule, state)) {
+      const action = due.type === 'waterChange' ? { ...due, vacuum: setup.vacuum } : due;
       const result = applyAction(state, action, config);
       if (result.state === state && !ROUTINE_NO_OPS.has(action.type)) onRefusal?.(action.type, result.message);
       state = result.state;

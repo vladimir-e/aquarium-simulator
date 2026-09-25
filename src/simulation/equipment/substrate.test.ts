@@ -9,6 +9,7 @@ import {
   getSubstrateSurface,
   replaceSubstrate,
   substrateUpdate,
+  wasteSettlingShare,
   SUBSTRATE_SURFACE_PER_LITER,
   type Substrate,
   type SubstrateType,
@@ -114,7 +115,7 @@ describe('substrateUpdate', () => {
     );
   });
 
-  it('leaves the reserve monotonically non-increasing', () => {
+  it('drains a bed that nothing settles into', () => {
     let state = soilTank();
     let previous = state.equipment.substrate.organicReserve;
 
@@ -126,6 +127,44 @@ describe('substrateUpdate', () => {
     }
 
     expect(previous).toBeGreaterThan(0);
+  });
+
+  it('settles standing waste into the bed, gram for gram', () => {
+    const state = produce(soilTank(), (draft) => {
+      draft.resources.waste = 2;
+    });
+    const { state: next, effects } = substrateUpdate(state, decayDefaults);
+    const settled = effects.find((effect) => effect.source === 'substrate-settling');
+    const wasteDelta = effects
+      .filter((effect) => effect.resource === 'waste')
+      .reduce((sum, effect) => sum + effect.delta, 0);
+
+    expect(settled?.delta).toBeCloseTo(-2 * wasteSettlingShare(state, decayDefaults), 12);
+    expect(
+      next.equipment.substrate.organicReserve - state.equipment.substrate.organicReserve + wasteDelta
+    ).toBeCloseTo(0, 12);
+  });
+
+  it('settles less the harder the water is moving', () => {
+    const at = (flow: number): number =>
+      wasteSettlingShare(
+        produce(soilTank(), (draft) => {
+          draft.resources.flow = flow;
+        }),
+        decayDefaults
+      );
+
+    expect(at(0)).toBe(decayDefaults.wasteSettlingRate);
+    expect(at(400)).toBeLessThan(at(0));
+    expect(at(1600)).toBeLessThan(at(400));
+    expect(at(100 * decayDefaults.settlingHalfTurnover)).toBeCloseTo(at(0) / 2, 12);
+  });
+
+  it('settles nothing without a bed', () => {
+    const bare = produce(createSimulation({ tankCapacity: 100 }), (draft) => {
+      draft.resources.waste = 2;
+    });
+    expect(wasteSettlingShare(bare, decayDefaults)).toBe(0);
   });
 
   it('does nothing at all on a bare bottom', () => {

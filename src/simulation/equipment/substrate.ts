@@ -13,7 +13,7 @@ export type SubstrateType = 'none' | 'sand' | 'gravel' | 'aqua_soil';
 export interface Substrate {
   /** Substrate type affects surface area and plant rooting */
   type: SubstrateType;
-  /** Organic matter left in the bed, grams — leaches into the water and never refills */
+  /** Organic matter held in the bed, grams — filled by settling waste, drained by leaching */
   organicReserve: number;
   /** Alkalinity the bed can still take up, mg of CaCO3 — spent as it buffers and never refills */
   khReserve: number;
@@ -119,6 +119,20 @@ export function calculateSubstrateLeach(
 }
 
 /**
+ * Share of standing waste that settles into the bed this hour. Flow keeps
+ * particles in suspension, so the share halves at `settlingHalfTurnover` tank
+ * turnovers an hour. Nothing settles without a bed, or without water.
+ */
+export function wasteSettlingShare(
+  state: Pick<SimulationState, 'resources' | 'equipment'>,
+  config: DecayConfig = decayDefaults
+): number {
+  const { water, flow } = state.resources;
+  if (state.equipment.substrate.type === 'none' || water <= 0) return 0;
+  return config.wasteSettlingRate / (1 + flow / water / config.settlingHalfTurnover);
+}
+
+/**
  * mg of CaCO3 the bed takes out of the water this tick: `aquaSoilKhUptake` of
  * the tank's KH while fresh, scaled by the share of its reserve still left, so
  * the bed's grip loosens as it is spent. Never more than it can still hold.
@@ -141,8 +155,9 @@ export interface SubstrateUpdateResult {
 }
 
 /**
- * The leach lands in the waste pool, where mineralization turns it into
- * ammonia like any other organic matter. The bed buffers by cation exchange:
+ * The bed trades organics with the waste pool both ways: a share of standing
+ * waste settles into it as mulm, and the reserve leaches back out, where
+ * mineralization turns it into ammonia like any other organic matter. The bed buffers by cation exchange:
  * it holds on to Ca²⁺ and Mg²⁺ and gives back H⁺, which spends carbonate —
  * so every mg it takes up leaves the water as KH and as GH alike, and never
  * more than the water has of either. Both come out of the bed's reserves.
@@ -154,6 +169,7 @@ export function substrateUpdate(
 ): SubstrateUpdateResult {
   const { substrate } = state.equipment;
   const leached = calculateSubstrateLeach(substrate.organicReserve, decay);
+  const settled = state.resources.waste * wasteSettlingShare(state, decay);
   const uptake =
     state.resources.water > 0
       ? Math.min(
@@ -162,13 +178,16 @@ export function substrateUpdate(
         )
       : 0;
 
-  if (leached <= 0 && uptake <= 0) {
+  if (leached <= 0 && settled <= 0 && uptake <= 0) {
     return { state, effects: [] };
   }
 
   const effects: Effect[] = [];
   if (leached > 0) {
     effects.push({ tier: 'immediate', resource: 'waste', delta: leached, source: 'substrate-leach' });
+  }
+  if (settled > 0) {
+    effects.push({ tier: 'immediate', resource: 'waste', delta: -settled, source: 'substrate-settling' });
   }
   if (uptake > 0) {
     effects.push(
@@ -179,7 +198,7 @@ export function substrateUpdate(
 
   return {
     state: produce(state, (draft) => {
-      draft.equipment.substrate.organicReserve -= leached;
+      draft.equipment.substrate.organicReserve += settled - leached;
       draft.equipment.substrate.khReserve -= uptake;
     }),
     effects,

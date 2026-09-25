@@ -11,6 +11,7 @@ Format: - **Feature name** (#PR) - One short sentence (under ~150 chars)
 
 ## Unreleased
 
+- **The bed collects mulm** - standing waste settles into the bed's organic reserve, less in strong flow, and a water change can vacuum a share of it out; `wasteSettlingRate`, `settlingHalfTurnover`, `--vac`.
 - **Ammonia alerts on free NH₃** - the alert fires at 0.02 ppm unionized ammonia, so a test-kit reading's line moves with pH and temperature; breaking: `HIGH_AMMONIA_THRESHOLD` is free NH₃.
 - **A rescape stirs the bed** - uprooting a plant or lifting hardscape releases a share of the bed's organics and scrapes its biofilm; `placeHardscape`, `liftHardscape`, `disturbBed`.
 - **Nitrifiers seed, they don't spawn** - a per-litre trickle replaces the 0.5 ppm spawn gate, so every bed cycles; a `'cycled'` colony is a share of the tank's surface ceiling; breaking: `seedingRate` (v28).
