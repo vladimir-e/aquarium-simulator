@@ -1,5 +1,6 @@
 import { FISH_SPECIES_DATA } from '../../simulation/livestock/species.js';
 import { PLANT_SPECIES_DATA } from '../../simulation/plants/species.js';
+import { HARDSCAPE_SURFACE } from '../../simulation/equipment/hardscape.js';
 import type { TunableConfig } from '../../simulation/config/index.js';
 import { applyConfigSet } from '../config-set.js';
 import { parseScheduleFlag, SCHEDULE_FLAG_NAMES, withOverride } from './keeper.js';
@@ -15,7 +16,17 @@ export interface Tweak {
   apply: (tank: Tank) => Tank;
 }
 
-export const TWEAK_FLAGS = ['plant', 'fish', 'light', 'gal', 'set', 'uncycled', ...SCHEDULE_FLAG_NAMES];
+export const TWEAK_FLAGS = [
+  'plant',
+  'fish',
+  'rock',
+  'tap-kh',
+  'light',
+  'gal',
+  'set',
+  'uncycled',
+  ...SCHEDULE_FLAG_NAMES,
+];
 
 function positive(raw: string | undefined, what: string): number {
   const value = Number(raw);
@@ -65,6 +76,19 @@ function tweakApply(flag: string, value: string | undefined): Tweak['apply'] {
         sex: 'female' as const,
       };
       return onSetup((setup) => ({ ...setup, fish: [...setup.fish, group] }));
+    }
+    case 'rock': {
+      const [name = '', n] = (value ?? '').split(':');
+      const type = oneOf(name, HARDSCAPE_SURFACE, 'hardscape type');
+      const pieces = Array.from({ length: count(n, 'rock count') }, () => type);
+      return onSetup((setup) => ({ ...setup, hardscape: [...setup.hardscape, ...pieces] }));
+    }
+    case 'tap-kh': {
+      const tapKh = Number(value);
+      if (value === undefined || value.trim() === '' || !Number.isFinite(tapKh) || tapKh < 0) {
+        throw new Error(`tap-kh must be a dKH of 0 or more, got "${value ?? ''}".`);
+      }
+      return onSetup((setup) => ({ ...setup, tapKh }));
     }
     case 'light': {
       const factor = positive(value, 'light factor');

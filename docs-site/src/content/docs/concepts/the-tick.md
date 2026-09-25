@@ -20,7 +20,7 @@ and a month of cycling are all read off the same integer.
 | Environment | The clock advances, the passive readings are recomputed — light, flow, surface, aeration — then room-driven drift and evaporation apply | The hour has to exist before anything can read it |
 | Equipment | Substrate, heater, top-off, CO₂ and doser act on the water they have just met | Equipment answers conditions, so it cannot run ahead of them |
 | Biology | Plants, then algae, then livestock, then breeding | Each reads the one before it |
-| Resources | Decay, nitrification, gas exchange and pH drift move what the living just produced | The chemistry closes the hour's books on everything emitted above |
+| Resources | Decay, nitrification, gas exchange and water chemistry move what the living just produced | The chemistry closes the hour's books on everything emitted above |
 | Alerts | Thresholds are compared against the settled hour, and each crossing is logged once | An alert on a mid-tick number describes a state the tank was never in |
 
 ## Order is a read graph, not a preference

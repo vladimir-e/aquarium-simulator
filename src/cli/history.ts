@@ -29,7 +29,7 @@ export interface HistorySnapshot {
     iron: number;
     oxygen: number;
     co2: number;
-    ph: number;
+    kh: number;
     aob: number;
     nob: number;
   };
@@ -65,7 +65,7 @@ export function snapshot(state: SimulationState): HistorySnapshot {
       iron: r.iron,
       oxygen: r.oxygen,
       co2: r.co2,
-      ph: r.ph,
+      kh: r.kh,
       aob: r.aob,
       nob: r.nob,
     },

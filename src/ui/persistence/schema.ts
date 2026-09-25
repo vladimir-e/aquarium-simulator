@@ -53,7 +53,7 @@ const ResourcesSchema = z
     iron: z.number().min(0),
     oxygen: z.number().min(0),
     co2: z.number().min(0),
-    ph: z.number().min(0).max(14),
+    kh: z.number().min(0),
     aob: z.number().min(0),
     nob: z.number().min(0),
   })
@@ -78,7 +78,7 @@ const EnvironmentSchema = z
   .object({
     roomTemperature: z.number().min(0).max(50),
     tapWaterTemperature: z.number().min(0).max(50),
-    tapWaterPH: z.number().min(0).max(14),
+    tapKh: z.number().min(0).max(30),
   })
   .strict();
 
@@ -378,15 +378,11 @@ const OpticsConfigSchema = z
   })
   .strict();
 
-const PhConfigSchema = z
+const WaterChemistryConfigSchema = z
   .object({
-    calciteTargetPh: z.number(),
-    driftwoodTargetPh: z.number(),
-    neutralPh: z.number(),
-    basePgDriftRate: z.number(),
-    co2PhCoefficient: z.number(),
-    co2NeutralLevel: z.number(),
-    hardscapeDiminishingFactor: z.number(),
+    calciteDissolutionRate: z.number().min(0).max(200),
+    driftwoodAcidRate: z.number().min(0).max(20),
+    aquaSoilKhUptake: z.number().min(0).max(0.1),
   })
   .strict();
 
@@ -502,7 +498,7 @@ export const TunableConfigSchema = z
     evaporation: EvaporationConfigSchema,
     algae: AlgaeConfigSchema,
     optics: OpticsConfigSchema,
-    ph: PhConfigSchema,
+    waterChemistry: WaterChemistryConfigSchema,
     plants: PlantsConfigSchema,
     nutrients: NutrientsConfigSchema,
     livestock: LivestockConfigSchema,

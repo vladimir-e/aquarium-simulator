@@ -49,7 +49,7 @@ export const PRESETS: PresetDefinition[] = [
       tankCapacity: 20, // 5 gal
       roomTemperature: 22,
       tapWaterTemperature: 18,
-      tapWaterPH: 7.0,
+      tapKh: 3,
       heater: {
         enabled: true,
         targetTemperature: 26,

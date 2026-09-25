@@ -242,6 +242,13 @@ const READINGS: Reading[] = [
     ...tolerated('ph', (data) => data.phRange),
     note: (value, _before, sheet) => phNote(value, sheet),
   }),
+  fromWater('kh', {
+    label: 'KH',
+    unit: () => 'dKH',
+    display: same,
+    decimals: 1,
+    note: none,
+  }),
   fromWater('water', {
     key: 'level',
     label: 'Level',

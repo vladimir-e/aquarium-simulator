@@ -1,5 +1,5 @@
 /**
- * Water-reading classification. Each of the eight readings maps its live value
+ * Water-reading classification. Each of the nine readings maps its live value
  * to a status — which drives its marker, number and trend colour — using the
  * engine's own alert thresholds, so no surface invents a band.
  */
@@ -19,6 +19,7 @@ export type VitalKey =
   | 'nitrite'
   | 'nitrate'
   | 'ph'
+  | 'kh'
   | 'oxygen'
   | 'co2'
   | 'temperature'
@@ -35,7 +36,7 @@ const WATER_LOW_PCT = WATER_LEVEL_CRITICAL_THRESHOLD * 100;
  * Classify a vital by its canonical value: toxins (ammonia/nitrite) alert over
  * threshold and read ok otherwise; nitrate is plant food, so it warns when
  * depleted and alerts when it climbs past the alert line; the physical readouts
- * (pH, temp) stay quiet, oxygen and CO₂ colour only at their extremes, and
+ * (pH, KH, temp) stay quiet, oxygen and CO₂ colour only at their extremes, and
  * water tracks its critical-level threshold.
  */
 export function classifyVital(key: VitalKey, value: number): Status {
@@ -55,6 +56,7 @@ export function classifyVital(key: VitalKey, value: number): Status {
     case 'water':
       return value < WATER_LOW_PCT ? 'warn' : 'ok';
     case 'ph':
+    case 'kh':
     case 'temperature':
       return 'neutral';
   }

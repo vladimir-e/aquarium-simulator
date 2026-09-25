@@ -45,6 +45,6 @@ export type ResourceKey =
   | 'iron'
   | 'oxygen'
   | 'co2'
-  | 'ph'
+  | 'kh'
   | 'aob'
   | 'nob';

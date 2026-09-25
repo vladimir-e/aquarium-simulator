@@ -8,7 +8,7 @@ export type HardscapeType = 'neutral_rock' | 'calcite_rock' | 'driftwood' | 'pla
 export interface HardscapeItem {
   /** Unique ID for this item (for add/remove operations) */
   id: string;
-  /** Type determines surface area and pH effect (future) */
+  /** Type determines surface area and what the piece does to KH */
   type: HardscapeType;
 }
 
@@ -79,13 +79,13 @@ export function getHardscapeName(type: HardscapeType): string {
 }
 
 /**
- * Get pH effect description (for future implementation).
+ * What a piece does to the water's alkalinity, in words.
  */
-export function getHardscapePHEffect(type: HardscapeType): string | null {
+export function getHardscapeKhEffect(type: HardscapeType): string | null {
   const effects: Record<HardscapeType, string | null> = {
     neutral_rock: null,
-    calcite_rock: 'Raises pH',
-    driftwood: 'Lowers pH',
+    calcite_rock: 'Adds KH',
+    driftwood: 'Spends KH',
     plastic_decoration: null,
   };
   return effects[type];

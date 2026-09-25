@@ -16,9 +16,12 @@ export function bare(state: SimulationState = createSimulation({ tankCapacity: 2
   return { state, history: [snapshotFromState(state)] };
 }
 
-/** Ten days of a stocked, planted, fed tank — every surface has real figures. */
+/**
+ * Ten days of a stocked, planted, fed tank — every surface has real figures.
+ * Soft tap keeps the uncycled ammonia mostly ionised, so every fish lives.
+ */
 export function stocked(): Run {
-  let state = createSimulation({ tankCapacity: 200 });
+  let state = createSimulation({ tankCapacity: 200, tapKh: 1 });
   for (let i = 0; i < 6; i++) {
     state = applyAction(state, { type: 'addFish', species: 'neon_tetra' }).state;
   }

@@ -1,5 +1,5 @@
 /**
- * The six water readings, the two dissolved gases read beside them, and the
+ * The seven water readings, the two dissolved gases read beside them, and the
  * display scales they sit on. Scales are display ranges, never bands: every
  * band here is an engine threshold, and `classifyVital` alone decides colour.
  */
@@ -11,19 +11,21 @@ import {
   HIGH_NITRATE_THRESHOLD,
   WATER_LEVEL_CRITICAL_THRESHOLD,
 } from '../../simulation/alerts/index.js';
-import { getPpm } from '../../simulation/resources/index.js';
+import { getDkh, getPpm } from '../../simulation/resources/index.js';
+import { getPh } from '../../simulation/core/carbonate.js';
 import { getTemperatureUnit, toDisplayTemperature, type UnitSystem } from '../utils/units.js';
 import type { Status } from './status.js';
 import { classifyVital, NITRATE_LOW_PPM, type VitalKey } from './vitals.js';
 
 export type WaterKey = Extract<
   VitalKey,
-  'temperature' | 'ph' | 'water' | 'ammonia' | 'nitrite' | 'nitrate'
+  'temperature' | 'ph' | 'kh' | 'water' | 'ammonia' | 'nitrite' | 'nitrate'
 >;
 
 export const WATER_KEYS: WaterKey[] = [
   'temperature',
   'ph',
+  'kh',
   'water',
   'ammonia',
   'nitrite',
@@ -44,6 +46,7 @@ export const GAS_KEYS: GasKey[] = ['oxygen', 'co2'];
 export const WATER_SCALE: Record<WaterKey, [min: number, max: number]> = {
   temperature: [15, 35],
   ph: [5.5, 8.5],
+  kh: [0, 15],
   water: [0, 100],
   ammonia: [0, 1],
   nitrite: [0, 5],
@@ -56,13 +59,14 @@ export function readingAt(key: WaterKey, value: number): number {
   return Math.max(0, Math.min(1, (value - min) / (max - min)));
 }
 
-/** The six canonical readings, in reading order: °C, pH, % of capacity, ppm. */
+/** The seven canonical readings, in reading order: °C, pH, dKH, % of capacity, ppm. */
 export function waterValues(state: SimulationState): Record<WaterKey, number> {
   const r = state.resources;
   const capacity = state.tank.capacity;
   return {
     temperature: r.temperature,
-    ph: r.ph,
+    ph: getPh(r),
+    kh: getDkh(r.kh, r.water),
     water: capacity > 0 ? (r.water / capacity) * 100 : 0,
     ammonia: getPpm(r.ammonia, r.water),
     nitrite: getPpm(r.nitrite, r.water),
@@ -94,6 +98,7 @@ export interface WaterReading {
 const NAME: Record<VitalKey, string> = {
   temperature: 'Temp',
   ph: 'pH',
+  kh: 'KH',
   water: 'Level',
   ammonia: 'NH₃',
   nitrite: 'NO₂',
@@ -105,6 +110,7 @@ const NAME: Record<VitalKey, string> = {
 const DECIMALS: Record<WaterKey, number> = {
   temperature: 1,
   ph: 2,
+  kh: 1,
   water: 0,
   ammonia: 3,
   nitrite: 3,
@@ -127,6 +133,7 @@ export function waterReadings(state: SimulationState, units: UnitSystem): WaterR
   const spec: Record<WaterKey, Pick<WaterReading, 'unit' | 'band'>> = {
     temperature: { unit: getTemperatureUnit(units), band: null },
     ph: { unit: '', band: null },
+    kh: { unit: 'dKH', band: null },
     water: { unit: '%', band: band('water', levelLimit, 100) },
     ammonia: { unit: 'ppm', band: band('ammonia', 0, HIGH_AMMONIA_THRESHOLD) },
     nitrite: { unit: 'ppm', band: band('nitrite', 0, HIGH_NITRITE_THRESHOLD) },

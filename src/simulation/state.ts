@@ -30,6 +30,7 @@ import { DEFAULT_AIR_PUMP, getAirPumpFlow } from './equipment/air-pump.js';
 import type { AutoDoser } from './equipment/auto-doser.js';
 import { DEFAULT_AUTO_DOSER } from './equipment/auto-doser.js';
 import { applySeed, type PresetSeed } from './seed.js';
+import { getKhMass } from './resources/helpers.js';
 import type { PlantSpecies } from './plants/species.js';
 import type { FishSpecies, FishSex, FishLifeStage } from './livestock/species.js';
 
@@ -196,9 +197,9 @@ export interface Resources {
   /** Dissolved CO2 in mg/L (atmospheric ~3-5, harmful > 30) */
   co2: number;
 
-  // Water chemistry
-  /** Tank pH (0-14 scale, typical aquarium range 6.0-8.0) */
-  ph: number;
+  // Water chemistry - alkalinity stored as mass (mg)
+  /** Alkalinity as mg of CaCO3 (derive dKH with `getDkh`); pH is read off it and CO2 */
+  kh: number;
 
   // Bacteria populations (nitrogen cycle)
   /** Ammonia-oxidizing bacteria population (absolute count) */
@@ -212,8 +213,8 @@ export interface Environment {
   roomTemperature: number;
   /** Tap water temperature in °C (for water changes and ATO) */
   tapWaterTemperature: number;
-  /** Tap water pH for water changes and ATO */
-  tapWaterPH: number;
+  /** Tap water carbonate hardness in dKH, for fills, water changes and top-offs */
+  tapKh: number;
 }
 
 export interface Heater {
@@ -333,8 +334,8 @@ export interface SimulationConfig {
   roomTemperature?: number;
   /** Tap water temperature in °C (defaults to 20) */
   tapWaterTemperature?: number;
-  /** Tap water pH (defaults to 6.5) */
-  tapWaterPH?: number;
+  /** Tap water carbonate hardness in dKH (defaults to 4) */
+  tapKh?: number;
   /** Initial heater configuration */
   heater?: Partial<Heater>;
   /** Initial lid configuration */
@@ -362,8 +363,7 @@ export interface SimulationConfig {
 const DEFAULT_TEMPERATURE = 25;
 const DEFAULT_ROOM_TEMPERATURE = 22;
 const DEFAULT_TAP_WATER_TEMPERATURE = 20;
-const DEFAULT_TAP_WATER_PH = 6.5;
-const DEFAULT_INITIAL_PH = 6.5;
+const DEFAULT_TAP_KH = 4;
 
 export const DEFAULT_HEATER: Heater = {
   enabled: true,
@@ -477,7 +477,7 @@ export function createSimulation(
     initialTemperature,
     roomTemperature,
     tapWaterTemperature,
-    tapWaterPH,
+    tapKh,
     heater,
     lid,
     ato,
@@ -561,7 +561,7 @@ export function createSimulation(
 
   const effectiveRoomTemp = roomTemperature ?? DEFAULT_ROOM_TEMPERATURE;
   const effectiveTapWaterTemp = tapWaterTemperature ?? DEFAULT_TAP_WATER_TEMPERATURE;
-  const effectiveTapWaterPH = tapWaterPH ?? DEFAULT_TAP_WATER_PH;
+  const effectiveTapKh = tapKh ?? DEFAULT_TAP_KH;
   const heaterStatus = heaterConfig.enabled ? 'enabled' : 'disabled';
 
   const initialLog = createLog(
@@ -618,8 +618,8 @@ export function createSimulation(
       // Dissolved gases (concentration in mg/L)
       oxygen: 8.0, // Start at saturation for ~20°C
       co2: 4.0, // Start at atmospheric equilibrium
-      // Water chemistry
-      ph: DEFAULT_INITIAL_PH, // Slightly acidic, matches tap water default
+      // The tank is filled from the tap
+      kh: getKhMass(effectiveTapKh, tankCapacity),
       // Bacteria (nitrogen cycle)
       aob: 0,
       nob: 0,
@@ -627,7 +627,7 @@ export function createSimulation(
     environment: {
       roomTemperature: effectiveRoomTemp,
       tapWaterTemperature: effectiveTapWaterTemp,
-      tapWaterPH: effectiveTapWaterPH,
+      tapKh: effectiveTapKh,
     },
     equipment: {
       heater: heaterConfig,

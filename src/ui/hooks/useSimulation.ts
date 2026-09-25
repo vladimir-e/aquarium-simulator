@@ -100,7 +100,7 @@ interface UseSimulationReturn {
   updateHeaterWattage: (wattage: number) => void;
   updateRoomTemperature: (temp: number) => void;
   updateTapWaterTemperature: (temp: number) => void;
-  updateTapWaterPH: (ph: number) => void;
+  updateTapKh: (dkh: number) => void;
   updateLidType: (type: LidType) => void;
   updateAtoEnabled: (enabled: boolean) => void;
   updateFilterEnabled: (enabled: boolean) => void;
@@ -176,7 +176,7 @@ function createInitialResources(
     tankCapacity,
     roomTemperature: environment.roomTemperature,
     tapWaterTemperature: environment.tapWaterTemperature,
-    tapWaterPH: environment.tapWaterPH,
+    tapKh: environment.tapKh,
   });
 
   // Now calculate passive resources based on current equipment
@@ -531,17 +531,17 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
     );
   }, []);
 
-  const updateTapWaterPH = useCallback((ph: number) => {
+  const updateTapKh = useCallback((dkh: number) => {
     setState((current) =>
       produce(current, (draft) => {
-        const oldPH = draft.environment.tapWaterPH;
+        const oldKh = draft.environment.tapKh;
         const log = createLog(
           draft.tick,
           'user',
           'info',
-          `Tap water pH: ${oldPH.toFixed(1)} → ${ph.toFixed(1)}`
+          `Tap water KH: ${oldKh.toFixed(1)} → ${dkh.toFixed(1)} dKH`
         );
-        draft.environment.tapWaterPH = ph;
+        draft.environment.tapKh = dkh;
         draft.logs.push(log);
       })
     );
@@ -970,7 +970,7 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
     updateHeaterWattage,
     updateRoomTemperature,
     updateTapWaterTemperature,
-    updateTapWaterPH,
+    updateTapKh,
     updateLidType,
     updateAtoEnabled,
     updateFilterEnabled,

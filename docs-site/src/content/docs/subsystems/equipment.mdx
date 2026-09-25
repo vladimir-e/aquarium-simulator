@@ -28,7 +28,7 @@ instead: heat, water, CO₂, fertiliser, or the bed's own organics.
 | Lid | <Badge text="scaffolding" variant="caution" /> | Four hardcoded multipliers outside `config/`, and they reach evaporation only. |
 | ATO trigger | <Badge text="scaffolding" variant="caution" /> | A switch at 99 % of capacity that refills to exactly 100 % in a single tick, however far it fell. |
 | The doser | <Badge text="scaffolding" variant="caution" /> | Plant uptake is split by the same fertiliser formula the doser meters by, so the doser cannot correct a ratio it did not create. |
-| Hardscape pH | <Badge text="scaffolding" variant="caution" /> | A per-type count driving a pull toward two hand-set target pH values. No acid or base stock, no buffering capacity. |
+| Hardscape and bed chemistry | <Badge text="scaffolding" variant="caution" /> | Calcite adds KH, driftwood and aqua soil spend it, each at a hand-set rate. Driftwood never leaches out and aqua soil never exhausts. |
 | Filter class limits | <Badge text="scaffolding" variant="caution" /> | `maxCapacityLiters` is display only — the tick never reads it. A sponge on a 500 L tank is undersized in the readout and unpunished in the model. |
 | Wear, clogging, failure | <Badge text="missing" variant="danger" /> | No fitting ages, fouls or breaks. Media is never consumed and never cleaned; the only maintenance the engine models at all is swapping the bed. |
 | Cooling | <Badge text="missing" variant="danger" /> | There is no chiller. Heat has one direction. |
@@ -83,6 +83,11 @@ lays sterile material in its place.
 
 Slots cap hardscape at two per gallon of capacity, to a hard maximum of eight.
 
+Hardscape and bed also move alkalinity: calcite rock dissolves and adds KH,
+driftwood's tannic acid spends it, and aqua soil takes a share of it every hour;
+sand and gravel are inert. The rates live on
+[Water & gases](/subsystems/water-and-gases/).
+
 ### Heater
 
 Below setpoint the heater delivers `wattage / water` °C per hour, scaled by the
@@ -95,9 +100,9 @@ so a tuned volume exponent moves drift but not heating.
 
 The lid multiplies evaporation and does nothing else. The ATO watches the fill
 fraction, and the moment it drops below 99 % it adds enough water to reach
-capacity in one tick — blending temperature, pH, O₂ and CO₂ toward the tap in
-the process. Nitrogen compounds are stored as mass, so they need no blending;
-their ppm falls out of the new volume.
+capacity in one tick — blending temperature, O₂ and CO₂ toward the tap and
+adding the tap's KH in the process. Nitrogen compounds are stored as mass, so
+they need no blending; their ppm falls out of the new volume.
 
 ### Air pump
 
@@ -159,7 +164,7 @@ declare bounds — enforced across the config layer by a test that walks each le
 |---|---|---|
 | [Environment](/subsystems/environment/) | `water` and `temperature` size the heater's rate and the ATO's refill; capacity gives the box | `temperature`, `water` |
 | [Nitrogen cycle](/subsystems/nitrogen-cycle/) | — | `surface` is the colony ceiling; the bed's leach is `waste`, and a bed swap scales both guilds by the surface fraction it kept |
-| [Water & gases](/subsystems/water-and-gases/) | — | `flow` and `aeration` set the exchange rate; CO₂ injection adds `co2`; hardscape sets the pH target; the ATO blends `oxygen`, `co2` and `ph` toward tap values as it refills |
+| [Water & gases](/subsystems/water-and-gases/) | — | `flow` and `aeration` set the exchange rate; CO₂ injection adds `co2`; hardscape and aqua soil move `kh`; the ATO blends `oxygen` and `co2` toward tap values and adds tap `kh` as it refills |
 | [Light](/subsystems/light/) | — | The fixture's rating and photoperiod are the whole of the light chain's input |
 | [Plants](/subsystems/plants/) | — | The doser writes `nitrate`, `phosphate`, `potassium` and `iron`; the bed decides what can root |
 | [Livestock](/subsystems/livestock/) | — | Nothing directly. Fish meet equipment through the water it conditions |

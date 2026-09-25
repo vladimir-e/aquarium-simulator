@@ -112,11 +112,9 @@ describe('SetupSection', () => {
     fireEvent.click(within(room).getByRole('button', { name: 'increase' }));
     expect(sim.updateRoomTemperature).toHaveBeenCalledWith(planted.environment.roomTemperature + 1);
 
-    const ph = screen.getByRole('group', { name: 'Tap water pH' });
-    fireEvent.click(within(ph).getByRole('button', { name: 'decrease' }));
-    expect(sim.updateTapWaterPH).toHaveBeenCalledWith(
-      Number((planted.environment.tapWaterPH - 0.1).toFixed(1))
-    );
+    const kh = screen.getByRole('group', { name: 'Tap water KH' });
+    fireEvent.click(within(kh).getByRole('button', { name: 'decrease' }));
+    expect(sim.updateTapKh).toHaveBeenCalledWith(planted.environment.tapKh - 0.5);
   });
 
   it('offers the lids in the one wording the rest of the app uses', () => {

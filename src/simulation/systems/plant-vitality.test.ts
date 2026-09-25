@@ -12,6 +12,7 @@ import { plantsDefaults } from '../config/plants.js';
 import { nutrientsDefaults } from '../config/nutrients.js';
 import { getMassFromPpm } from '../resources/helpers.js';
 import type { Plant, Resources } from '../state.js';
+import { withPh, type ResourceOverrides } from '../tests/resources.js';
 import {
   getSaturationIrradiance,
   PLANT_SPECIES_DATA,
@@ -30,8 +31,8 @@ function makePlant(species: PlantSpecies, overrides: Partial<Plant> = {}): Plant
   };
 }
 
-function makeResources(overrides: Partial<Resources> = {}): Resources {
-  return {
+function makeResources(overrides: ResourceOverrides = {}): Resources {
+  return withPh({
     water: 100,
     temperature: 25,
     surface: 1000,
@@ -48,11 +49,10 @@ function makeResources(overrides: Partial<Resources> = {}): Resources {
     iron: getMassFromPpm(0.15, 100),
     oxygen: 8.0,
     co2: 20.0,
-    ph: 6.8,
+    kh: 0,
     aob: 0,
     nob: 0,
-    ...overrides,
-  };
+  }, { ph: 6.8, ...overrides });
 }
 
 function ctx(
@@ -100,7 +100,7 @@ describe('buildPlantUpkeep', () => {
   });
 
   describe('the reserve upkeep keeps back from damage', () => {
-    const sour = makeResources({ ph: 4.5 });
+    const sour = makeResources({ ph: 9.5 });
 
     const line = (species: PlantSpecies, resources = sour): number =>
       computePlantVitality(ctx(makePlant(species), resources)).breakdown.reserved;
@@ -146,7 +146,7 @@ describe('buildPlantUpkeep', () => {
 
       expect(tick('anubias', banked).breakdown.drained).toBeGreaterThan(0);
       expect(
-        tick('anubias', banked, makeResources({ ph: 4.5, temperature: 35 })).breakdown.drained
+        tick('anubias', banked, makeResources({ ph: 9.5, temperature: 35 })).breakdown.drained
       ).toBe(0);
     });
 
@@ -164,7 +164,7 @@ describe('buildPlantStressors', () => {
   const amount = (
     species: PlantSpecies,
     key: string,
-    resources: Partial<Resources>,
+    resources: ResourceOverrides,
     algaeMass = 0
   ): number =>
     buildPlantStressors(ctx(makePlant(species), makeResources(resources), algaeMass)).find(
@@ -178,12 +178,12 @@ describe('buildPlantStressors', () => {
     }
   });
 
-  it.each<[string, PlantSpecies, (gap: number) => Partial<Resources>]>([
+  it.each<[string, PlantSpecies, (gap: number) => ResourceOverrides]>([
     ['co2', 'monte_carlo', (gap): Partial<Resources> => ({ co2: PLANT_SPECIES_DATA.monte_carlo.tolerableCO2[0] - gap })],
     ['light', 'monte_carlo', (gap): Partial<Resources> => ({ light: PLANT_SPECIES_DATA.monte_carlo.tolerableLight[0] - gap })],
     ['light', 'anubias', (gap): Partial<Resources> => ({ light: PLANT_SPECIES_DATA.anubias.tolerableLight[1] + gap })],
     ['temperature', 'amazon_sword', (gap): Partial<Resources> => ({ temperature: PLANT_SPECIES_DATA.amazon_sword.tolerableTemp[0] - gap })],
-    ['ph', 'monte_carlo', (gap): Partial<Resources> => ({ ph: PLANT_SPECIES_DATA.monte_carlo.tolerablePH[1] + gap / 4 })],
+    ['ph', 'monte_carlo', (gap): ResourceOverrides => ({ ph: PLANT_SPECIES_DATA.monte_carlo.tolerablePH[1] + gap / 4 })],
   ])('charges %s on %s in proportion to the gap outside its range', (key, species, at) => {
     expect(amount(species, key, at(0))).toBe(0);
     const one = amount(species, key, at(1));

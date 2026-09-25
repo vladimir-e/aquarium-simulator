@@ -21,7 +21,7 @@ function resourcesAt(share: number, overrides: Partial<Resources> = {}): Resourc
     nitrate: mass(nutrientsDefaults.optimalNitratePpm),
     oxygen: 8,
     co2: 5,
-    ph: 7,
+    kh: 0,
     aob: 1,
     nob: 1,
     phosphate: mass(nutrientsDefaults.optimalPhosphatePpm),

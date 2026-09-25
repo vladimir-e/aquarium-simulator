@@ -1,6 +1,7 @@
 import type { SimulationState } from '../../simulation/state.js';
 import { unionizedAmmoniaFraction } from '../../simulation/systems/nitrogen-cycle.js';
-import { getPpm } from '../../simulation/resources/helpers.js';
+import { getDkh, getPpm } from '../../simulation/resources/helpers.js';
+import { getPh } from '../../simulation/core/carbonate.js';
 import { toFahrenheit } from '../units.js';
 
 export interface Band {
@@ -45,7 +46,7 @@ const DEFINITIONS = [
     digits: 3,
     read: (s): number =>
       getPpm(s.resources.ammonia, s.resources.water) *
-      unionizedAmmoniaFraction(s.resources.ph, s.resources.temperature),
+      unionizedAmmoniaFraction(getPh(s.resources), s.resources.temperature),
     band: { green: [0, 0.02], amber: [0, 0.05], why: '0.02 ppm free NH₃ is the long-term safe ceiling' },
     cycle: true,
   },
@@ -104,8 +105,16 @@ const DEFINITIONS = [
     label: 'pH',
     unit: '',
     digits: 2,
-    read: (s): number => s.resources.ph,
+    read: (s): number => getPh(s.resources),
     band: { green: [6, 8], amber: [5.5, 8.5], why: 'community fish are kept anywhere from 6 to 8' },
+  },
+  {
+    id: 'kh',
+    label: 'KH',
+    unit: 'dKH',
+    digits: 1,
+    read: (s): number => getDkh(s.resources.kh, s.resources.water),
+    band: { green: [1, 12], amber: [0.3, 18], why: 'soft soil tanks sit near 1, hard tap near 12; a crash to 0 lets pH fall' },
   },
   {
     id: 'plants',

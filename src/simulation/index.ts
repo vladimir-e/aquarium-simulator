@@ -59,7 +59,7 @@ export type {
   SeedFishGroup,
   SeedPlantGroup,
 } from './seed.js';
-export { cycledColony, cycledNitrate, cycledReserve } from './seed.js';
+export { cycledColony, cycledKh, cycledNitrate, cycledReserve } from './seed.js';
 
 // Presets
 export type { PresetId, PresetDefinition } from './presets.js';
@@ -79,6 +79,8 @@ export { DEFAULT_CONFIG } from './config/index.js';
 export type { ResourceDefinition, ResourceKey } from './resources/index.js';
 export {
   getMassFromPpm,
+  getDkh,
+  getKhMass,
   ResourceRegistry,
   AllResources,
   TemperatureResource,
@@ -88,7 +90,7 @@ export {
   LightResource,
   FoodResource,
   WasteResource,
-  PhResource,
+  KhResource,
   PhosphateResource,
   PotassiumResource,
   IronResource,
@@ -102,13 +104,10 @@ export { isScheduleActive, isValidSchedule, formatSchedule } from './core/schedu
 export { createLog } from './core/logging.js';
 
 // Blending
-export {
-  blendTemperature,
-  blendConcentration,
-  blendPH,
-  phToHydrogen,
-  hydrogenToPh,
-} from './core/blending.js';
+export { blendTemperature, blendConcentration } from './core/blending.js';
+
+// Carbonate chemistry
+export { carbonatePh, carbonateKh, getPh } from './core/carbonate.js';
 
 export type { Effect, EffectTier } from './core/effects.js';
 export { applyEffects } from './core/effects.js';
@@ -130,9 +129,10 @@ export {
   calculateDecay,
   LID_MULTIPLIERS,
   getLidMultiplier,
-  phDriftSystem,
-  calculateHardscapeTargetPH,
-  calculateCO2PHEffect,
+  waterChemistrySystem,
+  calculateCalciteDissolution,
+  calculateDriftwoodAcid,
+  calculateSubstrateKhUptake,
 } from './systems/index.js';
 
 // Equipment
@@ -202,7 +202,7 @@ export {
   getHardscapeSurface,
   calculateHardscapeTotalSurface,
   getHardscapeName,
-  getHardscapePHEffect,
+  getHardscapeKhEffect,
   checkHardscapeCapacity,
   DEFAULT_HARDSCAPE,
   HARDSCAPE_SURFACE,

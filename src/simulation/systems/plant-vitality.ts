@@ -31,6 +31,7 @@
  */
 
 import type { Plant, Resources } from '../state.js';
+import { getPh } from '../core/carbonate.js';
 import { PLANT_SPECIES_DATA, getSaturationIrradiance } from '../plants/species.js';
 import type { PlantsConfig } from '../config/plants.js';
 import { lightSaturationFactor } from '../core/kinetics.js';
@@ -135,11 +136,12 @@ export function buildPlantStressors(ctx: PlantVitalityContext): VitalityFactor[]
 
   // pH — two-sided.
   const [phLo, phHi] = species.tolerablePH;
+  const ph = getPh(resources);
   let phAmount = 0;
-  if (resources.ph < phLo) {
-    phAmount = plantsConfig.phStressSeverity * (phLo - resources.ph);
-  } else if (resources.ph > phHi) {
-    phAmount = plantsConfig.phStressSeverity * (resources.ph - phHi);
+  if (ph < phLo) {
+    phAmount = plantsConfig.phStressSeverity * (phLo - ph);
+  } else if (ph > phHi) {
+    phAmount = plantsConfig.phStressSeverity * (ph - phHi);
   }
   factors.push({ key: 'ph', label: 'pH', amount: phAmount });
 
@@ -216,7 +218,7 @@ export function buildPlantBenefits(ctx: PlantVitalityContext): VitalityFactor[] 
     {
       key: 'ph',
       label: 'pH',
-      amount: saturation * inRangeBenefit(resources.ph, phLo, phHi, plantsConfig.phBenefitPeak),
+      amount: saturation * inRangeBenefit(getPh(resources), phLo, phHi, plantsConfig.phBenefitPeak),
     },
     {
       key: 'nutrients',

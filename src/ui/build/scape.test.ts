@@ -35,11 +35,11 @@ describe('hardscape', () => {
     { id: '3', type: 'driftwood' as const },
   ];
 
-  it('gives each piece the engine’s surface and pH effect', () => {
+  it('gives each piece the engine’s surface and KH effect', () => {
     expect(hardscapeRows(items)).toEqual([
       { id: '1', name: 'Neutral Rock', surface: 400, effect: null },
-      { id: '2', name: 'Driftwood', surface: 650, effect: 'Lowers pH' },
-      { id: '3', name: 'Driftwood', surface: 650, effect: 'Lowers pH' },
+      { id: '2', name: 'Driftwood', surface: 650, effect: 'Spends KH' },
+      { id: '3', name: 'Driftwood', surface: 650, effect: 'Spends KH' },
     ]);
   });
 });

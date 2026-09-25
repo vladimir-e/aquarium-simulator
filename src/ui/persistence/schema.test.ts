@@ -139,14 +139,14 @@ describe('PersistedSimulationSchema', () => {
       iron: 0,
       oxygen: 8,
       co2: 5,
-      ph: 7,
+      kh: 3000,
       aob: 0,
       nob: 0,
     },
     environment: {
       roomTemperature: 22,
       tapWaterTemperature: 18,
-      tapWaterPH: 7.0,
+      tapKh: 4,
     },
     equipment: {
       heater: { enabled: true, isOn: false, targetTemperature: 25, wattage: 50 },
@@ -409,14 +409,14 @@ describe('PersistedStateSchema', () => {
       iron: 0,
       oxygen: 8,
       co2: 5,
-      ph: 7,
+      kh: 3000,
       aob: 0,
       nob: 0,
     },
     environment: {
       roomTemperature: 22,
       tapWaterTemperature: 18,
-      tapWaterPH: 7.0,
+      tapKh: 4,
     },
     equipment: {
       heater: { enabled: true, isOn: false, targetTemperature: 25, wattage: 50 },
@@ -513,8 +513,8 @@ describe('PersistedStateSchema', () => {
     ).toBe(false);
   });
 
-  it('PERSISTENCE_VERSION is 26', () => {
-    expect(PERSISTENCE_VERSION).toBe(26);
+  it('PERSISTENCE_VERSION is 27', () => {
+    expect(PERSISTENCE_VERSION).toBe(27);
   });
 });
 

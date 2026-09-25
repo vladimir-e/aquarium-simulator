@@ -30,7 +30,7 @@ tank has to keep earning.
 | Colony sizing on inert beds | <Badge text="scaffolding" variant="caution" /> | `'cycled'` seeding hands gravel and sand the colony a soil tank gets. |
 | Nitrogen alerts | <Badge text="scaffolding" variant="caution" /> | Ammonia alerts on TAN where toxicity is unionized, and nitrite at 1.0 ppm where fish damage starts at any presence. |
 | Denitrification | <Badge text="missing" variant="danger" /> | Nitrate has no biological sink. It leaves only through plant uptake and water changes, so an unplanted tank accumulates it without bound. |
-| Nitrification acidity | <Badge text="missing" variant="danger" /> | Ammonia oxidation releases 2 H⁺ per NH₄⁺. pH drift reads only hardscape and CO₂, so a cycling tank never acidifies. |
+| Nitrification acidity | <Badge text="settled" variant="success" /> | The 2 H⁺ each NH₄⁺ releases spend KH at 7.14 mg CaCO₃ per mg of nitrogen, so a tank that nitrifies without water changes loses its buffer and its pH. |
 
 ## How it works
 
@@ -53,6 +53,7 @@ arithmetic.
 | NO₂⁻ → NO₃⁻ | `1.348` | `MW_NO3 / MW_NO2` |
 | O₂ spent per mg NH₃ | `2.819` | `1.5 × MW_O2 / MW_NH3` |
 | O₂ spent per mg NO₂⁻ | `0.348` | `0.5 × MW_O2 / MW_NO2` |
+| KH spent per mg NH₃, as CaCO₃ | `5.877` | `MW_CaCO3 / MW_NH3` |
 
 The oxygen draw is derived from the nitrogen actually oxidised, never quoted
 separately. A tank that cannot run the reaction does not pay for it.
@@ -213,7 +214,7 @@ one pinned to a real measurement.
 
 | Neighbour | Read | Written |
 |---|---|---|
-| [Water & gases](/subsystems/water-and-gases/) | `oxygen` — sets both guilds' Monod factor, and with it their oxidation and growth | `oxygen` — the derived draw of both oxidation steps |
+| [Water & gases](/subsystems/water-and-gases/) | `oxygen` — sets both guilds' Monod factor, and with it their oxidation and growth | `oxygen` — the derived draw of both oxidation steps; `kh`, spent by ammonia oxidation |
 | [Environment](/subsystems/environment/) | `water` for ppm and the submerged gate, `temperature` for the Q10 factor | — |
 | [Equipment](/subsystems/equipment/) | `surface` — the colony ceiling, from filter media, substrate, hardscape and glass | `waste` — the substrate's organic reserve leaches into it |
 | [Livestock](/subsystems/livestock/) | — | Fish write `ammonia` directly through gill excretion, and `waste` as feces and death mass |

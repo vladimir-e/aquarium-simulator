@@ -2,7 +2,7 @@
  * Output formatters for `sim observe` (markdown) and `sim trace` (CSV).
  */
 
-import type { SimulationState } from '../simulation/index.js';
+import { getDkh, getPh, type SimulationState } from '../simulation/index.js';
 import { bacteriaReadout, colonyCount, cycleWord, type Colony } from '../ui/run/index.js';
 import type { Session } from './session.js';
 import type { HistorySnapshot } from './history.js';
@@ -55,9 +55,9 @@ export function renderObserve(session: Session): string {
     `# Session: ${name} · Day ${day} · Tick ${state.tick}`,
     '',
     `Tank: ${state.tank.capacity}L @ ${round(r.temperature, 1)}°C · pH ${round(
-      r.ph,
+      getPh(r),
       2
-    )} · water ${round(r.water, 1)}L (${waterPct}%)`,
+    )} · KH ${round(getDkh(r.kh, r.water), 1)} dKH · water ${round(r.water, 1)}L (${waterPct}%)`,
     '',
     '**Nitrogen**',
     `- NH3: ${nh3} ppm${warningSymbol(nh3 > 0.1)}`,
@@ -109,7 +109,7 @@ const RESOURCE_FIELDS: Record<keyof HistorySnapshot['resources'], true> = {
   iron: true,
   oxygen: true,
   co2: true,
-  ph: true,
+  kh: true,
   aob: true,
   nob: true,
 };
@@ -126,6 +126,8 @@ const DERIVED_FIELDS = [
   'no2_ppm',
   'no3_ppm',
   'po4_ppm',
+  'ph',
+  'dkh',
 ] as const;
 
 export const TRACE_FIELDS: readonly string[] = [
@@ -158,6 +160,10 @@ function getFieldValue(entry: HistorySnapshot, field: string): string {
       return String(round(toPpm(r.nitrate, r.water), 3));
     case 'po4_ppm':
       return String(round(toPpm(r.phosphate, r.water), 4));
+    case 'ph':
+      return String(round(getPh(r), 3));
+    case 'dkh':
+      return String(round(getDkh(r.kh, r.water), 3));
     default: {
       if (!Object.hasOwn(RESOURCE_FIELDS, field)) {
         throw new Error(`Trace field "${field}" is offered but renders nothing.`);

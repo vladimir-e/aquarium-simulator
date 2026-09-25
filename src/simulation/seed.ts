@@ -14,6 +14,7 @@ import {
 import { nitrogenCycleDefaults } from './config/nitrogen-cycle.js';
 import { plantsDefaults } from './config/plants.js';
 import { NH3_TO_NO2_MASS_RATIO, NO2_TO_NO3_MASS_RATIO } from './core/chemistry.js';
+import { getKhMass } from './resources/helpers.js';
 import { createFish } from './livestock/create-fish.js';
 import { createPlant } from './plants/create-plant.js';
 
@@ -30,6 +31,7 @@ const SEEDABLE_RESOURCES = [
   'iron',
   'oxygen',
   'co2',
+  'kh',
 ] as const;
 
 export type SeedColony = Partial<Pick<Resources, (typeof SEEDABLE_BACTERIA)[number]>>;
@@ -37,8 +39,8 @@ export type SeedColony = Partial<Pick<Resources, (typeof SEEDABLE_BACTERIA)[numb
 /**
  * A colony as absolute stock, or `'cycled'` — a tank that has been running a
  * month, which is a claim about the whole tank and not only its biofilter: it
- * carries the bed that month left and the nitrate that month made, as well as
- * the colony. All three are resolved against the tank when the seed is
+ * carries the bed that month left, the nitrate that month made and the KH the
+ * bed let it keep, as well as the colony. All three are resolved against the tank when the seed is
  * applied, so a preset resized or rescaped at the door still gets a filter, a
  * bed and a nitrate reading that fit it.
  */
@@ -50,7 +52,8 @@ export type SeedSubstrate = Partial<Pick<Substrate, (typeof SEEDABLE_SUBSTRATE)[
 /**
  * Chemistry stocks a seed may set, in the units `Resources` stores them
  * in: nitrogen compounds and nutrients as mass in mg (`getMassFromPpm`
- * converts from a test-kit reading), dissolved gases as mg/L.
+ * converts from a test-kit reading), alkalinity as mg of CaCO3 (`getKhMass`
+ * converts from dKH), dissolved gases as mg/L.
  */
 export type SeedResources = Partial<Pick<Resources, (typeof SEEDABLE_RESOURCES)[number]>>;
 
@@ -158,6 +161,19 @@ export function cycledNitrate(type: SubstrateType, capacity: number): number {
   return leached * NITRATE_PER_GRAM_LEACHED * CYCLED_NITRATE_RETAINED;
 }
 
+/**
+ * Share of the tap's KH an aqua soil tank still holds after a month of weekly
+ * 25 % changes: the bed strips each change back down before the next, and the
+ * week averages out near 0.15 of the tap. Inert beds keep the tap's KH.
+ */
+const CYCLED_SOIL_KH_RETAINED = 0.15;
+
+/** mg of CaCO3 a cycled tank of this bed, tap and capacity carries. */
+export function cycledKh(type: SubstrateType, tapKh: number, capacity: number): number {
+  const retained = type === 'aqua_soil' ? CYCLED_SOIL_KH_RETAINED : 1;
+  return getKhMass(tapKh * retained, capacity);
+}
+
 function writeStocks<T, K extends keyof T>(
   target: T,
   keys: readonly K[],
@@ -179,7 +195,10 @@ export function applySeed(state: SimulationState, seed: PresetSeed): void {
     writeStocks(state.equipment.substrate, SEEDABLE_SUBSTRATE, {
       organicReserve: cycledReserve(type, capacity),
     });
-    writeStocks(state.resources, SEEDABLE_RESOURCES, { nitrate: cycledNitrate(type, capacity) });
+    writeStocks(state.resources, SEEDABLE_RESOURCES, {
+      nitrate: cycledNitrate(type, capacity),
+      kh: cycledKh(type, state.environment.tapKh, capacity),
+    });
   } else {
     writeStocks(state.resources, SEEDABLE_BACTERIA, seed.bacteria);
   }

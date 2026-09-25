@@ -23,6 +23,10 @@ import type { TunableConfig } from '../../simulation/config/index.js';
  * Increment this when the structure changes in a breaking way.
  * On version mismatch, stored data is discarded.
  *
+ * v27: pH is derived from CO₂ and KH, not stored. `Resources` swaps `ph` for
+ *      `kh` (alkalinity as mg of CaCO3), `Environment` swaps `tapWaterPH` for
+ *      `tapKh`, and the `ph` tunables section becomes `waterChemistry`.
+ *
  * v26: The spine remembers whether it was showing its tracks. `PersistedUI`
  *      gains `spineOpen`, beside the `tunablesOpen` it mirrors. A v25 save
  *      has no `spineOpen`, and the strict schema refuses the UI section
@@ -184,7 +188,7 @@ import type { TunableConfig } from '../../simulation/config/index.js';
  *     nutrient sufficiency) but its persisted shape is identical, so
  *     the bump is purely the new Fish field.
  */
-export const PERSISTENCE_VERSION = 26;
+export const PERSISTENCE_VERSION = 27;
 
 /**
  * Storage key for the unified persisted state.

@@ -41,7 +41,6 @@ describe('snapshotFromState', () => {
       d.resources.ammonia = 0.5;
       d.resources.nitrite = 0.2;
       d.resources.nitrate = 10;
-      d.resources.ph = 6.8;
       d.resources.oxygen = 7.5;
       d.resources.co2 = 18;
       d.resources.temperature = 24.5;
@@ -56,7 +55,6 @@ describe('snapshotFromState', () => {
       ammonia: getPpm(0.5, water),
       nitrite: getPpm(0.2, water),
       nitrate: getPpm(10, water),
-      ph: 6.8,
       oxygen: 7.5,
       co2: 18,
       temperature: 24.5,

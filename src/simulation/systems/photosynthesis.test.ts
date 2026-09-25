@@ -38,7 +38,7 @@ function buildResources(
     iron: nutrientsDefaults.optimalIronPpm * waterVolume * nutrientMultiple,
     oxygen: 8,
     co2: plantsDefaults.optimalCo2,
-    ph: 7,
+    kh: 0,
     aob: 0,
     nob: 0,
     ...overrides,

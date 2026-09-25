@@ -34,6 +34,7 @@ import {
 } from '../config/nitrogen-cycle.js';
 import { monodFactor, q10Factor } from '../core/kinetics.js';
 import {
+  CACO3_PER_NH3_NITRIFIED,
   NH3_TO_NO2_MASS_RATIO,
   NO2_TO_NO3_MASS_RATIO,
   O2_PER_NH3_OXIDIZED,
@@ -271,8 +272,8 @@ export function nobCapacity(
  * @param aobPopulation - AOB bacteria population
  * @param temperature - Water temperature in °C
  * @param oxygen - Dissolved oxygen in mg/L
- * @returns mg consumed, mg of nitrite produced, mg of O2 spent, and the
- *          fraction of capacity used
+ * @returns mg consumed, mg of nitrite produced, mg of O2 and of alkalinity
+ *          (as CaCO3) spent, and the fraction of capacity used
  */
 export function calculateAmmoniaToNitrite(
   ammoniaMass: number,
@@ -284,10 +285,17 @@ export function calculateAmmoniaToNitrite(
   ammoniaConsumed: number;
   nitriteProduced: number;
   oxygenConsumedMg: number;
+  alkalinityConsumedMg: number;
   utilization: number;
 } {
   if (ammoniaMass <= 0 || aobPopulation <= 0) {
-    return { ammoniaConsumed: 0, nitriteProduced: 0, oxygenConsumedMg: 0, utilization: 0 };
+    return {
+      ammoniaConsumed: 0,
+      nitriteProduced: 0,
+      oxygenConsumedMg: 0,
+      alkalinityConsumedMg: 0,
+      utilization: 0,
+    };
   }
   const canProcessMass = aobCapacity(aobPopulation, temperature, oxygen, config);
   const ammoniaConsumed = Math.min(canProcessMass, ammoniaMass);
@@ -295,6 +303,7 @@ export function calculateAmmoniaToNitrite(
     ammoniaConsumed,
     nitriteProduced: ammoniaConsumed * NH3_TO_NO2_MASS_RATIO,
     oxygenConsumedMg: ammoniaConsumed * O2_PER_NH3_OXIDIZED,
+    alkalinityConsumedMg: ammoniaConsumed * CACO3_PER_NH3_NITRIFIED,
     utilization: canProcessMass > 0 ? ammoniaConsumed / canProcessMass : 0,
   };
 }
@@ -458,7 +467,13 @@ export const nitrogenCycleSystem: System = {
 
     const aobStage = submerged
       ? calculateAmmoniaToNitrite(currentAmmonia, currentAob, temperature, oxygen, ncConfig)
-      : { ammoniaConsumed: 0, nitriteProduced: 0, oxygenConsumedMg: 0, utilization: 0 };
+      : {
+          ammoniaConsumed: 0,
+          nitriteProduced: 0,
+          oxygenConsumedMg: 0,
+          alkalinityConsumedMg: 0,
+          utilization: 0,
+        };
     if (aobStage.ammoniaConsumed > 0) {
       effects.push({
         tier: 'passive',
@@ -481,6 +496,13 @@ export const nitrogenCycleSystem: System = {
         tier: 'passive',
         resource: 'oxygen',
         delta: -getPpm(aobStage.oxygenConsumedMg, waterVolume),
+        source: 'nitrogen-cycle-aob',
+      });
+
+      effects.push({
+        tier: 'passive',
+        resource: 'kh',
+        delta: -aobStage.alkalinityConsumedMg,
         source: 'nitrogen-cycle-aob',
       });
     }

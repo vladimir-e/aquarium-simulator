@@ -37,6 +37,7 @@
  */
 
 import type { Fish, Plant, Resources } from '../state.js';
+import { getPh } from '../core/carbonate.js';
 import { FISH_SPECIES_DATA } from '../livestock/species.js';
 import type { LivestockConfig } from '../config/livestock.js';
 import { unionizedAmmoniaFraction } from './nitrogen-cycle.js';
@@ -124,11 +125,12 @@ function buildStressors(ctx: FishFactorContext): VitalityFactor[] {
 
   // pH stress
   let phStress = 0;
+  const ph = getPh(resources);
   const [phMin, phMax] = speciesData.phRange;
-  if (resources.ph < phMin) {
-    phStress = config.phStressSeverity * (phMin - resources.ph);
-  } else if (resources.ph > phMax) {
-    phStress = config.phStressSeverity * (resources.ph - phMax);
+  if (ph < phMin) {
+    phStress = config.phStressSeverity * (phMin - ph);
+  } else if (ph > phMax) {
+    phStress = config.phStressSeverity * (ph - phMax);
   }
 
   // Ammonia stress — only the unionized NH3 fraction is acutely toxic.
@@ -139,7 +141,7 @@ function buildStressors(ctx: FishFactorContext): VitalityFactor[] {
   if (totalAmmoniaPpm > 0) {
     const freeNH3Ppm =
       waterVolume > 0
-        ? totalAmmoniaPpm * unionizedAmmoniaFraction(resources.ph, resources.temperature)
+        ? totalAmmoniaPpm * unionizedAmmoniaFraction(ph, resources.temperature)
         : totalAmmoniaPpm;
     ammoniaStress = config.ammoniaStressSeverity * freeNH3Ppm;
   }
@@ -235,7 +237,7 @@ function buildBenefits(ctx: FishFactorContext): VitalityFactor[] {
     {
       key: 'ph',
       label: 'pH',
-      amount: inRangeBenefit(resources.ph, phMin, phMax, config.phBenefitPeak),
+      amount: inRangeBenefit(getPh(resources), phMin, phMax, config.phBenefitPeak),
     },
     {
       key: 'satiation',

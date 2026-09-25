@@ -12,7 +12,7 @@ import { useInspector } from '../hooks/useInspector';
 import { useReadingBook } from '../hooks/useReadingBook';
 import {type ReadingId} from '../readings';
 
-const WATER: ReadingId[] = ['temperature', 'ph', 'level'];
+const WATER: ReadingId[] = ['temperature', 'ph', 'kh', 'level'];
 const GASES: ReadingId[] = ['oxygen', 'co2'];
 const NITROGEN: ReadingId[] = ['ammonia', 'nitrite', 'nitrate'];
 

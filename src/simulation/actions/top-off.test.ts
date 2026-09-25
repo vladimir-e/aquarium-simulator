@@ -2,8 +2,19 @@ import { describe, it, expect } from 'vitest';
 import { topOff } from './top-off';
 import { createSimulation } from '../state';
 import { produce } from 'immer';
+import { getDkh } from '../resources/helpers';
 
 describe('topOff action', () => {
+  it('replaces evaporated water with tap water, so KH creeps above the tap', () => {
+    const state = produce(createSimulation({ tankCapacity: 100, tapKh: 4 }), (draft) => {
+      draft.resources.water = 80;
+    });
+
+    const { resources } = topOff(state).state;
+
+    expect(getDkh(resources.kh, resources.water)).toBeCloseTo((4 * 100 + 4 * 20) / 100, 10);
+  });
+
   it('adds water to reach capacity when below', () => {
     const state = produce(
       createSimulation({ tankCapacity: 100 }),

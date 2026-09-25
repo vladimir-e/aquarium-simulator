@@ -355,14 +355,14 @@ function createValidSimulation(): PersistedSimulation {
       iron: 0,
       oxygen: 8,
       co2: 5,
-      ph: 7,
+      kh: 3000,
       aob: 0,
       nob: 0,
     },
     environment: {
       roomTemperature: 22,
       tapWaterTemperature: 18,
-      tapWaterPH: 7.0,
+      tapKh: 4,
     },
     equipment: {
       heater: { enabled: true, isOn: false, targetTemperature: 25, wattage: 50 },

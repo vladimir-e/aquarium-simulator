@@ -8,6 +8,7 @@ export function snapshot(tick: number, reading: Partial<RunSnapshot> = {}): RunS
     nitrite: 0,
     nitrate: 0,
     ph: 7,
+    kh: 4,
     oxygen: 8,
     co2: 5,
     temperature: 25,

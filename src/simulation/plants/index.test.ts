@@ -3,6 +3,8 @@ import { processPlants, readPlantVitality } from './index.js';
 import { createSimulation, type SimulationState, type Plant, type Resources } from '../state.js';
 import type { PlantSpecies } from './species.js';
 import { produce } from 'immer';
+import { carbonateKh } from '../core/carbonate.js';
+import { getKhMass } from '../resources/helpers.js';
 import { DEFAULT_CONFIG } from '../config/index.js';
 import { plantsDefaults } from '../config/plants.js';
 import { nutrientsDefaults } from '../config/nutrients.js';
@@ -431,7 +433,7 @@ describe('processPlants', () => {
     it('buffers damage on the spare, and lets it past once only the reserve is left', () => {
       const hostilePh = (s: SimulationState): SimulationState =>
         produce(s, (draft) => {
-          draft.resources.ph = 9.5;
+          draft.resources.kh = getKhMass(carbonateKh(draft.resources.co2, 9.5), draft.resources.water);
         });
       const sour = (surplus: number): SimulationState =>
         hostilePh(

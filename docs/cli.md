@@ -28,6 +28,8 @@ Tweaks apply to every setup in the run:
 | `--<chore>=off` | Drop that chore from the schedule |
 | `--plant=java_fern:3:40` | Add a plant group (species:count:size) |
 | `--fish=neon_tetra:6` | Add a fish group (species:count) |
+| `--rock=calcite_rock:2` | Add hardscape pieces (type:count) |
+| `--tap-kh=8` | Tap water carbonate hardness, dKH |
 | `--light=1.5` | Scale fixture PAR |
 | `--gal=40` | Change tank volume |
 | `--uncycled` | Start without a cycled biofilter |
@@ -50,7 +52,7 @@ npx tsx src/cli/sim.ts add fish --species=neon_tetra --count=6
 npx tsx src/cli/sim.ts tick 5d
 
 npx tsx src/cli/sim.ts observe
-npx tsx src/cli/sim.ts trace --fields=temperature,ph,nh3_ppm,no3_ppm --every=1d
+npx tsx src/cli/sim.ts trace --fields=temperature,ph,dkh,nh3_ppm,no3_ppm --every=1d
 
 npx tsx src/cli/sim.ts action feed 0.5
 npx tsx src/cli/sim.ts action waterChange 40

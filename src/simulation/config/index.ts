@@ -37,7 +37,11 @@ export {
   opticsConfigMeta,
   MAX_WATER_ATTENUATION_PER_CM,
 } from './optics.js';
-export { type PhConfig, phDefaults, phConfigMeta } from './ph.js';
+export {
+  type WaterChemistryConfig,
+  waterChemistryDefaults,
+  waterChemistryConfigMeta,
+} from './water-chemistry.js';
 export { type PlantsConfig, plantsDefaults, plantsConfigMeta } from './plants.js';
 export {
   type NutrientsConfig,
@@ -81,7 +85,11 @@ import {
   algaeVitalityConfigMeta,
 } from './algae-vitality.js';
 import { type OpticsConfig, opticsDefaults, opticsConfigMeta } from './optics.js';
-import { type PhConfig, phDefaults, phConfigMeta } from './ph.js';
+import {
+  type WaterChemistryConfig,
+  waterChemistryDefaults,
+  waterChemistryConfigMeta,
+} from './water-chemistry.js';
 import { type PlantsConfig, plantsDefaults, plantsConfigMeta } from './plants.js';
 import {
   type NutrientsConfig,
@@ -102,7 +110,7 @@ export interface TunableConfig {
   evaporation: EvaporationConfig;
   algae: AlgaeVitalityConfig;
   optics: OpticsConfig;
-  ph: PhConfig;
+  waterChemistry: WaterChemistryConfig;
   plants: PlantsConfig;
   nutrients: NutrientsConfig;
   livestock: LivestockConfig;
@@ -119,7 +127,7 @@ export const DEFAULT_CONFIG: TunableConfig = {
   evaporation: evaporationDefaults,
   algae: algaeVitalityDefaults,
   optics: opticsDefaults,
-  ph: phDefaults,
+  waterChemistry: waterChemistryDefaults,
   plants: plantsDefaults,
   nutrients: nutrientsDefaults,
   livestock: livestockDefaults,
@@ -140,7 +148,7 @@ const CONFIG_META: ReadonlyMap<string, readonly RangedMeta[]> = new Map(
     evaporation: evaporationConfigMeta,
     algae: algaeVitalityConfigMeta,
     optics: opticsConfigMeta,
-    ph: phConfigMeta,
+    waterChemistry: waterChemistryConfigMeta,
     plants: plantsConfigMeta,
     nutrients: nutrientsConfigMeta,
     'nutrients.fertilizerFormula': fertilizerFormulaMeta,

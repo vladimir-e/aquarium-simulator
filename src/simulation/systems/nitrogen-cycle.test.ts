@@ -15,6 +15,8 @@ import {
   nobProcessingRateMultiplier,
 } from './nitrogen-cycle.js';
 import {
+  MW_N,
+  MW_NH3,
   NH3_TO_NO2_MASS_RATIO,
   NO2_TO_NO3_MASS_RATIO,
   O2_PER_NH3_OXIDIZED,
@@ -198,6 +200,16 @@ describe('calculateAmmoniaToNitrite', () => {
 
     expect(result.ammoniaConsumed).toBe(0);
     expect(result.utilization).toBe(0);
+  });
+
+  it('spends alkalinity in proportion to the nitrogen it oxidises — 7.14 mg CaCO3 per mg N', () => {
+    const glut = 1e6;
+    const one = calculateAmmoniaToNitrite(glut, 100, REF, AMPLE_O2);
+    const two = calculateAmmoniaToNitrite(glut, 200, REF, AMPLE_O2);
+    const nitrogen = one.ammoniaConsumed * (MW_N / MW_NH3);
+
+    expect(one.alkalinityConsumedMg / nitrogen).toBeCloseTo(7.14, 2);
+    expect(two.alkalinityConsumedMg).toBeCloseTo(2 * one.alkalinityConsumedMg, 10);
   });
 
   it('doubles the mass it clears when the colony doubles', () => {

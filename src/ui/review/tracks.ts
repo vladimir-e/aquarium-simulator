@@ -42,11 +42,12 @@ export const TRACKS: TrackDef[] = [
   },
   {
     id: 'ph-co2',
-    title: 'pH & CO₂',
+    title: 'pH, KH & CO₂',
     shortLabel: 'pH·CO₂',
     alertKinds: ['co2'],
     series: [
       { key: 'ph', label: 'pH', decimals: DECIMALS.ph, accessor: (s) => s.ph },
+      { key: 'kh', label: 'KH', decimals: DECIMALS.kh, accessor: (s) => s.kh },
       { key: 'co2', label: 'CO₂', decimals: DECIMALS.co2, accessor: (s) => s.co2 },
     ],
   },

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { blendTemperature, blendConcentration, phToHydrogen, hydrogenToPh, blendPH } from './blending.js';
+import { blendTemperature, blendConcentration } from './blending.js';
 
 describe.each([
   ['blendTemperature', blendTemperature],
@@ -19,40 +19,5 @@ describe.each([
 
   it('rounds to 2 decimal places', () => {
     expect(Number.isInteger(blend(26, 66.67, 20, 33.33) * 100)).toBe(true);
-  });
-});
-
-describe('phToHydrogen / hydrogenToPh', () => {
-  it('converts by powers of ten, and round-trips', () => {
-    expect(phToHydrogen(7)).toBeCloseTo(1e-7, 12);
-    expect(phToHydrogen(6) / phToHydrogen(8)).toBeCloseTo(100, 6);
-    for (const ph of [5.5, 6.0, 7.0, 8.5]) {
-      expect(hydrogenToPh(phToHydrogen(ph))).toBeCloseTo(ph, 10);
-    }
-  });
-
-  it('reads no hydrogen as neutral', () => {
-    expect(hydrogenToPh(0)).toBe(7);
-    expect(hydrogenToPh(-1)).toBe(7);
-  });
-});
-
-describe('blendPH', () => {
-  it('blends hydrogen ions, not pH units, so the acid side dominates', () => {
-    const result = blendPH(6, 50, 8, 50);
-    expect(result).toBeCloseTo(hydrogenToPh((phToHydrogen(6) + phToHydrogen(8)) / 2), 2);
-    expect(result).toBeLessThan(7);
-    expect(blendPH(8, 75, 6.5, 25)).toBeLessThan(8 * 0.75 + 6.5 * 0.25);
-  });
-
-  it('keeps the existing pH with nothing added, and takes the added pH into an empty tank', () => {
-    expect(blendPH(7, 100, 6, 0)).toBe(7);
-    expect(blendPH(7, 0, 6, 0)).toBe(7);
-    expect(blendPH(7, 0, 6, 100)).toBe(6);
-    expect(blendPH(7, 50, 7, 50)).toBe(7);
-  });
-
-  it('rounds to 2 decimal places', () => {
-    expect(Number.isInteger(blendPH(6.5, 66.67, 7.5, 33.33) * 100)).toBe(true);
   });
 });
