@@ -1,4 +1,8 @@
-import { describe, it, expect } from 'vitest';
+import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { describe, it, expect, vi } from 'vitest';
+import { scenariosCommand } from '../scenarios/command.js';
 import { renderDiff, type Snapshot } from '../scenarios/diff.js';
 
 const snapshot = (label: string, no3: number | null, grade: 'G' | 'A' | 'R' | null = 'G'): Snapshot => ({
@@ -25,5 +29,25 @@ describe('renderDiff', () => {
 
   it('flags a setup the baseline lacks', () => {
     expect(renderDiff(snapshot('nano', 10), snapshot('cold', 10))).toContain('not in the baseline');
+  });
+
+  it('reports sample days the baseline never reached', () => {
+    const after: Snapshot = { nano: { no3: { d90: [10, 'G'], d300: [12, 'G'] } } };
+    expect(renderDiff(snapshot('nano', 10), after)).toBe('nano\n  d300: not in the baseline');
+  });
+});
+
+describe('--diff against the file --json overwrites', () => {
+  it('compares with the old baseline, then writes the new one', () => {
+    const file = join(mkdtempSync(join(tmpdir(), 'scenarios-')), 'nano.json');
+    writeFileSync(file, JSON.stringify({ nano: { temp: { d1: [0, 'R'] } } }));
+    const stdout = vi.spyOn(process.stdout, 'write').mockReturnValue(true);
+    try {
+      scenariosCommand(['nano', '--days=1', `--json=${file}`, `--diff=${file}`]);
+      expect(stdout.mock.calls.map(([text]) => String(text)).join('')).toMatch(/^nano\n {2}temp +d1 0\.0 R → /);
+    } finally {
+      stdout.mockRestore();
+    }
+    expect((JSON.parse(readFileSync(file, 'utf8')) as Snapshot).nano!.temp!.d1).not.toEqual([0, 'R']);
   });
 });

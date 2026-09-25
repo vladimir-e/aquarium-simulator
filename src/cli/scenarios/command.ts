@@ -2,7 +2,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { performance } from 'node:perf_hooks';
 import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
 import { renderDiff, type Snapshot } from './diff.js';
-import { READINGS } from './readings.js';
+import { READINGS, type Band, type Reading } from './readings.js';
 import { renderHourly, renderTable, toJson } from './report.js';
 import { runScenario, type OnRefusal } from './run.js';
 import { SETUPS, findSetup, type Setup } from './setups.js';
@@ -61,12 +61,19 @@ export function parseScenarioArgs(argv: string[]): ScenarioArgs {
   return args;
 }
 
-function renderBands(): string {
-  return READINGS.map((r) => {
-    const range = ([lo, hi]: readonly [number, number]): string => `${lo}–${hi === Infinity ? '∞' : hi}`;
-    const of = r.ofStart ? ' (× start)' : '';
-    return `${r.label.padEnd(14)} G ${range(r.band.green)}  A ${range(r.band.amber)}${of}  — ${r.band.why}`;
-  }).join('\n');
+function renderBands(setups: Setup[]): string {
+  const range = ([lo, hi]: readonly [number, number]): string => `${lo}–${hi === Infinity ? '∞' : hi}`;
+  const line = (r: Reading, band: Band): string =>
+    `${r.label.padEnd(14)} G ${range(band.green)}  A ${range(band.amber)}${r.ofStart ? ' (× start)' : ''}  — ${band.why}`;
+  const defaults = READINGS.map((r) => line(r, r.band));
+  const overrides = setups.flatMap((setup) => {
+    const lines = READINGS.flatMap((r) => {
+      const band = setup.bands?.[r.id];
+      return band === undefined ? [] : [line(r, band)];
+    });
+    return lines.length === 0 ? [] : [[`${setup.name} overrides`, ...lines].join('\n')];
+  });
+  return [defaults.join('\n'), ...overrides].join('\n\n');
 }
 
 export function scenariosCommand(argv: string[]): void {
@@ -75,7 +82,7 @@ export function scenariosCommand(argv: string[]): void {
   };
   const args = parseScenarioArgs(argv);
   if (args.bands) {
-    out(renderBands() + '\n');
+    out(renderBands(args.setups.length > 0 ? args.setups : SETUPS) + '\n');
     return;
   }
 
@@ -101,10 +108,10 @@ export function scenariosCommand(argv: string[]): void {
     out(toJson(results));
     return;
   }
+  const baseline = args.diff === undefined ? undefined : (JSON.parse(readFileSync(args.diff, 'utf8')) as Snapshot);
   if (typeof args.json === 'string') writeFileSync(args.json, toJson(results), 'utf8');
-  if (args.diff !== undefined) {
-    const before = JSON.parse(readFileSync(args.diff, 'utf8')) as Snapshot;
-    out(renderDiff(before, JSON.parse(toJson(results)) as Snapshot) + '\n');
+  if (baseline !== undefined) {
+    out(renderDiff(baseline, JSON.parse(toJson(results)) as Snapshot) + '\n');
     return;
   }
 

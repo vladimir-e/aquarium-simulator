@@ -8,6 +8,9 @@ const MEANINGFUL_SHARE = 0.05;
 
 const setupName = (label: string): string => label.split(' ')[0]!;
 
+const sampleDays = (readings: Record<string, Record<string, Sample>>): Set<string> =>
+  new Set(Object.values(readings).flatMap((byDay) => Object.keys(byDay)));
+
 function split(sample: Sample | undefined): { value: number | null; grade: Grade | null } {
   if (Array.isArray(sample)) return { value: sample[0], grade: sample[1] };
   return { value: sample ?? null, grade: null };
@@ -40,6 +43,9 @@ export function renderDiff(before: Snapshot, after: Snapshot): string {
       });
       return changes.length === 0 ? [] : [`  ${reading.label.padEnd(14)} ${changes.join('   ')}`];
     });
+    const compared = sampleDays(old);
+    const unseen = [...sampleDays(readings)].filter((day) => !compared.has(day));
+    if (unseen.length > 0) lines.push(`  ${unseen.join(' ')}: not in the baseline`);
     return lines.length === 0 ? [] : [[label, ...lines].join('\n')];
   });
   return groups.length === 0 ? 'no change' : groups.join('\n\n');
