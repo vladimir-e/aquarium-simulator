@@ -203,7 +203,7 @@ export function bacteriaReadout(
   const gills = processMetabolism(state.fish, r.food, r.oxygen, config.livestock).ammoniaProduced;
   const { ammoniaProduced } = calculateWasteToAmmonia(
     mineralisationBase(state, config, wasteInflow(state, config)),
-    nc
+    config
   );
   const { ammoniaConsumed, nitriteProduced } = calculateAmmoniaToNitrite(
     r.ammonia + gills + ammoniaProduced,
@@ -326,7 +326,7 @@ export function projectNitritePeak(
     reserve += settled - leached;
     waste += steadyInflow + leached - settled;
 
-    const mineralised = calculateWasteToAmmonia(waste, nc);
+    const mineralised = calculateWasteToAmmonia(waste, config);
     waste -= mineralised.wasteConsumed;
     ammonia += mineralised.ammoniaProduced + gills;
 

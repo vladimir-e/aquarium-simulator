@@ -19,10 +19,8 @@
  *     food ingested we treat `foodNitrogenFraction` (default 5 %) as
  *     N. Of that N, `gillNFraction` (default 80 %) is emitted this
  *     tick as NH3; the remaining 20 % is bound in feces and leaves
- *     via the waste pool, where the existing decay + nitrogen-cycle
- *     pipeline mineralises it to NH3 at the engine's canonical
- *     `wasteToAmmoniaRatio` (60 mg NH3 / g waste, which encodes the
- *     same 5 % N content). That keeps N-mass conserved end-to-end.
+ *     via the waste pool, which mineralises to NH3 at the same
+ *     `foodNitrogenFraction`. That keeps N-mass conserved end-to-end.
  *
  *  2. **Basal** — produced continuously from body protein turnover
  *     regardless of feeding, at `basalAmmoniaRate` mg NH3 / g fish /
@@ -39,7 +37,7 @@
  * At defaults this is 0.2 g waste per g food.
  *
  * The absorbed share's minerals leave beside the gill NH3, at
- * `releasePerWaste` per gram. Mineral excretion is not deamination and is
+ * `foodMineralContent` per gram. Mineral excretion is not deamination and is
  * not scaled by oxygen.
  *
  * Both NH3 streams are deamination, and deamination is metabolism: each is
@@ -64,7 +62,7 @@ import { monodFactor } from '../core/kinetics.js';
 import {
   WASTE_NUTRIENTS,
   nutrientsDefaults,
-  type WasteRelease,
+  type MineralVector,
 } from '../config/nutrients.js';
 
 const NH3_MG_PER_G_N = N_TO_NH3_MASS_RATIO * 1000;
@@ -79,7 +77,7 @@ export interface MetabolismResult {
   /** Direct NH3 excreted through gills (mg compound mass) */
   ammoniaProduced: number;
   /** Minerals excreted beside the gill NH3 (mg) */
-  mineralsExcreted: WasteRelease;
+  mineralsExcreted: MineralVector;
   /** Total oxygen consumed (mg, absolute — caller divides by water volume for mg/L delta) */
   oxygenConsumedMg: number;
   /** Total CO2 produced (mg, absolute — caller divides by water volume for mg/L delta) */
@@ -101,7 +99,7 @@ export function processMetabolism(
   availableFood: number,
   oxygen: number,
   config: LivestockConfig,
-  releasePerWaste: WasteRelease = nutrientsDefaults.releasePerWaste
+  foodMineralContent: MineralVector = nutrientsDefaults.foodMineralContent
 ): MetabolismResult {
   const oxygenFactor = monodFactor(oxygen, config.respirationOxygenHalfSaturation);
 
@@ -185,8 +183,8 @@ export function processMetabolism(
     wasteProduced: totalWaste,
     ammoniaProduced: totalAmmonia,
     mineralsExcreted: Object.fromEntries(
-      WASTE_NUTRIENTS.map((n) => [n, totalAbsorbed * releasePerWaste[n]])
-    ) as WasteRelease,
+      WASTE_NUTRIENTS.map((n) => [n, totalAbsorbed * foodMineralContent[n]])
+    ) as MineralVector,
     oxygenConsumedMg: totalOxygenConsumedMg,
     co2ProducedMg: totalCo2ProducedMg,
   };

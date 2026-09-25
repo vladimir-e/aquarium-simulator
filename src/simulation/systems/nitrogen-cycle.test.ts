@@ -31,6 +31,7 @@ import { type Effect } from '../core/effects.js';
 import { getPpm, getMassFromPpm } from '../resources/index.js';
 import { DEFAULT_CONFIG, WASTE_NUTRIENTS, type WasteNutrient } from '../config/index.js';
 import { AIR_SATURATED_O2, nitrogenCycleDefaults } from '../config/nitrogen-cycle.js';
+import { ammoniaPerGramOfFood } from '../config/livestock.js';
 
 const REF = nitrogenCycleDefaults.referenceTemp;
 const AMPLE_O2 = 8;
@@ -238,12 +239,19 @@ describe('calculateWasteToAmmonia', () => {
     expect(result.wasteConsumed).toBeCloseTo(10 * nitrogenCycleDefaults.wasteConversionRate, 10);
   });
 
-  it('produces ammonia mass proportional to waste consumed', () => {
-    const result = calculateWasteToAmmonia(10);
-    expect(result.ammoniaProduced).toBeCloseTo(
-      result.wasteConsumed * nitrogenCycleDefaults.wasteToAmmoniaRatio,
-      10
-    );
+  it('yields the nitrogen of the food the waste came from, however that is tuned', () => {
+    for (const foodNitrogenFraction of [0.03, 0.05, 0.12]) {
+      const config = {
+        ...DEFAULT_CONFIG,
+        livestock: { ...DEFAULT_CONFIG.livestock, foodNitrogenFraction },
+      };
+      const result = calculateWasteToAmmonia(10, config);
+
+      expect((result.ammoniaProduced * MW_N) / MW_NH3 / 1000).toBeCloseTo(
+        result.wasteConsumed * foodNitrogenFraction,
+        12
+      );
+    }
   });
 });
 
@@ -638,7 +646,10 @@ describe('nitrogenCycleSystem', () => {
       expect(wasteEffect!.delta).toBeLessThan(0);
       expect(ammoniaEffect).toBeDefined();
       expect(ammoniaEffect!.delta).toBeGreaterThan(0);
-      expect(ammoniaEffect!.delta).toBeCloseTo(-wasteEffect!.delta * nitrogenCycleDefaults.wasteToAmmoniaRatio, 10);
+      expect(ammoniaEffect!.delta).toBeCloseTo(
+        -wasteEffect!.delta * ammoniaPerGramOfFood(DEFAULT_CONFIG.livestock),
+        10
+      );
     });
 
     it('releases minerals with the ammonia, in the organic matter’s own ratio', () => {
@@ -650,8 +661,8 @@ describe('nitrogenCycleSystem', () => {
       for (const nutrient of WASTE_NUTRIENTS) {
         for (const waste of [1, 10, 100]) {
           expect(released(nutrient, waste) / released('ammonia', waste)).toBeCloseTo(
-            DEFAULT_CONFIG.nutrients.releasePerWaste[nutrient] /
-              nitrogenCycleDefaults.wasteToAmmoniaRatio,
+            DEFAULT_CONFIG.nutrients.foodMineralContent[nutrient] /
+              ammoniaPerGramOfFood(DEFAULT_CONFIG.livestock),
             10
           );
         }

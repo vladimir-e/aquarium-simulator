@@ -110,6 +110,18 @@ describe('TunableConfigSchema', () => {
     expect(TunableConfigSchema.safeParse(config).success).toBe(true);
   });
 
+  it('refuses a species demand of nothing, which no plant has', () => {
+    const { nutrients } = DEFAULT_CONFIG;
+    const config = {
+      ...DEFAULT_CONFIG,
+      nutrients: {
+        ...nutrients,
+        demand: { ...nutrients.demand, low: { ...nutrients.demand.low, iron: 0 } },
+      },
+    };
+    expect(TunableConfigSchema.safeParse(config).success).toBe(false);
+  });
+
   it('rejects the old v12 config shape (livestock missing surplusCap)', () => {
     const livestockWithoutCap = { ...DEFAULT_CONFIG.livestock } as Record<string, unknown>;
     delete livestockWithoutCap.surplusCap;

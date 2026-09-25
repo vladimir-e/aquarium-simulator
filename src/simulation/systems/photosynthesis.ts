@@ -99,13 +99,14 @@ function emptyResult(): PhotosynthesisResult {
  *   co2Factor_i = CO2 / (K_i + CO2), the species' carbon Monod
  *   potential_i = size_i × co2Factor_i × lightResponse_i × basePhotosynthesisRate
  *   actual_i    = potential_i × sufficiency_i
+ *   carbon_i    = size_i × lightResponse_i × sufficiency_i × basePhotosynthesisRate × co2PerRateUnit
  *
  * Aggregate outputs, all masses in mg:
  *   capacity_n = Σ potential_i × demand_i,n × uptakePerRateUnit_n
  *   K_n        = capacity-weighted mean of the plants' half-saturations, as mass
  *   uptake_n   = monodUptake(stock_n, capacity_n, K_n)
- *   gh         = monodUptake(GH, uptake_nitrate × GH_PER_NITRATE_DRAWN, GH_HALF_SATURATION)
- *   co2        = Σ actual × co2PerRateUnit, clamped to the dissolved mass
+ *   gh         = monodUptake(GH, uptake_nitrate × GH_PER_NITRATE_DRAWN, GH_HALF_SATURATION as mass)
+ *   co2        = monodUptake(CO2, Σ carbon_i, carbon-weighted mean of the species' CO₂ half-saturations, as mass)
  *   oxygen     = co2 × CO2_TO_O2_MASS_RATIO
  */
 export function calculatePhotosynthesis(
@@ -127,7 +128,9 @@ export function calculatePhotosynthesis(
   const zeros = (): NutrientVector =>
     Object.fromEntries(NUTRIENTS.map((n) => [n, 0])) as NutrientVector;
   const capacity = zeros();
-  const weightedHalfSaturation = zeros();
+  const halfSaturationWeight = zeros();
+  let carbonCapacity = 0;
+  let carbonHalfSaturationWeight = 0;
 
   let potentialSum = 0;
   let actualSum = 0;
@@ -138,51 +141,64 @@ export function calculatePhotosynthesis(
       light,
       getSaturationIrradiance(plant.species, plantsConfig)
     );
-    const co2Factor = calculateCo2Factor(co2, plant.species, plantsConfig);
-    const potential =
-      (plant.size / 100) * co2Factor * lightResponse * plantsConfig.basePhotosynthesisRate;
+    const sufficiency = sufficiencyByPlantId.get(plant.id) ?? 0;
+    const drive = (plant.size / 100) * lightResponse * plantsConfig.basePhotosynthesisRate;
+    const potential = drive * calculateCo2Factor(co2, plant.species, plantsConfig);
     potentialSum += potential;
-    actualSum += potential * (sufficiencyByPlantId.get(plant.id) ?? 0);
+    actualSum += potential * sufficiency;
+
+    const carbon = drive * sufficiency * plantsConfig.co2PerRateUnit;
+    carbonCapacity += carbon;
+    carbonHalfSaturationWeight += carbon * getCo2HalfSaturation(plant.species, plantsConfig);
 
     const demand = speciesDemand(plant.species, nutrientsConfig);
     for (const n of NUTRIENTS) {
       const need = potential * demand[n] * nutrientsConfig.uptakePerRateUnit[n];
       capacity[n] += need;
-      weightedHalfSaturation[n] +=
-        need * speciesHalfSaturation(plant.species, n, nutrientsConfig);
+      halfSaturationWeight[n] += need * speciesHalfSaturation(plant.species, n, nutrientsConfig);
     }
   }
 
+  const draw = (stock: number, cap: number, weight: number): number =>
+    pooledUptake(stock, cap, weight, waterVolume);
   const drawFrom = (n: Nutrient): number =>
-    0 -
-    monodUptake(
-      resources[n],
-      capacity[n],
-      getMassFromPpm(weightedHalfSaturation[n] / capacity[n], waterVolume)
-    );
-  const nitrateDelta = drawFrom('nitrate');
-
-  const co2ConsumedMg = Math.min(
-    actualSum * plantsConfig.co2PerRateUnit,
-    getMassFromPpm(co2, waterVolume)
+    draw(resources[n], capacity[n], halfSaturationWeight[n]);
+  const nitrateDrawn = drawFrom('nitrate');
+  const ghCapacity = nitrateDrawn * GH_PER_NITRATE_DRAWN;
+  const co2ConsumedMg = draw(
+    getMassFromPpm(co2, waterVolume),
+    carbonCapacity,
+    carbonHalfSaturationWeight
   );
 
   return {
     oxygenProducedMg: co2ConsumedMg * CO2_TO_O2_MASS_RATIO,
     co2ConsumedMg,
-    nitrateDelta,
-    phosphateDelta: drawFrom('phosphate'),
-    potassiumDelta: drawFrom('potassium'),
-    ironDelta: drawFrom('iron'),
-    ghDelta:
-      0 -
-      monodUptake(
-        resources.gh,
-        -nitrateDelta * GH_PER_NITRATE_DRAWN,
-        getMassFromPpm(GH_HALF_SATURATION, waterVolume)
-      ),
+    nitrateDelta: drawdown(nitrateDrawn),
+    phosphateDelta: drawdown(drawFrom('phosphate')),
+    potassiumDelta: drawdown(drawFrom('potassium')),
+    ironDelta: drawdown(drawFrom('iron')),
+    ghDelta: drawdown(draw(resources.gh, ghCapacity, ghCapacity * GH_HALF_SATURATION)),
     limitingFactor: potentialSum > 0 ? actualSum / potentialSum : 0,
   };
+}
+
+/**
+ * One Monod draw for a whole planting: `halfSaturationWeight` is Σ capacity_i × K_i
+ * in ppm, so the pooled half-saturation is its capacity-weighted mean.
+ */
+function pooledUptake(
+  stock: number,
+  capacity: number,
+  halfSaturationWeight: number,
+  waterVolume: number
+): number {
+  if (capacity <= 0) return 0;
+  return monodUptake(stock, capacity, getMassFromPpm(halfSaturationWeight / capacity, waterVolume));
+}
+
+function drawdown(uptake: number): number {
+  return uptake > 0 ? -uptake : 0;
 }
 
 /**

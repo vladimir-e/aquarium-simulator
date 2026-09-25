@@ -4,7 +4,7 @@
  *
  * The oxidised share leaves no solid behind, so its nitrogen and minerals go
  * straight to the water: N as NH3, and phosphate, potassium and iron at the
- * food's `releasePerWaste` content.
+ * food's `foodMineralContent`.
  */
 
 import type { Effect } from '../core/effects.js';
@@ -13,7 +13,8 @@ import type { System } from './types.js';
 import type { TunableConfig } from '../config/index.js';
 import { type DecayConfig, decayDefaults } from '../config/decay.js';
 import { monodFactor, q10Factor } from '../core/kinetics.js';
-import { N_TO_NH3_MASS_RATIO, O2_TO_CO2_MASS_RATIO } from '../core/chemistry.js';
+import { O2_TO_CO2_MASS_RATIO } from '../core/chemistry.js';
+import { ammoniaPerGramOfFood } from '../config/livestock.js';
 import { WASTE_NUTRIENTS } from '../config/nutrients.js';
 import { getPpm } from '../resources/index.js';
 
@@ -77,7 +78,6 @@ export const decaySystem: System = {
       );
 
       if (decayAmount > 0) {
-        // Food is consumed
         effects.push({
           tier: 'passive',
           resource: 'food',
@@ -85,7 +85,6 @@ export const decaySystem: System = {
           source: 'decay',
         });
 
-        // Only a fraction becomes solid waste (rest is oxidized)
         const wasteAmount = decayAmount * decayConfig.wasteConversionRatio;
         effects.push({
           tier: 'passive',
@@ -98,14 +97,14 @@ export const decaySystem: System = {
         effects.push({
           tier: 'passive',
           resource: 'ammonia',
-          delta: oxidizedAmount * config.livestock.foodNitrogenFraction * N_TO_NH3_MASS_RATIO * 1000,
+          delta: oxidizedAmount * ammoniaPerGramOfFood(config.livestock),
           source: 'decay',
         });
         for (const nutrient of WASTE_NUTRIENTS) {
           effects.push({
             tier: 'passive',
             resource: nutrient,
-            delta: oxidizedAmount * config.nutrients.releasePerWaste[nutrient],
+            delta: oxidizedAmount * config.nutrients.foodMineralContent[nutrient],
             source: 'decay',
           });
         }

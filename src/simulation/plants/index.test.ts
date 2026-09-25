@@ -302,7 +302,7 @@ describe('processPlants', () => {
         createTestState({
           plants: planting,
           light,
-          co2: INJECTED_CO2,
+          co2: 1e9,
           nitrate: RICH_NITRATE_PPM * water,
           water,
           temperature: 25,
@@ -314,7 +314,7 @@ describe('processPlants', () => {
       return { oxygen: sum('oxygen'), co2: sum('co2') };
     };
 
-    it('moves a lit tank twice as far at half the volume', () => {
+    it('moves a lit tank twice as far at half the volume, on plentiful carbon', () => {
       const small = gasIn(150, 50);
       const large = gasIn(300, 50);
 

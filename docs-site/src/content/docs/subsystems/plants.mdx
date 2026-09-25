@@ -29,6 +29,7 @@ repair first and new tissue second.
 | Photoperiod gates | <Badge text="scaffolding" variant="caution" /> | Two switches on `light > 0`: the light-low stressor and surplus accrual. A light-starved plant swings between 0 and full damage as the lamp flips while its benefits ramp smoothly. |
 | Size against `maxSize` | <Badge text="scaffolding" variant="caution" /> | The ceiling is 600–1100 across the roster and the asymptotic factor stays above 0.9 through any calibration window, so it does not bind. Trimming validates a target in `[0, 100]` against it. |
 | Propagation | <Badge text="missing" variant="danger" /> | A plant with nowhere left to grow banks its whole income and nothing spends it. No runners, no daughter plants — the only way a plant enters the tank is the keeper putting one there. |
+| Plant mineral loop | <Badge text="scaffolding" variant="caution" /> | Shed tissue and dead plants return minerals through waste that uptake never tied to them, so the plant loop is not conserved. |
 | General hardness | <Badge text="scaffolding" variant="caution" /> | A damage-only tolerance band per species, and a small uptake on the nitrate draw. Calcium never enters sufficiency, so soft water stresses a plant but never starves it. |
 
 ## How it works
@@ -72,7 +73,10 @@ So a carpet in an uninjected tank grows slowly on a thin carbon income, and a
 sword or an epiphyte hardly notices the injector.
 
 Actual — the Liebig-gated rate — drives the gases; potential, the tissue light
-and carbon would build, drives nutrient uptake. Both are summed across the
+and carbon would build, drives nutrient uptake. The carbon curve is applied to
+the gases once, as a draw: the planting takes CO₂ on the same end-of-tick Monod
+as the nutrients, at the capacity-weighted mean of its CO₂ half-saturations, so
+a dense planting slows its own draw and never takes the water's last milligram. Both are summed across the
 planting and multiplied by `basePhotosynthesisRate` to give the tank's rate in
 *rate units*, where one unit is an hour of 100 % plant size at saturating carbon
 and light.
@@ -85,7 +89,7 @@ deficiency stressor, and is never counted twice.
 
 | Direction | Carbon | Oxygen |
 |---|---|---|
-| Photosynthesis | `actual × co2PerRateUnit`, clamped to the dissolved mass | derived from the carbon fixed, at `CO2_TO_O2_MASS_RATIO` |
+| Photosynthesis | the Monod draw on `(size/100) × lightResponse × sufficiency × co2PerRateUnit`, read at the tick's closing CO₂ | derived from the carbon fixed, at `CO2_TO_O2_MASS_RATIO` |
 | Respiration | `baseRespirationRate × (size/100) × warmth × air`, then `× co2PerRateUnit` | derived from the carbon released, same ratio |
 
 One reaction run both ways, so one yield. The day/night asymmetry lives entirely
@@ -107,7 +111,7 @@ draws oxygen with the lamps on.
 | `condition` | Repair, withdrawn from the bank during the photoperiod | Stressor damage the bank could not buffer | % |
 | `surplus` | Income left after upkeep and damage, while the lights are on | Unpaid upkeep, buffered damage, repair, growth | bank units, capped at `surplusCap` |
 | `oxygen` | Photosynthesis | Respiration | mg/L |
-| `co2` | Respiration | Photosynthesis, clamped to what is dissolved | mg/L |
+| `co2` | Respiration | Photosynthesis, on its own Monod curve | mg/L |
 | `nitrate` · `phosphate` · `potassium` · `iron` | Dosing; nitrification for NO₃, and mineralized waste and fish excretion for the rest, elsewhere | Uptake on the plant's own need, each nutrient on its own Monod curve | mg |
 | `waste` | Shed tissue and plant death | Mineralization, elsewhere | g |
 
@@ -149,8 +153,7 @@ goes below zero.
 Phosphate, potassium and iron come back the way nitrogen does, all of what food
 carries ([Livestock](/subsystems/livestock/)); waste mineralizes them beside its
 ammonia. Their budget is food and fertilizer in, plant uptake and water changes
-out — except that shed tissue and dead plants return minerals through waste that
-uptake never tied to them, so the plant loop is not conserved. Calcium and
+out. Calcium and
 magnesium are drawn on their own Monod curve, off the nitrate a plant actually
 draws (under Key tunables).
 

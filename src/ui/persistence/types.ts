@@ -26,8 +26,9 @@ import type { TunableConfig } from '../../simulation/config/index.js';
  *
  * v29: Plant nutrition saturates. `NutrientsConfig` swaps the optimal ppm, the
  *      demand multipliers and `phosphatePerDecay` for `uptakePerRateUnit`,
- *      `halfSaturation`, per-tier `demand` vectors and `releasePerWaste`;
+ *      `halfSaturation`, per-tier `demand` vectors and `foodMineralContent`;
  *      `PlantsConfig` drops `nutrientsPerPhotosynthesis` and `optimalNitrate`;
+ *      `NitrogenCycleConfig` drops `wasteToAmmoniaRatio`;
  *      `AlgaeVitalityConfig` gains `referenceNitratePpm` and
  *      `referencePhosphatePpm`.
  * v28: Nitrifiers seed continuously. `NitrogenCycleConfig` drops

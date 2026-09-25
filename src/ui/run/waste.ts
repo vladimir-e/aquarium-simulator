@@ -112,7 +112,7 @@ export function wasteReadout(state: SimulationState, config: TunableConfig): Was
     standing: r.waste,
     mineralised: calculateWasteToAmmonia(
       mineralisationBase(state, config, inflow),
-      config.nitrogenCycle
+      config
     ).wasteConsumed,
     settlingShare,
     settled: r.waste * settlingShare,

@@ -63,7 +63,7 @@ Mass drives every number, and one oxygen factor scales most of them.
 | Gill ammonia, post-prandial | food eaten × `foodNitrogenFraction` × `gillNFraction`, as NH₃ | yes |
 | Gill ammonia, basal | `basalAmmoniaRate × mass` | yes |
 | Feces | food eaten × `(1 − gillNFraction)` | no |
-| Minerals, beside the gill ammonia | food eaten × `gillNFraction` × `releasePerWaste` | no |
+| Minerals, beside the gill ammonia | food eaten × `gillNFraction` × `foodMineralContent` | no |
 
 A fish regulates its uptake until the water falls past its critical oxygen
 tension, so the half-saturation constant sits at 1.0 mg/L — the highest in the
@@ -72,8 +72,8 @@ tank. Fish feel a shortage before the bacteria do.
 Feces sit outside the factor because that nitrogen was never absorbed, and the
 gut does not care what the gills are getting. The nitrogen a depressed fish does
 not deaminate stays in its body, which is an untracked sink. Minerals take no
-such detour: food carries phosphate, potassium and iron at `releasePerWaste`,
-the same per-gram ratio as waste, so every milligram fed returns to the water —
+such detour: food carries phosphate, potassium and iron at `foodMineralContent`,
+and waste carries the same per gram, so every milligram fed returns to the water —
 eaten, through the gills or the feces; uneaten, as it decays.
 
 Damage is a separate reading. The oxygen stressor still charges a fish for the
@@ -235,7 +235,7 @@ visible decline rather than a coin flip.
 | `baseFoodRate` | Full ration for an empty stomach, per gram of fish | `0.01` g/g/hr |
 | `baseRespirationRate` | Oxygen draw per gram, a Monod maximum | `0.3` mg O₂/g/hr |
 | `respirationOxygenHalfSaturation` | O₂ at which the whole metabolism runs at half rate — draw, deamination and CO₂ alike | `1.0` mg/L |
-| `foodNitrogenFraction` | Nitrogen in food, the same 5 % the waste-to-ammonia ratio encodes | `0.05` g N/g |
+| `foodNitrogenFraction` | Nitrogen in food, and in the waste it becomes | `0.05` g N/g |
 | `gillNFraction` | Share of ingested nitrogen leaving through the gills; the rest is feces | `0.8` |
 | `basalAmmoniaRate` | Body-protein turnover per gram, independent of feeding | `0.03` mg NH₃/g/hr |
 | `respiratoryQuotient` | CO₂ exhaled per O₂ consumed, a molar ratio | `0.8` |

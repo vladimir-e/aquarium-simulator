@@ -23,6 +23,7 @@ import { lightSaturationFactor, monodFactor, monodUptake } from '../core/kinetic
 import { getSaturationIrradiance } from '../plants/species.js';
 
 const INJECTED_CO2 = 25;
+const PLENTIFUL_CO2 = 1e9;
 
 /** Nutrients at this many half-saturations: at the default the water all but saturates every plant. */
 function buildResources(
@@ -139,6 +140,16 @@ describe('calculatePhotosynthesis', () => {
       lightSaturationFactor(light, getSaturationIrradiance(p.species, plantsDefaults)) *
       plantsDefaults.basePhotosynthesisRate;
     return potential * speciesDemand(p.species)[n] * nutrientsDefaults.uptakePerRateUnit[n];
+  }
+
+  function carbonCapacity(p: Plant, config = plantsDefaults): number {
+    return (
+      (p.size / 100) *
+      lightSaturationFactor(light, getSaturationIrradiance(p.species, config)) *
+      calculateNutrientSufficiency(buildResources(waterVolume), waterVolume, p.species) *
+      config.basePhotosynthesisRate *
+      config.co2PerRateUnit
+    );
   }
 
   describe('no photosynthesis conditions', () => {
@@ -266,35 +277,65 @@ describe('calculatePhotosynthesis', () => {
     });
 
     it('shares the carbon yield with respiration, which is why there is one of it', () => {
-      const ratio = (config = plantsDefaults): number => {
-        const fixed = photosynthesis([plant(100, 'java_fern')], { config }).co2ConsumedMg;
+      const fern = plant(100, 'java_fern');
+      for (const config of [plantsDefaults, { ...plantsDefaults, co2PerRateUnit: 7 }]) {
+        const respired = calculateRespiration(100, 25, AIR_SATURATED_O2, config).co2ProducedMg;
+        const capacity =
+          ((respired / config.baseRespirationRate) * config.basePhotosynthesisRate) /
+          monodFactor(AIR_SATURATED_O2, config.respirationOxygenHalfSaturation) *
+          lightSaturationFactor(light, getSaturationIrradiance('java_fern', config)) *
+          calculateNutrientSufficiency(buildResources(waterVolume), waterVolume, 'java_fern');
 
-        return calculateRespiration(100, 25, AIR_SATURATED_O2, config).co2ProducedMg / fixed;
-      };
-      const expected =
-        (plantsDefaults.baseRespirationRate / plantsDefaults.basePhotosynthesisRate) *
-        monodFactor(AIR_SATURATED_O2, plantsDefaults.respirationOxygenHalfSaturation) /
-        lightSaturationFactor(light, getSaturationIrradiance('java_fern', plantsDefaults)) /
-        calculateCo2Factor(INJECTED_CO2, 'java_fern') /
-        calculateNutrientSufficiency(buildResources(waterVolume), waterVolume, 'java_fern');
-
-      expect(ratio()).toBeCloseTo(expected, 6);
-      expect(ratio({ ...plantsDefaults, co2PerRateUnit: 7 })).toBeCloseTo(expected, 6);
+        expect(photosynthesis([fern], { config }).co2ConsumedMg).toBeCloseTo(
+          monodUptake(
+            INJECTED_CO2 * waterVolume,
+            capacity,
+            plantsDefaults.lowCo2HalfSaturation * waterVolume
+          ),
+          10
+        );
+      }
     });
 
-    it('makes no oxygen from carbon the water does not hold', () => {
-      const nano = 20;
-      const scarce = 5;
-      const starved = photosynthesis(
-        [plant(600, 'java_fern'), plant(500, 'java_fern'), plant(400, 'java_fern')],
-        { co2: scarce, resources: buildResources(nano), volume: nano }
-      );
+    it('draws carbon on the Monod curve read at the CO₂ the tick ends on', () => {
+      const fern = plant(100, 'java_fern');
+      const k = plantsDefaults.lowCo2HalfSaturation;
+      for (const co2 of [0.01, 0.5, k, 10, 1e4]) {
+        expect(photosynthesis([fern], { co2 }).co2ConsumedMg).toBeCloseTo(
+          monodUptake(co2 * waterVolume, carbonCapacity(fern), k * waterVolume),
+          12
+        );
+      }
+    });
 
-      expect(starved.co2ConsumedMg).toBeCloseTo(scarce * nano, 10);
-      expect(starved.oxygenProducedMg).toBeCloseTo(
-        starved.co2ConsumedMg * CO2_TO_O2_MASS_RATIO,
-        10
+    it('pools the carbon draw at the capacity-weighted CO₂ half-saturation', () => {
+      const fern = plant(300, 'java_fern');
+      const monte = plant(100, 'monte_carlo');
+      const [a, b] = [carbonCapacity(fern), carbonCapacity(monte)];
+      const weighted =
+        (a * plantsDefaults.lowCo2HalfSaturation + b * plantsDefaults.highCo2HalfSaturation) /
+        (a + b);
+
+      expect(photosynthesis([fern, monte], { co2: 2 }).co2ConsumedMg).toBeCloseTo(
+        monodUptake(2 * waterVolume, a + b, weighted * waterVolume),
+        12
       );
+    });
+
+    it('never takes all the carbon the water holds, however dense the planting', () => {
+      const nano = 40;
+      const ferns = [1, 2, 3, 4].map((i) => ({ ...plant(100, 'java_fern'), id: `fern-${i}` }));
+      for (const co2 of [0.3, 1.5, 5]) {
+        const drawn = photosynthesis(ferns, {
+          co2,
+          resources: buildResources(nano),
+          volume: nano,
+        });
+
+        expect(drawn.co2ConsumedMg).toBeGreaterThan(0);
+        expect(drawn.co2ConsumedMg).toBeLessThan(co2 * nano);
+        expect(drawn.oxygenProducedMg).toBeCloseTo(drawn.co2ConsumedMg * CO2_TO_O2_MASS_RATIO, 10);
+      }
     });
   });
 
@@ -302,25 +343,30 @@ describe('calculatePhotosynthesis', () => {
     it('moves the same gas mass whatever the tank around the plants', () => {
       const plants = [plant(100, 'java_fern')];
       const small = photosynthesis(plants, {
+        co2: PLENTIFUL_CO2,
         resources: buildResources(150, {}, 10),
         volume: 150,
       });
       const large = photosynthesis(plants, {
+        co2: PLENTIFUL_CO2,
         resources: buildResources(300, {}, 10),
         volume: 300,
       });
 
-      expect(large.oxygenProducedMg).toBeCloseTo(small.oxygenProducedMg, 10);
-      expect(large.co2ConsumedMg).toBeCloseTo(small.co2ConsumedMg, 10);
+      expect(large.oxygenProducedMg).toBeCloseTo(small.oxygenProducedMg, 6);
+      expect(large.co2ConsumedMg).toBeCloseTo(small.co2ConsumedMg, 6);
     });
 
     it('moves the concentration by the volume ratio', () => {
       const plants = [plant(100, 'java_fern')];
       const perLitre = (volume: number): number =>
-        photosynthesis(plants, { resources: buildResources(volume, {}, 10), volume })
-          .oxygenProducedMg / volume;
+        photosynthesis(plants, {
+          co2: PLENTIFUL_CO2,
+          resources: buildResources(volume, {}, 10),
+          volume,
+        }).oxygenProducedMg / volume;
 
-      expect(perLitre(150) / perLitre(300)).toBeCloseTo(2, 10);
+      expect(perLitre(150) / perLitre(300)).toBeCloseTo(2, 6);
     });
   });
 
@@ -403,13 +449,6 @@ describe('calculatePhotosynthesis', () => {
       expect(-result.phosphateDelta).toBeLessThanOrEqual(1e-6);
     });
 
-    it('scales biomass with the carbon factor', () => {
-      const at = (co2: number): PhotosynthesisResult =>
-        photosynthesis([plant(100, 'java_fern')], { co2 });
-      const ratio = calculateCo2Factor(4, 'java_fern') / calculateCo2Factor(20, 'java_fern');
-
-      expect(at(4).oxygenProducedMg / at(20).oxygenProducedMg).toBeCloseTo(ratio, 6);
-    });
   });
 
   describe('scaling with light intensity', () => {
@@ -471,24 +510,26 @@ describe('calculatePhotosynthesis', () => {
     });
 
     it('reads each plant at its own species, not the tank at an average', () => {
-      const shade = at(30, 'anubias').oxygenProducedMg;
-      const sun = at(30, 'monte_carlo').oxygenProducedMg;
-      const together = photosynthesis([plant(100, 'anubias'), plant(100, 'monte_carlo')], {
-        lightPar: 30,
-        resources: buildResources(waterVolume, {}, 10),
-      });
+      const made = (plants: Plant[]): number =>
+        photosynthesis(plants, {
+          co2: PLENTIFUL_CO2,
+          lightPar: 30,
+          resources: buildResources(waterVolume, {}, 10),
+        }).oxygenProducedMg;
+      const shade = made([plant(100, 'anubias')]);
+      const sun = made([plant(100, 'monte_carlo')]);
 
-      expect(together.oxygenProducedMg).toBeCloseTo(shade + sun, 10);
+      expect(made([plant(100, 'anubias'), plant(100, 'monte_carlo')])).toBeCloseTo(shade + sun, 6);
     });
   });
 
   describe('scaling with plant size', () => {
-    it('biomass scales linearly with plant size', () => {
-      const r100 = photosynthesis([plant(100, 'java_fern')]);
-      const r200 = photosynthesis([plant(200, 'java_fern')]);
+    it('biomass scales linearly with plant size while the carbon is plentiful', () => {
+      const r100 = photosynthesis([plant(100, 'java_fern')], { co2: PLENTIFUL_CO2 });
+      const r200 = photosynthesis([plant(200, 'java_fern')], { co2: PLENTIFUL_CO2 });
 
-      expect(r200.oxygenProducedMg).toBeCloseTo(r100.oxygenProducedMg * 2, 4);
-      expect(r200.co2ConsumedMg).toBeCloseTo(r100.co2ConsumedMg * 2, 4);
+      expect(r200.oxygenProducedMg).toBeCloseTo(r100.oxygenProducedMg * 2, 6);
+      expect(r200.co2ConsumedMg).toBeCloseTo(r100.co2ConsumedMg * 2, 6);
     });
 
     it('sums contributions from multiple plants', () => {

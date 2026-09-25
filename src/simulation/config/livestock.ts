@@ -10,6 +10,7 @@
  */
 
 import { SURPLUS_CAP_DEFAULT } from './vitality.js';
+import { N_TO_NH3_MASS_RATIO } from '../core/chemistry.js';
 
 export interface LivestockConfig {
   // Metabolism
@@ -33,9 +34,8 @@ export interface LivestockConfig {
    *
    * Typical aquarium flake/pellet food is 35–50 % protein, protein is
    * ≈16 % N by mass, giving 5.6–8 % N in food. 0.05 is a conservative
-   * floor and matches the engine's existing waste → NH3 assumption
-   * (`wasteToAmmoniaRatio = 60 mg NH3/g waste` embeds 5 % N). Surfacing
-   * this here makes the coupling explicit for calibration.
+   * floor. Waste is food that went uneaten or undigested, so it carries the
+   * same fraction into mineralization.
    */
   foodNitrogenFraction: number;
   /**
@@ -202,8 +202,7 @@ export const livestockDefaults: LivestockConfig = {
   // Damage is a separate reading: `oxygenStressThreshold` still charges a fish
   // for the water it is in, so a suffocating fish draws less and suffers more.
   respirationOxygenHalfSaturation: 1.0,
-  // 5 % N in food — conservative; typical flake is 6–8 % N. Matches the
-  // engine's existing waste → NH3 ratio.
+  // 5 % N in food — conservative; typical flake is 6–8 % N.
   foodNitrogenFraction: 0.05,
   // 80 % of ingested N excreted directly through gills; 20 % via feces.
   gillNFraction: 0.8,
@@ -330,6 +329,11 @@ export const livestockDefaults: LivestockConfig = {
   // Death
   deathDecayFactor: 0.5, // Half fish mass becomes waste
 };
+
+/** mg of NH₃ a gram of food, or of the waste it becomes, yields once mineralized. */
+export function ammoniaPerGramOfFood(config: LivestockConfig): number {
+  return config.foodNitrogenFraction * N_TO_NH3_MASS_RATIO * 1000;
+}
 
 export interface LivestockConfigMeta {
   key: keyof LivestockConfig;

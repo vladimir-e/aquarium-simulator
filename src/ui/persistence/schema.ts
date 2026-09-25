@@ -346,7 +346,6 @@ const DecayConfigSchema = z
 const NitrogenCycleConfigSchema = z
   .object({
     wasteConversionRate: z.number(),
-    wasteToAmmoniaRatio: z.number(),
     bacteriaProcessingRate: z.number(),
     seedingRate: z.number(),
     aobGrowthRate: z.number(),
@@ -473,13 +472,13 @@ const PlantsConfigSchema = z
   .strict();
 
 const numbersFor = <K extends string>(
-  keys: readonly K[]
+  keys: readonly K[],
+  leaf: z.ZodNumber = z.number()
 ): z.ZodObject<Record<K, z.ZodNumber>, z.core.$strict> =>
-  z
-    .object(Object.fromEntries(keys.map((k) => [k, z.number()])) as Record<K, z.ZodNumber>)
-    .strict();
+  z.object(Object.fromEntries(keys.map((k) => [k, leaf])) as Record<K, z.ZodNumber>).strict();
 
 const NutrientVectorSchema = numbersFor(NUTRIENTS);
+const DemandVectorSchema = numbersFor(NUTRIENTS, z.number().min(0.01));
 
 const NutrientsConfigSchema = z
   .object({
@@ -487,9 +486,9 @@ const NutrientsConfigSchema = z
     uptakePerRateUnit: NutrientVectorSchema,
     halfSaturation: NutrientVectorSchema,
     demand: z
-      .object({ low: NutrientVectorSchema, medium: NutrientVectorSchema, high: NutrientVectorSchema })
+      .object({ low: DemandVectorSchema, medium: DemandVectorSchema, high: DemandVectorSchema })
       .strict(),
-    releasePerWaste: numbersFor(WASTE_NUTRIENTS),
+    foodMineralContent: numbersFor(WASTE_NUTRIENTS),
   })
   .strict();
 

@@ -72,7 +72,7 @@ describe('processLivestock', () => {
         (e) => e.resource === nutrient && e.source === 'fish-gill-excretion'
       );
       expect(excreted!.delta).toBeCloseTo(
-        eaten * DEFAULT_CONFIG.livestock.gillNFraction * DEFAULT_CONFIG.nutrients.releasePerWaste[nutrient],
+        eaten * DEFAULT_CONFIG.livestock.gillNFraction * DEFAULT_CONFIG.nutrients.foodMineralContent[nutrient],
         12
       );
     }

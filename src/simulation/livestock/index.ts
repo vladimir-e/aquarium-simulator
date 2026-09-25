@@ -54,7 +54,7 @@ export function processLivestock(
     state.resources.food,
     state.resources.oxygen,
     livestockConfig,
-    config.nutrients.releasePerWaste
+    config.nutrients.foodMineralContent
   );
 
   // Add metabolism effects

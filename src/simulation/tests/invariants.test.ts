@@ -18,18 +18,16 @@ function run(state: SimulationState, hours: number): SimulationState {
 
 function nitrogenInPools({ resources, equipment }: SimulationState): number {
   const { food, waste, ammonia, nitrite, nitrate } = resources;
-  const organics = waste + equipment.substrate.organicReserve;
-  const { livestock, nitrogenCycle } = DEFAULT_CONFIG;
+  const organics = food + waste + equipment.substrate.organicReserve;
   return (
-    food * livestock.foodNitrogenFraction +
-    (organics * nitrogenCycle.wasteToAmmoniaRatio * MW_N) / MW_NH3 / 1000 +
+    organics * DEFAULT_CONFIG.livestock.foodNitrogenFraction +
     ((ammonia / MW_NH3 + nitrite / MW_NO2 + nitrate / MW_NO3) * MW_N) / 1000
   );
 }
 
 function mineralsInPools({ resources, equipment }: SimulationState, n: WasteNutrient): number {
   const organics = resources.food + resources.waste + equipment.substrate.organicReserve;
-  return organics * DEFAULT_CONFIG.nutrients.releasePerWaste[n] + resources[n];
+  return organics * DEFAULT_CONFIG.nutrients.foodMineralContent[n] + resources[n];
 }
 
 function tetra(id: string): Fish {
@@ -84,6 +82,16 @@ describe('nitrogen mass', () => {
 
     expect(end.resources.waste).toBeLessThan(0.05);
     expect(nitrogenInPools(end) / nitrogenInPools(start)).toBeCloseTo(1, 2);
+  });
+
+  it('is conserved as uneaten food decays and its waste mineralizes', () => {
+    const start = produce(cycledBareTank(), (draft) => {
+      draft.resources.food = 5;
+    });
+    const end = run(start, 2000);
+
+    expect(end.resources.food + end.resources.waste).toBeLessThan(0.05);
+    expect(nitrogenInPools(end) / nitrogenInPools(start)).toBeCloseTo(1, 10);
   });
 
   it('is conserved through the bed, as waste settles in and leaches back out', () => {

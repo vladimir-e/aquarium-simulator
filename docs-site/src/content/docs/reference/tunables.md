@@ -54,7 +54,6 @@ off — which is the part that makes a number checkable.
 | Tunable | Meaning | Unit |
 |---|---|---|
 | `wasteConversionRate` | Share of standing waste mineralized to ammonia per tick | /tick |
-| `wasteToAmmoniaRatio` | Ammonia yielded per gram of waste | mg/g |
 | `bacteriaProcessingRate` | Ammonia one bacteria unit oxidises per tick, at saturating oxygen | mg/unit/tick |
 | `seedingRate` | Nitrifiers settling into the tank per litre of water per tick, each guild | units/L/tick |
 | `aobGrowthRate` | AOB per-capita growth at full utilization | /tick |
@@ -178,7 +177,7 @@ sum once, centrally, rather than each channel scaling itself.
 | `uptakePerRateUnit.*` | What a full-demand plant takes of each nutrient per rate unit of photosynthetic drive | mg |
 | `halfSaturation.*` | The ppm at which a full-demand plant's uptake and sufficiency run at half | ppm |
 | `demand.low.*` · `demand.medium.*` · `demand.high.*` | Each tier's share of the full need, per nutrient; scales both uptake and half-saturation | — |
-| `releasePerWaste.phosphate` · `.potassium` · `.iron` | Minerals released alongside the ammonia, per gram of waste | mg/g |
+| `foodMineralContent.phosphate` · `.potassium` · `.iron` | Minerals in a gram of food, and in the waste it becomes | mg/g |
 
 ## Livestock
 
@@ -187,7 +186,7 @@ sum once, centrally, rather than each channel scaling itself.
 | `baseFoodRate` | Food a fish ingests per gram of body mass per hour | g/g/hr |
 | `baseRespirationRate` | Oxygen a fish draws per gram per hour — a Monod maximum | mg O₂/g/hr |
 | `respirationOxygenHalfSaturation` | Dissolved O₂ at which uptake falls to half; it scales the ammonia streams too | mg/L |
-| `foodNitrogenFraction` | Share of ingested food mass that is nitrogen | g N/g food |
+| `foodNitrogenFraction` | Share of food mass that is nitrogen — eaten, decayed, or mineralized as waste | g N/g food |
 | `gillNFraction` | Share of ingested nitrogen excreted straight through the gills; the rest leaves as feces | — |
 | `basalAmmoniaRate` | Gill ammonia from body protein turnover, produced whether or not the fish ate | mg NH₃/g/hr |
 | `respiratoryQuotient` | Moles of CO₂ exhaled per mole of O₂ consumed | — |

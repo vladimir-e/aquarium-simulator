@@ -49,7 +49,7 @@ export {
   WASTE_NUTRIENTS,
   type NutrientVector,
   type WasteNutrient,
-  type WasteRelease,
+  type MineralVector,
   type NutrientsConfig,
   type FertilizerFormula,
   nutrientsDefaults,
@@ -57,7 +57,7 @@ export {
   uptakeMeta,
   halfSaturationMeta,
   demandMeta,
-  releasePerWasteMeta,
+  foodMineralContentMeta,
 } from './nutrients.js';
 export {
   type LivestockConfig,
@@ -105,7 +105,7 @@ import {
   uptakeMeta,
   halfSaturationMeta,
   demandMeta,
-  releasePerWasteMeta,
+  foodMineralContentMeta,
 } from './nutrients.js';
 import { type LivestockConfig, livestockDefaults, livestockConfigMeta } from './livestock.js';
 
@@ -153,7 +153,7 @@ type NestedNutrientsPath =
   | 'nutrients.fertilizerFormula'
   | 'nutrients.uptakePerRateUnit'
   | 'nutrients.halfSaturation'
-  | 'nutrients.releasePerWaste'
+  | 'nutrients.foodMineralContent'
   | `nutrients.demand.${keyof NutrientsConfig['demand']}`;
 
 const CONFIG_META: ReadonlyMap<string, readonly RangedMeta[]> = new Map(
@@ -174,7 +174,7 @@ const CONFIG_META: ReadonlyMap<string, readonly RangedMeta[]> = new Map(
     'nutrients.demand.low': demandMeta,
     'nutrients.demand.medium': demandMeta,
     'nutrients.demand.high': demandMeta,
-    'nutrients.releasePerWaste': releasePerWasteMeta,
+    'nutrients.foodMineralContent': foodMineralContentMeta,
     livestock: livestockConfigMeta,
   } satisfies Record<keyof TunableConfig | NestedNutrientsPath, readonly RangedMeta[]>)
 );

@@ -133,7 +133,7 @@ describe('decaySystem', () => {
     );
     for (const nutrient of WASTE_NUTRIENTS) {
       expect(released(nutrient)).toBeCloseTo(
-        oxidized * DEFAULT_CONFIG.nutrients.releasePerWaste[nutrient],
+        oxidized * DEFAULT_CONFIG.nutrients.foodMineralContent[nutrient],
         10
       );
     }

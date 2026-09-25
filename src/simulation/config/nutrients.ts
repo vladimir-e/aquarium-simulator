@@ -1,7 +1,7 @@
 /**
  * Nutrients tunable configuration: what the fertilizer carries, what plants
  * take and how hard each species leans on the water column for it, and the
- * minerals that ride with nitrogen out of mineralized waste.
+ * minerals fish food carries into the tank.
  */
 
 import type { NutrientDemand } from '../plants/species.js';
@@ -16,7 +16,7 @@ export const WASTE_NUTRIENTS = ['phosphate', 'potassium', 'iron'] as const;
 
 export type WasteNutrient = (typeof WASTE_NUTRIENTS)[number];
 
-export type WasteRelease = Record<WasteNutrient, number>;
+export type MineralVector = Record<WasteNutrient, number>;
 
 /** Nutrients provided per 1 ml of all-in-one fertilizer, mg. */
 export type FertilizerFormula = NutrientVector;
@@ -35,8 +35,11 @@ export interface NutrientsConfig {
    * It scales both the uptake and the half-saturation.
    */
   demand: Record<NutrientDemand, NutrientVector>;
-  /** Minerals released alongside the ammonia, per gram of waste (mg/g). */
-  releasePerWaste: WasteRelease;
+  /**
+   * mg of each mineral in a gram of food, and in the waste it becomes. Its
+   * nitrogen is `livestock.foodNitrogenFraction`.
+   */
+  foodMineralContent: MineralVector;
 }
 
 export const nutrientsDefaults: NutrientsConfig = {
@@ -73,10 +76,9 @@ export const nutrientsDefaults: NutrientsConfig = {
     high: { nitrate: 1, phosphate: 1, potassium: 1, iron: 1 },
   },
 
-  // Waste is 5 % N (`wasteToAmmoniaRatio`). Fish food and the organic matter
-  // it becomes carry N:P ≈ 7 by mass (~20 mg PO₄/g), about 1 % K and a few
-  // hundred ppm Fe.
-  releasePerWaste: {
+  // Against its 5 % N, fish food carries N:P ≈ 7 by mass (~20 mg PO₄/g),
+  // about 1 % K and a few hundred ppm Fe.
+  foodMineralContent: {
     phosphate: 20,
     potassium: 8,
     iron: 0.2,
@@ -120,8 +122,8 @@ export const demandMeta: NutrientVectorMeta[] = [
   { key: 'iron', label: 'Iron demand', unit: '× full', min: 0.01, max: 1, step: 0.01 },
 ];
 
-export const releasePerWasteMeta: NutrientVectorMeta[] = [
-  { key: 'phosphate', label: 'Phosphate per waste', unit: 'mg/g', min: 0, max: 100, step: 1 },
-  { key: 'potassium', label: 'Potassium per waste', unit: 'mg/g', min: 0, max: 50, step: 0.5 },
-  { key: 'iron', label: 'Iron per waste', unit: 'mg/g', min: 0, max: 2, step: 0.01 },
+export const foodMineralContentMeta: NutrientVectorMeta[] = [
+  { key: 'phosphate', label: 'Phosphate in food', unit: 'mg/g', min: 0, max: 100, step: 1 },
+  { key: 'potassium', label: 'Potassium in food', unit: 'mg/g', min: 0, max: 50, step: 0.5 },
+  { key: 'iron', label: 'Iron in food', unit: 'mg/g', min: 0, max: 2, step: 0.01 },
 ];

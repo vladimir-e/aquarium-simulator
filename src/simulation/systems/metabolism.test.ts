@@ -139,7 +139,7 @@ describe('processMetabolism', () => {
   });
 
   it('returns every milligram of eaten mineral to the water, gills and feces together', () => {
-    const release = nutrientsDefaults.releasePerWaste;
+    const release = nutrientsDefaults.foodMineralContent;
     for (const oxygen of [AMPLE_O2, 0.2]) {
       const r = processMetabolism(
         [makeFish({ satiation: 0, mass: 2 }), makeFish({ id: 'fish_2', satiation: 60 })],
@@ -163,7 +163,7 @@ describe('processMetabolism', () => {
       r.foodConsumed * livestockDefaults.foodNitrogenFraction * livestockDefaults.gillNFraction;
     for (const n of WASTE_NUTRIENTS) {
       expect(r.mineralsExcreted[n]).toBeCloseTo(
-        (nToGills * nutrientsDefaults.releasePerWaste[n]) / livestockDefaults.foodNitrogenFraction,
+        (nToGills * nutrientsDefaults.foodMineralContent[n]) / livestockDefaults.foodNitrogenFraction,
         10
       );
     }

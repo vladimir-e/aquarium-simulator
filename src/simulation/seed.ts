@@ -17,7 +17,7 @@ import { nitrogenCycleDefaults } from './config/nitrogen-cycle.js';
 import { calculateMaxBacteria, restingColony } from './systems/nitrogen-cycle.js';
 import { processMetabolism } from './systems/metabolism.js';
 import { plantsDefaults } from './config/plants.js';
-import { livestockDefaults } from './config/livestock.js';
+import { ammoniaPerGramOfFood, livestockDefaults } from './config/livestock.js';
 import { decayDefaults } from './config/decay.js';
 import { NH3_TO_NO2_MASS_RATIO, NO2_TO_NO3_MASS_RATIO } from './core/chemistry.js';
 import { getGhMass, getKhMass } from './resources/helpers.js';
@@ -149,7 +149,7 @@ function restingAmmoniaSupply(state: StockedTank): number {
     livestockDefaults
   );
   const leached = calculateSubstrateLeach(state.equipment.substrate.organicReserve, decayDefaults);
-  return ammoniaProduced + (wasteProduced + leached) * nitrogenCycleDefaults.wasteToAmmoniaRatio;
+  return ammoniaProduced + (wasteProduced + leached) * ammoniaPerGramOfFood(livestockDefaults);
 }
 
 /**
@@ -191,7 +191,7 @@ export function cycledKhReserve(type: SubstrateType, capacity: number): number {
  * nitrogen and picking up the mass of the oxygen it gains.
  */
 const NITRATE_PER_GRAM_LEACHED =
-  nitrogenCycleDefaults.wasteToAmmoniaRatio * NH3_TO_NO2_MASS_RATIO * NO2_TO_NO3_MASS_RATIO;
+  ammoniaPerGramOfFood(livestockDefaults) * NH3_TO_NO2_MASS_RATIO * NO2_TO_NO3_MASS_RATIO;
 
 /**
  * Share of that nitrate still in the water. Nothing in a fishless tank

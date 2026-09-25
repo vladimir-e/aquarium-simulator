@@ -41,7 +41,7 @@ tank has to keep earning.
 
 | Stage | Reaction | Run by |
 |---|---|---|
-| 1 · Mineralization | waste (g) → NH₃ + PO₄ + K + Fe (mg) | No organism. A flat fraction of standing waste, times a stoichiometric N, P, K and Fe content. |
+| 1 · Mineralization | waste (g) → NH₃ + PO₄ + K + Fe (mg) | No organism. A flat fraction of standing waste, at the N, P, K and Fe content of the food it came from. |
 | 2 · Ammonia oxidation | NH₄⁺ + 1.5 O₂ → NO₂⁻ + 2 H⁺ + H₂O | AOB, saturating on what is dissolved |
 | 3 · Nitrite oxidation | NO₂⁻ + 0.5 O₂ → NO₃⁻ | NOB, saturating on what is dissolved |
 
@@ -67,7 +67,7 @@ separately. A tank that cannot run the reaction does not pay for it.
 |---|---|---|---|
 | `waste` | Food decay, fish feces, fish death, plant tissue loss, substrate leaching | Mineralization to ammonia; settling into the bed | g |
 | `ammonia` | Mineralization; fish gill excretion; the oxidised share of decaying food | AOB oxidation; water change removes proportional mass | mg |
-| `phosphate` · `potassium` · `iron` | Mineralization, at `releasePerWaste` beside the ammonia; fish excretion; the oxidised share of decaying food; fertilizer dosing | Plant uptake; water change | mg |
+| `phosphate` · `potassium` · `iron` | Mineralization, at `foodMineralContent` beside the ammonia; fish excretion; the oxidised share of decaying food; fertilizer dosing | Plant uptake; water change | mg |
 | `nitrite` | AOB oxidation, × 2.702 | NOB oxidation; water change | mg |
 | `nitrate` | NOB oxidation, × 1.348; fertilizer dosing | Plant uptake; water change | mg |
 | `aob` | Seeding trickle; logistic growth on utilization | Maintenance decay; surface-area cap | units of 10⁶ cells |
@@ -249,7 +249,6 @@ overfeeds grows its colony on from the seed.
 | Constant | Meaning | Unit |
 |---|---|---|
 | `wasteConversionRate` | Share of standing waste mineralized per tick | `0.3` /tick |
-| `wasteToAmmoniaRatio` | NH₃ yielded per gram of waste — waste is ≈ 5 % N by dry mass | `60` mg/g |
 | `bacteriaProcessingRate` | NH₃ one bacteria unit oxidises per tick, Monod maximum | `2.07e-4` mg/unit/tick |
 | `seedingRate` | Nitrifiers settling into the tank per litre of water, each guild | `0.0001` units/L/tick |
 | `aobGrowthRate` | Per-capita growth at full utilization — a 20 h doubling | `0.035898` /tick |
