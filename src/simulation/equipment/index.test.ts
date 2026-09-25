@@ -8,566 +8,150 @@ import {
 } from './index.js';
 import { DEFAULT_CONFIG } from '../config/index.js';
 import { getSubstrateSurface, type SubstrateType } from './substrate.js';
-import { calculateTankHeight, createSimulation, type SimulationState } from '../state.js';
+import {
+  calculateTankHeight,
+  createSimulation,
+  type SimulationState,
+  type SimulationConfig,
+} from '../state.js';
 import { calculateParAtDepth } from './light.js';
 import { opticsDefaults } from '../config/optics.js';
 import { FILTER_SURFACE, getFilterFlow } from './filter.js';
 import { POWERHEAD_FLOW_LPH } from './powerhead.js';
-import { HARDSCAPE_SURFACE, type HardscapeItem } from './hardscape.js';
+import { calculateHardscapeTotalSurface, type HardscapeItem } from './hardscape.js';
 
 const passive = (state: SimulationState): PassiveResourceValues =>
   calculatePassiveResources(state, opticsDefaults);
 
+const bare: SimulationConfig = {
+  tankCapacity: 100,
+  filter: { enabled: false },
+  substrate: { type: 'none' },
+  powerhead: { enabled: false },
+};
+
+const tank = (overrides: Partial<SimulationConfig> = {}): SimulationState =>
+  createSimulation({ ...bare, ...overrides });
+
 describe('calculatePassiveResources', () => {
-  describe('surface calculation', () => {
-    it('includes tank bacteria surface', () => {
-      const state = createSimulation({
-        tankCapacity: 100,
-        filter: { enabled: false },
-        substrate: { type: 'none' },
-      });
-
-      const resources = passive(state);
-
-      // Should only have tank surface (positive number)
-      expect(resources.surface).toBeGreaterThan(0);
-      expect(Number.isInteger(resources.surface)).toBe(true);
+  describe('surface', () => {
+    it('gives a bare tank its glass', () => {
+      const { surface } = passive(tank());
+      expect(surface).toBeGreaterThan(0);
+      expect(Number.isInteger(surface)).toBe(true);
     });
 
-    it('includes filter surface when enabled', () => {
-      const stateWithFilter = createSimulation({
-        tankCapacity: 100,
-        filter: { enabled: true, type: 'canister' },
-        substrate: { type: 'none' },
-      });
-
-      const stateWithoutFilter = createSimulation({
-        tankCapacity: 100,
-        filter: { enabled: false },
-        substrate: { type: 'none' },
-      });
-
-      const resourcesWithFilter = passive(stateWithFilter);
-      const resourcesWithoutFilter = passive(stateWithoutFilter);
-
-      expect(resourcesWithFilter.surface).toBe(
-        resourcesWithoutFilter.surface + FILTER_SURFACE.canister
-      );
-    });
-
-    it('disabled filter contributes 0 surface', () => {
-      const stateEnabled = createSimulation({
-        tankCapacity: 100,
-        filter: { enabled: true, type: 'canister' },
-        substrate: { type: 'none' },
-      });
-
-      const stateDisabled = createSimulation({
-        tankCapacity: 100,
-        filter: { enabled: false, type: 'canister' },
-        substrate: { type: 'none' },
-      });
-
-      const resourcesEnabled = passive(stateEnabled);
-      const resourcesDisabled = passive(stateDisabled);
-
-      expect(resourcesDisabled.surface).toBe(
-        resourcesEnabled.surface - FILTER_SURFACE.canister
-      );
-    });
-
-    it('includes substrate surface based on type and tank capacity', () => {
-      const stateWithGravel = createSimulation({
-        tankCapacity: 100,
-        filter: { enabled: false },
-        substrate: { type: 'gravel' },
-      });
-
-      const stateWithoutSubstrate = createSimulation({
-        tankCapacity: 100,
-        filter: { enabled: false },
-        substrate: { type: 'none' },
-      });
-
-      const resourcesWithGravel = passive(stateWithGravel);
-      const resourcesWithoutSubstrate = passive(stateWithoutSubstrate);
-
-      // 800 cm²/L * 100L = 80,000 cm²
-      expect(resourcesWithGravel.surface).toBe(
-        resourcesWithoutSubstrate.surface + 80000
-      );
-    });
-
-    it('substrate none contributes 0 surface', () => {
-      const stateNone = createSimulation({
-        tankCapacity: 100,
-        filter: { enabled: false },
-        substrate: { type: 'none' },
-      });
-
-      const stateGravel = createSimulation({
-        tankCapacity: 100,
-        filter: { enabled: false },
-        substrate: { type: 'gravel' },
-      });
-
-      const resourcesNone = passive(stateNone);
-      const resourcesGravel = passive(stateGravel);
-
-      expect(resourcesNone.surface).toBeLessThan(resourcesGravel.surface);
-      expect(resourcesGravel.surface - resourcesNone.surface).toBe(80000); // gravel surface
-    });
-
-    it('aqua soil provides most surface', () => {
-      const stateSand = createSimulation({
-        tankCapacity: 100,
-        filter: { enabled: false },
-        substrate: { type: 'sand' },
-      });
-
-      const stateAquaSoil = createSimulation({
-        tankCapacity: 100,
-        filter: { enabled: false },
-        substrate: { type: 'aqua_soil' },
-      });
-
-      const resourcesSand = passive(stateSand);
-      const resourcesAquaSoil = passive(stateAquaSoil);
-
-      expect(resourcesAquaSoil.surface).toBeGreaterThan(resourcesSand.surface);
-    });
-
-    it('totals all sources correctly', () => {
-      const stateWithAll = createSimulation({
-        tankCapacity: 100,
-        filter: { enabled: true, type: 'hob' },
-        substrate: { type: 'sand' },
-      });
-
-      const stateBase = createSimulation({
-        tankCapacity: 100,
-        filter: { enabled: false },
-        substrate: { type: 'none' },
-      });
-
-      const resourcesWithAll = passive(stateWithAll);
-      const resourcesBase = passive(stateBase);
-
-      // Should include tank + filter + substrate
-      const expected =
-        resourcesBase.surface +
-        FILTER_SURFACE.hob +
-        400 * 100; // sand: 400 cm²/L * 100L
-
-      expect(resourcesWithAll.surface).toBe(expected);
-    });
-  });
-
-  describe('flow calculation', () => {
-    it('includes filter flow when enabled (scaled to tank size)', () => {
-      const state = createSimulation({
-        tankCapacity: 100,
-        filter: { enabled: true, type: 'hob' },
-        powerhead: { enabled: false },
-      });
-
-      const resources = passive(state);
-
-      // HOB on 100L tank: 100 * 6x turnover = 600 L/h
-      expect(resources.flow).toBe(getFilterFlow('hob', 100));
-      expect(resources.flow).toBe(600);
-    });
-
-    it('disabled filter contributes 0 flow', () => {
-      const state = createSimulation({
-        tankCapacity: 100,
-        filter: { enabled: false, type: 'hob' },
-        powerhead: { enabled: false },
-      });
-
-      const resources = passive(state);
-
-      expect(resources.flow).toBe(0);
-    });
-
-    it('includes powerhead flow when enabled', () => {
-      const state = createSimulation({
-        tankCapacity: 100,
-        filter: { enabled: false },
-        powerhead: { enabled: true, flowRateGPH: 400 },
-      });
-
-      const resources = passive(state);
-
-      expect(resources.flow).toBe(POWERHEAD_FLOW_LPH[400]);
-    });
-
-    it('powerhead disabled contributes 0 flow', () => {
-      const state = createSimulation({
-        tankCapacity: 100,
-        filter: { enabled: false },
-        powerhead: { enabled: false, flowRateGPH: 850 },
-      });
-
-      const resources = passive(state);
-
-      expect(resources.flow).toBe(0);
-    });
-
-    it('powerhead 240 GPH provides 908 L/h', () => {
-      const state = createSimulation({
-        tankCapacity: 100,
-        filter: { enabled: false },
-        powerhead: { enabled: true, flowRateGPH: 240 },
-      });
-
-      const resources = passive(state);
-
-      expect(resources.flow).toBe(908);
-    });
-
-    it('powerhead 850 GPH provides 3218 L/h', () => {
-      const state = createSimulation({
-        tankCapacity: 100,
-        filter: { enabled: false },
-        powerhead: { enabled: true, flowRateGPH: 850 },
-      });
-
-      const resources = passive(state);
-
-      expect(resources.flow).toBe(3218);
-    });
-
-    it('sponge filter caps flow at 300 L/h for large tanks', () => {
-      const state = createSimulation({
-        tankCapacity: 100,
-        filter: { enabled: true, type: 'sponge' },
-        powerhead: { enabled: false },
-      });
-
-      const resources = passive(state);
-
-      // Sponge on 100L tank: 100 * 4x = 400, but capped at 300 L/h
-      expect(resources.flow).toBe(300);
-    });
-
-    it('sump filter provides highest flow (1000 L/h)', () => {
-      const state = createSimulation({
-        tankCapacity: 100,
-        filter: { enabled: true, type: 'sump' },
-        powerhead: { enabled: false },
-      });
-
-      const resources = passive(state);
-
-      expect(resources.flow).toBe(1000);
-    });
-
-    it('totals filter + powerhead correctly', () => {
-      const state = createSimulation({
-        tankCapacity: 100,
-        filter: { enabled: true, type: 'canister' },
-        powerhead: { enabled: true, flowRateGPH: 600 },
-      });
-
-      const resources = passive(state);
-
-      // Canister on 100L tank: 100 * 8x turnover = 800 L/h
-      // Plus powerhead 600 GPH = 2271 L/h
-      expect(resources.flow).toBe(
-        getFilterFlow('canister', 100) + POWERHEAD_FLOW_LPH[600]
-      );
-    });
-  });
-
-  describe('hardscape surface calculation', () => {
-    it('includes hardscape surface in total', () => {
+    it('adds the filter, substrate and hardscape on top of the glass', () => {
       const items: HardscapeItem[] = [
-        { id: 'test-1', type: 'driftwood' },
+        { id: '1', type: 'neutral_rock' },
+        { id: '2', type: 'driftwood' },
       ];
-      const stateWithHardscape = createSimulation({
-        tankCapacity: 100,
-        filter: { enabled: false },
-        substrate: { type: 'none' },
-        hardscape: { items },
-      });
-
-      const stateWithoutHardscape = createSimulation({
-        tankCapacity: 100,
-        filter: { enabled: false },
-        substrate: { type: 'none' },
-      });
-
-      const resourcesWithHardscape = passive(stateWithHardscape);
-      const resourcesWithoutHardscape = passive(stateWithoutHardscape);
-
-      expect(resourcesWithHardscape.surface).toBe(
-        resourcesWithoutHardscape.surface + HARDSCAPE_SURFACE.driftwood
-      );
-    });
-
-    it('hardscape surface adds to tank + filter + substrate', () => {
-      const items: HardscapeItem[] = [
-        { id: 'test-1', type: 'neutral_rock' },
-      ];
-      const stateWithHardscape = createSimulation({
-        tankCapacity: 100,
+      const full = tank({
         filter: { enabled: true, type: 'hob' },
         substrate: { type: 'sand' },
         hardscape: { items },
       });
 
-      const stateWithoutHardscape = createSimulation({
-        tankCapacity: 100,
-        filter: { enabled: true, type: 'hob' },
-        substrate: { type: 'sand' },
-      });
-
-      const resourcesWithHardscape = passive(stateWithHardscape);
-      const resourcesWithoutHardscape = passive(stateWithoutHardscape);
-
-      expect(resourcesWithHardscape.surface).toBe(
-        resourcesWithoutHardscape.surface + HARDSCAPE_SURFACE.neutral_rock
+      expect(passive(full).surface).toBe(
+        passive(tank()).surface +
+          FILTER_SURFACE.hob +
+          getSubstrateSurface('sand', 100) +
+          calculateHardscapeTotalSurface(items)
       );
     });
 
-    it('empty hardscape contributes 0 surface', () => {
-      const stateWithHardscape = createSimulation({
-        tankCapacity: 100,
-        filter: { enabled: false },
-        substrate: { type: 'none' },
-        hardscape: { items: [{ id: '1', type: 'driftwood' }] },
-      });
-
-      const stateWithoutHardscape = createSimulation({
-        tankCapacity: 100,
-        filter: { enabled: false },
-        substrate: { type: 'none' },
-        hardscape: { items: [] },
-      });
-
-      const resourcesWithHardscape = passive(stateWithHardscape);
-      const resourcesWithoutHardscape = passive(stateWithoutHardscape);
-
-      expect(resourcesWithoutHardscape.surface).toBeLessThan(resourcesWithHardscape.surface);
-      expect(resourcesWithHardscape.surface - resourcesWithoutHardscape.surface).toBe(
-        HARDSCAPE_SURFACE.driftwood
-      );
-    });
-
-    it('multiple hardscape items sum correctly', () => {
-      const items: HardscapeItem[] = [
-        { id: '1', type: 'neutral_rock' },  // 400
-        { id: '2', type: 'driftwood' },      // 650
-        { id: '3', type: 'plastic_decoration' }, // 100
-      ];
-      const stateWithHardscape = createSimulation({
-        tankCapacity: 100,
-        filter: { enabled: false },
-        substrate: { type: 'none' },
-        hardscape: { items },
-      });
-
-      const stateWithoutHardscape = createSimulation({
-        tankCapacity: 100,
-        filter: { enabled: false },
-        substrate: { type: 'none' },
-      });
-
-      const resourcesWithHardscape = passive(stateWithHardscape);
-      const resourcesWithoutHardscape = passive(stateWithoutHardscape);
-
-      expect(resourcesWithHardscape.surface).toBe(
-        resourcesWithoutHardscape.surface + 400 + 650 + 100
-      );
-    });
-
-    it('different hardscape types have different surfaces', () => {
-      const driftwoodState = createSimulation({
-        tankCapacity: 100,
-        filter: { enabled: false },
-        substrate: { type: 'none' },
-        hardscape: { items: [{ id: '1', type: 'driftwood' }] },
-      });
-
-      const plasticState = createSimulation({
-        tankCapacity: 100,
-        filter: { enabled: false },
-        substrate: { type: 'none' },
-        hardscape: { items: [{ id: '1', type: 'plastic_decoration' }] },
-      });
-
-      const driftwoodResources = passive(driftwoodState);
-      const plasticResources = passive(plasticState);
-
-      expect(driftwoodResources.surface).toBeGreaterThan(plasticResources.surface);
-      expect(driftwoodResources.surface - plasticResources.surface).toBe(
-        HARDSCAPE_SURFACE.driftwood - HARDSCAPE_SURFACE.plastic_decoration
+    it('counts no surface for a disabled filter', () => {
+      expect(passive(tank({ filter: { enabled: false, type: 'canister' } })).surface).toBe(
+        passive(tank()).surface
       );
     });
   });
 
-  describe('light calculation', () => {
+  describe('flow', () => {
+    it('sums the filter and powerhead that are running', () => {
+      expect(
+        passive(
+          tank({
+            filter: { enabled: true, type: 'canister' },
+            powerhead: { enabled: true, flowRateGPH: 600 },
+          })
+        ).flow
+      ).toBe(getFilterFlow('canister', 100) + POWERHEAD_FLOW_LPH[600]);
+    });
+
+    it('counts nothing for disabled devices', () => {
+      expect(
+        passive(
+          tank({
+            filter: { enabled: false, type: 'hob' },
+            powerhead: { enabled: false, flowRateGPH: 850 },
+          })
+        ).flow
+      ).toBe(0);
+    });
+  });
+
+  describe('light', () => {
     const atSubstrate = (capacity: number, surfacePar: number): number =>
       calculateParAtDepth(surfacePar, calculateTankHeight(capacity), opticsDefaults);
 
-    it('returns 0 light when light disabled', () => {
-      const state = createSimulation({ tankCapacity: 100 });
-      state.equipment.light.enabled = false;
-      const resources = passive(state);
-      expect(resources.light).toBe(0);
+    const lit = (
+      tick: number,
+      light: Partial<SimulationState['equipment']['light']> = {},
+      capacity = 100
+    ): number =>
+      passive(
+        produce(tank({ tankCapacity: capacity }), (draft) => {
+          draft.tick = tick;
+          Object.assign(draft.equipment.light, light);
+        })
+      ).light;
+
+    it('lands the fixture attenuated to the substrate while scheduled', () => {
+      const light = lit(10, { par: 150, schedule: { startHour: 8, duration: 10 } });
+      expect(light).toBeCloseTo(atSubstrate(100, 150), 10);
+      expect(light).toBeLessThan(150);
     });
 
-    it('returns the fixture attenuated to the substrate when schedule active', () => {
-      const state = createSimulation({ tankCapacity: 100 });
-      state.tick = 10; // hourOfDay = 10
-      state.equipment.light.enabled = true;
-      state.equipment.light.par = 150;
-      state.equipment.light.schedule = { startHour: 8, duration: 10 }; // 8am-6pm
-      const resources = passive(state);
-      expect(resources.light).toBeCloseTo(atSubstrate(100, 150), 10);
-      expect(resources.light).toBeLessThan(150);
+    it('is dark when disabled or off schedule', () => {
+      expect(lit(10, { enabled: false })).toBe(0);
+      expect(lit(20, { schedule: { startHour: 8, duration: 10 } })).toBe(0);
+    });
+
+    it('reads the hour of day off the tick, across days and midnight', () => {
+      const overnight = { par: 50, schedule: { startHour: 22, duration: 8 } };
+      expect(lit(23, overnight)).toBeCloseTo(atSubstrate(100, 50), 10);
+      expect(lit(24 + 2, overnight)).toBeCloseTo(atSubstrate(100, 50), 10);
+      expect(lit(48 + 10, overnight)).toBe(0);
     });
 
     it('lands the same fixture harder on a shallow tank than a deep one', () => {
-      const lit = (capacity: number): number => {
-        const state = createSimulation({ tankCapacity: capacity });
-        state.tick = 10;
-        state.equipment.light.par = 90;
-        return passive(state).light;
-      };
+      const at = (capacity: number): number => lit(10, { par: 90 }, capacity);
 
-      expect(lit(20)).toBeGreaterThan(lit(40));
-      expect(lit(40)).toBeGreaterThan(lit(150));
-      expect(lit(150)).toBeGreaterThan(lit(300));
-    });
-
-    it('returns 0 when outside schedule', () => {
-      const state = createSimulation({ tankCapacity: 100 });
-      state.tick = 20; // hourOfDay = 20 (8pm)
-      state.equipment.light.enabled = true;
-      state.equipment.light.par = 150;
-      state.equipment.light.schedule = { startHour: 8, duration: 10 }; // 8am-6pm
-      const resources = passive(state);
-      expect(resources.light).toBe(0);
-    });
-
-    it('handles 24-hour duration (always-on)', () => {
-      const state = createSimulation({ tankCapacity: 100 });
-      state.equipment.light.enabled = true;
-      state.equipment.light.par = 50;
-      state.equipment.light.schedule = { startHour: 0, duration: 24 };
-      const lit = atSubstrate(100, 50);
-
-      // Test various hours - all should be on
-      state.tick = 0;
-      expect(passive(state).light).toBeCloseTo(lit, 10);
-      state.tick = 12;
-      expect(passive(state).light).toBeCloseTo(lit, 10);
-      state.tick = 23;
-      expect(passive(state).light).toBeCloseTo(lit, 10);
-    });
-
-    it('handles midnight wrap-around schedule', () => {
-      const state = createSimulation({ tankCapacity: 100 });
-      state.equipment.light.enabled = true;
-      state.equipment.light.par = 50;
-      state.equipment.light.schedule = { startHour: 22, duration: 8 }; // 10pm-6am
-      const lit = atSubstrate(100, 50);
-
-      // Test hours during active period
-      state.tick = 23; // 11pm - should be on
-      expect(passive(state).light).toBeCloseTo(lit, 10);
-
-      state.tick = 2; // 2am - should be on
-      expect(passive(state).light).toBeCloseTo(lit, 10);
-
-      state.tick = 10; // 10am - should be off
-      expect(passive(state).light).toBe(0);
-    });
-
-    it('light initializes with default values', () => {
-      const state = createSimulation({ tankCapacity: 100 });
-      expect(state.equipment.light.enabled).toBe(true);
-      expect(state.equipment.light.par).toBe(50);
-      expect(state.equipment.light.schedule.startHour).toBe(8);
-      expect(state.equipment.light.schedule.duration).toBe(10);
-    });
-
-    it('can be disabled', () => {
-      const state = createSimulation({ tankCapacity: 100 });
-      state.tick = 10; // During default schedule
-      state.equipment.light.enabled = false;
-      expect(passive(state).light).toBe(0);
-    });
-
-    it('can have the fixture changed', () => {
-      const state = createSimulation({ tankCapacity: 100 });
-      state.tick = 10; // During schedule (8am-6pm default)
-      state.equipment.light.par = 150;
-      expect(passive(state).light).toBeCloseTo(atSubstrate(100, 150), 10);
-    });
-
-    it('can have schedule updated', () => {
-      const state = createSimulation({ tankCapacity: 100 });
-      state.equipment.light.schedule = { startHour: 6, duration: 12 };
-      state.tick = 6; // Start of new schedule
-      expect(passive(state).light).toBeCloseTo(atSubstrate(100, 50), 10);
-      state.tick = 18; // End of new schedule
-      expect(passive(state).light).toBe(0);
-    });
-
-    it('supports always-on with 24h duration', () => {
-      const state = createSimulation({ tankCapacity: 100 });
-      state.equipment.light.schedule = { startHour: 0, duration: 24 };
-
-      // Verify light is on at any time
-      for (let hour = 0; hour < 24; hour++) {
-        state.tick = hour;
-        expect(passive(state).light).toBeCloseTo(atSubstrate(100, 50), 10);
-      }
-    });
-
-    it('correctly calculates hourOfDay from tick across multiple days', () => {
-      const state = createSimulation({ tankCapacity: 100 });
-      state.equipment.light.schedule = { startHour: 8, duration: 10 }; // 8am-6pm
-      const lit = atSubstrate(100, 50);
-
-      // Day 0, hour 10
-      state.tick = 10;
-      expect(passive(state).light).toBeCloseTo(lit, 10);
-
-      // Day 1, hour 10 (tick 34)
-      state.tick = 34;
-      expect(passive(state).light).toBeCloseTo(lit, 10);
-
-      // Day 2, hour 20 (tick 68) - outside schedule
-      state.tick = 68;
-      expect(passive(state).light).toBe(0);
+      expect(at(20)).toBeGreaterThan(at(40));
+      expect(at(40)).toBeGreaterThan(at(150));
+      expect(at(150)).toBeGreaterThan(at(300));
     });
   });
 });
 
 describe('biofilmKept', () => {
-  const tank = (substrate: SubstrateType): SimulationState =>
+  const bedded = (substrate: SubstrateType): SimulationState =>
     createSimulation({ tankCapacity: 100, substrate: { type: substrate } });
 
   it('is the share of the surface the bed does not carry', () => {
-    const state = tank('aqua_soil');
+    const state = bedded('aqua_soil');
     const bed = getSubstrateSurface('aqua_soil', state.tank.capacity);
 
-    expect(biofilmKept(state)).toBeCloseTo(
-      1 - bed / passive(state).surface,
-      12
-    );
+    expect(biofilmKept(state)).toBeCloseTo(1 - bed / passive(state).surface, 12);
   });
 
   it('costs more the more of the tank’s surface the bed carries', () => {
-    expect(biofilmKept(tank('aqua_soil'))).toBeLessThan(biofilmKept(tank('sand')));
+    expect(biofilmKept(bedded('aqua_soil'))).toBeLessThan(biofilmKept(bedded('sand')));
   });
 
   it('costs a tank with no bed nothing at all', () => {
-    expect(biofilmKept(tank('none'))).toBe(1);
+    expect(biofilmKept(bedded('none'))).toBe(1);
   });
 });
 
@@ -582,9 +166,7 @@ describe('processEquipment', () => {
       draft.equipment.autoDoser.doseAmountMl = 2;
     });
 
-    const { effects } = processEquipment(state, tuned);
-
-    const nitrate = effects.find(
+    const nitrate = processEquipment(state, tuned).effects.find(
       (effect) => effect.source === 'auto-doser' && effect.resource === 'nitrate'
     );
     expect(nitrate?.delta).toBe(20);

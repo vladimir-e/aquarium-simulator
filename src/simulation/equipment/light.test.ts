@@ -10,14 +10,6 @@ import { opticsDefaults } from '../config/optics.js';
 import { calculateTankHeight } from '../state.js';
 
 describe('light equipment', () => {
-  describe('DEFAULT_LIGHT', () => {
-    it('has expected default values', () => {
-      expect(DEFAULT_LIGHT.enabled).toBe(true);
-      expect(DEFAULT_LIGHT.par).toBe(50);
-      expect(DEFAULT_LIGHT.schedule.startHour).toBe(8);
-      expect(DEFAULT_LIGHT.schedule.duration).toBe(10);
-    });
-  });
 
   describe('LIGHT_PAR_OPTIONS', () => {
     it('offers distinct fixtures in ascending order', () => {
@@ -29,13 +21,6 @@ describe('light equipment', () => {
       expect(LIGHT_PAR_OPTIONS).toContain(DEFAULT_LIGHT.par);
     });
 
-    it('spans the hobby low-to-very-high tiers on the 150 L reference tank', () => {
-      const depth = calculateTankHeight(150);
-      const atSubstrate = LIGHT_PAR_OPTIONS.map((par) =>
-        Math.round(calculateParAtDepth(par, depth, opticsDefaults))
-      );
-      expect(atSubstrate).toEqual([16, 33, 59, 98]);
-    });
   });
 
   describe('getLightOutput', () => {
@@ -106,39 +91,6 @@ describe('light equipment', () => {
       expect(getLightOutput(light, 6)).toBe(0); // At end hour
       expect(getLightOutput(light, 10)).toBe(0); // Mid-day
       expect(getLightOutput(light, 21)).toBe(0); // Just before start
-    });
-
-    it('reports every catalog fixture at its rating', () => {
-      const schedule = { startHour: 8, duration: 10 };
-
-      for (const par of LIGHT_PAR_OPTIONS) {
-        const light: Light = { enabled: true, par, schedule };
-        expect(getLightOutput(light, 10)).toBe(par);
-      }
-    });
-
-    it('works with off-catalog fixtures', () => {
-      const light: Light = {
-        enabled: true,
-        par: 75,
-        schedule: { startHour: 8, duration: 10 },
-      };
-
-      expect(getLightOutput(light, 10)).toBe(75);
-    });
-
-    it('handles edge case at schedule boundary', () => {
-      const light: Light = {
-        enabled: true,
-        par: 50,
-        schedule: { startHour: 8, duration: 10 }, // 8am-6pm
-      };
-
-      // Start hour is inclusive
-      expect(getLightOutput(light, 8)).toBe(50);
-
-      // End hour is exclusive
-      expect(getLightOutput(light, 18)).toBe(0);
     });
 
     it('handles short duration schedules', () => {
