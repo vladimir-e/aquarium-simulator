@@ -31,13 +31,16 @@ livestock is the consumer's to add.
 
 `'cycled'` is a claim about a tank that has been running a month, not only about
 its biofilter. It resolves against the tank at the moment the seed is applied,
-so a preset resized or rescaped at the door still gets a colony, a bed and a
-nitrate reading that fit it.
+so a preset resized or rebuilt at the door still gets a colony, a bed and
+readings that fit it. Hardscape starts as bought.
 
 | Stock | Seeded to |
 |---|---|
 | AOB and NOB | The colony a tank of that capacity rests at once cycled, per litre of water |
 | Substrate organic reserve | The share of a fresh bed still unleached on day 30 |
+| Substrate KH reserve | The share of a fresh soil bed's buffer left on day 30 |
+| KH | The tap's, or a fraction of it over aqua soil |
+| GH | The tap's, less whatever KH the soil took — the bed takes both alike, and no more than the tap's GH |
 | Nitrate | What a month of leaching leaves behind, discounted for the water changes a keeper would have done |
 
 A tank seeded this way is handed the outcome, not a shortcut through the

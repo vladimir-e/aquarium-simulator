@@ -6,6 +6,7 @@
  */
 
 import {
+  ambientTemperature,
   calculateEvaporationRatePerDay,
   calculateTemperatureDrift,
   type LidType,
@@ -45,7 +46,8 @@ function presetSettings(state: SimulationState): string {
     capacity: state.tank.capacity,
     room: state.environment.roomTemperature,
     tapTemperature: state.environment.tapWaterTemperature,
-    tapPH: state.environment.tapWaterPH,
+    tapKh: state.environment.tapKh,
+    tapGh: state.environment.tapGh,
     heater: [e.heater.enabled, e.heater.targetTemperature, e.heater.wattage],
     lid: e.lid.type,
     ato: e.ato.enabled,
@@ -95,7 +97,7 @@ export function environmentNotes(
   );
   const drift = calculateTemperatureDrift(
     resources.temperature,
-    environment.roomTemperature,
+    ambientTemperature(state, config.temperature),
     resources.water,
     config.temperature
   );

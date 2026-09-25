@@ -7,6 +7,7 @@ import type { Resources, SimulationState } from './state.js';
 import type { FishLifeStage, FishSex, FishSpecies } from './livestock/species.js';
 import type { PlantSpecies } from './plants/species.js';
 import {
+  getSubstrateKhReserve,
   getSubstrateOrganicReserve,
   type Substrate,
   type SubstrateType,
@@ -14,12 +15,13 @@ import {
 import { nitrogenCycleDefaults } from './config/nitrogen-cycle.js';
 import { plantsDefaults } from './config/plants.js';
 import { NH3_TO_NO2_MASS_RATIO, NO2_TO_NO3_MASS_RATIO } from './core/chemistry.js';
+import { getGhMass, getKhMass } from './resources/helpers.js';
 import { createFish } from './livestock/create-fish.js';
 import { createPlant } from './plants/create-plant.js';
 
 const SEEDABLE_BACTERIA = ['aob', 'nob'] as const;
 
-const SEEDABLE_SUBSTRATE = ['organicReserve'] as const;
+const SEEDABLE_SUBSTRATE = ['organicReserve', 'khReserve'] as const;
 
 const SEEDABLE_RESOURCES = [
   'ammonia',
@@ -30,6 +32,8 @@ const SEEDABLE_RESOURCES = [
   'iron',
   'oxygen',
   'co2',
+  'kh',
+  'gh',
 ] as const;
 
 export type SeedColony = Partial<Pick<Resources, (typeof SEEDABLE_BACTERIA)[number]>>;
@@ -37,10 +41,11 @@ export type SeedColony = Partial<Pick<Resources, (typeof SEEDABLE_BACTERIA)[numb
 /**
  * A colony as absolute stock, or `'cycled'` — a tank that has been running a
  * month, which is a claim about the whole tank and not only its biofilter: it
- * carries the bed that month left and the nitrate that month made, as well as
- * the colony. All three are resolved against the tank when the seed is
- * applied, so a preset resized or rescaped at the door still gets a filter, a
- * bed and a nitrate reading that fit it.
+ * carries the bed that month left, the nitrate that month made and the
+ * hardness the bed let it keep, as well as the colony. Every one of them is
+ * resolved against the tank when the seed is applied, so a preset resized or
+ * rebuilt at the door still gets a filter, a bed and readings that fit it.
+ * Hardscape starts as bought.
  */
 export type SeedBacteria = 'cycled' | SeedColony;
 
@@ -50,7 +55,8 @@ export type SeedSubstrate = Partial<Pick<Substrate, (typeof SEEDABLE_SUBSTRATE)[
 /**
  * Chemistry stocks a seed may set, in the units `Resources` stores them
  * in: nitrogen compounds and nutrients as mass in mg (`getMassFromPpm`
- * converts from a test-kit reading), dissolved gases as mg/L.
+ * converts from a test-kit reading), both hardnesses as mg of CaCO3
+ * (`getKhMass` and `getGhMass` convert from degrees), dissolved gases as mg/L.
  */
 export type SeedResources = Partial<Pick<Resources, (typeof SEEDABLE_RESOURCES)[number]>>;
 
@@ -80,11 +86,18 @@ export interface SeedPlantGroup {
   size?: number;
 }
 
-/** Nothing here is validated or clamped — see the docs portal, State & persistence § Starting state. */
-export interface PresetSeed {
+/**
+ * The stocks a tank starts at, as distinct from what lives in it. The state
+ * keeps it, so an hour-zero tank can be filled again the way it was first.
+ */
+export interface TankSeed {
   bacteria?: SeedBacteria;
   substrate?: SeedSubstrate;
   resources?: SeedResources;
+}
+
+/** Nothing here is validated or clamped — see the docs portal, State & persistence § Starting state. */
+export interface PresetSeed extends TankSeed {
   fish?: SeedFishGroup[];
   plants?: SeedPlantGroup[];
 }
@@ -135,6 +148,17 @@ export function cycledReserve(type: SubstrateType, capacity: number): number {
 }
 
 /**
+ * Share of a fresh aqua soil bed's KH reserve left on day 30 under weekly 25 %
+ * changes — read off a fresh high-tech soil tank on that keeper, rounded.
+ */
+const CYCLED_SOIL_KH_RESERVE_FRACTION = 0.8;
+
+/** mg of CaCO3 a bed of this type and capacity can still take up once cycled. */
+export function cycledKhReserve(type: SubstrateType, capacity: number): number {
+  return getSubstrateKhReserve(type, capacity) * CYCLED_SOIL_KH_RESERVE_FRACTION;
+}
+
+/**
  * mg of nitrate a gram of the bed's organics ends up as, once mineralised to
  * ammonia and oxidised the two steps to nitrate — each one keeping the
  * nitrogen and picking up the mass of the oxygen it gains.
@@ -158,6 +182,32 @@ export function cycledNitrate(type: SubstrateType, capacity: number): number {
   return leached * NITRATE_PER_GRAM_LEACHED * CYCLED_NITRATE_RETAINED;
 }
 
+/**
+ * Share of the tap's KH an aqua soil tank still holds after a month of weekly
+ * 25 % changes: the bed strips each change back down before the next, and the
+ * week averages out near 0.15 of the tap. Inert beds keep the tap's KH.
+ */
+const CYCLED_SOIL_KH_RETAINED = 0.15;
+
+/**
+ * mg of CaCO3 of KH and GH a cycled tank of this bed, tap and capacity carries.
+ * The bed takes both out in equal measure and stops when either runs dry, so
+ * soft tap water caps what it takes at the tap's GH.
+ */
+export function cycledHardness(
+  type: SubstrateType,
+  tapKh: number,
+  tapGh: number,
+  capacity: number
+): { kh: number; gh: number } {
+  const taken =
+    type === 'aqua_soil' ? Math.min(tapKh * (1 - CYCLED_SOIL_KH_RETAINED), tapGh) : 0;
+  return {
+    kh: getKhMass(tapKh - taken, capacity),
+    gh: getGhMass(tapGh - taken, capacity),
+  };
+}
+
 function writeStocks<T, K extends keyof T>(
   target: T,
   keys: readonly K[],
@@ -170,24 +220,49 @@ function writeStocks<T, K extends keyof T>(
   }
 }
 
-export function applySeed(state: SimulationState, seed: PresetSeed): void {
+/** The hardness an hour-zero tank carries, filled from its tap and seeded as the state records. */
+export function startingHardness(state: SimulationState): { kh: number; gh: number } {
   const { capacity } = state.tank;
   const { type } = state.equipment.substrate;
+  const { tapKh, tapGh } = state.environment;
+  const { seed } = state;
+  const filled =
+    seed?.bacteria === 'cycled'
+      ? cycledHardness(type, tapKh, tapGh, capacity)
+      : { kh: getKhMass(tapKh, capacity), gh: getGhMass(tapGh, capacity) };
+
+  return {
+    kh: seed?.resources?.kh ?? filled.kh,
+    gh: seed?.resources?.gh ?? filled.gh,
+  };
+}
+
+function seedTank(state: SimulationState, seed: TankSeed): void {
+  const { capacity } = state.tank;
+  const { type } = state.equipment.substrate;
+  state.seed = seed;
 
   if (seed.bacteria === 'cycled') {
     writeStocks(state.resources, SEEDABLE_BACTERIA, cycledColony(capacity));
     writeStocks(state.equipment.substrate, SEEDABLE_SUBSTRATE, {
       organicReserve: cycledReserve(type, capacity),
+      khReserve: cycledKhReserve(type, capacity),
     });
-    writeStocks(state.resources, SEEDABLE_RESOURCES, { nitrate: cycledNitrate(type, capacity) });
+    state.resources.nitrate = cycledNitrate(type, capacity);
   } else {
     writeStocks(state.resources, SEEDABLE_BACTERIA, seed.bacteria);
   }
 
   writeStocks(state.equipment.substrate, SEEDABLE_SUBSTRATE, seed.substrate);
   writeStocks(state.resources, SEEDABLE_RESOURCES, seed.resources);
+  Object.assign(state.resources, startingHardness(state));
+}
 
-  for (const group of seed.fish ?? []) {
+export function applySeed(state: SimulationState, seed: PresetSeed): void {
+  const { fish, plants, ...tank } = seed;
+  seedTank(state, tank);
+
+  for (const group of fish ?? []) {
     for (let i = 0; i < (group.count ?? 1); i++) {
       state.fish.push(
         createFish({
@@ -201,7 +276,7 @@ export function applySeed(state: SimulationState, seed: PresetSeed): void {
     }
   }
 
-  for (const group of seed.plants ?? []) {
+  for (const group of plants ?? []) {
     for (let i = 0; i < (group.count ?? 1); i++) {
       state.plants.push(
         createPlant({

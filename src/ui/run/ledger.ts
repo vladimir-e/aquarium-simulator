@@ -182,7 +182,6 @@ function plantLedger(
   const hurting = factors([...breakdown.upkeep, ...breakdown.stressors]);
   const reading = vitalReading(plant.condition, plant.surplus, breakdown);
   const [lightLow, lightHigh] = data.tolerableLight;
-  const [co2Low, co2High] = data.tolerableCO2;
 
   return {
     target: { kind: 'plant', id },
@@ -205,8 +204,7 @@ function plantLedger(
     net: breakdown.net * PER_DAY,
     bank: bankOf(plant.surplus, config.plants.surplusCap, breakdown.drained > 0),
     demand:
-      `${data.nutrientDemand} demand · light ${lightLow}–${lightHigh} PAR · ` +
-      `CO₂ ${co2Low}–${co2High} mg/L`,
+      `${data.nutrientDemand} demand · light ${lightLow}–${lightHigh} PAR · ${data.co2Requirement} CO₂`,
     verb: 'trimPlants',
   };
 }

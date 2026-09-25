@@ -11,7 +11,7 @@ import { getPpm } from './helpers.js';
 export const PhosphateResource: ResourceDefinition<'phosphate'> = {
   key: 'phosphate',
   unit: 'mg',
-  bounds: { min: 0, max: 10000 },
+  bounds: { min: 0, max: Infinity },
   defaultValue: 0,
   precision: 2,
   format: (massInMg: number, waterLiters?: number) => {

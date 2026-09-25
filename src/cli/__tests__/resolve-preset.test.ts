@@ -17,6 +17,7 @@ describe('resolvePreset', () => {
     expect(freshHardware).toEqual(cycledHardware);
     expect(freshBed.type).toBe(cycledBed.type);
     expect(freshBed.organicReserve).toBeGreaterThan(cycledBed.organicReserve);
+    expect(freshBed.khReserve).toBeGreaterThan(cycledBed.khReserve);
   });
 
   it('resizes the tank the seed then sizes itself against', () => {

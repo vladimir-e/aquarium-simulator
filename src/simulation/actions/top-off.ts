@@ -1,11 +1,13 @@
 import { produce } from 'immer';
 import type { SimulationState } from '../state.js';
 import { createLog } from '../core/logging.js';
+import { getGhMass, getKhMass } from '../resources/helpers.js';
 import type { ActionResult } from './types.js';
 
 /**
  * Top Off: Restore water level to tank capacity.
- * Simulates adding fresh water to replace evaporated water.
+ * Simulates adding fresh tap water to replace evaporated water — which
+ * brings the tap's alkalinity with it.
  */
 export function topOff(state: SimulationState): ActionResult {
   const { capacity } = state.tank;
@@ -23,6 +25,8 @@ export function topOff(state: SimulationState): ActionResult {
 
   const newState = produce(state, (draft) => {
     draft.resources.water = draft.tank.capacity;
+    draft.resources.kh += getKhMass(draft.environment.tapKh, amountAdded);
+    draft.resources.gh += getGhMass(draft.environment.tapGh, amountAdded);
     draft.logs.push(
       createLog(
         draft.tick,

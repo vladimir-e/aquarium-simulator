@@ -26,7 +26,7 @@ declared minimum of `0.1`.
 | Evaporation | `evaporation.` | Water lost per day, and how warmth accelerates it |
 | Algae | `algae.` | The bloom's stressors, benefits and mass dynamics |
 | Optics | `optics.` | What the water column takes out of the light on the way down |
-| pH | `ph.` | Hardscape targets, the CO₂ coupling, the drift rate |
+| Water chemistry | `waterChemistry.` | What calcite, driftwood and aqua soil do to KH and GH |
 | Plants | `plants.` | Photosynthesis, respiration, vitality, growth, lifecycle |
 | Nutrients | `nutrients.` | Fertilizer formula, optimal concentrations, demand tiers |
 | Livestock | `livestock.` | Metabolism, satiation, vitality, death |
@@ -96,6 +96,8 @@ density you can look up rather than a score.
 | `coolingCoefficient` | Drift toward the room per °C of difference, at the reference volume | °C/hr/°C |
 | `referenceVolume` | Volume the cooling coefficient is quoted at | L |
 | `volumeExponent` | How drift scales with volume — the surface-to-volume ratio | — |
+| `roomDailySwing` | How far the room runs above and below its mean over the day | °C |
+| `lightWarmingPerPar` | Warming a lit fixture adds to the temperature the water drifts toward, per surface PAR | °C/PAR |
 
 ## Evaporation
 
@@ -127,24 +129,20 @@ density you can look up rather than a score.
 |---|---|---|
 | `waterAttenuationPerCm` | Beer–Lambert attenuation of the water column, per cm of depth | /cm |
 
-## pH
+## Water chemistry
 
 | Tunable | Meaning | Unit |
 |---|---|---|
-| `calciteTargetPh` | The pH calcite rock pulls toward | — |
-| `driftwoodTargetPh` | The pH driftwood pulls toward | — |
-| `neutralPh` | The pH a tank with no hardscape sits at | — |
-| `basePgDriftRate` | Share of the gap to the hardscape target crossed per tick | /tick |
-| `co2PhCoefficient` | pH change per decade of CO₂ change away from neutral | pH/decade |
-| `co2NeutralLevel` | CO₂ concentration at which the coupling contributes nothing | mg/L |
-| `hardscapeDiminishingFactor` | Falloff applied to each additional item of the same hardscape | — |
+| `calciteDissolutionRate` | CaCO₃ one calcite rock dissolves per hour at pH 7, scaled by [H⁺] | mg/h |
+| `tanninLeachRate` | Share of a driftwood piece's remaining tannins leached per hour | /h |
+| `aquaSoilKhUptake` | Share of the tank's KH a fresh aqua soil bed takes up per hour, scaled by the buffer left — and as much GH with it | /h |
 
 ## Plants
 
 | Tunable | Meaning | Unit |
 |---|---|---|
 | `basePhotosynthesisRate` | Rate one unit of plant size fixes carbon at, under ideal conditions | /hr |
-| `optimalCo2` | CO₂ at which the carbon term saturates | mg/L |
+| `lowCo2HalfSaturation` · `mediumCo2HalfSaturation` · `highCo2HalfSaturation` | CO₂ at which a species of each carbon need photosynthesises at half rate | mg/L |
 | `optimalNitrate` | Nitrate the growth term is quoted against | ppm |
 | `saturationIrradianceFactor` | Multiple of a species' band low at which its light response saturates | × band low |
 | `nutrientsPerPhotosynthesis` | Total nutrients drawn per unit of potential photosynthesis, split by the fertilizer ratio | mg |
@@ -159,7 +157,7 @@ density you can look up rather than a score.
 | `upkeepCost` | Cost per hour of simply being alive, quoted at the respiration reference temperature | %/hr |
 | `upkeepReserveHours` | Hours of upkeep the bank keeps back from damage — the survival rations | hr upkeep |
 | `lightInsufficientSeverity` · `lightExcessiveSeverity` | Damage per PAR unit below and above the species' tolerable band | %/PAR/hr |
-| `co2InsufficientSeverity` · `temperatureStressSeverity` · `phStressSeverity` | Damage per unit outside the species' tolerable band, one per factor | %/unit/hr |
+| `temperatureStressSeverity` · `phStressSeverity` · `ghStressSeverity` | Damage per unit outside the species' tolerable band, one per factor | %/unit/hr |
 | `nutrientDeficiencySeverity` | Damage per unit of missing sufficiency, Liebig-gated | %/(1−suff)/hr |
 | `nutrientToxicitySeverity` · `nutrientToxicityThresholdNitrate` | The gross-overdose channel: what it costs per ppm past the threshold, and where that threshold starts | %/ppm/hr · ppm |
 | `algaeShadingSeverity` · `algaeShadingThreshold` | Damage per point of bloom past the threshold, and the mass above which algae shades plants | %/algae/hr · — |
@@ -192,7 +190,7 @@ sum once, centrally, rather than each channel scaling itself.
 | `basalAmmoniaRate` | Gill ammonia from body protein turnover, produced whether or not the fish ate | mg NH₃/g/hr |
 | `respiratoryQuotient` | Moles of CO₂ exhaled per mole of O₂ consumed | — |
 | `satiationDecayRate` | Satiation lost per hour, feeding or not | %/hr |
-| `temperatureStressSeverity` · `phStressSeverity` | Damage per unit outside the species' tolerable band | %/unit/hr |
+| `temperatureStressSeverity` · `phStressSeverity` · `ghStressSeverity` | Damage per unit outside the species' tolerable band | %/unit/hr |
 | `ammoniaStressSeverity` | Damage per ppm of *unionized* ammonia, not total TAN | %/ppm free NH₃/hr |
 | `nitriteStressSeverity` · `nitrateStressSeverity` · `oxygenStressSeverity` · `waterLevelStressSeverity` · `flowStressSeverity` | Damage per unit of deviation, one per water-quality channel | %/unit/hr |
 | `ageStressSeverity` | Damage per hour lived past the species' `maxAge`, climbing with the excess | %/(h past maxAge)/h |
@@ -215,8 +213,8 @@ can move them at runtime.
 | Fish species | Per species: adult mass, lifespan, hardiness, temperature / pH / flow tolerance bands, and a full breeding block — mode, clutch size, spawn cost, hatch time, maturity age |
 | Plant species | Per species: growth rate, max size, hardiness, CO₂ requirement, substrate requirement, nutrient demand tier, and the PAR band it tolerates |
 | Filters | Per type: biological surface, target turnover, flow ceiling, tank-size ceiling, and whether it is air-driven |
-| Substrates | Per type: colony surface per litre, and the organic reserve a fresh bed holds per litre |
-| Hardscape | Per type: colony surface, and the pH it pulls toward |
+| Substrates | Per type: colony surface per litre, and the organic and KH reserves a fresh bed holds per litre |
+| Hardscape | Per type: colony surface, and the tannins a fresh piece carries |
 | Lids | Per type: the multiplier applied to evaporation |
 | Fixtures and pumps | The catalog of ratings a device can be built with — heater wattages, light PAR ratings, powerhead flow rates, CO₂ bubble rates, doser amounts |
-| Chemistry | Molecular weights and the mass ratios derived from them. Derived, never quoted twice |
+| Chemistry | Molecular weights and the mass ratios derived from them, and the degree-to-CaCO₃ conversion shared by dKH and dGH. Derived, never quoted twice |

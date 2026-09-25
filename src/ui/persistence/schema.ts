@@ -53,7 +53,8 @@ const ResourcesSchema = z
     iron: z.number().min(0),
     oxygen: z.number().min(0),
     co2: z.number().min(0),
-    ph: z.number().min(0).max(14),
+    kh: z.number().min(0),
+    gh: z.number().min(0),
     aob: z.number().min(0),
     nob: z.number().min(0),
   })
@@ -78,7 +79,8 @@ const EnvironmentSchema = z
   .object({
     roomTemperature: z.number().min(0).max(50),
     tapWaterTemperature: z.number().min(0).max(50),
-    tapWaterPH: z.number().min(0).max(14),
+    tapKh: z.number().min(0).max(30),
+    tapGh: z.number().min(0).max(30),
   })
   .strict();
 
@@ -126,6 +128,7 @@ const SubstrateSchema = z
   .object({
     type: z.enum(['none', 'sand', 'gravel', 'aqua_soil']),
     organicReserve: z.number(),
+    khReserve: z.number(),
   })
   .strict();
 
@@ -133,6 +136,7 @@ const HardscapeItemSchema = z
   .object({
     id: z.string(),
     type: z.enum(['neutral_rock', 'calcite_rock', 'driftwood', 'plastic_decoration']),
+    tannins: z.number(),
   })
   .strict();
 
@@ -269,6 +273,36 @@ const AlertStateSchema = z
 // Simulation Schema
 // ============================================================================
 
+const TankSeedSchema = z
+  .object({
+    bacteria: z
+      .union([
+        z.literal('cycled'),
+        ResourcesSchema.pick({ aob: true, nob: true }).partial().strict(),
+      ])
+      .optional(),
+    substrate: SubstrateSchema.pick({ organicReserve: true, khReserve: true })
+      .partial()
+      .strict()
+      .optional(),
+    resources: ResourcesSchema.pick({
+      ammonia: true,
+      nitrite: true,
+      nitrate: true,
+      phosphate: true,
+      potassium: true,
+      iron: true,
+      oxygen: true,
+      co2: true,
+      kh: true,
+      gh: true,
+    })
+      .partial()
+      .strict()
+      .optional(),
+  })
+  .strict();
+
 export const PersistedSimulationSchema = z
   .object({
     tick: z.number().int().min(0),
@@ -282,6 +316,7 @@ export const PersistedSimulationSchema = z
     algae: AlgaeStateSchema,
     rng: RngStateSchema,
     alertState: AlertStateSchema,
+    seed: TankSeedSchema.optional(),
     currentPreset: z.string(),
   })
   .strict();
@@ -341,6 +376,8 @@ const TemperatureConfigSchema = z
     coolingCoefficient: z.number(),
     referenceVolume: z.number(),
     volumeExponent: z.number(),
+    roomDailySwing: z.number(),
+    lightWarmingPerPar: z.number(),
   })
   .strict();
 
@@ -378,22 +415,20 @@ const OpticsConfigSchema = z
   })
   .strict();
 
-const PhConfigSchema = z
+const WaterChemistryConfigSchema = z
   .object({
-    calciteTargetPh: z.number(),
-    driftwoodTargetPh: z.number(),
-    neutralPh: z.number(),
-    basePgDriftRate: z.number(),
-    co2PhCoefficient: z.number(),
-    co2NeutralLevel: z.number(),
-    hardscapeDiminishingFactor: z.number(),
+    calciteDissolutionRate: z.number().min(0),
+    tanninLeachRate: z.number().min(0),
+    aquaSoilKhUptake: z.number().min(0),
   })
   .strict();
 
 const PlantsConfigSchema = z
   .object({
     basePhotosynthesisRate: z.number(),
-    optimalCo2: z.number(),
+    lowCo2HalfSaturation: z.number(),
+    mediumCo2HalfSaturation: z.number(),
+    highCo2HalfSaturation: z.number(),
     optimalNitrate: z.number(),
     saturationIrradianceFactor: z.number(),
     nutrientsPerPhotosynthesis: z.number(),
@@ -408,9 +443,9 @@ const PlantsConfigSchema = z
     // Vitality stressor severities
     lightInsufficientSeverity: z.number(),
     lightExcessiveSeverity: z.number(),
-    co2InsufficientSeverity: z.number(),
     temperatureStressSeverity: z.number(),
     phStressSeverity: z.number(),
+    ghStressSeverity: z.number(),
     nutrientDeficiencySeverity: z.number(),
     nutrientToxicitySeverity: z.number(),
     nutrientToxicityThresholdNitrate: z.number(),
@@ -466,6 +501,7 @@ const LivestockConfigSchema = z
     satiationDecayRate: z.number(),
     temperatureStressSeverity: z.number(),
     phStressSeverity: z.number(),
+    ghStressSeverity: z.number(),
     ammoniaStressSeverity: z.number(),
     nitriteStressSeverity: z.number(),
     nitrateStressSeverity: z.number(),
@@ -502,7 +538,7 @@ export const TunableConfigSchema = z
     evaporation: EvaporationConfigSchema,
     algae: AlgaeConfigSchema,
     optics: OpticsConfigSchema,
-    ph: PhConfigSchema,
+    waterChemistry: WaterChemistryConfigSchema,
     plants: PlantsConfigSchema,
     nutrients: NutrientsConfigSchema,
     livestock: LivestockConfigSchema,

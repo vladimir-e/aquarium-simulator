@@ -10,13 +10,13 @@ import { DEFAULT_FILTER, getFilterSurface, getFilterFlow } from './equipment/fil
 import type { Powerhead } from './equipment/powerhead.js';
 import { DEFAULT_POWERHEAD, getPowerheadFlow } from './equipment/powerhead.js';
 import type { Substrate } from './equipment/substrate.js';
+import { DEFAULT_SUBSTRATE, freshSubstrate, getSubstrateSurface } from './equipment/substrate.js';
+import type { Hardscape, HardscapeItemSpec } from './equipment/hardscape.js';
 import {
-  DEFAULT_SUBSTRATE,
-  getSubstrateSurface,
-  getSubstrateOrganicReserve,
-} from './equipment/substrate.js';
-import type { Hardscape } from './equipment/hardscape.js';
-import { DEFAULT_HARDSCAPE, calculateHardscapeTotalSurface } from './equipment/hardscape.js';
+  DEFAULT_HARDSCAPE,
+  calculateHardscapeTotalSurface,
+  createHardscapeItem,
+} from './equipment/hardscape.js';
 import type { Light } from './equipment/light.js';
 import {
   DEFAULT_LIGHT,
@@ -29,7 +29,8 @@ import type { AirPump } from './equipment/air-pump.js';
 import { DEFAULT_AIR_PUMP, getAirPumpFlow } from './equipment/air-pump.js';
 import type { AutoDoser } from './equipment/auto-doser.js';
 import { DEFAULT_AUTO_DOSER } from './equipment/auto-doser.js';
-import { applySeed, type PresetSeed } from './seed.js';
+import { applySeed, type PresetSeed, type TankSeed } from './seed.js';
+import { getGhMass, getKhMass } from './resources/helpers.js';
 import type { PlantSpecies } from './plants/species.js';
 import type { FishSpecies, FishSex, FishLifeStage } from './livestock/species.js';
 
@@ -196,9 +197,11 @@ export interface Resources {
   /** Dissolved CO2 in mg/L (atmospheric ~3-5, harmful > 30) */
   co2: number;
 
-  // Water chemistry
-  /** Tank pH (0-14 scale, typical aquarium range 6.0-8.0) */
-  ph: number;
+  // Water chemistry - alkalinity stored as mass (mg)
+  /** Alkalinity as mg of CaCO3 (derive dKH with `getDkh`); pH is read off it and CO2 */
+  kh: number;
+  /** Calcium and magnesium as mg of CaCO3 (derive dGH with `getDgh`) */
+  gh: number;
 
   // Bacteria populations (nitrogen cycle)
   /** Ammonia-oxidizing bacteria population (absolute count) */
@@ -212,8 +215,10 @@ export interface Environment {
   roomTemperature: number;
   /** Tap water temperature in °C (for water changes and ATO) */
   tapWaterTemperature: number;
-  /** Tap water pH for water changes and ATO */
-  tapWaterPH: number;
+  /** Tap water carbonate hardness in dKH, for fills, water changes and top-offs */
+  tapKh: number;
+  /** Tap water general hardness in dGH, arriving wherever tap KH does */
+  tapGh: number;
 }
 
 export interface Heater {
@@ -322,6 +327,8 @@ export interface SimulationState {
   logs: LogEntry[];
   /** Tracks active alert conditions for threshold-crossing detection */
   alertState: AlertState;
+  /** How the tank was seeded at hour zero; absent or empty when it was filled from the tap. */
+  seed?: TankSeed;
 }
 
 export interface SimulationConfig {
@@ -333,8 +340,10 @@ export interface SimulationConfig {
   roomTemperature?: number;
   /** Tap water temperature in °C (defaults to 20) */
   tapWaterTemperature?: number;
-  /** Tap water pH (defaults to 6.5) */
-  tapWaterPH?: number;
+  /** Tap water carbonate hardness in dKH (defaults to 4) */
+  tapKh?: number;
+  /** Tap water general hardness in dGH (defaults to 6) */
+  tapGh?: number;
   /** Initial heater configuration */
   heater?: Partial<Heater>;
   /** Initial lid configuration */
@@ -347,8 +356,8 @@ export interface SimulationConfig {
   powerhead?: Partial<Powerhead>;
   /** Initial substrate configuration */
   substrate?: Pick<Substrate, 'type'>;
-  /** Initial hardscape configuration */
-  hardscape?: Partial<Hardscape>;
+  /** Initial hardscape — each piece goes in fresh */
+  hardscape?: { items: HardscapeItemSpec[] };
   /** Initial light configuration */
   light?: Partial<Light>;
   /** Initial CO2 generator configuration */
@@ -362,8 +371,8 @@ export interface SimulationConfig {
 const DEFAULT_TEMPERATURE = 25;
 const DEFAULT_ROOM_TEMPERATURE = 22;
 const DEFAULT_TAP_WATER_TEMPERATURE = 20;
-const DEFAULT_TAP_WATER_PH = 6.5;
-const DEFAULT_INITIAL_PH = 6.5;
+const DEFAULT_TAP_KH = 4;
+const DEFAULT_TAP_GH = 6;
 
 export const DEFAULT_HEATER: Heater = {
   enabled: true,
@@ -477,7 +486,8 @@ export function createSimulation(
     initialTemperature,
     roomTemperature,
     tapWaterTemperature,
-    tapWaterPH,
+    tapKh,
+    tapGh,
     heater,
     lid,
     ato,
@@ -516,15 +526,12 @@ export function createSimulation(
     ...powerhead,
   };
 
-  const substrateType = substrate?.type ?? DEFAULT_SUBSTRATE.type;
-  const substrateConfig: Substrate = {
-    type: substrateType,
-    organicReserve: getSubstrateOrganicReserve(substrateType, tankCapacity),
-  };
+  const substrateConfig = freshSubstrate(substrate?.type ?? DEFAULT_SUBSTRATE.type, tankCapacity);
 
   const hardscapeConfig: Hardscape = {
-    ...DEFAULT_HARDSCAPE,
-    ...hardscape,
+    items: (hardscape?.items ?? DEFAULT_HARDSCAPE.items).map((item) =>
+      createHardscapeItem(item.id, item.type)
+    ),
   };
 
   const lightConfig: Light = {
@@ -561,7 +568,8 @@ export function createSimulation(
 
   const effectiveRoomTemp = roomTemperature ?? DEFAULT_ROOM_TEMPERATURE;
   const effectiveTapWaterTemp = tapWaterTemperature ?? DEFAULT_TAP_WATER_TEMPERATURE;
-  const effectiveTapWaterPH = tapWaterPH ?? DEFAULT_TAP_WATER_PH;
+  const effectiveTapKh = tapKh ?? DEFAULT_TAP_KH;
+  const effectiveTapGh = tapGh ?? DEFAULT_TAP_GH;
   const heaterStatus = heaterConfig.enabled ? 'enabled' : 'disabled';
 
   const initialLog = createLog(
@@ -618,8 +626,9 @@ export function createSimulation(
       // Dissolved gases (concentration in mg/L)
       oxygen: 8.0, // Start at saturation for ~20°C
       co2: 4.0, // Start at atmospheric equilibrium
-      // Water chemistry
-      ph: DEFAULT_INITIAL_PH, // Slightly acidic, matches tap water default
+      // The tank is filled from the tap
+      kh: getKhMass(effectiveTapKh, tankCapacity),
+      gh: getGhMass(effectiveTapGh, tankCapacity),
       // Bacteria (nitrogen cycle)
       aob: 0,
       nob: 0,
@@ -627,7 +636,8 @@ export function createSimulation(
     environment: {
       roomTemperature: effectiveRoomTemp,
       tapWaterTemperature: effectiveTapWaterTemp,
-      tapWaterPH: effectiveTapWaterPH,
+      tapKh: effectiveTapKh,
+      tapGh: effectiveTapGh,
     },
     equipment: {
       heater: heaterConfig,

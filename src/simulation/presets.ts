@@ -3,7 +3,7 @@
  */
 
 import type { SimulationConfig, SimulationState } from './state.js';
-import type { HardscapeItem } from './equipment/hardscape.js';
+import type { HardscapeItemSpec, HardscapeType } from './equipment/hardscape.js';
 import { createSimulation } from './state.js';
 import type { PresetSeed } from './seed.js';
 
@@ -18,7 +18,9 @@ export interface PresetDefinition {
 }
 
 // Helper to create hardscape items with unique IDs
-function createHardscapeItems(items: Array<{ type: HardscapeItem['type'] }>): HardscapeItem[] {
+function createHardscapeItems(
+  items: Array<{ type: HardscapeType }>
+): HardscapeItemSpec[] {
   return items.map((item, index) => ({
     id: `preset-${item.type}-${index}`,
     type: item.type,
@@ -49,7 +51,7 @@ export const PRESETS: PresetDefinition[] = [
       tankCapacity: 20, // 5 gal
       roomTemperature: 22,
       tapWaterTemperature: 18,
-      tapWaterPH: 7.0,
+      tapKh: 3,
       heater: {
         enabled: true,
         targetTemperature: 26,

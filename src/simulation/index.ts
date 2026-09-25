@@ -52,6 +52,7 @@ export { FISH_SPECIES_DATA } from './livestock/species.js';
 // Seeding — starting a tank at a state
 export type {
   PresetSeed,
+  TankSeed,
   SeedBacteria,
   SeedColony,
   SeedSubstrate,
@@ -59,7 +60,14 @@ export type {
   SeedFishGroup,
   SeedPlantGroup,
 } from './seed.js';
-export { cycledColony, cycledNitrate, cycledReserve } from './seed.js';
+export {
+  cycledColony,
+  cycledHardness,
+  cycledKhReserve,
+  cycledNitrate,
+  cycledReserve,
+  startingHardness,
+} from './seed.js';
 
 // Presets
 export type { PresetId, PresetDefinition } from './presets.js';
@@ -79,6 +87,10 @@ export { DEFAULT_CONFIG } from './config/index.js';
 export type { ResourceDefinition, ResourceKey } from './resources/index.js';
 export {
   getMassFromPpm,
+  getDkh,
+  getKhMass,
+  getDgh,
+  getGhMass,
   ResourceRegistry,
   AllResources,
   TemperatureResource,
@@ -88,7 +100,8 @@ export {
   LightResource,
   FoodResource,
   WasteResource,
-  PhResource,
+  KhResource,
+  GhResource,
   PhosphateResource,
   PotassiumResource,
   IronResource,
@@ -102,18 +115,16 @@ export { isScheduleActive, isValidSchedule, formatSchedule } from './core/schedu
 export { createLog } from './core/logging.js';
 
 // Blending
-export {
-  blendTemperature,
-  blendConcentration,
-  blendPH,
-  phToHydrogen,
-  hydrogenToPh,
-} from './core/blending.js';
+export { blendTemperature, blendConcentration } from './core/blending.js';
+
+// Carbonate chemistry
+export { carbonatePh, getPh } from './core/carbonate.js';
 
 export type { Effect, EffectTier } from './core/effects.js';
 export { applyEffects } from './core/effects.js';
 
-export { tick, getHourOfDay, getDayNumber } from './tick.js';
+export { tick } from './tick.js';
+export { getHourOfDay, getDayNumber } from './core/clock.js';
 
 // Systems
 export type { System } from './systems/index.js';
@@ -123,6 +134,7 @@ export {
   evaporationSystem,
   decaySystem,
   calculateTemperatureDrift,
+  ambientTemperature,
   calculateEvaporation,
   calculateEvaporationRatePerDay,
   getTemperatureFactor,
@@ -130,9 +142,6 @@ export {
   calculateDecay,
   LID_MULTIPLIERS,
   getLidMultiplier,
-  phDriftSystem,
-  calculateHardscapeTargetPH,
-  calculateCO2PHEffect,
 } from './systems/index.js';
 
 // Equipment
@@ -166,14 +175,18 @@ export {
   POWERHEAD_FLOW_RATES,
   getSubstrateSurface,
   getSubstrateOrganicReserve,
+  getSubstrateKhReserve,
+  freshSubstrate,
   replaceSubstrate,
   calculateSubstrateLeach,
+  calculateSubstrateKhUptake,
   substrateUpdate,
   type SubstrateType,
   type Substrate,
   DEFAULT_SUBSTRATE,
   SUBSTRATE_SURFACE_PER_LITER,
   SUBSTRATE_ORGANIC_PER_LITER,
+  SUBSTRATE_KH_RESERVE_PER_LITER,
   BUBBLE_RATE_OPTIONS,
   type BubbleRate,
   getAirPumpOutput,
@@ -202,12 +215,18 @@ export {
   getHardscapeSurface,
   calculateHardscapeTotalSurface,
   getHardscapeName,
-  getHardscapePHEffect,
+  getHardscapeHardnessEffect,
   checkHardscapeCapacity,
+  createHardscapeItem,
+  calculateCalciteDissolution,
+  calculateTanninLeach,
+  hardscapeUpdate,
   DEFAULT_HARDSCAPE,
   HARDSCAPE_SURFACE,
+  HARDSCAPE_TANNINS,
   type HardscapeType,
   type HardscapeItem,
+  type HardscapeItemSpec,
   type Hardscape,
 } from './equipment/hardscape.js';
 

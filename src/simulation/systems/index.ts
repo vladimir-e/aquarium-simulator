@@ -7,6 +7,7 @@ export type { System } from './types.js';
 export {
   temperatureDriftSystem,
   calculateTemperatureDrift,
+  ambientTemperature,
 } from './temperature-drift.js';
 
 export {
@@ -64,12 +65,6 @@ export {
 } from './gas-exchange.js';
 
 export {
-  phDriftSystem,
-  calculateHardscapeTargetPH,
-  calculateCO2PHEffect,
-} from './ph-drift.js';
-
-export {
   computeVitality,
   bankSurplus,
   spendableSurplus,
@@ -86,7 +81,6 @@ import { evaporationSystem } from './evaporation.js';
 import { decaySystem } from './decay.js';
 import { nitrogenCycleSystem } from './nitrogen-cycle.js';
 import { gasExchangeSystem } from './gas-exchange.js';
-import { phDriftSystem } from './ph-drift.js';
 
 /** All core systems in the simulation */
 export const coreSystems: System[] = [
@@ -95,5 +89,4 @@ export const coreSystems: System[] = [
   decaySystem,
   nitrogenCycleSystem,
   gasExchangeSystem,
-  phDriftSystem,
 ];

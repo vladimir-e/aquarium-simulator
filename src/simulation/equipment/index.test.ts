@@ -18,7 +18,7 @@ import { calculateParAtDepth } from './light.js';
 import { opticsDefaults } from '../config/optics.js';
 import { FILTER_SURFACE, getFilterFlow } from './filter.js';
 import { POWERHEAD_FLOW_LPH } from './powerhead.js';
-import { calculateHardscapeTotalSurface, type HardscapeItem } from './hardscape.js';
+import { calculateHardscapeTotalSurface, createHardscapeItem, type HardscapeItem } from './hardscape.js';
 
 const passive = (state: SimulationState): PassiveResourceValues =>
   calculatePassiveResources(state, opticsDefaults);
@@ -43,8 +43,8 @@ describe('calculatePassiveResources', () => {
 
     it('adds the filter, substrate and hardscape on top of the glass', () => {
       const items: HardscapeItem[] = [
-        { id: '1', type: 'neutral_rock' },
-        { id: '2', type: 'driftwood' },
+        createHardscapeItem('1', 'neutral_rock'),
+        createHardscapeItem('2', 'driftwood'),
       ];
       const full = tank({
         filter: { enabled: true, type: 'hob' },

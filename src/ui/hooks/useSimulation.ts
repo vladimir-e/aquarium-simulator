@@ -17,8 +17,10 @@ import {
   type PowerheadFlowRate,
   type SubstrateType,
   type HardscapeType,
-  type HardscapeItem,
   type DailySchedule,
+  createHardscapeItem,
+  startingHardness,
+  type SimulationConfig,
 } from '../../simulation/index.js';
 import { createLog } from '../../simulation/core/logging.js';
 import type { OpticsConfig } from '../../simulation/config/index.js';
@@ -100,7 +102,8 @@ interface UseSimulationReturn {
   updateHeaterWattage: (wattage: number) => void;
   updateRoomTemperature: (temp: number) => void;
   updateTapWaterTemperature: (temp: number) => void;
-  updateTapWaterPH: (ph: number) => void;
+  updateTapKh: (dkh: number) => void;
+  updateTapGh: (dgh: number) => void;
   updateLidType: (type: LidType) => void;
   updateAtoEnabled: (enabled: boolean) => void;
   updateFilterEnabled: (enabled: boolean) => void;
@@ -157,41 +160,75 @@ function stateToPersistedSimulation(
     algae: state.algae,
     rng: state.rng,
     alertState: state.alertState,
+    seed: state.seed,
     currentPreset,
   };
 }
 
-/**
- * Create initial resources for a fresh simulation reset.
- * Uses tank capacity to set water level.
- */
-function createInitialResources(
-  tankCapacity: number,
-  environment: SimulationState['environment'],
-  equipment: SimulationState['equipment'],
-  optics: OpticsConfig
-): SimulationState['resources'] {
-  // Create a temporary simulation to get initial resource values
-  const tempState = createSimulation({
-    tankCapacity,
+const TAP_HARDNESS = {
+  tapKh: { label: 'KH', unit: 'dKH' },
+  tapGh: { label: 'GH', unit: 'dGH' },
+} as const;
+
+function retuneTap(
+  key: keyof typeof TAP_HARDNESS,
+  value: number
+): (current: SimulationState) => SimulationState {
+  const { label, unit } = TAP_HARDNESS[key];
+  return (current) =>
+    produce(current, (draft) => {
+      draft.logs.push(
+        createLog(
+          draft.tick,
+          'user',
+          'info',
+          `Tap water ${label}: ${draft.environment[key].toFixed(1)} → ${value.toFixed(1)} ${unit}`
+        )
+      );
+      draft.environment[key] = value;
+      if (draft.tick === 0) Object.assign(draft.resources, startingHardness(draft));
+    });
+}
+
+/** What builds this tank again at hour zero, at `capacity` litres, with its fittings carried across. */
+function rebuildConfig(state: SimulationState, capacity: number): SimulationConfig {
+  const { environment, equipment } = state;
+  return {
+    tankCapacity: capacity,
     roomTemperature: environment.roomTemperature,
     tapWaterTemperature: environment.tapWaterTemperature,
-    tapWaterPH: environment.tapWaterPH,
-  });
-
-  // Now calculate passive resources based on current equipment
-  const fullState: SimulationState = {
-    ...tempState,
-    equipment,
-  };
-  const passiveValues = calculatePassiveResources(fullState, optics);
-
-  return {
-    ...tempState.resources,
-    surface: passiveValues.surface,
-    flow: passiveValues.flow,
-    light: passiveValues.light,
-    aeration: passiveValues.aeration,
+    tapKh: environment.tapKh,
+    tapGh: environment.tapGh,
+    heater: {
+      enabled: equipment.heater.enabled,
+      targetTemperature: equipment.heater.targetTemperature,
+      wattage: equipment.heater.wattage,
+    },
+    lid: { type: equipment.lid.type },
+    ato: { enabled: equipment.ato.enabled },
+    filter: { enabled: equipment.filter.enabled, type: equipment.filter.type },
+    powerhead: {
+      enabled: equipment.powerhead.enabled,
+      flowRateGPH: equipment.powerhead.flowRateGPH,
+    },
+    substrate: { type: equipment.substrate.type },
+    hardscape: { items: equipment.hardscape.items.slice(0, calculateHardscapeSlots(capacity)) },
+    light: {
+      enabled: equipment.light.enabled,
+      par: equipment.light.par,
+      schedule: equipment.light.schedule,
+    },
+    co2Generator: {
+      enabled: equipment.co2Generator.enabled,
+      bubbleRate: equipment.co2Generator.bubbleRate,
+      schedule: equipment.co2Generator.schedule,
+    },
+    airPump: { enabled: equipment.airPump.enabled },
+    autoDoser: {
+      enabled: equipment.autoDoser.enabled,
+      doseAmountMl: equipment.autoDoser.doseAmountMl,
+      schedule: equipment.autoDoser.schedule,
+    },
   };
 }
 
@@ -406,8 +443,8 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
   );
 
   /**
-   * Reset simulation: keeps equipment and plants but resets
-   * tick, resources, alertState, and logs to fresh state.
+   * Reset simulation: keeps equipment, plants and fish, and puts the clock,
+   * the water, the bed and the scape back where the tank's seed started them.
    */
   const reset = useCallback(() => {
     // Stop playing if currently running
@@ -419,17 +456,15 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
 
     setState((current) =>
       produce(current, (draft) => {
-        // Reset tick to 0
-        draft.tick = 0;
-
-        // Reset resources to initial values for current tank
-        const freshResources = createInitialResources(
-          current.tank.capacity,
-          current.environment,
-          current.equipment,
-          configRef.current.optics
+        const fresh = createSimulation(
+          rebuildConfig(current, current.tank.capacity),
+          current.seed
         );
-        draft.resources = freshResources;
+        draft.tick = 0;
+        draft.resources = fresh.resources;
+        draft.equipment.substrate = fresh.equipment.substrate;
+        draft.equipment.hardscape = fresh.equipment.hardscape;
+        refreshPassiveResources(draft, configRef.current.optics);
 
         // Clear in-flight clutches: they hatch at an absolute
         // `laidTick + hatchTime`, so rewinding the clock to 0 would
@@ -531,21 +566,9 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
     );
   }, []);
 
-  const updateTapWaterPH = useCallback((ph: number) => {
-    setState((current) =>
-      produce(current, (draft) => {
-        const oldPH = draft.environment.tapWaterPH;
-        const log = createLog(
-          draft.tick,
-          'user',
-          'info',
-          `Tap water pH: ${oldPH.toFixed(1)} → ${ph.toFixed(1)}`
-        );
-        draft.environment.tapWaterPH = ph;
-        draft.logs.push(log);
-      })
-    );
-  }, []);
+  const updateTapKh = useCallback((dkh: number) => setState(retuneTap('tapKh', dkh)), []);
+
+  const updateTapGh = useCallback((dgh: number) => setState(retuneTap('tapGh', dgh)), []);
 
   const updateLidType = useCallback((type: LidType) => {
     setState((current) =>
@@ -672,12 +695,7 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
         );
         if (!capacity.ok) return;
 
-        const newItem: HardscapeItem = {
-          id: generateHardscapeId(),
-          type,
-        };
-
-        draft.equipment.hardscape.items.push(newItem);
+        draft.equipment.hardscape.items.push(createHardscapeItem(generateHardscapeId(), type));
 
         const log = createLog(
           draft.tick,
@@ -873,64 +891,12 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
       resetRun();
       replaceTank();
 
-      // Reinitialize simulation with new capacity, preserving equipment state
-      setState((current) => {
-        // Calculate new hardscape slots for the new capacity
-        // Keep existing items but truncate if the new tank has fewer slots
-        const newSlots = calculateHardscapeSlots(capacity);
-        const preservedItems = current.equipment.hardscape.items.slice(0, newSlots);
-
-        const resized = createSimulation({
-          tankCapacity: capacity,
-          initialTemperature: 25,
-          roomTemperature: current.environment.roomTemperature,
-          heater: {
-            enabled: current.equipment.heater.enabled,
-            targetTemperature: current.equipment.heater.targetTemperature,
-            wattage: current.equipment.heater.wattage,
-          },
-          lid: {
-            type: current.equipment.lid.type,
-          },
-          ato: {
-            enabled: current.equipment.ato.enabled,
-          },
-          filter: {
-            enabled: current.equipment.filter.enabled,
-            type: current.equipment.filter.type,
-          },
-          powerhead: {
-            enabled: current.equipment.powerhead.enabled,
-            flowRateGPH: current.equipment.powerhead.flowRateGPH,
-          },
-          substrate: {
-            type: current.equipment.substrate.type,
-          },
-          hardscape: {
-            items: preservedItems,
-          },
-          light: {
-            enabled: current.equipment.light.enabled,
-            par: current.equipment.light.par,
-            schedule: current.equipment.light.schedule,
-          },
-          co2Generator: {
-            enabled: current.equipment.co2Generator.enabled,
-            bubbleRate: current.equipment.co2Generator.bubbleRate,
-            schedule: current.equipment.co2Generator.schedule,
-          },
-          airPump: {
-            enabled: current.equipment.airPump.enabled,
-          },
-          autoDoser: {
-            enabled: current.equipment.autoDoser.enabled,
-            doseAmountMl: current.equipment.autoDoser.doseAmountMl,
-            schedule: current.equipment.autoDoser.schedule,
-          },
-        });
-
-        return withPassiveResources(resized, configRef.current.optics);
-      });
+      setState((current) =>
+        withPassiveResources(
+          createSimulation(rebuildConfig(current, capacity)),
+          configRef.current.optics
+        )
+      );
     },
     [isPlaying, stopAutoPlay, resetRun, replaceTank]
   );
@@ -970,7 +936,8 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
     updateHeaterWattage,
     updateRoomTemperature,
     updateTapWaterTemperature,
-    updateTapWaterPH,
+    updateTapKh,
+    updateTapGh,
     updateLidType,
     updateAtoEnabled,
     updateFilterEnabled,

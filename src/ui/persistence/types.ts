@@ -14,6 +14,7 @@ import type {
   AlgaeState,
   AlertState,
 } from '../../simulation/state.js';
+import type { TankSeed } from '../../simulation/seed.js';
 import type { RngState } from '../../simulation/core/rng.js';
 import type { VerbId, VerbSettings } from '../actions/verbs.js';
 import type { TunableConfig } from '../../simulation/config/index.js';
@@ -22,6 +23,18 @@ import type { TunableConfig } from '../../simulation/config/index.js';
  * Schema version for persisted state.
  * Increment this when the structure changes in a breaking way.
  * On version mismatch, stored data is discarded.
+ *
+ * v27: pH is derived from CO₂ and KH, not stored. `Resources` swaps `ph` for
+ *      `kh` (alkalinity as mg of CaCO3) and gains `gh` (general hardness, the
+ *      same unit), `Environment` swaps `tapWaterPH` for `tapKh` and gains
+ *      `tapGh`, and the `ph` tunables section becomes `waterChemistry`;
+ *      livestock and plants each gain `ghStressSeverity`. The scape's buffers
+ *      run down: `Substrate` gains `khReserve` and each `HardscapeItem` its
+ *      `tannins`. Plant carbon saturates: `optimalCo2` and
+ *      `co2InsufficientSeverity` give way to three per-need CO₂
+ *      half-saturations, and `temperature` gains `roomDailySwing` and
+ *      `lightWarmingPerPar`. The simulation keeps the `seed` its hour-zero
+ *      stocks came from.
  *
  * v26: The spine remembers whether it was showing its tracks. `PersistedUI`
  *      gains `spineOpen`, beside the `tunablesOpen` it mirrors. A v25 save
@@ -184,7 +197,7 @@ import type { TunableConfig } from '../../simulation/config/index.js';
  *     nutrient sufficiency) but its persisted shape is identical, so
  *     the bump is purely the new Fish field.
  */
-export const PERSISTENCE_VERSION = 26;
+export const PERSISTENCE_VERSION = 27;
 
 /**
  * Storage key for the unified persisted state.
@@ -207,6 +220,7 @@ export interface PersistedSimulation {
   algae: AlgaeState;
   rng: RngState;
   alertState: AlertState;
+  seed?: TankSeed;
   /** Currently selected preset ID */
   currentPreset: string;
 }

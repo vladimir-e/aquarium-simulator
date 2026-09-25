@@ -9,7 +9,8 @@
  * up upstream as the nutrient-deficiency stressor on vitality, which
  * gates surplus, which gates growth — no double-counting.
  *
- * - Consumes CO2, light, and plant macronutrients (NO3, PO4, K, Fe)
+ * - Consumes CO2, light, and plant macronutrients (NO3, PO4, K, Fe), and a
+ *   little calcium and magnesium (GH) alongside them
  * - Produces oxygen
  * - Nutrient uptake runs at the *potential* rate (size × light × CO2) — plants
  *   draw nutrients from the water column even when one nutrient caps growth
@@ -27,8 +28,12 @@ import type { NutrientsConfig, FertilizerFormula } from '../config/nutrients.js'
 import { nutrientsDefaults, getNutrientRatio } from '../config/nutrients.js';
 import type { Resources } from '../state.js';
 import { CO2_TO_O2_MASS_RATIO } from '../core/chemistry.js';
-import { lightSaturationFactor } from '../core/kinetics.js';
-import { getSaturationIrradiance } from '../plants/species.js';
+import { lightSaturationFactor, monodFactor } from '../core/kinetics.js';
+import {
+  getCo2HalfSaturation,
+  getSaturationIrradiance,
+  type PlantSpecies,
+} from '../plants/species.js';
 import { getMassFromPpm } from '../resources/index.js';
 import { getDemandMultiplier } from './nutrients.js';
 
@@ -38,6 +43,14 @@ import { getDemandMultiplier } from './nutrients.js';
  * vitality and photosynthesis so the calculation isn't repeated.
  */
 export type SufficiencyMap = ReadonlyMap<string, number>;
+
+/**
+ * mg of GH, as CaCO3, a plant takes up per mg of macronutrient it draws. Leaf
+ * tissue carries about a third as much calcium and a tenth as much magnesium
+ * as nitrogen; read against the fertilizer ratio's nitrogen share and
+ * converted to CaCO3 equivalents, that is ~0.15.
+ */
+const GH_PER_NUTRIENT_DRAWN = 0.15;
 
 export interface PhotosynthesisResult {
   /** Oxygen released (mg, absolute — caller divides by water volume for mg/L delta) */
@@ -52,6 +65,8 @@ export interface PhotosynthesisResult {
   potassiumDelta: number;
   /** Iron consumed (mg, negative) */
   ironDelta: number;
+  /** Calcium and magnesium consumed (mg of CaCO3, negative) */
+  ghDelta: number;
   /**
    * Effective limiting factor averaged across plants (0–1).
    * Useful for telemetry / tests. 0 = no photosynthesis, 1 = optimal.
@@ -60,15 +75,15 @@ export interface PhotosynthesisResult {
 }
 
 /**
- * Calculate CO2 limiting factor for photosynthesis.
- * Returns 0-1 where 1 = optimal conditions.
+ * Carbon limitation of a species' photosynthesis — Monod on dissolved CO₂,
+ * half rate at the species' half-saturation.
  */
 export function calculateCo2Factor(
   co2: number,
+  species: PlantSpecies,
   config: PlantsConfig = plantsDefaults
 ): number {
-  if (co2 <= 0) return 0;
-  return Math.min(1, co2 / config.optimalCo2);
+  return monodFactor(co2, getCo2HalfSaturation(species, config));
 }
 
 /**
@@ -82,6 +97,7 @@ function emptyResult(): PhotosynthesisResult {
     phosphateDelta: 0,
     potassiumDelta: 0,
     ironDelta: 0,
+    ghDelta: 0,
     limitingFactor: 0,
   };
 }
@@ -91,7 +107,8 @@ function emptyResult(): PhotosynthesisResult {
  *
  * Per-plant contribution:
  *   lightResponse_i = tanh(PAR / Ik_i), the species' saturating light curve
- *   potential_i = size_i × co2Factor × lightResponse_i
+ *   co2Factor_i = CO2 / (K_i + CO2), the species' carbon Monod
+ *   potential_i = size_i × co2Factor_i × lightResponse_i
  *   actual_i    = potential_i × sufficiency_i × basePhotosynthesisRate
  *
  * Aggregate outputs, all masses in mg:
@@ -127,9 +144,6 @@ export function calculatePhotosynthesis(
     return emptyResult();
   }
 
-  const co2Factor = calculateCo2Factor(co2, plantsConfig);
-  if (co2Factor <= 0) return emptyResult();
-
   // Pre-compute fertilizer ratios once
   const formula: FertilizerFormula = nutrientsConfig.fertilizerFormula;
   const nitrateRatio = getNutrientRatio('nitrate', formula);
@@ -146,6 +160,7 @@ export function calculatePhotosynthesis(
       light,
       getSaturationIrradiance(plant.species, plantsConfig)
     );
+    const co2Factor = calculateCo2Factor(co2, plant.species, plantsConfig);
     const potential = (plant.size / 100) * co2Factor * lightResponse;
     potentialSum += potential;
     // Sufficiency is precomputed by the orchestrator. Default to 0 for
@@ -155,7 +170,7 @@ export function calculatePhotosynthesis(
     weightedSufficiency += potential * sufficiency;
   }
 
-  // Potential photosynthesis (in "rate units", 1 = 100% plant × optimal light/CO2)
+  // Potential photosynthesis (in "rate units", 1 = 100% plant × saturating light and carbon)
   const potentialRate = potentialSum * plantsConfig.basePhotosynthesisRate;
   // Actual photosynthesis (post-Liebig). Drives O2 release, CO2 fixation,
   // and the active-biomass component of nutrient draw.
@@ -182,6 +197,9 @@ export function calculatePhotosynthesis(
   const phosphateDelta = drawFrom(phosphateRatio, resources.phosphate);
   const potassiumDelta = drawFrom(potassiumRatio, resources.potassium);
   const ironDelta = drawFrom(ironRatio, resources.iron);
+  const nutrientsDrawn = -(nitrateDelta + phosphateDelta + potassiumDelta + ironDelta);
+  const ghDrawn = Math.min(nutrientsDrawn * GH_PER_NUTRIENT_DRAWN, Math.max(0, resources.gh));
+  const ghDelta = ghDrawn > 0 ? -ghDrawn : 0;
 
   const co2ConsumedMg = Math.min(
     actualRate * plantsConfig.co2PerRateUnit,
@@ -198,6 +216,7 @@ export function calculatePhotosynthesis(
     phosphateDelta,
     potassiumDelta,
     ironDelta,
+    ghDelta,
     limitingFactor,
   };
 }

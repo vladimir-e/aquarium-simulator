@@ -7,6 +7,7 @@ import { UnitsProvider } from '../hooks/useUnits';
 import { PersistenceProvider } from '../persistence/index.js';
 import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
 import {
+  createHardscapeItem,
   createSimulation,
   LIGHT_PAR_OPTIONS,
   type SimulationState,
@@ -252,10 +253,9 @@ describe('GearSection — the scape', () => {
       equipment: {
         ...base.equipment,
         hardscape: {
-          items: Array.from({ length: base.tank.hardscapeSlots }, (_, i) => ({
-            id: `hardscape_${i}`,
-            type: 'neutral_rock' as const,
-          })),
+          items: Array.from({ length: base.tank.hardscapeSlots }, (_, i) =>
+            createHardscapeItem(`hardscape_${i}`, 'neutral_rock')
+          ),
         },
       },
     };
@@ -272,7 +272,7 @@ describe('GearSection — the scape', () => {
       ...base,
       equipment: {
         ...base.equipment,
-        hardscape: { items: [{ id: 'hardscape_1', type: 'driftwood' }] },
+        hardscape: { items: [createHardscapeItem('hardscape_1', 'driftwood')] },
       },
     };
     const sim = renderGear('/gear', stubSim(scaped));

@@ -73,6 +73,8 @@ export type ReadingId =
   | 'nitrateDemand'
   | 'temperature'
   | 'ph'
+  | 'kh'
+  | 'gh'
   | 'level'
   | 'oxygen'
   | 'co2'
@@ -195,6 +197,8 @@ function tapeOf(history: RunSnapshot[], units: UnitSystem): Tape {
       nitrateDemand: (s) => s.nitrate,
       temperature: (s) => toDisplayTemperature(s.temperature, units),
       ph: (s) => s.ph,
+      kh: (s) => s.kh,
+      gh: (s) => s.gh,
       level: (s) => s.waterPct,
       oxygen: (s) => s.oxygen,
       co2: (s) => s.co2,
@@ -212,6 +216,8 @@ export const DECIMALS: Record<ReadingId, number> = {
   nitrateDemand: 1,
   temperature: 1,
   ph: 2,
+  kh: 1,
+  gh: 1,
   level: 0,
   oxygen: 1,
   co2: 1,
@@ -395,6 +401,7 @@ export function readTank({ state, config, history, units }: TankInput): ReadingB
   const { rates } = bacteria;
   const tempBand = stockedBand(state, (data) => data.temperatureRange);
   const phBand = stockedBand(state, (data) => data.phRange);
+  const ghBand = stockedBand(state, (data) => data.ghRange);
   const algae = state.algae.mass;
   const algaeAt = scale(DISPLAY_CEILING.algae);
   const wasteAt = scale(DISPLAY_CEILING.waste);
@@ -474,6 +481,23 @@ export function readTank({ state, config, history, units }: TankInput): ReadingB
         phBand,
         phBand ? `pH ${said('ph', phBand.min)}–${said('ph', phBand.max)}` : '',
         'Nothing stocked, so nothing in the tank has a pH to prefer.'
+      ),
+    }),
+    kh: fromWater('kh', tape, {
+      reading: read('kh'),
+      sentence:
+        'The buffer that holds pH against CO₂. Tap water brings it; nitrification, driftwood and aqua soil spend it; calcite adds it.',
+    }),
+    gh: fromWater('gh', tape, {
+      reading: read('gh'),
+      band: ghBand
+        ? { from: readingAt('gh', ghBand.min), to: readingAt('gh', ghBand.max) }
+        : null,
+      tone: toneOf(toleranceStatus(read('gh').value, ghBand)),
+      sentence: toleranceSentence(
+        ghBand,
+        ghBand ? `GH ${said('gh', ghBand.min)}–${said('gh', ghBand.max)} dGH` : '',
+        'Nothing stocked, so nothing in the tank has a hardness to prefer.'
       ),
     }),
     level: fromWater('level', tape, {

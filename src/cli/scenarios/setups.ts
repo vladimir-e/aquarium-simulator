@@ -2,6 +2,7 @@ import type { SimulationConfig } from '../../simulation/state.js';
 import type { PresetSeed, SeedFishGroup, SeedPlantGroup } from '../../simulation/seed.js';
 import type { SubstrateType } from '../../simulation/equipment/substrate.js';
 import type { FilterType } from '../../simulation/equipment/filter.js';
+import type { HardscapeType } from '../../simulation/equipment/hardscape.js';
 import { DAILY, TRIM_TARGET, WEEKLY, type Chore, type Schedule, type ScheduleEntry } from './keeper.js';
 import type { BandOverrides } from './readings.js';
 import { LITERS_PER_GALLON, toCelsius } from '../units.js';
@@ -11,6 +12,11 @@ export interface Setup {
   about: string;
   gallons: number;
   substrate: SubstrateType;
+  hardscape: HardscapeType[];
+  /** Tap water carbonate hardness, dKH. */
+  tapKh: number;
+  /** Tap water general hardness, dGH. */
+  tapGh: number;
   heaterF: number | null;
   roomF: number;
   filter: FilterType | null;
@@ -37,6 +43,8 @@ export function toConfig(setup: Setup): SimulationConfig {
     tankCapacity: setup.gallons * LITERS_PER_GALLON,
     initialTemperature: toCelsius(setup.heaterF ?? setup.roomF),
     roomTemperature: toCelsius(setup.roomF),
+    tapKh: setup.tapKh,
+    tapGh: setup.tapGh,
     heater:
       setup.heaterF === null
         ? { enabled: false }
@@ -51,7 +59,7 @@ export function toConfig(setup: Setup): SimulationConfig {
         ? { enabled: false }
         : { enabled: true, par: light.par, schedule: { startHour: LIGHTS_ON, duration: light.hours } },
     substrate: { type: setup.substrate },
-    hardscape: { items: [] },
+    hardscape: { items: setup.hardscape.map((type, i) => ({ id: `${type}-${i}`, type })) },
     ato: { enabled: setup.ato },
     co2Generator:
       setup.co2 === null || light === null
@@ -101,6 +109,9 @@ export const SETUPS: Setup[] = [
     about: '5 gal nano, one betta over a few epiphytes',
     gallons: 5,
     substrate: 'gravel',
+    hardscape: [],
+    tapKh: 5,
+    tapGh: 7,
     heaterF: 78,
     roomF: 72,
     filter: 'sponge',
@@ -121,6 +132,9 @@ export const SETUPS: Setup[] = [
     about: '20 gal low-tech planted, tetras and cories',
     gallons: 20,
     substrate: 'aqua_soil',
+    hardscape: [],
+    tapKh: 4,
+    tapGh: 6,
     heaterF: 77,
     roomF: 72,
     filter: 'hob',
@@ -145,12 +159,15 @@ export const SETUPS: Setup[] = [
     about: '40 gal high-tech planted, CO₂ and daily dosing',
     gallons: 40,
     substrate: 'aqua_soil',
+    hardscape: [],
+    tapKh: 4,
+    tapGh: 6,
     heaterF: 76,
     roomF: 72,
     filter: 'canister',
     light: { par: 120, hours: 8 },
     co2: 2,
-    doser: 3,
+    doser: 6,
     ato: true,
     plants: [
       { species: 'monte_carlo', count: 6, size: PLANTING_SIZE },
@@ -173,6 +190,9 @@ export const SETUPS: Setup[] = [
     about: '75 gal community, angelfish over schooling fish, a few easy plants',
     gallons: 75,
     substrate: 'sand',
+    hardscape: [],
+    tapKh: 5,
+    tapGh: 7,
     heaterF: 78,
     roomF: 72,
     filter: 'canister',
@@ -199,6 +219,9 @@ export const SETUPS: Setup[] = [
     about: '30 gal fish-only on a single sponge filter',
     gallons: 30,
     substrate: 'gravel',
+    hardscape: [],
+    tapKh: 5,
+    tapGh: 7,
     heaterF: 78,
     roomF: 72,
     filter: 'sponge',
@@ -220,6 +243,9 @@ export const SETUPS: Setup[] = [
     about: '20 gal unheated in a 68 °F room, guppies and easy plants',
     gallons: 20,
     substrate: 'gravel',
+    hardscape: [],
+    tapKh: 5,
+    tapGh: 7,
     heaterF: null,
     roomF: 68,
     filter: 'hob',

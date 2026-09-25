@@ -78,6 +78,8 @@ export interface FishSpeciesData {
   temperatureRange: [number, number];
   /** Preferred pH range [min, max] */
   phRange: [number, number];
+  /** Preferred general hardness range [min, max] in dGH */
+  ghRange: [number, number];
   /** Maximum tolerable circulation in tank volumes per hour */
   maxTurnover: number;
   /** Reproduction parameters */
@@ -94,7 +96,8 @@ export const FISH_SPECIES_DATA: Record<FishSpecies, FishSpeciesData> = {
     maxAge: 24 * 365 * 5, // ~5 years
     hardiness: 0.5,
     temperatureRange: [22, 28],
-    phRange: [6.0, 7.5],
+    phRange: [5.0, 7.8],
+    ghRange: [1, 12],
     maxTurnover: 10, // Slow tributaries, but fine on a community canister
     // Egg-scatterer: sheds adhesive eggs over plants/substrate, no
     // parental care. Fast incubation (~24 h in the wild), large broods,
@@ -115,7 +118,8 @@ export const FISH_SPECIES_DATA: Record<FishSpecies, FishSpeciesData> = {
     maxAge: 24 * 365 * 3, // ~3 years
     hardiness: 0.6,
     temperatureRange: [24, 30],
-    phRange: [6.5, 7.5],
+    phRange: [6.0, 8.0],
+    ghRange: [3, 15],
     maxTurnover: 5, // Still blackwater, long fins - a sponge filter and no more
     // Bubble-nester: male wraps eggs into a surface foam nest. Small
     // clutch, quick hatch (~36 h), matures in ~3 months.
@@ -135,7 +139,8 @@ export const FISH_SPECIES_DATA: Record<FishSpecies, FishSpeciesData> = {
     maxAge: 24 * 365 * 3, // ~3 years
     hardiness: 0.8,
     temperatureRange: [22, 28],
-    phRange: [6.5, 8.0],
+    phRange: [6.5, 8.5],
+    ghRange: [6, 25],
     maxTurnover: 13, // Hardy, tolerates a lot
     // Livebearer: internal gestation, drops free-swimming fry directly
     // (no clutch stage, so `hatchTime` is unused). Prolific and quick to
@@ -156,7 +161,8 @@ export const FISH_SPECIES_DATA: Record<FishSpecies, FishSpeciesData> = {
     maxAge: 24 * 365 * 10, // ~10 years
     hardiness: 0.4,
     temperatureRange: [24, 30],
-    phRange: [6.0, 7.5],
+    phRange: [6.0, 8.0],
+    ghRange: [3, 15],
     maxTurnover: 10, // Tall body catches current, but its canonical home is a big canister tank
     // Substrate-spawner: lays a large clutch on a vertical surface,
     // hatches in ~2.5 days. Big fish, tiny fry, slow to mature (~6 months).
@@ -176,7 +182,8 @@ export const FISH_SPECIES_DATA: Record<FishSpecies, FishSpeciesData> = {
     maxAge: 24 * 365 * 5, // ~5 years
     hardiness: 0.7,
     temperatureRange: [22, 26],
-    phRange: [6.0, 7.5],
+    phRange: [6.0, 8.0],
+    ghRange: [2, 15],
     maxTurnover: 15, // Bottom dweller, appreciates current
     // Egg-depositor: presses small batches of eggs onto glass and leaves.
     // Slow hatch (~4 days), modest clutch, matures in ~5 months.

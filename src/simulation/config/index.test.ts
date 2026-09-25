@@ -16,7 +16,7 @@ import {
   evaporationDefaults,
   algaeVitalityDefaults,
   opticsDefaults,
-  phDefaults,
+  waterChemistryDefaults,
   plantsDefaults,
   nutrientsDefaults,
   livestockDefaults,
@@ -33,7 +33,7 @@ describe('DEFAULT_CONFIG', () => {
     expect(DEFAULT_CONFIG.evaporation).toEqual(evaporationDefaults);
     expect(DEFAULT_CONFIG.algae).toEqual(algaeVitalityDefaults);
     expect(DEFAULT_CONFIG.optics).toEqual(opticsDefaults);
-    expect(DEFAULT_CONFIG.ph).toEqual(phDefaults);
+    expect(DEFAULT_CONFIG.waterChemistry).toEqual(waterChemistryDefaults);
     expect(DEFAULT_CONFIG.plants).toEqual(plantsDefaults);
     expect(DEFAULT_CONFIG.nutrients).toEqual(nutrientsDefaults);
     expect(DEFAULT_CONFIG.livestock).toEqual(livestockDefaults);
@@ -77,7 +77,7 @@ describe('isModified', () => {
 describe('isSectionModified', () => {
   it('returns false for default section', () => {
     expect(isSectionModified(DEFAULT_CONFIG, 'decay')).toBe(false);
-    expect(isSectionModified(DEFAULT_CONFIG, 'ph')).toBe(false);
+    expect(isSectionModified(DEFAULT_CONFIG, 'waterChemistry')).toBe(false);
   });
 
   it('returns true when any value in section is modified', () => {
@@ -101,7 +101,7 @@ describe('countModified', () => {
   it('counts each touched value once, across sections', () => {
     const modified = cloneConfig(DEFAULT_CONFIG);
     modified.decay.q10 = 3.0;
-    modified.ph.neutralPh = DEFAULT_CONFIG.ph.neutralPh + 1;
+    modified.waterChemistry.calciteDissolutionRate = DEFAULT_CONFIG.waterChemistry.calciteDissolutionRate + 1;
     expect(countModified(modified)).toBe(2);
   });
 
@@ -180,12 +180,14 @@ describe('AIR_SATURATED_O2', () => {
 
 describe('tunableAt', () => {
   it('reads the leaf a dotted path names', () => {
-    expect(tunableAt(DEFAULT_CONFIG, 'ph.neutralPh')).toBe(DEFAULT_CONFIG.ph.neutralPh);
+    expect(tunableAt(DEFAULT_CONFIG, 'waterChemistry.calciteDissolutionRate')).toBe(
+      DEFAULT_CONFIG.waterChemistry.calciteDissolutionRate
+    );
   });
 
   it('names nothing numeric, and says so', () => {
-    expect(tunableAt(DEFAULT_CONFIG, 'ph')).toBeUndefined();
-    expect(tunableAt(DEFAULT_CONFIG, 'ph.nothing')).toBeUndefined();
+    expect(tunableAt(DEFAULT_CONFIG, 'waterChemistry')).toBeUndefined();
+    expect(tunableAt(DEFAULT_CONFIG, 'waterChemistry.nothing')).toBeUndefined();
     expect(tunableAt(DEFAULT_CONFIG, 'nothing.at.all')).toBeUndefined();
     expect(tunableAt(DEFAULT_CONFIG, 'toString')).toBeUndefined();
     expect(tunableAt(DEFAULT_CONFIG, 'constructor.name')).toBeUndefined();
@@ -194,19 +196,19 @@ describe('tunableAt', () => {
 
 describe('withTunable', () => {
   it('sets the leaf and leaves the config it was given alone', () => {
-    const was = DEFAULT_CONFIG.ph.neutralPh;
-    const next = withTunable(DEFAULT_CONFIG, 'ph.neutralPh', 6.4);
+    const was = DEFAULT_CONFIG.waterChemistry.calciteDissolutionRate;
+    const next = withTunable(DEFAULT_CONFIG, 'waterChemistry.calciteDissolutionRate', 6.4);
 
-    expect(tunableAt(next, 'ph.neutralPh')).toBe(6.4);
-    expect(DEFAULT_CONFIG.ph.neutralPh).toBe(was);
+    expect(tunableAt(next, 'waterChemistry.calciteDissolutionRate')).toBe(6.4);
+    expect(DEFAULT_CONFIG.waterChemistry.calciteDissolutionRate).toBe(was);
     expect(next.temperature).toEqual(DEFAULT_CONFIG.temperature);
   });
 
   it('throws on a path that names no tunable, rather than writing one', () => {
-    expect(() => withTunable(DEFAULT_CONFIG, 'ph.nothing', 1)).toThrow(
-      'Unknown config path "ph.nothing".'
+    expect(() => withTunable(DEFAULT_CONFIG, 'waterChemistry.nothing', 1)).toThrow(
+      'Unknown config path "waterChemistry.nothing".'
     );
-    expect(() => withTunable(DEFAULT_CONFIG, 'ph', 1)).toThrow();
+    expect(() => withTunable(DEFAULT_CONFIG, 'waterChemistry', 1)).toThrow();
     expect(() => withTunable(DEFAULT_CONFIG, 'toString', 1)).toThrow();
   });
 });

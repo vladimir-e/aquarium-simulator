@@ -1,18 +1,26 @@
 import { describe, it, expect } from 'vitest';
+import { produce } from 'immer';
 import {
+  calculateCalciteDissolution,
   calculateHardscapeTotalSurface,
+  calculateTanninLeach,
   checkHardscapeCapacity,
+  createHardscapeItem,
+  hardscapeUpdate,
   HARDSCAPE_SURFACE,
+  HARDSCAPE_TANNINS,
   type HardscapeItem,
+  type HardscapeType,
 } from './hardscape.js';
-import { calculateHardscapeSlots, createSimulation } from '../state.js';
+import { calculateHardscapeSlots, createSimulation, type SimulationState } from '../state.js';
+import { waterChemistryDefaults } from '../config/water-chemistry.js';
 
 describe('calculateHardscapeTotalSurface', () => {
   it('sums each item’s surface', () => {
     const items: HardscapeItem[] = [
-      { id: '1', type: 'neutral_rock' },
-      { id: '2', type: 'driftwood' },
-      { id: '3', type: 'driftwood' },
+      createHardscapeItem('1', 'neutral_rock'),
+      createHardscapeItem('2', 'driftwood'),
+      createHardscapeItem('3', 'driftwood'),
     ];
     expect(calculateHardscapeTotalSurface([])).toBe(0);
     expect(calculateHardscapeTotalSurface(items)).toBe(
@@ -32,7 +40,7 @@ describe('calculateHardscapeSlots', () => {
 
 describe('checkHardscapeCapacity', () => {
   const items = (n: number): HardscapeItem[] =>
-    Array.from({ length: n }, (_, i) => ({ id: `rock_${i}`, type: 'neutral_rock' }));
+    Array.from({ length: n }, (_, i) => createHardscapeItem(`rock_${i}`, 'neutral_rock'));
 
   it('says nothing while a slot is free', () => {
     expect(checkHardscapeCapacity(items(4), 5)).toEqual({ ok: true, message: '' });
@@ -55,8 +63,8 @@ describe('createSimulation with hardscape', () => {
 
   it('counts the items it starts with into the colonisable surface', () => {
     const items: HardscapeItem[] = [
-      { id: 'test-1', type: 'driftwood' },
-      { id: 'test-2', type: 'neutral_rock' },
+      createHardscapeItem('test-1', 'driftwood'),
+      createHardscapeItem('test-2', 'neutral_rock'),
     ];
     const bare = { tankCapacity: 75, filter: { enabled: false }, substrate: { type: 'none' as const } };
     const withHardscape = createSimulation({ ...bare, hardscape: { items } });
@@ -65,5 +73,96 @@ describe('createSimulation with hardscape', () => {
     expect(withHardscape.resources.surface).toBe(
       createSimulation(bare).resources.surface + calculateHardscapeTotalSurface(items)
     );
+  });
+});
+
+describe('createHardscapeItem', () => {
+  it('gives only driftwood tannins to leach', () => {
+    expect(createHardscapeItem('w', 'driftwood').tannins).toBeGreaterThan(0);
+    for (const type of ['neutral_rock', 'calcite_rock', 'plastic_decoration'] as const) {
+      expect(createHardscapeItem('x', type).tannins).toBe(0);
+    }
+  });
+});
+
+describe('calculateCalciteDissolution', () => {
+  it('scales with the rocks', () => {
+    expect(calculateCalciteDissolution(3, 7)).toBeCloseTo(3 * calculateCalciteDissolution(1, 7), 10);
+    expect(calculateCalciteDissolution(0, 6)).toBe(0);
+  });
+
+  it('runs ten times faster a pH unit lower', () => {
+    expect(calculateCalciteDissolution(1, 6.5)).toBeCloseTo(10 * calculateCalciteDissolution(1, 7.5), 10);
+  });
+});
+
+describe('calculateTanninLeach', () => {
+  it('takes a fixed fraction of what is left', () => {
+    expect(calculateTanninLeach(2000)).toBeCloseTo(2 * calculateTanninLeach(1000), 10);
+    expect(calculateTanninLeach(0)).toBe(0);
+  });
+
+  it('never releases more than the piece holds', () => {
+    expect(calculateTanninLeach(5, { ...waterChemistryDefaults, tanninLeachRate: 3 })).toBe(5);
+  });
+});
+
+describe('hardscapeUpdate', () => {
+  const tank = (hardscape: HardscapeType[]): SimulationState =>
+    createSimulation({
+      tankCapacity: 100,
+      tapKh: 4,
+      hardscape: { items: hardscape.map((type, i) => ({ id: String(i), type })) },
+    });
+
+  const khDelta = (state: SimulationState): number =>
+    hardscapeUpdate(state)
+      .effects.filter((effect) => effect.resource === 'kh')
+      .reduce((sum, effect) => sum + effect.delta, 0);
+
+  it('leaves KH alone in an inert scape', () => {
+    expect(khDelta(tank(['neutral_rock', 'plastic_decoration']))).toBe(0);
+  });
+
+  it('adds KH for calcite and spends it for driftwood', () => {
+    expect(khDelta(tank(['calcite_rock']))).toBeGreaterThan(0);
+    expect(khDelta(tank(['driftwood']))).toBeLessThan(0);
+  });
+
+  it('dissolves calcite as one flow that adds KH and GH in equal measure', () => {
+    const { effects } = hardscapeUpdate(tank(['calcite_rock', 'calcite_rock']));
+    const kh = effects.filter((effect) => effect.resource === 'kh');
+    const gh = effects.filter((effect) => effect.resource === 'gh');
+
+    expect(kh).toHaveLength(1);
+    expect(gh).toHaveLength(1);
+    expect(kh[0].delta).toBeGreaterThan(0);
+    expect(gh[0].delta).toBe(kh[0].delta);
+  });
+
+  it('leaves GH alone for driftwood: tannic acid spends carbonate, not calcium', () => {
+    expect(hardscapeUpdate(tank(['driftwood'])).effects.some((e) => e.resource === 'gh')).toBe(false);
+  });
+
+  it('draws the acid it spends out of the piece', () => {
+    const state = tank(['driftwood']);
+    const next = hardscapeUpdate(state).state;
+    const spent = HARDSCAPE_TANNINS.driftwood - next.equipment.hardscape.items[0]!.tannins;
+    expect(spent).toBeCloseTo(-khDelta(state), 10);
+  });
+
+  it('spends less KH as the wood is spent', () => {
+    const fresh = tank(['driftwood']);
+    const aged = produce(fresh, (draft) => {
+      draft.equipment.hardscape.items[0]!.tannins /= 4;
+    });
+    expect(khDelta(aged)).toBeCloseTo(khDelta(fresh) / 4, 10);
+  });
+
+  it('does nothing in a drained tank', () => {
+    const drained = produce(tank(['calcite_rock', 'driftwood']), (draft) => {
+      draft.resources.water = 0;
+    });
+    expect(hardscapeUpdate(drained).effects).toEqual([]);
   });
 });

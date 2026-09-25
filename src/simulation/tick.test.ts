@@ -1,12 +1,13 @@
 import { describe, it, expect } from 'vitest';
 import { produce } from 'immer';
-import { tick, getHourOfDay, getDayNumber, settleEnvironment } from './tick.js';
+import { tick, settleEnvironment } from './tick.js';
 import { createSimulation, type SimulationConfig, type SimulationState } from './state.js';
 import { applyAction } from './actions/index.js';
 import { DEFAULT_CONFIG, type TunableConfig } from './config/index.js';
 import type { PresetSeed } from './seed.js';
 import { FILTER_SURFACE } from './equipment/filter.js';
 import { POWERHEAD_FLOW_LPH } from './equipment/powerhead.js';
+import type { HardscapeType } from './equipment/hardscape.js';
 
 describe('tick', () => {
   const still = (): SimulationState =>
@@ -32,6 +33,10 @@ describe('tick', () => {
   });
 
   it('switches the heater on below target and off at it', () => {
+    const steadyRoom: TunableConfig = {
+      ...DEFAULT_CONFIG,
+      temperature: { ...DEFAULT_CONFIG.temperature, roomDailySwing: 0 },
+    };
     const heater = (initialTemperature: number, isOn: boolean): boolean =>
       tick(
         createSimulation({
@@ -39,7 +44,8 @@ describe('tick', () => {
           initialTemperature,
           roomTemperature: initialTemperature,
           heater: { enabled: true, isOn, targetTemperature: 25, wattage: 100 },
-        })
+        }),
+        steadyRoom
       ).equipment.heater.isOn;
 
     expect(heater(22, false)).toBe(true);
@@ -92,6 +98,28 @@ describe('tick', () => {
     );
   });
 
+  it('runs the scape: driftwood spends its tannins and KH, calcite adds KH and GH', () => {
+    const scaped = (type: HardscapeType): SimulationState =>
+      createSimulation({
+        tankCapacity: 100,
+        initialTemperature: 22,
+        roomTemperature: 22,
+        hardscape: { items: [{ id: 'piece', type }] },
+      });
+
+    const wood = scaped('driftwood');
+    const aged = tick(wood);
+    expect(aged.equipment.hardscape.items[0]!.tannins).toBeLessThan(
+      wood.equipment.hardscape.items[0]!.tannins
+    );
+    expect(aged.resources.kh).toBeLessThan(wood.resources.kh);
+
+    const rock = scaped('calcite_rock');
+    const dissolved = tick(rock);
+    expect(dissolved.resources.kh).toBeGreaterThan(rock.resources.kh);
+    expect(dissolved.resources.gh).toBeGreaterThan(rock.resources.gh);
+  });
+
   it('raises alerts on the state the passive tier left behind', () => {
     const state = produce(createSimulation({ tankCapacity: 100 }), (draft) => {
       draft.resources.water = 15;
@@ -102,21 +130,6 @@ describe('tick', () => {
     expect(next.logs.some((log) => log.source === 'evaporation' && log.severity === 'warning')).toBe(
       true
     );
-  });
-});
-
-describe('getHourOfDay / getDayNumber', () => {
-  it.each([
-    [0, 0, 0],
-    [12, 12, 0],
-    [23, 23, 0],
-    [24, 0, 1],
-    [50, 2, 2],
-  ])('reads tick %d as hour %d of day %d', (at, hour, day) => {
-    const state = { ...createSimulation({ tankCapacity: 100 }), tick: at };
-
-    expect(getHourOfDay(state)).toBe(hour);
-    expect(getDayNumber(state)).toBe(day);
   });
 });
 

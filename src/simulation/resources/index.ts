@@ -8,8 +8,8 @@
 
 export type { ResourceDefinition, ResourceKey } from './types.js';
 
-// Nitrogen compound helpers (mass <-> ppm conversion)
-export { getPpm, getMassFromPpm } from './helpers.js';
+// Mass-stored solute helpers (mass <-> ppm, mass <-> dKH / dGH)
+export { getPpm, getMassFromPpm, getDkh, getKhMass, getDgh, getGhMass } from './helpers.js';
 
 // Individual resource exports
 export { TemperatureResource } from './temperature.js';
@@ -27,7 +27,8 @@ export { PotassiumResource } from './potassium.js';
 export { IronResource } from './iron.js';
 export { OxygenResource } from './oxygen.js';
 export { Co2Resource } from './co2.js';
-export { PhResource } from './ph.js';
+export { KhResource } from './kh.js';
+export { GhResource } from './gh.js';
 export { AobResource } from './aob.js';
 export { NobResource } from './nob.js';
 
@@ -48,7 +49,8 @@ import { PotassiumResource } from './potassium.js';
 import { IronResource } from './iron.js';
 import { OxygenResource } from './oxygen.js';
 import { Co2Resource } from './co2.js';
-import { PhResource } from './ph.js';
+import { KhResource } from './kh.js';
+import { GhResource } from './gh.js';
 import { AobResource } from './aob.js';
 import { NobResource } from './nob.js';
 
@@ -72,7 +74,8 @@ export const ResourceRegistry: Record<ResourceKey, ResourceDefinition<ResourceKe
   iron: IronResource,
   oxygen: OxygenResource,
   co2: Co2Resource,
-  ph: PhResource,
+  kh: KhResource,
+  gh: GhResource,
   aob: AobResource,
   nob: NobResource,
 };

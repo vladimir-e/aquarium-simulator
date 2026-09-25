@@ -1,9 +1,19 @@
 import { describe, it, expect } from 'vitest';
 import { createSimulation, type SimulationConfig } from './state.js';
 import { FISH_SPECIES_DATA } from './livestock/species.js';
-import { cycledColony, cycledNitrate, cycledReserve, type PresetSeed } from './seed.js';
+import {
+  cycledColony,
+  cycledHardness,
+  cycledKhReserve,
+  cycledNitrate,
+  cycledReserve,
+  type PresetSeed,
+} from './seed.js';
+import { getSubstrateKhReserve } from './equipment/substrate.js';
+import { HARDSCAPE_TANNINS } from './equipment/hardscape.js';
 import { DEFAULT_PLANT_SIZE, establishmentSurplus } from './plants/create-plant.js';
 import { plantsDefaults } from './config/plants.js';
+import { getDgh, getDkh } from './resources/helpers.js';
 
 const TANK: SimulationConfig = { tankCapacity: 40, substrate: { type: 'aqua_soil' } };
 
@@ -112,6 +122,15 @@ describe('createSimulation seeding', () => {
       expect(seeded.resources.aob).toBe(0);
     });
 
+    it('takes a named KH reserve over the cycled one, and leaves the organics to the shorthand', () => {
+      const seeded = createSimulation(TANK, { bacteria: 'cycled', substrate: { khReserve: 123 } });
+
+      expect(seeded.equipment.substrate.khReserve).toBe(123);
+      expect(seeded.equipment.substrate.organicReserve).toBe(
+        cycledReserve('aqua_soil', TANK.tankCapacity)
+      );
+    });
+
     it('takes a named reserve over the one the shorthand would have resolved', () => {
       const seeded = createSimulation(TANK, {
         bacteria: 'cycled',
@@ -120,6 +139,68 @@ describe('createSimulation seeding', () => {
 
       expect(seeded.equipment.substrate.organicReserve).toBe(1.5);
       expect(seeded.resources.aob).toBe(cycledColony(TANK.tankCapacity).aob);
+    });
+  });
+
+  describe('the alkalinity a cycled tank keeps', () => {
+    it('keeps less KH over aqua soil than over an inert bed', () => {
+      const soil = cycledHardness('aqua_soil', 5, 8, 100);
+      expect(soil.kh).toBeLessThan(cycledHardness('gravel', 5, 8, 100).kh);
+      expect(soil.kh).toBeGreaterThan(0);
+    });
+
+    it('scales with capacity', () => {
+      for (const type of ['aqua_soil', 'sand'] as const) {
+        const small = cycledHardness(type, 5, 8, 100);
+        const large = cycledHardness(type, 5, 8, 200);
+        expect(large.kh).toBeCloseTo(2 * small.kh, 10);
+        expect(large.gh).toBeCloseTo(2 * small.gh, 10);
+      }
+    });
+
+    it('keeps GH exactly as far below the tap as KH, since the bed takes both alike', () => {
+      const seeded = createSimulation({ ...TANK, tapKh: 5, tapGh: 8 }, { bacteria: 'cycled' });
+      const { resources, environment } = seeded;
+      const khShort = environment.tapKh - getDkh(resources.kh, resources.water);
+
+      expect(resources.gh).toBe(cycledHardness('aqua_soil', 5, 8, TANK.tankCapacity).gh);
+      expect(khShort).toBeGreaterThan(0);
+      expect(environment.tapGh - getDgh(resources.gh, resources.water)).toBeCloseTo(khShort, 10);
+    });
+
+    it('takes no more KH than the tap has GH to give up alongside it', () => {
+      const { kh, gh } = cycledHardness('aqua_soil', 10, 2, 100);
+
+      expect(gh).toBe(0);
+      expect(getDkh(kh, 100)).toBeCloseTo(8, 10);
+    });
+
+    it('hands a soil bed part of its buffer, spent but not exhausted', () => {
+      const seeded = createSimulation(TANK, { bacteria: 'cycled' });
+      const fresh = getSubstrateKhReserve('aqua_soil', TANK.tankCapacity);
+
+      expect(seeded.equipment.substrate.khReserve).toBe(cycledKhReserve('aqua_soil', TANK.tankCapacity));
+      expect(seeded.equipment.substrate.khReserve).toBeGreaterThan(0);
+      expect(seeded.equipment.substrate.khReserve).toBeLessThan(fresh);
+    });
+
+    it('hands hardscape over as bought', () => {
+      const seeded = createSimulation(
+        {
+          ...TANK,
+          hardscape: {
+            items: [
+              { id: 'w', type: 'driftwood' },
+              { id: 'r', type: 'calcite_rock' },
+            ],
+          },
+        },
+        { bacteria: 'cycled' }
+      );
+      const [wood, rock] = seeded.equipment.hardscape.items;
+
+      expect(wood!.tannins).toBe(HARDSCAPE_TANNINS.driftwood);
+      expect(rock!.tannins).toBe(0);
     });
   });
 

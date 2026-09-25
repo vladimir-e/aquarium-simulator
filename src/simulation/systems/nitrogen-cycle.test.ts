@@ -15,6 +15,9 @@ import {
   nobProcessingRateMultiplier,
 } from './nitrogen-cycle.js';
 import {
+  CACO3_PER_NH3_NITRIFIED,
+  MW_N,
+  MW_NH3,
   NH3_TO_NO2_MASS_RATIO,
   NO2_TO_NO3_MASS_RATIO,
   O2_PER_NH3_OXIDIZED,
@@ -198,6 +201,16 @@ describe('calculateAmmoniaToNitrite', () => {
 
     expect(result.ammoniaConsumed).toBe(0);
     expect(result.utilization).toBe(0);
+  });
+
+  it('spends alkalinity in proportion to the nitrogen it oxidises — 7.14 mg CaCO3 per mg N', () => {
+    const glut = 1e6;
+    const one = calculateAmmoniaToNitrite(glut, 100, REF, AMPLE_O2);
+    const two = calculateAmmoniaToNitrite(glut, 200, REF, AMPLE_O2);
+    const nitrogen = one.ammoniaConsumed * (MW_N / MW_NH3);
+
+    expect(one.alkalinityConsumedMg / nitrogen).toBeCloseTo(7.14, 2);
+    expect(two.alkalinityConsumedMg).toBeCloseTo(2 * one.alkalinityConsumedMg, 10);
   });
 
   it('doubles the mass it clears when the colony doubles', () => {
@@ -542,6 +555,17 @@ describe('nitrogenCycleSystem', () => {
       expect(nitriteEffect).toBeDefined();
       expect(nitriteEffect!.delta).toBeGreaterThan(0);
       expect(nitriteEffect!.delta).toBeCloseTo(-ammoniaEffect!.delta * NH3_TO_NO2_MASS_RATIO, 10);
+    });
+
+    it('spends KH for the ammonia it oxidises', () => {
+      const state = createTestState({ ammonia: ppmToMass(1.0), aob: 100 });
+      const effects = nitrogenCycleSystem.update(state, DEFAULT_CONFIG);
+
+      const ammonia = effects.find((e) => e.resource === 'ammonia' && e.source === 'nitrogen-cycle-aob');
+      const kh = effects.filter((e) => e.resource === 'kh');
+
+      expect(kh).toHaveLength(1);
+      expect(kh[0]!.delta).toBeCloseTo(ammonia!.delta * CACO3_PER_NH3_NITRIFIED, 10);
     });
 
     it('does not process ammonia when AOB is 0', () => {

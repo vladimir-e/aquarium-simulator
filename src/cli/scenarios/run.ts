@@ -1,5 +1,6 @@
 import { applyAction, tick, type Action, type SimulationState } from '../../simulation/index.js';
 import { createSimulation } from '../../simulation/state.js';
+import { getPh } from '../../simulation/core/carbonate.js';
 import type { TunableConfig } from '../../simulation/config/index.js';
 import { toFahrenheit } from '../units.js';
 import { SAMPLE_HOUR, dayOf, dueActions } from './keeper.js';
@@ -93,7 +94,7 @@ export function runScenario(setup: Setup, { days, config, traceDay, onRefusal }:
         tempF: toFahrenheit(state.resources.temperature),
         o2: state.resources.oxygen,
         co2: state.resources.co2,
-        ph: state.resources.ph,
+        ph: getPh(state.resources),
       });
     }
 

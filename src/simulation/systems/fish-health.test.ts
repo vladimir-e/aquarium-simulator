@@ -4,11 +4,14 @@ import type { VitalityResult } from './vitality.js';
 import { livestockDefaults } from '../config/livestock.js';
 import { FISH_SPECIES_DATA } from '../livestock/species.js';
 import type { Fish, Plant, Resources } from '../state.js';
+import { withPh, type ResourceOverrides } from '../tests/resources.js';
+import { getGhMass } from '../resources/helpers.js';
 import type { FishSpecies } from '../livestock/species.js';
 
 const STRESSORS = [
   'temperature',
   'ph',
+  'gh',
   'ammonia',
   'nitrite',
   'nitrate',
@@ -43,8 +46,8 @@ function makeFish(overrides: Partial<Fish> = {}): Fish {
   };
 }
 
-function makeResources(overrides: Partial<Resources> = {}): Resources {
-  return {
+function makeResources(overrides: ResourceOverrides = {}): Resources {
+  return withPh({
     water: 100,
     temperature: 25,
     surface: 1000,
@@ -61,11 +64,11 @@ function makeResources(overrides: Partial<Resources> = {}): Resources {
     iron: 0,
     oxygen: 8.0,
     co2: 4.0,
-    ph: 7.0,
+    kh: 0,
+    gh: getGhMass(6, 100),
     aob: 0,
     nob: 0,
-    ...overrides,
-  };
+  }, { ph: 7.0, ...overrides });
 }
 
 function makePlant(overrides: Partial<Plant> = {}): Plant {
@@ -81,7 +84,7 @@ function makePlant(overrides: Partial<Plant> = {}): Plant {
 
 function vitality(
   fish: Partial<Fish> = {},
-  resources: Partial<Resources> = {},
+  resources: ResourceOverrides = {},
   { plants = [], water = resources.water ?? 100, capacity = 100, config = livestockDefaults } = {} as {
     plants?: Plant[];
     water?: number;
@@ -94,7 +97,7 @@ function vitality(
 
 function health(
   fish: Fish[],
-  resources: Partial<Resources> = {},
+  resources: ResourceOverrides = {},
   plants: Plant[] = []
 ): ReturnType<typeof processHealth> {
   return processHealth(fish, makeResources(resources), plants, 100, 100, livestockDefaults);
@@ -116,10 +119,11 @@ describe('stressors', () => {
     expect(totalStress(v)).toBe(0);
   });
 
-  it.each<[string, Partial<Resources>, Partial<Fish>]>([
+  it.each<[string, ResourceOverrides, Partial<Fish>]>([
     ['temperature', { temperature: 18 }, {}],
     ['temperature', { temperature: 32 }, {}],
     ['ph', { ph: 8.5 }, {}],
+    ['gh', { gh: getGhMass(FISH_SPECIES_DATA.neon_tetra.ghRange[1] + 5, 100) }, {}],
     ['ammonia', { ammonia: 5 }, {}],
     ['nitrite', { nitrite: 100 }, {}],
     ['nitrate', { nitrate: 6000 }, {}],
@@ -166,6 +170,7 @@ describe('stressors', () => {
       {
         temperature: 18,
         ph: 8.5,
+        gh: getGhMass(30, 30),
         ammonia: 5,
         nitrite: 50,
         nitrate: 6000,

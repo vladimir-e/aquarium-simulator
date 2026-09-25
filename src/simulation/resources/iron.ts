@@ -12,7 +12,7 @@ import { getPpm } from './helpers.js';
 export const IronResource: ResourceDefinition<'iron'> = {
   key: 'iron',
   unit: 'mg',
-  bounds: { min: 0, max: 1000 },
+  bounds: { min: 0, max: Infinity },
   defaultValue: 0,
   precision: 2,
   format: (massInMg: number, waterLiters?: number) => {

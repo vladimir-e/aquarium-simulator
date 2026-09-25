@@ -14,6 +14,7 @@ import { applyAction } from '../../simulation/actions/index.js';
 import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
 import { bacteriaReadout, colonyCount } from '../run/index.js';
 import { calculateParAtDepth } from '../../simulation/equipment/light.js';
+import { formatCo2Rate } from '../../simulation/equipment/co2-generator.js';
 import { calculateTankHeight } from '../../simulation/state.js';
 import { getPresetById } from '../../simulation/presets.js';
 import type { UnitSystem } from '../utils/units.js';
@@ -783,7 +784,10 @@ describe('deviceHint', () => {
   });
 
   it('quotes the engine’s own rate for the devices that have one', () => {
-    expect(hint('co2Generator', base)?.text).toBe('+5.0 mg/L/hr while injecting.');
+    const { bubbleRate } = base.equipment.co2Generator;
+    expect(hint('co2Generator', base)?.text).toBe(
+      `${formatCo2Rate(bubbleRate, base.resources.water)} while injecting.`
+    );
     expect(hint('autoDoser', base)?.text).toMatch(
       /^Each dose adds \+[\d.]+ NO₃ · \+[\d.]+ PO₄ · \+[\d.]+ K · \+[\d.]+ Fe ppm\.$/
     );

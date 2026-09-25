@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import { createSimulation, tick } from '../../simulation/index.js';
 import { DEFAULT_CONFIG, type TunableConfig } from '../../simulation/config/index.js';
 import { getPresetById } from '../../simulation/presets.js';
-import { createSession, loadSession, saveSession, hasSession } from '../session.js';
+import { createSession, loadSession, saveSession, hasSession, SESSION_VERSION } from '../session.js';
 import { appendSnapshot, HISTORY_CAP, snapshot } from '../history.js';
 
 let dir: string;
@@ -53,6 +53,13 @@ describe('session roundtrip', () => {
     expect(loaded.fish).toEqual(state.fish);
     expect(loaded.fish.map((f) => f.sex)).toEqual(['female', 'female', 'female']);
     expect(loaded.plants.map((p) => p.size)).toEqual([80, 80]);
+  });
+
+  it('refuses a session saved at an older version', () => {
+    const session = createSession(createSimulation({ tankCapacity: 40 }), DEFAULT_CONFIG);
+    saveSession({ ...session, version: SESSION_VERSION - 1 }, { path });
+
+    expect(() => loadSession({ path })).toThrow(/Unsupported session version/);
   });
 
   it('refuses to load a missing session', () => {

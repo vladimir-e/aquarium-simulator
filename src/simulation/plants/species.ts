@@ -17,14 +17,16 @@ export type PlantSpecies =
  */
 export type NutrientDemand = 'low' | 'medium' | 'high';
 
+export type Co2Requirement = 'low' | 'medium' | 'high';
+
 /**
  * Plant species characteristics.
  */
 export interface PlantSpeciesData {
   /** Display name */
   name: string;
-  /** CO2 requirement level */
-  co2Requirement: 'low' | 'medium' | 'high';
+  /** Carbon need: picks the half-saturation its photosynthesis runs on */
+  co2Requirement: Co2Requirement;
   /** Relative growth rate (higher = faster biomass distribution) */
   growthRate: number;
   /** Substrate requirement for planting */
@@ -60,17 +62,12 @@ export interface PlantSpeciesData {
    * high 50-80+.
    */
   tolerableLight: [number, number];
-  /**
-   * Tolerable CO2 range in mg/L. High-tech species suffer when CO2 falls
-   * below their lower bound (the auto-doser-failure case from this
-   * task's motivating bug). Low-tech species' lower bound is just above
-   * atmospheric so they don't false-trigger.
-   */
-  tolerableCO2: [number, number];
   /** Tolerable temperature range in °C — outside is stress. */
   tolerableTemp: [number, number];
   /** Tolerable pH range — outside is stress. */
   tolerablePH: [number, number];
+  /** Tolerable general hardness in dGH — outside is stress. */
+  tolerableGH: [number, number];
 }
 
 /**
@@ -90,10 +87,9 @@ export const PLANT_SPECIES_DATA: Record<PlantSpecies, PlantSpeciesData> = {
     // Alive at 10 PAR — below anything the hobby calls low light — and
     // bleaches past 90, which takes the brightest fixture in the catalog.
     tolerableLight: [10, 90],
-    // No CO2 dependency — atmospheric (~3 mg/L) is enough.
-    tolerableCO2: [1, 40],
     tolerableTemp: [18, 30],
-    tolerablePH: [6.0, 8.0],
+    tolerablePH: [5.5, 8.0],
+    tolerableGH: [1, 20],
   },
   anubias: {
     name: 'Anubias',
@@ -108,9 +104,9 @@ export const PLANT_SPECIES_DATA: Record<PlantSpecies, PlantSpeciesData> = {
     // Deepest-shade tolerance of the five — 8 PAR is the understory of a
     // stocked scape. Its thick slow leaves scorch past 70.
     tolerableLight: [8, 70],
-    tolerableCO2: [1, 40],
     tolerableTemp: [18, 30],
-    tolerablePH: [6.0, 8.0],
+    tolerablePH: [5.5, 8.0],
+    tolerableGH: [1, 20],
   },
   amazon_sword: {
     name: 'Amazon Sword',
@@ -126,15 +122,9 @@ export const PLANT_SPECIES_DATA: Record<PlantSpecies, PlantSpeciesData> = {
     // fills out toward the middle of the band, and 120 is past anything
     // a sword is asked to take.
     tolerableLight: [20, 120],
-    // Mild CO2 dependence — sword grows happily on atmospheric (~4 mg/L)
-    // CO2 in low-tech tanks, so the lower bound sits just above
-    // atmospheric. The spec's "high-tech tank loses CO2" scenario has
-    // sword decline slower than Monte Carlo: the engine produces this
-    // through milder daytime damage that nightly healing partially
-    // offsets, so sword degrades over weeks rather than days.
-    tolerableCO2: [6, 40],
     tolerableTemp: [20, 28],
-    tolerablePH: [6.0, 7.5],
+    tolerablePH: [5.5, 7.8],
+    tolerableGH: [2, 20],
   },
   dwarf_hairgrass: {
     name: 'Dwarf Hairgrass',
@@ -149,9 +139,9 @@ export const PLANT_SPECIES_DATA: Record<PlantSpecies, PlantSpeciesData> = {
     // High-light carpet — below 25 PAR at the substrate it grows upward
     // instead of across. Tolerates the 200 PAR a high-tech scape runs.
     tolerableLight: [25, 200],
-    tolerableCO2: [10, 40], // Stalls without CO2 — high-tech species
     tolerableTemp: [20, 28],
-    tolerablePH: [6.0, 7.5],
+    tolerablePH: [5.5, 7.8],
+    tolerableGH: [1, 18],
   },
   monte_carlo: {
     name: 'Monte Carlo',
@@ -166,9 +156,9 @@ export const PLANT_SPECIES_DATA: Record<PlantSpecies, PlantSpeciesData> = {
     // Hungrier for light than hairgrass — 30 PAR at the substrate is the
     // usual advice for a carpet that actually carpets.
     tolerableLight: [30, 200],
-    tolerableCO2: [10, 40], // Same — needs CO2 to thrive
     tolerableTemp: [20, 28],
-    tolerablePH: [6.0, 7.5],
+    tolerablePH: [5.5, 7.8],
+    tolerableGH: [1, 15],
   },
 };
 
@@ -187,4 +177,15 @@ export const PLANT_SPECIES_DATA: Record<PlantSpecies, PlantSpeciesData> = {
  */
 export function getSaturationIrradiance(species: PlantSpecies, config: PlantsConfig): number {
   return config.saturationIrradianceFactor * PLANT_SPECIES_DATA[species].tolerableLight[0];
+}
+
+export function getCo2HalfSaturation(species: PlantSpecies, config: PlantsConfig): number {
+  switch (PLANT_SPECIES_DATA[species].co2Requirement) {
+    case 'low':
+      return config.lowCo2HalfSaturation;
+    case 'medium':
+      return config.mediumCo2HalfSaturation;
+    case 'high':
+      return config.highCo2HalfSaturation;
+  }
 }

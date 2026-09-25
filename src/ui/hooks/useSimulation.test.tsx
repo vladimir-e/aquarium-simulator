@@ -10,11 +10,13 @@ import { createSimulation, type SimulationState } from '../../simulation/state.j
 import {
   applyAction,
   calculateTankHeight,
+  getDgh,
+  getDkh,
   getSubstrateOrganicReserve,
   getSubstrateSurface,
   tick,
 } from '../../simulation/index.js';
-import { cycledColony } from '../../simulation/seed.js';
+import { cycledColony, cycledHardness } from '../../simulation/seed.js';
 import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
 import {
   PERSISTENCE_VERSION,
@@ -134,6 +136,83 @@ describe('useSimulation', () => {
     expect(result.current.state.tank.capacity).toBe(150);
     expect(result.current.state.resources.water).toBe(150);
     expect(result.current.state.tick).toBe(0);
+  });
+
+  it('carries the tap water through a resize', () => {
+    const { result } = renderHook(() => useSimulation(), { wrapper });
+
+    act(() => {
+      result.current.updateTapKh(9);
+      result.current.updateTapGh(11);
+      result.current.updateTapWaterTemperature(14);
+    });
+    act(() => {
+      result.current.changeTankCapacity(150);
+    });
+
+    expect(result.current.state.environment.tapKh).toBe(9);
+    expect(result.current.state.environment.tapGh).toBe(11);
+    expect(result.current.state.environment.tapWaterTemperature).toBe(14);
+    expect(getDkh(result.current.state.resources.kh, result.current.state.resources.water)).toBeCloseTo(9, 10);
+  });
+
+  it('fills an unseeded tank from a retuned tap only before it has run', () => {
+    const { result } = renderHook(() => useSimulation('bare'), { wrapper });
+
+    act(() => {
+      result.current.updateTapKh(9);
+      result.current.updateTapGh(12);
+    });
+    const { resources } = result.current.state;
+    expect(getDkh(resources.kh, resources.water)).toBeCloseTo(9, 10);
+    expect(getDgh(resources.gh, resources.water)).toBeCloseTo(12, 10);
+
+    act(() => result.current.step());
+    const ran = result.current.state.resources;
+    act(() => {
+      result.current.updateTapKh(2);
+      result.current.updateTapGh(3);
+    });
+
+    expect(result.current.state.environment.tapKh).toBe(2);
+    expect(result.current.state.environment.tapGh).toBe(3);
+    expect(result.current.state.resources.kh).toBe(ran.kh);
+    expect(result.current.state.resources.gh).toBe(ran.gh);
+  });
+
+  it('keeps the soil gap through a tap retuned to 0 and back', () => {
+    const { result } = renderHook(() => useSimulation('planted'), { wrapper });
+
+    const before = result.current.state.resources;
+    const { tapKh, tapGh } = result.current.state.environment;
+    expect(getDkh(before.kh, before.water)).toBeLessThan(tapKh);
+
+    act(() => {
+      result.current.updateTapKh(0);
+      result.current.updateTapGh(0);
+    });
+    act(() => {
+      result.current.updateTapKh(tapKh);
+      result.current.updateTapGh(tapGh);
+    });
+
+    expect(result.current.state.resources.kh).toBeCloseTo(before.kh, 10);
+    expect(result.current.state.resources.gh).toBeCloseTo(before.gh, 10);
+  });
+
+  it('moves GH with a KH-only retune on a seeded soil tank as re-seeding would', () => {
+    const { result } = renderHook(() => useSimulation('planted'), { wrapper });
+    const { tank, environment } = result.current.state;
+    const tapKh = environment.tapKh + 2;
+
+    act(() => {
+      result.current.updateTapKh(tapKh);
+    });
+
+    const { resources } = result.current.state;
+    const cycled = cycledHardness('aqua_soil', tapKh, environment.tapGh, tank.capacity);
+    expect(resources.kh).toBeCloseTo(cycled.kh, 10);
+    expect(resources.gh).toBeCloseTo(cycled.gh, 10);
   });
 
   it('swapping the substrate lays a fresh bed with a full organic reserve', () => {
@@ -369,6 +448,46 @@ describe('useSimulation', () => {
 
       expect(result.current.state.clutches).toHaveLength(0);
       expect(result.current.state.tick).toBe(0);
+    });
+
+    it('reset puts a seeded tank back on its seed, and a tap retune after it re-seeds', () => {
+      const { result } = renderHook(() => useSimulation('planted'), { wrapper });
+      const seeded = result.current.state;
+
+      for (let i = 0; i < 10; i++) act(() => result.current.step());
+      expect(result.current.state.equipment.substrate.khReserve).toBeLessThan(
+        seeded.equipment.substrate.khReserve
+      );
+
+      act(() => result.current.reset());
+      const reset = result.current.state;
+      expect(reset.equipment.substrate).toEqual(seeded.equipment.substrate);
+      expect(reset.resources.kh).toBeCloseTo(seeded.resources.kh, 10);
+      expect(reset.resources.aob).toBe(seeded.resources.aob);
+
+      const tapKh = reset.environment.tapKh + 2;
+      act(() => result.current.updateTapKh(tapKh));
+      expect(result.current.state.resources.kh).toBeCloseTo(
+        cycledHardness('aqua_soil', tapKh, reset.environment.tapGh, reset.tank.capacity).kh,
+        10
+      );
+    });
+
+    it('reset fills an unseeded soil tank from the tap, however far its bed ran down', () => {
+      const { result } = renderHook(() => useSimulation('planted'), { wrapper });
+      act(() => result.current.changeTankCapacity(result.current.state.tank.capacity));
+      expect(result.current.state.seed).toBeUndefined();
+
+      for (let i = 0; i < 10; i++) act(() => result.current.step());
+      act(() => result.current.reset());
+      act(() => {
+        result.current.updateTapKh(6);
+        result.current.updateTapGh(8);
+      });
+
+      const { resources } = result.current.state;
+      expect(getDkh(resources.kh, resources.water)).toBeCloseTo(6, 10);
+      expect(getDgh(resources.gh, resources.water)).toBeCloseTo(8, 10);
     });
 
     it('loads a preset as the tank that preset builds, keeping nothing of the last one', () => {

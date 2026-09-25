@@ -1,7 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import { produce } from 'immer';
 import {
+  calculateSubstrateKhUptake,
   calculateSubstrateLeach,
+  freshSubstrate,
+  getSubstrateKhReserve,
   getSubstrateOrganicReserve,
   getSubstrateSurface,
   replaceSubstrate,
@@ -12,6 +15,7 @@ import {
 } from './substrate.js';
 import { createSimulation, type SimulationState } from '../state.js';
 import { decayDefaults } from '../config/decay.js';
+import { waterChemistryDefaults } from '../config/water-chemistry.js';
 
 const SUBSTRATES: SubstrateType[] = ['none', 'sand', 'gravel', 'aqua_soil'];
 
@@ -40,17 +44,14 @@ describe('getSubstrateOrganicReserve', () => {
 });
 
 describe('replaceSubstrate', () => {
-  const spent = { type: 'aqua_soil', organicReserve: 0.4 } as const;
+  const spent = { type: 'aqua_soil', organicReserve: 0.4, khReserve: 10 } as const;
 
   it('returns the same bed when the type does not change', () => {
     expect(replaceSubstrate(spent, 'aqua_soil', 100)).toBe(spent);
   });
 
   it('lays a full fresh reserve when the type changes', () => {
-    expect(replaceSubstrate(spent, 'gravel', 100)).toEqual({
-      type: 'gravel',
-      organicReserve: getSubstrateOrganicReserve('gravel', 100),
-    });
+    expect(replaceSubstrate(spent, 'gravel', 100)).toEqual(freshSubstrate('gravel', 100));
   });
 
   it('empties the reserve when the bed is taken out', () => {
@@ -61,8 +62,9 @@ describe('replaceSubstrate', () => {
     const stripped = replaceSubstrate(spent, 'none', 100);
     const relaid = replaceSubstrate(stripped, 'aqua_soil', 100);
 
-    expect(relaid.organicReserve).toBe(getSubstrateOrganicReserve('aqua_soil', 100));
+    expect(relaid).toEqual(freshSubstrate('aqua_soil', 100));
     expect(relaid.organicReserve).toBeGreaterThan(spent.organicReserve);
+    expect(relaid.khReserve).toBeGreaterThan(spent.khReserve);
   });
 
   it('cannot be used to top a bed up by re-selecting it', () => {
@@ -103,11 +105,11 @@ describe('substrateUpdate', () => {
   it('moves mass out of the bed and into the waste pool, gram for gram', () => {
     const state = soilTank();
     const { state: next, effects } = substrateUpdate(state, decayDefaults);
+    const waste = effects.filter((effect) => effect.resource === 'waste');
 
-    expect(effects).toHaveLength(1);
-    expect(effects[0].resource).toBe('waste');
+    expect(waste).toHaveLength(1);
     expect(next.equipment.substrate.organicReserve).toBeCloseTo(
-      state.equipment.substrate.organicReserve - effects[0].delta,
+      state.equipment.substrate.organicReserve - waste[0].delta,
       12
     );
   });
@@ -134,9 +136,10 @@ describe('substrateUpdate', () => {
     expect(result.state).toBe(state);
   });
 
-  it('stops when the reserve is spent', () => {
+  it('stops when the reserves are spent', () => {
     const spent = produce(soilTank(), (draft) => {
       draft.equipment.substrate.organicReserve = 0;
+      draft.equipment.substrate.khReserve = 0;
     });
 
     expect(substrateUpdate(spent, decayDefaults).effects).toEqual([]);
@@ -149,9 +152,94 @@ describe('substrateUpdate', () => {
       ...decayDefaults,
       substrateLeachRate: 5,
     });
+    const waste = (result: typeof effects): number[] =>
+      result.filter((effect) => effect.resource === 'waste').map((effect) => effect.delta);
 
-    expect(effects[0].delta).toBe(held);
+    expect(waste(effects)).toEqual([held]);
     expect(next.equipment.substrate.organicReserve).toBe(0);
-    expect(substrateUpdate(next, { ...decayDefaults, substrateLeachRate: 5 }).effects).toEqual([]);
+    expect(waste(substrateUpdate(next, { ...decayDefaults, substrateLeachRate: 5 }).effects)).toEqual([]);
+  });
+});
+
+describe('getSubstrateKhReserve', () => {
+  it('gives only aqua soil a buffer, scaled with the tank', () => {
+    for (const type of ['none', 'sand', 'gravel'] as const) {
+      expect(getSubstrateKhReserve(type, 100)).toBe(0);
+    }
+    expect(getSubstrateKhReserve('aqua_soil', 200)).toBeCloseTo(2 * getSubstrateKhReserve('aqua_soil', 100), 10);
+  });
+});
+
+describe('calculateSubstrateKhUptake', () => {
+  const fresh = freshSubstrate('aqua_soil', 100);
+
+  it('takes a share of the tank’s KH from a fresh bed', () => {
+    expect(calculateSubstrateKhUptake(2000, fresh, 100)).toBeCloseTo(
+      2 * calculateSubstrateKhUptake(1000, fresh, 100),
+      10
+    );
+  });
+
+  it('loosens its grip as the reserve is spent', () => {
+    const half = { ...fresh, khReserve: fresh.khReserve / 2 };
+    expect(calculateSubstrateKhUptake(1000, half, 100)).toBeCloseTo(
+      calculateSubstrateKhUptake(1000, fresh, 100) / 2,
+      10
+    );
+  });
+
+  it('never takes more than the bed can still hold', () => {
+    const nearlySpent = { ...fresh, khReserve: 0.001 };
+    const greedy = { ...waterChemistryDefaults, aquaSoilKhUptake: 1 };
+    expect(calculateSubstrateKhUptake(1e9, nearlySpent, 100, greedy)).toBe(0.001);
+  });
+
+  it('leaves KH alone over an inert bed', () => {
+    for (const type of ['none', 'sand', 'gravel'] as const) {
+      expect(calculateSubstrateKhUptake(2000, freshSubstrate(type, 100), 100)).toBe(0);
+    }
+  });
+});
+
+describe('substrateUpdate on alkalinity', () => {
+  const soilTank = (): SimulationState =>
+    createSimulation({ tankCapacity: 100, tapKh: 4, substrate: { type: 'aqua_soil' } });
+
+  it('moves the KH it takes out of the water into the bed’s spent reserve', () => {
+    const state = soilTank();
+    const { state: next, effects } = substrateUpdate(state);
+    const kh = effects.filter((effect) => effect.resource === 'kh');
+
+    expect(kh).toHaveLength(1);
+    expect(kh[0].delta).toBeLessThan(0);
+    expect(next.equipment.substrate.khReserve).toBeCloseTo(
+      state.equipment.substrate.khReserve + kh[0].delta,
+      10
+    );
+  });
+
+  it('exchanges GH for the KH it spends, mg for mg', () => {
+    const { effects } = substrateUpdate(soilTank());
+    const kh = effects.find((effect) => effect.resource === 'kh')!;
+    const gh = effects.find((effect) => effect.resource === 'gh')!;
+
+    expect(gh.delta).toBe(kh.delta);
+  });
+
+  it('takes no more than the water holds of either hardness', () => {
+    const soft = produce(soilTank(), (draft) => {
+      draft.resources.gh = 0.01;
+    });
+    const { effects } = substrateUpdate(soft);
+    for (const effect of effects.filter((e) => e.resource === 'kh' || e.resource === 'gh')) {
+      expect(effect.delta).toBeCloseTo(-0.01, 10);
+    }
+  });
+
+  it('takes nothing from a drained tank', () => {
+    const drained = produce(soilTank(), (draft) => {
+      draft.resources.water = 0;
+    });
+    expect(substrateUpdate(drained).effects.some((effect) => effect.resource === 'kh')).toBe(false);
   });
 });

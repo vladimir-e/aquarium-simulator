@@ -6,7 +6,7 @@
 
 import {
   getHardscapeName,
-  getHardscapePHEffect,
+  getHardscapeHardnessEffect,
   getHardscapeSurface,
   PLANT_SPECIES_DATA,
   type HardscapeItem,
@@ -59,7 +59,7 @@ export function hardscapeRows(items: HardscapeItem[]): HardscapeRow[] {
     id: item.id,
     name: getHardscapeName(item.type),
     surface: getHardscapeSurface(item.type),
-    effect: getHardscapePHEffect(item.type),
+    effect: getHardscapeHardnessEffect(item.type),
   }));
 }
 

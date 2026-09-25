@@ -26,7 +26,7 @@ import {
 } from './verbs';
 
 function tank(): SimulationState {
-  const state = createSimulation({ tankCapacity: 200, tapWaterTemperature: 18, tapWaterPH: 7.4 });
+  const state = createSimulation({ tankCapacity: 200, tapWaterTemperature: 18, tapKh: 4 });
   state.equipment.substrate.type = 'aqua_soil';
   state.resources.surface = calculateSurface(state);
   state.resources.water = 196.4;

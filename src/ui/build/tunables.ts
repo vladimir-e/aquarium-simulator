@@ -17,7 +17,7 @@ import {
   nitrogenCycleConfigMeta,
   nutrientsConfigMeta,
   opticsConfigMeta,
-  phConfigMeta,
+  waterChemistryConfigMeta,
   plantsConfigMeta,
   temperatureConfigMeta,
   tunableAt,
@@ -73,7 +73,7 @@ const SECTIONS: readonly SectionSpec[] = [
   { key: 'evaporation', label: 'Evaporation', meta: evaporationConfigMeta },
   { key: 'algae', label: 'Algae', meta: algaeVitalityConfigMeta },
   { key: 'optics', label: 'Water optics', meta: opticsConfigMeta },
-  { key: 'ph', label: 'pH drift', meta: phConfigMeta },
+  { key: 'waterChemistry', label: 'Water chemistry', meta: waterChemistryConfigMeta },
   { key: 'plants', label: 'Plants', meta: plantsConfigMeta },
   {
     key: 'nutrients',

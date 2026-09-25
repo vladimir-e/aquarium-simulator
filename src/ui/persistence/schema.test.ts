@@ -139,14 +139,16 @@ describe('PersistedSimulationSchema', () => {
       iron: 0,
       oxygen: 8,
       co2: 5,
-      ph: 7,
+      kh: 3000,
+      gh: 4000,
       aob: 0,
       nob: 0,
     },
     environment: {
       roomTemperature: 22,
       tapWaterTemperature: 18,
-      tapWaterPH: 7.0,
+      tapKh: 4,
+      tapGh: 6,
     },
     equipment: {
       heater: { enabled: true, isOn: false, targetTemperature: 25, wattage: 50 },
@@ -154,7 +156,7 @@ describe('PersistedSimulationSchema', () => {
       ato: { enabled: false },
       filter: { enabled: true, type: 'hob' },
       powerhead: { enabled: false, flowRateGPH: 240 },
-      substrate: { type: 'gravel', organicReserve: 0.5 },
+      substrate: { type: 'gravel', organicReserve: 0.5, khReserve: 0 },
       hardscape: { items: [] },
       light: { enabled: true, par: 50, schedule: { startHour: 8, duration: 8 } },
       co2Generator: { enabled: false, bubbleRate: 1, isOn: false, schedule: { startHour: 8, duration: 8 } },
@@ -182,6 +184,16 @@ describe('PersistedSimulationSchema', () => {
     expect(PersistedSimulationSchema.safeParse(validSimulation).success).toBe(true);
   });
 
+  it('keeps the seed a tank started from, and refuses one that names a stock it cannot seed', () => {
+    const seeded = { ...validSimulation, seed: { bacteria: 'cycled', resources: { nitrate: 20 } } };
+    const colony = { ...validSimulation, seed: { bacteria: { aob: 5000 } } };
+    const water = { ...validSimulation, seed: { resources: { water: 10 } } };
+
+    expect(PersistedSimulationSchema.safeParse(seeded).success).toBe(true);
+    expect(PersistedSimulationSchema.safeParse(colony).success).toBe(true);
+    expect(PersistedSimulationSchema.safeParse(water).success).toBe(false);
+  });
+
   it('validates simulation with plants', () => {
     const withPlants = {
       ...validSimulation,
@@ -200,8 +212,8 @@ describe('PersistedSimulationSchema', () => {
         ...validSimulation.equipment,
         hardscape: {
           items: [
-            { id: 'rock-1', type: 'neutral_rock' },
-            { id: 'wood-1', type: 'driftwood' },
+            { id: 'rock-1', type: 'neutral_rock', tannins: 0 },
+            { id: 'wood-1', type: 'driftwood', tannins: 2400 },
           ],
         },
       },
@@ -409,14 +421,16 @@ describe('PersistedStateSchema', () => {
       iron: 0,
       oxygen: 8,
       co2: 5,
-      ph: 7,
+      kh: 3000,
+      gh: 4000,
       aob: 0,
       nob: 0,
     },
     environment: {
       roomTemperature: 22,
       tapWaterTemperature: 18,
-      tapWaterPH: 7.0,
+      tapKh: 4,
+      tapGh: 6,
     },
     equipment: {
       heater: { enabled: true, isOn: false, targetTemperature: 25, wattage: 50 },
@@ -424,7 +438,7 @@ describe('PersistedStateSchema', () => {
       ato: { enabled: false },
       filter: { enabled: true, type: 'hob' },
       powerhead: { enabled: false, flowRateGPH: 240 },
-      substrate: { type: 'gravel', organicReserve: 0.5 },
+      substrate: { type: 'gravel', organicReserve: 0.5, khReserve: 0 },
       hardscape: { items: [] },
       light: { enabled: true, par: 50, schedule: { startHour: 8, duration: 8 } },
       co2Generator: { enabled: false, bubbleRate: 1, isOn: false, schedule: { startHour: 8, duration: 8 } },
@@ -513,8 +527,8 @@ describe('PersistedStateSchema', () => {
     ).toBe(false);
   });
 
-  it('PERSISTENCE_VERSION is 26', () => {
-    expect(PERSISTENCE_VERSION).toBe(26);
+  it('PERSISTENCE_VERSION is 27', () => {
+    expect(PERSISTENCE_VERSION).toBe(27);
   });
 });
 

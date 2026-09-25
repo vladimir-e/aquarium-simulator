@@ -48,3 +48,18 @@ export const O2_PER_NH3_OXIDIZED = (1.5 * MW_O2) / MW_NH3;
  * nitrogen, and 4.57 for both steps together.
  */
 export const O2_PER_NO2_OXIDIZED = (0.5 * MW_O2) / MW_NO2;
+
+/** Calcium carbonate (g/mol). */
+export const MW_CACO3 = 100.09;
+/** Calcium oxide (g/mol). */
+export const MW_CAO = 56.08;
+
+/** ≈ 17.848. mg/L of CaCO3 in one German degree of hardness, dKH or dGH alike: 10 mg/L of CaO. */
+export const CACO3_PER_DEGREE = (10 * MW_CACO3) / MW_CAO;
+
+/**
+ * ≈ 5.877. The 2 H⁺ that ammonia oxidation releases each spend a bicarbonate —
+ * one CaCO3 equivalent per mole of ammonia, the 7.14 per gram of nitrogen the
+ * wastewater texts quote.
+ */
+export const CACO3_PER_NH3_NITRIFIED = MW_CACO3 / MW_NH3;

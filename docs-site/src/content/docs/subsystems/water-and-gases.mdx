@@ -1,6 +1,6 @@
 ---
 title: Water & gases
-description: Two dissolved gases relaxing toward the atmosphere, one carbon–oxygen budget every aerobic process draws on, and a pH that reads hardscape and CO₂ through a stand-in for alkalinity.
+description: Two dissolved gases relaxing toward the atmosphere, one carbon–oxygen budget every aerobic process draws on, a pH read off CO₂ against the carbonate buffer, and the water's general hardness.
 ---
 
 import { Badge } from '@astrojs/starlight/components';
@@ -11,8 +11,9 @@ Oxygen and CO₂ are stored as concentrations and relax toward equilibrium at a
 rate flow and aeration set. Between those relaxations sits the tick's real
 budget: every aerobic process in the tank — fish, plants at night, decay, both
 nitrifier guilds — takes its oxygen out of the same stock, and each one's rate
-saturates against what is left. pH is the third number here, and it is the least
-finished thing on the page.
+saturates against what is left. Carbonate hardness (KH) is the third stock and
+general hardness (GH) the fourth, and pH is not a stock at all: it is read off
+CO₂ against KH wherever something needs it.
 
 ## Status
 
@@ -24,11 +25,15 @@ finished thing on the page.
 | Carbon derived from oxygen | <Badge text="settled" variant="success" /> | One 1:1 reaction for the whole engine, read from whichever side the process spends: `44.01/32` ≈ `1.375` mg of CO₂ per mg of O₂ drawn, and the reciprocal `0.727` for oxygen released per gram of carbon fixed. A process that cannot get the oxygen stops emitting the carbon rather than manufacturing it. |
 | Still-water diffusion floor | <Badge text="settled" variant="success" /> | A filterless tank still exchanges across its surface, at 10 % of the full-flow rate. A rate that starts from a floor, not a switch. |
 | Aeration | <Badge text="scaffolding" variant="caution" /> | A boolean. Any aerating fitting multiplies exchange by exactly 3, off-gasses CO₂ 1.5× faster and injects the same `0.05` mg/L/hr, whatever the tank. |
-| pH from hardscape | <Badge text="scaffolding" variant="caution" /> | A per-type item count pulling toward two hand-set target pH values with diminishing returns. There is no acid or base stock behind it. |
-| pH from CO₂ | <Badge text="scaffolding" variant="caution" /> | The log coupling is the right shape, but `co2PhCoefficient` is an admitted stand-in for alkalinity: it is the pH swing per decade of CO₂, held flat across every tank. |
-| pH from nitrification | <Badge text="missing" variant="danger" /> | Ammonia oxidation releases 2 H⁺ per NH₄⁺ and pH drift never sees it, so a cycling tank never acidifies. |
-| KH — carbonate hardness | <Badge text="missing" variant="danger" /> | Buffer capacity *and* the bicarbonate pool low-tech plants run on. Without it no single dissolved-CO₂ target can be right, which is what makes the pH coefficient a stand-in rather than a constant. |
-| GH — general hardness | <Badge text="missing" variant="danger" /> | Calcium and magnesium have zero presence in the engine. |
+| pH from CO₂ and KH | <Badge text="settled" variant="success" /> | The hobby relation `CO₂ = 3 × KH × 10^(7 − pH)`, derived on read and never stored, so it cannot lag or drift. |
+| Soft-water floor | <Badge text="scaffolding" variant="caution" /> | A fixed `0.1` dKH of background buffer and `0.1` mg/L of residual CO₂ keep pH finite at KH 0 and CO₂ 0. Stand-ins for the phosphate and humic buffers a real tank carries. |
+| Nitrification spends KH | <Badge text="settled" variant="success" /> | Stoichiometric — see [Nitrogen cycle](/subsystems/nitrogen-cycle/). |
+| Tap, top-off and evaporation | <Badge text="settled" variant="success" /> | KH and GH are masses, so evaporation concentrates them and every litre of tap water brings `tapKh` and `tapGh` with it. |
+| Hardscape and substrate | <Badge text="scaffolding" variant="caution" /> | Hand-set rates and reserves. Calcite dissolves in proportion to [H⁺] and never runs out; driftwood's tannins and aqua soil's buffer are finite and taper as they are spent. |
+| Calcite and soil move GH with KH | <Badge text="settled" variant="success" /> | Stoichiometric: CaCO₃ dissolves into equal CaCO₃-equivalents of Ca²⁺ and carbonate, and soil's cation exchange takes up Ca²⁺ and Mg²⁺ for the H⁺ that spends carbonate. |
+| Plant uptake of GH | <Badge text="scaffolding" variant="caution" /> | A fixed share of the macronutrients drawn, off leaf-tissue ratios — the figure is on [Plants](/subsystems/plants/). Not Liebig-gated: calcium never limits growth. |
+| Bicarbonate uptake by plants | <Badge text="missing" variant="danger" /> | Plants take only free CO₂, so a CO₂-starved planted tank never pulls its KH down or its pH up past the residual. |
+| Calcium and magnesium apart | <Badge text="missing" variant="danger" /> | GH is one pooled stock; no species or plant reads Ca and Mg separately, and nothing models shells. |
 | Supersaturation | <Badge text="missing" variant="danger" /> | Oxygen above saturation is resisted only by the same linear relaxation and then truncated at the `20` mg/L resource bound, which discards the mass. No ebullition. |
 
 ## How it works
@@ -41,7 +46,12 @@ organism system answers a biological question and returns a mass, so plants,
 fish and decay each divide their gas mass by standing water before pushing the
 effect. It is why the same planting moves a nano further than it moves a 300 L.
 
-Bounds clamp oxygen to `0`–`20` mg/L, CO₂ to `0`–`100` and pH to `0`–`14`.
+Alkalinity and general hardness are stored as **mass** too, both in mg of
+CaCO₃, and read as dKH and dGH: a German degree is `10` mg/L of CaO, so
+`10 × MW_CaCO₃ / MW_CaO` mg/L of CaCO₃ for either.
+
+Bounds clamp oxygen to `0`–`20` mg/L, CO₂ to `0`–`100` and KH and GH to no
+less than zero.
 
 ### Gas exchange
 
@@ -77,6 +87,20 @@ A sponge filter beats a bare canister on gas exchange in the same tank while
 moving well under half the water, because it aerates and the canister does not.
 Aeration, not flow, is the dominant lever.
 
+### Injected CO₂
+
+The injector meters a mass (its figure is on [Equipment](/subsystems/equipment/));
+off-gassing is the CO₂ half of the exchange above. The tank settles where the two
+balance, less what the plants fix:
+
+```
+steady CO₂ ≈ atmospheric + (injection − plant uptake) / (volume × baseExchangeRate × flowFactor)
+```
+
+The high-tech scenario — 40 gal, canister, 2 bps from an hour before the lights
+— climbs from ~5 mg/L at dawn to ~29 by lights-off, and pH swings ~0.75 over the
+day across the KH its soil has stripped.
+
 ### The tick's carbon–oxygen budget
 
 Every aerobic process multiplies its rate by `O₂ / (K + O₂)` and quotes its own
@@ -85,7 +109,7 @@ the two gases are one reaction rather than two coefficients.
 
 | Process | Oxygen | Carbon | `K` (mg/L) |
 |---|---|---|---|
-| Photosynthesis | + fixed CO₂ × `0.727` | − from the dissolved pool, clamped to it | light-gated, not oxygen-gated |
+| Photosynthesis | + fixed CO₂ × `0.727` | − from the dissolved pool, clamped to it | not oxygen-gated; a carbon Monod per species instead ([Plants](/subsystems/plants/)) |
 | Plant respiration | − CO₂ released × `0.727` | + | `0.50` |
 | Fish metabolism | − `0.3` mg per g of fish per hour | + drawn O₂ × RQ `0.8` × `1.375` | `1.00` |
 | Aerobic decay | − `250` mg per g of matter oxidised | + drawn O₂ × `1.375` | `0.20` |
@@ -119,7 +143,7 @@ column above rather than the constant itself.
 The budget is not solved simultaneously. Environment and equipment settle first,
 so CO₂ injection is in the water before plants run. Plants, then algae, then
 livestock each apply their effects before the next reads the stock. Decay, the
-nitrogen cycle, gas exchange and pH drift run last and **share one snapshot** —
+nitrogen cycle and gas exchange run last and **share one snapshot** —
 all three oxygen consumers size their draw against the same starting
 concentration, and their deltas add.
 
@@ -127,31 +151,60 @@ That is what makes the Monod term load-bearing rather than decorative: nothing
 rations the passive tier, so the only thing keeping three simultaneous draws
 from crossing zero is that each shrinks as the stock does.
 
-### pH
+### KH and pH
 
 ```
-target = neutralPh + hardscape pulls − log10(co2 / co2NeutralLevel) × co2PhCoefficient
-delta  = basePgDriftRate × (target − ph)
+dKH = kh / water / CACO3_PER_DEGREE
+pH  = 7 − log10((co2 + 0.1) / (3 × (dKH + 0.1)))
 ```
 
-pH is a relaxation toward a target, at 25 % of the remaining distance per hour —
-a 2.4-hour half-life, which is why an injected tank swings through the day and
-rebounds overnight. Hardscape moves the target by counting items of each type
-and pulling toward `8.0` for calcite or `6.0` for driftwood, each item worth 30 %
-of what is left.
+pH follows CO₂ and KH the moment either moves: a unit per tenfold change in
+their ratio. KH is the buffer — the same CO₂ plume swings a soft tank much
+further than a hard one — and without it pH falls toward ~5.9 rather than
+without limit.
 
-| CO₂ | pH with no hardscape |
-|---|---|
-| `4` mg/L — atmospheric | `7.00` |
-| `15` mg/L | `6.57` |
-| `25` mg/L | `6.40` |
-| `40` mg/L | `6.25` |
+| CO₂ | KH 0 | KH 1 | KH 4 | KH 8 |
+|---|---|---|---|---|
+| `4` mg/L — atmospheric | `5.86` | `6.91` | `7.48` | `7.77` |
+| `15` mg/L | `5.30` | `6.34` | `6.91` | `7.21` |
+| `30` mg/L — injected | `5.00` | `6.04` | `6.61` | `6.91` |
 
-Read the honest version: pH here is two stand-ins stacked. The hardscape term is
-a lookup of target values rather than a mineral dissolving, and the CO₂ term's
-coefficient is doing the job alkalinity would do — its own docstring says a
-higher-KH tank would need a smaller one. Nitrification, the largest real acid
-source in a young tank, is not connected at all.
+What moves KH:
+
+| Flow | Direction | Rate |
+|---|---|---|
+| Tap water | + | `tapKh` per litre added — a fill, a water change, a top-off or the ATO |
+| Evaporation | concentrates | the mass stays, the water goes |
+| Nitrification | − | per mg of ammonia oxidised — see [Nitrogen cycle](/subsystems/nitrogen-cycle/) |
+| Calcite rock | + | `calciteDissolutionRate` per rock at pH 7, ×10 per pH unit lower |
+| Driftwood | − | `tanninLeachRate` of the piece's remaining tannins per hour |
+| Aqua soil | − | `aquaSoilKhUptake` of the tank's KH per hour, scaled by the share of the bed's buffer left |
+
+Four hobby behaviours fall out. A heavily stocked tank left without water
+changes drains its KH and its pH sags — old tank syndrome. A lightly stocked
+one topped off with hard tap water creeps the other way. A calcite scape
+settles where dissolution, slowing as pH climbs, balances what the tank spends.
+And a fresh soil tank starts acidic and drifts toward tap chemistry over the
+months its buffer takes to run down — the reserves themselves are on
+[Equipment](/subsystems/equipment/).
+
+### GH
+
+GH is calcium and magnesium, the hardness species tolerate and plants build
+with. It has no chemistry of its own in the tick — the tolerance bands and
+plant uptake read it — and it moves with KH wherever the two share a cause:
+
+| Flow | Direction | Rate |
+|---|---|---|
+| Tap water | + | `tapGh` per litre added, wherever tap KH arrives |
+| Evaporation | concentrates | the mass stays, the water goes |
+| Calcite rock | + | the same mg as its KH — one flow, written to both |
+| Aqua soil | − | the same mg as its KH uptake, never more than the water holds of either |
+| Plants | − | a fixed share of the nutrients they draw, on [Plants](/subsystems/plants/) |
+
+Driftwood and nitrification spend carbonate, not calcium, so a tank that drains
+its KH keeps its GH. A cycled soil tank sits as far below the tap in GH as it
+does in KH, since the bed and the water changes treat both alike.
 
 ### Stocks and rates
 
@@ -159,7 +212,8 @@ source in a young tank, is not connected at all.
 |---|---|---|---|
 | `oxygen` | Gas exchange toward saturation; aeration bubbles; photosynthesis | Fish, plant respiration, decay, both nitrifier guilds | mg/L |
 | `co2` | Injection; fish, plant respiration, decay | Off-gassing toward atmospheric; photosynthesis | mg/L |
-| `ph` | Drift toward the hardscape + CO₂ target; blending on an ATO refill or a water change | The same drift, in the other direction | — |
+| `kh` | Tap water; calcite | Nitrification; driftwood; aqua soil; the old water a change removes | mg CaCO₃ |
+| `gh` | Tap water; calcite | Aqua soil; plants; the old water a change removes | mg CaCO₃ |
 
 ## Key tunables
 
@@ -175,10 +229,9 @@ source in a young tank, is not connected at all.
 | `aerationDirectO2` | Bubble dissolution, only below saturation | `0.05` mg/L/hr |
 | `aerationCo2OffgasMultiplier` | Extra CO₂ stripping on top of that | `1.5` × |
 | `gasExchangePerGramDecay` | Oxygen demanded per gram of organic matter oxidised | `250` mg/g |
-| `neutralPh` | pH target with no hardscape in the tank | `7.0` |
-| `basePgDriftRate` | Share of the distance to the pH target closed per tick | `0.25` /tick |
-| `co2PhCoefficient` | pH swing per decade of CO₂ — the alkalinity stand-in | `0.75` pH/decade |
-| `hardscapeDiminishingFactor` | What each further item of a type is worth | `0.7` |
+| `calciteDissolutionRate` | CaCO₃ one calcite rock dissolves per hour at pH 7 | `20` mg/h |
+| `tanninLeachRate` | Share of a driftwood piece's remaining tannins leached per hour | `0.0003` /h |
+| `aquaSoilKhUptake` | Share of the tank's KH a fresh aqua soil bed takes per hour | `0.01` /h |
 
 The five oxygen half-saturation constants are tunables too, but each lives with
 the system that quotes it rather than here; their values are in the table above.
@@ -187,18 +240,19 @@ the system that quotes it rather than here; their values are in the table above.
 
 | Neighbour | Read | Written |
 |---|---|---|
-| [Environment](/subsystems/environment/) | `temperature` sets O₂ saturation; standing `water` is the divisor every gas mass passes through | — |
-| [Equipment](/subsystems/equipment/) | `flow` and `aeration` set the exchange rate; hardscape sets the pH target | The ATO blends `oxygen`, `co2` and `ph` toward tap values as it refills |
-| [Nitrogen cycle](/subsystems/nitrogen-cycle/) | — | Both guilds draw `oxygen`, and their Monod factor is what standing nitrite is made of |
+| [Environment](/subsystems/environment/) | `temperature` sets O₂ saturation; standing `water` is the divisor every gas mass passes through; `tapKh` and `tapGh` | — |
+| [Equipment](/subsystems/equipment/) | `flow` and `aeration` set the exchange rate | Hardscape and substrate set the KH and GH flows; the ATO blends `oxygen` and `co2` toward tap values and adds tap `kh` and `gh` as it refills |
+| [Nitrogen cycle](/subsystems/nitrogen-cycle/) | pH, for the free-ammonia fraction | Both guilds draw `oxygen`, and their Monod factor is what standing nitrite is made of; AOB spend `kh` |
 | [Light](/subsystems/light/) | — | Indirectly: the photoperiod is what makes oxygen and CO₂ swing across a day |
-| [Plants](/subsystems/plants/) | — | Photosynthesis adds `oxygen` and takes `co2`; respiration does the reverse, day and night |
-| [Livestock](/subsystems/livestock/) | — | Fish draw `oxygen` and exhale `co2`; the same factor scales their ammonia output |
+| [Plants](/subsystems/plants/) | pH and GH, against each species' band | Photosynthesis adds `oxygen` and takes `co2` and a little `gh`; respiration does the reverse, day and night |
+| [Livestock](/subsystems/livestock/) | pH and GH, against each species' band | Fish draw `oxygen` and exhale `co2`; the same factor scales their ammonia output |
 | [Algae](/subsystems/algae/) | — | Nothing. Algae moves no gas in either direction |
-| [Actions](/subsystems/actions/) | — | A water change blends `oxygen`, `co2` and `ph` toward tap values |
+| [Actions](/subsystems/actions/) | — | A water change blends `oxygen` and `co2` toward tap values and moves `kh` and `gh` toward the tap; a top-off adds tap `kh` and `gh` |
 | [Alerts & logging](/subsystems/alerts-and-logging/) | — | Oxygen below `4.0` mg/L and CO₂ above `30` mg/L each raise an alert once per crossing |
 
 ## Source
 
-`src/simulation/systems/` for gas exchange and pH drift,
-`src/simulation/core/` for the molecular weights and the Monod and Q10 shapes,
+`src/simulation/systems/` for gas exchange,
+`src/simulation/equipment/` for what the scape does to KH and GH,
+`src/simulation/core/` for the molecular weights, the carbonate relation and the Monod and Q10 shapes,
 `src/simulation/config/` for the tunables.

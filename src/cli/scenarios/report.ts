@@ -10,6 +10,8 @@ function describe(setup: Setup): string {
     `${setup.gallons} gal`,
     setup.heaterF === null ? `unheated (${setup.roomF}°F room)` : `${setup.heaterF}°F`,
     setup.filter ?? 'no filter',
+    `tap ${setup.tapKh} dKH ${setup.tapGh} dGH`,
+    ...(setup.hardscape.length === 0 ? [] : [setup.hardscape.join(', ').replaceAll('_', ' ')]),
     setup.light === null ? 'no light' : `${Math.round(setup.light.par)} PAR × ${setup.light.hours}h`,
     ...(setup.co2 === null ? [] : [`CO₂ ${setup.co2} bps`]),
     ...(setup.doser === null ? [] : [`doser ${setup.doser} ml/d`]),

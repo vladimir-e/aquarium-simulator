@@ -22,16 +22,14 @@ import { getPpm } from '../resources/index.js';
 // ============================================================================
 
 /**
- * CO2 dosing rate: mg per hour per bubble per second.
- * This is a MASS rate, not concentration. The actual concentration
- * change depends on the water volume.
- *
- * Calibrated: 2 bps in 150L should reach 15-25 ppm CO2 at equilibrium.
- * At baseExchangeRate 0.25, flowFactor ~0.6:
- *   equilibrium = atmospheric + injection / (exchangeRate * flowFactor)
- *   200 * 2 / 150 / (0.25 * 0.6) ≈ 17.8 mg/L above atmospheric → ~22 ppm total
+ * mg of CO2 one bubble carries: a bubble-counter bubble is ~0.1 mL, and CO2
+ * at room temperature and pressure weighs 1.8 mg/mL. At 1 bps for 8 hours a
+ * day that empties a 5 lb cylinder in about fourteen months.
  */
-export const CO2_MASS_RATE = 200;
+const CO2_PER_BUBBLE = 0.18;
+
+/** mg of CO2 per hour that one bubble per second delivers. */
+export const CO2_MASS_RATE = CO2_PER_BUBBLE * 3600;
 
 /**
  * Available bubble rate options (bubbles per second).

@@ -156,15 +156,27 @@ export function SetupSection({
                 />
               </FieldRow>
 
-              <FieldRow label="Tap water pH">
+              <FieldRow label="Tap water KH">
                 <Stepper
-                  ariaLabel="Tap water pH"
-                  value={environment.tapWaterPH}
-                  min={5.5}
-                  max={8.5}
-                  step={0.1}
-                  display={environment.tapWaterPH.toFixed(1)}
-                  onChange={(value) => sim.updateTapWaterPH(Number(value.toFixed(1)))}
+                  ariaLabel="Tap water KH"
+                  value={environment.tapKh}
+                  min={0}
+                  max={20}
+                  step={0.5}
+                  display={`${environment.tapKh.toFixed(1)} dKH`}
+                  onChange={(value) => sim.updateTapKh(Number(value.toFixed(1)))}
+                />
+              </FieldRow>
+
+              <FieldRow label="Tap water GH">
+                <Stepper
+                  ariaLabel="Tap water GH"
+                  value={environment.tapGh}
+                  min={0}
+                  max={30}
+                  step={0.5}
+                  display={`${environment.tapGh.toFixed(1)} dGH`}
+                  onChange={(value) => sim.updateTapGh(Number(value.toFixed(1)))}
                 />
               </FieldRow>
 

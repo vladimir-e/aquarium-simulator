@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { PLANT_SPECIES_DATA } from '../../simulation/index.js';
+import { PLANT_SPECIES_DATA, createHardscapeItem } from '../../simulation/index.js';
 import {
   hardscapeRows,
   lightTier,
@@ -30,16 +30,16 @@ describe('substrateConsequence', () => {
 
 describe('hardscape', () => {
   const items = [
-    { id: '1', type: 'neutral_rock' as const },
-    { id: '2', type: 'driftwood' as const },
-    { id: '3', type: 'driftwood' as const },
+    createHardscapeItem('1', 'neutral_rock'),
+    createHardscapeItem('2', 'driftwood'),
+    createHardscapeItem('3', 'driftwood'),
   ];
 
-  it('gives each piece the engine’s surface and pH effect', () => {
+  it('gives each piece the engine’s surface and KH effect', () => {
     expect(hardscapeRows(items)).toEqual([
       { id: '1', name: 'Neutral Rock', surface: 400, effect: null },
-      { id: '2', name: 'Driftwood', surface: 650, effect: 'Lowers pH' },
-      { id: '3', name: 'Driftwood', surface: 650, effect: 'Lowers pH' },
+      { id: '2', name: 'Driftwood', surface: 650, effect: 'Spends KH' },
+      { id: '3', name: 'Driftwood', surface: 650, effect: 'Spends KH' },
     ]);
   });
 });
