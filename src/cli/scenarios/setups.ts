@@ -2,16 +2,15 @@ import type { SimulationConfig } from '../../simulation/state.js';
 import type { PresetSeed, SeedFishGroup, SeedPlantGroup } from '../../simulation/seed.js';
 import type { SubstrateType } from '../../simulation/equipment/substrate.js';
 import type { FilterType } from '../../simulation/equipment/filter.js';
-import type { Routine } from './keeper.js';
+import type { Chore, Schedule, ScheduleEntry } from './keeper.js';
 import type { BandOverrides } from './readings.js';
-import { LITERS_PER_GALLON, toCelsius } from './units.js';
+import { LITERS_PER_GALLON, toCelsius } from '../units.js';
 
 export interface Setup {
   name: string;
   about: string;
   gallons: number;
   substrate: SubstrateType;
-  /** Heater target, or null for an unheated tank. */
   heaterF: number | null;
   roomF: number;
   filter: FilterType | null;
@@ -25,7 +24,7 @@ export interface Setup {
   plants: SeedPlantGroup[];
   fish: SeedFishGroup[];
   cycled: boolean;
-  routine: Routine;
+  schedule: Schedule;
   bands?: BandOverrides;
 }
 
@@ -79,16 +78,22 @@ export function toSeed(setup: Setup): PresetSeed {
   };
 }
 
-const maintained: Routine = {
-  feed: 'stock',
-  topOff: true,
-  waterChange: 0.25,
-  dose: 0,
-  scrapeAlgae: true,
-  trimTo: null,
-};
+const FEED_SHARE_OF_STOCK = 0.02;
 
-export const PLANTED_AT = 50;
+const daily = (action: Chore): ScheduleEntry => ({ every: 1, action });
+const weekly = (action: Chore): ScheduleEntry => ({ every: 7, action });
+
+const dose = (amountMl: number): ScheduleEntry => weekly({ type: 'dose', amountMl });
+const trim = weekly({ type: 'trimPlants', targetSize: 100 });
+
+const maintained: Schedule = [
+  weekly({ type: 'waterChange', amount: 0.25 }),
+  weekly({ type: 'scrubAlgae' }),
+  daily({ type: 'topOff' }),
+  daily({ type: 'feed', shareOfStock: FEED_SHARE_OF_STOCK }),
+];
+
+export const PLANTING_SIZE = 50;
 
 export const SETUPS: Setup[] = [
   {
@@ -104,12 +109,12 @@ export const SETUPS: Setup[] = [
     doser: null,
     ato: false,
     plants: [
-      { species: 'anubias', count: 2, size: PLANTED_AT },
-      { species: 'java_fern', count: 2, size: PLANTED_AT },
+      { species: 'anubias', count: 2, size: PLANTING_SIZE },
+      { species: 'java_fern', count: 2, size: PLANTING_SIZE },
     ],
     fish: [{ species: 'betta', count: 1, sex: 'male' }],
     cycled: true,
-    routine: { ...maintained, dose: 1 },
+    schedule: [...maintained, dose(1)],
   },
   {
     name: 'low-tech',
@@ -124,16 +129,16 @@ export const SETUPS: Setup[] = [
     doser: null,
     ato: false,
     plants: [
-      { species: 'java_fern', count: 3, size: PLANTED_AT },
-      { species: 'anubias', count: 2, size: PLANTED_AT },
-      { species: 'amazon_sword', count: 2, size: PLANTED_AT },
+      { species: 'java_fern', count: 3, size: PLANTING_SIZE },
+      { species: 'anubias', count: 2, size: PLANTING_SIZE },
+      { species: 'amazon_sword', count: 2, size: PLANTING_SIZE },
     ],
     fish: [
       { species: 'neon_tetra', count: 10, sex: 'female' },
       { species: 'corydoras', count: 4, sex: 'female' },
     ],
     cycled: true,
-    routine: { ...maintained, dose: 4, trimTo: 100 },
+    schedule: [...maintained, dose(4), trim],
   },
   {
     name: 'high-tech',
@@ -148,17 +153,17 @@ export const SETUPS: Setup[] = [
     doser: 3,
     ato: true,
     plants: [
-      { species: 'monte_carlo', count: 6, size: PLANTED_AT },
-      { species: 'dwarf_hairgrass', count: 6, size: PLANTED_AT },
-      { species: 'amazon_sword', count: 3, size: PLANTED_AT },
-      { species: 'java_fern', count: 3, size: PLANTED_AT },
+      { species: 'monte_carlo', count: 6, size: PLANTING_SIZE },
+      { species: 'dwarf_hairgrass', count: 6, size: PLANTING_SIZE },
+      { species: 'amazon_sword', count: 3, size: PLANTING_SIZE },
+      { species: 'java_fern', count: 3, size: PLANTING_SIZE },
     ],
     fish: [
       { species: 'neon_tetra', count: 15, sex: 'female' },
       { species: 'corydoras', count: 6, sex: 'female' },
     ],
     cycled: true,
-    routine: { ...maintained, trimTo: 100 },
+    schedule: [...maintained, trim],
     bands: {
       co2: { green: [15, 35], amber: [8, 40], why: 'injected tanks aim 20–30 mg/L while the lights are on' },
     },
@@ -176,9 +181,9 @@ export const SETUPS: Setup[] = [
     doser: null,
     ato: false,
     plants: [
-      { species: 'java_fern', count: 4, size: PLANTED_AT },
-      { species: 'anubias', count: 4, size: PLANTED_AT },
-      { species: 'amazon_sword', count: 2, size: PLANTED_AT },
+      { species: 'java_fern', count: 4, size: PLANTING_SIZE },
+      { species: 'anubias', count: 4, size: PLANTING_SIZE },
+      { species: 'amazon_sword', count: 2, size: PLANTING_SIZE },
     ],
     fish: [
       { species: 'angelfish', count: 4, sex: 'female' },
@@ -187,7 +192,7 @@ export const SETUPS: Setup[] = [
       { species: 'guppy', count: 6, sex: 'male' },
     ],
     cycled: true,
-    routine: { ...maintained, dose: 8, trimTo: 100 },
+    schedule: [...maintained, dose(8), trim],
   },
   {
     name: 'low-flow',
@@ -208,7 +213,7 @@ export const SETUPS: Setup[] = [
       { species: 'corydoras', count: 5, sex: 'female' },
     ],
     cycled: true,
-    routine: maintained,
+    schedule: maintained,
   },
   {
     name: 'cold',
@@ -223,12 +228,12 @@ export const SETUPS: Setup[] = [
     doser: null,
     ato: false,
     plants: [
-      { species: 'java_fern', count: 2, size: PLANTED_AT },
-      { species: 'anubias', count: 2, size: PLANTED_AT },
+      { species: 'java_fern', count: 2, size: PLANTING_SIZE },
+      { species: 'anubias', count: 2, size: PLANTING_SIZE },
     ],
     fish: [{ species: 'guppy', count: 8, sex: 'male' }],
     cycled: true,
-    routine: { ...maintained, dose: 2 },
+    schedule: [...maintained, dose(2)],
     bands: {
       temp: { green: [62, 76], amber: [56, 80], why: 'unheated: room temperature is the point' },
     },

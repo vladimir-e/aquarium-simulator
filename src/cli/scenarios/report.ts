@@ -32,13 +32,13 @@ function cellText(cell: Cell, digits: number, color: boolean): Text {
   return color ? { text, grade: cell.grade } : { text: `${text} ${cell.grade}` };
 }
 
-function grid(header: string[], rows: Text[][]): string {
+function grid(header: string[], rows: Text[][], leftAligned: number): string {
   const cells = [header.map((text) => ({ text })), ...rows];
   const widths = header.map((_, i) => Math.max(...cells.map((row) => row[i]!.text.length)));
   const line = (row: Text[]): string =>
     row
       .map(({ text, grade }, i) => {
-        const padded = i < 2 ? text.padEnd(widths[i]!) : text.padStart(widths[i]!);
+        const padded = i < leftAligned ? text.padEnd(widths[i]!) : text.padStart(widths[i]!);
         return grade ? `${ANSI[grade]}${padded}${RESET}` : padded;
       })
       .join('  ')
@@ -53,15 +53,14 @@ export function renderTable(result: ScenarioResult, { color, label }: { color: b
     { text: r.unit },
     ...result.cells[r.id].map((cell) => cellText(cell, r.digits, color)),
   ]);
-  return [`${label} — ${result.setup.about}`, describe(result.setup), '', grid(header, rows)].join('\n');
+  return [`${label} — ${result.setup.about}`, describe(result.setup), '', grid(header, rows, 2)].join('\n');
 }
 
 export function renderTrace(trace: TraceRow[], day: number): string {
-  const header = ['hour', '', 'PAR', '°F', 'O₂', 'CO₂', 'pH'];
+  const header = ['hour', 'PAR', '°F', 'O₂', 'CO₂', 'pH'];
   const rows = trace.map((t) =>
     [
       String(t.hour).padStart(2, '0'),
-      '',
       t.par.toFixed(0),
       t.tempF.toFixed(1),
       t.o2.toFixed(2),
@@ -69,7 +68,7 @@ export function renderTrace(trace: TraceRow[], day: number): string {
       t.ph.toFixed(2),
     ].map((text) => ({ text }))
   );
-  return [`hourly, day ${day}`, grid(header, rows)].join('\n');
+  return [`hourly, day ${day}`, grid(header, rows, 1)].join('\n');
 }
 
 /** One line per reading, so a before/after diff reads reading by reading. */

@@ -1,19 +1,21 @@
-import { FISH_SPECIES_DATA, type FishSpecies } from '../../simulation/livestock/species.js';
-import { PLANT_SPECIES_DATA, type PlantSpecies } from '../../simulation/plants/species.js';
+import { FISH_SPECIES_DATA } from '../../simulation/livestock/species.js';
+import { PLANT_SPECIES_DATA } from '../../simulation/plants/species.js';
 import type { TunableConfig } from '../../simulation/config/index.js';
 import { applyConfigSet } from '../config-set.js';
-import { PLANTED_AT, type Setup } from './setups.js';
+import { parseScheduleFlag, SCHEDULE_FLAG_NAMES, withOverride } from './keeper.js';
+import { PLANTING_SIZE, type Setup } from './setups.js';
 
-export type Tweak =
-  | { kind: 'plant'; species: PlantSpecies; count: number; size?: number }
-  | { kind: 'fish'; species: FishSpecies; count: number }
-  | { kind: 'light'; factor: number }
-  | { kind: 'feed'; grams: number }
-  | { kind: 'gallons'; gallons: number }
-  | { kind: 'set'; path: string; value: string }
-  | { kind: 'uncycled' };
+export interface Tank {
+  setup: Setup;
+  config: TunableConfig;
+}
 
-export const TWEAK_FLAGS = ['plant', 'fish', 'light', 'feed', 'no-feed', 'gal', 'set', 'uncycled'];
+export interface Tweak {
+  text: string;
+  apply: (tank: Tank) => Tank;
+}
+
+export const TWEAK_FLAGS = ['plant', 'fish', 'light', 'gal', 'set', 'uncycled', ...SCHEDULE_FLAG_NAMES];
 
 function positive(raw: string | undefined, what: string): number {
   const value = Number(raw);
@@ -30,90 +32,79 @@ function count(raw: string | undefined, what: string): number {
 }
 
 function oneOf<T extends string>(raw: string, known: Record<T, unknown>, what: string): T {
-  if (!(raw in known)) {
+  if (!Object.hasOwn(known, raw)) {
     throw new Error(`Unknown ${what} "${raw}". Known: ${Object.keys(known).join(', ')}`);
   }
   return raw as T;
 }
 
-/** `--<flag>=<value>` as a tweak. */
-export function parseTweak(flag: string, value: string | undefined): Tweak {
+const warn = (text: string): void => {
+  process.stderr.write(`warning: ${text}\n`);
+};
+
+const onSetup =
+  (change: (setup: Setup) => Setup) =>
+  ({ setup, config }: Tank): Tank => ({ setup: change(setup), config });
+
+function tweakApply(flag: string, value: string | undefined): Tweak['apply'] {
   switch (flag) {
     case 'plant': {
-      const [species = '', n, size] = (value ?? '').split(':');
-      return {
-        kind: 'plant',
-        species: oneOf(species, PLANT_SPECIES_DATA, 'plant species'),
+      const [name = '', n, size] = (value ?? '').split(':');
+      const group = {
+        species: oneOf(name, PLANT_SPECIES_DATA, 'plant species'),
         count: count(n, 'plant count'),
-        ...(size === undefined ? {} : { size: positive(size, 'plant size') }),
+        size: size === undefined ? PLANTING_SIZE : positive(size, 'plant size'),
       };
+      return onSetup((setup) => ({ ...setup, plants: [...setup.plants, group] }));
     }
     case 'fish': {
-      const [species = '', n] = (value ?? '').split(':');
-      return {
-        kind: 'fish',
-        species: oneOf(species, FISH_SPECIES_DATA, 'fish species'),
+      const [name = '', n] = (value ?? '').split(':');
+      const group = {
+        species: oneOf(name, FISH_SPECIES_DATA, 'fish species'),
         count: count(n, 'fish count'),
+        sex: 'female' as const,
       };
+      return onSetup((setup) => ({ ...setup, fish: [...setup.fish, group] }));
     }
-    case 'light':
-      return { kind: 'light', factor: positive(value, 'light factor') };
-    case 'feed': {
-      const grams = Number(value);
-      if (value === undefined || !Number.isFinite(grams) || grams < 0) {
-        throw new Error(`feed takes grams a day (0 stops feeding), got "${value ?? ''}".`);
-      }
-      return { kind: 'feed', grams };
+    case 'light': {
+      const factor = positive(value, 'light factor');
+      return onSetup((setup) => {
+        if (setup.light === null) {
+          warn(`--light has no light to scale on ${setup.name}.`);
+          return setup;
+        }
+        return { ...setup, light: { ...setup.light, par: setup.light.par * factor } };
+      });
     }
-    case 'no-feed':
-      return { kind: 'feed', grams: 0 };
-    case 'gal':
-      return { kind: 'gallons', gallons: positive(value, 'gal') };
+    case 'gal': {
+      const gallons = positive(value, 'gal');
+      return onSetup((setup) => ({ ...setup, gallons }));
+    }
     case 'set': {
       const eq = (value ?? '').indexOf('=');
       if (eq <= 0) throw new Error(`set takes <dotted.path>=<value>, got "${value ?? ''}".`);
-      return { kind: 'set', path: value!.slice(0, eq), value: value!.slice(eq + 1) };
+      const path = value!.slice(0, eq);
+      const raw = value!.slice(eq + 1);
+      return ({ setup, config }) => ({ setup, config: applyConfigSet(config, path, raw) });
     }
     case 'uncycled':
-      return { kind: 'uncycled' };
-    default:
-      throw new Error(`Unknown tweak --${flag}. Tweaks: ${TWEAK_FLAGS.map((f) => `--${f}`).join(', ')}`);
+      return onSetup((setup) => ({ ...setup, cycled: false }));
+    default: {
+      const override = parseScheduleFlag(flag, value);
+      if (override === null) {
+        throw new Error(`Unknown tweak --${flag}. Tweaks: ${TWEAK_FLAGS.map((f) => `--${f}`).join(', ')}`);
+      }
+      return onSetup((setup) => {
+        const schedule = withOverride(setup.schedule, override);
+        if (override.entry === null && schedule.length === setup.schedule.length) {
+          warn(`--${flag}=off: ${setup.name} has no ${override.type} to drop.`);
+        }
+        return { ...setup, schedule };
+      });
+    }
   }
 }
 
-export function applyTweak(
-  { setup, config }: { setup: Setup; config: TunableConfig },
-  tweak: Tweak
-): { setup: Setup; config: TunableConfig } {
-  switch (tweak.kind) {
-    case 'plant':
-      return {
-        setup: {
-          ...setup,
-          plants: [...setup.plants, { species: tweak.species, count: tweak.count, size: tweak.size ?? PLANTED_AT }],
-        },
-        config,
-      };
-    case 'fish':
-      return {
-        setup: {
-          ...setup,
-          fish: [...setup.fish, { species: tweak.species, count: tweak.count, sex: 'female' }],
-        },
-        config,
-      };
-    case 'light':
-      return {
-        setup: { ...setup, light: setup.light && { ...setup.light, par: setup.light.par * tweak.factor } },
-        config,
-      };
-    case 'feed':
-      return { setup: { ...setup, routine: { ...setup.routine, feed: tweak.grams } }, config };
-    case 'gallons':
-      return { setup: { ...setup, gallons: tweak.gallons }, config };
-    case 'set':
-      return { setup, config: applyConfigSet(config, tweak.path, tweak.value) };
-    case 'uncycled':
-      return { setup: { ...setup, cycled: false }, config };
-  }
+export function parseTweak(flag: string, value: string | undefined): Tweak {
+  return { text: value === undefined ? `--${flag}` : `--${flag}=${value}`, apply: tweakApply(flag, value) };
 }

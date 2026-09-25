@@ -4,19 +4,18 @@ import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
 import { READINGS } from './readings.js';
 import { renderTable, renderTrace, toJson } from './report.js';
 import { runScenario } from './run.js';
-import { SETUPS, findSetup } from './setups.js';
-import { applyTweak, parseTweak, TWEAK_FLAGS, type Tweak } from './tweaks.js';
+import { SETUPS, findSetup, type Setup } from './setups.js';
+import { parseTweak, TWEAK_FLAGS, type Tweak } from './tweaks.js';
 
 export const SCENARIO_FLAGS = ['days', 'json', 'trace', 'bands', ...TWEAK_FLAGS];
 
-export interface ScenarioArgs {
-  names: string[];
+interface ScenarioArgs {
+  setups: Setup[];
   days: number;
   json: string | true | undefined;
   traceDay: number | undefined;
   bands: boolean;
   tweaks: Tweak[];
-  tweakText: string[];
 }
 
 function wholeDays(raw: string, flag: string): number {
@@ -27,17 +26,18 @@ function wholeDays(raw: string, flag: string): number {
 
 export function parseScenarioArgs(argv: string[]): ScenarioArgs {
   const args: ScenarioArgs = {
-    names: [],
+    setups: [],
     days: 90,
     json: undefined,
     traceDay: undefined,
     bands: false,
     tweaks: [],
-    tweakText: [],
   };
   for (const arg of argv) {
     if (!arg.startsWith('--')) {
-      args.names.push(findSetup(arg).name);
+      const setup = findSetup(arg);
+      if (args.setups.includes(setup)) throw new Error(`Setup "${arg}" is named twice.`);
+      args.setups.push(setup);
       continue;
     }
     const eq = arg.indexOf('=');
@@ -45,12 +45,11 @@ export function parseScenarioArgs(argv: string[]): ScenarioArgs {
     const value = eq > 0 ? arg.slice(eq + 1) : undefined;
     if (flag === 'days') args.days = wholeDays(value ?? '', flag);
     else if (flag === 'trace') args.traceDay = wholeDays(value ?? '', flag);
-    else if (flag === 'json') args.json = value ?? true;
-    else if (flag === 'bands') args.bands = true;
-    else {
-      args.tweaks.push(parseTweak(flag, value));
-      args.tweakText.push(arg);
-    }
+    else if (flag === 'json') {
+      if (value === '') throw new Error('--json= needs a file name; bare --json prints to stdout.');
+      args.json = value ?? true;
+    } else if (flag === 'bands') args.bands = true;
+    else args.tweaks.push(parseTweak(flag, value));
   }
   return args;
 }
@@ -63,18 +62,23 @@ function renderBands(): string {
   }).join('\n');
 }
 
-export function scenariosCommand(argv: string[], out: (text: string) => void): void {
+export function scenariosCommand(argv: string[]): void {
+  const out = (text: string): void => {
+    process.stdout.write(text);
+  };
   const args = parseScenarioArgs(argv);
   if (args.bands) {
     out(renderBands() + '\n');
     return;
   }
 
-  const setups = args.names.length > 0 ? args.names.map(findSetup) : SETUPS;
   const started = performance.now();
-  const results = setups.map((base) => {
-    const { setup, config } = args.tweaks.reduce(applyTweak, { setup: base, config: DEFAULT_CONFIG });
-    const label = [base.name, ...args.tweakText].join(' ');
+  const results = (args.setups.length > 0 ? args.setups : SETUPS).map((base) => {
+    const { setup, config } = args.tweaks.reduce((tank, tweak) => tweak.apply(tank), {
+      setup: base,
+      config: DEFAULT_CONFIG,
+    });
+    const label = [base.name, ...args.tweaks.map((t) => t.text)].join(' ');
     return { label, result: runScenario(setup, { days: args.days, config, traceDay: args.traceDay }) };
   });
   const seconds = (performance.now() - started) / 1000;

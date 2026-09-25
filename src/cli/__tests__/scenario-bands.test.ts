@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { READINGS, classify, gradeReading, type Band, type Reading } from '../scenarios/readings.js';
+import { READINGS, classify, gradeReading, type Band, type Reading, type ReadingId } from '../scenarios/readings.js';
 
 const band: Band = { green: [0, 40], amber: [0, 80], why: '' };
-const reading = (id: string): Reading => READINGS.find((r) => r.id === id)!;
+const reading = (id: ReadingId): Reading<ReadingId> => READINGS.find((r) => r.id === id)!;
 
 describe('band classification', () => {
   it('grades inside green, inside amber only, and outside both', () => {

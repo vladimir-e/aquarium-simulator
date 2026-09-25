@@ -61,6 +61,9 @@ npx tsx src/cli/sim.ts config set nitrogenCycle.bacteriaPerCm2 260
 
 # End-to-end wiring check
 npx tsx src/cli/sim.ts smoke
+
+# Preset tanks run headless on a keeper's schedule, readings banded G/A/R
+npx tsx src/cli/sim.ts scenarios low-tech --days=300 --feed=2g --water-change=off
 ```
 
 Durations accept `5d`, `48h`, or a bare integer (hours).

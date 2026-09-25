@@ -27,6 +27,7 @@ import { appendSnapshot, snapshot } from './history.js';
 import { renderObserve, renderTrace } from './format.js';
 import { runSmoke } from './smoke.js';
 import { SCENARIO_FLAGS, scenariosCommand } from './scenarios/command.js';
+import { LITERS_PER_GALLON } from './units.js';
 
 function parseFlags(args: string[]): { flags: Record<string, string>; rest: string[] } {
   const flags: Record<string, string> = {};
@@ -44,10 +45,6 @@ function parseFlags(args: string[]): { flags: Record<string, string>; rest: stri
     }
   }
   return { flags, rest };
-}
-
-function gallonsToLiters(gal: number): number {
-  return gal * 3.785;
 }
 
 export function resolvePreset(
@@ -221,7 +218,9 @@ function printHelp(): void {
       '  smoke',
       '  scenarios [<setup>...] [--days=<n>] [--json[=<file>]] [--trace=<day>] [--bands]',
       '      [--plant=<species>:<n>[:<size>]] [--fish=<species>:<n>] [--light=<factor>]',
-      '      [--feed=<g/day>|--no-feed] [--gal=<n>] [--set=<dotted.path>=<value>] [--uncycled]',
+      '      [--gal=<n>] [--set=<dotted.path>=<value>] [--uncycled]',
+      '      [--feed=<n>g|<n>%[/<n>d]] [--water-change=<n>%[/<n>d]] [--dose=<n>ml[/<n>d]]',
+      '      [--trim=<n>d] [--scrub=<n>d] [--top-off=<n>d]   (overrides the keeper; =off drops it)',
       '                            (headless preset tanks, readings banded G/A/R; no session)',
       '',
       'Session persists at .simstate/current.json.',
@@ -233,7 +232,7 @@ function cmdNew(flags: Record<string, string>): void {
   const presetId = (flags.preset as PresetId | undefined) ?? 'planted';
   let capacity: number | undefined;
   if (flags['tank-gal']) {
-    capacity = gallonsToLiters(Number(flags['tank-gal']));
+    capacity = Number(flags['tank-gal']) * LITERS_PER_GALLON;
   } else if (flags['tank-liters']) {
     capacity = Number(flags['tank-liters']);
   }
@@ -432,7 +431,7 @@ export function main(argv: string[]): void {
       cmdSmoke();
       return;
     case 'scenarios':
-      scenariosCommand(rest, (text) => process.stdout.write(text));
+      scenariosCommand(rest);
       return;
     default:
       throw new Error(`Unknown command "${cmd}". Run "sim help" for usage.`);

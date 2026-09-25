@@ -1,6 +1,7 @@
 import type { SimulationState } from '../../simulation/state.js';
 import { unionizedAmmoniaFraction } from '../../simulation/systems/nitrogen-cycle.js';
-import { toFahrenheit } from './units.js';
+import { getPpm } from '../../simulation/resources/helpers.js';
+import { toFahrenheit } from '../units.js';
 
 export interface Band {
   green: readonly [number, number];
@@ -10,25 +11,8 @@ export interface Band {
 
 export type Grade = 'G' | 'A' | 'R';
 
-export type ReadingId =
-  | 'temp'
-  | 'nh3'
-  | 'tan'
-  | 'no2'
-  | 'no3'
-  | 'po4'
-  | 'o2'
-  | 'co2'
-  | 'ph'
-  | 'plants'
-  | 'plant_size'
-  | 'plant_cond'
-  | 'fish'
-  | 'fish_health'
-  | 'algae';
-
-export interface Reading {
-  id: ReadingId;
+export interface Reading<Id extends string = string> {
+  id: Id;
   label: string;
   unit: string;
   digits: number;
@@ -40,21 +24,18 @@ export interface Reading {
   ofStart?: boolean;
 }
 
-const ppm = (mg: number, state: SimulationState): number =>
-  state.resources.water > 0 ? mg / state.resources.water : 0;
-
 const mean = (values: number[]): number | null =>
   values.length === 0 ? null : values.reduce((sum, v) => sum + v, 0) / values.length;
 
 const ANY = Infinity;
 
-export const READINGS: readonly Reading[] = [
+const DEFINITIONS = [
   {
     id: 'temp',
     label: 'temp',
     unit: '°F',
     digits: 1,
-    read: (s) => toFahrenheit(s.resources.temperature),
+    read: (s): number => toFahrenheit(s.resources.temperature),
     band: { green: [74, 82], amber: [70, 86], why: 'tropical community fish live at 74–82 °F' },
   },
   {
@@ -62,8 +43,9 @@ export const READINGS: readonly Reading[] = [
     label: 'NH₃ free',
     unit: 'ppm',
     digits: 3,
-    read: (s) =>
-      ppm(s.resources.ammonia, s) * unionizedAmmoniaFraction(s.resources.ph, s.resources.temperature),
+    read: (s): number =>
+      getPpm(s.resources.ammonia, s.resources.water) *
+      unionizedAmmoniaFraction(s.resources.ph, s.resources.temperature),
     band: { green: [0, 0.02], amber: [0, 0.05], why: '0.02 ppm free NH₃ is the long-term safe ceiling' },
     cycle: true,
   },
@@ -72,7 +54,7 @@ export const READINGS: readonly Reading[] = [
     label: 'NH₃+NH₄ total',
     unit: 'ppm',
     digits: 2,
-    read: (s) => ppm(s.resources.ammonia, s),
+    read: (s): number => getPpm(s.resources.ammonia, s.resources.water),
     band: { green: [0, 0.25], amber: [0, 1], why: 'a cycled tank tests 0 on a hobby kit; 0.25 is the first colour step' },
     cycle: true,
   },
@@ -81,7 +63,7 @@ export const READINGS: readonly Reading[] = [
     label: 'NO₂',
     unit: 'ppm',
     digits: 2,
-    read: (s) => ppm(s.resources.nitrite, s),
+    read: (s): number => getPpm(s.resources.nitrite, s.resources.water),
     band: { green: [0, 0.25], amber: [0, 1], why: 'a cycled tank tests 0; above 1 ppm fish show nitrite stress' },
     cycle: true,
   },
@@ -90,7 +72,7 @@ export const READINGS: readonly Reading[] = [
     label: 'NO₃',
     unit: 'ppm',
     digits: 1,
-    read: (s) => ppm(s.resources.nitrate, s),
+    read: (s): number => getPpm(s.resources.nitrate, s.resources.water),
     band: { green: [0, 40], amber: [0, 80], why: 'weekly changes keep a stocked tank under ~40 ppm' },
   },
   {
@@ -98,7 +80,7 @@ export const READINGS: readonly Reading[] = [
     label: 'PO₄',
     unit: 'ppm',
     digits: 2,
-    read: (s) => ppm(s.resources.phosphate, s),
+    read: (s): number => getPpm(s.resources.phosphate, s.resources.water),
     band: { green: [0, 3], amber: [0, 6], why: 'fish food and dosing hold 0.5–3 ppm; more is overfeeding' },
   },
   {
@@ -106,7 +88,7 @@ export const READINGS: readonly Reading[] = [
     label: 'O₂',
     unit: 'mg/L',
     digits: 1,
-    read: (s) => s.resources.oxygen,
+    read: (s): number => s.resources.oxygen,
     band: { green: [6, 12], amber: [4, 16], why: 'warm water saturates near 8 mg/L; fish struggle under 4' },
   },
   {
@@ -114,7 +96,7 @@ export const READINGS: readonly Reading[] = [
     label: 'CO₂',
     unit: 'mg/L',
     digits: 1,
-    read: (s) => s.resources.co2,
+    read: (s): number => s.resources.co2,
     band: { green: [1, 30], amber: [0, 40], why: 'air-equilibrated ~3, injected tanks aim 20–30, fish gasp past ~35' },
   },
   {
@@ -122,7 +104,7 @@ export const READINGS: readonly Reading[] = [
     label: 'pH',
     unit: '',
     digits: 2,
-    read: (s) => s.resources.ph,
+    read: (s): number => s.resources.ph,
     band: { green: [6, 8], amber: [5.5, 8.5], why: 'community fish are kept anywhere from 6 to 8' },
   },
   {
@@ -130,7 +112,7 @@ export const READINGS: readonly Reading[] = [
     label: 'plants',
     unit: '#',
     digits: 0,
-    read: (s) => s.plants.length,
+    read: (s): number => s.plants.length,
     band: { green: [0.9, ANY], amber: [0.5, ANY], why: 'a maintained tank loses the odd stem, not half its plants' },
     ofStart: true,
   },
@@ -139,7 +121,7 @@ export const READINGS: readonly Reading[] = [
     label: 'plant size Σ',
     unit: '%',
     digits: 0,
-    read: (s) => s.plants.reduce((sum, p) => sum + p.size, 0),
+    read: (s): number => s.plants.reduce((sum, p) => sum + p.size, 0),
     band: { green: [0.8, ANY], amber: [0.4, ANY], why: 'plants hold or grow under care; melting back by half is a problem' },
     ofStart: true,
   },
@@ -148,7 +130,7 @@ export const READINGS: readonly Reading[] = [
     label: 'plant cond',
     unit: '%',
     digits: 0,
-    read: (s) => mean(s.plants.map((p) => p.condition)),
+    read: (s): number | null => mean(s.plants.map((p) => p.condition)),
     band: { green: [60, 100], amber: [30, 100], why: 'healthy plants look healthy; under 30 they are melting' },
   },
   {
@@ -156,7 +138,7 @@ export const READINGS: readonly Reading[] = [
     label: 'fish',
     unit: '#',
     digits: 0,
-    read: (s) => s.fish.length,
+    read: (s): number => s.fish.length,
     band: { green: [0.9, ANY], amber: [0.7, ANY], why: 'the odd loss in months is normal; a third gone is not' },
     ofStart: true,
   },
@@ -165,7 +147,7 @@ export const READINGS: readonly Reading[] = [
     label: 'fish health',
     unit: '%',
     digits: 0,
-    read: (s) => mean(s.fish.map((f) => f.health)),
+    read: (s): number | null => mean(s.fish.map((f) => f.health)),
     band: { green: [70, 100], amber: [40, 100], why: 'fish in a maintained tank look healthy' },
   },
   {
@@ -173,14 +155,18 @@ export const READINGS: readonly Reading[] = [
     label: 'algae',
     unit: '/100',
     digits: 0,
-    read: (s) => s.algae.mass,
+    read: (s): number => s.algae.mass,
     band: { green: [0, 30], amber: [0, 60], why: 'some film is normal between scrapes; glass going green is not' },
   },
-];
+] as const satisfies readonly Reading[];
+
+export type ReadingId = (typeof DEFINITIONS)[number]['id'];
+
+export const READINGS: readonly Reading<ReadingId>[] = DEFINITIONS;
 
 export type BandOverrides = Partial<Record<ReadingId, Band>>;
 
-export const UNCYCLED_GRACE_DAYS = 30;
+const UNCYCLED_GRACE_DAYS = 30;
 
 const within = (value: number, [lo, hi]: readonly [number, number]): boolean =>
   value >= lo && value <= hi;
@@ -191,7 +177,7 @@ export function classify(value: number, band: Band): Grade {
   return 'R';
 }
 
-export interface GradeContext {
+interface GradeContext {
   day: number;
   cycled: boolean;
   start: number | null;
@@ -199,7 +185,7 @@ export interface GradeContext {
 }
 
 export function gradeReading(
-  reading: Reading,
+  reading: Reading<ReadingId>,
   value: number | null,
   { day, cycled, start, overrides }: GradeContext
 ): Grade | null {
