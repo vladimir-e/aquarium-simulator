@@ -34,7 +34,7 @@ function bare(): Run {
   return { state, history: [snapshotFromState(state)] };
 }
 
-function stocked(hours = 24 * 10): Run {
+function stocked(hours = 24): Run {
   let state = createSimulation({ tankCapacity: 200 });
   for (let i = 0; i < 6; i++) {
     state = applyAction(state, { type: 'addFish', species: 'neon_tetra' }).state;

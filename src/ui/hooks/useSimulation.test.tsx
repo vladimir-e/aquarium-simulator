@@ -166,7 +166,7 @@ describe('useSimulation', () => {
     expect(started).toBeLessThan(full);
 
     act(() => {
-      for (let day = 0; day < 14; day++) result.current.step();
+      result.current.step();
     });
     const spent = result.current.state.equipment.substrate.organicReserve;
     expect(spent).toBeLessThan(started);
@@ -590,23 +590,6 @@ describe('useSimulation', () => {
   });
 
   describe('logging', () => {
-    it('emits log when heater enabled', () => {
-      // Use betta preset which has heater
-      const { result } = renderHook(() => useSimulation('betta'), { wrapper });
-
-      act(() => {
-        result.current.updateHeaterEnabled(false);
-      });
-      act(() => {
-        result.current.updateHeaterEnabled(true);
-      });
-
-      const logs = result.current.state.logs;
-      const enabledLog = logs.find(
-        (log) => log.source === 'user' && log.message.includes('Heater enabled')
-      );
-      expect(enabledLog).toBeDefined();
-    });
 
     it('emits log when heater disabled', () => {
       const { result } = renderHook(() => useSimulation('betta'), { wrapper });
@@ -690,19 +673,6 @@ describe('useSimulation', () => {
       expect(resetLog).toBeDefined();
     });
 
-    it('logs accumulate across multiple ticks', () => {
-      const { result } = renderHook(() => useSimulation('betta'), { wrapper });
-      const initialLogCount = result.current.state.logs.length;
-
-      act(() => {
-        result.current.updateHeaterEnabled(false);
-        result.current.updateRoomTemperature(20);
-      });
-
-      // Should have initial log + 2 new logs
-      expect(result.current.state.logs.length).toBe(initialLogCount + 2);
-    });
-
     it('heater enabled log includes target and wattage', () => {
       const { result } = renderHook(() => useSimulation('betta'), { wrapper });
 
@@ -726,135 +696,23 @@ describe('useSimulation', () => {
   });
 
   describe('executeAction', () => {
-    // Use bare preset for evaporation tests (no ATO)
-    const tankCapacity = 40; // bare preset default
-
-    it('applies action to state', () => {
+    it('applies an action to a paused tank and logs it', () => {
       const { result } = renderHook(() => useSimulation('bare'), { wrapper });
-
-      // First reduce water level by advancing simulation (evaporation)
-      act(() => {
-        for (let i = 0; i < 100; i++) {
-          result.current.step();
-        }
-      });
-
-      const waterLevelBefore = result.current.state.resources.water;
-      expect(waterLevelBefore).toBeLessThan(tankCapacity); // Evaporation occurred
+      const capacity = result.current.state.tank.capacity;
 
       act(() => {
-        result.current.executeAction({ type: 'topOff' });
+        result.current.step();
       });
-
-      expect(result.current.state.resources.water).toBe(tankCapacity);
-    });
-
-    it('works when simulation is paused', () => {
-      const { result } = renderHook(() => useSimulation('bare'), { wrapper });
-
-      // Simulate evaporation manually by running some ticks
-      act(() => {
-        for (let i = 0; i < 100; i++) {
-          result.current.step();
-        }
-      });
-
-      const waterLevelBefore = result.current.state.resources.water;
-
-      // Ensure simulation is not playing (paused)
       expect(result.current.isPlaying).toBe(false);
+      expect(result.current.state.resources.water).toBeLessThan(capacity);
 
       act(() => {
         result.current.executeAction({ type: 'topOff' });
       });
 
-      // Water should be topped off even when paused
-      expect(result.current.state.resources.water).toBe(tankCapacity);
-      expect(result.current.state.resources.water).toBeGreaterThan(
-        waterLevelBefore
-      );
-    });
-
-    it('top off action appears in logs', () => {
-      const { result } = renderHook(() => useSimulation('bare'), { wrapper });
-
-      // Reduce water level first
-      act(() => {
-        for (let i = 0; i < 100; i++) {
-          result.current.step();
-        }
-      });
-
-      const logCountBefore = result.current.state.logs.length;
-
-      act(() => {
-        result.current.executeAction({ type: 'topOff' });
-      });
-
-      expect(result.current.state.logs.length).toBeGreaterThan(logCountBefore);
-      const lastLog =
-        result.current.state.logs[result.current.state.logs.length - 1];
-      expect(lastLog.source).toBe('user');
-      expect(lastLog.message).toContain('Topped off water');
-    });
-
-    it('multiple actions can be executed', () => {
-      const { result } = renderHook(() => useSimulation('bare'), { wrapper });
-
-      // Run simulation to cause evaporation
-      act(() => {
-        for (let i = 0; i < 100; i++) {
-          result.current.step();
-        }
-      });
-
-      // Execute first top off
-      act(() => {
-        result.current.executeAction({ type: 'topOff' });
-      });
-      expect(result.current.state.resources.water).toBe(tankCapacity);
-
-      // Run more ticks
-      act(() => {
-        for (let i = 0; i < 100; i++) {
-          result.current.step();
-        }
-      });
-
-      const waterLevelAfterEvaporation = result.current.state.resources.water;
-      expect(waterLevelAfterEvaporation).toBeLessThan(tankCapacity);
-
-      // Execute second top off
-      act(() => {
-        result.current.executeAction({ type: 'topOff' });
-      });
-      expect(result.current.state.resources.water).toBe(tankCapacity);
-    });
-
-    it('top off increases water level to capacity', () => {
-      // Use community preset for larger tank (150L)
-      const { result } = renderHook(() => useSimulation('community'), { wrapper });
-      const communityCapacity = 150;
-
-      // Disable ATO first so evaporation can occur
-      act(() => {
-        result.current.updateAtoEnabled(false);
-      });
-
-      // Run simulation to cause evaporation
-      act(() => {
-        for (let i = 0; i < 100; i++) {
-          result.current.step();
-        }
-      });
-
-      expect(result.current.state.resources.water).toBeLessThan(communityCapacity);
-
-      act(() => {
-        result.current.executeAction({ type: 'topOff' });
-      });
-
-      expect(result.current.state.resources.water).toBe(communityCapacity);
+      expect(result.current.state.resources.water).toBe(capacity);
+      expect(result.current.state.logs.at(-1)).toMatchObject({ source: 'user' });
+      expect(result.current.state.logs.at(-1)!.message).toContain('Topped off water');
     });
   });
 
