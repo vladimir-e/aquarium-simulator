@@ -7,9 +7,8 @@ import {
   applyCo2GeneratorStateChange,
   CO2_MASS_RATE,
   BUBBLE_RATE_OPTIONS,
-  type Co2Generator,
 } from './co2-generator.js';
-import { createSimulation, type SimulationState } from '../state.js';
+import { createSimulation, type Co2Generator, type SimulationState } from '../state.js';
 
 function tank(
   generator: Partial<Co2Generator> = {},

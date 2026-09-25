@@ -3,502 +3,115 @@ import { canTrimPlants, getPlantsToTrimCount, trimPlants } from './trim-plants.j
 import { createSimulation, type SimulationState, type Plant } from '../state.js';
 import { produce } from 'immer';
 
+function tankWith(...sizes: number[]): SimulationState {
+  return produce(createSimulation({ tankCapacity: 100 }), (draft) => {
+    draft.plants = sizes.map(
+      (size, i): Plant => ({ id: `p${i + 1}`, species: 'java_fern', size, condition: 100, surplus: 0 })
+    );
+  });
+}
+
+const sizes = (state: SimulationState): number[] => state.plants.map((p) => p.size);
+
 describe('canTrimPlants', () => {
-  function createStateWithPlants(plants: Plant[]): SimulationState {
-    const state = createSimulation({ tankCapacity: 100 });
-    return produce(state, (draft) => {
-      draft.plants = plants;
-    });
-  }
-
-  it('returns false when no plants exist', () => {
-    const state = createStateWithPlants([]);
-    expect(canTrimPlants(state)).toBe(false);
-  });
-
-  it('returns false when all plants are below 50%', () => {
-    const state = createStateWithPlants([
-      { id: 'p1', species: 'java_fern', size: 30 },
-      { id: 'p2', species: 'anubias', size: 45 },
-    ]);
-    expect(canTrimPlants(state)).toBe(false);
-  });
-
-  it('returns false when largest plant is exactly 50%', () => {
-    const state = createStateWithPlants([
-      { id: 'p1', species: 'java_fern', size: 50 },
-    ]);
-    expect(canTrimPlants(state)).toBe(false);
-  });
-
-  it('returns true when any plant is above 50%', () => {
-    const state = createStateWithPlants([
-      { id: 'p1', species: 'java_fern', size: 51 },
-    ]);
-    expect(canTrimPlants(state)).toBe(true);
-  });
-
-  it('returns true when only one of multiple plants is above 50%', () => {
-    const state = createStateWithPlants([
-      { id: 'p1', species: 'java_fern', size: 30 },
-      { id: 'p2', species: 'anubias', size: 75 },
-      { id: 'p3', species: 'amazon_sword', size: 45 },
-    ]);
-    expect(canTrimPlants(state)).toBe(true);
-  });
-
-  it('returns true when plant is at 100%', () => {
-    const state = createStateWithPlants([
-      { id: 'p1', species: 'java_fern', size: 100 },
-    ]);
-    expect(canTrimPlants(state)).toBe(true);
-  });
-
-  it('returns true when plant is overgrown (>100%)', () => {
-    const state = createStateWithPlants([
-      { id: 'p1', species: 'java_fern', size: 150 },
-    ]);
-    expect(canTrimPlants(state)).toBe(true);
-  });
-
-  it('returns true when plant is extremely overgrown (200%)', () => {
-    const state = createStateWithPlants([
-      { id: 'p1', species: 'java_fern', size: 200 },
-    ]);
-    expect(canTrimPlants(state)).toBe(true);
+  it('needs a plant above half size', () => {
+    expect(canTrimPlants(tankWith())).toBe(false);
+    expect(canTrimPlants(tankWith(30, 45))).toBe(false);
+    expect(canTrimPlants(tankWith(50))).toBe(false);
+    expect(canTrimPlants(tankWith(30, 51))).toBe(true);
+    expect(canTrimPlants(tankWith(200))).toBe(true);
   });
 });
 
 describe('getPlantsToTrimCount', () => {
-  function createStateWithPlants(plants: Plant[]): SimulationState {
-    const state = createSimulation({ tankCapacity: 100 });
-    return produce(state, (draft) => {
-      draft.plants = plants;
-    });
-  }
+  it('counts plants strictly above the target', () => {
+    const state = tankWith(60, 85, 90, 120);
 
-  it('returns 0 for no plants', () => {
-    const state = createStateWithPlants([]);
-    expect(getPlantsToTrimCount(state, 50)).toBe(0);
-    expect(getPlantsToTrimCount(state, 85)).toBe(0);
-    expect(getPlantsToTrimCount(state, 100)).toBe(0);
-  });
-
-  it('returns 0 when no plants exceed target', () => {
-    const state = createStateWithPlants([
-      { id: 'p1', species: 'java_fern', size: 40 },
-      { id: 'p2', species: 'anubias', size: 30 },
-    ]);
-    expect(getPlantsToTrimCount(state, 50)).toBe(0);
-  });
-
-  it('counts plants above 50% target', () => {
-    const state = createStateWithPlants([
-      { id: 'p1', species: 'java_fern', size: 60 },
-      { id: 'p2', species: 'anubias', size: 40 },
-      { id: 'p3', species: 'amazon_sword', size: 80 },
-    ]);
-    expect(getPlantsToTrimCount(state, 50)).toBe(2);
-  });
-
-  it('counts plants above 85% target', () => {
-    const state = createStateWithPlants([
-      { id: 'p1', species: 'java_fern', size: 60 },
-      { id: 'p2', species: 'anubias', size: 90 },
-      { id: 'p3', species: 'amazon_sword', size: 100 },
-    ]);
-    expect(getPlantsToTrimCount(state, 85)).toBe(2);
-  });
-
-  it('counts plants above 100% target', () => {
-    const state = createStateWithPlants([
-      { id: 'p1', species: 'java_fern', size: 90 },
-      { id: 'p2', species: 'anubias', size: 110 },
-      { id: 'p3', species: 'amazon_sword', size: 150 },
-    ]);
-    expect(getPlantsToTrimCount(state, 100)).toBe(2);
-  });
-
-  it('does not count plants exactly at target', () => {
-    const state = createStateWithPlants([
-      { id: 'p1', species: 'java_fern', size: 85 },
-    ]);
-    expect(getPlantsToTrimCount(state, 85)).toBe(0);
-  });
-
-  it('different targets give different counts', () => {
-    const state = createStateWithPlants([
-      { id: 'p1', species: 'java_fern', size: 60 },
-      { id: 'p2', species: 'anubias', size: 90 },
-      { id: 'p3', species: 'amazon_sword', size: 120 },
-    ]);
-    expect(getPlantsToTrimCount(state, 50)).toBe(3);
+    expect(getPlantsToTrimCount(tankWith(), 50)).toBe(0);
+    expect(getPlantsToTrimCount(state, 50)).toBe(4);
     expect(getPlantsToTrimCount(state, 85)).toBe(2);
     expect(getPlantsToTrimCount(state, 100)).toBe(1);
   });
 });
 
-describe('trimPlants', () => {
-  function createStateWithPlants(plants: Plant[]): SimulationState {
-    const state = createSimulation({ tankCapacity: 100 });
-    return produce(state, (draft) => {
-      draft.plants = plants;
-    });
-  }
+describe('trimPlants — every plant', () => {
+  it('cuts everything above the target down to it and leaves the rest', () => {
+    const state = tankWith(60, 85, 110, 30);
+    const result = trimPlants(state, { type: 'trimPlants', targetSize: 85 });
 
-  describe('trimming to 50%', () => {
-    it('trims plants above 50% to 50%', () => {
-      const state = createStateWithPlants([
-        { id: 'p1', species: 'java_fern', size: 80 },
-        { id: 'p2', species: 'anubias', size: 100 },
-      ]);
+    expect(sizes(result.state)).toEqual([60, 85, 85, 30]);
+    expect(sizes(state)).toEqual([60, 85, 110, 30]);
+    expect(result.message).toBe('Trimmed 1 plant(s) to 85%');
+  });
+
+  it('logs the count, the target and the total removed', () => {
+    const state = tankWith(100, 80);
+    const result = trimPlants(state, { type: 'trimPlants', targetSize: 50 });
+    const log = result.state.logs.at(-1)!;
+
+    expect(result.state.logs).toHaveLength(state.logs.length + 1);
+    expect(log).toMatchObject({ source: 'user', severity: 'info' });
+    expect(log.message).toContain('2 plant(s)');
+    expect(log.message).toContain('50%');
+    expect(log.message).toContain('80% total removed');
+  });
+
+  it('does nothing, and logs nothing, when nothing is above the target', () => {
+    for (const state of [tankWith(), tankWith(40, 50)]) {
       const result = trimPlants(state, { type: 'trimPlants', targetSize: 50 });
 
-      expect(result.state.plants[0].size).toBe(50);
-      expect(result.state.plants[1].size).toBe(50);
-    });
-
-    it('does not change plants below 50%', () => {
-      const state = createStateWithPlants([
-        { id: 'p1', species: 'java_fern', size: 30 },
-        { id: 'p2', species: 'anubias', size: 80 },
-      ]);
-      const result = trimPlants(state, { type: 'trimPlants', targetSize: 50 });
-
-      expect(result.state.plants[0].size).toBe(30); // unchanged
-      expect(result.state.plants[1].size).toBe(50); // trimmed
-    });
-
-    it('does not change plants exactly at 50%', () => {
-      const state = createStateWithPlants([
-        { id: 'p1', species: 'java_fern', size: 50 },
-      ]);
-      const result = trimPlants(state, { type: 'trimPlants', targetSize: 50 });
-
-      expect(result.state.plants[0].size).toBe(50);
+      expect(sizes(result.state)).toEqual(sizes(state));
+      expect(result.state.logs).toHaveLength(state.logs.length);
       expect(result.message).toContain('No plants above');
-    });
+    }
   });
 
-  describe('trimming to 85%', () => {
-    it('trims plants above 85% to 85%', () => {
-      const state = createStateWithPlants([
-        { id: 'p1', species: 'java_fern', size: 120 },
-        { id: 'p2', species: 'anubias', size: 90 },
-      ]);
-      const result = trimPlants(state, { type: 'trimPlants', targetSize: 85 });
-
-      expect(result.state.plants[0].size).toBe(85);
-      expect(result.state.plants[1].size).toBe(85);
-    });
-
-    it('leaves plants at or below 85% unchanged', () => {
-      const state = createStateWithPlants([
-        { id: 'p1', species: 'java_fern', size: 60 },
-        { id: 'p2', species: 'anubias', size: 85 },
-        { id: 'p3', species: 'amazon_sword', size: 110 },
-      ]);
-      const result = trimPlants(state, { type: 'trimPlants', targetSize: 85 });
-
-      expect(result.state.plants[0].size).toBe(60); // unchanged
-      expect(result.state.plants[1].size).toBe(85); // unchanged
-      expect(result.state.plants[2].size).toBe(85); // trimmed
-    });
+  it.each([0, 25, 60, 100])('accepts a target of %d', (targetSize) => {
+    expect(trimPlants(tankWith(200), { type: 'trimPlants', targetSize }).message).not.toContain(
+      'Invalid'
+    );
   });
 
-  describe('trimming to 100%', () => {
-    it('trims overgrown plants to 100%', () => {
-      const state = createStateWithPlants([
-        { id: 'p1', species: 'java_fern', size: 150 },
-        { id: 'p2', species: 'anubias', size: 200 },
-      ]);
-      const result = trimPlants(state, { type: 'trimPlants', targetSize: 100 });
+  it.each([-1, 101, NaN])('refuses a target of %d', (targetSize) => {
+    const state = tankWith(200);
+    const result = trimPlants(state, { type: 'trimPlants', targetSize });
 
-      expect(result.state.plants[0].size).toBe(100);
-      expect(result.state.plants[1].size).toBe(100);
-    });
+    expect(result.state).toBe(state);
+    expect(result.message).toContain('Invalid target size');
+  });
+});
 
-    it('leaves plants at or below 100% unchanged', () => {
-      const state = createStateWithPlants([
-        { id: 'p1', species: 'java_fern', size: 80 },
-        { id: 'p2', species: 'anubias', size: 100 },
-        { id: 'p3', species: 'amazon_sword', size: 130 },
-      ]);
-      const result = trimPlants(state, { type: 'trimPlants', targetSize: 100 });
+describe('trimPlants — one plant', () => {
+  it('trims only that plant and names what came off', () => {
+    const state = tankWith(92, 88, 150);
+    const result = trimPlants(state, { type: 'trimPlants', plantId: 'p1', targetSize: 60 });
 
-      expect(result.state.plants[0].size).toBe(80); // unchanged
-      expect(result.state.plants[1].size).toBe(100); // unchanged
-      expect(result.state.plants[2].size).toBe(100); // trimmed
-    });
+    expect(sizes(result.state)).toEqual([60, 88, 150]);
+    expect(result.message).toBe('Trimmed Java Fern to 60% (32% removed)');
+    expect(result.state.logs.at(-1)).toMatchObject({ source: 'user', message: result.message });
   });
 
-  describe('no-op when no plants need trimming', () => {
-    it('returns unchanged state when no plants exist', () => {
-      const state = createStateWithPlants([]);
-      const result = trimPlants(state, { type: 'trimPlants', targetSize: 50 });
+  it.each([60, 80])('leaves a plant already at or below a target of %d', (targetSize) => {
+    const state = tankWith(60);
+    const result = trimPlants(state, { type: 'trimPlants', plantId: 'p1', targetSize });
 
-      expect(result.state.plants).toHaveLength(0);
-      expect(result.message).toContain('No plants above');
-    });
-
-    it('returns unchanged state when all plants below target', () => {
-      const state = createStateWithPlants([
-        { id: 'p1', species: 'java_fern', size: 40 },
-        { id: 'p2', species: 'anubias', size: 30 },
-      ]);
-      const result = trimPlants(state, { type: 'trimPlants', targetSize: 50 });
-
-      expect(result.state.plants[0].size).toBe(40);
-      expect(result.state.plants[1].size).toBe(30);
-      expect(result.message).toContain('No plants above');
-    });
+    expect(result.state).toBe(state);
+    expect(result.message).toContain('already at or below');
   });
 
-  describe('invalid target size handling', () => {
-    it('rejects negative target size', () => {
-      const state = createStateWithPlants([
-        { id: 'p1', species: 'java_fern', size: 80 },
-      ]);
-      const result = trimPlants(state, { type: 'trimPlants', targetSize: -1 });
+  it('leaves the tank alone for an unknown plant', () => {
+    const state = tankWith(100);
+    const result = trimPlants(state, { type: 'trimPlants', plantId: 'nonexistent', targetSize: 60 });
 
-      expect(result.state.plants[0].size).toBe(80); // unchanged
-      expect(result.state).toBe(state);
-      expect(result.message).toContain('Invalid target size');
-    });
-
-    it('rejects target size above 100', () => {
-      const state = createStateWithPlants([
-        { id: 'p1', species: 'java_fern', size: 200 },
-      ]);
-      const result = trimPlants(state, { type: 'trimPlants', targetSize: 101 });
-
-      expect(result.state.plants[0].size).toBe(200); // unchanged
-      expect(result.state).toBe(state);
-      expect(result.message).toContain('Invalid target size');
-    });
-
-    it('rejects NaN target size', () => {
-      const state = createStateWithPlants([
-        { id: 'p1', species: 'java_fern', size: 80 },
-      ]);
-      const result = trimPlants(state, { type: 'trimPlants', targetSize: Number.NaN });
-
-      expect(result.state.plants[0].size).toBe(80); // unchanged
-      expect(result.state).toBe(state);
-      expect(result.message).toContain('Invalid target size');
-    });
-
-    it('accepts arbitrary in-range values (e.g. 25, 75, 60)', () => {
-      const state = createStateWithPlants([
-        { id: 'p1', species: 'java_fern', size: 200 },
-      ]);
-
-      for (const target of [0, 25, 60, 75, 100]) {
-        expect(
-          trimPlants(state, { type: 'trimPlants', targetSize: target }).message
-        ).not.toContain('Invalid');
-      }
-    });
+    expect(result.state).toBe(state);
+    expect(result.message).toContain('not found');
   });
 
-  describe('log entry creation', () => {
-    it('creates log entry when trimming occurs', () => {
-      const state = createStateWithPlants([
-        { id: 'p1', species: 'java_fern', size: 80 },
-      ]);
-      const initialLogCount = state.logs.length;
-      const result = trimPlants(state, { type: 'trimPlants', targetSize: 50 });
+  it('checks the target before looking for the plant', () => {
+    const state = tankWith(100);
+    const result = trimPlants(state, { type: 'trimPlants', plantId: 'p1', targetSize: 150 });
 
-      expect(result.state.logs.length).toBe(initialLogCount + 1);
-    });
-
-    it('log entry contains correct information', () => {
-      const state = createStateWithPlants([
-        { id: 'p1', species: 'java_fern', size: 100 },
-        { id: 'p2', species: 'anubias', size: 80 },
-      ]);
-      const result = trimPlants(state, { type: 'trimPlants', targetSize: 50 });
-
-      const lastLog = result.state.logs[result.state.logs.length - 1];
-      expect(lastLog.source).toBe('user');
-      expect(lastLog.severity).toBe('info');
-      expect(lastLog.message).toContain('Trimmed');
-      expect(lastLog.message).toContain('2 plant(s)');
-      expect(lastLog.message).toContain('50%');
-    });
-
-    it('log entry shows total amount removed', () => {
-      const state = createStateWithPlants([
-        { id: 'p1', species: 'java_fern', size: 100 }, // removes 50%
-        { id: 'p2', species: 'anubias', size: 80 }, // removes 30%
-      ]);
-      const result = trimPlants(state, { type: 'trimPlants', targetSize: 50 });
-
-      const lastLog = result.state.logs[result.state.logs.length - 1];
-      expect(lastLog.message).toContain('80% total removed'); // 50 + 30 = 80
-    });
-
-    it('does not create log entry when no trimming needed', () => {
-      const state = createStateWithPlants([
-        { id: 'p1', species: 'java_fern', size: 40 },
-      ]);
-      const initialLogCount = state.logs.length;
-      const result = trimPlants(state, { type: 'trimPlants', targetSize: 50 });
-
-      expect(result.state.logs.length).toBe(initialLogCount);
-    });
-
-    it('does not create log entry for invalid target', () => {
-      const state = createStateWithPlants([
-        { id: 'p1', species: 'java_fern', size: 80 },
-      ]);
-      const initialLogCount = state.logs.length;
-      const result = trimPlants(state, { type: 'trimPlants', targetSize: -1 });
-
-      expect(result.state.logs.length).toBe(initialLogCount);
-    });
-  });
-
-  describe('message content', () => {
-    it('returns success message with count when trimmed', () => {
-      const state = createStateWithPlants([
-        { id: 'p1', species: 'java_fern', size: 100 },
-      ]);
-      const result = trimPlants(state, { type: 'trimPlants', targetSize: 50 });
-
-      expect(result.message).toBe('Trimmed 1 plant(s) to 50%');
-    });
-
-    it('returns correct count for multiple plants', () => {
-      const state = createStateWithPlants([
-        { id: 'p1', species: 'java_fern', size: 100 },
-        { id: 'p2', species: 'anubias', size: 90 },
-        { id: 'p3', species: 'amazon_sword', size: 60 },
-      ]);
-      const result = trimPlants(state, { type: 'trimPlants', targetSize: 85 });
-
-      expect(result.message).toBe('Trimmed 2 plant(s) to 85%');
-    });
-  });
-
-  describe('immutability', () => {
-    it('does not modify original state', () => {
-      const state = createStateWithPlants([
-        { id: 'p1', species: 'java_fern', size: 100 },
-      ]);
-      const originalSize = state.plants[0].size;
-
-      trimPlants(state, { type: 'trimPlants', targetSize: 50 });
-
-      expect(state.plants[0].size).toBe(originalSize);
-    });
-
-    it('returns new state object', () => {
-      const state = createStateWithPlants([
-        { id: 'p1', species: 'java_fern', size: 100 },
-      ]);
-      const result = trimPlants(state, { type: 'trimPlants', targetSize: 50 });
-
-      expect(result.state).not.toBe(state);
-    });
-  });
-
-  describe('per-plant trim (plantId provided)', () => {
-    it('trims only the target plant, leaves others untouched', () => {
-      const state = createStateWithPlants([
-        { id: 'p1', species: 'java_fern', size: 92 },
-        { id: 'p2', species: 'anubias', size: 88 },
-        { id: 'p3', species: 'amazon_sword', size: 150 },
-      ]);
-      const result = trimPlants(state, {
-        type: 'trimPlants',
-        plantId: 'p1',
-        targetSize: 60,
-      });
-
-      expect(result.state.plants[0].size).toBe(60);
-      expect(result.state.plants[1].size).toBe(88);
-      expect(result.state.plants[2].size).toBe(150);
-    });
-
-    it('log and message include species name and amount removed', () => {
-      const state = createStateWithPlants([
-        { id: 'p1', species: 'java_fern', size: 92 },
-      ]);
-      const result = trimPlants(state, {
-        type: 'trimPlants',
-        plantId: 'p1',
-        targetSize: 60,
-      });
-
-      expect(result.message).toBe('Trimmed Java Fern to 60% (32% removed)');
-      const lastLog = result.state.logs[result.state.logs.length - 1];
-      expect(lastLog.source).toBe('user');
-      expect(lastLog.message).toBe('Trimmed Java Fern to 60% (32% removed)');
-    });
-
-    it('is a no-op when targetSize equals plant size', () => {
-      const state = createStateWithPlants([
-        { id: 'p1', species: 'java_fern', size: 60 },
-      ]);
-      const initialLogCount = state.logs.length;
-      const result = trimPlants(state, {
-        type: 'trimPlants',
-        plantId: 'p1',
-        targetSize: 60,
-      });
-
-      expect(result.state).toBe(state);
-      expect(result.state.plants[0].size).toBe(60);
-      expect(result.state.logs.length).toBe(initialLogCount);
-      expect(result.message).toContain('already at or below');
-    });
-
-    it('is a no-op when targetSize exceeds plant size', () => {
-      const state = createStateWithPlants([
-        { id: 'p1', species: 'java_fern', size: 40 },
-      ]);
-      const result = trimPlants(state, {
-        type: 'trimPlants',
-        plantId: 'p1',
-        targetSize: 80,
-      });
-
-      expect(result.state).toBe(state);
-      expect(result.state.plants[0].size).toBe(40);
-      expect(result.message).toContain('already at or below');
-    });
-
-    it('is a no-op with a clear message when plantId does not exist', () => {
-      const state = createStateWithPlants([
-        { id: 'p1', species: 'java_fern', size: 100 },
-      ]);
-      const initialLogCount = state.logs.length;
-      const result = trimPlants(state, {
-        type: 'trimPlants',
-        plantId: 'nonexistent',
-        targetSize: 60,
-      });
-
-      expect(result.state).toBe(state);
-      expect(result.state.plants[0].size).toBe(100);
-      expect(result.state.logs.length).toBe(initialLogCount);
-      expect(result.message).toContain('not found');
-    });
-
-    it('rejects invalid targetSize before checking plant', () => {
-      const state = createStateWithPlants([
-        { id: 'p1', species: 'java_fern', size: 100 },
-      ]);
-      const result = trimPlants(state, {
-        type: 'trimPlants',
-        plantId: 'p1',
-        targetSize: 150,
-      });
-
-      expect(result.state).toBe(state);
-      expect(result.state.plants[0].size).toBe(100);
-      expect(result.message).toContain('Invalid target size');
-    });
+    expect(result.state).toBe(state);
+    expect(result.message).toContain('Invalid target size');
   });
 });
