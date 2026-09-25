@@ -128,15 +128,11 @@ describe('settleEnvironment', () => {
     });
     while (state.tick < 7) state = tick(state);
 
-    // Standing at 07:00, the tick about to run is 08:00 — the first lit hour of
-    // the photoperiod. Anything measuring what that tick did to the plants has
-    // to read the light it settled and not the dark it was handed.
     const settled = settleEnvironment(state);
 
     expect(state.resources.light).toBe(0);
     expect(settled.tick).toBe(8);
     expect(settled.resources.light).toBeGreaterThan(0);
-    // And nothing past the living tier moves it again.
     expect(tick(state).resources.light).toBe(settled.resources.light);
   });
 });
@@ -150,7 +146,6 @@ describe('tick determinism', () => {
     ato: { enabled: true },
   };
 
-  /** Mixed-sex, so the run goes through the breeding path rather than round it. */
   const ROSTER: PresetSeed = {
     bacteria: 'cycled',
     fish: [
@@ -173,7 +168,6 @@ describe('tick determinism', () => {
     const first = fortnight(2026);
     const second = fortnight(2026);
 
-    // Trivially true of a tank that never bred, so prove the path was taken.
     expect(first.fish.length).toBeGreaterThan(5);
     expect(first).toEqual(second);
     expect(JSON.stringify(first)).toBe(JSON.stringify(second));

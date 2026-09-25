@@ -11,7 +11,6 @@ import {
   isDeviceId,
 } from './devices';
 
-/** Defaults: filter, heater and light on; the other five off. */
 const base: SimulationState = createSimulation({ tankCapacity: 40 });
 const withPowerhead: SimulationState = createSimulation({
   tankCapacity: 40,

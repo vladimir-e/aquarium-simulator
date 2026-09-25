@@ -17,7 +17,6 @@ function makeState(rngSeed = 31337): SimulationState {
   return createSimulation({ tankCapacity: 100 }, undefined, rngSeed);
 }
 
-/** Stock `count` of a species into a fresh tank and hand back the roster. */
 function stockedRoster(species: FishSpecies, count: number, rngSeed?: number): Fish[] {
   let state = makeState(rngSeed);
   for (let i = 0; i < count; i++) {
@@ -81,9 +80,6 @@ describe('addFish', () => {
         livestockDefaults
       ).breakdown.stressors.find((s) => s.key === 'age')?.amount ?? 0;
 
-    // The arrival age is not cosmetic: every hour of it is an hour off the far
-    // end, so a bought fish meets old age a whole maturity before one born in
-    // the tank the day it was bought.
     const left = maxAge - breeding.maturityAge;
     expect(ageStressIn(left)).toBe(0);
     expect(ageStressIn(left + 1)).toBeGreaterThan(0);
@@ -141,7 +137,6 @@ describe('addFish', () => {
     expect(result.state.fish).toHaveLength(0);
     expect(result.message).toContain('Unknown');
   });
-
 });
 
 describe('removeFish', () => {
@@ -196,7 +191,6 @@ describe('addFish stocking cap', () => {
   });
 
   it('rejects a fish that would exceed the physical ceiling', () => {
-    // Ceiling below one angelfish (15 g): 0.02 L → 10 g max.
     const state = createSimulation({ tankCapacity: 0.02 });
     const result = addFish(state, { type: 'addFish', species: 'angelfish' });
     expect(result.state.fish).toHaveLength(0);
@@ -241,7 +235,7 @@ describe('sellFry', () => {
   });
 
   it('is a no-op with a clear message when there are no fry', () => {
-    const state = makeStateWithFish(); // one adult, no fry
+    const state = makeStateWithFish();
     const result = sellFry(state);
 
     expect(result.state.fish).toHaveLength(1);

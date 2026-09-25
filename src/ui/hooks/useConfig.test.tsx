@@ -1,5 +1,4 @@
 /* eslint-disable no-undef */
-// Browser globals (localStorage) are available in test environment
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import React, { type ReactNode, type ComponentType } from 'react';

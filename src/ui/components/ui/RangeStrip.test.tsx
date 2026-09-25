@@ -39,7 +39,6 @@ describe('RangeStrip', () => {
 
     expect(ghost.style.left).toBe('calc(25% - 1px)');
     expect(marker.style.left).toBe('calc(75% - 1px)');
-    // The ghost is where it stands, not what it is: only the live marker is tinted.
     expect(ghost.className).not.toContain('bg-warn');
     expect(marker.className).toContain('bg-warn');
   });
@@ -53,8 +52,6 @@ describe('RangeStrip', () => {
     const { container } = render(<RangeStrip at={2} band={{ from: 0.8, to: 0.2 }} tone="alert" />);
     const { band, marker } = parts(container);
 
-    // The band is normalised whichever way round it arrives, and a value off
-    // the end of the track pins to the end rather than escaping it.
     expect(band!.style.left).toBe('20%');
     expect(marker.style.left).toBe('calc(100% - 1px)');
     expect(marker.className).toContain('bg-alert');

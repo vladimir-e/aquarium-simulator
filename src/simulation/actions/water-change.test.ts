@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { produce } from 'immer';
 import { waterChange } from './water-change.js';
 import { createSimulation, type SimulationState } from '../state.js';
-import type { WaterChangeAction } from './types.js';
+import type { ActionResult, WaterChangeAction } from './types.js';
 
 const DISSOLVED = ['ammonia', 'nitrite', 'nitrate', 'phosphate', 'potassium', 'iron'] as const;
 
@@ -22,7 +22,7 @@ function tank({
   );
 }
 
-const change = (state: SimulationState, amount: number) =>
+const change = (state: SimulationState, amount: number): ActionResult =>
   waterChange(state, { type: 'waterChange', amount } as WaterChangeAction);
 
 describe('waterChange', () => {

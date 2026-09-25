@@ -13,7 +13,6 @@ import { stubSim } from '../test/stubSim';
 
 afterEach(cleanup);
 
-/** Readings both surfaces draw under the same heading. */
 const SHARED: [group: string, name: string][] = [
   ['Water', 'Temp'],
   ['Water', 'pH'],
@@ -37,7 +36,6 @@ describe('one tank, two surfaces', () => {
   });
 });
 
-/** Every roster row that speaks, as the reader hears it: `name — …, word`. */
 function rosterRows(scope: HTMLElement): string[] {
   return within(scope)
     .getAllByRole('button')
@@ -58,7 +56,7 @@ describe('one roster, two surfaces', () => {
     const page = [...rosterRows(group('Fish')), ...rosterRows(group('Plants'))];
 
     expect(widget).toEqual(page);
-    expect(widget).toHaveLength(3); // the neons, the algae, the anubias
+    expect(widget).toHaveLength(3);
   });
 
   it('rides the algae at the top of the plants on both', () => {
@@ -78,7 +76,6 @@ describe('one roster, two surfaces', () => {
   });
 });
 
-/** Every rack row that speaks, as the reader hears it: `name — what it is set to`. */
 function rackRows(scope: HTMLElement): string[] {
   return within(scope)
     .getAllByRole('link')
@@ -98,8 +95,6 @@ describe('one rack, two surfaces', () => {
     renderStage(<GearSection sim={sim} config={DEFAULT_CONFIG} />);
     const page = rackRows(group('Fittings'));
 
-    // The widget collapses what it does not show in place into one row; the
-    // rest read out in the module's own words, in the module's own order.
     const entries = rackEntries(
       readTank({
         state: run.state,

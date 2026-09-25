@@ -96,7 +96,6 @@ describe('applyEffects', () => {
   });
 
   describe('nutrient resources', () => {
-
     it('clamps nutrients to minimum of 0', () => {
       const effects: Effect[] = [
         { tier: 'passive', resource: 'phosphate', delta: -100, source: 'consumption' },

@@ -4,7 +4,6 @@ import type { RunSnapshot } from '../run/index.js';
 import { snapshot } from '../test/snapshot';
 import { createLog, type LogEntry } from '../../simulation/index.js';
 
-/** Contiguous history [0..last], one snapshot per tick. */
 function history(last: number): RunSnapshot[] {
   return Array.from({ length: last + 1 }, (_, i) => snapshot(i));
 }
@@ -16,7 +15,7 @@ describe('sliceHistory', () => {
   });
 
   it('keeps the trailing span for bounded windows', () => {
-    const h = history(200); // ticks 0..200
+    const h = history(200);
     const day = sliceHistory(h, '24h');
     expect(day).toHaveLength(WINDOW_TICKS['24h']);
     expect(day[0].tick).toBe(177);
@@ -28,7 +27,7 @@ describe('sliceHistory', () => {
   });
 
   it('degrades to the whole buffer when it is shorter than the window', () => {
-    const h = history(5); // 6 snapshots
+    const h = history(5);
     expect(sliceHistory(h, '24h')).toHaveLength(6);
     expect(sliceHistory(h, '7d')).toHaveLength(6);
   });

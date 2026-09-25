@@ -1,5 +1,4 @@
 /* eslint-disable no-undef */
-// Browser globals (localStorage, location) are available in test environment
 import { describe, it, expect, beforeEach, afterEach, vi, type MockInstance } from 'vitest';
 import React from 'react';
 import { render, screen, cleanup, fireEvent } from '@testing-library/react';
@@ -9,7 +8,6 @@ import { handleResetQueryParam, STORAGE_KEY } from '../persistence/index.js';
 const CRASHED_PATH = '/livestock';
 const CRASHED_HREF = `http://localhost${CRASHED_PATH}`;
 
-/** Sixty simulated days the user does not want to lose. */
 const SAVED_TANK = JSON.stringify({ version: 99, simulation: { tick: 1440 } });
 
 const realLocation = globalThis.location;
@@ -119,8 +117,6 @@ describe('ErrorBoundary', () => {
     );
     fireEvent.click(screen.getByRole('button', { name: 'Reset saved tank' }));
 
-    // Reset is a navigation, not an in-place wipe: storage still holds the tank
-    // until the reload runs the ?reset boot path.
     expect(location.href).toBe('/?reset');
     expect(localStorage.getItem(STORAGE_KEY)).toBe(SAVED_TANK);
 
@@ -128,7 +124,6 @@ describe('ErrorBoundary', () => {
     expect(handleResetQueryParam()).toBe(true);
 
     expect(localStorage.getItem(STORAGE_KEY)).toBeNull();
-    // Landing back on the route that crashed would re-crash immediately.
     expect(location.href).toBe('/');
   });
 

@@ -8,12 +8,10 @@ import { createSimulation } from '../state.js';
 import { temperatureDefaults } from '../config/temperature.js';
 
 describe('calculateHeatingRate', () => {
-
   it('follows expected formula at reference volume', () => {
     const wattage = 100;
     const rate = calculateHeatingRate(wattage, temperatureDefaults.referenceVolume);
 
-    // At reference volume, volumeScale = 1
     const expected = wattage / temperatureDefaults.referenceVolume;
     expect(rate).toBeCloseTo(expected, 6);
   });
@@ -40,7 +38,6 @@ describe('calculateHeatingRate', () => {
 
       expect(rate).toBe(0);
     });
-
   });
 });
 
@@ -94,19 +91,17 @@ describe('heaterUpdate', () => {
   it('does not overshoot target temperature', () => {
     const state = createSimulation({
       tankCapacity: 100,
-      initialTemperature: 24.9, // Just below target
+      initialTemperature: 24.9,
       roomTemperature: 20,
-      heater: { enabled: true, targetTemperature: 25, wattage: 1000 }, // Very powerful heater
+      heater: { enabled: true, targetTemperature: 25, wattage: 1000 },
     });
 
     const { effects } = heaterUpdate(state);
 
-    // Should only heat by 0.1°C to reach target, not overshoot
     expect(effects[0].delta).toBeCloseTo(0.1, 4);
   });
 
   describe('edge cases', () => {
-
     it('handles zero water level gracefully', () => {
       const state = createSimulation({
         tankCapacity: 100,
@@ -121,7 +116,6 @@ describe('heaterUpdate', () => {
 
       const { effects, isOn } = heaterUpdate(emptyState);
 
-      // Should still try to heat but with 0 effect
       expect(isOn).toBe(true);
       expect(effects).toHaveLength(1);
       expect(effects[0].delta).toBe(0);
@@ -139,7 +133,6 @@ describe('heaterUpdate', () => {
 
       expect(isOn).toBe(true);
       expect(effects).toHaveLength(1);
-      // Should be clamped to tempGap (8°C), not some huge number
       expect(effects[0].delta).toBe(8);
       expect(Number.isFinite(effects[0].delta)).toBe(true);
     });

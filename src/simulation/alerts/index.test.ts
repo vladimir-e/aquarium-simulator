@@ -23,26 +23,30 @@ import { createSimulation, type AlertState, type SimulationState } from '../stat
 
 const CAPACITY = 100;
 
+type Setter = (draft: Draft<SimulationState>, value: number) => void;
+
 interface Case {
   alert: Alert;
   flag: keyof AlertState;
   source: string;
-  set: (draft: Draft<SimulationState>, value: number) => void;
+  set: Setter;
   firing: number;
   quiet: number;
   edge: { value: number; fires: boolean };
 }
 
-const ppm = (resource: 'ammonia' | 'nitrite' | 'nitrate') => (draft: Draft<SimulationState>, value: number) => {
-  draft.resources[resource] = value * draft.resources.water;
-};
+const ppm =
+  (resource: 'ammonia' | 'nitrite' | 'nitrate'): Setter =>
+  (draft, value): void => {
+    draft.resources[resource] = value * draft.resources.water;
+  };
 
 const CASES: Case[] = [
   {
     alert: waterLevelAlert,
     flag: 'waterLevelCritical',
     source: 'evaporation',
-    set: (draft, share) => {
+    set: (draft, share): void => {
       draft.resources.water = share * CAPACITY;
     },
     firing: WATER_LEVEL_CRITICAL_THRESHOLD / 2,
@@ -53,7 +57,7 @@ const CASES: Case[] = [
     alert: highAlgaeAlert,
     flag: 'highAlgae',
     source: 'algae',
-    set: (draft, mass) => {
+    set: (draft, mass): void => {
       draft.algae.mass = mass;
     },
     firing: HIGH_ALGAE_THRESHOLD + 5,
@@ -91,7 +95,7 @@ const CASES: Case[] = [
     alert: lowOxygenAlert,
     flag: 'lowOxygen',
     source: 'gas-exchange',
-    set: (draft, oxygen) => {
+    set: (draft, oxygen): void => {
       draft.resources.oxygen = oxygen;
     },
     firing: LOW_OXYGEN_THRESHOLD / 2,
@@ -102,7 +106,7 @@ const CASES: Case[] = [
     alert: highCo2Alert,
     flag: 'highCo2',
     source: 'gas-exchange',
-    set: (draft, co2) => {
+    set: (draft, co2): void => {
       draft.resources.co2 = co2;
     },
     firing: HIGH_CO2_THRESHOLD + 5,

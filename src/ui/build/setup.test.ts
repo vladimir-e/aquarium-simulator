@@ -61,7 +61,6 @@ describe('environmentNotes', () => {
     expect(environmentNotes(cold, DEFAULT_CONFIG, 'metric').room).toBe(
       `the water drifts ${drift.toFixed(1)}°C/h toward it`
     );
-    // A gap scales without the freezing-point offset: 1 °C of drift is 1.8 °F.
     expect(environmentNotes(cold, DEFAULT_CONFIG, 'imperial').room).toBe(
       `the water drifts ${((drift * 9) / 5).toFixed(1)}°F/h toward it`
     );

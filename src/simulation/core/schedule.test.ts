@@ -4,14 +4,14 @@ import { isScheduleActive, isValidSchedule, formatSchedule, type DailySchedule }
 describe('Schedule module', () => {
   describe('isScheduleActive', () => {
     it('returns true during active hours (normal schedule)', () => {
-      const schedule: DailySchedule = { startHour: 8, duration: 10 }; // 8am-6pm
+      const schedule: DailySchedule = { startHour: 8, duration: 10 };
       expect(isScheduleActive(8, schedule)).toBe(true);
       expect(isScheduleActive(12, schedule)).toBe(true);
       expect(isScheduleActive(17, schedule)).toBe(true);
     });
 
     it('returns false outside active hours (normal schedule)', () => {
-      const schedule: DailySchedule = { startHour: 8, duration: 10 }; // 8am-6pm
+      const schedule: DailySchedule = { startHour: 8, duration: 10 };
       expect(isScheduleActive(7, schedule)).toBe(false);
       expect(isScheduleActive(18, schedule)).toBe(false);
       expect(isScheduleActive(23, schedule)).toBe(false);
@@ -19,7 +19,7 @@ describe('Schedule module', () => {
     });
 
     it('handles midnight wrap-around schedule', () => {
-      const schedule: DailySchedule = { startHour: 22, duration: 8 }; // 10pm-6am
+      const schedule: DailySchedule = { startHour: 22, duration: 8 };
       expect(isScheduleActive(22, schedule)).toBe(true);
       expect(isScheduleActive(23, schedule)).toBe(true);
       expect(isScheduleActive(0, schedule)).toBe(true);
@@ -37,14 +37,14 @@ describe('Schedule module', () => {
     });
 
     it('handles edge case: endHour = startHour (24h duration wrapping)', () => {
-      const schedule: DailySchedule = { startHour: 10, duration: 24 }; // Full day starting at 10
+      const schedule: DailySchedule = { startHour: 10, duration: 24 };
       for (let hour = 0; hour < 24; hour++) {
         expect(isScheduleActive(hour, schedule)).toBe(true);
       }
     });
 
     it('handles schedule ending at midnight', () => {
-      const schedule: DailySchedule = { startHour: 18, duration: 6 }; // 6pm-12am
+      const schedule: DailySchedule = { startHour: 18, duration: 6 };
       expect(isScheduleActive(18, schedule)).toBe(true);
       expect(isScheduleActive(23, schedule)).toBe(true);
       expect(isScheduleActive(0, schedule)).toBe(false);

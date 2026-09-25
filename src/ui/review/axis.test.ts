@@ -122,7 +122,6 @@ describe('dayGridTicks', () => {
   });
 
   it('skips a boundary that is already an end of the track', () => {
-    // Both ends carry their own tick label, so a mark there would be noise.
     expect(dayGridTicks({ minTick: 24, maxTick: 72 })).toEqual([48]);
   });
 

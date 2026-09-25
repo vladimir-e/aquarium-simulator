@@ -22,7 +22,6 @@ function press(init: Chord, from: HTMLElement = document.body): void {
   from.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, ...init }));
 }
 
-/** What the hook reads to tell a ⌘ keyboard from one without. */
 function running(on: { platform?: string; agentData?: string }): void {
   const nav = window.navigator;
   Object.defineProperty(nav, 'platform', { value: on.platform ?? '', configurable: true });
@@ -70,7 +69,6 @@ describe('useKeyboardShortcuts', () => {
     const step = vi.fn();
     renderHook(() => useKeyboardShortcuts({ '⌘k': act, k: step }));
 
-    // ⌃K in the palette's search field kills to the end of the line.
     press({ key: 'k', ctrlKey: true }, focusable('input'));
     press({ key: 'k', ctrlKey: true });
     expect(act).not.toHaveBeenCalled();
@@ -128,8 +126,6 @@ describe('useKeyboardShortcuts', () => {
   });
 
   it('yields a bare chord to the element that owns the key', () => {
-    // Anchors matter as much as form controls: the rail's nav rows are links,
-    // so after a click Space would otherwise step a simulated day.
     for (const tag of ['input', 'textarea', 'button', 'select', 'a']) {
       const space = vi.fn();
       const { unmount } = renderHook(() => useKeyboardShortcuts({ Space: space }));

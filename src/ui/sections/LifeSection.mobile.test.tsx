@@ -10,7 +10,6 @@ import type { Clutch, Fish, SimulationState } from '../../simulation/index.js';
 
 let media: MatchMediaStub;
 
-// Phone: the tables keep their outer columns and drop the figures between them.
 beforeEach(() => {
   media = stubMatchMedia(viewport(390));
 });
@@ -20,7 +19,6 @@ afterEach(() => {
   cleanup();
 });
 
-/** A stocked tank that also carries a clutch and two species of fry. */
 function busy(): Run {
   const run = stocked();
   const fry = (id: string, species: Fish['species']): Fish => ({
@@ -48,7 +46,6 @@ function busy(): Run {
   return { ...run, state };
 }
 
-/** The tracks a template declares, read off the class the row is laid out by. */
 function declared(className: string): number {
   const template = /(?:^|\s)grid-cols-\[([^\]]+)\]/.exec(className)![1];
   return template.split('_').length;
@@ -59,12 +56,10 @@ function span(cell: HTMLElement): number {
   return match ? Number(match[1]) : 1;
 }
 
-/** `hidden` on its own — `md:hidden` is a cell this width still shows. */
 function onPhone(cell: HTMLElement): boolean {
   return !/(?:^|\s)hidden(?:\s|$)/.test(cell.className) && !cell.className.includes('absolute');
 }
 
-/** The tracks a row actually fills: a hidden cell is out of the grid entirely. */
 function filled(row: HTMLElement): number {
   return cells(row).filter(onPhone).reduce((total, cell) => total + span(cell), 0);
 }
@@ -85,7 +80,6 @@ describe('LifeSection (phone)', () => {
     );
 
     const rows = [...rowsOf('Fish'), ...rowsOf('Plants')];
-    // Headings, species, individuals, the clutch, the fry row and the algae.
     expect(rows.length).toBeGreaterThan(6);
 
     for (const row of rows) {

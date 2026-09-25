@@ -45,7 +45,7 @@ describe('atoUpdate', () => {
 
     const waterEffect = effects.find((e) => e.resource === 'water');
     expect(waterEffect).toBeDefined();
-    expect(waterEffect!.delta).toBe(10); // 100 - 90
+    expect(waterEffect!.delta).toBe(10);
     expect(waterEffect!.source).toBe('ato');
     expect(waterEffect!.tier).toBe('immediate');
   });
@@ -62,7 +62,7 @@ describe('atoUpdate', () => {
     const effects = atoUpdate(lowWaterState);
 
     const waterEffect = effects.find((e) => e.resource === 'water');
-    expect(waterEffect!.delta).toBe(50); // 200 - 150
+    expect(waterEffect!.delta).toBe(50);
   });
 
   it('triggers when water level is just below threshold', () => {
@@ -95,9 +95,6 @@ describe('atoUpdate temperature blending', () => {
       draft.resources.water = 90;
     });
 
-    // Adding 10L of tap water (20°C) to 90L of tank water (26°C)
-    // newTemp = (26 * 90 + 20 * 10) / 100 = 25.4
-    // tempDelta = 25.4 - 26 = -0.6
     const effects = atoUpdate(lowWaterState);
 
     const tempEffect = effects.find((e) => e.resource === 'temperature');
@@ -120,7 +117,6 @@ describe('atoUpdate temperature blending', () => {
 
     const effects = atoUpdate(lowWaterState);
 
-    // Should have water effect but no temperature effect
     expect(effects.find((e) => e.resource === 'water')).toBeDefined();
     expect(effects.find((e) => e.resource === 'temperature')).toBeUndefined();
   });

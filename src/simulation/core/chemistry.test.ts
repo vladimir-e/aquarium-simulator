@@ -15,7 +15,6 @@ import {
   O2_PER_NO2_OXIDIZED,
 } from './chemistry.js';
 
-/** What a mass of the named compound is carrying as elemental nitrogen. */
 const asNitrogen = (mass: number, molecularWeight: number): number =>
   (mass * MW_N) / molecularWeight;
 
@@ -60,8 +59,6 @@ describe('the oxygen nitrification pays, per gram of nitrogen', () => {
   });
 
   it('spends three quarters of it before the nitrite exists', () => {
-    // 1.5 moles of O2 on the first step against 0.5 on the second, which is
-    // the split `systems/nitrogen-cycle.ts` states in prose.
     const firstStep = O2_PER_NH3_OXIDIZED;
     const secondStep = NH3_TO_NO2_MASS_RATIO * O2_PER_NO2_OXIDIZED;
 

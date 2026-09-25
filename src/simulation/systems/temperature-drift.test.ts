@@ -37,26 +37,22 @@ describe('calculateTemperatureDrift', () => {
     const smallTank = calculateTemperatureDrift(28, 22, 50);
     const largeTank = calculateTemperatureDrift(28, 22, 200);
 
-    // Smaller tanks have faster temperature changes
     expect(Math.abs(smallTank)).toBeGreaterThan(Math.abs(largeTank));
   });
 
   it('does not overshoot room temperature', () => {
-    // Very small temperature difference
     const drift = calculateTemperatureDrift(22.001, 22, 100);
 
-    // Drift should not exceed the difference
     expect(Math.abs(drift)).toBeLessThanOrEqual(0.001);
   });
 
   it('calculates correct drift at reference volume', () => {
     const waterTemp = 28;
     const roomTemp = 22;
-    const deltaT = waterTemp - roomTemp; // 6°C
+    const deltaT = waterTemp - roomTemp;
 
     const drift = calculateTemperatureDrift(waterTemp, roomTemp, temperatureDefaults.referenceVolume);
 
-    // At reference volume, volumeScale = 1, coolingRate = coolingCoefficient * deltaT
     const expectedRate = temperatureDefaults.coolingCoefficient * deltaT;
     expect(drift).toBeCloseTo(-expectedRate, 6);
   });
@@ -75,7 +71,6 @@ describe('calculateTemperatureDrift', () => {
 });
 
 describe('temperatureDriftSystem', () => {
-
   it('returns temperature effect when water is warmer than room', () => {
     const state = createSimulation({
       tankCapacity: 100,

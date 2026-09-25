@@ -3,7 +3,6 @@ import { getSaturationIrradiance, PLANT_SPECIES_DATA, type PlantSpecies } from '
 import { plantsDefaults } from '../config/plants.js';
 
 describe('getSaturationIrradiance', () => {
-
   it('orders the roster the way the bands do', () => {
     const species = Object.keys(PLANT_SPECIES_DATA) as PlantSpecies[];
     for (const one of species) {

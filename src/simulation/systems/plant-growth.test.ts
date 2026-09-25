@@ -48,12 +48,10 @@ describe('asymptoticGrowthFactor', () => {
   });
 });
 
-/** What the bank paid for the size a spend delivered. */
 function withdrawal(plant: Plant): number {
   return plant.surplus - spendSurplus(plant, 0).surplus;
 }
 
-/** The size a spend delivered. */
 function growth(plant: Plant): number {
   return spendSurplus(plant, 0).size - plant.size;
 }
@@ -69,7 +67,7 @@ describe('spendSurplus', () => {
   it('returns the plant unchanged when surplus is negative (defensive)', () => {
     const plant = makePlant('java_fern', { surplus: -1, size: 50 });
     const after = spendSurplus(plant, 0);
-    expect(after).toBe(plant); // identity-equal — early return
+    expect(after).toBe(plant);
   });
 
   it('the withdrawal buys the growth and nothing else', () => {
@@ -140,13 +138,6 @@ describe('spendSurplus', () => {
     expect(after.surplus).toBe(plant.surplus);
   });
 
-  /**
-   * At size 0 the asymptotic factor is 1, so the withdrawal is the whole draw
-   * rate against the whole bank — the largest one the shape can produce. The
-   * default rate makes that 2 % and the claim trivial; a config is not pinned
-   * to the default. The tuner reaches 0.2, and the persistence schema takes any
-   * finite number, so a restored save can hand this a rate above 1.
-   */
   it('never withdraws more than the bank holds, at any rate a config can carry', () => {
     const maxTunable = plantsConfigMeta.find((knob) => knob.key === 'growthDrawRate')?.max;
     expect(maxTunable).toBeGreaterThan(plantsDefaults.growthDrawRate);
@@ -165,20 +156,11 @@ describe('spendSurplus', () => {
   });
 });
 
-/**
- * The bank serves two claims in an order, and the spend is the junior one.
- * Damage stops at the survival rations and takes condition instead; if repair
- * could reach under that line it would hand the condition straight back out of
- * the rations, and the plant would starve a tick later having paid twice for
- * one bad hour. Driven through `computeVitality` rather than asserted on
- * `spendSurplus` alone, because the defect lived in the seam between them.
- */
 describe('the reserved depth, against repair and growth', () => {
   const UPKEEP_RATE = 0.05;
   const RESERVE_HOURS = 100;
   const RESERVE = UPKEEP_RATE * RESERVE_HOURS;
 
-  /** One tick of a plant that earns its upkeep exactly and is damaged on top. */
   const settle = (plant: Plant): VitalityResult =>
     computeVitality({
       upkeep: [{ key: 'upkeep', label: 'Upkeep', amount: UPKEEP_RATE }],
@@ -205,9 +187,6 @@ describe('the reserved depth, against repair and growth', () => {
     expect(next.surplus).toBe(damaged.surplus);
     expect(next.size).toBe(damaged.size);
 
-    // Without the floor the rations pay the condition back within the hour,
-    // which is the defect and what keeps the assertions above from passing
-    // on an empty bank.
     expect(spendSurplus(damaged, 0).condition).toBeGreaterThan(damaged.condition);
   });
 

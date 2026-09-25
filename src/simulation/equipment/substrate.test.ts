@@ -37,7 +37,6 @@ describe('getSubstrateOrganicReserve', () => {
       );
     }
   });
-
 });
 
 describe('replaceSubstrate', () => {

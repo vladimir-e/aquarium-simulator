@@ -30,7 +30,6 @@ function tank(fish: Fish[], clutches: Clutch[] = [], tick = 0): SimulationState 
   return { ...createSimulation({ tankCapacity: 200 }), fish, clutches, tick };
 }
 
-// Band floors (config defaults): overfed ≥99, wellFed ≥75, peckish ≥50, hungry ≥25, else starving.
 describe('bandStatus / isHungryBand', () => {
   it('maps bands onto the status vocabulary', () => {
     expect(bandStatus('wellFed')).toBe('ok');
@@ -51,10 +50,10 @@ describe('bandStatus / isHungryBand', () => {
 describe('hungerOf', () => {
   it('tallies fish in the hungry and starving bands, fry included', () => {
     const fish = [
-      makeFish({ id: 'a', satiation: 90 }), // wellFed
-      makeFish({ id: 'b', satiation: 60 }), // peckish
-      makeFish({ id: 'c', satiation: 40 }), // hungry
-      makeFish({ id: 'd', satiation: 10, stage: 'fry', age: 24 }), // starving
+      makeFish({ id: 'a', satiation: 90 }),
+      makeFish({ id: 'b', satiation: 60 }),
+      makeFish({ id: 'c', satiation: 40 }),
+      makeFish({ id: 'd', satiation: 10, stage: 'fry', age: 24 }),
     ];
     expect(hungerOf(fish, livestockDefaults)).toEqual({ count: 2, band: 'starving' });
   });
@@ -87,7 +86,6 @@ describe('groupBySpecies', () => {
   });
 
   it('keeps a starving fish visible behind a calm average', () => {
-    // Mean 50 lands in the peckish band, which on its own reads neutral.
     const fish = [
       makeFish({ id: 'a', satiation: 100 }),
       makeFish({ id: 'b', satiation: 0 }),
@@ -100,7 +98,6 @@ describe('groupBySpecies', () => {
   });
 
   it('sums the group’s mass but averages its age and condition', () => {
-    // Three fish that differ on every axis, so a sum can't pass for a mean.
     const fish = [
       makeFish({ id: 'a', mass: 0.4, age: 24 * 10, health: 90, satiation: 80 }),
       makeFish({ id: 'b', mass: 0.9, age: 24 * 20, health: 60, satiation: 80 }),
@@ -109,7 +106,7 @@ describe('groupBySpecies', () => {
     const [neon] = groupBySpecies(tank(fish), livestockDefaults);
 
     expect(neon.massG).toBeCloseTo(2.4, 10);
-    expect(neon.ageDays).toBe(21); // mean age is 21 d, not 10, 33 or 63
+    expect(neon.ageDays).toBe(21);
     expect(neon.condition).toBeCloseTo(60, 10);
   });
 
@@ -136,9 +133,8 @@ describe('groupFry', () => {
 
     expect(batch.count).toBe(2);
     expect(batch.species).toEqual(['guppy', 'betta']);
-    // The adult's 1 g must stay out of the batch mass.
     expect(batch.massG).toBeCloseTo(0.12, 10);
-    expect(batch.ageDays).toBe(2); // mean age 48 h
+    expect(batch.ageDays).toBe(2);
   });
 
   it('gives the batch the same satiation and condition figures a species row gets', () => {
@@ -159,7 +155,6 @@ describe('groupFry', () => {
 });
 
 describe('the reading behind a fish', () => {
-  /** The tank at a given total ammonia, in ppm of its 200 L. */
   function poisoned(fish: Fish[], ppm: number): SimulationState {
     const state = tank(fish);
     return { ...state, resources: { ...state.resources, ammonia: ppm * state.resources.water } };
@@ -189,7 +184,6 @@ describe('the reading behind a fish', () => {
     );
     const [group] = groupBySpecies(state, livestockDefaults);
 
-    // Both read 100 %, so the mean condition would say nothing on its own.
     expect(group.condition).toBe(100);
     expect(group.members.map((member) => member.reading.word)).toEqual(['thriving', 'starving']);
   });
@@ -220,7 +214,6 @@ describe('rosterSummary', () => {
       makeFish({ id: 'd', species: 'guppy', stage: 'fry', age: 24 }),
       makeFish({ id: 'e', species: 'guppy', stage: 'fry', age: 24 }),
     ];
-    // Five fish are present but only two are adults, and the fry's species counts.
     expect(rosterSummary(tank(fish))).toBe('2 fish · 2 species · 3 fry');
   });
 

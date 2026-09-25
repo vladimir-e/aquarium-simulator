@@ -23,7 +23,7 @@ function mkFish(o: Partial<Fish> = {}): Fish {
     species: 'guppy',
     mass: FISH_SPECIES_DATA.guppy.adultMass,
     health: 100,
-    age: 500000, // unambiguously past any maturityAge
+    age: 500000,
     satiation: 80,
     sex: 'female',
     stage: 'adult',
@@ -41,7 +41,6 @@ function withTank(fish: Fish[], clutches: Clutch[] = [], atTick = 1000): Simulat
   });
 }
 
-/** All fish get a non-negative net (eligible) unless overridden. */
 function nets(state: SimulationState, overrides: Record<string, number> = {}): Map<string, number> {
   const m = new Map(state.fish.map((f) => [f.id, 0] as [string, number]));
   for (const [id, v] of Object.entries(overrides)) m.set(id, v);
@@ -127,7 +126,6 @@ describe('processBreeding — gate', () => {
     const state = withTank([female, male]);
     const out = processBreeding(state, DEFAULT_CONFIG, nets(state, { she: -0.1 }));
     expect(fry(out.state.fish)).toHaveLength(0);
-    // Bank untouched — she kept her savings.
     expect(out.state.fish.find((f) => f.id === 'she')!.surplus).toBe(CAP);
   });
 
@@ -170,13 +168,12 @@ describe('processBreeding — costs', () => {
   });
 
   it('spends deterministically in array order across multiple males', () => {
-    const m1 = mkFish({ id: 'm1', sex: 'male', surplus: guppyShare }); // serves exactly 1
+    const m1 = mkFish({ id: 'm1', sex: 'male', surplus: guppyShare });
     const m2 = mkFish({ id: 'm2', sex: 'male', surplus: CAP });
     const females = [0, 1, 2].map((i) => mkFish({ id: `s${i}`, sex: 'female', surplus: guppyCost }));
     const state = withTank([m1, m2, ...females]);
     const out = processBreeding(state, DEFAULT_CONFIG, nets(state));
 
-    // m1 covers the first female, then m2 covers the rest.
     expect(out.state.fish.find((f) => f.id === 'm1')!.surplus).toBeCloseTo(0, 10);
     expect(out.state.fish.find((f) => f.id === 'm2')!.surplus).toBeCloseTo(CAP - 2 * guppyShare, 10);
     expect(fry(out.state.fish)).toHaveLength(3 * FISH_SPECIES_DATA.guppy.breeding.clutchSize);
@@ -226,7 +223,6 @@ describe('processBreeding — spawn modes', () => {
   });
 
   it('hatched fry are valid: fry stage, age 0, fry mass, and ~50/50 sex', () => {
-    // Big synthetic clutch to sample the sex distribution.
     const clutch: Clutch = { id: 'c', species: 'guppy', eggCount: 3000, laidTick: 0 };
     const out = processBreeding(withTank([], [clutch], 0), DEFAULT_CONFIG, new Map());
     const hatched = out.state.fish;
@@ -292,7 +288,6 @@ describe('processBreeding — fry lifecycle', () => {
     const maleAdult = mkFish({ sex: 'male', surplus: CAP });
     const state = withTank([femaleFry, maleAdult]);
     const out = processBreeding(state, DEFAULT_CONFIG, nets(state));
-    // The only fry present is the female; no new fry were produced.
     expect(fry(out.state.fish)).toHaveLength(1);
     expect(out.state.fish.find((f) => f.id === 'she')!.surplus).toBe(CAP);
   });
@@ -302,7 +297,7 @@ describe('typed log events', () => {
   it('death logs carry a fish-died discriminator', () => {
     const state = produce(createSimulation({ tankCapacity: 100 }), (draft) => {
       draft.fish = [mkFish({ health: 1 })];
-      draft.resources.ammonia = 100000; // lethal
+      draft.resources.ammonia = 100000;
     });
     const out = processLivestock(state, DEFAULT_CONFIG);
     expect(out.state.fish).toHaveLength(0);
@@ -312,9 +307,6 @@ describe('typed log events', () => {
 
 describe('processBreeding — zero surplus cap', () => {
   it('never spawns when surplusCap is 0, even for a healthy funded-looking pair', () => {
-    // A nonpositive cap zeroes the breeding cost, which would make the
-    // funding gate vacuous (surplus 0 ≥ cost 0) and spawn a full brood
-    // every tick. The guard must disable spawning entirely.
     const zeroCap = produce(DEFAULT_CONFIG, (d) => {
       d.livestock.surplusCap = 0;
     });
@@ -330,6 +322,6 @@ describe('processBreeding — zero surplus cap', () => {
     expect(state.clutches).toHaveLength(0);
     expect(events(state, 'fish-spawned')).toHaveLength(0);
     expect(events(state, 'eggs-laid')).toHaveLength(0);
-    expect(state.fish).toHaveLength(2); // original pair untouched
+    expect(state.fish).toHaveLength(2);
   });
 });

@@ -38,7 +38,6 @@ describe('useActs', () => {
     act(() => hook.result.current.open('dose', 7));
     expect(hook.result.current.settings.dose).toBe(7);
 
-    // The same button again is a dismissal, not a second amount.
     act(() => hook.result.current.open('dose', 9));
     expect(hook.result.current.verb).toBeNull();
     expect(hook.result.current.settings.dose).toBe(7);

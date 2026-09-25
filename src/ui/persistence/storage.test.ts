@@ -1,5 +1,4 @@
 /* eslint-disable no-undef */
-// Browser globals (localStorage, navigator) are available in test environment
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import {
   loadPersistedState,
@@ -20,7 +19,6 @@ import {
 import { DEFAULT_SETTINGS } from '../actions/verbs.js';
 import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
 
-// Mock location
 const mockLocation = {
   search: '',
   pathname: '/',
@@ -68,9 +66,6 @@ describe('loadPersistedState', () => {
   });
 
   it('discards prior payloads after a version bump (no silent upgrade)', () => {
-    // Whenever a Fish field is added (v4→v5 hardinessOffset, v5→v6
-    // surplus, …) we don't write a migration path. Version mismatch
-    // drops the whole blob and the caller reinitialises.
     const olderState = {
       version: PERSISTENCE_VERSION - 1,
       simulation: createValidSimulation(),
@@ -113,9 +108,7 @@ describe('loadPersistedState', () => {
 
     const result = loadPersistedState();
     expect(result.versionValid).toBe(true);
-    // Simulation should fail validation
     expect(result.simulation).toBeNull();
-    // Should have errors
     expect(result.errors.length).toBeGreaterThan(0);
   });
 
@@ -131,9 +124,7 @@ describe('loadPersistedState', () => {
 
     const result = loadPersistedState();
     expect(result.versionValid).toBe(true);
-    // UI should be null since it's invalid
     expect(result.ui).toBeNull();
-    // Should have errors
     expect(result.errors.length).toBeGreaterThan(0);
   });
 });
@@ -154,13 +145,10 @@ describe('savePersistedState', () => {
     const state = createValidPersistedState();
     savePersistedState(state, 100);
 
-    // Should not be saved yet
     expect(localStorage.getItem(STORAGE_KEY)).toBeNull();
 
-    // Advance timer
     vi.advanceTimersByTime(100);
 
-    // Should be saved now
     const saved = localStorage.getItem(STORAGE_KEY);
     expect(saved).not.toBeNull();
     expect(JSON.parse(saved!)).toEqual(state);
@@ -176,7 +164,6 @@ describe('savePersistedState', () => {
     vi.advanceTimersByTime(100);
 
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY)!);
-    // Should only save the last state
     expect(saved.ui.tunablesOpen).toBe(true);
   });
 });
@@ -195,10 +182,8 @@ describe('flushPendingSave', () => {
     const state = createValidPersistedState();
     savePersistedState(state, 2000);
 
-    // Nothing saved yet
     expect(localStorage.getItem(STORAGE_KEY)).toBeNull();
 
-    // Flush immediately
     flushPendingSave();
 
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY)!);
@@ -221,10 +206,8 @@ describe('flushPendingSave', () => {
     flushPendingSave();
     savePersistedState(state2, 2000);
 
-    // Advance past debounce time for first save
     vi.advanceTimersByTime(2100);
 
-    // Should have the second state
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY)!);
     expect(saved.ui.tunablesOpen).toBe(true);
 
@@ -244,7 +227,7 @@ describe('clearPersistedState', () => {
   it('removes stored state', () => {
     const state = createValidPersistedState();
     savePersistedState(state, 2000);
-    flushPendingSave(); // Flush to actually save
+    flushPendingSave();
     expect(localStorage.getItem(STORAGE_KEY)).not.toBeNull();
 
     clearPersistedState();
@@ -351,7 +334,6 @@ describe('createPersistedState', () => {
   });
 });
 
-// Helper functions
 function createValidSimulation(): PersistedSimulation {
   return {
     tick: 0,

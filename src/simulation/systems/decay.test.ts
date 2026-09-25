@@ -11,7 +11,6 @@ import { decayDefaults } from '../config/decay.js';
 import { MW_CO2, MW_O2 } from '../core/chemistry.js';
 import { monodFactor } from '../core/kinetics.js';
 
-/** Air-saturated water at 25 °C, where decomposition is not oxygen-limited. */
 const SATURATED_O2 = 8;
 const AT_SATURATION = monodFactor(SATURATED_O2, decayDefaults.oxygenHalfSaturation);
 
@@ -47,7 +46,6 @@ describe('calculateDecay', () => {
   });
 
   it('never decays more than available food', () => {
-    // Very high temperature, very small food amount
     const decay = calculateDecay(0.01, 50, SATURATED_O2);
     expect(decay).toBeLessThanOrEqual(0.01);
   });
@@ -115,7 +113,6 @@ describe('decaySystem', () => {
     );
 
     expect(wasteEffect).toBeDefined();
-    // Waste is wasteConversionRatio (40%) of decayed food
     expect(wasteEffect!.delta).toBeCloseTo(
       -foodEffect!.delta * decayDefaults.wasteConversionRatio,
       6
@@ -138,7 +135,6 @@ describe('decaySystem', () => {
     const coldDecay = coldEffects.find((e) => e.resource === 'food')!.delta;
     const hotDecay = hotEffects.find((e) => e.resource === 'food')!.delta;
 
-    // Hot tank decays faster (more negative delta)
     expect(hotDecay).toBeLessThan(coldDecay);
   });
 
@@ -175,16 +171,15 @@ describe('decaySystem', () => {
   });
 
   it('draws the oxygen the oxidised fraction demands', () => {
-    // 100L tank, 1g food at 25°C
     const state = createTestState({ food: 1.0, temperature: 25, water: 100 });
     const effects = decaySystem.update(state, DEFAULT_CONFIG);
 
     const foodEffect = effects.find((e) => e.resource === 'food')!;
     const o2Effect = effects.find((e) => e.resource === 'oxygen')!;
 
-    const decayAmount = -foodEffect.delta; // 0.05g at 25°C
-    const oxidizedAmount = decayAmount * (1 - decayDefaults.wasteConversionRatio); // 60%
-    const expectedO2 = (oxidizedAmount * decayDefaults.gasExchangePerGramDecay) / 100; // mg/L
+    const decayAmount = -foodEffect.delta;
+    const oxidizedAmount = decayAmount * (1 - decayDefaults.wasteConversionRatio);
+    const expectedO2 = (oxidizedAmount * decayDefaults.gasExchangePerGramDecay) / 100;
 
     expect(-o2Effect.delta).toBeCloseTo(expectedO2, 6);
   });
@@ -203,13 +198,11 @@ describe('decaySystem', () => {
     const state = createTestState({ food: 1.0, temperature: 25, water: 0 });
     const effects = decaySystem.update(state, DEFAULT_CONFIG);
 
-    // Decay still happens (food -> waste)
     const foodEffect = effects.find((e) => e.resource === 'food');
     const wasteEffect = effects.find((e) => e.resource === 'waste' && e.source === 'decay');
     expect(foodEffect).toBeDefined();
     expect(wasteEffect).toBeDefined();
 
-    // But no gas effects (would be division by zero)
     const co2Effect = effects.find((e) => e.resource === 'co2');
     const o2Effect = effects.find((e) => e.resource === 'oxygen');
     expect(co2Effect).toBeUndefined();

@@ -12,6 +12,7 @@ import { createSimulation, type Plant, type SimulationState } from '../state.js'
 import type { PlantSpecies } from '../plants/species.js';
 import type { SubstrateType } from '../equipment/substrate.js';
 import { plantsDefaults } from '../config/plants.js';
+import type { ActionResult } from './types.js';
 import { DEFAULT_PLANT_SIZE } from '../plants/create-plant.js';
 import { produce } from 'immer';
 
@@ -33,7 +34,11 @@ function onSubstrate(type: SubstrateType): SimulationState {
   });
 }
 
-const add = (state: SimulationState, species: PlantSpecies, initialSize?: number) =>
+const add = (
+  state: SimulationState,
+  species: PlantSpecies,
+  initialSize?: number
+): ActionResult =>
   addPlant(state, { type: 'addPlant', species, initialSize }, plantsDefaults);
 
 describe('getMaxPlants', () => {

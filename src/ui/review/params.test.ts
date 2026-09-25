@@ -17,7 +17,7 @@ describe('readWindow / readFilter', () => {
     expect(readWindow('30d')).toBe('run');
     expect(readWindow('')).toBe('run');
     expect(readFilter(null)).toBe('all');
-    expect(readFilter('sim')).toBe('all'); // a category, but not a chip
+    expect(readFilter('sim')).toBe('all');
   });
 });
 
@@ -32,8 +32,6 @@ describe('readTick', () => {
   });
 
   it('clamps a tick from before the window to its oldest snapshot', () => {
-    // A link into the whole run, opened with the 24h window: the cursor lands
-    // on the earliest state the tracks can draw rather than off the axis.
     expect(readTick('4', RANGE)).toBe(100);
     expect(readTick('-30', RANGE)).toBe(100);
   });

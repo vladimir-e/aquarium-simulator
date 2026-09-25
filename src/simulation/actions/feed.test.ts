@@ -49,7 +49,6 @@ describe('feed action', () => {
     const state = createSimulation({ tankCapacity: 100 });
     const result = feed(state, { type: 'feed', amount: 0.123 });
 
-    // Should be rounded to 2 decimal places
     expect(result.state.resources.food).toBeCloseTo(0.12, 2);
   });
 

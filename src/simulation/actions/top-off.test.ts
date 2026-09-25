@@ -51,11 +51,10 @@ describe('topOff action', () => {
 
   it('is idempotent when already at capacity', () => {
     const state = createSimulation({ tankCapacity: 100 });
-    // Initial state has waterLevel = capacity
 
     const result = topOff(state);
 
-    expect(result.state).toBe(state); // Same reference, no changes
+    expect(result.state).toBe(state);
     expect(result.message).toBe('Water already at capacity (100L)');
   });
 
@@ -89,5 +88,4 @@ describe('topOff action', () => {
     expect(result.state.resources.water).toBe(100);
     expect(result.message).toBe('Added 0.0L');
   });
-
 });

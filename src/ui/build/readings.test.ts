@@ -53,12 +53,10 @@ function value(readings: DeviceReading[], label: string): DeviceReading {
   return found;
 }
 
-/** The tank at a given water temperature, everything else at defaults. */
 function at(temperature: number): SimulationState {
   return { ...base, resources: { ...base.resources, temperature } };
 }
 
-/** Turns a device on without touching the rest of its settings. */
 function enabled(id: 'airPump' | 'co2Generator'): SimulationState {
   return {
     ...base,
@@ -120,11 +118,6 @@ describe('heater readings', () => {
 });
 
 describe('filter readings', () => {
-  /**
-   * Capacities either side of where each class's flow cap starts to bite,
-   * including the slivers where the shortfall is under a rendered unit — the
-   * band a gate on formatted strings decided differently for each reader.
-   */
   const SIZING_SWEEP = [
     40, 75, 75.13, 76, 100, 208, 208.2, 208.4, 209, 300, 400, 562, 562.55, 563, 568, 600, 1000,
   ];
@@ -298,8 +291,6 @@ describe('filter readings', () => {
     const tank = createSimulation({ tankCapacity: 300, filter: { enabled: true, type: 'sump' } });
     const stocked = applyAction(tank, { type: 'addFish', species: 'guppy' }).state;
 
-    // Water volumes where `flow / water` lands a hair over the tolerance
-    // rather than on it — an ordinary artefact of evaporating in litres.
     for (const water of [200.4, 200.9, 201.4]) {
       const flow = maxTurnover * water;
       expect(flow / water).not.toBe(maxTurnover);
@@ -466,8 +457,6 @@ describe('air pump readings', () => {
   });
 
   it('reads the engine’s air output and the flow it adds, in the reader’s units', () => {
-    // A 40 L tank sits in the pump's small-tank band: 60 L/h of air, 10% of it
-    // as water movement.
     expect(value(read('airPump', enabled('airPump')), 'Air output')).toEqual({
       label: 'Air output',
       value: '60 L/h',
@@ -489,7 +478,6 @@ describe('air pump readings', () => {
   });
 
   it('rounds the cap rather than printing its floating-point tail', () => {
-    // Past 400 L the engine's output is 60 × 6.67, which is not exactly 400.2.
     const huge: SimulationState = {
       ...enabled('airPump'),
       tank: { ...base.tank, capacity: 1000 },
@@ -498,7 +486,6 @@ describe('air pump readings', () => {
   });
 
   it('warns once the tank outgrows what one air stone can aerate', () => {
-    // AIR_PUMP_SPEC.maxCapacityLiters is 400 L, so 401 L is past the engine's own line.
     const over = (capacity: number): SimulationState => ({
       ...enabled('airPump'),
       tank: { ...base.tank, capacity },
@@ -510,17 +497,13 @@ describe('air pump readings', () => {
       tone: 'warn',
     });
 
-    // A tank inside the pump's range says nothing extra…
     expect(isAirPumpUndersized(400)).toBe(false);
     expect(hint('airPump', over(400))?.tone).toBe('muted');
-    // …and neither does an oversized tank whose pump is switched off.
     const off: SimulationState = { ...base, tank: { ...base.tank, capacity: 401 } };
     expect(hint('airPump', off)?.tone).toBe('muted');
   });
 
   it('answers for the current it adds rather than leaving the filter to', () => {
-    // The shipped Betta Cube, evaporated to 17 L of its 20. Its sponge alone
-    // is 4.7 × — inside a betta's 5 — and the pump's uplift carries it to 5.1.
     const cube = getPresetById('betta')!;
     const evaporate = (tank: SimulationState): SimulationState => {
       const { state } = applyAction(tank, { type: 'addFish', species: 'betta' });
@@ -534,7 +517,6 @@ describe('air pump readings', () => {
     });
     expect(hint('filter', pumped)).toBeNull();
 
-    // The same cube as it ships is under tolerance, and nothing warns.
     const sponge = evaporate(createSimulation(cube.config));
     expect(pumped.resources.flow - sponge.resources.flow).toBe(getAirPumpFlow(20));
     expect(hint('filter', sponge)).toBeNull();
@@ -630,14 +612,12 @@ describe('CO₂ injector readings', () => {
 });
 
 describe('powerhead readings', () => {
-  // Built by the engine, so `resources.flow` carries the powerhead's contribution.
   const running: SimulationState = createSimulation({
     tankCapacity: 40,
     powerhead: { enabled: true, flowRateGPH: 400 },
   });
 
   it('separates the tank’s whole circulation from this device’s share', () => {
-    // The engine adds the 400 GPH preset's 1514 L/h to the filter's 160 L/h.
     const readings = read('powerhead', running);
     expect(value(readings, 'Tank circulation')).toEqual({
       label: 'Tank circulation',
@@ -732,8 +712,6 @@ describe('biofilter readings', () => {
   const cycled: SimulationState = createSimulation({ tankCapacity: 40 }, { bacteria: 'cycled' });
 
   it('reads the same colonies the Water section’s Bacteria card does', () => {
-    // Both surfaces render through `colonyCount`, so the pane and the card
-    // never disagree on a population spanning six orders of magnitude.
     const readout = bacteriaReadout(cycled, DEFAULT_CONFIG);
     const readings = read('biofilter', cycled);
     expect(readout.aob.count).toBeGreaterThan(0);
@@ -774,11 +752,6 @@ describe('biofilter readings', () => {
     });
   });
 
-  /**
-   * Share of ceiling is the one figure the re-pinned gauge does not let the
-   * headline carry: a cycled tank sits at a couple of percent by design, so it
-   * reads as the room the colony has left and never as its health.
-   */
   it('keeps share of ceiling as the colonies’ own secondary figure', () => {
     const readings = read('biofilter', cycled);
     const readout = bacteriaReadout(cycled, DEFAULT_CONFIG);
@@ -805,8 +778,6 @@ describe('deviceHint', () => {
         tone: 'muted',
       });
     }
-    // The heater reads itself out; the filter speaks only when it is undersized
-    // or off, both covered above.
     expect(hint('heater', base)).toBeNull();
     expect(hint('filter', base)).toBeNull();
   });

@@ -68,7 +68,7 @@ describe('snapshotFromState', () => {
   it('stores nitrogen as ppm on the same basis the vitals tile renders', () => {
     const state = makeState((d) => {
       d.tank.capacity = 200;
-      d.resources.water = 120; // water ≠ capacity, so ppm diverges from raw mass
+      d.resources.water = 120;
       d.resources.ammonia = 0.6;
       d.resources.nitrite = 0.3;
       d.resources.nitrate = 24;
@@ -94,10 +94,8 @@ describe('snapshotFromState', () => {
 
     expect(lit(9)).toBe(true);
     expect(lit(15)).toBe(false);
-    // The hour it comes on is lit; the hour it goes off is not.
     expect(lit(8)).toBe(true);
     expect(lit(14)).toBe(false);
-    // A period that runs past midnight is still running on the far side of it.
     expect(lit(2, { startHour: 20, duration: 8 })).toBe(true);
     expect(lit(5, { startHour: 20, duration: 8 })).toBe(false);
     expect(
@@ -132,7 +130,6 @@ describe('snapshotFromState', () => {
       d.fish = [makeFish('a', 'adult'), makeFish('b', 'adult'), makeFish('c', 'fry')];
     });
     const snap = snapshotFromState(state);
-    // The chart's "fish" line means what the roster means by it.
     expect(snap.fishCount).toBe(2);
     expect(snap.fryCount).toBe(1);
     expect(snap.plantAvgSize).toBe(60);
@@ -168,7 +165,6 @@ describe('appendRunSnapshot', () => {
       history = appendRunSnapshot(history, snapshot(tick));
     }
     expect(history).toHaveLength(RUN_HISTORY_CAP);
-    // Oldest five dropped; window ends on the newest tick.
     expect(history[0].tick).toBe(5);
     expect(history[history.length - 1].tick).toBe(RUN_HISTORY_CAP + 4);
   });

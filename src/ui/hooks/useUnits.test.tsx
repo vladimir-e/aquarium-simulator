@@ -1,5 +1,4 @@
 /* eslint-disable no-undef */
-// Browser globals (localStorage) are available in test environment
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import React, { type ReactNode, type ComponentType } from 'react';
@@ -26,7 +25,6 @@ describe('useUnits', () => {
   });
 
   it('throws when used outside UnitsProvider', () => {
-    // Suppress console.error for this test
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
     expect(() => {

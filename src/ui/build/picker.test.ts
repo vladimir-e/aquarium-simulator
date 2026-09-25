@@ -57,7 +57,7 @@ function plants(state: SimulationState): PickerOption[] {
 
 describe('fish options', () => {
   it('counts headroom in whole fish of the species, off the physical ceiling', () => {
-    const state = tank(1); // 500 g of fish, physically
+    const state = tank(1);
     const neon = option(fish(state), 'neon_tetra');
 
     expect(getMaxFishMass(1)).toBe(500);
@@ -82,7 +82,6 @@ describe('fish options', () => {
     };
     const neon = option(fish(state, 5), 'neon_tetra');
 
-    // Two fit, five were asked for — the drawer's "Only 2 fit", not a refusal.
     expect(neon.headroom).toBe(2);
     expect(neon.refusal).toBeNull();
   });
@@ -93,7 +92,7 @@ describe('fish options', () => {
       ...state,
       resources: { ...state.resources, temperature: 21 },
     };
-    const angel = option(fish(cold), 'angelfish'); // wants 24–30 °C
+    const angel = option(fish(cold), 'angelfish');
 
     expect(angel.fit).toBe('wants 24–30°C — tank holds 21.0°C');
     expect(angel.status).toBe('warn');
@@ -136,7 +135,6 @@ describe('plant options', () => {
   });
 
   it('names the substrate before the slots — a full tank is the lesser problem', () => {
-    // Bare bottom and every slot taken: the plant could not go in either way.
     const state = planted(getMaxPlants(19), 'java_fern');
     const carpet = option(plants(state), 'monte_carlo');
 

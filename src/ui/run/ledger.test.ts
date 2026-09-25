@@ -23,7 +23,6 @@ function makeFish(overrides: Partial<Fish> & { id: string }): Fish {
   };
 }
 
-/** A 200 L tank holding the given fish, at the given total ammonia in ppm. */
 function tank(fish: Fish[], ppm = 0): SimulationState {
   const state = { ...createSimulation({ tankCapacity: 200 }), fish };
   return ppm === 0

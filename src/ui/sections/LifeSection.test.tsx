@@ -17,7 +17,6 @@ import {
 
 afterEach(cleanup);
 
-/** A section wired to a tank that actually changes when an action commits. */
 function Live({ run }: { run: Run }): React.JSX.Element {
   const [state, setState] = useState(run.state);
   const sim = stubSim(state, run.history);

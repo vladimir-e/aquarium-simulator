@@ -10,7 +10,6 @@ import { opticsDefaults } from '../config/optics.js';
 import { calculateTankHeight } from '../state.js';
 
 describe('light equipment', () => {
-
   describe('LIGHT_PAR_OPTIONS', () => {
     it('offers distinct fixtures in ascending order', () => {
       expect(LIGHT_PAR_OPTIONS).toEqual([...LIGHT_PAR_OPTIONS].sort((a, b) => a - b));
@@ -20,7 +19,6 @@ describe('light equipment', () => {
     it('includes the default fixture', () => {
       expect(LIGHT_PAR_OPTIONS).toContain(DEFAULT_LIGHT.par);
     });
-
   });
 
   describe('getLightOutput', () => {
@@ -40,25 +38,25 @@ describe('light equipment', () => {
       const light: Light = {
         enabled: true,
         par: 150,
-        schedule: { startHour: 8, duration: 10 }, // 8am-6pm
+        schedule: { startHour: 8, duration: 10 },
       };
 
-      expect(getLightOutput(light, 8)).toBe(150); // Start hour
-      expect(getLightOutput(light, 10)).toBe(150); // Mid-day
-      expect(getLightOutput(light, 17)).toBe(150); // Just before end
+      expect(getLightOutput(light, 8)).toBe(150);
+      expect(getLightOutput(light, 10)).toBe(150);
+      expect(getLightOutput(light, 17)).toBe(150);
     });
 
     it('returns 0 when enabled but outside schedule', () => {
       const light: Light = {
         enabled: true,
         par: 150,
-        schedule: { startHour: 8, duration: 10 }, // 8am-6pm
+        schedule: { startHour: 8, duration: 10 },
       };
 
-      expect(getLightOutput(light, 7)).toBe(0); // Before start
-      expect(getLightOutput(light, 18)).toBe(0); // At end hour
-      expect(getLightOutput(light, 20)).toBe(0); // Evening
-      expect(getLightOutput(light, 2)).toBe(0); // Night
+      expect(getLightOutput(light, 7)).toBe(0);
+      expect(getLightOutput(light, 18)).toBe(0);
+      expect(getLightOutput(light, 20)).toBe(0);
+      expect(getLightOutput(light, 2)).toBe(0);
     });
 
     it('handles 24-hour duration (always-on)', () => {
@@ -77,27 +75,25 @@ describe('light equipment', () => {
       const light: Light = {
         enabled: true,
         par: 50,
-        schedule: { startHour: 22, duration: 8 }, // 10pm-6am
+        schedule: { startHour: 22, duration: 8 },
       };
 
-      // Active hours
-      expect(getLightOutput(light, 22)).toBe(50); // Start
-      expect(getLightOutput(light, 23)).toBe(50); // Before midnight
-      expect(getLightOutput(light, 0)).toBe(50); // Midnight
-      expect(getLightOutput(light, 2)).toBe(50); // Early morning
-      expect(getLightOutput(light, 5)).toBe(50); // Just before end
+      expect(getLightOutput(light, 22)).toBe(50);
+      expect(getLightOutput(light, 23)).toBe(50);
+      expect(getLightOutput(light, 0)).toBe(50);
+      expect(getLightOutput(light, 2)).toBe(50);
+      expect(getLightOutput(light, 5)).toBe(50);
 
-      // Inactive hours
-      expect(getLightOutput(light, 6)).toBe(0); // At end hour
-      expect(getLightOutput(light, 10)).toBe(0); // Mid-day
-      expect(getLightOutput(light, 21)).toBe(0); // Just before start
+      expect(getLightOutput(light, 6)).toBe(0);
+      expect(getLightOutput(light, 10)).toBe(0);
+      expect(getLightOutput(light, 21)).toBe(0);
     });
 
     it('handles short duration schedules', () => {
       const light: Light = {
         enabled: true,
         par: 50,
-        schedule: { startHour: 12, duration: 1 }, // 12pm-1pm
+        schedule: { startHour: 12, duration: 1 },
       };
 
       expect(getLightOutput(light, 11)).toBe(0);

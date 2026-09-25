@@ -25,7 +25,6 @@ import { AIR_SATURATED_O2 } from './nitrogen-cycle.js';
 import { calculateO2Saturation } from '../systems/gas-exchange.js';
 
 describe('DEFAULT_CONFIG', () => {
-
   it('uses the correct defaults for each system', () => {
     expect(DEFAULT_CONFIG.decay).toEqual(decayDefaults);
     expect(DEFAULT_CONFIG.nitrogenCycle).toEqual(nitrogenCycleDefaults);
@@ -124,7 +123,6 @@ describe('isConfigModified', () => {
     modified.decay.q10 = 3.0;
     expect(isConfigModified(modified)).toBe(true);
   });
-
 });
 
 describe('configRange', () => {
@@ -145,8 +143,6 @@ describe('configRange', () => {
     expect(configRange('__proto__.pwned')).toBeUndefined();
   });
 
-  // A slider whose range excludes the shipped value cannot restore it: the
-  // CLI refuses to set it back and the panel clamps it away on blur.
   it('brackets the shipped default of every tunable it bounds', () => {
     const excluded = tunables.filter(([path, value]) => {
       const range = configRange(path);
@@ -162,11 +158,6 @@ describe('configRange', () => {
     expect(unbounded).toEqual([]);
   });
 
-  // Nitrification rates come off doubling times and no bound was ever derived
-  // for them, so `config set` has nothing to hold them to. Deriving bounds
-  // turns this red — the gap is stated here rather than left to be discovered.
-  // The two half-saturation constants are measured concentrations and came
-  // with theirs.
   it('bounds the nitrogen cycle’s half-saturation constants and nothing else', () => {
     const bounded = paths.filter(
       (path) => path.startsWith('nitrogenCycle.') && configRange(path) !== undefined
@@ -185,7 +176,6 @@ describe('AIR_SATURATED_O2', () => {
       6
     );
   });
-
 });
 
 describe('tunableAt', () => {
@@ -194,8 +184,6 @@ describe('tunableAt', () => {
   });
 
   it('names nothing numeric, and says so', () => {
-    // A section, a leaf that is not a number, a key that is not there, and a
-    // key off Object.prototype — every one of them is "no such tunable".
     expect(tunableAt(DEFAULT_CONFIG, 'ph')).toBeUndefined();
     expect(tunableAt(DEFAULT_CONFIG, 'ph.nothing')).toBeUndefined();
     expect(tunableAt(DEFAULT_CONFIG, 'nothing.at.all')).toBeUndefined();

@@ -127,7 +127,6 @@ describe('createFish', () => {
       12
     );
     expect(fish.health).toBeCloseTo(100 + (healthDraw - 0.5) * 2 * 5, 12);
-
   });
 
   it('names every fish off the stream, never twice the same', () => {

@@ -92,7 +92,11 @@ function vitality(
   return computeFishVitality(makeFish(fish), makeResources(resources), plants, water, capacity, config);
 }
 
-function health(fish: Fish[], resources: Partial<Resources> = {}, plants: Plant[] = []) {
+function health(
+  fish: Fish[],
+  resources: Partial<Resources> = {},
+  plants: Plant[] = []
+): ReturnType<typeof processHealth> {
   return processHealth(fish, makeResources(resources), plants, 100, 100, livestockDefaults);
 }
 

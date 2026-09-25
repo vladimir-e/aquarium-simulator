@@ -32,11 +32,9 @@ describe('calculateRespiration', () => {
       expect(result.oxygenConsumedMg).toBe(0);
       expect(result.co2ProducedMg).toBe(0);
     });
-
   });
 
   describe('stoichiometry', () => {
-
     it('burns one mole of O2 for every mole of carbon it releases', () => {
       const result = calculateRespiration(100, 25, AIR_SATURATED_O2);
 
@@ -52,7 +50,6 @@ describe('calculateRespiration', () => {
       expect(result200.oxygenConsumedMg).toBeCloseTo(result100.oxygenConsumedMg * 2, 6);
       expect(result200.co2ProducedMg).toBeCloseTo(result100.co2ProducedMg * 2, 6);
     });
-
   });
 
   describe('temperature effects', () => {
@@ -64,7 +61,6 @@ describe('calculateRespiration', () => {
       expect(result35.oxygenConsumedMg).toBeCloseTo(result25.oxygenConsumedMg * respirationQ10, 6);
       expect(result35.co2ProducedMg).toBeCloseTo(result25.co2ProducedMg * respirationQ10, 6);
     });
-
   });
 
   describe('oxygen availability', () => {
@@ -112,7 +108,6 @@ describe('calculateRespiration', () => {
       expect(result.co2ProducedMg).toBeCloseTo(expectedCo2, 6);
       expect(result.oxygenConsumedMg).toBeCloseTo(expectedCo2 * CO2_TO_O2_MASS_RATIO, 6);
     });
-
   });
 
   describe('uses custom config', () => {

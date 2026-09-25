@@ -48,7 +48,6 @@ describe('calculateHardscapeTargetPH', () => {
       { id: '3', type: 'calcite_rock' },
     ]);
 
-    // Each additional item should increase pH less than the previous
     const firstIncrease = oneCalcite - phDefaults.neutralPh;
     const secondIncrease = twoCalcite - oneCalcite;
     const thirdIncrease = threeCalcite - twoCalcite;
@@ -58,13 +57,11 @@ describe('calculateHardscapeTargetPH', () => {
     expect(secondIncrease).toBeLessThan(firstIncrease);
     expect(thirdIncrease).toBeLessThan(secondIncrease);
   });
-
 });
 
 describe('calculateCO2PHEffect', () => {
   it('returns 0 at atmospheric CO2 level', () => {
     const effect = calculateCO2PHEffect(phDefaults.co2NeutralLevel);
-    // Note: JavaScript may produce -0, which is equal to 0 but not Object.is equal
     expect(effect).toBeCloseTo(0, 10);
   });
 
@@ -79,12 +76,10 @@ describe('calculateCO2PHEffect', () => {
   });
 
   it('scales logarithmically with CO2 (each doubling is a fixed step)', () => {
-    // New engine uses Henderson-Hasselbalch-style log coupling; doubling
-    // CO2 should lower pH by log10(2) * coefficient = 0.301 * coefficient.
     const effect4x = calculateCO2PHEffect(phDefaults.co2NeutralLevel * 4);
     const effect2x = calculateCO2PHEffect(phDefaults.co2NeutralLevel * 2);
-    const step = effect2x - 0; // baseline is 0 at neutral
-    expect(effect4x).toBeCloseTo(2 * step, 5); // 4x = two doublings
+    const step = effect2x - 0;
+    expect(effect4x).toBeCloseTo(2 * step, 5);
   });
 
   it('0 CO2 is a safe no-op (guard)', () => {
@@ -116,13 +111,13 @@ describe('phDriftSystem', () => {
     const state = createTestState({
       ph: 6.0,
       co2: phDefaults.co2NeutralLevel,
-      hardscapeItems: [], // Target is neutral (7.0)
+      hardscapeItems: [],
     });
     const effects = phDriftSystem.update(state, DEFAULT_CONFIG);
 
     const phEffect = effects.find((e) => e.resource === 'ph');
     expect(phEffect).toBeDefined();
-    expect(phEffect!.delta).toBeGreaterThan(0); // Moving toward 7.0
+    expect(phEffect!.delta).toBeGreaterThan(0);
     expect(phEffect!.source).toBe('ph-drift');
     expect(phEffect!.tier).toBe('passive');
   });
@@ -131,13 +126,13 @@ describe('phDriftSystem', () => {
     const state = createTestState({
       ph: 8.0,
       co2: phDefaults.co2NeutralLevel,
-      hardscapeItems: [], // Target is neutral (7.0)
+      hardscapeItems: [],
     });
     const effects = phDriftSystem.update(state, DEFAULT_CONFIG);
 
     const phEffect = effects.find((e) => e.resource === 'ph');
     expect(phEffect).toBeDefined();
-    expect(phEffect!.delta).toBeLessThan(0); // Moving toward 7.0
+    expect(phEffect!.delta).toBeLessThan(0);
   });
 
   it('creates no/negligible effect when pH equals target', () => {
@@ -148,7 +143,6 @@ describe('phDriftSystem', () => {
     });
     const effects = phDriftSystem.update(state, DEFAULT_CONFIG);
 
-    // Either no effects or very small effect
     if (effects.length > 0) {
       const phEffect = effects.find((e) => e.resource === 'ph');
       if (phEffect) {
@@ -167,7 +161,7 @@ describe('phDriftSystem', () => {
 
     const phEffect = effects.find((e) => e.resource === 'ph');
     expect(phEffect).toBeDefined();
-    expect(phEffect!.delta).toBeGreaterThan(0); // pH drifting up
+    expect(phEffect!.delta).toBeGreaterThan(0);
   });
 
   it('driftwood lowers pH target', () => {
@@ -180,7 +174,7 @@ describe('phDriftSystem', () => {
 
     const phEffect = effects.find((e) => e.resource === 'ph');
     expect(phEffect).toBeDefined();
-    expect(phEffect!.delta).toBeLessThan(0); // pH drifting down
+    expect(phEffect!.delta).toBeLessThan(0);
   });
 
   it('high CO2 lowers effective pH target', () => {
@@ -191,20 +185,18 @@ describe('phDriftSystem', () => {
     });
     const highCO2State = createTestState({
       ph: phDefaults.neutralPh,
-      co2: 20, // High CO2
+      co2: 20,
       hardscapeItems: [],
     });
 
     const normalEffects = phDriftSystem.update(normalCO2State, DEFAULT_CONFIG);
     const highCO2Effects = phDriftSystem.update(highCO2State, DEFAULT_CONFIG);
 
-    // Normal should have no/negligible effect (at neutral target)
     const normalPhEffect = normalEffects.find((e) => e.resource === 'ph');
     if (normalPhEffect) {
       expect(Math.abs(normalPhEffect.delta)).toBeLessThan(0.001);
     }
 
-    // High CO2 should push pH down
     const highCO2Effect = highCO2Effects.find((e) => e.resource === 'ph');
     expect(highCO2Effect).toBeDefined();
     expect(highCO2Effect!.delta).toBeLessThan(0);
@@ -221,8 +213,6 @@ describe('phDriftSystem', () => {
     const phEffect = effects.find((e) => e.resource === 'ph');
     expect(phEffect).toBeDefined();
 
-    // Expected: basePgDriftRate * (7.0 - 6.0) = 0.05 * 1.0 = 0.05
     expect(phEffect!.delta).toBeCloseTo(phDefaults.basePgDriftRate * (phDefaults.neutralPh - 6.0), 4);
   });
-
 });

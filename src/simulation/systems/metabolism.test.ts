@@ -5,17 +5,8 @@ import { MW_CO2, MW_N, MW_NH3, MW_O2 } from '../core/chemistry.js';
 import { monodFactor } from '../core/kinetics.js';
 import type { Fish } from '../state.js';
 
-/**
- * Oxygen enough that nothing below is short of it — where a fish still leaves a
- * ninth on the table. Not air saturation, which is 8.38 mg/L at 25 °C and is
- * where `config/index.test.ts` reads what the livestock rates reproduce.
- */
 const AMPLE_O2 = 8;
 
-/**
- * What that water leaves of a fish's metabolism. Deamination and the
- * respiratory draw are the one metabolism, so both are quoted against it.
- */
 const AMPLE_FACTOR = monodFactor(
   AMPLE_O2,
   livestockDefaults.respirationOxygenHalfSaturation
@@ -68,17 +59,12 @@ describe('processMetabolism', () => {
 
   it('raises satiation when food is consumed', () => {
     const fish = [makeFish({ satiation: 20, mass: 1.0 })];
-    // Lots of food available
     const result = processMetabolism(fish, 100, AMPLE_O2, livestockDefaults);
 
-    // Satiation should rise toward 100 (then decay knocks it back a hair).
     expect(result.updatedFish[0].satiation).toBeGreaterThan(20);
   });
 
   it('caps satiation at 100', () => {
-    // Plenty of food, low satiation, mass 10 → eats ~1 g of food worth of
-    // capacity, lands exactly at 100 then decays by 0.6 → 99.4. Verifies
-    // the hard 100 cap inside the eating function.
     const fish = [makeFish({ satiation: 0, mass: 1 })];
     const result = processMetabolism(fish, 1000, AMPLE_O2, livestockDefaults);
 
@@ -86,7 +72,6 @@ describe('processMetabolism', () => {
   });
 
   it('caps satiation at 0 minimum', () => {
-    // Already-empty fish with no food still gets clamped at 0 after decay.
     const fish = [makeFish({ satiation: 0, mass: 1.0 })];
     const result = processMetabolism(fish, 0, AMPLE_O2, livestockDefaults);
 
@@ -101,13 +86,9 @@ describe('processMetabolism', () => {
     expect(result.wasteProduced).toBeGreaterThan(0);
     expect(result.ammoniaProduced).toBeGreaterThan(0);
 
-    // wasteMass = foodGiven × (1 − gillNFraction)
     const expectedWaste = result.foodConsumed * (1 - livestockDefaults.gillNFraction);
     expect(result.wasteProduced).toBeCloseTo(expectedWaste, 8);
 
-    // Gill NH3 has two components: post-prandial (food-driven) + basal.
-    //   postPrandial = foodGiven × foodNitrogenFraction × gillNFraction × MW_NH3/MW_N × 1000
-    //   basal        = basalAmmoniaRate × mass
     const postPrandial =
       result.foodConsumed *
       livestockDefaults.foodNitrogenFraction *
@@ -119,14 +100,11 @@ describe('processMetabolism', () => {
   });
 
   it('still produces basal gill NH3 when no food is eaten', () => {
-    // A fasted fish keeps excreting NH3 from body protein turnover —
-    // only the post-prandial pulse and feces-waste vanish.
     const fish = [makeFish({ satiation: 50, mass: 1.0 })];
     const result = processMetabolism(fish, 0, AMPLE_O2, livestockDefaults);
 
     expect(result.foodConsumed).toBe(0);
     expect(result.wasteProduced).toBe(0);
-    // Basal NH3 = basalAmmoniaRate × mass × the oxygen it is running on
     expect(result.ammoniaProduced).toBeCloseTo(
       livestockDefaults.basalAmmoniaRate * 1.0 * AMPLE_FACTOR,
       6
@@ -134,11 +112,6 @@ describe('processMetabolism', () => {
   });
 
   it('conserves food-derived nitrogen exactly when waste ratio matches stoichiometry', () => {
-    // Verifies the N-conservation invariant holds exactly for the
-    // food pathway when the engine's waste-to-NH3 ratio is set to its
-    // stoichiometric value (0.05 × MW_NH3/MW_N × 1000 ≈ 60.78 mg NH3
-    // / g waste). Basal NH3 is subtracted out as it is a separate
-    // body-turnover source, and the N the fish kept is added back.
     const mass = 10;
     const fish = [makeFish({ satiation: 0, mass })];
     let totalFood = 0;
@@ -157,7 +130,6 @@ describe('processMetabolism', () => {
 
     const nIngested = totalFood * livestockDefaults.foodNitrogenFraction;
     const nDirect = foodDerivedNH3 / ((MW_NH3 / MW_N) * 1000);
-    // Use the stoichiometric ratio (not the configured rounded 60).
     const stoichRatio = livestockDefaults.foodNitrogenFraction * (MW_NH3 / MW_N) * 1000;
     const nWaste = (totalWaste * stoichRatio) / ((MW_NH3 / MW_N) * 1000);
     const nKept = nIngested * livestockDefaults.gillNFraction * (1 - AMPLE_FACTOR);
@@ -230,28 +202,18 @@ describe('processMetabolism', () => {
       makeFish({ id: 'hungry', satiation: 10, mass: 1.0 }),
       makeFish({ id: 'full', satiation: 90, mass: 1.0 }),
     ];
-    // Very limited food - only enough for one fish
     const availableFood = 0.005;
     const result = processMetabolism(fish, availableFood, AMPLE_O2, livestockDefaults);
 
     const hungryFish = result.updatedFish.find((f) => f.id === 'hungry')!;
     const fullFish = result.updatedFish.find((f) => f.id === 'full')!;
 
-    // Hungry fish (low satiation) gets fed first → its satiation rises;
-    // the already-near-full fish barely eats and just drifts down by decay.
     expect(hungryFish.satiation).toBeGreaterThan(10);
-    expect(fullFish.satiation).toBeLessThan(90); // drifts down via decay
+    expect(fullFish.satiation).toBeLessThan(90);
     expect(fullFish.satiation).toBeGreaterThanOrEqual(90 - livestockDefaults.satiationDecayRate);
   });
 
   it('abundant food drives satiation to (100 − decayRate) steady state (overfeeding reachable via the eating loop)', () => {
-    // Each tick: eat fills the gap up to 100, then decay subtracts
-    // satiationDecayRate. With unlimited food the per-tick equilibrium
-    // is 100 − decayRate — i.e. the fish keeps eating to the cap every
-    // tick, and the next tick's decay knocks it back the same amount.
-    // Overfeeding is reachable: the cap is hit every tick before decay,
-    // and that's exactly the condition the overfed stressor charges
-    // against.
     let fish: Fish[] = [makeFish({ satiation: 30, mass: 1.0 })];
     for (let i = 0; i < 50; i++) {
       const r = processMetabolism(fish, 1000, AMPLE_O2, livestockDefaults);
@@ -261,8 +223,6 @@ describe('processMetabolism', () => {
   });
 
   it('decay alone reduces satiation at the configured rate per tick', () => {
-    // No food at all → satiation drops by exactly satiationDecayRate
-    // each tick (no eating to offset).
     const fish = [makeFish({ satiation: 50, mass: 1.0 })];
     const r = processMetabolism(fish, 0, AMPLE_O2, livestockDefaults);
     expect(r.updatedFish[0].satiation).toBeCloseTo(

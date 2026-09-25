@@ -27,13 +27,7 @@ import { getPpm, getMassFromPpm } from '../resources/index.js';
 import { DEFAULT_CONFIG } from '../config/index.js';
 import { AIR_SATURATED_O2, nitrogenCycleDefaults } from '../config/nitrogen-cycle.js';
 
-/** The temperature every rate in the config is quoted at. */
 const REF = nitrogenCycleDefaults.referenceTemp;
-/**
- * Oxygen enough that nothing below is short of it. Deliberately not
- * {@link AIR_SATURATED_O2}: that is 8.38, it is the water the rates were quoted
- * in, and the two parity tests that need the chain to balance exactly use it.
- */
 const AMPLE_O2 = 8;
 
 describe('calculateMaxBacteria', () => {
@@ -183,7 +177,6 @@ describe('calculateWasteToAmmonia', () => {
       10
     );
   });
-
 });
 
 describe('calculateAmmoniaToNitrite', () => {
@@ -217,9 +210,6 @@ describe('calculateAmmoniaToNitrite', () => {
   });
 
   it('clears mg per bacteria unit — the rate carries no litres', () => {
-    // The unit `bacteriaProcessingRate` is quoted in. A colony's throughput is
-    // a property of its cells, so nothing here can depend on how much water
-    // happens to surround them.
     const bacteria = 100;
     const { ammoniaConsumed } = calculateAmmoniaToNitrite(1e6, bacteria, REF, AMPLE_O2);
 
@@ -242,7 +232,6 @@ describe('calculateAmmoniaToNitrite', () => {
 
     expect(ammoniaConsumed).toBeGreaterThan(0);
     expect(nitriteProduced).toBeCloseTo(ammoniaConsumed * NH3_TO_NO2_MASS_RATIO, 10);
-    // N-mass conservation: mg of N is the same before and after.
     expect(nitriteProduced * (14.01 / 46.01)).toBeCloseTo(ammoniaConsumed * (14.01 / 17.03), 10);
   });
 
@@ -325,7 +314,6 @@ describe('calculateNitriteToNitrate', () => {
 
     expect(nitriteConsumed).toBeGreaterThan(0);
     expect(nitrateProduced).toBeCloseTo(nitriteConsumed * NO2_TO_NO3_MASS_RATIO, 10);
-    // N-mass conservation.
     expect(nitrateProduced * (14.01 / 62.0)).toBeCloseTo(nitriteConsumed * (14.01 / 46.01), 10);
   });
 
@@ -342,8 +330,6 @@ describe('calculateNitriteToNitrate', () => {
   });
 
   it('clears exactly what AOB produce at population parity, in the water both rates are quoted in', () => {
-    // The two rates are quoted at air saturation, so that is where the chain
-    // balances per N atom: what the first step puts out, the second takes.
     const bacteria = 100;
     const saturated = AIR_SATURATED_O2;
     const { ammoniaConsumed, nitriteProduced } = calculateAmmoniaToNitrite(1e6, bacteria, REF, saturated);
@@ -357,9 +343,6 @@ describe('calculateNitriteToNitrate', () => {
   });
 
   it('falls behind that parity in every thinner water, and by more the thinner it gets', () => {
-    // The K gap, and the only thing between the two guilds once the rates are
-    // quoted against each other: NOB keep less of their maximum than AOB at
-    // every oxygen below the one both were measured at.
     const bacteria = 100;
     const shortfall = (oxygen: number): number =>
       calculateNitriteToNitrate(1e6, bacteria, REF, oxygen).nitriteConsumed /
@@ -391,9 +374,6 @@ describe('nitrifierOxygenFactor', () => {
     expect(nitrifierOxygenFactor('nob', 0)).toBe(0);
   });
 
-  // The whole reason the two constants are separate: the gap widens as the
-  // water empties, so a starved tank clears ammonia long after it has stopped
-  // clearing the nitrite that ammonia becomes.
   it('holds NOB back harder than AOB, and by more the less oxygen there is', () => {
     let previous = 1;
     for (const oxygen of [8, 4, 2, 1, 0.5, 0.25]) {
@@ -405,7 +385,6 @@ describe('nitrifierOxygenFactor', () => {
 });
 
 describe('nobProcessingRateMultiplier', () => {
-  /** Both guilds' oxygen term neutralised — the ratio with no air left in it. */
   const airless = {
     ...nitrogenCycleDefaults,
     aobOxygenHalfSaturation: 0,
@@ -425,9 +404,6 @@ describe('nobProcessingRateMultiplier', () => {
   });
 
   it('balances the chain at air saturation whatever the two constants are', () => {
-    // Read off the config rather than frozen at the defaults, so that the claim
-    // survives the tunables drawer moving either K — and so the counterfactual
-    // above is an engine with no oxygen term rather than a half-corrected one.
     for (const [aobK, nobK] of [
       [0.3, 1.1],
       [0.6, 0.6],
@@ -456,11 +432,8 @@ describe('getPpm', () => {
   });
 
   it('calculates ppm correctly', () => {
-    // 40mg in 40L = 1 ppm
     expect(getPpm(40, 40)).toBe(1);
-    // 80mg in 40L = 2 ppm
     expect(getPpm(80, 40)).toBe(2);
-    // 10mg in 100L = 0.1 ppm
     expect(getPpm(10, 100)).toBe(0.1);
   });
 });
@@ -475,11 +448,8 @@ describe('getMassFromPpm', () => {
   });
 
   it('calculates mass correctly', () => {
-    // 1 ppm in 40L = 40mg
     expect(getMassFromPpm(1, 40)).toBe(40);
-    // 2 ppm in 40L = 80mg
     expect(getMassFromPpm(2, 40)).toBe(80);
-    // 0.1 ppm in 100L = 10mg
     expect(getMassFromPpm(0.1, 100)).toBe(10);
   });
 
@@ -495,9 +465,9 @@ describe('nitrogenCycleSystem', () => {
   function createTestState(
     overrides: Partial<{
       waste: number;
-      ammonia: number; // Mass in mg
-      nitrite: number; // Mass in mg
-      nitrate: number; // Mass in mg
+      ammonia: number;
+      nitrite: number;
+      nitrate: number;
       aob: number;
       nob: number;
       surface: number;
@@ -521,7 +491,6 @@ describe('nitrogenCycleSystem', () => {
     });
   }
 
-  // Helper to convert ppm to mass for test setup
   function ppmToMass(ppm: number, water: number = 40): number {
     return getMassFromPpm(ppm, water);
   }
@@ -542,7 +511,6 @@ describe('nitrogenCycleSystem', () => {
       expect(wasteEffect!.delta).toBeLessThan(0);
       expect(ammoniaEffect).toBeDefined();
       expect(ammoniaEffect!.delta).toBeGreaterThan(0);
-      // Ammonia produced = waste consumed * ratio
       expect(ammoniaEffect!.delta).toBeCloseTo(-wasteEffect!.delta * nitrogenCycleDefaults.wasteToAmmoniaRatio, 10);
     });
 
@@ -559,7 +527,6 @@ describe('nitrogenCycleSystem', () => {
 
   describe('AOB Processing', () => {
     it('processes ammonia mass when AOB present', () => {
-      // Set ammonia mass (not ppm)
       const state = createTestState({ ammonia: ppmToMass(1.0), aob: 100 });
       const effects = nitrogenCycleSystem.update(state, DEFAULT_CONFIG);
 
@@ -574,7 +541,6 @@ describe('nitrogenCycleSystem', () => {
       expect(ammoniaEffect!.delta).toBeLessThan(0);
       expect(nitriteEffect).toBeDefined();
       expect(nitriteEffect!.delta).toBeGreaterThan(0);
-      // NO2 mass = NH3 mass × MW_NO2 / MW_NH3 (N-mass conserved)
       expect(nitriteEffect!.delta).toBeCloseTo(-ammoniaEffect!.delta * NH3_TO_NO2_MASS_RATIO, 10);
     });
 
@@ -605,7 +571,6 @@ describe('nitrogenCycleSystem', () => {
       expect(nitriteEffect!.delta).toBeLessThan(0);
       expect(nitrateEffect).toBeDefined();
       expect(nitrateEffect!.delta).toBeGreaterThan(0);
-      // NO3 mass = NO2 mass × MW_NO3 / MW_NO2 (N-mass conserved)
       expect(nitrateEffect!.delta).toBeCloseTo(-nitriteEffect!.delta * NO2_TO_NO3_MASS_RATIO, 10);
     });
 
@@ -621,8 +586,6 @@ describe('nitrogenCycleSystem', () => {
   });
 
   describe('A drained tank', () => {
-    // Nitrifiers oxidise what is dissolved. A persisted or API-built state may
-    // carry no water at all, and a colony there has nothing to work on.
     const COLONY = 1000;
     const dry = (): Effect[] =>
       nitrogenCycleSystem.update(
@@ -704,7 +667,6 @@ describe('nitrogenCycleSystem', () => {
   });
 
   describe('Bacteria Growth (proportional to work done)', () => {
-    /** Surface big enough that the logistic ceiling is not what is being read. */
     const ROOMY = 100000;
 
     function growth(resource: 'aob' | 'nob', state: SimulationState): number | undefined {
@@ -726,8 +688,6 @@ describe('nitrogenCycleSystem', () => {
     });
 
     it('grows a colony that clears its entire load', () => {
-      // The inversion of the old bug: consuming everything used to leave the
-      // colony under its food threshold, so success was punished with death.
       const aob = 100;
       const wholeLoad = aob * nitrogenCycleDefaults.bacteriaProcessingRate * 0.5;
       const state = createTestState({ ammonia: wholeLoad, aob, surface: ROOMY });
@@ -742,8 +702,6 @@ describe('nitrogenCycleSystem', () => {
     });
 
     it('grows harder for a heavier load', () => {
-      // Both loads sit under the colony's capacity, so utilization — and with
-      // it growth — reads the load rather than saturating at 1.
       const capacity = 100 * nitrogenCycleDefaults.bacteriaProcessingRate;
       const light = growth('aob', createTestState({ ammonia: capacity * 0.1, aob: 100, surface: ROOMY }));
       const heavy = growth('aob', createTestState({ ammonia: capacity * 0.9, aob: 100, surface: ROOMY }));

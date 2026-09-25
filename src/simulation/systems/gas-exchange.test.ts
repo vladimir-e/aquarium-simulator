@@ -34,7 +34,6 @@ describe('calculateO2Saturation', () => {
   it('follows linear relationship with temperature', () => {
     const t1 = calculateO2Saturation(20);
     const t2 = calculateO2Saturation(30);
-    // Should differ by 10°C * slope
     expect(t1 - t2).toBeCloseTo(10 * Math.abs(gasExchangeDefaults.o2SaturationSlope), 2);
   });
 });
@@ -51,27 +50,23 @@ describe('calculateFlowFactor', () => {
   });
 
   it('returns 1.0 at optimal flow turnover', () => {
-    // 100L tank, 10 turnovers/hr = 1000 L/hr flow
     const optimalFlow = gasExchangeDefaults.optimalFlowTurnover * 100;
     const factor = calculateFlowFactor(optimalFlow, 100);
     expect(factor).toBeCloseTo(1.0, 2);
   });
 
   it('caps at 1.0 for very high flow', () => {
-    // Way above optimal
     const factor = calculateFlowFactor(10000, 100);
     expect(factor).toBe(1.0);
   });
 
   it('scales linearly with flow below optimal, above the passive floor', () => {
-    // Choose flows well above the passive floor contribution.
     const factor1 = calculateFlowFactor(400, 100);
     const factor2 = calculateFlowFactor(800, 100);
     expect(factor2).toBeCloseTo(factor1 * 2, 2);
   });
 
   it('floors at minFlowFactor when flow-driven factor is below it', () => {
-    // Tiny flow — well under 10% of optimal. Should be clamped to the floor.
     const factor = calculateFlowFactor(10, 100);
     expect(factor).toBe(gasExchangeDefaults.minFlowFactor);
   });
@@ -121,7 +116,6 @@ describe('calculateAerationFactor', () => {
     expect(calculateAerationFactor(true, 2.0)).toBe(2.0);
     expect(calculateAerationFactor(true, 3.0)).toBe(3.0);
   });
-
 });
 
 describe('gasExchangeSystem', () => {
@@ -158,41 +152,41 @@ describe('gasExchangeSystem', () => {
     const state = createTestState({
       oxygen: 6.0,
       temperature: 25,
-      flow: 500, // Some flow to enable exchange
+      flow: 500,
     });
     const effects = gasExchangeSystem.update(state, DEFAULT_CONFIG);
 
     const o2Effect = effects.find((e) => e.resource === 'oxygen');
     expect(o2Effect).toBeDefined();
-    expect(o2Effect!.delta).toBeGreaterThan(0); // Moving toward saturation
+    expect(o2Effect!.delta).toBeGreaterThan(0);
     expect(o2Effect!.source).toBe('gas-exchange-o2');
     expect(o2Effect!.tier).toBe('passive');
   });
 
   it('creates CO2 effect when above atmospheric', () => {
     const state = createTestState({
-      co2: 10.0, // Above atmospheric (~4 mg/L)
+      co2: 10.0,
       flow: 500,
     });
     const effects = gasExchangeSystem.update(state, DEFAULT_CONFIG);
 
     const co2Effect = effects.find((e) => e.resource === 'co2');
     expect(co2Effect).toBeDefined();
-    expect(co2Effect!.delta).toBeLessThan(0); // Off-gassing toward atmospheric
+    expect(co2Effect!.delta).toBeLessThan(0);
     expect(co2Effect!.source).toBe('gas-exchange-co2');
     expect(co2Effect!.tier).toBe('passive');
   });
 
   it('creates positive CO2 effect when below atmospheric', () => {
     const state = createTestState({
-      co2: 2.0, // Below atmospheric (~4 mg/L)
+      co2: 2.0,
       flow: 500,
     });
     const effects = gasExchangeSystem.update(state, DEFAULT_CONFIG);
 
     const co2Effect = effects.find((e) => e.resource === 'co2');
     expect(co2Effect).toBeDefined();
-    expect(co2Effect!.delta).toBeGreaterThan(0); // Absorbing toward atmospheric
+    expect(co2Effect!.delta).toBeGreaterThan(0);
   });
 
   it('creates no effects when already at equilibrium', () => {
@@ -205,7 +199,6 @@ describe('gasExchangeSystem', () => {
     });
     const effects = gasExchangeSystem.update(state, DEFAULT_CONFIG);
 
-    // Effects might be very small but effectively 0
     effects.forEach((e) => {
       expect(Math.abs(e.delta)).toBeLessThan(0.01);
     });
@@ -250,7 +243,6 @@ describe('gasExchangeSystem', () => {
     const coldO2Delta = coldEffects.find((e) => e.resource === 'oxygen')?.delta ?? 0;
     const hotO2Delta = hotEffects.find((e) => e.resource === 'oxygen')?.delta ?? 0;
 
-    // Cold water has higher saturation, so more room to increase
     expect(coldO2Delta).toBeGreaterThan(hotO2Delta);
   });
 
@@ -267,13 +259,11 @@ describe('gasExchangeSystem', () => {
     const o2Effect = effects.find((e) => e.source === 'gas-exchange-o2');
     const co2Effect = effects.find((e) => e.source === 'gas-exchange-co2');
 
-    // Both gases still equilibrate through the still surface.
     expect(o2Effect).toBeDefined();
-    expect(o2Effect!.delta).toBeGreaterThan(0); // moving toward saturation
+    expect(o2Effect!.delta).toBeGreaterThan(0);
     expect(co2Effect).toBeDefined();
-    expect(co2Effect!.delta).toBeLessThan(0); // off-gassing toward atmospheric
+    expect(co2Effect!.delta).toBeLessThan(0);
 
-    // The passive rate is a small fraction of the full-flow rate.
     const geConfig = DEFAULT_CONFIG.gasExchange;
     const o2Saturation = calculateO2Saturation(25, geConfig);
     const fullFlowO2 = geConfig.baseExchangeRate * (o2Saturation - 6.0);
@@ -291,7 +281,6 @@ describe('gasExchangeSystem', () => {
     });
     const effects = gasExchangeSystem.update(state, DEFAULT_CONFIG);
 
-    // At equilibrium the delta is zero regardless of the floor.
     expect(effects.length).toBe(0);
   });
 
@@ -299,7 +288,7 @@ describe('gasExchangeSystem', () => {
     it('adds direct O2 injection when aeration is active', () => {
       const state = createTestState({
         oxygen: 6.0,
-        flow: 0, // No flow, but aeration provides direct O2
+        flow: 0,
         aeration: true,
       });
       const effects = gasExchangeSystem.update(state, DEFAULT_CONFIG);
@@ -311,7 +300,7 @@ describe('gasExchangeSystem', () => {
 
     it('does not add direct O2 above saturation', () => {
       const state = createTestState({
-        oxygen: 10.0, // Above saturation
+        oxygen: 10.0,
         temperature: 25,
         flow: 0,
         aeration: true,
@@ -340,13 +329,12 @@ describe('gasExchangeSystem', () => {
       const noAerationO2 = noAerationEffects.find((e) => e.source === 'gas-exchange-o2')?.delta ?? 0;
       const aerationO2 = aerationEffects.find((e) => e.source === 'gas-exchange-o2')?.delta ?? 0;
 
-      // Aeration should increase O2 exchange rate
       expect(aerationO2).toBeGreaterThan(noAerationO2);
     });
 
     it('increases CO2 off-gassing when aeration is active', () => {
       const noAerationState = createTestState({
-        co2: 20.0, // High CO2
+        co2: 20.0,
         flow: 500,
         aeration: false,
       });
@@ -362,7 +350,6 @@ describe('gasExchangeSystem', () => {
       const noAerationCO2 = noAerationEffects.find((e) => e.source === 'gas-exchange-co2')?.delta ?? 0;
       const aerationCO2 = aerationEffects.find((e) => e.source === 'gas-exchange-co2')?.delta ?? 0;
 
-      // Both should be negative (off-gassing), but aeration should off-gas more
       expect(aerationCO2).toBeLessThan(noAerationCO2);
     });
   });

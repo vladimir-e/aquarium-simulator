@@ -10,17 +10,9 @@ import { establishmentSurplus } from './create-plant.js';
 import { PLANT_SPECIES_DATA } from './species.js';
 
 describe('processPlants', () => {
-  // Default per-plant condition for test stubs — new in the per-plant Liebig
-  // engine (before, plants were a raw {id, species, size} bag).
   const C = 100;
-  /** The bank a plant is stocked with, so a stub starts where a real one does. */
   const BANK = establishmentSurplus(plantsDefaults);
 
-  /**
-   * What a java fern is charged for an hour of staying alive, post-hardiness,
-   * at `respirationReferenceTemp` — which is the temperature every state here
-   * is built at, so the Q10 factor is 1.
-   */
   const NIGHTLY_UPKEEP =
     plantsDefaults.upkeepCost * (1 - PLANT_SPECIES_DATA.java_fern.hardiness);
 
@@ -61,7 +53,6 @@ describe('processPlants', () => {
       expect(result.state).toBe(state);
       expect(result.effects).toHaveLength(0);
     });
-
   });
 
   describe('with plants and lights on (photosynthesis + respiration)', () => {
@@ -103,10 +94,6 @@ describe('processPlants', () => {
     });
 
     it('does not grow plants whose condition is sub-100 (surplus-overflow gate)', () => {
-      // Task 40 design: a stressed plant heals first, never crawls
-      // forward at reduced rate. If condition < 100 the plant takes 0
-      // share of the photosynthesis biomass that tick — its
-      // photosynthate flows to maintenance, not new tissue.
       const state = createTestState({
         plants: [
           { id: 'p1', species: 'java_fern', size: 50, condition: 80, surplus: BANK },
@@ -117,17 +104,11 @@ describe('processPlants', () => {
         water: 100,
       });
       const result = processPlants(state, DEFAULT_CONFIG);
-      // Size unchanged because surplus is gated by condition === 100.
       expect(result.state.plants[0].size).toBe(50);
-      // Condition heals (vitality net is positive in good conditions).
       expect(result.state.plants[0].condition).toBeGreaterThan(80);
     });
 
     it('only the at-100 plant grows when paired with a sub-100 sibling', () => {
-      // Two java_ferns, identical species and starting size; one
-      // healthy, one sub-100 condition. Only the healthy one should
-      // grow this tick — and it gets the full biomass share since the
-      // unhealthy sibling is excluded from the share calculation.
       const state = createTestState({
         plants: [
           { id: 'healthy', species: 'java_fern', size: 50, condition: 100, surplus: BANK },
@@ -176,21 +157,10 @@ describe('processPlants', () => {
       const respEffects = result.effects.filter((e) => e.source === 'respiration');
       expect(respEffects.length).toBeGreaterThan(0);
     });
-
   });
 
   describe('photoperiod gate on surplus banking and growth', () => {
-    // Plant surplus represents stored photosynthate (sugars from carbon
-    // fixation). Both banking and spending gate on `resources.light > 0`:
-    // no photosynthesis = no energy capture and no net biomass
-    // accumulation. Vitality runs every tick regardless — the plant is
-    // still paying maintenance out of the bank — but the surplus
-    // pipeline pauses overnight.
-
     it('spends the bank rather than banking at night, however good the water', () => {
-      // Every benefit is realised through photosynthesis, so a dark tick earns
-      // nothing whatever the water is doing and the accrual gate is handed no
-      // overflow. What is left is the night's own cost, drawn off the bank.
       const state = createTestState({
         plants: [{ id: 'p1', species: 'java_fern', size: 50, condition: 100, surplus: 5 }],
         light: 0,
@@ -205,8 +175,6 @@ describe('processPlants', () => {
     });
 
     it('does not grow at night even with banked surplus', () => {
-      // A plant entering night with a bank above its reserve should NOT spend
-      // any of it on growth. Size stays put and the bank pays only maintenance.
       const state = createTestState({
         plants: [{ id: 'p1', species: 'java_fern', size: 50, condition: 100, surplus: 40 }],
         light: 0,
@@ -219,7 +187,6 @@ describe('processPlants', () => {
     });
 
     it('grows during the day when surplus is available', () => {
-      // Pre-banked surplus + lights on → measurable size gain.
       const state = createTestState({
         plants: [{ id: 'p1', species: 'java_fern', size: 50, condition: 100, surplus: 10 }],
         light: 50,
@@ -234,10 +201,6 @@ describe('processPlants', () => {
     });
 
     it('day/night/day cycle: surplus and size advance only during lit periods', () => {
-      // 5 ticks day → 5 ticks night → 5 ticks day. Snapshot after
-      // each segment. Night segment must leave surplus and size
-      // exactly as the prior day segment ended; day segments must
-      // both advance them.
       const state = createTestState({
         plants: [
           {
@@ -274,34 +237,21 @@ describe('processPlants', () => {
       expect(sizeDay1).toBeGreaterThan(50);
 
       const afterNight = runTicks(afterDay1, 5, 0);
-      // Night freezes size — banking and growth are both gated on light — and
-      // runs the bank down by what the plant spends staying alive.
-      // (Shedding/death paths could touch size, but with condition 100 in this
-      // scenario neither fires.)
       expect(afterNight.plants[0].size).toBe(sizeDay1);
       expect(afterNight.plants[0].surplus).toBeLessThan(surplusDay1);
 
       const afterDay2 = runTicks(afterNight, 5, 50);
-      // Resumes advance once lights return.
       expect(afterDay2.plants[0].size).toBeGreaterThan(sizeDay1);
     });
   });
 
   describe('day/night O2 balance', () => {
-
-    /**
-     * Net oxygen a 100 % planting of one species moves in a lit hour, with
-     * carbon and nutrients held past where either limits the rate — so what
-     * decides the sign is the fixture against the plant's own respiration.
-     */
     const netOxygen = (species: PlantSpecies, light: number): number =>
       processPlants(
         createTestState({
           plants: [{ id: 'p1', species, size: 100, condition: C, surplus: 0 }],
           light,
           co2: plantsDefaults.optimalCo2,
-          // Held past every species' Liebig gate — a crossover read on a
-          // starved plant would be measuring the nutrients.
           nitrate: plantsDefaults.optimalNitrate * 100 * 3,
           phosphate: nutrientsDefaults.optimalPhosphatePpm * 100 * 3,
           potassium: nutrientsDefaults.optimalPotassiumPpm * 100 * 3,
@@ -314,7 +264,6 @@ describe('processPlants', () => {
         .effects.filter((e) => e.resource === 'oxygen')
         .reduce((sum, e) => sum + e.delta, 0);
 
-    /** The dimmest fixture the planting still breaks even under, by bisection. */
     const crossover = (species: PlantSpecies): number => {
       let dark = 0;
       let lit = 400;
@@ -328,18 +277,12 @@ describe('processPlants', () => {
 
     it('runs a planting under too dim a fixture at a net loss, lamps on', () => {
       for (const species of ['java_fern', 'monte_carlo'] as const) {
-        // Read either side of the species' own crossover rather than at a
-        // named PAR: where it sits is a calibration, that it exists is the
-        // mechanism, and only the second is this test's to hold.
         expect(netOxygen(species, crossover(species) / 2)).toBeLessThan(0);
         expect(netOxygen(species, 400)).toBeGreaterThan(0);
       }
     });
 
     it('breaks even in dimmer light the lower a species saturates', () => {
-      // Respiration is the same charge whatever is planted, so what decides
-      // where a species clears it is its own Ik — a shade plant is in credit
-      // in light a carpet starves in.
       expect(crossover('java_fern')).toBeLessThan(crossover('monte_carlo'));
     });
   });
@@ -349,7 +292,6 @@ describe('processPlants', () => {
       { id: 'p1', species: 'java_fern', size: 100, condition: C, surplus: 0 },
     ];
 
-    /** Every gas effect this planting emits, summed, in a tank of `water` litres. */
     const gasIn = (water: number, light: number): { oxygen: number; co2: number } => {
       const result = processPlants(
         createTestState({
@@ -384,8 +326,6 @@ describe('processPlants', () => {
     });
 
     it('emits no gas at all into a tank with no water in it', () => {
-      // Respiration answers in mass and knows nothing of volume, so this guard
-      // is the only thing between a drained tank and an infinite concentration.
       const drained = processPlants(
         createTestState({ plants: planting, light: 50, co2: 0, water: 0 }),
         DEFAULT_CONFIG
@@ -400,7 +340,6 @@ describe('processPlants', () => {
   });
 
   describe('waste effect when plants overgrow', () => {
-
     it('no waste when plants below 200%', () => {
       const state = createTestState({
         plants: [{ id: 'p1', species: 'java_fern', size: 50, condition: C, surplus: 0 }],
@@ -451,12 +390,10 @@ describe('processPlants', () => {
       });
       const result = processPlants(state, DEFAULT_CONFIG);
 
-      // All plants should grow
       expect(result.state.plants[0].size).toBeGreaterThan(50);
       expect(result.state.plants[1].size).toBeGreaterThan(60);
       expect(result.state.plants[2].size).toBeGreaterThan(70);
     });
-
   });
 
   describe('immutability', () => {
@@ -474,16 +411,9 @@ describe('processPlants', () => {
 
       expect(state.plants[0].size).toBe(originalSize);
     });
-
   });
 
   describe('the reserve buys tissue, not condition', () => {
-    // The bank answers to the cost of living: it pays the night's upkeep
-    // so the plant doesn't have to shed for it. Damage goes past it
-    // straight into condition — spending the reserve on repair would
-    // leave nothing to pay the night with. Tested at night (light 0) so
-    // no income confuses the reading.
-
     it('a plant with reserves keeps its size through a night a bare one melts in', () => {
       const withBank = createTestState({
         plants: [{ id: 'p1', species: 'java_fern', size: 50, condition: 100, surplus: 20 }],
@@ -506,10 +436,6 @@ describe('processPlants', () => {
     });
 
     it('buffers damage on the spare, and lets it past once only the reserve is left', () => {
-      // Hostile pH at night is damage, not a bill. A banked plant spends the
-      // spare on it and holds condition; one down to its survival reserve has
-      // nothing to spend, so the same hour reaches condition instead — and the
-      // reserve is still there to pay the rest of the night's upkeep with.
       const hostilePh = (s: SimulationState): SimulationState =>
         produce(s, (draft) => {
           draft.resources.ph = 9.5;
@@ -529,7 +455,6 @@ describe('processPlants', () => {
       expect(banked.condition).toBe(100);
       expect(banked.surplus).toBeLessThan(20);
 
-      // The line off the engine's own arithmetic, not a copy of the formula.
       const reserve = readPlantVitality(sour(0), DEFAULT_CONFIG)[0].breakdown.reserved;
       const spent = overnight(reserve);
       expect(spent.condition).toBeLessThan(100);
@@ -548,12 +473,6 @@ describe('processPlants', () => {
   });
 
   describe('the bottom of the upkeep slider', () => {
-    // `upkeepCost` declares `min: 0`, and a plant tuned there owns an energy
-    // ledger like any other — the storing arm is keyed off the ledger being
-    // declared, never off what it charges. Keying it off the rate froze the
-    // bank, and a frozen bank is a plant that never grows again, so banking
-    // and growth both have to be pinned: either alone passes with the other
-    // stalled.
     const free = { ...DEFAULT_CONFIG, plants: { ...plantsDefaults, upkeepCost: 0 } };
 
     const lit = (): SimulationState =>

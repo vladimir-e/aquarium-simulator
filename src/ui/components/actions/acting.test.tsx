@@ -15,18 +15,12 @@ beforeEach(() => {
   media = stubMatchMedia(viewport(1180));
 });
 
-// Unmount first: the provider flushes its pending save on the way out, and a
-// tank that saved after the wipe would be the next test's opening state.
 afterEach(() => {
   cleanup();
   media.restore();
   globalThis.localStorage.clear();
 });
 
-/**
- * The whole instrument, on the tank it opens with: bare, so the two verbs that
- * need plants refuse and the one that needs nothing commits.
- */
 function renderApp(path = '/'): void {
   render(
     <ThemeProvider>
@@ -53,12 +47,10 @@ function sheet(name: string): HTMLElement {
   return screen.getByRole('dialog', { name });
 }
 
-/** What the drawer's preview says one reading would do. */
 function preview(reading: string): string {
   return document.querySelector(`[data-reading="${reading}"]`)?.textContent ?? '';
 }
 
-/** Action marks the spine carries, which the engine's own log lines put there. */
 function actionMarks(): number {
   return document.querySelectorAll('footer .bg-accent').length;
 }
@@ -146,7 +138,6 @@ describe('a verb sheet', () => {
 
     expect(screen.queryByRole('dialog', { name: 'Feed' })).toBeNull();
     expect(actionMarks()).toBe(marks + 1);
-    // The engine took the food, so the next preview starts where the last one left off.
     fireEvent.click(within(palette()).getByRole('option', { name: /^Feed/ }));
     expect(preview('food')).toContain('0.50');
   });
@@ -159,7 +150,6 @@ describe('a verb sheet', () => {
     const track = ghost.parentElement!;
     const marker = track.lastElementChild as HTMLElement;
 
-    // Nothing in the water, and half a gram of it on a track that runs to two.
     expect(ghost.style.left).toBe('calc(0% - 1px)');
     expect(marker.style.left).toBe('calc(25% - 1px)');
     expect(track.querySelector('[data-band]')).toBeNull();
@@ -182,7 +172,6 @@ describe('a verb sheet', () => {
     fireEvent.click(within(palette()).getByRole('option', { name: /^Feed/ }));
     fireEvent.click(within(sheet('Feed')).getByRole('button', { name: 'Feed 0.5 g' }));
 
-    // The label the reader sees is the name the reader hears.
     expect(screen.getByRole('button', { name: 'Act — Feed · 0.5 g' }).textContent).toContain(
       'Feed · 0.5 g'
     );
@@ -194,7 +183,6 @@ describe('a verb sheet', () => {
     const marks = actionMarks();
     const commit = within(sheet('Feed')).getByRole('button', { name: 'Feed 0.5 g' });
 
-    // The sheet opens on its commit, so Enter lands there without a click first.
     expect(document.activeElement).toBe(commit);
     fireEvent.keyDown(commit, { key: 'Enter' });
 

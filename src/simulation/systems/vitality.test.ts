@@ -16,11 +16,6 @@ function benefit(key: string, amount: number, label = key): VitalityFactor {
 
 const CAP = 50;
 
-/**
- * Build a `VitalityInput` with an empty bank and the default cap, so a
- * test only spells out the fields it cares about. `surplus` and
- * `surplusCap` default to 0 / CAP; pass overrides to exercise the buffer.
- */
 function input(partial: Partial<VitalityInput> & Pick<VitalityInput, 'hardiness' | 'condition'>): VitalityInput {
   return {
     stressors: [],
@@ -60,7 +55,6 @@ describe('computeVitality', () => {
           condition: 80,
         })
       );
-      // damageRate = 2 × (1 - 0.5) = 1.0; benefitRate = 0.5; net = -0.5
       expect(result.breakdown.damageRate).toBeCloseTo(1.0, 6);
       expect(result.breakdown.benefitRate).toBeCloseTo(0.5, 6);
       expect(result.breakdown.net).toBeCloseTo(-0.5, 6);
@@ -84,31 +78,27 @@ describe('computeVitality', () => {
       const result = computeVitality(
         input({
           stressors: [stressor('temp', 2.0)],
-          hardiness: 0, // full 2.0 %/h damage
+          hardiness: 0,
           condition: 100,
           surplus: 10,
         })
       );
       expect(result.breakdown.net).toBeCloseTo(-2.0, 6);
-      expect(result.newCondition).toBe(100); // fully buffered
+      expect(result.newCondition).toBe(100);
       expect(result.breakdown.drained).toBeCloseTo(2.0, 6);
-      expect(result.surplus).toBeCloseTo(8.0, 6); // 10 − 2
+      expect(result.surplus).toBeCloseTo(8.0, 6);
     });
 
     it('splits the hit when the bank is smaller than the damage', () => {
-      // bank 1, damage 3 → bank absorbs 1, condition eats the other 2.
       const result = computeVitality(
         input({ stressors: [stressor('a', 3)], hardiness: 0, condition: 80, surplus: 1 })
       );
       expect(result.breakdown.drained).toBe(1);
       expect(result.surplus).toBe(0);
-      expect(result.newCondition).toBeCloseTo(78, 6); // 80 − (3 − 1)
+      expect(result.newCondition).toBeCloseTo(78, 6);
     });
 
     it('decline resumes exactly when the bank empties', () => {
-      // Two ticks of 1 %/h damage against a bank of 1, condition 100.
-      // Tick 1: bank covers it, condition stays 100, bank → 0.
-      // Tick 2: bank empty, condition falls the full 1 %/h.
       const tick1 = computeVitality(
         input({ stressors: [stressor('a', 1)], hardiness: 0, condition: 100, surplus: 1 })
       );
@@ -123,8 +113,6 @@ describe('computeVitality', () => {
     });
 
     it('a sub-100 organism with reserves has its condition protected too', () => {
-      // The buffer is not gated on being at full condition — a stressed
-      // organism with banked reserves still burns them before condition.
       const result = computeVitality(
         input({ stressors: [stressor('a', 2)], hardiness: 0, condition: 60, surplus: 5 })
       );
@@ -136,7 +124,6 @@ describe('computeVitality', () => {
 
   describe('saturation cap', () => {
     it('accrues up to the cap then discards the overflow', () => {
-      // Bank 49, net +5, cap 50 → banks 1, discards 4.
       const result = computeVitality(
         input({ benefits: [benefit('great', 5)], hardiness: 0.5, condition: 100, surplus: 49 })
       );
@@ -154,7 +141,6 @@ describe('computeVitality', () => {
           surplus: 0,
         })
       );
-      // damageRate = 0.5 × 0.4 = 0.2; benefitRate = 2.5; net = 2.3
       expect(result.newCondition).toBe(100);
       expect(result.surplus).toBeCloseTo(2.3, 6);
     });
@@ -169,7 +155,6 @@ describe('computeVitality', () => {
           surplus: 4,
         })
       );
-      // damageRate 0.5, benefitRate 0.5, net 0 → no drain, no accrual.
       expect(result.breakdown.net).toBeCloseTo(0, 6);
       expect(result.newCondition).toBe(100);
       expect(result.surplus).toBe(4);
@@ -180,7 +165,7 @@ describe('computeVitality', () => {
     it('clamps an over-cap bank down to the cap on an idle tick', () => {
       const result = computeVitality(input({ hardiness: 0.5, condition: 90, surplus: 80 }));
       expect(result.surplus).toBe(CAP);
-      expect(result.newCondition).toBe(90); // net 0, no heal
+      expect(result.newCondition).toBe(90);
     });
 
     it('clamps an over-cap bank while healing sub-100', () => {
@@ -190,7 +175,6 @@ describe('computeVitality', () => {
       expect(result.newCondition).toBe(93);
       expect(result.surplus).toBe(CAP);
     });
-
   });
 
   describe('net-positive recovery (sub-100)', () => {
@@ -204,10 +188,8 @@ describe('computeVitality', () => {
           surplus: 7,
         })
       );
-      // damageRate = 0.5 × 0.6 = 0.3; benefitRate = 2.0; net = 1.7
       expect(result.breakdown.net).toBeCloseTo(1.7, 6);
       expect(result.newCondition).toBeCloseTo(61.7, 6);
-      // Bank retained (not accrued into while healing), just clamped.
       expect(result.surplus).toBe(7);
     });
 
@@ -216,7 +198,6 @@ describe('computeVitality', () => {
         input({ benefits: [benefit('all', 5)], hardiness: 0.5, condition: 99, surplus: 0 })
       );
       expect(result.newCondition).toBe(100);
-      // Overshoot spent on the final fraction, not carried into the bank.
       expect(result.surplus).toBe(0);
     });
 
@@ -225,7 +206,7 @@ describe('computeVitality', () => {
         input({ benefits: [benefit('boost', 3)], hardiness: 0.5, condition: 90, surplus: 2 })
       );
       expect(result.newCondition).toBe(93);
-      expect(result.surplus).toBe(2); // retained, not grown
+      expect(result.surplus).toBe(2);
     });
   });
 
@@ -241,11 +222,10 @@ describe('computeVitality', () => {
         })
       );
       expect(result.newCondition).toBe(100);
-      expect(result.surplus).toBe(10); // overflow discarded, bank held
+      expect(result.surplus).toBe(10);
     });
 
     it('still drains the bank to buffer damage when accrual is gated off', () => {
-      // Gating is on accrual only — the reserve still protects condition.
       const result = computeVitality(
         input({
           stressors: [stressor('a', 2)],
@@ -262,7 +242,6 @@ describe('computeVitality', () => {
   });
 
   describe('two claims on one bank, in an order', () => {
-    /** An organism owing 1/h for being alive, holding 20, reserving 5 hours of it. */
     const storing = (
       partial: Partial<VitalityInput> & Pick<VitalityInput, 'condition'>
     ): VitalityInput =>
@@ -275,8 +254,6 @@ describe('computeVitality', () => {
       });
 
     it('lets upkeep spend the bank to the last unit', () => {
-      // No income, so the whole bill falls on the bank — reserve and all,
-      // because upkeep is what the reserve is reserved *for*.
       const result = computeVitality(storing({ condition: 100, surplus: 3 }));
 
       expect(result.surplus).toBe(2);
@@ -291,8 +268,6 @@ describe('computeVitality', () => {
     });
 
     it('buffers damage on the spare above the reserve, holding condition', () => {
-      // Income 4 pays the 1 upkeep; damage 6 outruns the 3 left over by 3,
-      // and the bank has 15 spare above its 5-hour line to meet it with.
       const result = computeVitality(
         storing({ benefits: [benefit('light', 4)], stressors: [stressor('ph', 6)], condition: 100 })
       );
@@ -318,8 +293,6 @@ describe('computeVitality', () => {
     });
 
     it('leaves the next hour of upkeep payable however hard the damage is', () => {
-      // The point of the ordering: damage can never be what starves an
-      // organism, so `starved` stays 0 no matter how big the stressor is.
       const result = computeVitality(
         storing({
           benefits: [benefit('light', 4)],
@@ -341,9 +314,6 @@ describe('computeVitality', () => {
     });
 
     it('reads the ledger off the array, not off what it sums to', () => {
-      // A ledger that owes nothing is still a ledger: income banks, and the
-      // condition comes back as a withdrawal the caller makes. Only an
-      // organism that declares no upkeep at all heals on income instead.
       const earning = { benefits: [benefit('light', 4)], condition: 40 };
 
       for (const owes of [[], [stressor('alive', 0)]]) {
@@ -444,9 +414,7 @@ describe('bankSurplus', () => {
   });
 
   it('drains the bank to absorb damage, reporting the shortfall', () => {
-    // damage 3, bank 1 → drains 1, 2 overflows to the stock.
     expect(bankSurplus(1, -3, CAP, true)).toEqual({ surplus: 0, drained: 1, overflowDamage: 2 });
-    // damage 2, bank 10 → fully covered.
     expect(bankSurplus(10, -2, CAP, true)).toEqual({ surplus: 8, drained: 2, overflowDamage: 0 });
   });
 
@@ -456,7 +424,6 @@ describe('bankSurplus', () => {
 
   it('clamps an over-cap bank down to the cap on entry', () => {
     expect(bankSurplus(80, 0, CAP, true).surplus).toBe(CAP);
-    // Clamp happens before draining: 80 → 50, then −2.
     expect(bankSurplus(80, -2, CAP, true)).toEqual({ surplus: 48, drained: 2, overflowDamage: 0 });
   });
 
@@ -469,7 +436,6 @@ describe('bankSurplus', () => {
   });
 
   it('treats a negative cap as zero across every branch', () => {
-    // Accrual, drain, and idle must all leave the bank at 0, never below.
     expect(bankSurplus(8, 5, -10, true).surplus).toBe(0);
     expect(bankSurplus(8, -2, -10, true).surplus).toBe(0);
     expect(bankSurplus(8, 0, -10, true).surplus).toBe(0);
@@ -477,7 +443,6 @@ describe('bankSurplus', () => {
 
   describe('a reserved depth a claim may not reach', () => {
     it('drains only the spare above it, overflowing the rest', () => {
-      // bank 10, 4 reserved → 6 spendable against damage 9.
       expect(bankSurplus(10, -9, CAP, true, 4)).toEqual({
         surplus: 4,
         drained: 6,

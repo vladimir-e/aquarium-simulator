@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { calculateEvaporation, evaporationSystem, LID_MULTIPLIERS } from './evaporation.js';
-import { createSimulation, type LidType } from '../state.js';
+import { createSimulation, type LidType, type SimulationState } from '../state.js';
 import { DEFAULT_CONFIG } from '../config/index.js';
 import { evaporationDefaults } from '../config/evaporation.js';
 
@@ -47,7 +47,7 @@ describe('calculateEvaporation', () => {
 });
 
 describe('evaporationSystem', () => {
-  const tank = (lid: LidType = 'none') =>
+  const tank = (lid: LidType = 'none'): SimulationState =>
     createSimulation({ tankCapacity: 100, initialTemperature: 25, roomTemperature: 22, lid: { type: lid } });
 
   it('takes water as one immediate effect', () => {

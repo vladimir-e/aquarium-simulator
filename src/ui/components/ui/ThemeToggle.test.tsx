@@ -17,7 +17,6 @@ function toggle(): HTMLElement {
   return screen.getByRole('button');
 }
 
-/** The mode the button is in, read off the label it offers. */
 function mode(button: HTMLElement): string {
   return (button.getAttribute('aria-label') ?? '').split(' ')[0];
 }
@@ -39,7 +38,6 @@ describe('ThemeToggle', () => {
     expect(mode(button)).toBe('Light');
     fireEvent.click(button);
     expect(mode(button)).toBe('Dark');
-    // The step that the light/dark switch could not take.
     fireEvent.click(button);
     expect(mode(button)).toBe('System');
     expect(globalThis.localStorage.getItem('aquarium-theme-mode')).toBe('system');
