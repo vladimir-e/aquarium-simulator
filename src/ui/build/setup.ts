@@ -6,6 +6,7 @@
  */
 
 import {
+  ambientTemperature,
   calculateEvaporationRatePerDay,
   calculateTemperatureDrift,
   type LidType,
@@ -96,7 +97,7 @@ export function environmentNotes(
   );
   const drift = calculateTemperatureDrift(
     resources.temperature,
-    environment.roomTemperature,
+    ambientTemperature(state, config.temperature),
     resources.water,
     config.temperature
   );

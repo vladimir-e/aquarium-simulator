@@ -212,6 +212,14 @@ describe('calculatePhotosynthesis', () => {
       expect(result.ironDelta).toBeLessThan(0);
     });
 
+    it('draws nutrients in proportion to its carbon Monod', () => {
+      const draw = (co2: number): number => photosynthesis([plant(100, 'java_fern')], { co2 }).nitrateDelta;
+      const monod = (co2: number): number => calculateCo2Factor(co2, 'java_fern', plantsDefaults);
+
+      expect(draw(4) / draw(INJECTED_CO2)).toBeCloseTo(monod(4) / monod(INJECTED_CO2), 10);
+      expect(draw(4)).toBeGreaterThan(draw(INJECTED_CO2));
+    });
+
     it('takes up GH in step with the nutrients it draws, and none from soft water', () => {
       const hard = buildResources(waterVolume, { gh: 10000 });
       const one = photosynthesis([plant(100, 'java_fern')], { resources: hard });

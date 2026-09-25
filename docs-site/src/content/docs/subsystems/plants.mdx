@@ -94,7 +94,8 @@ carbon-starved tank stops producing oxygen because there was no carbon to pay
 for it.
 
 Respiration is quoted against the rate at saturating light and carbon; on the
-4 mg/L an uninjected tank holds it is 4–9 % of what a plant actually fixes. A
+4 mg/L an uninjected tank holds it is 4–9 % of what a plant actually fixes, at
+or just below the bottom of the 5–15 % the macrophyte literature reports. A
 planting under a fixture too dim to clear that respires more than it fixes and
 draws oxygen with the lamps on.
 
@@ -232,7 +233,7 @@ plant leaves the array.
 | Neighbour | Read | Written |
 |---|---|---|
 | [Light](/subsystems/light/) | `light` — PAR at the substrate, which multiplies the photosynthetic rate and every benefit channel, and gates accrual | — |
-| [Water & gases](/subsystems/water-and-gases/) | `co2` for the rate and the band, `oxygen` for the respiration Monod, pH and `gh` for the tolerance bands | `oxygen` and `co2`, both directions, on one carbon yield; `gh` drawn with the nutrients |
+| [Water & gases](/subsystems/water-and-gases/) | `co2` for the carbon Monod, `oxygen` for the respiration Monod, pH and `gh` for the tolerance bands | `oxygen` and `co2`, both directions, on one carbon yield; `gh` drawn with the nutrients |
 | [Nitrogen cycle](/subsystems/nitrogen-cycle/) | `nitrate` — the one nutrient every tier requires | `nitrate` drained on uptake; `waste` from shedding and death |
 | [Environment](/subsystems/environment/) | `temperature` for the Q10 on respiration and upkeep, `water` for every ppm | — |
 | [Equipment](/subsystems/equipment/) | `substrate.type` — which species may be planted at all | — |

@@ -52,6 +52,7 @@ export { FISH_SPECIES_DATA } from './livestock/species.js';
 // Seeding — starting a tank at a state
 export type {
   PresetSeed,
+  TankSeed,
   SeedBacteria,
   SeedColony,
   SeedSubstrate,
@@ -67,6 +68,7 @@ export {
   cycledNitrate,
   cycledReserve,
   cycledTannins,
+  startingHardness,
 } from './seed.js';
 
 // Presets
@@ -123,7 +125,8 @@ export { carbonatePh, getPh } from './core/carbonate.js';
 export type { Effect, EffectTier } from './core/effects.js';
 export { applyEffects } from './core/effects.js';
 
-export { tick, getHourOfDay, getDayNumber } from './tick.js';
+export { tick } from './tick.js';
+export { getHourOfDay, getDayNumber } from './core/clock.js';
 
 // Systems
 export type { System } from './systems/index.js';
@@ -133,6 +136,7 @@ export {
   evaporationSystem,
   decaySystem,
   calculateTemperatureDrift,
+  ambientTemperature,
   calculateEvaporation,
   calculateEvaporationRatePerDay,
   getTemperatureFactor,

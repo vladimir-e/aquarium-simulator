@@ -7,6 +7,7 @@ export type { System } from './types.js';
 export {
   temperatureDriftSystem,
   calculateTemperatureDrift,
+  ambientTemperature,
 } from './temperature-drift.js';
 
 export {

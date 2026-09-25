@@ -194,9 +194,9 @@ export const plantsDefaults: PlantsConfig = {
 
   // Dark respiration, runs 24/7 — a share of the rate at saturating light and
   // carbon. On the 4 mg/L an uninjected tank holds, 0.03 is 4–9 % of what a
-  // plant actually fixes, low-need to high-need: the bottom of the 5–15 % the
-  // macrophyte literature reports against light-saturated gross
-  // photosynthesis. The Monod below leaves 94 % of it standing in
+  // plant actually fixes, low-need to high-need: at or just below the bottom
+  // of the 5–15 % the macrophyte literature reports against light-saturated
+  // gross photosynthesis. The Monod below leaves 94 % of it standing in
   // air-saturated water.
   baseRespirationRate: 0.03,
   respirationQ10: 2.0, // Rate doubles per 10°C increase

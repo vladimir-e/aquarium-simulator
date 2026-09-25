@@ -11,7 +11,7 @@ Format: - **Feature name** (#PR) - One short sentence (under ~150 chars)
 
 ## Unreleased
 
-- **Carbon saturates, rooms breathe** - plant CO₂ is a per-need Monod with no damage floor; a bubble carries 0.18 mg; unheated tanks follow a daily room swing and the lights; breaking: `optimalCo2`, `co2InsufficientSeverity`, `tolerableCO2` go.
+- **Carbon saturates, rooms breathe** - low CO₂ slows plants instead of hurting them; injected tanks reach 20–30 mg/L; rooms swing daily; breaking: `optimalCo2` → per-need half-saturations.
 - **GH, general hardness** - calcium and magnesium as a tank stock from `tapGh`, moved with KH by calcite and soil, drawn by plants; fish and plants carry GH bands.
 - **pH follows CO₂ and KH** - KH is a tank stock moved by tap water, nitrification and scape; breaking: `tapWaterPH` → `tapKh`, `ph` config → `waterChemistry`.
 - **Scenario runner** - `npm run scenarios` runs preset tanks headless and grades each reading against real-tank bands; `--diff` shows what moved.

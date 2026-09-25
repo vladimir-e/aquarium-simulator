@@ -273,6 +273,36 @@ const AlertStateSchema = z
 // Simulation Schema
 // ============================================================================
 
+const TankSeedSchema = z
+  .object({
+    bacteria: z
+      .union([
+        z.literal('cycled'),
+        ResourcesSchema.pick({ aob: true, nob: true }).partial().strict(),
+      ])
+      .optional(),
+    substrate: SubstrateSchema.pick({ organicReserve: true, khReserve: true })
+      .partial()
+      .strict()
+      .optional(),
+    resources: ResourcesSchema.pick({
+      ammonia: true,
+      nitrite: true,
+      nitrate: true,
+      phosphate: true,
+      potassium: true,
+      iron: true,
+      oxygen: true,
+      co2: true,
+      kh: true,
+      gh: true,
+    })
+      .partial()
+      .strict()
+      .optional(),
+  })
+  .strict();
+
 export const PersistedSimulationSchema = z
   .object({
     tick: z.number().int().min(0),
@@ -286,6 +316,7 @@ export const PersistedSimulationSchema = z
     algae: AlgaeStateSchema,
     rng: RngStateSchema,
     alertState: AlertStateSchema,
+    seed: TankSeedSchema.optional(),
     currentPreset: z.string(),
   })
   .strict();

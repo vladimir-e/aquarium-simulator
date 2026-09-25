@@ -29,7 +29,7 @@ import type { AirPump } from './equipment/air-pump.js';
 import { DEFAULT_AIR_PUMP, getAirPumpFlow } from './equipment/air-pump.js';
 import type { AutoDoser } from './equipment/auto-doser.js';
 import { DEFAULT_AUTO_DOSER } from './equipment/auto-doser.js';
-import { applySeed, type PresetSeed } from './seed.js';
+import { applySeed, type PresetSeed, type TankSeed } from './seed.js';
 import { getGhMass, getKhMass } from './resources/helpers.js';
 import type { PlantSpecies } from './plants/species.js';
 import type { FishSpecies, FishSex, FishLifeStage } from './livestock/species.js';
@@ -326,7 +326,8 @@ export interface SimulationState {
   /** In-memory log storage */
   logs: LogEntry[];
   /** Tracks active alert conditions for threshold-crossing detection */
-  alertState: AlertState;
+  alertState: AlertState;  /** How the tank was seeded at hour zero; absent when it was filled from the tap. */
+  seed?: TankSeed;
 }
 
 export interface SimulationConfig {

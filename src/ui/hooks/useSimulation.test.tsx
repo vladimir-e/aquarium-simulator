@@ -452,6 +452,46 @@ describe('useSimulation', () => {
       expect(result.current.state.tick).toBe(0);
     });
 
+    it('reset puts a seeded tank back on its seed, and a tap retune after it re-seeds', () => {
+      const { result } = renderHook(() => useSimulation('planted'), { wrapper });
+      const seeded = result.current.state;
+
+      for (let i = 0; i < 10; i++) act(() => result.current.step());
+      expect(result.current.state.equipment.substrate.khReserve).toBeLessThan(
+        seeded.equipment.substrate.khReserve
+      );
+
+      act(() => result.current.reset());
+      const reset = result.current.state;
+      expect(reset.equipment.substrate).toEqual(seeded.equipment.substrate);
+      expect(reset.resources.kh).toBeCloseTo(seeded.resources.kh, 10);
+      expect(reset.resources.aob).toBe(seeded.resources.aob);
+
+      const tapKh = reset.environment.tapKh + 2;
+      act(() => result.current.updateTapKh(tapKh));
+      expect(result.current.state.resources.kh).toBeCloseTo(
+        cycledKh('aqua_soil', tapKh, reset.tank.capacity),
+        10
+      );
+    });
+
+    it('reset fills an unseeded soil tank from the tap, however far its bed ran down', () => {
+      const { result } = renderHook(() => useSimulation('planted'), { wrapper });
+      act(() => result.current.changeTankCapacity(result.current.state.tank.capacity));
+      expect(result.current.state.seed).toBeUndefined();
+
+      for (let i = 0; i < 10; i++) act(() => result.current.step());
+      act(() => result.current.reset());
+      act(() => {
+        result.current.updateTapKh(6);
+        result.current.updateTapGh(8);
+      });
+
+      const { resources } = result.current.state;
+      expect(getDkh(resources.kh, resources.water)).toBeCloseTo(6, 10);
+      expect(getDgh(resources.gh, resources.water)).toBeCloseTo(8, 10);
+    });
+
     it('loads a preset as the tank that preset builds, keeping nothing of the last one', () => {
       seedSessionWithClutch('planted');
       const { result } = renderHook(() => useSimulation(), { wrapper });

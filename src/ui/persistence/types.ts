@@ -14,6 +14,7 @@ import type {
   AlgaeState,
   AlertState,
 } from '../../simulation/state.js';
+import type { TankSeed } from '../../simulation/seed.js';
 import type { RngState } from '../../simulation/core/rng.js';
 import type { VerbId, VerbSettings } from '../actions/verbs.js';
 import type { TunableConfig } from '../../simulation/config/index.js';
@@ -32,7 +33,8 @@ import type { TunableConfig } from '../../simulation/config/index.js';
  *      `tannins`. Plant carbon saturates: `optimalCo2` and
  *      `co2InsufficientSeverity` give way to three per-need CO₂
  *      half-saturations, and `temperature` gains `roomDailySwing` and
- *      `lightWarmingPerPar`.
+ *      `lightWarmingPerPar`. The simulation keeps the `seed` its hour-zero
+ *      stocks came from.
  *
  * v26: The spine remembers whether it was showing its tracks. `PersistedUI`
  *      gains `spineOpen`, beside the `tunablesOpen` it mirrors. A v25 save
@@ -218,6 +220,7 @@ export interface PersistedSimulation {
   algae: AlgaeState;
   rng: RngState;
   alertState: AlertState;
+  seed?: TankSeed;
   /** Currently selected preset ID */
   currentPreset: string;
 }

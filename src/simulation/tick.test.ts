@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { produce } from 'immer';
-import { tick, getHourOfDay, getDayNumber, settleEnvironment } from './tick.js';
+import { tick, settleEnvironment } from './tick.js';
 import { createSimulation, type SimulationConfig, type SimulationState } from './state.js';
 import { applyAction } from './actions/index.js';
 import { DEFAULT_CONFIG, type TunableConfig } from './config/index.js';
@@ -32,7 +32,11 @@ describe('tick', () => {
     expect(state.resources.water).toBeLessThan(100);
   });
 
-  it('switches the heater on below target and off above it', () => {
+  it('switches the heater on below target and off at it', () => {
+    const steadyRoom: TunableConfig = {
+      ...DEFAULT_CONFIG,
+      temperature: { ...DEFAULT_CONFIG.temperature, roomDailySwing: 0 },
+    };
     const heater = (initialTemperature: number, isOn: boolean): boolean =>
       tick(
         createSimulation({
@@ -40,11 +44,12 @@ describe('tick', () => {
           initialTemperature,
           roomTemperature: initialTemperature,
           heater: { enabled: true, isOn, targetTemperature: 25, wattage: 100 },
-        })
+        }),
+        steadyRoom
       ).equipment.heater.isOn;
 
     expect(heater(22, false)).toBe(true);
-    expect(heater(26, true)).toBe(false);
+    expect(heater(25, true)).toBe(false);
   });
 
   it('warms a tank with the heater on against one without', () => {
@@ -125,21 +130,6 @@ describe('tick', () => {
     expect(next.logs.some((log) => log.source === 'evaporation' && log.severity === 'warning')).toBe(
       true
     );
-  });
-});
-
-describe('getHourOfDay / getDayNumber', () => {
-  it.each([
-    [0, 0, 0],
-    [12, 12, 0],
-    [23, 23, 0],
-    [24, 0, 1],
-    [50, 2, 2],
-  ])('reads tick %d as hour %d of day %d', (at, hour, day) => {
-    const state = { ...createSimulation({ tankCapacity: 100 }), tick: at };
-
-    expect(getHourOfDay(state)).toBe(hour);
-    expect(getDayNumber(state)).toBe(day);
   });
 });
 

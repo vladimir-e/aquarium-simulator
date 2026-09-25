@@ -88,11 +88,18 @@ export interface SeedPlantGroup {
   size?: number;
 }
 
-/** Nothing here is validated or clamped — see the docs portal, State & persistence § Starting state. */
-export interface PresetSeed {
+/**
+ * The stocks a tank starts at, as distinct from what lives in it. The state
+ * keeps it, so an hour-zero tank can be filled again the way it was first.
+ */
+export interface TankSeed {
   bacteria?: SeedBacteria;
   substrate?: SeedSubstrate;
   resources?: SeedResources;
+}
+
+/** Nothing here is validated or clamped — see the docs portal, State & persistence § Starting state. */
+export interface PresetSeed extends TankSeed {
   fish?: SeedFishGroup[];
   plants?: SeedPlantGroup[];
 }
@@ -224,9 +231,28 @@ function writeStocks<T, K extends keyof T>(
   }
 }
 
-export function applySeed(state: SimulationState, seed: PresetSeed): void {
+/** The hardness an hour-zero tank carries, filled from its tap and seeded as the state records. */
+export function startingHardness(state: SimulationState): { kh: number; gh: number } {
   const { capacity } = state.tank;
   const { type } = state.equipment.substrate;
+  const { tapKh, tapGh } = state.environment;
+  const { seed } = state;
+  const cycled = seed?.bacteria === 'cycled';
+
+  return {
+    kh:
+      seed?.resources?.kh ??
+      (cycled ? cycledKh(type, tapKh, capacity) : getKhMass(tapKh, capacity)),
+    gh:
+      seed?.resources?.gh ??
+      (cycled ? cycledGh(type, tapKh, tapGh, capacity) : getGhMass(tapGh, capacity)),
+  };
+}
+
+function seedTank(state: SimulationState, seed: TankSeed): void {
+  const { capacity } = state.tank;
+  const { type } = state.equipment.substrate;
+  state.seed = seed;
 
   if (seed.bacteria === 'cycled') {
     writeStocks(state.resources, SEEDABLE_BACTERIA, cycledColony(capacity));
@@ -237,19 +263,21 @@ export function applySeed(state: SimulationState, seed: PresetSeed): void {
     for (const item of state.equipment.hardscape.items) {
       item.tannins = cycledTannins(item.type);
     }
-    writeStocks(state.resources, SEEDABLE_RESOURCES, {
-      nitrate: cycledNitrate(type, capacity),
-      kh: cycledKh(type, state.environment.tapKh, capacity),
-      gh: cycledGh(type, state.environment.tapKh, state.environment.tapGh, capacity),
-    });
+    state.resources.nitrate = cycledNitrate(type, capacity);
   } else {
     writeStocks(state.resources, SEEDABLE_BACTERIA, seed.bacteria);
   }
 
   writeStocks(state.equipment.substrate, SEEDABLE_SUBSTRATE, seed.substrate);
   writeStocks(state.resources, SEEDABLE_RESOURCES, seed.resources);
+  Object.assign(state.resources, startingHardness(state));
+}
 
-  for (const group of seed.fish ?? []) {
+export function applySeed(state: SimulationState, seed: PresetSeed): void {
+  const { fish, plants, ...tank } = seed;
+  seedTank(state, tank);
+
+  for (const group of fish ?? []) {
     for (let i = 0; i < (group.count ?? 1); i++) {
       state.fish.push(
         createFish({
@@ -263,7 +291,7 @@ export function applySeed(state: SimulationState, seed: PresetSeed): void {
     }
   }
 
-  for (const group of seed.plants ?? []) {
+  for (const group of plants ?? []) {
     for (let i = 0; i < (group.count ?? 1); i++) {
       state.plants.push(
         createPlant({

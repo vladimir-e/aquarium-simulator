@@ -184,6 +184,16 @@ describe('PersistedSimulationSchema', () => {
     expect(PersistedSimulationSchema.safeParse(validSimulation).success).toBe(true);
   });
 
+  it('keeps the seed a tank started from, and refuses one that names a stock it cannot seed', () => {
+    const seeded = { ...validSimulation, seed: { bacteria: 'cycled', resources: { nitrate: 20 } } };
+    const colony = { ...validSimulation, seed: { bacteria: { aob: 5000 } } };
+    const water = { ...validSimulation, seed: { resources: { water: 10 } } };
+
+    expect(PersistedSimulationSchema.safeParse(seeded).success).toBe(true);
+    expect(PersistedSimulationSchema.safeParse(colony).success).toBe(true);
+    expect(PersistedSimulationSchema.safeParse(water).success).toBe(false);
+  });
+
   it('validates simulation with plants', () => {
     const withPlants = {
       ...validSimulation,

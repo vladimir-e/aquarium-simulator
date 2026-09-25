@@ -13,6 +13,7 @@ import type { System } from './types.js';
 import type { TunableConfig } from '../config/index.js';
 import { type TemperatureConfig, temperatureDefaults } from '../config/temperature.js';
 import { getLightOutput } from '../equipment/light.js';
+import { getHourOfDay } from '../core/clock.js';
 
 const WARMEST_HOUR = 17;
 
@@ -21,7 +22,7 @@ export function ambientTemperature(
   state: SimulationState,
   config: TemperatureConfig = temperatureDefaults
 ): number {
-  const hour = state.tick % 24;
+  const hour = getHourOfDay(state);
   const room =
     state.environment.roomTemperature +
     config.roomDailySwing * Math.cos((2 * Math.PI * (hour - WARMEST_HOUR)) / 24);

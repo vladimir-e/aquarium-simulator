@@ -128,17 +128,3 @@ export function tick(
 
   return newState;
 }
-
-/**
- * Helper to get the hour of day (0-23) from current tick.
- */
-export function getHourOfDay(state: SimulationState): number {
-  return state.tick % 24;
-}
-
-/**
- * Helper to get the day number from current tick.
- */
-export function getDayNumber(state: SimulationState): number {
-  return Math.floor(state.tick / 24);
-}

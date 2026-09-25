@@ -15,6 +15,7 @@ import { presetTank } from '../test/presetTank';
 import { TICKS_PER_DAY } from '../utils/clock.js';
 import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
 import {
+  ambientTemperature,
   applyAction,
   calculateEvaporationRatePerDay,
   calculateTemperatureDrift,
@@ -51,7 +52,7 @@ describe('environmentNotes', () => {
     const drift = Math.abs(
       calculateTemperatureDrift(
         cold.resources.temperature,
-        15,
+        ambientTemperature(cold, DEFAULT_CONFIG.temperature),
         cold.resources.water,
         DEFAULT_CONFIG.temperature
       )
@@ -66,11 +67,25 @@ describe('environmentNotes', () => {
     );
   });
 
-  it('says so when the water is already at room temperature', () => {
+  it('quotes the room as it stands this hour, swing and light included', () => {
+    const state = presetTank('planted');
+    const at = (tick: number): SimulationState => ({ ...state, tick });
+    const ambient = (tick: number): number => ambientTemperature(at(tick), DEFAULT_CONFIG.temperature);
+
+    expect(ambient(17)).not.toBeCloseTo(ambient(5));
+    expect(environmentNotes(at(17), DEFAULT_CONFIG, 'metric').room).not.toBe(
+      environmentNotes(at(5), DEFAULT_CONFIG, 'metric').room
+    );
+  });
+
+  it('says so when the water is already where the room pulls it', () => {
     const state = presetTank('community');
     const settled = {
       ...state,
-      environment: { ...state.environment, roomTemperature: state.resources.temperature },
+      resources: {
+        ...state.resources,
+        temperature: ambientTemperature(state, DEFAULT_CONFIG.temperature),
+      },
     };
 
     expect(environmentNotes(settled, DEFAULT_CONFIG, 'metric').room).toBe(

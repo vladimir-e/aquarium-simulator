@@ -82,7 +82,10 @@ its own — that belongs to whoever is holding more than one.
 ### Starting state
 
 A seed writes stocks onto a freshly built tank and stops. It declares no
-behaviour, so nothing downstream has to know a tank was seeded.
+behaviour; the tick never reads it. The state keeps its stock half — `bacteria`,
+`substrate`, `resources` — as `seed`, so a tank still at hour zero can be filled
+again the way it first was: a retuned tap re-resolves KH and GH through it
+(`startingHardness`), and a reset puts the water, bed and scape back on it.
 
 | Seedable | Accepts |
 |---|---|
