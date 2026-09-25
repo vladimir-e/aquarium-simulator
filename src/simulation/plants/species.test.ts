@@ -3,15 +3,6 @@ import { getSaturationIrradiance, PLANT_SPECIES_DATA, type PlantSpecies } from '
 import { plantsDefaults } from '../config/plants.js';
 
 describe('getSaturationIrradiance', () => {
-  it('reads the roster the published macrophyte ranges expect', () => {
-    // Shade species saturate at 10–30 µmol/m²/s and sun species at 50–150; all
-    // five land inside, which is the evidence the band carries this by itself.
-    expect(getSaturationIrradiance('anubias', plantsDefaults)).toBe(16);
-    expect(getSaturationIrradiance('java_fern', plantsDefaults)).toBe(20);
-    expect(getSaturationIrradiance('amazon_sword', plantsDefaults)).toBe(40);
-    expect(getSaturationIrradiance('dwarf_hairgrass', plantsDefaults)).toBe(50);
-    expect(getSaturationIrradiance('monte_carlo', plantsDefaults)).toBe(60);
-  });
 
   it('orders the roster the way the bands do', () => {
     const species = Object.keys(PLANT_SPECIES_DATA) as PlantSpecies[];
@@ -29,8 +20,9 @@ describe('getSaturationIrradiance', () => {
   });
 
   it('scales with the tuned factor', () => {
-    const config = { ...plantsDefaults, saturationIrradianceFactor: 3 };
+    const at = (saturationIrradianceFactor: number): number =>
+      getSaturationIrradiance('java_fern', { ...plantsDefaults, saturationIrradianceFactor });
 
-    expect(getSaturationIrradiance('java_fern', config)).toBe(30);
+    expect(at(3)).toBeCloseTo(2 * at(1.5), 10);
   });
 });

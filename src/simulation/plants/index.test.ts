@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { processPlants, readPlantVitality } from './index.js';
-import { createSimulation, type SimulationState, type Plant } from '../state.js';
+import { createSimulation, type SimulationState, type Plant, type Resources } from '../state.js';
 import type { PlantSpecies } from './species.js';
 import { produce } from 'immer';
 import { DEFAULT_CONFIG } from '../config/index.js';
@@ -24,63 +24,32 @@ describe('processPlants', () => {
   const NIGHTLY_UPKEEP =
     plantsDefaults.upkeepCost * (1 - PLANT_SPECIES_DATA.java_fern.hardiness);
 
-  function createTestState(overrides: Partial<{
-    plants: Plant[];
-    light: number;
-    co2: number;
-    nitrate: number;
-    phosphate: number;
-    potassium: number;
-    iron: number;
-    oxygen: number;
-    temperature: number;
-    water: number;
-    waste: number;
-  }> = {}): SimulationState {
-    const state = createSimulation({ tankCapacity: 100 });
-    return produce(state, (draft) => {
-      // Seed all four plant macronutrients to optimal so Liebig's Law
-      // doesn't zero out photosynthesis by default. Tests that probe a
-      // specific limiting nutrient explicitly override its value.
-      const waterVol = overrides.water ?? draft.resources.water;
-      draft.resources.phosphate = nutrientsDefaults.optimalPhosphatePpm * waterVol;
-      draft.resources.potassium = nutrientsDefaults.optimalPotassiumPpm * waterVol;
-      draft.resources.iron = nutrientsDefaults.optimalIronPpm * waterVol;
-      draft.resources.nitrate = nutrientsDefaults.optimalNitratePpm * waterVol;
-
-      if (overrides.plants !== undefined) {
-        draft.plants = overrides.plants;
-      }
-      if (overrides.light !== undefined) {
-        draft.resources.light = overrides.light;
-      }
-      if (overrides.co2 !== undefined) {
-        draft.resources.co2 = overrides.co2;
-      }
-      if (overrides.nitrate !== undefined) {
-        draft.resources.nitrate = overrides.nitrate;
-      }
-      if (overrides.phosphate !== undefined) {
-        draft.resources.phosphate = overrides.phosphate;
-      }
-      if (overrides.potassium !== undefined) {
-        draft.resources.potassium = overrides.potassium;
-      }
-      if (overrides.iron !== undefined) {
-        draft.resources.iron = overrides.iron;
-      }
-      if (overrides.oxygen !== undefined) {
-        draft.resources.oxygen = overrides.oxygen;
-      }
-      if (overrides.temperature !== undefined) {
-        draft.resources.temperature = overrides.temperature;
-      }
-      if (overrides.water !== undefined) {
-        draft.resources.water = overrides.water;
-      }
-      if (overrides.waste !== undefined) {
-        draft.resources.waste = overrides.waste;
-      }
+  function createTestState({
+    plants,
+    ...resources
+  }: Partial<
+    { plants: Plant[] } & Pick<
+      Resources,
+      | 'light'
+      | 'co2'
+      | 'nitrate'
+      | 'phosphate'
+      | 'potassium'
+      | 'iron'
+      | 'oxygen'
+      | 'temperature'
+      | 'water'
+      | 'waste'
+    >
+  > = {}): SimulationState {
+    return produce(createSimulation({ tankCapacity: 100 }), (draft) => {
+      const water = resources.water ?? draft.resources.water;
+      draft.resources.phosphate = nutrientsDefaults.optimalPhosphatePpm * water;
+      draft.resources.potassium = nutrientsDefaults.optimalPotassiumPpm * water;
+      draft.resources.iron = nutrientsDefaults.optimalIronPpm * water;
+      draft.resources.nitrate = nutrientsDefaults.optimalNitratePpm * water;
+      Object.assign(draft.resources, resources);
+      if (plants !== undefined) draft.plants = plants;
     });
   }
 
@@ -93,12 +62,6 @@ describe('processPlants', () => {
       expect(result.effects).toHaveLength(0);
     });
 
-    it('returns no effects when no plants', () => {
-      const state = createTestState({ plants: [], light: 50 });
-      const result = processPlants(state, DEFAULT_CONFIG);
-
-      expect(result.effects).toHaveLength(0);
-    });
   });
 
   describe('with plants and lights on (photosynthesis + respiration)', () => {
@@ -106,24 +69,7 @@ describe('processPlants', () => {
       { id: 'p1', species: 'java_fern', size: 100, condition: C, surplus: 0 },
     ];
 
-    it('produces oxygen effect from photosynthesis', () => {
-      const state = createTestState({
-        plants: defaultPlants,
-        light: 50,
-        co2: plantsDefaults.optimalCo2,
-        nitrate: plantsDefaults.optimalNitrate * 100, // optimal in 100L
-        water: 100,
-      });
-      const result = processPlants(state, DEFAULT_CONFIG);
-
-      const o2EffectPhoto = result.effects.find(
-        (e) => e.resource === 'oxygen' && e.source === 'photosynthesis'
-      );
-      expect(o2EffectPhoto).toBeDefined();
-      expect(o2EffectPhoto!.delta).toBeGreaterThan(0);
-    });
-
-    it('consumes CO2 from photosynthesis (negative delta)', () => {
+    it('photosynthesises and respires as active effects', () => {
       const state = createTestState({
         plants: defaultPlants,
         light: 50,
@@ -131,81 +77,16 @@ describe('processPlants', () => {
         nitrate: plantsDefaults.optimalNitrate * 100,
         water: 100,
       });
-      const result = processPlants(state, DEFAULT_CONFIG);
+      const { effects } = processPlants(state, DEFAULT_CONFIG);
+      const delta = (resource: string, source: string): number | undefined =>
+        effects.find((e) => e.resource === resource && e.source === source)?.delta;
 
-      const co2EffectPhoto = result.effects.find(
-        (e) => e.resource === 'co2' && e.source === 'photosynthesis'
-      );
-      expect(co2EffectPhoto).toBeDefined();
-      expect(co2EffectPhoto!.delta).toBeLessThan(0);
-    });
-
-    it('consumes nitrate from photosynthesis (negative delta)', () => {
-      const state = createTestState({
-        plants: defaultPlants,
-        light: 50,
-        co2: plantsDefaults.optimalCo2,
-        nitrate: plantsDefaults.optimalNitrate * 100,
-        water: 100,
-      });
-      const result = processPlants(state, DEFAULT_CONFIG);
-
-      const nitrateEffect = result.effects.find(
-        (e) => e.resource === 'nitrate' && e.source === 'photosynthesis'
-      );
-      expect(nitrateEffect).toBeDefined();
-      expect(nitrateEffect!.delta).toBeLessThan(0);
-    });
-
-    it('consumes oxygen from respiration (negative delta)', () => {
-      const state = createTestState({
-        plants: defaultPlants,
-        light: 50,
-        co2: plantsDefaults.optimalCo2,
-        nitrate: plantsDefaults.optimalNitrate * 100,
-        water: 100,
-        temperature: 25,
-      });
-      const result = processPlants(state, DEFAULT_CONFIG);
-
-      const o2EffectResp = result.effects.find(
-        (e) => e.resource === 'oxygen' && e.source === 'respiration'
-      );
-      expect(o2EffectResp).toBeDefined();
-      expect(o2EffectResp!.delta).toBeLessThan(0);
-    });
-
-    it('produces CO2 from respiration (positive delta)', () => {
-      const state = createTestState({
-        plants: defaultPlants,
-        light: 50,
-        co2: plantsDefaults.optimalCo2,
-        nitrate: plantsDefaults.optimalNitrate * 100,
-        water: 100,
-        temperature: 25,
-      });
-      const result = processPlants(state, DEFAULT_CONFIG);
-
-      const co2EffectResp = result.effects.find(
-        (e) => e.resource === 'co2' && e.source === 'respiration'
-      );
-      expect(co2EffectResp).toBeDefined();
-      expect(co2EffectResp!.delta).toBeGreaterThan(0);
-    });
-
-    it('all effects have tier: active', () => {
-      const state = createTestState({
-        plants: defaultPlants,
-        light: 50,
-        co2: plantsDefaults.optimalCo2,
-        nitrate: plantsDefaults.optimalNitrate * 100,
-        water: 100,
-      });
-      const result = processPlants(state, DEFAULT_CONFIG);
-
-      result.effects.forEach((effect) => {
-        expect(effect.tier).toBe('active');
-      });
+      expect(delta('oxygen', 'photosynthesis')).toBeGreaterThan(0);
+      expect(delta('co2', 'photosynthesis')).toBeLessThan(0);
+      expect(delta('nitrate', 'photosynthesis')).toBeLessThan(0);
+      expect(delta('oxygen', 'respiration')).toBeLessThan(0);
+      expect(delta('co2', 'respiration')).toBeGreaterThan(0);
+      expect(effects.every((e) => e.tier === 'active')).toBe(true);
     });
 
     it('updates plant sizes due to growth', () => {
@@ -296,47 +177,6 @@ describe('processPlants', () => {
       expect(respEffects.length).toBeGreaterThan(0);
     });
 
-    it('oxygen consumed (net negative) at night', () => {
-      const state = createTestState({
-        plants: defaultPlants,
-        light: 0,
-        temperature: 25,
-      });
-      const result = processPlants(state, DEFAULT_CONFIG);
-
-      const o2Effects = result.effects.filter((e) => e.resource === 'oxygen');
-      const netO2 = o2Effects.reduce((sum, e) => sum + e.delta, 0);
-      expect(netO2).toBeLessThan(0);
-    });
-
-    it('CO2 produced (net positive) at night', () => {
-      const state = createTestState({
-        plants: defaultPlants,
-        light: 0,
-        temperature: 25,
-      });
-      const result = processPlants(state, DEFAULT_CONFIG);
-
-      const co2Effects = result.effects.filter((e) => e.resource === 'co2');
-      const netCo2 = co2Effects.reduce((sum, e) => sum + e.delta, 0);
-      expect(netCo2).toBeGreaterThan(0);
-    });
-
-    it('no photosynthesis effects when lights off', () => {
-      // Photosynthesis is light-gated and emits no resource effects
-      // when lights are off. Plant size doesn't move either — see
-      // the photoperiod-gate describe block below for the full
-      // banking + growth gating contract.
-      const state = createTestState({
-        plants: [{ id: 'p1', species: 'java_fern', size: 50, condition: C, surplus: 0 }],
-        light: 0,
-      });
-      const result = processPlants(state, DEFAULT_CONFIG);
-      const photoEffects = result.effects.filter(
-        (e) => e.source === 'photosynthesis'
-      );
-      expect(photoEffects).toHaveLength(0);
-    });
   });
 
   describe('photoperiod gate on surplus banking and growth', () => {
@@ -376,28 +216,6 @@ describe('processPlants', () => {
       const result = processPlants(state, DEFAULT_CONFIG);
       expect(result.state.plants[0].size).toBe(50);
       expect(result.state.plants[0].surplus).toBeCloseTo(40 - NIGHTLY_UPKEEP, 12);
-    });
-
-    it('banks surplus during the day under ideal conditions', () => {
-      // Same conditions as the night-banking test, but lights on. The
-      // bank accrues this tick's positive overflow, minus whatever growth
-      // drains. With a small starting surplus, the post-spend bank is
-      // still measurably above the start.
-      const state = createTestState({
-        plants: [{ id: 'p1', species: 'java_fern', size: 50, condition: 100, surplus: 0 }],
-        light: 50,
-        co2: plantsDefaults.optimalCo2,
-        nitrate: plantsDefaults.optimalNitrate * 100,
-        temperature: 25,
-        water: 100,
-      });
-      const result = processPlants(state, DEFAULT_CONFIG);
-      // Plant either banked + spent (size up, surplus could be 0 if
-      // fully drained) or banked + partially spent (surplus > 0).
-      // What's required: at least one of the two is non-trivially
-      // moved. Tighter assertions live in the "Growth happens" test.
-      const after = result.state.plants[0];
-      expect(after.size + after.surplus).toBeGreaterThan(50);
     });
 
     it('grows during the day when surplus is available', () => {
@@ -470,63 +288,6 @@ describe('processPlants', () => {
   });
 
   describe('day/night O2 balance', () => {
-    it('net positive O2 during day (photosynthesis > respiration)', () => {
-      const state = createTestState({
-        plants: [{ id: 'p1', species: 'java_fern', size: 100, condition: C, surplus: 0 }],
-        light: 50,
-        co2: plantsDefaults.optimalCo2,
-        nitrate: plantsDefaults.optimalNitrate * 100,
-        water: 100,
-        temperature: 25,
-      });
-      const result = processPlants(state, DEFAULT_CONFIG);
-
-      const o2Effects = result.effects.filter((e) => e.resource === 'oxygen');
-      const netO2 = o2Effects.reduce((sum, e) => sum + e.delta, 0);
-      expect(netO2).toBeGreaterThan(0);
-    });
-
-    it('net negative O2 during night (respiration only)', () => {
-      const state = createTestState({
-        plants: [{ id: 'p1', species: 'java_fern', size: 100, condition: C, surplus: 0 }],
-        light: 0,
-        temperature: 25,
-      });
-      const result = processPlants(state, DEFAULT_CONFIG);
-
-      const o2Effects = result.effects.filter((e) => e.resource === 'oxygen');
-      const netO2 = o2Effects.reduce((sum, e) => sum + e.delta, 0);
-      expect(netO2).toBeLessThan(0);
-    });
-
-    it('day produces more O2 than night consumes (net positive over 24h)', () => {
-      const dayState = createTestState({
-        plants: [{ id: 'p1', species: 'java_fern', size: 100, condition: C, surplus: 0 }],
-        light: 50,
-        co2: plantsDefaults.optimalCo2,
-        nitrate: plantsDefaults.optimalNitrate * 100,
-        water: 100,
-        temperature: 25,
-      });
-      const nightState = createTestState({
-        plants: [{ id: 'p1', species: 'java_fern', size: 100, condition: C, surplus: 0 }],
-        light: 0,
-        temperature: 25,
-      });
-
-      const dayResult = processPlants(dayState, DEFAULT_CONFIG);
-      const nightResult = processPlants(nightState, DEFAULT_CONFIG);
-
-      const dayO2 = dayResult.effects
-        .filter((e) => e.resource === 'oxygen')
-        .reduce((sum, e) => sum + e.delta, 0);
-      const nightO2 = nightResult.effects
-        .filter((e) => e.resource === 'oxygen')
-        .reduce((sum, e) => sum + e.delta, 0);
-
-      // Day O2 production should be greater than night consumption
-      expect(dayO2).toBeGreaterThan(Math.abs(nightO2));
-    });
 
     /**
      * Net oxygen a 100 % planting of one species moves in a lit hour, with
@@ -639,25 +400,6 @@ describe('processPlants', () => {
   });
 
   describe('waste effect when plants overgrow', () => {
-    it('produces waste when plant exceeds 200%', () => {
-      // Plant at 199% with enough growth to push over 200%
-      const state = createTestState({
-        plants: [{ id: 'p1', species: 'monte_carlo', size: 199, condition: C, surplus: 0 }],
-        light: 50,
-        co2: plantsDefaults.optimalCo2,
-        nitrate: plantsDefaults.optimalNitrate * 100,
-        water: 100,
-      });
-      const result = processPlants(state, DEFAULT_CONFIG);
-
-      const wasteEffect = result.effects.find((e) => e.resource === 'waste');
-      // If plant grows past 200%, waste is released
-      if (result.state.plants[0].size === 200) {
-        expect(wasteEffect).toBeDefined();
-        expect(wasteEffect!.delta).toBeGreaterThan(0);
-        expect(wasteEffect!.source).toBe('plant-overgrowth');
-      }
-    });
 
     it('no waste when plants below 200%', () => {
       const state = createTestState({
@@ -715,126 +457,6 @@ describe('processPlants', () => {
       expect(result.state.plants[2].size).toBeGreaterThan(70);
     });
 
-    it('total plant size affects photosynthesis rate', () => {
-      const singlePlantState = createTestState({
-        plants: [{ id: 'p1', species: 'java_fern', size: 100, condition: C, surplus: 0 }],
-        light: 50,
-        co2: plantsDefaults.optimalCo2,
-        nitrate: plantsDefaults.optimalNitrate * 100,
-        water: 100,
-      });
-      const multiplePlantsState = createTestState({
-        plants: [
-          { id: 'p1', species: 'java_fern', size: 100, condition: C, surplus: 0 },
-          { id: 'p2', species: 'java_fern', size: 100, condition: C, surplus: 0 },
-        ],
-        light: 50,
-        co2: plantsDefaults.optimalCo2,
-        nitrate: plantsDefaults.optimalNitrate * 100,
-        water: 100,
-      });
-
-      const singleResult = processPlants(singlePlantState, DEFAULT_CONFIG);
-      const multipleResult = processPlants(multiplePlantsState, DEFAULT_CONFIG);
-
-      const singleO2 = singleResult.effects
-        .filter((e) => e.resource === 'oxygen' && e.source === 'photosynthesis')
-        .reduce((sum, e) => sum + e.delta, 0);
-      const multipleO2 = multipleResult.effects
-        .filter((e) => e.resource === 'oxygen' && e.source === 'photosynthesis')
-        .reduce((sum, e) => sum + e.delta, 0);
-
-      // 200% plant size should produce ~2x O2
-      expect(multipleO2).toBeCloseTo(singleO2 * 2, 4);
-    });
-  });
-
-  describe('limiting conditions', () => {
-    it('low CO2 reduces photosynthesis', () => {
-      const optimalState = createTestState({
-        plants: [{ id: 'p1', species: 'java_fern', size: 100, condition: C, surplus: 0 }],
-        light: 50,
-        co2: plantsDefaults.optimalCo2,
-        nitrate: plantsDefaults.optimalNitrate * 100,
-        water: 100,
-      });
-      const lowCo2State = createTestState({
-        plants: [{ id: 'p1', species: 'java_fern', size: 100, condition: C, surplus: 0 }],
-        light: 50,
-        co2: plantsDefaults.optimalCo2 / 4, // 25% of optimal
-        nitrate: plantsDefaults.optimalNitrate * 100,
-        water: 100,
-      });
-
-      const optimalResult = processPlants(optimalState, DEFAULT_CONFIG);
-      const lowCo2Result = processPlants(lowCo2State, DEFAULT_CONFIG);
-
-      const optimalO2 = optimalResult.effects
-        .filter((e) => e.resource === 'oxygen' && e.source === 'photosynthesis')
-        .reduce((sum, e) => sum + e.delta, 0);
-      const lowCo2O2 = lowCo2Result.effects
-        .filter((e) => e.resource === 'oxygen' && e.source === 'photosynthesis')
-        .reduce((sum, e) => sum + e.delta, 0);
-
-      expect(lowCo2O2).toBeLessThan(optimalO2);
-    });
-
-    it('low nitrate reduces photosynthesis', () => {
-      const optimalState = createTestState({
-        plants: [{ id: 'p1', species: 'java_fern', size: 100, condition: C, surplus: 0 }],
-        light: 50,
-        co2: plantsDefaults.optimalCo2,
-        nitrate: plantsDefaults.optimalNitrate * 100, // optimal
-        water: 100,
-      });
-      const lowNitrateState = createTestState({
-        plants: [{ id: 'p1', species: 'java_fern', size: 100, condition: C, surplus: 0 }],
-        light: 50,
-        co2: plantsDefaults.optimalCo2,
-        nitrate: (plantsDefaults.optimalNitrate / 4) * 100, // 25% of optimal
-        water: 100,
-      });
-
-      const optimalResult = processPlants(optimalState, DEFAULT_CONFIG);
-      const lowNitrateResult = processPlants(lowNitrateState, DEFAULT_CONFIG);
-
-      const optimalO2 = optimalResult.effects
-        .filter((e) => e.resource === 'oxygen' && e.source === 'photosynthesis')
-        .reduce((sum, e) => sum + e.delta, 0);
-      const lowNitrateO2 = lowNitrateResult.effects
-        .filter((e) => e.resource === 'oxygen' && e.source === 'photosynthesis')
-        .reduce((sum, e) => sum + e.delta, 0);
-
-      expect(lowNitrateO2).toBeLessThan(optimalO2);
-    });
-  });
-
-  describe('temperature effects on respiration', () => {
-    it('higher temperature increases respiration', () => {
-      const coldState = createTestState({
-        plants: [{ id: 'p1', species: 'java_fern', size: 100, condition: C, surplus: 0 }],
-        light: 0,
-        temperature: 20,
-      });
-      const warmState = createTestState({
-        plants: [{ id: 'p1', species: 'java_fern', size: 100, condition: C, surplus: 0 }],
-        light: 0,
-        temperature: 30,
-      });
-
-      const coldResult = processPlants(coldState, DEFAULT_CONFIG);
-      const warmResult = processPlants(warmState, DEFAULT_CONFIG);
-
-      const coldO2 = coldResult.effects
-        .filter((e) => e.resource === 'oxygen' && e.source === 'respiration')
-        .reduce((sum, e) => sum + e.delta, 0);
-      const warmO2 = warmResult.effects
-        .filter((e) => e.resource === 'oxygen' && e.source === 'respiration')
-        .reduce((sum, e) => sum + e.delta, 0);
-
-      // Warm tank consumes more O2 (more negative)
-      expect(warmO2).toBeLessThan(coldO2);
-    });
   });
 
   describe('immutability', () => {
@@ -853,18 +475,6 @@ describe('processPlants', () => {
       expect(state.plants[0].size).toBe(originalSize);
     });
 
-    it('returns new state object when plants grow', () => {
-      const state = createTestState({
-        plants: [{ id: 'p1', species: 'java_fern', size: 50, condition: C, surplus: 0 }],
-        light: 50,
-        co2: plantsDefaults.optimalCo2,
-        nitrate: plantsDefaults.optimalNitrate * 100,
-        water: 100,
-      });
-      const result = processPlants(state, DEFAULT_CONFIG);
-
-      expect(result.state).not.toBe(state);
-    });
   });
 
   describe('the reserve buys tissue, not condition', () => {

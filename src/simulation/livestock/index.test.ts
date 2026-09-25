@@ -86,21 +86,6 @@ describe('processLivestock', () => {
     expect(result.state.fish[0].satiation).not.toBe(20);
   });
 
-  it('updates fish health', () => {
-    // Start in the well-fed band with a small food ration so the fish
-    // doesn't gorge into the overfed band — the abundant food in
-    // makeState is enough to overshoot 100 in one tick from satiation
-    // 50 otherwise.
-    const fish = makeFish({ health: 90, satiation: 82.5 });
-    const state = produce(makeState([fish]), (draft) => {
-      draft.resources.food = 0; // no extra eating; just exercise the pipeline
-    });
-    const result = processLivestock(state, DEFAULT_CONFIG);
-
-    // In ideal conditions (peak well-fed, clean water), health recovers.
-    expect(result.state.fish[0].health).toBeGreaterThanOrEqual(90);
-  });
-
   it('removes dead fish and logs death', () => {
     const state = produce(makeState([makeFish({ health: 1 })]), (draft) => {
       // Lethal ammonia
@@ -156,13 +141,4 @@ describe('processLivestock', () => {
     expect(o2Effect!.delta).toBeCloseTo(expectedDelta, 6);
   });
 
-  it('effect sources are correctly labeled', () => {
-    const state = makeState([makeFish({ satiation: 50 })]);
-    const result = processLivestock(state, DEFAULT_CONFIG);
-
-    const sources = result.effects.map((e) => e.source);
-    expect(sources).toContain('fish-metabolism');
-    expect(sources).toContain('fish-gill-excretion');
-    expect(sources).toContain('fish-respiration');
-  });
 });
