@@ -36,7 +36,10 @@ export type SufficiencyMap = ReadonlyMap<string, number>;
  * tissue carries about a third as much calcium and a tenth as much magnesium
  * as nitrogen; converted to CaCO3 equivalents per mg of NO3, that is ~0.28.
  */
-const GH_PER_NITRATE_DRAWN = 0.28;
+export const GH_PER_NITRATE_DRAWN = 0.28;
+
+/** ppm of GH, as CaCO3, at which plants take calcium and magnesium at half their need. */
+export const GH_HALF_SATURATION = 1;
 
 export interface PhotosynthesisResult {
   /** Oxygen released (mg, absolute — caller divides by water volume for mg/L delta) */
@@ -101,6 +104,7 @@ function emptyResult(): PhotosynthesisResult {
  *   capacity_n = Σ potential_i × demand_i,n × uptakePerRateUnit_n
  *   K_n        = capacity-weighted mean of the plants' half-saturations, as mass
  *   uptake_n   = monodUptake(stock_n, capacity_n, K_n)
+ *   gh         = monodUptake(GH, uptake_nitrate × GH_PER_NITRATE_DRAWN, GH_HALF_SATURATION)
  *   co2        = Σ actual × co2PerRateUnit, clamped to the dissolved mass
  *   oxygen     = co2 × CO2_TO_O2_MASS_RATIO
  */
@@ -120,8 +124,10 @@ export function calculatePhotosynthesis(
     return emptyResult();
   }
 
-  const capacity: NutrientVector = { nitrate: 0, phosphate: 0, potassium: 0, iron: 0 };
-  const weightedHalfSaturation: NutrientVector = { nitrate: 0, phosphate: 0, potassium: 0, iron: 0 };
+  const zeros = (): NutrientVector =>
+    Object.fromEntries(NUTRIENTS.map((n) => [n, 0])) as NutrientVector;
+  const capacity = zeros();
+  const weightedHalfSaturation = zeros();
 
   let potentialSum = 0;
   let actualSum = 0;
@@ -148,13 +154,13 @@ export function calculatePhotosynthesis(
   }
 
   const drawFrom = (n: Nutrient): number =>
-    -monodUptake(
+    0 -
+    monodUptake(
       resources[n],
       capacity[n],
-      capacity[n] > 0 ? getMassFromPpm(weightedHalfSaturation[n] / capacity[n], waterVolume) : 0
+      getMassFromPpm(weightedHalfSaturation[n] / capacity[n], waterVolume)
     );
   const nitrateDelta = drawFrom('nitrate');
-  const ghDrawn = Math.min(-nitrateDelta * GH_PER_NITRATE_DRAWN, Math.max(0, resources.gh));
 
   const co2ConsumedMg = Math.min(
     actualSum * plantsConfig.co2PerRateUnit,
@@ -168,7 +174,13 @@ export function calculatePhotosynthesis(
     phosphateDelta: drawFrom('phosphate'),
     potassiumDelta: drawFrom('potassium'),
     ironDelta: drawFrom('iron'),
-    ghDelta: ghDrawn > 0 ? -ghDrawn : 0,
+    ghDelta:
+      0 -
+      monodUptake(
+        resources.gh,
+        -nitrateDelta * GH_PER_NITRATE_DRAWN,
+        getMassFromPpm(GH_HALF_SATURATION, waterVolume)
+      ),
     limitingFactor: potentialSum > 0 ? actualSum / potentialSum : 0,
   };
 }

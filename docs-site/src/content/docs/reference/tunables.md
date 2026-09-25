@@ -42,7 +42,7 @@ off — which is the part that makes a number checkable.
 | `q10` | Factor every decay rate multiplies by per 10 °C | — |
 | `referenceTemp` | Temperature the base rate is quoted at | °C |
 | `baseDecayRate` | Share of standing food that decomposes per hour — a Monod maximum | /hr |
-| `wasteConversionRatio` | Share of decaying food that becomes solid waste | — |
+| `wasteConversionRatio` | Share of decaying food that becomes solid waste; the rest releases its N and minerals straight to the water | — |
 | `gasExchangePerGramDecay` | Oxygen the decomposers demand per gram oxidised; their CO₂ derives from it | mg O₂/g |
 | `oxygenHalfSaturation` | Dissolved O₂ at which decomposition runs at half rate | mg/L |
 | `substrateLeachRate` | Share of the bed's remaining organic reserve released per hour | /hr |
@@ -178,7 +178,7 @@ sum once, centrally, rather than each channel scaling itself.
 | `uptakePerRateUnit.*` | What a full-demand plant takes of each nutrient per rate unit of photosynthetic drive | mg |
 | `halfSaturation.*` | The ppm at which a full-demand plant's uptake and sufficiency run at half | ppm |
 | `demand.low.*` · `demand.medium.*` · `demand.high.*` | Each tier's share of the full need, per nutrient; scales both uptake and half-saturation | — |
-| `releasePerWaste.phosphate` · `.potassium` · `.iron` | Minerals released alongside the ammonia, per gram of waste — and per gram of food a fish eats | mg/g |
+| `releasePerWaste.phosphate` · `.potassium` · `.iron` | Minerals released alongside the ammonia, per gram of waste | mg/g |
 
 ## Livestock
 

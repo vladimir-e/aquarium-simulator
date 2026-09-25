@@ -27,7 +27,7 @@ tank has to keep earning.
 | Temperature | <Badge text="settled" variant="success" /> | One Q10 factor across oxidation, growth and decay, because they are one metabolism. |
 | Guild seeding | <Badge text="settled" variant="success" /> | A trickle per litre of water that never stops, so a guild is always present and grows the moment it has feedstock — no concentration gate. |
 | Mineralization rate | <Badge text="scaffolding" variant="caution" /> | A flat fraction of standing waste with no temperature and no oxygen term, in the one aerobic step of the chain that has neither. |
-| N mass conservation | <Badge text="scaffolding" variant="caution" /> | The chain conserves N per atom, but decay oxidation, plant uptake and metabolic retention are untracked sinks. The end-to-end mass accounting controls for them rather than closing them. |
+| N mass conservation | <Badge text="scaffolding" variant="caution" /> | The chain conserves N per atom, but plant uptake and metabolic retention are untracked sinks. The end-to-end mass accounting controls for them rather than closing them. |
 | Colony sizing on inert beds | <Badge text="settled" variant="success" /> | A colony grows to the load it is fed, not to the surface under it, so an inert bed's smaller surface lowers the ceiling without setting the cycling clock. |
 | Cycled seed | <Badge text="settled" variant="success" /> | A `'cycled'` colony is the one the tank's load sustains at rest — its fish fed to satiety and its bed's leach — floored at a fishless month's share of the surface ceiling. A seeded colony already clears its resting load at the trace line, so a stocked setup opens without a spike; food fed past satiety is outside that load, so an overfed tank's colony grows on from the seed. |
 | Nitrogen alerts | <Badge text="scaffolding" variant="caution" /> | Ammonia alerts on free NH₃ where harm starts; nitrite still alerts at 1.0 ppm where fish damage starts at any presence. |
@@ -41,7 +41,7 @@ tank has to keep earning.
 
 | Stage | Reaction | Run by |
 |---|---|---|
-| 1 · Mineralization | waste (g) → NH₃ + PO₄ (mg) | No organism. A flat fraction of standing waste, times a stoichiometric N and P content. |
+| 1 · Mineralization | waste (g) → NH₃ + PO₄ + K + Fe (mg) | No organism. A flat fraction of standing waste, times a stoichiometric N, P, K and Fe content. |
 | 2 · Ammonia oxidation | NH₄⁺ + 1.5 O₂ → NO₂⁻ + 2 H⁺ + H₂O | AOB, saturating on what is dissolved |
 | 3 · Nitrite oxidation | NO₂⁻ + 0.5 O₂ → NO₃⁻ | NOB, saturating on what is dissolved |
 
@@ -66,8 +66,8 @@ separately. A tank that cannot run the reaction does not pay for it.
 | Stock | Fills it | Drains it | Unit |
 |---|---|---|---|
 | `waste` | Food decay, fish feces, fish death, plant tissue loss, substrate leaching | Mineralization to ammonia; settling into the bed | g |
-| `ammonia` | Mineralization; fish gill excretion | AOB oxidation; water change removes proportional mass | mg |
-| `phosphate` · `potassium` · `iron` | Mineralization, at `releasePerWaste` beside the ammonia; fish excretion; fertilizer dosing | Plant uptake; water change | mg |
+| `ammonia` | Mineralization; fish gill excretion; the oxidised share of decaying food | AOB oxidation; water change removes proportional mass | mg |
+| `phosphate` · `potassium` · `iron` | Mineralization, at `releasePerWaste` beside the ammonia; fish excretion; the oxidised share of decaying food; fertilizer dosing | Plant uptake; water change | mg |
 | `nitrite` | AOB oxidation, × 2.702 | NOB oxidation; water change | mg |
 | `nitrate` | NOB oxidation, × 1.348; fertilizer dosing | Plant uptake; water change | mg |
 | `aob` | Seeding trickle; logistic growth on utilization | Maintenance decay; surface-area cap | units of 10⁶ cells |

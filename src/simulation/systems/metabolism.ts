@@ -38,11 +38,9 @@
  *               = foodGiven × (1 - gillNFraction)
  * At defaults this is 0.2 g waste per g food.
  *
- * Food carries the same minerals per gram as the waste it becomes
- * (`releasePerWaste`). The absorbed share leaves beside the gill NH3,
- * at the same ratio to its nitrogen, so every milligram of phosphate,
- * potassium and iron eaten comes back to the water. Mineral excretion
- * is not deamination and is not scaled by oxygen.
+ * The absorbed share's minerals leave beside the gill NH3, at
+ * `releasePerWaste` per gram. Mineral excretion is not deamination and is
+ * not scaled by oxygen.
  *
  * Both NH3 streams are deamination, and deamination is metabolism: each is
  * scaled by the same oxygen factor as the respiratory draw, off the same
@@ -105,18 +103,6 @@ export function processMetabolism(
   config: LivestockConfig,
   releasePerWaste: WasteRelease = nutrientsDefaults.releasePerWaste
 ): MetabolismResult {
-  if (fish.length === 0) {
-    return {
-      updatedFish: [],
-      foodConsumed: 0,
-      wasteProduced: 0,
-      ammoniaProduced: 0,
-      mineralsExcreted: { phosphate: 0, potassium: 0, iron: 0 },
-      oxygenConsumedMg: 0,
-      co2ProducedMg: 0,
-    };
-  }
-
   const oxygenFactor = monodFactor(oxygen, config.respirationOxygenHalfSaturation);
 
   // Sort by satiation (lowest first — hungriest fish served first).

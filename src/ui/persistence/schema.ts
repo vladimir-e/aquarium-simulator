@@ -5,7 +5,11 @@
 
 import { z } from 'zod';
 import { MAX_LIGHT_PAR } from '../../simulation/index.js';
-import { MAX_WATER_ATTENUATION_PER_CM } from '../../simulation/config/index.js';
+import {
+  MAX_WATER_ATTENUATION_PER_CM,
+  NUTRIENTS,
+  WASTE_NUTRIENTS,
+} from '../../simulation/config/index.js';
 import { VERB_IDS, type VerbId } from '../actions/verbs.js';
 import { PERSISTENCE_VERSION } from './types.js';
 
@@ -468,14 +472,14 @@ const PlantsConfigSchema = z
   })
   .strict();
 
-const NutrientVectorSchema = z
-  .object({
-    nitrate: z.number(),
-    phosphate: z.number(),
-    potassium: z.number(),
-    iron: z.number(),
-  })
-  .strict();
+const numbersFor = <K extends string>(
+  keys: readonly K[]
+): z.ZodObject<Record<K, z.ZodNumber>, z.core.$strict> =>
+  z
+    .object(Object.fromEntries(keys.map((k) => [k, z.number()])) as Record<K, z.ZodNumber>)
+    .strict();
+
+const NutrientVectorSchema = numbersFor(NUTRIENTS);
 
 const NutrientsConfigSchema = z
   .object({
@@ -485,9 +489,7 @@ const NutrientsConfigSchema = z
     demand: z
       .object({ low: NutrientVectorSchema, medium: NutrientVectorSchema, high: NutrientVectorSchema })
       .strict(),
-    releasePerWaste: z
-      .object({ phosphate: z.number(), potassium: z.number(), iron: z.number() })
-      .strict(),
+    releasePerWaste: numbersFor(WASTE_NUTRIENTS),
   })
   .strict();
 

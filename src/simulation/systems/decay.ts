@@ -1,6 +1,10 @@
 /**
  * Decay system - converts food to waste with temperature scaling.
  * Runs in PASSIVE tier.
+ *
+ * The oxidised share leaves no solid behind, so its nitrogen and minerals go
+ * straight to the water: N as NH3, and phosphate, potassium and iron at the
+ * food's `releasePerWaste` content.
  */
 
 import type { Effect } from '../core/effects.js';
@@ -9,7 +13,8 @@ import type { System } from './types.js';
 import type { TunableConfig } from '../config/index.js';
 import { type DecayConfig, decayDefaults } from '../config/decay.js';
 import { monodFactor, q10Factor } from '../core/kinetics.js';
-import { O2_TO_CO2_MASS_RATIO } from '../core/chemistry.js';
+import { N_TO_NH3_MASS_RATIO, O2_TO_CO2_MASS_RATIO } from '../core/chemistry.js';
+import { WASTE_NUTRIENTS } from '../config/nutrients.js';
 import { getPpm } from '../resources/index.js';
 
 /**
@@ -90,6 +95,21 @@ export const decaySystem: System = {
         });
 
         const oxidizedAmount = decayAmount * (1 - decayConfig.wasteConversionRatio);
+        effects.push({
+          tier: 'passive',
+          resource: 'ammonia',
+          delta: oxidizedAmount * config.livestock.foodNitrogenFraction * N_TO_NH3_MASS_RATIO * 1000,
+          source: 'decay',
+        });
+        for (const nutrient of WASTE_NUTRIENTS) {
+          effects.push({
+            tier: 'passive',
+            resource: nutrient,
+            delta: oxidizedAmount * config.nutrients.releasePerWaste[nutrient],
+            source: 'decay',
+          });
+        }
+
         const oxygenDemandMgPerL = getPpm(
           oxidizedAmount * decayConfig.gasExchangePerGramDecay,
           state.resources.water

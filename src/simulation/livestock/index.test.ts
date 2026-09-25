@@ -4,6 +4,7 @@ import { createSimulation, type SimulationState } from '../state.js';
 import { DEFAULT_CONFIG } from '../config/index.js';
 import { produce } from 'immer';
 import { monodFactor } from '../core/kinetics.js';
+import { WASTE_NUTRIENTS } from '../config/nutrients.js';
 import type { Fish } from '../state.js';
 
 function makeFish(overrides: Partial<Fish> = {}): Fish {
@@ -59,6 +60,22 @@ describe('processLivestock', () => {
     );
     expect(ammoniaEffect).toBeDefined();
     expect(ammoniaEffect!.delta).toBeGreaterThan(0);
+  });
+
+  it('excretes the minerals of the absorbed food beside the gill NH3', () => {
+    const state = makeState([makeFish({ satiation: 50, mass: 1.0 })]);
+    const result = processLivestock(state, DEFAULT_CONFIG);
+    const eaten = -result.effects.find((e) => e.resource === 'food')!.delta;
+
+    for (const nutrient of WASTE_NUTRIENTS) {
+      const excreted = result.effects.find(
+        (e) => e.resource === nutrient && e.source === 'fish-gill-excretion'
+      );
+      expect(excreted!.delta).toBeCloseTo(
+        eaten * DEFAULT_CONFIG.livestock.gillNFraction * DEFAULT_CONFIG.nutrients.releasePerWaste[nutrient],
+        12
+      );
+    }
   });
 
   it('processes respiration: O2 consumed and CO2 produced', () => {

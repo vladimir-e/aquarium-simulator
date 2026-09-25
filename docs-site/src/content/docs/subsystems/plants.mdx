@@ -29,7 +29,7 @@ repair first and new tissue second.
 | Photoperiod gates | <Badge text="scaffolding" variant="caution" /> | Two switches on `light > 0`: the light-low stressor and surplus accrual. A light-starved plant swings between 0 and full damage as the lamp flips while its benefits ramp smoothly. |
 | Size against `maxSize` | <Badge text="scaffolding" variant="caution" /> | The ceiling is 600–1100 across the roster and the asymptotic factor stays above 0.9 through any calibration window, so it does not bind. Trimming validates a target in `[0, 100]` against it. |
 | Propagation | <Badge text="missing" variant="danger" /> | A plant with nowhere left to grow banks its whole income and nothing spends it. No runners, no daughter plants — the only way a plant enters the tank is the keeper putting one there. |
-| General hardness | <Badge text="scaffolding" variant="caution" /> | A damage-only tolerance band per species, and a small uptake tied to the nitrate draw. Calcium never enters sufficiency, so soft water stresses a plant but never starves it. |
+| General hardness | <Badge text="scaffolding" variant="caution" /> | A damage-only tolerance band per species, and a small uptake on the nitrate draw. Calcium never enters sufficiency, so soft water stresses a plant but never starves it. |
 
 ## How it works
 
@@ -135,8 +135,7 @@ uptake_n    = the Monod draw on capacity_n, read at the tick's closing stock
 Demand is one number per nutrient per tier, and it scales both how much a plant
 takes and how little it can make do with. An Anubias needs a twentieth of a
 carpet's potassium and iron, so the trace fish food leaves in an undosed tank
-soon covers it. A carpet reads about 90 % on each nutrient in a tank
-dosed to 15 NO₃ / 1 PO₄ / 10 K / 0.2 Fe ppm, and never quite reaches 100 %.
+goes a long way for it. No nutrient ever reads quite 100 %.
 
 Uptake follows the plant, not the bottle. Its ratio is the tissue the plant's
 light and carbon would build, so dosing moves the water column toward whatever
@@ -147,12 +146,13 @@ capacity-weighted mean of its half-saturations, on the same end-of-tick Monod
 the nitrifiers use — so a pool the plants drain slows its own draw and never
 goes below zero.
 
-Phosphate, potassium and iron come back the way nitrogen does. Food carries them
-at the same per-gram ratio as waste; a fish returns what it eats through its
-gills and its feces, and waste mineralizes them beside its ammonia. Their budget
-is food and fertilizer in, plant uptake and water changes out. Calcium and
-magnesium ride along with the nitrate a plant actually draws (under Key
-tunables).
+Phosphate, potassium and iron come back the way nitrogen does, all of what food
+carries ([Livestock](/subsystems/livestock/)); waste mineralizes them beside its
+ammonia. Their budget is food and fertilizer in, plant uptake and water changes
+out — except that shed tissue and dead plants return minerals through waste that
+uptake never tied to them, so the plant loop is not conserved. Calcium and
+magnesium are drawn on their own Monod curve, off the nitrate a plant actually
+draws (under Key tunables).
 
 ### Income, upkeep and the compensation point
 
@@ -243,6 +243,7 @@ plant leaves the array.
 | `nutrientDeficiencySeverity` | Damage per point of Liebig shortfall, at saturating light | `0.3` %/hr |
 | `ghStressSeverity` | Damage per dGH outside the species' band | `0.1` %/dGH/hr |
 | GH per nitrate drawn | Calcium and magnesium taken up per mg of nitrate actually drawn, off leaf-tissue ratios; a constant | `0.28` mg CaCO₃/mg |
+| GH half-saturation | GH, as CaCO₃, at which that uptake runs at half; a constant | `1` mg/L |
 | Benefit peaks (×4) | Recovery per channel in band, before the light term. Four at `0.125` sum to the 0.5 %/h budget the recovery curves were pinned against | `0.125` %/hr |
 | `deathConditionThreshold` · `deathSizeThreshold` | The two floors a plant leaves the tank through | `10` % each |
 

@@ -3,6 +3,8 @@ import {
   calculateCo2Factor,
   calculatePhotosynthesis,
   getTotalPlantSize,
+  GH_HALF_SATURATION,
+  GH_PER_NITRATE_DRAWN,
   type PhotosynthesisResult,
 } from './photosynthesis.js';
 import {
@@ -145,7 +147,7 @@ describe('calculatePhotosynthesis', () => {
 
       expect(result.oxygenProducedMg).toBe(0);
       expect(result.co2ConsumedMg).toBe(0);
-      expect(result.nitrateDelta).toBeCloseTo(0, 12);
+      expect(result.nitrateDelta).toBe(0);
       expect(result.limitingFactor).toBe(0);
     });
 
@@ -214,26 +216,31 @@ describe('calculatePhotosynthesis', () => {
       expect(draw(4)).toBeGreaterThan(draw(INJECTED_CO2));
     });
 
-    it('takes up GH in step with the nutrients it draws, and none from soft water', () => {
-      const hard = buildResources(waterVolume, { gh: 10000 });
-      const one = photosynthesis([plant(100, 'java_fern')], { resources: hard });
-      const two = photosynthesis([plant(200, 'java_fern')], { resources: hard });
+    it('draws GH on its own Monod, off the nitrate it actually draws', () => {
+      const expectGhDrawOn = (resources: Resources): void => {
+        const result = photosynthesis([plant(100, 'java_fern')], { resources });
+        expect(result.ghDelta).toBeCloseTo(
+          -monodUptake(
+            resources.gh,
+            -result.nitrateDelta * GH_PER_NITRATE_DRAWN,
+            GH_HALF_SATURATION * waterVolume
+          ),
+          12
+        );
+      };
 
-      expect(one.ghDelta).toBeLessThan(0);
-      expect(two.ghDelta / one.ghDelta).toBeCloseTo(two.nitrateDelta / one.nitrateDelta, 10);
-      expect(photosynthesis([plant(100, 'java_fern')]).ghDelta).toBe(0);
+      expectGhDrawOn(buildResources(waterVolume, { gh: 10000 }));
+      expectGhDrawOn(buildResources(waterVolume, { gh: 10000, nitrate: waterVolume * 0.5 }));
+      expectGhDrawOn(buildResources(waterVolume, { gh: 0.01 }));
     });
 
-    it('takes up GH off the nitrate it actually draws, not the nitrate it asked for', () => {
-      const full = photosynthesis([plant(100, 'java_fern')], {
-        resources: buildResources(waterVolume, { gh: 10000 }),
+    it('takes no GH from soft water, and never more than the water holds', () => {
+      expect(photosynthesis([plant(100, 'java_fern')]).ghDelta).toBe(0);
+      const trace = photosynthesis([plant(100, 'java_fern')], {
+        resources: buildResources(waterVolume, { gh: 0.01 }),
       });
-      const lean = photosynthesis([plant(100, 'java_fern')], {
-        resources: buildResources(waterVolume, { gh: 10000, nitrate: waterVolume * 0.5 }),
-      });
-
-      expect(lean.nitrateDelta).toBeGreaterThan(full.nitrateDelta);
-      expect(lean.ghDelta / full.ghDelta).toBeCloseTo(lean.nitrateDelta / full.nitrateDelta, 10);
+      expect(trace.ghDelta).toBeLessThan(0);
+      expect(-trace.ghDelta).toBeLessThan(0.01);
     });
 
     it('limiting factor approaches 1 in rich water', () => {
@@ -333,7 +340,7 @@ describe('calculatePhotosynthesis', () => {
       expect(result.nitrateDelta).toBeLessThan(0);
       expect(result.phosphateDelta).toBeLessThan(0);
       expect(result.potassiumDelta).toBeLessThan(0);
-      expect(result.ironDelta).toBeCloseTo(0, 12);
+      expect(result.ironDelta).toBe(0);
     });
 
     it('takes nutrients in its own ratio, whatever the fertilizer carries', () => {

@@ -144,7 +144,7 @@ describe('createSimulation seeding', () => {
       1
     );
     const seeded = { aob: state.resources.aob, nob: state.resources.nob };
-    const ration = state.fish.reduce((sum, fish) => sum + fish.mass, 0) * 0.02;
+    const ration = state.fish.reduce((sum, fish) => sum + fish.mass, 0) * 0.01;
 
     for (let hour = 0; hour < 7 * 24; hour++) {
       if (hour % 24 === 19) state = applyAction(state, { type: 'feed', amount: ration }).state;

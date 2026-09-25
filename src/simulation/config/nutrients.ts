@@ -114,10 +114,10 @@ export const halfSaturationMeta: NutrientVectorMeta[] = [
 ];
 
 export const demandMeta: NutrientVectorMeta[] = [
-  { key: 'nitrate', label: 'Nitrate demand', unit: '× full', min: 0, max: 1, step: 0.05 },
-  { key: 'phosphate', label: 'Phosphate demand', unit: '× full', min: 0, max: 1, step: 0.05 },
-  { key: 'potassium', label: 'Potassium demand', unit: '× full', min: 0, max: 1, step: 0.05 },
-  { key: 'iron', label: 'Iron demand', unit: '× full', min: 0, max: 1, step: 0.05 },
+  { key: 'nitrate', label: 'Nitrate demand', unit: '× full', min: 0.01, max: 1, step: 0.01 },
+  { key: 'phosphate', label: 'Phosphate demand', unit: '× full', min: 0.01, max: 1, step: 0.01 },
+  { key: 'potassium', label: 'Potassium demand', unit: '× full', min: 0.01, max: 1, step: 0.01 },
+  { key: 'iron', label: 'Iron demand', unit: '× full', min: 0.01, max: 1, step: 0.01 },
 ];
 
 export const releasePerWasteMeta: NutrientVectorMeta[] = [

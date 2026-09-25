@@ -12,8 +12,8 @@ export type PlantSpecies =
   | 'monte_carlo';
 
 /**
- * Nutrient demand level for plants.
- * Determines how much of the optimal nutrient levels a plant needs.
+ * Nutrient demand tier. Scales both a plant's uptake and its half-saturation,
+ * per nutrient.
  */
 export type NutrientDemand = 'low' | 'medium' | 'high';
 
@@ -31,7 +31,7 @@ export interface PlantSpeciesData {
   growthRate: number;
   /** Substrate requirement for planting */
   substrateRequirement: 'none' | 'sand' | 'aqua_soil';
-  /** Nutrient demand level - affects how much fertilizer is needed */
+  /** Nutrient demand tier */
   nutrientDemand: NutrientDemand;
   /**
    * Per-plant biological maximum size (% units, same scale as `Plant.size`).

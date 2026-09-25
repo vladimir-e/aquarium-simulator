@@ -5,7 +5,7 @@ import {
   speciesDemand,
   speciesHalfSaturation,
 } from './nutrients.js';
-import { NUTRIENTS, nutrientsDefaults, type NutrientVector } from '../config/nutrients.js';
+import { NUTRIENTS, demandMeta, nutrientsDefaults, type NutrientVector } from '../config/nutrients.js';
 import type { Resources } from '../state.js';
 
 const WATER = 40;
@@ -62,15 +62,18 @@ describe('nutrientShare', () => {
     }
   });
 
-  it('has no cliff as demand falls to zero: the same trace meets a smaller need more fully', () => {
-    const at = (iron: number): number =>
-      nutrientShare(0.001, 'monte_carlo', 'iron', {
+  it('has no cliff as demand falls to its floor: the same trace meets a smaller need more fully, and none meets none', () => {
+    const at = (ppm: number, iron: number): number =>
+      nutrientShare(ppm, 'monte_carlo', 'iron', {
         ...nutrientsDefaults,
         demand: { ...nutrientsDefaults.demand, high: { ...nutrientsDefaults.demand.high, iron } },
       });
-    const shares = [1, 0.3, 0.1, 0.03, 0.01, 0].map(at);
+    const floor = demandMeta.find((m) => m.key === 'iron')!.min;
+    const demands = [1, 0.3, 0.1, 0.03, floor];
+    const shares = demands.map((demand) => at(0.001, demand));
     for (let i = 1; i < shares.length; i++) expect(shares[i]).toBeGreaterThan(shares[i - 1]);
-    expect(shares[shares.length - 1]).toBe(1);
+    expect(shares[shares.length - 1]).toBeLessThan(1);
+    for (const demand of demands) expect(at(0, demand)).toBe(0);
   });
 });
 

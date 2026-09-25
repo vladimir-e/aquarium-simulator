@@ -8,7 +8,8 @@ import { createSimulation, type SimulationState } from '../state.js';
 import { produce } from 'immer';
 import { DEFAULT_CONFIG } from '../config/index.js';
 import { decayDefaults } from '../config/decay.js';
-import { MW_CO2, MW_O2 } from '../core/chemistry.js';
+import { MW_CO2, MW_O2, N_TO_NH3_MASS_RATIO } from '../core/chemistry.js';
+import { WASTE_NUTRIENTS } from '../config/nutrients.js';
 import { monodFactor } from '../core/kinetics.js';
 
 const SATURATED_O2 = 8;
@@ -117,6 +118,25 @@ describe('decaySystem', () => {
       -foodEffect!.delta * decayDefaults.wasteConversionRatio,
       6
     );
+  });
+
+  it('releases the nitrogen of the oxidised share as NH3 and its minerals at the food content', () => {
+    const state = createTestState({ food: 1.0, temperature: 25, water: 0 });
+    const effects = decaySystem.update(state, DEFAULT_CONFIG);
+    const released = (resource: string): number =>
+      effects.find((e) => e.resource === resource && e.source === 'decay')!.delta;
+    const oxidized = -released('food') * (1 - decayDefaults.wasteConversionRatio);
+
+    expect(released('ammonia')).toBeCloseTo(
+      oxidized * DEFAULT_CONFIG.livestock.foodNitrogenFraction * N_TO_NH3_MASS_RATIO * 1000,
+      10
+    );
+    for (const nutrient of WASTE_NUTRIENTS) {
+      expect(released(nutrient)).toBeCloseTo(
+        oxidized * DEFAULT_CONFIG.nutrients.releasePerWaste[nutrient],
+        10
+      );
+    }
   });
 
   it('creates no effects at all when food is 0', () => {
