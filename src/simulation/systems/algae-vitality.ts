@@ -17,10 +17,10 @@
  * Benefits:
  * - `excess_light` — substrate PAR above `lightExcessThreshold`
  *   (capped peak).
- * - `excess_nutrients` — NO3 / PO4 ratio above plant optimum
+ * - `excess_nutrients` — NO3 / PO4 ratio above algae's reference ppm
  *   (capped peak; dominant nutrient lever).
  * - `nutrient_deficiency` — small benefit when nutrients fall below
- *   plant optimum (the canary signal that plants are starving).
+ *   that reference (the canary signal that plants are starving).
  * - `low_plant_power` — plant power below `weaknessThreshold`
  *   (capped peak; mirrors plant_suppression).
  *
@@ -126,31 +126,18 @@ export function buildAlgaeBenefits(ctx: AlgaeVitalityContext): VitalityFactor[] 
   // Nutrient excess / deficiency — relative to algae's reference ppm.
   // Take the max across NO3/PO4 so a single overdose / starvation signal
   // lights up the channel.
-  const waterVolume = resources.water;
-  const nitratePpm = waterVolume > 0 ? getPpm(resources.nitrate, waterVolume) : 0;
-  const phosphatePpm = waterVolume > 0 ? getPpm(resources.phosphate, waterVolume) : 0;
-  const refNo3 = algaeConfig.referenceNitratePpm;
-  const refPo4 = algaeConfig.referencePhosphatePpm;
+  const no3Ratio = getPpm(resources.nitrate, resources.water) / algaeConfig.referenceNitratePpm;
+  const po4Ratio =
+    getPpm(resources.phosphate, resources.water) / algaeConfig.referencePhosphatePpm;
 
-  const no3Ratio = refNo3 > 0 ? nitratePpm / refNo3 : 0;
-  const po4Ratio = refPo4 > 0 ? phosphatePpm / refPo4 : 0;
-
-  // Excess: largest fractional overshoot above optimum.
-  const no3Excess = Math.max(0, no3Ratio - 1);
-  const po4Excess = Math.max(0, po4Ratio - 1);
-  const excessRatio = Math.max(no3Excess, po4Excess);
   const excessNutrients = cappedAmount(
-    excessRatio,
+    Math.max(no3Ratio, po4Ratio) - 1,
     algaeConfig.excessNutrientSeverity,
     algaeConfig.excessNutrientPeak
   );
 
-  // Deficiency: largest shortfall below the reference.
-  const no3Deficit = refNo3 > 0 ? Math.max(0, 1 - no3Ratio) : 0;
-  const po4Deficit = refPo4 > 0 ? Math.max(0, 1 - po4Ratio) : 0;
-  const deficitRatio = Math.max(no3Deficit, po4Deficit);
   const nutrientDeficiency = cappedAmount(
-    deficitRatio,
+    1 - Math.min(no3Ratio, po4Ratio),
     algaeConfig.nutrientDeficiencySeverity,
     algaeConfig.nutrientDeficiencyPeak
   );

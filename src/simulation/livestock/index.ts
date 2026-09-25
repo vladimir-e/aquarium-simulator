@@ -10,6 +10,7 @@ import type { SimulationState } from '../state.js';
 import type { Effect } from '../core/effects.js';
 import type { TunableConfig } from '../config/index.js';
 import { livestockDefaults } from '../config/livestock.js';
+import { WASTE_NUTRIENTS } from '../config/nutrients.js';
 import { processMetabolism } from '../systems/metabolism.js';
 import { processHealth } from '../systems/fish-health.js';
 import { createLog } from '../core/logging.js';
@@ -52,7 +53,8 @@ export function processLivestock(
     state.fish,
     state.resources.food,
     state.resources.oxygen,
-    livestockConfig
+    livestockConfig,
+    config.nutrients.releasePerWaste
   );
 
   // Add metabolism effects
@@ -83,6 +85,18 @@ export function processLivestock(
       delta: metabolismResult.ammoniaProduced,
       source: 'fish-gill-excretion',
     });
+  }
+
+  for (const nutrient of WASTE_NUTRIENTS) {
+    const excreted = metabolismResult.mineralsExcreted[nutrient];
+    if (excreted > 0) {
+      effects.push({
+        tier: 'active',
+        resource: nutrient,
+        delta: excreted,
+        source: 'fish-gill-excretion',
+      });
+    }
   }
 
   const waterVolume = state.resources.water;

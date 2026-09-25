@@ -62,13 +62,15 @@ describe('nutrientShare', () => {
     }
   });
 
-  it('is fully met for a nutrient the species has no demand for, even at none', () => {
-    const noIronNeed = {
-      ...nutrientsDefaults,
-      demand: { ...nutrientsDefaults.demand, high: { ...nutrientsDefaults.demand.high, iron: 0 } },
-    };
-    expect(nutrientShare(0, 'monte_carlo', 'iron')).toBe(0);
-    expect(nutrientShare(0, 'monte_carlo', 'iron', noIronNeed)).toBe(1);
+  it('has no cliff as demand falls to zero: the same trace meets a smaller need more fully', () => {
+    const at = (iron: number): number =>
+      nutrientShare(0.001, 'monte_carlo', 'iron', {
+        ...nutrientsDefaults,
+        demand: { ...nutrientsDefaults.demand, high: { ...nutrientsDefaults.demand.high, iron } },
+      });
+    const shares = [1, 0.3, 0.1, 0.03, 0.01, 0].map(at);
+    for (let i = 1; i < shares.length; i++) expect(shares[i]).toBeGreaterThan(shares[i - 1]);
+    expect(shares[shares.length - 1]).toBe(1);
   });
 });
 
@@ -92,15 +94,14 @@ describe('calculateNutrientSufficiency', () => {
     );
   });
 
-  it('reads each species on the nutrients it has a demand for, and on none it lacks', () => {
-    const noKOrIron = resourcesAt({ ...multiplesOfHalfSaturation(10), potassium: 0, iron: 0 });
-    for (const species of ['java_fern', 'anubias'] as const) {
-      const demand = speciesDemand(species);
-      expect(demand.potassium).toBe(0);
-      expect(demand.iron).toBe(0);
-      expect(calculateNutrientSufficiency(noKOrIron, WATER, species)).toBeGreaterThan(0.5);
+  it('reads every species on all four nutrients, and none on water that holds none of one', () => {
+    for (const species of ['java_fern', 'amazon_sword', 'monte_carlo'] as const) {
+      for (const n of NUTRIENTS) {
+        expect(speciesDemand(species)[n]).toBeGreaterThan(0);
+        const without = resourcesAt({ ...multiplesOfHalfSaturation(10), [n]: 0 });
+        expect(calculateNutrientSufficiency(without, WATER, species)).toBe(0);
+      }
     }
-    expect(calculateNutrientSufficiency(noKOrIron, WATER, 'monte_carlo')).toBe(0);
   });
 
   it('rises smoothly with supply rather than stepping at a threshold', () => {

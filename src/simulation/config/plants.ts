@@ -83,7 +83,7 @@ export interface PlantsConfig {
   phStressSeverity: number;
   /** Damage per dGH outside the species' tolerable range. */
   ghStressSeverity: number;
-  /** Damage per (1 − sufficiency) for nutrient deficiency. */
+  /** Damage per (1 − sufficiency) at saturating light. */
   nutrientDeficiencySeverity: number;
   /**
    * Damage per ppm of NO3 above the toxicity ceiling (the auto-doser
@@ -222,17 +222,6 @@ export const plantsDefaults: PlantsConfig = {
   temperatureStressSeverity: 0.4,
   phStressSeverity: 3.0,
   ghStressSeverity: 0.1,
-  // Pinned from both ends against a starved carpet and a neglected nano.
-  //
-  // Severe: a monte carlo under a fixture that suits it, in water with no
-  // nitrogen in it at all, melts in **28 days** — weeks, which is what a
-  // carpet does when it is starved, and not the eleven weeks 0.2 would give
-  // it. Marginal: the shipped `planted` and `betta` presets, undosed and
-  // planted with the java fern and anubias every beginner guide names, keep
-  // all five plants alive at condition 96–100 for **180 days** — a hardy
-  // plant in a tank nobody doses is outlived, not killed. Between the ends
-  // the dose–response is a real one: a carpet at half every optimum takes
-  // five months, at a quarter ten weeks, at a tenth six.
   nutrientDeficiencySeverity: 0.3,
   // Toxicity threshold is high (100 ppm NO3) so normal dosing never
   // triggers — only the auto-doser massive-overdose case. Severity

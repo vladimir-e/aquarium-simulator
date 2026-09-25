@@ -63,6 +63,7 @@ Mass drives every number, and one oxygen factor scales most of them.
 | Gill ammonia, post-prandial | food eaten × `foodNitrogenFraction` × `gillNFraction`, as NH₃ | yes |
 | Gill ammonia, basal | `basalAmmoniaRate × mass` | yes |
 | Feces | food eaten × `(1 − gillNFraction)` | no |
+| Minerals, beside the gill ammonia | food eaten × `gillNFraction` × `releasePerWaste` | no |
 
 A fish regulates its uptake until the water falls past its critical oxygen
 tension, so the half-saturation constant sits at 1.0 mg/L — the highest in the
@@ -70,7 +71,10 @@ tank. Fish feel a shortage before the bacteria do.
 
 Feces sit outside the factor because that nitrogen was never absorbed, and the
 gut does not care what the gills are getting. The nitrogen a depressed fish does
-not deaminate stays in its body, which is an untracked sink.
+not deaminate stays in its body, which is an untracked sink. Minerals take no
+such detour: food carries phosphate, potassium and iron at the same per-gram
+ratio as waste, so every milligram eaten returns to the water through the gills
+or the feces.
 
 Damage is a separate reading. The oxygen stressor still charges a fish for the
 water it is in, so a suffocating fish draws less *and* suffers more.
@@ -254,7 +258,7 @@ visible decline rather than a coin flip.
 
 | Neighbour | Read | Written |
 |---|---|---|
-| [Nitrogen cycle](/subsystems/nitrogen-cycle/) | `ammonia` and `nitrite` as stressors, `nitrate` above its threshold | `ammonia` through the gills; `waste` as feces and death mass |
+| [Nitrogen cycle](/subsystems/nitrogen-cycle/) | `ammonia` and `nitrite` as stressors, `nitrate` above its threshold | `ammonia`, `phosphate`, `potassium` and `iron` through the gills; `waste` as feces and death mass |
 | [Water & gases](/subsystems/water-and-gases/) | `oxygen` twice — as the Monod factor on the whole metabolism, and as a stressor and benefit on the same threshold; pH, derived from `co2` and `kh`, and `gh`, each as a tolerance band | `oxygen` drawn, `co2` exhaled |
 | [Environment](/subsystems/environment/) | `temperature` as a tolerance band; `water` for every ppm and for the water-level stressor | — |
 | [Equipment](/subsystems/equipment/) | `flow`, divided by standing water into a turnover | — |

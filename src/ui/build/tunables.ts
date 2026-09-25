@@ -15,10 +15,10 @@ import {
   uptakeMeta,
   halfSaturationMeta,
   demandMeta,
+  releasePerWasteMeta,
   gasExchangeConfigMeta,
   livestockConfigMeta,
   nitrogenCycleConfigMeta,
-  nutrientsConfigMeta,
   opticsConfigMeta,
   waterChemistryConfigMeta,
   plantsConfigMeta,
@@ -81,7 +81,7 @@ const SECTIONS: readonly SectionSpec[] = [
   {
     key: 'nutrients',
     label: 'Nutrients',
-    meta: nutrientsConfigMeta,
+    meta: [],
     groups: [
       { key: 'fertilizerFormula', label: 'Fertiliser formula', meta: fertilizerFormulaMeta },
       { key: 'uptakePerRateUnit', label: 'Uptake per rate unit', meta: uptakeMeta },
@@ -89,6 +89,7 @@ const SECTIONS: readonly SectionSpec[] = [
       { key: 'demand.low', label: 'Low-demand species', meta: demandMeta },
       { key: 'demand.medium', label: 'Medium-demand species', meta: demandMeta },
       { key: 'demand.high', label: 'High-demand species', meta: demandMeta },
+      { key: 'releasePerWaste', label: 'Released per gram of waste', meta: releasePerWasteMeta },
     ],
   },
   { key: 'livestock', label: 'Livestock', meta: livestockConfigMeta },

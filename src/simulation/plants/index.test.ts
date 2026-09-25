@@ -18,11 +18,6 @@ const RICH = 1000;
 /** Just under the toxicity line: as near saturating as nitrate gets. */
 const RICH_NITRATE_PPM = 90;
 
-/** Zero half-saturations: any nutrient present meets the whole need, so no deficiency charges the bank. */
-const UNLIMITED = produce(DEFAULT_CONFIG, (draft) => {
-  for (const n of NUTRIENTS) draft.nutrients.halfSaturation[n] = 0;
-});
-
 describe('processPlants', () => {
   const C = 100;
   const BANK = establishmentSurplus(plantsDefaults);
@@ -195,7 +190,7 @@ describe('processPlants', () => {
         temperature: 25,
         water: 100,
       });
-      const result = processPlants(state, UNLIMITED);
+      const result = processPlants(state, DEFAULT_CONFIG);
       expect(result.state.plants[0].size).toBe(50);
       expect(result.state.plants[0].surplus).toBeCloseTo(40 - NIGHTLY_UPKEEP, 12);
     });
@@ -266,7 +261,7 @@ describe('processPlants', () => {
           plants: [{ id: 'p1', species, size: 100, condition: C, surplus: 0 }],
           light,
           co2: INJECTED_CO2,
-                    water: 100,
+          water: 100,
           temperature: 25,
         }),
         DEFAULT_CONFIG
@@ -429,8 +424,8 @@ describe('processPlants', () => {
         water: 100,
       });
 
-      const bankedOut = processPlants(withBank, UNLIMITED).state.plants[0];
-      const bareOut = processPlants(bare, UNLIMITED).state.plants[0];
+      const bankedOut = processPlants(withBank, DEFAULT_CONFIG).state.plants[0];
+      const bareOut = processPlants(bare, DEFAULT_CONFIG).state.plants[0];
 
       expect(bankedOut.size).toBe(50);
       expect(bankedOut.surplus).toBeLessThan(20);
@@ -470,7 +465,7 @@ describe('processPlants', () => {
         light: 0,
         water: 100,
       });
-      const out = processPlants(state, UNLIMITED).state.plants[0];
+      const out = processPlants(state, DEFAULT_CONFIG).state.plants[0];
       expect(out.surplus).toBeCloseTo(plantsDefaults.surplusCap - NIGHTLY_UPKEEP, 12);
     });
   });

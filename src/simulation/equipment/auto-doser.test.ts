@@ -9,10 +9,9 @@ import {
   type AutoDoser,
 } from './auto-doser.js';
 import { createSimulation, type SimulationState } from '../state.js';
-import { nutrientsDefaults, type FertilizerFormula } from '../config/nutrients.js';
+import { NUTRIENTS, nutrientsDefaults, type FertilizerFormula } from '../config/nutrients.js';
 
 const FORMULA = nutrientsDefaults.fertilizerFormula;
-const NUTRIENTS = ['nitrate', 'phosphate', 'potassium', 'iron'] as const;
 
 function tankAt(tick: number, doser: Partial<AutoDoser> = {}): SimulationState {
   const state = createSimulation({ tankCapacity: 40 });

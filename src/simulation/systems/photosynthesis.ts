@@ -6,28 +6,23 @@
  * size growth flows through the surplus supply chain (vitality →
  * `Plant.surplus` → growth) and does NOT come from photosynthesis
  * output directly.
- *
- * Nutrient uptake follows the plant's own need — the tissue its light and
- * carbon would build, scaled by its species demand — and each nutrient is
- * taken on its own Monod curve. A plant held back by one nutrient keeps
- * drawing the others it has water for.
  */
 
 import type { Plant } from '../state.js';
 import type { PlantsConfig } from '../config/plants.js';
 import { plantsDefaults } from '../config/plants.js';
-import type { NutrientsConfig, NutrientVector } from '../config/nutrients.js';
+import type { Nutrient, NutrientsConfig, NutrientVector } from '../config/nutrients.js';
 import { NUTRIENTS, nutrientsDefaults } from '../config/nutrients.js';
 import type { Resources } from '../state.js';
 import { CO2_TO_O2_MASS_RATIO } from '../core/chemistry.js';
-import { lightSaturationFactor, monodFactor } from '../core/kinetics.js';
+import { lightSaturationFactor, monodFactor, monodUptake } from '../core/kinetics.js';
 import {
   getCo2HalfSaturation,
   getSaturationIrradiance,
   type PlantSpecies,
 } from '../plants/species.js';
-import { getMassFromPpm, getPpm } from '../resources/index.js';
-import { nutrientShare, speciesDemand } from './nutrients.js';
+import { getMassFromPpm } from '../resources/index.js';
+import { speciesDemand, speciesHalfSaturation } from './nutrients.js';
 
 /**
  * Per-plant precomputed Liebig sufficiency, keyed by plant id. The
@@ -103,11 +98,11 @@ function emptyResult(): PhotosynthesisResult {
  *   actual_i    = potential_i × sufficiency_i
  *
  * Aggregate outputs, all masses in mg:
- *   uptake_n = Σ potential_i × demand_i,n × uptakePerRateUnit_n × share_i,n
- *   co2      = Σ actual × co2PerRateUnit, clamped to the dissolved mass
- *   oxygen   = co2 × CO2_TO_O2_MASS_RATIO
- *
- * where share_i,n is the Monod share of the plant's need for n the water meets.
+ *   capacity_n = Σ potential_i × demand_i,n × uptakePerRateUnit_n
+ *   K_n        = capacity-weighted mean of the plants' half-saturations, as mass
+ *   uptake_n   = monodUptake(stock_n, capacity_n, K_n)
+ *   co2        = Σ actual × co2PerRateUnit, clamped to the dissolved mass
+ *   oxygen     = co2 × CO2_TO_O2_MASS_RATIO
  */
 export function calculatePhotosynthesis(
   plants: readonly Plant[],
@@ -125,10 +120,8 @@ export function calculatePhotosynthesis(
     return emptyResult();
   }
 
-  const ppm = Object.fromEntries(
-    NUTRIENTS.map((n) => [n, getPpm(resources[n], waterVolume)])
-  ) as NutrientVector;
-  const uptake: NutrientVector = { nitrate: 0, phosphate: 0, potassium: 0, iron: 0 };
+  const capacity: NutrientVector = { nitrate: 0, phosphate: 0, potassium: 0, iron: 0 };
+  const weightedHalfSaturation: NutrientVector = { nitrate: 0, phosphate: 0, potassium: 0, iron: 0 };
 
   let potentialSum = 0;
   let actualSum = 0;
@@ -147,18 +140,19 @@ export function calculatePhotosynthesis(
 
     const demand = speciesDemand(plant.species, nutrientsConfig);
     for (const n of NUTRIENTS) {
-      uptake[n] +=
-        potential *
-        demand[n] *
-        nutrientsConfig.uptakePerRateUnit[n] *
-        nutrientShare(ppm[n], plant.species, n, nutrientsConfig);
+      const need = potential * demand[n] * nutrientsConfig.uptakePerRateUnit[n];
+      capacity[n] += need;
+      weightedHalfSaturation[n] +=
+        need * speciesHalfSaturation(plant.species, n, nutrientsConfig);
     }
   }
 
-  const drawFrom = (n: keyof NutrientVector): number => {
-    const draw = Math.min(uptake[n], Math.max(0, resources[n]));
-    return draw > 0 ? -draw : 0;
-  };
+  const drawFrom = (n: Nutrient): number =>
+    -monodUptake(
+      resources[n],
+      capacity[n],
+      capacity[n] > 0 ? getMassFromPpm(weightedHalfSaturation[n] / capacity[n], waterVolume) : 0
+    );
   const nitrateDelta = drawFrom('nitrate');
   const ghDrawn = Math.min(-nitrateDelta * GH_PER_NITRATE_DRAWN, Math.max(0, resources.gh));
 

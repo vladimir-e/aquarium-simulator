@@ -5,7 +5,7 @@ import { activeNeeds } from '../nav';
 import { bare, stocked, type Run } from '../test/run';
 import { renderStage } from '../test/stage';
 import { stubSim } from '../test/stubSim';
-import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
+import { DEFAULT_CONFIG, NUTRIENTS } from '../../simulation/config/index.js';
 import type { AlertState } from '../../simulation/index.js';
 import type { useSimulation } from '../hooks/useSimulation';
 
@@ -197,7 +197,7 @@ describe('OverviewSection', () => {
     renderOverview(stocked());
     const nutrients = within(widget('Nutrients'));
 
-    expect(nutrients.getAllByText(/^need /)).toHaveLength(2);
+    expect(nutrients.getAllByText(/^need /)).toHaveLength(NUTRIENTS.length);
     expect(nutrients.getByText(/1 ml moves/)).toBeTruthy();
   });
 

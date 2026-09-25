@@ -180,7 +180,9 @@ describe('buildPlantStressors', () => {
     for (const s of buildPlantStressors(context)) {
       if (s.key === 'nutrients') {
         expect(s.amount).toBeCloseTo(
-          plantsDefaults.nutrientDeficiencySeverity * (1 - context.nutrientSufficiency),
+          lightSaturationFactor(context.resources.light, getSaturationIrradiance('anubias', plantsDefaults)) *
+            plantsDefaults.nutrientDeficiencySeverity *
+            (1 - context.nutrientSufficiency),
           12
         );
         expect(s.amount).toBeLessThan(0.1 * plantsDefaults.nutrientDeficiencySeverity);
@@ -213,11 +215,15 @@ describe('buildPlantStressors', () => {
     expect(label('anubias', 200)).toContain('high');
   });
 
-  it('charges nutrient deficiency at full severity when a required nutrient is gone', () => {
-    expect(amount('monte_carlo', 'nutrients', { potassium: 0 })).toBeCloseTo(
-      plantsDefaults.nutrientDeficiencySeverity,
-      10
-    );
+  it('charges a gone nutrient at full severity on the light curve, and nothing in the dark', () => {
+    for (const light of [0, 20, 60, 400]) {
+      expect(amount('monte_carlo', 'nutrients', { potassium: 0, light })).toBeCloseTo(
+        lightSaturationFactor(light, getSaturationIrradiance('monte_carlo', plantsDefaults)) *
+          plantsDefaults.nutrientDeficiencySeverity,
+        10
+      );
+    }
+    expect(amount('monte_carlo', 'nutrients', { potassium: 0, light: 0 })).toBe(0);
   });
 
   it('charges nitrate toxicity only above the threshold, linear past it', () => {

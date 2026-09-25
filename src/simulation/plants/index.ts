@@ -37,7 +37,7 @@ import { produce } from 'immer';
 import type { SimulationState, Plant } from '../state.js';
 import { PLANT_SPECIES_DATA } from './species.js';
 import type { Effect } from '../core/effects.js';
-import type { TunableConfig } from '../config/index.js';
+import type { Nutrient, TunableConfig } from '../config/index.js';
 import {
   calculatePhotosynthesis,
   getTotalPlantSize,
@@ -145,7 +145,7 @@ export function processPlants(
   );
 
   const pushDelta = (
-    resource: 'oxygen' | 'co2' | 'nitrate' | 'phosphate' | 'potassium' | 'iron' | 'gh',
+    resource: Nutrient | 'oxygen' | 'co2' | 'gh',
     delta: number,
     source: string
   ): void => {

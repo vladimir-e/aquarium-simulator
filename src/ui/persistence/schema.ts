@@ -485,7 +485,9 @@ const NutrientsConfigSchema = z
     demand: z
       .object({ low: NutrientVectorSchema, medium: NutrientVectorSchema, high: NutrientVectorSchema })
       .strict(),
-    phosphatePerWaste: z.number(),
+    releasePerWaste: z
+      .object({ phosphate: z.number(), potassium: z.number(), iron: z.number() })
+      .strict(),
   })
   .strict();
 

@@ -28,7 +28,7 @@ declared minimum of `0.1`.
 | Optics | `optics.` | What the water column takes out of the light on the way down |
 | Water chemistry | `waterChemistry.` | What calcite, driftwood and aqua soil do to KH and GH |
 | Plants | `plants.` | Photosynthesis, respiration, vitality, growth, lifecycle |
-| Nutrients | `nutrients.` | Fertilizer formula, plant uptake and half-saturations, demand tiers, waste phosphate |
+| Nutrients | `nutrients.` | Fertilizer formula, plant uptake and half-saturations, demand tiers, minerals in waste |
 | Livestock | `livestock.` | Metabolism, satiation, vitality, death |
 
 The values themselves are not repeated here. They move when the model is
@@ -178,7 +178,7 @@ sum once, centrally, rather than each channel scaling itself.
 | `uptakePerRateUnit.*` | What a full-demand plant takes of each nutrient per rate unit of photosynthetic drive | mg |
 | `halfSaturation.*` | The ppm at which a full-demand plant's uptake and sufficiency run at half | ppm |
 | `demand.low.*` · `demand.medium.*` · `demand.high.*` | Each tier's share of the full need, per nutrient; scales both uptake and half-saturation | — |
-| `phosphatePerWaste` | Phosphate mineralized alongside the ammonia, per gram of waste | mg/g |
+| `releasePerWaste.phosphate` · `.potassium` · `.iron` | Minerals released alongside the ammonia, per gram of waste — and per gram of food a fish eats | mg/g |
 
 ## Livestock
 

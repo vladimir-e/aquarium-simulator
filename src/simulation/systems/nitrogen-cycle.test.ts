@@ -29,7 +29,7 @@ import { createSimulation, type SimulationState } from '../state.js';
 import { type SubstrateType } from '../equipment/substrate.js';
 import { type Effect } from '../core/effects.js';
 import { getPpm, getMassFromPpm } from '../resources/index.js';
-import { DEFAULT_CONFIG } from '../config/index.js';
+import { DEFAULT_CONFIG, WASTE_NUTRIENTS, type WasteNutrient } from '../config/index.js';
 import { AIR_SATURATED_O2, nitrogenCycleDefaults } from '../config/nitrogen-cycle.js';
 
 const REF = nitrogenCycleDefaults.referenceTemp;
@@ -641,17 +641,20 @@ describe('nitrogenCycleSystem', () => {
       expect(ammoniaEffect!.delta).toBeCloseTo(-wasteEffect!.delta * nitrogenCycleDefaults.wasteToAmmoniaRatio, 10);
     });
 
-    it('releases phosphate with the ammonia, in the organic matter’s own ratio', () => {
-      const released = (resource: 'ammonia' | 'phosphate', waste: number): number =>
+    it('releases minerals with the ammonia, in the organic matter’s own ratio', () => {
+      const released = (resource: 'ammonia' | WasteNutrient, waste: number): number =>
         nitrogenCycleSystem
           .update(createTestState({ waste, water: 40 }), DEFAULT_CONFIG)
           .find((e) => e.resource === resource && e.source === 'nitrogen-cycle-mineralization')!.delta;
 
-      for (const waste of [1, 10, 100]) {
-        expect(released('phosphate', waste) / released('ammonia', waste)).toBeCloseTo(
-          DEFAULT_CONFIG.nutrients.phosphatePerWaste / nitrogenCycleDefaults.wasteToAmmoniaRatio,
-          10
-        );
+      for (const nutrient of WASTE_NUTRIENTS) {
+        for (const waste of [1, 10, 100]) {
+          expect(released(nutrient, waste) / released('ammonia', waste)).toBeCloseTo(
+            DEFAULT_CONFIG.nutrients.releasePerWaste[nutrient] /
+              nitrogenCycleDefaults.wasteToAmmoniaRatio,
+            10
+          );
+        }
       }
     });
 

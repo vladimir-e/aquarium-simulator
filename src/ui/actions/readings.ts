@@ -20,7 +20,7 @@ import {
   LOW_OXYGEN_THRESHOLD,
   WATER_LEVEL_CRITICAL_THRESHOLD,
 } from '../../simulation/alerts/index.js';
-import type { TunableConfig } from '../../simulation/config/index.js';
+import type { Nutrient, TunableConfig } from '../../simulation/config/index.js';
 import {
   Co2Resource,
   FoodResource,
@@ -42,7 +42,6 @@ import {
   trackAt,
   toleranceStatus,
   waterReadings,
-  type NutrientKey,
   type NutrientReading,
   type Status,
   type WaterKey,
@@ -81,14 +80,14 @@ interface Sheet {
   state: SimulationState;
   units: UnitSystem;
   water: Record<WaterKey, WaterReading>;
-  nutrients: Record<NutrientKey, NutrientReading>;
+  nutrients: Record<Nutrient, NutrientReading>;
 }
 
 function sheetOf(state: SimulationState, config: TunableConfig, units: UnitSystem): Sheet {
   const water = {} as Record<WaterKey, WaterReading>;
   for (const reading of waterReadings(state, units)) water[reading.key] = reading;
 
-  const nutrients = {} as Record<NutrientKey, NutrientReading>;
+  const nutrients = {} as Record<Nutrient, NutrientReading>;
   for (const reading of nutrientReadings(state, config)) nutrients[reading.key] = reading;
 
   return { state, units, water, nutrients };
@@ -177,7 +176,7 @@ function tolerated(
   };
 }
 
-function nutrient(key: NutrientKey, label: string, decimals: number): Reading {
+function nutrient(key: Nutrient, label: string, decimals: number): Reading {
   const at = (value: number): number => onScale(DISPLAY_CEILING[key], value);
   return {
     key,

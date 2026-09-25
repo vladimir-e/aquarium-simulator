@@ -109,7 +109,6 @@ export {
   groupPlantsBySpecies,
   type AlgaeRow,
   algaeRow,
-  type NutrientKey,
   type NutrientReading,
   nutrientReadings,
   type NutrientAlert,

@@ -79,7 +79,7 @@ species variation and no multiplier role. Three consequences follow:
 
 ### Nitrate it never consumes
 
-The `excess_nutrients` channel divides standing nitrate by the plant optimum and
+The `excess_nutrients` channel divides standing nitrate by its reference ppm and
 turns the overshoot into a growth rate. It never emits a nitrate effect. Neither
 does any other algae channel — the system produces no resource deltas at all.
 
@@ -139,7 +139,7 @@ to a plant rather than what conditions do to algae.
 |---|---|---|
 | [Plants](/subsystems/plants/) | Plant power — the suppression stressor and the weakness benefit, both off freshly-updated condition | `mass` above `30` is a shading stressor on every plant, read one tick later |
 | [Light](/subsystems/light/) | Substrate PAR for the excess-light benefit, and `light > 0` as the gate on banking and growth | — |
-| [Nitrogen cycle](/subsystems/nitrogen-cycle/) | `nitrate` as a ratio against the plant optimum | Nothing. Not one milligram is consumed |
+| [Nitrogen cycle](/subsystems/nitrogen-cycle/) | `nitrate` as a ratio against `referenceNitratePpm` | Nothing. Not one milligram is consumed |
 | [Water & gases](/subsystems/water-and-gases/) | — | Nothing. Algae moves no gas in either direction |
 | [Environment](/subsystems/environment/) | Standing `water`, to turn stored nutrient mass into the ppm the ratio needs | — |
 | [Actions](/subsystems/actions/) | A scrub removes 10–30 % of standing mass | — |

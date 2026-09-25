@@ -70,7 +70,7 @@ export interface AlgaeVitalityConfig {
   referencePhosphatePpm: number;
   /**
    * Severity multiplier on the (ratio - 1) excess before peak cap.
-   * 1.0 means a 2× over-optimum nutrient pool gives full peak.
+   * 1.0 means a pool at twice the reference gives full peak.
    */
   excessNutrientSeverity: number;
 

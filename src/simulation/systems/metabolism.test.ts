@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { processMetabolism } from './metabolism.js';
 import { livestockDefaults } from '../config/livestock.js';
+import { WASTE_NUTRIENTS, nutrientsDefaults } from '../config/nutrients.js';
 import { MW_CO2, MW_N, MW_NH3, MW_O2 } from '../core/chemistry.js';
 import { monodFactor } from '../core/kinetics.js';
 import type { Fish } from '../state.js';
@@ -135,6 +136,37 @@ describe('processMetabolism', () => {
     const nKept = nIngested * livestockDefaults.gillNFraction * (1 - AMPLE_FACTOR);
 
     expect(nDirect + nWaste + nKept).toBeCloseTo(nIngested, 10);
+  });
+
+  it('returns every milligram of eaten mineral to the water, gills and feces together', () => {
+    const release = nutrientsDefaults.releasePerWaste;
+    for (const oxygen of [AMPLE_O2, 0.2]) {
+      const r = processMetabolism(
+        [makeFish({ satiation: 0, mass: 2 }), makeFish({ id: 'fish_2', satiation: 60 })],
+        1000,
+        oxygen,
+        livestockDefaults,
+        release
+      );
+      for (const n of WASTE_NUTRIENTS) {
+        expect(r.mineralsExcreted[n] + r.wasteProduced * release[n]).toBeCloseTo(
+          r.foodConsumed * release[n],
+          10
+        );
+      }
+    }
+  });
+
+  it('excretes minerals beside the gill NH3 at the ratio feces carry them to nitrogen', () => {
+    const r = processMetabolism([makeFish({ satiation: 0, mass: 2 })], 1000, 0.2, livestockDefaults);
+    const nToGills =
+      r.foodConsumed * livestockDefaults.foodNitrogenFraction * livestockDefaults.gillNFraction;
+    for (const n of WASTE_NUTRIENTS) {
+      expect(r.mineralsExcreted[n]).toBeCloseTo(
+        (nToGills * nutrientsDefaults.releasePerWaste[n]) / livestockDefaults.foodNitrogenFraction,
+        10
+      );
+    }
   });
 
   it('consumes oxygen based on mass, and on the oxygen there is to take', () => {

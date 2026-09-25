@@ -4,7 +4,6 @@
  *
  * Every nutrient saturates on its own Monod curve, at a half-saturation scaled
  * by the species' demand for it; sufficiency is the scarcest of them (Liebig).
- * A species that needs none of a nutrient is never limited by it.
  */
 
 import type { Resources } from '../state.js';
@@ -44,7 +43,6 @@ export function nutrientShare(
   nutrient: Nutrient,
   config: NutrientsConfig = nutrientsDefaults
 ): number {
-  if (speciesDemand(species, config)[nutrient] <= 0) return 1;
   return monodFactor(ppm, speciesHalfSaturation(species, nutrient, config));
 }
 

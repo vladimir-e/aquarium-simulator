@@ -17,7 +17,7 @@ import {
   LOW_OXYGEN_THRESHOLD,
   WATER_LEVEL_CRITICAL_THRESHOLD,
 } from '../../simulation/alerts/index.js';
-import type { TunableConfig } from '../../simulation/config/index.js';
+import type { Nutrient, TunableConfig } from '../../simulation/config/index.js';
 import type { StripBand, StripTone } from '../components/ui/strip.js';
 import {
   equipmentRows,
@@ -48,7 +48,6 @@ import {
   type CycleProjection,
   type DoseAdvice,
   type GasReading,
-  type NutrientKey,
   type PlantSpeciesGroup,
   type SpeciesGroup,
   type NutrientReading,
@@ -119,7 +118,7 @@ export interface ReadingView {
  */
 type DemandId = Extract<ReadingId, 'nitrateDemand' | 'phosphate' | 'potassium' | 'iron'>;
 
-const DEMAND_ID: Record<NutrientKey, DemandId> = {
+const DEMAND_ID: Record<Nutrient, DemandId> = {
   nitrate: 'nitrateDemand',
   phosphate: 'phosphate',
   potassium: 'potassium',
@@ -397,7 +396,7 @@ export function readTank({ state, config, history, units }: TankInput): ReadingB
 
   const read = (key: WaterReading['key']): WaterReading => water.find((r) => r.key === key)!;
   const gas = (key: GasReading['key']): GasReading => gases.find((g) => g.key === key)!;
-  const nutrient = (key: NutrientKey): NutrientReading =>
+  const nutrient = (key: Nutrient): NutrientReading =>
     nutrients.find((n) => n.key === key)!;
 
   const { rates } = bacteria;

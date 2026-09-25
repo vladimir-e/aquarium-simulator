@@ -5,15 +5,19 @@ import {
   getTotalPlantSize,
   type PhotosynthesisResult,
 } from './photosynthesis.js';
-import { calculateNutrientSufficiency } from './nutrients.js';
+import {
+  calculateNutrientSufficiency,
+  speciesDemand,
+  speciesHalfSaturation,
+} from './nutrients.js';
 import { calculateRespiration } from './respiration.js';
 import { plantsDefaults, type PlantsConfig } from '../config/plants.js';
-import { NUTRIENTS, nutrientsDefaults, type NutrientsConfig } from '../config/nutrients.js';
+import { nutrientsDefaults, type Nutrient, type NutrientsConfig } from '../config/nutrients.js';
 import { AIR_SATURATED_O2 } from '../config/nitrogen-cycle.js';
 import type { Plant, Resources } from '../state.js';
 import type { PlantSpecies } from '../plants/species.js';
 import { CO2_TO_O2_MASS_RATIO, MW_CO2, MW_O2 } from '../core/chemistry.js';
-import { lightSaturationFactor, monodFactor } from '../core/kinetics.js';
+import { lightSaturationFactor, monodFactor, monodUptake } from '../core/kinetics.js';
 import { getSaturationIrradiance } from '../plants/species.js';
 
 const INJECTED_CO2 = 25;
@@ -124,13 +128,24 @@ describe('calculatePhotosynthesis', () => {
     );
   }
 
+  const SATURATED = buildResources(waterVolume, {}, 1e9);
+
+  function capacity(p: Plant, n: Nutrient): number {
+    const potential =
+      (p.size / 100) *
+      calculateCo2Factor(INJECTED_CO2, p.species) *
+      lightSaturationFactor(light, getSaturationIrradiance(p.species, plantsDefaults)) *
+      plantsDefaults.basePhotosynthesisRate;
+    return potential * speciesDemand(p.species)[n] * nutrientsDefaults.uptakePerRateUnit[n];
+  }
+
   describe('no photosynthesis conditions', () => {
     it('returns zeros when light is 0', () => {
       const result = photosynthesis([plant(100)], { lightPar: 0 });
 
       expect(result.oxygenProducedMg).toBe(0);
       expect(result.co2ConsumedMg).toBe(0);
-      expect(result.nitrateDelta).toBe(0);
+      expect(result.nitrateDelta).toBeCloseTo(0, 12);
       expect(result.limitingFactor).toBe(0);
     });
 
@@ -175,17 +190,24 @@ describe('calculatePhotosynthesis', () => {
       expect(result.ironDelta).toBeLessThan(0);
     });
 
-    it('takes none of a nutrient its species has no demand for', () => {
-      const result = photosynthesis([plant(100, 'java_fern')]);
+    it('takes each nutrient in the ratio of its species demand', () => {
+      const result = photosynthesis([plant(100, 'java_fern')], { resources: SATURATED });
+      const demand = speciesDemand('java_fern');
+      const { uptakePerRateUnit } = nutrientsDefaults;
 
-      expect(result.nitrateDelta).toBeLessThan(0);
-      expect(result.phosphateDelta).toBeLessThan(0);
-      expect(result.potassiumDelta).toBe(0);
-      expect(result.ironDelta).toBe(0);
+      expect(result.potassiumDelta / result.nitrateDelta).toBeCloseTo(
+        (demand.potassium * uptakePerRateUnit.potassium) / (demand.nitrate * uptakePerRateUnit.nitrate),
+        6
+      );
+      expect(result.ironDelta / result.nitrateDelta).toBeCloseTo(
+        (demand.iron * uptakePerRateUnit.iron) / (demand.nitrate * uptakePerRateUnit.nitrate),
+        6
+      );
     });
 
     it('draws nutrients in proportion to its carbon Monod', () => {
-      const draw = (co2: number): number => photosynthesis([plant(100, 'java_fern')], { co2 }).nitrateDelta;
+      const draw = (co2: number): number =>
+        photosynthesis([plant(100, 'java_fern')], { co2, resources: SATURATED }).nitrateDelta;
       const monod = (co2: number): number => calculateCo2Factor(co2, 'java_fern', plantsDefaults);
 
       expect(draw(4) / draw(INJECTED_CO2)).toBeCloseTo(monod(4) / monod(INJECTED_CO2), 10);
@@ -311,7 +333,7 @@ describe('calculatePhotosynthesis', () => {
       expect(result.nitrateDelta).toBeLessThan(0);
       expect(result.phosphateDelta).toBeLessThan(0);
       expect(result.potassiumDelta).toBeLessThan(0);
-      expect(result.ironDelta).toBe(0);
+      expect(result.ironDelta).toBeCloseTo(0, 12);
     });
 
     it('takes nutrients in its own ratio, whatever the fertilizer carries', () => {
@@ -332,20 +354,39 @@ describe('calculatePhotosynthesis', () => {
       );
     });
 
-    it('draws each nutrient on its own Monod curve, half rate at the half-saturation', () => {
-      const monte = [plant(100, 'monte_carlo')];
-      const saturated = photosynthesis(monte, { resources: buildResources(waterVolume, {}, 1e9) });
-      const halfPhosphate = photosynthesis(monte, {
-        resources: buildResources(waterVolume, {
-          ...Object.fromEntries(
-            NUTRIENTS.map((n) => [n, nutrientsDefaults.halfSaturation[n] * waterVolume * 1e9])
-          ),
-          phosphate: nutrientsDefaults.halfSaturation.phosphate * waterVolume,
-        }),
-      });
+    it('resolves each draw on the Monod curve read at the end of the tick', () => {
+      const monte = plant(100, 'monte_carlo');
+      const kMass = speciesHalfSaturation('monte_carlo', 'phosphate') * waterVolume;
+      for (const multiple of [0.01, 0.5, 1, 10, 1e4]) {
+        const stock = kMass * multiple;
+        const result = photosynthesis([monte], {
+          resources: buildResources(waterVolume, { phosphate: stock }),
+        });
 
-      expect(halfPhosphate.phosphateDelta / saturated.phosphateDelta).toBeCloseTo(0.5, 6);
-      expect(halfPhosphate.nitrateDelta).toBeCloseTo(saturated.nitrateDelta, 6);
+        expect(-result.phosphateDelta).toBeCloseTo(
+          monodUptake(stock, capacity(monte, 'phosphate'), kMass),
+          12
+        );
+      }
+    });
+
+    it('pools the planting into one draw, at the capacity-weighted half-saturation', () => {
+      const fern = plant(300, 'java_fern');
+      const monte = plant(100, 'monte_carlo');
+      const stock = nutrientsDefaults.halfSaturation.iron * waterVolume;
+      const result = photosynthesis([fern, monte], {
+        resources: buildResources(waterVolume, { iron: stock }),
+      });
+      const [a, b] = [capacity(fern, 'iron'), capacity(monte, 'iron')];
+      const weighted =
+        (a * speciesHalfSaturation('java_fern', 'iron') +
+          b * speciesHalfSaturation('monte_carlo', 'iron')) /
+        (a + b);
+
+      expect(-result.ironDelta).toBeCloseTo(
+        monodUptake(stock, a + b, weighted * waterVolume),
+        12
+      );
     });
 
     it('never draws more of a nutrient than the water holds', () => {

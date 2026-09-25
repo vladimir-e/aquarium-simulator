@@ -25,7 +25,7 @@
  * - Temperature out of `tolerableTemp` (per °C, two-sided)
  * - pH out of `tolerablePH` (per pH unit, two-sided)
  * - GH out of `tolerableGH` (per dGH, two-sided)
- * - Nutrient deficiency (per (1 − Liebig sufficiency))
+ * - Nutrient deficiency (per (1 − Liebig sufficiency), on the light curve)
  * - Nutrient toxicity (gross NO3 overdose — auto-doser failure case)
  * - Algae shading (when algae density crosses the shading threshold)
  */
@@ -63,6 +63,13 @@ export interface PlantVitalityContext {
    * threshold.
    */
   algaeMass: number;
+}
+
+function lightSaturation({ plant, resources, plantsConfig }: PlantVitalityContext): number {
+  return lightSaturationFactor(
+    resources.light,
+    getSaturationIrradiance(plant.species, plantsConfig)
+  );
 }
 
 /**
@@ -127,15 +134,13 @@ export function buildPlantStressors(ctx: PlantVitalityContext): VitalityFactor[]
     { key: 'gh', label: 'GH', amount: plantsConfig.ghStressSeverity * outsideBand(gh, species.tolerableGH) }
   );
 
-  // Nutrient deficiency — Liebig sufficiency drives a single damage
-  // signal proportional to (1 − sufficiency). Sufficiency is
-  // precomputed by the orchestrator and passed through the context.
-  const deficiency = Math.max(0, 1 - nutrientSufficiency);
-  const nutrientAmount = plantsConfig.nutrientDeficiencySeverity * deficiency;
+  // Nutrient deficiency — unmet demand, and demand rides the same light
+  // curve as income: a plant in the dark is asking for nothing.
   factors.push({
     key: 'nutrients',
     label: 'Nutrient deficiency',
-    amount: nutrientAmount,
+    amount:
+      lightSaturation(ctx) * plantsConfig.nutrientDeficiencySeverity * (1 - nutrientSufficiency),
   });
 
   // Nutrient toxicity — gross NO3 overdose (auto-doser failure case).
@@ -173,10 +178,7 @@ export function buildPlantBenefits(ctx: PlantVitalityContext): VitalityFactor[] 
   const species = PLANT_SPECIES_DATA[plant.species];
   const [tempLo, tempHi] = species.tolerableTemp;
   const [phLo, phHi] = species.tolerablePH;
-  const saturation = lightSaturationFactor(
-    resources.light,
-    getSaturationIrradiance(plant.species, plantsConfig)
-  );
+  const saturation = lightSaturation(ctx);
 
   return [
     {

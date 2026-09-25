@@ -40,6 +40,7 @@ import {
   O2_PER_NH3_OXIDIZED,
   O2_PER_NO2_OXIDIZED,
 } from '../core/chemistry.js';
+import { WASTE_NUTRIENTS } from '../config/nutrients.js';
 import { getPpm } from '../resources/index.js';
 import { getPh } from '../core/carbonate.js';
 
@@ -464,7 +465,7 @@ export const nitrogenCycleSystem: System = {
     }
 
     // ========================================================================
-    // Stage 1: Waste → Ammonia + Phosphate (Mineralization)
+    // Stage 1: Waste → Ammonia + minerals (Mineralization)
     // Produces ammonia mass (mg) from waste (g)
     // ========================================================================
     if (currentWaste > 0) {
@@ -485,12 +486,14 @@ export const nitrogenCycleSystem: System = {
           delta: ammoniaProduced, // mg
           source: 'nitrogen-cycle-mineralization',
         });
-        effects.push({
-          tier: 'passive',
-          resource: 'phosphate',
-          delta: wasteConsumed * config.nutrients.phosphatePerWaste,
-          source: 'nitrogen-cycle-mineralization',
-        });
+        for (const nutrient of WASTE_NUTRIENTS) {
+          effects.push({
+            tier: 'passive',
+            resource: nutrient,
+            delta: wasteConsumed * config.nutrients.releasePerWaste[nutrient],
+            source: 'nitrogen-cycle-mineralization',
+          });
+        }
         currentAmmonia += ammoniaProduced;
       }
     }

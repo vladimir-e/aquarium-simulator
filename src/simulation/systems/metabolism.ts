@@ -36,8 +36,13 @@
  * The waste mass from a fish is therefore not a free parameter:
  *     wasteMass = (N to feces) / foodNitrogenFraction
  *               = foodGiven × (1 - gillNFraction)
- * At defaults this is 0.2 g waste per g food, replacing the previous
- * opaque `wasteRatio = 0.3` knob.
+ * At defaults this is 0.2 g waste per g food.
+ *
+ * Food carries the same minerals per gram as the waste it becomes
+ * (`releasePerWaste`). The absorbed share leaves beside the gill NH3,
+ * at the same ratio to its nitrogen, so every milligram of phosphate,
+ * potassium and iron eaten comes back to the water. Mineral excretion
+ * is not deamination and is not scaled by oxygen.
  *
  * Both NH3 streams are deamination, and deamination is metabolism: each is
  * scaled by the same oxygen factor as the respiratory draw, off the same
@@ -58,6 +63,11 @@ import type { Fish } from '../state.js';
 import type { LivestockConfig } from '../config/livestock.js';
 import { N_TO_NH3_MASS_RATIO, O2_TO_CO2_MASS_RATIO } from '../core/chemistry.js';
 import { monodFactor } from '../core/kinetics.js';
+import {
+  WASTE_NUTRIENTS,
+  nutrientsDefaults,
+  type WasteRelease,
+} from '../config/nutrients.js';
 
 const NH3_MG_PER_G_N = N_TO_NH3_MASS_RATIO * 1000;
 
@@ -70,6 +80,8 @@ export interface MetabolismResult {
   wasteProduced: number;
   /** Direct NH3 excreted through gills (mg compound mass) */
   ammoniaProduced: number;
+  /** Minerals excreted beside the gill NH3 (mg) */
+  mineralsExcreted: WasteRelease;
   /** Total oxygen consumed (mg, absolute — caller divides by water volume for mg/L delta) */
   oxygenConsumedMg: number;
   /** Total CO2 produced (mg, absolute — caller divides by water volume for mg/L delta) */
@@ -90,7 +102,8 @@ export function processMetabolism(
   fish: Fish[],
   availableFood: number,
   oxygen: number,
-  config: LivestockConfig
+  config: LivestockConfig,
+  releasePerWaste: WasteRelease = nutrientsDefaults.releasePerWaste
 ): MetabolismResult {
   if (fish.length === 0) {
     return {
@@ -98,6 +111,7 @@ export function processMetabolism(
       foodConsumed: 0,
       wasteProduced: 0,
       ammoniaProduced: 0,
+      mineralsExcreted: { phosphate: 0, potassium: 0, iron: 0 },
       oxygenConsumedMg: 0,
       co2ProducedMg: 0,
     };
@@ -113,6 +127,7 @@ export function processMetabolism(
   let remainingFood = availableFood;
   let totalFoodConsumed = 0;
   let totalWaste = 0;
+  let totalAbsorbed = 0;
   let totalAmmonia = 0;
   let totalOxygenConsumedMg = 0;
   let totalCo2ProducedMg = 0;
@@ -157,6 +172,7 @@ export function processMetabolism(
     const nIngested = foodGiven * config.foodNitrogenFraction;
     const nToGills = nIngested * config.gillNFraction;
     totalWaste += foodGiven * (1 - config.gillNFraction);
+    totalAbsorbed += foodGiven * config.gillNFraction;
 
     // Basal NH3 excretion — independent of feeding. Body protein
     // turnover continues whether fed or fasted; real tetras keep
@@ -182,6 +198,9 @@ export function processMetabolism(
     foodConsumed: totalFoodConsumed,
     wasteProduced: totalWaste,
     ammoniaProduced: totalAmmonia,
+    mineralsExcreted: Object.fromEntries(
+      WASTE_NUTRIENTS.map((n) => [n, totalAbsorbed * releasePerWaste[n]])
+    ) as WasteRelease,
     oxygenConsumedMg: totalOxygenConsumedMg,
     co2ProducedMg: totalCo2ProducedMg,
   };

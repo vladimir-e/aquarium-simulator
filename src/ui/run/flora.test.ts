@@ -197,20 +197,27 @@ describe('nutrientReadings', () => {
     expect(readings.every((r) => r.ppm === 0 && r.fill === 0)).toBe(true);
   });
 
-  it('asks nothing of a nutrient no plant in the tank has a demand for', () => {
-    const readings = nutrientReadings(planted(['java_fern', 'anubias']), DEFAULT_CONFIG);
-    expect(readings.map((r) => r.needed > 0)).toEqual([true, true, false, false]);
-    expect(readings[0]!.needed).toBeLessThan(nutrientReadings(planted(['monte_carlo']), DEFAULT_CONFIG)[0]!.needed);
+  it('asks less of every nutrient for a low-demand planting than a high-demand one', () => {
+    const lean = nutrientReadings(planted(['java_fern', 'anubias']), DEFAULT_CONFIG);
+    const hungry = nutrientReadings(planted(['monte_carlo']), DEFAULT_CONFIG);
+    lean.forEach((reading, i) => {
+      expect(reading.needed).toBeGreaterThan(0);
+      expect(reading.needed).toBeLessThan(hungry[i]!.needed);
+    });
   });
 
   it('only calls a nutrient short when the engine would actually feed a plant better', () => {
-    const noIron = (state: SimulationState): SimulationState => ({
+    const fernIron = (state: SimulationState): SimulationState => ({
       ...state,
       resources: {
         ...state.resources,
         nitrate: state.resources.water * 20,
         phosphate: state.resources.water * 2,
         potassium: state.resources.water * 10,
+        iron:
+          state.resources.water *
+          nutrientReadings(planted(['java_fern']), DEFAULT_CONFIG).find((r) => r.key === 'iron')!
+            .needed,
       },
     });
     const short = (state: SimulationState): string[] =>
@@ -218,8 +225,8 @@ describe('nutrientReadings', () => {
         .filter((r) => r.limiting)
         .map((r) => r.key);
 
-    expect(short(noIron(planted(['java_fern'])))).toEqual([]);
-    expect(short(noIron(planted(['monte_carlo'])))).toEqual(['iron']);
+    expect(short(fernIron(planted(['java_fern'])))).toEqual([]);
+    expect(short(fernIron(planted(['monte_carlo'])))).toEqual(['iron']);
   });
 
   it('has nothing to be short of when nothing is planted', () => {
@@ -305,7 +312,13 @@ describe('dose arithmetic', () => {
   });
 
   it('has nothing to recommend once every nutrient is met', () => {
-    const state = dosed(planted(['java_fern'], 40), 8);
+    const fern = planted(['java_fern'], 40);
+    const ml = Math.max(
+      ...nutrientReadings(fern, DEFAULT_CONFIG).map(
+        (r) => (r.needed * fern.resources.water) / FORMULA[r.key]
+      )
+    );
+    const state = dosed(fern, ml);
     const readings = nutrientReadings(state, DEFAULT_CONFIG);
     expect(readings.every((r) => !r.limiting)).toBe(true);
     expect(doseToCover(readings, state, DEFAULT_CONFIG)).toBeNull();

@@ -128,7 +128,7 @@ describe('buildAlgaeBenefits', () => {
     expect(amount).toBe(algaeVitalityDefaults.excessLightPeak);
   });
 
-  it('fires excess_nutrients when NO3 climbs above optimum', () => {
+  it('fires excess_nutrients when NO3 climbs above the reference', () => {
     const overdosed = ctx({
       resources: makeResources({
         nitrate: getMassFromPpm(algaeVitalityDefaults.referenceNitratePpm * 3, 100),
@@ -139,11 +139,11 @@ describe('buildAlgaeBenefits', () => {
     ).toBeGreaterThan(0);
   });
 
-  it('does not fire excess_nutrients when both NO3 and PO4 sit at optimum', () => {
+  it('does not fire excess_nutrients when both NO3 and PO4 sit at the reference', () => {
     expect(buildAlgaeBenefits(ctx()).find((b) => b.key === 'excess_nutrients')?.amount).toBe(0);
   });
 
-  it('fires nutrient_deficiency when nutrients fall below optimum', () => {
+  it('fires nutrient_deficiency when nutrients fall below the reference', () => {
     const starved = ctx({
       resources: makeResources({
         nitrate: 0,
@@ -167,21 +167,10 @@ describe('buildAlgaeBenefits', () => {
   });
 });
 
-describe('buildAlgaeBenefits — pathological config guards', () => {
+describe('buildAlgaeBenefits — an empty tank', () => {
   it('handles waterVolume = 0 without dividing by zero', () => {
     const benefits = buildAlgaeBenefits(ctx({ resources: makeResources({ water: 0 }) }));
     expect(benefits.find((b) => b.key === 'excess_nutrients')?.amount).toBe(0);
-  });
-
-  it('handles a zero reference without firing nutrient channels', () => {
-    const config = {
-      ...algaeVitalityDefaults,
-      referenceNitratePpm: 0,
-      referencePhosphatePpm: 0,
-    };
-    const benefits = buildAlgaeBenefits(ctx({ algaeConfig: config }));
-    expect(benefits.find((b) => b.key === 'excess_nutrients')?.amount).toBe(0);
-    expect(benefits.find((b) => b.key === 'nutrient_deficiency')?.amount).toBe(0);
   });
 });
 

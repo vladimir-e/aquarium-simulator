@@ -28,10 +28,12 @@ import {
   PotassiumResource,
   type ResourceDefinition,
 } from '../../simulation/resources/index.js';
-import type {
-  FertilizerFormula,
-  NutrientsConfig,
-  TunableConfig,
+import {
+  NUTRIENTS,
+  type FertilizerFormula,
+  type Nutrient,
+  type NutrientsConfig,
+  type TunableConfig,
 } from '../../simulation/config/index.js';
 import { STATUS_SEVERITY, vitalReading, type Status } from './status.js';
 
@@ -193,32 +195,28 @@ export function algaeRow(state: SimulationState, config: TunableConfig): AlgaeRo
   };
 }
 
-export type NutrientKey = 'nitrate' | 'phosphate' | 'potassium' | 'iron';
-
-const NUTRIENT_KEYS: NutrientKey[] = ['nitrate', 'phosphate', 'potassium', 'iron'];
-
-const NUTRIENT_LABEL: Record<NutrientKey, string> = {
+const NUTRIENT_LABEL: Record<Nutrient, string> = {
   nitrate: 'NO₃',
   phosphate: 'PO₄',
   potassium: 'K',
   iron: 'Fe',
 };
 
-const NUTRIENT_RESOURCE: Record<NutrientKey, ResourceDefinition<NutrientKey>> = {
+const NUTRIENT_RESOURCE: Record<Nutrient, ResourceDefinition<Nutrient>> = {
   nitrate: NitrateResource,
   phosphate: PhosphateResource,
   potassium: PotassiumResource,
   iron: IronResource,
 };
 
-/** Share of a plant's need a nutrient must meet for the panel to call it met. */
+/** Share of a plant's need a nutrient must meet for the panel to call it met — Monod never reaches 1. */
 const NEED_SHARE = 0.9;
 
 /** Mass is stored in mg, so a drained nutrient lands near zero rather than on it. */
 const DEPLETED_PPM = 0.001;
 
 export interface NutrientReading {
-  key: NutrientKey;
+  key: Nutrient;
   label: string;
   ppm: number;
   text: string;
@@ -234,7 +232,7 @@ export interface NutrientReading {
 }
 
 /** ppm at which the tank's hungriest plant has `NEED_SHARE` of its need met. */
-function neededPpm(state: SimulationState, key: NutrientKey, config: NutrientsConfig): number {
+function neededPpm(state: SimulationState, key: Nutrient, config: NutrientsConfig): number {
   const halfSaturation = Math.max(
     0,
     ...state.plants.map((plant) => speciesHalfSaturation(plant.species, key, config))
@@ -250,13 +248,13 @@ export function nutrientReadings(
   const water = state.resources.water;
 
   const needs = Object.fromEntries(
-    NUTRIENT_KEYS.map((key) => [key, neededPpm(state, key, nutrients)])
-  ) as Record<NutrientKey, number>;
+    NUTRIENTS.map((key) => [key, neededPpm(state, key, nutrients)])
+  ) as Record<Nutrient, number>;
 
   // Everything the plants ask for, present at once — the probe's yardstick.
   const met: Resources = { ...state.resources };
   if (water > 0) {
-    for (const key of NUTRIENT_KEYS) {
+    for (const key of NUTRIENTS) {
       met[key] = Math.max(state.resources[key], getMassFromPpm(needs[key], water));
     }
   }
@@ -267,7 +265,7 @@ export function nutrientReadings(
    * That keeps the panel in step with each species' own demand, and stays right
    * when several are empty at once.
    */
-  const isLimiting = (key: NutrientKey): boolean => {
+  const isLimiting = (key: Nutrient): boolean => {
     if (needs[key] <= 0 || water <= 0) return false;
     const short: Resources = { ...met, [key]: state.resources[key] };
     return state.plants.some(
@@ -277,7 +275,7 @@ export function nutrientReadings(
     );
   };
 
-  return NUTRIENT_KEYS.map((key) => {
+  return NUTRIENTS.map((key) => {
     const resource = NUTRIENT_RESOURCE[key];
     const ppm = getPpm(state.resources[key], water);
     const needed = needs[key];
@@ -324,7 +322,7 @@ export function nutrientAlert(readings: NutrientReading[]): NutrientAlert | null
 }
 
 export interface NutrientDelta {
-  key: NutrientKey;
+  key: Nutrient;
   label: string;
   text: string;
 }
@@ -332,14 +330,14 @@ export interface NutrientDelta {
 /** What a dose of `ml` adds to this much water, per nutrient. */
 export function doseDeltas(ml: number, water: number, formula: FertilizerFormula): NutrientDelta[] {
   const preview = getDosePreview(ml, water, formula);
-  const ppm: Record<NutrientKey, number> = {
+  const ppm: Record<Nutrient, number> = {
     nitrate: preview.nitratePpm,
     phosphate: preview.phosphatePpm,
     potassium: preview.potassiumPpm,
     iron: preview.ironPpm,
   };
 
-  return NUTRIENT_KEYS.map((key) => ({
+  return NUTRIENTS.map((key) => ({
     key,
     label: NUTRIENT_LABEL[key],
     text: `+${ppm[key].toFixed(NUTRIENT_RESOURCE[key].precision)}`,

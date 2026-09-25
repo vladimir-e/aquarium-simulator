@@ -1,7 +1,7 @@
 /**
  * Nutrients tunable configuration: what the fertilizer carries, what plants
  * take and how hard each species leans on the water column for it, and the
- * phosphate that rides with nitrogen out of mineralized waste.
+ * minerals that ride with nitrogen out of mineralized waste.
  */
 
 import type { NutrientDemand } from '../plants/species.js';
@@ -11,6 +11,12 @@ export const NUTRIENTS = ['nitrate', 'phosphate', 'potassium', 'iron'] as const;
 export type Nutrient = (typeof NUTRIENTS)[number];
 
 export type NutrientVector = Record<Nutrient, number>;
+
+export const WASTE_NUTRIENTS = ['phosphate', 'potassium', 'iron'] as const;
+
+export type WasteNutrient = (typeof WASTE_NUTRIENTS)[number];
+
+export type WasteRelease = Record<WasteNutrient, number>;
 
 /** Nutrients provided per 1 ml of all-in-one fertilizer, mg. */
 export type FertilizerFormula = NutrientVector;
@@ -26,12 +32,11 @@ export interface NutrientsConfig {
   halfSaturation: NutrientVector;
   /**
    * Share of a full-demand plant's need, per nutrient, for each species tier.
-   * It scales both the uptake and the half-saturation, so a species needing
-   * none of a nutrient takes none of it and is never limited by it.
+   * It scales both the uptake and the half-saturation.
    */
   demand: Record<NutrientDemand, NutrientVector>;
-  /** Phosphate mineralized alongside the ammonia, per gram of waste (mg/g). */
-  phosphatePerWaste: number;
+  /** Minerals released alongside the ammonia, per gram of waste (mg/g). */
+  releasePerWaste: WasteRelease;
 }
 
 export const nutrientsDefaults: NutrientsConfig = {
@@ -63,24 +68,20 @@ export const nutrientsDefaults: NutrientsConfig = {
   },
 
   demand: {
-    low: { nitrate: 0.3, phosphate: 0.3, potassium: 0, iron: 0 },
-    medium: { nitrate: 0.6, phosphate: 0.6, potassium: 0, iron: 0 },
+    low: { nitrate: 0.3, phosphate: 0.3, potassium: 0.05, iron: 0.05 },
+    medium: { nitrate: 0.6, phosphate: 0.6, potassium: 0.15, iron: 0.15 },
     high: { nitrate: 1, phosphate: 1, potassium: 1, iron: 1 },
   },
 
-  // Waste is 5 % N (`wasteToAmmoniaRatio`); organic matter carries N:P ≈ 7 by
-  // mass, so ~7 mg P, i.e. ~20 mg PO₄, per gram.
-  phosphatePerWaste: 20,
+  // Waste is 5 % N (`wasteToAmmoniaRatio`). Fish food and the organic matter
+  // it becomes carry N:P ≈ 7 by mass (~20 mg PO₄/g), about 1 % K and a few
+  // hundred ppm Fe.
+  releasePerWaste: {
+    phosphate: 20,
+    potassium: 8,
+    iron: 0.2,
+  },
 };
-
-export interface NutrientsConfigMeta {
-  key: keyof NutrientsConfig;
-  label: string;
-  unit: string;
-  min: number;
-  max: number;
-  step: number;
-}
 
 export interface NutrientVectorMeta {
   key: Nutrient;
@@ -119,6 +120,8 @@ export const demandMeta: NutrientVectorMeta[] = [
   { key: 'iron', label: 'Iron demand', unit: '× full', min: 0, max: 1, step: 0.05 },
 ];
 
-export const nutrientsConfigMeta: NutrientsConfigMeta[] = [
-  { key: 'phosphatePerWaste', label: 'Phosphate per Waste', unit: 'mg/g', min: 0, max: 100, step: 1 },
+export const releasePerWasteMeta: NutrientVectorMeta[] = [
+  { key: 'phosphate', label: 'Phosphate per waste', unit: 'mg/g', min: 0, max: 100, step: 1 },
+  { key: 'potassium', label: 'Potassium per waste', unit: 'mg/g', min: 0, max: 50, step: 0.5 },
+  { key: 'iron', label: 'Iron per waste', unit: 'mg/g', min: 0, max: 2, step: 0.01 },
 ];
