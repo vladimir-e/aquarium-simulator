@@ -11,6 +11,7 @@ Format: - **Feature name** (#PR) - One short sentence (under ~150 chars)
 
 ## Unreleased
 
+- **A big, hard tank keeps its stock** - dissolved and organic masses have no fixed ceiling, so 10,000 L at 30 dKH is no longer clamped.
 - **Carbon saturates, rooms breathe** - low CO₂ slows plants instead of hurting them; injected tanks reach 20–30 mg/L; rooms swing daily; breaking: `optimalCo2` → per-need half-saturations.
 - **GH, general hardness** - calcium and magnesium as a tank stock from `tapGh`, moved with KH by calcite and soil, drawn by plants; fish and plants carry GH bands.
 - **pH follows CO₂ and KH** - KH is a tank stock moved by tap water, nitrification and scape; breaking: `tapWaterPH` → `tapKh`, `ph` config → `waterChemistry`.

@@ -12,7 +12,7 @@ import { getPpm } from './helpers.js';
 export const NitriteResource: ResourceDefinition<'nitrite'> = {
   key: 'nitrite',
   unit: 'mg',
-  bounds: { min: 0, max: 10000 },
+  bounds: { min: 0, max: Infinity },
   defaultValue: 0,
   precision: 3,
   format: (massInMg: number, waterLiters?: number) => {

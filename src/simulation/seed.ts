@@ -12,9 +12,7 @@ import {
   type Substrate,
   type SubstrateType,
 } from './equipment/substrate.js';
-import { HARDSCAPE_TANNINS, type HardscapeType } from './equipment/hardscape.js';
 import { nitrogenCycleDefaults } from './config/nitrogen-cycle.js';
-import { waterChemistryDefaults } from './config/water-chemistry.js';
 import { plantsDefaults } from './config/plants.js';
 import { NH3_TO_NO2_MASS_RATIO, NO2_TO_NO3_MASS_RATIO } from './core/chemistry.js';
 import { getGhMass, getKhMass } from './resources/helpers.js';
@@ -43,11 +41,11 @@ export type SeedColony = Partial<Pick<Resources, (typeof SEEDABLE_BACTERIA)[numb
 /**
  * A colony as absolute stock, or `'cycled'` — a tank that has been running a
  * month, which is a claim about the whole tank and not only its biofilter: it
- * carries the bed and the driftwood that month left, the nitrate that month
- * made and the hardness the bed let it keep, as well as the colony. Every one
- * of them is resolved against the tank when the seed is applied, so a preset
- * resized or rescaped at the door still gets a filter, a bed, a scape and
- * readings that fit it.
+ * carries the bed that month left, the nitrate that month made and the
+ * hardness the bed let it keep, as well as the colony. Every one of them is
+ * resolved against the tank when the seed is applied, so a preset resized or
+ * rebuilt at the door still gets a filter, a bed and readings that fit it.
+ * Hardscape starts as bought.
  */
 export type SeedBacteria = 'cycled' | SeedColony;
 
@@ -160,11 +158,6 @@ export function cycledKhReserve(type: SubstrateType, capacity: number): number {
   return getSubstrateKhReserve(type, capacity) * CYCLED_SOIL_KH_RESERVE_FRACTION;
 }
 
-/** Tannins a piece still carries a month in: the leach is a flat fraction of what is left. */
-export function cycledTannins(type: HardscapeType): number {
-  return HARDSCAPE_TANNINS[type] * Math.pow(1 - waterChemistryDefaults.tanninLeachRate, 30 * 24);
-}
-
 /**
  * mg of nitrate a gram of the bed's organics ends up as, once mineralised to
  * ammonia and oxidised the two steps to nitrate — each one keeping the
@@ -196,27 +189,23 @@ export function cycledNitrate(type: SubstrateType, capacity: number): number {
  */
 const CYCLED_SOIL_KH_RETAINED = 0.15;
 
-function cycledDkh(type: SubstrateType, tapKh: number): number {
-  return tapKh * (type === 'aqua_soil' ? CYCLED_SOIL_KH_RETAINED : 1);
-}
-
-/** mg of CaCO3 a cycled tank of this bed, tap and capacity carries. */
-export function cycledKh(type: SubstrateType, tapKh: number, capacity: number): number {
-  return getKhMass(cycledDkh(type, tapKh), capacity);
-}
-
 /**
- * mg of CaCO3 of general hardness a cycled tank carries. The bed takes GH and
- * KH out in equal measure and water changes dilute both toward the tap alike,
- * so GH sits exactly as far below the tap as KH does.
+ * mg of CaCO3 of KH and GH a cycled tank of this bed, tap and capacity carries.
+ * The bed takes both out in equal measure and stops when either runs dry, so
+ * soft tap water caps what it takes at the tap's GH.
  */
-export function cycledGh(
+export function cycledHardness(
   type: SubstrateType,
   tapKh: number,
   tapGh: number,
   capacity: number
-): number {
-  return getGhMass(Math.max(0, tapGh - (tapKh - cycledDkh(type, tapKh))), capacity);
+): { kh: number; gh: number } {
+  const taken =
+    type === 'aqua_soil' ? Math.min(tapKh * (1 - CYCLED_SOIL_KH_RETAINED), tapGh) : 0;
+  return {
+    kh: getKhMass(tapKh - taken, capacity),
+    gh: getGhMass(tapGh - taken, capacity),
+  };
 }
 
 function writeStocks<T, K extends keyof T>(
@@ -237,15 +226,14 @@ export function startingHardness(state: SimulationState): { kh: number; gh: numb
   const { type } = state.equipment.substrate;
   const { tapKh, tapGh } = state.environment;
   const { seed } = state;
-  const cycled = seed?.bacteria === 'cycled';
+  const filled =
+    seed?.bacteria === 'cycled'
+      ? cycledHardness(type, tapKh, tapGh, capacity)
+      : { kh: getKhMass(tapKh, capacity), gh: getGhMass(tapGh, capacity) };
 
   return {
-    kh:
-      seed?.resources?.kh ??
-      (cycled ? cycledKh(type, tapKh, capacity) : getKhMass(tapKh, capacity)),
-    gh:
-      seed?.resources?.gh ??
-      (cycled ? cycledGh(type, tapKh, tapGh, capacity) : getGhMass(tapGh, capacity)),
+    kh: seed?.resources?.kh ?? filled.kh,
+    gh: seed?.resources?.gh ?? filled.gh,
   };
 }
 
@@ -260,9 +248,6 @@ function seedTank(state: SimulationState, seed: TankSeed): void {
       organicReserve: cycledReserve(type, capacity),
       khReserve: cycledKhReserve(type, capacity),
     });
-    for (const item of state.equipment.hardscape.items) {
-      item.tannins = cycledTannins(item.type);
-    }
     state.resources.nitrate = cycledNitrate(type, capacity);
   } else {
     writeStocks(state.resources, SEEDABLE_BACTERIA, seed.bacteria);

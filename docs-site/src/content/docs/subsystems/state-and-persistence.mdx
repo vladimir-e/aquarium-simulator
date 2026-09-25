@@ -101,9 +101,10 @@ say anything the state shape can hold.
 `'cycled'` is the exception that resolves against the tank rather than being
 copied into it. It is a claim about a month of running, not only about the
 filter, so it carries every figure that month moved: the colony it grew, the
-bed reserves and driftwood tannins it spent, the nitrate it made net of the
-water changes a keeper would have done, and the KH and GH the bed let it keep. A preset
-resized or rescaped at the door still gets all of them sized to fit.
+bed reserves it spent, the nitrate it made net of the water changes a keeper
+would have done, and the KH and GH the bed let it keep. A preset resized or
+rebuilt at the door still gets all of them sized to fit. Hardscape starts as
+bought.
 
 Rosters go through the same factories stocking uses, so a seeded fish and a
 bought one are identical in shape and both cost the stream the same draws. The
@@ -167,7 +168,7 @@ browser storage.
 | Neighbour | Read | Written |
 |---|---|---|
 | [Nitrogen cycle](/subsystems/nitrogen-cycle/) | — | A seed writes both colonies, and `'cycled'` writes the nitrate a month of leaching left behind |
-| [Equipment](/subsystems/equipment/) | `substrate.type` and the hardscape pieces, which decide what a `'cycled'` scape resolves to | The bed's remaining reserves; driftwood tannins under `'cycled'` |
+| [Equipment](/subsystems/equipment/) | `substrate.type`, which decides what a `'cycled'` bed resolves to | The bed's remaining reserves |
 | [Livestock](/subsystems/livestock/) | — | Seeded rosters, built through the same factory stocking uses and drawing on the same stream |
 | [Plants](/subsystems/plants/) | — | Seeded plantings, at a named size and the same half-bank a stocked plant gets |
 | [Water & gases](/subsystems/water-and-gases/) | `tapKh` and `tapGh`, which a `'cycled'` KH and GH resolve against | Both dissolved gases, KH and GH, where a seed names them |

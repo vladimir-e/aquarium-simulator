@@ -9,7 +9,7 @@ import { getDkh } from './helpers.js';
 export const KhResource: ResourceDefinition<'kh'> = {
   key: 'kh',
   unit: 'mg',
-  bounds: { min: 0, max: 1000000 },
+  bounds: { min: 0, max: Infinity },
   defaultValue: 0,
   precision: 0,
   format: (massInMg: number, waterLiters?: number) =>

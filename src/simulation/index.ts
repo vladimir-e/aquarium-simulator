@@ -62,12 +62,10 @@ export type {
 } from './seed.js';
 export {
   cycledColony,
-  cycledGh,
-  cycledKh,
+  cycledHardness,
   cycledKhReserve,
   cycledNitrate,
   cycledReserve,
-  cycledTannins,
   startingHardness,
 } from './seed.js';
 

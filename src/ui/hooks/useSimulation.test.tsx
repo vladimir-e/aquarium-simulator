@@ -16,7 +16,7 @@ import {
   getSubstrateSurface,
   tick,
 } from '../../simulation/index.js';
-import { cycledColony, cycledGh, cycledKh } from '../../simulation/seed.js';
+import { cycledColony, cycledHardness } from '../../simulation/seed.js';
 import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
 import {
   PERSISTENCE_VERSION,
@@ -210,11 +210,9 @@ describe('useSimulation', () => {
     });
 
     const { resources } = result.current.state;
-    expect(resources.kh).toBeCloseTo(cycledKh('aqua_soil', tapKh, tank.capacity), 10);
-    expect(resources.gh).toBeCloseTo(
-      cycledGh('aqua_soil', tapKh, environment.tapGh, tank.capacity),
-      10
-    );
+    const cycled = cycledHardness('aqua_soil', tapKh, environment.tapGh, tank.capacity);
+    expect(resources.kh).toBeCloseTo(cycled.kh, 10);
+    expect(resources.gh).toBeCloseTo(cycled.gh, 10);
   });
 
   it('swapping the substrate lays a fresh bed with a full organic reserve', () => {
@@ -470,7 +468,7 @@ describe('useSimulation', () => {
       const tapKh = reset.environment.tapKh + 2;
       act(() => result.current.updateTapKh(tapKh));
       expect(result.current.state.resources.kh).toBeCloseTo(
-        cycledKh('aqua_soil', tapKh, reset.tank.capacity),
+        cycledHardness('aqua_soil', tapKh, reset.environment.tapGh, reset.tank.capacity).kh,
         10
       );
     });

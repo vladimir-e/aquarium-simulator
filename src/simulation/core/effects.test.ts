@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { applyEffects, type Effect } from './effects.js';
 import { createSimulation, type SimulationState } from '../state.js';
+import { getDkh, getGhMass, getKhMass } from '../resources/helpers.js';
 
 describe('applyEffects', () => {
   let initialState: SimulationState;
@@ -125,5 +126,20 @@ describe('applyEffects', () => {
       expect(newState.resources.potassium).toBe(40);
       expect(newState.resources.iron).toBe(1);
     });
+  });
+
+  it('holds any mass a full tank can carry, however large and hard', () => {
+    const tank = createSimulation({ tankCapacity: 10000, tapKh: 0, tapGh: 0 });
+    const kh = getKhMass(30, 10000);
+    const gh = getGhMass(30, 10000);
+
+    const newState = applyEffects(tank, [
+      { tier: 'immediate', resource: 'kh', delta: kh, source: 'test' },
+      { tier: 'immediate', resource: 'gh', delta: gh, source: 'test' },
+    ]);
+
+    expect(newState.resources.kh).toBe(kh);
+    expect(newState.resources.gh).toBe(gh);
+    expect(getDkh(newState.resources.kh, newState.resources.water)).toBeCloseTo(30, 10);
   });
 });

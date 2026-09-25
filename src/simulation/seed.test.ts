@@ -3,12 +3,10 @@ import { createSimulation, type SimulationConfig } from './state.js';
 import { FISH_SPECIES_DATA } from './livestock/species.js';
 import {
   cycledColony,
-  cycledGh,
-  cycledKh,
+  cycledHardness,
   cycledKhReserve,
   cycledNitrate,
   cycledReserve,
-  cycledTannins,
   type PresetSeed,
 } from './seed.js';
 import { getSubstrateKhReserve } from './equipment/substrate.js';
@@ -146,13 +144,17 @@ describe('createSimulation seeding', () => {
 
   describe('the alkalinity a cycled tank keeps', () => {
     it('keeps less KH over aqua soil than over an inert bed', () => {
-      expect(cycledKh('aqua_soil', 5, 100)).toBeLessThan(cycledKh('gravel', 5, 100));
-      expect(cycledKh('aqua_soil', 5, 100)).toBeGreaterThan(0);
+      const soil = cycledHardness('aqua_soil', 5, 8, 100);
+      expect(soil.kh).toBeLessThan(cycledHardness('gravel', 5, 8, 100).kh);
+      expect(soil.kh).toBeGreaterThan(0);
     });
 
     it('scales with capacity', () => {
       for (const type of ['aqua_soil', 'sand'] as const) {
-        expect(cycledKh(type, 5, 200)).toBeCloseTo(2 * cycledKh(type, 5, 100), 10);
+        const small = cycledHardness(type, 5, 8, 100);
+        const large = cycledHardness(type, 5, 8, 200);
+        expect(large.kh).toBeCloseTo(2 * small.kh, 10);
+        expect(large.gh).toBeCloseTo(2 * small.gh, 10);
       }
     });
 
@@ -161,15 +163,16 @@ describe('createSimulation seeding', () => {
       const { resources, environment } = seeded;
       const khShort = environment.tapKh - getDkh(resources.kh, resources.water);
 
-      expect(resources.gh).toBe(cycledGh('aqua_soil', 5, 8, TANK.tankCapacity));
+      expect(resources.gh).toBe(cycledHardness('aqua_soil', 5, 8, TANK.tankCapacity).gh);
       expect(khShort).toBeGreaterThan(0);
       expect(environment.tapGh - getDgh(resources.gh, resources.water)).toBeCloseTo(khShort, 10);
     });
 
-    it('scales GH with capacity', () => {
-      for (const type of ['aqua_soil', 'gravel'] as const) {
-        expect(cycledGh(type, 5, 8, 100)).toBeCloseTo(2 * cycledGh(type, 5, 8, 50), 10);
-      }
+    it('takes no more KH than the tap has GH to give up alongside it', () => {
+      const { kh, gh } = cycledHardness('aqua_soil', 10, 2, 100);
+
+      expect(gh).toBe(0);
+      expect(getDkh(kh, 100)).toBeCloseTo(8, 10);
     });
 
     it('hands a soil bed part of its buffer, spent but not exhausted', () => {
@@ -181,7 +184,7 @@ describe('createSimulation seeding', () => {
       expect(seeded.equipment.substrate.khReserve).toBeLessThan(fresh);
     });
 
-    it('ages driftwood a month and leaves every other piece without tannins', () => {
+    it('hands hardscape over as bought', () => {
       const seeded = createSimulation(
         {
           ...TANK,
@@ -196,9 +199,7 @@ describe('createSimulation seeding', () => {
       );
       const [wood, rock] = seeded.equipment.hardscape.items;
 
-      expect(wood!.tannins).toBe(cycledTannins('driftwood'));
-      expect(wood!.tannins).toBeGreaterThan(0);
-      expect(wood!.tannins).toBeLessThan(HARDSCAPE_TANNINS.driftwood);
+      expect(wood!.tannins).toBe(HARDSCAPE_TANNINS.driftwood);
       expect(rock!.tannins).toBe(0);
     });
   });

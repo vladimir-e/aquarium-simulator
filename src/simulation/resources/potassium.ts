@@ -11,7 +11,7 @@ import { getPpm } from './helpers.js';
 export const PotassiumResource: ResourceDefinition<'potassium'> = {
   key: 'potassium',
   unit: 'mg',
-  bounds: { min: 0, max: 50000 },
+  bounds: { min: 0, max: Infinity },
   defaultValue: 0,
   precision: 1,
   format: (massInMg: number, waterLiters?: number) => {
