@@ -326,7 +326,8 @@ export interface SimulationState {
   /** In-memory log storage */
   logs: LogEntry[];
   /** Tracks active alert conditions for threshold-crossing detection */
-  alertState: AlertState;  /** How the tank was seeded at hour zero; absent when it was filled from the tap. */
+  alertState: AlertState;
+  /** How the tank was seeded at hour zero; absent or empty when it was filled from the tap. */
   seed?: TankSeed;
 }
 
