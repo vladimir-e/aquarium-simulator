@@ -165,6 +165,8 @@ describe('configRange', () => {
     expect(bounded).toEqual([
       'nitrogenCycle.aobOxygenHalfSaturation',
       'nitrogenCycle.nobOxygenHalfSaturation',
+      'nitrogenCycle.aobAmmoniaHalfSaturation',
+      'nitrogenCycle.nobNitriteHalfSaturation',
     ]);
   });
 });

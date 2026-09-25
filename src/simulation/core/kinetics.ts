@@ -32,6 +32,26 @@ export function monodFactor(concentration: number, halfSaturation: number): numb
 }
 
 /**
+ * What a Monod consumer draws from a stock over one tick, with the curve read
+ * at the stock the tick ends on: the root of
+ * `uptake = capacity × monodFactor(stock − uptake, halfSaturation)`.
+ *
+ * Read at the start instead, a colony with more throughput than the stock's
+ * half-saturation mass empties the pool every tick and a concentration it
+ * should hold at hundredths of a ppm reads zero. Read at the end, the uptake
+ * never exceeds either the stock or the capacity, at any tick length, and the
+ * stock a steady state leaves behind is the one the continuous curve gives.
+ *
+ * Both amounts share a unit, so `halfSaturation` here is a mass — the
+ * concentration constant times the volume it is dissolved in.
+ */
+export function monodUptake(stock: number, capacity: number, halfSaturation: number): number {
+  if (stock <= 0 || capacity <= 0) return 0;
+  const b = halfSaturation + stock + capacity;
+  return (2 * capacity * stock) / (b + Math.sqrt(b * b - 4 * capacity * stock));
+}
+
+/**
  * Irradiance scaling for photosynthesis — `tanh(I / Ik)`, the Jassby–Platt
  * photosynthesis–irradiance curve.
  *

@@ -353,6 +353,8 @@ const NitrogenCycleConfigSchema = z
     referenceTemp: z.number(),
     aobOxygenHalfSaturation: z.number(),
     nobOxygenHalfSaturation: z.number(),
+    aobAmmoniaHalfSaturation: z.number(),
+    nobNitriteHalfSaturation: z.number(),
   })
   .strict();
 

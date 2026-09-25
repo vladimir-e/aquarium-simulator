@@ -21,15 +21,17 @@ tank has to keep earning.
 | Three-stage chain | <Badge text="settled" variant="success" /> | Compound mass converts through the molecular weights in `src/simulation/core/`; no tunable restates one. |
 | Ammonia source | <Badge text="settled" variant="success" /> | A physical bed reserve — filled by settling waste, drained by leaching — rather than a flat ambient constant. |
 | Processing capacity | <Badge text="settled" variant="success" /> | Population × per-cell throughput × warmth × air, with no volume term — the same colony clears the same mass in a nano and a 300 L. |
+| Substrate limitation | <Badge text="settled" variant="success" /> | Monod on total ammonia for AOB and on nitrite for NOB, so a cycled tank holds hundredths of a ppm and a pulse stands until the colony works it down. |
 | Colony growth and decay | <Badge text="settled" variant="success" /> | Logistic growth scaled by utilization; unconditional maintenance decay on a 21-day half-life. |
 | Oxygen limitation | <Badge text="settled" variant="success" /> | Monod on both guilds, NOB's half-saturation nearly 4× AOB's — which is where standing nitrite comes from. |
 | Temperature | <Badge text="settled" variant="success" /> | One Q10 factor across oxidation, growth and decay, because they are one metabolism. |
 | Guild seeding | <Badge text="settled" variant="success" /> | A trickle per litre of water that never stops, so a guild is always present and grows the moment it has feedstock — no concentration gate. |
 | Mineralization rate | <Badge text="scaffolding" variant="caution" /> | A flat fraction of standing waste with no temperature and no oxygen term, in the one aerobic step of the chain that has neither. |
 | N mass conservation | <Badge text="scaffolding" variant="caution" /> | The chain conserves N per atom, but decay oxidation, plant uptake and metabolic retention are untracked sinks. The end-to-end mass accounting controls for them rather than closing them. |
-| Colony sizing on inert beds | <Badge text="settled" variant="success" /> | Every bed cycles in about four weeks under fish, and a `'cycled'` seed is a share of the tank's own surface ceiling, so filter and bed decide it. |
+| Colony sizing on inert beds | <Badge text="settled" variant="success" /> | Every bed cycles in four to six weeks under fish. |
+| Cycled seed | <Badge text="scaffolding" variant="caution" /> | A `'cycled'` colony is a share of the surface ceiling read off fishless tanks, not sized to the stock. A stocked tank opens on a colony under its load and runs a mini-cycle in week one — a few tenths of a ppm of nitrite — and the 75 gal community, at thirteen times its seed, crashes. |
 | Nitrogen alerts | <Badge text="scaffolding" variant="caution" /> | Ammonia alerts on free NH₃ where harm starts; nitrite still alerts at 1.0 ppm where fish damage starts at any presence. |
-| Bed disturbance | <Badge text="scaffolding" variant="caution" /> | The bed now holds mulm, but only about a day of the tank's waste, and a mature colony clears anything short of ~25× its hourly load without a trace. A stock `--rescape` stirs a few percent of the bed and shows nothing; digging up nearly all of it shows a few tenths of a ppm of nitrite. |
+| Bed disturbance | <Badge text="scaffolding" variant="caution" /> | A rescape now shows, but small: the bed holds only about a day of the tank's waste, so a stock `--rescape` lifts a cycled tank's ammonia and nitrite by about half again — a few hundredths of a ppm — for half a day. |
 | Denitrification | <Badge text="missing" variant="danger" /> | Nitrate has no biological sink. It leaves only through plant uptake and water changes, so an unplanted tank accumulates it without bound. |
 | Nitrification acidity | <Badge text="settled" variant="success" /> | The 2 H⁺ each NH₄⁺ releases spend KH at 7.14 mg CaCO₃ per mg of nitrogen, so a tank that nitrifies without water changes loses its buffer and its pH. |
 
@@ -40,8 +42,8 @@ tank has to keep earning.
 | Stage | Reaction | Run by |
 |---|---|---|
 | 1 · Mineralization | waste (g) → NH₃ (mg) | No organism. A flat fraction of standing waste, times a stoichiometric N content. |
-| 2 · Ammonia oxidation | NH₄⁺ + 1.5 O₂ → NO₂⁻ + 2 H⁺ + H₂O | AOB, capped by what is dissolved |
-| 3 · Nitrite oxidation | NO₂⁻ + 0.5 O₂ → NO₃⁻ | NOB, capped by what is dissolved |
+| 2 · Ammonia oxidation | NH₄⁺ + 1.5 O₂ → NO₂⁻ + 2 H⁺ + H₂O | AOB, saturating on what is dissolved |
+| 3 · Nitrite oxidation | NO₂⁻ + 0.5 O₂ → NO₃⁻ | NOB, saturating on what is dissolved |
 
 Nitrogen is conserved atom for atom across the chain. Compound mass is not — it
 grows with molecular weight, and every conversion reads its ratio from the
@@ -93,9 +95,26 @@ than waiting.
 
 ```
 capacity    = population × processingRate × warmth × air
-consumed    = min(capacity, standing mass)
-utilization = consumed / capacity          // 0..1, dimensionless
+consumed    = capacity × S / (K + S)         // S: concentration the tick ends on
+utilization = consumed / capacity            // 0..1, dimensionless
 ```
+
+Each guild saturates on its own substrate as well as on oxygen: AOB on total
+ammonia, NOB on nitrite. Capacity is the maximum a colony reaches in a glut; in
+ordinary water it runs at a Monod share of it, so a colony works in proportion
+to what is dissolved rather than at a fixed pace up to its limit.
+
+The curve is read at the concentration the tick ends on — the root of
+`consumed = capacity × monod(standing − consumed)`. Read at the start instead, a
+colony with more throughput per hour than the half-saturation mass would empty
+the pool every tick and a cycled tank would read exactly zero. Read at the end,
+uptake never exceeds either the stock or the capacity, and a steady state rests
+where the continuous curve puts it.
+
+| Guild | Substrate | Half-saturation `K` | Source |
+|---|---|---|---|
+| AOB | NH₃ + NH₄⁺, as NH₃ | `0.61` ppm (0.5 mg/L N) | *Nitrosomonas*, low end of wastewater models' 0.5–1 mg/L N |
+| NOB | NO₂⁻ | `0.66` ppm (0.2 mg/L N) | *Nitrospira*, the guild that dominates aquarium biofilters, 0.1–0.3 mg/L N |
 
 Capacity carries no volume term. Throughput is a property of the cell, so the
 same colony clears the same milligrams in a nano and in a 150 L — which is what
@@ -139,6 +158,12 @@ In air-saturated water with the ceiling far off, that is **4.0 % for AOB** and
 **7.1 % for NOB**. The rest point moves with oxygen, and not with temperature —
 `warmth` cancels out of it, because a cell that oxidises half as fast also
 divides and starves half as fast.
+
+Utilization is the substrate curve, so the rest point fixes the concentration a
+cycled tank holds: `S = K × u / (1 − u)` — about 0.03 ppm ammonia and 0.05 ppm
+nitrite, almost whatever the load. A heavier load grows a bigger colony, not a higher
+reading. A pulse lifts `S` and with it the colony's pace, so it clears in hours
+on a mature colony with headroom and in days on one still growing into its load.
 
 ### Oxygen: why nitrite stands
 
@@ -209,11 +234,10 @@ as waste, and that share of the bed's biofilm is scraped off.
 | Setting a piece down | nothing; it arrives sterile |
 | Swapping the bed | all of it — the colony on it goes out with it and the new bed brings a fresh reserve |
 
-A mature colony rests at a few percent of its throughput, so the release has to
-outrun that headroom to show. On a young soil bed it does — a cycled 40 gal soil
-tank rescaped two days in shows a quarter ppm of nitrite that clears within a
-day. An established bed holds only its mulm, and it shows only when most of the
-bed is dug up at once. An inert bed leaches a quarter of
+A release lifts the concentration the colony works against, so it stands as a
+bump until worked down. An established bed holds only its mulm, so a stock
+rescape of a cycled tank shows a few hundredths of a ppm for half a day; digging
+up most of the bed at once shows more. An inert bed leaches a quarter of
 what soil does, so its colony grows to a smaller load, but it cycles on the same
 seeding clock; a `'cycled'` seed sizes the colony off the surface, not the
 water.
@@ -234,6 +258,8 @@ water.
 | `referenceTemp` | Temperature the nitrifier rates are quoted at | `25` °C |
 | `aobOxygenHalfSaturation` | O₂ at which AOB run at half rate | `0.3` mg/L |
 | `nobOxygenHalfSaturation` | O₂ at which NOB run at half rate | `1.1` mg/L |
+| `aobAmmoniaHalfSaturation` | Total ammonia at which AOB run at half rate | `0.61` ppm |
+| `nobNitriteHalfSaturation` | Nitrite at which NOB run at half rate | `0.66` ppm |
 | `AIR_SATURATED_O2` | The water every rate above is quoted in | `8.38` mg/L |
 | `substrateLeachRate` | Share of the bed's remaining reserve released per tick | `0.003` /hr |
 | `wasteSettlingRate` | Share of standing waste settling into the bed per tick in still water | `0.1` /hr |
@@ -249,7 +275,7 @@ one pinned to a real measurement.
 
 | Neighbour | Read | Written |
 |---|---|---|
-| [Water & gases](/subsystems/water-and-gases/) | `oxygen` — sets both guilds' Monod factor, and with it their oxidation and growth | `oxygen` — the derived draw of both oxidation steps; `kh`, spent by ammonia oxidation |
+| [Water & gases](/subsystems/water-and-gases/) | `oxygen` — sets both guilds' oxygen Monod factor, and with it their oxidation and growth | `oxygen` — the derived draw of both oxidation steps; `kh`, spent by ammonia oxidation |
 | [Environment](/subsystems/environment/) | `water` for ppm and the submerged gate, `temperature` for the Q10 factor | — |
 | [Equipment](/subsystems/equipment/) | `surface` — the colony ceiling, from filter media, substrate, hardscape and glass | `waste` — settles into the substrate's organic reserve and leaches back out of it |
 | [Livestock](/subsystems/livestock/) | — | Fish write `ammonia` directly through gill excretion, and `waste` as feces and death mass |

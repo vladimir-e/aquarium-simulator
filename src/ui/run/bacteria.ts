@@ -198,6 +198,7 @@ export function bacteriaReadout(
   );
   const { ammoniaConsumed, nitriteProduced } = calculateAmmoniaToNitrite(
     r.ammonia + gills + ammoniaProduced,
+    water,
     r.aob,
     r.temperature,
     r.oxygen,
@@ -205,6 +206,7 @@ export function bacteriaReadout(
   );
   const { nitriteConsumed } = calculateNitriteToNitrate(
     r.nitrite + nitriteProduced,
+    water,
     r.nob,
     r.temperature,
     r.oxygen,
@@ -315,11 +317,11 @@ export function projectNitritePeak(
     waste -= mineralised.wasteConsumed;
     ammonia += mineralised.ammoniaProduced + gills;
 
-    const oxidised = calculateAmmoniaToNitrite(ammonia, aob, r.temperature, r.oxygen, nc);
+    const oxidised = calculateAmmoniaToNitrite(ammonia, water, aob, r.temperature, r.oxygen, nc);
     ammonia -= oxidised.ammoniaConsumed;
     nitrite += oxidised.nitriteProduced;
 
-    const cleared = calculateNitriteToNitrate(nitrite, nob, r.temperature, r.oxygen, nc);
+    const cleared = calculateNitriteToNitrate(nitrite, water, nob, r.temperature, r.oxygen, nc);
     nitrite -= cleared.nitriteConsumed;
 
     const nitritePpm = getPpm(nitrite, water);

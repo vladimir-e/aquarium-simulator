@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { lightSaturationFactor, monodFactor, q10Factor } from './kinetics.js';
+import { lightSaturationFactor, monodFactor, monodUptake, q10Factor } from './kinetics.js';
 
 describe('q10Factor', () => {
   it('leaves a rate alone at the temperature it is quoted at', () => {
@@ -46,6 +46,37 @@ describe('monodFactor', () => {
 
   it('never limits anything at a half-saturation of nothing', () => {
     expect(monodFactor(0.001, 0)).toBe(1);
+  });
+});
+
+describe('monodUptake', () => {
+  it('draws the curve at the stock it leaves behind', () => {
+    for (const [stock, capacity, k] of [
+      [1, 0.2, 0.5],
+      [10, 3, 0.5],
+      [0.01, 50, 2],
+    ]) {
+      const uptake = monodUptake(stock, capacity, k);
+      expect(uptake).toBeCloseTo(capacity * monodFactor(stock - uptake, k), 12);
+    }
+  });
+
+  it('never overdraws the stock or the capacity', () => {
+    for (const capacity of [0.01, 1, 100, 1e6]) {
+      const uptake = monodUptake(1, capacity, 0.5);
+      expect(uptake).toBeLessThan(1);
+      expect(uptake).toBeLessThan(capacity);
+    }
+  });
+
+  it('is the lesser of stock and capacity once the half-saturation is gone', () => {
+    expect(monodUptake(3, 1, 0)).toBeCloseTo(1, 12);
+    expect(monodUptake(1, 3, 0)).toBeCloseTo(1, 12);
+  });
+
+  it('draws nothing from an empty stock or with no capacity', () => {
+    expect(monodUptake(0, 1, 0.5)).toBe(0);
+    expect(monodUptake(1, 0, 0.5)).toBe(0);
   });
 });
 

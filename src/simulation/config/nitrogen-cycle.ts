@@ -13,6 +13,7 @@
  */
 
 import { monodFactor } from '../core/kinetics.js';
+import { MW_N, MW_NH3, MW_NO2 } from '../core/chemistry.js';
 
 /**
  * Dissolved O2 in air-saturated freshwater at `referenceTemp`, mg/L — the water
@@ -58,6 +59,10 @@ export interface NitrogenCycleConfig {
   aobOxygenHalfSaturation: number;
   /** Dissolved O2 (mg/L) at which NOB oxidise and grow at half rate */
   nobOxygenHalfSaturation: number;
+  /** Total ammonia, ppm as NH₃, at which AOB oxidise at half rate */
+  aobAmmoniaHalfSaturation: number;
+  /** Nitrite, ppm as NO₂⁻, at which NOB oxidise at half rate */
+  nobNitriteHalfSaturation: number;
 }
 
 export const nitrogenCycleDefaults: NitrogenCycleConfig = {
@@ -142,6 +147,17 @@ export const nitrogenCycleDefaults: NitrogenCycleConfig = {
   // is a thing keepers see, and this is where it comes from.
   aobOxygenHalfSaturation: AOB_OXYGEN_HALF_SATURATION,
   nobOxygenHalfSaturation: NOB_OXYGEN_HALF_SATURATION,
+  // Each guild also saturates on its own substrate, so a mature colony works in
+  // proportion to what is in the water rather than at a fixed pace up to its
+  // capacity. AOB take 0.5 mg/L TAN-N, the low end of the 0.5–1 mg/L wastewater
+  // models carry for Nitrosomonas. NOB take 0.2 mg/L NO₂-N, the Nitrospira
+  // figure (0.1–0.3) rather than Nitrobacter's 0.5–1.5, because Nitrospira are
+  // the nitrite oxidisers aquarium biofilters actually carry. Both are restated
+  // in the compound each stock holds. A colony at rest reads utilization
+  // straight off this curve, so these set the hundredths of a ppm a cycled tank
+  // holds and how tall a pulse stands before it clears.
+  aobAmmoniaHalfSaturation: (0.5 * MW_NH3) / MW_N,
+  nobNitriteHalfSaturation: (0.2 * MW_NO2) / MW_N,
 };
 
 export interface NitrogenCycleConfigMeta {
@@ -170,4 +186,6 @@ export const nitrogenCycleConfigMeta: NitrogenCycleConfigMeta[] = [
   { key: 'referenceTemp', label: 'Nitrification Reference Temp', unit: '°C', step: 1 },
   { key: 'aobOxygenHalfSaturation', label: 'AOB O2 Half-Saturation', unit: 'mg/L', min: 0.05, max: 3, step: 0.05 },
   { key: 'nobOxygenHalfSaturation', label: 'NOB O2 Half-Saturation', unit: 'mg/L', min: 0.05, max: 3, step: 0.05 },
+  { key: 'aobAmmoniaHalfSaturation', label: 'AOB NH₃ Half-Saturation', unit: 'ppm', min: 0.05, max: 3, step: 0.05 },
+  { key: 'nobNitriteHalfSaturation', label: 'NOB NO₂ Half-Saturation', unit: 'ppm', min: 0.05, max: 6, step: 0.05 },
 ];

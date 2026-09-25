@@ -65,9 +65,11 @@ off — which is the part that makes a number checkable.
 | `referenceTemp` | Temperature the nitrifier rates are quoted at | °C |
 | `aobOxygenHalfSaturation` | Dissolved O₂ at which AOB oxidise and grow at half rate | mg/L |
 | `nobOxygenHalfSaturation` | Dissolved O₂ at which NOB oxidise and grow at half rate | mg/L |
+| `aobAmmoniaHalfSaturation` | Total ammonia, as NH₃, at which AOB oxidise at half rate | ppm |
+| `nobNitriteHalfSaturation` | Nitrite, as NO₂⁻, at which NOB oxidise at half rate | ppm |
 
-The two half-saturation constants are measured concentrations and carry a range.
-The twelve leaves above them were never given bounds, so a writer that asks
+The four half-saturation constants are measured concentrations and carry a range.
+The ten leaves above them were never given bounds, so a writer that asks
 gets nothing back. A test asserts exactly that split, so the gap is stated
 rather than discovered.
 

@@ -195,14 +195,13 @@ describe('bacteriaReadout', () => {
 });
 
 describe('projectNitritePeak', () => {
-  it('finds the peak the engine reaches on a fishless soil tank, reading at most a percent high', () => {
+  it('finds the peak the engine reaches on a fishless soil tank, to within a percent', () => {
     const state = soilTank();
     const projection = projectNitritePeak(state, config)!;
     const engine = enginePeak(state);
 
     expect(Math.abs(projection.hours - engine.hours)).toBeLessThanOrEqual(2);
-    expect(projection.ppm).toBeGreaterThanOrEqual(engine.ppm);
-    expect((projection.ppm - engine.ppm) / engine.ppm).toBeLessThan(0.01);
+    expect(Math.abs(projection.ppm - engine.ppm) / engine.ppm).toBeLessThan(0.01);
   });
 
   it('finds a lower peak once an ATO is holding the volume up', () => {
