@@ -10,6 +10,7 @@ import type { SimulationState } from '../../simulation/index.js';
 import {
   HIGH_ALGAE_THRESHOLD,
   HIGH_AMMONIA_THRESHOLD,
+  ammoniaAlertLine,
   HIGH_CO2_THRESHOLD,
   HIGH_NITRATE_THRESHOLD,
   HIGH_NITRITE_THRESHOLD,
@@ -232,7 +233,8 @@ export const DECIMALS: Record<ReadingId, number> = {
  * action preview, so a marker cannot sit at one place on a widget row and
  * another on the row that predicts it. Fixed, because a scale taken off the
  * value it is showing pins the marker wherever the value goes, and the strip
- * then reads the same on an empty tank and a filthy one.
+ * then reads the same on an empty tank and a filthy one. Ammonia's scale
+ * stretches with its line instead.
  */
 export const DISPLAY_CEILING = {
   waste: 2,
@@ -423,21 +425,21 @@ export function readTank({ state, config, history, units }: TankInput): ReadingB
       tone: 'ink',
       trend: '',
       sentence:
-        'A pool with no safe line: it settles where what mineralises out matches what falls in.',
-      net: netPerHour(waste.perHour - waste.mineralised, 'g'),
+        'A pool with no safe line: it levels off where what mineralises and settles out matches what falls in.',
+      net: netPerHour(waste.perHour - waste.mineralised - waste.settled, 'g'),
       fills: waste.sources
         .filter((source) => source.gramsPerHour > 0)
         .map((source) => ({ label: source.label, rate: ratePerHour(source.gramsPerHour, 'g') })),
-      drains: [{ label: 'Mineralising to NH₃', rate: ratePerHour(-waste.mineralised, 'g') }],
+      drains: [
+        { label: 'Mineralising to NH₃', rate: ratePerHour(-waste.mineralised, 'g') },
+        { label: 'Settling into the bed', rate: ratePerHour(-waste.settled, 'g') },
+      ],
       series: null,
     },
     ammonia: fromWater('ammonia', tape, {
       reading: read('ammonia'),
-      sentence: `Safe at or under ${said('ammonia', HIGH_AMMONIA_THRESHOLD)} ppm — the line the engine alerts on.`,
-      net: netPerHour(
-        rates.wasteToAmmonia + rates.gillsToAmmonia - rates.ammoniaOxidised,
-        'ppm'
-      ),
+      sentence: `Safe at or under ${said('ammonia', ammoniaAlertLine(state.resources))} ppm at this pH and temperature — where free NH₃ reaches the ${HIGH_AMMONIA_THRESHOLD} ppm the engine alerts on.`,
+      net: netPerHour(rates.netAmmonia, 'ppm'),
       fills: [
         { label: 'Waste mineralising', rate: ratePerHour(rates.wasteToAmmonia, 'ppm') },
         { label: 'Fish gills', rate: ratePerHour(rates.gillsToAmmonia, 'ppm') },

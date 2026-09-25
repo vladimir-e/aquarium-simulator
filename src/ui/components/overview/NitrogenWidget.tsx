@@ -1,5 +1,4 @@
 import React from 'react';
-import type { TunableConfig } from '../../../simulation/config/index.js';
 import type { ReadingBook, ReadingId, ReadingView } from '../../readings';
 import { TONE_TEXT } from '../ui/RangeStrip';
 import { BiofilterWidget } from '../water/BiofilterWidget';
@@ -37,7 +36,6 @@ function Stock({
 
 interface NitrogenWidgetProps {
   book: ReadingBook;
-  config: TunableConfig;
   onOpenReading: (id: ReadingId) => void;
   className?: string;
 }
@@ -49,7 +47,6 @@ interface NitrogenWidgetProps {
  */
 export function NitrogenWidget({
   book,
-  config,
   onOpenReading,
   className,
 }: NitrogenWidgetProps): React.JSX.Element {
@@ -62,7 +59,7 @@ export function NitrogenWidget({
     byId[id].net ?? (byId[id].trend.replace('/d', ' ppm/d') || 'steady');
 
   return (
-    <BiofilterWidget title="Nitrogen" to="/water" book={book} config={config} className={className}>
+    <BiofilterWidget title="Nitrogen" to="/water" book={book} className={className}>
       <div className="grid grid-cols-[1fr_16px_1fr_16px_1fr_16px_1fr] items-center py-1 max-md:grid-cols-1">
         {CHAIN.map((id, i) => (
           <React.Fragment key={id}>

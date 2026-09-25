@@ -11,6 +11,12 @@ Format: - **Feature name** (#PR) - One short sentence (under ~150 chars)
 
 ## Unreleased
 
+- **A cycled tank carries its stock** - a `'cycled'` colony is sized to the load its fish and bed put on it at rest, so a stocked tank opens without a mini-cycle; `cycledColony` takes the state.
+- **Nitrifiers saturate on their substrate** - AOB and NOB oxidise at a Monod share of capacity, so a cycled tank holds hundredths of a ppm and a pulse stands until worked down; `aobAmmoniaHalfSaturation`, `nobNitriteHalfSaturation`.
+- **The bed collects mulm** - standing waste settles into the bed's organic reserve, less in strong flow, and a water change can vacuum a share of it out; `wasteSettlingRate`, `settlingHalfTurnover`, `--vac`.
+- **Ammonia alerts on free NH₃** - fires at 0.02 ppm unionized ammonia, so the total-ammonia line moves with pH and temperature.
+- **A rescape stirs the bed** - uprooting a plant or lifting hardscape releases a share of the bed's organics and scrapes its biofilm; `placeHardscape`, `liftHardscape`, `resetHardscape`, `disturbBed`.
+- **Nitrifiers seed, they don't spawn** - a per-litre trickle replaces the 0.5 ppm spawn gate, so every bed cycles; a `'cycled'` colony is a share of the tank's surface ceiling; breaking: `seedingRate` (v28).
 - **A big, hard tank keeps its stock** - dissolved and organic masses have no fixed ceiling, so 10,000 L at 30 dKH is no longer clamped.
 - **Carbon saturates, rooms breathe** - low CO₂ slows plants instead of hurting them; injected tanks reach 20–30 mg/L; rooms swing daily; breaking: `optimalCo2` → per-need half-saturations.
 - **GH, general hardness** - calcium and magnesium as a tank stock from `tapGh`, moved with KH by calcite and soil, drawn by plants; fish and plants carry GH bands.

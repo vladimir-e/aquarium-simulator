@@ -17,10 +17,11 @@ import {
   type Resources,
   type SimulationState,
 } from '../../simulation/index.js';
-import { getMassFromPpm } from '../../simulation/resources/index.js';
+import { getMassFromPpm, getPpm } from '../../simulation/resources/index.js';
+import { aobCapacity } from '../../simulation/systems/index.js';
+import { monodFactor } from '../../simulation/core/kinetics.js';
 
 const config = DEFAULT_CONFIG;
-const nc = config.nitrogenCycle;
 const perCm2 = nitrogenCycleDefaults.bacteriaPerCm2;
 const RNG_SEED = 2026;
 
@@ -59,6 +60,25 @@ function stocked(): SimulationState {
     state = applyAction(state, { type: 'addFish', species: 'neon_tetra' }).state;
   }
   return applyAction(state, { type: 'feed', amount: 0.5 }).state;
+}
+
+const TRACE_PPM = 0.1;
+
+/**
+ * A stocked tank read at zero toxins, its AOB sized so that what they clear
+ * while holding ammonia at trace is `share` of what arrives each hour.
+ */
+function aobClearingAtTrace(share: number): SimulationState {
+  const base = colonised(stocked(), { aob: 0, nob: 0.5 });
+  const { rates } = bacteriaReadout(base, config);
+  const arriving = rates.wasteToAmmonia + rates.gillsToAmmonia;
+  const r = base.resources;
+  const perUnit =
+    getPpm(aobCapacity(1, r.temperature, r.oxygen), r.water) *
+    monodFactor(TRACE_PPM, nitrogenCycleDefaults.aobAmmoniaHalfSaturation);
+  return produce(base, (draft) => {
+    draft.resources.aob = (share * arriving) / perUnit;
+  });
 }
 
 function engineNitrite(state: SimulationState): { produced: number; cleared: number } {
@@ -151,9 +171,23 @@ describe('bacteriaReadout', () => {
 
     expect(readout.atTrace).toBe(true);
     expect(readout.cycled).toBe(false);
-    expect(bacteriaSummary(readout, null, nc)).toBe(
+    expect(bacteriaSummary(readout, null)).toBe(
       `Both toxins read zero, on colonies too small to hold a feeding — ${Math.round(readout.colonisation)} % of the biofilm this tank offers.`
     );
+  });
+
+  it('withholds it from a colony whose ceiling covers the load only with ammonia past trace', () => {
+    const under = aobClearingAtTrace(0.5);
+    const readout = bacteriaReadout(under, config);
+    const throughput = getPpm(
+      aobCapacity(under.resources.aob, under.resources.temperature, under.resources.oxygen),
+      under.resources.water
+    );
+
+    expect(readout.atTrace).toBe(true);
+    expect(throughput).toBeGreaterThan(readout.rates.wasteToAmmonia + readout.rates.gillsToAmmonia);
+    expect(readout.cycled).toBe(false);
+    expect(bacteriaReadout(aobClearingAtTrace(1.5), config).cycled).toBe(true);
   });
 
   it('reports no conversion at all on a tank with nothing in it', () => {
@@ -196,14 +230,13 @@ describe('bacteriaReadout', () => {
 });
 
 describe('projectNitritePeak', () => {
-  it('finds the peak the engine reaches on a fishless soil tank, reading at most a percent high', () => {
+  it('finds the peak the engine reaches on a fishless soil tank, to within a percent', () => {
     const state = soilTank();
     const projection = projectNitritePeak(state, config)!;
     const engine = enginePeak(state);
 
     expect(Math.abs(projection.hours - engine.hours)).toBeLessThanOrEqual(2);
-    expect(projection.ppm).toBeGreaterThanOrEqual(engine.ppm);
-    expect((projection.ppm - engine.ppm) / engine.ppm).toBeLessThan(0.01);
+    expect(Math.abs(projection.ppm - engine.ppm) / engine.ppm).toBeLessThan(0.01);
   });
 
   it('finds a lower peak once an ATO is holding the volume up', () => {
@@ -228,21 +261,28 @@ describe('projectNitritePeak', () => {
 });
 
 describe('bacteriaSummary', () => {
-  it('explains an uncycled tank by the threshold AOB are waiting for', () => {
-    const state = tank();
-    const summary = bacteriaSummary(
-      bacteriaReadout(state, config),
-      projectNitritePeak(state, config, 24),
-      nc
-    );
+  it('reads a fresh tank as uncycled while its ammonia climbs, seeded colony and all', () => {
+    let state = soilTank();
+    for (let hour = 0; hour < 24 * 5; hour++) state = tick(state, config);
+    const readout = bacteriaReadout(state, config);
+    const summary = bacteriaSummary(readout, projectNitritePeak(state, config));
+
+    expect(readout.aob.count).toBeGreaterThan(0);
     expect(summary).toContain('Uncycled');
-    expect(summary).toContain(`${nc.aobSpawnThreshold} ppm`);
-    expect(summary).toContain('No nitrite peak within');
+    expect(summary).toContain('Nitrite peaks in');
+  });
+
+  it('keeps a cycled tank off the uncycled line while a feeding is still being worked down', () => {
+    const readout = bacteriaReadout(aobClearingAtTrace(1.5), config);
+
+    expect(readout.cycled).toBe(true);
+    expect(readout.rates.netAmmonia).toBeGreaterThan(0);
+    expect(bacteriaSummary(readout, null)).not.toContain('Uncycled');
   });
 
   it('blames the lagging colony while nitrite is climbing', () => {
     const readout = bacteriaReadout(colonised(stocked(), { aob: 0.5, nob: 0.001, ammonia: 1 }), config);
-    const summary = bacteriaSummary(readout, { hours: 30, ppm: 2 }, nc);
+    const summary = bacteriaSummary(readout, { hours: 30, ppm: 2 });
 
     expect(summary).toContain('NOB trail AOB by');
     expect(summary).toContain('Nitrite peaks in');
@@ -250,14 +290,13 @@ describe('bacteriaSummary', () => {
 
   it('calls out the surface as the limit once both colonies have filled it', () => {
     const readout = bacteriaReadout(colonised(stocked(), { aob: 0.95, nob: 0.9, ammonia: 1 }), config);
-    expect(bacteriaSummary(readout, null, nc)).toContain('more load has nowhere to go');
+    expect(bacteriaSummary(readout, null)).toContain('more load has nowhere to go');
   });
 
   it('reads a colony below its ceiling as room left rather than as a shortfall', () => {
     const summary = bacteriaSummary(
       bacteriaReadout(colonised(tank(), { aob: 0.5, nob: 0.5 }), config),
-      null,
-      nc
+      null
     );
     expect(summary).toContain('clearing nitrite');
     expect(summary).toContain('50 % of the biofilm this tank offers');

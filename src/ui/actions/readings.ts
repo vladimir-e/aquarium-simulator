@@ -13,7 +13,7 @@
 import type { FishSpeciesData, SimulationState } from '../../simulation/index.js';
 import {
   HIGH_ALGAE_THRESHOLD,
-  HIGH_AMMONIA_THRESHOLD,
+  ammoniaAlertLine,
   HIGH_CO2_THRESHOLD,
   HIGH_NITRITE_THRESHOLD,
   HIGH_NITRATE_THRESHOLD,
@@ -39,6 +39,7 @@ import {
   nutrientReadings,
   readingAt,
   stockedBand,
+  trackAt,
   toleranceStatus,
   waterReadings,
   type NutrientKey,
@@ -118,10 +119,10 @@ function speciesEdgeNote(value: number, { state }: Sheet, range: SpeciesRange): 
   return null;
 }
 
-/** "still above" once the reading was already over the line before the action. */
-function overLine(value: number, before: number, limit: number): string | null {
+/** "still above" once the reading was already over the line the tank stood on before the action. */
+function overLine(value: number, before: number, limit: number, limitBefore = limit): string | null {
   if (value <= limit) return null;
-  return `${before > limit ? 'still ' : ''}above ${limit.toFixed(2)}`;
+  return `${before > limitBefore ? 'still ' : ''}above ${limit.toFixed(2)}`;
 }
 
 interface Reading {
@@ -134,9 +135,9 @@ interface Reading {
   decimals: number;
   status: (value: number, sheet: Sheet) => Status;
   /** Position on the same display scale the reading book puts it on. */
-  at: (value: number) => number;
+  at: (value: number, sheet: Sheet) => number;
   band: (sheet: Sheet) => StripBand | null;
-  note: (value: number, before: number, sheet: Sheet) => string | null;
+  note: (value: number, before: number, sheet: Sheet, standing: Sheet) => string | null;
 }
 
 const PPM = (): string => 'ppm';
@@ -155,8 +156,8 @@ function fromWater(
   return {
     key,
     read: (sheet): number => sheet.water[key].value,
-    status: (value): Status => classifyVital(key, value),
-    at: (value): number => readingAt(key, value),
+    status: (_value, sheet): Status => sheet.water[key].status,
+    at: (value, sheet): number => trackAt(sheet.water[key].scale, value),
     band: (sheet): StripBand | null => sheet.water[key].band,
     ...rest,
   };
@@ -206,7 +207,13 @@ const READINGS: Reading[] = [
     unit: PPM,
     display: same,
     decimals: 3,
-    note: (value, before) => overLine(value, before, HIGH_AMMONIA_THRESHOLD),
+    note: (value, before, { state }, standing) =>
+      overLine(
+        value,
+        before,
+        ammoniaAlertLine(state.resources),
+        ammoniaAlertLine(standing.state.resources)
+      ),
   }),
   fromWater('nitrite', {
     label: 'NO₂',
@@ -385,10 +392,10 @@ export function previewRows({ before, outcomes, config, units }: PreviewInput): 
       after: prints(low, high, reading.decimals) ? format(values[0]) : `${format(low)}–${format(high)}`,
       unit: reading.unit(units),
       status: reading.status(values[worst], sheets[worst]),
-      from: reading.at(from),
-      to: reading.at(values[worst]),
+      from: reading.at(from, sheets[worst]),
+      to: reading.at(values[worst], sheets[worst]),
       band: reading.band(sheets[worst]),
-      note: reading.note(values[worst], from, sheets[worst]),
+      note: reading.note(values[worst], from, sheets[worst], standing),
     });
   }
 

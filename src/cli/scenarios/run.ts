@@ -3,7 +3,7 @@ import { createSimulation } from '../../simulation/state.js';
 import { getPh } from '../../simulation/core/carbonate.js';
 import type { TunableConfig } from '../../simulation/config/index.js';
 import { toFahrenheit } from '../units.js';
-import { SAMPLE_HOUR, dayOf, dueActions } from './keeper.js';
+import { SAMPLE_HOUR, VACUUM_SHARE, dayOf, dueActions, isKeeperHourOf, rescapeTank } from './keeper.js';
 import { READINGS, gradeReading, type Grade, type ReadingId } from './readings.js';
 import { toConfig, toSeed, type Setup } from './setups.js';
 
@@ -54,7 +54,11 @@ export function keepTank(setup: Setup, { config, untilTick, observe, onRefusal }
   let state = createSimulation(toConfig(setup), toSeed(setup), RNG_SEED);
   observe?.(state);
   while (state.tick < untilTick) {
-    for (const action of dueActions(setup.schedule, state)) {
+    if (setup.rescapeOn !== undefined && isKeeperHourOf(setup.rescapeOn, state.tick)) {
+      state = rescapeTank(state, config);
+    }
+    for (const due of dueActions(setup.schedule, state)) {
+      const action = due.type === 'waterChange' ? { ...due, vacuum: setup.vacuum ?? VACUUM_SHARE } : due;
       const result = applyAction(state, action, config);
       if (result.state === state && !ROUTINE_NO_OPS.has(action.type)) onRefusal?.(action.type, result.message);
       state = result.state;

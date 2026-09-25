@@ -20,7 +20,7 @@ instead: heat, water, CO₂, fertiliser, or the bed's own organics.
 | Flow as turnover | <Badge text="settled" variant="success" /> | Flow is capacity × target turnover, capped at a class ceiling. The same filter is worth less in a bigger tank, which is the physical claim. |
 | Surface as colony ceiling | <Badge text="settled" variant="success" /> | Every colonisable cm² in one number, and the biofilm is a stock spread over it. Surface leaving the tank takes its share of the colony. |
 | Passive resources hold no state | <Badge text="settled" variant="success" /> | Rebuilt each tick from the fittings that are there. Nothing accumulates, so nothing can go stale. |
-| The bed as a depleting ammonia source | <Badge text="settled" variant="success" /> | A per-litre organic reserve releasing a fraction of what is left each tick — physical, and it never refills. |
+| The bed as an ammonia source | <Badge text="settled" variant="success" /> | A per-litre organic reserve releasing a fraction of what it holds each tick, refilled by waste settling in as mulm. |
 | CO₂ as a metered mass | <Badge text="settled" variant="success" /> | Bubble rate buys milligrams, not ppm, so an evaporated tank reads higher off the same setting. |
 | Heater thermostat | <Badge text="scaffolding" variant="caution" /> | A switch: full wattage below setpoint, nothing at or above it. No hysteresis, no proportional band, and no failure state. |
 | Air pump sizing | <Badge text="scaffolding" variant="caution" /> | Four capacity bands, not a rate. A 151 L tank gets twice the air of a 150 L one on the far side of the same step. |
@@ -82,6 +82,11 @@ spread over total surface, so a swap removes the share that was living there and
 lays sterile material in its place.
 
 Slots cap hardscape at two per gallon of capacity, to a hard maximum of eight.
+A piece lifted out takes its biofilm with it and stirs one slot's share of the
+bed, and pieces lifted together stir their shares of the bed as it stood; a
+piece set down arrives sterile. Resetting the scape lifts every piece at once
+and sets each back fresh, so a tank carrying more pieces than slots keeps them
+all — see [Nitrogen cycle](/subsystems/nitrogen-cycle/).
 
 Hardscape and bed also move the water's hardness: calcite rock dissolves and
 adds KH and GH alike, driftwood's tannic acid spends KH, and aqua soil takes a
@@ -139,7 +144,7 @@ refills. What the organics do downstream belongs to the
 
 | Stock | Fills it | Drains it | Unit |
 |---|---|---|---|
-| `organicReserve` | A bed swap, at the new type's rate × capacity | `0.3 %` of what remains per tick, into `waste` | g |
+| `organicReserve` | A bed swap, at the new type's rate × capacity; standing `waste` settling in | `0.3 %` of what remains per tick, into `waste`; disturbance; the gravel vac | g |
 | `khReserve` | A bed swap: `700` mg/L × capacity of aqua soil, none for inert beds | Every mg of KH the bed takes out of the water | mg CaCO₃ |
 | `tannins` | A new driftwood piece: `3,000` mg; none for other pieces | `tanninLeachRate` of what remains per tick, out of `kh` | mg CaCO₃ |
 | `dosedToday` | Firing the dose | The midnight reset | flag |
@@ -153,6 +158,8 @@ makes its contribution reversible the instant a fitting is switched off.
 | Constant | Meaning | Unit |
 |---|---|---|
 | `substrateLeachRate` | Share of the bed's remaining reserve released per tick | `0.003` /hr |
+| `wasteSettlingRate` | Share of standing waste settling into the bed per tick in still water | `0.1` /hr |
+| `settlingHalfTurnover` | Tank turnovers an hour at which flow halves settling | `4` /hr |
 | `CO2_MASS_RATE` | CO₂ metered per bubble per second, off a ~0.1 mL bubble | `648` mg/hr/bps |
 | `WATER_LEVEL_THRESHOLD` | Fill fraction below which the ATO refills to full | `0.99` |
 | `baseOutputLph` | Air output of the smallest pump band | `60` L/h |

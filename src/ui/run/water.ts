@@ -1,12 +1,13 @@
 /**
  * The water readings, the dissolved gases read beside them, and the display
  * scales they sit on. Scales are display ranges, never bands: every band here
- * is an engine threshold, and `classifyVital` alone decides colour.
+ * is an engine threshold, and colour comes from the same line the engine
+ * alerts on.
  */
 
 import type { SimulationState } from '../../simulation/index.js';
 import {
-  HIGH_AMMONIA_THRESHOLD,
+  ammoniaAlertLine,
   HIGH_NITRITE_THRESHOLD,
   HIGH_NITRATE_THRESHOLD,
   WATER_LEVEL_CRITICAL_THRESHOLD,
@@ -15,7 +16,7 @@ import { getDgh, getDkh, getPpm } from '../../simulation/resources/index.js';
 import { getPh } from '../../simulation/core/carbonate.js';
 import { getTemperatureUnit, toDisplayTemperature, type UnitSystem } from '../utils/units.js';
 import type { Status } from './status.js';
-import { classifyVital, NITRATE_LOW_PPM, type VitalKey } from './vitals.js';
+import { classifyAmmonia, classifyVital, NITRATE_LOW_PPM, type VitalKey } from './vitals.js';
 
 export type WaterKey = Extract<
   VitalKey,
@@ -38,27 +39,43 @@ export type GasKey = Extract<VitalKey, 'oxygen' | 'co2'>;
 
 export const GAS_KEYS: GasKey[] = ['oxygen', 'co2'];
 
+export type Scale = [min: number, max: number];
+
+/** The readings whose track is fixed; ammonia's moves with its alert line. */
+type FixedWaterKey = Exclude<WaterKey, 'ammonia'>;
+
 /**
  * Track ranges — display scales, never bands. The toxins run well past their
  * alert line because a cycling tank does: the engine's own projection puts the
  * nitrite peak above 2 ppm on a modest bioload, so a track that stopped at the
  * threshold would peg through the whole event it exists to show.
  */
-export const WATER_SCALE: Record<WaterKey, [min: number, max: number]> = {
+export const WATER_SCALE: Record<FixedWaterKey, Scale> = {
   temperature: [15, 35],
   ph: [5.5, 8.5],
   kh: [0, 15],
   gh: [0, 25],
   water: [0, 100],
-  ammonia: [0, 1],
   nitrite: [0, 5],
   nitrate: [0, 100],
 };
 
-/** Position of a value on its track, 0 (floor) to 1 (ceiling). */
-export function readingAt(key: WaterKey, value: number): number {
-  const [min, max] = WATER_SCALE[key];
+const AMMONIA_FLOOR_PPM = 1;
+const AMMONIA_TRACK_PAST_LINE = 2;
+
+/** The ammonia track, stretched so its pH- and temperature-bound line always sits on it. */
+export function ammoniaScale(alertLine: number): Scale {
+  return [0, Math.max(AMMONIA_FLOOR_PPM, alertLine * AMMONIA_TRACK_PAST_LINE)];
+}
+
+/** Position of a value on a track, 0 (floor) to 1 (ceiling). */
+export function trackAt([min, max]: Scale, value: number): number {
   return Math.max(0, Math.min(1, (value - min) / (max - min)));
+}
+
+/** Position of a value on its fixed track. */
+export function readingAt(key: FixedWaterKey, value: number): number {
+  return trackAt(WATER_SCALE[key], value);
 }
 
 /** The canonical readings, in reading order: °C, pH, dKH, dGH, % of capacity, ppm. */
@@ -92,6 +109,7 @@ export interface WaterReading {
   /** Value in the reader's units, formatted to the reading's precision. */
   text: string;
   status: Status;
+  scale: Scale;
   /** Position on the display scale, 0–1. */
   fill: number;
   /** The span the engine does not alert on; null where it has no thresholds. */
@@ -127,23 +145,28 @@ function display(key: WaterKey, value: number, units: UnitSystem): number {
   return key === 'temperature' ? toDisplayTemperature(value, units) : value;
 }
 
-function band(key: WaterKey, from: number, to: number): ReadingBand {
-  return { from: readingAt(key, from), to: readingAt(key, to) };
+function band(scale: Scale, from: number, to: number): ReadingBand {
+  return { from: trackAt(scale, from), to: trackAt(scale, to) };
 }
 
 export function waterReadings(state: SimulationState, units: UnitSystem): WaterReading[] {
   const values = waterValues(state);
   const levelLimit = WATER_LEVEL_CRITICAL_THRESHOLD * 100;
+  const ammoniaLine = ammoniaAlertLine(state.resources);
+  const scales: Record<WaterKey, Scale> = { ...WATER_SCALE, ammonia: ammoniaScale(ammoniaLine) };
 
   const spec: Record<WaterKey, Pick<WaterReading, 'unit' | 'band'>> = {
     temperature: { unit: getTemperatureUnit(units), band: null },
     ph: { unit: '', band: null },
     kh: { unit: 'dKH', band: null },
     gh: { unit: 'dGH', band: null },
-    water: { unit: '%', band: band('water', levelLimit, 100) },
-    ammonia: { unit: 'ppm', band: band('ammonia', 0, HIGH_AMMONIA_THRESHOLD) },
-    nitrite: { unit: 'ppm', band: band('nitrite', 0, HIGH_NITRITE_THRESHOLD) },
-    nitrate: { unit: 'ppm', band: band('nitrate', NITRATE_LOW_PPM, HIGH_NITRATE_THRESHOLD) },
+    water: { unit: '%', band: band(scales.water, levelLimit, 100) },
+    ammonia: { unit: 'ppm', band: band(scales.ammonia, 0, ammoniaLine) },
+    nitrite: { unit: 'ppm', band: band(scales.nitrite, 0, HIGH_NITRITE_THRESHOLD) },
+    nitrate: {
+      unit: 'ppm',
+      band: band(scales.nitrate, NITRATE_LOW_PPM, HIGH_NITRATE_THRESHOLD),
+    },
   };
 
   return WATER_KEYS.map((key): WaterReading => {
@@ -153,8 +176,9 @@ export function waterReadings(state: SimulationState, units: UnitSystem): WaterR
       name: NAME[key],
       value,
       text: display(key, value, units).toFixed(DECIMALS[key]),
-      status: classifyVital(key, value),
-      fill: readingAt(key, value),
+      status: key === 'ammonia' ? classifyAmmonia(value, ammoniaLine) : classifyVital(key, value),
+      scale: scales[key],
+      fill: trackAt(scales[key], value),
       ...spec[key],
     };
   });

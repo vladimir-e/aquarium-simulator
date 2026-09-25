@@ -7,13 +7,18 @@ import type { Resources, SimulationState } from './state.js';
 import type { FishLifeStage, FishSex, FishSpecies } from './livestock/species.js';
 import type { PlantSpecies } from './plants/species.js';
 import {
+  calculateSubstrateLeach,
   getSubstrateKhReserve,
   getSubstrateOrganicReserve,
   type Substrate,
   type SubstrateType,
 } from './equipment/substrate.js';
 import { nitrogenCycleDefaults } from './config/nitrogen-cycle.js';
+import { calculateMaxBacteria, restingColony } from './systems/nitrogen-cycle.js';
+import { processMetabolism } from './systems/metabolism.js';
 import { plantsDefaults } from './config/plants.js';
+import { livestockDefaults } from './config/livestock.js';
+import { decayDefaults } from './config/decay.js';
 import { NH3_TO_NO2_MASS_RATIO, NO2_TO_NO3_MASS_RATIO } from './core/chemistry.js';
 import { getGhMass, getKhMass } from './resources/helpers.js';
 import { createFish } from './livestock/create-fish.js';
@@ -103,18 +108,12 @@ export interface PresetSeed extends TankSeed {
 }
 
 /**
- * AOB units per litre a tank that cycled itself carries. A fishless soil
- * tank measured from 10 L to 1000 L rests at ~261 once cycled; rounding up
- * means a scenario that says "cycled" is never handed a weaker biofilter
- * than one that waited three weeks for it. That soil tank sits at ~2 % of
- * its surface ceiling once seeded, so the cap stays out of the way; a bare
- * 300 L with no filter has so little surface that the same figure fills 40 %
- * of it.
+ * The least share of its surface ceiling a cycled colony covers, read off
+ * fishless soil tanks on day 30 and rounded up, so a scenario that says
+ * "cycled" is never handed a weaker biofilter than one that waited for it.
  */
-const CYCLED_AOB_PER_LITER = 300;
-
-/** NOB units per litre, off the same measurement (~181) and rounded the same way. */
-const CYCLED_NOB_PER_LITER = 200;
+const CYCLED_AOB_COVERAGE = 0.02;
+const CYCLED_NOB_COVERAGE = 0.01;
 
 /**
  * Share of a fresh bed's organic reserve still in it on day 30 — the same tank
@@ -128,17 +127,45 @@ const CYCLED_NOB_PER_LITER = 200;
  */
 const CYCLED_RESERVE_FRACTION = 0.1;
 
+type StockedTank = Pick<SimulationState, 'fish' | 'resources' | 'equipment'>;
+
 /**
- * The colony a cycled tank of `capacity` litres carries.
- *
- * Per litre rather than per cm² of surface for the reason the inoculum is:
- * a colony is sized by its ammonia supply, which scales with the water,
- * while surface is only a ceiling.
+ * mg of ammonia a tick the tank's stock and bed put into the water at rest:
+ * every fish fed to satiety, and the bed leaching what it holds. All the waste
+ * either one makes is mineralised in the end, whether or not it settles on the
+ * way. Food fed past satiety is left out — the engine has no ration to size it
+ * by — so under a keeper whose surplus rots in the water the colony errs small
+ * and grows on from the seed.
  */
-export function cycledColony(capacity: number): { aob: number; nob: number } {
+function restingAmmoniaSupply(state: StockedTank): number {
+  const fed = state.fish.map((fish) => ({
+    ...fish,
+    satiation: 100 - livestockDefaults.satiationDecayRate,
+  }));
+  const { ammoniaProduced, wasteProduced } = processMetabolism(
+    fed,
+    Infinity,
+    state.resources.oxygen,
+    livestockDefaults
+  );
+  const leached = calculateSubstrateLeach(state.equipment.substrate.organicReserve, decayDefaults);
+  return ammoniaProduced + (wasteProduced + leached) * nitrogenCycleDefaults.wasteToAmmoniaRatio;
+}
+
+/**
+ * The colony a cycled tank carries: grown into the load its stock and bed put
+ * on it at rest, and never less than a month-old fishless colony's share of
+ * the surface ceiling the filter and the bed give it.
+ */
+export function cycledColony(state: StockedTank): { aob: number; nob: number } {
+  const { surface, temperature } = state.resources;
+  const ceiling = calculateMaxBacteria(surface, nitrogenCycleDefaults);
+  const ammonia = restingAmmoniaSupply(state);
+  const resting = (stage: 'aob' | 'nob', supply: number): number =>
+    restingColony(stage, supply, temperature, ceiling, nitrogenCycleDefaults);
   return {
-    aob: capacity * CYCLED_AOB_PER_LITER,
-    nob: capacity * CYCLED_NOB_PER_LITER,
+    aob: Math.max(ceiling * CYCLED_AOB_COVERAGE, resting('aob', ammonia)),
+    nob: Math.max(ceiling * CYCLED_NOB_COVERAGE, resting('nob', ammonia * NH3_TO_NO2_MASS_RATIO)),
   };
 }
 
@@ -243,24 +270,25 @@ function seedTank(state: SimulationState, seed: TankSeed): void {
   state.seed = seed;
 
   if (seed.bacteria === 'cycled') {
-    writeStocks(state.resources, SEEDABLE_BACTERIA, cycledColony(capacity));
     writeStocks(state.equipment.substrate, SEEDABLE_SUBSTRATE, {
       organicReserve: cycledReserve(type, capacity),
       khReserve: cycledKhReserve(type, capacity),
     });
     state.resources.nitrate = cycledNitrate(type, capacity);
-  } else {
-    writeStocks(state.resources, SEEDABLE_BACTERIA, seed.bacteria);
   }
 
   writeStocks(state.equipment.substrate, SEEDABLE_SUBSTRATE, seed.substrate);
   writeStocks(state.resources, SEEDABLE_RESOURCES, seed.resources);
   Object.assign(state.resources, startingHardness(state));
+  writeStocks(
+    state.resources,
+    SEEDABLE_BACTERIA,
+    seed.bacteria === 'cycled' ? cycledColony(state) : seed.bacteria
+  );
 }
 
 export function applySeed(state: SimulationState, seed: PresetSeed): void {
   const { fish, plants, ...tank } = seed;
-  seedTank(state, tank);
 
   for (const group of fish ?? []) {
     for (let i = 0; i < (group.count ?? 1); i++) {
@@ -290,4 +318,6 @@ export function applySeed(state: SimulationState, seed: PresetSeed): void {
       );
     }
   }
+
+  seedTank(state, tank);
 }

@@ -23,6 +23,7 @@ import {
   freshSubstrate,
   replaceSubstrate,
   calculateSubstrateLeach,
+  wasteSettlingShare,
   calculateSubstrateKhUptake,
   substrateUpdate,
   type SubstrateType,
@@ -34,6 +35,9 @@ import {
 } from './substrate.js';
 import {
   calculateHardscapeTotalSurface,
+  checkHardscapeCapacity,
+  getHardscapeSurface,
+  type HardscapeItem,
   calculateCalciteDissolution,
   calculateTanninLeach,
   createHardscapeItem,
@@ -80,6 +84,7 @@ export {
   freshSubstrate,
   replaceSubstrate,
   calculateSubstrateLeach,
+  wasteSettlingShare,
   calculateSubstrateKhUptake,
   substrateUpdate,
   type SubstrateType,
@@ -286,6 +291,75 @@ export function rescape(state: SimulationState, type: SubstrateType): Simulation
     draft.equipment.substrate = laid;
     draft.resources.aob *= kept;
     draft.resources.nob *= kept;
+    draft.resources.surface = calculateSurface(draft);
+  });
+}
+
+/**
+ * Stir up a share of the bed, 0–1: the organics that share still holds come
+ * loose into the water as waste, and the biofilm on it is scraped off.
+ *
+ * Mutates a draft, so every move that digs into the bed can charge for it
+ * inside its own `produce`.
+ */
+export function disturbBed(draft: SimulationState, share: number): void {
+  const stirred = Math.max(0, Math.min(1, share));
+  const bed = draft.equipment.substrate;
+  const released = bed.organicReserve * stirred;
+  bed.organicReserve -= released;
+  draft.resources.waste += released;
+
+  const kept = 1 - stirred * (1 - biofilmKept(draft));
+  draft.resources.aob *= kept;
+  draft.resources.nob *= kept;
+}
+
+/** Set a piece on the bed. It arrives sterile, and a tank with no slot left refuses it. */
+export function placeHardscape(state: SimulationState, item: HardscapeItem): SimulationState {
+  if (!checkHardscapeCapacity(state.equipment.hardscape.items, state.tank.hardscapeSlots).ok) {
+    return state;
+  }
+  return produce(state, (draft) => {
+    draft.equipment.hardscape.items.push(item);
+    draft.resources.surface = calculateSurface(draft);
+  });
+}
+
+/**
+ * Lift pieces out: the biofilm on them leaves with them, and the patches of
+ * bed they sat on — one slot's share each — are disturbed together.
+ *
+ * Returns the same state when no piece has any of those ids.
+ */
+export function liftHardscape(state: SimulationState, ...ids: string[]): SimulationState {
+  const lifted = state.equipment.hardscape.items.filter((i) => ids.includes(i.id));
+  if (lifted.length === 0) return state;
+
+  const surface = calculateSurface(state);
+  const liftedSurface = lifted.reduce((sum, i) => sum + getHardscapeSurface(i.type), 0);
+  const kept = surface > 0 ? 1 - liftedSurface / surface : 1;
+
+  return produce(state, (draft) => {
+    draft.resources.aob *= kept;
+    draft.resources.nob *= kept;
+    draft.equipment.hardscape.items = draft.equipment.hardscape.items.filter(
+      (i) => !ids.includes(i.id)
+    );
+    draft.resources.surface = calculateSurface(draft);
+    if (state.tank.hardscapeSlots > 0) disturbBed(draft, lifted.length / state.tank.hardscapeSlots);
+  });
+}
+
+/**
+ * Lift every piece at once and set each back fresh and sterile. A swap, so no
+ * slot is asked for: a tank carrying more pieces than slots keeps them all.
+ */
+export function resetHardscape(state: SimulationState): SimulationState {
+  const { items } = state.equipment.hardscape;
+  const lifted = liftHardscape(state, ...items.map((i) => i.id));
+  if (lifted === state) return state;
+  return produce(lifted, (draft) => {
+    draft.equipment.hardscape.items = items.map((i) => createHardscapeItem(i.id, i.type));
     draft.resources.surface = calculateSurface(draft);
   });
 }

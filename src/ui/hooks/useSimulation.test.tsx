@@ -14,6 +14,8 @@ import {
   getDkh,
   getSubstrateOrganicReserve,
   getSubstrateSurface,
+  liftHardscape,
+  placeHardscape,
   tick,
 } from '../../simulation/index.js';
 import { cycledColony, cycledHardness } from '../../simulation/seed.js';
@@ -63,7 +65,7 @@ function seedSessionWithClutch(presetId: PresetId): void {
 
 function seedSessionWithHighAmmonia(): void {
   const base = createSimulation(getPresetById('bare')!.config);
-  seedSession(base, 'bare', { resources: { ...base.resources, ammonia: 20 } });
+  seedSession(base, 'bare', { resources: { ...base.resources, ammonia: base.resources.water * 10 } });
 }
 
 const wrapper = ({ children }: { children: React.ReactNode }): React.JSX.Element => (
@@ -400,6 +402,34 @@ describe('useSimulation', () => {
       expect(result.current.state.tick).toBe(12 * 24);
     });
 
+    it('places and lifts hardscape through the engine', () => {
+      const { result } = renderHook(() => useSimulation('planted'), { wrapper });
+
+      act(() => {
+        for (let day = 0; day < 12; day++) result.current.step();
+      });
+      const bare = result.current.state;
+
+      act(() => {
+        result.current.addHardscapeItem('driftwood');
+      });
+      const placed = result.current.state;
+      const added = placed.equipment.hardscape.items.find(
+        (item) => !bare.equipment.hardscape.items.some((i) => i.id === item.id)
+      )!;
+      expect(placed.resources).toEqual(placeHardscape(bare, added).resources);
+      expect(placed.logs[placed.logs.length - 1]?.message).toContain('Added');
+
+      act(() => {
+        result.current.removeHardscapeItem(added.id);
+      });
+      const lifted = result.current.state;
+      expect(lifted.resources).toEqual(liftHardscape(placed, added.id).resources);
+      expect(lifted.equipment.substrate).toEqual(liftHardscape(placed, added.id).equipment.substrate);
+      expect(lifted.resources.aob).toBeLessThan(placed.resources.aob);
+      expect(lifted.logs[lifted.logs.length - 1]?.message).toContain('Removed');
+    });
+
     it('reset keeps equipment but resets tick and resources', () => {
       const { result } = renderHook(() => useSimulation('betta'), { wrapper });
 
@@ -471,6 +501,20 @@ describe('useSimulation', () => {
         cycledHardness('aqua_soil', tapKh, reset.environment.tapGh, reset.tank.capacity).kh,
         10
       );
+    });
+
+    it('reset sizes a cycled colony to the fish the tank keeps', () => {
+      const { result } = renderHook(() => useSimulation('community'), { wrapper });
+      const fishless = result.current.state.resources.aob;
+
+      act(() => {
+        for (let i = 0; i < 20; i++) result.current.executeAction({ type: 'addFish', species: 'angelfish' });
+      });
+      act(() => result.current.reset());
+
+      expect(result.current.state.fish).toHaveLength(20);
+      expect(result.current.state.resources.aob).toBeGreaterThan(fishless);
+      expect(result.current.state.resources.aob).toBe(cycledColony(result.current.state).aob);
     });
 
     it('reset fills an unseeded soil tank from the tap, however far its bed ran down', () => {
@@ -553,8 +597,8 @@ describe('useSimulation', () => {
         const { result, unmount } = renderHook(() => useSimulation(id), { wrapper });
         const { aob, nob } = result.current.state.resources;
 
-        expect(aob).toBe(cycledColony(result.current.state.tank.capacity).aob);
-        expect(nob).toBe(cycledColony(result.current.state.tank.capacity).nob);
+        expect(aob).toBe(cycledColony(result.current.state).aob);
+        expect(nob).toBe(cycledColony(result.current.state).nob);
         unmount();
         globalThis.localStorage.clear();
       }

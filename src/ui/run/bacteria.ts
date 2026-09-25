@@ -9,16 +9,16 @@ import {
   calculateAmmoniaToNitrite,
   calculateColonyFlows,
   calculateEvaporation,
-  calculateInoculum,
   calculateMaxBacteria,
   calculateNitriteToNitrate,
+  calculateSeeding,
   calculateWasteToAmmonia,
-  nitrificationFactor,
-  nitrifierOxygenFactor,
+  colonyRates,
   nobCapacity,
 } from '../../simulation/systems/index.js';
 import {
   calculateSubstrateLeach,
+  wasteSettlingShare,
   processMetabolism,
   type Resources,
   type SimulationState,
@@ -26,6 +26,8 @@ import {
 import { WATER_LEVEL_THRESHOLD } from '../../simulation/equipment/ato.js';
 import type { NitrogenCycleConfig, TunableConfig } from '../../simulation/config/index.js';
 import { getPpm } from '../../simulation/resources/index.js';
+import { monodFactor } from '../../simulation/core/kinetics.js';
+import { NH3_TO_NO2_MASS_RATIO } from '../../simulation/core/chemistry.js';
 import { mineralisationBase, wasteInflow } from './waste.js';
 
 /**
@@ -51,9 +53,8 @@ const TRACE_PPM = 0.1;
  * trace cleared over a day. Below it the colonies are turning over less than
  * the keeper's kit could ever show, which is the state an unfed tank fades into
  * — bed spent, both toxins at zero, and nothing left that a feeding would not
- * spike. An unfed tank crosses it around day 80–120; one on an ordinary ration
- * runs at ~12× it, and only a token ration — hundredths of a gram a day —
- * settles within 2×.
+ * spike. An unfed tank falls under it as its bed's leach runs down; a fed one
+ * stays over it for as long as the ration keeps the colonies turning over.
  *
  * A ppm figure, so it is the same test at every volume for a load that scales
  * with volume, which bed leaching does. A fixed ration does not: the pinch of
@@ -62,11 +63,20 @@ const TRACE_PPM = 0.1;
 const MIN_CLEARANCE_PPM_PER_HOUR = TRACE_PPM / 24;
 
 /**
- * Whether a colony's throughput covers what arrives at it this hour, and is
- * enough to matter at all rather than being a rounding error.
+ * Whether a colony is big enough to matter at all rather than being a rounding
+ * error, and can take what arrives at it each hour while holding its substrate
+ * at the trace line.
+ *
+ * The second is read off the Monod curve at trace, not off the colony's
+ * ceiling: uptake falls with the concentration, so a colony whose ceiling
+ * covers its load can still only keep up by letting the toxin climb until the
+ * curve pays for it.
  */
-function clears(capacity: number, arriving: number): boolean {
-  return capacity >= Math.max(arriving, MIN_CLEARANCE_PPM_PER_HOUR);
+function clearsAtTrace(throughput: number, halfSaturation: number, arriving: number): boolean {
+  return (
+    throughput >= MIN_CLEARANCE_PPM_PER_HOUR &&
+    throughput * monodFactor(TRACE_PPM, halfSaturation) >= arriving
+  );
 }
 
 /**
@@ -106,6 +116,8 @@ export interface ConversionRates {
   gillsToAmmonia: number;
   /** NH₃ ppm the AOB colony takes out of the water this hour. */
   ammoniaOxidised: number;
+  /** Arriving minus oxidised — positive means ammonia is climbing. */
+  netAmmonia: number;
   /** NO₂ ppm the AOB colony produces this hour. */
   ammoniaToNitrite: number;
   /** NO₂ ppm the NOB colony clears this hour. */
@@ -190,11 +202,12 @@ export function bacteriaReadout(
   // ahead of the passive nitrogen cycle, and mineralisation runs first inside it.
   const gills = processMetabolism(state.fish, r.food, r.oxygen, config.livestock).ammoniaProduced;
   const { ammoniaProduced } = calculateWasteToAmmonia(
-    mineralisationBase(r.waste, wasteInflow(state, config)),
+    mineralisationBase(state, config, wasteInflow(state, config)),
     nc
   );
   const { ammoniaConsumed, nitriteProduced } = calculateAmmoniaToNitrite(
     r.ammonia + gills + ammoniaProduced,
+    water,
     r.aob,
     r.temperature,
     r.oxygen,
@@ -202,6 +215,7 @@ export function bacteriaReadout(
   );
   const { nitriteConsumed } = calculateNitriteToNitrate(
     r.nitrite + nitriteProduced,
+    water,
     r.nob,
     r.temperature,
     r.oxygen,
@@ -214,11 +228,13 @@ export function bacteriaReadout(
     wasteToAmmonia: getPpm(ammoniaProduced, water),
     gillsToAmmonia: getPpm(gills, water),
     ammoniaOxidised: getPpm(ammoniaConsumed, water),
+    netAmmonia: getPpm(gills + ammoniaProduced - ammoniaConsumed, water),
     ammoniaToNitrite: getPpm(nitriteProduced, water),
     nitriteToNitrate: getPpm(nitriteConsumed, water),
     netNitrite: getPpm(nitriteProduced - nitriteConsumed, water),
   };
   const atTrace = getPpm(r.ammonia, water) < TRACE_PPM && getPpm(r.nitrite, water) < TRACE_PPM;
+  const ammoniaArriving = rates.wasteToAmmonia + rates.gillsToAmmonia;
   return {
     aob: colony(r.aob, ceiling),
     nob: colony(r.nob, ceiling),
@@ -227,8 +243,12 @@ export function bacteriaReadout(
     atTrace,
     cycled:
       atTrace &&
-      clears(aobThroughput, rates.wasteToAmmonia + rates.gillsToAmmonia) &&
-      clears(nobThroughput, rates.ammoniaToNitrite),
+      clearsAtTrace(aobThroughput, nc.aobAmmoniaHalfSaturation, ammoniaArriving) &&
+      clearsAtTrace(
+        nobThroughput,
+        nc.nobNitriteHalfSaturation,
+        ammoniaArriving * NH3_TO_NO2_MASS_RATIO
+      ),
     rates,
   };
 }
@@ -263,9 +283,9 @@ function nextVolume(water: number, state: SimulationState, config: TunableConfig
  *
  * Waste inflow, biofilm surface, temperature and dissolved oxygen are held at
  * today's values, so this answers "if nothing else changes" — feeding more,
- * adding fish or a water change all move it. Evaporation and substrate leaching
- * are not choices: both run every tick whatever the keeper does, so the
- * projection carries them.
+ * adding fish or a water change all move it. Evaporation and the bed's leaching
+ * and settling are not choices: they run every tick whatever the keeper does,
+ * so the projection carries them.
  */
 export function projectNitritePeak(
   state: SimulationState,
@@ -276,10 +296,8 @@ export function projectNitritePeak(
   const nc = config.nitrogenCycle;
   const ceiling = calculateMaxBacteria(r.surface, nc);
   if (r.water <= 0 || ceiling <= 0) return null;
-  const inoculum = calculateInoculum(state.tank.capacity, nc);
-  const warmth = nitrificationFactor(r.temperature, nc);
-  const aobAir = nitrifierOxygenFactor('aob', r.oxygen, nc);
-  const nobAir = nitrifierOxygenFactor('nob', r.oxygen, nc);
+  const aobRates = colonyRates('aob', r.temperature, r.oxygen, nc);
+  const nobRates = colonyRates('nob', r.temperature, r.oxygen, nc);
 
   const sources = wasteInflow(state, config).sources;
   const steadyInflow = sources
@@ -299,42 +317,43 @@ export function projectNitritePeak(
   let peakAt = 0;
 
   for (let hour = 1; hour <= horizon; hour++) {
+    const seeding = calculateSeeding(water, nc);
     water = nextVolume(water, state, config);
 
     const leached = calculateSubstrateLeach(reserve, config.decay);
-    reserve -= leached;
-    waste += steadyInflow + leached;
+    const settled =
+      waste * wasteSettlingShare({ ...state, resources: { ...r, water } }, config.decay);
+    reserve += settled - leached;
+    waste += steadyInflow + leached - settled;
 
     const mineralised = calculateWasteToAmmonia(waste, nc);
     waste -= mineralised.wasteConsumed;
     ammonia += mineralised.ammoniaProduced + gills;
 
-    const oxidised = calculateAmmoniaToNitrite(ammonia, aob, r.temperature, r.oxygen, nc);
+    const oxidised = calculateAmmoniaToNitrite(ammonia, water, aob, r.temperature, r.oxygen, nc);
     ammonia -= oxidised.ammoniaConsumed;
     nitrite += oxidised.nitriteProduced;
 
-    const cleared = calculateNitriteToNitrate(nitrite, nob, r.temperature, r.oxygen, nc);
+    const cleared = calculateNitriteToNitrate(nitrite, water, nob, r.temperature, r.oxygen, nc);
     nitrite -= cleared.nitriteConsumed;
 
-    const ammoniaPpm = getPpm(ammonia, water);
     const nitritePpm = getPpm(nitrite, water);
-
-    if (aob === 0 && ammoniaPpm >= nc.aobSpawnThreshold) aob = inoculum;
-    if (nob === 0 && nitritePpm >= nc.nobSpawnThreshold) nob = inoculum;
 
     const aobFlows = calculateColonyFlows(
       aob,
       oxidised.utilization,
-      nc.aobGrowthRate * warmth * aobAir,
-      nc.bacteriaDeathRate * warmth,
-      ceiling
+      aobRates.growthRate,
+      aobRates.deathRate,
+      ceiling,
+      seeding
     );
     const nobFlows = calculateColonyFlows(
       nob,
       cleared.utilization,
-      nc.nobGrowthRate * warmth * nobAir,
-      nc.bacteriaDeathRate * warmth,
-      ceiling
+      nobRates.growthRate,
+      nobRates.deathRate,
+      ceiling,
+      seeding
     );
     aob += aobFlows.growth - aobFlows.death;
     nob += nobFlows.growth - nobFlows.death;
@@ -363,16 +382,11 @@ function peakClause(projection: CycleProjection | null): string {
 /** What the two colonies mean together — the sentence the numbers add up to. */
 export function bacteriaSummary(
   readout: BacteriaReadout,
-  projection: CycleProjection | null,
-  config: NitrogenCycleConfig
+  projection: CycleProjection | null
 ): string {
   const { aob, nob, rates, atTrace, cycled } = readout;
 
-  if (aob.count === 0) {
-    return `Uncycled. Ammonia has to reach ${config.aobSpawnThreshold} ppm before AOB colonise, and nitrite follows them.${peakClause(projection)}`;
-  }
-
-  // Ahead of the lagging-colony line, which promises a colony that catches up:
+  // Ahead of the growing-colony lines, which promise a colony that catches up:
   // one already on its surface has nowhere left to do it, and under a load big
   // enough to fill a biofilm nitrite is always climbing.
   //
@@ -382,6 +396,10 @@ export function bacteriaSummary(
   // 180-day horizon rather than a peak the tank passes through.
   if (aob.pct >= SURFACE_BOUND_PCT && nob.pct >= SURFACE_BOUND_PCT) {
     return 'Both colonies have filled the surface they live on — until the tank offers more biofilm, more load has nowhere to go.';
+  }
+
+  if (!cycled && rates.netAmmonia > 0) {
+    return `Uncycled. Ammonia arrives faster than the young AOB colony can oxidise it, and climbs until the colony grows into it.${peakClause(projection)}`;
   }
 
   if (nob.count < aob.count && rates.netNitrite > 0) {

@@ -3,6 +3,7 @@ import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
 import { READINGS } from '../scenarios/readings.js';
 import { toJson } from '../scenarios/report.js';
 import { keepTank, runScenario, sampleDays } from '../scenarios/run.js';
+import { KEEPER_HOUR } from '../scenarios/keeper.js';
 import { findSetup, type Setup } from '../scenarios/setups.js';
 
 describe('sampleDays', () => {
@@ -47,5 +48,33 @@ describe('keepTank', () => {
     const refused: string[] = [];
     keepTank(setup, { config: DEFAULT_CONFIG, untilTick: 24, onRefusal: (type) => refused.push(type) });
     expect(refused).toEqual(['dose']);
+  });
+});
+
+describe('the keeper’s rescape', () => {
+  it('fires once, at the keeper hour of its day', () => {
+    const setup: Setup = { ...findSetup('nano'), hardscape: ['driftwood'], rescapeOn: 2 };
+    const reset: number[] = [];
+    let tannins = Infinity;
+    keepTank(setup, {
+      config: DEFAULT_CONFIG,
+      untilTick: 4 * 24,
+      observe: (state) => {
+        const [wood] = state.equipment.hardscape.items;
+        if (wood.tannins > tannins) reset.push(state.tick);
+        tannins = wood.tannins;
+      },
+    });
+    expect(reset).toEqual([24 + KEEPER_HOUR + 1]);
+  });
+});
+
+describe('the keeper’s gravel vac', () => {
+  it('pulls mulm out of the bed at each water change', () => {
+    const nano = findSetup('nano');
+    const reserve = (vacuum: number): number =>
+      keepTank({ ...nano, vacuum }, { config: DEFAULT_CONFIG, untilTick: 8 * 24 }).equipment.substrate
+        .organicReserve;
+    expect(reserve(0.5)).toBeLessThan(reserve(0));
   });
 });

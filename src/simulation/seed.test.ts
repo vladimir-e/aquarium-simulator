@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { createSimulation, type SimulationConfig } from './state.js';
+import { createSimulation, type Resources, type SimulationConfig } from './state.js';
 import { FISH_SPECIES_DATA } from './livestock/species.js';
 import {
   cycledColony,
@@ -10,10 +10,13 @@ import {
   type PresetSeed,
 } from './seed.js';
 import { getSubstrateKhReserve } from './equipment/substrate.js';
+import { calculateMaxBacteria } from './systems/nitrogen-cycle.js';
 import { HARDSCAPE_TANNINS } from './equipment/hardscape.js';
 import { DEFAULT_PLANT_SIZE, establishmentSurplus } from './plants/create-plant.js';
 import { plantsDefaults } from './config/plants.js';
 import { getDgh, getDkh } from './resources/helpers.js';
+import { applyAction } from './actions/index.js';
+import { tick } from './tick.js';
 
 const TANK: SimulationConfig = { tankCapacity: 40, substrate: { type: 'aqua_soil' } };
 
@@ -88,12 +91,69 @@ describe('createSimulation seeding', () => {
     expect(seeded.resources.nob).toBe(0);
   });
 
-  it("sizes a 'cycled' colony against the capacity the tank was actually built at", () => {
-    for (const tankCapacity of [20, 150]) {
-      const seeded = createSimulation({ ...TANK, tankCapacity }, { bacteria: 'cycled' });
+  it("floors a fishless 'cycled' colony on the surface its capacity, filter and bed give it", () => {
+    const cycled = (config: Omit<SimulationConfig, 'tankCapacity'>, tankCapacity = 100): Resources =>
+      createSimulation({ tankCapacity, ...config }, { bacteria: 'cycled' }).resources;
 
-      expect(seeded.resources.aob).toBe(cycledColony(tankCapacity).aob);
-      expect(seeded.resources.nob).toBe(cycledColony(tankCapacity).nob);
+    const share = (resources: Resources): [number, number] => {
+      const ceiling = calculateMaxBacteria(resources.surface);
+      return [resources.aob / ceiling, resources.nob / ceiling];
+    };
+    const [aobShare, nobShare] = share(cycled({}, 20));
+    const others = [
+      cycled({}, 150),
+      cycled({ filter: { type: 'canister' } }),
+      cycled({ substrate: { type: 'sand' } }),
+    ];
+    for (const tank of others) {
+      expect(share(tank)[0]).toBeCloseTo(aobShare, 12);
+      expect(share(tank)[1]).toBeCloseTo(nobShare, 12);
+    }
+    expect(cycled({ filter: { type: 'canister' } }).aob).toBeGreaterThan(
+      cycled({ filter: { type: 'sponge' } }).aob
+    );
+    expect(cycled({ substrate: { type: 'aqua_soil' } }).aob).toBeGreaterThan(
+      cycled({ substrate: { type: 'gravel' } }).aob
+    );
+    expect(cycled({ substrate: { type: 'gravel' } }).aob).toBeGreaterThan(
+      cycled({ substrate: { type: 'sand' } }).aob
+    );
+  });
+
+  it("grows a 'cycled' colony into the stock it carries, under the surface ceiling", () => {
+    const cycled = (count: number): Resources =>
+      createSimulation(TANK, { bacteria: 'cycled', fish: [{ species: 'angelfish', count }] }).resources;
+
+    const few = cycled(2);
+    const many = cycled(6);
+    expect(many.aob).toBeGreaterThan(few.aob);
+    expect(many.nob).toBeGreaterThan(few.nob);
+    expect(few.aob).toBeGreaterThan(cycled(0).aob);
+
+    const packed = cycled(10_000);
+    const ceiling = calculateMaxBacteria(packed.surface);
+    expect(packed.aob).toBeLessThanOrEqual(ceiling);
+    expect(packed.nob).toBeLessThanOrEqual(ceiling);
+    expect(packed.aob).toBeGreaterThan(ceiling * 0.9);
+  });
+
+  it("holds a stocked 'cycled' colony within a fifth over a week of ordinary feeding", () => {
+    let state = createSimulation(
+      { tankCapacity: 80, substrate: { type: 'gravel' }, filter: { type: 'hob' } },
+      { bacteria: 'cycled', fish: [{ species: 'neon_tetra', count: 10 }, { species: 'corydoras', count: 4 }] },
+      1
+    );
+    const seeded = { aob: state.resources.aob, nob: state.resources.nob };
+    const ration = state.fish.reduce((sum, fish) => sum + fish.mass, 0) * 0.02;
+
+    for (let hour = 0; hour < 7 * 24; hour++) {
+      if (hour % 24 === 19) state = applyAction(state, { type: 'feed', amount: ration }).state;
+      state = tick(state);
+    }
+
+    for (const stage of ['aob', 'nob'] as const) {
+      expect(state.resources[stage] / seeded[stage]).toBeGreaterThan(0.8);
+      expect(state.resources[stage] / seeded[stage]).toBeLessThan(1.2);
     }
   });
 
@@ -138,7 +198,7 @@ describe('createSimulation seeding', () => {
       });
 
       expect(seeded.equipment.substrate.organicReserve).toBe(1.5);
-      expect(seeded.resources.aob).toBe(cycledColony(TANK.tankCapacity).aob);
+      expect(seeded.resources.aob).toBe(cycledColony(seeded).aob);
     });
   });
 
@@ -240,7 +300,6 @@ describe('createSimulation seeding', () => {
         { bacteria: 'cycled' }
       );
 
-      expect(bedless.resources.aob).toBe(gravel.resources.aob);
       expect(gravel.resources.nitrate).toBeGreaterThan(0);
       expect(bedless.resources.nitrate).toBe(0);
     });
@@ -360,7 +419,7 @@ describe('createSimulation seeding', () => {
 
   describe('determinism', () => {
     const SEED: PresetSeed = {
-      bacteria: cycledColony(40),
+      bacteria: { aob: 12000, nob: 8000 },
       resources: { nitrate: 400 },
       fish: [
         { species: 'neon_tetra', count: 8 },
@@ -398,8 +457,22 @@ describe('createSimulation seeding', () => {
       expect(state.fish[0].age).toBe(past);
     });
 
+    it('sizes a cycled colony in water with no oxygen in it', () => {
+      const anoxic = createSimulation(TANK, {
+        bacteria: 'cycled',
+        resources: { oxygen: 0 },
+        fish: [{ species: 'neon_tetra', count: 6 }],
+      });
+
+      expect(anoxic.resources.oxygen).toBe(0);
+      expect(Number.isFinite(anoxic.resources.aob)).toBe(true);
+      expect(Number.isFinite(anoxic.resources.nob)).toBe(true);
+      expect(anoxic.resources.aob).toBeGreaterThan(0);
+      expect(anoxic.resources.nob).toBeGreaterThan(0);
+    });
+
     it('takes a colony with no ammonia history', () => {
-      const state = createSimulation(TANK, { bacteria: cycledColony(40) });
+      const state = createSimulation(TANK, { bacteria: { aob: 12000, nob: 8000 } });
 
       expect(state.resources.aob).toBeGreaterThan(0);
       expect(state.resources.ammonia).toBe(0);

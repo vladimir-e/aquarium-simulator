@@ -26,6 +26,8 @@ export const TWEAK_FLAGS = [
   'gal',
   'set',
   'uncycled',
+  'rescape',
+  'vac',
   ...SCHEDULE_FLAG_NAMES,
 ];
 
@@ -43,6 +45,13 @@ function count(raw: string | undefined, what: string): number {
   return value;
 }
 
+function share(raw: string | undefined, what: string): number {
+  const match = /^(\d+(?:\.\d+)?)%$/.exec(raw ?? '');
+  const percent = Number(match?.[1]);
+  if (match === null || percent > 100) throw new Error(`${what} takes a share from 0% to 100% or off, got "${raw ?? ''}".`);
+  return percent / 100;
+}
+
 function hardness(raw: string | undefined, what: string, unit: string): number {
   const value = Number(raw);
   if (raw === undefined || raw.trim() === '' || !Number.isFinite(value) || value < 0) {
@@ -58,7 +67,7 @@ function oneOf<T extends string>(raw: string, known: Record<T, unknown>, what: s
   return raw as T;
 }
 
-const warn = (text: string): void => {
+export const warn = (text: string): void => {
   process.stderr.write(`warning: ${text}\n`);
 };
 
@@ -123,6 +132,20 @@ function tweakApply(flag: string, value: string | undefined): Tweak['apply'] {
     }
     case 'uncycled':
       return onSetup((setup) => ({ ...setup, cycled: false }));
+    case 'rescape': {
+      if (value === undefined) throw new Error('--rescape takes the day to rescape on, e.g. --rescape=30.');
+      const rescapeOn = count(value, 'rescape day');
+      return onSetup((setup) => {
+        if (setup.hardscape.length === 0 && setup.plants.length === 0) {
+          warn(`--rescape: ${setup.name} has no hardscape or plants to rescape.`);
+        }
+        return { ...setup, rescapeOn };
+      });
+    }
+    case 'vac': {
+      const vacuum = value === 'off' ? 0 : share(value, 'vac');
+      return onSetup((setup) => ({ ...setup, vacuum }));
+    }
     default: {
       const override = parseScheduleFlag(flag, value);
       if (override === null) {

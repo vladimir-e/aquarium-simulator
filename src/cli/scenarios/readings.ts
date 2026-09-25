@@ -1,5 +1,6 @@
 import type { SimulationState } from '../../simulation/state.js';
-import { unionizedAmmoniaFraction } from '../../simulation/systems/nitrogen-cycle.js';
+import { freeAmmoniaPpm } from '../../simulation/systems/nitrogen-cycle.js';
+import { HIGH_AMMONIA_THRESHOLD } from '../../simulation/alerts/index.js';
 import { getDgh, getDkh, getPpm } from '../../simulation/resources/helpers.js';
 import { getPh } from '../../simulation/core/carbonate.js';
 import { toFahrenheit } from '../units.js';
@@ -44,10 +45,12 @@ const DEFINITIONS = [
     label: 'NH₃ free',
     unit: 'ppm',
     digits: 3,
-    read: (s): number =>
-      getPpm(s.resources.ammonia, s.resources.water) *
-      unionizedAmmoniaFraction(getPh(s.resources), s.resources.temperature),
-    band: { green: [0, 0.02], amber: [0, 0.05], why: '0.02 ppm free NH₃ is the long-term safe ceiling' },
+    read: (s): number => freeAmmoniaPpm(s.resources),
+    band: {
+      green: [0, HIGH_AMMONIA_THRESHOLD],
+      amber: [0, 0.05],
+      why: `${HIGH_AMMONIA_THRESHOLD} ppm free NH₃ is where harm starts and the engine alerts; 0.05 is danger`,
+    },
     cycle: true,
   },
   {

@@ -5,7 +5,6 @@
  */
 
 import {
-  HIGH_AMMONIA_THRESHOLD,
   HIGH_NITRITE_THRESHOLD,
   HIGH_NITRATE_THRESHOLD,
   LOW_OXYGEN_THRESHOLD,
@@ -34,16 +33,22 @@ const OXYGEN_OK_MGL = 6;
 const WATER_LOW_PCT = WATER_LEVEL_CRITICAL_THRESHOLD * 100;
 
 /**
- * Classify a vital by its canonical value: toxins (ammonia/nitrite) alert over
- * threshold and read ok otherwise; nitrate is plant food, so it warns when
+ * Total ammonia against the line its free NH₃ alerts at — a line that moves
+ * with pH and temperature, so it is read off the tank rather than fixed.
+ */
+export function classifyAmmonia(ppm: number, line: number): Status {
+  return ppm > line ? 'alert' : 'ok';
+}
+
+/**
+ * Classify a vital by its canonical value: nitrite alerts over threshold and
+ * reads ok otherwise; nitrate is plant food, so it warns when
  * depleted and alerts when it climbs past the alert line; the physical readouts
  * (pH, KH, GH, temp) stay quiet, oxygen and CO₂ colour only at their extremes, and
  * water tracks its critical-level threshold.
  */
-export function classifyVital(key: VitalKey, value: number): Status {
+export function classifyVital(key: Exclude<VitalKey, 'ammonia'>, value: number): Status {
   switch (key) {
-    case 'ammonia':
-      return value > HIGH_AMMONIA_THRESHOLD ? 'alert' : 'ok';
     case 'nitrite':
       return value > HIGH_NITRITE_THRESHOLD ? 'alert' : 'ok';
     case 'nitrate':

@@ -7,6 +7,7 @@
  * - Dissolved gases: O2 and CO2 blend with tap water concentrations
  * - Hardness: removed with the old water, brought back at tap KH and GH
  * - Water volume: always restores to 100% capacity after change
+ * - Bed: optionally vacuumed, taking a share of its organic reserve out with the water
  */
 
 import { produce } from 'immer';
@@ -39,7 +40,7 @@ export function waterChange(
   state: SimulationState,
   action: WaterChangeAction
 ): ActionResult {
-  const { amount } = action;
+  const { amount, vacuum = 0 } = action;
 
   // Validate amount
   if (!Number.isFinite(amount) || amount <= 0 || amount > 1) {
@@ -47,6 +48,9 @@ export function waterChange(
       state,
       message: 'Invalid water change amount',
     };
+  }
+  if (!Number.isFinite(vacuum) || vacuum < 0 || vacuum > 1) {
+    return { state, message: 'Invalid gravel vac share' };
   }
 
   const currentWater = state.resources.water;
@@ -66,6 +70,11 @@ export function waterChange(
   const waterRemoved = currentWater * amount;
   const remainingWater = currentWater - waterRemoved;
   const waterAdded = capacity - remainingWater; // Fill to 100%
+  const percent = `${Math.round(amount * 100)}%`;
+  const vacuumed = vacuum > 0 && state.equipment.substrate.organicReserve > 0;
+  const detail =
+    `(removed ${waterRemoved.toFixed(1)}L, added ${waterAdded.toFixed(1)}L)` +
+    (vacuumed ? `, vacuumed ${Math.round(vacuum * 100)}% of the bed's mulm` : '');
 
   const newState = produce(state, (draft) => {
     // 1. Remove proportional dissolved compound mass
@@ -117,21 +126,12 @@ export function waterChange(
     // 5. Restore water to 100% capacity
     draft.resources.water = capacity;
 
-    // 6. Log the action
-    const percentLabel = Math.round(amount * 100);
-    draft.logs.push(
-      createLog(
-        draft.tick,
-        'user',
-        'info',
-        `Water change: ${percentLabel}% (removed ${waterRemoved.toFixed(1)}L, added ${waterAdded.toFixed(1)}L)`
-      )
-    );
+    // 6. The gravel vac pulls mulm out with the water
+    draft.equipment.substrate.organicReserve *= 1 - vacuum;
+
+    // 7. Log the action
+    draft.logs.push(createLog(draft.tick, 'user', 'info', `Water change: ${percent} ${detail}`));
   });
 
-  const percentLabel = Math.round(amount * 100);
-  return {
-    state: newState,
-    message: `Changed ${percentLabel}% water (removed ${waterRemoved.toFixed(1)}L, added ${waterAdded.toFixed(1)}L)`,
-  };
+  return { state: newState, message: `Changed ${percent} water ${detail}` };
 }

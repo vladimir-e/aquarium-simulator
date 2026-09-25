@@ -17,7 +17,7 @@ import { highCo2Alert } from './high-co2.js';
 export type { Alert, AlertResult } from './types.js';
 export { waterLevelAlert, WATER_LEVEL_CRITICAL_THRESHOLD } from './water-level.js';
 export { highAlgaeAlert, HIGH_ALGAE_THRESHOLD } from './high-algae.js';
-export { highAmmoniaAlert, HIGH_AMMONIA_THRESHOLD } from './high-ammonia.js';
+export { highAmmoniaAlert, ammoniaAlertLine, HIGH_AMMONIA_THRESHOLD } from './high-ammonia.js';
 export { highNitriteAlert, HIGH_NITRITE_THRESHOLD } from './high-nitrite.js';
 export { highNitrateAlert, HIGH_NITRATE_THRESHOLD } from './high-nitrate.js';
 export { lowOxygenAlert, LOW_OXYGEN_THRESHOLD } from './low-oxygen.js';

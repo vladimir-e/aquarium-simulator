@@ -1,5 +1,4 @@
 import React from 'react';
-import type { TunableConfig } from '../../../simulation/config/index.js';
 import type { ReadingBook } from '../../readings';
 import { bacteriaSummary, cycleWord } from '../../run';
 import { Widget } from '../ui/Widget';
@@ -7,7 +6,6 @@ import { ColonyRows } from './rows';
 
 interface BiofilterWidgetProps {
   book: ReadingBook;
-  config: TunableConfig;
   title?: string;
   to?: string;
   className?: string;
@@ -23,7 +21,6 @@ interface BiofilterWidgetProps {
  */
 export function BiofilterWidget({
   book,
-  config,
   title = 'Biofilter',
   to,
   className,
@@ -37,7 +34,7 @@ export function BiofilterWidget({
       className={className}
       footer={
         <p className="text-[12px] leading-4 text-ink-3">
-          {bacteriaSummary(book.bacteria, book.projection, config.nitrogenCycle)}
+          {bacteriaSummary(book.bacteria, book.projection)}
         </p>
       }
     >

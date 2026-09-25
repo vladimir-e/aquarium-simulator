@@ -31,6 +31,10 @@ export interface Setup {
   fish: SeedFishGroup[];
   cycled: boolean;
   schedule: Schedule;
+  /** Share of the bed's mulm the gravel vac pulls out at every water change. */
+  vacuum?: number;
+  /** Day the keeper rearranges the scape, once. */
+  rescapeOn?: number;
   bands?: BandOverrides;
 }
 

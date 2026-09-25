@@ -113,3 +113,32 @@ describe('scenario arguments', () => {
     expect(() => parseTweak('plant', '__proto__')).toThrow(/Unknown plant species/);
   });
 });
+
+describe('the gravel vac', () => {
+  const nano = findSetup('nano');
+
+  it('sets the share vacuumed at every water change, or turns it off', () => {
+    expect(tweaked(nano, '--vac=40%').vacuum).toBe(0.4);
+    expect(tweaked(nano, '--vac=off').vacuum).toBe(0);
+    expect(tweaked(nano, '--vac=40%', '--water-change=50%').vacuum).toBe(0.4);
+  });
+
+  it('refuses a share without a percent sign or over 100 %', () => {
+    expect(() => parseTweak('vac', '0.4')).toThrow(/share/);
+    expect(() => parseTweak('vac', '120%')).toThrow(/share/);
+  });
+});
+
+describe('the rescape', () => {
+  const nano = findSetup('nano');
+
+  it('takes the day to rescape on', () => {
+    expect(tweaked(nano, '--rescape=30').rescapeOn).toBe(30);
+  });
+
+  it('refuses a bare flag or a day that is not a whole positive number', () => {
+    expect(() => parseTweak('rescape', undefined)).toThrow(/day/);
+    expect(() => parseTweak('rescape', '0')).toThrow(/rescape day/);
+    expect(() => parseTweak('rescape', '2.5')).toThrow(/rescape day/);
+  });
+});

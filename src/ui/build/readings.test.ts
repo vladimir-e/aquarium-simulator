@@ -725,10 +725,12 @@ describe('biofilter readings', () => {
   });
 
   it('leads with the cycle and backs it with the reading behind it', () => {
-    expect(value(read('biofilter'), 'Cycle')).toEqual({
+    let fresh = createSimulation({ tankCapacity: 40, substrate: { type: 'aqua_soil' } });
+    for (let hour = 0; hour < 24 * 5; hour++) fresh = tick(fresh, DEFAULT_CONFIG);
+    expect(value(read('biofilter', fresh), 'Cycle')).toEqual({
       label: 'Cycle',
       value: 'uncycled',
-      note: 'nothing colonised yet',
+      note: 'ammonia still climbing',
     });
     expect(value(read('biofilter', cycled), 'Cycle')).toEqual({
       label: 'Cycle',

@@ -46,6 +46,8 @@ off — which is the part that makes a number checkable.
 | `gasExchangePerGramDecay` | Oxygen the decomposers demand per gram oxidised; their CO₂ derives from it | mg O₂/g |
 | `oxygenHalfSaturation` | Dissolved O₂ at which decomposition runs at half rate | mg/L |
 | `substrateLeachRate` | Share of the bed's remaining organic reserve released per hour | /hr |
+| `wasteSettlingRate` | Share of standing waste settling into the bed per hour in still water | /hr |
+| `settlingHalfTurnover` | Tank turnovers per hour at which flow halves settling | turnovers/hr |
 
 ## Nitrogen cycle
 
@@ -54,9 +56,7 @@ off — which is the part that makes a number checkable.
 | `wasteConversionRate` | Share of standing waste mineralized to ammonia per tick | /tick |
 | `wasteToAmmoniaRatio` | Ammonia yielded per gram of waste | mg/g |
 | `bacteriaProcessingRate` | Ammonia one bacteria unit oxidises per tick, at saturating oxygen | mg/unit/tick |
-| `aobSpawnThreshold` | Ammonia concentration at which the AOB guild appears | ppm |
-| `nobSpawnThreshold` | Nitrite concentration at which the NOB guild appears | ppm |
-| `inoculumPerLiter` | Nitrifiers a tank is born with, per litre of fill water | units/L |
+| `seedingRate` | Nitrifiers settling into the tank per litre of water per tick, each guild | units/L/tick |
 | `aobGrowthRate` | AOB per-capita growth at full utilization | /tick |
 | `nobGrowthRate` | NOB per-capita growth at full utilization | /tick |
 | `bacteriaPerCm2` | Biofilm carrying capacity — the colony's ceiling per cm² of surface | units/cm² |
@@ -65,9 +65,11 @@ off — which is the part that makes a number checkable.
 | `referenceTemp` | Temperature the nitrifier rates are quoted at | °C |
 | `aobOxygenHalfSaturation` | Dissolved O₂ at which AOB oxidise and grow at half rate | mg/L |
 | `nobOxygenHalfSaturation` | Dissolved O₂ at which NOB oxidise and grow at half rate | mg/L |
+| `aobAmmoniaHalfSaturation` | Total ammonia, as NH₃, at which AOB oxidise at half rate | ppm |
+| `nobNitriteHalfSaturation` | Nitrite, as NO₂⁻, at which NOB oxidise at half rate | ppm |
 
-The two half-saturation constants are measured concentrations and carry a range.
-The twelve leaves above them were never given bounds, so a writer that asks
+The four half-saturation constants are measured concentrations and carry a range.
+The ten leaves above them were never given bounds, so a writer that asks
 gets nothing back. A test asserts exactly that split, so the gap is stated
 rather than discovered.
 

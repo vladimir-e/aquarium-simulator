@@ -6,7 +6,7 @@ import { READINGS, type Band, type Reading } from './readings.js';
 import { renderHourly, renderTable, toJson } from './report.js';
 import { runScenario, type OnRefusal } from './run.js';
 import { SETUPS, findSetup, type Setup } from './setups.js';
-import { parseTweak, TWEAK_FLAGS, type Tweak } from './tweaks.js';
+import { parseTweak, TWEAK_FLAGS, warn, type Tweak } from './tweaks.js';
 
 export const SCENARIO_FLAGS = ['days', 'json', 'diff', 'trace', 'bands', ...TWEAK_FLAGS];
 
@@ -90,18 +90,23 @@ export function scenariosCommand(argv: string[]): void {
   const onRefusal: OnRefusal = (type, message) => {
     if (refused.has(type)) return;
     refused.add(type);
-    process.stderr.write(`warning: ${type} refused: ${message}\n`);
+    warn(`${type} refused: ${message}`);
   };
 
+  const tanks = (args.setups.length > 0 ? args.setups : SETUPS).map((base) => ({
+    label: [base.name, ...args.tweaks.map((t) => t.text)].join(' '),
+    ...args.tweaks.reduce((tank, tweak) => tweak.apply(tank), { setup: base, config: DEFAULT_CONFIG }),
+  }));
+  const rescapeOn = tanks.find(({ setup }) => setup.rescapeOn !== undefined)?.setup.rescapeOn;
+  if (rescapeOn !== undefined && rescapeOn >= args.days) {
+    warn(`--rescape=${rescapeOn} falls after the last reading of a ${args.days}-day run.`);
+  }
+
   const started = performance.now();
-  const results = (args.setups.length > 0 ? args.setups : SETUPS).map((base) => {
-    const { setup, config } = args.tweaks.reduce((tank, tweak) => tweak.apply(tank), {
-      setup: base,
-      config: DEFAULT_CONFIG,
-    });
-    const label = [base.name, ...args.tweaks.map((t) => t.text)].join(' ');
-    return { label, result: runScenario(setup, { days: args.days, config, traceDay: args.traceDay, onRefusal }) };
-  });
+  const results = tanks.map(({ label, setup, config }) => ({
+    label,
+    result: runScenario(setup, { days: args.days, config, traceDay: args.traceDay, onRefusal }),
+  }));
   const seconds = (performance.now() - started) / 1000;
 
   if (args.json === true) {

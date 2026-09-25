@@ -6,7 +6,8 @@ import {
   applyAction,
   calculatePassiveResources,
   calculateHardscapeSlots,
-  checkHardscapeCapacity,
+  liftHardscape,
+  placeHardscape,
   rescape,
   getHardscapeName,
   formatSchedule,
@@ -19,6 +20,7 @@ import {
   type HardscapeType,
   type DailySchedule,
   createHardscapeItem,
+  cycledColony,
   startingHardness,
   type SimulationConfig,
 } from '../../simulation/index.js';
@@ -465,6 +467,7 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
         draft.equipment.substrate = fresh.equipment.substrate;
         draft.equipment.hardscape = fresh.equipment.hardscape;
         refreshPassiveResources(draft, configRef.current.optics);
+        if (draft.seed?.bacteria === 'cycled') Object.assign(draft.resources, cycledColony(draft));
 
         // Clear in-flight clutches: they hatch at an absolute
         // `laidTick + hatchTime`, so rewinding the clock to 0 would
@@ -687,48 +690,25 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
   }, []);
 
   const addHardscapeItem = useCallback((type: HardscapeType) => {
-    setState((current) =>
-      produce(current, (draft) => {
-        const capacity = checkHardscapeCapacity(
-          draft.equipment.hardscape.items,
-          draft.tank.hardscapeSlots
-        );
-        if (!capacity.ok) return;
-
-        draft.equipment.hardscape.items.push(createHardscapeItem(generateHardscapeId(), type));
-
-        const log = createLog(
-          draft.tick,
-          'user',
-          'info',
-          `Added ${getHardscapeName(type)} hardscape`
-        );
-        draft.logs.push(log);
-        refreshPassiveResources(draft, configRef.current.optics);
-      })
-    );
+    setState((current) => {
+      const placed = placeHardscape(current, createHardscapeItem(generateHardscapeId(), type));
+      if (placed === current) return current;
+      return produce(placed, (draft) => {
+        draft.logs.push(createLog(draft.tick, 'user', 'info', `Added ${getHardscapeName(type)} hardscape`));
+      });
+    });
   }, []);
 
   const removeHardscapeItem = useCallback((id: string) => {
-    setState((current) =>
-      produce(current, (draft) => {
-        const item = draft.equipment.hardscape.items.find((i) => i.id === id);
-        if (!item) return;
-
-        draft.equipment.hardscape.items = draft.equipment.hardscape.items.filter(
-          (i) => i.id !== id
+    setState((current) => {
+      const item = current.equipment.hardscape.items.find((i) => i.id === id);
+      if (!item) return current;
+      return produce(liftHardscape(current, id), (draft) => {
+        draft.logs.push(
+          createLog(draft.tick, 'user', 'info', `Removed ${getHardscapeName(item.type)} hardscape`)
         );
-
-        const log = createLog(
-          draft.tick,
-          'user',
-          'info',
-          `Removed ${getHardscapeName(item.type)} hardscape`
-        );
-        draft.logs.push(log);
-        refreshPassiveResources(draft, configRef.current.optics);
-      })
-    );
+      });
+    });
   }, []);
 
   const updateLightEnabled = useCallback((enabled: boolean) => {

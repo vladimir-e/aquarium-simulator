@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { createSimulation, type SimulationState } from '../../simulation/state.js';
-import { KEEPER_HOUR, dueActions, type Schedule } from '../scenarios/keeper.js';
+import { KEEPER_HOUR, dueActions, isKeeperHourOf, rescapeTank, type Schedule } from '../scenarios/keeper.js';
+import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
+import { resetHardscape } from '../../simulation/index.js';
 import { findSetup, toConfig, toSeed } from '../scenarios/setups.js';
 
 const stocked = createSimulation(toConfig(findSetup('nano')), toSeed(findSetup('nano')), 1);
@@ -34,5 +36,29 @@ describe('dueActions', () => {
 
   it('drops a share-of-stock feed when there are no fish', () => {
     expect(dueActions([{ every: 1, action: { type: 'feed', shareOfStock: 0.5 } }], at(empty, 1))).toEqual([]);
+  });
+});
+
+describe('isKeeperHourOf', () => {
+  it('holds at the keeper hour of that day and no other tick', () => {
+    const ticks = Array.from({ length: 5 * 24 }, (_, tick) => tick).filter((tick) => isKeeperHourOf(3, tick));
+    expect(ticks).toEqual([2 * 24 + KEEPER_HOUR]);
+  });
+});
+
+describe('rescapeTank', () => {
+  const scaped = createSimulation(
+    toConfig({ ...findSetup('low-tech'), hardscape: ['neutral_rock', 'driftwood'] }),
+    toSeed(findSetup('low-tech')),
+    1
+  );
+
+  it('sets every piece back fresh and uproots every other plant', () => {
+    const after = rescapeTank(scaped, DEFAULT_CONFIG);
+
+    expect(after.equipment.hardscape.items.map((i) => i.type)).toEqual(['neutral_rock', 'driftwood']);
+    expect(after.equipment.hardscape.items).toEqual(resetHardscape(scaped).equipment.hardscape.items);
+    expect(after.plants).toHaveLength(Math.floor(scaped.plants.length / 2));
+    expect(after.resources.aob).toBeLessThan(scaped.resources.aob);
   });
 });

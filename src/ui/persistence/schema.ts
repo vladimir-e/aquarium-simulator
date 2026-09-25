@@ -334,6 +334,8 @@ const DecayConfigSchema = z
     gasExchangePerGramDecay: z.number(),
     oxygenHalfSaturation: z.number(),
     substrateLeachRate: z.number(),
+    wasteSettlingRate: z.number(),
+    settlingHalfTurnover: z.number(),
   })
   .strict();
 
@@ -342,9 +344,7 @@ const NitrogenCycleConfigSchema = z
     wasteConversionRate: z.number(),
     wasteToAmmoniaRatio: z.number(),
     bacteriaProcessingRate: z.number(),
-    aobSpawnThreshold: z.number(),
-    nobSpawnThreshold: z.number(),
-    inoculumPerLiter: z.number(),
+    seedingRate: z.number(),
     aobGrowthRate: z.number(),
     nobGrowthRate: z.number(),
     bacteriaPerCm2: z.number(),
@@ -353,6 +353,8 @@ const NitrogenCycleConfigSchema = z
     referenceTemp: z.number(),
     aobOxygenHalfSaturation: z.number(),
     nobOxygenHalfSaturation: z.number(),
+    aobAmmoniaHalfSaturation: z.number(),
+    nobNitriteHalfSaturation: z.number(),
   })
   .strict();
 

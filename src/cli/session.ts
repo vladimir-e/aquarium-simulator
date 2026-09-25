@@ -18,6 +18,13 @@ import type { HistorySnapshot } from './history.js';
  * missing field. Parallel to the UI's `PERSISTENCE_VERSION`. Pre-launch
  * rule is reject, not migrate.
  *
+ * v13 made the nitrifiers seed continuously and saturate on their substrate.
+ *    `NitrogenCycleConfig` dropped `aobSpawnThreshold`, `nobSpawnThreshold`
+ *    and `inoculumPerLiter` for `seedingRate`, and gained
+ *    `aobAmmoniaHalfSaturation` / `nobNitriteHalfSaturation`; `DecayConfig`
+ *    gained `wasteSettlingRate` and `settlingHalfTurnover`. A v12 session
+ *    parses, and the first tick seeds and oxidises off keys it does not carry:
+ *    the whole nitrogen chain is `NaN` from there on.
  * v12 made pH a reading of CO₂ against KH. `Resources` swapped `ph` for `kh`,
  *    alkalinity as mg of CaCO3, and gained `gh`; `Environment` swapped
  *    `tapWaterPH` for `tapKh` and gained `tapGh`; the `ph` config section
@@ -93,7 +100,7 @@ import type { HistorySnapshot } from './history.js';
  * v2 added `Fish.stage` + `state.clutches` (breeding) and the saturating
  *    surplus bank.
  */
-export const SESSION_VERSION = 12;
+export const SESSION_VERSION = 13;
 export const DEFAULT_SESSION_PATH = resolve(process.cwd(), '.simstate/current.json');
 
 export interface Session {

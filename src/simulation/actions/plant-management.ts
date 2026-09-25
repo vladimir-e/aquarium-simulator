@@ -10,6 +10,7 @@ import { PLANT_SPECIES_DATA } from '../plants/species.js';
 import type { PlantsConfig } from '../config/plants.js';
 import { createLog } from '../core/logging.js';
 import { createPlant, DEFAULT_PLANT_SIZE } from '../plants/create-plant.js';
+import { disturbBed } from '../equipment/index.js';
 import type { ActionResult, AddPlantAction, RemovePlantAction } from './types.js';
 
 /** Liters per 5 gallons (basis for plant limit calculation) */
@@ -170,7 +171,8 @@ export function addPlant(
 }
 
 /**
- * Remove a plant from the tank.
+ * Remove a plant from the tank. Uprooting one disturbs its slot's share of the
+ * bed; an epiphyte comes off the hardscape without touching it.
  */
 export function removePlant(
   state: SimulationState,
@@ -192,6 +194,9 @@ export function removePlant(
 
   const newState = produce(state, (draft) => {
     draft.plants.splice(plantIndex, 1);
+    if (plantData.substrateRequirement !== 'none') {
+      disturbBed(draft, 1 / getMaxPlants(draft.tank.capacity));
+    }
 
     draft.logs.push(
       createLog(

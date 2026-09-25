@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { produce } from 'immer';
-import { wasteInflow, wasteReadout, wasteSummary } from './waste';
+import { wasteInflow, wasteLevel, wasteReadout, wasteSummary } from './waste';
 import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
 import {
   applyAction,
@@ -132,10 +132,29 @@ describe('wasteSummary', () => {
     expect(wasteSummary(wasteReadout(state, config), config)).toContain('falling to');
   });
 
-  it('reads the settled mass as production over the mineralisation rate', () => {
-    const readout = wasteReadout(soilTank(), config);
-    const settled = readout.perHour / config.nitrogenCycle.wasteConversionRate;
-    expect(wasteSummary(readout, config)).toContain(settled.toFixed(3));
+  it.each([
+    ['a bare soil tank', soilTank],
+    ['a fed, stocked tank', stocked],
+  ])('names the level the engine holds the pool at, on %s', (_, setup) => {
+    const state = setup();
+    const readout = wasteReadout(state, config);
+    const level = wasteLevel(readout, config);
+    const held = produce(state, (draft) => void (draft.resources.waste = level));
+
+    expect(readout.settlingShare).toBeGreaterThan(0);
+    expect(wasteSummary(readout, config)).toContain(`${level.toFixed(3)} g.`);
+    expect(Math.abs(tick(held, config).resources.waste - level)).toBeLessThan(readout.perHour * 0.01);
+  });
+
+  it('counts what settles into the bed as an outflow of the pool', () => {
+    const state = soilTank();
+    state.resources.waste = 1;
+    const readout = wasteReadout(state, config);
+    expect(readout.settled).toBeCloseTo(readout.settlingShare, 12);
+    expect(wasteReadout(produce(state, (d) => void (d.resources.waste = 2)), config).settled).toBeCloseTo(
+      2 * readout.settled,
+      12
+    );
   });
 
   it('says so plainly when nothing produces waste at all', () => {
