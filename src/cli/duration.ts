@@ -1,5 +1,5 @@
 /**
- * Duration parser for the calibration CLI.
+ * Duration parser for the headless CLI.
  *
  * Accepted forms:
  * - `5d`  → 5 * 24 = 120 ticks

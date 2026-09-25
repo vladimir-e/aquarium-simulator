@@ -130,9 +130,8 @@ export interface BacteriaReadout {
   atTrace: boolean;
   /**
    * The keeper's own test: both toxins at trace, and colonies big enough to
-   * keep them there. Same reading `traceCycle` calls `cycledDay`, minus the one
-   * thing a single tick cannot see — that a nitrite peak was passed rather than
-   * never reached.
+   * keep them there. A single tick cannot see the one thing a run can — that
+   * a nitrite peak was passed rather than never reached.
    *
    * Nitrite standing at trace is what keeps this off a tank at its nitrite
    * peak, where "produced no longer exceeds consumed" first goes true and a

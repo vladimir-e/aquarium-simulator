@@ -5,6 +5,7 @@ import { tick } from '../tick.js';
 import { DEFAULT_CONFIG } from '../config/index.js';
 import { nitrogenCycleDefaults } from '../config/nitrogen-cycle.js';
 import { MW_N, MW_NH3, MW_NO2, MW_NO3 } from '../core/chemistry.js';
+// The scenario setups are the shared definition of a real tank, so the engine invariants run over them.
 import { SETUPS, type Setup } from '../../cli/scenarios/setups.js';
 import { keepTank } from '../../cli/scenarios/run.js';
 

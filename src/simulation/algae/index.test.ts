@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { produce } from 'immer';
-import { processAlgae, spendAlgaeSurplus } from './index.js';
+import { processAlgae, spendAlgaeSurplus, computeAlgaePopulation } from './index.js';
 import { algaeVitalityDefaults } from '../config/algae-vitality.js';
 import { DEFAULT_CONFIG } from '../config/index.js';
 import { createSimulation, type SimulationState, type Plant } from '../state.js';
@@ -62,16 +62,24 @@ describe('processAlgae', () => {
     expect(out.algae.surplus).toBe(0);
   });
 
-  it('photoperiod gates surplus banking — positive net at night yields no growth', () => {
+  it('photoperiod gates surplus banking — an established mass holds at night when net ≥ 0', () => {
     const state = produce(baseState(), (draft) => {
-      draft.algae = { mass: 0, surplus: 0 };
+      draft.algae = { mass: 50, surplus: 0 };
       draft.resources.light = 0;
       draft.resources.nitrate = 0;
       draft.resources.phosphate = 0;
     });
+    const { net } = computeAlgaePopulation({
+      plants: state.plants,
+      resources: state.resources,
+      algaeConfig: DEFAULT_CONFIG.algae,
+      nutrientsConfig: DEFAULT_CONFIG.nutrients,
+    });
+    expect(net).toBeGreaterThanOrEqual(0);
+
     const { state: out } = processAlgae(state, DEFAULT_CONFIG);
     expect(out.algae.surplus).toBe(0);
-    expect(out.algae.mass).toBe(0);
+    expect(out.algae.mass).toBeGreaterThanOrEqual(50);
   });
 
   it('lights on + positive net → surplus banks unconditionally and converts to mass', () => {

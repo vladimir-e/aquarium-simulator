@@ -339,32 +339,25 @@ describe('processPlants', () => {
     });
   });
 
-  describe('waste effect when plants overgrow', () => {
-    it('no waste when plants below 200%', () => {
+  describe('shedding and death', () => {
+    it('sheds a starved plant into waste and removes one past the death line', () => {
       const state = createTestState({
-        plants: [{ id: 'p1', species: 'java_fern', size: 50, condition: C, surplus: 0 }],
-        light: 50,
-        co2: plantsDefaults.optimalCo2,
-        nitrate: plantsDefaults.optimalNitrate * 100,
+        plants: [
+          { id: 'starved', species: 'java_fern', size: 50, condition: C, surplus: 0 },
+          { id: 'dying', species: 'java_fern', size: 50, condition: 1, surplus: 0 },
+        ],
+        light: 0,
+        temperature: 25,
         water: 100,
       });
       const result = processPlants(state, DEFAULT_CONFIG);
 
-      const wasteEffect = result.effects.find((e) => e.resource === 'waste');
-      expect(wasteEffect).toBeUndefined();
-    });
-
-    it('plant size capped at 200%', () => {
-      const state = createTestState({
-        plants: [{ id: 'p1', species: 'monte_carlo', size: 199, condition: C, surplus: 0 }],
-        light: 50,
-        co2: plantsDefaults.optimalCo2,
-        nitrate: plantsDefaults.optimalNitrate * 100,
-        water: 100,
-      });
-      const result = processPlants(state, DEFAULT_CONFIG);
-
-      expect(result.state.plants[0].size).toBeLessThanOrEqual(200);
+      expect(result.state.plants.map((p) => p.id)).toEqual(['starved']);
+      expect(result.state.plants[0].size).toBeLessThan(50);
+      const waste = result.effects.find((e) => e.resource === 'waste');
+      expect(waste?.source).toBe('plant-condition');
+      expect(waste?.delta).toBeGreaterThan(0);
+      expect(result.state.logs.filter((l) => l.event === 'plant-died')).toHaveLength(1);
     });
   });
 

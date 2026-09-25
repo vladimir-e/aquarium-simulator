@@ -143,12 +143,7 @@ describe('phDriftSystem', () => {
     });
     const effects = phDriftSystem.update(state, DEFAULT_CONFIG);
 
-    if (effects.length > 0) {
-      const phEffect = effects.find((e) => e.resource === 'ph');
-      if (phEffect) {
-        expect(Math.abs(phEffect.delta)).toBeLessThan(0.001);
-      }
-    }
+    expect(Math.abs(effects.find((e) => e.resource === 'ph')?.delta ?? 0)).toBeLessThan(0.001);
   });
 
   it('calcite rock raises pH target', () => {
@@ -192,10 +187,7 @@ describe('phDriftSystem', () => {
     const normalEffects = phDriftSystem.update(normalCO2State, DEFAULT_CONFIG);
     const highCO2Effects = phDriftSystem.update(highCO2State, DEFAULT_CONFIG);
 
-    const normalPhEffect = normalEffects.find((e) => e.resource === 'ph');
-    if (normalPhEffect) {
-      expect(Math.abs(normalPhEffect.delta)).toBeLessThan(0.001);
-    }
+    expect(Math.abs(normalEffects.find((e) => e.resource === 'ph')?.delta ?? 0)).toBeLessThan(0.001);
 
     const highCO2Effect = highCO2Effects.find((e) => e.resource === 'ph');
     expect(highCO2Effect).toBeDefined();

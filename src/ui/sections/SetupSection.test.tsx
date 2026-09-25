@@ -27,6 +27,7 @@ const heated: SimulationState = {
   equipment: { ...planted.equipment, heater: { ...planted.equipment.heater, enabled: true } },
 };
 
+// Runs on mount only, so a test that flips the units toggle isn't undone by it.
 function ForceUnits(): null {
   const { setUnitSystem } = useUnits();
   useEffect(() => setUnitSystem('metric'), [setUnitSystem]);

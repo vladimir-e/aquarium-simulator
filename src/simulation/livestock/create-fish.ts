@@ -16,7 +16,7 @@ import { FISH_SPECIES_DATA } from './species.js';
 /** Per-fish hardiness offset span as a fraction of species baseline. */
 export const HARDINESS_OFFSET_SPAN = 0.15;
 /** Initial health jitter span (± points around 100). */
-const HEALTH_JITTER = 5;
+export const HEALTH_JITTER = 5;
 /** Satiation a stocked adult arrives at (peckish — see `addFish`). */
 const ADULT_ARRIVAL_SATIATION = 70;
 /** Satiation a newborn fry starts at (peckish, no immediate stress). */

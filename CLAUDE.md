@@ -30,7 +30,7 @@ This project follows documentation-driven development:
 
 Build out mechanics first; tune last. The bar for a mechanic is that it works and moves the right stock in the right direction.
 
-Whole-tank behaviour is checked with `npm run scenarios` — every preset tank headless for 90 days (`--days=300` for longer), each reading banded green/amber/red. Per-action flags (`--feed=2g/1d`, `--water-change=off`, …) replay a tank under a different keeper; usage in `docs/cli.md`. Amber or red is a question to reason about. Never tune a constant during build-out just to turn a cell green, and never add complexity to hit a number.
+Whole-tank behaviour is checked with `npm run scenarios` — every preset tank headless, each reading banded green/amber/red, replayable under a different keeper; flags and defaults live in `docs/cli.md`. Amber or red is a question to reason about. Never tune a constant during build-out just to turn a cell green, and never add complexity to hit a number.
 
 Tests pin formulas and invariants, never whole-tank outcomes or coefficient values. `expect(flow).toBe(160)` is a tripwire; "doubling capacity doubles flow" is a statement about the model. When a change breaks a test that pins a number rather than a behaviour, delete or rewrite it without ceremony.
 
@@ -50,13 +50,12 @@ Task briefs are provided by the maintainer or orchestrator per task — there's 
 3. Write tests for new formulas and invariants — no coverage target
 4. Run `npm run lint` and fix any issues
 5. Run all unit tests and build to validate your work
-6. Update the docs pages your change touched — a behaviour change lands in the matching subsystem or concept page
+6. Update the docs pages your change touched — a behaviour change rewrites the matching subsystem or concept page (`docs-site/`), kept short; quirks go in code comments
 7. Add an entry to `CHANGELOG.md`
 8. Commit with a short message and raise a PR
 
 **Docs discipline:**
 
-- A PR that changes a system rewrites that system's portal page (`docs-site/`), keeping it short — what it does and the concepts, for a human. Quirks go in code comments or this file
 - A page describes how the system works, in present tense, for a human reader — not a changelog, not a statement of intent
 - Tables over prose wherever the content is a set of values, statuses or seams
 - Source pointers name directories only, never filenames or signatures

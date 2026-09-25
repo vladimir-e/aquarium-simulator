@@ -12,7 +12,7 @@ import { DEFAULT_CONFIG } from '../config/index.js';
 import { gasExchangeDefaults } from '../config/gas-exchange.js';
 
 describe('calculateO2Saturation', () => {
-  it('returns base saturation at reference temperature (15°C)', () => {
+  it('returns base saturation at the reference temperature', () => {
     const saturation = calculateO2Saturation(gasExchangeDefaults.o2ReferenceTemp);
     expect(saturation).toBeCloseTo(gasExchangeDefaults.o2SaturationBase, 2);
   });

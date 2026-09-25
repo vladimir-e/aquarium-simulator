@@ -165,7 +165,7 @@ describe('calculateWasteToAmmonia', () => {
     expect(result.ammoniaProduced).toBe(0);
   });
 
-  it('converts 30% of waste per tick', () => {
+  it('converts the waste-conversion share of waste each tick', () => {
     const result = calculateWasteToAmmonia(10);
     expect(result.wasteConsumed).toBeCloseTo(10 * nitrogenCycleDefaults.wasteConversionRate, 10);
   });

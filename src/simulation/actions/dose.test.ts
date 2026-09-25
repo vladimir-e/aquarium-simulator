@@ -53,8 +53,8 @@ describe('dose', () => {
     [0.05, 'Minimum dose'],
     [MAX_DOSE_ML + 10, 'Maximum dose'],
     [NaN, 'Dose amount must be a number'],
-    [Infinity, ''],
-    [-Infinity, ''],
+    [Infinity, 'Dose amount must be a number'],
+    [-Infinity, 'Dose amount must be a number'],
   ])('refuses %d ml', (amountMl, message) => {
     const state = createSimulation({ tankCapacity: 40 });
     const result = dose(state, { type: 'dose', amountMl }, FORMULA);

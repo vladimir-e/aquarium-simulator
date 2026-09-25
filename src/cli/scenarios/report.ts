@@ -56,7 +56,7 @@ export function renderTable(result: ScenarioResult, { color, label }: { color: b
   return [`${label} — ${result.setup.about}`, describe(result.setup), '', grid(header, rows, 2)].join('\n');
 }
 
-export function renderTrace(trace: TraceRow[], day: number): string {
+export function renderHourly(trace: TraceRow[], day: number): string {
   const header = ['hour', 'PAR', '°F', 'O₂', 'CO₂', 'pH'];
   const rows = trace.map((t) =>
     [

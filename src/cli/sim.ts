@@ -199,12 +199,12 @@ export function assertKnownFlags(command: string, flags: Record<string, string>)
 function printHelp(): void {
   process.stdout.write(
     [
-      'sim — calibration CLI for the aquarium simulator',
+      'sim — headless CLI for the aquarium simulator',
       '',
       'Commands:',
       '  new --preset=<id> [--tank-gal=<n>|--tank-liters=<n>] [--name=<label>]',
-      '      [--no-seed]           (every preset but bare opens on a cycled',
-      '                             biofilter; --no-seed starts it uncycled)',
+      '      [--no-seed]           (every preset but bare opens a month into',
+      '                             its life; --no-seed starts it brand new)',
       '  add fish --species=<id> --count=<n>',
       '  add plant --species=<id> [--size=<0-1>]',
       '  remove fish <id>',
@@ -219,8 +219,9 @@ function printHelp(): void {
       '  scenarios [<setup>...] [--days=<n>] [--json[=<file>]] [--diff=<file>] [--trace=<day>] [--bands]',
       '      [--plant=<species>:<n>[:<size>]] [--fish=<species>:<n>] [--light=<factor>]',
       '      [--gal=<n>] [--set=<dotted.path>=<value>] [--uncycled]',
-      '      [--feed=<n>g|<n>%[/<n>d]] [--water-change=<n>%[/<n>d]] [--dose=<n>ml[/<n>d]]',
-      '      [--trim=<n>d] [--scrub=<n>d] [--top-off=<n>d]   (overrides the keeper; =off drops it)',
+      '      [--feed=<n>g|<n>%[/<period>]] [--water-change=<n>%[/<period>]] [--dose=<n>ml[/<period>]]',
+      '      [--trim[=<period>]] [--scrub[=<period>]] [--top-off[=<period>]]',
+      '                            (<period> is <n>d or <n>w; overrides the keeper; =off drops a chore)',
       '                            (headless preset tanks, readings banded G/A/R; no session)',
       '',
       'Session persists at .simstate/current.json.',

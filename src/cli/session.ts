@@ -1,5 +1,5 @@
 /**
- * Session persistence for the calibration CLI.
+ * Session persistence for the headless CLI.
  *
  * A session is a frozen snapshot of an ongoing simulation: the engine config,
  * the current `SimulationState`, and a rolling history of per-tick snapshots.

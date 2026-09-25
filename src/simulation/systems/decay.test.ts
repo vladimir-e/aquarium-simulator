@@ -103,7 +103,7 @@ describe('decaySystem', () => {
     });
   }
 
-  it('creates positive waste effect at 40% of decay amount', () => {
+  it('turns the waste-conversion share of decayed food into waste', () => {
     const state = createTestState({ food: 1.0, temperature: 25 });
     const effects = decaySystem.update(state, DEFAULT_CONFIG);
 

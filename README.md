@@ -47,10 +47,10 @@ npm run ui
 grades each reading green, amber or red against what a real tank shows.
 
 ```bash
-npm run scenarios                                  # every tank, 90 days
-npm run scenarios -- low-tech --feed=2g --days=300 # one tank, heavier feeding, longer
-npm run scenarios -- --json=/tmp/before.json       # save a baseline…
-npm run scenarios -- --diff=/tmp/before.json       # …and show only what moved
+npm run scenarios                                           # every tank
+npm run scenarios -- low-tech --water-change=off --days=30  # skip water changes, watch nitrate climb
+npm run scenarios -- --json=/tmp/before.json                # save a baseline…
+npm run scenarios -- --diff=/tmp/before.json                # …and show only what moved
 ```
 
 Flags are in [`docs/cli.md`](docs/cli.md).

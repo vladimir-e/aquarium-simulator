@@ -3,7 +3,7 @@ import { performance } from 'node:perf_hooks';
 import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
 import { renderDiff, type Snapshot } from './diff.js';
 import { READINGS } from './readings.js';
-import { renderTable, renderTrace, toJson } from './report.js';
+import { renderHourly, renderTable, toJson } from './report.js';
 import { runScenario, type OnRefusal } from './run.js';
 import { SETUPS, findSetup, type Setup } from './setups.js';
 import { parseTweak, TWEAK_FLAGS, type Tweak } from './tweaks.js';
@@ -111,7 +111,7 @@ export function scenariosCommand(argv: string[]): void {
   const color = process.stdout.isTTY === true && process.env.NO_COLOR === undefined;
   for (const { label, result } of results) {
     out(renderTable(result, { color, label }) + '\n\n');
-    if (args.traceDay !== undefined) out(renderTrace(result.trace, args.traceDay) + '\n\n');
+    if (args.traceDay !== undefined) out(renderHourly(result.trace, args.traceDay) + '\n\n');
   }
   out(`${results.length} setup${results.length === 1 ? '' : 's'} × ${args.days} d in ${seconds.toFixed(1)} s\n`);
 }
