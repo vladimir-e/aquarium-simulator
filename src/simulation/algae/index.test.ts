@@ -73,7 +73,6 @@ describe('processAlgae', () => {
       plants: state.plants,
       resources: state.resources,
       algaeConfig: DEFAULT_CONFIG.algae,
-      nutrientsConfig: DEFAULT_CONFIG.nutrients,
     });
     expect(net).toBeGreaterThanOrEqual(0);
 

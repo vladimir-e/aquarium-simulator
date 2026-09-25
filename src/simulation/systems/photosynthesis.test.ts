@@ -8,7 +8,7 @@ import {
 import { calculateNutrientSufficiency } from './nutrients.js';
 import { calculateRespiration } from './respiration.js';
 import { plantsDefaults, type PlantsConfig } from '../config/plants.js';
-import { nutrientsDefaults, getNutrientRatio } from '../config/nutrients.js';
+import { NUTRIENTS, nutrientsDefaults, type NutrientsConfig } from '../config/nutrients.js';
 import { AIR_SATURATED_O2 } from '../config/nitrogen-cycle.js';
 import type { Plant, Resources } from '../state.js';
 import type { PlantSpecies } from '../plants/species.js';
@@ -18,11 +18,13 @@ import { getSaturationIrradiance } from '../plants/species.js';
 
 const INJECTED_CO2 = 25;
 
+/** Nutrients at this many half-saturations: at the default the water all but saturates every plant. */
 function buildResources(
   waterVolume: number,
   overrides: Partial<Resources> = {},
-  nutrientMultiple = 1.0
+  nutrientMultiple = 1000
 ): Resources {
+  const mass = (ppm: number): number => ppm * waterVolume * nutrientMultiple;
   return {
     water: waterVolume,
     temperature: 25,
@@ -34,10 +36,10 @@ function buildResources(
     waste: 0,
     ammonia: 0,
     nitrite: 0,
-    nitrate: nutrientsDefaults.optimalNitratePpm * waterVolume * nutrientMultiple,
-    phosphate: nutrientsDefaults.optimalPhosphatePpm * waterVolume * nutrientMultiple,
-    potassium: nutrientsDefaults.optimalPotassiumPpm * waterVolume * nutrientMultiple,
-    iron: nutrientsDefaults.optimalIronPpm * waterVolume * nutrientMultiple,
+    nitrate: mass(nutrientsDefaults.halfSaturation.nitrate),
+    phosphate: mass(nutrientsDefaults.halfSaturation.phosphate),
+    potassium: mass(nutrientsDefaults.halfSaturation.potassium),
+    iron: mass(nutrientsDefaults.halfSaturation.iron),
     oxygen: 8,
     co2: INJECTED_CO2,
     kh: 0,
@@ -88,48 +90,6 @@ describe('calculateCo2Factor', () => {
   });
 });
 
-describe('nitrate as the Liebig-limiting nutrient', () => {
-  const waterVolume = 100;
-  const optimal = nutrientsDefaults.optimalNitratePpm;
-
-  function buildSingleLimited(nitratePpm: number): Resources {
-    return {
-      ...buildResources(waterVolume),
-      nitrate: nitratePpm * waterVolume,
-    };
-  }
-
-  it('sufficiency = 1.0 at optimal nitrate', () => {
-    const suff = calculateNutrientSufficiency(
-      buildSingleLimited(optimal),
-      waterVolume,
-      'monte_carlo',
-      nutrientsDefaults
-    );
-    expect(suff).toBe(1.0);
-  });
-
-  it('sufficiency = 0 when water volume is 0', () => {
-    const suff = calculateNutrientSufficiency(
-      buildSingleLimited(optimal),
-      0,
-      'monte_carlo',
-      nutrientsDefaults
-    );
-    expect(suff).toBe(0);
-  });
-
-  it('sufficiency scales linearly with nitrate below optimal', () => {
-    const suff = calculateNutrientSufficiency(
-      buildSingleLimited(optimal * 0.5),
-      waterVolume,
-      'monte_carlo',
-      nutrientsDefaults
-    );
-    expect(suff).toBe(0.5);
-  });
-});
-
 describe('calculatePhotosynthesis', () => {
   const waterVolume = 100;
   const light = 50;
@@ -142,12 +102,14 @@ describe('calculatePhotosynthesis', () => {
       volume = waterVolume,
       lightPar = light,
       config = plantsDefaults,
+      nutrients = nutrientsDefaults,
     }: {
       co2?: number;
       resources?: Resources;
       volume?: number;
       lightPar?: number;
       config?: PlantsConfig;
+      nutrients?: NutrientsConfig;
     } = {}
   ): PhotosynthesisResult {
     return calculatePhotosynthesis(
@@ -157,7 +119,8 @@ describe('calculatePhotosynthesis', () => {
       resources,
       volume,
       suffMap(plants, resources, volume),
-      config
+      config,
+      nutrients
     );
   }
 
@@ -202,7 +165,7 @@ describe('calculatePhotosynthesis', () => {
 
   describe('optimal conditions', () => {
     it('produces oxygen and consumes CO2 / nutrients', () => {
-      const result = photosynthesis([plant(100, 'java_fern')]);
+      const result = photosynthesis([plant(100, 'monte_carlo')]);
 
       expect(result.oxygenProducedMg).toBeGreaterThan(0);
       expect(result.co2ConsumedMg).toBeGreaterThan(0);
@@ -210,6 +173,15 @@ describe('calculatePhotosynthesis', () => {
       expect(result.phosphateDelta).toBeLessThan(0);
       expect(result.potassiumDelta).toBeLessThan(0);
       expect(result.ironDelta).toBeLessThan(0);
+    });
+
+    it('takes none of a nutrient its species has no demand for', () => {
+      const result = photosynthesis([plant(100, 'java_fern')]);
+
+      expect(result.nitrateDelta).toBeLessThan(0);
+      expect(result.phosphateDelta).toBeLessThan(0);
+      expect(result.potassiumDelta).toBe(0);
+      expect(result.ironDelta).toBe(0);
     });
 
     it('draws nutrients in proportion to its carbon Monod', () => {
@@ -230,24 +202,22 @@ describe('calculatePhotosynthesis', () => {
       expect(photosynthesis([plant(100, 'java_fern')]).ghDelta).toBe(0);
     });
 
-    it('takes up GH off the nutrients it actually draws, not the ones it asked for', () => {
-      const drawn = (r: PhotosynthesisResult): number =>
-        -(r.nitrateDelta + r.phosphateDelta + r.potassiumDelta + r.ironDelta);
+    it('takes up GH off the nitrate it actually draws, not the nitrate it asked for', () => {
       const full = photosynthesis([plant(100, 'java_fern')], {
         resources: buildResources(waterVolume, { gh: 10000 }),
       });
-      const starved = photosynthesis([plant(100, 'java_fern')], {
-        resources: buildResources(waterVolume, { gh: 10000, nitrate: 0 }),
+      const lean = photosynthesis([plant(100, 'java_fern')], {
+        resources: buildResources(waterVolume, { gh: 10000, nitrate: waterVolume * 0.5 }),
       });
 
-      expect(drawn(starved)).toBeLessThan(drawn(full));
-      expect(starved.ghDelta / full.ghDelta).toBeCloseTo(drawn(starved) / drawn(full), 10);
+      expect(lean.nitrateDelta).toBeGreaterThan(full.nitrateDelta);
+      expect(lean.ghDelta / full.ghDelta).toBeCloseTo(lean.nitrateDelta / full.nitrateDelta, 10);
     });
 
-    it('limiting factor is 1.0 at optimal conditions for low-demand plant', () => {
+    it('limiting factor approaches 1 in rich water', () => {
       const result = photosynthesis([plant(100, 'java_fern')]);
 
-      expect(result.limitingFactor).toBeCloseTo(1.0, 3);
+      expect(result.limitingFactor).toBeCloseTo(1.0, 2);
     });
   });
 
@@ -276,7 +246,8 @@ describe('calculatePhotosynthesis', () => {
         (plantsDefaults.baseRespirationRate / plantsDefaults.basePhotosynthesisRate) *
         monodFactor(AIR_SATURATED_O2, plantsDefaults.respirationOxygenHalfSaturation) /
         lightSaturationFactor(light, getSaturationIrradiance('java_fern', plantsDefaults)) /
-        calculateCo2Factor(INJECTED_CO2, 'java_fern');
+        calculateCo2Factor(INJECTED_CO2, 'java_fern') /
+        calculateNutrientSufficiency(buildResources(waterVolume), waterVolume, 'java_fern');
 
       expect(ratio()).toBeCloseTo(expected, 6);
       expect(ratio({ ...plantsDefaults, co2PerRateUnit: 7 })).toBeCloseTo(expected, 6);
@@ -333,7 +304,7 @@ describe('calculatePhotosynthesis', () => {
       expect(result.limitingFactor).toBe(0);
     });
 
-    it('does NOT zero nutrient uptake when iron is zero (plants still draw)', () => {
+    it('keeps drawing the other nutrients when iron caps growth', () => {
       const resources = buildResources(waterVolume, { iron: 0 });
       const result = photosynthesis([plant(100, 'monte_carlo')], { resources });
 
@@ -343,15 +314,45 @@ describe('calculatePhotosynthesis', () => {
       expect(result.ironDelta).toBe(0);
     });
 
-    it('nutrient uptake splits in fertilizer ratio', () => {
-      const abundant = buildResources(waterVolume, {}, 10);
-      const result = photosynthesis([plant(100, 'amazon_sword')], { resources: abundant });
+    it('takes nutrients in its own ratio, whatever the fertilizer carries', () => {
+      const monte = [plant(100, 'monte_carlo')];
+      const result = photosynthesis(monte);
+      const skewed = photosynthesis(monte, {
+        nutrients: {
+          ...nutrientsDefaults,
+          fertilizerFormula: { nitrate: 1, phosphate: 10, potassium: 1, iron: 2 },
+        },
+      });
 
-      const total =
-        -result.nitrateDelta + -result.phosphateDelta + -result.potassiumDelta + -result.ironDelta;
-      const formula = nutrientsDefaults.fertilizerFormula;
-      expect(-result.nitrateDelta / total).toBeCloseTo(getNutrientRatio('nitrate', formula), 4);
-      expect(-result.ironDelta / total).toBeCloseTo(getNutrientRatio('iron', formula), 4);
+      expect(skewed).toEqual(result);
+      const { uptakePerRateUnit } = nutrientsDefaults;
+      expect(result.phosphateDelta / result.nitrateDelta).toBeCloseTo(
+        uptakePerRateUnit.phosphate / uptakePerRateUnit.nitrate,
+        2
+      );
+    });
+
+    it('draws each nutrient on its own Monod curve, half rate at the half-saturation', () => {
+      const monte = [plant(100, 'monte_carlo')];
+      const saturated = photosynthesis(monte, { resources: buildResources(waterVolume, {}, 1e9) });
+      const halfPhosphate = photosynthesis(monte, {
+        resources: buildResources(waterVolume, {
+          ...Object.fromEntries(
+            NUTRIENTS.map((n) => [n, nutrientsDefaults.halfSaturation[n] * waterVolume * 1e9])
+          ),
+          phosphate: nutrientsDefaults.halfSaturation.phosphate * waterVolume,
+        }),
+      });
+
+      expect(halfPhosphate.phosphateDelta / saturated.phosphateDelta).toBeCloseTo(0.5, 6);
+      expect(halfPhosphate.nitrateDelta).toBeCloseTo(saturated.nitrateDelta, 6);
+    });
+
+    it('never draws more of a nutrient than the water holds', () => {
+      const trace = buildResources(waterVolume, { phosphate: 1e-6 });
+      const result = photosynthesis([plant(5000, 'monte_carlo')], { resources: trace });
+
+      expect(-result.phosphateDelta).toBeLessThanOrEqual(1e-6);
     });
 
     it('scales biomass with the carbon factor', () => {
@@ -436,9 +437,7 @@ describe('calculatePhotosynthesis', () => {
   describe('scaling with plant size', () => {
     it('biomass scales linearly with plant size', () => {
       const r100 = photosynthesis([plant(100, 'java_fern')]);
-      const r200 = photosynthesis([plant(200, 'java_fern')], {
-        resources: buildResources(waterVolume, {}, 10),
-      });
+      const r200 = photosynthesis([plant(200, 'java_fern')]);
 
       expect(r200.oxygenProducedMg).toBeCloseTo(r100.oxygenProducedMg * 2, 4);
       expect(r200.co2ConsumedMg).toBeCloseTo(r100.co2ConsumedMg * 2, 4);

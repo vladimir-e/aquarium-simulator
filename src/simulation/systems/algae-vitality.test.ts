@@ -6,7 +6,6 @@ import {
   type AlgaeVitalityContext,
 } from './algae-vitality.js';
 import { algaeVitalityDefaults } from '../config/algae-vitality.js';
-import { nutrientsDefaults } from '../config/nutrients.js';
 import { getMassFromPpm } from '../resources/helpers.js';
 import type { Plant, Resources } from '../state.js';
 import type { PlantSpecies } from '../plants/species.js';
@@ -34,8 +33,8 @@ function makeResources(overrides: Partial<Resources> = {}): Resources {
     waste: 0,
     ammonia: 0,
     nitrite: 0,
-    nitrate: getMassFromPpm(nutrientsDefaults.optimalNitratePpm, 100),
-    phosphate: getMassFromPpm(nutrientsDefaults.optimalPhosphatePpm, 100),
+    nitrate: getMassFromPpm(algaeVitalityDefaults.referenceNitratePpm, 100),
+    phosphate: getMassFromPpm(algaeVitalityDefaults.referencePhosphatePpm, 100),
     potassium: getMassFromPpm(7, 100),
     iron: getMassFromPpm(0.15, 100),
     oxygen: 8.0,
@@ -53,7 +52,6 @@ function ctx(overrides: Partial<AlgaeVitalityContext> = {}): AlgaeVitalityContex
     plants: [],
     resources: makeResources(),
     algaeConfig: algaeVitalityDefaults,
-    nutrientsConfig: nutrientsDefaults,
     ...overrides,
   };
 }
@@ -133,7 +131,7 @@ describe('buildAlgaeBenefits', () => {
   it('fires excess_nutrients when NO3 climbs above optimum', () => {
     const overdosed = ctx({
       resources: makeResources({
-        nitrate: getMassFromPpm(nutrientsDefaults.optimalNitratePpm * 3, 100),
+        nitrate: getMassFromPpm(algaeVitalityDefaults.referenceNitratePpm * 3, 100),
       }),
     });
     expect(
@@ -175,13 +173,13 @@ describe('buildAlgaeBenefits — pathological config guards', () => {
     expect(benefits.find((b) => b.key === 'excess_nutrients')?.amount).toBe(0);
   });
 
-  it('handles zero plant optimum without firing nutrient channels', () => {
+  it('handles a zero reference without firing nutrient channels', () => {
     const config = {
-      ...nutrientsDefaults,
-      optimalNitratePpm: 0,
-      optimalPhosphatePpm: 0,
+      ...algaeVitalityDefaults,
+      referenceNitratePpm: 0,
+      referencePhosphatePpm: 0,
     };
-    const benefits = buildAlgaeBenefits(ctx({ nutrientsConfig: config }));
+    const benefits = buildAlgaeBenefits(ctx({ algaeConfig: config }));
     expect(benefits.find((b) => b.key === 'excess_nutrients')?.amount).toBe(0);
     expect(benefits.find((b) => b.key === 'nutrient_deficiency')?.amount).toBe(0);
   });
@@ -206,7 +204,7 @@ describe('computeAlgaePopulation (aggregate)', () => {
       ctx({
         plants,
         resources: makeResources({
-          nitrate: getMassFromPpm(nutrientsDefaults.optimalNitratePpm * 3, 100),
+          nitrate: getMassFromPpm(algaeVitalityDefaults.referenceNitratePpm * 3, 100),
         }),
       })
     );

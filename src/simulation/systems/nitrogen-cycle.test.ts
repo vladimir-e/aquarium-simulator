@@ -641,6 +641,20 @@ describe('nitrogenCycleSystem', () => {
       expect(ammoniaEffect!.delta).toBeCloseTo(-wasteEffect!.delta * nitrogenCycleDefaults.wasteToAmmoniaRatio, 10);
     });
 
+    it('releases phosphate with the ammonia, in the organic matter’s own ratio', () => {
+      const released = (resource: 'ammonia' | 'phosphate', waste: number): number =>
+        nitrogenCycleSystem
+          .update(createTestState({ waste, water: 40 }), DEFAULT_CONFIG)
+          .find((e) => e.resource === resource && e.source === 'nitrogen-cycle-mineralization')!.delta;
+
+      for (const waste of [1, 10, 100]) {
+        expect(released('phosphate', waste) / released('ammonia', waste)).toBeCloseTo(
+          DEFAULT_CONFIG.nutrients.phosphatePerWaste / nitrogenCycleDefaults.wasteToAmmoniaRatio,
+          10
+        );
+      }
+    });
+
     it('produces no ammonia when waste is 0', () => {
       const state = createTestState({ waste: 0 });
       const effects = nitrogenCycleSystem.update(state, DEFAULT_CONFIG);

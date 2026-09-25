@@ -214,7 +214,6 @@ function algaeLedger(state: SimulationState, config: TunableConfig): Ledger {
     plants: state.plants,
     resources: state.resources,
     algaeConfig: config.algae,
-    nutrientsConfig: config.nutrients,
   });
   const mass = state.algae.mass;
   const helping = factors(population.breakdown.benefits);

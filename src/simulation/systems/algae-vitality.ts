@@ -37,7 +37,6 @@
 
 import type { Plant, Resources } from '../state.js';
 import type { AlgaeVitalityConfig } from '../config/algae-vitality.js';
-import type { NutrientsConfig } from '../config/nutrients.js';
 import { getPpm } from '../resources/index.js';
 import { getPlantPower } from './plant-power.js';
 import type { VitalityFactor } from './vitality.js';
@@ -46,7 +45,6 @@ export interface AlgaeVitalityContext {
   plants: readonly Plant[];
   resources: Resources;
   algaeConfig: AlgaeVitalityConfig;
-  nutrientsConfig: NutrientsConfig;
 }
 
 /**
@@ -115,7 +113,7 @@ export function buildAlgaeStressors(ctx: AlgaeVitalityContext): VitalityFactor[]
  * has a stable shape.
  */
 export function buildAlgaeBenefits(ctx: AlgaeVitalityContext): VitalityFactor[] {
-  const { plants, resources, algaeConfig, nutrientsConfig } = ctx;
+  const { plants, resources, algaeConfig } = ctx;
 
   // Excess light — substrate PAR above the threshold. Photoperiod-gated by
   // `resources.light` itself, which is already 0 at night.
@@ -125,19 +123,17 @@ export function buildAlgaeBenefits(ctx: AlgaeVitalityContext): VitalityFactor[] 
     algaeConfig.excessLightPeak
   );
 
-  // Nutrient excess / deficiency — relative to plant optimum from the
-  // nutrients config (which the player tunes for their planted setup).
-  // Excess fires when the tank has more than plants need; deficiency
-  // fires when the tank has less. Take the max across NO3/PO4 so a
-  // single overdose / starvation signal lights up the channel.
+  // Nutrient excess / deficiency — relative to algae's reference ppm.
+  // Take the max across NO3/PO4 so a single overdose / starvation signal
+  // lights up the channel.
   const waterVolume = resources.water;
   const nitratePpm = waterVolume > 0 ? getPpm(resources.nitrate, waterVolume) : 0;
   const phosphatePpm = waterVolume > 0 ? getPpm(resources.phosphate, waterVolume) : 0;
-  const optNo3 = nutrientsConfig.optimalNitratePpm;
-  const optPo4 = nutrientsConfig.optimalPhosphatePpm;
+  const refNo3 = algaeConfig.referenceNitratePpm;
+  const refPo4 = algaeConfig.referencePhosphatePpm;
 
-  const no3Ratio = optNo3 > 0 ? nitratePpm / optNo3 : 0;
-  const po4Ratio = optPo4 > 0 ? phosphatePpm / optPo4 : 0;
+  const no3Ratio = refNo3 > 0 ? nitratePpm / refNo3 : 0;
+  const po4Ratio = refPo4 > 0 ? phosphatePpm / refPo4 : 0;
 
   // Excess: largest fractional overshoot above optimum.
   const no3Excess = Math.max(0, no3Ratio - 1);
@@ -149,11 +145,9 @@ export function buildAlgaeBenefits(ctx: AlgaeVitalityContext): VitalityFactor[] 
     algaeConfig.excessNutrientPeak
   );
 
-  // Deficiency: largest shortfall below optimum (only fires when
-  // there is a *plant* optimum in the config; if both optima are
-  // zero or undefined, the deficit is zero).
-  const no3Deficit = optNo3 > 0 ? Math.max(0, 1 - no3Ratio) : 0;
-  const po4Deficit = optPo4 > 0 ? Math.max(0, 1 - po4Ratio) : 0;
+  // Deficiency: largest shortfall below the reference.
+  const no3Deficit = refNo3 > 0 ? Math.max(0, 1 - no3Ratio) : 0;
+  const po4Deficit = refPo4 > 0 ? Math.max(0, 1 - po4Ratio) : 0;
   const deficitRatio = Math.max(no3Deficit, po4Deficit);
   const nutrientDeficiency = cappedAmount(
     deficitRatio,

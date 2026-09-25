@@ -296,7 +296,9 @@ export {
 } from '../systems/plant-growth.js';
 export {
   calculateNutrientSufficiency,
-  getDemandMultiplier,
+  speciesDemand,
+  speciesHalfSaturation,
+  nutrientShare,
 } from '../systems/nutrients.js';
 export {
   calculateShedding,

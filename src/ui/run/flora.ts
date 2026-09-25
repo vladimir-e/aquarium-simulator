@@ -12,13 +12,12 @@ import {
   getPlantsToTrimCount,
   MAX_DOSE_ML,
   PLANT_SPECIES_DATA,
-  type NutrientDemand,
+  speciesHalfSaturation,
   type PlantSpecies,
   type Resources,
   type SimulationState,
   type VitalityFactor,
 } from '../../simulation/index.js';
-import { getDemandMultiplier } from '../../simulation/systems/nutrients.js';
 import { readPlantVitality } from '../../simulation/plants/index.js';
 import {
   getMassFromPpm,
@@ -182,7 +181,6 @@ export function algaeRow(state: SimulationState, config: TunableConfig): AlgaeRo
     plants: state.plants,
     resources: state.resources,
     algaeConfig: config.algae,
-    nutrientsConfig: config.nutrients,
   });
 
   return {
@@ -213,17 +211,11 @@ const NUTRIENT_RESOURCE: Record<NutrientKey, ResourceDefinition<NutrientKey>> = 
   iron: IronResource,
 };
 
-const OPTIMAL_PPM: Record<NutrientKey, (config: NutrientsConfig) => number> = {
-  nitrate: (c) => c.optimalNitratePpm,
-  phosphate: (c) => c.optimalPhosphatePpm,
-  potassium: (c) => c.optimalPotassiumPpm,
-  iron: (c) => c.optimalIronPpm,
-};
+/** Share of a plant's need a nutrient must meet for the panel to call it met. */
+const NEED_SHARE = 0.9;
 
 /** Mass is stored in mg, so a drained nutrient lands near zero rather than on it. */
 const DEPLETED_PPM = 0.001;
-
-const DEMAND_RANK: Record<NutrientDemand, number> = { low: 0, medium: 1, high: 2 };
 
 export interface NutrientReading {
   key: NutrientKey;
@@ -241,14 +233,13 @@ export interface NutrientReading {
   status: Status;
 }
 
-/** The demand tier the tank is fed to: its hungriest plant. */
-export function tankDemand(state: SimulationState): NutrientDemand | null {
-  let hungriest: NutrientDemand | null = null;
-  for (const plant of state.plants) {
-    const demand = PLANT_SPECIES_DATA[plant.species].nutrientDemand;
-    if (hungriest === null || DEMAND_RANK[demand] > DEMAND_RANK[hungriest]) hungriest = demand;
-  }
-  return hungriest;
+/** ppm at which the tank's hungriest plant has `NEED_SHARE` of its need met. */
+function neededPpm(state: SimulationState, key: NutrientKey, config: NutrientsConfig): number {
+  const halfSaturation = Math.max(
+    0,
+    ...state.plants.map((plant) => speciesHalfSaturation(plant.species, key, config))
+  );
+  return (halfSaturation * NEED_SHARE) / (1 - NEED_SHARE);
 }
 
 export function nutrientReadings(
@@ -256,12 +247,10 @@ export function nutrientReadings(
   config: TunableConfig
 ): NutrientReading[] {
   const nutrients = config.nutrients;
-  const demand = tankDemand(state);
-  const multiplier = demand === null ? 0 : getDemandMultiplier(demand, nutrients);
   const water = state.resources.water;
 
   const needs = Object.fromEntries(
-    NUTRIENT_KEYS.map((key) => [key, OPTIMAL_PPM[key](nutrients) * multiplier])
+    NUTRIENT_KEYS.map((key) => [key, neededPpm(state, key, nutrients)])
   ) as Record<NutrientKey, number>;
 
   // Everything the plants ask for, present at once — the probe's yardstick.
@@ -275,8 +264,8 @@ export function nutrientReadings(
   /**
    * Ask the engine rather than restate it: hold every other nutrient at what the
    * plants need and see whether leaving this one where it is costs sufficiency.
-   * That keeps the panel in step with the engine's own required-versus-booster
-   * rules per demand tier, and stays right when several are empty at once.
+   * That keeps the panel in step with each species' own demand, and stays right
+   * when several are empty at once.
    */
   const isLimiting = (key: NutrientKey): boolean => {
     if (needs[key] <= 0 || water <= 0) return false;

@@ -400,6 +400,8 @@ const AlgaeConfigSchema = z
     excessLightSeverity: z.number(),
     excessNutrientPeak: z.number(),
     excessNutrientSeverity: z.number(),
+    referenceNitratePpm: z.number(),
+    referencePhosphatePpm: z.number(),
     nutrientDeficiencyPeak: z.number(),
     nutrientDeficiencySeverity: z.number(),
     weaknessThreshold: z.number(),
@@ -431,9 +433,7 @@ const PlantsConfigSchema = z
     lowCo2HalfSaturation: z.number(),
     mediumCo2HalfSaturation: z.number(),
     highCo2HalfSaturation: z.number(),
-    optimalNitrate: z.number(),
     saturationIrradianceFactor: z.number(),
-    nutrientsPerPhotosynthesis: z.number(),
     baseRespirationRate: z.number(),
     respirationQ10: z.number(),
     respirationReferenceTemp: z.number(),
@@ -468,7 +468,7 @@ const PlantsConfigSchema = z
   })
   .strict();
 
-const FertilizerFormulaSchema = z
+const NutrientVectorSchema = z
   .object({
     nitrate: z.number(),
     phosphate: z.number(),
@@ -479,15 +479,13 @@ const FertilizerFormulaSchema = z
 
 const NutrientsConfigSchema = z
   .object({
-    fertilizerFormula: FertilizerFormulaSchema,
-    optimalNitratePpm: z.number(),
-    optimalPhosphatePpm: z.number(),
-    optimalPotassiumPpm: z.number(),
-    optimalIronPpm: z.number(),
-    lowDemandMultiplier: z.number(),
-    mediumDemandMultiplier: z.number(),
-    highDemandMultiplier: z.number(),
-    phosphatePerDecay: z.number(),
+    fertilizerFormula: NutrientVectorSchema,
+    uptakePerRateUnit: NutrientVectorSchema,
+    halfSaturation: NutrientVectorSchema,
+    demand: z
+      .object({ low: NutrientVectorSchema, medium: NutrientVectorSchema, high: NutrientVectorSchema })
+      .strict(),
+    phosphatePerWaste: z.number(),
   })
   .strict();
 

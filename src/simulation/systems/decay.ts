@@ -61,9 +61,8 @@ export const decaySystem: System = {
   update(state: SimulationState, config: TunableConfig): Effect[] {
     const effects: Effect[] = [];
     const decayConfig = config.decay;
-    const nutrientsConfig = config.nutrients;
 
-    // Decay food → waste + CO2 + O2 consumption + trace phosphate
+    // Decay food → waste + CO2 + O2 consumption
     if (state.resources.food > 0) {
       const decayAmount = calculateDecay(
         state.resources.food,
@@ -87,16 +86,6 @@ export const decaySystem: System = {
           tier: 'passive',
           resource: 'waste',
           delta: wasteAmount,
-          source: 'decay',
-        });
-
-        // Phosphate released from decaying organic matter (mg per gram)
-        // Links fish bioload to partial plant nutrition
-        const phosphateProduced = decayAmount * nutrientsConfig.phosphatePerDecay;
-        effects.push({
-          tier: 'passive',
-          resource: 'phosphate',
-          delta: phosphateProduced,
           source: 'decay',
         });
 

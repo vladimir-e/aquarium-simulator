@@ -89,13 +89,11 @@ export function processAlgae(
   config: TunableConfig
 ): AlgaeProcessingResult {
   const algaeConfig = config.algae;
-  const nutrientsConfig = config.nutrients;
 
   const { net } = computeAlgaePopulation({
     plants: state.plants,
     resources: state.resources,
     algaeConfig,
-    nutrientsConfig,
   });
 
   const photoperiodActive = state.resources.light > 0;

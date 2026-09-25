@@ -5,27 +5,19 @@
  * effects only — oxygen production, CO2 uptake, nutrient uptake. Plant
  * size growth flows through the surplus supply chain (vitality →
  * `Plant.surplus` → growth) and does NOT come from photosynthesis
- * output directly. Photosynthesis health (the Liebig-gated rate) shows
- * up upstream as the nutrient-deficiency stressor on vitality, which
- * gates surplus, which gates growth — no double-counting.
+ * output directly.
  *
- * - Consumes CO2, light, and plant macronutrients (NO3, PO4, K, Fe), and a
- *   little calcium and magnesium (GH) alongside them
- * - Produces oxygen
- * - Nutrient uptake runs at the *potential* rate (size × light × CO2) — plants
- *   draw nutrients from the water column even when one nutrient caps growth
- *   (real aquatic plants transpire and accumulate at rates driven by bulk
- *   photosynthetic drive, not by their internal use efficiency)
- *
- * Stoichiometry (overall):
- *   6CO2 + 6H2O + nutrients + light → C6H12O6 + 6O2
+ * Nutrient uptake follows the plant's own need — the tissue its light and
+ * carbon would build, scaled by its species demand — and each nutrient is
+ * taken on its own Monod curve. A plant held back by one nutrient keeps
+ * drawing the others it has water for.
  */
 
 import type { Plant } from '../state.js';
 import type { PlantsConfig } from '../config/plants.js';
 import { plantsDefaults } from '../config/plants.js';
-import type { NutrientsConfig, FertilizerFormula } from '../config/nutrients.js';
-import { nutrientsDefaults, getNutrientRatio } from '../config/nutrients.js';
+import type { NutrientsConfig, NutrientVector } from '../config/nutrients.js';
+import { NUTRIENTS, nutrientsDefaults } from '../config/nutrients.js';
 import type { Resources } from '../state.js';
 import { CO2_TO_O2_MASS_RATIO } from '../core/chemistry.js';
 import { lightSaturationFactor, monodFactor } from '../core/kinetics.js';
@@ -34,8 +26,8 @@ import {
   getSaturationIrradiance,
   type PlantSpecies,
 } from '../plants/species.js';
-import { getMassFromPpm } from '../resources/index.js';
-import { getDemandMultiplier } from './nutrients.js';
+import { getMassFromPpm, getPpm } from '../resources/index.js';
+import { nutrientShare, speciesDemand } from './nutrients.js';
 
 /**
  * Per-plant precomputed Liebig sufficiency, keyed by plant id. The
@@ -45,12 +37,11 @@ import { getDemandMultiplier } from './nutrients.js';
 export type SufficiencyMap = ReadonlyMap<string, number>;
 
 /**
- * mg of GH, as CaCO3, a plant takes up per mg of macronutrient it draws. Leaf
+ * mg of GH, as CaCO3, a plant takes up per mg of nitrate it draws. Leaf
  * tissue carries about a third as much calcium and a tenth as much magnesium
- * as nitrogen; read against the fertilizer ratio's nitrogen share and
- * converted to CaCO3 equivalents, that is ~0.15.
+ * as nitrogen; converted to CaCO3 equivalents per mg of NO3, that is ~0.28.
  */
-const GH_PER_NUTRIENT_DRAWN = 0.15;
+const GH_PER_NITRATE_DRAWN = 0.28;
 
 export interface PhotosynthesisResult {
   /** Oxygen released (mg, absolute — caller divides by water volume for mg/L delta) */
@@ -108,25 +99,15 @@ function emptyResult(): PhotosynthesisResult {
  * Per-plant contribution:
  *   lightResponse_i = tanh(PAR / Ik_i), the species' saturating light curve
  *   co2Factor_i = CO2 / (K_i + CO2), the species' carbon Monod
- *   potential_i = size_i × co2Factor_i × lightResponse_i
- *   actual_i    = potential_i × sufficiency_i × basePhotosynthesisRate
+ *   potential_i = size_i × co2Factor_i × lightResponse_i × basePhotosynthesisRate
+ *   actual_i    = potential_i × sufficiency_i
  *
  * Aggregate outputs, all masses in mg:
- *   uptake   = Σ (actual_i + 0.2 × potential_i) × nutrientsPerPhotosynthesis
- *              (split by fertilizer formula ratio across the 4 nutrients;
- *              sufficiency-gated, with a maintenance fraction that keeps
- *              a nutrient-limited plant trickling)
- *   co2      = actual × co2PerRateUnit, clamped to the dissolved mass
+ *   uptake_n = Σ potential_i × demand_i,n × uptakePerRateUnit_n × share_i,n
+ *   co2      = Σ actual × co2PerRateUnit, clamped to the dissolved mass
  *   oxygen   = co2 × CO2_TO_O2_MASS_RATIO
  *
- * @param plants            Individual plants (for per-species Liebig gating)
- * @param light             Substrate PAR (µmol/m²/s, 0 when off)
- * @param co2               Current CO2 concentration (mg/L)
- * @param resources         Full resource state (for the uptake clamping)
- * @param waterVolume       Tank water volume (L)
- * @param sufficiencyByPlantId  Precomputed Liebig sufficiency per plant id
- * @param plantsConfig      Plants configuration
- * @param nutrientsConfig   Nutrients configuration (thresholds + formula)
+ * where share_i,n is the Monod share of the plant's need for n the water meets.
  */
 export function calculatePhotosynthesis(
   plants: readonly Plant[],
@@ -144,15 +125,13 @@ export function calculatePhotosynthesis(
     return emptyResult();
   }
 
-  // Pre-compute fertilizer ratios once
-  const formula: FertilizerFormula = nutrientsConfig.fertilizerFormula;
-  const nitrateRatio = getNutrientRatio('nitrate', formula);
-  const phosphateRatio = getNutrientRatio('phosphate', formula);
-  const potassiumRatio = getNutrientRatio('potassium', formula);
-  const ironRatio = getNutrientRatio('iron', formula);
+  const ppm = Object.fromEntries(
+    NUTRIENTS.map((n) => [n, getPpm(resources[n], waterVolume)])
+  ) as NutrientVector;
+  const uptake: NutrientVector = { nitrate: 0, phosphate: 0, potassium: 0, iron: 0 };
 
-  let potentialSum = 0; // drives uptake + O2/CO2 scale
-  let weightedSufficiency = 0;
+  let potentialSum = 0;
+  let actualSum = 0;
 
   for (const plant of plants) {
     if (plant.size <= 0) continue;
@@ -161,63 +140,42 @@ export function calculatePhotosynthesis(
       getSaturationIrradiance(plant.species, plantsConfig)
     );
     const co2Factor = calculateCo2Factor(co2, plant.species, plantsConfig);
-    const potential = (plant.size / 100) * co2Factor * lightResponse;
+    const potential =
+      (plant.size / 100) * co2Factor * lightResponse * plantsConfig.basePhotosynthesisRate;
     potentialSum += potential;
-    // Sufficiency is precomputed by the orchestrator. Default to 0 for
-    // plants the caller hasn't supplied (defensive — should not happen
-    // in production paths).
-    const sufficiency = sufficiencyByPlantId.get(plant.id) ?? 0;
-    weightedSufficiency += potential * sufficiency;
+    actualSum += potential * (sufficiencyByPlantId.get(plant.id) ?? 0);
+
+    const demand = speciesDemand(plant.species, nutrientsConfig);
+    for (const n of NUTRIENTS) {
+      uptake[n] +=
+        potential *
+        demand[n] *
+        nutrientsConfig.uptakePerRateUnit[n] *
+        nutrientShare(ppm[n], plant.species, n, nutrientsConfig);
+    }
   }
 
-  // Potential photosynthesis (in "rate units", 1 = 100% plant × saturating light and carbon)
-  const potentialRate = potentialSum * plantsConfig.basePhotosynthesisRate;
-  // Actual photosynthesis (post-Liebig). Drives O2 release, CO2 fixation,
-  // and the active-biomass component of nutrient draw.
-  const actualRate = weightedSufficiency * plantsConfig.basePhotosynthesisRate;
-
-  // Nutrient uptake — tied to actual photosynthesis (Liebig-gated) plus a
-  // small "maintenance draw" from potential rate. This keeps consumption
-  // proportional to what plants actually build (so demand doesn't outrun
-  // dose at high biomass) while still depleting the water column when
-  // one nutrient caps growth (Variant B: plants keep trickling NO3 and PO4
-  // down even with zero K/Fe, matching scenario 02 expectations).
-  const UPTAKE_MAINTENANCE_FRACTION = 0.2;
-  const totalNutrientDraw =
-    (actualRate + potentialRate * UPTAKE_MAINTENANCE_FRACTION) *
-    plantsConfig.nutrientsPerPhotosynthesis;
-
-  // Proposed per-nutrient draw (mg). Clamp each to available mass so we never
-  // go negative. Negate at the end — use a helper to avoid -0 artifacts.
-  const drawFrom = (ratio: number, available: number): number => {
-    const draw = Math.min(totalNutrientDraw * ratio, Math.max(0, available));
+  const drawFrom = (n: keyof NutrientVector): number => {
+    const draw = Math.min(uptake[n], Math.max(0, resources[n]));
     return draw > 0 ? -draw : 0;
   };
-  const nitrateDelta = drawFrom(nitrateRatio, resources.nitrate);
-  const phosphateDelta = drawFrom(phosphateRatio, resources.phosphate);
-  const potassiumDelta = drawFrom(potassiumRatio, resources.potassium);
-  const ironDelta = drawFrom(ironRatio, resources.iron);
-  const nutrientsDrawn = -(nitrateDelta + phosphateDelta + potassiumDelta + ironDelta);
-  const ghDrawn = Math.min(nutrientsDrawn * GH_PER_NUTRIENT_DRAWN, Math.max(0, resources.gh));
-  const ghDelta = ghDrawn > 0 ? -ghDrawn : 0;
+  const nitrateDelta = drawFrom('nitrate');
+  const ghDrawn = Math.min(-nitrateDelta * GH_PER_NITRATE_DRAWN, Math.max(0, resources.gh));
 
   const co2ConsumedMg = Math.min(
-    actualRate * plantsConfig.co2PerRateUnit,
+    actualSum * plantsConfig.co2PerRateUnit,
     getMassFromPpm(co2, waterVolume)
   );
-  const oxygenProducedMg = co2ConsumedMg * CO2_TO_O2_MASS_RATIO;
-
-  const limitingFactor = potentialSum > 0 ? weightedSufficiency / potentialSum : 0;
 
   return {
-    oxygenProducedMg,
+    oxygenProducedMg: co2ConsumedMg * CO2_TO_O2_MASS_RATIO,
     co2ConsumedMg,
     nitrateDelta,
-    phosphateDelta,
-    potassiumDelta,
-    ironDelta,
-    ghDelta,
-    limitingFactor,
+    phosphateDelta: drawFrom('phosphate'),
+    potassiumDelta: drawFrom('potassium'),
+    ironDelta: drawFrom('iron'),
+    ghDelta: ghDrawn > 0 ? -ghDrawn : 0,
+    limitingFactor: potentialSum > 0 ? actualSum / potentialSum : 0,
   };
 }
 
@@ -229,6 +187,3 @@ export function getTotalPlantSize(
 ): number {
   return plants.reduce((sum, plant) => sum + plant.size, 0);
 }
-
-// Re-export helper used in tests to stay compatible.
-export { getDemandMultiplier };

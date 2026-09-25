@@ -7,11 +7,21 @@ import { carbonateKh } from '../core/carbonate.js';
 import { getKhMass } from '../resources/helpers.js';
 import { DEFAULT_CONFIG } from '../config/index.js';
 import { plantsDefaults } from '../config/plants.js';
-import { nutrientsDefaults } from '../config/nutrients.js';
+import { NUTRIENTS, nutrientsDefaults } from '../config/nutrients.js';
 import { establishmentSurplus } from './create-plant.js';
 import { PLANT_SPECIES_DATA } from './species.js';
 
 const INJECTED_CO2 = 25;
+
+/** Half-saturations the rich test water holds of every nutrient but nitrate. */
+const RICH = 1000;
+/** Just under the toxicity line: as near saturating as nitrate gets. */
+const RICH_NITRATE_PPM = 90;
+
+/** Zero half-saturations: any nutrient present meets the whole need, so no deficiency charges the bank. */
+const UNLIMITED = produce(DEFAULT_CONFIG, (draft) => {
+  for (const n of NUTRIENTS) draft.nutrients.halfSaturation[n] = 0;
+});
 
 describe('processPlants', () => {
   const C = 100;
@@ -40,10 +50,10 @@ describe('processPlants', () => {
   > = {}): SimulationState {
     return produce(createSimulation({ tankCapacity: 100 }), (draft) => {
       const water = resources.water ?? draft.resources.water;
-      draft.resources.phosphate = nutrientsDefaults.optimalPhosphatePpm * water;
-      draft.resources.potassium = nutrientsDefaults.optimalPotassiumPpm * water;
-      draft.resources.iron = nutrientsDefaults.optimalIronPpm * water;
-      draft.resources.nitrate = nutrientsDefaults.optimalNitratePpm * water;
+      for (const n of NUTRIENTS) {
+        draft.resources[n] = nutrientsDefaults.halfSaturation[n] * RICH * water;
+      }
+      draft.resources.nitrate = RICH_NITRATE_PPM * water;
       Object.assign(draft.resources, resources);
       if (plants !== undefined) draft.plants = plants;
     });
@@ -69,7 +79,7 @@ describe('processPlants', () => {
         plants: defaultPlants,
         light: 50,
         co2: INJECTED_CO2,
-        nitrate: plantsDefaults.optimalNitrate * 100,
+        nitrate: RICH_NITRATE_PPM * 100,
         water: 100,
       });
       const { effects } = processPlants(state, DEFAULT_CONFIG);
@@ -89,7 +99,7 @@ describe('processPlants', () => {
         plants: [{ id: 'p1', species: 'java_fern', size: 50, condition: C, surplus: BANK }],
         light: 50,
         co2: INJECTED_CO2,
-        nitrate: plantsDefaults.optimalNitrate * 100,
+        nitrate: RICH_NITRATE_PPM * 100,
         water: 100,
       });
       const result = processPlants(state, DEFAULT_CONFIG);
@@ -104,7 +114,7 @@ describe('processPlants', () => {
         ],
         light: 50,
         co2: INJECTED_CO2,
-        nitrate: plantsDefaults.optimalNitrate * 100,
+        nitrate: RICH_NITRATE_PPM * 100,
         water: 100,
       });
       const result = processPlants(state, DEFAULT_CONFIG);
@@ -120,7 +130,7 @@ describe('processPlants', () => {
         ],
         light: 50,
         co2: INJECTED_CO2,
-        nitrate: plantsDefaults.optimalNitrate * 100,
+        nitrate: RICH_NITRATE_PPM * 100,
         water: 100,
       });
       const result = processPlants(state, DEFAULT_CONFIG);
@@ -141,7 +151,7 @@ describe('processPlants', () => {
         plants: defaultPlants,
         light: 0,
         co2: INJECTED_CO2,
-        nitrate: plantsDefaults.optimalNitrate * 100,
+        nitrate: RICH_NITRATE_PPM * 100,
         water: 100,
       });
       const result = processPlants(state, DEFAULT_CONFIG);
@@ -169,7 +179,7 @@ describe('processPlants', () => {
         plants: [{ id: 'p1', species: 'java_fern', size: 50, condition: 100, surplus: 5 }],
         light: 0,
         co2: INJECTED_CO2,
-        nitrate: plantsDefaults.optimalNitrate * 100,
+        nitrate: RICH_NITRATE_PPM * 100,
         temperature: 25,
         water: 100,
       });
@@ -185,7 +195,7 @@ describe('processPlants', () => {
         temperature: 25,
         water: 100,
       });
-      const result = processPlants(state, DEFAULT_CONFIG);
+      const result = processPlants(state, UNLIMITED);
       expect(result.state.plants[0].size).toBe(50);
       expect(result.state.plants[0].surplus).toBeCloseTo(40 - NIGHTLY_UPKEEP, 12);
     });
@@ -195,7 +205,7 @@ describe('processPlants', () => {
         plants: [{ id: 'p1', species: 'java_fern', size: 50, condition: 100, surplus: 10 }],
         light: 50,
         co2: INJECTED_CO2,
-        nitrate: plantsDefaults.optimalNitrate * 100,
+        nitrate: RICH_NITRATE_PPM * 100,
         temperature: 25,
         water: 100,
       });
@@ -217,7 +227,7 @@ describe('processPlants', () => {
         ],
         light: 50,
         co2: INJECTED_CO2,
-        nitrate: plantsDefaults.optimalNitrate * 100,
+        nitrate: RICH_NITRATE_PPM * 100,
         temperature: 25,
         water: 100,
       });
@@ -256,11 +266,7 @@ describe('processPlants', () => {
           plants: [{ id: 'p1', species, size: 100, condition: C, surplus: 0 }],
           light,
           co2: INJECTED_CO2,
-          nitrate: plantsDefaults.optimalNitrate * 100 * 3,
-          phosphate: nutrientsDefaults.optimalPhosphatePpm * 100 * 3,
-          potassium: nutrientsDefaults.optimalPotassiumPpm * 100 * 3,
-          iron: nutrientsDefaults.optimalIronPpm * 100 * 3,
-          water: 100,
+                    water: 100,
           temperature: 25,
         }),
         DEFAULT_CONFIG
@@ -302,7 +308,7 @@ describe('processPlants', () => {
           plants: planting,
           light,
           co2: INJECTED_CO2,
-          nitrate: plantsDefaults.optimalNitrate * water,
+          nitrate: RICH_NITRATE_PPM * water,
           water,
           temperature: 25,
         }),
@@ -381,7 +387,7 @@ describe('processPlants', () => {
         ],
         light: 50,
         co2: INJECTED_CO2,
-        nitrate: plantsDefaults.optimalNitrate * 100,
+        nitrate: RICH_NITRATE_PPM * 100,
         water: 100,
         temperature: 25,
       });
@@ -399,7 +405,7 @@ describe('processPlants', () => {
         plants: [{ id: 'p1', species: 'java_fern', size: 50, condition: C, surplus: 0 }],
         light: 50,
         co2: INJECTED_CO2,
-        nitrate: plantsDefaults.optimalNitrate * 100,
+        nitrate: RICH_NITRATE_PPM * 100,
         water: 100,
       });
       const originalSize = state.plants[0].size;
@@ -423,8 +429,8 @@ describe('processPlants', () => {
         water: 100,
       });
 
-      const bankedOut = processPlants(withBank, DEFAULT_CONFIG).state.plants[0];
-      const bareOut = processPlants(bare, DEFAULT_CONFIG).state.plants[0];
+      const bankedOut = processPlants(withBank, UNLIMITED).state.plants[0];
+      const bareOut = processPlants(bare, UNLIMITED).state.plants[0];
 
       expect(bankedOut.size).toBe(50);
       expect(bankedOut.surplus).toBeLessThan(20);
@@ -464,7 +470,7 @@ describe('processPlants', () => {
         light: 0,
         water: 100,
       });
-      const out = processPlants(state, DEFAULT_CONFIG).state.plants[0];
+      const out = processPlants(state, UNLIMITED).state.plants[0];
       expect(out.surplus).toBeCloseTo(plantsDefaults.surplusCap - NIGHTLY_UPKEEP, 12);
     });
   });
@@ -477,7 +483,7 @@ describe('processPlants', () => {
         plants: [{ id: 'p1', species: 'java_fern', size: 50, condition: 100, surplus: 0 }],
         light: 50,
         co2: INJECTED_CO2,
-        nitrate: plantsDefaults.optimalNitrate * 100,
+        nitrate: RICH_NITRATE_PPM * 100,
         temperature: 25,
         water: 100,
       });

@@ -20,8 +20,6 @@ export interface PlantsConfig {
   mediumCo2HalfSaturation: number;
   /** Same, for a high-need species. */
   highCo2HalfSaturation: number;
-  /** Optimal nitrate concentration for max growth (ppm) */
-  optimalNitrate: number;
   /**
    * Multiple of a species' `tolerableLight` lower bound at which it saturates.
    * The product is the `Ik` of the Jassby–Platt curve, in PAR: a species'
@@ -31,14 +29,6 @@ export interface PlantsConfig {
    * light-insufficient stressor charges it.
    */
   saturationIrradianceFactor: number;
-  /**
-   * Total plant nutrients (NO3 + PO4 + K + Fe) consumed per unit of "potential
-   * photosynthesis" (plant size × light × CO2, pre-Liebig). Consumption is
-   * split across the four nutrients by the fertilizer formula ratio.
-   * Calibrated so at Variant A steady state the plants' daily uptake roughly
-   * matches the 1 ml/day auto-dose + fish bioload (scenario 02).
-   */
-  nutrientsPerPhotosynthesis: number;
 
   // Respiration constants
   /** Base respiration rate per 100% plant size per hour */
@@ -175,22 +165,10 @@ export const plantsDefaults: PlantsConfig = {
   lowCo2HalfSaturation: 1.5,
   mediumCo2HalfSaturation: 3,
   highCo2HalfSaturation: 8,
-  optimalNitrate: 10.0, // ppm - typical target for planted tanks
   // A species saturates at twice the PAR its band starts at. What that reads
   // across the roster, and why it lands where the literature does, is in
   // `plants/species.ts`.
   saturationIrradianceFactor: 2.0,
-  // Calibrated against scenario 02: at ~300 % total plant size with 8 hr
-  // photoperiod and saturating CO2, potential photosynthesis ≈ 1.0 × 3.0 × 1.0
-  // = 3.0 / hr → 24 units / day. 4 mg/unit × 24 × 1.2 (active biomass +
-  // 20 % maintenance draw) ≈ 115 mg/day total nutrient uptake at full
-  // sufficiency — matches the 1 ml/day auto-dose (96 mg) + fish bioload
-  // + ambient mineralization so NO3 plateaus instead of runaway.
-  // See `systems/photosynthesis.ts` for the uptake formula; it blends
-  // Liebig-gated biomass draw with a smaller potential-rate maintenance
-  // draw, so Variant B plants keep trickling nutrients down even with a
-  // starved limiting factor.
-  nutrientsPerPhotosynthesis: 4.0,
 
   // Dark respiration, runs 24/7 — a share of the rate at saturating light and
   // carbon. On the 4 mg/L an uninjected tank holds, 0.03 is 4–9 % of what a
@@ -331,7 +309,6 @@ export const plantsConfigMeta: PlantsConfigMeta[] = [
   { key: 'lowCo2HalfSaturation', label: 'Low-Need CO2 Half-Saturation', unit: 'mg/L', min: 0.5, max: 20, step: 0.5 },
   { key: 'mediumCo2HalfSaturation', label: 'Medium-Need CO2 Half-Saturation', unit: 'mg/L', min: 0.5, max: 20, step: 0.5 },
   { key: 'highCo2HalfSaturation', label: 'High-Need CO2 Half-Saturation', unit: 'mg/L', min: 0.5, max: 20, step: 0.5 },
-  { key: 'optimalNitrate', label: 'Optimal Nitrate', unit: 'ppm', min: 5, max: 30, step: 1 },
   {
     key: 'saturationIrradianceFactor',
     label: 'Saturation Irradiance Factor',
@@ -340,14 +317,7 @@ export const plantsConfigMeta: PlantsConfigMeta[] = [
     max: 5,
     step: 0.1,
   },
-  {
-    key: 'nutrientsPerPhotosynthesis',
-    label: 'Nutrients per Photosynthesis',
-    unit: 'mg',
-    min: 0.5,
-    max: 20,
-    step: 0.5,
-  },
+
   // Respiration
   {
     key: 'baseRespirationRate',

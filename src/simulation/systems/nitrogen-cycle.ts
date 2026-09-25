@@ -464,7 +464,7 @@ export const nitrogenCycleSystem: System = {
     }
 
     // ========================================================================
-    // Stage 1: Waste → Ammonia (Mineralization)
+    // Stage 1: Waste → Ammonia + Phosphate (Mineralization)
     // Produces ammonia mass (mg) from waste (g)
     // ========================================================================
     if (currentWaste > 0) {
@@ -483,6 +483,12 @@ export const nitrogenCycleSystem: System = {
           tier: 'passive',
           resource: 'ammonia',
           delta: ammoniaProduced, // mg
+          source: 'nitrogen-cycle-mineralization',
+        });
+        effects.push({
+          tier: 'passive',
+          resource: 'phosphate',
+          delta: wasteConsumed * config.nutrients.phosphatePerWaste,
           source: 'nitrogen-cycle-mineralization',
         });
         currentAmmonia += ammoniaProduced;

@@ -41,7 +41,7 @@ tank has to keep earning.
 
 | Stage | Reaction | Run by |
 |---|---|---|
-| 1 · Mineralization | waste (g) → NH₃ (mg) | No organism. A flat fraction of standing waste, times a stoichiometric N content. |
+| 1 · Mineralization | waste (g) → NH₃ + PO₄ (mg) | No organism. A flat fraction of standing waste, times a stoichiometric N and P content. |
 | 2 · Ammonia oxidation | NH₄⁺ + 1.5 O₂ → NO₂⁻ + 2 H⁺ + H₂O | AOB, saturating on what is dissolved |
 | 3 · Nitrite oxidation | NO₂⁻ + 0.5 O₂ → NO₃⁻ | NOB, saturating on what is dissolved |
 
@@ -67,6 +67,7 @@ separately. A tank that cannot run the reaction does not pay for it.
 |---|---|---|---|
 | `waste` | Food decay, fish feces, fish death, plant tissue loss, substrate leaching | Mineralization to ammonia; settling into the bed | g |
 | `ammonia` | Mineralization; fish gill excretion | AOB oxidation; water change removes proportional mass | mg |
+| `phosphate` | Mineralization, at `phosphatePerWaste` beside the ammonia; fertilizer dosing | Plant uptake; water change | mg |
 | `nitrite` | AOB oxidation, × 2.702 | NOB oxidation; water change | mg |
 | `nitrate` | NOB oxidation, × 1.348; fertilizer dosing | Plant uptake; water change | mg |
 | `aob` | Seeding trickle; logistic growth on utilization | Maintenance decay; surface-area cap | units of 10⁶ cells |
@@ -280,7 +281,7 @@ one pinned to a real measurement.
 | [Environment](/subsystems/environment/) | `water` for ppm and the submerged gate, `temperature` for the Q10 factor | — |
 | [Equipment](/subsystems/equipment/) | `surface` — the colony ceiling, from filter media, substrate, hardscape and glass | `waste` — settles into the substrate's organic reserve and leaches back out of it |
 | [Livestock](/subsystems/livestock/) | — | Fish write `ammonia` directly through gill excretion, and `waste` as feces and death mass |
-| [Plants](/subsystems/plants/) | — | Plants drain `nitrate` on uptake and add `waste` from tissue loss |
+| [Plants](/subsystems/plants/) | — | Plants drain `nitrate` and `phosphate` on uptake and add `waste` from tissue loss |
 | [Algae](/subsystems/algae/) | — | Algae reads `nitrate` as a growth benefit but consumes none of it |
 | [Actions](/subsystems/actions/) | — | A water change removes `ammonia`, `nitrite` and `nitrate` mass proportionally, and a gravel vac a share of the bed's reserve; dosing adds `nitrate`; uprooting a plant disturbs the bed |
 | [Alerts & logging](/subsystems/alerts-and-logging/) | — | Free NH₃ > 0.02 ppm, nitrite > 1.0 ppm and nitrate > 80 ppm each raise an alert once per crossing |

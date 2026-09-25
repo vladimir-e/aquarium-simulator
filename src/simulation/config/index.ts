@@ -44,13 +44,17 @@ export {
 } from './water-chemistry.js';
 export { type PlantsConfig, plantsDefaults, plantsConfigMeta } from './plants.js';
 export {
+  NUTRIENTS,
+  type Nutrient,
+  type NutrientVector,
   type NutrientsConfig,
   type FertilizerFormula,
   nutrientsDefaults,
   nutrientsConfigMeta,
   fertilizerFormulaMeta,
-  getTotalFertilizerNutrients,
-  getNutrientRatio,
+  uptakeMeta,
+  halfSaturationMeta,
+  demandMeta,
 } from './nutrients.js';
 export {
   type LivestockConfig,
@@ -96,6 +100,9 @@ import {
   nutrientsDefaults,
   nutrientsConfigMeta,
   fertilizerFormulaMeta,
+  uptakeMeta,
+  halfSaturationMeta,
+  demandMeta,
 } from './nutrients.js';
 import { type LivestockConfig, livestockDefaults, livestockConfigMeta } from './livestock.js';
 
@@ -139,6 +146,12 @@ interface RangedMeta {
   max?: number;
 }
 
+type NestedNutrientsPath =
+  | 'nutrients.fertilizerFormula'
+  | 'nutrients.uptakePerRateUnit'
+  | 'nutrients.halfSaturation'
+  | `nutrients.demand.${keyof NutrientsConfig['demand']}`;
+
 const CONFIG_META: ReadonlyMap<string, readonly RangedMeta[]> = new Map(
   Object.entries({
     decay: decayConfigMeta,
@@ -152,8 +165,13 @@ const CONFIG_META: ReadonlyMap<string, readonly RangedMeta[]> = new Map(
     plants: plantsConfigMeta,
     nutrients: nutrientsConfigMeta,
     'nutrients.fertilizerFormula': fertilizerFormulaMeta,
+    'nutrients.uptakePerRateUnit': uptakeMeta,
+    'nutrients.halfSaturation': halfSaturationMeta,
+    'nutrients.demand.low': demandMeta,
+    'nutrients.demand.medium': demandMeta,
+    'nutrients.demand.high': demandMeta,
     livestock: livestockConfigMeta,
-  } satisfies Record<keyof TunableConfig | 'nutrients.fertilizerFormula', readonly RangedMeta[]>)
+  } satisfies Record<keyof TunableConfig | NestedNutrientsPath, readonly RangedMeta[]>)
 );
 
 export interface ConfigRange {

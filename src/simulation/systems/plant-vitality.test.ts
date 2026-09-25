@@ -174,10 +174,19 @@ describe('buildPlantStressors', () => {
       (s) => s.key === key
     )?.amount ?? 0;
 
-  it('charges an Anubias in good conditions nothing at all', () => {
+  it('charges an Anubias in good conditions nothing but the tail of its nutrient curve', () => {
     const plant = makePlant('anubias', { surplus: plantsDefaults.surplusCap });
-    for (const s of buildPlantStressors(ctx(plant, makeResources()))) {
-      expect(s.amount).toBe(0);
+    const context = ctx(plant, makeResources());
+    for (const s of buildPlantStressors(context)) {
+      if (s.key === 'nutrients') {
+        expect(s.amount).toBeCloseTo(
+          plantsDefaults.nutrientDeficiencySeverity * (1 - context.nutrientSufficiency),
+          12
+        );
+        expect(s.amount).toBeLessThan(0.1 * plantsDefaults.nutrientDeficiencySeverity);
+      } else {
+        expect(s.amount).toBe(0);
+      }
     }
   });
 
@@ -268,7 +277,8 @@ describe('buildPlantBenefits', () => {
       temperature: 25,
       ph: 7.0,
     });
-    const benefits = buildPlantBenefits(ctx(plant, resources));
+    const context = ctx(plant, resources);
+    const benefits = buildPlantBenefits(context);
     const keys = benefits.map((b) => b.key).sort();
     expect(keys).toEqual(['co2', 'nutrients', 'ph', 'temperature']);
 
@@ -278,7 +288,8 @@ describe('buildPlantBenefits', () => {
     );
     const carbon = calculateCo2Factor(5, 'anubias');
     for (const benefit of benefits) {
-      const share = benefit.key === 'co2' ? carbon : 1;
+      const share =
+        benefit.key === 'co2' ? carbon : benefit.key === 'nutrients' ? context.nutrientSufficiency : 1;
       expect(benefit.amount).toBeCloseTo(PEAK[benefit.key]! * saturation * share, 12);
     }
   });
@@ -354,7 +365,11 @@ describe('buildPlantBenefits', () => {
       expect(atFactor(4)).toBeLessThan(atFactor(2));
       expect(atFactor(2)).toBeLessThan(atFactor(1));
       const carbonShort = PEAK.co2! * (1 - calculateCo2Factor(20, 'anubias'));
-      expect(atFactor(0)).toBeCloseTo(PEAKS - carbonShort, 12);
+      const resources = makeResources({ light: 20 });
+      const nutrientShort =
+        PEAK.nutrients! *
+        (1 - calculateNutrientSufficiency(resources, resources.water, 'anubias', nutrientsDefaults));
+      expect(atFactor(0)).toBeCloseTo(PEAKS - carbonShort - nutrientShort, 12);
     });
   });
 });

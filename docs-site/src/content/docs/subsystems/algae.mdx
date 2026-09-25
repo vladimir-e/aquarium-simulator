@@ -51,8 +51,8 @@ tick, which is the accepted cost of that ordering.
 | Channel | Reads | Shape | Peak |
 |---|---|---|---|
 | `excess_light` | Substrate PAR | `0.004` per PAR above `70`, capped | `0.4` %/h at 170 PAR |
-| `excess_nutrients` | The larger of NO₃/`15` and PO₄/`1.0` | `0.4` per unit of overshoot above 1×, capped | `0.4` %/h at 2× optimum |
-| `nutrient_deficiency` | The same ratio, below 1× | `0.1` per unit of shortfall, capped | `0.05` %/h at half optimum |
+| `excess_nutrients` | The larger of NO₃/`15` and PO₄/`1.0` | `0.4` per unit of overshoot above 1×, capped | `0.4` %/h at 2× the reference |
+| `nutrient_deficiency` | The same ratio, below 1× | `0.1` per unit of shortfall, capped | `0.05` %/h at half the reference |
 | `low_plant_power` | Plant power below `0.3` | `0.4` per unit of shortfall | `0.12` %/h at zero plants |
 | `plant_suppression` | Plant power above `1.0` | `0.2` per unit, then × `0.6` for hardiness | unbounded — the only stressor |
 
@@ -123,6 +123,7 @@ bloom. Scrubbing and restoring plant health are the two ways out.
 | `lightExcessThreshold` | Substrate PAR above which light starts paying | `70` PAR |
 | `excessLightSeverity` | Benefit per PAR above that line | `0.004` %/PAR/hr |
 | `excessNutrientSeverity` | Benefit per unit of nutrient overshoot | `0.4` %/ratio/hr |
+| `referenceNitratePpm` · `referencePhosphatePpm` | The NO₃ and PO₄ the nutrient channels read their ratio against | `15` · `1` ppm |
 | `algaeGrowthPerTickCap` | Bank the bloom may spend on mass in one tick | `2.0` surplus |
 | `massPerSurplus` | Mass bought per surplus unit, before the asymptotic factor | `0.5` |
 | `surplusCap` | Ceiling on the bank | `50` |

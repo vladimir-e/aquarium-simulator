@@ -28,7 +28,7 @@ declared minimum of `0.1`.
 | Optics | `optics.` | What the water column takes out of the light on the way down |
 | Water chemistry | `waterChemistry.` | What calcite, driftwood and aqua soil do to KH and GH |
 | Plants | `plants.` | Photosynthesis, respiration, vitality, growth, lifecycle |
-| Nutrients | `nutrients.` | Fertilizer formula, optimal concentrations, demand tiers |
+| Nutrients | `nutrients.` | Fertilizer formula, plant uptake and half-saturations, demand tiers, waste phosphate |
 | Livestock | `livestock.` | Metabolism, satiation, vitality, death |
 
 The values themselves are not repeated here. They move when the model is
@@ -118,7 +118,8 @@ density you can look up rather than a score.
 | `weaknessThreshold` | Plant power below which a weak planting becomes a benefit to algae | power |
 | `lightExcessThreshold` | Substrate PAR above which light stops being what plants use and starts feeding algae | PAR |
 | `excessLightPeak` · `excessLightSeverity` | The excess-light benefit: its ceiling, and its rate per PAR over the threshold | %/hr · %/PAR/hr |
-| `excessNutrientPeak` · `excessNutrientSeverity` | The excess-nutrient benefit, against the larger of the NO₃ and PO₄ ratios over optimum | %/hr · %/ratio/hr |
+| `excessNutrientPeak` · `excessNutrientSeverity` | The excess-nutrient benefit, against the larger of the NO₃ and PO₄ ratios over the reference | %/hr · %/ratio/hr |
+| `referenceNitratePpm` · `referencePhosphatePpm` | The NO₃ and PO₄ both nutrient channels read their ratio against | ppm |
 | `nutrientDeficiencyPeak` · `nutrientDeficiencySeverity` | The starved-plants benefit — deliberately small, a canary rather than a lever | %/hr · %/(1−ratio)/hr |
 | `lowPlantPowerPeak` · `lowPlantPowerSeverity` | The weak-planting benefit, per unit of power below `weaknessThreshold` | %/hr · %/power/hr |
 | `algaeGrowthPerTickCap` | Ceiling on surplus spent turning into mass in one tick | surplus |
@@ -145,9 +146,7 @@ density you can look up rather than a score.
 |---|---|---|
 | `basePhotosynthesisRate` | Rate one unit of plant size fixes carbon at, under ideal conditions | /hr |
 | `lowCo2HalfSaturation` · `mediumCo2HalfSaturation` · `highCo2HalfSaturation` | CO₂ at which a species of each carbon need photosynthesises at half rate | mg/L |
-| `optimalNitrate` | Nitrate the growth term is quoted against | ppm |
 | `saturationIrradianceFactor` | Multiple of a species' band low at which its light response saturates | × band low |
-| `nutrientsPerPhotosynthesis` | Total nutrients drawn per unit of potential photosynthesis, split by the fertilizer ratio | mg |
 | `co2PerRateUnit` | CO₂ carried by one rate unit; oxygen derives from it at the molar ratio | mg |
 | `baseRespirationRate` | Dark respiration per unit of plant size, running around the clock | /hr |
 | `respirationQ10` | Factor respiration multiplies by per 10 °C | — |
@@ -175,10 +174,11 @@ sum once, centrally, rather than each channel scaling itself.
 
 | Tunable | Meaning | Unit |
 |---|---|---|
-| `fertilizerFormula.nitrate` · `.phosphate` · `.potassium` · `.iron` | The all-in-one fertilizer's composition per ml. Plants consume in the same ratio | mg/ml |
-| `optimalNitratePpm` · `optimalPhosphatePpm` · `optimalPotassiumPpm` · `optimalIronPpm` | The concentration each nutrient reaches full sufficiency at | ppm |
-| `lowDemandMultiplier` · `mediumDemandMultiplier` · `highDemandMultiplier` | Share of optimal each species demand tier actually needs | — |
-| `phosphatePerDecay` | Phosphate mineralized per gram of organic matter decayed | mg/g |
+| `fertilizerFormula.nitrate` · `.phosphate` · `.potassium` · `.iron` | The all-in-one fertilizer's composition per ml | mg/ml |
+| `uptakePerRateUnit.*` | What a full-demand plant takes of each nutrient per rate unit of photosynthetic drive | mg |
+| `halfSaturation.*` | The ppm at which a full-demand plant's uptake and sufficiency run at half | ppm |
+| `demand.low.*` · `demand.medium.*` · `demand.high.*` | Each tier's share of the full need, per nutrient; scales both uptake and half-saturation | — |
+| `phosphatePerWaste` | Phosphate mineralized alongside the ammonia, per gram of waste | mg/g |
 
 ## Livestock
 

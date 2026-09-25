@@ -1,90 +1,76 @@
 /**
- * Nutrients system tunable configuration.
- *
- * Calibration targets:
- * - Fertilizer: Supplements fish waste; consumption is slow (0.1 mg/hr per 100% plants)
- *   At 100% plant coverage, 1ml (96mg) lasts ~40 days; primary nutrients come from waste
- * - Low-tech balance: Fish waste provides 50-70% of low-demand plant needs
- * - Overdose margin: 2-3x optimal before algae significantly benefits
- *
- * Plant condition is now driven by `systems/plant-vitality.ts` against
- * `plantsConfig` (vitality benefit/damage rates per factor); this file
- * only controls nutrient demand and the shedding/death thresholds.
+ * Nutrients tunable configuration: what the fertilizer carries, what plants
+ * take and how hard each species leans on the water column for it, and the
+ * phosphate that rides with nitrogen out of mineralized waste.
  */
 
-/**
- * Fertilizer formula - nutrients provided per 1ml of all-in-one fertilizer.
- * Plants consume nutrients in this same ratio.
- */
-export interface FertilizerFormula {
-  /** Nitrate mg per ml */
-  nitrate: number;
-  /** Phosphate mg per ml */
-  phosphate: number;
-  /** Potassium mg per ml */
-  potassium: number;
-  /** Iron mg per ml */
-  iron: number;
-}
+import type { NutrientDemand } from '../plants/species.js';
+
+export const NUTRIENTS = ['nitrate', 'phosphate', 'potassium', 'iron'] as const;
+
+export type Nutrient = (typeof NUTRIENTS)[number];
+
+export type NutrientVector = Record<Nutrient, number>;
+
+/** Nutrients provided per 1 ml of all-in-one fertilizer, mg. */
+export type FertilizerFormula = NutrientVector;
 
 export interface NutrientsConfig {
-  // Fertilizer formula (mg per ml)
-  /** Fertilizer composition - nutrients per ml */
   fertilizerFormula: FertilizerFormula;
-
-  // Optimal nutrient thresholds (ppm)
-  /** Optimal nitrate concentration (ppm) - target for planted tanks */
-  optimalNitratePpm: number;
-  /** Optimal phosphate concentration (ppm) */
-  optimalPhosphatePpm: number;
-  /** Optimal potassium concentration (ppm) */
-  optimalPotassiumPpm: number;
-  /** Optimal iron concentration (ppm) */
-  optimalIronPpm: number;
-
-  // Demand multipliers by plant demand level
-  /** Low-demand plants need this fraction of optimal (0.3 = 30%) */
-  lowDemandMultiplier: number;
-  /** Medium-demand plants need this fraction of optimal */
-  mediumDemandMultiplier: number;
-  /** High-demand plants need full optimal */
-  highDemandMultiplier: number;
-
-  // Decay phosphate production
-  /** Phosphate produced per gram of decayed mass (mg/g) */
-  phosphatePerDecay: number;
+  /**
+   * mg a full-demand plant takes of each nutrient per rate unit of
+   * photosynthetic drive — the tissue that one rate unit of carbon builds.
+   */
+  uptakePerRateUnit: NutrientVector;
+  /** ppm at which a full-demand plant's uptake and sufficiency run at half. */
+  halfSaturation: NutrientVector;
+  /**
+   * Share of a full-demand plant's need, per nutrient, for each species tier.
+   * It scales both the uptake and the half-saturation, so a species needing
+   * none of a nutrient takes none of it and is never limited by it.
+   */
+  demand: Record<NutrientDemand, NutrientVector>;
+  /** Phosphate mineralized alongside the ammonia, per gram of waste (mg/g). */
+  phosphatePerWaste: number;
 }
 
 export const nutrientsDefaults: NutrientsConfig = {
-  // Fertilizer formula - concentrated all-in-one
-  // 5ml in 40L: NO3 6.25ppm (42%), PO4 0.625ppm (63%), K 5ppm (50%), Fe 0.125ppm (63%)
+  // 5ml in 40L: NO3 6.25ppm, PO4 0.625ppm, K 5ppm, Fe 0.125ppm
   fertilizerFormula: {
-    nitrate: 50.0, // mg per ml (5ml/40L = 6.25 ppm, 42% of 15ppm optimal)
-    phosphate: 5.0, // mg per ml (5ml/40L = 0.625 ppm, 63% of 1ppm optimal)
-    potassium: 40.0, // mg per ml (5ml/40L = 5 ppm, 50% of 10ppm optimal)
-    iron: 1.0, // mg per ml (5ml/40L = 0.125 ppm, 63% of 0.2ppm optimal)
+    nitrate: 50.0,
+    phosphate: 5.0,
+    potassium: 40.0,
+    iron: 1.0,
   },
 
-  // Optimal thresholds (ppm) — tuned so a well-run planted tank with the
-  // default fertilizer formula reaches thriving sufficiency for high-
-  // demand species at realistic dose rates. Values at the low end of the
-  // literature ranges; hobbyists see plants thrive well before hitting
-  // these, and the engine caps sufficiency at 1.0 so excess has no effect.
-  optimalNitratePpm: 15.0, // 10-20 ppm range, center at 15
-  optimalPhosphatePpm: 1.0, // 0.5-2 ppm range
-  optimalPotassiumPpm: 7.0,  // 5-20 real range; lowered so Variant A MC thrives on 40 mg/day K dose
-  optimalIronPpm: 0.15,      // 0.1-0.5 real range; lowered to the same band
+  // One rate unit fixes 30 mg CO₂, about 20 mg of dry tissue at 40 % carbon.
+  // Macrophyte tissue runs ~3 % N, ~0.5 % P, 2–4 % K and a few hundred ppm Fe;
+  // as the ions the water holds that is the vector below, rounded generous.
+  uptakePerRateUnit: {
+    nitrate: 3.0,
+    phosphate: 0.3,
+    potassium: 1.5,
+    iron: 0.03,
+  },
 
-  // Demand multipliers - low-demand plants can survive on less
-  lowDemandMultiplier: 0.3, // 30% of optimal
-  mediumDemandMultiplier: 0.6, // 60% of optimal
-  highDemandMultiplier: 1.0, // Full optimal needed
+  // A tenth or so of the ppm hobbyists dose a high-tech tank to, so a carpet
+  // at 15 NO₃ / 1 PO₄ / 10 K / 0.2 Fe reads ~90 % on every one.
+  halfSaturation: {
+    nitrate: 2.0,
+    phosphate: 0.1,
+    potassium: 1.0,
+    iron: 0.02,
+  },
 
-  // Decay phosphate - links fish waste to plant nutrition
-  // Organic matter contains ~0.1-1% phosphorus; 50mg/g represents mineralized PO4
-  // from bacterial decomposition, providing ~5% of plant phosphate needs from waste
-  phosphatePerDecay: 50, // mg phosphate per gram decayed
+  demand: {
+    low: { nitrate: 0.3, phosphate: 0.3, potassium: 0, iron: 0 },
+    medium: { nitrate: 0.6, phosphate: 0.6, potassium: 0, iron: 0 },
+    high: { nitrate: 1, phosphate: 1, potassium: 1, iron: 1 },
+  },
 
+  // Waste is 5 % N (`wasteToAmmoniaRatio`); organic matter carries N:P ≈ 7 by
+  // mass, so ~7 mg P, i.e. ~20 mg PO₄, per gram.
+  phosphatePerWaste: 20,
 };
 
 export interface NutrientsConfigMeta {
@@ -96,9 +82,8 @@ export interface NutrientsConfigMeta {
   step: number;
 }
 
-// Note: fertilizerFormula is nested, so we provide separate meta for its fields
-export interface FertilizerFormulaMeta {
-  key: keyof FertilizerFormula;
+export interface NutrientVectorMeta {
+  key: Nutrient;
   label: string;
   unit: string;
   min: number;
@@ -106,44 +91,34 @@ export interface FertilizerFormulaMeta {
   step: number;
 }
 
-export const fertilizerFormulaMeta: FertilizerFormulaMeta[] = [
+export const fertilizerFormulaMeta: NutrientVectorMeta[] = [
   { key: 'nitrate', label: 'Nitrate per ml', unit: 'mg', min: 1, max: 100, step: 1 },
   { key: 'phosphate', label: 'Phosphate per ml', unit: 'mg', min: 0.1, max: 10, step: 0.1 },
   { key: 'potassium', label: 'Potassium per ml', unit: 'mg', min: 0.5, max: 80, step: 1 },
   { key: 'iron', label: 'Iron per ml', unit: 'mg', min: 0.01, max: 2, step: 0.01 },
 ];
 
-export const nutrientsConfigMeta: NutrientsConfigMeta[] = [
-  // Optimal thresholds
-  { key: 'optimalNitratePpm', label: 'Optimal Nitrate', unit: 'ppm', min: 5, max: 30, step: 1 },
-  { key: 'optimalPhosphatePpm', label: 'Optimal Phosphate', unit: 'ppm', min: 0.1, max: 5, step: 0.1 },
-  { key: 'optimalPotassiumPpm', label: 'Optimal Potassium', unit: 'ppm', min: 2, max: 30, step: 1 },
-  { key: 'optimalIronPpm', label: 'Optimal Iron', unit: 'ppm', min: 0.05, max: 1, step: 0.05 },
-
-  // Demand multipliers
-  { key: 'lowDemandMultiplier', label: 'Low Demand Multiplier', unit: '', min: 0.1, max: 0.5, step: 0.05 },
-  { key: 'mediumDemandMultiplier', label: 'Medium Demand Multiplier', unit: '', min: 0.4, max: 0.8, step: 0.05 },
-  { key: 'highDemandMultiplier', label: 'High Demand Multiplier', unit: '', min: 0.8, max: 1.0, step: 0.05 },
-
-  // Decay phosphate
-  { key: 'phosphatePerDecay', label: 'Phosphate per Decay', unit: 'mg/g', min: 10, max: 200, step: 10 },
+export const uptakeMeta: NutrientVectorMeta[] = [
+  { key: 'nitrate', label: 'Nitrate uptake', unit: 'mg/rate unit', min: 0.5, max: 10, step: 0.1 },
+  { key: 'phosphate', label: 'Phosphate uptake', unit: 'mg/rate unit', min: 0.02, max: 2, step: 0.01 },
+  { key: 'potassium', label: 'Potassium uptake', unit: 'mg/rate unit', min: 0.1, max: 5, step: 0.1 },
+  { key: 'iron', label: 'Iron uptake', unit: 'mg/rate unit', min: 0.001, max: 0.2, step: 0.001 },
 ];
 
-/**
- * Helper function to get total nutrients from fertilizer formula.
- */
-export function getTotalFertilizerNutrients(formula: FertilizerFormula): number {
-  return formula.nitrate + formula.phosphate + formula.potassium + formula.iron;
-}
+export const halfSaturationMeta: NutrientVectorMeta[] = [
+  { key: 'nitrate', label: 'Nitrate half-saturation', unit: 'ppm', min: 0.1, max: 10, step: 0.1 },
+  { key: 'phosphate', label: 'Phosphate half-saturation', unit: 'ppm', min: 0.01, max: 1, step: 0.01 },
+  { key: 'potassium', label: 'Potassium half-saturation', unit: 'ppm', min: 0.1, max: 5, step: 0.1 },
+  { key: 'iron', label: 'Iron half-saturation', unit: 'ppm', min: 0.001, max: 0.2, step: 0.001 },
+];
 
-/**
- * Get nutrient ratio for a specific nutrient (used for proportional consumption).
- */
-export function getNutrientRatio(
-  nutrient: keyof FertilizerFormula,
-  formula: FertilizerFormula = nutrientsDefaults.fertilizerFormula
-): number {
-  const total = getTotalFertilizerNutrients(formula);
-  if (total === 0) return 0;
-  return formula[nutrient] / total;
-}
+export const demandMeta: NutrientVectorMeta[] = [
+  { key: 'nitrate', label: 'Nitrate demand', unit: '× full', min: 0, max: 1, step: 0.05 },
+  { key: 'phosphate', label: 'Phosphate demand', unit: '× full', min: 0, max: 1, step: 0.05 },
+  { key: 'potassium', label: 'Potassium demand', unit: '× full', min: 0, max: 1, step: 0.05 },
+  { key: 'iron', label: 'Iron demand', unit: '× full', min: 0, max: 1, step: 0.05 },
+];
+
+export const nutrientsConfigMeta: NutrientsConfigMeta[] = [
+  { key: 'phosphatePerWaste', label: 'Phosphate per Waste', unit: 'mg/g', min: 0, max: 100, step: 1 },
+];

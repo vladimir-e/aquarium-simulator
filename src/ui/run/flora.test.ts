@@ -9,7 +9,8 @@ import {
   type SimulationState,
   type VitalityBreakdown,
 } from '../../simulation/index.js';
-import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
+import { DEFAULT_CONFIG, NUTRIENTS } from '../../simulation/config/index.js';
+import { speciesHalfSaturation } from '../../simulation/systems/nutrients.js';
 import { MAX_DOSE_ML } from '../../simulation/actions/dose.js';
 import { produce } from 'immer';
 import {
@@ -24,7 +25,6 @@ import {
   overTrimCount,
   groupPlantsBySpecies,
   plantRows,
-  tankDemand,
   TRIM_TARGETS,
 } from './flora';
 import { conditionStatus, conditionWord, vitalReading } from './status';
@@ -182,30 +182,25 @@ describe('algaeRow', () => {
 });
 
 describe('nutrientReadings', () => {
-  it('reads every nutrient against what the tank’s hungriest plant needs', () => {
+  it('reads every nutrient against what the tank’s hungriest plant needs of it', () => {
     const state = planted(['java_fern', 'monte_carlo']);
-    expect(tankDemand(state)).toBe('high');
-
     const readings = nutrientReadings(state, DEFAULT_CONFIG);
     expect(readings.map((r) => r.label)).toEqual(['NO₃', 'PO₄', 'K', 'Fe']);
-    const { optimalNitratePpm, optimalPhosphatePpm, optimalPotassiumPpm, optimalIronPpm, highDemandMultiplier } =
-      DEFAULT_CONFIG.nutrients;
-    expect(readings.map((r) => r.needed)).toEqual(
-      [optimalNitratePpm, optimalPhosphatePpm, optimalPotassiumPpm, optimalIronPpm].map(
-        (ppm) => ppm * highDemandMultiplier
-      )
-    );
+
+    const need = (species: PlantSpecies, n: (typeof NUTRIENTS)[number]): number =>
+      speciesHalfSaturation(species, n, DEFAULT_CONFIG.nutrients);
+    readings.forEach((r, i) => {
+      const n = NUTRIENTS[i]!;
+      expect(need('monte_carlo', n)).toBeGreaterThan(need('java_fern', n));
+      expect(r.needed / need('monte_carlo', n)).toBeCloseTo(readings[0]!.needed / need('monte_carlo', 'nitrate'), 10);
+    });
     expect(readings.every((r) => r.ppm === 0 && r.fill === 0)).toBe(true);
   });
 
-  it('scales the need down for a tank of low-demand plants', () => {
-    const state = planted(['java_fern', 'anubias']);
-    expect(tankDemand(state)).toBe('low');
-    const { optimalNitratePpm, lowDemandMultiplier } = DEFAULT_CONFIG.nutrients;
-    expect(nutrientReadings(state, DEFAULT_CONFIG)[0].needed).toBeCloseTo(
-      optimalNitratePpm * lowDemandMultiplier,
-      10
-    );
+  it('asks nothing of a nutrient no plant in the tank has a demand for', () => {
+    const readings = nutrientReadings(planted(['java_fern', 'anubias']), DEFAULT_CONFIG);
+    expect(readings.map((r) => r.needed > 0)).toEqual([true, true, false, false]);
+    expect(readings[0]!.needed).toBeLessThan(nutrientReadings(planted(['monte_carlo']), DEFAULT_CONFIG)[0]!.needed);
   });
 
   it('only calls a nutrient short when the engine would actually feed a plant better', () => {
@@ -229,7 +224,6 @@ describe('nutrientReadings', () => {
 
   it('has nothing to be short of when nothing is planted', () => {
     const readings = nutrientReadings(tank(), DEFAULT_CONFIG);
-    expect(tankDemand(tank())).toBeNull();
     expect(readings.map((r) => r.neededText)).toEqual(['—', '—', '—', '—']);
     expect(nutrientAlert(readings)).toBeNull();
   });
@@ -311,7 +305,7 @@ describe('dose arithmetic', () => {
   });
 
   it('has nothing to recommend once every nutrient is met', () => {
-    const state = dosed(planted(['java_fern'], 40), 4);
+    const state = dosed(planted(['java_fern'], 40), 8);
     const readings = nutrientReadings(state, DEFAULT_CONFIG);
     expect(readings.every((r) => !r.limiting)).toBe(true);
     expect(doseToCover(readings, state, DEFAULT_CONFIG)).toBeNull();

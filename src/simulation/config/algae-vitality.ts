@@ -57,14 +57,17 @@ export interface AlgaeVitalityConfig {
   excessLightSeverity: number;
 
   /**
-   * Peak benefit (%/h) from excess nutrients above plant optimum.
-   * "Excess" is the larger of the NO3 and PO4 ratios above optimum;
+   * Peak benefit (%/h) from excess nutrients above the reference.
+   * "Excess" is the larger of the NO3 and PO4 ratios above it;
    * scaled by severity then capped at peak. Should dominate the
    * nutrient lever (decline-driven boost flows mostly through
    * `low_plant_power`, but excess nutrients are the headline in a
    * dosed tank).
    */
   excessNutrientPeak: number;
+  /** NO₃ and PO₄ algae reads excess above and deficiency below (ppm). */
+  referenceNitratePpm: number;
+  referencePhosphatePpm: number;
   /**
    * Severity multiplier on the (ratio - 1) excess before peak cap.
    * 1.0 means a 2× over-optimum nutrient pool gives full peak.
@@ -138,6 +141,8 @@ export const algaeVitalityDefaults: AlgaeVitalityConfig = {
 
   excessNutrientPeak: 0.4,
   excessNutrientSeverity: 0.4,
+  referenceNitratePpm: 15,
+  referencePhosphatePpm: 1,
 
   nutrientDeficiencyPeak: 0.05,
   nutrientDeficiencySeverity: 0.1,
@@ -171,6 +176,8 @@ export const algaeVitalityConfigMeta: AlgaeVitalityConfigMeta[] = [
   { key: 'excessLightPeak', label: 'Excess Light Peak', unit: '%/hr', min: 0, max: 1, step: 0.05 },
   { key: 'excessLightSeverity', label: 'Excess Light Severity', unit: '%/PAR/hr', min: 0, max: 0.05, step: 0.001 },
   { key: 'excessNutrientPeak', label: 'Excess Nutrient Peak', unit: '%/hr', min: 0, max: 1, step: 0.05 },
+  { key: 'referenceNitratePpm', label: 'Reference Nitrate', unit: 'ppm', min: 5, max: 30, step: 1 },
+  { key: 'referencePhosphatePpm', label: 'Reference Phosphate', unit: 'ppm', min: 0.1, max: 5, step: 0.1 },
   { key: 'excessNutrientSeverity', label: 'Excess Nutrient Severity', unit: '%/ratio/hr', min: 0, max: 2, step: 0.05 },
   { key: 'nutrientDeficiencyPeak', label: 'Nutrient Deficiency Peak', unit: '%/hr', min: 0, max: 0.5, step: 0.01 },
   { key: 'nutrientDeficiencySeverity', label: 'Nutrient Deficiency Severity', unit: '%/(1-ratio)/hr', min: 0, max: 1, step: 0.05 },

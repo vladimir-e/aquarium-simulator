@@ -24,6 +24,12 @@ import type { TunableConfig } from '../../simulation/config/index.js';
  * Increment this when the structure changes in a breaking way.
  * On version mismatch, stored data is discarded.
  *
+ * v29: Plant nutrition saturates. `NutrientsConfig` swaps the optimal ppm, the
+ *      demand multipliers and `phosphatePerDecay` for `uptakePerRateUnit`,
+ *      `halfSaturation`, per-tier `demand` vectors and `phosphatePerWaste`;
+ *      `PlantsConfig` drops `nutrientsPerPhotosynthesis` and `optimalNitrate`;
+ *      `AlgaeVitalityConfig` gains `referenceNitratePpm` and
+ *      `referencePhosphatePpm`.
  * v28: Nitrifiers seed continuously. `NitrogenCycleConfig` drops
  *      `aobSpawnThreshold`, `nobSpawnThreshold` and `inoculumPerLiter` and
  *      gains `seedingRate` (units per litre per tick). A v27 config carries
@@ -205,7 +211,7 @@ import type { TunableConfig } from '../../simulation/config/index.js';
  *     nutrient sufficiency) but its persisted shape is identical, so
  *     the bump is purely the new Fish field.
  */
-export const PERSISTENCE_VERSION = 28;
+export const PERSISTENCE_VERSION = 29;
 
 /**
  * Storage key for the unified persisted state.

@@ -197,7 +197,7 @@ describe('OverviewSection', () => {
     renderOverview(stocked());
     const nutrients = within(widget('Nutrients'));
 
-    expect(nutrients.getAllByText(/^need /)).toHaveLength(4);
+    expect(nutrients.getAllByText(/^need /)).toHaveLength(2);
     expect(nutrients.getByText(/1 ml moves/)).toBeTruthy();
   });
 

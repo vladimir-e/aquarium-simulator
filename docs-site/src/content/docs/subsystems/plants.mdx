@@ -23,13 +23,13 @@ repair first and new tissue second.
 | The two ledgers | <Badge text="settled" variant="success" /> | Energy deficits are paid in tissue, environmental damage in condition. A starving plant shrinks and survives. |
 | The surplus bank | <Badge text="settled" variant="success" /> | One bank, two claims, in an order: upkeep spends it to the last unit, damage and growth only what stands above the survival ration. |
 | Shedding | <Badge text="settled" variant="success" /> | A rate reading a rate — the share of the upkeep bill left standing, with no threshold in it. |
-| Nutrition | <Badge text="scaffolding" variant="caution" /> | The weakest thing in the engine. Sufficiency is `min(1, ppm/required)` against a per-tier required/booster split, so a low-demand species is completely indifferent to potassium and iron, and the maintenance share of uptake is a magic number inline in the photosynthesis module. |
+| Nutrition | <Badge text="settled" variant="success" /> | Every nutrient saturates on its own Monod curve against a per-species demand, and uptake follows the plant's need rather than the fertilizer's ratio. |
 | Carbon limitation | <Badge text="settled" variant="success" /> | Monod on dissolved CO₂, half rate at the species' carbon-need half-saturation. It scales photosynthesis, uptake and the CO₂ income channel, and never damages: a carbon-short plant earns and grows less. |
 | Tolerance-band benefits | <Badge text="scaffolding" variant="caution" /> | A step. Crossing an edge on temperature or pH loses the whole channel at once *and* starts damage. |
 | Photoperiod gates | <Badge text="scaffolding" variant="caution" /> | Two switches on `light > 0`: the light-low stressor and surplus accrual. A light-starved plant swings between 0 and full damage as the lamp flips while its benefits ramp smoothly. |
 | Size against `maxSize` | <Badge text="scaffolding" variant="caution" /> | The ceiling is 600–1100 across the roster and the asymptotic factor stays above 0.9 through any calibration window, so it does not bind. Trimming validates a target in `[0, 100]` against it. |
 | Propagation | <Badge text="missing" variant="danger" /> | A plant with nowhere left to grow banks its whole income and nothing spends it. No runners, no daughter plants — the only way a plant enters the tank is the keeper putting one there. |
-| General hardness | <Badge text="scaffolding" variant="caution" /> | A damage-only tolerance band per species, and a small uptake tied to the nutrient draw. Calcium never enters sufficiency, so soft water stresses a plant but never starves it. |
+| General hardness | <Badge text="scaffolding" variant="caution" /> | A damage-only tolerance band per species, and a small uptake tied to the nitrate draw. Calcium never enters sufficiency, so soft water stresses a plant but never starves it. |
 
 ## How it works
 
@@ -71,11 +71,11 @@ much carbon they need to run near their ceiling, not in a floor that kills:
 So a carpet in an uninjected tank grows slowly on a thin carbon income, and a
 sword or an epiphyte hardly notices the injector.
 
-Actual — the Liebig-gated rate — drives the gases and the bulk of nutrient
-uptake; potential adds the maintenance draw underneath it. Both are summed
-across the planting and multiplied by
-`basePhotosynthesisRate` to give the tank's rate in *rate units*, where one unit
-is an hour of 100 % plant size at saturating carbon and light.
+Actual — the Liebig-gated rate — drives the gases; potential, the tissue light
+and carbon would build, drives nutrient uptake. Both are summed across the
+planting and multiplied by `basePhotosynthesisRate` to give the tank's rate in
+*rate units*, where one unit is an hour of 100 % plant size at saturating carbon
+and light.
 
 Photosynthesis emits resource effects only. It never adds size directly: growth
 flows through the bank, so nutrient health reaches biomass once, through the
@@ -108,7 +108,7 @@ draws oxygen with the lamps on.
 | `surplus` | Income left after upkeep and damage, while the lights are on | Unpaid upkeep, buffered damage, repair, growth | bank units, capped at `surplusCap` |
 | `oxygen` | Photosynthesis | Respiration | mg/L |
 | `co2` | Respiration | Photosynthesis, clamped to what is dissolved | mg/L |
-| `nitrate` · `phosphate` · `potassium` · `iron` | Dosing; nitrification for NO₃ and decay for PO₄, elsewhere | Uptake at the gated rate plus the maintenance fraction of potential, split by the fertilizer ratio | mg |
+| `nitrate` · `phosphate` · `potassium` · `iron` | Dosing; nitrification for NO₃ and mineralized waste for PO₄, elsewhere | Uptake on the plant's own need, each nutrient on its own Monod curve | mg |
 | `waste` | Shed tissue and plant death | Mineralization, elsewhere | g |
 
 A bank unit is a condition point — the bank accrues out of the same %/h the
@@ -116,29 +116,39 @@ condition deficit is measured in, which is what lets one number pay for both.
 
 ### Nutrition
 
-Sufficiency is a Liebig floor over the nutrients a species actually requires,
-and the tier decides which those are.
+Every nutrient saturates on its own Monod curve, and sufficiency is the scarcest
+of them — Liebig's law over saturating shares.
 
-| Demand tier | Required | Boosters | Threshold |
-|---|---|---|---|
-| Low | NO₃ | PO₄, K, Fe | 30 % of optimal |
-| Medium | NO₃, PO₄ | K, Fe | 60 % of optimal |
-| High | NO₃, PO₄, K, Fe | — | 100 % of optimal |
+```
+share_n     = ppm_n / (demand_n × K_n + ppm_n)        // 1 when demand_n is 0
+sufficiency = min over n of share_n
+uptake_n    = potential × demand_n × uptakePerRateUnit_n × share_n
+```
 
-A missing required nutrient caps sufficiency. A booster reads 1.0 whether it is
-there or not, so it has no effect in either direction — a low-demand species is
-entirely indifferent to potassium and iron.
+| Demand tier | NO₃ · PO₄ | K · Fe |
+|---|---|---|
+| Low | 0.3 | 0 |
+| Medium | 0.6 | 0 |
+| High | 1 | 1 |
 
-Uptake is Liebig-gated with a floor under it. A plant draws
-`(actual + 0.2 × potential) × nutrientsPerPhotosynthesis` and splits it across
-the four nutrients by the fertilizer formula's own ratio. Since actual is
-potential already multiplied by sufficiency, a starved potassium drops the draw
-on nitrogen and phosphate to the `0.2` maintenance fraction — a sixth of what
-the same planting takes at full sufficiency — rather than ending it, so the
-water column keeps falling while growth is capped. The consequence to know:
-because uptake reads the same ratio the doser meters by, dosing cannot correct
-an imbalance it did not create. Calcium and magnesium ride along outside the
-ratio, a fixed share of what the plant actually draws (under Key tunables).
+Demand is one number per nutrient per tier, and it scales both how much a plant
+takes and how little it can make do with. A species with no demand for a
+nutrient takes none of it and is never limited by it, so an Anubias ignores
+potassium and iron without a rule saying so. A carpet reads about 90 % on each
+nutrient in a tank dosed to 15 NO₃ / 1 PO₄ / 10 K / 0.2 Fe ppm, and never quite
+reaches 100 %.
+
+Uptake follows the plant, not the bottle. Its ratio is the tissue the plant's
+light and carbon would build, so dosing moves the water column toward whatever
+the plants leave behind rather than in lock-step with them. Each nutrient is
+drawn on its own curve: a carpet held back by iron keeps taking the nitrate and
+phosphate it has water for, and a pool the plants drain slows its own draw as it
+falls.
+
+Phosphate comes back the way nitrogen does — mineralized out of waste beside its
+ammonia — so its budget is food and fertilizer in, plant uptake and water
+changes out. Calcium and magnesium ride along with the nitrate a plant actually
+draws (under Key tunables).
 
 ### Income, upkeep and the compensation point
 
@@ -212,7 +222,9 @@ plant leaves the array.
 | `saturationIrradianceFactor` | Multiple of a species' band low at which it saturates — the `Ik` of the light curve | `2.0` × band low |
 | `lowCo2HalfSaturation` · `mediumCo2HalfSaturation` · `highCo2HalfSaturation` | CO₂ at which each carbon-need tier photosynthesises at half rate | `1.5` · `3` · `8` mg/L |
 | `co2PerRateUnit` | Carbon one rate unit moves, in either direction | `30` mg |
-| `nutrientsPerPhotosynthesis` | Total nutrient draw per rate unit the uptake term resolves to | `4.0` mg |
+| `uptakePerRateUnit` | What a full-demand plant takes per rate unit, NO₃ · PO₄ · K · Fe | `3` · `0.3` · `1.5` · `0.03` mg |
+| `halfSaturation` | Where a full-demand plant runs at half on each, NO₃ · PO₄ · K · Fe | `2` · `0.1` · `1` · `0.02` ppm |
+| `demand` | Each tier's share of the full need, per nutrient — the table under Nutrition | — |
 | `baseRespirationRate` | Dark respiration as a share of the light-saturated rate | `0.03` /hr |
 | `respirationQ10` | Factor respiration and upkeep multiply by per 10 °C | `2.0` |
 | `respirationOxygenHalfSaturation` | O₂ at which respiration runs at half rate | `0.5` mg/L |
@@ -224,7 +236,7 @@ plant leaves the array.
 | `maxSheddingRate` | Share of itself a plant drops per hour when it pays none of its bill | `0.02` /hr |
 | `nutrientDeficiencySeverity` | Damage per point of Liebig shortfall — pinned from both ends, at 28 days for a starved carpet and 180 for an undosed beginner planting | `0.3` %/hr |
 | `ghStressSeverity` | Damage per dGH outside the species' band | `0.1` %/dGH/hr |
-| GH per nutrient drawn | Calcium and magnesium taken up per mg of macronutrient actually drawn, off leaf-tissue ratios; a constant | `0.15` mg CaCO₃/mg |
+| GH per nitrate drawn | Calcium and magnesium taken up per mg of nitrate actually drawn, off leaf-tissue ratios; a constant | `0.28` mg CaCO₃/mg |
 | Benefit peaks (×4) | Recovery per channel in band, before the light term. Four at `0.125` sum to the 0.5 %/h budget the recovery curves were pinned against | `0.125` %/hr |
 | `deathConditionThreshold` · `deathSizeThreshold` | The two floors a plant leaves the tank through | `10` % each |
 
@@ -234,7 +246,7 @@ plant leaves the array.
 |---|---|---|
 | [Light](/subsystems/light/) | `light` — PAR at the substrate, which multiplies the photosynthetic rate and every benefit channel, and gates accrual | — |
 | [Water & gases](/subsystems/water-and-gases/) | `co2` for the carbon Monod, `oxygen` for the respiration Monod, pH and `gh` for the tolerance bands | `oxygen` and `co2`, both directions, on one carbon yield; `gh` drawn with the nutrients |
-| [Nitrogen cycle](/subsystems/nitrogen-cycle/) | `nitrate` — the one nutrient every tier requires | `nitrate` drained on uptake; `waste` from shedding and death |
+| [Nitrogen cycle](/subsystems/nitrogen-cycle/) | `nitrate`, and `phosphate` mineralized beside the ammonia | `nitrate` and `phosphate` drained on uptake; `waste` from shedding and death |
 | [Environment](/subsystems/environment/) | `temperature` for the Q10 on respiration and upkeep, `water` for every ppm | — |
 | [Equipment](/subsystems/equipment/) | `substrate.type` — which species may be planted at all | — |
 | [Algae](/subsystems/algae/) | `algae.mass` — the shading stressor, one tick behind | Plant power, which drives algae's suppression stressor and its low-plant-power benefit |
