@@ -39,6 +39,7 @@ function buildResources(
     oxygen: 8,
     co2: plantsDefaults.optimalCo2,
     kh: 0,
+    gh: 0,
     aob: 0,
     nob: 0,
     ...overrides,
@@ -218,6 +219,16 @@ describe('calculatePhotosynthesis', () => {
       expect(result.phosphateDelta).toBeLessThan(0);
       expect(result.potassiumDelta).toBeLessThan(0);
       expect(result.ironDelta).toBeLessThan(0);
+    });
+
+    it('takes up GH in step with the nutrients it draws, and none from soft water', () => {
+      const hard = buildResources(waterVolume, { gh: 10000 });
+      const one = photosynthesis([plant(100, 'java_fern')], { resources: hard });
+      const two = photosynthesis([plant(200, 'java_fern')], { resources: hard });
+
+      expect(one.ghDelta).toBeLessThan(0);
+      expect(two.ghDelta / one.ghDelta).toBeCloseTo(two.nitrateDelta / one.nitrateDelta, 10);
+      expect(photosynthesis([plant(100, 'java_fern')]).ghDelta).toBe(0);
     });
 
     it('limiting factor is 1.0 at optimal conditions for low-demand plant', () => {

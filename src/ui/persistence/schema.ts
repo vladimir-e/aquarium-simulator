@@ -54,6 +54,7 @@ const ResourcesSchema = z
     oxygen: z.number().min(0),
     co2: z.number().min(0),
     kh: z.number().min(0),
+    gh: z.number().min(0),
     aob: z.number().min(0),
     nob: z.number().min(0),
   })
@@ -79,6 +80,7 @@ const EnvironmentSchema = z
     roomTemperature: z.number().min(0).max(50),
     tapWaterTemperature: z.number().min(0).max(50),
     tapKh: z.number().min(0).max(30),
+    tapGh: z.number().min(0).max(30),
   })
   .strict();
 
@@ -409,6 +411,7 @@ const PlantsConfigSchema = z
     co2InsufficientSeverity: z.number(),
     temperatureStressSeverity: z.number(),
     phStressSeverity: z.number(),
+    ghStressSeverity: z.number(),
     nutrientDeficiencySeverity: z.number(),
     nutrientToxicitySeverity: z.number(),
     nutrientToxicityThresholdNitrate: z.number(),
@@ -464,6 +467,7 @@ const LivestockConfigSchema = z
     satiationDecayRate: z.number(),
     temperatureStressSeverity: z.number(),
     phStressSeverity: z.number(),
+    ghStressSeverity: z.number(),
     ammoniaStressSeverity: z.number(),
     nitriteStressSeverity: z.number(),
     nitrateStressSeverity: z.number(),

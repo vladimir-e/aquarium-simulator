@@ -15,6 +15,8 @@ export interface Setup {
   hardscape: HardscapeType[];
   /** Tap water carbonate hardness, dKH. */
   tapKh: number;
+  /** Tap water general hardness, dGH. */
+  tapGh: number;
   heaterF: number | null;
   roomF: number;
   filter: FilterType | null;
@@ -42,6 +44,7 @@ export function toConfig(setup: Setup): SimulationConfig {
     initialTemperature: toCelsius(setup.heaterF ?? setup.roomF),
     roomTemperature: toCelsius(setup.roomF),
     tapKh: setup.tapKh,
+    tapGh: setup.tapGh,
     heater:
       setup.heaterF === null
         ? { enabled: false }
@@ -108,6 +111,7 @@ export const SETUPS: Setup[] = [
     substrate: 'gravel',
     hardscape: [],
     tapKh: 5,
+    tapGh: 7,
     heaterF: 78,
     roomF: 72,
     filter: 'sponge',
@@ -130,6 +134,7 @@ export const SETUPS: Setup[] = [
     substrate: 'aqua_soil',
     hardscape: [],
     tapKh: 4,
+    tapGh: 6,
     heaterF: 77,
     roomF: 72,
     filter: 'hob',
@@ -156,6 +161,7 @@ export const SETUPS: Setup[] = [
     substrate: 'aqua_soil',
     hardscape: [],
     tapKh: 4,
+    tapGh: 6,
     heaterF: 76,
     roomF: 72,
     filter: 'canister',
@@ -186,6 +192,7 @@ export const SETUPS: Setup[] = [
     substrate: 'sand',
     hardscape: [],
     tapKh: 5,
+    tapGh: 7,
     heaterF: 78,
     roomF: 72,
     filter: 'canister',
@@ -214,6 +221,7 @@ export const SETUPS: Setup[] = [
     substrate: 'gravel',
     hardscape: [],
     tapKh: 5,
+    tapGh: 7,
     heaterF: 78,
     roomF: 72,
     filter: 'sponge',
@@ -237,6 +245,7 @@ export const SETUPS: Setup[] = [
     substrate: 'gravel',
     hardscape: [],
     tapKh: 5,
+    tapGh: 7,
     heaterF: null,
     roomF: 68,
     filter: 'hob',

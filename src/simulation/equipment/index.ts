@@ -138,12 +138,10 @@ export function processEquipment(
   const effects: Effect[] = [];
   let updatedState = state;
 
-  // Process substrate leaching and buffering
   const substrateResult = substrateUpdate(updatedState, config.decay, config.waterChemistry);
   effects.push(...substrateResult.effects);
   updatedState = substrateResult.state;
 
-  // Process hardscape chemistry
   const hardscapeResult = hardscapeUpdate(updatedState, config.waterChemistry);
   effects.push(...hardscapeResult.effects);
   updatedState = hardscapeResult.state;

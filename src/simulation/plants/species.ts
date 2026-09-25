@@ -71,6 +71,8 @@ export interface PlantSpeciesData {
   tolerableTemp: [number, number];
   /** Tolerable pH range — outside is stress. */
   tolerablePH: [number, number];
+  /** Tolerable general hardness in dGH — outside is stress. */
+  tolerableGH: [number, number];
 }
 
 /**
@@ -94,6 +96,7 @@ export const PLANT_SPECIES_DATA: Record<PlantSpecies, PlantSpeciesData> = {
     tolerableCO2: [1, 40],
     tolerableTemp: [18, 30],
     tolerablePH: [5.5, 8.0],
+    tolerableGH: [1, 20],
   },
   anubias: {
     name: 'Anubias',
@@ -111,6 +114,7 @@ export const PLANT_SPECIES_DATA: Record<PlantSpecies, PlantSpeciesData> = {
     tolerableCO2: [1, 40],
     tolerableTemp: [18, 30],
     tolerablePH: [5.5, 8.0],
+    tolerableGH: [1, 20],
   },
   amazon_sword: {
     name: 'Amazon Sword',
@@ -135,6 +139,7 @@ export const PLANT_SPECIES_DATA: Record<PlantSpecies, PlantSpeciesData> = {
     tolerableCO2: [6, 40],
     tolerableTemp: [20, 28],
     tolerablePH: [5.5, 7.8],
+    tolerableGH: [2, 20],
   },
   dwarf_hairgrass: {
     name: 'Dwarf Hairgrass',
@@ -152,6 +157,7 @@ export const PLANT_SPECIES_DATA: Record<PlantSpecies, PlantSpeciesData> = {
     tolerableCO2: [10, 40], // Stalls without CO2 — high-tech species
     tolerableTemp: [20, 28],
     tolerablePH: [5.5, 7.8],
+    tolerableGH: [1, 18],
   },
   monte_carlo: {
     name: 'Monte Carlo',
@@ -169,6 +175,7 @@ export const PLANT_SPECIES_DATA: Record<PlantSpecies, PlantSpeciesData> = {
     tolerableCO2: [10, 40], // Same — needs CO2 to thrive
     tolerableTemp: [20, 28],
     tolerablePH: [5.5, 7.8],
+    tolerableGH: [1, 15],
   },
 };
 

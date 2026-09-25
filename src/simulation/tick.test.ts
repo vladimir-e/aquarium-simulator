@@ -7,6 +7,7 @@ import { DEFAULT_CONFIG, type TunableConfig } from './config/index.js';
 import type { PresetSeed } from './seed.js';
 import { FILTER_SURFACE } from './equipment/filter.js';
 import { POWERHEAD_FLOW_LPH } from './equipment/powerhead.js';
+import type { HardscapeType } from './equipment/hardscape.js';
 
 describe('tick', () => {
   const still = (): SimulationState =>
@@ -90,6 +91,28 @@ describe('tick', () => {
     expect(tick(state, murky).resources.light).toBeLessThan(
       tick(state, DEFAULT_CONFIG).resources.light
     );
+  });
+
+  it('runs the scape: driftwood spends its tannins and KH, calcite adds KH and GH', () => {
+    const scaped = (type: HardscapeType): SimulationState =>
+      createSimulation({
+        tankCapacity: 100,
+        initialTemperature: 22,
+        roomTemperature: 22,
+        hardscape: { items: [{ id: 'piece', type }] },
+      });
+
+    const wood = scaped('driftwood');
+    const aged = tick(wood);
+    expect(aged.equipment.hardscape.items[0]!.tannins).toBeLessThan(
+      wood.equipment.hardscape.items[0]!.tannins
+    );
+    expect(aged.resources.kh).toBeLessThan(wood.resources.kh);
+
+    const rock = scaped('calcite_rock');
+    const dissolved = tick(rock);
+    expect(dissolved.resources.kh).toBeGreaterThan(rock.resources.kh);
+    expect(dissolved.resources.gh).toBeGreaterThan(rock.resources.gh);
   });
 
   it('raises alerts on the state the passive tier left behind', () => {

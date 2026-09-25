@@ -3,7 +3,7 @@
  */
 
 import type { SimulationConfig, SimulationState } from './state.js';
-import type { HardscapeItem } from './equipment/hardscape.js';
+import type { HardscapeItemSpec, HardscapeType } from './equipment/hardscape.js';
 import { createSimulation } from './state.js';
 import type { PresetSeed } from './seed.js';
 
@@ -19,8 +19,8 @@ export interface PresetDefinition {
 
 // Helper to create hardscape items with unique IDs
 function createHardscapeItems(
-  items: Array<{ type: HardscapeItem['type'] }>
-): Array<Pick<HardscapeItem, 'id' | 'type'>> {
+  items: Array<{ type: HardscapeType }>
+): HardscapeItemSpec[] {
   return items.map((item, index) => ({
     id: `preset-${item.type}-${index}`,
     type: item.type,

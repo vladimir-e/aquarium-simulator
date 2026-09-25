@@ -142,8 +142,10 @@ export interface SubstrateUpdateResult {
 
 /**
  * The leach lands in the waste pool, where mineralization turns it into
- * ammonia like any other organic matter; the KH the bed takes up leaves the
- * water. Both come out of the bed's reserves.
+ * ammonia like any other organic matter. The bed buffers by cation exchange:
+ * it holds on to Ca²⁺ and Mg²⁺ and gives back H⁺, which spends carbonate —
+ * so every mg it takes up leaves the water as KH and as GH alike, and never
+ * more than the water has of either. Both come out of the bed's reserves.
  */
 export function substrateUpdate(
   state: SimulationState,
@@ -154,7 +156,10 @@ export function substrateUpdate(
   const leached = calculateSubstrateLeach(substrate.organicReserve, decay);
   const uptake =
     state.resources.water > 0
-      ? calculateSubstrateKhUptake(state.resources.kh, substrate, state.tank.capacity, chemistry)
+      ? Math.min(
+          calculateSubstrateKhUptake(state.resources.kh, substrate, state.tank.capacity, chemistry),
+          state.resources.gh
+        )
       : 0;
 
   if (leached <= 0 && uptake <= 0) {
@@ -166,7 +171,10 @@ export function substrateUpdate(
     effects.push({ tier: 'immediate', resource: 'waste', delta: leached, source: 'substrate-leach' });
   }
   if (uptake > 0) {
-    effects.push({ tier: 'immediate', resource: 'kh', delta: -uptake, source: 'substrate-buffer' });
+    effects.push(
+      { tier: 'immediate', resource: 'kh', delta: -uptake, source: 'substrate-buffer' },
+      { tier: 'immediate', resource: 'gh', delta: -uptake, source: 'substrate-buffer' }
+    );
   }
 
   return {

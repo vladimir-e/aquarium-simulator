@@ -41,6 +41,7 @@ and readings that fit it.
 | Substrate KH reserve | The share of a fresh soil bed's buffer left on day 30 |
 | Driftwood tannins | What a month of the leach curve leaves in each piece |
 | KH | The tap's, or a fraction of it over aqua soil |
+| GH | The tap's, less whatever KH the soil took — the bed takes both alike |
 | Nitrate | What a month of leaching leaves behind, discounted for the water changes a keeper would have done |
 
 A tank seeded this way is handed the outcome, not a shortcut through the

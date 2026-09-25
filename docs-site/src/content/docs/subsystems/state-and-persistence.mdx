@@ -38,8 +38,8 @@ it was handed, so the state a tick began with is still readable when it ends.
 |---|---|
 | `tick` | Hours since the tank was built. One tick is one hour |
 | `tank` | Capacity and hardscape slots — the only physical constants |
-| `resources` | Every stock: water, temperature, the passives, food and waste, the nitrogen chain, the nutrients, the two gases, KH, the two colonies — pH is derived, never stored |
-| `environment` | Room temperature, tap temperature, tap KH — what the tank sits in |
+| `resources` | Every stock: water, temperature, the passives, food and waste, the nitrogen chain, the nutrients, the two gases, KH and GH, the two colonies — pH is derived, never stored |
+| `environment` | Room temperature, tap temperature, tap KH and GH — what the tank sits in |
 | `equipment` | Eleven fixtures, each with its own settings and schedule |
 | `plants` · `fish` · `clutches` | The organisms, as arrays of individuals |
 | `algae` | One population, mass and bank — not an array |
@@ -88,7 +88,7 @@ behaviour, so nothing downstream has to know a tank was seeded.
 |---|---|
 | `bacteria` | Absolute AOB and NOB counts, or the literal `'cycled'` |
 | `substrate` | The bed's remaining organic and KH reserves |
-| `resources` | The three nitrogen compounds, the four nutrients, KH, and both dissolved gases |
+| `resources` | The three nitrogen compounds, the four nutrients, KH, GH, and both dissolved gases |
 | `fish` | Groups of species, count, age, sex and stage |
 | `plants` | Groups of species, count and size |
 
@@ -99,7 +99,7 @@ say anything the state shape can hold.
 copied into it. It is a claim about a month of running, not only about the
 filter, so it carries every figure that month moved: the colony it grew, the
 bed reserves and driftwood tannins it spent, the nitrate it made net of the
-water changes a keeper would have done, and the KH the bed let it keep. A preset
+water changes a keeper would have done, and the KH and GH the bed let it keep. A preset
 resized or rescaped at the door still gets all of them sized to fit.
 
 Rosters go through the same factories stocking uses, so a seeded fish and a
@@ -167,7 +167,7 @@ browser storage.
 | [Equipment](/subsystems/equipment/) | `substrate.type` and the hardscape pieces, which decide what a `'cycled'` scape resolves to | The bed's remaining reserves; driftwood tannins under `'cycled'` |
 | [Livestock](/subsystems/livestock/) | — | Seeded rosters, built through the same factory stocking uses and drawing on the same stream |
 | [Plants](/subsystems/plants/) | — | Seeded plantings, at a named size and the same half-bank a stocked plant gets |
-| [Water & gases](/subsystems/water-and-gases/) | `tapKh`, which a `'cycled'` KH resolves against | Both dissolved gases and KH, where a seed names them |
+| [Water & gases](/subsystems/water-and-gases/) | `tapKh` and `tapGh`, which a `'cycled'` KH and GH resolve against | Both dissolved gases, KH and GH, where a seed names them |
 | [Environment](/subsystems/environment/) | `tank.capacity` — every per-litre seed figure resolves against it | — |
 | [Actions](/subsystems/actions/) | — | Supplies the draw stream for ids and the scrub's bite, and takes back the advanced position |
 | [Alerts & logging](/subsystems/alerts-and-logging/) | — | `alertState` crosses a save; `logs` do not |

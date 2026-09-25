@@ -17,7 +17,7 @@ import { nitrogenCycleDefaults } from './config/nitrogen-cycle.js';
 import { waterChemistryDefaults } from './config/water-chemistry.js';
 import { plantsDefaults } from './config/plants.js';
 import { NH3_TO_NO2_MASS_RATIO, NO2_TO_NO3_MASS_RATIO } from './core/chemistry.js';
-import { getKhMass } from './resources/helpers.js';
+import { getGhMass, getKhMass } from './resources/helpers.js';
 import { createFish } from './livestock/create-fish.js';
 import { createPlant } from './plants/create-plant.js';
 
@@ -35,6 +35,7 @@ const SEEDABLE_RESOURCES = [
   'oxygen',
   'co2',
   'kh',
+  'gh',
 ] as const;
 
 export type SeedColony = Partial<Pick<Resources, (typeof SEEDABLE_BACTERIA)[number]>>;
@@ -43,10 +44,10 @@ export type SeedColony = Partial<Pick<Resources, (typeof SEEDABLE_BACTERIA)[numb
  * A colony as absolute stock, or `'cycled'` — a tank that has been running a
  * month, which is a claim about the whole tank and not only its biofilter: it
  * carries the bed and the driftwood that month left, the nitrate that month
- * made and the KH the bed let it keep, as well as the colony. Every one of them
- * is resolved against the tank when the seed is applied, so a preset resized
- * or rescaped at the door still gets a filter, a bed, a scape and readings
- * that fit it.
+ * made and the hardness the bed let it keep, as well as the colony. Every one
+ * of them is resolved against the tank when the seed is applied, so a preset
+ * resized or rescaped at the door still gets a filter, a bed, a scape and
+ * readings that fit it.
  */
 export type SeedBacteria = 'cycled' | SeedColony;
 
@@ -56,8 +57,8 @@ export type SeedSubstrate = Partial<Pick<Substrate, (typeof SEEDABLE_SUBSTRATE)[
 /**
  * Chemistry stocks a seed may set, in the units `Resources` stores them
  * in: nitrogen compounds and nutrients as mass in mg (`getMassFromPpm`
- * converts from a test-kit reading), alkalinity as mg of CaCO3 (`getKhMass`
- * converts from dKH), dissolved gases as mg/L.
+ * converts from a test-kit reading), both hardnesses as mg of CaCO3
+ * (`getKhMass` and `getGhMass` convert from degrees), dissolved gases as mg/L.
  */
 export type SeedResources = Partial<Pick<Resources, (typeof SEEDABLE_RESOURCES)[number]>>;
 
@@ -188,10 +189,27 @@ export function cycledNitrate(type: SubstrateType, capacity: number): number {
  */
 const CYCLED_SOIL_KH_RETAINED = 0.15;
 
+function cycledDkh(type: SubstrateType, tapKh: number): number {
+  return tapKh * (type === 'aqua_soil' ? CYCLED_SOIL_KH_RETAINED : 1);
+}
+
 /** mg of CaCO3 a cycled tank of this bed, tap and capacity carries. */
 export function cycledKh(type: SubstrateType, tapKh: number, capacity: number): number {
-  const retained = type === 'aqua_soil' ? CYCLED_SOIL_KH_RETAINED : 1;
-  return getKhMass(tapKh * retained, capacity);
+  return getKhMass(cycledDkh(type, tapKh), capacity);
+}
+
+/**
+ * mg of CaCO3 of general hardness a cycled tank carries. The bed takes GH and
+ * KH out in equal measure and water changes dilute both toward the tap alike,
+ * so GH sits exactly as far below the tap as KH does.
+ */
+export function cycledGh(
+  type: SubstrateType,
+  tapKh: number,
+  tapGh: number,
+  capacity: number
+): number {
+  return getGhMass(Math.max(0, tapGh - (tapKh - cycledDkh(type, tapKh))), capacity);
 }
 
 function writeStocks<T, K extends keyof T>(
@@ -222,6 +240,7 @@ export function applySeed(state: SimulationState, seed: PresetSeed): void {
     writeStocks(state.resources, SEEDABLE_RESOURCES, {
       nitrate: cycledNitrate(type, capacity),
       kh: cycledKh(type, state.environment.tapKh, capacity),
+      gh: cycledGh(type, state.environment.tapKh, state.environment.tapGh, capacity),
     });
   } else {
     writeStocks(state.resources, SEEDABLE_BACTERIA, seed.bacteria);

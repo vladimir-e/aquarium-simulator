@@ -19,10 +19,12 @@ import type { HistorySnapshot } from './history.js';
  * rule is reject, not migrate.
  *
  * v12 made pH a reading of CO₂ against KH. `Resources` swapped `ph` for `kh`,
- *    alkalinity as mg of CaCO3; `Environment` swapped `tapWaterPH` for
- *    `tapKh`; the `ph` config section became `waterChemistry`; the bed gained
- *    a `khReserve` and every hardscape piece its `tannins`. A v11 session
- *    parses with no `kh` and no `waterChemistry`: pH reads off an `undefined`
+ *    alkalinity as mg of CaCO3, and gained `gh`; `Environment` swapped
+ *    `tapWaterPH` for `tapKh` and gained `tapGh`; the `ph` config section
+ *    became `waterChemistry`, and livestock and plants each gained a
+ *    `ghStressSeverity`; the bed gained a `khReserve` and every hardscape
+ *    piece its `tannins`. A v11 session parses with no `kh` and no
+ *    `waterChemistry`: pH reads off an `undefined`
  *    stock, every flow that touches it is `NaN` from the first tick, and the
  *    session is written back that way.
  * v11 gave the maintenance term one name and dropped the multiple that stood

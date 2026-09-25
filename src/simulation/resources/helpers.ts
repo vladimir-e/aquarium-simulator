@@ -1,7 +1,7 @@
 /**
  * Helper functions for mass-stored solutes.
  *
- * Nitrogen compounds, nutrients and alkalinity are stored as mass in mg.
+ * Nitrogen compounds, nutrients and both hardnesses are stored as mass in mg.
  * These helpers convert between mass and concentration (ppm).
  *
  * Rationale: Storing mass as the conserved quantity makes concentration
@@ -9,7 +9,7 @@
  * (same mass, less volume = higher ppm).
  */
 
-import { CACO3_PER_DKH } from '../core/chemistry.js';
+import { CACO3_PER_DEGREE } from '../core/chemistry.js';
 
 /**
  * Derives concentration (ppm) from mass and water volume.
@@ -37,10 +37,20 @@ export function getMassFromPpm(ppm: number, waterLiters: number): number {
 
 /** Carbonate hardness in dKH, from alkalinity stored as mg of CaCO3. */
 export function getDkh(massInMg: number, waterLiters: number): number {
-  return getPpm(massInMg, waterLiters) / CACO3_PER_DKH;
+  return getPpm(massInMg, waterLiters) / CACO3_PER_DEGREE;
 }
 
 /** mg of CaCO3 that holds `dkh` in `waterLiters`. */
 export function getKhMass(dkh: number, waterLiters: number): number {
-  return getMassFromPpm(dkh * CACO3_PER_DKH, waterLiters);
+  return getMassFromPpm(dkh * CACO3_PER_DEGREE, waterLiters);
+}
+
+/** General hardness in dGH, from calcium and magnesium stored as mg of CaCO3. */
+export function getDgh(massInMg: number, waterLiters: number): number {
+  return getPpm(massInMg, waterLiters) / CACO3_PER_DEGREE;
+}
+
+/** mg of CaCO3 that holds `dgh` in `waterLiters`. */
+export function getGhMass(dgh: number, waterLiters: number): number {
+  return getMassFromPpm(dgh * CACO3_PER_DEGREE, waterLiters);
 }

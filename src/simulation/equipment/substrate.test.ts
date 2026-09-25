@@ -218,6 +218,24 @@ describe('substrateUpdate on alkalinity', () => {
     );
   });
 
+  it('exchanges GH for the KH it spends, mg for mg', () => {
+    const { effects } = substrateUpdate(soilTank());
+    const kh = effects.find((effect) => effect.resource === 'kh')!;
+    const gh = effects.find((effect) => effect.resource === 'gh')!;
+
+    expect(gh.delta).toBe(kh.delta);
+  });
+
+  it('takes no more than the water holds of either hardness', () => {
+    const soft = produce(soilTank(), (draft) => {
+      draft.resources.gh = 0.01;
+    });
+    const { effects } = substrateUpdate(soft);
+    for (const effect of effects.filter((e) => e.resource === 'kh' || e.resource === 'gh')) {
+      expect(effect.delta).toBeCloseTo(-0.01, 10);
+    }
+  });
+
   it('takes nothing from a drained tank', () => {
     const drained = produce(soilTank(), (draft) => {
       draft.resources.water = 0;

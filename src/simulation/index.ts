@@ -61,6 +61,7 @@ export type {
 } from './seed.js';
 export {
   cycledColony,
+  cycledGh,
   cycledKh,
   cycledKhReserve,
   cycledNitrate,
@@ -88,6 +89,8 @@ export {
   getMassFromPpm,
   getDkh,
   getKhMass,
+  getDgh,
+  getGhMass,
   ResourceRegistry,
   AllResources,
   TemperatureResource,
@@ -98,6 +101,7 @@ export {
   FoodResource,
   WasteResource,
   KhResource,
+  GhResource,
   PhosphateResource,
   PotassiumResource,
   IronResource,
@@ -209,7 +213,7 @@ export {
   getHardscapeSurface,
   calculateHardscapeTotalSurface,
   getHardscapeName,
-  getHardscapeKhEffect,
+  getHardscapeHardnessEffect,
   checkHardscapeCapacity,
   createHardscapeItem,
   calculateCalciteDissolution,
@@ -220,6 +224,7 @@ export {
   HARDSCAPE_TANNINS,
   type HardscapeType,
   type HardscapeItem,
+  type HardscapeItemSpec,
   type Hardscape,
 } from './equipment/hardscape.js';
 

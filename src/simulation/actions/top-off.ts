@@ -1,7 +1,7 @@
 import { produce } from 'immer';
 import type { SimulationState } from '../state.js';
 import { createLog } from '../core/logging.js';
-import { getKhMass } from '../resources/helpers.js';
+import { getGhMass, getKhMass } from '../resources/helpers.js';
 import type { ActionResult } from './types.js';
 
 /**
@@ -26,6 +26,7 @@ export function topOff(state: SimulationState): ActionResult {
   const newState = produce(state, (draft) => {
     draft.resources.water = draft.tank.capacity;
     draft.resources.kh += getKhMass(draft.environment.tapKh, amountAdded);
+    draft.resources.gh += getGhMass(draft.environment.tapGh, amountAdded);
     draft.logs.push(
       createLog(
         draft.tick,

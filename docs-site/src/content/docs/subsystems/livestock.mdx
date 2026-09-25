@@ -28,22 +28,22 @@ in, and the bank that health leaves over is what pays for the next spawn.
 | Tolerance-band benefits | <Badge text="scaffolding" variant="caution" /> | pH and oxygen benefits are steps. Crossing the edge loses the whole channel at once *and* starts damage. |
 | Fry survival | <Badge text="missing" variant="danger" /> | Clutches hatch at 100 % with no density check and nothing eats the young, so any stocked pair breeds toward a wipeout. This is the cause of most "the preset is broken" findings. |
 | Colonies | <Badge text="missing" variant="danger" /> | Snails and shrimp do not exist. Fish are the only animals, and food they leave behind decays rather than feeding anything. |
-| General hardness | <Badge text="missing" variant="danger" /> | Ca/Mg is absent, so species tolerance reads temperature, pH and flow and nothing else. |
+| General hardness | <Badge text="scaffolding" variant="caution" /> | A damage-only band per species: no benefit inside it, and one pooled GH rather than calcium and magnesium apart. |
 | Dissolved CO₂ | <Badge text="missing" variant="danger" /> | Fish carry no carbon stressor. A tank can sit at any CO₂ the injector reaches without a fish noticing. |
 
 ## How it works
 
 ### The roster
 
-| Species | Adult mass | Lifespan | Hardiness | Temperature | pH | Max turnover |
-|---|---|---|---|---|---|---|
-| Neon Tetra | 0.5 g | 5 y | 0.5 | 22–28 °C | 5.0–7.8 | 10 ×/h |
-| Guppy | 1.0 g | 3 y | 0.8 | 22–28 °C | 6.5–8.5 | 13 ×/h |
-| Betta | 3.0 g | 3 y | 0.6 | 24–30 °C | 6.0–8.0 | 5 ×/h |
-| Corydoras | 4.0 g | 5 y | 0.7 | 22–26 °C | 6.0–8.0 | 15 ×/h |
-| Angelfish | 15.0 g | 10 y | 0.4 | 24–30 °C | 6.0–8.0 | 10 ×/h |
+| Species | Adult mass | Lifespan | Hardiness | Temperature | pH | GH | Max turnover |
+|---|---|---|---|---|---|---|---|
+| Neon Tetra | 0.5 g | 5 y | 0.5 | 22–28 °C | 5.0–7.8 | 1–12 dGH | 10 ×/h |
+| Guppy | 1.0 g | 3 y | 0.8 | 22–28 °C | 6.5–8.5 | 6–25 dGH | 13 ×/h |
+| Betta | 3.0 g | 3 y | 0.6 | 24–30 °C | 6.0–8.0 | 3–15 dGH | 5 ×/h |
+| Corydoras | 4.0 g | 5 y | 0.7 | 22–26 °C | 6.0–8.0 | 2–15 dGH | 15 ×/h |
+| Angelfish | 15.0 g | 10 y | 0.4 | 24–30 °C | 6.0–8.0 | 3–15 dGH | 10 ×/h |
 
-pH bands are the generous hobby care-sheet ranges, wide enough for fresh aqua soil and hard tap alike. Past an edge the damage grows with the distance, per pH unit.
+pH and GH bands are the generous hobby care-sheet ranges, wide enough for fresh aqua soil and hard tap alike — soft-water species reach lower, the livebearer higher. Past an edge the damage grows with the distance, per pH unit or per dGH.
 
 Flow tolerance is a turnover, not a flow, and a fixed-output device is what makes
 the difference show: the smallest powerhead moves `908` L/h whatever it is
@@ -127,6 +127,7 @@ over.
 |---|---|---|
 | Temperature | outside the species range | °C |
 | pH | outside the species range | pH unit |
+| GH | outside the species range | dGH |
 | Free NH₃ | any presence | ppm of the *unionized* fraction, read off pH and temperature |
 | Nitrite | any presence | ppm |
 | Nitrate | above `nitrateStressThreshold` | ppm over |
@@ -240,6 +241,7 @@ visible decline rather than a coin flip.
 | `nitrateStressThreshold` | Nitrate at which damage starts | `40` ppm |
 | `oxygenStressThreshold` | The shared edge: damage below it, benefit at or above | `5` mg/L |
 | `flowStressSeverity` | Damage per turnover unit above species tolerance | `0.3` %/×/hr |
+| `ghStressSeverity` | Damage per dGH outside the species range — a chronic harm, so a guppy five degrees short stays inside a fed tank's recovery | `0.1` %/dGH/hr |
 | `ageStressSeverity` | Damage per hour past the species lifespan | `0.05` %/hr/hr |
 | Satiation band edges | The four anchors of the curve: overfed, well-fed, hungry, starving | `99` · `75` · `50` · `25` % |
 | Satiation severities | Peak at each anchor — overfed, well-fed benefit, hungry, starving | `2.0` · `0.3` · `2.5` · `6.0` %/hr |
@@ -253,7 +255,7 @@ visible decline rather than a coin flip.
 | Neighbour | Read | Written |
 |---|---|---|
 | [Nitrogen cycle](/subsystems/nitrogen-cycle/) | `ammonia` and `nitrite` as stressors, `nitrate` above its threshold | `ammonia` through the gills; `waste` as feces and death mass |
-| [Water & gases](/subsystems/water-and-gases/) | `oxygen` twice — as the Monod factor on the whole metabolism, and as a stressor and benefit on the same threshold; pH, derived from `co2` and `kh`, as a tolerance band | `oxygen` drawn, `co2` exhaled |
+| [Water & gases](/subsystems/water-and-gases/) | `oxygen` twice — as the Monod factor on the whole metabolism, and as a stressor and benefit on the same threshold; pH, derived from `co2` and `kh`, and `gh`, each as a tolerance band | `oxygen` drawn, `co2` exhaled |
 | [Environment](/subsystems/environment/) | `temperature` as a tolerance band; `water` for every ppm and for the water-level stressor | — |
 | [Equipment](/subsystems/equipment/) | `flow`, divided by standing water into a turnover | — |
 | [Plants](/subsystems/plants/) | Plant power — the shelter benefit, saturating | — |

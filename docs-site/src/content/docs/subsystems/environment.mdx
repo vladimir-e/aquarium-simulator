@@ -36,8 +36,9 @@ the room, and water leaves for the air.
 | `roomTemperature` | The target temperature drift pulls toward, and the reference evaporation reads its differential against | °C |
 | `tapWaterTemperature` | Temperature of every litre added by a water change or the ATO | °C |
 | `tapKh` | Carbonate hardness of that same water — a fresh tank is filled with it, and every litre added brings it | dKH |
+| `tapGh` | General hardness of that same water, arriving wherever `tapKh` does | dGH |
 
-Defaults are 22 °C, 20 °C and 4 dKH. None of the three is a stock and none of them
+Defaults are 22 °C, 20 °C, 4 dKH and 6 dGH. None of the four is a stock and none of them
 drifts; they are boundary conditions the tank runs against.
 
 ### The box
@@ -123,13 +124,13 @@ outside the range-declaration rule the rest of the engine follows.
 
 | Neighbour | Read | Written |
 |---|---|---|
-| [Equipment](/subsystems/equipment/) | The lid type, for the evaporation multiplier | `temperature` — the heater fights drift on the same volume scale; `water` — the ATO refills what evaporated, blending toward tap temperature and adding tap KH as it does |
+| [Equipment](/subsystems/equipment/) | The lid type, for the evaporation multiplier | `temperature` — the heater fights drift on the same volume scale; `water` — the ATO refills what evaporated, blending toward tap temperature and adding tap KH and GH as it does |
 | [Water & gases](/subsystems/water-and-gases/) | — | `temperature` sets O₂ saturation, and standing `water` is the divisor every gas mass passes through |
 | [Nitrogen cycle](/subsystems/nitrogen-cycle/) | — | `temperature` drives the nitrifier Q10; `water` turns stored mass into the ppm every threshold reads |
 | [Light](/subsystems/light/) | — | Depth, from the same box capacity implies |
 | [Plants](/subsystems/plants/) · [Livestock](/subsystems/livestock/) | — | `temperature` is a two-sided stressor and a benefit channel for both |
 | [Algae](/subsystems/algae/) | — | Standing `water`, to turn stored nutrient mass into the ppm the ratio needs |
-| [Actions](/subsystems/actions/) | — | Tap temperature and tap KH are what a water change blends toward |
+| [Actions](/subsystems/actions/) | — | Tap temperature, KH and GH are what a water change blends toward |
 | [Alerts & logging](/subsystems/alerts-and-logging/) | — | `water` below 20 % of capacity raises the critical water-level alert |
 | [State & persistence](/subsystems/state-and-persistence/) | — | `tank.capacity` — what every per-litre seed figure resolves against |
 

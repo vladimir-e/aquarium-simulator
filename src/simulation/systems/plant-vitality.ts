@@ -25,6 +25,7 @@
  * - CO2 insufficient (high-tech species suffer when CO2 falls)
  * - Temperature out of `tolerableTemp` (per °C, two-sided)
  * - pH out of `tolerablePH` (per pH unit, two-sided)
+ * - GH out of `tolerableGH` (per dGH, two-sided)
  * - Nutrient deficiency (per (1 − Liebig sufficiency))
  * - Nutrient toxicity (gross NO3 overdose — auto-doser failure case)
  * - Algae shading (when algae density crosses the shading threshold)
@@ -35,7 +36,7 @@ import { getPh } from '../core/carbonate.js';
 import { PLANT_SPECIES_DATA, getSaturationIrradiance } from '../plants/species.js';
 import type { PlantsConfig } from '../config/plants.js';
 import { lightSaturationFactor } from '../core/kinetics.js';
-import { getPpm } from '../resources/index.js';
+import { getDgh, getPpm } from '../resources/index.js';
 import { getRespirationTemperatureFactor } from './respiration.js';
 import {
   computeVitality,
@@ -144,6 +145,16 @@ export function buildPlantStressors(ctx: PlantVitalityContext): VitalityFactor[]
     phAmount = plantsConfig.phStressSeverity * (ph - phHi);
   }
   factors.push({ key: 'ph', label: 'pH', amount: phAmount });
+
+  const [ghLo, ghHi] = species.tolerableGH;
+  const gh = getDgh(resources.gh, waterVolume);
+  let ghAmount = 0;
+  if (gh < ghLo) {
+    ghAmount = plantsConfig.ghStressSeverity * (ghLo - gh);
+  } else if (gh > ghHi) {
+    ghAmount = plantsConfig.ghStressSeverity * (gh - ghHi);
+  }
+  factors.push({ key: 'gh', label: 'GH', amount: ghAmount });
 
   // Nutrient deficiency — Liebig sufficiency drives a single damage
   // signal proportional to (1 − sufficiency). Sufficiency is

@@ -140,6 +140,7 @@ describe('PersistedSimulationSchema', () => {
       oxygen: 8,
       co2: 5,
       kh: 3000,
+      gh: 4000,
       aob: 0,
       nob: 0,
     },
@@ -147,6 +148,7 @@ describe('PersistedSimulationSchema', () => {
       roomTemperature: 22,
       tapWaterTemperature: 18,
       tapKh: 4,
+      tapGh: 6,
     },
     equipment: {
       heater: { enabled: true, isOn: false, targetTemperature: 25, wattage: 50 },
@@ -410,6 +412,7 @@ describe('PersistedStateSchema', () => {
       oxygen: 8,
       co2: 5,
       kh: 3000,
+      gh: 4000,
       aob: 0,
       nob: 0,
     },
@@ -417,6 +420,7 @@ describe('PersistedStateSchema', () => {
       roomTemperature: 22,
       tapWaterTemperature: 18,
       tapKh: 4,
+      tapGh: 6,
     },
     equipment: {
       heater: { enabled: true, isOn: false, targetTemperature: 25, wattage: 50 },

@@ -7,14 +7,14 @@
  * When adding water:
  * - Temperature blends toward tap water temperature
  * - Dissolved gases blend with tap water concentrations (saturated O2, atmospheric CO2)
- * - Tap water brings its alkalinity, so topping off evaporation creeps KH up
+ * - Tap water brings its hardness, so topping off evaporation creeps KH and GH up
  * - With mass-based nitrogen storage, ppm auto-decreases (no mass change needed)
  */
 
 import type { Effect } from '../core/effects.js';
 import type { SimulationState } from '../state.js';
 import { blendTemperature, blendConcentration } from '../core/blending.js';
-import { getKhMass } from '../resources/helpers.js';
+import { getGhMass, getKhMass } from '../resources/helpers.js';
 import { calculateO2Saturation } from '../systems/gas-exchange.js';
 import { gasExchangeDefaults } from '../config/gas-exchange.js';
 
@@ -76,6 +76,7 @@ export function atoUpdate(state: SimulationState): Effect[] {
   const co2Delta = blendedCo2 - state.resources.co2;
 
   const tapKhMass = getKhMass(state.environment.tapKh, waterToAdd);
+  const tapGhMass = getGhMass(state.environment.tapGh, waterToAdd);
 
   const effects: Effect[] = [
     {
@@ -121,6 +122,15 @@ export function atoUpdate(state: SimulationState): Effect[] {
       tier: 'immediate',
       resource: 'kh',
       delta: tapKhMass,
+      source: 'ato',
+    });
+  }
+
+  if (tapGhMass > 0) {
+    effects.push({
+      tier: 'immediate',
+      resource: 'gh',
+      delta: tapGhMass,
       source: 'ato',
     });
   }

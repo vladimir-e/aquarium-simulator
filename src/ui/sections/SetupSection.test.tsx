@@ -115,6 +115,10 @@ describe('SetupSection', () => {
     const kh = screen.getByRole('group', { name: 'Tap water KH' });
     fireEvent.click(within(kh).getByRole('button', { name: 'decrease' }));
     expect(sim.updateTapKh).toHaveBeenCalledWith(planted.environment.tapKh - 0.5);
+
+    const gh = screen.getByRole('group', { name: 'Tap water GH' });
+    fireEvent.click(within(gh).getByRole('button', { name: 'increase' }));
+    expect(sim.updateTapGh).toHaveBeenCalledWith(planted.environment.tapGh + 0.5);
   });
 
   it('offers the lids in the one wording the rest of the app uses', () => {

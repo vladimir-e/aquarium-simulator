@@ -89,6 +89,8 @@ export interface PlantsConfig {
   temperatureStressSeverity: number;
   /** Damage per pH unit outside the species' tolerable range. */
   phStressSeverity: number;
+  /** Damage per dGH outside the species' tolerable range. */
+  ghStressSeverity: number;
   /** Damage per (1 − sufficiency) for nutrient deficiency. */
   nutrientDeficiencySeverity: number;
   /**
@@ -241,6 +243,7 @@ export const plantsDefaults: PlantsConfig = {
   co2InsufficientSeverity: 1.5,
   temperatureStressSeverity: 0.4,
   phStressSeverity: 3.0,
+  ghStressSeverity: 0.1,
   // Pinned from both ends against a starved carpet and a neglected nano.
   //
   // Severe: a monte carlo under a fixture that suits it, in water with no
@@ -382,6 +385,7 @@ export const plantsConfigMeta: PlantsConfigMeta[] = [
   { key: 'co2InsufficientSeverity', label: 'CO2 Insuff. Severity', unit: '%/(mg/L)/hr', min: 0.1, max: 5.0, step: 0.1 },
   { key: 'temperatureStressSeverity', label: 'Plant Temp Severity', unit: '%/°C/hr', min: 0.1, max: 2.0, step: 0.1 },
   { key: 'phStressSeverity', label: 'Plant pH Severity', unit: '%/pH/hr', min: 0.5, max: 10, step: 0.5 },
+  { key: 'ghStressSeverity', label: 'Plant GH Severity', unit: '%/dGH/hr', min: 0, max: 2, step: 0.05 },
   { key: 'nutrientDeficiencySeverity', label: 'Nutrient Defic. Severity', unit: '%/(1-suff)/hr', min: 0.1, max: 2.0, step: 0.1 },
   { key: 'nutrientToxicitySeverity', label: 'Nutrient Tox. Severity', unit: '%/ppm/hr', min: 0.001, max: 0.2, step: 0.005 },
   { key: 'nutrientToxicityThresholdNitrate', label: 'NO3 Tox. Threshold', unit: 'ppm', min: 50, max: 300, step: 10 },

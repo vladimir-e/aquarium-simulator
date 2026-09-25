@@ -29,21 +29,21 @@ repair first and new tissue second.
 | Photoperiod gates | <Badge text="scaffolding" variant="caution" /> | Three switches on `light > 0`: the light-low stressor, the CO₂-low stressor, and surplus accrual. A carbon-starved plant swings between 0 and full damage as the lamp flips while its benefits ramp smoothly. |
 | Size against `maxSize` | <Badge text="scaffolding" variant="caution" /> | The ceiling is 600–1100 across the roster and the asymptotic factor stays above 0.9 through any calibration window, so it does not bind. Trimming validates a target in `[0, 100]` against it. |
 | Propagation | <Badge text="missing" variant="danger" /> | A plant with nowhere left to grow banks its whole income and nothing spends it. No runners, no daughter plants — the only way a plant enters the tank is the keeper putting one there. |
-| General hardness | <Badge text="missing" variant="danger" /> | Ca/Mg is absent from the engine, so a species' nutrition reads four nutrients and never the water's hardness. |
+| General hardness | <Badge text="scaffolding" variant="caution" /> | A damage-only tolerance band per species, and a small uptake tied to the nutrient draw. Calcium never enters sufficiency, so soft water stresses a plant but never starves it. |
 
 ## How it works
 
 ### The species roster
 
-| Species | Tolerable PAR | Saturates at | Nutrient demand | Hardiness | pH | Substrate |
-|---|---|---|---|---|---|---|
-| Anubias | 8–70 | 16 | low | 0.75 | 5.5–8.0 | attaches |
-| Java Fern | 10–90 | 20 | low | 0.7 | 5.5–8.0 | attaches |
-| Amazon Sword | 20–120 | 40 | medium | 0.5 | 5.5–7.8 | sand |
-| Dwarf Hairgrass | 25–200 | 50 | high | 0.3 | 5.5–7.8 | aqua soil |
-| Monte Carlo | 30–200 | 60 | high | 0.3 | 5.5–7.8 | aqua soil |
+| Species | Tolerable PAR | Saturates at | Nutrient demand | Hardiness | pH | GH | Substrate |
+|---|---|---|---|---|---|---|---|
+| Anubias | 8–70 | 16 | low | 0.75 | 5.5–8.0 | 1–20 dGH | attaches |
+| Java Fern | 10–90 | 20 | low | 0.7 | 5.5–8.0 | 1–20 dGH | attaches |
+| Amazon Sword | 20–120 | 40 | medium | 0.5 | 5.5–7.8 | 2–20 dGH | sand |
+| Dwarf Hairgrass | 25–200 | 50 | high | 0.3 | 5.5–7.8 | 1–18 dGH | aqua soil |
+| Monte Carlo | 30–200 | 60 | high | 0.3 | 5.5–7.8 | 1–15 dGH | aqua soil |
 
-pH bands are the generous hobby care-sheet ranges, wide enough for fresh aqua soil and hard tap alike. Past an edge the damage grows with the distance, per pH unit.
+pH and GH bands are the generous hobby care-sheet ranges, wide enough for fresh aqua soil and hard tap alike. Past an edge the damage grows with the distance, per pH unit or per dGH (`ghStressSeverity`, `0.1` %/dGH/hr). Only pH also earns inside its band; GH is damage alone.
 
 Saturating irradiance is derived, not declared: `saturationIrradianceFactor ×
 tolerableLight[0]`. One number therefore carries both light channels, and a
@@ -122,7 +122,8 @@ on nitrogen and phosphate to the `0.2` maintenance fraction — a sixth of what
 the same planting takes at full sufficiency — rather than ending it, so the
 water column keeps falling while growth is capped. The consequence to know:
 because uptake reads the same ratio the doser meters by, dosing cannot correct
-an imbalance it did not create.
+an imbalance it did not create. Calcium and magnesium ride along outside the
+ratio: `0.15` mg of GH, as CaCO₃, per mg of nutrient drawn.
 
 ### Income, upkeep and the compensation point
 
@@ -216,7 +217,7 @@ plant leaves the array.
 | Neighbour | Read | Written |
 |---|---|---|
 | [Light](/subsystems/light/) | `light` — PAR at the substrate, which multiplies the photosynthetic rate and every benefit channel, and gates accrual | — |
-| [Water & gases](/subsystems/water-and-gases/) | `co2` for the rate and the band, `oxygen` for the respiration Monod, pH for the tolerance band | `oxygen` and `co2`, both directions, on one carbon yield |
+| [Water & gases](/subsystems/water-and-gases/) | `co2` for the rate and the band, `oxygen` for the respiration Monod, pH and `gh` for the tolerance bands | `oxygen` and `co2`, both directions, on one carbon yield; `gh` drawn with the nutrients |
 | [Nitrogen cycle](/subsystems/nitrogen-cycle/) | `nitrate` — the one nutrient every tier requires | `nitrate` drained on uptake; `waste` from shedding and death |
 | [Environment](/subsystems/environment/) | `temperature` for the Q10 on respiration and upkeep, `water` for every ppm | — |
 | [Equipment](/subsystems/equipment/) | `substrate.type` — which species may be planted at all | — |

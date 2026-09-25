@@ -41,6 +41,7 @@ function makeResources(overrides: Partial<Resources> = {}): Resources {
     oxygen: 8.0,
     co2: 20.0,
     kh: 0,
+    gh: 0,
     aob: 0,
     nob: 0,
     ...overrides,

@@ -11,6 +11,7 @@ Format: - **Feature name** (#PR) - One short sentence (under ~150 chars)
 
 ## Unreleased
 
+- **GH, general hardness** - calcium and magnesium as a tank stock from `tapGh`, moved with KH by calcite and soil, drawn by plants; fish and plants carry GH bands.
 - **pH follows CO₂ and KH** - KH is a tank stock moved by tap water, nitrification and scape; breaking: `tapWaterPH` → `tapKh`, `ph` config → `waterChemistry`.
 - **Scenario runner** - `npm run scenarios` runs preset tanks headless and grades each reading against real-tank bands; `--diff` shows what moved.
 - **A retuned fertiliser formula reaches the bottle** - the manual dose and the auto-doser meter by the tuned formula plant uptake already read; breaking: `dose`, `getDosePreview`, `calculateDoseNutrients` and `autoDoserUpdate` require one.

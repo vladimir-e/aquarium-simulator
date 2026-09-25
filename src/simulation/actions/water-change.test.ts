@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { produce } from 'immer';
 import { waterChange } from './water-change.js';
 import { createSimulation, type SimulationState } from '../state.js';
-import { getDkh, getKhMass } from '../resources/helpers.js';
+import { getDgh, getDkh, getGhMass, getKhMass } from '../resources/helpers.js';
 import type { ActionResult, WaterChangeAction } from './types.js';
 
 const DISSOLVED = ['ammonia', 'nitrite', 'nitrate', 'phosphate', 'potassium', 'iron'] as const;
@@ -51,6 +51,16 @@ describe('waterChange', () => {
     expect(after(1, 0.25)).toBeCloseTo(1 + 0.25 * (5 - 1), 10);
     expect(after(9, 0.5)).toBeCloseTo(9 + 0.5 * (5 - 9), 10);
     expect(after(1, 1)).toBeCloseTo(5, 10);
+  });
+
+  it('dilutes GH toward the tap by the share changed', () => {
+    const state = produce(tank(), (draft) => {
+      draft.environment.tapGh = 3;
+      draft.resources.gh = getGhMass(11, 100);
+    });
+    const { resources } = change(state, 0.4).state;
+
+    expect(getDgh(resources.gh, resources.water)).toBeCloseTo(11 + 0.4 * (3 - 11), 10);
   });
 
   it('refills to capacity and blends in the tap temperature by volume', () => {

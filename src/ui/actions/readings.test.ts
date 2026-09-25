@@ -11,7 +11,7 @@ import {
 } from '../../simulation/index.js';
 import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
 import { carbonateKh } from '../../simulation/core/carbonate.js';
-import { getKhMass } from '../../simulation/resources/helpers.js';
+import { getGhMass, getKhMass } from '../../simulation/resources/helpers.js';
 import { blendConcentration, blendTemperature } from '../../simulation/core/blending.js';
 import { calculateO2Saturation } from '../../simulation/systems/gas-exchange.js';
 import { gasExchangeDefaults } from '../../simulation/config/gas-exchange.js';
@@ -41,6 +41,7 @@ function fixture(species: FishSpecies[] = ['neon_tetra', 'corydoras', 'betta']):
   state.resources.water = 196.4;
   state.resources.temperature = 25.4;
   state.resources.kh = getKhMass(carbonateKh(state.resources.co2, 6.82), 196.4);
+  state.resources.gh = getGhMass(9.3, 196.4);
   state.resources.ammonia = 0.034 * 196.4;
   state.resources.nitrite = 0.412 * 196.4;
   state.resources.nitrate = 18.6 * 196.4;
@@ -128,6 +129,7 @@ describe('preview readings', () => {
     water: 'level',
     temperature: 'temperature',
     kh: 'kh',
+    gh: 'gh',
     ammonia: 'ammonia',
     nitrite: 'nitrite',
     nitrate: 'nitrate',

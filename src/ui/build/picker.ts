@@ -55,6 +55,7 @@ function fishOption(
 ): PickerOption {
   const data = FISH_SPECIES_DATA[species];
   const [phLow, phHigh] = data.phRange;
+  const [ghLow, ghHigh] = data.ghRange;
   const [tempLow, tempHigh] = data.temperatureRange;
   const temperature = state.resources.temperature;
   const outside = temperature < tempLow || temperature > tempHigh;
@@ -72,6 +73,7 @@ function fishOption(
     name: data.name,
     demand:
       `${data.adultMass} g adult · pH ${phLow.toFixed(1)}–${phHigh.toFixed(1)} · ` +
+      `GH ${ghLow}–${ghHigh} · ` +
       `flow to ${data.maxTurnover} ×/h`,
     fit: outside
       ? `wants ${formatTemperatureRange(data.temperatureRange, units)} — tank holds ` +

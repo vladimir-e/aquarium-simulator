@@ -5,11 +5,13 @@ import { livestockDefaults } from '../config/livestock.js';
 import { FISH_SPECIES_DATA } from '../livestock/species.js';
 import type { Fish, Plant, Resources } from '../state.js';
 import { withPh, type ResourceOverrides } from '../tests/resources.js';
+import { getGhMass } from '../resources/helpers.js';
 import type { FishSpecies } from '../livestock/species.js';
 
 const STRESSORS = [
   'temperature',
   'ph',
+  'gh',
   'ammonia',
   'nitrite',
   'nitrate',
@@ -63,6 +65,7 @@ function makeResources(overrides: ResourceOverrides = {}): Resources {
     oxygen: 8.0,
     co2: 4.0,
     kh: 0,
+    gh: getGhMass(6, 100),
     aob: 0,
     nob: 0,
   }, { ph: 7.0, ...overrides });
@@ -166,6 +169,7 @@ describe('stressors', () => {
       {
         temperature: 18,
         ph: 8.5,
+        gh: getGhMass(30, 30),
         ammonia: 5,
         nitrite: 50,
         nitrate: 6000,

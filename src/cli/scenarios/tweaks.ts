@@ -21,6 +21,7 @@ export const TWEAK_FLAGS = [
   'fish',
   'rock',
   'tap-kh',
+  'tap-gh',
   'light',
   'gal',
   'set',
@@ -39,6 +40,14 @@ function positive(raw: string | undefined, what: string): number {
 function count(raw: string | undefined, what: string): number {
   const value = positive(raw ?? '1', what);
   if (!Number.isInteger(value)) throw new Error(`${what} must be a whole number, got "${raw}".`);
+  return value;
+}
+
+function hardness(raw: string | undefined, what: string, unit: string): number {
+  const value = Number(raw);
+  if (raw === undefined || raw.trim() === '' || !Number.isFinite(value) || value < 0) {
+    throw new Error(`${what} must be a ${unit} of 0 or more, got "${raw ?? ''}".`);
+  }
   return value;
 }
 
@@ -84,11 +93,12 @@ function tweakApply(flag: string, value: string | undefined): Tweak['apply'] {
       return onSetup((setup) => ({ ...setup, hardscape: [...setup.hardscape, ...pieces] }));
     }
     case 'tap-kh': {
-      const tapKh = Number(value);
-      if (value === undefined || value.trim() === '' || !Number.isFinite(tapKh) || tapKh < 0) {
-        throw new Error(`tap-kh must be a dKH of 0 or more, got "${value ?? ''}".`);
-      }
+      const tapKh = hardness(value, 'tap-kh', 'dKH');
       return onSetup((setup) => ({ ...setup, tapKh }));
+    }
+    case 'tap-gh': {
+      const tapGh = hardness(value, 'tap-gh', 'dGH');
+      return onSetup((setup) => ({ ...setup, tapGh }));
     }
     case 'light': {
       const factor = positive(value, 'light factor');

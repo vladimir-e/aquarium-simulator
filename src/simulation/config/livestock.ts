@@ -80,6 +80,8 @@ export interface LivestockConfig {
   temperatureStressSeverity: number;
   /** Health damage per pH unit outside safe range */
   phStressSeverity: number;
+  /** Health damage per dGH outside safe range */
+  ghStressSeverity: number;
   /**
    * Health damage per ppm of *unionized* NH3 (not total TAN).
    *
@@ -237,6 +239,10 @@ export const livestockDefaults: LivestockConfig = {
   // 23 °C failure mode.
   temperatureStressSeverity: 0.85, // %/°C/hr before hardiness scaling
   phStressSeverity: 3.0, // 3% damage per pH unit outside range per hour
+  // Hardness out of range is a chronic harm, not an acute one: a guppy
+  // (factor 0.2) five degrees under its range pays 0.1 %/h — felt, but
+  // inside what a fed, oxygenated tank gives back, even a cold one.
+  ghStressSeverity: 0.1,
   // Per ppm of UNIONIZED NH3. Sensitive freshwater teleosts show acute
   // gill damage at ~0.05 ppm free NH3 sustained. 175 puts ~0.9 %/hr
   // net damage at that threshold for a mid-hardiness fish (factor
@@ -383,6 +389,7 @@ export const livestockConfigMeta: LivestockConfigMeta[] = [
     step: 0.5,
   },
   { key: 'phStressSeverity', label: 'pH Stress Severity', unit: '%/pH/hr', min: 1, max: 10, step: 0.5 },
+  { key: 'ghStressSeverity', label: 'GH Stress Severity', unit: '%/dGH/hr', min: 0, max: 2, step: 0.05 },
   {
     key: 'ammoniaStressSeverity',
     label: 'Ammonia Stress Severity',

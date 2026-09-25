@@ -132,6 +132,13 @@ export function applyEffects(
             resource.bounds.max
           );
           break;
+        case 'gh':
+          draft.resources.gh = clamp(
+            draft.resources.gh + effect.delta,
+            resource.bounds.min,
+            resource.bounds.max
+          );
+          break;
         case 'aob':
           draft.resources.aob = clamp(
             draft.resources.aob + effect.delta,

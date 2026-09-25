@@ -13,6 +13,7 @@ import { nutrientsDefaults } from '../config/nutrients.js';
 import { getMassFromPpm } from '../resources/helpers.js';
 import type { Plant, Resources } from '../state.js';
 import { withPh, type ResourceOverrides } from '../tests/resources.js';
+import { getGhMass } from '../resources/helpers.js';
 import {
   getSaturationIrradiance,
   PLANT_SPECIES_DATA,
@@ -50,6 +51,7 @@ function makeResources(overrides: ResourceOverrides = {}): Resources {
     oxygen: 8.0,
     co2: 20.0,
     kh: 0,
+    gh: getGhMass(6, 100),
     aob: 0,
     nob: 0,
   }, { ph: 6.8, ...overrides });

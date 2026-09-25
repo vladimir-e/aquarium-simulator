@@ -20,6 +20,7 @@ import {
   type DailySchedule,
   createHardscapeItem,
   getKhMass,
+  getGhMass,
 } from '../../simulation/index.js';
 import { createLog } from '../../simulation/core/logging.js';
 import type { OpticsConfig } from '../../simulation/config/index.js';
@@ -102,6 +103,7 @@ interface UseSimulationReturn {
   updateRoomTemperature: (temp: number) => void;
   updateTapWaterTemperature: (temp: number) => void;
   updateTapKh: (dkh: number) => void;
+  updateTapGh: (dgh: number) => void;
   updateLidType: (type: LidType) => void;
   updateAtoEnabled: (enabled: boolean) => void;
   updateFilterEnabled: (enabled: boolean) => void;
@@ -163,6 +165,20 @@ function stateToPersistedSimulation(
 }
 
 /**
+ * A tank that has not run yet was filled from the tap, so a new tap refills
+ * it: the stock keeps whatever share of the old tap its seed left it.
+ */
+function restock(
+  stock: number,
+  oldTap: number,
+  newTap: number,
+  water: number,
+  massOf: (degrees: number, water: number) => number
+): number {
+  return oldTap > 0 ? stock * (newTap / oldTap) : massOf(newTap, water);
+}
+
+/**
  * Create initial resources for a fresh simulation reset.
  * Uses tank capacity to set water level.
  */
@@ -178,6 +194,7 @@ function createInitialResources(
     roomTemperature: environment.roomTemperature,
     tapWaterTemperature: environment.tapWaterTemperature,
     tapKh: environment.tapKh,
+    tapGh: environment.tapGh,
   });
 
   // Now calculate passive resources based on current equipment
@@ -542,10 +559,29 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
           'info',
           `Tap water KH: ${oldKh.toFixed(1)} → ${dkh.toFixed(1)} dKH`
         );
-        draft.environment.tapKh = dkh;
         if (draft.tick === 0) {
-          draft.resources.kh = getKhMass(dkh, draft.resources.water);
+          draft.resources.kh = restock(draft.resources.kh, oldKh, dkh, draft.resources.water, getKhMass);
         }
+        draft.environment.tapKh = dkh;
+        draft.logs.push(log);
+      })
+    );
+  }, []);
+
+  const updateTapGh = useCallback((dgh: number) => {
+    setState((current) =>
+      produce(current, (draft) => {
+        const oldGh = draft.environment.tapGh;
+        const log = createLog(
+          draft.tick,
+          'user',
+          'info',
+          `Tap water GH: ${oldGh.toFixed(1)} → ${dgh.toFixed(1)} dGH`
+        );
+        if (draft.tick === 0) {
+          draft.resources.gh = restock(draft.resources.gh, oldGh, dgh, draft.resources.water, getGhMass);
+        }
+        draft.environment.tapGh = dgh;
         draft.logs.push(log);
       })
     );
@@ -885,6 +921,7 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
           roomTemperature: current.environment.roomTemperature,
           tapWaterTemperature: current.environment.tapWaterTemperature,
           tapKh: current.environment.tapKh,
+          tapGh: current.environment.tapGh,
           heater: {
             enabled: current.equipment.heater.enabled,
             targetTemperature: current.equipment.heater.targetTemperature,
@@ -972,6 +1009,7 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
     updateRoomTemperature,
     updateTapWaterTemperature,
     updateTapKh,
+    updateTapGh,
     updateLidType,
     updateAtoEnabled,
     updateFilterEnabled,

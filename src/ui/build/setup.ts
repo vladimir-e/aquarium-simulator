@@ -46,6 +46,7 @@ function presetSettings(state: SimulationState): string {
     room: state.environment.roomTemperature,
     tapTemperature: state.environment.tapWaterTemperature,
     tapKh: state.environment.tapKh,
+    tapGh: state.environment.tapGh,
     heater: [e.heater.enabled, e.heater.targetTemperature, e.heater.wattage],
     lid: e.lid.type,
     ato: e.ato.enabled,

@@ -1,6 +1,6 @@
 import type { SimulationState } from '../../simulation/state.js';
 import { unionizedAmmoniaFraction } from '../../simulation/systems/nitrogen-cycle.js';
-import { getDkh, getPpm } from '../../simulation/resources/helpers.js';
+import { getDgh, getDkh, getPpm } from '../../simulation/resources/helpers.js';
 import { getPh } from '../../simulation/core/carbonate.js';
 import { toFahrenheit } from '../units.js';
 
@@ -115,6 +115,14 @@ const DEFINITIONS = [
     digits: 1,
     read: (s): number => getDkh(s.resources.kh, s.resources.water),
     band: { green: [1, 12], amber: [0.3, 18], why: 'soft soil tanks sit near 1, hard tap near 12; a crash to 0 lets pH fall' },
+  },
+  {
+    id: 'gh',
+    label: 'GH',
+    unit: 'dGH',
+    digits: 1,
+    read: (s): number => getDgh(s.resources.gh, s.resources.water),
+    band: { green: [2, 18], amber: [1, 25], why: 'community fish are kept from ~3 to 15; soft-water species go lower, livebearers higher' },
   },
   {
     id: 'plants',

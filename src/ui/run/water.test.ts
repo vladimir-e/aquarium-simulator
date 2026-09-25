@@ -68,11 +68,12 @@ describe('waterValues', () => {
 });
 
 describe('waterReadings', () => {
-  it('returns the seven readings in reading order', () => {
+  it('returns the eight readings in reading order', () => {
     expect(readings(tank()).map((r) => r.key)).toEqual([
       'temperature',
       'ph',
       'kh',
+      'gh',
       'water',
       'ammonia',
       'nitrite',

@@ -145,7 +145,7 @@ export function processPlants(
   );
 
   const pushDelta = (
-    resource: 'oxygen' | 'co2' | 'nitrate' | 'phosphate' | 'potassium' | 'iron',
+    resource: 'oxygen' | 'co2' | 'nitrate' | 'phosphate' | 'potassium' | 'iron' | 'gh',
     delta: number,
     source: string
   ): void => {
@@ -164,6 +164,7 @@ export function processPlants(
   pushDelta('phosphate', photosynthesisResult.phosphateDelta, 'photosynthesis');
   pushDelta('potassium', photosynthesisResult.potassiumDelta, 'photosynthesis');
   pushDelta('iron', photosynthesisResult.ironDelta, 'photosynthesis');
+  pushDelta('gh', photosynthesisResult.ghDelta, 'photosynthesis');
 
   // 2. Calculate respiration (24/7)
   const respirationResult = calculateRespiration(

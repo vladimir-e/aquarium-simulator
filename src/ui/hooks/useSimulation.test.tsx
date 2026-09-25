@@ -10,6 +10,7 @@ import { createSimulation, type SimulationState } from '../../simulation/state.j
 import {
   applyAction,
   calculateTankHeight,
+  getDgh,
   getDkh,
   getSubstrateOrganicReserve,
   getSubstrateSurface,
@@ -142,6 +143,7 @@ describe('useSimulation', () => {
 
     act(() => {
       result.current.updateTapKh(9);
+      result.current.updateTapGh(11);
       result.current.updateTapWaterTemperature(14);
     });
     act(() => {
@@ -149,23 +151,51 @@ describe('useSimulation', () => {
     });
 
     expect(result.current.state.environment.tapKh).toBe(9);
+    expect(result.current.state.environment.tapGh).toBe(11);
     expect(result.current.state.environment.tapWaterTemperature).toBe(14);
     expect(getDkh(result.current.state.resources.kh, result.current.state.resources.water)).toBeCloseTo(9, 10);
   });
 
-  it('fills the tank from a retuned tap only before it has run', () => {
-    const { result } = renderHook(() => useSimulation(), { wrapper });
+  it('fills an unseeded tank from a retuned tap only before it has run', () => {
+    const { result } = renderHook(() => useSimulation('bare'), { wrapper });
 
-    act(() => result.current.updateTapKh(9));
+    act(() => {
+      result.current.updateTapKh(9);
+      result.current.updateTapGh(12);
+    });
     const { resources } = result.current.state;
     expect(getDkh(resources.kh, resources.water)).toBeCloseTo(9, 10);
+    expect(getDgh(resources.gh, resources.water)).toBeCloseTo(12, 10);
 
     act(() => result.current.step());
-    const ran = result.current.state.resources.kh;
-    act(() => result.current.updateTapKh(2));
+    const ran = result.current.state.resources;
+    act(() => {
+      result.current.updateTapKh(2);
+      result.current.updateTapGh(3);
+    });
 
     expect(result.current.state.environment.tapKh).toBe(2);
-    expect(result.current.state.resources.kh).toBe(ran);
+    expect(result.current.state.environment.tapGh).toBe(3);
+    expect(result.current.state.resources.kh).toBe(ran.kh);
+    expect(result.current.state.resources.gh).toBe(ran.gh);
+  });
+
+  it('keeps the share of the tap a seeded soil bed left when the tap is retuned', () => {
+    const { result } = renderHook(() => useSimulation('planted'), { wrapper });
+
+    const before = result.current.state;
+    const khShare = getDkh(before.resources.kh, before.resources.water) / before.environment.tapKh;
+    const ghShare = getDgh(before.resources.gh, before.resources.water) / before.environment.tapGh;
+    expect(khShare).toBeLessThan(1);
+
+    act(() => {
+      result.current.updateTapKh(before.environment.tapKh * 2);
+      result.current.updateTapGh(before.environment.tapGh * 2);
+    });
+
+    const { resources, environment } = result.current.state;
+    expect(getDkh(resources.kh, resources.water) / environment.tapKh).toBeCloseTo(khShare, 10);
+    expect(getDgh(resources.gh, resources.water) / environment.tapGh).toBeCloseTo(ghShare, 10);
   });
 
   it('swapping the substrate lays a fresh bed with a full organic reserve', () => {

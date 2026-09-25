@@ -3,6 +3,7 @@ import { createSimulation, type SimulationConfig } from './state.js';
 import { FISH_SPECIES_DATA } from './livestock/species.js';
 import {
   cycledColony,
+  cycledGh,
   cycledKh,
   cycledKhReserve,
   cycledNitrate,
@@ -14,6 +15,7 @@ import { getSubstrateKhReserve } from './equipment/substrate.js';
 import { HARDSCAPE_TANNINS } from './equipment/hardscape.js';
 import { DEFAULT_PLANT_SIZE, establishmentSurplus } from './plants/create-plant.js';
 import { plantsDefaults } from './config/plants.js';
+import { getDgh, getDkh } from './resources/helpers.js';
 
 const TANK: SimulationConfig = { tankCapacity: 40, substrate: { type: 'aqua_soil' } };
 
@@ -122,6 +124,15 @@ describe('createSimulation seeding', () => {
       expect(seeded.resources.aob).toBe(0);
     });
 
+    it('takes a named KH reserve over the cycled one, and leaves the organics to the shorthand', () => {
+      const seeded = createSimulation(TANK, { bacteria: 'cycled', substrate: { khReserve: 123 } });
+
+      expect(seeded.equipment.substrate.khReserve).toBe(123);
+      expect(seeded.equipment.substrate.organicReserve).toBe(
+        cycledReserve('aqua_soil', TANK.tankCapacity)
+      );
+    });
+
     it('takes a named reserve over the one the shorthand would have resolved', () => {
       const seeded = createSimulation(TANK, {
         bacteria: 'cycled',
@@ -143,6 +154,17 @@ describe('createSimulation seeding', () => {
       for (const type of ['aqua_soil', 'sand'] as const) {
         expect(cycledKh(type, 5, 200)).toBeCloseTo(2 * cycledKh(type, 5, 100), 10);
       }
+    });
+
+    it('keeps GH exactly as far below the tap as KH, since the bed takes both alike', () => {
+      const seeded = createSimulation({ ...TANK, tapKh: 5, tapGh: 8 }, { bacteria: 'cycled' });
+      const { resources, environment } = seeded;
+      const khShort = environment.tapKh - getDkh(resources.kh, resources.water);
+
+      expect(resources.gh).toBe(cycledGh('aqua_soil', 5, 8, TANK.tankCapacity));
+      expect(khShort).toBeGreaterThan(0);
+      expect(environment.tapGh - getDgh(resources.gh, resources.water)).toBeCloseTo(khShort, 10);
+      expect(cycledGh('gravel', 5, 8, 100)).toBeCloseTo(cycledGh('gravel', 5, 8, 50) * 2, 10);
     });
 
     it('hands a soil bed part of its buffer, spent but not exhausted', () => {

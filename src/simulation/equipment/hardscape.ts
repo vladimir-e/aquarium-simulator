@@ -1,7 +1,8 @@
 /**
  * Hardscape equipment: surface for the biofilm, and what each piece does to
- * alkalinity. Calcite dissolves and adds KH, faster the more acidic the water.
- * Driftwood leaches tannic acid that spends KH, tapering as its tannins run out.
+ * the water's hardness. Calcite dissolves into Ca²⁺ and carbonate, adding GH
+ * and KH alike, faster the more acidic the water. Driftwood leaches tannic
+ * acid that spends KH, tapering as its tannins run out.
  */
 
 import { produce } from 'immer';
@@ -45,6 +46,9 @@ export const HARDSCAPE_TANNINS: Record<HardscapeType, number> = {
   driftwood: 3000,
   plastic_decoration: 0,
 };
+
+/** A piece as a keeper names it: what it is, not what is left in it. */
+export type HardscapeItemSpec = Pick<HardscapeItem, 'id' | 'type'>;
 
 /** A piece of this type straight out of the shop. */
 export function createHardscapeItem(id: string, type: HardscapeType): HardscapeItem {
@@ -101,19 +105,22 @@ export function getHardscapeName(type: HardscapeType): string {
 }
 
 /**
- * What a piece does to the water's alkalinity, in words.
+ * What a piece does to the water's hardness, in words.
  */
-export function getHardscapeKhEffect(type: HardscapeType): string | null {
+export function getHardscapeHardnessEffect(type: HardscapeType): string | null {
   const effects: Record<HardscapeType, string | null> = {
     neutral_rock: null,
-    calcite_rock: 'Adds KH',
+    calcite_rock: 'Adds KH and GH',
     driftwood: 'Spends KH',
     plastic_decoration: null,
   };
   return effects[type];
 }
 
-/** mg of CaCO3 the calcite rocks dissolve this tick — proportional to [H⁺], one at pH 7. */
+/**
+ * mg of CaCO3 the calcite rocks dissolve this tick — proportional to [H⁺], one
+ * at pH 7. Each mg lands twice: as GH from the calcium, as KH from the carbonate.
+ */
 export function calculateCalciteDissolution(
   rocks: number,
   ph: number,
@@ -153,7 +160,10 @@ export function hardscapeUpdate(
 
   const effects: Effect[] = [];
   if (dissolved > 0) {
-    effects.push({ tier: 'immediate', resource: 'kh', delta: dissolved, source: 'calcite-dissolution' });
+    effects.push(
+      { tier: 'immediate', resource: 'kh', delta: dissolved, source: 'calcite-dissolution' },
+      { tier: 'immediate', resource: 'gh', delta: dissolved, source: 'calcite-dissolution' }
+    );
   }
   if (acid > 0) {
     effects.push({ tier: 'immediate', resource: 'kh', delta: -acid, source: 'driftwood-acid' });

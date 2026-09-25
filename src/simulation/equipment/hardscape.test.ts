@@ -129,6 +129,21 @@ describe('hardscapeUpdate', () => {
     expect(khDelta(tank(['driftwood']))).toBeLessThan(0);
   });
 
+  it('dissolves calcite as one flow that adds KH and GH in equal measure', () => {
+    const { effects } = hardscapeUpdate(tank(['calcite_rock', 'calcite_rock']));
+    const kh = effects.filter((effect) => effect.resource === 'kh');
+    const gh = effects.filter((effect) => effect.resource === 'gh');
+
+    expect(kh).toHaveLength(1);
+    expect(gh).toHaveLength(1);
+    expect(kh[0].delta).toBeGreaterThan(0);
+    expect(gh[0].delta).toBe(kh[0].delta);
+  });
+
+  it('leaves GH alone for driftwood: tannic acid spends carbonate, not calcium', () => {
+    expect(hardscapeUpdate(tank(['driftwood'])).effects.some((e) => e.resource === 'gh')).toBe(false);
+  });
+
   it('draws the acid it spends out of the piece', () => {
     const state = tank(['driftwood']);
     const next = hardscapeUpdate(state).state;

@@ -168,6 +168,18 @@ export function SetupSection({
                 />
               </FieldRow>
 
+              <FieldRow label="Tap water GH">
+                <Stepper
+                  ariaLabel="Tap water GH"
+                  value={environment.tapGh}
+                  min={0}
+                  max={30}
+                  step={0.5}
+                  display={`${environment.tapGh.toFixed(1)} dGH`}
+                  onChange={(value) => sim.updateTapGh(Number(value.toFixed(1)))}
+                />
+              </FieldRow>
+
               <FieldRow label="Tap water temperature">
                 <Stepper
                   ariaLabel="Tap water temperature"

@@ -5,7 +5,7 @@
  */
 
 import { getLightOutput, type SimulationState } from '../../simulation/index.js';
-import { getDkh, getPpm } from '../../simulation/resources/index.js';
+import { getDgh, getDkh, getPpm } from '../../simulation/resources/index.js';
 import { getPh } from '../../simulation/core/carbonate.js';
 import { countFry } from './livestock.js';
 
@@ -18,6 +18,7 @@ export interface RunSnapshot {
   nitrate: number;
   ph: number;
   kh: number;
+  gh: number;
   oxygen: number;
   co2: number;
   temperature: number;
@@ -48,6 +49,7 @@ export function snapshotFromState(state: SimulationState): RunSnapshot {
     nitrate: getPpm(r.nitrate, r.water),
     ph: getPh(r),
     kh: getDkh(r.kh, r.water),
+    gh: getDgh(r.gh, r.water),
     oxygen: r.oxygen,
     co2: r.co2,
     temperature: r.temperature,

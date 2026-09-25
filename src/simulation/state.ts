@@ -11,7 +11,7 @@ import type { Powerhead } from './equipment/powerhead.js';
 import { DEFAULT_POWERHEAD, getPowerheadFlow } from './equipment/powerhead.js';
 import type { Substrate } from './equipment/substrate.js';
 import { DEFAULT_SUBSTRATE, freshSubstrate, getSubstrateSurface } from './equipment/substrate.js';
-import type { Hardscape, HardscapeItem } from './equipment/hardscape.js';
+import type { Hardscape, HardscapeItemSpec } from './equipment/hardscape.js';
 import {
   DEFAULT_HARDSCAPE,
   calculateHardscapeTotalSurface,
@@ -30,7 +30,7 @@ import { DEFAULT_AIR_PUMP, getAirPumpFlow } from './equipment/air-pump.js';
 import type { AutoDoser } from './equipment/auto-doser.js';
 import { DEFAULT_AUTO_DOSER } from './equipment/auto-doser.js';
 import { applySeed, type PresetSeed } from './seed.js';
-import { getKhMass } from './resources/helpers.js';
+import { getGhMass, getKhMass } from './resources/helpers.js';
 import type { PlantSpecies } from './plants/species.js';
 import type { FishSpecies, FishSex, FishLifeStage } from './livestock/species.js';
 
@@ -200,6 +200,8 @@ export interface Resources {
   // Water chemistry - alkalinity stored as mass (mg)
   /** Alkalinity as mg of CaCO3 (derive dKH with `getDkh`); pH is read off it and CO2 */
   kh: number;
+  /** Calcium and magnesium as mg of CaCO3 (derive dGH with `getDgh`) */
+  gh: number;
 
   // Bacteria populations (nitrogen cycle)
   /** Ammonia-oxidizing bacteria population (absolute count) */
@@ -215,6 +217,8 @@ export interface Environment {
   tapWaterTemperature: number;
   /** Tap water carbonate hardness in dKH, for fills, water changes and top-offs */
   tapKh: number;
+  /** Tap water general hardness in dGH, arriving wherever tap KH does */
+  tapGh: number;
 }
 
 export interface Heater {
@@ -336,6 +340,8 @@ export interface SimulationConfig {
   tapWaterTemperature?: number;
   /** Tap water carbonate hardness in dKH (defaults to 4) */
   tapKh?: number;
+  /** Tap water general hardness in dGH (defaults to 6) */
+  tapGh?: number;
   /** Initial heater configuration */
   heater?: Partial<Heater>;
   /** Initial lid configuration */
@@ -349,7 +355,7 @@ export interface SimulationConfig {
   /** Initial substrate configuration */
   substrate?: Pick<Substrate, 'type'>;
   /** Initial hardscape — each piece goes in fresh */
-  hardscape?: { items: Array<Pick<HardscapeItem, 'id' | 'type'>> };
+  hardscape?: { items: HardscapeItemSpec[] };
   /** Initial light configuration */
   light?: Partial<Light>;
   /** Initial CO2 generator configuration */
@@ -364,6 +370,7 @@ const DEFAULT_TEMPERATURE = 25;
 const DEFAULT_ROOM_TEMPERATURE = 22;
 const DEFAULT_TAP_WATER_TEMPERATURE = 20;
 const DEFAULT_TAP_KH = 4;
+const DEFAULT_TAP_GH = 6;
 
 export const DEFAULT_HEATER: Heater = {
   enabled: true,
@@ -478,6 +485,7 @@ export function createSimulation(
     roomTemperature,
     tapWaterTemperature,
     tapKh,
+    tapGh,
     heater,
     lid,
     ato,
@@ -559,6 +567,7 @@ export function createSimulation(
   const effectiveRoomTemp = roomTemperature ?? DEFAULT_ROOM_TEMPERATURE;
   const effectiveTapWaterTemp = tapWaterTemperature ?? DEFAULT_TAP_WATER_TEMPERATURE;
   const effectiveTapKh = tapKh ?? DEFAULT_TAP_KH;
+  const effectiveTapGh = tapGh ?? DEFAULT_TAP_GH;
   const heaterStatus = heaterConfig.enabled ? 'enabled' : 'disabled';
 
   const initialLog = createLog(
@@ -617,6 +626,7 @@ export function createSimulation(
       co2: 4.0, // Start at atmospheric equilibrium
       // The tank is filled from the tap
       kh: getKhMass(effectiveTapKh, tankCapacity),
+      gh: getGhMass(effectiveTapGh, tankCapacity),
       // Bacteria (nitrogen cycle)
       aob: 0,
       nob: 0,
@@ -625,6 +635,7 @@ export function createSimulation(
       roomTemperature: effectiveRoomTemp,
       tapWaterTemperature: effectiveTapWaterTemp,
       tapKh: effectiveTapKh,
+      tapGh: effectiveTapGh,
     },
     equipment: {
       heater: heaterConfig,

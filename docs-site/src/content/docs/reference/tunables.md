@@ -26,7 +26,7 @@ declared minimum of `0.1`.
 | Evaporation | `evaporation.` | Water lost per day, and how warmth accelerates it |
 | Algae | `algae.` | The bloom's stressors, benefits and mass dynamics |
 | Optics | `optics.` | What the water column takes out of the light on the way down |
-| Water chemistry | `waterChemistry.` | What calcite, driftwood and aqua soil do to KH |
+| Water chemistry | `waterChemistry.` | What calcite, driftwood and aqua soil do to KH and GH |
 | Plants | `plants.` | Photosynthesis, respiration, vitality, growth, lifecycle |
 | Nutrients | `nutrients.` | Fertilizer formula, optimal concentrations, demand tiers |
 | Livestock | `livestock.` | Metabolism, satiation, vitality, death |
@@ -133,7 +133,7 @@ density you can look up rather than a score.
 |---|---|---|
 | `calciteDissolutionRate` | CaCO₃ one calcite rock dissolves per hour at pH 7, scaled by [H⁺] | mg/h |
 | `tanninLeachRate` | Share of a driftwood piece's remaining tannins leached per hour | /h |
-| `aquaSoilKhUptake` | Share of the tank's KH a fresh aqua soil bed takes up per hour, scaled by the buffer left | /h |
+| `aquaSoilKhUptake` | Share of the tank's KH a fresh aqua soil bed takes up per hour, scaled by the buffer left — and as much GH with it | /h |
 
 ## Plants
 
@@ -155,7 +155,7 @@ density you can look up rather than a score.
 | `upkeepCost` | Cost per hour of simply being alive, quoted at the respiration reference temperature | %/hr |
 | `upkeepReserveHours` | Hours of upkeep the bank keeps back from damage — the survival rations | hr upkeep |
 | `lightInsufficientSeverity` · `lightExcessiveSeverity` | Damage per PAR unit below and above the species' tolerable band | %/PAR/hr |
-| `co2InsufficientSeverity` · `temperatureStressSeverity` · `phStressSeverity` | Damage per unit outside the species' tolerable band, one per factor | %/unit/hr |
+| `co2InsufficientSeverity` · `temperatureStressSeverity` · `phStressSeverity` · `ghStressSeverity` | Damage per unit outside the species' tolerable band, one per factor | %/unit/hr |
 | `nutrientDeficiencySeverity` | Damage per unit of missing sufficiency, Liebig-gated | %/(1−suff)/hr |
 | `nutrientToxicitySeverity` · `nutrientToxicityThresholdNitrate` | The gross-overdose channel: what it costs per ppm past the threshold, and where that threshold starts | %/ppm/hr · ppm |
 | `algaeShadingSeverity` · `algaeShadingThreshold` | Damage per point of bloom past the threshold, and the mass above which algae shades plants | %/algae/hr · — |
@@ -188,7 +188,7 @@ sum once, centrally, rather than each channel scaling itself.
 | `basalAmmoniaRate` | Gill ammonia from body protein turnover, produced whether or not the fish ate | mg NH₃/g/hr |
 | `respiratoryQuotient` | Moles of CO₂ exhaled per mole of O₂ consumed | — |
 | `satiationDecayRate` | Satiation lost per hour, feeding or not | %/hr |
-| `temperatureStressSeverity` · `phStressSeverity` | Damage per unit outside the species' tolerable band | %/unit/hr |
+| `temperatureStressSeverity` · `phStressSeverity` · `ghStressSeverity` | Damage per unit outside the species' tolerable band | %/unit/hr |
 | `ammoniaStressSeverity` | Damage per ppm of *unionized* ammonia, not total TAN | %/ppm free NH₃/hr |
 | `nitriteStressSeverity` · `nitrateStressSeverity` · `oxygenStressSeverity` · `waterLevelStressSeverity` · `flowStressSeverity` | Damage per unit of deviation, one per water-quality channel | %/unit/hr |
 | `ageStressSeverity` | Damage per hour lived past the species' `maxAge`, climbing with the excess | %/(h past maxAge)/h |
@@ -215,4 +215,4 @@ can move them at runtime.
 | Hardscape | Per type: colony surface, and the tannins a fresh piece carries |
 | Lids | Per type: the multiplier applied to evaporation |
 | Fixtures and pumps | The catalog of ratings a device can be built with — heater wattages, light PAR ratings, powerhead flow rates, CO₂ bubble rates, doser amounts |
-| Chemistry | Molecular weights and the mass ratios derived from them, and the dKH-to-CaCO₃ conversion. Derived, never quoted twice |
+| Chemistry | Molecular weights and the mass ratios derived from them, and the degree-to-CaCO₃ conversion shared by dKH and dGH. Derived, never quoted twice |

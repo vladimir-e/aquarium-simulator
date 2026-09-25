@@ -3,6 +3,8 @@ import { calculateEvaporation, evaporationSystem, LID_MULTIPLIERS } from './evap
 import { createSimulation, type LidType, type SimulationState } from '../state.js';
 import { DEFAULT_CONFIG } from '../config/index.js';
 import { evaporationDefaults } from '../config/evaporation.js';
+import { applyEffects } from '../core/effects.js';
+import { getDgh, getDkh } from '../resources/helpers.js';
 
 const LIDS: LidType[] = ['none', 'mesh', 'full', 'sealed'];
 
@@ -56,6 +58,19 @@ describe('evaporationSystem', () => {
     expect(effects).toHaveLength(1);
     expect(effects[0]).toMatchObject({ tier: 'immediate', resource: 'water', source: 'evaporation' });
     expect(effects[0].delta).toBeLessThan(0);
+  });
+
+  it('concentrates both hardnesses: the water leaves, the minerals stay', () => {
+    const before = tank();
+    const after = applyEffects(before, evaporationSystem.update(before, DEFAULT_CONFIG));
+    const shrink = before.resources.water / after.resources.water;
+    const { resources: b } = before;
+    const { resources: a } = after;
+
+    expect(a.gh).toBe(b.gh);
+    expect(a.kh).toBe(b.kh);
+    expect(getDgh(a.gh, a.water)).toBeCloseTo(getDgh(b.gh, b.water) * shrink, 10);
+    expect(getDkh(a.kh, a.water)).toBeCloseTo(getDkh(b.kh, b.water) * shrink, 10);
   });
 
   it('emits nothing from an empty or sealed tank', () => {

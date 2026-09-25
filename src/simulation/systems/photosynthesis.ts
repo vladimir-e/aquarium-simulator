@@ -9,7 +9,8 @@
  * up upstream as the nutrient-deficiency stressor on vitality, which
  * gates surplus, which gates growth — no double-counting.
  *
- * - Consumes CO2, light, and plant macronutrients (NO3, PO4, K, Fe)
+ * - Consumes CO2, light, and plant macronutrients (NO3, PO4, K, Fe), and a
+ *   little calcium and magnesium (GH) alongside them
  * - Produces oxygen
  * - Nutrient uptake runs at the *potential* rate (size × light × CO2) — plants
  *   draw nutrients from the water column even when one nutrient caps growth
@@ -39,6 +40,14 @@ import { getDemandMultiplier } from './nutrients.js';
  */
 export type SufficiencyMap = ReadonlyMap<string, number>;
 
+/**
+ * mg of GH, as CaCO3, a plant takes up per mg of macronutrient it draws. Leaf
+ * tissue carries about a third as much calcium and a tenth as much magnesium
+ * as nitrogen; read against the fertilizer ratio's nitrogen share and
+ * converted to CaCO3 equivalents, that is ~0.15.
+ */
+const GH_PER_NUTRIENT_DRAWN = 0.15;
+
 export interface PhotosynthesisResult {
   /** Oxygen released (mg, absolute — caller divides by water volume for mg/L delta) */
   oxygenProducedMg: number;
@@ -52,6 +61,8 @@ export interface PhotosynthesisResult {
   potassiumDelta: number;
   /** Iron consumed (mg, negative) */
   ironDelta: number;
+  /** Calcium and magnesium consumed (mg of CaCO3, negative) */
+  ghDelta: number;
   /**
    * Effective limiting factor averaged across plants (0–1).
    * Useful for telemetry / tests. 0 = no photosynthesis, 1 = optimal.
@@ -82,6 +93,7 @@ function emptyResult(): PhotosynthesisResult {
     phosphateDelta: 0,
     potassiumDelta: 0,
     ironDelta: 0,
+    ghDelta: 0,
     limitingFactor: 0,
   };
 }
@@ -182,6 +194,7 @@ export function calculatePhotosynthesis(
   const phosphateDelta = drawFrom(phosphateRatio, resources.phosphate);
   const potassiumDelta = drawFrom(potassiumRatio, resources.potassium);
   const ironDelta = drawFrom(ironRatio, resources.iron);
+  const ghDelta = drawFrom(GH_PER_NUTRIENT_DRAWN, resources.gh);
 
   const co2ConsumedMg = Math.min(
     actualRate * plantsConfig.co2PerRateUnit,
@@ -198,6 +211,7 @@ export function calculatePhotosynthesis(
     phosphateDelta,
     potassiumDelta,
     ironDelta,
+    ghDelta,
     limitingFactor,
   };
 }

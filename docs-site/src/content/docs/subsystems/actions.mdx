@@ -18,12 +18,12 @@ unchanged, with the message explaining why.
 |---|---|---|
 | Dispatch | <Badge text="settled" variant="success" /> | One exhaustive switch over a discriminated union, so a new verb that forgets its case fails to compile. |
 | Refusal discipline | <Badge text="settled" variant="success" /> | Every action taking a number refuses a non-finite one *before* its own bounds. A comparison against `NaN` is false, so an unguarded bound would write it into a resource nothing downstream ever clears. |
-| Water change | <Badge text="settled" variant="success" /> | Removes proportional dissolved mass, then blends temperature and both gases by volume against the tap and brings in the tap's KH. The one verb with real physics in it. |
+| Water change | <Badge text="settled" variant="success" /> | Removes proportional dissolved mass, then blends temperature and both gases by volume against the tap and brings in the tap's KH and GH. The one verb with real physics in it. |
 | Feed · dose · stocking | <Badge text="settled" variant="success" /> | Bounded writes to a single stock, with the consequences left to the tick. |
 | Scrub | <Badge text="settled" variant="success" /> | The bite is drawn off the tank's own stream, so a replayed tank is scrubbed identically. |
-| Top-off | <Badge text="scaffolding" variant="caution" /> | Fills to capacity and adds the tap's KH, nothing else. The tap water it adds carries no temperature, no oxygen and no CO₂ — while the auto top-off doing the same job blends all three. |
+| Top-off | <Badge text="scaffolding" variant="caution" /> | Fills to capacity and adds the tap's KH and GH, nothing else. The tap water it adds carries no temperature, no oxygen and no CO₂ — while the auto top-off doing the same job blends all three. |
 | Trim | <Badge text="scaffolding" variant="caution" /> | The target is validated in `[0, 100]` against species ceilings of 600–1100, so an overgrown plant can only be cut back to a hundred or less. |
-| Water-change shock | <Badge text="missing" variant="danger" /> | A 90 % change costs a fish nothing beyond the temperature, KH and gases the blend leaves behind. |
+| Water-change shock | <Badge text="missing" variant="danger" /> | A 90 % change costs a fish nothing beyond the temperature, hardness and gases the blend leaves behind. |
 | Substrate vacuuming | <Badge text="missing" variant="danger" /> | No action removes waste. Mineralization is its only drain, and a water change dilutes the nitrogen compounds while leaving the waste that makes them. |
 | Config changes as actions | <Badge text="missing" variant="danger" /> | Equipment settings are plain fields the host writes directly. There is no action type, no validation and no log for them inside the engine. |
 
@@ -67,11 +67,12 @@ waste — the convention is that the keeper carried it out of the room.
 
 | Step | Effect |
 |---|---|
-| Dissolved mass | `ammonia`, `nitrite`, `nitrate`, `phosphate`, `potassium`, `iron` and `kh` each scaled by `1 − amount` |
+| Dissolved mass | `ammonia`, `nitrite`, `nitrate`, `phosphate`, `potassium`, `iron`, `kh` and `gh` each scaled by `1 − amount` |
 | Temperature | blended against tap by volume |
 | Oxygen | blended against tap water at saturation for the tap's temperature |
 | CO₂ | blended against atmospheric |
 | KH | the refill brings `tapKh` per litre, so KH moves toward the tap by the share changed — and pH with it |
+| GH | the same, at `tapGh` |
 | Water | refilled to capacity, so a change is also a top-off |
 
 What it does **not** touch: `waste`, the two bacterial colonies, and the
@@ -133,7 +134,7 @@ the ceiling and simply lock further stocking out.
 
 | Neighbour | Read | Written |
 |---|---|---|
-| [Water & gases](/subsystems/water-and-gases/) | `oxygen`, `co2` and `kh` for the blend | All three on a water change; `kh` alone on a top-off |
+| [Water & gases](/subsystems/water-and-gases/) | `oxygen`, `co2`, `kh` and `gh` for the blend | All four on a water change; `kh` and `gh` alone on a top-off |
 | [Nitrogen cycle](/subsystems/nitrogen-cycle/) | — | `ammonia`, `nitrite` and `nitrate` diluted proportionally; `nitrate` raised by a dose |
 | [Environment](/subsystems/environment/) | `tapWaterTemperature` and `tapKh` as the thing being blended toward; `water` and `tank.capacity` for every refill | `water` and `temperature` |
 | [Plants](/subsystems/plants/) | `plants` for the capacity gate and the trim target | The array, and `size` directly |

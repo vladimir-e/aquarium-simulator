@@ -108,8 +108,10 @@ function temperatureNote(value: number, _before: number, { state, units }: Sheet
   return null;
 }
 
-function phNote(value: number, { state }: Sheet): string | null {
-  const band = stockedBand(state, (data) => data.phRange);
+type SpeciesRange = (data: FishSpeciesData) => [number, number];
+
+function speciesEdgeNote(value: number, { state }: Sheet, range: SpeciesRange): string | null {
+  const band = stockedBand(state, range);
   if (band === null) return null;
   if (value < band.min) return `below ${band.min.toFixed(1)} — ${band.minSpecies}`;
   if (value > band.max) return `above ${band.max.toFixed(1)} — ${band.maxSpecies}`;
@@ -162,8 +164,8 @@ function fromWater(
 
 /** A tolerance reading: the band is the span every stocked species accepts. */
 function tolerated(
-  key: Extract<WaterKey, 'temperature' | 'ph'>,
-  range: (data: FishSpeciesData) => [number, number]
+  key: Extract<WaterKey, 'temperature' | 'ph' | 'gh'>,
+  range: SpeciesRange
 ): Pick<Reading, 'status' | 'band'> {
   return {
     status: (value, { state }): Status => toleranceStatus(value, stockedBand(state, range)),
@@ -240,7 +242,7 @@ const READINGS: Reading[] = [
     display: same,
     decimals: 2,
     ...tolerated('ph', (data) => data.phRange),
-    note: (value, _before, sheet) => phNote(value, sheet),
+    note: (value, _before, sheet) => speciesEdgeNote(value, sheet, (data) => data.phRange),
   }),
   fromWater('kh', {
     label: 'KH',
@@ -248,6 +250,14 @@ const READINGS: Reading[] = [
     display: same,
     decimals: 1,
     note: none,
+  }),
+  fromWater('gh', {
+    label: 'GH',
+    unit: () => 'dGH',
+    display: same,
+    decimals: 1,
+    ...tolerated('gh', (data) => data.ghRange),
+    note: (value, _before, sheet) => speciesEdgeNote(value, sheet, (data) => data.ghRange),
   }),
   fromWater('water', {
     key: 'level',

@@ -10,7 +10,7 @@
  *
  * Stressors (raw severities; the vitality module applies hardiness
  * scaling centrally as `(1 - effectiveHardiness)`):
- * - Temperature, pH, free NH3, nitrite, nitrate, satiation (hunger
+ * - Temperature, pH, GH, free NH3, nitrite, nitrate, satiation (hunger
  *   side), oxygen, water level, flow, age (past species `maxAge`).
  *
  * Benefit factors (peaks and thresholds tunable via `LivestockConfig`):
@@ -39,6 +39,7 @@
 import type { Fish, Plant, Resources } from '../state.js';
 import { getPh } from '../core/carbonate.js';
 import { FISH_SPECIES_DATA } from '../livestock/species.js';
+import { getDgh } from '../resources/index.js';
 import type { LivestockConfig } from '../config/livestock.js';
 import { unionizedAmmoniaFraction } from './nitrogen-cycle.js';
 import { satiationContribution, SATIATION_BAND_LABEL } from './satiation.js';
@@ -133,6 +134,15 @@ function buildStressors(ctx: FishFactorContext): VitalityFactor[] {
     phStress = config.phStressSeverity * (ph - phMax);
   }
 
+  let ghStress = 0;
+  const gh = getDgh(resources.gh, waterVolume);
+  const [ghMin, ghMax] = speciesData.ghRange;
+  if (gh < ghMin) {
+    ghStress = config.ghStressSeverity * (ghMin - gh);
+  } else if (gh > ghMax) {
+    ghStress = config.ghStressSeverity * (gh - ghMax);
+  }
+
   // Ammonia stress — only the unionized NH3 fraction is acutely toxic.
   // Zero-volume sentinel: tank fully drained but fish still present.
   let ammoniaStress = 0;
@@ -212,6 +222,7 @@ function buildStressors(ctx: FishFactorContext): VitalityFactor[] {
   return [
     { key: 'temperature', label: 'Temperature', amount: tempStress },
     { key: 'ph', label: 'pH', amount: phStress },
+    { key: 'gh', label: 'GH', amount: ghStress },
     { key: 'ammonia', label: 'Free NH3', amount: ammoniaStress },
     { key: 'nitrite', label: 'Nitrite', amount: nitriteStress },
     { key: 'nitrate', label: 'Nitrate', amount: nitrateStress },
