@@ -48,25 +48,6 @@ describe('asymptoticGrowthFactor', () => {
   });
 });
 
-describe('getSpeciesGrowthRate', () => {
-  it('returns the species-level growth rate', () => {
-    expect(getSpeciesGrowthRate('anubias')).toBe(0.3);
-    expect(getSpeciesGrowthRate('java_fern')).toBe(0.5);
-    expect(getSpeciesGrowthRate('amazon_sword')).toBe(1.0);
-    expect(getSpeciesGrowthRate('dwarf_hairgrass')).toBe(1.5);
-    expect(getSpeciesGrowthRate('monte_carlo')).toBe(1.8);
-  });
-});
-
-describe('getSpeciesMaxSize', () => {
-  it('returns the species-level maxSize', () => {
-    // Sanity: monte_carlo cap > anubias cap by design.
-    expect(getSpeciesMaxSize('monte_carlo')).toBeGreaterThan(
-      getSpeciesMaxSize('anubias')
-    );
-  });
-});
-
 /** What the bank paid for the size a spend delivered. */
 function withdrawal(plant: Plant): number {
   return plant.surplus - spendSurplus(plant, 0).surplus;

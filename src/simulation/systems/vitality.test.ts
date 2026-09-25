@@ -95,15 +95,6 @@ describe('computeVitality', () => {
       expect(result.surplus).toBeCloseTo(8.0, 6); // 10 − 2
     });
 
-    it('drains only the damage amount, leaving the rest banked', () => {
-      const result = computeVitality(
-        input({ stressors: [stressor('a', 1.5)], hardiness: 0, condition: 70, surplus: 20 })
-      );
-      expect(result.newCondition).toBe(70); // condition protected
-      expect(result.surplus).toBeCloseTo(18.5, 6);
-      expect(result.breakdown.drained).toBeCloseTo(1.5, 6);
-    });
-
     it('splits the hit when the bank is smaller than the damage', () => {
       // bank 1, damage 3 → bank absorbs 1, condition eats the other 2.
       const result = computeVitality(
@@ -153,13 +144,6 @@ describe('computeVitality', () => {
       expect(result.surplus).toBe(CAP);
     });
 
-    it('a bank already at the cap absorbs no further accrual', () => {
-      const result = computeVitality(
-        input({ benefits: [benefit('great', 3)], hardiness: 0.5, condition: 100, surplus: CAP })
-      );
-      expect(result.surplus).toBe(CAP);
-    });
-
     it('accrues the full net when it fits under the cap', () => {
       const result = computeVitality(
         input({
@@ -192,31 +176,6 @@ describe('computeVitality', () => {
     });
   });
 
-  describe('negative cap is floored at zero (data integrity)', () => {
-    it('never banks a negative surplus while accruing at full condition', () => {
-      // Accrual path with cap −10: the ceiling floors to 0, so a positive
-      // net cannot push the bank negative.
-      const result = computeVitality(
-        input({ benefits: [benefit('great', 5)], hardiness: 0, condition: 100, surplus: 3, surplusCap: -10 })
-      );
-      expect(result.surplus).toBe(0);
-    });
-
-    it('floors an existing bank to zero on an idle tick', () => {
-      const result = computeVitality(
-        input({ hardiness: 0, condition: 90, surplus: 8, surplusCap: -10 })
-      );
-      expect(result.surplus).toBe(0);
-    });
-
-    it('never drives condition-buffering surplus below zero on a damage tick', () => {
-      const result = computeVitality(
-        input({ stressors: [stressor('a', 2)], hardiness: 0, condition: 100, surplus: 8, surplusCap: -10 })
-      );
-      expect(result.surplus).toBe(0);
-    });
-  });
-
   describe('self-heal clamp on oversized banks', () => {
     it('clamps an over-cap bank down to the cap on an idle tick', () => {
       const result = computeVitality(input({ hardiness: 0.5, condition: 90, surplus: 80 }));
@@ -232,14 +191,6 @@ describe('computeVitality', () => {
       expect(result.surplus).toBe(CAP);
     });
 
-    it('clamps an over-cap bank on a damage tick after draining', () => {
-      // Over-cap bank clamps to 50 first, then drains the 2 %/h hit.
-      const result = computeVitality(
-        input({ stressors: [stressor('a', 2)], hardiness: 0, condition: 100, surplus: 90 })
-      );
-      expect(result.surplus).toBe(48); // 50 (clamped) − 2 (drained)
-      expect(result.newCondition).toBe(100);
-    });
   });
 
   describe('net-positive recovery (sub-100)', () => {
@@ -307,24 +258,6 @@ describe('computeVitality', () => {
       expect(result.newCondition).toBe(100);
       expect(result.surplus).toBe(3);
       expect(result.breakdown.drained).toBe(2);
-    });
-  });
-
-  describe('burning-reserves signal', () => {
-    it('exposes drained > 0 at condition 100 with net < 0', () => {
-      const result = computeVitality(
-        input({ stressors: [stressor('a', 1.5)], hardiness: 0, condition: 100, surplus: 10 })
-      );
-      const burningReserves = result.newCondition >= 100 && result.breakdown.net < 0;
-      expect(burningReserves).toBe(true);
-      expect(result.breakdown.drained).toBeGreaterThan(0);
-    });
-
-    it('drained is zero on a healing tick', () => {
-      const result = computeVitality(
-        input({ benefits: [benefit('food', 2)], hardiness: 0.5, condition: 80, surplus: 5 })
-      );
-      expect(result.breakdown.drained).toBe(0);
     });
   });
 

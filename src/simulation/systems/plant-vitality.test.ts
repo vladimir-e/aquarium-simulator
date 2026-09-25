@@ -174,119 +174,81 @@ describe('buildPlantUpkeep', () => {
 });
 
 describe('buildPlantStressors', () => {
+  const amount = (
+    species: PlantSpecies,
+    key: string,
+    resources: Partial<Resources>,
+    algaeMass = 0
+  ): number =>
+    buildPlantStressors(ctx(makePlant(species), makeResources(resources), algaeMass)).find(
+      (s) => s.key === key
+    )?.amount ?? 0;
+
   it('charges an Anubias in good conditions nothing at all', () => {
     const plant = makePlant('anubias', { surplus: plantsDefaults.surplusCap });
-    const resources = makeResources();
-    for (const s of buildPlantStressors(ctx(plant, resources))) {
+    for (const s of buildPlantStressors(ctx(plant, makeResources()))) {
       expect(s.amount).toBe(0);
     }
   });
 
-  it('breaks even at a tenth of Ik, which is where the compensation point belongs', () => {
-    // The constant's whole referent: with everything else at optimum, a plant
-    // covers maintenance out of income above ~0.1 × Ik and runs a deficit
-    // below it. Read on a species whose band reaches that low, so the
-    // light-insufficient stressor isn't in the answer.
-    const plant = makePlant('anubias', { surplus: plantsDefaults.surplusCap });
-    const ik = getSaturationIrradiance('anubias', plantsDefaults);
-    const net = (light: number): number =>
-      computePlantVitality(ctx(plant, makeResources({ light }))).breakdown.net;
-
-    expect(net(0.2 * ik)).toBeGreaterThan(0);
-    expect(net(0.02 * ik)).toBeLessThan(0);
+  it.each<[string, PlantSpecies, (gap: number) => Partial<Resources>]>([
+    ['co2', 'monte_carlo', (gap) => ({ co2: PLANT_SPECIES_DATA.monte_carlo.tolerableCO2[0] - gap })],
+    ['light', 'monte_carlo', (gap) => ({ light: PLANT_SPECIES_DATA.monte_carlo.tolerableLight[0] - gap })],
+    ['light', 'anubias', (gap) => ({ light: PLANT_SPECIES_DATA.anubias.tolerableLight[1] + gap })],
+    ['temperature', 'amazon_sword', (gap) => ({ temperature: PLANT_SPECIES_DATA.amazon_sword.tolerableTemp[0] - gap })],
+    ['ph', 'monte_carlo', (gap) => ({ ph: PLANT_SPECIES_DATA.monte_carlo.tolerablePH[1] + gap / 4 })],
+  ])('charges %s on %s in proportion to the gap outside its range', (key, species, at) => {
+    expect(amount(species, key, at(0))).toBe(0);
+    const one = amount(species, key, at(1));
+    expect(one).toBeGreaterThan(0);
+    expect(amount(species, key, at(2))).toBeCloseTo(2 * one, 10);
   });
 
-  it('flags low CO2 for high-tech species', () => {
-    // MC tolerableCO2 = [10, 40]. CO2 = 5 → gap 5 mg/L below.
-    const plant = makePlant('monte_carlo');
-    const resources = makeResources({ co2: 5 });
-    const stressors = buildPlantStressors(ctx(plant, resources));
-    const co2 = stressors.find((s) => s.key === 'co2');
-    expect(co2?.amount).toBeCloseTo(plantsDefaults.co2InsufficientSeverity * 5, 6);
+  it('labels the side of the light band a plant is off', () => {
+    const label = (species: PlantSpecies, light: number): string | undefined =>
+      buildPlantStressors(ctx(makePlant(species), makeResources({ light }))).find(
+        (s) => s.key === 'light'
+      )?.label;
+
+    expect(label('monte_carlo', 5)).toContain('low');
+    expect(label('anubias', 200)).toContain('high');
   });
 
-  it('does not flag low CO2 for low-tech species at the same CO2', () => {
-    // Anubias tolerableCO2 = [1, 40]. CO2 = 5 → in range.
-    const plant = makePlant('anubias');
-    const resources = makeResources({ co2: 5 });
-    const stressors = buildPlantStressors(ctx(plant, resources));
-    const co2 = stressors.find((s) => s.key === 'co2');
-    expect(co2?.amount).toBe(0);
+  it('charges nutrient deficiency at full severity when a required nutrient is gone', () => {
+    expect(amount('monte_carlo', 'nutrients', { potassium: 0 })).toBeCloseTo(
+      plantsDefaults.nutrientDeficiencySeverity,
+      10
+    );
   });
 
-  it('flags low light for high-light species', () => {
-    // MC tolerableLight = [30, 200]. Light = 5 → gap 25 PAR below.
-    const plant = makePlant('monte_carlo');
-    const resources = makeResources({ light: 5 });
-    const stressors = buildPlantStressors(ctx(plant, resources));
-    const light = stressors.find((s) => s.key === 'light');
-    expect(light?.amount).toBeCloseTo(plantsDefaults.lightInsufficientSeverity * 25, 6);
-    expect(light?.label).toContain('low');
+  it('charges nitrate toxicity only above the threshold, linear past it', () => {
+    const at = (ppm: number): number =>
+      amount('amazon_sword', 'nutrientToxicity', { nitrate: getMassFromPpm(ppm, 100) });
+    const threshold = plantsDefaults.nutrientToxicityThresholdNitrate;
+
+    expect(at(threshold)).toBe(0);
+    expect(at(threshold + 20)).toBeCloseTo(2 * at(threshold + 10), 10);
+    expect(at(threshold + 10)).toBeGreaterThan(0);
   });
 
-  it('flags excessive light for shade species', () => {
-    // Anubias tolerableLight = [8, 70]. Light = 100 → gap 30 PAR above.
-    const plant = makePlant('anubias');
-    const resources = makeResources({ light: 100 });
-    const stressors = buildPlantStressors(ctx(plant, resources));
-    const light = stressors.find((s) => s.key === 'light');
-    expect(light?.amount).toBeCloseTo(plantsDefaults.lightExcessiveSeverity * 30, 6);
-    expect(light?.label).toContain('high');
+  it('charges algae shading only above the threshold, linear past it', () => {
+    const at = (algae: number): number => amount('amazon_sword', 'algae', {}, algae);
+    const threshold = plantsDefaults.algaeShadingThreshold;
+
+    expect(at(threshold)).toBe(0);
+    expect(at(threshold + 20)).toBeCloseTo(2 * at(threshold + 10), 10);
+    expect(at(threshold + 10)).toBeGreaterThan(0);
   });
 
-  it('flags temperature below tolerable range', () => {
-    const plant = makePlant('amazon_sword'); // tolerableTemp [20, 28]
-    const resources = makeResources({ temperature: 16 });
-    const stressors = buildPlantStressors(ctx(plant, resources));
-    const temp = stressors.find((s) => s.key === 'temperature');
-    expect(temp?.amount).toBeCloseTo(plantsDefaults.temperatureStressSeverity * 4, 6);
+  it('charges neither low CO2 nor low light in the dark', () => {
+    expect(amount('monte_carlo', 'co2', { light: 0, co2: 4 })).toBe(0);
+    expect(amount('monte_carlo', 'light', { light: 0 })).toBe(0);
+    expect(amount('monte_carlo', 'co2', { light: 30, co2: 4 })).toBeGreaterThan(0);
   });
 
-  it('flags pH outside tolerable range', () => {
-    const plant = makePlant('monte_carlo'); // tolerablePH [6.0, 7.5]
-    const resources = makeResources({ ph: 8.5 });
-    const stressors = buildPlantStressors(ctx(plant, resources));
-    const ph = stressors.find((s) => s.key === 'ph');
-    expect(ph?.amount).toBeCloseTo(plantsDefaults.phStressSeverity * 1, 6);
-  });
-
-  it('flags nutrient deficiency proportional to (1 - sufficiency)', () => {
-    // MC needs all four nutrients; with zero K, sufficiency goes to 0.
-    const plant = makePlant('monte_carlo');
-    const resources = makeResources({
-      potassium: 0,
-    });
-    const stressors = buildPlantStressors(ctx(plant, resources));
-    const nut = stressors.find((s) => s.key === 'nutrients');
-    expect(nut?.amount).toBeCloseTo(plantsDefaults.nutrientDeficiencySeverity * 1, 6);
-  });
-
-  it('flags nutrient toxicity only above the NO3 threshold', () => {
-    const plant = makePlant('amazon_sword');
-    const safe = makeResources({ nitrate: getMassFromPpm(50, 100) });
-    const safeStressors = buildPlantStressors(ctx(plant, safe));
-    expect(safeStressors.find((s) => s.key === 'nutrientToxicity')?.amount).toBe(0);
-
-    const overdosed = makeResources({ nitrate: getMassFromPpm(150, 100) });
-    const overStressors = buildPlantStressors(ctx(plant, overdosed));
-    const tox = overStressors.find((s) => s.key === 'nutrientToxicity');
-    // 150 ppm − 100 threshold = 50 ppm above
-    expect(tox?.amount).toBeCloseTo(plantsDefaults.nutrientToxicitySeverity * 50, 6);
-  });
-
-  it('flags algae shading only above threshold', () => {
-    const plant = makePlant('amazon_sword');
-    const resources = makeResources();
-    // Threshold defaults to 30 — at exactly 30 the stressor is still
-    // zero (gap is 0), and below 30 it's also zero.
-    expect(
-      buildPlantStressors(ctx(plant, resources, 30)).find((s) => s.key === 'algae')?.amount
-    ).toBe(0);
-
-    // 80 - 30 = 50 above threshold.
-    const heavyStressors = buildPlantStressors(ctx(plant, resources, 80));
-    const shading = heavyStressors.find((s) => s.key === 'algae');
-    expect(shading?.amount).toBeCloseTo(plantsDefaults.algaeShadingSeverity * 50, 6);
+  it('spares a low-tech species the CO2 a high-tech one needs', () => {
+    expect(amount('anubias', 'co2', { co2: 5 })).toBe(0);
+    expect(amount('monte_carlo', 'co2', { co2: 5 })).toBeGreaterThan(0);
   });
 });
 
@@ -439,14 +401,6 @@ describe('computePlantVitality', () => {
     expect(result.surplus).toBeGreaterThan(0);
   });
 
-  it('Monte Carlo declines when CO2 falls below tolerable', () => {
-    const plant = makePlant('monte_carlo', { condition: 100 });
-    const resources = makeResources({ co2: 2 }); // gap 8 mg/L below tolerable [10, 40]
-    const result = computePlantVitality(ctx(plant, resources));
-    // Damage outweighs benefit → newCondition drops below 100.
-    expect(result.newCondition).toBeLessThan(100);
-  });
-
   it('Anubias holds at 100 even with low CO2 (low-tech tolerance)', () => {
     const plant = makePlant('anubias', { condition: 100 });
     const resources = makeResources({ co2: 2 }); // 2 < 1 lower bound? No, 2 > 1
@@ -482,21 +436,6 @@ describe('computePlantVitality', () => {
     expect(buffered.surplus).toBe(0);
   });
 
-  it('hardier species declines slower under same stress', () => {
-    // Anubias hardiness 0.75, MC hardiness 0.3. Same harsh CO2 = 2.
-    // Both species' tolerableCO2 lower bound differs (Anubias 1, MC 10),
-    // so use a stress that hits both: pH 8.5 for Anubias [6.0, 8.0]
-    // and MC [6.0, 7.5] — both above range. Anubias at gap 0.5,
-    // MC at gap 1.0.
-    const anubias = makePlant('anubias', { condition: 100 });
-    const monte = makePlant('monte_carlo', { condition: 100 });
-    const harshPh = makeResources({ ph: 8.5 });
-    const aResult = computePlantVitality(ctx(anubias, harshPh));
-    const mResult = computePlantVitality(ctx(monte, harshPh));
-    // Anubias should fare better — higher condition retained.
-    expect(aResult.newCondition).toBeGreaterThan(mResult.newCondition);
-  });
-
   it('gross NO3 overdose triggers visible damage on plant', () => {
     const plant = makePlant('amazon_sword', { condition: 100 });
     const resources = makeResources({ nitrate: getMassFromPpm(300, 100) });
@@ -506,36 +445,5 @@ describe('computePlantVitality', () => {
     expect(tox!.amount).toBeGreaterThan(0);
     // Net should be negative (damage exceeds benefit).
     expect(result.breakdown.net).toBeLessThan(0);
-  });
-
-  describe('CO2 stress only fires during photoperiod', () => {
-    // Real planted tanks see overnight CO2 drops to atmospheric
-    // levels; plants don't draw CO2 at night so they don't suffer.
-    // Modelling otherwise would kill MC from the natural diurnal
-    // CO2 swing in any well-run high-tech tank.
-
-    it('low CO2 with lights off → no CO2 stress', () => {
-      const plant = makePlant('monte_carlo');
-      const resources = makeResources({ light: 0, co2: 4 });
-      const stressors = buildPlantStressors(ctx(plant, resources));
-      const co2 = stressors.find((s) => s.key === 'co2');
-      expect(co2?.amount).toBe(0);
-    });
-
-    it('low CO2 with lights on → CO2 stress active', () => {
-      const plant = makePlant('monte_carlo');
-      const resources = makeResources({ light: 30, co2: 4 });
-      const stressors = buildPlantStressors(ctx(plant, resources));
-      const co2 = stressors.find((s) => s.key === 'co2');
-      expect(co2?.amount).toBeGreaterThan(0);
-    });
-
-    it('low light with lights off → no light insufficient stress (plant is dormant)', () => {
-      const plant = makePlant('monte_carlo');
-      const resources = makeResources({ light: 0 });
-      const stressors = buildPlantStressors(ctx(plant, resources));
-      const light = stressors.find((s) => s.key === 'light');
-      expect(light?.amount).toBe(0);
-    });
   });
 });

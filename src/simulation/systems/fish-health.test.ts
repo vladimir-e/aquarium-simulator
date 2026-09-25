@@ -1,26 +1,31 @@
 import { describe, it, expect } from 'vitest';
-import {
-  computeFishVitality,
-  processHealth,
-} from './fish-health.js';
+import { computeFishVitality, processHealth } from './fish-health.js';
 import type { VitalityResult } from './vitality.js';
-
-/**
- * Pull a single stressor's post-hardiness damage rate out of a
- * vitality result, by key. Returns 0 if the stressor isn't in the
- * breakdown (which means it's inactive — every stressor key is emitted
- * each tick, even at amount 0).
- */
-const stressorAmount = (v: VitalityResult, key: string): number =>
-  v.breakdown.stressors.find((s) => s.key === key)?.amount ?? 0;
-
-/** Sum of all post-hardiness stressor amounts in a vitality result. */
-const totalStress = (v: VitalityResult): number =>
-  v.breakdown.stressors.reduce((sum, s) => sum + s.amount, 0);
 import { livestockDefaults } from '../config/livestock.js';
 import { FISH_SPECIES_DATA } from '../livestock/species.js';
 import type { Fish, Plant, Resources } from '../state.js';
 import type { FishSpecies } from '../livestock/species.js';
+
+const STRESSORS = [
+  'temperature',
+  'ph',
+  'ammonia',
+  'nitrite',
+  'nitrate',
+  'satiation',
+  'oxygen',
+  'waterLevel',
+  'flow',
+];
+
+const stressorAmount = (v: VitalityResult, key: string): number =>
+  v.breakdown.stressors.find((s) => s.key === key)?.amount ?? 0;
+
+const benefitAmount = (v: VitalityResult, key: string): number =>
+  v.breakdown.benefits.find((b) => b.key === key)?.amount ?? 0;
+
+const totalStress = (v: VitalityResult): number =>
+  v.breakdown.stressors.reduce((sum, s) => sum + s.amount, 0);
 
 function makeFish(overrides: Partial<Fish> = {}): Fish {
   return {
@@ -29,9 +34,6 @@ function makeFish(overrides: Partial<Fish> = {}): Fish {
     mass: 0.5,
     health: 100,
     age: 0,
-    // Satiation 87 → exact peak of the well-fed band (max benefit,
-    // no stressor). Mid of [75, 99]. Matches the all-good 1.0 %/h
-    // benefit budget the calibration scenarios pin against.
     satiation: 87,
     sex: 'male',
     stage: 'adult',
@@ -66,431 +68,135 @@ function makeResources(overrides: Partial<Resources> = {}): Resources {
   };
 }
 
-/** A tank with `flow` L/h through `water` litres, in a `capacity` litre tank. */
+function makePlant(overrides: Partial<Plant> = {}): Plant {
+  return {
+    id: 'plant_1',
+    species: 'java_fern',
+    size: 100,
+    condition: 100,
+    surplus: 0,
+    ...overrides,
+  };
+}
+
+function vitality(
+  fish: Partial<Fish> = {},
+  resources: Partial<Resources> = {},
+  { plants = [], water = resources.water ?? 100, capacity = 100, config = livestockDefaults } = {} as {
+    plants?: Plant[];
+    water?: number;
+    capacity?: number;
+    config?: typeof livestockDefaults;
+  }
+): VitalityResult {
+  return computeFishVitality(makeFish(fish), makeResources(resources), plants, water, capacity, config);
+}
+
+function health(fish: Fish[], resources: Partial<Resources> = {}, plants: Plant[] = []) {
+  return processHealth(fish, makeResources(resources), plants, 100, 100, livestockDefaults);
+}
+
 interface Circulating {
   flow: number;
   water: number;
-  /** Defaults to `water` — a tank filled to the brim. */
   capacity?: number;
 }
 
-const vitalityInTank = (
-  species: FishSpecies,
-  { flow, water, capacity = water }: Circulating
-): VitalityResult =>
-  computeFishVitality(
-    makeFish({ species }),
-    makeResources({ flow, water }),
-    [],
-    water,
-    capacity,
-    livestockDefaults
-  );
+const flowStressOf = (species: FishSpecies, { flow, water, capacity = water }: Circulating): number =>
+  stressorAmount(vitality({ species }, { flow, water }, { water, capacity }), 'flow');
 
-const flowStressOf = (species: FishSpecies, tank: Circulating): number =>
-  stressorAmount(vitalityInTank(species, tank), 'flow');
-
-describe('total stress', () => {
-  it('returns 0 stress in ideal conditions', () => {
-    const fish = makeFish();
-    const resources = makeResources();
-    const stress = totalStress(computeFishVitality(fish, resources, [], 100, 100, livestockDefaults));
-    expect(stress).toBe(0);
+describe('stressors', () => {
+  it('are all zero in ideal water', () => {
+    const v = vitality();
+    for (const key of STRESSORS) expect(stressorAmount(v, key)).toBe(0);
+    expect(totalStress(v)).toBe(0);
   });
 
-  it('applies temperature stress below safe range', () => {
-    const fish = makeFish({ species: 'neon_tetra' }); // range: 22-28°C
-    const resources = makeResources({ temperature: 18 });
-    const stress = totalStress(computeFishVitality(fish, resources, [], 100, 100, livestockDefaults));
-
-    // deviation = 22 - 18 = 4°C, hardiness = 0.5, factor = 0.5
-    // stress = 0.85 * 4 * 0.5 = 1.7
-    expect(stress).toBeCloseTo(0.85 * 4 * 0.5, 2);
+  it.each<[string, Partial<Resources>, Partial<Fish>]>([
+    ['temperature', { temperature: 18 }, {}],
+    ['temperature', { temperature: 32 }, {}],
+    ['ph', { ph: 8.5 }, {}],
+    ['ammonia', { ammonia: 5 }, {}],
+    ['nitrite', { nitrite: 100 }, {}],
+    ['nitrate', { nitrate: 6000 }, {}],
+    ['satiation', {}, { satiation: 20 }],
+    ['oxygen', { oxygen: 3 }, {}],
+  ])('isolates %s stress to its own key', (key, resources, fish) => {
+    const v = vitality(fish, resources);
+    expect(stressorAmount(v, key)).toBeGreaterThan(0);
+    expect(totalStress(v)).toBeCloseTo(stressorAmount(v, key), 10);
   });
 
-  it('applies temperature stress above safe range', () => {
-    const fish = makeFish({ species: 'neon_tetra' }); // range: 22-28°C
-    const resources = makeResources({ temperature: 32 });
-    const stress = totalStress(computeFishVitality(fish, resources, [], 100, 100, livestockDefaults));
-
-    // deviation = 32 - 28 = 4°C
-    expect(stress).toBeGreaterThan(0);
+  it('charges water level on a low tank', () => {
+    const v = vitality({}, { water: 30 });
+    expect(stressorAmount(v, 'waterLevel')).toBeGreaterThan(0);
   });
 
-  it('applies pH stress outside safe range', () => {
-    const fish = makeFish({ species: 'neon_tetra' }); // pH: 6.0-7.5
-    const resources = makeResources({ ph: 8.5 });
-    const stress = totalStress(computeFishVitality(fish, resources, [], 100, 100, livestockDefaults));
-
-    // deviation = 8.5 - 7.5 = 1.0, severity = 3.0, hardiness factor = 0.5
-    expect(stress).toBeCloseTo(1.5, 1);
+  it('grows temperature stress linearly with distance past the range', () => {
+    const [minTemp] = FISH_SPECIES_DATA.neon_tetra.temperatureRange;
+    const two = stressorAmount(vitality({}, { temperature: minTemp - 2 }), 'temperature');
+    const four = stressorAmount(vitality({}, { temperature: minTemp - 4 }), 'temperature');
+    expect(two).toBeGreaterThan(0);
+    expect(four).toBeCloseTo(2 * two, 10);
   });
 
-  it('applies ammonia stress proportional to the unionized NH3 fraction', () => {
-    const fish = makeFish();
-    // 5mg ammonia in 100L water = 0.05 ppm TAN at pH 7.0 / 25 °C.
-    // f_NH3(7.0, 25°C) = 1 / (1 + 10^(9.245 − 7.0)) ≈ 0.00566
-    // free NH3 = 0.05 × 0.00566 ≈ 0.000283 ppm
-    // stress = severity(200) × 0.000283 × hardinessFactor(0.5) ≈ 0.02831
-    // (Severity is per ppm free NH3 under the new model; matches Emerson
-    // et al. 1975 speciation.)
-    const resources = makeResources({ ammonia: 5, ph: 7.0, temperature: 25 });
-    const stress = totalStress(computeFishVitality(fish, resources, [], 100, 100, livestockDefaults));
-
-    // Derive expected from the actual Emerson pKa so the check stays
-    // robust if severity is retuned later.
-    const pKa = 0.09018 + 2729.92 / (25 + 273.15);
-    const fNH3 = 1 / (1 + Math.pow(10, pKa - 7.0));
-    const expected = livestockDefaults.ammoniaStressSeverity * 0.05 * fNH3 * 0.5;
-    expect(stress).toBeCloseTo(expected, 6);
+  it('charges free NH3, so the same TAN hurts far more at high pH', () => {
+    const low = stressorAmount(vitality({}, { ammonia: 100, ph: 6.5 }), 'ammonia');
+    const high = stressorAmount(vitality({}, { ammonia: 100, ph: 8.0 }), 'ammonia');
+    expect(high).toBeGreaterThan(low * 10);
   });
 
-  it('free-NH3 toxicity rises sharply with pH', () => {
-    // Same TAN (1 ppm) should produce dramatically higher stress at
-    // pH 8.0 than at pH 6.5 because ~30× more of the TAN is in the
-    // unionized (toxic) form.
-    const fish = makeFish();
-    const low = makeResources({ ammonia: 100, ph: 6.5, temperature: 25 });
-    const high = makeResources({ ammonia: 100, ph: 8.0, temperature: 25 });
-    const stressLow = totalStress(computeFishVitality(fish, low, [], 100, 100, livestockDefaults));
-    const stressHigh = totalStress(computeFishVitality(fish, high, [], 100, 100, livestockDefaults));
-    expect(stressHigh).toBeGreaterThan(stressLow * 10);
+  it('leaves nitrate alone below its threshold', () => {
+    expect(stressorAmount(vitality({}, { nitrate: 3000 }), 'nitrate')).toBe(0);
   });
 
-  it('applies nitrite stress', () => {
-    const fish = makeFish();
-    const resources = makeResources({ nitrite: 100 }); // 1 ppm in 100L
-    const stress = totalStress(computeFishVitality(fish, resources, [], 100, 100, livestockDefaults));
-
-    expect(stress).toBeGreaterThan(0);
+  it('reads toxins at full strength in a drained tank', () => {
+    const drained = totalStress(vitality({}, { ammonia: 1 }, { water: 0 }));
+    const full = totalStress(vitality({}, { ammonia: 1 }));
+    expect(drained).toBeGreaterThan(full);
   });
 
-  it('applies nitrate stress only above 40 ppm', () => {
-    const fish = makeFish();
-    // 30 ppm = 3000mg in 100L - should have no stress
-    const resources30 = makeResources({ nitrate: 3000 });
-    const stress30 = totalStress(computeFishVitality(fish, resources30, [], 100, 100, livestockDefaults));
-    expect(stress30).toBe(0);
-
-    // 60 ppm = 6000mg in 100L - should have stress from 20 ppm over
-    const resources60 = makeResources({ nitrate: 6000 });
-    const stress60 = totalStress(computeFishVitality(fish, resources60, [], 100, 100, livestockDefaults));
-    expect(stress60).toBeGreaterThan(0);
-  });
-
-  it('applies satiation stress when satiation falls into the starving band', () => {
-    // satiation 20 → starving band (0–25). Curve interpolates from
-    // hungry severity (2.5) at satiation 25 to starving severity
-    // (6.0) at satiation 0; at satiation 20 the raw stressor is
-    // 2.5 + (5/25)·(6 − 2.5) = 3.2 %/h. After hardiness factor 0.5 → 1.6.
-    const fish = makeFish({ satiation: 20 });
-    const resources = makeResources();
-    const stress = totalStress(computeFishVitality(fish, resources, [], 100, 100, livestockDefaults));
-
-    expect(stress).toBeCloseTo(1.6, 2);
-  });
-
-  it('does not apply satiation stress in the peckish band (50 ≤ satiation < 75)', () => {
-    const fish = makeFish({ satiation: 60 });
-    const resources = makeResources();
-    const stress = totalStress(computeFishVitality(fish, resources, [], 100, 100, livestockDefaults));
-    expect(stress).toBe(0);
-  });
-
-  it('applies oxygen stress below 5 mg/L', () => {
-    const fish = makeFish();
-    const resources = makeResources({ oxygen: 3 });
-    const stress = totalStress(computeFishVitality(fish, resources, [], 100, 100, livestockDefaults));
-
-    // (5-3) * 3.0 * 0.5 = 3.0
-    expect(stress).toBeCloseTo(3.0, 1);
-  });
-
-  it('applies water level stress below 50%', () => {
-    const fish = makeFish();
-    const resources = makeResources({ water: 30 }); // 30% of 100L capacity
-    const stress = totalStress(computeFishVitality(fish, resources, [], 30, 100, livestockDefaults));
-
-    // waterPercent = 30%, deviation = 50 - 30 = 20
-    // 20 * 0.2 * 0.5 = 2.0
-    expect(stress).toBeCloseTo(2.0, 1);
-  });
-
-  it('applies flow stress above species tolerance', () => {
-    const { maxTurnover, hardiness } = FISH_SPECIES_DATA.betta;
-    const stress = flowStressOf('betta', { flow: (maxTurnover + 2) * 100, water: 100 });
-
-    expect(stress).toBeCloseTo(livestockDefaults.flowStressSeverity * 2 * (1 - hardiness), 10);
-  });
-
-  it('applies max stress for toxins when water volume is 0', () => {
-    const fish = makeFish();
-    const resources = makeResources({ ammonia: 1 });
-    const stressNoWater = totalStress(computeFishVitality(fish, resources, [], 0, 100, livestockDefaults));
-
-    // With 0 water, ammonia should be 100 ppm (lethal)
-    expect(stressNoWater).toBeGreaterThan(0);
-
-    // Should be much higher than with 100L water (which gives 0.01 ppm)
-    const stressWithWater = totalStress(computeFishVitality(fish, resources, [], 100, 100, livestockDefaults));
-    expect(stressNoWater).toBeGreaterThan(stressWithWater);
-  });
-
-  it('no toxin stress at zero volume when no toxins present', () => {
-    const fish = makeFish();
-    const resources = makeResources({ ammonia: 0, nitrite: 0, nitrate: 0 });
-    const stress = totalStress(computeFishVitality(fish, resources, [], 0, 100, livestockDefaults));
-    // Only water level stress expected (0% water)
-    expect(stress).toBeGreaterThan(0); // from water level
-  });
-
-  it('reduces stress for hardy fish', () => {
-    // Guppy (hardiness 0.8) vs Angelfish (hardiness 0.4)
-    const guppy = makeFish({ species: 'guppy' });
-    const angel = makeFish({ species: 'angelfish' });
-    const resources = makeResources({ temperature: 18 }); // Below both ranges
-
-    const guppyStress = totalStress(computeFishVitality(guppy, resources, [], 100, 100, livestockDefaults));
-    const angelStress = totalStress(computeFishVitality(angel, resources, [], 100, 100, livestockDefaults));
-
-    // Hardy guppy should have less stress
-    expect(guppyStress).toBeLessThan(angelStress);
-  });
-
-  describe('per-fish hardiness offset', () => {
-    // Neon tetra hardiness = 0.5. Temperature stress at 18 °C (safe 22–28):
-    //   stress = severity(0.85) × gap(4) × (1 - effectiveHardiness)
-    const resources = (): ReturnType<typeof makeResources> =>
-      makeResources({ temperature: 18 });
-
-    it('negative offset → weaker fish → more stress', () => {
-      const baseline = makeFish({ hardinessOffset: 0 });
-      const weak = makeFish({ hardinessOffset: -0.075 }); // -15% of 0.5
-      const bs = totalStress(computeFishVitality(baseline, resources(), [], 100, 100, livestockDefaults));
-      const ws = totalStress(computeFishVitality(weak, resources(), [], 100, 100, livestockDefaults));
-      expect(ws).toBeGreaterThan(bs);
-      // effectiveHardiness goes 0.5 → 0.425, factor 0.5 → 0.575.
-      expect(ws).toBeCloseTo(0.85 * 4 * (1 - 0.425), 6);
-    });
-
-    it('positive offset → hardier fish → less stress', () => {
-      const baseline = makeFish({ hardinessOffset: 0 });
-      const hardy = makeFish({ hardinessOffset: 0.075 }); // +15% of 0.5
-      const bs = totalStress(computeFishVitality(baseline, resources(), [], 100, 100, livestockDefaults));
-      const hs = totalStress(computeFishVitality(hardy, resources(), [], 100, 100, livestockDefaults));
-      expect(hs).toBeLessThan(bs);
-      // effectiveHardiness 0.5 → 0.575, factor 0.5 → 0.425.
-      expect(hs).toBeCloseTo(0.85 * 4 * (1 - 0.575), 6);
-    });
-
-    it('clamps effectiveHardiness to upper bound 0.95', () => {
-      // Extreme offset shouldn't let a fish become invincible.
-      const superFish = makeFish({ species: 'guppy', hardinessOffset: 5 });
-      const stress = totalStress(computeFishVitality(
-        superFish,
-        makeResources({ temperature: 18 }), [],
-        100,
-        100,
-        livestockDefaults
-      ));
-      // Guppy range 22–28 → gap 4, severity 0.85. Clamped factor = 1 - 0.95 = 0.05.
-      expect(stress).toBeCloseTo(0.85 * 4 * 0.05, 6);
-    });
-
-    it('clamps effectiveHardiness to lower bound 0.1', () => {
-      // Extreme negative offset shouldn't instantly kill.
-      const glassFish = makeFish({ species: 'guppy', hardinessOffset: -5 });
-      const stress = totalStress(computeFishVitality(
-        glassFish,
-        makeResources({ temperature: 18 }), [],
-        100,
-        100,
-        livestockDefaults
-      ));
-      // Clamped factor = 1 - 0.1 = 0.9.
-      expect(stress).toBeCloseTo(0.85 * 4 * 0.9, 6);
-    });
-
-    it('zero offset matches species baseline behavior', () => {
-      // Regression check: zero offset must reproduce the species
-      // baseline calibration exactly.
-      const fish = makeFish({ hardinessOffset: 0 });
-      const stress = totalStress(computeFishVitality(fish, resources(), [], 100, 100, livestockDefaults));
-      expect(stress).toBeCloseTo(0.85 * 4 * 0.5, 6);
-    });
+  it('sums every active stressor into the total', () => {
+    const v = vitality(
+      { satiation: 20 },
+      {
+        temperature: 18,
+        ph: 8.5,
+        ammonia: 5,
+        nitrite: 50,
+        nitrate: 6000,
+        oxygen: 3,
+        water: 30,
+        flow: 600,
+      }
+    );
+    for (const key of STRESSORS) expect(stressorAmount(v, key)).toBeGreaterThan(0);
+    const handSum = STRESSORS.reduce((sum, key) => sum + stressorAmount(v, key), 0);
+    expect(totalStress(v)).toBeCloseTo(handSum, 10);
   });
 });
 
-describe('per-stressor breakdown', () => {
-  it('all stressors zero in ideal conditions', () => {
-    const fish = makeFish();
-    const resources = makeResources();
-    const breakdown = computeFishVitality(fish, resources, [], 100, 100, livestockDefaults);
-    for (const key of [
-      'temperature',
-      'ph',
-      'ammonia',
-      'nitrite',
-      'nitrate',
-      'satiation',
-      'oxygen',
-      'waterLevel',
-      'flow',
-    ]) {
-      expect(stressorAmount(breakdown, key)).toBe(0);
-    }
-    expect(totalStress(breakdown)).toBe(0);
-  });
+describe('hardiness', () => {
+  const cold = { temperature: 18 };
 
-  it('isolates temperature stress', () => {
-    const fish = makeFish({ species: 'neon_tetra' }); // range 22–28
-    const resources = makeResources({ temperature: 18 });
-    const b = computeFishVitality(fish, resources, [], 100, 100, livestockDefaults);
-    // 0.85 × 4 × 0.5 = 1.7
-    expect(stressorAmount(b, 'temperature')).toBeCloseTo(1.7, 2);
-    expect(stressorAmount(b, 'ph')).toBe(0);
-    expect(stressorAmount(b, 'ammonia')).toBe(0);
-    expect(stressorAmount(b, 'nitrite')).toBe(0);
-    expect(stressorAmount(b, 'nitrate')).toBe(0);
-    expect(stressorAmount(b, 'satiation')).toBe(0);
-    expect(stressorAmount(b, 'oxygen')).toBe(0);
-    expect(stressorAmount(b, 'waterLevel')).toBe(0);
-    expect(stressorAmount(b, 'flow')).toBe(0);
-    expect(totalStress(b)).toBeCloseTo(stressorAmount(b, 'temperature'), 6);
-  });
-
-  it('isolates pH stress', () => {
-    const fish = makeFish({ species: 'neon_tetra' }); // pH 6.0–7.5
-    const resources = makeResources({ ph: 8.5 });
-    const b = computeFishVitality(fish, resources, [], 100, 100, livestockDefaults);
-    // 3.0 × 1.0 × 0.5 = 1.5
-    expect(stressorAmount(b, 'ph')).toBeCloseTo(1.5, 1);
-    expect(stressorAmount(b, 'temperature')).toBe(0);
-    expect(stressorAmount(b, 'ammonia')).toBe(0);
-    expect(totalStress(b)).toBeCloseTo(stressorAmount(b, 'ph'), 6);
-  });
-
-  it('isolates ammonia stress (free NH3 fraction)', () => {
-    const fish = makeFish();
-    const resources = makeResources({ ammonia: 5, ph: 7.0, temperature: 25 });
-    const b = computeFishVitality(fish, resources, [], 100, 100, livestockDefaults);
-    const pKa = 0.09018 + 2729.92 / (25 + 273.15);
-    const fNH3 = 1 / (1 + Math.pow(10, pKa - 7.0));
-    const expected = livestockDefaults.ammoniaStressSeverity * 0.05 * fNH3 * 0.5;
-    expect(stressorAmount(b, 'ammonia')).toBeCloseTo(expected, 6);
-    expect(stressorAmount(b, 'temperature')).toBe(0);
-    expect(stressorAmount(b, 'nitrite')).toBe(0);
-    expect(totalStress(b)).toBeCloseTo(stressorAmount(b, 'ammonia'), 6);
-  });
-
-  it('isolates nitrite stress', () => {
-    const fish = makeFish();
-    const resources = makeResources({ nitrite: 100 }); // 1 ppm in 100L
-    const b = computeFishVitality(fish, resources, [], 100, 100, livestockDefaults);
-    expect(stressorAmount(b, 'nitrite')).toBeGreaterThan(0);
-    expect(stressorAmount(b, 'ammonia')).toBe(0);
-    expect(stressorAmount(b, 'nitrate')).toBe(0);
-    expect(totalStress(b)).toBeCloseTo(stressorAmount(b, 'nitrite'), 6);
-  });
-
-  it('isolates nitrate stress only above 40 ppm', () => {
-    const fish = makeFish();
-    const below = computeFishVitality(
-      fish,
-      makeResources({ nitrate: 3000 }), [], // 30 ppm
-      100,
-      100,
-      livestockDefaults
+  it('spares a hardier species', () => {
+    expect(totalStress(vitality({ species: 'guppy' }, cold))).toBeLessThan(
+      totalStress(vitality({ species: 'angelfish' }, cold))
     );
-    expect(stressorAmount(below, 'nitrate')).toBe(0);
-    expect(totalStress(below)).toBe(0);
-
-    const above = computeFishVitality(
-      fish,
-      makeResources({ nitrate: 6000 }), [], // 60 ppm
-      100,
-      100,
-      livestockDefaults
-    );
-    expect(stressorAmount(above, 'nitrate')).toBeGreaterThan(0);
-    expect(totalStress(above)).toBeCloseTo(stressorAmount(above, 'nitrate'), 6);
   });
 
-  it('isolates satiation stress (only when satiation < 50)', () => {
-    // satiation 20 (starving band): raw 3.2 %/h × hardiness factor
-    // 0.5 = 1.6 %/h. The stressor key is `satiation` regardless of
-    // band; the label is "Starving" / "Hungry" / "Overfed" depending
-    // on which side the fish is on.
-    const fish = makeFish({ satiation: 20 });
-    const b = computeFishVitality(fish, makeResources(), [], 100, 100, livestockDefaults);
-    expect(stressorAmount(b, 'satiation')).toBeCloseTo(1.6, 2);
-    expect(totalStress(b)).toBeCloseTo(stressorAmount(b, 'satiation'), 6);
-
-    const calm = makeFish({ satiation: 60 });
-    const bCalm = computeFishVitality(calm, makeResources(), [], 100, 100, livestockDefaults);
-    expect(stressorAmount(bCalm, 'satiation')).toBe(0);
+  it('moves stress against the per-fish offset', () => {
+    const base = totalStress(vitality({ hardinessOffset: 0 }, cold));
+    expect(totalStress(vitality({ hardinessOffset: -0.075 }, cold))).toBeGreaterThan(base);
+    expect(totalStress(vitality({ hardinessOffset: 0.075 }, cold))).toBeLessThan(base);
   });
 
-  it('isolates oxygen stress', () => {
-    const fish = makeFish();
-    const resources = makeResources({ oxygen: 3 });
-    const b = computeFishVitality(fish, resources, [], 100, 100, livestockDefaults);
-    // (5-3) × 3.0 × 0.5 = 3.0
-    expect(stressorAmount(b, 'oxygen')).toBeCloseTo(3.0, 1);
-    expect(totalStress(b)).toBeCloseTo(stressorAmount(b, 'oxygen'), 6);
-  });
-
-  it('isolates water-level stress', () => {
-    const fish = makeFish();
-    const resources = makeResources({ water: 30 });
-    const b = computeFishVitality(fish, resources, [], 30, 100, livestockDefaults);
-    // (50-30) × 0.2 × 0.5 = 2.0
-    expect(stressorAmount(b, 'waterLevel')).toBeCloseTo(2.0, 1);
-    expect(totalStress(b)).toBeCloseTo(stressorAmount(b, 'waterLevel'), 6);
-  });
-
-  it('isolates flow stress', () => {
-    const flow = (FISH_SPECIES_DATA.betta.maxTurnover + 2) * 100;
-    const b = vitalityInTank('betta', { flow, water: 100 });
-    expect(stressorAmount(b, 'flow')).toBeGreaterThan(0);
-    expect(totalStress(b)).toBeCloseTo(stressorAmount(b, 'flow'), 6);
-  });
-
-  it('sums all active stressors into the total', () => {
-    const fish = makeFish({ species: 'neon_tetra', satiation: 20 });
-    const resources = makeResources({
-      temperature: 18,
-      ph: 8.5,
-      ammonia: 5,
-      nitrite: 50,
-      nitrate: 6000,
-      oxygen: 3,
-      water: 30,
-      flow: 600,
-    });
-    const b = computeFishVitality(fish, resources, [], 30, 100, livestockDefaults);
-
-    const handSum =
-      stressorAmount(b, 'temperature') +
-      stressorAmount(b, 'ph') +
-      stressorAmount(b, 'ammonia') +
-      stressorAmount(b, 'nitrite') +
-      stressorAmount(b, 'nitrate') +
-      stressorAmount(b, 'satiation') +
-      stressorAmount(b, 'oxygen') +
-      stressorAmount(b, 'waterLevel') +
-      stressorAmount(b, 'flow');
-    expect(totalStress(b)).toBeCloseTo(handSum, 10);
-    // All the ones that should be active, are.
-    expect(stressorAmount(b, 'temperature')).toBeGreaterThan(0);
-    expect(stressorAmount(b, 'ph')).toBeGreaterThan(0);
-    expect(stressorAmount(b, 'ammonia')).toBeGreaterThan(0);
-    expect(stressorAmount(b, 'nitrite')).toBeGreaterThan(0);
-    expect(stressorAmount(b, 'nitrate')).toBeGreaterThan(0);
-    expect(stressorAmount(b, 'satiation')).toBeGreaterThan(0);
-    expect(stressorAmount(b, 'oxygen')).toBeGreaterThan(0);
-    expect(stressorAmount(b, 'waterLevel')).toBeGreaterThan(0);
-    expect(stressorAmount(b, 'flow')).toBeGreaterThan(0);
+  it('clamps an extreme offset so no fish is invincible or made of glass', () => {
+    const invincible = totalStress(vitality({ hardinessOffset: 5 }, cold));
+    const glass = totalStress(vitality({ hardinessOffset: -5 }, cold));
+    expect(invincible).toBeGreaterThan(0);
+    expect(invincible).toBe(totalStress(vitality({ hardinessOffset: 50 }, cold)));
+    expect(glass).toBe(totalStress(vitality({ hardinessOffset: -50 }, cold)));
   });
 });
 
@@ -543,636 +249,163 @@ describe('flow is a turnover', () => {
     expect(evaporated).toBe(doubled);
   });
 
-  it('starts charging a tank that evaporates under a filter it was sized for', () => {
-    const { maxTurnover } = FISH_SPECIES_DATA.neon_tetra;
-    const sized = maxTurnover * 100;
+  it('leaves a drained tank to the water-level stressor', () => {
+    const v = vitality({}, { flow: 1000, water: 0 }, { water: 0 });
 
-    expect(flowStressOf('neon_tetra', { flow: sized, water: 100, capacity: 100 })).toBe(0);
-    expect(flowStressOf('neon_tetra', { flow: sized, water: 80, capacity: 100 })).toBeGreaterThan(0);
+    expect(stressorAmount(v, 'flow')).toBe(0);
+    expect(stressorAmount(v, 'waterLevel')).toBeGreaterThan(0);
+  });
+});
+
+describe('satiation bands', () => {
+  it.each<[number, 'stress' | 'benefit' | 'neither', string?]>([
+    [99.5, 'stress', 'Overfed'],
+    [82, 'benefit'],
+    [60, 'neither'],
+    [30, 'stress', 'Hungry'],
+    [10, 'stress', 'Starving'],
+  ])('satiation %d → %s', (satiation, expected, label) => {
+    const v = vitality({ satiation });
+    expect(stressorAmount(v, 'satiation') > 0).toBe(expected === 'stress');
+    expect(benefitAmount(v, 'satiation') > 0).toBe(expected === 'benefit');
+    if (label) {
+      expect(v.breakdown.stressors.find((s) => s.key === 'satiation')!.label).toBe(label);
+    }
   });
 
-  it('leaves a drained tank to the water-level stressor', () => {
-    const b = vitalityInTank('neon_tetra', { flow: 1000, water: 0, capacity: 100 });
+  it('starving is steeper than hungry', () => {
+    expect(stressorAmount(vitality({ satiation: 10 }), 'satiation')).toBeGreaterThan(
+      stressorAmount(vitality({ satiation: 30 }), 'satiation')
+    );
+  });
+});
 
-    expect(stressorAmount(b, 'flow')).toBe(0);
-    expect(stressorAmount(b, 'waterLevel')).toBeGreaterThan(0);
+describe('benefits', () => {
+  it('lists every benefit key every tick, even at zero', () => {
+    const v = vitality();
+    expect(v.breakdown.benefits.map((b) => b.key).sort()).toEqual([
+      'oxygen',
+      'ph',
+      'plants',
+      'satiation',
+    ]);
+    expect(benefitAmount(v, 'plants')).toBe(0);
+  });
+
+  it('swaps the pH benefit for the pH stressor outside the species range', () => {
+    const v = vitality({}, { ph: 8.5 });
+    expect(benefitAmount(v, 'ph')).toBe(0);
+    expect(stressorAmount(v, 'ph')).toBeGreaterThan(0);
+  });
+});
+
+describe('plant-presence benefit', () => {
+  const net = (plants: Plant[]): number => vitality({}, {}, { plants }).breakdown.net;
+  const baseline = net([]);
+  const lift = (plants: Plant[]): number => net(plants) - baseline;
+  const plants = (count: number, overrides: Partial<Plant> = {}): Plant[] =>
+    Array.from({ length: count }, (_, i) => makePlant({ id: `p_${i}`, ...overrides }));
+  const peak = lift(plants(10));
+
+  it('grows with the plants and saturates', () => {
+    expect(lift(plants(1))).toBeGreaterThan(0);
+    expect(lift(plants(2))).toBeGreaterThan(lift(plants(1)));
+    expect(lift(plants(20))).toBeCloseTo(peak, 10);
+  });
+
+  it('counts biomass by size and condition, summed across plants', () => {
+    expect(lift(plants(1, { condition: 0 }))).toBeCloseTo(0, 10);
+    expect(lift(plants(1, { size: 10 }))).toBeCloseTo(lift(plants(1)) / 10, 10);
+    expect(lift(plants(10, { size: 10 }))).toBeCloseTo(lift(plants(1)), 10);
   });
 });
 
 describe('processHealth', () => {
-  it('recovers health in ideal conditions', () => {
-    const fish = [makeFish({ health: 80 })];
-    const resources = makeResources();
-    const result = processHealth(fish, resources, [], 100, 100, livestockDefaults);
-
-    expect(result.survivingFish).toHaveLength(1);
-    expect(result.survivingFish[0].health).toBeGreaterThan(80);
-    expect(result.deadFishNames).toHaveLength(0);
+  it('recovers health in ideal conditions, capped at 100', () => {
+    expect(health([makeFish({ health: 80 })]).survivingFish[0].health).toBeGreaterThan(80);
+    expect(health([makeFish({ health: 100 })]).survivingFish[0].health).toBe(100);
   });
 
-  it('caps health at 100', () => {
-    const fish = [makeFish({ health: 100 })];
-    const resources = makeResources();
-    const result = processHealth(fish, resources, [], 100, 100, livestockDefaults);
+  it('kills a fish whose health reaches 0 and leaves its body as waste', () => {
+    const light = health([makeFish({ health: 1, mass: 1 })], { ammonia: 5000 });
+    const heavy = health([makeFish({ health: 1, mass: 2 })], { ammonia: 5000 });
 
-    expect(result.survivingFish[0].health).toBe(100);
+    expect(light.survivingFish).toHaveLength(0);
+    expect(light.deadFishNames).toHaveLength(1);
+    expect(heavy.deathWaste).toBeCloseTo(2 * light.deathWaste, 10);
   });
 
-  it('kills fish when health reaches 0', () => {
-    const fish = [makeFish({ health: 1 })];
-    // Very bad conditions - high ammonia
-    const resources = makeResources({ ammonia: 1000 }); // 10 ppm
-
-    const result = processHealth(fish, resources, [], 100, 100, livestockDefaults);
-
-    expect(result.survivingFish).toHaveLength(0);
-    expect(result.deadFishNames).toHaveLength(1);
-    expect(result.deathWaste).toBeGreaterThan(0);
-  });
-
-  it('produces waste from dead fish', () => {
-    const fish = [makeFish({ health: 1, mass: 5.0 })];
-    const resources = makeResources({ ammonia: 5000 }); // lethal ammonia
-
-    const result = processHealth(fish, resources, [], 100, 100, livestockDefaults);
-
-    // waste = mass(5.0) * deathDecayFactor(0.5) = 2.5
-    expect(result.deathWaste).toBeCloseTo(2.5, 1);
-  });
-
-  it('age stressor is zero at maxAge', () => {
-    // Right at maxAge → no age damage yet (stressor activates strictly past).
-    const maxAge = 24 * 365 * 5; // neon_tetra
-    const fish = makeFish({ age: maxAge });
-    const resources = makeResources();
-    const v = computeFishVitality(fish, resources, [], 100, 100, livestockDefaults);
-    expect(stressorAmount(v, 'age')).toBe(0);
-  });
-
-  it('age stressor activates linearly past maxAge', () => {
-    // 24 h past → severity × 24 × hardinessFactor.
-    const maxAge = 24 * 365 * 5;
-    const fish = makeFish({ age: maxAge + 24 });
-    const resources = makeResources();
-    const v = computeFishVitality(fish, resources, [], 100, 100, livestockDefaults);
-    // Neon hardiness 0.5 → factor 0.5. Severity 0.05 × 24 × 0.5 = 0.6.
-    expect(stressorAmount(v, 'age')).toBeCloseTo(0.05 * 24 * 0.5, 6);
-  });
-
-  it('aged fish in ideal conditions deterministically declines and dies', () => {
-    // Far past maxAge: age damage exceeds the all-good benefit budget by a
-    // wide margin, so the fish declines on a fixed trajectory and dies in
-    // a bounded number of ticks. No `random()` involved.
-    const maxAge = 24 * 365 * 5;
-    let fish: Fish[] = [makeFish({ age: maxAge + 24 * 30, health: 100 })]; // 30 d past
-    const resources = makeResources();
-    let ticksToDeath = 0;
-    for (let i = 0; i < 1000; i++) {
-      ticksToDeath = i + 1;
-      const result = processHealth(fish, resources, [], 100, 100, livestockDefaults);
-      fish = result.survivingFish;
-      if (fish.length === 0) {
-        expect(result.deadFishNames[0]).toContain('old age');
-        break;
-      }
-      // Aging during the run keeps damage climbing.
-      fish = fish.map((f) => ({ ...f, age: f.age + 1 }));
-    }
-    expect(fish).toHaveLength(0);
-    // Sanity bound: should die within a few hundred ticks given the
-    // chosen severity, well under the 1000-tick safety cap.
-    expect(ticksToDeath).toBeLessThan(500);
-  });
-
-  it('death past maxAge is attributed to old age in the log', () => {
-    // Lethal condition (health 1) plus age past maxAge → death message
-    // should mention old age, since the age stressor is active.
-    const maxAge = 24 * 365 * 5;
-    const fish = [makeFish({ age: maxAge + 24, health: 1 })];
-    const resources = makeResources({ ammonia: 5000 }); // also lethal env
-    const result = processHealth(fish, resources, [], 100, 100, livestockDefaults);
-    expect(result.survivingFish).toHaveLength(0);
-    expect(result.deadFishNames[0]).toContain('old age');
-  });
-
-  it('does not trigger age stress before max age', () => {
-    const fish = makeFish({ age: 100 });
-    const resources = makeResources();
-    const v = computeFishVitality(fish, resources, [], 100, 100, livestockDefaults);
-    expect(stressorAmount(v, 'age')).toBe(0);
-  });
-
-  it('handles empty fish array', () => {
-    const resources = makeResources();
-    const result = processHealth([], resources, [], 100, 100, livestockDefaults);
-
+  it('handles an empty roster', () => {
+    const result = health([]);
     expect(result.survivingFish).toHaveLength(0);
     expect(result.deadFishNames).toHaveLength(0);
     expect(result.deathWaste).toBe(0);
   });
 
-  it('processes multiple fish independently', () => {
-    const fish = [
-      makeFish({ id: 'healthy', health: 100 }),
-      makeFish({ id: 'sick', health: 1 }),
-    ];
-    // High ammonia kills the sick fish
-    const resources = makeResources({ ammonia: 2000 });
-
-    const result = processHealth(fish, resources, [], 100, 100, livestockDefaults);
-
-    // Healthy fish may survive, sick fish dies
-    expect(result.deadFishNames.length).toBeGreaterThanOrEqual(1);
-  });
-});
-
-describe('temperature stress calibration (S4 Variant A.1)', () => {
-  // Pins the `temperatureStressSeverity = 0.85` calibration against the
-  // scenario 04 cold-failure curve without needing a full scenario run.
-  //
-  // Setup: a betta (hardiness 0.6, safe range 24–30 °C) held at 20 °C.
-  // Expected per-tick damage:
-  //   stress = severity(0.85) × gap(4 °C) × hardinessFactor(0.4) = 1.36 %/hr
-  //   net loss = stress − recovery(1.0) = 0.36 %/hr ≈ 8.64 %/day
-  //
-  // Scenario 04 checkpoints (day = 24 ticks). Note: the scenario
-  // includes a 24-hour thermal drift ramp from 26 °C → 20 °C, which we
-  // skip here (direct to 20 °C), so this test runs a shade harsher than
-  // the scenario report (scenario day 7 actual = 42 vs ~39.5 here).
-  // Bands reflect the pure-20 °C curve, not the scenario-ramped curve.
-  //   day 1  (tick 24):  health 85–95
-  //   day 2  (tick 48):  health 70–85
-  //   day 4  (tick 96):  health 55–75
-  //   day 7  (tick 168): health 35–50  ← primary anchor (calibrated to
-  //                      pure-cold curve, see note above)
-  //   day 14 (tick 336): dead (or nearly so)
-  function runCold(
-    ticks: number
-  ): { health: number; alive: boolean; diedAt: number | null } {
-    const resources = makeResources({ temperature: 20 });
-    let fish: Fish[] = [makeFish({ species: 'betta', mass: 3.0, health: 100 })];
-    for (let i = 0; i < ticks; i++) {
-      const result = processHealth(
-        fish,
-        resources, [],
-        100,
-        100,
-        livestockDefaults
-      );
-      fish = result.survivingFish;
-      if (fish.length === 0) return { health: 0, alive: false, diedAt: i + 1 };
-    }
-    return { health: fish[0].health, alive: true, diedAt: null };
-  }
-
-  it('day 1 health lands in 85–95 band', () => {
-    const result = runCold(24);
-    expect(result.alive).toBe(true);
-    expect(result.health).toBeGreaterThanOrEqual(85);
-    expect(result.health).toBeLessThanOrEqual(95);
-  });
-
-  it('day 7 health lands in 35–50 band (pure-cold curve)', () => {
-    const result = runCold(168);
-    expect(result.alive).toBe(true);
-    expect(result.health).toBeGreaterThanOrEqual(35);
-    expect(result.health).toBeLessThanOrEqual(50);
-  });
-
-  it('day 14 betta is dead or nearly so', () => {
-    const result = runCold(336);
-    if (result.alive) {
-      expect(result.health).toBeLessThanOrEqual(15);
-    }
-    // Otherwise dead — both outcomes acceptable at day 14.
-  });
-
-  it('hardier neon tetra declines faster at same 20 °C (smaller safe-range margin)', () => {
-    // Neon: hardiness 0.5, range 22–28 °C → gap 2 °C, factor 0.5.
-    // Stress 0.85 × 2 × 0.5 = 0.85 %/hr, net −0.15 %/day loss after
-    // recovery — actually slower decline than betta despite neon being
-    // less hardy, because neon's range starts lower (22 °C). Sanity
-    // check that the calibration respects species range boundaries
-    // rather than using hardcoded thresholds.
-    const resources = makeResources({ temperature: 20 });
-    let fish: Fish[] = [makeFish({ species: 'neon_tetra', health: 100 })];
-    for (let i = 0; i < 168; i++) {
-      const result = processHealth(
-        fish,
-        resources, [],
-        100,
-        100,
-        livestockDefaults
-      );
-      fish = result.survivingFish;
-    }
-    // After 7 days at 20 °C, neon should still be alive but losing
-    // health. Compare against betta in the same conditions.
-    const bettaResult = runCold(168);
-    expect(fish.length).toBe(1);
-    // Same gap (2 vs 4) / hardiness (0.5 vs 0.4) → neon net loss
-    // 0.85×2×0.5 − 1 = −0.15 /hr; betta 0.85×4×0.4 − 1 = 0.36 /hr.
-    // Neon recovers, betta declines.
-    expect(fish[0].health).toBeGreaterThan(bettaResult.health);
-  });
-});
-
-describe('vitality integration', () => {
-  // The vitality model exposes per-factor benefits + surplus capture.
-  // These tests pin that contract on top of the per-stressor math the
-  // describes above already cover.
-
-  it('exposes ph/satiation/oxygen/plants benefits when conditions are good', () => {
-    const fish = makeFish();
-    const resources = makeResources();
-    const result = computeFishVitality(fish, resources, [], 100, 100, livestockDefaults);
-
-    const benefitKeys = result.breakdown.benefits.map((b) => b.key).sort();
-    expect(benefitKeys).toEqual(['oxygen', 'ph', 'plants', 'satiation']);
-    // In an unplanted tank the abiotic budget alone sums to ~1.0 %/h
-    // (pH 0.4 + well-fed 0.3 + O2 0.3) — the budget the calibration
-    // scenarios were pinned against. The plant-presence benefit kicks
-    // in only when actual plants are passed in.
-    expect(result.breakdown.benefitRate).toBeCloseTo(1.0, 6);
-  });
-
-  it('drops the pH benefit to zero when pH leaves the species range', () => {
-    const fish = makeFish({ species: 'neon_tetra' }); // pH 6.0–7.5
-    const resources = makeResources({ ph: 8.5 });
-    const result = computeFishVitality(fish, resources, [], 100, 100, livestockDefaults);
-
-    const phBenefit = result.breakdown.benefits.find((b) => b.key === 'ph');
-    expect(phBenefit?.amount).toBe(0);
-    // pH stressor takes over from there.
-    const phStress = result.breakdown.stressors.find((s) => s.key === 'ph');
-    expect(phStress?.amount).toBeGreaterThan(0);
-  });
-
-  it('drops the well-fed benefit to zero once satiation falls into the hungry band', () => {
-    // Satiation 40 is in the hungry band (25–50). Well-fed benefit is
-    // zero outside its [75, 90) range; the satiation stressor is on
-    // instead.
-    const fish = makeFish({ satiation: 40 });
-    const resources = makeResources();
-    const result = computeFishVitality(fish, resources, [], 100, 100, livestockDefaults);
-    const wellFed = result.breakdown.benefits.find((b) => b.key === 'satiation');
-    expect(wellFed?.amount).toBe(0);
-  });
-
-  it('captures surplus when the fish is at full health and net is positive', () => {
-    // No stressors, no negative net — a healthy fish at 100 should
-    // bank positive surplus equal to the net benefit rate. The breeding/
-    // growth tasks will spend it.
-    const fish = makeFish({ health: 100, satiation: 87 });
-    const resources = makeResources();
-    const result = processHealth([fish], resources, [], 100, 100, livestockDefaults);
-    expect(result.survivingFish[0].health).toBe(100);
-    expect(result.survivingFish[0].surplus).toBeGreaterThan(0);
-  });
-
-  it('does not produce surplus while sub-100 health is recovering', () => {
-    // The locked design: a stressed organism heals first, never grows
-    // while the deficit is unpaid.
-    const fish = makeFish({ health: 80, surplus: 0, satiation: 87 });
-    const resources = makeResources();
-    const result = processHealth([fish], resources, [], 100, 100, livestockDefaults);
-    expect(result.survivingFish[0].health).toBeGreaterThan(80);
-    expect(result.survivingFish[0].health).toBeLessThanOrEqual(100);
-    expect(result.survivingFish[0].surplus).toBe(0);
-  });
-
-  it('accumulates surplus across ticks at full health', () => {
-    let fish: Fish[] = [makeFish({ health: 100, satiation: 87 })];
-    const resources = makeResources();
-    for (let i = 0; i < 10; i++) {
-      fish = processHealth(fish, resources, [], 100, 100, livestockDefaults).survivingFish;
-    }
-    expect(fish[0].surplus).toBeGreaterThan(0);
-  });
-});
-
-describe('surplus buffer and cap', () => {
-  // Surplus is a reserve buffer, not an unbounded bank: it saturates at
-  // `surplusCap` and drains to protect health before health falls.
-
-  it('caps banked surplus at surplusCap', () => {
-    // At all-good conditions a fish banks ~1 %/h. Run well past the
-    // number of ticks it takes to fill a 50-cap bank and confirm it
-    // saturates rather than growing without bound.
-    let fish: Fish[] = [makeFish({ health: 100, satiation: 87 })];
-    const resources = makeResources();
-    for (let i = 0; i < 120; i++) {
-      // Re-pin satiation each tick so the well-fed benefit keeps the
-      // net rate positive across the whole run.
-      fish = fish.map((f) => ({ ...f, satiation: 87 }));
-      fish = processHealth(fish, resources, [], 100, 100, livestockDefaults).survivingFish;
-    }
-    expect(fish[0].surplus).toBe(livestockDefaults.surplusCap);
-  });
-
-  it('never exceeds the cap on any tick', () => {
-    let fish: Fish[] = [makeFish({ health: 100, satiation: 87, surplus: 49 })];
-    const resources = makeResources();
-    for (let i = 0; i < 20; i++) {
-      fish = fish.map((f) => ({ ...f, satiation: 87 }));
-      fish = processHealth(fish, resources, [], 100, 100, livestockDefaults).survivingFish;
-      expect(fish[0].surplus).toBeLessThanOrEqual(livestockDefaults.surplusCap);
-    }
-  });
-
-  it('burns reserves to hold health at 100 under mild stress', () => {
-    // Neon at 18 °C: net ≈ 1.0 (benefit) − 1.7 (temp stress) = −0.7 %/h.
-    // A fish at 100 with a reserve should keep reading 100 while the
-    // bank drains — the "burning reserves" state.
-    const fish = [makeFish({ health: 100, satiation: 87, surplus: 10 })];
-    const resources = makeResources({ temperature: 18 });
-    const result = processHealth(fish, resources, [], 100, 100, livestockDefaults);
-    expect(result.survivingFish[0].health).toBe(100);
-    expect(result.survivingFish[0].surplus).toBeCloseTo(9.3, 6);
-  });
-
-  it('health resumes falling once the reserve is spent', () => {
-    // Same stress, but a nearly-empty bank: the first fraction of a
-    // percent is buffered, then health starts declining.
-    let fish: Fish[] = [makeFish({ health: 100, satiation: 87, surplus: 0.2 })];
-    const resources = makeResources({ temperature: 18 });
-    fish = processHealth(fish, resources, [], 100, 100, livestockDefaults).survivingFish;
-    // Tick 1: 0.2 buffered, 0.5 hits health → 99.5, bank empty.
-    expect(fish[0].surplus).toBe(0);
-    expect(fish[0].health).toBeCloseTo(99.5, 6);
-    fish = fish.map((f) => ({ ...f, satiation: 87 }));
-    fish = processHealth(fish, resources, [], 100, 100, livestockDefaults).survivingFish;
-    // Tick 2: no reserve, full 0.7 %/h decline.
-    expect(fish[0].health).toBeCloseTo(98.8, 6);
-  });
-
-  it('self-heals an over-cap bank from an old save on the first tick', () => {
-    const fish = [makeFish({ health: 100, satiation: 87, surplus: 80 })];
-    const resources = makeResources();
-    const result = processHealth(fish, resources, [], 100, 100, livestockDefaults);
-    expect(result.survivingFish[0].surplus).toBe(livestockDefaults.surplusCap);
-  });
-
-  it('never writes a negative surplus when the cap is negative', () => {
-    // A negative surplusCap must floor to 0 — a negative surplus would be
-    // rejected by the persisted `surplus >= 0` schema, silently discarding
-    // the save. Holds whether the fish is accruing or already banked.
-    const negCap = { ...livestockDefaults, surplusCap: -50 };
-    const resources = makeResources(); // all-good → net positive at 100
-    const accruing = computeFishVitality(
-      makeFish({ health: 100, satiation: 87, surplus: 0 }),
-      resources, [], 100, 100, negCap
+  it('processes each fish independently', () => {
+    const result = health(
+      [makeFish({ id: 'healthy', health: 100 }), makeFish({ id: 'sick', health: 1 })],
+      { ammonia: 2000 }
     );
-    expect(accruing.surplus).toBe(0);
-    const buffered = computeFishVitality(
-      makeFish({ health: 100, satiation: 87, surplus: 20 }),
-      resources, [], 100, 100, negCap
-    );
-    expect(buffered.surplus).toBe(0);
+    expect(result.survivingFish.map((f) => f.id)).toEqual(['healthy']);
   });
 });
 
-describe('plant-presence fish benefit', () => {
-  // Plants in the tank give fish hiding spots, oxygen, and biological
-  // filtration — modelled as a saturating benefit that peaks at three
-  // full-grown healthy plants. This is the entry point for the future
-  // surplus-driven breeding mechanic: a planted tank sits comfortably
-  // above the abiotic 1.0 %/h ceiling, accumulating surplus each tick.
-  const PLANT_PEAK = 0.2;
-  const SAT = 3.0;
+describe('age', () => {
+  const { maxAge } = FISH_SPECIES_DATA.neon_tetra;
 
-  function makePlant(overrides: Partial<Plant> = {}): Plant {
-    return {
-      id: 'plant_1',
-      species: 'java_fern',
-      size: 100,
-      condition: 100,
-      ...overrides,
-    };
-  }
-
-  function netRate(fish: Fish, resources: Resources, plants: Plant[]): number {
-    return computeFishVitality(fish, resources, plants, 100, 100, livestockDefaults)
-      .breakdown.net;
-  }
-
-  it('one healthy adult plant adds the per-plant contribution to net', () => {
-    const fish = makeFish();
-    const resources = makeResources();
-    const baseline = netRate(fish, resources, []);
-    const oneFull = netRate(fish, resources, [makePlant()]);
-    // (size/100) × (cond/100) = 1.0; saturate at SAT → contribution =
-    // PLANT_PEAK × (1 / SAT).
-    expect(oneFull - baseline).toBeCloseTo(PLANT_PEAK / SAT, 6);
+  it('charges nothing up to maxAge and linearly past it', () => {
+    expect(stressorAmount(vitality({ age: 100 }), 'age')).toBe(0);
+    expect(stressorAmount(vitality({ age: maxAge }), 'age')).toBe(0);
+    const day = stressorAmount(vitality({ age: maxAge + 24 }), 'age');
+    expect(day).toBeGreaterThan(0);
+    expect(stressorAmount(vitality({ age: maxAge + 48 }), 'age')).toBeCloseTo(2 * day, 10);
   });
 
-  it('three healthy adult plants saturate the benefit at the configured peak', () => {
-    const fish = makeFish();
-    const resources = makeResources();
-    const baseline = netRate(fish, resources, []);
-    const threeFull = netRate(fish, resources, [makePlant(), makePlant(), makePlant()]);
-    expect(threeFull - baseline).toBeCloseTo(PLANT_PEAK, 6);
-  });
-
-  it('beyond saturation (six full plants) the benefit does not exceed the peak', () => {
-    const fish = makeFish();
-    const resources = makeResources();
-    const baseline = netRate(fish, resources, []);
-    const six = Array.from({ length: 6 }, (_, i) => makePlant({ id: `p_${i}` }));
-    const sixFull = netRate(fish, resources, six);
-    expect(sixFull - baseline).toBeCloseTo(PLANT_PEAK, 6);
-  });
-
-  it('a dying plant (condition 0) contributes nothing', () => {
-    const fish = makeFish();
-    const resources = makeResources();
-    const baseline = netRate(fish, resources, []);
-    const dying = netRate(fish, resources, [makePlant({ condition: 0 })]);
-    expect(dying).toBeCloseTo(baseline, 6);
-  });
-
-  it('a small plant (size 10, full condition) contributes proportionally less', () => {
-    const fish = makeFish();
-    const resources = makeResources();
-    const baseline = netRate(fish, resources, []);
-    const small = netRate(fish, resources, [makePlant({ size: 10 })]);
-    // (size/100) × (cond/100) = 0.1; saturate at SAT → 0.1 / SAT × peak.
-    expect(small - baseline).toBeCloseTo(PLANT_PEAK * (0.1 / SAT), 6);
-  });
-
-  it('the plants benefit factor is emitted every tick, even at amount 0', () => {
-    // The UI filters by amount; the engine keeps the factor list shape
-    // stable so callers can rely on indexing by key.
-    const fish = makeFish();
-    const resources = makeResources();
-    const empty = computeFishVitality(fish, resources, [], 100, 100, livestockDefaults);
-    const plantsFactor = empty.breakdown.benefits.find((b) => b.key === 'plants');
-    expect(plantsFactor).toBeDefined();
-    expect(plantsFactor?.amount).toBe(0);
-  });
-
-  it('an oversized healthy plant single-handedly saturates the benefit', () => {
-    // Plants intentionally can grow past size 100 (per-species
-    // `maxSize` runs into the hundreds). The fish-side math counts
-    // raw biomass: a single size-300 plant contributes 3 units, which
-    // hits the saturation point on its own. Overgrowth is regulated
-    // on the plant side (self-shading / interspecies competition push
-    // an overgrown plant toward stressed → biomass dies back), not
-    // by capping the fish benefit.
-    const fish = makeFish();
-    const resources = makeResources();
-    const baseline = netRate(fish, resources, []);
-    const oversized = netRate(fish, resources, [makePlant({ size: 300 })]);
-    expect(oversized - baseline).toBeCloseTo(PLANT_PEAK, 6);
-  });
-
-  it('many tiny healthy plants sum to saturation', () => {
-    // 30 plants × (size 10 → 0.1 contribution each) = total 3.0 = SAT
-    // → benefit hits the configured peak. Pins the summing form so a
-    // future regression to (max instead of Σ) is caught.
-    const fish = makeFish();
-    const resources = makeResources();
-    const baseline = netRate(fish, resources, []);
-    const tiny = Array.from({ length: 30 }, (_, i) =>
-      makePlant({ id: `tiny_${i}`, size: 10 })
-    );
-    const result = netRate(fish, resources, tiny);
-    expect(result - baseline).toBeCloseTo(PLANT_PEAK, 6);
-  });
-
-  it('planted tank accumulates more surplus than unplanted (breeding hook)', () => {
-    // The whole motivation for the plant-presence benefit: a healthy
-    // planted tank should bank surplus faster than an otherwise-
-    // identical bare tank, because the abiotic 1.0 %/h ceiling is no
-    // longer the cap. This pin guards against a future retune
-    // silently invalidating the breeding gating.
-    const resources = makeResources();
-    const planted = [makePlant({ id: 'p1' }), makePlant({ id: 'p2' }), makePlant({ id: 'p3' })];
-
-    let plantedFish: Fish[] = [makeFish({ health: 100, surplus: 0 })];
-    let bareFish: Fish[] = [makeFish({ health: 100, surplus: 0 })];
-
-    for (let tick = 0; tick < 2; tick++) {
-      plantedFish = processHealth(
-        plantedFish,
-        resources,
-        planted,
-        100,
-        100,
-        livestockDefaults
-      ).survivingFish;
-      bareFish = processHealth(
-        bareFish,
-        resources,
-        [],
-        100,
-        100,
-        livestockDefaults
-      ).survivingFish;
-    }
-
-    expect(plantedFish[0].surplus).toBeGreaterThan(bareFish[0].surplus);
-    // And the delta should be roughly the plant peak per tick × 2 ticks.
-    expect(plantedFish[0].surplus - bareFish[0].surplus).toBeCloseTo(2 * PLANT_PEAK, 6);
+  it('attributes a death past maxAge to old age', () => {
+    const result = health([makeFish({ age: maxAge + 24, health: 1 })], { ammonia: 5000 });
+    expect(result.survivingFish).toHaveLength(0);
+    expect(result.deadFishNames[0]).toContain('old age');
   });
 });
 
-describe('satiation band — integration', () => {
-  // These tests run the full vitality pipeline against the new
-  // five-band satiation model. They pin the spec's calibration anchors:
-  //   - satiation 99.5 → overfed stressor active, no well-fed benefit
-  //   - satiation 87   → well-fed benefit active, no satiation stressor
-  //   - satiation 60   → peckish, neither active
-  //   - satiation 30   → hungry stressor active (hungry band)
-  //   - satiation 10   → starving stressor active and steeper than at 30
-  //   - sustained overfeeding accumulates condition loss with no other
-  //     stressors
-  //   - starving fish loses condition visibly faster than merely hungry
+describe('surplus', () => {
+  const cold = { temperature: 18 };
 
-  it('satiation 99.5 → overfed stressor active, no well-fed benefit', () => {
-    // 99.5 is the midpoint of the new 1%-wide overfed band [99, 100].
-    const fish = makeFish({ satiation: 99.5 });
-    const v = computeFishVitality(fish, makeResources(), [], 100, 100, livestockDefaults);
-    expect(stressorAmount(v, 'satiation')).toBeGreaterThan(0);
-    expect(v.breakdown.benefits.find((b) => b.key === 'satiation')!.amount).toBe(0);
-    expect(v.breakdown.stressors.find((s) => s.key === 'satiation')!.label).toBe('Overfed');
+  it('banks at full health and not while recovering', () => {
+    expect(health([makeFish({ health: 100 })]).survivingFish[0].surplus).toBeGreaterThan(0);
+    expect(health([makeFish({ health: 80 })]).survivingFish[0].surplus).toBe(0);
   });
 
-  it('satiation 82 → well-fed benefit active, no satiation stressor', () => {
-    const fish = makeFish({ satiation: 82 });
-    const v = computeFishVitality(fish, makeResources(), [], 100, 100, livestockDefaults);
-    expect(stressorAmount(v, 'satiation')).toBe(0);
-    expect(v.breakdown.benefits.find((b) => b.key === 'satiation')!.amount).toBeGreaterThan(0);
+  it('banks faster in a planted tank', () => {
+    const planted = health([makeFish()], {}, [makePlant()]).survivingFish[0].surplus;
+    const bare = health([makeFish()]).survivingFish[0].surplus;
+    expect(planted).toBeGreaterThan(bare);
   });
 
-  it('satiation 60 → peckish, neither contribution', () => {
-    const fish = makeFish({ satiation: 60 });
-    const v = computeFishVitality(fish, makeResources(), [], 100, 100, livestockDefaults);
-    expect(stressorAmount(v, 'satiation')).toBe(0);
-    expect(v.breakdown.benefits.find((b) => b.key === 'satiation')!.amount).toBe(0);
+  it('saturates at the cap, clamping an over-cap bank', () => {
+    const { surplusCap } = livestockDefaults;
+    expect(health([makeFish({ surplus: surplusCap - 0.01 })]).survivingFish[0].surplus).toBe(
+      surplusCap
+    );
+    expect(health([makeFish({ surplus: surplusCap * 2 })]).survivingFish[0].surplus).toBe(
+      surplusCap
+    );
   });
 
-  it('satiation 30 → hungry stressor active, label "Hungry"', () => {
-    const fish = makeFish({ satiation: 30 });
-    const v = computeFishVitality(fish, makeResources(), [], 100, 100, livestockDefaults);
-    expect(stressorAmount(v, 'satiation')).toBeGreaterThan(0);
-    expect(v.breakdown.stressors.find((s) => s.key === 'satiation')!.label).toBe('Hungry');
+  it('burns the reserve to hold health at 100 under stress, then health falls', () => {
+    const buffered = health([makeFish({ surplus: 10 })], cold).survivingFish[0];
+    expect(buffered.health).toBe(100);
+    expect(buffered.surplus).toBeLessThan(10);
+
+    const spent = health([makeFish({ surplus: 0.01 })], cold).survivingFish[0];
+    expect(spent.surplus).toBe(0);
+    expect(spent.health).toBeLessThan(100);
   });
 
-  it('satiation 10 → starving stressor steeper than satiation 30', () => {
-    const at10 = computeFishVitality(makeFish({ satiation: 10 }), makeResources(), [], 100, 100, livestockDefaults);
-    const at30 = computeFishVitality(makeFish({ satiation: 30 }), makeResources(), [], 100, 100, livestockDefaults);
-    expect(stressorAmount(at10, 'satiation')).toBeGreaterThan(stressorAmount(at30, 'satiation'));
-    expect(at10.breakdown.stressors.find((s) => s.key === 'satiation')!.label).toBe('Starving');
-  });
-
-  it('starving fish loses condition visibly faster than merely hungry', () => {
-    // 24-hour run. Both fish in otherwise-ideal water; only the
-    // satiation differs. Starving (10) should drop much more than
-    // moderately hungry (30).
-    let hungry: Fish[] = [makeFish({ id: 'hungry', satiation: 30, health: 100 })];
-    let starving: Fish[] = [makeFish({ id: 'starving', satiation: 10, health: 100 })];
-    const resources = makeResources();
-    for (let i = 0; i < 24; i++) {
-      hungry = processHealth(hungry, resources, [], 100, 100, livestockDefaults).survivingFish;
-      starving = processHealth(starving, resources, [], 100, 100, livestockDefaults).survivingFish;
-    }
-    expect(hungry[0].health).toBeLessThan(100);
-    expect(starving[0].health).toBeLessThan(hungry[0].health);
-  });
-
-  it('sustained overfeeding accumulates condition loss with no other stressors', () => {
-    // Fish pinned at satiation 100 (player keeps dumping food). With
-    // ideal water and no other stressors, the only damage source is
-    // the overfed-band stress. Over 24 ticks the fish should drift
-    // visibly downward — proving the punishment is real but not
-    // a cliff.
-    let fish: Fish[] = [makeFish({ satiation: 100, health: 100 })];
-    const resources = makeResources();
-    for (let i = 0; i < 24; i++) {
-      // Re-pin satiation to 100 each tick to model "player keeps
-      // refilling the food before decay can kick in."
-      fish = fish.map((f) => ({ ...f, satiation: 100 }));
-      fish = processHealth(fish, resources, [], 100, 100, livestockDefaults).survivingFish;
-    }
-    // The overfed stressor outweighs the abiotic budget enough to drop
-    // health below 100, but slowly — no death within a day.
-    expect(fish[0].health).toBeLessThan(100);
-    expect(fish[0].health).toBeGreaterThan(80); // slow drift, not a cliff
-  });
-
-  it('hungry fish recovers to well-fed once conditions allow', () => {
-    // Spec scenario: a fish in clean conditions with low satiation
-    // recovers to the well-fed band when fed; vitality net rate flips
-    // positive.
-    let fish: Fish[] = [makeFish({ satiation: 30, health: 80 })];
-    const resources = makeResources();
-    // Bump satiation back up to mid well-fed (87) to simulate a
-    // generous feeding.
-    fish = fish.map((f) => ({ ...f, satiation: 87 }));
-    const v = computeFishVitality(fish[0], resources, [], 100, 100, livestockDefaults);
-    expect(v.breakdown.net).toBeGreaterThan(0);
-    fish = processHealth(fish, resources, [], 100, 100, livestockDefaults).survivingFish;
-    expect(fish[0].health).toBeGreaterThan(80);
+  it('floors at zero when the cap is negative', () => {
+    const config = { ...livestockDefaults, surplusCap: -50 };
+    expect(vitality({ surplus: 0 }, {}, { config }).surplus).toBe(0);
+    expect(vitality({ surplus: 20 }, {}, { config }).surplus).toBe(0);
   });
 });

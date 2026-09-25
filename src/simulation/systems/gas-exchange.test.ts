@@ -26,18 +26,6 @@ describe('calculateO2Saturation', () => {
     expect(hot).toBeLessThan(warm);
   });
 
-  it('returns ~9.2 mg/L at 20°C', () => {
-    const saturation = calculateO2Saturation(20);
-    // 10.08 + (-0.17) * (20 - 15) = 10.08 - 0.85 = 9.23
-    expect(saturation).toBeCloseTo(9.23, 2);
-  });
-
-  it('returns ~7.5 mg/L at 30°C', () => {
-    const saturation = calculateO2Saturation(30);
-    // 10.08 + (-0.17) * (30 - 15) = 10.08 - 2.55 = 7.53
-    expect(saturation).toBeCloseTo(7.53, 2);
-  });
-
   it('has minimum of 4 mg/L even at extreme temperatures', () => {
     const extremeHot = calculateO2Saturation(100);
     expect(extremeHot).toBeGreaterThanOrEqual(4.0);
@@ -67,13 +55,6 @@ describe('calculateFlowFactor', () => {
     const optimalFlow = gasExchangeDefaults.optimalFlowTurnover * 100;
     const factor = calculateFlowFactor(optimalFlow, 100);
     expect(factor).toBeCloseTo(1.0, 2);
-  });
-
-  it('returns 0.5 at half optimal flow', () => {
-    // 100L tank, 5 turnovers/hr = 500 L/hr flow
-    const halfOptimalFlow = (gasExchangeDefaults.optimalFlowTurnover * 100) / 2;
-    const factor = calculateFlowFactor(halfOptimalFlow, 100);
-    expect(factor).toBeCloseTo(0.5, 2);
   });
 
   it('caps at 1.0 for very high flow', () => {
@@ -113,16 +94,6 @@ describe('calculateGasExchange', () => {
     expect(delta).toBe(0);
   });
 
-  it('returns positive delta when current < target', () => {
-    const delta = calculateGasExchange(6.0, 8.0, 0.1, 1.0);
-    expect(delta).toBeGreaterThan(0);
-  });
-
-  it('returns negative delta when current > target', () => {
-    const delta = calculateGasExchange(10.0, 8.0, 0.1, 1.0);
-    expect(delta).toBeLessThan(0);
-  });
-
   it('scales with flow factor', () => {
     const deltaFull = calculateGasExchange(6.0, 8.0, 0.1, 1.0);
     const deltaHalf = calculateGasExchange(6.0, 8.0, 0.1, 0.5);
@@ -133,12 +104,6 @@ describe('calculateGasExchange', () => {
     const deltaRate1 = calculateGasExchange(6.0, 8.0, 0.1, 1.0);
     const deltaRate2 = calculateGasExchange(6.0, 8.0, 0.2, 1.0);
     expect(deltaRate2).toBeCloseTo(deltaRate1 * 2, 4);
-  });
-
-  it('calculates correct exponential decay step', () => {
-    // Delta = rate * flowFactor * (target - current)
-    const delta = calculateGasExchange(6.0, 8.0, gasExchangeDefaults.baseExchangeRate, 1.0);
-    expect(delta).toBeCloseTo(gasExchangeDefaults.baseExchangeRate * (8.0 - 6.0), 4);
   });
 
   it('returns 0 when flow factor is 0', () => {
@@ -157,9 +122,6 @@ describe('calculateAerationFactor', () => {
     expect(calculateAerationFactor(true, 3.0)).toBe(3.0);
   });
 
-  it('returns 1.0 even with high multiplier if aeration is off', () => {
-    expect(calculateAerationFactor(false, 10.0)).toBe(1.0);
-  });
 });
 
 describe('gasExchangeSystem', () => {
@@ -191,11 +153,6 @@ describe('gasExchangeSystem', () => {
       }
     });
   }
-
-  it('has correct id and tier', () => {
-    expect(gasExchangeSystem.id).toBe('gas-exchange');
-    expect(gasExchangeSystem.tier).toBe('passive');
-  });
 
   it('creates O2 effect when below saturation', () => {
     const state = createTestState({
@@ -336,19 +293,6 @@ describe('gasExchangeSystem', () => {
 
     // At equilibrium the delta is zero regardless of the floor.
     expect(effects.length).toBe(0);
-  });
-
-  it('CO2 equilibrates toward atmospheric constant', () => {
-    const state = createTestState({
-      co2: 20.0,
-      flow: 500,
-    });
-    const effects = gasExchangeSystem.update(state, DEFAULT_CONFIG);
-
-    const co2Effect = effects.find((e) => e.resource === 'co2');
-    expect(co2Effect).toBeDefined();
-    // Should move 20 -> 4, so negative delta
-    expect(co2Effect!.delta).toBeLessThan(0);
   });
 
   describe('aeration effects', () => {

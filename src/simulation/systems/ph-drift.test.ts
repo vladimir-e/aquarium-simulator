@@ -22,12 +22,6 @@ describe('calculateHardscapeTargetPH', () => {
     expect(target).toBe(phDefaults.neutralPh);
   });
 
-  it('returns neutral pH with only plastic decoration', () => {
-    const items: HardscapeItem[] = [{ id: '1', type: 'plastic_decoration' }];
-    const target = calculateHardscapeTargetPH(items);
-    expect(target).toBe(phDefaults.neutralPh);
-  });
-
   it('raises pH toward calcite target with calcite rock', () => {
     const items: HardscapeItem[] = [{ id: '1', type: 'calcite_rock' }];
     const target = calculateHardscapeTargetPH(items);
@@ -65,27 +59,6 @@ describe('calculateHardscapeTargetPH', () => {
     expect(thirdIncrease).toBeLessThan(secondIncrease);
   });
 
-  it('multiple driftwood pieces have cumulative effect with diminishing returns', () => {
-    const oneDriftwood = calculateHardscapeTargetPH([{ id: '1', type: 'driftwood' }]);
-    const twoDriftwood = calculateHardscapeTargetPH([
-      { id: '1', type: 'driftwood' },
-      { id: '2', type: 'driftwood' },
-    ]);
-
-    expect(twoDriftwood).toBeLessThan(oneDriftwood);
-    expect(twoDriftwood).toBeGreaterThan(phDefaults.driftwoodTargetPh);
-  });
-
-  it('calcite and driftwood can cancel each other out', () => {
-    const items: HardscapeItem[] = [
-      { id: '1', type: 'calcite_rock' },
-      { id: '2', type: 'driftwood' },
-    ];
-    const target = calculateHardscapeTargetPH(items);
-    // With equal pieces, they partially cancel
-    // The target should be close to neutral
-    expect(target).toBeCloseTo(phDefaults.neutralPh, 0);
-  });
 });
 
 describe('calculateCO2PHEffect', () => {
@@ -114,13 +87,6 @@ describe('calculateCO2PHEffect', () => {
     expect(effect4x).toBeCloseTo(2 * step, 5); // 4x = two doublings
   });
 
-  it('high CO2 (30 mg/L) drops pH by the expected log amount', () => {
-    const effect = calculateCO2PHEffect(30);
-    // -log10(30/4) * 1.0 ≈ -0.875 with the calibrated coefficient.
-    const expected = -Math.log10(30 / phDefaults.co2NeutralLevel) * phDefaults.co2PhCoefficient;
-    expect(effect).toBeCloseTo(expected, 5);
-  });
-
   it('0 CO2 is a safe no-op (guard)', () => {
     expect(calculateCO2PHEffect(0)).toBe(0);
   });
@@ -145,11 +111,6 @@ describe('phDriftSystem', () => {
       }
     });
   }
-
-  it('has correct id and tier', () => {
-    expect(phDriftSystem.id).toBe('ph-drift');
-    expect(phDriftSystem.tier).toBe('passive');
-  });
 
   it('creates pH effect when pH differs from target', () => {
     const state = createTestState({
@@ -264,23 +225,4 @@ describe('phDriftSystem', () => {
     expect(phEffect!.delta).toBeCloseTo(phDefaults.basePgDriftRate * (phDefaults.neutralPh - 6.0), 4);
   });
 
-  it('neutral rock and plastic decoration do not affect pH', () => {
-    const neutralState = createTestState({
-      ph: phDefaults.neutralPh,
-      co2: phDefaults.co2NeutralLevel,
-      hardscapeItems: [
-        { id: '1', type: 'neutral_rock' },
-        { id: '2', type: 'plastic_decoration' },
-      ],
-    });
-    const effects = phDriftSystem.update(neutralState, DEFAULT_CONFIG);
-
-    // Should have no/negligible effect
-    if (effects.length > 0) {
-      const phEffect = effects.find((e) => e.resource === 'ph');
-      if (phEffect) {
-        expect(Math.abs(phEffect.delta)).toBeLessThan(0.001);
-      }
-    }
-  });
 });

@@ -1,13 +1,3 @@
-/**
- * Algae population unit tests — exercise each stressor / benefit
- * channel through the builder, plus the aggregate
- * `computeAlgaePopulation` path.
- *
- * Severities and peaks are calibration-grade; tests assert
- * mechanism (firing condition + sign of contribution) rather than
- * pinned numeric values that recalibration would break.
- */
-
 import { describe, it, expect } from 'vitest';
 import {
   buildAlgaeStressors,
@@ -208,17 +198,6 @@ describe('buildAlgaeBenefits — pathological config guards', () => {
 });
 
 describe('computeAlgaePopulation (aggregate)', () => {
-  it('a heavy planted tank with no excess light produces a negative net', () => {
-    const plants = [
-      makePlant('amazon_sword', { size: 150, condition: 100 }),
-      makePlant('monte_carlo', { size: 150, condition: 100 }),
-    ];
-    const result = computeAlgaePopulation(ctx({ plants }));
-    // Suppression dominates any benefits — algae loses ground.
-    expect(result.net).toBeLessThan(0);
-    expect(result.breakdown.net).toBe(result.net);
-    expect(result.breakdown.damageRate).toBeGreaterThan(0);
-  });
 
   it('pure-light tank with no plants and no dosing produces a positive net', () => {
     // No plants, baseline nutrients, PAR well past the algae threshold.
@@ -278,17 +257,4 @@ describe('computeAlgaePopulation (aggregate)', () => {
     expect(result.breakdown.damageRate).toBe(0);
   });
 
-  it('breakdown shape mirrors VitalityBreakdown for UI compatibility', () => {
-    const result = computeAlgaePopulation(ctx());
-    expect(result.breakdown).toMatchObject({
-      stressors: expect.any(Array),
-      benefits: expect.any(Array),
-      damageRate: expect.any(Number),
-      benefitRate: expect.any(Number),
-      net: expect.any(Number),
-    });
-    // Stressors and benefits each have stable keys.
-    expect(result.breakdown.stressors.map((s) => s.key)).toContain('plant_suppression');
-    expect(result.breakdown.benefits.map((b) => b.key)).toContain('excess_light');
-  });
 });

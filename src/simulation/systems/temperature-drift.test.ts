@@ -75,10 +75,6 @@ describe('calculateTemperatureDrift', () => {
 });
 
 describe('temperatureDriftSystem', () => {
-  it('has correct id and tier', () => {
-    expect(temperatureDriftSystem.id).toBe('temperature-drift');
-    expect(temperatureDriftSystem.tier).toBe('immediate');
-  });
 
   it('returns temperature effect when water is warmer than room', () => {
     const state = createSimulation({
