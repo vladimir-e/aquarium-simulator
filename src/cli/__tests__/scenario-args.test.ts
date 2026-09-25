@@ -128,3 +128,17 @@ describe('the gravel vac', () => {
     expect(() => parseTweak('vac', '120%')).toThrow(/share/);
   });
 });
+
+describe('the rescape', () => {
+  const nano = findSetup('nano');
+
+  it('takes the day to rescape on', () => {
+    expect(tweaked(nano, '--rescape=30').rescapeOn).toBe(30);
+  });
+
+  it('refuses a bare flag or a day that is not a whole positive number', () => {
+    expect(() => parseTweak('rescape', undefined)).toThrow(/day/);
+    expect(() => parseTweak('rescape', '0')).toThrow(/rescape day/);
+    expect(() => parseTweak('rescape', '2.5')).toThrow(/rescape day/);
+  });
+});

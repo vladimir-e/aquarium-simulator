@@ -15,6 +15,8 @@ import { HARDSCAPE_TANNINS } from './equipment/hardscape.js';
 import { DEFAULT_PLANT_SIZE, establishmentSurplus } from './plants/create-plant.js';
 import { plantsDefaults } from './config/plants.js';
 import { getDgh, getDkh } from './resources/helpers.js';
+import { applyAction } from './actions/index.js';
+import { tick } from './tick.js';
 
 const TANK: SimulationConfig = { tankCapacity: 40, substrate: { type: 'aqua_soil' } };
 
@@ -133,6 +135,26 @@ describe('createSimulation seeding', () => {
     expect(packed.aob).toBeLessThanOrEqual(ceiling);
     expect(packed.nob).toBeLessThanOrEqual(ceiling);
     expect(packed.aob).toBeGreaterThan(ceiling * 0.9);
+  });
+
+  it("holds a stocked 'cycled' colony within a fifth over a week of ordinary feeding", () => {
+    let state = createSimulation(
+      { tankCapacity: 80, substrate: { type: 'gravel' }, filter: { type: 'hob' } },
+      { bacteria: 'cycled', fish: [{ species: 'neon_tetra', count: 10 }, { species: 'corydoras', count: 4 }] },
+      1
+    );
+    const seeded = { aob: state.resources.aob, nob: state.resources.nob };
+    const ration = state.fish.reduce((sum, fish) => sum + fish.mass, 0) * 0.02;
+
+    for (let hour = 0; hour < 7 * 24; hour++) {
+      if (hour % 24 === 19) state = applyAction(state, { type: 'feed', amount: ration }).state;
+      state = tick(state);
+    }
+
+    for (const stage of ['aob', 'nob'] as const) {
+      expect(state.resources[stage] / seeded[stage]).toBeGreaterThan(0.8);
+      expect(state.resources[stage] / seeded[stage]).toBeLessThan(1.2);
+    }
   });
 
   describe('the bed', () => {

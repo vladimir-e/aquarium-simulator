@@ -71,9 +71,10 @@ export function waterChange(
   const remainingWater = currentWater - waterRemoved;
   const waterAdded = capacity - remainingWater; // Fill to 100%
   const percent = `${Math.round(amount * 100)}%`;
+  const vacuumed = vacuum > 0 && state.equipment.substrate.organicReserve > 0;
   const detail =
     `(removed ${waterRemoved.toFixed(1)}L, added ${waterAdded.toFixed(1)}L)` +
-    (vacuum > 0 ? `, vacuumed ${Math.round(vacuum * 100)}% of the bed's mulm` : '');
+    (vacuumed ? `, vacuumed ${Math.round(vacuum * 100)}% of the bed's mulm` : '');
 
   const newState = produce(state, (draft) => {
     // 1. Remove proportional dissolved compound mass

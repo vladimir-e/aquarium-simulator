@@ -37,6 +37,7 @@ export {
 export {
   type ReadingBand,
   readingAt,
+  trackAt,
   gasReadings,
   waterReadings,
   WATER_SCALE,

@@ -20,6 +20,7 @@ export type Schedule = ScheduleEntry[];
 export const DAILY = 1;
 export const WEEKLY = 7;
 export const TRIM_TARGET = 100;
+export const VACUUM_SHARE = 0.15;
 
 /** Mid-afternoon, lights on — when a keeper reaches for the test kit, before the day's chores. */
 export const SAMPLE_HOUR = 14;
@@ -34,7 +35,9 @@ function toAction(chore: Chore, state: SimulationState): Action | null {
   return amount > 0 ? { type: 'feed', amount } : null;
 }
 
-export const isKeeperHourOf = (day: number, tick: number): boolean => tick === (day - 1) * 24 + KEEPER_HOUR;
+export function isKeeperHourOf(day: number, tick: number): boolean {
+  return tick % 24 === KEEPER_HOUR && dayOf(tick) === day;
+}
 
 /** A keeper rearranging the scape: every piece of hardscape lifted and set back fresh, every other plant uprooted. */
 export function rescapeTank(state: SimulationState, config: TunableConfig): SimulationState {

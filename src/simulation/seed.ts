@@ -133,7 +133,9 @@ type StockedTank = Pick<SimulationState, 'fish' | 'resources' | 'equipment'>;
  * mg of ammonia a tick the tank's stock and bed put into the water at rest:
  * every fish fed to satiety, and the bed leaching what it holds. All the waste
  * either one makes is mineralised in the end, whether or not it settles on the
- * way. Plant uptake is left out, so the colony errs large.
+ * way. Food fed past satiety is left out — the engine has no ration to size it
+ * by — so under a keeper whose surplus rots in the water the colony errs small
+ * and grows on from the seed.
  */
 function restingAmmoniaSupply(state: StockedTank): number {
   const fed = state.fish.map((fish) => ({

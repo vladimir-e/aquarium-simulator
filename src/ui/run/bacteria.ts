@@ -13,8 +13,7 @@ import {
   calculateNitriteToNitrate,
   calculateSeeding,
   calculateWasteToAmmonia,
-  nitrificationFactor,
-  nitrifierOxygenFactor,
+  colonyRates,
   nobCapacity,
 } from '../../simulation/systems/index.js';
 import {
@@ -282,9 +281,8 @@ export function projectNitritePeak(
   const nc = config.nitrogenCycle;
   const ceiling = calculateMaxBacteria(r.surface, nc);
   if (r.water <= 0 || ceiling <= 0) return null;
-  const warmth = nitrificationFactor(r.temperature, nc);
-  const aobAir = nitrifierOxygenFactor('aob', r.oxygen, nc);
-  const nobAir = nitrifierOxygenFactor('nob', r.oxygen, nc);
+  const aobRates = colonyRates('aob', r.temperature, r.oxygen, nc);
+  const nobRates = colonyRates('nob', r.temperature, r.oxygen, nc);
 
   const sources = wasteInflow(state, config).sources;
   const steadyInflow = sources
@@ -292,7 +290,6 @@ export function projectNitritePeak(
     .reduce((total, source) => total + source.gramsPerHour, 0);
   const gills = processMetabolism(state.fish, r.food, r.oxygen, config.livestock).ammoniaProduced;
 
-  const settlingShare = wasteSettlingShare(state, config.decay);
   let reserve = state.equipment.substrate.organicReserve;
   let water = r.water;
   let waste = r.waste;
@@ -309,7 +306,8 @@ export function projectNitritePeak(
     water = nextVolume(water, state, config);
 
     const leached = calculateSubstrateLeach(reserve, config.decay);
-    const settled = waste * settlingShare;
+    const settled =
+      waste * wasteSettlingShare({ ...state, resources: { ...r, water } }, config.decay);
     reserve += settled - leached;
     waste += steadyInflow + leached - settled;
 
@@ -329,16 +327,16 @@ export function projectNitritePeak(
     const aobFlows = calculateColonyFlows(
       aob,
       oxidised.utilization,
-      nc.aobGrowthRate * warmth * aobAir,
-      nc.bacteriaDeathRate * warmth,
+      aobRates.growthRate,
+      aobRates.deathRate,
       ceiling,
       seeding
     );
     const nobFlows = calculateColonyFlows(
       nob,
       cleared.utilization,
-      nc.nobGrowthRate * warmth * nobAir,
-      nc.bacteriaDeathRate * warmth,
+      nobRates.growthRate,
+      nobRates.deathRate,
       ceiling,
       seeding
     );
@@ -385,7 +383,7 @@ export function bacteriaSummary(
     return 'Both colonies have filled the surface they live on — until the tank offers more biofilm, more load has nowhere to go.';
   }
 
-  if (rates.netAmmonia > 0) {
+  if (!cycled && rates.netAmmonia > 0) {
     return `Uncycled. Ammonia arrives faster than the young AOB colony can oxidise it, and climbs until the colony grows into it.${peakClause(projection)}`;
   }
 

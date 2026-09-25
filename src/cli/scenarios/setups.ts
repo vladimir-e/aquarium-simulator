@@ -32,7 +32,7 @@ export interface Setup {
   cycled: boolean;
   schedule: Schedule;
   /** Share of the bed's mulm the gravel vac pulls out at every water change. */
-  vacuum: number;
+  vacuum?: number;
   /** Day the keeper rearranges the scape, once. */
   rescapeOn?: number;
   bands?: BandOverrides;
@@ -91,7 +91,6 @@ export function toSeed(setup: Setup): PresetSeed {
 }
 
 const FEED_SHARE_OF_STOCK = 0.02;
-const VACUUM_SHARE = 0.15;
 
 const daily = (action: Chore): ScheduleEntry => ({ every: DAILY, action });
 const weekly = (action: Chore): ScheduleEntry => ({ every: WEEKLY, action });
@@ -131,7 +130,6 @@ export const SETUPS: Setup[] = [
     fish: [{ species: 'betta', count: 1, sex: 'male' }],
     cycled: true,
     schedule: [...maintained, dose(1)],
-    vacuum: VACUUM_SHARE,
   },
   {
     name: 'low-tech',
@@ -159,7 +157,6 @@ export const SETUPS: Setup[] = [
     ],
     cycled: true,
     schedule: [...maintained, dose(4), trim],
-    vacuum: VACUUM_SHARE,
   },
   {
     name: 'high-tech',
@@ -188,7 +185,6 @@ export const SETUPS: Setup[] = [
     ],
     cycled: true,
     schedule: [...maintained, trim],
-    vacuum: VACUUM_SHARE,
     bands: {
       co2: { green: [15, 35], amber: [8, 40], why: 'injected tanks aim 20–30 mg/L while the lights are on' },
     },
@@ -221,7 +217,6 @@ export const SETUPS: Setup[] = [
     ],
     cycled: true,
     schedule: [...maintained, dose(8), trim],
-    vacuum: VACUUM_SHARE,
   },
   {
     name: 'low-flow',
@@ -246,7 +241,6 @@ export const SETUPS: Setup[] = [
     ],
     cycled: true,
     schedule: maintained,
-    vacuum: VACUUM_SHARE,
   },
   {
     name: 'cold',
@@ -270,7 +264,6 @@ export const SETUPS: Setup[] = [
     fish: [{ species: 'guppy', count: 8, sex: 'male' }],
     cycled: true,
     schedule: [...maintained, dose(2)],
-    vacuum: VACUUM_SHARE,
     bands: {
       temp: { green: [62, 76], amber: [56, 80], why: 'unheated: room temperature is the point' },
     },

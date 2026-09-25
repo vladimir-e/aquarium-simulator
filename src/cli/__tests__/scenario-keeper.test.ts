@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { createSimulation, type SimulationState } from '../../simulation/state.js';
-import { KEEPER_HOUR, dueActions, rescapeTank, type Schedule } from '../scenarios/keeper.js';
+import { KEEPER_HOUR, dueActions, isKeeperHourOf, rescapeTank, type Schedule } from '../scenarios/keeper.js';
 import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
 import { findSetup, toConfig, toSeed } from '../scenarios/setups.js';
 
@@ -35,6 +35,13 @@ describe('dueActions', () => {
 
   it('drops a share-of-stock feed when there are no fish', () => {
     expect(dueActions([{ every: 1, action: { type: 'feed', shareOfStock: 0.5 } }], at(empty, 1))).toEqual([]);
+  });
+});
+
+describe('isKeeperHourOf', () => {
+  it('holds at the keeper hour of that day and no other tick', () => {
+    const ticks = Array.from({ length: 5 * 24 }, (_, tick) => tick).filter((tick) => isKeeperHourOf(3, tick));
+    expect(ticks).toEqual([2 * 24 + KEEPER_HOUR]);
   });
 });
 

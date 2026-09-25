@@ -41,7 +41,7 @@ import { getPh } from '../core/carbonate.js';
 import { FISH_SPECIES_DATA } from '../livestock/species.js';
 import { getDgh } from '../resources/index.js';
 import type { LivestockConfig } from '../config/livestock.js';
-import { unionizedAmmoniaFraction } from './nitrogen-cycle.js';
+import { freeAmmoniaPpm } from './nitrogen-cycle.js';
 import { satiationContribution, SATIATION_BAND_LABEL } from './satiation.js';
 import { getPlantPower } from './plant-power.js';
 import {
@@ -125,16 +125,13 @@ function buildStressors(ctx: FishFactorContext): VitalityFactor[] {
 
   // Ammonia stress — only the unionized NH3 fraction is acutely toxic.
   // Zero-volume sentinel: tank fully drained but fish still present.
-  let ammoniaStress = 0;
-  const totalAmmoniaPpm =
-    waterVolume > 0 ? resources.ammonia / waterVolume : resources.ammonia > 0 ? 100 : 0;
-  if (totalAmmoniaPpm > 0) {
-    const freeNH3Ppm =
-      waterVolume > 0
-        ? totalAmmoniaPpm * unionizedAmmoniaFraction(ph, resources.temperature)
-        : totalAmmoniaPpm;
-    ammoniaStress = config.ammoniaStressSeverity * freeNH3Ppm;
-  }
+  const freeNH3Ppm =
+    waterVolume > 0
+      ? freeAmmoniaPpm({ ...resources, water: waterVolume })
+      : resources.ammonia > 0
+        ? 100
+        : 0;
+  const ammoniaStress = config.ammoniaStressSeverity * freeNH3Ppm;
 
   // Nitrite stress (any presence harmful)
   let nitriteStress = 0;

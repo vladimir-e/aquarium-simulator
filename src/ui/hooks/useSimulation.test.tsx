@@ -14,6 +14,8 @@ import {
   getDkh,
   getSubstrateOrganicReserve,
   getSubstrateSurface,
+  liftHardscape,
+  placeHardscape,
   tick,
 } from '../../simulation/index.js';
 import { cycledColony, cycledHardness } from '../../simulation/seed.js';
@@ -398,6 +400,34 @@ describe('useSimulation', () => {
       expect(result.current.state.resources.aob / before.aob).toBeCloseTo(kept, 10);
       expect(result.current.state.resources.nob / before.nob).toBeCloseTo(kept, 10);
       expect(result.current.state.tick).toBe(12 * 24);
+    });
+
+    it('places and lifts hardscape through the engine', () => {
+      const { result } = renderHook(() => useSimulation('planted'), { wrapper });
+
+      act(() => {
+        for (let day = 0; day < 12; day++) result.current.step();
+      });
+      const bare = result.current.state;
+
+      act(() => {
+        result.current.addHardscapeItem('driftwood');
+      });
+      const placed = result.current.state;
+      const added = placed.equipment.hardscape.items.find(
+        (item) => !bare.equipment.hardscape.items.some((i) => i.id === item.id)
+      )!;
+      expect(placed.resources).toEqual(placeHardscape(bare, added).resources);
+      expect(placed.logs[placed.logs.length - 1]?.message).toContain('Added');
+
+      act(() => {
+        result.current.removeHardscapeItem(added.id);
+      });
+      const lifted = result.current.state;
+      expect(lifted.resources).toEqual(liftHardscape(placed, added.id).resources);
+      expect(lifted.equipment.substrate).toEqual(liftHardscape(placed, added.id).equipment.substrate);
+      expect(lifted.resources.aob).toBeLessThan(placed.resources.aob);
+      expect(lifted.logs[lifted.logs.length - 1]?.message).toContain('Removed');
     });
 
     it('reset keeps equipment but resets tick and resources', () => {

@@ -192,6 +192,12 @@ describe('disturbBed', () => {
     const state = settled();
     expect(disturbed(state, 0)).toEqual(state);
   });
+
+  it('never stirs more than the whole bed', () => {
+    const state = settled();
+    expect(disturbed(state, Infinity)).toEqual(disturbed(state, 1));
+    expect(disturbed(state, -1)).toEqual(state);
+  });
 });
 
 describe('hardscape moves', () => {
@@ -223,16 +229,22 @@ describe('hardscape moves', () => {
 
   it('lifts a piece with its biofilm and stirs one slot of the bed', () => {
     const state = scaped();
+    const density = state.resources.aob / calculateSurface(state);
+    const stirred = getSubstrateSurface('gravel', 100) / state.tank.hardscapeSlots;
     const lifted = liftHardscape(state, 'rock');
-    const carried = produce(state, (draft) => {
-      draft.resources.aob *= 1 - calculateHardscapeTotalSurface(draft.equipment.hardscape.items) / calculateSurface(draft);
-      disturbBed(draft, 1 / draft.tank.hardscapeSlots);
-    });
 
     expect(lifted.equipment.hardscape.items).toEqual([]);
     expect(lifted.resources.surface).toBe(calculateSurface(lifted));
-    expect(lifted.resources.aob).toBeCloseTo(carried.resources.aob, 9);
+    expect(lifted.resources.aob).toBeCloseTo(density * (lifted.resources.surface - stirred), 9);
     expect(lifted.resources.waste).toBeGreaterThan(state.resources.waste);
+  });
+
+  it('stirs no bed on a tank with no slots', () => {
+    const state = produce(scaped(), (draft) => void (draft.tank.hardscapeSlots = 0));
+    const lifted = liftHardscape(state, 'rock');
+
+    expect(Number.isFinite(lifted.resources.aob)).toBe(true);
+    expect(lifted.equipment.substrate.organicReserve).toBe(state.equipment.substrate.organicReserve);
   });
 
   it('lifts nothing for an unknown id', () => {

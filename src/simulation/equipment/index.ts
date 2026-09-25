@@ -303,12 +303,13 @@ export function rescape(state: SimulationState, type: SubstrateType): Simulation
  * inside its own `produce`.
  */
 export function disturbBed(draft: SimulationState, share: number): void {
+  const stirred = Math.max(0, Math.min(1, share));
   const bed = draft.equipment.substrate;
-  const released = bed.organicReserve * share;
+  const released = bed.organicReserve * stirred;
   bed.organicReserve -= released;
   draft.resources.waste += released;
 
-  const kept = 1 - share * (1 - biofilmKept(draft));
+  const kept = 1 - stirred * (1 - biofilmKept(draft));
   draft.resources.aob *= kept;
   draft.resources.nob *= kept;
 }
@@ -337,11 +338,13 @@ export function liftHardscape(state: SimulationState, id: string): SimulationSta
   const surface = calculateSurface(state);
   const kept = surface > 0 ? 1 - getHardscapeSurface(item.type) / surface : 1;
 
+  const slots = state.tank.hardscapeSlots;
+
   return produce(state, (draft) => {
     draft.resources.aob *= kept;
     draft.resources.nob *= kept;
-    disturbBed(draft, 1 / draft.tank.hardscapeSlots);
     draft.equipment.hardscape.items = draft.equipment.hardscape.items.filter((i) => i.id !== id);
     draft.resources.surface = calculateSurface(draft);
+    if (slots > 0) disturbBed(draft, 1 / slots);
   });
 }

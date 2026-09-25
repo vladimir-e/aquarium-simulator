@@ -100,6 +100,11 @@ export function scenariosCommand(argv: string[]): void {
       config: DEFAULT_CONFIG,
     });
     const label = [base.name, ...args.tweaks.map((t) => t.text)].join(' ');
+    if (setup.rescapeOn !== undefined && setup.rescapeOn >= args.days) {
+      process.stderr.write(
+        `warning: --rescape=${setup.rescapeOn} falls after the last reading of a ${args.days}-day run.\n`
+      );
+    }
     return { label, result: runScenario(setup, { days: args.days, config, traceDay: args.traceDay, onRefusal }) };
   });
   const seconds = (performance.now() - started) / 1000;

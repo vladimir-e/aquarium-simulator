@@ -3,6 +3,7 @@ import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
 import { READINGS } from '../scenarios/readings.js';
 import { toJson } from '../scenarios/report.js';
 import { keepTank, runScenario, sampleDays } from '../scenarios/run.js';
+import { KEEPER_HOUR } from '../scenarios/keeper.js';
 import { findSetup, type Setup } from '../scenarios/setups.js';
 
 describe('sampleDays', () => {
@@ -47,6 +48,24 @@ describe('keepTank', () => {
     const refused: string[] = [];
     keepTank(setup, { config: DEFAULT_CONFIG, untilTick: 24, onRefusal: (type) => refused.push(type) });
     expect(refused).toEqual(['dose']);
+  });
+});
+
+describe('the keeper’s rescape', () => {
+  it('fires once, at the keeper hour of its day', () => {
+    const setup: Setup = { ...findSetup('nano'), hardscape: ['neutral_rock'], rescapeOn: 2 };
+    const reset: number[] = [];
+    let seen = new Set<string>();
+    keepTank(setup, {
+      config: DEFAULT_CONFIG,
+      untilTick: 4 * 24,
+      observe: (state) => {
+        const ids = new Set(state.equipment.hardscape.items.map((item) => item.id));
+        if (seen.size > 0 && [...ids].some((id) => !seen.has(id))) reset.push(state.tick);
+        seen = ids;
+      },
+    });
+    expect(reset).toEqual([24 + KEEPER_HOUR + 1]);
   });
 });
 

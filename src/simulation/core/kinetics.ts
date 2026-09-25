@@ -48,7 +48,8 @@ export function monodFactor(concentration: number, halfSaturation: number): numb
 export function monodUptake(stock: number, capacity: number, halfSaturation: number): number {
   if (stock <= 0 || capacity <= 0) return 0;
   const b = halfSaturation + stock + capacity;
-  return (2 * capacity * stock) / (b + Math.sqrt(b * b - 4 * capacity * stock));
+  const root = (2 * capacity * stock) / (b + Math.sqrt(Math.max(0, b * b - 4 * capacity * stock)));
+  return Math.min(stock, capacity, root);
 }
 
 /**

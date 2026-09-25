@@ -74,6 +74,16 @@ describe('monodUptake', () => {
     expect(monodUptake(1, 3, 0)).toBeCloseTo(1, 12);
   });
 
+  it('never overdraws with a vanishing half-saturation, even when stock meets capacity', () => {
+    for (const k of [0, 1e-300, 1e-12]) {
+      for (const amount of [1e-9, 0.1, 0.3, 7, 1e9]) {
+        const uptake = monodUptake(amount, amount, k);
+        expect(Number.isFinite(uptake)).toBe(true);
+        expect(uptake).toBeLessThanOrEqual(amount);
+      }
+    }
+  });
+
   it('draws nothing from an empty stock or with no capacity', () => {
     expect(monodUptake(0, 1, 0.5)).toBe(0);
     expect(monodUptake(1, 0, 0.5)).toBe(0);

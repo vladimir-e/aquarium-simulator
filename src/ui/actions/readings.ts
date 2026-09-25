@@ -39,6 +39,7 @@ import {
   nutrientReadings,
   readingAt,
   stockedBand,
+  trackAt,
   toleranceStatus,
   waterReadings,
   type NutrientKey,
@@ -134,7 +135,7 @@ interface Reading {
   decimals: number;
   status: (value: number, sheet: Sheet) => Status;
   /** Position on the same display scale the reading book puts it on. */
-  at: (value: number) => number;
+  at: (value: number, sheet: Sheet) => number;
   band: (sheet: Sheet) => StripBand | null;
   note: (value: number, before: number, sheet: Sheet) => string | null;
 }
@@ -156,7 +157,7 @@ function fromWater(
     key,
     read: (sheet): number => sheet.water[key].value,
     status: (_value, sheet): Status => sheet.water[key].status,
-    at: (value): number => readingAt(key, value),
+    at: (value, sheet): number => trackAt(sheet.water[key].scale, value),
     band: (sheet): StripBand | null => sheet.water[key].band,
     ...rest,
   };
@@ -385,8 +386,8 @@ export function previewRows({ before, outcomes, config, units }: PreviewInput): 
       after: prints(low, high, reading.decimals) ? format(values[0]) : `${format(low)}–${format(high)}`,
       unit: reading.unit(units),
       status: reading.status(values[worst], sheets[worst]),
-      from: reading.at(from),
-      to: reading.at(values[worst]),
+      from: reading.at(from, sheets[worst]),
+      to: reading.at(values[worst], sheets[worst]),
       band: reading.band(sheets[worst]),
       note: reading.note(values[worst], from, sheets[worst]),
     });

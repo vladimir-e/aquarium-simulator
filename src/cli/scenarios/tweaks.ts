@@ -133,8 +133,14 @@ function tweakApply(flag: string, value: string | undefined): Tweak['apply'] {
     case 'uncycled':
       return onSetup((setup) => ({ ...setup, cycled: false }));
     case 'rescape': {
+      if (value === undefined) throw new Error('--rescape takes the day to rescape on, e.g. --rescape=30.');
       const rescapeOn = count(value, 'rescape day');
-      return onSetup((setup) => ({ ...setup, rescapeOn }));
+      return onSetup((setup) => {
+        if (setup.hardscape.length === 0 && setup.plants.length === 0) {
+          warn(`--rescape: ${setup.name} has no hardscape or plants to rescape.`);
+        }
+        return { ...setup, rescapeOn };
+      });
     }
     case 'vac': {
       const vacuum = value === 'off' ? 0 : share(value, 'vac');

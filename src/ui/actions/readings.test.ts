@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { produce } from 'immer';
 import {
   applyAction,
   calculateSurface,
@@ -11,14 +12,16 @@ import {
 } from '../../simulation/index.js';
 import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
 import { carbonateKh } from '../../simulation/core/carbonate.js';
-import { getGhMass, getKhMass } from '../../simulation/resources/helpers.js';
+import { getGhMass, getKhMass, getPpm } from '../../simulation/resources/helpers.js';
 import { blendConcentration, blendTemperature } from '../../simulation/core/blending.js';
 import { calculateO2Saturation } from '../../simulation/systems/gas-exchange.js';
 import { gasExchangeDefaults } from '../../simulation/config/gas-exchange.js';
 import {
+  ammoniaAlertLine,
   HIGH_NITRATE_THRESHOLD,
   HIGH_NITRITE_THRESHOLD,
 } from '../../simulation/alerts/index.js';
+import { ammoniaScale, trackAt } from '../run/water.js';
 import {
   DEFAULT_SETTINGS,
   VERB_IDS,
@@ -242,6 +245,23 @@ describe('preview readings', () => {
     };
     const nitrate = row(detail(loaded, 'dose', { ...DEFAULT_SETTINGS, dose: 4 }).preview, 'nitrate');
     expect(nitrate.note).toBe(`above ${HIGH_NITRATE_THRESHOLD}`);
+  });
+
+  it('reads an ammonia row on the line the action leaves, when the action moves pH', () => {
+    const soft = produce(fixture(), (draft) => {
+      draft.resources.co2 = 30;
+      draft.resources.kh = getKhMass(0.5, draft.resources.water);
+    });
+    const settings = { ...DEFAULT_SETTINGS, waterChange: 0.5 };
+    const changed = applyAction(soft, verbAction('waterChange', settings)).state;
+    const line = ammoniaAlertLine(changed.resources);
+    expect(line).toBeLessThan(ammoniaAlertLine(soft.resources) / 2);
+
+    const scale = ammoniaScale(line);
+    const ammonia = row(detail(soft, 'waterChange', settings).preview, 'ammonia');
+    expect(ammonia.band).toEqual({ from: 0, to: trackAt(scale, line) });
+    expect(ammonia.from).toBeCloseTo(trackAt(scale, getPpm(soft.resources.ammonia, soft.resources.water)), 12);
+    expect(ammonia.to).toBeCloseTo(trackAt(scale, getPpm(changed.resources.ammonia, changed.resources.water)), 12);
   });
 
   it('reads its lines off the engine, not off the sketch they were drawn from', () => {
