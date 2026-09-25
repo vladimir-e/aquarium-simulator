@@ -167,7 +167,7 @@ export const SETUPS: Setup[] = [
     filter: 'canister',
     light: { par: 120, hours: 8 },
     co2: 2,
-    doser: 3,
+    doser: 6,
     ato: true,
     plants: [
       { species: 'monte_carlo', count: 6, size: PLANTING_SIZE },
