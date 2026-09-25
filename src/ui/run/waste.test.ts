@@ -10,19 +10,17 @@ import {
   tick,
   type SimulationState,
 } from '../../simulation/index.js';
-import { fishlessTank } from '../../simulation/tests/tanks.js';
 
 const config = DEFAULT_CONFIG;
 
-/** Bare bottom: no substrate reserve, so nothing produces waste on its own. */
 function tank(): SimulationState {
   return createSimulation({ tankCapacity: 200 });
 }
 
-/**
- * Food standing in a bare tank at a chosen dissolved oxygen. Nothing here moves
- * oxygen before the passive tier, so decay reads the same figure the card does.
- */
+function soilTank(): SimulationState {
+  return createSimulation({ tankCapacity: 200, substrate: { type: 'aqua_soil' } });
+}
+
 function fed(oxygen: number): SimulationState {
   return produce(applyAction(tank(), { type: 'feed', amount: 2 }).state, (draft) => {
     draft.resources.oxygen = oxygen;
@@ -30,7 +28,7 @@ function fed(oxygen: number): SimulationState {
 }
 
 function stocked(): SimulationState {
-  let state = fishlessTank('aqua_soil', { capacity: 200, ato: false });
+  let state = soilTank();
   for (let i = 0; i < 6; i++) {
     state = applyAction(state, { type: 'addFish', species: 'neon_tetra' }).state;
   }
@@ -48,7 +46,7 @@ describe('wasteInflow', () => {
   });
 
   it('is substrate-only on a soil tank with no food, fish or plants', () => {
-    const state = fishlessTank('aqua_soil', { capacity: 200, ato: false });
+    const state = soilTank();
     const inflow = wasteInflow(state, config);
     const leach = calculateSubstrateLeach(
       state.equipment.substrate.organicReserve,
@@ -126,7 +124,7 @@ describe('wasteReadout', () => {
 
 describe('wasteSummary', () => {
   it('says where the pool settles, and which way it is heading', () => {
-    const state = fishlessTank('aqua_soil', { capacity: 200, ato: false });
+    const state = soilTank();
     state.resources.waste = 0;
     expect(wasteSummary(wasteReadout(state, config), config)).toContain('climbing to');
 
@@ -135,7 +133,7 @@ describe('wasteSummary', () => {
   });
 
   it('reads the settled mass as production over the mineralisation rate', () => {
-    const readout = wasteReadout(fishlessTank('aqua_soil', { capacity: 200, ato: false }), config);
+    const readout = wasteReadout(soilTank(), config);
     const settled = readout.perHour / config.nitrogenCycle.wasteConversionRate;
     expect(wasteSummary(readout, config)).toContain(settled.toFixed(3));
   });
