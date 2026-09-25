@@ -154,6 +154,34 @@ describe('removePlant', () => {
     expect(state.plants).toHaveLength(2);
   });
 
+  it('stirs one plant slot of the bed when it uproots a rooted plant', () => {
+    const soil = produce(
+      createSimulation({ tankCapacity: 100, substrate: { type: 'aqua_soil' } }),
+      (draft) => void (draft.resources.aob = 1000)
+    );
+    const sword = add(soil, 'amazon_sword').state;
+    const result = removePlant(sword, { type: 'removePlant', plantId: sword.plants[0].id });
+    const share = 1 / getMaxPlants(sword.tank.capacity);
+    const reserve = sword.equipment.substrate.organicReserve;
+
+    expect(reserve).toBeGreaterThan(0);
+    expect(result.state.equipment.substrate.organicReserve).toBeCloseTo(reserve * (1 - share), 12);
+    expect(result.state.resources.waste).toBeCloseTo(sword.resources.waste + reserve * share, 12);
+    expect(result.state.resources.aob).toBeLessThan(1000);
+  });
+
+  it('takes an epiphyte off the hardscape without touching the bed', () => {
+    const soil = produce(
+      createSimulation({ tankCapacity: 100, substrate: { type: 'aqua_soil' } }),
+      (draft) => void (draft.resources.aob = 1000)
+    );
+    const fern = add(soil, 'java_fern').state;
+    const result = removePlant(fern, { type: 'removePlant', plantId: fern.plants[0].id });
+
+    expect(result.state.equipment.substrate).toEqual(fern.equipment.substrate);
+    expect(result.state.resources).toEqual(fern.resources);
+  });
+
   it.each(['nonexistent_id', ''])('leaves the tank alone for an unknown id %j', (plantId) => {
     const state = twoPlants();
     const result = removePlant(state, { type: 'removePlant', plantId });

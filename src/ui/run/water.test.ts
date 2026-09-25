@@ -8,7 +8,7 @@ import {
   type WaterReading,
 } from './water';
 import {
-  HIGH_AMMONIA_THRESHOLD,
+  ammoniaAlertLine,
   HIGH_CO2_THRESHOLD,
   HIGH_NITRATE_THRESHOLD,
   HIGH_NITRITE_THRESHOLD,
@@ -45,7 +45,6 @@ describe('readingAt', () => {
 
 describe('display scales', () => {
   it('keeps every alert threshold on the track it belongs to', () => {
-    expect(readingAt('ammonia', HIGH_AMMONIA_THRESHOLD)).toBeLessThan(1);
     expect(readingAt('nitrite', HIGH_NITRITE_THRESHOLD)).toBeLessThan(1);
     expect(readingAt('nitrate', HIGH_NITRATE_THRESHOLD)).toBeLessThan(1);
   });
@@ -85,7 +84,7 @@ describe('waterReadings', () => {
     const state = tank();
     expect(byKey(state, 'ammonia').band).toEqual({
       from: 0,
-      to: readingAt('ammonia', HIGH_AMMONIA_THRESHOLD),
+      to: readingAt('ammonia', ammoniaAlertLine(state.resources)),
     });
     expect(byKey(state, 'nitrate').band).toEqual({
       from: readingAt('nitrate', 5),
@@ -95,9 +94,9 @@ describe('waterReadings', () => {
     expect(byKey(state, 'ph').band).toBeNull();
   });
 
-  it('takes its status from classifyVital, never from the scale', () => {
+  it('takes its status from the engine line, never from the scale', () => {
     const state = tank();
-    state.resources.ammonia = state.resources.water * (HIGH_AMMONIA_THRESHOLD + 0.1);
+    state.resources.ammonia = state.resources.water * ammoniaAlertLine(state.resources) * 1.1;
     expect(byKey(state, 'ammonia').status).toBe('alert');
     expect(byKey(state, 'ph').status).toBe('neutral');
   });

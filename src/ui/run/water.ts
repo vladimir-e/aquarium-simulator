@@ -6,7 +6,7 @@
 
 import type { SimulationState } from '../../simulation/index.js';
 import {
-  HIGH_AMMONIA_THRESHOLD,
+  ammoniaAlertLine,
   HIGH_NITRITE_THRESHOLD,
   HIGH_NITRATE_THRESHOLD,
   WATER_LEVEL_CRITICAL_THRESHOLD,
@@ -15,7 +15,7 @@ import { getDgh, getDkh, getPpm } from '../../simulation/resources/index.js';
 import { getPh } from '../../simulation/core/carbonate.js';
 import { getTemperatureUnit, toDisplayTemperature, type UnitSystem } from '../utils/units.js';
 import type { Status } from './status.js';
-import { classifyVital, NITRATE_LOW_PPM, type VitalKey } from './vitals.js';
+import { classifyAmmonia, classifyVital, NITRATE_LOW_PPM, type VitalKey } from './vitals.js';
 
 export type WaterKey = Extract<
   VitalKey,
@@ -134,6 +134,7 @@ function band(key: WaterKey, from: number, to: number): ReadingBand {
 export function waterReadings(state: SimulationState, units: UnitSystem): WaterReading[] {
   const values = waterValues(state);
   const levelLimit = WATER_LEVEL_CRITICAL_THRESHOLD * 100;
+  const ammoniaLine = ammoniaAlertLine(state.resources);
 
   const spec: Record<WaterKey, Pick<WaterReading, 'unit' | 'band'>> = {
     temperature: { unit: getTemperatureUnit(units), band: null },
@@ -141,7 +142,7 @@ export function waterReadings(state: SimulationState, units: UnitSystem): WaterR
     kh: { unit: 'dKH', band: null },
     gh: { unit: 'dGH', band: null },
     water: { unit: '%', band: band('water', levelLimit, 100) },
-    ammonia: { unit: 'ppm', band: band('ammonia', 0, HIGH_AMMONIA_THRESHOLD) },
+    ammonia: { unit: 'ppm', band: band('ammonia', 0, ammoniaLine) },
     nitrite: { unit: 'ppm', band: band('nitrite', 0, HIGH_NITRITE_THRESHOLD) },
     nitrate: { unit: 'ppm', band: band('nitrate', NITRATE_LOW_PPM, HIGH_NITRATE_THRESHOLD) },
   };
@@ -153,7 +154,7 @@ export function waterReadings(state: SimulationState, units: UnitSystem): WaterR
       name: NAME[key],
       value,
       text: display(key, value, units).toFixed(DECIMALS[key]),
-      status: classifyVital(key, value),
+      status: key === 'ammonia' ? classifyAmmonia(value, ammoniaLine) : classifyVital(key, value),
       fill: readingAt(key, value),
       ...spec[key],
     };

@@ -31,6 +31,8 @@ export interface Setup {
   fish: SeedFishGroup[];
   cycled: boolean;
   schedule: Schedule;
+  /** Day the keeper rearranges the scape, once. */
+  rescapeOn?: number;
   bands?: BandOverrides;
 }
 

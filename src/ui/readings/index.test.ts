@@ -9,6 +9,7 @@ import {
 } from '../../simulation/index.js';
 import {
   HIGH_AMMONIA_THRESHOLD,
+  ammoniaAlertLine,
   HIGH_NITRITE_THRESHOLD,
 } from '../../simulation/alerts/index.js';
 import { snapshotFromState, type RunSnapshot } from '../run/index.js';
@@ -87,9 +88,11 @@ describe('readTank', () => {
     expect(byId.nitrate.sentence).toMatch(/under \d+\.\d ppm; the engine alerts over \d+\.\d\./);
   });
 
-  it('takes the ammonia band off the engine threshold, and states it', () => {
-    const { byId } = read(stocked());
-    expect(byId.ammonia.sentence).toContain(HIGH_AMMONIA_THRESHOLD.toFixed(3));
+  it('takes the ammonia band off the free-NH₃ alert line at this pH, and states both', () => {
+    const run = stocked();
+    const { byId } = read(run);
+    expect(byId.ammonia.sentence).toContain(`${ammoniaAlertLine(run.state.resources).toFixed(3)} ppm`);
+    expect(byId.ammonia.sentence).toContain(`${HIGH_AMMONIA_THRESHOLD} ppm`);
   });
 
   it('reads nitrate twice — against the alert line, and against plant demand', () => {

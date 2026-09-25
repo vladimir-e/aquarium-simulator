@@ -55,7 +55,7 @@ keepers act differently.
 | Scrub algae | an optional explicit share | `algae.mass` down 10–30 % | mass below the scrub floor, or a named share outside the band |
 | Trim plants | a target size, optionally one plant id | every plant above the target down to it, or just the named one | target outside `[0, 100]`, nothing above the target, plant not found |
 | Add plant | species, optional size | a plant at condition 100 holding half a bank | unknown species, size outside `[0, 200]`, tank at plant capacity, substrate incompatible |
-| Remove plant | plant id | the plant leaves the array | not found |
+| Remove plant | plant id | the plant leaves the array; a rooted one disturbs one plant slot of the bed | not found |
 | Add fish | species | an adult at `maturityAge`, with sampled sex, hardiness offset and health jitter | unknown species, or the physical mass ceiling reached |
 | Remove fish | fish id | the fish leaves the array | not found |
 | Sell fry | — | every fish carrying `stage: 'fry'` | no fry in the tank |

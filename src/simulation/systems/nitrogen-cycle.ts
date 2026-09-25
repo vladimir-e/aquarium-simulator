@@ -24,7 +24,7 @@
  */
 
 import type { Effect } from '../core/effects.js';
-import type { SimulationState } from '../state.js';
+import type { Resources, SimulationState } from '../state.js';
 import type { System } from './types.js';
 import type { TunableConfig } from '../config/index.js';
 import {
@@ -41,6 +41,7 @@ import {
   O2_PER_NO2_OXIDIZED,
 } from '../core/chemistry.js';
 import { getPpm } from '../resources/index.js';
+import { getPh } from '../core/carbonate.js';
 
 /**
  * Fraction of total ammonia (TAN = NH3 + NH4⁺) that exists as unionized
@@ -60,6 +61,16 @@ export function unionizedAmmoniaFraction(ph: number, temperatureC: number): numb
   const tempK = temperatureC + 273.15;
   const pKa = 0.09018 + 2729.92 / tempK;
   return 1 / (1 + Math.pow(10, pKa - ph));
+}
+
+/** Unionized NH₃ in the water right now, ppm — the share of total ammonia that poisons. */
+export function freeAmmoniaPpm(
+  resources: Pick<Resources, 'ammonia' | 'water' | 'temperature' | 'co2' | 'kh'>
+): number {
+  return (
+    getPpm(resources.ammonia, resources.water) *
+    unionizedAmmoniaFraction(getPh(resources), resources.temperature)
+  );
 }
 
 /**

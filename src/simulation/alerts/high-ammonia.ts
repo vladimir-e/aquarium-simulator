@@ -1,49 +1,48 @@
 /**
- * High ammonia alert.
- * Triggers once when ammonia level exceeds danger threshold (>0.1 ppm).
- * Resets when ammonia level drops below threshold.
+ * High ammonia alert — fires once when free NH₃ crosses the line and resets
+ * below it.
  *
- * Ammonia is stored as mass (mg), so ppm is derived from mass/water.
+ * Free and not total: only the unionized fraction crosses gills, and it moves
+ * with pH and temperature, so the same test-kit reading is harmless in soft
+ * acidic water and toxic in hard alkaline water.
  */
 
 import type { Alert, AlertResult } from './types.js';
-import type { SimulationState } from '../state.js';
+import type { Resources, SimulationState } from '../state.js';
 import { createLog } from '../core/logging.js';
-import { getPpm } from '../resources/index.js';
+import { getPh } from '../core/carbonate.js';
+import { freeAmmoniaPpm, unionizedAmmoniaFraction } from '../systems/nitrogen-cycle.js';
 
-/** Threshold for high ammonia alert (ppm) */
-export const HIGH_AMMONIA_THRESHOLD = 0.1;
+/** Free NH₃ where harm to fish starts, ppm. */
+export const HIGH_AMMONIA_THRESHOLD = 0.02;
+
+/** The total ammonia (ppm) at which free NH₃ reaches the alert line, at this pH and temperature. */
+export function ammoniaAlertLine(
+  resources: Pick<Resources, 'temperature' | 'co2' | 'kh' | 'water'>
+): number {
+  return HIGH_AMMONIA_THRESHOLD / unionizedAmmoniaFraction(getPh(resources), resources.temperature);
+}
 
 export const highAmmoniaAlert: Alert = {
   id: 'high-ammonia',
 
   check(state: SimulationState): AlertResult {
-    // Derive ppm from mass (mg) and water (L)
-    const ammoniaPpm = getPpm(state.resources.ammonia, state.resources.water);
-    const wasTriggered = state.alertState.highAmmonia;
+    const free = freeAmmoniaPpm(state.resources);
 
-    // Check if currently above threshold
-    const isAboveThreshold = ammoniaPpm > HIGH_AMMONIA_THRESHOLD;
-
-    if (isAboveThreshold) {
-      // Condition is active
-      if (!wasTriggered) {
-        // Just crossed threshold - fire alert and set flag
-        return {
-          log: createLog(
-            state.tick,
-            'nitrogen-cycle',
-            'warning',
-            `High ammonia level: ${ammoniaPpm.toFixed(3)} ppm - toxic to fish`
-          ),
-          alertState: { highAmmonia: true },
-        };
-      }
-      // Already triggered, don't fire again but keep flag set
+    if (free <= HIGH_AMMONIA_THRESHOLD) {
+      return { log: null, alertState: { highAmmonia: false } };
+    }
+    if (state.alertState.highAmmonia) {
       return { log: null, alertState: { highAmmonia: true } };
     }
-
-    // Condition is not active - clear the flag so it can fire again
-    return { log: null, alertState: { highAmmonia: false } };
+    return {
+      log: createLog(
+        state.tick,
+        'nitrogen-cycle',
+        'warning',
+        `High ammonia: ${free.toFixed(3)} ppm free NH₃ - toxic to fish`
+      ),
+      alertState: { highAmmonia: true },
+    };
   },
 };

@@ -19,7 +19,7 @@ a reader would want to see afterwards.
 |---|---|---|
 | The latch | <Badge text="settled" variant="success" /> | One line per crossing, a flag that lives in state, and no repetition while the condition holds. It does exactly what it says. |
 | Log entry shape | <Badge text="settled" variant="success" /> | Free text for humans, a typed `event` discriminator for code, and a `count` wherever an entry accounts for more than one organism. |
-| Ammonia threshold | <Badge text="scaffolding" variant="caution" /> | Fires on total ammonia, where toxicity is the unionized fraction — which moves by more than an order of magnitude across the pH range a tank actually sits in. |
+| Ammonia threshold | <Badge text="settled" variant="success" /> | Fires on free NH₃ where harm starts, so the total ammonia it takes moves with pH and temperature the way toxicity does. |
 | Nitrite · nitrate · oxygen thresholds | <Badge text="scaffolding" variant="caution" /> | All three sit past the point damage begins. Nitrite alerts at 1.0 ppm where fish take damage at any presence, nitrate at 80 where damage starts at 40, oxygen at 4.0 where damage starts below 5. |
 | Algae · water-level thresholds | <Badge text="scaffolding" variant="caution" /> | The same shape one layer out: algae alerts at 80 where it starts shading plants at 30, and water level at a fifth of capacity where fish start suffering at half. |
 | CO₂ threshold | <Badge text="scaffolding" variant="caution" /> | The alert with nothing behind it — no organism in the engine reads dissolved CO₂ as a stressor, so it warns about a harm that is never inflicted. |
@@ -46,7 +46,7 @@ the transition into trouble.
 | Alert | Fires when | Where damage actually starts |
 |---|---|---|
 | Water level critical | below 20 % of capacity, and only while some water remains | fish take water-level damage below 50 % |
-| High ammonia | total ammonia above 0.1 ppm | any free NH₃ at all, and the free fraction moves with pH and temperature |
+| High ammonia | free NH₃ above 0.02 ppm | 0.02 ppm free NH₃; 0.05 is danger |
 | High nitrite | above 1.0 ppm | any presence |
 | High nitrate | above 80 ppm | 40 ppm |
 | Low oxygen | below 4.0 mg/L | below 5 mg/L |
@@ -54,10 +54,19 @@ the transition into trouble.
 | High algae | mass at or above 80 | plants are shaded from mass 30 |
 
 Five of the seven wait: water level, nitrite, nitrate, oxygen and algae all fire
-only once the reading is worse than the point where damage began. Ammonia fails
-differently — reading total ammonia rather than the free fraction makes how
-early it fires a function of the tank's pH. The seventh has no harm behind it at
-all.
+only once the reading is worse than the point where damage began. Ammonia fires
+where harm starts, on the unionized fraction of the total — so the same test-kit
+reading crosses it sooner the higher the pH and the warmer the water:
+
+| pH at 25 °C | Total ammonia at the line |
+|---|---|
+| 6.5 | ≈ 11 ppm |
+| 7.0 | ≈ 3.6 ppm |
+| 7.5 | ≈ 1.1 ppm |
+| 8.0 | ≈ 0.37 ppm |
+
+Every surface bands the total-ammonia reading at that moving line. The seventh
+has no harm behind it at all.
 
 The honest edges are the engine's own severity thresholds, and they live in the
 livestock and plant configs rather than here.

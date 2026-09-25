@@ -2,6 +2,10 @@ import { describe, it, expect } from 'vitest';
 import { produce } from 'immer';
 import {
   biofilmKept,
+  calculateSurface,
+  disturbBed,
+  liftHardscape,
+  placeHardscape,
   calculatePassiveResources,
   processEquipment,
   type PassiveResourceValues,
@@ -152,6 +156,88 @@ describe('biofilmKept', () => {
 
   it('costs a tank with no bed nothing at all', () => {
     expect(biofilmKept(bedded('none'))).toBe(1);
+  });
+});
+
+describe('disturbBed', () => {
+  const settled = (): SimulationState =>
+    produce(createSimulation({ tankCapacity: 100, substrate: { type: 'aqua_soil' } }), (draft) => {
+      draft.resources.aob = 1000;
+      draft.resources.nob = 500;
+      draft.resources.waste = 0;
+    });
+  const disturbed = (state: SimulationState, share: number): SimulationState =>
+    produce(state, (draft) => disturbBed(draft, share));
+
+  it('moves that share of the bed’s organics into the water, conserving them', () => {
+    const state = settled();
+    const after = disturbed(state, 0.25);
+    const reserve = state.equipment.substrate.organicReserve;
+
+    expect(after.resources.waste).toBeCloseTo(reserve * 0.25, 12);
+    expect(after.equipment.substrate.organicReserve + after.resources.waste).toBeCloseTo(reserve, 12);
+  });
+
+  it('scrapes that share of the bed’s colony and nothing off the glass or the filter', () => {
+    const state = settled();
+    const lost = 0.25 * (1 - biofilmKept(state));
+    const after = disturbed(state, 0.25);
+
+    expect(after.resources.aob).toBeCloseTo(1000 * (1 - lost), 9);
+    expect(after.resources.nob).toBeCloseTo(500 * (1 - lost), 9);
+    expect(disturbed(state, 1).resources.aob).toBeCloseTo(1000 * biofilmKept(state), 9);
+  });
+
+  it('leaves the tank as it was for a share of nothing', () => {
+    const state = settled();
+    expect(disturbed(state, 0)).toEqual(state);
+  });
+});
+
+describe('hardscape moves', () => {
+  const scaped = (): SimulationState =>
+    produce(
+      createSimulation({
+        tankCapacity: 100,
+        substrate: { type: 'gravel' },
+        hardscape: { items: [createHardscapeItem('rock', 'neutral_rock')] },
+      }),
+      (draft) => {
+        draft.resources.aob = 1000;
+      }
+    );
+
+  it('sets a piece sterile and grows the surface by its own', () => {
+    const state = scaped();
+    const placed = placeHardscape(state, createHardscapeItem('wood', 'driftwood'));
+
+    expect(placed.resources.aob).toBe(1000);
+    expect(placed.resources.surface).toBe(calculateSurface(placed));
+    expect(placed.resources.surface).toBeGreaterThan(calculateSurface(state));
+  });
+
+  it('refuses a piece the tank has no slot for', () => {
+    const full = produce(scaped(), (draft) => void (draft.tank.hardscapeSlots = 1));
+    expect(placeHardscape(full, createHardscapeItem('wood', 'driftwood'))).toBe(full);
+  });
+
+  it('lifts a piece with its biofilm and stirs one slot of the bed', () => {
+    const state = scaped();
+    const lifted = liftHardscape(state, 'rock');
+    const carried = produce(state, (draft) => {
+      draft.resources.aob *= 1 - calculateHardscapeTotalSurface(draft.equipment.hardscape.items) / calculateSurface(draft);
+      disturbBed(draft, 1 / draft.tank.hardscapeSlots);
+    });
+
+    expect(lifted.equipment.hardscape.items).toEqual([]);
+    expect(lifted.resources.surface).toBe(calculateSurface(lifted));
+    expect(lifted.resources.aob).toBeCloseTo(carried.resources.aob, 9);
+    expect(lifted.resources.waste).toBeGreaterThan(state.resources.waste);
+  });
+
+  it('lifts nothing for an unknown id', () => {
+    const state = scaped();
+    expect(liftHardscape(state, 'missing')).toBe(state);
   });
 });
 

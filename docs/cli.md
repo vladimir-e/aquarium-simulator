@@ -34,6 +34,7 @@ Tweaks apply to every setup in the run:
 | `--light=1.5` | Scale fixture PAR |
 | `--gal=40` | Change tank volume |
 | `--uncycled` | Start without a cycled biofilter |
+| `--rescape=30` | On that day, lift and reset every hardscape piece and uproot every other plant |
 | `--set=path.to.tunable=value` | Override a tunable |
 
 Periods are `<n>d` or `<n>w`; without one, feeding and top-off are daily and every other chore weekly.

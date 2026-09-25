@@ -10,6 +10,7 @@ import type { SimulationState } from '../../simulation/index.js';
 import {
   HIGH_ALGAE_THRESHOLD,
   HIGH_AMMONIA_THRESHOLD,
+  ammoniaAlertLine,
   HIGH_CO2_THRESHOLD,
   HIGH_NITRATE_THRESHOLD,
   HIGH_NITRITE_THRESHOLD,
@@ -433,7 +434,7 @@ export function readTank({ state, config, history, units }: TankInput): ReadingB
     },
     ammonia: fromWater('ammonia', tape, {
       reading: read('ammonia'),
-      sentence: `Safe at or under ${said('ammonia', HIGH_AMMONIA_THRESHOLD)} ppm — the line the engine alerts on.`,
+      sentence: `Safe at or under ${said('ammonia', ammoniaAlertLine(state.resources))} ppm at this pH and temperature — where free NH₃ reaches the ${HIGH_AMMONIA_THRESHOLD} ppm the engine alerts on.`,
       net: netPerHour(rates.netAmmonia, 'ppm'),
       fills: [
         { label: 'Waste mineralising', rate: ratePerHour(rates.wasteToAmmonia, 'ppm') },

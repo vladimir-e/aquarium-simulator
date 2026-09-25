@@ -55,6 +55,7 @@ export {
   calculateNitriteToNitrate,
   aobCapacity,
   nobCapacity,
+  freeAmmoniaPpm,
 } from './nitrogen-cycle.js';
 
 export {

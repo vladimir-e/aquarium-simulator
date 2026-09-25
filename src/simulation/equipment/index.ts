@@ -34,6 +34,9 @@ import {
 } from './substrate.js';
 import {
   calculateHardscapeTotalSurface,
+  checkHardscapeCapacity,
+  getHardscapeSurface,
+  type HardscapeItem,
   calculateCalciteDissolution,
   calculateTanninLeach,
   createHardscapeItem,
@@ -286,6 +289,57 @@ export function rescape(state: SimulationState, type: SubstrateType): Simulation
     draft.equipment.substrate = laid;
     draft.resources.aob *= kept;
     draft.resources.nob *= kept;
+    draft.resources.surface = calculateSurface(draft);
+  });
+}
+
+/**
+ * Stir up a share of the bed, 0–1: the organics that share still holds come
+ * loose into the water as waste, and the biofilm on it is scraped off.
+ *
+ * Mutates a draft, so every move that digs into the bed can charge for it
+ * inside its own `produce`.
+ */
+export function disturbBed(draft: SimulationState, share: number): void {
+  const bed = draft.equipment.substrate;
+  const released = bed.organicReserve * share;
+  bed.organicReserve -= released;
+  draft.resources.waste += released;
+
+  const kept = 1 - share * (1 - biofilmKept(draft));
+  draft.resources.aob *= kept;
+  draft.resources.nob *= kept;
+}
+
+/** Set a piece on the bed. It arrives sterile, and a tank with no slot left refuses it. */
+export function placeHardscape(state: SimulationState, item: HardscapeItem): SimulationState {
+  if (!checkHardscapeCapacity(state.equipment.hardscape.items, state.tank.hardscapeSlots).ok) {
+    return state;
+  }
+  return produce(state, (draft) => {
+    draft.equipment.hardscape.items.push(item);
+    draft.resources.surface = calculateSurface(draft);
+  });
+}
+
+/**
+ * Lift a piece out: the biofilm on it leaves with it, and the patch of bed it
+ * sat on — one slot's share — is disturbed.
+ *
+ * Returns the same state when no piece has that id.
+ */
+export function liftHardscape(state: SimulationState, id: string): SimulationState {
+  const item = state.equipment.hardscape.items.find((i) => i.id === id);
+  if (!item) return state;
+
+  const surface = calculateSurface(state);
+  const kept = surface > 0 ? 1 - getHardscapeSurface(item.type) / surface : 1;
+
+  return produce(state, (draft) => {
+    draft.resources.aob *= kept;
+    draft.resources.nob *= kept;
+    disturbBed(draft, 1 / draft.tank.hardscapeSlots);
+    draft.equipment.hardscape.items = draft.equipment.hardscape.items.filter((i) => i.id !== id);
     draft.resources.surface = calculateSurface(draft);
   });
 }

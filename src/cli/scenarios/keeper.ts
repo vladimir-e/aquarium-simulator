@@ -1,4 +1,12 @@
-import type { Action, SimulationState } from '../../simulation/index.js';
+import {
+  applyAction,
+  createHardscapeItem,
+  liftHardscape,
+  placeHardscape,
+  type Action,
+  type SimulationState,
+} from '../../simulation/index.js';
+import type { TunableConfig } from '../../simulation/config/index.js';
 
 export type Chore = Action | { type: 'feed'; shareOfStock: number };
 
@@ -24,6 +32,20 @@ function toAction(chore: Chore, state: SimulationState): Action | null {
   const mass = state.fish.reduce((sum, fish) => sum + fish.mass, 0);
   const amount = Math.round(mass * chore.shareOfStock * 100) / 100;
   return amount > 0 ? { type: 'feed', amount } : null;
+}
+
+export const isKeeperHourOf = (day: number, tick: number): boolean => tick === (day - 1) * 24 + KEEPER_HOUR;
+
+/** A keeper rearranging the scape: every piece of hardscape lifted and set back fresh, every other plant uprooted. */
+export function rescapeTank(state: SimulationState, config: TunableConfig): SimulationState {
+  let next = state;
+  for (const item of state.equipment.hardscape.items) {
+    next = placeHardscape(liftHardscape(next, item.id), createHardscapeItem(`${item.id}-reset`, item.type));
+  }
+  state.plants.forEach((plant, i) => {
+    if (i % 2 === 0) next = applyAction(next, { type: 'removePlant', plantId: plant.id }, config).state;
+  });
+  return next;
 }
 
 export function dueActions(schedule: Schedule, state: SimulationState): Action[] {

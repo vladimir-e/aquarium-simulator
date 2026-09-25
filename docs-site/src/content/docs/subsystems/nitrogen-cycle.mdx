@@ -28,7 +28,8 @@ tank has to keep earning.
 | Mineralization rate | <Badge text="scaffolding" variant="caution" /> | A flat fraction of standing waste with no temperature and no oxygen term, in the one aerobic step of the chain that has neither. |
 | N mass conservation | <Badge text="scaffolding" variant="caution" /> | The chain conserves N per atom, but decay oxidation, plant uptake and metabolic retention are untracked sinks. The end-to-end mass accounting controls for them rather than closing them. |
 | Colony sizing on inert beds | <Badge text="settled" variant="success" /> | Every bed cycles in about four weeks under fish, and a `'cycled'` seed is a share of the tank's own surface ceiling, so filter and bed decide it. |
-| Nitrogen alerts | <Badge text="scaffolding" variant="caution" /> | Ammonia alerts on TAN where toxicity is unionized, and nitrite at 1.0 ppm where fish damage starts at any presence. |
+| Nitrogen alerts | <Badge text="scaffolding" variant="caution" /> | Ammonia alerts on free NH₃ where harm starts; nitrite still alerts at 1.0 ppm where fish damage starts at any presence. |
+| Bed disturbance | <Badge text="scaffolding" variant="caution" /> | Uprooting and lifting hardscape stir the bed, but the only organics it stores are its leaching reserve — nearly spent by month two — so an established tank barely registers a rescape. Settled mulm is not modelled. |
 | Denitrification | <Badge text="missing" variant="danger" /> | Nitrate has no biological sink. It leaves only through plant uptake and water changes, so an unplanted tank accumulates it without bound. |
 | Nitrification acidity | <Badge text="settled" variant="success" /> | The 2 H⁺ each NH₄⁺ releases spend KH at 7.14 mg CaCO₃ per mg of nitrogen, so a tank that nitrifies without water changes loses its buffer and its pH. |
 
@@ -113,6 +114,7 @@ leave them 8.4 % under parity.
 | Growth | `pop × growthRate × warmth × air × utilization × (1 − pop/max)` | Utilization — nothing to oxidise means no growth |
 | Decay | `pop × deathRate × warmth` | Nothing. It is unconditional |
 | Surface cap | Population truncated to `surface × bacteriaPerCm2` | Surface leaving the tank — a rescape, a media change |
+| Disturbance | The disturbed share of the bed's colony scraped off; a lifted piece takes its own biofilm | A keeper digging into the bed |
 
 Seeding is how a colony starts: cells settle out of the fill water and the air
 every tick, so a guild is never absent and emerges on exponential growth the
@@ -187,7 +189,22 @@ restores it — new soil is new material.
 | `aqua_soil` | `1200` cm²/L | `0.05` g/L |
 
 Surface and reserve are separate properties of the same bed: surface is the
-colony ceiling, reserve is the ammonia source. An inert bed leaches a quarter of
+colony ceiling, reserve is the ammonia source.
+
+Digging into the bed stirs a share of it: that share of the reserve comes loose
+as waste, and that share of the bed's biofilm is scraped off.
+
+| Move | Share of the bed disturbed |
+|---|---|
+| Uprooting a rooted plant | one plant slot — `1 / max plants`; an epiphyte disturbs nothing |
+| Lifting a piece of hardscape | one hardscape slot — `1 / slots`; the piece's own biofilm leaves with it |
+| Setting a piece down | nothing; it arrives sterile |
+| Swapping the bed | all of it — the colony on it goes out with it and the new bed brings a fresh reserve |
+
+A mature colony rests at a few percent of its throughput, so the release has to
+outrun that headroom to show. On a young bed it does — a cycled 40 gal soil tank
+rescaped two days in shows a quarter ppm of nitrite that clears within a day —
+and by the second month the reserve is too spent to register. An inert bed leaches a quarter of
 what soil does, so its colony grows to a smaller load, but it cycles on the same
 seeding clock; a `'cycled'` seed sizes the colony off the surface, not the
 water.
@@ -227,8 +244,8 @@ one pinned to a real measurement.
 | [Livestock](/subsystems/livestock/) | — | Fish write `ammonia` directly through gill excretion, and `waste` as feces and death mass |
 | [Plants](/subsystems/plants/) | — | Plants drain `nitrate` on uptake and add `waste` from tissue loss |
 | [Algae](/subsystems/algae/) | — | Algae reads `nitrate` as a growth benefit but consumes none of it |
-| [Actions](/subsystems/actions/) | — | A water change removes `ammonia`, `nitrite` and `nitrate` mass proportionally; dosing adds `nitrate` |
-| [Alerts & logging](/subsystems/alerts-and-logging/) | — | Ammonia > 0.1 ppm, nitrite > 1.0 ppm and nitrate > 80 ppm each raise an alert once per crossing |
+| [Actions](/subsystems/actions/) | — | A water change removes `ammonia`, `nitrite` and `nitrate` mass proportionally; dosing adds `nitrate`; uprooting a plant disturbs the bed |
+| [Alerts & logging](/subsystems/alerts-and-logging/) | — | Free NH₃ > 0.02 ppm, nitrite > 1.0 ppm and nitrate > 80 ppm each raise an alert once per crossing |
 
 ## Source
 

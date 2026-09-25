@@ -13,7 +13,7 @@
 import type { FishSpeciesData, SimulationState } from '../../simulation/index.js';
 import {
   HIGH_ALGAE_THRESHOLD,
-  HIGH_AMMONIA_THRESHOLD,
+  ammoniaAlertLine,
   HIGH_CO2_THRESHOLD,
   HIGH_NITRITE_THRESHOLD,
   HIGH_NITRATE_THRESHOLD,
@@ -155,7 +155,7 @@ function fromWater(
   return {
     key,
     read: (sheet): number => sheet.water[key].value,
-    status: (value): Status => classifyVital(key, value),
+    status: (_value, sheet): Status => sheet.water[key].status,
     at: (value): number => readingAt(key, value),
     band: (sheet): StripBand | null => sheet.water[key].band,
     ...rest,
@@ -206,7 +206,7 @@ const READINGS: Reading[] = [
     unit: PPM,
     display: same,
     decimals: 3,
-    note: (value, before) => overLine(value, before, HIGH_AMMONIA_THRESHOLD),
+    note: (value, before, { state }) => overLine(value, before, ammoniaAlertLine(state.resources)),
   }),
   fromWater('nitrite', {
     label: 'NO₂',

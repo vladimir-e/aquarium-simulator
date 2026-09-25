@@ -5,6 +5,7 @@ import {
   checkAlerts,
   highAlgaeAlert,
   highAmmoniaAlert,
+  ammoniaAlertLine,
   highCo2Alert,
   highNitrateAlert,
   highNitriteAlert,
@@ -20,6 +21,7 @@ import {
   type Alert,
 } from './index.js';
 import { createSimulation, type AlertState, type SimulationState } from '../state.js';
+import { getPh } from '../core/carbonate.js';
 
 const CAPACITY = 100;
 
@@ -68,7 +70,10 @@ const CASES: Case[] = [
     alert: highAmmoniaAlert,
     flag: 'highAmmonia',
     source: 'nitrogen-cycle',
-    set: ppm('ammonia'),
+    set: (draft, free): void => {
+      draft.resources.ammonia =
+        (free / HIGH_AMMONIA_THRESHOLD) * ammoniaAlertLine(draft.resources) * draft.resources.water;
+    },
     firing: HIGH_AMMONIA_THRESHOLD * 2,
     quiet: HIGH_AMMONIA_THRESHOLD / 2,
     edge: { value: HIGH_AMMONIA_THRESHOLD, fires: false },
@@ -157,6 +162,26 @@ describe('waterLevelAlert', () => {
     const message = waterLevelAlert.check(tank(CASES[0]!, 0.15)).log!.message;
     expect(message).toContain('15.0L');
     expect(message).toContain('15.0%');
+  });
+});
+
+describe('highAmmoniaAlert', () => {
+  const at = (tanPpm: number, kh: number): SimulationState =>
+    produce(createSimulation({ tankCapacity: CAPACITY, tapKh: kh }), (draft) => {
+      draft.resources.ammonia = tanPpm * draft.resources.water;
+    });
+
+  it('reads free NH₃, so one test-kit reading fires in hard water and not in soft', () => {
+    const soft = at(1, 1);
+    const hard = at(1, 12);
+
+    expect(getPh(hard.resources)).toBeGreaterThan(getPh(soft.resources));
+    expect(highAmmoniaAlert.check(hard).log).not.toBeNull();
+    expect(highAmmoniaAlert.check(soft).log).toBeNull();
+  });
+
+  it('draws its total-ammonia line lower as pH climbs', () => {
+    expect(ammoniaAlertLine(at(0, 12).resources)).toBeLessThan(ammoniaAlertLine(at(0, 1).resources));
   });
 });
 

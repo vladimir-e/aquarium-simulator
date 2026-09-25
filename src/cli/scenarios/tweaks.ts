@@ -26,6 +26,7 @@ export const TWEAK_FLAGS = [
   'gal',
   'set',
   'uncycled',
+  'rescape',
   ...SCHEDULE_FLAG_NAMES,
 ];
 
@@ -123,6 +124,10 @@ function tweakApply(flag: string, value: string | undefined): Tweak['apply'] {
     }
     case 'uncycled':
       return onSetup((setup) => ({ ...setup, cycled: false }));
+    case 'rescape': {
+      const rescapeOn = count(value, 'rescape day');
+      return onSetup((setup) => ({ ...setup, rescapeOn }));
+    }
     default: {
       const override = parseScheduleFlag(flag, value);
       if (override === null) {

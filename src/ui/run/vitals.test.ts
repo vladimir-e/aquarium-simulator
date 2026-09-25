@@ -1,10 +1,15 @@
 import { describe, it, expect } from 'vitest';
-import { classifyVital } from './vitals';
+import { classifyAmmonia, classifyVital } from './vitals';
+
+describe('classifyAmmonia', () => {
+  it('alerts only past the line it is handed', () => {
+    expect(classifyAmmonia(0.5, 1)).toBe('ok');
+    expect(classifyAmmonia(1.5, 1)).toBe('alert');
+  });
+});
 
 describe('classifyVital', () => {
   it('alerts on a toxin only past its own threshold', () => {
-    expect(classifyVital('ammonia', 0.05)).toBe('ok');
-    expect(classifyVital('ammonia', 0.2)).toBe('alert');
     expect(classifyVital('nitrite', 0.5)).toBe('ok');
     expect(classifyVital('nitrite', 1.5)).toBe('alert');
   });

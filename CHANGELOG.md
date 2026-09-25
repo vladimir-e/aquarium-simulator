@@ -11,6 +11,8 @@ Format: - **Feature name** (#PR) - One short sentence (under ~150 chars)
 
 ## Unreleased
 
+- **Ammonia alerts on free NH₃** - the alert fires at 0.02 ppm unionized ammonia, so a test-kit reading's line moves with pH and temperature; breaking: `HIGH_AMMONIA_THRESHOLD` is free NH₃.
+- **A rescape stirs the bed** - uprooting a plant or lifting hardscape releases a share of the bed's organics and scrapes its biofilm; `placeHardscape`, `liftHardscape`, `disturbBed`.
 - **Nitrifiers seed, they don't spawn** - a per-litre trickle replaces the 0.5 ppm spawn gate, so every bed cycles; a `'cycled'` colony is a share of the tank's surface ceiling; breaking: `seedingRate` (v28).
 - **A big, hard tank keeps its stock** - dissolved and organic masses have no fixed ceiling, so 10,000 L at 30 dKH is no longer clamped.
 - **Carbon saturates, rooms breathe** - low CO₂ slows plants instead of hurting them; injected tanks reach 20–30 mg/L; rooms swing daily; breaking: `optimalCo2` → per-need half-saturations.

@@ -63,7 +63,7 @@ function seedSessionWithClutch(presetId: PresetId): void {
 
 function seedSessionWithHighAmmonia(): void {
   const base = createSimulation(getPresetById('bare')!.config);
-  seedSession(base, 'bare', { resources: { ...base.resources, ammonia: 20 } });
+  seedSession(base, 'bare', { resources: { ...base.resources, ammonia: base.resources.water * 10 } });
 }
 
 const wrapper = ({ children }: { children: React.ReactNode }): React.JSX.Element => (
