@@ -1,5 +1,5 @@
 ---
-title: Calibration
+title: Verification
 description: Mechanics are built first and tuned last; the scenario runner judges whole tanks, and tests pin formulas and invariants.
 ---
 
@@ -13,8 +13,9 @@ were tuned against.
 ## Whole tanks: the scenario runner
 
 Whole-tank behaviour is judged by running the preset tanks headless — nano,
-low-tech, high-tech, community, low-flow and cold — on a keeper's schedule for
-90 or 300 days. Each reading is graded against a plausibility band:
+low-tech, high-tech, community, low-flow and cold — on a keeper's schedule, 90
+days by default or any length asked for, sampled at fixed days and always on
+the last one. Each reading is graded against a plausibility band:
 
 | Grade | Meaning |
 |---|---|
@@ -23,8 +24,10 @@ low-tech, high-tech, community, low-flow and cold — on a keeper's schedule for
 | Red | Not something a real tank does |
 
 Per-action flags replay a tank under a different keeper: more food, no water
-changes, extra fish. Amber and red are questions to reason about, not failures
-to fix — a constant is never moved during build-out just to turn a cell green.
+changes, extra fish. A run saved as a baseline can be diffed against a later
+one, so a change shows as the few readings it moved. Amber and red are
+questions to reason about, not failures to fix — a constant is never moved
+during build-out just to turn a cell green.
 
 ## Tests: formulas and invariants
 

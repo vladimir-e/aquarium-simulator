@@ -32,15 +32,9 @@ import { mineralisationBase, wasteInflow } from './waste.js';
  * The share of its own ceiling at which a colony counts as having filled it.
  *
  * Not 100: unconditional decay puts the arithmetic limit at
- * `1 − deathRate/growthRate`, and oxygen stops NOB short of even that. Where
- * this number sits against both is measured, not asserted here —
- * `bacteria-colony.test.ts` pins the circulation ladder and
- * `docs/calibration/runs/2026-08-07-nitrification-on-air.md` carries it. The
- * margin is wide on that ladder, which is dosed straight into the resource, and
- * narrow on the feed path, whose two measured rungs straddle this number rather
- * than clearing it.
+ * `1 − deathRate/growthRate`, and oxygen stops NOB short of even that.
  *
- * Only a tank held under a load like that gets near it at all: an ordinary
+ * Only a tank held under a heavy load gets near it at all: an ordinary
  * stocked tank rests at a couple of percent, because a colony grows to its load
  * and not to its surface.
  */

@@ -2,7 +2,7 @@ import type { SimulationConfig } from '../../simulation/state.js';
 import type { PresetSeed, SeedFishGroup, SeedPlantGroup } from '../../simulation/seed.js';
 import type { SubstrateType } from '../../simulation/equipment/substrate.js';
 import type { FilterType } from '../../simulation/equipment/filter.js';
-import type { Chore, Schedule, ScheduleEntry } from './keeper.js';
+import { DAILY, TRIM_TARGET, WEEKLY, type Chore, type Schedule, type ScheduleEntry } from './keeper.js';
 import type { BandOverrides } from './readings.js';
 import { LITERS_PER_GALLON, toCelsius } from '../units.js';
 
@@ -80,11 +80,11 @@ export function toSeed(setup: Setup): PresetSeed {
 
 const FEED_SHARE_OF_STOCK = 0.02;
 
-const daily = (action: Chore): ScheduleEntry => ({ every: 1, action });
-const weekly = (action: Chore): ScheduleEntry => ({ every: 7, action });
+const daily = (action: Chore): ScheduleEntry => ({ every: DAILY, action });
+const weekly = (action: Chore): ScheduleEntry => ({ every: WEEKLY, action });
 
 const dose = (amountMl: number): ScheduleEntry => weekly({ type: 'dose', amountMl });
-const trim = weekly({ type: 'trimPlants', targetSize: 100 });
+const trim = weekly({ type: 'trimPlants', targetSize: TRIM_TARGET });
 
 const maintained: Schedule = [
   weekly({ type: 'waterChange', amount: 0.25 }),

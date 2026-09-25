@@ -1,13 +1,12 @@
-import { describe, it, expect } from 'vitest';
+import { beforeAll, describe, it, expect } from 'vitest';
 import { produce } from 'immer';
-import { applyAction } from '../actions/index.js';
 import { createSimulation, type SimulationState } from '../state.js';
 import { tick } from '../tick.js';
 import { DEFAULT_CONFIG } from '../config/index.js';
 import { nitrogenCycleDefaults } from '../config/nitrogen-cycle.js';
 import { MW_N, MW_NH3, MW_NO2, MW_NO3 } from '../core/chemistry.js';
-import { SETUPS, toConfig, toSeed, type Setup } from '../../cli/scenarios/setups.js';
-import { dueActions } from '../../cli/scenarios/keeper.js';
+import { SETUPS, type Setup } from '../../cli/scenarios/setups.js';
+import { keepTank } from '../../cli/scenarios/run.js';
 
 function run(state: SimulationState, hours: number): SimulationState {
   let running = state;
@@ -34,16 +33,8 @@ function cycledBareTank(): SimulationState {
   });
 }
 
-function keep(setup: Setup, days: number): SimulationState {
-  let state = createSimulation(toConfig(setup), toSeed(setup), 1234);
-  for (let hour = 0; hour < days * 24; hour++) {
-    for (const action of dueActions(setup.schedule, state)) {
-      state = applyAction(state, action).state;
-    }
-    state = tick(state);
-  }
-  return state;
-}
+const keep = (setup: Setup, days: number): SimulationState =>
+  keepTank(setup, { config: DEFAULT_CONFIG, untilTick: days * 24 });
 
 function nonFinitePaths(value: unknown, path = 'state'): string[] {
   if (typeof value === 'number') return Number.isFinite(value) ? [] : [path];
@@ -75,13 +66,16 @@ describe('nitrogen mass', () => {
 
 describe.each(SETUPS.map((setup) => [setup.name, setup] as const))('the %s tank', (_name, setup) => {
   const DAYS = 90;
-  const state = keep(setup, DAYS);
+  let state: SimulationState;
+  beforeAll(() => {
+    state = keep(setup, DAYS);
+  });
 
   it('never holds a non-finite number', () => {
     expect(nonFinitePaths(state)).toEqual([]);
   });
 
   it('runs the same life twice on one rng seed', () => {
-    expect(keep(setup, DAYS)).toEqual(state);
+    expect(keep(setup, DAYS)).toStrictEqual(state);
   });
 });

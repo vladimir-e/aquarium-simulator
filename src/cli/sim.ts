@@ -216,7 +216,7 @@ function printHelp(): void {
       '  action <type> [args...]   (feed 2.5, waterChange 40, dose 1, topOff,',
       '                             scrubAlgae 20, trimPlants 85, sellFry)',
       '  smoke',
-      '  scenarios [<setup>...] [--days=<n>] [--json[=<file>]] [--trace=<day>] [--bands]',
+      '  scenarios [<setup>...] [--days=<n>] [--json[=<file>]] [--diff=<file>] [--trace=<day>] [--bands]',
       '      [--plant=<species>:<n>[:<size>]] [--fish=<species>:<n>] [--light=<factor>]',
       '      [--gal=<n>] [--set=<dotted.path>=<value>] [--uncycled]',
       '      [--feed=<n>g|<n>%[/<n>d]] [--water-change=<n>%[/<n>d]] [--dose=<n>ml[/<n>d]]',

@@ -34,9 +34,7 @@ Whole-tank behaviour is checked with `npm run scenarios` — every preset tank h
 
 Tests pin formulas and invariants, never whole-tank outcomes or coefficient values. `expect(flow).toBe(160)` is a tripwire; "doubling capacity doubles flow" is a statement about the model. When a change breaks a test that pins a number rather than a behaviour, delete or rewrite it without ceremony.
 
-Delete dead code and tests outright; never skip or disable.
-
-Docs: a PR that changes a system rewrites that system's portal page (`docs-site/`), keeping it short — what it does and the concepts, for a human. Quirks go in code comments or this file.
+Verify your own mechanic change headless. Save a baseline first (`npm run scenarios -- --json=/tmp/before.json`); after the change, run `npm run scenarios -- --diff=/tmp/before.json`, plus one ad-hoc run built to push the mechanic hard at its favourable extreme — many plants and no CO₂ for a CO₂ mechanic. If the mechanic doesn't visibly fire there, it isn't done. Hand-back reports carry the diff and the targeted run's relevant lines, never full tables. Runs take seconds; don't build elaborate verification.
 
 ## Quick Start for AI Agents
 
@@ -58,6 +56,7 @@ Task briefs are provided by the maintainer or orchestrator per task — there's 
 
 **Docs discipline:**
 
+- A PR that changes a system rewrites that system's portal page (`docs-site/`), keeping it short — what it does and the concepts, for a human. Quirks go in code comments or this file
 - A page describes how the system works, in present tense, for a human reader — not a changelog, not a statement of intent
 - Tables over prose wherever the content is a set of values, statuses or seams
 - Source pointers name directories only, never filenames or signatures

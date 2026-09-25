@@ -81,9 +81,7 @@ export interface Fish {
 /**
  * Algae as a pure population — coverage and a surplus bank.
  *
- * `mass` is aggregate biomass / coverage on the same 0–100 scale the
- * old `Resources.algae` field used (so calibration anchors translate
- * directly). When the net rate from stressors and benefits is
+ * `mass` is aggregate biomass / coverage on a 0–100 scale. When the net rate from stressors and benefits is
  * positive, the surplus tank fills (photoperiod-gated); when it's
  * negative, the reserve buffer drains first and mass shrinks only by
  * the shortfall. No intermediate `condition` — conditions favouring

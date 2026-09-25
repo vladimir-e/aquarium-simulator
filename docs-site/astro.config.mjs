@@ -39,7 +39,7 @@ export default defineConfig({
             { label: 'Rates into stocks', link: '/concepts/rates-into-stocks/' },
             { label: 'The tick', link: '/concepts/the-tick/' },
             { label: 'Vitality', link: '/concepts/vitality/' },
-            { label: 'Calibration', link: '/concepts/calibration/' },
+            { label: 'Verification', link: '/concepts/verification/' },
           ],
         },
         {

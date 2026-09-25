@@ -1,18 +1,20 @@
-import { writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { performance } from 'node:perf_hooks';
 import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
+import { renderDiff, type Snapshot } from './diff.js';
 import { READINGS } from './readings.js';
 import { renderTable, renderTrace, toJson } from './report.js';
-import { runScenario } from './run.js';
+import { runScenario, type OnRefusal } from './run.js';
 import { SETUPS, findSetup, type Setup } from './setups.js';
 import { parseTweak, TWEAK_FLAGS, type Tweak } from './tweaks.js';
 
-export const SCENARIO_FLAGS = ['days', 'json', 'trace', 'bands', ...TWEAK_FLAGS];
+export const SCENARIO_FLAGS = ['days', 'json', 'diff', 'trace', 'bands', ...TWEAK_FLAGS];
 
 interface ScenarioArgs {
   setups: Setup[];
   days: number;
   json: string | true | undefined;
+  diff: string | undefined;
   traceDay: number | undefined;
   bands: boolean;
   tweaks: Tweak[];
@@ -29,6 +31,7 @@ export function parseScenarioArgs(argv: string[]): ScenarioArgs {
     setups: [],
     days: 90,
     json: undefined,
+    diff: undefined,
     traceDay: undefined,
     bands: false,
     tweaks: [],
@@ -48,9 +51,13 @@ export function parseScenarioArgs(argv: string[]): ScenarioArgs {
     else if (flag === 'json') {
       if (value === '') throw new Error('--json= needs a file name; bare --json prints to stdout.');
       args.json = value ?? true;
+    } else if (flag === 'diff') {
+      if (!value) throw new Error('--diff= needs a baseline written by --json=<file>.');
+      args.diff = value;
     } else if (flag === 'bands') args.bands = true;
     else args.tweaks.push(parseTweak(flag, value));
   }
+  if (args.diff !== undefined && args.json === true) throw new Error('--diff prints its own report; use --json=<file>.');
   return args;
 }
 
@@ -72,6 +79,13 @@ export function scenariosCommand(argv: string[]): void {
     return;
   }
 
+  const refused = new Set<string>();
+  const onRefusal: OnRefusal = (type, message) => {
+    if (refused.has(type)) return;
+    refused.add(type);
+    process.stderr.write(`warning: ${type} refused: ${message}\n`);
+  };
+
   const started = performance.now();
   const results = (args.setups.length > 0 ? args.setups : SETUPS).map((base) => {
     const { setup, config } = args.tweaks.reduce((tank, tweak) => tweak.apply(tank), {
@@ -79,7 +93,7 @@ export function scenariosCommand(argv: string[]): void {
       config: DEFAULT_CONFIG,
     });
     const label = [base.name, ...args.tweaks.map((t) => t.text)].join(' ');
-    return { label, result: runScenario(setup, { days: args.days, config, traceDay: args.traceDay }) };
+    return { label, result: runScenario(setup, { days: args.days, config, traceDay: args.traceDay, onRefusal }) };
   });
   const seconds = (performance.now() - started) / 1000;
 
@@ -88,6 +102,11 @@ export function scenariosCommand(argv: string[]): void {
     return;
   }
   if (typeof args.json === 'string') writeFileSync(args.json, toJson(results), 'utf8');
+  if (args.diff !== undefined) {
+    const before = JSON.parse(readFileSync(args.diff, 'utf8')) as Snapshot;
+    out(renderDiff(before, JSON.parse(toJson(results)) as Snapshot) + '\n');
+    return;
+  }
 
   const color = process.stdout.isTTY === true && process.env.NO_COLOR === undefined;
   for (const { label, result } of results) {

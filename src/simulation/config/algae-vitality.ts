@@ -131,8 +131,7 @@ export const algaeVitalityDefaults: AlgaeVitalityConfig = {
 
   // PAR at the substrate, inside the hobby's high band (50–80+). A soft knee,
   // not a cliff: 72 lands 23.7 algae at day 90 against 20.6 anywhere below the
-  // line, and plants only start dying near 100. Measured in
-  // docs/calibration/runs/2026-08-05-par-at-substrate.md.
+  // line, and plants only start dying near 100.
   lightExcessThreshold: 70,
   excessLightPeak: 0.4,
   excessLightSeverity: 0.004,

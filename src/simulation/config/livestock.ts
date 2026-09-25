@@ -290,18 +290,16 @@ export const livestockDefaults: LivestockConfig = {
   satiationHungryCeiling: 50,
   satiationStarvingCeiling: 25,
 
-  // Severity peaks. Calibrated against the legacy two-zone behaviour
-  // and the spec's calibration anchors:
+  // Severity peaks:
   // - Overfed at 100 lands at 2.0 %/h. With the well-fed benefit
   //   already gone above the band (so the abiotic budget shrinks to
   //   pH 0.4 + O2 0.3 = 0.7 %/h), a mid-hardiness fish (factor 0.5)
-  //   sees net ≈ 1.0 × 0.5 − 0.7 = −0.3 %/h — slow drift, not a cliff,
-  //   matching the spec's "punishment is over hours, not minutes."
-  // - Well-fed peak 0.3 %/h matches the legacy `hungerBenefitPeak` so
-  //   the all-good budget stays ≈ 1.0 %/h in a bare tank.
-  // - Hungry at the bottom of its band (satiation 25) lands at 2.5 %/h,
-  //   matching the legacy "hunger 75 in old axis" stressor severity
-  //   (0.1 × 25 = 2.5) — i.e. moderately stressed.
+  //   sees net ≈ 1.0 × 0.5 − 0.7 = −0.3 %/h — slow drift over hours,
+  //   not a cliff.
+  // - Well-fed peak 0.3 %/h keeps the all-good budget ≈ 1.0 %/h in a
+  //   bare tank.
+  // - Hungry at the bottom of its band (satiation 25) lands at 2.5 %/h
+  //   (0.1 × 25) — moderately stressed.
   // - Starving at satiation 0 lands at 6.0 %/h — visibly steeper than
   //   merely hungry; the per-percent slope inside the starving band
   //   (0.14 %/%) is ~40 % steeper than the hungry slope (0.10 %/%),

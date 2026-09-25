@@ -37,10 +37,8 @@ import type {
 import { STATUS_SEVERITY, vitalReading, type Status } from './status.js';
 
 /**
- * Trim targets, in % of a plant's size. A calibrated planted tank settles at
- * 60–90 % (82 % measured at day 28 in
- * `docs/calibration/baselines/02-planted-equilibrium.md`), so every rung here is
- * reachable in an ordinary run.
+ * Trim targets, in % of a plant's size. A planted tank settles at 60–90 %, so
+ * every rung here is reachable in an ordinary run.
  */
 export const TRIM_TARGETS = [50, 75, 85];
 

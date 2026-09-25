@@ -9,7 +9,15 @@ export interface ScheduleEntry {
 
 export type Schedule = ScheduleEntry[];
 
-const KEEPER_HOUR = 19;
+export const DAILY = 1;
+export const WEEKLY = 7;
+export const TRIM_TARGET = 100;
+
+/** Mid-afternoon, lights on — when a keeper reaches for the test kit, before the day's chores. */
+export const SAMPLE_HOUR = 14;
+export const KEEPER_HOUR = 19;
+
+export const dayOf = (tick: number): number => Math.floor(tick / 24) + 1;
 
 function toAction(chore: Chore, state: SimulationState): Action | null {
   if (!('shareOfStock' in chore)) return chore;
@@ -20,7 +28,7 @@ function toAction(chore: Chore, state: SimulationState): Action | null {
 
 export function dueActions(schedule: Schedule, state: SimulationState): Action[] {
   if (state.tick % 24 !== KEEPER_HOUR) return [];
-  const day = Math.floor(state.tick / 24) + 1;
+  const day = dayOf(state.tick);
   return schedule
     .filter(({ every }) => day % every === 0)
     .map(({ action }) => toAction(action, state))
@@ -34,7 +42,7 @@ type ScheduleFlag = { every: number } & (
 
 const SCHEDULE_FLAGS: Record<string, ScheduleFlag> = {
   feed: {
-    every: 1,
+    every: DAILY,
     type: 'feed',
     units: {
       g: (amount) => ({ type: 'feed', amount }),
@@ -42,7 +50,7 @@ const SCHEDULE_FLAGS: Record<string, ScheduleFlag> = {
     },
   },
   'water-change': {
-    every: 7,
+    every: WEEKLY,
     type: 'waterChange',
     units: {
       '%': (percent) => {
@@ -51,10 +59,10 @@ const SCHEDULE_FLAGS: Record<string, ScheduleFlag> = {
       },
     },
   },
-  dose: { every: 7, type: 'dose', units: { ml: (amountMl) => ({ type: 'dose', amountMl }) } },
-  trim: { every: 7, chore: { type: 'trimPlants', targetSize: 100 } },
-  scrub: { every: 7, chore: { type: 'scrubAlgae' } },
-  'top-off': { every: 1, chore: { type: 'topOff' } },
+  dose: { every: WEEKLY, type: 'dose', units: { ml: (amountMl) => ({ type: 'dose', amountMl }) } },
+  trim: { every: WEEKLY, chore: { type: 'trimPlants', targetSize: TRIM_TARGET } },
+  scrub: { every: WEEKLY, chore: { type: 'scrubAlgae' } },
+  'top-off': { every: DAILY, chore: { type: 'topOff' } },
 };
 
 export const SCHEDULE_FLAG_NAMES = Object.keys(SCHEDULE_FLAGS);
@@ -89,7 +97,8 @@ export function parseScheduleFlag(flag: string, value: string | undefined): Sche
   if ('chore' in spec) {
     return { type, entry: { every: value === undefined ? spec.every : period(value, flag), action: spec.chore } };
   }
-  const [raw = '', every] = (value ?? '').split('/');
+  const [raw = '', every, ...extra] = (value ?? '').split('/');
+  if (extra.length > 0) throw new Error(`--${flag} takes <amount>[/<period>], got "${value}".`);
   return {
     type,
     entry: { every: every === undefined ? spec.every : period(every, flag), action: amount(spec.units, raw, flag) },

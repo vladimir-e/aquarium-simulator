@@ -190,8 +190,7 @@ export const plantsDefaults: PlantsConfig = {
   // is 0.2 rate units/h, and 0.03 is 15 % of it — the top of the 5–15 % the
   // macrophyte literature reports against light-saturated gross photosynthesis,
   // with the Monod below leaving 14 % standing in air-saturated water. It is
-  // 3 % of the injected-carbon rate, which is what the old figure was quoting.
-  // See `docs/calibration/runs/2026-08-07-plant-respiration.md`.
+  // 3 % of the injected-carbon rate.
   baseRespirationRate: 0.03,
   respirationQ10: 2.0, // Rate doubles per 10°C increase
   respirationReferenceTemp: 25.0, // °C
@@ -206,11 +205,8 @@ export const plantsDefaults: PlantsConfig = {
   // mg CO2 per rate unit. Pinned against a grown-in planted 150 L (≈1000 total
   // plant size): it produces 0.5–1 mg/L/h of gross oxygen through the
   // photoperiod. A rate unit is an hour of 100 % plant size at full carbon
-  // *and* saturating light. On the corrected gas reader that tank admits
-  // 22.3–44.6, and the same claim read on a planting grown in from 350 admits
-  // 21.6–43.4. `tests/planted-gas-budget.test.ts` asserts that tank; the
-  // derivations are in `docs/calibration/runs/2026-08-07-light-response.md` and
-  // `docs/calibration/runs/2026-08-07-plant-respiration.md`.
+  // *and* saturating light. That tank admits 22.3–44.6, and the same claim
+  // read on a planting grown in from 350 admits 21.6–43.4.
   co2PerRateUnit: 30.0,
 
   // Surplus-driven growth — vitality banks whatever income upkeep and damage
@@ -256,15 +252,6 @@ export const plantsDefaults: PlantsConfig = {
   // plant in a tank nobody doses is outlived, not killed. Between the ends
   // the dose–response is a real one: a carpet at half every optimum takes
   // five months, at a quarter ten weeks, at a tenth six.
-  //
-  // The old 0.7 was quoted against an income that paid 0.4 %/h in the dark,
-  // and its own docstring's reference — "bottoms out at 30–55 by day 28
-  // rather than dying" — became day 4 when the light term took that income
-  // away. `docs/calibration/runs/2026-08-08-reserve-by-priority.md` § 2 has the
-  // derivation and the one claim this value does not satisfy, which belongs to
-  // the sufficiency curve rather than to the severity; the sweep as it now
-  // reads is `2026-08-08-reserve-against-repair.md` § 4, which moved the severe
-  // end from 19 days to 28 without moving either binding end off 0.30.
   nutrientDeficiencySeverity: 0.3,
   // Toxicity threshold is high (100 ppm NO3) so normal dosing never
   // triggers — only the auto-doser massive-overdose case. Severity
@@ -292,9 +279,7 @@ export const plantsDefaults: PlantsConfig = {
   // 1.9 for anubias, because the hardy plant makes the same reserve last
   // longer. It is the line that lets one bank serve two claims: damage burns
   // the ~20 units a working plant carries above it, a day or two of buffer,
-  // and stops there rather than leaving the next dark hour unpayable. What the
-  // line is worth either side of it is in
-  // `docs/calibration/runs/2026-08-08-reserve-by-priority.md`.
+  // and stops there rather than leaving the next dark hour unpayable.
   upkeepReserveHours: 100,
 
   // Vitality benefit peaks. Four channels at 0.125 sum to the 0.5 %/h budget
@@ -312,12 +297,7 @@ export const plantsDefaults: PlantsConfig = {
   // 2 %/h is the melt of a plant paying nothing at all: an e-folding every
   // two days, so a grown-in carpet is gone within a week of its bank running
   // out and a plant that only misses part of its bill loses that share of the
-  // rate. The value is unchanged from when it was the rate at condition 0, but
-  // its reference is not — a bill rather than a condition. The alternative,
-  // converting the unpaid bill back into tissue as the mirror of
-  // `sizePerSurplus`, is measured and rejected in
-  // `docs/calibration/runs/2026-08-08-tissue-not-condition.md` § 6. Only an
-  // energy shortfall reaches it: damage is buffered down to
+  // rate. Only an energy shortfall reaches it: damage is buffered down to
   // `upkeepReserveHours`, so a poisoned plant never sheds for want of a bank.
   maxSheddingRate: 0.02,
   wastePerShedSize: 0.005, // 0.005 g waste per % size shed

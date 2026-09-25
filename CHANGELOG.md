@@ -11,8 +11,7 @@ Format: - **Feature name** (#PR) - One short sentence (under ~150 chars)
 
 ## Unreleased
 
-- **Scenarios replace the anchor suite** - whole-tank tests and probes removed; unit tests cut to formulas and invariants, and type-checked; tanks are judged by `npm run scenarios`.
-- **A scenario table** - `npm run scenarios` runs six preset tanks headless on a keeper's schedule and bands each reading by hobby plausibility.
+- **A scenario table** - `npm run scenarios` runs six preset tanks headless on a keeper's schedule and bands each reading by hobby plausibility; `--diff` shows only what a change moved.
 - **A retuned fertiliser formula reaches the bottle** - the manual dose and the auto-doser meter by the tuned formula plant uptake already read; breaking: `dose`, `getDosePreview`, `calculateDoseNutrients` and `autoDoserUpdate` require one.
 - **The tunables reach the phone** - the constants drawer opens from the More sheet, where the top bar has no room for its control.
 - **The dashboard is a console** - transport, rail, spine and widgets over one reading set; any row opens the one inspector; the spine opens onto the tracks History shows at full height. Persistence v24 → v26.

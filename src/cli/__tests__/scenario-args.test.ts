@@ -42,11 +42,12 @@ describe('schedule flags', () => {
     expect(parseScheduleFlag('water-change', 'off')).toEqual({ type: 'waterChange', entry: null });
   });
 
-  it('refuses a missing or wrong unit, a zero amount or period, and over 100 %', () => {
+  it('refuses a missing or wrong unit, a zero amount or period, a third segment, and over 100 %', () => {
     expect(() => parseScheduleFlag('feed', '2')).toThrow(/g or %/);
     expect(() => parseScheduleFlag('dose', '3g')).toThrow(/ml/);
     expect(() => parseScheduleFlag('feed', '0g')).toThrow(/positive/);
     expect(() => parseScheduleFlag('feed', '2g/0d')).toThrow(/at least a day/);
+    expect(() => parseScheduleFlag('feed', '2g/1d/junk')).toThrow(/<amount>\[\/<period>\]/);
     expect(() => parseScheduleFlag('trim', 'weekly')).toThrow(/<n>d/);
     expect(() => parseScheduleFlag('water-change', '150%')).toThrow(/100%/);
   });
