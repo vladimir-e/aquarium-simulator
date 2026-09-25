@@ -22,6 +22,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
+    "scenarios": "tsx src/cli/sim.ts scenarios",
     "probe:dark-tank": "tsx src/simulation/tests/dark-tank.ts",
     "probe:ordinary-tanks": "tsx src/simulation/tests/ordinary-tanks.ts",
     "probe:starvation-share": "tsx src/simulation/tests/starvation-share.ts",

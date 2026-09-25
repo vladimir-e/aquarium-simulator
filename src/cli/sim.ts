@@ -26,6 +26,7 @@ import { parseDuration } from './duration.js';
 import { appendSnapshot, snapshot } from './history.js';
 import { renderObserve, renderTrace } from './format.js';
 import { runSmoke } from './smoke.js';
+import { SCENARIO_FLAGS, scenariosCommand } from './scenarios/command.js';
 
 function parseFlags(args: string[]): { flags: Record<string, string>; rest: string[] } {
   const flags: Record<string, string> = {};
@@ -171,6 +172,7 @@ const COMMAND_FLAGS: Record<string, readonly string[]> = {
   config: [],
   action: [],
   smoke: [],
+  scenarios: SCENARIO_FLAGS,
   help: [],
 };
 
@@ -217,6 +219,10 @@ function printHelp(): void {
       '  action <type> [args...]   (feed 2.5, waterChange 40, dose 1, topOff,',
       '                             scrubAlgae 20, trimPlants 85, sellFry)',
       '  smoke',
+      '  scenarios [<setup>...] [--days=<n>] [--json[=<file>]] [--trace=<day>] [--bands]',
+      '      [--plant=<species>:<n>[:<size>]] [--fish=<species>:<n>] [--light=<factor>]',
+      '      [--feed=<g/day>|--no-feed] [--gal=<n>] [--set=<dotted.path>=<value>] [--uncycled]',
+      '                            (headless preset tanks, readings banded G/A/R; no session)',
       '',
       'Session persists at .simstate/current.json.',
     ].join('\n') + '\n'
@@ -424,6 +430,9 @@ export function main(argv: string[]): void {
       return;
     case 'smoke':
       cmdSmoke();
+      return;
+    case 'scenarios':
+      scenariosCommand(rest, (text) => process.stdout.write(text));
       return;
     default:
       throw new Error(`Unknown command "${cmd}". Run "sim help" for usage.`);
