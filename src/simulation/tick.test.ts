@@ -32,7 +32,7 @@ describe('tick', () => {
     expect(state.resources.water).toBeLessThan(100);
   });
 
-  it('switches the heater on below target and off at it', () => {
+  it('switches the heater on below target and off above it', () => {
     const heater = (initialTemperature: number, isOn: boolean): boolean =>
       tick(
         createSimulation({
@@ -44,7 +44,7 @@ describe('tick', () => {
       ).equipment.heater.isOn;
 
     expect(heater(22, false)).toBe(true);
-    expect(heater(25, true)).toBe(false);
+    expect(heater(26, true)).toBe(false);
   });
 
   it('warms a tank with the heater on against one without', () => {

@@ -345,6 +345,8 @@ const TemperatureConfigSchema = z
     coolingCoefficient: z.number(),
     referenceVolume: z.number(),
     volumeExponent: z.number(),
+    roomDailySwing: z.number(),
+    lightWarmingPerPar: z.number(),
   })
   .strict();
 
@@ -393,7 +395,9 @@ const WaterChemistryConfigSchema = z
 const PlantsConfigSchema = z
   .object({
     basePhotosynthesisRate: z.number(),
-    optimalCo2: z.number(),
+    lowCo2HalfSaturation: z.number(),
+    mediumCo2HalfSaturation: z.number(),
+    highCo2HalfSaturation: z.number(),
     optimalNitrate: z.number(),
     saturationIrradianceFactor: z.number(),
     nutrientsPerPhotosynthesis: z.number(),
@@ -408,7 +412,6 @@ const PlantsConfigSchema = z
     // Vitality stressor severities
     lightInsufficientSeverity: z.number(),
     lightExcessiveSeverity: z.number(),
-    co2InsufficientSeverity: z.number(),
     temperatureStressSeverity: z.number(),
     phStressSeverity: z.number(),
     ghStressSeverity: z.number(),

@@ -11,6 +11,8 @@ import { nutrientsDefaults } from '../config/nutrients.js';
 import { establishmentSurplus } from './create-plant.js';
 import { PLANT_SPECIES_DATA } from './species.js';
 
+const INJECTED_CO2 = 25;
+
 describe('processPlants', () => {
   const C = 100;
   const BANK = establishmentSurplus(plantsDefaults);
@@ -66,7 +68,7 @@ describe('processPlants', () => {
       const state = createTestState({
         plants: defaultPlants,
         light: 50,
-        co2: plantsDefaults.optimalCo2,
+        co2: INJECTED_CO2,
         nitrate: plantsDefaults.optimalNitrate * 100,
         water: 100,
       });
@@ -86,7 +88,7 @@ describe('processPlants', () => {
       const state = createTestState({
         plants: [{ id: 'p1', species: 'java_fern', size: 50, condition: C, surplus: BANK }],
         light: 50,
-        co2: plantsDefaults.optimalCo2,
+        co2: INJECTED_CO2,
         nitrate: plantsDefaults.optimalNitrate * 100,
         water: 100,
       });
@@ -101,7 +103,7 @@ describe('processPlants', () => {
           { id: 'p1', species: 'java_fern', size: 50, condition: 80, surplus: BANK },
         ],
         light: 50,
-        co2: plantsDefaults.optimalCo2,
+        co2: INJECTED_CO2,
         nitrate: plantsDefaults.optimalNitrate * 100,
         water: 100,
       });
@@ -117,7 +119,7 @@ describe('processPlants', () => {
           { id: 'stressed', species: 'java_fern', size: 50, condition: 70, surplus: BANK },
         ],
         light: 50,
-        co2: plantsDefaults.optimalCo2,
+        co2: INJECTED_CO2,
         nitrate: plantsDefaults.optimalNitrate * 100,
         water: 100,
       });
@@ -138,7 +140,7 @@ describe('processPlants', () => {
       const state = createTestState({
         plants: defaultPlants,
         light: 0,
-        co2: plantsDefaults.optimalCo2,
+        co2: INJECTED_CO2,
         nitrate: plantsDefaults.optimalNitrate * 100,
         water: 100,
       });
@@ -166,7 +168,7 @@ describe('processPlants', () => {
       const state = createTestState({
         plants: [{ id: 'p1', species: 'java_fern', size: 50, condition: 100, surplus: 5 }],
         light: 0,
-        co2: plantsDefaults.optimalCo2,
+        co2: INJECTED_CO2,
         nitrate: plantsDefaults.optimalNitrate * 100,
         temperature: 25,
         water: 100,
@@ -192,7 +194,7 @@ describe('processPlants', () => {
       const state = createTestState({
         plants: [{ id: 'p1', species: 'java_fern', size: 50, condition: 100, surplus: 10 }],
         light: 50,
-        co2: plantsDefaults.optimalCo2,
+        co2: INJECTED_CO2,
         nitrate: plantsDefaults.optimalNitrate * 100,
         temperature: 25,
         water: 100,
@@ -214,7 +216,7 @@ describe('processPlants', () => {
           },
         ],
         light: 50,
-        co2: plantsDefaults.optimalCo2,
+        co2: INJECTED_CO2,
         nitrate: plantsDefaults.optimalNitrate * 100,
         temperature: 25,
         water: 100,
@@ -253,7 +255,7 @@ describe('processPlants', () => {
         createTestState({
           plants: [{ id: 'p1', species, size: 100, condition: C, surplus: 0 }],
           light,
-          co2: plantsDefaults.optimalCo2,
+          co2: INJECTED_CO2,
           nitrate: plantsDefaults.optimalNitrate * 100 * 3,
           phosphate: nutrientsDefaults.optimalPhosphatePpm * 100 * 3,
           potassium: nutrientsDefaults.optimalPotassiumPpm * 100 * 3,
@@ -299,7 +301,7 @@ describe('processPlants', () => {
         createTestState({
           plants: planting,
           light,
-          co2: plantsDefaults.optimalCo2,
+          co2: INJECTED_CO2,
           nitrate: plantsDefaults.optimalNitrate * water,
           water,
           temperature: 25,
@@ -378,7 +380,7 @@ describe('processPlants', () => {
           },
         ],
         light: 50,
-        co2: plantsDefaults.optimalCo2,
+        co2: INJECTED_CO2,
         nitrate: plantsDefaults.optimalNitrate * 100,
         water: 100,
         temperature: 25,
@@ -396,7 +398,7 @@ describe('processPlants', () => {
       const state = createTestState({
         plants: [{ id: 'p1', species: 'java_fern', size: 50, condition: C, surplus: 0 }],
         light: 50,
-        co2: plantsDefaults.optimalCo2,
+        co2: INJECTED_CO2,
         nitrate: plantsDefaults.optimalNitrate * 100,
         water: 100,
       });
@@ -474,7 +476,7 @@ describe('processPlants', () => {
       createTestState({
         plants: [{ id: 'p1', species: 'java_fern', size: 50, condition: 100, surplus: 0 }],
         light: 50,
-        co2: plantsDefaults.optimalCo2,
+        co2: INJECTED_CO2,
         nitrate: plantsDefaults.optimalNitrate * 100,
         temperature: 25,
         water: 100,

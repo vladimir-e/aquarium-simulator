@@ -29,7 +29,10 @@ import type { TunableConfig } from '../../simulation/config/index.js';
  *      `tapGh`, and the `ph` tunables section becomes `waterChemistry`;
  *      livestock and plants each gain `ghStressSeverity`. The scape's buffers
  *      run down: `Substrate` gains `khReserve` and each `HardscapeItem` its
- *      `tannins`.
+ *      `tannins`. Plant carbon saturates: `optimalCo2` and
+ *      `co2InsufficientSeverity` give way to three per-need CO₂
+ *      half-saturations, and `temperature` gains `roomDailySwing` and
+ *      `lightWarmingPerPar`.
  *
  * v26: The spine remembers whether it was showing its tracks. `PersistedUI`
  *      gains `spineOpen`, beside the `tunablesOpen` it mirrors. A v25 save

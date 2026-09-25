@@ -8,6 +8,7 @@ import {
 } from './plant-vitality.js';
 import type { VitalityResult } from './vitality.js';
 import { calculateNutrientSufficiency } from './nutrients.js';
+import { calculateCo2Factor } from './photosynthesis.js';
 import { plantsDefaults } from '../config/plants.js';
 import { nutrientsDefaults } from '../config/nutrients.js';
 import { getMassFromPpm } from '../resources/helpers.js';
@@ -181,7 +182,6 @@ describe('buildPlantStressors', () => {
   });
 
   it.each<[string, PlantSpecies, (gap: number) => ResourceOverrides]>([
-    ['co2', 'monte_carlo', (gap): Partial<Resources> => ({ co2: PLANT_SPECIES_DATA.monte_carlo.tolerableCO2[0] - gap })],
     ['light', 'monte_carlo', (gap): Partial<Resources> => ({ light: PLANT_SPECIES_DATA.monte_carlo.tolerableLight[0] - gap })],
     ['light', 'anubias', (gap): Partial<Resources> => ({ light: PLANT_SPECIES_DATA.anubias.tolerableLight[1] + gap })],
     ['temperature', 'amazon_sword', (gap): Partial<Resources> => ({ temperature: PLANT_SPECIES_DATA.amazon_sword.tolerableTemp[0] - gap })],
@@ -230,15 +230,13 @@ describe('buildPlantStressors', () => {
     expect(at(threshold + 10)).toBeGreaterThan(0);
   });
 
-  it('charges neither low CO2 nor low light in the dark', () => {
-    expect(amount('monte_carlo', 'co2', { light: 0, co2: 4 })).toBe(0);
+  it('charges no low light in the dark', () => {
     expect(amount('monte_carlo', 'light', { light: 0 })).toBe(0);
-    expect(amount('monte_carlo', 'co2', { light: 30, co2: 4 })).toBeGreaterThan(0);
   });
 
-  it('spares a low-tech species the CO2 a high-tech one needs', () => {
-    expect(amount('anubias', 'co2', { co2: 5 })).toBe(0);
-    expect(amount('monte_carlo', 'co2', { co2: 5 })).toBeGreaterThan(0);
+  it('charges no damage for low CO2: carbon is income, not a threshold', () => {
+    const stressors = buildPlantStressors(ctx(makePlant('monte_carlo'), makeResources({ co2: 1 })));
+    expect(stressors.some((s) => s.key === 'co2')).toBe(false);
   });
 });
 
@@ -278,16 +276,22 @@ describe('buildPlantBenefits', () => {
       30,
       getSaturationIrradiance('anubias', plantsDefaults)
     );
+    const carbon = calculateCo2Factor(5, 'anubias');
     for (const benefit of benefits) {
-      expect(benefit.amount).toBeCloseTo(PEAK[benefit.key]! * saturation, 12);
+      const share = benefit.key === 'co2' ? carbon : 1;
+      expect(benefit.amount).toBeCloseTo(PEAK[benefit.key]! * saturation * share, 12);
     }
   });
 
-  it('drops the CO2 benefit to zero when CO2 leaves the species range', () => {
-    const plant = makePlant('monte_carlo');
-    const resources = makeResources({ co2: 5 });
-    const benefits = buildPlantBenefits(ctx(plant, resources));
-    expect(benefits.find((b) => b.key === 'co2')?.amount).toBe(0);
+  it('earns the CO2 channel on the species carbon Monod, so a carpet earns less of it', () => {
+    const co2Benefit = (species: PlantSpecies, co2: number): number =>
+      buildPlantBenefits(ctx(makePlant(species), makeResources({ co2 }))).find(
+        (b) => b.key === 'co2'
+      )?.amount ?? 0;
+
+    expect(co2Benefit('monte_carlo', 4)).toBeGreaterThan(0);
+    expect(co2Benefit('monte_carlo', 25)).toBeGreaterThan(co2Benefit('monte_carlo', 4));
+    expect(co2Benefit('monte_carlo', 4)).toBeLessThan(co2Benefit('anubias', 4));
   });
 
   describe('the budget is income realised through photosynthesis', () => {
@@ -349,7 +353,8 @@ describe('buildPlantBenefits', () => {
 
       expect(atFactor(4)).toBeLessThan(atFactor(2));
       expect(atFactor(2)).toBeLessThan(atFactor(1));
-      expect(atFactor(0)).toBeCloseTo(PEAKS, 12);
+      const carbonShort = PEAK.co2! * (1 - calculateCo2Factor(20, 'anubias'));
+      expect(atFactor(0)).toBeCloseTo(PEAKS - carbonShort, 12);
     });
   });
 });

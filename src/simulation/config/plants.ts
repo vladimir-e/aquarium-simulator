@@ -14,8 +14,12 @@ export interface PlantsConfig {
   // Photosynthesis constants
   /** Base photosynthesis rate per 100% plant size per hour */
   basePhotosynthesisRate: number;
-  /** Optimal CO2 concentration for max photosynthesis (mg/L) */
-  optimalCo2: number;
+  /** Dissolved CO2 (mg/L) at which a low-need species photosynthesises at half rate. */
+  lowCo2HalfSaturation: number;
+  /** Same, for a medium-need species. */
+  mediumCo2HalfSaturation: number;
+  /** Same, for a high-need species. */
+  highCo2HalfSaturation: number;
   /** Optimal nitrate concentration for max growth (ppm) */
   optimalNitrate: number;
   /**
@@ -49,7 +53,7 @@ export interface PlantsConfig {
   // Gas exchange
   /**
    * mg of CO2 carried by one rate unit — one hour of 100 % plant size at base
-   * rate under optimal conditions. Photosynthesis fixes it and respiration
+   * rate under saturating light and carbon. Photosynthesis fixes it and respiration
    * releases it: one reaction run both ways, so one yield, and the day/night
    * asymmetry belongs to `baseRespirationRate`. The oxygen partner is not a
    * second knob — it derives at `CO2_TO_O2_MASS_RATIO`.
@@ -83,8 +87,6 @@ export interface PlantsConfig {
   lightInsufficientSeverity: number;
   /** Damage per PAR unit above the species' tolerable upper bound. */
   lightExcessiveSeverity: number;
-  /** Damage per mg/L of CO2 below the species' tolerable lower bound. */
-  co2InsufficientSeverity: number;
   /** Damage per °C of temperature outside the species' tolerable range. */
   temperatureStressSeverity: number;
   /** Damage per pH unit outside the species' tolerable range. */
@@ -138,7 +140,7 @@ export interface PlantsConfig {
   // the plant's income, and good water is worth nothing at midnight. Sum at
   // saturating light ≈ 0.5 %/h — the calibration budget the plant recovery
   // curves were pinned against.
-  /** CO2 in tolerable range. */
+  /** CO2, earned in proportion to the species' carbon Monod. */
   co2BenefitPeak: number;
   /** Temperature in tolerable range. */
   temperatureBenefitPeak: number;
@@ -166,14 +168,20 @@ export interface PlantsConfig {
 
 export const plantsDefaults: PlantsConfig = {
   basePhotosynthesisRate: 1.0,
-  optimalCo2: 20.0, // mg/L - typical target for planted tanks
+  // Submerged plants that take only free CO2 half-saturate at roughly 2–9
+  // mg/L. A low-need epiphyte runs at 73 % of its rate on the 4 mg/L an
+  // uninjected tank holds and a carpet at 33 %; at an injected 25 mg/L the
+  // two read 94 % and 76 %.
+  lowCo2HalfSaturation: 1.5,
+  mediumCo2HalfSaturation: 3,
+  highCo2HalfSaturation: 8,
   optimalNitrate: 10.0, // ppm - typical target for planted tanks
   // A species saturates at twice the PAR its band starts at. What that reads
   // across the roster, and why it lands where the literature does, is in
   // `plants/species.ts`.
   saturationIrradianceFactor: 2.0,
   // Calibrated against scenario 02: at ~300 % total plant size with 8 hr
-  // photoperiod and optimal CO2, potential photosynthesis ≈ 1.0 × 3.0 × 1.0
+  // photoperiod and saturating CO2, potential photosynthesis ≈ 1.0 × 3.0 × 1.0
   // = 3.0 / hr → 24 units / day. 4 mg/unit × 24 × 1.2 (active biomass +
   // 20 % maintenance draw) ≈ 115 mg/day total nutrient uptake at full
   // sufficiency — matches the 1 ml/day auto-dose (96 mg) + fish bioload
@@ -184,15 +192,12 @@ export const plantsDefaults: PlantsConfig = {
   // starved limiting factor.
   nutrientsPerPhotosynthesis: 4.0,
 
-  // Dark respiration, runs 24/7 — a share of the light-saturated rate at the
-  // carbon a tank actually carries, which is not `basePhotosynthesisRate`. That
-  // is the rate at `optimalCo2`, five times the 4 mg/L `atmosphericCo2` an
-  // aquarium without an injector equilibrates to, so a fraction quoted against
-  // it is a fraction of an injected tank's ceiling. The ambient-carbon ceiling
-  // is 0.2 rate units/h, and 0.03 is 15 % of it — the top of the 5–15 % the
-  // macrophyte literature reports against light-saturated gross photosynthesis,
-  // with the Monod below leaving 14 % standing in air-saturated water. It is
-  // 3 % of the injected-carbon rate.
+  // Dark respiration, runs 24/7 — a share of the rate at saturating light and
+  // carbon. On the 4 mg/L an uninjected tank holds, 0.03 is 4–9 % of what a
+  // plant actually fixes, low-need to high-need: the bottom of the 5–15 % the
+  // macrophyte literature reports against light-saturated gross
+  // photosynthesis. The Monod below leaves 94 % of it standing in
+  // air-saturated water.
   baseRespirationRate: 0.03,
   respirationQ10: 2.0, // Rate doubles per 10°C increase
   respirationReferenceTemp: 25.0, // °C
@@ -236,11 +241,6 @@ export const plantsDefaults: PlantsConfig = {
   // budget: 10 PAR short costs 0.20 %/h pre-hardiness, 10 PAR over 0.15 %/h.
   lightInsufficientSeverity: 0.02,
   lightExcessiveSeverity: 0.015,
-  // Calibrated so a Monte Carlo (hardiness 0.3) loses visible condition
-  // within ~24 sim hours when CO2 falls from 20 mg/L to 5 mg/L (gap of
-  // 5 mg/L below tolerableCO2 lower bound) — matches the spec acceptance
-  // scenario.
-  co2InsufficientSeverity: 1.5,
   temperatureStressSeverity: 0.4,
   phStressSeverity: 3.0,
   ghStressSeverity: 0.1,
@@ -328,7 +328,9 @@ export const plantsConfigMeta: PlantsConfigMeta[] = [
     max: 5.0,
     step: 0.1,
   },
-  { key: 'optimalCo2', label: 'Optimal CO2', unit: 'mg/L', min: 5, max: 40, step: 1 },
+  { key: 'lowCo2HalfSaturation', label: 'Low-Need CO2 Half-Saturation', unit: 'mg/L', min: 0.5, max: 20, step: 0.5 },
+  { key: 'mediumCo2HalfSaturation', label: 'Medium-Need CO2 Half-Saturation', unit: 'mg/L', min: 0.5, max: 20, step: 0.5 },
+  { key: 'highCo2HalfSaturation', label: 'High-Need CO2 Half-Saturation', unit: 'mg/L', min: 0.5, max: 20, step: 0.5 },
   { key: 'optimalNitrate', label: 'Optimal Nitrate', unit: 'ppm', min: 5, max: 30, step: 1 },
   {
     key: 'saturationIrradianceFactor',
@@ -382,7 +384,6 @@ export const plantsConfigMeta: PlantsConfigMeta[] = [
   // Vitality stressor severities
   { key: 'lightInsufficientSeverity', label: 'Light Insuff. Severity', unit: '%/PAR/hr', min: 0.005, max: 0.1, step: 0.005 },
   { key: 'lightExcessiveSeverity', label: 'Light Excess Severity', unit: '%/PAR/hr', min: 0.005, max: 0.1, step: 0.005 },
-  { key: 'co2InsufficientSeverity', label: 'CO2 Insuff. Severity', unit: '%/(mg/L)/hr', min: 0.1, max: 5.0, step: 0.1 },
   { key: 'temperatureStressSeverity', label: 'Plant Temp Severity', unit: '%/°C/hr', min: 0.1, max: 2.0, step: 0.1 },
   { key: 'phStressSeverity', label: 'Plant pH Severity', unit: '%/pH/hr', min: 0.5, max: 10, step: 0.5 },
   { key: 'ghStressSeverity', label: 'Plant GH Severity', unit: '%/dGH/hr', min: 0, max: 2, step: 0.05 },

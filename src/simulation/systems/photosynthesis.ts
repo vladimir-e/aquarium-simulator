@@ -28,8 +28,12 @@ import type { NutrientsConfig, FertilizerFormula } from '../config/nutrients.js'
 import { nutrientsDefaults, getNutrientRatio } from '../config/nutrients.js';
 import type { Resources } from '../state.js';
 import { CO2_TO_O2_MASS_RATIO } from '../core/chemistry.js';
-import { lightSaturationFactor } from '../core/kinetics.js';
-import { getSaturationIrradiance } from '../plants/species.js';
+import { lightSaturationFactor, monodFactor } from '../core/kinetics.js';
+import {
+  getCo2HalfSaturation,
+  getSaturationIrradiance,
+  type PlantSpecies,
+} from '../plants/species.js';
 import { getMassFromPpm } from '../resources/index.js';
 import { getDemandMultiplier } from './nutrients.js';
 
@@ -71,15 +75,15 @@ export interface PhotosynthesisResult {
 }
 
 /**
- * Calculate CO2 limiting factor for photosynthesis.
- * Returns 0-1 where 1 = optimal conditions.
+ * Carbon limitation of a species' photosynthesis — Monod on dissolved CO₂,
+ * half rate at the species' half-saturation.
  */
 export function calculateCo2Factor(
   co2: number,
+  species: PlantSpecies,
   config: PlantsConfig = plantsDefaults
 ): number {
-  if (co2 <= 0) return 0;
-  return Math.min(1, co2 / config.optimalCo2);
+  return monodFactor(co2, getCo2HalfSaturation(species, config));
 }
 
 /**
@@ -103,7 +107,8 @@ function emptyResult(): PhotosynthesisResult {
  *
  * Per-plant contribution:
  *   lightResponse_i = tanh(PAR / Ik_i), the species' saturating light curve
- *   potential_i = size_i × co2Factor × lightResponse_i
+ *   co2Factor_i = CO2 / (K_i + CO2), the species' carbon Monod
+ *   potential_i = size_i × co2Factor_i × lightResponse_i
  *   actual_i    = potential_i × sufficiency_i × basePhotosynthesisRate
  *
  * Aggregate outputs, all masses in mg:
@@ -139,9 +144,6 @@ export function calculatePhotosynthesis(
     return emptyResult();
   }
 
-  const co2Factor = calculateCo2Factor(co2, plantsConfig);
-  if (co2Factor <= 0) return emptyResult();
-
   // Pre-compute fertilizer ratios once
   const formula: FertilizerFormula = nutrientsConfig.fertilizerFormula;
   const nitrateRatio = getNutrientRatio('nitrate', formula);
@@ -158,6 +160,7 @@ export function calculatePhotosynthesis(
       light,
       getSaturationIrradiance(plant.species, plantsConfig)
     );
+    const co2Factor = calculateCo2Factor(co2, plant.species, plantsConfig);
     const potential = (plant.size / 100) * co2Factor * lightResponse;
     potentialSum += potential;
     // Sufficiency is precomputed by the orchestrator. Default to 0 for
@@ -167,7 +170,7 @@ export function calculatePhotosynthesis(
     weightedSufficiency += potential * sufficiency;
   }
 
-  // Potential photosynthesis (in "rate units", 1 = 100% plant × optimal light/CO2)
+  // Potential photosynthesis (in "rate units", 1 = 100% plant × saturating light and carbon)
   const potentialRate = potentialSum * plantsConfig.basePhotosynthesisRate;
   // Actual photosynthesis (post-Liebig). Drives O2 release, CO2 fixation,
   // and the active-biomass component of nutrient draw.

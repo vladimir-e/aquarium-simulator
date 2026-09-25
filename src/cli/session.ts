@@ -23,10 +23,12 @@ import type { HistorySnapshot } from './history.js';
  *    `tapWaterPH` for `tapKh` and gained `tapGh`; the `ph` config section
  *    became `waterChemistry`, and livestock and plants each gained a
  *    `ghStressSeverity`; the bed gained a `khReserve` and every hardscape
- *    piece its `tannins`. A v11 session parses with no `kh` and no
- *    `waterChemistry`: pH reads off an `undefined` stock, every flow that
- *    touches it is `NaN` from the first tick, and the session is written back
- *    that way.
+ *    piece its `tannins`; plants traded `optimalCo2` and
+ *    `co2InsufficientSeverity` for three CO₂ half-saturations, and
+ *    `temperature` gained `roomDailySwing` and `lightWarmingPerPar`. A v11
+ *    session parses with no `kh` and no `waterChemistry`: pH reads off an
+ *    `undefined` stock, every flow that touches it is `NaN` from the first
+ *    tick, and the session is written back that way.
  * v11 gave the maintenance term one name and dropped the multiple that stood
  *    on top of it. `PlantsConfig`'s `maintenanceCost` became `upkeepCost` and
  *    `starvationReserveHours` became `upkeepReserveHours`, and

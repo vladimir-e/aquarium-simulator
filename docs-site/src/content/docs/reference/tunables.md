@@ -96,6 +96,8 @@ density you can look up rather than a score.
 | `coolingCoefficient` | Drift toward the room per °C of difference, at the reference volume | °C/hr/°C |
 | `referenceVolume` | Volume the cooling coefficient is quoted at | L |
 | `volumeExponent` | How drift scales with volume — the surface-to-volume ratio | — |
+| `roomDailySwing` | How far the room runs above and below its mean over the day | °C |
+| `lightWarmingPerPar` | Warming a lit fixture adds to the temperature the water drifts toward, per surface PAR | °C/PAR |
 
 ## Evaporation
 
@@ -140,7 +142,7 @@ density you can look up rather than a score.
 | Tunable | Meaning | Unit |
 |---|---|---|
 | `basePhotosynthesisRate` | Rate one unit of plant size fixes carbon at, under ideal conditions | /hr |
-| `optimalCo2` | CO₂ at which the carbon term saturates | mg/L |
+| `lowCo2HalfSaturation` · `mediumCo2HalfSaturation` · `highCo2HalfSaturation` | CO₂ at which a species of each carbon need photosynthesises at half rate | mg/L |
 | `optimalNitrate` | Nitrate the growth term is quoted against | ppm |
 | `saturationIrradianceFactor` | Multiple of a species' band low at which its light response saturates | × band low |
 | `nutrientsPerPhotosynthesis` | Total nutrients drawn per unit of potential photosynthesis, split by the fertilizer ratio | mg |
@@ -155,7 +157,7 @@ density you can look up rather than a score.
 | `upkeepCost` | Cost per hour of simply being alive, quoted at the respiration reference temperature | %/hr |
 | `upkeepReserveHours` | Hours of upkeep the bank keeps back from damage — the survival rations | hr upkeep |
 | `lightInsufficientSeverity` · `lightExcessiveSeverity` | Damage per PAR unit below and above the species' tolerable band | %/PAR/hr |
-| `co2InsufficientSeverity` · `temperatureStressSeverity` · `phStressSeverity` · `ghStressSeverity` | Damage per unit outside the species' tolerable band, one per factor | %/unit/hr |
+| `temperatureStressSeverity` · `phStressSeverity` · `ghStressSeverity` | Damage per unit outside the species' tolerable band, one per factor | %/unit/hr |
 | `nutrientDeficiencySeverity` | Damage per unit of missing sufficiency, Liebig-gated | %/(1−suff)/hr |
 | `nutrientToxicitySeverity` · `nutrientToxicityThresholdNitrate` | The gross-overdose channel: what it costs per ppm past the threshold, and where that threshold starts | %/ppm/hr · ppm |
 | `algaeShadingSeverity` · `algaeShadingThreshold` | Damage per point of bloom past the threshold, and the mass above which algae shades plants | %/algae/hr · — |

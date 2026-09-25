@@ -3,6 +3,8 @@
  *
  * Heat loss is proportional to temperature differential.
  * Smaller tanks change temperature faster due to higher surface-area-to-volume ratio.
+ * The water drifts toward the room as it stands this hour, plus what a lit
+ * fixture puts into the surface.
  */
 
 import type { Effect } from '../core/effects.js';
@@ -10,6 +12,21 @@ import type { SimulationState } from '../state.js';
 import type { System } from './types.js';
 import type { TunableConfig } from '../config/index.js';
 import { type TemperatureConfig, temperatureDefaults } from '../config/temperature.js';
+import { getLightOutput } from '../equipment/light.js';
+
+const WARMEST_HOUR = 17;
+
+/** The temperature the water is drifting toward this hour. */
+export function ambientTemperature(
+  state: SimulationState,
+  config: TemperatureConfig = temperatureDefaults
+): number {
+  const hour = state.tick % 24;
+  const room =
+    state.environment.roomTemperature +
+    config.roomDailySwing * Math.cos((2 * Math.PI * (hour - WARMEST_HOUR)) / 24);
+  return room + config.lightWarmingPerPar * getLightOutput(state.equipment.light, hour);
+}
 
 /**
  * Calculates the temperature drift toward room temperature for one tick (1 hour).
@@ -40,11 +57,12 @@ export const temperatureDriftSystem: System = {
   tier: 'immediate',
 
   update(state: SimulationState, config: TunableConfig): Effect[] {
-    const waterTemp = state.resources.temperature;
-    const roomTemp = state.environment.roomTemperature;
-    const waterVolume = state.resources.water;
-
-    const drift = calculateTemperatureDrift(waterTemp, roomTemp, waterVolume, config.temperature);
+    const drift = calculateTemperatureDrift(
+      state.resources.temperature,
+      ambientTemperature(state, config.temperature),
+      state.resources.water,
+      config.temperature
+    );
 
     if (drift === 0) {
       return [];

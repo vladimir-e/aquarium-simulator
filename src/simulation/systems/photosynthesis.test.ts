@@ -16,6 +16,8 @@ import { CO2_TO_O2_MASS_RATIO, MW_CO2, MW_O2 } from '../core/chemistry.js';
 import { lightSaturationFactor, monodFactor } from '../core/kinetics.js';
 import { getSaturationIrradiance } from '../plants/species.js';
 
+const INJECTED_CO2 = 25;
+
 function buildResources(
   waterVolume: number,
   overrides: Partial<Resources> = {},
@@ -37,7 +39,7 @@ function buildResources(
     potassium: nutrientsDefaults.optimalPotassiumPpm * waterVolume * nutrientMultiple,
     iron: nutrientsDefaults.optimalIronPpm * waterVolume * nutrientMultiple,
     oxygen: 8,
-    co2: plantsDefaults.optimalCo2,
+    co2: INJECTED_CO2,
     kh: 0,
     gh: 0,
     aob: 0,
@@ -70,30 +72,19 @@ function suffMap(
 }
 
 describe('calculateCo2Factor', () => {
-  it('returns 0 when CO2 is 0', () => {
-    const factor = calculateCo2Factor(0);
-    expect(factor).toBe(0);
+  it('is 0 without CO2 and half rate at the species half-saturation', () => {
+    expect(calculateCo2Factor(0, 'monte_carlo')).toBe(0);
+    expect(calculateCo2Factor(plantsDefaults.highCo2HalfSaturation, 'monte_carlo')).toBeCloseTo(0.5, 10);
   });
 
-  it('returns 1.0 at optimal CO2 level', () => {
-    const factor = calculateCo2Factor(plantsDefaults.optimalCo2);
-    expect(factor).toBe(1.0);
+  it('saturates: each doubling of CO2 buys less', () => {
+    const f = (co2: number): number => calculateCo2Factor(co2, 'amazon_sword');
+    expect(f(8) - f(4)).toBeLessThan(f(4) - f(2));
+    expect(f(1000)).toBeLessThan(1);
   });
 
-  it('caps at 1.0 when CO2 exceeds optimal', () => {
-    const factor = calculateCo2Factor(plantsDefaults.optimalCo2 * 2);
-    expect(factor).toBe(1.0);
-  });
-
-  it('scales linearly between 0 and optimal', () => {
-    const factor1 = calculateCo2Factor(4);
-    const factor2 = calculateCo2Factor(8);
-    expect(factor2).toBeCloseTo(factor1 * 2, 6);
-  });
-
-  it('uses custom config when provided', () => {
-    const customConfig = { ...plantsDefaults, optimalCo2: 10 };
-    expect(calculateCo2Factor(10, customConfig)).toBe(1.0);
+  it('runs a high-need species further below saturation than a low-need one on the same water', () => {
+    expect(calculateCo2Factor(4, 'monte_carlo')).toBeLessThan(calculateCo2Factor(4, 'anubias'));
   });
 });
 
@@ -146,7 +137,7 @@ describe('calculatePhotosynthesis', () => {
   function photosynthesis(
     plants: readonly Plant[],
     {
-      co2 = plantsDefaults.optimalCo2,
+      co2 = INJECTED_CO2,
       resources = buildResources(waterVolume),
       volume = waterVolume,
       lightPar = light,
@@ -276,7 +267,8 @@ describe('calculatePhotosynthesis', () => {
       const expected =
         (plantsDefaults.baseRespirationRate / plantsDefaults.basePhotosynthesisRate) *
         monodFactor(AIR_SATURATED_O2, plantsDefaults.respirationOxygenHalfSaturation) /
-        lightSaturationFactor(light, getSaturationIrradiance('java_fern', plantsDefaults));
+        lightSaturationFactor(light, getSaturationIrradiance('java_fern', plantsDefaults)) /
+        calculateCo2Factor(INJECTED_CO2, 'java_fern');
 
       expect(ratio()).toBeCloseTo(expected, 6);
       expect(ratio({ ...plantsDefaults, co2PerRateUnit: 7 })).toBeCloseTo(expected, 6);
@@ -354,14 +346,12 @@ describe('calculatePhotosynthesis', () => {
       expect(-result.ironDelta / total).toBeCloseTo(getNutrientRatio('iron', formula), 4);
     });
 
-    it('CO2 limit halves biomass at 50% optimal CO2', () => {
-      const full = photosynthesis([plant(100, 'java_fern')]);
-      const half = photosynthesis([plant(100, 'java_fern')], {
-        co2: plantsDefaults.optimalCo2 / 2,
-      });
+    it('scales biomass with the carbon factor', () => {
+      const at = (co2: number): PhotosynthesisResult =>
+        photosynthesis([plant(100, 'java_fern')], { co2 });
+      const ratio = calculateCo2Factor(4, 'java_fern') / calculateCo2Factor(20, 'java_fern');
 
-      expect(half.oxygenProducedMg).toBeCloseTo(full.oxygenProducedMg / 2, 4);
-      expect(half.co2ConsumedMg).toBeCloseTo(full.co2ConsumedMg / 2, 4);
+      expect(at(4).oxygenProducedMg / at(20).oxygenProducedMg).toBeCloseTo(ratio, 6);
     });
   });
 

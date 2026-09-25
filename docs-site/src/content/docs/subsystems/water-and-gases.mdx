@@ -87,6 +87,20 @@ A sponge filter beats a bare canister on gas exchange in the same tank while
 moving well under half the water, because it aerates and the canister does not.
 Aeration, not flow, is the dominant lever.
 
+### Injected CO₂
+
+The injector meters a mass (its figure is on [Equipment](/subsystems/equipment/));
+off-gassing is the CO₂ half of the exchange above. The tank settles where the two
+balance, less what the plants fix:
+
+```
+steady CO₂ ≈ atmospheric + (injection − plant uptake) / (baseExchangeRate × flowFactor)
+```
+
+The high-tech scenario — 40 gal, canister, 2 bps from an hour before the lights
+— climbs from ~5 mg/L at dawn to ~29 by lights-off, and pH swings ~0.75 over the
+day across the KH its soil has stripped.
+
 ### The tick's carbon–oxygen budget
 
 Every aerobic process multiplies its rate by `O₂ / (K + O₂)` and quotes its own
@@ -95,7 +109,7 @@ the two gases are one reaction rather than two coefficients.
 
 | Process | Oxygen | Carbon | `K` (mg/L) |
 |---|---|---|---|
-| Photosynthesis | + fixed CO₂ × `0.727` | − from the dissolved pool, clamped to it | light-gated, not oxygen-gated |
+| Photosynthesis | + fixed CO₂ × `0.727` | − from the dissolved pool, clamped to it | not oxygen-gated; a carbon Monod per species instead ([Plants](/subsystems/plants/)) |
 | Plant respiration | − CO₂ released × `0.727` | + | `0.50` |
 | Fish metabolism | − `0.3` mg per g of fish per hour | + drawn O₂ × RQ `0.8` × `1.375` | `1.00` |
 | Aerobic decay | − `250` mg per g of matter oxidised | + drawn O₂ × `1.375` | `0.20` |

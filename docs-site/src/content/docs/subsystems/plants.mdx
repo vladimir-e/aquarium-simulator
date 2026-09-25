@@ -24,9 +24,9 @@ repair first and new tissue second.
 | The surplus bank | <Badge text="settled" variant="success" /> | One bank, two claims, in an order: upkeep spends it to the last unit, damage and growth only what stands above the survival ration. |
 | Shedding | <Badge text="settled" variant="success" /> | A rate reading a rate — the share of the upkeep bill left standing, with no threshold in it. |
 | Nutrition | <Badge text="scaffolding" variant="caution" /> | The weakest thing in the engine. Sufficiency is `min(1, ppm/required)` against a per-tier required/booster split, so a low-demand species is completely indifferent to potassium and iron, and the maintenance share of uptake is a magic number inline in the photosynthesis module. |
-| Carbon limitation | <Badge text="scaffolding" variant="caution" /> | `co2Factor` is a hard linear ramp to `optimalCo2`, so a low-tech tank runs the rate at a fifth. It reaches photosynthesis and uptake only — plant *health* reads carbon through the tolerance band instead, which is why low-tech plantings thrive anyway. |
-| Tolerance-band benefits | <Badge text="scaffolding" variant="caution" /> | A step. Crossing an edge on CO₂, temperature or pH loses the whole channel at once *and* starts damage. |
-| Photoperiod gates | <Badge text="scaffolding" variant="caution" /> | Three switches on `light > 0`: the light-low stressor, the CO₂-low stressor, and surplus accrual. A carbon-starved plant swings between 0 and full damage as the lamp flips while its benefits ramp smoothly. |
+| Carbon limitation | <Badge text="settled" variant="success" /> | Monod on dissolved CO₂, half rate at the species' carbon-need half-saturation. It scales photosynthesis, uptake and the CO₂ income channel, and never damages: a carbon-short plant earns and grows less. |
+| Tolerance-band benefits | <Badge text="scaffolding" variant="caution" /> | A step. Crossing an edge on temperature or pH loses the whole channel at once *and* starts damage. |
+| Photoperiod gates | <Badge text="scaffolding" variant="caution" /> | Two switches on `light > 0`: the light-low stressor and surplus accrual. A light-starved plant swings between 0 and full damage as the lamp flips while its benefits ramp smoothly. |
 | Size against `maxSize` | <Badge text="scaffolding" variant="caution" /> | The ceiling is 600–1100 across the roster and the asymptotic factor stays above 0.9 through any calibration window, so it does not bind. Trimming validates a target in `[0, 100]` against it. |
 | Propagation | <Badge text="missing" variant="danger" /> | A plant with nowhere left to grow banks its whole income and nothing spends it. No runners, no daughter plants — the only way a plant enters the tank is the keeper putting one there. |
 | General hardness | <Badge text="scaffolding" variant="caution" /> | A damage-only tolerance band per species, and a small uptake tied to the nutrient draw. Calcium never enters sufficiency, so soft water stresses a plant but never starves it. |
@@ -35,13 +35,13 @@ repair first and new tissue second.
 
 ### The species roster
 
-| Species | Tolerable PAR | Saturates at | Nutrient demand | Hardiness | pH | GH | Substrate |
-|---|---|---|---|---|---|---|---|
-| Anubias | 8–70 | 16 | low | 0.75 | 5.5–8.0 | 1–20 dGH | attaches |
-| Java Fern | 10–90 | 20 | low | 0.7 | 5.5–8.0 | 1–20 dGH | attaches |
-| Amazon Sword | 20–120 | 40 | medium | 0.5 | 5.5–7.8 | 2–20 dGH | sand |
-| Dwarf Hairgrass | 25–200 | 50 | high | 0.3 | 5.5–7.8 | 1–18 dGH | aqua soil |
-| Monte Carlo | 30–200 | 60 | high | 0.3 | 5.5–7.8 | 1–15 dGH | aqua soil |
+| Species | Tolerable PAR | Saturates at | CO₂ need | Nutrient demand | Hardiness | pH | GH | Substrate |
+|---|---|---|---|---|---|---|---|---|
+| Anubias | 8–70 | 16 | low | low | 0.75 | 5.5–8.0 | 1–20 dGH | attaches |
+| Java Fern | 10–90 | 20 | low | low | 0.7 | 5.5–8.0 | 1–20 dGH | attaches |
+| Amazon Sword | 20–120 | 40 | medium | medium | 0.5 | 5.5–7.8 | 2–20 dGH | sand |
+| Dwarf Hairgrass | 25–200 | 50 | high | high | 0.3 | 5.5–7.8 | 1–18 dGH | aqua soil |
+| Monte Carlo | 30–200 | 60 | high | high | 0.3 | 5.5–7.8 | 1–15 dGH | aqua soil |
 
 pH and GH bands are the generous hobby care-sheet ranges, wide enough for fresh aqua soil and hard tap alike. Past an edge the damage grows with the distance, per pH unit or per dGH (`ghStressSeverity`, under Key tunables). Only pH also earns inside its band; GH is damage alone.
 
@@ -54,15 +54,28 @@ light-insufficient stressor charges it.
 
 ```
 lightResponse_i = tanh(PAR / Ik_i)
-potential_i     = (size_i / 100) × co2Factor × lightResponse_i
+co2Factor_i     = CO₂ / (K_i + CO₂)        // K_i by the species' CO₂ need
+potential_i     = (size_i / 100) × co2Factor_i × lightResponse_i
 actual_i        = potential_i × sufficiency_i
 ```
+
+Carbon saturates like every other limit in the engine. Species differ in how
+much carbon they need to run near their ceiling, not in a floor that kills:
+
+| CO₂ need | On 4 mg/L | On 25 mg/L |
+|---|---|---|
+| low | 73 % | 94 % |
+| medium | 57 % | 89 % |
+| high | 33 % | 76 % |
+
+So a carpet in an uninjected tank grows slowly on a thin carbon income, and a
+sword or an epiphyte hardly notices the injector.
 
 Actual — the Liebig-gated rate — drives the gases and the bulk of nutrient
 uptake; potential adds the maintenance draw underneath it. Both are summed
 across the planting and multiplied by
 `basePhotosynthesisRate` to give the tank's rate in *rate units*, where one unit
-is an hour of 100 % plant size at full carbon and saturating light.
+is an hour of 100 % plant size at saturating carbon and light.
 
 Photosynthesis emits resource effects only. It never adds size directly: growth
 flows through the bank, so nutrient health reaches biomass once, through the
@@ -80,9 +93,10 @@ in `baseRespirationRate`, and the oxygen partner is not a second knob. A
 carbon-starved tank stops producing oxygen because there was no carbon to pay
 for it.
 
-Respiration is quoted against the light-saturated rate at *ambient* carbon,
-which is a fifth of the rate at `optimalCo2`. A planting under a fixture too dim
-to clear that respires more than it fixes and draws oxygen with the lamps on.
+Respiration is quoted against the rate at saturating light and carbon; on the
+4 mg/L an uninjected tank holds it is 4–9 % of what a plant actually fixes. A
+planting under a fixture too dim to clear that respires more than it fixes and
+draws oxygen with the lamps on.
 
 ### Stocks and rates
 
@@ -133,7 +147,7 @@ worth nothing at midnight.
 
 | Channel | Earns when | At saturating light |
 |---|---|---|
-| CO₂ | inside `tolerableCO2` | `co2BenefitPeak` |
+| CO₂ | scales with the species' `co2Factor` | `co2BenefitPeak × co2Factor` |
 | Temperature | inside `tolerableTemp` | `temperatureBenefitPeak` |
 | pH | inside `tolerablePH` | `phBenefitPeak` |
 | Nutrients | scales linearly with sufficiency | `nutrientBenefitPeak × sufficiency` |
@@ -195,7 +209,7 @@ plant leaves the array.
 |---|---|---|
 | `basePhotosynthesisRate` | Rate units per hour per 100 % plant size at full carbon and saturating light | `1.0` /hr |
 | `saturationIrradianceFactor` | Multiple of a species' band low at which it saturates — the `Ik` of the light curve | `2.0` × band low |
-| `optimalCo2` | Carbon at which `co2Factor` reaches 1 | `20` mg/L |
+| `lowCo2HalfSaturation` · `mediumCo2HalfSaturation` · `highCo2HalfSaturation` | CO₂ at which each carbon-need tier photosynthesises at half rate | `1.5` · `3` · `8` mg/L |
 | `co2PerRateUnit` | Carbon one rate unit moves, in either direction | `30` mg |
 | `nutrientsPerPhotosynthesis` | Total nutrient draw per rate unit the uptake term resolves to | `4.0` mg |
 | `baseRespirationRate` | Dark respiration as a share of the light-saturated rate | `0.03` /hr |
@@ -208,7 +222,6 @@ plant leaves the array.
 | `sizePerSurplus` | Size gained per converted unit, before the species growth rate | `0.4` % |
 | `maxSheddingRate` | Share of itself a plant drops per hour when it pays none of its bill | `0.02` /hr |
 | `nutrientDeficiencySeverity` | Damage per point of Liebig shortfall — pinned from both ends, at 28 days for a starved carpet and 180 for an undosed beginner planting | `0.3` %/hr |
-| `co2InsufficientSeverity` | Damage per mg/L below the species' carbon band | `1.5` %/hr |
 | `ghStressSeverity` | Damage per dGH outside the species' band | `0.1` %/dGH/hr |
 | GH per nutrient drawn | Calcium and magnesium taken up per mg of macronutrient actually drawn, off leaf-tissue ratios; a constant | `0.15` mg CaCO₃/mg |
 | Benefit peaks (×4) | Recovery per channel in band, before the light term. Four at `0.125` sum to the 0.5 %/h budget the recovery curves were pinned against | `0.125` %/hr |

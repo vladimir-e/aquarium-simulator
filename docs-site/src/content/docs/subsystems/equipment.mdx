@@ -119,8 +119,10 @@ stops mattering, because aeration itself is a boolean.
 
 ### CO₂ and the doser
 
-The CO₂ generator meters `200` mg per bubble-per-second per hour into the
-standing water, on its own schedule. The doser fires once at its schedule's start
+The CO₂ generator meters `CO2_MASS_RATE` per bubble-per-second into the
+standing water, on its own schedule — a ~0.1 mL bubble of CO₂ at 1.8 mg/mL. One
+bubble a second holds a 20–40 gal tank with a canister's surface agitation near
+20–30 mg/L. The doser fires once at its schedule's start
 hour and adds one dose of the four-nutrient formula, then latches until midnight.
 Both land in the settle pass, so plants meet the day's carbon and fertiliser in
 the same tick it was metered.
@@ -151,7 +153,7 @@ makes its contribution reversible the instant a fitting is switched off.
 | Constant | Meaning | Unit |
 |---|---|---|
 | `substrateLeachRate` | Share of the bed's remaining reserve released per tick | `0.003` /hr |
-| `CO2_MASS_RATE` | CO₂ metered per bubble per second | `200` mg/hr/bps |
+| `CO2_MASS_RATE` | CO₂ metered per bubble per second, off a ~0.1 mL bubble | `648` mg/hr/bps |
 | `WATER_LEVEL_THRESHOLD` | Fill fraction below which the ATO refills to full | `0.99` |
 | `baseOutputLph` | Air output of the smallest pump band | `60` L/h |
 | `flowPerAirLph` | Share of air output that becomes water movement | `0.1` |

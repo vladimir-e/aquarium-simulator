@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
+  ambientTemperature,
   calculateTemperatureDrift,
   temperatureDriftSystem,
 } from './temperature-drift.js';
@@ -100,15 +101,42 @@ describe('temperatureDriftSystem', () => {
     expect(effects[0].delta).toBeGreaterThan(0);
   });
 
-  it('returns empty array when at room temperature', () => {
+  it('returns empty array when the water already sits at ambient', () => {
+    const cold = createSimulation({ tankCapacity: 100, roomTemperature: 22 });
     const state = createSimulation({
       tankCapacity: 100,
-      initialTemperature: 22,
+      initialTemperature: ambientTemperature(cold),
       roomTemperature: 22,
     });
 
     const effects = temperatureDriftSystem.update(state, DEFAULT_CONFIG);
 
     expect(effects).toHaveLength(0);
+  });
+});
+
+describe('ambientTemperature', () => {
+  const at = (hour: number, light = false): number => {
+    const state = createSimulation({
+      tankCapacity: 100,
+      roomTemperature: 22,
+      light: { enabled: light, par: 100, schedule: { startHour: 0, duration: 24 } },
+    });
+    return ambientTemperature({ ...state, tick: hour });
+  };
+
+  it('swings the room around its mean over the day, by the configured swing', () => {
+    const temps = Array.from({ length: 24 }, (_, hour) => at(hour));
+    const mean = temps.reduce((sum, t) => sum + t, 0) / temps.length;
+
+    expect(mean).toBeCloseTo(22, 10);
+    expect(Math.max(...temps) - Math.min(...temps)).toBeCloseTo(
+      2 * temperatureDefaults.roomDailySwing,
+      1
+    );
+  });
+
+  it('adds warming in proportion to the fixture PAR while it is lit', () => {
+    expect(at(12, true) - at(12)).toBeCloseTo(100 * temperatureDefaults.lightWarmingPerPar, 10);
   });
 });

@@ -22,7 +22,6 @@
  * **Health** — damage done *to* the plant, which spends condition:
  * - Light insufficient / excessive (two-sided around `tolerableLight`,
  *   in PAR at the substrate)
- * - CO2 insufficient (high-tech species suffer when CO2 falls)
  * - Temperature out of `tolerableTemp` (per °C, two-sided)
  * - pH out of `tolerablePH` (per pH unit, two-sided)
  * - GH out of `tolerableGH` (per dGH, two-sided)
@@ -37,6 +36,7 @@ import { PLANT_SPECIES_DATA, getSaturationIrradiance } from '../plants/species.j
 import type { PlantsConfig } from '../config/plants.js';
 import { lightSaturationFactor } from '../core/kinetics.js';
 import { getDgh, getPpm } from '../resources/index.js';
+import { calculateCo2Factor } from './photosynthesis.js';
 import { getRespirationTemperatureFactor } from './respiration.js';
 import {
   computeVitality,
@@ -114,18 +114,6 @@ export function buildPlantStressors(ctx: PlantVitalityContext): VitalityFactor[]
   }
   factors.push({ key: 'light', label: lightLabel, amount: lightAmount });
 
-  // CO2 — only the *low* side is a stressor for plants, and only when
-  // lights are on. Plants don't draw CO2 in the dark (no
-  // photosynthesis), so the overnight CO2 dip in any sealed-lid
-  // planted tank doesn't count as damage. Modelling otherwise would
-  // make MC die from the natural diurnal CO2 swing.
-  const [co2Lo] = species.tolerableCO2;
-  let co2Amount = 0;
-  if (resources.light > 0 && resources.co2 < co2Lo) {
-    co2Amount = plantsConfig.co2InsufficientSeverity * (co2Lo - resources.co2);
-  }
-  factors.push({ key: 'co2', label: 'CO2 low', amount: co2Amount });
-
   const ph = getPh(resources);
   const gh = getDgh(resources.gh, waterVolume);
   factors.push(
@@ -183,7 +171,6 @@ export function buildPlantStressors(ctx: PlantVitalityContext): VitalityFactor[]
 export function buildPlantBenefits(ctx: PlantVitalityContext): VitalityFactor[] {
   const { plant, resources, plantsConfig, nutrientSufficiency } = ctx;
   const species = PLANT_SPECIES_DATA[plant.species];
-  const [co2Lo, co2Hi] = species.tolerableCO2;
   const [tempLo, tempHi] = species.tolerableTemp;
   const [phLo, phHi] = species.tolerablePH;
   const saturation = lightSaturationFactor(
@@ -195,7 +182,10 @@ export function buildPlantBenefits(ctx: PlantVitalityContext): VitalityFactor[] 
     {
       key: 'co2',
       label: 'CO2',
-      amount: saturation * inRangeBenefit(resources.co2, co2Lo, co2Hi, plantsConfig.co2BenefitPeak),
+      amount:
+        saturation *
+        plantsConfig.co2BenefitPeak *
+        calculateCo2Factor(resources.co2, plant.species, plantsConfig),
     },
     {
       key: 'temperature',
