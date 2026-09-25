@@ -412,3 +412,7 @@ export function computeVitality(input: VitalityInput): VitalityResult {
 export function inRangeBenefit(value: number, lo: number, hi: number, peak: number): number {
   return value >= lo && value <= hi ? peak : 0;
 }
+
+export function outsideBand(value: number, [lo, hi]: readonly [number, number]): number {
+  return Math.max(0, lo - value, value - hi);
+}

@@ -41,6 +41,7 @@ import { getRespirationTemperatureFactor } from './respiration.js';
 import {
   computeVitality,
   inRangeBenefit,
+  outsideBand,
   type VitalityFactor,
   type VitalityResult,
 } from './vitality.js';
@@ -125,36 +126,18 @@ export function buildPlantStressors(ctx: PlantVitalityContext): VitalityFactor[]
   }
   factors.push({ key: 'co2', label: 'CO2 low', amount: co2Amount });
 
-  // Temperature — two-sided.
-  const [tempLo, tempHi] = species.tolerableTemp;
-  let tempAmount = 0;
-  if (resources.temperature < tempLo) {
-    tempAmount = plantsConfig.temperatureStressSeverity * (tempLo - resources.temperature);
-  } else if (resources.temperature > tempHi) {
-    tempAmount = plantsConfig.temperatureStressSeverity * (resources.temperature - tempHi);
-  }
-  factors.push({ key: 'temperature', label: 'Temperature', amount: tempAmount });
-
-  // pH — two-sided.
-  const [phLo, phHi] = species.tolerablePH;
   const ph = getPh(resources);
-  let phAmount = 0;
-  if (ph < phLo) {
-    phAmount = plantsConfig.phStressSeverity * (phLo - ph);
-  } else if (ph > phHi) {
-    phAmount = plantsConfig.phStressSeverity * (ph - phHi);
-  }
-  factors.push({ key: 'ph', label: 'pH', amount: phAmount });
-
-  const [ghLo, ghHi] = species.tolerableGH;
   const gh = getDgh(resources.gh, waterVolume);
-  let ghAmount = 0;
-  if (gh < ghLo) {
-    ghAmount = plantsConfig.ghStressSeverity * (ghLo - gh);
-  } else if (gh > ghHi) {
-    ghAmount = plantsConfig.ghStressSeverity * (gh - ghHi);
-  }
-  factors.push({ key: 'gh', label: 'GH', amount: ghAmount });
+  factors.push(
+    {
+      key: 'temperature',
+      label: 'Temperature',
+      amount:
+        plantsConfig.temperatureStressSeverity * outsideBand(resources.temperature, species.tolerableTemp),
+    },
+    { key: 'ph', label: 'pH', amount: plantsConfig.phStressSeverity * outsideBand(ph, species.tolerablePH) },
+    { key: 'gh', label: 'GH', amount: plantsConfig.ghStressSeverity * outsideBand(gh, species.tolerableGH) }
+  );
 
   // Nutrient deficiency — Liebig sufficiency drives a single damage
   // signal proportional to (1 − sufficiency). Sufficiency is

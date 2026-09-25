@@ -123,6 +123,7 @@ describe('stressors', () => {
     ['temperature', { temperature: 18 }, {}],
     ['temperature', { temperature: 32 }, {}],
     ['ph', { ph: 8.5 }, {}],
+    ['gh', { gh: getGhMass(FISH_SPECIES_DATA.neon_tetra.ghRange[1] + 5, 100) }, {}],
     ['ammonia', { ammonia: 5 }, {}],
     ['nitrite', { nitrite: 100 }, {}],
     ['nitrate', { nitrate: 6000 }, {}],

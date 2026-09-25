@@ -186,6 +186,7 @@ describe('buildPlantStressors', () => {
     ['light', 'anubias', (gap): Partial<Resources> => ({ light: PLANT_SPECIES_DATA.anubias.tolerableLight[1] + gap })],
     ['temperature', 'amazon_sword', (gap): Partial<Resources> => ({ temperature: PLANT_SPECIES_DATA.amazon_sword.tolerableTemp[0] - gap })],
     ['ph', 'monte_carlo', (gap): ResourceOverrides => ({ ph: PLANT_SPECIES_DATA.monte_carlo.tolerablePH[1] + gap / 4 })],
+    ['gh', 'amazon_sword', (gap): Partial<Resources> => ({ gh: getGhMass(PLANT_SPECIES_DATA.amazon_sword.tolerableGH[1] + gap, 100) })],
   ])('charges %s on %s in proportion to the gap outside its range', (key, species, at) => {
     expect(amount(species, key, at(0))).toBe(0);
     const one = amount(species, key, at(1));

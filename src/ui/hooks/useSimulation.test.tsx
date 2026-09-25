@@ -16,7 +16,7 @@ import {
   getSubstrateSurface,
   tick,
 } from '../../simulation/index.js';
-import { cycledColony } from '../../simulation/seed.js';
+import { cycledColony, cycledGh, cycledKh } from '../../simulation/seed.js';
 import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
 import {
   PERSISTENCE_VERSION,
@@ -180,22 +180,41 @@ describe('useSimulation', () => {
     expect(result.current.state.resources.gh).toBe(ran.gh);
   });
 
-  it('keeps the share of the tap a seeded soil bed left when the tap is retuned', () => {
+  it('keeps the soil gap through a tap retuned to 0 and back', () => {
     const { result } = renderHook(() => useSimulation('planted'), { wrapper });
 
-    const before = result.current.state;
-    const khShare = getDkh(before.resources.kh, before.resources.water) / before.environment.tapKh;
-    const ghShare = getDgh(before.resources.gh, before.resources.water) / before.environment.tapGh;
-    expect(khShare).toBeLessThan(1);
+    const before = result.current.state.resources;
+    const { tapKh, tapGh } = result.current.state.environment;
+    expect(getDkh(before.kh, before.water)).toBeLessThan(tapKh);
 
     act(() => {
-      result.current.updateTapKh(before.environment.tapKh * 2);
-      result.current.updateTapGh(before.environment.tapGh * 2);
+      result.current.updateTapKh(0);
+      result.current.updateTapGh(0);
+    });
+    act(() => {
+      result.current.updateTapKh(tapKh);
+      result.current.updateTapGh(tapGh);
     });
 
-    const { resources, environment } = result.current.state;
-    expect(getDkh(resources.kh, resources.water) / environment.tapKh).toBeCloseTo(khShare, 10);
-    expect(getDgh(resources.gh, resources.water) / environment.tapGh).toBeCloseTo(ghShare, 10);
+    expect(result.current.state.resources.kh).toBeCloseTo(before.kh, 10);
+    expect(result.current.state.resources.gh).toBeCloseTo(before.gh, 10);
+  });
+
+  it('moves GH with a KH-only retune on a seeded soil tank as re-seeding would', () => {
+    const { result } = renderHook(() => useSimulation('planted'), { wrapper });
+    const { tank, environment } = result.current.state;
+    const tapKh = environment.tapKh + 2;
+
+    act(() => {
+      result.current.updateTapKh(tapKh);
+    });
+
+    const { resources } = result.current.state;
+    expect(resources.kh).toBeCloseTo(cycledKh('aqua_soil', tapKh, tank.capacity), 10);
+    expect(resources.gh).toBeCloseTo(
+      cycledGh('aqua_soil', tapKh, environment.tapGh, tank.capacity),
+      10
+    );
   });
 
   it('swapping the substrate lays a fresh bed with a full organic reserve', () => {

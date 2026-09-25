@@ -231,6 +231,20 @@ describe('calculatePhotosynthesis', () => {
       expect(photosynthesis([plant(100, 'java_fern')]).ghDelta).toBe(0);
     });
 
+    it('takes up GH off the nutrients it actually draws, not the ones it asked for', () => {
+      const drawn = (r: PhotosynthesisResult): number =>
+        -(r.nitrateDelta + r.phosphateDelta + r.potassiumDelta + r.ironDelta);
+      const full = photosynthesis([plant(100, 'java_fern')], {
+        resources: buildResources(waterVolume, { gh: 10000 }),
+      });
+      const starved = photosynthesis([plant(100, 'java_fern')], {
+        resources: buildResources(waterVolume, { gh: 10000, nitrate: 0 }),
+      });
+
+      expect(drawn(starved)).toBeLessThan(drawn(full));
+      expect(starved.ghDelta / full.ghDelta).toBeCloseTo(drawn(starved) / drawn(full), 10);
+    });
+
     it('limiting factor is 1.0 at optimal conditions for low-demand plant', () => {
       const result = photosynthesis([plant(100, 'java_fern')]);
 

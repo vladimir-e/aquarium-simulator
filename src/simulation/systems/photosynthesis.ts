@@ -194,7 +194,9 @@ export function calculatePhotosynthesis(
   const phosphateDelta = drawFrom(phosphateRatio, resources.phosphate);
   const potassiumDelta = drawFrom(potassiumRatio, resources.potassium);
   const ironDelta = drawFrom(ironRatio, resources.iron);
-  const ghDelta = drawFrom(GH_PER_NUTRIENT_DRAWN, resources.gh);
+  const nutrientsDrawn = -(nitrateDelta + phosphateDelta + potassiumDelta + ironDelta);
+  const ghDrawn = Math.min(nutrientsDrawn * GH_PER_NUTRIENT_DRAWN, Math.max(0, resources.gh));
+  const ghDelta = ghDrawn > 0 ? -ghDrawn : 0;
 
   const co2ConsumedMg = Math.min(
     actualRate * plantsConfig.co2PerRateUnit,

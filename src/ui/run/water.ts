@@ -1,7 +1,7 @@
 /**
- * The eight water readings, the two dissolved gases read beside them, and the
- * display scales they sit on. Scales are display ranges, never bands: every
- * band here is an engine threshold, and `classifyVital` alone decides colour.
+ * The water readings, the dissolved gases read beside them, and the display
+ * scales they sit on. Scales are display ranges, never bands: every band here
+ * is an engine threshold, and `classifyVital` alone decides colour.
  */
 
 import type { SimulationState } from '../../simulation/index.js';
@@ -61,7 +61,7 @@ export function readingAt(key: WaterKey, value: number): number {
   return Math.max(0, Math.min(1, (value - min) / (max - min)));
 }
 
-/** The eight canonical readings, in reading order: °C, pH, dKH, dGH, % of capacity, ppm. */
+/** The canonical readings, in reading order: °C, pH, dKH, dGH, % of capacity, ppm. */
 export function waterValues(state: SimulationState): Record<WaterKey, number> {
   const r = state.resources;
   const capacity = state.tank.capacity;

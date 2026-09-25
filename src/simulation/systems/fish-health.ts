@@ -47,6 +47,7 @@ import { getPlantPower } from './plant-power.js';
 import {
   computeVitality,
   inRangeBenefit,
+  outsideBand,
   type VitalityFactor,
   type VitalityResult,
 } from './vitality.js';
@@ -115,33 +116,12 @@ function buildStressors(ctx: FishFactorContext): VitalityFactor[] {
   const { fish, resources, waterVolume, tankCapacity, config } = ctx;
   const speciesData = FISH_SPECIES_DATA[fish.species];
 
-  // Temperature stress
-  let tempStress = 0;
-  const [tempMin, tempMax] = speciesData.temperatureRange;
-  if (resources.temperature < tempMin) {
-    tempStress = config.temperatureStressSeverity * (tempMin - resources.temperature);
-  } else if (resources.temperature > tempMax) {
-    tempStress = config.temperatureStressSeverity * (resources.temperature - tempMax);
-  }
-
-  // pH stress
-  let phStress = 0;
+  const tempStress =
+    config.temperatureStressSeverity * outsideBand(resources.temperature, speciesData.temperatureRange);
   const ph = getPh(resources);
-  const [phMin, phMax] = speciesData.phRange;
-  if (ph < phMin) {
-    phStress = config.phStressSeverity * (phMin - ph);
-  } else if (ph > phMax) {
-    phStress = config.phStressSeverity * (ph - phMax);
-  }
-
-  let ghStress = 0;
-  const gh = getDgh(resources.gh, waterVolume);
-  const [ghMin, ghMax] = speciesData.ghRange;
-  if (gh < ghMin) {
-    ghStress = config.ghStressSeverity * (ghMin - gh);
-  } else if (gh > ghMax) {
-    ghStress = config.ghStressSeverity * (gh - ghMax);
-  }
+  const phStress = config.phStressSeverity * outsideBand(ph, speciesData.phRange);
+  const ghStress =
+    config.ghStressSeverity * outsideBand(getDgh(resources.gh, waterVolume), speciesData.ghRange);
 
   // Ammonia stress — only the unionized NH3 fraction is acutely toxic.
   // Zero-volume sentinel: tank fully drained but fish still present.

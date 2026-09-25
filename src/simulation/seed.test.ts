@@ -164,7 +164,12 @@ describe('createSimulation seeding', () => {
       expect(resources.gh).toBe(cycledGh('aqua_soil', 5, 8, TANK.tankCapacity));
       expect(khShort).toBeGreaterThan(0);
       expect(environment.tapGh - getDgh(resources.gh, resources.water)).toBeCloseTo(khShort, 10);
-      expect(cycledGh('gravel', 5, 8, 100)).toBeCloseTo(cycledGh('gravel', 5, 8, 50) * 2, 10);
+    });
+
+    it('scales GH with capacity', () => {
+      for (const type of ['aqua_soil', 'gravel'] as const) {
+        expect(cycledGh(type, 5, 8, 100)).toBeCloseTo(2 * cycledGh(type, 5, 8, 50), 10);
+      }
     });
 
     it('hands a soil bed part of its buffer, spent but not exhausted', () => {

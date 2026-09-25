@@ -43,7 +43,7 @@ repair first and new tissue second.
 | Dwarf Hairgrass | 25–200 | 50 | high | 0.3 | 5.5–7.8 | 1–18 dGH | aqua soil |
 | Monte Carlo | 30–200 | 60 | high | 0.3 | 5.5–7.8 | 1–15 dGH | aqua soil |
 
-pH and GH bands are the generous hobby care-sheet ranges, wide enough for fresh aqua soil and hard tap alike. Past an edge the damage grows with the distance, per pH unit or per dGH (`ghStressSeverity`, `0.1` %/dGH/hr). Only pH also earns inside its band; GH is damage alone.
+pH and GH bands are the generous hobby care-sheet ranges, wide enough for fresh aqua soil and hard tap alike. Past an edge the damage grows with the distance, per pH unit or per dGH (`ghStressSeverity`, under Key tunables). Only pH also earns inside its band; GH is damage alone.
 
 Saturating irradiance is derived, not declared: `saturationIrradianceFactor ×
 tolerableLight[0]`. One number therefore carries both light channels, and a
@@ -123,7 +123,7 @@ the same planting takes at full sufficiency — rather than ending it, so the
 water column keeps falling while growth is capped. The consequence to know:
 because uptake reads the same ratio the doser meters by, dosing cannot correct
 an imbalance it did not create. Calcium and magnesium ride along outside the
-ratio: `0.15` mg of GH, as CaCO₃, per mg of nutrient drawn.
+ratio, a fixed share of what the plant actually draws (under Key tunables).
 
 ### Income, upkeep and the compensation point
 
@@ -209,6 +209,8 @@ plant leaves the array.
 | `maxSheddingRate` | Share of itself a plant drops per hour when it pays none of its bill | `0.02` /hr |
 | `nutrientDeficiencySeverity` | Damage per point of Liebig shortfall — pinned from both ends, at 28 days for a starved carpet and 180 for an undosed beginner planting | `0.3` %/hr |
 | `co2InsufficientSeverity` | Damage per mg/L below the species' carbon band | `1.5` %/hr |
+| `ghStressSeverity` | Damage per dGH outside the species' band | `0.1` %/dGH/hr |
+| GH per nutrient drawn | Calcium and magnesium taken up per mg of macronutrient actually drawn, off leaf-tissue ratios; a constant | `0.15` mg CaCO₃/mg |
 | Benefit peaks (×4) | Recovery per channel in band, before the light term. Four at `0.125` sum to the 0.5 %/h budget the recovery curves were pinned against | `0.125` %/hr |
 | `deathConditionThreshold` · `deathSizeThreshold` | The two floors a plant leaves the tank through | `10` % each |
 

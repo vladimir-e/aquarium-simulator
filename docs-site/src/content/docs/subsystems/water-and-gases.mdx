@@ -31,7 +31,7 @@ CO₂ against KH wherever something needs it.
 | Tap, top-off and evaporation | <Badge text="settled" variant="success" /> | KH and GH are masses, so evaporation concentrates them and every litre of tap water brings `tapKh` and `tapGh` with it. |
 | Hardscape and substrate | <Badge text="scaffolding" variant="caution" /> | Hand-set rates and reserves. Calcite dissolves in proportion to [H⁺] and never runs out; driftwood's tannins and aqua soil's buffer are finite and taper as they are spent. |
 | Calcite and soil move GH with KH | <Badge text="settled" variant="success" /> | Stoichiometric: CaCO₃ dissolves into equal CaCO₃-equivalents of Ca²⁺ and carbonate, and soil's cation exchange takes up Ca²⁺ and Mg²⁺ for the H⁺ that spends carbonate. |
-| Plant uptake of GH | <Badge text="scaffolding" variant="caution" /> | A fixed `0.15` mg of CaCO₃ per mg of macronutrient drawn, off leaf-tissue ratios. Not Liebig-gated: calcium never limits growth. |
+| Plant uptake of GH | <Badge text="scaffolding" variant="caution" /> | A fixed share of the macronutrients drawn, off leaf-tissue ratios — the figure is on [Plants](/subsystems/plants/). Not Liebig-gated: calcium never limits growth. |
 | Bicarbonate uptake by plants | <Badge text="missing" variant="danger" /> | Plants take only free CO₂, so a CO₂-starved planted tank never pulls its KH down or its pH up past the residual. |
 | Calcium and magnesium apart | <Badge text="missing" variant="danger" /> | GH is one pooled stock; no species or plant reads Ca and Mg separately, and nothing models shells. |
 | Supersaturation | <Badge text="missing" variant="danger" /> | Oxygen above saturation is resisted only by the same linear relaxation and then truncated at the `20` mg/L resource bound, which discards the mass. No ebullition. |
@@ -177,8 +177,8 @@ months its buffer takes to run down — the reserves themselves are on
 ### GH
 
 GH is calcium and magnesium, the hardness species tolerate and plants build
-with. It has no chemistry of its own in the tick — nothing reads it but the
-tolerance bands — and it moves with KH wherever the two share a cause:
+with. It has no chemistry of its own in the tick — the tolerance bands and
+plant uptake read it — and it moves with KH wherever the two share a cause:
 
 | Flow | Direction | Rate |
 |---|---|---|
@@ -186,7 +186,7 @@ tolerance bands — and it moves with KH wherever the two share a cause:
 | Evaporation | concentrates | the mass stays, the water goes |
 | Calcite rock | + | the same mg as its KH — one flow, written to both |
 | Aqua soil | − | the same mg as its KH uptake, never more than the water holds of either |
-| Plants | − | `0.15` mg per mg of nutrient drawn |
+| Plants | − | a fixed share of the nutrients they draw, on [Plants](/subsystems/plants/) |
 
 Driftwood and nitrification spend carbonate, not calcium, so a tank that drains
 its KH keeps its GH. A cycled soil tank sits as far below the tap in GH as it

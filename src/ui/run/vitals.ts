@@ -1,5 +1,5 @@
 /**
- * Water-reading classification. Each of the ten readings maps its live value
+ * Water-reading classification. Each reading maps its live value
  * to a status — which drives its marker, number and trend colour — using the
  * engine's own alert thresholds, so no surface invents a band.
  */

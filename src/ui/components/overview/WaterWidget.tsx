@@ -5,7 +5,7 @@ import { ReadingRows } from '../water/rows';
 import { VerbButton } from '../ui/VerbButton';
 import { Widget } from '../ui/Widget';
 
-/** The four physical readings, then the two dissolved gases. */
+/** The physical readings, then the dissolved gases. */
 const ROWS: ReadingId[] = ['temperature', 'ph', 'kh', 'gh', 'level', 'oxygen', 'co2'];
 
 export function WaterWidget({

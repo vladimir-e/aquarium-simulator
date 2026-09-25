@@ -21,6 +21,9 @@ import {
   createHardscapeItem,
   getKhMass,
   getGhMass,
+  getSubstrateKhReserve,
+  cycledKh,
+  cycledGh,
 } from '../../simulation/index.js';
 import { createLog } from '../../simulation/core/logging.js';
 import type { OpticsConfig } from '../../simulation/config/index.js';
@@ -164,18 +167,45 @@ function stateToPersistedSimulation(
   };
 }
 
+const TAP_HARDNESS = {
+  tapKh: { label: 'KH', unit: 'dKH' },
+  tapGh: { label: 'GH', unit: 'dGH' },
+} as const;
+
 /**
  * A tank that has not run yet was filled from the tap, so a new tap refills
- * it: the stock keeps whatever share of the old tap its seed left it.
+ * it. A bed that has already given up some of its KH reserve is a cycled
+ * seed's, and the water it strips is resolved again against both taps.
  */
-function restock(
-  stock: number,
-  oldTap: number,
-  newTap: number,
-  water: number,
-  massOf: (degrees: number, water: number) => number
-): number {
-  return oldTap > 0 ? stock * (newTap / oldTap) : massOf(newTap, water);
+function refill(draft: SimulationState): void {
+  const { substrate } = draft.equipment;
+  const { tapKh, tapGh } = draft.environment;
+  const { water } = draft.resources;
+  const cycled = substrate.khReserve < getSubstrateKhReserve(substrate.type, draft.tank.capacity);
+  draft.resources.kh = cycled ? cycledKh(substrate.type, tapKh, water) : getKhMass(tapKh, water);
+  draft.resources.gh = cycled
+    ? cycledGh(substrate.type, tapKh, tapGh, water)
+    : getGhMass(tapGh, water);
+}
+
+function retuneTap(
+  key: keyof typeof TAP_HARDNESS,
+  value: number
+): (current: SimulationState) => SimulationState {
+  const { label, unit } = TAP_HARDNESS[key];
+  return (current) =>
+    produce(current, (draft) => {
+      draft.logs.push(
+        createLog(
+          draft.tick,
+          'user',
+          'info',
+          `Tap water ${label}: ${draft.environment[key].toFixed(1)} → ${value.toFixed(1)} ${unit}`
+        )
+      );
+      draft.environment[key] = value;
+      if (draft.tick === 0) refill(draft);
+    });
 }
 
 /**
@@ -549,43 +579,9 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
     );
   }, []);
 
-  const updateTapKh = useCallback((dkh: number) => {
-    setState((current) =>
-      produce(current, (draft) => {
-        const oldKh = draft.environment.tapKh;
-        const log = createLog(
-          draft.tick,
-          'user',
-          'info',
-          `Tap water KH: ${oldKh.toFixed(1)} → ${dkh.toFixed(1)} dKH`
-        );
-        if (draft.tick === 0) {
-          draft.resources.kh = restock(draft.resources.kh, oldKh, dkh, draft.resources.water, getKhMass);
-        }
-        draft.environment.tapKh = dkh;
-        draft.logs.push(log);
-      })
-    );
-  }, []);
+  const updateTapKh = useCallback((dkh: number) => setState(retuneTap('tapKh', dkh)), []);
 
-  const updateTapGh = useCallback((dgh: number) => {
-    setState((current) =>
-      produce(current, (draft) => {
-        const oldGh = draft.environment.tapGh;
-        const log = createLog(
-          draft.tick,
-          'user',
-          'info',
-          `Tap water GH: ${oldGh.toFixed(1)} → ${dgh.toFixed(1)} dGH`
-        );
-        if (draft.tick === 0) {
-          draft.resources.gh = restock(draft.resources.gh, oldGh, dgh, draft.resources.water, getGhMass);
-        }
-        draft.environment.tapGh = dgh;
-        draft.logs.push(log);
-      })
-    );
-  }, []);
+  const updateTapGh = useCallback((dgh: number) => setState(retuneTap('tapGh', dgh)), []);
 
   const updateLidType = useCallback((type: LidType) => {
     setState((current) =>
