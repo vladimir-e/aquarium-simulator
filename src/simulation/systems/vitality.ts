@@ -407,7 +407,7 @@ export function computeVitality(input: VitalityInput): VitalityResult {
  * fish and plant vitality builders.
  *
  * `hi = Infinity` is a valid degenerate case — a one-sided "above
- * threshold" benefit (e.g. oxygen ≥ 5 mg/L).
+ * threshold" benefit (e.g. oxygen ≥ 4 mg/L).
  */
 export function inRangeBenefit(value: number, lo: number, hi: number, peak: number): number {
   return value >= lo && value <= hi ? peak : 0;
@@ -415,4 +415,13 @@ export function inRangeBenefit(value: number, lo: number, hi: number, peak: numb
 
 export function outsideBand(value: number, [lo, hi]: readonly [number, number]): number {
   return Math.max(0, lo - value, value - hi);
+}
+
+/**
+ * How many e-folds `value` stands past `edge`, zero at or under it. Toxicity
+ * runs on log dose, so doubling a concentration adds the same harm wherever it
+ * starts. Finite at a zero edge.
+ */
+export function eFoldsPast(value: number, edge: number): number {
+  return value > edge ? Math.log(value / Math.max(edge, Number.EPSILON)) : 0;
 }

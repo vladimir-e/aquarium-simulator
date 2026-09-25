@@ -20,6 +20,7 @@ in, and the bank that health leaves over is what pays for the next spawn.
 | Metabolism | <Badge text="settled" variant="success" /> | Draw, deamination and CO₂ on one Monod factor off one half-saturation constant. Deamination is metabolism, so a depressed fish excretes proportionally less nitrogen. |
 | Nitrogen split | <Badge text="settled" variant="success" /> | Gill ammonia and feces-bound N come out of one food-nitrogen budget, so the waste mass is derived rather than a free parameter. |
 | Satiation | <Badge text="settled" variant="success" /> | One continuous piecewise curve producing both a stressor and a benefit, zero at every band edge. This is what the rest of the engine's bands should look like. |
+| Water quality | <Badge text="settled" variant="success" /> | Free NH₃, nitrite, nitrate and oxygen each harm from a tolerance edge the alert shares, growing with the log of the excess. Chloride, which blunts nitrite, is not modelled. |
 | Hardiness | <Badge text="settled" variant="success" /> | Scales stressors only, centrally, and never benefits. A hardy fish tolerates bad water but isn't more energised by good. |
 | Age | <Badge text="settled" variant="success" /> | A linear stressor ramp past the species lifespan, through the same channel as every other stressor. No probabilistic cliff. |
 | Staging and fry growth | <Badge text="settled" variant="success" /> | Mass is re-derived from age each tick and the fry flips to adult at `maturityAge`. Stage and age are stored independently, so the spawn gate asks both. |
@@ -132,10 +133,10 @@ over.
 | Temperature | outside the species range | °C |
 | pH | outside the species range | pH unit |
 | GH | outside the species range | dGH |
-| Free NH₃ | any presence | ppm of the *unionized* fraction, read off pH and temperature |
-| Nitrite | any presence | ppm |
-| Nitrate | above `nitrateStressThreshold` | ppm over |
-| Oxygen | below `oxygenStressThreshold` | mg/L under |
+| Free NH₃ | above 0.02 ppm of the *unionized* fraction, read off pH and temperature | e-fold over |
+| Nitrite | above 0.5 ppm | e-fold over |
+| Nitrate | above 80 ppm | e-fold over |
+| Oxygen | below 4 mg/L | e-fold under |
 | Water level | below `waterLevelStressThreshold` of capacity | % under |
 | Flow | above the species `maxTurnover` | tank volumes/h over |
 | Satiation | overfed, hungry or starving | the curve above |
@@ -144,7 +145,7 @@ over.
 | Benefit | Earns when | Peak |
 |---|---|---|
 | pH | inside the species range | `phBenefitPeak` |
-| Oxygen | at or above `oxygenStressThreshold` | `oxygenBenefitPeak` |
+| Oxygen | at or above 4 mg/L | `oxygenBenefitPeak` |
 | Well fed | satiation 75–99 | `satiationWellFedPeak` |
 | Plants | plant power, saturating at `plantBenefitSaturationPoint` | `plantBenefitPeak` |
 
@@ -153,9 +154,26 @@ planting lifts the budget to 1.2. That headroom over zero is the whole point —
 healthy planted tank sits at full health with a positive net rate, banking the
 reserve breeding spends.
 
-Ammonia toxicity reads the free NH₃ fraction rather than total ammonia, so the
-same 2 ppm reading costs a fish roughly thirty times less at pH 6.5 than at pH
-8.0.
+#### Water quality
+
+Each water-quality stressor is its severity times the e-folds past its edge —
+`ln(reading ⁄ edge)`, or `ln(edge ⁄ reading)` for oxygen — because toxicity runs
+on log dose: every doubling costs the same. The edge is where chronic harm
+starts and where the alert fires. The severity puts about 4 %/h on a
+mid-hardiness fish at the 96-hour LC50, so a moderate excess is survivable for a
+long time and the lethal levels still kill in days.
+
+| Reading | Harm starts | A mid-hardiness fish breaks even | LC50 |
+|---|---|---|---|
+| Free NH₃ | 0.02 ppm | ≈ 0.14 ppm | ≈ 1 ppm |
+| Nitrite | 0.5 ppm | ≈ 2 ppm | ≈ 10 ppm |
+| Nitrate | 80 ppm | ≈ 250 ppm | ≈ 800 ppm |
+| Oxygen | 4 mg/L | ≈ 2.5 mg/L | ≈ 1 mg/L |
+
+Hardiness moves those points: a guppy shrugs off what kills a neon. Ammonia
+reads the free fraction rather than total ammonia, so the same 2 ppm reading
+costs a fish far less at pH 6.5 than at 8.0. Nitrite is read without chloride,
+which in real tap water raises its tolerance.
 
 ### Individual variation
 
@@ -240,10 +258,7 @@ visible decline rather than a coin flip.
 | `basalAmmoniaRate` | Body-protein turnover per gram, independent of feeding | `0.03` mg NH₃/g/hr |
 | `respiratoryQuotient` | CO₂ exhaled per O₂ consumed, a molar ratio | `0.8` |
 | `satiationDecayRate` | Satiation burned per hour, fed or fasted | `0.6` %/hr |
-| `ammoniaStressSeverity` | Damage per ppm of free NH₃ — sensitive teleosts show gill damage at 0.05 ppm sustained | `175` %/ppm/hr |
-| `nitriteStressSeverity` | Damage per ppm, pinned to a 96-hour LC50 near 4–5 ppm | `2.5` %/ppm/hr |
-| `nitrateStressThreshold` | Nitrate at which damage starts | `40` ppm |
-| `oxygenStressThreshold` | The shared edge: damage below it, benefit at or above | `5` mg/L |
+| `ammoniaStressSeverity` · `nitriteStressSeverity` · `nitrateStressSeverity` · `oxygenStressSeverity` | Damage per e-fold past each tolerance edge | `1.0` · `1.3` · `1.7` · `3.0` %/e-fold/hr |
 | `flowStressSeverity` | Damage per turnover unit above species tolerance | `0.3` %/×/hr |
 | `ghStressSeverity` | Damage per dGH outside the species range — a chronic harm, so a guppy five degrees short stays inside a fed tank's recovery | `0.1` %/dGH/hr |
 | `ageStressSeverity` | Damage per hour past the species lifespan | `0.05` %/hr/hr |
@@ -258,8 +273,8 @@ visible decline rather than a coin flip.
 
 | Neighbour | Read | Written |
 |---|---|---|
-| [Nitrogen cycle](/subsystems/nitrogen-cycle/) | `ammonia` and `nitrite` as stressors, `nitrate` above its threshold | `ammonia`, `phosphate`, `potassium` and `iron` through the gills; `waste` as feces and death mass |
-| [Water & gases](/subsystems/water-and-gases/) | `oxygen` twice — as the Monod factor on the whole metabolism, and as a stressor and benefit on the same threshold; pH, derived from `co2` and `kh`, and `gh`, each as a tolerance band | `oxygen` drawn, `co2` exhaled |
+| [Nitrogen cycle](/subsystems/nitrogen-cycle/) | `ammonia`, `nitrite` and `nitrate`, each past its tolerance edge | `ammonia`, `phosphate`, `potassium` and `iron` through the gills; `waste` as feces and death mass |
+| [Water & gases](/subsystems/water-and-gases/) | `oxygen` twice — as the Monod factor on the whole metabolism, and as a stressor and benefit on the same edge; pH, derived from `co2` and `kh`, and `gh`, each as a tolerance band | `oxygen` drawn, `co2` exhaled |
 | [Environment](/subsystems/environment/) | `temperature` as a tolerance band; `water` for every ppm and for the water-level stressor | — |
 | [Equipment](/subsystems/equipment/) | `flow`, divided by standing water into a turnover | — |
 | [Plants](/subsystems/plants/) | Plant power — the shelter benefit, saturating | — |

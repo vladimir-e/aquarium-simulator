@@ -83,21 +83,13 @@ export interface LivestockConfig {
   /** Health damage per dGH outside safe range */
   ghStressSeverity: number;
   /**
-   * Health damage per ppm of *unionized* NH3 (not total TAN).
-   *
-   * Only the unionized form crosses gill epithelium; NH4⁺ is orders of
-   * magnitude less toxic. Fish-health multiplies this by
-   * `unionizedAmmoniaFraction(pH, T)` × TAN ppm, so a 2 ppm TAN reading
-   * at pH 6.5 / 25 °C contributes ~30× less stress than the same 2 ppm
-   * at pH 8.0. Reference: free-NH3 lethal threshold for sensitive
-   * freshwater teleosts is ~0.05 ppm sustained.
+   * Water-quality damage per e-fold past each tolerance edge in
+   * `livestock/tolerance` — free NH₃, not total ammonia, since only the
+   * unionized form crosses the gills.
    */
   ammoniaStressSeverity: number;
-  /** Health damage per ppm of nitrite */
   nitriteStressSeverity: number;
-  /** Health damage per ppm of nitrate above 40 */
   nitrateStressSeverity: number;
-  /** Health damage per mg/L oxygen below 5 */
   oxygenStressSeverity: number;
   /** Health damage per % water below 50% capacity */
   waterLevelStressSeverity: number;
@@ -112,18 +104,6 @@ export interface LivestockConfig {
    */
   ageStressSeverity: number;
 
-  // Stressor activation thresholds — the value above/below which a
-  // stressor switches on. Severity is per unit of *deviation* from
-  // these thresholds; without them the severity knob is half-tunable.
-  /** Nitrate above this ppm activates the nitrate stressor. */
-  nitrateStressThreshold: number;
-  /**
-   * Oxygen below this mg/L activates the stressor. The same threshold
-   * is the upper edge of the oxygen *benefit*: above it the fish gets
-   * the benefit, below it the stressor takes over (continuous net-rate
-   * transition).
-   */
-  oxygenStressThreshold: number;
   /** Water below this % of capacity activates the stressor. */
   waterLevelStressThreshold: number;
 
@@ -156,7 +136,7 @@ export interface LivestockConfig {
   // saturated planting it rises to ≈ 1.2 %/h.
   /** pH inside species range. */
   phBenefitPeak: number;
-  /** Oxygen ≥ `oxygenStressThreshold` (one-sided "above threshold" benefit). */
+  /** Oxygen ≥ `LOW_OXYGEN_THRESHOLD` (one-sided "above threshold" benefit). */
   oxygenBenefitPeak: number;
   /** Plant-presence benefit at saturation — see `plantBenefitSaturationPoint`. */
   plantBenefitPeak: number;
@@ -199,7 +179,7 @@ export const livestockDefaults: LivestockConfig = {
   // the draw — deamination is the same metabolism — so this one constant sets
   // both what a roster breathes and what it loads the water with.
   //
-  // Damage is a separate reading: `oxygenStressThreshold` still charges a fish
+  // Damage is a separate reading: `LOW_OXYGEN_THRESHOLD` still charges a fish
   // for the water it is in, so a suffocating fish draws less and suffers more.
   respirationOxygenHalfSaturation: 1.0,
   // 5 % N in food — conservative; typical flake is 6–8 % N.
@@ -242,22 +222,14 @@ export const livestockDefaults: LivestockConfig = {
   // (factor 0.2) five degrees under its range pays 0.1 %/h — felt, but
   // inside what a fed, oxygenated tank gives back, even a cold one.
   ghStressSeverity: 0.1,
-  // Per ppm of UNIONIZED NH3. Sensitive freshwater teleosts show acute
-  // gill damage at ~0.05 ppm free NH3 sustained. 175 puts ~0.9 %/hr
-  // net damage at that threshold for a mid-hardiness fish (factor
-  // 0.5), giving multi-day survival at 1–2 ppm TAN and certain death
-  // at 3–5 ppm TAN once the unionized fraction climbs.
-  ammoniaStressSeverity: 175.0,
-  // Neon-tetra-scale teleosts show 96-hr LC50 for nitrite in the
-  // 5–10 ppm band; chronic stress starts around 1–2 ppm. With a
-  // mid-hardiness fish (factor 0.5), severity 2.5 gives:
-  //   1 ppm → 0.625 %/hr (net +0.375 — healing marginal),
-  //   3 ppm → 1.875 %/hr (net -0.875 — dies in ~115 hr),
-  //   5 ppm → 3.125 %/hr (net -2.125 — dies in ~47 hr).
-  // 96-hr LC50 lands near ~4–5 ppm — consistent with literature.
-  nitriteStressSeverity: 2.5,
-  nitrateStressSeverity: 0.5, // Mild - 0.5% damage per ppm above threshold
-  oxygenStressSeverity: 3.0, // 3% damage per mg/L below threshold
+  // Each severity puts ~4 %/h on a mid-hardiness fish at the 96-hour LC50,
+  // death in about four days, and breaks even with a clean tank's recovery
+  // near the geometric mean of edge and LC50: free NH₃ 1 ppm (0.14), NO₂⁻
+  // 10 ppm (2.2), NO₃⁻ 800 ppm (250), O₂ 1 mg/L (2.5).
+  ammoniaStressSeverity: 1.0,
+  nitriteStressSeverity: 1.3,
+  nitrateStressSeverity: 1.7,
+  oxygenStressSeverity: 3.0,
   waterLevelStressSeverity: 0.2, // 0.2% per % below threshold
   // 0.3 %/h per turnover above species tolerance. A 150 L on a canister
   // plus a 240 GPH powerhead runs 14×, so a neon is 4 over and pays
@@ -271,10 +243,6 @@ export const livestockDefaults: LivestockConfig = {
   // begins a slow decline. By a week past, 8.4 %/h — clear decline.
   ageStressSeverity: 0.05,
 
-  // Stressor thresholds
-  nitrateStressThreshold: 40, // ppm — above this nitrate damages fish
-  oxygenStressThreshold: 5, // mg/L — below this oxygen damages fish; above
-  // this the oxygen benefit kicks in (shared cutoff, continuous transition)
   waterLevelStressThreshold: 50, // % capacity — below this water level damages fish
 
   // Satiation band edges (anchors of the piecewise-linear contribution).
@@ -394,38 +362,10 @@ export const livestockConfigMeta: LivestockConfigMeta[] = [
   },
   { key: 'phStressSeverity', label: 'pH Stress Severity', unit: '%/pH/hr', min: 1, max: 10, step: 0.5 },
   { key: 'ghStressSeverity', label: 'GH Stress Severity', unit: '%/dGH/hr', min: 0, max: 2, step: 0.05 },
-  {
-    key: 'ammoniaStressSeverity',
-    label: 'Ammonia Stress Severity',
-    unit: '%/ppm free NH3/hr',
-    min: 50,
-    max: 500,
-    step: 25,
-  },
-  {
-    key: 'nitriteStressSeverity',
-    label: 'Nitrite Stress Severity',
-    unit: '%/ppm/hr',
-    min: 0.5,
-    max: 10,
-    step: 0.5,
-  },
-  {
-    key: 'nitrateStressSeverity',
-    label: 'Nitrate Stress Severity',
-    unit: '%/ppm/hr',
-    min: 0.1,
-    max: 2,
-    step: 0.1,
-  },
-  {
-    key: 'oxygenStressSeverity',
-    label: 'O2 Stress Severity',
-    unit: '%/mg/L/hr',
-    min: 1,
-    max: 10,
-    step: 0.5,
-  },
+  { key: 'ammoniaStressSeverity', label: 'Free NH3 Stress Severity', unit: '%/e-fold/hr', min: 0.1, max: 10, step: 0.1 },
+  { key: 'nitriteStressSeverity', label: 'Nitrite Stress Severity', unit: '%/e-fold/hr', min: 0.1, max: 10, step: 0.1 },
+  { key: 'nitrateStressSeverity', label: 'Nitrate Stress Severity', unit: '%/e-fold/hr', min: 0.1, max: 10, step: 0.1 },
+  { key: 'oxygenStressSeverity', label: 'O2 Stress Severity', unit: '%/e-fold/hr', min: 0.1, max: 10, step: 0.1 },
   {
     key: 'waterLevelStressSeverity',
     label: 'Water Level Stress',
@@ -450,9 +390,6 @@ export const livestockConfigMeta: LivestockConfigMeta[] = [
     max: 0.5,
     step: 0.01,
   },
-  // Stressor thresholds
-  { key: 'nitrateStressThreshold', label: 'Nitrate Stress Threshold', unit: 'ppm', min: 10, max: 100, step: 5 },
-  { key: 'oxygenStressThreshold', label: 'O2 Stress Threshold', unit: 'mg/L', min: 2, max: 8, step: 0.5 },
   { key: 'waterLevelStressThreshold', label: 'Water Level Stress Threshold', unit: '%', min: 20, max: 80, step: 5 },
   // Satiation band edges and peak severities
   { key: 'satiationOverfedFloor', label: 'Overfed Floor', unit: '%', min: 80, max: 100, step: 1 },

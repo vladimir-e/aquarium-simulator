@@ -13,11 +13,11 @@
  * - Temperature, pH, GH, free NH3, nitrite, nitrate, satiation (hunger
  *   side), oxygen, water level, flow, age (past species `maxAge`).
  *
- * Benefit factors (peaks and thresholds tunable via `LivestockConfig`):
+ * Benefit factors (peaks tunable via `LivestockConfig`):
  * - pH in species range
  * - Satiation in well-fed band (peak around mid-well-fed, zero at
  *   the band edges)
- * - Oxygen ≥ `oxygenStressThreshold`
+ * - Oxygen ≥ `LOW_OXYGEN_THRESHOLD`
  * - Plant presence (saturating at `plantBenefitSaturationPoint`)
  *
  * At default calibration the abiotic three sum to ≈ 1.0 %/h and the
@@ -45,7 +45,14 @@ import { freeAmmoniaPpm } from './nitrogen-cycle.js';
 import { satiationContribution, SATIATION_BAND_LABEL } from './satiation.js';
 import { getPlantPower } from './plant-power.js';
 import {
+  HIGH_AMMONIA_THRESHOLD,
+  HIGH_NITRATE_THRESHOLD,
+  HIGH_NITRITE_THRESHOLD,
+  LOW_OXYGEN_THRESHOLD,
+} from '../livestock/tolerance.js';
+import {
   computeVitality,
+  eFoldsPast,
   inRangeBenefit,
   outsideBand,
   type VitalityFactor,
@@ -131,21 +138,13 @@ function buildStressors(ctx: FishFactorContext): VitalityFactor[] {
       : resources.ammonia > 0
         ? 100
         : 0;
-  const ammoniaStress = config.ammoniaStressSeverity * freeNH3Ppm;
+  const ammoniaStress = config.ammoniaStressSeverity * eFoldsPast(freeNH3Ppm, HIGH_AMMONIA_THRESHOLD);
 
-  // Nitrite stress (any presence harmful)
-  let nitriteStress = 0;
   const nitritePpm = waterVolume > 0 ? resources.nitrite / waterVolume : (resources.nitrite > 0 ? 100 : 0);
-  if (nitritePpm > 0) {
-    nitriteStress = config.nitriteStressSeverity * nitritePpm;
-  }
+  const nitriteStress = config.nitriteStressSeverity * eFoldsPast(nitritePpm, HIGH_NITRITE_THRESHOLD);
 
-  // Nitrate stress (above the configured threshold)
-  let nitrateStress = 0;
   const nitratePpm = waterVolume > 0 ? resources.nitrate / waterVolume : (resources.nitrate > 0 ? 100 : 0);
-  if (nitratePpm > config.nitrateStressThreshold) {
-    nitrateStress = config.nitrateStressSeverity * (nitratePpm - config.nitrateStressThreshold);
-  }
+  const nitrateStress = config.nitrateStressSeverity * eFoldsPast(nitratePpm, HIGH_NITRATE_THRESHOLD);
 
   // Satiation stressor — band-aware label (Overfed / Hungry / Starving)
   // depending on which side of the well-fed peak the fish is sitting
@@ -162,11 +161,7 @@ function buildStressors(ctx: FishFactorContext): VitalityFactor[] {
       ? SATIATION_BAND_LABEL[satiation.band]
       : 'Satiation';
 
-  // Oxygen stress (below the configured threshold)
-  let oxygenStress = 0;
-  if (resources.oxygen < config.oxygenStressThreshold) {
-    oxygenStress = config.oxygenStressSeverity * (config.oxygenStressThreshold - resources.oxygen);
-  }
+  const oxygenStress = config.oxygenStressSeverity * eFoldsPast(LOW_OXYGEN_THRESHOLD, resources.oxygen);
 
   // Water level stress (below the configured threshold of capacity)
   let waterLevelStress = 0;
@@ -236,20 +231,9 @@ function buildBenefits(ctx: FishFactorContext): VitalityFactor[] {
       amount: satiationContribution(fish.satiation, config).benefit,
     },
     {
-      // Oxygen ≥ stress threshold is the safe side; the benefit is a
-      // one-sided "above threshold" peak (`hi = Infinity`) tying directly
-      // to the same cutoff. Tighter than a strict aerobic ideal on
-      // purpose — most healthy tanks sit in the 6–8 mg/L band, and the
-      // shared threshold keeps the net recovery rate stable across the
-      // safe-but-not-supersaturated zone.
       key: 'oxygen',
       label: 'Oxygen',
-      amount: inRangeBenefit(
-        resources.oxygen,
-        config.oxygenStressThreshold,
-        Infinity,
-        config.oxygenBenefitPeak
-      ),
+      amount: inRangeBenefit(resources.oxygen, LOW_OXYGEN_THRESHOLD, Infinity, config.oxygenBenefitPeak),
     },
     {
       key: 'plants',

@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   computeVitality,
   bankSurplus,
+  eFoldsPast,
   type VitalityFactor,
   type VitalityInput,
 } from './vitality.js';
@@ -471,5 +472,21 @@ describe('bankSurplus', () => {
       expect(bankSurplus(10, -9, CAP, true)).toEqual(bankSurplus(10, -9, CAP, true, 0));
       expect(bankSurplus(10, -9, CAP, true, -5)).toEqual(bankSurplus(10, -9, CAP, true, 0));
     });
+  });
+});
+
+describe('eFoldsPast', () => {
+  it('is zero up to the edge and the log of the ratio past it', () => {
+    expect(eFoldsPast(3, 4)).toBe(0);
+    expect(eFoldsPast(4, 4)).toBe(0);
+    expect(eFoldsPast(4 * Math.E, 4)).toBeCloseTo(1, 12);
+  });
+
+  it('adds the same amount for every doubling, wherever it starts', () => {
+    expect(eFoldsPast(160, 80) - eFoldsPast(80, 80)).toBeCloseTo(eFoldsPast(640, 80) - eFoldsPast(320, 80), 12);
+  });
+
+  it('stays finite against a zero edge', () => {
+    expect(Number.isFinite(eFoldsPast(4, 0))).toBe(true);
   });
 });

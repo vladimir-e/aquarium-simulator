@@ -1,6 +1,6 @@
 /**
- * High ammonia alert — fires once when free NH₃ crosses the line and resets
- * below it.
+ * High ammonia alert — fires once when free NH₃ crosses the line where it
+ * starts to harm fish, and resets below it.
  *
  * Free and not total: only the unionized fraction crosses gills, and it moves
  * with pH and temperature, so the same test-kit reading is harmless in soft
@@ -12,9 +12,7 @@ import type { Resources, SimulationState } from '../state.js';
 import { createLog } from '../core/logging.js';
 import { getPh } from '../core/carbonate.js';
 import { freeAmmoniaPpm, unionizedAmmoniaFraction } from '../systems/nitrogen-cycle.js';
-
-/** Free NH₃ where harm to fish starts, ppm. */
-export const HIGH_AMMONIA_THRESHOLD = 0.02;
+import { HIGH_AMMONIA_THRESHOLD } from '../livestock/tolerance.js';
 
 /** The total ammonia (ppm) at which free NH₃ reaches the alert line, at this pH and temperature. */
 export function ammoniaAlertLine(

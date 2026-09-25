@@ -297,7 +297,7 @@ describe('typed log events', () => {
   it('death logs carry a fish-died discriminator', () => {
     const state = produce(createSimulation({ tankCapacity: 100 }), (draft) => {
       draft.fish = [mkFish({ health: 1 })];
-      draft.resources.ammonia = 100000;
+      draft.resources.oxygen = 0;
     });
     const out = processLivestock(state, DEFAULT_CONFIG);
     expect(out.state.fish).toHaveLength(0);

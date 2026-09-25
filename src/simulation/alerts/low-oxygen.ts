@@ -1,15 +1,13 @@
 /**
  * Low oxygen alert.
- * Triggers once when oxygen level drops below critical threshold (< 4 mg/L).
+ * Triggers once when oxygen drops below the line where it starts to harm fish.
  * Resets when oxygen level rises above threshold.
  */
 
 import type { Alert, AlertResult } from './types.js';
 import type { SimulationState } from '../state.js';
 import { createLog } from '../core/logging.js';
-
-/** Threshold for low oxygen alert (mg/L) */
-export const LOW_OXYGEN_THRESHOLD = 4.0;
+import { LOW_OXYGEN_THRESHOLD } from '../livestock/tolerance.js';
 
 export const lowOxygenAlert: Alert = {
   id: 'low-oxygen',

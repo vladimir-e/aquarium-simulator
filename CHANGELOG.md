@@ -11,6 +11,7 @@ Format: - **Feature name** (#PR) - One short sentence (under ~150 chars)
 
 ## Unreleased
 
+- **Water harms where it really does** - NH₃, NO₂, NO₃ and O₂ harm on log dose from one edge each, shared with the alert; breaking: livestock config (v29).
 - **Plant nutrition saturates** - per-nutrient Monod on species demand; uptake follows the plant, not the bottle; food returns its N, P, K and Fe, eaten or decayed; breaking: nutrients config, no `wasteToAmmoniaRatio` (v29).
 - **A cycled tank carries its stock** - a `'cycled'` colony is sized to the load its fish and bed put on it at rest, so a stocked tank opens without a mini-cycle; `cycledColony` takes the state.
 - **Nitrifiers saturate on their substrate** - AOB and NOB oxidise at a Monod share of capacity, so a cycled tank holds hundredths of a ppm and a pulse stands until worked down; `aobAmmoniaHalfSaturation`, `nobNitriteHalfSaturation`.

@@ -512,8 +512,6 @@ const LivestockConfigSchema = z
     waterLevelStressSeverity: z.number(),
     flowStressSeverity: z.number(),
     ageStressSeverity: z.number(),
-    nitrateStressThreshold: z.number(),
-    oxygenStressThreshold: z.number(),
     waterLevelStressThreshold: z.number(),
     satiationOverfedFloor: z.number(),
     satiationWellFedFloor: z.number(),

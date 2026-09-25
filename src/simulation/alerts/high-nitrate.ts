@@ -1,6 +1,6 @@
 /**
  * High nitrate alert.
- * Triggers once when nitrate level exceeds danger threshold (>80 ppm).
+ * Triggers once when nitrate crosses the line where it starts to harm fish.
  * Resets when nitrate level drops below threshold.
  *
  * Nitrate is stored as mass (mg), so ppm is derived from mass/water.
@@ -10,9 +10,7 @@ import type { Alert, AlertResult } from './types.js';
 import type { SimulationState } from '../state.js';
 import { createLog } from '../core/logging.js';
 import { getPpm } from '../resources/index.js';
-
-/** Threshold for high nitrate alert (ppm) */
-export const HIGH_NITRATE_THRESHOLD = 80;
+import { HIGH_NITRATE_THRESHOLD } from '../livestock/tolerance.js';
 
 export const highNitrateAlert: Alert = {
   id: 'high-nitrate',

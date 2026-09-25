@@ -7,6 +7,11 @@ import type { Fish, Plant, Resources } from '../state.js';
 import { withPh, type ResourceOverrides } from '../tests/resources.js';
 import { getGhMass } from '../resources/helpers.js';
 import type { FishSpecies } from '../livestock/species.js';
+import {
+  HIGH_NITRATE_THRESHOLD,
+  HIGH_NITRITE_THRESHOLD,
+  LOW_OXYGEN_THRESHOLD,
+} from '../livestock/tolerance.js';
 
 const STRESSORS = [
   'temperature',
@@ -124,9 +129,9 @@ describe('stressors', () => {
     ['temperature', { temperature: 32 }, {}],
     ['ph', { ph: 8.5 }, {}],
     ['gh', { gh: getGhMass(FISH_SPECIES_DATA.neon_tetra.ghRange[1] + 5, 100) }, {}],
-    ['ammonia', { ammonia: 5 }, {}],
+    ['ammonia', { ammonia: 2000 }, {}],
     ['nitrite', { nitrite: 100 }, {}],
-    ['nitrate', { nitrate: 6000 }, {}],
+    ['nitrate', { nitrate: 20000 }, {}],
     ['satiation', {}, { satiation: 20 }],
     ['oxygen', { oxygen: 3 }, {}],
   ])('isolates %s stress to its own key', (key, resources, fish) => {
@@ -154,8 +159,33 @@ describe('stressors', () => {
     expect(high).toBeGreaterThan(low * 10);
   });
 
-  it('leaves nitrate alone below its threshold', () => {
-    expect(stressorAmount(vitality({}, { nitrate: 3000 }), 'nitrate')).toBe(0);
+  it.each<[string, (ppm: number) => ResourceOverrides, number]>([
+    ['nitrite', (ppm): ResourceOverrides => ({ nitrite: ppm * 100 }), HIGH_NITRITE_THRESHOLD],
+    ['nitrate', (ppm): ResourceOverrides => ({ nitrate: ppm * 100 }), HIGH_NITRATE_THRESHOLD],
+  ])('grows %s harm from its edge by the same step per doubling', (key, at, edge) => {
+    const charge = (ppm: number): number => stressorAmount(vitality({}, at(ppm)), key);
+    expect(charge(edge * 0.9)).toBe(0);
+    expect(charge(edge)).toBe(0);
+    expect(charge(edge * 2)).toBeGreaterThan(0);
+    expect(charge(edge * 4)).toBeCloseTo(2 * charge(edge * 2), 10);
+    expect(charge(edge * 8)).toBeCloseTo(3 * charge(edge * 2), 10);
+  });
+
+  it('grows oxygen harm by the same step each time the oxygen halves under its edge', () => {
+    const charge = (oxygen: number): number => stressorAmount(vitality({}, { oxygen }), 'oxygen');
+    expect(charge(LOW_OXYGEN_THRESHOLD)).toBe(0);
+    expect(charge(LOW_OXYGEN_THRESHOLD / 4)).toBeCloseTo(2 * charge(LOW_OXYGEN_THRESHOLD / 2), 10);
+    expect(Number.isFinite(charge(0))).toBe(true);
+    expect(charge(0)).toBeGreaterThan(charge(0.01));
+  });
+
+  it('trades the oxygen benefit for the stressor at one edge', () => {
+    const above = vitality({}, { oxygen: LOW_OXYGEN_THRESHOLD });
+    const below = vitality({}, { oxygen: LOW_OXYGEN_THRESHOLD * 0.9 });
+    expect(benefitAmount(above, 'oxygen')).toBeGreaterThan(0);
+    expect(stressorAmount(above, 'oxygen')).toBe(0);
+    expect(benefitAmount(below, 'oxygen')).toBe(0);
+    expect(stressorAmount(below, 'oxygen')).toBeGreaterThan(0);
   });
 
   it('reads toxins at full strength in a drained tank', () => {
@@ -171,9 +201,9 @@ describe('stressors', () => {
         temperature: 18,
         ph: 8.5,
         gh: getGhMass(30, 30),
-        ammonia: 5,
+        ammonia: 2000,
         nitrite: 50,
-        nitrate: 6000,
+        nitrate: 20000,
         oxygen: 3,
         water: 30,
         flow: 600,
@@ -336,8 +366,8 @@ describe('processHealth', () => {
   });
 
   it('kills a fish whose health reaches 0 and leaves its body as waste', () => {
-    const light = health([makeFish({ health: 1, mass: 1 })], { ammonia: 5000 });
-    const heavy = health([makeFish({ health: 1, mass: 2 })], { ammonia: 5000 });
+    const light = health([makeFish({ health: 1, mass: 1 })], { oxygen: 0 });
+    const heavy = health([makeFish({ health: 1, mass: 2 })], { oxygen: 0 });
 
     expect(light.survivingFish).toHaveLength(0);
     expect(light.deadFishNames).toHaveLength(1);
@@ -354,7 +384,7 @@ describe('processHealth', () => {
   it('processes each fish independently', () => {
     const result = health(
       [makeFish({ id: 'healthy', health: 100 }), makeFish({ id: 'sick', health: 1 })],
-      { ammonia: 2000 }
+      { oxygen: 1 }
     );
     expect(result.survivingFish.map((f) => f.id)).toEqual(['healthy']);
   });
@@ -372,7 +402,7 @@ describe('age', () => {
   });
 
   it('attributes a death past maxAge to old age', () => {
-    const result = health([makeFish({ age: maxAge + 24, health: 1 })], { ammonia: 5000 });
+    const result = health([makeFish({ age: maxAge + 24, health: 1 })], { oxygen: 0 });
     expect(result.survivingFish).toHaveLength(0);
     expect(result.deadFishNames[0]).toContain('old age');
   });
