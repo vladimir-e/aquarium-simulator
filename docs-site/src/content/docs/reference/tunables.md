@@ -192,7 +192,7 @@ sum once, centrally, rather than each channel scaling itself.
 | `respiratoryQuotient` | Moles of CO₂ exhaled per mole of O₂ consumed | — |
 | `satiationDecayRate` | Satiation lost per hour, feeding or not | %/hr |
 | `temperatureStressSeverity` · `phStressSeverity` · `ghStressSeverity` | Damage per unit outside the species' tolerable band | %/unit/hr |
-| `ammoniaStressSeverity` · `nitriteStressSeverity` · `nitrateStressSeverity` · `oxygenStressSeverity` | Damage per e-fold past the tolerance edge the alert shares — free NH₃, not total ammonia | %/e-fold/hr |
+| `ammoniaStressSeverity` · `nitriteStressSeverity` · `nitrateStressSeverity` · `oxygenStressSeverity` | Damage per e-fold past the fish's own tolerance edge, which hardiness moves out — free NH₃, not total ammonia; oxygen counts e-folds under | %/e-fold/hr |
 | `waterLevelStressSeverity` · `flowStressSeverity` | Damage per unit of deviation | %/unit/hr |
 | `ageStressSeverity` | Damage per hour lived past the species' `maxAge`, climbing with the excess | %/(h past maxAge)/h |
 | `waterLevelStressThreshold` | Share of capacity the water-level stressor switches on under | % |

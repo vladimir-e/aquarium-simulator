@@ -485,8 +485,4 @@ describe('eFoldsPast', () => {
   it('adds the same amount for every doubling, wherever it starts', () => {
     expect(eFoldsPast(160, 80) - eFoldsPast(80, 80)).toBeCloseTo(eFoldsPast(640, 80) - eFoldsPast(320, 80), 12);
   });
-
-  it('stays finite against a zero edge', () => {
-    expect(Number.isFinite(eFoldsPast(4, 0))).toBe(true);
-  });
 });

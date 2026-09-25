@@ -21,12 +21,6 @@ export { highAmmoniaAlert, ammoniaAlertLine } from './high-ammonia.js';
 export { highNitriteAlert } from './high-nitrite.js';
 export { highNitrateAlert } from './high-nitrate.js';
 export { lowOxygenAlert } from './low-oxygen.js';
-export {
-  HIGH_AMMONIA_THRESHOLD,
-  HIGH_NITRITE_THRESHOLD,
-  HIGH_NITRATE_THRESHOLD,
-  LOW_OXYGEN_THRESHOLD,
-} from '../livestock/tolerance.js';
 export { highCo2Alert, HIGH_CO2_THRESHOLD } from './high-co2.js';
 
 /** All alerts checked after effects are applied */

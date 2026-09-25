@@ -1,6 +1,6 @@
 import type { SimulationState } from '../../simulation/state.js';
 import { freeAmmoniaPpm } from '../../simulation/systems/nitrogen-cycle.js';
-import { HIGH_AMMONIA_THRESHOLD } from '../../simulation/alerts/index.js';
+import { FREE_AMMONIA_EDGE } from '../../simulation/livestock/tolerance.js';
 import { getDgh, getDkh, getPpm } from '../../simulation/resources/helpers.js';
 import { getPh } from '../../simulation/core/carbonate.js';
 import { toFahrenheit } from '../units.js';
@@ -47,9 +47,9 @@ const DEFINITIONS = [
     digits: 3,
     read: (s): number => freeAmmoniaPpm(s.resources),
     band: {
-      green: [0, HIGH_AMMONIA_THRESHOLD],
-      amber: [0, 0.05],
-      why: `${HIGH_AMMONIA_THRESHOLD} ppm free NH₃ is where harm starts and the engine alerts; 0.05 is danger`,
+      green: [0, FREE_AMMONIA_EDGE],
+      amber: [0, 0.15],
+      why: `${FREE_AMMONIA_EDGE} ppm free NH₃ is where harm starts and the engine alerts; past ~0.15 a mid-hardiness fish loses health`,
     },
     cycle: true,
   },

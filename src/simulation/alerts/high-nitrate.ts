@@ -10,7 +10,7 @@ import type { Alert, AlertResult } from './types.js';
 import type { SimulationState } from '../state.js';
 import { createLog } from '../core/logging.js';
 import { getPpm } from '../resources/index.js';
-import { HIGH_NITRATE_THRESHOLD } from '../livestock/tolerance.js';
+import { NITRATE_EDGE } from '../livestock/tolerance.js';
 
 export const highNitrateAlert: Alert = {
   id: 'high-nitrate',
@@ -21,7 +21,7 @@ export const highNitrateAlert: Alert = {
     const wasTriggered = state.alertState.highNitrate;
 
     // Check if currently above threshold
-    const isAboveThreshold = nitratePpm > HIGH_NITRATE_THRESHOLD;
+    const isAboveThreshold = nitratePpm > NITRATE_EDGE;
 
     if (isAboveThreshold) {
       // Condition is active

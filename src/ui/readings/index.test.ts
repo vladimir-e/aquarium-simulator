@@ -7,11 +7,8 @@ import {
   tick,
   type SimulationState,
 } from '../../simulation/index.js';
-import {
-  HIGH_AMMONIA_THRESHOLD,
-  ammoniaAlertLine,
-  HIGH_NITRITE_THRESHOLD,
-} from '../../simulation/alerts/index.js';
+import { ammoniaAlertLine } from '../../simulation/alerts/index.js';
+import { FREE_AMMONIA_EDGE, NITRITE_EDGE } from '../../simulation/livestock/tolerance.js';
 import { snapshotFromState, type RunSnapshot } from '../run/index.js';
 
 interface Run {
@@ -84,7 +81,7 @@ describe('readTank', () => {
     const { byId } = read(stocked());
 
     expect(byId.ph.sentence).toMatch(/^pH \d+\.\d{2}–\d+\.\d{2} — the span/);
-    expect(byId.nitrite.sentence).toContain(`${HIGH_NITRITE_THRESHOLD.toFixed(3)} ppm`);
+    expect(byId.nitrite.sentence).toContain(`${NITRITE_EDGE.toFixed(3)} ppm`);
     expect(byId.nitrate.sentence).toMatch(/under \d+\.\d ppm; the engine alerts over \d+\.\d\./);
   });
 
@@ -92,7 +89,7 @@ describe('readTank', () => {
     const run = stocked();
     const { byId } = read(run);
     expect(byId.ammonia.sentence).toContain(`${ammoniaAlertLine(run.state.resources).toFixed(3)} ppm`);
-    expect(byId.ammonia.sentence).toContain(`${HIGH_AMMONIA_THRESHOLD} ppm`);
+    expect(byId.ammonia.sentence).toContain(`${FREE_AMMONIA_EDGE} ppm`);
   });
 
   it('reads nitrate twice — against the alert line, and against plant demand', () => {

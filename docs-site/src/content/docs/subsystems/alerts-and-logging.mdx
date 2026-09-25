@@ -19,7 +19,7 @@ a reader would want to see afterwards.
 |---|---|---|
 | The latch | <Badge text="settled" variant="success" /> | One line per crossing, a flag that lives in state, and no repetition while the condition holds. It does exactly what it says. |
 | Log entry shape | <Badge text="settled" variant="success" /> | Free text for humans, a typed `event` discriminator for code, and a `count` wherever an entry accounts for more than one organism. |
-| Water-quality thresholds | <Badge text="settled" variant="success" /> | Free NH₃, nitrite, nitrate and oxygen alert on the same constant their fish stressor grows from, so the line fires where harm starts. Ammonia reads the free fraction, so the total it takes moves with pH and temperature. |
+| Water-quality thresholds | <Badge text="settled" variant="success" /> | Free NH₃, nitrite, nitrate and oxygen alert on the edge their fish stressors grow from — where the frailest fish starts to suffer, before any hardier one does. Ammonia reads the free fraction, so the total it takes moves with pH and temperature. |
 | Algae · water-level thresholds | <Badge text="scaffolding" variant="caution" /> | The same shape one layer out: algae alerts at 80 where it starts shading plants at 30, and water level at a fifth of capacity where fish start suffering at half. |
 | CO₂ threshold | <Badge text="scaffolding" variant="caution" /> | The alert with nothing behind it — no organism in the engine reads dissolved CO₂ as a stressor, so it warns about a harm that is never inflicted. |
 | Behaviour on a drained tank | <Badge text="scaffolding" variant="caution" /> | Concentrations read 0 when there is no water and the water-level check requires `water > 0`, so the alert layer goes silent exactly when the tank is empty — while fish health reads the same ammonia as 100 ppm. |
@@ -45,14 +45,14 @@ the transition into trouble.
 | Alert | Fires when | Where damage actually starts |
 |---|---|---|
 | Water level critical | below 20 % of capacity, and only while some water remains | fish take water-level damage below 50 % |
-| High ammonia | free NH₃ above 0.02 ppm | at the line |
-| High nitrite | above 0.5 ppm | at the line |
-| High nitrate | above 80 ppm | at the line |
-| Low oxygen | below 4 mg/L | at the line |
+| High ammonia | free NH₃ above 0.02 ppm | at the line for the frailest fish, further out for hardier ones |
+| High nitrite | above 0.5 ppm | the same |
+| High nitrate | above 80 ppm | the same |
+| Low oxygen | below 4 mg/L | the same, below the line |
 | High CO₂ | above 30 mg/L | nowhere — nothing reads it |
 | High algae | mass at or above 80 | plants are shaded from mass 30 |
 
-The four water-quality alerts fire where fish start taking damage. Water level
+The four water-quality alerts fire before any fish takes damage. Water level
 and algae wait until the reading is worse than that point, and CO₂ has no harm
 behind it at all. Ammonia reads the unionized fraction of the total, so the same
 test-kit reading crosses it sooner the higher the pH and the warmer the water:
@@ -118,15 +118,15 @@ how it got there.
 None of these is a `TunableConfig` leaf. They are module constants with no
 declared range, so they cannot be moved through the config layer the way a
 severity or a rate can. The four water-quality lines are the fish tolerance
-edges, shared with [livestock](/subsystems/livestock/).
+edges, defined with [livestock](/subsystems/livestock/).
 
 | Constant | Meaning | Unit |
 |---|---|---|
 | `WATER_LEVEL_CRITICAL_THRESHOLD` | Share of capacity below which the level is critical | `0.2` |
-| `HIGH_AMMONIA_THRESHOLD` | Free (unionized) NH₃ at which the alert fires | `0.02` ppm |
-| `HIGH_NITRITE_THRESHOLD` | Nitrite at which the alert fires | `0.5` ppm |
-| `HIGH_NITRATE_THRESHOLD` | Nitrate at which the alert fires | `80` ppm |
-| `LOW_OXYGEN_THRESHOLD` | Dissolved oxygen below which the alert fires | `4.0` mg/L |
+| `FREE_AMMONIA_EDGE` | Free (unionized) NH₃ at which the alert fires | `0.02` ppm |
+| `NITRITE_EDGE` | Nitrite at which the alert fires | `0.5` ppm |
+| `NITRATE_EDGE` | Nitrate at which the alert fires | `80` ppm |
+| `OXYGEN_EDGE` | Dissolved oxygen below which the alert fires | `4` mg/L |
 | `HIGH_CO2_THRESHOLD` | Dissolved CO₂ above which the alert fires | `30` mg/L |
 | `HIGH_ALGAE_THRESHOLD` | Algae mass at which the bloom is called | `80` of 100 |
 

@@ -12,13 +12,13 @@ import type { Resources, SimulationState } from '../state.js';
 import { createLog } from '../core/logging.js';
 import { getPh } from '../core/carbonate.js';
 import { freeAmmoniaPpm, unionizedAmmoniaFraction } from '../systems/nitrogen-cycle.js';
-import { HIGH_AMMONIA_THRESHOLD } from '../livestock/tolerance.js';
+import { FREE_AMMONIA_EDGE } from '../livestock/tolerance.js';
 
 /** The total ammonia (ppm) at which free NH₃ reaches the alert line, at this pH and temperature. */
 export function ammoniaAlertLine(
   resources: Pick<Resources, 'temperature' | 'co2' | 'kh' | 'water'>
 ): number {
-  return HIGH_AMMONIA_THRESHOLD / unionizedAmmoniaFraction(getPh(resources), resources.temperature);
+  return FREE_AMMONIA_EDGE / unionizedAmmoniaFraction(getPh(resources), resources.temperature);
 }
 
 export const highAmmoniaAlert: Alert = {
@@ -27,7 +27,7 @@ export const highAmmoniaAlert: Alert = {
   check(state: SimulationState): AlertResult {
     const free = freeAmmoniaPpm(state.resources);
 
-    if (free <= HIGH_AMMONIA_THRESHOLD) {
+    if (free <= FREE_AMMONIA_EDGE) {
       return { log: null, alertState: { highAmmonia: false } };
     }
     if (state.alertState.highAmmonia) {

@@ -10,14 +10,16 @@
  *
  * Stressors (raw severities; the vitality module applies hardiness
  * scaling centrally as `(1 - effectiveHardiness)`):
- * - Temperature, pH, GH, free NH3, nitrite, nitrate, satiation (hunger
- *   side), oxygen, water level, flow, age (past species `maxAge`).
+ * - Temperature, pH, GH, satiation (hunger side), water level, flow, age
+ *   (past species `maxAge`).
+ * - Free NH3, nitrite, nitrate and oxygen instead carry hardiness on the
+ *   concentration axis: it moves where harm starts, not how steeply it grows.
  *
  * Benefit factors (peaks tunable via `LivestockConfig`):
  * - pH in species range
  * - Satiation in well-fed band (peak around mid-well-fed, zero at
  *   the band edges)
- * - Oxygen ≥ `LOW_OXYGEN_THRESHOLD`
+ * - Oxygen, rising from `OXYGEN_EDGE` to full at `OXYGEN_COMFORT`
  * - Plant presence (saturating at `plantBenefitSaturationPoint`)
  *
  * At default calibration the abiotic three sum to ≈ 1.0 %/h and the
@@ -45,10 +47,13 @@ import { freeAmmoniaPpm } from './nitrogen-cycle.js';
 import { satiationContribution, SATIATION_BAND_LABEL } from './satiation.js';
 import { getPlantPower } from './plant-power.js';
 import {
-  HIGH_AMMONIA_THRESHOLD,
-  HIGH_NITRATE_THRESHOLD,
-  HIGH_NITRITE_THRESHOLD,
-  LOW_OXYGEN_THRESHOLD,
+  eFoldsUnder,
+  FREE_AMMONIA_EDGE,
+  NITRATE_EDGE,
+  NITRITE_EDGE,
+  OXYGEN_COMFORT,
+  OXYGEN_EDGE,
+  toleranceFactor,
 } from '../livestock/tolerance.js';
 import {
   computeVitality,
@@ -94,6 +99,7 @@ interface FishFactorContext {
   waterVolume: number;
   tankCapacity: number;
   config: LivestockConfig;
+  hardiness: number;
 }
 
 /**
@@ -114,14 +120,16 @@ function plantBenefitAmount(plants: Plant[], config: LivestockConfig): number {
 }
 
 /**
- * Build the stressor list for a fish, with raw severities (no hardiness
- * applied — that happens inside `computeVitality`). Inactive stressors
+ * Build the stressor list for a fish, with raw severities (hardiness is
+ * applied inside `computeVitality`, or here on the water-quality edges and
+ * flagged so). Inactive stressors
  * are emitted with `amount: 0` so the breakdown shape stays stable for
  * downstream UI / tests that look up by name.
  */
 function buildStressors(ctx: FishFactorContext): VitalityFactor[] {
   const { fish, resources, waterVolume, tankCapacity, config } = ctx;
   const speciesData = FISH_SPECIES_DATA[fish.species];
+  const tolerance = toleranceFactor(ctx.hardiness);
 
   const tempStress =
     config.temperatureStressSeverity * outsideBand(resources.temperature, speciesData.temperatureRange);
@@ -138,13 +146,13 @@ function buildStressors(ctx: FishFactorContext): VitalityFactor[] {
       : resources.ammonia > 0
         ? 100
         : 0;
-  const ammoniaStress = config.ammoniaStressSeverity * eFoldsPast(freeNH3Ppm, HIGH_AMMONIA_THRESHOLD);
+  const ammoniaStress = config.ammoniaStressSeverity * eFoldsPast(freeNH3Ppm, FREE_AMMONIA_EDGE * tolerance);
 
   const nitritePpm = waterVolume > 0 ? resources.nitrite / waterVolume : (resources.nitrite > 0 ? 100 : 0);
-  const nitriteStress = config.nitriteStressSeverity * eFoldsPast(nitritePpm, HIGH_NITRITE_THRESHOLD);
+  const nitriteStress = config.nitriteStressSeverity * eFoldsPast(nitritePpm, NITRITE_EDGE * tolerance);
 
   const nitratePpm = waterVolume > 0 ? resources.nitrate / waterVolume : (resources.nitrate > 0 ? 100 : 0);
-  const nitrateStress = config.nitrateStressSeverity * eFoldsPast(nitratePpm, HIGH_NITRATE_THRESHOLD);
+  const nitrateStress = config.nitrateStressSeverity * eFoldsPast(nitratePpm, NITRATE_EDGE * tolerance);
 
   // Satiation stressor — band-aware label (Overfed / Hungry / Starving)
   // depending on which side of the well-fed peak the fish is sitting
@@ -161,7 +169,7 @@ function buildStressors(ctx: FishFactorContext): VitalityFactor[] {
       ? SATIATION_BAND_LABEL[satiation.band]
       : 'Satiation';
 
-  const oxygenStress = config.oxygenStressSeverity * eFoldsPast(LOW_OXYGEN_THRESHOLD, resources.oxygen);
+  const oxygenStress = config.oxygenStressSeverity * eFoldsUnder(resources.oxygen, OXYGEN_EDGE / tolerance);
 
   // Water level stress (below the configured threshold of capacity)
   let waterLevelStress = 0;
@@ -195,11 +203,11 @@ function buildStressors(ctx: FishFactorContext): VitalityFactor[] {
     { key: 'temperature', label: 'Temperature', amount: tempStress },
     { key: 'ph', label: 'pH', amount: phStress },
     { key: 'gh', label: 'GH', amount: ghStress },
-    { key: 'ammonia', label: 'Free NH3', amount: ammoniaStress },
-    { key: 'nitrite', label: 'Nitrite', amount: nitriteStress },
-    { key: 'nitrate', label: 'Nitrate', amount: nitrateStress },
+    { key: 'ammonia', label: 'Free NH3', amount: ammoniaStress, hardinessApplied: true },
+    { key: 'nitrite', label: 'Nitrite', amount: nitriteStress, hardinessApplied: true },
+    { key: 'nitrate', label: 'Nitrate', amount: nitrateStress, hardinessApplied: true },
     { key: 'satiation', label: satiationStressLabel, amount: satiation.stressor },
-    { key: 'oxygen', label: 'Oxygen', amount: oxygenStress },
+    { key: 'oxygen', label: 'Oxygen', amount: oxygenStress, hardinessApplied: true },
     { key: 'waterLevel', label: 'Water level', amount: waterLevelStress },
     { key: 'flow', label: 'Flow', amount: flowStress },
     { key: 'age', label: 'Age', amount: ageStress },
@@ -233,7 +241,9 @@ function buildBenefits(ctx: FishFactorContext): VitalityFactor[] {
     {
       key: 'oxygen',
       label: 'Oxygen',
-      amount: inRangeBenefit(resources.oxygen, LOW_OXYGEN_THRESHOLD, Infinity, config.oxygenBenefitPeak),
+      amount:
+        config.oxygenBenefitPeak *
+        Math.min(1, eFoldsPast(resources.oxygen, OXYGEN_EDGE) / Math.log(OXYGEN_COMFORT / OXYGEN_EDGE)),
     },
     {
       key: 'plants',
@@ -256,11 +266,12 @@ export function computeFishVitality(
   tankCapacity: number,
   config: LivestockConfig
 ): VitalityResult {
-  const ctx: FishFactorContext = { fish, resources, plants, waterVolume, tankCapacity, config };
+  const hardiness = effectiveHardiness(fish);
+  const ctx: FishFactorContext = { fish, resources, plants, waterVolume, tankCapacity, config, hardiness };
   return computeVitality({
     stressors: buildStressors(ctx),
     benefits: buildBenefits(ctx),
-    hardiness: effectiveHardiness(fish),
+    hardiness,
     condition: fish.health,
     surplus: fish.surplus,
     surplusCap: config.surplusCap,

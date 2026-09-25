@@ -15,11 +15,9 @@ import {
   HIGH_ALGAE_THRESHOLD,
   ammoniaAlertLine,
   HIGH_CO2_THRESHOLD,
-  HIGH_NITRITE_THRESHOLD,
-  HIGH_NITRATE_THRESHOLD,
-  LOW_OXYGEN_THRESHOLD,
   WATER_LEVEL_CRITICAL_THRESHOLD,
 } from '../../simulation/alerts/index.js';
+import { NITRATE_EDGE, NITRITE_EDGE, OXYGEN_EDGE } from '../../simulation/livestock/tolerance.js';
 import type { Nutrient, TunableConfig } from '../../simulation/config/index.js';
 import {
   Co2Resource,
@@ -219,7 +217,7 @@ const READINGS: Reading[] = [
     unit: PPM,
     display: same,
     decimals: 3,
-    note: (value, before) => overLine(value, before, HIGH_NITRITE_THRESHOLD),
+    note: (value, before) => overLine(value, before, NITRITE_EDGE),
   }),
   fromWater('nitrate', {
     label: 'NO₃',
@@ -227,7 +225,7 @@ const READINGS: Reading[] = [
     display: same,
     decimals: NitrateResource.precision,
     note: (value, _before, { state }): string | null => {
-      if (value > HIGH_NITRATE_THRESHOLD) return `above ${HIGH_NITRATE_THRESHOLD}`;
+      if (value > NITRATE_EDGE) return `above ${NITRATE_EDGE}`;
       if (value >= NITRATE_LOW_PPM) return null;
       return state.plants.length > 0
         ? `below ${NITRATE_LOW_PPM} — plants short`
@@ -285,9 +283,9 @@ const READINGS: Reading[] = [
     decimals: OxygenResource.precision,
     status: (value) => classifyVital('oxygen', value),
     at: (value) => onScale(DISPLAY_CEILING.oxygen, value),
-    band: () => ({ from: onScale(DISPLAY_CEILING.oxygen, LOW_OXYGEN_THRESHOLD), to: 1 }),
+    band: () => ({ from: onScale(DISPLAY_CEILING.oxygen, OXYGEN_EDGE), to: 1 }),
     note: (value) =>
-      value < LOW_OXYGEN_THRESHOLD ? `below ${LOW_OXYGEN_THRESHOLD.toFixed(1)}` : null,
+      value < OXYGEN_EDGE ? `below ${OXYGEN_EDGE.toFixed(1)}` : null,
   },
   {
     key: 'co2',

@@ -56,6 +56,8 @@ export interface VitalityFactor {
   label: string;
   /** Magnitude in %/h. Always non-negative; direction comes from the array. */
   amount: number;
+  /** The caller already moved this factor's tolerance by hardiness, so it is charged as given. */
+  hardinessApplied?: boolean;
 }
 
 /** Inputs to a vitality computation. */
@@ -99,7 +101,8 @@ export interface VitalityInput {
   /**
    * Effective hardiness (0–1). The caller is responsible for clamping /
    * applying species + per-individual offsets before passing in. The
-   * module multiplies stressor totals by `(1 - hardiness)`.
+   * module multiplies stressor totals by `(1 - hardiness)`, except factors
+   * flagged `hardinessApplied`.
    */
   hardiness: number;
   /** Current condition (0–100). */
@@ -305,10 +308,8 @@ export function computeVitality(input: VitalityInput): VitalityResult {
 
   // Apply hardiness to each charged factor so the breakdown the UI shows
   // matches the actual damage being inflicted.
-  const scale = (factor: VitalityFactor): VitalityFactor => ({
-    ...factor,
-    amount: factor.amount * hardinessFactor,
-  });
+  const scale = (factor: VitalityFactor): VitalityFactor =>
+    factor.hardinessApplied === true ? factor : { ...factor, amount: factor.amount * hardinessFactor };
   const sum = (factors: VitalityFactor[]): number =>
     factors.reduce((total, factor) => total + factor.amount, 0);
 
@@ -407,7 +408,7 @@ export function computeVitality(input: VitalityInput): VitalityResult {
  * fish and plant vitality builders.
  *
  * `hi = Infinity` is a valid degenerate case — a one-sided "above
- * threshold" benefit (e.g. oxygen ≥ 4 mg/L).
+ * threshold" benefit.
  */
 export function inRangeBenefit(value: number, lo: number, hi: number, peak: number): number {
   return value >= lo && value <= hi ? peak : 0;
@@ -420,8 +421,8 @@ export function outsideBand(value: number, [lo, hi]: readonly [number, number]):
 /**
  * How many e-folds `value` stands past `edge`, zero at or under it. Toxicity
  * runs on log dose, so doubling a concentration adds the same harm wherever it
- * starts. Finite at a zero edge.
+ * starts.
  */
 export function eFoldsPast(value: number, edge: number): number {
-  return value > edge ? Math.log(value / Math.max(edge, Number.EPSILON)) : 0;
+  return value > edge ? Math.log(value / edge) : 0;
 }

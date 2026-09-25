@@ -4,13 +4,8 @@
  * engine's own alert thresholds, so no surface invents a band.
  */
 
-import {
-  HIGH_NITRITE_THRESHOLD,
-  HIGH_NITRATE_THRESHOLD,
-  LOW_OXYGEN_THRESHOLD,
-  HIGH_CO2_THRESHOLD,
-  WATER_LEVEL_CRITICAL_THRESHOLD,
-} from '../../simulation/alerts/index.js';
+import { HIGH_CO2_THRESHOLD, WATER_LEVEL_CRITICAL_THRESHOLD } from '../../simulation/alerts/index.js';
+import { NITRATE_EDGE, NITRITE_EDGE, OXYGEN_EDGE } from '../../simulation/livestock/tolerance.js';
 import type { Status } from './status.js';
 
 export type VitalKey =
@@ -50,12 +45,12 @@ export function classifyAmmonia(ppm: number, line: number): Status {
 export function classifyVital(key: Exclude<VitalKey, 'ammonia'>, value: number): Status {
   switch (key) {
     case 'nitrite':
-      return value > HIGH_NITRITE_THRESHOLD ? 'alert' : 'ok';
+      return value > NITRITE_EDGE ? 'alert' : 'ok';
     case 'nitrate':
-      if (value > HIGH_NITRATE_THRESHOLD) return 'alert';
+      if (value > NITRATE_EDGE) return 'alert';
       return value < NITRATE_LOW_PPM ? 'warn' : 'ok';
     case 'oxygen':
-      if (value < LOW_OXYGEN_THRESHOLD) return 'warn';
+      if (value < OXYGEN_EDGE) return 'warn';
       return value >= OXYGEN_OK_MGL ? 'ok' : 'neutral';
     case 'co2':
       return value > HIGH_CO2_THRESHOLD ? 'alert' : 'neutral';

@@ -9,13 +9,8 @@ import {
   type GasReading,
   type WaterReading,
 } from './water';
-import {
-  ammoniaAlertLine,
-  HIGH_CO2_THRESHOLD,
-  HIGH_NITRATE_THRESHOLD,
-  HIGH_NITRITE_THRESHOLD,
-  LOW_OXYGEN_THRESHOLD,
-} from '../../simulation/alerts/index.js';
+import { ammoniaAlertLine, HIGH_CO2_THRESHOLD } from '../../simulation/alerts/index.js';
+import { NITRATE_EDGE, NITRITE_EDGE, OXYGEN_EDGE } from '../../simulation/livestock/tolerance.js';
 import { createSimulation, type SimulationState } from '../../simulation/index.js';
 import { getKhMass } from '../../simulation/resources/index.js';
 
@@ -48,8 +43,8 @@ describe('readingAt', () => {
 
 describe('display scales', () => {
   it('keeps every alert threshold on the track it belongs to', () => {
-    expect(readingAt('nitrite', HIGH_NITRITE_THRESHOLD)).toBeLessThan(1);
-    expect(readingAt('nitrate', HIGH_NITRATE_THRESHOLD)).toBeLessThan(1);
+    expect(readingAt('nitrite', NITRITE_EDGE)).toBeLessThan(1);
+    expect(readingAt('nitrate', NITRATE_EDGE)).toBeLessThan(1);
     for (const line of [0.05, 0.3, 3, 45]) {
       expect(trackAt(ammoniaScale(line), line)).toBeLessThan(1);
     }
@@ -110,7 +105,7 @@ describe('waterReadings', () => {
     });
     expect(byKey(state, 'nitrate').band).toEqual({
       from: readingAt('nitrate', 5),
-      to: readingAt('nitrate', HIGH_NITRATE_THRESHOLD),
+      to: readingAt('nitrate', NITRATE_EDGE),
     });
     expect(byKey(state, 'temperature').band).toBeNull();
     expect(byKey(state, 'ph').band).toBeNull();
@@ -152,7 +147,7 @@ describe('gasReadings', () => {
   });
 
   it('calls oxygen low at the engine’s own alert threshold, and not before', () => {
-    expect(LOW_OXYGEN_THRESHOLD).toBe(4);
+    expect(OXYGEN_EDGE).toBe(4);
     expect(gas(3.9, 12, 'oxygen')).toMatchObject({ status: 'warn' });
     expect(gas(5, 12, 'oxygen')).toMatchObject({ status: 'neutral' });
     expect(gas(6, 12, 'oxygen')).toMatchObject({ status: 'ok' });

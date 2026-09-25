@@ -6,12 +6,8 @@
  */
 
 import type { SimulationState } from '../../simulation/index.js';
-import {
-  ammoniaAlertLine,
-  HIGH_NITRITE_THRESHOLD,
-  HIGH_NITRATE_THRESHOLD,
-  WATER_LEVEL_CRITICAL_THRESHOLD,
-} from '../../simulation/alerts/index.js';
+import { ammoniaAlertLine, WATER_LEVEL_CRITICAL_THRESHOLD } from '../../simulation/alerts/index.js';
+import { NITRATE_EDGE, NITRITE_EDGE } from '../../simulation/livestock/tolerance.js';
 import { getDgh, getDkh, getPpm } from '../../simulation/resources/index.js';
 import { getPh } from '../../simulation/core/carbonate.js';
 import { getTemperatureUnit, toDisplayTemperature, type UnitSystem } from '../utils/units.js';
@@ -162,10 +158,10 @@ export function waterReadings(state: SimulationState, units: UnitSystem): WaterR
     gh: { unit: 'dGH', band: null },
     water: { unit: '%', band: band(scales.water, levelLimit, 100) },
     ammonia: { unit: 'ppm', band: band(scales.ammonia, 0, ammoniaLine) },
-    nitrite: { unit: 'ppm', band: band(scales.nitrite, 0, HIGH_NITRITE_THRESHOLD) },
+    nitrite: { unit: 'ppm', band: band(scales.nitrite, 0, NITRITE_EDGE) },
     nitrate: {
       unit: 'ppm',
-      band: band(scales.nitrate, NITRATE_LOW_PPM, HIGH_NITRATE_THRESHOLD),
+      band: band(scales.nitrate, NITRATE_LOW_PPM, NITRATE_EDGE),
     },
   };
 

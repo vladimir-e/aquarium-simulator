@@ -20,13 +20,13 @@ in, and the bank that health leaves over is what pays for the next spawn.
 | Metabolism | <Badge text="settled" variant="success" /> | Draw, deamination and CO₂ on one Monod factor off one half-saturation constant. Deamination is metabolism, so a depressed fish excretes proportionally less nitrogen. |
 | Nitrogen split | <Badge text="settled" variant="success" /> | Gill ammonia and feces-bound N come out of one food-nitrogen budget, so the waste mass is derived rather than a free parameter. |
 | Satiation | <Badge text="settled" variant="success" /> | One continuous piecewise curve producing both a stressor and a benefit, zero at every band edge. This is what the rest of the engine's bands should look like. |
-| Water quality | <Badge text="settled" variant="success" /> | Free NH₃, nitrite, nitrate and oxygen each harm from a tolerance edge the alert shares, growing with the log of the excess. Chloride, which blunts nitrite, is not modelled. |
-| Hardiness | <Badge text="settled" variant="success" /> | Scales stressors only, centrally, and never benefits. A hardy fish tolerates bad water but isn't more energised by good. |
+| Water quality | <Badge text="settled" variant="success" /> | Free NH₃, nitrite, nitrate and oxygen harm on log dose from each fish's own edge, which hardiness moves out from the alert's. Chloride, which blunts nitrite, is not modelled. |
+| Hardiness | <Badge text="settled" variant="success" /> | Scales stressors, never benefits — centrally for most, and on the concentration axis for water quality. A hardy fish tolerates bad water but isn't more energised by good. |
 | Age | <Badge text="settled" variant="success" /> | A linear stressor ramp past the species lifespan, through the same channel as every other stressor. No probabilistic cliff. |
 | Staging and fry growth | <Badge text="settled" variant="success" /> | Mass is re-derived from age each tick and the fry flips to adult at `maturityAge`. Stage and age are stored independently, so the spawn gate asks both. |
 | Breeding gate | <Badge text="settled" variant="success" /> | Banks plus a live-trend check, no husbandry re-tests — the husbandry is already priced into how the bank filled. |
 | Death | <Badge text="settled" variant="success" /> | Condition reaching zero, from any stressor. Age-driven deaths are labelled in the log so the keeper can tell "got old" from "water went bad". |
-| Tolerance-band benefits | <Badge text="scaffolding" variant="caution" /> | pH and oxygen benefits are steps. Crossing the edge loses the whole channel at once *and* starts damage. |
+| Tolerance-band benefits | <Badge text="scaffolding" variant="caution" /> | The pH benefit is a step: crossing the edge loses the whole channel at once *and* starts damage. Oxygen's is graded. |
 | Fry survival | <Badge text="missing" variant="danger" /> | Clutches hatch at 100 % with no density check and nothing eats the young, so any stocked pair breeds toward a wipeout. This is the cause of most "the preset is broken" findings. |
 | Colonies | <Badge text="missing" variant="danger" /> | Snails and shrimp do not exist. Fish are the only animals, and food they leave behind decays rather than feeding anything. |
 | General hardness | <Badge text="scaffolding" variant="caution" /> | A damage-only band per species: no benefit inside it, and one pooled GH rather than calcium and magnesium apart. |
@@ -133,10 +133,10 @@ over.
 | Temperature | outside the species range | °C |
 | pH | outside the species range | pH unit |
 | GH | outside the species range | dGH |
-| Free NH₃ | above 0.02 ppm of the *unionized* fraction, read off pH and temperature | e-fold over |
-| Nitrite | above 0.5 ppm | e-fold over |
-| Nitrate | above 80 ppm | e-fold over |
-| Oxygen | below 4 mg/L | e-fold under |
+| Free NH₃ | past the fish's own edge, of the *unionized* fraction read off pH and temperature | e-fold over |
+| Nitrite | past the fish's own edge | e-fold over |
+| Nitrate | past the fish's own edge | e-fold over |
+| Oxygen | under the fish's own edge | e-fold under |
 | Water level | below `waterLevelStressThreshold` of capacity | % under |
 | Flow | above the species `maxTurnover` | tank volumes/h over |
 | Satiation | overfed, hungry or starving | the curve above |
@@ -145,7 +145,7 @@ over.
 | Benefit | Earns when | Peak |
 |---|---|---|
 | pH | inside the species range | `phBenefitPeak` |
-| Oxygen | at or above 4 mg/L | `oxygenBenefitPeak` |
+| Oxygen | rising on log scale from 4 mg/L, full from 6 | `oxygenBenefitPeak` |
 | Well fed | satiation 75–99 | `satiationWellFedPeak` |
 | Plants | plant power, saturating at `plantBenefitSaturationPoint` | `plantBenefitPeak` |
 
@@ -156,24 +156,26 @@ reserve breeding spends.
 
 #### Water quality
 
-Each water-quality stressor is its severity times the e-folds past its edge —
-`ln(reading ⁄ edge)`, or `ln(edge ⁄ reading)` for oxygen — because toxicity runs
-on log dose: every doubling costs the same. The edge is where chronic harm
-starts and where the alert fires. The severity puts about 4 %/h on a
-mid-hardiness fish at the 96-hour LC50, so a moderate excess is survivable for a
-long time and the lethal levels still kill in days.
+Each water-quality stressor is its severity times the e-folds past the fish's
+own edge — `ln(reading ⁄ edge)`, or `ln(edge ⁄ reading)` for oxygen, read no
+lower than anoxia at 0.1 mg/L — because toxicity runs on log dose: every
+doubling costs the same. The alert's edge is where a fish of hardiness 0 starts
+to suffer. Hardiness moves a fish's edge out by `2^hardiness` — twice the
+alert's at hardiness 1, and down by the same factor for oxygen — so a hardy species differs in where
+harm starts, not in how steeply it grows, and still dies at the lethal levels.
+Each severity puts a mid-hardiness fish at its 96-hour LC50 one %/h past what a
+clean tank gives back, so it dies in about four days.
 
-| Reading | Harm starts | A mid-hardiness fish breaks even | LC50 |
-|---|---|---|---|
-| Free NH₃ | 0.02 ppm | ≈ 0.14 ppm | ≈ 1 ppm |
-| Nitrite | 0.5 ppm | ≈ 2 ppm | ≈ 10 ppm |
-| Nitrate | 80 ppm | ≈ 250 ppm | ≈ 800 ppm |
-| Oxygen | 4 mg/L | ≈ 2.5 mg/L | ≈ 1 mg/L |
+| Reading | Alert edge | A mid-hardiness fish is harmed from | Breaks even | LC50 |
+|---|---|---|---|---|
+| Free NH₃ | 0.02 ppm | 0.028 ppm | ≈ 0.17 ppm | ≈ 1 ppm |
+| Nitrite | 0.5 ppm | 0.71 ppm | ≈ 2.7 ppm | ≈ 10 ppm |
+| Nitrate | 80 ppm | 113 ppm | ≈ 300 ppm | ≈ 800 ppm |
+| Oxygen | 4 mg/L | 2.8 mg/L | ≈ 2.2 mg/L | ≈ 1.5 mg/L |
 
-Hardiness moves those points: a guppy shrugs off what kills a neon. Ammonia
-reads the free fraction rather than total ammonia, so the same 2 ppm reading
-costs a fish far less at pH 6.5 than at 8.0. Nitrite is read without chloride,
-which in real tap water raises its tolerance.
+Ammonia reads the free fraction rather than total ammonia, so the same 2 ppm
+reading costs a fish far less at pH 6.5 than at 8.0. Nitrite is read without
+chloride, which in real tap water raises its tolerance.
 
 ### Individual variation
 
@@ -258,7 +260,7 @@ visible decline rather than a coin flip.
 | `basalAmmoniaRate` | Body-protein turnover per gram, independent of feeding | `0.03` mg NH₃/g/hr |
 | `respiratoryQuotient` | CO₂ exhaled per O₂ consumed, a molar ratio | `0.8` |
 | `satiationDecayRate` | Satiation burned per hour, fed or fasted | `0.6` %/hr |
-| `ammoniaStressSeverity` · `nitriteStressSeverity` · `nitrateStressSeverity` · `oxygenStressSeverity` | Damage per e-fold past each tolerance edge | `1.0` · `1.3` · `1.7` · `3.0` %/e-fold/hr |
+| `ammoniaStressSeverity` · `nitriteStressSeverity` · `nitrateStressSeverity` · `oxygenStressSeverity` | Damage per e-fold past the fish's own edge; oxygen's per e-fold under | `0.56` · `0.75` · `1.0` · `2.7` %/e-fold/hr |
 | `flowStressSeverity` | Damage per turnover unit above species tolerance | `0.3` %/×/hr |
 | `ghStressSeverity` | Damage per dGH outside the species range — a chronic harm, so a guppy five degrees short stays inside a fed tank's recovery | `0.1` %/dGH/hr |
 | `ageStressSeverity` | Damage per hour past the species lifespan | `0.05` %/hr/hr |

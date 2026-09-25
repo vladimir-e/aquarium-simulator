@@ -83,9 +83,10 @@ export interface LivestockConfig {
   /** Health damage per dGH outside safe range */
   ghStressSeverity: number;
   /**
-   * Water-quality damage per e-fold past each tolerance edge in
-   * `livestock/tolerance` — free NH₃, not total ammonia, since only the
-   * unionized form crosses the gills.
+   * Water-quality damage per e-fold past each fish's own tolerance edge
+   * (`livestock/tolerance`, moved out by hardiness) — free NH₃, not total
+   * ammonia, since only the unionized form crosses the gills. Oxygen counts
+   * e-folds under its edge.
    */
   ammoniaStressSeverity: number;
   nitriteStressSeverity: number;
@@ -136,7 +137,7 @@ export interface LivestockConfig {
   // saturated planting it rises to ≈ 1.2 %/h.
   /** pH inside species range. */
   phBenefitPeak: number;
-  /** Oxygen ≥ `LOW_OXYGEN_THRESHOLD` (one-sided "above threshold" benefit). */
+  /** Oxygen, rising on log scale from `OXYGEN_EDGE` to full at `OXYGEN_COMFORT`. */
   oxygenBenefitPeak: number;
   /** Plant-presence benefit at saturation — see `plantBenefitSaturationPoint`. */
   plantBenefitPeak: number;
@@ -179,7 +180,7 @@ export const livestockDefaults: LivestockConfig = {
   // the draw — deamination is the same metabolism — so this one constant sets
   // both what a roster breathes and what it loads the water with.
   //
-  // Damage is a separate reading: `LOW_OXYGEN_THRESHOLD` still charges a fish
+  // Damage is a separate reading: `OXYGEN_EDGE` still charges a fish
   // for the water it is in, so a suffocating fish draws less and suffers more.
   respirationOxygenHalfSaturation: 1.0,
   // 5 % N in food — conservative; typical flake is 6–8 % N.
@@ -222,14 +223,12 @@ export const livestockDefaults: LivestockConfig = {
   // (factor 0.2) five degrees under its range pays 0.1 %/h — felt, but
   // inside what a fed, oxygenated tank gives back, even a cold one.
   ghStressSeverity: 0.1,
-  // Each severity puts ~4 %/h on a mid-hardiness fish at the 96-hour LC50,
-  // death in about four days, and breaks even with a clean tank's recovery
-  // near the geometric mean of edge and LC50: free NH₃ 1 ppm (0.14), NO₂⁻
-  // 10 ppm (2.2), NO₃⁻ 800 ppm (250), O₂ 1 mg/L (2.5).
-  ammoniaStressSeverity: 1.0,
-  nitriteStressSeverity: 1.3,
-  nitrateStressSeverity: 1.7,
-  oxygenStressSeverity: 3.0,
+  // Each puts a mid-hardiness fish at its 96-hour LC50 one %/h past what a
+  // clean tank gives back, so it dies in about four days.
+  ammoniaStressSeverity: 0.56,
+  nitriteStressSeverity: 0.75,
+  nitrateStressSeverity: 1.0,
+  oxygenStressSeverity: 2.7,
   waterLevelStressSeverity: 0.2, // 0.2% per % below threshold
   // 0.3 %/h per turnover above species tolerance. A 150 L on a canister
   // plus a 240 GPH powerhead runs 14×, so a neon is 4 over and pays
@@ -365,7 +364,7 @@ export const livestockConfigMeta: LivestockConfigMeta[] = [
   { key: 'ammoniaStressSeverity', label: 'Free NH3 Stress Severity', unit: '%/e-fold/hr', min: 0.1, max: 10, step: 0.1 },
   { key: 'nitriteStressSeverity', label: 'Nitrite Stress Severity', unit: '%/e-fold/hr', min: 0.1, max: 10, step: 0.1 },
   { key: 'nitrateStressSeverity', label: 'Nitrate Stress Severity', unit: '%/e-fold/hr', min: 0.1, max: 10, step: 0.1 },
-  { key: 'oxygenStressSeverity', label: 'O2 Stress Severity', unit: '%/e-fold/hr', min: 0.1, max: 10, step: 0.1 },
+  { key: 'oxygenStressSeverity', label: 'O2 Stress Severity', unit: '%/e-fold under/hr', min: 0.1, max: 10, step: 0.1 },
   {
     key: 'waterLevelStressSeverity',
     label: 'Water Level Stress',

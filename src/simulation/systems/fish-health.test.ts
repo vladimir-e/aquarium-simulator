@@ -8,10 +8,14 @@ import { withPh, type ResourceOverrides } from '../tests/resources.js';
 import { getGhMass } from '../resources/helpers.js';
 import type { FishSpecies } from '../livestock/species.js';
 import {
-  HIGH_NITRATE_THRESHOLD,
-  HIGH_NITRITE_THRESHOLD,
-  LOW_OXYGEN_THRESHOLD,
+  ANOXIA,
+  NITRATE_EDGE,
+  NITRITE_EDGE,
+  OXYGEN_COMFORT,
+  OXYGEN_EDGE,
+  toleranceFactor,
 } from '../livestock/tolerance.js';
+import { freeAmmoniaPpm } from './nitrogen-cycle.js';
 
 const STRESSORS = [
   'temperature',
@@ -133,7 +137,7 @@ describe('stressors', () => {
     ['nitrite', { nitrite: 100 }, {}],
     ['nitrate', { nitrate: 20000 }, {}],
     ['satiation', {}, { satiation: 20 }],
-    ['oxygen', { oxygen: 3 }, {}],
+    ['oxygen', { oxygen: 2 }, {}],
   ])('isolates %s stress to its own key', (key, resources, fish) => {
     const v = vitality(fish, resources);
     expect(stressorAmount(v, key)).toBeGreaterThan(0);
@@ -159,35 +163,6 @@ describe('stressors', () => {
     expect(high).toBeGreaterThan(low * 10);
   });
 
-  it.each<[string, (ppm: number) => ResourceOverrides, number]>([
-    ['nitrite', (ppm): ResourceOverrides => ({ nitrite: ppm * 100 }), HIGH_NITRITE_THRESHOLD],
-    ['nitrate', (ppm): ResourceOverrides => ({ nitrate: ppm * 100 }), HIGH_NITRATE_THRESHOLD],
-  ])('grows %s harm from its edge by the same step per doubling', (key, at, edge) => {
-    const charge = (ppm: number): number => stressorAmount(vitality({}, at(ppm)), key);
-    expect(charge(edge * 0.9)).toBe(0);
-    expect(charge(edge)).toBe(0);
-    expect(charge(edge * 2)).toBeGreaterThan(0);
-    expect(charge(edge * 4)).toBeCloseTo(2 * charge(edge * 2), 10);
-    expect(charge(edge * 8)).toBeCloseTo(3 * charge(edge * 2), 10);
-  });
-
-  it('grows oxygen harm by the same step each time the oxygen halves under its edge', () => {
-    const charge = (oxygen: number): number => stressorAmount(vitality({}, { oxygen }), 'oxygen');
-    expect(charge(LOW_OXYGEN_THRESHOLD)).toBe(0);
-    expect(charge(LOW_OXYGEN_THRESHOLD / 4)).toBeCloseTo(2 * charge(LOW_OXYGEN_THRESHOLD / 2), 10);
-    expect(Number.isFinite(charge(0))).toBe(true);
-    expect(charge(0)).toBeGreaterThan(charge(0.01));
-  });
-
-  it('trades the oxygen benefit for the stressor at one edge', () => {
-    const above = vitality({}, { oxygen: LOW_OXYGEN_THRESHOLD });
-    const below = vitality({}, { oxygen: LOW_OXYGEN_THRESHOLD * 0.9 });
-    expect(benefitAmount(above, 'oxygen')).toBeGreaterThan(0);
-    expect(stressorAmount(above, 'oxygen')).toBe(0);
-    expect(benefitAmount(below, 'oxygen')).toBe(0);
-    expect(stressorAmount(below, 'oxygen')).toBeGreaterThan(0);
-  });
-
   it('reads toxins at full strength in a drained tank', () => {
     const drained = totalStress(vitality({}, { ammonia: 1 }, { water: 0 }));
     const full = totalStress(vitality({}, { ammonia: 1 }));
@@ -204,7 +179,7 @@ describe('stressors', () => {
         ammonia: 2000,
         nitrite: 50,
         nitrate: 20000,
-        oxygen: 3,
+        oxygen: 2,
         water: 30,
         flow: 600,
       }
@@ -212,6 +187,80 @@ describe('stressors', () => {
     for (const key of STRESSORS) expect(stressorAmount(v, key)).toBeGreaterThan(0);
     const handSum = STRESSORS.reduce((sum, key) => sum + stressorAmount(v, key), 0);
     expect(totalStress(v)).toBeCloseTo(handSum, 10);
+  });
+});
+
+describe('water quality', () => {
+  const neonTolerance = toleranceFactor(FISH_SPECIES_DATA.neon_tetra.hardiness);
+  const freeFraction = (): number => freeAmmoniaPpm(makeResources({ ammonia: 100 }));
+  const at: Record<string, (reading: number) => ResourceOverrides> = {
+    ammonia: (free) => ({ ammonia: (100 * free) / freeFraction() }),
+    nitrite: (ppm) => ({ nitrite: ppm * 100 }),
+    nitrate: (ppm) => ({ nitrate: ppm * 100 }),
+    oxygen: (oxygen) => ({ oxygen }),
+  };
+  const netAt = (key: string, reading: number, fish: Partial<Fish> = {}): number =>
+    vitality(fish, at[key](reading)).breakdown.net;
+
+  it.each<[string, number]>([
+    ['nitrite', NITRITE_EDGE],
+    ['nitrate', NITRATE_EDGE],
+  ])('grows %s harm from the fish’s own edge by the same step per doubling', (key, edge) => {
+    const own = edge * neonTolerance;
+    const charge = (ppm: number): number => stressorAmount(vitality({}, at[key](ppm)), key);
+    expect(charge(own)).toBe(0);
+    expect(charge(own * 2)).toBeGreaterThan(0);
+    expect(charge(own * 4)).toBeCloseTo(2 * charge(own * 2), 10);
+    expect(charge(own * 8)).toBeCloseTo(3 * charge(own * 2), 10);
+  });
+
+  it('grows oxygen harm by the same step each time the oxygen halves, floored at anoxia', () => {
+    const own = OXYGEN_EDGE / neonTolerance;
+    const charge = (oxygen: number): number => stressorAmount(vitality({}, { oxygen }), 'oxygen');
+    expect(charge(own)).toBe(0);
+    expect(charge(own / 4)).toBeCloseTo(2 * charge(own / 2), 10);
+    expect(charge(0)).toBe(charge(ANOXIA));
+  });
+
+  it('moves a hardier fish’s edge out rather than flattening its slope', () => {
+    const charge = (species: FishSpecies, ppm: number): number =>
+      stressorAmount(vitality({ species }, { nitrate: ppm * 100 }), 'nitrate');
+    const hardy = toleranceFactor(FISH_SPECIES_DATA.guppy.hardiness);
+    expect(charge('guppy', NITRATE_EDGE * hardy)).toBe(0);
+    expect(charge('neon_tetra', NITRATE_EDGE * hardy)).toBeGreaterThan(0);
+    expect(charge('guppy', 1000) - charge('guppy', 500)).toBeCloseTo(
+      charge('neon_tetra', 1000) - charge('neon_tetra', 500),
+      10
+    );
+  });
+
+  it('raises the oxygen benefit from nothing at the edge to full at comfort', () => {
+    const benefit = (oxygen: number): number => benefitAmount(vitality({}, { oxygen }), 'oxygen');
+    const peak = livestockDefaults.oxygenBenefitPeak;
+    expect(benefit(OXYGEN_EDGE * 0.9)).toBe(0);
+    expect(benefit(OXYGEN_EDGE)).toBe(0);
+    expect(benefit(Math.sqrt(OXYGEN_EDGE * OXYGEN_COMFORT))).toBeCloseTo(peak / 2, 10);
+    expect(benefit(OXYGEN_COMFORT)).toBeCloseTo(peak, 10);
+    expect(benefit(OXYGEN_COMFORT * 2)).toBeCloseTo(peak, 10);
+  });
+
+  const anchors: [string, number, number][] = [
+    ['ammonia', 0.17, 1],
+    ['nitrite', 2.7, 10],
+    ['nitrate', 300, 800],
+    ['oxygen', 2.2, 1.5],
+  ];
+
+  it.each(anchors)('breaks a mid-hardiness fish even on %s at %s', (key, breakEven) => {
+    expect(netAt(key, breakEven)).toBeCloseTo(0, 1);
+  });
+
+  it.each(anchors)('kills a mid-hardiness fish on %s at its LC50 in about four days', (key, _, lc50) => {
+    expect(netAt(key, lc50)).toBeCloseTo(-1, 1);
+  });
+
+  it.each(anchors)('still harms the hardiest fish on %s at the LC50', (key, _, lc50) => {
+    expect(netAt(key, lc50, { species: 'guppy', hardinessOffset: 1 })).toBeLessThan(0);
   });
 });
 

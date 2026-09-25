@@ -7,7 +7,7 @@
 import type { Alert, AlertResult } from './types.js';
 import type { SimulationState } from '../state.js';
 import { createLog } from '../core/logging.js';
-import { LOW_OXYGEN_THRESHOLD } from '../livestock/tolerance.js';
+import { OXYGEN_EDGE } from '../livestock/tolerance.js';
 
 export const lowOxygenAlert: Alert = {
   id: 'low-oxygen',
@@ -17,7 +17,7 @@ export const lowOxygenAlert: Alert = {
     const wasTriggered = state.alertState.lowOxygen;
 
     // Check if currently below threshold
-    const isBelowThreshold = oxygenLevel < LOW_OXYGEN_THRESHOLD;
+    const isBelowThreshold = oxygenLevel < OXYGEN_EDGE;
 
     if (isBelowThreshold) {
       // Condition is active

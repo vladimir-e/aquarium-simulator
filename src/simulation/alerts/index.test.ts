@@ -12,14 +12,11 @@ import {
   lowOxygenAlert,
   waterLevelAlert,
   HIGH_ALGAE_THRESHOLD,
-  HIGH_AMMONIA_THRESHOLD,
   HIGH_CO2_THRESHOLD,
-  HIGH_NITRATE_THRESHOLD,
-  HIGH_NITRITE_THRESHOLD,
-  LOW_OXYGEN_THRESHOLD,
   WATER_LEVEL_CRITICAL_THRESHOLD,
   type Alert,
 } from './index.js';
+import { FREE_AMMONIA_EDGE, NITRATE_EDGE, NITRITE_EDGE, OXYGEN_EDGE } from '../livestock/tolerance.js';
 import { createSimulation, type AlertState, type SimulationState } from '../state.js';
 import { getPh } from '../core/carbonate.js';
 
@@ -72,29 +69,29 @@ const CASES: Case[] = [
     source: 'nitrogen-cycle',
     set: (draft, free): void => {
       draft.resources.ammonia =
-        (free / HIGH_AMMONIA_THRESHOLD) * ammoniaAlertLine(draft.resources) * draft.resources.water;
+        (free / FREE_AMMONIA_EDGE) * ammoniaAlertLine(draft.resources) * draft.resources.water;
     },
-    firing: HIGH_AMMONIA_THRESHOLD * 2,
-    quiet: HIGH_AMMONIA_THRESHOLD / 2,
-    edge: { value: HIGH_AMMONIA_THRESHOLD, fires: false },
+    firing: FREE_AMMONIA_EDGE * 2,
+    quiet: FREE_AMMONIA_EDGE / 2,
+    edge: { value: FREE_AMMONIA_EDGE, fires: false },
   },
   {
     alert: highNitriteAlert,
     flag: 'highNitrite',
     source: 'nitrogen-cycle',
     set: ppm('nitrite'),
-    firing: HIGH_NITRITE_THRESHOLD * 2,
-    quiet: HIGH_NITRITE_THRESHOLD / 2,
-    edge: { value: HIGH_NITRITE_THRESHOLD, fires: false },
+    firing: NITRITE_EDGE * 2,
+    quiet: NITRITE_EDGE / 2,
+    edge: { value: NITRITE_EDGE, fires: false },
   },
   {
     alert: highNitrateAlert,
     flag: 'highNitrate',
     source: 'nitrogen-cycle',
     set: ppm('nitrate'),
-    firing: HIGH_NITRATE_THRESHOLD * 2,
-    quiet: HIGH_NITRATE_THRESHOLD / 2,
-    edge: { value: HIGH_NITRATE_THRESHOLD, fires: false },
+    firing: NITRATE_EDGE * 2,
+    quiet: NITRATE_EDGE / 2,
+    edge: { value: NITRATE_EDGE, fires: false },
   },
   {
     alert: lowOxygenAlert,
@@ -103,9 +100,9 @@ const CASES: Case[] = [
     set: (draft, oxygen): void => {
       draft.resources.oxygen = oxygen;
     },
-    firing: LOW_OXYGEN_THRESHOLD / 2,
-    quiet: LOW_OXYGEN_THRESHOLD * 2,
-    edge: { value: LOW_OXYGEN_THRESHOLD, fires: false },
+    firing: OXYGEN_EDGE / 2,
+    quiet: OXYGEN_EDGE * 2,
+    edge: { value: OXYGEN_EDGE, fires: false },
   },
   {
     alert: highCo2Alert,

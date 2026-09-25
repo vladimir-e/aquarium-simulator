@@ -16,11 +16,8 @@ import { getGhMass, getKhMass, getPpm } from '../../simulation/resources/helpers
 import { blendConcentration, blendTemperature } from '../../simulation/core/blending.js';
 import { calculateO2Saturation } from '../../simulation/systems/gas-exchange.js';
 import { gasExchangeDefaults } from '../../simulation/config/gas-exchange.js';
-import {
-  ammoniaAlertLine,
-  HIGH_NITRATE_THRESHOLD,
-  HIGH_NITRITE_THRESHOLD,
-} from '../../simulation/alerts/index.js';
+import { ammoniaAlertLine } from '../../simulation/alerts/index.js';
+import { NITRATE_EDGE, NITRITE_EDGE } from '../../simulation/livestock/tolerance.js';
 import { ammoniaScale, trackAt } from '../run/index.js';
 import {
   DEFAULT_SETTINGS,
@@ -233,18 +230,18 @@ describe('preview readings', () => {
       resources: { ...state.resources, nitrite: 1.6 * state.resources.water },
     };
     const nitrite = row(detail(cycling, 'waterChange').preview, 'nitrite');
-    expect(nitrite.note).toBe(`still above ${HIGH_NITRITE_THRESHOLD.toFixed(2)}`);
+    expect(nitrite.note).toBe(`still above ${NITRITE_EDGE.toFixed(2)}`);
     expect(nitrite.status).toBe('alert');
 
     const loaded = {
       ...state,
       resources: {
         ...state.resources,
-        nitrate: (HIGH_NITRATE_THRESHOLD - 0.2) * state.resources.water,
+        nitrate: (NITRATE_EDGE - 0.2) * state.resources.water,
       },
     };
     const nitrate = row(detail(loaded, 'dose', { ...DEFAULT_SETTINGS, dose: 4 }).preview, 'nitrate');
-    expect(nitrate.note).toBe(`above ${HIGH_NITRATE_THRESHOLD}`);
+    expect(nitrate.note).toBe(`above ${NITRATE_EDGE}`);
   });
 
   it('reads an ammonia row on the line the action leaves, when the action moves pH', () => {

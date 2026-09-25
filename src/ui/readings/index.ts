@@ -9,14 +9,16 @@
 import type { SimulationState } from '../../simulation/index.js';
 import {
   HIGH_ALGAE_THRESHOLD,
-  HIGH_AMMONIA_THRESHOLD,
   ammoniaAlertLine,
   HIGH_CO2_THRESHOLD,
-  HIGH_NITRATE_THRESHOLD,
-  HIGH_NITRITE_THRESHOLD,
-  LOW_OXYGEN_THRESHOLD,
   WATER_LEVEL_CRITICAL_THRESHOLD,
 } from '../../simulation/alerts/index.js';
+import {
+  FREE_AMMONIA_EDGE,
+  NITRATE_EDGE,
+  NITRITE_EDGE,
+  OXYGEN_EDGE,
+} from '../../simulation/livestock/tolerance.js';
 import type { Nutrient, TunableConfig } from '../../simulation/config/index.js';
 import type { StripBand, StripTone } from '../components/ui/strip.js';
 import {
@@ -437,7 +439,7 @@ export function readTank({ state, config, history, units }: TankInput): ReadingB
     },
     ammonia: fromWater('ammonia', tape, {
       reading: read('ammonia'),
-      sentence: `Safe at or under ${said('ammonia', ammoniaAlertLine(state.resources))} ppm at this pH and temperature — where free NH₃ reaches the ${HIGH_AMMONIA_THRESHOLD} ppm the engine alerts on.`,
+      sentence: `Safe at or under ${said('ammonia', ammoniaAlertLine(state.resources))} ppm at this pH and temperature — where free NH₃ reaches the ${FREE_AMMONIA_EDGE} ppm the engine alerts on.`,
       net: netPerHour(rates.netAmmonia, 'ppm'),
       fills: [
         { label: 'Waste mineralising', rate: ratePerHour(rates.wasteToAmmonia, 'ppm') },
@@ -447,14 +449,14 @@ export function readTank({ state, config, history, units }: TankInput): ReadingB
     }),
     nitrite: fromWater('nitrite', tape, {
       reading: read('nitrite'),
-      sentence: `Safe at or under ${said('nitrite', HIGH_NITRITE_THRESHOLD)} ppm — the line the engine alerts on.`,
+      sentence: `Safe at or under ${said('nitrite', NITRITE_EDGE)} ppm — the line the engine alerts on.`,
       net: netPerHour(rates.netNitrite, 'ppm'),
       fills: [{ label: 'AOB oxidising NH₃', rate: ratePerHour(rates.ammoniaToNitrite, 'ppm') }],
       drains: [{ label: 'NOB clearing', rate: ratePerHour(-rates.nitriteToNitrate, 'ppm') }],
     }),
     nitrate: fromWater('nitrate', tape, {
       reading: read('nitrate'),
-      sentence: `Plants go short under ${said('nitrate', NITRATE_LOW_PPM)} ppm; the engine alerts over ${said('nitrate', HIGH_NITRATE_THRESHOLD)}.`,
+      sentence: `Plants go short under ${said('nitrate', NITRATE_LOW_PPM)} ppm; the engine alerts over ${said('nitrate', NITRATE_EDGE)}.`,
       fills: nitrateFills,
       drains: [],
     }),
@@ -511,10 +513,10 @@ export function readTank({ state, config, history, units }: TankInput): ReadingB
       value: gas('oxygen').text,
       unit: gas('oxygen').unit,
       at: oxygenAt(gas('oxygen').value),
-      band: { from: oxygenAt(LOW_OXYGEN_THRESHOLD), to: 1 },
+      band: { from: oxygenAt(OXYGEN_EDGE), to: 1 },
       tone: toneOf(gas('oxygen').status),
       trend: trendOf(tape, 'oxygen'),
-      sentence: `Under ${said('oxygen', LOW_OXYGEN_THRESHOLD)} mg/L the engine alerts and fish start paying for it.`,
+      sentence: `Under ${said('oxygen', OXYGEN_EDGE)} mg/L the engine alerts and fish start paying for it.`,
       net: null,
       fills: [],
       drains: [],

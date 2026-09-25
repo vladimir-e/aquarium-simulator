@@ -48,6 +48,14 @@ export type {
   FishBreedingData,
 } from './livestock/species.js';
 export { FISH_SPECIES_DATA } from './livestock/species.js';
+export {
+  FREE_AMMONIA_EDGE,
+  NITRITE_EDGE,
+  NITRATE_EDGE,
+  OXYGEN_EDGE,
+  OXYGEN_COMFORT,
+  toleranceFactor,
+} from './livestock/tolerance.js';
 
 // Seeding — starting a tank at a state
 export type {
