@@ -67,7 +67,7 @@ function oneOf<T extends string>(raw: string, known: Record<T, unknown>, what: s
   return raw as T;
 }
 
-const warn = (text: string): void => {
+export const warn = (text: string): void => {
   process.stderr.write(`warning: ${text}\n`);
 };
 

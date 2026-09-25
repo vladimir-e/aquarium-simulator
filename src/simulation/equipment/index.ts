@@ -326,25 +326,40 @@ export function placeHardscape(state: SimulationState, item: HardscapeItem): Sim
 }
 
 /**
- * Lift a piece out: the biofilm on it leaves with it, and the patch of bed it
- * sat on — one slot's share — is disturbed.
+ * Lift pieces out: the biofilm on them leaves with them, and the patches of
+ * bed they sat on — one slot's share each — are disturbed together.
  *
- * Returns the same state when no piece has that id.
+ * Returns the same state when no piece has any of those ids.
  */
-export function liftHardscape(state: SimulationState, id: string): SimulationState {
-  const item = state.equipment.hardscape.items.find((i) => i.id === id);
-  if (!item) return state;
+export function liftHardscape(state: SimulationState, ...ids: string[]): SimulationState {
+  const lifted = state.equipment.hardscape.items.filter((i) => ids.includes(i.id));
+  if (lifted.length === 0) return state;
 
   const surface = calculateSurface(state);
-  const kept = surface > 0 ? 1 - getHardscapeSurface(item.type) / surface : 1;
-
-  const slots = state.tank.hardscapeSlots;
+  const liftedSurface = lifted.reduce((sum, i) => sum + getHardscapeSurface(i.type), 0);
+  const kept = surface > 0 ? 1 - liftedSurface / surface : 1;
 
   return produce(state, (draft) => {
     draft.resources.aob *= kept;
     draft.resources.nob *= kept;
-    draft.equipment.hardscape.items = draft.equipment.hardscape.items.filter((i) => i.id !== id);
+    draft.equipment.hardscape.items = draft.equipment.hardscape.items.filter(
+      (i) => !ids.includes(i.id)
+    );
     draft.resources.surface = calculateSurface(draft);
-    if (slots > 0) disturbBed(draft, 1 / slots);
+    if (state.tank.hardscapeSlots > 0) disturbBed(draft, lifted.length / state.tank.hardscapeSlots);
+  });
+}
+
+/**
+ * Lift every piece at once and set each back fresh and sterile. A swap, so no
+ * slot is asked for: a tank carrying more pieces than slots keeps them all.
+ */
+export function resetHardscape(state: SimulationState): SimulationState {
+  const { items } = state.equipment.hardscape;
+  const lifted = liftHardscape(state, ...items.map((i) => i.id));
+  if (lifted === state) return state;
+  return produce(lifted, (draft) => {
+    draft.equipment.hardscape.items = items.map((i) => createHardscapeItem(i.id, i.type));
+    draft.resources.surface = calculateSurface(draft);
   });
 }

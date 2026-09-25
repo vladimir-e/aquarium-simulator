@@ -38,6 +38,7 @@ export {
   type ReadingBand,
   readingAt,
   trackAt,
+  ammoniaScale,
   gasReadings,
   waterReadings,
   WATER_SCALE,

@@ -42,7 +42,7 @@ export const GAS_KEYS: GasKey[] = ['oxygen', 'co2'];
 export type Scale = [min: number, max: number];
 
 /** The readings whose track is fixed; ammonia's moves with its alert line. */
-export type FixedWaterKey = Exclude<WaterKey, 'ammonia'>;
+type FixedWaterKey = Exclude<WaterKey, 'ammonia'>;
 
 /**
  * Track ranges — display scales, never bands. The toxins run well past their

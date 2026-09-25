@@ -119,10 +119,10 @@ function speciesEdgeNote(value: number, { state }: Sheet, range: SpeciesRange): 
   return null;
 }
 
-/** "still above" once the reading was already over the line before the action. */
-function overLine(value: number, before: number, limit: number): string | null {
+/** "still above" once the reading was already over the line the tank stood on before the action. */
+function overLine(value: number, before: number, limit: number, limitBefore = limit): string | null {
   if (value <= limit) return null;
-  return `${before > limit ? 'still ' : ''}above ${limit.toFixed(2)}`;
+  return `${before > limitBefore ? 'still ' : ''}above ${limit.toFixed(2)}`;
 }
 
 interface Reading {
@@ -137,7 +137,7 @@ interface Reading {
   /** Position on the same display scale the reading book puts it on. */
   at: (value: number, sheet: Sheet) => number;
   band: (sheet: Sheet) => StripBand | null;
-  note: (value: number, before: number, sheet: Sheet) => string | null;
+  note: (value: number, before: number, sheet: Sheet, standing: Sheet) => string | null;
 }
 
 const PPM = (): string => 'ppm';
@@ -207,7 +207,13 @@ const READINGS: Reading[] = [
     unit: PPM,
     display: same,
     decimals: 3,
-    note: (value, before, { state }) => overLine(value, before, ammoniaAlertLine(state.resources)),
+    note: (value, before, { state }, standing) =>
+      overLine(
+        value,
+        before,
+        ammoniaAlertLine(state.resources),
+        ammoniaAlertLine(standing.state.resources)
+      ),
   }),
   fromWater('nitrite', {
     label: 'NO₂',
@@ -389,7 +395,7 @@ export function previewRows({ before, outcomes, config, units }: PreviewInput): 
       from: reading.at(from, sheets[worst]),
       to: reading.at(values[worst], sheets[worst]),
       band: reading.band(sheets[worst]),
-      note: reading.note(values[worst], from, sheets[worst]),
+      note: reading.note(values[worst], from, sheets[worst], standing),
     });
   }
 

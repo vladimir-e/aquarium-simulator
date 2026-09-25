@@ -132,12 +132,14 @@ describe('wasteSummary', () => {
     expect(wasteSummary(wasteReadout(state, config), config)).toContain('falling to');
   });
 
-  it('reads the level as production over the mineralisation and settling rates', () => {
-    const readout = wasteReadout(soilTank(), config);
-    const level =
-      readout.perHour / (config.nitrogenCycle.wasteConversionRate + readout.settlingShare);
+  it('names the level the engine holds the pool at', () => {
+    const state = soilTank();
+    const readout = wasteReadout(state, config);
+    const level = Number(/ ([\d.]+) g\.$/.exec(wasteSummary(readout, config))![1]);
+    const held = produce(state, (draft) => void (draft.resources.waste = level));
+
     expect(readout.settlingShare).toBeGreaterThan(0);
-    expect(wasteSummary(readout, config)).toContain(level.toFixed(3));
+    expect(Math.abs(tick(held, config).resources.waste - level)).toBeLessThan(readout.perHour * 0.01);
   });
 
   it('counts what settles into the bed as an outflow of the pool', () => {

@@ -6,6 +6,7 @@ import {
   disturbBed,
   liftHardscape,
   placeHardscape,
+  resetHardscape,
   calculatePassiveResources,
   processEquipment,
   type PassiveResourceValues,
@@ -250,6 +251,43 @@ describe('hardscape moves', () => {
   it('lifts nothing for an unknown id', () => {
     const state = scaped();
     expect(liftHardscape(state, 'missing')).toBe(state);
+  });
+
+  const crowded = (pieces: number, slots: number): SimulationState =>
+    produce(scaped(), (draft) => {
+      draft.tank.hardscapeSlots = slots;
+      draft.equipment.hardscape.items = Array.from({ length: pieces }, (_, i) =>
+        createHardscapeItem(`rock-${i}`, i === 0 ? 'driftwood' : 'neutral_rock')
+      );
+      draft.equipment.hardscape.items[0]!.tannins = 0;
+      draft.resources.surface = calculateSurface(draft);
+    });
+
+  it('stirs one slot of the bed as it stood for each piece lifted together', () => {
+    const state = crowded(4, 8);
+    const reserve = state.equipment.substrate.organicReserve;
+    const lifted = liftHardscape(state, 'rock-0', 'rock-1', 'rock-2');
+
+    expect(lifted.equipment.hardscape.items.map((i) => i.id)).toEqual(['rock-3']);
+    expect(lifted.equipment.substrate.organicReserve).toBeCloseTo(reserve * (1 - 3 / 8), 12);
+  });
+
+  it('sets every piece back fresh, stirring the whole bed they sat on', () => {
+    const state = crowded(8, 8);
+    const reset = resetHardscape(state);
+
+    expect(reset.equipment.hardscape.items).toEqual(
+      state.equipment.hardscape.items.map((i) => createHardscapeItem(i.id, i.type))
+    );
+    expect(reset.equipment.hardscape.items[0]!.tannins).toBeGreaterThan(0);
+    expect(reset.equipment.substrate.organicReserve).toBe(0);
+    expect(reset.resources.surface).toBe(calculateSurface(reset));
+    expect(reset.resources.aob).toBeLessThan(state.resources.aob);
+  });
+
+  it('keeps every piece of a tank carrying more than its slots', () => {
+    const state = crowded(5, 2);
+    expect(resetHardscape(state).equipment.hardscape.items).toHaveLength(5);
   });
 });
 

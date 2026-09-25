@@ -158,11 +158,11 @@ function restingAmmoniaSupply(state: StockedTank): number {
  * the surface ceiling the filter and the bed give it.
  */
 export function cycledColony(state: StockedTank): { aob: number; nob: number } {
-  const { surface, temperature, oxygen } = state.resources;
+  const { surface, temperature } = state.resources;
   const ceiling = calculateMaxBacteria(surface, nitrogenCycleDefaults);
   const ammonia = restingAmmoniaSupply(state);
   const resting = (stage: 'aob' | 'nob', supply: number): number =>
-    restingColony(stage, supply, temperature, oxygen, ceiling, nitrogenCycleDefaults);
+    restingColony(stage, supply, temperature, ceiling, nitrogenCycleDefaults);
   return {
     aob: Math.max(ceiling * CYCLED_AOB_COVERAGE, resting('aob', ammonia)),
     nob: Math.max(ceiling * CYCLED_NOB_COVERAGE, resting('nob', ammonia * NH3_TO_NO2_MASS_RATIO)),

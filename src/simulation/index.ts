@@ -154,6 +154,7 @@ export {
   disturbBed,
   placeHardscape,
   liftHardscape,
+  resetHardscape,
   heaterUpdate,
   applyHeaterStateChange,
   calculateHeatingRate,

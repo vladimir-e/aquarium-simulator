@@ -4,6 +4,7 @@ import { READINGS } from '../scenarios/readings.js';
 import { toJson } from '../scenarios/report.js';
 import { keepTank, runScenario, sampleDays } from '../scenarios/run.js';
 import { KEEPER_HOUR } from '../scenarios/keeper.js';
+import type { HardscapeItem } from '../../simulation/index.js';
 import { findSetup, type Setup } from '../scenarios/setups.js';
 
 describe('sampleDays', () => {
@@ -55,14 +56,14 @@ describe('the keeper’s rescape', () => {
   it('fires once, at the keeper hour of its day', () => {
     const setup: Setup = { ...findSetup('nano'), hardscape: ['neutral_rock'], rescapeOn: 2 };
     const reset: number[] = [];
-    let seen = new Set<string>();
+    let seen: HardscapeItem[] = [];
     keepTank(setup, {
       config: DEFAULT_CONFIG,
       untilTick: 4 * 24,
       observe: (state) => {
-        const ids = new Set(state.equipment.hardscape.items.map((item) => item.id));
-        if (seen.size > 0 && [...ids].some((id) => !seen.has(id))) reset.push(state.tick);
-        seen = ids;
+        const { items } = state.equipment.hardscape;
+        if (seen.length > 0 && items.some((item) => !seen.includes(item))) reset.push(state.tick);
+        seen = items;
       },
     });
     expect(reset).toEqual([24 + KEEPER_HOUR + 1]);

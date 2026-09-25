@@ -1,8 +1,6 @@
 import {
   applyAction,
-  createHardscapeItem,
-  liftHardscape,
-  placeHardscape,
+  resetHardscape,
   type Action,
   type SimulationState,
 } from '../../simulation/index.js';
@@ -41,10 +39,7 @@ export function isKeeperHourOf(day: number, tick: number): boolean {
 
 /** A keeper rearranging the scape: every piece of hardscape lifted and set back fresh, every other plant uprooted. */
 export function rescapeTank(state: SimulationState, config: TunableConfig): SimulationState {
-  let next = state;
-  for (const item of state.equipment.hardscape.items) {
-    next = placeHardscape(liftHardscape(next, item.id), createHardscapeItem(`${item.id}-reset`, item.type));
-  }
+  let next = resetHardscape(state);
   state.plants.forEach((plant, i) => {
     if (i % 2 === 0) next = applyAction(next, { type: 'removePlant', plantId: plant.id }, config).state;
   });

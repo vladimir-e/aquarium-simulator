@@ -119,15 +119,22 @@ export function wasteReadout(state: SimulationState, config: TunableConfig): Was
 }
 
 /**
- * Where the pool is heading. Mineralisation and settling each take a fixed
- * share of standing waste, so the pool levels off where those shares together
+ * Where the pool is heading. Settling takes its share of standing waste first,
+ * then mineralisation its share of what stays up plus what the hour has
+ * already shed into it, so the pool levels off where those outflows together
  * equal the hour's production.
  */
 export function wasteSummary(readout: WasteReadout, config: TunableConfig): string {
   if (readout.perHour <= 0) return 'Nothing is producing waste.';
 
+  const mineralising = config.nitrogenCycle.wasteConversionRate;
+  const settling = readout.settlingShare;
+  const beforeCycle = readout.sources
+    .filter((source) => BEFORE_CYCLE.includes(source.key))
+    .reduce((total, source) => total + source.gramsPerHour, 0);
   const level =
-    readout.perHour / (config.nitrogenCycle.wasteConversionRate + readout.settlingShare);
+    (readout.perHour - mineralising * beforeCycle) /
+    (settling + mineralising * (1 - settling));
   const drift =
     readout.standing < level * 0.98
       ? 'climbing to'

@@ -28,10 +28,10 @@ tank has to keep earning.
 | Guild seeding | <Badge text="settled" variant="success" /> | A trickle per litre of water that never stops, so a guild is always present and grows the moment it has feedstock — no concentration gate. |
 | Mineralization rate | <Badge text="scaffolding" variant="caution" /> | A flat fraction of standing waste with no temperature and no oxygen term, in the one aerobic step of the chain that has neither. |
 | N mass conservation | <Badge text="scaffolding" variant="caution" /> | The chain conserves N per atom, but decay oxidation, plant uptake and metabolic retention are untracked sinks. The end-to-end mass accounting controls for them rather than closing them. |
-| Colony sizing on inert beds | <Badge text="settled" variant="success" /> | Every bed cycles in four to six weeks under fish. |
+| Colony sizing on inert beds | <Badge text="settled" variant="success" /> | A colony grows to the load it is fed, not to the surface under it, so an inert bed's smaller surface lowers the ceiling without setting the cycling clock. |
 | Cycled seed | <Badge text="settled" variant="success" /> | A `'cycled'` colony is the one the tank's load sustains at rest — its fish fed to satiety and its bed's leach — floored at a fishless month's share of the surface ceiling. Every stocked setup opens on hundredths of a ppm; food fed past satiety is outside that load, so an overfed tank's colony grows on from the seed. |
 | Nitrogen alerts | <Badge text="scaffolding" variant="caution" /> | Ammonia alerts on free NH₃ where harm starts; nitrite still alerts at 1.0 ppm where fish damage starts at any presence. |
-| Bed disturbance | <Badge text="scaffolding" variant="caution" /> | A rescape now shows, but small: the bed holds only about a day of the tank's waste, so a stock `--rescape` lifts a cycled tank's ammonia and nitrite by about half again — a few hundredths of a ppm — for half a day. |
+| Bed disturbance | <Badge text="scaffolding" variant="caution" /> | Lifting hardscape stirs one slot's share of the bed per piece, and uprooting a plant its own patch: that share of the reserve comes loose as waste and its biofilm is scraped off. The bed holds only about a day of the tank's waste, so a rescape shows as a small, short blip. |
 | Denitrification | <Badge text="missing" variant="danger" /> | Nitrate has no biological sink. It leaves only through plant uptake and water changes, so an unplanted tank accumulates it without bound. |
 | Nitrification acidity | <Badge text="settled" variant="success" /> | The 2 H⁺ each NH₄⁺ releases spend KH at 7.14 mg CaCO₃ per mg of nitrogen, so a tank that nitrifies without water changes loses its buffer and its pH. |
 
@@ -210,9 +210,8 @@ holds nothing. Settling and leaching move grams of waste gram for gram, so the
 nitrogen in the bed is the nitrogen that left the water.
 
 A fresh bed's reserve tapers to where settling balances the leach, roughly a
-day of the tank's waste production; a 75 gal sand community holds ~1 g, about
-a third of what the bed came with. A water change can vacuum the bed, taking a
-share of the reserve out of the tank.
+day of the tank's waste production. A water change can vacuum the bed, taking
+a share of the reserve out of the tank.
 
 | Substrate | Colony surface | Organic reserve |
 |---|---|---|

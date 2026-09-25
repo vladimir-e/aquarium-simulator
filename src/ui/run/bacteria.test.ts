@@ -17,7 +17,9 @@ import {
   type Resources,
   type SimulationState,
 } from '../../simulation/index.js';
-import { getMassFromPpm } from '../../simulation/resources/index.js';
+import { getMassFromPpm, getPpm } from '../../simulation/resources/index.js';
+import { aobCapacity } from '../../simulation/systems/index.js';
+import { monodFactor } from '../../simulation/core/kinetics.js';
 
 const config = DEFAULT_CONFIG;
 const perCm2 = nitrogenCycleDefaults.bacteriaPerCm2;
@@ -58,6 +60,25 @@ function stocked(): SimulationState {
     state = applyAction(state, { type: 'addFish', species: 'neon_tetra' }).state;
   }
   return applyAction(state, { type: 'feed', amount: 0.5 }).state;
+}
+
+const TRACE_PPM = 0.1;
+
+/**
+ * A stocked tank read at zero toxins, its AOB sized so that what they clear
+ * while holding ammonia at trace is `share` of what arrives each hour.
+ */
+function aobClearingAtTrace(share: number): SimulationState {
+  const base = colonised(stocked(), { aob: 0, nob: 0.5 });
+  const { rates } = bacteriaReadout(base, config);
+  const arriving = rates.wasteToAmmonia + rates.gillsToAmmonia;
+  const r = base.resources;
+  const perUnit =
+    getPpm(aobCapacity(1, r.temperature, r.oxygen), r.water) *
+    monodFactor(TRACE_PPM, nitrogenCycleDefaults.aobAmmoniaHalfSaturation);
+  return produce(base, (draft) => {
+    draft.resources.aob = (share * arriving) / perUnit;
+  });
 }
 
 function engineNitrite(state: SimulationState): { produced: number; cleared: number } {
@@ -155,6 +176,20 @@ describe('bacteriaReadout', () => {
     );
   });
 
+  it('withholds it from a colony whose ceiling covers the load only with ammonia past trace', () => {
+    const under = aobClearingAtTrace(0.5);
+    const readout = bacteriaReadout(under, config);
+    const throughput = getPpm(
+      aobCapacity(under.resources.aob, under.resources.temperature, under.resources.oxygen),
+      under.resources.water
+    );
+
+    expect(readout.atTrace).toBe(true);
+    expect(throughput).toBeGreaterThan(readout.rates.wasteToAmmonia + readout.rates.gillsToAmmonia);
+    expect(readout.cycled).toBe(false);
+    expect(bacteriaReadout(aobClearingAtTrace(1.5), config).cycled).toBe(true);
+  });
+
   it('reports no conversion at all on a tank with nothing in it', () => {
     const { rates } = bacteriaReadout(tank(), config);
     expect(rates.wasteToAmmonia).toBe(0);
@@ -235,6 +270,14 @@ describe('bacteriaSummary', () => {
     expect(readout.aob.count).toBeGreaterThan(0);
     expect(summary).toContain('Uncycled');
     expect(summary).toContain('Nitrite peaks in');
+  });
+
+  it('keeps a cycled tank off the uncycled line while a feeding is still being worked down', () => {
+    const readout = bacteriaReadout(aobClearingAtTrace(1.5), config);
+
+    expect(readout.cycled).toBe(true);
+    expect(readout.rates.netAmmonia).toBeGreaterThan(0);
+    expect(bacteriaSummary(readout, null)).not.toContain('Uncycled');
   });
 
   it('blames the lagging colony while nitrite is climbing', () => {

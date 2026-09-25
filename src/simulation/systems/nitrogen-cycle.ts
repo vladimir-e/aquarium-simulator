@@ -370,19 +370,22 @@ export function colonyRates(
  * tick: where the logistic growth that supply's utilization drives meets
  * maintenance decay. The seeding trickle is left out — it is orders of
  * magnitude under either flow at any colony that is doing work.
+ *
+ * Oxygen scales growth and throughput alike, so it cancels out of the balance:
+ * both are read in air-saturated water, and a colony sized for an anoxic tank
+ * is the one it would carry once aerated.
  */
 export function restingColony(
   stage: 'aob' | 'nob',
   supply: number,
   temperature: number,
-  oxygen: number,
   maxPopulation: number,
   config: NitrogenCycleConfig = nitrogenCycleDefaults
 ): number {
   if (supply <= 0 || maxPopulation <= 0) return 0;
   const capacity = stage === 'aob' ? aobCapacity : nobCapacity;
-  const capacityPerCell = capacity(1, temperature, oxygen, config);
-  const { growthRate, deathRate } = colonyRates(stage, temperature, oxygen, config);
+  const capacityPerCell = capacity(1, temperature, AIR_SATURATED_O2, config);
+  const { growthRate, deathRate } = colonyRates(stage, temperature, AIR_SATURATED_O2, config);
   const unbounded = (supply * growthRate) / (capacityPerCell * deathRate);
   return unbounded / (1 + unbounded / maxPopulation);
 }

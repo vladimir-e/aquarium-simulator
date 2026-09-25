@@ -186,12 +186,16 @@ describe('calculateColonyFlows', () => {
 
 describe('restingColony', () => {
   const temperature = 24;
-  const oxygen = AIR_SATURATED_O2;
   const maxPopulation = 1e6;
 
-  it.each(['aob', 'nob'] as const)('balances %s growth against decay on the supply it is sized to', (stage) => {
+  it.each([
+    ['aob', AIR_SATURATED_O2],
+    ['nob', AIR_SATURATED_O2],
+    ['aob', 1],
+    ['nob', 1],
+  ] as const)('balances %s growth against decay on the supply it is sized to, at %s mg/L O₂', (stage, oxygen) => {
     const supply = 2;
-    const population = restingColony(stage, supply, temperature, oxygen, maxPopulation);
+    const population = restingColony(stage, supply, temperature, maxPopulation);
     const capacity = (stage === 'aob' ? aobCapacity : nobCapacity)(population, temperature, oxygen);
     const { growthRate, deathRate } = colonyRates(stage, temperature, oxygen);
     const { growth, death } = calculateColonyFlows(
@@ -208,7 +212,7 @@ describe('restingColony', () => {
 
   it('grows with the supply and stays under the ceiling', () => {
     const rest = (supply: number): number =>
-      restingColony('aob', supply, temperature, oxygen, maxPopulation);
+      restingColony('aob', supply, temperature, maxPopulation);
 
     expect(rest(0)).toBe(0);
     expect(rest(2)).toBeGreaterThan(rest(1));
@@ -216,8 +220,8 @@ describe('restingColony', () => {
   });
 
   it('needs a larger colony in a cold tank for the same supply', () => {
-    expect(restingColony('aob', 1, 18, oxygen, maxPopulation)).toBeGreaterThan(
-      restingColony('aob', 1, 28, oxygen, maxPopulation)
+    expect(restingColony('aob', 1, 18, maxPopulation)).toBeGreaterThan(
+      restingColony('aob', 1, 28, maxPopulation)
     );
   });
 });

@@ -21,7 +21,7 @@ import {
   HIGH_NITRATE_THRESHOLD,
   HIGH_NITRITE_THRESHOLD,
 } from '../../simulation/alerts/index.js';
-import { ammoniaScale, trackAt } from '../run/water.js';
+import { ammoniaScale, trackAt } from '../run/index.js';
 import {
   DEFAULT_SETTINGS,
   VERB_IDS,
@@ -262,6 +262,21 @@ describe('preview readings', () => {
     expect(ammonia.band).toEqual({ from: 0, to: trackAt(scale, line) });
     expect(ammonia.from).toBeCloseTo(trackAt(scale, getPpm(soft.resources.ammonia, soft.resources.water)), 12);
     expect(ammonia.to).toBeCloseTo(trackAt(scale, getPpm(changed.resources.ammonia, changed.resources.water)), 12);
+  });
+
+  it('judges "still above" against the line the tank stood on before the action', () => {
+    const soft = produce(fixture(), (draft) => {
+      draft.resources.co2 = 30;
+      draft.resources.kh = getKhMass(0.5, draft.resources.water);
+      draft.resources.ammonia = 0.9 * ammoniaAlertLine(draft.resources) * draft.resources.water;
+    });
+    const settings = { ...DEFAULT_SETTINGS, waterChange: 0.5 };
+    const changed = applyAction(soft, verbAction('waterChange', settings)).state;
+    const line = ammoniaAlertLine(changed.resources);
+    expect(getPpm(soft.resources.ammonia, soft.resources.water)).toBeGreaterThan(line);
+
+    const ammonia = row(detail(soft, 'waterChange', settings).preview, 'ammonia');
+    expect(ammonia.note).toBe(`above ${line.toFixed(2)}`);
   });
 
   it('reads its lines off the engine, not off the sketch they were drawn from', () => {

@@ -26,6 +26,8 @@ import {
 import { WATER_LEVEL_THRESHOLD } from '../../simulation/equipment/ato.js';
 import type { NitrogenCycleConfig, TunableConfig } from '../../simulation/config/index.js';
 import { getPpm } from '../../simulation/resources/index.js';
+import { monodFactor } from '../../simulation/core/kinetics.js';
+import { NH3_TO_NO2_MASS_RATIO } from '../../simulation/core/chemistry.js';
 import { mineralisationBase, wasteInflow } from './waste.js';
 
 /**
@@ -62,11 +64,20 @@ const TRACE_PPM = 0.1;
 const MIN_CLEARANCE_PPM_PER_HOUR = TRACE_PPM / 24;
 
 /**
- * Whether a colony's throughput covers what arrives at it this hour, and is
- * enough to matter at all rather than being a rounding error.
+ * Whether a colony is big enough to matter at all rather than being a rounding
+ * error, and can take what arrives at it each hour while holding its substrate
+ * at the trace line.
+ *
+ * The second is read off the Monod curve at trace, not off the colony's
+ * ceiling: uptake falls with the concentration, so a colony whose ceiling
+ * covers its load can still only keep up by letting the toxin climb until the
+ * curve pays for it.
  */
-function clears(capacity: number, arriving: number): boolean {
-  return capacity >= Math.max(arriving, MIN_CLEARANCE_PPM_PER_HOUR);
+function clearsAtTrace(throughput: number, halfSaturation: number, arriving: number): boolean {
+  return (
+    throughput >= MIN_CLEARANCE_PPM_PER_HOUR &&
+    throughput * monodFactor(TRACE_PPM, halfSaturation) >= arriving
+  );
 }
 
 /**
@@ -224,6 +235,7 @@ export function bacteriaReadout(
     netNitrite: getPpm(nitriteProduced - nitriteConsumed, water),
   };
   const atTrace = getPpm(r.ammonia, water) < TRACE_PPM && getPpm(r.nitrite, water) < TRACE_PPM;
+  const ammoniaArriving = rates.wasteToAmmonia + rates.gillsToAmmonia;
   return {
     aob: colony(r.aob, ceiling),
     nob: colony(r.nob, ceiling),
@@ -232,8 +244,12 @@ export function bacteriaReadout(
     atTrace,
     cycled:
       atTrace &&
-      clears(aobThroughput, rates.wasteToAmmonia + rates.gillsToAmmonia) &&
-      clears(nobThroughput, rates.ammoniaToNitrite),
+      clearsAtTrace(aobThroughput, nc.aobAmmoniaHalfSaturation, ammoniaArriving) &&
+      clearsAtTrace(
+        nobThroughput,
+        nc.nobNitriteHalfSaturation,
+        ammoniaArriving * NH3_TO_NO2_MASS_RATIO
+      ),
     rates,
   };
 }

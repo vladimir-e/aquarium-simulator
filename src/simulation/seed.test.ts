@@ -457,6 +457,20 @@ describe('createSimulation seeding', () => {
       expect(state.fish[0].age).toBe(past);
     });
 
+    it('sizes a cycled colony in water with no oxygen in it', () => {
+      const anoxic = createSimulation(TANK, {
+        bacteria: 'cycled',
+        resources: { oxygen: 0 },
+        fish: [{ species: 'neon_tetra', count: 6 }],
+      });
+
+      expect(anoxic.resources.oxygen).toBe(0);
+      expect(Number.isFinite(anoxic.resources.aob)).toBe(true);
+      expect(Number.isFinite(anoxic.resources.nob)).toBe(true);
+      expect(anoxic.resources.aob).toBeGreaterThan(0);
+      expect(anoxic.resources.nob).toBeGreaterThan(0);
+    });
+
     it('takes a colony with no ammonia history', () => {
       const state = createSimulation(TANK, { bacteria: { aob: 12000, nob: 8000 } });
 

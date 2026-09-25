@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { createSimulation, type SimulationState } from '../../simulation/state.js';
 import { KEEPER_HOUR, dueActions, isKeeperHourOf, rescapeTank, type Schedule } from '../scenarios/keeper.js';
 import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
+import { resetHardscape } from '../../simulation/index.js';
 import { findSetup, toConfig, toSeed } from '../scenarios/setups.js';
 
 const stocked = createSimulation(toConfig(findSetup('nano')), toSeed(findSetup('nano')), 1);
@@ -56,9 +57,7 @@ describe('rescapeTank', () => {
     const after = rescapeTank(scaped, DEFAULT_CONFIG);
 
     expect(after.equipment.hardscape.items.map((i) => i.type)).toEqual(['neutral_rock', 'driftwood']);
-    expect(after.equipment.hardscape.items.map((i) => i.id)).not.toEqual(
-      scaped.equipment.hardscape.items.map((i) => i.id)
-    );
+    expect(after.equipment.hardscape.items).toEqual(resetHardscape(scaped).equipment.hardscape.items);
     expect(after.plants).toHaveLength(Math.floor(scaped.plants.length / 2));
     expect(after.resources.aob).toBeLessThan(scaped.resources.aob);
   });
