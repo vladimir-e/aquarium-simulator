@@ -20,9 +20,7 @@ const NAME: Record<ThemeMode, string> = {
 
 interface ThemeCycle {
   Icon: typeof Sun;
-  /** The mode it is in. */
   name: string;
-  /** The mode it is in and the one a press goes to. */
   label: string;
   cycle: () => void;
 }

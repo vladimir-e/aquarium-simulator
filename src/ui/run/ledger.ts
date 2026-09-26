@@ -108,9 +108,7 @@ interface BankHour {
   next: number;
   cap: number;
   healed: number;
-  /** What the bank bought beside healing — a plant's growth, a fish's brood. */
   spent: number;
-  /** The note for a bank drawn on to buy it. */
   buying: string;
 }
 

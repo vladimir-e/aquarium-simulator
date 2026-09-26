@@ -169,7 +169,7 @@ describe('readLedger', () => {
     });
   });
 
-  it('trends the algae by what the next tick does to its coverage, by day and by night', () => {
+  it('trends the algae by what the next tick does to its coverage, by day and by night, beside the bloom’s own balance', () => {
     const preset = getPresetById('planted')!;
     let state = produce(createSimulation(preset.config, preset.seed), (draft) => {
       draft.algae.mass = 20;
@@ -178,9 +178,11 @@ describe('readLedger', () => {
     const trends = new Set<string>();
     for (let hour = 0; hour < 24; hour++) {
       const next = tick(state, DEFAULT_CONFIG);
-      const { trend } = ledgerOf(state, { kind: 'algae' })!;
+      const { trend, helps, hurts, net } = ledgerOf(state, { kind: 'algae' })!;
 
       expect(trend).toBe(projectedTrend(next.algae.mass - state.algae.mass));
+      expect(net).toBeCloseTo(readHourAhead(state, DEFAULT_CONFIG).algae.net * 24, 10);
+      expect(helps - hurts).toBeCloseTo(net, 10);
       trends.add(trend);
       state = next;
     }

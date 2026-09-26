@@ -17,7 +17,6 @@ function Passive({
   label: string;
   value: string;
   tone?: StripTone;
-  /** Opens the reading's inspector, where the figure is one. */
   onOpen?: () => void;
 }): React.JSX.Element {
   const body = (
