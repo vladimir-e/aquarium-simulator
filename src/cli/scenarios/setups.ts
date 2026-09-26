@@ -90,7 +90,7 @@ export function toSeed(setup: Setup): PresetSeed {
   };
 }
 
-const FEED_SHARE_OF_STOCK = 0.02;
+const FEED_SHARE_OF_STOCK = 0.01;
 
 const daily = (action: Chore): ScheduleEntry => ({ every: DAILY, action });
 const weekly = (action: Chore): ScheduleEntry => ({ every: WEEKLY, action });
