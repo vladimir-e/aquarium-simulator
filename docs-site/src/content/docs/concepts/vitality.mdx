@@ -12,8 +12,8 @@ a condition runs the same model: condition is the buffer between dying and
 thriving, normal at 100. Benefit rates raise it and damage rates lower it, so
 nothing dies or heals instantly.
 
-A threshold that switches a mechanism on or off is a defect. A rate that starts
-at a tolerance edge is not: nothing jumps there, the slope just stops being zero.
+A threshold that switches a mechanism on or off is a defect; a rate that starts
+at a tolerance edge is not ([Rates into stocks](/concepts/rates-into-stocks/#where-switches-still-live)).
 
 ## One hour
 
@@ -31,12 +31,14 @@ below 100:  the bank heals min(100 − condition, healingRate × bank)
 | Benefits | Income from favourable conditions. Hardiness never scales them |
 | Stressors | Damage, hardened by each organism: `× (1 − hardiness)`, or by moving where harm starts |
 | Bank | Condition points banked at full condition, capped at `surplusCap` |
-| Healing rate | The share of its bank an organism heals from each hour |
+| Healing rate | The most of its bank an organism heals from in an hour, as a share |
 
 Income heals first, and only what a full condition leaves over banks. Damage
 never touches the bank; it lowers condition, and the bank heals it back. Healing
-is first order: a bank pays out a share of itself each hour, so it drains on an
-exponential with a time constant of `1 / healingRate` hours.
+is first order: a bank pays out at most a share of itself each hour. Under
+damage heavier than that share it drains on an exponential with a time constant
+of `1 / healingRate` hours; under lighter damage it pays out only what the
+damage took, and drains in a straight line.
 
 ## Sickness and immunity
 
@@ -58,11 +60,8 @@ and it ends when the rates turn round.
 
 | Organism | Low condition | The bank buys |
 |---|---|---|
-| Fish | Dies at 0 | A brood. A mature female spawns once her bank is full and a mature male of her species is in the tank, and the spawn empties it |
+| Fish | Dies at 0 | A brood. A mature female spawns once her bank is full and a mature male of her species is in the tank, and the spawn empties it — see [Breeding](/subsystems/livestock/#breeding) |
 | Plant | Sheds tissue, with the square of the deficit; dies at 0 | Size. A plant draws `growthDrawRate` of its bank toward new tissue each hour, and only what becomes tissue leaves it |
-
-A full bank is proof the water has been good: it only fills at full condition,
-and any damage it heals draws it down. Refilling it is a female's cooldown.
 
 ## Algae runs its own bank
 

@@ -12,17 +12,15 @@ Format: - **Feature name** (#PR) - One short sentence (under ~150 chars)
 ## Unreleased
 
 - **The planted preset injects like a keeper** - 0.5 bps holds CO₂ at 20–30 mg/L; carpets, java fern and anubias take pH down to 5.0, as published.
-- **The console reads sickness and the day's light** - a fish or plant losing condition reads sick, a group as its most urgent member, counted, and Daily light sits beside PAR.
-- **Healing rates are public** - `fishHealingRate` and `plantHealingRate` beside `computeVitality`; `scheduledLightHistory`, the day of light a new tank opens on.
-- **One vitality model** - condition moves by benefit minus damage and banks at 100, and the bank heals; breaking: `computeVitality` needs `healingRate` (v30, v14).
-- **The bank has one claim on it** - damage never reaches it; breaking: no `bankSurplus`/`spendableSurplus`/`SurplusBankTick`, `spendSurplus` drops `reserved`.
-- **Plants starve on the day's light** - against 24 h of PAR, so nights cost nothing; breaking: `Resources.lightByHour`, no `lightInsufficientSeverity`/`buildPlantUpkeep`.
-- **Low condition sheds a plant** - with the deficit squared, and it dies at 0; breaking: `calculateShedding(plant, config)`, no `deathConditionThreshold`.
-- **Plants take nitrate on log dose** - past an edge hardiness moves out, as fish do; breaking: `nitrateStressSeverity`/`nitrateEdge` replace `nutrientToxicity*`.
-- **A full bank breeds** - a mature female spawns on a full bank beside a mature male; breaking: `processBreeding(state, config)`, no `costFraction`/`maleShareFraction`.
+- **The console reads sickness and the day's light** - an organism losing condition reads sick, a group reads its most urgent members, and Daily light sits beside PAR.
+- **One vitality model** - condition moves by benefit minus damage, banks at 100 and heals off the bank; new plants start unbanked; breaking: `computeVitality` needs the bank and a `healingRate` (`fishHealingRate`, `plantHealingRate`) (v30, v14).
+- **The bank has one claim on it** - damage never reaches it; breaking: `spendSurplusOnGrowth` → `spendSurplus`.
+- **Plants starve on the day's light** - 24 h of PAR, so nights cost nothing; `scheduledLightHistory` seeds a new tank's; breaking: `Resources.lightByHour`, no `lightInsufficientSeverity`.
+- **Low condition sheds a plant** - with the deficit squared, and it dies at 0; breaking: no `deathConditionThreshold`.
+- **Plants take nitrate on log dose** - harm starts at each plant's own edge, as a fish's does; breaking: `nitrateStressSeverity`/`nitrateEdge` replace `nutrientToxicity*`.
 - **Fish release only what they ate** - every gram of fish nitrogen comes from food, so a fasting fish releases no nitrogen; breaking: no `basalAmmoniaRate` (v29).
 - **Comfort is a curve** - plant temperature and pH, and fish pH, earn most at the band's centre and nothing at its edge, where damage starts.
-- **Water harms where it really does** - NH₃, NO₂, NO₃ and O₂ harm on log dose past `*_EDGE`s hardiness moves out; breaking: `computeVitality` takes `hardened` factors (v29).
+- **Water harms where it really does** - NH₃, NO₂, NO₃ and O₂ harm on log dose from each fish's own edge; breaking: `computeVitality` takes `hardened` factors, severities per e-fold, no `nitrateStressThreshold`/`oxygenStressThreshold` (v29).
 - **Plant nutrition saturates** - per-nutrient Monod on species demand; uptake follows the plant, not the bottle; food returns its N, P, K and Fe, eaten or decayed; breaking: nutrients config, no `wasteToAmmoniaRatio` (v29).
 - **A cycled tank carries its stock** - a `'cycled'` colony is sized to the load its fish and bed put on it at rest, so a stocked tank opens without a mini-cycle; `cycledColony` takes the state.
 - **Nitrifiers saturate on their substrate** - AOB and NOB oxidise at a Monod share of capacity, so a cycled tank holds hundredths of a ppm and a pulse stands until worked down; `aobAmmoniaHalfSaturation`, `nobNitriteHalfSaturation`.
@@ -73,7 +71,7 @@ Format: - **Feature name** (#PR) - One short sentence (under ~150 chars)
 - **Action previews include dissolved gases** - water changes now show what they do to O₂ and CO₂, not just temperature and pH.
 - **Preset drift is derived** - Setup's caption compares the tank against its preset's config, so an undo clears it and a reload cannot lose it.
 - **Error boundary keeps your tank** - render errors show a recovery screen instead of wiping the save and reloading; reset is now an explicit button.
-- **Fish reproduction** - mature pairs spawn off the female's banked surplus; livebearers drop fry, egg-layers lay clutches; fry grow and mature into adults.
+- **Fish reproduction** - a mature female spawns on a full bank beside a mature male, and the spawn empties it; livebearers drop fry, egg-layers lay clutches; fry grow into adults.
 - **npm packaging** - publish-ready as `aquarium-simulator` v0.1.0: the build ships only the pure-TS engine, MIT license, trusted publishing.
 - **Algae as pure population** - Task 42 follow-up (#48): drop `condition` from `AlgaeState`; net rate drives mass directly.
 

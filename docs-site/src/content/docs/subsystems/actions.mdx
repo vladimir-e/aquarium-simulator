@@ -103,8 +103,8 @@ Swapping the bed scales both colonies by the share of colonisable surface that
 went out with it. Writing doser settings clamps the amount into the doser's own
 range. Every other setting is a plain assignment, and the colony feels it only
 when the next tick truncates it to whatever surface is left. A light change
-reaches the plants the same way, an hour at a time: each tick rewrites one hour
-of the day's light they starve on, so a new schedule has fully arrived a day
+reaches the substrate on the next tick; only the day's light the plants starve
+on catches up an hour at a time, so a new schedule has fully arrived there a day
 later.
 
 Tunables are a separate surface again. `TunableConfig` is validated against each

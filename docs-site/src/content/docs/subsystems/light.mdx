@@ -11,9 +11,9 @@ A fixture is rated at the water surface, which is the figure a manufacturer
 publishes. What the tank runs on is what reaches the substrate, so the rating is
 gated by the photoperiod and then carried down the water column by Beer–Lambert.
 The result is a single tank-wide scalar, and everything photic in the engine
-reads it: photosynthesis, four plant benefit channels, the light-high stressor
-and one algae benefit. The last 24 hours of it are kept, and the plants starve
-on their integral.
+reads it: photosynthesis, four plant benefit channels, the plant
+nutrient-deficiency and light-high stressors, and one algae benefit. The last 24
+hours of it are kept, and the plants starve on their integral.
 
 ## Status
 
@@ -23,7 +23,7 @@ on their integral.
 | Saturation curve | <Badge text="settled" variant="success" /> | `tanh(PAR / Ik)`, the Jassby–Platt response. Near-linear below `Ik`, flat above it — a brighter fixture stops buying anything. |
 | Light multiplies the benefit budget | <Badge text="settled" variant="success" /> | Every benefit a plant earns is realised *through* photosynthesis, so light scales all four channels rather than standing beside them. Good water is worth nothing at midnight. |
 | `Ik` derived from the species band | <Badge text="settled" variant="success" /> | A fixed multiple of the band's lower bound, so one number carries both the saturation curve and the daily light edge and they cannot drift apart. |
-| The day's light | <Badge text="settled" variant="success" /> | A 24-slot history, one slot rewritten each tick. The daily light integral over it is what plants starve on, so a night costs nothing and a blackout bites as its hours leave the window. |
+| The day's light | <Badge text="settled" variant="success" /> | A 24-slot history, one slot rewritten each tick. Plants starve on its integral — the day, not the hour. |
 | Photoperiod shape | <Badge text="scaffolding" variant="caution" /> | A rectangular window: rated PAR or zero, with no ramp at either edge. |
 | What rides on that edge | <Badge text="scaffolding" variant="caution" /> | The algae's two `light > 0` gates, on banking and on growth. The bloom's bank switches on and off with the lamp rather than following a rate. |
 | Depth tracks standing water | <Badge text="scaffolding" variant="caution" /> | Attenuation runs over the height the *capacity* implies. A half-drained tank lights its substrate as if it were full. |
@@ -60,7 +60,8 @@ taken its share.
 
 A species answers light along `tanh(PAR / Ik)`, where `Ik` is its saturating
 irradiance — derived, not declared, at twice the lower bound of its tolerable
-band. At `Ik` a plant already runs at 76 % of its maximum; at twice `Ik`, 96 %.
+band. At the bottom of its band a plant runs at 46 % of its maximum, at `Ik`
+76 %, and at twice `Ik` 96 %.
 
 | Species | Band | `Ik` |
 |---|---|---|
@@ -70,23 +71,18 @@ band. At `Ik` a plant already runs at 76 % of its maximum; at twice `Ik`, 96 %.
 | `dwarf_hairgrass` | 25–200 PAR | `50` |
 | `monte_carlo` | 30–200 PAR | `60` |
 
-The same band low sets the daily light a species starves under, so a shade
-species differs from a carpet on one figure: it saturates on less light *and*
-starves on less.
-
 ### Light as the multiplier
 
 The four benefit channels — CO₂, temperature, pH, nutrients — each peak at
 `0.125` %/h and are each multiplied by the saturation term, so the budget is
-`0.5` %/h × `tanh(PAR / Ik)` and light takes the whole of it down together. A
-plant earns nothing in the dark, and a scheduled night costs it nothing either:
-starvation reads the day, not the hour.
+`0.5` %/h × `tanh(PAR / Ik)` and light takes the whole of it down together.
 
 ### The day's light
 
 ```
 lightByHour[tick % 24] = light                       // each tick, as the hour settles
-dli = Σ lightByHour × 3600 / 10⁶                     mol/m²/d
+dli  = Σ lightByHour × 3600 / 10⁶                    mol/m²/d
+edge = tolerableLight[0] × 8 × 3600 / 10⁶            mol/m²/d, per species
 ```
 
 The tank keeps the last 24 hours of substrate PAR, one slot per hour of the
@@ -113,6 +109,7 @@ inside it reads the full attenuated rating.
 |---|---|
 | Photosynthesis | Per plant, `tanh(PAR / Ik)` scales the potential rate that drives O₂, carbon and nutrient uptake |
 | Plant benefits | All four channels multiplied by the same term |
+| Plant nutrient deficiency | Scaled by the same term |
 | Plant starvation | The daily light integral, against the species' edge |
 | Plant light-high stressor | PAR over the species band, while the lamp is on |
 | Algae | A capped benefit ramp above `70` PAR, and a `light > 0` gate on its banking and growth |
