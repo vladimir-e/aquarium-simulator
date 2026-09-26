@@ -16,6 +16,14 @@ import { VERB_IDS, type VerbId } from '../actions/verbs.js';
 import { PERSISTENCE_VERSION } from './types.js';
 import { SPEED_PRESETS, type SpeedPreset } from '../run/speed.js';
 
+const numbersFor = <K extends string>(
+  keys: readonly K[],
+  leaf: z.ZodNumber = z.number()
+): z.ZodObject<Record<K, z.ZodNumber>, z.core.$strict> =>
+  z.object(Object.fromEntries(keys.map((k) => [k, leaf])) as Record<K, z.ZodNumber>).strict();
+
+const NutrientVectorSchema = numbersFor(NUTRIENTS);
+
 // ============================================================================
 // Schedule Schema
 // ============================================================================
@@ -137,6 +145,7 @@ const SubstrateSchema = z
     type: z.enum(['none', 'sand', 'gravel', 'aqua_soil']),
     organicReserve: z.number(),
     khReserve: z.number(),
+    nutrients: NutrientVectorSchema,
   })
   .strict();
 
@@ -293,7 +302,7 @@ const TankSeedSchema = z
         ResourcesSchema.pick({ aob: true, nob: true }).partial().strict(),
       ])
       .optional(),
-    substrate: SubstrateSchema.pick({ organicReserve: true, khReserve: true })
+    substrate: SubstrateSchema.pick({ organicReserve: true, khReserve: true, nutrients: true })
       .partial()
       .strict()
       .optional(),
@@ -476,18 +485,13 @@ const PlantsConfigSchema = z
   })
   .strict();
 
-const numbersFor = <K extends string>(
-  keys: readonly K[],
-  leaf: z.ZodNumber = z.number()
-): z.ZodObject<Record<K, z.ZodNumber>, z.core.$strict> =>
-  z.object(Object.fromEntries(keys.map((k) => [k, leaf])) as Record<K, z.ZodNumber>).strict();
-
-const NutrientVectorSchema = numbersFor(NUTRIENTS);
 const DemandVectorSchema = numbersFor(NUTRIENTS, z.number().min(0.01));
 
 const NutrientsConfigSchema = z
   .object({
     fertilizerFormula: NutrientVectorSchema,
+    rootTab: NutrientVectorSchema,
+    bedLeakRate: z.number(),
     halfSaturation: NutrientVectorSchema,
     demand: z
       .object({ low: DemandVectorSchema, medium: DemandVectorSchema, high: DemandVectorSchema })

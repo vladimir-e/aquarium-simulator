@@ -13,7 +13,7 @@ were tuned against.
 ## Whole tanks: the scenario runner
 
 Whole-tank behaviour is judged by running the preset tanks headless — nano,
-low-tech, high-tech, community, low-flow and cold — on a keeper's schedule,
+low-tech, high-tech, community, sword-gravel, low-flow and cold — on a keeper's schedule,
 sampled at fixed days and always on the last one. Each reading is graded
 against a plausibility band:
 

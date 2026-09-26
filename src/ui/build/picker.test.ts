@@ -147,11 +147,6 @@ describe('plant options', () => {
   });
 
   it('agrees with the engine’s floor check on the line and the headroom, to the last unit', () => {
-    const soil = (capacity: number): SimulationState => {
-      const state = tank(capacity);
-      state.equipment.substrate.type = 'aqua_soil';
-      return state;
-    };
     const carpet = GROWTH_FORMS.carpet.footprintCm2;
     const brim = Array.from({ length: 2000 }, (_, i) => i + 20).find(
       (capacity) => calculateFloorArea(capacity) % carpet >= carpet - 0.5
@@ -159,11 +154,11 @@ describe('plant options', () => {
     const edge = Math.floor(calculateFloorArea(brim) / carpet);
 
     const tanks = [
-      planted(edge, 'monte_carlo', soil(brim)),
-      planted(1, 'java_fern', soil(19)),
-      planted(floorFull, 'java_fern', soil(19)),
-      planted(3, 'amazon_sword', soil(200)),
-      planted(40, 'monte_carlo', soil(200)),
+      planted(edge, 'monte_carlo', tank(brim)),
+      planted(1, 'java_fern', tank(19)),
+      planted(floorFull, 'java_fern', tank(19)),
+      planted(3, 'amazon_sword', tank(200)),
+      planted(40, 'monte_carlo', tank(200)),
     ];
     for (const state of tanks) {
       for (const candidate of plants(state)) {
@@ -194,11 +189,9 @@ describe('plant options', () => {
     expect(anubias.refusal).toBe(checkPlantFootprint(state.plants, 'anubias', 19).message);
   });
 
-  it('names the substrate before the floor — a full tank is the lesser problem', () => {
-    const state = planted(floorFull, 'java_fern');
-    const carpet = option(plants(state), 'monte_carlo');
-
+  it('offers every species over a bare bottom — the bed decides how a plant feeds, not whether it goes in', () => {
+    const state = tank(200);
     expect(state.equipment.substrate.type).toBe('none');
-    expect(carpet.refusal).toContain('aqua soil');
+    for (const candidate of plants(state)) expect(candidate.refusal).toBeNull();
   });
 });

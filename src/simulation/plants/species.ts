@@ -16,8 +16,9 @@ export type PlantSpecies =
  * How a species builds one unit — a carpet patch, a rosette specimen, a rhizome
  * clump. `Plant.size` is how full that unit is, so the form fixes what size 100
  * means: how tall it stands, how much floor it claims and how much leaf it
- * carries over it. It also names what a full bank buys — a runner, a plantlet,
- * a rhizome branch — though every form buys it the same way.
+ * carries over it. It also says where the plant feeds and names what a full
+ * bank buys — a runner, a plantlet, a rhizome branch — though every form buys
+ * it the same way.
  */
 export type GrowthForm = 'carpet' | 'rosette' | 'attached';
 
@@ -27,6 +28,8 @@ export interface GrowthFormData {
   heightExponent: number;
   footprintCm2: number;
   leafAreaIndex: number;
+  /** Share of its nutrients the plant draws through its roots from the bed; the rest comes from the water. */
+  rootShare: number;
   offshootVerb: string;
 }
 
@@ -36,12 +39,13 @@ export interface GrowthFormData {
  * about 10 × 10 cm, a sword is given 30 cm across, and an epiphyte clump takes
  * a hand's width of rock. Leaf area index is leaf over footprint: herb mats run
  * 2–4, a sword is some 25 leaves of 55 cm² over its 700, a fern clump a dozen
- * fronds of 40 cm² over its 200.
+ * fronds of 40 cm² over its 200. A sword is the hobby's root feeder; carpets
+ * and epiphytes live off the water column.
  */
 export const GROWTH_FORMS: Record<GrowthForm, GrowthFormData> = {
-  carpet: { heightCm: 5, heightExponent: 0, footprintCm2: 100, leafAreaIndex: 2.5, offshootVerb: 'sent a runner' },
-  rosette: { heightCm: 40, heightExponent: 1 / 3, footprintCm2: 700, leafAreaIndex: 2.0, offshootVerb: 'threw a plantlet' },
-  attached: { heightCm: 20, heightExponent: 1 / 3, footprintCm2: 200, leafAreaIndex: 2.5, offshootVerb: 'branched at the rhizome' },
+  carpet: { heightCm: 5, heightExponent: 0, footprintCm2: 100, leafAreaIndex: 2.5, rootShare: 0, offshootVerb: 'sent a runner' },
+  rosette: { heightCm: 40, heightExponent: 1 / 3, footprintCm2: 700, leafAreaIndex: 2.0, rootShare: 0.7, offshootVerb: 'threw a plantlet' },
+  attached: { heightCm: 20, heightExponent: 1 / 3, footprintCm2: 200, leafAreaIndex: 2.5, rootShare: 0, offshootVerb: 'branched at the rhizome' },
 };
 
 /**
@@ -62,8 +66,6 @@ export interface PlantSpeciesData {
   co2Requirement: Co2Requirement;
   /** Relative growth rate (higher = faster biomass distribution) */
   growthRate: number;
-  /** Substrate requirement for planting */
-  substrateRequirement: 'none' | 'sand' | 'aqua_soil';
   /** Nutrient demand tier */
   nutrientDemand: NutrientDemand;
   /** How one unit of the species is built — see {@link GROWTH_FORMS}. */
@@ -101,7 +103,6 @@ export const PLANT_SPECIES_DATA: Record<PlantSpecies, PlantSpeciesData> = {
     growthForm: 'attached',
     co2Requirement: 'low',
     growthRate: 0.5,
-    substrateRequirement: 'none', // Attaches to hardscape
     nutrientDemand: 'low', // Can survive on fish waste alone
     hardiness: 0.7, // Forgiving — survives most beginner setups
     // Alive at 10 PAR — below anything the hobby calls low light — and
@@ -116,7 +117,6 @@ export const PLANT_SPECIES_DATA: Record<PlantSpecies, PlantSpeciesData> = {
     growthForm: 'attached',
     co2Requirement: 'low',
     growthRate: 0.3,
-    substrateRequirement: 'none', // Attaches to hardscape
     nutrientDemand: 'low', // Can survive on fish waste alone
     hardiness: 0.75, // Hardiest of the bunch — bombproof
     // Deepest-shade tolerance of the five — 8 PAR is the understory of a
@@ -131,7 +131,6 @@ export const PLANT_SPECIES_DATA: Record<PlantSpecies, PlantSpeciesData> = {
     growthForm: 'rosette',
     co2Requirement: 'medium',
     growthRate: 1.0,
-    substrateRequirement: 'sand',
     nutrientDemand: 'medium', // Benefits from dosing
     hardiness: 0.5,
     // Medium-light plant, and a big one: it holds on at 20 PAR but only
@@ -147,7 +146,6 @@ export const PLANT_SPECIES_DATA: Record<PlantSpecies, PlantSpeciesData> = {
     growthForm: 'carpet',
     co2Requirement: 'high',
     growthRate: 1.5,
-    substrateRequirement: 'aqua_soil',
     nutrientDemand: 'high', // Requires regular dosing
     hardiness: 0.3, // Fussy — needs everything dialled in
     // High-light carpet — it wants 25 PAR on its leaves, and tolerates the
@@ -162,7 +160,6 @@ export const PLANT_SPECIES_DATA: Record<PlantSpecies, PlantSpeciesData> = {
     growthForm: 'carpet',
     co2Requirement: 'high',
     growthRate: 1.8,
-    substrateRequirement: 'aqua_soil',
     nutrientDemand: 'high', // Requires regular dosing
     hardiness: 0.3, // Fussy — same band as hairgrass
     // Hungrier for light than hairgrass — 30 PAR on its leaves is the usual

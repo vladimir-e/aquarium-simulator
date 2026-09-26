@@ -1,8 +1,8 @@
 /**
  * The construction pickers: every species the engine can stock, what it asks
  * of the tank, and how this tank would take it. A refusal is the engine's own
- * message — the capacity line and the substrate reason come from the actions
- * that would reject the commit, never from a paraphrase of them here.
+ * message — the capacity line comes from the action that would reject the
+ * commit, never from a paraphrase of it here.
  */
 
 import {
@@ -12,8 +12,6 @@ import {
   getDgh,
   getMaxFishMass,
   getPh,
-  getSubstrateIncompatibilityReason,
-  isSubstrateCompatible,
   PLANT_SPECIES_DATA,
   totalFishMass,
   type FishSpeciesData,
@@ -130,20 +128,16 @@ function fishOption(
 
 function plantOption(state: SimulationState, species: PlantSpecies): PickerOption {
   const data = PLANT_SPECIES_DATA[species];
-  const substrate = state.equipment.substrate.type;
-  const compatible = isSubstrateCompatible(species, substrate);
   const footprint = checkPlantFootprint(state.plants, species, state.tank.capacity);
-  const headroom = Math.floor(footprint.free / footprint.needed);
-  const reason = getSubstrateIncompatibilityReason(species, substrate);
 
   return {
     species,
     name: data.name,
     demand: `${data.nutrientDemand} demand · ${lightTier(species)} light · ${data.co2Requirement} CO₂`,
-    fit: compatible ? `${Math.floor(footprint.free)} cm² of floor free` : (reason ?? ''),
-    status: compatible && footprint.ok ? 'neutral' : 'warn',
-    headroom: compatible ? headroom : 0,
-    refusal: !compatible ? reason : footprint.ok ? null : footprint.message,
+    fit: `${Math.floor(footprint.free)} cm² of floor free`,
+    status: footprint.ok ? 'neutral' : 'warn',
+    headroom: Math.floor(footprint.free / footprint.needed),
+    refusal: footprint.ok ? null : footprint.message,
   };
 }
 

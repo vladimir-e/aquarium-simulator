@@ -67,9 +67,9 @@ separately. A tank that cannot run the reaction does not pay for it.
 |---|---|---|---|
 | `waste` | Food decay, fish feces, fish death, plant tissue loss, substrate leaching | Mineralization to ammonia; settling into the bed | g |
 | `ammonia` | Mineralization; fish gill excretion; the oxidised share of decaying food | AOB oxidation; water change removes proportional mass | mg |
-| `phosphate` · `potassium` · `iron` | Mineralization, at `foodMineralContent` beside the ammonia; fish excretion; the oxidised share of decaying food; fertilizer dosing | Plant growth; water change | mg |
+| `phosphate` · `potassium` · `iron` | Mineralization, at `foodMineralContent` beside the ammonia; fish excretion; the oxidised share of decaying food; fertilizer dosing; the bed's leak | Plant growth; water change | mg |
 | `nitrite` | AOB oxidation, × 2.702 | NOB oxidation; water change | mg |
-| `nitrate` | NOB oxidation, × 1.348; fertilizer dosing | Plant growth; water change | mg |
+| `nitrate` | NOB oxidation, × 1.348; fertilizer dosing; the bed's leak | Plant growth; water change | mg |
 | `aob` | Seeding trickle; logistic growth on utilization | Maintenance decay; surface-area cap | units of 10⁶ cells |
 | `nob` | Seeding trickle; logistic growth on utilization | Maintenance decay; surface-area cap | units of 10⁶ cells |
 | `oxygen` | Gas exchange, elsewhere | 2.819 mg per mg NH₃ and 0.348 mg per mg NO₂⁻ oxidised | mg/L |

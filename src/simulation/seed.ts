@@ -9,6 +9,7 @@ import type { PlantSpecies } from './plants/species.js';
 import {
   calculateSubstrateLeach,
   getSubstrateKhReserve,
+  getSubstrateNutrients,
   getSubstrateOrganicReserve,
   type Substrate,
   type SubstrateType,
@@ -18,6 +19,7 @@ import { calculateMaxBacteria, restingColony } from './systems/nitrogen-cycle.js
 import { processMetabolism } from './systems/metabolism.js';
 import { ammoniaPerGramOfFood, livestockDefaults, nitratePerGramOfFood } from './config/livestock.js';
 import { decayDefaults } from './config/decay.js';
+import { NUTRIENTS, type NutrientVector } from './config/nutrients.js';
 import { NH3_TO_NO2_MASS_RATIO } from './core/chemistry.js';
 import { getGhMass, getKhMass } from './resources/helpers.js';
 import { createFish } from './livestock/create-fish.js';
@@ -25,7 +27,7 @@ import { createPlant } from './plants/create-plant.js';
 
 const SEEDABLE_BACTERIA = ['aob', 'nob'] as const;
 
-const SEEDABLE_SUBSTRATE = ['organicReserve', 'khReserve'] as const;
+const SEEDABLE_SUBSTRATE = ['organicReserve', 'khReserve', 'nutrients'] as const;
 
 const SEEDABLE_RESOURCES = [
   'ammonia',
@@ -176,6 +178,20 @@ export function cycledReserve(type: SubstrateType, capacity: number): number {
 }
 
 /**
+ * Share of a fresh bed's nutrient store still in it on day 30: a plantless
+ * month of the leak leaves 0.866, rounded down for the same reason.
+ */
+const CYCLED_BED_NUTRIENT_FRACTION = 0.85;
+
+/** mg of each nutrient a bed of this type and capacity still holds once cycled. */
+export function cycledBedNutrients(type: SubstrateType, capacity: number): NutrientVector {
+  const fresh = getSubstrateNutrients(type, capacity);
+  return Object.fromEntries(
+    NUTRIENTS.map((n) => [n, fresh[n] * CYCLED_BED_NUTRIENT_FRACTION])
+  ) as NutrientVector;
+}
+
+/**
  * Share of a fresh aqua soil bed's KH reserve left on day 30 under weekly 25 %
  * changes — read off a fresh high-tech soil tank on that keeper, rounded.
  */
@@ -267,6 +283,7 @@ function seedTank(state: SimulationState, seed: TankSeed): void {
     writeStocks(state.equipment.substrate, SEEDABLE_SUBSTRATE, {
       organicReserve: cycledReserve(type, capacity),
       khReserve: cycledKhReserve(type, capacity),
+      nutrients: cycledBedNutrients(type, capacity),
     });
     state.resources.nitrate = cycledNitrate(type, capacity);
   }

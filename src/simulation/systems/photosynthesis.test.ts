@@ -16,6 +16,7 @@ import { lightSaturationFactor, monodFactor, monodUptake } from '../core/kinetic
 import { getSaturationIrradiance } from '../plants/species.js';
 import { rateUnits } from '../plants/canopy.js';
 import { plantRecord } from '../tests/plant.js';
+import { mirroredPools } from '../tests/pools.js';
 
 const INJECTED_CO2 = 25;
 const PLENTIFUL_CO2 = 1e9;
@@ -64,7 +65,7 @@ function plant(size: number, species: PlantSpecies = 'amazon_sword'): Plant {
 }
 
 function sufficiencyOf(plants: readonly Plant[], resources: Resources, waterVolume: number): number[] {
-  return plants.map((p) => calculateNutrientSufficiency(resources, waterVolume, p.species, nutrientsDefaults));
+  return plants.map((p) => calculateNutrientSufficiency(mirroredPools({ ...resources, water: waterVolume }), p.species, nutrientsDefaults));
 }
 
 describe('calculateCo2Factor', () => {
@@ -118,7 +119,7 @@ describe('calculatePhotosynthesis', () => {
     return (
       rateUnits(p) *
       lightSaturationFactor(light, getSaturationIrradiance(p.species, config)) *
-      calculateNutrientSufficiency(buildResources(waterVolume), waterVolume, p.species) *
+      calculateNutrientSufficiency(mirroredPools(buildResources(waterVolume)), p.species) *
       config.basePhotosynthesisRate *
       config.co2PerRateUnit
     );
@@ -193,7 +194,7 @@ describe('calculatePhotosynthesis', () => {
           ((respired / config.baseRespirationRate) * config.basePhotosynthesisRate) /
           monodFactor(AIR_SATURATED_O2, config.respirationOxygenHalfSaturation) *
           lightSaturationFactor(light, getSaturationIrradiance('java_fern', config)) *
-          calculateNutrientSufficiency(buildResources(waterVolume), waterVolume, 'java_fern');
+          calculateNutrientSufficiency(mirroredPools(buildResources(waterVolume)), 'java_fern');
 
         expect(photosynthesis([fern], { config }).co2ConsumedMg).toBeCloseTo(
           monodUptake(
@@ -361,7 +362,7 @@ describe('calculatePhotosynthesis', () => {
     it('rates a plant by its leaf, not its size: a full sword out-fixes a full carpet patch by their rate units', () => {
       const fixed = (p: Plant): number =>
         photosynthesis([p], { co2: PLENTIFUL_CO2, lightPar: 1e6 }).co2ConsumedMg /
-        calculateNutrientSufficiency(buildResources(waterVolume), waterVolume, p.species);
+        calculateNutrientSufficiency(mirroredPools(buildResources(waterVolume)), p.species);
       const sword = plant(100, 'amazon_sword');
       const patch = plant(100, 'monte_carlo');
 

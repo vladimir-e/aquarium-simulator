@@ -174,6 +174,8 @@ channel by `1 − hardiness` except nitrate, whose edge it carries out instead.
 | Tunable | Meaning | Unit |
 |---|---|---|
 | `fertilizerFormula.nitrate` · `.phosphate` · `.potassium` · `.iron` | The all-in-one fertilizer's composition per ml | mg/ml |
+| `rootTab.nitrate` · `.phosphate` · `.potassium` · `.iron` | What one root tab pushes into the bed | mg |
+| `bedLeakRate` | Share of each nutrient the bed holds that leaks into the water per hour | /hr |
 | `halfSaturation.*` | The ppm at which a full-demand plant's draw and sufficiency run at half | ppm |
 | `demand.low.*` · `demand.medium.*` · `demand.high.*` | Each tier's share of the full need, per nutrient; scales the half-saturation | — |
 | `foodMineralContent.phosphate` · `.potassium` · `.iron` | Minerals in a gram of food, in the waste it becomes, and in plant tissue | mg/g |

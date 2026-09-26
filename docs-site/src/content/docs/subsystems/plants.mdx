@@ -33,11 +33,12 @@ family. Low condition sheds tissue.
 | Death | <Badge text="settled" variant="success" /> | Condition reaching 0, as for a fish. A unit shed to a speck lives while it has condition: it heals and regrows, or keeps losing condition and dies. |
 | Epiphyte footprint | <Badge text="scaffolding" variant="caution" /> | A java fern or anubias on the rock claims floor like a rooted plant; there is no hardscape budget. |
 | Nitrate | <Badge text="settled" variant="success" /> | Log dose past the plant's own edge, the fish shape at an edge only a runaway doser reaches. |
-| Nutrition | <Badge text="settled" variant="success" /> | Every nutrient saturates on its own Monod curve against a per-species demand. Tissue is drawn at one recipe where growth buys it, never at the fertilizer's ratio. |
+| Nutrition | <Badge text="settled" variant="success" /> | Every nutrient saturates on its own Monod curve against a per-species demand, in the water and in the bed. Tissue is drawn at one recipe where growth buys it, never at the fertilizer's ratio. |
+| Root feeding | <Badge text="settled" variant="success" /> | A fixed root share by growth form: a sword draws most of its need from the bed, carpets and epiphytes from the water. No species is refused a bed — a sword in bare gravel declines slowly until it is tabbed. |
 | Carbon limitation | <Badge text="settled" variant="success" /> | Monod on dissolved CO₂, half rate at the species' carbon-need half-saturation. It scales photosynthesis and the CO₂ income channel, and never damages: a carbon-short plant earns and grows less. |
 | Tolerance bands | <Badge text="settled" variant="success" /> | Temperature and pH earn most at the band's centre and nothing at its edge, where damage starts from zero: net is continuous across every edge. |
 | Algae shading | <Badge text="scaffolding" variant="caution" /> | A damage rate on bloom mass past `algaeShadingThreshold`, not light: a bloom never dims the PAR a plant reads, so it costs condition without costing photosynthesis. |
-| Plant nutrient loop | <Badge text="settled" variant="success" /> | Tissue is the organic matter it rots into: growth draws food's recipe, and shedding and death return it as waste. N, P, K and Fe are conserved by construction. |
+| Plant nutrient loop | <Badge text="settled" variant="success" /> | Tissue is the organic matter it rots into: growth draws food's recipe from the water and the bed, and shedding and death return it as waste. N, P, K and Fe are conserved by construction. |
 | Tissue recipe | <Badge text="scaffolding" variant="caution" /> | Food's: N:P ≈ 7 by mass is Redfield and fits, but 0.8 % K sits under the 2–4 % macrophyte tissue carries. |
 | General hardness | <Badge text="scaffolding" variant="caution" /> | A damage-only tolerance band per species, and a small draw beside the nitrate that tissue never returns — waste carries no calcium. Calcium never enters sufficiency, so soft water stresses a plant but never starves it. |
 
@@ -56,8 +57,9 @@ each grows, the light it lives on, and the water it tolerates.
 | Dwarf Hairgrass | 1.5 | high | high | 0.3 |
 | Monte Carlo | 1.8 | high | high | 0.3 |
 
-Anubias and java fern attach to the scape and go into any tank; the sword roots
-in sand or aqua soil, and the carpets in aqua soil alone.
+Anubias and java fern attach to the scape; the sword and the carpets root in
+the bed. Every species goes into any tank — the bed decides how well a root
+feeder eats ([Nutrition](#nutrition)), not whether it is planted.
 
 | Species | Tolerable PAR | Saturates at, `Ik` | Starves under |
 |---|---|---|---|
@@ -96,6 +98,7 @@ grown patch, specimen or clump. The form fixes what that means.
 | Leaf area index | 2.5 | 2.0 | 2.5 |
 | Rate units at full | 0.5 | 2.8 | 1.0 |
 | Offshoot | sends a runner | throws a plantlet | branches at the rhizome |
+| Root share `r` | 0 — feeds from the water | 0.7 — feeds mostly from the bed | 0 — feeds from the water |
 
 ```
 height    = min(depth, fullHeight × (size / 100)^exponent)
@@ -168,7 +171,8 @@ draws oxygen with the lamps on.
 | `surplus` | Income at full condition | Healing; an offshoot; growth | condition points, capped at `surplusCap` |
 | `oxygen` | Photosynthesis | Respiration | mg/L |
 | `co2` | Respiration | Photosynthesis, on its own Monod curve | mg/L |
-| `nitrate` · `phosphate` · `potassium` · `iron` | Dosing; nitrification for NO₃, and mineralized waste and fish excretion for the rest, elsewhere | New tissue — growth and offshoots — at the tissue recipe | mg |
+| `nitrate` · `phosphate` · `potassium` · `iron` | Dosing; the bed's leak; nitrification for NO₃, and mineralized waste and fish excretion for the rest, elsewhere | New tissue — growth and offshoots — at the tissue recipe | mg |
+| The bed's `nutrients` | Aqua soil and root tabs ([Equipment](/subsystems/equipment/#the-bed)) | Root feeders' new tissue, at the same recipe; the leak | mg |
 | `waste` | Shed tissue and plant death, at the same grams growth drew for | Mineralization, elsewhere | g |
 
 A bank unit is a condition point — the bank fills with the same %/h condition
@@ -176,14 +180,23 @@ is measured in, which is what lets one number pay for both.
 
 ### Nutrition
 
-Every nutrient saturates on its own Monod curve, and sufficiency is the scarcest
-of them — Liebig's law over saturating shares. Sufficiency sets what a plant
-earns ([Income and harm](#income-and-harm)).
+A plant feeds on two pools: the water column and the bed's store. Its growth
+form's root share `r` fixes how much of its need it draws through its roots.
+Every nutrient saturates on its own Monod curve in each pool, the two shares
+weigh in by where the plant feeds, and sufficiency is the scarcest of them —
+Liebig's law over saturating shares. Sufficiency sets what a plant earns
+([Income and harm](#income-and-harm)).
 
 ```
-share_n     = ppm_n / (demand_n × K_n + ppm_n)
+share_p,n   = ppm_p,n / (demand_n × K_n + ppm_p,n)      p: the water, the bed
+share_n     = r × share_bed,n + (1 − r) × share_water,n
 sufficiency = min over n of share_n
 ```
+
+The bed's ppm reads its store against the tank's capacity. A sword over a bare
+bed tops out at `1 − r` however rich the water — under the
+[deficiency edge](#income-and-harm), so it declines slowly until the bed is
+tabbed; over fresh aqua soil or tabs it thrives.
 
 | Demand tier | NO₃ · PO₄ | K · Fe |
 |---|---|---|
@@ -204,28 +217,35 @@ of the rest. N:P ≈ 7 by mass is Redfield, so one recipe serves food, waste and
 tissue.
 
 ```
-grams_i     = (size bought_i + offshoot_i) × fullRateUnits × wastePerSize
-requested_n = Σ grams_i × share_i,n × recipe_n
-delivered_n = monodUptake(pool_n, Σ grams_i × recipe_n, K_n)
-              // K_n: one consumer requesting requested_n at the tick's start
-met_n       = delivered_n / requested_n
-supply_i    = min over n of share_i,n × met_n
-drawn_n     = Σ grams_i × supply_i × recipe_n
+grams_i       = (size bought_i + offshoot_i) × fullRateUnits × wastePerSize
+w_i,p         = 1 − r_i from the water, r_i from the bed
+grams_p       = Σ w_i,p × grams_i
+requested_p,n = Σ w_i,p × grams_i × share_i,p,n
+K_eq,p,n      = pool_p,n × (grams_p / requested_p,n − 1)
+delivered_p,n = monodUptake(pool_p,n, grams_p × recipe_n, K_eq,p,n)
+met_p,n       = delivered_p,n / (requested_p,n × recipe_n)
+supply_i,n    = Σ over p of w_i,p × share_i,p,n × met_p,n
+supply_i      = min over n of supply_i,n
+drawn_p,n     = Σ grams_i × supply_i × recipe_n × w_i,p × share_i,p,n × met_p,n / supply_i,n
 ```
 
-The bank asks; the water decides how much arrives. Each plant requests its
-tissue at its own share of each nutrient — the reading its sufficiency is made
-of — and each pool delivers through the same end-of-tick Monod the planting's
-CO₂ draw runs on. In an ordinary hour the pool meets every request and a plant
-grows at its sufficiency; an offshoot's lump on thin water is met in part, and
-no pool goes below zero. A lean species holds on where a hungry one starves.
-The bank pays only for what arrived.
+The bank asks; the pools decide how much arrives. Each plant requests its
+tissue from each pool at the weight it feeds there and its share of each
+nutrient in it — the readings its sufficiency is made of. Each pool delivers
+through `monodUptake` against the half-saturation `K_eq` at which one consumer
+would request, at the tick's start, what the planting requests. In an ordinary
+hour a pool meets every request and a plant grows at its sufficiency; an
+offshoot's lump on thin water is met in part, and no pool goes below zero. A
+lean species holds on where a hungry one starves, and two plants short of the
+same nutrient are met at the same fraction of their shares. What a plant takes
+splits between the pools as they met it. The bank pays only for what arrived.
 
 Shedding and death hand the same grams back as waste, which mineralizes beside
-its ammonia ([Nitrogen cycle](/subsystems/nitrogen-cycle/)). A tank that dies
-back releases exactly what its plants took. Calcium and magnesium are drawn on
-their own Monod curve, off the nitrate actually drawn (under Key tunables), and
-are not returned.
+its ammonia ([Nitrogen cycle](/subsystems/nitrogen-cycle/)) — into the water,
+whichever pool the tissue came from. A tank that dies back releases exactly
+what its plants took. Calcium and magnesium are drawn from the water on their
+own Monod curve, off the nitrate actually drawn from either pool (under Key
+tunables), and are not returned.
 
 ### Income and harm
 
@@ -447,10 +467,10 @@ The canopy's own constant, `leafAttenuationPerLai`, is under [Light](/subsystems
 | [Water & gases](/subsystems/water-and-gases/) | `co2` for the carbon Monod, `oxygen` for the respiration Monod, pH and `gh` for the tolerance bands | `oxygen` and `co2`, both directions, on one carbon yield; `gh` drawn with the nutrients |
 | [Nitrogen cycle](/subsystems/nitrogen-cycle/) | `nitrate`, and the `phosphate`, `potassium` and `iron` mineralized beside the ammonia | All four drawn as tissue grows; `waste` from shedding and death |
 | [Environment](/subsystems/environment/) | `temperature` for the Q10 on respiration and starvation, `water` for every ppm, the box's depth and floor | — |
-| [Equipment](/subsystems/equipment/) | `substrate.type` — which species may be planted at all | — |
+| [Equipment](/subsystems/equipment/) | `substrate.nutrients` — the bed's store, for root feeders | The same store, drawn down as root feeders grow |
 | [Algae](/subsystems/algae/) | `algae.mass` — the shading stressor, one tick behind | Plant power, which drives algae's suppression stressor and its low-plant-power benefit |
 | [Livestock](/subsystems/livestock/) | `foodNitrogenFraction` and `foodMineralContent`, the recipe tissue shares with food | Plant power again, saturating the fish shelter benefit |
-| [Actions](/subsystems/actions/) | — | Planting against the floor, removal and trimming write the array and `size` directly; dosing fills the four nutrient pools |
+| [Actions](/subsystems/actions/) | — | Planting against the floor, removal and trimming write the array and `size` directly; dosing fills the four nutrient pools in the water, root tabs the bed's |
 | [Alerts & logging](/subsystems/alerts-and-logging/) | — | A `plant-died` entry per plant lost, a `plant-propagated` entry per offshoot |
 | [State & persistence](/subsystems/state-and-persistence/) | The tank's draw stream, for every unit's vigour and id; seeded plantings, at a named size and age, each founding its family | The advanced stream position |
 

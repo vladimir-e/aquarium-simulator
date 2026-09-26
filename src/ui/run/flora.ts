@@ -10,6 +10,7 @@
 
 import {
   calculateNutrientSufficiency,
+  tankPools,
   floorCover,
   getDosePreview,
   isOvergrown,
@@ -343,14 +344,13 @@ export function nutrientReadings(
    * That keeps the panel in step with each species' own demand, and stays right
    * when several are empty at once.
    */
+  const [, bed] = tankPools(state);
+  const sufficiency = (stock: Resources, species: PlantSpecies): number =>
+    calculateNutrientSufficiency([{ stock, volume: water }, bed], species, nutrients);
   const isLimiting = (key: Nutrient): boolean => {
     if (needs[key] <= 0 || water <= 0) return false;
     const short: Resources = { ...met, [key]: state.resources[key] };
-    return state.plants.some(
-      (plant) =>
-        calculateNutrientSufficiency(short, water, plant.species, nutrients) <
-        calculateNutrientSufficiency(met, water, plant.species, nutrients)
-    );
+    return state.plants.some((plant) => sufficiency(short, plant.species) < sufficiency(met, plant.species));
   };
 
   return NUTRIENTS.map((key) => {

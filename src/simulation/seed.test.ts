@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { createSimulation, type Resources, type SimulationConfig } from './state.js';
 import { FISH_SPECIES_DATA } from './livestock/species.js';
 import {
+  cycledBedNutrients,
   cycledColony,
   cycledHardness,
   cycledKhReserve,
@@ -149,6 +150,15 @@ describe('createSimulation seeding', () => {
           );
         }
       }
+    });
+
+    it("leaves a 'cycled' aqua soil bed a month of its leak short of fresh, and an inert bed empty", () => {
+      const seeded = createSimulation(TANK, { bacteria: 'cycled' });
+      const virgin = createSimulation(TANK);
+      expect(seeded.equipment.substrate.nutrients).toEqual(cycledBedNutrients('aqua_soil', TANK.tankCapacity));
+      expect(seeded.equipment.substrate.nutrients.nitrate).toBeGreaterThan(0);
+      expect(seeded.equipment.substrate.nutrients.nitrate).toBeLessThan(virgin.equipment.substrate.nutrients.nitrate);
+      expect(cycledBedNutrients('gravel', TANK.tankCapacity)).toEqual({ nitrate: 0, phosphate: 0, potassium: 0, iron: 0 });
     });
 
     it('sets the reserve on its own, without a colony', () => {

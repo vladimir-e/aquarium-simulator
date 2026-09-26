@@ -20,9 +20,11 @@ import {
   getSubstrateSurface,
   getSubstrateOrganicReserve,
   getSubstrateKhReserve,
+  getSubstrateNutrients,
   freshSubstrate,
   replaceSubstrate,
   calculateSubstrateLeach,
+  calculateBedLeak,
   wasteSettlingShare,
   calculateSubstrateKhUptake,
   substrateUpdate,
@@ -32,6 +34,7 @@ import {
   SUBSTRATE_SURFACE_PER_LITER,
   SUBSTRATE_ORGANIC_PER_LITER,
   SUBSTRATE_KH_RESERVE_PER_LITER,
+  SUBSTRATE_NUTRIENTS_PER_LITER,
 } from './substrate.js';
 import {
   calculateHardscapeTotalSurface,
@@ -91,9 +94,11 @@ export {
   getSubstrateSurface,
   getSubstrateOrganicReserve,
   getSubstrateKhReserve,
+  getSubstrateNutrients,
   freshSubstrate,
   replaceSubstrate,
   calculateSubstrateLeach,
+  calculateBedLeak,
   wasteSettlingShare,
   calculateSubstrateKhUptake,
   substrateUpdate,
@@ -103,6 +108,7 @@ export {
   SUBSTRATE_SURFACE_PER_LITER,
   SUBSTRATE_ORGANIC_PER_LITER,
   SUBSTRATE_KH_RESERVE_PER_LITER,
+  SUBSTRATE_NUTRIENTS_PER_LITER,
 };
 export {
   calculateCalciteDissolution,
@@ -163,7 +169,7 @@ export function processEquipment(
   const effects: Effect[] = [];
   let updatedState = state;
 
-  const substrateResult = substrateUpdate(updatedState, config.decay, config.waterChemistry);
+  const substrateResult = substrateUpdate(updatedState, config.decay, config.waterChemistry, config.nutrients);
   effects.push(...substrateResult.effects);
   updatedState = substrateResult.state;
 

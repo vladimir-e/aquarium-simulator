@@ -15,6 +15,7 @@ export type ActionType =
   | 'addPlant'
   | 'removePlant'
   | 'dose'
+  | 'rootTab'
   | 'addFish'
   | 'removeFish'
   | 'sellFry';
@@ -78,6 +79,12 @@ export interface DoseAction extends BaseAction {
   amountMl: number;
 }
 
+export interface RootTabAction extends BaseAction {
+  type: 'rootTab';
+  /** Tabs pushed into the bed, a whole number from 1 to `MAX_ROOT_TABS` */
+  count: number;
+}
+
 export interface AddFishAction extends BaseAction {
   type: 'addFish';
   /** Species of fish to add */
@@ -104,6 +111,7 @@ export type Action =
   | AddPlantAction
   | RemovePlantAction
   | DoseAction
+  | RootTabAction
   | AddFishAction
   | RemoveFishAction
   | SellFryAction;

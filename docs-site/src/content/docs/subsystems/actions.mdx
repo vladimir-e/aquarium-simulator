@@ -19,7 +19,7 @@ unchanged, with the message explaining why.
 | Dispatch | <Badge text="settled" variant="success" /> | One exhaustive switch over a discriminated union, so a new verb that forgets its case fails to compile. |
 | Refusal discipline | <Badge text="settled" variant="success" /> | Every action taking a number refuses a non-finite one *before* its own bounds. A comparison against `NaN` is false, so an unguarded bound would write it into a resource nothing downstream ever clears. |
 | Water change | <Badge text="settled" variant="success" /> | Removes proportional dissolved mass, then blends temperature and both gases by volume against the tap and brings in the tap's KH and GH. The one verb with real physics in it. |
-| Feed · dose · stocking | <Badge text="settled" variant="success" /> | Bounded writes to a single stock, with the consequences left to the tick. |
+| Feed · dose · root tab · stocking | <Badge text="settled" variant="success" /> | Bounded writes to a single stock, with the consequences left to the tick. |
 | Scrub | <Badge text="settled" variant="success" /> | The bite is drawn off the tank's own stream, so a replayed tank is scrubbed identically. |
 | Top-off | <Badge text="scaffolding" variant="caution" /> | Fills to capacity and adds the tap's KH and GH, nothing else. The tap water it adds carries no temperature, no oxygen and no CO₂ — while the auto top-off doing the same job blends all three. |
 | Trim | <Badge text="settled" variant="success" /> | An absolute size inside a unit's own range — one plant, one family or the whole planting — and the cut leaves the tank. |
@@ -53,9 +53,10 @@ diverge the moment their keepers act differently.
 | Top off | — | `water` set to capacity | already at capacity |
 | Water change | a fraction in `(0, 1]`, optionally a vacuum share in `[0, 1]` | see below | either non-finite or outside its range, or the tank is empty |
 | Dose | millilitres | the four nutrient pools, by the fertilizer ratio | non-finite, below the minimum or above the maximum |
+| Root tab | a whole number of tabs | the bed's nutrient store, by `rootTab` per tab | not a whole number from 1 to `MAX_ROOT_TABS`, or no bed |
 | Scrub algae | an optional explicit share | `algae.mass` down 10–30 % | mass under `5`, or a named share outside the band |
 | Trim plants | a target size, optionally one plant id or one family id | every plant above the target down to it — of that family, or just the named plant | target outside `[MIN_PLANTABLE_SIZE, 100]`, nothing above the target, plant not found |
-| Add plant | species, optional size | a unit founding its own family, at condition 100 with an empty bank | unknown species, size outside `[MIN_PLANTABLE_SIZE, 100]`, not enough floor for its footprint, substrate incompatible |
+| Add plant | species, optional size | a unit founding its own family, at condition 100 with an empty bank | unknown species, size outside `[MIN_PLANTABLE_SIZE, 100]`, not enough floor for its footprint |
 | Remove plant | plant id | the plant leaves the array; a rooted one disturbs its footprint's share of the bed | not found |
 | Add fish | species | an adult at `maturityAge`, with sampled sex, hardiness offset and health jitter | unknown species, or the physical mass ceiling reached |
 | Remove fish | fish id | the fish leaves the array | not found |
@@ -82,15 +83,15 @@ what a trim does to a plant.
 | Water | refilled to capacity, so a change is also a top-off |
 | Bed | with a vacuum share, the bed's organic reserve scaled by `1 − vacuum`; off by default |
 
-What it does **not** touch: standing `waste`, the two bacterial colonies, and
-the organisms. Without the vac, a change dilutes the products of the nitrogen
+What it does **not** touch: standing `waste`, the two bacterial colonies, the
+bed's nutrient store, and the organisms. Without the vac, a change dilutes the products of the nitrogen
 chain while leaving every gram of the material still feeding it.
 
 ### Granularity
 
 | Stock | Resolution a verb writes at |
 |---|---|
-| Nutrients | milligrams, from a dose in millilitres |
+| Nutrients | milligrams, from a dose in millilitres or a count of root tabs |
 | Water | whole tank — top-off and water change both end at capacity, never in between |
 | `algae.mass` | a drawn share of the standing mass, never an absolute figure |
 | Plant `size` | an absolute target, not a delta |
@@ -123,7 +124,9 @@ they are not reachable through the config layer or a declared range.
 | Constant | Meaning | Value |
 |---|---|---|
 | `fertilizerFormula` | Nitrate, phosphate, potassium and iron per millilitre — a config-layer leaf | `50` · `5` · `40` · `1` mg/ml |
+| `rootTab` | Nitrate, phosphate, potassium and iron per tab — a config-layer leaf | `400` · `60` · `200` · `10` mg |
 | Dose bounds, manual | Floor and ceiling on a hand dose | `0.1`–`50` ml |
+| `MAX_ROOT_TABS` | Most tabs one push takes | `10` |
 | Dose bounds, automatic | Floor and ceiling on a scheduled dose | `0.5`–`10` ml |
 | `MIN_SCRUB_PERCENT` · `MAX_SCRUB_PERCENT` | The band a scrub's bite is drawn from | `0.1`–`0.3` |
 | `MIN_ALGAE_TO_SCRUB` | Mass below which there is nothing to mechanically remove | `5` |
@@ -148,7 +151,7 @@ the ceiling and simply lock further stocking out.
 | [Plants](/subsystems/plants/) | `plants` for the floor budget, and the trim target and family | The array, and `size` directly |
 | [Livestock](/subsystems/livestock/) | `fish` for the mass ceiling and the fry count | The array; `food` for the fish to eat next tick |
 | [Algae](/subsystems/algae/) | `algae.mass`, against `MIN_ALGAE_TO_SCRUB` | `algae.mass`, down by a drawn share |
-| [Equipment](/subsystems/equipment/) | `substrate.type` — which species may be planted at all | Nothing through the action layer; settings are written by the host |
+| [Equipment](/subsystems/equipment/) | `substrate.type` — whether there is a bed to tab | `substrate.nutrients`, raised by a root tab; settings are written by the host |
 | [Alerts & logging](/subsystems/alerts-and-logging/) | — | Every applied action appends a `user` entry; a scrub files itself under `scrub`. A refusal logs nothing |
 | [State & persistence](/subsystems/state-and-persistence/) | The draw stream, for a scrub's bite and every new organism's id | The advanced stream position |
 

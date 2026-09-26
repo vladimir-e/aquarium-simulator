@@ -1,7 +1,8 @@
 /**
- * Nutrients tunable configuration: what the fertilizer carries, how hard each
- * species leans on the water column, and the minerals in a gram of organic
- * matter — the fish food, the waste it becomes and plant tissue alike.
+ * Nutrients tunable configuration: what the fertilizer and a root tab carry,
+ * how fast the bed gives its store up to the water, how hard each species
+ * leans on a pool, and the minerals in a gram of organic matter — the fish
+ * food, the waste it becomes and plant tissue alike.
  */
 
 import type { NutrientDemand } from '../plants/species.js';
@@ -23,6 +24,10 @@ export type FertilizerFormula = NutrientVector;
 
 export interface NutrientsConfig {
   fertilizerFormula: FertilizerFormula;
+  /** mg of each nutrient one root tab pushes into the bed. */
+  rootTab: NutrientVector;
+  /** Share of each nutrient the bed holds that leaks into the water per hour. */
+  bedLeakRate: number;
   /** ppm at which a full-demand plant's draw and sufficiency run at half. */
   halfSaturation: NutrientVector;
   /**
@@ -45,6 +50,20 @@ export const nutrientsDefaults: NutrientsConfig = {
     potassium: 40.0,
     iron: 1.0,
   },
+
+  // A gel cap of controlled-release pellets: about 90 mg N, 20 mg P, 200 mg K
+  // and 10 mg Fe — heavy on potassium and iron beside the water column's
+  // all-in-one, with nitrogen and phosphorus enough to feed a sword's roots.
+  rootTab: {
+    nitrate: 400,
+    phosphate: 60,
+    potassium: 200,
+    iron: 10,
+  },
+
+  // A half-life of about five months: soil and tabs give their store up
+  // slowly, and a keeper re-tabs every month or two.
+  bedLeakRate: 0.0002,
 
   // A tenth or so of the ppm hobbyists dose a high-tech tank to, so a carpet
   // at 15 NO₃ / 1 PO₄ / 10 K / 0.2 Fe reads ~90 % on every one.
@@ -85,6 +104,26 @@ export const fertilizerFormulaMeta: NutrientVectorMeta[] = [
   { key: 'phosphate', label: 'Phosphate per ml', unit: 'mg', min: 0.1, max: 10, step: 0.1 },
   { key: 'potassium', label: 'Potassium per ml', unit: 'mg', min: 0.5, max: 80, step: 1 },
   { key: 'iron', label: 'Iron per ml', unit: 'mg', min: 0.01, max: 2, step: 0.01 },
+];
+
+export interface NutrientsConfigMeta {
+  key: keyof NutrientsConfig;
+  label: string;
+  unit: string;
+  min: number;
+  max: number;
+  step: number;
+}
+
+export const nutrientsConfigMeta: NutrientsConfigMeta[] = [
+  { key: 'bedLeakRate', label: 'Bed Leak Rate', unit: '/hr', min: 0, max: 0.01, step: 0.0001 },
+];
+
+export const rootTabMeta: NutrientVectorMeta[] = [
+  { key: 'nitrate', label: 'Nitrate per tab', unit: 'mg', min: 0, max: 2000, step: 10 },
+  { key: 'phosphate', label: 'Phosphate per tab', unit: 'mg', min: 0, max: 500, step: 5 },
+  { key: 'potassium', label: 'Potassium per tab', unit: 'mg', min: 0, max: 1000, step: 10 },
+  { key: 'iron', label: 'Iron per tab', unit: 'mg', min: 0, max: 50, step: 0.5 },
 ];
 
 export const halfSaturationMeta: NutrientVectorMeta[] = [

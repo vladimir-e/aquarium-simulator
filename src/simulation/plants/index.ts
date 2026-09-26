@@ -4,8 +4,9 @@
  * Pipeline:
  * 1. The canopy: each plant's light at its own height, read by photosynthesis
  *    and vitality and handed back as the light the tick ran on.
- * 2. Each plant's share of every nutrient, read once: its Liebig sufficiency
- *    runs photosynthesis and vitality, and the shares request its tissue.
+ * 2. Each plant's draw on the water and the bed, read once: its Liebig
+ *    sufficiency runs photosynthesis and vitality, and the draws request its
+ *    tissue.
  * 3. Photosynthesis: O2 production and CO2 uptake only. Light-gated: zero
  *    output at night.
  * 4. Respiration: O2/CO2 effects, 24/7.
@@ -13,8 +14,8 @@
  *    income at full condition banks, the bank heals condition below it.
  * 6. What each bank buys at full supply: a full bank's offshoot, then growth
  *    at `growthDrawRate` of what is left, day and night.
- * 7. The water supplies that tissue: each pool delivers on the planting's
- *    requests, and each plant gets the share of its purchase they allow.
+ * 7. The pools supply that tissue: each delivers on the planting's requests,
+ *    and each plant gets the share of its purchase they allow.
  * 8. Shedding + death (lifecycle module) — low condition sheds tissue, and
  *    condition 0 removes the plant. Both return it as waste.
  * 9. Survivors age a tick; offshoots join the end of the list at age 0.
@@ -35,7 +36,15 @@ import {
 import type { Effect } from '../core/effects.js';
 import { NUTRIENTS, type Nutrient, type TunableConfig } from '../config/index.js';
 import { calculatePhotosynthesis } from '../systems/photosynthesis.js';
-import { drawTissue, liebig, nutrientShares, organicNutrients } from '../systems/nutrients.js';
+import {
+  drawTissue,
+  ghDrawn,
+  liebig,
+  organicNutrients,
+  plantShares,
+  poolDraws,
+  tankPools,
+} from '../systems/nutrients.js';
 import { calculateRespiration } from '../systems/respiration.js';
 import { purchase, sizeBought, supply } from '../systems/plant-growth.js';
 import { createOffshoot } from './create-plant.js';
@@ -67,7 +76,7 @@ export function readPlantLight(state: SimulationState, config: TunableConfig): P
 export interface PlantsProcessingResult {
   /** Updated state with modified plant sizes */
   state: SimulationState;
-  /** Effects for resource changes (O2, CO2, nutrients, GH, waste) */
+  /** Effects for resource changes (O2, CO2, nutrients, GH, waste); the bed's draw lands on the state */
   effects: Effect[];
   /** Each plant's vitality this tick, in the handed `state.plants` order. */
   vitalities: VitalityResult[];
@@ -96,11 +105,10 @@ export function processPlants(
   // 1. The canopy, and each plant's light in it.
   const light = lightOf(state, canopyOf(state, config));
 
-  // 2. Nutrient shares, once per plant: vitality and the tissue draw both run on them.
-  const shares = state.plants.map((plant) =>
-    nutrientShares(state.resources, state.resources.water, plant.species, nutrientsConfig)
-  );
-  const sufficiency = shares.map(liebig);
+  // 2. Where each plant feeds, once: vitality and the tissue draw both run on it.
+  const pools = tankPools(state);
+  const draws = state.plants.map((plant) => poolDraws(pools, plant.species, nutrientsConfig));
+  const sufficiency = draws.map((draw) => liebig(plantShares(draw)));
 
   // 3. Photosynthesis: the gases only.
   const photosynthesisResult = calculatePhotosynthesis(
@@ -170,22 +178,25 @@ export function processPlants(
     )
   );
 
-  // 7. The water supplies the tissue.
+  // 7. The water and the bed supply the tissue.
   const tissue = drawTissue(
     purchases.map((bought, i) => ({
       grams: tissueMass(bought.before.species, sizeBought(bought), plantsConfig),
-      shares: shares[i],
+      draws: draws[i],
     })),
-    state.resources,
+    pools,
     organicNutrients(config.livestock, nutrientsConfig)
   );
-  for (const n of NUTRIENTS) pushDelta(n, -tissue.drawn[n], 'plant-growth');
-  pushDelta('gh', -tissue.drawn.gh, 'plant-growth');
+  const [fromWater, fromBed] = tissue.drawn;
+  for (const n of NUTRIENTS) pushDelta(n, -fromWater[n], 'plant-growth');
+  pushDelta('gh', -ghDrawn(fromWater.nitrate + fromBed.nitrate, state.resources), 'plant-growth');
 
   // 8–9 run on the draft: an offshoot's id and vigour come off the tank's stream.
   let shedWaste = 0;
   let deathWaste = 0;
   const newState = produce(state, (draft) => {
+    for (const n of NUTRIENTS) draft.equipment.substrate.nutrients[n] -= fromBed[n];
+
     const survivors: Plant[] = [];
     const offshoots: Plant[] = [];
 
@@ -286,10 +297,14 @@ export {
   speciesHalfSaturation,
   nutrientShare,
   nutrientShares,
+  tankPools,
+  poolDraws,
+  plantShares,
   organicNutrients,
   drawTissue,
+  ghDrawn,
 } from '../systems/nutrients.js';
-export type { TissueNeed, TissueDraw } from '../systems/nutrients.js';
+export type { NutrientPool, TankPools, PoolDraw, TissueNeed, TissueDraw } from '../systems/nutrients.js';
 export { tissueMass } from '../systems/plant-lifecycle.js';
 export {
   computePlantVitality,

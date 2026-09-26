@@ -3,7 +3,7 @@ import type { PresetSeed, SeedFishGroup, SeedPlantGroup } from '../../simulation
 import type { SubstrateType } from '../../simulation/equipment/substrate.js';
 import type { FilterType } from '../../simulation/equipment/filter.js';
 import type { HardscapeType } from '../../simulation/equipment/hardscape.js';
-import { DAILY, TRIM_TARGET, WEEKLY, type Chore, type Schedule, type ScheduleEntry } from './keeper.js';
+import { DAILY, MONTHLY, TRIM_TARGET, WEEKLY, type Chore, type Schedule, type ScheduleEntry } from './keeper.js';
 import type { BandOverrides } from './readings.js';
 import { HIGH_CO2_THRESHOLD } from '../../simulation/alerts/high-co2.js';
 import { LITERS_PER_GALLON, toCelsius } from '../units.js';
@@ -222,6 +222,26 @@ export const SETUPS: Setup[] = [
     ],
     cycled: true,
     schedule: [...maintained, dose(8), trim],
+  },
+  {
+    name: 'sword-gravel',
+    about: '20 gal gravel, swords that go untabbed a month and are tabbed monthly from then on',
+    gallons: 20,
+    substrate: 'gravel',
+    hardscape: [],
+    tapKh: 5,
+    tapGh: 7,
+    heaterF: 77,
+    roomF: 72,
+    filter: 'hob',
+    light: { par: 60, hours: 8 },
+    co2: null,
+    doser: null,
+    ato: false,
+    plants: [{ species: 'amazon_sword', count: 2, size: PLANTING_SIZE }],
+    fish: [{ species: 'neon_tetra', count: 8, sex: 'female' }],
+    cycled: true,
+    schedule: [...maintained, dose(2), trim, { every: MONTHLY, action: { type: 'rootTab', count: 4 } }],
   },
   {
     name: 'low-flow',

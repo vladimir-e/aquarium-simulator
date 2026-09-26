@@ -8,6 +8,7 @@ import { waterChange } from './water-change.js';
 import { trimPlants } from './trim-plants.js';
 import { addPlant, removePlant } from './plant-management.js';
 import { dose } from './dose.js';
+import { rootTab } from './root-tab.js';
 import { addFish, removeFish, sellFry } from './fish-management.js';
 
 export * from './types.js';
@@ -19,6 +20,7 @@ export * from './trim-plants.js';
 export * from './plant-management.js';
 export { MIN_PLANTABLE_SIZE, isPlantableSize } from '../plants/create-plant.js';
 export * from './dose.js';
+export * from './root-tab.js';
 export * from './fish-management.js';
 
 /**
@@ -51,6 +53,8 @@ export function applyAction(
       return removePlant(state, action);
     case 'dose':
       return dose(state, action, config.nutrients.fertilizerFormula);
+    case 'rootTab':
+      return rootTab(state, action, config.nutrients.rootTab);
     case 'addFish':
       return addFish(state, action);
     case 'removeFish':

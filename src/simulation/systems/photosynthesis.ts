@@ -4,7 +4,7 @@
  * Photosynthesis occurs when lights are on and moves gases only — carbon
  * fixed, oxygen released. Plant size growth flows through the surplus supply
  * chain (vitality → `Plant.surplus` → growth), and the nutrients new tissue
- * takes come out of the water where growth buys it (`drawTissue`).
+ * takes come out of the water and the bed where growth buys it (`drawTissue`).
  */
 
 import type { Plant } from '../state.js';

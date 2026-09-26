@@ -11,6 +11,7 @@ Format: - **Feature name** (#PR) - One short sentence (under ~150 chars)
 
 ## Unreleased
 
+- **The bed is a nutrient store** (#71) - aqua soil comes charged, root tabs refill any bed and it leaks into the water; swords feed mostly through their roots, so one in bare gravel declines until tabbed; breaking: no `substrateRequirement`, `isSubstrateCompatible` or `getSubstrateIncompatibilityReason`, `Substrate.nutrients`, `calculateNutrientSufficiency` and `nutrientShares` read pools (v32).
 - **A plant is made of its nutrients** (#71) - growth draws its tissue's N, P, K and Fe from the water, and shedding and death return them; breaking: no `uptakePerRateUnit`, `calculatePhotosynthesis` moves gases only (v32).
 - **A plant dies only at condition 0** (#71) - a shrunken plant lives while it has condition, and every planting, trim and seed runs from `MIN_PLANTABLE_SIZE` to 100; breaking: no `deathSizeThreshold`, `addPlant`/`trimPlants`/`canTrimPlants` take no config, `createSimulation` refuses an unplantable seed size (v32).
 - **A new tank opens on the optics it runs on** (#70) - `SimulationConfig.optics` lights its first day, and `relight` re-reads a tank at hour zero under others.

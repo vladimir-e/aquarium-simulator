@@ -12,6 +12,8 @@ import {
   decayConfigMeta,
   evaporationConfigMeta,
   fertilizerFormulaMeta,
+  rootTabMeta,
+  nutrientsConfigMeta,
   halfSaturationMeta,
   demandMeta,
   foodMineralContentMeta,
@@ -80,9 +82,10 @@ const SECTIONS: readonly SectionSpec[] = [
   {
     key: 'nutrients',
     label: 'Nutrients',
-    meta: [],
+    meta: nutrientsConfigMeta,
     groups: [
       { key: 'fertilizerFormula', label: 'Fertiliser formula', meta: fertilizerFormulaMeta },
+      { key: 'rootTab', label: 'Root tab', meta: rootTabMeta },
       { key: 'halfSaturation', label: 'Half-saturation', meta: halfSaturationMeta },
       { key: 'demand.low', label: 'Low-demand species', meta: demandMeta },
       { key: 'demand.medium', label: 'Medium-demand species', meta: demandMeta },

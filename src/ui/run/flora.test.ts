@@ -3,6 +3,7 @@ import {
   applyAction,
   calculateFloorArea,
   calculateNutrientSufficiency,
+  tankPools,
   calculateSurface,
   createSimulation,
   floorCover,
@@ -376,7 +377,7 @@ describe('nutrientReadings', () => {
       const water = state.resources.water;
       const atNeed = { ...state.resources };
       for (const reading of nutrientReadings(state, config)) atNeed[reading.key] = reading.needed * water;
-      expect(calculateNutrientSufficiency(atNeed, water, 'monte_carlo', config.nutrients)).toBeCloseTo(edge, 6);
+      expect(calculateNutrientSufficiency(tankPools({ ...state, resources: atNeed }), 'monte_carlo', config.nutrients)).toBeCloseTo(edge, 6);
     }
   });
 

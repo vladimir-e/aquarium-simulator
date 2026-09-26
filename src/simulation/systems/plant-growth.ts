@@ -99,7 +99,7 @@ export function sizeBought({ before, after, offshootSize }: Purchase): number {
   return after.size - before.size + offshootSize;
 }
 
-/** The purchase at the share of it the water supplied. */
+/** The purchase at the share of it the pools supplied. */
 export function supply({ before, after, offshootSize }: Purchase, share: number): Purchase {
   return {
     before,

@@ -18,6 +18,7 @@ export type Schedule = ScheduleEntry[];
 
 export const DAILY = 1;
 export const WEEKLY = 7;
+export const MONTHLY = 30;
 export const TRIM_TARGET = 85;
 export const VACUUM_SHARE = 0.15;
 
@@ -93,6 +94,7 @@ const SCHEDULE_FLAGS: Record<string, ScheduleFlag> = {
     },
   },
   dose: { every: WEEKLY, type: 'dose', units: { ml: (amountMl) => ({ type: 'dose', amountMl }) } },
+  'root-tab': { every: MONTHLY, type: 'rootTab', units: { tab: (count) => ({ type: 'rootTab', count }) } },
   trim: { every: WEEKLY, chore: { type: 'trimPlants', targetSize: TRIM_TARGET } },
   scrub: { every: WEEKLY, chore: { type: 'scrubAlgae' } },
   'top-off': { every: DAILY, chore: { type: 'topOff' } },

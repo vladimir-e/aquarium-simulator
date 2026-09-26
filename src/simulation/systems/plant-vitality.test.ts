@@ -28,6 +28,7 @@ import {
 import { lightSaturationFactor } from '../core/kinetics.js';
 import { plantRecord } from '../tests/plant.js';
 import { VIGOUR_SPAN } from '../plants/create-plant.js';
+import { mirroredPools } from '../tests/pools.js';
 
 function makePlant(species: PlantSpecies, overrides: Partial<Plant> = {}): Plant {
   return plantRecord({
@@ -79,8 +80,7 @@ function ctx(
   canopy: CanopyLight = { leaf: 1, top: 1 }
 ): PlantVitalityContext {
   const nutrientSufficiency = calculateNutrientSufficiency(
-    resources,
-    resources.water,
+    mirroredPools(resources),
     plant.species,
     nutrientsDefaults
   );
@@ -395,7 +395,7 @@ describe('buildPlantBenefits', () => {
       expect(atFactor(2)).toBeLessThan(atFactor(1));
       const carbonShort = PEAK.co2! * (1 - calculateCo2Factor(20, 'anubias'));
       const resources = makeResources({ light: 20, ...atCentre('anubias') });
-      const sufficiency = calculateNutrientSufficiency(resources, resources.water, 'anubias', nutrientsDefaults);
+      const sufficiency = calculateNutrientSufficiency(mirroredPools(resources), 'anubias', nutrientsDefaults);
       expect(atFactor(0)).toBeCloseTo(sufficiency * (PEAKS - carbonShort), 12);
     });
   });
