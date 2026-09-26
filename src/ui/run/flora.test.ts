@@ -22,6 +22,7 @@ import { produce } from 'immer';
 import {
   algaeReading,
   algaeStatus,
+  bedReading,
   doseDeltas,
   doseToCover,
   floorPlanted,
@@ -384,7 +385,7 @@ describe('nutrientReadings', () => {
   it('has nothing to be short of when nothing is planted', () => {
     const readings = nutrientReadings(tank(), DEFAULT_CONFIG);
     expect(readings.map((r) => r.neededText)).toEqual(['—', '—', '—', '—']);
-    expect(nutrientAlert(readings)).toBeNull();
+    expect(nutrientAlert(readings, null)).toBeNull();
   });
 
   it('fills each track against that need and stops at full', () => {
@@ -402,7 +403,7 @@ describe('nutrientReadings', () => {
 describe('nutrientAlert', () => {
   it('names the single deficiency, and says once when nothing is dosed at all', () => {
     const bare = nutrientReadings(planted(['monte_carlo']), DEFAULT_CONFIG);
-    expect(nutrientAlert(bare)).toEqual({ text: 'nothing dosed', status: 'alert' });
+    expect(nutrientAlert(bare, null)).toEqual({ text: 'nothing dosed', status: 'alert' });
 
     const state = planted(['monte_carlo']);
     const fed = {
@@ -414,7 +415,7 @@ describe('nutrientAlert', () => {
         potassium: state.resources.water * 10,
       },
     };
-    expect(nutrientAlert(nutrientReadings(fed, DEFAULT_CONFIG))).toEqual({
+    expect(nutrientAlert(nutrientReadings(fed, DEFAULT_CONFIG), null)).toEqual({
       text: 'Fe depleted',
       status: 'alert',
     });
@@ -427,9 +428,65 @@ describe('nutrientAlert', () => {
       resources: { ...state.resources, nitrate: state.resources.water * 20 },
     };
     const dosedALittle = dosed(partly, 4);
-    expect(nutrientAlert(nutrientReadings(dosedALittle, DEFAULT_CONFIG))).toEqual({
+    expect(nutrientAlert(nutrientReadings(dosedALittle, DEFAULT_CONFIG), null)).toEqual({
       text: '3 nutrients low',
       status: 'warn',
+    });
+  });
+});
+
+describe('bedReading', () => {
+  const tab = (state: SimulationState, count: number): SimulationState =>
+    applyAction(state, { type: 'rootTab', count }).state;
+  const fed = (state: SimulationState): SimulationState =>
+    produce(state, (draft) => {
+      for (const r of nutrientReadings(state, DEFAULT_CONFIG)) draft.resources[r.key] = 2 * r.needed * state.resources.water;
+    });
+  const sword = (): SimulationState => fed(planted(['amazon_sword']));
+
+  it('has nothing to read over a bare bottom', () => {
+    expect(bedReading(createSimulation({ tankCapacity: 200 }), DEFAULT_CONFIG)).toBeNull();
+  });
+
+  it('counts the bed in the tabs pushed into it', () => {
+    expect(bedReading(tab(tank(), 2), DEFAULT_CONFIG)!.tabs).toBeCloseTo(2, 10);
+  });
+
+  it('reads a sword starving on an empty bed, however well dosed the water', () => {
+    const state = sword();
+    const readings = nutrientReadings(state, DEFAULT_CONFIG);
+    const bed = bedReading(state, DEFAULT_CONFIG)!;
+
+    expect(readings.some((r) => r.limiting)).toBe(false);
+    expect(calculateNutrientSufficiency(tankPools(state), 'amazon_sword', DEFAULT_CONFIG.nutrients)).toBeLessThan(
+      DEFAULT_CONFIG.plants.sufficiencyEdge
+    );
+    expect(bed).toMatchObject({ limiting: true, status: 'alert' });
+    expect(nutrientAlert(readings, bed)).toEqual({ text: 'bed empty', status: 'alert' });
+  });
+
+  it('advises the tabs that lift the bed to its root feeders’ need, and reads it met once they are in', () => {
+    const state = sword();
+    const { advice } = bedReading(state, DEFAULT_CONFIG)!;
+    const tabbed = bedReading(tab(state, advice!), DEFAULT_CONFIG)!;
+
+    expect(tabbed).toMatchObject({ limiting: false, advice: null, status: 'ok' });
+    expect(tabbed.tabs).toBeGreaterThanOrEqual(tabbed.needed);
+    expect(calculateNutrientSufficiency(tankPools(tab(state, advice!)), 'amazon_sword', DEFAULT_CONFIG.nutrients)).toBeGreaterThanOrEqual(
+      DEFAULT_CONFIG.plants.sufficiencyEdge
+    );
+  });
+
+  it('asks nothing of the bed where nothing roots in it', () => {
+    const bed = bedReading(fed(planted(['java_fern'])), DEFAULT_CONFIG)!;
+    expect(bed).toMatchObject({ needed: 0, neededText: '—', limiting: false, advice: null, status: 'neutral' });
+  });
+
+  it('names the water’s shortage beside the bed’s, at the worse tone', () => {
+    const state = planted(['amazon_sword']);
+    expect(nutrientAlert(nutrientReadings(state, DEFAULT_CONFIG), bedReading(state, DEFAULT_CONFIG))).toEqual({
+      text: 'nothing dosed · bed empty',
+      status: 'alert',
     });
   });
 });

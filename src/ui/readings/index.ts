@@ -31,6 +31,7 @@ import {
   algaeReading,
   algaeStatus,
   bacteriaReadout,
+  bedReading,
   dailyLightReading,
   doseDeltas,
   doseToCover,
@@ -51,6 +52,7 @@ import {
   waterReadings,
   wasteReadout,
   type BacteriaReadout,
+  type BedReading,
   type CycleProjection,
   type DoseAdvice,
   type FryBatch,
@@ -67,6 +69,7 @@ import {
   type WaterReading,
   DAILY_LIGHT_DECIMALS,
   DAILY_LIGHT_UNIT,
+  TAB_DECIMALS,
   WATER_DECIMALS,
   WATER_SCALE,
   dayTrend,
@@ -95,6 +98,7 @@ export type ReadingId =
   | 'phosphate'
   | 'potassium'
   | 'iron'
+  | 'bed'
   | 'algae'
   | 'dailyLight';
 
@@ -133,8 +137,8 @@ export interface ReadingView {
  */
 type DemandId = Extract<ReadingId, 'nitrateDemand' | 'phosphate' | 'potassium' | 'iron'>;
 
-/** Every reading banded on what the plants ask for: the four foods and the day's light. */
-type NeedId = DemandId | 'dailyLight';
+/** Every reading banded on what the plants ask for: the four foods, the bed and the day's light. */
+type NeedId = DemandId | 'bed' | 'dailyLight';
 
 const DEMAND_ID: Record<Nutrient, DemandId> = {
   nitrate: 'nitrateDemand',
@@ -182,6 +186,8 @@ export interface ReadingBook {
   byId: ReadingsById;
   demand: NeedView[];
   nutrients: NutrientReading[];
+  /** The bed's store for root feeders; null over a bare bottom. */
+  bed: BedReading | null;
   bacteria: BacteriaReadout;
   waste: WasteReadout;
   projection: CycleProjection | null;
@@ -250,6 +256,7 @@ export const DECIMALS: Record<ReadingId, number> = {
   phosphate: 2,
   potassium: 1,
   iron: 2,
+  bed: TAB_DECIMALS,
   algae: 0,
   dailyLight: DAILY_LIGHT_DECIMALS,
 };
@@ -419,6 +426,37 @@ function nutrientView(
   };
 }
 
+/** A bed's position on its scale: a fresh bag of aqua soil in this tank reads full. */
+export function bedAt(bed: BedReading, tabs: number): number {
+  return onScale(bed.scale, tabs);
+}
+
+/** The bed read in the tabs a keeper pushes into it, banded on what its root feeders ask for. */
+function bedView(bed: BedReading | null): NeedView {
+  const asked = bed !== null && bed.needed > 0;
+  return {
+    id: 'bed',
+    name: 'Bed',
+    value: bed?.text ?? '—',
+    unit: 'tabs',
+    at: bed ? bedAt(bed, bed.tabs) : 0,
+    band: asked ? { from: bedAt(bed, bed.needed), to: 1 } : null,
+    tone: bed ? toneOf(bed.status) : 'ink',
+    trend: '',
+    need: asked ? `need ${bed.neededText}` : '',
+    sentence:
+      bed === null
+        ? 'A bare bottom holds nothing for roots, and takes no tab.'
+        : asked
+          ? `Root tabs' worth of the nutrient the bed holds least of. Root feeders ask for ${bed.neededText} — below it the engine's own sufficiency drops.`
+          : "Root tabs' worth of the nutrient the bed holds least of. Nothing here feeds through its roots, so it only leaks into the water.",
+    net: null,
+    fills: [],
+    drains: [],
+    series: null,
+  };
+}
+
 /**
  * Read the whole tank once. Everything the console draws comes out of this
  * call, so the expensive derivations — the hour the next tick settles, the
@@ -428,6 +466,7 @@ export function readTank({ state, config, history, units }: TankInput): ReadingB
   const tape = tapeOf(state, history, units);
   const ahead = readHourAhead(state, config);
   const nutrients = nutrientReadings(state, config);
+  const bed = bedReading(state, config);
   const nitrate = nutrients.find((n) => n.key === 'nitrate')!;
   const water = waterReadings(state, config, units, nitrate);
   const gases = gasReadings(state);
@@ -591,6 +630,7 @@ export function readTank({ state, config, history, units }: TankInput): ReadingB
     phosphate: nutrientView('phosphate', nutrient('phosphate'), tape),
     potassium: nutrientView('potassium', nutrient('potassium'), tape),
     iron: nutrientView('iron', nutrient('iron'), tape),
+    bed: bedView(bed),
     algae: {
       id: 'algae',
       name: 'Algae',
@@ -638,6 +678,7 @@ export function readTank({ state, config, history, units }: TankInput): ReadingB
     byId,
     demand,
     nutrients,
+    bed,
     bacteria,
     waste,
     projection,

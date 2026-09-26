@@ -44,7 +44,7 @@ describe('acting on a phone', () => {
 
     expect(list.className).toContain('fixed inset-0');
     expect(document.activeElement).toBe(within(list).getByRole('combobox'));
-    expect(within(list).getAllByRole('option')).toHaveLength(9);
+    expect(within(list).getAllByRole('option')).toHaveLength(10);
   });
 
   it('drills from the palette into the verb sheet, which covers it in turn', () => {

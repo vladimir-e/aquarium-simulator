@@ -4,17 +4,19 @@ import {
   calculateSurface,
   createSimulation,
   MAX_DOSE_ML,
+  MAX_ROOT_TABS,
   MIN_ALGAE_TO_SCRUB,
   WATER_CHANGE_AMOUNTS,
   type SimulationState,
 } from '../../simulation/index.js';
 import { DEFAULT_CONFIG, type TunableConfig } from '../../simulation/config/index.js';
 import { produce } from 'immer';
-import { doseToCover, nutrientReadings, TRIM_TARGETS } from '../run';
+import { bedReading, doseToCover, nutrientReadings, TRIM_TARGETS } from '../run';
 import {
   DEFAULT_SETTINGS,
   DOSE_PRESETS,
   FEED_PRESETS,
+  ROOT_TAB_PRESETS,
   VERB_IDS,
   verbAction,
   verbDetail,
@@ -57,7 +59,7 @@ function row(state: SimulationState, id: VerbId, settings: VerbSettings = DEFAUL
   return found!;
 }
 
-describe('the six verbs', () => {
+describe('the seven verbs', () => {
   it('offers the engine’s own option sets rather than a retyped copy', () => {
     const state = planted([80, 60]);
 
@@ -185,11 +187,12 @@ describe('the six verbs', () => {
   });
 
   it('dispatches the shape the engine reads, and lets it roll its own scrub', () => {
-    const settings: VerbSettings = { feed: 2, waterChange: 0.9, dose: 4, trimPlants: 50 };
+    const settings: VerbSettings = { feed: 2, waterChange: 0.9, dose: 4, rootTab: 3, trimPlants: 50 };
 
     expect(verbAction('feed', settings)).toEqual({ type: 'feed', amount: 2 });
     expect(verbAction('waterChange', settings)).toEqual({ type: 'waterChange', amount: 0.9 });
     expect(verbAction('dose', settings)).toEqual({ type: 'dose', amountMl: 4 });
+    expect(verbAction('rootTab', settings)).toEqual({ type: 'rootTab', count: 3 });
     expect(verbAction('trimPlants', settings)).toEqual({ type: 'trimPlants', targetSize: 50 });
     expect(verbAction('topOff', settings)).toEqual({ type: 'topOff' });
     expect(verbAction('scrubAlgae', settings)).toEqual({ type: 'scrubAlgae' });
@@ -228,6 +231,22 @@ describe('the six verbs', () => {
     expect(row(full, 'topOff').blocked).toBe('already at capacity');
     expect(row(clean, 'scrubAlgae').blocked).toBe(`needs ${MIN_ALGAE_TO_SCRUB} % algae, now 3 %`);
     expect(row(planted([40]), 'trimPlants').blocked).toBe('nothing above 75 %');
+    const bareBottom = { ...bare, equipment: { ...bare.equipment, substrate: { ...bare.equipment.substrate, type: 'none' as const } } };
+    expect(row(bareBottom, 'rootTab').blocked).toBe('no bed to push a tab into');
+    expect(detail(bareBottom, 'rootTab').options.every((o) => o.disabled)).toBe(true);
+  });
+
+  it('offers the tabs that cover a starving root feeder, and previews the bed they fill', () => {
+    const sword = applyAction(tank(), { type: 'addPlant', species: 'amazon_sword' }).state;
+    const { advice } = bedReading(sword, DEFAULT_CONFIG)!;
+    const sheet = detail(sword, 'rootTab');
+
+    expect(advice).toBeGreaterThan(0);
+    expect(sheet.options.map((o) => o.value)).toEqual([...new Set([...ROOT_TAB_PRESETS, advice!])].sort((a, b) => a - b));
+    expect(sheet.options.find((o) => o.value === advice)?.hint).toBe('covers the ask');
+    expect(sheet.options.every((o) => o.value <= MAX_ROOT_TABS)).toBe(true);
+    expect(sheet.preview.map((r) => r.key)).toEqual(['bed']);
+    expect(sheet.preview[0]).toMatchObject({ before: '0.0', after: '1.0', unit: 'tabs' });
   });
 
   it('blocks a trim rung by rung, not once for the verb', () => {
@@ -281,6 +300,7 @@ describe('the six verbs', () => {
       'Change 25 % water',
       'Top off +3.6 L',
       'Dose 2 ml',
+      'Push 1 tab',
       'Trim to 75 %',
       'Scrub algae',
     ]);

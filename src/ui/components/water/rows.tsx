@@ -39,6 +39,7 @@ export function ReadingRows({
   );
 }
 
+/** The four plant foods in the water, then the bed's store where there is a bed. */
 export function NutrientRows({
   book,
   onOpen,
@@ -46,9 +47,10 @@ export function NutrientRows({
   book: ReadingBook;
   onOpen: (id: ReadingId) => void;
 }): React.JSX.Element {
+  const rows = book.bed === null ? book.demand : [...book.demand, book.byId.bed];
   return (
     <>
-      {book.demand.map((reading) => (
+      {rows.map((reading) => (
         <ReadingRow
           key={reading.id}
           name={reading.name}

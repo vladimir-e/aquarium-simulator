@@ -28,9 +28,10 @@ import {
   PotassiumResource,
 } from '../../simulation/resources/index.js';
 import type { StripBand } from '../components/ui/strip.js';
-import { DISPLAY_CEILING, onScale } from '../readings';
+import { bedAt, DISPLAY_CEILING, onScale } from '../readings';
 import {
   algaeStatus,
+  bedReading,
   classifyVital,
   nutrientReadings,
   readingAt,
@@ -38,7 +39,9 @@ import {
   trackAt,
   toleranceStatus,
   waterReadings,
+  TAB_DECIMALS,
   WATER_DECIMALS,
+  type BedReading,
   type NutrientReading,
   type Status,
   type WaterKey,
@@ -79,6 +82,7 @@ interface Sheet {
   units: UnitSystem;
   water: Record<WaterKey, WaterReading>;
   nutrients: Record<Nutrient, NutrientReading>;
+  bed: BedReading | null;
 }
 
 function sheetOf(state: SimulationState, config: TunableConfig, units: UnitSystem): Sheet {
@@ -90,7 +94,7 @@ function sheetOf(state: SimulationState, config: TunableConfig, units: UnitSyste
     water[reading.key] = reading;
   }
 
-  return { state, config, units, water, nutrients };
+  return { state, config, units, water, nutrients, bed: bedReading(state, config) };
 }
 
 function temperatureNote(value: number, _before: number, { state, units }: Sheet): string | null {
@@ -204,7 +208,7 @@ function nutrient(key: Nutrient, label: string, decimals: number): Reading {
 
 /**
  * Canonical order: the nitrogen cycle, then the physical readings, then the
- * dissolved gases, then plant food, then the two organic stocks, then the
+ * dissolved gases, then plant food and the bed, then the two organic stocks, then the
  * planting's shade and its largest unit. A verb's rows come out in this order
  * however many of them move.
  */
@@ -310,6 +314,18 @@ const READINGS: Reading[] = [
   nutrient('phosphate', 'PO₄', PhosphateResource.precision),
   nutrient('potassium', 'K', PotassiumResource.precision),
   nutrient('iron', 'Fe', IronResource.precision),
+  {
+    key: 'bed',
+    label: 'Bed',
+    read: ({ bed }) => bed?.tabs ?? 0,
+    unit: () => 'tabs',
+    display: same,
+    decimals: TAB_DECIMALS,
+    status: (_value, { bed }) => bed?.status ?? 'neutral',
+    at: (value, { bed }) => (bed ? bedAt(bed, value) : 0),
+    band: ({ bed }) => (bed && bed.needed > 0 ? { from: bedAt(bed, bed.needed), to: 1 } : null),
+    note: none,
+  },
   {
     key: 'food',
     label: 'Food',

@@ -563,6 +563,7 @@ const VerbSettingsSchema = z
     feed: z.number().min(0),
     waterChange: z.number().min(0).max(1),
     dose: z.number().min(0),
+    rootTab: z.number().int().min(1),
     trimPlants: z.number().min(0).max(100),
   })
   .strict();

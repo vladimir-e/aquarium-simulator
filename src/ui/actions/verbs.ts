@@ -1,8 +1,8 @@
 /**
- * The six husbandry verbs in one shape: a master row, an option row, a preview
+ * The seven husbandry verbs in one shape: a master row, an option row, a preview
  * and a commit. Every option set is the engine's own (`WATER_CHANGE_AMOUNTS`,
- * `TRIM_TARGETS`) and every refusal is an engine guard (`canDose`,
- * `canScrubAlgae`, `getPlantsToTrimCount`), stated where the verb would
+ * `MAX_ROOT_TABS`, `TRIM_TARGETS`) and every refusal is an engine guard
+ * (`canDose`, `canRootTab`, `canScrubAlgae`, `getPlantsToTrimCount`), stated where the verb would
  * otherwise say what it is about to do — so an unavailable verb is never a
  * dead end.
  */
@@ -10,9 +10,11 @@
 import {
   applyAction,
   canDose,
+  canRootTab,
   canScrubAlgae,
   getPlantsToTrimCount,
   MAX_DOSE_ML,
+  MAX_ROOT_TABS,
   MAX_SCRUB_PERCENT,
   MIN_ALGAE_TO_SCRUB,
   MIN_SCRUB_PERCENT,
@@ -23,14 +25,21 @@ import {
 } from '../../simulation/index.js';
 import { FoodResource, getPpm, NitrateResource } from '../../simulation/resources/index.js';
 import type { TunableConfig } from '../../simulation/config/index.js';
-import { doseToCover, nutrientReadings, plantLabels, TRIM_TARGETS } from '../run';
+import { bedReading, doseToCover, nutrientReadings, plantLabels, TRIM_TARGETS } from '../run';
 import { formatVolume, type UnitSystem } from '../utils/units.js';
 import { previewRows, type PreviewRow } from './readings.js';
 
-export type VerbId = 'feed' | 'waterChange' | 'topOff' | 'dose' | 'trimPlants' | 'scrubAlgae';
+export type VerbId =
+  | 'feed'
+  | 'waterChange'
+  | 'topOff'
+  | 'dose'
+  | 'rootTab'
+  | 'trimPlants'
+  | 'scrubAlgae';
 
-/** The four that need a setting before commit; top-off and scrub fire bare. */
-export type SettableVerb = Extract<VerbId, 'feed' | 'waterChange' | 'dose' | 'trimPlants'>;
+/** The five that need a setting before commit; top-off and scrub fire bare. */
+export type SettableVerb = Extract<VerbId, 'feed' | 'waterChange' | 'dose' | 'rootTab' | 'trimPlants'>;
 
 export type VerbSettings = Record<SettableVerb, number>;
 
@@ -50,6 +59,7 @@ export const VERB_IDS: VerbId[] = [
   'waterChange',
   'topOff',
   'dose',
+  'rootTab',
   'trimPlants',
   'scrubAlgae',
 ];
@@ -60,10 +70,14 @@ export const FEED_PRESETS = [0.25, 0.5, 1, 2];
 /** Millilitres per dose, well inside the engine's `MAX_DOSE_ML` accident guard. */
 export const DOSE_PRESETS = [1, 2, 4];
 
+/** Tabs per push, well inside the engine's `MAX_ROOT_TABS`. */
+export const ROOT_TAB_PRESETS = [1, 2, 4];
+
 export const DEFAULT_SETTINGS: VerbSettings = {
   feed: 0.5,
   waterChange: 0.25,
   dose: 2,
+  rootTab: 1,
   trimPlants: 75,
 };
 
@@ -76,6 +90,7 @@ const VERB: Record<VerbId, { name: string; title: string; home: string }> = {
   waterChange: { name: 'Water change', title: 'Water change', home: 'Water' },
   topOff: { name: 'Top off', title: 'Top off', home: 'Water' },
   dose: { name: 'Dose', title: 'Dose fertiliser', home: 'Nutrients' },
+  rootTab: { name: 'Root tab', title: 'Push root tabs', home: 'Nutrients' },
   trimPlants: { name: 'Trim', title: 'Trim plants', home: 'Life' },
   scrubAlgae: { name: 'Scrub', title: 'Scrub algae', home: 'Life' },
 };
@@ -132,6 +147,8 @@ export function verbAction(
       return { type: 'topOff' };
     case 'dose':
       return { type: 'dose', amountMl: settings.dose };
+    case 'rootTab':
+      return { type: 'rootTab', count: settings.rootTab };
     case 'trimPlants':
       return {
         type: 'trimPlants',
@@ -214,6 +231,8 @@ function blockedReason(
       return headroom(state) > 0 ? null : 'already at capacity';
     case 'dose':
       return canDose(state) ? null : 'no plants to fertilise';
+    case 'rootTab':
+      return canRootTab(state) ? null : 'no bed to push a tab into';
     case 'trimPlants':
       return getPlantsToTrimCount(reached(state, scope), settings.trimPlants) > 0
         ? null
@@ -241,6 +260,8 @@ function rowValue(
       return `+${formatVolume(headroom(state), units, 1)}`;
     case 'dose':
       return `${settings.dose} ml`;
+    case 'rootTab':
+      return plural(settings.rootTab, 'tab');
     case 'trimPlants':
       return `to ${settings.trimPlants} %`;
     case 'scrubAlgae':
@@ -368,6 +389,24 @@ function rungsFor(
         }),
       };
     }
+    case 'rootTab': {
+      const advice = bedReading(state, config)?.advice ?? null;
+      const advised = advice === null ? null : Math.min(advice, MAX_ROOT_TABS);
+      const asked = advice !== null && advice > MAX_ROOT_TABS ? `capped at ${MAX_ROOT_TABS}` : 'covers the ask';
+      const tabbable = canRootTab(state);
+      return {
+        values:
+          advised === null
+            ? ROOT_TAB_PRESETS
+            : [...new Set([...ROOT_TAB_PRESETS, advised])].sort((a, b) => a - b),
+        rung: (count) => ({
+          value: count,
+          label: String(count),
+          hint: count === advised ? asked : tabbable ? `bed ${bedAfter(state, count, config)}` : '—',
+          disabled: !tabbable,
+        }),
+      };
+    }
     case 'trimPlants':
       return {
         values: TRIM_TARGETS,
@@ -382,6 +421,11 @@ function rungsFor(
         },
       };
   }
+}
+
+function bedAfter(state: SimulationState, count: number, config: TunableConfig): string {
+  const after = applyAction(state, { type: 'rootTab', count }, config).state;
+  return bedReading(after, config)?.text ?? '—';
 }
 
 function nitrateRise(state: SimulationState, ml: number, config: TunableConfig): number {
@@ -421,6 +465,12 @@ function meta(
       return `refills to ${formatVolume(state.tank.capacity, units, 0)}`;
     case 'dose':
       return `into ${formatVolume(water, units, 1)}`;
+    case 'rootTab': {
+      const bed = bedReading(state, config);
+      if (bed === null) return 'bare bottom';
+      const holds = `bed holds ${bed.text} tabs`;
+      return bed.needed > 0 ? `${holds} · roots need ${bed.neededText}` : holds;
+    }
     case 'trimPlants': {
       const reach = reached(state, scope);
       const { plants } = reach;
@@ -461,6 +511,8 @@ function commitLabel(
       return `Top off +${formatVolume(headroom(state), units, 1)}`;
     case 'dose':
       return `Dose ${settings.dose} ml`;
+    case 'rootTab':
+      return `Push ${plural(settings.rootTab, 'tab')}`;
     case 'trimPlants':
       return `Trim ${scope ? 'family ' : ''}to ${settings.trimPlants} %`;
     case 'scrubAlgae':
@@ -491,6 +543,7 @@ const OPTIONS_LABEL: Record<SettableVerb, string> = {
   feed: 'Amount',
   waterChange: 'Replace',
   dose: 'Amount',
+  rootTab: 'Tabs',
   trimPlants: 'Trim to',
 };
 

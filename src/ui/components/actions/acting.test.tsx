@@ -65,6 +65,7 @@ describe('the Act palette', () => {
       'waterChange',
       'topOff',
       'dose',
+      'rootTab',
       'trimPlants',
       'scrubAlgae',
       'addFish',

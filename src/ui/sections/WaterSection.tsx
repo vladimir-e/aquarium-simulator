@@ -59,7 +59,14 @@ export function WaterSection({
             </ModuleGroup>
             <ModuleGroup
               title="Nutrients"
-              action={<VerbButton label={actLabel('dose')} onClick={() => onAct('dose')} />}
+              action={
+                <div className="flex gap-1.5">
+                  <VerbButton label={actLabel('dose')} onClick={() => onAct('dose')} />
+                  {book.bed && (
+                    <VerbButton label={actLabel('rootTab')} onClick={() => onAct('rootTab')} />
+                  )}
+                </div>
+              }
             >
               <NutrientRows book={book} onOpen={setReading} />
             </ModuleGroup>

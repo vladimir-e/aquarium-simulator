@@ -20,7 +20,8 @@ interface NutrientsWidgetProps {
 /**
  * The four plant foods against what the plants are asking for — the one place
  * the tank's nitrate is read as food rather than as the toxin the cycle ends
- * in, and the millilitre that moves all four.
+ * in, and the millilitre that moves all four — then the bed the root feeders
+ * draw on, and the tab that refills it.
  */
 export function NutrientsWidget({
   book,
@@ -31,7 +32,9 @@ export function NutrientsWidget({
   className,
 }: NutrientsWidgetProps): React.JSX.Element {
   const { advice, perMl } = book.dose;
-  const alert = nutrientAlert(book.nutrients);
+  const { bed } = book;
+  const alert = nutrientAlert(book.nutrients, bed);
+  const tabs = bed?.advice ?? undefined;
 
   return (
     <Widget
@@ -50,6 +53,13 @@ export function NutrientsWidget({
             hot={advice !== null}
             onClick={() => onAct('dose', advice?.ml)}
           />
+          {bed && (
+            <VerbButton
+              label={actLabel('rootTab', tabs)}
+              hot={bed.limiting}
+              onClick={() => onAct('rootTab', tabs)}
+            />
+          )}
           <p className="text-[12px] text-ink-3">1 ml moves {perMl}</p>
         </>
       }
