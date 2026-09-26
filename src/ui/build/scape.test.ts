@@ -20,11 +20,11 @@ describe('lightTier', () => {
 });
 
 describe('substrateConsequence', () => {
-  it('describes what each substrate can root', () => {
-    expect(substrateConsequence('none')).toMatch(/epiphytes only/);
-    expect(substrateConsequence('gravel')).toMatch(/epiphytes only/);
-    expect(substrateConsequence('sand')).toMatch(/sand/);
-    expect(substrateConsequence('aqua_soil')).toMatch(/every plant/);
+  it('says what each bed holds for root feeders, and where tabs go', () => {
+    expect(substrateConsequence('none')).toMatch(/no tabs/);
+    expect(substrateConsequence('sand')).toMatch(/empty.*tabs/);
+    expect(substrateConsequence('gravel')).toMatch(/empty.*tabs/);
+    expect(substrateConsequence('aqua_soil')).toMatch(/charged/);
   });
 });
 

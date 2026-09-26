@@ -19,7 +19,7 @@ import {
 import { createSimulation, type SimulationState } from '../state.js';
 import { decayDefaults } from '../config/decay.js';
 import { waterChemistryDefaults } from '../config/water-chemistry.js';
-import { NUTRIENTS, nutrientsDefaults } from '../config/nutrients.js';
+import { mapNutrients, NUTRIENTS, nutrientsDefaults } from '../config/nutrients.js';
 
 const SUBSTRATES: SubstrateType[] = ['none', 'sand', 'gravel', 'aqua_soil'];
 
@@ -238,7 +238,7 @@ describe('getSubstrateNutrients', () => {
 describe('calculateBedLeak', () => {
   it('is a share of what the bed holds, so the leak tapers as it empties', () => {
     const full = getSubstrateNutrients('aqua_soil', 100);
-    const half = Object.fromEntries(NUTRIENTS.map((n) => [n, full[n] / 2])) as typeof full;
+    const half = mapNutrients((n) => full[n] / 2);
     for (const n of NUTRIENTS) {
       expect(calculateBedLeak(full)[n]).toBeCloseTo(full[n] * nutrientsDefaults.bedLeakRate, 12);
       expect(calculateBedLeak(half)[n]).toBeCloseTo(calculateBedLeak(full)[n] / 2, 12);

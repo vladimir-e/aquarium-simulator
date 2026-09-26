@@ -13,17 +13,27 @@ import {
   poolDraws,
   speciesDemand,
   speciesHalfSaturation,
+  tankPools,
   type TankPools,
   type TissueNeed,
 } from './nutrients.js';
-import { NUTRIENTS, demandMeta, nutrientsDefaults, type NutrientVector } from '../config/nutrients.js';
+import {
+  demandMeta,
+  mapNutrients,
+  NUTRIENTS,
+  nutrientsDefaults,
+  ZERO_NUTRIENTS,
+  type NutrientVector,
+} from '../config/nutrients.js';
 import { livestockDefaults } from '../config/livestock.js';
 import { plantsDefaults } from '../config/plants.js';
 import { MW_N, MW_NO3 } from '../core/chemistry.js';
 import { monodUptake } from '../core/kinetics.js';
-import type { Resources } from '../state.js';
+import { createSimulation, type Resources } from '../state.js';
 import { growthFormOf, type PlantSpecies } from '../plants/species.js';
-import { getSpeciesGrowthRate } from './plant-growth.js';
+import { purchase, sizeBought } from './plant-growth.js';
+import { createPlant, MIN_PLANTABLE_SIZE } from '../plants/create-plant.js';
+import { createRng } from '../core/rng.js';
 import { tissueMass } from './plant-lifecycle.js';
 import { mirroredPools } from '../tests/pools.js';
 
@@ -56,9 +66,7 @@ function resourcesAt(ppm: Partial<NutrientVector>): Resources {
 }
 
 const multiplesOfHalfSaturation = (multiple: number): NutrientVector =>
-  Object.fromEntries(
-    NUTRIENTS.map((n) => [n, nutrientsDefaults.halfSaturation[n] * multiple])
-  ) as NutrientVector;
+  mapNutrients((n) => nutrientsDefaults.halfSaturation[n] * multiple);
 
 describe('nutrientShare', () => {
   it('meets half the need at the species half-saturation', () => {
@@ -96,8 +104,6 @@ describe('nutrientShare', () => {
     for (const demand of demands) expect(at(0, demand)).toBe(0);
   });
 });
-
-const EMPTY: NutrientVector = { nitrate: 0, phosphate: 0, potassium: 0, iron: 0 };
 
 /** The water at these multiples of the full half-saturations, over a bed holding those multiples. */
 const poolsAt = (water: number, bed: number): TankPools => [
@@ -168,6 +174,15 @@ describe('where a plant feeds', () => {
     expect(calculateNutrientSufficiency(poolsAt(1000, 1000), 'amazon_sword')).toBeGreaterThan(edge);
   });
 
+  it('reads the bed against the tank’s capacity and the water against what is left of it', () => {
+    const tank = createSimulation({ tankCapacity: 100, substrate: { type: 'aqua_soil' } });
+    const evaporated = { ...tank, resources: { ...tank.resources, water: 60 } };
+    const [water, bed] = tankPools(evaporated);
+    expect(water.volume).toBe(60);
+    expect(bed.volume).toBe(100);
+    expect(bed.stock).toBe(evaporated.equipment.substrate.nutrients);
+  });
+
   it('reads the bed against its own volume, as the water is read against its own', () => {
     const [water] = poolsAt(2, 0);
     const bed = { stock: water.stock, volume: WATER };
@@ -194,18 +209,17 @@ describe('organicNutrients', () => {
 
 describe('drawTissue', () => {
   const recipe = organicNutrients(livestockDefaults, nutrientsDefaults);
-  /** Grams of tissue a full bank buys in an hour. */
-  const anHour = (species: PlantSpecies): number =>
-    tissueMass(
-      species,
-      plantsDefaults.growthDrawRate * plantsDefaults.surplusCap * getSpeciesGrowthRate(species) * plantsDefaults.sizePerSurplus
-    );
+  /** Grams of tissue a young plant's half-full bank buys in an hour. */
+  const anHour = (species: PlantSpecies): number => {
+    const young = createPlant({ species, size: MIN_PLANTABLE_SIZE, rng: createRng(1) });
+    return tissueMass(species, sizeBought(purchase({ ...young, surplus: plantsDefaults.surplusCap / 2 })));
+  };
   const need = (species: PlantSpecies, pools: TankPools, grams = anHour(species)): TissueNeed => ({
     grams,
     draws: poolDraws(pools, species),
   });
   const shares = ({ draws }: TissueNeed): NutrientVector => plantShares(draws);
-  const total = (drawn: NutrientVector[], n: (typeof NUTRIENTS)[number]): number =>
+  const total = (drawn: readonly NutrientVector[], n: (typeof NUTRIENTS)[number]): number =>
     drawn.reduce((sum, pool) => sum + pool[n], 0);
 
   it('takes every nutrient in the recipe’s ratio, across both pools, for exactly the tissue it supplied', () => {
@@ -276,7 +290,7 @@ describe('drawTissue', () => {
     for (const n of NUTRIENTS) expect(sword[1][n] / total(sword, n)).toBeCloseTo(roots, 3);
 
     const carpet = drawTissue([need('monte_carlo', pools)], pools, recipe).drawn;
-    expect(carpet[1]).toEqual(EMPTY);
+    expect(carpet[1]).toEqual(ZERO_NUTRIENTS);
   });
 
   it('never draws a pool past what it holds, however large the crowd or the lump', () => {
@@ -305,7 +319,7 @@ describe('drawTissue', () => {
     const pools = mirroredPools({ ...resourcesAt(multiplesOfHalfSaturation(2)), water: 0 });
     const { supplied, drawn } = drawTissue([need('java_fern', pools)], pools, recipe);
     expect(supplied).toEqual([0]);
-    expect(drawn).toEqual([EMPTY, EMPTY]);
+    expect(drawn).toEqual([ZERO_NUTRIENTS, ZERO_NUTRIENTS]);
   });
 });
 

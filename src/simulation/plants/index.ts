@@ -304,7 +304,7 @@ export {
   drawTissue,
   ghDrawn,
 } from '../systems/nutrients.js';
-export type { NutrientPool, TankPools, PoolDraw, TissueNeed, TissueDraw } from '../systems/nutrients.js';
+export type { NutrientPool, TankPools, PerPool, PoolDraw, TissueNeed, TissueDraw } from '../systems/nutrients.js';
 export { tissueMass } from '../systems/plant-lifecycle.js';
 export {
   computePlantVitality,

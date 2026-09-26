@@ -1,9 +1,11 @@
 import type { Resources } from '../state.js';
-import type { Nutrient } from '../config/nutrients.js';
+import { mapNutrients, type Nutrient } from '../config/nutrients.js';
 import type { TankPools } from '../systems/nutrients.js';
 
-/** The pools of a tank whose bed holds what its water does: every plant reads the water's shares, wherever it feeds. */
+/** A tank whose bed holds a copy of what its water does: every plant reads the water's shares, wherever it feeds. */
 export function mirroredPools(water: Pick<Resources, Nutrient | 'water'>): TankPools {
-  const pool = { stock: water, volume: water.water };
-  return [pool, pool];
+  return [
+    { stock: water, volume: water.water },
+    { stock: mapNutrients((n) => water[n]), volume: water.water },
+  ];
 }

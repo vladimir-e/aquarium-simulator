@@ -19,7 +19,7 @@ import { calculateMaxBacteria, restingColony } from './systems/nitrogen-cycle.js
 import { processMetabolism } from './systems/metabolism.js';
 import { ammoniaPerGramOfFood, livestockDefaults, nitratePerGramOfFood } from './config/livestock.js';
 import { decayDefaults } from './config/decay.js';
-import { NUTRIENTS, type NutrientVector } from './config/nutrients.js';
+import { mapNutrients, type NutrientVector } from './config/nutrients.js';
 import { NH3_TO_NO2_MASS_RATIO } from './core/chemistry.js';
 import { getGhMass, getKhMass } from './resources/helpers.js';
 import { createFish } from './livestock/create-fish.js';
@@ -186,9 +186,7 @@ const CYCLED_BED_NUTRIENT_FRACTION = 0.85;
 /** mg of each nutrient a bed of this type and capacity still holds once cycled. */
 export function cycledBedNutrients(type: SubstrateType, capacity: number): NutrientVector {
   const fresh = getSubstrateNutrients(type, capacity);
-  return Object.fromEntries(
-    NUTRIENTS.map((n) => [n, fresh[n] * CYCLED_BED_NUTRIENT_FRACTION])
-  ) as NutrientVector;
+  return mapNutrients((n) => fresh[n] * CYCLED_BED_NUTRIENT_FRACTION);
 }
 
 /**

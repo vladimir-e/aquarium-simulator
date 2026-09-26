@@ -8,7 +8,14 @@ import type { Effect } from '../core/effects.js';
 import type { SimulationState } from '../state.js';
 import { type DecayConfig, decayDefaults } from '../config/decay.js';
 import { type WaterChemistryConfig, waterChemistryDefaults } from '../config/water-chemistry.js';
-import { NUTRIENTS, nutrientsDefaults, type NutrientsConfig, type NutrientVector } from '../config/nutrients.js';
+import {
+  mapNutrients,
+  NUTRIENTS,
+  nutrientsDefaults,
+  ZERO_NUTRIENTS,
+  type NutrientsConfig,
+  type NutrientVector,
+} from '../config/nutrients.js';
 
 export type SubstrateType = 'none' | 'sand' | 'gravel' | 'aqua_soil';
 
@@ -27,7 +34,7 @@ export const DEFAULT_SUBSTRATE: Substrate = {
   type: 'none',
   organicReserve: 0,
   khReserve: 0,
-  nutrients: { nitrate: 0, phosphate: 0, potassium: 0, iron: 0 },
+  nutrients: ZERO_NUTRIENTS,
 };
 
 /** Substrate bacteria surface per liter of tank (cm²/L) */
@@ -67,9 +74,9 @@ export const SUBSTRATE_KH_RESERVE_PER_LITER: Record<SubstrateType, number> = {
  * charged — enough to carry a sword for months untabbed; inert beds hold none.
  */
 export const SUBSTRATE_NUTRIENTS_PER_LITER: Record<SubstrateType, NutrientVector> = {
-  none: { nitrate: 0, phosphate: 0, potassium: 0, iron: 0 },
-  sand: { nitrate: 0, phosphate: 0, potassium: 0, iron: 0 },
-  gravel: { nitrate: 0, phosphate: 0, potassium: 0, iron: 0 },
+  none: ZERO_NUTRIENTS,
+  sand: ZERO_NUTRIENTS,
+  gravel: ZERO_NUTRIENTS,
   aqua_soil: { nitrate: 50, phosphate: 5, potassium: 20, iron: 1 },
 };
 
@@ -97,7 +104,7 @@ export function getSubstrateKhReserve(type: SubstrateType, tankCapacity: number)
 /** mg of each nutrient a fresh bed of this type holds. */
 export function getSubstrateNutrients(type: SubstrateType, tankCapacity: number): NutrientVector {
   const perLiter = SUBSTRATE_NUTRIENTS_PER_LITER[type];
-  return Object.fromEntries(NUTRIENTS.map((n) => [n, perLiter[n] * tankCapacity])) as NutrientVector;
+  return mapNutrients((n) => perLiter[n] * tankCapacity);
 }
 
 /** A bed of this type straight out of the bag. */
@@ -146,7 +153,7 @@ export function calculateBedLeak(
   nutrients: NutrientVector,
   config: NutrientsConfig = nutrientsDefaults
 ): NutrientVector {
-  return Object.fromEntries(NUTRIENTS.map((n) => [n, nutrients[n] * config.bedLeakRate])) as NutrientVector;
+  return mapNutrients((n) => nutrients[n] * config.bedLeakRate);
 }
 
 /**

@@ -18,6 +18,7 @@ import type { Resources, SimulationState } from '../state.js';
 import type { PlantSpecies } from '../plants/species.js';
 import { PLANT_SPECIES_DATA, growthFormOf } from '../plants/species.js';
 import {
+  mapNutrients,
   NUTRIENTS,
   nutrientsDefaults,
   type Nutrient,
@@ -71,8 +72,11 @@ export interface NutrientPool {
   volume: number;
 }
 
-/** The water column, then the bed — the order every per-pool list follows. */
+/** The water column, then the bed. */
 export type TankPools = readonly [water: NutrientPool, bed: NutrientPool];
+
+/** One entry per pool, in the pools' order. */
+export type PerPool<P extends readonly NutrientPool[], T> = { readonly [K in keyof P]: T };
 
 /**
  * The tank's two pools. The bed reads against the tank's capacity, the litres
@@ -91,7 +95,7 @@ export function nutrientShares(
   species: PlantSpecies,
   config: NutrientsConfig = nutrientsDefaults
 ): NutrientVector {
-  return vector((n) => nutrientShare(getPpm(pool.stock[n], pool.volume), species, n, config));
+  return mapNutrients((n) => nutrientShare(getPpm(pool.stock[n], pool.volume), species, n, config));
 }
 
 /** A plant's draw on one pool: the share of its feeding done there, and the share of its need for each nutrient the pool meets. */
@@ -105,7 +109,7 @@ export function poolDraws(
   [water, bed]: TankPools,
   species: PlantSpecies,
   config: NutrientsConfig = nutrientsDefaults
-): PoolDraw[] {
+): PerPool<TankPools, PoolDraw> {
   const roots = growthFormOf(species).rootShare;
   return [
     { weight: 1 - roots, shares: nutrientShares(water, species, config) },
@@ -115,7 +119,7 @@ export function poolDraws(
 
 /** Share of a plant's need for each nutrient its pools meet together, 0–1. */
 export function plantShares(draws: readonly PoolDraw[]): NutrientVector {
-  return vector((n) => draws.reduce((sum, { weight, shares }) => sum + weight * shares[n], 0));
+  return mapNutrients((n) => draws.reduce((sum, { weight, shares }) => sum + weight * shares[n], 0));
 }
 
 /** Liebig sufficiency: the scarcest nutrient's share, 0–1. */
@@ -136,36 +140,28 @@ export function organicNutrients(livestock: LivestockConfig, nutrients: Nutrient
   return { nitrate: nitratePerGramOfFood(livestock), ...nutrients.foodMineralContent };
 }
 
-export interface TissueNeed {
+export interface TissueNeed<P extends readonly NutrientPool[] = TankPools> {
   grams: number;
-  /** Its draw on each pool, in the order of the pools. */
-  draws: readonly PoolDraw[];
+  draws: PerPool<P, PoolDraw>;
 }
 
-export interface TissueDraw {
+export interface TissueDraw<P extends readonly NutrientPool[] = TankPools> {
   /** Share of each plant's tissue the pools supplied, 0–1, in the order of the needs. */
   supplied: number[];
-  /** mg of each nutrient drawn from each pool, in the order of the pools. */
-  drawn: NutrientVector[];
+  /** mg of each nutrient drawn from each pool. */
+  drawn: PerPool<P, NutrientVector>;
 }
 
 /**
- * New tissue takes its recipe out of the pools. Each plant requests its tissue
- * from each pool at the weight it feeds there and the share of its need the
- * pool meets, and each pool delivers through `monodUptake`: the tissue its
- * feeders would take there at full supply, against the half-saturation at
- * which one consumer would request at the start of the tick what they request.
- * Every request on a pool is met at the fraction it delivered; a plant's
- * supply of a nutrient is what its pools met of it together, it is supplied
- * the scarcest, and what it takes splits between the pools as they met it.
- * So a lean species holds on where a hungry one starves, an ordinary hour
- * meets every request in full, and no pool is ever overdrawn.
+ * The share of each plant's new tissue its pools supply, and what that tissue
+ * takes out of each pool at the recipe. Each pool meets every request on it at
+ * one fraction, through `monodUptake`, so no pool is ever overdrawn.
  */
-export function drawTissue(
-  needs: readonly TissueNeed[],
-  pools: readonly NutrientPool[],
+export function drawTissue<P extends readonly NutrientPool[]>(
+  needs: readonly TissueNeed<P>[],
+  pools: P,
   recipe: NutrientVector
-): TissueDraw {
+): TissueDraw<P> {
   const met = pools.map((pool, p) =>
     metFractions(
       needs.map(({ grams, draws }) => ({ grams, ...draws[p] })),
@@ -174,19 +170,19 @@ export function drawTissue(
     )
   );
   const reached = needs.map(({ draws }) =>
-    draws.map(({ weight, shares }, p) => ({ weight, shares: vector((n) => shares[n] * met[p][n]) }))
+    draws.map(({ weight, shares }, p) => ({ weight, shares: mapNutrients((n) => shares[n] * met[p][n]) }))
   );
   const supply = reached.map(plantShares);
   const supplied = supply.map((share) => Math.min(...NUTRIENTS.map((n) => (recipe[n] > 0 ? share[n] : 1))));
 
   const drawn = pools.map((_, p) =>
-    vector((n) =>
+    mapNutrients((n) =>
       needs.reduce((sum, { grams }, i) => {
         const reach = reached[i][p].weight * reached[i][p].shares[n];
         return reach > 0 ? sum + grams * supplied[i] * recipe[n] * (reach / supply[i][n]) : sum;
       }, 0)
     )
-  );
+  ) as PerPool<P, NutrientVector>;
   return { supplied, drawn };
 }
 
@@ -209,14 +205,10 @@ function metFractions(
   recipe: NutrientVector
 ): NutrientVector {
   const grams = requests.reduce((sum, r) => sum + r.grams * r.weight, 0);
-  return vector((n) => {
+  return mapNutrients((n) => {
     const requested = requests.reduce((sum, r) => sum + r.grams * r.weight * r.shares[n], 0);
     if (requested <= 0 || recipe[n] <= 0) return 0;
     const delivered = monodUptake(stock[n], grams * recipe[n], stock[n] * (grams / requested - 1));
     return delivered / (requested * recipe[n]);
   });
-}
-
-function vector(value: (n: Nutrient) => number): NutrientVector {
-  return Object.fromEntries(NUTRIENTS.map((n) => [n, value(n)])) as NutrientVector;
 }

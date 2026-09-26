@@ -11,6 +11,7 @@ import {
   type PresetSeed,
 } from './seed.js';
 import { getSubstrateKhReserve } from './equipment/substrate.js';
+import { ZERO_NUTRIENTS } from './config/nutrients.js';
 import { calculateMaxBacteria } from './systems/nitrogen-cycle.js';
 import { HARDSCAPE_TANNINS } from './equipment/hardscape.js';
 import { DEFAULT_PLANT_SIZE, MIN_PLANTABLE_SIZE } from './plants/create-plant.js';
@@ -158,7 +159,17 @@ describe('createSimulation seeding', () => {
       expect(seeded.equipment.substrate.nutrients).toEqual(cycledBedNutrients('aqua_soil', TANK.tankCapacity));
       expect(seeded.equipment.substrate.nutrients.nitrate).toBeGreaterThan(0);
       expect(seeded.equipment.substrate.nutrients.nitrate).toBeLessThan(virgin.equipment.substrate.nutrients.nitrate);
-      expect(cycledBedNutrients('gravel', TANK.tankCapacity)).toEqual({ nitrate: 0, phosphate: 0, potassium: 0, iron: 0 });
+      expect(cycledBedNutrients('gravel', TANK.tankCapacity)).toEqual(ZERO_NUTRIENTS);
+    });
+
+    it('takes a named bed store over the cycled one', () => {
+      const nutrients = { nitrate: 400, phosphate: 60, potassium: 200, iron: 10 };
+      const seeded = createSimulation(
+        { ...TANK, substrate: { type: 'gravel' } },
+        { bacteria: 'cycled', substrate: { nutrients } }
+      );
+
+      expect(seeded.equipment.substrate.nutrients).toEqual(nutrients);
     });
 
     it('sets the reserve on its own, without a colony', () => {

@@ -213,7 +213,7 @@ can move them at runtime.
 | Table | Holds |
 |---|---|
 | Fish species | Per species: adult mass, lifespan, hardiness, temperature / pH / flow tolerance bands, and a full breeding block — mode, clutch size, hatch time, fry mass, maturity age |
-| Plant species | Per species: growth rate, growth form, hardiness, CO₂ requirement, substrate requirement, nutrient demand tier, and the PAR band it tolerates, whose low end sets the daily light it starves under |
+| Plant species | Per species: growth rate, growth form, hardiness, CO₂ requirement, nutrient demand tier, and the PAR band it tolerates, whose low end sets the daily light it starves under |
 | Growth forms | Per form: what one full unit is — its height and how height grows with size, its footprint, its leaf area index — and what its offshoot is called |
 | Filters | Per type: biological surface, target turnover, flow ceiling, tank-size ceiling, and whether it is air-driven |
 | Substrates | Per type: colony surface per litre, and the organic and KH reserves a fresh bed holds per litre |

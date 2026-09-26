@@ -97,6 +97,7 @@ const daily = (action: Chore): ScheduleEntry => ({ every: DAILY, action });
 const weekly = (action: Chore): ScheduleEntry => ({ every: WEEKLY, action });
 
 const dose = (amountMl: number): ScheduleEntry => weekly({ type: 'dose', amountMl });
+const rootTab = (count: number): ScheduleEntry => ({ every: MONTHLY, action: { type: 'rootTab', count } });
 const trim = weekly({ type: 'trimPlants', targetSize: TRIM_TARGET });
 
 const maintained: Schedule = [
@@ -221,7 +222,7 @@ export const SETUPS: Setup[] = [
       { species: 'guppy', count: 6, sex: 'male' },
     ],
     cycled: true,
-    schedule: [...maintained, dose(8), trim],
+    schedule: [...maintained, dose(8), trim, rootTab(4)],
   },
   {
     name: 'sword-gravel',
@@ -241,7 +242,7 @@ export const SETUPS: Setup[] = [
     plants: [{ species: 'amazon_sword', count: 2, size: PLANTING_SIZE }],
     fish: [{ species: 'neon_tetra', count: 8, sex: 'female' }],
     cycled: true,
-    schedule: [...maintained, dose(2), trim, { every: MONTHLY, action: { type: 'rootTab', count: 4 } }],
+    schedule: [...maintained, dose(2), trim, rootTab(4)],
   },
   {
     name: 'low-flow',

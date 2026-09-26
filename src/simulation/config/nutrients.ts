@@ -13,6 +13,12 @@ export type Nutrient = (typeof NUTRIENTS)[number];
 
 export type NutrientVector = Record<Nutrient, number>;
 
+export function mapNutrients(value: (n: Nutrient) => number): NutrientVector {
+  return Object.fromEntries(NUTRIENTS.map((n) => [n, value(n)])) as NutrientVector;
+}
+
+export const ZERO_NUTRIENTS: Readonly<NutrientVector> = Object.freeze(mapNutrients(() => 0));
+
 export const WASTE_NUTRIENTS = ['phosphate', 'potassium', 'iron'] as const;
 
 export type WasteNutrient = (typeof WASTE_NUTRIENTS)[number];

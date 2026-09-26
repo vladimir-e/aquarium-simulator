@@ -395,6 +395,7 @@ export type {
   Purchase,
   NutrientPool,
   TankPools,
+  PerPool,
   PoolDraw,
   TissueNeed,
   TissueDraw,

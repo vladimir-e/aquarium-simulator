@@ -54,6 +54,8 @@ export {
   type Nutrient,
   WASTE_NUTRIENTS,
   type NutrientVector,
+  mapNutrients,
+  ZERO_NUTRIENTS,
   type WasteNutrient,
   type MineralVector,
   type NutrientsConfig,

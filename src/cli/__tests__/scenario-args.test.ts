@@ -20,6 +20,7 @@ describe('schedule flags', () => {
       action: { type: 'waterChange', amount: 0.5 },
     });
     expect(parseScheduleFlag('dose', '3ml/2w')?.entry).toEqual({ every: 14, action: { type: 'dose', amountMl: 3 } });
+    expect(parseScheduleFlag('root-tab', '4tab/30d')?.entry).toEqual({ every: 30, action: { type: 'rootTab', count: 4 } });
   });
 
   it('falls back to the usual cadence, and feeds a share of stock mass on a percentage', () => {
@@ -45,6 +46,7 @@ describe('schedule flags', () => {
   it('refuses a missing or wrong unit, a zero amount or period, a third segment, and over 100 %', () => {
     expect(() => parseScheduleFlag('feed', '2')).toThrow(/g or %/);
     expect(() => parseScheduleFlag('dose', '3g')).toThrow(/ml/);
+    expect(() => parseScheduleFlag('root-tab', '4ml')).toThrow(/tab/);
     expect(() => parseScheduleFlag('feed', '0g')).toThrow(/positive/);
     expect(() => parseScheduleFlag('feed', '2g/0d')).toThrow(/at least a day/);
     expect(() => parseScheduleFlag('feed', '2g/1d/junk')).toThrow(/<amount>\[\/<period>\]/);
