@@ -10,11 +10,12 @@ import { DEFAULT_CONFIG, NUTRIENTS } from '../../simulation/config/index.js';
 import {
   applyAction,
   createSimulation,
+  MAX_DOSE_ML,
   MAX_ROOT_TABS,
   type AlertState,
   type SimulationState,
 } from '../../simulation/index.js';
-import { bedReading } from '../run';
+import { bedReading, doseToCover, nutrientReadings } from '../run';
 import type { useSimulation } from '../hooks/useSimulation';
 
 afterEach(cleanup);
@@ -251,6 +252,16 @@ describe('OverviewSection', () => {
 
     expect(nutrients.getByText('no plants to feed')).toBeTruthy();
     expect(nutrients.queryByText(/^need /)).toBeNull();
+  });
+
+  it('offers the dose a big tank asks for only as far as one dose goes', () => {
+    const state = applyAction(createSimulation({ tankCapacity: 1000 }), { type: 'addPlant', species: 'monte_carlo' }).state;
+    expect(doseToCover(nutrientReadings(state, DEFAULT_CONFIG), state, DEFAULT_CONFIG)!.ml).toBeGreaterThan(MAX_DOSE_ML);
+    const onAct = vi.fn();
+    renderOverview(bare(state), {}, onAct);
+
+    fireEvent.click(within(widget('Nutrients')).getByRole('button', { name: `Dose · ${MAX_DOSE_ML} ml` }));
+    expect(onAct).toHaveBeenCalledWith('dose', MAX_DOSE_ML);
   });
 
   describe('a sword’s bed', () => {

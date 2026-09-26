@@ -1,6 +1,7 @@
 import {
   applyAction,
   isOvergrown,
+  MAX_DOSE_ML,
   MAX_ROOT_TABS,
   resetHardscape,
   type Action,
@@ -94,7 +95,16 @@ const SCHEDULE_FLAGS: Record<string, ScheduleFlag> = {
       },
     },
   },
-  dose: { every: WEEKLY, type: 'dose', units: { ml: (amountMl) => ({ type: 'dose', amountMl }) } },
+  dose: {
+    every: WEEKLY,
+    type: 'dose',
+    units: {
+      ml: (amountMl) => {
+        if (amountMl > MAX_DOSE_ML) throw new Error(`--dose takes at most ${MAX_DOSE_ML}ml at once, got ${amountMl}ml.`);
+        return { type: 'dose', amountMl };
+      },
+    },
+  },
   'root-tab': {
     every: MONTHLY,
     type: 'rootTab',

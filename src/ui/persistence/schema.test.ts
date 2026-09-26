@@ -20,6 +20,7 @@ import {
   FISH_SPECIES_DATA,
   HEATER_WATTAGE_OPTIONS,
   LIGHT_PAR_OPTIONS,
+  MAX_DOSE_ML,
   MAX_ROOT_TABS,
   PLANT_SPECIES_DATA,
   POWERHEAD_FLOW_RATES,
@@ -81,16 +82,17 @@ describe('PersistedUISchema', () => {
     expect(PersistedUISchema.safeParse(fast).success).toBe(false);
   });
 
-  it('takes a root tab setting only as a push the engine would make', () => {
-    const ui = (rootTab: number): unknown => ({
+  it('takes a dose and a root tab setting only as amounts the engine would take', () => {
+    const ui = (settings: Partial<typeof DEFAULT_SETTINGS>): unknown => ({
       units: 'metric',
       tunablesOpen: false,
       spineOpen: false,
-      acts: { settings: { ...DEFAULT_SETTINGS, rootTab }, promoted: null },
+      acts: { settings: { ...DEFAULT_SETTINGS, ...settings }, promoted: null },
       speed: '1h',
     });
-    expect(PersistedUISchema.safeParse(ui(MAX_ROOT_TABS)).success).toBe(true);
-    expect(PersistedUISchema.safeParse(ui(MAX_ROOT_TABS + 1)).success).toBe(false);
+    expect(PersistedUISchema.safeParse(ui({ rootTab: MAX_ROOT_TABS, dose: MAX_DOSE_ML })).success).toBe(true);
+    expect(PersistedUISchema.safeParse(ui({ rootTab: MAX_ROOT_TABS + 1 })).success).toBe(false);
+    expect(PersistedUISchema.safeParse(ui({ dose: MAX_DOSE_ML + 1 })).success).toBe(false);
   });
 
   it('rejects extra keys (strict mode)', () => {

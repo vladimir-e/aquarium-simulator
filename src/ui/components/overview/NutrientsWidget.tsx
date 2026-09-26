@@ -1,5 +1,5 @@
 import React from 'react';
-import { MAX_ROOT_TABS, type SimulationState } from '../../../simulation/index.js';
+import { MAX_DOSE_ML, MAX_ROOT_TABS, type SimulationState } from '../../../simulation/index.js';
 import type { VerbId } from '../../actions';
 import type { ReadingBook, ReadingId } from '../../readings';
 import { nutrientAlert } from '../../run';
@@ -34,6 +34,7 @@ export function NutrientsWidget({
   const { advice, perMl } = book.dose;
   const { bed } = book;
   const alert = nutrientAlert(book.nutrients, bed);
+  const ml = advice === null ? undefined : Math.min(advice.ml, MAX_DOSE_ML);
   const tabs = bed.advice === null ? undefined : Math.min(bed.advice, MAX_ROOT_TABS);
 
   return (
@@ -50,9 +51,9 @@ export function NutrientsWidget({
         <>
           <div className="flex flex-wrap items-center gap-1.5">
             <VerbButton
-              label={actLabel('dose', advice?.ml)}
-              hot={advice !== null}
-              onClick={() => onAct('dose', advice?.ml)}
+              label={actLabel('dose', ml)}
+              hot={ml !== undefined}
+              onClick={() => onAct('dose', ml)}
             />
             <p className="text-[12px] text-ink-3">1 ml moves {perMl}</p>
           </div>
