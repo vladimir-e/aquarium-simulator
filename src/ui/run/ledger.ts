@@ -6,9 +6,7 @@
  */
 
 import {
-  FISH_SPECIES_DATA,
   PLANT_SPECIES_DATA,
-  SATIATION_BAND_LABEL,
   type SimulationState,
   type VitalityFactor,
 } from '../../simulation/index.js';
@@ -19,11 +17,12 @@ import { TICKS_PER_DAY } from '../utils/clock.js';
 import type { HourAhead } from './ahead.js';
 import { algaeReading, plantLabels, sharePercent, unitTitle } from './flora.js';
 import { crownBurns, plantLightStatus } from './light.js';
-import { bandOf, bandStatus, fishReading } from './livestock.js';
-import { CONDITION_BAND, shortId, type Satiation, type SpeciesId } from './roster.js';
+import { fishNumbers, fishReading, fishSatiation, fishTitle, type Satiation } from './livestock.js';
+import { CONDITION_BAND, type SpeciesId } from './roster.js';
 import {
   bankShare,
   conditionStatus,
+  printsAsZero,
   projectedTrend,
   vitalReading,
   type Status,
@@ -107,9 +106,9 @@ export const LEDGER_DECIMALS = 1;
 
 const BANK_DECIMALS = 1;
 
-/** Whether an amount shows at a precision rather than rounding to nothing. */
+/** Whether a positive amount shows at a precision rather than rounding to nothing. */
 function shows(amount: number, decimals: number): boolean {
-  return amount >= 0.5 / 10 ** decimals;
+  return amount > 0 && !printsAsZero(amount, decimals);
 }
 
 /** The factors that print, largest first: one rounding to nothing is not a line. */
@@ -184,14 +183,13 @@ function fishLedger(
 
   const helping = factors(breakdown.benefits);
   const hurting = factors(breakdown.stressors);
-  const band = bandOf(fish.satiation, livestock);
   const vital = vitalReading(fish.health, vitality);
   const reading = fishReading(fish, vital.reading, livestock);
 
   return {
     target: { kind: 'fish', id },
     species: fish.species,
-    title: `${FISH_SPECIES_DATA[fish.species].name} ${shortId(id)}`,
+    title: fishTitle(fish, fishNumbers(state.fish).get(id)!),
     subtitle,
     status: reading.status,
     word: reading.word,
@@ -201,15 +199,7 @@ function fishLedger(
     at: fish.health / 100,
     band: CONDITION_BAND,
     trend: vital.trend,
-    satiation: {
-      at: fish.satiation / 100,
-      band: {
-        from: livestock.satiationHungryCeiling / 100,
-        to: livestock.satiationOverfedFloor / 100,
-      },
-      status: bandStatus(band),
-      word: SATIATION_BAND_LABEL[band].toLowerCase(),
-    },
+    satiation: fishSatiation(fish.satiation, livestock),
     light: null,
     helping,
     hurting,

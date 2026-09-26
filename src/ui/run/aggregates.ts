@@ -1,7 +1,7 @@
 /**
  * Run aggregates for the History tallies. Counts are folded from log
- * entries as they're appended (deaths/births/fry-sold/alerts) plus water
- * changed, accumulated at action dispatch. Session-scoped; reset with the run.
+ * entries as they're appended (deaths/births/alerts) plus water changed,
+ * accumulated at action dispatch. Session-scoped; reset with the run.
  */
 
 import type { LogEntry } from '../../simulation/index.js';
@@ -13,13 +13,12 @@ export interface RunAggregates {
   deaths: number;
   /** What the tank added to itself: fry born live or hatched, and plant offshoots. */
   births: number;
-  frySold: number;
   alerts: number;
   waterChangedL: number;
 }
 
 export function emptyAggregates(): RunAggregates {
-  return { ticks: 0, deaths: 0, births: 0, frySold: 0, alerts: 0, waterChangedL: 0 };
+  return { ticks: 0, deaths: 0, births: 0, alerts: 0, waterChangedL: 0 };
 }
 
 /** Organisms a lifecycle entry accounts for (defaults to one per entry). */
@@ -33,7 +32,7 @@ function entryCount(log: LogEntry): number {
  * (a chemistry threshold crossing) counts as an alert.
  */
 export function accrueLogs(aggregates: RunAggregates, logs: LogEntry[]): RunAggregates {
-  let { deaths, births, frySold, alerts } = aggregates;
+  let { deaths, births, alerts } = aggregates;
   for (const log of logs) {
     if (log.event === 'fish-died' || log.event === 'plant-died') {
       deaths += entryCount(log);
@@ -43,13 +42,11 @@ export function accrueLogs(aggregates: RunAggregates, logs: LogEntry[]): RunAggr
       log.event === 'plant-propagated'
     ) {
       births += entryCount(log);
-    } else if (log.event === 'fry-sold') {
-      frySold += entryCount(log);
-    } else if (log.severity === 'warning') {
+    } else if (log.event === undefined && log.severity === 'warning') {
       alerts += 1;
     }
   }
-  return { ...aggregates, deaths, births, frySold, alerts };
+  return { ...aggregates, deaths, births, alerts };
 }
 
 /** Advance the run length by the given number of ticks. */

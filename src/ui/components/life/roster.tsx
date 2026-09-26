@@ -212,7 +212,7 @@ function SpeciesLine({
       <WorstWord
         status={row.status}
         word={row.word}
-        label={`${row.name} — inspect the worst of ${row.members}`}
+        label={`${row.name} — inspect the worst of ${row.count}`}
         onInspect={onInspect}
       />
       {layout !== 'widget' && <span aria-hidden />}

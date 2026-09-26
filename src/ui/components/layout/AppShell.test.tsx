@@ -131,11 +131,11 @@ describe('AppShell — what needs the keeper', () => {
   it('dots the rail icon of the section an alert stands against', () => {
     renderShell({ highAmmonia: true });
 
-    expect(screen.getByRole('link', { name: 'Water' }).querySelector('.bg-alert')).toBeTruthy();
-    expect(screen.getByRole('link', { name: 'Life' }).querySelector('.bg-alert')).toBeNull();
+    expect(screen.getByRole('link', { name: 'Water' }).querySelector('.bg-warn, .bg-alert')).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Life' }).querySelector('.bg-warn, .bg-alert')).toBeNull();
   });
 
-  it('dots in the tone the engine gives the alert', () => {
+  it('dots in the tone the alert’s own reading carries', () => {
     renderShell({ highAlgae: true });
 
     expect(screen.getByRole('link', { name: 'Life' }).querySelector('.bg-warn')).toBeTruthy();

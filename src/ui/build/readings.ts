@@ -131,7 +131,7 @@ function heaterReadings({ state, units }: DeviceReadingInput): DeviceReading[] {
     {
       label: 'Room',
       value: formatTemperature(state.environment.roomTemperature, units, 0),
-      note: 'set in Scenario',
+      note: 'set in Setup',
     },
   ];
 }

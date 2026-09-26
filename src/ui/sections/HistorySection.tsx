@@ -15,25 +15,22 @@ import {
   readFilter,
   readTick,
   readWindow,
-  runSummary,
-  summaryLines,
+  runLength,
+  runTallies,
   windowRange,
   DEFAULT_FILTER,
   DEFAULT_WINDOW,
   LOG_PARAM,
   REVIEW_WINDOWS,
+  TALLY_ORDER,
   TICK_PARAM,
   TRACKS,
   WINDOW_LABEL,
   WINDOW_PARAM,
   type ReviewWindow,
-  type SummaryTileId,
 } from '../review';
 
 const WINDOW_OPTIONS = REVIEW_WINDOWS.map((value) => ({ value, label: WINDOW_LABEL[value] }));
-
-/** What the run cost, beside the transcript that recorded it. */
-const TALLIES: SummaryTileId[] = ['deaths', 'births', 'alerts', 'water'];
 
 /**
  * The spine at full height. The four tracks are the stage, the transcript reads
@@ -56,7 +53,7 @@ export function HistorySection({
   const timeline = useTimeline(sim.history, sim.state.logs, reviewWindow);
   const { range, actions, alerts, logs, scrub } = timeline;
 
-  const tallies = runSummary(sim.aggregates, sim.state.logs, unitSystem);
+  const tallies = runTallies(sim.aggregates, unitSystem);
 
   /**
    * Resolve the cursor against the window it is about to land in, so the URL
@@ -80,7 +77,7 @@ export function HistorySection({
   return (
     <ModulePage
       title="History"
-      meta={summaryLines(sim.aggregates, sim.state.logs, unitSystem)[0]}
+      meta={runLength(sim.aggregates)}
       fills={!isMobile}
       actions={
         <Segmented
@@ -125,14 +122,11 @@ export function HistorySection({
 
         <div className="flex flex-col gap-2 md:min-h-0 md:border-l md:border-hairline md:pl-4">
           <div className="flex shrink-0 flex-wrap items-baseline gap-x-5 gap-y-1">
-            {TALLIES.map((id) => (
+            {TALLY_ORDER.map((id) => (
               <span key={id} className="inline-flex items-baseline gap-1.5">
                 <span className="text-[16px] font-medium leading-5 tabular-nums text-ink">
                   {tallies[id].value}
                 </span>
-                {tallies[id].unit && (
-                  <span className="text-[11px] text-ink-3">{tallies[id].unit}</span>
-                )}
                 <span className="text-[13px] text-ink-2">{tallies[id].label}</span>
               </span>
             ))}

@@ -9,11 +9,14 @@ import {
   checkFishCapacity,
   checkPlantFootprint,
   FISH_SPECIES_DATA,
+  getDgh,
   getMaxFishMass,
+  getPh,
   getSubstrateIncompatibilityReason,
   isSubstrateCompatible,
   PLANT_SPECIES_DATA,
   totalFishMass,
+  type FishSpeciesData,
   type FishSpecies,
   type PlantSpecies,
   type SimulationState,
@@ -46,6 +49,52 @@ export interface PickerOption {
 export const FISH_SPECIES: FishSpecies[] = Object.keys(FISH_SPECIES_DATA) as FishSpecies[];
 export const PLANT_SPECIES: PlantSpecies[] = Object.keys(PLANT_SPECIES_DATA) as PlantSpecies[];
 
+/** Where the tank sits outside a band the species is stressed beyond, and by how many band-widths. */
+interface Miss {
+  text: string;
+  by: number;
+}
+
+function outside(value: number, [low, high]: [number, number]): number {
+  const span = high - low || 1;
+  return value < low ? (low - value) / span : value > high ? (value - high) / span : 0;
+}
+
+/**
+ * Every band the engine stresses this species past — temperature, pH, GH and
+ * flow — read against the tank as it stands, the widest miss first.
+ */
+function misses(state: SimulationState, data: FishSpeciesData, units: UnitSystem): Miss[] {
+  const r = state.resources;
+  const temperature = r.temperature;
+  const ph = getPh(r);
+  const gh = getDgh(r.gh, r.water);
+  const turnover = r.water > 0 ? r.flow / r.water : 0;
+  const [phLow, phHigh] = data.phRange;
+  const [ghLow, ghHigh] = data.ghRange;
+
+  return [
+    {
+      text: `wants ${formatTemperatureRange(data.temperatureRange, units)} — tank holds ${formatTemperature(temperature, units)}`,
+      by: outside(temperature, data.temperatureRange),
+    },
+    {
+      text: `wants pH ${phLow.toFixed(1)}–${phHigh.toFixed(1)} — tank holds ${ph.toFixed(2)}`,
+      by: outside(ph, data.phRange),
+    },
+    {
+      text: `wants GH ${ghLow}–${ghHigh} — tank holds ${gh.toFixed(1)}`,
+      by: outside(gh, data.ghRange),
+    },
+    {
+      text: `wants flow to ${data.maxTurnover} ×/h — tank turns ${turnover.toFixed(1)} ×/h`,
+      by: turnover > data.maxTurnover ? (turnover - data.maxTurnover) / data.maxTurnover : 0,
+    },
+  ]
+    .filter((miss) => miss.by > 0)
+    .sort((a, b) => b.by - a.by);
+}
+
 function fishOption(
   state: SimulationState,
   species: FishSpecies,
@@ -55,9 +104,7 @@ function fishOption(
   const data = FISH_SPECIES_DATA[species];
   const [phLow, phHigh] = data.phRange;
   const [ghLow, ghHigh] = data.ghRange;
-  const [tempLow, tempHigh] = data.temperatureRange;
-  const temperature = state.resources.temperature;
-  const outside = temperature < tempLow || temperature > tempHigh;
+  const [worst] = misses(state, data, units);
 
   const capacity = checkFishCapacity(state.fish, state.tank.capacity, species);
   const headroom = Math.max(
@@ -74,12 +121,8 @@ function fishOption(
       `${data.adultMass} g adult · pH ${phLow.toFixed(1)}–${phHigh.toFixed(1)} · ` +
       `GH ${ghLow}–${ghHigh} · ` +
       `flow to ${data.maxTurnover} ×/h`,
-    fit: outside
-      ? `wants ${formatTemperatureRange(data.temperatureRange, units)} — tank holds ` +
-        `${formatTemperature(temperature, units)}`
-      : `in band at ${formatTemperature(temperature, units)} · ` +
-        `bioload ${load.ratio.toFixed(1)}× after`,
-    status: outside ? 'warn' : load.status === 'ok' ? 'neutral' : load.status,
+    fit: worst ? worst.text : `in band · bioload ${load.ratio.toFixed(1)}× after`,
+    status: worst ? 'warn' : load.status === 'ok' ? 'neutral' : load.status,
     headroom,
     refusal: capacity.ok ? null : capacity.message,
   };

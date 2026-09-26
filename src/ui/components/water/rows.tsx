@@ -30,7 +30,7 @@ export function ReadingRows({
             at={reading.at}
             band={reading.band}
             tone={reading.tone}
-            trend={reading.trend}
+            trend={reading.trend ?? undefined}
             onClick={() => onOpen(id)}
           />
         );
@@ -57,7 +57,7 @@ export function NutrientRows({
           at={reading.at}
           band={reading.band}
           tone={reading.tone}
-          trend={reading.trend}
+          trend={reading.trend ?? undefined}
           note={reading.need}
           onClick={() => onOpen(reading.id)}
         />

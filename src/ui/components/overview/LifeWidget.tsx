@@ -4,7 +4,7 @@ import type { SimulationState } from '../../../simulation/index.js';
 import type { LivestockConfig } from '../../../simulation/config/livestock.js';
 import type { VerbId } from '../../actions';
 import type { ReadingBook, ReadingId } from '../../readings';
-import { rosterTables, type PopulationRosterRow } from '../../run';
+import { rosterTables } from '../../run';
 import { Roster, type RosterHandlers } from '../life/roster';
 import { VerbButton } from '../ui/VerbButton';
 import { Widget } from '../ui/Widget';
@@ -32,7 +32,6 @@ export function LifeWidget({
   actLabel,
 }: LifeWidgetProps): React.JSX.Element {
   const navigate = useNavigate();
-  const algaeReading = book.byId.algae;
 
   const rows = useMemo(
     () =>
@@ -43,18 +42,6 @@ export function LifeWidget({
       ),
     [book.roster, config]
   );
-
-  const algae: PopulationRosterRow = {
-    kind: 'population',
-    key: 'algae',
-    name: 'Algae',
-    figure: `${algaeReading.value} %`,
-    caption: 'coverage',
-    trend: algaeReading.trend,
-    at: algaeReading.at,
-    band: algaeReading.band,
-    ...book.roster.algae,
-  };
 
   const handlers: RosterHandlers = {
     onToggle: () => navigate('/life'),
@@ -88,7 +75,7 @@ export function LifeWidget({
       )}
       <Roster
         layout="widget"
-        rows={[...rows.fish, algae, ...rows.plants]}
+        rows={[...rows.fish, book.roster.algae, ...rows.plants]}
         handlers={handlers}
       />
     </Widget>

@@ -3,7 +3,6 @@ import { ChevronRight, TriangleAlert } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import type { VerbId } from '../../actions';
 import type { Need } from '../../nav';
-import type { ReadingBook } from '../../readings';
 import { CONTROL_FOCUS } from '../ui/focus';
 
 const VERB_LINK =
@@ -16,11 +15,9 @@ const VERB_LINK =
  */
 export function NeedsStrip({
   needs,
-  book,
   onAct,
 }: {
   needs: Need[];
-  book: ReadingBook;
   onAct: (verb: VerbId) => void;
 }): React.JSX.Element | null {
   if (needs.length === 0) return null;
@@ -31,7 +28,6 @@ export function NeedsStrip({
       className="shrink-0 rounded-card border border-hairline bg-surface px-3"
     >
       {needs.map((need) => {
-        const reading = book.byId[need.reading];
         const { act } = need;
         return (
           <div
@@ -47,10 +43,8 @@ export function NeedsStrip({
               {need.text}
             </span>
             <p className="min-w-0 flex-1 text-[13px] text-ink-2">
-              <span className="font-medium tabular-nums text-ink">
-                {reading.value} {reading.unit}
-              </span>{' '}
-              — {reading.sentence}
+              <span className="font-medium tabular-nums text-ink">{need.figure}</span> —{' '}
+              {need.sentence}
             </p>
             {act ? (
               <button type="button" onClick={() => onAct(act)} className={VERB_LINK}>

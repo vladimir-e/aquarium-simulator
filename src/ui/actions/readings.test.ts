@@ -114,7 +114,7 @@ describe('preview readings', () => {
 
     const tenth = detail(state, 'waterChange', { ...DEFAULT_SETTINGS, waterChange: 0.1 }).preview;
     expect(row(tenth, 'oxygen').note).toBe('below 4.0');
-    expect(row(tenth, 'oxygen').status).toBe('warn');
+    expect(row(tenth, 'oxygen').status).toBe('alert');
   });
 
   it('shows the reading it started from, so before and after are the same scale', () => {
@@ -230,7 +230,7 @@ describe('preview readings', () => {
       resources: { ...state.resources, nitrite: 1.6 * state.resources.water },
     };
     const nitrite = row(detail(cycling, 'waterChange').preview, 'nitrite');
-    expect(nitrite.note).toBe(`still above ${NITRITE_EDGE.toFixed(2)}`);
+    expect(nitrite.note).toBe(`still above ${NITRITE_EDGE.toFixed(3)}`);
     expect(nitrite.status).toBe('alert');
 
     const loaded = {
@@ -241,7 +241,7 @@ describe('preview readings', () => {
       },
     };
     const nitrate = row(detail(loaded, 'dose', { ...DEFAULT_SETTINGS, dose: 4 }).preview, 'nitrate');
-    expect(nitrate.note).toBe(`above ${NITRATE_EDGE}`);
+    expect(nitrate.note).toBe(`above ${NITRATE_EDGE.toFixed(1)}`);
   });
 
   it('reads an ammonia row on the line the action leaves, when the action moves pH', () => {
@@ -273,7 +273,7 @@ describe('preview readings', () => {
     expect(getPpm(soft.resources.ammonia, soft.resources.water)).toBeGreaterThan(line);
 
     const ammonia = row(detail(soft, 'waterChange', settings).preview, 'ammonia');
-    expect(ammonia.note).toBe(`above ${line.toFixed(2)}`);
+    expect(ammonia.note).toBe(`above ${line.toFixed(3)}`);
   });
 
   it('reads its lines off the engine, not off the sketch they were drawn from', () => {

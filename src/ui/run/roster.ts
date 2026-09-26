@@ -7,7 +7,6 @@
  */
 
 import {
-  SATIATION_BAND_LABEL,
   type Clutch,
   type FishSex,
   type FishSpecies,
@@ -16,10 +15,12 @@ import {
 } from '../../simulation/index.js';
 import type { LivestockConfig } from '../../simulation/config/livestock.js';
 import {
-  bandOf,
   bandStatus,
+  fishSatiation,
+  fishTitle,
   type FryBatch,
   type Hunger,
+  type Satiation,
   type SpeciesGroup,
 } from './livestock.js';
 import {
@@ -38,14 +39,6 @@ import type { ReadingBand } from './water.js';
 export const CONDITION_BAND: ReadingBand = { from: 0.6, to: 1 };
 
 export type SpeciesId = FishSpecies | PlantSpecies;
-
-/** Satiation, where the row belongs to something that eats. */
-export interface Satiation {
-  at: number;
-  band: ReadingBand;
-  status: Status;
-  word: string;
-}
 
 /** A plant's day of light at its own height, as a share of what its species starves under. */
 export interface LightFigure {
@@ -69,11 +62,11 @@ export interface SpeciesRosterRow extends Vital {
   key: string;
   species: SpeciesId;
   name: string;
-  /** What the dots count: fish, or a plant species' families. */
-  count: number;
   /** Individuals under it, however the dots group them. */
-  members: number;
-  /** Mass each for fish, full units' worth for plants. */
+  count: number;
+  /** How a plant species' units fall into families; nothing for fish. */
+  caption: string | null;
+  /** Mass each for fish, the sizes summed for plants. */
   figure: string;
   /** Mean age for fish, the oldest unit for plants. */
   age: string;
@@ -97,7 +90,7 @@ export interface FamilyRosterRow extends Vital {
   title: string;
   /** Its units — what the dots count. */
   count: number;
-  /** Full units' worth. */
+  /** Its units' sizes, summed. */
   figure: string;
   /** The oldest unit's. */
   age: string;
@@ -158,7 +151,7 @@ export interface PopulationRosterRow extends Vital {
   figure: string;
   /** What the figure counts, where there is room to say it. */
   caption: string;
-  /** How fast it is moving, over the last day. */
+  /** What the next tick does to it, per day. */
   trend: string;
   band: ReadingBand | null;
 }
@@ -189,18 +182,6 @@ function familyKey(familyId: string): string {
   return `family-${familyId}`;
 }
 
-/** An engine id without its kind, the way the roster names an individual. */
-export function shortId(id: string): string {
-  return id.slice(id.indexOf('_') + 1);
-}
-
-function satiationBand(config: LivestockConfig): ReadingBand {
-  return {
-    from: config.satiationHungryCeiling / 100,
-    to: config.satiationOverfedFloor / 100,
-  };
-}
-
 interface Grouped {
   satiation: number;
   hunger: Hunger | null;
@@ -212,16 +193,6 @@ function groupSatiation(group: Grouped, config: LivestockConfig): Satiation {
   return group.hunger
     ? { ...mean, status: bandStatus(group.hunger.band), word: `${group.hunger.count} hungry` }
     : mean;
-}
-
-function fishSatiation(satiation: number, config: LivestockConfig): Satiation {
-  const band = bandOf(satiation, config);
-  return {
-    at: satiation / 100,
-    band: satiationBand(config),
-    status: bandStatus(band),
-    word: SATIATION_BAND_LABEL[band].toLowerCase(),
-  };
 }
 
 function days(hours: number): string {
@@ -242,7 +213,7 @@ function fishRows(
       species: group.species,
       name: group.name,
       count: group.count,
-      members: group.count,
+      caption: null,
       figure: `${(group.massG / group.count).toFixed(2)} g each`,
       age: `${group.ageDays} d`,
       satiation: groupSatiation(group, config),
@@ -254,14 +225,14 @@ function fishRows(
       expanded: open,
     };
     const fish = group.members.map(
-      ({ id, condition, fish, reading }): IndividualRosterRow => ({
+      ({ id, number, condition, fish, reading }): IndividualRosterRow => ({
         kind: 'individual',
         key: id,
         id,
         species: group.species,
         name: group.name,
-        tag: shortId(id),
-        title: `${group.name} ${shortId(id)}`,
+        tag: `#${number}`,
+        title: fishTitle(fish, number),
         sex: fish.sex,
         parent: null,
         figure: `${fish.mass.toFixed(2)} g`,
@@ -281,9 +252,13 @@ function lightFigure(share: number, status: Status): LightFigure {
   return { text: `${sharePercent(share)} %`, status };
 }
 
-/** Full units' worth, floored like every plant figure: a group never reads a unit it has not grown. */
-function units(amount: number): string {
-  return `${(Math.floor(amount * 10) / 10).toFixed(1)} units`;
+/** The sizes summed, rounded down like every plant figure: a group never reads growth it has not made. */
+function summedSize(size: number): string {
+  return `Σ ${Math.floor(size)} %`;
+}
+
+function families(count: number): string {
+  return `${count} ${count === 1 ? 'family' : 'families'}`;
 }
 
 function plantUnit(plant: PlantRow): IndividualRosterRow {
@@ -323,7 +298,7 @@ function familyRows(
     label: `family ${family.number}`,
     title: familyTitle(group.name, family.members[0].label),
     count: family.members.length,
-    figure: units(family.units),
+    figure: summedSize(family.size),
     age: days(family.oldest),
     light: lightFigure(family.light, family.lightStatus),
     dots: family.members.map((member) => member.reading.status),
@@ -343,9 +318,9 @@ function plantTable(groups: PlantSpeciesGroup[], expanded: ReadonlySet<string>):
       key,
       species: group.species,
       name: group.name,
-      count: group.families.length,
-      members: group.members.length,
-      figure: units(group.units),
+      count: group.members.length,
+      caption: families(group.families.length),
+      figure: summedSize(group.size),
       age: days(group.oldest),
       satiation: null,
       light: lightFigure(group.light, group.lightStatus),

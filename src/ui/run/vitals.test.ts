@@ -15,8 +15,8 @@ describe('classifyVital', () => {
     expect(classifyVital('nitrite', 1.5)).toBe('alert');
   });
 
-  it('reads nitrate as plant food: warns when depleted, alerts when it spikes', () => {
-    expect(classifyVital('nitrate', 0)).toBe('warn');
+  it('alerts on nitrate past its line, and leaves a low one to the plants’ own reading', () => {
+    expect(classifyVital('nitrate', 0)).toBe('ok');
     expect(classifyVital('nitrate', 20)).toBe('ok');
     expect(classifyVital('nitrate', 100)).toBe('alert');
   });
@@ -28,8 +28,8 @@ describe('classifyVital', () => {
     expect(classifyVital('temperature', 30)).toBe('neutral');
   });
 
-  it('grades oxygen: warns when starved, neutral when marginal, ok when comfortable', () => {
-    expect(classifyVital('oxygen', 3)).toBe('warn');
+  it('grades oxygen: alerts when starved, neutral when marginal, ok when comfortable', () => {
+    expect(classifyVital('oxygen', 3)).toBe('alert');
     expect(classifyVital('oxygen', 5)).toBe('neutral');
     expect(classifyVital('oxygen', 8)).toBe('ok');
   });
@@ -41,8 +41,8 @@ describe('classifyVital', () => {
 });
 
 describe('classifyLevel', () => {
-  it('warns only under the line it is handed', () => {
-    expect(classifyLevel(49, 50)).toBe('warn');
+  it('alerts only under the line it is handed', () => {
+    expect(classifyLevel(49, 50)).toBe('alert');
     expect(classifyLevel(50, 50)).toBe('ok');
   });
 });

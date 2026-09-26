@@ -82,7 +82,7 @@ const TRACE_PPM = 0.1;
 function aobClearingAtTrace(share: number): SimulationState {
   const base = colonised(stocked(), { aob: 0, nob: 0.5 });
   const { rates } = readBiofilter(base);
-  const arriving = rates.wasteToAmmonia + rates.gillsToAmmonia;
+  const arriving = rates.wasteToAmmonia + rates.gillsToAmmonia + rates.foodToAmmonia;
   const r = base.resources;
   const perUnit =
     getPpm(aobCapacity(1, r.temperature, r.oxygen), r.water) *
@@ -219,6 +219,19 @@ describe('bacteriaReadout', () => {
 
   it('separates gill excretion from mineralised waste', () => {
     expect(readBiofilter(stocked()).rates.gillsToAmmonia).toBeGreaterThan(0);
+  });
+
+  it('nets ammonia the way the next tick moves it, decaying food and all', () => {
+    const overfed = produce(createSimulation({ tankCapacity: 100 }, undefined, RNG_SEED), (draft) => {
+      draft.resources.food = 2;
+    });
+    const { rates } = readBiofilter(overfed);
+    const moved =
+      (tick(overfed, config).resources.ammonia - overfed.resources.ammonia) /
+      overfed.resources.water;
+
+    expect(rates.foodToAmmonia).toBeGreaterThan(0);
+    expect(rates.netAmmonia).toBeCloseTo(moved, 4);
   });
 
   it('nets nitrite the way the next tick moves it, climbing and falling', () => {

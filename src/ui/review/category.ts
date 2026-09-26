@@ -1,6 +1,6 @@
 /**
- * Log categorisation for History's filter chips and the alert language shared
- * by the summary tile and the axis marks. Both are derived from the engine's
+ * Log categorisation for History's filter chips and the alert language the
+ * axis marks speak. Both are derived from the engine's
  * own `source` / `severity` / `event` fields — nothing here re-tags the log, it
  * only buckets what the simulation already emitted.
  */
@@ -96,13 +96,4 @@ export function classifyAlert(log: LogEntry): AlertKind | null {
 export interface AlertMark {
   tick: number;
   kind: AlertKind;
-}
-
-/** The most recent alert in the list, for the summary tile's type chip. */
-export function latestAlert(logs: LogEntry[]): AlertMark | null {
-  for (let i = logs.length - 1; i >= 0; i--) {
-    const kind = classifyAlert(logs[i]);
-    if (kind) return { tick: logs[i].tick, kind };
-  }
-  return null;
 }

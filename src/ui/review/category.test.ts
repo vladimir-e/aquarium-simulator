@@ -4,7 +4,6 @@ import {
   filterLogs,
   isAlertLog,
   classifyAlert,
-  latestAlert,
   LOG_FILTERS,
 } from './category';
 import { createLog, type LogEntry } from '../../simulation/index.js';
@@ -103,21 +102,5 @@ describe('classifyAlert', () => {
     expect(classifyAlert(createLog(1, 'user', 'info', 'fed fish'))).toBeNull();
     expect(classifyAlert(createLog(1, 'simulation', 'warning', 'died', 'fish-died'))).toBeNull();
     expect(classifyAlert(createLog(1, 'simulation', 'warning', 'unclassified anomaly'))).toBeNull();
-  });
-});
-
-describe('latestAlert', () => {
-  it('returns the most recent classifiable alert', () => {
-    const logs: LogEntry[] = [
-      createLog(2, 'nitrogen-cycle', 'warning', 'High nitrite level: 1.2 ppm'),
-      createLog(5, 'nitrogen-cycle', 'warning', 'High ammonia level: 0.2 ppm'),
-      createLog(6, 'user', 'info', 'fed fish'),
-    ];
-    expect(latestAlert(logs)).toEqual({ tick: 5, kind: 'ammonia' });
-  });
-
-  it('returns null when nothing qualifies', () => {
-    expect(latestAlert([createLog(1, 'user', 'info', 'fed fish')])).toBeNull();
-    expect(latestAlert([])).toBeNull();
   });
 });

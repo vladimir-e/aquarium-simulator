@@ -186,11 +186,11 @@ function daysOfFood(days: number): string {
   return days < 10 ? `${days.toFixed(1)} d` : `${Math.round(days)} d`;
 }
 
-/** Grams at the precision the engine keeps food to, or the floor it sits under. */
+/** Grams at the precision the engine keeps food to, or the least step it sits under. */
 function grams(value: number): string {
-  const floor = 10 ** -FoodResource.precision;
-  return value < floor
-    ? `under ${floor.toFixed(FoodResource.precision)} g`
+  const step = 10 ** -FoodResource.precision;
+  return value < step
+    ? `under ${step.toFixed(FoodResource.precision)} g`
     : `${value.toFixed(FoodResource.precision)} g`;
 }
 
@@ -424,8 +424,8 @@ function meta(
     case 'trimPlants': {
       const reach = reached(state, scope);
       const { plants } = reach;
-      const tallest = plants.reduce((most, plant) => Math.max(most, plant.size), 0);
-      const line = `${getPlantsToTrimCount(reach, settings.trimPlants)} of ${plural(plants.length, 'plant')} · tallest ${Math.floor(tallest)} %`;
+      const largest = plants.reduce((most, plant) => Math.max(most, plant.size), 0);
+      const line = `${getPlantsToTrimCount(reach, settings.trimPlants)} of ${plural(plants.length, 'plant')} · largest ${Math.floor(largest)} %`;
       return scope && plants.length > 0
         ? `${PLANT_SPECIES_DATA[plants[0].species].name} · ${line}`
         : line;
@@ -441,7 +441,7 @@ function meta(
  */
 const BARE_NOTE: Partial<Record<VerbId, string>> = {
   topOff:
-    'No amount to set — top-off refills to capacity. It brings no tap chemistry with it, so temperature and pH hold where they are and everything dissolved is diluted.',
+    'No amount to set — top-off refills to capacity at the tank’s own temperature. The tap’s KH and GH come with it, everything else dissolved is diluted, and pH follows the CO₂ and KH that leaves.',
   scrubAlgae: `No amount to set — a scrub takes a random ${Math.round(MIN_SCRUB_PERCENT * 100)}–${Math.round(MAX_SCRUB_PERCENT * 100)} % of standing algae. What comes off leaves the system; it does not become waste.`,
 };
 

@@ -114,6 +114,8 @@ export interface ConversionRates {
   wasteToAmmonia: number;
   /** NH₃ ppm excreted straight through fish gills this hour. */
   gillsToAmmonia: number;
+  /** NH₃ ppm the oxidised share of decaying food releases this hour. */
+  foodToAmmonia: number;
   /** NH₃ ppm the AOB colony takes out of the water this hour. */
   ammoniaOxidised: number;
   /** Arriving minus oxidised — positive means ammonia is climbing. */
@@ -201,7 +203,9 @@ export function bacteriaReadout(
 
   // The AOB stage sees both of these: gill excretion lands in the active tier,
   // ahead of the passive nitrogen cycle, and mineralisation runs first inside it.
+  // Decaying food lands in the same passive pass, so the colony meets it next hour.
   const gills = ahead.gillAmmonia;
+  const food = ahead.foodAmmonia;
   const { ammoniaProduced } = calculateWasteToAmmonia(
     mineralisationBase(state, config, wasteInflow(state, config, ahead)),
     config
@@ -228,14 +232,15 @@ export function bacteriaReadout(
   const rates: ConversionRates = {
     wasteToAmmonia: getPpm(ammoniaProduced, water),
     gillsToAmmonia: getPpm(gills, water),
+    foodToAmmonia: getPpm(food, water),
     ammoniaOxidised: getPpm(ammoniaConsumed, water),
-    netAmmonia: getPpm(gills + ammoniaProduced - ammoniaConsumed, water),
+    netAmmonia: getPpm(gills + ammoniaProduced + food - ammoniaConsumed, water),
     ammoniaToNitrite: getPpm(nitriteProduced, water),
     nitriteToNitrate: getPpm(nitriteConsumed, water),
     netNitrite: getPpm(nitriteProduced - nitriteConsumed, water),
   };
   const atTrace = getPpm(r.ammonia, water) < TRACE_PPM && getPpm(r.nitrite, water) < TRACE_PPM;
-  const ammoniaArriving = rates.wasteToAmmonia + rates.gillsToAmmonia;
+  const ammoniaArriving = rates.wasteToAmmonia + rates.gillsToAmmonia + rates.foodToAmmonia;
   return {
     aob: colony(r.aob, ceiling),
     nob: colony(r.nob, ceiling),
@@ -282,8 +287,8 @@ function nextVolume(water: number, state: SimulationState, config: TunableConfig
 /**
  * Run the engine's own nitrogen model forward to find the nitrite peak.
  *
- * Waste inflow, biofilm surface, temperature and dissolved oxygen are held at
- * today's values, so this answers "if nothing else changes" — feeding more,
+ * Waste inflow, decaying food, biofilm surface, temperature and dissolved
+ * oxygen are held at today's values, so this answers "if nothing else changes" — feeding more,
  * adding fish or a water change all move it. Evaporation and the bed's leaching
  * and settling are not choices: they run every tick whatever the keeper does,
  * so the projection carries them.
@@ -306,6 +311,7 @@ export function projectNitritePeak(
     .filter((source) => source.key !== 'substrate')
     .reduce((total, source) => total + source.gramsPerHour, 0);
   const gills = ahead.gillAmmonia;
+  const food = ahead.foodAmmonia;
 
   let reserve = state.equipment.substrate.organicReserve;
   let water = r.water;
@@ -333,7 +339,7 @@ export function projectNitritePeak(
     ammonia += mineralised.ammoniaProduced + gills;
 
     const oxidised = calculateAmmoniaToNitrite(ammonia, water, aob, r.temperature, r.oxygen, nc);
-    ammonia -= oxidised.ammoniaConsumed;
+    ammonia += food - oxidised.ammoniaConsumed;
     nitrite += oxidised.nitriteProduced;
 
     const cleared = calculateNitriteToNitrate(nitrite, water, nob, r.temperature, r.oxygen, nc);

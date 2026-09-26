@@ -17,13 +17,12 @@ import {
   HIGH_CO2_THRESHOLD,
   waterLevelAlertLine,
 } from '../../simulation/alerts/index.js';
-import { NITRATE_EDGE, NITRITE_EDGE, OXYGEN_EDGE } from '../../simulation/livestock/tolerance.js';
+import { NITRITE_EDGE, OXYGEN_EDGE } from '../../simulation/livestock/tolerance.js';
 import type { Nutrient, TunableConfig } from '../../simulation/config/index.js';
 import {
   Co2Resource,
   FoodResource,
   IronResource,
-  NitrateResource,
   OxygenResource,
   PhosphateResource,
   PotassiumResource,
@@ -33,13 +32,14 @@ import { DISPLAY_CEILING, onScale } from '../readings';
 import {
   algaeStatus,
   classifyVital,
-  NITRATE_LOW_PPM,
   nutrientReadings,
+  printsAsZero,
   readingAt,
   stockedBand,
   trackAt,
   toleranceStatus,
   waterReadings,
+  WATER_DECIMALS,
   type NutrientReading,
   type Status,
   type WaterKey,
@@ -83,11 +83,13 @@ interface Sheet {
 }
 
 function sheetOf(state: SimulationState, config: TunableConfig, units: UnitSystem): Sheet {
-  const water = {} as Record<WaterKey, WaterReading>;
-  for (const reading of waterReadings(state, config, units)) water[reading.key] = reading;
-
   const nutrients = {} as Record<Nutrient, NutrientReading>;
   for (const reading of nutrientReadings(state, config)) nutrients[reading.key] = reading;
+
+  const water = {} as Record<WaterKey, WaterReading>;
+  for (const reading of waterReadings(state, config, units, nutrients.nitrate)) {
+    water[reading.key] = reading;
+  }
 
   return { state, config, units, water, nutrients };
 }
@@ -118,9 +120,15 @@ function speciesEdgeNote(value: number, { state }: Sheet, range: SpeciesRange): 
 }
 
 /** "still above" once the reading was already over the line the tank stood on before the action. */
-function overLine(value: number, before: number, limit: number, limitBefore = limit): string | null {
+function overLine(
+  value: number,
+  before: number,
+  decimals: number,
+  limit: number,
+  limitBefore = limit
+): string | null {
   if (value <= limit) return null;
-  return `${before > limitBefore ? 'still ' : ''}above ${limit.toFixed(2)}`;
+  return `${before > limitBefore ? 'still ' : ''}above ${limit.toFixed(decimals)}`;
 }
 
 interface Reading {
@@ -145,14 +153,15 @@ const quiet = (): Status => 'neutral';
 /** No band to be outside of, or nothing to qualify the new value with. */
 const none = (): null => null;
 
-/** A reading the water sheet already read, band and all. */
+/** A reading the water sheet already read, band, precision and all. */
 function fromWater(
   key: WaterKey,
-  rest: Pick<Reading, 'label' | 'unit' | 'display' | 'decimals' | 'note'> &
+  rest: Pick<Reading, 'label' | 'unit' | 'display' | 'note'> &
     Partial<Pick<Reading, 'key' | 'status' | 'band'>>
 ): Reading {
   return {
     key,
+    decimals: WATER_DECIMALS[key],
     read: (sheet): number => sheet.water[key].value,
     status: (_value, sheet): Status => sheet.water[key].status,
     at: (value, sheet): number => trackAt(sheet.water[key].scale, value),
@@ -197,7 +206,7 @@ function nutrient(key: Nutrient, label: string, decimals: number): Reading {
 /**
  * Canonical order: the nitrogen cycle, then the physical readings, then the
  * dissolved gases, then plant food, then the two organic stocks, then the
- * planting's shade and its tallest unit. A verb's rows come out in this order
+ * planting's shade and its largest unit. A verb's rows come out in this order
  * however many of them move.
  */
 const READINGS: Reading[] = [
@@ -205,11 +214,11 @@ const READINGS: Reading[] = [
     label: 'NH₃',
     unit: PPM,
     display: same,
-    decimals: 3,
     note: (value, before, { state }, standing) =>
       overLine(
         value,
         before,
+        WATER_DECIMALS.ammonia,
         ammoniaAlertLine(state.resources),
         ammoniaAlertLine(standing.state.resources)
       ),
@@ -218,27 +227,29 @@ const READINGS: Reading[] = [
     label: 'NO₂',
     unit: PPM,
     display: same,
-    decimals: 3,
-    note: (value, before) => overLine(value, before, NITRITE_EDGE),
+    note: (value, before) => overLine(value, before, WATER_DECIMALS.nitrite, NITRITE_EDGE),
   }),
   fromWater('nitrate', {
     label: 'NO₃',
     unit: PPM,
     display: same,
-    decimals: NitrateResource.precision,
-    note: (value, _before, { state }): string | null => {
-      if (value > NITRATE_EDGE) return `above ${NITRATE_EDGE}`;
-      if (value >= NITRATE_LOW_PPM) return null;
-      return state.plants.length > 0
-        ? `below ${NITRATE_LOW_PPM} — plants short`
-        : `below ${NITRATE_LOW_PPM}`;
+    note: (value, before, { nutrients }, standing): string | null => {
+      const { needed, ceiling } = nutrients.nitrate;
+      const over = overLine(
+        value,
+        before,
+        WATER_DECIMALS.nitrate,
+        ceiling!,
+        standing.nutrients.nitrate.ceiling!
+      );
+      if (over) return over;
+      return value < needed ? `below ${needed.toFixed(WATER_DECIMALS.nitrate)} — plants short` : null;
     },
   }),
   fromWater('temperature', {
     label: 'Temp',
     unit: getTemperatureUnit,
     display: toDisplayTemperature,
-    decimals: 1,
     ...tolerated('temperature', (data) => data.temperatureRange),
     note: temperatureNote,
   }),
@@ -246,7 +257,6 @@ const READINGS: Reading[] = [
     label: 'pH',
     unit: () => '',
     display: same,
-    decimals: 2,
     ...tolerated('ph', (data) => data.phRange),
     note: (value, _before, sheet) => speciesEdgeNote(value, sheet, (data) => data.phRange),
   }),
@@ -254,14 +264,12 @@ const READINGS: Reading[] = [
     label: 'KH',
     unit: () => 'dKH',
     display: same,
-    decimals: 1,
     note: none,
   }),
   fromWater('gh', {
     label: 'GH',
     unit: () => 'dGH',
     display: same,
-    decimals: 1,
     ...tolerated('gh', (data) => data.ghRange),
     note: (value, _before, sheet) => speciesEdgeNote(value, sheet, (data) => data.ghRange),
   }),
@@ -270,7 +278,6 @@ const READINGS: Reading[] = [
     label: 'Level',
     unit: PERCENT,
     display: same,
-    decimals: 0,
     note: (value, _before, { config }) => {
       const line = waterLevelAlertLine(config);
       return value < line ? `below ${line} %` : null;
@@ -282,12 +289,12 @@ const READINGS: Reading[] = [
     read: ({ state }) => state.resources.oxygen,
     unit: () => OxygenResource.unit,
     display: same,
-    decimals: OxygenResource.precision,
+    decimals: WATER_DECIMALS.oxygen,
     status: (value) => classifyVital('oxygen', value),
     at: (value) => onScale(DISPLAY_CEILING.oxygen, value),
     band: () => ({ from: onScale(DISPLAY_CEILING.oxygen, OXYGEN_EDGE), to: 1 }),
     note: (value) =>
-      value < OXYGEN_EDGE ? `below ${OXYGEN_EDGE.toFixed(1)}` : null,
+      value < OXYGEN_EDGE ? `below ${OXYGEN_EDGE.toFixed(WATER_DECIMALS.oxygen)}` : null,
   },
   {
     key: 'co2',
@@ -295,11 +302,11 @@ const READINGS: Reading[] = [
     read: ({ state }) => state.resources.co2,
     unit: () => Co2Resource.unit,
     display: same,
-    decimals: Co2Resource.precision,
+    decimals: WATER_DECIMALS.co2,
     status: (value) => classifyVital('co2', value),
     at: (value) => onScale(DISPLAY_CEILING.co2, value),
     band: () => ({ from: 0, to: onScale(DISPLAY_CEILING.co2, HIGH_CO2_THRESHOLD) }),
-    note: (value, before) => overLine(value, before, HIGH_CO2_THRESHOLD),
+    note: (value, before) => overLine(value, before, WATER_DECIMALS.co2, HIGH_CO2_THRESHOLD),
   },
   nutrient('phosphate', 'PO₄', PhosphateResource.precision),
   nutrient('potassium', 'K', PotassiumResource.precision),
@@ -342,9 +349,9 @@ const READINGS: Reading[] = [
     note: none,
   },
   {
-    key: 'tallest',
-    label: 'Tallest',
-    read: ({ state }) => state.plants.reduce((tallest, plant) => Math.max(tallest, plant.size), 0),
+    key: 'largest',
+    label: 'Largest',
+    read: ({ state }) => state.plants.reduce((largest, plant) => Math.max(largest, plant.size), 0),
     unit: PERCENT,
     display: Math.floor,
     decimals: 0,
@@ -359,7 +366,7 @@ const RANK: Record<Status, number> = { neutral: 0, ok: 1, warn: 2, alert: 3 };
 
 /** Two values that would print identically have not moved as far as a reader is concerned. */
 function prints(a: number, b: number, decimals: number): boolean {
-  return Math.abs(a - b) < 0.5 / 10 ** decimals;
+  return printsAsZero(a - b, decimals);
 }
 
 export interface PreviewInput {

@@ -65,7 +65,7 @@ export function hardscapeRows(items: HardscapeItem[]): HardscapeRow[] {
 
 /**
  * The hobby's light tier for a species, read off where its tolerable band opens
- * — the PAR it wants at the substrate, against the hobby's own cuts.
+ * — the PAR it wants on its leaves, against the hobby's own cuts.
  */
 export function lightTier(species: PlantSpecies): 'low' | 'medium' | 'high' {
   const [wants] = PLANT_SPECIES_DATA[species].tolerableLight;

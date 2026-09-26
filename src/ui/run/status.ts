@@ -31,9 +31,14 @@ export interface Reading {
   word: string;
 }
 
+/** Of two statuses, the one that needs the reader first. */
+export function worstStatus(a: Status, b: Status): Status {
+  return STATUS_SEVERITY[b] > STATUS_SEVERITY[a] ? b : a;
+}
+
 /** Of two readings of the same organism, the one that needs the reader first. */
 export function worstReading(a: Reading, b: Reading): Reading {
-  return STATUS_SEVERITY[b.status] > STATUS_SEVERITY[a.status] ? b : a;
+  return worstStatus(a.status, b.status) === a.status ? a : b;
 }
 
 /** How an organism is doing, off its condition. */
@@ -41,18 +46,22 @@ function conditionReading(condition: number): Reading {
   return { status: conditionStatus(condition), word: conditionWord(condition) };
 }
 
-const TREND_DECIMALS = 1;
-
-/** A change per hour as the trend prints it per day — zero where it reads steady. */
-function shownPerDay(changePerHour: number): number {
-  return Number((changePerHour * TICKS_PER_DAY).toFixed(TREND_DECIMALS));
+/** Whether a figure prints as nothing at this many decimals — the one test every surface rounds by. */
+export function printsAsZero(value: number, decimals: number): boolean {
+  return Math.abs(value) < 0.5 / 10 ** decimals;
 }
+
+/** A change over a day as a reading row prints it: nothing while it prints as zero. */
+export function dayTrend(perDay: number, decimals: number): string {
+  if (printsAsZero(perDay, decimals)) return '';
+  return `${perDay > 0 ? '↗' : '↘'} ${Math.abs(perDay).toFixed(decimals)}/d`;
+}
+
+const TREND_DECIMALS = 1;
 
 /** What the next tick does to a figure, per day, as a reading row prints it: nothing while it holds. */
 export function projectedDrift(changePerHour: number): string {
-  const perDay = shownPerDay(changePerHour);
-  if (perDay === 0) return '';
-  return `${perDay > 0 ? '↗' : '↘'} ${Math.abs(perDay).toFixed(TREND_DECIMALS)}/d`;
+  return dayTrend(changePerHour * TICKS_PER_DAY, TREND_DECIMALS);
 }
 
 /** What the next tick does to a figure, from the change it makes in its hour. */
@@ -73,12 +82,12 @@ export interface VitalReading {
  * How an organism reads over the hour its vitality was taken on. It is sick
  * while its condition falls — damage outrunning healing — at the precision the
  * trend prints, so the word and the trend cannot disagree. The figure is
- * floored, so it never shows a band the condition has not reached. Sickness
+ * rounded down, so it never shows a band the condition has not reached. Sickness
  * wins a tie with the condition's own word.
  */
 export function vitalReading(condition: number, vitality: VitalityResult): VitalReading {
   const change = vitality.newCondition - condition;
-  const sick = shownPerDay(change) < 0;
+  const sick = change < 0 && projectedDrift(change) !== '';
   const health = conditionReading(condition);
   return {
     sick,

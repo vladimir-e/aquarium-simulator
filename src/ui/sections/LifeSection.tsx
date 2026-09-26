@@ -23,7 +23,6 @@ import {
   readLedger,
   rosterSummary,
   rosterTables,
-  type PopulationRosterRow,
 } from '../run';
 
 function plural(count: number, noun: string): string {
@@ -93,18 +92,7 @@ export function LifeSection({
     [inspecting, state, config, book.ahead]
   );
 
-  const algaeReading = book.byId.algae;
-  const algae: PopulationRosterRow = {
-    kind: 'population',
-    key: 'algae',
-    name: 'Algae',
-    figure: `${algaeReading.value} %`,
-    caption: 'coverage',
-    trend: algaeReading.trend,
-    at: algaeReading.at,
-    band: algaeReading.band,
-    ...book.roster.algae,
-  };
+  const { algae } = book.roster;
 
   const handlers = (kind: 'fish' | 'plant'): RosterHandlers => ({
     onToggle: toggle,

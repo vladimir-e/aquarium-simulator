@@ -10,6 +10,7 @@ import {
   type PlantSpecies,
   type SimulationState,
 } from '../../simulation/index.js';
+import { getGhMass } from '../../simulation/resources/index.js';
 import { pickerOptions, type PickerOption } from './picker';
 import { bioload } from './stocking';
 
@@ -98,6 +99,18 @@ describe('fish options', () => {
 
     expect(angel.fit).toBe('wants 24–30°C — tank holds 21.0°C');
     expect(angel.status).toBe('warn');
+  });
+
+  it('reads every band the engine stresses a fish past, and names the widest miss', () => {
+    const state = tank();
+    const soft: SimulationState = {
+      ...state,
+      resources: { ...state.resources, gh: getGhMass(2.6, state.resources.water) },
+    };
+    const guppy = option(fish(soft), 'guppy');
+
+    expect(guppy.fit).toBe(`wants GH ${FISH_SPECIES_DATA.guppy.ghRange.join('–')} — tank holds 2.6`);
+    expect(guppy.status).toBe('warn');
   });
 
   it('reads the fit through the same bioload the module’s row reads', () => {

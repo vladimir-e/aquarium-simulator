@@ -20,6 +20,7 @@ import {
 } from '../../simulation/index.js';
 import { settleEnvironment } from '../../simulation/tick.js';
 import type { TunableConfig } from '../../simulation/config/index.js';
+import { ammoniaPerGramOfFood } from '../../simulation/config/livestock.js';
 
 /** One organism on the hour ahead. */
 export interface OrganismAhead {
@@ -63,6 +64,8 @@ export interface HourAhead {
   gillAmmonia: number;
   /** Grams of waste decaying food leaves, off what the fish have not eaten. */
   foodWaste: number;
+  /** mg of NH₃ the oxidised share of that food releases straight into the water. */
+  foodAmmonia: number;
 }
 
 /**
@@ -95,6 +98,8 @@ export function readHourAhead(state: SimulationState, config: TunableConfig): Ho
   );
   const bloom = algaePass.state.algae.surplus;
   const food = bred.resources;
+  const decayed = calculateDecay(food.food, food.temperature, food.oxygen, config.decay);
+  const wasteShare = config.decay.wasteConversionRatio;
 
   return {
     plants: state.plants.map((plant, i) => ({
@@ -118,8 +123,7 @@ export function readHourAhead(state: SimulationState, config: TunableConfig): Ho
     shedding: plantPass.shedding,
     fishWaste: livestock.metabolism.wasteProduced,
     gillAmmonia: livestock.metabolism.ammoniaProduced,
-    foodWaste:
-      calculateDecay(food.food, food.temperature, food.oxygen, config.decay) *
-      config.decay.wasteConversionRatio,
+    foodWaste: decayed * wasteShare,
+    foodAmmonia: decayed * (1 - wasteShare) * ammoniaPerGramOfFood(config.livestock),
   };
 }

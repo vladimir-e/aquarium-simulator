@@ -4,15 +4,14 @@
  * counts them, how the bloom reads off its coverage, and the tank's nutrient
  * readings. Nothing here invents a band — a nutrient reads short when the
  * engine's own sufficiency would rise if that one were topped up, and high past
- * the edge the engine charges a plant from, so no surface can name a shortage
- * or an excess the plants are not actually feeling.
+ * a line the engine itself charges or alerts from, so no surface can name a
+ * shortage or an excess the tank is not actually feeling.
  */
 
 import {
   calculateNutrientSufficiency,
   floorCover,
   getDosePreview,
-  getPlantsToTrimCount,
   isOvergrown,
   MAX_DOSE_ML,
   PLANT_SPECIES_DATA,
@@ -40,15 +39,16 @@ import {
   type PlantsConfig,
   type TunableConfig,
 } from '../../simulation/config/index.js';
+import { NITRATE_EDGE } from '../../simulation/livestock/tolerance.js';
 import type { HourAhead } from './ahead.js';
-import { groupBy, mean } from './fold.js';
+import { groupBy, mean, numbered } from './fold.js';
 import { plantLightStatus } from './light.js';
 import {
   bankShare,
   groupMember,
   groupReading,
-  STATUS_SEVERITY,
   vitalReading,
+  worstStatus,
   type Reading,
   type Status,
 } from './status.js';
@@ -60,34 +60,24 @@ import {
 export const TRIM_TARGETS = [50, 75, 85];
 
 /**
- * The loosest rung on that ladder, and so the line a plant is "too big" against:
- * a plant above it is filling its unit and shading what's below.
+ * The bloom's ladder, each rung a multiple of the line it alerts over, so its
+ * word and its tone move together. Low algae is good for the player, so the
+ * tones run green → coral as it climbs.
  */
-const TRIM_CEILING = Math.max(...TRIM_TARGETS);
-
-/** Plants every rung of the trim ladder would cut — the reason to reach for it. */
-export function overTrimCount(state: SimulationState): number {
-  return getPlantsToTrimCount(state, TRIM_CEILING);
-}
-
-/**
- * Low algae mass is good for the player, so the colours run green → coral as it
- * climbs: warn past the line the bloom alerts over, alert past twice it.
- */
-export function algaeStatus(mass: number, line: number): Status {
-  return mass <= line ? 'ok' : mass <= 2 * line ? 'warn' : 'alert';
-}
-
-export function algaeWord(mass: number): string {
-  if (mass < 30) return 'sparse';
-  if (mass < 60) return 'active';
-  if (mass < 80) return 'spreading';
-  return 'booming';
-}
+const ALGAE_LADDER: readonly { upTo: number; reading: Reading }[] = [
+  { upTo: 0.5, reading: { status: 'ok', word: 'sparse' } },
+  { upTo: 1, reading: { status: 'ok', word: 'active' } },
+  { upTo: 2, reading: { status: 'warn', word: 'spreading' } },
+  { upTo: Infinity, reading: { status: 'alert', word: 'booming' } },
+];
 
 /** How the bloom reads off its coverage, against the line it alerts over. */
 export function algaeReading(mass: number, line: number): Reading {
-  return { status: algaeStatus(mass, line), word: algaeWord(mass) };
+  return ALGAE_LADDER.find((rung) => mass <= rung.upTo * line)!.reading;
+}
+
+export function algaeStatus(mass: number, line: number): Status {
+  return algaeReading(mass, line).status;
 }
 
 /** Where a plant stands among its kin, numbered the way a reader counts. */
@@ -101,16 +91,6 @@ export interface PlantLabel {
 }
 
 type Kin = Pick<Plant, 'id' | 'species' | 'familyId' | 'parentId'>;
-
-/** The order the tank drew an id in: the order its plants were planted and budded. */
-function drawOrder(id: string): number {
-  return parseInt(id.slice(id.indexOf('_') + 1), 36);
-}
-
-function numbered(ids: Iterable<string>): Map<string, number> {
-  const sorted = [...ids].sort((a, b) => drawOrder(a) - drawOrder(b) || 0);
-  return new Map(sorted.map((id, i) => [id, i + 1]));
-}
 
 /** Every plant's label, by id. The ids stay the engine's; these are the reader's. */
 export function plantLabels(plants: readonly Kin[]): Map<string, PlantLabel> {
@@ -194,15 +174,15 @@ export function plantRows(
   });
 }
 
-/** A share as the plant readings print it: floored, so it never reads a line it has not reached. */
+/** A share as the plant readings print it: rounded down, so it never reads a line it has not reached. */
 export function sharePercent(share: number): number {
   return Math.floor(share * 100);
 }
 
 /** What a family or a species reads as, over every unit under it. */
 export interface PlantGroupFigures {
-  /** Full units' worth of plant: the sizes summed, over 100. */
-  units: number;
+  /** The sizes summed, % of one full unit of the growth form. */
+  size: number;
   /** Mean condition across the units, the strip's figure. */
   condition: number;
   /** Hours the oldest unit has stood in the tank. */
@@ -215,13 +195,11 @@ export interface PlantGroupFigures {
 
 function figuresOf(members: PlantRow[]): PlantGroupFigures {
   return {
-    units: members.reduce((sum, member) => sum + member.size, 0) / 100,
+    size: members.reduce((sum, member) => sum + member.size, 0),
     condition: mean(members.map((member) => member.condition)),
     oldest: Math.max(...members.map((member) => member.age)),
     light: Math.min(...members.map((member) => member.light)),
-    lightStatus: members
-      .map((member) => member.lightStatus)
-      .reduce((worst, status) => (STATUS_SEVERITY[status] > STATUS_SEVERITY[worst] ? status : worst)),
+    lightStatus: members.map((member) => member.lightStatus).reduce(worstStatus),
   };
 }
 
@@ -276,7 +254,7 @@ export function groupPlantsBySpecies(rows: PlantRow[]): PlantSpeciesGroup[] {
 
 /**
  * How much of the floor the planting claims, never at a line it has not
- * reached: floored while it fits, and past the whole floor ceiled.
+ * reached: rounded down while it fits, and up once the planting has outgrown it.
  */
 export function floorPlanted(state: SimulationState): string {
   const cover = floorCover(state.plants, state.tank.capacity);
@@ -317,18 +295,25 @@ export interface NutrientReading {
   fill: number;
   /** Topping this one up would raise the engine's sufficiency for some plant. */
   limiting: boolean;
-  /** ppm past which the least hardy plant here takes harm; null where excess harms none. */
+  /** ppm past which it does harm; null where excess harms nothing. */
   ceiling: number | null;
-  /** Past that ceiling, so some plant is paying for it. */
+  /** Past that ceiling. */
   excess: boolean;
   /** Coral empty or harming, amber short, green at the need — grey while it holds nothing back. */
   status: Status;
 }
 
-/** Nitrate is the one plant food the engine charges an excess of, from each species' own edge. */
+/**
+ * Nitrate is the one plant food that is also a toxin: the engine alerts on it
+ * for the fish, and charges each plant past its species' own edge — so its
+ * ceiling is whichever comes first, and it is one reading wherever it shows.
+ */
 function ceilingPpm(state: SimulationState, key: Nutrient, config: PlantsConfig): number | null {
-  if (key !== 'nitrate' || state.plants.length === 0) return null;
-  return Math.min(...state.plants.map((plant) => plantNitrateEdge(plant.species, config)));
+  if (key !== 'nitrate') return null;
+  return Math.min(
+    NITRATE_EDGE,
+    ...state.plants.map((plant) => plantNitrateEdge(plant.species, config))
+  );
 }
 
 /** ppm at which the tank's hungriest plant has `NEED_SHARE` of its need met. */

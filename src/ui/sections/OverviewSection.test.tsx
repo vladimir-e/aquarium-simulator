@@ -2,6 +2,7 @@ import { describe, it, expect, afterEach, vi } from 'vitest';
 import { screen, cleanup, fireEvent, within } from '@testing-library/react';
 import { OverviewSection } from './OverviewSection';
 import { activeNeeds } from '../nav';
+import { readTank } from '../readings';
 import { bare, stocked, type Run } from '../test/run';
 import { query, renderStage } from '../test/stage';
 import { stubSim } from '../test/stubSim';
@@ -19,8 +20,9 @@ function renderOverview(
   const state = { ...run.state, alertState: { ...run.state.alertState, ...flags } };
   const sim = stubSim(state, run.history);
 
+  const book = readTank({ state, config: DEFAULT_CONFIG, history: run.history, units: 'metric' });
   renderStage(<OverviewSection sim={sim} config={DEFAULT_CONFIG} />, {
-    needs: activeNeeds(state),
+    needs: activeNeeds(state, book),
     onAct,
   });
   return sim;
@@ -62,8 +64,13 @@ describe('OverviewSection', () => {
     expect(strip()).toBeNull();
   });
 
-  it('names what is latched, in the tone the engine gives it, with the verb that answers it', () => {
-    renderOverview(bare(), { highAmmonia: true, highNitrate: true });
+  it('names what is latched, in the tone its own reading carries, with the verb that answers it', () => {
+    const fouled = bare();
+    fouled.state = {
+      ...fouled.state,
+      resources: { ...fouled.state.resources, ammonia: 5 * fouled.state.resources.water },
+    };
+    renderOverview(fouled, { highAmmonia: true, highNitrate: true });
 
     expect(screen.getByText('NH₃ high').className).toContain('text-alert');
     expect(screen.getByText('NO₃ high').className).toContain('text-warn');

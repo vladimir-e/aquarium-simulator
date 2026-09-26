@@ -59,7 +59,7 @@ import {
   type PlantSpeciesGroup,
   type SpeciesGroup,
   type NutrientReading,
-  type Reading,
+  type PopulationRosterRow,
   type RunSnapshot,
   type Status,
   type StockedBand,
@@ -67,9 +67,12 @@ import {
   type WaterReading,
   DAILY_LIGHT_DECIMALS,
   DAILY_LIGHT_UNIT,
-  NITRATE_LOW_PPM,
+  WATER_DECIMALS,
   WATER_SCALE,
+  dayTrend,
+  printsAsZero,
 } from '../run';
+import { categorizeLog } from '../review/category.js';
 import {
   formatTemperatureRange,
   toDisplayTemperature,
@@ -111,8 +114,8 @@ export interface ReadingView {
   at: number;
   band: StripBand | null;
   tone: StripTone;
-  /** Direction and rate per day; empty while it is steady. */
-  trend: string;
+  /** Direction and rate per day; empty while it holds, null until there is a clean day to measure it over. */
+  trend: string | null;
   /** What the band means, in the engine's words. */
   sentence: string;
   /** Fills minus drains, where the run layer can close the balance. */
@@ -154,7 +157,8 @@ export interface Roster {
   fish: SpeciesGroup[];
   fry: FryBatch | null;
   plants: PlantSpeciesGroup[];
-  algae: Reading;
+  /** The bloom as the one population row both rosters carry. */
+  algae: PopulationRosterRow;
 }
 
 /** The rack, and the clock the scheduled devices keep. */
@@ -202,12 +206,16 @@ type Series = (snapshot: RunSnapshot) => number;
  */
 interface Tape {
   history: RunSnapshot[];
+  /** The tick the keeper last acted on: the buffer before it is another tank's. */
+  since: number;
   series: Partial<Record<ReadingId, Series>>;
 }
 
-function tapeOf(history: RunSnapshot[], units: UnitSystem): Tape {
+function tapeOf(state: SimulationState, history: RunSnapshot[], units: UnitSystem): Tape {
+  const acted = state.logs.filter((log) => categorizeLog(log) === 'user');
   return {
     history,
+    since: acted.length > 0 ? acted[acted.length - 1].tick : -Infinity,
     series: {
       ammonia: (s) => s.ammonia,
       nitrite: (s) => s.nitrite,
@@ -228,17 +236,17 @@ function tapeOf(history: RunSnapshot[], units: UnitSystem): Tape {
 /** Fixed precision per reading — the one place a reading's decimals are set. */
 export const DECIMALS: Record<ReadingId, number> = {
   waste: 3,
-  ammonia: 3,
-  nitrite: 3,
-  nitrate: 1,
-  nitrateDemand: 1,
-  temperature: 1,
-  ph: 2,
-  kh: 1,
-  gh: 1,
-  level: 0,
-  oxygen: 1,
-  co2: 1,
+  ammonia: WATER_DECIMALS.ammonia,
+  nitrite: WATER_DECIMALS.nitrite,
+  nitrate: WATER_DECIMALS.nitrate,
+  nitrateDemand: WATER_DECIMALS.nitrate,
+  temperature: WATER_DECIMALS.temperature,
+  ph: WATER_DECIMALS.ph,
+  kh: WATER_DECIMALS.kh,
+  gh: WATER_DECIMALS.gh,
+  level: WATER_DECIMALS.water,
+  oxygen: WATER_DECIMALS.oxygen,
+  co2: WATER_DECIMALS.co2,
   phosphate: 2,
   potassium: 1,
   iron: 2,
@@ -292,25 +300,22 @@ function scale(max: number): (value: number) => number {
   return (value) => onScale(max, value);
 }
 
-function belowPrecision(value: number, decimals: number): boolean {
-  return Math.abs(value) < 0.5 / 10 ** decimals;
-}
+const DAY = 24;
 
 /**
- * Change per day, measured off the history buffer rather than modelled — over
- * the last 24 samples where there are that many, and extrapolated from what
- * there is where there are not.
+ * Change over the last day, measured off the history buffer rather than
+ * modelled, and only over a whole one the keeper has not touched: a part-day
+ * is a slice of the tank's daily swing, and an action is a step the tank did
+ * not take.
  */
-function measuredTrend(tape: Tape, id: ReadingId): string {
+function measuredTrend(tape: Tape, id: ReadingId): string | null {
   const read = tape.series[id];
   if (!read) return '';
-  const window = tape.history.slice(-24);
-  if (window.length < 2) return '';
-  const hours = window.length - 1;
-  const perDay = ((read(window[hours]) - read(window[0])) / hours) * 24;
-  const decimals = DECIMALS[id];
-  if (belowPrecision(perDay, decimals)) return '';
-  return `${perDay > 0 ? '↗' : '↘'} ${Math.abs(perDay).toFixed(decimals)}/d`;
+  const { history } = tape;
+  const last = history[history.length - 1];
+  const first = history[history.length - 1 - DAY];
+  if (!first || first.tick !== last.tick - DAY || first.tick < tape.since) return null;
+  return dayTrend(read(last) - read(first), DECIMALS[id]);
 }
 
 function toleranceSentence(
@@ -362,15 +367,26 @@ function signedRate(value: number, unit: RateUnit): string {
 
 /** One arm of a balance, or `none` where it is moving less than it can print. */
 export function ratePerHour(value: number, unit: RateUnit): string {
-  return belowPrecision(value, RATE_DECIMALS[unit]) ? 'none' : signedRate(value, unit);
+  return printsAsZero(value, RATE_DECIMALS[unit]) ? 'none' : signedRate(value, unit);
 }
 
 /** A stock's fills minus its drains, or `steady` where the two cancel. */
 export function netPerHour(value: number, unit: RateUnit): string {
-  return belowPrecision(value, RATE_DECIMALS[unit]) ? 'steady' : signedRate(value, unit);
+  return printsAsZero(value, RATE_DECIMALS[unit]) ? 'steady' : signedRate(value, unit);
 }
 
-/** A nutrient banded on what the plants ask for, rather than on an alert line. */
+/**
+ * What a nutrient's ceiling is, in words: nitrate's is the engine's alert line
+ * unless the least hardy plant's own edge comes first.
+ */
+function harmClause(id: ReadingId, ceiling: number | null): string {
+  if (ceiling === null) return '';
+  return ceiling < NITRATE_EDGE
+    ? `past ${said(id, ceiling)} the least hardy plant here takes harm, and the engine alerts over ${said(id, NITRATE_EDGE)}`
+    : `the engine alerts over ${said(id, ceiling)}`;
+}
+
+/** A nutrient banded on what the plants ask for, and nitrate on its alert line too. */
 function nutrientView(
   id: DemandId,
   reading: NutrientReading,
@@ -378,10 +394,7 @@ function nutrientView(
   fills: ReadingFlow[] = []
 ): NeedView {
   const at = scale(DISPLAY_CEILING[reading.key]);
-  const harm =
-    reading.ceiling === null
-      ? ''
-      : `; past ${said(id, reading.ceiling)} the least hardy plant here takes harm`;
+  const harm = harmClause(id, reading.ceiling);
   return {
     id,
     name: reading.label,
@@ -389,7 +402,7 @@ function nutrientView(
     unit: 'ppm',
     at: at(reading.ppm),
     band:
-      reading.needed > 0
+      reading.needed > 0 || reading.ceiling !== null
         ? { from: at(reading.needed), to: reading.ceiling === null ? 1 : at(reading.ceiling) }
         : null,
     tone: toneOf(reading.status),
@@ -397,8 +410,8 @@ function nutrientView(
     need: reading.needed > 0 ? `need ${reading.neededText}` : '',
     sentence:
       reading.needed > 0
-        ? `Plants ask for ${reading.neededText} ppm — below it the engine's own sufficiency drops${harm}.`
-        : 'Nothing planted, so nothing is asking for it.',
+        ? `Plants ask for ${reading.neededText} ppm — below it the engine's own sufficiency drops${harm && `; ${harm}`}.`
+        : `Nothing planted, so nothing is asking for it${harm && `; ${harm}`}.`,
     net: null,
     fills,
     drains: [],
@@ -412,11 +425,12 @@ function nutrientView(
  * nitrite projection — happen once per tick.
  */
 export function readTank({ state, config, history, units }: TankInput): ReadingBook {
-  const tape = tapeOf(history, units);
+  const tape = tapeOf(state, history, units);
   const ahead = readHourAhead(state, config);
-  const water = waterReadings(state, config, units);
-  const gases = gasReadings(state);
   const nutrients = nutrientReadings(state, config);
+  const nitrate = nutrients.find((n) => n.key === 'nitrate')!;
+  const water = waterReadings(state, config, units, nitrate);
+  const gases = gasReadings(state);
   const bacteria = bacteriaReadout(state, config, ahead);
   const waste = wasteReadout(state, config, ahead);
   const projection = projectNitritePeak(state, config, ahead);
@@ -441,6 +455,7 @@ export function readTank({ state, config, history, units }: TankInput): ReadingB
   const oxygenAt = scale(DISPLAY_CEILING.oxygen);
   const co2At = scale(DISPLAY_CEILING.co2);
   const lightAt = scale(DISPLAY_CEILING.dailyLight);
+  const algaeDrift = projectedDrift(ahead.algaeMass - algae);
 
   const nitrateFills: ReadingFlow[] = [
     { label: 'NOB clearing NO₂', rate: ratePerHour(rates.nitriteToNitrate, 'ppm') },
@@ -475,6 +490,7 @@ export function readTank({ state, config, history, units }: TankInput): ReadingB
       fills: [
         { label: 'Waste mineralising', rate: ratePerHour(rates.wasteToAmmonia, 'ppm') },
         { label: 'Fish gills', rate: ratePerHour(rates.gillsToAmmonia, 'ppm') },
+        { label: 'Food decaying', rate: ratePerHour(rates.foodToAmmonia, 'ppm') },
       ],
       drains: [{ label: 'AOB oxidising', rate: ratePerHour(-rates.ammoniaOxidised, 'ppm') }],
     }),
@@ -487,7 +503,10 @@ export function readTank({ state, config, history, units }: TankInput): ReadingB
     }),
     nitrate: fromWater('nitrate', tape, {
       reading: read('nitrate'),
-      sentence: `Plants go short under ${said('nitrate', NITRATE_LOW_PPM)} ppm; the engine alerts over ${said('nitrate', NITRATE_EDGE)}.`,
+      sentence:
+        nitrate.needed > 0
+          ? `Plants go short under ${nitrate.neededText} ppm; ${harmClause('nitrate', nitrate.ceiling)}.`
+          : `Nothing planted to feed on it; ${harmClause('nitrate', nitrate.ceiling)}.`,
       fills: nitrateFills,
       drains: [],
     }),
@@ -580,7 +599,7 @@ export function readTank({ state, config, history, units }: TankInput): ReadingB
       at: algaeAt(algae),
       band: { from: 0, to: algaeAt(algaeLine) },
       tone: toneOf(algaeStatus(algae, algaeLine)),
-      trend: projectedDrift(ahead.algaeMass - algae),
+      trend: algaeDrift,
       sentence: `Coverage the plants are competing with; over ${said('algae', algaeLine)} % it shades them, and the engine alerts.`,
       net: null,
       fills: [],
@@ -626,7 +645,17 @@ export function readTank({ state, config, history, units }: TankInput): ReadingB
       fish: groupBySpecies(fish, config.livestock),
       fry: groupFry(fish, config.livestock),
       plants: groupPlantsBySpecies(specimens),
-      algae: algaeReading(algae, algaeLine),
+      algae: {
+        kind: 'population',
+        key: 'algae',
+        name: 'Algae',
+        figure: `${byId.algae.value} %`,
+        caption: 'coverage',
+        trend: algaeDrift,
+        at: byId.algae.at,
+        band: byId.algae.band,
+        ...algaeReading(algae, algaeLine),
+      },
     },
     rack: {
       devices: equipmentRows(state, bacteria, units),

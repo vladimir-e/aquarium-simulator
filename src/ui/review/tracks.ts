@@ -72,7 +72,7 @@ export const TRACKS: TrackDef[] = [
     series: [
       { key: 'fishCount', label: 'fish', decimals: 0, accessor: (s) => s.fishCount },
       { key: 'fryCount', label: 'fry', decimals: 0, accessor: (s) => s.fryCount },
-      { key: 'plantAvgSize', label: 'plants', decimals: 0, accessor: (s) => s.plantAvgSize },
+      { key: 'plantCount', label: 'plants', decimals: 0, accessor: (s) => s.plantCount },
       { key: 'algaeMass', label: 'algae', decimals: DECIMALS.algae, accessor: (s) => s.algaeMass },
     ],
   },
@@ -118,19 +118,19 @@ export function seriesExtent(values: number[]): Extent {
   return { min, max };
 }
 
-/**
- * Relative floor on a series' span: variation under this fraction of the
- * series' own magnitude reads as flat, so float micro-noise on a steady line
- * (a heater holding 25 °C) doesn't stretch to full-height volatility.
- */
-const SPAN_EPSILON = 1e-3;
+/** Steps of a line's printed precision a track spans at the least. */
+const FLAT_STEPS = 4;
 
-/** Value → 0..1 within its extent; a flat (or near-flat) series sits centred. */
-export function normalize(value: number, extent: Extent): number {
-  const span = extent.max - extent.min;
-  const floor = Math.max(Math.abs(extent.min), Math.abs(extent.max), 1) * SPAN_EPSILON;
-  if (span <= floor) return 0.5;
-  return (value - extent.min) / span;
+/**
+ * Value → 0..1 within its extent, the span held to at least a few steps of
+ * the precision the caption prints the line at: a line that prints one figure end
+ * to end, or moves a step or two of it, stays near flat and centred rather than
+ * stretching to full height, and a line of zeros lies on the baseline.
+ */
+export function normalize(value: number, extent: Extent, decimals: number): number {
+  const span = Math.max(extent.max - extent.min, FLAT_STEPS * 10 ** -decimals);
+  const floor = Math.max(Math.min(0, extent.min), (extent.min + extent.max - span) / 2);
+  return (value - floor) / span;
 }
 
 /** One line of a track: its colour, its samples, and the extent it is drawn to. */

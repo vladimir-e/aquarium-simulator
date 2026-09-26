@@ -18,15 +18,14 @@ import { speciesHalfSaturation } from '../../simulation/systems/nutrients.js';
 import { MAX_DOSE_ML } from '../../simulation/actions/dose.js';
 import { produce } from 'immer';
 import {
+  algaeReading,
   algaeStatus,
-  algaeWord,
   doseDeltas,
   doseToCover,
   floorPlanted,
   formatDose,
   nutrientAlert,
   nutrientReadings,
-  overTrimCount,
   groupPlantsBySpecies,
   plantLabels,
   plantRows,
@@ -73,9 +72,18 @@ describe('condition + algae words', () => {
     expect(algaeStatus(30, 30)).toBe('ok');
     expect(algaeStatus(45, 30)).toBe('warn');
     expect(algaeStatus(61, 30)).toBe('alert');
-    expect(algaeWord(1)).toBe('sparse');
-    expect(algaeWord(70)).toBe('spreading');
-    expect(algaeWord(95)).toBe('booming');
+    expect(algaeReading(1, 30).word).toBe('sparse');
+    expect(algaeReading(45, 30).word).toBe('spreading');
+    expect(algaeReading(95, 30).word).toBe('booming');
+  });
+
+  it('cuts the word ladder from the same line as the tone, wherever it is tuned', () => {
+    for (const line of [20, 80]) {
+      expect(algaeReading(line * 0.4, line)).toEqual({ status: 'ok', word: 'sparse' });
+      expect(algaeReading(line, line)).toEqual({ status: 'ok', word: 'active' });
+      expect(algaeReading(line * 1.5, line)).toEqual({ status: 'warn', word: 'spreading' });
+      expect(algaeReading(line * 2.5, line)).toEqual({ status: 'alert', word: 'booming' });
+    }
   });
 });
 
@@ -135,7 +143,7 @@ describe('groupPlantsBySpecies', () => {
     expect(carpet.families.map((family) => family.familyId)).toEqual(['m']);
   });
 
-  it('sums a group’s units, and reads its oldest, its worst-lit and its mean condition', () => {
+  it('sums a group’s sizes, and reads its oldest, its worst-lit and its mean condition', () => {
     const [ferns] = grouped([
       unit('a', 'a', { size: 90, age: 900, light: 1.4, condition: 100 }),
       unit('a1', 'a', { size: 40, age: 100, light: 0.6, condition: 70 }),
@@ -143,9 +151,9 @@ describe('groupPlantsBySpecies', () => {
     ]);
     const [a, b] = ferns.families;
 
-    expect(a).toMatchObject({ units: 1.3, oldest: 900, light: 0.6, condition: 85 });
-    expect(b).toMatchObject({ units: 0.2, oldest: 300, light: 1.1, condition: 40 });
-    expect(ferns.units).toBeCloseTo(1.5, 10);
+    expect(a).toMatchObject({ size: 130, oldest: 900, light: 0.6, condition: 85 });
+    expect(b).toMatchObject({ size: 20, oldest: 300, light: 1.1, condition: 40 });
+    expect(ferns.size).toBeCloseTo(150, 10);
     expect(ferns).toMatchObject({ oldest: 900, light: 0.6, condition: 70 });
   });
 
@@ -486,24 +494,5 @@ describe('trim targets', () => {
       const trimmed = applyAction(grown, { type: 'trimPlants', targetSize: target }).state;
       expect(trimmed.plants[0].size).toBe(target);
     }
-  });
-});
-
-describe('overTrimCount', () => {
-  function sized(size: number): SimulationState {
-    return applyAction(tank(), {
-      type: 'addPlant',
-      species: 'monte_carlo',
-      initialSize: size,
-    }).state;
-  }
-
-  it('counts the plants every rung of the trim ladder would cut', () => {
-    const ceiling = Math.max(...TRIM_TARGETS);
-
-    expect(overTrimCount(sized(ceiling + 1))).toBe(1);
-    expect(overTrimCount(sized(ceiling))).toBe(0);
-    expect(overTrimCount(sized(80))).toBe(0);
-    expect(getPlantsToTrimCount(sized(80), 75)).toBe(1);
   });
 });

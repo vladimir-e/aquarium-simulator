@@ -8,6 +8,7 @@ import { useConfig } from '../../hooks/useConfig';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts';
 import { useIsMobile } from '../../hooks/useMediaQuery';
 import { PresetLoadProvider } from '../../hooks/usePresetLoad';
+import { useReadingBook } from '../../hooks/useReadingBook';
 import type { useSimulation } from '../../hooks/useSimulation';
 import { useUnits } from '../../hooks/useUnits';
 import { type Need, activeNeeds, needySections } from '../../nav';
@@ -61,7 +62,8 @@ export function AppShell({ sim, config }: AppShellProps): React.JSX.Element {
   const [more, setMore] = useState(false);
   const acts = useActs(sim.executeAction);
 
-  const needs = useMemo(() => activeNeeds(sim.state), [sim.state]);
+  const book = useReadingBook(sim, config);
+  const needs = useMemo(() => activeNeeds(sim.state, book), [sim.state, book]);
   const alerts = useMemo(() => needySections(needs), [needs]);
   const tunablesModified = useMemo(() => countModified(config), [config]);
 

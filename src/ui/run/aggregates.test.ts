@@ -13,7 +13,6 @@ describe('emptyAggregates', () => {
       ticks: 0,
       deaths: 0,
       births: 0,
-      frySold: 0,
       alerts: 0,
       waterChangedL: 0,
     });
@@ -44,11 +43,6 @@ describe('accrueLogs', () => {
       createLog(2, 'simulation', 'info', 'Monte Carlo sent a runner', 'plant-propagated'),
     ];
     expect(accrueLogs(emptyAggregates(), logs)).toMatchObject({ births: 6, alerts: 0 });
-  });
-
-  it('sums fry sold from the entry count', () => {
-    const logs = [createLog(3, 'user', 'info', 'Sold 100 fry', 'fry-sold', 100)];
-    expect(accrueLogs(emptyAggregates(), logs).frySold).toBe(100);
   });
 
   it('falls back to one when a lifecycle entry omits a count', () => {
@@ -83,7 +77,6 @@ describe('accrueLogs', () => {
     expect(accrueLogs(emptyAggregates(), logs)).toMatchObject({
       deaths: 0,
       births: 0,
-      frySold: 0,
       alerts: 0,
     });
   });
@@ -98,7 +91,7 @@ describe('accrueLogs', () => {
       createLog(1, 'user', 'info', 'Fed fish'),
     ];
     const result = accrueLogs(start, logs);
-    expect(result).toMatchObject({ deaths: 1, births: 25, frySold: 25, alerts: 1 });
+    expect(result).toMatchObject({ deaths: 1, births: 25, alerts: 1 });
     expect(start.deaths).toBe(0);
     expect(result).not.toBe(start);
   });

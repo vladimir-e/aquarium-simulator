@@ -92,9 +92,30 @@ describe('rosterTables', () => {
     const second = fish[2] as IndividualRosterRow;
     expect(second.id).toBe('fish_a_2');
     expect(second.sex).toBe('female');
-    expect(second.tag).toBe('a_2');
+    expect(second.tag).toBe('#2');
+    expect(second.title).toBe('Neon Tetra #2');
     expect(second.figure).toBe('0.50 g');
     expect(second.age).toBe('120 d');
+  });
+
+  it('numbers fish within their species in the order they were stocked, never by id', () => {
+    const stocked = [
+      makeFish({ id: 'fish_1', species: 'neon_tetra' }),
+      makeFish({ id: 'fish_2', species: 'corydoras' }),
+      makeFish({ id: 'fish_a', species: 'neon_tetra' }),
+      makeFish({ id: 'fish_b', species: 'neon_tetra', stage: 'fry' }),
+    ];
+    const { fish } = tables(tank(stocked), ['species-neon_tetra', 'species-corydoras']);
+    const titles = fish
+      .filter((row): row is IndividualRosterRow => row.kind === 'individual')
+      .map((row) => row.title);
+
+    expect(titles).toEqual(['Neon Tetra #1', 'Neon Tetra #2', 'Corydoras #1']);
+    const ledger = readLedger(tank(stocked), DEFAULT_CONFIG, readHourAhead(tank(stocked), DEFAULT_CONFIG), {
+      kind: 'fish',
+      id: 'fish_a',
+    });
+    expect(ledger?.title).toBe('Neon Tetra #2');
   });
 
   it('gives a species row its mass per fish and a dot per individual', () => {
@@ -327,7 +348,7 @@ describe('rosterTables', () => {
       ]);
     });
 
-    it('counts what its dots stand for: families at the species, units in a family', () => {
+    it('counts its units at the species and in a family, the dots standing for families above', () => {
       const state = families();
       const [species, a, b, c] = tables(state, ['species-java_fern']).plants as [
         SpeciesRosterRow,
@@ -336,7 +357,7 @@ describe('rosterTables', () => {
         FamilyRosterRow,
       ];
 
-      expect(species).toMatchObject({ count: 3, members: 6, dot: 'family' });
+      expect(species).toMatchObject({ count: 6, caption: '3 families', dot: 'family' });
       expect(species.dots).toHaveLength(3);
       expect([a, b, c].map((family) => [family.count, family.dots.length])).toEqual([
         [3, 3],
@@ -345,7 +366,7 @@ describe('rosterTables', () => {
       ]);
       expect([a, b, c].map((family) => family.label)).toEqual(['family 1', 'family 2', 'family 3']);
       expect(a.title).toBe('Java Fern family 1');
-      expect(a.figure).toBe(`${((state.plants[0].size + 40) / 100).toFixed(1)} units`);
+      expect(a.figure).toBe(`Σ ${Math.floor(state.plants[0].size + 40)} %`);
     });
 
     it('agrees its dots with its word at every level, however the tank reads', () => {

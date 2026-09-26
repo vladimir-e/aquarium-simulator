@@ -118,7 +118,7 @@ describe('heater readings', () => {
     expect(value(read('heater'), 'Room')).toEqual({
       label: 'Room',
       value: '22°C',
-      note: 'set in Scenario',
+      note: 'set in Setup',
     });
   });
 });

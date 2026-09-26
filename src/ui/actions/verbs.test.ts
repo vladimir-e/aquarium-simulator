@@ -164,7 +164,7 @@ describe('the six verbs', () => {
         });
 
       expect(scoped(first, 75).options.map((o) => o.hint)).toEqual(['2 plants', '1 plant', 'none']);
-      expect(scoped(first, 75).meta).toBe('Java Fern · 1 of 2 plants · tallest 80 %');
+      expect(scoped(first, 75).meta).toBe('Java Fern · 1 of 2 plants · largest 80 %');
       expect(scoped(first, 75).commitLabel).toBe('Trim family to 75 %');
       expect(scoped(first, 75).title).toBe('Trim family 1');
       expect(scoped(second, 75).title).toBe('Trim family 2');
@@ -173,7 +173,7 @@ describe('the six verbs', () => {
       expect(detail(state, 'trimPlants', { ...DEFAULT_SETTINGS, trimPlants: 85 }).blocked).toBeNull();
     });
 
-    it('previews the shade the cut takes off the floor, though the tallest plant stands elsewhere', () => {
+    it('previews the shade the cut takes off the floor, though the largest plant stands elsewhere', () => {
       const { state, first } = families();
       const preview = verbDetail(state, 'trimPlants', DEFAULT_SETTINGS, 'metric', DEFAULT_CONFIG, {
         familyId: first,

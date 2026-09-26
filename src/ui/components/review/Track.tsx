@@ -83,7 +83,10 @@ export const Track = React.memo(function Track({
           key={line.series.key}
           data-line={line.series.key}
           points={ticks
-            .map((tick, i) => `${x(tick)},${y(normalize(line.values[i], line.extent))}`)
+            .map(
+              (tick, i) =>
+                `${x(tick)},${y(normalize(line.values[i], line.extent, line.series.decimals))}`
+            )
             .join(' ')}
           fill="none"
           stroke={line.color}

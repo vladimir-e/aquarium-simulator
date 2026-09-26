@@ -26,8 +26,11 @@ export {
   bankShare,
   conditionStatus,
   conditionWord,
+  dayTrend,
+  printsAsZero,
   projectedDrift,
   worstReading,
+  worstStatus,
 } from './status.js';
 export {
   type BloomBankAhead,
@@ -41,11 +44,11 @@ export {
   classifyAmmonia,
   classifyLevel,
   classifyVital,
-  NITRATE_LOW_PPM,
   type VitalKey,
 } from './vitals.js';
 export {
   type ReadingBand,
+  WATER_DECIMALS,
   readingAt,
   trackAt,
   ammoniaScale,
@@ -82,7 +85,10 @@ export {
   hungerOf,
   countFry,
   type FishRead,
+  type Satiation,
   fishReading,
+  fishSatiation,
+  fishTitle,
   readFish,
   type RosterFigures,
   type SpeciesGroup,
@@ -94,7 +100,6 @@ export {
 export {
   CONDITION_BAND,
   type SpeciesId,
-  type Satiation,
   type LightFigure,
   type RosterRow,
   type SpeciesRosterRow,
@@ -107,7 +112,6 @@ export {
   type Inspection,
   inspection,
   rosterTables,
-  shortId,
 } from './roster.js';
 export {
   type Ledger,
@@ -129,7 +133,6 @@ export {
 export {
   algaeReading,
   algaeStatus,
-  algaeWord,
   type PlantLabel,
   plantLabels,
   familyTitle,

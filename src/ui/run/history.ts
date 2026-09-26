@@ -27,15 +27,10 @@ export interface RunSnapshot {
   /** Adults only — fry are counted apart, as the roster counts them. */
   fishCount: number;
   fryCount: number;
-  plantAvgSize: number;
+  plantCount: number;
   algaeMass: number;
   food: number;
   lightOn: boolean;
-}
-
-function average(values: number[]): number {
-  if (values.length === 0) return 0;
-  return values.reduce((sum, v) => sum + v, 0) / values.length;
 }
 
 export function snapshotFromState(state: SimulationState): RunSnapshot {
@@ -56,7 +51,7 @@ export function snapshotFromState(state: SimulationState): RunSnapshot {
     waterPct: capacity > 0 ? (r.water / capacity) * 100 : 0,
     fishCount: state.fish.length - fryCount,
     fryCount,
-    plantAvgSize: average(state.plants.map((p) => p.size)),
+    plantCount: state.plants.length,
     algaeMass: state.algae.mass,
     food: r.food,
     lightOn: getLightOutput(state.equipment.light, state.tick % 24) > 0,

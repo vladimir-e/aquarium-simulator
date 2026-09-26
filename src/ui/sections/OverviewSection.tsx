@@ -33,7 +33,7 @@ export function OverviewSection({
   return (
     <>
       <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3 overflow-y-auto p-3">
-        <NeedsStrip needs={needs} book={book} onAct={onAct} />
+        <NeedsStrip needs={needs} onAct={onAct} />
 
         <div className="grid grid-cols-3 content-start items-start gap-3 max-md:grid-cols-1">
           <NitrogenWidget
