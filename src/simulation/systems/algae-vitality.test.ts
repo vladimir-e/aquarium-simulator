@@ -6,6 +6,7 @@ import {
   type AlgaeVitalityContext,
 } from './algae-vitality.js';
 import { algaeVitalityDefaults } from '../config/algae-vitality.js';
+import { getPlantPower } from './plant-power.js';
 import { getMassFromPpm } from '../resources/helpers.js';
 import type { Plant, Resources } from '../state.js';
 import type { PlantSpecies } from '../plants/species.js';
@@ -82,14 +83,14 @@ describe('buildAlgaeStressors', () => {
     expect(suppression?.amount).toBeGreaterThan(0);
     expect(suppression?.amount).toBeCloseTo(
       algaeVitalityDefaults.plantSuppressionSeverity *
-        (3.0 - algaeVitalityDefaults.suppressionThreshold),
+        (getPlantPower(plants) - algaeVitalityDefaults.suppressionThreshold),
       6
     );
   });
 
   it('weights plant power by health — sick plants do not suppress', () => {
-    const healthy = [makePlant('amazon_sword', { size: 200, condition: 100 })];
-    const dying = [makePlant('amazon_sword', { size: 200, condition: 0 })];
+    const healthy = [makePlant('amazon_sword', { size: 100, condition: 100 })];
+    const dying = [makePlant('amazon_sword', { size: 100, condition: 0 })];
 
     const healthyAmount = buildAlgaeStressors(ctx({ plants: healthy })).find(
       (s) => s.key === 'plant_suppression'

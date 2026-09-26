@@ -4,10 +4,10 @@ import { createRng } from '../core/rng.js';
 
 describe('createPlant', () => {
   it('builds a plant at full condition with an empty bank, as a fish arrives', () => {
-    const plant = createPlant({ species: 'anubias', size: 140, rng: createRng(1) });
+    const plant = createPlant({ species: 'anubias', size: 80, rng: createRng(1) });
 
     expect(plant.species).toBe('anubias');
-    expect(plant.size).toBe(140);
+    expect(plant.size).toBe(80);
     expect(plant.condition).toBe(100);
     expect(plant.surplus).toBe(0);
   });

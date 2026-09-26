@@ -377,13 +377,13 @@ describe('createSimulation seeding', () => {
     it('plants a group at a size, defaulting to a young specimen', () => {
       const state = createSimulation(TANK, {
         plants: [
-          { species: 'java_fern', count: 3, size: 180 },
+          { species: 'java_fern', count: 3, size: 80 },
           { species: 'anubias' },
         ],
       });
 
       expect(state.plants).toHaveLength(4);
-      expect(state.plants.slice(0, 3).map((p) => p.size)).toEqual([180, 180, 180]);
+      expect(state.plants.slice(0, 3).map((p) => p.size)).toEqual([80, 80, 80]);
       expect(state.plants[3].species).toBe('anubias');
       expect(state.plants[3].size).toBe(DEFAULT_PLANT_SIZE);
       expect(
@@ -400,7 +400,7 @@ describe('createSimulation seeding', () => {
         { species: 'neon_tetra', count: 8 },
         { species: 'corydoras', count: 4, sex: 'female', age: 24 * 200 },
       ],
-      plants: [{ species: 'java_fern', count: 3, size: 120 }],
+      plants: [{ species: 'java_fern', count: 3, size: 90 }],
     };
 
     it('builds the same tank twice from one seed and rng seed, ids included', () => {

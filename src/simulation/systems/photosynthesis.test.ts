@@ -2,7 +2,6 @@ import { describe, it, expect } from 'vitest';
 import {
   calculateCo2Factor,
   calculatePhotosynthesis,
-  getTotalPlantSize,
   GH_HALF_SATURATION,
   GH_PER_NITRATE_DRAWN,
   type PhotosynthesisResult,
@@ -21,6 +20,7 @@ import type { PlantSpecies } from '../plants/species.js';
 import { CO2_TO_O2_MASS_RATIO, MW_CO2, MW_O2 } from '../core/chemistry.js';
 import { lightSaturationFactor, monodFactor, monodUptake } from '../core/kinetics.js';
 import { getSaturationIrradiance } from '../plants/species.js';
+import { rateUnits } from '../plants/canopy.js';
 
 const INJECTED_CO2 = 25;
 const PLENTIFUL_CO2 = 1e9;
@@ -122,7 +122,7 @@ describe('calculatePhotosynthesis', () => {
   ): PhotosynthesisResult {
     return calculatePhotosynthesis(
       plants,
-      lightPar,
+      plants.map(() => lightPar),
       co2,
       resources,
       volume,
@@ -136,7 +136,7 @@ describe('calculatePhotosynthesis', () => {
 
   function capacity(p: Plant, n: Nutrient): number {
     const potential =
-      (p.size / 100) *
+      rateUnits(p) *
       calculateCo2Factor(INJECTED_CO2, p.species) *
       lightSaturationFactor(light, getSaturationIrradiance(p.species, plantsDefaults)) *
       plantsDefaults.basePhotosynthesisRate;
@@ -145,7 +145,7 @@ describe('calculatePhotosynthesis', () => {
 
   function carbonCapacity(p: Plant, config = plantsDefaults): number {
     return (
-      (p.size / 100) *
+      rateUnits(p) *
       lightSaturationFactor(light, getSaturationIrradiance(p.species, config)) *
       calculateNutrientSufficiency(buildResources(waterVolume), waterVolume, p.species) *
       config.basePhotosynthesisRate *
@@ -280,7 +280,7 @@ describe('calculatePhotosynthesis', () => {
     it('shares the carbon yield with respiration, which is why there is one of it', () => {
       const fern = plant(100, 'java_fern');
       for (const config of [plantsDefaults, { ...plantsDefaults, co2PerRateUnit: 7 }]) {
-        const respired = calculateRespiration(100, 25, AIR_SATURATED_O2, config).co2ProducedMg;
+        const respired = calculateRespiration(rateUnits(fern), 25, AIR_SATURATED_O2, config).co2ProducedMg;
         const capacity =
           ((respired / config.baseRespirationRate) * config.basePhotosynthesisRate) /
           monodFactor(AIR_SATURATED_O2, config.respirationOxygenHalfSaturation) *
@@ -310,7 +310,7 @@ describe('calculatePhotosynthesis', () => {
     });
 
     it('pools the carbon draw at the capacity-weighted CO₂ half-saturation', () => {
-      const fern = plant(300, 'java_fern');
+      const fern = plant(100, 'java_fern');
       const monte = plant(100, 'monte_carlo');
       const [a, b] = [carbonCapacity(fern), carbonCapacity(monte)];
       const weighted =
@@ -425,7 +425,7 @@ describe('calculatePhotosynthesis', () => {
     });
 
     it('pools the planting into one draw, at the capacity-weighted half-saturation', () => {
-      const fern = plant(300, 'java_fern');
+      const fern = plant(100, 'java_fern');
       const monte = plant(100, 'monte_carlo');
       const stock = nutrientsDefaults.halfSaturation.iron * waterVolume;
       const result = photosynthesis([fern, monte], {
@@ -445,7 +445,8 @@ describe('calculatePhotosynthesis', () => {
 
     it('never draws more of a nutrient than the water holds', () => {
       const trace = buildResources(waterVolume, { phosphate: 1e-6 });
-      const result = photosynthesis([plant(5000, 'monte_carlo')], { resources: trace });
+      const carpet = Array.from({ length: 50 }, (_, i) => ({ ...plant(100, 'monte_carlo'), id: `mc-${i}` }));
+      const result = photosynthesis(carpet, { resources: trace });
 
       expect(-result.phosphateDelta).toBeLessThanOrEqual(1e-6);
     });
@@ -524,13 +525,39 @@ describe('calculatePhotosynthesis', () => {
     });
   });
 
-  describe('scaling with plant size', () => {
+  describe('scaling with leaf area', () => {
     it('biomass scales linearly with plant size while the carbon is plentiful', () => {
+      const r50 = photosynthesis([plant(50, 'java_fern')], { co2: PLENTIFUL_CO2 });
       const r100 = photosynthesis([plant(100, 'java_fern')], { co2: PLENTIFUL_CO2 });
-      const r200 = photosynthesis([plant(200, 'java_fern')], { co2: PLENTIFUL_CO2 });
 
-      expect(r200.oxygenProducedMg).toBeCloseTo(r100.oxygenProducedMg * 2, 6);
-      expect(r200.co2ConsumedMg).toBeCloseTo(r100.co2ConsumedMg * 2, 6);
+      expect(r100.oxygenProducedMg).toBeCloseTo(r50.oxygenProducedMg * 2, 6);
+      expect(r100.co2ConsumedMg).toBeCloseTo(r50.co2ConsumedMg * 2, 6);
+    });
+
+    it('rates a plant by its leaf, not its size: a full sword out-fixes a full carpet patch by their rate units', () => {
+      const fixed = (p: Plant): number =>
+        photosynthesis([p], { co2: PLENTIFUL_CO2, lightPar: 1e6 }).co2ConsumedMg /
+        calculateNutrientSufficiency(buildResources(waterVolume), waterVolume, p.species);
+      const sword = plant(100, 'amazon_sword');
+      const patch = plant(100, 'monte_carlo');
+
+      expect(fixed(sword) / fixed(patch)).toBeCloseTo(rateUnits(sword) / rateUnits(patch), 6);
+    });
+
+    it('runs each plant on the light at its own leaf', () => {
+      const lit = plant(100, 'java_fern');
+      const shaded = { ...plant(100, 'java_fern'), id: 'shaded' };
+      const resources = buildResources(waterVolume);
+      const both = calculatePhotosynthesis(
+        [lit, shaded],
+        [light, 0],
+        PLENTIFUL_CO2,
+        resources,
+        waterVolume,
+        suffMap([lit, shaded], resources, waterVolume)
+      );
+
+      expect(both).toEqual(photosynthesis([lit], { co2: PLENTIFUL_CO2 }));
     });
 
     it('sums contributions from multiple plants', () => {
@@ -539,15 +566,5 @@ describe('calculatePhotosynthesis', () => {
 
       expect(pair.oxygenProducedMg).toBeCloseTo(solo.oxygenProducedMg, 4);
     });
-  });
-});
-
-describe('getTotalPlantSize', () => {
-  it('returns 0 for empty array', () => {
-    expect(getTotalPlantSize([])).toBe(0);
-  });
-
-  it('sums sizes of multiple plants', () => {
-    expect(getTotalPlantSize([{ size: 50 }, { size: 75 }, { size: 100 }])).toBe(225);
   });
 });

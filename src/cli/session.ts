@@ -18,6 +18,11 @@ import type { HistorySnapshot } from './history.js';
  * missing field. Parallel to the UI's `PERSISTENCE_VERSION`. Pre-launch
  * rule is reject, not migrate.
  *
+ * v15 sized plants against one full unit of their growth form and lit them at
+ *    their own height. `Plant.size` stops at 100, and `OpticsConfig` gains
+ *    `leafAttenuationPerLai`. A v14 session parses, and the first tick with a
+ *    plant in it reads a canopy off the key it does not carry: every plant's
+ *    light, condition and bank are `NaN` from there on.
  * v14 put every organism on one vitality model. `Resources` gains
  *    `lightByHour`, the day of PAR the plants' daily light integral reads;
  *    `PlantsConfig` drops `upkeepCost`, `upkeepReserveHours`,
@@ -108,7 +113,7 @@ import type { HistorySnapshot } from './history.js';
  * v2 added `Fish.stage` + `state.clutches` (breeding) and the saturating
  *    surplus bank.
  */
-export const SESSION_VERSION = 14;
+export const SESSION_VERSION = 15;
 export const DEFAULT_SESSION_PATH = resolve(process.cwd(), '.simstate/current.json');
 
 export interface Session {

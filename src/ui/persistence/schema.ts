@@ -207,7 +207,7 @@ const PlantSchema = z
   .object({
     id: z.string(),
     species: z.enum(['java_fern', 'anubias', 'amazon_sword', 'dwarf_hairgrass', 'monte_carlo']),
-    size: z.number().min(0),
+    size: z.number().min(0).max(100),
     condition: z.number().min(0).max(100),
     surplus: z.number().min(0),
   })
@@ -420,6 +420,7 @@ const AlgaeConfigSchema = z
 const OpticsConfigSchema = z
   .object({
     waterAttenuationPerCm: z.number().min(0).max(MAX_WATER_ATTENUATION_PER_CM),
+    leafAttenuationPerLai: z.number().min(0),
   })
   .strict();
 

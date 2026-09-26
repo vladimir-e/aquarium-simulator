@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { getMaxPlants, type FishSpecies, type PlantSpecies } from '../../simulation/index.js';
+import { floorCover, type FishSpecies, type PlantSpecies } from '../../simulation/index.js';
 import type { TunableConfig } from '../../simulation/config/index.js';
 import { useStage } from '../components/layout/AppShell';
 import { ModuleGroup, ModulePage } from '../components/layout/ModulePage';
@@ -185,7 +185,7 @@ export function LifeSection({
             />
           </ModuleGroup>
 
-          <ModuleGroup title="Plants" meta={`${state.plants.length} of ${getMaxPlants(state.tank.capacity)} planted`}>
+          <ModuleGroup title="Plants" meta={`floor ${Math.round(floorCover(state.plants, state.tank.capacity) * 100)} % planted`}>
             <Roster layout="plants" rows={[algae, ...tables.plants]} handlers={handlers('plant')} />
             {tables.plants.length === 0 && (
               <RosterEmpty

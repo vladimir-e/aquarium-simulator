@@ -1,6 +1,14 @@
 import { describe, it, expect } from 'vitest';
-import { processPlants, readPlantVitality, plantHealingRate } from './index.js';
-import { createSimulation, type SimulationState, type Plant, type Resources } from '../state.js';
+import { processPlants, readPlantLight, readPlantVitality, plantHealingRate } from './index.js';
+import { canopyLight, plantHeight } from './canopy.js';
+import {
+  calculateTankHeight,
+  createSimulation,
+  type SimulationState,
+  type Plant,
+  type Resources,
+} from '../state.js';
+import { dailyLightIntegral } from '../equipment/light.js';
 import type { PlantSpecies } from './species.js';
 import { produce } from 'immer';
 import { carbonateKh } from '../core/carbonate.js';
@@ -8,7 +16,7 @@ import { getKhMass } from '../resources/helpers.js';
 import { DEFAULT_CONFIG } from '../config/index.js';
 import { plantsDefaults } from '../config/plants.js';
 import { NUTRIENTS, nutrientsDefaults } from '../config/nutrients.js';
-import { CARE_SHEET_PHOTOPERIOD, PLANT_SPECIES_DATA } from './species.js';
+import { CARE_SHEET_PHOTOPERIOD, PLANT_SPECIES_DATA, dailyLightEdge } from './species.js';
 
 const INJECTED_CO2 = 25;
 
@@ -358,6 +366,71 @@ describe('processPlants', () => {
       processPlants(state, DEFAULT_CONFIG);
 
       expect(state.plants[0].size).toBe(originalSize);
+    });
+  });
+
+  describe('light at each plant\'s height', () => {
+    const planting: Plant[] = [
+      { id: 'sword', species: 'amazon_sword', size: 90, condition: C, surplus: 0 },
+      { id: 'fern', species: 'java_fern', size: 40, condition: C, surplus: 0 },
+      { id: 'carpet', species: 'monte_carlo', size: 60, condition: C, surplus: 0 },
+    ];
+
+    it('reads PAR and the day at the mean leaf, and PAR at the crown top, off one canopy', () => {
+      const state = createTestState({ plants: planting, light: 70, lightByHour: LIT_DAY });
+      const canopy = canopyLight(planting, state.tank.capacity, DEFAULT_CONFIG.optics);
+      const substrateDay = dailyLightIntegral(LIT_DAY);
+
+      readPlantLight(state, DEFAULT_CONFIG).forEach((reading, i) => {
+        expect(reading.par).toBeCloseTo(70 * canopy[i].leaf, 12);
+        expect(reading.crownPar).toBeCloseTo(70 * canopy[i].top, 12);
+        expect(reading.dailyLight).toBeCloseTo(substrateDay * canopy[i].leaf, 12);
+        expect(reading.needShare).toBeCloseTo(reading.dailyLight / dailyLightEdge(planting[i].species), 12);
+        expect(reading.heightCm).toBe(plantHeight(planting[i], calculateTankHeight(state.tank.capacity)));
+      });
+    });
+
+    it('burns a lone plant on its crown top only: never while the water over a full one keeps it under its edge', () => {
+      const edge = PLANT_SPECIES_DATA.java_fern.tolerableLight[1];
+      const fullTop = (capacity: number): number =>
+        Math.exp(
+          DEFAULT_CONFIG.optics.waterAttenuationPerCm *
+            plantHeight({ species: 'java_fern', size: 100 }, calculateTankHeight(capacity))
+        );
+      const burn = (size: number, light: number): number => {
+        const state = createTestState({
+          plants: [{ id: 'fern', species: 'java_fern', size, condition: C, surplus: 0 }],
+          light,
+        });
+        return (
+          readPlantVitality(state, DEFAULT_CONFIG)[0].breakdown.stressors.find((s) => s.key === 'light')
+            ?.amount ?? 0
+        );
+      };
+      const atEdge = edge / fullTop(100);
+
+      for (const size of [1, 10, 50, 100]) expect(burn(size, atEdge)).toBe(0);
+      expect(burn(100, atEdge * 1.1)).toBeGreaterThan(0);
+    });
+
+    it('runs a size-0 unit, a dark tank and leaves that shade nothing without a NaN', () => {
+      const seedlings: Plant[] = [
+        ...planting,
+        { id: 'stub', species: 'amazon_sword', size: 0, condition: 50, surplus: 5 },
+      ];
+      const clear = { ...DEFAULT_CONFIG, optics: { ...DEFAULT_CONFIG.optics, leafAttenuationPerLai: 0 } };
+      for (const config of [DEFAULT_CONFIG, clear]) {
+        for (const light of [0, 70]) {
+          const state = createTestState({ plants: seedlings, light, lightByHour: light > 0 ? LIT_DAY : new Array(24).fill(0) });
+          const result = processPlants(state, config);
+          for (const effect of result.effects) expect(Number.isFinite(effect.delta)).toBe(true);
+          for (const plant of result.state.plants) {
+            expect(Number.isFinite(plant.size)).toBe(true);
+            expect(Number.isFinite(plant.condition)).toBe(true);
+            expect(Number.isFinite(plant.surplus)).toBe(true);
+          }
+        }
+      }
     });
   });
 

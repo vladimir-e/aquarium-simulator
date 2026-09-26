@@ -98,7 +98,7 @@ interface FishFactorContext {
 /**
  * Aggregate plant-presence contribution → saturated benefit (linear ramp).
  *
- * Plant power is `Σ (plant.size / 100) × (plant.condition / 100)` (see
+ * Plant power is each plant's rate units × `condition / 100`, summed (see
  * `getPlantPower`). The sum runs through `min(1, power / SAT)` so the
  * benefit tops out at `peak` regardless of overplanting — see
  * `plantBenefitSaturationPoint` in `LivestockConfig` for the calibration

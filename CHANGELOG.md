@@ -11,6 +11,9 @@ Format: - **Feature name** (#PR) - One short sentence (under ~150 chars)
 
 ## Unreleased
 
+- **Plants grow to one full unit and read light at their own height** - size 0–100 of a patch, specimen or clump; crowns shade what's below; breaking: no `maxSize`, vitality takes a `canopy`, photosynthesis per-plant PAR (v31, v15).
+- **Plants claim floor, not slots** - `addPlant` fits footprints to the floor, and no planting or trim goes under the death floor; breaking: `checkPlantFootprint` replaces `getMaxPlants`.
+- **Plants are rated by leaf** - photosynthesis, respiration, plant power and waste run on 500 cm² rate units; breaking: `getTotalRateUnits` replaces `getTotalPlantSize`.
 - **The planted preset injects like a keeper** - 0.5 bps holds CO₂ at 20–30 mg/L; carpets, java fern and anubias take pH down to 5.0, as published.
 - **The console reads sickness and the day's light** - a fish or plant losing condition reads sick, a group as its most urgent member, counted, and Daily light sits beside PAR.
 - **Healing rates are public** - `fishHealingRate` and `plantHealingRate` beside `computeVitality`; `scheduledLightHistory`, the day of light a new tank opens on.

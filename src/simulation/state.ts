@@ -125,7 +125,10 @@ export interface Plant {
   id: string;
   /** Plant species type */
   species: PlantSpecies;
-  /** Size percentage (can exceed 100% up to species `maxSize`). */
+  /**
+   * How full its unit is, % of one grown unit of its growth form — a patch, a
+   * specimen, a clump. Growth tapers to nothing at 100, so it stays below.
+   */
   size: number;
   /** Condition/health percentage (0-100, plant dies at 0) */
   condition: number;
@@ -420,6 +423,12 @@ export function calculateHardscapeSlots(capacityLiters: number): number {
  */
 export function calculateTankHeight(capacity: number): number {
   return Math.cbrt(capacity / 2) * 10;
+}
+
+/** Floor of the 2:1:1 box a capacity implies, cm². */
+export function calculateFloorArea(capacity: number): number {
+  const height = calculateTankHeight(capacity);
+  return 2 * height * height;
 }
 
 /** The light history of a tank that has run its fixture's schedule all along. */

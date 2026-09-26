@@ -52,9 +52,9 @@ describe('processAlgae', () => {
       draft.algae = { mass: 80, surplus: 0 };
       draft.resources.light = 0;
       draft.plants = [
-        { id: 'p1', species: 'amazon_sword', size: 200, condition: 100, surplus: 0 },
-        { id: 'p2', species: 'monte_carlo', size: 200, condition: 100, surplus: 0 },
-        { id: 'p3', species: 'java_fern', size: 200, condition: 100, surplus: 0 },
+        { id: 'p1', species: 'amazon_sword', size: 100, condition: 100, surplus: 0 },
+        { id: 'p2', species: 'monte_carlo', size: 100, condition: 100, surplus: 0 },
+        { id: 'p3', species: 'java_fern', size: 100, condition: 100, surplus: 0 },
       ];
     });
     const { state: out } = processAlgae(state, DEFAULT_CONFIG);
@@ -99,9 +99,9 @@ describe('processAlgae', () => {
       draft.algae = { mass: 0.001, surplus: 0 };
       draft.resources.light = 0;
       draft.plants = [
-        { id: 'p1', species: 'amazon_sword', size: 200, condition: 100, surplus: 0 },
-        { id: 'p2', species: 'monte_carlo', size: 200, condition: 100, surplus: 0 },
-        { id: 'p3', species: 'java_fern', size: 200, condition: 100, surplus: 0 },
+        { id: 'p1', species: 'amazon_sword', size: 100, condition: 100, surplus: 0 },
+        { id: 'p2', species: 'monte_carlo', size: 100, condition: 100, surplus: 0 },
+        { id: 'p3', species: 'java_fern', size: 100, condition: 100, surplus: 0 },
       ];
     });
     const { state: out } = processAlgae(state, DEFAULT_CONFIG);
@@ -111,9 +111,9 @@ describe('processAlgae', () => {
 
 describe('processAlgae — surplus buffer and cap', () => {
   const heavyPlants = (): Plant[] => [
-    { id: 'p1', species: 'amazon_sword', size: 200, condition: 100, surplus: 0 },
-    { id: 'p2', species: 'monte_carlo', size: 200, condition: 100, surplus: 0 },
-    { id: 'p3', species: 'java_fern', size: 200, condition: 100, surplus: 0 },
+    { id: 'p1', species: 'amazon_sword', size: 100, condition: 100, surplus: 0 },
+    { id: 'p2', species: 'monte_carlo', size: 100, condition: 100, surplus: 0 },
+    { id: 'p3', species: 'java_fern', size: 100, condition: 100, surplus: 0 },
   ];
 
   it('drains the reserve before shrinking mass under suppression', () => {

@@ -127,10 +127,10 @@ export interface LivestockConfig {
   /** Plant-presence benefit at saturation — see `plantBenefitSaturationPoint`. */
   plantBenefitPeak: number;
   /**
-   * Plant-presence saturation point — the sum of `(size/100)×(condition/100)`
-   * across all plants at which the benefit hits its peak. Three full-grown
-   * healthy plants of biomass saturate the benefit; beyond that adding
-   * more plants doesn't keep boosting fish vitality.
+   * Plant-presence saturation point — plant power (`getPlantPower`: rate
+   * units × condition/100, summed) at which the benefit hits its peak. Three
+   * full thriving fern clumps saturate it, and a sword alone comes close;
+   * beyond that adding more plants doesn't keep boosting fish vitality.
    */
   plantBenefitSaturationPoint: number;
 

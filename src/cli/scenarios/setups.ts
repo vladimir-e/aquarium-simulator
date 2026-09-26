@@ -129,7 +129,7 @@ export const SETUPS: Setup[] = [
     ],
     fish: [{ species: 'betta', count: 1, sex: 'male' }],
     cycled: true,
-    schedule: [...maintained, dose(1)],
+    schedule: [...maintained, dose(1), trim],
   },
   {
     name: 'low-tech',
@@ -147,7 +147,7 @@ export const SETUPS: Setup[] = [
     doser: null,
     ato: false,
     plants: [
-      { species: 'java_fern', count: 3, size: PLANTING_SIZE },
+      { species: 'java_fern', count: 2, size: PLANTING_SIZE },
       { species: 'anubias', count: 2, size: PLANTING_SIZE },
       { species: 'amazon_sword', count: 2, size: PLANTING_SIZE },
     ],
@@ -176,7 +176,7 @@ export const SETUPS: Setup[] = [
     plants: [
       { species: 'monte_carlo', count: 6, size: PLANTING_SIZE },
       { species: 'dwarf_hairgrass', count: 6, size: PLANTING_SIZE },
-      { species: 'amazon_sword', count: 3, size: PLANTING_SIZE },
+      { species: 'amazon_sword', count: 2, size: PLANTING_SIZE },
       { species: 'java_fern', count: 3, size: PLANTING_SIZE },
     ],
     fish: [
@@ -263,7 +263,7 @@ export const SETUPS: Setup[] = [
     ],
     fish: [{ species: 'guppy', count: 8, sex: 'male' }],
     cycled: true,
-    schedule: [...maintained, dose(2)],
+    schedule: [...maintained, dose(2), trim],
     bands: {
       temp: { green: [62, 76], amber: [56, 80], why: 'unheated: room temperature is the point' },
     },

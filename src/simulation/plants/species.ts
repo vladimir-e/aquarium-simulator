@@ -13,6 +13,36 @@ export type PlantSpecies =
   | 'monte_carlo';
 
 /**
+ * How a species builds one unit — a carpet patch, a rosette specimen, a rhizome
+ * clump. `Plant.size` is how full that unit is, so the form fixes what size 100
+ * means: how tall it stands, how much floor it claims and how much leaf it
+ * carries over it.
+ */
+export type GrowthForm = 'carpet' | 'rosette' | 'attached';
+
+export interface GrowthFormData {
+  heightCm: number;
+  /** Height runs as size^heightExponent: 0 grows across, ⅓ grows isometrically. */
+  heightExponent: number;
+  footprintCm2: number;
+  leafAreaIndex: number;
+}
+
+/**
+ * One full unit of each form. Heights are the care-sheet ones — monte carlo
+ * 2–5 cm, amazon sword 30–50, java fern and anubias 15–30. A carpet cup covers
+ * about 10 × 10 cm, a sword is given 30 cm across, and an epiphyte clump takes
+ * a hand's width of rock. Leaf area index is leaf over footprint: herb mats run
+ * 2–4, a sword is some 25 leaves of 55 cm² over its 700, a fern clump a dozen
+ * fronds of 40 cm² over its 200.
+ */
+export const GROWTH_FORMS: Record<GrowthForm, GrowthFormData> = {
+  carpet: { heightCm: 5, heightExponent: 0, footprintCm2: 100, leafAreaIndex: 2.5 },
+  rosette: { heightCm: 40, heightExponent: 1 / 3, footprintCm2: 700, leafAreaIndex: 2.0 },
+  attached: { heightCm: 20, heightExponent: 1 / 3, footprintCm2: 200, leafAreaIndex: 2.5 },
+};
+
+/**
  * Nutrient demand tier. Scales both a plant's uptake and its half-saturation,
  * per nutrient.
  */
@@ -34,19 +64,8 @@ export interface PlantSpeciesData {
   substrateRequirement: 'none' | 'sand' | 'aqua_soil';
   /** Nutrient demand tier */
   nutrientDemand: NutrientDemand;
-  /**
-   * Per-plant biological maximum size (% units, same scale as `Plant.size`).
-   * Drives the asymptotic growth factor in `spendSurplus`:
-   * `factor = max(0, 1 - size / maxSize)`. The factor reduces spending
-   * efficiency as the plant approaches `maxSize` so it self-limits.
-   *
-   * Values are sized so that within calibration test windows (peak per-plant
-   * size ≤ ~100%), the factor stays > 0.9 — the asymptotic term is
-   * effectively 1.0 during calibration runs. Slow attached species (Java
-   * Fern, Anubias) cap lower than fast column / carpet species, reflecting
-   * relative biological growth ceilings in real tanks.
-   */
-  maxSize: number;
+  /** How one unit of the species is built — see {@link GROWTH_FORMS}. */
+  growthForm: GrowthForm;
   /**
    * Hardiness 0–1. Scales most stressors by `1 − hardiness` and carries the
    * nitrate edge out — higher = species tolerates poor conditions better.
@@ -55,12 +74,12 @@ export interface PlantSpeciesData {
    */
   hardiness: number;
   /**
-   * Tolerable PAR range (µmol/m²/s) at the substrate, as care sheets quote it
-   * for a {@link CARE_SHEET_PHOTOPERIOD}-hour day. The low end held that long
-   * is the daily light the species starves under (see {@link dailyLightEdge});
-   * past the high end the light-excessive stressor burns it while the lamps
-   * are on. The hobby's published tiers are low 15-30, medium 30-50, high
-   * 50-80+.
+   * Tolerable PAR range (µmol/m²/s) on the plant's own leaves, as care sheets
+   * quote it for a {@link CARE_SHEET_PHOTOPERIOD}-hour day. The low end held
+   * that long is the daily light the species starves under (see
+   * {@link dailyLightEdge}); past the high end the light-excessive stressor
+   * burns the top of its crown while the lamps are on. The hobby's published
+   * tiers are low 15-30, medium 30-50, high 50-80+.
    */
   tolerableLight: [number, number];
   /** Tolerable temperature range in °C — outside is stress. */
@@ -77,13 +96,11 @@ export interface PlantSpeciesData {
 export const PLANT_SPECIES_DATA: Record<PlantSpecies, PlantSpeciesData> = {
   java_fern: {
     name: 'Java Fern',
+    growthForm: 'attached',
     co2Requirement: 'low',
     growthRate: 0.5,
     substrateRequirement: 'none', // Attaches to hardscape
     nutrientDemand: 'low', // Can survive on fish waste alone
-    // Slow attached fern. Calibration peak (S2A day 28): 54%.
-    // factor at peak = 1 - 54/600 = 0.91 → calibration-safe.
-    maxSize: 600,
     hardiness: 0.7, // Forgiving — survives most beginner setups
     // Alive at 10 PAR — below anything the hobby calls low light — and
     // bleaches past 90, which takes the brightest fixture in the catalog.
@@ -94,13 +111,11 @@ export const PLANT_SPECIES_DATA: Record<PlantSpecies, PlantSpeciesData> = {
   },
   anubias: {
     name: 'Anubias',
+    growthForm: 'attached',
     co2Requirement: 'low',
     growthRate: 0.3,
     substrateRequirement: 'none', // Attaches to hardscape
     nutrientDemand: 'low', // Can survive on fish waste alone
-    // Slowest, attached. S4A day 56 anubias hits 68%.
-    // factor at peak = 1 - 68/700 = 0.903 → calibration-safe.
-    maxSize: 700,
     hardiness: 0.75, // Hardiest of the bunch — bombproof
     // Deepest-shade tolerance of the five — 8 PAR is the understory of a
     // stocked scape. Its thick slow leaves scorch past 70.
@@ -111,13 +126,11 @@ export const PLANT_SPECIES_DATA: Record<PlantSpecies, PlantSpeciesData> = {
   },
   amazon_sword: {
     name: 'Amazon Sword',
+    growthForm: 'rosette',
     co2Requirement: 'medium',
     growthRate: 1.0,
     substrateRequirement: 'sand',
     nutrientDemand: 'medium', // Benefits from dosing
-    // Medium-rate column plant. Calibration peak (S2A day 28): 73%.
-    // factor at peak = 1 - 73/800 = 0.909 → calibration-safe.
-    maxSize: 800,
     hardiness: 0.5,
     // Medium-light plant, and a big one: it holds on at 20 PAR but only
     // fills out toward the middle of the band, and 120 is past anything
@@ -129,13 +142,11 @@ export const PLANT_SPECIES_DATA: Record<PlantSpecies, PlantSpeciesData> = {
   },
   dwarf_hairgrass: {
     name: 'Dwarf Hairgrass',
+    growthForm: 'carpet',
     co2Requirement: 'high',
     growthRate: 1.5,
     substrateRequirement: 'aqua_soil',
     nutrientDemand: 'high', // Requires regular dosing
-    // Fast carpet. No direct calibration coverage; matched to monte_carlo
-    // since both are high-demand carpet species with similar growth rates.
-    maxSize: 1100,
     hardiness: 0.3, // Fussy — needs everything dialled in
     // High-light carpet — below 25 PAR at the substrate it grows upward
     // instead of across. Tolerates the 200 PAR a high-tech scape runs.
@@ -146,13 +157,11 @@ export const PLANT_SPECIES_DATA: Record<PlantSpecies, PlantSpeciesData> = {
   },
   monte_carlo: {
     name: 'Monte Carlo',
+    growthForm: 'carpet',
     co2Requirement: 'high',
     growthRate: 1.8,
     substrateRequirement: 'aqua_soil',
     nutrientDemand: 'high', // Requires regular dosing
-    // Fast carpet. Calibration peak (S2A day 28): 103%.
-    // factor at peak = 1 - 103/1100 = 0.906 → calibration-safe.
-    maxSize: 1100,
     hardiness: 0.3, // Fussy — same band as hairgrass
     // Hungrier for light than hairgrass — 30 PAR at the substrate is the
     // usual advice for a carpet that actually carpets.
@@ -162,6 +171,10 @@ export const PLANT_SPECIES_DATA: Record<PlantSpecies, PlantSpeciesData> = {
     tolerableGH: [1, 15],
   },
 };
+
+export function growthFormOf(species: PlantSpecies): GrowthFormData {
+  return GROWTH_FORMS[PLANT_SPECIES_DATA[species].growthForm];
+}
 
 /** Hours a day the care-sheet PAR bands assume the lamps are on. */
 export const CARE_SHEET_PHOTOPERIOD = 8;

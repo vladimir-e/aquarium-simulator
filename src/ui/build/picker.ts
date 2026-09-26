@@ -7,10 +7,9 @@
 
 import {
   checkFishCapacity,
-  checkPlantCapacity,
+  checkPlantFootprint,
   FISH_SPECIES_DATA,
   getMaxFishMass,
-  getMaxPlants,
   getSubstrateIncompatibilityReason,
   isSubstrateCompatible,
   PLANT_SPECIES_DATA,
@@ -90,19 +89,18 @@ function plantOption(state: SimulationState, species: PlantSpecies): PickerOptio
   const data = PLANT_SPECIES_DATA[species];
   const substrate = state.equipment.substrate.type;
   const compatible = isSubstrateCompatible(species, substrate);
-  const max = getMaxPlants(state.tank.capacity);
-  const free = Math.max(0, max - state.plants.length);
-  const capacity = checkPlantCapacity(state.plants, state.tank.capacity);
+  const footprint = checkPlantFootprint(state.plants, species, state.tank.capacity);
+  const headroom = Math.floor(footprint.free / footprint.needed);
   const reason = getSubstrateIncompatibilityReason(species, substrate);
 
   return {
     species,
     name: data.name,
     demand: `${data.nutrientDemand} demand · ${lightTier(species)} light · ${data.co2Requirement} CO₂`,
-    fit: compatible ? `${free} of ${max} slots free` : (reason ?? ''),
-    status: compatible && free > 0 ? 'neutral' : 'warn',
-    headroom: compatible ? free : 0,
-    refusal: !compatible ? reason : capacity.ok ? null : capacity.message,
+    fit: compatible ? `${Math.round(footprint.free)} cm² of floor free` : (reason ?? ''),
+    status: compatible && footprint.ok ? 'neutral' : 'warn',
+    headroom: compatible ? headroom : 0,
+    refusal: !compatible ? reason : footprint.ok ? null : footprint.message,
   };
 }
 

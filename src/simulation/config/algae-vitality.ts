@@ -24,9 +24,10 @@ export interface AlgaeVitalityConfig {
 
   /**
    * Plant-power threshold above which suppression activates.
-   * Power = Σ (plant.size/100) × (plant.condition/100). One full-
-   * grown thriving plant contributes 1.0; the threshold of 1.0 means
-   * a single healthy plant just starts pushing algae back.
+   * Power = Σ rate units × (plant.condition/100), see `getPlantPower`.
+   * A full thriving java fern clump contributes 1.0, a sword 2.8; the
+   * threshold of 1.0 means one healthy clump just starts pushing algae
+   * back.
    */
   suppressionThreshold: number;
   /**

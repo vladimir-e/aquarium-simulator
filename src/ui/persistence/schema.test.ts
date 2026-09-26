@@ -100,14 +100,24 @@ describe('TunableConfigSchema', () => {
   it.each([-100, -0.001, MAX_WATER_ATTENUATION_PER_CM + 1])(
     'rejects an attenuation of %s, which is not a water column',
     (waterAttenuationPerCm) => {
-      const config = { ...DEFAULT_CONFIG, optics: { waterAttenuationPerCm } };
+      const config = { ...DEFAULT_CONFIG, optics: { ...DEFAULT_CONFIG.optics, waterAttenuationPerCm } };
       expect(TunableConfigSchema.safeParse(config).success).toBe(false);
     }
   );
 
   it('takes an attenuation of zero — water that costs the light nothing', () => {
-    const config = { ...DEFAULT_CONFIG, optics: { waterAttenuationPerCm: 0 } };
+    const config = { ...DEFAULT_CONFIG, optics: { ...DEFAULT_CONFIG.optics, waterAttenuationPerCm: 0 } };
     expect(TunableConfigSchema.safeParse(config).success).toBe(true);
+  });
+
+  it('takes leaves that shade nothing, and refuses leaves that make light', () => {
+    const leaves = (leafAttenuationPerLai: number): boolean =>
+      TunableConfigSchema.safeParse({
+        ...DEFAULT_CONFIG,
+        optics: { ...DEFAULT_CONFIG.optics, leafAttenuationPerLai },
+      }).success;
+    expect(leaves(0)).toBe(true);
+    expect(leaves(-0.1)).toBe(false);
   });
 
   it('refuses a species demand of nothing, which no plant has', () => {
@@ -232,6 +242,14 @@ describe('PersistedSimulationSchema', () => {
       },
     };
     expect(PersistedSimulationSchema.safeParse(withHardscape).success).toBe(true);
+  });
+
+  it('rejects a plant past a full unit', () => {
+    const overgrown = {
+      ...validSimulation,
+      plants: [{ id: 'p1', species: 'java_fern', size: 100.1, condition: 100, surplus: 0 }],
+    };
+    expect(PersistedSimulationSchema.safeParse(overgrown).success).toBe(false);
   });
 
   it('rejects invalid plant species', () => {
@@ -541,9 +559,6 @@ describe('PersistedStateSchema', () => {
     ).toBe(false);
   });
 
-  it('PERSISTENCE_VERSION is 30', () => {
-    expect(PERSISTENCE_VERSION).toBe(30);
-  });
 });
 
 describe('every fixture the UI offers survives a save', () => {

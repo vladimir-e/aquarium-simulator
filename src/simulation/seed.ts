@@ -86,7 +86,7 @@ export interface SeedPlantGroup {
   species: PlantSpecies;
   /** Defaults to 1. */
   count?: number;
-  /** Size %, same scale as `Plant.size`. */
+  /** % of one full unit, as `Plant.size`: in (0, 100]. */
   size?: number;
 }
 

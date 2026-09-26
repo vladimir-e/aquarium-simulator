@@ -3,7 +3,15 @@ import { createSimulation } from '../../simulation/state.js';
 import { getPh } from '../../simulation/core/carbonate.js';
 import type { TunableConfig } from '../../simulation/config/index.js';
 import { toFahrenheit } from '../units.js';
-import { SAMPLE_HOUR, VACUUM_SHARE, dayOf, dueActions, isKeeperHourOf, rescapeTank } from './keeper.js';
+import {
+  SAMPLE_HOUR,
+  VACUUM_SHARE,
+  dayOf,
+  dueActions,
+  isKeeperHourOf,
+  rescapeTank,
+  thinToFloor,
+} from './keeper.js';
 import { READINGS, gradeReading, type Grade, type ReadingId } from './readings.js';
 import { toConfig, toSeed, type Setup } from './setups.js';
 
@@ -61,7 +69,7 @@ export function keepTank(setup: Setup, { config, untilTick, observe, onRefusal }
       const action = due.type === 'waterChange' ? { ...due, vacuum: setup.vacuum ?? VACUUM_SHARE } : due;
       const result = applyAction(state, action, config);
       if (result.state === state && !ROUTINE_NO_OPS.has(action.type)) onRefusal?.(action.type, result.message);
-      state = result.state;
+      state = action.type === 'trimPlants' ? thinToFloor(result.state, config) : result.state;
     }
     state = tick(state, config);
     observe?.(state);
@@ -90,7 +98,7 @@ export function runScenario(setup: Setup, { days, config, traceDay, onRefusal }:
   const trace: TraceRow[] = [];
 
   const observe = (state: SimulationState): void => {
-    start ??= Object.fromEntries(READINGS.map((r) => [r.id, r.read(state)])) as Readout;
+    start ??= Object.fromEntries(READINGS.map((r) => [r.id, r.read(state, config)])) as Readout;
     if (dayOf(state.tick) === traceDay) {
       trace.push({
         hour: state.tick % 24,
@@ -105,7 +113,7 @@ export function runScenario(setup: Setup, { days, config, traceDay, onRefusal }:
     const day = marks.find((d) => tickOfDay(d) === state.tick);
     if (day === undefined) return;
     for (const reading of READINGS) {
-      const raw = reading.read(state);
+      const raw = reading.read(state, config);
       const value = raw === null ? null : round(raw, reading.digits);
       const grade = gradeReading(reading, value, {
         day,

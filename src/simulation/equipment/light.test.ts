@@ -138,8 +138,8 @@ describe('light equipment', () => {
     });
 
     it('attenuates harder as the coefficient rises', () => {
-      const clear = calculateParAtDepth(100, 40, { waterAttenuationPerCm: 0.005 });
-      const murky = calculateParAtDepth(100, 40, { waterAttenuationPerCm: 0.02 });
+      const clear = calculateParAtDepth(100, 40, { ...opticsDefaults, waterAttenuationPerCm: 0.005 });
+      const murky = calculateParAtDepth(100, 40, { ...opticsDefaults, waterAttenuationPerCm: 0.02 });
       expect(murky).toBeLessThan(clear);
       expect(clear).toBeLessThan(100);
     });

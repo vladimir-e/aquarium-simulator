@@ -23,6 +23,7 @@ import {
 } from '../plants/species.js';
 import { getMassFromPpm } from '../resources/index.js';
 import { speciesDemand, speciesHalfSaturation } from './nutrients.js';
+import { rateUnits } from '../plants/canopy.js';
 
 /**
  * Per-plant precomputed Liebig sufficiency, keyed by plant id. The
@@ -94,12 +95,13 @@ function emptyResult(): PhotosynthesisResult {
 /**
  * Calculate photosynthesis resource effects.
  *
- * Per-plant contribution:
- *   lightResponse_i = tanh(PAR / Ik_i), the species' saturating light curve
+ * Per-plant contribution, with m_i its rate units (`plants/canopy.ts`) and
+ * PAR_i the light at its mean leaf:
+ *   lightResponse_i = tanh(PAR_i / Ik_i), the species' saturating light curve
  *   co2Factor_i = CO2 / (K_i + CO2), the species' carbon Monod
- *   potential_i = size_i × co2Factor_i × lightResponse_i × basePhotosynthesisRate
+ *   potential_i = m_i × co2Factor_i × lightResponse_i × basePhotosynthesisRate
  *   actual_i    = potential_i × sufficiency_i
- *   carbon_i    = size_i × lightResponse_i × sufficiency_i × basePhotosynthesisRate × co2PerRateUnit
+ *   carbon_i    = m_i × lightResponse_i × sufficiency_i × basePhotosynthesisRate × co2PerRateUnit
  *
  * Aggregate outputs, all masses in mg:
  *   capacity_n = Σ potential_i × demand_i,n × uptakePerRateUnit_n
@@ -111,7 +113,7 @@ function emptyResult(): PhotosynthesisResult {
  */
 export function calculatePhotosynthesis(
   plants: readonly Plant[],
-  light: number,
+  parByPlant: readonly number[],
   co2: number,
   resources: Resources,
   waterVolume: number,
@@ -119,9 +121,7 @@ export function calculatePhotosynthesis(
   plantsConfig: PlantsConfig = plantsDefaults,
   nutrientsConfig: NutrientsConfig = nutrientsDefaults
 ): PhotosynthesisResult {
-  const totalSize = plants.reduce((s, p) => s + p.size, 0);
-
-  if (totalSize <= 0 || waterVolume <= 0) {
+  if (waterVolume <= 0) {
     return emptyResult();
   }
 
@@ -135,14 +135,13 @@ export function calculatePhotosynthesis(
   let potentialSum = 0;
   let actualSum = 0;
 
-  for (const plant of plants) {
-    if (plant.size <= 0) continue;
+  plants.forEach((plant, i) => {
     const lightResponse = lightSaturationFactor(
-      light,
+      parByPlant[i],
       getSaturationIrradiance(plant.species, plantsConfig)
     );
     const sufficiency = sufficiencyByPlantId.get(plant.id) ?? 0;
-    const drive = (plant.size / 100) * lightResponse * plantsConfig.basePhotosynthesisRate;
+    const drive = rateUnits(plant) * lightResponse * plantsConfig.basePhotosynthesisRate;
     const potential = drive * calculateCo2Factor(co2, plant.species, plantsConfig);
     potentialSum += potential;
     actualSum += potential * sufficiency;
@@ -157,7 +156,7 @@ export function calculatePhotosynthesis(
       capacity[n] += need;
       halfSaturationWeight[n] += need * speciesHalfSaturation(plant.species, n, nutrientsConfig);
     }
-  }
+  });
 
   const draw = (stock: number, cap: number, weight: number): number =>
     pooledUptake(stock, cap, weight, waterVolume);
@@ -199,13 +198,4 @@ function pooledUptake(
 
 function drawdown(uptake: number): number {
   return uptake > 0 ? -uptake : 0;
-}
-
-/**
- * Get total plant size from an array of plants.
- */
-export function getTotalPlantSize(
-  plants: readonly { size: number }[]
-): number {
-  return plants.reduce((sum, plant) => sum + plant.size, 0);
 }

@@ -36,29 +36,28 @@ export function getRespirationTemperatureFactor(
 /**
  * Calculate plant respiration rate and the gas masses it moves.
  *
- * @param totalPlantSize - Sum of all plant sizes (%)
+ * @param rateUnits - The planting's rate units (`plants/canopy.ts`)
  * @param temperature - Current water temperature (C)
  * @param oxygen - Dissolved oxygen (mg/L), which the rate saturates against
  * @param config - Plants configuration
  */
 export function calculateRespiration(
-  totalPlantSize: number,
+  rateUnits: number,
   temperature: number,
   oxygen: number,
   config: PlantsConfig = plantsDefaults
 ): RespirationResult {
-  if (totalPlantSize <= 0) {
+  if (rateUnits <= 0) {
     return {
       oxygenConsumedMg: 0,
       co2ProducedMg: 0,
     };
   }
 
-  const plantSizeFactor = totalPlantSize / 100;
   const tempFactor = getRespirationTemperatureFactor(temperature, config);
   const oxygenFactor = monodFactor(oxygen, config.respirationOxygenHalfSaturation);
   const respirationRate =
-    config.baseRespirationRate * plantSizeFactor * tempFactor * oxygenFactor;
+    config.baseRespirationRate * rateUnits * tempFactor * oxygenFactor;
 
   const co2ProducedMg = respirationRate * config.co2PerRateUnit;
 

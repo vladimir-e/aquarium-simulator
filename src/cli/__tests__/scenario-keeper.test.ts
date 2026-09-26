@@ -1,8 +1,15 @@
 import { describe, it, expect } from 'vitest';
 import { createSimulation, type SimulationState } from '../../simulation/state.js';
-import { KEEPER_HOUR, dueActions, isKeeperHourOf, rescapeTank, type Schedule } from '../scenarios/keeper.js';
+import {
+  KEEPER_HOUR,
+  dueActions,
+  isKeeperHourOf,
+  rescapeTank,
+  thinToFloor,
+  type Schedule,
+} from '../scenarios/keeper.js';
 import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
-import { resetHardscape } from '../../simulation/index.js';
+import { floorCover, isOvergrown, resetHardscape } from '../../simulation/index.js';
 import { findSetup, toConfig, toSeed } from '../scenarios/setups.js';
 
 const stocked = createSimulation(toConfig(findSetup('nano')), toSeed(findSetup('nano')), 1);
@@ -60,5 +67,31 @@ describe('rescapeTank', () => {
     expect(after.equipment.hardscape.items).toEqual(resetHardscape(scaped).equipment.hardscape.items);
     expect(after.plants).toHaveLength(Math.floor(scaped.plants.length / 2));
     expect(after.resources.aob).toBeLessThan(scaped.resources.aob);
+  });
+});
+
+describe('thinToFloor', () => {
+  const overgrown = (extra: number): SimulationState => {
+    const seed = toSeed(findSetup('low-tech'));
+    return createSimulation(
+      toConfig(findSetup('low-tech')),
+      { ...seed, plants: [...seed.plants!, { species: 'anubias', count: extra, size: 50 }] },
+      1
+    );
+  };
+
+  it('pulls the youngest plants, last in the list, until the planting fits its floor', () => {
+    const state = overgrown(4);
+    expect(isOvergrown(state)).toBe(true);
+
+    const after = thinToFloor(state, DEFAULT_CONFIG);
+    expect(floorCover(after.plants, after.tank.capacity)).toBeLessThanOrEqual(1);
+    expect(after.plants).toEqual(state.plants.slice(0, after.plants.length));
+    expect(isOvergrown({ ...after, plants: state.plants.slice(0, after.plants.length + 1) })).toBe(true);
+  });
+
+  it('leaves a planting that fits alone', () => {
+    const state = overgrown(0);
+    expect(thinToFloor(state, DEFAULT_CONFIG)).toBe(state);
   });
 });
