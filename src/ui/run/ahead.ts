@@ -1,58 +1,83 @@
 /**
  * The hour the next tick runs, settled in the tick's own order: the
- * environment, the plant pass with its effects applied, the algae, then
- * metabolism. Every readout that says what the next tick will do reads it
- * here, so a plant, a fish and the bloom are read on the same hour.
+ * environment, the plant pass with its effects applied, the algae, the
+ * livestock, then breeding. Every readout that says what the next tick will do
+ * reads it here, so a plant, a fish and the bloom are read on the same hour.
  */
 
 import {
   applyEffects,
-  computeAlgaePopulation,
-  computeFishVitality,
-  processMetabolism,
+  dailyLightIntegral,
+  processAlgae,
+  processBreeding,
+  processLivestock,
   processPlants,
   type AlgaePopulationResult,
+  type PlantLight,
   type SimulationState,
   type VitalityResult,
 } from '../../simulation/index.js';
-import { readPlantVitality } from '../../simulation/plants/index.js';
 import { settleEnvironment } from '../../simulation/tick.js';
 import type { TunableConfig } from '../../simulation/config/index.js';
 
+/** One organism on the hour ahead. */
+export interface OrganismAhead {
+  vitality: VitalityResult;
+  /** Its bank as the tick leaves it — what the bank bought taken out, 0 where it dies. */
+  bank: number;
+}
+
+export interface PlantAhead extends OrganismAhead {
+  light: PlantLight;
+}
+
 export interface HourAhead {
   /** In `state.plants` order. */
-  plants: VitalityResult[];
-  /** Each plant's bank as the pass leaves it — offshoot and growth bought, 0 where it dies — in `state.plants` order. */
-  banks: number[];
-  /** Grams of waste the plant pass sheds — its steady rate, apart from a death's one-off lump. */
-  shedding: number;
-  algae: AlgaePopulationResult;
+  plants: PlantAhead[];
   /** In `state.fish` order. */
-  fish: VitalityResult[];
+  fish: OrganismAhead[];
+  algae: AlgaePopulationResult;
+  /** Coverage as the tick leaves the bloom. */
+  algaeMass: number;
+  /** The substrate's day of light the tick reads, mol/m²/d. */
+  dailyLight: number;
+  /** Grams of waste the plants shed — their steady rate, apart from a death's one-off lump. */
+  shedding: number;
+  /** Grams of waste the fish pass. */
+  fishWaste: number;
+  /** mg of NH₃ the fish excrete through their gills. */
+  gillAmmonia: number;
+}
+
+function banks(organisms: readonly { id: string; surplus: number }[]): Map<string, number> {
+  return new Map(organisms.map((organism) => [organism.id, organism.surplus]));
 }
 
 export function readHourAhead(state: SimulationState, config: TunableConfig): HourAhead {
   const settled = settleEnvironment(state, config);
-  const pass = processPlants(settled, config);
-  const { fish, plants, resources, tank } = applyEffects(pass.state, pass.effects, config);
-  const fed = processMetabolism(
-    fish,
-    resources.food,
-    resources.oxygen,
-    config.livestock,
-    config.nutrients.foodMineralContent
-  ).updatedFish;
-  const banks = new Map(plants.map((plant) => [plant.id, plant.surplus]));
+  const plantPass = processPlants(settled, config);
+  const planted = applyEffects(plantPass.state, plantPass.effects, config);
+  const algaePass = processAlgae(planted, config);
+  const livestock = processLivestock(algaePass.state, config);
+  const bred = processBreeding(applyEffects(livestock.state, livestock.effects, config), config).state;
+  const plantBanks = banks(planted.plants);
+  const fishBanks = banks(bred.fish);
 
   return {
-    plants: readPlantVitality(settled, config),
-    banks: settled.plants.map((plant) => banks.get(plant.id) ?? 0),
-    shedding: pass.effects
-      .filter((effect) => effect.source === 'plant-shedding')
-      .reduce((sum, effect) => sum + effect.delta, 0),
-    algae: computeAlgaePopulation({ plants, resources, algaeConfig: config.algae }),
-    fish: fed.map((member) =>
-      computeFishVitality(member, resources, plants, resources.water, tank.capacity, config.livestock)
-    ),
+    plants: state.plants.map((plant, i) => ({
+      vitality: plantPass.vitalities[i],
+      bank: plantBanks.get(plant.id) ?? 0,
+      light: plantPass.light[i],
+    })),
+    fish: state.fish.map((fish, i) => ({
+      vitality: livestock.vitalities[i],
+      bank: fishBanks.get(fish.id) ?? 0,
+    })),
+    algae: algaePass.population,
+    algaeMass: algaePass.state.algae.mass,
+    dailyLight: dailyLightIntegral(settled.resources.lightByHour),
+    shedding: plantPass.shedding,
+    fishWaste: livestock.metabolism.wasteProduced,
+    gillAmmonia: livestock.metabolism.ammoniaProduced,
   };
 }

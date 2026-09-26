@@ -16,7 +16,7 @@ import {
 } from '../../simulation/index.js';
 import type { TunableConfig } from '../../simulation/config/index.js';
 import type { LivestockConfig } from '../../simulation/config/livestock.js';
-import { readHourAhead, type HourAhead } from './ahead.js';
+import type { HourAhead } from './ahead.js';
 import { groupReading, vitalReading, worstReading, type Reading, type Status } from './status.js';
 
 /** Hungry and starving are the two bands that count toward "N hungry". */
@@ -82,20 +82,24 @@ export function fishReading(fish: Fish, vital: Reading, config: LivestockConfig)
 
 /** One fish, with the vitality pass behind its row already spent. */
 export interface FishRead {
-  fish: Fish;
+  id: string;
+  condition: number;
   sick: boolean;
   reading: Reading;
+  fish: Fish;
 }
 
 /** Every fish in the tank, read on the hour the next tick settles, in `state.fish` order. */
-export function readFish(
-  state: SimulationState,
-  config: TunableConfig,
-  ahead: HourAhead = readHourAhead(state, config)
-): FishRead[] {
+export function readFish(state: SimulationState, config: TunableConfig, ahead: HourAhead): FishRead[] {
   return state.fish.map((fish, i) => {
-    const { sick, reading } = vitalReading(fish.health, ahead.fish[i]);
-    return { fish, sick, reading: fishReading(fish, reading, config.livestock) };
+    const { sick, reading } = vitalReading(fish.health, ahead.fish[i].vitality);
+    return {
+      id: fish.id,
+      condition: fish.health,
+      sick,
+      reading: fishReading(fish, reading, config.livestock),
+      fish,
+    };
   });
 }
 
@@ -159,9 +163,7 @@ function groupFigures(members: FishRead[], config: LivestockConfig): RosterGroup
     band: bandOf(satiation, config),
     condition: mean(group.map((f) => f.health)),
     hunger: hungerOf(group, config),
-    reading: groupReading(
-      members.map((member) => ({ condition: member.fish.health, ...member.reading }))
-    ),
+    reading: groupReading(members),
     members,
   };
 }

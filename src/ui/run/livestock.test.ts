@@ -19,7 +19,8 @@ import {
   type FryBatch,
   type SpeciesGroup,
 } from './livestock';
-import { trendOf } from './status';
+import { readHourAhead } from './ahead';
+import { projectedTrend } from './status';
 
 function makeFish(overrides: Partial<Fish> & { id: string }): Fish {
   return {
@@ -41,11 +42,11 @@ function tank(fish: Fish[], clutches: Clutch[] = [], hour = 0): SimulationState 
 }
 
 function species(state: SimulationState, config: TunableConfig = DEFAULT_CONFIG): SpeciesGroup[] {
-  return groupBySpecies(readFish(state, config), config.livestock);
+  return groupBySpecies(readFish(state, config, readHourAhead(state, config)), config.livestock);
 }
 
 function fry(state: SimulationState): FryBatch | null {
-  return groupFry(readFish(state, DEFAULT_CONFIG), livestockDefaults);
+  return groupFry(readFish(state, DEFAULT_CONFIG, readHourAhead(state, DEFAULT_CONFIG)), livestockDefaults);
 }
 
 describe('bandStatus / isHungryBand', () => {
@@ -209,11 +210,11 @@ describe('the reading behind a fish', () => {
   it('calls a fish sick exactly while the next tick takes condition off it, as the trend shows', () => {
     for (const surplus of [0, livestockDefaults.surplusCap]) {
       const state = poisoned([makeFish({ id: 'a', health: 100, satiation: 90, surplus })], 10);
-      const [read] = readFish(state, DEFAULT_CONFIG);
+      const [read] = readFish(state, DEFAULT_CONFIG, readHourAhead(state, DEFAULT_CONFIG));
       const next = tick(state, DEFAULT_CONFIG).fish[0];
 
       expect(read.sick).toBe(read.reading.word === 'sick');
-      expect(read.sick).toBe(trendOf(next.health - 100).startsWith('↘'));
+      expect(read.sick).toBe(projectedTrend(next.health - 100).startsWith('↘'));
     }
   });
 

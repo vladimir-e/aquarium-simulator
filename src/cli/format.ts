@@ -55,7 +55,7 @@ export function renderObserve(session: Session): string {
 
   const waterPct = Math.round((r.water / state.tank.capacity) * 100);
   const ahead = readHourAhead(state, session.config);
-  const daily = dailyLightReading(state);
+  const daily = dailyLightReading(ahead);
   const avgFishHealth = state.fish.length
     ? Math.round(
         state.fish.reduce((s, f) => s + f.health, 0) / state.fish.length
@@ -106,7 +106,7 @@ export function renderObserve(session: Session): string {
     }${sick(readFish(state, session.config, ahead))}`,
     `**Plants (${state.plants.length})** ${
       state.plants.length ? `avg condition ${avgPlantCondition}%` : '—'
-    }${sick(plantRows(state, session.config, ahead))}`,
+    }${sick(plantRows(state, ahead))}`,
   ];
 
   return lines.join('\n');

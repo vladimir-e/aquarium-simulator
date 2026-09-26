@@ -22,7 +22,7 @@ import {
   type SpeciesGroup,
 } from './livestock.js';
 import type { PlantSpeciesGroup } from './flora.js';
-import { STATUS_SEVERITY, type Status } from './status.js';
+import { worstMember, type Member, type Reading, type Status } from './status.js';
 import type { ReadingBand } from './water.js';
 
 /** The engine calls 60 and up healthy, on the 0–100 axis every organism is scored on. */
@@ -165,11 +165,39 @@ function days(hours: number): string {
   return `${Math.floor(hours / 24)} d`;
 }
 
-function worstOf<T>(items: T[], status: (item: T) => Status, key: (item: T) => string): string {
-  const worst = items.reduce((a, b) =>
-    STATUS_SEVERITY[status(b)] > STATUS_SEVERITY[status(a)] ? b : a
-  );
-  return key(worst);
+/** What a species row is read off, for either table. */
+interface SpeciesGroupOf<M extends Member & { id: string }> {
+  species: SpeciesId;
+  name: string;
+  count: number;
+  condition: number;
+  reading: Reading;
+  members: M[];
+}
+
+/** A species header row, and its individuals directly beneath it when open. */
+function speciesRows<M extends Member & { id: string }>(
+  group: SpeciesGroupOf<M>,
+  columns: { figure: string; age: string; satiation: Satiation | null },
+  individual: (member: M) => IndividualRosterRow,
+  expanded: ReadonlySet<string>
+): RosterRow[] {
+  const key = `species-${group.species}`;
+  const open = expanded.has(key);
+  const header: SpeciesRosterRow = {
+    kind: 'species',
+    key,
+    species: group.species,
+    name: group.name,
+    count: group.count,
+    ...columns,
+    dots: group.members.map((member) => member.reading.status),
+    at: group.condition / 100,
+    ...group.reading,
+    worstKey: worstMember(group.members).id,
+    expanded: open,
+  };
+  return open ? [header, ...group.members.map(individual)] : [header];
 }
 
 function fishRows(
@@ -177,86 +205,39 @@ function fishRows(
   config: LivestockConfig,
   expanded: ReadonlySet<string>
 ): RosterRow[] {
-  const rows: RosterRow[] = [];
-
-  for (const group of groups) {
-    const key = `species-${group.species}`;
-    const open = expanded.has(key);
-
-    rows.push({
-      kind: 'species',
-      key,
-      species: group.species,
-      name: group.name,
-      count: group.count,
-      figure: `${(group.massG / group.count).toFixed(2)} g each`,
-      age: `${group.ageDays} d`,
-      dots: group.members.map((member) => member.reading.status),
-      satiation: groupSatiation(group, config),
-      at: group.condition / 100,
-      ...group.reading,
-      worstKey: worstOf(
-        group.members,
-        (member) => member.reading.status,
-        (member) => member.fish.id
-      ),
-      expanded: open,
-    });
-
-    if (!open) continue;
-
-    for (const { fish, reading } of group.members) {
-      rows.push({
+  return groups.flatMap((group) =>
+    speciesRows(
+      group,
+      {
+        figure: `${(group.massG / group.count).toFixed(2)} g each`,
+        age: `${group.ageDays} d`,
+        satiation: groupSatiation(group, config),
+      },
+      ({ id, condition, fish, reading }) => ({
         kind: 'individual',
-        key: fish.id,
-        id: fish.id,
+        key: id,
+        id,
         species: group.species,
         name: group.name,
-        shortId: shortId(fish.id),
+        shortId: shortId(id),
         sex: fish.sex,
         figure: `${fish.mass.toFixed(2)} g`,
         age: days(fish.age),
         satiation: fishSatiation(fish.satiation, config),
-        at: fish.health / 100,
+        at: condition / 100,
         ...reading,
-      });
-    }
-  }
-
-  return rows;
+      }),
+      expanded
+    )
+  );
 }
 
-function plantRowsOf(
-  groups: PlantSpeciesGroup[],
-  expanded: ReadonlySet<string>
-): RosterRow[] {
-  const rows: RosterRow[] = [];
-
-  for (const group of groups) {
-    const key = `species-${group.species}`;
-    const open = expanded.has(key);
-
-    rows.push({
-      kind: 'species',
-      key,
-      species: group.species,
-      name: group.name,
-      count: group.count,
-      figure: `${Math.round(group.size)} % each`,
-      age: '',
-      dots: group.statuses,
-      satiation: null,
-      at: group.condition / 100,
-      status: group.status,
-      word: group.word,
-      worstKey: worstOf(group.plants, (plant) => plant.status, (plant) => plant.id),
-      expanded: open,
-    });
-
-    if (!open) continue;
-
-    for (const plant of group.plants) {
-      rows.push({
+function plantRowsOf(groups: PlantSpeciesGroup[], expanded: ReadonlySet<string>): RosterRow[] {
+  return groups.flatMap((group) =>
+    speciesRows(
+      group,
+      { figure: `${Math.round(group.size)} % each`, age: '', satiation: null },
+      (plant) => ({
         kind: 'individual',
         key: plant.id,
         id: plant.id,
@@ -268,13 +249,11 @@ function plantRowsOf(
         age: '',
         satiation: null,
         at: plant.condition / 100,
-        status: plant.status,
-        word: plant.word,
-      });
-    }
-  }
-
-  return rows;
+        ...plant.reading,
+      }),
+      expanded
+    )
+  );
 }
 
 function fryRow(batch: FryBatch, config: LivestockConfig): FryRosterRow {

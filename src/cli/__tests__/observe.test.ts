@@ -1,8 +1,14 @@
 import { describe, it, expect } from 'vitest';
 import { produce } from 'immer';
-import { applyAction, createSimulation, type SimulationState } from '../../simulation/index.js';
+import { applyAction, createSimulation, type Action, type SimulationState } from '../../simulation/index.js';
 import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
-import { classifyVital, dailyLightReading, plantRows, readFish } from '../../ui/run/index.js';
+import {
+  classifyVital,
+  dailyLightReading,
+  plantRows,
+  readFish,
+  readHourAhead,
+} from '../../ui/run/index.js';
 import { renderObserve } from '../format.js';
 import { SESSION_VERSION } from '../session.js';
 
@@ -32,15 +38,14 @@ describe('renderObserve', () => {
     }
   });
 
-  it('counts the fish and plants the console calls sick, and nothing it does not', () => {
-    const stocked = ['addFish', 'addFish', 'addPlant'].reduce(
-      (state, type) =>
-        applyAction(
-          state,
-          type === 'addFish'
-            ? { type: 'addFish', species: 'neon_tetra' }
-            : { type: 'addPlant', species: 'java_fern' }
-        ).state,
+  it('counts the sick flags the console reads, for fish and plants', () => {
+    const stocking: Action[] = [
+      { type: 'addFish', species: 'neon_tetra' },
+      { type: 'addFish', species: 'neon_tetra' },
+      { type: 'addPlant', species: 'java_fern' },
+    ];
+    const stocked = stocking.reduce(
+      (state, action) => applyAction(state, action).state,
       createSimulation({ tankCapacity: 100 })
     );
     const failing = produce(stocked, (draft) => {
@@ -48,19 +53,15 @@ describe('renderObserve', () => {
       draft.equipment.light.enabled = false;
       draft.resources.lightByHour.fill(0);
     });
+    const ahead = readHourAhead(failing, DEFAULT_CONFIG);
+    const fish = readFish(failing, DEFAULT_CONFIG, ahead).filter((read) => read.sick).length;
+    const plants = plantRows(failing, ahead).filter((row) => row.sick).length;
+    expect(fish).toBeGreaterThan(0);
+    expect(plants).toBeGreaterThan(0);
 
-    for (const state of [stocked, failing]) {
-      const text = observe(state);
-      const count = (readings: { sick: boolean }[]): string => {
-        const n = readings.filter((reading) => reading.sick).length;
-        return n > 0 ? ` · ${n} sick` : '';
-      };
-
-      expect(line(text, '**Fish').endsWith(`%${count(readFish(state, DEFAULT_CONFIG))}`)).toBe(true);
-      expect(line(text, '**Plants').endsWith(`%${count(plantRows(state, DEFAULT_CONFIG))}`)).toBe(true);
-    }
-    expect(line(observe(failing), '**Fish')).toContain('2 sick');
-    expect(line(observe(failing), '**Plants')).toContain('1 sick');
+    const text = observe(failing);
+    expect(line(text, '**Fish').endsWith(`% · ${fish} sick`)).toBe(true);
+    expect(line(text, '**Plants').endsWith(`% · ${plants} sick`)).toBe(true);
   });
 
   it('prints the day of light the plants starve on, marked where the console tints it', () => {
@@ -71,7 +72,7 @@ describe('renderObserve', () => {
     const dark = produce(planted, (draft) => void draft.resources.lightByHour.fill(0));
 
     for (const state of [planted, dark]) {
-      const reading = dailyLightReading(state);
+      const reading = dailyLightReading(readHourAhead(state, DEFAULT_CONFIG));
       const light = line(observe(state), '**Light**');
 
       expect(light).toContain(`daily ${reading.text}`);

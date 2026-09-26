@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { processPlants, readPlantLight, readPlantVitality, plantHealingRate } from './index.js';
+import { processPlants, readPlantLight, plantHealingRate } from './index.js';
 import { canopyLight, floorCover, getTotalRateUnits, plantHeight } from './canopy.js';
 import { calculatePhotosynthesis } from '../systems/photosynthesis.js';
 import { calculateRespiration } from '../systems/respiration.js';
@@ -320,6 +320,7 @@ describe('processPlants', () => {
       const waste = result.effects.filter((e) => e.resource === 'waste');
       expect(waste.map((e) => e.source)).toEqual(['plant-shedding', 'plant-death']);
       expect(waste.every((e) => e.delta > 0)).toBe(true);
+      expect(result.shedding).toBe(waste[0].delta);
       expect(result.state.logs.filter((l) => l.event === 'plant-died')).toHaveLength(1);
     });
 
@@ -385,13 +386,16 @@ describe('processPlants', () => {
       const canopy = canopyLight(planting, state.tank.capacity, DEFAULT_CONFIG.optics);
       const substrateDay = dailyLightIntegral(LIT_DAY);
 
-      readPlantLight(state, DEFAULT_CONFIG).forEach((reading, i) => {
+      const light = readPlantLight(state, DEFAULT_CONFIG);
+      light.forEach((reading, i) => {
         expect(reading.par).toBeCloseTo(70 * canopy[i].leaf, 12);
         expect(reading.crownPar).toBeCloseTo(70 * canopy[i].top, 12);
         expect(reading.dailyLight).toBeCloseTo(substrateDay * canopy[i].leaf, 12);
         expect(reading.needShare).toBeCloseTo(reading.dailyLight / dailyLightEdge(planting[i].species), 12);
+        expect(reading.needShare).toBeCloseTo(substrateDay / reading.substrateEdge, 12);
         expect(reading.heightCm).toBe(plantHeight(planting[i], calculateTankHeight(state.tank.capacity)));
       });
+      expect(processPlants(state, DEFAULT_CONFIG).light).toEqual(light);
     });
 
     it('photosynthesises each plant on the PAR at its mean leaf, and respires the planting on its rate units', () => {
@@ -445,7 +449,7 @@ describe('processPlants', () => {
           light,
         });
         return (
-          readPlantVitality(state, DEFAULT_CONFIG)[0].breakdown.stressors.find((s) => s.key === 'light')
+          processPlants(state, DEFAULT_CONFIG).vitalities[0].breakdown.stressors.find((s) => s.key === 'light')
             ?.amount ?? 0
         );
       };
@@ -491,7 +495,7 @@ describe('processPlants', () => {
       );
 
     it('pays out at most its healing share of the bank however hard the damage, and the rest reaches condition', () => {
-      const vitality = readPlantVitality(sour(20), DEFAULT_CONFIG)[0];
+      const vitality = processPlants(sour(20), DEFAULT_CONFIG).vitalities[0];
       const share = plantHealingRate(sour(20).plants[0], plantsDefaults);
 
       expect(vitality.breakdown.damageRate).toBeGreaterThan(share * 20);

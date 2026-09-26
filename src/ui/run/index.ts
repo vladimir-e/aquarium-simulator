@@ -27,7 +27,7 @@ export {
   conditionWord,
   worstReading,
 } from './status.js';
-export { type HourAhead, readHourAhead } from './ahead.js';
+export { type HourAhead, type OrganismAhead, type PlantAhead, readHourAhead } from './ahead.js';
 export { type StockedBand, stockedBand, toleranceStatus } from './tolerance.js';
 export {
   classifyAmmonia,
@@ -100,6 +100,7 @@ export {
   type LedgerFactor,
   type LedgerBank,
   type LedgerTarget,
+  LEDGER_DECIMALS,
   readLedger,
 } from './ledger.js';
 export {
@@ -109,14 +110,13 @@ export {
   dailyLightReading,
 } from './light.js';
 export {
+  algaeReading,
   algaeStatus,
   algaeWord,
   type PlantRow,
   plantRows,
   type PlantSpeciesGroup,
   groupPlantsBySpecies,
-  type AlgaeRow,
-  algaeRow,
   type NutrientReading,
   nutrientReadings,
   type NutrientAlert,

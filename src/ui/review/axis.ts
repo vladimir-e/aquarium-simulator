@@ -63,13 +63,13 @@ export function dayGridTicks(range: TickRange | null): number[] {
   return marks;
 }
 
-/** Alert warnings inside the window, as marks for the axis. */
+/** Alert warnings inside the window, as marks for the axis: one per kind a tick, all it can draw. */
 export function alertMarkers(logs: LogEntry[], range: TickRange | null): AlertMark[] {
-  const marks: AlertMark[] = [];
+  const marks = new Map<string, AlertMark>();
   for (const log of logs) {
     if (range && (log.tick < range.minTick || log.tick > range.maxTick)) continue;
     const kind = classifyAlert(log);
-    if (kind) marks.push({ tick: log.tick, kind });
+    if (kind) marks.set(`${kind}-${log.tick}`, { tick: log.tick, kind });
   }
-  return marks;
+  return [...marks.values()];
 }

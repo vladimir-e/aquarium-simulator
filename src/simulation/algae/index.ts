@@ -35,12 +35,14 @@
 import { produce } from 'immer';
 import type { SimulationState, AlgaeState } from '../state.js';
 import type { TunableConfig } from '../config/index.js';
-import { computeAlgaePopulation } from '../systems/algae-vitality.js';
+import { computeAlgaePopulation, type AlgaePopulationResult } from '../systems/algae-vitality.js';
 import type { AlgaeVitalityConfig } from '../config/algae-vitality.js';
 
 export interface AlgaeProcessingResult {
   /** Updated state with algae mass / surplus written. */
   state: SimulationState;
+  /** The net rate this tick and the factors behind it. */
+  population: AlgaePopulationResult;
 }
 
 const MASS_MAX = 100;
@@ -121,7 +123,7 @@ export function processAlgae(
 ): AlgaeProcessingResult {
   const algaeConfig = config.algae;
 
-  const { net } = computeAlgaePopulation({
+  const population = computeAlgaePopulation({
     plants: state.plants,
     resources: state.resources,
     algaeConfig,
@@ -131,7 +133,7 @@ export function processAlgae(
 
   const bank = bankSurplus(
     state.algae.surplus,
-    net,
+    population.net,
     algaeConfig.surplusCap,
     photoperiodActive
   );
@@ -149,7 +151,7 @@ export function processAlgae(
     draft.algae = next;
   });
 
-  return { state: newState };
+  return { state: newState, population };
 }
 
 // Re-export the population math for tests and UI introspection.

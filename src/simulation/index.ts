@@ -356,7 +356,6 @@ export {
   plantHealingRate,
   buildPlantStressors,
   buildPlantBenefits,
-  readPlantVitality,
   readPlantLight,
   LEAF_AREA_PER_RATE_UNIT,
   plantHeight,

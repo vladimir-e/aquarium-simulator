@@ -1,14 +1,17 @@
 import { describe, it, expect } from 'vitest';
+import { produce } from 'immer';
 import {
   applyAction,
   createSimulation,
+  getPresetById,
   tick,
   type Fish,
   type SimulationState,
 } from '../../simulation/index.js';
-import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
+import { DEFAULT_CONFIG, type TunableConfig } from '../../simulation/config/index.js';
 import { readHourAhead } from './ahead.js';
-import { readLedger, type Ledger } from './ledger.js';
+import { LEDGER_DECIMALS, readLedger, type Ledger, type LedgerTarget } from './ledger.js';
+import { projectedTrend } from './status.js';
 
 function makeFish(overrides: Partial<Fish> & { id: string }): Fish {
   return {
@@ -32,28 +35,35 @@ function tank(fish: Fish[], ppm = 0): SimulationState {
     : { ...state, resources: { ...state.resources, ammonia: ppm * state.resources.water } };
 }
 
-function fishLedger(state: SimulationState, id = 'fish_a_1'): Ledger {
-  return readLedger(state, DEFAULT_CONFIG, { kind: 'fish', id })!;
+function ledgerOf(
+  state: SimulationState,
+  target: LedgerTarget,
+  config: TunableConfig = DEFAULT_CONFIG
+): Ledger | null {
+  return readLedger(state, config, readHourAhead(state, config), target);
+}
+
+function fishLedger(state: SimulationState, id = 'fish_a_1', config = DEFAULT_CONFIG): Ledger {
+  return ledgerOf(state, { kind: 'fish', id }, config)!;
 }
 
 describe('readLedger', () => {
-  it('quotes every factor at the rate the reader’s day is measured in', () => {
+  it('quotes every factor that prints at the rate the reader’s day is measured in, and no other', () => {
     const state = tank([makeFish({ id: 'fish_a_1', satiation: 5 })], 20);
     const ledger = fishLedger(state);
-    const { breakdown } = readHourAhead(state, DEFAULT_CONFIG).fish[0];
+    const { breakdown } = readHourAhead(state, DEFAULT_CONFIG).fish[0].vitality;
+    const shows = (perDay: number): boolean => Number(perDay.toFixed(LEDGER_DECIMALS)) > 0;
 
     for (const factor of breakdown.stressors) {
-      if (factor.amount <= 0) continue;
-      const line = ledger.hurting.find((entry) => entry.key === factor.key)!;
-      expect(line.perDay).toBeCloseTo(factor.amount * 24, 8);
+      const line = ledger.hurting.find((entry) => entry.key === factor.key);
+      if (!shows(factor.amount * 24)) {
+        expect(line).toBeUndefined();
+        continue;
+      }
+      expect(line!.perDay).toBeCloseTo(factor.amount * 24, 8);
     }
+    expect([...ledger.helping, ...ledger.hurting].every((line) => shows(line.perDay))).toBe(true);
     expect(ledger.net).toBeCloseTo(breakdown.net * 24, 8);
-  });
-
-  it('lists nothing the tick did not charge', () => {
-    const ledger = fishLedger(tank([makeFish({ id: 'fish_a_1' })]));
-
-    expect([...ledger.helping, ...ledger.hurting].every((factor) => factor.perDay > 0)).toBe(true);
   });
 
   it('balances: what helps less what hurts is the number it prints', () => {
@@ -91,6 +101,36 @@ describe('readLedger', () => {
     expect(empty.bank!.note).toBe('empty');
   });
 
+  it('reads a bank too small to print as empty, whatever the hour draws on it', () => {
+    const ledger = fishLedger(tank([makeFish({ id: 'fish_a_1', surplus: 0.03 })], 20));
+
+    expect(ledger.bank!.text).toBe('0.0');
+    expect(ledger.bank!.note).toBe('empty');
+  });
+
+  it('reads a bank held above a lowered cap as full, not as healing', () => {
+    const lowered: TunableConfig = {
+      ...DEFAULT_CONFIG,
+      livestock: { ...DEFAULT_CONFIG.livestock, surplusCap: 25 },
+    };
+    const ledger = fishLedger(tank([makeFish({ id: 'fish_a_1', surplus: 50 })]), 'fish_a_1', lowered);
+
+    expect(ledger.bank!.note).toBe('full');
+  });
+
+  it('reads the bank a spawn empties as buying a brood, the hour before it spawns', () => {
+    const cap = DEFAULT_CONFIG.livestock.surplusCap;
+    const pair = tank([
+      makeFish({ id: 'fish_a_1', sex: 'female', surplus: cap }),
+      makeFish({ id: 'fish_a_2', sex: 'male' }),
+    ]);
+    const next = tick(pair, DEFAULT_CONFIG);
+
+    expect(next.clutches.length).toBeGreaterThan(pair.clutches.length);
+    expect(next.fish.find((fish) => fish.id === 'fish_a_1')!.surplus).toBe(0);
+    expect(fishLedger(pair).bank!.note).toBe('buying a brood');
+  });
+
   describe('for a plant', () => {
     const half = DEFAULT_CONFIG.plants.surplusCap / 2;
     const planted = (hour: number, surplus = half): SimulationState => {
@@ -101,7 +141,7 @@ describe('readLedger', () => {
       return { ...state, tick: hour, plants: state.plants.map((plant) => ({ ...plant, surplus })) };
     };
     const plantLedger = (state: SimulationState): Ledger =>
-      readLedger(state, DEFAULT_CONFIG, { kind: 'plant', id: state.plants[0].id })!;
+      ledgerOf(state, { kind: 'plant', id: state.plants[0].id })!;
 
     it('banks by day and buys growth out of the bank by night', () => {
       expect(plantLedger(planted(10, 0)).bank!.note).toBe('banking');
@@ -129,15 +169,34 @@ describe('readLedger', () => {
     });
   });
 
+  it('trends the algae by what the next tick does to its coverage, by day and by night', () => {
+    const preset = getPresetById('planted')!;
+    let state = produce(createSimulation(preset.config, preset.seed), (draft) => {
+      draft.algae.mass = 20;
+      draft.algae.surplus = 10;
+    });
+    const trends = new Set<string>();
+    for (let hour = 0; hour < 24; hour++) {
+      const next = tick(state, DEFAULT_CONFIG);
+      const { trend } = ledgerOf(state, { kind: 'algae' })!;
+
+      expect(trend).toBe(projectedTrend(next.algae.mass - state.algae.mass));
+      trends.add(trend);
+      state = next;
+    }
+    expect(trends).toContain('steady');
+    expect([...trends].some((trend) => trend.startsWith('↗'))).toBe(true);
+  });
+
   it('has nothing to open for a fish the tank no longer holds', () => {
     const state = tank([makeFish({ id: 'fish_a_1' })]);
 
-    expect(readLedger(state, DEFAULT_CONFIG, { kind: 'fish', id: 'fish_a_9' })).toBeNull();
-    expect(readLedger(state, DEFAULT_CONFIG, { kind: 'plant', id: 'plant_a_1' })).toBeNull();
+    expect(ledgerOf(state, { kind: 'fish', id: 'fish_a_9' })).toBeNull();
+    expect(ledgerOf(state, { kind: 'plant', id: 'plant_a_1' })).toBeNull();
   });
 
   it('always has the algae to open — a population needs no id', () => {
-    const algae = readLedger(tank([]), DEFAULT_CONFIG, { kind: 'algae' })!;
+    const algae = ledgerOf(tank([]), { kind: 'algae' })!;
 
     expect(algae.species).toBe('algae');
     expect(algae.bank).toBeNull();

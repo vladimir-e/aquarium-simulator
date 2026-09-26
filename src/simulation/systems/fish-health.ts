@@ -71,6 +71,8 @@ export interface HealthResult {
   deadFishNames: string[];
   /** Total waste produced from dead fish */
   deathWaste: number;
+  /** Each fish's vitality this tick, in the order handed in, the dead included */
+  vitalities: VitalityResult[];
 }
 
 /**
@@ -291,11 +293,13 @@ export function processHealth(
   const survivingFish: Fish[] = [];
   const deadFishNames: string[] = [];
   let deathWaste = 0;
+  const vitalities = fish.map((f) =>
+    computeFishVitality(f, resources, plants, waterVolume, tankCapacity, config)
+  );
 
-  for (const f of fish) {
+  fish.forEach((f, i) => {
     const speciesData = FISH_SPECIES_DATA[f.species];
-
-    const result = computeFishVitality(f, resources, plants, waterVolume, tankCapacity, config);
+    const result = vitalities[i];
     const newHealth = result.newCondition;
 
     if (newHealth <= 0) {
@@ -306,7 +310,7 @@ export function processHealth(
       const overAge = f.age > speciesData.maxAge;
       deadFishNames.push(overAge ? `${speciesData.name} (old age)` : speciesData.name);
       deathWaste += f.mass * config.deathDecayFactor;
-      continue;
+      return;
     }
 
     survivingFish.push({
@@ -314,11 +318,12 @@ export function processHealth(
       health: newHealth,
       surplus: result.surplus,
     });
-  }
+  });
 
   return {
     survivingFish,
     deadFishNames,
     deathWaste,
+    vitalities,
   };
 }

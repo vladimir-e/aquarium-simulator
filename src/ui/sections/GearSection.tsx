@@ -134,6 +134,7 @@ export function GearSection({
         entry={selected}
         sim={sim}
         config={config}
+        ahead={book.ahead}
         hour={hour}
         onClose={close}
         onPower={onPower}

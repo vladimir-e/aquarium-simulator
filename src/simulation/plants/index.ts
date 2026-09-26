@@ -48,35 +48,6 @@ function canopyOf(state: SimulationState, config: TunableConfig): CanopyLight[] 
   return canopyLight(state.plants, state.tank.capacity, config.optics);
 }
 
-/**
- * Each plant's vitality on the state it is handed, in `state.plants` order —
- * the numbers `processPlants` runs off the canopy and sufficiency map it shares
- * with photosynthesis. A caller wanting the next tick's numbers hands it the hour
- * that tick settles (`settleEnvironment`).
- */
-export function readPlantVitality(
-  state: SimulationState,
-  config: TunableConfig
-): VitalityResult[] {
-  const canopy = canopyOf(state, config);
-  return state.plants.map((plant, i) =>
-    computePlantVitality({
-      plant,
-      resources: state.resources,
-      waterVolume: state.resources.water,
-      plantsConfig: config.plants,
-      nutrientSufficiency: calculateNutrientSufficiency(
-        state.resources,
-        state.resources.water,
-        plant.species,
-        config.nutrients
-      ),
-      algaeMass: state.algae.mass,
-      canopy: canopy[i],
-    })
-  );
-}
-
 /** The light one plant stands in, at its own height. */
 export interface PlantLight {
   /** PAR at its mean leaf, µmol/m²/s. */
@@ -87,24 +58,31 @@ export interface PlantLight {
   dailyLight: number;
   /** That day's light over the daily light the species starves under. */
   needShare: number;
+  /** The day's light at the substrate that leaves its leaf on the species edge. */
+  substrateEdge: number;
   heightCm: number;
 }
 
-/** Every plant's light, in `state.plants` order — the readings vitality runs on. */
-export function readPlantLight(state: SimulationState, config: TunableConfig): PlantLight[] {
-  const canopy = canopyOf(state, config);
+function lightOf(state: SimulationState, canopy: CanopyLight[]): PlantLight[] {
   const depth = calculateTankHeight(state.tank.capacity);
   const substrateDay = dailyLightIntegral(state.resources.lightByHour);
   return state.plants.map((plant, i) => {
     const dailyLight = substrateDay * canopy[i].leaf;
+    const edge = dailyLightEdge(plant.species);
     return {
       par: state.resources.light * canopy[i].leaf,
       crownPar: state.resources.light * canopy[i].top,
       dailyLight,
-      needShare: dailyLight / dailyLightEdge(plant.species),
+      needShare: dailyLight / edge,
+      substrateEdge: edge / canopy[i].leaf,
       heightCm: plantHeight(plant, depth),
     };
   });
+}
+
+/** Every plant's light, in `state.plants` order — the readings vitality runs on. */
+export function readPlantLight(state: SimulationState, config: TunableConfig): PlantLight[] {
+  return lightOf(state, canopyOf(state, config));
 }
 
 export interface PlantsProcessingResult {
@@ -112,6 +90,12 @@ export interface PlantsProcessingResult {
   state: SimulationState;
   /** Effects for resource changes (O2, CO2, nitrate, waste) */
   effects: Effect[];
+  /** Each plant's vitality this tick, in the handed `state.plants` order. */
+  vitalities: VitalityResult[];
+  /** The light each plant stood in this tick, in the same order. */
+  light: PlantLight[];
+  /** Grams of waste shed this tick, apart from a death's one-off lump. */
+  shedding: number;
 }
 
 /**
@@ -131,7 +115,7 @@ export function processPlants(
   const nutrientsConfig = config.nutrients;
 
   if (state.plants.length === 0) {
-    return { state, effects };
+    return { state, effects, vitalities: [], light: [], shedding: 0 };
   }
 
   // 1. The canopy.
@@ -288,7 +272,13 @@ export function processPlants(
     effects.push({ tier: 'active', resource: 'waste', delta: deathWaste, source: 'plant-death' });
   }
 
-  return { state: newState, effects };
+  return {
+    state: newState,
+    effects,
+    vitalities,
+    light: lightOf(state, canopy),
+    shedding: shedWaste,
+  };
 }
 
 // Re-export helper functions for testing and UI use

@@ -1,6 +1,13 @@
 import { describe, it, expect } from 'vitest';
 import type { VitalityResult } from '../../simulation/index.js';
-import { vitalReading } from './status.js';
+import {
+  conditionWord,
+  groupReading,
+  vitalReading,
+  worstMember,
+  type Member,
+  type Reading,
+} from './status.js';
 
 function heading(condition: number, newCondition: number): VitalityResult {
   const net = newCondition - condition;
@@ -38,12 +45,67 @@ describe('vitalReading', () => {
     }
   });
 
-  it('floors a falling condition, so it never rounds back up to where it was', () => {
-    expect(vitalReading(99.75, heading(99.75, 99.7)).value).toBe('99');
-    expect(vitalReading(99.75, heading(99.75, 99.8)).value).toBe('100');
+  it('never shows a band the condition has not reached, whichever way it moves', () => {
+    for (const edge of [10, 30, 60, 80, 100]) {
+      for (const change of [-0.1, 0, 0.1]) {
+        const condition = edge - 0.4;
+        const vital = vitalReading(condition, heading(condition, condition + change));
+
+        expect(Number(vital.value)).toBeLessThan(edge);
+        expect(conditionWord(Number(vital.value))).toBe(conditionWord(condition));
+      }
+    }
   });
 
   it('lets a condition worse than sick speak for itself', () => {
     expect(vitalReading(20, heading(20, 19)).reading).toEqual({ status: 'alert', word: 'struggling' });
+  });
+});
+
+const thriving: Reading = { status: 'ok', word: 'thriving' };
+const good: Reading = { status: 'ok', word: 'good' };
+const fair: Reading = { status: 'warn', word: 'fair' };
+const sick: Reading = { status: 'warn', word: 'sick' };
+const struggling: Reading = { status: 'alert', word: 'struggling' };
+
+function members(...list: [number, Reading][]): Member[] {
+  return list.map(([condition, reading]) => ({ condition, reading }));
+}
+
+describe('groupReading', () => {
+  it('reads the worst member’s condition where nobody needs the reader, not the mean', () => {
+    expect(groupReading(members([100, thriving], [100, thriving], [65, good]))).toEqual(good);
+  });
+
+  it('counts every member at the worst tone, so the count is the dots it sits over', () => {
+    expect(groupReading(members([100, sick], [50, fair], [100, sick]))).toEqual({
+      status: 'warn',
+      word: '3 unwell',
+    });
+    expect(groupReading(members([20, struggling], [50, fair], [100, sick]))).toEqual({
+      status: 'alert',
+      word: '1 struggling',
+    });
+  });
+
+  it('names the reason where the flagged members share one', () => {
+    expect(groupReading(members([100, sick], [100, thriving], [100, sick]))).toEqual({
+      status: 'warn',
+      word: '2 sick',
+    });
+  });
+
+  it('reads a group of one as its member', () => {
+    expect(groupReading(members([100, sick]))).toEqual(sick);
+  });
+});
+
+describe('worstMember', () => {
+  it('is the most urgent member, and of those the lowest condition, wherever it stands', () => {
+    const calm = members([100, thriving], [100, thriving], [65, good]);
+    const flagged = members([90, sick], [20, struggling], [45, fair], [15, struggling]);
+
+    expect(worstMember(calm)).toBe(calm[2]);
+    expect(worstMember(flagged)).toBe(flagged[3]);
   });
 });

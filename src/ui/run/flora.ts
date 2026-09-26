@@ -1,9 +1,9 @@
 /**
- * Flora derivations: what each plant and the algae are doing on the hour the
- * next tick settles, and the tank's nutrient readings. Nothing here invents a
- * band — a nutrient reads short when the engine's own sufficiency would rise if
- * that one were topped up, so no surface can name a deficiency the plants are
- * not actually feeling.
+ * Flora derivations: what each plant is doing on the hour the next tick
+ * settles, how the bloom reads off its coverage, and the tank's nutrient
+ * readings. Nothing here invents a band — a nutrient reads short when the
+ * engine's own sufficiency would rise if that one were topped up, so no surface
+ * can name a deficiency the plants are not actually feeling.
  */
 
 import {
@@ -16,7 +16,6 @@ import {
   type PlantSpecies,
   type Resources,
   type SimulationState,
-  type VitalityFactor,
 } from '../../simulation/index.js';
 import {
   getMassFromPpm,
@@ -34,8 +33,8 @@ import {
   type NutrientsConfig,
   type TunableConfig,
 } from '../../simulation/config/index.js';
-import { readHourAhead, type HourAhead } from './ahead.js';
-import { groupReading, vitalReading, type Status } from './status.js';
+import type { HourAhead } from './ahead.js';
+import { groupReading, vitalReading, type Reading, type Status } from './status.js';
 
 /**
  * Trim targets, % of a full unit. A planted tank settles at 60–90 %, so
@@ -60,56 +59,40 @@ export function algaeStatus(mass: number): Status {
 }
 
 export function algaeWord(mass: number): string {
-  if (mass < 30) return 'suppressed';
+  if (mass < 30) return 'sparse';
   if (mass < 60) return 'active';
   if (mass < 80) return 'spreading';
   return 'booming';
 }
 
-/** One row of the plant list, with the vitality behind it already resolved. */
+/** How the bloom reads off its coverage. */
+export function algaeReading(mass: number): Reading {
+  return { status: algaeStatus(mass), word: algaeWord(mass) };
+}
+
+/** One row of the plant list, read on the hour the next tick settles. */
 export interface PlantRow {
   id: string;
   species: PlantSpecies;
   name: string;
   /** % of one full unit of its growth form; growth tapers to 100. */
   size: number;
-  /** Above every rung of the trim ladder. */
-  overTrim: boolean;
   condition: number;
   sick: boolean;
-  status: Status;
-  word: string;
-  /** Change per hour: what the breakdown below it sums to. */
-  net: number;
-  /** Every stressor charged this hour. */
-  charged: VitalityFactor[];
-  benefits: VitalityFactor[];
+  reading: Reading;
 }
 
-function acting(factors: VitalityFactor[]): VitalityFactor[] {
-  return factors.filter((f) => f.amount > 0);
-}
-
-export function plantRows(
-  state: SimulationState,
-  config: TunableConfig,
-  ahead: HourAhead = readHourAhead(state, config)
-): PlantRow[] {
+export function plantRows(state: SimulationState, ahead: HourAhead): PlantRow[] {
   return state.plants.map((plant, i) => {
-    const vitality = ahead.plants[i];
-    const { sick, reading } = vitalReading(plant.condition, vitality);
+    const { sick, reading } = vitalReading(plant.condition, ahead.plants[i].vitality);
     return {
       id: plant.id,
       species: plant.species,
       name: PLANT_SPECIES_DATA[plant.species].name,
       size: plant.size,
-      overTrim: plant.size > TRIM_CEILING,
       condition: plant.condition,
       sick,
-      ...reading,
-      net: vitality.breakdown.net,
-      charged: acting(vitality.breakdown.stressors),
-      benefits: acting(vitality.breakdown.benefits),
+      reading,
     };
   });
 }
@@ -127,13 +110,10 @@ export interface PlantSpeciesGroup {
   size: number;
   /** Mean condition across the specimens. */
   condition: number;
-  /** One per specimen, in planting order. */
-  statuses: Status[];
   /** Read off its specimens, the way a fish group is. */
-  status: Status;
-  word: string;
+  reading: Reading;
   /** The specimens themselves, in planting order. */
-  plants: PlantRow[];
+  members: PlantRow[];
 }
 
 export function groupPlantsBySpecies(rows: PlantRow[]): PlantSpeciesGroup[] {
@@ -150,37 +130,9 @@ export function groupPlantsBySpecies(rows: PlantRow[]): PlantSpeciesGroup[] {
     count: members.length,
     size: mean(members.map((member) => member.size)),
     condition: mean(members.map((member) => member.condition)),
-    statuses: members.map((member) => member.status),
-    ...groupReading(members),
-    plants: members,
+    reading: groupReading(members),
+    members,
   }));
-}
-
-/** The algae, read the same way as a plant — but a stressor here is good news. */
-export interface AlgaeRow {
-  mass: number;
-  status: Status;
-  word: string;
-  net: number;
-  stressors: VitalityFactor[];
-  benefits: VitalityFactor[];
-}
-
-export function algaeRow(
-  state: SimulationState,
-  config: TunableConfig,
-  ahead: HourAhead = readHourAhead(state, config)
-): AlgaeRow {
-  const population = ahead.algae;
-
-  return {
-    mass: state.algae.mass,
-    status: algaeStatus(state.algae.mass),
-    word: algaeWord(state.algae.mass),
-    net: population.net,
-    stressors: acting(population.breakdown.stressors),
-    benefits: acting(population.breakdown.benefits),
-  };
 }
 
 const NUTRIENT_LABEL: Record<Nutrient, string> = {

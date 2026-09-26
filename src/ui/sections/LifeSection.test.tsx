@@ -95,7 +95,7 @@ describe('LifeSection', () => {
     expect(drawer.getByText('Hurting')).toBeTruthy();
     expect(drawer.getByText(/per day/)).toBeTruthy();
 
-    const { breakdown } = readHourAhead(state, DEFAULT_CONFIG).fish[0];
+    const { breakdown } = readHourAhead(state, DEFAULT_CONFIG).fish[0].vitality;
     for (const factor of [...breakdown.stressors, ...breakdown.benefits]) {
       if (factor.amount > 0) expect(drawer.getByText(factor.label)).toBeTruthy();
     }

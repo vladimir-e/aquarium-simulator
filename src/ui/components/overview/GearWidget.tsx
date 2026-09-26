@@ -1,8 +1,9 @@
 import React, { useMemo } from 'react';
 import { turnoverShort } from '../../build';
 import type { useSimulation } from '../../hooks/useSimulation';
-import type { ReadingBook } from '../../readings';
+import type { ReadingBook, ReadingId } from '../../readings';
 import { DeviceLine, OthersLine, powerSwitch, rackEntries, shownInPlace } from '../gear/rack';
+import { CONTROL_FOCUS } from '../ui/focus';
 import { TONE_TEXT } from '../ui/RangeStrip';
 import type { StripTone } from '../ui/strip.js';
 import { Widget } from '../ui/Widget';
@@ -11,15 +12,28 @@ function Passive({
   label,
   value,
   tone = 'ink',
+  onOpen,
 }: {
   label: string;
   value: string;
   tone?: StripTone;
+  /** Opens the reading's inspector, where the figure is one. */
+  onOpen?: () => void;
 }): React.JSX.Element {
-  return (
-    <span className="whitespace-nowrap text-ink-2">
+  const body = (
+    <>
       {label} <span className={`font-medium tabular-nums ${TONE_TEXT[tone]}`}>{value}</span>
-    </span>
+    </>
+  );
+  if (!onOpen) return <span className="whitespace-nowrap text-ink-2">{body}</span>;
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      className={`-mx-1 whitespace-nowrap rounded-control px-1 text-ink-2 transition-colors hover:bg-surface-2 hover:text-ink ${CONTROL_FOCUS}`}
+    >
+      {body}
+    </button>
   );
 }
 
@@ -30,9 +44,11 @@ function Passive({
 export function GearWidget({
   book,
   sim,
+  onOpenReading,
 }: {
   book: ReadingBook;
   sim: ReturnType<typeof useSimulation>;
+  onOpenReading: (id: ReadingId) => void;
 }): React.JSX.Element {
   const { state } = sim;
   const entries = useMemo(() => rackEntries(book.rack), [book.rack]);
@@ -58,6 +74,7 @@ export function GearWidget({
             label="daily light"
             value={`${dailyLight.value} ${dailyLight.unit}`}
             tone={dailyLight.tone}
+            onOpen={() => onOpenReading('dailyLight')}
           />
           <Passive label="aeration" value={state.resources.aeration ? 'yes' : 'no'} />
         </div>

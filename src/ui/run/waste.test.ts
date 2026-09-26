@@ -1,6 +1,14 @@
 import { describe, it, expect } from 'vitest';
 import { produce } from 'immer';
-import { wasteInflow, wasteLevel, wasteReadout, wasteSummary } from './waste';
+import {
+  wasteInflow,
+  wasteLevel,
+  wasteReadout,
+  wasteSummary,
+  type WasteInflowReadout,
+  type WasteReadout,
+} from './waste';
+import { readHourAhead } from './ahead.js';
 import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
 import {
   applyAction,
@@ -12,6 +20,14 @@ import {
 } from '../../simulation/index.js';
 
 const config = DEFAULT_CONFIG;
+
+function inflowOf(state: SimulationState): WasteInflowReadout {
+  return wasteInflow(state, config, readHourAhead(state, config));
+}
+
+function readoutOf(state: SimulationState): WasteReadout {
+  return wasteReadout(state, config, readHourAhead(state, config));
+}
 
 function tank(): SimulationState {
   return createSimulation({ tankCapacity: 200 });
@@ -37,7 +53,7 @@ function stocked(): SimulationState {
 
 describe('wasteInflow', () => {
   it('always names all four sources, in a fixed order', () => {
-    expect(wasteInflow(tank(), config).sources.map((s) => s.key)).toEqual([
+    expect(inflowOf(tank()).sources.map((s) => s.key)).toEqual([
       'food',
       'fish',
       'plants',
@@ -47,7 +63,7 @@ describe('wasteInflow', () => {
 
   it('is substrate-only on a soil tank with no food, fish or plants', () => {
     const state = soilTank();
-    const inflow = wasteInflow(state, config);
+    const inflow = inflowOf(state);
     const leach = calculateSubstrateLeach(
       state.equipment.substrate.organicReserve,
       config.decay
@@ -67,7 +83,7 @@ describe('wasteInflow', () => {
         config.decay
       ) *
       config.decay.wasteConversionRatio;
-    expect(wasteInflow(state, config).sources[0].gramsPerHour).toBeCloseTo(expected, 10);
+    expect(inflowOf(state).sources[0].gramsPerHour).toBeCloseTo(expected, 10);
   });
 
   it('counts what the plants shed on the hour ahead, not on the condition they stand at', () => {
@@ -77,7 +93,7 @@ describe('wasteInflow', () => {
       draft.resources.lightByHour.fill(0);
     });
     const shed = (state: SimulationState): number =>
-      wasteInflow(state, config).sources.find((s) => s.key === 'plants')!.gramsPerHour;
+      inflowOf(state).sources.find((s) => s.key === 'plants')!.gramsPerHour;
 
     expect(dark.plants[0].condition).toBe(100);
     expect(shed(planted)).toBe(0);
@@ -93,7 +109,7 @@ describe('wasteInflow', () => {
         draft.plants[0].condition = condition;
       });
     const shed = (state: SimulationState): number =>
-      wasteInflow(state, config).sources.find((s) => s.key === 'plants')!.gramsPerHour;
+      inflowOf(state).sources.find((s) => s.key === 'plants')!.gramsPerHour;
     const dying = fading(0.001);
     const failing = fading(1);
 
@@ -104,18 +120,18 @@ describe('wasteInflow', () => {
   });
 
   it('counts fish feces once the fish have food to eat', () => {
-    expect(wasteInflow(stocked(), config).sources[1].gramsPerHour).toBeGreaterThan(0);
+    expect(inflowOf(stocked()).sources[1].gramsPerHour).toBeGreaterThan(0);
   });
 
   it('shares always add up to the hour’s production', () => {
-    const inflow = wasteInflow(stocked(), config);
+    const inflow = inflowOf(stocked());
     const total = inflow.sources.reduce((sum, s) => sum + s.gramsPerHour, 0);
     expect(total).toBeCloseTo(inflow.perHour, 10);
     expect(inflow.sources.reduce((sum, s) => sum + s.share, 0)).toBeCloseTo(1, 10);
   });
 
   it('leaves every share at zero when nothing is produced', () => {
-    const inflow = wasteInflow(tank(), config);
+    const inflow = inflowOf(tank());
     expect(inflow.perHour).toBe(0);
     expect(inflow.sources.every((s) => s.share === 0)).toBe(true);
   });
@@ -125,7 +141,7 @@ describe('wasteReadout', () => {
   it('reports the pool’s only outflow alongside its inflow', () => {
     const state = tank();
     state.resources.waste = 3;
-    const readout = wasteReadout(state, config);
+    const readout = readoutOf(state);
     expect(readout.standing).toBe(3);
     expect(readout.mineralised).toBeCloseTo(3 * config.nitrogenCycle.wasteConversionRate, 10);
   });
@@ -133,14 +149,14 @@ describe('wasteReadout', () => {
   it('carries the Q10 factor the card names beside the rate', () => {
     const state = tank();
     state.resources.temperature = config.decay.referenceTemp + 10;
-    expect(wasteReadout(state, config).q10).toBeCloseTo(config.decay.q10, 10);
+    expect(readoutOf(state).q10).toBeCloseTo(config.decay.q10, 10);
   });
 
   it('reads the share of food the next tick actually decays, at any oxygen', () => {
     for (const oxygen of [0, 0.2, 2, 8]) {
       const state = fed(oxygen);
       const decayed = state.resources.food - tick(state, config).resources.food;
-      expect(wasteReadout(state, config).decayRate * state.resources.food).toBeCloseTo(
+      expect(readoutOf(state).decayRate * state.resources.food).toBeCloseTo(
         decayed,
         10
       );
@@ -148,7 +164,7 @@ describe('wasteReadout', () => {
   });
 
   it('falls with the oxygen, to nothing at all once there is none', () => {
-    const rateAt = (oxygen: number): number => wasteReadout(fed(oxygen), config).decayRate;
+    const rateAt = (oxygen: number): number => readoutOf(fed(oxygen)).decayRate;
     expect(rateAt(0)).toBe(0);
     expect(rateAt(0.2)).toBeLessThan(rateAt(2));
     expect(rateAt(2)).toBeLessThan(rateAt(8));
@@ -160,8 +176,8 @@ describe('wasteSummary', () => {
     const standing = (waste: number): SimulationState =>
       produce(soilTank(), (draft) => void (draft.resources.waste = waste));
 
-    expect(wasteSummary(wasteReadout(standing(0), config), config)).toContain('climbing to');
-    expect(wasteSummary(wasteReadout(standing(10), config), config)).toContain('falling to');
+    expect(wasteSummary(readoutOf(standing(0)), config)).toContain('climbing to');
+    expect(wasteSummary(readoutOf(standing(10)), config)).toContain('falling to');
   });
 
   it.each([
@@ -169,7 +185,7 @@ describe('wasteSummary', () => {
     ['a fed, stocked tank', stocked],
   ])('names the level the engine holds the pool at, on %s', (_, setup) => {
     const state = setup();
-    const readout = wasteReadout(state, config);
+    const readout = readoutOf(state);
     const level = wasteLevel(readout, config);
     const held = produce(state, (draft) => void (draft.resources.waste = level));
 
@@ -181,16 +197,16 @@ describe('wasteSummary', () => {
   it('counts what settles into the bed as an outflow of the pool', () => {
     const state = soilTank();
     state.resources.waste = 1;
-    const readout = wasteReadout(state, config);
+    const readout = readoutOf(state);
     expect(readout.settled).toBeCloseTo(readout.settlingShare, 12);
-    expect(wasteReadout(produce(state, (d) => void (d.resources.waste = 2)), config).settled).toBeCloseTo(
+    expect(readoutOf(produce(state, (d) => void (d.resources.waste = 2))).settled).toBeCloseTo(
       2 * readout.settled,
       12
     );
   });
 
   it('says so plainly when nothing produces waste at all', () => {
-    expect(wasteSummary(wasteReadout(tank(), config), config)).toBe(
+    expect(wasteSummary(readoutOf(tank()), config)).toBe(
       'Nothing is producing waste.'
     );
   });

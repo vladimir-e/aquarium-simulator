@@ -37,6 +37,7 @@ import {
   formatDose,
   DAILY_LIGHT_UNIT,
   type BacteriaReadout,
+  type HourAhead,
   type Status,
 } from '../run/index.js';
 import {
@@ -61,6 +62,7 @@ export interface DeviceReading {
 export interface DeviceReadingInput {
   state: SimulationState;
   config: TunableConfig;
+  ahead: HourAhead;
   units: UnitSystem;
 }
 
@@ -160,7 +162,7 @@ function filterReadings({ state, units }: DeviceReadingInput): DeviceReading[] {
   ];
 }
 
-function lightReadings({ state, config }: DeviceReadingInput): DeviceReading[] {
+function lightReadings({ state, config, ahead }: DeviceReadingInput): DeviceReading[] {
   const { light } = state.equipment;
   const hour = state.tick % 24;
   const lit = light.enabled && isScheduleActive(hour, light.schedule);
@@ -168,7 +170,7 @@ function lightReadings({ state, config }: DeviceReadingInput): DeviceReading[] {
   const surfacePar = getLightOutput(light, hour);
   const wouldLand = Math.round(calculateParAtDepth(light.par, depth, config.optics));
   const column = `${Math.round(depth)} cm of water`;
-  const daily = dailyLightReading(state);
+  const daily = dailyLightReading(ahead);
 
   return [
     {
@@ -300,8 +302,8 @@ function cycleNote(readout: BacteriaReadout): string {
   return readout.rates.netNitrite > 0 ? 'nitrite still climbing' : 'NH₃ or NO₂ still reading';
 }
 
-function biofilterReadings({ state, config }: DeviceReadingInput): DeviceReading[] {
-  const readout = bacteriaReadout(state, config);
+function biofilterReadings({ state, config, ahead }: DeviceReadingInput): DeviceReading[] {
+  const readout = bacteriaReadout(state, config, ahead);
   const colony = (count: number, ceiling: number): string =>
     `${colonyCount(count)} / ${colonyCount(ceiling)}`;
 

@@ -11,7 +11,8 @@ import type { Effect } from '../core/effects.js';
 import type { TunableConfig } from '../config/index.js';
 import { livestockDefaults } from '../config/livestock.js';
 import { WASTE_NUTRIENTS } from '../config/nutrients.js';
-import { processMetabolism } from '../systems/metabolism.js';
+import { processMetabolism, type MetabolismResult } from '../systems/metabolism.js';
+import type { VitalityResult } from '../systems/vitality.js';
 import { processHealth } from '../systems/fish-health.js';
 import { createLog } from '../core/logging.js';
 import { getPpm } from '../resources/index.js';
@@ -21,6 +22,10 @@ export interface LivestockProcessingResult {
   state: SimulationState;
   /** Effects for resource changes (food, waste, O2, CO2) */
   effects: Effect[];
+  /** What the fish ate, passed and breathed this tick */
+  metabolism: MetabolismResult;
+  /** Each fish's vitality this tick, in `state.fish` order, the dead included */
+  vitalities: VitalityResult[];
 }
 
 /**
@@ -37,11 +42,6 @@ export function processLivestock(
   const effects: Effect[] = [];
   const livestockConfig = config.livestock ?? livestockDefaults;
 
-  // Skip if no fish
-  if (state.fish.length === 0) {
-    return { state, effects };
-  }
-
   // 1. Process metabolism (food consumption, waste, respiration, satiation, age)
   const metabolismResult = processMetabolism(
     state.fish,
@@ -50,6 +50,10 @@ export function processLivestock(
     livestockConfig,
     config.nutrients.foodMineralContent
   );
+
+  if (state.fish.length === 0) {
+    return { state, effects, metabolism: metabolismResult, vitalities: [] };
+  }
 
   // Add metabolism effects
   if (metabolismResult.foodConsumed > 0) {
@@ -151,7 +155,12 @@ export function processLivestock(
     }
   });
 
-  return { state: newState, effects };
+  return {
+    state: newState,
+    effects,
+    metabolism: metabolismResult,
+    vitalities: healthResult.vitalities,
+  };
 }
 
 // Re-export for testing and external use

@@ -1,7 +1,7 @@
 /**
  * The waste pool: what stands in the tank, what feeds it each hour, and what
  * leaves it into the nitrogen cycle. Every rate is the engine's own: what the
- * next tick's plant pass sheds, and the decay, metabolism and leaching off the
+ * next tick's plants shed and fish pass, and the decay and leaching off the
  * tank as it stands. A death's one-off lump is an event, not a rate, so no
  * source counts it.
  */
@@ -12,12 +12,11 @@ import {
   decayFraction,
   wasteSettlingShare,
   getTemperatureFactor,
-  processMetabolism,
   type SimulationState,
 } from '../../simulation/index.js';
 import { calculateWasteToAmmonia } from '../../simulation/systems/index.js';
 import type { TunableConfig } from '../../simulation/config/index.js';
-import { readHourAhead, type HourAhead } from './ahead.js';
+import type { HourAhead } from './ahead.js';
 
 export type WasteSourceKey = 'food' | 'fish' | 'plants' | 'substrate';
 
@@ -61,13 +60,13 @@ const LABEL: Record<WasteSourceKey, string> = {
 export function wasteInflow(
   state: SimulationState,
   config: TunableConfig,
-  ahead: HourAhead = readHourAhead(state, config)
+  ahead: HourAhead
 ): WasteInflowReadout {
   const r = state.resources;
   const decayed = calculateDecay(r.food, r.temperature, r.oxygen, config.decay);
   const grams: Record<WasteSourceKey, number> = {
     food: decayed * config.decay.wasteConversionRatio,
-    fish: processMetabolism(state.fish, r.food, r.oxygen, config.livestock).wasteProduced,
+    fish: ahead.fishWaste,
     plants: ahead.shedding,
     substrate: calculateSubstrateLeach(state.equipment.substrate.organicReserve, config.decay),
   };
@@ -107,7 +106,7 @@ export function mineralisationBase(state: SimulationState, config: TunableConfig
 export function wasteReadout(
   state: SimulationState,
   config: TunableConfig,
-  ahead: HourAhead = readHourAhead(state, config)
+  ahead: HourAhead
 ): WasteReadout {
   const r = state.resources;
   const q10 = getTemperatureFactor(r.temperature, config.decay);

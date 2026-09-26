@@ -16,7 +16,7 @@ import { useQueryParam } from '../hooks/useQueryParam';
 import type { useSimulation } from '../hooks/useSimulation';
 import { useReadingBook } from '../hooks/useReadingBook';
 import { useUnits } from '../hooks/useUnits';
-import {toneOf} from '../readings';
+import { toneOf } from '../readings';
 import {
   readLedger,
   rosterSummary,
@@ -85,7 +85,11 @@ export function LifeSection({
   );
 
   const load = useMemo(() => bioload(state.fish, state.tank.capacity), [state]);
-  const ledger = inspecting && readLedger(state, config, inspecting.target, inspecting.subtitle);
+  const ledger = useMemo(
+    () =>
+      inspecting && readLedger(state, config, book.ahead, inspecting.target, inspecting.subtitle),
+    [inspecting, state, config, book.ahead]
+  );
 
   const algaeReading = book.byId.algae;
   const algae: PopulationRosterRow = {
@@ -97,8 +101,7 @@ export function LifeSection({
     trend: algaeReading.trend,
     at: algaeReading.at,
     band: algaeReading.band,
-    status: book.roster.algae.status,
-    word: book.roster.algae.word,
+    ...book.roster.algae,
   };
 
   const inspect =

@@ -28,7 +28,7 @@ import {
   type RackSchedules,
 } from '../build';
 import {
-  algaeRow,
+  algaeReading,
   algaeStatus,
   bacteriaReadout,
   dailyLightReading,
@@ -49,15 +49,16 @@ import {
   toleranceStatus,
   waterReadings,
   wasteReadout,
-  type AlgaeRow,
   type BacteriaReadout,
   type CycleProjection,
   type DoseAdvice,
   type FryBatch,
   type GasReading,
+  type HourAhead,
   type PlantSpeciesGroup,
   type SpeciesGroup,
   type NutrientReading,
+  type Reading,
   type RunSnapshot,
   type Status,
   type StockedBand,
@@ -152,7 +153,7 @@ export interface Roster {
   fish: SpeciesGroup[];
   fry: FryBatch | null;
   plants: PlantSpeciesGroup[];
-  algae: AlgaeRow;
+  algae: Reading;
 }
 
 /** The rack, and the clock the scheduled devices keep. */
@@ -171,6 +172,8 @@ export interface Dosing {
 export interface ReadingBook {
   /** What the tank is running on, for the line beside a title. */
   caption: string;
+  /** The hour the next tick runs, every reading here was taken on. */
+  ahead: HourAhead;
   byId: ReadingsById;
   demand: NeedView[];
   nutrients: NutrientReading[];
@@ -297,7 +300,7 @@ function belowPrecision(value: number, decimals: number): boolean {
  * the last 24 samples where there are that many, and extrapolated from what
  * there is where there are not.
  */
-function trendOf(tape: Tape, id: ReadingId): string {
+function measuredTrend(tape: Tape, id: ReadingId): string {
   const read = tape.series[id];
   if (!read) return '';
   const window = tape.history.slice(-24);
@@ -339,7 +342,7 @@ function fromWater(id: ReadingId, tape: Tape, source: WaterSource): ReadingView 
     at: reading.fill,
     band: source.band === undefined ? reading.band : source.band,
     tone: source.tone ?? toneOf(reading.status),
-    trend: trendOf(tape, id),
+    trend: measuredTrend(tape, id),
     sentence: source.sentence,
     net: source.net ?? null,
     fills: source.fills ?? [],
@@ -382,7 +385,7 @@ function nutrientView(
     at: at(reading.ppm),
     band: reading.needed > 0 ? { from: at(reading.needed), to: 1 } : null,
     tone: toneOf(reading.status),
-    trend: trendOf(tape, id),
+    trend: measuredTrend(tape, id),
     need: reading.needed > 0 ? `need ${reading.neededText}` : '',
     sentence:
       reading.needed > 0
@@ -409,9 +412,9 @@ export function readTank({ state, config, history, units }: TankInput): ReadingB
   const bacteria = bacteriaReadout(state, config, ahead);
   const waste = wasteReadout(state, config, ahead);
   const projection = projectNitritePeak(state, config, ahead);
-  const specimens = plantRows(state, config, ahead);
+  const specimens = plantRows(state, ahead);
   const fish = readFish(state, config, ahead);
-  const light = dailyLightReading(state);
+  const light = dailyLightReading(ahead);
 
   const read = (key: WaterReading['key']): WaterReading => water.find((r) => r.key === key)!;
   const gas = (key: GasReading['key']): GasReading => gases.find((g) => g.key === key)!;
@@ -533,7 +536,7 @@ export function readTank({ state, config, history, units }: TankInput): ReadingB
       at: oxygenAt(gas('oxygen').value),
       band: { from: oxygenAt(OXYGEN_EDGE), to: 1 },
       tone: toneOf(gas('oxygen').status),
-      trend: trendOf(tape, 'oxygen'),
+      trend: measuredTrend(tape, 'oxygen'),
       sentence: `Under ${said('oxygen', OXYGEN_EDGE)} mg/L the engine alerts; a mid-hardiness fish takes harm lower still.`,
       net: null,
       fills: [],
@@ -548,7 +551,7 @@ export function readTank({ state, config, history, units }: TankInput): ReadingB
       at: co2At(gas('co2').value),
       band: { from: 0, to: co2At(HIGH_CO2_THRESHOLD) },
       tone: toneOf(gas('co2').status),
-      trend: trendOf(tape, 'co2'),
+      trend: measuredTrend(tape, 'co2'),
       sentence: `Over ${said('co2', HIGH_CO2_THRESHOLD)} mg/L the engine alerts — plants take it up, surface exchange drives it off.`,
       net: null,
       fills: [],
@@ -567,7 +570,7 @@ export function readTank({ state, config, history, units }: TankInput): ReadingB
       at: algaeAt(algae),
       band: { from: 0, to: algaeAt(HIGH_ALGAE_THRESHOLD) },
       tone: toneOf(algaeStatus(algae)),
-      trend: trendOf(tape, 'algae'),
+      trend: measuredTrend(tape, 'algae'),
       sentence: `Coverage the plants are competing with; over ${said('algae', HIGH_ALGAE_THRESHOLD)} % the engine calls it a bloom.`,
       net: null,
       fills: [],
@@ -586,7 +589,7 @@ export function readTank({ state, config, history, units }: TankInput): ReadingB
       need: light.need,
       sentence:
         light.needed > 0
-          ? `The substrate's PAR over the last 24 hours. Under ${said('dailyLight', light.needed)} ${DAILY_LIGHT_UNIT} the neediest plant here starves.`
+          ? `The substrate's PAR over the last 24 hours. Under ${said('dailyLight', light.needed)} ${DAILY_LIGHT_UNIT} the plant with the least light for its need, at its own height, starves.`
           : 'Nothing planted, so nothing is asking for it.',
       net: null,
       fills: [],
@@ -598,6 +601,7 @@ export function readTank({ state, config, history, units }: TankInput): ReadingB
   const demand = nutrients.map((reading) => byId[DEMAND_ID[reading.key]]);
 
   return {
+    ahead,
     caption: [
       state.equipment.heater.enabled ? 'heater on' : 'no heater',
       state.equipment.ato.enabled ? 'ATO on' : 'ATO off',
@@ -612,7 +616,7 @@ export function readTank({ state, config, history, units }: TankInput): ReadingB
       fish: groupBySpecies(fish, config.livestock),
       fry: groupFry(fish, config.livestock),
       plants: groupPlantsBySpecies(specimens),
-      algae: algaeRow(state, config, ahead),
+      algae: algaeReading(algae),
     },
     rack: {
       devices: equipmentRows(state, bacteria, units),

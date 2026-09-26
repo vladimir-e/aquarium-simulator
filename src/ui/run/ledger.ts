@@ -14,11 +14,12 @@ import {
 } from '../../simulation/index.js';
 import type { TunableConfig } from '../../simulation/config/index.js';
 import type { VerbId } from '../actions/verbs.js';
-import { readHourAhead, type HourAhead } from './ahead.js';
-import { algaeStatus, algaeWord } from './flora.js';
+import { TICKS_PER_DAY } from '../utils/clock.js';
+import type { HourAhead } from './ahead.js';
+import { algaeReading, algaeStatus } from './flora.js';
 import { bandOf, bandStatus, fishReading } from './livestock.js';
 import { CONDITION_BAND, type Satiation, type SpeciesId } from './roster.js';
-import { conditionStatus, PER_DAY, trendOf, vitalReading, type Status } from './status.js';
+import { conditionStatus, projectedTrend, vitalReading, type Status } from './status.js';
 import type { ReadingBand } from './water.js';
 
 /** What the ledger is open on. Algae is a population, so it carries no id. */
@@ -60,7 +61,7 @@ export interface Ledger {
   unit: string;
   at: number;
   band: ReadingBand | null;
-  /** Condition change per day — net plus what the bank healed — as a trend. */
+  /** What the next tick does to the hero figure, per day. */
   trend: string;
   satiation: Satiation | null;
   helping: LedgerFactor[];
@@ -75,26 +76,31 @@ export interface Ledger {
   verb: Extract<VerbId, 'feed' | 'trimPlants' | 'scrubAlgae'>;
 }
 
+/** The precision a factor, a sum and the net print at, per day. */
+export const LEDGER_DECIMALS = 1;
+
 const BANK_DECIMALS = 1;
 
-/** Whether a bank figure, or a day of a flow through it, shows at the bank's precision. */
-function shows(amount: number): boolean {
-  return amount >= 0.5 / 10 ** BANK_DECIMALS;
+/** Whether an amount shows at a precision rather than rounding to nothing. */
+function shows(amount: number, decimals: number): boolean {
+  return amount >= 0.5 / 10 ** decimals;
 }
 
+/** The factors that print, worst first: one rounding to nothing is not a line. */
 function factors(list: VitalityFactor[]): LedgerFactor[] {
   return list
-    .filter((factor) => factor.amount > 0)
     .map((factor) => ({
       key: factor.key,
       label: factor.label,
-      perDay: factor.amount * PER_DAY,
+      perDay: factor.amount * TICKS_PER_DAY,
     }))
+    .filter((factor) => shows(factor.perDay, LEDGER_DECIMALS))
     .sort((a, b) => b.perDay - a.perDay);
 }
 
-function sum(list: LedgerFactor[]): number {
-  return list.reduce((total, factor) => total + factor.perDay, 0);
+/** Every factor charged, per day — the lines that print and those too small to. */
+function total(list: VitalityFactor[]): number {
+  return list.reduce((sum, factor) => sum + factor.amount, 0) * TICKS_PER_DAY;
 }
 
 interface BankHour {
@@ -102,15 +108,25 @@ interface BankHour {
   next: number;
   cap: number;
   healed: number;
-  grown?: number;
+  /** What the bank bought beside healing — a plant's growth, a fish's brood. */
+  spent: number;
+  /** The note for a bank drawn on to buy it. */
+  buying: string;
 }
 
-/** What the bank does over the hour, named by which way it moves: in, out and on what, or neither. */
-function bankNote({ now, next, cap, healed, grown = 0 }: BankHour): string {
-  const change = (next - now) * PER_DAY;
-  if (shows(change)) return 'banking';
-  if (shows(-change)) return healed >= grown ? 'healing from reserve' : 'buying growth';
-  return now >= cap ? 'full' : shows(now) ? 'held against a bad day' : 'empty';
+/**
+ * What the bank does over the hour, named by which way it moves: in, out and on
+ * what, or neither. A bank held to a lowered cap drops with nothing drawn, and
+ * reads as the full bank it is.
+ */
+function bankNote({ now, next, cap, healed, spent, buying }: BankHour): string {
+  const change = (next - now) * TICKS_PER_DAY;
+  if (shows(change, BANK_DECIMALS)) return 'banking';
+  if (!shows(now, BANK_DECIMALS)) return 'empty';
+  if (shows(-change, BANK_DECIMALS) && healed + spent > 0) {
+    return healed >= spent ? 'healing from reserve' : buying;
+  }
+  return now >= cap ? 'full' : 'held against a bad day';
 }
 
 function bankOf(hour: BankHour): LedgerBank {
@@ -135,7 +151,7 @@ function fishLedger(
 
   const fish = state.fish[index];
   const livestock = config.livestock;
-  const vitality = ahead.fish[index];
+  const { vitality, bank } = ahead.fish[index];
   const { breakdown } = vitality;
 
   const helping = factors(breakdown.benefits);
@@ -168,14 +184,16 @@ function fishLedger(
     },
     helping,
     hurting,
-    helps: sum(helping),
-    hurts: sum(hurting),
-    net: breakdown.net * PER_DAY,
+    helps: total(breakdown.benefits),
+    hurts: total(breakdown.stressors),
+    net: breakdown.net * TICKS_PER_DAY,
     bank: bankOf({
       now: fish.surplus,
-      next: vitality.surplus,
+      next: bank,
       cap: livestock.surplusCap,
       healed: breakdown.healed,
+      spent: vitality.surplus - bank,
+      buying: 'buying a brood',
     }),
     demand: null,
     verb: 'feed',
@@ -193,9 +211,8 @@ function plantLedger(
   if (index < 0) return null;
 
   const plant = state.plants[index];
-  const vitality = ahead.plants[index];
+  const { vitality, bank } = ahead.plants[index];
   const { breakdown } = vitality;
-  const next = ahead.banks[index];
   const data = PLANT_SPECIES_DATA[plant.species];
   const helping = factors(breakdown.benefits);
   const hurting = factors(breakdown.stressors);
@@ -218,15 +235,16 @@ function plantLedger(
     satiation: null,
     helping,
     hurting,
-    helps: sum(helping),
-    hurts: sum(hurting),
-    net: breakdown.net * PER_DAY,
+    helps: total(breakdown.benefits),
+    hurts: total(breakdown.stressors),
+    net: breakdown.net * TICKS_PER_DAY,
     bank: bankOf({
       now: plant.surplus,
-      next,
+      next: bank,
       cap: config.plants.surplusCap,
       healed: breakdown.healed,
-      grown: vitality.surplus - next,
+      spent: vitality.surplus - bank,
+      buying: 'buying growth',
     }),
     demand:
       `${data.nutrientDemand} demand · light ${lightLow}–${lightHigh} PAR · ${data.co2Requirement} CO₂`,
@@ -235,30 +253,27 @@ function plantLedger(
 }
 
 function algaeLedger(state: SimulationState, ahead: HourAhead): Ledger {
-  const population = ahead.algae;
+  const { breakdown, net } = ahead.algae;
   const mass = state.algae.mass;
-  const helping = factors(population.breakdown.benefits);
-  const hurting = factors(population.breakdown.stressors);
 
   return {
     target: { kind: 'algae' },
     species: 'algae',
     title: 'Algae',
     subtitle: 'the tank’s one uninvited population',
-    status: algaeStatus(mass),
-    word: algaeWord(mass),
+    ...algaeReading(mass),
     value: Math.round(mass).toString(),
     valueStatus: algaeStatus(mass),
     unit: '% coverage',
     at: mass / 100,
     band: { from: 0, to: 0.3 },
-    trend: trendOf(population.net),
+    trend: projectedTrend(ahead.algaeMass - mass),
     satiation: null,
-    helping,
-    hurting,
-    helps: sum(helping),
-    hurts: sum(hurting),
-    net: population.net * PER_DAY,
+    helping: factors(breakdown.benefits),
+    hurting: factors(breakdown.stressors),
+    helps: total(breakdown.benefits),
+    hurts: total(breakdown.stressors),
+    net: net * TICKS_PER_DAY,
     bank: null,
     demand: null,
     verb: 'scrubAlgae',
@@ -273,10 +288,10 @@ function algaeLedger(state: SimulationState, ahead: HourAhead): Ledger {
 export function readLedger(
   state: SimulationState,
   config: TunableConfig,
+  ahead: HourAhead,
   target: LedgerTarget,
   subtitle = ''
 ): Ledger | null {
-  const ahead = readHourAhead(state, config);
   switch (target.kind) {
     case 'fish':
       return fishLedger(state, config, ahead, target.id, subtitle);

@@ -14,7 +14,6 @@ import { speciesHalfSaturation } from '../../simulation/systems/nutrients.js';
 import { MAX_DOSE_ML } from '../../simulation/actions/dose.js';
 import { produce } from 'immer';
 import {
-  algaeRow,
   algaeStatus,
   algaeWord,
   doseDeltas,
@@ -28,7 +27,8 @@ import {
   TRIM_TARGETS,
   type PlantRow,
 } from './flora';
-import { conditionStatus, conditionWord, trendOf } from './status';
+import { readHourAhead } from './ahead';
+import { conditionStatus, conditionWord, groupReading, projectedTrend } from './status';
 
 const FORMULA = DEFAULT_CONFIG.nutrients.fertilizerFormula;
 
@@ -66,88 +66,49 @@ describe('condition + algae words', () => {
     expect(algaeStatus(10)).toBe('ok');
     expect(algaeStatus(45)).toBe('warn');
     expect(algaeStatus(90)).toBe('alert');
-    expect(algaeWord(1)).toBe('suppressed');
+    expect(algaeWord(1)).toBe('sparse');
     expect(algaeWord(70)).toBe('spreading');
     expect(algaeWord(95)).toBe('booming');
   });
 });
 
-function reading(row: PlantRow, condition: number, sick = false): PlantRow {
-  const word = sick ? 'sick' : conditionWord(condition);
-  return { ...row, condition, sick, status: sick ? 'warn' : conditionStatus(condition), word };
+function rows(state: SimulationState): PlantRow[] {
+  return plantRows(state, readHourAhead(state, DEFAULT_CONFIG));
 }
 
 describe('groupPlantsBySpecies', () => {
-  it('folds a species into one row carrying a status per specimen', () => {
-    const state = planted(['java_fern', 'java_fern', 'monte_carlo']);
-
-    const groups = groupPlantsBySpecies(plantRows(state, DEFAULT_CONFIG));
+  it('folds a species into one row read by the group rule, its strip off the mean', () => {
+    const state = produce(planted(['java_fern', 'java_fern', 'monte_carlo']), (draft) => {
+      draft.plants[0].condition = 20;
+      draft.plants[1].condition = 80;
+    });
+    const groups = groupPlantsBySpecies(rows(state));
     expect(groups.map((group) => group.name)).toEqual(['Java Fern', 'Monte Carlo']);
 
     const [ferns] = groups;
     expect(ferns.count).toBe(2);
-    expect(ferns.statuses).toHaveLength(2);
-  });
-
-  it('reads the group off its worst specimen, counted, and its strip off the mean', () => {
-    const rows = plantRows(planted(['java_fern', 'java_fern']), DEFAULT_CONFIG);
-    const [group] = groupPlantsBySpecies([reading(rows[0], 20), reading(rows[1], 80)]);
-
-    expect(group).toMatchObject({
-      status: conditionStatus(20),
-      word: `1 ${conditionWord(20)}`,
-      condition: 50,
-    });
-  });
-
-  it('counts the sick specimens', () => {
-    const rows = plantRows(planted(['java_fern', 'java_fern', 'java_fern']), DEFAULT_CONFIG);
-    const [group] = groupPlantsBySpecies([
-      reading(rows[0], 100, true),
-      reading(rows[1], 100, true),
-      rows[2],
-    ]);
-
-    expect(group).toMatchObject({ status: 'warn', word: '2 sick' });
-  });
-
-  it('reads a specimen alone the way it reads itself', () => {
-    const [row] = plantRows(planted(['java_fern']), DEFAULT_CONFIG);
-    const sick = reading(row, 100, true);
-    const [group] = groupPlantsBySpecies([sick]);
-
-    expect(group).toMatchObject({ status: 'warn', word: sick.word });
+    expect(ferns.condition).toBe(50);
+    expect(ferns.members.map((member) => member.id)).toEqual(state.plants.slice(0, 2).map((p) => p.id));
+    expect(ferns.reading).toEqual(groupReading(ferns.members));
   });
 });
 
 describe('plantRows', () => {
-  it('carries the engine’s own vitality, and its factors sum to the net it prints', () => {
-    const state = planted(['java_fern', 'monte_carlo']);
-    const rows = plantRows(state, DEFAULT_CONFIG);
-    expect(rows.map((row) => row.name)).toEqual(['Java Fern', 'Monte Carlo']);
-
-    for (const row of rows) {
-      const benefits = row.benefits.reduce((sum, f) => sum + f.amount, 0);
-      const charged = row.charged.reduce((sum, f) => sum + f.amount, 0);
-      expect(row.net).toBeCloseTo(benefits - charged, 6);
-    }
-  });
-
   it('calls a plant sick exactly while the next tick takes condition off it, as the trend shows', () => {
     const dark = produce(planted(['java_fern']), (draft) => {
       draft.equipment.light.enabled = false;
       draft.resources.lightByHour.fill(0);
     });
-    expect(plantRows(dark, DEFAULT_CONFIG)[0].word).toBe('sick');
+    expect(rows(dark)[0].reading.word).toBe('sick');
 
     const banked = produce(dark, (draft) => {
       draft.plants[0].surplus = DEFAULT_CONFIG.plants.surplusCap;
     });
     for (const state of [dark, banked]) {
-      const [row] = plantRows(state, DEFAULT_CONFIG);
+      const [row] = rows(state);
       const next = tick(state, DEFAULT_CONFIG).plants[0];
-      expect(row.sick).toBe(row.word === 'sick');
-      expect(row.sick).toBe(trendOf(next.condition - row.condition).startsWith('↘'));
+      expect(row.sick).toBe(row.reading.word === 'sick');
+      expect(row.sick).toBe(projectedTrend(next.condition - row.condition).startsWith('↘'));
     }
   });
 
@@ -158,24 +119,8 @@ describe('plantRows', () => {
       plants: state.plants.map((p) => ({ ...p, condition: 22 })),
     };
 
-    expect(plantRows(state, DEFAULT_CONFIG)[0].word).toBe('thriving');
-    expect(plantRows(struggling, DEFAULT_CONFIG)[0]).toMatchObject({
-      word: 'struggling',
-      status: 'alert',
-    });
-  });
-});
-
-describe('algaeRow', () => {
-  it('reads the engine’s algae population, not the plants’', () => {
-    const state = produce(planted(['java_fern']), (draft) => {
-      draft.algae.mass = 30;
-    });
-    const row = algaeRow(state, DEFAULT_CONFIG);
-    expect(row.mass).toBe(state.algae.mass);
-    const benefits = row.benefits.reduce((sum, f) => sum + f.amount, 0);
-    const stressors = row.stressors.reduce((sum, f) => sum + f.amount, 0);
-    expect(row.net).toBeCloseTo(benefits - stressors, 6);
+    expect(rows(state)[0].reading.word).toBe('thriving');
+    expect(rows(struggling)[0].reading).toEqual({ word: 'struggling', status: 'alert' });
   });
 });
 
@@ -374,12 +319,4 @@ describe('overTrimCount', () => {
     expect(getPlantsToTrimCount(sized(80), 75)).toBe(1);
   });
 
-  it('flags the same plants on the row as it counts in the summary', () => {
-    const big = sized(Math.max(...TRIM_TARGETS) + 1);
-    expect(plantRows(big, DEFAULT_CONFIG).map((r) => r.overTrim)).toEqual([true]);
-
-    const small = sized(60);
-    expect(plantRows(small, DEFAULT_CONFIG).map((r) => r.overTrim)).toEqual([false]);
-    expect(overTrimCount(small)).toBe(0);
-  });
 });

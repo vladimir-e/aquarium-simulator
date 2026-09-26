@@ -55,7 +55,7 @@ export function OverviewSection({
             onAct={onAct}
             actLabel={actLabel}
           />
-          <GearWidget book={book} sim={sim} />
+          <GearWidget book={book} sim={sim} onOpenReading={setReading} />
           <NutrientsWidget
             book={book}
             state={state}

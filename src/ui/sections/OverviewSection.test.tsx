@@ -193,6 +193,13 @@ describe('OverviewSection', () => {
     expect(sim.updateFilterEnabled).toHaveBeenCalledWith(false);
   });
 
+  it('opens the day’s light on the Gear widget in the reading drawer', () => {
+    renderOverview(stocked());
+
+    fireEvent.click(within(widget('Gear')).getByRole('button', { name: /daily light/ }));
+    expect(screen.getByRole('dialog', { name: 'Daily light' })).toBeTruthy();
+  });
+
   it('reads the plant foods against what the plants ask for', () => {
     renderOverview(stocked());
     const nutrients = within(widget('Nutrients'));

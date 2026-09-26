@@ -19,7 +19,6 @@ import {
 import {
   calculateSubstrateLeach,
   wasteSettlingShare,
-  processMetabolism,
   type Resources,
   type SimulationState,
 } from '../../simulation/index.js';
@@ -28,7 +27,7 @@ import type { NitrogenCycleConfig, TunableConfig } from '../../simulation/config
 import { getPpm } from '../../simulation/resources/index.js';
 import { monodFactor } from '../../simulation/core/kinetics.js';
 import { NH3_TO_NO2_MASS_RATIO } from '../../simulation/core/chemistry.js';
-import { readHourAhead, type HourAhead } from './ahead.js';
+import type { HourAhead } from './ahead.js';
 import { mineralisationBase, wasteInflow } from './waste.js';
 
 /**
@@ -193,7 +192,7 @@ export function colonyCount(units: number): string {
 export function bacteriaReadout(
   state: SimulationState,
   config: TunableConfig,
-  ahead: HourAhead = readHourAhead(state, config)
+  ahead: HourAhead
 ): BacteriaReadout {
   const r = state.resources;
   const nc = config.nitrogenCycle;
@@ -202,7 +201,7 @@ export function bacteriaReadout(
 
   // The AOB stage sees both of these: gill excretion lands in the active tier,
   // ahead of the passive nitrogen cycle, and mineralisation runs first inside it.
-  const gills = processMetabolism(state.fish, r.food, r.oxygen, config.livestock).ammoniaProduced;
+  const gills = ahead.gillAmmonia;
   const { ammoniaProduced } = calculateWasteToAmmonia(
     mineralisationBase(state, config, wasteInflow(state, config, ahead)),
     config
@@ -292,7 +291,7 @@ function nextVolume(water: number, state: SimulationState, config: TunableConfig
 export function projectNitritePeak(
   state: SimulationState,
   config: TunableConfig,
-  ahead: HourAhead = readHourAhead(state, config),
+  ahead: HourAhead,
   horizon: number = PROJECTION_HORIZON
 ): CycleProjection | null {
   const r = state.resources;
@@ -306,7 +305,7 @@ export function projectNitritePeak(
   const steadyInflow = sources
     .filter((source) => source.key !== 'substrate')
     .reduce((total, source) => total + source.gramsPerHour, 0);
-  const gills = processMetabolism(state.fish, r.food, r.oxygen, config.livestock).ammoniaProduced;
+  const gills = ahead.gillAmmonia;
 
   let reserve = state.equipment.substrate.organicReserve;
   let water = r.water;

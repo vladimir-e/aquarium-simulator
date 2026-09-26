@@ -15,6 +15,7 @@ import type { TunableConfig } from '../../../simulation/config/index.js';
 import type { useSimulation } from '../../hooks/useSimulation';
 import { useUnits } from '../../hooks/useUnits';
 import { toneOf } from '../../readings';
+import type { HourAhead } from '../../run';
 import { formatFlowRate } from '../../utils/units';
 import {
   deviceHint,
@@ -266,6 +267,7 @@ export function DeviceDrawer({
   entry,
   sim,
   config,
+  ahead,
   hour,
   onClose,
   onPower,
@@ -273,6 +275,7 @@ export function DeviceDrawer({
   entry: RackEntry | null;
   sim: Sim;
   config: TunableConfig;
+  ahead: HourAhead;
   hour: number;
   onClose: () => void;
   onPower: (id: DeviceId, next: boolean) => void;
@@ -280,8 +283,8 @@ export function DeviceDrawer({
   const { unitSystem } = useUnits();
   const id = entry?.row.id;
   const readings = useMemo(
-    () => (id ? deviceReadings(id, { state: sim.state, config, units: unitSystem }) : []),
-    [id, sim.state, config, unitSystem]
+    () => (id ? deviceReadings(id, { state: sim.state, config, ahead, units: unitSystem }) : []),
+    [id, sim.state, config, ahead, unitSystem]
   );
 
   const hint = useMemo(

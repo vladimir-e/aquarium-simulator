@@ -53,8 +53,7 @@ export function LifeWidget({
     trend: algaeReading.trend,
     at: algaeReading.at,
     band: algaeReading.band,
-    status: book.roster.algae.status,
-    word: book.roster.algae.word,
+    ...book.roster.algae,
   };
 
   const handlers: RosterHandlers = {

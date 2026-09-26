@@ -4,16 +4,17 @@ import { applyAction, createSimulation } from '../../simulation/index.js';
 import { DEFAULT_CONFIG, type TunableConfig } from '../../simulation/config/index.js';
 import { livestockDefaults } from '../../simulation/config/livestock.js';
 import { readHourAhead } from './ahead.js';
-import { groupBySpecies, groupFry, readFish, type FishRead } from './livestock.js';
-import { groupPlantsBySpecies, plantRows, type PlantRow } from './flora.js';
+import { groupBySpecies, groupFry, readFish } from './livestock.js';
+import { groupPlantsBySpecies, plantRows } from './flora.js';
 import { readLedger } from './ledger.js';
-import type { Reading } from './status.js';
+import { groupReading, worstMember, type Member } from './status.js';
 import {
   rosterTables,
   type ClutchRosterRow,
   type FryRosterRow,
   type IndividualRosterRow,
   type RosterInput,
+  type RosterRow,
   type SpeciesRosterRow,
 } from './roster.js';
 
@@ -43,10 +44,10 @@ const HEALED: TunableConfig = {
 };
 
 function input(state: SimulationState, config: TunableConfig): RosterInput {
-  const fish = readFish(state, config);
+  const fish = readFish(state, config, readHourAhead(state, config));
   return {
     fish: groupBySpecies(fish, config.livestock),
-    plants: groupPlantsBySpecies(plantRows(state, config)),
+    plants: groupPlantsBySpecies(plantRows(state, readHourAhead(state, config))),
     fry: groupFry(fish, config.livestock),
     clutches: state.clutches,
     tick: state.tick,
@@ -202,66 +203,32 @@ describe('rosterTables', () => {
     expect(group).toMatchObject({ status: 'warn', word: '3 overfed' });
   });
 
-  describe('reads both tables by one group rule', () => {
-    const good: Reading = { status: 'ok', word: 'good' };
-    const thriving: Reading = { status: 'ok', word: 'thriving' };
-    const sick: Reading = { status: 'warn', word: 'sick' };
-    const fair: Reading = { status: 'warn', word: 'fair' };
+  it('reads both tables by the one group rule, and opens the member it names', () => {
+    const base = tank([
+      makeFish({ id: 'fish_a_1' }),
+      makeFish({ id: 'fish_a_2' }),
+      makeFish({ id: 'fish_a_3', health: 65, surplus: 5 }),
+    ]);
+    const state = applyAction(
+      applyAction(base, { type: 'addPlant', species: 'java_fern' }).state,
+      { type: 'addPlant', species: 'java_fern' }
+    ).state;
+    const planted: SimulationState = {
+      ...state,
+      plants: state.plants.map((plant, i) => ({ ...plant, condition: i === 1 ? 65 : 100 })),
+    };
+    const { fish, plants } = input(planted, DEFAULT_CONFIG);
+    const rows = tables(planted);
+    const reads = (members: (Member & { id: string })[], row: RosterRow): void => {
+      const header = row as SpeciesRosterRow;
+      expect(members.every((member) => member.reading.status === 'ok')).toBe(true);
+      expect(header).toMatchObject(groupReading(members));
+      expect(header.worstKey).toBe(worstMember(members).id);
+      expect(header.worstKey).toBe(members.find((member) => member.condition === 65)!.id);
+    };
 
-    const [specimen] = plantRows(
-      applyAction(tank([]), { type: 'addPlant', species: 'java_fern' }).state,
-      DEFAULT_CONFIG
-    );
-
-    function both(members: [number, Reading][]): { fish: Reading; plants: Reading; dots: string[] } {
-      const fish: FishRead[] = members.map(([condition, reading], i) => ({
-        fish: makeFish({ id: `fish_a_${i}`, health: condition }),
-        sick: reading === sick,
-        reading,
-      }));
-      const plants: PlantRow[] = members.map(([condition, reading], i) => ({
-        ...specimen,
-        id: `plant_a_${i}`,
-        condition,
-        sick: reading === sick,
-        ...reading,
-      }));
-      const [fishGroup] = groupBySpecies(fish, livestockDefaults);
-      const [plantGroup] = groupPlantsBySpecies(plants);
-      expect(fishGroup.members.map((member) => member.reading.status)).toEqual(plantGroup.statuses);
-      return {
-        fish: fishGroup.reading,
-        plants: { status: plantGroup.status, word: plantGroup.word },
-        dots: plantGroup.statuses,
-      };
-    }
-
-    it('reads the worst member’s condition where nobody needs the reader, not the mean', () => {
-      const { fish, plants } = both([[65, good], [100, thriving], [100, thriving]]);
-
-      expect(fish).toEqual(good);
-      expect(plants).toEqual(good);
-    });
-
-    it('counts every member at the worst tone, so the count is the dots it sits over', () => {
-      for (const members of [
-        [[100, sick], [50, fair], [100, sick]],
-        [[50, fair], [100, sick], [100, sick]],
-      ] as [number, Reading][][]) {
-        const { fish, plants, dots } = both(members);
-        const word = `${dots.filter((dot) => dot === 'warn').length} unwell`;
-
-        expect(fish).toEqual({ status: 'warn', word });
-        expect(plants).toEqual({ status: 'warn', word });
-      }
-    });
-
-    it('names the reason where the flagged members share one', () => {
-      const { fish, plants } = both([[100, sick], [100, thriving], [100, sick]]);
-
-      expect(fish).toEqual({ status: 'warn', word: '2 sick' });
-      expect(plants).toEqual({ status: 'warn', word: '2 sick' });
-    });
+    reads(fish[0].members, rows.fish[0]);
+    reads(plants[0].members, rows.plants[0]);
   });
 
   it('reads a group of one the way it reads its member', () => {
@@ -286,10 +253,10 @@ describe('rosterTables', () => {
       ...base,
       resources: { ...base.resources, ammonia: 20 * base.resources.water },
     };
-    expect(readHourAhead(state, DEFAULT_CONFIG).fish[0].breakdown.healed).toBeGreaterThan(0);
+    expect(readHourAhead(state, DEFAULT_CONFIG).fish[0].vitality.breakdown.healed).toBeGreaterThan(0);
 
     const row = tables(state, ['species-neon_tetra']).fish[1] as IndividualRosterRow;
-    const ledger = readLedger(state, DEFAULT_CONFIG, { kind: 'fish', id: 'fish_a_1' })!;
+    const ledger = readLedger(state, DEFAULT_CONFIG, readHourAhead(state, DEFAULT_CONFIG), { kind: 'fish', id: 'fish_a_1' })!;
 
     expect(row.word).toBe(ledger.word);
     expect(row.status).toBe(ledger.status);
