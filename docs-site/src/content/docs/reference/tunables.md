@@ -165,7 +165,6 @@ density you can look up rather than a score.
 | `co2BenefitPeak` · `temperatureBenefitPeak` · `phBenefitPeak` | Recovery earned per factor at its best — temperature and pH at the band's centre; all three run on the light term times the Liebig sufficiency | %/hr |
 | `maxSheddingRate` | Share of itself a plant sheds per hour at condition 0, falling with the square of the deficit | /hr |
 | `wastePerSize` | Waste per % of a rate unit of tissue lost, shed or dead — so a unit fouls the water by its leaf, not its size | g/% |
-| `deathSizeThreshold` | Size below which a plant dies, and the least a plant is planted, trimmed or budded at | % |
 
 Every severity above is pre-hardiness. The species' own hardiness scales every
 channel by `1 − hardiness` except nitrate, whose edge it carries out instead.

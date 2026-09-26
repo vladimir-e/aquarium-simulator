@@ -30,7 +30,7 @@ family. Low condition sheds tissue.
 | Offshoots | <Badge text="settled" variant="success" /> | A full bank buys a new unit of the family at the growth conversion — value conserved, no timer, no space test. |
 | Vigour | <Badge text="settled" variant="success" /> | Each unit draws its own offset on income at birth, so clones bud apart rather than in lockstep. |
 | Shedding | <Badge text="settled" variant="success" /> | A rate reading a stock — the square of the condition deficit, zero at full condition, with no threshold in it. |
-| The size minimum | <Badge text="scaffolding" variant="caution" /> | Two switches on `deathSizeThreshold`. A unit shed under it is retired as bookkeeping rather than by a rate, so a starved plant never lingers as a rootstock. And a full bank whose offshoot would come in under it buys none, so a species whose full bank buys less than the minimum never propagates. |
+| Death | <Badge text="settled" variant="success" /> | Condition reaching 0, as for a fish. A unit shed to a speck lives while it has condition: it heals and regrows, or keeps losing condition and dies. |
 | Epiphyte footprint | <Badge text="scaffolding" variant="caution" /> | A java fern or anubias on the rock claims floor like a rooted plant; there is no hardscape budget. |
 | Nitrate | <Badge text="settled" variant="success" /> | Log dose past the plant's own edge, the fish shape at an edge only a runaway doser reaches. |
 | Nutrition | <Badge text="settled" variant="success" /> | Every nutrient saturates on its own Monod curve against a per-species demand, and uptake follows the plant's need rather than the fertilizer's ratio. |
@@ -345,7 +345,6 @@ bank         −= offshoot.size / (growthRate × sizePerSurplus)
 
 - **A new unit of the family.** Its parent's species and family, at full condition on an empty bank — only a full plant holds a full bank — with its own vigour. It acts from the next hour.
 - **Value is conserved** at the growth conversion: the parent pays for exactly the size it bought. At the shipped cap of 50 a full bank buys an anubias of 6, a java fern of 10, a sword of 20, a hairgrass patch of 30 or a monte carlo patch of 36, and empties.
-- **A bank that would buy a unit under `deathSizeThreshold` buys nothing** and keeps its value; healing and growth go on drawing on it. That minimum is a switch ([The size minimum](#status)).
 - **Propagation never tests space.** Offshoots land whatever the floor cover; crowding and the canopy decide which of them live.
 
 The form sets the offshoot's shape and the words its `plant-propagated` log
@@ -391,8 +390,8 @@ its condition collapses keeps most of itself. The tissue leaves as waste rather
 than as fuel — a failing plant drops its oldest leaves rather than digesting
 them, which is why melting plants foul the water.
 
-A plant dies at condition 0, as a fish does, or once less than
-`deathSizeThreshold` of its unit is left. What remains becomes waste, at
+A plant dies at condition 0, as a fish does; size never kills it. What remains
+becomes waste, at
 `size × fullRateUnits × wastePerSize`, and it leaves the array. Tissue shed or
 dead fouls the water at one yield, per rate unit, so a melting sword fouls it
 more than a carpet patch of the same size.
@@ -425,7 +424,6 @@ more than a carpet patch of the same size.
 | GH per nitrate drawn | Calcium and magnesium taken up per mg of nitrate actually drawn, off leaf-tissue ratios; a constant | `0.28` mg CaCO₃/mg |
 | GH half-saturation | GH, as CaCO₃, at which that uptake runs at half; a constant | `1` mg/L |
 | Benefit peaks (×3) | Recovery per channel at its best, before the drive — the three make the budget in [Income and harm](#income-and-harm) | `0.125` %/hr |
-| `deathSizeThreshold` | Size under which a unit is gone; nothing is planted, trimmed or budded under it | `1` % |
 
 The canopy's own constant, `leafAttenuationPerLai`, is under [Light](/subsystems/light/#key-tunables).
 

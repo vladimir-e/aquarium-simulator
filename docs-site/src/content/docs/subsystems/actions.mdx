@@ -54,8 +54,8 @@ diverge the moment their keepers act differently.
 | Water change | a fraction in `(0, 1]`, optionally a vacuum share in `[0, 1]` | see below | either non-finite or outside its range, or the tank is empty |
 | Dose | millilitres | the four nutrient pools, by the fertilizer ratio | non-finite, below the minimum or above the maximum |
 | Scrub algae | an optional explicit share | `algae.mass` down 10–30 % | mass under `5`, or a named share outside the band |
-| Trim plants | a target size, optionally one plant id or one family id | every plant above the target down to it — of that family, or just the named plant | target outside `[deathSizeThreshold, 100]`, nothing above the target, plant not found |
-| Add plant | species, optional size | a unit founding its own family, at condition 100 with an empty bank | unknown species, size outside `[deathSizeThreshold, 100]`, not enough floor for its footprint, substrate incompatible |
+| Trim plants | a target size, optionally one plant id or one family id | every plant above the target down to it — of that family, or just the named plant | target outside `[MIN_PLANTABLE_SIZE, 100]`, nothing above the target, plant not found |
+| Add plant | species, optional size | a unit founding its own family, at condition 100 with an empty bank | unknown species, size outside `[MIN_PLANTABLE_SIZE, 100]`, not enough floor for its footprint, substrate incompatible |
 | Remove plant | plant id | the plant leaves the array; a rooted one disturbs its footprint's share of the bed | not found |
 | Add fish | species | an adult at `maturityAge`, with sampled sex, hardiness offset and health jitter | unknown species, or the physical mass ceiling reached |
 | Remove fish | fish id | the fish leaves the array | not found |
@@ -128,7 +128,7 @@ they are not reachable through the config layer or a declared range.
 | `MIN_SCRUB_PERCENT` · `MAX_SCRUB_PERCENT` | The band a scrub's bite is drawn from | `0.1`–`0.3` |
 | `MIN_ALGAE_TO_SCRUB` | Mass below which there is nothing to mechanically remove | `5` |
 | `MAX_FISH_VOLUME_FRACTION` | Share of the water stocked fish may occupy — a plausibility ceiling, not a husbandry one | `0.5` |
-| Plant size bounds | What a planting or a trim may name, from the config-layer `deathSizeThreshold` to a full unit | `1`–`100` % |
+| `MIN_PLANTABLE_SIZE` | Least a planting or a trim may name; the most is a full unit | `1` % |
 | `DEFAULT_PLANT_SIZE` | Size a plant goes in at when the caller says nothing | `50` % |
 | Water change presets | The steps the dashboard offers; the action itself takes any fraction | `0.1` · `0.25` · `0.5` · `0.9` |
 

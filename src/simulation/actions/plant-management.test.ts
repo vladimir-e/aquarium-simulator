@@ -9,10 +9,9 @@ import {
 } from './plant-management.js';
 import { calculateFloorArea, createSimulation, type Plant, type SimulationState } from '../state.js';
 import { GROWTH_FORMS, type PlantSpecies } from '../plants/species.js';
-import { plantsDefaults } from '../config/plants.js';
 import type { SubstrateType } from '../equipment/substrate.js';
 import type { ActionResult } from './types.js';
-import { DEFAULT_PLANT_SIZE } from '../plants/create-plant.js';
+import { DEFAULT_PLANT_SIZE, MIN_PLANTABLE_SIZE } from '../plants/create-plant.js';
 import { produce } from 'immer';
 import { plantRecord } from '../tests/plant.js';
 
@@ -119,29 +118,18 @@ describe('addPlant', () => {
     expect(log.message).toContain(`${DEFAULT_PLANT_SIZE}%`);
   });
 
-  it.each([plantsDefaults.deathSizeThreshold, 10, 100])('takes an initial size of %d%%', (initialSize) => {
+  it.each([MIN_PLANTABLE_SIZE, 10, 100])('takes an initial size of %d%%', (initialSize) => {
     const result = add(onSubstrate('none'), 'java_fern', initialSize);
     expect(result.state.plants[0].size).toBe(initialSize);
     expect(result.state.logs.at(-1)!.message).toContain(`${initialSize}%`);
   });
 
-  it.each([-10, 0, 100.5, 250, NaN])('refuses an initial size of %d', (initialSize) => {
+  it.each([-10, 0, MIN_PLANTABLE_SIZE - 0.1, 100.5, 250, NaN])('refuses an initial size of %d', (initialSize) => {
     const state = onSubstrate('none');
     const result = add(state, 'java_fern', initialSize);
 
     expect(result.state).toBe(state);
     expect(result.message).toContain('Invalid initial size');
-  });
-
-  it('refuses a size under `deathSizeThreshold`, which the next tick would retire', () => {
-    const state = onSubstrate('none');
-    const plantsConfig = { ...plantsDefaults, deathSizeThreshold: 5 };
-    const planting = (initialSize: number): ActionResult =>
-      addPlant(state, { type: 'addPlant', species: 'java_fern', initialSize }, plantsConfig);
-
-    expect(planting(4.9).state).toBe(state);
-    expect(planting(4.9).message).toContain('Invalid initial size');
-    expect(planting(5).state.plants).toHaveLength(1);
   });
 
   it('refuses a species the substrate cannot root, leaving the tank alone', () => {

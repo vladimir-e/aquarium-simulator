@@ -68,8 +68,7 @@ export interface PlantsConfig {
   sizePerSurplus: number;
   /**
    * Ceiling on the bank. Income past full condition banks up to it, and a full
-   * bank buys an offshoot — nothing when that would be a unit under
-   * `deathSizeThreshold` (see `propagate`).
+   * bank buys an offshoot (see `propagate`).
    * Shared default across organism types — see `SURPLUS_CAP_DEFAULT`.
    */
   surplusCap: number;
@@ -131,8 +130,6 @@ export interface PlantsConfig {
   maxSheddingRate: number;
   /** Waste per % of a rate unit of tissue lost, shed or dead (g). */
   wastePerSize: number;
-  /** Size below this triggers death (%). */
-  deathSizeThreshold: number;
 }
 
 export const plantsDefaults: PlantsConfig = {
@@ -232,9 +229,6 @@ export const plantsDefaults: PlantsConfig = {
   // so a plant relit before its condition collapses keeps most of itself.
   maxSheddingRate: 0.02,
   wastePerSize: 0.01,
-  // Retires a plant shed below 1 % of its unit; without it a starved one would
-  // linger as a rootstock indefinitely.
-  deathSizeThreshold: 1,
 };
 
 /**
@@ -329,5 +323,4 @@ export const plantsConfigMeta: PlantsConfigMeta[] = [
   // Lifecycle (shedding + death)
   { key: 'maxSheddingRate', label: 'Max Shedding Rate', unit: '/hr', min: 0.005, max: 0.1, step: 0.005 },
   { key: 'wastePerSize', label: 'Waste per Size', unit: 'g/%', min: 0.001, max: 0.05, step: 0.001 },
-  { key: 'deathSizeThreshold', label: 'Death Size Threshold', unit: '%', min: 0.5, max: 5, step: 0.5 },
 ];

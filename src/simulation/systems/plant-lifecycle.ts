@@ -4,8 +4,7 @@
  * - Shedding is what low condition does to a plant: it drops a share of
  *   itself every hour that grows with the square of its condition deficit,
  *   and the tissue leaves as waste — melting plants foul the water.
- * - Death comes at condition 0, as it does for a fish, or once shedding has
- *   left less than `deathSizeThreshold` of the plant.
+ * - Death comes at condition 0, as it does for a fish.
  */
 
 import type { Plant } from '../state.js';
@@ -25,15 +24,6 @@ export function calculateShedding(
     sizeReduction,
     wasteProduced: tissueWaste(plant, sizeReduction, config),
   };
-}
-
-export function shouldPlantDie(plant: Plant, config: PlantsConfig = plantsDefaults): boolean {
-  return plant.condition <= 0 || plant.size < config.deathSizeThreshold;
-}
-
-/** A size a unit can be planted, trimmed or bought at: at most a full unit, and none the next tick retires. */
-export function isPlantableSize(size: number, config: PlantsConfig): boolean {
-  return size > 0 && size >= config.deathSizeThreshold && size <= 100;
 }
 
 /** Grams of waste a dying plant leaves: all of what is left of it. */

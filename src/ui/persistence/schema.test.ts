@@ -603,6 +603,7 @@ describe('PersistedStateSchema', () => {
     [16, 'the tank-carried draw stream'],
     [18, 'the collapsed carbon yield'],
     [19, 'the oxygen term every consumer carries'],
+    [31, 'the size death threshold'],
   ];
 
   it('rejects every prior version, so no save survives a breaking bump', () => {

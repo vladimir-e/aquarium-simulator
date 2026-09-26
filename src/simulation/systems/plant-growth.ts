@@ -19,7 +19,6 @@ import type { PlantSpecies } from '../plants/species.js';
 import { PLANT_SPECIES_DATA } from '../plants/species.js';
 import type { PlantsConfig } from '../config/plants.js';
 import { plantsDefaults } from '../config/plants.js';
-import { isPlantableSize } from './plant-lifecycle.js';
 
 /**
  * Get the growth rate for a plant species. Per-species multiplier on
@@ -62,9 +61,7 @@ export interface Propagation {
  * A full bank buys an offshoot, as a full bank buys a fish a brood. The offshoot
  * is the bank at the growth conversion, untapered, one full unit at most, and
  * the parent pays for exactly what it bought. Null while the bank is short of
- * the cap, at a cap of 0, where every bank would read full, and when the bank
- * would buy a unit under `deathSizeThreshold`: a bank too small to buy a unit
- * that lives buys nothing, and healing and growth keep drawing on it.
+ * the cap, and at a cap of 0, where every bank would read full.
  */
 export function propagate(plant: Plant, config: PlantsConfig = plantsDefaults): Propagation | null {
   if (!(config.surplusCap > 0 && plant.surplus >= config.surplusCap)) return null;
@@ -73,7 +70,6 @@ export function propagate(plant: Plant, config: PlantsConfig = plantsDefaults): 
   const spent = Math.min(plant.surplus, 100 / conversion);
   // (100 / c) · c can land a hair over 100.
   const offshootSize = Math.min(100, spent * conversion);
-  if (!isPlantableSize(offshootSize, config)) return null;
 
   return {
     parent: { ...plant, surplus: plant.surplus - spent },

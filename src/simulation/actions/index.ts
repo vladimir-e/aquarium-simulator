@@ -43,9 +43,9 @@ export function applyAction(
     case 'waterChange':
       return waterChange(state, action);
     case 'trimPlants':
-      return trimPlants(state, action, config.plants);
+      return trimPlants(state, action);
     case 'addPlant':
-      return addPlant(state, action, config.plants);
+      return addPlant(state, action);
     case 'removePlant':
       return removePlant(state, action);
     case 'dose':

@@ -15,7 +15,7 @@
  * 6. Offshoot: a full bank buys a new unit of the family, before growth.
  * 7. Growth: the bank buys size at `growthDrawRate` of itself, day and night.
  * 8. Shedding + death (lifecycle module) — low condition sheds tissue, and
- *    condition 0 or too little size left removes the plant.
+ *    condition 0 removes the plant.
  * 9. Survivors age a tick; offshoots join the end of the list at age 0.
  *
  * Called during ACTIVE tier processing in tick.ts.
@@ -39,11 +39,7 @@ import { calculateRespiration } from '../systems/respiration.js';
 import { propagate, spendSurplus } from '../systems/plant-growth.js';
 import { createOffshoot } from './create-plant.js';
 import { computePlantVitality } from '../systems/plant-vitality.js';
-import {
-  calculateShedding,
-  calculateDeathWaste,
-  shouldPlantDie,
-} from '../systems/plant-lifecycle.js';
+import { calculateShedding, calculateDeathWaste } from '../systems/plant-lifecycle.js';
 import { createLog } from '../core/logging.js';
 import { getPpm } from '../resources/index.js';
 import { calculateTankHeight } from '../state.js';
@@ -210,7 +206,7 @@ export function processPlants(
         plant = { ...plant, size: Math.max(0, plant.size - sizeReduction) };
         shedWaste += wasteProduced;
       }
-      if (shouldPlantDie(plant, plantsConfig)) {
+      if (plant.condition <= 0) {
         deathWaste += calculateDeathWaste(plant, plantsConfig);
         draft.logs.push(
           createLog(

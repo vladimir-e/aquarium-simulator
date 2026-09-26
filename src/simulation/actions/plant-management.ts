@@ -9,10 +9,8 @@ import type { SubstrateType } from '../equipment/substrate.js';
 import { PLANT_SPECIES_DATA, growthFormOf } from '../plants/species.js';
 import { floorShare, plantedFootprint } from '../plants/canopy.js';
 import { createLog } from '../core/logging.js';
-import { createPlant, DEFAULT_PLANT_SIZE } from '../plants/create-plant.js';
+import { createPlant, DEFAULT_PLANT_SIZE, isPlantableSize, MIN_PLANTABLE_SIZE } from '../plants/create-plant.js';
 import { disturbBed } from '../equipment/index.js';
-import { plantsDefaults, type PlantsConfig } from '../config/plants.js';
-import { isPlantableSize } from '../systems/plant-lifecycle.js';
 import type { ActionResult, AddPlantAction, RemovePlantAction } from './types.js';
 
 export interface PlantFootprintResult {
@@ -104,13 +102,9 @@ export function getSubstrateIncompatibilityReason(
 }
 
 /**
- * Add a plant to the tank, at a size between `deathSizeThreshold` and a full unit.
+ * Add a plant to the tank, at a size between `MIN_PLANTABLE_SIZE` and a full unit.
  */
-export function addPlant(
-  state: SimulationState,
-  action: AddPlantAction,
-  plantsConfig: PlantsConfig = plantsDefaults
-): ActionResult {
+export function addPlant(state: SimulationState, action: AddPlantAction): ActionResult {
   const { species, initialSize = DEFAULT_PLANT_SIZE } = action;
 
   // Validate species
@@ -121,10 +115,10 @@ export function addPlant(
     };
   }
 
-  if (!isPlantableSize(initialSize, plantsConfig)) {
+  if (!isPlantableSize(initialSize)) {
     return {
       state,
-      message: `Invalid initial size: ${initialSize}% (must be ${plantsConfig.deathSizeThreshold}–100%)`,
+      message: `Invalid initial size: ${initialSize}% (must be ${MIN_PLANTABLE_SIZE}–100%)`,
     };
   }
 

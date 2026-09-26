@@ -25,6 +25,9 @@ import type { TunableConfig } from '../../simulation/config/index.js';
  * Increment this when the structure changes in a breaking way.
  * On version mismatch, stored data is discarded.
  *
+ * v32: One plant death, at condition 0. `PlantsConfig` drops
+ *      `deathSizeThreshold`; the least a plant is planted or trimmed to is
+ *      the engine's `MIN_PLANTABLE_SIZE`.
  * v31: Plants are sized and lit at their own height, and propagate. `Plant.size`
  *      is the share of one full unit of its growth form, 0–100, and `Plant`
  *      gains `parentId`, `familyId`, `age` and `vigour`; `OpticsConfig` gains
@@ -232,7 +235,7 @@ import type { TunableConfig } from '../../simulation/config/index.js';
  *     nutrient sufficiency) but its persisted shape is identical, so
  *     the bump is purely the new Fish field.
  */
-export const PERSISTENCE_VERSION = 31;
+export const PERSISTENCE_VERSION = 32;
 
 /**
  * Storage key for the unified persisted state.

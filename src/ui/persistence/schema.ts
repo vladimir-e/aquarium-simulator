@@ -473,7 +473,6 @@ const PlantsConfigSchema = z
     phBenefitPeak: z.number(),
     maxSheddingRate: z.number(),
     wastePerSize: z.number(),
-    deathSizeThreshold: z.number(),
   })
   .strict();
 

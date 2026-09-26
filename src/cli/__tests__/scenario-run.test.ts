@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { DEFAULT_CONFIG, type TunableConfig } from '../../simulation/config/index.js';
 import { scheduledLightHistory, type SimulationState } from '../../simulation/state.js';
+import { MIN_PLANTABLE_SIZE } from '../../simulation/plants/create-plant.js';
 import { READINGS } from '../scenarios/readings.js';
 import { toJson } from '../scenarios/report.js';
 import { keepTank, runScenario, sampleDays } from '../scenarios/run.js';
@@ -43,14 +44,14 @@ describe('keepTank', () => {
     optics: { ...DEFAULT_CONFIG.optics, ...optics },
   });
 
-  it('plants only a size a unit can be planted at, under the run’s own floor', () => {
-    const planted = (size: number, config = DEFAULT_CONFIG) => (): SimulationState =>
-      keepTank({ ...nano, plants: [{ species: 'java_fern', count: 1, size }] }, { config, untilTick: 0 });
+  it('plants only a size a unit can be planted at', () => {
+    const planted = (size: number) => (): SimulationState =>
+      keepTank({ ...nano, plants: [{ species: 'java_fern', count: 1, size }] }, { config: DEFAULT_CONFIG, untilTick: 0 });
 
     expect(planted(100)).not.toThrow();
-    expect(planted(101)).toThrow(/deathSizeThreshold \(1\) to 100/);
-    expect(planted(0.5)).toThrow(/deathSizeThreshold \(1\)/);
-    expect(planted(3, tuned({ deathSizeThreshold: 5 }))).toThrow(/deathSizeThreshold \(5\)/);
+    expect(planted(MIN_PLANTABLE_SIZE)).not.toThrow();
+    expect(planted(101)).toThrow(/from 1 to 100/);
+    expect(planted(0.5)).toThrow(/from 1 to 100/);
   });
 
   it('opens on the day of light its tuned optics give, not the shipped ones', () => {

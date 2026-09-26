@@ -28,7 +28,7 @@ This project follows documentation-driven development:
 
 ## One abstraction
 
-Every organism with a condition runs one vitality model. Condition is the buffer between dying and thriving, normal at 100: benefit rates raise it, damage rates lower it, so nothing dies or heals instantly. Income banks only at 100; the bank heals condition at a species rate and buys what the organism makes — a plant's growth and offshoots, a fish's brood. Any organism dies at 0; above it, only a plant pays for low condition — it sheds tissue — and a fish's has no effect yet. Sickness is not a separate mechanic: an organism is sick while damage outruns its healing — the damage rate is the sickness, and the bank's healing is its immunity.
+Every organism with a condition runs one vitality model. Condition is the buffer between dying and thriving, normal at 100: benefit rates raise it, damage rates lower it, so nothing dies or heals instantly. Income banks only at 100; the bank heals condition at a species rate and buys what the organism makes — a plant's growth and offshoots, a fish's brood. Any organism dies at 0; a plant below 100 sheds tissue. An organism is sick while damage outruns benefit plus healing.
 
 Designing a mechanic is choosing rates of benefit and harm. A new stock, clock or special path for one organism leaves the model — stop and raise it instead of building it. A threshold that switches a mechanism on or off, or a clamp standing in for kinetics, is a defect; a rate that starts at a tolerance edge is not. Algae keeps no condition and runs its own bank.
 

@@ -324,6 +324,20 @@ describe('processPlants', () => {
       expect(result.state.logs.filter((l) => l.event === 'plant-died')).toHaveLength(1);
     });
 
+    it('keeps a speck of a plant while it has condition', () => {
+      const state = createTestState({
+        plants: [plantRecord({ id: 'speck', species: 'monte_carlo', size: 0.01, condition: 1, surplus: 0 })],
+        light: 0,
+        lightByHour: LIT_DAY,
+        temperature: 25,
+        water: 100,
+      });
+      const result = processPlants(state, DEFAULT_CONFIG);
+
+      expect(result.state.plants.map((p) => p.id)).toEqual(['speck']);
+      expect(result.state.logs.filter((l) => l.event === 'plant-died')).toHaveLength(0);
+    });
+
     it('sheds nothing at full condition, bank or no bank', () => {
       const state = createTestState({
         plants: [plantRecord({ id: 'p1', species: 'java_fern', size: 50, condition: 100, surplus: 0 })],
