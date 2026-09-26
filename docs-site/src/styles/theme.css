@@ -130,6 +130,10 @@
   letter-spacing: 0;
 }
 
+.sl-markdown-content th .as-written {
+  text-transform: none;
+}
+
 .sl-markdown-content :not(pre) > code {
   background: transparent;
   border: none;

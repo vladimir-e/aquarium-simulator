@@ -20,8 +20,8 @@ a reader would want to see afterwards.
 | The latch | <Badge text="settled" variant="success" /> | One line per crossing, a flag that lives in state, and no repetition while the condition holds. It does exactly what it says. |
 | Log entry shape | <Badge text="settled" variant="success" /> | Free text for humans, a typed `event` discriminator for code, and a `count` wherever an entry accounts for more than one organism. |
 | Water-quality thresholds | <Badge text="settled" variant="success" /> | Free NH₃, nitrite, nitrate and oxygen alert at their tolerance edge, and hardiness moves each fish's own harm edge out from it. Ammonia reads the free fraction, so the total it takes moves with pH and temperature. |
-| Algae · water-level thresholds | <Badge text="scaffolding" variant="caution" /> | These lag harm rather than lead it: algae alerts at 80 but shades plants from 30, and water level alerts at 20 % while fish suffer from 50 %. |
-| CO₂ threshold | <Badge text="scaffolding" variant="caution" /> | The alert with nothing behind it — no organism in the engine reads dissolved CO₂ as a stressor, so it warns about a harm that is never inflicted. |
+| Algae · water-level thresholds | <Badge text="settled" variant="success" /> | Each alerts where its harm starts, read off the tunable that starts it, so retuning the harm moves the alert with it. |
+| CO₂ threshold | <Badge text="scaffolding" variant="caution" /> | The line keepers treat as too much, with nothing behind it — no organism in the engine reads dissolved CO₂ as a stressor. |
 | Behaviour on a drained tank | <Badge text="scaffolding" variant="caution" /> | Concentrations read 0 when there is no water and the water-level check requires `water > 0`, so the alert layer goes silent exactly when the tank is empty. Fish health reads the same zeroes, so a drained tank charges no toxin and no flow — its water-level stressor carries it. |
 | Clearing | <Badge text="missing" variant="danger" /> | A condition resolving writes nothing. The log records that a tank got into trouble and never that it got out. |
 | Retention | <Badge text="missing" variant="danger" /> | The array is appended to and never trimmed, so a long-running tank grows its log without bound. |
@@ -44,18 +44,18 @@ the transition into trouble.
 
 | Alert | Fires when | Where damage actually starts |
 |---|---|---|
-| Water level critical | below 20 % of capacity, and only while some water remains | fish take water-level damage below 50 % |
+| Water level low | below `waterLevelStressThreshold` of capacity, and only while some water remains | at the line: fish take water-level damage below it |
 | High ammonia | free NH₃ above 0.02 ppm | past the line for every fish, further out the hardier it is |
 | High nitrite | above 0.5 ppm | the same |
 | High nitrate | above 80 ppm | the same |
 | Low oxygen | below 4 mg/L | the same, below the line |
-| High CO₂ | above 30 mg/L | nowhere — nothing reads it |
-| High algae | mass at or above 80 | plants are shaded from mass 30 |
+| High CO₂ | above 40 mg/L, the level keepers treat as too much | nowhere — nothing reads it |
+| High algae | mass above `algaeShadingThreshold` | at the line: plants are shaded above it |
 
-The four water-quality alerts fire before any fish takes damage. Water level
-and algae wait until the reading is worse than that point, and CO₂ has no harm
-behind it at all. Ammonia reads the unionized fraction of the total, so the same
-test-kit reading crosses it sooner the higher the pH and the warmer the water:
+The four water-quality alerts fire before any fish takes damage; water level and
+algae fire exactly where theirs starts; CO₂ has no harm behind it at all.
+Ammonia reads the unionized fraction of the total, so the same test-kit reading
+crosses it sooner the higher the pH and the warmer the water:
 
 | pH at 25 °C | Total ammonia at the line |
 |---|---|
@@ -115,20 +115,21 @@ how it got there.
 
 ## Key tunables
 
-None of these is a `TunableConfig` leaf. They are module constants with no
-declared range, so they cannot be moved through the config layer the way a
-severity or a rate can. The four water-quality lines are the fish tolerance
-edges, defined with [livestock](/subsystems/livestock/).
+Two lines are the tunables that start their harm, read by `waterLevelAlertLine`
+and `algaeAlertLine`: `waterLevelStressThreshold` with
+[livestock](/subsystems/livestock/) and `algaeShadingThreshold` with
+[plants](/subsystems/plants/). The rest are module constants with no declared
+range, so they cannot be moved through the config layer the way a severity or a
+rate can. The four water-quality lines are the fish tolerance edges, defined with
+[livestock](/subsystems/livestock/).
 
 | Constant | Meaning | Value |
 |---|---|---|
-| `WATER_LEVEL_CRITICAL_THRESHOLD` | Share of capacity below which the level is critical | `0.2` |
 | `FREE_AMMONIA_EDGE` | Free (unionized) NH₃ at which the alert fires | `0.02` ppm |
 | `NITRITE_EDGE` | Nitrite at which the alert fires | `0.5` ppm |
 | `NITRATE_EDGE` | Nitrate at which the alert fires | `80` ppm |
 | `OXYGEN_EDGE` | Dissolved oxygen below which the alert fires | `4` mg/L |
-| `HIGH_CO2_THRESHOLD` | Dissolved CO₂ above which the alert fires | `30` mg/L |
-| `HIGH_ALGAE_THRESHOLD` | Algae mass at which the bloom is called | `80` of 100 |
+| `HIGH_CO2_THRESHOLD` | Dissolved CO₂ above which the alert fires | `40` mg/L |
 
 ## Seams
 
@@ -137,7 +138,9 @@ edges, defined with [livestock](/subsystems/livestock/).
 | [Water & gases](/subsystems/water-and-gases/) | `oxygen` and `co2`, as concentrations | — |
 | [Nitrogen cycle](/subsystems/nitrogen-cycle/) | `ammonia`, `nitrite` and `nitrate`, converted from mass to ppm against standing water | — |
 | [Environment](/subsystems/environment/) | `water` against `tank.capacity` | — |
+| [Livestock](/subsystems/livestock/) | `waterLevelStressThreshold`, the level's line | — |
 | [Algae](/subsystems/algae/) | `algae.mass` directly — algae is an organism, not a resource | — |
+| [Plants](/subsystems/plants/) | `algaeShadingThreshold`, the bloom's line | — |
 | [Plants](/subsystems/plants/) | — | Receives a `plant-died` entry per plant lost and a `plant-propagated` entry per offshoot |
 | [Livestock](/subsystems/livestock/) | — | Receives death, spawn, laying and hatch entries |
 | [Actions](/subsystems/actions/) | — | Receives one entry per applied action |

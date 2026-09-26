@@ -5,16 +5,35 @@ import { unified } from '@astrojs/markdown-remark';
 
 const identifierBreak = /(?<=[a-z\d])(?=[A-Z])|(?<=[_/])(?=\w)|(?<=\.)(?=[A-Za-z])/;
 
+/** A word whose case carries its meaning — a lower-case letter before a capital: pH, mg/L, dGH. */
+const caseSensitive = /(\S*[a-zµ]\S*?[A-Z]\S*)/;
+
 /** @param {string} value */
 const text = (value) => ({ type: 'text', value });
 
-/** @param {any} node @param {boolean} inCell @param {boolean} inCode */
-function tidyCells(node, inCell, inCode) {
+/** @param {string} value */
+const asWritten = (value) => ({
+  type: 'element',
+  tagName: 'span',
+  properties: { className: ['as-written'] },
+  children: [text(value)],
+});
+
+/** @param {any} node @param {'td' | 'th' | null} cell @param {boolean} inCode */
+function tidyCells(node, cell, inCode) {
   if (!node.children) return;
   node.children = node.children.flatMap((/** @type {any} */ child) => {
-    if (child.type !== 'text' || !inCell) {
-      tidyCells(child, inCell || child.tagName === 'td', inCode || child.tagName === 'code');
+    if (child.type !== 'text' || cell === null) {
+      const entered = child.tagName === 'td' || child.tagName === 'th' ? child.tagName : cell;
+      tidyCells(child, entered, inCode || child.tagName === 'code');
       return [child];
+    }
+    if (cell === 'th') {
+      if (inCode) return [child];
+      return child.value
+        .split(caseSensitive)
+        .filter((/** @type {string} */ part) => part !== '')
+        .map((/** @type {string} */ part) => (caseSensitive.test(part) ? asWritten(part) : text(part)));
     }
     if (!inCode) return [text(child.value.replace(/(\d)–(?=\d)/g, '$1–\u2060'))];
     return child.value
@@ -25,7 +44,7 @@ function tidyCells(node, inCell, inCode) {
   });
 }
 
-const tableCells = () => (/** @type {any} */ tree) => tidyCells(tree, false, false);
+const tableCells = () => (/** @type {any} */ tree) => tidyCells(tree, null, false);
 
 export default defineConfig({
   site: 'https://docs.fishroom.app',
