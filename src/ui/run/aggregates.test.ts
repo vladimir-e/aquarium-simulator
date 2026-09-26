@@ -37,6 +37,15 @@ describe('accrueLogs', () => {
     expect(accrueLogs(emptyAggregates(), logs).births).toBe(29);
   });
 
+  it('counts every plant offshoot as a birth beside the fry', () => {
+    const logs = [
+      createLog(1, 'simulation', 'info', 'gave birth to 4 fry', 'fish-spawned', 4),
+      createLog(2, 'simulation', 'info', 'Amazon Sword threw a plantlet', 'plant-propagated'),
+      createLog(2, 'simulation', 'info', 'Monte Carlo sent a runner', 'plant-propagated'),
+    ];
+    expect(accrueLogs(emptyAggregates(), logs)).toMatchObject({ births: 6, alerts: 0 });
+  });
+
   it('sums fry sold from the entry count', () => {
     const logs = [createLog(3, 'user', 'info', 'Sold 100 fry', 'fry-sold', 100)];
     expect(accrueLogs(emptyAggregates(), logs).frySold).toBe(100);

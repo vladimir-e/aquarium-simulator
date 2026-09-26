@@ -97,6 +97,24 @@ export function worstMember<M extends Member>(members: readonly M[]): M {
   });
 }
 
+interface Tally<M extends Member> {
+  worst: M;
+  /** The members at the worst tone, where that tone flags anything. */
+  flagged: M[];
+  /** What the flagged share, or the worst member's word where nothing is flagged. */
+  reason: string;
+}
+
+function tally<M extends Member>(members: readonly M[]): Tally<M> {
+  const worst = worstMember(members);
+  const severity = STATUS_SEVERITY[worst.reading.status];
+  if (severity === 0) return { worst, flagged: [], reason: worst.reading.word };
+  const flagged = members.filter((member) => STATUS_SEVERITY[member.reading.status] === severity);
+  const reason =
+    new Set(flagged.map((member) => member.reading.word)).size === 1 ? worst.reading.word : 'unwell';
+  return { worst, flagged, reason };
+}
+
 /**
  * A group reads as its most urgent members, counted — every one at that tone,
  * so the count is the dots it sits over: `2 sick`, or `3 unwell` where their
@@ -104,11 +122,22 @@ export function worstMember<M extends Member>(members: readonly M[]): M {
  * worst member.
  */
 export function groupReading(members: readonly Member[]): Reading {
-  const worst = worstMember(members);
-  const severity = STATUS_SEVERITY[worst.reading.status];
-  if (members.length === 1 || severity === 0) return worst.reading;
-  const flagged = members.filter((member) => STATUS_SEVERITY[member.reading.status] === severity);
-  const reason =
-    new Set(flagged.map((member) => member.reading.word)).size === 1 ? worst.reading.word : 'unwell';
+  const { worst, flagged, reason } = tally(members);
+  if (members.length === 1 || flagged.length === 0) return worst.reading;
   return { status: worst.reading.status, word: `${flagged.length} ${reason}` };
+}
+
+/**
+ * A group standing as one member of the group above it, so the rule nests: at
+ * its worst member's tone and condition, under the word its flagged members
+ * share. The count is left to the level doing the counting, which counts groups.
+ */
+export function groupMember(members: readonly Member[]): Member {
+  const { worst, reason } = tally(members);
+  return { condition: worst.condition, reading: { status: worst.reading.status, word: reason } };
+}
+
+/** A bank as a share of its cap — what the next brood or offshoot costs. Nothing fills a cap of 0. */
+export function bankShare(bank: number, cap: number): number {
+  return cap > 0 ? Math.min(1, bank / cap) : 0;
 }

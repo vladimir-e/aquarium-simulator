@@ -11,6 +11,7 @@ Format: - **Feature name** (#PR) - One short sentence (under ~150 chars)
 
 ## Unreleased
 
+- **The console reads plant families** - the roster opens species onto families onto units, read for light at height and bank to the next offshoot; a family trims alone.
 - **A pass returns what it computed** - plants, algae and livestock hand back the vitalities, light, waste and metabolism behind their effects.
 - **A full bank buys a plant an offshoot** - a runner, plantlet or rhizome branch of its family; breaking: `Plant` gains `parentId`, `familyId`, `age`, `vigour` (v31, v15).
 - **Plants carry vigour, and trim by family** - income scales by a ±15 % vigour drawn at birth, so clones bud apart; `trimPlants` takes a `familyId`.

@@ -130,7 +130,42 @@ describe('plant options', () => {
     const free = calculateFloorArea(19) - clump;
 
     expect(anubias.headroom).toBe(Math.floor(free / clump));
-    expect(anubias.fit).toBe(`${Math.round(free)} cm² of floor free`);
+    expect(anubias.fit).toBe(`${Math.floor(free)} cm² of floor free`);
+  });
+
+  it('agrees with the engine’s floor check on the line and the headroom, to the last unit', () => {
+    const soil = (capacity: number): SimulationState => {
+      const state = tank(capacity);
+      state.equipment.substrate.type = 'aqua_soil';
+      return state;
+    };
+    const carpet = GROWTH_FORMS.carpet.footprintCm2;
+    const edge = Math.floor(calculateFloorArea(362) / carpet);
+    expect(Math.round(calculateFloorArea(362) - edge * carpet)).toBe(carpet);
+
+    const tanks = [
+      planted(edge, 'monte_carlo', soil(362)),
+      planted(1, 'java_fern', soil(19)),
+      planted(floorFull, 'java_fern', soil(19)),
+      planted(3, 'amazon_sword', soil(200)),
+      planted(40, 'monte_carlo', soil(200)),
+    ];
+    for (const state of tanks) {
+      for (const candidate of plants(state)) {
+        const species = candidate.species as PlantSpecies;
+        const check = checkPlantFootprint(state.plants, species, state.tank.capacity);
+        let fits = 0;
+        const grown = [...state.plants];
+        while (checkPlantFootprint(grown, species, state.tank.capacity).ok) {
+          grown.push({ ...grown[0], species });
+          fits++;
+        }
+
+        expect(candidate.headroom).toBe(fits);
+        expect(Number(/^\d+/.exec(candidate.fit)![0]) >= check.needed).toBe(check.ok);
+        expect(candidate.refusal).toBe(check.ok ? null : check.message);
+      }
+    }
   });
 
   it('refuses in the action’s own words once the floor is taken', () => {

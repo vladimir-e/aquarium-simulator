@@ -60,7 +60,68 @@ describe('LifeSection', () => {
 
     expect(plants.getByRole('button', { name: /^Algae — / })).toBeTruthy();
     expect(plants.queryByRole('img', { name: /Algae/ })).toBeNull();
-    expect(plants.getByRole('img', { name: /Anubias by individual/ }).children).toHaveLength(2);
+    expect(plants.getByRole('img', { name: /Anubias by family/ }).children).toHaveLength(2);
+  });
+
+  describe('plant families', () => {
+    /** The stocked tank, its first anubias having budded once. */
+    function propagated(): { run: Run; founder: string; label: string } {
+      const run = stocked();
+      const [first] = run.state.plants;
+      const state: SimulationState = {
+        ...run.state,
+        plants: [...run.state.plants, { ...first, id: 'plant_bud', parentId: first.id, size: 20 }],
+      };
+      return {
+        run: { ...run, state },
+        founder: first.id,
+        label: `Anubias family ${first.id.slice(first.id.indexOf('_') + 1)}`,
+      };
+    }
+
+    it('opens a species onto its families, and a family onto its units to remove one', () => {
+      const { run, label } = propagated();
+      renderLife(run);
+      const plants = within(group('Plants'));
+
+      fireEvent.click(speciesRow('Plants', 'Anubias'));
+      expect(plants.getAllByRole('button', { name: /^Anubias family \S+ — \d/ })).toHaveLength(2);
+      expect(plants.queryByRole('button', { name: 'Remove Anubias bud' })).toBeNull();
+
+      fireEvent.click(plants.getByRole('button', { name: new RegExp(`^${label} — 2`) }));
+      expect(plants.getByText('from', { exact: false }).textContent).toMatch(/^from /);
+
+      fireEvent.click(plants.getByRole('button', { name: 'Remove Anubias bud' }));
+      expect(plants.queryByRole('button', { name: 'Remove Anubias bud' })).toBeNull();
+      expect(plants.getByRole('button', { name: new RegExp(`^${label} — 1`) })).toBeTruthy();
+    });
+
+    it('trims one family from its own row', () => {
+      const { run, founder, label } = propagated();
+      const { onAct } = renderLife(run);
+
+      fireEvent.click(speciesRow('Plants', 'Anubias'));
+      fireEvent.click(within(group('Plants')).getByRole('button', { name: `Trim ${label}` }));
+
+      expect(onAct.mock.calls).toEqual([['trimPlants', undefined, { familyId: founder }]]);
+    });
+
+    it('opens a family’s ledger on its worst unit, and says which', () => {
+      const { run, label } = propagated();
+      renderLife(run);
+
+      fireEvent.click(speciesRow('Plants', 'Anubias'));
+      fireEvent.click(
+        within(group('Plants')).getByRole('button', {
+          name: `${label} — inspect the worst of 2`,
+        })
+      );
+
+      const drawer = within(screen.getByRole('dialog'));
+      expect(drawer.getByText(`the worst of 2 in ${label}`)).toBeTruthy();
+      expect(drawer.getByText('% of need')).toBeTruthy();
+      expect(drawer.getByText('% to offshoot')).toBeTruthy();
+    });
   });
 
   it('reads the bioload against the guideline rather than against a cap', () => {

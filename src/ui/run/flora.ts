@@ -1,15 +1,17 @@
 /**
  * Flora derivations: what each plant is doing on the hour the next tick
- * settles, how the bloom reads off its coverage, and the tank's nutrient
- * readings. Nothing here invents a band — a nutrient reads short when the
+ * settles and how the planting folds into species and families, how the bloom
+ * reads off its coverage, and the tank's nutrient readings. Nothing here invents a band — a nutrient reads short when the
  * engine's own sufficiency would rise if that one were topped up, so no surface
  * can name a deficiency the plants are not actually feeling.
  */
 
 import {
   calculateNutrientSufficiency,
+  floorCover,
   getDosePreview,
   getPlantsToTrimCount,
+  isOvergrown,
   MAX_DOSE_ML,
   PLANT_SPECIES_DATA,
   speciesHalfSaturation,
@@ -31,10 +33,18 @@ import {
   type FertilizerFormula,
   type Nutrient,
   type NutrientsConfig,
+  type PlantsConfig,
   type TunableConfig,
 } from '../../simulation/config/index.js';
 import type { HourAhead } from './ahead.js';
-import { groupReading, vitalReading, type Reading, type Status } from './status.js';
+import {
+  bankShare,
+  groupMember,
+  groupReading,
+  vitalReading,
+  type Reading,
+  type Status,
+} from './status.js';
 
 /**
  * Trim targets, % of a full unit. A planted tank settles at 60–90 %, so
@@ -75,64 +85,138 @@ export interface PlantRow {
   id: string;
   species: PlantSpecies;
   name: string;
+  familyId: string;
+  parentId: string | null;
   /** % of one full unit of its growth form; growth tapers to 100. */
   size: number;
+  /** Hours in the tank. */
+  age: number;
   condition: number;
   sick: boolean;
   reading: Reading;
+  /** The day's light at its own height over the day's light its species starves under. */
+  light: number;
+  /** Its bank as a share of what the next offshoot costs. */
+  bank: number;
 }
 
-export function plantRows(state: SimulationState, ahead: HourAhead): PlantRow[] {
+export function plantRows(
+  state: SimulationState,
+  ahead: HourAhead,
+  config: PlantsConfig
+): PlantRow[] {
   return state.plants.map((plant, i) => {
-    const { sick, reading } = vitalReading(plant.condition, ahead.plants[i].vitality);
+    const { vitality, light } = ahead.plants[i];
+    const { sick, reading } = vitalReading(plant.condition, vitality);
     return {
       id: plant.id,
       species: plant.species,
       name: PLANT_SPECIES_DATA[plant.species].name,
+      familyId: plant.familyId,
+      parentId: plant.parentId,
       size: plant.size,
+      age: plant.age,
       condition: plant.condition,
       sick,
       reading,
+      light: light.needShare,
+      bank: bankShare(plant.surplus, config.surplusCap),
     };
   });
+}
+
+/** A share as the plant readings print it: floored, so it never reads a line it has not reached. */
+export function sharePercent(share: number): number {
+  return Math.floor(share * 100);
 }
 
 function mean(values: number[]): number {
   return values.length ? values.reduce((sum, v) => sum + v, 0) / values.length : 0;
 }
 
-/** A species folded into one row — the shape the fish roster already groups into. */
-export interface PlantSpeciesGroup {
-  species: PlantSpecies;
-  name: string;
-  count: number;
-  /** Mean % of normal full size across the specimens. */
-  size: number;
-  /** Mean condition across the specimens. */
+/** What a family or a species reads as, over every unit under it. */
+export interface PlantGroupFigures {
+  /** Full units' worth of plant: the sizes summed, over 100. */
+  units: number;
+  /** Mean condition across the units, the strip's figure. */
   condition: number;
-  /** Read off its specimens, the way a fish group is. */
+  /** Hours the oldest unit has stood in the tank. */
+  oldest: number;
+  /** The worst-lit unit's light, as a share of its need. */
+  light: number;
+}
+
+function figuresOf(members: PlantRow[]): PlantGroupFigures {
+  return {
+    units: members.reduce((sum, member) => sum + member.size, 0) / 100,
+    condition: mean(members.map((member) => member.condition)),
+    oldest: Math.max(...members.map((member) => member.age)),
+    light: Math.min(...members.map((member) => member.light)),
+  };
+}
+
+/** A founder and every unit budded down its line, read by the group rule over them. */
+export interface PlantFamily extends PlantGroupFigures {
+  familyId: string;
   reading: Reading;
-  /** The specimens themselves, in planting order. */
+  /** In planting order. */
   members: PlantRow[];
 }
 
-export function groupPlantsBySpecies(rows: PlantRow[]): PlantSpeciesGroup[] {
-  const groups = new Map<PlantSpecies, PlantRow[]>();
-  for (const row of rows) {
-    const existing = groups.get(row.species);
-    if (existing) existing.push(row);
-    else groups.set(row.species, [row]);
-  }
+/**
+ * A species read as its families, the way a fish species reads as its fish: the
+ * group rule counts families, each standing as one member at its worst unit.
+ */
+export interface PlantSpeciesGroup extends PlantGroupFigures {
+  species: PlantSpecies;
+  name: string;
+  reading: Reading;
+  /** In the order they were founded. */
+  families: PlantFamily[];
+  /** Every unit of the species, in planting order. */
+  members: PlantRow[];
+}
 
-  return [...groups].map(([species, members]) => ({
-    species,
-    name: members[0].name,
-    count: members.length,
-    size: mean(members.map((member) => member.size)),
-    condition: mean(members.map((member) => member.condition)),
-    reading: groupReading(members),
-    members,
-  }));
+function groupBy<K>(rows: PlantRow[], key: (row: PlantRow) => K): PlantRow[][] {
+  const groups = new Map<K, PlantRow[]>();
+  for (const row of rows) {
+    const existing = groups.get(key(row));
+    if (existing) existing.push(row);
+    else groups.set(key(row), [row]);
+  }
+  return [...groups.values()];
+}
+
+export function groupPlantsBySpecies(rows: PlantRow[]): PlantSpeciesGroup[] {
+  return groupBy(rows, (row) => row.species).map((members) => {
+    const families = groupBy(members, (row) => row.familyId).map(
+      (family): PlantFamily => ({
+        familyId: family[0].familyId,
+        ...figuresOf(family),
+        reading: groupReading(family),
+        members: family,
+      })
+    );
+    return {
+      species: members[0].species,
+      name: members[0].name,
+      ...figuresOf(members),
+      reading: groupReading(families.map((family) => groupMember(family.members))),
+      families,
+      members,
+    };
+  });
+}
+
+/**
+ * How much of the floor the planting claims. Past the whole floor it says the
+ * planting has outgrown it, and never prints a figure that would put it back.
+ */
+export function floorPlanted(state: SimulationState): string {
+  const percent = Math.round(floorCover(state.plants, state.tank.capacity) * 100);
+  return isOvergrown(state)
+    ? `floor outgrown · ${Math.max(101, percent)} % claimed`
+    : `floor ${percent} % planted`;
 }
 
 const NUTRIENT_LABEL: Record<Nutrient, string> = {

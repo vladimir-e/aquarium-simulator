@@ -25,10 +25,40 @@ month-long run becomes something you can watch, scrub back through, and explain.
 |---|---|---|
 | Overview | `/` | The tank as a grid of widgets — the nitrogen cycle as a chain of stocks across the top-left, life beside it, water, gear and nutrients below — each a window onto its module. Anything the engine has latched an alert on is named above the grid, one line each, with the verb that answers it |
 | Water | `/water` | The tank as a lab sheet, two columns of headed reading rows. Left: water (temperature, pH, KH, GH, level), the dissolved gases, and the four nutrients against what the plants ask for. Right: the nitrogen compounds on their alert lines, then the biofilter — each guild against its ceiling, what it converts an hour, whether the tank reads as cycled and where the nitrite peak falls — and the waste pool feeding it. Any row opens its reading in the drawer |
-| Life | `/life` | Two tables on one row shape: the fish, and the plants with the algae riding along at their top as a population row. A species row carries a silhouette, the count, the figure each, a dot per individual and the group's condition — its word names its most urgent members and counts every one at that tone (`2 sick`, or `3 unwell` where their reasons differ), reads the worst member's condition where none needs the keeper, and a group of one reads as its member — and opens onto the individuals under it; bioload sits under the fish against the stocking guideline. Under the fish rows sit the clutches counting down to hatch and one row for every fry in the tank, which is the unit the sell-all-fry verb takes. Any row opens the vitality ledger in the drawer — helping against hurting, each factor at its rate per day, and the bank between them, named by which way the next tick moves it: banking, healing or buying growth — and the module's "+" stocks a species through the same drawer |
+| Life | `/life` | Two tables on one row shape: the fish, and the plants with the algae riding along at their top as a population row — the roster, below. Bioload sits under the fish against the stocking guideline, and the plants' header reads how much of the floor the planting claims, saying so once it has outgrown it. Under the fish rows sit the clutches counting down to hatch and one row for every fry in the tank, which is the unit the sell-all-fry verb takes. Any row opens the vitality ledger in the drawer — helping against hurting, each factor at its rate per day, and the bank between them, named by which way the next tick moves it: banking, healing or buying growth — and the module's "+" stocks a species through the same drawer |
 | Gear | `/gear` | A rack of eight device rows: a power switch, a silhouette, the name, and what it is set to — or, for the three that keep a clock, that day as a 24 h ribbon against the hour the tank is on. A row opens the device's inspector in the drawer, addressed by the URL, so each inspector is a link and back walks between devices; closing one lands on the rack. Under the rack the scape — the substrate, and each piece of hardscape with the surface it adds — and under that what the fittings add up to, which is what the tick reads — the day's light among it, against what the neediest plant starves under, opening its reading in the drawer |
 | History | `/history` | The spine at full height: the four tracks stacked over one axis on the left, and on the right what the run cost — deaths, births, alerts, water changed — over the event log. A window switch scopes both. Dragging a track or the axis, or tapping a log line, parks the same playhead the spine writes |
 | Setup | `/setup` | What the tank *is*, rather than how it is doing: the preset it came from and whether the tank still matches it, the capacity, the lid, the room and the tap water, each row carrying what it does to the tank. Beside them the display choices — units and theme — what the run has cost so far and the reset that ends it, and what this simulation claims to be. Capacity is read-only — resizing is a separate row, because a new size builds a new tank at hour zero; past a month's run both it and the reset confirm first |
+
+### The Life roster
+
+A plant spreads by budding offshoots into its family — the founder and every
+unit down its line — so the plants table opens in three levels where the fish
+open in two, and every level starts collapsed.
+
+| Row | A dot per | Figures | Opens onto |
+|---|---|---|---|
+| Fish species | fish | count, mass each, mean age, satiation | its fish |
+| Plant species | family | families, units' worth of plant, oldest unit, worst-lit unit's light | its families |
+| Family | unit | units, units' worth, oldest unit, worst-lit unit's light | its units |
+| Unit or fish | — | size or mass, age; a unit also the unit it budded from, its light and its bank | its ledger |
+
+A group row's count is its dots, and its word names its most urgent members,
+counting every one at that tone — `2 sick`, or `3 unwell` where their reasons
+differ. Where none needs the keeper it reads its worst member's condition, and
+a group of one reads as its member. A plant species counts families, each
+standing at its worst unit, so its `2 sick` is two families.
+
+A unit's light is the day's light at its own height as a % of what its species
+starves under, amber below 100; a group reads its worst-lit unit's. Its bank is
+the share of an offshoot's price it holds — at 100 % the next tick buys one. The
+unit's ledger reads the same two. A family is named for its founder, which it
+outlives.
+
+A family row carries its own trim, which opens the Trim sheet held to that
+family — the same rungs, counted and previewed over the family alone, with the
+floor shade the cut lifts. A unit row carries its removal; the header's Trim
+still reaches every plant.
 
 ## The frame
 
@@ -169,7 +199,7 @@ band or a different word depending on which surface is showing it.
 | Tracks | The snapshot buffer, each series normalised to its own extent |
 | Event log | The log entries the tick appends, filtered by category, exportable as text |
 | Alert markers | Log entries of alert severity, placed on the timeline axis at the tick they fired |
-| Run tallies | Folded from the same log stream — deaths, births, alerts, water changed |
+| Run tallies | Folded from the same log stream — deaths, births (fry and plant offshoots), alerts, water changed |
 
 ## The tunables
 

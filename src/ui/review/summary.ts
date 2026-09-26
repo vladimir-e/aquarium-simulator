@@ -76,9 +76,8 @@ export function runSummary(
     births: {
       label: 'births',
       value: String(aggregates.births),
-      unit: 'fry',
-      meta: aggregates.frySold > 0 ? `${aggregates.frySold} sold` : undefined,
-      descriptor: 'fry',
+      meta: aggregates.frySold > 0 ? `${aggregates.frySold} fry sold` : undefined,
+      descriptor: plural(aggregates.births, 'birth', 'births'),
     },
     alerts: {
       label: 'alerts',

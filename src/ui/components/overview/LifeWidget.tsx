@@ -20,8 +20,8 @@ interface LifeWidgetProps {
 
 /**
  * Who lives here and how they are doing — the module's own species rows, at
- * widget width: the name, the count and the individuals' condition, with the
- * per-fish figures left to the page that has room for them.
+ * widget width: the name, the count and the condition of what it counts, with
+ * the figures left to the page that has room for them.
  */
 export function LifeWidget({
   book,
@@ -61,6 +61,7 @@ export function LifeWidget({
     onInspect: (row) => (row.kind === 'population' ? onOpenReading('algae') : navigate('/life')),
     onRemove: () => navigate('/life'),
     onSellFry: () => navigate('/life'),
+    onTrimFamily: () => navigate('/life'),
   };
 
   const empty = book.roster.fish.length === 0 && book.roster.plants.length === 0;

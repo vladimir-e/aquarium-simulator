@@ -10,7 +10,7 @@ export interface RunAggregates {
   /** Ticks (simulated hours) elapsed since the run began. */
   ticks: number;
   deaths: number;
-  /** Fry added to the tank: live births plus hatched eggs. */
+  /** What the tank added to itself: fry born live or hatched, and plant offshoots. */
   births: number;
   frySold: number;
   alerts: number;
@@ -36,7 +36,11 @@ export function accrueLogs(aggregates: RunAggregates, logs: LogEntry[]): RunAggr
   for (const log of logs) {
     if (log.event === 'fish-died') {
       deaths += entryCount(log);
-    } else if (log.event === 'fish-spawned' || log.event === 'eggs-hatched') {
+    } else if (
+      log.event === 'fish-spawned' ||
+      log.event === 'eggs-hatched' ||
+      log.event === 'plant-propagated'
+    ) {
       births += entryCount(log);
     } else if (log.event === 'fry-sold') {
       frySold += entryCount(log);

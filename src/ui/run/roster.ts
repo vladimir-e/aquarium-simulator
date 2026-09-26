@@ -1,6 +1,7 @@
 /**
  * The roster as two tables read the same way: a species header row that
- * expands to the individuals under it, in one row shape whether the column
+ * expands to what is under it — a fish species to its fish, a plant species to
+ * its families and a family to its units — in one row shape whether the column
  * holds a fish's mass or a plant's size. Everything here is formatting over
  * figures the run layer has already resolved — no vitality pass happens twice.
  */
@@ -21,8 +22,9 @@ import {
   type Hunger,
   type SpeciesGroup,
 } from './livestock.js';
-import type { PlantSpeciesGroup } from './flora.js';
-import { worstMember, type Member, type Reading, type Status } from './status.js';
+import { sharePercent, type PlantFamily, type PlantRow, type PlantSpeciesGroup } from './flora.js';
+import { lightStatus } from './light.js';
+import { worstMember, type Status } from './status.js';
 import type { ReadingBand } from './water.js';
 
 /** The engine calls 60 and up healthy, on the 0–100 axis every organism is scored on. */
@@ -38,6 +40,12 @@ export interface Satiation {
   word: string;
 }
 
+/** A plant's day of light at its own height, as a share of what its species starves under. */
+export interface LightFigure {
+  text: string;
+  status: Status;
+}
+
 interface Vital {
   /** Condition on the 0–100 axis, as a track fraction. */
   at: number;
@@ -48,17 +56,48 @@ interface Vital {
 export interface SpeciesRosterRow extends Vital {
   /** Present where the group eats: the mean, and how many are hungry. */
   satiation: Satiation | null;
+  /** Present for plants: the worst-lit unit's. */
+  light: LightFigure | null;
   kind: 'species';
   key: string;
   species: SpeciesId;
   name: string;
+  /** What the dots count: fish, or a plant species' families. */
   count: number;
-  /** Mass each for fish, mean size for plants. */
+  /** Individuals under it, however the dots group them. */
+  members: number;
+  /** Mass each for fish, full units' worth for plants. */
   figure: string;
+  /** Mean age for fish, the oldest unit for plants. */
   age: string;
-  /** One per individual, in roster order. */
+  /** One per fish, or per plant family, in roster order. */
   dots: Status[];
+  /** What one dot stands for. */
+  dot: 'individual' | 'family';
   /** The individual a tap on the group inspects: its worst. */
+  worstKey: string;
+  expanded: boolean;
+}
+
+/** A plant family under its species: the founder and every unit budded down its line. */
+export interface FamilyRosterRow extends Vital {
+  kind: 'family';
+  key: string;
+  familyId: string;
+  species: PlantSpecies;
+  name: string;
+  /** Named for its founder, which it outlives. */
+  label: string;
+  /** Its units — what the dots count. */
+  count: number;
+  /** Full units' worth. */
+  figure: string;
+  /** The oldest unit's. */
+  age: string;
+  /** The worst-lit unit's. */
+  light: LightFigure;
+  /** One per unit, in planting order. */
+  dots: Status[];
   worstKey: string;
   expanded: boolean;
 }
@@ -72,9 +111,14 @@ export interface IndividualRosterRow extends Vital {
   name: string;
   shortId: string;
   sex: FishSex | null;
+  /** The unit a plant budded from; null for a fish and for anything planted. */
+  parent: string | null;
   figure: string;
   age: string;
   satiation: Satiation | null;
+  light: LightFigure | null;
+  /** How far a plant's bank is toward its next offshoot. */
+  bank: string | null;
 }
 
 /**
@@ -122,12 +166,14 @@ export interface ClutchRosterRow {
 
 export type RosterRow =
   | SpeciesRosterRow
+  | FamilyRosterRow
   | IndividualRosterRow
   | PopulationRosterRow
   | FryRosterRow
   | ClutchRosterRow;
 
-function shortId(id: string): string {
+/** An engine id without its kind, the way the roster names an individual. */
+export function shortId(id: string): string {
   return id.slice(id.indexOf('_') + 1);
 }
 
@@ -165,55 +211,34 @@ function days(hours: number): string {
   return `${Math.floor(hours / 24)} d`;
 }
 
-/** What a species row is read off, for either table. */
-interface SpeciesGroupOf<M extends Member & { id: string }> {
-  species: SpeciesId;
-  name: string;
-  count: number;
-  condition: number;
-  reading: Reading;
-  members: M[];
-}
-
-/** A species header row, and its individuals directly beneath it when open. */
-function speciesRows<M extends Member & { id: string }>(
-  group: SpeciesGroupOf<M>,
-  columns: { figure: string; age: string; satiation: Satiation | null },
-  individual: (member: M) => IndividualRosterRow,
-  expanded: ReadonlySet<string>
-): RosterRow[] {
-  const key = `species-${group.species}`;
-  const open = expanded.has(key);
-  const header: SpeciesRosterRow = {
-    kind: 'species',
-    key,
-    species: group.species,
-    name: group.name,
-    count: group.count,
-    ...columns,
-    dots: group.members.map((member) => member.reading.status),
-    at: group.condition / 100,
-    ...group.reading,
-    worstKey: worstMember(group.members).id,
-    expanded: open,
-  };
-  return open ? [header, ...group.members.map(individual)] : [header];
-}
-
 function fishRows(
   groups: SpeciesGroup[],
   config: LivestockConfig,
   expanded: ReadonlySet<string>
 ): RosterRow[] {
-  return groups.flatMap((group) =>
-    speciesRows(
-      group,
-      {
-        figure: `${(group.massG / group.count).toFixed(2)} g each`,
-        age: `${group.ageDays} d`,
-        satiation: groupSatiation(group, config),
-      },
-      ({ id, condition, fish, reading }) => ({
+  return groups.flatMap((group) => {
+    const key = `species-${group.species}`;
+    const open = expanded.has(key);
+    const header: SpeciesRosterRow = {
+      kind: 'species',
+      key,
+      species: group.species,
+      name: group.name,
+      count: group.count,
+      members: group.count,
+      figure: `${(group.massG / group.count).toFixed(2)} g each`,
+      age: `${group.ageDays} d`,
+      satiation: groupSatiation(group, config),
+      light: null,
+      dots: group.members.map((member) => member.reading.status),
+      dot: 'individual',
+      at: group.condition / 100,
+      ...group.reading,
+      worstKey: worstMember(group.members).id,
+      expanded: open,
+    };
+    const fish = group.members.map(
+      ({ id, condition, fish, reading }): IndividualRosterRow => ({
         kind: 'individual',
         key: id,
         id,
@@ -221,39 +246,101 @@ function fishRows(
         name: group.name,
         shortId: shortId(id),
         sex: fish.sex,
+        parent: null,
         figure: `${fish.mass.toFixed(2)} g`,
         age: days(fish.age),
         satiation: fishSatiation(fish.satiation, config),
+        light: null,
+        bank: null,
         at: condition / 100,
         ...reading,
-      }),
-      expanded
-    )
-  );
+      })
+    );
+    return open ? [header, ...fish] : [header];
+  });
 }
 
-function plantRowsOf(groups: PlantSpeciesGroup[], expanded: ReadonlySet<string>): RosterRow[] {
-  return groups.flatMap((group) =>
-    speciesRows(
-      group,
-      { figure: `${Math.round(group.size)} % each`, age: '', satiation: null },
-      (plant) => ({
-        kind: 'individual',
-        key: plant.id,
-        id: plant.id,
-        species: plant.species,
-        name: plant.name,
-        shortId: shortId(plant.id),
-        sex: null,
-        figure: `${Math.round(plant.size)} %`,
-        age: '',
-        satiation: null,
-        at: plant.condition / 100,
-        ...plant.reading,
-      }),
-      expanded
-    )
-  );
+function lightFigure(share: number): LightFigure {
+  return { text: `${sharePercent(share)} %`, status: lightStatus(share) };
+}
+
+function units(amount: number): string {
+  return `${amount.toFixed(1)} units`;
+}
+
+function plantUnit(plant: PlantRow): IndividualRosterRow {
+  return {
+    kind: 'individual',
+    key: plant.id,
+    id: plant.id,
+    species: plant.species,
+    name: plant.name,
+    shortId: shortId(plant.id),
+    sex: null,
+    parent: plant.parentId === null ? null : shortId(plant.parentId),
+    figure: `${Math.round(plant.size)} %`,
+    age: days(plant.age),
+    satiation: null,
+    light: lightFigure(plant.light),
+    bank: `${sharePercent(plant.bank)} %`,
+    at: plant.condition / 100,
+    ...plant.reading,
+  };
+}
+
+function familyRows(
+  group: PlantSpeciesGroup,
+  family: PlantFamily,
+  expanded: ReadonlySet<string>
+): RosterRow[] {
+  const key = `family-${family.familyId}`;
+  const open = expanded.has(key);
+  const header: FamilyRosterRow = {
+    kind: 'family',
+    key,
+    familyId: family.familyId,
+    species: group.species,
+    name: group.name,
+    label: `family ${shortId(family.familyId)}`,
+    count: family.members.length,
+    figure: units(family.units),
+    age: days(family.oldest),
+    light: lightFigure(family.light),
+    dots: family.members.map((member) => member.reading.status),
+    at: family.condition / 100,
+    ...family.reading,
+    worstKey: worstMember(family.members).id,
+    expanded: open,
+  };
+  return open ? [header, ...family.members.map(plantUnit)] : [header];
+}
+
+function plantRows(groups: PlantSpeciesGroup[], expanded: ReadonlySet<string>): RosterRow[] {
+  return groups.flatMap((group) => {
+    const key = `species-${group.species}`;
+    const open = expanded.has(key);
+    const header: SpeciesRosterRow = {
+      kind: 'species',
+      key,
+      species: group.species,
+      name: group.name,
+      count: group.families.length,
+      members: group.members.length,
+      figure: units(group.units),
+      age: days(group.oldest),
+      satiation: null,
+      light: lightFigure(group.light),
+      dots: group.families.map((family) => family.reading.status),
+      dot: 'family',
+      at: group.condition / 100,
+      ...group.reading,
+      worstKey: worstMember(group.members).id,
+      expanded: open,
+    };
+    return open
+      ? [header, ...group.families.flatMap((family) => familyRows(group, family, expanded))]
+      : [header];
+  });
 }
 
 function fryRow(batch: FryBatch, config: LivestockConfig): FryRosterRow {
@@ -297,9 +384,9 @@ export interface RosterInput {
 }
 
 /**
- * The two tables, in render order: species rows with their individuals
- * directly beneath them when open, then — under the fish — the clutches
- * waiting to hatch and the batches growing out.
+ * The two tables, in render order: species rows with what is under them
+ * directly beneath when open, then — under the fish — the clutches waiting to
+ * hatch and the batches growing out.
  */
 export function rosterTables(
   input: RosterInput,
@@ -312,6 +399,6 @@ export function rosterTables(
       ...input.clutches.map((clutch) => clutchRow(clutch, input.tick)),
       ...(input.fry ? [fryRow(input.fry, config)] : []),
     ],
-    plants: plantRowsOf(input.plants, expanded),
+    plants: plantRows(input.plants, expanded),
   };
 }

@@ -44,7 +44,7 @@ describe('runSummary', () => {
   });
 
   it('reports fry sold under the births count, and only once any were', () => {
-    expect(runSummary(RUN, [], 'metric').births.meta).toBe('6 sold');
+    expect(runSummary(RUN, [], 'metric').births.meta).toBe('6 fry sold');
     expect(runSummary({ ...RUN, frySold: 0 }, [], 'metric').births.meta).toBeUndefined();
   });
 
@@ -58,7 +58,9 @@ describe('runSummary', () => {
     expect(one.run.descriptor).toBe('tick');
     expect(one.deaths.descriptor).toBe('death');
     expect(one.alerts.descriptor).toBe('alert');
+    expect(one.births.descriptor).toBe('birth');
     expect(runSummary(RUN, [], 'metric').deaths.descriptor).toBe('deaths');
+    expect(runSummary(RUN, [], 'metric').births.descriptor).toBe('births');
   });
 });
 
@@ -66,13 +68,13 @@ describe('summaryLines', () => {
   it('reads the run back in two lines', () => {
     expect(summaryLines(RUN, [], 'metric')).toEqual([
       '1622 ticks · 67d 14h',
-      '6 alerts · 2 deaths · 18 fry',
+      '6 alerts · 2 deaths · 18 births',
     ]);
   });
 
   it('tracks the summary rather than restating it', () => {
     const quiet = summaryLines({ ...RUN, ticks: 25, alerts: 0, deaths: 1 }, [], 'metric');
-    expect(quiet).toEqual(['25 ticks · 1d 1h', '0 alerts · 1 death · 18 fry']);
+    expect(quiet).toEqual(['25 ticks · 1d 1h', '0 alerts · 1 death · 18 births']);
   });
 
   it('says there is no history rather than counting to zero', () => {

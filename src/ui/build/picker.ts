@@ -97,7 +97,7 @@ function plantOption(state: SimulationState, species: PlantSpecies): PickerOptio
     species,
     name: data.name,
     demand: `${data.nutrientDemand} demand · ${lightTier(species)} light · ${data.co2Requirement} CO₂`,
-    fit: compatible ? `${Math.round(footprint.free)} cm² of floor free` : (reason ?? ''),
+    fit: compatible ? `${Math.floor(footprint.free)} cm² of floor free` : (reason ?? ''),
     status: compatible && footprint.ok ? 'neutral' : 'warn',
     headroom: compatible ? headroom : 0,
     refusal: !compatible ? reason : footprint.ok ? null : footprint.message,

@@ -1,7 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import type { VitalityResult } from '../../simulation/index.js';
 import {
+  bankShare,
   conditionWord,
+  groupMember,
   groupReading,
   vitalReading,
   worstMember,
@@ -97,6 +99,35 @@ describe('groupReading', () => {
 
   it('reads a group of one as its member', () => {
     expect(groupReading(members([100, sick]))).toEqual(sick);
+  });
+});
+
+describe('groupMember', () => {
+  it('stands a group at its worst member, under its reason with the count left off', () => {
+    const family = members([100, sick], [40, fair], [100, sick]);
+    expect(groupReading(family).word).toBe('3 unwell');
+    expect(groupMember(family)).toEqual({ condition: 40, reading: { status: 'warn', word: 'unwell' } });
+    expect(groupMember(members([100, thriving], [65, good]))).toEqual({ condition: 65, reading: good });
+    expect(groupMember(members([100, sick]))).toEqual({ condition: 100, reading: sick });
+  });
+
+  it('nests the rule, so the level above counts groups — the dots it sits over', () => {
+    const species = [
+      groupMember(members([100, sick], [100, sick], [100, thriving])),
+      groupMember(members([100, thriving])),
+      groupMember(members([100, sick])),
+    ];
+    expect(groupReading(species)).toEqual({ status: 'warn', word: '2 sick' });
+    expect(groupReading(species.slice(0, 1))).toEqual(sick);
+  });
+});
+
+describe('bankShare', () => {
+  it('is the bank over its cap, full at the cap and past a lowered one, empty at a cap of 0', () => {
+    expect(bankShare(10, 40)).toBe(0.25);
+    expect(bankShare(40, 40)).toBe(1);
+    expect(bankShare(60, 40)).toBe(1);
+    expect(bankShare(10, 0)).toBe(0);
   });
 });
 

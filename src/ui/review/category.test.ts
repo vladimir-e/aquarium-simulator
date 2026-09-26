@@ -7,9 +7,33 @@ import {
   latestAlert,
   LOG_FILTERS,
 } from './category';
-import { createLog, type LogEntry } from '../../simulation/index.js';
+import {
+  applyAction,
+  createLog,
+  createSimulation,
+  growthFormOf,
+  tick,
+  type LogEntry,
+} from '../../simulation/index.js';
+import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
 
 describe('categorizeLog', () => {
+  it('tags an offshoot as life, in the words of its growth form', () => {
+    let state = applyAction(createSimulation({ tankCapacity: 200 }), {
+      type: 'addPlant',
+      species: 'java_fern',
+      initialSize: 95,
+    }).state;
+    state = { ...state, plants: state.plants.map((plant) => ({ ...plant, surplus: 1e3 })) };
+    const [offshoot] = tick(state, DEFAULT_CONFIG).logs.filter(
+      (log) => log.event === 'plant-propagated'
+    );
+
+    expect(categorizeLog(offshoot)).toBe('life');
+    expect(isAlertLog(offshoot)).toBe(false);
+    expect(offshoot.message).toBe(`Java Fern ${growthFormOf('java_fern').offshootVerb}`);
+  });
+
   it('tags any lifecycle event as life, regardless of source', () => {
     expect(categorizeLog(createLog(1, 'simulation', 'info', 'hatched', 'eggs-hatched', 4))).toBe('life');
     expect(categorizeLog(createLog(1, 'simulation', 'warning', 'died', 'fish-died'))).toBe('life');

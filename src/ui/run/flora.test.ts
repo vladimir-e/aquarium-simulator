@@ -1,10 +1,14 @@
 import { describe, it, expect } from 'vitest';
 import {
   applyAction,
+  calculateFloorArea,
   calculateSurface,
   createSimulation,
+  floorCover,
   getDosePreview,
+  growthFormOf,
   getPlantsToTrimCount,
+  readPlantLight,
   tick,
   type PlantSpecies,
   type SimulationState,
@@ -18,6 +22,7 @@ import {
   algaeWord,
   doseDeltas,
   doseToCover,
+  floorPlanted,
   formatDose,
   nutrientAlert,
   nutrientReadings,
@@ -28,7 +33,7 @@ import {
   type PlantRow,
 } from './flora';
 import { readHourAhead } from './ahead';
-import { conditionStatus, conditionWord, groupReading, projectedTrend } from './status';
+import { conditionStatus, conditionWord, projectedTrend, type Reading } from './status';
 
 const FORMULA = DEFAULT_CONFIG.nutrients.fertilizerFormula;
 
@@ -72,28 +77,171 @@ describe('condition + algae words', () => {
   });
 });
 
-function rows(state: SimulationState): PlantRow[] {
-  return plantRows(state, readHourAhead(state, DEFAULT_CONFIG));
+function rows(state: SimulationState, config = DEFAULT_CONFIG): PlantRow[] {
+  return plantRows(state, readHourAhead(state, config), config.plants);
+}
+
+const THRIVING: Reading = { status: 'ok', word: 'thriving' };
+const SICK: Reading = { status: 'warn', word: 'sick' };
+const STRUGGLING: Reading = { status: 'alert', word: 'struggling' };
+
+function unit(id: string, familyId: string, overrides: Partial<PlantRow> = {}): PlantRow {
+  return {
+    id,
+    species: 'java_fern',
+    name: 'Java Fern',
+    familyId,
+    parentId: id === familyId ? null : familyId,
+    size: 50,
+    age: 0,
+    condition: 100,
+    sick: false,
+    reading: THRIVING,
+    light: 1,
+    bank: 0,
+    ...overrides,
+  };
 }
 
 describe('groupPlantsBySpecies', () => {
-  it('folds a species into one row read by the group rule, its strip off the mean', () => {
-    const state = produce(planted(['java_fern', 'java_fern', 'monte_carlo']), (draft) => {
-      draft.plants[0].condition = 20;
-      draft.plants[1].condition = 80;
-    });
-    const groups = groupPlantsBySpecies(rows(state));
-    expect(groups.map((group) => group.name)).toEqual(['Java Fern', 'Monte Carlo']);
+  it('groups each species into the families it was planted as, each down its line in planting order', () => {
+    const groups = groupPlantsBySpecies([
+      unit('a', 'a'),
+      unit('m', 'm', { species: 'monte_carlo', name: 'Monte Carlo' }),
+      unit('b', 'b'),
+      unit('a1', 'a'),
+      unit('b1', 'b'),
+      unit('a2', 'a', { parentId: 'a1' }),
+    ]);
 
-    const [ferns] = groups;
-    expect(ferns.count).toBe(2);
-    expect(ferns.condition).toBe(50);
-    expect(ferns.members.map((member) => member.id)).toEqual(state.plants.slice(0, 2).map((p) => p.id));
-    expect(ferns.reading).toEqual(groupReading(ferns.members));
+    expect(groups.map((group) => group.name)).toEqual(['Java Fern', 'Monte Carlo']);
+    const [ferns, carpet] = groups;
+    expect(ferns.families.map((family) => family.members.map((member) => member.id))).toEqual([
+      ['a', 'a1', 'a2'],
+      ['b', 'b1'],
+    ]);
+    expect(ferns.members.map((member) => member.id)).toEqual(['a', 'b', 'a1', 'b1', 'a2']);
+    expect(carpet.families.map((family) => family.familyId)).toEqual(['m']);
+  });
+
+  it('sums a group’s units, and reads its oldest, its worst-lit and its mean condition', () => {
+    const [ferns] = groupPlantsBySpecies([
+      unit('a', 'a', { size: 90, age: 900, light: 1.4, condition: 100 }),
+      unit('a1', 'a', { size: 40, age: 100, light: 0.6, condition: 70 }),
+      unit('b', 'b', { size: 20, age: 300, light: 1.1, condition: 40 }),
+    ]);
+    const [a, b] = ferns.families;
+
+    expect(a).toMatchObject({ units: 1.3, oldest: 900, light: 0.6, condition: 85 });
+    expect(b).toMatchObject({ units: 0.2, oldest: 300, light: 1.1, condition: 40 });
+    expect(ferns.units).toBeCloseTo(1.5, 10);
+    expect(ferns).toMatchObject({ oldest: 900, light: 0.6, condition: 70 });
+  });
+
+  it('reads a family by the group rule over its units, and a species by it over its families', () => {
+    const [ferns] = groupPlantsBySpecies([
+      unit('a', 'a', { reading: STRUGGLING, condition: 20 }),
+      unit('a1', 'a', { reading: STRUGGLING, condition: 25 }),
+      unit('a2', 'a'),
+      unit('b', 'b', { reading: SICK }),
+      unit('c', 'c'),
+    ]);
+    const [a, b, c] = ferns.families;
+
+    expect(a.reading).toEqual({ status: 'alert', word: '2 struggling' });
+    expect(b.reading).toEqual(SICK);
+    expect(c.reading).toEqual(THRIVING);
+    expect(ferns.reading).toEqual({ status: 'alert', word: '1 struggling' });
+  });
+
+  it('counts families, not units, at the species, under the reason they share', () => {
+    const [ferns] = groupPlantsBySpecies([
+      unit('a', 'a', { reading: SICK }),
+      unit('a1', 'a', { reading: SICK }),
+      unit('b', 'b', { reading: SICK }),
+      unit('c', 'c'),
+    ]);
+    expect(ferns.families[0].reading.word).toBe('2 sick');
+    expect(ferns.reading).toEqual({ status: 'warn', word: '2 sick' });
+  });
+
+  it('reads a species of one family of one unit as that unit', () => {
+    const [ferns] = groupPlantsBySpecies([unit('a', 'a', { reading: STRUGGLING, condition: 20 })]);
+    expect(ferns.families[0].reading).toEqual(STRUGGLING);
+    expect(ferns.reading).toEqual(STRUGGLING);
+  });
+});
+
+describe('floorPlanted', () => {
+  const capacity = 1000;
+  const carpets = (count: number): SimulationState => {
+    const state = createSimulation({ tankCapacity: capacity });
+    const [plant] = applyAction(tank(capacity), { type: 'addPlant', species: 'monte_carlo' }).state
+      .plants;
+    return { ...state, plants: Array.from({ length: count }, () => plant) };
+  };
+  const fill = Math.ceil(calculateFloorArea(capacity) / growthFormOf('monte_carlo').footprintCm2);
+
+  it('reads the floor the planting claims while it fits', () => {
+    const cover = floorCover(carpets(fill - 1).plants, capacity);
+    expect(floorPlanted(carpets(fill - 1))).toBe(`floor ${Math.round(cover * 100)} % planted`);
+  });
+
+  it('says the planting has outgrown its floor past it, never at a figure that would put it back', () => {
+    const cover = floorCover(carpets(fill).plants, capacity);
+    expect(cover).toBeGreaterThan(1);
+    expect(Math.round(cover * 100)).toBe(100);
+    expect(floorPlanted(carpets(fill))).toBe('floor outgrown · 101 % claimed');
+
+    const overgrown = carpets(fill * 3);
+    expect(floorPlanted(overgrown)).toBe(
+      `floor outgrown · ${Math.round(floorCover(overgrown.plants, capacity) * 100)} % claimed`
+    );
   });
 });
 
 describe('plantRows', () => {
+  it('reads each unit’s light at its own height, as a share of what its species starves under', () => {
+    const state = planted(['amazon_sword', 'monte_carlo', 'java_fern']);
+    const light = readPlantLight(state, DEFAULT_CONFIG);
+
+    rows(state).forEach((row, i) => {
+      expect(row.light).toBeCloseTo(light[i].needShare, 12);
+    });
+  });
+
+  it('reads a bank as its share of the next offshoot’s price, full at the cap', () => {
+    const cap = DEFAULT_CONFIG.plants.surplusCap;
+    const state = produce(planted(['java_fern', 'java_fern', 'java_fern']), (draft) => {
+      draft.plants[0].surplus = 0;
+      draft.plants[1].surplus = cap / 4;
+      draft.plants[2].surplus = cap;
+    });
+    expect(rows(state).map((row) => row.bank)).toEqual([0, 0.25, 1]);
+
+    const offshoots = produce(state, (draft) => {
+      draft.plants[1].surplus = cap;
+    });
+    const next = tick(offshoots, DEFAULT_CONFIG).plants;
+    expect(next.filter((plant) => plant.parentId !== null)).toHaveLength(2);
+  });
+
+  it('carries each unit’s lineage and age', () => {
+    const base = planted(['java_fern']);
+    const [founder] = base.plants;
+    const state: SimulationState = {
+      ...base,
+      plants: [
+        { ...founder, age: 240 },
+        { ...founder, id: 'plant_bud', parentId: founder.id, age: 24 },
+      ],
+    };
+    expect(rows(state).map(({ familyId, parentId, age }) => ({ familyId, parentId, age }))).toEqual([
+      { familyId: founder.id, parentId: null, age: 240 },
+      { familyId: founder.id, parentId: founder.id, age: 24 },
+    ]);
+  });
+
   it('calls a plant sick exactly while the next tick takes condition off it, as the trend shows', () => {
     const dark = produce(planted(['java_fern']), (draft) => {
       draft.equipment.light.enabled = false;

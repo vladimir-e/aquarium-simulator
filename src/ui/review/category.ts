@@ -28,8 +28,9 @@ const USER_SOURCES = new Set(['user', 'equipment', 'scrub']);
 
 /**
  * A lifecycle discriminator wins over source: every `event` entry is a life
- * moment (birth, hatch, death, sale). Otherwise chemistry sources are the cycle,
- * user/equipment/scrub are player actions, and the rest is engine `sim` chatter.
+ * moment (birth, hatch, offshoot, death, sale). Otherwise chemistry sources are
+ * the cycle, user/equipment/scrub are player actions, and the rest is engine
+ * `sim` chatter.
  */
 export function categorizeLog(log: LogEntry): LogCategory {
   if (log.event) return 'life';

@@ -29,9 +29,9 @@ function worstLit(plants: readonly PlantLight[]): PlantLight | null {
   );
 }
 
-function status(worst: PlantLight | null): Status {
-  if (worst === null) return 'neutral';
-  return worst.needShare >= 1 ? 'ok' : worst.needShare > 0 ? 'warn' : 'alert';
+/** How a plant's light reads off its share of what its species starves under. */
+export function lightStatus(needShare: number): Status {
+  return needShare >= 1 ? 'ok' : needShare > 0 ? 'warn' : 'alert';
 }
 
 export function dailyLightReading(ahead: HourAhead): DailyLightReading {
@@ -44,6 +44,6 @@ export function dailyLightReading(ahead: HourAhead): DailyLightReading {
     text: value.toFixed(DAILY_LIGHT_DECIMALS),
     needed,
     need: worst ? `need ${needed.toFixed(DAILY_LIGHT_DECIMALS)}` : '',
-    status: status(worst),
+    status: worst === null ? 'neutral' : lightStatus(worst.needShare),
   };
 }

@@ -7,6 +7,7 @@ export {
   type VerbOption,
   type VerbDetail,
   type BuildVerb,
+  type VerbScope,
   VERB_IDS,
   BUILD_VERBS,
   FEED_PRESETS,

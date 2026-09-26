@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import type { Clutch, Fish, SimulationState } from '../../simulation/index.js';
-import { applyAction, createSimulation } from '../../simulation/index.js';
+import type { Clutch, Fish, Plant, SimulationState } from '../../simulation/index.js';
+import { applyAction, createSimulation, readPlantLight } from '../../simulation/index.js';
 import { DEFAULT_CONFIG, type TunableConfig } from '../../simulation/config/index.js';
 import { livestockDefaults } from '../../simulation/config/livestock.js';
 import { readHourAhead } from './ahead.js';
@@ -11,6 +11,7 @@ import { groupReading, worstMember, type Member } from './status.js';
 import {
   rosterTables,
   type ClutchRosterRow,
+  type FamilyRosterRow,
   type FryRosterRow,
   type IndividualRosterRow,
   type RosterInput,
@@ -47,7 +48,7 @@ function input(state: SimulationState, config: TunableConfig): RosterInput {
   const fish = readFish(state, config, readHourAhead(state, config));
   return {
     fish: groupBySpecies(fish, config.livestock),
-    plants: groupPlantsBySpecies(plantRows(state, readHourAhead(state, config))),
+    plants: groupPlantsBySpecies(plantRows(state, readHourAhead(state, config), config.plants)),
     fry: groupFry(fish, config.livestock),
     clutches: state.clutches,
     tick: state.tick,
@@ -260,6 +261,142 @@ describe('rosterTables', () => {
 
     expect(row.word).toBe(ledger.word);
     expect(row.status).toBe(ledger.status);
+  });
+
+  describe('for plants', () => {
+    /** Three java fern families: `a` down two generations, `b` with one offshoot, `c` alone. */
+    function families(tweak: (plant: Plant) => Partial<Plant> = () => ({})): SimulationState {
+      const base = ['java_fern', 'java_fern', 'java_fern'].reduce(
+        (state) => applyAction(state, { type: 'addPlant', species: 'java_fern' }).state,
+        { ...createSimulation({ tankCapacity: 200 }), tick: 12 }
+      );
+      const [a, b] = base.plants;
+      const bud = (parent: Plant, id: string): Plant => ({
+        ...parent,
+        id,
+        parentId: parent.id,
+        size: 20,
+        age: 24,
+      });
+      const a1 = bud(a, 'plant_a1');
+      const plants = [...base.plants, a1, bud(b, 'plant_b1'), bud(a1, 'plant_a2')];
+      return { ...base, plants: plants.map((plant) => ({ ...plant, ...tweak(plant) })) };
+    }
+
+    const dark = (state: SimulationState): SimulationState => ({
+      ...state,
+      equipment: { ...state.equipment, light: { ...state.equipment.light, enabled: false } },
+      resources: { ...state.resources, lightByHour: state.resources.lightByHour.map(() => 0) },
+    });
+
+    it('collapses a species onto its families, and a family onto its units, until opened', () => {
+      const state = families();
+      const [a, b, c] = state.plants;
+
+      expect(tables(state).plants.map((row) => row.kind)).toEqual(['species']);
+      expect(tables(state, ['species-java_fern']).plants.map((row) => row.key)).toEqual([
+        'species-java_fern',
+        `family-${a.id}`,
+        `family-${b.id}`,
+        `family-${c.id}`,
+      ]);
+      expect(
+        tables(state, ['species-java_fern', `family-${a.id}`]).plants.map((row) => row.key)
+      ).toEqual([
+        'species-java_fern',
+        `family-${a.id}`,
+        a.id,
+        'plant_a1',
+        'plant_a2',
+        `family-${b.id}`,
+        `family-${c.id}`,
+      ]);
+    });
+
+    it('counts what its dots stand for: families at the species, units in a family', () => {
+      const state = families();
+      const [species, a, b, c] = tables(state, ['species-java_fern']).plants as [
+        SpeciesRosterRow,
+        FamilyRosterRow,
+        FamilyRosterRow,
+        FamilyRosterRow,
+      ];
+
+      expect(species).toMatchObject({ count: 3, members: 6, dot: 'family' });
+      expect(species.dots).toHaveLength(3);
+      expect([a, b, c].map((family) => [family.count, family.dots.length])).toEqual([
+        [3, 3],
+        [2, 2],
+        [1, 1],
+      ]);
+      expect(a.label).toBe(`family ${a.familyId.slice(a.familyId.indexOf('_') + 1)}`);
+      expect(a.figure).toBe(`${((state.plants[0].size + 40) / 100).toFixed(1)} units`);
+    });
+
+    it('agrees its dots with its word at every level, however the tank reads', () => {
+      const groups = (state: SimulationState): (SpeciesRosterRow | FamilyRosterRow)[] =>
+        tables(state, ['species-java_fern', ...state.plants.map((p) => `family-${p.familyId}`)])
+          .plants.filter((row) => row.kind === 'species' || row.kind === 'family');
+      const struggling = (plant: Plant): Partial<Plant> =>
+        plant.id === 'plant_a2' ? { condition: 20 } : {};
+
+      const countedAt = new Set<string>();
+      for (const state of [families(), dark(families()), dark(families(struggling))]) {
+        for (const row of groups(state)) {
+          const counted = /^(\d+) /.exec(row.word);
+          if (counted) {
+            expect(row.dots.filter((dot) => dot === row.status)).toHaveLength(Number(counted[1]));
+            countedAt.add(row.kind);
+          } else if (row.dots.length > 1) {
+            expect(row.dots.every((dot) => dot === 'ok')).toBe(true);
+          }
+        }
+      }
+      expect(countedAt).toEqual(new Set(['species', 'family']));
+    });
+
+    it('opens a group on its worst unit, wherever that stands in the family tree', () => {
+      const state = dark(families((plant) => (plant.id === 'plant_a2' ? { condition: 20 } : {})));
+      const [species, a] = tables(state, ['species-java_fern']).plants as [
+        SpeciesRosterRow,
+        FamilyRosterRow,
+      ];
+      expect(species.worstKey).toBe('plant_a2');
+      expect(a.worstKey).toBe('plant_a2');
+    });
+
+    it('names a unit by the one it budded from, beside its light and its bank toward the next offshoot', () => {
+      const cap = DEFAULT_CONFIG.plants.surplusCap;
+      const state = families((plant) => (plant.id === 'plant_a2' ? { surplus: cap * 0.625 } : {}));
+      const [a] = state.plants;
+      const rows = tables(state, ['species-java_fern', `family-${a.id}`]).plants;
+      const unit = rows.find((row) => row.key === 'plant_a2') as IndividualRosterRow;
+      const founder = rows.find((row) => row.key === a.id) as IndividualRosterRow;
+      const share = readPlantLight(state, DEFAULT_CONFIG)[5].needShare;
+
+      expect(unit).toMatchObject({ parent: 'a1', figure: '20 %', age: '1 d', bank: '62 %' });
+      expect(unit.light!.text).toBe(`${Math.floor(share * 100)} %`);
+      expect(founder.parent).toBeNull();
+    });
+
+    it('gives a unit the light and the bank its ledger gives it', () => {
+      const cap = DEFAULT_CONFIG.plants.surplusCap;
+      const state = families((plant) => ({ surplus: plant.parentId ? cap / 3 : cap }));
+      const ahead = readHourAhead(state, DEFAULT_CONFIG);
+      const open = ['species-java_fern', ...state.plants.map((p) => `family-${p.familyId}`)];
+      const units = tables(state, open).plants.filter(
+        (row): row is IndividualRosterRow => row.kind === 'individual'
+      );
+
+      expect(units).toHaveLength(6);
+      for (const row of units) {
+        const ledger = readLedger(state, DEFAULT_CONFIG, ahead, { kind: 'plant', id: row.id })!;
+        expect(`${ledger.light!.text} %`).toBe(row.light!.text);
+        expect(ledger.light!.status).toBe(row.light!.status);
+        expect(`${ledger.bank!.text} %`).toBe(row.bank);
+        expect(ledger.bank!.unit).toBe('% to offshoot');
+      }
+    });
   });
 
   it('has nothing to show for a bare tank', () => {

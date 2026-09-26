@@ -118,6 +118,18 @@ export function LedgerDrawer({
           />
         )}
 
+        {ledger.light && (
+          <ReadingRow
+            name="Light"
+            value={ledger.light.text}
+            unit="% of need"
+            at={ledger.light.at}
+            band={ledger.light.band}
+            tone={toneOf(ledger.light.status)}
+            note={ledger.light.note}
+          />
+        )}
+
         <div className="flex flex-col gap-3 border-t border-hairline pt-3">
           <div className="grid grid-cols-2 gap-x-4 gap-y-2">
             <Column
@@ -148,7 +160,7 @@ export function LedgerDrawer({
             <ReadingRow
               name="Bank"
               value={ledger.bank.text}
-              unit={`of ${ledger.bank.cap}`}
+              unit={ledger.bank.unit}
               at={ledger.bank.at}
               band={{ from: 0, to: 1 }}
               note={ledger.bank.note}

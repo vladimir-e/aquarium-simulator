@@ -106,7 +106,7 @@ export function renderObserve(session: Session): string {
     }${sick(readFish(state, session.config, ahead))}`,
     `**Plants (${state.plants.length})** ${
       state.plants.length ? `avg condition ${avgPlantCondition}%` : '—'
-    }${sick(plantRows(state, ahead))}`,
+    }${sick(plantRows(state, ahead, session.config.plants))}`,
   ];
 
   return lines.join('\n');

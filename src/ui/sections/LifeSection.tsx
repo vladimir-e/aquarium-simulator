@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { floorCover, type FishSpecies, type PlantSpecies } from '../../simulation/index.js';
+import type { FishSpecies, PlantSpecies } from '../../simulation/index.js';
 import type { TunableConfig } from '../../simulation/config/index.js';
 import { useStage } from '../components/layout/AppShell';
 import { ModuleGroup, ModulePage } from '../components/layout/ModulePage';
@@ -18,6 +18,7 @@ import { useReadingBook } from '../hooks/useReadingBook';
 import { useUnits } from '../hooks/useUnits';
 import { toneOf } from '../readings';
 import {
+  floorPlanted,
   readLedger,
   rosterSummary,
   rosterTables,
@@ -44,8 +45,9 @@ interface Inspecting {
 
 /**
  * Who lives here: two tables read the same way, the algae riding along at the
- * top of the plants as the population it competes with them as. A species row
- * opens to its individuals; any row opens the vitality ledger beside it.
+ * top of the plants as the population it competes with them as. A fish species
+ * opens to its fish, a plant species to its families and a family to its
+ * units; any row opens the vitality ledger beside it.
  */
 export function LifeSection({
   sim,
@@ -114,7 +116,14 @@ export function LifeSection({
       if (row.kind === 'species') {
         setInspecting({
           target: { kind, id: row.worstKey },
-          subtitle: `the worst of ${row.count} ${row.name}`,
+          subtitle: `the worst of ${row.members} ${row.name}`,
+        });
+        return;
+      }
+      if (row.kind === 'family') {
+        setInspecting({
+          target: { kind, id: row.worstKey },
+          subtitle: `the worst of ${row.count} in ${row.name} ${row.label}`,
         });
         return;
       }
@@ -129,6 +138,7 @@ export function LifeSection({
         kind === 'fish' ? { type: 'removeFish', fishId: id } : { type: 'removePlant', plantId: id }
       ),
     onSellFry: () => sim.executeAction({ type: 'sellFry' }),
+    onTrimFamily: (familyId) => onAct('trimPlants', undefined, { familyId }),
   });
 
   const add = (species: FishSpecies | PlantSpecies, count: number): void => {
@@ -187,7 +197,7 @@ export function LifeSection({
             />
           </ModuleGroup>
 
-          <ModuleGroup title="Plants" meta={`floor ${Math.round(floorCover(state.plants, state.tank.capacity) * 100)} % planted`}>
+          <ModuleGroup title="Plants" meta={floorPlanted(state)}>
             <Roster layout="plants" rows={[algae, ...tables.plants]} handlers={handlers('plant')} />
             {tables.plants.length === 0 && (
               <RosterEmpty

@@ -10,7 +10,7 @@
  * the commit would leave as the live one.
  */
 
-import type { FishSpeciesData, SimulationState } from '../../simulation/index.js';
+import { floorShade, type FishSpeciesData, type SimulationState } from '../../simulation/index.js';
 import {
   HIGH_ALGAE_THRESHOLD,
   ammoniaAlertLine,
@@ -76,6 +76,7 @@ export interface PreviewRow {
  */
 interface Sheet {
   state: SimulationState;
+  config: TunableConfig;
   units: UnitSystem;
   water: Record<WaterKey, WaterReading>;
   nutrients: Record<Nutrient, NutrientReading>;
@@ -88,7 +89,7 @@ function sheetOf(state: SimulationState, config: TunableConfig, units: UnitSyste
   const nutrients = {} as Record<Nutrient, NutrientReading>;
   for (const reading of nutrientReadings(state, config)) nutrients[reading.key] = reading;
 
-  return { state, units, water, nutrients };
+  return { state, config, units, water, nutrients };
 }
 
 function temperatureNote(value: number, _before: number, { state, units }: Sheet): string | null {
@@ -195,8 +196,9 @@ function nutrient(key: Nutrient, label: string, decimals: number): Reading {
 
 /**
  * Canonical order: the nitrogen cycle, then the physical readings, then the
- * dissolved gases, then plant food, then the two organic stocks. A verb's rows
- * come out in this order however many of them move.
+ * dissolved gases, then plant food, then the two organic stocks, then the
+ * planting's shade and its tallest unit. A verb's rows come out in this order
+ * however many of them move.
  */
 const READINGS: Reading[] = [
   fromWater('ammonia', {
@@ -324,6 +326,19 @@ const READINGS: Reading[] = [
     status: (value) => algaeStatus(value),
     at: (value) => onScale(DISPLAY_CEILING.algae, value),
     band: () => ({ from: 0, to: onScale(DISPLAY_CEILING.algae, HIGH_ALGAE_THRESHOLD) }),
+    note: none,
+  },
+  {
+    key: 'shade',
+    label: 'Floor shade',
+    read: ({ state, config }) =>
+      floorShade(state.plants, state.tank.capacity, config.optics) * 100,
+    unit: PERCENT,
+    display: same,
+    decimals: 1,
+    status: quiet,
+    at: (value) => value / 100,
+    band: none,
     note: none,
   },
   {

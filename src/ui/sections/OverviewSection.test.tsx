@@ -161,12 +161,12 @@ describe('OverviewSection', () => {
     expect(life.getByRole('img', { name: /Neon.* by individual/i }).children).toHaveLength(6);
   });
 
-  it('lists a plant species once, with a dot for every specimen', () => {
+  it('lists a plant species once, with a dot for every family it was planted as', () => {
     renderOverview(stocked());
     const life = within(widget('Life'));
 
     expect(life.getByText('×2')).toBeTruthy();
-    expect(life.getByRole('img', { name: /Anubias by individual/i }).children).toHaveLength(2);
+    expect(life.getByRole('img', { name: /Anubias by family/i }).children).toHaveLength(2);
   });
 
   it('gives the algae row no dots to speak of', () => {
