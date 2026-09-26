@@ -499,7 +499,6 @@ const LivestockConfigSchema = z
     respirationOxygenHalfSaturation: z.number(),
     foodNitrogenFraction: z.number(),
     gillNFraction: z.number(),
-    basalAmmoniaRate: z.number(),
     respiratoryQuotient: z.number(),
     satiationDecayRate: z.number(),
     temperatureStressSeverity: z.number(),

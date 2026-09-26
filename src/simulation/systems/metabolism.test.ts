@@ -96,25 +96,19 @@ describe('processMetabolism', () => {
       livestockDefaults.gillNFraction *
       (MW_NH3 / MW_N) *
       1000;
-    const basal = livestockDefaults.basalAmmoniaRate * 2.0;
-    expect(result.ammoniaProduced).toBeCloseTo((postPrandial + basal) * AMPLE_FACTOR, 6);
+    expect(result.ammoniaProduced).toBeCloseTo(postPrandial * AMPLE_FACTOR, 6);
   });
 
-  it('still produces basal gill NH3 when no food is eaten', () => {
-    const fish = [makeFish({ satiation: 50, mass: 1.0 })];
-    const result = processMetabolism(fish, 0, AMPLE_O2, livestockDefaults);
+  it('releases no nitrogen when it eats nothing', () => {
+    const result = processMetabolism([makeFish({ satiation: 50, mass: 1.0 })], 0, AMPLE_O2, livestockDefaults);
 
     expect(result.foodConsumed).toBe(0);
     expect(result.wasteProduced).toBe(0);
-    expect(result.ammoniaProduced).toBeCloseTo(
-      livestockDefaults.basalAmmoniaRate * 1.0 * AMPLE_FACTOR,
-      6
-    );
+    expect(result.ammoniaProduced).toBe(0);
   });
 
-  it('conserves food-derived nitrogen exactly when waste ratio matches stoichiometry', () => {
-    const mass = 10;
-    const fish = [makeFish({ satiation: 0, mass })];
+  it('releases exactly the nitrogen it ate, less what hypoxia keeps in the body', () => {
+    const fish = [makeFish({ satiation: 0, mass: 10 })];
     let totalFood = 0;
     let totalDirectNH3 = 0;
     let totalWaste = 0;
@@ -126,11 +120,8 @@ describe('processMetabolism', () => {
       totalWaste += r.wasteProduced;
     }
 
-    const basalNH3 = livestockDefaults.basalAmmoniaRate * mass * ticks * AMPLE_FACTOR;
-    const foodDerivedNH3 = totalDirectNH3 - basalNH3;
-
     const nIngested = totalFood * livestockDefaults.foodNitrogenFraction;
-    const nDirect = foodDerivedNH3 / ((MW_NH3 / MW_N) * 1000);
+    const nDirect = totalDirectNH3 / ((MW_NH3 / MW_N) * 1000);
     const stoichRatio = livestockDefaults.foodNitrogenFraction * (MW_NH3 / MW_N) * 1000;
     const nWaste = (totalWaste * stoichRatio) / ((MW_NH3 / MW_N) * 1000);
     const nKept = nIngested * livestockDefaults.gillNFraction * (1 - AMPLE_FACTOR);

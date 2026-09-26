@@ -11,6 +11,7 @@ Format: - **Feature name** (#PR) - One short sentence (under ~150 chars)
 
 ## Unreleased
 
+- **Fish release only what they ate** - every gram of fish nitrogen comes from food, so a fasting fish loads the water with nothing; breaking: no `basalAmmoniaRate` (v29).
 - **Comfort is a curve** - plant temperature and pH, and fish pH, earn most at the band's centre and nothing at its edge, where damage starts.
 - **Water harms where it really does** - NH₃, NO₂, NO₃ and O₂ harm on log dose past an edge hardiness moves out from the alert's; breaking: `*_THRESHOLD` → `*_EDGE`, `hardened` (v29).
 - **Plant nutrition saturates** - per-nutrient Monod on species demand; uptake follows the plant, not the bottle; food returns its N, P, K and Fe, eaten or decayed; breaking: nutrients config, no `wasteToAmmoniaRatio` (v29).

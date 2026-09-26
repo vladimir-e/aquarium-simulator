@@ -32,7 +32,7 @@ import type { TunableConfig } from '../../simulation/config/index.js';
  *      `AlgaeVitalityConfig` gains `referenceNitratePpm` and
  *      `referencePhosphatePpm`. `LivestockConfig` drops
  *      `nitrateStressThreshold` and `oxygenStressThreshold` for the shared
- *      tolerance edges.
+ *      tolerance edges, and `basalAmmoniaRate`.
  * v28: Nitrifiers seed continuously. `NitrogenCycleConfig` drops
  *      `aobSpawnThreshold`, `nobSpawnThreshold` and `inoculumPerLiter` and
  *      gains `seedingRate` (units per litre per tick). A v27 config carries

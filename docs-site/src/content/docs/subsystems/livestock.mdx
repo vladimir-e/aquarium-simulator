@@ -18,7 +18,7 @@ in, and the bank that health leaves over is what pays for the next spawn.
 | Mechanic | Status | Why |
 |---|---|---|
 | Metabolism | <Badge text="settled" variant="success" /> | Draw, deamination and CO₂ on one Monod factor off one half-saturation constant. Deamination is metabolism, so a depressed fish excretes proportionally less nitrogen. |
-| Nitrogen split | <Badge text="settled" variant="success" /> | Gill ammonia and feces-bound N come out of one food-nitrogen budget, so the waste mass is derived rather than a free parameter. |
+| Nitrogen split | <Badge text="settled" variant="success" /> | Gill ammonia and feces-bound N come out of one food-nitrogen budget, so the waste mass is derived rather than a free parameter. A fish releases only the nitrogen it ate: a fasting fish releases none. |
 | Satiation | <Badge text="settled" variant="success" /> | One continuous piecewise curve producing both a stressor and a benefit, zero at every band edge. This is what the rest of the engine's bands should look like. |
 | Water quality | <Badge text="settled" variant="success" /> | Free NH₃, nitrite, nitrate and oxygen harm on log dose from each fish's own edge, which hardiness moves out from the alert's. Chloride, which blunts nitrite, is not modelled. |
 | Hardiness | <Badge text="settled" variant="success" /> | Scales stressors, never benefits — as `1 − hardiness` for most, and on the concentration axis for water quality. A hardy fish tolerates bad water but isn't more energised by good. |
@@ -61,8 +61,7 @@ Mass drives every number, and one oxygen factor scales most of them.
 | Food eaten | `emptiness × mass × baseFoodRate` | no |
 | Oxygen drawn | `baseRespirationRate × mass` | yes |
 | CO₂ exhaled | the oxygen drawn × `respiratoryQuotient`, through the molar mass step | yes — it derives from the draw |
-| Gill ammonia, post-prandial | food eaten × `foodNitrogenFraction` × `gillNFraction`, as NH₃ | yes |
-| Gill ammonia, basal | `basalAmmoniaRate × mass` | yes |
+| Gill ammonia | food eaten × `foodNitrogenFraction` × `gillNFraction`, as NH₃ | yes |
 | Feces | food eaten × `(1 − gillNFraction)` | no |
 | Minerals, beside the gill ammonia | food eaten × `gillNFraction` × `foodMineralContent` | no |
 
@@ -70,12 +69,14 @@ A fish regulates its uptake until the water falls past its critical oxygen
 tension, so the half-saturation constant sits at 1.0 mg/L — the highest in the
 tank. Fish feel a shortage before the bacteria do.
 
-Feces sit outside the factor because that nitrogen was never absorbed, and the
-gut does not care what the gills are getting. The nitrogen a depressed fish does
-not deaminate stays in its body, which is an untracked sink. Minerals take no
-such detour: food carries phosphate, potassium and iron at `foodMineralContent`,
-and waste carries the same per gram, so every milligram fed returns to the water —
-eaten, through the gills or the feces; uneaten, as it decays.
+Every nitrogen flow starts from food eaten, so a fish that eats nothing loads the
+water with nothing. Feces sit outside the factor because that nitrogen was never
+absorbed, and the gut does not care what the gills are getting. The nitrogen a
+depressed fish does not deaminate stays in its body, which is an untracked sink.
+Minerals take no such detour: food carries phosphate, potassium and iron at
+`foodMineralContent`, and waste carries the same per gram, so every milligram fed
+returns to the water — eaten, through the gills or the feces; uneaten, as it
+decays.
 
 Damage is a separate reading. The oxygen stressor still charges a fish for the
 water it is in, so a suffocating fish draws less *and* suffers more.
@@ -91,7 +92,7 @@ water it is in, so a suffocating fish draws less *and* suffers more.
 | `mass` | Re-derived from age while the fish is a fry; fixed at `adultMass` after | — | g |
 | `food` | Feeding, elsewhere | Fish eating, hungriest first | g |
 | `waste` | Feces; half the body mass of a fish that dies | Mineralization, elsewhere | g |
-| `ammonia` | Gill excretion, both streams | Nitrification, elsewhere | mg |
+| `ammonia` | Gill excretion | Nitrification, elsewhere | mg |
 | `oxygen` | Gas exchange, elsewhere | Respiration, itself throttled by the oxygen already standing | mg/L |
 | `co2` | Respiration, derived from the oxygen drawn | Photosynthesis and gas exchange, elsewhere | mg/L |
 
@@ -150,10 +151,9 @@ over.
 | Plants | plant power, saturating at `plantBenefitSaturationPoint` | `plantBenefitPeak` |
 
 The three non-plant channels sum to 1.0 %/h in a clean tank with pH at the
-band's centre; a saturated
-planting lifts the budget to 1.2. That headroom over zero is the whole point — a
-healthy planted tank sits at full health with a positive net rate, banking the
-reserve breeding spends.
+band's centre; a saturated planting lifts the budget to 1.2. That headroom over
+zero is the whole point — a healthy planted tank sits at full health with a
+positive net rate, banking the reserve breeding spends.
 
 #### Water quality
 
@@ -259,7 +259,6 @@ visible decline rather than a coin flip.
 | `respirationOxygenHalfSaturation` | O₂ at which the whole metabolism runs at half rate — draw, deamination and CO₂ alike | `1.0` mg/L |
 | `foodNitrogenFraction` | Nitrogen in food, and in the waste it becomes | `0.05` g N/g |
 | `gillNFraction` | Share of ingested nitrogen leaving through the gills; the rest is feces | `0.8` |
-| `basalAmmoniaRate` | Body-protein turnover per gram, independent of feeding | `0.03` mg NH₃/g/hr |
 | `respiratoryQuotient` | CO₂ exhaled per O₂ consumed, a molar ratio | `0.8` |
 | `satiationDecayRate` | Satiation burned per hour, fed or fasted | `0.6` %/hr |
 | `ammoniaStressSeverity` · `nitriteStressSeverity` · `nitrateStressSeverity` · `oxygenStressSeverity` | Damage per e-fold past the fish's own edge; oxygen's per e-fold under | `0.56` · `0.75` · `1.0` · `2.7` %/e-fold/hr |
@@ -278,7 +277,7 @@ visible decline rather than a coin flip.
 | Neighbour | Read | Written |
 |---|---|---|
 | [Nitrogen cycle](/subsystems/nitrogen-cycle/) | `ammonia`, `nitrite` and `nitrate`, each past its tolerance edge | `ammonia`, `phosphate`, `potassium` and `iron` through the gills; `waste` as feces and death mass |
-| [Water & gases](/subsystems/water-and-gases/) | `oxygen` twice — as the Monod factor on the whole metabolism, and as a stressor and benefit on the same edge; pH, derived from `co2` and `kh`, and `gh`, each as a tolerance band | `oxygen` drawn, `co2` exhaled |
+| [Water & gases](/subsystems/water-and-gases/) | `oxygen` twice — as the Monod factor on the whole metabolism, and as a stressor under the fish's own edge and a benefit rising above the alert's; pH, derived from `co2` and `kh`, and `gh`, each as a tolerance band | `oxygen` drawn, `co2` exhaled |
 | [Environment](/subsystems/environment/) | `temperature` as a tolerance band; `water` for every ppm and for the water-level stressor | — |
 | [Equipment](/subsystems/equipment/) | `flow`, divided by standing water into a turnover | — |
 | [Plants](/subsystems/plants/) | Plant power — the shelter benefit, saturating | — |

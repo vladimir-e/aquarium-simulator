@@ -185,10 +185,9 @@ channel alike, `× (1 − hardiness)`.
 |---|---|---|
 | `baseFoodRate` | Food a fish ingests per gram of body mass per hour | g/g/hr |
 | `baseRespirationRate` | Oxygen a fish draws per gram per hour — a Monod maximum | mg O₂/g/hr |
-| `respirationOxygenHalfSaturation` | Dissolved O₂ at which uptake falls to half; it scales the ammonia streams too | mg/L |
+| `respirationOxygenHalfSaturation` | Dissolved O₂ at which uptake falls to half; it scales gill ammonia too | mg/L |
 | `foodNitrogenFraction` | Share of food mass that is nitrogen — eaten, decayed, or mineralized as waste | g N/g food |
 | `gillNFraction` | Share of ingested nitrogen excreted straight through the gills; the rest leaves as feces | — |
-| `basalAmmoniaRate` | Gill ammonia from body protein turnover, produced whether or not the fish ate | mg NH₃/g/hr |
 | `respiratoryQuotient` | Moles of CO₂ exhaled per mole of O₂ consumed | — |
 | `satiationDecayRate` | Satiation lost per hour, feeding or not | %/hr |
 | `temperatureStressSeverity` · `phStressSeverity` · `ghStressSeverity` | Damage per unit outside the species' tolerable band | %/unit/hr |
