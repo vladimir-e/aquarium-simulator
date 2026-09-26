@@ -55,7 +55,7 @@ describe('renderObserve', () => {
     });
     const ahead = readHourAhead(failing, DEFAULT_CONFIG);
     const fish = readFish(failing, DEFAULT_CONFIG, ahead).filter((read) => read.sick).length;
-    const plants = plantRows(failing, ahead, DEFAULT_CONFIG.plants).filter((row) => row.sick).length;
+    const plants = plantRows(failing, DEFAULT_CONFIG, ahead).filter((row) => row.sick).length;
     expect(fish).toBeGreaterThan(0);
     expect(plants).toBeGreaterThan(0);
 

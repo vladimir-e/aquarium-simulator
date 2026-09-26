@@ -140,6 +140,7 @@ export function HistorySection({
             }
             at={scrub.at}
             onPark={(tick) => scrub.park(nextScrubPosition(tick, range), 'commit')}
+            units={unitSystem}
             className="max-md:h-[360px] md:min-h-0 md:flex-1"
           />
         </div>

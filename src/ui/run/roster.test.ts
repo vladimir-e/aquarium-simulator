@@ -49,7 +49,7 @@ function input(state: SimulationState, config: TunableConfig): RosterInput {
   const fish = readFish(state, config, readHourAhead(state, config));
   return {
     fish: groupBySpecies(fish, config.livestock),
-    plants: groupPlantsBySpecies(plantRows(state, readHourAhead(state, config), config.plants)),
+    plants: groupPlantsBySpecies(plantRows(state, config, readHourAhead(state, config))),
     fry: groupFry(fish, config.livestock),
     clutches: state.clutches,
     tick: state.tick,

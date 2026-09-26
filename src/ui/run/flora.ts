@@ -35,7 +35,6 @@ import {
   NUTRIENTS,
   type FertilizerFormula,
   type Nutrient,
-  type NutrientsConfig,
   type PlantsConfig,
   type TunableConfig,
 } from '../../simulation/config/index.js';
@@ -147,11 +146,7 @@ export interface PlantRow {
   bank: number;
 }
 
-export function plantRows(
-  state: SimulationState,
-  ahead: HourAhead,
-  config: PlantsConfig
-): PlantRow[] {
+export function plantRows(state: SimulationState, config: TunableConfig, ahead: HourAhead): PlantRow[] {
   const labels = plantLabels(state.plants);
   return state.plants.map((plant, i) => {
     const { vitality, light } = ahead.plants[i];
@@ -169,7 +164,7 @@ export function plantRows(
       reading,
       light: light.needShare,
       lightStatus: plantLightStatus(light, plant.species),
-      bank: bankShare(plant.surplus, config.surplusCap),
+      bank: bankShare(plant.surplus, config.plants.surplusCap),
     };
   });
 }
@@ -277,9 +272,6 @@ const NUTRIENT_RESOURCE: Record<Nutrient, ResourceDefinition<Nutrient>> = {
   iron: IronResource,
 };
 
-/** Share of a plant's need a nutrient must meet for the panel to call it met — Monod never reaches 1. */
-const NEED_SHARE = 0.9;
-
 /** Mass is stored in mg, so a drained nutrient lands near zero rather than on it. */
 const DEPLETED_PPM = 0.001;
 
@@ -316,13 +308,14 @@ function ceilingPpm(state: SimulationState, key: Nutrient, config: PlantsConfig)
   );
 }
 
-/** ppm at which the tank's hungriest plant has `NEED_SHARE` of its need met. */
-function neededPpm(state: SimulationState, key: Nutrient, config: NutrientsConfig): number {
+/** ppm at which the tank's hungriest plant meets its need up to the edge where deficiency harm starts. */
+function neededPpm(state: SimulationState, key: Nutrient, config: TunableConfig): number {
+  const edge = config.plants.sufficiencyEdge;
   const halfSaturation = Math.max(
     0,
-    ...state.plants.map((plant) => speciesHalfSaturation(plant.species, key, config))
+    ...state.plants.map((plant) => speciesHalfSaturation(plant.species, key, config.nutrients))
   );
-  return (halfSaturation * NEED_SHARE) / (1 - NEED_SHARE);
+  return (halfSaturation * edge) / (1 - edge);
 }
 
 export function nutrientReadings(
@@ -333,7 +326,7 @@ export function nutrientReadings(
   const water = state.resources.water;
 
   const needs = Object.fromEntries(
-    NUTRIENTS.map((key) => [key, neededPpm(state, key, nutrients)])
+    NUTRIENTS.map((key) => [key, neededPpm(state, key, config)])
   ) as Record<Nutrient, number>;
 
   // Everything the plants ask for, present at once — the probe's yardstick.

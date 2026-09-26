@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { logText } from './core/logging.js';
 import {
   createSimulation,
   calculateTankHeight,
@@ -59,9 +60,7 @@ describe('createSimulation', () => {
     }).logs;
 
     expect(log).toMatchObject({ tick: 0, source: 'simulation', severity: 'info' });
-    for (const part of ['Simulation created', '150L tank', '24°C room', 'heater disabled']) {
-      expect(log.message).toContain(part);
-    }
+    expect(logText(log)).toBe('Simulation created: 150.0 L tank, 24.0°C room, heater disabled');
   });
 
   it('gives a bigger tank more glass to colonise, in whole cm²', () => {

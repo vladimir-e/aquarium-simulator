@@ -121,9 +121,9 @@ density you can look up rather than a score.
 | `referenceNitratePpm` · `referencePhosphatePpm` | The NO₃ and PO₄ both nutrient channels read their ratio against | ppm |
 | `nutrientDeficiencyPeak` · `nutrientDeficiencySeverity` | The starved-plants benefit — deliberately small, a canary rather than a lever | %/hr · %/(1−ratio)/hr |
 | `lowPlantPowerPeak` · `lowPlantPowerSeverity` | The weak-planting benefit, per unit of power below `weaknessThreshold` | %/hr · %/power/hr |
-| `algaeGrowthPerTickCap` | Ceiling on surplus spent turning into mass in one tick | surplus |
-| `massPerSurplus` | Mass gained per surplus unit drained | % |
-| `surplusCap` | Saturation cap on the bloom's reserve bank | % |
+| `algaeGrowthPerTickCap` | Ceiling on the bank spent turning into mass in one tick | pts |
+| `massPerSurplus` | Mass gained per bank point drained | %/pt |
+| `surplusCap` | Saturation cap on the bloom's reserve bank | pts |
 
 ## Optics
 
@@ -154,17 +154,17 @@ density you can look up rather than a score.
 | `respirationOxygenHalfSaturation` | Dissolved O₂ at which respiration runs at half rate | mg/L |
 | `growthDrawRate` | Share of the bank drawn toward new tissue each hour, before the taper `1 − size/100` | /hr |
 | `healingDrawRate` | Share of the bank that heals condition each hour, per unit of species growth rate | /hr per growth rate |
-| `sizePerSurplus` | Size gained per surplus unit converted, before the species growth multiplier — the conversion growth and offshoots share | % |
-| `surplusCap` | Ceiling on the bank; a full one buys an offshoot | condition points |
+| `sizePerSurplus` | Size gained per bank point converted, before the species growth multiplier — the conversion growth and offshoots share | %/pt |
+| `surplusCap` | Ceiling on the bank; a full one buys an offshoot | pts |
 | `lightStarvationSeverity` | Damage in a day without light, falling to nothing at the species' daily light edge; quoted at the respiration reference temperature | %/hr |
 | `lightExcessiveSeverity` | Damage per PAR unit above the species' tolerable band | %/PAR/hr |
 | `temperatureStressSeverity` · `phStressSeverity` · `ghStressSeverity` | Damage per unit outside the species' tolerable band, one per factor | %/unit/hr |
-| `nutrientDeficiencySeverity` | Damage per unit of missing sufficiency, Liebig-gated | %/(1−suff)/hr |
+| `nutrientDeficiencySeverity` · `sufficiencyEdge` | Damage at a Liebig sufficiency of 0 under saturating light, falling linearly to nothing at the edge; and the sufficiency a plant counts as fed, since a Monod share never reaches 1 | %/hr · — |
 | `nitrateStressSeverity` · `nitrateEdge` | Damage per e-fold of NO₃ past the plant's own edge, and where a hardiness-0 plant's edge sits | %/e-fold/hr · ppm |
 | `algaeShadingSeverity` · `algaeShadingThreshold` | Damage per point of bloom past the threshold, and the mass above which algae shades plants | %/algae/hr · — |
-| `co2BenefitPeak` · `temperatureBenefitPeak` · `phBenefitPeak` · `nutrientBenefitPeak` | Recovery earned per factor at its best — temperature and pH at the band's centre; all four are scaled by the light term | %/hr |
+| `co2BenefitPeak` · `temperatureBenefitPeak` · `phBenefitPeak` | Recovery earned per factor at its best — temperature and pH at the band's centre; all three run on the light term times the Liebig sufficiency | %/hr |
 | `maxSheddingRate` | Share of itself a plant sheds per hour at condition 0, falling with the square of the deficit | /hr |
-| `wastePerShedSize` · `wastePerPlantDeath` | Waste per % of a rate unit shed, and per % of a rate unit a dying plant leaves — so a unit fouls the water by its leaf, not its size | g/% |
+| `wastePerSize` | Waste per % of a rate unit of tissue lost, shed or dead — so a unit fouls the water by its leaf, not its size | g/% |
 | `deathSizeThreshold` | Size below which a plant dies, and the least a plant is planted, trimmed or budded at | % |
 
 Every severity above is pre-hardiness. The species' own hardiness scales every
@@ -200,7 +200,7 @@ channel by `1 − hardiness` except nitrate, whose edge it carries out instead.
 | `satiationOverfedSeverity` · `satiationHungrySeverity` · `satiationStarvingSeverity` | Peak cost of each stressed band; the curve interpolates between the anchors | %/hr |
 | `satiationWellFedPeak` · `phBenefitPeak` · `oxygenBenefitPeak` · `plantBenefitPeak` | Recovery earned per factor at its best | %/hr |
 | `plantBenefitSaturationPoint` | Plant power at which the planted-tank benefit stops growing | power |
-| `surplusCap` | Ceiling on the fish's bank; a female spawns on a full one | condition points |
+| `surplusCap` | Ceiling on the fish's bank; a female spawns on a full one | pts |
 | `healingDrawRate` | Share of its bank a 1 g fish heals from each hour, scaled by adult mass to the −¼ | /hr at 1 g |
 | `deathDecayFactor` | Share of a dead fish's mass that becomes waste | — |
 

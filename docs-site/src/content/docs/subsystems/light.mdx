@@ -20,7 +20,7 @@ starve on.
 |---|---|---|
 | PAR at the substrate | <Badge text="settled" variant="success" /> | `surfacePar × exp(−k · depth)`. Beer–Lambert through a depth the capacity already implies, so a fixture is worth less in a deeper tank without anyone declaring it. |
 | Saturation curve | <Badge text="settled" variant="success" /> | `tanh(PAR / Ik)`, the Jassby–Platt response. Near-linear below `Ik`, flat above it — a brighter fixture stops buying anything. |
-| Light multiplies the benefit budget | <Badge text="settled" variant="success" /> | Every benefit a plant earns is realised *through* photosynthesis, so light scales all four channels rather than standing beside them. Good water is worth nothing at midnight. |
+| Light multiplies the benefit budget | <Badge text="settled" variant="success" /> | Every benefit a plant earns is realised *through* photosynthesis, so light scales all three channels rather than standing beside them. Good water is worth nothing at midnight. |
 | `Ik` derived from the species band | <Badge text="settled" variant="success" /> | A fixed multiple of the band's lower bound, so one number carries both the saturation curve and the daily light edge and they cannot drift apart. |
 | The canopy | <Badge text="settled" variant="success" /> | Leaf attenuates like water — Beer–Lambert per unit of leaf area index — so a planting shades what grows beneath it and each plant reads its own height. |
 | The day's light | <Badge text="settled" variant="success" /> | A 24-slot history, one slot rewritten each tick. Plants starve on its integral — the day, not the hour. |
@@ -67,7 +67,7 @@ of its band runs at 46 % of its maximum, at `Ik` 76 %, and at twice `Ik` 96 %. E
 
 ### Light as the multiplier
 
-A plant's four benefit channels are each multiplied by the saturation term, so
+A plant's three benefit channels are each multiplied by the saturation term, so
 light takes the whole of its income down together — the budget is under
 [Plants](/subsystems/plants/#income-and-harm).
 
@@ -143,7 +143,7 @@ inside it reads the full attenuated rating.
 | Consumer | How |
 |---|---|
 | Photosynthesis | Per plant, `tanh(PAR / Ik)` at its mean leaf scales the potential rate that drives O₂, carbon and nutrient uptake |
-| Plant benefits | All four channels multiplied by the same term |
+| Plant benefits | All three channels multiplied by the same term |
 | Plant nutrient deficiency | Scaled by the same term |
 | Plant starvation | The day's light at its mean leaf, against the species' edge |
 | Plant light-high stressor | PAR at its crown top over the species band, while the lamp is on |

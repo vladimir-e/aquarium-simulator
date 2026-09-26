@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import React from 'react';
 import { renderHook, act, type RenderHookResult } from '@testing-library/react';
 import { useSimulation } from './useSimulation';
+import { logText } from '../../simulation/core/logging.js';
 import { createPresetSimulation, getPresetById, type PresetId } from '../../simulation/presets';
 import { ConfigProvider, useConfig } from './useConfig';
 import { PersistenceProvider } from '../persistence/index.js';
@@ -775,8 +776,8 @@ describe('useSimulation', () => {
       const targetLog = logs.find(
         (log) =>
           log.source === 'user' &&
-          log.message.includes('Heater target') &&
-          log.message.includes('28°C')
+          logText(log).includes('Heater target') &&
+          logText(log).includes('28.0°C')
       );
       expect(targetLog).toBeDefined();
     });
@@ -809,8 +810,8 @@ describe('useSimulation', () => {
       const roomTempLog = logs.find(
         (log) =>
           log.source === 'user' &&
-          log.message.includes('Room temperature') &&
-          log.message.includes('25°C')
+          logText(log).includes('Room temperature') &&
+          logText(log).includes('25.0°C')
       );
       expect(roomTempLog).toBeDefined();
     });
@@ -848,7 +849,7 @@ describe('useSimulation', () => {
       );
       expect(enabledLog).toBeDefined();
       expect(enabledLog!.message).toContain('target:');
-      expect(enabledLog!.message).toContain('°C');
+      expect(logText(enabledLog!)).toContain('°C');
       expect(enabledLog!.message).toContain('W');
     });
   });

@@ -5,12 +5,14 @@
  * cluster, so a download that ignored the filter would not be the same log.
  */
 
-import type { LogEntry } from '../../simulation/index.js';
+import { logText, type LogEntry, type QuantityFormat } from '../../simulation/index.js';
 
 export const LOG_EXPORT_FILENAME = 'aquarium-run-log.txt';
 
-export function formatLogExport(logs: LogEntry[]): string {
+export function formatLogExport(logs: LogEntry[], format?: QuantityFormat): string {
   const header = 'tick\tsource\tseverity\tmessage';
-  const rows = logs.map((log) => `${log.tick}\t${log.source}\t${log.severity}\t${log.message}`);
+  const rows = logs.map(
+    (log) => `${log.tick}\t${log.source}\t${log.severity}\t${logText(log, format)}`
+  );
   return [header, ...rows].join('\n');
 }

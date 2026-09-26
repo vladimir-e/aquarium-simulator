@@ -134,9 +134,12 @@ than the precision its unit is read to prints as `none`, and only a stock's net
 signed zero.
 
 Bands are stated at the precision their reading is, so a value sitting on the
-edge of its band reads as sitting on the edge. A tolerance band is hard on both
-sides: the engine charges a temperature or pH stressor from the moment the
-value leaves the span, and the strip tints on the same step.
+edge of its band reads as sitting on the edge, and its tone says which side of
+it the tank is on. A tolerance band is hard on both sides: the engine charges a
+temperature or pH stressor from the moment the value leaves the span, and the
+strip tints on the same step. A figure with no tone to carry that side — an
+alert's log line, a verb's refusal — prints on the side of its line the value
+is on, so a reading just past a line never rounds back onto it.
 
 ## Time
 

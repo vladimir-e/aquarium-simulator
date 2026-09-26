@@ -25,7 +25,7 @@ import {
   startingHardness,
   type SimulationConfig,
 } from '../../simulation/index.js';
-import { createLog } from '../../simulation/core/logging.js';
+import { celsius, createLog, measured } from '../../simulation/core/logging.js';
 import type { OpticsConfig } from '../../simulation/config/index.js';
 import {
   PRESETS,
@@ -506,7 +506,7 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
     setState((current) =>
       produce(current, (draft) => {
         const message = enabled
-          ? `Heater enabled (target: ${draft.equipment.heater.targetTemperature}°C, ${draft.equipment.heater.wattage}W)`
+          ? measured`Heater enabled (target: ${celsius(draft.equipment.heater.targetTemperature)}, ${draft.equipment.heater.wattage}W)`
           : 'Heater disabled';
         const log = createLog(draft.tick, 'user', 'info', message);
         draft.equipment.heater.enabled = enabled;
@@ -523,7 +523,7 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
           draft.tick,
           'user',
           'info',
-          `Heater target: ${oldTemp}°C → ${temp}°C`
+          measured`Heater target: ${celsius(oldTemp)} → ${celsius(temp)}`
         );
         draft.equipment.heater.targetTemperature = temp;
         draft.logs.push(log);
@@ -555,7 +555,7 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
           draft.tick,
           'user',
           'info',
-          `Room temperature: ${oldTemp}°C → ${temp}°C`
+          measured`Room temperature: ${celsius(oldTemp)} → ${celsius(temp)}`
         );
         draft.environment.roomTemperature = temp;
         draft.logs.push(log);
@@ -571,7 +571,7 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
           draft.tick,
           'user',
           'info',
-          `Tap water temperature: ${oldTemp}°C → ${temp}°C`
+          measured`Tap water temperature: ${celsius(oldTemp)} → ${celsius(temp)}`
         );
         draft.environment.tapWaterTemperature = temp;
         draft.logs.push(log);

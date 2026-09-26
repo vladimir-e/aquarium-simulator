@@ -1,7 +1,7 @@
 import React from 'react';
 import type { VerbId, VerbScope } from '../../actions';
 import { toneOf } from '../../readings';
-import { LEDGER_DECIMALS, type Ledger, type LedgerFactor } from '../../run';
+import { LEDGER_DECIMALS, printsAsZero, type Ledger, type LedgerFactor } from '../../run';
 import { Drawer } from '../ui/Drawer';
 import { RangeStrip, TONE_TEXT } from '../ui/RangeStrip';
 import { ReadingRow } from '../ui/ReadingRow';
@@ -9,7 +9,8 @@ import { VerbButton } from '../ui/VerbButton';
 import { CONTROL_FOCUS } from '../ui/focus';
 
 function signed(value: number, sign: '+' | '−'): string {
-  return `${sign}${Math.abs(value).toFixed(LEDGER_DECIMALS)}`;
+  const figure = Math.abs(value).toFixed(LEDGER_DECIMALS);
+  return printsAsZero(value, LEDGER_DECIMALS) ? figure : `${sign}${figure}`;
 }
 
 /**

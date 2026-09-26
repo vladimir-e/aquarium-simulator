@@ -18,7 +18,7 @@ a reader would want to see afterwards.
 | Mechanic | Status | Why |
 |---|---|---|
 | The latch | <Badge text="settled" variant="success" /> | One line per crossing, a flag that lives in state, and no repetition while the condition holds. It does exactly what it says. |
-| Log entry shape | <Badge text="settled" variant="success" /> | Free text for humans, a typed `event` discriminator for code, and a `count` wherever an entry accounts for more than one organism. |
+| Log entry shape | <Badge text="settled" variant="success" /> | Free text for humans with its volumes and temperatures kept as quantities, a typed `event` discriminator for code, and a `count` wherever an entry accounts for more than one organism. |
 | Water-quality thresholds | <Badge text="settled" variant="success" /> | Free NH₃, nitrite, nitrate and oxygen alert at their tolerance edge, and hardiness moves each fish's own harm edge out from it. Ammonia reads the free fraction, so the total it takes moves with pH and temperature. |
 | Algae · water-level thresholds | <Badge text="settled" variant="success" /> | Each alerts where its harm starts, read off the tunable that starts it, so retuning the harm moves the alert with it. |
 | CO₂ threshold | <Badge text="scaffolding" variant="caution" /> | The line keepers treat as too much, with nothing behind it — no organism in the engine reads dissolved CO₂ as a stressor. |
@@ -89,9 +89,15 @@ everything else is `info`.
 | `tick` | The hour it happened, which is what makes the log reconstructable |
 | `source` | The system that emitted it |
 | `severity` | `info` or `warning` |
-| `message` | Free text, for humans only |
+| `message` | Free text, for humans only; `{0}`, `{1}`… stand for its quantities |
+| `quantities` | Present where a line states a volume or a temperature, kept in litres and °C |
 | `event` | Present only on the lifecycle moments a caller reacts to |
 | `count` | Present where one entry accounts for many organisms |
+
+A figure the reader has a unit for — a water change's volumes, the tank and room
+a run was created with, a heater's target — stays a quantity rather than text, so
+each reader renders the line in its own units: `logText(entry, format)`, metric
+unless handed a format.
 
 Seven typed events exist: `fish-spawned`, `eggs-laid`, `eggs-hatched`,
 `fish-died`, `plant-died`, `plant-propagated` and `fry-sold`. Three of them

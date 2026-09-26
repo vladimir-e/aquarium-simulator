@@ -33,7 +33,7 @@ export {
 } from './state.js';
 
 // Logging
-export type { LogEntry, LogSeverity, LogEvent } from './core/logging.js';
+export type { LogEntry, LogSeverity, LogEvent, LogQuantity, LogText, QuantityFormat } from './core/logging.js';
 
 // Randomness — the stream is the state's to advance, so only its shape is public.
 export type { RngState } from './core/rng.js';
@@ -134,7 +134,7 @@ export type { DailySchedule } from './core/schedule.js';
 export { isScheduleActive, isValidSchedule, formatSchedule } from './core/schedule.js';
 
 // Logging
-export { createLog } from './core/logging.js';
+export { celsius, createLog, liters, logText, measured, metricQuantity } from './core/logging.js';
 
 // Blending
 export { blendTemperature, blendConcentration } from './core/blending.js';

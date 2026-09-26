@@ -216,25 +216,26 @@ plant actually draws (under Key tunables).
 
 ### Income and harm
 
-Every benefit channel is realised *through* photosynthesis, so all four are
-multiplied by the same light term — read at the plant's mean leaf — rather than
-standing beside it: four peaks of `0.125` %/h make a budget of
-`0.5` %/h × `tanh(PAR / Ik)`, and light takes the whole of it down together. Good water is worth nothing at midnight — and poor water
-costs nothing then either: the deficiency stressor rides the same term, since a
-plant in the dark asks for nothing. A plant's vigour multiplies all four too:
-hardiness scales what harms a plant, vigour what it earns.
+Every benefit channel is realised *through* photosynthesis, so all three run on
+its drive — the light term at the plant's mean leaf times its sufficiency —
+rather than standing beside it: three peaks of `0.125` %/h make a budget of
+`0.375` %/h × `tanh(PAR / Ik)` × sufficiency, and the dark or a nutrient run dry
+takes the whole of it down together. Good water is worth nothing at midnight or
+to an unfed plant — and poor water costs nothing in the dark either: the
+deficiency stressor rides the light term, since a plant in the dark asks for
+nothing. A plant's vigour multiplies all three too: hardiness scales what harms
+a plant, vigour what it earns.
 
 | Channel | Earns when | At saturating light |
 |---|---|---|
 | CO₂ | scales with the species' `co2Factor` | `co2BenefitPeak × co2Factor` |
 | Temperature | inside `tolerableTemp`, most at its centre | `temperatureBenefitPeak × comfort` |
 | pH | inside `tolerablePH`, most at its centre | `phBenefitPeak × comfort` |
-| Nutrients | scales linearly with sufficiency | `nutrientBenefitPeak × sufficiency` |
 
 ```
 // a symmetric parabola: 1 at the centre, 0 at either edge
 comfort = 4 (x − lo)(hi − x) / (hi − lo)²
-earned  = channel × tanh(PAR_i / Ik) × (1 + vigour)
+earned  = channel × tanh(PAR_i / Ik) × sufficiency_i × (1 + vigour)
 ```
 
 | Stressor | Charges | Per |
@@ -242,10 +243,12 @@ earned  = channel × tanh(PAR_i / Ik) × (1 + vigour)
 | Light starvation | the day's light at the mean leaf short of the species' edge | share of the edge |
 | Light high | PAR at the crown top over the band's high end, while the lamp is on | PAR |
 | Temperature · pH · GH | outside the species band | °C · pH unit · dGH |
-| Nutrient deficiency | Liebig shortfall, on the light term | point of sufficiency |
+| Nutrient deficiency | sufficiency short of `sufficiencyEdge`, on the light term | share of the edge |
 | Nitrate | past the plant's own edge | e-fold over |
 | Algae shading | bloom mass over `algaeShadingThreshold`, not light ([Status](#status)) | mass point |
 
+A Monod sufficiency never reaches 1, so deficiency starts under an edge rather
+than under full: `sufficiencyEdge`, where a plant has 90 % of its need met.
 Hardiness scales every stressor by `1 − hardiness` except nitrate, whose edge it
 carries out by the same factor a fish's is: `nitrateEdge × 2^hardiness`.
 
@@ -355,7 +358,7 @@ entry uses — "Amazon Sword threw a plantlet". Every form buys it the same way.
 | `age` | Hours in this tank. A seeded plant can start older. No rate reads it |
 | `vigour` | An offset on income, drawn once at birth within ±`VIGOUR_SPAN` (`0.15`) — clonal ramets differ in growth by 10–20 % |
 
-Vigour multiplies the four benefit channels, so a vigorous unit also heals
+Vigour multiplies the three benefit channels, so a vigorous unit also heals
 faster; growth and the offshoot's size carry none, so the conversion stays
 exact.
 
@@ -377,7 +380,7 @@ choice. The verbs are on [Actions](/subsystems/actions/).
 ```
 deficit   = 1 − condition / 100
 sizeLost  = maxSheddingRate × deficit² × size
-waste    += sizeLost × fullRateUnits × wastePerShedSize
+waste    += sizeLost × fullRateUnits × wastePerSize
 ```
 
 Shedding is what low condition does to a plant. Squared in the deficit it is
@@ -388,9 +391,9 @@ them, which is why melting plants foul the water.
 
 A plant dies at condition 0, as a fish does, or once less than
 `deathSizeThreshold` of its unit is left. What remains becomes waste, at
-`size × fullRateUnits × wastePerPlantDeath`, and it leaves the array. Both waste
-terms run per rate unit, so a melting sword fouls the water more than a carpet
-patch of the same size.
+`size × fullRateUnits × wastePerSize`, and it leaves the array. Tissue shed or
+dead fouls the water at one yield, per rate unit, so a melting sword fouls it
+more than a carpet patch of the same size.
 
 ## Key tunables
 
@@ -409,17 +412,17 @@ patch of the same size.
 | `surplusCap` | Ceiling on the bank; a full one buys an offshoot | `50` condition points |
 | `healingDrawRate` | Share of the bank that heals condition each hour, per unit of species growth rate | `0.05` /hr |
 | `growthDrawRate` | Share of the bank drawn toward new tissue each hour, before the taper | `0.02` /hr |
-| `sizePerSurplus` | Size gained per converted unit, before the species growth rate — the conversion growth and offshoots share | `0.4` % |
+| `sizePerSurplus` | Size gained per bank point converted, before the species growth rate — the conversion growth and offshoots share | `0.4` %/pt |
 | `lightStarvationSeverity` | Damage in a day without light, at the reference temperature | `0.3` %/hr |
 | `lightExcessiveSeverity` | Damage per PAR over the species band | `0.015` %/PAR/hr |
 | `nitrateStressSeverity` · `nitrateEdge` | Damage per e-fold of NO₃ past the edge, and where a hardiness-0 plant's edge sits | `1.0` %/e-fold/hr · `100` ppm |
 | `maxSheddingRate` | Share of itself a plant drops per hour at condition 0 | `0.02` /hr |
-| `wastePerShedSize` · `wastePerPlantDeath` | Waste per % of a rate unit shed, and per % of a rate unit a dying plant leaves | `0.005` · `0.01` g |
-| `nutrientDeficiencySeverity` | Damage per point of Liebig shortfall, at saturating light | `0.3` %/hr |
+| `wastePerSize` | Waste per % of a rate unit of tissue lost, shed or dead | `0.01` g |
+| `nutrientDeficiencySeverity` · `sufficiencyEdge` | Damage at a sufficiency of 0 under saturating light, falling to nothing at the edge; and the sufficiency a plant counts as fed | `0.3` %/hr · `0.9` |
 | `ghStressSeverity` | Damage per dGH outside the species' band | `0.1` %/dGH/hr |
 | GH per nitrate drawn | Calcium and magnesium taken up per mg of nitrate actually drawn, off leaf-tissue ratios; a constant | `0.28` mg CaCO₃/mg |
 | GH half-saturation | GH, as CaCO₃, at which that uptake runs at half; a constant | `1` mg/L |
-| Benefit peaks (×4) | Recovery per channel at its best, before the light term — the four make the budget in [Income and harm](#income-and-harm) | `0.125` %/hr |
+| Benefit peaks (×3) | Recovery per channel at its best, before the drive — the three make the budget in [Income and harm](#income-and-harm) | `0.125` %/hr |
 | `deathSizeThreshold` | Size under which a unit is gone; nothing is planted, trimmed or budded under it | `1` % |
 
 The canopy's own constant, `leafAttenuationPerLai`, is under [Light](/subsystems/light/#key-tunables).

@@ -11,6 +11,7 @@ Format: - **Feature name** (#PR) - One short sentence (under ~150 chars)
 
 ## Unreleased
 
+- **Log lines read in the keeper's units** - volumes and temperatures stay quantities that `logText` renders; breaking: such a `message` holds `{0}`-style placeholders.
 - **The console gives each reading one tone** - NO₃ reads once for fish and plants, needs take their reading's tone and name hungry or sick fish; speed persists.
 - **An unfed plant starves** - its income runs on nutrient sufficiency, as carbon fixation does; breaking: no `nutrientBenefitPeak` (v31, v15).
 - **Nutrient deficiency starts at an edge** - harm starts under `sufficiencyEdge` (0.9), since a Monod sufficiency never reaches 1.

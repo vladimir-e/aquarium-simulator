@@ -150,8 +150,8 @@ export const PLANT_SPECIES_DATA: Record<PlantSpecies, PlantSpeciesData> = {
     substrateRequirement: 'aqua_soil',
     nutrientDemand: 'high', // Requires regular dosing
     hardiness: 0.3, // Fussy — needs everything dialled in
-    // High-light carpet — below 25 PAR at the substrate it grows upward
-    // instead of across. Tolerates the 200 PAR a high-tech scape runs.
+    // High-light carpet — it wants 25 PAR on its leaves, and tolerates the
+    // 200 PAR a high-tech scape runs.
     tolerableLight: [25, 200],
     tolerableTemp: [20, 28],
     tolerablePH: [5.0, 7.8],
@@ -165,8 +165,8 @@ export const PLANT_SPECIES_DATA: Record<PlantSpecies, PlantSpeciesData> = {
     substrateRequirement: 'aqua_soil',
     nutrientDemand: 'high', // Requires regular dosing
     hardiness: 0.3, // Fussy — same band as hairgrass
-    // Hungrier for light than hairgrass — 30 PAR at the substrate is the
-    // usual advice for a carpet that actually carpets.
+    // Hungrier for light than hairgrass — 30 PAR on its leaves is the usual
+    // advice for a carpet that actually carpets.
     tolerableLight: [30, 200],
     tolerableTemp: [20, 28],
     tolerablePH: [5.0, 7.8],

@@ -1,6 +1,6 @@
 import { produce } from 'immer';
 import type { SimulationState } from '../state.js';
-import { createLog } from '../core/logging.js';
+import { createLog, liters, measured } from '../core/logging.js';
 import { getGhMass, getKhMass } from '../resources/helpers.js';
 import type { ActionResult } from './types.js';
 
@@ -32,7 +32,7 @@ export function topOff(state: SimulationState): ActionResult {
         draft.tick,
         'user',
         'info',
-        `Topped off water: +${amountAdded.toFixed(1)}L to ${capacity}L`
+        measured`Topped off water: +${liters(amountAdded)} to ${liters(capacity)}`
       )
     );
   });

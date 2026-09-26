@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   applyAction,
   calculateFloorArea,
+  calculateNutrientSufficiency,
   calculateSurface,
   createSimulation,
   floorCover,
@@ -88,7 +89,7 @@ describe('condition + algae words', () => {
 });
 
 function rows(state: SimulationState, config = DEFAULT_CONFIG): PlantRow[] {
-  return plantRows(state, readHourAhead(state, config), config.plants);
+  return plantRows(state, config, readHourAhead(state, config));
 }
 
 const THRIVING: Reading = { status: 'ok', word: 'thriving' };
@@ -366,6 +367,17 @@ describe('nutrientReadings', () => {
 
     expect(short(fernIron(planted(['java_fern'])))).toEqual([]);
     expect(short(fernIron(planted(['monte_carlo'])))).toEqual(['iron']);
+  });
+
+  it('sets each need where the hungriest plant’s deficiency harm starts, wherever that edge is tuned', () => {
+    const state = planted(['java_fern', 'monte_carlo']);
+    for (const edge of [0.8, DEFAULT_CONFIG.plants.sufficiencyEdge]) {
+      const config = { ...DEFAULT_CONFIG, plants: { ...DEFAULT_CONFIG.plants, sufficiencyEdge: edge } };
+      const water = state.resources.water;
+      const atNeed = { ...state.resources };
+      for (const reading of nutrientReadings(state, config)) atNeed[reading.key] = reading.needed * water;
+      expect(calculateNutrientSufficiency(atNeed, water, 'monte_carlo', config.nutrients)).toBeCloseTo(edge, 6);
+    }
   });
 
   it('has nothing to be short of when nothing is planted', () => {

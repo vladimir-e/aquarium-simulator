@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { topOff } from './top-off';
+import { logText } from '../core/logging';
 import { createSimulation } from '../state';
 import { produce } from 'immer';
 import { getDkh } from '../resources/helpers';
@@ -56,8 +57,7 @@ describe('topOff action', () => {
     expect(logEntry.tick).toBe(42);
     expect(logEntry.source).toBe('user');
     expect(logEntry.severity).toBe('info');
-    expect(logEntry.message).toContain('+20.0L');
-    expect(logEntry.message).toContain('100L');
+    expect(logText(logEntry)).toBe('Topped off water: +20.0 L to 100.0 L');
   });
 
   it('is idempotent when already at capacity', () => {

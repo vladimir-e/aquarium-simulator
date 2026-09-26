@@ -221,7 +221,7 @@ function blockedReason(
     case 'scrubAlgae':
       return canScrubAlgae(state)
         ? null
-        : `needs ${MIN_ALGAE_TO_SCRUB} % algae, now ${Math.round(state.algae.mass)} %`;
+        : `needs ${MIN_ALGAE_TO_SCRUB} % algae, now ${Math.floor(state.algae.mass)} %`;
   }
 }
 

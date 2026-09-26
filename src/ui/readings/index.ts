@@ -434,7 +434,7 @@ export function readTank({ state, config, history, units }: TankInput): ReadingB
   const bacteria = bacteriaReadout(state, config, ahead);
   const waste = wasteReadout(state, config, ahead);
   const projection = projectNitritePeak(state, config, ahead);
-  const specimens = plantRows(state, ahead, config.plants);
+  const specimens = plantRows(state, config, ahead);
   const fish = readFish(state, config, ahead);
   const light = dailyLightReading(ahead);
 

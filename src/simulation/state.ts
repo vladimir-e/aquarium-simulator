@@ -2,7 +2,7 @@
  * Simulation state types and factory functions.
  */
 
-import { createLog, type LogEntry } from './core/logging.js';
+import { celsius, createLog, liters, measured, type LogEntry } from './core/logging.js';
 import { createRng, type RngState } from './core/rng.js';
 import type { DailySchedule } from './core/schedule.js';
 import type { Filter } from './equipment/filter.js';
@@ -610,7 +610,7 @@ export function createSimulation(
     0,
     'simulation',
     'info',
-    `Simulation created: ${tankCapacity}L tank, ${effectiveRoomTemp}°C room, heater ${heaterStatus}`
+    measured`Simulation created: ${liters(tankCapacity)} tank, ${celsius(effectiveRoomTemp)} room, heater ${heaterStatus}`
   );
 
   // Calculate tank glass surface from capacity (used in passive resource calculation)
