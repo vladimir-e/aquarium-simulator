@@ -149,13 +149,13 @@ density you can look up rather than a score.
 | `saturationIrradianceFactor` | Multiple of a species' band low at which its light response saturates | × band low |
 | `co2PerRateUnit` | CO₂ carried by one rate unit; oxygen derives from it at the molar ratio | mg |
 | `baseRespirationRate` | Dark respiration per rate unit of leaf, running around the clock | /hr |
-| `respirationQ10` | Factor respiration multiplies by per 10 °C | — |
+| `respirationQ10` | Factor respiration and light starvation multiply by per 10 °C | — |
 | `respirationReferenceTemp` | Temperature respiration and light starvation are quoted at | °C |
 | `respirationOxygenHalfSaturation` | Dissolved O₂ at which respiration runs at half rate | mg/L |
 | `growthDrawRate` | Share of the bank drawn toward new tissue each hour, before the taper `1 − size/100` | /hr |
 | `healingDrawRate` | Share of the bank that heals condition each hour, per unit of species growth rate | /hr per growth rate |
 | `sizePerSurplus` | Size gained per surplus unit converted, before the species growth multiplier — the conversion growth and offshoots share | % |
-| `surplusCap` | Ceiling on the bank; a full one buys an offshoot | % |
+| `surplusCap` | Ceiling on the bank; a full one buys an offshoot | condition points |
 | `lightStarvationSeverity` | Damage in a day without light, falling to nothing at the species' daily light edge; quoted at the respiration reference temperature | %/hr |
 | `lightExcessiveSeverity` | Damage per PAR unit above the species' tolerable band | %/PAR/hr |
 | `temperatureStressSeverity` · `phStressSeverity` · `ghStressSeverity` | Damage per unit outside the species' tolerable band, one per factor | %/unit/hr |
@@ -200,7 +200,7 @@ channel by `1 − hardiness` except nitrate, whose edge it carries out instead.
 | `satiationOverfedSeverity` · `satiationHungrySeverity` · `satiationStarvingSeverity` | Peak cost of each stressed band; the curve interpolates between the anchors | %/hr |
 | `satiationWellFedPeak` · `phBenefitPeak` · `oxygenBenefitPeak` · `plantBenefitPeak` | Recovery earned per factor at its best | %/hr |
 | `plantBenefitSaturationPoint` | Plant power at which the planted-tank benefit stops growing | power |
-| `surplusCap` | Ceiling on the fish's bank; a female spawns on a full one | % |
+| `surplusCap` | Ceiling on the fish's bank; a female spawns on a full one | condition points |
 | `healingDrawRate` | Share of its bank a 1 g fish heals from each hour, scaled by adult mass to the −¼ | /hr at 1 g |
 | `deathDecayFactor` | Share of a dead fish's mass that becomes waste | — |
 

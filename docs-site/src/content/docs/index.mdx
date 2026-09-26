@@ -77,7 +77,7 @@ with a pointer to the directories it lives in.
 | What it models | Two or three sentences. The scope, and nothing else. |
 | Status | Each mechanic badged `settled`, `scaffolding` or `missing`, with one clause of why. |
 | How it works | Short subsections per mechanic. Stocks and rates as tables. |
-| Key tunables | Constant, meaning, unit. |
+| Key tunables | Constant, meaning, value. |
 | Seams | What this subsystem reads and writes, and which neighbour owns the other end. |
 
 ## Status legend
@@ -89,7 +89,7 @@ subsystem page.
 | Badge | Means | How to treat it |
 |---|---|---|
 | <Badge text="settled" variant="success" /> | The commitment is deliberate and the tests pin the mechanism. | Changing one is a design conversation, not a refactor. |
-| <Badge text="scaffolding" variant="caution" /> | Predates the abstraction it now sits inside. Its tests pin a placeholder. | Don't build on it, defend it, or preserve its behaviour. |
+| <Badge text="scaffolding" variant="caution" /> | A stand-in the abstraction does not cover — a switch, a clamp or a shortcut. Its tests pin a placeholder. | Don't build on it, defend it, or preserve its behaviour. |
 | <Badge text="missing" variant="danger" /> | Absent — and the absence distorts the mechanics next to it. | Read it as a known bias in its neighbours, not as a gap to be filled in passing. |
 
 The sorting test is the design philosophy itself: **rates into stocks is

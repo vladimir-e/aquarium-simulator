@@ -30,7 +30,7 @@ family. Low condition sheds tissue.
 | Offshoots | <Badge text="settled" variant="success" /> | A full bank buys a new unit of the family at the growth conversion — value conserved, no timer, no space test. |
 | Vigour | <Badge text="settled" variant="success" /> | Each unit draws its own offset on income at birth, so clones bud apart rather than in lockstep. |
 | Shedding | <Badge text="settled" variant="success" /> | A rate reading a stock — the square of the condition deficit, zero at full condition, with no threshold in it. |
-| The size floor | <Badge text="scaffolding" variant="caution" /> | Two switches on `deathSizeThreshold`. A unit shed under it is retired as bookkeeping rather than by a rate, so a starved plant never lingers as a rootstock. And a full bank whose offshoot would come in under it buys none, so a species whose full bank buys less than the floor never propagates. |
+| The size minimum | <Badge text="scaffolding" variant="caution" /> | Two switches on `deathSizeThreshold`. A unit shed under it is retired as bookkeeping rather than by a rate, so a starved plant never lingers as a rootstock. And a full bank whose offshoot would come in under it buys none, so a species whose full bank buys less than the minimum never propagates. |
 | Epiphyte footprint | <Badge text="scaffolding" variant="caution" /> | A java fern or anubias on the rock claims floor like a rooted plant; there is no hardscape budget. |
 | Nitrate | <Badge text="settled" variant="success" /> | Log dose past the plant's own edge, the fish shape at an edge only a runaway doser reaches. |
 | Nutrition | <Badge text="settled" variant="success" /> | Every nutrient saturates on its own Monod curve against a per-species demand, and uptake follows the plant's need rather than the fertilizer's ratio. |
@@ -135,8 +135,8 @@ the gases once, as a draw: the planting takes CO₂ on the same end-of-tick Mono
 as the nutrients, at the capacity-weighted mean of its CO₂ half-saturations, so
 a dense planting slows its own draw and never takes the water's last milligram.
 Both are summed across the planting and multiplied by `basePhotosynthesisRate`
-to give the tank's rate in rate units, where one unit is an hour of 500 cm² of
-leaf at saturating carbon and light.
+to give the tank's rate in rate units, where one rate unit is an hour of 500 cm²
+of leaf at saturating carbon and light.
 
 Photosynthesis emits resource effects only. It never adds size directly: growth
 flows through the bank, so nutrient health reaches biomass once, through the
@@ -218,7 +218,8 @@ plant actually draws (under Key tunables).
 
 Every benefit channel is realised *through* photosynthesis, so all four are
 multiplied by the same light term — read at the plant's mean leaf — rather than
-standing beside it. Good water is worth nothing at midnight — and poor water
+standing beside it: four peaks of `0.125` %/h make a budget of
+`0.5` %/h × `tanh(PAR / Ik)`, and light takes the whole of it down together. Good water is worth nothing at midnight — and poor water
 costs nothing then either: the deficiency stressor rides the same term, since a
 plant in the dark asks for nothing. A plant's vigour multiplies all four too:
 hardiness scales what harms a plant, vigour what it earns.
@@ -339,7 +340,7 @@ bank         −= offshoot.size / (growthRate × sizePerSurplus)
 
 - **A new unit of the family.** Its parent's species and family, at full condition on an empty bank — only a full plant holds a full bank — with its own vigour. It acts from the next hour.
 - **Value is conserved** at the growth conversion: the parent pays for exactly the size it bought. At the shipped cap of 50 a full bank buys an anubias of 6, a java fern of 10, a sword of 20, a hairgrass patch of 30 or a monte carlo patch of 36, and empties.
-- **A bank that would buy a unit under `deathSizeThreshold` buys nothing** and keeps its value; healing and growth go on drawing on it. That floor is a switch ([The size floor](#status)).
+- **A bank that would buy a unit under `deathSizeThreshold` buys nothing** and keeps its value; healing and growth go on drawing on it. That minimum is a switch ([The size minimum](#status)).
 - **Propagation never tests space.** Offshoots land whatever the floor cover; crowding and the canopy decide which of them live.
 
 The form sets the offshoot's shape and the words its `plant-propagated` log
@@ -393,7 +394,7 @@ patch of the same size.
 
 ## Key tunables
 
-| Tunable | Meaning | Value |
+| Constant | Meaning | Value |
 |---|---|---|
 | `basePhotosynthesisRate` | Photosynthetic rate per rate unit of leaf, at full carbon and saturating light | `1.0` /hr |
 | `saturationIrradianceFactor` | Multiple of a species' band low at which it saturates — the `Ik` of the light curve | `2.0` × band low |
@@ -418,7 +419,7 @@ patch of the same size.
 | `ghStressSeverity` | Damage per dGH outside the species' band | `0.1` %/dGH/hr |
 | GH per nitrate drawn | Calcium and magnesium taken up per mg of nitrate actually drawn, off leaf-tissue ratios; a constant | `0.28` mg CaCO₃/mg |
 | GH half-saturation | GH, as CaCO₃, at which that uptake runs at half; a constant | `1` mg/L |
-| Benefit peaks (×4) | Recovery per channel at its best, before the light term. Four at `0.125` sum, at band centre, to the 0.5 %/h budget the recovery curves were pinned against | `0.125` %/hr |
+| Benefit peaks (×4) | Recovery per channel at its best, before the light term — the four make the budget in [Income and harm](#income-and-harm) | `0.125` %/hr |
 | `deathSizeThreshold` | Size under which a unit is gone; nothing is planted, trimmed or budded under it | `1` % |
 
 The canopy's own constant, `leafAttenuationPerLai`, is under [Light](/subsystems/light/#key-tunables).

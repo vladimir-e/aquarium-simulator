@@ -60,16 +60,16 @@ taken its share.
 ### Saturation
 
 A species answers light along `tanh(PAR / Ik)`, where `Ik` is its saturating
-irradiance — derived, not declared, at twice the lower bound of its tolerable
-band. At the bottom of its band a plant runs at 46 % of its maximum, at `Ik`
-76 %, and at twice `Ik` 96 %. Each species' band and `Ik` are on the
+irradiance — derived, not declared, at `saturationIrradianceFactor` times the
+lower bound of its tolerable band. At the shipped factor a plant at the bottom
+of its band runs at 46 % of its maximum, at `Ik` 76 %, and at twice `Ik` 96 %. Each species' band and `Ik` are on the
 [roster](/subsystems/plants/#the-species-roster).
 
 ### Light as the multiplier
 
-The four benefit channels — CO₂, temperature, pH, nutrients — each peak at
-`0.125` %/h and are each multiplied by the saturation term, so the budget is
-`0.5` %/h × `tanh(PAR / Ik)` and light takes the whole of it down together.
+A plant's four benefit channels are each multiplied by the saturation term, so
+light takes the whole of its income down together — the budget is under
+[Plants](/subsystems/plants/#income-and-harm).
 
 ### The canopy
 
@@ -162,14 +162,13 @@ it is derived from the planting every hour.
 |---|---|---|
 | `waterAttenuationPerCm` | Beer–Lambert coefficient of the water column | `0.010` /cm |
 | `leafAttenuationPerLai` | Beer–Lambert extinction per unit of leaf area index — what a canopy takes from the light beneath it; broad-leaved canopies run 0.6–0.8 | `0.7` /LAI |
-| `saturationIrradianceFactor` | Multiple of a species' band-low that gives its `Ik` | `2.0` × |
-| `lightStarvationSeverity` | Plant damage in a day without light, at 25 °C | `0.3` %/hr |
-| `lightExcessiveSeverity` | Plant damage per PAR unit above the species band | `0.015` %/PAR/hr |
 | `lightExcessThreshold` | Substrate PAR above which algae starts earning from light | `70` PAR |
 | `MAX_LIGHT_PAR` | Ceiling on a fixture rating — full noon sun at the surface | `2000` µmol/m²/s |
 
 A rating past `MAX_LIGHT_PAR` is a typo rather than a lighting choice, and tank
-construction refuses it.
+construction refuses it. The plant constants that read this light —
+`saturationIrradianceFactor`, `lightStarvationSeverity` and
+`lightExcessiveSeverity` — are under [Plants](/subsystems/plants/#key-tunables).
 
 ## Seams
 

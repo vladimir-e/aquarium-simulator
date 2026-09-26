@@ -11,6 +11,7 @@ Format: - **Feature name** (#PR) - One short sentence (under ~150 chars)
 
 ## Unreleased
 
+- **The console gives each reading one tone** - NO₃ reads once for fish and plants, needs take their reading's tone and name hungry or sick fish; speed persists.
 - **Alerts fire where harm starts** - water level and algae where their tunables start harm, CO₂ past 40 mg/L; breaking: `waterLevelAlertLine`, `algaeAlertLine`, `check` takes the config.
 - **A feeding adds what it weighs** - the food stock keeps its real mass instead of rounding to 0.01 g, so a pinch no longer vanishes or swells.
 - **The console reads what a bank buys** - a death buys nothing, a bud an offshoot, the bloom's bank shows; plant families and units read by number, not id.

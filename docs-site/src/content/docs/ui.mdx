@@ -23,7 +23,7 @@ month-long run becomes something you can watch, scrub back through, and explain.
 
 | Module | Route | What it shows |
 |---|---|---|
-| Overview | `/` | The tank as a grid of widgets — the nitrogen cycle as a chain of stocks across the top-left, life beside it, water, gear and nutrients below — each a window onto its module. Anything the engine has latched an alert on is named above the grid, one line each, with the verb that answers it |
+| Overview | `/` | The tank as widgets, each a window onto its module: the nitrogen cycle as a chain of stocks, life, water, gear and nutrients. A phone stacks them; a tablet runs the chain, the life roster and the rack full width with water and nutrients side by side; a desk-wide stage gives life and nutrients a column of their own beside the chain, water and gear. Whatever needs the keeper is named above them, one line each, with the verb that answers it |
 | Water | `/water` | The tank as a lab sheet, two columns of headed reading rows. Left: water (temperature, pH, KH, GH, level), the dissolved gases, and the four nutrients against what the plants ask for. Right: the nitrogen compounds on their alert lines, then the biofilter — each guild against its ceiling, what it converts an hour, whether the tank reads as cycled and where the nitrite peak falls — and the waste pool feeding it. Any row opens its reading in the drawer |
 | Life | `/life` | Two tables on one row shape: the fish, and the plants with the algae riding along at their top as a population row — the roster, below. Bioload sits under the fish against the stocking guideline, and the plants' header reads how much of the floor the planting claims, saying so once it has outgrown it. Under the fish rows sit the clutches counting down to hatch and one row for every fry in the tank, which is the unit the sell-all-fry verb takes. Any row opens the vitality ledger in the drawer, addressed by the URL (`/life?inspect=…`) so the Overview opens one too — helping against hurting, each factor at its rate per day, and the bank between them, named by which way the next tick moves it: banking, healing, or buying growth, an offshoot or a brood; the bloom's bank covers damage, buys coverage while lit and holds while dark — and the module's "+" stocks a species through the same drawer |
 | Gear | `/gear` | A rack of eight device rows: a power switch, a silhouette, the name, and what it is set to — or, for the three that keep a clock, that day as a 24 h ribbon against the hour the tank is on. A row opens the device's inspector in the drawer, addressed by the URL, so each inspector is a link and back walks between devices; closing one lands on the rack. Under the rack the scape — the substrate, and each piece of hardscape with the surface it adds — and under that what the fittings add up to, which is what the tick reads. The day's light sits among them against what the worst-lit plant starves under at its own height, and opens its reading |
@@ -36,26 +36,35 @@ A plant spreads by budding offshoots into its family — the founder and every
 unit down its line — so the plants table opens in three levels where the fish
 open in two, and every level starts collapsed.
 
-| Row | A dot per | Figures | Opens onto |
-|---|---|---|---|
-| Fish species | fish | count, mass each, mean age, satiation | its fish |
-| Plant species | family | families, units' worth of plant, oldest unit, worst-lit unit's light | its families |
-| Family | unit | units, units' worth, oldest unit, worst-lit unit's light | its units |
-| Unit or fish | — | size or mass, age; a fish also its satiation; a unit also the unit it budded from, its light and its bank | its ledger |
+| Row | Counts | A dot per | Figures | Opens onto |
+|---|---|---|---|---|
+| Fish species | fish | fish | mass each, mean age, satiation | its fish |
+| Plant species | units, beside how many families | family | the sizes summed, oldest unit, worst-lit unit's light | its families |
+| Family | units | unit | the sizes summed, oldest unit, worst-lit unit's light | its units |
+| Unit or fish | — | — | size or mass, age; a fish also its satiation; a unit also the unit it budded from, its light and its bank | its ledger |
 
-A group row's count is its dots, and its word names its most urgent members,
-counting every one at that tone — `2 sick`, or `3 unwell` where their reasons
-differ. Past two lines the dots fold into one bar, each tone at its share.
-Where none needs the keeper it reads its worst member's condition, and a group
-of one reads as its member. A plant species counts families, each standing at
-its worst unit, so its `2 sick` is two families. Its word opens the ledger on
-that worst member, read afresh while it stays open.
+A unit is one plant. A group's summed size — `Σ 180 %` — is its units' sizes
+added up, each a % of one full unit of its growth form.
 
-Families are numbered within their species in the order they were founded, and
-units within their family in the order they were born; a unit names the one it
-budded from the same way — `family 2`, `#3 · from #1`. A family keeps its number
-when its founder dies. On a phone a unit's size, or a fish's mass, takes the
-count cell its row has no count for.
+A group row's word names the most urgent of what its dots stand for, counting
+every one at that tone — `2 sick`, or `3 unwell` where their reasons differ. Past two lines the dots
+fold into one bar, each tone at its share. Where none needs the keeper it reads
+its worst member's condition, and a group of one reads as its member. A plant
+species' dots are its families, each standing at its worst unit, so its `2 sick`
+is two families. Its word opens the ledger on that worst member, read afresh
+while it stays open.
+
+Fish are numbered within their species in the order they were stocked or born,
+fry apart from adults — `Neon Tetra #3`. Families are numbered within their
+species in the order they were founded, and units within their family in the
+order they were born; a unit names the one it budded from the same way —
+`family 2`, `#3 · from #1`. A family keeps its number when its founder dies. The
+engine's ids never reach the page.
+
+A tablet-wide table shows the mass or size and the age; the satiation, light
+and bank columns wait for a laptop-wide stage. On a phone a unit's size, or a
+fish's mass, takes the count cell its row has no count for, and at any width a
+name wraps to a second line before it truncates.
 
 A unit's light is the day's light at its own height as a % of what its species
 starves under — amber below 100 or while its crown takes more PAR than the
@@ -75,17 +84,18 @@ drawer that lays over them.
 
 | Element | Role |
 |---|---|
-| Top bar | The tank's preset on the left, the transport centred — play/pause, step, speed, the clock — and on the right the count of what needs the keeper, the Act palette, the tunables badge, theme, docs and source. The right side gives way by the room it has, least needed first — the needs word, the ⌘K hint, docs and source, then the theme, the last three all in Setup too — so Act keeps its label; below the desktop breakpoint the step gives way too |
-| Icon rail | The six modules, fixed, never scrolling, carrying no figures. A dot on an icon says that module has an engine alert standing against it |
+| Top bar | The tank's preset on the left, the transport centred — play/pause, step, speed, the clock — and on the right the count of what needs the keeper, the Act palette, the tunables badge, theme, docs and source. The right side gives way by the room it has, least needed first — the needs word, the ⌘K hint, docs and source, then the theme, the last three all in Setup too — so Act keeps its label; below the laptop breakpoint the step keeps only its glyph |
+| Icon rail | The six modules, fixed, never scrolling, carrying no figures. A dot on an icon says something in that module needs the keeper, in the tone of the worst of it |
 | Stage | The module itself, with its own title and summary line |
 | Spine | The run along the bottom: day ticks, alert and action marks, and the playhead. Dragging parks the playhead in the address, so the spine and History are never on different ticks and back walks out of a scrub. The handle expands it onto the four tracks, except on History, which is already showing them; the link beside it opens History wherever the playhead is parked |
 | Drawer | The one inspector, laid over the right of the stage — no scrim, and the tank keeps ticking behind it. One at a time; Escape, a pointer outside it, or its own close button dismisses it |
 
 Below the tablet breakpoint the rail folds into a five-tab bar with the last two
-modules behind More, the transport keeps play and the clock, the drawer becomes
-a full-height sheet from the bottom. The top bar sheds its tunables badge at
-that width, so the More sheet carries the tunables under the two modules it
-already holds.
+modules behind More, and the drawer becomes a full-height sheet from the bottom.
+The top bar keeps the preset, play, the clock and Act; the More sheet carries
+the rest — the speed and the day's step at its head, the two modules, then the
+tunables and the theme. Stepping from the sheet closes it, so the day it stepped
+is what shows.
 
 ### Reading a value
 
@@ -98,9 +108,21 @@ with no band shows an unlit track and stays quiet.
 
 Where the engine has no threshold of its own, the band is the tank's: the
 temperature and pH spans every stocked species tolerates, plant demand for the
-four nutrients — nitrate's closed where the least hardy plant starts to take
-harm — and the daily light the worst-lit plant starves under at its own height.
-An unstocked tank has neither, and those readings go quiet.
+four nutrients, and the daily light the worst-lit plant starves under at its
+own height. An unstocked tank has neither, and those readings go quiet.
+
+Nitrate is one reading with two readers, the fish and the plants, so it carries
+one band and one tone wherever it shows — in the cycle and among the plant
+foods. The band opens at what the plants ask for, where anything is planted,
+and closes at the engine's alert line, or where the least hardy plant starts to
+take harm if that comes first. Short of the plants' need it is amber, past the
+close it is red.
+
+A trend is what the reading did over the last whole day of the snapshot buffer
+the keeper left alone — a part-day is a slice of the tank's daily swing, and an
+action is a step the tank did not take — so a reading shows none until the
+buffer holds such a day. The algae's trend, and a vitality trend, is what the
+next tick does instead, per day.
 
 Tapping a reading anywhere — the Overview, the Water module, the day's light on
 Gear — opens the same inspector in the drawer: the number at hero size, the band
@@ -148,10 +170,14 @@ axis alone; the handle expands it onto four tracks sharing that axis.
 | Nitrogen | NH₃, NO₂, NO₃ |
 | pH, KH, GH & CO₂ | pH, KH, GH, CO₂ |
 | O₂, temp & level | oxygen, temperature, water level |
-| Populations | fish, fry, plant size, algae |
+| Populations | fish, fry, plants, algae |
 
 Each line is normalised to its own extent, so a compound at 0.1 ppm and one at
-40 ppm share a band without sharing a scale; the caption carries the value at
+40 ppm share a band without sharing a scale. That extent is never narrower than
+a few steps of the precision the line is read to, so a line that prints the
+same figure end to end, or moves a step of it, lies near flat rather than
+stretching full height, and a line of zeros lies on the floor. The caption
+carries the value at
 the playhead — at the precision its reading is read to everywhere else — and on
 History the extent the line was drawn against. Behind the
 lines the hours the fixture ran are a faint band. Colour is spent on the series
@@ -167,6 +193,16 @@ Top-off on Water, Dose on Nutrients. Each appears as a button in that widget's
 footer and in its module header, carrying the amount it is standing on — a
 footer says what would happen rather than opening a menu to ask. The **Needs
 you** strip carries the same verb beside the condition that calls for it.
+
+| Needs you | Verb |
+|---|---|
+| Every alert the engine latches | The verb or the fitting that answers it — a water change, a top-off, a scrub, the air pump or the CO₂ injector |
+| Fish hungry or starving | Feed |
+| Fish sick — damage outrunning what their banks heal | The worst one's ledger |
+
+Each line states the reading behind it — its figure, its band in the engine's
+words, its tone — so the strip, the rail's dot and the top bar's count never
+colour one condition two ways. The count leads with its worst tone.
 
 The Act button in the top bar (and ⌘K) opens the palette: the six verbs with
 their amounts and their modules, then the three construction verbs, filtered as
@@ -207,6 +243,7 @@ band or a different word depending on which surface is showing it.
 | The cycle chain | The engine's own mineralisation, oxidation and clearance rates, read for the hour ahead |
 | Vitality breakdowns | The engine's own per-factor stressor and benefit lists, per organism, read on the hour the next tick settles — plants, algae and fish in the tick's own order — so a trend is the change that tick makes, the algae's coverage alike on its row, its reading and its ledger. An organism reads sick while that change shows as a fall at the trend's precision |
 | Tracks | The snapshot buffer, each series normalised to its own extent |
+| Trends | The snapshot buffer's last whole day since the keeper last acted; the algae's and a vitality trend off the hour ahead |
 | Event log | The log entries the tick appends, filtered by category, exportable as text |
 | Alert markers | Log entries of alert severity, placed on the timeline axis at the tick they fired |
 | Run tallies | Folded from the same log stream — deaths and births, fish and plant units alike, alerts, water changed |
@@ -254,8 +291,8 @@ rather than a temperature.
 | Kept | Dropped |
 |---|---|
 | The tank: clock, resources, environment, equipment, plants, fish, clutches, algae, random stream, alert state | The event log, which starts fresh each session |
-| The preset the tank came from | Transport speed and play state |
-| Tuned constants, and the amounts the verbs are standing on | The History view — it lives in the URL instead |
+| The preset the tank came from | Play state |
+| Tuned constants, the amounts the verbs are standing on, and the transport speed | The History view — it lives in the URL instead |
 | Units, the theme, and whether the tunables drawer and the spine's tracks were open | |
 
 Saves are validated section by section against a strict schema, so one corrupt

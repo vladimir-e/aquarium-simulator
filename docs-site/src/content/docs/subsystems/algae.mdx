@@ -52,7 +52,7 @@ tick, which is the accepted cost of that ordering.
 |---|---|---|---|
 | `excess_light` | Substrate PAR | `0.004` per PAR above `70`, capped | `0.4` %/h at 170 PAR |
 | `excess_nutrients` | The larger of NO₃/`15` and PO₄/`1.0` | `0.4` per unit of overshoot above 1×, capped | `0.4` %/h at 2× the reference |
-| `nutrient_deficiency` | The same ratio, below 1× | `0.1` per unit of shortfall, capped | `0.05` %/h at half the reference |
+| `nutrient_deficiency` | The smaller of the same two ratios, below 1× | `0.1` per unit of shortfall, capped | `0.05` %/h at half the reference |
 | `low_plant_power` | Plant power below `0.3` | `0.4` per unit of shortfall | `0.12` %/h at zero plants |
 | `plant_suppression` | Plant power above `1.0` | `0.2` per unit, then × `0.6` for hardiness | unbounded — the only stressor |
 
