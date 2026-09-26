@@ -25,9 +25,9 @@ export {
   STATUS_SEVERITY,
   conditionStatus,
   conditionWord,
-  conditionReading,
   worstReading,
 } from './status.js';
+export { type HourAhead, readHourAhead } from './ahead.js';
 export { type StockedBand, stockedBand, toleranceStatus } from './tolerance.js';
 export {
   classifyAmmonia,
@@ -74,6 +74,7 @@ export {
   countFry,
   type FishRead,
   fishReading,
+  readFish,
   type RosterFigures,
   type SpeciesGroup,
   groupBySpecies,
@@ -101,7 +102,12 @@ export {
   type LedgerTarget,
   readLedger,
 } from './ledger.js';
-export { DAILY_LIGHT_DECIMALS, type DailyLightReading, dailyLightReading } from './light.js';
+export {
+  DAILY_LIGHT_DECIMALS,
+  DAILY_LIGHT_UNIT,
+  type DailyLightReading,
+  dailyLightReading,
+} from './light.js';
 export {
   algaeStatus,
   algaeWord,

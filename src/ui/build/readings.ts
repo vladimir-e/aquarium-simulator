@@ -35,7 +35,9 @@ import {
   dailyLightReading,
   doseDeltas,
   formatDose,
+  DAILY_LIGHT_UNIT,
   type BacteriaReadout,
+  type Status,
 } from '../run/index.js';
 import {
   formatDeliveredFlow,
@@ -53,6 +55,7 @@ export interface DeviceReading {
   label: string;
   value: string;
   note?: string;
+  status?: Status;
 }
 
 export interface DeviceReadingInput {
@@ -182,7 +185,12 @@ function lightReadings({ state, config }: DeviceReadingInput): DeviceReading[] {
       value: `${Math.round(state.resources.light)} PAR`,
       note: lit ? `through ${column}` : `would land ${wouldLand} PAR through ${column}`,
     },
-    { label: 'Daily light', value: `${daily.text} mol/m²/d`, note: daily.need || undefined },
+    {
+      label: 'Daily light',
+      value: `${daily.text} ${DAILY_LIGHT_UNIT}`,
+      note: daily.need || undefined,
+      status: daily.status,
+    },
     { label: 'Photoperiod', value: `${light.schedule.duration} h/day` },
   ];
 }

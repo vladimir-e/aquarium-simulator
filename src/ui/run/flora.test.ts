@@ -25,11 +25,10 @@ import {
   overTrimCount,
   groupPlantsBySpecies,
   plantRows,
-  plantVitalityAhead,
   TRIM_TARGETS,
   type PlantRow,
 } from './flora';
-import { conditionStatus, conditionWord, healthReading } from './status';
+import { conditionStatus, conditionWord, trendOf } from './status';
 
 const FORMULA = DEFAULT_CONFIG.nutrients.fertilizerFormula;
 
@@ -74,7 +73,8 @@ describe('condition + algae words', () => {
 });
 
 function reading(row: PlantRow, condition: number, sick = false): PlantRow {
-  return { ...row, condition, ...healthReading(condition, sick) };
+  const word = sick ? 'sick' : conditionWord(condition);
+  return { ...row, condition, sick, status: sick ? 'warn' : conditionStatus(condition), word };
 }
 
 describe('groupPlantsBySpecies', () => {
@@ -133,7 +133,7 @@ describe('plantRows', () => {
     }
   });
 
-  it('calls a plant sick exactly while it loses condition', () => {
+  it('calls a plant sick exactly while the next tick takes condition off it, as the trend shows', () => {
     const dark = produce(planted(['java_fern']), (draft) => {
       draft.equipment.light.enabled = false;
       draft.resources.lightByHour.fill(0);
@@ -145,8 +145,9 @@ describe('plantRows', () => {
     });
     for (const state of [dark, banked]) {
       const [row] = plantRows(state, DEFAULT_CONFIG);
-      const [ahead] = plantVitalityAhead(state, DEFAULT_CONFIG);
-      expect(row.word === 'sick').toBe(ahead.newCondition < row.condition);
+      const next = tick(state, DEFAULT_CONFIG).plants[0];
+      expect(row.sick).toBe(row.word === 'sick');
+      expect(row.sick).toBe(trendOf(next.condition - row.condition).startsWith('↘'));
     }
   });
 
@@ -162,21 +163,6 @@ describe('plantRows', () => {
       word: 'struggling',
       status: 'alert',
     });
-  });
-});
-
-describe('plantVitalityAhead', () => {
-  it('reads each plant exactly as the next tick runs it, at every hour of the day', () => {
-    let state = produce(planted(['java_fern', 'monte_carlo']), (draft) => {
-      for (const plant of draft.plants) plant.condition = 70;
-    });
-    for (let hour = 0; hour < 24; hour++) {
-      const next = tick(state, DEFAULT_CONFIG);
-      expect(plantVitalityAhead(state, DEFAULT_CONFIG).map((v) => v.newCondition)).toEqual(
-        next.plants.map((plant) => plant.condition)
-      );
-      state = next;
-    }
   });
 });
 

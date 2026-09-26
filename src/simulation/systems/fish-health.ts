@@ -171,14 +171,11 @@ function buildStressors(ctx: FishFactorContext): VitalityFactor[] {
     flowStress = config.flowStressSeverity * (turnover - speciesData.maxTurnover);
   }
 
-  // Age stress — past `maxAge` the fish accumulates damage that scales
-  // linearly with how far past it is. This replaces the legacy
-  // probabilistic old-age cliff with a smooth decline that flows
-  // through the same vitality channel as every other stressor: a hardy
-  // species in good conditions outlives a sensitive species at the
-  // same age, and visible declining health gives the player a chance
-  // to react. Death itself is the same `newHealth <= 0` check the
-  // other stressors share.
+  // Age stress — past `maxAge` damage grows linearly with the excess,
+  // through the same channel as every other stressor: a hardy species in
+  // good conditions outlives a sensitive species at the same age, and
+  // visible declining health gives the player a chance to react. Death
+  // itself is the same `newHealth <= 0` check the other stressors share.
   let ageStress = 0;
   if (fish.age > speciesData.maxAge) {
     ageStress = config.ageStressSeverity * (fish.age - speciesData.maxAge);
@@ -251,9 +248,9 @@ export function fishHealingRate(fish: Fish, config: LivestockConfig): number {
 }
 
 /**
- * Compute a vitality tick for a single fish without applying it. Used
- * by the UI to render the current trend, by tests to assert against,
- * and by `processHealth` to drive the actual update.
+ * A vitality tick for one fish, without applying it — `processHealth` applies
+ * it. A caller wanting the next tick's numbers reads it on the hour that tick
+ * settles, with the fish as metabolism leaves them.
  */
 export function computeFishVitality(
   fish: Fish,

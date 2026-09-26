@@ -6,9 +6,9 @@ import { bare, stocked, type Run } from '../test/run';
 import { group, query, renderStage } from '../test/stage';
 import { stubSim } from '../test/stubSim';
 import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
+import { readHourAhead } from '../run';
 import {
   applyAction,
-  computeFishVitality,
   type Action,
   type Fish,
   type FishSpecies,
@@ -95,14 +95,7 @@ describe('LifeSection', () => {
     expect(drawer.getByText('Hurting')).toBeTruthy();
     expect(drawer.getByText(/per day/)).toBeTruthy();
 
-    const { breakdown } = computeFishVitality(
-      state.fish[0],
-      state.resources,
-      state.plants,
-      state.resources.water,
-      state.tank.capacity,
-      DEFAULT_CONFIG.livestock
-    );
+    const { breakdown } = readHourAhead(state, DEFAULT_CONFIG).fish[0];
     for (const factor of [...breakdown.stressors, ...breakdown.benefits]) {
       if (factor.amount > 0) expect(drawer.getByText(factor.label)).toBeTruthy();
     }

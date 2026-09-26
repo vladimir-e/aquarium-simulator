@@ -1,13 +1,13 @@
 import { describe, it, expect } from 'vitest';
 import {
   applyAction,
-  computeFishVitality,
   createSimulation,
   tick,
   type Fish,
   type SimulationState,
 } from '../../simulation/index.js';
 import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
+import { readHourAhead } from './ahead.js';
 import { readLedger, type Ledger } from './ledger.js';
 
 function makeFish(overrides: Partial<Fish> & { id: string }): Fish {
@@ -40,14 +40,7 @@ describe('readLedger', () => {
   it('quotes every factor at the rate the reader’s day is measured in', () => {
     const state = tank([makeFish({ id: 'fish_a_1', satiation: 5 })], 20);
     const ledger = fishLedger(state);
-    const { breakdown } = computeFishVitality(
-      state.fish[0],
-      state.resources,
-      state.plants,
-      state.resources.water,
-      state.tank.capacity,
-      DEFAULT_CONFIG.livestock
-    );
+    const { breakdown } = readHourAhead(state, DEFAULT_CONFIG).fish[0];
 
     for (const factor of breakdown.stressors) {
       if (factor.amount <= 0) continue;
@@ -99,20 +92,28 @@ describe('readLedger', () => {
   });
 
   describe('for a plant', () => {
-    const planted = (hour: number): SimulationState => {
+    const half = DEFAULT_CONFIG.plants.surplusCap / 2;
+    const planted = (hour: number, surplus = half): SimulationState => {
       const state = applyAction(createSimulation({ tankCapacity: 200 }), {
         type: 'addPlant',
         species: 'java_fern',
       }).state;
-      const surplus = DEFAULT_CONFIG.plants.surplusCap / 2;
       return { ...state, tick: hour, plants: state.plants.map((plant) => ({ ...plant, surplus })) };
     };
     const plantLedger = (state: SimulationState): Ledger =>
       readLedger(state, DEFAULT_CONFIG, { kind: 'plant', id: state.plants[0].id })!;
 
     it('banks by day and buys growth out of the bank by night', () => {
-      expect(plantLedger(planted(10)).bank!.note).toBe('banking');
+      expect(plantLedger(planted(10, 0)).bank!.note).toBe('banking');
       expect(plantLedger(planted(0)).bank!.note).toBe('buying growth');
+    });
+
+    it('names the bank by which way the next tick moves it', () => {
+      for (const state of [planted(0, 2), planted(10, 2), planted(0), planted(10)]) {
+        const moved = tick(state, DEFAULT_CONFIG).plants[0].surplus - state.plants[0].surplus;
+
+        expect(plantLedger(state).bank!.note).toBe(moved > 0 ? 'banking' : 'buying growth');
+      }
     });
 
     it('trends by the condition the next tick leaves it at', () => {

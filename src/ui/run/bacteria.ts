@@ -28,6 +28,7 @@ import type { NitrogenCycleConfig, TunableConfig } from '../../simulation/config
 import { getPpm } from '../../simulation/resources/index.js';
 import { monodFactor } from '../../simulation/core/kinetics.js';
 import { NH3_TO_NO2_MASS_RATIO } from '../../simulation/core/chemistry.js';
+import { readHourAhead, type HourAhead } from './ahead.js';
 import { mineralisationBase, wasteInflow } from './waste.js';
 
 /**
@@ -191,7 +192,8 @@ export function colonyCount(units: number): string {
 
 export function bacteriaReadout(
   state: SimulationState,
-  config: TunableConfig
+  config: TunableConfig,
+  ahead: HourAhead = readHourAhead(state, config)
 ): BacteriaReadout {
   const r = state.resources;
   const nc = config.nitrogenCycle;
@@ -202,7 +204,7 @@ export function bacteriaReadout(
   // ahead of the passive nitrogen cycle, and mineralisation runs first inside it.
   const gills = processMetabolism(state.fish, r.food, r.oxygen, config.livestock).ammoniaProduced;
   const { ammoniaProduced } = calculateWasteToAmmonia(
-    mineralisationBase(state, config, wasteInflow(state, config)),
+    mineralisationBase(state, config, wasteInflow(state, config, ahead)),
     config
   );
   const { ammoniaConsumed, nitriteProduced } = calculateAmmoniaToNitrite(
@@ -290,6 +292,7 @@ function nextVolume(water: number, state: SimulationState, config: TunableConfig
 export function projectNitritePeak(
   state: SimulationState,
   config: TunableConfig,
+  ahead: HourAhead = readHourAhead(state, config),
   horizon: number = PROJECTION_HORIZON
 ): CycleProjection | null {
   const r = state.resources;
@@ -299,7 +302,7 @@ export function projectNitritePeak(
   const aobRates = colonyRates('aob', r.temperature, r.oxygen, nc);
   const nobRates = colonyRates('nob', r.temperature, r.oxygen, nc);
 
-  const sources = wasteInflow(state, config).sources;
+  const sources = wasteInflow(state, config, ahead).sources;
   const steadyInflow = sources
     .filter((source) => source.key !== 'substrate')
     .reduce((total, source) => total + source.gramsPerHour, 0);

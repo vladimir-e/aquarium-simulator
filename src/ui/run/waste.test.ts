@@ -84,6 +84,25 @@ describe('wasteInflow', () => {
     expect(shed(dark)).toBeGreaterThan(0);
   });
 
+  it('counts a plant dying on the next tick at the rate it sheds, not the lump it leaves', () => {
+    const fading = (condition: number): SimulationState =>
+      produce(applyAction(soilTank(), { type: 'addPlant', species: 'java_fern' }).state, (draft) => {
+        draft.equipment.light.enabled = false;
+        draft.resources.lightByHour.fill(0);
+        draft.plants[0].size = 80;
+        draft.plants[0].condition = condition;
+      });
+    const shed = (state: SimulationState): number =>
+      wasteInflow(state, config).sources.find((s) => s.key === 'plants')!.gramsPerHour;
+    const dying = fading(0.001);
+    const failing = fading(1);
+
+    expect(tick(dying, config).plants).toHaveLength(0);
+    expect(tick(failing, config).plants).toHaveLength(1);
+    expect(shed(dying)).toBeGreaterThan(0);
+    expect(shed(dying) / shed(failing)).toBeCloseTo(1, 1);
+  });
+
   it('counts fish feces once the fish have food to eat', () => {
     expect(wasteInflow(stocked(), config).sources[1].gramsPerHour).toBeGreaterThan(0);
   });

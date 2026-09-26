@@ -63,8 +63,9 @@ function generateHardscapeId(): string {
 }
 
 /**
- * The tick does the same thing. At hour zero the tank has lived no day yet, so
- * its light history is the schedule it was lit to.
+ * Recompute the passive readings off the equipment, as the tick does. At hour
+ * zero the tank has lived no day yet, so its light history is the schedule it
+ * was lit to.
  */
 function refreshPassiveResources(draft: SimulationState, optics: OpticsConfig): void {
   const passive = calculatePassiveResources(draft, optics);

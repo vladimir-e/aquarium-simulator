@@ -2,10 +2,11 @@ import { describe, it, expect } from 'vitest';
 import type { Clutch, Fish, SimulationState } from '../../simulation/index.js';
 import {
   applyAction,
-  computeFishVitality,
   createSimulation,
   FISH_SPECIES_DATA,
+  tick,
 } from '../../simulation/index.js';
+import { DEFAULT_CONFIG, type TunableConfig } from '../../simulation/config/index.js';
 import { livestockDefaults } from '../../simulation/config/livestock.js';
 import {
   bandStatus,
@@ -13,8 +14,12 @@ import {
   groupFry,
   hungerOf,
   isHungryBand,
+  readFish,
   rosterSummary,
+  type FryBatch,
+  type SpeciesGroup,
 } from './livestock';
+import { trendOf } from './status';
 
 function makeFish(overrides: Partial<Fish> & { id: string }): Fish {
   return {
@@ -31,8 +36,16 @@ function makeFish(overrides: Partial<Fish> & { id: string }): Fish {
   };
 }
 
-function tank(fish: Fish[], clutches: Clutch[] = [], tick = 0): SimulationState {
-  return { ...createSimulation({ tankCapacity: 200 }), fish, clutches, tick };
+function tank(fish: Fish[], clutches: Clutch[] = [], hour = 0): SimulationState {
+  return { ...createSimulation({ tankCapacity: 200 }), fish, clutches, tick: hour };
+}
+
+function species(state: SimulationState, config: TunableConfig = DEFAULT_CONFIG): SpeciesGroup[] {
+  return groupBySpecies(readFish(state, config), config.livestock);
+}
+
+function fry(state: SimulationState): FryBatch | null {
+  return groupFry(readFish(state, DEFAULT_CONFIG), livestockDefaults);
 }
 
 describe('bandStatus / isHungryBand', () => {
@@ -81,7 +94,7 @@ describe('groupBySpecies', () => {
       makeFish({ id: 'g1', species: 'guppy', satiation: 90 }),
       makeFish({ id: 'f1', species: 'neon_tetra', stage: 'fry', age: 24 }),
     ];
-    const groups = groupBySpecies(tank(fish), livestockDefaults);
+    const groups = species(tank(fish));
     expect(groups.map((g) => g.species)).toEqual(['neon_tetra', 'guppy']);
     const neon = groups[0];
     expect(neon.count).toBe(2);
@@ -95,7 +108,7 @@ describe('groupBySpecies', () => {
       makeFish({ id: 'a', satiation: 100 }),
       makeFish({ id: 'b', satiation: 0 }),
     ];
-    const [neon] = groupBySpecies(tank(fish), livestockDefaults);
+    const [neon] = species(tank(fish));
 
     expect(neon.satiation).toBe(50);
     expect(bandStatus(neon.band)).toBe('neutral');
@@ -108,7 +121,7 @@ describe('groupBySpecies', () => {
       makeFish({ id: 'b', mass: 0.9, age: 24 * 20, health: 60, satiation: 80 }),
       makeFish({ id: 'c', mass: 1.1, age: 24 * 33, health: 30, satiation: 80 }),
     ];
-    const [neon] = groupBySpecies(tank(fish), livestockDefaults);
+    const [neon] = species(tank(fish));
 
     expect(neon.massG).toBeCloseTo(2.4, 10);
     expect(neon.ageDays).toBe(21);
@@ -120,7 +133,7 @@ describe('groupBySpecies', () => {
       type: 'addFish',
       species: 'neon_tetra',
     }).state;
-    const [neon] = groupBySpecies(bought, livestockDefaults);
+    const [neon] = species(bought);
 
     expect(neon.ageDays).toBeGreaterThan(0);
     expect(neon.ageDays).toBe(FISH_SPECIES_DATA.neon_tetra.breeding.maturityAge / 24);
@@ -134,7 +147,7 @@ describe('groupFry', () => {
       makeFish({ id: 'f2', species: 'betta', stage: 'fry', age: 72, mass: 0.09 }),
       makeFish({ id: 'a1', species: 'guppy', stage: 'adult', mass: 1 }),
     ];
-    const batch = groupFry(tank(fish), livestockDefaults)!;
+    const batch = fry(tank(fish))!;
 
     expect(batch.count).toBe(2);
     expect(batch.species).toEqual(['guppy', 'betta']);
@@ -147,7 +160,7 @@ describe('groupFry', () => {
       makeFish({ id: 'f1', species: 'guppy', stage: 'fry', satiation: 80, health: 90 }),
       makeFish({ id: 'f2', species: 'guppy', stage: 'fry', satiation: 10, health: 50 }),
     ];
-    const batch = groupFry(tank(fish), livestockDefaults)!;
+    const batch = fry(tank(fish))!;
 
     expect(batch.satiation).toBe(45);
     expect(batch.condition).toBe(70);
@@ -155,7 +168,7 @@ describe('groupFry', () => {
   });
 
   it('has nothing to sell where nothing is growing out', () => {
-    expect(groupFry(tank([makeFish({ id: 'a' })]), livestockDefaults)).toBeNull();
+    expect(fry(tank([makeFish({ id: 'a' })]))).toBeNull();
   });
 });
 
@@ -167,14 +180,14 @@ describe('the reading behind a fish', () => {
 
   it('reads a fish across every channel it keeps, not just its condition', () => {
     const state = tank([makeFish({ id: 'a', health: 100, satiation: 5 })]);
-    const [group] = groupBySpecies(state, livestockDefaults);
+    const [group] = species(state);
 
     expect(group.members[0].reading).toEqual({ status: 'alert', word: 'starving' });
   });
 
   it('leaves a thriving fish alone, bank or no bank', () => {
     const state = tank([makeFish({ id: 'a', health: 100, surplus: 5 })]);
-    const [group] = groupBySpecies(state, livestockDefaults);
+    const [group] = species(state);
 
     expect(group.members[0].reading).toEqual({ status: 'ok', word: 'thriving' });
   });
@@ -187,40 +200,36 @@ describe('the reading behind a fish', () => {
       ],
       20
     );
-    const [group] = groupBySpecies(state, livestockDefaults);
+    const [group] = species(state);
 
     expect(group.condition).toBe(100);
     expect(group.members.map((member) => member.reading.word)).toEqual(['sick', 'starving']);
   });
 
-  it('calls a fish sick exactly while damage outruns its healing', () => {
+  it('calls a fish sick exactly while the next tick takes condition off it, as the trend shows', () => {
     for (const surplus of [0, livestockDefaults.surplusCap]) {
       const state = poisoned([makeFish({ id: 'a', health: 100, satiation: 90, surplus })], 10);
-      const [fish] = state.fish;
-      const vitality = computeFishVitality(
-        fish,
-        state.resources,
-        state.plants,
-        state.resources.water,
-        state.tank.capacity,
-        livestockDefaults
-      );
-      const { reading } = groupBySpecies(state, livestockDefaults)[0].members[0];
+      const [read] = readFish(state, DEFAULT_CONFIG);
+      const next = tick(state, DEFAULT_CONFIG).fish[0];
 
-      expect(reading.word === 'sick').toBe(vitality.newCondition < fish.health);
+      expect(read.sick).toBe(read.reading.word === 'sick');
+      expect(read.sick).toBe(trendOf(next.health - 100).startsWith('↘'));
     }
   });
 
   it('is not sick while a bank that heals it whole holds it up', () => {
-    const config = { ...livestockDefaults, healingDrawRate: 1e6 };
+    const config = {
+      ...DEFAULT_CONFIG,
+      livestock: { ...livestockDefaults, healingDrawRate: 1e6 },
+    };
     const banked = poisoned([makeFish({ id: 'a', health: 100, satiation: 90, surplus: 50 })], 10);
 
-    expect(groupBySpecies(banked, config)[0].members[0].reading.word).toBe('thriving');
+    expect(species(banked, config)[0].members[0].reading.word).toBe('thriving');
   });
 
   it('reads each fish once, and hands the reading to the row', () => {
     const state = tank([makeFish({ id: 'a' }), makeFish({ id: 'b' })]);
-    const [group] = groupBySpecies(state, livestockDefaults);
+    const [group] = species(state);
 
     expect(group.members.map((member) => member.fish.id)).toEqual(['a', 'b']);
   });

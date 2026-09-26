@@ -36,29 +36,70 @@ export function worstReading(a: Reading, b: Reading): Reading {
 }
 
 /** How an organism is doing, off its condition. */
-export function conditionReading(condition: number): Reading {
+function conditionReading(condition: number): Reading {
   return { status: conditionStatus(condition), word: conditionWord(condition) };
 }
 
-/** Damage outrunning everything that heals it: condition is falling. */
-export function isSick(condition: number, vitality: VitalityResult): boolean {
-  return vitality.newCondition < condition;
+/** Every vitality rate on the surface reads per day. */
+export const PER_DAY = 24;
+
+const TREND_DECIMALS = 1;
+
+/** A change per hour as the trend prints it per day — zero where it reads steady. */
+function shownPerDay(changePerHour: number): number {
+  return Number((changePerHour * PER_DAY).toFixed(TREND_DECIMALS));
 }
 
-/** Condition, or sickness where the organism is sick — sickness wins a tie. */
-export function healthReading(condition: number, sick: boolean): Reading {
-  const health = conditionReading(condition);
-  return sick ? worstReading({ status: 'warn', word: 'sick' }, health) : health;
+export function trendOf(changePerHour: number): string {
+  const perDay = shownPerDay(changePerHour);
+  if (perDay === 0) return 'steady';
+  return `${perDay > 0 ? '↗' : '↘'} ${Math.abs(perDay).toFixed(TREND_DECIMALS)}/d`;
+}
+
+const SICK: Reading = { status: 'warn', word: 'sick' };
+
+export interface VitalReading {
+  sick: boolean;
+  reading: Reading;
+  value: string;
+  trend: string;
 }
 
 /**
- * A group reads as its most urgent member, counted: `2 sick`, `3 overfed`. A
- * group with nobody to flag reads its condition, and a group of one its member.
+ * How an organism reads over the hour its vitality was taken on. It is sick
+ * while its condition falls — damage outrunning healing — at the precision the
+ * trend prints, so the word, the trend and the figure cannot disagree: a
+ * falling condition is floored rather than rounded back up to where it was.
+ * Sickness wins a tie with the condition's own word.
  */
-export function groupReading(members: Reading[], condition: Reading): Reading {
-  if (members.length === 1) return members[0];
-  const worst = members.reduce(worstReading);
-  if (STATUS_SEVERITY[worst.status] === 0) return condition;
-  const count = members.filter((member) => member.word === worst.word).length;
-  return { status: worst.status, word: `${count} ${worst.word}` };
+export function vitalReading(condition: number, vitality: VitalityResult): VitalReading {
+  const change = vitality.newCondition - condition;
+  const sick = shownPerDay(change) < 0;
+  const health = conditionReading(condition);
+  return {
+    sick,
+    reading: sick ? worstReading(SICK, health) : health,
+    value: (sick ? Math.floor(condition) : Math.round(condition)).toString(),
+    trend: trendOf(change),
+  };
+}
+
+/** One member of a species group: its condition, and how it reads. */
+export interface Member extends Reading {
+  condition: number;
+}
+
+/**
+ * A group reads as its most urgent members, counted — every one at that tone,
+ * so the count is the dots it sits over: `2 sick`, or `3 unwell` where their
+ * reasons differ. A group with nobody to flag reads its worst member's
+ * condition, and a group of one reads as its member.
+ */
+export function groupReading(members: readonly Member[]): Reading {
+  if (members.length === 1) return { status: members[0].status, word: members[0].word };
+  const severity = Math.max(...members.map((member) => STATUS_SEVERITY[member.status]));
+  if (severity === 0) return conditionReading(Math.min(...members.map((member) => member.condition)));
+  const flagged = members.filter((member) => STATUS_SEVERITY[member.status] === severity);
+  const reason = new Set(flagged.map((member) => member.word)).size === 1 ? flagged[0].word : 'unwell';
+  return { status: flagged[0].status, word: `${flagged.length} ${reason}` };
 }

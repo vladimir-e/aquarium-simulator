@@ -18,7 +18,6 @@ import { useReadingBook } from '../hooks/useReadingBook';
 import { useUnits } from '../hooks/useUnits';
 import {toneOf} from '../readings';
 import {
-  groupFry,
   readLedger,
   rosterSummary,
   rosterTables,
@@ -75,7 +74,7 @@ export function LifeSection({
         {
           fish: book.roster.fish,
           plants: book.roster.plants,
-          fry: groupFry(state, config.livestock),
+          fry: book.roster.fry,
           clutches: state.clutches,
           tick: state.tick,
         },

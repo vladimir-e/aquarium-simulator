@@ -1,12 +1,13 @@
 import { describe, it, expect } from 'vitest';
 import type { Clutch, Fish, SimulationState } from '../../simulation/index.js';
-import { createSimulation } from '../../simulation/index.js';
-import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
+import { applyAction, createSimulation } from '../../simulation/index.js';
+import { DEFAULT_CONFIG, type TunableConfig } from '../../simulation/config/index.js';
 import { livestockDefaults } from '../../simulation/config/livestock.js';
-import { groupBySpecies, groupFry } from './livestock.js';
-import { groupPlantsBySpecies, plantRows } from './flora.js';
+import { readHourAhead } from './ahead.js';
+import { groupBySpecies, groupFry, readFish, type FishRead } from './livestock.js';
+import { groupPlantsBySpecies, plantRows, type PlantRow } from './flora.js';
 import { readLedger } from './ledger.js';
-import { computeFishVitality } from '../../simulation/index.js';
+import type { Reading } from './status.js';
 import {
   rosterTables,
   type ClutchRosterRow,
@@ -35,11 +36,18 @@ function tank(fish: Fish[], clutches: Clutch[] = [], tick = 0): SimulationState 
   return { ...createSimulation({ tankCapacity: 200 }), fish, clutches, tick };
 }
 
-function input(state: SimulationState): RosterInput {
+/** A bank that heals whatever the hour charges, so only an empty one lets condition fall. */
+const HEALED: TunableConfig = {
+  ...DEFAULT_CONFIG,
+  livestock: { ...livestockDefaults, healingDrawRate: 1e6 },
+};
+
+function input(state: SimulationState, config: TunableConfig): RosterInput {
+  const fish = readFish(state, config);
   return {
-    fish: groupBySpecies(state, livestockDefaults),
-    plants: groupPlantsBySpecies(plantRows(state, DEFAULT_CONFIG)),
-    fry: groupFry(state, livestockDefaults),
+    fish: groupBySpecies(fish, config.livestock),
+    plants: groupPlantsBySpecies(plantRows(state, config)),
+    fry: groupFry(fish, config.livestock),
     clutches: state.clutches,
     tick: state.tick,
   };
@@ -47,9 +55,10 @@ function input(state: SimulationState): RosterInput {
 
 function tables(
   state: SimulationState,
-  ...open: string[]
+  open: string[] = [],
+  config: TunableConfig = DEFAULT_CONFIG
 ): ReturnType<typeof rosterTables> {
-  return rosterTables(input(state), livestockDefaults, new Set(open));
+  return rosterTables(input(state, config), config.livestock, new Set(open));
 }
 
 const roster = [
@@ -66,7 +75,7 @@ describe('rosterTables', () => {
   });
 
   it('opens one species without opening the other, and puts its fish beneath it', () => {
-    const { fish } = tables(tank(roster), 'species-neon_tetra');
+    const { fish } = tables(tank(roster), ['species-neon_tetra']);
 
     expect(fish.map((row) => row.kind)).toEqual([
       'species',
@@ -93,7 +102,7 @@ describe('rosterTables', () => {
   });
 
   it('reads a fish by its worst channel, so a full-condition fish can still be hungry', () => {
-    const starving = tables(tank([makeFish({ id: 'fish_a_1', satiation: 5 })]), 'species-neon_tetra');
+    const starving = tables(tank([makeFish({ id: 'fish_a_1', satiation: 5 })]), ['species-neon_tetra']);
     const individual = starving.fish[1] as IndividualRosterRow;
 
     expect(individual.at).toBe(1);
@@ -157,7 +166,7 @@ describe('rosterTables', () => {
       makeFish({ id: 'fish_a_2', satiation: 40, ...banked }),
       makeFish({ id: 'fish_a_3', satiation: 30, ...banked }),
     ];
-    const [group] = tables(tank(hungry)).fish as SpeciesRosterRow[];
+    const [group] = tables(tank(hungry), [], HEALED).fish as SpeciesRosterRow[];
 
     expect(group.status).toBe('warn');
     expect(group.word).toBe('2 hungry');
@@ -174,7 +183,7 @@ describe('rosterTables', () => {
       ...base,
       resources: { ...base.resources, ammonia: 20 * base.resources.water },
     };
-    const [group] = tables(poisoned).fish as SpeciesRosterRow[];
+    const [group] = tables(poisoned, [], HEALED).fish as SpeciesRosterRow[];
 
     expect(group.status).toBe('warn');
     expect(group.word).toBe('2 sick');
@@ -187,10 +196,72 @@ describe('rosterTables', () => {
       makeFish({ id: 'fish_a_2', ...banked }),
       makeFish({ id: 'fish_a_3', ...banked }),
     ];
-    const [group] = tables(tank(fed)).fish as SpeciesRosterRow[];
+    const [group] = tables(tank(fed), [], HEALED).fish as SpeciesRosterRow[];
 
     expect(group.dots).toEqual(['warn', 'warn', 'warn']);
     expect(group).toMatchObject({ status: 'warn', word: '3 overfed' });
+  });
+
+  describe('reads both tables by one group rule', () => {
+    const good: Reading = { status: 'ok', word: 'good' };
+    const thriving: Reading = { status: 'ok', word: 'thriving' };
+    const sick: Reading = { status: 'warn', word: 'sick' };
+    const fair: Reading = { status: 'warn', word: 'fair' };
+
+    const [specimen] = plantRows(
+      applyAction(tank([]), { type: 'addPlant', species: 'java_fern' }).state,
+      DEFAULT_CONFIG
+    );
+
+    function both(members: [number, Reading][]): { fish: Reading; plants: Reading; dots: string[] } {
+      const fish: FishRead[] = members.map(([condition, reading], i) => ({
+        fish: makeFish({ id: `fish_a_${i}`, health: condition }),
+        sick: reading === sick,
+        reading,
+      }));
+      const plants: PlantRow[] = members.map(([condition, reading], i) => ({
+        ...specimen,
+        id: `plant_a_${i}`,
+        condition,
+        sick: reading === sick,
+        ...reading,
+      }));
+      const [fishGroup] = groupBySpecies(fish, livestockDefaults);
+      const [plantGroup] = groupPlantsBySpecies(plants);
+      expect(fishGroup.members.map((member) => member.reading.status)).toEqual(plantGroup.statuses);
+      return {
+        fish: fishGroup.reading,
+        plants: { status: plantGroup.status, word: plantGroup.word },
+        dots: plantGroup.statuses,
+      };
+    }
+
+    it('reads the worst member’s condition where nobody needs the reader, not the mean', () => {
+      const { fish, plants } = both([[65, good], [100, thriving], [100, thriving]]);
+
+      expect(fish).toEqual(good);
+      expect(plants).toEqual(good);
+    });
+
+    it('counts every member at the worst tone, so the count is the dots it sits over', () => {
+      for (const members of [
+        [[100, sick], [50, fair], [100, sick]],
+        [[50, fair], [100, sick], [100, sick]],
+      ] as [number, Reading][][]) {
+        const { fish, plants, dots } = both(members);
+        const word = `${dots.filter((dot) => dot === 'warn').length} unwell`;
+
+        expect(fish).toEqual({ status: 'warn', word });
+        expect(plants).toEqual({ status: 'warn', word });
+      }
+    });
+
+    it('names the reason where the flagged members share one', () => {
+      const { fish, plants } = both([[100, sick], [100, thriving], [100, sick]]);
+
+      expect(fish).toEqual({ status: 'warn', word: '2 sick' });
+      expect(plants).toEqual({ status: 'warn', word: '2 sick' });
+    });
   });
 
   it('reads a group of one the way it reads its member', () => {
@@ -199,7 +270,7 @@ describe('rosterTables', () => {
       ...base,
       resources: { ...base.resources, ammonia: 20 * base.resources.water },
     };
-    const [group, member] = tables(poisoned, 'species-neon_tetra').fish as [
+    const [group, member] = tables(poisoned, ['species-neon_tetra']).fish as [
       SpeciesRosterRow,
       IndividualRosterRow,
     ];
@@ -215,17 +286,9 @@ describe('rosterTables', () => {
       ...base,
       resources: { ...base.resources, ammonia: 20 * base.resources.water },
     };
-    const { breakdown } = computeFishVitality(
-      state.fish[0],
-      state.resources,
-      state.plants,
-      state.resources.water,
-      state.tank.capacity,
-      DEFAULT_CONFIG.livestock
-    );
-    expect(breakdown.healed).toBeGreaterThan(0);
+    expect(readHourAhead(state, DEFAULT_CONFIG).fish[0].breakdown.healed).toBeGreaterThan(0);
 
-    const row = tables(state, 'species-neon_tetra').fish[1] as IndividualRosterRow;
+    const row = tables(state, ['species-neon_tetra']).fish[1] as IndividualRosterRow;
     const ledger = readLedger(state, DEFAULT_CONFIG, { kind: 'fish', id: 'fish_a_1' })!;
 
     expect(row.word).toBe(ledger.word);

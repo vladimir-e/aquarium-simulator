@@ -38,10 +38,13 @@ import {
   gasReadings,
   readingAt,
   groupBySpecies,
+  groupFry,
   groupPlantsBySpecies,
   nutrientReadings,
   plantRows,
   projectNitritePeak,
+  readFish,
+  readHourAhead,
   stockedBand,
   toleranceStatus,
   waterReadings,
@@ -50,6 +53,7 @@ import {
   type BacteriaReadout,
   type CycleProjection,
   type DoseAdvice,
+  type FryBatch,
   type GasReading,
   type PlantSpeciesGroup,
   type SpeciesGroup,
@@ -60,6 +64,7 @@ import {
   type WasteReadout,
   type WaterReading,
   DAILY_LIGHT_DECIMALS,
+  DAILY_LIGHT_UNIT,
   NITRATE_LOW_PPM,
   WATER_SCALE,
 } from '../run';
@@ -145,6 +150,7 @@ export type ReadingsById = {
 /** Who lives here, folded the way every roster reads them. */
 export interface Roster {
   fish: SpeciesGroup[];
+  fry: FryBatch | null;
   plants: PlantSpeciesGroup[];
   algae: AlgaeRow;
 }
@@ -391,18 +397,20 @@ function nutrientView(
 
 /**
  * Read the whole tank once. Everything the Overview and the Water module draw
- * comes out of this call, so the expensive derivations — the vitality passes
- * behind the waste ledger, the nitrite projection — happen once per tick.
+ * comes out of this call, so the expensive derivations — the hour the next
+ * tick settles, the nitrite projection — happen once per tick.
  */
 export function readTank({ state, config, history, units }: TankInput): ReadingBook {
   const tape = tapeOf(history, units);
+  const ahead = readHourAhead(state, config);
   const water = waterReadings(state, units);
   const gases = gasReadings(state);
   const nutrients = nutrientReadings(state, config);
-  const bacteria = bacteriaReadout(state, config);
-  const waste = wasteReadout(state, config);
-  const projection = projectNitritePeak(state, config);
-  const specimens = plantRows(state, config);
+  const bacteria = bacteriaReadout(state, config, ahead);
+  const waste = wasteReadout(state, config, ahead);
+  const projection = projectNitritePeak(state, config, ahead);
+  const specimens = plantRows(state, config, ahead);
+  const fish = readFish(state, config, ahead);
   const light = dailyLightReading(state);
 
   const read = (key: WaterReading['key']): WaterReading => water.find((r) => r.key === key)!;
@@ -570,7 +578,7 @@ export function readTank({ state, config, history, units }: TankInput): ReadingB
       id: 'dailyLight',
       name: 'Daily light',
       value: light.text,
-      unit: 'mol/m²/d',
+      unit: DAILY_LIGHT_UNIT,
       at: lightAt(light.value),
       band: light.needed > 0 ? { from: lightAt(light.needed), to: 1 } : null,
       tone: toneOf(light.status),
@@ -578,7 +586,7 @@ export function readTank({ state, config, history, units }: TankInput): ReadingB
       need: light.need,
       sentence:
         light.needed > 0
-          ? `The substrate's PAR over the last 24 hours. Under ${said('dailyLight', light.needed)} mol/m²/d the neediest plant here starves.`
+          ? `The substrate's PAR over the last 24 hours. Under ${said('dailyLight', light.needed)} ${DAILY_LIGHT_UNIT} the neediest plant here starves.`
           : 'Nothing planted, so nothing is asking for it.',
       net: null,
       fills: [],
@@ -601,9 +609,10 @@ export function readTank({ state, config, history, units }: TankInput): ReadingB
     waste,
     projection,
     roster: {
-      fish: groupBySpecies(state, config.livestock),
+      fish: groupBySpecies(fish, config.livestock),
+      fry: groupFry(fish, config.livestock),
       plants: groupPlantsBySpecies(specimens),
-      algae: algaeRow(state, config),
+      algae: algaeRow(state, config, ahead),
     },
     rack: {
       devices: equipmentRows(state, bacteria, units),

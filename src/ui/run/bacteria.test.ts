@@ -20,6 +20,7 @@ import {
 import { getMassFromPpm, getPpm } from '../../simulation/resources/index.js';
 import { aobCapacity } from '../../simulation/systems/index.js';
 import { monodFactor } from '../../simulation/core/kinetics.js';
+import { readHourAhead } from './ahead.js';
 
 const config = DEFAULT_CONFIG;
 const perCm2 = nitrogenCycleDefaults.bacteriaPerCm2;
@@ -246,7 +247,8 @@ describe('projectNitritePeak', () => {
   });
 
   it('gives up rather than guessing when nothing is driving the cycle', () => {
-    expect(projectNitritePeak(tank(), config, 24)).toBeNull();
+    const bare = tank();
+    expect(projectNitritePeak(bare, config, readHourAhead(bare, config), 24)).toBeNull();
   });
 
   it('cannot project a tank with no water or no surface', () => {

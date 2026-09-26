@@ -89,7 +89,7 @@ export function TopBar({
           +1 d
         </button>
 
-        <p className="px-1.5 text-[15px] tabular-nums max-md:px-0">
+        <p className="whitespace-nowrap px-1.5 text-[15px] tabular-nums max-md:px-0">
           {formatDayClock(tick)}
           <span className="ml-2 text-[13px] text-ink-2 max-lg:hidden">tick {tick}</span>
         </p>

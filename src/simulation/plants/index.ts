@@ -40,10 +40,10 @@ import { getPpm } from '../resources/index.js';
 import type { VitalityResult } from '../systems/vitality.js';
 
 /**
- * What every plant in the tank is doing this hour, in `state.plants`
- * order. `processPlants` runs the same numbers inside the tick off a
- * sufficiency map it shares with photosynthesis; this is the reader for
- * everything outside it — plant cards, the waste readout, probes.
+ * Each plant's vitality on the state it is handed, in `state.plants` order —
+ * the numbers `processPlants` runs off the sufficiency map it shares with
+ * photosynthesis. A caller wanting the next tick's numbers hands it the hour
+ * that tick settles (`settleEnvironment`).
  */
 export function readPlantVitality(
   state: SimulationState,
@@ -191,7 +191,8 @@ export function processPlants(
   );
 
   // 5. Shedding and death.
-  let totalConditionWaste = 0;
+  let shedWaste = 0;
+  let deathWaste = 0;
   const deadPlantNames: string[] = [];
   const processedPlants: Plant[] = [];
 
@@ -200,10 +201,10 @@ export function processPlants(
     let updated: Plant = plant;
     if (sizeReduction > 0) {
       updated = { ...plant, size: Math.max(0, plant.size - sizeReduction) };
-      totalConditionWaste += wasteProduced;
+      shedWaste += wasteProduced;
     }
     if (shouldPlantDie(updated, plantsConfig)) {
-      totalConditionWaste += calculateDeathWaste(updated, plantsConfig);
+      deathWaste += calculateDeathWaste(updated, plantsConfig);
       deadPlantNames.push(PLANT_SPECIES_DATA[plant.species].name);
       // Drop — surviving array doesn't include dead plants.
       continue;
@@ -211,13 +212,11 @@ export function processPlants(
     processedPlants.push(updated);
   }
 
-  if (totalConditionWaste > 0) {
-    effects.push({
-      tier: 'active',
-      resource: 'waste',
-      delta: totalConditionWaste,
-      source: 'plant-condition',
-    });
+  if (shedWaste > 0) {
+    effects.push({ tier: 'active', resource: 'waste', delta: shedWaste, source: 'plant-shedding' });
+  }
+  if (deathWaste > 0) {
+    effects.push({ tier: 'active', resource: 'waste', delta: deathWaste, source: 'plant-death' });
   }
 
   // Nutrient consumption is handled inside calculatePhotosynthesis (step 1).

@@ -46,7 +46,7 @@ export function ReadingRow({
   const body = (
     <>
       <span className="truncate text-ink-2">{name}</span>
-      <span className={`tabular-nums font-medium ${VALUE_SIZE[size]} ${TONE_TEXT[tone]}`}>
+      <span className={`whitespace-nowrap tabular-nums font-medium ${VALUE_SIZE[size]} ${TONE_TEXT[tone]}`}>
         {value}
         {unit && <span className="ml-0.5 text-[12px] font-normal text-ink-2">{unit}</span>}
       </span>
@@ -62,7 +62,7 @@ export function ReadingRow({
     </>
   );
 
-  const shape = `${ROW} h-9 grid-cols-[minmax(40px,auto)_84px_minmax(48px,1fr)_minmax(96px,auto)] text-left`;
+  const shape = `${ROW} h-9 grid-cols-[minmax(40px,auto)_minmax(84px,auto)_minmax(48px,1fr)_minmax(96px,auto)] text-left`;
 
   if (!onClick) return <div className={shape}>{body}</div>;
 

@@ -299,9 +299,9 @@ describe('processPlants', () => {
 
       expect(result.state.plants.map((p) => p.id)).toEqual(['poorly']);
       expect(result.state.plants[0].size).toBeLessThan(50);
-      const waste = result.effects.find((e) => e.resource === 'waste');
-      expect(waste?.source).toBe('plant-condition');
-      expect(waste?.delta).toBeGreaterThan(0);
+      const waste = result.effects.filter((e) => e.resource === 'waste');
+      expect(waste.map((e) => e.source)).toEqual(['plant-shedding', 'plant-death']);
+      expect(waste.every((e) => e.delta > 0)).toBe(true);
       expect(result.state.logs.filter((l) => l.event === 'plant-died')).toHaveLength(1);
     });
 

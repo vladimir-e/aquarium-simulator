@@ -10,6 +10,11 @@ import {
   classifyVital,
   colonyCount,
   cycleWord,
+  dailyLightReading,
+  plantRows,
+  readFish,
+  readHourAhead,
+  DAILY_LIGHT_UNIT,
   type Colony,
   type Status,
 } from '../ui/run/index.js';
@@ -31,6 +36,11 @@ function marker(...statuses: Status[]): string {
   return statuses.some((status) => status === 'warn' || status === 'alert') ? ' !' : '';
 }
 
+function sick(readings: { sick: boolean }[]): string {
+  const count = readings.filter((reading) => reading.sick).length;
+  return count > 0 ? ` · ${count} sick` : '';
+}
+
 /** Render a compact markdown snapshot of the current session. */
 export function renderObserve(session: Session): string {
   const state: SimulationState = session.state;
@@ -44,7 +54,8 @@ export function renderObserve(session: Session): string {
   const po4 = round(toPpm(r.phosphate, r.water), 3);
 
   const waterPct = Math.round((r.water / state.tank.capacity) * 100);
-  const stressedFish = state.fish.filter((f) => f.health < 80).length;
+  const ahead = readHourAhead(state, session.config);
+  const daily = dailyLightReading(state);
   const avgFishHealth = state.fish.length
     ? Math.round(
         state.fish.reduce((s, f) => s + f.health, 0) / state.fish.length
@@ -56,7 +67,7 @@ export function renderObserve(session: Session): string {
       )
     : 0;
 
-  const bacteria = bacteriaReadout(state, session.config);
+  const bacteria = bacteriaReadout(state, session.config, ahead);
   const colony = (of: Colony): string =>
     `${colonyCount(of.count)} (${of.ceiling > 0 ? `${round(of.pct, 1)}% of ceiling` : 'no biofilm'})`;
 
@@ -78,6 +89,9 @@ export function renderObserve(session: Session): string {
       classifyVital('oxygen', r.oxygen),
       classifyVital('co2', r.co2)
     )}`,
+    `**Light** ${Math.round(r.light)} PAR · daily ${daily.text} ${DAILY_LIGHT_UNIT}${
+      daily.need ? ` (${daily.need})` : ''
+    }${marker(daily.status)}`,
     `**Nutrients** PO4 ${po4} · K ${round(toPpm(r.potassium, r.water), 2)} · Fe ${round(
       toPpm(r.iron, r.water),
       3
@@ -89,10 +103,10 @@ export function renderObserve(session: Session): string {
     '',
     `**Fish (${state.fish.length})** ${
       state.fish.length ? `avg health ${avgFishHealth}%` : '—'
-    }${stressedFish ? ` · ${stressedFish} stressed` : ''}`,
+    }${sick(readFish(state, session.config, ahead))}`,
     `**Plants (${state.plants.length})** ${
       state.plants.length ? `avg condition ${avgPlantCondition}%` : '—'
-    }`,
+    }${sick(plantRows(state, session.config, ahead))}`,
   ];
 
   return lines.join('\n');

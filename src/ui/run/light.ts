@@ -8,8 +8,9 @@ import type { Status } from './status.js';
 
 export const DAILY_LIGHT_DECIMALS = 2;
 
+export const DAILY_LIGHT_UNIT = 'mol/m²/d';
+
 export interface DailyLightReading {
-  /** mol/m²/d */
   value: number;
   text: string;
   /** The daily light edge of the neediest species planted; 0 when nothing is. */

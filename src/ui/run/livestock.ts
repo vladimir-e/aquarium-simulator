@@ -9,23 +9,15 @@ import {
   FISH_SPECIES_DATA,
   SATIATION_BAND_LABEL,
   classifySatiationBandPosition,
-  computeFishVitality,
   type Fish,
   type FishSpecies,
   type SatiationBand,
   type SimulationState,
-  type VitalityResult,
 } from '../../simulation/index.js';
+import type { TunableConfig } from '../../simulation/config/index.js';
 import type { LivestockConfig } from '../../simulation/config/livestock.js';
-import {
-  conditionReading,
-  groupReading,
-  healthReading,
-  isSick,
-  worstReading,
-  type Reading,
-  type Status,
-} from './status.js';
+import { readHourAhead, type HourAhead } from './ahead.js';
+import { groupReading, vitalReading, worstReading, type Reading, type Status } from './status.js';
 
 /** Hungry and starving are the two bands that count toward "N hungry". */
 export function isHungryBand(band: SatiationBand): boolean {
@@ -76,13 +68,13 @@ export function countFry(fish: Fish[]): number {
 }
 
 /**
- * How one fish reads, across every channel it keeps: condition, whether it is
- * sick, and how recently it ate. One definition, so the roster row and the
- * ledger header carry one word.
+ * How one fish reads, across every channel it keeps: its vital reading, and
+ * how recently it ate. One definition, so the roster row and the ledger header
+ * carry one word.
  */
-export function fishReading(fish: Fish, vitality: VitalityResult, config: LivestockConfig): Reading {
+export function fishReading(fish: Fish, vital: Reading, config: LivestockConfig): Reading {
   const band = bandOf(fish.satiation, config);
-  return worstReading(healthReading(fish.health, isSick(fish.health, vitality)), {
+  return worstReading(vital, {
     status: bandStatus(band),
     word: SATIATION_BAND_LABEL[band].toLowerCase(),
   });
@@ -91,28 +83,28 @@ export function fishReading(fish: Fish, vitality: VitalityResult, config: Livest
 /** One fish, with the vitality pass behind its row already spent. */
 export interface FishRead {
   fish: Fish;
+  sick: boolean;
   reading: Reading;
 }
 
-function readFish(fish: Fish, state: SimulationState, config: LivestockConfig): FishRead {
-  const vitality = computeFishVitality(
-    fish,
-    state.resources,
-    state.plants,
-    state.resources.water,
-    state.tank.capacity,
-    config
-  );
-
-  return { fish, reading: fishReading(fish, vitality, config) };
+/** Every fish in the tank, read on the hour the next tick settles, in `state.fish` order. */
+export function readFish(
+  state: SimulationState,
+  config: TunableConfig,
+  ahead: HourAhead = readHourAhead(state, config)
+): FishRead[] {
+  return state.fish.map((fish, i) => {
+    const { sick, reading } = vitalReading(fish.health, ahead.fish[i]);
+    return { fish, sick, reading: fishReading(fish, reading, config.livestock) };
+  });
 }
 
-function groupBySpeciesKey(fish: Fish[]): Map<FishSpecies, Fish[]> {
-  const groups = new Map<FishSpecies, Fish[]>();
-  for (const f of fish) {
-    const existing = groups.get(f.species);
-    if (existing) existing.push(f);
-    else groups.set(f.species, [f]);
+function groupBySpeciesKey(fish: FishRead[]): Map<FishSpecies, FishRead[]> {
+  const groups = new Map<FishSpecies, FishRead[]>();
+  for (const read of fish) {
+    const existing = groups.get(read.fish.species);
+    if (existing) existing.push(read);
+    else groups.set(read.fish.species, [read]);
   }
   return groups;
 }
@@ -156,48 +148,42 @@ export interface FryBatch extends RosterGroup {
   species: FishSpecies[];
 }
 
-function groupFigures(
-  group: Fish[],
-  state: SimulationState,
-  config: LivestockConfig
-): RosterGroup {
+function groupFigures(members: FishRead[], config: LivestockConfig): RosterGroup {
+  const group = members.map((member) => member.fish);
   const satiation = mean(group.map((f) => f.satiation));
-  const condition = mean(group.map((f) => f.health));
-  const members = group.map((fish) => readFish(fish, state, config));
   return {
     count: group.length,
     massG: group.reduce((sum, f) => sum + f.mass, 0),
     ageDays: Math.floor(mean(group.map((f) => f.age)) / 24),
     satiation,
     band: bandOf(satiation, config),
-    condition,
+    condition: mean(group.map((f) => f.health)),
     hunger: hungerOf(group, config),
     reading: groupReading(
-      members.map((member) => member.reading),
-      conditionReading(condition)
+      members.map((member) => ({ condition: member.fish.health, ...member.reading }))
     ),
     members,
   };
 }
 
 /** Adult fish folded into per-species rows, in first-seen order. */
-export function groupBySpecies(state: SimulationState, config: LivestockConfig): SpeciesGroup[] {
-  const adults = state.fish.filter((f) => f.stage === 'adult');
-  return [...groupBySpeciesKey(adults)].map(([species, group]) => ({
+export function groupBySpecies(fish: FishRead[], config: LivestockConfig): SpeciesGroup[] {
+  const adults = fish.filter((read) => read.fish.stage === 'adult');
+  return [...groupBySpeciesKey(adults)].map(([species, members]) => ({
     species,
     name: FISH_SPECIES_DATA[species].name,
-    ...groupFigures(group, state, config),
+    ...groupFigures(members, config),
   }));
 }
 
 /** The tank's fry as one batch, or nothing if none are growing out. */
-export function groupFry(state: SimulationState, config: LivestockConfig): FryBatch | null {
-  const fry = state.fish.filter((f) => f.stage === 'fry');
+export function groupFry(fish: FishRead[], config: LivestockConfig): FryBatch | null {
+  const fry = fish.filter((read) => read.fish.stage === 'fry');
   if (fry.length === 0) return null;
 
   return {
-    species: [...new Set(fry.map((f) => f.species))],
-    ...groupFigures(fry, state, config),
+    species: [...new Set(fry.map((read) => read.fish.species))],
+    ...groupFigures(fry, config),
   };
 }
 

@@ -229,6 +229,16 @@ describe('GearSection', () => {
       expect(within(summed).getByText(name)).toBeTruthy();
     }
   });
+
+  it('opens the day’s light on the reading behind it', () => {
+    renderGear();
+    const summed = screen.getByRole('heading', { level: 2, name: 'What the tank gets' })
+      .parentElement!.parentElement!;
+    fireEvent.click(within(summed).getByRole('button', { name: /Daily light/ }));
+
+    const drawer = within(screen.getByRole('dialog', { name: 'Daily light' }));
+    expect(drawer.getByText(/Nothing planted, so nothing is asking for it/)).toBeTruthy();
+  });
 });
 
 describe('GearSection — the scape', () => {
