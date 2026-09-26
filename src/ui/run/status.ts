@@ -38,7 +38,7 @@ export function worstStatus(a: Status, b: Status): Status {
 
 /** Of two readings of the same organism, the one that needs the reader first. */
 export function worstReading(a: Reading, b: Reading): Reading {
-  return worstStatus(a.status, b.status) === a.status ? a : b;
+  return STATUS_SEVERITY[b.status] > STATUS_SEVERITY[a.status] ? b : a;
 }
 
 /** How an organism is doing, off its condition. */
