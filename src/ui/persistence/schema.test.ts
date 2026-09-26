@@ -6,7 +6,11 @@ import {
   PersistedUISchema,
 } from './schema.js';
 import { PERSISTENCE_VERSION } from './types.js';
-import { DEFAULT_CONFIG, MAX_WATER_ATTENUATION_PER_CM } from '../../simulation/config/index.js';
+import {
+  DEFAULT_CONFIG,
+  MAX_LEAF_ATTENUATION_PER_LAI,
+  MAX_WATER_ATTENUATION_PER_CM,
+} from '../../simulation/config/index.js';
 import {
   createSimulation,
   BUBBLE_RATE_OPTIONS,
@@ -113,14 +117,16 @@ describe('TunableConfigSchema', () => {
     expect(TunableConfigSchema.safeParse(config).success).toBe(true);
   });
 
-  it('takes leaves that shade nothing, and refuses leaves that make light', () => {
+  it('takes leaves that shade nothing, and refuses leaves that make light or take past the ceiling', () => {
     const leaves = (leafAttenuationPerLai: number): boolean =>
       TunableConfigSchema.safeParse({
         ...DEFAULT_CONFIG,
         optics: { ...DEFAULT_CONFIG.optics, leafAttenuationPerLai },
       }).success;
     expect(leaves(0)).toBe(true);
+    expect(leaves(MAX_LEAF_ATTENUATION_PER_LAI)).toBe(true);
     expect(leaves(-0.1)).toBe(false);
+    expect(leaves(MAX_LEAF_ATTENUATION_PER_LAI + 1)).toBe(false);
   });
 
   it('refuses a species demand of nothing, which no plant has', () => {
@@ -588,7 +594,6 @@ describe('PersistedStateSchema', () => {
       PersistedStateSchema.safeParse({ ...validState, simulation: streamless }).success
     ).toBe(false);
   });
-
 });
 
 describe('every fixture the UI offers survives a save', () => {

@@ -7,11 +7,12 @@ import { calculateFloorArea, type Plant, type SimulationState } from '../state.j
 import type { PlantSpecies } from '../plants/species.js';
 import type { SubstrateType } from '../equipment/substrate.js';
 import { PLANT_SPECIES_DATA, growthFormOf } from '../plants/species.js';
-import { plantedFootprint } from '../plants/canopy.js';
+import { floorShare, plantedFootprint } from '../plants/canopy.js';
 import { createLog } from '../core/logging.js';
 import { createPlant, DEFAULT_PLANT_SIZE } from '../plants/create-plant.js';
 import { disturbBed } from '../equipment/index.js';
 import { plantsDefaults, type PlantsConfig } from '../config/plants.js';
+import { isPlantableSize } from '../systems/plant-lifecycle.js';
 import type { ActionResult, AddPlantAction, RemovePlantAction } from './types.js';
 
 export interface PlantFootprintResult {
@@ -103,7 +104,7 @@ export function getSubstrateIncompatibilityReason(
 }
 
 /**
- * Add a plant to the tank, at a size between the death floor and a full unit.
+ * Add a plant to the tank, at a size between `deathSizeThreshold` and a full unit.
  */
 export function addPlant(
   state: SimulationState,
@@ -120,11 +121,10 @@ export function addPlant(
     };
   }
 
-  const minSize = plantsConfig.deathSizeThreshold;
-  if (!(initialSize > 0 && initialSize >= minSize && initialSize <= 100)) {
+  if (!isPlantableSize(initialSize, plantsConfig)) {
     return {
       state,
-      message: `Invalid initial size: ${initialSize}% (must be ${minSize}–100%)`,
+      message: `Invalid initial size: ${initialSize}% (must be ${plantsConfig.deathSizeThreshold}–100%)`,
     };
   }
 
@@ -189,10 +189,7 @@ export function removePlant(
   const newState = produce(state, (draft) => {
     draft.plants.splice(plantIndex, 1);
     if (plantData.substrateRequirement !== 'none') {
-      disturbBed(
-        draft,
-        growthFormOf(plant.species).footprintCm2 / calculateFloorArea(draft.tank.capacity)
-      );
+      disturbBed(draft, floorShare(plant.species, draft.tank.capacity));
     }
 
     draft.logs.push(

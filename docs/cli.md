@@ -25,9 +25,10 @@ Tweaks apply to every setup in the run:
 | `--water-change=30%/1w` | Water-change share, optional period |
 | `--vac=15%`, `--vac=off` | Share of the bed's mulm vacuumed at every water change; setups vac 15 % |
 | `--dose=2ml/1w` | Fertilizer dose, optional period |
-| `--trim[=2w]`, `--scrub[=1w]`, `--top-off[=1d]` | Maintenance chores, optional period |
+| `--trim[=2w]` | Cut every plant to 85 % and thin the youngest until the planting fits its floor; planted setups trim weekly |
+| `--scrub[=1w]`, `--top-off[=1d]` | Maintenance chores, optional period |
 | `--<chore>=off` | Drop that chore from the schedule |
-| `--plant=java_fern:3:40` | Add a plant group (species:count:size) |
+| `--plant=java_fern:3:40` | Add a plant group (species:count:size, size a % of one full unit, ≤ 100) |
 | `--fish=neon_tetra:6` | Add a fish group (species:count) |
 | `--rock=calcite_rock:2` | Add hardscape pieces (type:count) |
 | `--tap-kh=8` | Tap water carbonate hardness, dKH |

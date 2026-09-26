@@ -6,9 +6,6 @@
  *   and the tissue leaves as waste — melting plants foul the water.
  * - Death comes at condition 0, as it does for a fish, or once shedding has
  *   left less than `deathSizeThreshold` of the plant.
- *
- * Waste is rated per rate unit of tissue, so a sword melting away fouls the
- * water as the leaf it carried, and a carpet patch as its own.
  */
 
 import type { Plant } from '../state.js';
@@ -32,6 +29,11 @@ export function calculateShedding(
 
 export function shouldPlantDie(plant: Plant, config: PlantsConfig = plantsDefaults): boolean {
   return plant.condition <= 0 || plant.size < config.deathSizeThreshold;
+}
+
+/** A size a keeper can plant or trim to: no bigger than a full unit, and none the next tick retires. */
+export function isPlantableSize(size: number, config: PlantsConfig): boolean {
+  return size > 0 && size >= config.deathSizeThreshold && size <= 100;
 }
 
 /** Grams of waste a dying plant leaves: all of what is left of it. */

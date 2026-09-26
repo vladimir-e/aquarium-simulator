@@ -1,6 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import { processPlants, readPlantLight, readPlantVitality, plantHealingRate } from './index.js';
-import { canopyLight, floorCover, plantHeight } from './canopy.js';
+import { canopyLight, floorCover, getTotalRateUnits, plantHeight } from './canopy.js';
+import { calculatePhotosynthesis } from '../systems/photosynthesis.js';
+import { calculateRespiration } from '../systems/respiration.js';
+import { calculateNutrientSufficiency } from '../systems/nutrients.js';
+import { getPpm } from '../resources/index.js';
 import {
   calculateTankHeight,
   createSimulation,
@@ -388,6 +392,44 @@ describe('processPlants', () => {
         expect(reading.needShare).toBeCloseTo(reading.dailyLight / dailyLightEdge(planting[i].species), 12);
         expect(reading.heightCm).toBe(plantHeight(planting[i], calculateTankHeight(state.tank.capacity)));
       });
+    });
+
+    it('photosynthesises each plant on the PAR at its mean leaf, and respires the planting on its rate units', () => {
+      const state = createTestState({ plants: planting, light: 70, co2: INJECTED_CO2 });
+      const { resources } = state;
+      const { plants: plantsConfig, nutrients } = DEFAULT_CONFIG;
+      const { effects } = processPlants(state, DEFAULT_CONFIG);
+      const delta = (resource: string, source: string): number =>
+        effects.find((e) => e.resource === resource && e.source === source)?.delta ?? 0;
+
+      const photosynthesis = calculatePhotosynthesis(
+        planting,
+        canopyLight(planting, state.tank.capacity, DEFAULT_CONFIG.optics).map((c) => resources.light * c.leaf),
+        resources.co2,
+        resources,
+        resources.water,
+        new Map(
+          planting.map((p) => [p.id, calculateNutrientSufficiency(resources, resources.water, p.species, nutrients)])
+        ),
+        plantsConfig,
+        nutrients
+      );
+      expect(delta('oxygen', 'photosynthesis')).toBeCloseTo(getPpm(photosynthesis.oxygenProducedMg, resources.water), 12);
+      expect(delta('co2', 'photosynthesis')).toBeCloseTo(-getPpm(photosynthesis.co2ConsumedMg, resources.water), 12);
+      expect(delta('nitrate', 'photosynthesis')).toBeCloseTo(photosynthesis.nitrateDelta, 12);
+      expect(delta('phosphate', 'photosynthesis')).toBeCloseTo(photosynthesis.phosphateDelta, 12);
+      expect(delta('potassium', 'photosynthesis')).toBeCloseTo(photosynthesis.potassiumDelta, 12);
+      expect(delta('iron', 'photosynthesis')).toBeCloseTo(photosynthesis.ironDelta, 12);
+      expect(delta('gh', 'photosynthesis')).toBeCloseTo(photosynthesis.ghDelta, 12);
+
+      const respiration = calculateRespiration(
+        getTotalRateUnits(planting),
+        resources.temperature,
+        resources.oxygen,
+        plantsConfig
+      );
+      expect(delta('oxygen', 'respiration')).toBeCloseTo(-getPpm(respiration.oxygenConsumedMg, resources.water), 12);
+      expect(delta('co2', 'respiration')).toBeCloseTo(getPpm(respiration.co2ProducedMg, resources.water), 12);
     });
 
     it('burns a lone plant on its crown top only: never while the water over a full one keeps it under its edge', () => {

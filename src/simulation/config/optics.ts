@@ -30,6 +30,13 @@ export const opticsDefaults: OpticsConfig = {
  */
 export const MAX_WATER_ATTENUATION_PER_CM = 1;
 
+/**
+ * Flat, opaque leaves facing an overhead lamp take the most: each layer of leaf
+ * area passes e⁻¹ of the light, k = 1. Past twice that a coefficient is a typo,
+ * and a runaway one overflows a small crown's self-shade relief to infinite light.
+ */
+export const MAX_LEAF_ATTENUATION_PER_LAI = 2;
+
 export interface OpticsConfigMeta {
   key: keyof OpticsConfig;
   label: string;

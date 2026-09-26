@@ -41,17 +41,14 @@ import {
 import { conditionReading, groupReading, healthReading, isSick, type Status } from './status.js';
 
 /**
- * Trim targets, in % of a plant's size. A planted tank settles at 60–90 %, so
+ * Trim targets, % of a full unit. A planted tank settles at 60–90 %, so
  * every rung here is reachable in an ordinary run.
  */
 export const TRIM_TARGETS = [50, 75, 85];
 
 /**
- * The loosest cut on that ladder, and so the line a plant is "too big" against:
- * above it, every rung the trim verb offers would take something off. It is the
- * only size line this engine can honestly draw — growth self-limits against a
- * species `maxSize` an ordinary run never approaches (600–1100 % against a
- * calibrated peak near 100 %), and no system penalises size directly.
+ * The loosest rung on that ladder, and so the line a plant is "too big" against:
+ * a plant above it is filling its unit and shading what's below.
  */
 const TRIM_CEILING = Math.max(...TRIM_TARGETS);
 
@@ -77,7 +74,7 @@ export interface PlantRow {
   id: string;
   species: PlantSpecies;
   name: string;
-  /** % of normal full size — plants grow past 100 % toward their species ceiling. */
+  /** % of one full unit of its growth form; growth tapers to 100. */
   size: number;
   /** Above every rung of the trim ladder. */
   overTrim: boolean;

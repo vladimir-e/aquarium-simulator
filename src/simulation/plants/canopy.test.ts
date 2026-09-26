@@ -38,7 +38,7 @@ const unit = (species: PlantSpecies, size = 100): Unit => ({ species, size });
 const light = (plants: Unit[], optics: OpticsConfig = opticsDefaults): CanopyLight[] =>
   canopyLight(plants, CAPACITY, optics);
 
-const GROWN_SWORDS = [1, 2, 3, 4].map(() => unit('amazon_sword', 95));
+const A_FEW_PERCENT = 3;
 const MIXED: Unit[] = [
   unit('amazon_sword', 80),
   unit('amazon_sword', 30),
@@ -98,15 +98,13 @@ describe('canopyLight', () => {
     });
   });
 
-  it('lets a unit more light as its own size falls, down to a tenth of a unit, alone or among neighbours', () => {
-    for (const neighbours of [[], GROWN_SWORDS, MIXED]) {
-      for (const species of SPECIES) {
-        let previous = 0;
-        for (let size = 100; size >= 10; size -= 2.5) {
-          const [own] = light([unit(species, size), ...neighbours]);
-          expect(own.leaf).toBeGreaterThanOrEqual(previous);
-          previous = own.leaf;
-        }
+  it('lets a lone unit more light at its leaf as its own size falls, down to a few % of a unit', () => {
+    for (const species of SPECIES) {
+      let previous = 0;
+      for (let size = 100; size >= A_FEW_PERCENT; size -= 0.25) {
+        const [own] = light([unit(species, size)]);
+        expect(own.leaf).toBeGreaterThanOrEqual(previous);
+        previous = own.leaf;
       }
     }
   });
@@ -200,11 +198,11 @@ describe('the regulator', () => {
     }, 0);
   }
 
-  it('pays a lone unit in good water less over a day the bigger it grows, dim or bright', () => {
+  it('pays a lone unit in good water less over a day the bigger it grows past a few % of a unit, dim or bright', () => {
     for (const species of SPECIES) {
       for (const fixturePar of [12, 40, 200]) {
         let previous = Infinity;
-        for (let size = 10; size <= 100; size += 5) {
+        for (let size = A_FEW_PERCENT; size <= 100; size += 0.5) {
           const net = dailyNet(species, size, fixturePar);
           expect(net).toBeLessThanOrEqual(previous + 1e-12);
           previous = net;

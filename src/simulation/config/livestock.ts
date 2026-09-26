@@ -262,8 +262,8 @@ export const livestockDefaults: LivestockConfig = {
 
   // Benefit peaks (%/h) for the non-satiation channels. Sum at
   // all-good in a bare tank, pH at its band centre: pH 0.4 + well-fed 0.3 +
-  // O2 0.3 = 1.0 %/h. With three full-grown healthy plants
-  // (saturated): +0.2 → 1.2 %/h.
+  // O2 0.3 = 1.0 %/h. With a saturating planting (see
+  // `plantBenefitSaturationPoint`): +0.2 → 1.2 %/h.
   phBenefitPeak: 0.4,
   oxygenBenefitPeak: 0.3,
   plantBenefitPeak: 0.2,
@@ -378,7 +378,7 @@ export const livestockConfigMeta: LivestockConfigMeta[] = [
   { key: 'phBenefitPeak', label: 'pH Benefit Peak', unit: '%/hr', min: 0, max: 1, step: 0.05 },
   { key: 'oxygenBenefitPeak', label: 'O2 Benefit Peak', unit: '%/hr', min: 0, max: 1, step: 0.05 },
   { key: 'plantBenefitPeak', label: 'Plant Benefit Peak', unit: '%/hr', min: 0, max: 1, step: 0.05 },
-  { key: 'plantBenefitSaturationPoint', label: 'Plant Benefit Saturation', unit: 'plants', min: 1, max: 10, step: 0.5 },
+  { key: 'plantBenefitSaturationPoint', label: 'Plant Benefit Saturation', unit: 'power', min: 1, max: 10, step: 0.5 },
   // Surplus
   { key: 'surplusCap', label: 'Surplus Cap', unit: '%', min: 0, max: 100, step: 5 },
   { key: 'healingDrawRate', label: 'Healing Draw Rate', unit: '/hr at 1 g', min: 0.005, max: 0.5, step: 0.005 },

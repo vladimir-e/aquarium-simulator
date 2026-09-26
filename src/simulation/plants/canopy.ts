@@ -11,12 +11,14 @@
  *   τ_j(z) = 1 − exp(−k_L·LAI_j·u_j·max(0, 1 − z/h_j))
  *   c_j    = F_j / A
  *
- * with u the size as a share of a full unit. Water above a leaf is a gain over
- * the substrate. A unit's own crown is written against a full unit's, so a lone
- * grown plant reads the care-sheet light at its leaf and a sparse one is less
- * self-shaded; the crown top has none of its own leaves above it. Other crowns
- * fall at random over the floor, so each takes at most its floor share, and a
- * crown no taller than a leaf never shades it.
+ * with u the size as a share of a full unit; k_w, k_L the optics attenuations;
+ * LAI, F a form's leaf area index and footprint; A the floor area; h the
+ * plant's height. Water above a leaf is a gain over the substrate. A unit's own
+ * crown is written against a full unit's, so a lone grown plant reads the
+ * care-sheet light at its leaf and a sparse one is less self-shaded; the crown
+ * top has none of its own leaves above it. Other crowns fall at random over the
+ * floor, so each takes at most its floor share, and a crown no taller than a
+ * leaf never shades it.
  */
 
 import type { Plant, SimulationState } from '../state.js';
@@ -29,7 +31,7 @@ type Unit = Pick<Plant, 'species' | 'size'>;
 /**
  * cm² of leaf a rate unit is: the unit photosynthesis, respiration, plant power
  * and plant waste are all rated in. 30 mg of CO₂ an hour over 0.05 m² is about
- * 3.8 µmol/m²/s, inside the 1–10 saturated submerged leaves fix.
+ * 3.8 µmol/m²/s, inside the 1–10 µmol/m²/s that saturated submerged leaves fix.
  */
 export const LEAF_AREA_PER_RATE_UNIT = 500;
 
@@ -65,18 +67,22 @@ export interface CanopyLight {
   top: number;
 }
 
+/** Share of the floor one unit of the species claims: its footprint over the floor area. */
+export function floorShare(species: PlantSpecies, capacity: number): number {
+  return growthFormOf(species).footprintCm2 / calculateFloorArea(capacity);
+}
+
 interface Crown {
   height: number;
   leafAreaIndex: number;
   floorShare: number;
 }
 
-function crownOf(plant: Unit, waterDepth: number, floorArea: number): Crown {
-  const form = growthFormOf(plant.species);
+function crownOf(plant: Unit, waterDepth: number, capacity: number): Crown {
   return {
     height: plantHeight(plant, waterDepth),
-    leafAreaIndex: form.leafAreaIndex * (plant.size / 100),
-    floorShare: form.footprintCm2 / floorArea,
+    leafAreaIndex: growthFormOf(plant.species).leafAreaIndex * (plant.size / 100),
+    floorShare: floorShare(plant.species, capacity),
   };
 }
 
@@ -86,16 +92,20 @@ function shadeAt(crown: Crown, z: number, leafAttenuation: number): number {
   return crown.floorShare * (1 - Math.exp(-leafAttenuation * crown.leafAreaIndex * (1 - z / crown.height)));
 }
 
-/** Per plant, in `plants` order. O(N²): computed once a tick, off the start-of-tick planting. */
+/**
+ * Per plant, in `plants` order. A lone unit above a few % of a unit reads more
+ * light at its leaf the smaller it is. Below that a rosette or clump loses water
+ * gain faster than it gains self-shade relief, and in a shorter canopy the
+ * neighbours' shade takes the relief back.
+ */
 export function canopyLight(
   plants: readonly Unit[],
   capacity: number,
   optics: OpticsConfig
 ): CanopyLight[] {
   const depth = calculateTankHeight(capacity);
-  const floor = calculateFloorArea(capacity);
   const k = optics.leafAttenuationPerLai;
-  const crowns = plants.map((plant) => crownOf(plant, depth, floor));
+  const crowns = plants.map((plant) => crownOf(plant, depth, capacity));
 
   return plants.map((plant, i) => {
     const own = crowns[i];
@@ -128,9 +138,8 @@ export function floorCover(plants: readonly Pick<Plant, 'species'>[], capacity: 
 /** Share of the substrate light the canopy takes before it reaches the floor. */
 export function floorShade(plants: readonly Unit[], capacity: number, optics: OpticsConfig): number {
   const depth = calculateTankHeight(capacity);
-  const floor = calculateFloorArea(capacity);
   const taken = plants.reduce(
-    (sum, plant) => sum + shadeAt(crownOf(plant, depth, floor), 0, optics.leafAttenuationPerLai),
+    (sum, plant) => sum + shadeAt(crownOf(plant, depth, capacity), 0, optics.leafAttenuationPerLai),
     0
   );
   return 1 - Math.exp(-taken);

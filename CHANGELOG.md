@@ -13,9 +13,10 @@ Format: - **Feature name** (#PR) - One short sentence (under ~150 chars)
 
 - **A full bank buys a plant an offshoot** - as it buys a fish a brood: a runner, plantlet or rhizome branch of its family, before growth; breaking: `Plant` gains `parentId`, `familyId`, `age`, `vigour` (v31, v15).
 - **Plants carry vigour, and trim by family** - a ±15 % draw on income at birth, so clones bud apart; `trimPlants` takes a `familyId`.
-- **Plants grow to one full unit and read light at their own height** - size 0–100 of a patch, specimen or clump; crowns shade what's below; breaking: no `maxSize`, vitality takes a `canopy`, photosynthesis per-plant PAR (v31, v15).
-- **Plants claim floor, not slots** - `addPlant` fits footprints to the floor, and no planting or trim goes under the death floor; breaking: `checkPlantFootprint` replaces `getMaxPlants`.
-- **Plants are rated by leaf** - photosynthesis, respiration, plant power and waste run on 500 cm² rate units; breaking: `getTotalRateUnits` replaces `getTotalPlantSize`.
+- **Plants grow to a full unit and read light at height** - size 0–100 of a growth form, shaded by `leafAttenuationPerLai`; breaking: no `maxSize`, vitality takes a `canopy`, photosynthesis per-plant PAR (v31, v15).
+- **Light at height and floor cover are public** - `canopyLight` and `readPlantLight` at each plant's height; `floorCover`, `floorShade` and `isOvergrown` for the planting.
+- **Plants claim floor, not slots** - footprints fit the floor, and sizes run from `deathSizeThreshold` (now 1) to 100; breaking: `checkPlantFootprint` replaces `checkPlantCapacity`/`getMaxPlants`, `canAddPlant` takes a species.
+- **Plants are rated by leaf** - photosynthesis, respiration, plant power and waste run on 500 cm² rate units; breaking: `getTotalRateUnits` replaces `getTotalPlantSize`, and `calculateRespiration` takes it.
 - **The planted preset injects like a keeper** - 0.5 bps holds CO₂ at 20–30 mg/L; carpets, java fern and anubias take pH down to 5.0, as published.
 - **The console reads sickness and the day's light** - a fish or plant losing condition reads sick, a group as its most urgent member, counted, and Daily light sits beside PAR.
 - **Healing rates are public** - `fishHealingRate` and `plantHealingRate` beside `computeVitality`; `scheduledLightHistory`, the day of light a new tank opens on.

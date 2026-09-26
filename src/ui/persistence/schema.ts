@@ -6,6 +6,7 @@
 import { z } from 'zod';
 import { MAX_LIGHT_PAR, VIGOUR_SPAN } from '../../simulation/index.js';
 import {
+  MAX_LEAF_ATTENUATION_PER_LAI,
   MAX_WATER_ATTENUATION_PER_CM,
   NUTRIENTS,
   WASTE_NUTRIENTS,
@@ -424,7 +425,7 @@ const AlgaeConfigSchema = z
 const OpticsConfigSchema = z
   .object({
     waterAttenuationPerCm: z.number().min(0).max(MAX_WATER_ATTENUATION_PER_CM),
-    leafAttenuationPerLai: z.number().min(0),
+    leafAttenuationPerLai: z.number().min(0).max(MAX_LEAF_ATTENUATION_PER_LAI),
   })
   .strict();
 

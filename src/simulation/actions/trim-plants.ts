@@ -4,8 +4,6 @@
  *
  * Trimmed material exits the system cleanly (not converted to waste).
  * This simulates the aquarist properly removing and disposing of trimmed leaves.
- * A trim lowers leaf area and height, so the canopy lets more light down from
- * the next tick, and it reopens the growth taper.
  */
 
 import { produce } from 'immer';
@@ -13,6 +11,7 @@ import type { Plant, SimulationState } from '../state.js';
 import { PLANT_SPECIES_DATA } from '../plants/species.js';
 import { createLog } from '../core/logging.js';
 import { plantsDefaults, type PlantsConfig } from '../config/plants.js';
+import { isPlantableSize } from '../systems/plant-lifecycle.js';
 import type { ActionResult, TrimPlantsAction } from './types.js';
 
 /**
@@ -40,8 +39,8 @@ export function getPlantsToTrimCount(
  * the plant is missing or already at/below target). Otherwise, reduces every plant
  * above `targetSize` to the target — every plant of `action.familyId` when that is
  * set. Trimmed material exits the system — the waste pool is untouched. A target
- * under the death floor is refused: the cut would leave a plant the next tick
- * retires.
+ * under `deathSizeThreshold` is refused: the cut would leave a plant the next
+ * tick retires.
  */
 export function trimPlants(
   state: SimulationState,
@@ -50,11 +49,10 @@ export function trimPlants(
 ): ActionResult {
   const { targetSize, plantId, familyId } = action;
 
-  const minSize = plantsConfig.deathSizeThreshold;
-  if (!(targetSize >= minSize && targetSize <= 100)) {
+  if (!isPlantableSize(targetSize, plantsConfig)) {
     return {
       state,
-      message: `Invalid target size for trimming (must be a number in [${minSize}, 100])`,
+      message: `Invalid target size for trimming (must be a number in [${plantsConfig.deathSizeThreshold}, 100])`,
     };
   }
 

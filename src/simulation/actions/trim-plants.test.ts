@@ -83,7 +83,7 @@ describe('trimPlants — every plant', () => {
     expect(result.message).toContain('Invalid target size');
   });
 
-  it('refuses a cut under the death floor, which the next tick would retire', () => {
+  it('refuses a cut under `deathSizeThreshold`, which the next tick would retire', () => {
     const state = tankWith(99);
     const plantsConfig = { ...plantsDefaults, deathSizeThreshold: 5 };
     const trim = (targetSize: number): SimulationState =>

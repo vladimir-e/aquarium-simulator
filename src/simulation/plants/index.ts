@@ -2,8 +2,8 @@
  * Plants processing — full supply chain per plant per tick.
  *
  * Pipeline:
- * 1. The canopy: each plant's light at its own height, one O(N²) pass off
- *    the start-of-tick planting that everything below reads.
+ * 1. The canopy: each plant's light at its own height, read by photosynthesis
+ *    and vitality.
  * 2. Compute per-plant Liebig sufficiency once (shared by photosynthesis
  *    and vitality below).
  * 3. Photosynthesis: emits resource effects only — O2 production, CO2
@@ -13,8 +13,7 @@
  * 5. Vitality per plant: the new condition and `Plant.surplus` bank —
  *    income at full condition banks, the bank heals condition below it.
  * 6. Offshoot: a full bank buys a new unit of the family and resets, the
- *    fish spawn rule. It runs before growth, or the draw would hold every
- *    bank a hair under the cap.
+ *    fish spawn rule, before growth can draw on it.
  * 7. Growth: the bank buys size at `growthDrawRate` of itself, day and night.
  * 8. Shedding + death (lifecycle module) — low condition sheds tissue, and
  *    condition 0 or too little size left removes the plant.
@@ -136,13 +135,11 @@ export function processPlants(
     return { state, effects };
   }
 
+  // 1. The canopy.
   const canopy = canopyOf(state, config);
 
-  // Compute Liebig nutrient sufficiency once per plant per tick. Both
-  // photosynthesis (Liebig-gates biomass and uptake) and vitality
-  // (drives the nutrient stressor + benefit pair) read this value;
-  // computing it once keeps them consistent and avoids the triple
-  // recomputation an earlier pass had.
+  // 2. Liebig sufficiency, once per plant: photosynthesis gates biomass and
+  //    uptake on it, and vitality its nutrient stressor and benefit.
   const sufficiencyByPlantId = new Map<string, number>(
     state.plants.map((plant) => [
       plant.id,

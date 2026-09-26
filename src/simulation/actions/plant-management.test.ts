@@ -133,7 +133,7 @@ describe('addPlant', () => {
     expect(result.message).toContain('Invalid initial size');
   });
 
-  it('refuses a size under the death floor, which the next tick would retire', () => {
+  it('refuses a size under `deathSizeThreshold`, which the next tick would retire', () => {
     const state = onSubstrate('none');
     const plantsConfig = { ...plantsDefaults, deathSizeThreshold: 5 };
     const planting = (initialSize: number): ActionResult =>

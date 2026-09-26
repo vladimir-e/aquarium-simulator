@@ -11,7 +11,7 @@
  * Severities are pre-hardiness; `computeAlgaePopulation` multiplies
  * them by `(1 - hardiness)`. Algae has a single `hardiness`
  * value (no per-species variation yet) — pick it modestly so a single
- * full-grown plant does not zero out the bloom path.
+ * healthy clump does not zero out the bloom path.
  */
 
 import { SURPLUS_CAP_DEFAULT } from './vitality.js';

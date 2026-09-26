@@ -227,8 +227,8 @@ export const plantsDefaults: PlantsConfig = {
   // so a plant relit before its condition collapses keeps most of itself.
   maxSheddingRate: 0.02,
   wastePerShedSize: 0.005,
-  // Retires a plant shed below 1 % of its unit; without a floor a starved one
-  // would linger as a rootstock indefinitely.
+  // Retires a plant shed below 1 % of its unit; without it a starved one would
+  // linger as a rootstock indefinitely.
   deathSizeThreshold: 1,
   wastePerPlantDeath: 0.01,
 };

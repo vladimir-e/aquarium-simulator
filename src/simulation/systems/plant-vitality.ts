@@ -62,7 +62,7 @@ export interface PlantVitalityContext {
    * threshold.
    */
   algaeMass: number;
-  /** This plant's share of the substrate light, from the tick's one canopy pass. */
+  /** Light at this plant's height over the substrate PAR, from the tick's one canopy pass. */
   canopy: CanopyLight;
 }
 

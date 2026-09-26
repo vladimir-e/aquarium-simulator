@@ -127,7 +127,7 @@ export interface Plant {
   species: PlantSpecies;
   /**
    * How full its unit is, % of one grown unit of its growth form — a patch, a
-   * specimen, a clump. Growth tapers to nothing at 100, so it stays below.
+   * specimen, a clump. Growth tapers to nothing at 100, so it never grows past it.
    */
   size: number;
   /** Condition/health percentage (0-100, plant dies at 0) */
