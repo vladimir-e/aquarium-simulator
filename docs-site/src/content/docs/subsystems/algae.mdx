@@ -28,7 +28,7 @@ releases no oxygen, and draws no nutrient out of the water it is fed by.
 | Calibration | <Badge text="scaffolding" variant="caution" /> | The config states it outright: first-pass values chosen for mechanism correctness, not ecological accuracy. |
 | Gas and nutrient exchange | <Badge text="missing" variant="danger" /> | Algae moves no resource at all. It reads nitrate as a ratio and never consumes a milligram, so its own food source cannot self-limit. |
 | Surfaces | <Badge text="missing" variant="danger" /> | One aggregate coverage number. No glass, hardscape or plant-film distinction, and no species — the green dust on the glass and the hair algae on a leaf are the same variable. |
-| Algae as a livestock stressor | <Badge text="missing" variant="danger" /> | A full bloom never touches a fish. It reaches plants only, through shading. |
+| Algae as a livestock stressor | <Badge text="missing" variant="danger" /> | A full bloom never touches a fish. It reaches plants only, through a shading stressor ([Plants](/subsystems/plants/#status)). |
 | Mass decay to waste | <Badge text="missing" variant="danger" /> | Mass lost to hostile conditions or to a scrub leaves the system. It does not become waste and never re-enters the nitrogen cycle. |
 
 ## How it works
@@ -56,10 +56,11 @@ tick, which is the accepted cost of that ordering.
 | `low_plant_power` | Plant power below `0.3` | `0.4` per unit of shortfall | `0.12` %/h at zero plants |
 | `plant_suppression` | Plant power above `1.0` | `0.2` per unit, then × `0.6` for hardiness | unbounded — the only stressor |
 
-Plant power is `Σ (size/100) × (condition/100)`: one full-grown healthy plant is
-worth 1.0. Suppression is the only unbounded term on the list, which is what
-makes a thriving planting able to hold a bloom down no matter what else is going
-right for it.
+Plant power is `Σ rateUnits × (condition/100)` — the planting's leaf, in rate
+units of 500 cm², weighted by health: a full healthy sword is worth 2.8, a full
+java fern clump 1.0 and a full carpet patch 0.5. Suppression is the only
+unbounded term on the list, which is what makes a thriving planting able to hold
+a bloom down no matter what else is going right for it.
 
 There is no direct CO₂, temperature, pH, oxygen or ammonia channel. All of them
 reach algae through plant condition, which is the meta-signal: anything that
@@ -68,10 +69,11 @@ suppressed to fuelled.
 
 ### Where it diverges from the plant light model
 
-Plants answer light along `tanh(PAR / Ik)` — a curve from the origin, per
-species, that multiplies their entire benefit budget — and starve on the day's
-light integral. Algae answers it with `max(0, PAR − 70) × 0.004`, capped — one
-additive term among four, with no species variation and no multiplier role.
+Plants answer light at their own height along `tanh(PAR / Ik)` — a curve from
+the origin, per species, that multiplies their entire benefit budget — and
+starve on the day's light integral there. Algae answers the substrate figure
+with `max(0, PAR − 70) × 0.004`, capped — one additive term among four, with no
+species variation and no multiplier role.
 Three consequences follow:
 
 - **Below 70 PAR light is worth nothing to algae**, while every plant on the roster is photosynthesising well below that. The threshold sits roughly where plants saturate, so the term is meant to read as "light the plants are not using".
@@ -115,7 +117,7 @@ bloom. Scrubbing and restoring plant health are the two ways out.
 
 ## Key tunables
 
-| Constant | Meaning | Unit |
+| Constant | Meaning | Value |
 |---|---|---|
 | `hardiness` | Scales every stressor by `1 − hardiness` | `0.4` |
 | `suppressionThreshold` | Plant power above which suppression starts | `1.0` power |

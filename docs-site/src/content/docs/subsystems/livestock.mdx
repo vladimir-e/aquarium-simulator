@@ -38,13 +38,21 @@ for the next spawn.
 
 ### The roster
 
-| Species | Adult mass | Lifespan | Hardiness | Temperature | pH | GH | Max turnover |
-|---|---|---|---|---|---|---|---|
-| Neon Tetra | 0.5 g | 5 y | 0.5 | 22–28 °C | 5.0–7.8 | 1–12 dGH | 10 ×/h |
-| Guppy | 1.0 g | 3 y | 0.8 | 22–28 °C | 6.5–8.5 | 6–25 dGH | 13 ×/h |
-| Betta | 3.0 g | 3 y | 0.6 | 24–30 °C | 6.0–8.0 | 3–15 dGH | 5 ×/h |
-| Corydoras | 4.0 g | 5 y | 0.7 | 22–26 °C | 6.0–8.0 | 2–15 dGH | 15 ×/h |
-| Angelfish | 15.0 g | 10 y | 0.4 | 24–30 °C | 6.0–8.0 | 3–15 dGH | 10 ×/h |
+| Species | Adult mass | Maturity | Lifespan | Hardiness |
+|---|---|---|---|---|
+| Neon Tetra | 0.5 g | 120 d | 5 y | 0.5 |
+| Guppy | 1.0 g | 60 d | 3 y | 0.8 |
+| Betta | 3.0 g | 90 d | 3 y | 0.6 |
+| Corydoras | 4.0 g | 150 d | 5 y | 0.7 |
+| Angelfish | 15.0 g | 180 d | 10 y | 0.4 |
+
+| Species | Temperature | pH | GH | Max turnover |
+|---|---|---|---|---|
+| Neon Tetra | 22–28 °C | 5.0–7.8 | 1–12 dGH | 10 ×/h |
+| Guppy | 22–28 °C | 6.5–8.5 | 6–25 dGH | 13 ×/h |
+| Betta | 24–30 °C | 6.0–8.0 | 3–15 dGH | 5 ×/h |
+| Corydoras | 22–26 °C | 6.0–8.0 | 2–15 dGH | 15 ×/h |
+| Angelfish | 24–30 °C | 6.0–8.0 | 3–15 dGH | 10 ×/h |
 
 pH and GH bands are the generous hobby care-sheet ranges, wide enough for fresh aqua soil and hard tap alike — soft-water species reach lower, the livebearer higher. Past an edge the damage grows with the distance, per pH unit or per dGH.
 
@@ -127,11 +135,10 @@ Unfed, a stuffed fish reaches zero in about seven days.
 
 ### Health
 
-Health is the [vitality model](/concepts/vitality/). A fish heals out of its
-income first and out of its bank at `healingDrawRate × adultMass^−¼` of it an
-hour — 6 % for a neon, 2.5 % for an angelfish — and banks only what a full
-health leaves over. It is sick while its damage outruns that healing, and its
-health falls.
+Health is the [vitality model](/concepts/vitality/): a fish heals out of its
+income first, then out of its bank at a share that falls with adult mass to the
+−¼, and banks only what a full health leaves over. It is sick while its damage
+outruns that healing, and its health falls.
 
 | Stressor | Activates | Per |
 |---|---|---|
@@ -162,8 +169,8 @@ positive net rate, banking what breeding spends.
 #### Water quality
 
 Each toxin stressor is its severity times the e-folds past the fish's own edge,
-`ln(reading ⁄ edge)`, because toxicity runs on log dose: every doubling costs
-the same. Oxygen counts e-folds under its edge, `ln((edge + a) ⁄ (reading + a))`,
+`ln(reading / edge)`, because toxicity runs on log dose: every doubling costs
+the same. Oxygen counts e-folds under its edge, `ln((edge + a) / (reading + a))`,
 with both sides read `a` = 0.1 mg/L higher so the harm stays finite at zero.
 Hardiness moves a fish's edge out from the alert's by `2^hardiness`, and down by
 the same factor for oxygen. Effective hardiness is clamped to [0.1, 0.95], so no
@@ -222,13 +229,13 @@ Refilling it is the cooldown — there are no timers.
 | Grown | both `stage === 'adult'` **and** `age ≥ maturityAge` |
 | Funded | the female's bank is full, `surplus ≥ surplusCap` |
 
-| Species | Mode | Clutch | Hatch | Fry mass | Maturity |
-|---|---|---|---|---|---|
-| Guppy | livebearer | 20 fry | direct | 5 % | 60 d |
-| Neon Tetra | egg-scatterer | 25 eggs | 24 h | 5 % | 120 d |
-| Betta | bubble-nester | 30 eggs | 36 h | 3 % | 90 d |
-| Corydoras | egg-depositor | 15 eggs | 96 h | 4 % | 150 d |
-| Angelfish | substrate-spawner | 40 eggs | 60 h | 2 % | 180 d |
+| Species | Mode | Clutch | Hatch | Fry mass |
+|---|---|---|---|---|
+| Guppy | livebearer | 20 fry | direct | 5 % |
+| Neon Tetra | egg-scatterer | 25 eggs | 24 h | 5 % |
+| Betta | bubble-nester | 30 eggs | 36 h | 3 % |
+| Corydoras | egg-depositor | 15 eggs | 96 h | 4 % |
+| Angelfish | substrate-spawner | 40 eggs | 60 h | 2 % |
 
 Livebearers drop free-swimming fry directly — the gestation is what the bank
 paid for. Every other mode deposits an inert clutch that sits in the state until
@@ -249,7 +256,7 @@ visible decline rather than a coin flip.
 
 ## Key tunables
 
-| Tunable | Meaning | Unit |
+| Tunable | Meaning | Value |
 |---|---|---|
 | `baseFoodRate` | Full ration for an empty stomach, per gram of fish | `0.01` g/g/hr |
 | `baseRespirationRate` | Oxygen draw per gram, a Monod maximum | `0.3` mg O₂/g/hr |
@@ -265,7 +272,7 @@ visible decline rather than a coin flip.
 | Satiation band edges | The four anchors of the curve: overfed, well-fed, hungry, starving | `99` · `75` · `50` · `25` % |
 | Satiation severities | Peak at each anchor — overfed, well-fed benefit, hungry, starving | `2.0` · `0.3` · `2.5` · `6.0` %/hr |
 | `phBenefitPeak` · `oxygenBenefitPeak` · `plantBenefitPeak` | The three non-satiation recovery channels | `0.4` · `0.3` · `0.2` %/hr |
-| `plantBenefitSaturationPoint` | Plant power at which shelter tops out — three full-grown healthy plants | `3.0` |
+| `plantBenefitSaturationPoint` | Plant power at which shelter tops out — three full healthy java fern clumps, or a little over one sword | `3.0` |
 | `surplusCap` | Ceiling on the bank; a female spawns on a full one | `50` units |
 | `healingDrawRate` | Share of its bank a 1 g fish heals from each hour, scaled by adult mass to the −¼ | `0.05` /hr |
 | `deathDecayFactor` | Share of body mass that becomes waste on death | `0.5` |

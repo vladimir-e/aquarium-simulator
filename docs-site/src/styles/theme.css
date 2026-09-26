@@ -58,6 +58,7 @@
 
 .sl-markdown-content {
   --field-rule: color-mix(in srgb, var(--sl-color-gray-5) 80%, transparent);
+  container-type: inline-size;
 }
 
 .sl-markdown-content table {
@@ -101,6 +102,34 @@
   white-space: nowrap;
 }
 
+.sl-markdown-content td wbr {
+  display: none;
+}
+
+@container (max-width: 40rem) {
+  .sl-markdown-content th {
+    letter-spacing: 0.03em;
+  }
+
+  .sl-markdown-content th,
+  .sl-markdown-content td {
+    padding-right: 0.6rem;
+  }
+
+  .sl-markdown-content td:first-child code {
+    white-space: normal;
+  }
+
+  .sl-markdown-content td wbr {
+    display: inline;
+  }
+}
+
+.sl-markdown-content th code {
+  text-transform: none;
+  letter-spacing: 0;
+}
+
 .sl-markdown-content :not(pre) > code {
   background: transparent;
   border: none;
@@ -110,7 +139,7 @@
   color: var(--sl-color-accent-high);
 }
 
-.sl-markdown-content h2 {
+.sl-markdown-content .sl-heading-wrapper.level-h2 {
   padding-bottom: 0.3rem;
   border-bottom: 1px solid var(--field-rule);
 }
@@ -119,4 +148,6 @@
   font-family: var(--sl-font-mono);
   font-size: var(--sl-text-xs);
   letter-spacing: 0.04em;
+  overflow-wrap: normal;
+  white-space: nowrap;
 }

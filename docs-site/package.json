@@ -11,6 +11,7 @@
     "check": "astro check"
   },
   "dependencies": {
+    "@astrojs/markdown-remark": "7.2.4",
     "@astrojs/starlight": "^0.41.10",
     "@fontsource-variable/hanken-grotesk": "^5.3.0",
     "@fontsource/ibm-plex-mono": "^5.3.0",

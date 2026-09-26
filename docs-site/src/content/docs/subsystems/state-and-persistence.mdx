@@ -41,7 +41,7 @@ it was handed, so the state a tick began with is still readable when it ends.
 | `resources` | Every stock: water, temperature, the passives, food and waste, the nitrogen chain, the nutrients, the two gases, KH and GH, the two colonies — pH is derived, never stored |
 | `environment` | Room temperature, tap temperature, tap KH and GH — what the tank sits in |
 | `equipment` | Eleven fixtures, each with its own settings and schedule |
-| `plants` · `fish` · `clutches` | The organisms, as arrays of individuals |
+| `plants` · `fish` · `clutches` | The organisms, as arrays of individuals. A plant carries its lineage — `parentId`, `familyId` — its `age` and its `vigour` beside its size, condition and bank ([Plants](/subsystems/plants/#lineage-family-age-and-vigour)) |
 | `algae` | One population, mass and bank — not an array |
 | `rng` | The seed and the stream position every draw comes off |
 | `logs` | The event stream |
@@ -68,8 +68,8 @@ organisms, individual variation, scrub bites and ids all replay. Leave it out
 and the tank takes a time-derived one.
 
 Everything the engine cannot derive from physics comes off this stream: a fish's
-sex, its hardiness offset, its health jitter, a scrub's bite, and every
-organism's name. That last one is what makes ids replay too.
+sex, its hardiness offset, its health jitter, a plant's vigour, a scrub's bite,
+and every organism's name. That last one is what makes ids replay too.
 
 ### Ids
 
@@ -95,7 +95,7 @@ again the way it first was: a retuned tap re-resolves KH and GH through it
 | `substrate` | The bed's remaining organic and KH reserves |
 | `resources` | The three nitrogen compounds, the four nutrients, KH, GH, and both dissolved gases |
 | `fish` | Groups of species, count, age, sex and stage |
-| `plants` | Groups of species, count and size |
+| `plants` | Groups of species, count, size and age |
 
 Nothing here is validated or clamped beyond the non-finite refusal. A seed can
 say anything the state shape can hold.
@@ -152,7 +152,7 @@ browser storage.
 
 ## Key tunables
 
-| Constant | Meaning | Unit |
+| Constant | Meaning | Value |
 |---|---|---|
 | `PERSISTENCE_VERSION` | The one integer a stored tank is checked against | integer |
 | Save debounce | Delay before a state change reaches storage | `2000` ms |
@@ -172,7 +172,7 @@ browser storage.
 | [Nitrogen cycle](/subsystems/nitrogen-cycle/) | — | A seed writes both colonies, and `'cycled'` writes the nitrate a month of leaching left behind |
 | [Equipment](/subsystems/equipment/) | `substrate.type`, which decides what a `'cycled'` bed resolves to | The bed's remaining reserves |
 | [Livestock](/subsystems/livestock/) | — | Seeded rosters, built through the same factory stocking uses and drawing on the same stream |
-| [Plants](/subsystems/plants/) | — | Seeded plantings, at a named size, full condition and an empty bank |
+| [Plants](/subsystems/plants/) | — | Seeded plantings, at a named size and age, each founding its own family at full condition with an empty bank; the draw stream for every unit's vigour and id, offshoots included |
 | [Water & gases](/subsystems/water-and-gases/) | `tapKh` and `tapGh`, which a `'cycled'` KH and GH resolve against | Both dissolved gases, KH and GH, where a seed names them |
 | [Environment](/subsystems/environment/) | `tank.capacity` — every per-litre seed figure resolves against it | — |
 | [Actions](/subsystems/actions/) | — | Supplies the draw stream for ids and the scrub's bite, and takes back the advanced position |

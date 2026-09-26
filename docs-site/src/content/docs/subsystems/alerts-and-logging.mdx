@@ -74,7 +74,7 @@ emitted per hour, and nothing is written unless something happened.
 
 | Source | Written when |
 |---|---|
-| `simulation` | The tank is built; a fish or plant dies; a spawn, a laying or a hatch |
+| `simulation` | The tank is built; a fish or plant dies; a spawn, a laying, a hatch or an offshoot |
 | `user` | Any applied action — a refused one logs nothing |
 | `scrub` | The scrub action, filed under its own channel |
 | `evaporation` · `nitrogen-cycle` · `gas-exchange` · `algae` | The alert lines, each under the system whose reading tripped |
@@ -93,10 +93,10 @@ everything else is `info`.
 | `event` | Present only on the lifecycle moments a caller reacts to |
 | `count` | Present where one entry accounts for many organisms |
 
-Six typed events exist: `fish-spawned`, `eggs-laid`, `eggs-hatched`,
-`fish-died`, `plant-died` and `fry-sold`. Three of them carry a count — a live
-birth, a hatch and a fry sale — because the number is the point. Deaths are
-one entry per organism, so they need none.
+Seven typed events exist: `fish-spawned`, `eggs-laid`, `eggs-hatched`,
+`fish-died`, `plant-died`, `plant-propagated` and `fry-sold`. Three of them
+carry a count — a live birth, a hatch and a fry sale — because the number is the
+point. Deaths and offshoots are one entry per organism, so they need none.
 
 The discriminator is the contract. A caller that parses the free text is
 reading a field that exists to be rewritten.
@@ -120,7 +120,7 @@ declared range, so they cannot be moved through the config layer the way a
 severity or a rate can. The four water-quality lines are the fish tolerance
 edges, defined with [livestock](/subsystems/livestock/).
 
-| Constant | Meaning | Unit |
+| Constant | Meaning | Value |
 |---|---|---|
 | `WATER_LEVEL_CRITICAL_THRESHOLD` | Share of capacity below which the level is critical | `0.2` |
 | `FREE_AMMONIA_EDGE` | Free (unionized) NH₃ at which the alert fires | `0.02` ppm |
@@ -138,7 +138,7 @@ edges, defined with [livestock](/subsystems/livestock/).
 | [Nitrogen cycle](/subsystems/nitrogen-cycle/) | `ammonia`, `nitrite` and `nitrate`, converted from mass to ppm against standing water | — |
 | [Environment](/subsystems/environment/) | `water` against `tank.capacity` | — |
 | [Algae](/subsystems/algae/) | `algae.mass` directly — algae is an organism, not a resource | — |
-| [Plants](/subsystems/plants/) | — | Receives a `plant-died` entry per plant lost |
+| [Plants](/subsystems/plants/) | — | Receives a `plant-died` entry per plant lost and a `plant-propagated` entry per offshoot |
 | [Livestock](/subsystems/livestock/) | — | Receives death, spawn, laying and hatch entries |
 | [Actions](/subsystems/actions/) | — | Receives one entry per applied action |
 | [State & persistence](/subsystems/state-and-persistence/) | — | `alertState` is persisted; `logs` are not |

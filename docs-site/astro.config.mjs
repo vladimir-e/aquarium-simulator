@@ -1,10 +1,38 @@
 // @ts-check
 import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
+import { unified } from '@astrojs/markdown-remark';
+
+const identifierBreak = /(?<=[a-z\d])(?=[A-Z])|(?<=[_/])(?=\w)|(?<=\.)(?=[A-Za-z])/;
+
+/** @param {string} value */
+const text = (value) => ({ type: 'text', value });
+
+/** @param {any} node @param {boolean} inCell @param {boolean} inCode */
+function tidyCells(node, inCell, inCode) {
+  if (!node.children) return;
+  node.children = node.children.flatMap((/** @type {any} */ child) => {
+    if (child.type !== 'text' || !inCell) {
+      tidyCells(child, inCell || child.tagName === 'td', inCode || child.tagName === 'code');
+      return [child];
+    }
+    if (!inCode) return [text(child.value.replace(/(\d)–(?=\d)/g, '$1–\u2060'))];
+    return child.value
+      .split(identifierBreak)
+      .flatMap((/** @type {string} */ part, /** @type {number} */ i) =>
+        i === 0 ? [text(part)] : [{ type: 'element', tagName: 'wbr', properties: {}, children: [] }, text(part)]
+      );
+  });
+}
+
+const tableCells = () => (/** @type {any} */ tree) => tidyCells(tree, false, false);
 
 export default defineConfig({
   site: 'https://docs.fishroom.app',
   server: { port: 2050, host: true },
+  markdown: {
+    processor: unified({ rehypePlugins: [tableCells] }),
+  },
   vite: {
     server: {
       allowedHosts: ['.local'],
@@ -28,6 +56,9 @@ export default defineConfig({
         '@fontsource/ibm-plex-mono/500.css',
         './src/styles/theme.css',
       ],
+      expressiveCode: {
+        defaultProps: { wrap: true, hangingIndent: 2 },
+      },
       editLink: {
         baseUrl: 'https://github.com/vladimir-e/aquarium-simulator/edit/main/docs-site/',
       },
