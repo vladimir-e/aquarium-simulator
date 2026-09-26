@@ -48,11 +48,14 @@ export function NutrientsWidget({
       className={className}
       footer={
         <>
-          <VerbButton
-            label={actLabel('dose', advice?.ml)}
-            hot={advice !== null}
-            onClick={() => onAct('dose', advice?.ml)}
-          />
+          <div className="flex flex-wrap items-center gap-1.5">
+            <VerbButton
+              label={actLabel('dose', advice?.ml)}
+              hot={advice !== null}
+              onClick={() => onAct('dose', advice?.ml)}
+            />
+            <p className="text-[12px] text-ink-3">1 ml moves {perMl}</p>
+          </div>
           {bed && (
             <VerbButton
               label={actLabel('rootTab', tabs)}
@@ -60,7 +63,6 @@ export function NutrientsWidget({
               onClick={() => onAct('rootTab', tabs)}
             />
           )}
-          <p className="text-[12px] text-ink-3">1 ml moves {perMl}</p>
         </>
       }
     >

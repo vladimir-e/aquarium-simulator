@@ -1,10 +1,10 @@
 /**
- * The seven husbandry verbs in one shape: a master row, an option row, a preview
- * and a commit. Every option set is the engine's own (`WATER_CHANGE_AMOUNTS`,
- * `MAX_ROOT_TABS`, `TRIM_TARGETS`) and every refusal is an engine guard
- * (`canDose`, `canRootTab`, `canScrubAlgae`, `getPlantsToTrimCount`), stated where the verb would
- * otherwise say what it is about to do — so an unavailable verb is never a
- * dead end.
+ * The seven husbandry verbs in one shape: a master row, an option row, a
+ * preview and a commit. Every option set is the engine's own
+ * (`WATER_CHANGE_AMOUNTS`, `MAX_ROOT_TABS`, `TRIM_TARGETS`) and every refusal
+ * is an engine guard (`canDose`, `canRootTab`, `canScrubAlgae`,
+ * `getPlantsToTrimCount`), stated where the verb would otherwise say what it
+ * is about to do — so an unavailable verb is never a dead end.
  */
 
 import {
@@ -368,41 +368,38 @@ function rungsFor(
         }),
       };
     case 'dose': {
-      const advice = doseToCover(nutrientReadings(state, config), state, config);
-      // The engine takes 50 ml in one dose; a bigger ask is offered as far as it goes.
-      const advised = advice === null ? null : Math.min(advice.ml, MAX_DOSE_ML);
-      const asked =
-        advice?.overSingleDose === true ? `capped at ${MAX_DOSE_ML} ml` : 'covers the ask';
+      const advised = advisedRungs(
+        DOSE_PRESETS,
+        doseToCover(nutrientReadings(state, config), state, config)?.ml ?? null,
+        MAX_DOSE_ML,
+        'ml'
+      );
       return {
-        values:
-          advised === null
-            ? DOSE_PRESETS
-            : [...new Set([...DOSE_PRESETS, advised])].sort((a, b) => a - b),
+        values: advised.values,
         rung: (ml) => ({
           value: ml,
           label: `${ml} ml`,
           hint:
-            ml === advised
-              ? asked
-              : `+${nitrateRise(state, ml, config).toFixed(NitrateResource.precision)} NO₃`,
+            advised.hint(ml) ??
+            `+${nitrateRise(state, ml, config).toFixed(NitrateResource.precision)} NO₃`,
           disabled: false,
         }),
       };
     }
     case 'rootTab': {
-      const advice = bedReading(state, config)?.advice ?? null;
-      const advised = advice === null ? null : Math.min(advice, MAX_ROOT_TABS);
-      const asked = advice !== null && advice > MAX_ROOT_TABS ? `capped at ${MAX_ROOT_TABS}` : 'covers the ask';
+      const advised = advisedRungs(
+        ROOT_TAB_PRESETS,
+        bedReading(state, config)?.advice ?? null,
+        MAX_ROOT_TABS,
+        'tabs'
+      );
       const tabbable = canRootTab(state);
       return {
-        values:
-          advised === null
-            ? ROOT_TAB_PRESETS
-            : [...new Set([...ROOT_TAB_PRESETS, advised])].sort((a, b) => a - b),
+        values: advised.values,
         rung: (count) => ({
           value: count,
           label: String(count),
-          hint: count === advised ? asked : tabbable ? `bed ${bedAfter(state, count, config)}` : '—',
+          hint: advised.hint(count) ?? (tabbable ? `bed ${bedAfter(state, count, config)}` : '—'),
           disabled: !tabbable,
         }),
       };
@@ -421,6 +418,26 @@ function rungsFor(
         },
       };
   }
+}
+
+/**
+ * The presets with the advised amount slotted in — held to the most the engine
+ * takes in one go, so a bigger ask is offered as far as it goes — and the hint
+ * that rung carries in place of its own.
+ */
+function advisedRungs(
+  presets: number[],
+  advice: number | null,
+  max: number,
+  unit: string
+): { values: number[]; hint: (value: number) => string | null } {
+  if (advice === null) return { values: presets, hint: () => null };
+  const advised = Math.min(advice, max);
+  return {
+    values: [...new Set([...presets, advised])].sort((a, b) => a - b),
+    hint: (value) =>
+      value !== advised ? null : advice > max ? `capped at ${max} ${unit}` : 'covers the ask',
+  };
 }
 
 function bedAfter(state: SimulationState, count: number, config: TunableConfig): string {
@@ -469,7 +486,7 @@ function meta(
       const bed = bedReading(state, config);
       if (bed === null) return 'bare bottom';
       const holds = `bed holds ${bed.text} tabs`;
-      return bed.needed > 0 ? `${holds} · roots need ${bed.neededText}` : holds;
+      return bed.needed > 0 ? `${holds} · roots need ${bed.neededText} tabs` : holds;
     }
     case 'trimPlants': {
       const reach = reached(state, scope);

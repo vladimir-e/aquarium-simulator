@@ -4,9 +4,9 @@
  * counts them, how the bloom reads off its coverage, and the tank's nutrient
  * readings, the bed's among them. Nothing here invents a band — a nutrient or
  * the bed reads short when the engine's own sufficiency would rise if it were
- * topped up, and high past
- * a line the engine itself charges or alerts from, so no surface can name a
- * shortage or an excess the tank is not actually feeling.
+ * topped up, and high past a line the engine itself charges or alerts from, so
+ * no surface can name a shortage or an excess the tank is not actually
+ * feeling.
  */
 
 import {
@@ -16,7 +16,6 @@ import {
   getSubstrateNutrients,
   growthFormOf,
   isOvergrown,
-  MAX_DOSE_ML,
   PLANT_SPECIES_DATA,
   plantNitrateEdge,
   speciesHalfSaturation,
@@ -339,14 +338,14 @@ function neededPpm(plants: readonly Plant[], key: Nutrient, config: TunableConfi
  * them with all of it present — the probe's yardstick; and the plants'
  * sufficiency on any pair.
  */
-interface Probe {
+export interface NutrientProbe {
   need: { water: NutrientVector; bed: NutrientVector };
   water: Resources;
   bed: NutrientVector;
   sufficiency: (water: Resources, bed: NutrientVector, species: PlantSpecies) => number;
 }
 
-function probe(state: SimulationState, config: TunableConfig): Probe {
+export function nutrientProbe(state: SimulationState, config: TunableConfig): NutrientProbe {
   const water = state.resources.water;
   const capacity = state.tank.capacity;
   const standing = state.equipment.substrate.nutrients;
@@ -376,11 +375,11 @@ function probe(state: SimulationState, config: TunableConfig): Probe {
 
 export function nutrientReadings(
   state: SimulationState,
-  config: TunableConfig
+  config: TunableConfig,
+  yardstick: NutrientProbe = nutrientProbe(state, config)
 ): NutrientReading[] {
   const water = state.resources.water;
   const plants = state.plants.filter(FEEDS_FROM.water);
-  const yardstick = probe(state, config);
 
   /**
    * Ask the engine rather than restate it: hold every other nutrient, in both
@@ -435,13 +434,13 @@ export function nutrientReadings(
 export const TAB_DECIMALS = 1;
 
 export interface BedReading {
-  /** Tabs' worth of the nutrient the bed holds least of, against what a tab carries. */
+  /** Tabs' worth of the nutrient the bed runs shortest on against its root feeders' need — with none, the one it holds least of. */
   tabs: number;
   text: string;
-  /** Tabs' worth the hungriest root feeder needs, on the nutrient it needs most of; 0 when nothing roots in it. */
+  /** Tabs' worth of that nutrient its hungriest root feeder needs; 0 when nothing roots in it. */
   needed: number;
   neededText: string;
-  /** Tabs' worth a fresh bag of aqua soil holds in this tank — the reading's full scale. */
+  /** Tabs' worth of that nutrient a fresh bag of aqua soil holds in this tank — the reading's full scale. */
   scale: number;
   /** Topping the bed up would raise the engine's sufficiency for some root feeder. */
   limiting: boolean;
@@ -450,35 +449,40 @@ export interface BedReading {
   status: Status;
 }
 
-/** Tabs' worth of the scarcest nutrient in a store, by what one tab carries of each. */
-function tabsOf(stock: NutrientVector, tab: NutrientVector, pick: (...tabs: number[]) => number): number {
-  const carried = NUTRIENTS.filter((n) => tab[n] > 0);
-  return carried.length > 0 ? pick(...carried.map((n) => stock[n] / tab[n])) : 0;
-}
-
 /**
  * The bed as its root feeders read it, in the tabs a keeper pushes into it —
- * short on the same probe as the water's nutrients. Null over a bare bottom,
- * which holds nothing and takes no tab.
+ * short on the same probe as the water's nutrients, and read on the one
+ * nutrient it runs out of first, so its marker sits in the band exactly when
+ * every nutrient meets the need. Null over a bare bottom, which holds nothing
+ * and takes no tab.
  */
-export function bedReading(state: SimulationState, config: TunableConfig): BedReading | null {
+export function bedReading(
+  state: SimulationState,
+  config: TunableConfig,
+  yardstick: NutrientProbe = nutrientProbe(state, config)
+): BedReading | null {
   const { substrate } = state.equipment;
   if (substrate.type === 'none') return null;
 
   const tab = config.nutrients.rootTab;
   const capacity = state.tank.capacity;
+  const stock = substrate.nutrients;
   const roots = state.plants.filter(FEEDS_FROM.bed);
-  const yardstick = probe(state, config);
   const need = mapNutrients((n) => getMassFromPpm(yardstick.need.bed[n], capacity));
   const limiting = roots.some(
     (plant) =>
-      yardstick.sufficiency(yardstick.water, substrate.nutrients, plant.species) <
+      yardstick.sufficiency(yardstick.water, stock, plant.species) <
       yardstick.sufficiency(yardstick.water, yardstick.bed, plant.species)
   );
 
-  const tabs = tabsOf(substrate.nutrients, tab, Math.min);
-  const needed = tabsOf(need, tab, Math.max);
-  const short = tabsOf(mapNutrients((n) => need[n] - substrate.nutrients[n]), tab, Math.max);
+  const asked = roots.length > 0;
+  const against = asked ? need : tab;
+  const carried = NUTRIENTS.filter((n) => tab[n] > 0);
+  const [binding] = carried.sort((a, b) => stock[a] / against[a] - stock[b] / against[b]);
+  const tabsOf = (vector: NutrientVector): number => (binding ? vector[binding] / tab[binding] : 0);
+  const tabs = tabsOf(stock);
+  const needed = asked ? tabsOf(need) : 0;
+  const short = Math.max(0, ...carried.map((n) => (need[n] - stock[n]) / tab[n]));
   const step = 10 ** TAB_DECIMALS;
 
   return {
@@ -486,14 +490,14 @@ export function bedReading(state: SimulationState, config: TunableConfig): BedRe
     text: tabs.toFixed(TAB_DECIMALS),
     needed,
     neededText: needed > 0 ? (Math.ceil(needed * step) / step).toFixed(TAB_DECIMALS) : '—',
-    scale: tabsOf(getSubstrateNutrients('aqua_soil', capacity), tab, Math.min),
+    scale: tabsOf(getSubstrateNutrients('aqua_soil', capacity)),
     limiting,
     advice: limiting ? Math.max(1, Math.ceil(short)) : null,
     status: limiting
       ? printsAsZero(tabs, TAB_DECIMALS)
         ? 'alert'
         : 'warn'
-      : roots.length > 0 && NUTRIENTS.every((n) => substrate.nutrients[n] >= need[n])
+      : asked && tabs >= needed
         ? 'ok'
         : 'neutral',
   };
@@ -568,8 +572,6 @@ export function formatDose(deltas: NutrientDelta[]): string {
 export interface DoseAdvice {
   /** Whole ml of fertiliser that lifts every short nutrient to what the plants need. */
   ml: number;
-  /** More than the engine takes in a single dose, so it wants splitting. */
-  overSingleDose: boolean;
   /** Labels of the nutrients it clears, so the advice names its own scope. */
   covers: string[];
 }
@@ -588,10 +590,5 @@ export function doseToCover(
     (most, r) => Math.max(most, ((r.needed - r.ppm) * water) / formula[r.key]),
     0
   );
-  const whole = Math.max(1, Math.ceil(ml));
-  return {
-    ml: whole,
-    overSingleDose: whole > MAX_DOSE_ML,
-    covers: short.map((r) => r.label),
-  };
+  return { ml: Math.max(1, Math.ceil(ml)), covers: short.map((r) => r.label) };
 }

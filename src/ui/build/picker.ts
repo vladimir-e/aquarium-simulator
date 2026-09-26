@@ -10,6 +10,7 @@ import {
   checkPlantFootprint,
   FISH_SPECIES_DATA,
   getDgh,
+  growthFormOf,
   getMaxFishMass,
   getPh,
   PLANT_SPECIES_DATA,
@@ -19,7 +20,7 @@ import {
   type PlantSpecies,
   type SimulationState,
 } from '../../simulation/index.js';
-import type { Status } from '../run';
+import { printsAsZero, TAB_DECIMALS, type BedReading, type Status } from '../run';
 import { bioload } from './stocking.js';
 import { lightTier } from './scape.js';
 import {
@@ -42,6 +43,8 @@ export interface PickerOption {
   headroom: number;
   /** Why none can go in, in the engine's words. */
   refusal: string | null;
+  /** What to know before committing that the rows don't say. */
+  note: string | null;
 }
 
 export const FISH_SPECIES: FishSpecies[] = Object.keys(FISH_SPECIES_DATA) as FishSpecies[];
@@ -123,10 +126,22 @@ function fishOption(
     status: worst ? 'warn' : load.status === 'ok' ? 'neutral' : load.status,
     headroom,
     refusal: capacity.ok ? null : capacity.message,
+    note: 'Sex is random.',
   };
 }
 
-function plantOption(state: SimulationState, species: PlantSpecies): PickerOption {
+/** A root feeder's word on a bed with nothing in it for its roots. */
+function rootNote(species: PlantSpecies, bed: BedReading | null): string | null {
+  if (growthFormOf(species).rootShare === 0) return null;
+  if (bed === null) return 'Its roots have no bed to feed from.';
+  return printsAsZero(bed.tabs, TAB_DECIMALS) ? 'Its roots need tabs — the bed is empty.' : null;
+}
+
+function plantOption(
+  state: SimulationState,
+  species: PlantSpecies,
+  bed: BedReading | null
+): PickerOption {
   const data = PLANT_SPECIES_DATA[species];
   const footprint = checkPlantFootprint(state.plants, species, state.tank.capacity);
 
@@ -138,6 +153,7 @@ function plantOption(state: SimulationState, species: PlantSpecies): PickerOptio
     status: footprint.ok ? 'neutral' : 'warn',
     headroom: Math.floor(footprint.free / footprint.needed),
     refusal: footprint.ok ? null : footprint.message,
+    note: rootNote(species, bed),
   };
 }
 
@@ -146,9 +162,10 @@ export function pickerOptions(
   kind: PickerKind,
   state: SimulationState,
   count: number,
-  units: UnitSystem
+  units: UnitSystem,
+  bed: BedReading | null
 ): PickerOption[] {
   return kind === 'fish'
     ? FISH_SPECIES.map((species) => fishOption(state, species, count, units))
-    : PLANT_SPECIES.map((species) => plantOption(state, species));
+    : PLANT_SPECIES.map((species) => plantOption(state, species, bed));
 }

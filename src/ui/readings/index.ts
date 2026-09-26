@@ -41,6 +41,7 @@ import {
   groupBySpecies,
   groupFry,
   groupPlantsBySpecies,
+  nutrientProbe,
   nutrientReadings,
   plantRows,
   projectedDrift,
@@ -426,11 +427,6 @@ function nutrientView(
   };
 }
 
-/** A bed's position on its scale: a fresh bag of aqua soil in this tank reads full. */
-export function bedAt(bed: BedReading, tabs: number): number {
-  return onScale(bed.scale, tabs);
-}
-
 /** The bed read in the tabs a keeper pushes into it, banded on what its root feeders ask for. */
 function bedView(bed: BedReading | null): NeedView {
   const asked = bed !== null && bed.needed > 0;
@@ -439,8 +435,8 @@ function bedView(bed: BedReading | null): NeedView {
     name: 'Bed',
     value: bed?.text ?? '—',
     unit: 'tabs',
-    at: bed ? bedAt(bed, bed.tabs) : 0,
-    band: asked ? { from: bedAt(bed, bed.needed), to: 1 } : null,
+    at: bed ? onScale(bed.scale, bed.tabs) : 0,
+    band: asked ? { from: onScale(bed.scale, bed.needed), to: 1 } : null,
     tone: bed ? toneOf(bed.status) : 'ink',
     trend: '',
     need: asked ? `need ${bed.neededText}` : '',
@@ -448,7 +444,7 @@ function bedView(bed: BedReading | null): NeedView {
       bed === null
         ? 'A bare bottom holds nothing for roots, and takes no tab.'
         : asked
-          ? `Root tabs' worth of the nutrient the bed holds least of. Root feeders ask for ${bed.neededText} — below it the engine's own sufficiency drops.`
+          ? `Root tabs' worth of the nutrient the bed runs shortest on. Root feeders ask for ${bed.neededText} tabs — below it the engine's own sufficiency drops.`
           : "Root tabs' worth of the nutrient the bed holds least of. Nothing here feeds through its roots, so it only leaks into the water.",
     net: null,
     fills: [],
@@ -465,8 +461,9 @@ function bedView(bed: BedReading | null): NeedView {
 export function readTank({ state, config, history, units }: TankInput): ReadingBook {
   const tape = tapeOf(state, history, units);
   const ahead = readHourAhead(state, config);
-  const nutrients = nutrientReadings(state, config);
-  const bed = bedReading(state, config);
+  const yardstick = nutrientProbe(state, config);
+  const nutrients = nutrientReadings(state, config, yardstick);
+  const bed = bedReading(state, config, yardstick);
   const nitrate = nutrients.find((n) => n.key === 'nitrate')!;
   const water = waterReadings(state, config, units, nitrate);
   const gases = gasReadings(state);

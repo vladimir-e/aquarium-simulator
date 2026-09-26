@@ -145,6 +145,8 @@ export {
   groupPlantsBySpecies,
   floorPlanted,
   sharePercent,
+  type NutrientProbe,
+  nutrientProbe,
   type NutrientReading,
   nutrientReadings,
   type NutrientAlert,

@@ -110,7 +110,7 @@ describe('the seven verbs', () => {
   it('offers the engine’s biggest single dose where the ask is bigger still', () => {
     const state = starved();
     const advice = doseToCover(nutrientReadings(state, DEFAULT_CONFIG), state, DEFAULT_CONFIG)!;
-    expect(advice.overSingleDose).toBe(true);
+    expect(advice.ml).toBeGreaterThan(MAX_DOSE_ML);
 
     const options = detail(state, 'dose').options;
     expect(options.map((o) => o.value)).toEqual([...DOSE_PRESETS, MAX_DOSE_ML]);

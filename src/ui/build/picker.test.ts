@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
+  applyAction,
   createSimulation,
   FISH_SPECIES_DATA,
   getMaxFishMass,
@@ -13,6 +14,8 @@ import {
 import { getGhMass } from '../../simulation/resources/index.js';
 import { pickerOptions, type PickerOption } from './picker';
 import { bioload } from './stocking';
+import { bedReading, type BedReading } from '../run';
+import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
 
 function makeFish(overrides: Partial<Fish> & { id: string }): Fish {
   return {
@@ -51,11 +54,11 @@ function option(options: PickerOption[], species: string): PickerOption {
 }
 
 function fish(state: SimulationState, count = 1): PickerOption[] {
-  return pickerOptions('fish', state, count, 'metric');
+  return pickerOptions('fish', state, count, 'metric', null);
 }
 
-function plants(state: SimulationState): PickerOption[] {
-  return pickerOptions('plant', state, 1, 'metric');
+function plants(state: SimulationState, bed: BedReading | null = null): PickerOption[] {
+  return pickerOptions('plant', state, 1, 'metric', bed);
 }
 
 describe('fish options', () => {
@@ -179,6 +182,17 @@ describe('plant options', () => {
         }
       }
     }
+  });
+
+  it('tells a root feeder over an empty bed that its roots need tabs, without refusing it', () => {
+    const gravel = tank(200);
+    gravel.equipment.substrate.type = 'gravel';
+    const empty = plants(gravel, bedReading(gravel, DEFAULT_CONFIG));
+    const tabbed = applyAction(gravel, { type: 'rootTab', count: 2 }).state;
+
+    expect(option(empty, 'amazon_sword')).toMatchObject({ note: 'Its roots need tabs — the bed is empty.', refusal: null });
+    expect(option(empty, 'java_fern').note).toBeNull();
+    expect(option(plants(tabbed, bedReading(tabbed, DEFAULT_CONFIG)), 'amazon_sword').note).toBeNull();
   });
 
   it('refuses in the action’s own words once the floor is taken', () => {

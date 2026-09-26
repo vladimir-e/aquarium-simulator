@@ -187,6 +187,7 @@ export function LifeSection({
         key={adding}
         kind={adding}
         state={state}
+        bed={book.bed}
         onClose={closePicker}
         onAdd={add}
       />

@@ -477,6 +477,28 @@ describe('bedReading', () => {
     );
   });
 
+  it('reads short, amber, on a bed holding some of what its root feeders need', () => {
+    const bed = bedReading(tab(sword(), 1), DEFAULT_CONFIG)!;
+    expect(bed).toMatchObject({ limiting: true, status: 'warn' });
+    expect(bed.tabs).toBeLessThan(bed.needed);
+  });
+
+  it('reads value and band on one nutrient, so the marker sits in the band exactly when the bed reads met', () => {
+    const bedded = (nitrate: number): SimulationState =>
+      produce(fed(planted(['amazon_sword'], 75.7)), (draft) => {
+        draft.equipment.substrate.nutrients = { ...draft.equipment.substrate.nutrients, nitrate, phosphate: 118, potassium: 1500, iron: 75 };
+      });
+
+    const met = bedReading(bedded(912), DEFAULT_CONFIG)!;
+    expect(met.status).toBe('ok');
+    expect(met.tabs).toBeGreaterThanOrEqual(met.needed);
+    expect(met.tabs).toBeLessThanOrEqual(met.scale);
+
+    const short = bedReading(bedded(500), DEFAULT_CONFIG)!;
+    expect(short.status).toBe('warn');
+    expect(short.tabs).toBeLessThan(short.needed);
+  });
+
   it('asks nothing of the bed where nothing roots in it', () => {
     const bed = bedReading(fed(planted(['java_fern'])), DEFAULT_CONFIG)!;
     expect(bed).toMatchObject({ needed: 0, neededText: '—', limiting: false, advice: null, status: 'neutral' });
@@ -503,7 +525,8 @@ describe('dose arithmetic', () => {
   it('recommends a dose that actually clears the deficit when the engine applies it', () => {
     const state = planted(['monte_carlo'], 40);
     const advice = doseToCover(nutrientReadings(state, DEFAULT_CONFIG), state, DEFAULT_CONFIG);
-    expect(advice).toMatchObject({ overSingleDose: false, covers: ['NO₃', 'PO₄', 'K', 'Fe'] });
+    expect(advice).toMatchObject({ covers: ['NO₃', 'PO₄', 'K', 'Fe'] });
+    expect(advice!.ml).toBeLessThanOrEqual(MAX_DOSE_ML);
 
     const after = dosed(state, advice?.ml ?? 0);
     expect(nutrientReadings(after, DEFAULT_CONFIG).some((r) => r.limiting)).toBe(false);
@@ -515,7 +538,7 @@ describe('dose arithmetic', () => {
   it('says when covering the deficit takes more than one dose', () => {
     const state = planted(['monte_carlo']);
     const advice = doseToCover(nutrientReadings(state, DEFAULT_CONFIG), state, DEFAULT_CONFIG);
-    expect(advice).toMatchObject({ overSingleDose: true, covers: ['NO₃', 'PO₄', 'K', 'Fe'] });
+    expect(advice).toMatchObject({ covers: ['NO₃', 'PO₄', 'K', 'Fe'] });
     expect(advice!.ml).toBeGreaterThan(MAX_DOSE_ML);
     expect(applyAction(state, { type: 'dose', amountMl: advice!.ml }).state).toBe(state);
   });

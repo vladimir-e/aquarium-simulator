@@ -28,11 +28,12 @@ import {
   PotassiumResource,
 } from '../../simulation/resources/index.js';
 import type { StripBand } from '../components/ui/strip.js';
-import { bedAt, DISPLAY_CEILING, onScale } from '../readings';
+import { DISPLAY_CEILING, onScale } from '../readings';
 import {
   algaeStatus,
   bedReading,
   classifyVital,
+  nutrientProbe,
   nutrientReadings,
   readingAt,
   stockedBand,
@@ -86,15 +87,16 @@ interface Sheet {
 }
 
 function sheetOf(state: SimulationState, config: TunableConfig, units: UnitSystem): Sheet {
+  const yardstick = nutrientProbe(state, config);
   const nutrients = {} as Record<Nutrient, NutrientReading>;
-  for (const reading of nutrientReadings(state, config)) nutrients[reading.key] = reading;
+  for (const reading of nutrientReadings(state, config, yardstick)) nutrients[reading.key] = reading;
 
   const water = {} as Record<WaterKey, WaterReading>;
   for (const reading of waterReadings(state, config, units, nutrients.nitrate)) {
     water[reading.key] = reading;
   }
 
-  return { state, config, units, water, nutrients, bed: bedReading(state, config) };
+  return { state, config, units, water, nutrients, bed: bedReading(state, config, yardstick) };
 }
 
 function temperatureNote(value: number, _before: number, { state, units }: Sheet): string | null {
@@ -208,9 +210,9 @@ function nutrient(key: Nutrient, label: string, decimals: number): Reading {
 
 /**
  * Canonical order: the nitrogen cycle, then the physical readings, then the
- * dissolved gases, then plant food and the bed, then the two organic stocks, then the
- * planting's shade and its largest unit. A verb's rows come out in this order
- * however many of them move.
+ * dissolved gases, then plant food and the bed, then the two organic stocks,
+ * then the planting's shade and its largest unit. A verb's rows come out in
+ * this order however many of them move.
  */
 const READINGS: Reading[] = [
   fromWater('ammonia', {
@@ -322,8 +324,8 @@ const READINGS: Reading[] = [
     display: same,
     decimals: TAB_DECIMALS,
     status: (_value, { bed }) => bed?.status ?? 'neutral',
-    at: (value, { bed }) => (bed ? bedAt(bed, value) : 0),
-    band: ({ bed }) => (bed && bed.needed > 0 ? { from: bedAt(bed, bed.needed), to: 1 } : null),
+    at: (value, { bed }) => (bed ? onScale(bed.scale, value) : 0),
+    band: ({ bed }) => (bed && bed.needed > 0 ? { from: onScale(bed.scale, bed.needed), to: 1 } : null),
     note: none,
   },
   {
