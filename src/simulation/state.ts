@@ -451,6 +451,12 @@ export function scheduledLightHistory(
   return scheduledLightByHour(state.equipment.light, calculateTankHeight(state.tank.capacity), optics);
 }
 
+/** A tank at hour zero lit under `optics`: its light, and the day it reads, as its schedule has run. */
+export function relight(state: SimulationState, optics: OpticsConfig): SimulationState {
+  const lightByHour = scheduledLightHistory(state, optics);
+  return { ...state, resources: { ...state.resources, light: lightByHour[0], lightByHour } };
+}
+
 /**
  * Calculates tank bacteria surface area in cm² from capacity.
  * Includes 4 walls + bottom (excludes top which is open).
@@ -639,7 +645,7 @@ export function createSimulation(
     autoDoser: autoDoserConfig,
   };
   // The constructor takes no tunable config, so the tank is lit on the shipped
-  // optics. A caller running tuned optics owes this a recompute — a paused tank
+  // optics. A caller running tuned optics owes it a `relight` — a paused tank
   // has no next tick.
   const lightByHour = scheduledLightHistory({ tank, equipment }, opticsDefaults);
 

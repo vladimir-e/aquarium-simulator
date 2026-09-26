@@ -3,7 +3,6 @@ import {
   buildPlantStressors,
   buildPlantBenefits,
   computePlantVitality,
-  lightShortfall,
   plantHealingRate,
   type PlantVitalityContext,
 } from './plant-vitality.js';
@@ -107,23 +106,10 @@ describe('buildPlantStressors', () => {
       (s) => s.key === key
     )?.amount ?? 0;
 
-  it('charges an Anubias in good conditions nothing but the tail of its nutrient curve', () => {
+  it('charges a fed Anubias in good conditions nothing', () => {
     const plant = makePlant('anubias', { surplus: plantsDefaults.surplusCap });
-    const context = ctx(plant, makeResources());
-    for (const s of buildPlantStressors(context)) {
-      if (s.key === 'nutrients') {
-        expect(s.amount).toBeCloseTo(
-          lightSaturationFactor(context.resources.light, getSaturationIrradiance('anubias', plantsDefaults)) *
-            plantsDefaults.nutrientDeficiencySeverity *
-            (1 - context.nutrientSufficiency) *
-            (1 - PLANT_SPECIES_DATA.anubias.hardiness),
-          12
-        );
-        expect(s.amount).toBeLessThan(0.1 * plantsDefaults.nutrientDeficiencySeverity);
-      } else {
-        expect(s.amount).toBe(0);
-      }
-    }
+    const fed = { ...ctx(plant, makeResources()), nutrientSufficiency: plantsDefaults.sufficiencyEdge };
+    for (const s of buildPlantStressors(fed)) expect(s.amount).toBe(0);
   });
 
   it.each<[string, PlantSpecies, (gap: number) => ResourceOverrides]>([
@@ -136,6 +122,19 @@ describe('buildPlantStressors', () => {
     const one = amount(species, key, at(1));
     expect(one).toBeGreaterThan(0);
     expect(amount(species, key, at(2))).toBeCloseTo(2 * one, 10);
+  });
+
+  it('charges deficiency from nothing at the sufficiency edge, linear under it', () => {
+    const at = (nutrientSufficiency: number): number =>
+      buildPlantStressors({ ...ctx(makePlant('monte_carlo'), makeResources()), nutrientSufficiency }).find(
+        (s) => s.key === 'nutrients'
+      )!.amount;
+    const edge = plantsDefaults.sufficiencyEdge;
+
+    expect(at(1)).toBe(0);
+    expect(at(edge)).toBe(0);
+    expect(at(edge / 2)).toBeCloseTo(at(0) / 2, 12);
+    expect(at(edge / 4)).toBeCloseTo((3 * at(0)) / 4, 12);
   });
 
   it('charges a gone nutrient at full severity on the light curve, and nothing in the dark', () => {
@@ -242,7 +241,6 @@ describe('buildPlantBenefits', () => {
     co2: plantsDefaults.co2BenefitPeak,
     temperature: plantsDefaults.temperatureBenefitPeak,
     ph: plantsDefaults.phBenefitPeak,
-    nutrients: plantsDefaults.nutrientBenefitPeak,
   };
 
   const PEAKS = Object.values(PEAK).reduce((sum, peak) => sum + peak, 0);
@@ -253,24 +251,31 @@ describe('buildPlantBenefits', () => {
     ph: centre(PLANT_SPECIES_DATA[species].tolerablePH),
   });
 
-  it('emits all four channels at their peak share of the light term', () => {
+  it('emits every channel at its peak share of the light term and the Liebig sufficiency', () => {
     const plant = makePlant('anubias');
     const resources = makeResources({ light: 30, co2: 5, ...atCentre('anubias') });
     const context = ctx(plant, resources);
     const benefits = buildPlantBenefits(context);
-    const keys = benefits.map((b) => b.key).sort();
-    expect(keys).toEqual(['co2', 'nutrients', 'ph', 'temperature']);
+    expect(benefits.map((b) => b.key).sort()).toEqual(['co2', 'ph', 'temperature']);
 
-    const saturation = lightSaturationFactor(
-      30,
-      getSaturationIrradiance('anubias', plantsDefaults)
-    );
+    const drive =
+      lightSaturationFactor(30, getSaturationIrradiance('anubias', plantsDefaults)) * context.nutrientSufficiency;
     const carbon = calculateCo2Factor(5, 'anubias');
     for (const benefit of benefits) {
-      const share =
-        benefit.key === 'co2' ? carbon : benefit.key === 'nutrients' ? context.nutrientSufficiency : 1;
-      expect(benefit.amount).toBeCloseTo(PEAK[benefit.key]! * saturation * share, 12);
+      const share = benefit.key === 'co2' ? carbon : 1;
+      expect(benefit.amount).toBeCloseTo(PEAK[benefit.key]! * drive * share, 12);
     }
+  });
+
+  it('earns in proportion to sufficiency, and nothing on a nutrient run dry', () => {
+    const at = (nutrientSufficiency: number): VitalityFactor[] =>
+      buildPlantBenefits({ ...ctx(makePlant('anubias'), makeResources(atCentre('anubias'))), nutrientSufficiency });
+
+    at(0).forEach((benefit) => expect(benefit.amount).toBe(0));
+    at(0.5).forEach((benefit, i) => {
+      expect(benefit.amount).toBeGreaterThan(0);
+      expect(benefit.amount).toBeCloseTo(at(1)[i]!.amount / 2, 12);
+    });
   });
 
   it('scales every channel by 1 + vigour, and no stressor at all', () => {
@@ -386,20 +391,9 @@ describe('buildPlantBenefits', () => {
       expect(atFactor(2)).toBeLessThan(atFactor(1));
       const carbonShort = PEAK.co2! * (1 - calculateCo2Factor(20, 'anubias'));
       const resources = makeResources({ light: 20, ...atCentre('anubias') });
-      const nutrientShort =
-        PEAK.nutrients! *
-        (1 - calculateNutrientSufficiency(resources, resources.water, 'anubias', nutrientsDefaults));
-      expect(atFactor(0)).toBeCloseTo(PEAKS - carbonShort - nutrientShort, 12);
+      const sufficiency = calculateNutrientSufficiency(resources, resources.water, 'anubias', nutrientsDefaults);
+      expect(atFactor(0)).toBeCloseTo(sufficiency * (PEAKS - carbonShort), 12);
     });
-  });
-});
-
-describe('lightShortfall', () => {
-  it('is 0 at or over the edge, 1 at no light, and linear between', () => {
-    expect(lightShortfall(2, 1)).toBe(0);
-    expect(lightShortfall(1, 1)).toBe(0);
-    expect(lightShortfall(0, 1)).toBe(1);
-    expect(lightShortfall(0.25, 1)).toBeCloseTo(0.75, 12);
   });
 });
 
@@ -423,10 +417,13 @@ describe('light at the plant\'s own height', () => {
   });
 
   it('earns, and asks for nutrients, on the PAR at its mean leaf', () => {
+    const fed = { potassium: getMassFromPpm(7, 100) };
+    expect(buildPlantBenefits(read({ light: 50, ...fed }, { leaf: 0.4, top: 1 }))).toEqual(
+      buildPlantBenefits(read({ light: 20, ...fed }, { leaf: 1, top: 1 }))
+    );
+
     const shaded = read({ light: 50 }, { leaf: 0.4, top: 1 });
     const dimmer = read({ light: 20 }, { leaf: 1, top: 1 });
-
-    expect(buildPlantBenefits(shaded)).toEqual(buildPlantBenefits(dimmer));
     expect(factor(buildPlantStressors(shaded), 'nutrients')).toBeCloseTo(
       factor(buildPlantStressors(dimmer), 'nutrients'),
       12

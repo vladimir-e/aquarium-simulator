@@ -9,7 +9,7 @@
 import type { Alert, AlertResult } from './types.js';
 import type { SimulationState } from '../state.js';
 import type { TunableConfig } from '../config/index.js';
-import { createLog } from '../core/logging.js';
+import { ceiled, latch } from './latch.js';
 
 /** Algae mass the bloom alerts over: where it starts to shade plants. */
 export function algaeAlertLine(config: TunableConfig): number {
@@ -20,22 +20,13 @@ export const highAlgaeAlert: Alert = {
   id: 'high-algae',
 
   check(state: SimulationState, config: TunableConfig): AlertResult {
-    const algaeMass = state.algae.mass;
-
-    if (algaeMass <= algaeAlertLine(config)) {
-      return { log: null, alertState: { highAlgae: false } };
-    }
-    if (state.alertState.highAlgae) {
-      return { log: null, alertState: { highAlgae: true } };
-    }
-    return {
-      log: createLog(
-        state.tick,
-        'algae',
-        'warning',
-        `High algae level: ${(Math.ceil(algaeMass * 10) / 10).toFixed(1)} - shading plants, consider reducing light or scrubbing`
-      ),
-      alertState: { highAlgae: true },
-    };
+    const mass = state.algae.mass;
+    return latch(
+      state,
+      'highAlgae',
+      mass > algaeAlertLine(config),
+      'algae',
+      `High algae level: ${ceiled(mass, 1)} - shading plants, consider reducing light or scrubbing`
+    );
   },
 };

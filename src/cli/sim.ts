@@ -7,6 +7,7 @@
  */
 
 import { tick, applyAction, type Action, type SimulationState } from '../simulation/index.js';
+import { relight } from '../simulation/state.js';
 import { DEFAULT_CONFIG } from '../simulation/config/index.js';
 import {
   createPresetSimulation,
@@ -77,15 +78,25 @@ function advanceTicks(session: Session, count: number): Session {
   return { ...session, state, history };
 }
 
-function applyAndRecord(session: Session, action: Action): { session: Session; message: string } {
-  const { state, message } = applyAction(session.state, action, session.config);
+/** The session at `state`, its snapshot of the same tick replaced so observe reads the change. */
+function withState(session: Session, state: SimulationState): Session {
   let history = session.history;
-  // Replace the latest snapshot (same tick) so observe reflects the action.
   if (history.length > 0 && history[history.length - 1]!.tick === state.tick) {
     history = history.slice(0, -1);
   }
-  history = appendSnapshot(history, snapshot(state));
-  return { session: { ...session, state, history }, message };
+  return { ...session, state, history: appendSnapshot(history, snapshot(state)) };
+}
+
+function applyAndRecord(session: Session, action: Action): { session: Session; message: string } {
+  const { state, message } = applyAction(session.state, action, session.config);
+  return { session: withState(session, state), message };
+}
+
+/** The session with one config leaf set; a tank still at hour zero is relit under the optics it will run on. */
+export function configureSession(session: Session, path: string, rawValue: string): Session {
+  const config = applyConfigSet(session.config, path, rawValue);
+  const configured = { ...session, config };
+  return session.state.tick === 0 ? withState(configured, relight(session.state, config.optics)) : configured;
 }
 
 function getByPath(obj: unknown, path: string[]): unknown {
@@ -202,7 +213,7 @@ function printHelp(): void {
       '      [--no-seed]           (every preset but bare opens a month into',
       '                             its life; --no-seed starts it brand new)',
       '  add fish --species=<id> --count=<n>',
-      '  add plant --species=<id> [--size=<0-1>]',
+      '  add plant --species=<id> [--size=<%>]',
       '  remove fish <id>',
       '  tick <duration>           (e.g. 5d, 48h, 1)',
       '  observe',
@@ -287,9 +298,7 @@ function cmdAdd(sub: string, flags: Record<string, string>): void {
   if (sub === 'plant') {
     const species = flags.species;
     if (!species) throw new Error('add plant requires --species=<id>.');
-    const sizeFlag = flags.size !== undefined ? Number(flags.size) : undefined;
-    const initialSize =
-      sizeFlag !== undefined ? (sizeFlag <= 1 ? sizeFlag * 100 : sizeFlag) : undefined;
+    const initialSize = flags.size !== undefined ? Number(flags.size) : undefined;
     const res = applyAndRecord(session, {
       type: 'addPlant',
       species: species as Action extends { type: 'addPlant'; species: infer S } ? S : never,
@@ -361,8 +370,7 @@ function cmdConfigSet(path: string | undefined, rawValue: string | undefined): v
   if (!path || rawValue === undefined) {
     throw new Error('config set requires <dotted.path> <value>.');
   }
-  const session = loadSession();
-  saveSession({ ...session, config: applyConfigSet(session.config, path, rawValue) });
+  saveSession(configureSession(loadSession(), path, rawValue));
   process.stdout.write(`Set ${path} = ${rawValue}\n`);
 }
 

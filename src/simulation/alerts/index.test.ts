@@ -41,6 +41,7 @@ interface Case {
   firing: number;
   quiet: number;
   edge: { value: number; fires: boolean };
+  decimals: number;
 }
 
 const ppm =
@@ -60,6 +61,7 @@ const CASES: Case[] = [
     firing: LEVEL_LINE / 2,
     quiet: (LEVEL_LINE + 100) / 2,
     edge: { value: LEVEL_LINE, fires: false },
+    decimals: 1,
   },
   {
     alert: highAlgaeAlert,
@@ -71,6 +73,7 @@ const CASES: Case[] = [
     firing: ALGAE_LINE + 5,
     quiet: ALGAE_LINE / 2,
     edge: { value: ALGAE_LINE, fires: false },
+    decimals: 1,
   },
   {
     alert: highAmmoniaAlert,
@@ -83,6 +86,7 @@ const CASES: Case[] = [
     firing: FREE_AMMONIA_EDGE * 2,
     quiet: FREE_AMMONIA_EDGE / 2,
     edge: { value: FREE_AMMONIA_EDGE, fires: false },
+    decimals: 3,
   },
   {
     alert: highNitriteAlert,
@@ -92,6 +96,7 @@ const CASES: Case[] = [
     firing: NITRITE_EDGE * 2,
     quiet: NITRITE_EDGE / 2,
     edge: { value: NITRITE_EDGE, fires: false },
+    decimals: 3,
   },
   {
     alert: highNitrateAlert,
@@ -101,6 +106,7 @@ const CASES: Case[] = [
     firing: NITRATE_EDGE * 2,
     quiet: NITRATE_EDGE / 2,
     edge: { value: NITRATE_EDGE, fires: false },
+    decimals: 1,
   },
   {
     alert: lowOxygenAlert,
@@ -112,6 +118,7 @@ const CASES: Case[] = [
     firing: OXYGEN_EDGE / 2,
     quiet: OXYGEN_EDGE * 2,
     edge: { value: OXYGEN_EDGE, fires: false },
+    decimals: 1,
   },
   {
     alert: highCo2Alert,
@@ -123,6 +130,7 @@ const CASES: Case[] = [
     firing: HIGH_CO2_THRESHOLD + 5,
     quiet: HIGH_CO2_THRESHOLD / 2,
     edge: { value: HIGH_CO2_THRESHOLD, fires: false },
+    decimals: 1,
   },
 ];
 
@@ -157,6 +165,13 @@ describe.each(CASES)('$alert.id', (c) => {
   it('treats the threshold itself as the documented side', () => {
     expect(c.alert.check(tank(c, c.edge.value), config).log !== null).toBe(c.edge.fires);
   });
+
+  it('prints a reading just past its line on the harm side of it, never on the line', () => {
+    const past = c.edge.value * (1 + Math.sign(c.firing - c.edge.value) * 1e-4);
+    const message = c.alert.check(tank(c, past), config).log!.message;
+
+    expect(message).not.toContain(c.edge.value.toFixed(c.decimals));
+  });
 });
 
 function tuned(waterLevelStressThreshold: number, algaeShadingThreshold: number): TunableConfig {
@@ -176,11 +191,6 @@ describe('waterLevelAlert', () => {
     const message = waterLevelAlert.check(tank(CASES[0]!, 15), config).log!.message;
     expect(message).toContain('15.0L');
     expect(message).toContain('15.0%');
-  });
-
-  it('never reports a level rounded up to the line it is under', () => {
-    const message = waterLevelAlert.check(tank(CASES[0]!, LEVEL_LINE - 0.01), config).log!.message;
-    expect(message).toContain(`${(LEVEL_LINE - 0.1).toFixed(1)}%`);
   });
 
   it('fires exactly where the water starts to harm fish, wherever that is tuned', () => {
@@ -206,11 +216,6 @@ describe('waterLevelAlert', () => {
 });
 
 describe('highAlgaeAlert', () => {
-  it('never reports a bloom rounded down to the line it is over', () => {
-    const message = highAlgaeAlert.check(tank(CASES[1]!, ALGAE_LINE + 0.01), config).log!.message;
-    expect(message).toContain(`${(ALGAE_LINE + 0.1).toFixed(1)}`);
-  });
-
   it('fires exactly where the bloom starts to shade plants, wherever that is tuned', () => {
     for (const line of [20, 30, 50]) {
       const at = tuned(LEVEL_LINE, line);

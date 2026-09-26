@@ -2,7 +2,7 @@ import type { SimulationState } from '../../simulation/state.js';
 import type { TunableConfig } from '../../simulation/config/index.js';
 import { floorCover, floorShade } from '../../simulation/plants/canopy.js';
 import { freeAmmoniaPpm } from '../../simulation/systems/nitrogen-cycle.js';
-import { FREE_AMMONIA_EDGE } from '../../simulation/livestock/tolerance.js';
+import { FREE_AMMONIA_EDGE, NITRITE_EDGE } from '../../simulation/livestock/tolerance.js';
 import { HIGH_CO2_THRESHOLD } from '../../simulation/alerts/high-co2.js';
 import { getDgh, getDkh, getPpm } from '../../simulation/resources/helpers.js';
 import { getPh } from '../../simulation/core/carbonate.js';
@@ -71,7 +71,11 @@ const DEFINITIONS = [
     unit: 'ppm',
     digits: 2,
     read: (s): number => getPpm(s.resources.nitrite, s.resources.water),
-    band: { green: [0, 0.25], amber: [0, 1], why: 'a cycled tank tests 0; above 1 ppm fish show nitrite stress' },
+    band: {
+      green: [0, 0.25],
+      amber: [0, NITRITE_EDGE],
+      why: `a cycled tank tests 0; the engine alerts past ${NITRITE_EDGE} ppm, and fish are harmed a little further out`,
+    },
     cycle: true,
   },
   {

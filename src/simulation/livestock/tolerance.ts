@@ -1,6 +1,8 @@
 /**
- * The water-quality edges the alerts fire at. Each fish's own edge sits past
- * its alert's by `toleranceFactor(hardiness)`, so the alert leads every fish.
+ * The water-quality edges the alerts fire at, and how far hardiness carries an
+ * organism's own edge past one. A fish's edge sits past its alert's by
+ * `toleranceFactor(hardiness)`, so the alert leads every fish; a plant's
+ * nitrate edge moves out from `nitrateEdge` the same way.
  */
 
 /** Free (unionized) NH₃, ppm. */
@@ -21,10 +23,10 @@ export const OXYGEN_COMFORT = 6;
 /** mg/L added to both sides of the oxygen log, keeping harm finite at zero. */
 export const OXYGEN_LOG_OFFSET = 0.1;
 
-/** How far past the edge a fish of hardiness 1 tolerates. */
+/** How far past the edge an organism of hardiness 1 tolerates. */
 export const HARDY_TOLERANCE = 2;
 
-/** How far out a fish of this hardiness carries each edge: × for a toxin, ÷ for oxygen. */
+/** How far out an organism of this hardiness carries each edge: × for a toxin, ÷ for oxygen. */
 export function toleranceFactor(hardiness: number): number {
   return HARDY_TOLERANCE ** hardiness;
 }

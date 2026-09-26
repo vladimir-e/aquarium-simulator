@@ -5,6 +5,7 @@ import {
   eFoldsPast,
   eFoldsUnder,
   hardened,
+  shortfall,
   type VitalityFactor,
   type VitalityInput,
 } from './vitality.js';
@@ -144,6 +145,19 @@ describe('eFoldsUnder', () => {
     expect(Number.isFinite(eFoldsUnder(0, 4, 0.1))).toBe(true);
     expect(eFoldsUnder(0, 4, 0.1)).toBeGreaterThan(eFoldsUnder(0.05, 4, 0.1));
     expect(eFoldsUnder(0.05, 4, 0.1)).toBeGreaterThan(eFoldsUnder(0.1, 4, 0.1));
+  });
+});
+
+describe('shortfall', () => {
+  it('is 0 at or over the edge, 1 at nothing, and linear between', () => {
+    expect(shortfall(2, 1)).toBe(0);
+    expect(shortfall(1, 1)).toBe(0);
+    expect(shortfall(0, 1)).toBe(1);
+    expect(shortfall(0.25, 1)).toBeCloseTo(0.75, 12);
+  });
+
+  it('asks nothing of an edge at 0', () => {
+    expect(shortfall(0, 0)).toBe(0);
   });
 });
 

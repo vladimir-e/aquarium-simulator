@@ -91,8 +91,13 @@ export interface PlantsConfig {
   phStressSeverity: number;
   /** Damage per dGH outside the species' tolerable range. */
   ghStressSeverity: number;
-  /** Damage per (1 − sufficiency) at saturating light. */
+  /**
+   * Damage at a Liebig sufficiency of 0 under saturating light, falling
+   * linearly to nothing at `sufficiencyEdge`.
+   */
   nutrientDeficiencySeverity: number;
+  /** Liebig sufficiency a plant counts as fed: deficiency harm starts under it. */
+  sufficiencyEdge: number;
   /** Damage per e-fold of NO3 past the plant's nitrate edge. */
   nitrateStressSeverity: number;
   /**
@@ -106,19 +111,17 @@ export interface PlantsConfig {
   algaeShadingThreshold: number;
 
   // Vitality benefit peaks (%/h), each at the best its factor gets. Every one
-  // of them is realised through photosynthesis, so all four are multiplied by
-  // the light term `tanh(PAR / Ik)`: the budget is the plant's income, and
-  // good water is worth nothing at midnight. Sum at saturating light and band
-  // centre ≈ 0.5 %/h — the calibration budget the plant recovery curves were
-  // pinned against.
+  // of them is realised through photosynthesis, so all three run on its drive:
+  // the light term `tanh(PAR / Ik)` times the Liebig sufficiency. The budget is
+  // the plant's income, and good water is worth nothing at midnight or with a
+  // nutrient run dry. Sum at saturating light, full sufficiency and band
+  // centre: 0.375 %/h.
   /** CO2, earned in proportion to the species' carbon Monod. */
   co2BenefitPeak: number;
   /** Temperature at the centre of the tolerable band, falling to 0 at its edges. */
   temperatureBenefitPeak: number;
   /** pH at the centre of the tolerable band, falling to 0 at its edges. */
   phBenefitPeak: number;
-  /** Nutrient sufficiency 1.0 (Liebig). */
-  nutrientBenefitPeak: number;
 
   // Lifecycle (shedding + death) — see `systems/plant-lifecycle.ts`.
   /**
@@ -126,12 +129,10 @@ export interface PlantsConfig {
    * square of the condition deficit to nothing at 100.
    */
   maxSheddingRate: number;
-  /** Waste per % of a rate unit shed (g). */
-  wastePerShedSize: number;
+  /** Waste per % of a rate unit of tissue lost, shed or dead (g). */
+  wastePerSize: number;
   /** Size below this triggers death (%). */
   deathSizeThreshold: number;
-  /** Waste per % of a rate unit a dying plant leaves (g). */
-  wastePerPlantDeath: number;
 }
 
 export const plantsDefaults: PlantsConfig = {
@@ -196,13 +197,16 @@ export const plantsDefaults: PlantsConfig = {
   // carlo, so a carpet lasts two to three weeks unlit and the hobby's
   // three-day algae blackout costs a plant its bank and little else.
   lightStarvationSeverity: 0.3,
-  // %/h per PAR unit over the species band, against a 0.5 %/h benefit budget:
-  // 10 PAR over costs 0.15 %/h pre-hardiness.
+  // %/h per PAR unit over the species band: 10 PAR over costs 0.15 %/h
+  // pre-hardiness.
   lightExcessiveSeverity: 0.015,
   temperatureStressSeverity: 0.4,
   phStressSeverity: 3.0,
   ghStressSeverity: 0.1,
   nutrientDeficiencySeverity: 0.3,
+  // Monod never reaches 1, so the edge sits where a plant has 90 % of its
+  // need met.
+  sufficiencyEdge: 0.9,
   // Plants take nitrate far past where fish do: the edge sits at 100 ppm, so
   // only a runaway doser reaches it, and each e-fold past it costs what one
   // costs a fish.
@@ -215,25 +219,22 @@ export const plantsDefaults: PlantsConfig = {
   algaeShadingSeverity: 0.05,
   algaeShadingThreshold: 30,
 
-  // Vitality benefit peaks. Four channels at 0.125 sum to the 0.5 %/h budget
-  // at saturating light and band centre, and the light term takes the whole of it down
-  // together: a monte carlo at 30 PAR earns 0.46 of the budget, and every
-  // plant earns none of it in the dark. With a healthy lit tank the plant
-  // heals to 100 in a few sim days, then surplus drives growth.
+  // Vitality benefit peaks. The light term and sufficiency take the whole
+  // budget down together: a monte carlo at 30 PAR earns 0.46 of it, and every
+  // plant earns none of it in the dark or starved. With a healthy lit tank the
+  // plant heals to 100 in a few sim days, then surplus drives growth.
   co2BenefitPeak: 0.125,
   temperatureBenefitPeak: 0.125,
   phBenefitPeak: 0.125,
-  nutrientBenefitPeak: 0.125,
 
   // 2 %/h is the melt of a plant at condition 0, an e-fold every two days.
   // Squared in the deficit it is 0.5 %/h at condition 50 and 0.08 %/h at 80,
   // so a plant relit before its condition collapses keeps most of itself.
   maxSheddingRate: 0.02,
-  wastePerShedSize: 0.005,
+  wastePerSize: 0.01,
   // Retires a plant shed below 1 % of its unit; without it a starved one would
   // linger as a rootstock indefinitely.
   deathSizeThreshold: 1,
-  wastePerPlantDeath: 0.01,
 };
 
 export interface PlantsConfigMeta {
@@ -298,8 +299,8 @@ export const plantsConfigMeta: PlantsConfigMeta[] = [
   // Surplus-driven growth
   { key: 'growthDrawRate', label: 'Growth Draw Rate', unit: '/hr', min: 0.005, max: 0.2, step: 0.005 },
   { key: 'healingDrawRate', label: 'Healing Draw Rate', unit: '/hr per growth rate', min: 0.005, max: 0.5, step: 0.005 },
-  { key: 'sizePerSurplus', label: 'Size per Surplus', unit: '%', min: 0.01, max: 2.0, step: 0.01 },
-  { key: 'surplusCap', label: 'Surplus Cap', unit: '%', min: 0, max: 100, step: 5 },
+  { key: 'sizePerSurplus', label: 'Size per Bank Point', unit: '%/pt', min: 0.01, max: 2.0, step: 0.01 },
+  { key: 'surplusCap', label: 'Bank Cap', unit: 'pts', min: 0, max: 100, step: 5 },
 
   // Vitality stressor severities
   { key: 'lightStarvationSeverity', label: 'Light Starvation Severity', unit: '%/hr', min: 0.05, max: 2, step: 0.05 },
@@ -307,7 +308,8 @@ export const plantsConfigMeta: PlantsConfigMeta[] = [
   { key: 'temperatureStressSeverity', label: 'Plant Temp Severity', unit: '%/°C/hr', min: 0.1, max: 2.0, step: 0.1 },
   { key: 'phStressSeverity', label: 'Plant pH Severity', unit: '%/pH/hr', min: 0.5, max: 10, step: 0.5 },
   { key: 'ghStressSeverity', label: 'Plant GH Severity', unit: '%/dGH/hr', min: 0, max: 2, step: 0.05 },
-  { key: 'nutrientDeficiencySeverity', label: 'Nutrient Defic. Severity', unit: '%/(1-suff)/hr', min: 0.1, max: 2.0, step: 0.1 },
+  { key: 'nutrientDeficiencySeverity', label: 'Nutrient Defic. Severity', unit: '%/hr', min: 0.1, max: 2.0, step: 0.1 },
+  { key: 'sufficiencyEdge', label: 'Sufficiency Edge', unit: '', min: 0.1, max: 1, step: 0.05 },
   { key: 'nitrateStressSeverity', label: 'Plant Nitrate Severity', unit: '%/e-fold/hr', min: 0.1, max: 10, step: 0.1 },
   { key: 'nitrateEdge', label: 'Plant Nitrate Edge', unit: 'ppm', min: 50, max: 300, step: 10 },
   { key: 'algaeShadingSeverity', label: 'Algae Shading Severity', unit: '%/algae/hr', min: 0.001, max: 0.1, step: 0.005 },
@@ -317,11 +319,9 @@ export const plantsConfigMeta: PlantsConfigMeta[] = [
   { key: 'co2BenefitPeak', label: 'CO2 Benefit Peak', unit: '%/hr', min: 0.0, max: 0.5, step: 0.05 },
   { key: 'temperatureBenefitPeak', label: 'Temp Benefit Peak', unit: '%/hr', min: 0.0, max: 0.5, step: 0.05 },
   { key: 'phBenefitPeak', label: 'pH Benefit Peak', unit: '%/hr', min: 0.0, max: 0.5, step: 0.05 },
-  { key: 'nutrientBenefitPeak', label: 'Nutrient Benefit Peak', unit: '%/hr', min: 0.0, max: 0.5, step: 0.05 },
 
   // Lifecycle (shedding + death)
   { key: 'maxSheddingRate', label: 'Max Shedding Rate', unit: '/hr', min: 0.005, max: 0.1, step: 0.005 },
-  { key: 'wastePerShedSize', label: 'Waste per Shed Size', unit: 'g/%', min: 0.001, max: 0.05, step: 0.001 },
+  { key: 'wastePerSize', label: 'Waste per Size', unit: 'g/%', min: 0.001, max: 0.05, step: 0.001 },
   { key: 'deathSizeThreshold', label: 'Death Size Threshold', unit: '%', min: 0.5, max: 5, step: 0.5 },
-  { key: 'wastePerPlantDeath', label: 'Waste per Plant Death', unit: 'g/%', min: 0.001, max: 0.05, step: 0.001 },
 ];

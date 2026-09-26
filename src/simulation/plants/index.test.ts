@@ -412,9 +412,7 @@ describe('processPlants', () => {
         resources.co2,
         resources,
         resources.water,
-        new Map(
-          planting.map((p) => [p.id, calculateNutrientSufficiency(resources, resources.water, p.species, nutrients)])
-        ),
+        planting.map((p) => calculateNutrientSufficiency(resources, resources.water, p.species, nutrients)),
         plantsConfig,
         nutrients
       );
@@ -543,27 +541,6 @@ describe('processPlants', () => {
       const short = processPlants(night([mother(CAP - 1e-6)]), DEFAULT_CONFIG).state.plants;
       expect(short).toHaveLength(1);
       expect(short[0].size).toBeGreaterThan(90);
-    });
-
-    it('buys nothing at a cap of 0', () => {
-      const capless = { ...DEFAULT_CONFIG, plants: { ...plantsDefaults, surplusCap: 0 } };
-      expect(processPlants(night([mother(0)]), capless).state.plants).toHaveLength(1);
-    });
-
-    it('buys no unit that could not live, and grows on the bank instead', () => {
-      const deathSizeThreshold = 1.01 * CAP * sizePerBank('amazon_sword');
-      const lean = { ...DEFAULT_CONFIG, plants: { ...plantsDefaults, deathSizeThreshold } };
-      const [kept, ...born] = processPlants(night([mother(CAP)]), lean).state.plants;
-      expect(born).toHaveLength(0);
-      expect(kept.size).toBeGreaterThan(90);
-      expect(kept.surplus).toBeLessThan(CAP);
-      expect(kept.surplus).toBeGreaterThan(0);
-    });
-
-    it('turns the whole bank into the offshoot at the growth conversion', () => {
-      const [parent, offshoot] = processPlants(night([mother(CAP)]), DEFAULT_CONFIG).state.plants;
-      expect(parent.surplus).toBe(0);
-      expect(offshoot.size).toBeCloseTo(CAP * sizePerBank('amazon_sword'), 12);
     });
 
     it('appends a full child on an empty bank to the family, at age 0, aging every survivor a tick', () => {

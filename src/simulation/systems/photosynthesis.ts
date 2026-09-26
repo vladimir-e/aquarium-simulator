@@ -26,13 +26,6 @@ import { speciesDemand, speciesHalfSaturation } from './nutrients.js';
 import { rateUnits } from '../plants/canopy.js';
 
 /**
- * Per-plant precomputed Liebig sufficiency, keyed by plant id. The
- * orchestrator computes this once per tick and passes it to both
- * vitality and photosynthesis so the calculation isn't repeated.
- */
-export type SufficiencyMap = ReadonlyMap<string, number>;
-
-/**
  * mg of GH, as CaCO3, a plant takes up per mg of nitrate it draws. Leaf
  * tissue carries about a third as much calcium and a tenth as much magnesium
  * as nitrogen; converted to CaCO3 equivalents per mg of NO3, that is ~0.28.
@@ -95,8 +88,9 @@ function emptyResult(): PhotosynthesisResult {
 /**
  * Calculate photosynthesis resource effects.
  *
- * Per-plant contribution, with m_i its rate units (`plants/canopy.ts`) and
- * PAR_i the light at its mean leaf:
+ * Per-plant contribution, with m_i its rate units (`plants/canopy.ts`), PAR_i
+ * the light at its mean leaf and sufficiency_i its Liebig sufficiency, both
+ * index-aligned with `plants`:
  *   lightResponse_i = tanh(PAR_i / Ik_i), the species' saturating light curve
  *   co2Factor_i = CO2 / (K_i + CO2), the species' carbon Monod
  *   potential_i = m_i × co2Factor_i × lightResponse_i × basePhotosynthesisRate
@@ -117,7 +111,7 @@ export function calculatePhotosynthesis(
   co2: number,
   resources: Resources,
   waterVolume: number,
-  sufficiencyByPlantId: SufficiencyMap,
+  sufficiencyByPlant: readonly number[],
   plantsConfig: PlantsConfig = plantsDefaults,
   nutrientsConfig: NutrientsConfig = nutrientsDefaults
 ): PhotosynthesisResult {
@@ -140,7 +134,7 @@ export function calculatePhotosynthesis(
       parByPlant[i],
       getSaturationIrradiance(plant.species, plantsConfig)
     );
-    const sufficiency = sufficiencyByPlantId.get(plant.id) ?? 0;
+    const sufficiency = sufficiencyByPlant[i];
     const drive = rateUnits(plant) * lightResponse * plantsConfig.basePhotosynthesisRate;
     const potential = drive * calculateCo2Factor(co2, plant.species, plantsConfig);
     potentialSum += potential;

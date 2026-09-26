@@ -1,7 +1,8 @@
 import { applyAction, tick, type Action, type SimulationState } from '../../simulation/index.js';
-import { createSimulation } from '../../simulation/state.js';
+import { createSimulation, relight } from '../../simulation/state.js';
 import { getPh } from '../../simulation/core/carbonate.js';
-import type { TunableConfig } from '../../simulation/config/index.js';
+import { isPlantableSize } from '../../simulation/systems/plant-lifecycle.js';
+import type { PlantsConfig, TunableConfig } from '../../simulation/config/index.js';
 import { toFahrenheit } from '../units.js';
 import {
   SAMPLE_HOUR,
@@ -58,8 +59,19 @@ interface KeepOptions {
 
 const ROUTINE_NO_OPS: ReadonlySet<Action['type']> = new Set(['scrubAlgae', 'trimPlants', 'topOff']);
 
+function assertPlantable(setup: Setup, plantsConfig: PlantsConfig): void {
+  for (const { species, size } of setup.plants) {
+    if (size !== undefined && !isPlantableSize(size, plantsConfig)) {
+      throw new Error(
+        `${species} at ${size}%: a plant is a % of one full unit, from deathSizeThreshold (${plantsConfig.deathSizeThreshold}) to 100.`
+      );
+    }
+  }
+}
+
 export function keepTank(setup: Setup, { config, untilTick, observe, onRefusal }: KeepOptions): SimulationState {
-  let state = createSimulation(toConfig(setup), toSeed(setup), RNG_SEED);
+  assertPlantable(setup, config.plants);
+  let state = relight(createSimulation(toConfig(setup), toSeed(setup), RNG_SEED), config.optics);
   observe?.(state);
   while (state.tick < untilTick) {
     if (setup.rescapeOn !== undefined && isKeeperHourOf(setup.rescapeOn, state.tick)) {

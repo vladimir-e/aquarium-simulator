@@ -86,7 +86,7 @@ export interface SeedPlantGroup {
   species: PlantSpecies;
   /** Defaults to 1. */
   count?: number;
-  /** % of one full unit, as `Plant.size`: in (0, 100]. */
+  /** % of one full unit, as `Plant.size`: `deathSizeThreshold` to 100 (`isPlantableSize`); under it the first tick retires the plant. */
   size?: number;
   /** Ticks it has already stood in the tank, as `Plant.age`. Defaults to 0. */
   age?: number;

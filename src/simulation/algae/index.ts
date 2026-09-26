@@ -7,7 +7,7 @@
  * 2. Fold the net rate into the surplus reserve bank via `bankSurplus`:
  *    positive net accrues (capped, photoperiod-gated), negative net drains
  *    the bank before it touches mass. Surplus is photoperiod-gated
- *    photosynthate; vitality's positive rate overnight is discarded.
+ *    photosynthate; the bloom's positive net overnight is discarded.
  * 3. Shrink mass by the drain *overflow* — the damage the bank couldn't
  *    cover. Runs 24/7 — a hostile-environment bloom burns reserves then
  *    dies back, at night too. A well-stocked bloom shrugs off a bad tick.

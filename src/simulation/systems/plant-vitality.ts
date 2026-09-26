@@ -6,9 +6,10 @@
  * onto plant state.
  *
  * Benefits are income: every channel is realised *through* photosynthesis,
- * so the light term multiplies all four and a plant earns nothing in the
- * dark. A plant's vigour scales all four too — hardiness scales what harms
- * it, vigour what it earns.
+ * so each runs on its drive — the light term times the Liebig sufficiency,
+ * as carbon fixation does — and a plant earns nothing in the dark or with a
+ * nutrient run dry. A plant's vigour scales every channel too — hardiness
+ * scales what harms it, vigour what it earns.
  *
  * Light is read at the plant's own height (see `plants/canopy.ts`): income,
  * nutrient demand and starvation at its mean leaf, the burn at its crown top.
@@ -19,7 +20,7 @@
  * - Temperature out of `tolerableTemp` (per °C, two-sided)
  * - pH out of `tolerablePH` (per pH unit, two-sided)
  * - GH out of `tolerableGH` (per dGH, two-sided)
- * - Nutrient deficiency (per (1 − Liebig sufficiency), on the light curve)
+ * - Nutrient deficiency (Liebig sufficiency under `sufficiencyEdge`, on the light curve)
  * - Nitrate (log dose past the plant edge hardiness carries out)
  * - Algae shading (when algae density crosses the shading threshold)
  */
@@ -45,6 +46,7 @@ import {
   eFoldsPast,
   hardened,
   outsideBand,
+  shortfall,
   type VitalityFactor,
   type VitalityResult,
 } from './vitality.js';
@@ -54,11 +56,7 @@ export interface PlantVitalityContext {
   resources: Resources;
   waterVolume: number;
   plantsConfig: PlantsConfig;
-  /**
-   * Precomputed Liebig sufficiency for this plant (0–1). The orchestrator
-   * computes it once per tick (`processPlants`) and threads the value
-   * into vitality and photosynthesis — no module recomputes it.
-   */
+  /** Liebig sufficiency for this plant (0–1), computed once a tick by `processPlants`. */
   nutrientSufficiency: number;
   /**
    * Current algae biomass / coverage 0–100 (from `state.algae.mass`).
@@ -75,14 +73,6 @@ function lightSaturation({ plant, plantsConfig, light }: PlantVitalityContext): 
     light.par,
     getSaturationIrradiance(plant.species, plantsConfig)
   );
-}
-
-/**
- * Share of the daily light edge a plant goes short of: 0 at or over the edge,
- * 1 in a day without light.
- */
-export function lightShortfall(dailyLight: number, edge: number): number {
-  return edge > 0 ? Math.max(0, 1 - dailyLight / edge) : 0;
 }
 
 /** Nitrate ppm a species takes harm past: the plant edge, carried out by its hardiness. */
@@ -108,7 +98,7 @@ export function buildPlantStressors(ctx: PlantVitalityContext): VitalityFactor[]
     label: 'Light starvation',
     amount:
       plantsConfig.lightStarvationSeverity *
-      lightShortfall(light.dailyLight, dailyLightEdge(plant.species)) *
+      shortfall(light.dailyLight, dailyLightEdge(plant.species)) *
       getRespirationTemperatureFactor(resources.temperature, plantsConfig),
   });
 
@@ -132,13 +122,15 @@ export function buildPlantStressors(ctx: PlantVitalityContext): VitalityFactor[]
     { key: 'gh', label: 'GH', amount: plantsConfig.ghStressSeverity * outsideBand(gh, species.tolerableGH) }
   );
 
-  // Nutrient deficiency — unmet demand, and demand rides the same light
-  // curve as income: a plant in the dark is asking for nothing.
+  // Demand rides the same light curve as income: a plant in the dark is
+  // asking for nothing.
   factors.push({
     key: 'nutrients',
     label: 'Nutrient deficiency',
     amount:
-      lightSaturation(ctx) * plantsConfig.nutrientDeficiencySeverity * (1 - nutrientSufficiency),
+      lightSaturation(ctx) *
+      plantsConfig.nutrientDeficiencySeverity *
+      shortfall(nutrientSufficiency, plantsConfig.sufficiencyEdge),
   });
 
   // Algae shading — only kicks in once algae density is meaningful.
@@ -169,12 +161,12 @@ export function buildPlantStressors(ctx: PlantVitalityContext): VitalityFactor[]
 export function buildPlantBenefits(ctx: PlantVitalityContext): VitalityFactor[] {
   const { plant, resources, plantsConfig, nutrientSufficiency } = ctx;
   const species = PLANT_SPECIES_DATA[plant.species];
-  const earning = lightSaturation(ctx) * (1 + plant.vigour);
+  const earning = lightSaturation(ctx) * nutrientSufficiency * (1 + plant.vigour);
 
   return [
     {
       key: 'co2',
-      label: 'CO2',
+      label: 'CO₂',
       amount:
         earning *
         plantsConfig.co2BenefitPeak *
@@ -192,19 +184,6 @@ export function buildPlantBenefits(ctx: PlantVitalityContext): VitalityFactor[] 
       key: 'ph',
       label: 'pH',
       amount: earning * plantsConfig.phBenefitPeak * bandComfort(getPh(resources), species.tolerablePH),
-    },
-    {
-      key: 'nutrients',
-      label: 'Nutrients',
-      // Nutrient benefit scales linearly with sufficiency — a partially
-      // fed plant gets a partial benefit. Asymmetric with the deficiency
-      // stressor (which scales with (1 − sufficiency)) by design: the
-      // two together let condition track sufficiency continuously for
-      // plants whose only knob is nutrients.
-      amount:
-        earning *
-        plantsConfig.nutrientBenefitPeak *
-        Math.max(0, Math.min(1, nutrientSufficiency)),
     },
   ];
 }
