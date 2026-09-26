@@ -28,7 +28,7 @@ declared minimum of `0.1`.
 | Optics | `optics.` | What the water column and the leaves above take out of the light on the way down |
 | Water chemistry | `waterChemistry.` | What calcite, driftwood and aqua soil do to KH and GH |
 | Plants | `plants.` | Photosynthesis, respiration, vitality, growth and offshoots, lifecycle |
-| Nutrients | `nutrients.` | Fertilizer formula, plant uptake and half-saturations, demand tiers, minerals in waste |
+| Nutrients | `nutrients.` | Fertilizer formula, half-saturations, demand tiers, minerals in organic matter |
 | Livestock | `livestock.` | Metabolism, satiation, vitality, death |
 
 The values themselves are not repeated here. They move when the model is
@@ -164,7 +164,7 @@ density you can look up rather than a score.
 | `algaeShadingSeverity` · `algaeShadingThreshold` | Damage per point of bloom past the threshold, and the mass above which algae shades plants | %/algae/hr · — |
 | `co2BenefitPeak` · `temperatureBenefitPeak` · `phBenefitPeak` | Recovery earned per factor at its best — temperature and pH at the band's centre; all three run on the light term times the Liebig sufficiency | %/hr |
 | `maxSheddingRate` | Share of itself a plant sheds per hour at condition 0, falling with the square of the deficit | /hr |
-| `wastePerSize` | Waste per % of a rate unit of tissue lost, shed or dead — so a unit fouls the water by its leaf, not its size | g/% |
+| `wastePerSize` | Organic matter in a % of a rate unit of tissue — what growth draws the recipe for and shedding and death return as waste, so a unit weighs by its leaf, not its size | g/% |
 
 Every severity above is pre-hardiness. The species' own hardiness scales every
 channel by `1 − hardiness` except nitrate, whose edge it carries out instead.
@@ -174,10 +174,9 @@ channel by `1 − hardiness` except nitrate, whose edge it carries out instead.
 | Tunable | Meaning | Unit |
 |---|---|---|
 | `fertilizerFormula.nitrate` · `.phosphate` · `.potassium` · `.iron` | The all-in-one fertilizer's composition per ml | mg/ml |
-| `uptakePerRateUnit.*` | What a full-demand plant takes of each nutrient per rate unit of photosynthetic drive | mg |
-| `halfSaturation.*` | The ppm at which a full-demand plant's uptake and sufficiency run at half | ppm |
-| `demand.low.*` · `demand.medium.*` · `demand.high.*` | Each tier's share of the full need, per nutrient; scales both uptake and half-saturation | — |
-| `foodMineralContent.phosphate` · `.potassium` · `.iron` | Minerals in a gram of food, and in the waste it becomes | mg/g |
+| `halfSaturation.*` | The ppm at which a full-demand plant's draw and sufficiency run at half | ppm |
+| `demand.low.*` · `demand.medium.*` · `demand.high.*` | Each tier's share of the full need, per nutrient; scales the half-saturation | — |
+| `foodMineralContent.phosphate` · `.potassium` · `.iron` | Minerals in a gram of food, in the waste it becomes, and in plant tissue | mg/g |
 
 ## Livestock
 
@@ -186,7 +185,7 @@ channel by `1 − hardiness` except nitrate, whose edge it carries out instead.
 | `baseFoodRate` | Food a fish ingests per gram of body mass per hour | g/g/hr |
 | `baseRespirationRate` | Oxygen a fish draws per gram per hour — a Monod maximum | mg O₂/g/hr |
 | `respirationOxygenHalfSaturation` | Dissolved O₂ at which uptake falls to half; it scales gill ammonia too | mg/L |
-| `foodNitrogenFraction` | Share of food mass that is nitrogen — eaten, decayed, or mineralized as waste | g N/g food |
+| `foodNitrogenFraction` | Share of food mass that is nitrogen — eaten, decayed, mineralized as waste, or grown into plant tissue | g N/g food |
 | `gillNFraction` | Share of ingested nitrogen excreted straight through the gills; the rest leaves as feces | — |
 | `respiratoryQuotient` | Moles of CO₂ exhaled per mole of O₂ consumed | — |
 | `satiationDecayRate` | Satiation lost per hour, feeding or not | %/hr |

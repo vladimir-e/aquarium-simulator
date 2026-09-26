@@ -488,7 +488,6 @@ const DemandVectorSchema = numbersFor(NUTRIENTS, z.number().min(0.01));
 const NutrientsConfigSchema = z
   .object({
     fertilizerFormula: NutrientVectorSchema,
-    uptakePerRateUnit: NutrientVectorSchema,
     halfSaturation: NutrientVectorSchema,
     demand: z
       .object({ low: DemandVectorSchema, medium: DemandVectorSchema, high: DemandVectorSchema })

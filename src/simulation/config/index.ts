@@ -60,7 +60,6 @@ export {
   type FertilizerFormula,
   nutrientsDefaults,
   fertilizerFormulaMeta,
-  uptakeMeta,
   halfSaturationMeta,
   demandMeta,
   foodMineralContentMeta,
@@ -108,7 +107,6 @@ import {
   type NutrientsConfig,
   nutrientsDefaults,
   fertilizerFormulaMeta,
-  uptakeMeta,
   halfSaturationMeta,
   demandMeta,
   foodMineralContentMeta,
@@ -157,7 +155,6 @@ interface RangedMeta {
 
 type NestedNutrientsPath =
   | 'nutrients.fertilizerFormula'
-  | 'nutrients.uptakePerRateUnit'
   | 'nutrients.halfSaturation'
   | 'nutrients.foodMineralContent'
   | `nutrients.demand.${keyof NutrientsConfig['demand']}`;
@@ -175,7 +172,6 @@ const CONFIG_META: ReadonlyMap<string, readonly RangedMeta[]> = new Map(
     plants: plantsConfigMeta,
     nutrients: [],
     'nutrients.fertilizerFormula': fertilizerFormulaMeta,
-    'nutrients.uptakePerRateUnit': uptakeMeta,
     'nutrients.halfSaturation': halfSaturationMeta,
     'nutrients.demand.low': demandMeta,
     'nutrients.demand.medium': demandMeta,

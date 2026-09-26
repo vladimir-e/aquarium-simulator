@@ -6,16 +6,17 @@
  *    and vitality and handed back as the light the tick ran on.
  * 2. Each plant's Liebig sufficiency, once: photosynthesis and vitality both
  *    run on it.
- * 3. Photosynthesis: emits resource effects only — O2 production, CO2
- *    uptake, nutrient draw. Does NOT directly produce size growth;
- *    that flows through surplus. Light-gated: zero output at night.
+ * 3. Photosynthesis: O2 production and CO2 uptake only. Light-gated: zero
+ *    output at night.
  * 4. Respiration: O2/CO2 effects, 24/7.
  * 5. Vitality per plant: the new condition and `Plant.surplus` bank —
  *    income at full condition banks, the bank heals condition below it.
- * 6. Offshoot: a full bank buys a new unit of the family, before growth.
- * 7. Growth: the bank buys size at `growthDrawRate` of itself, day and night.
+ * 6. What each bank buys at full supply: a full bank's offshoot, then growth
+ *    at `growthDrawRate` of what is left, day and night.
+ * 7. The water supplies that tissue: one draw for the planting, and each
+ *    plant gets the share of its purchase the draw allows.
  * 8. Shedding + death (lifecycle module) — low condition sheds tissue, and
- *    condition 0 removes the plant.
+ *    condition 0 removes the plant. Both return it as waste.
  * 9. Survivors age a tick; offshoots join the end of the list at age 0.
  *
  * Called during ACTIVE tier processing in tick.ts.
@@ -32,14 +33,22 @@ import {
   type PlantLight,
 } from './canopy.js';
 import type { Effect } from '../core/effects.js';
-import type { Nutrient, TunableConfig } from '../config/index.js';
+import { NUTRIENTS, type Nutrient, type TunableConfig } from '../config/index.js';
 import { calculatePhotosynthesis } from '../systems/photosynthesis.js';
-import { calculateNutrientSufficiency } from '../systems/nutrients.js';
+import {
+  calculateNutrientSufficiency,
+  drawTissue,
+  organicNutrients,
+} from '../systems/nutrients.js';
 import { calculateRespiration } from '../systems/respiration.js';
-import { propagate, spendSurplus } from '../systems/plant-growth.js';
+import { purchase, sizeBought, supply } from '../systems/plant-growth.js';
 import { createOffshoot } from './create-plant.js';
 import { computePlantVitality } from '../systems/plant-vitality.js';
-import { calculateShedding, calculateDeathWaste } from '../systems/plant-lifecycle.js';
+import {
+  calculateShedding,
+  calculateDeathWaste,
+  tissueMass,
+} from '../systems/plant-lifecycle.js';
 import { createLog } from '../core/logging.js';
 import { getPpm } from '../resources/index.js';
 import { calculateTankHeight } from '../state.js';
@@ -62,7 +71,7 @@ export function readPlantLight(state: SimulationState, config: TunableConfig): P
 export interface PlantsProcessingResult {
   /** Updated state with modified plant sizes */
   state: SimulationState;
-  /** Effects for resource changes (O2, CO2, nitrate, waste) */
+  /** Effects for resource changes (O2, CO2, nutrients, GH, waste) */
   effects: Effect[];
   /** Each plant's vitality this tick, in the handed `state.plants` order. */
   vitalities: VitalityResult[];
@@ -97,18 +106,14 @@ export function processPlants(
     calculateNutrientSufficiency(state.resources, state.resources.water, plant.species, nutrientsConfig)
   );
 
-  // 3. Photosynthesis: resource effects only (O2 release, CO2 uptake,
-  //    nutrient draw). Plant size growth flows through the surplus
-  //    supply chain below — photosynthesis does not directly add size.
+  // 3. Photosynthesis: the gases only.
   const photosynthesisResult = calculatePhotosynthesis(
     state.plants,
     light.map((plant) => plant.par),
     state.resources.co2,
-    state.resources,
     state.resources.water,
     sufficiency,
-    plantsConfig,
-    nutrientsConfig
+    plantsConfig
   );
 
   const pushDelta = (
@@ -127,11 +132,6 @@ export function processPlants(
 
   pushDelta('oxygen', getPpm(photosynthesisResult.oxygenProducedMg, waterVolume), 'photosynthesis');
   pushDelta('co2', -getPpm(photosynthesisResult.co2ConsumedMg, waterVolume), 'photosynthesis');
-  pushDelta('nitrate', photosynthesisResult.nitrateDelta, 'photosynthesis');
-  pushDelta('phosphate', photosynthesisResult.phosphateDelta, 'photosynthesis');
-  pushDelta('potassium', photosynthesisResult.potassiumDelta, 'photosynthesis');
-  pushDelta('iron', photosynthesisResult.ironDelta, 'photosynthesis');
-  pushDelta('gh', photosynthesisResult.ghDelta, 'photosynthesis');
 
   // 4. Calculate respiration (24/7)
   const respirationResult = calculateRespiration(
@@ -166,26 +166,41 @@ export function processPlants(
     })
   );
 
-  // 6–9 run on the draft: an offshoot's id and vigour come off the tank's stream.
+  // 6. What each bank buys at full supply.
+  const purchases = state.plants.map((start, i) =>
+    purchase(
+      { ...start, condition: vitalities[i].newCondition, surplus: vitalities[i].surplus },
+      plantsConfig
+    )
+  );
+
+  // 7. The water supplies the tissue.
+  const tissue = drawTissue(
+    purchases.map((bought) => ({
+      species: bought.before.species,
+      grams: tissueMass(bought.before.species, sizeBought(bought), plantsConfig),
+    })),
+    state.resources,
+    organicNutrients(config.livestock, nutrientsConfig),
+    nutrientsConfig
+  );
+  for (const n of NUTRIENTS) pushDelta(n, -tissue.drawn[n], 'plant-growth');
+  pushDelta('gh', -tissue.drawn.gh, 'plant-growth');
+
+  // 8–9 run on the draft: an offshoot's id and vigour come off the tank's stream.
   let shedWaste = 0;
   let deathWaste = 0;
   const newState = produce(state, (draft) => {
     const survivors: Plant[] = [];
     const offshoots: Plant[] = [];
 
-    state.plants.forEach((start, i) => {
-      const species = PLANT_SPECIES_DATA[start.species];
-      let plant: Plant = {
-        ...start,
-        condition: vitalities[i].newCondition,
-        surplus: vitalities[i].surplus,
-      };
+    purchases.forEach((bought, i) => {
+      const species = PLANT_SPECIES_DATA[bought.before.species];
+      const { after, offshootSize } = supply(bought, tissue.supplied[i]);
+      let plant = after;
 
-      // 6. A full bank buys an offshoot.
-      const propagation = propagate(plant, plantsConfig);
-      if (propagation) {
-        plant = propagation.parent;
-        offshoots.push(createOffshoot(plant, propagation.offshootSize, draft.rng));
+      if (offshootSize > 0) {
+        offshoots.push(createOffshoot(plant, offshootSize, draft.rng));
         draft.logs.push(
           createLog(
             draft.tick,
@@ -196,9 +211,6 @@ export function processPlants(
           )
         );
       }
-
-      // 7. The bank buys size.
-      plant = spendSurplus(plant, plantsConfig);
 
       // 8. Shedding and death.
       const { sizeReduction, wasteProduced } = calculateShedding(plant, plantsConfig);
@@ -266,16 +278,23 @@ export {
 export {
   spendSurplus,
   propagate,
+  purchase,
+  sizeBought,
+  supply,
   getSpeciesGrowthRate,
 } from '../systems/plant-growth.js';
-export type { Propagation } from '../systems/plant-growth.js';
+export type { Propagation, Purchase } from '../systems/plant-growth.js';
 export { VIGOUR_SPAN } from './create-plant.js';
 export {
   calculateNutrientSufficiency,
   speciesDemand,
   speciesHalfSaturation,
   nutrientShare,
+  organicNutrients,
+  drawTissue,
 } from '../systems/nutrients.js';
+export type { TissueNeed, TissueDraw } from '../systems/nutrients.js';
+export { tissueMass } from '../systems/plant-lifecycle.js';
 export {
   computePlantVitality,
   buildPlantStressors,

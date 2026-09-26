@@ -12,6 +12,11 @@
  * Nothing clamps growth: within the tunables' bounds and the roster's growth
  * rates one tick buys at most 0.72 of what is left to 100, so the taper keeps
  * every plant below it.
+ *
+ * The bank sets what a plant asks for; the water decides how much of it
+ * arrives. An hour's purchase — the offshoot, then growth — is new tissue, and
+ * it is bought at the share the water supplied: size, offshoot and the bank's
+ * price all scale together, so the bank pays for exactly the tissue it got.
  */
 
 import type { Plant } from '../state.js';
@@ -74,5 +79,40 @@ export function propagate(plant: Plant, config: PlantsConfig = plantsDefaults): 
   return {
     parent: { ...plant, surplus: plant.surplus - spent },
     offshootSize,
+  };
+}
+
+/** An hour's purchase as the bank asks for it, before the water supplies it. */
+export interface Purchase {
+  before: Plant;
+  after: Plant;
+  offshootSize: number;
+}
+
+/** What a plant's bank buys this hour at full supply: a full bank's offshoot first, then growth. */
+export function purchase(plant: Plant, config: PlantsConfig = plantsDefaults): Purchase {
+  const propagation = propagate(plant, config);
+  return {
+    before: plant,
+    after: spendSurplus(propagation?.parent ?? plant, config),
+    offshootSize: propagation?.offshootSize ?? 0,
+  };
+}
+
+/** Size of new tissue a purchase asks for, the offshoot's included. */
+export function sizeBought({ before, after, offshootSize }: Purchase): number {
+  return after.size - before.size + offshootSize;
+}
+
+/** The purchase at the share of it the water supplied. */
+export function supply({ before, after, offshootSize }: Purchase, share: number): Purchase {
+  return {
+    before,
+    after: {
+      ...after,
+      size: before.size + share * (after.size - before.size),
+      surplus: before.surplus + share * (after.surplus - before.surplus),
+    },
+    offshootSize: share * offshootSize,
   };
 }

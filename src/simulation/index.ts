@@ -348,11 +348,17 @@ export {
   speciesDemand,
   speciesHalfSaturation,
   nutrientShare,
+  organicNutrients,
+  drawTissue,
+  tissueMass,
   calculateCo2Factor,
   calculateRespiration,
   getRespirationTemperatureFactor,
   spendSurplus,
   propagate,
+  purchase,
+  sizeBought,
+  supply,
   VIGOUR_SPAN,
   getSpeciesGrowthRate,
   computePlantVitality,
@@ -371,7 +377,14 @@ export {
   floorShade,
   isOvergrown,
 } from './plants/index.js';
-export type { PlantLight, CanopyLight, Propagation } from './plants/index.js';
+export type {
+  PlantLight,
+  CanopyLight,
+  Propagation,
+  Purchase,
+  TissueNeed,
+  TissueDraw,
+} from './plants/index.js';
 
 // Livestock
 export {

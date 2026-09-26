@@ -52,6 +52,35 @@ export function monodUptake(stock: number, capacity: number, halfSaturation: num
   return Math.min(stock, capacity, root);
 }
 
+export interface MonodConsumer {
+  capacity: number;
+  halfSaturation: number;
+}
+
+/**
+ * The stock a tick ends on under several Monod consumers, each with its own
+ * half-saturation and each read where the tick ends: the root of
+ * `stock − end = Σ capacity_i × monodFactor(end, K_i)`. With one consumer,
+ * `stock − end` is `monodUptake`.
+ *
+ * Bisected from below, so at the stock it returns the consumers' draws never
+ * sum past what left the pool, and the pool never goes below zero.
+ */
+export function monodEndStock(stock: number, consumers: readonly MonodConsumer[]): number {
+  if (stock <= 0) return 0;
+  const drawn = (end: number): number =>
+    consumers.reduce((sum, c) => sum + c.capacity * monodFactor(end, c.halfSaturation), 0);
+  if (drawn(stock) <= 0) return stock;
+  let low = 0;
+  let high = stock;
+  for (let i = 0; i < 64; i++) {
+    const mid = (low + high) / 2;
+    if (mid + drawn(mid) <= stock) low = mid;
+    else high = mid;
+  }
+  return low;
+}
+
 /**
  * Irradiance scaling for photosynthesis — `tanh(I / Ik)`, the Jassby–Platt
  * photosynthesis–irradiance curve.

@@ -3,7 +3,8 @@
  *
  * - Shedding is what low condition does to a plant: it drops a share of
  *   itself every hour that grows with the square of its condition deficit,
- *   and the tissue leaves as waste — melting plants foul the water.
+ *   and the tissue leaves as waste — melting plants foul the water. It is
+ *   the organic matter growth drew from the water, handed back.
  * - Death comes at condition 0, as it does for a fish.
  */
 
@@ -11,6 +12,7 @@ import type { Plant } from '../state.js';
 import type { PlantsConfig } from '../config/plants.js';
 import { plantsDefaults } from '../config/plants.js';
 import { fullRateUnits } from '../plants/canopy.js';
+import type { PlantSpecies } from '../plants/species.js';
 
 /** Tissue a plant drops this tick, and the waste it makes doing it. */
 export function calculateShedding(
@@ -22,7 +24,7 @@ export function calculateShedding(
 
   return {
     sizeReduction,
-    wasteProduced: tissueWaste(plant, sizeReduction, config),
+    wasteProduced: tissueMass(plant.species, sizeReduction, config),
   };
 }
 
@@ -31,9 +33,14 @@ export function calculateDeathWaste(
   plant: Plant,
   config: PlantsConfig = plantsDefaults
 ): number {
-  return tissueWaste(plant, plant.size, config);
+  return tissueMass(plant.species, plant.size, config);
 }
 
-function tissueWaste(plant: Plant, size: number, config: PlantsConfig): number {
-  return size * fullRateUnits(plant.species) * config.wastePerSize;
+/** Grams of organic matter in this much size of a species, by its leaf. */
+export function tissueMass(
+  species: PlantSpecies,
+  size: number,
+  config: PlantsConfig = plantsDefaults
+): number {
+  return size * fullRateUnits(species) * config.wastePerSize;
 }

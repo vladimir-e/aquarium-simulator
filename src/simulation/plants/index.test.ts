@@ -3,7 +3,8 @@ import { processPlants, readPlantLight, plantHealingRate } from './index.js';
 import { canopyLight, floorCover, getTotalRateUnits, plantHeight } from './canopy.js';
 import { calculatePhotosynthesis } from '../systems/photosynthesis.js';
 import { calculateRespiration } from '../systems/respiration.js';
-import { calculateNutrientSufficiency } from '../systems/nutrients.js';
+import { calculateNutrientSufficiency, organicNutrients } from '../systems/nutrients.js';
+import { tissueMass } from '../systems/plant-lifecycle.js';
 import { getPpm } from '../resources/index.js';
 import {
   calculateTankHeight,
@@ -105,7 +106,7 @@ describe('processPlants', () => {
 
       expect(delta('oxygen', 'photosynthesis')).toBeGreaterThan(0);
       expect(delta('co2', 'photosynthesis')).toBeLessThan(0);
-      expect(delta('nitrate', 'photosynthesis')).toBeLessThan(0);
+      expect(delta('nitrate', 'photosynthesis')).toBeUndefined();
       expect(delta('oxygen', 'respiration')).toBeLessThan(0);
       expect(delta('co2', 'respiration')).toBeGreaterThan(0);
       expect(effects.every((e) => e.tier === 'active')).toBe(true);
@@ -302,6 +303,71 @@ describe('processPlants', () => {
     });
   });
 
+  describe('tissue drawn from the water', () => {
+    const CAP = plantsDefaults.surplusCap;
+    const recipe = organicNutrients(DEFAULT_CONFIG.livestock, DEFAULT_CONFIG.nutrients);
+    const drawn = (result: ReturnType<typeof processPlants>, n: (typeof NUTRIENTS)[number]): number =>
+      -(result.effects.find((e) => e.resource === n && e.source === 'plant-growth')?.delta ?? 0);
+    /** Grams of tissue the tick added: every survivor's gain and every offshoot, by species. */
+    const tissueAdded = (before: readonly Plant[], after: readonly Plant[]): number =>
+      after.reduce((sum, plant) => {
+        const start = before.find((p) => p.id === plant.id);
+        return sum + tissueMass(plant.species, plant.size - (start?.size ?? 0));
+      }, 0);
+    /** A night after a good day: nothing earned or lost, so only the bank moves size. */
+    const night = (plants: Plant[], water: Partial<Resources> = {}): SimulationState =>
+      createTestState({ plants, light: 0, lightByHour: LIT_DAY, water: 100, ...water });
+    const growers = (): Plant[] => [
+      plantRecord({ id: 'mother', species: 'amazon_sword', size: 90, condition: C, surplus: CAP }),
+      plantRecord({ id: 'fern', species: 'java_fern', size: 40, condition: C, surplus: BANK }),
+      plantRecord({ id: 'carpet', species: 'monte_carlo', size: 20, condition: C, surplus: BANK }),
+    ];
+
+    it('takes exactly the recipe of the tissue it grew, offshoots included', () => {
+      for (const water of [{}, { phosphate: 0.01 * nutrientsDefaults.halfSaturation.phosphate * 100 }]) {
+        const state = night(growers(), water);
+        const result = processPlants(state, DEFAULT_CONFIG);
+        const tissue = tissueAdded(state.plants, result.state.plants);
+
+        expect(result.state.plants.length).toBe(4);
+        expect(tissue).toBeGreaterThan(0);
+        for (const n of NUTRIENTS) expect(drawn(result, n)).toBeCloseTo(tissue * recipe[n], 10);
+      }
+    });
+
+    it('slows on short water rather than stopping, and the bank pays only for what arrived', () => {
+      const grown = (phosphatePpm: number): { size: number; spent: number } => {
+        const state = night([plantRecord({ id: 'fern', species: 'java_fern', size: 40, condition: C, surplus: BANK })], {
+          phosphate: phosphatePpm * 100,
+        });
+        const after = processPlants(state, DEFAULT_CONFIG).state.plants[0];
+        return { size: after.size - 40, spent: BANK - after.surplus };
+      };
+      const rich = grown(1);
+      const lean = grown(0.001);
+
+      expect(lean.size).toBeGreaterThan(0);
+      expect(lean.size).toBeLessThan(rich.size / 2);
+      for (const { size, spent } of [rich, lean]) {
+        expect(size).toBeCloseTo(spent * sizePerBank('java_fern'), 12);
+      }
+    });
+
+    it('never draws a pool below zero, however many plants buy tissue on it at once', () => {
+      const crowd = Array.from({ length: 200 }, (_, i) =>
+        plantRecord({ id: `mc${i}`, species: 'monte_carlo', size: 50, condition: C, surplus: CAP })
+      );
+      for (const trace of [1e-9, 1e-3, 1]) {
+        const state = night(crowd, { water: 40, phosphate: trace, iron: trace, nitrate: trace, potassium: trace });
+        const result = processPlants(state, DEFAULT_CONFIG);
+        for (const n of NUTRIENTS) {
+          expect(drawn(result, n)).toBeGreaterThanOrEqual(0);
+          expect(drawn(result, n)).toBeLessThanOrEqual(state.resources[n]);
+        }
+      }
+    });
+  });
+
   describe('shedding and death', () => {
     it('sheds a plant in poor condition into waste and removes one at condition 0', () => {
       const state = createTestState({
@@ -437,19 +503,13 @@ describe('processPlants', () => {
         planting,
         canopyLight(planting, state.tank.capacity, DEFAULT_CONFIG.optics).map((c) => resources.light * c.leaf),
         resources.co2,
-        resources,
         resources.water,
         planting.map((p) => calculateNutrientSufficiency(resources, resources.water, p.species, nutrients)),
-        plantsConfig,
-        nutrients
+        plantsConfig
       );
       expect(delta('oxygen', 'photosynthesis')).toBeCloseTo(getPpm(photosynthesis.oxygenProducedMg, resources.water), 12);
       expect(delta('co2', 'photosynthesis')).toBeCloseTo(-getPpm(photosynthesis.co2ConsumedMg, resources.water), 12);
-      expect(delta('nitrate', 'photosynthesis')).toBeCloseTo(photosynthesis.nitrateDelta, 12);
-      expect(delta('phosphate', 'photosynthesis')).toBeCloseTo(photosynthesis.phosphateDelta, 12);
-      expect(delta('potassium', 'photosynthesis')).toBeCloseTo(photosynthesis.potassiumDelta, 12);
-      expect(delta('iron', 'photosynthesis')).toBeCloseTo(photosynthesis.ironDelta, 12);
-      expect(delta('gh', 'photosynthesis')).toBeCloseTo(photosynthesis.ghDelta, 12);
+      for (const n of NUTRIENTS) expect(delta(n, 'photosynthesis')).toBe(0);
 
       const respiration = calculateRespiration(
         getTotalRateUnits(planting),
@@ -543,8 +603,11 @@ describe('processPlants', () => {
         water: 100,
       });
       const [parent, offshoot] = processPlants(state, DEFAULT_CONFIG).state.plants;
-      expect(offshoot.size).toBeCloseTo(plantsDefaults.surplusCap * sizePerBank('java_fern'), 12);
-      expect(parent.surplus).toBe(0);
+      expect(offshoot.size).toBeCloseTo(
+        (plantsDefaults.surplusCap - parent.surplus) * sizePerBank('java_fern'),
+        12
+      );
+      expect(parent.surplus).toBeLessThan(plantsDefaults.surplusCap / 10);
     });
   });
 
@@ -591,11 +654,12 @@ describe('processPlants', () => {
       expect(Math.abs(child.vigour)).toBeLessThanOrEqual(VIGOUR_SPAN);
     });
 
-    it('acts from the next tick: born at the size it was bought at, then living', () => {
+    it('acts from the next tick: born at the size the bank paid for, then living', () => {
       const born = processPlants(night([mother(CAP)]), DEFAULT_CONFIG).state;
-      const child = born.plants[1];
+      const [parent, child] = born.plants;
       const next = processPlants(born, DEFAULT_CONFIG).state.plants.find((p) => p.id === child.id)!;
-      expect(child.size).toBeCloseTo(CAP * sizePerBank('amazon_sword'), 12);
+      expect(child.size).toBeCloseTo((CAP - parent.surplus) * sizePerBank('amazon_sword'), 12);
+      expect(child.size).toBeGreaterThan(0.9 * CAP * sizePerBank('amazon_sword'));
       expect(next.age).toBe(1);
     });
 

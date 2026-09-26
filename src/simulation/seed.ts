@@ -16,9 +16,9 @@ import {
 import { nitrogenCycleDefaults } from './config/nitrogen-cycle.js';
 import { calculateMaxBacteria, restingColony } from './systems/nitrogen-cycle.js';
 import { processMetabolism } from './systems/metabolism.js';
-import { ammoniaPerGramOfFood, livestockDefaults } from './config/livestock.js';
+import { ammoniaPerGramOfFood, livestockDefaults, nitratePerGramOfFood } from './config/livestock.js';
 import { decayDefaults } from './config/decay.js';
-import { NH3_TO_NO2_MASS_RATIO, NO2_TO_NO3_MASS_RATIO } from './core/chemistry.js';
+import { NH3_TO_NO2_MASS_RATIO } from './core/chemistry.js';
 import { getGhMass, getKhMass } from './resources/helpers.js';
 import { createFish } from './livestock/create-fish.js';
 import { createPlant } from './plants/create-plant.js';
@@ -187,17 +187,9 @@ export function cycledKhReserve(type: SubstrateType, capacity: number): number {
 }
 
 /**
- * mg of nitrate a gram of the bed's organics ends up as, once mineralised to
- * ammonia and oxidised the two steps to nitrate — each one keeping the
- * nitrogen and picking up the mass of the oxygen it gains.
- */
-const NITRATE_PER_GRAM_LEACHED =
-  ammoniaPerGramOfFood(livestockDefaults) * NH3_TO_NO2_MASS_RATIO * NO2_TO_NO3_MASS_RATIO;
-
-/**
- * Share of that nitrate still in the water. Nothing in a fishless tank
- * consumes nitrate, so a month of leaching left alone reads 9.7 ppm over aqua
- * soil — but a keeper changes water: the same month measures 0.37 of it under
+ * Share of the nitrate a cycled bed leached that is still in the water.
+ * Nothing in a fishless tank consumes nitrate, so a month of leaching left
+ * alone reads 9.7 ppm over aqua soil — but a keeper changes water: the same month measures 0.37 of it under
  * a weekly 30 % change and 0.17 under a weekly 50 %. A quarter sits between
  * them, rounded to the low side because nitrate is a stressor and the tank a
  * keeper hands over has just been changed, not left to load.
@@ -207,7 +199,7 @@ const CYCLED_NITRATE_RETAINED = 0.25;
 /** mg of nitrate a cycled tank of this bed and capacity carries. */
 export function cycledNitrate(type: SubstrateType, capacity: number): number {
   const leached = getSubstrateOrganicReserve(type, capacity) - cycledReserve(type, capacity);
-  return leached * NITRATE_PER_GRAM_LEACHED * CYCLED_NITRATE_RETAINED;
+  return leached * nitratePerGramOfFood(livestockDefaults) * CYCLED_NITRATE_RETAINED;
 }
 
 /**

@@ -11,6 +11,7 @@ Format: - **Feature name** (#PR) - One short sentence (under ~150 chars)
 
 ## Unreleased
 
+- **A plant is made of its nutrients** (#71) - growth draws food's recipe from the water, slower on short water, and shed or dead tissue returns it, so N and minerals are conserved; breaking: no `uptakePerRateUnit`, `calculatePhotosynthesis` moves gases only, `drawTissue`/`purchase`/`supply` (v32).
 - **A plant dies only at condition 0** (#71) - a shrunken plant lives while it has condition, and every planting, trim and seed runs from `MIN_PLANTABLE_SIZE` to 100; breaking: no `deathSizeThreshold`, `addPlant`/`trimPlants`/`canTrimPlants` take no config, `createSimulation` refuses an unplantable seed size (v32).
 - **A new tank opens on the optics it runs on** (#70) - `SimulationConfig.optics` lights its first day, and `relight` re-reads a tank at hour zero under others.
 - **A feeding adds what it weighs** (#70) - the food stock keeps its real mass instead of rounding to 0.01 g.
