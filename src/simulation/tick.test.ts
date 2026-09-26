@@ -8,6 +8,7 @@ import type { PresetSeed } from './seed.js';
 import { FILTER_SURFACE } from './equipment/filter.js';
 import { POWERHEAD_FLOW_LPH } from './equipment/powerhead.js';
 import type { HardscapeType } from './equipment/hardscape.js';
+import { dailyLightIntegral } from './equipment/light.js';
 
 describe('tick', () => {
   const still = (): SimulationState =>
@@ -130,6 +131,42 @@ describe('tick', () => {
     expect(next.logs.some((log) => log.source === 'evaporation' && log.severity === 'warning')).toBe(
       true
     );
+  });
+});
+
+describe('the light history', () => {
+  const scheduled = (): SimulationState =>
+    createSimulation({
+      tankCapacity: 100,
+      light: { enabled: true, par: 90, schedule: { startHour: 8, duration: 12 } },
+    });
+
+  it('rewrites the slot for the hour of day each tick lands on, and only that one', () => {
+    let state = produce(scheduled(), (draft) => {
+      draft.resources.lightByHour = new Array(24).fill(-1);
+    });
+    for (let hour = 1; hour <= 30; hour++) {
+      state = tick(state);
+      expect(state.resources.lightByHour[state.tick % 24]).toBe(state.resources.light);
+    }
+    expect(state.resources.lightByHour.every((par) => par >= 0)).toBe(true);
+  });
+
+  it('holds the daily light integral constant through day and night under a steady schedule', () => {
+    let state = scheduled();
+    const daily = dailyLightIntegral(state.resources.lightByHour);
+    for (let hour = 0; hour < 72; hour++) {
+      state = tick(state);
+      expect(dailyLightIntegral(state.resources.lightByHour)).toBeCloseTo(daily, 10);
+    }
+  });
+
+  it('empties over a day when the fixture dies', () => {
+    let state = produce(scheduled(), (draft) => {
+      draft.equipment.light.enabled = false;
+    });
+    for (let hour = 0; hour < 24; hour++) state = tick(state);
+    expect(dailyLightIntegral(state.resources.lightByHour)).toBe(0);
   });
 });
 

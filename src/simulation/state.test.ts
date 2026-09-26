@@ -8,7 +8,12 @@ import {
 import { DEFAULT_CONFIG } from './config/index.js';
 import { opticsDefaults } from './config/optics.js';
 import { DEFAULT_FILTER } from './equipment/filter.js';
-import { calculateParAtDepth, MAX_LIGHT_PAR } from './equipment/light.js';
+import {
+  calculateParAtDepth,
+  dailyLightIntegral,
+  MAX_LIGHT_PAR,
+  scheduledLightByHour,
+} from './equipment/light.js';
 import { DEFAULT_POWERHEAD } from './equipment/powerhead.js';
 import { DEFAULT_SUBSTRATE } from './equipment/substrate.js';
 import { tick } from './tick.js';
@@ -98,6 +103,22 @@ describe('createSimulation - the light a tank opens on', () => {
     });
 
     expect(tick(state, DEFAULT_CONFIG).resources.light).toBeCloseTo(state.resources.light, 10);
+  });
+
+  it('opens on a full day of the schedule, seeded or not', () => {
+    const config = {
+      tankCapacity: 40,
+      light: { enabled: true, par: 90, schedule: { startHour: 8, duration: 12 } },
+    };
+    const expected = scheduledLightByHour(
+      { enabled: true, par: 90, schedule: { startHour: 8, duration: 12 } },
+      calculateTankHeight(40),
+      opticsDefaults
+    );
+
+    expect(createSimulation(config).resources.lightByHour).toEqual(expected);
+    expect(createSimulation(config, { bacteria: 'cycled' }).resources.lightByHour).toEqual(expected);
+    expect(dailyLightIntegral(expected)).toBeGreaterThan(0);
   });
 });
 

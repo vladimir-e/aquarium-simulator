@@ -28,6 +28,7 @@ function makeResources(overrides: Partial<Resources> = {}): Resources {
     surface: 1000,
     flow: 100,
     light: 30,
+    lightByHour: new Array(24).fill(0),
     aeration: true,
     food: 0,
     waste: 0,

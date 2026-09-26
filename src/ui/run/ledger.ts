@@ -20,7 +20,7 @@ import type { VerbId } from '../actions/verbs.js';
 import { algaeStatus, algaeWord } from './flora.js';
 import { bandOf, bandStatus, fishReading } from './livestock.js';
 import { CONDITION_BAND, type Satiation, type SpeciesId } from './roster.js';
-import { conditionStatus, vitalReading, type Status } from './status.js';
+import { conditionReading, conditionStatus, type Status } from './status.js';
 import type { ReadingBand } from './water.js';
 
 /** What the ledger is open on. Algae is a population, so it carries no id. */
@@ -94,18 +94,18 @@ function sum(list: LedgerFactor[]): number {
   return list.reduce((total, factor) => total + factor.perDay, 0);
 }
 
-function trendOf(netPerHour: number): string {
-  const perDay = netPerHour * PER_DAY;
+function trendOf(changePerHour: number): string {
+  const perDay = changePerHour * PER_DAY;
   if (Math.abs(perDay) < 0.05) return 'steady';
   return `${perDay > 0 ? '↗' : '↘'} ${Math.abs(perDay).toFixed(1)}/d`;
 }
 
-function bankOf(value: number, cap: number, drained: boolean): LedgerBank {
+function bankOf(value: number, cap: number, healed: boolean): LedgerBank {
   return {
     value,
     cap,
     at: cap > 0 ? Math.min(1, value / cap) : 0,
-    note: drained ? 'paying out to hold condition' : 'banked against a bad day',
+    note: healed ? 'paying out to hold condition' : 'banked against a bad day',
   };
 }
 
@@ -119,7 +119,7 @@ function fishLedger(
   if (!fish) return null;
 
   const livestock = config.livestock;
-  const { breakdown } = computeFishVitality(
+  const vitality = computeFishVitality(
     fish,
     state.resources,
     state.plants,
@@ -127,11 +127,12 @@ function fishLedger(
     state.tank.capacity,
     livestock
   );
+  const { breakdown } = vitality;
 
   const helping = factors(breakdown.benefits);
-  const hurting = factors([...breakdown.upkeep, ...breakdown.stressors]);
+  const hurting = factors(breakdown.stressors);
   const band = bandOf(fish.satiation, livestock);
-  const reading = fishReading(fish, breakdown, livestock);
+  const reading = fishReading(fish, vitality, livestock);
 
   return {
     target: { kind: 'fish', id },
@@ -145,7 +146,7 @@ function fishLedger(
     unit: '% condition',
     at: fish.health / 100,
     band: CONDITION_BAND,
-    trend: trendOf(breakdown.net),
+    trend: trendOf(vitality.newCondition - fish.health),
     satiation: {
       at: fish.satiation / 100,
       band: {
@@ -160,7 +161,7 @@ function fishLedger(
     helps: sum(helping),
     hurts: sum(hurting),
     net: breakdown.net * PER_DAY,
-    bank: bankOf(fish.surplus, livestock.surplusCap, breakdown.drained > 0),
+    bank: bankOf(fish.surplus, livestock.surplusCap, breakdown.healed > 0),
     demand: null,
     verb: 'feed',
   };
@@ -176,11 +177,12 @@ function plantLedger(
   if (index < 0) return null;
 
   const plant = state.plants[index];
-  const { breakdown } = readPlantVitality(state, config)[index];
+  const vitality = readPlantVitality(state, config)[index];
+  const { breakdown } = vitality;
   const data = PLANT_SPECIES_DATA[plant.species];
   const helping = factors(breakdown.benefits);
-  const hurting = factors([...breakdown.upkeep, ...breakdown.stressors]);
-  const reading = vitalReading(plant.condition, plant.surplus, breakdown);
+  const hurting = factors(breakdown.stressors);
+  const reading = conditionReading(plant.condition);
   const [lightLow, lightHigh] = data.tolerableLight;
 
   return {
@@ -195,14 +197,14 @@ function plantLedger(
     unit: '% condition',
     at: plant.condition / 100,
     band: CONDITION_BAND,
-    trend: trendOf(breakdown.net),
+    trend: trendOf(vitality.newCondition - plant.condition),
     satiation: null,
     helping,
     hurting,
     helps: sum(helping),
     hurts: sum(hurting),
     net: breakdown.net * PER_DAY,
-    bank: bankOf(plant.surplus, config.plants.surplusCap, breakdown.drained > 0),
+    bank: bankOf(plant.surplus, config.plants.surplusCap, breakdown.healed > 0),
     demand:
       `${data.nutrientDemand} demand · light ${lightLow}–${lightHigh} PAR · ${data.co2Requirement} CO₂`,
     verb: 'trimPlants',

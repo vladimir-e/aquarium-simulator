@@ -26,6 +26,12 @@ This project follows documentation-driven development:
 - When removing code, clean it up completely as if it never existed
 - No deprecated functions, no compatibility shims, no "kept for backward compatibility" comments
 
+## One abstraction
+
+Every organism with a condition runs one vitality model. Condition is the buffer between dying and thriving, normal at 100: benefit rates raise it, damage rates lower it, so nothing dies or heals instantly. Income banks only at 100; the bank heals condition at a species rate and buys what the organism makes — a plant's growth, a fish's brood. Low condition has effects — a plant sheds, a fish whose damage outruns its healing is sick.
+
+Designing a mechanic is choosing rates of benefit and harm. A new stock, clock or special path for one organism leaves the model — stop and raise it instead of building it. A threshold that switches a mechanism on or off, or a clamp standing in for kinetics, is a defect; a rate that starts at a tolerance edge is not. Algae keeps no condition and runs its own bank.
+
 ## Build first, tune last
 
 Build out mechanics first; tune last. The bar for a mechanic is that it works and moves the right stock in the right direction.

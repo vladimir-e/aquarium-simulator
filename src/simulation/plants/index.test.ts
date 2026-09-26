@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { processPlants, readPlantVitality } from './index.js';
+import { processPlants, readPlantVitality, plantHealingRate } from './index.js';
 import { createSimulation, type SimulationState, type Plant, type Resources } from '../state.js';
 import type { PlantSpecies } from './species.js';
 import { produce } from 'immer';
@@ -21,9 +21,6 @@ const RICH_NITRATE_PPM = 90;
 describe('processPlants', () => {
   const C = 100;
   const BANK = establishmentSurplus(plantsDefaults);
-
-  const NIGHTLY_UPKEEP =
-    plantsDefaults.upkeepCost * (1 - PLANT_SPECIES_DATA.java_fern.hardiness);
 
   function createTestState({
     plants,
@@ -102,37 +99,18 @@ describe('processPlants', () => {
       expect(result.state.plants[0].size).toBeGreaterThan(50);
     });
 
-    it('does not grow plants whose condition is sub-100 (surplus-overflow gate)', () => {
+    it('heals a sub-100 plant on its income, banking none of it, while its bank still buys size', () => {
       const state = createTestState({
-        plants: [
-          { id: 'p1', species: 'java_fern', size: 50, condition: 80, surplus: BANK },
-        ],
+        plants: [{ id: 'p1', species: 'java_fern', size: 50, condition: 80, surplus: BANK }],
         light: 50,
         co2: INJECTED_CO2,
         nitrate: RICH_NITRATE_PPM * 100,
         water: 100,
       });
-      const result = processPlants(state, DEFAULT_CONFIG);
-      expect(result.state.plants[0].size).toBe(50);
-      expect(result.state.plants[0].condition).toBeGreaterThan(80);
-    });
-
-    it('only the at-100 plant grows when paired with a sub-100 sibling', () => {
-      const state = createTestState({
-        plants: [
-          { id: 'healthy', species: 'java_fern', size: 50, condition: 100, surplus: BANK },
-          { id: 'stressed', species: 'java_fern', size: 50, condition: 70, surplus: BANK },
-        ],
-        light: 50,
-        co2: INJECTED_CO2,
-        nitrate: RICH_NITRATE_PPM * 100,
-        water: 100,
-      });
-      const result = processPlants(state, DEFAULT_CONFIG);
-      const healthy = result.state.plants.find((p) => p.id === 'healthy');
-      const stressed = result.state.plants.find((p) => p.id === 'stressed');
-      expect(healthy?.size).toBeGreaterThan(50);
-      expect(stressed?.size).toBe(50);
+      const after = processPlants(state, DEFAULT_CONFIG).state.plants[0];
+      expect(after.condition).toBeGreaterThan(80);
+      expect(after.surplus).toBeLessThan(BANK);
+      expect(after.size).toBeGreaterThan(50);
     });
   });
 
@@ -168,89 +146,43 @@ describe('processPlants', () => {
     });
   });
 
-  describe('photoperiod gate on surplus banking and growth', () => {
-    it('spends the bank rather than banking at night, however good the water', () => {
+  describe('round the clock', () => {
+    it('banks while lit and grows off the bank day and night', () => {
       const state = createTestState({
-        plants: [{ id: 'p1', species: 'java_fern', size: 50, condition: 100, surplus: 5 }],
-        light: 0,
+        plants: [{ id: 'p1', species: 'java_fern', size: 50, condition: 100, surplus: BANK }],
         co2: INJECTED_CO2,
         nitrate: RICH_NITRATE_PPM * 100,
         temperature: 25,
         water: 100,
       });
-      const result = processPlants(state, DEFAULT_CONFIG);
-      expect(result.state.plants[0].surplus).toBeLessThan(5);
-      expect(result.state.plants[0].condition).toBe(100);
-    });
-
-    it('does not grow at night even with banked surplus', () => {
-      const state = createTestState({
-        plants: [{ id: 'p1', species: 'java_fern', size: 50, condition: 100, surplus: 40 }],
-        light: 0,
-        temperature: 25,
-        water: 100,
-      });
-      const result = processPlants(state, DEFAULT_CONFIG);
-      expect(result.state.plants[0].size).toBe(50);
-      expect(result.state.plants[0].surplus).toBeCloseTo(40 - NIGHTLY_UPKEEP, 12);
-    });
-
-    it('grows during the day when surplus is available', () => {
-      const state = createTestState({
-        plants: [{ id: 'p1', species: 'java_fern', size: 50, condition: 100, surplus: 10 }],
-        light: 50,
-        co2: INJECTED_CO2,
-        nitrate: RICH_NITRATE_PPM * 100,
-        temperature: 25,
-        water: 100,
-      });
-      const result = processPlants(state, DEFAULT_CONFIG);
-      expect(result.state.plants[0].size).toBeGreaterThan(50);
-      expect(result.state.plants[0].surplus).toBeGreaterThan(10);
-    });
-
-    it('day/night/day cycle: surplus and size advance only during lit periods', () => {
-      const state = createTestState({
-        plants: [
-          {
-            id: 'p1',
-            species: 'java_fern',
-            size: 50,
-            condition: 100,
-            surplus: BANK,
-          },
-        ],
-        light: 50,
-        co2: INJECTED_CO2,
-        nitrate: RICH_NITRATE_PPM * 100,
-        temperature: 25,
-        water: 100,
-      });
-      const runTicks = (
-        s: SimulationState,
-        ticks: number,
-        light: number
-      ): SimulationState => {
+      const runTicks = (s: SimulationState, ticks: number, light: number): SimulationState => {
         let current = produce(s, (draft) => {
           draft.resources.light = light;
         });
-        for (let t = 0; t < ticks; t++) {
-          const r = processPlants(current, DEFAULT_CONFIG);
-          current = r.state;
-        }
+        for (let t = 0; t < ticks; t++) current = processPlants(current, DEFAULT_CONFIG).state;
         return current;
       };
-      const afterDay1 = runTicks(state, 5, 50);
-      const sizeDay1 = afterDay1.plants[0].size;
-      const surplusDay1 = afterDay1.plants[0].surplus;
-      expect(sizeDay1).toBeGreaterThan(50);
 
-      const afterNight = runTicks(afterDay1, 5, 0);
-      expect(afterNight.plants[0].size).toBe(sizeDay1);
-      expect(afterNight.plants[0].surplus).toBeLessThan(surplusDay1);
+      const day = runTicks(state, 5, 50);
+      expect(day.plants[0].surplus).toBeGreaterThan(BANK);
+      expect(day.plants[0].size).toBeGreaterThan(50);
 
-      const afterDay2 = runTicks(afterNight, 5, 50);
-      expect(afterDay2.plants[0].size).toBeGreaterThan(sizeDay1);
+      const night = runTicks(day, 5, 0);
+      expect(night.plants[0].condition).toBe(100);
+      expect(night.plants[0].surplus).toBeLessThan(day.plants[0].surplus);
+      expect(night.plants[0].size).toBeGreaterThan(day.plants[0].size);
+    });
+
+    it('costs a plant nothing but its growth through a scheduled night', () => {
+      const state = createTestState({
+        plants: [{ id: 'p1', species: 'monte_carlo', size: 50, condition: 100, surplus: 10 }],
+        light: 0,
+        water: 100,
+      });
+      const after = processPlants(state, DEFAULT_CONFIG).state.plants[0];
+      const grew = (after.size - 50) / (PLANT_SPECIES_DATA.monte_carlo.growthRate * plantsDefaults.sizePerSurplus);
+      expect(after.condition).toBe(100);
+      expect(10 - after.surplus).toBeCloseTo(grew, 12);
     });
   });
 
@@ -345,11 +277,11 @@ describe('processPlants', () => {
   });
 
   describe('shedding and death', () => {
-    it('sheds a starved plant into waste and removes one past the death line', () => {
+    it('sheds a plant in poor condition into waste and removes one at condition 0', () => {
       const state = createTestState({
         plants: [
-          { id: 'starved', species: 'java_fern', size: 50, condition: C, surplus: 0 },
-          { id: 'dying', species: 'java_fern', size: 50, condition: 1, surplus: 0 },
+          { id: 'poorly', species: 'java_fern', size: 50, condition: 50, surplus: 0 },
+          { id: 'dead', species: 'java_fern', size: 50, condition: 0, surplus: 0 },
         ],
         light: 0,
         temperature: 25,
@@ -357,12 +289,21 @@ describe('processPlants', () => {
       });
       const result = processPlants(state, DEFAULT_CONFIG);
 
-      expect(result.state.plants.map((p) => p.id)).toEqual(['starved']);
+      expect(result.state.plants.map((p) => p.id)).toEqual(['poorly']);
       expect(result.state.plants[0].size).toBeLessThan(50);
       const waste = result.effects.find((e) => e.resource === 'waste');
       expect(waste?.source).toBe('plant-condition');
       expect(waste?.delta).toBeGreaterThan(0);
       expect(result.state.logs.filter((l) => l.event === 'plant-died')).toHaveLength(1);
+    });
+
+    it('sheds nothing at full condition, bank or no bank', () => {
+      const state = createTestState({
+        plants: [{ id: 'p1', species: 'java_fern', size: 50, condition: 100, surplus: 0 }],
+        light: 0,
+        water: 100,
+      });
+      expect(processPlants(state, DEFAULT_CONFIG).state.plants[0].size).toBe(50);
     });
   });
 
@@ -411,52 +352,34 @@ describe('processPlants', () => {
     });
   });
 
-  describe('the reserve buys tissue, not condition', () => {
-    it('a plant with reserves keeps its size through a night a bare one melts in', () => {
-      const withBank = createTestState({
-        plants: [{ id: 'p1', species: 'java_fern', size: 50, condition: 100, surplus: 20 }],
-        light: 0,
-        water: 100,
+  describe('the bank heals', () => {
+    const hostilePh = (s: SimulationState): SimulationState =>
+      produce(s, (draft) => {
+        draft.resources.kh = getKhMass(carbonateKh(draft.resources.co2, 9.5), draft.resources.water);
       });
-      const bare = createTestState({
-        plants: [{ id: 'p1', species: 'java_fern', size: 50, condition: 100, surplus: 0 }],
-        light: 0,
-        water: 100,
-      });
+    const sour = (surplus: number): SimulationState =>
+      hostilePh(
+        createTestState({
+          plants: [{ id: 'p1', species: 'java_fern', size: 50, condition: 100, surplus }],
+          light: 0,
+          water: 100,
+        })
+      );
 
-      const bankedOut = processPlants(withBank, DEFAULT_CONFIG).state.plants[0];
-      const bareOut = processPlants(bare, DEFAULT_CONFIG).state.plants[0];
+    it('pays out at most its healing share of the bank however hard the damage, and the rest reaches condition', () => {
+      const vitality = readPlantVitality(sour(20), DEFAULT_CONFIG)[0];
+      const share = plantHealingRate(sour(20).plants[0], plantsDefaults);
 
-      expect(bankedOut.size).toBe(50);
-      expect(bankedOut.surplus).toBeLessThan(20);
-      expect(bareOut.size).toBeLessThan(50);
-      expect(bareOut.condition).toBe(100);
+      expect(vitality.breakdown.damageRate).toBeGreaterThan(share * 20);
+      expect(vitality.breakdown.healed).toBeCloseTo(share * 20, 12);
+      expect(vitality.surplus).toBeCloseTo(20 - vitality.breakdown.healed, 12);
+      expect(vitality.newCondition).toBeLessThan(100);
     });
 
-    it('buffers damage on the spare, and lets it past once only the reserve is left', () => {
-      const hostilePh = (s: SimulationState): SimulationState =>
-        produce(s, (draft) => {
-          draft.resources.kh = getKhMass(carbonateKh(draft.resources.co2, 9.5), draft.resources.water);
-        });
-      const sour = (surplus: number): SimulationState =>
-        hostilePh(
-          createTestState({
-            plants: [{ id: 'p1', species: 'java_fern', size: 50, condition: 100, surplus }],
-            light: 0,
-            water: 100,
-          })
-        );
-      const overnight = (surplus: number): Plant =>
-        processPlants(sour(surplus), DEFAULT_CONFIG).state.plants[0];
-
-      const banked = overnight(20);
-      expect(banked.condition).toBe(100);
-      expect(banked.surplus).toBeLessThan(20);
-
-      const reserve = readPlantVitality(sour(0), DEFAULT_CONFIG)[0].breakdown.reserved;
-      const spent = overnight(reserve);
-      expect(spent.condition).toBeLessThan(100);
-      expect(spent.size).toBe(50);
+    it('holds condition a bare plant loses', () => {
+      const banked = processPlants(sour(20), DEFAULT_CONFIG).state.plants[0];
+      const bare = processPlants(sour(0), DEFAULT_CONFIG).state.plants[0];
+      expect(banked.condition).toBeGreaterThan(bare.condition);
     });
 
     it('self-heals an over-cap bank on the first tick', () => {
@@ -466,35 +389,8 @@ describe('processPlants', () => {
         water: 100,
       });
       const out = processPlants(state, DEFAULT_CONFIG).state.plants[0];
-      expect(out.surplus).toBeCloseTo(plantsDefaults.surplusCap - NIGHTLY_UPKEEP, 12);
-    });
-  });
-
-  describe('the bottom of the upkeep slider', () => {
-    const free = { ...DEFAULT_CONFIG, plants: { ...plantsDefaults, upkeepCost: 0 } };
-
-    const lit = (): SimulationState =>
-      createTestState({
-        plants: [{ id: 'p1', species: 'java_fern', size: 50, condition: 100, surplus: 0 }],
-        light: 50,
-        co2: INJECTED_CO2,
-        nitrate: RICH_NITRATE_PPM * 100,
-        temperature: 25,
-        water: 100,
-      });
-
-    const grownIn = (config: typeof DEFAULT_CONFIG): Plant => {
-      let state = lit();
-      for (let hour = 0; hour < 12; hour++) state = processPlants(state, config).state;
-      return state.plants[0];
-    };
-
-    it('turns a lit day into tissue, and more of it than a charged plant does', () => {
-      const owing = grownIn(DEFAULT_CONFIG);
-      const owingNothing = grownIn(free);
-
-      expect(owingNothing.size).toBeGreaterThan(50);
-      expect(owingNothing.size).toBeGreaterThan(owing.size);
+      expect(out.surplus).toBeLessThanOrEqual(plantsDefaults.surplusCap);
+      expect(out.surplus).toBeGreaterThan(plantsDefaults.surplusCap * (1 - plantsDefaults.growthDrawRate));
     });
   });
 });

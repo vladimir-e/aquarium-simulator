@@ -1,21 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { createPlant, DEFAULT_PLANT_SIZE, establishmentSurplus } from './create-plant.js';
-import { plantsDefaults, type PlantsConfig } from '../config/plants.js';
+import { plantsDefaults } from '../config/plants.js';
 import { createRng } from '../core/rng.js';
-import { createSimulation, type Plant } from '../state.js';
-import { computePlantVitality } from '../systems/plant-vitality.js';
-
-const RESOURCES = createSimulation({ tankCapacity: 40 }).resources;
-
-const reserveOwed = (plant: Plant, plantsConfig: PlantsConfig): number =>
-  computePlantVitality({
-    plant,
-    resources: RESOURCES,
-    waterVolume: RESOURCES.water,
-    plantsConfig,
-    nutrientSufficiency: 1,
-    algaeMass: 0,
-  }).breakdown.reserved;
 
 describe('createPlant', () => {
   it('builds a plant at full condition with the reserve it arrives on', () => {
@@ -38,7 +24,6 @@ describe('createPlant', () => {
       const plant = createPlant({ species: 'anubias', plantsConfig, rng: createRng(1) });
 
       expect(plant.surplus).toBe(surplusCap / 2);
-      expect(plant.surplus).toBeGreaterThan(reserveOwed(plant, plantsConfig));
     }
   });
 

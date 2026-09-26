@@ -10,12 +10,14 @@ import { createSimulation, type SimulationState } from '../../simulation/state.j
 import {
   applyAction,
   calculateTankHeight,
+  dailyLightIntegral,
   getDgh,
   getDkh,
   getSubstrateOrganicReserve,
   getSubstrateSurface,
   liftHardscape,
   placeHardscape,
+  scheduledLightByHour,
   tick,
 } from '../../simulation/index.js';
 import { cycledColony, cycledHardness } from '../../simulation/seed.js';
@@ -633,6 +635,35 @@ describe('useSimulation', () => {
       });
 
       expect(result.current.state.resources.light / before).toBeCloseTo(150 / 90, 6);
+    });
+
+    it('lights an hour-zero tank as though it had run the new schedule all along', () => {
+      const { result } = renderHook(() => useSimulation('bare'), { wrapper });
+      expect(dailyLightIntegral(result.current.state.resources.lightByHour)).toBe(0);
+
+      act(() => {
+        result.current.updateLightEnabled(true);
+      });
+
+      const { state } = result.current;
+      expect(state.resources.lightByHour).toEqual(
+        scheduledLightByHour(state.equipment.light, calculateTankHeight(state.tank.capacity), DEFAULT_CONFIG.optics)
+      );
+    });
+
+    it('leaves the day a running tank has lived to the tick', () => {
+      let lit = createPresetSimulation(getPresetById('planted')!);
+      for (let i = 0; i < 9; i++) lit = tick(lit, DEFAULT_CONFIG);
+      seedSession(lit, 'planted');
+
+      const { result } = renderHook(() => useSimulation('planted'), { wrapper });
+      const lived = result.current.state.resources.lightByHour;
+
+      act(() => {
+        result.current.updateLightPar(150);
+      });
+
+      expect(result.current.state.resources.lightByHour).toEqual(lived);
     });
   });
 

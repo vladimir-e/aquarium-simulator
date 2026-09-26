@@ -38,7 +38,7 @@ export type { RngState } from './core/rng.js';
 
 // Species
 export type { PlantSpecies, PlantSpeciesData, NutrientDemand } from './plants/species.js';
-export { PLANT_SPECIES_DATA, getSaturationIrradiance } from './plants/species.js';
+export { PLANT_SPECIES_DATA, getSaturationIrradiance, dailyLightEdge } from './plants/species.js';
 export type {
   FishSpecies,
   FishSpeciesData,
@@ -217,6 +217,8 @@ export {
   type AutoDoser,
   getLightOutput,
   calculateParAtDepth,
+  scheduledLightByHour,
+  dailyLightIntegral,
   LIGHT_PAR_OPTIONS,
   MAX_LIGHT_PAR,
   type Light,
@@ -337,7 +339,6 @@ export {
   spendSurplus,
   getSpeciesGrowthRate,
   computePlantVitality,
-  buildPlantUpkeep,
   buildPlantStressors,
   buildPlantBenefits,
 } from './plants/index.js';
@@ -366,11 +367,8 @@ export {
 export {
   computeVitality,
   hardened,
-  bankSurplus,
-  spendableSurplus,
   type VitalityFactor,
   type VitalityInput,
   type VitalityResult,
   type VitalityBreakdown,
-  type SurplusBankTick,
 } from './systems/index.js';

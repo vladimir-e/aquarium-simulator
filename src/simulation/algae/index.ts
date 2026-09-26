@@ -4,11 +4,10 @@
  * Pipeline:
  * 1. Compute net rate via `computeAlgaePopulation` (sum benefits −
  *    sum hardened stressors).
- * 2. Fold the net rate into the surplus reserve bank via `bankSurplus`
- *    (the shared vitality primitive): positive net accrues (capped,
- *    photoperiod-gated), negative net drains the bank before it touches
- *    mass. Surplus is photoperiod-gated photosynthate; vitality's
- *    positive rate overnight is discarded.
+ * 2. Fold the net rate into the surplus reserve bank via `bankSurplus`:
+ *    positive net accrues (capped, photoperiod-gated), negative net drains
+ *    the bank before it touches mass. Surplus is photoperiod-gated
+ *    photosynthate; vitality's positive rate overnight is discarded.
  * 3. Shrink mass by the drain *overflow* — the damage the bank couldn't
  *    cover. Runs 24/7 — a hostile-environment bloom burns reserves then
  *    dies back, at night too. A well-stocked bloom shrugs off a bad tick.
@@ -37,7 +36,6 @@ import { produce } from 'immer';
 import type { SimulationState, AlgaeState } from '../state.js';
 import type { TunableConfig } from '../config/index.js';
 import { computeAlgaePopulation } from '../systems/algae-vitality.js';
-import { bankSurplus } from '../systems/vitality.js';
 import type { AlgaeVitalityConfig } from '../config/algae-vitality.js';
 
 export interface AlgaeProcessingResult {
@@ -47,6 +45,42 @@ export interface AlgaeProcessingResult {
 
 const MASS_MAX = 100;
 
+/** Outcome of folding one tick's net rate into the bloom's bank. */
+export interface SurplusBankTick {
+  /** Bank after this tick, within `[0, cap]`. */
+  surplus: number;
+  /** Reserve drained to absorb damage (≥ 0). */
+  drained: number;
+  /** Damage that outran the bank and reaches mass (≥ 0). */
+  overflowDamage: number;
+}
+
+/**
+ * Fold one tick's net rate into the bloom's saturating bank. Damage drains
+ * the bank first and only what it couldn't cover reaches mass; benefit
+ * accrues up to `cap` when `accrue` is set, discarding the rest. The bank is
+ * clamped into `[0, cap]` on entry, with a negative cap read as 0.
+ *
+ * The bloom's own path, not the vitality model: algae keeps no condition.
+ */
+export function bankSurplus(
+  bank: number,
+  net: number,
+  cap: number,
+  accrue: boolean
+): SurplusBankTick {
+  const safeCap = Math.max(0, cap);
+  const start = Math.min(safeCap, Math.max(0, bank));
+  if (net < 0) {
+    const drained = Math.min(start, -net);
+    return { surplus: start - drained, drained, overflowDamage: -net - drained };
+  }
+  if (net > 0 && accrue) {
+    return { surplus: Math.min(safeCap, start + net), drained: 0, overflowDamage: 0 };
+  }
+  return { surplus: start, drained: 0, overflowDamage: 0 };
+}
+
 /**
  * Drain up to `algaeGrowthPerTickCap` from the surplus bank and
  * convert to mass via the asymptotic factor `max(0, 1 - mass / 100)`.
@@ -55,11 +89,8 @@ const MASS_MAX = 100;
  * drawing surplus at full rate but gets less mass per unit drawn as it
  * approaches saturation. Returns the post-spend `AlgaeState`.
  *
- * `spendSurplus` is the plant twin and no longer drains this
- * way — it withdraws only what converted, so a saturated plant banks
- * its income rather than burning it. The bloom still burns its own,
- * which is why `AlgaeState.surplus` reads zero the way `Plant.surplus`
- * used to.
+ * Unlike a plant, which withdraws only what converts, the bloom burns
+ * what it draws, so `AlgaeState.surplus` reads near zero.
  */
 export function spendAlgaeSurplus(
   algae: AlgaeState,

@@ -103,7 +103,7 @@ describe('LifeSection', () => {
       state.tank.capacity,
       DEFAULT_CONFIG.livestock
     );
-    for (const factor of [...breakdown.stressors, ...breakdown.upkeep, ...breakdown.benefits]) {
+    for (const factor of [...breakdown.stressors, ...breakdown.benefits]) {
       if (factor.amount > 0) expect(drawer.getByText(factor.label)).toBeTruthy();
     }
   });

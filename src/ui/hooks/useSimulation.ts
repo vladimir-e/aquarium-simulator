@@ -6,6 +6,8 @@ import {
   applyAction,
   calculatePassiveResources,
   calculateHardscapeSlots,
+  calculateTankHeight,
+  scheduledLightByHour,
   liftHardscape,
   placeHardscape,
   rescape,
@@ -61,13 +63,22 @@ function generateHardscapeId(): string {
   return `hardscape_${Date.now().toString(36)}_${(hardscapeSeq++).toString(36)}`;
 }
 
-/** The tick does the same thing to the same four. */
+/**
+ * The tick does the same thing to the same four. At hour zero the tank has
+ * lived no day yet, so its light history is the schedule it was lit to.
+ */
 function refreshPassiveResources(draft: SimulationState, optics: OpticsConfig): void {
   const passive = calculatePassiveResources(draft, optics);
   draft.resources.surface = passive.surface;
   draft.resources.flow = passive.flow;
   draft.resources.light = passive.light;
   draft.resources.aeration = passive.aeration;
+  if (draft.tick === 0) {
+    const depth = calculateTankHeight(draft.tank.capacity);
+    scheduledLightByHour(draft.equipment.light, depth, optics).forEach((par, hour) => {
+      draft.resources.lightByHour[hour] = par;
+    });
+  }
 }
 
 /**

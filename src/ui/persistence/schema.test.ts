@@ -140,6 +140,7 @@ describe('PersistedSimulationSchema', () => {
       surface: 1000,
       flow: 100,
       light: 0,
+      lightByHour: new Array(24).fill(0),
       aeration: false,
       food: 0,
       waste: 0,
@@ -422,6 +423,7 @@ describe('PersistedStateSchema', () => {
       surface: 1000,
       flow: 100,
       light: 0,
+      lightByHour: new Array(24).fill(0),
       aeration: false,
       food: 0,
       waste: 0,
@@ -539,8 +541,8 @@ describe('PersistedStateSchema', () => {
     ).toBe(false);
   });
 
-  it('PERSISTENCE_VERSION is 29', () => {
-    expect(PERSISTENCE_VERSION).toBe(29);
+  it('PERSISTENCE_VERSION is 30', () => {
+    expect(PERSISTENCE_VERSION).toBe(30);
   });
 });
 

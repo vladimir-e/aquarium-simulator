@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { produce } from 'immer';
-import { processAlgae, spendAlgaeSurplus, computeAlgaePopulation } from './index.js';
+import { bankSurplus, processAlgae, spendAlgaeSurplus, computeAlgaePopulation } from './index.js';
 import { algaeVitalityDefaults } from '../config/algae-vitality.js';
 import { DEFAULT_CONFIG } from '../config/index.js';
 import { createSimulation, type SimulationState, type Plant } from '../state.js';
@@ -167,5 +167,46 @@ describe('processAlgae — surplus buffer and cap', () => {
     const { state: out } = processAlgae(state, DEFAULT_CONFIG);
     expect(out.algae.surplus).toBe(algaeVitalityDefaults.surplusCap);
     expect(out.algae.mass).toBe(30);
+  });
+});
+
+const CAP = 50;
+
+describe('bankSurplus', () => {
+  it('accrues positive net up to the cap, discarding the overflow', () => {
+    expect(bankSurplus(48, 5, CAP, true)).toEqual({ surplus: CAP, drained: 0, overflowDamage: 0 });
+    expect(bankSurplus(10, 5, CAP, true)).toEqual({ surplus: 15, drained: 0, overflowDamage: 0 });
+  });
+
+  it('discards positive net entirely when accrual is gated off', () => {
+    expect(bankSurplus(10, 5, CAP, false)).toEqual({ surplus: 10, drained: 0, overflowDamage: 0 });
+  });
+
+  it('drains the bank to absorb damage, reporting the shortfall', () => {
+    expect(bankSurplus(1, -3, CAP, true)).toEqual({ surplus: 0, drained: 1, overflowDamage: 2 });
+    expect(bankSurplus(10, -2, CAP, true)).toEqual({ surplus: 8, drained: 2, overflowDamage: 0 });
+  });
+
+  it('drains regardless of the accrual gate', () => {
+    expect(bankSurplus(10, -2, CAP, false)).toEqual({ surplus: 8, drained: 2, overflowDamage: 0 });
+  });
+
+  it('clamps an over-cap bank down to the cap on entry', () => {
+    expect(bankSurplus(80, 0, CAP, true).surplus).toBe(CAP);
+    expect(bankSurplus(80, -2, CAP, true)).toEqual({ surplus: 48, drained: 2, overflowDamage: 0 });
+  });
+
+  it('clamps a negative bank up to zero', () => {
+    expect(bankSurplus(-5, 0, CAP, true).surplus).toBe(0);
+  });
+
+  it('is a no-op on the bank when net is zero', () => {
+    expect(bankSurplus(12, 0, CAP, true)).toEqual({ surplus: 12, drained: 0, overflowDamage: 0 });
+  });
+
+  it('treats a negative cap as zero across every branch', () => {
+    expect(bankSurplus(8, 5, -10, true).surplus).toBe(0);
+    expect(bankSurplus(8, -2, -10, true).surplus).toBe(0);
+    expect(bankSurplus(8, 0, -10, true).surplus).toBe(0);
   });
 });

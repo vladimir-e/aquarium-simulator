@@ -1,4 +1,5 @@
 import type { PlantsConfig } from '../config/plants.js';
+import { parHoursToDli } from '../equipment/light.js';
 
 /**
  * Plant species types.
@@ -47,19 +48,19 @@ export interface PlantSpeciesData {
    */
   maxSize: number;
   /**
-   * Hardiness 0–1. Scales every stressor and the upkeep by
-   * `1 − hardiness` — higher = species tolerates poor conditions
-   * better. Anubias / Java Fern sit around 0.7 (forgiving), high-tech
-   * carpet species at 0.3 (fussy).
+   * Hardiness 0–1. Scales most stressors by `1 − hardiness` and carries the
+   * nitrate edge out — higher = species tolerates poor conditions better.
+   * Anubias / Java Fern sit around 0.7 (forgiving), high-tech carpet species
+   * at 0.3 (fussy).
    */
   hardiness: number;
   /**
-   * Tolerable PAR range (µmol/m²/s) at the substrate. Outside this band a
-   * light-insufficient (low) or light-excessive (high) stressor activates.
-   * The two-sided shape lets shade species like Anubias burn under a
-   * high-output fixture, in addition to the usual carpet-species low-light
-   * complaints. The hobby's published tiers are low 15-30, medium 30-50,
-   * high 50-80+.
+   * Tolerable PAR range (µmol/m²/s) at the substrate, as care sheets quote it
+   * for a {@link CARE_SHEET_PHOTOPERIOD}-hour day. The low end held that long
+   * is the daily light the species starves under (see {@link dailyLightEdge});
+   * past the high end the light-excessive stressor burns it while the lamps
+   * are on. The hobby's published tiers are low 15-30, medium 30-50, high
+   * 50-80+.
    */
   tolerableLight: [number, number];
   /** Tolerable temperature range in °C — outside is stress. */
@@ -162,18 +163,28 @@ export const PLANT_SPECIES_DATA: Record<PlantSpecies, PlantSpeciesData> = {
   },
 };
 
+/** Hours a day the care-sheet PAR bands assume the lamps are on. */
+export const CARE_SHEET_PHOTOPERIOD = 8;
+
+/**
+ * Daily light integral (mol/m²/d) under which a species starves: the low end
+ * of its PAR band held for a care-sheet photoperiod.
+ */
+export function dailyLightEdge(species: PlantSpecies): number {
+  return parHoursToDli(PLANT_SPECIES_DATA[species].tolerableLight[0], CARE_SHEET_PHOTOPERIOD);
+}
+
 /**
  * The PAR a species stops answering more of — `Ik` of the Jassby–Platt curve
- * both light channels run on.
+ * its photosynthesis and benefits run on.
  *
  * Derived from the band rather than declared, at `saturationIrradianceFactor ×
  * tolerableLight[0]`: anubias 16, java fern 20, amazon sword 40, dwarf
  * hairgrass 50, monte carlo 60. That is inside the published macrophyte range —
  * shade species saturate at 10–30 µmol/m²/s, sun species at 50–150 — and it
- * makes a species' saturating irradiance a fixed multiple of where its damage
- * threshold sits, so one number carries both light channels. At the shipped
- * factor a plant at its lower bound runs at 46 % of its rate while the
- * light-insufficient stressor charges it.
+ * makes a species' saturating irradiance a fixed multiple of where its daily
+ * light edge sits. At the shipped factor a plant at its lower bound runs at
+ * 46 % of its rate.
  */
 export function getSaturationIrradiance(species: PlantSpecies, config: PlantsConfig): number {
   return config.saturationIrradianceFactor * PLANT_SPECIES_DATA[species].tolerableLight[0];

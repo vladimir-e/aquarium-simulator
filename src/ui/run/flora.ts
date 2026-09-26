@@ -35,7 +35,7 @@ import {
   type NutrientsConfig,
   type TunableConfig,
 } from '../../simulation/config/index.js';
-import { STATUS_SEVERITY, vitalReading, type Status } from './status.js';
+import { STATUS_SEVERITY, conditionReading, type Status } from './status.js';
 
 /**
  * Trim targets, in % of a plant's size. A planted tank settles at 60–90 %, so
@@ -79,18 +79,11 @@ export interface PlantRow {
   /** Above every rung of the trim ladder. */
   overTrim: boolean;
   condition: number;
-  /** Read across both stocks — condition, and the energy ledger that spends `size`. */
   status: Status;
-  /** The word for it: a plant shedding tissue says so rather than "thriving". */
   word: string;
   /** Change per hour: what the breakdown below it sums to. */
   net: number;
-  /**
-   * Everything charged this hour — upkeep first, then damage, so the rows sum
-   * to `net`. Two ledgers merged for one list, which is a display choice: what
-   * a plant owes for being alive is not a stressor, and lands in a different
-   * stock (the docs portal, Vitality § The two ledgers).
-   */
+  /** Every stressor charged this hour. */
   charged: VitalityFactor[];
   benefits: VitalityFactor[];
 }
@@ -112,9 +105,9 @@ export function plantRows(state: SimulationState, config: TunableConfig): PlantR
       size: plant.size,
       overTrim: plant.size > TRIM_CEILING,
       condition: plant.condition,
-      ...vitalReading(plant.condition, plant.surplus, vitality.breakdown),
+      ...conditionReading(plant.condition),
       net: vitality.breakdown.net,
-      charged: acting([...vitality.breakdown.upkeep, ...vitality.breakdown.stressors]),
+      charged: acting(vitality.breakdown.stressors),
       benefits: acting(vitality.breakdown.benefits),
     };
   });

@@ -178,7 +178,7 @@ describe('rosterTables', () => {
       state.tank.capacity,
       DEFAULT_CONFIG.livestock
     );
-    expect(breakdown.drained).toBeGreaterThan(0);
+    expect(breakdown.healed).toBeGreaterThan(0);
 
     const row = tables(state, 'species-neon_tetra').fish[1] as IndividualRosterRow;
     const ledger = readLedger(state, DEFAULT_CONFIG, { kind: 'fish', id: 'fish_a_1' })!;

@@ -139,11 +139,16 @@ export interface LivestockConfig {
 
   // Surplus
   /**
-   * Saturation cap for the surplus reserve bank (%/h-equivalent units).
-   * Damage drains the bank before health falls; accrual saturates here.
+   * Ceiling on the bank. Income past full health banks up to it, and a
+   * female spawns once hers is full.
    * Shared default across organism types — see `SURPLUS_CAP_DEFAULT`.
    */
   surplusCap: number;
+  /**
+   * Share of the bank a 1 g fish draws each hour to heal health below 100;
+   * scaled by adult mass to the −¼ power (see `fishHealingRate`).
+   */
+  healingDrawRate: number;
 
   // Death
   /** Fraction of fish mass added as waste on death */
@@ -269,6 +274,10 @@ export const livestockDefaults: LivestockConfig = {
 
   // Surplus reserve buffer — half the condition scale by default.
   surplusCap: SURPLUS_CAP_DEFAULT,
+  // 5 %/h at 1 g: a full bank heals a 1 g fish 2.5 %/h at first, more than its
+  // whole benefit budget, and runs out with a ~20 h time constant under a
+  // steady insult. A neon draws 6 %/h of its bank, an angelfish 2.5.
+  healingDrawRate: 0.05,
 
   // Death
   deathDecayFactor: 0.5, // Half fish mass becomes waste
@@ -375,6 +384,7 @@ export const livestockConfigMeta: LivestockConfigMeta[] = [
   { key: 'plantBenefitSaturationPoint', label: 'Plant Benefit Saturation', unit: 'plants', min: 1, max: 10, step: 0.5 },
   // Surplus
   { key: 'surplusCap', label: 'Surplus Cap', unit: '%', min: 0, max: 100, step: 5 },
+  { key: 'healingDrawRate', label: 'Healing Draw Rate', unit: '/hr at 1 g', min: 0.005, max: 0.5, step: 0.005 },
   // Death
   { key: 'deathDecayFactor', label: 'Death Decay Factor', unit: '', min: 0.1, max: 1.0, step: 0.1 },
 ];

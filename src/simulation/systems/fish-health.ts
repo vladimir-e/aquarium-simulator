@@ -3,10 +3,10 @@
  *
  * Each tick a fish's environment is decomposed into damage and benefit
  * factors, fed through {@link computeVitality}, and the result drives
- * `health` (the fish-side name for vitality's `condition`). Surplus is
- * banked on `Fish.surplus` as a reserve buffer: it absorbs damage before
- * health falls and fuels reproduction — the breeding system spends it on
- * spawning (see `livestock/breeding.ts`).
+ * `health` (the fish-side name for vitality's `condition`). Income at full
+ * health banks on `Fish.surplus`; the bank heals health below 100 at
+ * {@link fishHealingRate}, and a full one is what a female spawns on (see
+ * `livestock/breeding.ts`).
  *
  * Stressors, hardened here before they reach the vitality engine:
  * - Temperature, pH, GH, satiation (hunger side), water level, flow, age
@@ -33,8 +33,7 @@
  *
  * The plant benefit pushes the all-good budget above the abiotic
  * ceiling on purpose — a healthy planted tank should sit at full
- * health with a positive net rate, banking surplus on `Fish.surplus`,
- * which the breeding system spends on reproduction.
+ * health with a positive net rate, banking surplus on `Fish.surplus`.
  */
 
 import type { Fish, Plant, Resources } from '../state.js';
@@ -72,13 +71,6 @@ export interface HealthResult {
   deadFishNames: string[];
   /** Total waste produced from dead fish */
   deathWaste: number;
-  /**
-   * Vitality net rate (benefit − damage, %/h) this tick per surviving
-   * fish, keyed by id. The breeding gate reads it so a buffered fish in
-   * a declining tank can't spawn off old savings; surfacing it here
-   * avoids recomputing the stressor math downstream.
-   */
-  netByFishId: Map<string, number>;
 }
 
 /**
@@ -251,6 +243,14 @@ function buildBenefits(ctx: FishFactorContext): VitalityFactor[] {
 }
 
 /**
+ * Share of its bank a fish heals from per hour: `healingDrawRate` for a 1 g
+ * fish, scaled by adult mass to the −¼ power, as mass-specific metabolism is.
+ */
+export function fishHealingRate(fish: Fish, config: LivestockConfig): number {
+  return config.healingDrawRate * FISH_SPECIES_DATA[fish.species].adultMass ** -0.25;
+}
+
+/**
  * Compute a vitality tick for a single fish without applying it. Used
  * by the UI to render the current trend, by tests to assert against,
  * and by `processHealth` to drive the actual update.
@@ -271,6 +271,7 @@ export function computeFishVitality(
     condition: fish.health,
     surplus: fish.surplus,
     surplusCap: config.surplusCap,
+    healingRate: fishHealingRate(fish, config),
   });
 }
 
@@ -292,7 +293,6 @@ export function processHealth(
 ): HealthResult {
   const survivingFish: Fish[] = [];
   const deadFishNames: string[] = [];
-  const netByFishId = new Map<string, number>();
   let deathWaste = 0;
 
   for (const f of fish) {
@@ -312,22 +312,16 @@ export function processHealth(
       continue;
     }
 
-    // The vitality result carries the post-drain, post-accrual bank
-    // directly, so we store it rather than adding an emission. The bank
-    // is the fish's reserve buffer — it protects health from damage and
-    // feeds breeding.
     survivingFish.push({
       ...f,
       health: newHealth,
       surplus: result.surplus,
     });
-    netByFishId.set(f.id, result.breakdown.net);
   }
 
   return {
     survivingFish,
     deadFishNames,
     deathWaste,
-    netByFishId,
   };
 }

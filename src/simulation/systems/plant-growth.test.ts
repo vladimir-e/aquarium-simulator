@@ -5,7 +5,6 @@ import {
   getSpeciesMaxSize,
   asymptoticGrowthFactor,
 } from './plant-growth.js';
-import { computeVitality, type VitalityResult } from './vitality.js';
 import type { Plant } from '../state.js';
 import type { PlantSpecies } from '../plants/species.js';
 import { plantsConfigMeta, plantsDefaults } from '../config/plants.js';
@@ -49,25 +48,32 @@ describe('asymptoticGrowthFactor', () => {
 });
 
 function withdrawal(plant: Plant): number {
-  return plant.surplus - spendSurplus(plant, 0).surplus;
+  return plant.surplus - spendSurplus(plant).surplus;
 }
 
 function growth(plant: Plant): number {
-  return spendSurplus(plant, 0).size - plant.size;
+  return spendSurplus(plant).size - plant.size;
 }
 
 describe('spendSurplus', () => {
   it('returns the plant unchanged when surplus is 0', () => {
     const plant = makePlant('java_fern', { surplus: 0, size: 50 });
-    const after = spendSurplus(plant, 0);
+    const after = spendSurplus(plant);
     expect(after.size).toBe(50);
     expect(after.surplus).toBe(0);
   });
 
   it('returns the plant unchanged when surplus is negative (defensive)', () => {
     const plant = makePlant('java_fern', { surplus: -1, size: 50 });
-    const after = spendSurplus(plant, 0);
+    const after = spendSurplus(plant);
     expect(after).toBe(plant);
+  });
+
+  it('grows whatever the condition: the bank buys size alongside healing', () => {
+    const well = makePlant('java_fern', { surplus: 10, size: 200 });
+    const hurt = makePlant('java_fern', { surplus: 10, size: 200, condition: 40 });
+    expect(growth(hurt)).toBeCloseTo(growth(well), 12);
+    expect(spendSurplus(hurt).condition).toBe(40);
   });
 
   it('the withdrawal buys the growth and nothing else', () => {
@@ -79,7 +85,7 @@ describe('spendSurplus', () => {
   it('leaves the rest of the bank alone', () => {
     const plant = makePlant('java_fern', { surplus: 20, size: 300 });
     expect(withdrawal(plant)).toBeLessThan(plant.surplus);
-    expect(spendSurplus(plant, 0).surplus).toBeGreaterThan(0);
+    expect(spendSurplus(plant).surplus).toBeGreaterThan(0);
   });
 
   it('size gain = surplus × growthDrawRate × asymptoticFactor × speciesRate × sizePerSurplus', () => {
@@ -133,7 +139,7 @@ describe('spendSurplus', () => {
       surplus: 25,
       size: getSpeciesMaxSize('java_fern'),
     });
-    const after = spendSurplus(plant, 0);
+    const after = spendSurplus(plant);
     expect(after.size).toBe(plant.size);
     expect(after.surplus).toBe(plant.surplus);
   });
@@ -144,7 +150,7 @@ describe('spendSurplus', () => {
 
     for (const growthDrawRate of [maxTunable!, 1, 1.5, 100]) {
       const plant = makePlant('monte_carlo', { surplus: plantsDefaults.surplusCap, size: 0 });
-      const after = spendSurplus(plant, 0, { ...plantsDefaults, growthDrawRate });
+      const after = spendSurplus(plant, { ...plantsDefaults, growthDrawRate });
       expect(after.surplus).toBeGreaterThanOrEqual(0);
       expect(after.size - plant.size).toBeCloseTo(
         (plant.surplus - after.surplus) *
@@ -153,50 +159,5 @@ describe('spendSurplus', () => {
         10
       );
     }
-  });
-});
-
-describe('the reserved depth, against repair and growth', () => {
-  const UPKEEP_RATE = 0.05;
-  const RESERVE_HOURS = 100;
-  const RESERVE = UPKEEP_RATE * RESERVE_HOURS;
-
-  const settle = (plant: Plant): VitalityResult =>
-    computeVitality({
-      upkeep: [{ key: 'upkeep', label: 'Upkeep', amount: UPKEEP_RATE }],
-      upkeepReserveHours: RESERVE_HOURS,
-      stressors: [{ key: 'stress', label: 'Stress', amount: 0.5 }],
-      benefits: [{ key: 'light', label: 'Light', amount: UPKEEP_RATE }],
-      condition: plant.condition,
-      surplus: plant.surplus,
-      surplusCap: plantsDefaults.surplusCap,
-    });
-
-  it('damage takes the condition, and the next tick may not buy it back', () => {
-    const plant = makePlant('java_fern', { surplus: RESERVE, size: 200 });
-    const hit = settle(plant);
-
-    expect(hit.breakdown.reserved).toBeCloseTo(RESERVE, 10);
-    expect(hit.surplus).toBeCloseTo(RESERVE, 10);
-    expect(hit.newCondition).toBeLessThan(100);
-
-    const damaged: Plant = { ...plant, condition: hit.newCondition, surplus: hit.surplus };
-    const next = spendSurplus(damaged, hit.breakdown.reserved);
-    expect(next.condition).toBe(damaged.condition);
-    expect(next.surplus).toBe(damaged.surplus);
-    expect(next.size).toBe(damaged.size);
-
-    expect(spendSurplus(damaged, 0).condition).toBeGreaterThan(damaged.condition);
-  });
-
-  it('spends the whole spare on the ladder and stops at the line', () => {
-    const plant = makePlant('java_fern', { surplus: RESERVE + 4, size: 200, condition: 99 });
-    let running = plant;
-    for (let hour = 0; hour < 2000; hour++) {
-      running = spendSurplus(running, RESERVE);
-    }
-    expect(running.condition).toBe(100);
-    expect(running.size).toBeGreaterThan(plant.size);
-    expect(running.surplus).toBeCloseTo(RESERVE, 6);
   });
 });

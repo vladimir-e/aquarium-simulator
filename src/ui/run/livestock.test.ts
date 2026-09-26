@@ -185,7 +185,15 @@ describe('the reading behind a fish', () => {
     const [group] = groupBySpecies(state, livestockDefaults);
 
     expect(group.condition).toBe(100);
-    expect(group.members.map((member) => member.reading.word)).toEqual(['thriving', 'starving']);
+    expect(group.members.map((member) => member.reading.word)).toEqual(['sick', 'starving']);
+  });
+
+  it('calls a fish sick while damage outruns its healing, and not while its bank holds it', () => {
+    const bare = poisoned([makeFish({ id: 'a', health: 100, satiation: 90 })], 10);
+    const banked = poisoned([makeFish({ id: 'a', health: 100, satiation: 90, surplus: 50 })], 10);
+
+    expect(groupBySpecies(bare, livestockDefaults)[0].members[0].reading).toEqual({ status: 'warn', word: 'sick' });
+    expect(groupBySpecies(banked, livestockDefaults)[0].members[0].reading.word).toBe('thriving');
   });
 
   it('reads each fish once, and hands the reading to the row', () => {

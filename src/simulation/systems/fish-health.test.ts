@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { computeFishVitality, processHealth } from './fish-health.js';
+import { computeFishVitality, fishHealingRate, processHealth } from './fish-health.js';
 import type { VitalityResult } from './vitality.js';
 import { livestockDefaults } from '../config/livestock.js';
 import { FISH_SPECIES_DATA } from '../livestock/species.js';
@@ -64,6 +64,7 @@ function makeResources(overrides: ResourceOverrides = {}): Resources {
     surface: 1000,
     flow: 100,
     light: 0,
+    lightByHour: new Array(24).fill(0),
     aeration: true,
     food: 1,
     waste: 0,
@@ -503,14 +504,24 @@ describe('surplus', () => {
     );
   });
 
-  it('burns the reserve to hold health at 100 under stress, then health falls', () => {
-    const buffered = health([makeFish({ surplus: 10 })], cold).survivingFish[0];
-    expect(buffered.health).toBe(100);
-    expect(buffered.surplus).toBeLessThan(10);
+  it('heals from the bank at its share, holding health a bare fish loses', () => {
+    const buffered = vitality({ surplus: 10 }, cold);
+    expect(buffered.breakdown.healed).toBeCloseTo(
+      Math.min(-buffered.breakdown.net, 10 * fishHealingRate(makeFish(), livestockDefaults)),
+      12
+    );
+    expect(buffered.surplus).toBeCloseTo(10 - buffered.breakdown.healed, 12);
+    expect(buffered.newCondition).toBeGreaterThan(vitality({ surplus: 0 }, cold).newCondition);
+  });
 
-    const spent = health([makeFish({ surplus: 0.01 })], cold).survivingFish[0];
-    expect(spent.surplus).toBe(0);
-    expect(spent.health).toBeLessThan(100);
+  it('scales the healing share by adult mass to the −¼ power', () => {
+    const share = (species: FishSpecies): number => fishHealingRate(makeFish({ species }), livestockDefaults);
+    const ratio = FISH_SPECIES_DATA.angelfish.adultMass / FISH_SPECIES_DATA.neon_tetra.adultMass;
+    expect(share('neon_tetra') / share('angelfish')).toBeCloseTo(ratio ** 0.25, 12);
+    expect(share('guppy')).toBeCloseTo(
+      livestockDefaults.healingDrawRate * FISH_SPECIES_DATA.guppy.adultMass ** -0.25,
+      12
+    );
   });
 
   it('floors at zero when the cap is negative', () => {

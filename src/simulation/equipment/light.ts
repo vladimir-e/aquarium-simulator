@@ -78,3 +78,28 @@ export function calculateParAtDepth(
   const attenuation = optics.waterAttenuationPerCm * Math.max(0, depthCm);
   return surfacePar * Math.exp(-attenuation);
 }
+
+const HOURS_PER_DAY = 24;
+
+/** µmol/m²/s held for an hour, in mol/m². */
+const MOL_PER_PAR_HOUR = 3600 / 1e6;
+
+/**
+ * PAR at `depthCm` for every hour of the day under the fixture's schedule —
+ * the light history a tank that has run this schedule all along carries.
+ */
+export function scheduledLightByHour(light: Light, depthCm: number, optics: OpticsConfig): number[] {
+  return Array.from({ length: HOURS_PER_DAY }, (_, hour) =>
+    calculateParAtDepth(getLightOutput(light, hour), depthCm, optics)
+  );
+}
+
+/** Daily light integral of a 24-hour PAR history, mol/m²/d. */
+export function dailyLightIntegral(lightByHour: readonly number[]): number {
+  return lightByHour.reduce((total, par) => total + par, 0) * MOL_PER_PAR_HOUR;
+}
+
+/** A PAR held for `hours` a day, as a daily light integral in mol/m²/d. */
+export function parHoursToDli(par: number, hours: number): number {
+  return par * hours * MOL_PER_PAR_HOUR;
+}

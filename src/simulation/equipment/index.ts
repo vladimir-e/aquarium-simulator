@@ -53,7 +53,17 @@ import {
   BUBBLE_RATE_OPTIONS,
   type BubbleRate,
 } from './co2-generator.js';
-import { getLightOutput, calculateParAtDepth, type Light, type LightPar, DEFAULT_LIGHT, LIGHT_PAR_OPTIONS, MAX_LIGHT_PAR } from './light.js';
+import {
+  getLightOutput,
+  calculateParAtDepth,
+  scheduledLightByHour,
+  dailyLightIntegral,
+  type Light,
+  type LightPar,
+  DEFAULT_LIGHT,
+  LIGHT_PAR_OPTIONS,
+  MAX_LIGHT_PAR,
+} from './light.js';
 import {
   getAirPumpOutput,
   getAirPumpFlow,
@@ -110,7 +120,17 @@ export {
   BUBBLE_RATE_OPTIONS,
   type BubbleRate,
 };
-export { getLightOutput, calculateParAtDepth, type Light, type LightPar, DEFAULT_LIGHT, LIGHT_PAR_OPTIONS, MAX_LIGHT_PAR };
+export {
+  getLightOutput,
+  calculateParAtDepth,
+  scheduledLightByHour,
+  dailyLightIntegral,
+  type Light,
+  type LightPar,
+  DEFAULT_LIGHT,
+  LIGHT_PAR_OPTIONS,
+  MAX_LIGHT_PAR,
+};
 export {
   getAirPumpOutput,
   getAirPumpFlow,

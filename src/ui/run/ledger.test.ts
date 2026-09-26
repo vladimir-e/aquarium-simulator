@@ -47,7 +47,7 @@ describe('readLedger', () => {
       DEFAULT_CONFIG.livestock
     );
 
-    for (const factor of [...breakdown.stressors, ...breakdown.upkeep]) {
+    for (const factor of breakdown.stressors) {
       if (factor.amount <= 0) continue;
       const line = ledger.hurting.find((entry) => entry.key === factor.key)!;
       expect(line.perDay).toBeCloseTo(factor.amount * 24, 8);

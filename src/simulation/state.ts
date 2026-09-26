@@ -21,8 +21,7 @@ import type { Light } from './equipment/light.js';
 import {
   DEFAULT_LIGHT,
   MAX_LIGHT_PAR,
-  getLightOutput,
-  calculateParAtDepth,
+  scheduledLightByHour,
 } from './equipment/light.js';
 import { opticsDefaults } from './config/optics.js';
 import type { AirPump } from './equipment/air-pump.js';
@@ -69,12 +68,9 @@ export interface Fish {
    */
   hardinessOffset: number;
   /**
-   * Surplus vitality bank — a reserve buffer above health. Fills while
-   * the fish is at full health (net > 0 at condition 100), saturating at
-   * `LivestockConfig.surplusCap`; drains to absorb damage before health
-   * falls. Reproduction spends it on spawning (see
-   * `livestock/breeding.ts`). Stored in %/hr-equivalent units;
-   * conservation of meaning is on the consumer.
+   * Vitality bank, in condition points. Fills with income at full health,
+   * up to `LivestockConfig.surplusCap`, heals health below 100, and a full
+   * bank is what a female spawns on (see `livestock/breeding.ts`).
    */
   surplus: number;
 }
@@ -131,14 +127,11 @@ export interface Plant {
   species: PlantSpecies;
   /** Size percentage (can exceed 100% up to species `maxSize`). */
   size: number;
-  /** Condition/health percentage (0-100, plant dies below 10%) */
+  /** Condition/health percentage (0-100, plant dies at 0) */
   condition: number;
   /**
-   * Banked vitality surplus (%/h units) — a reserve buffer above
-   * condition. Fills when condition is full and net is positive
-   * (photoperiod-gated, capped at `PlantsConfig.surplusCap`); drains to
-   * absorb damage before condition falls; growth spends what's left over,
-   * and the remainder banks toward future propagation.
+   * Vitality bank, in condition points. Fills with income at full condition,
+   * up to `PlantsConfig.surplusCap`; heals condition below 100 and buys size.
    */
   surplus: number;
 }
@@ -164,6 +157,12 @@ export interface Resources {
   flow: number;
   /** PAR reaching the substrate in µmol/m²/s (0 when lights off) */
   light: number;
+  /**
+   * PAR at the substrate for each hour of the day, slot `tick % 24` rewritten
+   * as each hour settles: the last 24 hours the tank was lit by. Not a
+   * `ResourceKey` — no effect moves it.
+   */
+  lightByHour: number[];
   /** Whether aeration is active (air pump or air-driven filter) */
   aeration: boolean;
 
@@ -610,7 +609,8 @@ export function createSimulation(
       // Passive (calculated)
       surface: initialPassiveResources.surface,
       flow: initialPassiveResources.flow,
-      light: initialPassiveResources.light,
+      light: initialPassiveResources.lightByHour[0],
+      lightByHour: initialPassiveResources.lightByHour,
       aeration: initialPassiveResources.aeration,
       // Biological
       food: 0.0,
@@ -687,7 +687,7 @@ function calculateInitialPassiveResources(
   hardscape: Hardscape,
   light: Light,
   airPump: AirPump
-): { surface: number; flow: number; light: number; aeration: boolean } {
+): { surface: number; flow: number; lightByHour: number[]; aeration: boolean } {
   // Import isFilterAirDriven inline to avoid circular dependency
   const isFilterAirDriven = filter.type === 'sponge';
 
@@ -715,14 +715,11 @@ function calculateInitialPassiveResources(
   // Aeration is active if air pump is on OR filter is air-driven (sponge)
   const aeration = airPump.enabled || (filter.enabled && isFilterAirDriven);
 
-  // The constructor takes no tunable config, so hour 0 reads on the shipped
-  // optics. A caller running tuned optics owes this a recompute — a paused
-  // tank has no next tick, and both of the UI's rebuild paths got that wrong.
-  const substratePar = calculateParAtDepth(
-    getLightOutput(light, 0),
-    calculateTankHeight(tankCapacity),
-    opticsDefaults
-  );
+  // The constructor takes no tunable config, so the tank is lit on the shipped
+  // optics — as though it had run its schedule all along. A caller running
+  // tuned optics owes this a recompute — a paused tank has no next tick, and
+  // both of the UI's rebuild paths got that wrong.
+  const lightByHour = scheduledLightByHour(light, calculateTankHeight(tankCapacity), opticsDefaults);
 
-  return { surface, flow, light: substratePar, aeration };
+  return { surface, flow, lightByHour, aeration };
 }

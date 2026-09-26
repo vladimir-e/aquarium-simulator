@@ -11,6 +11,10 @@ Format: - **Feature name** (#PR) - One short sentence (under ~150 chars)
 
 ## Unreleased
 
+- **One vitality model** - condition moves by benefits minus damage; only a full organism banks, and the bank heals at a species rate and buys growth; breaking: no upkeep ledger (v30, v14).
+- **Plants starve on the day's light** - `resources.lightByHour` holds 24 h of PAR; below a species' daily light edge a plant starves, so nights cost nothing and blackouts cost days.
+- **Low condition sheds a plant** - tissue melts with the square of the condition deficit, and a plant dies at condition 0 like a fish; breaking: no `deathConditionThreshold`.
+- **A full bank breeds** - a mature female spawns when her bank is full and a male is present, and the spawn empties it; breaking: no `costFraction`/`maleShareFraction`.
 - **Fish release only what they ate** - every gram of fish nitrogen comes from food, so a fasting fish releases no nitrogen; breaking: no `basalAmmoniaRate` (v29).
 - **Comfort is a curve** - plant temperature and pH, and fish pH, earn most at the band's centre and nothing at its edge, where damage starts.
 - **Water harms where it really does** - NH₃, NO₂, NO₃ and O₂ harm on log dose past an edge hardiness moves out from the alert's; breaking: `computeVitality` takes pre-hardened factors (`hardened`), severities per e-fold, no `nitrateStressThreshold`/`oxygenStressThreshold`; adds `*_EDGE` (v29).
@@ -32,10 +36,7 @@ Format: - **Feature name** (#PR) - One short sentence (under ~150 chars)
 - **A resize asks before it rebuilds** - changing tank size starts a new tank at hour zero, so past a month's run it confirms first.
 - **Every constant is reachable** - the tunables drawer opens over any screen (⌘,) with a search; livestock and the fertiliser formula are in it at last.
 - **Docs portal** - the whole system documented at docs.fishroom.app, linked from the dashboard.
-- **A starving plant stops reading as thriving** - the plant status word reads the energy ledger beside condition, so a plant shedding tissue in the dark says so.
-- **One reserve, two claims, in an order** - upkeep is its own ledger, paid from income then the bank; the unpaid share eats `size`; damage and repair reach only the spare above the reserve.
 - **A nutrient shortfall is pinned from both ends** - `nutrientDeficiencySeverity` 0.7 → 0.3, re-derived against the corrected photosynthate income.
-- **Darkness costs a plant** - an always-on upkeep cost sets a compensation point under a benefit budget that now pays nothing at night; peaks 0.1 → 0.125 to hold it (v24, v11).
 - **A new plant is stocked out of the tank's own bank** - half the live `surplusCap`, not half the shipped one; breaking: `addPlant` takes a `PlantsConfig`, `applyAction` an optional one.
 - **A plant banks what it can't grow on** - growth draws a share of the reserve and withdraws only what became size, so a maxed plant fills its bank instead of burning it (v22).
 - **A brighter fixture grows more plant, up to a point** - photosynthesis and the light benefit scale on `tanh(PAR/Ik)`, saturating at twice each species' band low; breaking: no `lightRequirement` (v21, v8).

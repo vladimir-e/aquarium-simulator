@@ -7,7 +7,6 @@ import {
   getPlantsToTrimCount,
   type PlantSpecies,
   type SimulationState,
-  type VitalityBreakdown,
 } from '../../simulation/index.js';
 import { DEFAULT_CONFIG, NUTRIENTS } from '../../simulation/config/index.js';
 import { speciesHalfSaturation } from '../../simulation/systems/nutrients.js';
@@ -27,7 +26,7 @@ import {
   plantRows,
   TRIM_TARGETS,
 } from './flora';
-import { conditionStatus, conditionWord, vitalReading } from './status';
+import { conditionStatus, conditionWord } from './status';
 
 const FORMULA = DEFAULT_CONFIG.nutrients.fertilizerFormula;
 
@@ -68,49 +67,6 @@ describe('condition + algae words', () => {
     expect(algaeWord(1)).toBe('suppressed');
     expect(algaeWord(70)).toBe('spreading');
     expect(algaeWord(95)).toBe('booming');
-  });
-});
-
-describe('vitalReading', () => {
-  const ledger = (over: Partial<VitalityBreakdown> = {}): VitalityBreakdown => ({
-    stressors: [],
-    upkeep: [],
-    benefits: [],
-    damageRate: 0,
-    upkeepRate: 0.02,
-    reserved: 2,
-    benefitRate: 0,
-    net: -0.02,
-    drained: 0,
-    starved: 0,
-    ...over,
-  });
-
-  it('will not call a plant thriving while it is paying the bill in tissue', () => {
-    expect(vitalReading(100, 0, ledger({ starved: 1 }))).toEqual({
-      status: 'alert',
-      word: 'starving',
-    });
-  });
-
-  it('warns once the bank is down to the rations, and they are what is paying', () => {
-    expect(vitalReading(100, 2, ledger({ drained: 0.02 }))).toEqual({
-      status: 'warn',
-      word: 'burning',
-    });
-  });
-
-  it('says nothing about a bank spending its spare', () => {
-    expect(vitalReading(100, 20, ledger({ drained: 0.02 }))).toEqual({
-      status: 'ok',
-      word: 'thriving',
-    });
-  });
-
-  it('leaves the word to condition once condition is the worse news', () => {
-    expect(vitalReading(22, 0, ledger({ starved: 1 })).word).toBe('struggling');
-    expect(vitalReading(5, 0, ledger({ starved: 1 })).word).toBe('dying');
-    expect(vitalReading(50, 0, ledger({ starved: 1 })).word).toBe('starving');
   });
 });
 

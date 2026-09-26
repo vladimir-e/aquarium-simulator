@@ -3,36 +3,28 @@
  *
  * Mirrors `fish-health` for fish: build a stressor list, build a benefit
  * list, hand them to {@link computeVitality}, route the result back
- * onto plant state. The breakdown drives both the per-plant condition
- * update and the surplus-gated growth path.
+ * onto plant state.
  *
- * A plant runs two ledgers, and they end in different stocks. Both draw
- * on one reserve, in an order: maintenance may spend it to the last
- * unit, damage only what stands above `upkeepReserveHours` of it.
+ * Benefits are income: every channel is realised *through* photosynthesis,
+ * so the light term multiplies all four and a plant earns nothing in the
+ * dark.
  *
- * **Energy** — the benefit budget is income, not comfort: every channel
- * is realised *through* photosynthesis, which is why light multiplies
- * all four rather than standing beside them. Against that income sits
- * the maintenance cost, which sets a compensation point: below the PAR
- * where income covers it a plant runs a deficit however perfect the
- * water is, spends its bank, and then pays in tissue. A blacked-out
- * rhizome with no leaves left is a live plant that regrows, so an
- * unpayable bill costs `size` and not condition.
- *
- * **Health** — damage done *to* the plant, which spends condition:
- * - Light insufficient / excessive (two-sided around `tolerableLight`,
- *   in PAR at the substrate)
+ * Stressors:
+ * - Light starvation (daily light integral under the species edge)
+ * - Light excessive (PAR over `tolerableLight`, while the lamps are on)
  * - Temperature out of `tolerableTemp` (per °C, two-sided)
  * - pH out of `tolerablePH` (per pH unit, two-sided)
  * - GH out of `tolerableGH` (per dGH, two-sided)
  * - Nutrient deficiency (per (1 − Liebig sufficiency), on the light curve)
- * - Nutrient toxicity (gross NO3 overdose — auto-doser failure case)
+ * - Nitrate (log dose past the plant edge hardiness carries out)
  * - Algae shading (when algae density crosses the shading threshold)
  */
 
 import type { Plant, Resources } from '../state.js';
 import { getPh } from '../core/carbonate.js';
-import { PLANT_SPECIES_DATA, getSaturationIrradiance } from '../plants/species.js';
+import { PLANT_SPECIES_DATA, dailyLightEdge, getSaturationIrradiance } from '../plants/species.js';
+import { dailyLightIntegral } from '../equipment/light.js';
+import { toleranceFactor } from '../livestock/tolerance.js';
 import type { PlantsConfig } from '../config/plants.js';
 import { lightSaturationFactor } from '../core/kinetics.js';
 import { getDgh, getPpm } from '../resources/index.js';
@@ -41,6 +33,7 @@ import { getRespirationTemperatureFactor } from './respiration.js';
 import {
   bandComfort,
   computeVitality,
+  eFoldsPast,
   hardened,
   outsideBand,
   type VitalityFactor,
@@ -74,49 +67,40 @@ function lightSaturation({ plant, resources, plantsConfig }: PlantVitalityContex
 }
 
 /**
- * Build the upkeep list for a plant — what it owes for being alive,
- * charged against income before anything else. Pre-hardiness, like the
- * stressors.
+ * Share of the daily light edge a plant goes short of: 0 at or over the edge,
+ * 1 in a day without light.
  */
-export function buildPlantUpkeep(ctx: PlantVitalityContext): VitalityFactor[] {
-  const { resources, plantsConfig } = ctx;
-
-  return [
-    {
-      key: 'upkeep',
-      label: 'Upkeep',
-      amount:
-        plantsConfig.upkeepCost *
-        getRespirationTemperatureFactor(resources.temperature, plantsConfig),
-    },
-  ];
+export function lightShortfall(dailyLight: number, edge: number): number {
+  return edge > 0 ? Math.max(0, 1 - dailyLight / edge) : 0;
 }
 
-/** Build the stressor list for a plant, pre-hardiness. */
+/**
+ * Build the stressor list for a plant, hardened: hardiness scales every channel
+ * but nitrate, whose edge it moves instead.
+ */
 export function buildPlantStressors(ctx: PlantVitalityContext): VitalityFactor[] {
   const { plant, resources, waterVolume, plantsConfig, nutrientSufficiency, algaeMass } = ctx;
   const species = PLANT_SPECIES_DATA[plant.species];
   const factors: VitalityFactor[] = [];
 
-  // Light — two-sided, and only during the photoperiod. Light = 0
-  // here means "lights off, it's night" — plants aren't trying to
-  // photosynthesize, so a lights-off tick isn't a "light insufficient"
-  // event. Darkness is charged through the upkeep instead: night and
-  // blackout cost the same maintenance per hour, and what tells them
-  // apart is whether the bank ever refills. The light-excessive side is
-  // always-on (excess PAR can burn leaves any time the lamps are on, but
-  // if they're off there's nothing to burn).
-  const [lightLo, lightHi] = species.tolerableLight;
-  let lightAmount = 0;
-  let lightLabel = 'Light';
-  if (resources.light > 0 && resources.light < lightLo) {
-    lightAmount = plantsConfig.lightInsufficientSeverity * (lightLo - resources.light);
-    lightLabel = 'Light low';
-  } else if (resources.light > lightHi) {
-    lightAmount = plantsConfig.lightExcessiveSeverity * (resources.light - lightHi);
-    lightLabel = 'Light high';
-  }
-  factors.push({ key: 'light', label: lightLabel, amount: lightAmount });
+  // Starvation reads the day the plant has had, so a scheduled night costs
+  // nothing and a dead fixture bites as its light leaves the window. Its cost
+  // is respiration's, so it runs on respiration's Q10.
+  factors.push({
+    key: 'lightStarvation',
+    label: 'Light starvation',
+    amount:
+      plantsConfig.lightStarvationSeverity *
+      lightShortfall(dailyLightIntegral(resources.lightByHour), dailyLightEdge(plant.species)) *
+      getRespirationTemperatureFactor(resources.temperature, plantsConfig),
+  });
+
+  const lightHi = species.tolerableLight[1];
+  factors.push({
+    key: 'light',
+    label: 'Light high',
+    amount: plantsConfig.lightExcessiveSeverity * Math.max(0, resources.light - lightHi),
+  });
 
   const ph = getPh(resources);
   const gh = getDgh(resources.gh, waterVolume);
@@ -140,20 +124,6 @@ export function buildPlantStressors(ctx: PlantVitalityContext): VitalityFactor[]
       lightSaturation(ctx) * plantsConfig.nutrientDeficiencySeverity * (1 - nutrientSufficiency),
   });
 
-  // Nutrient toxicity — gross NO3 overdose (auto-doser failure case).
-  const nitratePpm = getPpm(resources.nitrate, waterVolume);
-  let toxicityAmount = 0;
-  if (nitratePpm > plantsConfig.nutrientToxicityThresholdNitrate) {
-    toxicityAmount =
-      plantsConfig.nutrientToxicitySeverity *
-      (nitratePpm - plantsConfig.nutrientToxicityThresholdNitrate);
-  }
-  factors.push({
-    key: 'nutrientToxicity',
-    label: 'Nutrient toxicity',
-    amount: toxicityAmount,
-  });
-
   // Algae shading — only kicks in once algae density is meaningful.
   // Reads `state.algae.mass` (threaded through the context); a heavy
   // bloom (mass > threshold) shades plants and drags their condition
@@ -167,7 +137,15 @@ export function buildPlantStressors(ctx: PlantVitalityContext): VitalityFactor[]
   }
   factors.push({ key: 'algae', label: 'Algae shading', amount: algaeAmount });
 
-  return factors;
+  const nitrateEdge = plantsConfig.nitrateEdge * toleranceFactor(species.hardiness);
+  return [
+    ...hardened(factors, species.hardiness),
+    {
+      key: 'nitrate',
+      label: 'Nitrate',
+      amount: plantsConfig.nitrateStressSeverity * eFoldsPast(getPpm(resources.nitrate, waterVolume), nitrateEdge),
+    },
+  ];
 }
 
 export function buildPlantBenefits(ctx: PlantVitalityContext): VitalityFactor[] {
@@ -213,23 +191,22 @@ export function buildPlantBenefits(ctx: PlantVitalityContext): VitalityFactor[] 
   ];
 }
 
+/** Share of its bank a plant heals from per hour: it repairs at the pace it grows. */
+export function plantHealingRate(plant: Plant, plantsConfig: PlantsConfig): number {
+  return PLANT_SPECIES_DATA[plant.species].growthRate * plantsConfig.healingDrawRate;
+}
+
 /**
  * Compute one tick of vitality for a plant — useful for UI rendering
  * (trend arrows, breakdown lists) and for tests. Stateless.
  */
 export function computePlantVitality(ctx: PlantVitalityContext): VitalityResult {
-  const { hardiness } = PLANT_SPECIES_DATA[ctx.plant.species];
   return computeVitality({
-    stressors: hardened(buildPlantStressors(ctx), hardiness),
-    upkeep: hardened(buildPlantUpkeep(ctx), hardiness),
-    upkeepReserveHours: ctx.plantsConfig.upkeepReserveHours,
+    stressors: buildPlantStressors(ctx),
     benefits: buildPlantBenefits(ctx),
     condition: ctx.plant.condition,
     surplus: ctx.plant.surplus,
     surplusCap: ctx.plantsConfig.surplusCap,
-    // Surplus accrual is photoperiod-gated — no light, no photosynthesis,
-    // no new photosynthate to store. Draining (reserve protecting
-    // condition) and the cap clamp still apply overnight.
-    accrueSurplus: ctx.resources.light > 0,
+    healingRate: plantHealingRate(ctx.plant, ctx.plantsConfig),
   });
 }

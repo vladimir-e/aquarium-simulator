@@ -344,6 +344,7 @@ function createValidSimulation(): PersistedSimulation {
       surface: 1000,
       flow: 100,
       light: 0,
+      lightByHour: new Array(24).fill(0),
       aeration: false,
       food: 0,
       waste: 0,

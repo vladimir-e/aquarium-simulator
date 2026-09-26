@@ -24,6 +24,13 @@ import type { TunableConfig } from '../../simulation/config/index.js';
  * Increment this when the structure changes in a breaking way.
  * On version mismatch, stored data is discarded.
  *
+ * v30: One vitality model. `Resources` gains `lightByHour`, the 24-hour PAR
+ *      history the daily light integral reads. `PlantsConfig` drops
+ *      `upkeepCost`, `upkeepReserveHours`, `lightInsufficientSeverity` and
+ *      `deathConditionThreshold`, swaps the nutrient-toxicity pair for
+ *      `nitrateStressSeverity` / `nitrateEdge` on log dose, and gains
+ *      `lightStarvationSeverity` and `healingDrawRate`; `LivestockConfig`
+ *      gains `healingDrawRate`.
  * v29: Plant nutrition saturates. `NutrientsConfig` swaps the optimal ppm, the
  *      demand multipliers and `phosphatePerDecay` for `uptakePerRateUnit`,
  *      `halfSaturation`, per-tier `demand` vectors and `foodMineralContent`;
@@ -214,7 +221,7 @@ import type { TunableConfig } from '../../simulation/config/index.js';
  *     nutrient sufficiency) but its persisted shape is identical, so
  *     the bump is purely the new Fish field.
  */
-export const PERSISTENCE_VERSION = 29;
+export const PERSISTENCE_VERSION = 30;
 
 /**
  * Storage key for the unified persisted state.

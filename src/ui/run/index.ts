@@ -25,7 +25,7 @@ export {
   STATUS_SEVERITY,
   conditionStatus,
   conditionWord,
-  vitalReading,
+  conditionReading,
   worstReading,
 } from './status.js';
 export { type StockedBand, stockedBand, toleranceStatus } from './tolerance.js';
@@ -73,6 +73,7 @@ export {
   countFry,
   type FishRead,
   fishReading,
+  isSick,
   type RosterFigures,
   type SpeciesGroup,
   groupBySpecies,

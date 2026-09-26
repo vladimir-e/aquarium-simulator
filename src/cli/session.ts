@@ -18,6 +18,14 @@ import type { HistorySnapshot } from './history.js';
  * missing field. Parallel to the UI's `PERSISTENCE_VERSION`. Pre-launch
  * rule is reject, not migrate.
  *
+ * v14 put every organism on one vitality model. `Resources` gains
+ *    `lightByHour`, the day of PAR the plants' daily light integral reads;
+ *    `PlantsConfig` drops `upkeepCost`, `upkeepReserveHours`,
+ *    `lightInsufficientSeverity` and `deathConditionThreshold`, trades the
+ *    nutrient-toxicity pair for `nitrateStressSeverity` / `nitrateEdge`, and
+ *    gains `lightStarvationSeverity` and `healingDrawRate`; `LivestockConfig`
+ *    gains `healingDrawRate`. A v13 session parses, and the first tick writes
+ *    an hour into a history it does not carry and throws.
  * v13 made the nitrifiers seed continuously and saturate on their substrate.
  *    `NitrogenCycleConfig` dropped `aobSpawnThreshold`, `nobSpawnThreshold`
  *    and `inoculumPerLiter` for `seedingRate`, and gained
@@ -100,7 +108,7 @@ import type { HistorySnapshot } from './history.js';
  * v2 added `Fish.stage` + `state.clutches` (breeding) and the saturating
  *    surplus bank.
  */
-export const SESSION_VERSION = 13;
+export const SESSION_VERSION = 14;
 export const DEFAULT_SESSION_PATH = resolve(process.cwd(), '.simstate/current.json');
 
 export interface Session {

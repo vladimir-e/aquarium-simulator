@@ -14,10 +14,10 @@ import {
   type FishSpecies,
   type SatiationBand,
   type SimulationState,
-  type VitalityBreakdown,
+  type VitalityResult,
 } from '../../simulation/index.js';
 import type { LivestockConfig } from '../../simulation/config/livestock.js';
-import { vitalReading, worstReading, type Reading, type Status } from './status.js';
+import { conditionReading, worstReading, type Reading, type Status } from './status.js';
 
 /** Hungry and starving are the two bands that count toward "N hungry". */
 export function isHungryBand(band: SatiationBand): boolean {
@@ -67,18 +67,21 @@ export function countFry(fish: Fish[]): number {
   return fish.reduce((n, f) => n + (f.stage === 'fry' ? 1 : 0), 0);
 }
 
+/** Damage outrunning everything that heals it: the fish's condition is falling. */
+export function isSick(fish: Fish, vitality: VitalityResult): boolean {
+  return vitality.newCondition < fish.health;
+}
+
 /**
- * How one fish reads, across every channel it keeps: condition, the energy
- * ledger that can be emptying while condition holds, and how recently it ate.
- * One definition, so the roster row and the ledger header carry one word.
+ * How one fish reads, across every channel it keeps: condition, whether it is
+ * sick, and how recently it ate. One definition, so the roster row and the
+ * ledger header carry one word.
  */
-export function fishReading(
-  fish: Fish,
-  breakdown: VitalityBreakdown,
-  config: LivestockConfig
-): Reading {
+export function fishReading(fish: Fish, vitality: VitalityResult, config: LivestockConfig): Reading {
+  const health = conditionReading(fish.health);
   const band = bandOf(fish.satiation, config);
-  return worstReading(vitalReading(fish.health, fish.surplus, breakdown), {
+  const sick: Reading | null = isSick(fish, vitality) ? { status: 'warn', word: 'sick' } : null;
+  return worstReading(worstReading(sick ?? health, health), {
     status: bandStatus(band),
     word: SATIATION_BAND_LABEL[band].toLowerCase(),
   });
@@ -91,7 +94,7 @@ export interface FishRead {
 }
 
 function readFish(fish: Fish, state: SimulationState, config: LivestockConfig): FishRead {
-  const { breakdown } = computeFishVitality(
+  const vitality = computeFishVitality(
     fish,
     state.resources,
     state.plants,
@@ -100,7 +103,7 @@ function readFish(fish: Fish, state: SimulationState, config: LivestockConfig): 
     config
   );
 
-  return { fish, reading: fishReading(fish, breakdown, config) };
+  return { fish, reading: fishReading(fish, vitality, config) };
 }
 
 function groupBySpeciesKey(fish: Fish[]): Map<FishSpecies, Fish[]> {

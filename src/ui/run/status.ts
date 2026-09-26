@@ -1,10 +1,7 @@
 /**
  * The health vocabulary shared across the instrument surface — sparklines,
- * condition bars, status words and alert outlines all speak it — and the
- * reading that resolves an organism's two stocks into one line of it.
+ * condition bars, status words and alert outlines all speak it.
  */
-
-import { spendableSurplus, type VitalityBreakdown } from '../../simulation/index.js';
 
 /** The four-way status every coloured element on the surface is tinted by. */
 export type Status = 'ok' | 'warn' | 'alert' | 'neutral';
@@ -31,55 +28,12 @@ export interface Reading {
   word: string;
 }
 
-/**
- * What the energy ledger has to say that the condition axis cannot.
- *
- * An organism that stores its energy pays an unaffordable upkeep bill out of
- * tissue, so condition stays where it is while the organism shrinks — the whole
- * point of the two ledgers, and the reason condition alone reported a
- * blacked-out plant as thriving all the way down to nothing.
- *
- * Two rungs, and they are not the same state. `starved` is the share of the
- * bill neither income nor the bank could cover: tissue is going *now*. Above it
- * sits a bank with nothing left over `reserved`, still paying out — damage no
- * longer buffers, repair and growth have both stopped, and every unit left is
- * spoken for by staying alive. That is the early warning, and it is a reading
- * of the bank as a stock rather than of the tick's flow: `drained > 0` on its
- * own fires every dark hour of a thriving tank, because a plant with no light
- * has no income and pays the night out of the bank by design.
- */
-function energyReading(surplus: number, breakdown: VitalityBreakdown): Reading | null {
-  if (breakdown.starved > 0) return { status: 'alert', word: 'starving' };
-  if (breakdown.drained > 0 && spendableSurplus(surplus, breakdown.reserved) === 0) {
-    return { status: 'warn', word: 'burning' };
-  }
-  return null;
-}
-
 /** Of two readings of the same organism, the one that needs the reader first. */
 export function worstReading(a: Reading, b: Reading): Reading {
   return STATUS_SEVERITY[b.status] > STATUS_SEVERITY[a.status] ? b : a;
 }
 
-/**
- * How an organism is doing, read across both stocks it keeps — the worse of the
- * two channels, with condition taking a tie because it is the stock the bar
- * beside the word already shows. So a plant losing tissue in the dark escalates
- * `thriving → burning → starving → struggling → dying` instead of holding
- * `thriving` while it sheds.
- */
-export function vitalReading(
-  condition: number,
-  surplus: number,
-  breakdown: VitalityBreakdown
-): Reading {
-  const health: Reading = {
-    status: conditionStatus(condition),
-    word: conditionWord(condition),
-  };
-  const energy = energyReading(surplus, breakdown);
-
-  return energy !== null && STATUS_SEVERITY[energy.status] > STATUS_SEVERITY[health.status]
-    ? energy
-    : health;
+/** How an organism is doing, off its condition. */
+export function conditionReading(condition: number): Reading {
+  return { status: conditionStatus(condition), word: conditionWord(condition) };
 }

@@ -4,14 +4,11 @@
  * (see `tick.ts`); it mutates `state.fish` and `state.clutches` directly
  * because it *adds* organisms, which the effect system can't express.
  *
- * Past a pair grown to `maturityAge`, the gate is deliberately *only* the
- * banks plus a live-trend check — no condition/temperature/pH tests.
- * Surplus accrues only at full health under a sustained positive net rate,
- * so a fish that can afford the cost has already proven its environment is
- * good; re-checking would double-count what accrual encodes. The one extra
- * guard: the female's net rate this tick must be ≥ 0, so a buffered fish
- * riding old savings through a crashing tank can't breed. Re-accruing the
- * spent surplus is the cooldown — there are no timers.
+ * A mature female spawns when her bank is full and a mature male of her
+ * species is in the tank; the spawn empties her bank and costs him nothing.
+ * The bank only fills at full health and any damage it heals draws it down,
+ * so a full bank is the proof her water is good. Refilling it is the
+ * cooldown — there are no timers.
  *
  * See the docs portal, Livestock § Breeding for the full pipeline (grow /
  * mature fry → hatch clutches → spawn) and the per-species parameters.
@@ -41,13 +38,10 @@ const SPECIES_IDS = Object.keys(FISH_SPECIES_DATA) as FishSpecies[];
  *
  * @param state - Current state (fish already metabolized/health-checked).
  * @param config - Tunable configuration (for `surplusCap`).
- * @param netByFishId - Per-fish vitality net rate from this tick's health
- *   pass; a female breeds only if her entry is ≥ 0.
  */
 export function processBreeding(
   state: SimulationState,
-  config: TunableConfig,
-  netByFishId: Map<string, number>
+  config: TunableConfig
 ): BreedingProcessingResult {
   const livestockConfig = config.livestock ?? livestockDefaults;
 
@@ -59,7 +53,7 @@ export function processBreeding(
   const newState = produce(state, (draft) => {
     growAndMatureFry(draft.fish);
     hatchClutches(draft);
-    spawn(draft, livestockConfig, netByFishId);
+    spawn(draft, livestockConfig);
   });
 
   return { state: newState };
@@ -120,54 +114,19 @@ function isBreedingAdult(fish: Fish): boolean {
   return fish.stage === 'adult' && fish.age >= FISH_SPECIES_DATA[fish.species].breeding.maturityAge;
 }
 
-/**
- * Run the spawn pass across every species with a mature pair. Females
- * spend `costFraction × surplusCap`; each spawn is served by a male who
- * pays `maleShareFraction × cost`. A male serves females (in order) until
- * his bank can't cover the share, then the next male takes over; when no
- * male can pay, the species is done for this tick.
- */
-function spawn(
-  draft: SimulationState,
-  config: LivestockConfig,
-  netByFishId: Map<string, number>
-): void {
-  // A nonpositive surplus cap zeroes every breeding cost, which would make
-  // the funding gate vacuous — a zero-bank pair would spawn a full brood
-  // every tick. With no bank to spend, the surplus economy is off, so
-  // spawning is disabled entirely. (Fry still grow and clutches still hatch.)
+/** Every mature female on a full bank spawns, if her species has a mature male. */
+function spawn(draft: SimulationState, config: LivestockConfig): void {
+  // At a cap of 0 every bank is full, so the gate would spawn every tick.
   if (config.surplusCap <= 0) return;
 
   for (const species of SPECIES_IDS) {
     const breeding = FISH_SPECIES_DATA[species].breeding;
-    const cost = breeding.costFraction * config.surplusCap;
-    const maleShare = breeding.maleShareFraction * cost;
+    const adults = draft.fish.filter((f) => f.species === species && isBreedingAdult(f));
+    if (!adults.some((f) => f.sex === 'male')) continue;
 
-    const males = draft.fish.filter(
-      (f) => f.species === species && isBreedingAdult(f) && f.sex === 'male'
-    );
-    if (males.length === 0) continue;
-
-    const readyFemales = draft.fish.filter(
-      (f) =>
-        f.species === species &&
-        isBreedingAdult(f) &&
-        f.sex === 'female' &&
-        f.surplus >= cost &&
-        (netByFishId.get(f.id) ?? 0) >= 0
-    );
-    if (readyFemales.length === 0) continue;
-
-    let mi = 0;
-    for (const female of readyFemales) {
-      // Advance past males too drained to serve; a male below his share
-      // stops serving, and the next one steps in.
-      while (mi < males.length && males[mi].surplus < maleShare) mi++;
-      if (mi >= males.length) break; // no male can cover the share
-
-      const male = males[mi];
-      female.surplus -= cost;
-      male.surplus -= maleShare;
+    for (const female of adults) {
+      if (female.sex !== 'female' || female.surplus < config.surplusCap) continue;
+      female.surplus = 0;
 
       if (breeding.mode === 'livebearer') {
         for (let i = 0; i < breeding.clutchSize; i++) {
