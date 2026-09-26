@@ -11,6 +11,7 @@ Format: - **Feature name** (#PR) - One short sentence (under ~150 chars)
 
 ## Unreleased
 
+- **The planted preset injects like a keeper** - 0.5 bps holds CO₂ at 20–30 mg/L; carpets, java fern and anubias take pH down to 5.0, as published.
 - **The console reads sickness and the day's light** - a fish or plant losing condition reads sick, rosters count them, and Daily light sits beside PAR.
 - **Healing rates are public** - `fishHealingRate` and `plantHealingRate` beside `computeVitality`; `scheduledLightHistory`, the day of light a new tank opens on.
 - **One vitality model** - condition moves by benefit minus damage and banks at 100, and the bank heals; breaking: `computeVitality` needs `healingRate` (v30, v14).

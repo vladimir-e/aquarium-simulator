@@ -107,7 +107,7 @@ export const PRESETS: PresetDefinition[] = [
       ato: { enabled: true },
       co2Generator: {
         enabled: true,
-        bubbleRate: 1.0,
+        bubbleRate: 0.5,
         schedule: { startHour: 7, duration: 10 },
       },
       powerhead: { enabled: false },

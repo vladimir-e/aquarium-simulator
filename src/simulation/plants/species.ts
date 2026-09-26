@@ -89,7 +89,7 @@ export const PLANT_SPECIES_DATA: Record<PlantSpecies, PlantSpeciesData> = {
     // bleaches past 90, which takes the brightest fixture in the catalog.
     tolerableLight: [10, 90],
     tolerableTemp: [18, 30],
-    tolerablePH: [5.5, 8.0],
+    tolerablePH: [5.0, 8.0],
     tolerableGH: [1, 20],
   },
   anubias: {
@@ -106,7 +106,7 @@ export const PLANT_SPECIES_DATA: Record<PlantSpecies, PlantSpeciesData> = {
     // stocked scape. Its thick slow leaves scorch past 70.
     tolerableLight: [8, 70],
     tolerableTemp: [18, 30],
-    tolerablePH: [5.5, 8.0],
+    tolerablePH: [5.0, 8.0],
     tolerableGH: [1, 20],
   },
   amazon_sword: {
@@ -141,7 +141,7 @@ export const PLANT_SPECIES_DATA: Record<PlantSpecies, PlantSpeciesData> = {
     // instead of across. Tolerates the 200 PAR a high-tech scape runs.
     tolerableLight: [25, 200],
     tolerableTemp: [20, 28],
-    tolerablePH: [5.5, 7.8],
+    tolerablePH: [5.0, 7.8],
     tolerableGH: [1, 18],
   },
   monte_carlo: {
@@ -158,7 +158,7 @@ export const PLANT_SPECIES_DATA: Record<PlantSpecies, PlantSpeciesData> = {
     // usual advice for a carpet that actually carpets.
     tolerableLight: [30, 200],
     tolerableTemp: [20, 28],
-    tolerablePH: [5.5, 7.8],
+    tolerablePH: [5.0, 7.8],
     tolerableGH: [1, 15],
   },
 };
