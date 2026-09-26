@@ -27,16 +27,18 @@ import {
   type PlantSpecies,
 } from '../plants/species.js';
 import { lightSaturationFactor } from '../core/kinetics.js';
+import { plantRecord } from '../tests/plant.js';
+import { VIGOUR_SPAN } from '../plants/create-plant.js';
 
 function makePlant(species: PlantSpecies, overrides: Partial<Plant> = {}): Plant {
-  return {
+  return plantRecord({
     id: `plant_${species}`,
     species,
     size: 50,
     condition: 100,
     surplus: 0,
     ...overrides,
-  };
+  });
 }
 
 /** A day of `hours` lit at `par`, the rest dark. */
@@ -268,6 +270,22 @@ describe('buildPlantBenefits', () => {
       const share =
         benefit.key === 'co2' ? carbon : benefit.key === 'nutrients' ? context.nutrientSufficiency : 1;
       expect(benefit.amount).toBeCloseTo(PEAK[benefit.key]! * saturation * share, 12);
+    }
+  });
+
+  it('scales every channel by 1 + vigour, and no stressor at all', () => {
+    const mild = makeResources({ light: 30, co2: 5, ...atCentre('anubias') });
+    const harsh = makeResources({ light: 200, co2: 1, temperature: 33, ph: 8.5 });
+    const at = (vigour: number, resources: Resources): PlantVitalityContext =>
+      ctx(makePlant('anubias', { vigour }), resources);
+
+    for (const vigour of [-VIGOUR_SPAN, 0.07, VIGOUR_SPAN]) {
+      const plain = buildPlantBenefits(at(0, mild));
+      buildPlantBenefits(at(vigour, mild)).forEach((benefit, i) => {
+        expect(benefit.amount).toBeGreaterThan(0);
+        expect(benefit.amount).toBeCloseTo(plain[i]!.amount * (1 + vigour), 12);
+      });
+      expect(buildPlantStressors(at(vigour, harsh))).toEqual(buildPlantStressors(at(0, harsh)));
     }
   });
 

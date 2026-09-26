@@ -14,6 +14,7 @@ import type { SubstrateType } from '../equipment/substrate.js';
 import type { ActionResult } from './types.js';
 import { DEFAULT_PLANT_SIZE } from '../plants/create-plant.js';
 import { produce } from 'immer';
+import { plantRecord } from '../tests/plant.js';
 
 const SMALL = 19;
 const FERN_FOOTPRINT = GROWTH_FORMS.attached.footprintCm2;
@@ -21,7 +22,7 @@ const FERN_FOOTPRINT = GROWTH_FORMS.attached.footprintCm2;
 const FERNS_TO_LAST_GAP = Math.floor(calculateFloorArea(SMALL) / FERN_FOOTPRINT) - 1;
 
 function plant(id: string, size = 50): Plant {
-  return { id, species: 'java_fern', size, condition: 100, surplus: 0 };
+  return plantRecord({ id, species: 'java_fern', size, condition: 100, surplus: 0 });
 }
 
 function planted(count: number, size = 50): SimulationState {

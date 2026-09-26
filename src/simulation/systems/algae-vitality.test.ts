@@ -10,16 +10,17 @@ import { getPlantPower } from './plant-power.js';
 import { getMassFromPpm } from '../resources/helpers.js';
 import type { Plant, Resources } from '../state.js';
 import type { PlantSpecies } from '../plants/species.js';
+import { plantRecord } from '../tests/plant.js';
 
 function makePlant(species: PlantSpecies, overrides: Partial<Plant> = {}): Plant {
-  return {
+  return plantRecord({
     id: `plant_${species}`,
     species,
     size: 100,
     condition: 100,
     surplus: 0,
     ...overrides,
-  };
+  });
 }
 
 function makeResources(overrides: Partial<Resources> = {}): Resources {

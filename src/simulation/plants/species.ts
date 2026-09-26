@@ -16,7 +16,8 @@ export type PlantSpecies =
  * How a species builds one unit — a carpet patch, a rosette specimen, a rhizome
  * clump. `Plant.size` is how full that unit is, so the form fixes what size 100
  * means: how tall it stands, how much floor it claims and how much leaf it
- * carries over it.
+ * carries over it. It also names what a full bank buys — a runner, a plantlet,
+ * a rhizome branch — though every form buys it the same way.
  */
 export type GrowthForm = 'carpet' | 'rosette' | 'attached';
 
@@ -26,6 +27,7 @@ export interface GrowthFormData {
   heightExponent: number;
   footprintCm2: number;
   leafAreaIndex: number;
+  offshootVerb: string;
 }
 
 /**
@@ -37,9 +39,9 @@ export interface GrowthFormData {
  * fronds of 40 cm² over its 200.
  */
 export const GROWTH_FORMS: Record<GrowthForm, GrowthFormData> = {
-  carpet: { heightCm: 5, heightExponent: 0, footprintCm2: 100, leafAreaIndex: 2.5 },
-  rosette: { heightCm: 40, heightExponent: 1 / 3, footprintCm2: 700, leafAreaIndex: 2.0 },
-  attached: { heightCm: 20, heightExponent: 1 / 3, footprintCm2: 200, leafAreaIndex: 2.5 },
+  carpet: { heightCm: 5, heightExponent: 0, footprintCm2: 100, leafAreaIndex: 2.5, offshootVerb: 'sent a runner' },
+  rosette: { heightCm: 40, heightExponent: 1 / 3, footprintCm2: 700, leafAreaIndex: 2.0, offshootVerb: 'threw a plantlet' },
+  attached: { heightCm: 20, heightExponent: 1 / 3, footprintCm2: 200, leafAreaIndex: 2.5, offshootVerb: 'branched at the rhizome' },
 };
 
 /**

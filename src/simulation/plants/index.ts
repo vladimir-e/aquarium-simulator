@@ -12,23 +12,28 @@
  * 4. Respiration: O2/CO2 effects, 24/7.
  * 5. Vitality per plant: the new condition and `Plant.surplus` bank —
  *    income at full condition banks, the bank heals condition below it.
- * 6. Growth: the bank buys size at `growthDrawRate` of itself, day and night.
- * 7. Shedding + death (lifecycle module) — low condition sheds tissue, and
+ * 6. Offshoot: a full bank buys a new unit of the family and resets, the
+ *    fish spawn rule. It runs before growth, or the draw would hold every
+ *    bank a hair under the cap.
+ * 7. Growth: the bank buys size at `growthDrawRate` of itself, day and night.
+ * 8. Shedding + death (lifecycle module) — low condition sheds tissue, and
  *    condition 0 or too little size left removes the plant.
+ * 9. Survivors age a tick; offshoots join the end of the list at age 0.
  *
  * Called during ACTIVE tier processing in tick.ts.
  */
 
 import { produce } from 'immer';
 import type { SimulationState, Plant } from '../state.js';
-import { PLANT_SPECIES_DATA, dailyLightEdge } from './species.js';
+import { PLANT_SPECIES_DATA, dailyLightEdge, growthFormOf } from './species.js';
 import { canopyLight, getTotalRateUnits, plantHeight, type CanopyLight } from './canopy.js';
 import type { Effect } from '../core/effects.js';
 import type { Nutrient, TunableConfig } from '../config/index.js';
 import { calculatePhotosynthesis } from '../systems/photosynthesis.js';
 import { calculateNutrientSufficiency } from '../systems/nutrients.js';
 import { calculateRespiration } from '../systems/respiration.js';
-import { spendSurplus } from '../systems/plant-growth.js';
+import { propagate, spendSurplus } from '../systems/plant-growth.js';
+import { createOffshoot } from './create-plant.js';
 import { computePlantVitality } from '../systems/plant-vitality.js';
 import {
   calculateShedding,
@@ -219,34 +224,65 @@ export function processPlants(
     })
   );
 
-  // 6. Apply the new condition and bank, then let the bank buy size.
-  const mergedPlants: Plant[] = state.plants.map((plant, i) =>
-    spendSurplus(
-      { ...plant, condition: vitalities[i].newCondition, surplus: vitalities[i].surplus },
-      plantsConfig
-    )
-  );
-
-  // 7. Shedding and death.
+  // 6–9 run on the draft: an offshoot's id and vigour come off the tank's stream.
   let totalConditionWaste = 0;
-  const deadPlantNames: string[] = [];
-  const processedPlants: Plant[] = [];
+  const newState = produce(state, (draft) => {
+    const survivors: Plant[] = [];
+    const offshoots: Plant[] = [];
 
-  for (const plant of mergedPlants) {
-    const { sizeReduction, wasteProduced } = calculateShedding(plant, plantsConfig);
-    let updated: Plant = plant;
-    if (sizeReduction > 0) {
-      updated = { ...plant, size: Math.max(0, plant.size - sizeReduction) };
-      totalConditionWaste += wasteProduced;
-    }
-    if (shouldPlantDie(updated, plantsConfig)) {
-      totalConditionWaste += calculateDeathWaste(updated, plantsConfig);
-      deadPlantNames.push(PLANT_SPECIES_DATA[plant.species].name);
-      // Drop — surviving array doesn't include dead plants.
-      continue;
-    }
-    processedPlants.push(updated);
-  }
+    state.plants.forEach((start, i) => {
+      const species = PLANT_SPECIES_DATA[start.species];
+      let plant: Plant = {
+        ...start,
+        condition: vitalities[i].newCondition,
+        surplus: vitalities[i].surplus,
+      };
+
+      // 6. A full bank buys an offshoot, before growth can draw on it.
+      const propagation = propagate(plant, plantsConfig);
+      if (propagation) {
+        plant = propagation.parent;
+        offshoots.push(createOffshoot(plant, propagation.offshootSize, draft.rng));
+        draft.logs.push(
+          createLog(
+            draft.tick,
+            'simulation',
+            'info',
+            `${species.name} ${growthFormOf(plant.species).offshootVerb}`,
+            'plant-propagated'
+          )
+        );
+      }
+
+      // 7. The bank buys size.
+      plant = spendSurplus(plant, plantsConfig);
+
+      // 8. Shedding and death.
+      const { sizeReduction, wasteProduced } = calculateShedding(plant, plantsConfig);
+      if (sizeReduction > 0) {
+        plant = { ...plant, size: Math.max(0, plant.size - sizeReduction) };
+        totalConditionWaste += wasteProduced;
+      }
+      if (shouldPlantDie(plant, plantsConfig)) {
+        totalConditionWaste += calculateDeathWaste(plant, plantsConfig);
+        draft.logs.push(
+          createLog(
+            draft.tick,
+            'simulation',
+            'warning',
+            `${species.name} died from poor conditions`,
+            'plant-died'
+          )
+        );
+        return;
+      }
+
+      // 9. Survivors age; offshoots join at age 0 and act from the next tick.
+      survivors.push({ ...plant, age: plant.age + 1 });
+    });
+
+    draft.plants = [...survivors, ...offshoots];
+  });
 
   if (totalConditionWaste > 0) {
     effects.push({
@@ -256,23 +292,6 @@ export function processPlants(
       source: 'plant-condition',
     });
   }
-
-  // Nutrient consumption is handled inside calculatePhotosynthesis (step 1).
-  const newState = produce(state, (draft) => {
-    draft.plants = processedPlants;
-
-    for (const plantName of deadPlantNames) {
-      draft.logs.push(
-        createLog(
-          draft.tick,
-          'simulation',
-          'warning',
-          `${plantName} died from poor conditions`,
-          'plant-died'
-        )
-      );
-    }
-  });
 
   return { state: newState, effects };
 }
@@ -301,9 +320,12 @@ export {
 } from '../systems/respiration.js';
 export {
   spendSurplus,
+  propagate,
   getSpeciesGrowthRate,
   growthTaper,
 } from '../systems/plant-growth.js';
+export type { Propagation } from '../systems/plant-growth.js';
+export { VIGOUR_SPAN } from './create-plant.js';
 export {
   calculateNutrientSufficiency,
   speciesDemand,

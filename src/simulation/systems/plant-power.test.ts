@@ -3,16 +3,17 @@ import { getPlantPower } from './plant-power.js';
 import type { Plant } from '../state.js';
 import { GROWTH_FORMS } from '../plants/species.js';
 import { LEAF_AREA_PER_RATE_UNIT, rateUnits } from '../plants/canopy.js';
+import { plantRecord } from '../tests/plant.js';
 
 function makePlant(overrides: Partial<Plant> = {}): Plant {
-  return {
+  return plantRecord({
     id: 'p1',
     species: 'java_fern',
     size: 100,
     condition: 100,
     surplus: 0,
     ...overrides,
-  };
+  });
 }
 
 describe('getPlantPower', () => {

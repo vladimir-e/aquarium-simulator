@@ -11,6 +11,8 @@ Format: - **Feature name** (#PR) - One short sentence (under ~150 chars)
 
 ## Unreleased
 
+- **A full bank buys a plant an offshoot** - as it buys a fish a brood: a runner, plantlet or rhizome branch of its family, before growth; breaking: `Plant` gains `parentId`, `familyId`, `age`, `vigour` (v31, v15).
+- **Plants carry vigour, and trim by family** - a ±15 % draw on income at birth, so clones bud apart; `trimPlants` takes a `familyId`.
 - **Plants grow to one full unit and read light at their own height** - size 0–100 of a patch, specimen or clump; crowns shade what's below; breaking: no `maxSize`, vitality takes a `canopy`, photosynthesis per-plant PAR (v31, v15).
 - **Plants claim floor, not slots** - `addPlant` fits footprints to the floor, and no planting or trim goes under the death floor; breaking: `checkPlantFootprint` replaces `getMaxPlants`.
 - **Plants are rated by leaf** - photosynthesis, respiration, plant power and waste run on 500 cm² rate units; breaking: `getTotalRateUnits` replaces `getTotalPlantSize`.

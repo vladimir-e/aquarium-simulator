@@ -49,13 +49,12 @@ export function rescapeTank(state: SimulationState, config: TunableConfig): Simu
 
 /**
  * A keeper thinning a planting that has outgrown its floor: the youngest
- * plants — the last in the list, which runs in planting order — come out until
- * what is left fits.
+ * plants come out until what is left fits.
  */
 export function thinToFloor(state: SimulationState, config: TunableConfig): SimulationState {
   let next = state;
   while (isOvergrown(next)) {
-    const youngest = next.plants[next.plants.length - 1]!;
+    const youngest = next.plants.reduce((a, b) => (b.age <= a.age ? b : a));
     next = applyAction(next, { type: 'removePlant', plantId: youngest.id }, config).state;
   }
   return next;

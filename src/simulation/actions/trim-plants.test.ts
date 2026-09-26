@@ -3,11 +3,12 @@ import { canTrimPlants, getPlantsToTrimCount, trimPlants } from './trim-plants.j
 import { createSimulation, type SimulationState, type Plant } from '../state.js';
 import { plantsDefaults } from '../config/plants.js';
 import { produce } from 'immer';
+import { plantRecord } from '../tests/plant.js';
 
 function tankWith(...sizes: number[]): SimulationState {
   return produce(createSimulation({ tankCapacity: 100 }), (draft) => {
     draft.plants = sizes.map(
-      (size, i): Plant => ({ id: `p${i + 1}`, species: 'java_fern', size, condition: 100, surplus: 0 })
+      (size, i): Plant => plantRecord({ id: `p${i + 1}`, species: 'java_fern', size, condition: 100, surplus: 0 })
     );
   });
 }
@@ -125,5 +126,41 @@ describe('trimPlants — one plant', () => {
 
     expect(result.state).toBe(state);
     expect(result.message).toContain('Invalid target size');
+  });
+});
+
+describe('trimPlants — one family', () => {
+  const families = (): SimulationState =>
+    produce(tankWith(95, 90, 97, 99), (draft) => {
+      draft.plants[1].parentId = 'p1';
+      draft.plants[1].familyId = 'p1';
+      draft.plants[3].parentId = 'p2';
+      draft.plants[3].familyId = 'p1';
+    });
+
+  it('cuts the founder and every offshoot of its line, and no one else', () => {
+    const state = families();
+    const result = trimPlants(state, { type: 'trimPlants', familyId: 'p1', targetSize: 85 });
+
+    expect(sizes(result.state)).toEqual([85, 85, 97, 85]);
+    expect(result.message).toBe('Trimmed 3 plant(s) to 85%');
+  });
+
+  it('outlives its founder', () => {
+    const state = produce(families(), (draft) => {
+      draft.plants.splice(0, 1);
+    });
+    const result = trimPlants(state, { type: 'trimPlants', familyId: 'p1', targetSize: 85 });
+
+    expect(sizes(result.state)).toEqual([85, 97, 85]);
+  });
+
+  it('does nothing for a family with nothing above the target', () => {
+    const state = families();
+    for (const familyId of ['p1', 'gone']) {
+      const result = trimPlants(state, { type: 'trimPlants', familyId, targetSize: 99 });
+      expect(result.state).toBe(state);
+      expect(result.message).toContain('No plants above');
+    }
   });
 });

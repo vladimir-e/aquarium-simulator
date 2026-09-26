@@ -134,9 +134,21 @@ export interface Plant {
   condition: number;
   /**
    * Vitality bank, in condition points. Fills with income at full condition,
-   * up to `PlantsConfig.surplusCap`; heals condition below 100 and buys size.
+   * up to `PlantsConfig.surplusCap`; heals condition below 100, buys size, and
+   * a full bank buys an offshoot.
    */
   surplus: number;
+  /** The plant whose offshoot this is; null for anything planted or seeded. */
+  parentId: string | null;
+  /** The founder's id, inherited by every offshoot, so a family outlives its founder. */
+  familyId: string;
+  /** Age in ticks (hours) in this tank. */
+  age: number;
+  /**
+   * Per-individual offset on everything the plant earns, drawn once at birth
+   * within ±`VIGOUR_SPAN`, so clones bud apart instead of in lockstep.
+   */
+  vigour: number;
 }
 
 export interface Tank {

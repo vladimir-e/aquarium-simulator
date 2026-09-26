@@ -54,6 +54,8 @@ export interface TrimPlantsAction extends BaseAction {
   targetSize: TrimTargetSize;
   /** If set, trim only the plant with this id; otherwise bulk-trim all plants above targetSize. */
   plantId?: string;
+  /** Without a `plantId`, bulk-trim only this family — the founder and every offshoot of its line. */
+  familyId?: string;
 }
 
 export interface AddPlantAction extends BaseAction {

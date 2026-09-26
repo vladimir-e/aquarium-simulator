@@ -7,7 +7,8 @@
  *
  * Benefits are income: every channel is realised *through* photosynthesis,
  * so the light term multiplies all four and a plant earns nothing in the
- * dark.
+ * dark. A plant's vigour scales all four too — hardiness scales what harms
+ * it, vigour what it earns.
  *
  * Light is read at the plant's own height (see `plants/canopy.ts`): income,
  * nutrient demand and starvation at its mean leaf, the burn at its crown top.
@@ -161,14 +162,14 @@ export function buildPlantStressors(ctx: PlantVitalityContext): VitalityFactor[]
 export function buildPlantBenefits(ctx: PlantVitalityContext): VitalityFactor[] {
   const { plant, resources, plantsConfig, nutrientSufficiency } = ctx;
   const species = PLANT_SPECIES_DATA[plant.species];
-  const saturation = lightSaturation(ctx);
+  const earning = lightSaturation(ctx) * (1 + plant.vigour);
 
   return [
     {
       key: 'co2',
       label: 'CO2',
       amount:
-        saturation *
+        earning *
         plantsConfig.co2BenefitPeak *
         calculateCo2Factor(resources.co2, plant.species, plantsConfig),
     },
@@ -176,14 +177,14 @@ export function buildPlantBenefits(ctx: PlantVitalityContext): VitalityFactor[] 
       key: 'temperature',
       label: 'Temperature',
       amount:
-        saturation *
+        earning *
         plantsConfig.temperatureBenefitPeak *
         bandComfort(resources.temperature, species.tolerableTemp),
     },
     {
       key: 'ph',
       label: 'pH',
-      amount: saturation * plantsConfig.phBenefitPeak * bandComfort(getPh(resources), species.tolerablePH),
+      amount: earning * plantsConfig.phBenefitPeak * bandComfort(getPh(resources), species.tolerablePH),
     },
     {
       key: 'nutrients',
@@ -194,7 +195,7 @@ export function buildPlantBenefits(ctx: PlantVitalityContext): VitalityFactor[] 
       // two together let condition track sufficiency continuously for
       // plants whose only knob is nutrients.
       amount:
-        saturation *
+        earning *
         plantsConfig.nutrientBenefitPeak *
         Math.max(0, Math.min(1, nutrientSufficiency)),
     },

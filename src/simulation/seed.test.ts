@@ -390,6 +390,19 @@ describe('createSimulation seeding', () => {
         state.plants.every((p) => p.condition === 100 && p.surplus === 0)
       ).toBe(true);
     });
+
+    it('founds a family per record, each on a vigour of its own, at the age the group names', () => {
+      const state = createSimulation(TANK, {
+        plants: [
+          { species: 'java_fern', count: 3, age: 24 * 90 },
+          { species: 'anubias' },
+        ],
+      });
+
+      expect(state.plants.map((p) => p.age)).toEqual([2160, 2160, 2160, 0]);
+      expect(state.plants.every((p) => p.parentId === null && p.familyId === p.id)).toBe(true);
+      expect(new Set(state.plants.map((p) => p.vigour)).size).toBe(4);
+    });
   });
 
   describe('determinism', () => {

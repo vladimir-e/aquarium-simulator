@@ -4,7 +4,7 @@
  */
 
 import { z } from 'zod';
-import { MAX_LIGHT_PAR } from '../../simulation/index.js';
+import { MAX_LIGHT_PAR, VIGOUR_SPAN } from '../../simulation/index.js';
 import {
   MAX_WATER_ATTENUATION_PER_CM,
   NUTRIENTS,
@@ -210,6 +210,10 @@ const PlantSchema = z
     size: z.number().min(0).max(100),
     condition: z.number().min(0).max(100),
     surplus: z.number().min(0),
+    parentId: z.string().nullable(),
+    familyId: z.string(),
+    age: z.number().int().min(0),
+    vigour: z.number().min(-VIGOUR_SPAN).max(VIGOUR_SPAN),
   })
   .strict();
 

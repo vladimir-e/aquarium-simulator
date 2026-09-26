@@ -24,11 +24,12 @@ import type { TunableConfig } from '../../simulation/config/index.js';
  * Increment this when the structure changes in a breaking way.
  * On version mismatch, stored data is discarded.
  *
- * v31: Plants are sized and lit at their own height. `Plant.size` is the share
- *      of one full unit of its growth form, 0–100; `OpticsConfig` gains
+ * v31: Plants are sized and lit at their own height, and propagate. `Plant.size`
+ *      is the share of one full unit of its growth form, 0–100, and `Plant`
+ *      gains `parentId`, `familyId`, `age` and `vigour`; `OpticsConfig` gains
  *      `leafAttenuationPerLai`, the canopy's extinction, and
- *      `deathSizeThreshold` drops to 1. A v30 save carries plants past 100 and
- *      no leaf attenuation for the canopy to read.
+ *      `deathSizeThreshold` drops to 1. A v30 save carries plants past 100, no
+ *      lineage and no leaf attenuation for the canopy to read.
  * v30: One vitality model. `Resources` gains `lightByHour`, the 24-hour PAR
  *      history the daily light integral reads. `PlantsConfig` drops
  *      `upkeepCost`, `upkeepReserveHours`, `lightInsufficientSeverity` and

@@ -349,6 +349,8 @@ export {
   calculateRespiration,
   getRespirationTemperatureFactor,
   spendSurplus,
+  propagate,
+  VIGOUR_SPAN,
   getSpeciesGrowthRate,
   computePlantVitality,
   plantHealingRate,
@@ -366,7 +368,7 @@ export {
   floorShade,
   isOvergrown,
 } from './plants/index.js';
-export type { PlantLight, CanopyLight } from './plants/index.js';
+export type { PlantLight, CanopyLight, Propagation } from './plants/index.js';
 
 // Livestock
 export {

@@ -21,6 +21,7 @@ import { CO2_TO_O2_MASS_RATIO, MW_CO2, MW_O2 } from '../core/chemistry.js';
 import { lightSaturationFactor, monodFactor, monodUptake } from '../core/kinetics.js';
 import { getSaturationIrradiance } from '../plants/species.js';
 import { rateUnits } from '../plants/canopy.js';
+import { plantRecord } from '../tests/plant.js';
 
 const INJECTED_CO2 = 25;
 const PLENTIFUL_CO2 = 1e9;
@@ -59,13 +60,13 @@ function buildResources(
 }
 
 function plant(size: number, species: PlantSpecies = 'amazon_sword'): Plant {
-  return {
+  return plantRecord({
     id: `p-${species}-${size}`,
     species,
     size,
     condition: 100,
     surplus: 0,
-  };
+  });
 }
 
 function suffMap(

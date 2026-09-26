@@ -71,23 +71,28 @@ describe('rescapeTank', () => {
 });
 
 describe('thinToFloor', () => {
+  const ESTABLISHED = 2000;
   const overgrown = (extra: number): SimulationState => {
     const seed = toSeed(findSetup('low-tech'));
+    const established = seed.plants!.map((group) => ({ ...group, age: ESTABLISHED }));
     return createSimulation(
       toConfig(findSetup('low-tech')),
-      { ...seed, plants: [...seed.plants!, { species: 'anubias', count: extra, size: 50 }] },
+      { ...seed, plants: [{ species: 'anubias', count: extra, size: 50 }, ...established] },
       1
     );
   };
 
-  it('pulls the youngest plants, last in the list, until the planting fits its floor', () => {
+  it('pulls the youngest plants, wherever they stand in the list, until the planting fits its floor', () => {
     const state = overgrown(4);
     expect(isOvergrown(state)).toBe(true);
 
     const after = thinToFloor(state, DEFAULT_CONFIG);
+    const kept = new Set(after.plants.map((p) => p.id));
+    const pulled = state.plants.filter((p) => !kept.has(p.id));
     expect(floorCover(after.plants, after.tank.capacity)).toBeLessThanOrEqual(1);
-    expect(after.plants).toEqual(state.plants.slice(0, after.plants.length));
-    expect(isOvergrown({ ...after, plants: state.plants.slice(0, after.plants.length + 1) })).toBe(true);
+    expect(pulled.length).toBeGreaterThan(0);
+    expect(pulled.every((p) => p.age === 0)).toBe(true);
+    expect(isOvergrown({ ...after, plants: [...after.plants, pulled[0]!] })).toBe(true);
   });
 
   it('leaves a planting that fits alone', () => {

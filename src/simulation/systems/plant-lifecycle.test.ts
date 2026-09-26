@@ -3,9 +3,10 @@ import { calculateShedding, shouldPlantDie, calculateDeathWaste } from './plant-
 import { plantsDefaults } from '../config/plants.js';
 import { fullRateUnits } from '../plants/canopy.js';
 import type { Plant } from '../state.js';
+import { plantRecord } from '../tests/plant.js';
 
 function makePlant(overrides: Partial<Plant> = {}): Plant {
-  return { id: 'test', species: 'java_fern', size: 100, condition: 100, surplus: 0, ...overrides };
+  return plantRecord({ id: 'test', species: 'java_fern', size: 100, condition: 100, surplus: 0, ...overrides });
 }
 
 describe('calculateShedding', () => {

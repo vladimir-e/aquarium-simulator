@@ -70,6 +70,7 @@ Task briefs are provided by the maintainer or orchestrator per task — there's 
 
 ## Gotchas
 
+- **A plant's offshoot runs before its growth** — `processPlants` lets a full bank buy the offshoot before the tick's draw; drawn first, the bank sits a hair under the cap and no plant ever buds.
 - **The canopy is one O(N²) pass a tick** — `processPlants` builds `canopyLight` once off the start-of-tick planting and photosynthesis and vitality both read it; a reader outside the tick builds its own once. Never build it per plant.
 - **Ids are tank-unique, not process-unique** — two tanks emit the same id sequence, so UI state keyed by organism id must reset when the tank is replaced (`useExpandedRows` is the pattern). A tank's UI identity is `tankId`; seeds are nameable and two tanks can share one.
 - **Config bounds live in the `*ConfigMeta`, not the save schema** — CLI `applyConfigSet` and the tunables drawer both validate against `configRange(path)`; the persistence schema bounds only a handful of leaves (the surplus caps, water attenuation, the water-chemistry rate floors, the nutrient demand floors), each equal to or looser than meta, so there is no second set to keep in step.

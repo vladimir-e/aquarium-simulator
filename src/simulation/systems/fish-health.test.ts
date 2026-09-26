@@ -25,6 +25,7 @@ import {
   toleranceFactor,
 } from '../livestock/tolerance.js';
 import { freeAmmoniaPpm } from './nitrogen-cycle.js';
+import { plantRecord } from '../tests/plant.js';
 
 const STRESSORS = [
   'temperature',
@@ -91,14 +92,14 @@ function makeResources(overrides: ResourceOverrides = {}): Resources {
 }
 
 function makePlant(overrides: Partial<Plant> = {}): Plant {
-  return {
+  return plantRecord({
     id: 'plant_1',
     species: 'java_fern',
     size: 100,
     condition: 100,
     surplus: 0,
     ...overrides,
-  };
+  });
 }
 
 function vitality(

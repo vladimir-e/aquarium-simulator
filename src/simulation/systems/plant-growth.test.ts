@@ -1,21 +1,22 @@
 import { describe, it, expect } from 'vitest';
-import { spendSurplus, getSpeciesGrowthRate, growthTaper } from './plant-growth.js';
+import { spendSurplus, propagate, getSpeciesGrowthRate, growthTaper } from './plant-growth.js';
 import type { Plant } from '../state.js';
 import { PLANT_SPECIES_DATA, type PlantSpecies } from '../plants/species.js';
 import { plantsConfigMeta, plantsDefaults, type PlantsConfig } from '../config/plants.js';
+import { plantRecord } from '../tests/plant.js';
 
 function makePlant(
   species: PlantSpecies,
   overrides: Partial<Plant> = {}
 ): Plant {
-  return {
+  return plantRecord({
     id: `p_${species}`,
     species,
     size: 50,
     condition: 100,
     surplus: 0,
     ...overrides,
-  };
+  });
 }
 
 describe('growthTaper', () => {
@@ -153,5 +154,52 @@ describe('spendSurplus', () => {
         10
       );
     }
+  });
+});
+
+describe('propagate', () => {
+  const CAP = plantsDefaults.surplusCap;
+  const conversion = (species: PlantSpecies, config: PlantsConfig = plantsDefaults): number =>
+    getSpeciesGrowthRate(species) * config.sizePerSurplus;
+
+  it('fires iff the bank is at a cap above 0', () => {
+    expect(propagate(makePlant('java_fern', { surplus: CAP }))).not.toBeNull();
+    expect(propagate(makePlant('java_fern', { surplus: CAP - 1e-9 }))).toBeNull();
+    const capless = { ...plantsDefaults, surplusCap: 0 };
+    expect(propagate(makePlant('java_fern', { surplus: 0 }), capless)).toBeNull();
+    expect(propagate(makePlant('java_fern', { surplus: 5 }), capless)).toBeNull();
+  });
+
+  it('buys an offshoot of the bank at the growth conversion, untapered, and the parent pays exactly that', () => {
+    for (const species of Object.keys(PLANT_SPECIES_DATA) as PlantSpecies[]) {
+      for (const size of [10, 80, 99]) {
+        const plant = makePlant(species, { surplus: CAP, size });
+        const { parent, offshootSize } = propagate(plant)!;
+        expect(offshootSize).toBeCloseTo(Math.min(100, CAP * conversion(species)), 10);
+        expect(parent.surplus + offshootSize / conversion(species)).toBeCloseTo(plant.surplus, 10);
+        expect(parent.size).toBe(plant.size);
+      }
+    }
+  });
+
+  it('empties the bank on anything short of a full unit', () => {
+    const { parent } = propagate(makePlant('monte_carlo', { surplus: CAP }))!;
+    expect(parent.surplus).toBe(0);
+  });
+
+  it('caps the offshoot at a full unit and leaves the change in the bank', () => {
+    const rich = { ...plantsDefaults, sizePerSurplus: 2 * (100 / (CAP * getSpeciesGrowthRate('monte_carlo'))) };
+    const plant = makePlant('monte_carlo', { surplus: CAP });
+    const { parent, offshootSize } = propagate(plant, rich)!;
+    expect(offshootSize).toBe(100);
+    expect(parent.surplus).toBeCloseTo(CAP / 2, 10);
+    expect(parent.surplus + offshootSize / conversion('monte_carlo', rich)).toBeCloseTo(plant.surplus, 10);
+  });
+
+  it('stays finite when the conversion buys nothing', () => {
+    const barren = { ...plantsDefaults, sizePerSurplus: 0 };
+    const { parent, offshootSize } = propagate(makePlant('anubias', { surplus: CAP }), barren)!;
+    expect(offshootSize).toBe(0);
+    expect(parent.surplus).toBe(0);
   });
 });

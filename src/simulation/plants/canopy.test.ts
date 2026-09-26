@@ -25,6 +25,7 @@ import { buildPlantBenefits, buildPlantStressors } from '../systems/plant-vitali
 import { calculateNutrientSufficiency } from '../systems/nutrients.js';
 import { nutrientsDefaults, type Nutrient } from '../config/nutrients.js';
 import { scheduledLightByHour } from '../equipment/light.js';
+import { plantRecord } from '../tests/plant.js';
 
 type Unit = Pick<Plant, 'species' | 'size'>;
 
@@ -177,7 +178,7 @@ describe('the regulator', () => {
   };
 
   function dailyNet(species: PlantSpecies, size: number, fixturePar: number): number {
-    const plant: Plant = { id: 'lone', species, size, condition: 100, surplus: 0 };
+    const plant: Plant = plantRecord({ id: 'lone', species, size, condition: 100, surplus: 0 });
     const [canopy] = light([plant]);
     const day = scheduledLightByHour(
       { enabled: true, par: fixturePar, schedule: { startHour: 0, duration: 8 } },
@@ -225,7 +226,7 @@ describe('floor cover and shade', () => {
       tank: { capacity: CAPACITY, hardscapeSlots: 0 },
     });
     const swords = (n: number): Plant[] =>
-      Array.from({ length: n }, (_, i) => ({ id: `s${i}`, species: 'amazon_sword', size: 50, condition: 100, surplus: 0 }));
+      Array.from({ length: n }, (_, i) => plantRecord({ id: `s${i}`, species: 'amazon_sword', size: 50, condition: 100, surplus: 0 }));
     const fit = Math.floor(floor / GROWTH_FORMS.rosette.footprintCm2);
     expect(isOvergrown(tank(swords(fit)))).toBe(false);
     expect(isOvergrown(tank(swords(fit + 1)))).toBe(true);
