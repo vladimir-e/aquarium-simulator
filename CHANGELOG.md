@@ -11,10 +11,11 @@ Format: - **Feature name** (#PR) - One short sentence (under ~150 chars)
 
 ## Unreleased
 
+- **A new tank opens on the optics it runs on** - `SimulationConfig.optics` lights its first day; `relight` re-reads a tank at hour zero under others.
 - **Log lines read in the keeper's units** - volumes and temperatures stay quantities that `logText` renders; breaking: such a `message` holds `{0}`-style placeholders.
 - **The console gives each reading one tone** - NO₃ reads once for fish and plants, needs take their reading's tone and name hungry or sick fish; speed persists.
 - **An unfed plant starves** - its income runs on nutrient sufficiency, as carbon fixation does; breaking: no `nutrientBenefitPeak` (v31, v15).
-- **Nutrient deficiency starts at an edge** - harm starts under `sufficiencyEdge` (0.9), since a Monod sufficiency never reaches 1.
+- **Nutrient deficiency starts at an edge** - harm starts under `sufficiencyEdge` (0.9, at most 0.95), since a Monod sufficiency never reaches 1.
 - **Tissue fouls the water at one yield** - shed or dead; breaking: `wastePerSize` replaces `wastePerShedSize`/`wastePerPlantDeath` (v31, v15).
 - **Alerts fire where harm starts** - water level and algae where their tunables start harm, CO₂ past 40 mg/L; breaking: `waterLevelAlertLine`/`algaeAlertLine` replace the fixed thresholds, `checkAlerts` takes the config.
 - **A feeding adds what it weighs** - the food stock keeps its real mass instead of rounding to 0.01 g, so a pinch no longer vanishes or swells.

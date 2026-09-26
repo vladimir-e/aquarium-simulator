@@ -10,7 +10,7 @@ import { calculateNutrientSufficiency } from './nutrients.js';
 import { getRespirationTemperatureFactor } from './respiration.js';
 import { toleranceFactor } from '../livestock/tolerance.js';
 import { calculateCo2Factor } from './photosynthesis.js';
-import { plantsDefaults } from '../config/plants.js';
+import { MAX_SUFFICIENCY_EDGE, plantsDefaults } from '../config/plants.js';
 import { nutrientsDefaults } from '../config/nutrients.js';
 import { getMassFromPpm } from '../resources/helpers.js';
 import type { Plant, Resources } from '../state.js';
@@ -124,18 +124,22 @@ describe('buildPlantStressors', () => {
     expect(amount(species, key, at(2))).toBeCloseTo(2 * one, 10);
   });
 
-  it('charges deficiency from nothing at the sufficiency edge, linear under it', () => {
-    const at = (nutrientSufficiency: number): number =>
-      buildPlantStressors({ ...ctx(makePlant('monte_carlo'), makeResources()), nutrientSufficiency }).find(
-        (s) => s.key === 'nutrients'
-      )!.amount;
-    const edge = plantsDefaults.sufficiencyEdge;
+  it.each([plantsDefaults.sufficiencyEdge, MAX_SUFFICIENCY_EDGE])(
+    'charges deficiency from nothing at a sufficiency edge of %s, linear under it',
+    (edge) => {
+      const plantsConfig = { ...plantsDefaults, sufficiencyEdge: edge };
+      const at = (nutrientSufficiency: number): number =>
+        buildPlantStressors({
+          ...ctx(makePlant('monte_carlo'), makeResources(), 0, plantsConfig),
+          nutrientSufficiency,
+        }).find((s) => s.key === 'nutrients')!.amount;
 
-    expect(at(1)).toBe(0);
-    expect(at(edge)).toBe(0);
-    expect(at(edge / 2)).toBeCloseTo(at(0) / 2, 12);
-    expect(at(edge / 4)).toBeCloseTo((3 * at(0)) / 4, 12);
-  });
+      expect(at(1)).toBe(0);
+      expect(at(edge)).toBe(0);
+      expect(at(edge / 2)).toBeCloseTo(at(0) / 2, 12);
+      expect(at(edge / 4)).toBeCloseTo((3 * at(0)) / 4, 12);
+    }
+  );
 
   it('charges a gone nutrient at full severity on the light curve, and nothing in the dark', () => {
     for (const light of [0, 20, 60, 400]) {

@@ -237,6 +237,12 @@ export const plantsDefaults: PlantsConfig = {
   deathSizeThreshold: 1,
 };
 
+/**
+ * A Monod share reaches 1 only at infinite concentration, so the need an edge
+ * sets, `K × edge / (1 − edge)`, runs away as the edge nears it.
+ */
+export const MAX_SUFFICIENCY_EDGE = 0.95;
+
 export interface PlantsConfigMeta {
   key: keyof PlantsConfig;
   label: string;
@@ -309,7 +315,7 @@ export const plantsConfigMeta: PlantsConfigMeta[] = [
   { key: 'phStressSeverity', label: 'Plant pH Severity', unit: '%/pH/hr', min: 0.5, max: 10, step: 0.5 },
   { key: 'ghStressSeverity', label: 'Plant GH Severity', unit: '%/dGH/hr', min: 0, max: 2, step: 0.05 },
   { key: 'nutrientDeficiencySeverity', label: 'Nutrient Defic. Severity', unit: '%/hr', min: 0.1, max: 2.0, step: 0.1 },
-  { key: 'sufficiencyEdge', label: 'Sufficiency Edge', unit: '', min: 0.1, max: 1, step: 0.05 },
+  { key: 'sufficiencyEdge', label: 'Sufficiency Edge', unit: '', min: 0.1, max: MAX_SUFFICIENCY_EDGE, step: 0.05 },
   { key: 'nitrateStressSeverity', label: 'Plant Nitrate Severity', unit: '%/e-fold/hr', min: 0.1, max: 10, step: 0.1 },
   { key: 'nitrateEdge', label: 'Plant Nitrate Edge', unit: 'ppm', min: 50, max: 300, step: 10 },
   { key: 'algaeShadingSeverity', label: 'Algae Shading Severity', unit: '%/algae/hr', min: 0.001, max: 0.1, step: 0.005 },

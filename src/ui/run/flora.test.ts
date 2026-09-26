@@ -14,7 +14,7 @@ import {
   type PlantSpecies,
   type SimulationState,
 } from '../../simulation/index.js';
-import { DEFAULT_CONFIG, NUTRIENTS } from '../../simulation/config/index.js';
+import { DEFAULT_CONFIG, MAX_SUFFICIENCY_EDGE, NUTRIENTS } from '../../simulation/config/index.js';
 import { speciesHalfSaturation } from '../../simulation/systems/nutrients.js';
 import { MAX_DOSE_ML } from '../../simulation/actions/dose.js';
 import { produce } from 'immer';
@@ -371,7 +371,7 @@ describe('nutrientReadings', () => {
 
   it('sets each need where the hungriest plant’s deficiency harm starts, wherever that edge is tuned', () => {
     const state = planted(['java_fern', 'monte_carlo']);
-    for (const edge of [0.8, DEFAULT_CONFIG.plants.sufficiencyEdge]) {
+    for (const edge of [0.8, DEFAULT_CONFIG.plants.sufficiencyEdge, MAX_SUFFICIENCY_EDGE]) {
       const config = { ...DEFAULT_CONFIG, plants: { ...DEFAULT_CONFIG.plants, sufficiencyEdge: edge } };
       const water = state.resources.water;
       const atNeed = { ...state.resources };

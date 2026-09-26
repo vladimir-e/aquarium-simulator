@@ -77,11 +77,11 @@ function refreshPassiveResources(draft: SimulationState, optics: OpticsConfig): 
 }
 
 /**
- * `createSimulation` and `createPresetSimulation` take no tunable config, so a
- * tank they mint opens on `opticsDefaults`. Every path here that builds or
- * swaps one hands it through this first: the relight effect is keyed on the
- * optics, and swapping a tank is not an optics change, so nothing downstream
- * of a rebuild would otherwise correct the water it opens in.
+ * A tank minted here is built from a preset or a `rebuildConfig`, neither of
+ * which carries optics, so it opens on `opticsDefaults`. Every path here that
+ * builds or swaps one hands it through this first: the relight effect is keyed
+ * on the optics, and swapping a tank is not an optics change, so nothing
+ * downstream of a rebuild would otherwise correct the water it opens in.
  */
 function withPassiveResources(state: SimulationState, optics: OpticsConfig): SimulationState {
   return produce(state, (draft) => {

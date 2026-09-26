@@ -37,7 +37,7 @@ for (let hour = 0; hour < 24; hour++) {
 
 | Capability | Key exports | What it gives you |
 |---|---|---|
-| Create a tank | `createSimulation`, `SimulationConfig`, `DEFAULT_HEATER`, `DEFAULT_LID`, `DEFAULT_ATO`, `DEFAULT_LIGHT` | A tank from a capacity and whatever devices you name. Everything else falls back to a default, and a non-finite or impossible input throws rather than settling |
+| Create a tank | `createSimulation`, `SimulationConfig`, `relight`, `DEFAULT_HEATER`, `DEFAULT_LID`, `DEFAULT_ATO`, `DEFAULT_LIGHT` | A tank from a capacity and whatever devices you name. Everything else falls back to a default, and a non-finite or impossible input throws rather than settling. The config's `optics` are the ones you will tick with — its first day of light is read through them, the shipped optics when it names none. `relight` reads a tank still at hour zero through optics it was not built on |
 | Start from a preset | `PRESETS`, `DEFAULT_PRESET_ID`, `getPresetById`, `createPresetSimulation`, `presetName`, `PresetId`, `PresetDefinition` | The five shipped tanks, and the one call that reads both halves of a preset together |
 | Seed a starting state | `PresetSeed`, `TankSeed`, `SeedBacteria`, `SeedColony`, `SeedResources`, `SeedFishGroup`, `SeedPlantGroup`, `cycledColony`, `cycledHardness`, `cycledKhReserve`, `cycledNitrate`, `cycledReserve`, `startingHardness` | Open a tank part-way through its life — a colony, a bed, a roster. The `cycled*` helpers answer what a month-old tank of a given build carries |
 | Advance time | `tick`, `getHourOfDay`, `getDayNumber` | One tick is one hour. `tick` is pure: same state and config in, same state out |

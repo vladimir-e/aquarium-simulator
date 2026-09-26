@@ -248,7 +248,9 @@ earned  = channel × tanh(PAR_i / Ik) × sufficiency_i × (1 + vigour)
 | Algae shading | bloom mass over `algaeShadingThreshold`, not light ([Status](#status)) | mass point |
 
 A Monod sufficiency never reaches 1, so deficiency starts under an edge rather
-than under full: `sufficiencyEdge`, where a plant has 90 % of its need met.
+than under full: `sufficiencyEdge`, where a plant has 90 % of its need met. The
+edge tops out at `MAX_SUFFICIENCY_EDGE`, 0.95: the ppm that meets it,
+`demand_n × K_n × edge / (1 − edge)`, runs away as it nears 1.
 Hardiness scales every stressor by `1 − hardiness` except nitrate, whose edge it
 carries out by the same factor a fish's is: `nitrateEdge × 2^hardiness`.
 

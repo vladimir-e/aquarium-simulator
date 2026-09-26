@@ -380,6 +380,8 @@ export interface SimulationConfig {
   airPump?: Partial<AirPump>;
   /** Initial auto doser configuration */
   autoDoser?: Partial<AutoDoser>;
+  /** Optics the tank will run on, which its first day of light is read through (defaults to the shipped optics) */
+  optics?: OpticsConfig;
 }
 
 const DEFAULT_TEMPERATURE = 25;
@@ -533,6 +535,7 @@ export function createSimulation(
     co2Generator,
     airPump,
     autoDoser,
+    optics,
   } = config;
 
   const heaterConfig: Heater = {
@@ -644,10 +647,7 @@ export function createSimulation(
     airPump: airPumpConfig,
     autoDoser: autoDoserConfig,
   };
-  // The constructor takes no tunable config, so the tank is lit on the shipped
-  // optics. A caller running tuned optics owes it a `relight` — a paused tank
-  // has no next tick.
-  const lightByHour = scheduledLightHistory({ tank, equipment }, opticsDefaults);
+  const lightByHour = scheduledLightHistory({ tank, equipment }, optics ?? opticsDefaults);
 
   const state: SimulationState = {
     tick: 0,

@@ -21,6 +21,7 @@ export type {
 } from './state.js';
 export {
   createSimulation,
+  relight,
   scheduledLightHistory,
   calculateTankHeight,
   calculateFloorArea,

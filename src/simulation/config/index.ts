@@ -43,7 +43,12 @@ export {
   waterChemistryDefaults,
   waterChemistryConfigMeta,
 } from './water-chemistry.js';
-export { type PlantsConfig, plantsDefaults, plantsConfigMeta } from './plants.js';
+export {
+  type PlantsConfig,
+  plantsDefaults,
+  plantsConfigMeta,
+  MAX_SUFFICIENCY_EDGE,
+} from './plants.js';
 export {
   NUTRIENTS,
   type Nutrient,

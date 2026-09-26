@@ -1,5 +1,5 @@
 import { applyAction, tick, type Action, type SimulationState } from '../../simulation/index.js';
-import { createSimulation, relight } from '../../simulation/state.js';
+import { createSimulation } from '../../simulation/state.js';
 import { getPh } from '../../simulation/core/carbonate.js';
 import { isPlantableSize } from '../../simulation/systems/plant-lifecycle.js';
 import type { PlantsConfig, TunableConfig } from '../../simulation/config/index.js';
@@ -71,7 +71,7 @@ function assertPlantable(setup: Setup, plantsConfig: PlantsConfig): void {
 
 export function keepTank(setup: Setup, { config, untilTick, observe, onRefusal }: KeepOptions): SimulationState {
   assertPlantable(setup, config.plants);
-  let state = relight(createSimulation(toConfig(setup), toSeed(setup), RNG_SEED), config.optics);
+  let state = createSimulation({ ...toConfig(setup), optics: config.optics }, toSeed(setup), RNG_SEED);
   observe?.(state);
   while (state.tick < untilTick) {
     if (setup.rescapeOn !== undefined && isKeeperHourOf(setup.rescapeOn, state.tick)) {

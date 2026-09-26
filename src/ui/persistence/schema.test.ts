@@ -9,6 +9,7 @@ import { PERSISTENCE_VERSION } from './types.js';
 import {
   DEFAULT_CONFIG,
   MAX_LEAF_ATTENUATION_PER_LAI,
+  MAX_SUFFICIENCY_EDGE,
   MAX_WATER_ATTENUATION_PER_CM,
 } from '../../simulation/config/index.js';
 import {
@@ -142,6 +143,18 @@ describe('TunableConfigSchema', () => {
     expect(leaves(MAX_LEAF_ATTENUATION_PER_LAI)).toBe(true);
     expect(leaves(-0.1)).toBe(false);
     expect(leaves(MAX_LEAF_ATTENUATION_PER_LAI + 1)).toBe(false);
+  });
+
+  it('takes a sufficiency edge up to its ceiling, and refuses the 1 a Monod share never reaches', () => {
+    const edge = (sufficiencyEdge: number): boolean =>
+      TunableConfigSchema.safeParse({
+        ...DEFAULT_CONFIG,
+        plants: { ...DEFAULT_CONFIG.plants, sufficiencyEdge },
+      }).success;
+    expect(edge(0)).toBe(true);
+    expect(edge(MAX_SUFFICIENCY_EDGE)).toBe(true);
+    expect(edge(1)).toBe(false);
+    expect(edge(-0.1)).toBe(false);
   });
 
   it('refuses a species demand of nothing, which no plant has', () => {

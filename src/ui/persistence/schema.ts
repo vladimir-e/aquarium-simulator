@@ -7,6 +7,7 @@ import { z } from 'zod';
 import { MAX_LIGHT_PAR, VIGOUR_SPAN } from '../../simulation/index.js';
 import {
   MAX_LEAF_ATTENUATION_PER_LAI,
+  MAX_SUFFICIENCY_EDGE,
   MAX_WATER_ATTENUATION_PER_CM,
   NUTRIENTS,
   WASTE_NUTRIENTS,
@@ -461,7 +462,7 @@ const PlantsConfigSchema = z
     phStressSeverity: z.number(),
     ghStressSeverity: z.number(),
     nutrientDeficiencySeverity: z.number(),
-    sufficiencyEdge: z.number(),
+    sufficiencyEdge: z.number().min(0).max(MAX_SUFFICIENCY_EDGE),
     nitrateStressSeverity: z.number(),
     nitrateEdge: z.number(),
     algaeShadingSeverity: z.number(),
