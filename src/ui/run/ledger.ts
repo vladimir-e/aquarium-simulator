@@ -208,7 +208,7 @@ function plantLedger(
   const data = PLANT_SPECIES_DATA[plant.species];
   const helping = factors(breakdown.benefits);
   const hurting = factors(breakdown.stressors);
-  const reading = healthReading(plant.condition, isSick(plant.condition, vitality) ? 'sick' : null);
+  const reading = healthReading(plant.condition, isSick(plant.condition, vitality));
   const [lightLow, lightHigh] = data.tolerableLight;
 
   return {

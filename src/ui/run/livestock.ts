@@ -17,7 +17,15 @@ import {
   type VitalityResult,
 } from '../../simulation/index.js';
 import type { LivestockConfig } from '../../simulation/config/livestock.js';
-import { healthReading, isSick, worstReading, type Reading, type Status } from './status.js';
+import {
+  conditionReading,
+  groupReading,
+  healthReading,
+  isSick,
+  worstReading,
+  type Reading,
+  type Status,
+} from './status.js';
 
 /** Hungry and starving are the two bands that count toward "N hungry". */
 export function isHungryBand(band: SatiationBand): boolean {
@@ -74,7 +82,7 @@ export function countFry(fish: Fish[]): number {
  */
 export function fishReading(fish: Fish, vitality: VitalityResult, config: LivestockConfig): Reading {
   const band = bandOf(fish.satiation, config);
-  return worstReading(healthReading(fish.health, isSick(fish.health, vitality) ? 'sick' : null), {
+  return worstReading(healthReading(fish.health, isSick(fish.health, vitality)), {
     status: bandStatus(band),
     word: SATIATION_BAND_LABEL[band].toLowerCase(),
   });
@@ -83,7 +91,6 @@ export function fishReading(fish: Fish, vitality: VitalityResult, config: Livest
 /** One fish, with the vitality pass behind its row already spent. */
 export interface FishRead {
   fish: Fish;
-  sick: boolean;
   reading: Reading;
 }
 
@@ -97,7 +104,7 @@ function readFish(fish: Fish, state: SimulationState, config: LivestockConfig): 
     config
   );
 
-  return { fish, sick: isSick(fish.health, vitality), reading: fishReading(fish, vitality, config) };
+  return { fish, reading: fishReading(fish, vitality, config) };
 }
 
 function groupBySpeciesKey(fish: Fish[]): Map<FishSpecies, Fish[]> {
@@ -133,7 +140,7 @@ export interface RosterFigures {
 interface RosterGroup extends RosterFigures {
   count: number;
   hunger: Hunger | null;
-  sick: number;
+  reading: Reading;
   /** The fish behind the row, each already read. */
   members: FishRead[];
 }
@@ -155,6 +162,7 @@ function groupFigures(
   config: LivestockConfig
 ): RosterGroup {
   const satiation = mean(group.map((f) => f.satiation));
+  const condition = mean(group.map((f) => f.health));
   const members = group.map((fish) => readFish(fish, state, config));
   return {
     count: group.length,
@@ -162,9 +170,12 @@ function groupFigures(
     ageDays: Math.floor(mean(group.map((f) => f.age)) / 24),
     satiation,
     band: bandOf(satiation, config),
-    condition: mean(group.map((f) => f.health)),
+    condition,
     hunger: hungerOf(group, config),
-    sick: members.filter((member) => member.sick).length,
+    reading: groupReading(
+      members.map((member) => member.reading),
+      conditionReading(condition)
+    ),
     members,
   };
 }

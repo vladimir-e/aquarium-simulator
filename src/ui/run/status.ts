@@ -45,8 +45,20 @@ export function isSick(condition: number, vitality: VitalityResult): boolean {
   return vitality.newCondition < condition;
 }
 
-/** Condition, or the sickness word where there is one — sickness wins a tie. */
-export function healthReading(condition: number, sick: string | null): Reading {
+/** Condition, or sickness where the organism is sick — sickness wins a tie. */
+export function healthReading(condition: number, sick: boolean): Reading {
   const health = conditionReading(condition);
-  return sick === null ? health : worstReading({ status: 'warn', word: sick }, health);
+  return sick ? worstReading({ status: 'warn', word: 'sick' }, health) : health;
+}
+
+/**
+ * A group reads as its most urgent member, counted: `2 sick`, `3 overfed`. A
+ * group with nobody to flag reads its condition, and a group of one its member.
+ */
+export function groupReading(members: Reading[], condition: Reading): Reading {
+  if (members.length === 1) return members[0];
+  const worst = members.reduce(worstReading);
+  if (STATUS_SEVERITY[worst.status] === 0) return condition;
+  const count = members.filter((member) => member.word === worst.word).length;
+  return { status: worst.status, word: `${count} ${worst.word}` };
 }

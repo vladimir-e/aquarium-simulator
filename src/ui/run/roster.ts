@@ -22,13 +22,7 @@ import {
   type SpeciesGroup,
 } from './livestock.js';
 import type { PlantSpeciesGroup } from './flora.js';
-import {
-  healthReading,
-  STATUS_SEVERITY,
-  worstReading,
-  type Reading,
-  type Status,
-} from './status.js';
+import { STATUS_SEVERITY, type Status } from './status.js';
 import type { ReadingBand } from './water.js';
 
 /** The engine calls 60 and up healthy, on the 0–100 axis every organism is scored on. */
@@ -145,24 +139,8 @@ function satiationBand(config: LivestockConfig): ReadingBand {
 }
 
 interface Grouped {
-  condition: number;
   satiation: number;
   hunger: Hunger | null;
-  sick: number;
-}
-
-/**
- * A group is as urgent as its worst channel, the same way one fish is: a shoal
- * every member of which is hungry does not read `thriving` off its condition.
- */
-function groupVital(group: Grouped): Reading {
-  const health = healthReading(group.condition, group.sick > 0 ? `${group.sick} sick` : null);
-  if (!group.hunger) return health;
-
-  return worstReading(health, {
-    status: bandStatus(group.hunger.band),
-    word: `${group.hunger.count} hungry`,
-  });
 }
 
 /** The group's mean, spoken for by its hungry members where it has any. */
@@ -216,7 +194,7 @@ function fishRows(
       dots: group.members.map((member) => member.reading.status),
       satiation: groupSatiation(group, config),
       at: group.condition / 100,
-      ...groupVital(group),
+      ...group.reading,
       worstKey: worstOf(
         group.members,
         (member) => member.reading.status,
@@ -313,7 +291,7 @@ function fryRow(batch: FryBatch, config: LivestockConfig): FryRosterRow {
     age: `${batch.ageDays} d`,
     satiation: groupSatiation(batch, config),
     at: batch.condition / 100,
-    ...groupVital(batch),
+    ...batch.reading,
   };
 }
 

@@ -27,8 +27,9 @@ import {
   plantRows,
   plantVitalityAhead,
   TRIM_TARGETS,
+  type PlantRow,
 } from './flora';
-import { conditionStatus, conditionWord } from './status';
+import { conditionStatus, conditionWord, healthReading } from './status';
 
 const FORMULA = DEFAULT_CONFIG.nutrients.fertilizerFormula;
 
@@ -72,6 +73,10 @@ describe('condition + algae words', () => {
   });
 });
 
+function reading(row: PlantRow, condition: number, sick = false): PlantRow {
+  return { ...row, condition, ...healthReading(condition, sick) };
+}
+
 describe('groupPlantsBySpecies', () => {
   it('folds a species into one row carrying a status per specimen', () => {
     const state = planted(['java_fern', 'java_fern', 'monte_carlo']);
@@ -84,25 +89,34 @@ describe('groupPlantsBySpecies', () => {
     expect(ferns.statuses).toHaveLength(2);
   });
 
-  it('reads the group off its worst specimen, and its strip off the mean', () => {
+  it('reads the group off its worst specimen, counted, and its strip off the mean', () => {
     const rows = plantRows(planted(['java_fern', 'java_fern']), DEFAULT_CONFIG);
-    const [group] = groupPlantsBySpecies([
-      { ...rows[0], condition: 20 },
-      { ...rows[1], condition: 80 },
-    ]);
+    const [group] = groupPlantsBySpecies([reading(rows[0], 20), reading(rows[1], 80)]);
 
-    expect(group).toMatchObject({ status: conditionStatus(20), word: conditionWord(20), condition: 50 });
+    expect(group).toMatchObject({
+      status: conditionStatus(20),
+      word: `1 ${conditionWord(20)}`,
+      condition: 50,
+    });
   });
 
   it('counts the sick specimens', () => {
     const rows = plantRows(planted(['java_fern', 'java_fern', 'java_fern']), DEFAULT_CONFIG);
     const [group] = groupPlantsBySpecies([
-      { ...rows[0], sick: true },
-      { ...rows[1], sick: true },
+      reading(rows[0], 100, true),
+      reading(rows[1], 100, true),
       rows[2],
     ]);
 
     expect(group).toMatchObject({ status: 'warn', word: '2 sick' });
+  });
+
+  it('reads a specimen alone the way it reads itself', () => {
+    const [row] = plantRows(planted(['java_fern']), DEFAULT_CONFIG);
+    const sick = reading(row, 100, true);
+    const [group] = groupPlantsBySpecies([sick]);
+
+    expect(group).toMatchObject({ status: 'warn', word: sick.word });
   });
 });
 

@@ -38,7 +38,7 @@ import {
   type NutrientsConfig,
   type TunableConfig,
 } from '../../simulation/config/index.js';
-import { healthReading, isSick, type Status } from './status.js';
+import { conditionReading, groupReading, healthReading, isSick, type Status } from './status.js';
 
 /**
  * Trim targets, in % of a plant's size. A planted tank settles at 60–90 %, so
@@ -82,7 +82,6 @@ export interface PlantRow {
   /** Above every rung of the trim ladder. */
   overTrim: boolean;
   condition: number;
-  sick: boolean;
   status: Status;
   word: string;
   /** Change per hour: what the breakdown below it sums to. */
@@ -116,8 +115,6 @@ export function plantRows(state: SimulationState, config: TunableConfig): PlantR
 
   return state.plants.map((plant, i) => {
     const vitality = vitalities[i];
-    const sick = isSick(plant.condition, vitality);
-
     return {
       id: plant.id,
       species: plant.species,
@@ -125,8 +122,7 @@ export function plantRows(state: SimulationState, config: TunableConfig): PlantR
       size: plant.size,
       overTrim: plant.size > TRIM_CEILING,
       condition: plant.condition,
-      sick,
-      ...healthReading(plant.condition, sick ? 'sick' : null),
+      ...healthReading(plant.condition, isSick(plant.condition, vitality)),
       net: vitality.breakdown.net,
       charged: acting(vitality.breakdown.stressors),
       benefits: acting(vitality.breakdown.benefits),
@@ -149,7 +145,7 @@ export interface PlantSpeciesGroup {
   condition: number;
   /** One per specimen, in planting order. */
   statuses: Status[];
-  /** Read off the worst specimen's condition, and the count of the sick. */
+  /** Read off its specimens, and the worst one's condition where none needs the reader. */
   status: Status;
   word: string;
   /** The specimens themselves, in planting order. */
@@ -165,10 +161,9 @@ export function groupPlantsBySpecies(rows: PlantRow[]): PlantSpeciesGroup[] {
   }
 
   return [...groups].map(([species, members]) => {
-    const sick = members.filter((member) => member.sick).length;
-    const reading = healthReading(
-      Math.min(...members.map((member) => member.condition)),
-      sick > 0 ? `${sick} sick` : null
+    const reading = groupReading(
+      members,
+      conditionReading(Math.min(...members.map((member) => member.condition)))
     );
     return {
       species,

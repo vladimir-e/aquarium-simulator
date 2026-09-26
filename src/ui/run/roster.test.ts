@@ -180,6 +180,34 @@ describe('rosterTables', () => {
     expect(group.word).toBe('2 sick');
   });
 
+  it('counts the overfed members the way it counts the hungry', () => {
+    const banked = { satiation: 100, surplus: livestockDefaults.surplusCap };
+    const fed = [
+      makeFish({ id: 'fish_a_1', ...banked }),
+      makeFish({ id: 'fish_a_2', ...banked }),
+      makeFish({ id: 'fish_a_3', ...banked }),
+    ];
+    const [group] = tables(tank(fed)).fish as SpeciesRosterRow[];
+
+    expect(group.dots).toEqual(['warn', 'warn', 'warn']);
+    expect(group).toMatchObject({ status: 'warn', word: '3 overfed' });
+  });
+
+  it('reads a group of one the way it reads its member', () => {
+    const base = tank([makeFish({ id: 'fish_a_1' })]);
+    const poisoned: SimulationState = {
+      ...base,
+      resources: { ...base.resources, ammonia: 20 * base.resources.water },
+    };
+    const [group, member] = tables(poisoned, 'species-neon_tetra').fish as [
+      SpeciesRosterRow,
+      IndividualRosterRow,
+    ];
+
+    expect(member.word).toBe('sick');
+    expect(group).toMatchObject({ status: member.status, word: member.word });
+  });
+
   it('gives a fish the word its ledger gives it, bank and all', () => {
     const fish = makeFish({ id: 'fish_a_1', health: 100, surplus: 5 });
     const base = tank([fish]);
