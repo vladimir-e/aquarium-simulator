@@ -188,7 +188,7 @@ export interface ReadingBook {
   demand: NeedView[];
   nutrients: NutrientReading[];
   /** The bed's store for root feeders; null over a bare bottom. */
-  bed: BedReading | null;
+  bed: BedReading;
   bacteria: BacteriaReadout;
   waste: WasteReadout;
   projection: CycleProjection | null;
@@ -428,24 +428,25 @@ function nutrientView(
 }
 
 /** The bed read in the tabs a keeper pushes into it, banded on what its root feeders ask for. */
-function bedView(bed: BedReading | null): NeedView {
-  const asked = bed !== null && bed.needed > 0;
+function bedView(bed: BedReading): NeedView {
+  const asked = !bed.bare && bed.needed > 0;
   return {
     id: 'bed',
     name: 'Bed',
-    value: bed?.text ?? '—',
+    value: bed.bare ? '—' : bed.text,
     unit: 'tabs',
-    at: bed ? onScale(bed.scale, bed.tabs) : 0,
+    at: bed.bare ? 0 : onScale(bed.scale, bed.tabs),
     band: asked ? { from: onScale(bed.scale, bed.needed), to: 1 } : null,
-    tone: bed ? toneOf(bed.status) : 'ink',
+    tone: toneOf(bed.status),
     trend: '',
     need: asked ? `need ${bed.neededText}` : '',
-    sentence:
-      bed === null
-        ? 'A bare bottom holds nothing for roots, and takes no tab.'
-        : asked
-          ? `Root tabs' worth of the nutrient the bed runs shortest on. Root feeders ask for ${bed.neededText} tabs — below it the engine's own sufficiency drops.`
-          : "Root tabs' worth of the nutrient the bed holds least of. Nothing here feeds through its roots, so it only leaks into the water.",
+    sentence: bed.bare
+      ? bed.limiting
+        ? 'A bare bottom holds nothing for roots, and takes no tab — its root feeders go short however well the water is dosed.'
+        : 'A bare bottom holds nothing for roots, and takes no tab.'
+      : asked
+        ? `Root tabs' worth of the nutrient the bed runs shortest on. Root feeders ask for ${bed.neededText} tabs — below it the engine's own sufficiency drops.`
+        : "Root tabs' worth of the nutrient the bed holds least of. Nothing here feeds through its roots, so it only leaks into the water.",
     net: null,
     fills: [],
     drains: [],

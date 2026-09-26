@@ -104,16 +104,17 @@ export interface PoolDraw {
   shares: NutrientVector;
 }
 
-/** Where a species feeds: its roots' share from the bed, the rest from the water. */
+/** Where a species feeds: its roots' share from the bed, the rest from the water. A dry tank feeds nothing. */
 export function poolDraws(
   [water, bed]: TankPools,
   species: PlantSpecies,
   config: NutrientsConfig = nutrientsDefaults
 ): PerPool<TankPools, PoolDraw> {
   const roots = growthFormOf(species).rootShare;
+  const wet = water.volume > 0 ? 1 : 0;
   return [
-    { weight: 1 - roots, shares: nutrientShares(water, species, config) },
-    { weight: roots, shares: nutrientShares(bed, species, config) },
+    { weight: wet * (1 - roots), shares: nutrientShares(water, species, config) },
+    { weight: wet * roots, shares: nutrientShares(bed, species, config) },
   ];
 }
 

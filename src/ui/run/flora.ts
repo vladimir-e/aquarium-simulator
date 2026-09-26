@@ -11,6 +11,7 @@
 
 import {
   calculateNutrientSufficiency,
+  canRootTab,
   floorCover,
   getDosePreview,
   getSubstrateNutrients,
@@ -451,7 +452,9 @@ export interface BedReading {
   scale: number;
   /** Topping the bed up would raise the engine's sufficiency for some root feeder. */
   limiting: boolean;
-  /** Whole tabs that lift the reading to that need; null while the bed holds nothing back. */
+  /** A bare bottom: nothing for roots, and no tab goes in. */
+  bare: boolean;
+  /** Whole tabs that lift the reading to that need; null while the bed holds nothing back, or tabs can't cover what it lacks. */
   advice: number | null;
   status: Status;
 }
@@ -462,29 +465,31 @@ export interface BedReading {
  * by one tab's worth, so the reading is taken on one nutrient and its need is
  * where that reading stands once the worst-covered nutrient is met: the marker
  * sits in the band exactly when every nutrient meets the need, and the advice
- * is the gap between the two. `on` holds the reading to a nutrient, so a state
- * and its outcome read on the same scale. Null over a bare bottom, which holds
- * nothing and takes no tab.
+ * is the gap between the two — offered only where tabs can cover everything
+ * the bed lacks: not over a bare bottom, and not while it lacks a nutrient
+ * the tab carries none of. `on` holds the reading to a nutrient, so a state
+ * and its outcome read on the same scale.
  */
 export function bedReading(
   state: SimulationState,
   config: TunableConfig,
   probe: NutrientProbe = nutrientProbe(state, config),
   on?: Nutrient | null
-): BedReading | null {
-  const { substrate } = state.equipment;
-  if (substrate.type === 'none') return null;
-
+): BedReading {
   const tab = config.nutrients.rootTab;
   const capacity = state.tank.capacity;
-  const stock = substrate.nutrients;
+  const stock = state.equipment.substrate.nutrients;
   const roots = state.plants.filter(FEEDS_FROM.bed);
   const need = mapNutrients((n) => getMassFromPpm(probe.need.bed[n], capacity));
-  const limiting = roots.some(
-    (plant) =>
-      probe.sufficiency(probe.water, stock, plant.species) <
-      probe.sufficiency(probe.water, probe.bed, plant.species)
-  );
+  const holdsBack = (bed: NutrientVector): boolean =>
+    roots.some(
+      (plant) =>
+        probe.sufficiency(probe.water, bed, plant.species) <
+        probe.sufficiency(probe.water, probe.bed, plant.species)
+    );
+  const limiting = holdsBack(stock);
+  const bare = !canRootTab(state);
+  const tabsCover = !bare && !holdsBack(mapNutrients((n) => (tab[n] > 0 ? probe.bed[n] : stock[n])));
 
   const against = roots.length > 0 ? need : tab;
   const carried = NUTRIENTS.filter((n) => tab[n] > 0);
@@ -503,7 +508,8 @@ export function bedReading(
     neededText: needed > 0 ? needed.toFixed(TAB_DECIMALS) : '—',
     scale: tabsOf(getSubstrateNutrients('aqua_soil', capacity)),
     limiting,
-    advice: limiting ? Math.ceil(short) : null,
+    bare,
+    advice: limiting && tabsCover ? Math.ceil(short) : null,
     status: limiting
       ? printsAsZero(tabs, TAB_DECIMALS)
         ? 'alert'
@@ -537,16 +543,13 @@ function waterShortage(readings: NutrientReading[]): NutrientAlert | null {
  * The one thing to say about the tank's nutrients: what harms the plants before
  * what they lack, and what the water lacks beside what the bed does.
  */
-export function nutrientAlert(
-  readings: NutrientReading[],
-  bed: BedReading | null
-): NutrientAlert | null {
+export function nutrientAlert(readings: NutrientReading[], bed: BedReading): NutrientAlert | null {
   const excess = readings.find((r) => r.excess);
   if (excess) return { text: `${excess.label} high`, status: 'alert' };
 
   const water = waterShortage(readings);
-  const roots: NutrientAlert | null = bed?.limiting
-    ? { text: `bed ${bed.status === 'alert' ? 'empty' : 'low'}`, status: bed.status }
+  const roots: NutrientAlert | null = bed.limiting
+    ? { text: bed.bare ? 'no bed' : `bed ${bed.status === 'alert' ? 'empty' : 'low'}`, status: bed.status }
     : null;
   if (water === null || roots === null) return water ?? roots;
   return { text: `${water.text} · ${roots.text}`, status: worstStatus(water.status, roots.status) };

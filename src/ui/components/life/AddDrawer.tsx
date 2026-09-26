@@ -56,7 +56,7 @@ export function AddDrawer({
 }: {
   kind: PickerKind | null;
   state: SimulationState;
-  bed: BedReading | null;
+  bed: BedReading;
   onClose: () => void;
   onAdd: (species: FishSpecies | PlantSpecies, count: number) => void;
 }): React.JSX.Element | null {

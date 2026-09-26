@@ -6,12 +6,18 @@ import {
   cycledColony,
   cycledHardness,
   cycledKhReserve,
-  cycledNitrate,
   cycledReserve,
+  cycledWaterNutrients,
   type PresetSeed,
 } from './seed.js';
-import { getSubstrateKhReserve } from './equipment/substrate.js';
-import { ZERO_NUTRIENTS } from './config/nutrients.js';
+import {
+  getSubstrateKhReserve,
+  getSubstrateNutrients,
+  getSubstrateOrganicReserve,
+} from './equipment/substrate.js';
+import { NUTRIENTS, nutrientsDefaults, ZERO_NUTRIENTS } from './config/nutrients.js';
+import { livestockDefaults } from './config/livestock.js';
+import { organicNutrients } from './systems/nutrients.js';
 import { calculateMaxBacteria } from './systems/nitrogen-cycle.js';
 import { HARDSCAPE_TANNINS } from './equipment/hardscape.js';
 import { DEFAULT_PLANT_SIZE, MIN_PLANTABLE_SIZE } from './plants/create-plant.js';
@@ -262,7 +268,7 @@ describe('createSimulation seeding', () => {
     });
   });
 
-  describe('the nitrate a cycled tank has already made', () => {
+  describe('the nutrients a cycled tank has already made', () => {
     it('stands against the type and capacity the tank was built with', () => {
       for (const type of ['gravel', 'aqua_soil', 'sand'] as const) {
         const ppm = [20, 150].map((tankCapacity) => {
@@ -271,7 +277,7 @@ describe('createSimulation seeding', () => {
             { bacteria: 'cycled' }
           );
 
-          expect(seeded.resources.nitrate).toBe(cycledNitrate(type, tankCapacity));
+          expect(seeded.resources.nitrate).toBe(cycledWaterNutrients(type, tankCapacity).nitrate);
           return seeded.resources.nitrate / seeded.resources.water;
         });
 
@@ -281,11 +287,28 @@ describe('createSimulation seeding', () => {
     });
 
     it('scales with the organics the bed had to leach', () => {
-      const perLitre = (type: 'sand' | 'gravel' | 'aqua_soil'): number => cycledNitrate(type, 1);
+      const perLitre = (type: 'sand' | 'gravel' | 'aqua_soil'): number => cycledWaterNutrients(type, 1).nitrate;
 
       expect(perLitre('aqua_soil')).toBeGreaterThan(perLitre('gravel'));
       expect(perLitre('gravel')).toBeGreaterThan(perLitre('sand'));
       expect(perLitre('sand')).toBeGreaterThan(0);
+    });
+
+    it('holds everything the bed leached and leaked, at one share for every nutrient', () => {
+      const { tankCapacity } = TANK;
+      const seeded = createSimulation(TANK, { bacteria: 'cycled' });
+      const recipe = organicNutrients(livestockDefaults, nutrientsDefaults);
+      const leached =
+        getSubstrateOrganicReserve('aqua_soil', tankCapacity) - cycledReserve('aqua_soil', tankCapacity);
+      const fresh = getSubstrateNutrients('aqua_soil', tankCapacity);
+      const released = (n: (typeof NUTRIENTS)[number]): number =>
+        leached * recipe[n] + fresh[n] - seeded.equipment.substrate.nutrients[n];
+
+      const retained = NUTRIENTS.map((n) => seeded.resources[n] / released(n));
+      for (const n of NUTRIENTS) expect(seeded.resources[n]).toBeGreaterThan(0);
+      for (const share of retained) expect(share).toBeCloseTo(retained[0], 12);
+      expect(retained[0]).toBeGreaterThan(0);
+      expect(retained[0]).toBeLessThan(1);
     });
 
     it('is none at all in a tank whose bed never had any', () => {
@@ -312,7 +335,7 @@ describe('createSimulation seeding', () => {
       const seeded = createSimulation(TANK, { bacteria: 'cycled', resources: { ammonia: 80 } });
 
       expect(seeded.resources.ammonia).toBe(80);
-      expect(seeded.resources.nitrate).toBe(cycledNitrate('aqua_soil', TANK.tankCapacity));
+      expect(seeded.resources.nitrate).toBe(cycledWaterNutrients('aqua_soil', TANK.tankCapacity).nitrate);
       expect(seeded.resources.nitrate).toBeGreaterThan(0);
     });
   });

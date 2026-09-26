@@ -88,8 +88,8 @@ export {
   cycledColony,
   cycledHardness,
   cycledKhReserve,
-  cycledNitrate,
   cycledReserve,
+  cycledWaterNutrients,
   startingHardness,
 } from './seed.js';
 

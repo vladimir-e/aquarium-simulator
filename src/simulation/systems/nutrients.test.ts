@@ -117,6 +117,11 @@ describe('calculateNutrientSufficiency', () => {
     expect(calculateNutrientSufficiency(mirroredPools(dry), 'java_fern')).toBe(0);
   });
 
+  it('is zero for a root feeder in a dry tank, however charged its bed', () => {
+    const [water, bed] = poolsAt(10, 10);
+    expect(calculateNutrientSufficiency([{ ...water, volume: 0 }, bed], 'amazon_sword')).toBe(0);
+  });
+
   it('follows Liebig: the scarcest nutrient sets it', () => {
     const water = resourcesAt({ ...multiplesOfHalfSaturation(20), iron: nutrientsDefaults.halfSaturation.iron });
     expect(calculateNutrientSufficiency(mirroredPools(water), 'monte_carlo')).toBeCloseTo(
@@ -318,6 +323,14 @@ describe('drawTissue', () => {
   it('supplies a water feeder nothing and draws nothing with no water', () => {
     const pools = mirroredPools({ ...resourcesAt(multiplesOfHalfSaturation(2)), water: 0 });
     const { supplied, drawn } = drawTissue([need('java_fern', pools)], pools, recipe);
+    expect(supplied).toEqual([0]);
+    expect(drawn).toEqual([ZERO_NUTRIENTS, ZERO_NUTRIENTS]);
+  });
+
+  it('supplies a root feeder nothing and leaves its charged bed whole in a dry tank', () => {
+    const [water, bed] = poolsAt(2, 2);
+    const pools: TankPools = [{ ...water, volume: 0 }, bed];
+    const { supplied, drawn } = drawTissue([need('amazon_sword', pools)], pools, recipe);
     expect(supplied).toEqual([0]);
     expect(drawn).toEqual([ZERO_NUTRIENTS, ZERO_NUTRIENTS]);
   });

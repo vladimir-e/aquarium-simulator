@@ -39,7 +39,7 @@ export function ReadingRows({
   );
 }
 
-/** The four plant foods in the water, then the bed's store where there is a bed. */
+/** The four plant foods in the water, then the bed's store — over a bare bottom only while roots go short of it. */
 export function NutrientRows({
   book,
   onOpen,
@@ -47,7 +47,8 @@ export function NutrientRows({
   book: ReadingBook;
   onOpen: (id: ReadingId) => void;
 }): React.JSX.Element {
-  const rows = book.bed === null ? book.demand : [...book.demand, book.byId.bed];
+  const { bare, limiting } = book.bed;
+  const rows = bare && !limiting ? book.demand : [...book.demand, book.byId.bed];
   return (
     <>
       {rows.map((reading) => (

@@ -130,16 +130,16 @@ function fishOption(
 }
 
 /** A root feeder's word on a bed with nothing in it for its roots. */
-function rootNote(species: PlantSpecies, bed: BedReading | null): string | null {
+function rootNote(species: PlantSpecies, bed: BedReading): string | null {
   if (!feedsFromBed(species)) return null;
-  if (bed === null) return 'Its roots have no bed to feed from.';
+  if (bed.bare) return 'Its roots have no bed to feed from.';
   return printsAsZero(bed.tabs, TAB_DECIMALS) ? 'Its roots need tabs — the bed is empty.' : null;
 }
 
 function plantOption(
   state: SimulationState,
   species: PlantSpecies,
-  bed: BedReading | null
+  bed: BedReading
 ): PickerOption {
   const data = PLANT_SPECIES_DATA[species];
   const footprint = checkPlantFootprint(state.plants, species, state.tank.capacity);
@@ -162,7 +162,7 @@ export function pickerOptions(
   state: SimulationState,
   count: number,
   units: UnitSystem,
-  bed: BedReading | null
+  bed: BedReading
 ): PickerOption[] {
   return kind === 'fish'
     ? FISH_SPECIES.map((species) => fishOption(state, species, count, units))

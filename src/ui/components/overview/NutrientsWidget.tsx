@@ -1,5 +1,5 @@
 import React from 'react';
-import type { SimulationState } from '../../../simulation/index.js';
+import { MAX_ROOT_TABS, type SimulationState } from '../../../simulation/index.js';
 import type { VerbId } from '../../actions';
 import type { ReadingBook, ReadingId } from '../../readings';
 import { nutrientAlert } from '../../run';
@@ -34,7 +34,7 @@ export function NutrientsWidget({
   const { advice, perMl } = book.dose;
   const { bed } = book;
   const alert = nutrientAlert(book.nutrients, bed);
-  const tabs = bed?.advice ?? undefined;
+  const tabs = bed.advice === null ? undefined : Math.min(bed.advice, MAX_ROOT_TABS);
 
   return (
     <Widget
@@ -56,10 +56,10 @@ export function NutrientsWidget({
             />
             <p className="text-[12px] text-ink-3">1 ml moves {perMl}</p>
           </div>
-          {bed && (
+          {!bed.bare && (
             <VerbButton
               label={actLabel('rootTab', tabs)}
-              hot={bed.limiting}
+              hot={tabs !== undefined}
               onClick={() => onAct('rootTab', tabs)}
             />
           )}

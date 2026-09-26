@@ -83,7 +83,7 @@ interface Sheet {
   units: UnitSystem;
   water: Record<WaterKey, WaterReading>;
   nutrients: Record<Nutrient, NutrientReading>;
-  bed: BedReading | null;
+  bed: BedReading;
 }
 
 function sheetOf(
@@ -324,13 +324,13 @@ const READINGS: Reading[] = [
   {
     key: 'bed',
     label: 'Bed',
-    read: ({ bed }) => bed?.tabs ?? 0,
+    read: ({ bed }) => bed.tabs,
     unit: () => 'tabs',
     display: same,
     decimals: TAB_DECIMALS,
-    status: (_value, { bed }) => bed?.status ?? 'neutral',
-    at: (value, { bed }) => (bed ? onScale(bed.scale, value) : 0),
-    band: ({ bed }) => (bed && bed.needed > 0 ? { from: onScale(bed.scale, bed.needed), to: 1 } : null),
+    status: (_value, { bed }) => bed.status,
+    at: (value, { bed }) => onScale(bed.scale, value),
+    band: ({ bed }) => (bed.needed > 0 ? { from: onScale(bed.scale, bed.needed), to: 1 } : null),
     note: none,
   },
   {
@@ -401,7 +401,7 @@ export interface PreviewInput {
  */
 export function previewRows({ before, outcomes, config, units }: PreviewInput): PreviewRow[] {
   const standing = sheetOf(before, config, units);
-  const sheets = outcomes.map((state) => sheetOf(state, config, units, standing.bed?.nutrient));
+  const sheets = outcomes.map((state) => sheetOf(state, config, units, standing.bed.nutrient));
   const rows: PreviewRow[] = [];
 
   for (const reading of READINGS) {

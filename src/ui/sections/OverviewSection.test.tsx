@@ -7,7 +7,14 @@ import { bare, stocked, type Run } from '../test/run';
 import { query, renderStage } from '../test/stage';
 import { stubSim } from '../test/stubSim';
 import { DEFAULT_CONFIG, NUTRIENTS } from '../../simulation/config/index.js';
-import type { AlertState } from '../../simulation/index.js';
+import {
+  applyAction,
+  createSimulation,
+  MAX_ROOT_TABS,
+  type AlertState,
+  type SimulationState,
+} from '../../simulation/index.js';
+import { bedReading } from '../run';
 import type { useSimulation } from '../hooks/useSimulation';
 
 afterEach(cleanup);
@@ -244,5 +251,29 @@ describe('OverviewSection', () => {
 
     expect(nutrients.getByText('no plants to feed')).toBeTruthy();
     expect(nutrients.queryByText(/^need /)).toBeNull();
+  });
+
+  describe('a sword’s bed', () => {
+    const sword = (tank: Parameters<typeof createSimulation>[0]): SimulationState =>
+      applyAction(createSimulation(tank), { type: 'addPlant', species: 'amazon_sword' }).state;
+
+    it('offers the tabs a big bed asks for only as far as one push goes', () => {
+      const state = sword({ tankCapacity: 1000, substrate: { type: 'gravel' } });
+      expect(bedReading(state, DEFAULT_CONFIG).advice).toBeGreaterThan(MAX_ROOT_TABS);
+      const onAct = vi.fn();
+      renderOverview(bare(state), {}, onAct);
+
+      fireEvent.click(within(widget('Nutrients')).getByRole('button', { name: `Root tab · ${MAX_ROOT_TABS} tabs` }));
+      expect(onAct).toHaveBeenCalledWith('rootTab', MAX_ROOT_TABS);
+    });
+
+    it('reads roots starving over a bare bottom, and offers no tab to push', () => {
+      renderOverview(bare(sword({ tankCapacity: 200 })));
+      const nutrients = within(widget('Nutrients'));
+
+      expect(nutrients.getByText(/no bed$/)).toBeTruthy();
+      expect(nutrients.getByRole('button', { name: /^Bed / })).toBeTruthy();
+      expect(nutrients.queryByRole('button', { name: /^Root tab/ })).toBeNull();
+    });
   });
 });

@@ -1,6 +1,7 @@
 import {
   applyAction,
   isOvergrown,
+  MAX_ROOT_TABS,
   resetHardscape,
   type Action,
   type SimulationState,
@@ -94,7 +95,18 @@ const SCHEDULE_FLAGS: Record<string, ScheduleFlag> = {
     },
   },
   dose: { every: WEEKLY, type: 'dose', units: { ml: (amountMl) => ({ type: 'dose', amountMl }) } },
-  'root-tab': { every: MONTHLY, type: 'rootTab', units: { tab: (count) => ({ type: 'rootTab', count }) } },
+  'root-tab': {
+    every: MONTHLY,
+    type: 'rootTab',
+    units: {
+      tab: (count) => {
+        if (!Number.isInteger(count) || count > MAX_ROOT_TABS) {
+          throw new Error(`--root-tab pushes whole tabs, 1 to ${MAX_ROOT_TABS} at once, got ${count}.`);
+        }
+        return { type: 'rootTab', count };
+      },
+    },
+  },
   trim: { every: WEEKLY, chore: { type: 'trimPlants', targetSize: TRIM_TARGET } },
   scrub: { every: WEEKLY, chore: { type: 'scrubAlgae' } },
   'top-off': { every: DAILY, chore: { type: 'topOff' } },

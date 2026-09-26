@@ -54,10 +54,10 @@ function option(options: PickerOption[], species: string): PickerOption {
 }
 
 function fish(state: SimulationState, count = 1): PickerOption[] {
-  return pickerOptions('fish', state, count, 'metric', null);
+  return pickerOptions('fish', state, count, 'metric', bedReading(state, DEFAULT_CONFIG));
 }
 
-function plants(state: SimulationState, bed: BedReading | null = null): PickerOption[] {
+function plants(state: SimulationState, bed: BedReading = bedReading(state, DEFAULT_CONFIG)): PickerOption[] {
   return pickerOptions('plant', state, 1, 'metric', bed);
 }
 
@@ -197,9 +197,9 @@ describe('plant options', () => {
 
   it('tells a root feeder over a bare bottom that its roots have no bed', () => {
     const bare = tank(200);
-    expect(bedReading(bare, DEFAULT_CONFIG)).toBeNull();
-    expect(option(plants(bare, null), 'amazon_sword')).toMatchObject({ note: 'Its roots have no bed to feed from.', refusal: null });
-    expect(option(plants(bare, null), 'monte_carlo').note).toBeNull();
+    expect(bedReading(bare, DEFAULT_CONFIG).bare).toBe(true);
+    expect(option(plants(bare), 'amazon_sword')).toMatchObject({ note: 'Its roots have no bed to feed from.', refusal: null });
+    expect(option(plants(bare), 'monte_carlo').note).toBeNull();
   });
 
   it('refuses in the action’s own words once the floor is taken', () => {

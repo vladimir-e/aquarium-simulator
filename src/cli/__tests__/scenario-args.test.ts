@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
+import { MAX_ROOT_TABS } from '../../simulation/index.js';
 import { parseScenarioArgs } from '../scenarios/command.js';
 import { parseScheduleFlag, type ScheduleEntry } from '../scenarios/keeper.js';
 import { findSetup, type Setup } from '../scenarios/setups.js';
@@ -41,6 +42,12 @@ describe('schedule flags', () => {
 
   it('reads off as dropping the action', () => {
     expect(parseScheduleFlag('water-change', 'off')).toEqual({ type: 'waterChange', entry: null });
+  });
+
+  it('refuses a root tab schedule the engine would refuse at every push', () => {
+    expect(parseScheduleFlag('root-tab', `${MAX_ROOT_TABS}tab`)?.entry?.action).toEqual({ type: 'rootTab', count: MAX_ROOT_TABS });
+    expect(() => parseScheduleFlag('root-tab', '1.5tab')).toThrow(/whole tabs/);
+    expect(() => parseScheduleFlag('root-tab', `${MAX_ROOT_TABS + 1}tab`)).toThrow(/whole tabs/);
   });
 
   it('refuses a missing or wrong unit, a zero amount or period, a third segment, and over 100 %', () => {

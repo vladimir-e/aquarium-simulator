@@ -4,7 +4,7 @@
  */
 
 import { z } from 'zod';
-import { MAX_LIGHT_PAR, VIGOUR_SPAN } from '../../simulation/index.js';
+import { MAX_LIGHT_PAR, MAX_ROOT_TABS, VIGOUR_SPAN } from '../../simulation/index.js';
 import {
   MAX_LEAF_ATTENUATION_PER_LAI,
   MAX_SUFFICIENCY_EDGE,
@@ -563,7 +563,7 @@ const VerbSettingsSchema = z
     feed: z.number().min(0),
     waterChange: z.number().min(0).max(1),
     dose: z.number().min(0),
-    rootTab: z.number().int().min(1),
+    rootTab: z.number().int().min(1).max(MAX_ROOT_TABS),
     trimPlants: z.number().min(0).max(100),
   })
   .strict();

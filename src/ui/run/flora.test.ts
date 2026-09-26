@@ -59,6 +59,10 @@ function planted(species: PlantSpecies[], capacity = 200): SimulationState {
   return state;
 }
 
+function alertOn(state: SimulationState): ReturnType<typeof nutrientAlert> {
+  return nutrientAlert(nutrientReadings(state, DEFAULT_CONFIG), bedReading(state, DEFAULT_CONFIG));
+}
+
 function dosed(state: SimulationState, ml: number): SimulationState {
   return applyAction(state, { type: 'dose', amountMl: ml }).state;
 }
@@ -387,7 +391,7 @@ describe('nutrientReadings', () => {
   it('has nothing to be short of when nothing is planted', () => {
     const readings = nutrientReadings(tank(), DEFAULT_CONFIG);
     expect(readings.map((r) => r.neededText)).toEqual(['—', '—', '—', '—']);
-    expect(nutrientAlert(readings, null)).toBeNull();
+    expect(alertOn(tank())).toBeNull();
   });
 
   it('fills each track against that need and stops at full', () => {
@@ -404,8 +408,7 @@ describe('nutrientReadings', () => {
 
 describe('nutrientAlert', () => {
   it('names the single deficiency, and says once when nothing is dosed at all', () => {
-    const bare = nutrientReadings(planted(['monte_carlo']), DEFAULT_CONFIG);
-    expect(nutrientAlert(bare, null)).toEqual({ text: 'nothing dosed', status: 'alert' });
+    expect(alertOn(planted(['monte_carlo']))).toEqual({ text: 'nothing dosed', status: 'alert' });
 
     const state = planted(['monte_carlo']);
     const fed = {
@@ -417,7 +420,7 @@ describe('nutrientAlert', () => {
         potassium: state.resources.water * 10,
       },
     };
-    expect(nutrientAlert(nutrientReadings(fed, DEFAULT_CONFIG), null)).toEqual({
+    expect(alertOn(fed)).toEqual({
       text: 'Fe depleted',
       status: 'alert',
     });
@@ -430,7 +433,7 @@ describe('nutrientAlert', () => {
       resources: { ...state.resources, nitrate: state.resources.water * 20 },
     };
     const dosedALittle = dosed(partly, 4);
-    expect(nutrientAlert(nutrientReadings(dosedALittle, DEFAULT_CONFIG), null)).toEqual({
+    expect(alertOn(dosedALittle)).toEqual({
       text: '3 nutrients low',
       status: 'warn',
     });
@@ -446,8 +449,36 @@ describe('bedReading', () => {
     });
   const sword = (): SimulationState => fed(planted(['amazon_sword']));
 
-  it('has nothing to read over a bare bottom', () => {
-    expect(bedReading(createSimulation({ tankCapacity: 200 }), DEFAULT_CONFIG)).toBeNull();
+  it('holds nothing back over a bare bottom where nothing roots', () => {
+    expect(bedReading(createSimulation({ tankCapacity: 200 }), DEFAULT_CONFIG)).toMatchObject({
+      bare: true,
+      limiting: false,
+      advice: null,
+      status: 'neutral',
+    });
+  });
+
+  it('reads a sword over a bare bottom starving, and advises no tab the bottom cannot take', () => {
+    const state = produce(sword(), (draft) => {
+      draft.equipment.substrate.type = 'none';
+    });
+    expect(bedReading(state, DEFAULT_CONFIG)).toMatchObject({ bare: true, limiting: true, advice: null, status: 'alert' });
+    expect(alertOn(state)).toEqual({ text: 'no bed', status: 'alert' });
+  });
+
+  it('advises no tabs while the bed lacks a nutrient the tab carries none of, and still reads it short', () => {
+    const ironless = {
+      ...DEFAULT_CONFIG,
+      nutrients: { ...DEFAULT_CONFIG.nutrients, rootTab: { ...DEFAULT_CONFIG.nutrients.rootTab, iron: 0 } },
+    };
+    const bedded = (bed: Partial<Record<Nutrient, number>>): SimulationState =>
+      produce(sword(), (draft) => {
+        draft.equipment.substrate.nutrients = { nitrate: 1e6, phosphate: 1e6, potassium: 1e6, iron: 1e6, ...bed };
+      });
+
+    expect(bedReading(bedded({ iron: 0 }), ironless)).toMatchObject({ limiting: true, advice: null, status: 'warn' });
+    expect(bedReading(bedded({ iron: 0, nitrate: 0 }), ironless)).toMatchObject({ limiting: true, advice: null });
+    expect(bedReading(bedded({ nitrate: 0 }), ironless).advice).toBeGreaterThanOrEqual(1);
   });
 
   it('counts the bed in the tabs pushed into it', () => {
@@ -533,7 +564,7 @@ describe('bedReading', () => {
 
   it('names the water’s shortage beside the bed’s, at the worse tone', () => {
     const state = planted(['amazon_sword']);
-    expect(nutrientAlert(nutrientReadings(state, DEFAULT_CONFIG), bedReading(state, DEFAULT_CONFIG))).toEqual({
+    expect(alertOn(state)).toEqual({
       text: 'nothing dosed · bed empty',
       status: 'alert',
     });

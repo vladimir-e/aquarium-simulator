@@ -394,14 +394,14 @@ function rungsFor(
     }
     case 'rootTab': {
       const bed = bedReading(state, config);
-      const advised = advisedRungs(ROOT_TAB_PRESETS, bed?.advice ?? null, MAX_ROOT_TABS, 'tabs');
+      const advised = advisedRungs(ROOT_TAB_PRESETS, bed.advice, MAX_ROOT_TABS, 'tabs');
       const tabbable = canRootTab(state);
       return {
         values: advised.values,
         rung: (count) => ({
           value: count,
           label: String(count),
-          hint: advised.hint(count) ?? (tabbable && bed ? `bed ${bedAfter(state, count, config, bed.nutrient)}` : '—'),
+          hint: advised.hint(count) ?? (tabbable ? `bed ${bedAfter(state, count, config, bed.nutrient)}` : '—'),
           disabled: !tabbable,
         }),
       };
@@ -444,7 +444,7 @@ function advisedRungs(
 
 function bedAfter(state: SimulationState, count: number, config: TunableConfig, on: Nutrient | null): string {
   const after = applyAction(state, { type: 'rootTab', count }, config).state;
-  return bedReading(after, config, undefined, on)?.text ?? '—';
+  return bedReading(after, config, undefined, on).text;
 }
 
 function nitrateRise(state: SimulationState, ml: number, config: TunableConfig): number {
@@ -486,7 +486,7 @@ function meta(
       return `into ${formatVolume(water, units, 1)}`;
     case 'rootTab': {
       const bed = bedReading(state, config);
-      if (bed === null) return 'bare bottom';
+      if (bed.bare) return 'bare bottom';
       const holds = `bed holds ${bed.text} tabs`;
       return bed.needed > 0 ? `${holds} · roots need ${bed.neededText} tabs` : holds;
     }

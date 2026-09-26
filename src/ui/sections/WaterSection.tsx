@@ -62,7 +62,7 @@ export function WaterSection({
               action={
                 <div className="flex gap-1.5">
                   <VerbButton label={actLabel('dose')} onClick={() => onAct('dose')} />
-                  {book.bed && (
+                  {!book.bed.bare && (
                     <VerbButton label={actLabel('rootTab')} onClick={() => onAct('rootTab')} />
                   )}
                 </div>
