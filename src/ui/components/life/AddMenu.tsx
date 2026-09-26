@@ -9,13 +9,24 @@ const CHOICES: { kind: PickerKind; label: string; glyph: 'neon_tetra' | 'anubias
   { kind: 'plant', label: 'Add plant', glyph: 'anubias' },
 ];
 
-/** The module's construction verbs, one button deep: a fish or a plant. */
-export function AddMenu({ onPick }: { onPick: (kind: PickerKind) => void }): React.JSX.Element {
+/**
+ * The module's construction verbs, one button deep: a fish or a plant. Opened
+ * from a widget's footer it drops upward, into the window it sits in.
+ */
+export function AddMenu({
+  onPick,
+  up = false,
+  className = '',
+}: {
+  onPick: (kind: PickerKind) => void;
+  up?: boolean;
+  className?: string;
+}): React.JSX.Element {
   const [open, setOpen] = useState(false);
 
   return (
     <div
-      className="relative"
+      className={`relative ${className}`}
       onBlur={(e) => {
         if (!e.currentTarget.contains(e.relatedTarget as HTMLElement | null)) setOpen(false);
       }}
@@ -34,7 +45,9 @@ export function AddMenu({ onPick }: { onPick: (kind: PickerKind) => void }): Rea
       </button>
 
       {open && (
-        <div className="absolute right-0 top-8 z-40 w-40 rounded-card border border-hairline bg-surface py-1 shadow-[var(--shadow-drawer)]">
+        <div
+          className={`absolute right-0 z-40 w-40 rounded-card border border-hairline bg-surface py-1 shadow-[var(--shadow-drawer)] ${up ? 'bottom-8' : 'top-8'}`}
+        >
           {CHOICES.map((choice) => (
             <button
               key={choice.kind}

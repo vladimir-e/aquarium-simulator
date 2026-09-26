@@ -12,35 +12,25 @@
  * Nitrogen accounting
  * -------------------
  * Aquarium fish are ammoniotelic — they excrete most of their
- * nitrogenous waste as NH3/NH4⁺ directly through the gills. Output
- * has two additive components:
- *
- *  1. **Post-prandial** — driven by food intake. For every gram of
- *     food ingested we treat `foodNitrogenFraction` (default 5 %) as
- *     N. Of that N, `gillNFraction` (default 80 %) is emitted this
- *     tick as NH3; the remaining 20 % is bound in feces and leaves
- *     via the waste pool, where the existing decay + nitrogen-cycle
- *     pipeline mineralises it to NH3 at the engine's canonical
- *     `wasteToAmmoniaRatio` (60 mg NH3 / g waste, which encodes the
- *     same 5 % N content). That keeps N-mass conserved end-to-end.
- *
- *  2. **Basal** — produced continuously from body protein turnover
- *     regardless of feeding, at `basalAmmoniaRate` mg NH3 / g fish /
- *     hr. Real freshwater teleosts never stop excreting NH3: even a
- *     fasted fish keeps dumping ammonia while muscle catabolism
- *     continues. Without this term the engine would report zero NH3
- *     output whenever food runs out, which is unphysical and
- *     materially under-counts short-term ammonia accumulation in
- *     lean-fed tanks.
+ * nitrogenous waste as NH3/NH4⁺ directly through the gills, and the only
+ * nitrogen they release is nitrogen they ate. For every gram of food
+ * ingested we treat `foodNitrogenFraction` (default 5 %) as N. Of that N,
+ * `gillNFraction` (default 80 %) is emitted this tick as NH3; the remaining
+ * 20 % is bound in feces and leaves via the waste pool, which mineralises to
+ * NH3 at the same `foodNitrogenFraction`. That keeps N-mass conserved
+ * end-to-end, and a fish that eats nothing releases nothing.
  *
  * The waste mass from a fish is therefore not a free parameter:
  *     wasteMass = (N to feces) / foodNitrogenFraction
  *               = foodGiven × (1 - gillNFraction)
- * At defaults this is 0.2 g waste per g food, replacing the previous
- * opaque `wasteRatio = 0.3` knob.
+ * At defaults this is 0.2 g waste per g food.
  *
- * Both NH3 streams are deamination, and deamination is metabolism: each is
- * scaled by the same oxygen factor as the respiratory draw, off the same
+ * The absorbed share's minerals leave beside the gill NH3, at
+ * `foodMineralContent` per gram. Mineral excretion is not deamination and is
+ * not scaled by oxygen.
+ *
+ * Gill NH3 is deamination, and deamination is metabolism: it is scaled by
+ * the same oxygen factor as the respiratory draw, off the same
  * `respirationOxygenHalfSaturation`. A hypoxic fish enters metabolic
  * depression and its measured ammonia output falls with the rest of it. Feces
  * are not scaled — that N is what was never absorbed, and the gut does not
@@ -48,16 +38,18 @@
  *
  * The N a depressed fish does not deaminate stays in its body, which is a sink
  * the engine does not track — the same standing the conservation test gives
- * plant uptake. Both rates are quoted as bands rather than as single figures
- * (0.3–1.0 mg NH3-N/g/day, 0.2–0.5 mg O2/g/hr), so neither is divided back up
- * by the factor the way the nitrifier rates are; what a healthy tank
- * reproduces is 89 % of each, and both land inside their band.
+ * plant uptake.
  */
 
 import type { Fish } from '../state.js';
 import type { LivestockConfig } from '../config/livestock.js';
 import { N_TO_NH3_MASS_RATIO, O2_TO_CO2_MASS_RATIO } from '../core/chemistry.js';
 import { monodFactor } from '../core/kinetics.js';
+import {
+  WASTE_NUTRIENTS,
+  nutrientsDefaults,
+  type MineralVector,
+} from '../config/nutrients.js';
 
 const NH3_MG_PER_G_N = N_TO_NH3_MASS_RATIO * 1000;
 
@@ -70,6 +62,8 @@ export interface MetabolismResult {
   wasteProduced: number;
   /** Direct NH3 excreted through gills (mg compound mass) */
   ammoniaProduced: number;
+  /** Minerals excreted beside the gill NH3 (mg) */
+  mineralsExcreted: MineralVector;
   /** Total oxygen consumed (mg, absolute — caller divides by water volume for mg/L delta) */
   oxygenConsumedMg: number;
   /** Total CO2 produced (mg, absolute — caller divides by water volume for mg/L delta) */
@@ -90,19 +84,9 @@ export function processMetabolism(
   fish: Fish[],
   availableFood: number,
   oxygen: number,
-  config: LivestockConfig
+  config: LivestockConfig,
+  foodMineralContent: MineralVector = nutrientsDefaults.foodMineralContent
 ): MetabolismResult {
-  if (fish.length === 0) {
-    return {
-      updatedFish: [],
-      foodConsumed: 0,
-      wasteProduced: 0,
-      ammoniaProduced: 0,
-      oxygenConsumedMg: 0,
-      co2ProducedMg: 0,
-    };
-  }
-
   const oxygenFactor = monodFactor(oxygen, config.respirationOxygenHalfSaturation);
 
   // Sort by satiation (lowest first — hungriest fish served first).
@@ -113,6 +97,7 @@ export function processMetabolism(
   let remainingFood = availableFood;
   let totalFoodConsumed = 0;
   let totalWaste = 0;
+  let totalAbsorbed = 0;
   let totalAmmonia = 0;
   let totalOxygenConsumedMg = 0;
   let totalCo2ProducedMg = 0;
@@ -157,13 +142,8 @@ export function processMetabolism(
     const nIngested = foodGiven * config.foodNitrogenFraction;
     const nToGills = nIngested * config.gillNFraction;
     totalWaste += foodGiven * (1 - config.gillNFraction);
-
-    // Basal NH3 excretion — independent of feeding. Body protein
-    // turnover continues whether fed or fasted; real tetras keep
-    // excreting a few tenths of a mg of NH3 per gram per day.
-    const basalNH3 = config.basalAmmoniaRate * f.mass;
-
-    totalAmmonia += (nToGills * NH3_MG_PER_G_N + basalNH3) * oxygenFactor;
+    totalAbsorbed += foodGiven * config.gillNFraction;
+    totalAmmonia += nToGills * NH3_MG_PER_G_N * oxygenFactor;
 
     const oxygenConsumedMg = config.baseRespirationRate * f.mass * oxygenFactor;
     totalOxygenConsumedMg += oxygenConsumedMg;
@@ -182,6 +162,9 @@ export function processMetabolism(
     foodConsumed: totalFoodConsumed,
     wasteProduced: totalWaste,
     ammoniaProduced: totalAmmonia,
+    mineralsExcreted: Object.fromEntries(
+      WASTE_NUTRIENTS.map((n) => [n, totalAbsorbed * foodMineralContent[n]])
+    ) as MineralVector,
     oxygenConsumedMg: totalOxygenConsumedMg,
     co2ProducedMg: totalCo2ProducedMg,
   };

@@ -6,7 +6,12 @@ import {
   PersistedUISchema,
 } from './schema.js';
 import { PERSISTENCE_VERSION } from './types.js';
-import { DEFAULT_CONFIG, MAX_WATER_ATTENUATION_PER_CM } from '../../simulation/config/index.js';
+import {
+  DEFAULT_CONFIG,
+  MAX_LEAF_ATTENUATION_PER_LAI,
+  MAX_SUFFICIENCY_EDGE,
+  MAX_WATER_ATTENUATION_PER_CM,
+} from '../../simulation/config/index.js';
 import {
   createSimulation,
   BUBBLE_RATE_OPTIONS,
@@ -17,6 +22,7 @@ import {
   LIGHT_PAR_OPTIONS,
   PLANT_SPECIES_DATA,
   POWERHEAD_FLOW_RATES,
+  VIGOUR_SPAN,
   type FishSpecies,
   type PlantSpecies,
   type SimulationConfig,
@@ -27,6 +33,8 @@ import { HARDSCAPE_TYPES, SUBSTRATE_TYPES } from '../build/scape.js';
 import { LID_TYPES } from '../build/setup.js';
 import { getTankSizeOptions } from '../utils/units.js';
 
+const founder = (id: string): Record<string, unknown> => ({ parentId: null, familyId: id, age: 0, vigour: 0 });
+
 describe('PersistedUISchema', () => {
   it('validates valid UI state', () => {
     const validUI = {
@@ -34,6 +42,7 @@ describe('PersistedUISchema', () => {
       tunablesOpen: false,
       spineOpen: false,
       acts: { settings: DEFAULT_SETTINGS, promoted: null },
+      speed: '1h',
     };
     expect(PersistedUISchema.safeParse(validUI).success).toBe(true);
   });
@@ -44,6 +53,7 @@ describe('PersistedUISchema', () => {
       tunablesOpen: true,
       spineOpen: true,
       acts: { settings: DEFAULT_SETTINGS, promoted: null },
+      speed: '1h',
     };
     expect(PersistedUISchema.safeParse(validUI).success).toBe(true);
   });
@@ -54,8 +64,20 @@ describe('PersistedUISchema', () => {
       tunablesOpen: false,
       spineOpen: false,
       acts: { settings: DEFAULT_SETTINGS, promoted: null },
+      speed: '1h',
     };
     expect(PersistedUISchema.safeParse(invalidUI).success).toBe(false);
+  });
+
+  it('rejects a speed the transport does not offer', () => {
+    const fast = {
+      units: 'metric',
+      tunablesOpen: false,
+      spineOpen: false,
+      acts: { settings: DEFAULT_SETTINGS, promoted: null },
+      speed: '1w',
+    };
+    expect(PersistedUISchema.safeParse(fast).success).toBe(false);
   });
 
   it('rejects extra keys (strict mode)', () => {
@@ -64,6 +86,7 @@ describe('PersistedUISchema', () => {
       tunablesOpen: false,
       spineOpen: false,
       acts: { settings: DEFAULT_SETTINGS, promoted: null },
+      speed: '1h',
       extraKey: 'value',
     };
     expect(PersistedUISchema.safeParse(withExtra).success).toBe(false);
@@ -100,14 +123,50 @@ describe('TunableConfigSchema', () => {
   it.each([-100, -0.001, MAX_WATER_ATTENUATION_PER_CM + 1])(
     'rejects an attenuation of %s, which is not a water column',
     (waterAttenuationPerCm) => {
-      const config = { ...DEFAULT_CONFIG, optics: { waterAttenuationPerCm } };
+      const config = { ...DEFAULT_CONFIG, optics: { ...DEFAULT_CONFIG.optics, waterAttenuationPerCm } };
       expect(TunableConfigSchema.safeParse(config).success).toBe(false);
     }
   );
 
   it('takes an attenuation of zero — water that costs the light nothing', () => {
-    const config = { ...DEFAULT_CONFIG, optics: { waterAttenuationPerCm: 0 } };
+    const config = { ...DEFAULT_CONFIG, optics: { ...DEFAULT_CONFIG.optics, waterAttenuationPerCm: 0 } };
     expect(TunableConfigSchema.safeParse(config).success).toBe(true);
+  });
+
+  it('takes leaves that shade nothing, and refuses leaves that make light or take past the ceiling', () => {
+    const leaves = (leafAttenuationPerLai: number): boolean =>
+      TunableConfigSchema.safeParse({
+        ...DEFAULT_CONFIG,
+        optics: { ...DEFAULT_CONFIG.optics, leafAttenuationPerLai },
+      }).success;
+    expect(leaves(0)).toBe(true);
+    expect(leaves(MAX_LEAF_ATTENUATION_PER_LAI)).toBe(true);
+    expect(leaves(-0.1)).toBe(false);
+    expect(leaves(MAX_LEAF_ATTENUATION_PER_LAI + 1)).toBe(false);
+  });
+
+  it('takes a sufficiency edge up to its ceiling, and refuses the 1 a Monod share never reaches', () => {
+    const edge = (sufficiencyEdge: number): boolean =>
+      TunableConfigSchema.safeParse({
+        ...DEFAULT_CONFIG,
+        plants: { ...DEFAULT_CONFIG.plants, sufficiencyEdge },
+      }).success;
+    expect(edge(0)).toBe(true);
+    expect(edge(MAX_SUFFICIENCY_EDGE)).toBe(true);
+    expect(edge(1)).toBe(false);
+    expect(edge(-0.1)).toBe(false);
+  });
+
+  it('refuses a species demand of nothing, which no plant has', () => {
+    const { nutrients } = DEFAULT_CONFIG;
+    const config = {
+      ...DEFAULT_CONFIG,
+      nutrients: {
+        ...nutrients,
+        demand: { ...nutrients.demand, low: { ...nutrients.demand.low, iron: 0 } },
+      },
+    };
+    expect(TunableConfigSchema.safeParse(config).success).toBe(false);
   });
 
   it('rejects the old v12 config shape (livestock missing surplusCap)', () => {
@@ -128,6 +187,7 @@ describe('PersistedSimulationSchema', () => {
       surface: 1000,
       flow: 100,
       light: 0,
+      lightByHour: new Array(24).fill(0),
       aeration: false,
       food: 0,
       waste: 0,
@@ -198,11 +258,38 @@ describe('PersistedSimulationSchema', () => {
     const withPlants = {
       ...validSimulation,
       plants: [
-        { id: 'plant-1', species: 'java_fern', size: 50, condition: 100, surplus: 0 },
-        { id: 'plant-2', species: 'anubias', size: 75, condition: 85, surplus: 0 },
+        { id: 'plant-1', species: 'java_fern', size: 50, condition: 100, surplus: 0, ...founder('plant-1'), age: 240, vigour: -VIGOUR_SPAN },
+        { id: 'plant-2', species: 'anubias', size: 75, condition: 85, surplus: 0, ...founder('plant-2') },
+        {
+          id: 'plant-3',
+          species: 'java_fern',
+          size: 10,
+          condition: 100,
+          surplus: 0,
+          parentId: 'plant-1',
+          familyId: 'plant-1',
+          age: 0,
+          vigour: VIGOUR_SPAN,
+        },
       ],
     };
     expect(PersistedSimulationSchema.safeParse(withPlants).success).toBe(true);
+  });
+
+  it('rejects a vigour past its span', () => {
+    const vigorous = {
+      ...validSimulation,
+      plants: [{ id: 'p1', species: 'java_fern', size: 50, condition: 100, surplus: 0, ...founder('p1'), vigour: VIGOUR_SPAN + 0.01 }],
+    };
+    expect(PersistedSimulationSchema.safeParse(vigorous).success).toBe(false);
+  });
+
+  it('rejects a plant without its lineage', () => {
+    const orphan = {
+      ...validSimulation,
+      plants: [{ id: 'p1', species: 'java_fern', size: 50, condition: 100, surplus: 0 }],
+    };
+    expect(PersistedSimulationSchema.safeParse(orphan).success).toBe(false);
   });
 
   it('validates simulation with hardscape', () => {
@@ -221,10 +308,18 @@ describe('PersistedSimulationSchema', () => {
     expect(PersistedSimulationSchema.safeParse(withHardscape).success).toBe(true);
   });
 
+  it('rejects a plant past a full unit', () => {
+    const overgrown = {
+      ...validSimulation,
+      plants: [{ id: 'p1', species: 'java_fern', size: 100.1, condition: 100, surplus: 0, ...founder('p1') }],
+    };
+    expect(PersistedSimulationSchema.safeParse(overgrown).success).toBe(false);
+  });
+
   it('rejects invalid plant species', () => {
     const invalidPlant = {
       ...validSimulation,
-      plants: [{ id: 'p1', species: 'invalid_species', size: 50, condition: 100, surplus: 0 }],
+      plants: [{ id: 'p1', species: 'invalid_species', size: 50, condition: 100, surplus: 0, ...founder('p1') }],
     };
     expect(PersistedSimulationSchema.safeParse(invalidPlant).success).toBe(false);
   });
@@ -410,6 +505,7 @@ describe('PersistedStateSchema', () => {
       surface: 1000,
       flow: 100,
       light: 0,
+      lightByHour: new Array(24).fill(0),
       aeration: false,
       food: 0,
       waste: 0,
@@ -466,7 +562,7 @@ describe('PersistedStateSchema', () => {
     version: PERSISTENCE_VERSION,
     simulation: validSimulation,
     tunableConfig: DEFAULT_CONFIG,
-    ui: { units: 'metric', tunablesOpen: false, spineOpen: false, acts: { settings: DEFAULT_SETTINGS, promoted: null } },
+    ui: { units: 'metric', tunablesOpen: false, spineOpen: false, acts: { settings: DEFAULT_SETTINGS, promoted: null }, speed: '1h' },
   };
 
   it('validates complete valid state', () => {
@@ -525,10 +621,6 @@ describe('PersistedStateSchema', () => {
     expect(
       PersistedStateSchema.safeParse({ ...validState, simulation: streamless }).success
     ).toBe(false);
-  });
-
-  it('PERSISTENCE_VERSION is 28', () => {
-    expect(PERSISTENCE_VERSION).toBe(28);
   });
 });
 
@@ -600,7 +692,7 @@ describe('every fixture the UI offers survives a save', () => {
     expect(
       refused(species, (s) => ({
         ...built({}),
-        plants: [{ id: 'p1', species: s, size: 50, condition: 100, surplus: 0 }],
+        plants: [{ id: 'p1', species: s, size: 50, condition: 100, surplus: 0, ...founder('p1') }],
       }))
     ).toEqual([]);
   });

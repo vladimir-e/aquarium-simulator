@@ -59,6 +59,25 @@ describe('useActs', () => {
     expect(hook.result.current.settings.feed).toBe(2);
   });
 
+  it('holds a sheet to the scope it opened on, commits within it, and lets it go', () => {
+    const { hook, executed } = acts();
+
+    act(() => hook.result.current.open('trimPlants', undefined, { familyId: 'plant_a' }));
+    expect(hook.result.current.scope).toEqual({ familyId: 'plant_a' });
+
+    act(() => hook.result.current.open('trimPlants', undefined, { familyId: 'plant_b' }));
+    expect(hook.result.current.verb).toBe('trimPlants');
+    expect(hook.result.current.scope).toEqual({ familyId: 'plant_b' });
+
+    act(() => hook.result.current.commit('trimPlants'));
+    expect(executed).toEqual([{ type: 'trimPlants', targetSize: 75, familyId: 'plant_b' }]);
+    expect(hook.result.current.scope).toBeNull();
+
+    act(() => hook.result.current.open('trimPlants'));
+    act(() => hook.result.current.commit('trimPlants'));
+    expect(executed[1]).toEqual({ type: 'trimPlants', targetSize: 75 });
+  });
+
   it('opens the palette instead of a verb, and shuts the verb it was on', () => {
     const { hook } = acts();
 

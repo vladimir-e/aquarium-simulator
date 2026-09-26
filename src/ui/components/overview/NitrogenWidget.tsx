@@ -29,7 +29,7 @@ function Stock({
         {reading.value}
         <span className="ml-0.5 text-[11px] font-normal text-ink-2">{reading.unit}</span>
       </span>
-      <span className="text-[11px] leading-[14px] tabular-nums text-ink-3">{rate}</span>
+      <span className="min-h-[14px] text-[11px] leading-[14px] tabular-nums text-ink-3">{rate}</span>
     </button>
   );
 }
@@ -54,9 +54,13 @@ export function NitrogenWidget({
 
   // Nitrate is the one stock whose balance the run layer cannot close — plants
   // and water changes take it out from outside the cycle — so a stock with no
-  // net falls back to what the history buffer measured.
-  const chainRate = (id: ChainId): string =>
-    byId[id].net ?? (byId[id].trend.replace('/d', ' ppm/d') || 'steady');
+  // net falls back to what the history buffer measured, and says nothing until
+  // the buffer holds a clean day.
+  const chainRate = (id: ChainId): string => {
+    const { net, trend } = byId[id];
+    if (net !== null) return net;
+    return trend === null ? '' : trend.replace('/d', ' ppm/d') || 'steady';
+  };
 
   return (
     <BiofilterWidget title="Nitrogen" to="/water" book={book} className={className}>

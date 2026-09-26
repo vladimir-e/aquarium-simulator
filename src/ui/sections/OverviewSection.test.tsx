@@ -2,10 +2,11 @@ import { describe, it, expect, afterEach, vi } from 'vitest';
 import { screen, cleanup, fireEvent, within } from '@testing-library/react';
 import { OverviewSection } from './OverviewSection';
 import { activeNeeds } from '../nav';
+import { readTank } from '../readings';
 import { bare, stocked, type Run } from '../test/run';
-import { renderStage } from '../test/stage';
+import { query, renderStage } from '../test/stage';
 import { stubSim } from '../test/stubSim';
-import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
+import { DEFAULT_CONFIG, NUTRIENTS } from '../../simulation/config/index.js';
 import type { AlertState } from '../../simulation/index.js';
 import type { useSimulation } from '../hooks/useSimulation';
 
@@ -19,8 +20,9 @@ function renderOverview(
   const state = { ...run.state, alertState: { ...run.state.alertState, ...flags } };
   const sim = stubSim(state, run.history);
 
+  const book = readTank({ state, config: DEFAULT_CONFIG, history: run.history, units: 'metric' });
   renderStage(<OverviewSection sim={sim} config={DEFAULT_CONFIG} />, {
-    needs: activeNeeds(state),
+    needs: activeNeeds(state, book),
     onAct,
   });
   return sim;
@@ -62,8 +64,13 @@ describe('OverviewSection', () => {
     expect(strip()).toBeNull();
   });
 
-  it('names what is latched, in the tone the engine gives it, with the verb that answers it', () => {
-    renderOverview(bare(), { highAmmonia: true, highNitrate: true });
+  it('names what is latched, in the tone its own reading carries, with the verb that answers it', () => {
+    const fouled = bare();
+    fouled.state = {
+      ...fouled.state,
+      resources: { ...fouled.state.resources, ammonia: 5 * fouled.state.resources.water },
+    };
+    renderOverview(fouled, { highAmmonia: true, highNitrate: true });
 
     expect(screen.getByText('NH₃ high').className).toContain('text-alert');
     expect(screen.getByText('NO₃ high').className).toContain('text-warn');
@@ -95,11 +102,15 @@ describe('OverviewSection', () => {
     expect(strip()).toBeNull();
   });
 
-  it('anchors the nitrogen cycle across two columns of the grid', () => {
+  it('runs the cycle, the roster and the rack across a tablet, the two reading sheets side by side', () => {
     renderOverview();
 
-    expect(widget('Nitrogen').className).toContain('col-span-2');
-    expect(widget('Life').className).not.toContain('col-span-2');
+    for (const title of ['Nitrogen', 'Life', 'Gear']) {
+      expect(widget(title).className).toContain('md:col-span-2');
+    }
+    for (const title of ['Water', 'Nutrients']) {
+      expect(widget(title).className).not.toContain('col-span');
+    }
   });
 
   it('draws the cycle as a chain of four stocks', () => {
@@ -161,12 +172,31 @@ describe('OverviewSection', () => {
     expect(life.getByRole('img', { name: /Neon.* by individual/i }).children).toHaveLength(6);
   });
 
-  it('lists a plant species once, with a dot for every specimen', () => {
+  it('lists a plant species once, with a dot for every family it was planted as', () => {
     renderOverview(stocked());
     const life = within(widget('Life'));
 
     expect(life.getByText('×2')).toBeTruthy();
-    expect(life.getByRole('img', { name: /Anubias by individual/i }).children).toHaveLength(2);
+    expect(life.getByRole('img', { name: /Anubias by family/i }).children).toHaveLength(2);
+  });
+
+  it('opens a group on the member it names, in the Life ledger', () => {
+    renderOverview(stocked());
+    fireEvent.click(
+      within(widget('Life')).getByRole('button', { name: /Neon Tetra — inspect the worst of 6/ })
+    );
+
+    expect(query().get('inspect')).toBe('species-neon_tetra');
+  });
+
+  it('opens the add menu in place, and lands on the picker it names', () => {
+    renderOverview(stocked());
+    const life = within(widget('Life'));
+
+    fireEvent.click(life.getByRole('button', { name: '+ Add' }));
+    fireEvent.click(life.getByRole('button', { name: 'Add fish' }));
+
+    expect(query().get('add')).toBe('fish');
   });
 
   it('gives the algae row no dots to speak of', () => {
@@ -185,7 +215,7 @@ describe('OverviewSection', () => {
     const gear = within(widget('Gear'));
     const off = DEVICES.filter((id) => !run.state.equipment[id].enabled);
 
-    expect(gear.getByText('Others')).toBeTruthy();
+    expect(gear.getByText('Off')).toBeTruthy();
     expect(gear.getAllByRole('switch')).toHaveLength(DEVICES.length - off.length);
     for (const id of off) expect(gear.queryByRole('switch', { name: NAMES[id] })).toBeNull();
 
@@ -193,11 +223,18 @@ describe('OverviewSection', () => {
     expect(sim.updateFilterEnabled).toHaveBeenCalledWith(false);
   });
 
+  it('opens the day’s light on the Gear widget in the reading drawer', () => {
+    renderOverview(stocked());
+
+    fireEvent.click(within(widget('Gear')).getByRole('button', { name: /daily light/ }));
+    expect(screen.getByRole('dialog', { name: 'Daily light' })).toBeTruthy();
+  });
+
   it('reads the plant foods against what the plants ask for', () => {
     renderOverview(stocked());
     const nutrients = within(widget('Nutrients'));
 
-    expect(nutrients.getAllByText(/^need /)).toHaveLength(4);
+    expect(nutrients.getAllByText(/^need /)).toHaveLength(NUTRIENTS.length);
     expect(nutrients.getByText(/1 ml moves/)).toBeTruthy();
   });
 

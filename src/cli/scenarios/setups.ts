@@ -5,6 +5,7 @@ import type { FilterType } from '../../simulation/equipment/filter.js';
 import type { HardscapeType } from '../../simulation/equipment/hardscape.js';
 import { DAILY, TRIM_TARGET, WEEKLY, type Chore, type Schedule, type ScheduleEntry } from './keeper.js';
 import type { BandOverrides } from './readings.js';
+import { HIGH_CO2_THRESHOLD } from '../../simulation/alerts/high-co2.js';
 import { LITERS_PER_GALLON, toCelsius } from '../units.js';
 
 export interface Setup {
@@ -90,7 +91,7 @@ export function toSeed(setup: Setup): PresetSeed {
   };
 }
 
-const FEED_SHARE_OF_STOCK = 0.02;
+const FEED_SHARE_OF_STOCK = 0.01;
 
 const daily = (action: Chore): ScheduleEntry => ({ every: DAILY, action });
 const weekly = (action: Chore): ScheduleEntry => ({ every: WEEKLY, action });
@@ -129,7 +130,7 @@ export const SETUPS: Setup[] = [
     ],
     fish: [{ species: 'betta', count: 1, sex: 'male' }],
     cycled: true,
-    schedule: [...maintained, dose(1)],
+    schedule: [...maintained, dose(1), trim],
   },
   {
     name: 'low-tech',
@@ -147,7 +148,7 @@ export const SETUPS: Setup[] = [
     doser: null,
     ato: false,
     plants: [
-      { species: 'java_fern', count: 3, size: PLANTING_SIZE },
+      { species: 'java_fern', count: 2, size: PLANTING_SIZE },
       { species: 'anubias', count: 2, size: PLANTING_SIZE },
       { species: 'amazon_sword', count: 2, size: PLANTING_SIZE },
     ],
@@ -176,7 +177,7 @@ export const SETUPS: Setup[] = [
     plants: [
       { species: 'monte_carlo', count: 6, size: PLANTING_SIZE },
       { species: 'dwarf_hairgrass', count: 6, size: PLANTING_SIZE },
-      { species: 'amazon_sword', count: 3, size: PLANTING_SIZE },
+      { species: 'amazon_sword', count: 2, size: PLANTING_SIZE },
       { species: 'java_fern', count: 3, size: PLANTING_SIZE },
     ],
     fish: [
@@ -186,7 +187,11 @@ export const SETUPS: Setup[] = [
     cycled: true,
     schedule: [...maintained, trim],
     bands: {
-      co2: { green: [15, 35], amber: [8, 40], why: 'injected tanks aim 20–30 mg/L while the lights are on' },
+      co2: {
+        green: [15, 35],
+        amber: [8, HIGH_CO2_THRESHOLD],
+        why: 'injected tanks aim 20–30 mg/L while the lights are on',
+      },
     },
   },
   {
@@ -263,7 +268,7 @@ export const SETUPS: Setup[] = [
     ],
     fish: [{ species: 'guppy', count: 8, sex: 'male' }],
     cycled: true,
-    schedule: [...maintained, dose(2)],
+    schedule: [...maintained, dose(2), trim],
     bands: {
       temp: { green: [62, 76], amber: [56, 80], why: 'unheated: room temperature is the point' },
     },

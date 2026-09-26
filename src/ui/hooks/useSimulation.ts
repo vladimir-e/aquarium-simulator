@@ -6,6 +6,7 @@ import {
   applyAction,
   calculatePassiveResources,
   calculateHardscapeSlots,
+  scheduledLightHistory,
   liftHardscape,
   placeHardscape,
   rescape,
@@ -24,7 +25,7 @@ import {
   startingHardness,
   type SimulationConfig,
 } from '../../simulation/index.js';
-import { createLog } from '../../simulation/core/logging.js';
+import { celsius, createLog, measured } from '../../simulation/core/logging.js';
 import type { OpticsConfig } from '../../simulation/config/index.js';
 import {
   PRESETS,
@@ -35,7 +36,7 @@ import {
 } from '../../simulation/presets.js';
 import { useConfig } from './useConfig.js';
 import { usePersistence, type PersistedSimulation } from '../persistence/index.js';
-import { type SpeedPreset, DEFAULT_SPEED, SPEED_TICKS_PER_SECOND, STEP_TICKS } from '../run/speed.js';
+import { type SpeedPreset, SPEED_TICKS_PER_SECOND, STEP_TICKS } from '../run/speed.js';
 import {
   type RunSnapshot,
   type RunAggregates,
@@ -61,21 +62,26 @@ function generateHardscapeId(): string {
   return `hardscape_${Date.now().toString(36)}_${(hardscapeSeq++).toString(36)}`;
 }
 
-/** The tick does the same thing to the same four. */
+/**
+ * Recompute the passive readings off the equipment, as the tick does. At hour
+ * zero the tank has lived no day yet, so its light history is the schedule it
+ * was lit to.
+ */
 function refreshPassiveResources(draft: SimulationState, optics: OpticsConfig): void {
   const passive = calculatePassiveResources(draft, optics);
   draft.resources.surface = passive.surface;
   draft.resources.flow = passive.flow;
   draft.resources.light = passive.light;
   draft.resources.aeration = passive.aeration;
+  if (draft.tick === 0) draft.resources.lightByHour = scheduledLightHistory(draft, optics);
 }
 
 /**
- * `createSimulation` and `createPresetSimulation` take no tunable config, so a
- * tank they mint opens on `opticsDefaults`. Every path here that builds or
- * swaps one hands it through this first: the relight effect is keyed on the
- * optics, and swapping a tank is not an optics change, so nothing downstream
- * of a rebuild would otherwise correct the water it opens in.
+ * A tank minted here is built from a preset or a `rebuildConfig`, neither of
+ * which carries optics, so it opens on `opticsDefaults`. Every path here that
+ * builds or swaps one hands it through this first: the relight effect is keyed
+ * on the optics, and swapping a tank is not an optics change, so nothing
+ * downstream of a rebuild would otherwise correct the water it opens in.
  */
 function withPassiveResources(state: SimulationState, optics: OpticsConfig): SimulationState {
   return produce(state, (draft) => {
@@ -236,7 +242,7 @@ function rebuildConfig(state: SimulationState, capacity: number): SimulationConf
 
 export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseSimulationReturn {
   const { config } = useConfig();
-  const { initialSimulation, onSimulationChange } = usePersistence();
+  const { initialSimulation, initialUI, onSimulationChange, onUIChange } = usePersistence();
 
   // Restore preset from persistence or use default
   const [currentPreset, setCurrentPreset] = useState<PresetId>(() => {
@@ -274,7 +280,7 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
   const replaceTank = useCallback(() => setTankId((id) => id + 1), []);
 
   const [isPlaying, setIsPlaying] = useState(false);
-  const [speed, setSpeed] = useState<SpeedPreset>(DEFAULT_SPEED);
+  const [speed, setSpeed] = useState<SpeedPreset>(initialUI.speed);
   const intervalRef = useRef<number | null>(null);
   // Store config/speed refs so the single interval always reads the latest.
   const configRef = useRef(config);
@@ -334,6 +340,10 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
       })
     );
   }, [config.optics]);
+
+  useEffect(() => {
+    onUIChange({ speed });
+  }, [speed, onUIChange]);
 
   // Notify persistence when state or preset changes
   useEffect(() => {
@@ -496,7 +506,7 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
     setState((current) =>
       produce(current, (draft) => {
         const message = enabled
-          ? `Heater enabled (target: ${draft.equipment.heater.targetTemperature}°C, ${draft.equipment.heater.wattage}W)`
+          ? measured`Heater enabled (target: ${celsius(draft.equipment.heater.targetTemperature)}, ${draft.equipment.heater.wattage}W)`
           : 'Heater disabled';
         const log = createLog(draft.tick, 'user', 'info', message);
         draft.equipment.heater.enabled = enabled;
@@ -513,7 +523,7 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
           draft.tick,
           'user',
           'info',
-          `Heater target: ${oldTemp}°C → ${temp}°C`
+          measured`Heater target: ${celsius(oldTemp)} → ${celsius(temp)}`
         );
         draft.equipment.heater.targetTemperature = temp;
         draft.logs.push(log);
@@ -545,7 +555,7 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
           draft.tick,
           'user',
           'info',
-          `Room temperature: ${oldTemp}°C → ${temp}°C`
+          measured`Room temperature: ${celsius(oldTemp)} → ${celsius(temp)}`
         );
         draft.environment.roomTemperature = temp;
         draft.logs.push(log);
@@ -561,7 +571,7 @@ export function useSimulation(initialPreset: PresetId = DEFAULT_PRESET_ID): UseS
           draft.tick,
           'user',
           'info',
-          `Tap water temperature: ${oldTemp}°C → ${temp}°C`
+          measured`Tap water temperature: ${celsius(oldTemp)} → ${celsius(temp)}`
         );
         draft.environment.tapWaterTemperature = temp;
         draft.logs.push(log);

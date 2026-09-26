@@ -66,7 +66,10 @@ have been written to do.
 | Monod | `[S] / (K + [S])` | A stock something consumes — dissolved oxygen, a nutrient |
 | Q10 | `q10 ^ ((T − Tref) / 10)` | Temperature, on anything enzymatic |
 | Jassby–Platt | `tanh(PAR / Ik)` | Light. Nothing can overdraw it, so the curve comes from the leaf rather than from the pool |
+| Beer–Lambert | `exp(−k × x)` | Light on its way down, `x` the water or the leaf area above — so depth and a canopy share one exponent |
 | Piecewise anchors | Linear ramps between named points, continuous at every crossing | A tolerance axis, where the real response has inflections but no cliffs |
+| Band comfort | Symmetric parabola `4(x − lo)(hi − x) / (hi − lo)²` | The in-band benefit of a tolerance band — full at the centre, zero at each edge where the band's damage starts |
+| Log dose | `ln(x / edge)` past an edge, or `ln((edge + a) / (x + a))` under one, the offset `a` keeping it finite at zero | A toxin, where every doubling costs the same, or a shortfall like oxygen's — and, between two anchors, the fish O₂ benefit |
 
 ## The canonical curve
 
@@ -87,17 +90,17 @@ it rather than inventing one again.
 
 ## Where switches still live
 
-<Badge text="scaffolding" variant="caution" /> — two discontinuities are still
-live in the organism layer, and none of them is intent.
+<Badge text="scaffolding" variant="caution" /> — these discontinuities are still
+live in the organism layer, and none is intent.
 
 | Switch | What it does | Consequence |
 |---|---|---|
-| Plant light-insufficient stressor gates on light | Absent in the dark, at full magnitude the hour the lamp comes on | Damage steps while the benefits it opposes ramp smoothly |
-| Surplus accrual gates on light, in plants and again in algae | No photoperiod, no new photosynthate to bank | The largest surviving discontinuity in the engine |
+| Algae banking and growth gate on light | No photoperiod, no bank and no new mass for the bloom | Its bank switches with the lamp instead of following a rate |
+| Plant size minimum | A unit shed under `deathSizeThreshold` is retired, and a full bank whose offshoot would come in under it buys none | A starving plant dies at a size as well as at condition 0, and a species whose full bank buys less than the minimum never propagates ([Plants](/subsystems/plants/#status)) |
 
 Two things look like switches and are not. A band edge where a rate *starts from
-zero* is a rate — nothing jumps, the slope merely stops being zero. And death is
-a real discontinuity, because an organism past its threshold is genuinely a
+zero* is a rate — nothing jumps, the slope merely stops being zero. And death at
+condition 0 is a real discontinuity, because an organism past it is genuinely a
 different thing.
 
 ## Source

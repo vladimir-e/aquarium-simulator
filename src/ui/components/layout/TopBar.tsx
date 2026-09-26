@@ -13,7 +13,7 @@ import { Select } from '../ui/Select';
 import { ThemeToggle } from '../ui/ThemeToggle';
 import { CONTROL_FOCUS } from '../ui/focus';
 
-const SPEED_OPTIONS = SPEED_PRESETS.map((preset) => ({
+export const SPEED_OPTIONS = SPEED_PRESETS.map((preset) => ({
   value: preset,
   label: SPEED_LABELS[preset],
 }));
@@ -44,7 +44,10 @@ interface TopBarProps {
  * The one place the run is driven from. The transport sits centre because it
  * is touched every session and should be where the thumb left it; nothing here
  * carries a live figure except the clock and the count of what needs the
- * keeper.
+ * keeper. A tablet keeps the step as its glyph; a phone keeps play and the
+ * clock, and finds the speed and the step in the More sheet. The right side
+ * gives way by the room it has, least needed first — the needs word, the ⌘K
+ * hint, the links and the theme Setup also carries — so Act keeps its label.
  */
 export function TopBar({
   tick,
@@ -65,13 +68,13 @@ export function TopBar({
   const tone = needs[0]?.tone ?? 'warn';
 
   return (
-    <header className="grid h-12 shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-2 border-b border-hairline px-2">
+    <header className="grid h-12 shrink-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 border-b border-hairline px-2">
       <Select
         ariaLabel="Tank preset"
         value={current}
         onChange={(v) => request(v as PresetId)}
         options={PRESETS.map((preset) => ({ value: preset.id, label: preset.name }))}
-        className="w-[10rem] max-md:w-[7.5rem]"
+        className="w-full max-w-[10rem]"
         selectClassName="h-8 truncate border-transparent hover:border-hairline"
       />
 
@@ -84,12 +87,17 @@ export function TopBar({
         >
           {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
         </button>
-        <button type="button" onClick={onStep} className={`${CONTROL} max-md:hidden`}>
+        <button
+          type="button"
+          onClick={onStep}
+          aria-label="+1 d"
+          className={`${CONTROL} max-md:hidden max-lg:w-8 max-lg:justify-center max-lg:px-0`}
+        >
           <SkipForward className="h-3.5 w-3.5 text-ink-2" />
-          +1 d
+          <span className="max-lg:hidden">+1 d</span>
         </button>
 
-        <p className="px-1.5 text-[15px] tabular-nums max-md:px-0">
+        <p className="whitespace-nowrap px-1.5 text-[15px] tabular-nums max-md:px-0">
           {formatDayClock(tick)}
           <span className="ml-2 text-[13px] text-ink-2 max-lg:hidden">tick {tick}</span>
         </p>
@@ -103,15 +111,15 @@ export function TopBar({
         />
       </div>
 
-      <div className="flex items-center justify-end gap-1.5">
+      <div className="@container flex min-w-0 items-center justify-end gap-1.5">
         {needs.length > 0 && (
           <Link
             to="/"
-            className={`${CONTROL} ${tone === 'alert' ? 'text-alert' : 'text-warn'}`}
+            className={`${CONTROL} shrink-0 ${tone === 'alert' ? 'text-alert' : 'text-warn'} max-md:hidden`}
             aria-label={`${needs.length} needs you`}
           >
             <TriangleAlert className="h-3.5 w-3.5" />
-            <span className="max-lg:hidden">Needs you</span>
+            <span className="whitespace-nowrap @max-[29rem]:hidden">Needs you</span>
             <Badge count={needs.length} tone={tone} />
           </Link>
         )}
@@ -120,30 +128,30 @@ export function TopBar({
           onClick={onAct}
           aria-label={actLabel === null ? 'Act' : `Act — ${actLabel}`}
           aria-expanded={actOpen}
-          className={`${CONTROL} max-w-[13rem] border-transparent bg-accent-tint font-medium text-accent`}
+          className={`${CONTROL} min-w-16 max-w-[13rem] border-transparent bg-accent-tint font-medium text-accent`}
           {...DRAWER_TOGGLE}
         >
           <span className="truncate">{actLabel ?? 'Act'}</span>
-          <span className="text-ink-3 max-lg:hidden">⌘K</span>
+          <span className="shrink-0 text-ink-3 @max-[25rem]:hidden">⌘K</span>
         </button>
         <button
           type="button"
           onClick={onTunables}
           aria-label="Tunables"
           aria-expanded={tunablesOpen}
-          className={`${ICON} ${tunablesModified > 0 ? 'w-auto gap-1 px-2' : ''} max-md:hidden`}
+          className={`${ICON} shrink-0 ${tunablesModified > 0 ? 'w-auto gap-1 px-2' : ''} max-md:hidden`}
           {...DRAWER_TOGGLE}
         >
           <SlidersHorizontal className="h-4 w-4" />
           {tunablesModified > 0 && <Badge count={tunablesModified} tone="accent" />}
         </button>
-        <ThemeToggle />
+        <ThemeToggle className="shrink-0 max-md:hidden @max-[18rem]:hidden" />
         <a
           href={DOCS_URL}
           target="_blank"
           rel="noreferrer"
           aria-label="Documentation"
-          className={`${ICON} max-md:hidden`}
+          className={`${ICON} shrink-0 max-md:hidden @max-[23rem]:hidden`}
         >
           <BookOpen className="h-4 w-4" />
         </a>
@@ -152,7 +160,7 @@ export function TopBar({
           target="_blank"
           rel="noreferrer"
           aria-label="Source on GitHub"
-          className={`${ICON} max-md:hidden`}
+          className={`${ICON} shrink-0 max-md:hidden @max-[23rem]:hidden`}
         >
           <Github className="h-4 w-4" />
         </a>

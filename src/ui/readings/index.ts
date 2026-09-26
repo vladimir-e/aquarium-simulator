@@ -8,16 +8,18 @@
 
 import type { SimulationState } from '../../simulation/index.js';
 import {
-  HIGH_ALGAE_THRESHOLD,
-  HIGH_AMMONIA_THRESHOLD,
+  algaeAlertLine,
   ammoniaAlertLine,
   HIGH_CO2_THRESHOLD,
-  HIGH_NITRATE_THRESHOLD,
-  HIGH_NITRITE_THRESHOLD,
-  LOW_OXYGEN_THRESHOLD,
-  WATER_LEVEL_CRITICAL_THRESHOLD,
+  waterLevelAlertLine,
 } from '../../simulation/alerts/index.js';
-import type { TunableConfig } from '../../simulation/config/index.js';
+import {
+  FREE_AMMONIA_EDGE,
+  NITRATE_EDGE,
+  NITRITE_EDGE,
+  OXYGEN_EDGE,
+} from '../../simulation/livestock/tolerance.js';
+import type { Nutrient, TunableConfig } from '../../simulation/config/index.js';
 import type { StripBand, StripTone } from '../components/ui/strip.js';
 import {
   equipmentRows,
@@ -26,40 +28,51 @@ import {
   type RackSchedules,
 } from '../build';
 import {
-  algaeRow,
+  algaeReading,
   algaeStatus,
   bacteriaReadout,
+  dailyLightReading,
   doseDeltas,
   doseToCover,
   formatDose,
   gasReadings,
   readingAt,
   groupBySpecies,
+  groupFry,
   groupPlantsBySpecies,
   nutrientReadings,
   plantRows,
+  projectedDrift,
   projectNitritePeak,
+  readFish,
+  readHourAhead,
   stockedBand,
   toleranceStatus,
   waterReadings,
   wasteReadout,
-  type AlgaeRow,
   type BacteriaReadout,
   type CycleProjection,
   type DoseAdvice,
+  type FryBatch,
   type GasReading,
-  type NutrientKey,
+  type HourAhead,
   type PlantSpeciesGroup,
   type SpeciesGroup,
   type NutrientReading,
+  type PopulationRosterRow,
   type RunSnapshot,
   type Status,
   type StockedBand,
   type WasteReadout,
   type WaterReading,
-  NITRATE_LOW_PPM,
+  DAILY_LIGHT_DECIMALS,
+  DAILY_LIGHT_UNIT,
+  WATER_DECIMALS,
   WATER_SCALE,
+  dayTrend,
+  printsAsZero,
 } from '../run';
+import { categorizeLog } from '../review/category.js';
 import {
   formatTemperatureRange,
   toDisplayTemperature,
@@ -82,7 +95,8 @@ export type ReadingId =
   | 'phosphate'
   | 'potassium'
   | 'iron'
-  | 'algae';
+  | 'algae'
+  | 'dailyLight';
 
 /** One arm of a stock's balance: what it is, and how fast it moves. */
 export interface ReadingFlow {
@@ -100,8 +114,8 @@ export interface ReadingView {
   at: number;
   band: StripBand | null;
   tone: StripTone;
-  /** Direction and rate over the last day; empty while it is steady. */
-  trend: string;
+  /** Direction and rate per day; empty while it holds, null until there is a clean day to measure it over. */
+  trend: string | null;
   /** What the band means, in the engine's words. */
   sentence: string;
   /** Fills minus drains, where the run layer can close the balance. */
@@ -119,27 +133,32 @@ export interface ReadingView {
  */
 type DemandId = Extract<ReadingId, 'nitrateDemand' | 'phosphate' | 'potassium' | 'iron'>;
 
-const DEMAND_ID: Record<NutrientKey, DemandId> = {
+/** Every reading banded on what the plants ask for: the four foods and the day's light. */
+type NeedId = DemandId | 'dailyLight';
+
+const DEMAND_ID: Record<Nutrient, DemandId> = {
   nitrate: 'nitrateDemand',
   phosphate: 'phosphate',
   potassium: 'potassium',
   iron: 'iron',
 };
 
-/** A plant food, with what the plants are asking for beside it. */
-export interface NutrientView extends ReadingView {
+/** A reading with what the plants are asking for beside it. */
+export interface NeedView extends ReadingView {
   need: string;
 }
 
 export type ReadingsById = {
-  [K in ReadingId]: K extends DemandId ? NutrientView : ReadingView;
+  [K in ReadingId]: K extends NeedId ? NeedView : ReadingView;
 };
 
 /** Who lives here, folded the way every roster reads them. */
 export interface Roster {
   fish: SpeciesGroup[];
+  fry: FryBatch | null;
   plants: PlantSpeciesGroup[];
-  algae: AlgaeRow;
+  /** The bloom as the one population row both rosters carry. */
+  algae: PopulationRosterRow;
 }
 
 /** The rack, and the clock the scheduled devices keep. */
@@ -158,8 +177,10 @@ export interface Dosing {
 export interface ReadingBook {
   /** What the tank is running on, for the line beside a title. */
   caption: string;
+  /** The hour the next tick runs, which every forward-looking reading shares. */
+  ahead: HourAhead;
   byId: ReadingsById;
-  demand: NutrientView[];
+  demand: NeedView[];
   nutrients: NutrientReading[];
   bacteria: BacteriaReadout;
   waste: WasteReadout;
@@ -185,12 +206,16 @@ type Series = (snapshot: RunSnapshot) => number;
  */
 interface Tape {
   history: RunSnapshot[];
+  /** The tick the keeper last acted on: the buffer before it is another tank's. */
+  since: number;
   series: Partial<Record<ReadingId, Series>>;
 }
 
-function tapeOf(history: RunSnapshot[], units: UnitSystem): Tape {
+function tapeOf(state: SimulationState, history: RunSnapshot[], units: UnitSystem): Tape {
+  const acted = state.logs.filter((log) => categorizeLog(log) === 'user');
   return {
     history,
+    since: acted.length > 0 ? acted[acted.length - 1].tick : -Infinity,
     series: {
       ammonia: (s) => s.ammonia,
       nitrite: (s) => s.nitrite,
@@ -211,21 +236,22 @@ function tapeOf(history: RunSnapshot[], units: UnitSystem): Tape {
 /** Fixed precision per reading — the one place a reading's decimals are set. */
 export const DECIMALS: Record<ReadingId, number> = {
   waste: 3,
-  ammonia: 3,
-  nitrite: 3,
-  nitrate: 1,
-  nitrateDemand: 1,
-  temperature: 1,
-  ph: 2,
-  kh: 1,
-  gh: 1,
-  level: 0,
-  oxygen: 1,
-  co2: 1,
+  ammonia: WATER_DECIMALS.ammonia,
+  nitrite: WATER_DECIMALS.nitrite,
+  nitrate: WATER_DECIMALS.nitrate,
+  nitrateDemand: WATER_DECIMALS.nitrate,
+  temperature: WATER_DECIMALS.temperature,
+  ph: WATER_DECIMALS.ph,
+  kh: WATER_DECIMALS.kh,
+  gh: WATER_DECIMALS.gh,
+  level: WATER_DECIMALS.water,
+  oxygen: WATER_DECIMALS.oxygen,
+  co2: WATER_DECIMALS.co2,
   phosphate: 2,
   potassium: 1,
   iron: 2,
   algae: 0,
+  dailyLight: DAILY_LIGHT_DECIMALS,
 };
 
 /**
@@ -248,6 +274,7 @@ export const DISPLAY_CEILING = {
   phosphate: 4,
   potassium: 30,
   iron: 1,
+  dailyLight: 4,
 } as const;
 
 /** Position of a value on a scale that starts at zero. */
@@ -273,25 +300,22 @@ function scale(max: number): (value: number) => number {
   return (value) => onScale(max, value);
 }
 
-function belowPrecision(value: number, decimals: number): boolean {
-  return Math.abs(value) < 0.5 / 10 ** decimals;
-}
+const DAY = 24;
 
 /**
- * Change per day, measured off the history buffer rather than modelled — over
- * the last 24 samples where there are that many, and extrapolated from what
- * there is where there are not.
+ * Change over the last day, measured off the history buffer rather than
+ * modelled, and only over a whole one the keeper has not touched: a part-day
+ * is a slice of the tank's daily swing, and an action is a step the tank did
+ * not take.
  */
-function trendOf(tape: Tape, id: ReadingId): string {
+function measuredTrend(tape: Tape, id: ReadingId): string | null {
   const read = tape.series[id];
   if (!read) return '';
-  const window = tape.history.slice(-24);
-  if (window.length < 2) return '';
-  const hours = window.length - 1;
-  const perDay = ((read(window[hours]) - read(window[0])) / hours) * 24;
-  const decimals = DECIMALS[id];
-  if (belowPrecision(perDay, decimals)) return '';
-  return `${perDay > 0 ? '↗' : '↘'} ${Math.abs(perDay).toFixed(decimals)}/d`;
+  const { history } = tape;
+  const last = history[history.length - 1];
+  const first = history[history.length - 1 - DAY];
+  if (!first || first.tick !== last.tick - DAY || first.tick < tape.since) return null;
+  return dayTrend(read(last) - read(first), DECIMALS[id]);
 }
 
 function toleranceSentence(
@@ -324,7 +348,7 @@ function fromWater(id: ReadingId, tape: Tape, source: WaterSource): ReadingView 
     at: reading.fill,
     band: source.band === undefined ? reading.band : source.band,
     tone: source.tone ?? toneOf(reading.status),
-    trend: trendOf(tape, id),
+    trend: measuredTrend(tape, id),
     sentence: source.sentence,
     net: source.net ?? null,
     fills: source.fills ?? [],
@@ -343,36 +367,51 @@ function signedRate(value: number, unit: RateUnit): string {
 
 /** One arm of a balance, or `none` where it is moving less than it can print. */
 export function ratePerHour(value: number, unit: RateUnit): string {
-  return belowPrecision(value, RATE_DECIMALS[unit]) ? 'none' : signedRate(value, unit);
+  return printsAsZero(value, RATE_DECIMALS[unit]) ? 'none' : signedRate(value, unit);
 }
 
 /** A stock's fills minus its drains, or `steady` where the two cancel. */
 export function netPerHour(value: number, unit: RateUnit): string {
-  return belowPrecision(value, RATE_DECIMALS[unit]) ? 'steady' : signedRate(value, unit);
+  return printsAsZero(value, RATE_DECIMALS[unit]) ? 'steady' : signedRate(value, unit);
 }
 
-/** A nutrient banded on what the plants ask for, rather than on an alert line. */
+/**
+ * What a nutrient's ceiling is, in words: nitrate's is the engine's alert line
+ * unless the least hardy plant's own edge comes first.
+ */
+function harmClause(id: ReadingId, ceiling: number | null): string {
+  if (ceiling === null) return '';
+  return ceiling < NITRATE_EDGE
+    ? `past ${said(id, ceiling)} the least hardy plant here takes harm, and the engine alerts over ${said(id, NITRATE_EDGE)}`
+    : `the engine alerts over ${said(id, ceiling)}`;
+}
+
+/** A nutrient banded on what the plants ask for, and nitrate on its alert line too. */
 function nutrientView(
   id: DemandId,
   reading: NutrientReading,
   tape: Tape,
   fills: ReadingFlow[] = []
-): NutrientView {
+): NeedView {
   const at = scale(DISPLAY_CEILING[reading.key]);
+  const harm = harmClause(id, reading.ceiling);
   return {
     id,
     name: reading.label,
     value: reading.text,
     unit: 'ppm',
     at: at(reading.ppm),
-    band: reading.needed > 0 ? { from: at(reading.needed), to: 1 } : null,
+    band:
+      reading.needed > 0 || reading.ceiling !== null
+        ? { from: at(reading.needed), to: reading.ceiling === null ? 1 : at(reading.ceiling) }
+        : null,
     tone: toneOf(reading.status),
-    trend: trendOf(tape, id),
+    trend: measuredTrend(tape, id),
     need: reading.needed > 0 ? `need ${reading.neededText}` : '',
     sentence:
       reading.needed > 0
-        ? `Plants ask for ${reading.neededText} ppm — below it the engine's own sufficiency drops.`
-        : 'Nothing planted, so nothing is asking for it.',
+        ? `Plants ask for ${reading.neededText} ppm — below it the engine's own sufficiency drops${harm && `; ${harm}`}.`
+        : `Nothing planted, so nothing is asking for it${harm && `; ${harm}`}.`,
     net: null,
     fills,
     drains: [],
@@ -381,23 +420,27 @@ function nutrientView(
 }
 
 /**
- * Read the whole tank once. Everything the Overview and the Water module draw
- * comes out of this call, so the expensive derivations — the vitality passes
- * behind the waste ledger, the nitrite projection — happen once per tick.
+ * Read the whole tank once. Everything the console draws comes out of this
+ * call, so the expensive derivations — the hour the next tick settles, the
+ * nitrite projection — happen once per tick.
  */
 export function readTank({ state, config, history, units }: TankInput): ReadingBook {
-  const tape = tapeOf(history, units);
-  const water = waterReadings(state, units);
-  const gases = gasReadings(state);
+  const tape = tapeOf(state, history, units);
+  const ahead = readHourAhead(state, config);
   const nutrients = nutrientReadings(state, config);
-  const bacteria = bacteriaReadout(state, config);
-  const waste = wasteReadout(state, config);
-  const projection = projectNitritePeak(state, config);
-  const specimens = plantRows(state, config);
+  const nitrate = nutrients.find((n) => n.key === 'nitrate')!;
+  const water = waterReadings(state, config, units, nitrate);
+  const gases = gasReadings(state);
+  const bacteria = bacteriaReadout(state, config, ahead);
+  const waste = wasteReadout(state, config, ahead);
+  const projection = projectNitritePeak(state, config, ahead);
+  const specimens = plantRows(state, config, ahead);
+  const fish = readFish(state, config, ahead);
+  const light = dailyLightReading(ahead);
 
   const read = (key: WaterReading['key']): WaterReading => water.find((r) => r.key === key)!;
   const gas = (key: GasReading['key']): GasReading => gases.find((g) => g.key === key)!;
-  const nutrient = (key: NutrientKey): NutrientReading =>
+  const nutrient = (key: Nutrient): NutrientReading =>
     nutrients.find((n) => n.key === key)!;
 
   const { rates } = bacteria;
@@ -405,10 +448,14 @@ export function readTank({ state, config, history, units }: TankInput): ReadingB
   const phBand = stockedBand(state, (data) => data.phRange);
   const ghBand = stockedBand(state, (data) => data.ghRange);
   const algae = state.algae.mass;
+  const algaeLine = algaeAlertLine(config);
+  const levelLine = waterLevelAlertLine(config);
   const algaeAt = scale(DISPLAY_CEILING.algae);
   const wasteAt = scale(DISPLAY_CEILING.waste);
   const oxygenAt = scale(DISPLAY_CEILING.oxygen);
   const co2At = scale(DISPLAY_CEILING.co2);
+  const lightAt = scale(DISPLAY_CEILING.dailyLight);
+  const algaeDrift = projectedDrift(ahead.algaeMass - algae);
 
   const nitrateFills: ReadingFlow[] = [
     { label: 'NOB clearing NO₂', rate: ratePerHour(rates.nitriteToNitrate, 'ppm') },
@@ -438,24 +485,28 @@ export function readTank({ state, config, history, units }: TankInput): ReadingB
     },
     ammonia: fromWater('ammonia', tape, {
       reading: read('ammonia'),
-      sentence: `Safe at or under ${said('ammonia', ammoniaAlertLine(state.resources))} ppm at this pH and temperature — where free NH₃ reaches the ${HIGH_AMMONIA_THRESHOLD} ppm the engine alerts on.`,
+      sentence: `Safe at or under ${said('ammonia', ammoniaAlertLine(state.resources))} ppm at this pH and temperature — where free NH₃ reaches the ${FREE_AMMONIA_EDGE} ppm the engine alerts on.`,
       net: netPerHour(rates.netAmmonia, 'ppm'),
       fills: [
         { label: 'Waste mineralising', rate: ratePerHour(rates.wasteToAmmonia, 'ppm') },
         { label: 'Fish gills', rate: ratePerHour(rates.gillsToAmmonia, 'ppm') },
+        { label: 'Food decaying', rate: ratePerHour(rates.foodToAmmonia, 'ppm') },
       ],
       drains: [{ label: 'AOB oxidising', rate: ratePerHour(-rates.ammoniaOxidised, 'ppm') }],
     }),
     nitrite: fromWater('nitrite', tape, {
       reading: read('nitrite'),
-      sentence: `Safe at or under ${said('nitrite', HIGH_NITRITE_THRESHOLD)} ppm — the line the engine alerts on.`,
+      sentence: `Safe at or under ${said('nitrite', NITRITE_EDGE)} ppm — the line the engine alerts on.`,
       net: netPerHour(rates.netNitrite, 'ppm'),
       fills: [{ label: 'AOB oxidising NH₃', rate: ratePerHour(rates.ammoniaToNitrite, 'ppm') }],
       drains: [{ label: 'NOB clearing', rate: ratePerHour(-rates.nitriteToNitrate, 'ppm') }],
     }),
     nitrate: fromWater('nitrate', tape, {
       reading: read('nitrate'),
-      sentence: `Plants go short under ${said('nitrate', NITRATE_LOW_PPM)} ppm; the engine alerts over ${said('nitrate', HIGH_NITRATE_THRESHOLD)}.`,
+      sentence:
+        nitrate.needed > 0
+          ? `Plants go short under ${nitrate.neededText} ppm; ${harmClause('nitrate', nitrate.ceiling)}.`
+          : `Nothing planted to feed on it; ${harmClause('nitrate', nitrate.ceiling)}.`,
       fills: nitrateFills,
       drains: [],
     }),
@@ -504,7 +555,7 @@ export function readTank({ state, config, history, units }: TankInput): ReadingB
     }),
     level: fromWater('level', tape, {
       reading: read('water'),
-      sentence: `Under ${said('level', WATER_LEVEL_CRITICAL_THRESHOLD * 100)} % of capacity the engine calls the level critical.`,
+      sentence: `Under ${said('level', levelLine)} % of capacity the water starts to harm fish, and the engine alerts.`,
     }),
     oxygen: {
       id: 'oxygen',
@@ -512,10 +563,10 @@ export function readTank({ state, config, history, units }: TankInput): ReadingB
       value: gas('oxygen').text,
       unit: gas('oxygen').unit,
       at: oxygenAt(gas('oxygen').value),
-      band: { from: oxygenAt(LOW_OXYGEN_THRESHOLD), to: 1 },
+      band: { from: oxygenAt(OXYGEN_EDGE), to: 1 },
       tone: toneOf(gas('oxygen').status),
-      trend: trendOf(tape, 'oxygen'),
-      sentence: `Under ${said('oxygen', LOW_OXYGEN_THRESHOLD)} mg/L the engine alerts and fish start paying for it.`,
+      trend: measuredTrend(tape, 'oxygen'),
+      sentence: `Under ${said('oxygen', OXYGEN_EDGE)} mg/L the engine alerts; a mid-hardiness fish takes harm lower still.`,
       net: null,
       fills: [],
       drains: [],
@@ -529,8 +580,8 @@ export function readTank({ state, config, history, units }: TankInput): ReadingB
       at: co2At(gas('co2').value),
       band: { from: 0, to: co2At(HIGH_CO2_THRESHOLD) },
       tone: toneOf(gas('co2').status),
-      trend: trendOf(tape, 'co2'),
-      sentence: `Over ${said('co2', HIGH_CO2_THRESHOLD)} mg/L the engine alerts — plants take it up, surface exchange drives it off.`,
+      trend: measuredTrend(tape, 'co2'),
+      sentence: `Over ${said('co2', HIGH_CO2_THRESHOLD)} mg/L — what keepers treat as too much — the engine alerts. Plants take it up, surface exchange drives it off.`,
       net: null,
       fills: [],
       drains: [],
@@ -546,20 +597,40 @@ export function readTank({ state, config, history, units }: TankInput): ReadingB
       value: algae.toFixed(DECIMALS.algae),
       unit: '%',
       at: algaeAt(algae),
-      band: { from: 0, to: algaeAt(HIGH_ALGAE_THRESHOLD) },
-      tone: toneOf(algaeStatus(algae)),
-      trend: trendOf(tape, 'algae'),
-      sentence: `Coverage the plants are competing with; over ${said('algae', HIGH_ALGAE_THRESHOLD)} % the engine calls it a bloom.`,
+      band: { from: 0, to: algaeAt(algaeLine) },
+      tone: toneOf(algaeStatus(algae, algaeLine)),
+      trend: algaeDrift,
+      sentence: `Coverage the plants are competing with; over ${said('algae', algaeLine)} % it shades them, and the engine alerts.`,
       net: null,
       fills: [],
       drains: [],
       series: tape.series.algae ?? null,
+    },
+    dailyLight: {
+      id: 'dailyLight',
+      name: 'Daily light',
+      value: light.text,
+      unit: DAILY_LIGHT_UNIT,
+      at: lightAt(light.value),
+      band: light.needed > 0 ? { from: lightAt(light.needed), to: 1 } : null,
+      tone: toneOf(light.status),
+      trend: '',
+      need: light.need,
+      sentence:
+        light.needed > 0
+          ? `The substrate's PAR over the day the next hour closes. Under ${said('dailyLight', light.needed)} ${DAILY_LIGHT_UNIT} the worst-lit plant here starves, on the light at its own height.`
+          : 'Nothing planted, so nothing is asking for it.',
+      net: null,
+      fills: [],
+      drains: [],
+      series: null,
     },
   };
 
   const demand = nutrients.map((reading) => byId[DEMAND_ID[reading.key]]);
 
   return {
+    ahead,
     caption: [
       state.equipment.heater.enabled ? 'heater on' : 'no heater',
       state.equipment.ato.enabled ? 'ATO on' : 'ATO off',
@@ -571,9 +642,20 @@ export function readTank({ state, config, history, units }: TankInput): ReadingB
     waste,
     projection,
     roster: {
-      fish: groupBySpecies(state, config.livestock),
+      fish: groupBySpecies(fish, config.livestock),
+      fry: groupFry(fish, config.livestock),
       plants: groupPlantsBySpecies(specimens),
-      algae: algaeRow(state, config),
+      algae: {
+        kind: 'population',
+        key: 'algae',
+        name: 'Algae',
+        figure: `${byId.algae.value} %`,
+        caption: 'coverage',
+        trend: algaeDrift,
+        at: byId.algae.at,
+        band: byId.algae.band,
+        ...algaeReading(algae, algaeLine),
+      },
     },
     rack: {
       devices: equipmentRows(state, bacteria, units),

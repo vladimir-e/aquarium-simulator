@@ -27,7 +27,6 @@ export {
 
 export {
   calculatePhotosynthesis,
-  getTotalPlantSize,
   calculateCo2Factor,
 } from './photosynthesis.js';
 
@@ -39,8 +38,7 @@ export {
 export {
   spendSurplus,
   getSpeciesGrowthRate,
-  getSpeciesMaxSize,
-  asymptoticGrowthFactor,
+  growthTaper,
 } from './plant-growth.js';
 
 export {
@@ -67,13 +65,11 @@ export {
 
 export {
   computeVitality,
-  bankSurplus,
-  spendableSurplus,
+  hardened,
   type VitalityFactor,
   type VitalityInput,
   type VitalityResult,
   type VitalityBreakdown,
-  type SurplusBankTick,
 } from './vitality.js';
 
 import type { System } from './types.js';

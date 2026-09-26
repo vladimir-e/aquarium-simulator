@@ -1,6 +1,9 @@
 import type { SimulationState } from '../../simulation/state.js';
+import type { TunableConfig } from '../../simulation/config/index.js';
+import { floorCover, floorShade } from '../../simulation/plants/canopy.js';
 import { freeAmmoniaPpm } from '../../simulation/systems/nitrogen-cycle.js';
-import { HIGH_AMMONIA_THRESHOLD } from '../../simulation/alerts/index.js';
+import { FREE_AMMONIA_EDGE, NITRITE_EDGE } from '../../simulation/livestock/tolerance.js';
+import { HIGH_CO2_THRESHOLD } from '../../simulation/alerts/high-co2.js';
 import { getDgh, getDkh, getPpm } from '../../simulation/resources/helpers.js';
 import { getPh } from '../../simulation/core/carbonate.js';
 import { toFahrenheit } from '../units.js';
@@ -18,7 +21,7 @@ export interface Reading<Id extends string = string> {
   label: string;
   unit: string;
   digits: number;
-  read: (state: SimulationState) => number | null;
+  read: (state: SimulationState, config: TunableConfig) => number | null;
   band: Band;
   /** Unbanded on an uncycled start until the cycle has had its month. */
   cycle?: boolean;
@@ -47,9 +50,9 @@ const DEFINITIONS = [
     digits: 3,
     read: (s): number => freeAmmoniaPpm(s.resources),
     band: {
-      green: [0, HIGH_AMMONIA_THRESHOLD],
-      amber: [0, 0.05],
-      why: `${HIGH_AMMONIA_THRESHOLD} ppm free NH₃ is where harm starts and the engine alerts; 0.05 is danger`,
+      green: [0, FREE_AMMONIA_EDGE],
+      amber: [0, 0.15],
+      why: `the engine alerts at ${FREE_AMMONIA_EDGE} ppm free NH₃; a mid-hardiness fish is harmed from ~0.03 and loses health past ~0.15`,
     },
     cycle: true,
   },
@@ -68,7 +71,11 @@ const DEFINITIONS = [
     unit: 'ppm',
     digits: 2,
     read: (s): number => getPpm(s.resources.nitrite, s.resources.water),
-    band: { green: [0, 0.25], amber: [0, 1], why: 'a cycled tank tests 0; above 1 ppm fish show nitrite stress' },
+    band: {
+      green: [0, 0.25],
+      amber: [0, NITRITE_EDGE],
+      why: `a cycled tank tests 0; the engine alerts past ${NITRITE_EDGE} ppm, and fish are harmed a little further out`,
+    },
     cycle: true,
   },
   {
@@ -101,7 +108,11 @@ const DEFINITIONS = [
     unit: 'mg/L',
     digits: 1,
     read: (s): number => s.resources.co2,
-    band: { green: [1, 30], amber: [0, 40], why: 'air-equilibrated ~3, injected tanks aim 20–30, fish gasp past ~35' },
+    band: {
+      green: [1, HIGH_CO2_THRESHOLD],
+      amber: [0, HIGH_CO2_THRESHOLD],
+      why: `air-equilibrated ~3, injected tanks aim 20–30, keepers treat past ${HIGH_CO2_THRESHOLD} as too much`,
+    },
   },
   {
     id: 'ph',
@@ -144,6 +155,23 @@ const DEFINITIONS = [
     read: (s): number => s.plants.reduce((sum, p) => sum + p.size, 0),
     band: { green: [0.8, ANY], amber: [0.4, ANY], why: 'plants hold or grow under care; melting back by half is a problem' },
     ofStart: true,
+  },
+  {
+    id: 'cover',
+    label: 'floor cover',
+    unit: '×',
+    digits: 2,
+    read: (s): number | null => (s.plants.length === 0 ? null : floorCover(s.plants, s.tank.capacity)),
+    band: { green: [0.3, 1.2], amber: [0.1, 2], why: 'a planted floor is full, not stacked; a keeper thins past it' },
+  },
+  {
+    id: 'shade',
+    label: 'floor shade',
+    unit: '',
+    digits: 2,
+    read: (s, config): number | null =>
+      s.plants.length === 0 ? null : floorShade(s.plants, s.tank.capacity, config.optics),
+    band: { green: [0, 0.8], amber: [0, 0.95], why: 'past this the understory is in the dark' },
   },
   {
     id: 'plant_cond',

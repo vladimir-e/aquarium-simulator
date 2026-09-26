@@ -1,10 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import { calculateDoseNutrients, canDose, dose, getDosePreview, MAX_DOSE_ML } from './dose.js';
 import { createSimulation } from '../state.js';
-import type { FertilizerFormula } from '../config/nutrients.js';
+import { NUTRIENTS, type FertilizerFormula } from '../config/nutrients.js';
+import { plantRecord } from '../tests/plant.js';
 
 const FORMULA: FertilizerFormula = { nitrate: 100, phosphate: 10, potassium: 50, iron: 2 };
-const NUTRIENTS = ['nitrate', 'phosphate', 'potassium', 'iron'] as const;
 
 describe('calculateDoseNutrients', () => {
   it('is the dose times the formula', () => {
@@ -20,7 +20,7 @@ describe('canDose', () => {
     expect(
       canDose({
         ...state,
-        plants: [{ id: 'test', species: 'java_fern', size: 50, condition: 100, surplus: 0 }],
+        plants: [plantRecord({ id: 'test', species: 'java_fern', size: 50, condition: 100, surplus: 0 })],
       })
     ).toBe(true);
   });

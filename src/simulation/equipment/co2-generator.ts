@@ -65,7 +65,7 @@ export function calculateCo2Injection(bubbleRate: number, waterVolume: number): 
  */
 export function formatCo2Rate(bubbleRate: number, waterVolume: number): string {
   const rate = calculateCo2Injection(bubbleRate, waterVolume);
-  return `+${rate.toFixed(1)} mg/L/hr`;
+  return `+${rate.toFixed(1)} mg/L/h`;
 }
 
 // ============================================================================

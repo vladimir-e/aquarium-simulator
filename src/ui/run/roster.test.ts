@@ -1,18 +1,22 @@
 import { describe, it, expect } from 'vitest';
-import type { Clutch, Fish, SimulationState } from '../../simulation/index.js';
-import { createSimulation } from '../../simulation/index.js';
-import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
+import type { Clutch, Fish, Plant, SimulationState } from '../../simulation/index.js';
+import { applyAction, createSimulation, readPlantLight } from '../../simulation/index.js';
+import { DEFAULT_CONFIG, type TunableConfig } from '../../simulation/config/index.js';
 import { livestockDefaults } from '../../simulation/config/livestock.js';
-import { groupBySpecies, groupFry } from './livestock.js';
+import { readHourAhead } from './ahead.js';
+import { groupBySpecies, groupFry, readFish } from './livestock.js';
 import { groupPlantsBySpecies, plantRows } from './flora.js';
 import { readLedger } from './ledger.js';
-import { computeFishVitality } from '../../simulation/index.js';
+import { groupReading, worstMember, type Member } from './status.js';
 import {
+  inspection,
   rosterTables,
   type ClutchRosterRow,
+  type FamilyRosterRow,
   type FryRosterRow,
   type IndividualRosterRow,
   type RosterInput,
+  type RosterRow,
   type SpeciesRosterRow,
 } from './roster.js';
 
@@ -35,11 +39,18 @@ function tank(fish: Fish[], clutches: Clutch[] = [], tick = 0): SimulationState 
   return { ...createSimulation({ tankCapacity: 200 }), fish, clutches, tick };
 }
 
-function input(state: SimulationState): RosterInput {
+/** A bank that heals whatever the hour charges, so only an empty one lets condition fall. */
+const HEALED: TunableConfig = {
+  ...DEFAULT_CONFIG,
+  livestock: { ...livestockDefaults, healingDrawRate: 1e6 },
+};
+
+function input(state: SimulationState, config: TunableConfig): RosterInput {
+  const fish = readFish(state, config, readHourAhead(state, config));
   return {
-    fish: groupBySpecies(state, livestockDefaults),
-    plants: groupPlantsBySpecies(plantRows(state, DEFAULT_CONFIG)),
-    fry: groupFry(state, livestockDefaults),
+    fish: groupBySpecies(fish, config.livestock),
+    plants: groupPlantsBySpecies(plantRows(state, config, readHourAhead(state, config))),
+    fry: groupFry(fish, config.livestock),
     clutches: state.clutches,
     tick: state.tick,
   };
@@ -47,9 +58,10 @@ function input(state: SimulationState): RosterInput {
 
 function tables(
   state: SimulationState,
-  ...open: string[]
+  open: string[] = [],
+  config: TunableConfig = DEFAULT_CONFIG
 ): ReturnType<typeof rosterTables> {
-  return rosterTables(input(state), livestockDefaults, new Set(open));
+  return rosterTables(input(state, config), config.livestock, new Set(open));
 }
 
 const roster = [
@@ -66,7 +78,7 @@ describe('rosterTables', () => {
   });
 
   it('opens one species without opening the other, and puts its fish beneath it', () => {
-    const { fish } = tables(tank(roster), 'species-neon_tetra');
+    const { fish } = tables(tank(roster), ['species-neon_tetra']);
 
     expect(fish.map((row) => row.kind)).toEqual([
       'species',
@@ -80,9 +92,30 @@ describe('rosterTables', () => {
     const second = fish[2] as IndividualRosterRow;
     expect(second.id).toBe('fish_a_2');
     expect(second.sex).toBe('female');
-    expect(second.shortId).toBe('a_2');
+    expect(second.tag).toBe('#2');
+    expect(second.title).toBe('Neon Tetra #2');
     expect(second.figure).toBe('0.50 g');
     expect(second.age).toBe('120 d');
+  });
+
+  it('numbers fish within their species in the order they were stocked, never by id', () => {
+    const stocked = [
+      makeFish({ id: 'fish_1', species: 'neon_tetra' }),
+      makeFish({ id: 'fish_2', species: 'corydoras' }),
+      makeFish({ id: 'fish_a', species: 'neon_tetra' }),
+      makeFish({ id: 'fish_b', species: 'neon_tetra', stage: 'fry' }),
+    ];
+    const { fish } = tables(tank(stocked), ['species-neon_tetra', 'species-corydoras']);
+    const titles = fish
+      .filter((row): row is IndividualRosterRow => row.kind === 'individual')
+      .map((row) => row.title);
+
+    expect(titles).toEqual(['Neon Tetra #1', 'Neon Tetra #2', 'Corydoras #1']);
+    const ledger = readLedger(tank(stocked), DEFAULT_CONFIG, readHourAhead(tank(stocked), DEFAULT_CONFIG), {
+      kind: 'fish',
+      id: 'fish_a',
+    });
+    expect(ledger?.title).toBe('Neon Tetra #2');
   });
 
   it('gives a species row its mass per fish and a dot per individual', () => {
@@ -93,7 +126,7 @@ describe('rosterTables', () => {
   });
 
   it('reads a fish by its worst channel, so a full-condition fish can still be hungry', () => {
-    const starving = tables(tank([makeFish({ id: 'fish_a_1', satiation: 5 })]), 'species-neon_tetra');
+    const starving = tables(tank([makeFish({ id: 'fish_a_1', satiation: 5 })]), ['species-neon_tetra']);
     const individual = starving.fish[1] as IndividualRosterRow;
 
     expect(individual.at).toBe(1);
@@ -101,12 +134,23 @@ describe('rosterTables', () => {
     expect(individual.word).toBe('starving');
   });
 
-  it('hands a group over at its worst member', () => {
+  it('hands a group over at its worst member, counted as the group stands', () => {
     const state = tank([
       makeFish({ id: 'fish_a_1', health: 100 }),
       makeFish({ id: 'fish_a_2', health: 20 }),
     ]);
-    expect((tables(state).fish[0] as SpeciesRosterRow).worstKey).toBe('fish_a_2');
+    const [header] = tables(state).fish;
+
+    expect(inspection(header.key, input(state, DEFAULT_CONFIG))).toEqual({
+      target: { kind: 'fish', id: 'fish_a_2' },
+      subtitle: 'the worst of 2 Neon Tetra',
+    });
+    expect(inspection('fish_a_1', input(state, DEFAULT_CONFIG))).toEqual({
+      target: { kind: 'fish', id: 'fish_a_1' },
+      subtitle: '',
+    });
+    expect(inspection('algae', input(state, DEFAULT_CONFIG))!.target).toEqual({ kind: 'algae' });
+    expect(inspection('fish_gone', input(state, DEFAULT_CONFIG))).toBeNull();
   });
 
   it('counts down to hatch from the current tick, not from when the clutch was laid', () => {
@@ -151,16 +195,91 @@ describe('rosterTables', () => {
   });
 
   it('reads a group by its hungry members, even at full condition', () => {
+    const banked = { surplus: livestockDefaults.surplusCap };
     const hungry = [
-      makeFish({ id: 'fish_a_1', satiation: 90 }),
-      makeFish({ id: 'fish_a_2', satiation: 40 }),
-      makeFish({ id: 'fish_a_3', satiation: 30 }),
+      makeFish({ id: 'fish_a_1', satiation: 90, ...banked }),
+      makeFish({ id: 'fish_a_2', satiation: 40, ...banked }),
+      makeFish({ id: 'fish_a_3', satiation: 30, ...banked }),
     ];
-    const [group] = tables(tank(hungry)).fish as SpeciesRosterRow[];
+    const [group] = tables(tank(hungry), [], HEALED).fish as SpeciesRosterRow[];
 
     expect(group.status).toBe('warn');
     expect(group.word).toBe('2 hungry');
     expect(group.satiation!.word).toBe('2 hungry');
+  });
+
+  it('counts the members whose damage outruns their healing', () => {
+    const base = tank([
+      makeFish({ id: 'fish_a_1' }),
+      makeFish({ id: 'fish_a_2' }),
+      makeFish({ id: 'fish_a_3', surplus: livestockDefaults.surplusCap }),
+    ]);
+    const poisoned: SimulationState = {
+      ...base,
+      resources: { ...base.resources, ammonia: 20 * base.resources.water },
+    };
+    const [group] = tables(poisoned, [], HEALED).fish as SpeciesRosterRow[];
+
+    expect(group.status).toBe('warn');
+    expect(group.word).toBe('2 sick');
+  });
+
+  it('counts the overfed members the way it counts the hungry', () => {
+    const banked = { satiation: 100, surplus: livestockDefaults.surplusCap };
+    const fed = [
+      makeFish({ id: 'fish_a_1', ...banked }),
+      makeFish({ id: 'fish_a_2', ...banked }),
+      makeFish({ id: 'fish_a_3', ...banked }),
+    ];
+    const [group] = tables(tank(fed), [], HEALED).fish as SpeciesRosterRow[];
+
+    expect(group.dots).toEqual(['warn', 'warn', 'warn']);
+    expect(group).toMatchObject({ status: 'warn', word: '3 overfed' });
+  });
+
+  it('reads both tables by the one group rule, and opens the member it names', () => {
+    const base = tank([
+      makeFish({ id: 'fish_a_1' }),
+      makeFish({ id: 'fish_a_2' }),
+      makeFish({ id: 'fish_a_3', health: 65, surplus: 5 }),
+    ]);
+    const state = applyAction(
+      applyAction(base, { type: 'addPlant', species: 'java_fern' }).state,
+      { type: 'addPlant', species: 'java_fern' }
+    ).state;
+    const planted: SimulationState = {
+      ...state,
+      plants: state.plants.map((plant, i) => ({ ...plant, condition: i === 1 ? 65 : 100 })),
+    };
+    const roster = input(planted, DEFAULT_CONFIG);
+    const { fish, plants } = roster;
+    const rows = tables(planted);
+    const reads = (members: (Member & { id: string })[], row: RosterRow): void => {
+      const header = row as SpeciesRosterRow;
+      const opened = inspection(header.key, roster)!.target as { id: string };
+      expect(members.every((member) => member.reading.status === 'ok')).toBe(true);
+      expect(header).toMatchObject(groupReading(members));
+      expect(opened.id).toBe(worstMember(members).id);
+      expect(opened.id).toBe(members.find((member) => member.condition === 65)!.id);
+    };
+
+    reads(fish[0].members, rows.fish[0]);
+    reads(plants[0].members, rows.plants[0]);
+  });
+
+  it('reads a group of one the way it reads its member', () => {
+    const base = tank([makeFish({ id: 'fish_a_1' })]);
+    const poisoned: SimulationState = {
+      ...base,
+      resources: { ...base.resources, ammonia: 20 * base.resources.water },
+    };
+    const [group, member] = tables(poisoned, ['species-neon_tetra']).fish as [
+      SpeciesRosterRow,
+      IndividualRosterRow,
+    ];
+
+    expect(member.word).toBe('sick');
+    expect(group).toMatchObject({ status: member.status, word: member.word });
   });
 
   it('gives a fish the word its ledger gives it, bank and all', () => {
@@ -170,21 +289,161 @@ describe('rosterTables', () => {
       ...base,
       resources: { ...base.resources, ammonia: 20 * base.resources.water },
     };
-    const { breakdown } = computeFishVitality(
-      state.fish[0],
-      state.resources,
-      state.plants,
-      state.resources.water,
-      state.tank.capacity,
-      DEFAULT_CONFIG.livestock
-    );
-    expect(breakdown.drained).toBeGreaterThan(0);
+    expect(readHourAhead(state, DEFAULT_CONFIG).fish[0].vitality.breakdown.healed).toBeGreaterThan(0);
 
-    const row = tables(state, 'species-neon_tetra').fish[1] as IndividualRosterRow;
-    const ledger = readLedger(state, DEFAULT_CONFIG, { kind: 'fish', id: 'fish_a_1' })!;
+    const row = tables(state, ['species-neon_tetra']).fish[1] as IndividualRosterRow;
+    const ledger = readLedger(state, DEFAULT_CONFIG, readHourAhead(state, DEFAULT_CONFIG), { kind: 'fish', id: 'fish_a_1' })!;
 
     expect(row.word).toBe(ledger.word);
     expect(row.status).toBe(ledger.status);
+  });
+
+  describe('for plants', () => {
+    /** Three java fern families: `a` down two generations, `b` with one offshoot, `c` alone. */
+    function families(tweak: (plant: Plant) => Partial<Plant> = () => ({})): SimulationState {
+      const base = ['java_fern', 'java_fern', 'java_fern'].reduce(
+        (state) => applyAction(state, { type: 'addPlant', species: 'java_fern' }).state,
+        { ...createSimulation({ tankCapacity: 200 }), tick: 12 }
+      );
+      const [a, b] = base.plants;
+      const bud = (parent: Plant, id: string): Plant => ({
+        ...parent,
+        id,
+        parentId: parent.id,
+        size: 20,
+        age: 24,
+      });
+      const a1 = bud(a, 'plant_a1');
+      const plants = [...base.plants, a1, bud(b, 'plant_b1'), bud(a1, 'plant_a2')];
+      return { ...base, plants: plants.map((plant) => ({ ...plant, ...tweak(plant) })) };
+    }
+
+    const dark = (state: SimulationState): SimulationState => ({
+      ...state,
+      equipment: { ...state.equipment, light: { ...state.equipment.light, enabled: false } },
+      resources: { ...state.resources, lightByHour: state.resources.lightByHour.map(() => 0) },
+    });
+
+    it('collapses a species onto its families, and a family onto its units, until opened', () => {
+      const state = families();
+      const [a, b, c] = state.plants;
+
+      expect(tables(state).plants.map((row) => row.kind)).toEqual(['species']);
+      expect(tables(state, ['species-java_fern']).plants.map((row) => row.key)).toEqual([
+        'species-java_fern',
+        `family-${a.id}`,
+        `family-${b.id}`,
+        `family-${c.id}`,
+      ]);
+      expect(
+        tables(state, ['species-java_fern', `family-${a.id}`]).plants.map((row) => row.key)
+      ).toEqual([
+        'species-java_fern',
+        `family-${a.id}`,
+        a.id,
+        'plant_a1',
+        'plant_a2',
+        `family-${b.id}`,
+        `family-${c.id}`,
+      ]);
+    });
+
+    it('counts its units at the species and in a family, the dots standing for families above', () => {
+      const state = families();
+      const [species, a, b, c] = tables(state, ['species-java_fern']).plants as [
+        SpeciesRosterRow,
+        FamilyRosterRow,
+        FamilyRosterRow,
+        FamilyRosterRow,
+      ];
+
+      expect(species).toMatchObject({ count: 6, caption: '3 families', dot: 'family' });
+      expect(species.dots).toHaveLength(3);
+      expect([a, b, c].map((family) => [family.count, family.dots.length])).toEqual([
+        [3, 3],
+        [2, 2],
+        [1, 1],
+      ]);
+      expect([a, b, c].map((family) => family.label)).toEqual(['family 1', 'family 2', 'family 3']);
+      expect(a.title).toBe('Java Fern family 1');
+      expect(a.figure).toBe(`Σ ${Math.floor(state.plants[0].size + 40)} %`);
+    });
+
+    it('agrees its dots with its word at every level, however the tank reads', () => {
+      const groups = (state: SimulationState): (SpeciesRosterRow | FamilyRosterRow)[] =>
+        tables(state, ['species-java_fern', ...state.plants.map((p) => `family-${p.familyId}`)])
+          .plants.filter((row) => row.kind === 'species' || row.kind === 'family');
+      const struggling = (plant: Plant): Partial<Plant> =>
+        plant.id === 'plant_a2' ? { condition: 20 } : {};
+
+      const countedAt = new Set<string>();
+      for (const state of [families(), dark(families()), dark(families(struggling))]) {
+        for (const row of groups(state)) {
+          const counted = /^(\d+) /.exec(row.word);
+          if (counted) {
+            expect(row.dots.filter((dot) => dot === row.status)).toHaveLength(Number(counted[1]));
+            countedAt.add(row.kind);
+          } else if (row.dots.length > 1) {
+            expect(row.dots.every((dot) => dot === 'ok')).toBe(true);
+          }
+        }
+      }
+      expect(countedAt).toEqual(new Set(['species', 'family']));
+    });
+
+    it('opens a group on its worst unit, wherever that stands in the family tree', () => {
+      const state = dark(families((plant) => (plant.id === 'plant_a2' ? { condition: 20 } : {})));
+      const [species, a] = tables(state, ['species-java_fern']).plants as [
+        SpeciesRosterRow,
+        FamilyRosterRow,
+      ];
+      const roster = input(state, DEFAULT_CONFIG);
+      expect(inspection(species.key, roster)!.target).toEqual({ kind: 'plant', id: 'plant_a2' });
+      expect(inspection(a.key, roster)).toEqual({
+        target: { kind: 'plant', id: 'plant_a2' },
+        subtitle: 'the worst of 3 in Java Fern family 1',
+      });
+    });
+
+    it('names a unit by the one it budded from, beside its light and its bank toward the next offshoot', () => {
+      const cap = DEFAULT_CONFIG.plants.surplusCap;
+      const state = families((plant) => (plant.id === 'plant_a2' ? { surplus: cap * 0.625 } : {}));
+      const [a] = state.plants;
+      const rows = tables(state, ['species-java_fern', `family-${a.id}`]).plants;
+      const unit = rows.find((row) => row.key === 'plant_a2') as IndividualRosterRow;
+      const founder = rows.find((row) => row.key === a.id) as IndividualRosterRow;
+      const share = readPlantLight(state, DEFAULT_CONFIG)[5].needShare;
+
+      expect(unit).toMatchObject({
+        tag: '#3',
+        title: 'Java Fern family 1 · #3',
+        parent: '#2',
+        figure: '20 %',
+        age: '1 d',
+        bank: '62 %',
+      });
+      expect(unit.light!.text).toBe(`${Math.floor(share * 100)} %`);
+      expect(founder.parent).toBeNull();
+    });
+
+    it('gives a unit the light and the bank its ledger gives it', () => {
+      const cap = DEFAULT_CONFIG.plants.surplusCap;
+      const state = families((plant) => ({ surplus: plant.parentId ? cap / 3 : cap }));
+      const ahead = readHourAhead(state, DEFAULT_CONFIG);
+      const open = ['species-java_fern', ...state.plants.map((p) => `family-${p.familyId}`)];
+      const units = tables(state, open).plants.filter(
+        (row): row is IndividualRosterRow => row.kind === 'individual'
+      );
+
+      expect(units).toHaveLength(6);
+      for (const row of units) {
+        const ledger = readLedger(state, DEFAULT_CONFIG, ahead, { kind: 'plant', id: row.id })!;
+        expect(`${ledger.light!.text} %`).toBe(row.light!.text);
+        expect(ledger.light!.status).toBe(row.light!.status);
+        expect(`${ledger.bank!.text} %`).toBe(row.bank);
+        expect(ledger.bank!.unit).toBe('% to offshoot');
+      }
+    });
   });
 
   it('has nothing to show for a bare tank', () => {

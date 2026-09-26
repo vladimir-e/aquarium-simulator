@@ -1,7 +1,7 @@
 import React from 'react';
-import type { VerbId } from '../../actions';
+import type { VerbId, VerbScope } from '../../actions';
 import { toneOf } from '../../readings';
-import type { Ledger, LedgerFactor } from '../../run';
+import { LEDGER_DECIMALS, printsAsZero, type Ledger, type LedgerFactor } from '../../run';
 import { Drawer } from '../ui/Drawer';
 import { RangeStrip, TONE_TEXT } from '../ui/RangeStrip';
 import { ReadingRow } from '../ui/ReadingRow';
@@ -9,7 +9,8 @@ import { VerbButton } from '../ui/VerbButton';
 import { CONTROL_FOCUS } from '../ui/focus';
 
 function signed(value: number, sign: '+' | '−'): string {
-  return `${sign}${Math.abs(value).toFixed(1)}`;
+  const figure = Math.abs(value).toFixed(LEDGER_DECIMALS);
+  return printsAsZero(value, LEDGER_DECIMALS) ? figure : `${sign}${figure}`;
 }
 
 /**
@@ -71,7 +72,7 @@ export function LedgerDrawer({
 }: {
   ledger: Ledger | null;
   onClose: () => void;
-  onAct: (verb: VerbId) => void;
+  onAct: (verb: VerbId, at?: number, scope?: VerbScope) => void;
   actLabel: (verb: VerbId) => string;
   /** Absent for the algae, which is scrubbed rather than removed. */
   onRemove: (() => void) | null;
@@ -118,6 +119,18 @@ export function LedgerDrawer({
           />
         )}
 
+        {ledger.light && (
+          <ReadingRow
+            name="Light"
+            value={ledger.light.text}
+            unit="% of need"
+            at={ledger.light.at}
+            band={ledger.light.band}
+            tone={toneOf(ledger.light.status)}
+            note={ledger.light.note}
+          />
+        )}
+
         <div className="flex flex-col gap-3 border-t border-hairline pt-3">
           <div className="grid grid-cols-2 gap-x-4 gap-y-2">
             <Column
@@ -147,8 +160,8 @@ export function LedgerDrawer({
           <div className="border-t border-hairline pt-1">
             <ReadingRow
               name="Bank"
-              value={ledger.bank.value.toFixed(1)}
-              unit={`of ${ledger.bank.cap}`}
+              value={ledger.bank.text}
+              unit={ledger.bank.unit}
               at={ledger.bank.at}
               band={{ from: 0, to: 1 }}
               note={ledger.bank.note}
@@ -161,7 +174,12 @@ export function LedgerDrawer({
         )}
 
         <div className="flex items-center gap-1.5 border-t border-hairline pt-3">
-          <VerbButton label={actLabel(ledger.verb)} onClick={() => onAct(ledger.verb)} />
+          <VerbButton
+            label={actLabel(ledger.verb)}
+            onClick={() =>
+              ledger.scope ? onAct(ledger.verb, undefined, ledger.scope) : onAct(ledger.verb)
+            }
+          />
           {onRemove && (
             <button
               type="button"

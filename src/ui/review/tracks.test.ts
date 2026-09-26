@@ -46,14 +46,24 @@ describe('the four tracks', () => {
 describe('normalize', () => {
   it('spreads a series across its own extent', () => {
     const extent = seriesExtent([10, 20, 40]);
-    expect(normalize(10, extent)).toBe(0);
-    expect(normalize(40, extent)).toBe(1);
-    expect(normalize(25, extent)).toBeCloseTo(0.5);
+    expect(normalize(10, extent, 0)).toBe(0);
+    expect(normalize(40, extent, 0)).toBe(1);
+    expect(normalize(25, extent, 0)).toBeCloseTo(0.5);
   });
 
   it('centres a line that is flat, or as good as', () => {
-    expect(normalize(25, seriesExtent([25, 25]))).toBe(0.5);
-    expect(normalize(25, seriesExtent([25, 25.000001]))).toBe(0.5);
+    expect(normalize(25, seriesExtent([25, 25]), 1)).toBeCloseTo(0.5, 10);
+    expect(normalize(25, seriesExtent([25, 25.000001]), 1)).toBeCloseTo(0.5, 5);
+  });
+
+  it('keeps a line that moves a step of its precision from swinging full height', () => {
+    const extent = seriesExtent([82, 82.4]);
+    expect(normalize(82.4, extent, 0) - normalize(82, extent, 0)).toBeLessThan(0.25);
+  });
+
+  it('lays a line of zeros on the baseline', () => {
+    expect(normalize(0, seriesExtent([0, 0]), 0)).toBe(0);
+    expect(normalize(0, seriesExtent([0, 1]), 0)).toBe(0);
   });
 
   it('has nothing to place on an empty window', () => {

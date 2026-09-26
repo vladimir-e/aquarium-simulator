@@ -1,6 +1,10 @@
 /**
  * Decay system - converts food to waste with temperature scaling.
  * Runs in PASSIVE tier.
+ *
+ * The oxidised share leaves no solid behind, so its nitrogen and minerals go
+ * straight to the water: N as NH3, and phosphate, potassium and iron at the
+ * food's `foodMineralContent`.
  */
 
 import type { Effect } from '../core/effects.js';
@@ -10,6 +14,8 @@ import type { TunableConfig } from '../config/index.js';
 import { type DecayConfig, decayDefaults } from '../config/decay.js';
 import { monodFactor, q10Factor } from '../core/kinetics.js';
 import { O2_TO_CO2_MASS_RATIO } from '../core/chemistry.js';
+import { ammoniaPerGramOfFood } from '../config/livestock.js';
+import { WASTE_NUTRIENTS } from '../config/nutrients.js';
 import { getPpm } from '../resources/index.js';
 
 /**
@@ -61,9 +67,8 @@ export const decaySystem: System = {
   update(state: SimulationState, config: TunableConfig): Effect[] {
     const effects: Effect[] = [];
     const decayConfig = config.decay;
-    const nutrientsConfig = config.nutrients;
 
-    // Decay food → waste + CO2 + O2 consumption + trace phosphate
+    // Decay food → waste + CO2 + O2 consumption
     if (state.resources.food > 0) {
       const decayAmount = calculateDecay(
         state.resources.food,
@@ -73,7 +78,6 @@ export const decaySystem: System = {
       );
 
       if (decayAmount > 0) {
-        // Food is consumed
         effects.push({
           tier: 'passive',
           resource: 'food',
@@ -81,7 +85,6 @@ export const decaySystem: System = {
           source: 'decay',
         });
 
-        // Only a fraction becomes solid waste (rest is oxidized)
         const wasteAmount = decayAmount * decayConfig.wasteConversionRatio;
         effects.push({
           tier: 'passive',
@@ -90,17 +93,22 @@ export const decaySystem: System = {
           source: 'decay',
         });
 
-        // Phosphate released from decaying organic matter (mg per gram)
-        // Links fish bioload to partial plant nutrition
-        const phosphateProduced = decayAmount * nutrientsConfig.phosphatePerDecay;
+        const oxidizedAmount = decayAmount * (1 - decayConfig.wasteConversionRatio);
         effects.push({
           tier: 'passive',
-          resource: 'phosphate',
-          delta: phosphateProduced,
+          resource: 'ammonia',
+          delta: oxidizedAmount * ammoniaPerGramOfFood(config.livestock),
           source: 'decay',
         });
+        for (const nutrient of WASTE_NUTRIENTS) {
+          effects.push({
+            tier: 'passive',
+            resource: nutrient,
+            delta: oxidizedAmount * config.nutrients.foodMineralContent[nutrient],
+            source: 'decay',
+          });
+        }
 
-        const oxidizedAmount = decayAmount * (1 - decayConfig.wasteConversionRatio);
         const oxygenDemandMgPerL = getPpm(
           oxidizedAmount * decayConfig.gasExchangePerGramDecay,
           state.resources.water

@@ -36,21 +36,34 @@ export {
   opticsDefaults,
   opticsConfigMeta,
   MAX_WATER_ATTENUATION_PER_CM,
+  MAX_LEAF_ATTENUATION_PER_LAI,
 } from './optics.js';
 export {
   type WaterChemistryConfig,
   waterChemistryDefaults,
   waterChemistryConfigMeta,
 } from './water-chemistry.js';
-export { type PlantsConfig, plantsDefaults, plantsConfigMeta } from './plants.js';
 export {
+  type PlantsConfig,
+  plantsDefaults,
+  plantsConfigMeta,
+  MAX_SUFFICIENCY_EDGE,
+} from './plants.js';
+export {
+  NUTRIENTS,
+  type Nutrient,
+  WASTE_NUTRIENTS,
+  type NutrientVector,
+  type WasteNutrient,
+  type MineralVector,
   type NutrientsConfig,
   type FertilizerFormula,
   nutrientsDefaults,
-  nutrientsConfigMeta,
   fertilizerFormulaMeta,
-  getTotalFertilizerNutrients,
-  getNutrientRatio,
+  uptakeMeta,
+  halfSaturationMeta,
+  demandMeta,
+  foodMineralContentMeta,
 } from './nutrients.js';
 export {
   type LivestockConfig,
@@ -94,8 +107,11 @@ import { type PlantsConfig, plantsDefaults, plantsConfigMeta } from './plants.js
 import {
   type NutrientsConfig,
   nutrientsDefaults,
-  nutrientsConfigMeta,
   fertilizerFormulaMeta,
+  uptakeMeta,
+  halfSaturationMeta,
+  demandMeta,
+  foodMineralContentMeta,
 } from './nutrients.js';
 import { type LivestockConfig, livestockDefaults, livestockConfigMeta } from './livestock.js';
 
@@ -139,6 +155,13 @@ interface RangedMeta {
   max?: number;
 }
 
+type NestedNutrientsPath =
+  | 'nutrients.fertilizerFormula'
+  | 'nutrients.uptakePerRateUnit'
+  | 'nutrients.halfSaturation'
+  | 'nutrients.foodMineralContent'
+  | `nutrients.demand.${keyof NutrientsConfig['demand']}`;
+
 const CONFIG_META: ReadonlyMap<string, readonly RangedMeta[]> = new Map(
   Object.entries({
     decay: decayConfigMeta,
@@ -150,10 +173,16 @@ const CONFIG_META: ReadonlyMap<string, readonly RangedMeta[]> = new Map(
     optics: opticsConfigMeta,
     waterChemistry: waterChemistryConfigMeta,
     plants: plantsConfigMeta,
-    nutrients: nutrientsConfigMeta,
+    nutrients: [],
     'nutrients.fertilizerFormula': fertilizerFormulaMeta,
+    'nutrients.uptakePerRateUnit': uptakeMeta,
+    'nutrients.halfSaturation': halfSaturationMeta,
+    'nutrients.demand.low': demandMeta,
+    'nutrients.demand.medium': demandMeta,
+    'nutrients.demand.high': demandMeta,
+    'nutrients.foodMineralContent': foodMineralContentMeta,
     livestock: livestockConfigMeta,
-  } satisfies Record<keyof TunableConfig | 'nutrients.fertilizerFormula', readonly RangedMeta[]>)
+  } satisfies Record<keyof TunableConfig | NestedNutrientsPath, readonly RangedMeta[]>)
 );
 
 export interface ConfigRange {

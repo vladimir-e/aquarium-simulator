@@ -10,6 +10,7 @@
  */
 
 import { SURPLUS_CAP_DEFAULT } from './vitality.js';
+import { N_TO_NH3_MASS_RATIO } from '../core/chemistry.js';
 
 export interface LivestockConfig {
   // Metabolism
@@ -33,9 +34,8 @@ export interface LivestockConfig {
    *
    * Typical aquarium flake/pellet food is 35–50 % protein, protein is
    * ≈16 % N by mass, giving 5.6–8 % N in food. 0.05 is a conservative
-   * floor and matches the engine's existing waste → NH3 assumption
-   * (`wasteToAmmoniaRatio = 60 mg NH3/g waste` embeds 5 % N). Surfacing
-   * this here makes the coupling explicit for calibration.
+   * floor. Waste is food that went uneaten or undigested, so it carries the
+   * same fraction into mineralization.
    */
   foodNitrogenFraction: number;
   /**
@@ -49,16 +49,6 @@ export interface LivestockConfig {
    */
   gillNFraction: number;
   /**
-   * Basal gill NH3 excretion rate (mg NH3 per g fish per hour) —
-   * produced continuously from body protein turnover regardless of
-   * feeding. Real freshwater teleosts at 25 °C excrete roughly
-   * 0.3–1.0 mg NH3-N / g / day (≈ 0.015–0.05 mg NH3 / g / hr). This
-   * is additive to the food-driven (post-prandial) NH3 in
-   * `gillNFraction`; skipping it undercounts N output during
-   * fasting or sparse feeding.
-   */
-  basalAmmoniaRate: number;
-  /**
    * Moles of CO2 exhaled per mole of O2 consumed. A *molar* ratio, as the
    * literature defines it — converting it to a mass takes the molar step
    * through `O2_TO_CO2_MASS_RATIO`.
@@ -70,8 +60,7 @@ export interface LivestockConfig {
    * Satiation decay per hour (percentage points). Fish digest and burn
    * through stored energy whether or not they're feeding; a fish at
    * satiation 100 with no food will fall to 0 in ~100 / `satiationDecayRate`
-   * hours. Inverse direction of the legacy `hungerIncreaseRate`; same
-   * magnitude.
+   * hours.
    */
   satiationDecayRate: number;
 
@@ -82,48 +71,25 @@ export interface LivestockConfig {
   phStressSeverity: number;
   /** Health damage per dGH outside safe range */
   ghStressSeverity: number;
-  /**
-   * Health damage per ppm of *unionized* NH3 (not total TAN).
-   *
-   * Only the unionized form crosses gill epithelium; NH4⁺ is orders of
-   * magnitude less toxic. Fish-health multiplies this by
-   * `unionizedAmmoniaFraction(pH, T)` × TAN ppm, so a 2 ppm TAN reading
-   * at pH 6.5 / 25 °C contributes ~30× less stress than the same 2 ppm
-   * at pH 8.0. Reference: free-NH3 lethal threshold for sensitive
-   * freshwater teleosts is ~0.05 ppm sustained.
-   */
+  /** Damage per e-fold of free (unionized) NH₃ past the fish's own edge. */
   ammoniaStressSeverity: number;
-  /** Health damage per ppm of nitrite */
+  /** Damage per e-fold of nitrite past the fish's own edge. */
   nitriteStressSeverity: number;
-  /** Health damage per ppm of nitrate above 40 */
+  /** Damage per e-fold of nitrate past the fish's own edge. */
   nitrateStressSeverity: number;
-  /** Health damage per mg/L oxygen below 5 */
+  /** Damage per e-fold of dissolved oxygen under the fish's own edge, both read `OXYGEN_LOG_OFFSET` higher. */
   oxygenStressSeverity: number;
   /** Health damage per % water below 50% capacity */
   waterLevelStressSeverity: number;
   /** Health damage per turnover (tank volumes/h) above species tolerance */
   flowStressSeverity: number;
   /**
-   * Health damage per hour past species `maxAge`, applied per hour.
-   * Smooth replacement for the legacy probabilistic old-age cliff:
-   * once a fish exceeds its species lifespan, it accumulates damage
-   * that scales with how far past it is, runs through hardiness like
-   * any other stressor, and eventually drives condition to zero.
+   * Health damage per hour past species `maxAge`, applied per hour: past its
+   * lifespan a fish takes damage that grows with how far past it is, scaled
+   * by `1 − hardiness`, until health reaches zero.
    */
   ageStressSeverity: number;
 
-  // Stressor activation thresholds — the value above/below which a
-  // stressor switches on. Severity is per unit of *deviation* from
-  // these thresholds; without them the severity knob is half-tunable.
-  /** Nitrate above this ppm activates the nitrate stressor. */
-  nitrateStressThreshold: number;
-  /**
-   * Oxygen below this mg/L activates the stressor. The same threshold
-   * is the upper edge of the oxygen *benefit*: above it the fish gets
-   * the benefit, below it the stressor takes over (continuous net-rate
-   * transition).
-   */
-  oxygenStressThreshold: number;
   /** Water below this % of capacity activates the stressor. */
   waterLevelStressThreshold: number;
 
@@ -152,29 +118,34 @@ export interface LivestockConfig {
   satiationStarvingSeverity: number;
 
   // Vitality benefit peaks (%/h) — recovery rate when each factor is
-  // in its tolerable band. Sum at all-good (no plants) ≈ 1.0 %/h; with
+  // at its best. Sum at all-good (no plants) ≈ 1.0 %/h; with
   // saturated planting it rises to ≈ 1.2 %/h.
-  /** pH inside species range. */
+  /** pH at the centre of the species range, falling to 0 at its edges. */
   phBenefitPeak: number;
-  /** Oxygen ≥ `oxygenStressThreshold` (one-sided "above threshold" benefit). */
+  /** Oxygen, rising on log scale from `OXYGEN_EDGE` to full at `OXYGEN_COMFORT`. */
   oxygenBenefitPeak: number;
   /** Plant-presence benefit at saturation — see `plantBenefitSaturationPoint`. */
   plantBenefitPeak: number;
   /**
-   * Plant-presence saturation point — the sum of `(size/100)×(condition/100)`
-   * across all plants at which the benefit hits its peak. Three full-grown
-   * healthy plants of biomass saturate the benefit; beyond that adding
-   * more plants doesn't keep boosting fish vitality.
+   * Plant-presence saturation point — plant power (`getPlantPower`: rate
+   * units × condition/100, summed) at which the benefit hits its peak. Three
+   * full thriving fern clumps saturate it, and a sword alone comes close;
+   * beyond that adding more plants doesn't keep boosting fish vitality.
    */
   plantBenefitSaturationPoint: number;
 
   // Surplus
   /**
-   * Saturation cap for the surplus reserve bank (%/h-equivalent units).
-   * Damage drains the bank before health falls; accrual saturates here.
+   * Ceiling on the bank. Income past full health banks up to it, and a
+   * female spawns once hers is full.
    * Shared default across organism types — see `SURPLUS_CAP_DEFAULT`.
    */
   surplusCap: number;
+  /**
+   * Share of the bank a 1 g fish draws each hour to heal health below 100;
+   * scaled by adult mass to the −¼ power (see `fishHealingRate`).
+   */
+  healingDrawRate: number;
 
   // Death
   /** Fraction of fish mass added as waste on death */
@@ -195,29 +166,17 @@ export const livestockDefaults: LivestockConfig = {
   // Monod maximum rather than a figure read in real water: air-saturated water
   // leaves 89 % of it, so what the model reproduces is 0.268.
   //
-  // It scales `basalAmmoniaRate` and the post-prandial gill stream as well as
-  // the draw — deamination is the same metabolism — so this one constant sets
-  // both what a roster breathes and what it loads the water with.
+  // It scales the gill ammonia stream as well as the draw — deamination is the
+  // same metabolism — so this one constant sets both what a roster breathes and
+  // what it loads the water with.
   //
-  // Damage is a separate reading: `oxygenStressThreshold` still charges a fish
+  // Damage is a separate reading: each fish's own oxygen edge still charges it
   // for the water it is in, so a suffocating fish draws less and suffers more.
   respirationOxygenHalfSaturation: 1.0,
-  // 5 % N in food — conservative; typical flake is 6–8 % N. Matches the
-  // engine's existing waste → NH3 ratio.
+  // 5 % N in food — conservative; typical flake is 6–8 % N.
   foodNitrogenFraction: 0.05,
   // 80 % of ingested N excreted directly through gills; 20 % via feces.
   gillNFraction: 0.8,
-  // Body protein turnover, mg NH3 / g fish / hr, in the 0.3–1.0 mg N/g/day
-  // measured for a small freshwater teleost at 25 °C (converted via
-  // MW_NH3/MW_N).
-  //
-  // A Monod maximum like the draw it rides on, and read the same way: air-
-  // saturated water leaves 89 % of it, so what the model reproduces is 0.0268
-  // — 0.529 mg N/g/day, a third of the way into that band rather than the
-  // middle of it, and 3.2 mg NH3/day for 5 g of neon tetras. That is roughly
-  // the food-driven contribution at lean feeding, which is the real-world
-  // observation the term exists for: basal output is not negligible.
-  basalAmmoniaRate: 0.03,
   respiratoryQuotient: 0.8, // textbook mixed-diet value
 
   // Satiation - decays ~0.6%/hr; fish can survive 3-7 days without food.
@@ -243,22 +202,12 @@ export const livestockDefaults: LivestockConfig = {
   // (factor 0.2) five degrees under its range pays 0.1 %/h — felt, but
   // inside what a fed, oxygenated tank gives back, even a cold one.
   ghStressSeverity: 0.1,
-  // Per ppm of UNIONIZED NH3. Sensitive freshwater teleosts show acute
-  // gill damage at ~0.05 ppm free NH3 sustained. 175 puts ~0.9 %/hr
-  // net damage at that threshold for a mid-hardiness fish (factor
-  // 0.5), giving multi-day survival at 1–2 ppm TAN and certain death
-  // at 3–5 ppm TAN once the unionized fraction climbs.
-  ammoniaStressSeverity: 175.0,
-  // Neon-tetra-scale teleosts show 96-hr LC50 for nitrite in the
-  // 5–10 ppm band; chronic stress starts around 1–2 ppm. With a
-  // mid-hardiness fish (factor 0.5), severity 2.5 gives:
-  //   1 ppm → 0.625 %/hr (net +0.375 — healing marginal),
-  //   3 ppm → 1.875 %/hr (net -0.875 — dies in ~115 hr),
-  //   5 ppm → 3.125 %/hr (net -2.125 — dies in ~47 hr).
-  // 96-hr LC50 lands near ~4–5 ppm — consistent with literature.
-  nitriteStressSeverity: 2.5,
-  nitrateStressSeverity: 0.5, // Mild - 0.5% damage per ppm above threshold
-  oxygenStressSeverity: 3.0, // 3% damage per mg/L below threshold
+  // Each puts a mid-hardiness fish at its 96-hour LC50 one %/h past what a
+  // clean tank gives back, so it dies in about four days.
+  ammoniaStressSeverity: 0.56, // LC50 ≈ 1 ppm free NH₃
+  nitriteStressSeverity: 0.75, // LC50 ≈ 10 ppm NO₂
+  nitrateStressSeverity: 1.0, // LC50 ≈ 800 ppm NO₃
+  oxygenStressSeverity: 2.7, // LC50 ≈ 1.5 mg/L O₂
   waterLevelStressSeverity: 0.2, // 0.2% per % below threshold
   // 0.3 %/h per turnover above species tolerance. A 150 L on a canister
   // plus a 240 GPH powerhead runs 14×, so a neon is 4 over and pays
@@ -272,10 +221,6 @@ export const livestockDefaults: LivestockConfig = {
   // begins a slow decline. By a week past, 8.4 %/h — clear decline.
   ageStressSeverity: 0.05,
 
-  // Stressor thresholds
-  nitrateStressThreshold: 40, // ppm — above this nitrate damages fish
-  oxygenStressThreshold: 5, // mg/L — below this oxygen damages fish; above
-  // this the oxygen benefit kicks in (shared cutoff, continuous transition)
   waterLevelStressThreshold: 50, // % capacity — below this water level damages fish
 
   // Satiation band edges (anchors of the piecewise-linear contribution).
@@ -316,20 +261,29 @@ export const livestockDefaults: LivestockConfig = {
   satiationStarvingSeverity: 6.0,
 
   // Benefit peaks (%/h) for the non-satiation channels. Sum at
-  // all-good in a bare tank: pH 0.4 + well-fed 0.3 + O2 0.3 = 1.0 %/h
-  // (matches the legacy budget). With three full-grown healthy plants
-  // (saturated): +0.2 → 1.2 %/h.
+  // all-good in a bare tank, pH at its band centre: pH 0.4 + well-fed 0.3 +
+  // O2 0.3 = 1.0 %/h. With a saturating planting (see
+  // `plantBenefitSaturationPoint`): +0.2 → 1.2 %/h.
   phBenefitPeak: 0.4,
   oxygenBenefitPeak: 0.3,
   plantBenefitPeak: 0.2,
   plantBenefitSaturationPoint: 3.0,
 
-  // Surplus reserve buffer — half the condition scale by default.
+  // Bank ceiling — half the condition scale by default.
   surplusCap: SURPLUS_CAP_DEFAULT,
+  // 5 %/h at 1 g: a full bank heals a 1 g fish 2.5 %/h at first, more than its
+  // whole benefit budget, and runs out with a ~20 h time constant under a
+  // steady insult. A neon draws 6 %/h of its bank, an angelfish 2.5.
+  healingDrawRate: 0.05,
 
   // Death
   deathDecayFactor: 0.5, // Half fish mass becomes waste
 };
+
+/** mg of NH₃ a gram of food, or of the waste it becomes, yields once mineralized. */
+export function ammoniaPerGramOfFood(config: LivestockConfig): number {
+  return config.foodNitrogenFraction * N_TO_NH3_MASS_RATIO * 1000;
+}
 
 export interface LivestockConfigMeta {
   key: keyof LivestockConfig;
@@ -368,14 +322,6 @@ export const livestockConfigMeta: LivestockConfigMeta[] = [
     step: 0.005,
   },
   { key: 'gillNFraction', label: 'Gill N Fraction', unit: '', min: 0.5, max: 0.95, step: 0.05 },
-  {
-    key: 'basalAmmoniaRate',
-    label: 'Basal NH3 Rate',
-    unit: 'mg NH3/g/hr',
-    min: 0.005,
-    max: 0.1,
-    step: 0.005,
-  },
   { key: 'respiratoryQuotient', label: 'Respiratory Quotient', unit: '', min: 0.5, max: 1.2, step: 0.1 },
   // Satiation
   { key: 'satiationDecayRate', label: 'Satiation Decay', unit: '%/hr', min: 0.1, max: 5, step: 0.1 },
@@ -390,38 +336,10 @@ export const livestockConfigMeta: LivestockConfigMeta[] = [
   },
   { key: 'phStressSeverity', label: 'pH Stress Severity', unit: '%/pH/hr', min: 1, max: 10, step: 0.5 },
   { key: 'ghStressSeverity', label: 'GH Stress Severity', unit: '%/dGH/hr', min: 0, max: 2, step: 0.05 },
-  {
-    key: 'ammoniaStressSeverity',
-    label: 'Ammonia Stress Severity',
-    unit: '%/ppm free NH3/hr',
-    min: 50,
-    max: 500,
-    step: 25,
-  },
-  {
-    key: 'nitriteStressSeverity',
-    label: 'Nitrite Stress Severity',
-    unit: '%/ppm/hr',
-    min: 0.5,
-    max: 10,
-    step: 0.5,
-  },
-  {
-    key: 'nitrateStressSeverity',
-    label: 'Nitrate Stress Severity',
-    unit: '%/ppm/hr',
-    min: 0.1,
-    max: 2,
-    step: 0.1,
-  },
-  {
-    key: 'oxygenStressSeverity',
-    label: 'O2 Stress Severity',
-    unit: '%/mg/L/hr',
-    min: 1,
-    max: 10,
-    step: 0.5,
-  },
+  { key: 'ammoniaStressSeverity', label: 'Free NH3 Stress Severity', unit: '%/e-fold/hr', min: 0.1, max: 10, step: 0.1 },
+  { key: 'nitriteStressSeverity', label: 'Nitrite Stress Severity', unit: '%/e-fold/hr', min: 0.1, max: 10, step: 0.1 },
+  { key: 'nitrateStressSeverity', label: 'Nitrate Stress Severity', unit: '%/e-fold/hr', min: 0.1, max: 10, step: 0.1 },
+  { key: 'oxygenStressSeverity', label: 'O2 Stress Severity', unit: '%/e-fold under/hr', min: 0.1, max: 10, step: 0.1 },
   {
     key: 'waterLevelStressSeverity',
     label: 'Water Level Stress',
@@ -446,9 +364,6 @@ export const livestockConfigMeta: LivestockConfigMeta[] = [
     max: 0.5,
     step: 0.01,
   },
-  // Stressor thresholds
-  { key: 'nitrateStressThreshold', label: 'Nitrate Stress Threshold', unit: 'ppm', min: 10, max: 100, step: 5 },
-  { key: 'oxygenStressThreshold', label: 'O2 Stress Threshold', unit: 'mg/L', min: 2, max: 8, step: 0.5 },
   { key: 'waterLevelStressThreshold', label: 'Water Level Stress Threshold', unit: '%', min: 20, max: 80, step: 5 },
   // Satiation band edges and peak severities
   { key: 'satiationOverfedFloor', label: 'Overfed Floor', unit: '%', min: 80, max: 100, step: 1 },
@@ -463,9 +378,10 @@ export const livestockConfigMeta: LivestockConfigMeta[] = [
   { key: 'phBenefitPeak', label: 'pH Benefit Peak', unit: '%/hr', min: 0, max: 1, step: 0.05 },
   { key: 'oxygenBenefitPeak', label: 'O2 Benefit Peak', unit: '%/hr', min: 0, max: 1, step: 0.05 },
   { key: 'plantBenefitPeak', label: 'Plant Benefit Peak', unit: '%/hr', min: 0, max: 1, step: 0.05 },
-  { key: 'plantBenefitSaturationPoint', label: 'Plant Benefit Saturation', unit: 'plants', min: 1, max: 10, step: 0.5 },
+  { key: 'plantBenefitSaturationPoint', label: 'Plant Benefit Saturation', unit: 'power', min: 1, max: 10, step: 0.5 },
   // Surplus
-  { key: 'surplusCap', label: 'Surplus Cap', unit: '%', min: 0, max: 100, step: 5 },
+  { key: 'surplusCap', label: 'Bank Cap', unit: 'pts', min: 0, max: 100, step: 5 },
+  { key: 'healingDrawRate', label: 'Healing Draw Rate', unit: '/hr at 1 g', min: 0.005, max: 0.5, step: 0.005 },
   // Death
   { key: 'deathDecayFactor', label: 'Death Decay Factor', unit: '', min: 0.1, max: 1.0, step: 0.1 },
 ];

@@ -6,17 +6,15 @@
  */
 
 import type { SimulationState } from '../../simulation/index.js';
-import {
-  ammoniaAlertLine,
-  HIGH_NITRITE_THRESHOLD,
-  HIGH_NITRATE_THRESHOLD,
-  WATER_LEVEL_CRITICAL_THRESHOLD,
-} from '../../simulation/alerts/index.js';
+import { ammoniaAlertLine, waterLevelAlertLine } from '../../simulation/alerts/index.js';
+import type { TunableConfig } from '../../simulation/config/index.js';
+import { NITRITE_EDGE } from '../../simulation/livestock/tolerance.js';
 import { getDgh, getDkh, getPpm } from '../../simulation/resources/index.js';
 import { getPh } from '../../simulation/core/carbonate.js';
 import { getTemperatureUnit, toDisplayTemperature, type UnitSystem } from '../utils/units.js';
+import type { NutrientReading } from './flora.js';
 import type { Status } from './status.js';
-import { classifyAmmonia, classifyVital, NITRATE_LOW_PPM, type VitalKey } from './vitals.js';
+import { classifyAmmonia, classifyLevel, classifyVital, type VitalKey } from './vitals.js';
 
 export type WaterKey = Extract<
   VitalKey,
@@ -129,7 +127,8 @@ const NAME: Record<VitalKey, string> = {
   co2: 'CO₂',
 };
 
-const DECIMALS: Record<WaterKey, number> = {
+/** Fixed precision per water reading and gas — the one place their decimals are set. */
+export const WATER_DECIMALS: Record<WaterKey | GasKey, number> = {
   temperature: 1,
   ph: 2,
   kh: 1,
@@ -138,6 +137,8 @@ const DECIMALS: Record<WaterKey, number> = {
   ammonia: 3,
   nitrite: 3,
   nitrate: 1,
+  oxygen: 1,
+  co2: 1,
 };
 
 /** Temperature is the one reading whose value changes with the reader's units. */
@@ -149,9 +150,19 @@ function band(scale: Scale, from: number, to: number): ReadingBand {
   return { from: trackAt(scale, from), to: trackAt(scale, to) };
 }
 
-export function waterReadings(state: SimulationState, units: UnitSystem): WaterReading[] {
+/**
+ * The water readings. Nitrate comes in already read, because it is one reading
+ * with two readers — the fish the engine alerts for and the plants it feeds —
+ * and its tone and band are the plant food's, which carries both.
+ */
+export function waterReadings(
+  state: SimulationState,
+  config: TunableConfig,
+  units: UnitSystem,
+  nitrate: NutrientReading
+): WaterReading[] {
   const values = waterValues(state);
-  const levelLimit = WATER_LEVEL_CRITICAL_THRESHOLD * 100;
+  const levelLimit = waterLevelAlertLine(config);
   const ammoniaLine = ammoniaAlertLine(state.resources);
   const scales: Record<WaterKey, Scale> = { ...WATER_SCALE, ammonia: ammoniaScale(ammoniaLine) };
 
@@ -162,11 +173,8 @@ export function waterReadings(state: SimulationState, units: UnitSystem): WaterR
     gh: { unit: 'dGH', band: null },
     water: { unit: '%', band: band(scales.water, levelLimit, 100) },
     ammonia: { unit: 'ppm', band: band(scales.ammonia, 0, ammoniaLine) },
-    nitrite: { unit: 'ppm', band: band(scales.nitrite, 0, HIGH_NITRITE_THRESHOLD) },
-    nitrate: {
-      unit: 'ppm',
-      band: band(scales.nitrate, NITRATE_LOW_PPM, HIGH_NITRATE_THRESHOLD),
-    },
+    nitrite: { unit: 'ppm', band: band(scales.nitrite, 0, NITRITE_EDGE) },
+    nitrate: { unit: 'ppm', band: band(scales.nitrate, nitrate.needed, nitrate.ceiling!) },
   };
 
   return WATER_KEYS.map((key): WaterReading => {
@@ -175,8 +183,15 @@ export function waterReadings(state: SimulationState, units: UnitSystem): WaterR
       key,
       name: NAME[key],
       value,
-      text: display(key, value, units).toFixed(DECIMALS[key]),
-      status: key === 'ammonia' ? classifyAmmonia(value, ammoniaLine) : classifyVital(key, value),
+      text: display(key, value, units).toFixed(WATER_DECIMALS[key]),
+      status:
+        key === 'ammonia'
+          ? classifyAmmonia(value, ammoniaLine)
+          : key === 'water'
+            ? classifyLevel(value, levelLimit)
+            : key === 'nitrate'
+              ? nitrate.status
+              : classifyVital(key, value),
       scale: scales[key],
       fill: trackAt(scales[key], value),
       ...spec[key],
@@ -210,7 +225,7 @@ export function gasReadings(state: SimulationState): GasReading[] {
       key,
       name: NAME[key],
       value,
-      text: value.toFixed(1),
+      text: value.toFixed(WATER_DECIMALS[key]),
       unit: 'mg/L',
       status: classifyVital(key, value),
     };

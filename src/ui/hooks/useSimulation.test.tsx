@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import React from 'react';
 import { renderHook, act, type RenderHookResult } from '@testing-library/react';
 import { useSimulation } from './useSimulation';
+import { logText } from '../../simulation/core/logging.js';
 import { createPresetSimulation, getPresetById, type PresetId } from '../../simulation/presets';
 import { ConfigProvider, useConfig } from './useConfig';
 import { PersistenceProvider } from '../persistence/index.js';
@@ -10,12 +11,14 @@ import { createSimulation, type SimulationState } from '../../simulation/state.j
 import {
   applyAction,
   calculateTankHeight,
+  dailyLightIntegral,
   getDgh,
   getDkh,
   getSubstrateOrganicReserve,
   getSubstrateSurface,
   liftHardscape,
   placeHardscape,
+  scheduledLightHistory,
   tick,
 } from '../../simulation/index.js';
 import { cycledColony, cycledHardness } from '../../simulation/seed.js';
@@ -51,7 +54,7 @@ function seedSession(
       ...overrides,
     },
     tunableConfig: DEFAULT_CONFIG,
-    ui: { units: 'metric', tunablesOpen: false, spineOpen: false, acts: { settings: DEFAULT_SETTINGS, promoted: null } },
+    ui: { units: 'metric', tunablesOpen: false, spineOpen: false, acts: { settings: DEFAULT_SETTINGS, promoted: null }, speed: '1h' },
   };
   globalThis.localStorage.setItem(STORAGE_KEY, JSON.stringify(persisted));
 }
@@ -354,6 +357,17 @@ describe('useSimulation', () => {
     expect(result.current.speed).toBe('1d');
   });
 
+  it('carries on at the speed a reload found it at', () => {
+    const first = renderHook(() => useSimulation(), { wrapper });
+    act(() => {
+      first.result.current.changeSpeed('6h');
+    });
+    first.unmount();
+
+    const second = renderHook(() => useSimulation(), { wrapper });
+    expect(second.result.current.speed).toBe('6h');
+  });
+
   describe('presets', () => {
     it('loads preset correctly', () => {
       const { result } = renderHook(() => useSimulation('betta'), { wrapper });
@@ -634,6 +648,33 @@ describe('useSimulation', () => {
 
       expect(result.current.state.resources.light / before).toBeCloseTo(150 / 90, 6);
     });
+
+    it('lights an hour-zero tank as though it had run the new schedule all along', () => {
+      const { result } = renderHook(() => useSimulation('bare'), { wrapper });
+      expect(dailyLightIntegral(result.current.state.resources.lightByHour)).toBe(0);
+
+      act(() => {
+        result.current.updateLightEnabled(true);
+      });
+
+      const { state } = result.current;
+      expect(state.resources.lightByHour).toEqual(scheduledLightHistory(state, DEFAULT_CONFIG.optics));
+    });
+
+    it('leaves the day a running tank has lived to the tick', () => {
+      let lit = createPresetSimulation(getPresetById('planted')!);
+      for (let i = 0; i < 9; i++) lit = tick(lit, DEFAULT_CONFIG);
+      seedSession(lit, 'planted');
+
+      const { result } = renderHook(() => useSimulation('planted'), { wrapper });
+      const lived = result.current.state.resources.lightByHour;
+
+      act(() => {
+        result.current.updateLightPar(150);
+      });
+
+      expect(result.current.state.resources.lightByHour).toEqual(lived);
+    });
   });
 
   describe('optics', () => {
@@ -735,8 +776,8 @@ describe('useSimulation', () => {
       const targetLog = logs.find(
         (log) =>
           log.source === 'user' &&
-          log.message.includes('Heater target') &&
-          log.message.includes('28°C')
+          logText(log).includes('Heater target') &&
+          logText(log).includes('28.0°C')
       );
       expect(targetLog).toBeDefined();
     });
@@ -769,8 +810,8 @@ describe('useSimulation', () => {
       const roomTempLog = logs.find(
         (log) =>
           log.source === 'user' &&
-          log.message.includes('Room temperature') &&
-          log.message.includes('25°C')
+          logText(log).includes('Room temperature') &&
+          logText(log).includes('25.0°C')
       );
       expect(roomTempLog).toBeDefined();
     });
@@ -808,7 +849,7 @@ describe('useSimulation', () => {
       );
       expect(enabledLog).toBeDefined();
       expect(enabledLog!.message).toContain('target:');
-      expect(enabledLog!.message).toContain('°C');
+      expect(logText(enabledLog!)).toContain('°C');
       expect(enabledLog!.message).toContain('W');
     });
   });

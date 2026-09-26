@@ -131,11 +131,11 @@ describe('AppShell — what needs the keeper', () => {
   it('dots the rail icon of the section an alert stands against', () => {
     renderShell({ highAmmonia: true });
 
-    expect(screen.getByRole('link', { name: 'Water' }).querySelector('.bg-alert')).toBeTruthy();
-    expect(screen.getByRole('link', { name: 'Life' }).querySelector('.bg-alert')).toBeNull();
+    expect(screen.getByRole('link', { name: 'Water' }).querySelector('.bg-warn, .bg-alert')).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Life' }).querySelector('.bg-warn, .bg-alert')).toBeNull();
   });
 
-  it('dots in the tone the engine gives the alert', () => {
+  it('dots in the tone the alert’s own reading carries', () => {
     renderShell({ highAlgae: true });
 
     expect(screen.getByRole('link', { name: 'Life' }).querySelector('.bg-warn')).toBeTruthy();
@@ -245,6 +245,32 @@ describe('AppShell on a phone', () => {
 
     expect(screen.getByRole('dialog', { name: 'Tunables' })).toBeTruthy();
     expect(screen.queryByRole('dialog', { name: 'More' })).toBeNull();
+  });
+
+  it('offers the theme in the sheet, and walks it from there', () => {
+    renderShell();
+    fireEvent.click(screen.getByRole('button', { name: 'More' }));
+
+    const sheet = screen.getByRole('dialog', { name: 'More' });
+    const theme = within(sheet).getByRole('button', { name: /theme — switch to/ });
+    const before = theme.getAttribute('aria-label');
+    fireEvent.click(theme);
+
+    expect(theme.getAttribute('aria-label')).not.toBe(before);
+  });
+
+  it('offers the speed and the day’s step in the sheet, and steps with the sheet out of the way', () => {
+    renderShell();
+    fireEvent.click(screen.getByRole('button', { name: 'More' }));
+
+    const sheet = within(screen.getByRole('dialog', { name: 'More' }));
+    const speed = within(sheet.getByRole('group', { name: 'Speed' }));
+    fireEvent.click(speed.getByRole('button', { name: '6h' }));
+    expect(speed.getByRole('button', { name: '6h' }).getAttribute('aria-pressed')).toBe('true');
+
+    fireEvent.click(sheet.getByRole('button', { name: /Step a day/ }));
+    expect(screen.queryByRole('dialog', { name: 'More' })).toBeNull();
+    expect(screen.getByText(/Day 2 · 00:00/)).toBeTruthy();
   });
 
   it('hands the tabs back to the rail once the viewport grows', () => {

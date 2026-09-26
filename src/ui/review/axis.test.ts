@@ -114,6 +114,14 @@ describe('alertMarkers', () => {
       { tick: 40, kind: 'algae' },
     ]);
   });
+
+  it('marks a kind once a tick, however many logs it wrote there', () => {
+    const low = (tick: number): LogEntry => createLog(tick, 'evaporation', 'warning', 'Water level low');
+    const marks = alertMarkers([low(86), low(86), low(90), ...logs], null);
+
+    expect(marks.filter((mark) => mark.tick === 86)).toHaveLength(1);
+    expect(new Set(marks.map((mark) => `${mark.kind}-${mark.tick}`)).size).toBe(marks.length);
+  });
 });
 
 describe('dayGridTicks', () => {

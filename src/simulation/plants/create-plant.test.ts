@@ -1,53 +1,19 @@
 import { describe, it, expect } from 'vitest';
-import { createPlant, DEFAULT_PLANT_SIZE, establishmentSurplus } from './create-plant.js';
-import { plantsDefaults, type PlantsConfig } from '../config/plants.js';
+import { createOffshoot, createPlant, DEFAULT_PLANT_SIZE, VIGOUR_SPAN } from './create-plant.js';
 import { createRng } from '../core/rng.js';
-import { createSimulation, type Plant } from '../state.js';
-import { computePlantVitality } from '../systems/plant-vitality.js';
-
-const RESOURCES = createSimulation({ tankCapacity: 40 }).resources;
-
-const reserveOwed = (plant: Plant, plantsConfig: PlantsConfig): number =>
-  computePlantVitality({
-    plant,
-    resources: RESOURCES,
-    waterVolume: RESOURCES.water,
-    plantsConfig,
-    nutrientSufficiency: 1,
-    algaeMass: 0,
-  }).breakdown.reserved;
 
 describe('createPlant', () => {
-  it('builds a plant at full condition with the reserve it arrives on', () => {
-    const plant = createPlant({
-      species: 'anubias',
-      size: 140,
-      plantsConfig: plantsDefaults,
-      rng: createRng(1),
-    });
+  it('builds a plant at full condition with an empty bank, as a fish arrives', () => {
+    const plant = createPlant({ species: 'anubias', size: 80, rng: createRng(1) });
 
     expect(plant.species).toBe('anubias');
-    expect(plant.size).toBe(140);
+    expect(plant.size).toBe(80);
     expect(plant.condition).toBe(100);
-    expect(plant.surplus).toBe(establishmentSurplus(plantsDefaults));
-  });
-
-  it('arrives provisioned at the cap the tank was tuned to', () => {
-    for (const surplusCap of [20, 80]) {
-      const plantsConfig = { ...plantsDefaults, surplusCap };
-      const plant = createPlant({ species: 'anubias', plantsConfig, rng: createRng(1) });
-
-      expect(plant.surplus).toBe(surplusCap / 2);
-      expect(plant.surplus).toBeGreaterThan(reserveOwed(plant, plantsConfig));
-    }
+    expect(plant.surplus).toBe(0);
   });
 
   it('falls back to the default size', () => {
-    const plant = createPlant({
-      species: 'java_fern',
-      plantsConfig: plantsDefaults,
-      rng: createRng(1),
-    });
+    const plant = createPlant({ species: 'java_fern', rng: createRng(1) });
 
     expect(plant.size).toBe(DEFAULT_PLANT_SIZE);
   });
@@ -56,16 +22,61 @@ describe('createPlant', () => {
     const rng = createRng(1);
     const ids = new Set<string>();
     for (let i = 0; i < 1000; i++) {
-      ids.add(createPlant({ species: 'anubias', plantsConfig: plantsDefaults, rng }).id);
+      ids.add(createPlant({ species: 'anubias', rng }).id);
     }
 
     expect(ids.size).toBe(1000);
   });
 
+  it('founds its own family, with no parent, at the age it is given', () => {
+    const plant = createPlant({ species: 'amazon_sword', rng: createRng(1) });
+    expect(plant.parentId).toBeNull();
+    expect(plant.familyId).toBe(plant.id);
+    expect(plant.age).toBe(0);
+    expect(createPlant({ species: 'amazon_sword', age: 720, rng: createRng(1) }).age).toBe(720);
+  });
+
+  it('draws every vigour inside the span, and spreads them across it', () => {
+    const rng = createRng(3);
+    const vigours = Array.from({ length: 1000 }, () => createPlant({ species: 'monte_carlo', rng }).vigour);
+    expect(Math.min(...vigours)).toBeGreaterThanOrEqual(-VIGOUR_SPAN);
+    expect(Math.max(...vigours)).toBeLessThan(VIGOUR_SPAN);
+    expect(Math.min(...vigours)).toBeLessThan(-0.9 * VIGOUR_SPAN);
+    expect(Math.max(...vigours)).toBeGreaterThan(0.9 * VIGOUR_SPAN);
+  });
+
   it('gives two tanks on one seed the same plant', () => {
     const born = (): ReturnType<typeof createPlant> =>
-      createPlant({ species: 'anubias', plantsConfig: plantsDefaults, rng: createRng(7) });
+      createPlant({ species: 'anubias', rng: createRng(7) });
 
     expect(born()).toEqual(born());
+  });
+});
+
+describe('createOffshoot', () => {
+  const rng = createRng(5);
+  const founder = createPlant({ species: 'amazon_sword', size: 90, age: 1000, rng });
+  const child = createOffshoot(founder, 20, rng);
+  const grandchild = createOffshoot(child, 20, rng);
+
+  it('is a new unit of its parent\'s species at the size its bank bought, full on an empty bank', () => {
+    expect(child.id).not.toBe(founder.id);
+    expect(child.species).toBe(founder.species);
+    expect(child.size).toBe(20);
+    expect(child.condition).toBe(100);
+    expect(child.surplus).toBe(0);
+    expect(child.age).toBe(0);
+  });
+
+  it('names its parent and joins the founder\'s family, down the line', () => {
+    expect(child.parentId).toBe(founder.id);
+    expect(child.familyId).toBe(founder.id);
+    expect(grandchild.parentId).toBe(child.id);
+    expect(grandchild.familyId).toBe(founder.id);
+  });
+
+  it('draws a vigour of its own inside the span', () => {
+    expect(child.vigour).not.toBe(founder.vigour);
+    expect(Math.abs(child.vigour)).toBeLessThanOrEqual(VIGOUR_SPAN);
   });
 });

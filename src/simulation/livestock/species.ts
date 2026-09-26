@@ -35,20 +35,11 @@ export type BreedingMode =
   | 'bubble-nester';
 
 /**
- * Per-species reproduction parameters. Costs are expressed as fractions
- * so they scale with `LivestockConfig.surplusCap`; times and counts are
- * in sim units (ticks = hours, individuals).
+ * Per-species reproduction parameters, in sim units (ticks = hours,
+ * individuals). What a spawn costs is the female's whole bank.
  */
 export interface FishBreedingData {
   mode: BreedingMode;
-  /**
-   * Fraction of `surplusCap` the female spends per spawn. Re-accruing
-   * this from the reserve bank IS the breeding cooldown — there are no
-   * timers.
-   */
-  costFraction: number;
-  /** Fraction of the female's cost the serving male pays per spawn. */
-  maleShareFraction: number;
   /**
    * Ticks from clutch laid to hatch. Unused by livebearers (they skip
    * the clutch stage — gestation is already paid for by accrual).
@@ -104,8 +95,6 @@ export const FISH_SPECIES_DATA: Record<FishSpecies, FishSpeciesData> = {
     // slow to sexual maturity (~4 months here).
     breeding: {
       mode: 'egg-scatterer',
-      costFraction: 0.8,
-      maleShareFraction: 0.4,
       hatchTime: 24,
       clutchSize: 25,
       fryMassFraction: 0.05,
@@ -125,8 +114,6 @@ export const FISH_SPECIES_DATA: Record<FishSpecies, FishSpeciesData> = {
     // clutch, quick hatch (~36 h), matures in ~3 months.
     breeding: {
       mode: 'bubble-nester',
-      costFraction: 0.8,
-      maleShareFraction: 0.4,
       hatchTime: 36,
       clutchSize: 30,
       fryMassFraction: 0.03,
@@ -147,8 +134,6 @@ export const FISH_SPECIES_DATA: Record<FishSpecies, FishSpeciesData> = {
     // mature (~2 months).
     breeding: {
       mode: 'livebearer',
-      costFraction: 0.8,
-      maleShareFraction: 0.4,
       hatchTime: 0,
       clutchSize: 20,
       fryMassFraction: 0.05,
@@ -168,8 +153,6 @@ export const FISH_SPECIES_DATA: Record<FishSpecies, FishSpeciesData> = {
     // hatches in ~2.5 days. Big fish, tiny fry, slow to mature (~6 months).
     breeding: {
       mode: 'substrate-spawner',
-      costFraction: 0.8,
-      maleShareFraction: 0.4,
       hatchTime: 60,
       clutchSize: 40,
       fryMassFraction: 0.02,
@@ -189,8 +172,6 @@ export const FISH_SPECIES_DATA: Record<FishSpecies, FishSpeciesData> = {
     // Slow hatch (~4 days), modest clutch, matures in ~5 months.
     breeding: {
       mode: 'egg-depositor',
-      costFraction: 0.8,
-      maleShareFraction: 0.4,
       hatchTime: 96,
       clutchSize: 15,
       fryMassFraction: 0.04,

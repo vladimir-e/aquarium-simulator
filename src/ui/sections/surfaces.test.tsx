@@ -107,6 +107,6 @@ describe('one rack, two surfaces', () => {
 
     expect(page).toHaveLength(8);
     expect(widget.slice(0, -1)).toEqual(inPlace);
-    expect(widget[widget.length - 1]).toMatch(/^Others — /);
+    expect(widget[widget.length - 1]).toMatch(/^Off — /);
   });
 });

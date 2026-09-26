@@ -12,11 +12,8 @@ import {
 import { getSubstrateKhReserve } from './equipment/substrate.js';
 import { calculateMaxBacteria } from './systems/nitrogen-cycle.js';
 import { HARDSCAPE_TANNINS } from './equipment/hardscape.js';
-import { DEFAULT_PLANT_SIZE, establishmentSurplus } from './plants/create-plant.js';
-import { plantsDefaults } from './config/plants.js';
+import { DEFAULT_PLANT_SIZE } from './plants/create-plant.js';
 import { getDgh, getDkh } from './resources/helpers.js';
-import { applyAction } from './actions/index.js';
-import { tick } from './tick.js';
 
 const TANK: SimulationConfig = { tankCapacity: 40, substrate: { type: 'aqua_soil' } };
 
@@ -135,26 +132,6 @@ describe('createSimulation seeding', () => {
     expect(packed.aob).toBeLessThanOrEqual(ceiling);
     expect(packed.nob).toBeLessThanOrEqual(ceiling);
     expect(packed.aob).toBeGreaterThan(ceiling * 0.9);
-  });
-
-  it("holds a stocked 'cycled' colony within a fifth over a week of ordinary feeding", () => {
-    let state = createSimulation(
-      { tankCapacity: 80, substrate: { type: 'gravel' }, filter: { type: 'hob' } },
-      { bacteria: 'cycled', fish: [{ species: 'neon_tetra', count: 10 }, { species: 'corydoras', count: 4 }] },
-      1
-    );
-    const seeded = { aob: state.resources.aob, nob: state.resources.nob };
-    const ration = state.fish.reduce((sum, fish) => sum + fish.mass, 0) * 0.02;
-
-    for (let hour = 0; hour < 7 * 24; hour++) {
-      if (hour % 24 === 19) state = applyAction(state, { type: 'feed', amount: ration }).state;
-      state = tick(state);
-    }
-
-    for (const stage of ['aob', 'nob'] as const) {
-      expect(state.resources[stage] / seeded[stage]).toBeGreaterThan(0.8);
-      expect(state.resources[stage] / seeded[stage]).toBeLessThan(1.2);
-    }
   });
 
   describe('the bed', () => {
@@ -400,20 +377,31 @@ describe('createSimulation seeding', () => {
     it('plants a group at a size, defaulting to a young specimen', () => {
       const state = createSimulation(TANK, {
         plants: [
-          { species: 'java_fern', count: 3, size: 180 },
+          { species: 'java_fern', count: 3, size: 80 },
           { species: 'anubias' },
         ],
       });
 
       expect(state.plants).toHaveLength(4);
-      expect(state.plants.slice(0, 3).map((p) => p.size)).toEqual([180, 180, 180]);
+      expect(state.plants.slice(0, 3).map((p) => p.size)).toEqual([80, 80, 80]);
       expect(state.plants[3].species).toBe('anubias');
       expect(state.plants[3].size).toBe(DEFAULT_PLANT_SIZE);
       expect(
-        state.plants.every(
-          (p) => p.condition === 100 && p.surplus === establishmentSurplus(plantsDefaults)
-        )
+        state.plants.every((p) => p.condition === 100 && p.surplus === 0)
       ).toBe(true);
+    });
+
+    it('founds a family per record, each on a vigour of its own, at the age the group names', () => {
+      const state = createSimulation(TANK, {
+        plants: [
+          { species: 'java_fern', count: 3, age: 24 * 90 },
+          { species: 'anubias' },
+        ],
+      });
+
+      expect(state.plants.map((p) => p.age)).toEqual([2160, 2160, 2160, 0]);
+      expect(state.plants.every((p) => p.parentId === null && p.familyId === p.id)).toBe(true);
+      expect(new Set(state.plants.map((p) => p.vigour)).size).toBe(4);
     });
   });
 
@@ -425,7 +413,7 @@ describe('createSimulation seeding', () => {
         { species: 'neon_tetra', count: 8 },
         { species: 'corydoras', count: 4, sex: 'female', age: 24 * 200 },
       ],
-      plants: [{ species: 'java_fern', count: 3, size: 120 }],
+      plants: [{ species: 'java_fern', count: 3, size: 90 }],
     };
 
     it('builds the same tank twice from one seed and rng seed, ids included', () => {

@@ -3,25 +3,26 @@
  *
  * Each tick a fish's environment is decomposed into damage and benefit
  * factors, fed through {@link computeVitality}, and the result drives
- * `health` (the fish-side name for vitality's `condition`). Surplus is
- * banked on `Fish.surplus` as a reserve buffer: it absorbs damage before
- * health falls and fuels reproduction — the breeding system spends it on
- * spawning (see `livestock/breeding.ts`).
+ * `health` (the fish-side name for vitality's `condition`). Income at full
+ * health banks on `Fish.surplus`; the bank heals health below 100 at
+ * {@link fishHealingRate}, and a full one is what a female spawns on (see
+ * `livestock/breeding.ts`).
  *
- * Stressors (raw severities; the vitality module applies hardiness
- * scaling centrally as `(1 - effectiveHardiness)`):
- * - Temperature, pH, GH, free NH3, nitrite, nitrate, satiation (hunger
- *   side), oxygen, water level, flow, age (past species `maxAge`).
+ * Stressors, hardened here before they reach the vitality engine:
+ * - Temperature, pH, GH, satiation (hunger side), water level, flow, age
+ *   (past species `maxAge`) are scaled by `1 − effectiveHardiness`.
+ * - Free NH3, nitrite, nitrate and oxygen instead carry hardiness on the
+ *   concentration axis: it moves where harm starts, not how steeply it grows.
  *
- * Benefit factors (peaks and thresholds tunable via `LivestockConfig`):
- * - pH in species range
+ * Benefit factors (peaks tunable via `LivestockConfig`):
+ * - pH, full at the band centre and zero at its edges
  * - Satiation in well-fed band (peak around mid-well-fed, zero at
  *   the band edges)
- * - Oxygen ≥ `oxygenStressThreshold`
+ * - Oxygen, rising from `OXYGEN_EDGE` to full at `OXYGEN_COMFORT`
  * - Plant presence (saturating at `plantBenefitSaturationPoint`)
  *
- * At default calibration the abiotic three sum to ≈ 1.0 %/h and the
- * plant benefit adds up to 0.2 %/h on top.
+ * At default calibration, pH at its band centre, the abiotic three sum
+ * to ≈ 1.0 %/h and the plant benefit adds up to 0.2 %/h on top.
  *
  * Temperature is not a separate benefit: inside the species range
  * temperature stress is zero and the other benefits cover recovery;
@@ -32,21 +33,32 @@
  *
  * The plant benefit pushes the all-good budget above the abiotic
  * ceiling on purpose — a healthy planted tank should sit at full
- * health with a positive net rate, banking surplus on `Fish.surplus`,
- * which the breeding system spends on reproduction.
+ * health with a positive net rate, banking surplus on `Fish.surplus`.
  */
 
 import type { Fish, Plant, Resources } from '../state.js';
 import { getPh } from '../core/carbonate.js';
 import { FISH_SPECIES_DATA } from '../livestock/species.js';
-import { getDgh } from '../resources/index.js';
+import { getDgh, getPpm } from '../resources/index.js';
 import type { LivestockConfig } from '../config/livestock.js';
 import { freeAmmoniaPpm } from './nitrogen-cycle.js';
 import { satiationContribution, SATIATION_BAND_LABEL } from './satiation.js';
 import { getPlantPower } from './plant-power.js';
 import {
+  FREE_AMMONIA_EDGE,
+  NITRATE_EDGE,
+  NITRITE_EDGE,
+  OXYGEN_COMFORT,
+  OXYGEN_EDGE,
+  OXYGEN_LOG_OFFSET,
+  toleranceFactor,
+} from '../livestock/tolerance.js';
+import {
+  bandComfort,
   computeVitality,
-  inRangeBenefit,
+  eFoldsPast,
+  eFoldsUnder,
+  hardened,
   outsideBand,
   type VitalityFactor,
   type VitalityResult,
@@ -59,13 +71,8 @@ export interface HealthResult {
   deadFishNames: string[];
   /** Total waste produced from dead fish */
   deathWaste: number;
-  /**
-   * Vitality net rate (benefit − damage, %/h) this tick per surviving
-   * fish, keyed by id. The breeding gate reads it so a buffered fish in
-   * a declining tank can't spawn off old savings; surfacing it here
-   * avoids recomputing the stressor math downstream.
-   */
-  netByFishId: Map<string, number>;
+  /** Each fish's vitality this tick, in the order handed in, the dead included */
+  vitalities: VitalityResult[];
 }
 
 /**
@@ -87,12 +94,13 @@ interface FishFactorContext {
   waterVolume: number;
   tankCapacity: number;
   config: LivestockConfig;
+  hardiness: number;
 }
 
 /**
  * Aggregate plant-presence contribution → saturated benefit (linear ramp).
  *
- * Plant power is `Σ (plant.size / 100) × (plant.condition / 100)` (see
+ * Plant power is each plant's rate units × `condition / 100`, summed (see
  * `getPlantPower`). The sum runs through `min(1, power / SAT)` so the
  * benefit tops out at `peak` regardless of overplanting — see
  * `plantBenefitSaturationPoint` in `LivestockConfig` for the calibration
@@ -107,14 +115,15 @@ function plantBenefitAmount(plants: Plant[], config: LivestockConfig): number {
 }
 
 /**
- * Build the stressor list for a fish, with raw severities (no hardiness
- * applied — that happens inside `computeVitality`). Inactive stressors
- * are emitted with `amount: 0` so the breakdown shape stays stable for
- * downstream UI / tests that look up by name.
+ * Build the hardened stressor list for a fish: water-quality channels move
+ * their edge by hardiness, the rest are scaled by it. Inactive stressors are
+ * emitted with `amount: 0` so the breakdown shape stays stable for downstream
+ * UI / tests that look up by name.
  */
 function buildStressors(ctx: FishFactorContext): VitalityFactor[] {
   const { fish, resources, waterVolume, tankCapacity, config } = ctx;
   const speciesData = FISH_SPECIES_DATA[fish.species];
+  const tolerance = toleranceFactor(ctx.hardiness);
 
   const tempStress =
     config.temperatureStressSeverity * outsideBand(resources.temperature, speciesData.temperatureRange);
@@ -123,29 +132,13 @@ function buildStressors(ctx: FishFactorContext): VitalityFactor[] {
   const ghStress =
     config.ghStressSeverity * outsideBand(getDgh(resources.gh, waterVolume), speciesData.ghRange);
 
-  // Ammonia stress — only the unionized NH3 fraction is acutely toxic.
-  // Zero-volume sentinel: tank fully drained but fish still present.
-  const freeNH3Ppm =
-    waterVolume > 0
-      ? freeAmmoniaPpm({ ...resources, water: waterVolume })
-      : resources.ammonia > 0
-        ? 100
-        : 0;
-  const ammoniaStress = config.ammoniaStressSeverity * freeNH3Ppm;
-
-  // Nitrite stress (any presence harmful)
-  let nitriteStress = 0;
-  const nitritePpm = waterVolume > 0 ? resources.nitrite / waterVolume : (resources.nitrite > 0 ? 100 : 0);
-  if (nitritePpm > 0) {
-    nitriteStress = config.nitriteStressSeverity * nitritePpm;
-  }
-
-  // Nitrate stress (above the configured threshold)
-  let nitrateStress = 0;
-  const nitratePpm = waterVolume > 0 ? resources.nitrate / waterVolume : (resources.nitrate > 0 ? 100 : 0);
-  if (nitratePpm > config.nitrateStressThreshold) {
-    nitrateStress = config.nitrateStressSeverity * (nitratePpm - config.nitrateStressThreshold);
-  }
+  // Only the unionized NH3 fraction is acutely toxic.
+  const freeNH3Ppm = freeAmmoniaPpm({ ...resources, water: waterVolume });
+  const ammoniaStress = config.ammoniaStressSeverity * eFoldsPast(freeNH3Ppm, FREE_AMMONIA_EDGE * tolerance);
+  const nitriteStress =
+    config.nitriteStressSeverity * eFoldsPast(getPpm(resources.nitrite, waterVolume), NITRITE_EDGE * tolerance);
+  const nitrateStress =
+    config.nitrateStressSeverity * eFoldsPast(getPpm(resources.nitrate, waterVolume), NITRATE_EDGE * tolerance);
 
   // Satiation stressor — band-aware label (Overfed / Hungry / Starving)
   // depending on which side of the well-fed peak the fish is sitting
@@ -162,11 +155,8 @@ function buildStressors(ctx: FishFactorContext): VitalityFactor[] {
       ? SATIATION_BAND_LABEL[satiation.band]
       : 'Satiation';
 
-  // Oxygen stress (below the configured threshold)
-  let oxygenStress = 0;
-  if (resources.oxygen < config.oxygenStressThreshold) {
-    oxygenStress = config.oxygenStressSeverity * (config.oxygenStressThreshold - resources.oxygen);
-  }
+  const oxygenStress =
+    config.oxygenStressSeverity * eFoldsUnder(resources.oxygen, OXYGEN_EDGE / tolerance, OXYGEN_LOG_OFFSET);
 
   // Water level stress (below the configured threshold of capacity)
   let waterLevelStress = 0;
@@ -183,31 +173,33 @@ function buildStressors(ctx: FishFactorContext): VitalityFactor[] {
     flowStress = config.flowStressSeverity * (turnover - speciesData.maxTurnover);
   }
 
-  // Age stress — past `maxAge` the fish accumulates damage that scales
-  // linearly with how far past it is. This replaces the legacy
-  // probabilistic old-age cliff with a smooth decline that flows
-  // through the same vitality channel as every other stressor: a hardy
-  // species in good conditions outlives a sensitive species at the
-  // same age, and visible declining health gives the player a chance
-  // to react. Death itself is the same `newHealth <= 0` check the
-  // other stressors share.
+  // Age stress — past `maxAge` damage grows linearly with the excess,
+  // through the same channel as every other stressor: a hardy species in
+  // good conditions outlives a sensitive species at the same age, and
+  // visible declining health gives the player a chance to react. Death
+  // itself is the same `newHealth <= 0` check the other stressors share.
   let ageStress = 0;
   if (fish.age > speciesData.maxAge) {
     ageStress = config.ageStressSeverity * (fish.age - speciesData.maxAge);
   }
 
   return [
-    { key: 'temperature', label: 'Temperature', amount: tempStress },
-    { key: 'ph', label: 'pH', amount: phStress },
-    { key: 'gh', label: 'GH', amount: ghStress },
+    ...hardened(
+      [
+        { key: 'temperature', label: 'Temperature', amount: tempStress },
+        { key: 'ph', label: 'pH', amount: phStress },
+        { key: 'gh', label: 'GH', amount: ghStress },
+        { key: 'satiation', label: satiationStressLabel, amount: satiation.stressor },
+        { key: 'waterLevel', label: 'Water level', amount: waterLevelStress },
+        { key: 'flow', label: 'Flow', amount: flowStress },
+        { key: 'age', label: 'Age', amount: ageStress },
+      ],
+      ctx.hardiness
+    ),
     { key: 'ammonia', label: 'Free NH3', amount: ammoniaStress },
     { key: 'nitrite', label: 'Nitrite', amount: nitriteStress },
     { key: 'nitrate', label: 'Nitrate', amount: nitrateStress },
-    { key: 'satiation', label: satiationStressLabel, amount: satiation.stressor },
     { key: 'oxygen', label: 'Oxygen', amount: oxygenStress },
-    { key: 'waterLevel', label: 'Water level', amount: waterLevelStress },
-    { key: 'flow', label: 'Flow', amount: flowStress },
-    { key: 'age', label: 'Age', amount: ageStress },
   ];
 }
 
@@ -219,13 +211,12 @@ function buildStressors(ctx: FishFactorContext): VitalityFactor[] {
 function buildBenefits(ctx: FishFactorContext): VitalityFactor[] {
   const { fish, resources, plants, config } = ctx;
   const speciesData = FISH_SPECIES_DATA[fish.species];
-  const [phMin, phMax] = speciesData.phRange;
 
   return [
     {
       key: 'ph',
       label: 'pH',
-      amount: inRangeBenefit(getPh(resources), phMin, phMax, config.phBenefitPeak),
+      amount: config.phBenefitPeak * bandComfort(getPh(resources), speciesData.phRange),
     },
     {
       key: 'satiation',
@@ -236,20 +227,11 @@ function buildBenefits(ctx: FishFactorContext): VitalityFactor[] {
       amount: satiationContribution(fish.satiation, config).benefit,
     },
     {
-      // Oxygen ≥ stress threshold is the safe side; the benefit is a
-      // one-sided "above threshold" peak (`hi = Infinity`) tying directly
-      // to the same cutoff. Tighter than a strict aerobic ideal on
-      // purpose — most healthy tanks sit in the 6–8 mg/L band, and the
-      // shared threshold keeps the net recovery rate stable across the
-      // safe-but-not-supersaturated zone.
       key: 'oxygen',
       label: 'Oxygen',
-      amount: inRangeBenefit(
-        resources.oxygen,
-        config.oxygenStressThreshold,
-        Infinity,
-        config.oxygenBenefitPeak
-      ),
+      amount:
+        config.oxygenBenefitPeak *
+        Math.min(1, eFoldsPast(resources.oxygen, OXYGEN_EDGE) / Math.log(OXYGEN_COMFORT / OXYGEN_EDGE)),
     },
     {
       key: 'plants',
@@ -260,9 +242,17 @@ function buildBenefits(ctx: FishFactorContext): VitalityFactor[] {
 }
 
 /**
- * Compute a vitality tick for a single fish without applying it. Used
- * by the UI to render the current trend, by tests to assert against,
- * and by `processHealth` to drive the actual update.
+ * Share of its bank a fish heals from per hour: `healingDrawRate` for a 1 g
+ * fish, scaled by adult mass to the −¼ power, as mass-specific metabolism is.
+ */
+export function fishHealingRate(fish: Fish, config: LivestockConfig): number {
+  return config.healingDrawRate * FISH_SPECIES_DATA[fish.species].adultMass ** -0.25;
+}
+
+/**
+ * A vitality tick for one fish, without applying it — `processHealth` applies
+ * it. A caller wanting the next tick's numbers reads it on the hour that tick
+ * settles, with the fish as metabolism leaves them.
  */
 export function computeFishVitality(
   fish: Fish,
@@ -272,14 +262,15 @@ export function computeFishVitality(
   tankCapacity: number,
   config: LivestockConfig
 ): VitalityResult {
-  const ctx: FishFactorContext = { fish, resources, plants, waterVolume, tankCapacity, config };
+  const hardiness = effectiveHardiness(fish);
+  const ctx: FishFactorContext = { fish, resources, plants, waterVolume, tankCapacity, config, hardiness };
   return computeVitality({
     stressors: buildStressors(ctx),
     benefits: buildBenefits(ctx),
-    hardiness: effectiveHardiness(fish),
     condition: fish.health,
     surplus: fish.surplus,
     surplusCap: config.surplusCap,
+    healingRate: fishHealingRate(fish, config),
   });
 }
 
@@ -301,13 +292,14 @@ export function processHealth(
 ): HealthResult {
   const survivingFish: Fish[] = [];
   const deadFishNames: string[] = [];
-  const netByFishId = new Map<string, number>();
   let deathWaste = 0;
+  const vitalities = fish.map((f) =>
+    computeFishVitality(f, resources, plants, waterVolume, tankCapacity, config)
+  );
 
-  for (const f of fish) {
+  fish.forEach((f, i) => {
     const speciesData = FISH_SPECIES_DATA[f.species];
-
-    const result = computeFishVitality(f, resources, plants, waterVolume, tankCapacity, config);
+    const result = vitalities[i];
     const newHealth = result.newCondition;
 
     if (newHealth <= 0) {
@@ -318,25 +310,20 @@ export function processHealth(
       const overAge = f.age > speciesData.maxAge;
       deadFishNames.push(overAge ? `${speciesData.name} (old age)` : speciesData.name);
       deathWaste += f.mass * config.deathDecayFactor;
-      continue;
+      return;
     }
 
-    // The vitality result carries the post-drain, post-accrual bank
-    // directly, so we store it rather than adding an emission. The bank
-    // is the fish's reserve buffer — it protects health from damage and
-    // feeds breeding.
     survivingFish.push({
       ...f,
       health: newHealth,
       surplus: result.surplus,
     });
-    netByFishId.set(f.id, result.breakdown.net);
-  }
+  });
 
   return {
     survivingFish,
     deadFishNames,
     deathWaste,
-    netByFishId,
+    vitalities,
   };
 }

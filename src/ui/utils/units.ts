@@ -8,6 +8,8 @@
 /* eslint-disable no-undef */
 // Browser globals are available in the UI runtime environment
 
+import type { QuantityFormat } from '../../simulation/index.js';
+
 export type UnitSystem = 'metric' | 'imperial';
 
 const LITERS_PER_GALLON = 3.785411784;
@@ -42,6 +44,13 @@ export function formatVolume(liters: number, system: UnitSystem, precision = 1):
     return `${gallons.toFixed(precision)} gal`;
   }
   return `${liters.toFixed(precision)} L`;
+}
+
+export function logQuantityIn(system: UnitSystem): QuantityFormat {
+  return (quantity) =>
+    quantity.kind === 'volume'
+      ? formatVolume(quantity.liters, system)
+      : formatTemperature(quantity.celsius, system);
 }
 
 /**

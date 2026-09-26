@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef } from 'react';
-import type { LogEntry } from '../../../simulation/index.js';
+import { logText, type LogEntry, type QuantityFormat } from '../../../simulation/index.js';
 import {
   categorizeLog,
   filterLogs,
@@ -13,11 +13,12 @@ import {
 import { Segmented } from '../ui/Segmented';
 import { VerbButton } from '../ui/VerbButton';
 import { INSET_FOCUS } from '../ui/focus';
+import { logQuantityIn, type UnitSystem } from '../../utils/units';
 
 const FILTER_OPTIONS = LOG_FILTERS.map((value) => ({ value, label: value }));
 
-function downloadLog(logs: LogEntry[]): void {
-  const blob = new globalThis.Blob([formatLogExport(logs)], { type: 'text/plain' });
+function downloadLog(logs: LogEntry[], format: QuantityFormat): void {
+  const blob = new globalThis.Blob([formatLogExport(logs, format)], { type: 'text/plain' });
   const url = globalThis.URL.createObjectURL(blob);
   const anchor = globalThis.document.createElement('a');
   anchor.href = url;
@@ -35,6 +36,7 @@ interface LogLaneProps {
   /** The parked tick — the line the lane stands on. */
   at: number;
   onPark: (tick: number) => void;
+  units: UnitSystem;
   className?: string;
 }
 
@@ -51,9 +53,11 @@ export function LogLane({
   onFilter,
   at,
   onPark,
+  units,
   className = '',
 }: LogLaneProps): React.JSX.Element {
   const shown = useMemo(() => filterLogs(logs, filter), [logs, filter]);
+  const quantity = useMemo(() => logQuantityIn(units), [units]);
   const activeIndex = nearestLogIndexAtOrBefore(shown, at);
   const activeRef = useRef<HTMLButtonElement>(null);
 
@@ -65,14 +69,14 @@ export function LogLane({
     <section className={`flex min-h-0 flex-col ${className}`}>
       <div className="flex min-h-[26px] shrink-0 flex-wrap items-center gap-2 pb-1.5">
         <h2 className="text-[13px] font-medium leading-[18px] text-ink-2">Log</h2>
-        <div className="ml-auto flex shrink-0 items-center gap-2">
+        <div className="ml-auto flex min-w-0 flex-wrap items-center justify-end gap-2">
           <Segmented
             ariaLabel="Log category"
             options={FILTER_OPTIONS}
             value={filter}
             onChange={onFilter}
           />
-          <VerbButton label="Export log" onClick={() => downloadLog(shown)} />
+          <VerbButton label="Export log" onClick={() => downloadLog(shown, quantity)} />
         </div>
       </div>
 
@@ -102,7 +106,7 @@ export function LogLane({
                   }`}
                 >
                   <span className="shrink-0 tabular-nums text-ink-3">{log.tick}</span>
-                  <span className={tone}>{log.message}</span>
+                  <span className={tone}>{logText(log, quantity)}</span>
                 </button>
               );
             })

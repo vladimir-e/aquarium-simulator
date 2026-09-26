@@ -3,7 +3,7 @@ import { createSimulation, type SimulationState } from '../../simulation/index.j
 import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
 import { getFilterFlow } from '../../simulation/equipment/filter.js';
 import { POWERHEAD_FLOW_LPH } from '../../simulation/equipment/powerhead.js';
-import { bacteriaReadout, type BacteriaReadout } from '../run/index.js';
+import { bacteriaReadout, readHourAhead, type BacteriaReadout } from '../run/index.js';
 import {
   buildDeviceList,
   equipmentRows,
@@ -17,7 +17,7 @@ const withPowerhead: SimulationState = createSimulation({
   powerhead: { enabled: true, flowRateGPH: 400 },
 });
 const readout = (state: SimulationState): BacteriaReadout =>
-  bacteriaReadout(state, DEFAULT_CONFIG);
+  bacteriaReadout(state, DEFAULT_CONFIG, readHourAhead(state, DEFAULT_CONFIG));
 const rows = equipmentRows(base, readout(base), 'metric');
 
 describe('buildDeviceList', () => {

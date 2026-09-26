@@ -3,11 +3,14 @@ import {
   createSimulation,
   FISH_SPECIES_DATA,
   getMaxFishMass,
-  getMaxPlants,
+  calculateFloorArea,
+  checkPlantFootprint,
+  GROWTH_FORMS,
   type Fish,
   type PlantSpecies,
   type SimulationState,
 } from '../../simulation/index.js';
+import { getGhMass } from '../../simulation/resources/index.js';
 import { pickerOptions, type PickerOption } from './picker';
 import { bioload } from './stocking';
 
@@ -98,6 +101,18 @@ describe('fish options', () => {
     expect(angel.status).toBe('warn');
   });
 
+  it('reads every band the engine stresses a fish past, and names the widest miss', () => {
+    const state = tank();
+    const soft: SimulationState = {
+      ...state,
+      resources: { ...state.resources, gh: getGhMass(2.6, state.resources.water) },
+    };
+    const guppy = option(fish(soft), 'guppy');
+
+    expect(guppy.fit).toBe(`wants GH ${FISH_SPECIES_DATA.guppy.ghRange.join('–')} — tank holds 2.6`);
+    expect(guppy.status).toBe('warn');
+  });
+
   it('reads the fit through the same bioload the module’s row reads', () => {
     const state: SimulationState = {
       ...tank(150),
@@ -120,22 +135,67 @@ describe('fish options', () => {
 });
 
 describe('plant options', () => {
-  it('reads the free slots against the tank’s ceiling', () => {
-    const anubias = option(plants(planted(1, 'java_fern')), 'anubias');
+  const clump = GROWTH_FORMS.attached.footprintCm2;
+  const floorFull = Math.floor(calculateFloorArea(19) / clump);
 
-    expect(anubias.headroom).toBe(getMaxPlants(19) - 1);
-    expect(anubias.fit).toBe(`${getMaxPlants(19) - 1} of ${getMaxPlants(19)} slots free`);
+  it('reads the floor left, and how many more units it takes', () => {
+    const anubias = option(plants(planted(1, 'java_fern')), 'anubias');
+    const free = calculateFloorArea(19) - clump;
+
+    expect(anubias.headroom).toBe(Math.floor(free / clump));
+    expect(anubias.fit).toBe(`${Math.floor(free)} cm² of floor free`);
   });
 
-  it('refuses in the action’s own words once every slot is taken', () => {
-    const anubias = option(plants(planted(getMaxPlants(19), 'java_fern')), 'anubias');
+  it('agrees with the engine’s floor check on the line and the headroom, to the last unit', () => {
+    const soil = (capacity: number): SimulationState => {
+      const state = tank(capacity);
+      state.equipment.substrate.type = 'aqua_soil';
+      return state;
+    };
+    const carpet = GROWTH_FORMS.carpet.footprintCm2;
+    const brim = Array.from({ length: 2000 }, (_, i) => i + 20).find(
+      (capacity) => calculateFloorArea(capacity) % carpet >= carpet - 0.5
+    )!;
+    const edge = Math.floor(calculateFloorArea(brim) / carpet);
+
+    const tanks = [
+      planted(edge, 'monte_carlo', soil(brim)),
+      planted(1, 'java_fern', soil(19)),
+      planted(floorFull, 'java_fern', soil(19)),
+      planted(3, 'amazon_sword', soil(200)),
+      planted(40, 'monte_carlo', soil(200)),
+    ];
+    for (const state of tanks) {
+      for (const candidate of plants(state)) {
+        const species = candidate.species as PlantSpecies;
+        const check = checkPlantFootprint(state.plants, species, state.tank.capacity);
+        let fits = 0;
+        const grown = [...state.plants];
+        while (checkPlantFootprint(grown, species, state.tank.capacity).ok) {
+          grown.push({ ...grown[0], species });
+          fits++;
+        }
+
+        expect(candidate.headroom).toBe(fits);
+        expect(Number(/^\d+/.exec(candidate.fit)![0]) >= check.needed).toBe(check.ok);
+        expect(candidate.refusal).toBe(check.ok ? null : check.message);
+        if (!check.ok) {
+          expect(Number(/(\d+) cm² free/.exec(check.message)![1])).toBeLessThan(check.needed);
+        }
+      }
+    }
+  });
+
+  it('refuses in the action’s own words once the floor is taken', () => {
+    const state = planted(floorFull, 'java_fern');
+    const anubias = option(plants(state), 'anubias');
 
     expect(anubias.headroom).toBe(0);
-    expect(anubias.refusal).toBe(`Tank at plant capacity (${getMaxPlants(19)} plants max)`);
+    expect(anubias.refusal).toBe(checkPlantFootprint(state.plants, 'anubias', 19).message);
   });
 
-  it('names the substrate before the slots — a full tank is the lesser problem', () => {
-    const state = planted(getMaxPlants(19), 'java_fern');
+  it('names the substrate before the floor — a full tank is the lesser problem', () => {
+    const state = planted(floorFull, 'java_fern');
     const carpet = option(plants(state), 'monte_carlo');
 
     expect(state.equipment.substrate.type).toBe('none');

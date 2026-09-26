@@ -10,22 +10,19 @@
  * the commit would leave as the live one.
  */
 
-import type { FishSpeciesData, SimulationState } from '../../simulation/index.js';
+import { floorShade, type FishSpeciesData, type SimulationState } from '../../simulation/index.js';
 import {
-  HIGH_ALGAE_THRESHOLD,
+  algaeAlertLine,
   ammoniaAlertLine,
   HIGH_CO2_THRESHOLD,
-  HIGH_NITRITE_THRESHOLD,
-  HIGH_NITRATE_THRESHOLD,
-  LOW_OXYGEN_THRESHOLD,
-  WATER_LEVEL_CRITICAL_THRESHOLD,
+  waterLevelAlertLine,
 } from '../../simulation/alerts/index.js';
-import type { TunableConfig } from '../../simulation/config/index.js';
+import { NITRITE_EDGE, OXYGEN_EDGE } from '../../simulation/livestock/tolerance.js';
+import type { Nutrient, TunableConfig } from '../../simulation/config/index.js';
 import {
   Co2Resource,
   FoodResource,
   IronResource,
-  NitrateResource,
   OxygenResource,
   PhosphateResource,
   PotassiumResource,
@@ -35,14 +32,13 @@ import { DISPLAY_CEILING, onScale } from '../readings';
 import {
   algaeStatus,
   classifyVital,
-  NITRATE_LOW_PPM,
   nutrientReadings,
   readingAt,
   stockedBand,
   trackAt,
   toleranceStatus,
   waterReadings,
-  type NutrientKey,
+  WATER_DECIMALS,
   type NutrientReading,
   type Status,
   type WaterKey,
@@ -79,19 +75,22 @@ export interface PreviewRow {
  */
 interface Sheet {
   state: SimulationState;
+  config: TunableConfig;
   units: UnitSystem;
   water: Record<WaterKey, WaterReading>;
-  nutrients: Record<NutrientKey, NutrientReading>;
+  nutrients: Record<Nutrient, NutrientReading>;
 }
 
 function sheetOf(state: SimulationState, config: TunableConfig, units: UnitSystem): Sheet {
-  const water = {} as Record<WaterKey, WaterReading>;
-  for (const reading of waterReadings(state, units)) water[reading.key] = reading;
-
-  const nutrients = {} as Record<NutrientKey, NutrientReading>;
+  const nutrients = {} as Record<Nutrient, NutrientReading>;
   for (const reading of nutrientReadings(state, config)) nutrients[reading.key] = reading;
 
-  return { state, units, water, nutrients };
+  const water = {} as Record<WaterKey, WaterReading>;
+  for (const reading of waterReadings(state, config, units, nutrients.nitrate)) {
+    water[reading.key] = reading;
+  }
+
+  return { state, config, units, water, nutrients };
 }
 
 function temperatureNote(value: number, _before: number, { state, units }: Sheet): string | null {
@@ -120,9 +119,15 @@ function speciesEdgeNote(value: number, { state }: Sheet, range: SpeciesRange): 
 }
 
 /** "still above" once the reading was already over the line the tank stood on before the action. */
-function overLine(value: number, before: number, limit: number, limitBefore = limit): string | null {
+function overLine(
+  value: number,
+  before: number,
+  decimals: number,
+  limit: number,
+  limitBefore = limit
+): string | null {
   if (value <= limit) return null;
-  return `${before > limitBefore ? 'still ' : ''}above ${limit.toFixed(2)}`;
+  return `${before > limitBefore ? 'still ' : ''}above ${limit.toFixed(decimals)}`;
 }
 
 interface Reading {
@@ -147,14 +152,15 @@ const quiet = (): Status => 'neutral';
 /** No band to be outside of, or nothing to qualify the new value with. */
 const none = (): null => null;
 
-/** A reading the water sheet already read, band and all. */
+/** A reading the water sheet already read, band, precision and all. */
 function fromWater(
   key: WaterKey,
-  rest: Pick<Reading, 'label' | 'unit' | 'display' | 'decimals' | 'note'> &
+  rest: Pick<Reading, 'label' | 'unit' | 'display' | 'note'> &
     Partial<Pick<Reading, 'key' | 'status' | 'band'>>
 ): Reading {
   return {
     key,
+    decimals: WATER_DECIMALS[key],
     read: (sheet): number => sheet.water[key].value,
     status: (_value, sheet): Status => sheet.water[key].status,
     at: (value, sheet): number => trackAt(sheet.water[key].scale, value),
@@ -177,7 +183,7 @@ function tolerated(
   };
 }
 
-function nutrient(key: NutrientKey, label: string, decimals: number): Reading {
+function nutrient(key: Nutrient, label: string, decimals: number): Reading {
   const at = (value: number): number => onScale(DISPLAY_CEILING[key], value);
   return {
     key,
@@ -198,19 +204,20 @@ function nutrient(key: NutrientKey, label: string, decimals: number): Reading {
 
 /**
  * Canonical order: the nitrogen cycle, then the physical readings, then the
- * dissolved gases, then plant food, then the two organic stocks. A verb's rows
- * come out in this order however many of them move.
+ * dissolved gases, then plant food, then the two organic stocks, then the
+ * planting's shade and its largest unit. A verb's rows come out in this order
+ * however many of them move.
  */
 const READINGS: Reading[] = [
   fromWater('ammonia', {
     label: 'NH₃',
     unit: PPM,
     display: same,
-    decimals: 3,
     note: (value, before, { state }, standing) =>
       overLine(
         value,
         before,
+        WATER_DECIMALS.ammonia,
         ammoniaAlertLine(state.resources),
         ammoniaAlertLine(standing.state.resources)
       ),
@@ -219,27 +226,29 @@ const READINGS: Reading[] = [
     label: 'NO₂',
     unit: PPM,
     display: same,
-    decimals: 3,
-    note: (value, before) => overLine(value, before, HIGH_NITRITE_THRESHOLD),
+    note: (value, before) => overLine(value, before, WATER_DECIMALS.nitrite, NITRITE_EDGE),
   }),
   fromWater('nitrate', {
     label: 'NO₃',
     unit: PPM,
     display: same,
-    decimals: NitrateResource.precision,
-    note: (value, _before, { state }): string | null => {
-      if (value > HIGH_NITRATE_THRESHOLD) return `above ${HIGH_NITRATE_THRESHOLD}`;
-      if (value >= NITRATE_LOW_PPM) return null;
-      return state.plants.length > 0
-        ? `below ${NITRATE_LOW_PPM} — plants short`
-        : `below ${NITRATE_LOW_PPM}`;
+    note: (value, before, { nutrients }, standing): string | null => {
+      const { needed, ceiling } = nutrients.nitrate;
+      const over = overLine(
+        value,
+        before,
+        WATER_DECIMALS.nitrate,
+        ceiling!,
+        standing.nutrients.nitrate.ceiling!
+      );
+      if (over) return over;
+      return value < needed ? `below ${needed.toFixed(WATER_DECIMALS.nitrate)} — plants short` : null;
     },
   }),
   fromWater('temperature', {
     label: 'Temp',
     unit: getTemperatureUnit,
     display: toDisplayTemperature,
-    decimals: 1,
     ...tolerated('temperature', (data) => data.temperatureRange),
     note: temperatureNote,
   }),
@@ -247,7 +256,6 @@ const READINGS: Reading[] = [
     label: 'pH',
     unit: () => '',
     display: same,
-    decimals: 2,
     ...tolerated('ph', (data) => data.phRange),
     note: (value, _before, sheet) => speciesEdgeNote(value, sheet, (data) => data.phRange),
   }),
@@ -255,14 +263,12 @@ const READINGS: Reading[] = [
     label: 'KH',
     unit: () => 'dKH',
     display: same,
-    decimals: 1,
     note: none,
   }),
   fromWater('gh', {
     label: 'GH',
     unit: () => 'dGH',
     display: same,
-    decimals: 1,
     ...tolerated('gh', (data) => data.ghRange),
     note: (value, _before, sheet) => speciesEdgeNote(value, sheet, (data) => data.ghRange),
   }),
@@ -271,11 +277,10 @@ const READINGS: Reading[] = [
     label: 'Level',
     unit: PERCENT,
     display: same,
-    decimals: 0,
-    note: (value) =>
-      value < WATER_LEVEL_CRITICAL_THRESHOLD * 100
-        ? `below ${WATER_LEVEL_CRITICAL_THRESHOLD * 100} %`
-        : null,
+    note: (value, _before, { config }) => {
+      const line = waterLevelAlertLine(config);
+      return value < line ? `below ${line} %` : null;
+    },
   }),
   {
     key: 'oxygen',
@@ -283,12 +288,12 @@ const READINGS: Reading[] = [
     read: ({ state }) => state.resources.oxygen,
     unit: () => OxygenResource.unit,
     display: same,
-    decimals: OxygenResource.precision,
+    decimals: WATER_DECIMALS.oxygen,
     status: (value) => classifyVital('oxygen', value),
     at: (value) => onScale(DISPLAY_CEILING.oxygen, value),
-    band: () => ({ from: onScale(DISPLAY_CEILING.oxygen, LOW_OXYGEN_THRESHOLD), to: 1 }),
+    band: () => ({ from: onScale(DISPLAY_CEILING.oxygen, OXYGEN_EDGE), to: 1 }),
     note: (value) =>
-      value < LOW_OXYGEN_THRESHOLD ? `below ${LOW_OXYGEN_THRESHOLD.toFixed(1)}` : null,
+      value < OXYGEN_EDGE ? `below ${OXYGEN_EDGE.toFixed(WATER_DECIMALS.oxygen)}` : null,
   },
   {
     key: 'co2',
@@ -296,11 +301,11 @@ const READINGS: Reading[] = [
     read: ({ state }) => state.resources.co2,
     unit: () => Co2Resource.unit,
     display: same,
-    decimals: Co2Resource.precision,
+    decimals: WATER_DECIMALS.co2,
     status: (value) => classifyVital('co2', value),
     at: (value) => onScale(DISPLAY_CEILING.co2, value),
     band: () => ({ from: 0, to: onScale(DISPLAY_CEILING.co2, HIGH_CO2_THRESHOLD) }),
-    note: (value, before) => overLine(value, before, HIGH_CO2_THRESHOLD),
+    note: (value, before) => overLine(value, before, WATER_DECIMALS.co2, HIGH_CO2_THRESHOLD),
   },
   nutrient('phosphate', 'PO₄', PhosphateResource.precision),
   nutrient('potassium', 'K', PotassiumResource.precision),
@@ -324,17 +329,30 @@ const READINGS: Reading[] = [
     unit: PERCENT,
     display: same,
     decimals: 0,
-    status: (value) => algaeStatus(value),
+    status: (value, { config }) => algaeStatus(value, algaeAlertLine(config)),
     at: (value) => onScale(DISPLAY_CEILING.algae, value),
-    band: () => ({ from: 0, to: onScale(DISPLAY_CEILING.algae, HIGH_ALGAE_THRESHOLD) }),
+    band: ({ config }) => ({ from: 0, to: onScale(DISPLAY_CEILING.algae, algaeAlertLine(config)) }),
     note: none,
   },
   {
-    key: 'tallest',
-    label: 'Tallest',
-    read: ({ state }) => state.plants.reduce((tallest, plant) => Math.max(tallest, plant.size), 0),
+    key: 'shade',
+    label: 'Floor shade',
+    read: ({ state, config }) =>
+      floorShade(state.plants, state.tank.capacity, config.optics) * 100,
     unit: PERCENT,
     display: same,
+    decimals: 1,
+    status: quiet,
+    at: (value) => value / 100,
+    band: none,
+    note: none,
+  },
+  {
+    key: 'largest',
+    label: 'Largest',
+    read: ({ state }) => state.plants.reduce((largest, plant) => Math.max(largest, plant.size), 0),
+    unit: PERCENT,
+    display: Math.floor,
     decimals: 0,
     status: quiet,
     at: (value) => onScale(DISPLAY_CEILING.plantSize, value),
@@ -344,11 +362,6 @@ const READINGS: Reading[] = [
 ];
 
 const RANK: Record<Status, number> = { neutral: 0, ok: 1, warn: 2, alert: 3 };
-
-/** Two values that would print identically have not moved as far as a reader is concerned. */
-function prints(a: number, b: number, decimals: number): boolean {
-  return Math.abs(a - b) < 0.5 / 10 ** decimals;
-}
 
 export interface PreviewInput {
   before: SimulationState;
@@ -369,12 +382,12 @@ export function previewRows({ before, outcomes, config, units }: PreviewInput): 
   const rows: PreviewRow[] = [];
 
   for (const reading of READINGS) {
-    const from = reading.read(standing);
-    const values = sheets.map(reading.read);
-    if (values.every((value) => prints(value, from, reading.decimals))) continue;
-
     const format = (value: number): string =>
       reading.display(value, units).toFixed(reading.decimals);
+    const from = reading.read(standing);
+    const values = sheets.map(reading.read);
+    if (values.every((value) => format(value) === format(from))) continue;
+
     const low = Math.min(...values);
     const high = Math.max(...values);
 
@@ -389,7 +402,7 @@ export function previewRows({ before, outcomes, config, units }: PreviewInput): 
       key: reading.key,
       label: reading.label,
       before: format(from),
-      after: prints(low, high, reading.decimals) ? format(values[0]) : `${format(low)}–${format(high)}`,
+      after: format(low) === format(high) ? format(values[0]) : `${format(low)}–${format(high)}`,
       unit: reading.unit(units),
       status: reading.status(values[worst], sheets[worst]),
       from: reading.at(from, sheets[worst]),

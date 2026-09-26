@@ -1,33 +1,40 @@
 /**
  * Trim plants action - reduces plant size, either a single plant (when `plantId` is set)
- * or every plant above `targetSize` in bulk.
+ * or every plant above `targetSize` in bulk — of one family when `familyId` is set.
  *
  * Trimmed material exits the system cleanly (not converted to waste).
  * This simulates the aquarist properly removing and disposing of trimmed leaves.
  */
 
 import { produce } from 'immer';
-import { type SimulationState } from '../state.js';
+import type { Plant, SimulationState } from '../state.js';
 import { PLANT_SPECIES_DATA } from '../plants/species.js';
 import { createLog } from '../core/logging.js';
+import { plantsDefaults, type PlantsConfig } from '../config/plants.js';
+import { isPlantableSize } from '../systems/plant-lifecycle.js';
 import type { ActionResult, TrimPlantsAction } from './types.js';
 
-/**
- * Check if any plants can be trimmed.
- * Plants can be trimmed if any plant is above 50% size.
- */
-export function canTrimPlants(state: SimulationState): boolean {
-  return state.plants.some((p) => p.size > 50);
+type TrimScope = Omit<TrimPlantsAction, 'type'>;
+
+/** Whether a trim cuts this plant: over the target, and the plant or family it names if it names one. */
+function cuts({ targetSize, plantId, familyId }: TrimScope): (plant: Plant) => boolean {
+  return (plant) =>
+    plant.size > targetSize &&
+    (plantId !== undefined ? plant.id === plantId : familyId === undefined || plant.familyId === familyId);
 }
 
-/**
- * Get the number of plants that would be affected by trimming to a target size.
- */
-export function getPlantsToTrimCount(
+/** Whether `trimPlants` would cut anything: a plantable target, and a plant in its scope over it. */
+export function canTrimPlants(
   state: SimulationState,
-  targetSize: number
-): number {
-  return state.plants.filter((p) => p.size > targetSize).length;
+  scope: TrimScope,
+  plantsConfig: PlantsConfig = plantsDefaults
+): boolean {
+  return isPlantableSize(scope.targetSize, plantsConfig) && state.plants.some(cuts(scope));
+}
+
+/** Plants a trim of the whole tank to `targetSize` cuts. */
+export function getPlantsToTrimCount(state: SimulationState, targetSize: number): number {
+  return state.plants.filter(cuts({ targetSize })).length;
 }
 
 /**
@@ -35,30 +42,33 @@ export function getPlantsToTrimCount(
  *
  * If `action.plantId` is set, trims only that plant down to `targetSize` (no-op if
  * the plant is missing or already at/below target). Otherwise, reduces every plant
- * above `targetSize` to the target. Trimmed material exits the system — the waste
- * pool is untouched.
+ * above `targetSize` to the target — every plant of `action.familyId` when that is
+ * set. Trimmed material exits the system — the waste pool is untouched. A target
+ * under `deathSizeThreshold` is refused: the cut would leave a plant the next
+ * tick retires.
  */
 export function trimPlants(
   state: SimulationState,
-  action: TrimPlantsAction
+  action: TrimPlantsAction,
+  plantsConfig: PlantsConfig = plantsDefaults
 ): ActionResult {
-  const { targetSize, plantId } = action;
+  const { targetSize, plantId, familyId } = action;
 
-  // Validate target size: must be a finite number in [0, 100].
-  if (!Number.isFinite(targetSize) || targetSize < 0 || targetSize > 100) {
+  if (!isPlantableSize(targetSize, plantsConfig)) {
     return {
       state,
-      message: `Invalid target size for trimming (must be a number in [0, 100])`,
+      message: `Invalid target size for trimming (must be a number in [${plantsConfig.deathSizeThreshold}, 100])`,
     };
   }
 
   return plantId === undefined
-    ? trimBulk(state, targetSize)
+    ? trimBulk(state, targetSize, familyId)
     : trimSingle(state, targetSize, plantId);
 }
 
-function trimBulk(state: SimulationState, targetSize: number): ActionResult {
-  const plantsToTrim = state.plants.filter((p) => p.size > targetSize);
+function trimBulk(state: SimulationState, targetSize: number, familyId?: string): ActionResult {
+  const trims = cuts({ targetSize, familyId });
+  const plantsToTrim = state.plants.filter(trims);
   if (plantsToTrim.length === 0) {
     return {
       state,
@@ -73,7 +83,7 @@ function trimBulk(state: SimulationState, targetSize: number): ActionResult {
 
   const newState = produce(state, (draft) => {
     for (const plant of draft.plants) {
-      if (plant.size > targetSize) {
+      if (trims(plant)) {
         plant.size = targetSize;
       }
     }

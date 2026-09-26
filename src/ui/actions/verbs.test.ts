@@ -138,6 +138,52 @@ describe('the six verbs', () => {
     expect(options.map((o) => o.disabled)).toEqual([false, false, true]);
   });
 
+  describe('held to one family', () => {
+    /** Two java fern families: the first with a tall offshoot, the second one tall founder. */
+    function families(): { state: SimulationState; first: string; second: string } {
+      const base = planted([80, 90]);
+      const [a, b] = base.plants;
+      const bud = { ...a, id: 'plant_bud', parentId: a.id, size: 70 };
+      return { state: { ...base, plants: [a, b, bud] }, first: a.familyId, second: b.familyId };
+    }
+
+    it('trims that family and nothing else', () => {
+      const { state, first } = families();
+      const action = verbAction('trimPlants', { ...DEFAULT_SETTINGS, trimPlants: 50 }, { familyId: first });
+      const trimmed = applyAction(state, action).state;
+
+      expect(action).toEqual({ type: 'trimPlants', targetSize: 50, familyId: first });
+      expect(trimmed.plants.map((plant) => plant.size)).toEqual([50, 90, 50]);
+    });
+
+    it('counts, refuses and names its commit by what the family holds', () => {
+      const { state, first, second } = families();
+      const scoped = (familyId: string, trimPlants: number): VerbDetail =>
+        verbDetail(state, 'trimPlants', { ...DEFAULT_SETTINGS, trimPlants }, 'metric', DEFAULT_CONFIG, {
+          familyId,
+        });
+
+      expect(scoped(first, 75).options.map((o) => o.hint)).toEqual(['2 plants', '1 plant', 'none']);
+      expect(scoped(first, 75).meta).toBe('Java Fern · 1 of 2 plants · largest 80 %');
+      expect(scoped(first, 75).commitLabel).toBe('Trim family to 75 %');
+      expect(scoped(first, 75).title).toBe('Trim family 1');
+      expect(scoped(second, 75).title).toBe('Trim family 2');
+      expect(scoped(first, 85).blocked).toBe('nothing above 85 %');
+      expect(scoped(second, 85).blocked).toBeNull();
+      expect(detail(state, 'trimPlants', { ...DEFAULT_SETTINGS, trimPlants: 85 }).blocked).toBeNull();
+    });
+
+    it('previews the shade the cut takes off the floor, though the largest plant stands elsewhere', () => {
+      const { state, first } = families();
+      const preview = verbDetail(state, 'trimPlants', DEFAULT_SETTINGS, 'metric', DEFAULT_CONFIG, {
+        familyId: first,
+      }).preview;
+
+      expect(preview.map((row) => row.key)).toEqual(['shade']);
+      expect(Number(preview[0].after)).toBeLessThan(Number(preview[0].before));
+    });
+  });
+
   it('dispatches the shape the engine reads, and lets it roll its own scrub', () => {
     const settings: VerbSettings = { feed: 2, waterChange: 0.9, dose: 4, trimPlants: 50 };
 

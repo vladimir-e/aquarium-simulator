@@ -1,25 +1,27 @@
 /**
- * Flora derivations: what each plant and the algae are doing right now, and the
- * tank's nutrient readings. Nothing here invents a band — a nutrient reads
- * short when the engine's own sufficiency would rise if that one were topped
- * up, so no surface can name a deficiency the plants are not actually feeling.
+ * Flora derivations: what each plant is doing on the hour the next tick
+ * settles, how the planting folds into species and families and how the reader
+ * counts them, how the bloom reads off its coverage, and the tank's nutrient
+ * readings. Nothing here invents a band — a nutrient reads short when the
+ * engine's own sufficiency would rise if that one were topped up, and high past
+ * a line the engine itself charges or alerts from, so no surface can name a
+ * shortage or an excess the tank is not actually feeling.
  */
 
 import {
   calculateNutrientSufficiency,
-  computeAlgaePopulation,
+  floorCover,
   getDosePreview,
-  getPlantsToTrimCount,
+  isOvergrown,
   MAX_DOSE_ML,
   PLANT_SPECIES_DATA,
-  type NutrientDemand,
+  plantNitrateEdge,
+  speciesHalfSaturation,
+  type Plant,
   type PlantSpecies,
   type Resources,
   type SimulationState,
-  type VitalityFactor,
 } from '../../simulation/index.js';
-import { getDemandMultiplier } from '../../simulation/systems/nutrients.js';
-import { readPlantVitality } from '../../simulation/plants/index.js';
 import {
   getMassFromPpm,
   getPpm,
@@ -29,204 +31,252 @@ import {
   PotassiumResource,
   type ResourceDefinition,
 } from '../../simulation/resources/index.js';
-import type {
-  FertilizerFormula,
-  NutrientsConfig,
-  TunableConfig,
+import {
+  NUTRIENTS,
+  type FertilizerFormula,
+  type Nutrient,
+  type PlantsConfig,
+  type TunableConfig,
 } from '../../simulation/config/index.js';
-import { STATUS_SEVERITY, vitalReading, type Status } from './status.js';
+import { NITRATE_EDGE } from '../../simulation/livestock/tolerance.js';
+import type { HourAhead } from './ahead.js';
+import { groupBy, mean, numbered } from './fold.js';
+import { plantLightStatus } from './light.js';
+import {
+  bankShare,
+  groupMember,
+  groupReading,
+  vitalReading,
+  worstStatus,
+  type Reading,
+  type Status,
+} from './status.js';
 
 /**
- * Trim targets, in % of a plant's size. A planted tank settles at 60–90 %, so
+ * Trim targets, % of a full unit. A planted tank settles at 60–90 %, so
  * every rung here is reachable in an ordinary run.
  */
 export const TRIM_TARGETS = [50, 75, 85];
 
 /**
- * The loosest cut on that ladder, and so the line a plant is "too big" against:
- * above it, every rung the trim verb offers would take something off. It is the
- * only size line this engine can honestly draw — growth self-limits against a
- * species `maxSize` an ordinary run never approaches (600–1100 % against a
- * calibrated peak near 100 %), and no system penalises size directly.
+ * The bloom's ladder, each rung a multiple of the line it alerts over, so its
+ * word and its tone move together. Low algae is good for the player, so the
+ * tones run green → coral as it climbs.
  */
-const TRIM_CEILING = Math.max(...TRIM_TARGETS);
+const ALGAE_LADDER: readonly { upTo: number; reading: Reading }[] = [
+  { upTo: 0.5, reading: { status: 'ok', word: 'sparse' } },
+  { upTo: 1, reading: { status: 'ok', word: 'active' } },
+  { upTo: 2, reading: { status: 'warn', word: 'spreading' } },
+  { upTo: Infinity, reading: { status: 'alert', word: 'booming' } },
+];
 
-/** Plants every rung of the trim ladder would cut — the reason to reach for it. */
-export function overTrimCount(state: SimulationState): number {
-  return getPlantsToTrimCount(state, TRIM_CEILING);
+/** How the bloom reads off its coverage, against the line it alerts over. */
+export function algaeReading(mass: number, line: number): Reading {
+  return ALGAE_LADDER.find((rung) => mass <= rung.upTo * line)!.reading;
 }
 
-// Low algae mass is good for the player, so the colours run green → coral as it climbs.
-export function algaeStatus(mass: number): Status {
-  return mass < 30 ? 'ok' : mass < 60 ? 'warn' : 'alert';
+export function algaeStatus(mass: number, line: number): Status {
+  return algaeReading(mass, line).status;
 }
 
-export function algaeWord(mass: number): string {
-  if (mass < 30) return 'suppressed';
-  if (mass < 60) return 'active';
-  if (mass < 80) return 'spreading';
-  return 'booming';
+/** Where a plant stands among its kin, numbered the way a reader counts. */
+export interface PlantLabel {
+  /** Its family, in the order its species' families were founded. */
+  family: number;
+  /** Itself, in the order its family's units were born. */
+  unit: number;
+  /** The unit it budded from, while that one stands. */
+  parent: number | null;
 }
 
-/** One row of the plant list, with the vitality behind it already resolved. */
+type Kin = Pick<Plant, 'id' | 'species' | 'familyId' | 'parentId'>;
+
+/** Every plant's label, by id. The ids stay the engine's; these are the reader's. */
+export function plantLabels(plants: readonly Kin[]): Map<string, PlantLabel> {
+  const families = new Map(
+    groupBy(plants, (plant) => plant.species).flatMap((kind) => [
+      ...numbered(new Set(kind.map((plant) => plant.familyId))),
+    ])
+  );
+  const units = new Map(
+    groupBy(plants, (plant) => plant.familyId).flatMap((family) => [
+      ...numbered(family.map((plant) => plant.id)),
+    ])
+  );
+  return new Map(
+    plants.map((plant) => [
+      plant.id,
+      {
+        family: families.get(plant.familyId)!,
+        unit: units.get(plant.id)!,
+        parent: plant.parentId === null ? null : (units.get(plant.parentId) ?? null),
+      },
+    ])
+  );
+}
+
+/** A family as the console names it. */
+export function familyTitle(name: string, label: PlantLabel): string {
+  return `${name} family ${label.family}`;
+}
+
+/** A unit as the console names it, family first. */
+export function unitTitle(name: string, label: PlantLabel): string {
+  return `${familyTitle(name, label)} · #${label.unit}`;
+}
+
+/** One row of the plant list, read on the hour the next tick settles. */
 export interface PlantRow {
   id: string;
   species: PlantSpecies;
   name: string;
-  /** % of normal full size — plants grow past 100 % toward their species ceiling. */
+  familyId: string;
+  label: PlantLabel;
+  /** % of one full unit of its growth form; growth tapers to 100. */
   size: number;
-  /** Above every rung of the trim ladder. */
-  overTrim: boolean;
+  /** Hours in the tank. */
+  age: number;
   condition: number;
-  /** Read across both stocks — condition, and the energy ledger that spends `size`. */
-  status: Status;
-  /** The word for it: a plant shedding tissue says so rather than "thriving". */
-  word: string;
-  /** Change per hour: what the breakdown below it sums to. */
-  net: number;
-  /**
-   * Everything charged this hour — upkeep first, then damage, so the rows sum
-   * to `net`. Two ledgers merged for one list, which is a display choice: what
-   * a plant owes for being alive is not a stressor, and lands in a different
-   * stock (the docs portal, Vitality § The two ledgers).
-   */
-  charged: VitalityFactor[];
-  benefits: VitalityFactor[];
+  sick: boolean;
+  reading: Reading;
+  /** The day's light at its own height over the day's light its species starves under. */
+  light: number;
+  lightStatus: Status;
+  /** Its bank as a share of what the next offshoot costs. */
+  bank: number;
 }
 
-function acting(factors: VitalityFactor[]): VitalityFactor[] {
-  return factors.filter((f) => f.amount > 0);
-}
-
-export function plantRows(state: SimulationState, config: TunableConfig): PlantRow[] {
-  const vitalities = readPlantVitality(state, config);
-
+export function plantRows(state: SimulationState, config: TunableConfig, ahead: HourAhead): PlantRow[] {
+  const labels = plantLabels(state.plants);
   return state.plants.map((plant, i) => {
-    const vitality = vitalities[i];
-
+    const { vitality, light } = ahead.plants[i];
+    const { sick, reading } = vitalReading(plant.condition, vitality);
     return {
       id: plant.id,
       species: plant.species,
       name: PLANT_SPECIES_DATA[plant.species].name,
+      familyId: plant.familyId,
+      label: labels.get(plant.id)!,
       size: plant.size,
-      overTrim: plant.size > TRIM_CEILING,
+      age: plant.age,
       condition: plant.condition,
-      ...vitalReading(plant.condition, plant.surplus, vitality.breakdown),
-      net: vitality.breakdown.net,
-      charged: acting([...vitality.breakdown.upkeep, ...vitality.breakdown.stressors]),
-      benefits: acting(vitality.breakdown.benefits),
+      sick,
+      reading,
+      light: light.needShare,
+      lightStatus: plantLightStatus(light, plant.species),
+      bank: bankShare(plant.surplus, config.plants.surplusCap),
     };
   });
 }
 
-function mean(values: number[]): number {
-  return values.length ? values.reduce((sum, v) => sum + v, 0) / values.length : 0;
+/** A share as the plant readings print it: rounded down, so it never reads a line it has not reached. */
+export function sharePercent(share: number): number {
+  return Math.floor(share * 100);
 }
 
-/** A species folded into one row — the shape the fish roster already groups into. */
-export interface PlantSpeciesGroup {
-  species: PlantSpecies;
-  name: string;
-  count: number;
-  /** Mean % of normal full size across the specimens. */
+/** What a family or a species reads as, over every unit under it. */
+export interface PlantGroupFigures {
+  /** The sizes summed, % of one full unit of the growth form. */
   size: number;
-  /** Mean condition across the specimens. */
+  /** Mean condition across the units, the strip's figure. */
   condition: number;
-  /** One per specimen, in planting order. */
-  statuses: Status[];
-  /** The worst specimen's reading: a group is as urgent as its worst member. */
-  status: Status;
-  word: string;
-  /** The specimens themselves, in planting order. */
-  plants: PlantRow[];
+  /** Hours the oldest unit has stood in the tank. */
+  oldest: number;
+  /** The worst-lit unit's light, as a share of its need. */
+  light: number;
+  /** The worst any unit's light reads: short, or burning. */
+  lightStatus: Status;
 }
 
-export function groupPlantsBySpecies(rows: PlantRow[]): PlantSpeciesGroup[] {
-  const groups = new Map<PlantSpecies, PlantRow[]>();
-  for (const row of rows) {
-    const existing = groups.get(row.species);
-    if (existing) existing.push(row);
-    else groups.set(row.species, [row]);
-  }
-
-  return [...groups].map(([species, members]) => {
-    const worst = members.reduce((a, b) =>
-      STATUS_SEVERITY[b.status] > STATUS_SEVERITY[a.status] ? b : a
-    );
-    return {
-      species,
-      name: members[0].name,
-      count: members.length,
-      size: mean(members.map((member) => member.size)),
-      condition: mean(members.map((member) => member.condition)),
-      statuses: members.map((member) => member.status),
-      status: worst.status,
-      word: worst.word,
-      plants: members,
-    };
-  });
-}
-
-/** The algae, read the same way as a plant — but a stressor here is good news. */
-export interface AlgaeRow {
-  mass: number;
-  status: Status;
-  word: string;
-  net: number;
-  stressors: VitalityFactor[];
-  benefits: VitalityFactor[];
-}
-
-export function algaeRow(state: SimulationState, config: TunableConfig): AlgaeRow {
-  const population = computeAlgaePopulation({
-    plants: state.plants,
-    resources: state.resources,
-    algaeConfig: config.algae,
-    nutrientsConfig: config.nutrients,
-  });
-
+function figuresOf(members: PlantRow[]): PlantGroupFigures {
   return {
-    mass: state.algae.mass,
-    status: algaeStatus(state.algae.mass),
-    word: algaeWord(state.algae.mass),
-    net: population.net,
-    stressors: acting(population.breakdown.stressors),
-    benefits: acting(population.breakdown.benefits),
+    size: members.reduce((sum, member) => sum + member.size, 0),
+    condition: mean(members.map((member) => member.condition)),
+    oldest: Math.max(...members.map((member) => member.age)),
+    light: Math.min(...members.map((member) => member.light)),
+    lightStatus: members.map((member) => member.lightStatus).reduce(worstStatus),
   };
 }
 
-export type NutrientKey = 'nitrate' | 'phosphate' | 'potassium' | 'iron';
+/** A founder and every unit budded down its line, read by the group rule over them. */
+export interface PlantFamily extends PlantGroupFigures {
+  familyId: string;
+  /** Its number among its species' families. */
+  number: number;
+  reading: Reading;
+  /** In birth order. */
+  members: PlantRow[];
+}
 
-const NUTRIENT_KEYS: NutrientKey[] = ['nitrate', 'phosphate', 'potassium', 'iron'];
+/**
+ * A species read as its families, the way a fish species reads as its fish: the
+ * group rule counts families, each standing as one member at its worst unit.
+ */
+export interface PlantSpeciesGroup extends PlantGroupFigures {
+  species: PlantSpecies;
+  name: string;
+  reading: Reading;
+  /** In the order they were founded. */
+  families: PlantFamily[];
+  /** Every unit of the species, in planting order. */
+  members: PlantRow[];
+}
 
-const NUTRIENT_LABEL: Record<NutrientKey, string> = {
+export function groupPlantsBySpecies(rows: PlantRow[]): PlantSpeciesGroup[] {
+  return groupBy(rows, (row) => row.species).map((members) => {
+    const families = groupBy(members, (row) => row.familyId)
+      .map((family): PlantFamily => {
+        const born = [...family].sort((a, b) => a.label.unit - b.label.unit);
+        return {
+          familyId: family[0].familyId,
+          number: family[0].label.family,
+          ...figuresOf(born),
+          reading: groupReading(born),
+          members: born,
+        };
+      })
+      .sort((a, b) => a.number - b.number);
+    return {
+      species: members[0].species,
+      name: members[0].name,
+      ...figuresOf(members),
+      reading: groupReading(families.map((family) => groupMember(family.members))),
+      families,
+      members,
+    };
+  });
+}
+
+/**
+ * How much of the floor the planting claims, never at a line it has not
+ * reached: rounded down while it fits, and up once the planting has outgrown it.
+ */
+export function floorPlanted(state: SimulationState): string {
+  const cover = floorCover(state.plants, state.tank.capacity);
+  return isOvergrown(state)
+    ? `floor outgrown · ${Math.ceil(cover * 100)} % claimed`
+    : `floor ${sharePercent(cover)} % planted`;
+}
+
+const NUTRIENT_LABEL: Record<Nutrient, string> = {
   nitrate: 'NO₃',
   phosphate: 'PO₄',
   potassium: 'K',
   iron: 'Fe',
 };
 
-const NUTRIENT_RESOURCE: Record<NutrientKey, ResourceDefinition<NutrientKey>> = {
+const NUTRIENT_RESOURCE: Record<Nutrient, ResourceDefinition<Nutrient>> = {
   nitrate: NitrateResource,
   phosphate: PhosphateResource,
   potassium: PotassiumResource,
   iron: IronResource,
 };
 
-const OPTIMAL_PPM: Record<NutrientKey, (config: NutrientsConfig) => number> = {
-  nitrate: (c) => c.optimalNitratePpm,
-  phosphate: (c) => c.optimalPhosphatePpm,
-  potassium: (c) => c.optimalPotassiumPpm,
-  iron: (c) => c.optimalIronPpm,
-};
-
 /** Mass is stored in mg, so a drained nutrient lands near zero rather than on it. */
 const DEPLETED_PPM = 0.001;
 
-const DEMAND_RANK: Record<NutrientDemand, number> = { low: 0, medium: 1, high: 2 };
-
 export interface NutrientReading {
-  key: NutrientKey;
+  key: Nutrient;
   label: string;
   ppm: number;
   text: string;
@@ -237,18 +287,35 @@ export interface NutrientReading {
   fill: number;
   /** Topping this one up would raise the engine's sufficiency for some plant. */
   limiting: boolean;
-  /** Coral empty, amber short, green at the need — grey while it holds nothing back. */
+  /** ppm past which it does harm; null where excess harms nothing. */
+  ceiling: number | null;
+  /** Past that ceiling. */
+  excess: boolean;
+  /** Coral empty or harming, amber short, green at the need — grey while it holds nothing back. */
   status: Status;
 }
 
-/** The demand tier the tank is fed to: its hungriest plant. */
-export function tankDemand(state: SimulationState): NutrientDemand | null {
-  let hungriest: NutrientDemand | null = null;
-  for (const plant of state.plants) {
-    const demand = PLANT_SPECIES_DATA[plant.species].nutrientDemand;
-    if (hungriest === null || DEMAND_RANK[demand] > DEMAND_RANK[hungriest]) hungriest = demand;
-  }
-  return hungriest;
+/**
+ * Nitrate is the one plant food that is also a toxin: the engine alerts on it
+ * for the fish, and charges each plant past its species' own edge — so its
+ * ceiling is whichever comes first, and it is one reading wherever it shows.
+ */
+function ceilingPpm(state: SimulationState, key: Nutrient, config: PlantsConfig): number | null {
+  if (key !== 'nitrate') return null;
+  return Math.min(
+    NITRATE_EDGE,
+    ...state.plants.map((plant) => plantNitrateEdge(plant.species, config))
+  );
+}
+
+/** ppm at which the tank's hungriest plant meets its need up to the edge where deficiency harm starts. */
+function neededPpm(state: SimulationState, key: Nutrient, config: TunableConfig): number {
+  const edge = config.plants.sufficiencyEdge;
+  const halfSaturation = Math.max(
+    0,
+    ...state.plants.map((plant) => speciesHalfSaturation(plant.species, key, config.nutrients))
+  );
+  return (halfSaturation * edge) / (1 - edge);
 }
 
 export function nutrientReadings(
@@ -256,18 +323,16 @@ export function nutrientReadings(
   config: TunableConfig
 ): NutrientReading[] {
   const nutrients = config.nutrients;
-  const demand = tankDemand(state);
-  const multiplier = demand === null ? 0 : getDemandMultiplier(demand, nutrients);
   const water = state.resources.water;
 
   const needs = Object.fromEntries(
-    NUTRIENT_KEYS.map((key) => [key, OPTIMAL_PPM[key](nutrients) * multiplier])
-  ) as Record<NutrientKey, number>;
+    NUTRIENTS.map((key) => [key, neededPpm(state, key, config)])
+  ) as Record<Nutrient, number>;
 
   // Everything the plants ask for, present at once — the probe's yardstick.
   const met: Resources = { ...state.resources };
   if (water > 0) {
-    for (const key of NUTRIENT_KEYS) {
+    for (const key of NUTRIENTS) {
       met[key] = Math.max(state.resources[key], getMassFromPpm(needs[key], water));
     }
   }
@@ -275,10 +340,10 @@ export function nutrientReadings(
   /**
    * Ask the engine rather than restate it: hold every other nutrient at what the
    * plants need and see whether leaving this one where it is costs sufficiency.
-   * That keeps the panel in step with the engine's own required-versus-booster
-   * rules per demand tier, and stays right when several are empty at once.
+   * That keeps the panel in step with each species' own demand, and stays right
+   * when several are empty at once.
    */
-  const isLimiting = (key: NutrientKey): boolean => {
+  const isLimiting = (key: Nutrient): boolean => {
     if (needs[key] <= 0 || water <= 0) return false;
     const short: Resources = { ...met, [key]: state.resources[key] };
     return state.plants.some(
@@ -288,12 +353,14 @@ export function nutrientReadings(
     );
   };
 
-  return NUTRIENT_KEYS.map((key) => {
+  return NUTRIENTS.map((key) => {
     const resource = NUTRIENT_RESOURCE[key];
     const ppm = getPpm(state.resources[key], water);
     const needed = needs[key];
     const limiting = isLimiting(key);
     const depleted = ppm <= DEPLETED_PPM;
+    const ceiling = ceilingPpm(state, key, config.plants);
+    const excess = ceiling !== null && ppm > ceiling;
 
     return {
       key,
@@ -304,13 +371,17 @@ export function nutrientReadings(
       neededText: needed > 0 ? needed.toFixed(resource.precision) : '—',
       fill: needed > 0 ? Math.min(1, ppm / needed) : 0,
       limiting,
-      status: limiting
-        ? depleted
-          ? 'alert'
-          : 'warn'
-        : needed > 0 && ppm >= needed
-          ? 'ok'
-          : 'neutral',
+      ceiling,
+      excess,
+      status: excess
+        ? 'alert'
+        : limiting
+          ? depleted
+            ? 'alert'
+            : 'warn'
+          : needed > 0 && ppm >= needed
+            ? 'ok'
+            : 'neutral',
     };
   });
 }
@@ -320,8 +391,11 @@ export interface NutrientAlert {
   status: Status;
 }
 
-/** The one thing to say about the tank's nutrients. */
+/** The one thing to say about the tank's nutrients: what harms the plants before what they lack. */
 export function nutrientAlert(readings: NutrientReading[]): NutrientAlert | null {
+  const excess = readings.find((r) => r.excess);
+  if (excess) return { text: `${excess.label} high`, status: 'alert' };
+
   const short = readings.filter((r) => r.limiting);
   if (short.length === 0) return null;
 
@@ -335,7 +409,7 @@ export function nutrientAlert(readings: NutrientReading[]): NutrientAlert | null
 }
 
 export interface NutrientDelta {
-  key: NutrientKey;
+  key: Nutrient;
   label: string;
   text: string;
 }
@@ -343,14 +417,14 @@ export interface NutrientDelta {
 /** What a dose of `ml` adds to this much water, per nutrient. */
 export function doseDeltas(ml: number, water: number, formula: FertilizerFormula): NutrientDelta[] {
   const preview = getDosePreview(ml, water, formula);
-  const ppm: Record<NutrientKey, number> = {
+  const ppm: Record<Nutrient, number> = {
     nitrate: preview.nitratePpm,
     phosphate: preview.phosphatePpm,
     potassium: preview.potassiumPpm,
     iron: preview.ironPpm,
   };
 
-  return NUTRIENT_KEYS.map((key) => ({
+  return NUTRIENTS.map((key) => ({
     key,
     label: NUTRIENT_LABEL[key],
     text: `+${ppm[key].toFixed(NUTRIENT_RESOURCE[key].precision)}`,

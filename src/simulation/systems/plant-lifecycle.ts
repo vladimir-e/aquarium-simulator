@@ -1,74 +1,49 @@
 /**
  * Plant lifecycle — shedding, death, and death-waste production.
  *
- * Downstream of the vitality engine: {@link computePlantVitality} settles
- * both ledgers, and this module spends what the energy one could not pay.
- *
- * - Shedding is the outlet for an unpayable upkeep bill. A plant that
- *   earns and banks nothing drops a share of itself every hour, and the
- *   tissue leaves as waste rather than as fuel — melting plants foul the
- *   water, which is why `wastePerShedSize` exists at all. Between full
- *   payment and none the rate is the share of the bill left standing:
- *   a rate reading a rate, with no threshold anywhere in it.
- * - Death is a hard cutoff: condition or size below their respective
- *   thresholds removes the plant from the tank. Shedding down past
- *   `deathSizeThreshold` is the honest end of a starved plant — nothing
- *   left of it — while condition carries the plants that were damaged
- *   rather than starved.
- *
- * All knobs live on `PlantsConfig` alongside the rest of the plant-
- * lifecycle calibration (vitality severities, growth, biomass cap).
+ * - Shedding is what low condition does to a plant: it drops a share of
+ *   itself every hour that grows with the square of its condition deficit,
+ *   and the tissue leaves as waste — melting plants foul the water.
+ * - Death comes at condition 0, as it does for a fish, or once shedding has
+ *   left less than `deathSizeThreshold` of the plant.
  */
 
 import type { Plant } from '../state.js';
 import type { PlantsConfig } from '../config/plants.js';
 import { plantsDefaults } from '../config/plants.js';
+import { fullRateUnits } from '../plants/canopy.js';
 
-/**
- * Tissue a plant drops this tick, and the waste it makes doing it.
- *
- * @param plant - Current plant state
- * @param starved - Share of its upkeep (0–1) neither income nor the bank
- *   covered, off `VitalityBreakdown.starved`
- * @param config - Plants configuration
- */
+/** Tissue a plant drops this tick, and the waste it makes doing it. */
 export function calculateShedding(
   plant: Plant,
-  starved: number,
   config: PlantsConfig = plantsDefaults
 ): { sizeReduction: number; wasteProduced: number } {
-  const sizeReduction = plant.size * starved * config.maxSheddingRate;
+  const deficit = Math.max(0, Math.min(1, 1 - plant.condition / 100));
+  const sizeReduction = config.maxSheddingRate * deficit * deficit * plant.size;
 
-  return { sizeReduction, wasteProduced: sizeReduction * config.wastePerShedSize };
+  return {
+    sizeReduction,
+    wasteProduced: tissueWaste(plant, sizeReduction, config),
+  };
 }
 
-/**
- * Check if a plant should die based on condition and size.
- *
- * @param plant - Current plant state
- * @param config - Plants configuration
- * @returns Whether the plant dies
- */
-export function shouldPlantDie(
-  plant: Plant,
-  config: PlantsConfig = plantsDefaults
-): boolean {
-  return (
-    plant.condition < config.deathConditionThreshold ||
-    plant.size < config.deathSizeThreshold
-  );
+export function shouldPlantDie(plant: Plant, config: PlantsConfig = plantsDefaults): boolean {
+  return plant.condition <= 0 || plant.size < config.deathSizeThreshold;
 }
 
-/**
- * Calculate waste produced when a plant dies.
- *
- * @param plant - Dying plant
- * @param config - Plants configuration
- * @returns Waste produced in grams
- */
+/** A size a unit can be planted, trimmed or bought at: at most a full unit, and none the next tick retires. */
+export function isPlantableSize(size: number, config: PlantsConfig): boolean {
+  return size > 0 && size >= config.deathSizeThreshold && size <= 100;
+}
+
+/** Grams of waste a dying plant leaves: all of what is left of it. */
 export function calculateDeathWaste(
   plant: Plant,
   config: PlantsConfig = plantsDefaults
 ): number {
-  return plant.size * config.wastePerPlantDeath;
+  return tissueWaste(plant, plant.size, config);
+}
+
+function tissueWaste(plant: Plant, size: number, config: PlantsConfig): number {
+  return size * fullRateUnits(plant.species) * config.wastePerSize;
 }

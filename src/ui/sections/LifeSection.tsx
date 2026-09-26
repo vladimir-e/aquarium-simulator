@@ -1,5 +1,5 @@
-import React, { useCallback, useMemo, useState } from 'react';
-import { getMaxPlants, type FishSpecies, type PlantSpecies } from '../../simulation/index.js';
+import React, { useCallback, useMemo } from 'react';
+import type { FishSpecies, PlantSpecies } from '../../simulation/index.js';
 import type { TunableConfig } from '../../simulation/config/index.js';
 import { useStage } from '../components/layout/AppShell';
 import { ModuleGroup, ModulePage } from '../components/layout/ModulePage';
@@ -16,37 +16,33 @@ import { useQueryParam } from '../hooks/useQueryParam';
 import type { useSimulation } from '../hooks/useSimulation';
 import { useReadingBook } from '../hooks/useReadingBook';
 import { useUnits } from '../hooks/useUnits';
-import {toneOf} from '../readings';
+import { toneOf } from '../readings';
 import {
-  groupFry,
+  floorPlanted,
+  inspection,
   readLedger,
   rosterSummary,
   rosterTables,
-  type LedgerTarget,
-  type PopulationRosterRow,
-  type RosterRow,
 } from '../run';
 
 function plural(count: number, noun: string): string {
   return `${count} ${noun}${count === 1 ? '' : 's'}`;
 }
 
-/** Which picker is open is a route, so the Act palette can open one from anywhere. */
+/**
+ * Which picker is open is a route, so the Act palette can open one from
+ * anywhere; so is what the ledger is open on, so the Overview can open one.
+ */
 const PICKERS: PickerKind[] = ['fish', 'plant'];
 
 /** Bioload is read against the guideline, on a track that runs to twice it. */
 const BIOLOAD_SCALE = 2;
 
-interface Inspecting {
-  target: LedgerTarget;
-  /** Why this individual, where the reader picked a group. */
-  subtitle: string;
-}
-
 /**
  * Who lives here: two tables read the same way, the algae riding along at the
- * top of the plants as the population it competes with them as. A species row
- * opens to its individuals; any row opens the vitality ledger beside it.
+ * top of the plants as the population it competes with them as. A fish species
+ * opens to its fish, a plant species to its families and a family to its
+ * units; any row opens the vitality ledger beside it.
  */
 export function LifeSection({
   sim,
@@ -59,15 +55,19 @@ export function LifeSection({
   const { unitSystem } = useUnits();
   const { state } = sim;
   const [expanded, toggle] = useExpandedRows(sim.tankId);
-  const [inspecting, setInspecting] = useState<Inspecting | null>(null);
+  const [inspect, setInspect] = useQueryParam<string>('inspect');
   const [picker, setAdding] = useQueryParam<PickerKind>('add');
   const adding = PICKERS.find((kind) => kind === picker) ?? null;
-  const closeLedger = useCallback(() => setInspecting(null), []);
+  const closeLedger = useCallback(() => setInspect(null), [setInspect]);
   const closePicker = useCallback(() => setAdding(null), [setAdding]);
-  useInspector(inspecting !== null, closeLedger);
-  useInspector(adding !== null, closePicker);
 
   const book = useReadingBook(sim, config);
+  const inspecting = useMemo(
+    () => (inspect === null ? null : inspection(inspect, book.roster)),
+    [inspect, book.roster]
+  );
+  useInspector(inspecting !== null, closeLedger);
+  useInspector(adding !== null, closePicker);
 
   const tables = useMemo(
     () =>
@@ -75,7 +75,7 @@ export function LifeSection({
         {
           fish: book.roster.fish,
           plants: book.roster.plants,
-          fry: groupFry(state, config.livestock),
+          fry: book.roster.fry,
           clutches: state.clutches,
           tick: state.tick,
         },
@@ -86,47 +86,23 @@ export function LifeSection({
   );
 
   const load = useMemo(() => bioload(state.fish, state.tank.capacity), [state]);
-  const ledger = inspecting && readLedger(state, config, inspecting.target, inspecting.subtitle);
+  const ledger = useMemo(
+    () =>
+      inspecting && readLedger(state, config, book.ahead, inspecting.target, inspecting.subtitle),
+    [inspecting, state, config, book.ahead]
+  );
 
-  const algaeReading = book.byId.algae;
-  const algae: PopulationRosterRow = {
-    kind: 'population',
-    key: 'algae',
-    name: 'Algae',
-    figure: `${algaeReading.value} %`,
-    caption: 'coverage',
-    trend: algaeReading.trend,
-    at: algaeReading.at,
-    band: algaeReading.band,
-    status: book.roster.algae.status,
-    word: book.roster.algae.word,
-  };
-
-  const inspect =
-    (kind: 'fish' | 'plant') =>
-    (row: RosterRow): void => {
-      if (row.kind === 'population') {
-        setInspecting({ target: { kind: 'algae' }, subtitle: '' });
-        return;
-      }
-      if (row.kind === 'species') {
-        setInspecting({
-          target: { kind, id: row.worstKey },
-          subtitle: `the worst of ${row.count} ${row.name}`,
-        });
-        return;
-      }
-      if (row.kind === 'individual') setInspecting({ target: { kind, id: row.id }, subtitle: '' });
-    };
+  const { algae } = book.roster;
 
   const handlers = (kind: 'fish' | 'plant'): RosterHandlers => ({
     onToggle: toggle,
-    onInspect: inspect(kind),
+    onInspect: (row) => setInspect(row.key),
     onRemove: (id) =>
       sim.executeAction(
         kind === 'fish' ? { type: 'removeFish', fishId: id } : { type: 'removePlant', plantId: id }
       ),
     onSellFry: () => sim.executeAction({ type: 'sellFry' }),
+    onTrimFamily: (familyId) => onAct('trimPlants', undefined, { familyId }),
   });
 
   const add = (species: FishSpecies | PlantSpecies, count: number): void => {
@@ -146,7 +122,7 @@ export function LifeSection({
     sim.executeAction(
       kind === 'fish' ? { type: 'removeFish', fishId: id } : { type: 'removePlant', plantId: id }
     );
-    setInspecting(null);
+    setInspect(null);
   };
 
   return (
@@ -185,7 +161,7 @@ export function LifeSection({
             />
           </ModuleGroup>
 
-          <ModuleGroup title="Plants" meta={`${state.plants.length} of ${getMaxPlants(state.tank.capacity)} planted`}>
+          <ModuleGroup title="Plants" meta={floorPlanted(state)}>
             <Roster layout="plants" rows={[algae, ...tables.plants]} handlers={handlers('plant')} />
             {tables.plants.length === 0 && (
               <RosterEmpty

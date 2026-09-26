@@ -1,7 +1,7 @@
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import { LogLane } from './LogLane';
-import { createLog, type LogEntry } from '../../../simulation/index.js';
+import { createLog, liters, measured, type LogEntry } from '../../../simulation/index.js';
 
 afterEach(cleanup);
 
@@ -10,7 +10,12 @@ const logs: LogEntry[] = [
   createLog(9, 'nitrogen-cycle', 'warning', 'Ammonia high: 0.42 ppm'),
 ];
 
-function mount(entries: LogEntry[], filter: 'all' | 'cycle' = 'all', at = 12): void {
+function mount(
+  entries: LogEntry[],
+  filter: 'all' | 'cycle' = 'all',
+  at = 12,
+  units: 'metric' | 'imperial' = 'metric'
+): void {
   render(
     <LogLane
       logs={entries}
@@ -18,6 +23,7 @@ function mount(entries: LogEntry[], filter: 'all' | 'cycle' = 'all', at = 12): v
       onFilter={vi.fn()}
       at={at}
       onPark={vi.fn()}
+      units={units}
     />
   );
 }
@@ -47,10 +53,16 @@ describe('LogLane', () => {
     expect(current()).toBeNull();
   });
 
+  it('reads a line’s volumes in the keeper’s units', () => {
+    mount([createLog(4, 'user', 'info', measured`Topped off water: +${liters(37.854)}`)], 'all', 4, 'imperial');
+
+    expect(current()!.textContent).toContain('Topped off water: +10.0 gal');
+  });
+
   it('parks the playhead on the tick a line names', () => {
     const onPark = vi.fn();
     render(
-      <LogLane logs={logs} filter="all" onFilter={vi.fn()} at={12} onPark={onPark} />
+      <LogLane logs={logs} filter="all" onFilter={vi.fn()} at={12} onPark={onPark} units="metric" />
     );
 
     fireEvent.click(screen.getByRole('button', { name: /Fed/ }));

@@ -1,16 +1,12 @@
 /**
  * Water-reading classification. Each reading maps its live value
  * to a status — which drives its marker, number and trend colour — using the
- * engine's own alert thresholds, so no surface invents a band.
+ * engine's own alert thresholds, so no surface invents a band. Past a line the
+ * engine alerts on for the fish's sake, a reading is an alert.
  */
 
-import {
-  HIGH_NITRITE_THRESHOLD,
-  HIGH_NITRATE_THRESHOLD,
-  LOW_OXYGEN_THRESHOLD,
-  HIGH_CO2_THRESHOLD,
-  WATER_LEVEL_CRITICAL_THRESHOLD,
-} from '../../simulation/alerts/index.js';
+import { HIGH_CO2_THRESHOLD } from '../../simulation/alerts/index.js';
+import { NITRATE_EDGE, NITRITE_EDGE, OXYGEN_COMFORT, OXYGEN_EDGE } from '../../simulation/livestock/tolerance.js';
 import type { Status } from './status.js';
 
 export type VitalKey =
@@ -25,13 +21,6 @@ export type VitalKey =
   | 'temperature'
   | 'water';
 
-/** Nitrate below this (ppm) reads as depleted plant food. */
-export const NITRATE_LOW_PPM = 5;
-/** Dissolved oxygen at or above this (mg/L) reads as comfortable. */
-const OXYGEN_OK_MGL = 6;
-/** Water level below this (% of capacity) is the engine's critical threshold. */
-const WATER_LOW_PCT = WATER_LEVEL_CRITICAL_THRESHOLD * 100;
-
 /**
  * Total ammonia against the line its free NH₃ alerts at — a line that moves
  * with pH and temperature, so it is read off the tank rather than fixed.
@@ -40,27 +29,28 @@ export function classifyAmmonia(ppm: number, line: number): Status {
   return ppm > line ? 'alert' : 'ok';
 }
 
+/** The water level, % of capacity, against the line it alerts under. */
+export function classifyLevel(percent: number, line: number): Status {
+  return percent < line ? 'alert' : 'ok';
+}
+
 /**
- * Classify a vital by its canonical value: nitrite alerts over threshold and
- * reads ok otherwise; nitrate is plant food, so it warns when
- * depleted and alerts when it climbs past the alert line; the physical readouts
- * (pH, KH, GH, temp) stay quiet, oxygen and CO₂ colour only at their extremes, and
- * water tracks its critical-level threshold.
+ * Classify a vital by its canonical value: nitrite and nitrate alert over their
+ * lines and read ok otherwise — what the plants make of nitrate is the nutrient
+ * reading's to say; the physical readouts (pH, KH, GH, temp) stay quiet, and
+ * oxygen and CO₂ colour only at their extremes.
  */
-export function classifyVital(key: Exclude<VitalKey, 'ammonia'>, value: number): Status {
+export function classifyVital(key: Exclude<VitalKey, 'ammonia' | 'water'>, value: number): Status {
   switch (key) {
     case 'nitrite':
-      return value > HIGH_NITRITE_THRESHOLD ? 'alert' : 'ok';
+      return value > NITRITE_EDGE ? 'alert' : 'ok';
     case 'nitrate':
-      if (value > HIGH_NITRATE_THRESHOLD) return 'alert';
-      return value < NITRATE_LOW_PPM ? 'warn' : 'ok';
+      return value > NITRATE_EDGE ? 'alert' : 'ok';
     case 'oxygen':
-      if (value < LOW_OXYGEN_THRESHOLD) return 'warn';
-      return value >= OXYGEN_OK_MGL ? 'ok' : 'neutral';
+      if (value < OXYGEN_EDGE) return 'alert';
+      return value >= OXYGEN_COMFORT ? 'ok' : 'neutral';
     case 'co2':
       return value > HIGH_CO2_THRESHOLD ? 'alert' : 'neutral';
-    case 'water':
-      return value < WATER_LOW_PCT ? 'warn' : 'ok';
     case 'ph':
     case 'kh':
     case 'gh':

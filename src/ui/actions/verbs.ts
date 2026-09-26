@@ -16,13 +16,14 @@ import {
   MAX_SCRUB_PERCENT,
   MIN_ALGAE_TO_SCRUB,
   MIN_SCRUB_PERCENT,
+  PLANT_SPECIES_DATA,
   WATER_CHANGE_AMOUNTS,
   type Action,
   type SimulationState,
 } from '../../simulation/index.js';
 import { FoodResource, getPpm, NitrateResource } from '../../simulation/resources/index.js';
 import type { TunableConfig } from '../../simulation/config/index.js';
-import { doseToCover, nutrientReadings, TRIM_TARGETS } from '../run';
+import { doseToCover, nutrientReadings, plantLabels, TRIM_TARGETS } from '../run';
 import { formatVolume, type UnitSystem } from '../utils/units.js';
 import { previewRows, type PreviewRow } from './readings.js';
 
@@ -99,8 +100,29 @@ export const BUILD_VERBS: BuildVerb[] = [
   { id: 'addHardscape', name: 'Add hardscape', home: 'Gear', path: '/gear', add: 'hardscape' },
 ];
 
+/** A trim held to one family, where the tank's verb reaches every plant. */
+export interface VerbScope {
+  familyId: string;
+}
+
+/** A trim held to one family, numbered as the roster numbers it — while the family stands. */
+function scopeTitle(state: SimulationState, scope: VerbScope): string | null {
+  const member = state.plants.find((plant) => plant.familyId === scope.familyId);
+  return member ? `Trim family ${plantLabels(state.plants).get(member.id)!.family}` : null;
+}
+
+/** The tank as a verb sees it: every plant, or only the family it is held to. */
+function reached(state: SimulationState, scope: VerbScope | null): SimulationState {
+  if (scope === null) return state;
+  return { ...state, plants: state.plants.filter((plant) => plant.familyId === scope.familyId) };
+}
+
 /** The action a commit dispatches. Scrub takes no seed — the engine rolls it. */
-export function verbAction(id: VerbId, settings: VerbSettings): Action {
+export function verbAction(
+  id: VerbId,
+  settings: VerbSettings,
+  scope: VerbScope | null = null
+): Action {
   switch (id) {
     case 'feed':
       return { type: 'feed', amount: settings.feed };
@@ -111,7 +133,11 @@ export function verbAction(id: VerbId, settings: VerbSettings): Action {
     case 'dose':
       return { type: 'dose', amountMl: settings.dose };
     case 'trimPlants':
-      return { type: 'trimPlants', targetSize: settings.trimPlants };
+      return {
+        type: 'trimPlants',
+        targetSize: settings.trimPlants,
+        ...(scope && { familyId: scope.familyId }),
+      };
     case 'scrubAlgae':
       return { type: 'scrubAlgae' };
   }
@@ -125,14 +151,15 @@ function outcomes(
   state: SimulationState,
   id: VerbId,
   settings: VerbSettings,
-  config: TunableConfig
+  config: TunableConfig,
+  scope: VerbScope | null
 ): SimulationState[] {
   if (id === 'scrubAlgae') {
     return [MIN_SCRUB_PERCENT, MAX_SCRUB_PERCENT].map(
       (randomPercent) => applyAction(state, { type: 'scrubAlgae', randomPercent }, config).state
     );
   }
-  return [applyAction(state, verbAction(id, settings), config).state];
+  return [applyAction(state, verbAction(id, settings, scope), config).state];
 }
 
 function headroom(state: SimulationState): number {
@@ -159,11 +186,11 @@ function daysOfFood(days: number): string {
   return days < 10 ? `${days.toFixed(1)} d` : `${Math.round(days)} d`;
 }
 
-/** Grams at the precision the engine keeps food to, or the floor it sits under. */
+/** Grams at the precision the engine keeps food to, or the least step it sits under. */
 function grams(value: number): string {
-  const floor = 10 ** -FoodResource.precision;
-  return value < floor
-    ? `under ${floor.toFixed(FoodResource.precision)} g`
+  const step = 10 ** -FoodResource.precision;
+  return value < step
+    ? `under ${step.toFixed(FoodResource.precision)} g`
     : `${value.toFixed(FoodResource.precision)} g`;
 }
 
@@ -175,7 +202,8 @@ function plural(count: number, noun: string, many = `${noun}s`): string {
 function blockedReason(
   state: SimulationState,
   id: VerbId,
-  settings: VerbSettings
+  settings: VerbSettings,
+  scope: VerbScope | null = null
 ): string | null {
   switch (id) {
     case 'feed':
@@ -187,13 +215,13 @@ function blockedReason(
     case 'dose':
       return canDose(state) ? null : 'no plants to fertilise';
     case 'trimPlants':
-      return getPlantsToTrimCount(state, settings.trimPlants) > 0
+      return getPlantsToTrimCount(reached(state, scope), settings.trimPlants) > 0
         ? null
         : `nothing above ${settings.trimPlants} %`;
     case 'scrubAlgae':
       return canScrubAlgae(state)
         ? null
-        : `needs ${MIN_ALGAE_TO_SCRUB} % algae, now ${Math.round(state.algae.mass)} %`;
+        : `needs ${MIN_ALGAE_TO_SCRUB} % algae, now ${Math.floor(state.algae.mass)} %`;
   }
 }
 
@@ -290,7 +318,8 @@ function rungsFor(
   state: SimulationState,
   id: SettableVerb,
   units: UnitSystem,
-  config: TunableConfig
+  config: TunableConfig,
+  scope: VerbScope | null
 ): Rungs {
   const water = state.resources.water;
 
@@ -343,7 +372,7 @@ function rungsFor(
       return {
         values: TRIM_TARGETS,
         rung: (target): VerbOption => {
-          const count = getPlantsToTrimCount(state, target);
+          const count = getPlantsToTrimCount(reached(state, scope), target);
           return {
             value: target,
             label: `${target} %`,
@@ -369,7 +398,8 @@ function meta(
   id: VerbId,
   settings: VerbSettings,
   units: UnitSystem,
-  config: TunableConfig
+  config: TunableConfig,
+  scope: VerbScope | null
 ): string {
   const water = state.resources.water;
 
@@ -392,8 +422,13 @@ function meta(
     case 'dose':
       return `into ${formatVolume(water, units, 1)}`;
     case 'trimPlants': {
-      const tallest = state.plants.reduce((most, plant) => Math.max(most, plant.size), 0);
-      return `${getPlantsToTrimCount(state, settings.trimPlants)} of ${plural(state.plants.length, 'plant')} · tallest ${Math.round(tallest)} %`;
+      const reach = reached(state, scope);
+      const { plants } = reach;
+      const largest = plants.reduce((most, plant) => Math.max(most, plant.size), 0);
+      const line = `${getPlantsToTrimCount(reach, settings.trimPlants)} of ${plural(plants.length, 'plant')} · largest ${Math.floor(largest)} %`;
+      return scope && plants.length > 0
+        ? `${PLANT_SPECIES_DATA[plants[0].species].name} · ${line}`
+        : line;
     }
     case 'scrubAlgae':
       return `algae ${Math.round(state.algae.mass)} %`;
@@ -406,7 +441,7 @@ function meta(
  */
 const BARE_NOTE: Partial<Record<VerbId, string>> = {
   topOff:
-    'No amount to set — top-off refills to capacity. It brings no tap chemistry with it, so temperature and pH hold where they are and everything dissolved is diluted.',
+    'No amount to set — top-off refills to capacity at the tank’s own temperature. The tap’s KH and GH come with it, everything else dissolved is diluted, and pH follows the CO₂ and KH that leaves.',
   scrubAlgae: `No amount to set — a scrub takes a random ${Math.round(MIN_SCRUB_PERCENT * 100)}–${Math.round(MAX_SCRUB_PERCENT * 100)} % of standing algae. What comes off leaves the system; it does not become waste.`,
 };
 
@@ -414,7 +449,8 @@ function commitLabel(
   state: SimulationState,
   id: VerbId,
   settings: VerbSettings,
-  units: UnitSystem
+  units: UnitSystem,
+  scope: VerbScope | null
 ): string {
   switch (id) {
     case 'feed':
@@ -426,7 +462,7 @@ function commitLabel(
     case 'dose':
       return `Dose ${settings.dose} ml`;
     case 'trimPlants':
-      return `Trim to ${settings.trimPlants} %`;
+      return `Trim ${scope ? 'family ' : ''}to ${settings.trimPlants} %`;
     case 'scrubAlgae':
       return 'Scrub algae';
   }
@@ -467,9 +503,10 @@ function rungs(
   state: SimulationState,
   setting: NonNullable<VerbDetail['setting']>,
   units: UnitSystem,
-  config: TunableConfig
+  config: TunableConfig,
+  scope: VerbScope | null
 ): VerbOption[] {
-  const { values, rung } = rungsFor(state, setting.verb, units, config);
+  const { values, rung } = rungsFor(state, setting.verb, units, config, scope);
   const all = values.includes(setting.value)
     ? values
     : [...values, setting.value].sort((a, b) => a - b);
@@ -477,31 +514,33 @@ function rungs(
 }
 
 /**
- * Everything the settings step shows for one verb. Only the selected verb is
- * read this far: the preview applies the action to find its rows.
+ * Everything the settings step shows for one verb, over what it reaches. Only
+ * the selected verb is read this far: the preview applies the action to find
+ * its rows.
  */
 export function verbDetail(
   state: SimulationState,
   id: VerbId,
   settings: VerbSettings,
   units: UnitSystem,
-  config: TunableConfig
+  config: TunableConfig,
+  scope: VerbScope | null = null
 ): VerbDetail {
   const setting = settingOf(id, settings);
   return {
     id,
-    title: VERB[id].title,
-    meta: meta(state, id, settings, units, config),
+    title: (id === 'trimPlants' && scope && scopeTitle(state, scope)) || VERB[id].title,
+    meta: meta(state, id, settings, units, config, scope),
     setting,
-    options: setting === null ? [] : rungs(state, setting, units, config),
+    options: setting === null ? [] : rungs(state, setting, units, config, scope),
     note: BARE_NOTE[id] ?? null,
     preview: previewRows({
       before: state,
-      outcomes: outcomes(state, id, settings, config),
+      outcomes: outcomes(state, id, settings, config, scope),
       config,
       units,
     }),
-    commitLabel: commitLabel(state, id, settings, units),
-    blocked: blockedReason(state, id, settings),
+    commitLabel: commitLabel(state, id, settings, units, scope),
+    blocked: blockedReason(state, id, settings, scope),
   };
 }

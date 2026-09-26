@@ -1,5 +1,6 @@
 import {
   applyAction,
+  isOvergrown,
   resetHardscape,
   type Action,
   type SimulationState,
@@ -17,7 +18,7 @@ export type Schedule = ScheduleEntry[];
 
 export const DAILY = 1;
 export const WEEKLY = 7;
-export const TRIM_TARGET = 100;
+export const TRIM_TARGET = 85;
 export const VACUUM_SHARE = 0.15;
 
 /** Mid-afternoon, lights on — when a keeper reaches for the test kit, before the day's chores. */
@@ -28,8 +29,7 @@ export const dayOf = (tick: number): number => Math.floor(tick / 24) + 1;
 
 function toAction(chore: Chore, state: SimulationState): Action | null {
   if (!('shareOfStock' in chore)) return chore;
-  const mass = state.fish.reduce((sum, fish) => sum + fish.mass, 0);
-  const amount = Math.round(mass * chore.shareOfStock * 100) / 100;
+  const amount = state.fish.reduce((sum, fish) => sum + fish.mass, 0) * chore.shareOfStock;
   return amount > 0 ? { type: 'feed', amount } : null;
 }
 
@@ -43,6 +43,19 @@ export function rescapeTank(state: SimulationState, config: TunableConfig): Simu
   state.plants.forEach((plant, i) => {
     if (i % 2 === 0) next = applyAction(next, { type: 'removePlant', plantId: plant.id }, config).state;
   });
+  return next;
+}
+
+/**
+ * A keeper thinning a planting that has outgrown its floor: the youngest
+ * plants come out until what is left fits.
+ */
+export function thinToFloor(state: SimulationState, config: TunableConfig): SimulationState {
+  let next = state;
+  while (isOvergrown(next)) {
+    const youngest = next.plants.reduce((a, b) => (b.age <= a.age ? b : a));
+    next = applyAction(next, { type: 'removePlant', plantId: youngest.id }, config).state;
+  }
   return next;
 }
 

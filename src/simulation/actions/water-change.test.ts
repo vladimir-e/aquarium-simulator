@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { produce } from 'immer';
 import { waterChange } from './water-change.js';
+import { logText } from '../core/logging.js';
 import { createSimulation, type SimulationState } from '../state.js';
 import { getDgh, getDkh, getGhMass, getKhMass } from '../resources/helpers.js';
 import type { ActionResult, WaterChangeAction } from './types.js';
@@ -83,10 +84,10 @@ describe('waterChange', () => {
     const result = change(tank({ water: 90 }), 0.25);
     const log = result.state.logs.find((l) => l.source === 'user' && l.message.includes('Water change'));
 
-    for (const text of [log!.message, result.message]) {
+    for (const text of [logText(log!), result.message]) {
       expect(text).toContain('25%');
-      expect(text).toContain('removed 22.5L');
-      expect(text).toContain('added 32.5L');
+      expect(text).toContain('removed 22.5 L');
+      expect(text).toContain('added 32.5 L');
     }
   });
 

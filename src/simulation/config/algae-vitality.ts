@@ -9,24 +9,25 @@
  * recalibration pass.
  *
  * Severities are pre-hardiness; `computeAlgaePopulation` multiplies
- * by `(1 - hardiness)` centrally. Algae has a single `hardiness`
+ * them by `(1 - hardiness)`. Algae has a single `hardiness`
  * value (no per-species variation yet) — pick it modestly so a single
- * full-grown plant does not zero out the bloom path.
+ * healthy clump does not zero out the bloom path.
  */
 
 import { SURPLUS_CAP_DEFAULT } from './vitality.js';
 
 export interface AlgaeVitalityConfig {
-  /** Hardiness 0–1 — multiplied centrally by `computeAlgaePopulation`. */
+  /** Hardiness 0–1; every stressor is scaled by `1 − hardiness`. */
   hardiness: number;
 
   // Stressors --------------------------------------------------------
 
   /**
    * Plant-power threshold above which suppression activates.
-   * Power = Σ (plant.size/100) × (plant.condition/100). One full-
-   * grown thriving plant contributes 1.0; the threshold of 1.0 means
-   * a single healthy plant just starts pushing algae back.
+   * Power = Σ rate units × (plant.condition/100), see `getPlantPower`.
+   * A full thriving java fern clump contributes 1.0, a sword 2.8; the
+   * threshold of 1.0 means one healthy clump just starts pushing algae
+   * back.
    */
   suppressionThreshold: number;
   /**
@@ -57,17 +58,20 @@ export interface AlgaeVitalityConfig {
   excessLightSeverity: number;
 
   /**
-   * Peak benefit (%/h) from excess nutrients above plant optimum.
-   * "Excess" is the larger of the NO3 and PO4 ratios above optimum;
+   * Peak benefit (%/h) from excess nutrients above the reference.
+   * "Excess" is the larger of the NO3 and PO4 ratios above it;
    * scaled by severity then capped at peak. Should dominate the
    * nutrient lever (decline-driven boost flows mostly through
    * `low_plant_power`, but excess nutrients are the headline in a
    * dosed tank).
    */
   excessNutrientPeak: number;
+  /** NO₃ and PO₄ algae reads excess above and deficiency below (ppm). */
+  referenceNitratePpm: number;
+  referencePhosphatePpm: number;
   /**
    * Severity multiplier on the (ratio - 1) excess before peak cap.
-   * 1.0 means a 2× over-optimum nutrient pool gives full peak.
+   * 1.0 means a pool at twice the reference gives full peak.
    */
   excessNutrientSeverity: number;
 
@@ -138,6 +142,8 @@ export const algaeVitalityDefaults: AlgaeVitalityConfig = {
 
   excessNutrientPeak: 0.4,
   excessNutrientSeverity: 0.4,
+  referenceNitratePpm: 15,
+  referencePhosphatePpm: 1,
 
   nutrientDeficiencyPeak: 0.05,
   nutrientDeficiencySeverity: 0.1,
@@ -171,6 +177,8 @@ export const algaeVitalityConfigMeta: AlgaeVitalityConfigMeta[] = [
   { key: 'excessLightPeak', label: 'Excess Light Peak', unit: '%/hr', min: 0, max: 1, step: 0.05 },
   { key: 'excessLightSeverity', label: 'Excess Light Severity', unit: '%/PAR/hr', min: 0, max: 0.05, step: 0.001 },
   { key: 'excessNutrientPeak', label: 'Excess Nutrient Peak', unit: '%/hr', min: 0, max: 1, step: 0.05 },
+  { key: 'referenceNitratePpm', label: 'Reference Nitrate', unit: 'ppm', min: 5, max: 30, step: 1 },
+  { key: 'referencePhosphatePpm', label: 'Reference Phosphate', unit: 'ppm', min: 0.1, max: 5, step: 0.1 },
   { key: 'excessNutrientSeverity', label: 'Excess Nutrient Severity', unit: '%/ratio/hr', min: 0, max: 2, step: 0.05 },
   { key: 'nutrientDeficiencyPeak', label: 'Nutrient Deficiency Peak', unit: '%/hr', min: 0, max: 0.5, step: 0.01 },
   { key: 'nutrientDeficiencySeverity', label: 'Nutrient Deficiency Severity', unit: '%/(1-ratio)/hr', min: 0, max: 1, step: 0.05 },
@@ -178,7 +186,7 @@ export const algaeVitalityConfigMeta: AlgaeVitalityConfigMeta[] = [
   { key: 'lowPlantPowerPeak', label: 'Low Plant Power Peak', unit: '%/hr', min: 0, max: 1, step: 0.05 },
   { key: 'lowPlantPowerSeverity', label: 'Low Plant Power Severity', unit: '%/power/hr', min: 0, max: 2, step: 0.05 },
   // Mass dynamics
-  { key: 'algaeGrowthPerTickCap', label: 'Algae Growth per Tick Cap', unit: 'surplus', min: 0.1, max: 10, step: 0.1 },
-  { key: 'massPerSurplus', label: 'Mass per Surplus', unit: '%', min: 0.05, max: 2, step: 0.05 },
-  { key: 'surplusCap', label: 'Surplus Cap', unit: '%', min: 0, max: 100, step: 5 },
+  { key: 'algaeGrowthPerTickCap', label: 'Algae Growth per Tick Cap', unit: 'pts', min: 0.1, max: 10, step: 0.1 },
+  { key: 'massPerSurplus', label: 'Mass per Bank Point', unit: '%/pt', min: 0.05, max: 2, step: 0.05 },
+  { key: 'surplusCap', label: 'Bank Cap', unit: 'pts', min: 0, max: 100, step: 5 },
 ];

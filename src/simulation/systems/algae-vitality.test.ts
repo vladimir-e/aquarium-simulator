@@ -6,20 +6,21 @@ import {
   type AlgaeVitalityContext,
 } from './algae-vitality.js';
 import { algaeVitalityDefaults } from '../config/algae-vitality.js';
-import { nutrientsDefaults } from '../config/nutrients.js';
+import { getPlantPower } from './plant-power.js';
 import { getMassFromPpm } from '../resources/helpers.js';
 import type { Plant, Resources } from '../state.js';
 import type { PlantSpecies } from '../plants/species.js';
+import { plantRecord } from '../tests/plant.js';
 
 function makePlant(species: PlantSpecies, overrides: Partial<Plant> = {}): Plant {
-  return {
+  return plantRecord({
     id: `plant_${species}`,
     species,
     size: 100,
     condition: 100,
     surplus: 0,
     ...overrides,
-  };
+  });
 }
 
 function makeResources(overrides: Partial<Resources> = {}): Resources {
@@ -29,13 +30,14 @@ function makeResources(overrides: Partial<Resources> = {}): Resources {
     surface: 1000,
     flow: 100,
     light: 30,
+    lightByHour: new Array(24).fill(0),
     aeration: true,
     food: 0,
     waste: 0,
     ammonia: 0,
     nitrite: 0,
-    nitrate: getMassFromPpm(nutrientsDefaults.optimalNitratePpm, 100),
-    phosphate: getMassFromPpm(nutrientsDefaults.optimalPhosphatePpm, 100),
+    nitrate: getMassFromPpm(algaeVitalityDefaults.referenceNitratePpm, 100),
+    phosphate: getMassFromPpm(algaeVitalityDefaults.referencePhosphatePpm, 100),
     potassium: getMassFromPpm(7, 100),
     iron: getMassFromPpm(0.15, 100),
     oxygen: 8.0,
@@ -53,7 +55,6 @@ function ctx(overrides: Partial<AlgaeVitalityContext> = {}): AlgaeVitalityContex
     plants: [],
     resources: makeResources(),
     algaeConfig: algaeVitalityDefaults,
-    nutrientsConfig: nutrientsDefaults,
     ...overrides,
   };
 }
@@ -83,14 +84,14 @@ describe('buildAlgaeStressors', () => {
     expect(suppression?.amount).toBeGreaterThan(0);
     expect(suppression?.amount).toBeCloseTo(
       algaeVitalityDefaults.plantSuppressionSeverity *
-        (3.0 - algaeVitalityDefaults.suppressionThreshold),
+        (getPlantPower(plants) - algaeVitalityDefaults.suppressionThreshold),
       6
     );
   });
 
   it('weights plant power by health — sick plants do not suppress', () => {
-    const healthy = [makePlant('amazon_sword', { size: 200, condition: 100 })];
-    const dying = [makePlant('amazon_sword', { size: 200, condition: 0 })];
+    const healthy = [makePlant('amazon_sword', { size: 100, condition: 100 })];
+    const dying = [makePlant('amazon_sword', { size: 100, condition: 0 })];
 
     const healthyAmount = buildAlgaeStressors(ctx({ plants: healthy })).find(
       (s) => s.key === 'plant_suppression'
@@ -130,10 +131,10 @@ describe('buildAlgaeBenefits', () => {
     expect(amount).toBe(algaeVitalityDefaults.excessLightPeak);
   });
 
-  it('fires excess_nutrients when NO3 climbs above optimum', () => {
+  it('fires excess_nutrients when NO3 climbs above the reference', () => {
     const overdosed = ctx({
       resources: makeResources({
-        nitrate: getMassFromPpm(nutrientsDefaults.optimalNitratePpm * 3, 100),
+        nitrate: getMassFromPpm(algaeVitalityDefaults.referenceNitratePpm * 3, 100),
       }),
     });
     expect(
@@ -141,11 +142,11 @@ describe('buildAlgaeBenefits', () => {
     ).toBeGreaterThan(0);
   });
 
-  it('does not fire excess_nutrients when both NO3 and PO4 sit at optimum', () => {
+  it('does not fire excess_nutrients when both NO3 and PO4 sit at the reference', () => {
     expect(buildAlgaeBenefits(ctx()).find((b) => b.key === 'excess_nutrients')?.amount).toBe(0);
   });
 
-  it('fires nutrient_deficiency when nutrients fall below optimum', () => {
+  it('fires nutrient_deficiency when nutrients fall below the reference', () => {
     const starved = ctx({
       resources: makeResources({
         nitrate: 0,
@@ -169,21 +170,10 @@ describe('buildAlgaeBenefits', () => {
   });
 });
 
-describe('buildAlgaeBenefits — pathological config guards', () => {
+describe('buildAlgaeBenefits — an empty tank', () => {
   it('handles waterVolume = 0 without dividing by zero', () => {
     const benefits = buildAlgaeBenefits(ctx({ resources: makeResources({ water: 0 }) }));
     expect(benefits.find((b) => b.key === 'excess_nutrients')?.amount).toBe(0);
-  });
-
-  it('handles zero plant optimum without firing nutrient channels', () => {
-    const config = {
-      ...nutrientsDefaults,
-      optimalNitratePpm: 0,
-      optimalPhosphatePpm: 0,
-    };
-    const benefits = buildAlgaeBenefits(ctx({ nutrientsConfig: config }));
-    expect(benefits.find((b) => b.key === 'excess_nutrients')?.amount).toBe(0);
-    expect(benefits.find((b) => b.key === 'nutrient_deficiency')?.amount).toBe(0);
   });
 });
 
@@ -206,14 +196,14 @@ describe('computeAlgaePopulation (aggregate)', () => {
       ctx({
         plants,
         resources: makeResources({
-          nitrate: getMassFromPpm(nutrientsDefaults.optimalNitratePpm * 3, 100),
+          nitrate: getMassFromPpm(algaeVitalityDefaults.referenceNitratePpm * 3, 100),
         }),
       })
     );
     expect(result.net).toBeGreaterThan(0);
   });
 
-  it('applies hardiness centrally to stressors but not benefits', () => {
+  it('applies hardiness to stressors but not benefits', () => {
     const plants = [
       makePlant('amazon_sword', { size: 100, condition: 100 }),
       makePlant('monte_carlo', { size: 100, condition: 100 }),

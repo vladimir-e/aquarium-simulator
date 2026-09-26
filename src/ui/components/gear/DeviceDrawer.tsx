@@ -14,6 +14,8 @@ import {
 import type { TunableConfig } from '../../../simulation/config/index.js';
 import type { useSimulation } from '../../hooks/useSimulation';
 import { useUnits } from '../../hooks/useUnits';
+import { toneOf } from '../../readings';
+import type { HourAhead } from '../../run';
 import { formatFlowRate } from '../../utils/units';
 import {
   deviceHint,
@@ -29,6 +31,7 @@ import {
 } from '../../build';
 import { Drawer } from '../ui/Drawer';
 import { FieldRow } from '../ui/FieldRow';
+import { TONE_TEXT } from '../ui/RangeStrip';
 import { Select } from '../ui/Select';
 import { Stepper } from '../ui/Stepper';
 import { Toggle } from '../ui/Toggle';
@@ -48,12 +51,14 @@ function numberOptions(
 }
 
 /** One derived figure, in the engine's own terms. */
-function Figure({ label, value, note }: DeviceReading): React.JSX.Element {
+function Figure({ label, value, note, status = 'neutral' }: DeviceReading): React.JSX.Element {
   return (
     <div className="flex items-baseline justify-between gap-3 py-2">
       <span className="shrink-0 text-[13px] text-ink-2">{label}</span>
       <span className="min-w-0 text-right">
-        <span className="text-[14px] font-medium tabular-nums text-ink">{value}</span>
+        <span className={`text-[14px] font-medium tabular-nums ${TONE_TEXT[toneOf(status)]}`}>
+          {value}
+        </span>
         {note && <span className="block text-[12px] leading-4 text-ink-3">{note}</span>}
       </span>
     </div>
@@ -262,6 +267,7 @@ export function DeviceDrawer({
   entry,
   sim,
   config,
+  ahead,
   hour,
   onClose,
   onPower,
@@ -269,6 +275,7 @@ export function DeviceDrawer({
   entry: RackEntry | null;
   sim: Sim;
   config: TunableConfig;
+  ahead: HourAhead;
   hour: number;
   onClose: () => void;
   onPower: (id: DeviceId, next: boolean) => void;
@@ -276,8 +283,8 @@ export function DeviceDrawer({
   const { unitSystem } = useUnits();
   const id = entry?.row.id;
   const readings = useMemo(
-    () => (id ? deviceReadings(id, { state: sim.state, config, units: unitSystem }) : []),
-    [id, sim.state, config, unitSystem]
+    () => (id ? deviceReadings(id, { state: sim.state, config, ahead, units: unitSystem }) : []),
+    [id, sim.state, config, ahead, unitSystem]
   );
 
   const hint = useMemo(

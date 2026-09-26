@@ -8,6 +8,7 @@ import type { PresetSeed } from './seed.js';
 import { FILTER_SURFACE } from './equipment/filter.js';
 import { POWERHEAD_FLOW_LPH } from './equipment/powerhead.js';
 import type { HardscapeType } from './equipment/hardscape.js';
+import { dailyLightIntegral } from './equipment/light.js';
 
 describe('tick', () => {
   const still = (): SimulationState =>
@@ -90,7 +91,10 @@ describe('tick', () => {
     });
     const murky: TunableConfig = {
       ...DEFAULT_CONFIG,
-      optics: { waterAttenuationPerCm: DEFAULT_CONFIG.optics.waterAttenuationPerCm * 4 },
+      optics: {
+        ...DEFAULT_CONFIG.optics,
+        waterAttenuationPerCm: DEFAULT_CONFIG.optics.waterAttenuationPerCm * 4,
+      },
     };
 
     expect(tick(state, murky).resources.light).toBeLessThan(
@@ -133,6 +137,43 @@ describe('tick', () => {
   });
 });
 
+describe('the light history', () => {
+  const scheduled = (): SimulationState =>
+    createSimulation({
+      tankCapacity: 100,
+      light: { enabled: true, par: 90, schedule: { startHour: 8, duration: 12 } },
+    });
+
+  it('rewrites the slot for the hour of day each tick lands on, and only that one', () => {
+    let state = produce(scheduled(), (draft) => {
+      draft.resources.lightByHour = new Array(24).fill(-1);
+    });
+    for (let hour = 1; hour <= 30; hour++) {
+      state = tick(state);
+      expect(state.resources.lightByHour[state.tick % 24]).toBe(state.resources.light);
+      expect(state.resources.lightByHour.filter((par) => par === -1)).toHaveLength(Math.max(0, 24 - hour));
+    }
+    expect(state.resources.lightByHour.every((par) => par >= 0)).toBe(true);
+  });
+
+  it('holds the daily light integral constant through day and night under a steady schedule', () => {
+    let state = scheduled();
+    const daily = dailyLightIntegral(state.resources.lightByHour);
+    for (let hour = 0; hour < 72; hour++) {
+      state = tick(state);
+      expect(dailyLightIntegral(state.resources.lightByHour)).toBeCloseTo(daily, 10);
+    }
+  });
+
+  it('empties over a day when the fixture dies', () => {
+    let state = produce(scheduled(), (draft) => {
+      draft.equipment.light.enabled = false;
+    });
+    for (let hour = 0; hour < 24; hour++) state = tick(state);
+    expect(dailyLightIntegral(state.resources.lightByHour)).toBe(0);
+  });
+});
+
 describe('settleEnvironment', () => {
   it('lands the hour the tick runs, not the one it was handed', () => {
     let state = createSimulation({
@@ -165,7 +206,7 @@ describe('tick determinism', () => {
       { species: 'guppy', count: 3, sex: 'female' },
       { species: 'guppy', count: 2, sex: 'male' },
     ],
-    plants: [{ species: 'java_fern', count: 2, size: 120 }],
+    plants: [{ species: 'java_fern', count: 2, size: 90 }],
   };
 
   function fortnight(rngSeed: number): SimulationState {

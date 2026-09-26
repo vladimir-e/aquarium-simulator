@@ -16,8 +16,7 @@ import {
 import { nitrogenCycleDefaults } from './config/nitrogen-cycle.js';
 import { calculateMaxBacteria, restingColony } from './systems/nitrogen-cycle.js';
 import { processMetabolism } from './systems/metabolism.js';
-import { plantsDefaults } from './config/plants.js';
-import { livestockDefaults } from './config/livestock.js';
+import { ammoniaPerGramOfFood, livestockDefaults } from './config/livestock.js';
 import { decayDefaults } from './config/decay.js';
 import { NH3_TO_NO2_MASS_RATIO, NO2_TO_NO3_MASS_RATIO } from './core/chemistry.js';
 import { getGhMass, getKhMass } from './resources/helpers.js';
@@ -87,8 +86,10 @@ export interface SeedPlantGroup {
   species: PlantSpecies;
   /** Defaults to 1. */
   count?: number;
-  /** Size %, same scale as `Plant.size`. */
+  /** % of one full unit, as `Plant.size`: `deathSizeThreshold` to 100 (`isPlantableSize`); under it the first tick retires the plant. */
   size?: number;
+  /** Ticks it has already stood in the tank, as `Plant.age`. Defaults to 0. */
+  age?: number;
 }
 
 /**
@@ -149,7 +150,7 @@ function restingAmmoniaSupply(state: StockedTank): number {
     livestockDefaults
   );
   const leached = calculateSubstrateLeach(state.equipment.substrate.organicReserve, decayDefaults);
-  return ammoniaProduced + (wasteProduced + leached) * nitrogenCycleDefaults.wasteToAmmoniaRatio;
+  return ammoniaProduced + (wasteProduced + leached) * ammoniaPerGramOfFood(livestockDefaults);
 }
 
 /**
@@ -191,7 +192,7 @@ export function cycledKhReserve(type: SubstrateType, capacity: number): number {
  * nitrogen and picking up the mass of the oxygen it gains.
  */
 const NITRATE_PER_GRAM_LEACHED =
-  nitrogenCycleDefaults.wasteToAmmoniaRatio * NH3_TO_NO2_MASS_RATIO * NO2_TO_NO3_MASS_RATIO;
+  ammoniaPerGramOfFood(livestockDefaults) * NH3_TO_NO2_MASS_RATIO * NO2_TO_NO3_MASS_RATIO;
 
 /**
  * Share of that nitrate still in the water. Nothing in a fishless tank
@@ -310,9 +311,7 @@ export function applySeed(state: SimulationState, seed: PresetSeed): void {
         createPlant({
           species: group.species,
           size: group.size,
-          // Tunables bind to the tick, not to `createSimulation` — a seeded
-          // tank is built before there is a live config to read.
-          plantsConfig: plantsDefaults,
+          age: group.age,
           rng: state.rng,
         })
       );

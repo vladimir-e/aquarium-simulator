@@ -7,11 +7,8 @@ import {
   tick,
   type SimulationState,
 } from '../../simulation/index.js';
-import {
-  HIGH_AMMONIA_THRESHOLD,
-  ammoniaAlertLine,
-  HIGH_NITRITE_THRESHOLD,
-} from '../../simulation/alerts/index.js';
+import { ammoniaAlertLine } from '../../simulation/alerts/index.js';
+import { FREE_AMMONIA_EDGE, NITRITE_EDGE } from '../../simulation/livestock/tolerance.js';
 import { snapshotFromState, type RunSnapshot } from '../run/index.js';
 
 interface Run {
@@ -84,7 +81,7 @@ describe('readTank', () => {
     const { byId } = read(stocked());
 
     expect(byId.ph.sentence).toMatch(/^pH \d+\.\d{2}–\d+\.\d{2} — the span/);
-    expect(byId.nitrite.sentence).toContain(`${HIGH_NITRITE_THRESHOLD.toFixed(3)} ppm`);
+    expect(byId.nitrite.sentence).toContain(`${NITRITE_EDGE.toFixed(3)} ppm`);
     expect(byId.nitrate.sentence).toMatch(/under \d+\.\d ppm; the engine alerts over \d+\.\d\./);
   });
 
@@ -92,18 +89,21 @@ describe('readTank', () => {
     const run = stocked();
     const { byId } = read(run);
     expect(byId.ammonia.sentence).toContain(`${ammoniaAlertLine(run.state.resources).toFixed(3)} ppm`);
-    expect(byId.ammonia.sentence).toContain(`${HIGH_AMMONIA_THRESHOLD} ppm`);
+    expect(byId.ammonia.sentence).toContain(`${FREE_AMMONIA_EDGE} ppm`);
   });
 
-  it('reads nitrate twice — against the alert line, and against plant demand', () => {
-    const book = read(stocked());
-    const asFood = book.byId.nitrateDemand;
+  it('reads nitrate once, in two places — the same figure, tone and band as toxin and as food', () => {
+    for (const run of [stocked(), bare()]) {
+      const book = read(run);
+      const asFood = book.byId.nitrateDemand;
 
-    expect(book.demand[0]).toBe(asFood);
-    expect(asFood.value).toBe(book.byId.nitrate.value);
-    expect(asFood.band).not.toEqual(book.byId.nitrate.band);
-    expect(asFood.need).toMatch(/^need /);
-    expect(asFood.sentence).not.toBe(book.byId.nitrate.sentence);
+      expect(book.demand[0]).toBe(asFood);
+      expect(asFood.value).toBe(book.byId.nitrate.value);
+      expect(asFood.tone).toBe(book.byId.nitrate.tone);
+      expect(asFood.band).toEqual(book.byId.nitrate.band);
+      expect(asFood.sentence).not.toBe(book.byId.nitrate.sentence);
+    }
+    expect(read(stocked()).byId.nitrateDemand.need).toMatch(/^need /);
   });
 
   it('gives the demand reading the same stock to inspect as the toxin', () => {
@@ -116,11 +116,12 @@ describe('readTank', () => {
     expect(asFood.series!(latest)).toBe(book.byId.nitrate.series!(latest));
   });
 
-  it('leaves a nutrient unbanded when there is nothing planted to want it', () => {
+  it('leaves a nutrient unbanded when there is nothing planted to want it, bar nitrate’s alert line', () => {
     for (const reading of read(bare()).demand) {
-      expect(reading.band).toBeNull();
+      expect(reading.band === null).toBe(reading.id !== 'nitrateDemand');
       expect(reading.need).toBe('');
     }
+    expect(read(bare()).byId.nitrateDemand.band?.from).toBe(0);
   });
 
   it('balances ammonia against what makes it and what clears it', () => {
@@ -129,6 +130,7 @@ describe('readTank', () => {
     expect(byId.ammonia.fills.map((flow) => flow.label)).toEqual([
       'Waste mineralising',
       'Fish gills',
+      'Food decaying',
     ]);
     expect(byId.ammonia.drains[0].label).toBe('AOB oxidising');
     expect(byId.ammonia.net).toMatch(/^[+−]\d+\.\d{4} ppm\/h$/);
@@ -158,6 +160,17 @@ describe('readTank', () => {
     expect(fouled.band).toBeNull();
   });
 
+  it('bands the day’s light on what the worst-lit plant starves under, and not at all unplanted', () => {
+    const planted = read(stocked(1)).byId.dailyLight;
+    const unplanted = read(bare()).byId.dailyLight;
+
+    expect(planted.band).not.toBeNull();
+    expect(planted.need).toMatch(/^need /);
+    expect(unplanted.band).toBeNull();
+    expect(unplanted.need).toBe('');
+    expect(unplanted.tone).toBe('ink');
+  });
+
   it('holds a nutrient’s band still while the value moves across it', () => {
     const settled = stocked();
     const dosed = applyAction(settled.state, { type: 'dose', amountMl: 5 }).state;
@@ -169,12 +182,23 @@ describe('readTank', () => {
     expect(after.band).toEqual(before.band);
   });
 
-  it('says nothing about a trend it has not watched for an hour', () => {
+  it('says nothing about a trend it has not watched for a whole day', () => {
     const fresh = Object.values(read(bare()).byId);
-    expect(fresh.every((reading) => reading.trend === '')).toBe(true);
+    expect(fresh.every((reading) => !reading.trend)).toBe(true);
+
+    const partDay = Object.values(read(stocked(23)).byId);
+    expect(partDay.some((reading) => /[↗↘] \d/.test(reading.trend ?? ''))).toBe(false);
 
     const running = Object.values(read(stocked()).byId);
-    expect(running.some((reading) => /[↗↘] \d/.test(reading.trend))).toBe(true);
+    expect(running.some((reading) => /[↗↘] \d/.test(reading.trend ?? ''))).toBe(true);
+  });
+
+  it('measures no trend across the keeper’s own hand', () => {
+    const { state, history } = stocked(48);
+    const changed = applyAction(state, { type: 'waterChange', amount: 0.5 }).state;
+    const after = [...history.slice(0, -1), snapshotFromState(changed)];
+
+    expect(read({ state: changed, history: after }).byId.nitrate.trend).toBeNull();
   });
 
   it('reads temperature in the units the reader chose', () => {
@@ -183,14 +207,15 @@ describe('readTank', () => {
   });
 
   it('takes the trend off the same scale as the number above it', () => {
-    const { state } = stocked(1);
+    const state = { ...stocked(1).state, logs: [] };
     const base = snapshotFromState(state);
     const history = Array.from({ length: 25 }, (_, hour) => ({
       ...base,
+      tick: state.tick - 24 + hour,
       temperature: 20 + hour / 6,
     }));
 
-    const trend = (units: 'metric' | 'imperial'): string =>
+    const trend = (units: 'metric' | 'imperial'): string | null =>
       readTank({ state, config: DEFAULT_CONFIG, history, units }).byId.temperature.trend;
 
     expect(trend('metric')).toBe('↗ 4.0/d');

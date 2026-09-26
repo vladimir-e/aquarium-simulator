@@ -12,7 +12,7 @@
 
 import { produce } from 'immer';
 import type { SimulationState } from '../state.js';
-import { createLog } from '../core/logging.js';
+import { createLog, liters, logText, measured, type LogText } from '../core/logging.js';
 import { blendTemperature, blendConcentration } from '../core/blending.js';
 import { getGhMass, getKhMass } from '../resources/helpers.js';
 import { calculateO2Saturation } from '../systems/gas-exchange.js';
@@ -72,9 +72,9 @@ export function waterChange(
   const waterAdded = capacity - remainingWater; // Fill to 100%
   const percent = `${Math.round(amount * 100)}%`;
   const vacuumed = vacuum > 0 && state.equipment.substrate.organicReserve > 0;
-  const detail =
-    `(removed ${waterRemoved.toFixed(1)}L, added ${waterAdded.toFixed(1)}L)` +
-    (vacuumed ? `, vacuumed ${Math.round(vacuum * 100)}% of the bed's mulm` : '');
+  const mulm = vacuumed ? `, vacuumed ${Math.round(vacuum * 100)}% of the bed's mulm` : '';
+  const line = (lead: string): LogText =>
+    measured`${lead} (removed ${liters(waterRemoved)}, added ${liters(waterAdded)})${mulm}`;
 
   const newState = produce(state, (draft) => {
     // 1. Remove proportional dissolved compound mass
@@ -130,8 +130,8 @@ export function waterChange(
     draft.equipment.substrate.organicReserve *= 1 - vacuum;
 
     // 7. Log the action
-    draft.logs.push(createLog(draft.tick, 'user', 'info', `Water change: ${percent} ${detail}`));
+    draft.logs.push(createLog(draft.tick, 'user', 'info', line(`Water change: ${percent}`)));
   });
 
-  return { state: newState, message: `Changed ${percent} water ${detail}` };
+  return { state: newState, message: logText(line(`Changed ${percent} water`)) };
 }

@@ -4,27 +4,30 @@ import {
   getSubstrateIncompatibilityReason,
   addPlant,
   removePlant,
-  getMaxPlants,
   canAddPlant,
-  checkPlantCapacity,
+  checkPlantFootprint,
 } from './plant-management.js';
-import { createSimulation, type Plant, type SimulationState } from '../state.js';
-import type { PlantSpecies } from '../plants/species.js';
-import type { SubstrateType } from '../equipment/substrate.js';
+import { calculateFloorArea, createSimulation, type Plant, type SimulationState } from '../state.js';
+import { GROWTH_FORMS, type PlantSpecies } from '../plants/species.js';
 import { plantsDefaults } from '../config/plants.js';
+import type { SubstrateType } from '../equipment/substrate.js';
 import type { ActionResult } from './types.js';
 import { DEFAULT_PLANT_SIZE } from '../plants/create-plant.js';
 import { produce } from 'immer';
+import { plantRecord } from '../tests/plant.js';
 
 const SMALL = 19;
+const FERN_FOOTPRINT = GROWTH_FORMS.attached.footprintCm2;
+/** Java ferns that leave the small tank's floor with room for one more and no second. */
+const FERNS_TO_LAST_GAP = Math.floor(calculateFloorArea(SMALL) / FERN_FOOTPRINT) - 1;
 
-function plant(id: string): Plant {
-  return { id, species: 'java_fern', size: 50, condition: 100, surplus: 0 };
+function plant(id: string, size = 50): Plant {
+  return plantRecord({ id, species: 'java_fern', size, condition: 100, surplus: 0 });
 }
 
-function planted(count: number, tankCapacity = SMALL): SimulationState {
-  return produce(createSimulation({ tankCapacity }), (draft) => {
-    for (let i = 0; i < count; i++) draft.plants.push(plant(`plant_${i}`));
+function planted(count: number, size = 50): SimulationState {
+  return produce(createSimulation({ tankCapacity: SMALL }), (draft) => {
+    for (let i = 0; i < count; i++) draft.plants.push(plant(`plant_${i}`, size));
   });
 }
 
@@ -39,33 +42,38 @@ const add = (
   species: PlantSpecies,
   initialSize?: number
 ): ActionResult =>
-  addPlant(state, { type: 'addPlant', species, initialSize }, plantsDefaults);
+  addPlant(state, { type: 'addPlant', species, initialSize });
 
-describe('getMaxPlants', () => {
-  it('is zero without a tank, at least one in any tank, and grows with it', () => {
-    expect(getMaxPlants(0)).toBe(0);
-    expect(getMaxPlants(-10)).toBe(0);
-    expect(getMaxPlants(5)).toBe(1);
-    const sizes = [5, 19, 38, 57, 95, 208].map(getMaxPlants);
-    for (let i = 1; i < sizes.length; i++) expect(sizes[i]).toBeGreaterThan(sizes[i - 1]!);
-  });
-});
+describe('canAddPlant / checkPlantFootprint', () => {
+  it('fits a unit while its footprint fits the floor left free', () => {
+    const state = planted(FERNS_TO_LAST_GAP);
+    const free = calculateFloorArea(SMALL) - FERNS_TO_LAST_GAP * FERN_FOOTPRINT;
 
-describe('canAddPlant / checkPlantCapacity', () => {
-  const max = getMaxPlants(SMALL);
-
-  it('allows a plant while a slot is free', () => {
-    expect(canAddPlant(planted(max - 1))).toBe(true);
-    expect(checkPlantCapacity(planted(max - 1).plants, SMALL)).toEqual({ ok: true, message: '' });
+    expect(canAddPlant(state, 'java_fern')).toBe(true);
+    expect(checkPlantFootprint(state.plants, 'java_fern', SMALL)).toEqual({
+      ok: true,
+      message: '',
+      free,
+      needed: FERN_FOOTPRINT,
+    });
   });
 
-  it('refuses at capacity in the words addPlant itself emits', () => {
-    const full = planted(max);
-    const capacity = checkPlantCapacity(full.plants, SMALL);
+  it('refuses when the planted footprints and the new one overrun the floor, in the words addPlant emits', () => {
+    const state = planted(FERNS_TO_LAST_GAP);
+    const footprint = checkPlantFootprint(state.plants, 'amazon_sword', SMALL);
 
-    expect(canAddPlant(full)).toBe(false);
-    expect(capacity).toEqual({ ok: false, message: `Tank at plant capacity (${max} plants max)` });
-    expect(add(full, 'java_fern').message).toBe(capacity.message);
+    expect(canAddPlant(state, 'amazon_sword')).toBe(false);
+    expect(footprint.ok).toBe(false);
+    expect(footprint.message).toBe(
+      `Not enough floor: ${Math.floor(footprint.free)} cm² free, Amazon Sword needs ${GROWTH_FORMS.rosette.footprintCm2}`
+    );
+    expect(add(state, 'amazon_sword').message).toBe(footprint.message);
+  });
+
+  it('counts a seedling as the grown unit it will be', () => {
+    const seedlings = checkPlantFootprint(planted(FERNS_TO_LAST_GAP, 1).plants, 'java_fern', SMALL);
+    const grown = checkPlantFootprint(planted(FERNS_TO_LAST_GAP, 100).plants, 'java_fern', SMALL);
+    expect(seedlings).toEqual(grown);
   });
 });
 
@@ -111,18 +119,29 @@ describe('addPlant', () => {
     expect(log.message).toContain(`${DEFAULT_PLANT_SIZE}%`);
   });
 
-  it.each([0, 10, 100, 200])('takes an initial size of %d%%', (initialSize) => {
+  it.each([plantsDefaults.deathSizeThreshold, 10, 100])('takes an initial size of %d%%', (initialSize) => {
     const result = add(onSubstrate('none'), 'java_fern', initialSize);
     expect(result.state.plants[0].size).toBe(initialSize);
     expect(result.state.logs.at(-1)!.message).toContain(`${initialSize}%`);
   });
 
-  it.each([-10, 250, NaN])('refuses an initial size of %d', (initialSize) => {
+  it.each([-10, 0, 100.5, 250, NaN])('refuses an initial size of %d', (initialSize) => {
     const state = onSubstrate('none');
     const result = add(state, 'java_fern', initialSize);
 
     expect(result.state).toBe(state);
     expect(result.message).toContain('Invalid initial size');
+  });
+
+  it('refuses a size under `deathSizeThreshold`, which the next tick would retire', () => {
+    const state = onSubstrate('none');
+    const plantsConfig = { ...plantsDefaults, deathSizeThreshold: 5 };
+    const planting = (initialSize: number): ActionResult =>
+      addPlant(state, { type: 'addPlant', species: 'java_fern', initialSize }, plantsConfig);
+
+    expect(planting(4.9).state).toBe(state);
+    expect(planting(4.9).message).toContain('Invalid initial size');
+    expect(planting(5).state.plants).toHaveLength(1);
   });
 
   it('refuses a species the substrate cannot root, leaving the tank alone', () => {
@@ -133,8 +152,8 @@ describe('addPlant', () => {
     expect(result.message).toBe(getSubstrateIncompatibilityReason('dwarf_hairgrass', 'sand'));
   });
 
-  it('checks capacity before substrate', () => {
-    expect(add(planted(getMaxPlants(SMALL)), 'monte_carlo').message).toContain('capacity');
+  it('checks the floor before the substrate', () => {
+    expect(add(planted(FERNS_TO_LAST_GAP + 1), 'monte_carlo').message).toContain('Not enough floor');
   });
 });
 
@@ -154,14 +173,14 @@ describe('removePlant', () => {
     expect(state.plants).toHaveLength(2);
   });
 
-  it('stirs one plant slot of the bed when it uproots a rooted plant', () => {
+  it('stirs its footprint share of the bed when it uproots a rooted plant', () => {
     const soil = produce(
       createSimulation({ tankCapacity: 100, substrate: { type: 'aqua_soil' } }),
       (draft) => void (draft.resources.aob = 1000)
     );
     const sword = add(soil, 'amazon_sword').state;
     const result = removePlant(sword, { type: 'removePlant', plantId: sword.plants[0].id });
-    const share = 1 / getMaxPlants(sword.tank.capacity);
+    const share = GROWTH_FORMS.rosette.footprintCm2 / calculateFloorArea(sword.tank.capacity);
     const reserve = sword.equipment.substrate.organicReserve;
 
     expect(reserve).toBeGreaterThan(0);

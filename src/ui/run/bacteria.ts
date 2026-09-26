@@ -19,7 +19,6 @@ import {
 import {
   calculateSubstrateLeach,
   wasteSettlingShare,
-  processMetabolism,
   type Resources,
   type SimulationState,
 } from '../../simulation/index.js';
@@ -28,6 +27,7 @@ import type { NitrogenCycleConfig, TunableConfig } from '../../simulation/config
 import { getPpm } from '../../simulation/resources/index.js';
 import { monodFactor } from '../../simulation/core/kinetics.js';
 import { NH3_TO_NO2_MASS_RATIO } from '../../simulation/core/chemistry.js';
+import type { HourAhead } from './ahead.js';
 import { mineralisationBase, wasteInflow } from './waste.js';
 
 /**
@@ -114,6 +114,8 @@ export interface ConversionRates {
   wasteToAmmonia: number;
   /** NH₃ ppm excreted straight through fish gills this hour. */
   gillsToAmmonia: number;
+  /** NH₃ ppm the oxidised share of decaying food releases this hour. */
+  foodToAmmonia: number;
   /** NH₃ ppm the AOB colony takes out of the water this hour. */
   ammoniaOxidised: number;
   /** Arriving minus oxidised — positive means ammonia is climbing. */
@@ -191,7 +193,8 @@ export function colonyCount(units: number): string {
 
 export function bacteriaReadout(
   state: SimulationState,
-  config: TunableConfig
+  config: TunableConfig,
+  ahead: HourAhead
 ): BacteriaReadout {
   const r = state.resources;
   const nc = config.nitrogenCycle;
@@ -200,10 +203,12 @@ export function bacteriaReadout(
 
   // The AOB stage sees both of these: gill excretion lands in the active tier,
   // ahead of the passive nitrogen cycle, and mineralisation runs first inside it.
-  const gills = processMetabolism(state.fish, r.food, r.oxygen, config.livestock).ammoniaProduced;
+  // Decaying food lands in the same passive pass, so the colony meets it next hour.
+  const gills = ahead.gillAmmonia;
+  const food = ahead.foodAmmonia;
   const { ammoniaProduced } = calculateWasteToAmmonia(
-    mineralisationBase(state, config, wasteInflow(state, config)),
-    nc
+    mineralisationBase(state, config, wasteInflow(state, config, ahead)),
+    config
   );
   const { ammoniaConsumed, nitriteProduced } = calculateAmmoniaToNitrite(
     r.ammonia + gills + ammoniaProduced,
@@ -227,14 +232,15 @@ export function bacteriaReadout(
   const rates: ConversionRates = {
     wasteToAmmonia: getPpm(ammoniaProduced, water),
     gillsToAmmonia: getPpm(gills, water),
+    foodToAmmonia: getPpm(food, water),
     ammoniaOxidised: getPpm(ammoniaConsumed, water),
-    netAmmonia: getPpm(gills + ammoniaProduced - ammoniaConsumed, water),
+    netAmmonia: getPpm(gills + ammoniaProduced + food - ammoniaConsumed, water),
     ammoniaToNitrite: getPpm(nitriteProduced, water),
     nitriteToNitrate: getPpm(nitriteConsumed, water),
     netNitrite: getPpm(nitriteProduced - nitriteConsumed, water),
   };
   const atTrace = getPpm(r.ammonia, water) < TRACE_PPM && getPpm(r.nitrite, water) < TRACE_PPM;
-  const ammoniaArriving = rates.wasteToAmmonia + rates.gillsToAmmonia;
+  const ammoniaArriving = rates.wasteToAmmonia + rates.gillsToAmmonia + rates.foodToAmmonia;
   return {
     aob: colony(r.aob, ceiling),
     nob: colony(r.nob, ceiling),
@@ -281,8 +287,8 @@ function nextVolume(water: number, state: SimulationState, config: TunableConfig
 /**
  * Run the engine's own nitrogen model forward to find the nitrite peak.
  *
- * Waste inflow, biofilm surface, temperature and dissolved oxygen are held at
- * today's values, so this answers "if nothing else changes" — feeding more,
+ * Waste inflow, decaying food, biofilm surface, temperature and dissolved
+ * oxygen are held at today's values, so this answers "if nothing else changes" — feeding more,
  * adding fish or a water change all move it. Evaporation and the bed's leaching
  * and settling are not choices: they run every tick whatever the keeper does,
  * so the projection carries them.
@@ -290,6 +296,7 @@ function nextVolume(water: number, state: SimulationState, config: TunableConfig
 export function projectNitritePeak(
   state: SimulationState,
   config: TunableConfig,
+  ahead: HourAhead,
   horizon: number = PROJECTION_HORIZON
 ): CycleProjection | null {
   const r = state.resources;
@@ -299,11 +306,12 @@ export function projectNitritePeak(
   const aobRates = colonyRates('aob', r.temperature, r.oxygen, nc);
   const nobRates = colonyRates('nob', r.temperature, r.oxygen, nc);
 
-  const sources = wasteInflow(state, config).sources;
+  const sources = wasteInflow(state, config, ahead).sources;
   const steadyInflow = sources
     .filter((source) => source.key !== 'substrate')
     .reduce((total, source) => total + source.gramsPerHour, 0);
-  const gills = processMetabolism(state.fish, r.food, r.oxygen, config.livestock).ammoniaProduced;
+  const gills = ahead.gillAmmonia;
+  const food = ahead.foodAmmonia;
 
   let reserve = state.equipment.substrate.organicReserve;
   let water = r.water;
@@ -326,12 +334,12 @@ export function projectNitritePeak(
     reserve += settled - leached;
     waste += steadyInflow + leached - settled;
 
-    const mineralised = calculateWasteToAmmonia(waste, nc);
+    const mineralised = calculateWasteToAmmonia(waste, config);
     waste -= mineralised.wasteConsumed;
     ammonia += mineralised.ammoniaProduced + gills;
 
     const oxidised = calculateAmmoniaToNitrite(ammonia, water, aob, r.temperature, r.oxygen, nc);
-    ammonia -= oxidised.ammoniaConsumed;
+    ammonia += food - oxidised.ammoniaConsumed;
     nitrite += oxidised.nitriteProduced;
 
     const cleared = calculateNitriteToNitrate(nitrite, water, nob, r.temperature, r.oxygen, nc);
@@ -404,15 +412,15 @@ export function bacteriaSummary(
 
   if (nob.count < aob.count && rates.netNitrite > 0) {
     const behind = Math.round((1 - nob.count / aob.count) * 100);
-    return `NOB trail AOB by ${behind} % — nitrite accumulates until the colony catches up.${peakClause(projection)}`;
+    return `NOB trail AOB by ${behind}\u00a0% — nitrite accumulates until the colony catches up.${peakClause(projection)}`;
   }
 
   if (atTrace && !cycled) {
-    return `Both toxins read zero, on colonies too small to hold a feeding — ${Math.round(readout.colonisation)} % of the biofilm this tank offers.`;
+    return `Both toxins read zero, on colonies too small to hold a feeding — ${Math.round(readout.colonisation)}\u00a0% of the biofilm this tank offers.`;
   }
 
   if (rates.netNitrite <= 0) {
-    return `The biofilter is clearing nitrite at least as fast as it appears, on ${Math.round(readout.colonisation)} % of the biofilm this tank offers.`;
+    return `The biofilter is clearing nitrite at least as fast as it appears, on ${Math.round(readout.colonisation)}\u00a0% of the biofilm this tank offers.`;
   }
 
   return `Nitrite rising at ${rates.netNitrite.toFixed(4)} ppm/h.${peakClause(projection)}`;

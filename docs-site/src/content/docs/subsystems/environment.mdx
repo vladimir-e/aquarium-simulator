@@ -20,7 +20,7 @@ the room — and toward a lit fixture's warmth — and water leaves for the air.
 | Temperature drift | <Badge text="settled" variant="success" /> | Newton's cooling on the standing water, with a volume exponent that is the surface-to-volume ratio of a solid. |
 | The room's day | <Badge text="scaffolding" variant="caution" /> | A cosine around `roomTemperature`, warmest at 17:00, the same every day. No weather, no season. |
 | Light heats the water | <Badge text="scaffolding" variant="caution" /> | A lit fixture raises the temperature the water drifts toward in proportion to its surface PAR, whatever the tank. |
-| Tank geometry | <Badge text="settled" variant="success" /> | One 2:1:1 box derived from capacity. Depth and glass area come off the same solid, so they can never disagree. |
+| Tank geometry | <Badge text="settled" variant="success" /> | One 2:1:1 box derived from capacity. Depth, floor and glass area come off the same solid, so they can never disagree. |
 | Evaporation rate | <Badge text="settled" variant="success" /> | A continuous fraction of standing volume per hour, doubling every 5.56 °C of differential. |
 | Concentration by evaporation | <Badge text="settled" variant="success" /> | Free, and written nowhere: solutes are stored as mass, so less water is more ppm with no code. |
 | Evaporation direction | <Badge text="scaffolding" variant="caution" /> | The differential is read as an absolute value, so a tank 3 °C *below* the room evaporates exactly as fast as one 3 °C above it. |
@@ -53,10 +53,11 @@ width  = height
 length = 2 × height
 ```
 
-Glass surface is four walls plus the bottom — the open top is not colonisable —
-and depth is that same height, which is what light is attenuated through. A tank
-is therefore described by exactly one number, and no dimension can drift out of
-agreement with another.
+Glass surface is four walls plus the bottom — the open top is not colonisable.
+Depth is that same height, which is what light is attenuated through, and the
+floor, `2 × height²`, is what the plants' footprints fill. A tank is therefore
+described by exactly one number, and no dimension can drift out of agreement
+with another.
 
 ### Temperature drift
 
@@ -124,7 +125,7 @@ where it was, so every ppm rises, and no system had to be told.
 
 ## Key tunables
 
-| Constant | Meaning | Unit |
+| Constant | Meaning | Value |
 |---|---|---|
 | `coolingCoefficient` | Share of the temperature gap closed per hour at the reference volume | `0.132` /hr |
 | `referenceVolume` | The volume `coolingCoefficient` is quoted at | `100` L |
@@ -145,10 +146,10 @@ outside the range-declaration rule the rest of the engine follows.
 | [Water & gases](/subsystems/water-and-gases/) | — | `temperature` sets O₂ saturation, and standing `water` is the divisor every gas mass passes through |
 | [Nitrogen cycle](/subsystems/nitrogen-cycle/) | — | `temperature` drives the nitrifier Q10; `water` turns stored mass into the ppm every threshold reads |
 | [Light](/subsystems/light/) | The fixture's surface PAR, while lit, as heat | Depth, from the same box capacity implies |
-| [Plants](/subsystems/plants/) · [Livestock](/subsystems/livestock/) | — | `temperature` is a two-sided stressor and a benefit channel for both |
+| [Plants](/subsystems/plants/) · [Livestock](/subsystems/livestock/) | — | `temperature` is a two-sided stressor for both and a comfort benefit for plants alone; plants stand in the box's depth and fill its floor |
 | [Algae](/subsystems/algae/) | — | Standing `water`, to turn stored nutrient mass into the ppm the ratio needs |
 | [Actions](/subsystems/actions/) | — | Tap temperature, KH and GH are what a water change blends toward |
-| [Alerts & logging](/subsystems/alerts-and-logging/) | — | `water` below 20 % of capacity raises the critical water-level alert |
+| [Alerts & logging](/subsystems/alerts-and-logging/) | — | `water` below `waterLevelStressThreshold` of capacity raises the low water-level alert |
 | [State & persistence](/subsystems/state-and-persistence/) | — | `tank.capacity` — what every per-litre seed figure resolves against |
 
 ## Source

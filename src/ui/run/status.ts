@@ -1,10 +1,10 @@
 /**
  * The health vocabulary shared across the instrument surface — sparklines,
- * condition bars, status words and alert outlines all speak it — and the
- * reading that resolves an organism's two stocks into one line of it.
+ * condition bars, status words and alert outlines all speak it.
  */
 
-import { spendableSurplus, type VitalityBreakdown } from '../../simulation/index.js';
+import type { VitalityResult } from '../../simulation/index.js';
+import { TICKS_PER_DAY } from '../utils/clock.js';
 
 /** The four-way status every coloured element on the surface is tinted by. */
 export type Status = 'ok' | 'warn' | 'alert' | 'neutral';
@@ -31,29 +31,9 @@ export interface Reading {
   word: string;
 }
 
-/**
- * What the energy ledger has to say that the condition axis cannot.
- *
- * An organism that stores its energy pays an unaffordable upkeep bill out of
- * tissue, so condition stays where it is while the organism shrinks — the whole
- * point of the two ledgers, and the reason condition alone reported a
- * blacked-out plant as thriving all the way down to nothing.
- *
- * Two rungs, and they are not the same state. `starved` is the share of the
- * bill neither income nor the bank could cover: tissue is going *now*. Above it
- * sits a bank with nothing left over `reserved`, still paying out — damage no
- * longer buffers, repair and growth have both stopped, and every unit left is
- * spoken for by staying alive. That is the early warning, and it is a reading
- * of the bank as a stock rather than of the tick's flow: `drained > 0` on its
- * own fires every dark hour of a thriving tank, because a plant with no light
- * has no income and pays the night out of the bank by design.
- */
-function energyReading(surplus: number, breakdown: VitalityBreakdown): Reading | null {
-  if (breakdown.starved > 0) return { status: 'alert', word: 'starving' };
-  if (breakdown.drained > 0 && spendableSurplus(surplus, breakdown.reserved) === 0) {
-    return { status: 'warn', word: 'burning' };
-  }
-  return null;
+/** Of two statuses, the one that needs the reader first. */
+export function worstStatus(a: Status, b: Status): Status {
+  return STATUS_SEVERITY[b] > STATUS_SEVERITY[a] ? b : a;
 }
 
 /** Of two readings of the same organism, the one that needs the reader first. */
@@ -61,25 +41,117 @@ export function worstReading(a: Reading, b: Reading): Reading {
   return STATUS_SEVERITY[b.status] > STATUS_SEVERITY[a.status] ? b : a;
 }
 
-/**
- * How an organism is doing, read across both stocks it keeps — the worse of the
- * two channels, with condition taking a tie because it is the stock the bar
- * beside the word already shows. So a plant losing tissue in the dark escalates
- * `thriving → burning → starving → struggling → dying` instead of holding
- * `thriving` while it sheds.
- */
-export function vitalReading(
-  condition: number,
-  surplus: number,
-  breakdown: VitalityBreakdown
-): Reading {
-  const health: Reading = {
-    status: conditionStatus(condition),
-    word: conditionWord(condition),
-  };
-  const energy = energyReading(surplus, breakdown);
+/** How an organism is doing, off its condition. */
+function conditionReading(condition: number): Reading {
+  return { status: conditionStatus(condition), word: conditionWord(condition) };
+}
 
-  return energy !== null && STATUS_SEVERITY[energy.status] > STATUS_SEVERITY[health.status]
-    ? energy
-    : health;
+/** Whether a figure prints as nothing at this many decimals — the one test every surface rounds by. */
+export function printsAsZero(value: number, decimals: number): boolean {
+  return Math.abs(value) < 0.5 / 10 ** decimals;
+}
+
+/** A change over a day as a reading row prints it: nothing while it prints as zero. */
+export function dayTrend(perDay: number, decimals: number): string {
+  if (printsAsZero(perDay, decimals)) return '';
+  return `${perDay > 0 ? '↗' : '↘'} ${Math.abs(perDay).toFixed(decimals)}/d`;
+}
+
+const TREND_DECIMALS = 1;
+
+/** What the next tick does to a figure, per day, as a reading row prints it: nothing while it holds. */
+export function projectedDrift(changePerHour: number): string {
+  return dayTrend(changePerHour * TICKS_PER_DAY, TREND_DECIMALS);
+}
+
+/** What the next tick does to a figure, from the change it makes in its hour. */
+export function projectedTrend(changePerHour: number): string {
+  return projectedDrift(changePerHour) || 'steady';
+}
+
+const SICK: Reading = { status: 'warn', word: 'sick' };
+
+export interface VitalReading {
+  sick: boolean;
+  reading: Reading;
+  value: string;
+  trend: string;
+}
+
+/**
+ * How an organism reads over the hour its vitality was taken on. It is sick
+ * while its condition falls — damage outrunning healing — at the precision the
+ * trend prints, so the word and the trend cannot disagree. The figure is
+ * rounded down, so it never shows a band the condition has not reached. Sickness
+ * wins a tie with the condition's own word.
+ */
+export function vitalReading(condition: number, vitality: VitalityResult): VitalReading {
+  const change = vitality.newCondition - condition;
+  const sick = change < 0 && projectedDrift(change) !== '';
+  const health = conditionReading(condition);
+  return {
+    sick,
+    reading: sick ? worstReading(SICK, health) : health,
+    value: Math.floor(condition).toString(),
+    trend: projectedTrend(change),
+  };
+}
+
+/** One member of a species group: how it reads, and the condition behind it. */
+export interface Member {
+  condition: number;
+  reading: Reading;
+}
+
+/** The member a group is read as: the most urgent, and of those the lowest condition. */
+export function worstMember<M extends Member>(members: readonly M[]): M {
+  return members.reduce((worst, member) => {
+    const urgency = STATUS_SEVERITY[member.reading.status] - STATUS_SEVERITY[worst.reading.status];
+    return urgency > 0 || (urgency === 0 && member.condition < worst.condition) ? member : worst;
+  });
+}
+
+interface Tally<M extends Member> {
+  worst: M;
+  /** The members at the worst tone, where that tone flags anything. */
+  flagged: M[];
+  /** What the flagged share, or the worst member's word where nothing is flagged. */
+  reason: string;
+}
+
+function tally<M extends Member>(members: readonly M[]): Tally<M> {
+  const worst = worstMember(members);
+  const severity = STATUS_SEVERITY[worst.reading.status];
+  if (severity === 0) return { worst, flagged: [], reason: worst.reading.word };
+  const flagged = members.filter((member) => STATUS_SEVERITY[member.reading.status] === severity);
+  const reason =
+    new Set(flagged.map((member) => member.reading.word)).size === 1 ? worst.reading.word : 'unwell';
+  return { worst, flagged, reason };
+}
+
+/**
+ * A group reads as its most urgent members, counted — every one at that tone,
+ * so the count is the dots it sits over: `2 sick`, or `3 unwell` where their
+ * reasons differ. A group with nobody to flag, or a group of one, reads as its
+ * worst member.
+ */
+export function groupReading(members: readonly Member[]): Reading {
+  const { worst, flagged, reason } = tally(members);
+  if (members.length === 1 || flagged.length === 0) return worst.reading;
+  return { status: worst.reading.status, word: `${flagged.length} ${reason}` };
+}
+
+/**
+ * A group standing as one member of the group above it, so the rule nests: at
+ * its worst member's tone and condition, under the word its flagged members
+ * share. The count is left to the level doing the counting, which counts groups.
+ */
+export function groupMember(members: readonly Member[]): Member {
+  const { worst, reason } = tally(members);
+  return { condition: worst.condition, reading: { status: worst.reading.status, word: reason } };
+}
+
+/** A bank as a share of its cap — what the next brood or offshoot costs. Nothing fills a cap of 0. */
+export function bankShare(bank: number, cap: number): number {
+  return cap > 0 ? Math.min(1, bank / cap) : 0;
 }

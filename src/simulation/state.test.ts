@@ -1,14 +1,21 @@
 import { describe, it, expect } from 'vitest';
+import { logText } from './core/logging.js';
 import {
   createSimulation,
   calculateTankHeight,
   calculateTankGlassSurface,
   DEFAULT_HEATER,
+  relight,
 } from './state.js';
 import { DEFAULT_CONFIG } from './config/index.js';
 import { opticsDefaults } from './config/optics.js';
 import { DEFAULT_FILTER } from './equipment/filter.js';
-import { calculateParAtDepth, MAX_LIGHT_PAR } from './equipment/light.js';
+import {
+  calculateParAtDepth,
+  dailyLightIntegral,
+  MAX_LIGHT_PAR,
+  scheduledLightByHour,
+} from './equipment/light.js';
 import { DEFAULT_POWERHEAD } from './equipment/powerhead.js';
 import { DEFAULT_SUBSTRATE } from './equipment/substrate.js';
 import { tick } from './tick.js';
@@ -54,9 +61,7 @@ describe('createSimulation', () => {
     }).logs;
 
     expect(log).toMatchObject({ tick: 0, source: 'simulation', severity: 'info' });
-    for (const part of ['Simulation created', '150L tank', '24°C room', 'heater disabled']) {
-      expect(log.message).toContain(part);
-    }
+    expect(logText(log)).toBe('Simulation created: 150.0 L tank, 24.0°C room, heater disabled');
   });
 
   it('gives a bigger tank more glass to colonise, in whole cm²', () => {
@@ -98,6 +103,39 @@ describe('createSimulation - the light a tank opens on', () => {
     });
 
     expect(tick(state, DEFAULT_CONFIG).resources.light).toBeCloseTo(state.resources.light, 10);
+  });
+
+  it('opens on a full day of the schedule, seeded or not', () => {
+    const config = {
+      tankCapacity: 40,
+      light: { enabled: true, par: 90, schedule: { startHour: 8, duration: 12 } },
+    };
+    const expected = scheduledLightByHour(
+      { enabled: true, par: 90, schedule: { startHour: 8, duration: 12 } },
+      calculateTankHeight(40),
+      opticsDefaults
+    );
+
+    expect(createSimulation(config).resources.lightByHour).toEqual(expected);
+    expect(createSimulation(config, { bacteria: 'cycled' }).resources.lightByHour).toEqual(expected);
+    expect(dailyLightIntegral(expected)).toBeGreaterThan(0);
+  });
+
+  it('opens on the day its own optics give — the one a day of running them leaves, and a relight lands', () => {
+    const optics = { ...opticsDefaults, waterAttenuationPerCm: 3 * opticsDefaults.waterAttenuationPerCm };
+    const build = {
+      tankCapacity: 40,
+      light: { enabled: true, par: 90, schedule: { startHour: 8, duration: 12 } },
+    };
+    const opened = createSimulation({ ...build, optics });
+    const day = dailyLightIntegral(opened.resources.lightByHour);
+
+    expect(day).toBeLessThan(dailyLightIntegral(createSimulation(build).resources.lightByHour));
+    expect(relight(createSimulation(build), optics).resources).toEqual(opened.resources);
+
+    let state = opened;
+    for (let hour = 0; hour < 24; hour++) state = tick(state, { ...DEFAULT_CONFIG, optics });
+    expect(dailyLightIntegral(state.resources.lightByHour)).toBeCloseTo(day, 10);
   });
 });
 

@@ -1,12 +1,17 @@
 import { describe, it, expect } from 'vitest';
+import { produce } from 'immer';
 import {
-  computeFishVitality,
+  applyAction,
   createSimulation,
+  getPresetById,
+  tick,
   type Fish,
   type SimulationState,
 } from '../../simulation/index.js';
-import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
-import { readLedger, type Ledger } from './ledger.js';
+import { DEFAULT_CONFIG, type TunableConfig } from '../../simulation/config/index.js';
+import { readHourAhead } from './ahead.js';
+import { LEDGER_DECIMALS, readLedger, type Ledger, type LedgerTarget } from './ledger.js';
+import { projectedTrend } from './status.js';
 
 function makeFish(overrides: Partial<Fish> & { id: string }): Fish {
   return {
@@ -30,35 +35,35 @@ function tank(fish: Fish[], ppm = 0): SimulationState {
     : { ...state, resources: { ...state.resources, ammonia: ppm * state.resources.water } };
 }
 
-function fishLedger(state: SimulationState, id = 'fish_a_1'): Ledger {
-  return readLedger(state, DEFAULT_CONFIG, { kind: 'fish', id })!;
+function ledgerOf(
+  state: SimulationState,
+  target: LedgerTarget,
+  config: TunableConfig = DEFAULT_CONFIG
+): Ledger | null {
+  return readLedger(state, config, readHourAhead(state, config), target);
+}
+
+function fishLedger(state: SimulationState, id = 'fish_a_1', config = DEFAULT_CONFIG): Ledger {
+  return ledgerOf(state, { kind: 'fish', id }, config)!;
 }
 
 describe('readLedger', () => {
-  it('quotes every factor at the rate the reader’s day is measured in', () => {
+  it('quotes every factor that prints at the rate the reader’s day is measured in, and no other', () => {
     const state = tank([makeFish({ id: 'fish_a_1', satiation: 5 })], 20);
     const ledger = fishLedger(state);
-    const { breakdown } = computeFishVitality(
-      state.fish[0],
-      state.resources,
-      state.plants,
-      state.resources.water,
-      state.tank.capacity,
-      DEFAULT_CONFIG.livestock
-    );
+    const { breakdown } = readHourAhead(state, DEFAULT_CONFIG).fish[0].vitality;
+    const shows = (perDay: number): boolean => Number(perDay.toFixed(LEDGER_DECIMALS)) > 0;
 
-    for (const factor of [...breakdown.stressors, ...breakdown.upkeep]) {
-      if (factor.amount <= 0) continue;
-      const line = ledger.hurting.find((entry) => entry.key === factor.key)!;
-      expect(line.perDay).toBeCloseTo(factor.amount * 24, 8);
+    for (const factor of breakdown.stressors) {
+      const line = ledger.hurting.find((entry) => entry.key === factor.key);
+      if (!shows(factor.amount * 24)) {
+        expect(line).toBeUndefined();
+        continue;
+      }
+      expect(line!.perDay).toBeCloseTo(factor.amount * 24, 8);
     }
+    expect([...ledger.helping, ...ledger.hurting].every((line) => shows(line.perDay))).toBe(true);
     expect(ledger.net).toBeCloseTo(breakdown.net * 24, 8);
-  });
-
-  it('lists nothing the tick did not charge', () => {
-    const ledger = fishLedger(tank([makeFish({ id: 'fish_a_1' })]));
-
-    expect([...ledger.helping, ...ledger.hurting].every((factor) => factor.perDay > 0)).toBe(true);
   });
 
   it('balances: what helps less what hurts is the number it prints', () => {
@@ -78,27 +83,202 @@ describe('readLedger', () => {
     expect(rates).toEqual([...rates].sort((a, b) => b - a));
   });
 
-  it('says what the bank is doing, and switches when it starts paying out', () => {
-    const banked = fishLedger(tank([makeFish({ id: 'fish_a_1', surplus: 5 })]));
-    const paying = fishLedger(tank([makeFish({ id: 'fish_a_1', surplus: 5 })], 20));
+  it('says what the bank is doing: banking income, or healing out of it', () => {
+    const banking = fishLedger(tank([makeFish({ id: 'fish_a_1', surplus: 5 })]));
+    const healing = fishLedger(tank([makeFish({ id: 'fish_a_1', surplus: 5 })], 20));
 
-    expect(banked.bank!.note).toBe('banked against a bad day');
-    expect(banked.bank!.at).toBeCloseTo(5 / DEFAULT_CONFIG.livestock.surplusCap, 8);
-    expect(paying.bank!.note).toBe('paying out to hold condition');
+    expect(banking.bank!.note).toBe('banking');
+    expect(banking.bank!.at).toBeCloseTo(5 / DEFAULT_CONFIG.livestock.surplusCap, 8);
+    expect(healing.bank!.note).toBe('healing from reserve');
+  });
+
+  it('says so when the bank can neither take income nor heal', () => {
+    const cap = DEFAULT_CONFIG.livestock.surplusCap;
+    const full = fishLedger(tank([makeFish({ id: 'fish_a_1', surplus: cap })]));
+    const empty = fishLedger(tank([makeFish({ id: 'fish_a_1' })], 20));
+
+    expect(full.bank!.note).toBe('full');
+    expect(empty.bank!.note).toBe('empty');
+  });
+
+  it('reads a bank too small to print as empty, whatever the hour draws on it', () => {
+    const ledger = fishLedger(tank([makeFish({ id: 'fish_a_1', surplus: 0.03 })], 20));
+
+    expect(ledger.bank!.text).toBe('0.0');
+    expect(ledger.bank!.note).toBe('empty');
+  });
+
+  it('reads a bank held above a lowered cap as full, not as healing', () => {
+    const lowered: TunableConfig = {
+      ...DEFAULT_CONFIG,
+      livestock: { ...DEFAULT_CONFIG.livestock, surplusCap: 25 },
+    };
+    const ledger = fishLedger(tank([makeFish({ id: 'fish_a_1', surplus: 50 })]), 'fish_a_1', lowered);
+
+    expect(ledger.bank!.note).toBe('full');
+  });
+
+  it('never reads the bank of an organism the next tick takes as a purchase', () => {
+    const cap = DEFAULT_CONFIG.livestock.surplusCap;
+    const dying = tank(
+      [
+        makeFish({ id: 'fish_a_1', sex: 'female', health: 0.5, surplus: cap / 5 }),
+        makeFish({ id: 'fish_a_2', sex: 'male', health: 0.5, surplus: cap / 5 }),
+      ],
+      500
+    );
+    const next = tick(dying, DEFAULT_CONFIG);
+
+    expect(next.fish).toHaveLength(0);
+    for (const id of ['fish_a_1', 'fish_a_2']) {
+      const { bank } = fishLedger(dying, id);
+      expect(bank!.text).not.toBe('0.0');
+      expect(bank!.note).not.toMatch(/^buying/);
+    }
+  });
+
+  it('reads the bank a spawn empties as buying a brood, the hour before it spawns', () => {
+    const cap = DEFAULT_CONFIG.livestock.surplusCap;
+    const pair = tank([
+      makeFish({ id: 'fish_a_1', sex: 'female', surplus: cap }),
+      makeFish({ id: 'fish_a_2', sex: 'male' }),
+    ]);
+    const next = tick(pair, DEFAULT_CONFIG);
+
+    expect(next.clutches.length).toBeGreaterThan(pair.clutches.length);
+    expect(next.fish.find((fish) => fish.id === 'fish_a_1')!.surplus).toBe(0);
+    expect(fishLedger(pair).bank!.note).toBe('buying a brood');
+  });
+
+  describe('for a plant', () => {
+    const half = DEFAULT_CONFIG.plants.surplusCap / 2;
+    const planted = (hour: number, surplus = half): SimulationState => {
+      const dosed = applyAction(createSimulation({ tankCapacity: 200 }), { type: 'dose', amountMl: 20 }, DEFAULT_CONFIG);
+      const state = applyAction(dosed.state, {
+        type: 'addPlant',
+        species: 'java_fern',
+      }).state;
+      return { ...state, tick: hour, plants: state.plants.map((plant) => ({ ...plant, surplus })) };
+    };
+    const plantLedger = (state: SimulationState): Ledger =>
+      ledgerOf(state, { kind: 'plant', id: state.plants[0].id })!;
+
+    it('banks by day and buys growth out of the bank by night', () => {
+      expect(plantLedger(planted(10, 0)).bank!.note).toBe('banking');
+      expect(plantLedger(planted(0)).bank!.note).toBe('buying growth');
+    });
+
+    it('names the bank by which way the next tick moves it, and by what it buys', () => {
+      const cap = DEFAULT_CONFIG.plants.surplusCap;
+      const budding = planted(10, cap);
+      const grown = { ...budding, plants: budding.plants.map((plant) => ({ ...plant, size: 100 })) };
+
+      const notes = [planted(0, 2), planted(10, 2), planted(0), planted(10), budding, grown].map((state) => {
+        const next = tick(state, DEFAULT_CONFIG).plants;
+        const moved = next[0].surplus - state.plants[0].surplus;
+        const note = plantLedger(state).bank!.note;
+
+        expect(note).toBe(
+          moved > 0 ? 'banking' : next.length > state.plants.length ? 'buying an offshoot' : 'buying growth'
+        );
+        return note;
+      });
+      expect(notes).toContain('buying an offshoot');
+    });
+
+    it('never reads the bank of a plant the next tick takes as buying growth', () => {
+      const dark = planted(0, half);
+      const dying = {
+        ...dark,
+        equipment: { ...dark.equipment, light: { ...dark.equipment.light, enabled: false } },
+        resources: { ...dark.resources, lightByHour: dark.resources.lightByHour.map(() => 0) },
+        plants: dark.plants.map((plant) => ({ ...plant, condition: 0.001, surplus: 1 })),
+      };
+
+      expect(tick(dying, DEFAULT_CONFIG).plants).toHaveLength(0);
+      expect(plantLedger(dying).bank!.note).not.toMatch(/^buying/);
+    });
+
+    it('tones its light warn exactly while the light-high stressor charges it, whatever its need', () => {
+      const burns = [20, 200, 800].map((par) => {
+        const state = produce(planted(10), (draft) => {
+          draft.equipment.light.par = par;
+        });
+        const { light } = plantLedger(state);
+        const { vitality } = readHourAhead(state, DEFAULT_CONFIG).plants[0];
+        const burning = vitality.breakdown.stressors.find((s) => s.key === 'light')!.amount > 0;
+
+        expect(light!.status === 'warn').toBe(burning || Number(light!.text) < 100);
+        return burning;
+      });
+      expect(burns).toContain(true);
+      expect(burns).toContain(false);
+    });
+
+    it('trends by the condition the next tick leaves it at', () => {
+      const dawn = planted(7);
+      const state = { ...dawn, plants: dawn.plants.map((plant) => ({ ...plant, condition: 70 })) };
+      const change = (tick(state, DEFAULT_CONFIG).plants[0].condition - 70) * 24;
+
+      expect(plantLedger(state).trend).toBe(`↗ ${change.toFixed(1)}/d`);
+    });
+  });
+
+  it('trends the algae by what the next tick does to its coverage, by day and by night, beside the bloom’s own balance', () => {
+    const preset = getPresetById('planted')!;
+    let state = produce(createSimulation(preset.config, preset.seed), (draft) => {
+      draft.algae.mass = 20;
+      draft.algae.surplus = 10;
+    });
+    const trends = new Set<string>();
+    for (let hour = 0; hour < 24; hour++) {
+      const next = tick(state, DEFAULT_CONFIG);
+      const { trend, helps, hurts, net } = ledgerOf(state, { kind: 'algae' })!;
+
+      expect(trend).toBe(projectedTrend(next.algae.mass - state.algae.mass));
+      expect(net).toBeCloseTo(readHourAhead(state, DEFAULT_CONFIG).algae.net * 24, 10);
+      expect(helps - hurts).toBeCloseTo(net, 10);
+      trends.add(trend);
+      state = next;
+    }
+    expect(trends).toContain('steady');
+    expect([...trends].some((trend) => trend.startsWith('↗'))).toBe(true);
   });
 
   it('has nothing to open for a fish the tank no longer holds', () => {
     const state = tank([makeFish({ id: 'fish_a_1' })]);
 
-    expect(readLedger(state, DEFAULT_CONFIG, { kind: 'fish', id: 'fish_a_9' })).toBeNull();
-    expect(readLedger(state, DEFAULT_CONFIG, { kind: 'plant', id: 'plant_a_1' })).toBeNull();
+    expect(ledgerOf(state, { kind: 'fish', id: 'fish_a_9' })).toBeNull();
+    expect(ledgerOf(state, { kind: 'plant', id: 'plant_a_1' })).toBeNull();
   });
 
   it('always has the algae to open — a population needs no id', () => {
-    const algae = readLedger(tank([]), DEFAULT_CONFIG, { kind: 'algae' })!;
+    const algae = ledgerOf(tank([]), { kind: 'algae' })!;
 
     expect(algae.species).toBe('algae');
-    expect(algae.bank).toBeNull();
     expect(algae.verb).toBe('scrubAlgae');
+  });
+
+  it('reads the bloom’s bank buying coverage while lit, and held while dark', () => {
+    const preset = getPresetById('planted')!;
+    let state = produce(createSimulation(preset.config, preset.seed), (draft) => {
+      draft.algae.mass = 20;
+      draft.algae.surplus = 10;
+    });
+    const notes = new Map<boolean, Set<string>>([
+      [true, new Set()],
+      [false, new Set()],
+    ]);
+    for (let hour = 0; hour < 24; hour++) {
+      const next = tick(state, DEFAULT_CONFIG);
+      const { bank } = ledgerOf(state, { kind: 'algae' })!;
+
+      notes.get(next.resources.light > 0)!.add(bank!.note);
+      expect(bank!.text).toBe(state.algae.surplus.toFixed(1));
+      state = next;
+    }
+    expect(notes.get(true)).toContain('buying coverage');
+    expect([...notes.get(false)!].every((note) => note !== 'buying coverage')).toBe(true);
+    expect(notes.get(false)).toContain('held while dark');
   });
 });

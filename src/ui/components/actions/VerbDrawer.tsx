@@ -7,6 +7,7 @@ import {
   type PreviewRow,
   type SettableVerb,
   type VerbId,
+  type VerbScope,
   type VerbSettings,
 } from '../../actions';
 import { useUnits } from '../../hooks/useUnits';
@@ -49,6 +50,7 @@ function PreviewLine({ row }: { row: PreviewRow }): React.JSX.Element {
 
 interface VerbDrawerProps {
   verb: VerbId | null;
+  scope: VerbScope | null;
   state: SimulationState;
   config: TunableConfig;
   settings: VerbSettings;
@@ -65,6 +67,7 @@ interface VerbDrawerProps {
  */
 export function VerbDrawer({
   verb,
+  scope,
   state,
   config,
   settings,
@@ -74,8 +77,8 @@ export function VerbDrawer({
 }: VerbDrawerProps): React.JSX.Element | null {
   const { unitSystem } = useUnits();
   const detail = useMemo(
-    () => (verb === null ? null : verbDetail(state, verb, settings, unitSystem, config)),
-    [verb, state, settings, unitSystem, config]
+    () => (verb === null ? null : verbDetail(state, verb, settings, unitSystem, config, scope)),
+    [verb, scope, state, settings, unitSystem, config]
   );
 
   const commit = useCallback((): void => {

@@ -55,7 +55,9 @@ export function ModulePage({
       <div className="flex min-h-12 shrink-0 flex-wrap items-center gap-x-2.5 gap-y-1.5 px-3 py-1.5">
         <h1 className="text-[20px] font-medium leading-6">{title}</h1>
         {meta && <span className="min-w-0 truncate text-[13px] text-ink-2">{meta}</span>}
-        {actions && <div className="ml-auto flex shrink-0 items-center gap-2">{actions}</div>}
+        {actions && (
+          <div className="ml-auto flex min-w-0 flex-wrap items-center justify-end gap-2">{actions}</div>
+        )}
       </div>
       <div className={`min-h-0 flex-1 px-3 pb-3 ${fills ? 'overflow-hidden' : 'overflow-y-auto'}`}>
         {children}

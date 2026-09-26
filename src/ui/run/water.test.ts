@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { produce } from 'immer';
 import {
   gasReadings,
   ammoniaScale,
@@ -11,20 +12,30 @@ import {
 } from './water';
 import {
   ammoniaAlertLine,
+  checkAlerts,
   HIGH_CO2_THRESHOLD,
-  HIGH_NITRATE_THRESHOLD,
-  HIGH_NITRITE_THRESHOLD,
-  LOW_OXYGEN_THRESHOLD,
 } from '../../simulation/alerts/index.js';
-import { createSimulation, type SimulationState } from '../../simulation/index.js';
-import { getKhMass } from '../../simulation/resources/index.js';
+import { DEFAULT_CONFIG, type TunableConfig } from '../../simulation/config/index.js';
+import {
+  NITRATE_EDGE,
+  NITRITE_EDGE,
+  OXYGEN_COMFORT,
+  OXYGEN_EDGE,
+} from '../../simulation/livestock/tolerance.js';
+import { applyAction, createSimulation, type SimulationState } from '../../simulation/index.js';
+import { getKhMass, getMassFromPpm } from '../../simulation/resources/index.js';
+import { nutrientReadings, type NutrientReading } from './flora';
 
 function tank(): SimulationState {
   return createSimulation({ tankCapacity: 200 });
 }
 
-function readings(state: SimulationState): WaterReading[] {
-  return waterReadings(state, 'metric');
+function nitrateOf(state: SimulationState, config = DEFAULT_CONFIG): NutrientReading {
+  return nutrientReadings(state, config).find((n) => n.key === 'nitrate')!;
+}
+
+function readings(state: SimulationState, config = DEFAULT_CONFIG): WaterReading[] {
+  return waterReadings(state, config, 'metric', nitrateOf(state, config));
 }
 
 function byKey(state: SimulationState, key: string): WaterReading {
@@ -48,8 +59,8 @@ describe('readingAt', () => {
 
 describe('display scales', () => {
   it('keeps every alert threshold on the track it belongs to', () => {
-    expect(readingAt('nitrite', HIGH_NITRITE_THRESHOLD)).toBeLessThan(1);
-    expect(readingAt('nitrate', HIGH_NITRATE_THRESHOLD)).toBeLessThan(1);
+    expect(readingAt('nitrite', NITRITE_EDGE)).toBeLessThan(1);
+    expect(readingAt('nitrate', NITRATE_EDGE)).toBeLessThan(1);
     for (const line of [0.05, 0.3, 3, 45]) {
       expect(trackAt(ammoniaScale(line), line)).toBeLessThan(1);
     }
@@ -108,12 +119,30 @@ describe('waterReadings', () => {
       from: 0,
       to: trackAt(byKey(state, 'ammonia').scale, ammoniaAlertLine(state.resources)),
     });
-    expect(byKey(state, 'nitrate').band).toEqual({
-      from: readingAt('nitrate', 5),
-      to: readingAt('nitrate', HIGH_NITRATE_THRESHOLD),
-    });
+    expect(byKey(state, 'nitrate').band).toEqual({ from: 0, to: readingAt('nitrate', NITRATE_EDGE) });
     expect(byKey(state, 'temperature').band).toBeNull();
     expect(byKey(state, 'ph').band).toBeNull();
+  });
+
+  it('reads nitrate as the one reading the plant food is, tone and band', () => {
+    const planted = applyAction(tank(), { type: 'addPlant', species: 'anubias' }).state;
+    const holding = (ppm: number): SimulationState =>
+      produce(planted, (draft) => {
+        draft.resources.nitrate = getMassFromPpm(ppm, draft.resources.water);
+      });
+    const at = (ppm: number): WaterReading => byKey(holding(ppm), 'nitrate');
+    const food = nitrateOf(planted);
+
+    expect(at(0).band).toEqual({
+      from: readingAt('nitrate', food.needed),
+      to: readingAt('nitrate', NITRATE_EDGE),
+    });
+    for (const ppm of [0, food.needed / 2, food.needed * 2, NITRATE_EDGE + 1]) {
+      expect(at(ppm).status).toBe(nitrateOf(holding(ppm)).status);
+    }
+    expect(at(food.needed / 2).status).toBe('warn');
+    expect(at(NITRATE_EDGE + 1).status).toBe('alert');
+    expect(byKey(tank(), 'nitrate').status).not.toBe('warn');
   });
 
   it('takes its status from the engine line, never from the scale', () => {
@@ -123,11 +152,27 @@ describe('waterReadings', () => {
     expect(byKey(state, 'ph').status).toBe('neutral');
   });
 
+  it('alerts on the level exactly where its alert fires, wherever the line is tuned', () => {
+    for (const line of [30, 50, 70]) {
+      const config: TunableConfig = {
+        ...DEFAULT_CONFIG,
+        livestock: { ...DEFAULT_CONFIG.livestock, waterLevelStressThreshold: line },
+      };
+      for (const percent of [line - 1, line, line + 1]) {
+        const state = tank();
+        state.resources.water = (percent / 100) * state.tank.capacity;
+        const level = readings(state, config).find((r) => r.key === 'water')!;
+
+        expect(level.status === 'alert').toBe(checkAlerts(state, config).alertState.waterLevelCritical);
+      }
+    }
+  });
+
   it('shows the reading in the reader’s units without moving it on the track', () => {
     const state = tank();
     state.resources.temperature = 25;
-    const metric = waterReadings(state, 'metric')[0];
-    const imperial = waterReadings(state, 'imperial')[0];
+    const metric = readings(state)[0];
+    const imperial = waterReadings(state, DEFAULT_CONFIG, 'imperial', nitrateOf(state))[0];
     expect(metric.text).toBe('25.0');
     expect(imperial.text).toBe('77.0');
     expect(imperial.fill).toBeCloseTo(metric.fill, 10);
@@ -152,15 +197,14 @@ describe('gasReadings', () => {
   });
 
   it('calls oxygen low at the engine’s own alert threshold, and not before', () => {
-    expect(LOW_OXYGEN_THRESHOLD).toBe(4);
-    expect(gas(3.9, 12, 'oxygen')).toMatchObject({ status: 'warn' });
-    expect(gas(5, 12, 'oxygen')).toMatchObject({ status: 'neutral' });
-    expect(gas(6, 12, 'oxygen')).toMatchObject({ status: 'ok' });
+    expect(gas(OXYGEN_EDGE * 0.99, 12, 'oxygen')).toMatchObject({ status: 'alert' });
+    expect(gas(OXYGEN_EDGE, 12, 'oxygen')).toMatchObject({ status: 'neutral' });
+    expect(gas((OXYGEN_EDGE + OXYGEN_COMFORT) / 2, 12, 'oxygen')).toMatchObject({ status: 'neutral' });
+    expect(gas(OXYGEN_COMFORT, 12, 'oxygen')).toMatchObject({ status: 'ok' });
   });
 
   it('calls CO₂ high only past the threshold its alert fires on', () => {
-    expect(HIGH_CO2_THRESHOLD).toBe(30);
-    expect(gas(7, 30.1, 'co2')).toMatchObject({ status: 'alert' });
-    expect(gas(7, 30, 'co2')).toMatchObject({ status: 'neutral' });
+    expect(gas(7, HIGH_CO2_THRESHOLD * 1.01, 'co2')).toMatchObject({ status: 'alert' });
+    expect(gas(7, HIGH_CO2_THRESHOLD, 'co2')).toMatchObject({ status: 'neutral' });
   });
 });

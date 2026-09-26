@@ -4,12 +4,18 @@ import {
   filterLogs,
   isAlertLog,
   classifyAlert,
-  latestAlert,
   LOG_FILTERS,
 } from './category';
 import { createLog, type LogEntry } from '../../simulation/index.js';
 
 describe('categorizeLog', () => {
+  it('tags an offshoot as life, and not an alert', () => {
+    const offshoot = createLog(1, 'simulation', 'info', 'Java Fern branched', 'plant-propagated');
+
+    expect(categorizeLog(offshoot)).toBe('life');
+    expect(isAlertLog(offshoot)).toBe(false);
+  });
+
   it('tags any lifecycle event as life, regardless of source', () => {
     expect(categorizeLog(createLog(1, 'simulation', 'info', 'hatched', 'eggs-hatched', 4))).toBe('life');
     expect(categorizeLog(createLog(1, 'simulation', 'warning', 'died', 'fish-died'))).toBe('life');
@@ -65,7 +71,7 @@ describe('filterLogs', () => {
 describe('isAlertLog', () => {
   it('counts chemistry and plant-death warnings', () => {
     expect(isAlertLog(createLog(1, 'nitrogen-cycle', 'warning', 'high ammonia'))).toBe(true);
-    expect(isAlertLog(createLog(1, 'simulation', 'warning', 'plant died', 'plant-died'))).toBe(true);
+    expect(isAlertLog(createLog(1, 'simulation', 'warning', 'plant died', 'plant-died'))).toBe(false);
   });
 
   it('excludes a fish death (a death, not an alert) and info lines', () => {
@@ -86,31 +92,15 @@ describe('classifyAlert', () => {
     expect(classifyAlert(createLog(1, 'gas-exchange', 'warning', 'High CO2 level: 35 mg/L'))).toBe('co2');
   });
 
-  it('maps algae, water, and plant-death alerts', () => {
+  it('maps algae and water alerts, and leaves a death to the life events', () => {
     expect(classifyAlert(createLog(1, 'algae', 'warning', 'High algae level: 85'))).toBe('algae');
-    expect(classifyAlert(createLog(1, 'evaporation', 'warning', 'Water level critical: 30L'))).toBe('water');
-    expect(classifyAlert(createLog(1, 'simulation', 'warning', 'Anubias died from poor conditions', 'plant-died'))).toBe('plant');
+    expect(classifyAlert(createLog(1, 'evaporation', 'warning', 'Water level low: 30L'))).toBe('water');
+    expect(classifyAlert(createLog(1, 'simulation', 'warning', 'Anubias died from poor conditions', 'plant-died'))).toBeNull();
   });
 
   it('returns null for non-alert lines and unclassified engine warnings', () => {
     expect(classifyAlert(createLog(1, 'user', 'info', 'fed fish'))).toBeNull();
     expect(classifyAlert(createLog(1, 'simulation', 'warning', 'died', 'fish-died'))).toBeNull();
     expect(classifyAlert(createLog(1, 'simulation', 'warning', 'unclassified anomaly'))).toBeNull();
-  });
-});
-
-describe('latestAlert', () => {
-  it('returns the most recent classifiable alert', () => {
-    const logs: LogEntry[] = [
-      createLog(2, 'nitrogen-cycle', 'warning', 'High nitrite level: 1.2 ppm'),
-      createLog(5, 'nitrogen-cycle', 'warning', 'High ammonia level: 0.2 ppm'),
-      createLog(6, 'user', 'info', 'fed fish'),
-    ];
-    expect(latestAlert(logs)).toEqual({ tick: 5, kind: 'ammonia' });
-  });
-
-  it('returns null when nothing qualifies', () => {
-    expect(latestAlert([createLog(1, 'user', 'info', 'fed fish')])).toBeNull();
-    expect(latestAlert([])).toBeNull();
   });
 });

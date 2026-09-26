@@ -21,7 +21,10 @@ export type {
 } from './state.js';
 export {
   createSimulation,
+  relight,
+  scheduledLightHistory,
   calculateTankHeight,
+  calculateFloorArea,
   calculateTankGlassSurface,
   calculateHardscapeSlots,
   DEFAULT_HEATER,
@@ -31,14 +34,26 @@ export {
 } from './state.js';
 
 // Logging
-export type { LogEntry, LogSeverity, LogEvent } from './core/logging.js';
+export type { LogEntry, LogSeverity, LogEvent, LogQuantity, LogText, QuantityFormat } from './core/logging.js';
 
 // Randomness — the stream is the state's to advance, so only its shape is public.
 export type { RngState } from './core/rng.js';
 
 // Species
-export type { PlantSpecies, PlantSpeciesData, NutrientDemand } from './plants/species.js';
-export { PLANT_SPECIES_DATA, getSaturationIrradiance } from './plants/species.js';
+export type {
+  PlantSpecies,
+  PlantSpeciesData,
+  NutrientDemand,
+  GrowthForm,
+  GrowthFormData,
+} from './plants/species.js';
+export {
+  PLANT_SPECIES_DATA,
+  GROWTH_FORMS,
+  growthFormOf,
+  getSaturationIrradiance,
+  dailyLightEdge,
+} from './plants/species.js';
 export type {
   FishSpecies,
   FishSpeciesData,
@@ -48,6 +63,14 @@ export type {
   FishBreedingData,
 } from './livestock/species.js';
 export { FISH_SPECIES_DATA } from './livestock/species.js';
+export {
+  FREE_AMMONIA_EDGE,
+  NITRITE_EDGE,
+  NITRATE_EDGE,
+  OXYGEN_EDGE,
+  OXYGEN_COMFORT,
+  toleranceFactor,
+} from './livestock/tolerance.js';
 
 // Seeding — starting a tank at a state
 export type {
@@ -112,7 +135,7 @@ export type { DailySchedule } from './core/schedule.js';
 export { isScheduleActive, isValidSchedule, formatSchedule } from './core/schedule.js';
 
 // Logging
-export { createLog } from './core/logging.js';
+export { celsius, createLog, liters, logText, measured, metricQuantity } from './core/logging.js';
 
 // Blending
 export { blendTemperature, blendConcentration } from './core/blending.js';
@@ -209,6 +232,8 @@ export {
   type AutoDoser,
   getLightOutput,
   calculateParAtDepth,
+  scheduledLightByHour,
+  dailyLightIntegral,
   LIGHT_PAR_OPTIONS,
   MAX_LIGHT_PAR,
   type Light,
@@ -242,8 +267,8 @@ export {
   checkAlerts,
   waterLevelAlert,
   highAlgaeAlert,
-  WATER_LEVEL_CRITICAL_THRESHOLD,
-  HIGH_ALGAE_THRESHOLD,
+  waterLevelAlertLine,
+  algaeAlertLine,
 } from './alerts/index.js';
 
 // Actions
@@ -282,9 +307,8 @@ export {
   removePlant,
   isSubstrateCompatible,
   getSubstrateIncompatibilityReason,
-  getMaxPlants,
   canAddPlant,
-  checkPlantCapacity,
+  checkPlantFootprint,
   dose,
   canDose,
   getDosePreview,
@@ -319,17 +343,33 @@ export {
   processPlants,
   calculatePhotosynthesis,
   calculateNutrientSufficiency,
-  getTotalPlantSize,
+  speciesDemand,
+  speciesHalfSaturation,
+  nutrientShare,
   calculateCo2Factor,
   calculateRespiration,
   getRespirationTemperatureFactor,
   spendSurplus,
+  propagate,
+  VIGOUR_SPAN,
   getSpeciesGrowthRate,
   computePlantVitality,
-  buildPlantUpkeep,
+  plantHealingRate,
+  plantNitrateEdge,
   buildPlantStressors,
   buildPlantBenefits,
+  readPlantLight,
+  LEAF_AREA_PER_RATE_UNIT,
+  plantHeight,
+  leafArea,
+  rateUnits,
+  getTotalRateUnits,
+  canopyLight,
+  floorCover,
+  floorShade,
+  isOvergrown,
 } from './plants/index.js';
+export type { PlantLight, CanopyLight, Propagation } from './plants/index.js';
 
 // Livestock
 export {
@@ -337,6 +377,7 @@ export {
   processMetabolism,
   processHealth,
   computeFishVitality,
+  fishHealingRate,
   processBreeding,
   createFish,
   fishMassForAge,
@@ -354,11 +395,9 @@ export {
 // Vitality
 export {
   computeVitality,
-  bankSurplus,
-  spendableSurplus,
+  hardened,
   type VitalityFactor,
   type VitalityInput,
   type VitalityResult,
   type VitalityBreakdown,
-  type SurplusBankTick,
 } from './systems/index.js';

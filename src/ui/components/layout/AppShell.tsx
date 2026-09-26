@@ -2,12 +2,13 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Outlet, useOutletContext } from 'react-router-dom';
 import type { TunableConfig } from '../../../simulation/config/index.js';
 import { countModified } from '../../../simulation/config/index.js';
-import { verbLabel, withAmount, type VerbId } from '../../actions';
+import { verbLabel, withAmount, type VerbId, type VerbScope } from '../../actions';
 import { useActs } from '../../hooks/useActs';
 import { useConfig } from '../../hooks/useConfig';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts';
 import { useIsMobile } from '../../hooks/useMediaQuery';
 import { PresetLoadProvider } from '../../hooks/usePresetLoad';
+import { useReadingBook } from '../../hooks/useReadingBook';
 import type { useSimulation } from '../../hooks/useSimulation';
 import { useUnits } from '../../hooks/useUnits';
 import { type Need, activeNeeds, needySections } from '../../nav';
@@ -23,10 +24,10 @@ import { TopBar } from './TopBar';
 export interface StageContext {
   needs: Need[];
   /**
-   * Opens a verb's sheet, on the amount the surface asks for where it has one;
-   * with no verb, the Act palette.
+   * Opens a verb's sheet, on the amount the surface asks for where it has one
+   * and held to the scope it names; with no verb, the Act palette.
    */
-  onAct: (verb?: VerbId, at?: number) => void;
+  onAct: (verb?: VerbId, at?: number, scope?: VerbScope) => void;
   /** The verb and the amount it is standing on, or the one asked for here. */
   actLabel: (verb: VerbId, at?: number) => string;
   /**
@@ -61,7 +62,8 @@ export function AppShell({ sim, config }: AppShellProps): React.JSX.Element {
   const [more, setMore] = useState(false);
   const acts = useActs(sim.executeAction);
 
-  const needs = useMemo(() => activeNeeds(sim.state), [sim.state]);
+  const book = useReadingBook(sim, config);
+  const needs = useMemo(() => activeNeeds(sim.state, book), [sim.state, book]);
   const alerts = useMemo(() => needySections(needs), [needs]);
   const tunablesModified = useMemo(() => countModified(config), [config]);
 
@@ -77,12 +79,12 @@ export function AppShell({ sim, config }: AppShellProps): React.JSX.Element {
   }, []);
 
   const onAct = useCallback(
-    (verb?: VerbId, at?: number) => {
+    (verb?: VerbId, at?: number, scope?: VerbScope) => {
       setTunablesOpen(false);
       setMore(false);
       closeInspector();
       if (verb === undefined) openPalette();
-      else open(verb, at);
+      else open(verb, at, scope);
     },
     [open, openPalette, setTunablesOpen, closeInspector]
   );
@@ -184,6 +186,7 @@ export function AppShell({ sim, config }: AppShellProps): React.JSX.Element {
 
             <VerbDrawer
               verb={acts.verb}
+              scope={acts.scope}
               state={sim.state}
               config={config}
               settings={acts.settings}
@@ -196,6 +199,12 @@ export function AppShell({ sim, config }: AppShellProps): React.JSX.Element {
               <MoreSections
                 alerts={alerts}
                 onNavigate={closeDrawers}
+                speed={sim.speed}
+                onSpeedChange={sim.changeSpeed}
+                onStep={() => {
+                  closeDrawers();
+                  sim.step();
+                }}
                 tunablesModified={tunablesModified}
                 onTunables={toggleTunables}
               />

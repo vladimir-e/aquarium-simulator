@@ -3,7 +3,21 @@
  */
 
 import { getDgh, getDkh, getPh, type SimulationState } from '../simulation/index.js';
-import { bacteriaReadout, colonyCount, cycleWord, type Colony } from '../ui/run/index.js';
+import { ammoniaAlertLine } from '../simulation/alerts/index.js';
+import {
+  bacteriaReadout,
+  classifyAmmonia,
+  classifyVital,
+  colonyCount,
+  cycleWord,
+  dailyLightReading,
+  plantRows,
+  readFish,
+  readHourAhead,
+  DAILY_LIGHT_UNIT,
+  type Colony,
+  type Status,
+} from '../ui/run/index.js';
 import type { Session } from './session.js';
 import type { HistorySnapshot } from './history.js';
 
@@ -18,8 +32,13 @@ function round(value: number, digits = 2): number {
   return Math.round(value * factor) / factor;
 }
 
-function warningSymbol(predicate: boolean): string {
-  return predicate ? ' !' : '';
+function marker(...statuses: Status[]): string {
+  return statuses.some((status) => status === 'warn' || status === 'alert') ? ' !' : '';
+}
+
+function sick(readings: { sick: boolean }[]): string {
+  const count = readings.filter((reading) => reading.sick).length;
+  return count > 0 ? ` · ${count} sick` : '';
 }
 
 /** Render a compact markdown snapshot of the current session. */
@@ -29,13 +48,14 @@ export function renderObserve(session: Session): string {
   const day = Math.floor(state.tick / 24) + 1;
   const name = session.name ? `"${session.name}"` : '(unnamed)';
 
-  const nh3 = round(toPpm(r.ammonia, r.water), 3);
-  const no2 = round(toPpm(r.nitrite, r.water), 3);
-  const no3 = round(toPpm(r.nitrate, r.water), 2);
+  const nh3 = toPpm(r.ammonia, r.water);
+  const no2 = toPpm(r.nitrite, r.water);
+  const no3 = toPpm(r.nitrate, r.water);
   const po4 = round(toPpm(r.phosphate, r.water), 3);
 
   const waterPct = Math.round((r.water / state.tank.capacity) * 100);
-  const stressedFish = state.fish.filter((f) => f.health < 80).length;
+  const ahead = readHourAhead(state, session.config);
+  const daily = dailyLightReading(ahead);
   const avgFishHealth = state.fish.length
     ? Math.round(
         state.fish.reduce((s, f) => s + f.health, 0) / state.fish.length
@@ -47,7 +67,7 @@ export function renderObserve(session: Session): string {
       )
     : 0;
 
-  const bacteria = bacteriaReadout(state, session.config);
+  const bacteria = bacteriaReadout(state, session.config, ahead);
   const colony = (of: Colony): string =>
     `${colonyCount(of.count)} (${of.ceiling > 0 ? `${round(of.pct, 1)}% of ceiling` : 'no biofilm'})`;
 
@@ -60,14 +80,18 @@ export function renderObserve(session: Session): string {
     )} · KH ${round(getDkh(r.kh, r.water), 1)} dKH · GH ${round(getDgh(r.gh, r.water), 1)} dGH · water ${round(r.water, 1)}L (${waterPct}%)`,
     '',
     '**Nitrogen**',
-    `- NH3: ${nh3} ppm${warningSymbol(nh3 > 0.1)}`,
-    `- NO2: ${no2} ppm${warningSymbol(no2 > 1.0)}`,
-    `- NO3: ${no3} ppm${warningSymbol(no3 > 80)}`,
+    `- NH3: ${round(nh3, 3)} ppm${marker(classifyAmmonia(nh3, ammoniaAlertLine(r)))}`,
+    `- NO2: ${round(no2, 3)} ppm${marker(classifyVital('nitrite', no2))}`,
+    `- NO3: ${round(no3, 2)} ppm${marker(classifyVital('nitrate', no3))}`,
     `- Biofilter: ${cycleWord(bacteria.cycled)} · AOB ${colony(bacteria.aob)} · NOB ${colony(bacteria.nob)}`,
     '',
-    `**Gases** O2 ${round(r.oxygen, 2)} · CO2 ${round(r.co2, 2)} mg/L${warningSymbol(
-      r.oxygen < 4 || r.co2 > 30
+    `**Gases** O2 ${round(r.oxygen, 2)} · CO2 ${round(r.co2, 2)} mg/L${marker(
+      classifyVital('oxygen', r.oxygen),
+      classifyVital('co2', r.co2)
     )}`,
+    `**Light** ${Math.round(r.light)} PAR · daily ${daily.text} ${DAILY_LIGHT_UNIT}${
+      daily.need ? ` (${daily.need})` : ''
+    }${marker(daily.status)}`,
     `**Nutrients** PO4 ${po4} · K ${round(toPpm(r.potassium, r.water), 2)} · Fe ${round(
       toPpm(r.iron, r.water),
       3
@@ -79,10 +103,10 @@ export function renderObserve(session: Session): string {
     '',
     `**Fish (${state.fish.length})** ${
       state.fish.length ? `avg health ${avgFishHealth}%` : '—'
-    }${stressedFish ? ` · ${stressedFish} stressed` : ''}`,
+    }${sick(readFish(state, session.config, ahead))}`,
     `**Plants (${state.plants.length})** ${
       state.plants.length ? `avg condition ${avgPlantCondition}%` : '—'
-    }`,
+    }${sick(plantRows(state, session.config, ahead))}`,
   ];
 
   return lines.join('\n');

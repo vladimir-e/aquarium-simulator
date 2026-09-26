@@ -6,21 +6,27 @@
  */
 
 import {
-  computeAlgaePopulation,
-  computeFishVitality,
-  FISH_SPECIES_DATA,
   PLANT_SPECIES_DATA,
-  SATIATION_BAND_LABEL,
   type SimulationState,
   type VitalityFactor,
 } from '../../simulation/index.js';
-import { readPlantVitality } from '../../simulation/plants/index.js';
+import { algaeAlertLine } from '../../simulation/alerts/index.js';
 import type { TunableConfig } from '../../simulation/config/index.js';
-import type { VerbId } from '../actions/verbs.js';
-import { algaeStatus, algaeWord } from './flora.js';
-import { bandOf, bandStatus, fishReading } from './livestock.js';
-import { CONDITION_BAND, type Satiation, type SpeciesId } from './roster.js';
-import { conditionStatus, vitalReading, type Status } from './status.js';
+import type { VerbId, VerbScope } from '../actions/verbs.js';
+import { TICKS_PER_DAY } from '../utils/clock.js';
+import type { HourAhead } from './ahead.js';
+import { algaeReading, plantLabels, sharePercent, unitTitle } from './flora.js';
+import { crownBurns, plantLightStatus } from './light.js';
+import { fishNumbers, fishReading, fishSatiation, fishTitle, type Satiation } from './livestock.js';
+import { CONDITION_BAND, type SpeciesId } from './roster.js';
+import {
+  bankShare,
+  conditionStatus,
+  printsAsZero,
+  projectedTrend,
+  vitalReading,
+  type Status,
+} from './status.js';
 import type { ReadingBand } from './water.js';
 
 /** What the ledger is open on. Algae is a population, so it carries no id. */
@@ -37,14 +43,29 @@ export interface LedgerFactor {
   perDay: number;
 }
 
-/** A stock the organism keeps against the bill, where it keeps one. */
+/** Banked income, standing between what helps and what hurts. */
 export interface LedgerBank {
-  value: number;
-  cap: number;
+  text: string;
+  unit: string;
+  /** Its share of the cap. */
   at: number;
-  /** What the bank is doing: holding condition up, or filling. */
+  /** What the bank is doing this hour. */
   note: string;
 }
+
+/** A plant's day of light at its own height, against what its species starves under. */
+export interface LedgerLight {
+  /** % of that need. */
+  text: string;
+  at: number;
+  band: ReadingBand;
+  status: Status;
+  /** How tall it stands — the height the light is read at. */
+  note: string;
+}
+
+/** The light track runs to twice the need, so the need sits mid-track. */
+const LIGHT_SCALE = 2;
 
 export interface Ledger {
   target: LedgerTarget;
@@ -62,9 +83,10 @@ export interface Ledger {
   unit: string;
   at: number;
   band: ReadingBand | null;
-  /** Net change per day, as a trend. */
+  /** What the next tick does to the hero figure, per day. */
   trend: string;
   satiation: Satiation | null;
+  light: LedgerLight | null;
   helping: LedgerFactor[];
   hurting: LedgerFactor[];
   helps: number;
@@ -75,100 +97,139 @@ export interface Ledger {
   demand: string | null;
   /** The verb that moves this organism — an id the stage opens the sheet on. */
   verb: Extract<VerbId, 'feed' | 'trimPlants' | 'scrubAlgae'>;
+  /** What the verb is held to: a plant's own family. */
+  scope: VerbScope | null;
 }
 
-const PER_DAY = 24;
+/** The precision a factor, a sum and the net print at, per day. */
+export const LEDGER_DECIMALS = 1;
 
+const BANK_DECIMALS = 1;
+
+/** Whether a positive amount shows at a precision rather than rounding to nothing. */
+function shows(amount: number, decimals: number): boolean {
+  return amount > 0 && !printsAsZero(amount, decimals);
+}
+
+/** The factors that print, largest first: one rounding to nothing is not a line. */
 function factors(list: VitalityFactor[]): LedgerFactor[] {
   return list
-    .filter((factor) => factor.amount > 0)
     .map((factor) => ({
       key: factor.key,
       label: factor.label,
-      perDay: factor.amount * PER_DAY,
+      perDay: factor.amount * TICKS_PER_DAY,
     }))
+    .filter((factor) => shows(factor.perDay, LEDGER_DECIMALS))
     .sort((a, b) => b.perDay - a.perDay);
 }
 
-function sum(list: LedgerFactor[]): number {
-  return list.reduce((total, factor) => total + factor.perDay, 0);
+/** Every factor charged, per day — the lines that print and those too small to. */
+function total(list: VitalityFactor[]): number {
+  return list.reduce((sum, factor) => sum + factor.amount, 0) * TICKS_PER_DAY;
 }
 
-function trendOf(netPerHour: number): string {
-  const perDay = netPerHour * PER_DAY;
-  if (Math.abs(perDay) < 0.05) return 'steady';
-  return `${perDay > 0 ? '↗' : '↘'} ${Math.abs(perDay).toFixed(1)}/d`;
+interface BankHour {
+  now: number;
+  next: number;
+  cap: number;
+  /** Drawn to make good harm: condition healed, or damage the bloom's bank absorbs. */
+  covered: number;
+  /** What the bank buys — nothing the hour a death takes it. */
+  spent: number;
 }
 
-function bankOf(value: number, cap: number, drained: boolean): LedgerBank {
-  return {
-    value,
-    cap,
-    at: cap > 0 ? Math.min(1, value / cap) : 0,
-    note: drained ? 'paying out to hold condition' : 'banked against a bad day',
-  };
+/** What a bank is doing, in its owner's words. */
+interface BankWords {
+  covering: string;
+  buying: string;
+  holding: string;
+}
+
+const HEALING = { covering: 'healing from reserve', holding: 'held against a bad day' };
+
+/**
+ * What the bank does over the hour, named by which way it moves: in, out and on
+ * what, or neither. A bank held to a lowered cap drops with nothing drawn, and
+ * reads as the full bank it is.
+ */
+function bankNote({ now, next, cap, covered, spent }: BankHour, words: BankWords): string {
+  const change = (next - now) * TICKS_PER_DAY;
+  if (shows(change, BANK_DECIMALS)) return 'banking';
+  if (!shows(now, BANK_DECIMALS)) return 'empty';
+  if (shows(-change, BANK_DECIMALS) && covered + spent > 0) {
+    return covered >= spent ? words.covering : words.buying;
+  }
+  return now >= cap ? 'full' : words.holding;
+}
+
+function bankOf(hour: BankHour, words: BankWords): Pick<LedgerBank, 'at' | 'note'> {
+  return { at: bankShare(hour.now, hour.cap), note: bankNote(hour, words) };
 }
 
 function fishLedger(
   state: SimulationState,
   config: TunableConfig,
+  ahead: HourAhead,
   id: string,
   subtitle: string
 ): Ledger | null {
-  const fish = state.fish.find((f) => f.id === id);
-  if (!fish) return null;
+  const index = state.fish.findIndex((f) => f.id === id);
+  if (index < 0) return null;
 
+  const fish = state.fish[index];
   const livestock = config.livestock;
-  const { breakdown } = computeFishVitality(
-    fish,
-    state.resources,
-    state.plants,
-    state.resources.water,
-    state.tank.capacity,
-    livestock
-  );
+  const { vitality, spent } = ahead.fish[index];
+  const { breakdown } = vitality;
 
   const helping = factors(breakdown.benefits);
-  const hurting = factors([...breakdown.upkeep, ...breakdown.stressors]);
-  const band = bandOf(fish.satiation, livestock);
-  const reading = fishReading(fish, breakdown, livestock);
+  const hurting = factors(breakdown.stressors);
+  const vital = vitalReading(fish.health, vitality);
+  const reading = fishReading(fish, vital.reading, livestock);
 
   return {
     target: { kind: 'fish', id },
     species: fish.species,
-    title: `${FISH_SPECIES_DATA[fish.species].name} ${id.slice(id.indexOf('_') + 1)}`,
+    title: fishTitle(fish, fishNumbers(state.fish).get(id)!),
     subtitle,
     status: reading.status,
     word: reading.word,
-    value: Math.round(fish.health).toString(),
+    value: vital.value,
     valueStatus: conditionStatus(fish.health),
     unit: '% condition',
     at: fish.health / 100,
     band: CONDITION_BAND,
-    trend: trendOf(breakdown.net),
-    satiation: {
-      at: fish.satiation / 100,
-      band: {
-        from: livestock.satiationHungryCeiling / 100,
-        to: livestock.satiationOverfedFloor / 100,
-      },
-      status: bandStatus(band),
-      word: SATIATION_BAND_LABEL[band].toLowerCase(),
-    },
+    trend: vital.trend,
+    satiation: fishSatiation(fish.satiation, livestock),
+    light: null,
     helping,
     hurting,
-    helps: sum(helping),
-    hurts: sum(hurting),
-    net: breakdown.net * PER_DAY,
-    bank: bankOf(fish.surplus, livestock.surplusCap, breakdown.drained > 0),
+    helps: total(breakdown.benefits),
+    hurts: total(breakdown.stressors),
+    net: breakdown.net * TICKS_PER_DAY,
+    bank: {
+      text: fish.surplus.toFixed(BANK_DECIMALS),
+      unit: `of ${livestock.surplusCap}`,
+      ...bankOf(
+        {
+          now: fish.surplus,
+          next: vitality.surplus - spent,
+          cap: livestock.surplusCap,
+          covered: breakdown.healed,
+          spent,
+        },
+        { ...HEALING, buying: 'buying a brood' }
+      ),
+    },
     demand: null,
     verb: 'feed',
+    scope: null,
   };
 }
 
 function plantLedger(
   state: SimulationState,
   config: TunableConfig,
+  ahead: HourAhead,
   id: string,
   subtitle: string
 ): Ledger | null {
@@ -176,72 +237,97 @@ function plantLedger(
   if (index < 0) return null;
 
   const plant = state.plants[index];
-  const { breakdown } = readPlantVitality(state, config)[index];
+  const { vitality, spent, buds, light } = ahead.plants[index];
+  const { breakdown } = vitality;
+  const label = plantLabels(state.plants).get(id)!;
+  const cap = config.plants.surplusCap;
   const data = PLANT_SPECIES_DATA[plant.species];
   const helping = factors(breakdown.benefits);
-  const hurting = factors([...breakdown.upkeep, ...breakdown.stressors]);
-  const reading = vitalReading(plant.condition, plant.surplus, breakdown);
+  const hurting = factors(breakdown.stressors);
+  const { reading, value, trend } = vitalReading(plant.condition, vitality);
   const [lightLow, lightHigh] = data.tolerableLight;
 
   return {
     target: { kind: 'plant', id },
     species: plant.species,
-    title: `${data.name} ${id.slice(id.indexOf('_') + 1)}`,
+    title: unitTitle(data.name, label),
     subtitle,
     status: reading.status,
     word: reading.word,
-    value: Math.round(plant.condition).toString(),
+    value,
     valueStatus: conditionStatus(plant.condition),
     unit: '% condition',
     at: plant.condition / 100,
     band: CONDITION_BAND,
-    trend: trendOf(breakdown.net),
+    trend,
     satiation: null,
+    light: {
+      text: String(sharePercent(light.needShare)),
+      at: Math.min(1, light.needShare / LIGHT_SCALE),
+      band: { from: 1 / LIGHT_SCALE, to: 1 },
+      status: plantLightStatus(light, plant.species),
+      note: crownBurns(light, plant.species)
+        ? `${Math.round(light.heightCm)} cm tall · crown past ${lightHigh} PAR`
+        : `${Math.round(light.heightCm)} cm tall`,
+    },
     helping,
     hurting,
-    helps: sum(helping),
-    hurts: sum(hurting),
-    net: breakdown.net * PER_DAY,
-    bank: bankOf(plant.surplus, config.plants.surplusCap, breakdown.drained > 0),
+    helps: total(breakdown.benefits),
+    hurts: total(breakdown.stressors),
+    net: breakdown.net * TICKS_PER_DAY,
+    bank: {
+      text: String(sharePercent(bankShare(plant.surplus, cap))),
+      unit: '% to offshoot',
+      ...bankOf(
+        { now: plant.surplus, next: vitality.surplus - spent, cap, covered: breakdown.healed, spent },
+        { ...HEALING, buying: buds ? 'buying an offshoot' : 'buying growth' }
+      ),
+    },
     demand:
       `${data.nutrientDemand} demand · light ${lightLow}–${lightHigh} PAR · ${data.co2Requirement} CO₂`,
     verb: 'trimPlants',
+    scope: { familyId: plant.familyId },
   };
 }
 
-function algaeLedger(state: SimulationState, config: TunableConfig): Ledger {
-  const population = computeAlgaePopulation({
-    plants: state.plants,
-    resources: state.resources,
-    algaeConfig: config.algae,
-    nutrientsConfig: config.nutrients,
-  });
-  const mass = state.algae.mass;
-  const helping = factors(population.breakdown.benefits);
-  const hurting = factors(population.breakdown.stressors);
+function algaeLedger(state: SimulationState, config: TunableConfig, ahead: HourAhead): Ledger {
+  const { breakdown, net } = ahead.algae;
+  const { mass, surplus } = state.algae;
+  const { drained, spent, next } = ahead.algaeBank;
+  const cap = config.algae.surplusCap;
+  const line = algaeAlertLine(config);
+  const reading = algaeReading(mass, line);
 
   return {
     target: { kind: 'algae' },
     species: 'algae',
     title: 'Algae',
     subtitle: 'the tank’s one uninvited population',
-    status: algaeStatus(mass),
-    word: algaeWord(mass),
+    ...reading,
     value: Math.round(mass).toString(),
-    valueStatus: algaeStatus(mass),
+    valueStatus: reading.status,
     unit: '% coverage',
     at: mass / 100,
-    band: { from: 0, to: 0.3 },
-    trend: trendOf(population.net),
+    band: { from: 0, to: line / 100 },
+    trend: projectedTrend(ahead.algaeMass - mass),
     satiation: null,
-    helping,
-    hurting,
-    helps: sum(helping),
-    hurts: sum(hurting),
-    net: population.net * PER_DAY,
-    bank: null,
+    light: null,
+    helping: factors(breakdown.benefits),
+    hurting: factors(breakdown.stressors),
+    helps: total(breakdown.benefits),
+    hurts: total(breakdown.stressors),
+    net: net * TICKS_PER_DAY,
+    bank: {
+      text: surplus.toFixed(BANK_DECIMALS),
+      unit: `of ${cap}`,
+      ...bankOf(
+        { now: surplus, next, cap, covered: drained, spent },
+        { covering: 'covering damage', buying: 'buying coverage', holding: 'held while dark' }
+      ),
+    },
     demand: null,
     verb: 'scrubAlgae',
+    scope: null,
   };
 }
 
@@ -253,15 +339,16 @@ function algaeLedger(state: SimulationState, config: TunableConfig): Ledger {
 export function readLedger(
   state: SimulationState,
   config: TunableConfig,
+  ahead: HourAhead,
   target: LedgerTarget,
   subtitle = ''
 ): Ledger | null {
   switch (target.kind) {
     case 'fish':
-      return fishLedger(state, config, target.id, subtitle);
+      return fishLedger(state, config, ahead, target.id, subtitle);
     case 'plant':
-      return plantLedger(state, config, target.id, subtitle);
+      return plantLedger(state, config, ahead, target.id, subtitle);
     case 'algae':
-      return algaeLedger(state, config);
+      return algaeLedger(state, config, ahead);
   }
 }

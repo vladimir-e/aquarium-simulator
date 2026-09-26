@@ -18,12 +18,11 @@ a reader would want to see afterwards.
 | Mechanic | Status | Why |
 |---|---|---|
 | The latch | <Badge text="settled" variant="success" /> | One line per crossing, a flag that lives in state, and no repetition while the condition holds. It does exactly what it says. |
-| Log entry shape | <Badge text="settled" variant="success" /> | Free text for humans, a typed `event` discriminator for code, and a `count` wherever an entry accounts for more than one organism. |
-| Ammonia threshold | <Badge text="settled" variant="success" /> | Fires on free NH₃ where harm starts, so the total ammonia it takes moves with pH and temperature the way toxicity does. |
-| Nitrite · nitrate · oxygen thresholds | <Badge text="scaffolding" variant="caution" /> | All three sit past the point damage begins. Nitrite alerts at 1.0 ppm where fish take damage at any presence, nitrate at 80 where damage starts at 40, oxygen at 4.0 where damage starts below 5. |
-| Algae · water-level thresholds | <Badge text="scaffolding" variant="caution" /> | The same shape one layer out: algae alerts at 80 where it starts shading plants at 30, and water level at a fifth of capacity where fish start suffering at half. |
-| CO₂ threshold | <Badge text="scaffolding" variant="caution" /> | The alert with nothing behind it — no organism in the engine reads dissolved CO₂ as a stressor, so it warns about a harm that is never inflicted. |
-| Behaviour on a drained tank | <Badge text="scaffolding" variant="caution" /> | Concentrations read 0 when there is no water and the water-level check requires `water > 0`, so the alert layer goes silent exactly when the tank is empty — while fish health reads the same ammonia as 100 ppm. |
+| Log entry shape | <Badge text="settled" variant="success" /> | Free text for humans with its volumes and temperatures kept as quantities, a typed `event` discriminator for code, and a `count` wherever an entry accounts for more than one organism. |
+| Water-quality thresholds | <Badge text="settled" variant="success" /> | Free NH₃, nitrite, nitrate and oxygen alert at their tolerance edge, and hardiness moves each fish's own harm edge out from it. Ammonia reads the free fraction, so the total it takes moves with pH and temperature. |
+| Algae · water-level thresholds | <Badge text="settled" variant="success" /> | Each alerts where its harm starts, read off the tunable that starts it, so retuning the harm moves the alert with it. |
+| CO₂ threshold | <Badge text="scaffolding" variant="caution" /> | The line keepers treat as too much, with nothing behind it — no organism in the engine reads dissolved CO₂ as a stressor. |
+| Behaviour on a drained tank | <Badge text="scaffolding" variant="caution" /> | Concentrations read 0 when there is no water and the water-level check requires `water > 0`, so the alert layer goes silent exactly when the tank is empty. Fish health reads the same zeroes, so a drained tank charges no toxin and no flow — its water-level stressor carries it. |
 | Clearing | <Badge text="missing" variant="danger" /> | A condition resolving writes nothing. The log records that a tank got into trouble and never that it got out. |
 | Retention | <Badge text="missing" variant="danger" /> | The array is appended to and never trimmed, so a long-running tank grows its log without bound. |
 | Log persistence | <Badge text="missing" variant="danger" /> | Logs are not saved. A reload starts a fresh history while the latch flags survive it, so an alert already tripped never re-fires its line for the same episode. |
@@ -45,18 +44,18 @@ the transition into trouble.
 
 | Alert | Fires when | Where damage actually starts |
 |---|---|---|
-| Water level critical | below 20 % of capacity, and only while some water remains | fish take water-level damage below 50 % |
-| High ammonia | free NH₃ above 0.02 ppm | 0.02 ppm free NH₃; 0.05 is danger |
-| High nitrite | above 1.0 ppm | any presence |
-| High nitrate | above 80 ppm | 40 ppm |
-| Low oxygen | below 4.0 mg/L | below 5 mg/L |
-| High CO₂ | above 30 mg/L | nowhere — nothing reads it |
-| High algae | mass at or above 80 | plants are shaded from mass 30 |
+| Water level low | below `waterLevelStressThreshold` of capacity, and only while some water remains | at the line: fish take water-level damage below it |
+| High ammonia | free NH₃ above 0.02 ppm | past the line for every fish, further out the hardier it is |
+| High nitrite | above 0.5 ppm | the same |
+| High nitrate | above 80 ppm | the same |
+| Low oxygen | below 4 mg/L | the same, below the line |
+| High CO₂ | above 40 mg/L, the level keepers treat as too much | nowhere — nothing reads it |
+| High algae | mass above `algaeShadingThreshold` | at the line: plants are shaded above it |
 
-Five of the seven wait: water level, nitrite, nitrate, oxygen and algae all fire
-only once the reading is worse than the point where damage began. Ammonia fires
-where harm starts, on the unionized fraction of the total — so the same test-kit
-reading crosses it sooner the higher the pH and the warmer the water:
+The four water-quality alerts fire before any fish takes damage; water level and
+algae fire exactly where theirs starts; CO₂ has no harm behind it at all.
+Ammonia reads the unionized fraction of the total, so the same test-kit reading
+crosses it sooner the higher the pH and the warmer the water:
 
 | pH at 25 °C | Total ammonia at the line |
 |---|---|
@@ -65,11 +64,7 @@ reading crosses it sooner the higher the pH and the warmer the water:
 | 7.5 | ≈ 1.1 ppm |
 | 8.0 | ≈ 0.37 ppm |
 
-Every surface bands the total-ammonia reading at that moving line. The seventh
-has no harm behind it at all.
-
-The honest edges are the engine's own severity thresholds, and they live in the
-livestock and plant configs rather than here.
+Every surface bands the total-ammonia reading at that moving line.
 
 ### What gets logged
 
@@ -79,7 +74,7 @@ emitted per hour, and nothing is written unless something happened.
 
 | Source | Written when |
 |---|---|
-| `simulation` | The tank is built; a fish or plant dies; a spawn, a laying or a hatch |
+| `simulation` | The tank is built; a fish or plant dies; a spawn, a laying, a hatch or an offshoot |
 | `user` | Any applied action — a refused one logs nothing |
 | `scrub` | The scrub action, filed under its own channel |
 | `evaporation` · `nitrogen-cycle` · `gas-exchange` · `algae` | The alert lines, each under the system whose reading tripped |
@@ -94,14 +89,20 @@ everything else is `info`.
 | `tick` | The hour it happened, which is what makes the log reconstructable |
 | `source` | The system that emitted it |
 | `severity` | `info` or `warning` |
-| `message` | Free text, for humans only |
+| `message` | Free text, for humans only; `{0}`, `{1}`… stand for its quantities |
+| `quantities` | Present where a line states a volume or a temperature, kept in litres and °C |
 | `event` | Present only on the lifecycle moments a caller reacts to |
 | `count` | Present where one entry accounts for many organisms |
 
-Six typed events exist: `fish-spawned`, `eggs-laid`, `eggs-hatched`,
-`fish-died`, `plant-died` and `fry-sold`. Three of them carry a count — a live
-birth, a hatch and a fry sale — because the number is the point. Deaths are
-one entry per organism, so they need none.
+A figure the reader has a unit for — a water change's volumes, the tank and room
+a run was created with, a heater's target — stays a quantity rather than text, so
+each reader renders the line in its own units: `logText(entry, format)`, metric
+unless handed a format.
+
+Seven typed events exist: `fish-spawned`, `eggs-laid`, `eggs-hatched`,
+`fish-died`, `plant-died`, `plant-propagated` and `fry-sold`. Three of them
+carry a count — a live birth, a hatch and a fry sale — because the number is the
+point. Deaths and offshoots are one entry per organism, so they need none.
 
 The discriminator is the contract. A caller that parses the free text is
 reading a field that exists to be rewritten.
@@ -109,9 +110,9 @@ reading a field that exists to be rewritten.
 ### The log as the tank's history
 
 Every line carries the tick it happened at, so the array is a reconstructable
-timeline of everything the tank did. It is also the only such record: no other
-stock remembers its own past, and the tank's state is a snapshot of one hour
-with no history behind it.
+timeline of everything the tank did. It is also the only such record: the
+state is a snapshot of one hour, carrying no more past than the last day's
+light.
 
 That makes two absences load-bearing. The array is never trimmed, so it grows
 for as long as the tank runs. And it is not part of the persisted state, so
@@ -120,19 +121,21 @@ how it got there.
 
 ## Key tunables
 
-None of these is a `TunableConfig` leaf. They are module constants with no
-declared range, so they cannot be moved through the config layer the way a
-severity or a rate can.
+Two lines are the tunables that start their harm, read by `waterLevelAlertLine`
+and `algaeAlertLine`: `waterLevelStressThreshold` with
+[livestock](/subsystems/livestock/) and `algaeShadingThreshold` with
+[plants](/subsystems/plants/). The rest are module constants with no declared
+range, so they cannot be moved through the config layer the way a severity or a
+rate can. The four water-quality lines are the fish tolerance edges, defined with
+[livestock](/subsystems/livestock/).
 
-| Constant | Meaning | Unit |
+| Constant | Meaning | Value |
 |---|---|---|
-| `WATER_LEVEL_CRITICAL_THRESHOLD` | Share of capacity below which the level is critical | `0.2` |
-| `HIGH_AMMONIA_THRESHOLD` | Free (unionized) NH₃ at which the alert fires | `0.02` ppm |
-| `HIGH_NITRITE_THRESHOLD` | Nitrite at which the alert fires | `1.0` ppm |
-| `HIGH_NITRATE_THRESHOLD` | Nitrate at which the alert fires | `80` ppm |
-| `LOW_OXYGEN_THRESHOLD` | Dissolved oxygen below which the alert fires | `4.0` mg/L |
-| `HIGH_CO2_THRESHOLD` | Dissolved CO₂ above which the alert fires | `30` mg/L |
-| `HIGH_ALGAE_THRESHOLD` | Algae mass at which the bloom is called | `80` of 100 |
+| `FREE_AMMONIA_EDGE` | Free (unionized) NH₃ at which the alert fires | `0.02` ppm |
+| `NITRITE_EDGE` | Nitrite at which the alert fires | `0.5` ppm |
+| `NITRATE_EDGE` | Nitrate at which the alert fires | `80` ppm |
+| `OXYGEN_EDGE` | Dissolved oxygen below which the alert fires | `4` mg/L |
+| `HIGH_CO2_THRESHOLD` | Dissolved CO₂ above which the alert fires | `40` mg/L |
 
 ## Seams
 
@@ -141,8 +144,10 @@ severity or a rate can.
 | [Water & gases](/subsystems/water-and-gases/) | `oxygen` and `co2`, as concentrations | — |
 | [Nitrogen cycle](/subsystems/nitrogen-cycle/) | `ammonia`, `nitrite` and `nitrate`, converted from mass to ppm against standing water | — |
 | [Environment](/subsystems/environment/) | `water` against `tank.capacity` | — |
+| [Livestock](/subsystems/livestock/) | `waterLevelStressThreshold`, the level's line | — |
 | [Algae](/subsystems/algae/) | `algae.mass` directly — algae is an organism, not a resource | — |
-| [Plants](/subsystems/plants/) | — | Receives a `plant-died` entry per plant lost |
+| [Plants](/subsystems/plants/) | `algaeShadingThreshold`, the bloom's line | — |
+| [Plants](/subsystems/plants/) | — | Receives a `plant-died` entry per plant lost and a `plant-propagated` entry per offshoot |
 | [Livestock](/subsystems/livestock/) | — | Receives death, spawn, laying and hatch entries |
 | [Actions](/subsystems/actions/) | — | Receives one entry per applied action |
 | [State & persistence](/subsystems/state-and-persistence/) | — | `alertState` is persisted; `logs` are not |

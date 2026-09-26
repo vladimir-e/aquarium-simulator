@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { classifyAmmonia, classifyVital } from './vitals';
+import { HIGH_CO2_THRESHOLD } from '../../simulation/alerts/index.js';
+import { classifyAmmonia, classifyLevel, classifyVital } from './vitals';
 
 describe('classifyAmmonia', () => {
   it('alerts only past the line it is handed', () => {
@@ -14,8 +15,8 @@ describe('classifyVital', () => {
     expect(classifyVital('nitrite', 1.5)).toBe('alert');
   });
 
-  it('reads nitrate as plant food: warns when depleted, alerts when it spikes', () => {
-    expect(classifyVital('nitrate', 0)).toBe('warn');
+  it('alerts on nitrate past its line, and leaves a low one to the plants’ own reading', () => {
+    expect(classifyVital('nitrate', 0)).toBe('ok');
     expect(classifyVital('nitrate', 20)).toBe('ok');
     expect(classifyVital('nitrate', 100)).toBe('alert');
   });
@@ -27,19 +28,21 @@ describe('classifyVital', () => {
     expect(classifyVital('temperature', 30)).toBe('neutral');
   });
 
-  it('grades oxygen: warns when starved, neutral when marginal, ok when comfortable', () => {
-    expect(classifyVital('oxygen', 3)).toBe('warn');
+  it('grades oxygen: alerts when starved, neutral when marginal, ok when comfortable', () => {
+    expect(classifyVital('oxygen', 3)).toBe('alert');
     expect(classifyVital('oxygen', 5)).toBe('neutral');
     expect(classifyVital('oxygen', 8)).toBe('ok');
   });
 
-  it('alerts on CO₂ only past the harmful threshold, quiet otherwise', () => {
-    expect(classifyVital('co2', 19)).toBe('neutral');
-    expect(classifyVital('co2', 35)).toBe('alert');
+  it('alerts on CO₂ only past the line the engine alerts on, quiet otherwise', () => {
+    expect(classifyVital('co2', HIGH_CO2_THRESHOLD)).toBe('neutral');
+    expect(classifyVital('co2', HIGH_CO2_THRESHOLD + 0.1)).toBe('alert');
   });
+});
 
-  it('warns on water below the critical level', () => {
-    expect(classifyVital('water', 10)).toBe('warn');
-    expect(classifyVital('water', 99)).toBe('ok');
+describe('classifyLevel', () => {
+  it('alerts only under the line it is handed', () => {
+    expect(classifyLevel(49, 50)).toBe('alert');
+    expect(classifyLevel(50, 50)).toBe('ok');
   });
 });

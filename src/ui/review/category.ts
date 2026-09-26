@@ -1,6 +1,6 @@
 /**
- * Log categorisation for History's filter chips and the alert language shared
- * by the summary tile and the axis marks. Both are derived from the engine's
+ * Log categorisation for History's filter chips and the alert language the
+ * axis marks speak. Both are derived from the engine's
  * own `source` / `severity` / `event` fields — nothing here re-tags the log, it
  * only buckets what the simulation already emitted.
  */
@@ -28,8 +28,9 @@ const USER_SOURCES = new Set(['user', 'equipment', 'scrub']);
 
 /**
  * A lifecycle discriminator wins over source: every `event` entry is a life
- * moment (birth, hatch, death, sale). Otherwise chemistry sources are the cycle,
- * user/equipment/scrub are player actions, and the rest is engine `sim` chatter.
+ * moment (birth, hatch, offshoot, death, sale). Otherwise chemistry sources are
+ * the cycle, user/equipment/scrub are player actions, and the rest is engine
+ * `sim` chatter.
  */
 export function categorizeLog(log: LogEntry): LogCategory {
   if (log.event) return 'life';
@@ -51,8 +52,7 @@ export type AlertKind =
   | 'co2'
   | 'oxygen'
   | 'algae'
-  | 'water'
-  | 'plant';
+  | 'water';
 
 export const ALERT_LABEL: Record<AlertKind, string> = {
   ammonia: 'NH₃',
@@ -62,22 +62,19 @@ export const ALERT_LABEL: Record<AlertKind, string> = {
   oxygen: 'O₂',
   algae: 'algae',
   water: 'water',
-  plant: 'plant',
 };
 
 /**
  * A warning that counts as an alert — the mirror of the run aggregates: a
- * `fish-died` warning is a death, so it's excluded; every other warning
- * (chemistry crossings, plant deaths) counts.
+ * death is a life event, not an alert, so only a warning without one counts.
  */
 export function isAlertLog(log: LogEntry): boolean {
-  return log.severity === 'warning' && log.event !== 'fish-died';
+  return log.severity === 'warning' && log.event === undefined;
 }
 
 /** Which vital an alert warning is about, keyed on its event then source. */
 export function classifyAlert(log: LogEntry): AlertKind | null {
   if (!isAlertLog(log)) return null;
-  if (log.event === 'plant-died') return 'plant';
   const msg = log.message.toLowerCase();
   switch (log.source) {
     case 'nitrogen-cycle':
@@ -99,13 +96,4 @@ export function classifyAlert(log: LogEntry): AlertKind | null {
 export interface AlertMark {
   tick: number;
   kind: AlertKind;
-}
-
-/** The most recent alert in the list, for the summary tile's type chip. */
-export function latestAlert(logs: LogEntry[]): AlertMark | null {
-  for (let i = logs.length - 1; i >= 0; i--) {
-    const kind = classifyAlert(logs[i]);
-    if (kind) return { tick: logs[i].tick, kind };
-  }
-  return null;
 }

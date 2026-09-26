@@ -18,6 +18,30 @@ import type { HistorySnapshot } from './history.js';
  * missing field. Parallel to the UI's `PERSISTENCE_VERSION`. Pre-launch
  * rule is reject, not migrate.
  *
+ * v15 sized plants against one full unit of their growth form, lit them at
+ *    their own height and let a full bank buy an offshoot. `Plant.size` stops
+ *    at 100, `Plant` gains `parentId`, `familyId`, `age` and `vigour`, and
+ *    `OpticsConfig` gains `leafAttenuationPerLai`. Plant income runs on
+ *    nutrient sufficiency: `PlantsConfig` drops `nutrientBenefitPeak`, gains
+ *    `sufficiencyEdge`, and folds `wastePerShedSize` / `wastePerPlantDeath`
+ *    into `wastePerSize`. A v14 session parses, and the first tick with a
+ *    plant in it reads a canopy off the key it does not carry and a vigour its
+ *    plants never drew: every plant's light, condition and bank are `NaN`
+ *    from there on.
+ * v14 put every organism on one vitality model. `Resources` gains
+ *    `lightByHour`, the day of PAR the plants' daily light integral reads;
+ *    `PlantsConfig` drops `upkeepCost`, `upkeepReserveHours`,
+ *    `lightInsufficientSeverity` and `deathConditionThreshold`, trades the
+ *    nutrient-toxicity pair for `nitrateStressSeverity` / `nitrateEdge`, and
+ *    gains `lightStarvationSeverity` and `healingDrawRate`; `LivestockConfig`
+ *    gains `healingDrawRate`. It also carries saturating plant nutrition and
+ *    the shared tolerance edges: `NutrientsConfig` is rebuilt on Monod uptake,
+ *    `PlantsConfig` drops `nutrientsPerPhotosynthesis` and `optimalNitrate`,
+ *    `NitrogenCycleConfig` drops `wasteToAmmoniaRatio`, `LivestockConfig`
+ *    drops `basalAmmoniaRate` and its nitrate and oxygen stress thresholds,
+ *    and `AlgaeVitalityConfig` gains its reference nitrate and phosphate ppm.
+ *    A v13 session parses, and the first tick writes an hour into a history it
+ *    does not carry and throws.
  * v13 made the nitrifiers seed continuously and saturate on their substrate.
  *    `NitrogenCycleConfig` dropped `aobSpawnThreshold`, `nobSpawnThreshold`
  *    and `inoculumPerLiter` for `seedingRate`, and gained
@@ -100,7 +124,7 @@ import type { HistorySnapshot } from './history.js';
  * v2 added `Fish.stage` + `state.clutches` (breeding) and the saturating
  *    surplus bank.
  */
-export const SESSION_VERSION = 13;
+export const SESSION_VERSION = 15;
 export const DEFAULT_SESSION_PATH = resolve(process.cwd(), '.simstate/current.json');
 
 export interface Session {

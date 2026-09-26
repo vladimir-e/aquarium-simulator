@@ -18,9 +18,9 @@ export function q10Factor(temperature: number, q10: number, referenceTemp: numbe
  * all once it is gone. Every process quotes its own half-saturation constant,
  * the way each quotes its own Q10.
  *
- * A stock drawn through this factor is never overdrawn: demand falls with
- * supply, so the stock approaches zero rather than crossing it, and no clamp,
- * ration or ordering rule is needed to keep it there.
+ * Read at the start of a tick the factor tapers a draw but does not bound it:
+ * a stock that must never be overdrawn is drawn through `monodUptake`, which
+ * reads the curve where the tick ends.
  *
  * The empty-substrate guard comes first, which matters to the counterfactual
  * runs that take the term out with `K = 0`: those read 1 at every concentration

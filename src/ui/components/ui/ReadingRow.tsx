@@ -20,7 +20,7 @@ export interface ReadingRowProps {
   /** Direction and rate, e.g. `↘ 0.2/d`. */
   trend?: string;
   /** Whatever the number alone doesn't say — truncates before the trend does. */
-  note?: string;
+  note?: React.ReactNode;
   size?: keyof typeof VALUE_SIZE;
   /** Opens the reading's drawer. */
   onClick?: () => void;
@@ -46,12 +46,12 @@ export function ReadingRow({
   const body = (
     <>
       <span className="truncate text-ink-2">{name}</span>
-      <span className={`tabular-nums font-medium ${VALUE_SIZE[size]} ${TONE_TEXT[tone]}`}>
+      <span className={`whitespace-nowrap tabular-nums font-medium ${VALUE_SIZE[size]} ${TONE_TEXT[tone]}`}>
         {value}
         {unit && <span className="ml-0.5 text-[12px] font-normal text-ink-2">{unit}</span>}
       </span>
       {at === undefined ? <span aria-hidden /> : <RangeStrip at={at} band={band} tone={tone} />}
-      <span className="flex min-w-0 items-baseline justify-end gap-2 text-[12px]">
+      <span className="flex min-w-0 items-baseline justify-end gap-2 overflow-hidden text-[12px]">
         {trend && (
           <span className={`shrink-0 tabular-nums ${tone === 'ink' ? 'text-ink-3' : TONE_TEXT[tone]}`}>
             {trend}
@@ -62,7 +62,11 @@ export function ReadingRow({
     </>
   );
 
-  const shape = `${ROW} h-9 grid-cols-[minmax(40px,auto)_84px_minmax(48px,1fr)_minmax(96px,auto)] text-left`;
+  const shape = `${ROW} @container h-9 ${
+    at === undefined
+      ? 'grid-cols-[minmax(40px,auto)_minmax(84px,auto)_minmax(0,1fr)_minmax(0,auto)]'
+      : 'grid-cols-[minmax(40px,auto)_minmax(84px,auto)_minmax(48px,1fr)_minmax(0,auto)]'
+  } text-left`;
 
   if (!onClick) return <div className={shape}>{body}</div>;
 

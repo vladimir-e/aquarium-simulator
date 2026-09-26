@@ -27,7 +27,7 @@ instead: heat, water, CO₂, fertiliser, or the bed's own organics.
 | Aeration as a boolean | <Badge text="scaffolding" variant="caution" /> | On or off. A sponge filter in a nano and a full air stone in a 400 L deliver the identical multiplier and the identical direct O₂. |
 | Lid | <Badge text="scaffolding" variant="caution" /> | Four hardcoded multipliers outside `config/`, and they reach evaporation only. |
 | ATO trigger | <Badge text="scaffolding" variant="caution" /> | A switch at 99 % of capacity that refills to exactly 100 % in a single tick, however far it fell. |
-| The doser | <Badge text="scaffolding" variant="caution" /> | Plant uptake is split by the same fertiliser formula the doser meters by, so the doser cannot correct a ratio it did not create. |
+| The doser | <Badge text="settled" variant="success" /> | A set volume of one fertiliser formula, once a day. The plants draw on their own need rather than the bottle's ratio ([Plants](/subsystems/plants/#nutrition)), so the water drifts toward whatever the planting leaves behind. |
 | Hardscape and bed chemistry | <Badge text="scaffolding" variant="caution" /> | Calcite adds KH and GH, driftwood spends KH, aqua soil spends both. Wood and soil draw on finite hand-set reserves that taper as they are spent; calcite never runs out. |
 | Filter class limits | <Badge text="scaffolding" variant="caution" /> | `maxCapacityLiters` is display only — the tick never reads it. A sponge on a 500 L tank is undersized in the readout and unpunished in the model. |
 | Wear, clogging, failure | <Badge text="missing" variant="danger" /> | No fitting ages, fouls or breaks. Media is never consumed and never cleaned; the only maintenance the engine models at all is swapping the bed. |
@@ -46,7 +46,9 @@ instead: heat, water, CO₂, fertiliser, or the bed's own organics.
 | `aeration` | Air pump, or an air-driven filter | boolean |
 
 All four are overwritten every tick before anything reads them, so they describe
-the tank as it is right now rather than as it was assembled.
+the tank as it is right now rather than as it was assembled. Light is also
+written into the day's history the plants starve on — see
+[Light](/subsystems/light/).
 
 ### Filters
 
@@ -155,7 +157,7 @@ makes its contribution reversible the instant a fitting is switched off.
 
 ## Key tunables
 
-| Constant | Meaning | Unit |
+| Constant | Meaning | Value |
 |---|---|---|
 | `substrateLeachRate` | Share of the bed's remaining reserve released per tick | `0.003` /hr |
 | `wasteSettlingRate` | Share of standing waste settling into the bed per tick in still water | `0.1` /hr |

@@ -4,6 +4,7 @@ import { createSimulation, type SimulationState } from '../state.js';
 import { DEFAULT_CONFIG } from '../config/index.js';
 import { produce } from 'immer';
 import { monodFactor } from '../core/kinetics.js';
+import { WASTE_NUTRIENTS } from '../config/nutrients.js';
 import type { Fish } from '../state.js';
 
 function makeFish(overrides: Partial<Fish> = {}): Fish {
@@ -59,6 +60,42 @@ describe('processLivestock', () => {
     );
     expect(ammoniaEffect).toBeDefined();
     expect(ammoniaEffect!.delta).toBeGreaterThan(0);
+  });
+
+  it('returns the metabolism behind its effects, and a vitality per fish handed in, the dead included', () => {
+    const state = produce(
+      makeState([makeFish({ id: 'f1', mass: 1.0 }), makeFish({ id: 'f2', health: 1 })]),
+      (draft) => {
+        draft.resources.ammonia = 5000;
+      }
+    );
+    const result = processLivestock(state, DEFAULT_CONFIG);
+    const effect = (resource: string, source: string): number =>
+      result.effects.find((e) => e.resource === resource && e.source === source)!.delta;
+
+    expect(result.metabolism.wasteProduced).toBe(effect('waste', 'fish-metabolism'));
+    expect(result.metabolism.ammoniaProduced).toBe(effect('ammonia', 'fish-gill-excretion'));
+    expect(result.vitalities).toHaveLength(2);
+    expect(result.vitalities[1].newCondition).toBe(0);
+    expect(result.state.fish.map((fish) => [fish.id, fish.health, fish.surplus])).toEqual([
+      ['f1', result.vitalities[0].newCondition, result.vitalities[0].surplus],
+    ]);
+  });
+
+  it('excretes the minerals of the absorbed food beside the gill NH3', () => {
+    const state = makeState([makeFish({ satiation: 50, mass: 1.0 })]);
+    const result = processLivestock(state, DEFAULT_CONFIG);
+    const eaten = -result.effects.find((e) => e.resource === 'food')!.delta;
+
+    for (const nutrient of WASTE_NUTRIENTS) {
+      const excreted = result.effects.find(
+        (e) => e.resource === nutrient && e.source === 'fish-gill-excretion'
+      );
+      expect(excreted!.delta).toBeCloseTo(
+        eaten * DEFAULT_CONFIG.livestock.gillNFraction * DEFAULT_CONFIG.nutrients.foodMineralContent[nutrient],
+        12
+      );
+    }
   });
 
   it('processes respiration: O2 consumed and CO2 produced', () => {

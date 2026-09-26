@@ -2,7 +2,7 @@
  * Simulation state types and factory functions.
  */
 
-import { createLog, type LogEntry } from './core/logging.js';
+import { celsius, createLog, liters, measured, type LogEntry } from './core/logging.js';
 import { createRng, type RngState } from './core/rng.js';
 import type { DailySchedule } from './core/schedule.js';
 import type { Filter } from './equipment/filter.js';
@@ -21,10 +21,9 @@ import type { Light } from './equipment/light.js';
 import {
   DEFAULT_LIGHT,
   MAX_LIGHT_PAR,
-  getLightOutput,
-  calculateParAtDepth,
+  scheduledLightByHour,
 } from './equipment/light.js';
-import { opticsDefaults } from './config/optics.js';
+import { opticsDefaults, type OpticsConfig } from './config/optics.js';
 import type { AirPump } from './equipment/air-pump.js';
 import { DEFAULT_AIR_PUMP, getAirPumpFlow } from './equipment/air-pump.js';
 import type { AutoDoser } from './equipment/auto-doser.js';
@@ -69,12 +68,9 @@ export interface Fish {
    */
   hardinessOffset: number;
   /**
-   * Surplus vitality bank — a reserve buffer above health. Fills while
-   * the fish is at full health (net > 0 at condition 100), saturating at
-   * `LivestockConfig.surplusCap`; drains to absorb damage before health
-   * falls. Reproduction spends it on spawning (see
-   * `livestock/breeding.ts`). Stored in %/hr-equivalent units;
-   * conservation of meaning is on the consumer.
+   * Vitality bank, in condition points. Fills with income at full health,
+   * up to `LivestockConfig.surplusCap`, heals health below 100, and a full
+   * bank is what a female spawns on (see `livestock/breeding.ts`).
    */
   surplus: number;
 }
@@ -129,18 +125,30 @@ export interface Plant {
   id: string;
   /** Plant species type */
   species: PlantSpecies;
-  /** Size percentage (can exceed 100% up to species `maxSize`). */
+  /**
+   * How full its unit is, % of one grown unit of its growth form — a patch, a
+   * specimen, a clump. Growth tapers to nothing at 100, so it never grows past it.
+   */
   size: number;
-  /** Condition/health percentage (0-100, plant dies below 10%) */
+  /** Condition/health percentage (0-100, plant dies at 0) */
   condition: number;
   /**
-   * Banked vitality surplus (%/h units) — a reserve buffer above
-   * condition. Fills when condition is full and net is positive
-   * (photoperiod-gated, capped at `PlantsConfig.surplusCap`); drains to
-   * absorb damage before condition falls; growth spends what's left over,
-   * and the remainder banks toward future propagation.
+   * Vitality bank, in condition points. Fills with income at full condition,
+   * up to `PlantsConfig.surplusCap`; heals condition below 100, buys size, and
+   * a full bank buys an offshoot.
    */
   surplus: number;
+  /** The plant whose offshoot this is; null for anything planted or seeded. */
+  parentId: string | null;
+  /** The founder's id, inherited by every offshoot, so a family outlives its founder. */
+  familyId: string;
+  /** Age in ticks (hours) in this tank. */
+  age: number;
+  /**
+   * Per-individual offset on everything the plant earns, drawn once at birth
+   * within ±`VIGOUR_SPAN`, so clones bud apart instead of in lockstep.
+   */
+  vigour: number;
 }
 
 export interface Tank {
@@ -164,6 +172,12 @@ export interface Resources {
   flow: number;
   /** PAR reaching the substrate in µmol/m²/s (0 when lights off) */
   light: number;
+  /**
+   * PAR at the substrate for each hour of the day, slot `tick % 24` rewritten
+   * as each hour settles: the last 24 hours the tank was lit by. Not a
+   * `ResourceKey` — no effect moves it.
+   */
+  lightByHour: number[];
   /** Whether aeration is active (air pump or air-driven filter) */
   aeration: boolean;
 
@@ -286,19 +300,19 @@ export interface Equipment {
  * Used to only fire alerts once when crossing thresholds.
  */
 export interface AlertState {
-  /** Water level is below critical threshold */
+  /** Water is below `waterLevelAlertLine` % of capacity */
   waterLevelCritical: boolean;
-  /** Algae level is at 80+ (bloom warning) */
+  /** Algae mass is above `algaeAlertLine` */
   highAlgae: boolean;
-  /** Free NH₃ is above danger threshold (>0.02 ppm) */
+  /** Free NH₃ is above `FREE_AMMONIA_EDGE` */
   highAmmonia: boolean;
-  /** Nitrite level is above danger threshold (>1.0 ppm) */
+  /** Nitrite is above `NITRITE_EDGE` */
   highNitrite: boolean;
-  /** Nitrate level is above danger threshold (>80 ppm) */
+  /** Nitrate is above `NITRATE_EDGE` */
   highNitrate: boolean;
-  /** Oxygen below critical threshold (< 4 mg/L) */
+  /** Oxygen is below `OXYGEN_EDGE` */
   lowOxygen: boolean;
-  /** CO2 above harmful threshold (> 30 mg/L) */
+  /** CO₂ is above `HIGH_CO2_THRESHOLD` */
   highCo2: boolean;
 }
 
@@ -366,6 +380,8 @@ export interface SimulationConfig {
   airPump?: Partial<AirPump>;
   /** Initial auto doser configuration */
   autoDoser?: Partial<AutoDoser>;
+  /** Optics the tank will run on, which its first day of light is read through (defaults to the shipped optics) */
+  optics?: OpticsConfig;
 }
 
 const DEFAULT_TEMPERATURE = 25;
@@ -421,6 +437,26 @@ export function calculateHardscapeSlots(capacityLiters: number): number {
  */
 export function calculateTankHeight(capacity: number): number {
   return Math.cbrt(capacity / 2) * 10;
+}
+
+/** Floor of the 2:1:1 box a capacity implies, cm². */
+export function calculateFloorArea(capacity: number): number {
+  const height = calculateTankHeight(capacity);
+  return 2 * height * height;
+}
+
+/** The light history of a tank that has run its fixture's schedule all along. */
+export function scheduledLightHistory(
+  state: Pick<SimulationState, 'tank' | 'equipment'>,
+  optics: OpticsConfig
+): number[] {
+  return scheduledLightByHour(state.equipment.light, calculateTankHeight(state.tank.capacity), optics);
+}
+
+/** A tank at hour zero lit under `optics`: its light, and the day it reads, as its schedule has run. */
+export function relight(state: SimulationState, optics: OpticsConfig): SimulationState {
+  const lightByHour = scheduledLightHistory(state, optics);
+  return { ...state, resources: { ...state.resources, light: lightByHour[0], lightByHour } };
 }
 
 /**
@@ -499,6 +535,7 @@ export function createSimulation(
     co2Generator,
     airPump,
     autoDoser,
+    optics,
   } = config;
 
   const heaterConfig: Heater = {
@@ -576,7 +613,7 @@ export function createSimulation(
     0,
     'simulation',
     'info',
-    `Simulation created: ${tankCapacity}L tank, ${effectiveRoomTemp}°C room, heater ${heaterStatus}`
+    measured`Simulation created: ${liters(tankCapacity)} tank, ${celsius(effectiveRoomTemp)} room, heater ${heaterStatus}`
   );
 
   // Calculate tank glass surface from capacity (used in passive resource calculation)
@@ -585,7 +622,7 @@ export function createSimulation(
   // Calculate hardscape slots from capacity
   const hardscapeSlots = calculateHardscapeSlots(tankCapacity);
 
-  // Calculate initial passive resources (surface, flow, light, aeration)
+  // Calculate initial passive resources (surface, flow, aeration)
   const initialPassiveResources = calculateInitialPassiveResources(
     tankGlassSurface,
     tankCapacity,
@@ -593,16 +630,28 @@ export function createSimulation(
     powerheadConfig,
     substrateConfig,
     hardscapeConfig,
-    lightConfig,
     airPumpConfig
   );
 
+  const tank: Tank = { capacity: tankCapacity, hardscapeSlots };
+  const equipment: Equipment = {
+    heater: heaterConfig,
+    lid: lidConfig,
+    ato: atoConfig,
+    filter: filterConfig,
+    powerhead: powerheadConfig,
+    substrate: substrateConfig,
+    hardscape: hardscapeConfig,
+    light: lightConfig,
+    co2Generator: co2GeneratorConfig,
+    airPump: airPumpConfig,
+    autoDoser: autoDoserConfig,
+  };
+  const lightByHour = scheduledLightHistory({ tank, equipment }, optics ?? opticsDefaults);
+
   const state: SimulationState = {
     tick: 0,
-    tank: {
-      capacity: tankCapacity,
-      hardscapeSlots,
-    },
+    tank,
     resources: {
       // Physical
       water: tankCapacity, // Start at full capacity
@@ -610,7 +659,8 @@ export function createSimulation(
       // Passive (calculated)
       surface: initialPassiveResources.surface,
       flow: initialPassiveResources.flow,
-      light: initialPassiveResources.light,
+      light: lightByHour[0],
+      lightByHour,
       aeration: initialPassiveResources.aeration,
       // Biological
       food: 0.0,
@@ -639,19 +689,7 @@ export function createSimulation(
       tapKh: effectiveTapKh,
       tapGh: effectiveTapGh,
     },
-    equipment: {
-      heater: heaterConfig,
-      lid: lidConfig,
-      ato: atoConfig,
-      filter: filterConfig,
-      powerhead: powerheadConfig,
-      substrate: substrateConfig,
-      hardscape: hardscapeConfig,
-      light: lightConfig,
-      co2Generator: co2GeneratorConfig,
-      airPump: airPumpConfig,
-      autoDoser: autoDoserConfig,
-    },
+    equipment,
     plants: [],
     fish: [],
     clutches: [],
@@ -685,9 +723,8 @@ function calculateInitialPassiveResources(
   powerhead: Powerhead,
   substrate: Substrate,
   hardscape: Hardscape,
-  light: Light,
   airPump: AirPump
-): { surface: number; flow: number; light: number; aeration: boolean } {
+): { surface: number; flow: number; aeration: boolean } {
   // Import isFilterAirDriven inline to avoid circular dependency
   const isFilterAirDriven = filter.type === 'sponge';
 
@@ -715,14 +752,5 @@ function calculateInitialPassiveResources(
   // Aeration is active if air pump is on OR filter is air-driven (sponge)
   const aeration = airPump.enabled || (filter.enabled && isFilterAirDriven);
 
-  // The constructor takes no tunable config, so hour 0 reads on the shipped
-  // optics. A caller running tuned optics owes this a recompute — a paused
-  // tank has no next tick, and both of the UI's rebuild paths got that wrong.
-  const substratePar = calculateParAtDepth(
-    getLightOutput(light, 0),
-    calculateTankHeight(tankCapacity),
-    opticsDefaults
-  );
-
-  return { surface, flow, light: substratePar, aeration };
+  return { surface, flow, aeration };
 }

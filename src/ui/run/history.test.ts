@@ -9,6 +9,7 @@ import {
 import { createSimulation, type SimulationState } from '../../simulation/index.js';
 import { getPpm } from '../../simulation/resources/index.js';
 import type { Fish, Plant } from '../../simulation/state.js';
+import { plantRecord } from '../../simulation/tests/plant.js';
 import { snapshot } from '../test/snapshot';
 
 function makeState(mutate: (draft: SimulationState) => void): SimulationState {
@@ -16,7 +17,7 @@ function makeState(mutate: (draft: SimulationState) => void): SimulationState {
 }
 
 function makePlant(size: number): Plant {
-  return { id: `p-${size}`, species: 'java_fern', size, condition: 80, surplus: 0 };
+  return plantRecord({ id: `p-${size}`, species: 'java_fern', size, condition: 80, surplus: 0 });
 }
 
 function makeFish(id: string, stage: Fish['stage']): Fish {
@@ -122,7 +123,7 @@ describe('snapshotFromState', () => {
     expect(snapshotFromState(state).waterPct).toBe(0);
   });
 
-  it('counts adults apart from fry, and averages plant size', () => {
+  it('counts adults apart from fry, and the plants standing', () => {
     const state = makeState((d) => {
       d.plants = [makePlant(40), makePlant(60), makePlant(80)];
       d.fish = [makeFish('a', 'adult'), makeFish('b', 'adult'), makeFish('c', 'fry')];
@@ -130,14 +131,7 @@ describe('snapshotFromState', () => {
     const snap = snapshotFromState(state);
     expect(snap.fishCount).toBe(2);
     expect(snap.fryCount).toBe(1);
-    expect(snap.plantAvgSize).toBe(60);
-  });
-
-  it('averages plant size to zero when there are no plants', () => {
-    const state = makeState((d) => {
-      d.plants = [];
-    });
-    expect(snapshotFromState(state).plantAvgSize).toBe(0);
+    expect(snap.plantCount).toBe(3);
   });
 });
 

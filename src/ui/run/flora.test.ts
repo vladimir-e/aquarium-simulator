@@ -1,33 +1,41 @@
 import { describe, it, expect } from 'vitest';
 import {
   applyAction,
+  calculateFloorArea,
+  calculateNutrientSufficiency,
   calculateSurface,
   createSimulation,
+  floorCover,
   getDosePreview,
+  growthFormOf,
   getPlantsToTrimCount,
+  readPlantLight,
+  tick,
   type PlantSpecies,
   type SimulationState,
-  type VitalityBreakdown,
 } from '../../simulation/index.js';
-import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
+import { DEFAULT_CONFIG, MAX_SUFFICIENCY_EDGE, NUTRIENTS } from '../../simulation/config/index.js';
+import { speciesHalfSaturation } from '../../simulation/systems/nutrients.js';
 import { MAX_DOSE_ML } from '../../simulation/actions/dose.js';
 import { produce } from 'immer';
 import {
-  algaeRow,
+  algaeReading,
   algaeStatus,
-  algaeWord,
   doseDeltas,
   doseToCover,
+  floorPlanted,
   formatDose,
   nutrientAlert,
   nutrientReadings,
-  overTrimCount,
   groupPlantsBySpecies,
+  plantLabels,
   plantRows,
-  tankDemand,
   TRIM_TARGETS,
+  type PlantRow,
+  type PlantSpeciesGroup,
 } from './flora';
-import { conditionStatus, conditionWord, vitalReading } from './status';
+import { readHourAhead } from './ahead';
+import { conditionStatus, conditionWord, projectedTrend, type Reading } from './status';
 
 const FORMULA = DEFAULT_CONFIG.nutrients.fertilizerFormula;
 
@@ -62,94 +70,242 @@ describe('condition + algae words', () => {
   });
 
   it('maps algae mass to status and word (low is good)', () => {
-    expect(algaeStatus(10)).toBe('ok');
-    expect(algaeStatus(45)).toBe('warn');
-    expect(algaeStatus(90)).toBe('alert');
-    expect(algaeWord(1)).toBe('suppressed');
-    expect(algaeWord(70)).toBe('spreading');
-    expect(algaeWord(95)).toBe('booming');
+    expect(algaeStatus(30, 30)).toBe('ok');
+    expect(algaeStatus(45, 30)).toBe('warn');
+    expect(algaeStatus(61, 30)).toBe('alert');
+    expect(algaeReading(1, 30).word).toBe('sparse');
+    expect(algaeReading(45, 30).word).toBe('spreading');
+    expect(algaeReading(95, 30).word).toBe('booming');
+  });
+
+  it('cuts the word ladder from the same line as the tone, wherever it is tuned', () => {
+    for (const line of [20, 80]) {
+      expect(algaeReading(line * 0.4, line)).toEqual({ status: 'ok', word: 'sparse' });
+      expect(algaeReading(line, line)).toEqual({ status: 'ok', word: 'active' });
+      expect(algaeReading(line * 1.5, line)).toEqual({ status: 'warn', word: 'spreading' });
+      expect(algaeReading(line * 2.5, line)).toEqual({ status: 'alert', word: 'booming' });
+    }
   });
 });
 
-describe('vitalReading', () => {
-  const ledger = (over: Partial<VitalityBreakdown> = {}): VitalityBreakdown => ({
-    stressors: [],
-    upkeep: [],
-    benefits: [],
-    damageRate: 0,
-    upkeepRate: 0.02,
-    reserved: 2,
-    benefitRate: 0,
-    net: -0.02,
-    drained: 0,
-    starved: 0,
-    ...over,
-  });
+function rows(state: SimulationState, config = DEFAULT_CONFIG): PlantRow[] {
+  return plantRows(state, config, readHourAhead(state, config));
+}
 
-  it('will not call a plant thriving while it is paying the bill in tissue', () => {
-    expect(vitalReading(100, 0, ledger({ starved: 1 }))).toEqual({
-      status: 'alert',
-      word: 'starving',
-    });
-  });
+const THRIVING: Reading = { status: 'ok', word: 'thriving' };
+const SICK: Reading = { status: 'warn', word: 'sick' };
+const STRUGGLING: Reading = { status: 'alert', word: 'struggling' };
 
-  it('warns once the bank is down to the rations, and they are what is paying', () => {
-    expect(vitalReading(100, 2, ledger({ drained: 0.02 }))).toEqual({
-      status: 'warn',
-      word: 'burning',
-    });
-  });
+type Unit = Omit<PlantRow, 'label'> & { parentId: string | null };
 
-  it('says nothing about a bank spending its spare', () => {
-    expect(vitalReading(100, 20, ledger({ drained: 0.02 }))).toEqual({
-      status: 'ok',
-      word: 'thriving',
-    });
-  });
+function unit(id: string, familyId: string, overrides: Partial<Unit> = {}): Unit {
+  return {
+    id,
+    species: 'java_fern',
+    name: 'Java Fern',
+    familyId,
+    parentId: id === familyId ? null : familyId,
+    size: 50,
+    age: 0,
+    condition: 100,
+    sick: false,
+    reading: THRIVING,
+    light: 1,
+    lightStatus: 'ok',
+    bank: 0,
+    ...overrides,
+  };
+}
 
-  it('leaves the word to condition once condition is the worse news', () => {
-    expect(vitalReading(22, 0, ledger({ starved: 1 })).word).toBe('struggling');
-    expect(vitalReading(5, 0, ledger({ starved: 1 })).word).toBe('dying');
-    expect(vitalReading(50, 0, ledger({ starved: 1 })).word).toBe('starving');
-  });
-});
+/** Units as the run layer hands them over: labelled off their lineage. */
+function grouped(units: Unit[]): PlantSpeciesGroup[] {
+  const labels = plantLabels(units);
+  return groupPlantsBySpecies(units.map((u) => ({ ...u, label: labels.get(u.id)! })));
+}
 
 describe('groupPlantsBySpecies', () => {
-  it('folds a species into one row carrying a status per specimen', () => {
-    const state = planted(['java_fern', 'java_fern', 'monte_carlo']);
+  it('groups each species into the families it was planted as, each down its line in planting order', () => {
+    const groups = grouped([
+      unit('a', 'a'),
+      unit('m', 'm', { species: 'monte_carlo', name: 'Monte Carlo' }),
+      unit('b', 'b'),
+      unit('a1', 'a'),
+      unit('b1', 'b'),
+      unit('a2', 'a', { parentId: 'a1' }),
+    ]);
 
-    const groups = groupPlantsBySpecies(plantRows(state, DEFAULT_CONFIG));
     expect(groups.map((group) => group.name)).toEqual(['Java Fern', 'Monte Carlo']);
-
-    const [ferns] = groups;
-    expect(ferns.count).toBe(2);
-    expect(ferns.statuses).toHaveLength(2);
+    const [ferns, carpet] = groups;
+    expect(ferns.families.map((family) => family.members.map((member) => member.id))).toEqual([
+      ['a', 'a1', 'a2'],
+      ['b', 'b1'],
+    ]);
+    expect(ferns.members.map((member) => member.id)).toEqual(['a', 'b', 'a1', 'b1', 'a2']);
+    expect(carpet.families.map((family) => family.familyId)).toEqual(['m']);
   });
 
-  it('takes the group’s word from its worst specimen, and its strip from the mean', () => {
-    const rows = plantRows(planted(['java_fern', 'java_fern']), DEFAULT_CONFIG);
-    const ailing = [
-      { ...rows[0], condition: 20, status: 'alert' as const, word: 'dying' },
-      { ...rows[1], condition: 80, status: 'ok' as const, word: 'thriving' },
-    ];
+  it('sums a group’s sizes, and reads its oldest, its worst-lit and its mean condition', () => {
+    const [ferns] = grouped([
+      unit('a', 'a', { size: 90, age: 900, light: 1.4, condition: 100 }),
+      unit('a1', 'a', { size: 40, age: 100, light: 0.6, condition: 70 }),
+      unit('b', 'b', { size: 20, age: 300, light: 1.1, condition: 40 }),
+    ]);
+    const [a, b] = ferns.families;
 
-    const [group] = groupPlantsBySpecies(ailing);
-    expect(group.status).toBe('alert');
-    expect(group.word).toBe('dying');
-    expect(group.condition).toBe(50);
+    expect(a).toMatchObject({ size: 130, oldest: 900, light: 0.6, condition: 85 });
+    expect(b).toMatchObject({ size: 20, oldest: 300, light: 1.1, condition: 40 });
+    expect(ferns.size).toBeCloseTo(150, 10);
+    expect(ferns).toMatchObject({ oldest: 900, light: 0.6, condition: 70 });
+  });
+
+  it('reads a family by the group rule over its units, and a species by it over its families', () => {
+    const [ferns] = grouped([
+      unit('a', 'a', { reading: STRUGGLING, condition: 20 }),
+      unit('a1', 'a', { reading: STRUGGLING, condition: 25 }),
+      unit('a2', 'a'),
+      unit('b', 'b', { reading: SICK }),
+      unit('c', 'c'),
+    ]);
+    const [a, b, c] = ferns.families;
+
+    expect(a.reading).toEqual({ status: 'alert', word: '2 struggling' });
+    expect(b.reading).toEqual(SICK);
+    expect(c.reading).toEqual(THRIVING);
+    expect(ferns.reading).toEqual({ status: 'alert', word: '1 struggling' });
+  });
+
+  it('counts families, not units, at the species, under the reason they share', () => {
+    const [ferns] = grouped([
+      unit('a', 'a', { reading: SICK }),
+      unit('a1', 'a', { reading: SICK }),
+      unit('b', 'b', { reading: SICK }),
+      unit('c', 'c'),
+    ]);
+    expect(ferns.families[0].reading.word).toBe('2 sick');
+    expect(ferns.reading).toEqual({ status: 'warn', word: '2 sick' });
+  });
+
+  it('reads a species of one family of one unit as that unit', () => {
+    const [ferns] = grouped([unit('a', 'a', { reading: STRUGGLING, condition: 20 })]);
+    expect(ferns.families[0].reading).toEqual(STRUGGLING);
+    expect(ferns.reading).toEqual(STRUGGLING);
+  });
+});
+
+describe('floorPlanted', () => {
+  const capacity = 1000;
+  const carpets = (count: number): SimulationState => {
+    const state = createSimulation({ tankCapacity: capacity });
+    const [plant] = applyAction(tank(capacity), { type: 'addPlant', species: 'monte_carlo' }).state
+      .plants;
+    return { ...state, plants: Array.from({ length: count }, () => plant) };
+  };
+  const fill = Math.ceil(calculateFloorArea(capacity) / growthFormOf('monte_carlo').footprintCm2);
+
+  it('reads the floor the planting claims while it fits, never a line it has not reached', () => {
+    for (const count of [1, fill - 1]) {
+      const cover = floorCover(carpets(count).plants, capacity);
+      expect(floorPlanted(carpets(count))).toBe(`floor ${Math.floor(cover * 100)} % planted`);
+    }
+  });
+
+  it('says the planting has outgrown its floor past it, never at a figure that would put it back', () => {
+    for (const count of [fill, fill * 3]) {
+      const cover = floorCover(carpets(count).plants, capacity);
+      expect(cover).toBeGreaterThan(1);
+      expect(floorPlanted(carpets(count))).toBe(`floor outgrown · ${Math.ceil(cover * 100)} % claimed`);
+    }
   });
 });
 
 describe('plantRows', () => {
-  it('carries the engine’s own vitality, and its factors sum to the net it prints', () => {
-    const state = planted(['java_fern', 'monte_carlo']);
-    const rows = plantRows(state, DEFAULT_CONFIG);
-    expect(rows.map((row) => row.name)).toEqual(['Java Fern', 'Monte Carlo']);
+  it('reads each unit’s light at its own height, as a share of what its species starves under', () => {
+    const state = planted(['amazon_sword', 'monte_carlo', 'java_fern']);
+    const light = readPlantLight(state, DEFAULT_CONFIG);
 
-    for (const row of rows) {
-      const benefits = row.benefits.reduce((sum, f) => sum + f.amount, 0);
-      const charged = row.charged.reduce((sum, f) => sum + f.amount, 0);
-      expect(row.net).toBeCloseTo(benefits - charged, 6);
+    rows(state).forEach((row, i) => {
+      expect(row.light).toBeCloseTo(light[i].needShare, 12);
+    });
+  });
+
+  it('reads a bank as its share of the next offshoot’s price, full at the cap', () => {
+    const cap = DEFAULT_CONFIG.plants.surplusCap;
+    const state = produce(planted(['java_fern', 'java_fern', 'java_fern']), (draft) => {
+      draft.plants[0].surplus = 0;
+      draft.plants[1].surplus = cap / 4;
+      draft.plants[2].surplus = cap;
+    });
+    expect(rows(state).map((row) => row.bank)).toEqual([0, 0.25, 1]);
+  });
+
+  it('carries each unit’s lineage and age', () => {
+    const base = planted(['java_fern']);
+    const [founder] = base.plants;
+    const state: SimulationState = {
+      ...base,
+      plants: [
+        { ...founder, age: 240 },
+        { ...founder, id: 'plant_bud', parentId: founder.id, age: 24 },
+      ],
+    };
+    expect(rows(state).map(({ familyId, label, age }) => ({ familyId, label, age }))).toEqual([
+      { familyId: founder.id, label: { family: 1, unit: 1, parent: null }, age: 240 },
+      { familyId: founder.id, label: { family: 1, unit: 2, parent: 1 }, age: 24 },
+    ]);
+  });
+});
+
+describe('plantLabels', () => {
+  const kin = (
+    id: string,
+    familyId: string,
+    parentId: string | null,
+    species: PlantSpecies = 'java_fern'
+  ): { id: string; familyId: string; parentId: string | null; species: PlantSpecies } => ({
+    id,
+    familyId,
+    parentId,
+    species,
+  });
+
+  it('numbers families in founding order within their species, and units in birth order within their family', () => {
+    const labels = plantLabels([
+      kin('plant_5', 'plant_1', 'plant_1'),
+      kin('plant_1', 'plant_1', null),
+      kin('plant_3', 'plant_3', null),
+      kin('plant_4', 'plant_4', null, 'monte_carlo'),
+      kin('plant_a', 'plant_1', 'plant_5'),
+    ]);
+
+    expect(labels.get('plant_1')).toEqual({ family: 1, unit: 1, parent: null });
+    expect(labels.get('plant_5')).toEqual({ family: 1, unit: 2, parent: 1 });
+    expect(labels.get('plant_a')).toEqual({ family: 1, unit: 3, parent: 2 });
+    expect(labels.get('plant_3')).toEqual({ family: 2, unit: 1, parent: null });
+    expect(labels.get('plant_4')).toEqual({ family: 1, unit: 1, parent: null });
+  });
+
+  it('keeps a family its number when its founder dies, and names no parent that is gone', () => {
+    const labels = plantLabels([kin('plant_3', 'plant_3', null), kin('plant_a', 'plant_1', 'plant_1')]);
+
+    expect(labels.get('plant_a')).toEqual({ family: 1, unit: 1, parent: null });
+    expect(labels.get('plant_3')).toEqual({ family: 2, unit: 1, parent: null });
+  });
+
+  it('calls a plant sick exactly while the next tick takes condition off it, as the trend shows', () => {
+    const dark = produce(planted(['java_fern']), (draft) => {
+      draft.equipment.light.enabled = false;
+      draft.resources.lightByHour.fill(0);
+    });
+    expect(rows(dark)[0].reading.word).toBe('sick');
+
+    const banked = produce(dark, (draft) => {
+      draft.plants[0].surplus = DEFAULT_CONFIG.plants.surplusCap;
+    });
+    for (const state of [dark, banked]) {
+      const [row] = rows(state);
+      const next = tick(state, DEFAULT_CONFIG).plants[0];
+      expect(row.sick).toBe(row.reading.word === 'sick');
+      expect(row.sick).toBe(projectedTrend(next.condition - row.condition).startsWith('↘'));
     }
   });
 
@@ -160,62 +316,48 @@ describe('plantRows', () => {
       plants: state.plants.map((p) => ({ ...p, condition: 22 })),
     };
 
-    expect(plantRows(state, DEFAULT_CONFIG)[0].word).toBe('thriving');
-    expect(plantRows(struggling, DEFAULT_CONFIG)[0]).toMatchObject({
-      word: 'struggling',
-      status: 'alert',
-    });
-  });
-});
-
-describe('algaeRow', () => {
-  it('reads the engine’s algae population, not the plants’', () => {
-    const state = produce(planted(['java_fern']), (draft) => {
-      draft.algae.mass = 30;
-    });
-    const row = algaeRow(state, DEFAULT_CONFIG);
-    expect(row.mass).toBe(state.algae.mass);
-    const benefits = row.benefits.reduce((sum, f) => sum + f.amount, 0);
-    const stressors = row.stressors.reduce((sum, f) => sum + f.amount, 0);
-    expect(row.net).toBeCloseTo(benefits - stressors, 6);
+    expect(rows(state)[0].reading.word).toBe('thriving');
+    expect(rows(struggling)[0].reading).toEqual({ word: 'struggling', status: 'alert' });
   });
 });
 
 describe('nutrientReadings', () => {
-  it('reads every nutrient against what the tank’s hungriest plant needs', () => {
+  it('reads every nutrient against what the tank’s hungriest plant needs of it', () => {
     const state = planted(['java_fern', 'monte_carlo']);
-    expect(tankDemand(state)).toBe('high');
-
     const readings = nutrientReadings(state, DEFAULT_CONFIG);
     expect(readings.map((r) => r.label)).toEqual(['NO₃', 'PO₄', 'K', 'Fe']);
-    const { optimalNitratePpm, optimalPhosphatePpm, optimalPotassiumPpm, optimalIronPpm, highDemandMultiplier } =
-      DEFAULT_CONFIG.nutrients;
-    expect(readings.map((r) => r.needed)).toEqual(
-      [optimalNitratePpm, optimalPhosphatePpm, optimalPotassiumPpm, optimalIronPpm].map(
-        (ppm) => ppm * highDemandMultiplier
-      )
-    );
+
+    const need = (species: PlantSpecies, n: (typeof NUTRIENTS)[number]): number =>
+      speciesHalfSaturation(species, n, DEFAULT_CONFIG.nutrients);
+    readings.forEach((r, i) => {
+      const n = NUTRIENTS[i]!;
+      expect(need('monte_carlo', n)).toBeGreaterThan(need('java_fern', n));
+      expect(r.needed / need('monte_carlo', n)).toBeCloseTo(readings[0]!.needed / need('monte_carlo', 'nitrate'), 10);
+    });
     expect(readings.every((r) => r.ppm === 0 && r.fill === 0)).toBe(true);
   });
 
-  it('scales the need down for a tank of low-demand plants', () => {
-    const state = planted(['java_fern', 'anubias']);
-    expect(tankDemand(state)).toBe('low');
-    const { optimalNitratePpm, lowDemandMultiplier } = DEFAULT_CONFIG.nutrients;
-    expect(nutrientReadings(state, DEFAULT_CONFIG)[0].needed).toBeCloseTo(
-      optimalNitratePpm * lowDemandMultiplier,
-      10
-    );
+  it('asks less of every nutrient for a low-demand planting than a high-demand one', () => {
+    const lean = nutrientReadings(planted(['java_fern', 'anubias']), DEFAULT_CONFIG);
+    const hungry = nutrientReadings(planted(['monte_carlo']), DEFAULT_CONFIG);
+    lean.forEach((reading, i) => {
+      expect(reading.needed).toBeGreaterThan(0);
+      expect(reading.needed).toBeLessThan(hungry[i]!.needed);
+    });
   });
 
   it('only calls a nutrient short when the engine would actually feed a plant better', () => {
-    const noIron = (state: SimulationState): SimulationState => ({
+    const fernIron = (state: SimulationState): SimulationState => ({
       ...state,
       resources: {
         ...state.resources,
         nitrate: state.resources.water * 20,
         phosphate: state.resources.water * 2,
         potassium: state.resources.water * 10,
+        iron:
+          state.resources.water *
+          nutrientReadings(planted(['java_fern']), DEFAULT_CONFIG).find((r) => r.key === 'iron')!
+            .needed,
       },
     });
     const short = (state: SimulationState): string[] =>
@@ -223,13 +365,23 @@ describe('nutrientReadings', () => {
         .filter((r) => r.limiting)
         .map((r) => r.key);
 
-    expect(short(noIron(planted(['java_fern'])))).toEqual([]);
-    expect(short(noIron(planted(['monte_carlo'])))).toEqual(['iron']);
+    expect(short(fernIron(planted(['java_fern'])))).toEqual([]);
+    expect(short(fernIron(planted(['monte_carlo'])))).toEqual(['iron']);
+  });
+
+  it('sets each need where the hungriest plant’s deficiency harm starts, wherever that edge is tuned', () => {
+    const state = planted(['java_fern', 'monte_carlo']);
+    for (const edge of [0.8, DEFAULT_CONFIG.plants.sufficiencyEdge, MAX_SUFFICIENCY_EDGE]) {
+      const config = { ...DEFAULT_CONFIG, plants: { ...DEFAULT_CONFIG.plants, sufficiencyEdge: edge } };
+      const water = state.resources.water;
+      const atNeed = { ...state.resources };
+      for (const reading of nutrientReadings(state, config)) atNeed[reading.key] = reading.needed * water;
+      expect(calculateNutrientSufficiency(atNeed, water, 'monte_carlo', config.nutrients)).toBeCloseTo(edge, 6);
+    }
   });
 
   it('has nothing to be short of when nothing is planted', () => {
     const readings = nutrientReadings(tank(), DEFAULT_CONFIG);
-    expect(tankDemand(tank())).toBeNull();
     expect(readings.map((r) => r.neededText)).toEqual(['—', '—', '—', '—']);
     expect(nutrientAlert(readings)).toBeNull();
   });
@@ -311,7 +463,13 @@ describe('dose arithmetic', () => {
   });
 
   it('has nothing to recommend once every nutrient is met', () => {
-    const state = dosed(planted(['java_fern'], 40), 4);
+    const fern = planted(['java_fern'], 40);
+    const ml = Math.max(
+      ...nutrientReadings(fern, DEFAULT_CONFIG).map(
+        (r) => (r.needed * fern.resources.water) / FORMULA[r.key]
+      )
+    );
+    const state = dosed(fern, ml);
     const readings = nutrientReadings(state, DEFAULT_CONFIG);
     expect(readings.every((r) => !r.limiting)).toBe(true);
     expect(doseToCover(readings, state, DEFAULT_CONFIG)).toBeNull();
@@ -348,33 +506,5 @@ describe('trim targets', () => {
       const trimmed = applyAction(grown, { type: 'trimPlants', targetSize: target }).state;
       expect(trimmed.plants[0].size).toBe(target);
     }
-  });
-});
-
-describe('overTrimCount', () => {
-  function sized(size: number): SimulationState {
-    return applyAction(tank(), {
-      type: 'addPlant',
-      species: 'monte_carlo',
-      initialSize: size,
-    }).state;
-  }
-
-  it('counts the plants every rung of the trim ladder would cut', () => {
-    const ceiling = Math.max(...TRIM_TARGETS);
-
-    expect(overTrimCount(sized(ceiling + 1))).toBe(1);
-    expect(overTrimCount(sized(ceiling))).toBe(0);
-    expect(overTrimCount(sized(80))).toBe(0);
-    expect(getPlantsToTrimCount(sized(80), 75)).toBe(1);
-  });
-
-  it('flags the same plants on the row as it counts in the summary', () => {
-    const big = sized(Math.max(...TRIM_TARGETS) + 1);
-    expect(plantRows(big, DEFAULT_CONFIG).map((r) => r.overTrim)).toEqual([true]);
-
-    const small = sized(60);
-    expect(plantRows(small, DEFAULT_CONFIG).map((r) => r.overTrim)).toEqual([false]);
-    expect(overTrimCount(small)).toBe(0);
   });
 });

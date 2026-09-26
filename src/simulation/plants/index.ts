@@ -2,49 +2,42 @@
  * Plants processing — full supply chain per plant per tick.
  *
  * Pipeline:
- * 1. Compute per-plant Liebig sufficiency once (shared by photosynthesis
- *    and vitality below).
- * 2. Photosynthesis: emits resource effects only — O2 production, CO2
+ * 1. The canopy: each plant's light at its own height, read by photosynthesis
+ *    and vitality and handed back as the light the tick ran on.
+ * 2. Each plant's Liebig sufficiency, once: photosynthesis and vitality both
+ *    run on it.
+ * 3. Photosynthesis: emits resource effects only — O2 production, CO2
  *    uptake, nutrient draw. Does NOT directly produce size growth;
  *    that flows through surplus. Light-gated: zero output at night.
- * 3. Respiration: O2/CO2 effects, 24/7.
- * 4. Vitality per plant: settles both ledgers and returns the new
- *    `Plant.surplus` bank. The bank is a reserve buffer — a deficit
- *    drains it before either stock falls; whatever income upkeep and
- *    damage left accrues back into it at any condition, because a plant
- *    repairs by withdrawing rather than out of income (capped at
- *    `surplusCap`). Runs every tick — the plant pays upkeep around the
- *    clock and the buffer is what it pays out of. Accrual is
- *    **photoperiod-gated** inside
- *    vitality (`accrueSurplus: light > 0`): surplus represents stored
- *    photosynthate, so overnight overflow is discarded.
- * 5. Store the returned bank on `Plant.surplus` (no separate banking
- *    step — vitality already produced the final value).
- * 6. Spend surplus on repair and then growth: mobilises `growthDrawRate`
- *    of the bank down to the depth upkeep reserved, converts the
- *    asymptotic share of it to size, and withdraws only what repaired or
- *    converted. Also photoperiod-gated — no carbon fixation overnight, no
- *    net biomass accumulation. What growth can't use stays banked, for a
- *    dark spell and for propagation.
- * 7. Shedding + death (lifecycle module) — applied last, can remove
- *    plants from the tank. Shedding is the other side of step 6: what
- *    the bank could not pay of the upkeep comes back out of size.
+ * 4. Respiration: O2/CO2 effects, 24/7.
+ * 5. Vitality per plant: the new condition and `Plant.surplus` bank —
+ *    income at full condition banks, the bank heals condition below it.
+ * 6. Offshoot: a full bank buys a new unit of the family, before growth.
+ * 7. Growth: the bank buys size at `growthDrawRate` of itself, day and night.
+ * 8. Shedding + death (lifecycle module) — low condition sheds tissue, and
+ *    condition 0 or too little size left removes the plant.
+ * 9. Survivors age a tick; offshoots join the end of the list at age 0.
  *
  * Called during ACTIVE tier processing in tick.ts.
  */
 
 import { produce } from 'immer';
 import type { SimulationState, Plant } from '../state.js';
-import { PLANT_SPECIES_DATA } from './species.js';
-import type { Effect } from '../core/effects.js';
-import type { TunableConfig } from '../config/index.js';
+import { PLANT_SPECIES_DATA, growthFormOf } from './species.js';
 import {
-  calculatePhotosynthesis,
-  getTotalPlantSize,
-} from '../systems/photosynthesis.js';
+  canopyLight,
+  getTotalRateUnits,
+  lightAtHeight,
+  type CanopyLight,
+  type PlantLight,
+} from './canopy.js';
+import type { Effect } from '../core/effects.js';
+import type { Nutrient, TunableConfig } from '../config/index.js';
+import { calculatePhotosynthesis } from '../systems/photosynthesis.js';
 import { calculateNutrientSufficiency } from '../systems/nutrients.js';
 import { calculateRespiration } from '../systems/respiration.js';
-import { spendSurplus } from '../systems/plant-growth.js';
+import { propagate, spendSurplus } from '../systems/plant-growth.js';
+import { createOffshoot } from './create-plant.js';
 import { computePlantVitality } from '../systems/plant-vitality.js';
 import {
   calculateShedding,
@@ -53,33 +46,21 @@ import {
 } from '../systems/plant-lifecycle.js';
 import { createLog } from '../core/logging.js';
 import { getPpm } from '../resources/index.js';
+import { calculateTankHeight } from '../state.js';
 import type { VitalityResult } from '../systems/vitality.js';
 
-/**
- * What every plant in the tank is doing this hour, in `state.plants`
- * order. `processPlants` runs the same numbers inside the tick off a
- * sufficiency map it shares with photosynthesis; this is the reader for
- * everything outside it — plant cards, the waste readout, probes.
- */
-export function readPlantVitality(
-  state: SimulationState,
-  config: TunableConfig
-): VitalityResult[] {
-  return state.plants.map((plant) =>
-    computePlantVitality({
-      plant,
-      resources: state.resources,
-      waterVolume: state.resources.water,
-      plantsConfig: config.plants,
-      nutrientSufficiency: calculateNutrientSufficiency(
-        state.resources,
-        state.resources.water,
-        plant.species,
-        config.nutrients
-      ),
-      algaeMass: state.algae.mass,
-    })
-  );
+function canopyOf(state: SimulationState, config: TunableConfig): CanopyLight[] {
+  return canopyLight(state.plants, state.tank.capacity, config.optics);
+}
+
+function lightOf(state: SimulationState, canopy: CanopyLight[]): PlantLight[] {
+  const depth = calculateTankHeight(state.tank.capacity);
+  return state.plants.map((plant, i) => lightAtHeight(plant, canopy[i], state.resources, depth));
+}
+
+/** Every plant's light, in `state.plants` order — the readings vitality runs on. */
+export function readPlantLight(state: SimulationState, config: TunableConfig): PlantLight[] {
+  return lightOf(state, canopyOf(state, config));
 }
 
 export interface PlantsProcessingResult {
@@ -87,15 +68,17 @@ export interface PlantsProcessingResult {
   state: SimulationState;
   /** Effects for resource changes (O2, CO2, nitrate, waste) */
   effects: Effect[];
+  /** Each plant's vitality this tick, in the handed `state.plants` order. */
+  vitalities: VitalityResult[];
+  /** The light each plant stood in this tick, in the same order. */
+  light: PlantLight[];
+  /** Grams of waste shed this tick, apart from a death's one-off lump. */
+  shedding: number;
 }
 
 /**
  * Process plants for one tick. See module-level docstring for the
  * pipeline shape.
- *
- * @param state - Current simulation state
- * @param config - Tunable configuration
- * @returns Updated state and resource effects
  */
 export function processPlants(
   state: SimulationState,
@@ -105,47 +88,35 @@ export function processPlants(
   const plantsConfig = config.plants;
   const nutrientsConfig = config.nutrients;
 
-  // Get total plant size
-  const totalPlantSize = getTotalPlantSize(state.plants);
-
-  // Skip if no plants
-  if (state.plants.length === 0 || totalPlantSize === 0) {
-    return { state, effects };
+  if (state.plants.length === 0) {
+    return { state, effects, vitalities: [], light: [], shedding: 0 };
   }
 
-  // Compute Liebig nutrient sufficiency once per plant per tick. Both
-  // photosynthesis (Liebig-gates biomass and uptake) and vitality
-  // (drives the nutrient stressor + benefit pair) read this value;
-  // computing it once keeps them consistent and avoids the triple
-  // recomputation an earlier pass had.
-  const sufficiencyByPlantId = new Map<string, number>(
-    state.plants.map((plant) => [
-      plant.id,
-      calculateNutrientSufficiency(
-        state.resources,
-        state.resources.water,
-        plant.species,
-        nutrientsConfig
-      ),
-    ])
+  // 1. The canopy, and each plant's light in it.
+  const light = lightOf(state, canopyOf(state, config));
+
+  // 2. Liebig sufficiency, once per plant: photosynthesis fixes carbon and
+  //    draws on it, and vitality earns and charges on it.
+  const sufficiency = state.plants.map((plant) =>
+    calculateNutrientSufficiency(state.resources, state.resources.water, plant.species, nutrientsConfig)
   );
 
-  // 1. Photosynthesis: resource effects only (O2 release, CO2 uptake,
+  // 3. Photosynthesis: resource effects only (O2 release, CO2 uptake,
   //    nutrient draw). Plant size growth flows through the surplus
   //    supply chain below — photosynthesis does not directly add size.
   const photosynthesisResult = calculatePhotosynthesis(
     state.plants,
-    state.resources.light,
+    light.map((plant) => plant.par),
     state.resources.co2,
     state.resources,
     state.resources.water,
-    sufficiencyByPlantId,
+    sufficiency,
     plantsConfig,
     nutrientsConfig
   );
 
   const pushDelta = (
-    resource: 'oxygen' | 'co2' | 'nitrate' | 'phosphate' | 'potassium' | 'iron' | 'gh',
+    resource: Nutrient | 'oxygen' | 'co2' | 'gh',
     delta: number,
     source: string
   ): void => {
@@ -166,9 +137,9 @@ export function processPlants(
   pushDelta('iron', photosynthesisResult.ironDelta, 'photosynthesis');
   pushDelta('gh', photosynthesisResult.ghDelta, 'photosynthesis');
 
-  // 2. Calculate respiration (24/7)
+  // 4. Calculate respiration (24/7)
   const respirationResult = calculateRespiration(
-    totalPlantSize,
+    getTotalRateUnits(state.plants),
     state.resources.temperature,
     state.resources.oxygen,
     plantsConfig
@@ -177,7 +148,7 @@ export function processPlants(
   pushDelta('oxygen', -getPpm(respirationResult.oxygenConsumedMg, waterVolume), 'respiration');
   pushDelta('co2', getPpm(respirationResult.co2ProducedMg, waterVolume), 'respiration');
 
-  // 3. Vitality per plant: drives condition update and returns the new
+  // 5. Vitality per plant: drives condition update and returns the new
   //    surplus bank. Algae mass comes from the prior tick's `state.algae.mass`
   //    (algae processing runs *after* plants in `tick.ts` so plant
   //    suppression / weakness factors read fresh plant condition).
@@ -187,125 +158,132 @@ export function processPlants(
   //    plants ordering required by the bigger-picture suppression
   //    feedback loop.
   const algaeMass = state.algae.mass;
-  const vitalities = state.plants.map((plant) =>
+  const vitalities = state.plants.map((plant, i) =>
     computePlantVitality({
       plant,
       resources: state.resources,
       waterVolume: state.resources.water,
       plantsConfig,
-      nutrientSufficiency: sufficiencyByPlantId.get(plant.id) ?? 0,
+      nutrientSufficiency: sufficiency[i],
       algaeMass,
+      light: light[i],
     })
   );
 
-  // 4. Apply the damage and the new bank, then spend the bank, in one
-  //    pass.
-  //
-  //    Plant surplus represents stored photosynthate (sugars from
-  //    carbon fixation). Surplus *accrual* is photoperiod-gated inside
-  //    `computePlantVitality` (via `accrueSurplus: light > 0`), so
-  //    `v.surplus` is already the correct new bank — accrued during the
-  //    day, held (but drained / cap-clamped) at night. *Spending* is
-  //    gated here: no light → overnight respiration consumes sugars for
-  //    upkeep, not for repair or net biomass.
-  //
-  //    Vitality runs every tick regardless. Every benefit is multiplied
-  //    by the light term and the light-keyed stressors self-zero at
-  //    light = 0, so a dark tick is upkeep against no income — which is
-  //    the night the reserve exists for.
-  const photoperiodActive = state.resources.light > 0;
-  const mergedPlants: Plant[] = state.plants.map((plant, i) => {
-    const v = vitalities[i];
-    const updated: Plant = {
-      ...plant,
-      condition: v.newCondition,
-      surplus: v.surplus,
-    };
-    return photoperiodActive ? spendSurplus(updated, v.breakdown.reserved, plantsConfig) : updated;
-  });
-
-  // 5. Shedding (a plant pays an unpayable upkeep bill in tissue) and death.
-  let totalConditionWaste = 0;
-  const deadPlantNames: string[] = [];
-  const processedPlants: Plant[] = [];
-
-  for (const [i, plant] of mergedPlants.entries()) {
-    const { sizeReduction, wasteProduced } = calculateShedding(
-      plant,
-      vitalities[i].breakdown.starved,
-      plantsConfig
-    );
-    let updated: Plant = plant;
-    if (sizeReduction > 0) {
-      updated = { ...plant, size: Math.max(0, plant.size - sizeReduction) };
-      totalConditionWaste += wasteProduced;
-    }
-    if (shouldPlantDie(updated, plantsConfig)) {
-      totalConditionWaste += calculateDeathWaste(updated, plantsConfig);
-      deadPlantNames.push(PLANT_SPECIES_DATA[plant.species].name);
-      // Drop — surviving array doesn't include dead plants.
-      continue;
-    }
-    processedPlants.push(updated);
-  }
-
-  if (totalConditionWaste > 0) {
-    effects.push({
-      tier: 'active',
-      resource: 'waste',
-      delta: totalConditionWaste,
-      source: 'plant-condition',
-    });
-  }
-
-  // Nutrient consumption is handled inside calculatePhotosynthesis (step 1).
+  // 6–9 run on the draft: an offshoot's id and vigour come off the tank's stream.
+  let shedWaste = 0;
+  let deathWaste = 0;
   const newState = produce(state, (draft) => {
-    draft.plants = processedPlants;
+    const survivors: Plant[] = [];
+    const offshoots: Plant[] = [];
 
-    for (const plantName of deadPlantNames) {
-      draft.logs.push(
-        createLog(
-          draft.tick,
-          'simulation',
-          'warning',
-          `${plantName} died from poor conditions`,
-          'plant-died'
-        )
-      );
-    }
+    state.plants.forEach((start, i) => {
+      const species = PLANT_SPECIES_DATA[start.species];
+      let plant: Plant = {
+        ...start,
+        condition: vitalities[i].newCondition,
+        surplus: vitalities[i].surplus,
+      };
+
+      // 6. A full bank buys an offshoot.
+      const propagation = propagate(plant, plantsConfig);
+      if (propagation) {
+        plant = propagation.parent;
+        offshoots.push(createOffshoot(plant, propagation.offshootSize, draft.rng));
+        draft.logs.push(
+          createLog(
+            draft.tick,
+            'simulation',
+            'info',
+            `${species.name} ${growthFormOf(plant.species).offshootVerb}`,
+            'plant-propagated'
+          )
+        );
+      }
+
+      // 7. The bank buys size.
+      plant = spendSurplus(plant, plantsConfig);
+
+      // 8. Shedding and death.
+      const { sizeReduction, wasteProduced } = calculateShedding(plant, plantsConfig);
+      if (sizeReduction > 0) {
+        plant = { ...plant, size: Math.max(0, plant.size - sizeReduction) };
+        shedWaste += wasteProduced;
+      }
+      if (shouldPlantDie(plant, plantsConfig)) {
+        deathWaste += calculateDeathWaste(plant, plantsConfig);
+        draft.logs.push(
+          createLog(
+            draft.tick,
+            'simulation',
+            'warning',
+            `${species.name} died from poor conditions`,
+            'plant-died'
+          )
+        );
+        return;
+      }
+
+      // 9. Survivors age; offshoots join at age 0 and act from the next tick.
+      survivors.push({ ...plant, age: plant.age + 1 });
+    });
+
+    draft.plants = [...survivors, ...offshoots];
   });
 
-  return { state: newState, effects };
+  if (shedWaste > 0) {
+    effects.push({ tier: 'active', resource: 'waste', delta: shedWaste, source: 'plant-shedding' });
+  }
+  if (deathWaste > 0) {
+    effects.push({ tier: 'active', resource: 'waste', delta: deathWaste, source: 'plant-death' });
+  }
+
+  return {
+    state: newState,
+    effects,
+    vitalities,
+    light,
+    shedding: shedWaste,
+  };
 }
 
-// Re-export helper functions for testing and UI use
 export {
   calculatePhotosynthesis,
-  getTotalPlantSize,
   calculateCo2Factor,
 } from '../systems/photosynthesis.js';
+export {
+  LEAF_AREA_PER_RATE_UNIT,
+  plantHeight,
+  leafArea,
+  rateUnits,
+  getTotalRateUnits,
+  canopyLight,
+  floorCover,
+  floorShade,
+  isOvergrown,
+} from './canopy.js';
+export type { CanopyLight, PlantLight } from './canopy.js';
 export {
   calculateRespiration,
   getRespirationTemperatureFactor,
 } from '../systems/respiration.js';
 export {
   spendSurplus,
+  propagate,
   getSpeciesGrowthRate,
-  getSpeciesMaxSize,
-  asymptoticGrowthFactor,
 } from '../systems/plant-growth.js';
+export type { Propagation } from '../systems/plant-growth.js';
+export { VIGOUR_SPAN } from './create-plant.js';
 export {
   calculateNutrientSufficiency,
-  getDemandMultiplier,
+  speciesDemand,
+  speciesHalfSaturation,
+  nutrientShare,
 } from '../systems/nutrients.js';
 export {
-  calculateShedding,
-  shouldPlantDie,
-  calculateDeathWaste,
-} from '../systems/plant-lifecycle.js';
-export {
   computePlantVitality,
-  buildPlantUpkeep,
   buildPlantStressors,
   buildPlantBenefits,
+  plantHealingRate,
+  plantNitrateEdge,
 } from '../systems/plant-vitality.js';

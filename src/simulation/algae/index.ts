@@ -3,12 +3,11 @@
  *
  * Pipeline:
  * 1. Compute net rate via `computeAlgaePopulation` (sum benefits −
- *    sum stressors, with hardiness applied centrally).
- * 2. Fold the net rate into the surplus reserve bank via `bankSurplus`
- *    (the shared vitality primitive): positive net accrues (capped,
- *    photoperiod-gated), negative net drains the bank before it touches
- *    mass. Surplus is photoperiod-gated photosynthate; vitality's
- *    positive rate overnight is discarded.
+ *    sum hardened stressors).
+ * 2. Fold the net rate into the surplus reserve bank via `bankSurplus`:
+ *    positive net accrues (capped, photoperiod-gated), negative net drains
+ *    the bank before it touches mass. Surplus is photoperiod-gated
+ *    photosynthate; the bloom's positive net overnight is discarded.
  * 3. Shrink mass by the drain *overflow* — the damage the bank couldn't
  *    cover. Runs 24/7 — a hostile-environment bloom burns reserves then
  *    dies back, at night too. A well-stocked bloom shrugs off a bad tick.
@@ -36,16 +35,55 @@
 import { produce } from 'immer';
 import type { SimulationState, AlgaeState } from '../state.js';
 import type { TunableConfig } from '../config/index.js';
-import { computeAlgaePopulation } from '../systems/algae-vitality.js';
-import { bankSurplus } from '../systems/vitality.js';
+import { computeAlgaePopulation, type AlgaePopulationResult } from '../systems/algae-vitality.js';
 import type { AlgaeVitalityConfig } from '../config/algae-vitality.js';
 
 export interface AlgaeProcessingResult {
   /** Updated state with algae mass / surplus written. */
   state: SimulationState;
+  /** The net rate this tick and the factors behind it. */
+  population: AlgaePopulationResult;
+  /** That net folded into the bank, before the bank spends on mass. */
+  bank: SurplusBankTick;
 }
 
 const MASS_MAX = 100;
+
+/** Outcome of folding one tick's net rate into the bloom's bank. */
+export interface SurplusBankTick {
+  /** Bank after this tick, within `[0, cap]`. */
+  surplus: number;
+  /** Reserve drained to absorb damage (≥ 0). */
+  drained: number;
+  /** Damage that outran the bank and reaches mass (≥ 0). */
+  overflowDamage: number;
+}
+
+/**
+ * Fold one tick's net rate into the bloom's saturating bank. Damage drains
+ * the bank first and only what it couldn't cover reaches mass; benefit
+ * accrues up to `cap` when `accrue` is set, discarding the rest. The bank is
+ * clamped into `[0, cap]` on entry, with a negative cap read as 0.
+ *
+ * The bloom's own path, not the vitality model: algae keeps no condition.
+ */
+export function bankSurplus(
+  bank: number,
+  net: number,
+  cap: number,
+  accrue: boolean
+): SurplusBankTick {
+  const safeCap = Math.max(0, cap);
+  const start = Math.min(safeCap, Math.max(0, bank));
+  if (net < 0) {
+    const drained = Math.min(start, -net);
+    return { surplus: start - drained, drained, overflowDamage: -net - drained };
+  }
+  if (net > 0 && accrue) {
+    return { surplus: Math.min(safeCap, start + net), drained: 0, overflowDamage: 0 };
+  }
+  return { surplus: start, drained: 0, overflowDamage: 0 };
+}
 
 /**
  * Drain up to `algaeGrowthPerTickCap` from the surplus bank and
@@ -55,11 +93,8 @@ const MASS_MAX = 100;
  * drawing surplus at full rate but gets less mass per unit drawn as it
  * approaches saturation. Returns the post-spend `AlgaeState`.
  *
- * `spendSurplus` is the plant twin and no longer drains this
- * way — it withdraws only what converted, so a saturated plant banks
- * its income rather than burning it. The bloom still burns its own,
- * which is why `AlgaeState.surplus` reads zero the way `Plant.surplus`
- * used to.
+ * Unlike a plant, which withdraws only what converts, the bloom burns
+ * what it draws, so `AlgaeState.surplus` reads near zero.
  */
 export function spendAlgaeSurplus(
   algae: AlgaeState,
@@ -89,20 +124,18 @@ export function processAlgae(
   config: TunableConfig
 ): AlgaeProcessingResult {
   const algaeConfig = config.algae;
-  const nutrientsConfig = config.nutrients;
 
-  const { net } = computeAlgaePopulation({
+  const population = computeAlgaePopulation({
     plants: state.plants,
     resources: state.resources,
     algaeConfig,
-    nutrientsConfig,
   });
 
   const photoperiodActive = state.resources.light > 0;
 
   const bank = bankSurplus(
     state.algae.surplus,
-    net,
+    population.net,
     algaeConfig.surplusCap,
     photoperiodActive
   );
@@ -120,7 +153,7 @@ export function processAlgae(
     draft.algae = next;
   });
 
-  return { state: newState };
+  return { state: newState, population, bank };
 }
 
 // Re-export the population math for tests and UI introspection.

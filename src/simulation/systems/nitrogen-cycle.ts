@@ -26,7 +26,8 @@
 import type { Effect } from '../core/effects.js';
 import type { Resources, SimulationState } from '../state.js';
 import type { System } from './types.js';
-import type { TunableConfig } from '../config/index.js';
+import { DEFAULT_CONFIG, type TunableConfig } from '../config/index.js';
+import { ammoniaPerGramOfFood } from '../config/livestock.js';
 import {
   AIR_SATURATED_O2,
   type NitrogenCycleConfig,
@@ -40,6 +41,7 @@ import {
   O2_PER_NH3_OXIDIZED,
   O2_PER_NO2_OXIDIZED,
 } from '../core/chemistry.js';
+import { WASTE_NUTRIENTS } from '../config/nutrients.js';
 import { getPpm } from '../resources/index.js';
 import { getPh } from '../core/carbonate.js';
 
@@ -199,12 +201,12 @@ export function calculateColonyFlows(
 }
 
 /**
- * Calculate waste to ammonia conversion.
- * Returns wasteConsumed (g) and ammoniaProduced (mg).
+ * Waste mineralized this tick (g) and the NH₃ it yields (mg), at the nitrogen
+ * of the food the waste came from.
  */
 export function calculateWasteToAmmonia(
   waste: number,
-  config: NitrogenCycleConfig = nitrogenCycleDefaults
+  config: TunableConfig = DEFAULT_CONFIG
 ): {
   wasteConsumed: number;
   ammoniaProduced: number;
@@ -213,9 +215,8 @@ export function calculateWasteToAmmonia(
     return { wasteConsumed: 0, ammoniaProduced: 0 };
   }
 
-  const wasteConsumed = waste * config.wasteConversionRate;
-  // Convert grams waste to mg ammonia using ratio
-  const ammoniaProduced = wasteConsumed * config.wasteToAmmoniaRatio;
+  const wasteConsumed = waste * config.nitrogenCycle.wasteConversionRate;
+  const ammoniaProduced = wasteConsumed * ammoniaPerGramOfFood(config.livestock);
 
   return { wasteConsumed, ammoniaProduced };
 }
@@ -464,11 +465,11 @@ export const nitrogenCycleSystem: System = {
     }
 
     // ========================================================================
-    // Stage 1: Waste → Ammonia (Mineralization)
+    // Stage 1: Waste → Ammonia + minerals (Mineralization)
     // Produces ammonia mass (mg) from waste (g)
     // ========================================================================
     if (currentWaste > 0) {
-      const { wasteConsumed, ammoniaProduced } = calculateWasteToAmmonia(currentWaste, ncConfig);
+      const { wasteConsumed, ammoniaProduced } = calculateWasteToAmmonia(currentWaste, config);
 
       if (wasteConsumed > 0) {
         effects.push({
@@ -485,6 +486,14 @@ export const nitrogenCycleSystem: System = {
           delta: ammoniaProduced, // mg
           source: 'nitrogen-cycle-mineralization',
         });
+        for (const nutrient of WASTE_NUTRIENTS) {
+          effects.push({
+            tier: 'passive',
+            resource: nutrient,
+            delta: wasteConsumed * config.nutrients.foodMineralContent[nutrient],
+            source: 'nitrogen-cycle-mineralization',
+          });
+        }
         currentAmmonia += ammoniaProduced;
       }
     }

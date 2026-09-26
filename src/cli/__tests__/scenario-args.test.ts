@@ -112,6 +112,15 @@ describe('scenario arguments', () => {
     expect(() => parseTweak('fish', 'toString')).toThrow(/Unknown fish species/);
     expect(() => parseTweak('plant', '__proto__')).toThrow(/Unknown plant species/);
   });
+
+  it('plants a group at the size it names, and refuses one that is not a positive number', () => {
+    expect(tweaked(findSetup('nano'), '--plant=java_fern:1:100').plants.at(-1)).toEqual({
+      species: 'java_fern',
+      count: 1,
+      size: 100,
+    });
+    expect(() => parseTweak('plant', 'java_fern:1:big')).toThrow(/positive number/);
+  });
 });
 
 describe('the gravel vac', () => {

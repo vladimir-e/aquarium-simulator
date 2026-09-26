@@ -10,7 +10,9 @@ import type { SimulationState } from '../state.js';
 import type { Effect } from '../core/effects.js';
 import type { TunableConfig } from '../config/index.js';
 import { livestockDefaults } from '../config/livestock.js';
-import { processMetabolism } from '../systems/metabolism.js';
+import { WASTE_NUTRIENTS } from '../config/nutrients.js';
+import { processMetabolism, type MetabolismResult } from '../systems/metabolism.js';
+import type { VitalityResult } from '../systems/vitality.js';
 import { processHealth } from '../systems/fish-health.js';
 import { createLog } from '../core/logging.js';
 import { getPpm } from '../resources/index.js';
@@ -20,12 +22,10 @@ export interface LivestockProcessingResult {
   state: SimulationState;
   /** Effects for resource changes (food, waste, O2, CO2) */
   effects: Effect[];
-  /**
-   * Vitality net rate per surviving fish this tick, keyed by id. Passed
-   * to `processBreeding` so the spawn gate can require a non-negative
-   * trend without recomputing stressors.
-   */
-  netByFishId: Map<string, number>;
+  /** What the fish ate, passed and breathed this tick */
+  metabolism: MetabolismResult;
+  /** Each fish's vitality this tick, in `state.fish` order, the dead included */
+  vitalities: VitalityResult[];
 }
 
 /**
@@ -42,18 +42,18 @@ export function processLivestock(
   const effects: Effect[] = [];
   const livestockConfig = config.livestock ?? livestockDefaults;
 
-  // Skip if no fish
-  if (state.fish.length === 0) {
-    return { state, effects, netByFishId: new Map() };
-  }
-
   // 1. Process metabolism (food consumption, waste, respiration, satiation, age)
   const metabolismResult = processMetabolism(
     state.fish,
     state.resources.food,
     state.resources.oxygen,
-    livestockConfig
+    livestockConfig,
+    config.nutrients.foodMineralContent
   );
+
+  if (state.fish.length === 0) {
+    return { state, effects, metabolism: metabolismResult, vitalities: [] };
+  }
 
   // Add metabolism effects
   if (metabolismResult.foodConsumed > 0) {
@@ -83,6 +83,18 @@ export function processLivestock(
       delta: metabolismResult.ammoniaProduced,
       source: 'fish-gill-excretion',
     });
+  }
+
+  for (const nutrient of WASTE_NUTRIENTS) {
+    const excreted = metabolismResult.mineralsExcreted[nutrient];
+    if (excreted > 0) {
+      effects.push({
+        tier: 'active',
+        resource: nutrient,
+        delta: excreted,
+        source: 'fish-gill-excretion',
+      });
+    }
   }
 
   const waterVolume = state.resources.water;
@@ -143,11 +155,16 @@ export function processLivestock(
     }
   });
 
-  return { state: newState, effects, netByFishId: healthResult.netByFishId };
+  return {
+    state: newState,
+    effects,
+    metabolism: metabolismResult,
+    vitalities: healthResult.vitalities,
+  };
 }
 
 // Re-export for testing and external use
 export { processMetabolism } from '../systems/metabolism.js';
-export { processHealth, computeFishVitality } from '../systems/fish-health.js';
+export { processHealth, computeFishVitality, fishHealingRate } from '../systems/fish-health.js';
 export { processBreeding } from './breeding.js';
 export { createFish, fishMassForAge } from './create-fish.js';

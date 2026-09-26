@@ -5,6 +5,7 @@
 import { produce } from 'immer';
 import type { SimulationState } from '../state.js';
 import { createLog } from '../core/logging.js';
+import { FoodResource } from '../resources/index.js';
 import type { ActionResult, FeedAction } from './types.js';
 
 /**
@@ -31,21 +32,14 @@ export function feed(
     };
   }
 
+  const grams = amount.toFixed(FoodResource.precision);
   const newState = produce(state, (draft) => {
-    // Add food to resources
-    draft.resources.food = +(draft.resources.food + amount).toFixed(2);
-    draft.logs.push(
-      createLog(
-        draft.tick,
-        'user',
-        'info',
-        `Fed ${amount.toFixed(1)}g of food`
-      )
-    );
+    draft.resources.food += amount;
+    draft.logs.push(createLog(draft.tick, 'user', 'info', `Fed ${grams}g of food`));
   });
 
   return {
     state: newState,
-    message: `Added ${amount.toFixed(1)}g of food`,
+    message: `Added ${grams}g of food`,
   };
 }

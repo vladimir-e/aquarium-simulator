@@ -12,7 +12,7 @@ import {
 } from '../../simulation/index.js';
 import { applyAction } from '../../simulation/actions/index.js';
 import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
-import { bacteriaReadout, colonyCount } from '../run/index.js';
+import { bacteriaReadout, colonyCount, readHourAhead } from '../run/index.js';
 import { calculateParAtDepth } from '../../simulation/equipment/light.js';
 import { formatCo2Rate } from '../../simulation/equipment/co2-generator.js';
 import { calculateTankHeight } from '../../simulation/state.js';
@@ -37,7 +37,12 @@ function read(
   state: SimulationState = base,
   units: UnitSystem = 'metric'
 ): DeviceReading[] {
-  return deviceReadings(id, { state, config: DEFAULT_CONFIG, units });
+  return deviceReadings(id, {
+    state,
+    config: DEFAULT_CONFIG,
+    ahead: readHourAhead(state, DEFAULT_CONFIG),
+    units,
+  });
 }
 
 function hint(
@@ -113,7 +118,7 @@ describe('heater readings', () => {
     expect(value(read('heater'), 'Room')).toEqual({
       label: 'Room',
       value: '22°C',
-      note: 'set in Scenario',
+      note: 'set in Setup',
     });
   });
 });
@@ -713,7 +718,7 @@ describe('biofilter readings', () => {
   const cycled: SimulationState = createSimulation({ tankCapacity: 40 }, { bacteria: 'cycled' });
 
   it('reads the same colonies the Water section’s Bacteria card does', () => {
-    const readout = bacteriaReadout(cycled, DEFAULT_CONFIG);
+    const readout = bacteriaReadout(cycled, DEFAULT_CONFIG, readHourAhead(cycled, DEFAULT_CONFIG));
     const readings = read('biofilter', cycled);
     expect(readout.aob.count).toBeGreaterThan(0);
     expect(value(readings, 'AOB · ammonia → nitrite').value).toBe(
@@ -744,7 +749,7 @@ describe('biofilter readings', () => {
       { tankCapacity: 40 },
       { bacteria: { aob: 1e-9, nob: 1e-9 } }
     );
-    const readout = bacteriaReadout(starved, DEFAULT_CONFIG);
+    const readout = bacteriaReadout(starved, DEFAULT_CONFIG, readHourAhead(starved, DEFAULT_CONFIG));
 
     expect(readout.cycled).toBe(false);
     expect(readout.atTrace).toBe(true);
@@ -757,7 +762,7 @@ describe('biofilter readings', () => {
 
   it('keeps share of ceiling as the colonies’ own secondary figure', () => {
     const readings = read('biofilter', cycled);
-    const readout = bacteriaReadout(cycled, DEFAULT_CONFIG);
+    const readout = bacteriaReadout(cycled, DEFAULT_CONFIG, readHourAhead(cycled, DEFAULT_CONFIG));
 
     expect(value(readings, 'AOB · ammonia → nitrite').note).toBe(
       `${Math.round(readout.aob.pct)} % of ceiling`

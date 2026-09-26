@@ -32,9 +32,13 @@ import {
   bacteriaReadout,
   colonyCount,
   cycleWord,
+  dailyLightReading,
   doseDeltas,
   formatDose,
+  DAILY_LIGHT_UNIT,
   type BacteriaReadout,
+  type HourAhead,
+  type Status,
 } from '../run/index.js';
 import {
   formatDeliveredFlow,
@@ -52,11 +56,13 @@ export interface DeviceReading {
   label: string;
   value: string;
   note?: string;
+  status?: Status;
 }
 
 export interface DeviceReadingInput {
   state: SimulationState;
   config: TunableConfig;
+  ahead: HourAhead;
   units: UnitSystem;
 }
 
@@ -125,7 +131,7 @@ function heaterReadings({ state, units }: DeviceReadingInput): DeviceReading[] {
     {
       label: 'Room',
       value: formatTemperature(state.environment.roomTemperature, units, 0),
-      note: 'set in Scenario',
+      note: 'set in Setup',
     },
   ];
 }
@@ -156,7 +162,7 @@ function filterReadings({ state, units }: DeviceReadingInput): DeviceReading[] {
   ];
 }
 
-function lightReadings({ state, config }: DeviceReadingInput): DeviceReading[] {
+function lightReadings({ state, config, ahead }: DeviceReadingInput): DeviceReading[] {
   const { light } = state.equipment;
   const hour = state.tick % 24;
   const lit = light.enabled && isScheduleActive(hour, light.schedule);
@@ -164,6 +170,7 @@ function lightReadings({ state, config }: DeviceReadingInput): DeviceReading[] {
   const surfacePar = getLightOutput(light, hour);
   const wouldLand = Math.round(calculateParAtDepth(light.par, depth, config.optics));
   const column = `${Math.round(depth)} cm of water`;
+  const daily = dailyLightReading(ahead);
 
   return [
     {
@@ -179,6 +186,12 @@ function lightReadings({ state, config }: DeviceReadingInput): DeviceReading[] {
       label: 'At substrate',
       value: `${Math.round(state.resources.light)} PAR`,
       note: lit ? `through ${column}` : `would land ${wouldLand} PAR through ${column}`,
+    },
+    {
+      label: 'Daily light',
+      value: `${daily.text} ${DAILY_LIGHT_UNIT}`,
+      note: daily.need || undefined,
+      status: daily.status,
     },
     { label: 'Photoperiod', value: `${light.schedule.duration} h/day` },
   ];
@@ -289,8 +302,8 @@ function cycleNote(readout: BacteriaReadout): string {
   return readout.rates.netNitrite > 0 ? 'nitrite still climbing' : 'NH₃ or NO₂ still reading';
 }
 
-function biofilterReadings({ state, config }: DeviceReadingInput): DeviceReading[] {
-  const readout = bacteriaReadout(state, config);
+function biofilterReadings({ state, config, ahead }: DeviceReadingInput): DeviceReading[] {
+  const readout = bacteriaReadout(state, config, ahead);
   const colony = (count: number, ceiling: number): string =>
     `${colonyCount(count)} / ${colonyCount(ceiling)}`;
 

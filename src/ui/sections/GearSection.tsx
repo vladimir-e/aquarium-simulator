@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import { SurfaceResource } from '../../simulation/resources/index.js';
 import type { TunableConfig } from '../../simulation/config/index.js';
@@ -7,6 +7,7 @@ import { DeviceLine, powerSwitch, rackEntries } from '../components/gear/rack';
 import { ScapeRows } from '../components/gear/scape';
 import { ModuleGroup, ModulePage } from '../components/layout/ModulePage';
 import { ReadingRow } from '../components/ui/ReadingRow';
+import { ReadingDrawer } from '../components/water/ReadingDrawer';
 import { equipmentSummary, hourLabel, isDeviceId, turnover } from '../build';
 import { formatFlowRate } from '../utils/units';
 import type { useSimulation } from '../hooks/useSimulation';
@@ -14,7 +15,6 @@ import { useInspector } from '../hooks/useInspector';
 import { useQueryParam } from '../hooks/useQueryParam';
 import { useReadingBook } from '../hooks/useReadingBook';
 import { useUnits } from '../hooks/useUnits';
-import { bacteriaReadout } from '../run';
 
 /** The palette's "Add hardscape" lands here, the way its pickers land on Life. */
 const HARDSCAPE_PARAM = 'hardscape';
@@ -43,8 +43,9 @@ export function GearSection({
   const { state } = sim;
 
   const book = useReadingBook(sim, config);
-  const bacteria = useMemo(() => bacteriaReadout(state, config), [state, config]);
   const close = useCallback(() => navigate('/gear', { replace: true }), [navigate]);
+  const [reading, setReading] = useState<'dailyLight' | null>(null);
+  const closeReading = useCallback(() => setReading(null), []);
 
   const entries = useMemo(() => rackEntries(book.rack), [book.rack]);
   const { hour } = book.rack.schedules;
@@ -56,15 +57,17 @@ export function GearSection({
 
   useInspector(selected !== null, close);
   useInspector(add === HARDSCAPE_PARAM, close);
+  useInspector(reading !== null, closeReading);
 
   if (deviceId !== undefined && selected === null) return <Navigate to="/gear" replace />;
 
   const { resources } = state;
+  const { dailyLight } = book.byId;
   const slots = state.equipment.hardscape.items.length;
 
   return (
     <>
-      <ModulePage title="Gear" meta={equipmentSummary(state, bacteria)}>
+      <ModulePage title="Gear" meta={equipmentSummary(state, book.bacteria)}>
         <div className="flex flex-col gap-1">
           <ModuleGroup title="Fittings" meta={`24 h · now ${hourLabel(hour)}`}>
             {entries.map((entry) => (
@@ -109,6 +112,16 @@ export function GearSection({
               note={resources.light > 0 ? 'through the water column' : 'lights out'}
             />
             <ReadingRow
+              name={dailyLight.name}
+              value={dailyLight.value}
+              unit={dailyLight.unit}
+              at={dailyLight.at}
+              band={dailyLight.band}
+              tone={dailyLight.tone}
+              note={dailyLight.need}
+              onClick={() => setReading('dailyLight')}
+            />
+            <ReadingRow
               name="Aeration"
               value={resources.aeration ? 'active' : 'none'}
               note={resources.aeration ? 'surface agitation, off-gassing CO₂' : 'gas exchange at the surface alone'}
@@ -121,10 +134,13 @@ export function GearSection({
         entry={selected}
         sim={sim}
         config={config}
+        ahead={book.ahead}
         hour={hour}
         onClose={close}
         onPower={onPower}
       />
+
+      <ReadingDrawer id={reading} book={book} history={sim.history} onClose={closeReading} />
     </>
   );
 }

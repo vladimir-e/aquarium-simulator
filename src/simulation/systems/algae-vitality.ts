@@ -17,10 +17,10 @@
  * Benefits:
  * - `excess_light` — substrate PAR above `lightExcessThreshold`
  *   (capped peak).
- * - `excess_nutrients` — NO3 / PO4 ratio above plant optimum
+ * - `excess_nutrients` — NO3 / PO4 ratio above algae's reference ppm
  *   (capped peak; dominant nutrient lever).
  * - `nutrient_deficiency` — small benefit when nutrients fall below
- *   plant optimum (the canary signal that plants are starving).
+ *   that reference (the canary signal that plants are starving).
  * - `low_plant_power` — plant power below `weaknessThreshold`
  *   (capped peak; mirrors plant_suppression).
  *
@@ -37,16 +37,14 @@
 
 import type { Plant, Resources } from '../state.js';
 import type { AlgaeVitalityConfig } from '../config/algae-vitality.js';
-import type { NutrientsConfig } from '../config/nutrients.js';
 import { getPpm } from '../resources/index.js';
 import { getPlantPower } from './plant-power.js';
-import type { VitalityFactor } from './vitality.js';
+import { hardened, type VitalityFactor } from './vitality.js';
 
 export interface AlgaeVitalityContext {
   plants: readonly Plant[];
   resources: Resources;
   algaeConfig: AlgaeVitalityConfig;
-  nutrientsConfig: NutrientsConfig;
 }
 
 /**
@@ -86,9 +84,7 @@ function cappedAmount(deviation: number, severity: number, peak: number): number
 }
 
 /**
- * Build the stressor list for algae. Severities are pre-hardiness;
- * `computeAlgaePopulation` applies the central `(1 - hardiness)`
- * scaling.
+ * Build the stressor list for algae, pre-hardiness.
  *
  * Inactive stressors are emitted with `amount: 0` so the breakdown
  * shape stays stable for UI / tests that look up by key.
@@ -115,7 +111,7 @@ export function buildAlgaeStressors(ctx: AlgaeVitalityContext): VitalityFactor[]
  * has a stable shape.
  */
 export function buildAlgaeBenefits(ctx: AlgaeVitalityContext): VitalityFactor[] {
-  const { plants, resources, algaeConfig, nutrientsConfig } = ctx;
+  const { plants, resources, algaeConfig } = ctx;
 
   // Excess light — substrate PAR above the threshold. Photoperiod-gated by
   // `resources.light` itself, which is already 0 at night.
@@ -125,38 +121,21 @@ export function buildAlgaeBenefits(ctx: AlgaeVitalityContext): VitalityFactor[] 
     algaeConfig.excessLightPeak
   );
 
-  // Nutrient excess / deficiency — relative to plant optimum from the
-  // nutrients config (which the player tunes for their planted setup).
-  // Excess fires when the tank has more than plants need; deficiency
-  // fires when the tank has less. Take the max across NO3/PO4 so a
-  // single overdose / starvation signal lights up the channel.
-  const waterVolume = resources.water;
-  const nitratePpm = waterVolume > 0 ? getPpm(resources.nitrate, waterVolume) : 0;
-  const phosphatePpm = waterVolume > 0 ? getPpm(resources.phosphate, waterVolume) : 0;
-  const optNo3 = nutrientsConfig.optimalNitratePpm;
-  const optPo4 = nutrientsConfig.optimalPhosphatePpm;
+  // Nutrient excess / deficiency — relative to algae's reference ppm.
+  // Take the max across NO3/PO4 so a single overdose / starvation signal
+  // lights up the channel.
+  const no3Ratio = getPpm(resources.nitrate, resources.water) / algaeConfig.referenceNitratePpm;
+  const po4Ratio =
+    getPpm(resources.phosphate, resources.water) / algaeConfig.referencePhosphatePpm;
 
-  const no3Ratio = optNo3 > 0 ? nitratePpm / optNo3 : 0;
-  const po4Ratio = optPo4 > 0 ? phosphatePpm / optPo4 : 0;
-
-  // Excess: largest fractional overshoot above optimum.
-  const no3Excess = Math.max(0, no3Ratio - 1);
-  const po4Excess = Math.max(0, po4Ratio - 1);
-  const excessRatio = Math.max(no3Excess, po4Excess);
   const excessNutrients = cappedAmount(
-    excessRatio,
+    Math.max(no3Ratio, po4Ratio) - 1,
     algaeConfig.excessNutrientSeverity,
     algaeConfig.excessNutrientPeak
   );
 
-  // Deficiency: largest shortfall below optimum (only fires when
-  // there is a *plant* optimum in the config; if both optima are
-  // zero or undefined, the deficit is zero).
-  const no3Deficit = optNo3 > 0 ? Math.max(0, 1 - no3Ratio) : 0;
-  const po4Deficit = optPo4 > 0 ? Math.max(0, 1 - po4Ratio) : 0;
-  const deficitRatio = Math.max(no3Deficit, po4Deficit);
   const nutrientDeficiency = cappedAmount(
-    deficitRatio,
+    1 - Math.min(no3Ratio, po4Ratio),
     algaeConfig.nutrientDeficiencySeverity,
     algaeConfig.nutrientDeficiencyPeak
   );
@@ -183,33 +162,22 @@ export function buildAlgaeBenefits(ctx: AlgaeVitalityContext): VitalityFactor[] 
  * and tests call this directly; the orchestrator calls it as part of
  * the full tick pipeline.
  *
- * Applies the central `(1 - hardiness)` factor to stressors, sums
- * both arrays, and returns the net rate plus the bundled breakdown.
+ * Hardens the stressors, sums both arrays, and returns the net rate plus the bundled breakdown.
  * Net is the rate at which mass changes (positive → growth via
  * surplus, negative → direct shrinkage).
  */
 export function computeAlgaePopulation(ctx: AlgaeVitalityContext): AlgaePopulationResult {
-  const stressors = buildAlgaeStressors(ctx);
+  const stressors = hardened(buildAlgaeStressors(ctx), ctx.algaeConfig.hardiness);
   const benefits = buildAlgaeBenefits(ctx);
 
-  // Match the central engine's hardiness clamp so out-of-range
-  // values can't produce negative multipliers.
-  const clampedHardiness = Math.max(0, Math.min(1, ctx.algaeConfig.hardiness));
-  const hardinessFactor = 1 - clampedHardiness;
-
-  const scaledStressors = stressors.map((s) => ({
-    ...s,
-    amount: s.amount * hardinessFactor,
-  }));
-
-  const damageRate = scaledStressors.reduce((sum, s) => sum + s.amount, 0);
+  const damageRate = stressors.reduce((sum, s) => sum + s.amount, 0);
   const benefitRate = benefits.reduce((sum, b) => sum + b.amount, 0);
   const net = benefitRate - damageRate;
 
   return {
     net,
     breakdown: {
-      stressors: scaledStressors,
+      stressors,
       benefits,
       damageRate,
       benefitRate,

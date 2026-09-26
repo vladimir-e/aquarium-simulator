@@ -1,21 +1,21 @@
 /**
  * The waste pool: what stands in the tank, what feeds it each hour, and what
- * leaves it into the nitrogen cycle. Rates come from the engine's own decay,
- * metabolism and shedding functions, so they are exactly what the next tick does.
+ * leaves it into the nitrogen cycle. Every rate is the engine's own: what the
+ * next tick's plants shed, its fish pass and the food they leave decays into,
+ * and the leaching off the tank as it stands. A death's one-off lump is an
+ * event, not a rate, so no source counts it.
  */
 
 import {
-  calculateDecay,
   calculateSubstrateLeach,
   decayFraction,
   wasteSettlingShare,
   getTemperatureFactor,
-  processMetabolism,
   type SimulationState,
 } from '../../simulation/index.js';
-import { calculateShedding, readPlantVitality } from '../../simulation/plants/index.js';
 import { calculateWasteToAmmonia } from '../../simulation/systems/index.js';
 import type { TunableConfig } from '../../simulation/config/index.js';
+import type { HourAhead } from './ahead.js';
 
 export type WasteSourceKey = 'food' | 'fish' | 'plants' | 'substrate';
 
@@ -56,17 +56,15 @@ const LABEL: Record<WasteSourceKey, string> = {
   substrate: 'Substrate',
 };
 
-export function wasteInflow(state: SimulationState, config: TunableConfig): WasteInflowReadout {
-  const r = state.resources;
-  const decayed = calculateDecay(r.food, r.temperature, r.oxygen, config.decay);
-  const starved = readPlantVitality(state, config).map((v) => v.breakdown.starved);
+export function wasteInflow(
+  state: SimulationState,
+  config: TunableConfig,
+  ahead: HourAhead
+): WasteInflowReadout {
   const grams: Record<WasteSourceKey, number> = {
-    food: decayed * config.decay.wasteConversionRatio,
-    fish: processMetabolism(state.fish, r.food, r.oxygen, config.livestock).wasteProduced,
-    plants: state.plants.reduce(
-      (sum, plant, i) => sum + calculateShedding(plant, starved[i], config.plants).wasteProduced,
-      0
-    ),
+    food: ahead.foodWaste,
+    fish: ahead.fishWaste,
+    plants: ahead.shedding,
     substrate: calculateSubstrateLeach(state.equipment.substrate.organicReserve, config.decay),
   };
 
@@ -102,17 +100,21 @@ export function mineralisationBase(state: SimulationState, config: TunableConfig
   return standing + beforeCycleInflow(inflow);
 }
 
-export function wasteReadout(state: SimulationState, config: TunableConfig): WasteReadout {
+export function wasteReadout(
+  state: SimulationState,
+  config: TunableConfig,
+  ahead: HourAhead
+): WasteReadout {
   const r = state.resources;
   const q10 = getTemperatureFactor(r.temperature, config.decay);
-  const inflow = wasteInflow(state, config);
+  const inflow = wasteInflow(state, config, ahead);
   const settlingShare = wasteSettlingShare(state, config.decay);
   return {
     ...inflow,
     standing: r.waste,
     mineralised: calculateWasteToAmmonia(
       mineralisationBase(state, config, inflow),
-      config.nitrogenCycle
+      config
     ).wasteConsumed,
     settlingShare,
     settled: r.waste * settlingShare,

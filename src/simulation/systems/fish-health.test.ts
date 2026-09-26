@@ -1,12 +1,32 @@
 import { describe, it, expect } from 'vitest';
-import { computeFishVitality, processHealth } from './fish-health.js';
+import { computeFishVitality, fishHealingRate, processHealth } from './fish-health.js';
 import type { VitalityResult } from './vitality.js';
 import { livestockDefaults } from '../config/livestock.js';
+import { DEFAULT_CONFIG } from '../config/index.js';
 import { FISH_SPECIES_DATA } from '../livestock/species.js';
-import type { Fish, Plant, Resources } from '../state.js';
+import { createSimulation, type Fish, type Plant, type Resources, type SimulationState } from '../state.js';
+import {
+  highAmmoniaAlert,
+  highNitrateAlert,
+  highNitriteAlert,
+  lowOxygenAlert,
+  type Alert,
+} from '../alerts/index.js';
 import { withPh, type ResourceOverrides } from '../tests/resources.js';
 import { getGhMass } from '../resources/helpers.js';
 import type { FishSpecies } from '../livestock/species.js';
+import {
+  FREE_AMMONIA_EDGE,
+  HARDY_TOLERANCE,
+  NITRATE_EDGE,
+  NITRITE_EDGE,
+  OXYGEN_COMFORT,
+  OXYGEN_EDGE,
+  OXYGEN_LOG_OFFSET,
+  toleranceFactor,
+} from '../livestock/tolerance.js';
+import { freeAmmoniaPpm } from './nitrogen-cycle.js';
+import { plantRecord } from '../tests/plant.js';
 
 const STRESSORS = [
   'temperature',
@@ -53,6 +73,7 @@ function makeResources(overrides: ResourceOverrides = {}): Resources {
     surface: 1000,
     flow: 100,
     light: 0,
+    lightByHour: new Array(24).fill(0),
     aeration: true,
     food: 1,
     waste: 0,
@@ -72,14 +93,14 @@ function makeResources(overrides: ResourceOverrides = {}): Resources {
 }
 
 function makePlant(overrides: Partial<Plant> = {}): Plant {
-  return {
+  return plantRecord({
     id: 'plant_1',
     species: 'java_fern',
     size: 100,
     condition: 100,
     surplus: 0,
     ...overrides,
-  };
+  });
 }
 
 function vitality(
@@ -124,11 +145,11 @@ describe('stressors', () => {
     ['temperature', { temperature: 32 }, {}],
     ['ph', { ph: 8.5 }, {}],
     ['gh', { gh: getGhMass(FISH_SPECIES_DATA.neon_tetra.ghRange[1] + 5, 100) }, {}],
-    ['ammonia', { ammonia: 5 }, {}],
+    ['ammonia', { ammonia: 2000 }, {}],
     ['nitrite', { nitrite: 100 }, {}],
-    ['nitrate', { nitrate: 6000 }, {}],
+    ['nitrate', { nitrate: 20000 }, {}],
     ['satiation', {}, { satiation: 20 }],
-    ['oxygen', { oxygen: 3 }, {}],
+    ['oxygen', { oxygen: 2 }, {}],
   ])('isolates %s stress to its own key', (key, resources, fish) => {
     const v = vitality(fish, resources);
     expect(stressorAmount(v, key)).toBeGreaterThan(0);
@@ -154,14 +175,10 @@ describe('stressors', () => {
     expect(high).toBeGreaterThan(low * 10);
   });
 
-  it('leaves nitrate alone below its threshold', () => {
-    expect(stressorAmount(vitality({}, { nitrate: 3000 }), 'nitrate')).toBe(0);
-  });
-
-  it('reads toxins at full strength in a drained tank', () => {
-    const drained = totalStress(vitality({}, { ammonia: 1 }, { water: 0 }));
-    const full = totalStress(vitality({}, { ammonia: 1 }));
-    expect(drained).toBeGreaterThan(full);
+  it('charges no toxin or flow in a drained tank', () => {
+    const v = vitality({}, { ammonia: 1000, nitrite: 1000, nitrate: 1000, flow: 1000, water: 0 });
+    for (const key of ['ammonia', 'nitrite', 'nitrate', 'flow']) expect(stressorAmount(v, key)).toBe(0);
+    expect(stressorAmount(v, 'waterLevel')).toBeGreaterThan(0);
   });
 
   it('sums every active stressor into the total', () => {
@@ -171,10 +188,10 @@ describe('stressors', () => {
         temperature: 18,
         ph: 8.5,
         gh: getGhMass(30, 30),
-        ammonia: 5,
+        ammonia: 2000,
         nitrite: 50,
-        nitrate: 6000,
-        oxygen: 3,
+        nitrate: 20000,
+        oxygen: 2,
         water: 30,
         flow: 600,
       }
@@ -182,6 +199,114 @@ describe('stressors', () => {
     for (const key of STRESSORS) expect(stressorAmount(v, key)).toBeGreaterThan(0);
     const handSum = STRESSORS.reduce((sum, key) => sum + stressorAmount(v, key), 0);
     expect(totalStress(v)).toBeCloseTo(handSum, 10);
+  });
+});
+
+describe('water quality', () => {
+  const neonTolerance = toleranceFactor(FISH_SPECIES_DATA.neon_tetra.hardiness);
+  const at: Record<string, (reading: number, ph: number) => ResourceOverrides> = {
+    ammonia: (free, ph) => ({ ammonia: (100 * free) / freeAmmoniaPpm(makeResources({ ammonia: 100, ph })) }),
+    nitrite: (ppm) => ({ nitrite: ppm * 100 }),
+    nitrate: (ppm) => ({ nitrate: ppm * 100 }),
+    oxygen: (oxygen) => ({ oxygen }),
+  };
+  const bandCentre = (key: string, reading: number, species: FishSpecies = 'neon_tetra'): ResourceOverrides => {
+    const [lo, hi] = FISH_SPECIES_DATA[species].phRange;
+    const ph = (lo + hi) / 2;
+    return { ph, ...at[key](reading, ph) };
+  };
+  const atBandCentre = (key: string, reading: number, fish: Partial<Fish> = {}): VitalityResult =>
+    vitality(fish, bandCentre(key, reading, fish.species));
+
+  it.each<[string, number]>([
+    ['nitrite', NITRITE_EDGE],
+    ['nitrate', NITRATE_EDGE],
+  ])('grows %s harm from the fish’s own edge by the same step per doubling', (key, edge) => {
+    const own = edge * neonTolerance;
+    const charge = (ppm: number): number => stressorAmount(atBandCentre(key, ppm), key);
+    expect(charge(own)).toBe(0);
+    expect(charge(own * 2)).toBeGreaterThan(0);
+    expect(charge(own * 4)).toBeCloseTo(2 * charge(own * 2), 10);
+    expect(charge(own * 8)).toBeCloseTo(3 * charge(own * 2), 10);
+  });
+
+  it('grows oxygen harm by the same step each time oxygen plus its log offset halves, finite and rising to zero', () => {
+    const own = OXYGEN_EDGE / neonTolerance;
+    const charge = (oxygen: number): number => stressorAmount(vitality({}, { oxygen }), 'oxygen');
+    const halved = (times: number): number => (own + OXYGEN_LOG_OFFSET) / 2 ** times - OXYGEN_LOG_OFFSET;
+    expect(charge(own)).toBe(0);
+    expect(charge(halved(2))).toBeCloseTo(2 * charge(halved(1)), 10);
+    expect(Number.isFinite(charge(0))).toBe(true);
+    expect(charge(0)).toBeGreaterThan(charge(OXYGEN_LOG_OFFSET / 2));
+  });
+
+  it('moves a hardier fish’s edge out rather than flattening its slope', () => {
+    const charge = (species: FishSpecies, ppm: number): number =>
+      stressorAmount(vitality({ species }, { nitrate: ppm * 100 }), 'nitrate');
+    const hardy = toleranceFactor(FISH_SPECIES_DATA.guppy.hardiness);
+    expect(charge('guppy', NITRATE_EDGE * hardy)).toBe(0);
+    expect(charge('neon_tetra', NITRATE_EDGE * hardy)).toBeGreaterThan(0);
+    expect(charge('guppy', 1000) - charge('guppy', 500)).toBeCloseTo(
+      charge('neon_tetra', 1000) - charge('neon_tetra', 500),
+      10
+    );
+  });
+
+  it('raises the oxygen benefit from nothing at the edge to full at comfort', () => {
+    const benefit = (oxygen: number): number => benefitAmount(vitality({}, { oxygen }), 'oxygen');
+    const peak = livestockDefaults.oxygenBenefitPeak;
+    expect(benefit(OXYGEN_EDGE * 0.9)).toBe(0);
+    expect(benefit(OXYGEN_EDGE)).toBe(0);
+    expect(benefit(Math.sqrt(OXYGEN_EDGE * OXYGEN_COMFORT))).toBeCloseTo(peak / 2, 10);
+    expect(benefit(OXYGEN_COMFORT)).toBeCloseTo(peak, 10);
+    expect(benefit(OXYGEN_COMFORT * 2)).toBeCloseTo(peak, 10);
+  });
+
+  const channels: [string, number, number][] = [
+    ['ammonia', FREE_AMMONIA_EDGE, livestockDefaults.ammoniaStressSeverity],
+    ['nitrite', NITRITE_EDGE, livestockDefaults.nitriteStressSeverity],
+    ['nitrate', NITRATE_EDGE, livestockDefaults.nitrateStressSeverity],
+    ['oxygen', OXYGEN_EDGE, livestockDefaults.oxygenStressSeverity],
+  ];
+  const past = (key: string, edge: number, factor: number): number =>
+    key === 'oxygen' ? edge / factor : edge * factor;
+
+  const budget = (key: string): number =>
+    livestockDefaults.phBenefitPeak +
+    livestockDefaults.satiationWellFedPeak +
+    (key === 'oxygen' ? 0 : livestockDefaults.oxygenBenefitPeak);
+
+  it.each(channels)('breaks a fish even on %s where its charge meets the clean-tank budget', (key, edge, severity) => {
+    const ratio = Math.exp(budget(key) / severity);
+    const breakEven =
+      key === 'oxygen'
+        ? (edge / neonTolerance + OXYGEN_LOG_OFFSET) / ratio - OXYGEN_LOG_OFFSET
+        : edge * neonTolerance * ratio;
+    const v = atBandCentre(key, breakEven);
+    expect(v.breakdown.benefitRate).toBeCloseTo(budget(key), 10);
+    expect(v.breakdown.net).toBeCloseTo(0, 10);
+  });
+
+  const alertOn: Record<string, Alert> = {
+    ammonia: highAmmoniaAlert,
+    nitrite: highNitriteAlert,
+    nitrate: highNitrateAlert,
+    oxygen: lowOxygenAlert,
+  };
+
+  it.each(channels)('alerts on %s at a reading that spares even the frailest fish', (key, edge) => {
+    const reading = past(key, edge, 1.01);
+    const tank: SimulationState = {
+      ...createSimulation({ tankCapacity: 100 }),
+      resources: makeResources(bandCentre(key, reading)),
+    };
+    expect(alertOn[key].check(tank, DEFAULT_CONFIG).log).not.toBeNull();
+    expect(stressorAmount(atBandCentre(key, reading, { hardinessOffset: -1 }), key)).toBe(0);
+  });
+
+  it.each(channels)('still harms the hardiest fish on %s where hardiness 1 would start', (key, edge) => {
+    const hardiest = atBandCentre(key, past(key, edge, HARDY_TOLERANCE), { species: 'guppy', hardinessOffset: 1 });
+    expect(stressorAmount(hardiest, key)).toBeGreaterThan(0);
   });
 });
 
@@ -257,13 +382,6 @@ describe('flow is a turnover', () => {
     expect(evaporated).toBeGreaterThan(0);
     expect(evaporated).toBe(doubled);
   });
-
-  it('leaves a drained tank to the water-level stressor', () => {
-    const v = vitality({}, { flow: 1000, water: 0 }, { water: 0 });
-
-    expect(stressorAmount(v, 'flow')).toBe(0);
-    expect(stressorAmount(v, 'waterLevel')).toBeGreaterThan(0);
-  });
 });
 
 describe('satiation bands', () => {
@@ -306,6 +424,15 @@ describe('benefits', () => {
     expect(benefitAmount(v, 'ph')).toBe(0);
     expect(stressorAmount(v, 'ph')).toBeGreaterThan(0);
   });
+
+  it('grades the pH benefit from nothing at the edge to its peak at the band centre', () => {
+    const [lo, hi] = FISH_SPECIES_DATA.neon_tetra.phRange;
+    const earned = (ph: number): number => benefitAmount(vitality({}, { ph }), 'ph');
+    expect(earned(hi)).toBe(0);
+    expect(stressorAmount(vitality({}, { ph: hi }), 'ph')).toBe(0);
+    expect(earned((lo + hi) / 2)).toBeCloseTo(livestockDefaults.phBenefitPeak, 12);
+    expect(earned((lo + 3 * hi) / 4)).toBeCloseTo(0.75 * livestockDefaults.phBenefitPeak, 12);
+  });
 });
 
 describe('plant-presence benefit', () => {
@@ -336,8 +463,8 @@ describe('processHealth', () => {
   });
 
   it('kills a fish whose health reaches 0 and leaves its body as waste', () => {
-    const light = health([makeFish({ health: 1, mass: 1 })], { ammonia: 5000 });
-    const heavy = health([makeFish({ health: 1, mass: 2 })], { ammonia: 5000 });
+    const light = health([makeFish({ health: 1, mass: 1 })], { oxygen: 0 });
+    const heavy = health([makeFish({ health: 1, mass: 2 })], { oxygen: 0 });
 
     expect(light.survivingFish).toHaveLength(0);
     expect(light.deadFishNames).toHaveLength(1);
@@ -354,7 +481,7 @@ describe('processHealth', () => {
   it('processes each fish independently', () => {
     const result = health(
       [makeFish({ id: 'healthy', health: 100 }), makeFish({ id: 'sick', health: 1 })],
-      { ammonia: 2000 }
+      { oxygen: 1 }
     );
     expect(result.survivingFish.map((f) => f.id)).toEqual(['healthy']);
   });
@@ -372,7 +499,7 @@ describe('age', () => {
   });
 
   it('attributes a death past maxAge to old age', () => {
-    const result = health([makeFish({ age: maxAge + 24, health: 1 })], { ammonia: 5000 });
+    const result = health([makeFish({ age: maxAge + 24, health: 1 })], { oxygen: 0 });
     expect(result.survivingFish).toHaveLength(0);
     expect(result.deadFishNames[0]).toContain('old age');
   });
@@ -402,14 +529,24 @@ describe('surplus', () => {
     );
   });
 
-  it('burns the reserve to hold health at 100 under stress, then health falls', () => {
-    const buffered = health([makeFish({ surplus: 10 })], cold).survivingFish[0];
-    expect(buffered.health).toBe(100);
-    expect(buffered.surplus).toBeLessThan(10);
+  it('heals from the bank at its share, holding health a bare fish loses', () => {
+    const buffered = vitality({ surplus: 10 }, cold);
+    expect(buffered.breakdown.healed).toBeCloseTo(
+      Math.min(-buffered.breakdown.net, 10 * fishHealingRate(makeFish(), livestockDefaults)),
+      12
+    );
+    expect(buffered.surplus).toBeCloseTo(10 - buffered.breakdown.healed, 12);
+    expect(buffered.newCondition).toBeGreaterThan(vitality({ surplus: 0 }, cold).newCondition);
+  });
 
-    const spent = health([makeFish({ surplus: 0.01 })], cold).survivingFish[0];
-    expect(spent.surplus).toBe(0);
-    expect(spent.health).toBeLessThan(100);
+  it('scales the healing share by adult mass to the −¼ power', () => {
+    const share = (species: FishSpecies): number => fishHealingRate(makeFish({ species }), livestockDefaults);
+    const ratio = FISH_SPECIES_DATA.angelfish.adultMass / FISH_SPECIES_DATA.neon_tetra.adultMass;
+    expect(share('neon_tetra') / share('angelfish')).toBeCloseTo(ratio ** 0.25, 12);
+    expect(share('guppy')).toBeCloseTo(
+      livestockDefaults.healingDrawRate * FISH_SPECIES_DATA.guppy.adultMass ** -0.25,
+      12
+    );
   });
 
   it('floors at zero when the cap is negative', () => {

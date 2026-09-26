@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { processMetabolism } from './metabolism.js';
 import { livestockDefaults } from '../config/livestock.js';
+import { WASTE_NUTRIENTS, nutrientsDefaults } from '../config/nutrients.js';
 import { MW_CO2, MW_N, MW_NH3, MW_O2 } from '../core/chemistry.js';
 import { monodFactor } from '../core/kinetics.js';
 import type { Fish } from '../state.js';
@@ -89,31 +90,25 @@ describe('processMetabolism', () => {
     const expectedWaste = result.foodConsumed * (1 - livestockDefaults.gillNFraction);
     expect(result.wasteProduced).toBeCloseTo(expectedWaste, 8);
 
-    const postPrandial =
+    const gillNH3 =
       result.foodConsumed *
       livestockDefaults.foodNitrogenFraction *
       livestockDefaults.gillNFraction *
       (MW_NH3 / MW_N) *
       1000;
-    const basal = livestockDefaults.basalAmmoniaRate * 2.0;
-    expect(result.ammoniaProduced).toBeCloseTo((postPrandial + basal) * AMPLE_FACTOR, 6);
+    expect(result.ammoniaProduced).toBeCloseTo(gillNH3 * AMPLE_FACTOR, 6);
   });
 
-  it('still produces basal gill NH3 when no food is eaten', () => {
-    const fish = [makeFish({ satiation: 50, mass: 1.0 })];
-    const result = processMetabolism(fish, 0, AMPLE_O2, livestockDefaults);
+  it('releases no nitrogen when it eats nothing', () => {
+    const result = processMetabolism([makeFish({ satiation: 50, mass: 1.0 })], 0, AMPLE_O2, livestockDefaults);
 
     expect(result.foodConsumed).toBe(0);
     expect(result.wasteProduced).toBe(0);
-    expect(result.ammoniaProduced).toBeCloseTo(
-      livestockDefaults.basalAmmoniaRate * 1.0 * AMPLE_FACTOR,
-      6
-    );
+    expect(result.ammoniaProduced).toBe(0);
   });
 
-  it('conserves food-derived nitrogen exactly when waste ratio matches stoichiometry', () => {
-    const mass = 10;
-    const fish = [makeFish({ satiation: 0, mass })];
+  it('releases exactly the nitrogen it ate, less what hypoxia keeps in the body', () => {
+    const fish = [makeFish({ satiation: 0, mass: 10 })];
     let totalFood = 0;
     let totalDirectNH3 = 0;
     let totalWaste = 0;
@@ -125,16 +120,44 @@ describe('processMetabolism', () => {
       totalWaste += r.wasteProduced;
     }
 
-    const basalNH3 = livestockDefaults.basalAmmoniaRate * mass * ticks * AMPLE_FACTOR;
-    const foodDerivedNH3 = totalDirectNH3 - basalNH3;
-
     const nIngested = totalFood * livestockDefaults.foodNitrogenFraction;
-    const nDirect = foodDerivedNH3 / ((MW_NH3 / MW_N) * 1000);
+    const nDirect = totalDirectNH3 / ((MW_NH3 / MW_N) * 1000);
     const stoichRatio = livestockDefaults.foodNitrogenFraction * (MW_NH3 / MW_N) * 1000;
     const nWaste = (totalWaste * stoichRatio) / ((MW_NH3 / MW_N) * 1000);
     const nKept = nIngested * livestockDefaults.gillNFraction * (1 - AMPLE_FACTOR);
 
     expect(nDirect + nWaste + nKept).toBeCloseTo(nIngested, 10);
+  });
+
+  it('returns every milligram of eaten mineral to the water, gills and feces together', () => {
+    const release = nutrientsDefaults.foodMineralContent;
+    for (const oxygen of [AMPLE_O2, 0.2]) {
+      const r = processMetabolism(
+        [makeFish({ satiation: 0, mass: 2 }), makeFish({ id: 'fish_2', satiation: 60 })],
+        1000,
+        oxygen,
+        livestockDefaults,
+        release
+      );
+      for (const n of WASTE_NUTRIENTS) {
+        expect(r.mineralsExcreted[n] + r.wasteProduced * release[n]).toBeCloseTo(
+          r.foodConsumed * release[n],
+          10
+        );
+      }
+    }
+  });
+
+  it('excretes minerals beside the gill NH3 at the ratio feces carry them to nitrogen', () => {
+    const r = processMetabolism([makeFish({ satiation: 0, mass: 2 })], 1000, 0.2, livestockDefaults);
+    const nToGills =
+      r.foodConsumed * livestockDefaults.foodNitrogenFraction * livestockDefaults.gillNFraction;
+    for (const n of WASTE_NUTRIENTS) {
+      expect(r.mineralsExcreted[n]).toBeCloseTo(
+        (nToGills * nutrientsDefaults.foodMineralContent[n]) / livestockDefaults.foodNitrogenFraction,
+        10
+      );
+    }
   });
 
   it('consumes oxygen based on mass, and on the oxygen there is to take', () => {

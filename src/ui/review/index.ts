@@ -10,7 +10,6 @@ export {
   isAlertLog,
   classifyAlert,
   type AlertMark,
-  latestAlert,
 } from './category.js';
 export {
   type ReviewWindow,
@@ -43,13 +42,7 @@ export {
   readTick,
   withParams,
 } from './params.js';
-export {
-  type SummaryTile,
-  type SummaryTileId,
-  SUMMARY_ORDER,
-  runSummary,
-  summaryLines,
-} from './summary.js';
+export { type Tally, type TallyId, TALLY_ORDER, runLength, runTallies } from './summary.js';
 export {
   type TrackSeries,
   type TrackDef,
