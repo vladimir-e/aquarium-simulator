@@ -1,17 +1,18 @@
 ---
 title: Plants
-description: Photosynthesis on PAR, one carbon yield read both ways, a bank of what growth could not spend, and darkness charged in tissue.
+description: Photosynthesis on PAR, one carbon yield read both ways, starvation on the day's light, and a bank that heals a plant and buys its size.
 ---
 
 import { Badge } from '@astrojs/starlight/components';
 
 ## What it models
 
-Each plant is a specimen with a size, a condition and a bank. Light drives
-everything it earns — the photosynthetic rate and every benefit channel run
-through the same saturating PAR curve — while upkeep is charged in all
-twenty-four hours. What income and damage leave banks, and the bank is spent on
-repair first and new tissue second.
+Each plant is a specimen with a size, a condition and a bank, on the
+[vitality](/concepts/vitality/) model. Light drives everything it earns — the
+photosynthetic rate and every benefit channel run through the same saturating
+PAR curve — and the day's light decides whether it starves. Income at full
+condition banks; the bank heals the plant and buys its size, and low condition
+sheds tissue.
 
 ## Status
 
@@ -20,13 +21,13 @@ repair first and new tissue second.
 | Photosynthesis on PAR | <Badge text="settled" variant="success" /> | Jassby–Platt `tanh(PAR/Ik)`, evaluated per plant against its own saturating irradiance. |
 | Carbon–oxygen exchange | <Badge text="settled" variant="success" /> | One yield, run both ways. Respiration releases the carbon photosynthesis fixed, and the oxygen derives from it at the molar mass ratio rather than from a second constant. |
 | Respiration | <Badge text="settled" variant="success" /> | Runs 24/7 on Q10 × Monod, so a plant in suffocating water respires slower and releases proportionally less carbon. |
-| The two ledgers | <Badge text="settled" variant="success" /> | Energy deficits are paid in tissue, environmental damage in condition. A starving plant shrinks and survives. |
-| The surplus bank | <Badge text="settled" variant="success" /> | One bank, two claims, in an order: upkeep spends it to the last unit, damage and growth only what stands above the survival ration. |
-| Shedding | <Badge text="settled" variant="success" /> | A rate reading a rate — the share of the upkeep bill left standing, with no threshold in it. |
+| Light starvation | <Badge text="settled" variant="success" /> | A rate on the day's light integral short of the species' edge, so a scheduled night costs nothing and a dead fixture bites as its lit hours leave the window. |
+| The bank | <Badge text="settled" variant="success" /> | Income banks at full condition; the bank heals at the pace the species grows and buys size, and only what becomes tissue leaves it. |
+| Shedding | <Badge text="settled" variant="success" /> | A rate reading a stock — the square of the condition deficit, zero at full condition, with no threshold in it. |
+| Nitrate | <Badge text="settled" variant="success" /> | Log dose past the plant's own edge, the fish shape at an edge only a runaway doser reaches. |
 | Nutrition | <Badge text="settled" variant="success" /> | Every nutrient saturates on its own Monod curve against a per-species demand, and uptake follows the plant's need rather than the fertilizer's ratio. |
 | Carbon limitation | <Badge text="settled" variant="success" /> | Monod on dissolved CO₂, half rate at the species' carbon-need half-saturation. It scales photosynthesis, uptake and the CO₂ income channel, and never damages: a carbon-short plant earns and grows less. |
 | Tolerance bands | <Badge text="settled" variant="success" /> | Temperature and pH earn most at the band's centre and nothing at its edge, where damage starts from zero: net is continuous across every edge. |
-| Photoperiod gates | <Badge text="scaffolding" variant="caution" /> | Two switches on `light > 0`: the light-low stressor and surplus accrual. A light-starved plant swings between 0 and full damage as the lamp flips while its benefits ramp smoothly. |
 | Size against `maxSize` | <Badge text="scaffolding" variant="caution" /> | The ceiling is 600–1100 across the roster and the asymptotic factor stays above 0.9 through any calibration window, so it does not bind. Trimming validates a target in `[0, 100]` against it. |
 | Propagation | <Badge text="missing" variant="danger" /> | A plant with nowhere left to grow banks its whole income and nothing spends it. No runners, no daughter plants — the only way a plant enters the tank is the keeper putting one there. |
 | Plant mineral loop | <Badge text="scaffolding" variant="caution" /> | Shed tissue and dead plants return minerals through waste that uptake never tied to them, so the plant loop is not conserved. |
@@ -36,20 +37,21 @@ repair first and new tissue second.
 
 ### The species roster
 
-| Species | Tolerable PAR | Saturates at | CO₂ need | Nutrient demand | Hardiness | Temperature | pH | GH | Substrate |
-|---|---|---|---|---|---|---|---|---|---|
-| Anubias | 8–70 | 16 | low | low | 0.75 | 18–30 °C | 5.5–8.0 | 1–20 dGH | attaches |
-| Java Fern | 10–90 | 20 | low | low | 0.7 | 18–30 °C | 5.5–8.0 | 1–20 dGH | attaches |
-| Amazon Sword | 20–120 | 40 | medium | medium | 0.5 | 20–28 °C | 5.5–7.8 | 2–20 dGH | sand |
-| Dwarf Hairgrass | 25–200 | 50 | high | high | 0.3 | 20–28 °C | 5.5–7.8 | 1–18 dGH | aqua soil |
-| Monte Carlo | 30–200 | 60 | high | high | 0.3 | 20–28 °C | 5.5–7.8 | 1–15 dGH | aqua soil |
+| Species | Tolerable PAR | Saturates at | Starves under | Growth rate | CO₂ need | Nutrient demand | Hardiness | Temperature | pH | GH | Substrate |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| Anubias | 8–70 | 16 | 0.23 | 0.3 | low | low | 0.75 | 18–30 °C | 5.5–8.0 | 1–20 dGH | attaches |
+| Java Fern | 10–90 | 20 | 0.29 | 0.5 | low | low | 0.7 | 18–30 °C | 5.5–8.0 | 1–20 dGH | attaches |
+| Amazon Sword | 20–120 | 40 | 0.58 | 1.0 | medium | medium | 0.5 | 20–28 °C | 5.5–7.8 | 2–20 dGH | sand |
+| Dwarf Hairgrass | 25–200 | 50 | 0.72 | 1.5 | high | high | 0.3 | 20–28 °C | 5.5–7.8 | 1–18 dGH | aqua soil |
+| Monte Carlo | 30–200 | 60 | 0.86 | 1.8 | high | high | 0.3 | 20–28 °C | 5.5–7.8 | 1–15 dGH | aqua soil |
 
 pH and GH bands are the generous hobby care-sheet ranges, wide enough for fresh aqua soil and hard tap alike. Past an edge the damage grows linearly with the distance, per °C, pH unit or dGH (`temperatureStressSeverity`, `phStressSeverity`, `ghStressSeverity`). pH is already a log scale, so linear in pH is log in acidity. Temperature and pH also earn inside their bands; GH is damage alone.
 
-Saturating irradiance is derived, not declared: `saturationIrradianceFactor ×
-tolerableLight[0]`. One number therefore carries both light channels, and a
-plant sitting at the bottom of its band runs at 46 % of its rate while the
-light-insufficient stressor charges it.
+Both light figures are derived from the band's low end, not declared.
+Saturating irradiance is `saturationIrradianceFactor × tolerableLight[0]`, so a
+plant at the bottom of its band runs at 46 % of its rate. The daily light it
+starves under, in mol/m²/d, is that same PAR held for the 8-hour day care sheets
+quote their bands for.
 
 ### Photosynthesis
 
@@ -107,16 +109,16 @@ draws oxygen with the lamps on.
 
 | Stock | Fills it | Drains it | Unit |
 |---|---|---|---|
-| `size` | Surplus converted to tissue, scaled by species growth rate and the asymptotic factor | Shedding against an unpaid upkeep bill; trimming | %, where 100 is a full specimen |
-| `condition` | Repair, withdrawn from the bank during the photoperiod | Stressor damage the bank could not buffer | % |
-| `surplus` | Income left after upkeep and damage, while the lights are on | Unpaid upkeep, buffered damage, repair, growth | bank units, capped at `surplusCap` |
+| `size` | The bank, scaled by species growth rate and the asymptotic factor | Shedding at low condition; trimming | %, where 100 is a full specimen |
+| `condition` | Benefits; healing from the bank | Stressors | %, normal at 100 |
+| `surplus` | Income at full condition | Healing; growth | condition points, capped at `surplusCap` |
 | `oxygen` | Photosynthesis | Respiration | mg/L |
 | `co2` | Respiration | Photosynthesis, on its own Monod curve | mg/L |
 | `nitrate` · `phosphate` · `potassium` · `iron` | Dosing; nitrification for NO₃, and mineralized waste and fish excretion for the rest, elsewhere | Uptake on the plant's own need, each nutrient on its own Monod curve | mg |
 | `waste` | Shed tissue and plant death | Mineralization, elsewhere | g |
 
-A bank unit is a condition point — the bank accrues out of the same %/h the
-condition deficit is measured in, which is what lets one number pay for both.
+A bank unit is a condition point — the bank fills with the same %/h condition
+is measured in, which is what lets one number pay for both.
 
 ### Nutrition
 
@@ -157,7 +159,7 @@ out. Calcium and
 magnesium are drawn on their own Monod curve, off the nitrate a plant actually
 draws (under Key tunables).
 
-### Income, upkeep and the compensation point
+### Income and harm
 
 Every benefit channel is realised *through* photosynthesis, so all four are
 multiplied by the same light term rather than standing beside it. Good water is
@@ -176,56 +178,71 @@ nothing.
 comfort = 4 (x − lo)(hi − x) / (hi − lo)²     // symmetric parabola: 1 at the centre, 0 at either edge
 ```
 
-Against that income sits upkeep, charged every hour at
-`upkeepCost × q10(temperature)` — the same Q10 the gas layer's respiration runs
-on, so a warm blackout kills faster than a cool one. The two together set a
-compensation point: a hardiness-0.3 species breaks even at 10.5 % of its own
-`Ik`, which is where the macrophyte literature puts it.
-
-Below that PAR a plant runs a deficit however perfect the water is. Night and a
-week-long blackout cost exactly the same per hour; what tells them apart is
-whether the bank ever refills.
-
-### The bank and the ladder
-
-| Claim | Depth it may reach | Where the shortfall lands |
+| Stressor | Charges | Per |
 |---|---|---|
-| Upkeep | the last unit | `starved` — a share of the bill, spent as tissue |
-| Stressor damage | down to `upkeepRate × upkeepReserveHours` | condition |
-| Repair, then growth | the same reserved line, during the photoperiod only | nothing — what the ladder cannot use stays banked |
+| Light starvation | the day's light short of the species' edge, below | share of the edge |
+| Light high | PAR over the band's high end, while the lamp is on | PAR |
+| Temperature · pH · GH | outside the species band | °C · pH unit · dGH |
+| Nutrient deficiency | Liebig shortfall, on the light term | point of sufficiency |
+| Nitrate | past the plant's own edge | e-fold over |
+| Algae shading | bloom mass over `algaeShadingThreshold` | mass point |
 
-The reserved line is what lets one bank serve two claims. Damage outweighs
-upkeep by an order of magnitude, so a bank damage may empty is a bank the next
-dark hour finds empty, which turns any nagging channel into starvation.
+Hardiness scales every stressor by `1 − hardiness` except nitrate, whose edge it
+carries out by the same factor a fish's is: `nitrateEdge × 2^hardiness`.
 
-Each lit hour a plant mobilises `growthDrawRate` of its bank and spends it on
-condition first and size second. Only what repaired or became tissue leaves the
-bank, so a plant at its ceiling in perfect water converts nothing, pays nothing,
-and banks everything it earns. Repair is a withdrawal, which means a damaged
-plant does not heal at night.
+### Starving on the day's light
 
-A growing plant never settles at `surplusCap`. A day's withdrawal there exceeds
-a day's income, so the bank settles proportional to what the plant clears — 9 to
-26 units across the roster for a young specimen, a shade species holding more
-than a carpet because the same PAR sits nearer its saturation.
+```
+dli       = Σ lightByHour × 3600 / 10⁶                 // mol/m²/d, the last 24 hours
+edge      = tolerableLight[0] × 8 h, as a daily light integral
+shortfall = max(0, 1 − dli / edge)
+damage    = lightStarvationSeverity × shortfall × q10(temperature) × (1 − hardiness)
+```
+
+A plant starves on the light it has had, not the light it has now. Under a
+steady schedule the integral reads the same at midnight as at noon, so a night
+costs nothing. A dead fixture takes one lit hour out of the window each hour it
+should have been on, and the plant starves once the integral drops under its
+edge. The cost is respiration's, on the same Q10, so a warm blackout bites
+harder than a cool one.
+
+Starvation is damage like any other: the bank heals it first, then condition
+falls, then the plant sheds. In a clean tank at 25 °C a monte carlo spends its
+bank in the first days of total darkness and is gone in two to three weeks; a
+java fern, hardier and needing less light, lasts about five.
+
+### The bank
+
+| Flow | Per hour | When |
+|---|---|---|
+| Banking | income past full condition, up to `surplusCap` | condition at 100 |
+| Healing | `healingDrawRate × growthRate` of the bank, up to the deficit | condition under 100 |
+| Growth | `growthDrawRate × (1 − size ⁄ maxSize)` of the bank, bought at `sizePerSurplus × growthRate` | every hour, day and night |
+
+A plant arrives at full condition with an empty bank, as a fish does. It heals
+at the pace it grows: a carpet draws its bank down on repair in about half a
+day, an anubias over three. Only what becomes tissue leaves the bank for growth, so a
+plant at its ceiling in perfect water banks everything it earns. A growing plant
+never settles at `surplusCap`: the draw closes on the income, and the bank sits
+at a day or two of it.
 
 ### Shedding and death
 
 ```
-starved   = share of upkeep neither income nor the bank could pay   // 0..1
-sizeLost  = size × starved × maxSheddingRate
+deficit   = 1 − condition / 100
+sizeLost  = maxSheddingRate × deficit² × size
 waste    += sizeLost × wastePerShedSize
 ```
 
-Nothing shrinks a plant for being damaged, only for being unfed. The tissue
-leaves as waste rather than as fuel — a starving plant abscises its oldest
-leaves rather than digesting them, which is why melting plants foul the water.
+Shedding is what low condition does to a plant. Squared in the deficit it is
+0.5 %/h at condition 50 and 0.08 %/h at 80, so a plant relit or cleaned up before
+its condition collapses keeps most of itself. The tissue leaves as waste rather
+than as fuel — a failing plant drops its oldest leaves rather than digesting
+them, which is why melting plants foul the water.
 
-A plant dies when condition or size falls below its threshold, and the two name
-different deaths. Condition takes the plant that was poisoned, cooked or shaded;
-size takes the one that starved, holding condition 100 the whole way down until
-there is nothing left of it. Either way the remaining size becomes waste and the
-plant leaves the array.
+A plant dies at condition 0, as a fish does, or once shedding has left less than
+`deathSizeThreshold` of it. Its remaining size becomes waste and it leaves the
+array.
 
 ## Key tunables
 
@@ -239,35 +256,37 @@ plant leaves the array.
 | `halfSaturation` | Where a full-demand plant runs at half on each, NO₃ · PO₄ · K · Fe | `2` · `0.1` · `1` · `0.02` ppm |
 | `demand` | Each tier's share of the full need, per nutrient — the table under Nutrition | — |
 | `baseRespirationRate` | Dark respiration as a share of the light-saturated rate | `0.03` /hr |
-| `respirationQ10` | Factor respiration and upkeep multiply by per 10 °C | `2.0` |
+| `respirationQ10` | Factor respiration and light starvation multiply by per 10 °C | `2.0` |
 | `respirationOxygenHalfSaturation` | O₂ at which respiration runs at half rate | `0.5` mg/L |
-| `upkeepCost` | Cost of being alive, quoted at the reference temperature | `0.075` %/hr |
-| `upkeepReserveHours` | Hours of upkeep the bank keeps back from every junior claim | `100` hr |
-| `surplusCap` | Saturation ceiling for the bank | `50` units |
-| `growthDrawRate` | Share of the bank mobilised each lit hour | `0.02` /hr |
+| `surplusCap` | Ceiling on the bank | `50` units |
+| `healingDrawRate` | Share of the bank that heals condition each hour, per unit of species growth rate | `0.05` /hr |
+| `growthDrawRate` | Share of the bank drawn toward new tissue each hour | `0.02` /hr |
 | `sizePerSurplus` | Size gained per converted unit, before the species growth rate | `0.4` % |
-| `maxSheddingRate` | Share of itself a plant drops per hour when it pays none of its bill | `0.02` /hr |
+| `lightStarvationSeverity` | Damage in a day without light, at the reference temperature | `0.3` %/hr |
+| `lightExcessiveSeverity` | Damage per PAR over the species band | `0.015` %/PAR/hr |
+| `nitrateStressSeverity` · `nitrateEdge` | Damage per e-fold of NO₃ past the edge, and where a hardiness-0 plant's edge sits | `1.0` %/e-fold/hr · `100` ppm |
+| `maxSheddingRate` | Share of itself a plant drops per hour at condition 0 | `0.02` /hr |
 | `nutrientDeficiencySeverity` | Damage per point of Liebig shortfall, at saturating light | `0.3` %/hr |
 | `ghStressSeverity` | Damage per dGH outside the species' band | `0.1` %/dGH/hr |
 | GH per nitrate drawn | Calcium and magnesium taken up per mg of nitrate actually drawn, off leaf-tissue ratios; a constant | `0.28` mg CaCO₃/mg |
 | GH half-saturation | GH, as CaCO₃, at which that uptake runs at half; a constant | `1` mg/L |
 | Benefit peaks (×4) | Recovery per channel at its best, before the light term. Four at `0.125` sum, at band centre, to the 0.5 %/h budget the recovery curves were pinned against | `0.125` %/hr |
-| `deathConditionThreshold` · `deathSizeThreshold` | The two floors a plant leaves the tank through | `10` % each |
+| `deathSizeThreshold` | Size under which a shedding plant is gone | `10` % |
 
 ## Seams
 
 | Neighbour | Read | Written |
 |---|---|---|
-| [Light](/subsystems/light/) | `light` — PAR at the substrate, which multiplies the photosynthetic rate and every benefit channel, and gates accrual | — |
+| [Light](/subsystems/light/) | `light` — PAR at the substrate, which multiplies the photosynthetic rate and every benefit channel and charges the light-high stressor; `lightByHour`, the day starvation reads | — |
 | [Water & gases](/subsystems/water-and-gases/) | `co2` for the carbon Monod, `oxygen` for the respiration Monod, pH and `gh` for the tolerance bands | `oxygen` and `co2`, both directions, on one carbon yield; `gh` drawn with the nutrients |
 | [Nitrogen cycle](/subsystems/nitrogen-cycle/) | `nitrate`, and the `phosphate`, `potassium` and `iron` mineralized beside the ammonia | All four drained on uptake; `waste` from shedding and death |
-| [Environment](/subsystems/environment/) | `temperature` for the Q10 on respiration and upkeep, `water` for every ppm | — |
+| [Environment](/subsystems/environment/) | `temperature` for the Q10 on respiration and starvation, `water` for every ppm | — |
 | [Equipment](/subsystems/equipment/) | `substrate.type` — which species may be planted at all | — |
 | [Algae](/subsystems/algae/) | `algae.mass` — the shading stressor, one tick behind | Plant power, which drives algae's suppression stressor and its low-plant-power benefit |
 | [Livestock](/subsystems/livestock/) | — | Plant power again, saturating the fish shelter benefit at three full-grown healthy plants |
 | [Actions](/subsystems/actions/) | — | Planting, removal and trimming write `size` and the array directly; dosing fills the four nutrient pools |
 | [Alerts & logging](/subsystems/alerts-and-logging/) | — | A `plant-died` log entry per plant lost |
-| [State & persistence](/subsystems/state-and-persistence/) | — | Receives seeded plantings, at a named size and the same half-bank a stocked plant gets |
+| [State & persistence](/subsystems/state-and-persistence/) | — | Receives seeded plantings, at a named size, full condition and an empty bank |
 
 ## Source
 

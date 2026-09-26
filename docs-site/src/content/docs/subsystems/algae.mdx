@@ -16,7 +16,7 @@ releases no oxygen, and draws no nutrient out of the water it is fed by.
 
 | Mechanic | Status | Why |
 |---|---|---|
-| Surplus bank and mass conversion | <Badge text="settled" variant="success" /> | The shared vitality primitive. A negative rate drains the bank before it touches mass; growth spends the bank through an asymptotic factor that self-limits at 100. |
+| Surplus bank and mass conversion | <Badge text="settled" variant="success" /> | The bloom's own bank, not the vitality model's: a negative rate drains it before it touches mass, and growth spends it through an asymptotic factor that self-limits at 100. |
 | Net rate | <Badge text="settled" variant="success" /> | `Σbenefits − Σstressors × (1 − hardiness)`. |
 | Population without condition | <Badge text="settled" variant="success" /> | Deliberate. Algae is a population, not an individual. |
 | Excess-light channel | <Badge text="scaffolding" variant="caution" /> | A hard floor at `70` PAR then a capped linear ramp. Light is a bonus term, never a photosynthetic drive. |
@@ -69,13 +69,14 @@ suppressed to fuelled.
 ### Where it diverges from the plant light model
 
 Plants answer light along `tanh(PAR / Ik)` — a curve from the origin, per
-species, that multiplies their entire benefit budget. Algae answers it with
-`max(0, PAR − 70) × 0.004`, capped — one additive term among four, with no
-species variation and no multiplier role. Three consequences follow:
+species, that multiplies their entire benefit budget — and starve on the day's
+light integral. Algae answers it with `max(0, PAR − 70) × 0.004`, capped — one
+additive term among four, with no species variation and no multiplier role.
+Three consequences follow:
 
 - **Below 70 PAR light is worth nothing to algae**, while every plant on the roster is photosynthesising well below that. The threshold sits roughly where plants saturate, so the term is meant to read as "light the plants are not using".
 - **Light never gates the rest of the budget.** A bloom under a dim fixture earns its full nutrient and low-plant-power benefits and converts them to mass for exactly as many hours as the lamp is on. The photoperiod is a switch on banking, not a term in the rate.
-- **There is no compensation point.** Algae declares no upkeep ledger, so there is no PAR below which it is losing energy. It shrinks only when suppression outweighs its benefits, never because the tank is too dark to pay for it.
+- **Darkness never starves it.** Algae reads no light history, so the dark takes nothing from a bloom; it only stops the bloom banking and growing. It shrinks only when suppression outweighs its benefits.
 
 ### Nitrate it never consumes
 

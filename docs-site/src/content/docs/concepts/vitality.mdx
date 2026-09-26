@@ -1,107 +1,89 @@
 ---
 title: Vitality
-description: One damage, benefit and condition model shared by fish, plants and algae — two ledgers, a reserve bank, and a ladder that repairs before it grows.
+description: One model for every organism with a condition — rates of benefit and harm move condition, only a full organism banks, and the bank heals at a species share and buys what the organism makes.
 ---
 
 import { Badge } from '@astrojs/starlight/components';
 
-## One model, every organism
+## The principle
 
-Fish, plants and algae experience the tank through the same interface. Each hour
-an organism declares what is harming it, what it costs to stay alive, and what is
-doing it good; one shared module turns those three lists into a condition and a
-reserve. Species configs decide which resources map to which factors — the
-arithmetic is identical across lifeforms.
+Designing a mechanic is choosing rates of benefit and harm. Every organism with
+a condition runs the same model: condition is the buffer between dying and
+thriving, normal at 100. Benefit rates raise it and damage rates lower it, so
+nothing dies or heals instantly.
+
+A threshold that switches a mechanism on or off is a defect. A rate that starts
+at a tolerance edge is not: nothing jumps there, the slope just stops being zero.
+
+## One hour
+
+Each hour an organism lists what is doing it good and what is harming it, both
+in condition points per hour, and one shared step settles them.
 
 ```
-net = Σbenefits − Σupkeep − Σstressors
+condition += Σbenefits − Σstressors
+above 100:  the excess banks, up to surplusCap, and condition sits at 100
+below 100:  the bank heals min(100 − condition, healingRate × bank)
 ```
 
-| Term | Is | Scaled by hardiness |
-|---|---|---|
-| Benefits | Income from favourable conditions, in %/h | No |
-| Upkeep | The cost of simply being alive, in %/h | Yes |
-| Stressors | Damage done *to* the organism, in %/h | Yes |
-| Hardiness | Species tolerance plus a per-individual offset, `0`–`1` | — |
-
-Hardiness scales the charged side only, and each organism hardens its own
-charges before the shared module weighs them: `× (1 − hardiness)` by default,
-or, for fish water quality, by moving where harm starts. A hardy fish tolerates
-bad water; it is not more energised by good water.
-
-## The two ledgers
-
-Which list a deficit lands in decides which stock it reaches. That split is the
-whole model.
-
-| Ledger | Weighs | A shortfall is paid in |
-|---|---|---|
-| Energy | Benefits against upkeep | Tissue. The organism shrinks and survives |
-| Health | Whatever income the energy ledger left, against stressors | Condition. The organism is intact but damaged |
-
-The energy ledger settles first, and a deficit on it never doubles as condition
-damage. A starving plant loses biomass rather than health, which is the
-difference between a plant that is small and a plant that is dying.
-
-## The surplus bank
-
-Income that is not spent accrues into a saturating reserve, and the reserve
-buffers damage before condition falls. A well-stocked organism shrugs off a bad
-hour by burning stores; the same hour flattens one that has nothing banked.
-
-Two claims reach different depths of the same bank, and the ordering is what
-keeps a poisoned organism from starving itself.
-
-| Claim | Seniority | May spend |
-|---|---|---|
-| Upkeep | Senior | The bank to its last unit |
-| Damage | Junior | Only what stands above a reserved depth — a few hours of upkeep, held back as survival rations |
-| Repair and growth | Junior | The same spendable part, above the same floor |
-
-Accrual saturates at a cap and overflow beyond it is discarded rather than
-queued, the way a body absorbs only so much of a vitamin. One reading follows
-from all of this and is easy to misread: **condition 100 with a negative net
-means burning reserves, not thriving.**
-
-## Recover, then grow
-
-Nothing in the balance repairs an organism that stores its energy. Repair is a
-withdrawal from the bank, taken ahead of growth, so a stressed organism pays down
-its deficit before it makes any progress. An organism with no energy ledger runs
-the same ladder from the other end — its income heals it on the spot, and only a
-full condition leaves anything to bank.
-
-Either way the trajectory is the same shape: recover, then grow. There is no
-middle position where an organism parks, damaged but stable.
-
-| Organism | Ledgers | Damage reaches | The bank buys |
-|---|---|---|---|
-| Fish | Health only — income heals first and banks what a full condition leaves | `condition` | Breeding, which spends a share of the cap from both parents |
-| Plants | Both — income pays upkeep first, and what neither income nor bank covers is starvation | `condition`, and tissue for unpaid upkeep | Repair first, then new size, both stopping at the survival floor |
-| Algae | Neither — a bloom has no condition at all, so net folds straight into the bank | `mass` | Mass, capped per hour and asymptotic toward a ceiling |
-
-## Deliberate absences
-
-Three things are missing on purpose, and each has been re-proposed before.
-
-| Absent | Why |
+| Term | Is |
 |---|---|
-| A condition-equilibrium term | Behaviour that reads as "everything dies eventually" is severity constants too harsh at the margin — a real defect, but a number, never a missing mechanism |
-| Husbandry re-tests on outcomes | Outcomes spend the stock. The husbandry is already priced into how the bank filled, so breeding's one guard is that the female's net is non-negative this hour, which tests trend rather than conditions |
-| Hardiness on the benefit side | Tolerance is protection from harm, not an appetite for good conditions |
+| Benefits | Income from favourable conditions. Hardiness never scales them |
+| Stressors | Damage, hardened by each organism: `× (1 − hardiness)`, or by moving where harm starts |
+| Bank | Condition points banked at full condition, capped at `surplusCap` |
+| Healing rate | The share of its bank an organism heals from each hour |
+
+Income heals first, and only what a full condition leaves over banks. Damage
+never touches the bank; it lowers condition, and the bank heals it back. Healing
+is first order: a bank pays out a share of itself each hour, so it drains on an
+exponential with a time constant of `1 / healingRate` hours.
+
+## Sickness and immunity
+
+The bank feeding condition is the organism's immunity. A full bank heals up to
+`healingRate × surplusCap` an hour, which is what lets a banked organism ride
+out a bad spell at full condition while an unbanked one loses condition from
+the first hour.
+
+An organism is sick while its damage outruns its healing, so its condition
+falls. Sickness is not a separate mechanic: the damage rate *is* the sickness,
+and it ends when the rates turn round.
+
+| Organism | Healing rate | Shipped |
+|---|---|---|
+| Fish | `healingDrawRate × adultMass^−¼`, the way mass-specific metabolism scales | 6 %/h for a neon, 2.5 %/h for an angelfish |
+| Plant | `healingDrawRate × growthRate` — a plant repairs at the pace it grows | 9 %/h for monte carlo, 1.5 %/h for anubias |
+
+## What the bank buys
+
+| Organism | Low condition | The bank buys |
+|---|---|---|
+| Fish | Dies at 0 | A brood. A mature female spawns once her bank is full and a mature male of her species is in the tank, and the spawn empties it |
+| Plant | Sheds tissue, with the square of the deficit; dies at 0 | Size. A plant draws `growthDrawRate` of its bank toward new tissue each hour, and only what becomes tissue leaves it |
+
+A full bank is proof the water has been good: it only fills at full condition,
+and any damage it heals draws it down. Refilling it is a female's cooldown.
+
+## Algae runs its own bank
+
+Algae keeps no condition. A bloom is a population, not an individual, so its net
+rate folds straight into a bank of its own: damage drains the bank before it
+touches mass, and the bank buys mass. See [Algae](/subsystems/algae/).
 
 ## Status
 
 | Mechanic | Status | Why |
 |---|---|---|
-| The balance | <Badge text="settled" variant="success" /> | One formula for every organism; hardiness is applied by each organism, so a channel can move its tolerance instead of scaling its charge |
-| The two ledgers | <Badge text="settled" variant="success" /> | Energy deficits are paid in tissue, environmental stress in condition |
-| The bank and its reserved depth | <Badge text="settled" variant="success" /> | One definition of the floor, subtracted once, so no claimant can forget it |
-| Recover-then-grow | <Badge text="settled" variant="success" /> | No middle-parking; the missing equilibrium term is a decision, not a gap |
+| The balance | <Badge text="settled" variant="success" /> | One step for fish and plants. Each organism hardens its own charges, so a channel can move its edge instead of scaling its charge |
+| Banking at full condition | <Badge text="settled" variant="success" /> | Income heals first and banks only at 100; damage never reaches the bank |
+| First-order healing | <Badge text="settled" variant="success" /> | The bank heals at a species share, with no floor and no switch — the same law growth draws on |
+| Sickness | <Badge text="settled" variant="success" /> | A reading of the rates, not a state: condition falling is the whole of it |
 | Tolerance-band benefits | <Badge text="settled" variant="success" /> | Graded to zero at each edge, and the matching damage starts from zero at or past it, so net never jumps as a reading leaves its band |
+| The brood | <Badge text="settled" variant="success" /> | A spawn is an event bought whole: the full bank is its price and refilling it is the cooldown, with no timers |
+| Algae's bank | <Badge text="scaffolding" variant="caution" /> | It banks and grows only while the lamp is on — a switch on light, not a rate |
 
 ## Source
 
-`src/simulation/systems/` holds the shared model and each organism's factor
+`src/simulation/systems/` holds the shared step and each organism's factor
 builders; `src/simulation/plants/`, `src/simulation/algae/` and
-`src/simulation/livestock/` decide what their surplus is spent on.
+`src/simulation/livestock/` decide what their bank buys.

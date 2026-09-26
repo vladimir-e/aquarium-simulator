@@ -49,7 +49,9 @@ it was handed, so the state a tick began with is still readable when it ends.
 
 Passive resources — surface, flow, light and aeration — are stored on the tree
 but derived: the tick recomputes all four from the equipment before anything
-reads them.
+reads them. `lightByHour` is the one with memory: 24 slots of substrate PAR, the
+tick rewriting the slot for its hour of the day, so the tree carries the last
+day's light. A new tank opens with the history of the schedule it was built on.
 
 ### Randomness
 
@@ -170,7 +172,7 @@ browser storage.
 | [Nitrogen cycle](/subsystems/nitrogen-cycle/) | — | A seed writes both colonies, and `'cycled'` writes the nitrate a month of leaching left behind |
 | [Equipment](/subsystems/equipment/) | `substrate.type`, which decides what a `'cycled'` bed resolves to | The bed's remaining reserves |
 | [Livestock](/subsystems/livestock/) | — | Seeded rosters, built through the same factory stocking uses and drawing on the same stream |
-| [Plants](/subsystems/plants/) | — | Seeded plantings, at a named size and the same half-bank a stocked plant gets |
+| [Plants](/subsystems/plants/) | — | Seeded plantings, at a named size, full condition and an empty bank |
 | [Water & gases](/subsystems/water-and-gases/) | `tapKh` and `tapGh`, which a `'cycled'` KH and GH resolve against | Both dissolved gases, KH and GH, where a seed names them |
 | [Environment](/subsystems/environment/) | `tank.capacity` — every per-litre seed figure resolves against it | — |
 | [Actions](/subsystems/actions/) | — | Supplies the draw stream for ids and the scrub's bite, and takes back the advanced position |

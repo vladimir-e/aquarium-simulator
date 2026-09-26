@@ -1,6 +1,6 @@
 ---
 title: Livestock
-description: Fish as individuals — one oxygen factor over the whole metabolism, satiation as a continuous curve, and a reserve bank that funds the next generation.
+description: Fish as individuals — one oxygen factor over the whole metabolism, satiation as a continuous curve, and a bank that heals a fish and buys the next generation.
 ---
 
 import { Badge } from '@astrojs/starlight/components';
@@ -10,8 +10,9 @@ import { Badge } from '@astrojs/starlight/components';
 Every fish is an individual with a mass, a health, a satiation and a bank. Its
 whole metabolism — the oxygen it draws, the ammonia it deaminates, the carbon it
 exhales — rides on one oxygen factor, so a suffocating fish loads the water less
-and suffers more. Health is the vitality engine reading the water the fish sits
-in, and the bank that health leaves over is what pays for the next spawn.
+and suffers more. Health is the vitality model reading the water the fish sits
+in: income at full health banks, the bank heals the fish, and a full one pays
+for the next spawn.
 
 ## Status
 
@@ -24,7 +25,8 @@ in, and the bank that health leaves over is what pays for the next spawn.
 | Hardiness | <Badge text="settled" variant="success" /> | Scales stressors, never benefits — as `1 − hardiness` for most, and on the concentration axis for water quality. A hardy fish tolerates bad water but isn't more energised by good. |
 | Age | <Badge text="settled" variant="success" /> | A linear stressor ramp past the species lifespan, through the same channel as every other stressor. No probabilistic cliff. |
 | Staging and fry growth | <Badge text="settled" variant="success" /> | Mass is re-derived from age each tick and the fry flips to adult at `maturityAge`. Stage and age are stored independently, so the spawn gate asks both. |
-| Breeding gate | <Badge text="settled" variant="success" /> | Banks plus a live-trend check, no husbandry re-tests — the husbandry is already priced into how the bank filled. |
+| Healing | <Badge text="settled" variant="success" /> | The bank heals health at a share that falls with adult mass to the −¼, as mass-specific metabolism does. A fish is sick while its damage outruns it. |
+| Breeding | <Badge text="settled" variant="success" /> | A mature female spawns on a full bank, and no husbandry re-tests — the husbandry is already priced into how the bank filled. |
 | Death | <Badge text="settled" variant="success" /> | Condition reaching zero, from any stressor. Age-driven deaths are labelled in the log so the keeper can tell "got old" from "water went bad". |
 | Tolerance-band benefits | <Badge text="settled" variant="success" /> | Graded to zero at every edge, and damage starts from zero at or past it. pH earns most at the band's centre; oxygen rises from the alert edge to comfort. |
 | Fry survival | <Badge text="missing" variant="danger" /> | Clutches hatch at 100 % with no density check and nothing eats the young, so any stocked pair breeds toward a wipeout. This is the cause of most "the preset is broken" findings. |
@@ -85,9 +87,9 @@ water it is in, so a suffocating fish draws less *and* suffers more.
 
 | Stock | Fills it | Drains it | Unit |
 |---|---|---|---|
-| `health` | Net positive vitality, applied directly — a fish has no upkeep ledger and heals out of income | Stressor damage the bank could not buffer | % |
+| `health` | Benefits; healing from the bank | Stressors | %, normal at 100 |
 | `satiation` | Eating, toward the 100 cap | `satiationDecayRate`, every hour, fed or not | % |
-| `surplus` | Net positive vitality, but only once health is full | Buffered damage; a spawn | bank units, capped at `surplusCap` |
+| `surplus` | Income at full health | Healing; a female's spawn empties it | condition points, capped at `surplusCap` |
 | `age` | One tick per hour, always | — | ticks |
 | `mass` | Re-derived from age while the fish is a fry; fixed at `adultMass` after | — | g |
 | `food` | Feeding, elsewhere | Fish eating, hungriest first | g |
@@ -125,9 +127,11 @@ Unfed, a stuffed fish reaches zero in about seven days.
 
 ### Health
 
-Health is the [vitality engine](/concepts/vitality/) with no upkeep ledger: a
-fish heals straight out of its income and banks only what a full health leaves
-over.
+Health is the [vitality model](/concepts/vitality/). A fish heals out of its
+income first and out of its bank at `healingDrawRate × adultMass^−¼` of it an
+hour — 6 % for a neon, 2.5 % for an angelfish — and banks only what a full
+health leaves over. It is sick while its damage outruns that healing, and its
+health falls.
 
 | Stressor | Activates | Per |
 |---|---|---|
@@ -153,20 +157,21 @@ over.
 The three non-plant channels sum to 1.0 %/h in a clean tank with pH at the
 band's centre; a saturated planting lifts the budget to 1.2. That headroom over
 zero is the whole point — a healthy planted tank sits at full health with a
-positive net rate, banking the reserve breeding spends.
+positive net rate, banking what breeding spends.
 
 #### Water quality
 
-Each water-quality stressor is its severity times the e-folds past the fish's
-own edge — `ln(reading ⁄ edge)`, or for oxygen `ln((edge + a) ⁄ (reading + a))`,
-where anoxia `a` = 0.1 mg/L keeps it finite at zero — because toxicity runs on
-log dose: every doubling costs the same. Hardiness moves a fish's edge out from
-the alert's by `2^hardiness`, and down by the same factor for oxygen. Effective
-hardiness is clamped to [0.1, 0.95], so the alert fires before any fish takes
-damage and no fish's edge reaches twice the alert's. A hardy species differs in where harm
-starts, not in how steeply it grows, and still dies at the lethal levels.
-Each severity puts a mid-hardiness fish at its 96-hour LC50 one %/h past what a
-clean tank gives back, so it dies in about four days.
+Each toxin stressor is its severity times the e-folds past the fish's own edge,
+`ln(reading ⁄ edge)`, because toxicity runs on log dose: every doubling costs
+the same. Oxygen counts e-folds under its edge, `ln((edge + a) ⁄ (reading + a))`,
+with both sides read `a` = 0.1 mg/L higher so the harm stays finite at zero.
+Hardiness moves a fish's edge out from the alert's by `2^hardiness`, and down by
+the same factor for oxygen. Effective hardiness is clamped to [0.1, 0.95], so no
+fish's edge reaches twice the alert's. A hardy species differs in where harm
+starts, not in how steeply it grows, and still dies at the lethal levels. Each
+severity puts a mid-hardiness fish at its 96-hour LC50 one %/h past what a clean
+tank gives back, so an unbanked fish dies in about four days and a full bank
+buys it about two more.
 
 | Reading | Alert edge | A mid-hardiness fish is harmed from | Breaks even | LC50 |
 |---|---|---|---|---|
@@ -205,25 +210,17 @@ nearer the end.
 
 ### Breeding
 
-The gate is the banks plus one trend check. There are no condition, temperature
-or pH tests, because surplus only accrues at full health under a positive net
-rate — a fish that can afford the cost has already proven its environment.
+A mature female spawns once her bank is full and a mature male of her species
+is in the tank. The spawn empties her bank and costs him nothing. There are no
+condition, temperature or pH tests: the bank only fills at full health, and any
+damage it heals draws it down, so a full bank has already proven the water.
+Refilling it is the cooldown — there are no timers.
 
 | Gate | Condition |
 |---|---|
 | Pair | at least one adult male and one adult female of the species |
 | Grown | both `stage === 'adult'` **and** `age ≥ maturityAge` |
-| Female funded | `surplus ≥ costFraction × surplusCap` |
-| Male funded | the serving male's `surplus ≥ maleShareFraction × cost` |
-| Live trend | the female's vitality net this tick is `≥ 0` |
-
-The trend check is the one guard against old savings: a buffered fish in a
-crashing tank reads full health while its reserve bleeds, and must not spawn off
-that. Re-accruing the spent bank *is* the cooldown — there are no timers.
-
-At the shipped numbers a spawn costs the female 40 units and the serving male
-16, so a full male covers three females before the next one steps in. Females
-are served in array order until no male can pay.
+| Funded | the female's bank is full, `surplus ≥ surplusCap` |
 
 | Species | Mode | Clutch | Hatch | Fry mass | Maturity |
 |---|---|---|---|---|---|
@@ -233,7 +230,7 @@ are served in array order until no male can pay.
 | Corydoras | egg-depositor | 15 eggs | 96 h | 4 % | 150 d |
 | Angelfish | substrate-spawner | 40 eggs | 60 h | 2 % | 180 d |
 
-Livebearers drop free-swimming fry directly — the gestation is what the accrual
+Livebearers drop free-swimming fry directly — the gestation is what the bank
 paid for. Every other mode deposits an inert clutch that sits in the state until
 its hatch time and then becomes fry. The clutch is guarded by nobody and eaten
 by nothing.
@@ -269,7 +266,8 @@ visible decline rather than a coin flip.
 | Satiation severities | Peak at each anchor — overfed, well-fed benefit, hungry, starving | `2.0` · `0.3` · `2.5` · `6.0` %/hr |
 | `phBenefitPeak` · `oxygenBenefitPeak` · `plantBenefitPeak` | The three non-satiation recovery channels | `0.4` · `0.3` · `0.2` %/hr |
 | `plantBenefitSaturationPoint` | Plant power at which shelter tops out — three full-grown healthy plants | `3.0` |
-| `surplusCap` | Saturation ceiling for the reserve bank, and the base every breeding cost is a fraction of | `50` units |
+| `surplusCap` | Ceiling on the bank; a female spawns on a full one | `50` units |
+| `healingDrawRate` | Share of its bank a 1 g fish heals from each hour, scaled by adult mass to the −¼ | `0.05` /hr |
 | `deathDecayFactor` | Share of body mass that becomes waste on death | `0.5` |
 
 ## Seams

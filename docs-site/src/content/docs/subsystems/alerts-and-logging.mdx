@@ -19,10 +19,10 @@ a reader would want to see afterwards.
 |---|---|---|
 | The latch | <Badge text="settled" variant="success" /> | One line per crossing, a flag that lives in state, and no repetition while the condition holds. It does exactly what it says. |
 | Log entry shape | <Badge text="settled" variant="success" /> | Free text for humans, a typed `event` discriminator for code, and a `count` wherever an entry accounts for more than one organism. |
-| Water-quality thresholds | <Badge text="settled" variant="success" /> | Free NH₃, nitrite, nitrate and oxygen alert at their tolerance edge, and hardiness moves each fish's own harm edge out from it, so the alert fires before any fish takes damage. Ammonia reads the free fraction, so the total it takes moves with pH and temperature. |
+| Water-quality thresholds | <Badge text="settled" variant="success" /> | Free NH₃, nitrite, nitrate and oxygen alert at their tolerance edge, and hardiness moves each fish's own harm edge out from it. Ammonia reads the free fraction, so the total it takes moves with pH and temperature. |
 | Algae · water-level thresholds | <Badge text="scaffolding" variant="caution" /> | These lag harm rather than lead it: algae alerts at 80 but shades plants from 30, and water level alerts at 20 % while fish suffer from 50 %. |
 | CO₂ threshold | <Badge text="scaffolding" variant="caution" /> | The alert with nothing behind it — no organism in the engine reads dissolved CO₂ as a stressor, so it warns about a harm that is never inflicted. |
-| Behaviour on a drained tank | <Badge text="scaffolding" variant="caution" /> | Concentrations read 0 when there is no water and the water-level check requires `water > 0`, so the alert layer goes silent exactly when the tank is empty. Fish health reads the same zeroes and leaves a drained tank to its water-level stressor. |
+| Behaviour on a drained tank | <Badge text="scaffolding" variant="caution" /> | Concentrations read 0 when there is no water and the water-level check requires `water > 0`, so the alert layer goes silent exactly when the tank is empty. Fish health reads the same zeroes, so a drained tank charges no toxin and no flow — its water-level stressor carries it. |
 | Clearing | <Badge text="missing" variant="danger" /> | A condition resolving writes nothing. The log records that a tank got into trouble and never that it got out. |
 | Retention | <Badge text="missing" variant="danger" /> | The array is appended to and never trimmed, so a long-running tank grows its log without bound. |
 | Log persistence | <Badge text="missing" variant="danger" /> | Logs are not saved. A reload starts a fresh history while the latch flags survive it, so an alert already tripped never re-fires its line for the same episode. |
@@ -104,9 +104,9 @@ reading a field that exists to be rewritten.
 ### The log as the tank's history
 
 Every line carries the tick it happened at, so the array is a reconstructable
-timeline of everything the tank did. It is also the only such record: no other
-stock remembers its own past, and the tank's state is a snapshot of one hour
-with no history behind it.
+timeline of everything the tank did. It is also the only such record: the
+state is a snapshot of one hour, carrying no more past than the last day's
+light.
 
 That makes two absences load-bearing. The array is never trimmed, so it grows
 for as long as the tank runs. And it is not part of the persisted state, so

@@ -1,6 +1,6 @@
 ---
 title: Light
-description: One number — PAR at the substrate — recomputed each tick from the fixture, the photoperiod and the depth of the box, and multiplying the whole plant benefit budget.
+description: PAR at the substrate, recomputed each tick from the fixture, the photoperiod and the depth of the box — multiplying the plant benefit budget — and a day of it kept for the plants to starve on.
 ---
 
 import { Badge } from '@astrojs/starlight/components';
@@ -11,8 +11,9 @@ A fixture is rated at the water surface, which is the figure a manufacturer
 publishes. What the tank runs on is what reaches the substrate, so the rating is
 gated by the photoperiod and then carried down the water column by Beer–Lambert.
 The result is a single tank-wide scalar, and everything photic in the engine
-reads it: photosynthesis, four plant benefit channels, two plant stressors, and
-one algae benefit.
+reads it: photosynthesis, four plant benefit channels, the light-high stressor
+and one algae benefit. The last 24 hours of it are kept, and the plants starve
+on their integral.
 
 ## Status
 
@@ -21,9 +22,10 @@ one algae benefit.
 | PAR at the substrate | <Badge text="settled" variant="success" /> | `surfacePar × exp(−k · depth)`. Beer–Lambert through a depth the capacity already implies, so a fixture is worth less in a deeper tank without anyone declaring it. |
 | Saturation curve | <Badge text="settled" variant="success" /> | `tanh(PAR / Ik)`, the Jassby–Platt response. Near-linear below `Ik`, flat above it — a brighter fixture stops buying anything. |
 | Light multiplies the benefit budget | <Badge text="settled" variant="success" /> | Every benefit a plant earns is realised *through* photosynthesis, so light scales all four channels rather than standing beside them. Good water is worth nothing at midnight. |
-| `Ik` derived from the species band | <Badge text="settled" variant="success" /> | A fixed multiple of the band's lower bound, so one number carries both the saturation curve and the damage threshold and they cannot drift apart. |
+| `Ik` derived from the species band | <Badge text="settled" variant="success" /> | A fixed multiple of the band's lower bound, so one number carries both the saturation curve and the daily light edge and they cannot drift apart. |
+| The day's light | <Badge text="settled" variant="success" /> | A 24-slot history, one slot rewritten each tick. The daily light integral over it is what plants starve on, so a night costs nothing and a blackout bites as its hours leave the window. |
 | Photoperiod shape | <Badge text="scaffolding" variant="caution" /> | A rectangular window: rated PAR or zero, with no ramp at either edge. |
-| What rides on that edge | <Badge text="scaffolding" variant="caution" /> | The three `light > 0` gates — the plant light-low stressor, plant surplus accrual, and algae surplus accrual. A light-starved plant swings between 0 and full damage as the lamp flips while its benefits ramp smoothly. |
+| What rides on that edge | <Badge text="scaffolding" variant="caution" /> | The algae's two `light > 0` gates, on banking and on growth. The bloom's bank switches on and off with the lamp rather than following a rate. |
 | Depth tracks standing water | <Badge text="scaffolding" variant="caution" /> | Attenuation runs over the height the *capacity* implies. A half-drained tank lights its substrate as if it were full. |
 | Self-shading and canopy | <Badge text="missing" variant="danger" /> | One scalar for the whole tank. Every plant reads the same PAR whatever its height and whatever biomass stands above it, so an overgrown tank never shades itself. |
 | Spectrum | <Badge text="missing" variant="danger" /> | A fixture is one PAR number. No colour, no Kelvin, no spectral fit to a species. |
@@ -68,25 +70,35 @@ band. At `Ik` a plant already runs at 76 % of its maximum; at twice `Ik`, 96 %.
 | `dwarf_hairgrass` | 25–200 PAR | `50` |
 | `monte_carlo` | 30–200 PAR | `60` |
 
-One number carrying both channels is what makes a shade species genuinely
-different from a carpet rather than differently tuned: it saturates sooner *and*
-starts complaining sooner, on the same figure.
+The same band low sets the daily light a species starves under, so a shade
+species differs from a carpet on one figure: it saturates on less light *and*
+starves on less.
 
 ### Light as the multiplier
 
 The four benefit channels — CO₂, temperature, pH, nutrients — each peak at
 `0.125` %/h and are each multiplied by the saturation term, so the budget is
-`0.5` %/h × `tanh(PAR / Ik)` and light takes the whole of it down together.
-Against that income sits an upkeep cost that runs 24 hours a day.
+`0.5` %/h × `tanh(PAR / Ik)` and light takes the whole of it down together. A
+plant earns nothing in the dark, and a scheduled night costs it nothing either:
+starvation reads the day, not the hour.
 
-That structure produces a compensation point for free: below the PAR where
-income covers upkeep, a plant runs a deficit however perfect the water is. For a
-hardiness-0.3 species it falls at 10.5 % of its own `Ik` — 6.3 PAR for monte
-carlo — which is the bottom of the 10–20 % of saturating irradiance the
-macrophyte literature reports.
+### The day's light
 
-Darkness is charged as upkeep, not as damage. Night and a blackout cost the same
-per hour, and what tells them apart is only whether the bank ever refills.
+```
+lightByHour[tick % 24] = light                       // each tick, as the hour settles
+dli = Σ lightByHour × 3600 / 10⁶                     mol/m²/d
+```
+
+The tank keeps the last 24 hours of substrate PAR, one slot per hour of the
+day, and the daily light integral is their sum in the hobby's unit. Under a
+steady schedule it holds constant through day and night. When the fixture dies
+or the schedule shortens, it falls one lit hour at a time as those hours come
+round, and reaches zero a day after the last lit hour.
+
+A species starves under the low end of its PAR band held for the 8-hour day care
+sheets assume — 0.86 mol/m²/d for monte carlo, 0.23 for anubias. A new tank
+opens with the history of the schedule it was built on, as though it had run it
+all along.
 
 ### Photoperiod
 
@@ -101,16 +113,15 @@ inside it reads the full attenuated rating.
 |---|---|
 | Photosynthesis | Per plant, `tanh(PAR / Ik)` scales the potential rate that drives O₂, carbon and nutrient uptake |
 | Plant benefits | All four channels multiplied by the same term |
-| Plant light stressors | Two-sided against the species band — the low side only while the lamp is on, the high side whenever PAR exceeds the band |
-| Plant CO₂ stressor | Gated on `light > 0`; plants are not charged for carbon they are not trying to fix |
-| Plant surplus | Accrues only while lit — no light, no photosynthate to bank |
-| Algae | A capped benefit ramp above `70` PAR, and the same photoperiod gate on its bank |
+| Plant starvation | The daily light integral, against the species' edge |
+| Plant light-high stressor | PAR over the species band, while the lamp is on |
+| Algae | A capped benefit ramp above `70` PAR, and a `light > 0` gate on its banking and growth |
 
 ### Stocks and rates
 
 Light is not a stock. It is recomputed from scratch every tick before anything
-reads it, holds no history, and is the one resource with no source and no drain
-— only a value.
+reads it, and has no source and no drain — only a value. Its history is a record
+of those values, rewritten one hour at a time.
 
 ## Key tunables
 
@@ -118,8 +129,8 @@ reads it, holds no history, and is the one resource with no source and no drain
 |---|---|---|
 | `waterAttenuationPerCm` | Beer–Lambert coefficient of the water column | `0.010` /cm |
 | `saturationIrradianceFactor` | Multiple of a species' band-low that gives its `Ik` | `2.0` × |
-| `lightInsufficientSeverity` | Damage per PAR unit below the species band | `0.02` %/PAR/hr |
-| `lightExcessiveSeverity` | Damage per PAR unit above it | `0.015` %/PAR/hr |
+| `lightStarvationSeverity` | Plant damage in a day without light, at 25 °C | `0.3` %/hr |
+| `lightExcessiveSeverity` | Plant damage per PAR unit above the species band | `0.015` %/PAR/hr |
 | `lightExcessThreshold` | Substrate PAR above which algae starts earning from light | `70` PAR |
 | `MAX_LIGHT_PAR` | Ceiling on a fixture rating — full noon sun at the surface | `2000` µmol/m²/s |
 
@@ -132,7 +143,7 @@ construction refuses it.
 |---|---|---|
 | [Equipment](/subsystems/equipment/) | The fixture's rating, its enabled flag and its photoperiod | — |
 | [Environment](/subsystems/environment/) | Depth, from the box capacity implies | — |
-| [Plants](/subsystems/plants/) | — | The saturation multiplier on the whole benefit budget, the photosynthesis rate, the two-sided light stressor and the surplus gate |
+| [Plants](/subsystems/plants/) | — | The saturation multiplier on the whole benefit budget, the photosynthesis rate, the light-high stressor, and the day's light they starve on |
 | [Algae](/subsystems/algae/) | — | A capped benefit above `70` PAR, and the gate on banking and growth |
 | [Water & gases](/subsystems/water-and-gases/) | — | Indirectly: the photoperiod is what makes oxygen and CO₂ swing across a day |
 

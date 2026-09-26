@@ -149,25 +149,25 @@ density you can look up rather than a score.
 | `co2PerRateUnit` | CO₂ carried by one rate unit; oxygen derives from it at the molar ratio | mg |
 | `baseRespirationRate` | Dark respiration per unit of plant size, running around the clock | /hr |
 | `respirationQ10` | Factor respiration multiplies by per 10 °C | — |
-| `respirationReferenceTemp` | Temperature respiration and upkeep are quoted at | °C |
+| `respirationReferenceTemp` | Temperature respiration and light starvation are quoted at | °C |
 | `respirationOxygenHalfSaturation` | Dissolved O₂ at which respiration runs at half rate | mg/L |
-| `growthDrawRate` | Share of the reserve bank mobilised toward new tissue each lit hour | /hr |
+| `growthDrawRate` | Share of the bank drawn toward new tissue each hour | /hr |
+| `healingDrawRate` | Share of the bank that heals condition each hour, per unit of species growth rate | /hr per growth rate |
 | `sizePerSurplus` | Size gained per surplus unit converted, before the species growth multiplier | % |
-| `surplusCap` | Saturation cap on the reserve bank | % |
-| `upkeepCost` | Cost per hour of simply being alive, quoted at the respiration reference temperature | %/hr |
-| `upkeepReserveHours` | Hours of upkeep the bank keeps back from damage — the survival rations | hr upkeep |
-| `lightInsufficientSeverity` · `lightExcessiveSeverity` | Damage per PAR unit below and above the species' tolerable band | %/PAR/hr |
+| `surplusCap` | Ceiling on the bank | % |
+| `lightStarvationSeverity` | Damage in a day without light, falling to nothing at the species' daily light edge; quoted at the respiration reference temperature | %/hr |
+| `lightExcessiveSeverity` | Damage per PAR unit above the species' tolerable band | %/PAR/hr |
 | `temperatureStressSeverity` · `phStressSeverity` · `ghStressSeverity` | Damage per unit outside the species' tolerable band, one per factor | %/unit/hr |
 | `nutrientDeficiencySeverity` | Damage per unit of missing sufficiency, Liebig-gated | %/(1−suff)/hr |
-| `nutrientToxicitySeverity` · `nutrientToxicityThresholdNitrate` | The gross-overdose channel: what it costs per ppm past the threshold, and where that threshold starts | %/ppm/hr · ppm |
+| `nitrateStressSeverity` · `nitrateEdge` | Damage per e-fold of NO₃ past the plant's own edge, and where a hardiness-0 plant's edge sits | %/e-fold/hr · ppm |
 | `algaeShadingSeverity` · `algaeShadingThreshold` | Damage per point of bloom past the threshold, and the mass above which algae shades plants | %/algae/hr · — |
 | `co2BenefitPeak` · `temperatureBenefitPeak` · `phBenefitPeak` · `nutrientBenefitPeak` | Recovery earned per factor at its best — temperature and pH at the band's centre; all four are scaled by the light term | %/hr |
-| `maxSheddingRate` | Share of itself a plant sheds per hour when it can pay none of its upkeep | /hr |
+| `maxSheddingRate` | Share of itself a plant sheds per hour at condition 0, falling with the square of the deficit | /hr |
 | `wastePerShedSize` · `wastePerPlantDeath` | Waste produced per unit of size shed, and per unit of size on death | g/% |
-| `deathConditionThreshold` · `deathSizeThreshold` | Condition and size below which a plant dies | % |
+| `deathSizeThreshold` | Size below which a plant dies | % |
 
 Every severity above is pre-hardiness. The species' own hardiness scales every
-channel alike, `× (1 − hardiness)`.
+channel by `1 − hardiness` except nitrate, whose edge it carries out instead.
 
 ## Nutrients
 
@@ -199,7 +199,8 @@ channel alike, `× (1 − hardiness)`.
 | `satiationOverfedSeverity` · `satiationHungrySeverity` · `satiationStarvingSeverity` | Peak cost of each stressed band; the curve interpolates between the anchors | %/hr |
 | `satiationWellFedPeak` · `phBenefitPeak` · `oxygenBenefitPeak` · `plantBenefitPeak` | Recovery earned per factor at its best | %/hr |
 | `plantBenefitSaturationPoint` | Plant power at which the planted-tank benefit stops growing | plants |
-| `surplusCap` | Saturation cap on the fish's reserve bank | % |
+| `surplusCap` | Ceiling on the fish's bank; a female spawns on a full one | % |
+| `healingDrawRate` | Share of its bank a 1 g fish heals from each hour, scaled by adult mass to the −¼ | /hr at 1 g |
 | `deathDecayFactor` | Share of a dead fish's mass that becomes waste | — |
 
 ## Fixed tables
@@ -210,8 +211,8 @@ can move them at runtime.
 
 | Table | Holds |
 |---|---|
-| Fish species | Per species: adult mass, lifespan, hardiness, temperature / pH / flow tolerance bands, and a full breeding block — mode, clutch size, spawn cost, hatch time, maturity age |
-| Plant species | Per species: growth rate, max size, hardiness, CO₂ requirement, substrate requirement, nutrient demand tier, and the PAR band it tolerates |
+| Fish species | Per species: adult mass, lifespan, hardiness, temperature / pH / flow tolerance bands, and a full breeding block — mode, clutch size, hatch time, fry mass, maturity age |
+| Plant species | Per species: growth rate, max size, hardiness, CO₂ requirement, substrate requirement, nutrient demand tier, and the PAR band it tolerates, whose low end sets the daily light it starves under |
 | Filters | Per type: biological surface, target turnover, flow ceiling, tank-size ceiling, and whether it is air-driven |
 | Substrates | Per type: colony surface per litre, and the organic and KH reserves a fresh bed holds per litre |
 | Hardscape | Per type: colony surface, and the tannins a fresh piece carries |

@@ -54,7 +54,7 @@ keepers act differently.
 | Dose | millilitres | the four nutrient pools, by the fertilizer ratio | non-finite, below the minimum or above the maximum |
 | Scrub algae | an optional explicit share | `algae.mass` down 10–30 % | mass below the scrub floor, or a named share outside the band |
 | Trim plants | a target size, optionally one plant id | every plant above the target down to it, or just the named one | target outside `[0, 100]`, nothing above the target, plant not found |
-| Add plant | species, optional size | a plant at condition 100 holding half a bank | unknown species, size outside `[0, 200]`, tank at plant capacity, substrate incompatible |
+| Add plant | species, optional size | a plant at condition 100 with an empty bank | unknown species, size outside `[0, 200]`, tank at plant capacity, substrate incompatible |
 | Remove plant | plant id | the plant leaves the array; a rooted one disturbs one plant slot of the bed | not found |
 | Add fish | species | an adult at `maturityAge`, with sampled sex, hardiness offset and health jitter | unknown species, or the physical mass ceiling reached |
 | Remove fish | fish id | the fish leaves the array | not found |
@@ -102,7 +102,10 @@ The engine ships two helpers for the changes with a consequence behind them.
 Swapping the bed scales both colonies by the share of colonisable surface that
 went out with it. Writing doser settings clamps the amount into the doser's own
 range. Every other setting is a plain assignment, and the colony feels it only
-when the next tick truncates it to whatever surface is left.
+when the next tick truncates it to whatever surface is left. A light change
+reaches the plants the same way, an hour at a time: each tick rewrites one hour
+of the day's light they starve on, so a new schedule has fully arrived a day
+later.
 
 Tunables are a separate surface again. `TunableConfig` is validated against each
 leaf's declared range — see
