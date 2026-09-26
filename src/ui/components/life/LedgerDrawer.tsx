@@ -147,7 +147,7 @@ export function LedgerDrawer({
           <div className="border-t border-hairline pt-1">
             <ReadingRow
               name="Bank"
-              value={ledger.bank.value.toFixed(1)}
+              value={ledger.bank.text}
               unit={`of ${ledger.bank.cap}`}
               at={ledger.bank.at}
               band={{ from: 0, to: 1 }}

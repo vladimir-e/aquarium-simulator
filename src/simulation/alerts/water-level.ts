@@ -1,7 +1,6 @@
 /**
- * Water level critical alert.
- * Triggers once when water level drops below 20% of tank capacity.
- * Resets when water level goes back above threshold.
+ * Water level critical alert — fires once when water drops below
+ * `WATER_LEVEL_CRITICAL_THRESHOLD` of capacity, resets above it.
  */
 
 import type { Alert, AlertResult } from './types.js';

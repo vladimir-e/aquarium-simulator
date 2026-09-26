@@ -43,6 +43,10 @@ export function GearWidget({
           />
           <Passive label="turnover" value={turnoverShort(state.resources.flow, state.resources.water)} />
           <Passive label="PAR at bed" value={Math.round(state.resources.light).toString()} />
+          <Passive
+            label="daily light"
+            value={`${book.byId.dailyLight.value} ${book.byId.dailyLight.unit}`}
+          />
           <Passive label="aeration" value={state.resources.aeration ? 'yes' : 'no'} />
         </div>
       }

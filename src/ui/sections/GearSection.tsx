@@ -60,6 +60,7 @@ export function GearSection({
   if (deviceId !== undefined && selected === null) return <Navigate to="/gear" replace />;
 
   const { resources } = state;
+  const { dailyLight } = book.byId;
   const slots = state.equipment.hardscape.items.length;
 
   return (
@@ -107,6 +108,15 @@ export function GearSection({
               value={Math.round(resources.light).toString()}
               unit="PAR"
               note={resources.light > 0 ? 'through the water column' : 'lights out'}
+            />
+            <ReadingRow
+              name={dailyLight.name}
+              value={dailyLight.value}
+              unit={dailyLight.unit}
+              at={dailyLight.at}
+              band={dailyLight.band}
+              tone={dailyLight.tone}
+              note={dailyLight.need}
             />
             <ReadingRow
               name="Aeration"

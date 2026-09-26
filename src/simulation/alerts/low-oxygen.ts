@@ -1,6 +1,6 @@
 /**
- * Low oxygen alert — fires once when oxygen drops below its edge, ahead of
- * every fish's own, and resets above it.
+ * Low oxygen alert — fires once when oxygen drops below `OXYGEN_EDGE`, resets
+ * above it.
  */
 
 import type { Alert, AlertResult } from './types.js';

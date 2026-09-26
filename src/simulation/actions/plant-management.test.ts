@@ -11,7 +11,6 @@ import {
 import { createSimulation, type Plant, type SimulationState } from '../state.js';
 import type { PlantSpecies } from '../plants/species.js';
 import type { SubstrateType } from '../equipment/substrate.js';
-import { plantsDefaults } from '../config/plants.js';
 import type { ActionResult } from './types.js';
 import { DEFAULT_PLANT_SIZE } from '../plants/create-plant.js';
 import { produce } from 'immer';
@@ -39,7 +38,7 @@ const add = (
   species: PlantSpecies,
   initialSize?: number
 ): ActionResult =>
-  addPlant(state, { type: 'addPlant', species, initialSize }, plantsDefaults);
+  addPlant(state, { type: 'addPlant', species, initialSize });
 
 describe('getMaxPlants', () => {
   it('is zero without a tank, at least one in any tank, and grows with it', () => {

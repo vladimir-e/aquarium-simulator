@@ -124,8 +124,8 @@ function spawn(draft: SimulationState, config: LivestockConfig): void {
     const adults = draft.fish.filter((f) => f.species === species && isBreedingAdult(f));
     if (!adults.some((f) => f.sex === 'male')) continue;
 
-    for (const female of adults) {
-      if (female.sex !== 'female' || female.surplus < config.surplusCap) continue;
+    const ready = adults.filter((f) => f.sex === 'female' && f.surplus >= config.surplusCap);
+    for (const female of ready) {
       female.surplus = 0;
 
       if (breeding.mode === 'livebearer') {

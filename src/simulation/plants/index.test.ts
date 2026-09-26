@@ -8,19 +8,25 @@ import { getKhMass } from '../resources/helpers.js';
 import { DEFAULT_CONFIG } from '../config/index.js';
 import { plantsDefaults } from '../config/plants.js';
 import { NUTRIENTS, nutrientsDefaults } from '../config/nutrients.js';
-import { establishmentSurplus } from './create-plant.js';
-import { PLANT_SPECIES_DATA } from './species.js';
+import { CARE_SHEET_PHOTOPERIOD, PLANT_SPECIES_DATA } from './species.js';
 
 const INJECTED_CO2 = 25;
 
 /** Half-saturations the rich test water holds of every nutrient but nitrate. */
 const RICH = 1000;
-/** Just under the toxicity line: as near saturating as nitrate gets. */
+/** Just under the plant nitrate edge: as near saturating as nitrate gets. */
 const RICH_NITRATE_PPM = 90;
+
+/** A day with twice the light the neediest species starves under. */
+const LIT_DAY = Array.from({ length: 24 }, (_, hour) =>
+  hour < CARE_SHEET_PHOTOPERIOD
+    ? 2 * Math.max(...Object.values(PLANT_SPECIES_DATA).map((species) => species.tolerableLight[0]))
+    : 0
+);
 
 describe('processPlants', () => {
   const C = 100;
-  const BANK = establishmentSurplus(plantsDefaults);
+  const BANK = plantsDefaults.surplusCap / 2;
 
   function createTestState({
     plants,
@@ -29,6 +35,7 @@ describe('processPlants', () => {
     { plants: Plant[] } & Pick<
       Resources,
       | 'light'
+      | 'lightByHour'
       | 'co2'
       | 'nitrate'
       | 'phosphate'
@@ -177,6 +184,7 @@ describe('processPlants', () => {
       const state = createTestState({
         plants: [{ id: 'p1', species: 'monte_carlo', size: 50, condition: 100, surplus: 10 }],
         light: 0,
+        lightByHour: LIT_DAY,
         water: 100,
       });
       const after = processPlants(state, DEFAULT_CONFIG).state.plants[0];
@@ -301,6 +309,7 @@ describe('processPlants', () => {
       const state = createTestState({
         plants: [{ id: 'p1', species: 'java_fern', size: 50, condition: 100, surplus: 0 }],
         light: 0,
+        lightByHour: LIT_DAY,
         water: 100,
       });
       expect(processPlants(state, DEFAULT_CONFIG).state.plants[0].size).toBe(50);

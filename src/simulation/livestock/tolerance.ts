@@ -19,7 +19,7 @@ export const OXYGEN_EDGE = 4;
 export const OXYGEN_COMFORT = 6;
 
 /** mg/L added to both sides of the oxygen log, keeping harm finite at zero. */
-export const ANOXIA = 0.1;
+export const OXYGEN_LOG_OFFSET = 0.1;
 
 /** How far past the edge a fish of hardiness 1 tolerates. */
 export const HARDY_TOLERANCE = 2;

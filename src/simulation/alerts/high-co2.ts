@@ -1,7 +1,6 @@
 /**
- * High CO2 alert.
- * Triggers once when CO2 level exceeds harmful threshold (> 30 mg/L).
- * Resets when CO2 level drops below threshold.
+ * High CO₂ alert — fires once when CO₂ crosses `HIGH_CO2_THRESHOLD`, resets
+ * below it.
  */
 
 import type { Alert, AlertResult } from './types.js';

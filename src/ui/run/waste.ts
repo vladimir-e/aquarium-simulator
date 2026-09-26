@@ -1,7 +1,8 @@
 /**
  * The waste pool: what stands in the tank, what feeds it each hour, and what
- * leaves it into the nitrogen cycle. Rates come from the engine's own decay,
- * metabolism and shedding functions, so they are exactly what the next tick does.
+ * leaves it into the nitrogen cycle. Every rate is the engine's own: what the
+ * next tick's plant pass sheds, and the decay, metabolism and leaching off the
+ * tank as it stands.
  */
 
 import {
@@ -11,9 +12,10 @@ import {
   wasteSettlingShare,
   getTemperatureFactor,
   processMetabolism,
+  processPlants,
   type SimulationState,
 } from '../../simulation/index.js';
-import { calculateShedding } from '../../simulation/plants/index.js';
+import { settleEnvironment } from '../../simulation/tick.js';
 import { calculateWasteToAmmonia } from '../../simulation/systems/index.js';
 import type { TunableConfig } from '../../simulation/config/index.js';
 
@@ -62,10 +64,9 @@ export function wasteInflow(state: SimulationState, config: TunableConfig): Wast
   const grams: Record<WasteSourceKey, number> = {
     food: decayed * config.decay.wasteConversionRatio,
     fish: processMetabolism(state.fish, r.food, r.oxygen, config.livestock).wasteProduced,
-    plants: state.plants.reduce(
-      (sum, plant) => sum + calculateShedding(plant, config.plants).wasteProduced,
-      0
-    ),
+    plants: processPlants(settleEnvironment(state, config), config)
+      .effects.filter((effect) => effect.resource === 'waste')
+      .reduce((sum, effect) => sum + effect.delta, 0),
     substrate: calculateSubstrateLeach(state.equipment.substrate.organicReserve, config.decay),
   };
 

@@ -45,12 +45,12 @@ import { freeAmmoniaPpm } from './nitrogen-cycle.js';
 import { satiationContribution, SATIATION_BAND_LABEL } from './satiation.js';
 import { getPlantPower } from './plant-power.js';
 import {
-  ANOXIA,
   FREE_AMMONIA_EDGE,
   NITRATE_EDGE,
   NITRITE_EDGE,
   OXYGEN_COMFORT,
   OXYGEN_EDGE,
+  OXYGEN_LOG_OFFSET,
   toleranceFactor,
 } from '../livestock/tolerance.js';
 import {
@@ -154,7 +154,7 @@ function buildStressors(ctx: FishFactorContext): VitalityFactor[] {
       : 'Satiation';
 
   const oxygenStress =
-    config.oxygenStressSeverity * eFoldsUnder(resources.oxygen, OXYGEN_EDGE / tolerance, ANOXIA);
+    config.oxygenStressSeverity * eFoldsUnder(resources.oxygen, OXYGEN_EDGE / tolerance, OXYGEN_LOG_OFFSET);
 
   // Water level stress (below the configured threshold of capacity)
   let waterLevelStress = 0;

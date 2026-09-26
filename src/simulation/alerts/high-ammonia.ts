@@ -1,6 +1,6 @@
 /**
- * High ammonia alert — fires once when free NH₃ crosses its edge, ahead of
- * every fish's own, and resets below it.
+ * High ammonia alert — fires once when free NH₃ crosses `FREE_AMMONIA_EDGE`,
+ * resets below it.
  *
  * Free and not total: only the unionized fraction crosses gills, and it moves
  * with pH and temperature, so the same test-kit reading is harmless in soft

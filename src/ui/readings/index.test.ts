@@ -155,6 +155,17 @@ describe('readTank', () => {
     expect(fouled.band).toBeNull();
   });
 
+  it('bands the day’s light on what the neediest plant starves under, and not at all unplanted', () => {
+    const planted = read(stocked(1)).byId.dailyLight;
+    const unplanted = read(bare()).byId.dailyLight;
+
+    expect(planted.band).not.toBeNull();
+    expect(planted.need).toMatch(/^need /);
+    expect(unplanted.band).toBeNull();
+    expect(unplanted.need).toBe('');
+    expect(unplanted.tone).toBe('ink');
+  });
+
   it('holds a nutrient’s band still while the value moves across it', () => {
     const settled = stocked();
     const dosed = applyAction(settled.state, { type: 'dose', amountMl: 5 }).state;

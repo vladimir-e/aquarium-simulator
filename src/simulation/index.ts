@@ -21,6 +21,7 @@ export type {
 } from './state.js';
 export {
   createSimulation,
+  scheduledLightHistory,
   calculateTankHeight,
   calculateTankGlassSurface,
   calculateHardscapeSlots,
@@ -339,6 +340,7 @@ export {
   spendSurplus,
   getSpeciesGrowthRate,
   computePlantVitality,
+  plantHealingRate,
   buildPlantStressors,
   buildPlantBenefits,
 } from './plants/index.js';
@@ -349,6 +351,7 @@ export {
   processMetabolism,
   processHealth,
   computeFishVitality,
+  fishHealingRate,
   processBreeding,
   createFish,
   fishMassForAge,

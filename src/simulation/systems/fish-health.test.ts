@@ -3,18 +3,25 @@ import { computeFishVitality, fishHealingRate, processHealth } from './fish-heal
 import type { VitalityResult } from './vitality.js';
 import { livestockDefaults } from '../config/livestock.js';
 import { FISH_SPECIES_DATA } from '../livestock/species.js';
-import type { Fish, Plant, Resources } from '../state.js';
+import { createSimulation, type Fish, type Plant, type Resources, type SimulationState } from '../state.js';
+import {
+  highAmmoniaAlert,
+  highNitrateAlert,
+  highNitriteAlert,
+  lowOxygenAlert,
+  type Alert,
+} from '../alerts/index.js';
 import { withPh, type ResourceOverrides } from '../tests/resources.js';
 import { getGhMass } from '../resources/helpers.js';
 import type { FishSpecies } from '../livestock/species.js';
 import {
-  ANOXIA,
   FREE_AMMONIA_EDGE,
   HARDY_TOLERANCE,
   NITRATE_EDGE,
   NITRITE_EDGE,
   OXYGEN_COMFORT,
   OXYGEN_EDGE,
+  OXYGEN_LOG_OFFSET,
   toleranceFactor,
 } from '../livestock/tolerance.js';
 import { freeAmmoniaPpm } from './nitrogen-cycle.js';
@@ -166,8 +173,8 @@ describe('stressors', () => {
     expect(high).toBeGreaterThan(low * 10);
   });
 
-  it('leaves a drained tank to the water-level stressor', () => {
-    const v = vitality({}, { ammonia: 1000, nitrite: 1000, nitrate: 1000, flow: 1000, water: 0 }, { water: 0 });
+  it('charges no toxin or flow in a drained tank', () => {
+    const v = vitality({}, { ammonia: 1000, nitrite: 1000, nitrate: 1000, flow: 1000, water: 0 });
     for (const key of ['ammonia', 'nitrite', 'nitrate', 'flow']) expect(stressorAmount(v, key)).toBe(0);
     expect(stressorAmount(v, 'waterLevel')).toBeGreaterThan(0);
   });
@@ -201,11 +208,13 @@ describe('water quality', () => {
     nitrate: (ppm) => ({ nitrate: ppm * 100 }),
     oxygen: (oxygen) => ({ oxygen }),
   };
-  const atBandCentre = (key: string, reading: number, fish: Partial<Fish> = {}): VitalityResult => {
-    const [lo, hi] = FISH_SPECIES_DATA[fish.species ?? 'neon_tetra'].phRange;
+  const bandCentre = (key: string, reading: number, species: FishSpecies = 'neon_tetra'): ResourceOverrides => {
+    const [lo, hi] = FISH_SPECIES_DATA[species].phRange;
     const ph = (lo + hi) / 2;
-    return vitality(fish, { ph, ...at[key](reading, ph) });
+    return { ph, ...at[key](reading, ph) };
   };
+  const atBandCentre = (key: string, reading: number, fish: Partial<Fish> = {}): VitalityResult =>
+    vitality(fish, bandCentre(key, reading, fish.species));
 
   it.each<[string, number]>([
     ['nitrite', NITRITE_EDGE],
@@ -219,14 +228,14 @@ describe('water quality', () => {
     expect(charge(own * 8)).toBeCloseTo(3 * charge(own * 2), 10);
   });
 
-  it('grows oxygen harm by the same step each time oxygen plus anoxia halves, finite and rising to zero', () => {
+  it('grows oxygen harm by the same step each time oxygen plus its log offset halves, finite and rising to zero', () => {
     const own = OXYGEN_EDGE / neonTolerance;
     const charge = (oxygen: number): number => stressorAmount(vitality({}, { oxygen }), 'oxygen');
-    const halved = (times: number): number => (own + ANOXIA) / 2 ** times - ANOXIA;
+    const halved = (times: number): number => (own + OXYGEN_LOG_OFFSET) / 2 ** times - OXYGEN_LOG_OFFSET;
     expect(charge(own)).toBe(0);
     expect(charge(halved(2))).toBeCloseTo(2 * charge(halved(1)), 10);
     expect(Number.isFinite(charge(0))).toBe(true);
-    expect(charge(0)).toBeGreaterThan(charge(ANOXIA / 2));
+    expect(charge(0)).toBeGreaterThan(charge(OXYGEN_LOG_OFFSET / 2));
   });
 
   it('moves a hardier fish’s edge out rather than flattening its slope', () => {
@@ -268,15 +277,29 @@ describe('water quality', () => {
   it.each(channels)('breaks a fish even on %s where its charge meets the clean-tank budget', (key, edge, severity) => {
     const ratio = Math.exp(budget(key) / severity);
     const breakEven =
-      key === 'oxygen' ? (edge / neonTolerance + ANOXIA) / ratio - ANOXIA : edge * neonTolerance * ratio;
+      key === 'oxygen'
+        ? (edge / neonTolerance + OXYGEN_LOG_OFFSET) / ratio - OXYGEN_LOG_OFFSET
+        : edge * neonTolerance * ratio;
     const v = atBandCentre(key, breakEven);
     expect(v.breakdown.benefitRate).toBeCloseTo(budget(key), 10);
     expect(v.breakdown.net).toBeCloseTo(0, 10);
   });
 
-  it.each(channels)('spares even the frailest fish on %s just past the alert edge', (key, edge) => {
-    const frailest = atBandCentre(key, past(key, edge, 1.01), { hardinessOffset: -1 });
-    expect(stressorAmount(frailest, key)).toBe(0);
+  const alertOn: Record<string, Alert> = {
+    ammonia: highAmmoniaAlert,
+    nitrite: highNitriteAlert,
+    nitrate: highNitrateAlert,
+    oxygen: lowOxygenAlert,
+  };
+
+  it.each(channels)('alerts on %s at a reading that spares even the frailest fish', (key, edge) => {
+    const reading = past(key, edge, 1.01);
+    const tank: SimulationState = {
+      ...createSimulation({ tankCapacity: 100 }),
+      resources: makeResources(bandCentre(key, reading)),
+    };
+    expect(alertOn[key].check(tank).log).not.toBeNull();
+    expect(stressorAmount(atBandCentre(key, reading, { hardinessOffset: -1 }), key)).toBe(0);
   });
 
   it.each(channels)('still harms the hardiest fish on %s where hardiness 1 would start', (key, edge) => {

@@ -5,6 +5,7 @@ import {
   createSimulation,
   getDosePreview,
   getPlantsToTrimCount,
+  tick,
   type PlantSpecies,
   type SimulationState,
 } from '../../simulation/index.js';
@@ -24,6 +25,7 @@ import {
   overTrimCount,
   groupPlantsBySpecies,
   plantRows,
+  plantVitalityAhead,
   TRIM_TARGETS,
 } from './flora';
 import { conditionStatus, conditionWord } from './status';
@@ -82,17 +84,25 @@ describe('groupPlantsBySpecies', () => {
     expect(ferns.statuses).toHaveLength(2);
   });
 
-  it('takes the group’s word from its worst specimen, and its strip from the mean', () => {
+  it('reads the group off its worst specimen, and its strip off the mean', () => {
     const rows = plantRows(planted(['java_fern', 'java_fern']), DEFAULT_CONFIG);
-    const ailing = [
-      { ...rows[0], condition: 20, status: 'alert' as const, word: 'dying' },
-      { ...rows[1], condition: 80, status: 'ok' as const, word: 'thriving' },
-    ];
+    const [group] = groupPlantsBySpecies([
+      { ...rows[0], condition: 20 },
+      { ...rows[1], condition: 80 },
+    ]);
 
-    const [group] = groupPlantsBySpecies(ailing);
-    expect(group.status).toBe('alert');
-    expect(group.word).toBe('dying');
-    expect(group.condition).toBe(50);
+    expect(group).toMatchObject({ status: conditionStatus(20), word: conditionWord(20), condition: 50 });
+  });
+
+  it('counts the sick specimens', () => {
+    const rows = plantRows(planted(['java_fern', 'java_fern', 'java_fern']), DEFAULT_CONFIG);
+    const [group] = groupPlantsBySpecies([
+      { ...rows[0], sick: true },
+      { ...rows[1], sick: true },
+      rows[2],
+    ]);
+
+    expect(group).toMatchObject({ status: 'warn', word: '2 sick' });
   });
 });
 
@@ -109,6 +119,23 @@ describe('plantRows', () => {
     }
   });
 
+  it('calls a plant sick exactly while it loses condition', () => {
+    const dark = produce(planted(['java_fern']), (draft) => {
+      draft.equipment.light.enabled = false;
+      draft.resources.lightByHour.fill(0);
+    });
+    expect(plantRows(dark, DEFAULT_CONFIG)[0].word).toBe('sick');
+
+    const banked = produce(dark, (draft) => {
+      draft.plants[0].surplus = DEFAULT_CONFIG.plants.surplusCap;
+    });
+    for (const state of [dark, banked]) {
+      const [row] = plantRows(state, DEFAULT_CONFIG);
+      const [ahead] = plantVitalityAhead(state, DEFAULT_CONFIG);
+      expect(row.word === 'sick').toBe(ahead.newCondition < row.condition);
+    }
+  });
+
   it('names the plant declining and the plant thriving', () => {
     const state = planted(['java_fern']);
     const struggling = {
@@ -121,6 +148,21 @@ describe('plantRows', () => {
       word: 'struggling',
       status: 'alert',
     });
+  });
+});
+
+describe('plantVitalityAhead', () => {
+  it('reads each plant exactly as the next tick runs it, at every hour of the day', () => {
+    let state = produce(planted(['java_fern', 'monte_carlo']), (draft) => {
+      for (const plant of draft.plants) plant.condition = 70;
+    });
+    for (let hour = 0; hour < 24; hour++) {
+      const next = tick(state, DEFAULT_CONFIG);
+      expect(plantVitalityAhead(state, DEFAULT_CONFIG).map((v) => v.newCondition)).toEqual(
+        next.plants.map((plant) => plant.condition)
+      );
+      state = next;
+    }
   });
 });
 

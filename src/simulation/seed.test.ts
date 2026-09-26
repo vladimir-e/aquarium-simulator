@@ -12,8 +12,7 @@ import {
 import { getSubstrateKhReserve } from './equipment/substrate.js';
 import { calculateMaxBacteria } from './systems/nitrogen-cycle.js';
 import { HARDSCAPE_TANNINS } from './equipment/hardscape.js';
-import { DEFAULT_PLANT_SIZE, establishmentSurplus } from './plants/create-plant.js';
-import { plantsDefaults } from './config/plants.js';
+import { DEFAULT_PLANT_SIZE } from './plants/create-plant.js';
 import { getDgh, getDkh } from './resources/helpers.js';
 
 const TANK: SimulationConfig = { tankCapacity: 40, substrate: { type: 'aqua_soil' } };
@@ -388,9 +387,7 @@ describe('createSimulation seeding', () => {
       expect(state.plants[3].species).toBe('anubias');
       expect(state.plants[3].size).toBe(DEFAULT_PLANT_SIZE);
       expect(
-        state.plants.every(
-          (p) => p.condition === 100 && p.surplus === establishmentSurplus(plantsDefaults)
-        )
+        state.plants.every((p) => p.condition === 100 && p.surplus === 0)
       ).toBe(true);
     });
   });

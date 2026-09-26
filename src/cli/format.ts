@@ -2,17 +2,17 @@
  * Output formatters for `sim observe` (markdown) and `sim trace` (CSV).
  */
 
+import { getDgh, getDkh, getPh, type SimulationState } from '../simulation/index.js';
+import { ammoniaAlertLine } from '../simulation/alerts/index.js';
 import {
-  getDgh,
-  getDkh,
-  getPh,
-  NITRATE_EDGE,
-  NITRITE_EDGE,
-  OXYGEN_EDGE,
-  type SimulationState,
-} from '../simulation/index.js';
-import { ammoniaAlertLine, HIGH_CO2_THRESHOLD } from '../simulation/alerts/index.js';
-import { bacteriaReadout, colonyCount, cycleWord, type Colony } from '../ui/run/index.js';
+  bacteriaReadout,
+  classifyAmmonia,
+  classifyVital,
+  colonyCount,
+  cycleWord,
+  type Colony,
+  type Status,
+} from '../ui/run/index.js';
 import type { Session } from './session.js';
 import type { HistorySnapshot } from './history.js';
 
@@ -27,8 +27,8 @@ function round(value: number, digits = 2): number {
   return Math.round(value * factor) / factor;
 }
 
-function warningSymbol(predicate: boolean): string {
-  return predicate ? ' !' : '';
+function marker(...statuses: Status[]): string {
+  return statuses.some((status) => status === 'warn' || status === 'alert') ? ' !' : '';
 }
 
 /** Render a compact markdown snapshot of the current session. */
@@ -69,13 +69,14 @@ export function renderObserve(session: Session): string {
     )} · KH ${round(getDkh(r.kh, r.water), 1)} dKH · GH ${round(getDgh(r.gh, r.water), 1)} dGH · water ${round(r.water, 1)}L (${waterPct}%)`,
     '',
     '**Nitrogen**',
-    `- NH3: ${round(nh3, 3)} ppm${warningSymbol(nh3 > ammoniaAlertLine(r))}`,
-    `- NO2: ${round(no2, 3)} ppm${warningSymbol(no2 > NITRITE_EDGE)}`,
-    `- NO3: ${round(no3, 2)} ppm${warningSymbol(no3 > NITRATE_EDGE)}`,
+    `- NH3: ${round(nh3, 3)} ppm${marker(classifyAmmonia(nh3, ammoniaAlertLine(r)))}`,
+    `- NO2: ${round(no2, 3)} ppm${marker(classifyVital('nitrite', no2))}`,
+    `- NO3: ${round(no3, 2)} ppm${marker(classifyVital('nitrate', no3))}`,
     `- Biofilter: ${cycleWord(bacteria.cycled)} · AOB ${colony(bacteria.aob)} · NOB ${colony(bacteria.nob)}`,
     '',
-    `**Gases** O2 ${round(r.oxygen, 2)} · CO2 ${round(r.co2, 2)} mg/L${warningSymbol(
-      r.oxygen < OXYGEN_EDGE || r.co2 > HIGH_CO2_THRESHOLD
+    `**Gases** O2 ${round(r.oxygen, 2)} · CO2 ${round(r.co2, 2)} mg/L${marker(
+      classifyVital('oxygen', r.oxygen),
+      classifyVital('co2', r.co2)
     )}`,
     `**Nutrients** PO4 ${po4} · K ${round(toPpm(r.potassium, r.water), 2)} · Fe ${round(
       toPpm(r.iron, r.water),

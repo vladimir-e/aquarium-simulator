@@ -49,7 +49,7 @@ const DEFINITIONS = [
     band: {
       green: [0, FREE_AMMONIA_EDGE],
       amber: [0, 0.15],
-      why: `the engine alerts at ${FREE_AMMONIA_EDGE} ppm free NH₃, before any fish is harmed; a mid-hardiness fish is harmed from ~0.03 and loses health past ~0.15`,
+      why: `the engine alerts at ${FREE_AMMONIA_EDGE} ppm free NH₃; a mid-hardiness fish is harmed from ~0.03 and loses health past ~0.15`,
     },
     cycle: true,
   },

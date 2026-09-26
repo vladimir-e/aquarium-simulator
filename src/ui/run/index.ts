@@ -30,6 +30,7 @@ export {
 } from './status.js';
 export { type StockedBand, stockedBand, toleranceStatus } from './tolerance.js';
 export {
+  classifyAmmonia,
   classifyVital,
   NITRATE_LOW_PPM,
   type VitalKey,
@@ -73,7 +74,6 @@ export {
   countFry,
   type FishRead,
   fishReading,
-  isSick,
   type RosterFigures,
   type SpeciesGroup,
   groupBySpecies,
@@ -101,6 +101,7 @@ export {
   type LedgerTarget,
   readLedger,
 } from './ledger.js';
+export { DAILY_LIGHT_DECIMALS, type DailyLightReading, dailyLightReading } from './light.js';
 export {
   algaeStatus,
   algaeWord,

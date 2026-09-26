@@ -1,7 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import {
+  applyAction,
   computeFishVitality,
   createSimulation,
+  tick,
   type Fish,
   type SimulationState,
 } from '../../simulation/index.js';
@@ -78,13 +80,48 @@ describe('readLedger', () => {
     expect(rates).toEqual([...rates].sort((a, b) => b - a));
   });
 
-  it('says what the bank is doing, and switches when it starts paying out', () => {
-    const banked = fishLedger(tank([makeFish({ id: 'fish_a_1', surplus: 5 })]));
-    const paying = fishLedger(tank([makeFish({ id: 'fish_a_1', surplus: 5 })], 20));
+  it('says what the bank is doing: banking income, or healing out of it', () => {
+    const banking = fishLedger(tank([makeFish({ id: 'fish_a_1', surplus: 5 })]));
+    const healing = fishLedger(tank([makeFish({ id: 'fish_a_1', surplus: 5 })], 20));
 
-    expect(banked.bank!.note).toBe('banked against a bad day');
-    expect(banked.bank!.at).toBeCloseTo(5 / DEFAULT_CONFIG.livestock.surplusCap, 8);
-    expect(paying.bank!.note).toBe('paying out to hold condition');
+    expect(banking.bank!.note).toBe('banking');
+    expect(banking.bank!.at).toBeCloseTo(5 / DEFAULT_CONFIG.livestock.surplusCap, 8);
+    expect(healing.bank!.note).toBe('healing from reserve');
+  });
+
+  it('says so when the bank can neither take income nor heal', () => {
+    const cap = DEFAULT_CONFIG.livestock.surplusCap;
+    const full = fishLedger(tank([makeFish({ id: 'fish_a_1', surplus: cap })]));
+    const empty = fishLedger(tank([makeFish({ id: 'fish_a_1' })], 20));
+
+    expect(full.bank!.note).toBe('full');
+    expect(empty.bank!.note).toBe('empty');
+  });
+
+  describe('for a plant', () => {
+    const planted = (hour: number): SimulationState => {
+      const state = applyAction(createSimulation({ tankCapacity: 200 }), {
+        type: 'addPlant',
+        species: 'java_fern',
+      }).state;
+      const surplus = DEFAULT_CONFIG.plants.surplusCap / 2;
+      return { ...state, tick: hour, plants: state.plants.map((plant) => ({ ...plant, surplus })) };
+    };
+    const plantLedger = (state: SimulationState): Ledger =>
+      readLedger(state, DEFAULT_CONFIG, { kind: 'plant', id: state.plants[0].id })!;
+
+    it('banks by day and buys growth out of the bank by night', () => {
+      expect(plantLedger(planted(10)).bank!.note).toBe('banking');
+      expect(plantLedger(planted(0)).bank!.note).toBe('buying growth');
+    });
+
+    it('trends by the condition the next tick leaves it at', () => {
+      const dawn = planted(7);
+      const state = { ...dawn, plants: dawn.plants.map((plant) => ({ ...plant, condition: 70 })) };
+      const change = (tick(state, DEFAULT_CONFIG).plants[0].condition - 70) * 24;
+
+      expect(plantLedger(state).trend).toBe(`↗ ${change.toFixed(1)}/d`);
+    });
   });
 
   it('has nothing to open for a fish the tank no longer holds', () => {

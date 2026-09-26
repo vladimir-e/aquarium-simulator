@@ -23,8 +23,7 @@ import {
 } from './livestock.js';
 import type { PlantSpeciesGroup } from './flora.js';
 import {
-  conditionStatus,
-  conditionWord,
+  healthReading,
   STATUS_SEVERITY,
   worstReading,
   type Reading,
@@ -149,6 +148,7 @@ interface Grouped {
   condition: number;
   satiation: number;
   hunger: Hunger | null;
+  sick: number;
 }
 
 /**
@@ -156,10 +156,7 @@ interface Grouped {
  * every member of which is hungry does not read `thriving` off its condition.
  */
 function groupVital(group: Grouped): Reading {
-  const health: Reading = {
-    status: conditionStatus(group.condition),
-    word: conditionWord(group.condition),
-  };
+  const health = healthReading(group.condition, group.sick > 0 ? `${group.sick} sick` : null);
   if (!group.hunger) return health;
 
   return worstReading(health, {

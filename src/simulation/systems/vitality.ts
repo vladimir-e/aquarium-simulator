@@ -159,5 +159,5 @@ export function eFoldsPast(value: number, edge: number): number {
  * `offset` higher so the log stays smooth and finite all the way to zero.
  */
 export function eFoldsUnder(value: number, edge: number, offset: number): number {
-  return value < edge ? Math.log((edge + offset) / (Math.max(value, 0) + offset)) : 0;
+  return eFoldsPast(edge + offset, Math.max(value, 0) + offset);
 }

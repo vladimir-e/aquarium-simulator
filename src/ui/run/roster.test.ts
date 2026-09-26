@@ -151,16 +151,33 @@ describe('rosterTables', () => {
   });
 
   it('reads a group by its hungry members, even at full condition', () => {
+    const banked = { surplus: livestockDefaults.surplusCap };
     const hungry = [
-      makeFish({ id: 'fish_a_1', satiation: 90 }),
-      makeFish({ id: 'fish_a_2', satiation: 40 }),
-      makeFish({ id: 'fish_a_3', satiation: 30 }),
+      makeFish({ id: 'fish_a_1', satiation: 90, ...banked }),
+      makeFish({ id: 'fish_a_2', satiation: 40, ...banked }),
+      makeFish({ id: 'fish_a_3', satiation: 30, ...banked }),
     ];
     const [group] = tables(tank(hungry)).fish as SpeciesRosterRow[];
 
     expect(group.status).toBe('warn');
     expect(group.word).toBe('2 hungry');
     expect(group.satiation!.word).toBe('2 hungry');
+  });
+
+  it('counts the members whose damage outruns their healing', () => {
+    const base = tank([
+      makeFish({ id: 'fish_a_1' }),
+      makeFish({ id: 'fish_a_2' }),
+      makeFish({ id: 'fish_a_3', surplus: livestockDefaults.surplusCap }),
+    ]);
+    const poisoned: SimulationState = {
+      ...base,
+      resources: { ...base.resources, ammonia: 20 * base.resources.water },
+    };
+    const [group] = tables(poisoned).fish as SpeciesRosterRow[];
+
+    expect(group.status).toBe('warn');
+    expect(group.word).toBe('2 sick');
   });
 
   it('gives a fish the word its ledger gives it, bank and all', () => {

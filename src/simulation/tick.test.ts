@@ -148,6 +148,7 @@ describe('the light history', () => {
     for (let hour = 1; hour <= 30; hour++) {
       state = tick(state);
       expect(state.resources.lightByHour[state.tick % 24]).toBe(state.resources.light);
+      expect(state.resources.lightByHour.filter((par) => par === -1)).toHaveLength(Math.max(0, 24 - hour));
     }
     expect(state.resources.lightByHour.every((par) => par >= 0)).toBe(true);
   });

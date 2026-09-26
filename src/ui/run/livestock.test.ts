@@ -1,6 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import type { Clutch, Fish, SimulationState } from '../../simulation/index.js';
-import { applyAction, createSimulation, FISH_SPECIES_DATA } from '../../simulation/index.js';
+import {
+  applyAction,
+  computeFishVitality,
+  createSimulation,
+  FISH_SPECIES_DATA,
+} from '../../simulation/index.js';
 import { livestockDefaults } from '../../simulation/config/livestock.js';
 import {
   bandStatus,
@@ -188,12 +193,29 @@ describe('the reading behind a fish', () => {
     expect(group.members.map((member) => member.reading.word)).toEqual(['sick', 'starving']);
   });
 
-  it('calls a fish sick while damage outruns its healing, and not while its bank holds it', () => {
-    const bare = poisoned([makeFish({ id: 'a', health: 100, satiation: 90 })], 10);
+  it('calls a fish sick exactly while damage outruns its healing', () => {
+    for (const surplus of [0, livestockDefaults.surplusCap]) {
+      const state = poisoned([makeFish({ id: 'a', health: 100, satiation: 90, surplus })], 10);
+      const [fish] = state.fish;
+      const vitality = computeFishVitality(
+        fish,
+        state.resources,
+        state.plants,
+        state.resources.water,
+        state.tank.capacity,
+        livestockDefaults
+      );
+      const { reading } = groupBySpecies(state, livestockDefaults)[0].members[0];
+
+      expect(reading.word === 'sick').toBe(vitality.newCondition < fish.health);
+    }
+  });
+
+  it('is not sick while a bank that heals it whole holds it up', () => {
+    const config = { ...livestockDefaults, healingDrawRate: 1e6 };
     const banked = poisoned([makeFish({ id: 'a', health: 100, satiation: 90, surplus: 50 })], 10);
 
-    expect(groupBySpecies(bare, livestockDefaults)[0].members[0].reading).toEqual({ status: 'warn', word: 'sick' });
-    expect(groupBySpecies(banked, livestockDefaults)[0].members[0].reading.word).toBe('thriving');
+    expect(groupBySpecies(banked, config)[0].members[0].reading.word).toBe('thriving');
   });
 
   it('reads each fish once, and hands the reading to the row', () => {

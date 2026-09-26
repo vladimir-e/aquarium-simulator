@@ -32,6 +32,7 @@ import {
   bacteriaReadout,
   colonyCount,
   cycleWord,
+  dailyLightReading,
   doseDeltas,
   formatDose,
   type BacteriaReadout,
@@ -164,6 +165,7 @@ function lightReadings({ state, config }: DeviceReadingInput): DeviceReading[] {
   const surfacePar = getLightOutput(light, hour);
   const wouldLand = Math.round(calculateParAtDepth(light.par, depth, config.optics));
   const column = `${Math.round(depth)} cm of water`;
+  const daily = dailyLightReading(state);
 
   return [
     {
@@ -180,6 +182,7 @@ function lightReadings({ state, config }: DeviceReadingInput): DeviceReading[] {
       value: `${Math.round(state.resources.light)} PAR`,
       note: lit ? `through ${column}` : `would land ${wouldLand} PAR through ${column}`,
     },
+    { label: 'Daily light', value: `${daily.text} mol/m²/d`, note: daily.need || undefined },
     { label: 'Photoperiod', value: `${light.schedule.duration} h/day` },
   ];
 }

@@ -23,7 +23,7 @@ import {
   MAX_LIGHT_PAR,
   scheduledLightByHour,
 } from './equipment/light.js';
-import { opticsDefaults } from './config/optics.js';
+import { opticsDefaults, type OpticsConfig } from './config/optics.js';
 import type { AirPump } from './equipment/air-pump.js';
 import { DEFAULT_AIR_PUMP, getAirPumpFlow } from './equipment/air-pump.js';
 import type { AutoDoser } from './equipment/auto-doser.js';
@@ -285,9 +285,9 @@ export interface Equipment {
  * Used to only fire alerts once when crossing thresholds.
  */
 export interface AlertState {
-  /** Water level is below critical threshold */
+  /** Water is below `WATER_LEVEL_CRITICAL_THRESHOLD` of capacity */
   waterLevelCritical: boolean;
-  /** Algae level is at 80+ (bloom warning) */
+  /** Algae mass is at or above `HIGH_ALGAE_THRESHOLD` */
   highAlgae: boolean;
   /** Free NH₃ is above `FREE_AMMONIA_EDGE` */
   highAmmonia: boolean;
@@ -297,7 +297,7 @@ export interface AlertState {
   highNitrate: boolean;
   /** Oxygen is below `OXYGEN_EDGE` */
   lowOxygen: boolean;
-  /** CO2 above harmful threshold (> 30 mg/L) */
+  /** CO₂ is above `HIGH_CO2_THRESHOLD` */
   highCo2: boolean;
 }
 
@@ -420,6 +420,14 @@ export function calculateHardscapeSlots(capacityLiters: number): number {
  */
 export function calculateTankHeight(capacity: number): number {
   return Math.cbrt(capacity / 2) * 10;
+}
+
+/** The light history of a tank that has run its fixture's schedule all along. */
+export function scheduledLightHistory(
+  state: Pick<SimulationState, 'tank' | 'equipment'>,
+  optics: OpticsConfig
+): number[] {
+  return scheduledLightByHour(state.equipment.light, calculateTankHeight(state.tank.capacity), optics);
 }
 
 /**
@@ -584,7 +592,7 @@ export function createSimulation(
   // Calculate hardscape slots from capacity
   const hardscapeSlots = calculateHardscapeSlots(tankCapacity);
 
-  // Calculate initial passive resources (surface, flow, light, aeration)
+  // Calculate initial passive resources (surface, flow, aeration)
   const initialPassiveResources = calculateInitialPassiveResources(
     tankGlassSurface,
     tankCapacity,
@@ -592,16 +600,31 @@ export function createSimulation(
     powerheadConfig,
     substrateConfig,
     hardscapeConfig,
-    lightConfig,
     airPumpConfig
   );
 
+  const tank: Tank = { capacity: tankCapacity, hardscapeSlots };
+  const equipment: Equipment = {
+    heater: heaterConfig,
+    lid: lidConfig,
+    ato: atoConfig,
+    filter: filterConfig,
+    powerhead: powerheadConfig,
+    substrate: substrateConfig,
+    hardscape: hardscapeConfig,
+    light: lightConfig,
+    co2Generator: co2GeneratorConfig,
+    airPump: airPumpConfig,
+    autoDoser: autoDoserConfig,
+  };
+  // The constructor takes no tunable config, so the tank is lit on the shipped
+  // optics. A caller running tuned optics owes this a recompute — a paused tank
+  // has no next tick.
+  const lightByHour = scheduledLightHistory({ tank, equipment }, opticsDefaults);
+
   const state: SimulationState = {
     tick: 0,
-    tank: {
-      capacity: tankCapacity,
-      hardscapeSlots,
-    },
+    tank,
     resources: {
       // Physical
       water: tankCapacity, // Start at full capacity
@@ -609,8 +632,8 @@ export function createSimulation(
       // Passive (calculated)
       surface: initialPassiveResources.surface,
       flow: initialPassiveResources.flow,
-      light: initialPassiveResources.lightByHour[0],
-      lightByHour: initialPassiveResources.lightByHour,
+      light: lightByHour[0],
+      lightByHour,
       aeration: initialPassiveResources.aeration,
       // Biological
       food: 0.0,
@@ -639,19 +662,7 @@ export function createSimulation(
       tapKh: effectiveTapKh,
       tapGh: effectiveTapGh,
     },
-    equipment: {
-      heater: heaterConfig,
-      lid: lidConfig,
-      ato: atoConfig,
-      filter: filterConfig,
-      powerhead: powerheadConfig,
-      substrate: substrateConfig,
-      hardscape: hardscapeConfig,
-      light: lightConfig,
-      co2Generator: co2GeneratorConfig,
-      airPump: airPumpConfig,
-      autoDoser: autoDoserConfig,
-    },
+    equipment,
     plants: [],
     fish: [],
     clutches: [],
@@ -685,9 +696,8 @@ function calculateInitialPassiveResources(
   powerhead: Powerhead,
   substrate: Substrate,
   hardscape: Hardscape,
-  light: Light,
   airPump: AirPump
-): { surface: number; flow: number; lightByHour: number[]; aeration: boolean } {
+): { surface: number; flow: number; aeration: boolean } {
   // Import isFilterAirDriven inline to avoid circular dependency
   const isFilterAirDriven = filter.type === 'sponge';
 
@@ -715,11 +725,5 @@ function calculateInitialPassiveResources(
   // Aeration is active if air pump is on OR filter is air-driven (sponge)
   const aeration = airPump.enabled || (filter.enabled && isFilterAirDriven);
 
-  // The constructor takes no tunable config, so the tank is lit on the shipped
-  // optics — as though it had run its schedule all along. A caller running
-  // tuned optics owes this a recompute — a paused tank has no next tick, and
-  // both of the UI's rebuild paths got that wrong.
-  const lightByHour = scheduledLightByHour(light, calculateTankHeight(tankCapacity), opticsDefaults);
-
-  return { surface, flow, lightByHour, aeration };
+  return { surface, flow, aeration };
 }

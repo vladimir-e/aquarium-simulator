@@ -60,8 +60,7 @@ export interface LivestockConfig {
    * Satiation decay per hour (percentage points). Fish digest and burn
    * through stored energy whether or not they're feeding; a fish at
    * satiation 100 with no food will fall to 0 in ~100 / `satiationDecayRate`
-   * hours. Inverse direction of the legacy `hungerIncreaseRate`; same
-   * magnitude.
+   * hours.
    */
   satiationDecayRate: number;
 
@@ -78,18 +77,16 @@ export interface LivestockConfig {
   nitriteStressSeverity: number;
   /** Damage per e-fold of nitrate past the fish's own edge. */
   nitrateStressSeverity: number;
-  /** Damage per e-fold of dissolved oxygen under the fish's own edge. */
+  /** Damage per e-fold of dissolved oxygen under the fish's own edge, both read `OXYGEN_LOG_OFFSET` higher. */
   oxygenStressSeverity: number;
   /** Health damage per % water below 50% capacity */
   waterLevelStressSeverity: number;
   /** Health damage per turnover (tank volumes/h) above species tolerance */
   flowStressSeverity: number;
   /**
-   * Health damage per hour past species `maxAge`, applied per hour.
-   * Smooth replacement for the legacy probabilistic old-age cliff:
-   * once a fish exceeds its species lifespan, it accumulates damage
-   * that scales with how far past it is, scaled by `1 − hardiness`,
-   * and eventually drives condition to zero.
+   * Health damage per hour past species `maxAge`, applied per hour: past its
+   * lifespan a fish takes damage that grows with how far past it is, scaled
+   * by `1 − hardiness`, until health reaches zero.
    */
   ageStressSeverity: number;
 
@@ -272,7 +269,7 @@ export const livestockDefaults: LivestockConfig = {
   plantBenefitPeak: 0.2,
   plantBenefitSaturationPoint: 3.0,
 
-  // Surplus reserve buffer — half the condition scale by default.
+  // Bank ceiling — half the condition scale by default.
   surplusCap: SURPLUS_CAP_DEFAULT,
   // 5 %/h at 1 g: a full bank heals a 1 g fish 2.5 %/h at first, more than its
   // whole benefit budget, and runs out with a ~20 h time constant under a

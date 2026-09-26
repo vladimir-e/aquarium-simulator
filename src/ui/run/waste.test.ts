@@ -70,6 +70,20 @@ describe('wasteInflow', () => {
     expect(wasteInflow(state, config).sources[0].gramsPerHour).toBeCloseTo(expected, 10);
   });
 
+  it('counts what the plants shed on the hour ahead, not on the condition they stand at', () => {
+    const planted = applyAction(soilTank(), { type: 'addPlant', species: 'java_fern' }).state;
+    const dark = produce(planted, (draft) => {
+      draft.equipment.light.enabled = false;
+      draft.resources.lightByHour.fill(0);
+    });
+    const shed = (state: SimulationState): number =>
+      wasteInflow(state, config).sources.find((s) => s.key === 'plants')!.gramsPerHour;
+
+    expect(dark.plants[0].condition).toBe(100);
+    expect(shed(planted)).toBe(0);
+    expect(shed(dark)).toBeGreaterThan(0);
+  });
+
   it('counts fish feces once the fish have food to eat', () => {
     expect(wasteInflow(stocked(), config).sources[1].gramsPerHour).toBeGreaterThan(0);
   });
@@ -124,12 +138,11 @@ describe('wasteReadout', () => {
 
 describe('wasteSummary', () => {
   it('says where the pool settles, and which way it is heading', () => {
-    const state = soilTank();
-    state.resources.waste = 0;
-    expect(wasteSummary(wasteReadout(state, config), config)).toContain('climbing to');
+    const standing = (waste: number): SimulationState =>
+      produce(soilTank(), (draft) => void (draft.resources.waste = waste));
 
-    state.resources.waste = 10;
-    expect(wasteSummary(wasteReadout(state, config), config)).toContain('falling to');
+    expect(wasteSummary(wasteReadout(standing(0), config), config)).toContain('climbing to');
+    expect(wasteSummary(wasteReadout(standing(10), config), config)).toContain('falling to');
   });
 
   it.each([

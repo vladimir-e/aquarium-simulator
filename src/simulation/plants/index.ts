@@ -271,6 +271,5 @@ export {
   computePlantVitality,
   buildPlantStressors,
   buildPlantBenefits,
-  lightShortfall,
   plantHealingRate,
 } from '../systems/plant-vitality.js';

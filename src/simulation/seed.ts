@@ -16,7 +16,6 @@ import {
 import { nitrogenCycleDefaults } from './config/nitrogen-cycle.js';
 import { calculateMaxBacteria, restingColony } from './systems/nitrogen-cycle.js';
 import { processMetabolism } from './systems/metabolism.js';
-import { plantsDefaults } from './config/plants.js';
 import { ammoniaPerGramOfFood, livestockDefaults } from './config/livestock.js';
 import { decayDefaults } from './config/decay.js';
 import { NH3_TO_NO2_MASS_RATIO, NO2_TO_NO3_MASS_RATIO } from './core/chemistry.js';
@@ -310,9 +309,6 @@ export function applySeed(state: SimulationState, seed: PresetSeed): void {
         createPlant({
           species: group.species,
           size: group.size,
-          // Tunables bind to the tick, not to `createSimulation` — a seeded
-          // tank is built before there is a live config to read.
-          plantsConfig: plantsDefaults,
           rng: state.rng,
         })
       );

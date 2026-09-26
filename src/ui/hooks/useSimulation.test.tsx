@@ -17,7 +17,7 @@ import {
   getSubstrateSurface,
   liftHardscape,
   placeHardscape,
-  scheduledLightByHour,
+  scheduledLightHistory,
   tick,
 } from '../../simulation/index.js';
 import { cycledColony, cycledHardness } from '../../simulation/seed.js';
@@ -646,9 +646,7 @@ describe('useSimulation', () => {
       });
 
       const { state } = result.current;
-      expect(state.resources.lightByHour).toEqual(
-        scheduledLightByHour(state.equipment.light, calculateTankHeight(state.tank.capacity), DEFAULT_CONFIG.optics)
-      );
+      expect(state.resources.lightByHour).toEqual(scheduledLightHistory(state, DEFAULT_CONFIG.optics));
     });
 
     it('leaves the day a running tank has lived to the tick', () => {

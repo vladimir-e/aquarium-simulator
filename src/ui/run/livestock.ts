@@ -17,7 +17,7 @@ import {
   type VitalityResult,
 } from '../../simulation/index.js';
 import type { LivestockConfig } from '../../simulation/config/livestock.js';
-import { conditionReading, worstReading, type Reading, type Status } from './status.js';
+import { healthReading, isSick, worstReading, type Reading, type Status } from './status.js';
 
 /** Hungry and starving are the two bands that count toward "N hungry". */
 export function isHungryBand(band: SatiationBand): boolean {
@@ -67,21 +67,14 @@ export function countFry(fish: Fish[]): number {
   return fish.reduce((n, f) => n + (f.stage === 'fry' ? 1 : 0), 0);
 }
 
-/** Damage outrunning everything that heals it: the fish's condition is falling. */
-export function isSick(fish: Fish, vitality: VitalityResult): boolean {
-  return vitality.newCondition < fish.health;
-}
-
 /**
  * How one fish reads, across every channel it keeps: condition, whether it is
  * sick, and how recently it ate. One definition, so the roster row and the
  * ledger header carry one word.
  */
 export function fishReading(fish: Fish, vitality: VitalityResult, config: LivestockConfig): Reading {
-  const health = conditionReading(fish.health);
   const band = bandOf(fish.satiation, config);
-  const sick: Reading | null = isSick(fish, vitality) ? { status: 'warn', word: 'sick' } : null;
-  return worstReading(worstReading(sick ?? health, health), {
+  return worstReading(healthReading(fish.health, isSick(fish.health, vitality) ? 'sick' : null), {
     status: bandStatus(band),
     word: SATIATION_BAND_LABEL[band].toLowerCase(),
   });
@@ -90,6 +83,7 @@ export function fishReading(fish: Fish, vitality: VitalityResult, config: Livest
 /** One fish, with the vitality pass behind its row already spent. */
 export interface FishRead {
   fish: Fish;
+  sick: boolean;
   reading: Reading;
 }
 
@@ -103,7 +97,7 @@ function readFish(fish: Fish, state: SimulationState, config: LivestockConfig): 
     config
   );
 
-  return { fish, reading: fishReading(fish, vitality, config) };
+  return { fish, sick: isSick(fish.health, vitality), reading: fishReading(fish, vitality, config) };
 }
 
 function groupBySpeciesKey(fish: Fish[]): Map<FishSpecies, Fish[]> {
@@ -139,6 +133,7 @@ export interface RosterFigures {
 interface RosterGroup extends RosterFigures {
   count: number;
   hunger: Hunger | null;
+  sick: number;
   /** The fish behind the row, each already read. */
   members: FishRead[];
 }
@@ -160,6 +155,7 @@ function groupFigures(
   config: LivestockConfig
 ): RosterGroup {
   const satiation = mean(group.map((f) => f.satiation));
+  const members = group.map((fish) => readFish(fish, state, config));
   return {
     count: group.length,
     massG: group.reduce((sum, f) => sum + f.mass, 0),
@@ -168,7 +164,8 @@ function groupFigures(
     band: bandOf(satiation, config),
     condition: mean(group.map((f) => f.health)),
     hunger: hungerOf(group, config),
-    members: group.map((fish) => readFish(fish, state, config)),
+    sick: members.filter((member) => member.sick).length,
+    members,
   };
 }
 

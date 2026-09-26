@@ -186,7 +186,8 @@ export const plantsDefaults: PlantsConfig = {
   surplusCap: SURPLUS_CAP_DEFAULT,
 
   // Vitality stressor severities (pre-hardiness; the plant's builder
-  // scales them by `1 − hardiness` for the species).
+  // scales them by `1 − hardiness` for the species, except nitrate, whose edge
+  // hardiness moves).
   //
   // Full darkness costs 0.3 %/h pre-hardiness at 25 °C — 0.21 %/h for a monte
   // carlo, so a carpet lasts two to three weeks unlit and the hobby's

@@ -3,6 +3,8 @@
  * condition bars, status words and alert outlines all speak it.
  */
 
+import type { VitalityResult } from '../../simulation/index.js';
+
 /** The four-way status every coloured element on the surface is tinted by. */
 export type Status = 'ok' | 'warn' | 'alert' | 'neutral';
 
@@ -36,4 +38,15 @@ export function worstReading(a: Reading, b: Reading): Reading {
 /** How an organism is doing, off its condition. */
 export function conditionReading(condition: number): Reading {
   return { status: conditionStatus(condition), word: conditionWord(condition) };
+}
+
+/** Damage outrunning everything that heals it: condition is falling. */
+export function isSick(condition: number, vitality: VitalityResult): boolean {
+  return vitality.newCondition < condition;
+}
+
+/** Condition, or the sickness word where there is one — sickness wins a tie. */
+export function healthReading(condition: number, sick: string | null): Reading {
+  const health = conditionReading(condition);
+  return sick === null ? health : worstReading({ status: 'warn', word: sick }, health);
 }

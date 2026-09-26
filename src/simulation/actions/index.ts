@@ -45,7 +45,7 @@ export function applyAction(
     case 'trimPlants':
       return trimPlants(state, action);
     case 'addPlant':
-      return addPlant(state, action, config.plants);
+      return addPlant(state, action);
     case 'removePlant':
       return removePlant(state, action);
     case 'dose':

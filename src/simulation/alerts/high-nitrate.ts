@@ -1,6 +1,6 @@
 /**
- * High nitrate alert — fires once when nitrate crosses its edge, ahead of
- * every fish's own, and resets below it.
+ * High nitrate alert — fires once when nitrate crosses `NITRATE_EDGE`, resets
+ * below it.
  *
  * Nitrate is stored as mass (mg), so ppm is derived from mass/water.
  */

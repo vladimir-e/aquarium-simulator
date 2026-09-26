@@ -31,6 +31,7 @@ import {
   algaeRow,
   algaeStatus,
   bacteriaReadout,
+  dailyLightReading,
   doseDeltas,
   doseToCover,
   formatDose,
@@ -58,6 +59,7 @@ import {
   type StockedBand,
   type WasteReadout,
   type WaterReading,
+  DAILY_LIGHT_DECIMALS,
   NITRATE_LOW_PPM,
   WATER_SCALE,
 } from '../run';
@@ -83,7 +85,8 @@ export type ReadingId =
   | 'phosphate'
   | 'potassium'
   | 'iron'
-  | 'algae';
+  | 'algae'
+  | 'dailyLight';
 
 /** One arm of a stock's balance: what it is, and how fast it moves. */
 export interface ReadingFlow {
@@ -120,6 +123,9 @@ export interface ReadingView {
  */
 type DemandId = Extract<ReadingId, 'nitrateDemand' | 'phosphate' | 'potassium' | 'iron'>;
 
+/** Every reading banded on what the plants ask for: the four foods and the day's light. */
+type NeedId = DemandId | 'dailyLight';
+
 const DEMAND_ID: Record<Nutrient, DemandId> = {
   nitrate: 'nitrateDemand',
   phosphate: 'phosphate',
@@ -127,13 +133,13 @@ const DEMAND_ID: Record<Nutrient, DemandId> = {
   iron: 'iron',
 };
 
-/** A plant food, with what the plants are asking for beside it. */
-export interface NutrientView extends ReadingView {
+/** A reading with what the plants are asking for beside it. */
+export interface NeedView extends ReadingView {
   need: string;
 }
 
 export type ReadingsById = {
-  [K in ReadingId]: K extends DemandId ? NutrientView : ReadingView;
+  [K in ReadingId]: K extends NeedId ? NeedView : ReadingView;
 };
 
 /** Who lives here, folded the way every roster reads them. */
@@ -160,7 +166,7 @@ export interface ReadingBook {
   /** What the tank is running on, for the line beside a title. */
   caption: string;
   byId: ReadingsById;
-  demand: NutrientView[];
+  demand: NeedView[];
   nutrients: NutrientReading[];
   bacteria: BacteriaReadout;
   waste: WasteReadout;
@@ -227,6 +233,7 @@ export const DECIMALS: Record<ReadingId, number> = {
   potassium: 1,
   iron: 2,
   algae: 0,
+  dailyLight: DAILY_LIGHT_DECIMALS,
 };
 
 /**
@@ -249,6 +256,7 @@ export const DISPLAY_CEILING = {
   phosphate: 4,
   potassium: 30,
   iron: 1,
+  dailyLight: 4,
 } as const;
 
 /** Position of a value on a scale that starts at zero. */
@@ -358,7 +366,7 @@ function nutrientView(
   reading: NutrientReading,
   tape: Tape,
   fills: ReadingFlow[] = []
-): NutrientView {
+): NeedView {
   const at = scale(DISPLAY_CEILING[reading.key]);
   return {
     id,
@@ -395,6 +403,7 @@ export function readTank({ state, config, history, units }: TankInput): ReadingB
   const waste = wasteReadout(state, config);
   const projection = projectNitritePeak(state, config);
   const specimens = plantRows(state, config);
+  const light = dailyLightReading(state);
 
   const read = (key: WaterReading['key']): WaterReading => water.find((r) => r.key === key)!;
   const gas = (key: GasReading['key']): GasReading => gases.find((g) => g.key === key)!;
@@ -410,6 +419,7 @@ export function readTank({ state, config, history, units }: TankInput): ReadingB
   const wasteAt = scale(DISPLAY_CEILING.waste);
   const oxygenAt = scale(DISPLAY_CEILING.oxygen);
   const co2At = scale(DISPLAY_CEILING.co2);
+  const lightAt = scale(DISPLAY_CEILING.dailyLight);
 
   const nitrateFills: ReadingFlow[] = [
     { label: 'NOB clearing NO₂', rate: ratePerHour(rates.nitriteToNitrate, 'ppm') },
@@ -516,7 +526,7 @@ export function readTank({ state, config, history, units }: TankInput): ReadingB
       band: { from: oxygenAt(OXYGEN_EDGE), to: 1 },
       tone: toneOf(gas('oxygen').status),
       trend: trendOf(tape, 'oxygen'),
-      sentence: `Under ${said('oxygen', OXYGEN_EDGE)} mg/L the engine alerts, before any fish is harmed; a mid-hardiness fish starts lower.`,
+      sentence: `Under ${said('oxygen', OXYGEN_EDGE)} mg/L the engine alerts; a mid-hardiness fish takes harm lower still.`,
       net: null,
       fills: [],
       drains: [],
@@ -555,6 +565,25 @@ export function readTank({ state, config, history, units }: TankInput): ReadingB
       fills: [],
       drains: [],
       series: tape.series.algae ?? null,
+    },
+    dailyLight: {
+      id: 'dailyLight',
+      name: 'Daily light',
+      value: light.text,
+      unit: 'mol/m²/d',
+      at: lightAt(light.value),
+      band: light.needed > 0 ? { from: lightAt(light.needed), to: 1 } : null,
+      tone: toneOf(light.status),
+      trend: '',
+      need: light.need,
+      sentence:
+        light.needed > 0
+          ? `The substrate's PAR over the last 24 hours. Under ${said('dailyLight', light.needed)} mol/m²/d the neediest plant here starves.`
+          : 'Nothing planted, so nothing is asking for it.',
+      net: null,
+      fills: [],
+      drains: [],
+      series: null,
     },
   };
 

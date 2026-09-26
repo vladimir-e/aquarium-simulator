@@ -15,10 +15,13 @@ import {
   speciesHalfSaturation,
   type PlantSpecies,
   type Resources,
+  type AlgaePopulationResult,
   type SimulationState,
   type VitalityFactor,
+  type VitalityResult,
 } from '../../simulation/index.js';
 import { readPlantVitality } from '../../simulation/plants/index.js';
+import { settleEnvironment } from '../../simulation/tick.js';
 import {
   getMassFromPpm,
   getPpm,
@@ -35,7 +38,7 @@ import {
   type NutrientsConfig,
   type TunableConfig,
 } from '../../simulation/config/index.js';
-import { STATUS_SEVERITY, conditionReading, type Status } from './status.js';
+import { healthReading, isSick, type Status } from './status.js';
 
 /**
  * Trim targets, in % of a plant's size. A planted tank settles at 60–90 %, so
@@ -79,6 +82,7 @@ export interface PlantRow {
   /** Above every rung of the trim ladder. */
   overTrim: boolean;
   condition: number;
+  sick: boolean;
   status: Status;
   word: string;
   /** Change per hour: what the breakdown below it sums to. */
@@ -92,11 +96,27 @@ function acting(factors: VitalityFactor[]): VitalityFactor[] {
   return factors.filter((f) => f.amount > 0);
 }
 
+/** Each plant's vitality exactly as the next tick runs it, on the hour that tick settles. */
+export function plantVitalityAhead(state: SimulationState, config: TunableConfig): VitalityResult[] {
+  return readPlantVitality(settleEnvironment(state, config), config);
+}
+
+/** The bloom's rates on the hour the next tick settles. */
+export function algaePopulationAhead(state: SimulationState, config: TunableConfig): AlgaePopulationResult {
+  const ahead = settleEnvironment(state, config);
+  return computeAlgaePopulation({
+    plants: ahead.plants,
+    resources: ahead.resources,
+    algaeConfig: config.algae,
+  });
+}
+
 export function plantRows(state: SimulationState, config: TunableConfig): PlantRow[] {
-  const vitalities = readPlantVitality(state, config);
+  const vitalities = plantVitalityAhead(state, config);
 
   return state.plants.map((plant, i) => {
     const vitality = vitalities[i];
+    const sick = isSick(plant.condition, vitality);
 
     return {
       id: plant.id,
@@ -105,7 +125,8 @@ export function plantRows(state: SimulationState, config: TunableConfig): PlantR
       size: plant.size,
       overTrim: plant.size > TRIM_CEILING,
       condition: plant.condition,
-      ...conditionReading(plant.condition),
+      sick,
+      ...healthReading(plant.condition, sick ? 'sick' : null),
       net: vitality.breakdown.net,
       charged: acting(vitality.breakdown.stressors),
       benefits: acting(vitality.breakdown.benefits),
@@ -128,7 +149,7 @@ export interface PlantSpeciesGroup {
   condition: number;
   /** One per specimen, in planting order. */
   statuses: Status[];
-  /** The worst specimen's reading: a group is as urgent as its worst member. */
+  /** Read off the worst specimen's condition, and the count of the sick. */
   status: Status;
   word: string;
   /** The specimens themselves, in planting order. */
@@ -144,8 +165,10 @@ export function groupPlantsBySpecies(rows: PlantRow[]): PlantSpeciesGroup[] {
   }
 
   return [...groups].map(([species, members]) => {
-    const worst = members.reduce((a, b) =>
-      STATUS_SEVERITY[b.status] > STATUS_SEVERITY[a.status] ? b : a
+    const sick = members.filter((member) => member.sick).length;
+    const reading = healthReading(
+      Math.min(...members.map((member) => member.condition)),
+      sick > 0 ? `${sick} sick` : null
     );
     return {
       species,
@@ -154,8 +177,7 @@ export function groupPlantsBySpecies(rows: PlantRow[]): PlantSpeciesGroup[] {
       size: mean(members.map((member) => member.size)),
       condition: mean(members.map((member) => member.condition)),
       statuses: members.map((member) => member.status),
-      status: worst.status,
-      word: worst.word,
+      ...reading,
       plants: members,
     };
   });
@@ -172,11 +194,7 @@ export interface AlgaeRow {
 }
 
 export function algaeRow(state: SimulationState, config: TunableConfig): AlgaeRow {
-  const population = computeAlgaePopulation({
-    plants: state.plants,
-    resources: state.resources,
-    algaeConfig: config.algae,
-  });
+  const population = algaePopulationAhead(state, config);
 
   return {
     mass: state.algae.mass,

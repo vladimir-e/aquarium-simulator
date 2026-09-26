@@ -1,7 +1,6 @@
 /**
- * High algae alert.
- * Triggers once when algae mass reaches 80+.
- * Resets when algae mass drops below threshold.
+ * High algae alert — fires once when algae mass reaches
+ * `HIGH_ALGAE_THRESHOLD`, resets below it.
  *
  * Reads `state.algae.mass` directly — algae is a top-level organism
  * with mass / surplus, not a resource.
