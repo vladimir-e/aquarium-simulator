@@ -14,6 +14,7 @@ import { MORE_IDS, SECTIONS, TAB_IDS, type NeedTone, type SectionDef, type Secti
 import { Badge } from '../ui/Badge';
 import { DRAWER_TOGGLE } from '../ui/Drawer';
 import { INSET_FOCUS } from '../ui/focus';
+import { useThemeCycle } from '../ui/ThemeToggle';
 
 const ICON: Record<SectionId, typeof Fish> = {
   overview: LayoutGrid,
@@ -126,7 +127,7 @@ export function TabBar({
 
 /**
  * What did not fit the tab bar: the two sections behind More, and the tunables
- * — the drawer the phone has no room for a control of its own for.
+ * and the theme — the two controls the phone's top bar has no room for.
  */
 export function MoreSections({
   alerts,
@@ -169,6 +170,24 @@ export function MoreSections({
         Tunables
         {tunablesModified > 0 && <Badge count={tunablesModified} tone="accent" />}
       </button>
+
+      <ThemeRow />
     </div>
+  );
+}
+
+function ThemeRow(): React.JSX.Element {
+  const { Icon, name, label, cycle } = useThemeCycle();
+  return (
+    <button
+      type="button"
+      onClick={cycle}
+      aria-label={label}
+      className={`${MORE_ITEM} text-ink hover:bg-surface-2`}
+    >
+      <Icon className="h-5 w-5 text-ink-2" />
+      Theme
+      <span className="ml-auto text-[13px] text-ink-3">{name}</span>
+    </button>
   );
 }

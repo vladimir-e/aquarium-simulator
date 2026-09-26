@@ -18,19 +18,37 @@ const NAME: Record<ThemeMode, string> = {
   dark: 'Dark',
 };
 
-export function ThemeToggle(): React.JSX.Element {
+interface ThemeCycle {
+  Icon: typeof Sun;
+  /** The mode it is in. */
+  name: string;
+  /** The mode it is in and the one a press goes to. */
+  label: string;
+  cycle: () => void;
+}
+
+/** One press walks the modes, wherever the control that presses it sits. */
+export function useThemeCycle(): ThemeCycle {
   const { mode, setMode } = useTheme();
   const next = ORDER[(ORDER.indexOf(mode) + 1) % ORDER.length];
-  const Icon = ICON[mode];
-  const label = `${NAME[mode]} theme — switch to ${NAME[next].toLowerCase()}`;
+  return {
+    Icon: ICON[mode],
+    name: NAME[mode],
+    label: `${NAME[mode]} theme — switch to ${NAME[next].toLowerCase()}`,
+    cycle: () => setMode(next),
+  };
+}
+
+export function ThemeToggle({ className = '' }: { className?: string }): React.JSX.Element {
+  const { Icon, label, cycle } = useThemeCycle();
 
   return (
     <button
       type="button"
-      onClick={() => setMode(next)}
+      onClick={cycle}
       aria-label={label}
       title={label}
-      className={`relative flex h-8 w-8 items-center justify-center rounded-control border border-hairline text-ink-2 transition-colors hover:bg-surface-2 hover:text-ink ${CONTROL_FOCUS} max-sm:after:absolute max-sm:after:inset-[-6px] max-sm:after:content-['']`}
+      className={`flex h-8 w-8 items-center justify-center rounded-control border border-hairline text-ink-2 transition-colors hover:bg-surface-2 hover:text-ink ${CONTROL_FOCUS} ${className}`}
     >
       <Icon className="h-4 w-4" />
     </button>

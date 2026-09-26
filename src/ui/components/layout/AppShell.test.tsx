@@ -247,6 +247,18 @@ describe('AppShell on a phone', () => {
     expect(screen.queryByRole('dialog', { name: 'More' })).toBeNull();
   });
 
+  it('offers the theme in the sheet, and walks it from there', () => {
+    renderShell();
+    fireEvent.click(screen.getByRole('button', { name: 'More' }));
+
+    const sheet = screen.getByRole('dialog', { name: 'More' });
+    const theme = within(sheet).getByRole('button', { name: /theme — switch to/ });
+    const before = theme.getAttribute('aria-label');
+    fireEvent.click(theme);
+
+    expect(theme.getAttribute('aria-label')).not.toBe(before);
+  });
+
   it('hands the tabs back to the rail once the viewport grows', () => {
     renderShell();
     act(() => media.set(viewport(1180)));

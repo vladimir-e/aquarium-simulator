@@ -62,7 +62,7 @@ export function ReadingRow({
     </>
   );
 
-  const shape = `${ROW} h-9 grid-cols-[minmax(40px,auto)_minmax(84px,auto)_minmax(48px,1fr)_minmax(96px,auto)] text-left`;
+  const shape = `${ROW} h-9 grid-cols-[minmax(40px,auto)_minmax(84px,auto)_minmax(48px,1fr)_minmax(0,auto)] text-left`;
 
   if (!onClick) return <div className={shape}>{body}</div>;
 

@@ -65,13 +65,13 @@ export function TopBar({
   const tone = needs[0]?.tone ?? 'warn';
 
   return (
-    <header className="grid h-12 shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-2 border-b border-hairline px-2">
+    <header className="grid h-12 shrink-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 border-b border-hairline px-2">
       <Select
         ariaLabel="Tank preset"
         value={current}
         onChange={(v) => request(v as PresetId)}
         options={PRESETS.map((preset) => ({ value: preset.id, label: preset.name }))}
-        className="w-[10rem] max-md:w-[7.5rem]"
+        className="w-full max-w-[10rem]"
         selectClassName="h-8 truncate border-transparent hover:border-hairline"
       />
 
@@ -103,11 +103,11 @@ export function TopBar({
         />
       </div>
 
-      <div className="flex items-center justify-end gap-1.5">
+      <div className="flex min-w-0 items-center justify-end gap-1.5">
         {needs.length > 0 && (
           <Link
             to="/"
-            className={`${CONTROL} ${tone === 'alert' ? 'text-alert' : 'text-warn'}`}
+            className={`${CONTROL} ${tone === 'alert' ? 'text-alert' : 'text-warn'} max-md:hidden`}
             aria-label={`${needs.length} needs you`}
           >
             <TriangleAlert className="h-3.5 w-3.5" />
@@ -120,7 +120,7 @@ export function TopBar({
           onClick={onAct}
           aria-label={actLabel === null ? 'Act' : `Act — ${actLabel}`}
           aria-expanded={actOpen}
-          className={`${CONTROL} max-w-[13rem] border-transparent bg-accent-tint font-medium text-accent`}
+          className={`${CONTROL} min-w-0 max-w-[13rem] border-transparent bg-accent-tint font-medium text-accent`}
           {...DRAWER_TOGGLE}
         >
           <span className="truncate">{actLabel ?? 'Act'}</span>
@@ -137,7 +137,7 @@ export function TopBar({
           <SlidersHorizontal className="h-4 w-4" />
           {tunablesModified > 0 && <Badge count={tunablesModified} tone="accent" />}
         </button>
-        <ThemeToggle />
+        <ThemeToggle className="max-md:hidden" />
         <a
           href={DOCS_URL}
           target="_blank"

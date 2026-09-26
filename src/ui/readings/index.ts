@@ -589,7 +589,7 @@ export function readTank({ state, config, history, units }: TankInput): ReadingB
       need: light.need,
       sentence:
         light.needed > 0
-          ? `The substrate's PAR over the last 24 hours. Under ${said('dailyLight', light.needed)} ${DAILY_LIGHT_UNIT} the plant with the least light for its need, at its own height, starves.`
+          ? `The substrate's PAR over the last 24 hours. Under ${said('dailyLight', light.needed)} ${DAILY_LIGHT_UNIT} the worst-lit plant here starves, on the light at its own height.`
           : 'Nothing planted, so nothing is asking for it.',
       net: null,
       fills: [],
