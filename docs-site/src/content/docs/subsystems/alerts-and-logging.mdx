@@ -74,7 +74,7 @@ emitted per hour, and nothing is written unless something happened.
 
 | Source | Written when |
 |---|---|
-| `simulation` | The tank is built; a fish or plant dies; a spawn, a laying or a hatch |
+| `simulation` | The tank is built; a fish or plant dies; a spawn, a laying, a hatch or an offshoot |
 | `user` | Any applied action — a refused one logs nothing |
 | `scrub` | The scrub action, filed under its own channel |
 | `evaporation` · `nitrogen-cycle` · `gas-exchange` · `algae` | The alert lines, each under the system whose reading tripped |
@@ -120,7 +120,7 @@ declared range, so they cannot be moved through the config layer the way a
 severity or a rate can. The four water-quality lines are the fish tolerance
 edges, defined with [livestock](/subsystems/livestock/).
 
-| Constant | Meaning | Unit |
+| Constant | Meaning | Value |
 |---|---|---|
 | `WATER_LEVEL_CRITICAL_THRESHOLD` | Share of capacity below which the level is critical | `0.2` |
 | `FREE_AMMONIA_EDGE` | Free (unionized) NH₃ at which the alert fires | `0.02` ppm |

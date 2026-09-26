@@ -1,6 +1,6 @@
 ---
 title: Plants
-description: Units of a growth form that read light at their own height, earn on it, and bank — the bank heals a plant, grows it to a full unit and buys its offshoots, and the canopy decides how much a tank can carry.
+description: Units of a growth form that read light at their own height, earn on it, and bank — the bank heals a plant, grows it toward a full unit and buys its offshoots, and the canopy decides how much a tank can carry.
 ---
 
 import { Badge } from '@astrojs/starlight/components';
@@ -30,12 +30,13 @@ family. Low condition sheds tissue.
 | Offshoots | <Badge text="settled" variant="success" /> | A full bank buys a new unit of the family at the growth conversion — value conserved, no timer, no space test. |
 | Vigour | <Badge text="settled" variant="success" /> | Each unit draws its own offset on income at birth, so clones bud apart rather than in lockstep. |
 | Shedding | <Badge text="settled" variant="success" /> | A rate reading a stock — the square of the condition deficit, zero at full condition, with no threshold in it. |
-| The size floor | <Badge text="scaffolding" variant="caution" /> | A second route to death: a unit shed under `deathSizeThreshold` is retired as bookkeeping rather than by a rate, so a starved plant never lingers as a rootstock. |
+| The size floor | <Badge text="scaffolding" variant="caution" /> | Two switches on `deathSizeThreshold`. A unit shed under it is retired as bookkeeping rather than by a rate, so a starved plant never lingers as a rootstock. And a full bank whose offshoot would come in under it buys none, so a species whose full bank buys less than the floor never propagates. |
 | Epiphyte footprint | <Badge text="scaffolding" variant="caution" /> | A java fern or anubias on the rock claims floor like a rooted plant; there is no hardscape budget. |
 | Nitrate | <Badge text="settled" variant="success" /> | Log dose past the plant's own edge, the fish shape at an edge only a runaway doser reaches. |
 | Nutrition | <Badge text="settled" variant="success" /> | Every nutrient saturates on its own Monod curve against a per-species demand, and uptake follows the plant's need rather than the fertilizer's ratio. |
 | Carbon limitation | <Badge text="settled" variant="success" /> | Monod on dissolved CO₂, half rate at the species' carbon-need half-saturation. It scales photosynthesis, uptake and the CO₂ income channel, and never damages: a carbon-short plant earns and grows less. |
 | Tolerance bands | <Badge text="settled" variant="success" /> | Temperature and pH earn most at the band's centre and nothing at its edge, where damage starts from zero: net is continuous across every edge. |
+| Algae shading | <Badge text="scaffolding" variant="caution" /> | A damage rate on bloom mass past `algaeShadingThreshold`, not light: a bloom never dims the PAR a plant reads, so it costs condition without costing photosynthesis. |
 | Plant mineral loop | <Badge text="scaffolding" variant="caution" /> | Shed tissue and dead plants return minerals through waste that uptake never tied to them, so the plant loop is not conserved. |
 | General hardness | <Badge text="scaffolding" variant="caution" /> | A damage-only tolerance band per species, and a small uptake on the nitrate draw. Calcium never enters sufficiency, so soft water stresses a plant but never starves it. |
 
@@ -43,28 +44,57 @@ family. Low condition sheds tissue.
 
 ### The species roster
 
-| Species | Form | Tolerable PAR | Saturates at | Starves under | Growth rate | CO₂ need | Nutrient demand | Hardiness | Temperature | pH | GH | Substrate |
-|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| Anubias | attached | 8–70 | 16 | 0.23 | 0.3 | low | low | 0.75 | 18–30 °C | 5.0–8.0 | 1–20 dGH | attaches |
-| Java Fern | attached | 10–90 | 20 | 0.29 | 0.5 | low | low | 0.7 | 18–30 °C | 5.0–8.0 | 1–20 dGH | attaches |
-| Amazon Sword | rosette | 20–120 | 40 | 0.58 | 1.0 | medium | medium | 0.5 | 20–28 °C | 5.5–7.8 | 2–20 dGH | sand |
-| Dwarf Hairgrass | carpet | 25–200 | 50 | 0.72 | 1.5 | high | high | 0.3 | 20–28 °C | 5.0–7.8 | 1–18 dGH | aqua soil |
-| Monte Carlo | carpet | 30–200 | 60 | 0.86 | 1.8 | high | high | 0.3 | 20–28 °C | 5.0–7.8 | 1–15 dGH | aqua soil |
+Five species, each of one [growth form](#growth-forms), in three tables: how
+each grows, the light it lives on, and the water it tolerates.
+
+| Species | Growth rate | CO₂ need | Nutrient demand | Hardiness |
+|---|---|---|---|---|
+| Anubias | 0.3 | low | low | 0.75 |
+| Java Fern | 0.5 | low | low | 0.7 |
+| Amazon Sword | 1.0 | medium | medium | 0.5 |
+| Dwarf Hairgrass | 1.5 | high | high | 0.3 |
+| Monte Carlo | 1.8 | high | high | 0.3 |
+
+Anubias and java fern attach to the scape and go into any tank; the sword roots
+in sand or aqua soil, and the carpets in aqua soil alone.
+
+| Species | Tolerable PAR | Saturates at, `Ik` | Starves under |
+|---|---|---|---|
+| Anubias | 8–70 | 16 | 0.23 |
+| Java Fern | 10–90 | 20 | 0.29 |
+| Amazon Sword | 20–120 | 40 | 0.58 |
+| Dwarf Hairgrass | 25–200 | 50 | 0.72 |
+| Monte Carlo | 30–200 | 60 | 0.86 |
+
+PAR is in µmol/m²/s and the starvation edge is a day's light, in mol/m²/d. Both
+derive from the band's low end — [saturation](/subsystems/light/#saturation) and
+[the day's light](/subsystems/light/#the-days-light) on Light.
+
+| Species | Temperature | pH | GH |
+|---|---|---|---|
+| Anubias | 18–30 °C | 5.0–8.0 | 1–20 dGH |
+| Java Fern | 18–30 °C | 5.0–8.0 | 1–20 dGH |
+| Amazon Sword | 20–28 °C | 5.5–7.8 | 2–20 dGH |
+| Dwarf Hairgrass | 20–28 °C | 5.0–7.8 | 1–18 dGH |
+| Monte Carlo | 20–28 °C | 5.0–7.8 | 1–15 dGH |
 
 pH and GH bands are the generous published ranges, wide enough for aqua soil under CO₂ and hard tap alike. Past an edge the damage grows linearly with the distance, per °C, pH unit or dGH (`temperatureStressSeverity`, `phStressSeverity`, `ghStressSeverity`). pH is already a log scale, so linear in pH is log in acidity. Temperature and pH also earn inside their bands; GH is damage alone.
-
-Both light columns derive from the band's low end — see [Light](/subsystems/light/).
 
 ### Growth forms
 
 A plant's `size` is how full one unit of its growth form is, in % — 100 is a
 grown patch, specimen or clump. The form fixes what that means.
 
-| Form | One unit is | Full height | Height grows as | Footprint | Leaf area index | Rate units at full | Offshoot |
-|---|---|---|---|---|---|---|---|
-| Carpet | a patch | 5 cm | full at any size — it spreads across | 100 cm² | 2.5 | 0.5 | sends a runner |
-| Rosette | a specimen | 40 cm | `size^⅓` | 700 cm² | 2.0 | 2.8 | throws a plantlet |
-| Attached | a rhizome clump | 20 cm | `size^⅓` | 200 cm² | 2.5 | 1.0 | branches at the rhizome |
+| Form | Carpet | Rosette | Attached |
+|---|---|---|---|
+| Species | Dwarf Hairgrass, Monte Carlo | Amazon Sword | Anubias, Java Fern |
+| One unit is | a patch | a specimen | a rhizome clump |
+| Full height | 5 cm | 40 cm | 20 cm |
+| Height grows as | full at any size — it spreads across | `size^⅓` | `size^⅓` |
+| Footprint | 100 cm² | 700 cm² | 200 cm² |
+| Leaf area index | 2.5 | 2.0 | 2.5 |
+| Rate units at full | 0.5 | 2.8 | 1.0 |
+| Offshoot | sends a runner | throws a plantlet | branches at the rhizome |
 
 ```
 height    = min(depth, fullHeight × (size / 100)^exponent)
@@ -80,8 +110,9 @@ water.
 ### Photosynthesis
 
 ```
-lightResponse_i = tanh(PAR_i / Ik_i)        // PAR_i at the plant's mean leaf
-co2Factor_i     = CO₂ / (K_i + CO₂)         // K_i by the species' CO₂ need
+// PAR_i at the plant's mean leaf; K_i by the species' CO₂ need
+lightResponse_i = tanh(PAR_i / Ik_i)
+co2Factor_i     = CO₂ / (K_i + CO₂)
 potential_i     = rateUnits_i × co2Factor_i × lightResponse_i
 actual_i        = potential_i × sufficiency_i
 ```
@@ -115,7 +146,7 @@ deficiency stressor, and is never counted twice.
 
 | Direction | Carbon | Oxygen |
 |---|---|---|
-| Photosynthesis | the Monod draw on `rateUnits × lightResponse × sufficiency × co2PerRateUnit`, read at the tick's closing CO₂ | derived from the carbon fixed, at `CO2_TO_O2_MASS_RATIO` |
+| Photosynthesis | the Monod draw on `rateUnits × lightResponse × sufficiency × basePhotosynthesisRate × co2PerRateUnit`, read at the tick's closing CO₂ | derived from the carbon fixed, at `CO2_TO_O2_MASS_RATIO` |
 | Respiration | `baseRespirationRate × rateUnits × warmth × air`, then `× co2PerRateUnit` | derived from the carbon released, same ratio |
 
 One reaction run both ways, so one yield. The day/night asymmetry lives entirely
@@ -200,7 +231,8 @@ hardiness scales what harms a plant, vigour what it earns.
 | Nutrients | scales linearly with sufficiency | `nutrientBenefitPeak × sufficiency` |
 
 ```
-comfort = 4 (x − lo)(hi − x) / (hi − lo)²     // symmetric parabola: 1 at the centre, 0 at either edge
+// a symmetric parabola: 1 at the centre, 0 at either edge
+comfort = 4 (x − lo)(hi − x) / (hi − lo)²
 earned  = channel × tanh(PAR_i / Ik) × (1 + vigour)
 ```
 
@@ -211,7 +243,7 @@ earned  = channel × tanh(PAR_i / Ik) × (1 + vigour)
 | Temperature · pH · GH | outside the species band | °C · pH unit · dGH |
 | Nutrient deficiency | Liebig shortfall, on the light term | point of sufficiency |
 | Nitrate | past the plant's own edge | e-fold over |
-| Algae shading | bloom mass over `algaeShadingThreshold` | mass point |
+| Algae shading | bloom mass over `algaeShadingThreshold`, not light ([Status](#status)) | mass point |
 
 Hardiness scales every stressor by `1 − hardiness` except nitrate, whose edge it
 carries out by the same factor a fish's is: `nitrateEdge × 2^hardiness`.
@@ -220,7 +252,8 @@ carries out by the same factor a fish's is: `nitrateEdge × 2^hardiness`.
 
 ```
 shortfall = max(0, 1 − dli_i / edge)
-damage    = lightStarvationSeverity × shortfall × q10(temperature) × (1 − hardiness)
+damage    = lightStarvationSeverity × shortfall
+            × q10(temperature) × (1 − hardiness)
 ```
 
 `dli_i` is the day's light at the plant's mean leaf and `edge` the species'
@@ -242,7 +275,7 @@ java fern, hardier and needing less light, lasts about five.
 | Banking | income past full condition, up to `surplusCap` | condition at 100 |
 | Healing | `healingDrawRate × growthRate` of the bank, up to the deficit | condition under 100 |
 | Offshoot | what the new unit's size costs at the growth conversion | the bank full |
-| Growth | `growthDrawRate × (1 − size ⁄ 100)` of the bank | every hour, day and night |
+| Growth | `growthDrawRate × (1 − size / 100)` of the bank | every hour, day and night |
 
 A plant arrives at full condition with an empty bank, as a fish does. It heals
 at the pace it grows: under heavy damage a carpet draws its bank down on repair
@@ -280,18 +313,19 @@ a sparse unit to break even kills it.
 
 ### Crowding and carrying capacity
 
-Every other crown shades a plant at odds set by that crown's share of the floor,
-and only from above: a tall planting darkens what grows under it, and a short
-one never shades a taller one. Shedding relieves only a plant's own shade,
-so an understory plant under taller crowns stays in their shade as it shrinks.
+Every other crown that reaches above a plant's mean leaf shades it, at odds set
+by that crown's share of the floor ([the canopy](/subsystems/light/#the-canopy)):
+a tall planting darkens what grows under it, and carpet patches side by side
+shade each other. Shedding relieves only a plant's own shade, so an understory
+plant under taller crowns stays in their shade as it shrinks.
 A planting therefore spreads until its lowest units sit at break-even — short
 units lose first, and the tank carries as much leaf as its light holds. An
 overgrown tank is dark, not dead.
 
-| Reading | Is | Brought down by |
+| Reading | Is | The keeper lowers it by |
 |---|---|---|
 | Floor cover | every unit's footprint over the floor, `Σ footprint / (2 × depth²)`; past 1 the planting has outgrown its floor | thinning — removing units |
-| Floor shade | the share of the substrate light the canopy takes before the floor ([Light](/subsystems/light/#the-canopy)) | trimming |
+| Floor shade | the share of the substrate light the canopy takes before the floor ([Light](/subsystems/light/#the-canopy)) | trimming or thinning |
 
 ### Offshoots
 
@@ -305,9 +339,8 @@ bank         −= offshoot.size / (growthRate × sizePerSurplus)
 
 - **A new unit of the family.** Its parent's species and family, at full condition on an empty bank — only a full plant holds a full bank — with its own vigour. It acts from the next hour.
 - **Value is conserved** at the growth conversion: the parent pays for exactly the size it bought. At the shipped cap of 50 a full bank buys an anubias of 6, a java fern of 10, a sword of 20, a hairgrass patch of 30 or a monte carlo patch of 36, and empties.
-- **A bank too small for a viable unit buys nothing.** An offshoot under `deathSizeThreshold` is never bought; healing and growth go on drawing on the bank.
+- **A bank that would buy a unit under `deathSizeThreshold` buys nothing** and keeps its value; healing and growth go on drawing on it. That floor is a switch ([The size floor](#status)).
 - **Propagation never tests space.** Offshoots land whatever the floor cover; crowding and the canopy decide which of them live.
-- **The taper picks the parents.** A growing unit's draw keeps its bank short of the cap, so only a nearly full one reaches it.
 
 The form sets the offshoot's shape and the words its `plant-propagated` log
 entry uses — "Amazon Sword threw a plantlet". Every form buys it the same way.
@@ -321,9 +354,9 @@ entry uses — "Amazon Sword threw a plantlet". Every form buys it the same way.
 | `age` | Hours in this tank. A seeded plant can start older. No rate reads it |
 | `vigour` | An offset on income, drawn once at birth within ±`VIGOUR_SPAN` (`0.15`) — clonal ramets differ in growth by 10–20 % |
 
-A planted or seeded unit founds its own family. Vigour multiplies the four
-benefit channels, so a vigorous unit also heals faster; growth and the
-offshoot's size carry none, so the conversion stays exact.
+Vigour multiplies the four benefit channels, so a vigorous unit also heals
+faster; growth and the offshoot's size carry none, so the conversion stays
+exact.
 
 ### The floor budget and trim
 
@@ -333,11 +366,10 @@ size — the territory a keeper spaces for — so seedlings can't pack a tank. A
 epiphyte on the rock claims its plan view like any other.
 
 Trimming cuts units down to a size: one unit, one family, or every plant above
-the target. It lowers leaf area and height, so floor shade drops the next hour,
-and it reopens the taper — the bank goes back into regrowth and spreading
-pauses. Trim for light, or let the plant spread. Only thinning brings floor
-cover down, and which units go is the keeper's choice. The verbs are on
-[Actions](/subsystems/actions/).
+the target. It lowers leaf area, and the height of anything but a carpet, and it
+reopens the taper — the bank goes back into regrowth and spreading pauses. Trim
+for light, or let the plant spread. Which units a thinning pulls is the keeper's
+choice. The verbs are on [Actions](/subsystems/actions/).
 
 ### Shedding and death
 
@@ -361,7 +393,7 @@ patch of the same size.
 
 ## Key tunables
 
-| Tunable | Meaning | Unit |
+| Tunable | Meaning | Value |
 |---|---|---|
 | `basePhotosynthesisRate` | Photosynthetic rate per rate unit of leaf, at full carbon and saturating light | `1.0` /hr |
 | `saturationIrradianceFactor` | Multiple of a species' band low at which it saturates — the `Ik` of the light curve | `2.0` × band low |
@@ -373,7 +405,7 @@ patch of the same size.
 | `baseRespirationRate` | Dark respiration as a share of the light-saturated rate | `0.03` /hr |
 | `respirationQ10` | Factor respiration and light starvation multiply by per 10 °C | `2.0` |
 | `respirationOxygenHalfSaturation` | O₂ at which respiration runs at half rate | `0.5` mg/L |
-| `surplusCap` | Ceiling on the bank; a full one buys an offshoot | `50` units |
+| `surplusCap` | Ceiling on the bank; a full one buys an offshoot | `50` condition points |
 | `healingDrawRate` | Share of the bank that heals condition each hour, per unit of species growth rate | `0.05` /hr |
 | `growthDrawRate` | Share of the bank drawn toward new tissue each hour, before the taper | `0.02` /hr |
 | `sizePerSurplus` | Size gained per converted unit, before the species growth rate — the conversion growth and offshoots share | `0.4` % |

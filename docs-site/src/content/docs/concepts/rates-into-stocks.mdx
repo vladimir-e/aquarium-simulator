@@ -68,8 +68,8 @@ have been written to do.
 | Jassby–Platt | `tanh(PAR / Ik)` | Light. Nothing can overdraw it, so the curve comes from the leaf rather than from the pool |
 | Beer–Lambert | `exp(−k × x)` | Light on its way down, `x` the water or the leaf area above — so depth and a canopy share one exponent |
 | Piecewise anchors | Linear ramps between named points, continuous at every crossing | A tolerance axis, where the real response has inflections but no cliffs |
-| Band comfort | Symmetric parabola `4(x − lo)(hi − x) ⁄ (hi − lo)²` | The in-band benefit of a tolerance band — full at the centre, zero at each edge where the band's damage starts |
-| Log dose | `ln(x ⁄ edge)` past an edge, or `ln((edge + a) ⁄ (x + a))` under one, the offset `a` keeping it finite at zero | A toxin, where every doubling costs the same, or a shortfall like oxygen's — and, between two anchors, the fish O₂ benefit |
+| Band comfort | Symmetric parabola `4(x − lo)(hi − x) / (hi − lo)²` | The in-band benefit of a tolerance band — full at the centre, zero at each edge where the band's damage starts |
+| Log dose | `ln(x / edge)` past an edge, or `ln((edge + a) / (x + a))` under one, the offset `a` keeping it finite at zero | A toxin, where every doubling costs the same, or a shortfall like oxygen's — and, between two anchors, the fish O₂ benefit |
 
 ## The canonical curve
 
@@ -90,16 +90,17 @@ it rather than inventing one again.
 
 ## Where switches still live
 
-<Badge text="scaffolding" variant="caution" /> — one discontinuity is still live
-in the organism layer, and it is not intent.
+<Badge text="scaffolding" variant="caution" /> — these discontinuities are still
+live in the organism layer, and none is intent.
 
 | Switch | What it does | Consequence |
 |---|---|---|
 | Algae banking and growth gate on light | No photoperiod, no bank and no new mass for the bloom | Its bank switches with the lamp instead of following a rate |
+| Plant size floor | A unit shed under `deathSizeThreshold` is retired, and a full bank whose offshoot would come in under it buys none | A starving plant dies at a size as well as at condition 0, and a species whose full bank buys less than the floor never propagates ([Plants](/subsystems/plants/#status)) |
 
 Two things look like switches and are not. A band edge where a rate *starts from
-zero* is a rate — nothing jumps, the slope merely stops being zero. And death is
-a real discontinuity, because an organism past its threshold is genuinely a
+zero* is a rate — nothing jumps, the slope merely stops being zero. And death at
+condition 0 is a real discontinuity, because an organism past it is genuinely a
 different thing.
 
 ## Source

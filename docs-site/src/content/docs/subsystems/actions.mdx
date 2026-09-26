@@ -23,7 +23,7 @@ unchanged, with the message explaining why.
 | Scrub | <Badge text="settled" variant="success" /> | The bite is drawn off the tank's own stream, so a replayed tank is scrubbed identically. |
 | Top-off | <Badge text="scaffolding" variant="caution" /> | Fills to capacity and adds the tap's KH and GH, nothing else. The tap water it adds carries no temperature, no oxygen and no CO₂ — while the auto top-off doing the same job blends all three. |
 | Trim | <Badge text="settled" variant="success" /> | An absolute size inside a unit's own range — one plant, one family or the whole planting — and the cut leaves the tank. |
-| Planting by floor | <Badge text="settled" variant="success" /> | Footprints against the floor left, each fixed at its form's whatever the unit's size, so seedlings can't game the budget. |
+| Planting by floor | <Badge text="settled" variant="success" /> | A unit goes in when its form's full footprint, whatever its size, fits the floor the planting leaves free. |
 | Water-change shock | <Badge text="missing" variant="danger" /> | A 90 % change costs a fish nothing beyond the temperature, hardness and gases the blend leaves behind. |
 | Substrate vacuuming | <Badge text="settled" variant="success" /> | A water change can vacuum the bed, taking a share of its settled mulm out of the tank. Standing waste in the water column is still left behind. |
 | Config changes as actions | <Badge text="missing" variant="danger" /> | Equipment settings are plain fields the host writes directly. There is no action type, no validation and no log for them inside the engine. |
@@ -67,8 +67,7 @@ waste — the convention is that the keeper carried it out of the room.
 A refused planting names the floor it lacks — "Not enough floor: 180 cm² free,
 Amazon Sword needs 700" — against the
 [floor budget](/subsystems/plants/#the-floor-budget-and-trim), which also says
-what a trim does to a plant. Sizes run from `deathSizeThreshold` to a full unit,
-so nothing is planted or trimmed to a size the next hour retires.
+what a trim does to a plant.
 
 ### What a water change actually does
 
@@ -122,7 +121,7 @@ leaf's declared range — see
 Most action bounds are module constants rather than `TunableConfig` leaves, so
 they are not reachable through the config layer or a declared range.
 
-| Constant | Meaning | Unit |
+| Constant | Meaning | Value |
 |---|---|---|
 | `fertilizerFormula` | Nitrate, phosphate, potassium and iron per millilitre — a config-layer leaf | `50` · `5` · `40` · `1` mg/ml |
 | Dose bounds, manual | Floor and ceiling on a hand dose | `0.1`–`50` ml |
@@ -130,7 +129,6 @@ they are not reachable through the config layer or a declared range.
 | `MIN_SCRUB_PERCENT` · `MAX_SCRUB_PERCENT` | The band a scrub's bite is drawn from | `0.1`–`0.3` |
 | `MIN_ALGAE_TO_SCRUB` | Mass below which there is nothing to mechanically remove | `5` |
 | `MAX_FISH_VOLUME_FRACTION` | Share of the water stocked fish may occupy — a plausibility ceiling, not a husbandry one | `0.5` |
-| Floor | What the plantings' footprints fill — the floor of the box the capacity implies | `2 × depth²` cm² |
 | Plant size bounds | What a planting or a trim may name, from the config-layer `deathSizeThreshold` to a full unit | `1`–`100` % |
 | `DEFAULT_PLANT_SIZE` | Size a plant goes in at when the caller says nothing | `50` % |
 | Water change presets | The steps the dashboard offers; the action itself takes any fraction | `0.1` · `0.25` · `0.5` · `0.9` |

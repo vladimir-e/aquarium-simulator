@@ -23,13 +23,6 @@ against a plausibility band:
 | Amber | Unusual but possible — worth a look |
 | Red | Not something a real tank does |
 
-The keeper keeps a planted tank the way a hobbyist does: once a week every plant
-past 85 % of its unit is cut back to it, and the youngest are pulled until the
-planting fits its floor again. Two readings watch the planting as a whole — floor cover
-and floor shade ([Plants](/subsystems/plants/#crowding-and-carrying-capacity)) —
-so an untrimmed tank's overgrowth reads as a floor planted past full and a
-canopy darkening what grows under it.
-
 Per-action flags replay a tank under a different keeper: more food, no water
 changes, extra fish. A run saved as a baseline can be diffed against a later
 one, so a change shows as the few readings it moved. Amber and red are
