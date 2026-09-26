@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { computeFishVitality, fishHealingRate, processHealth } from './fish-health.js';
 import type { VitalityResult } from './vitality.js';
 import { livestockDefaults } from '../config/livestock.js';
+import { DEFAULT_CONFIG } from '../config/index.js';
 import { FISH_SPECIES_DATA } from '../livestock/species.js';
 import { createSimulation, type Fish, type Plant, type Resources, type SimulationState } from '../state.js';
 import {
@@ -299,7 +300,7 @@ describe('water quality', () => {
       ...createSimulation({ tankCapacity: 100 }),
       resources: makeResources(bandCentre(key, reading)),
     };
-    expect(alertOn[key].check(tank).log).not.toBeNull();
+    expect(alertOn[key].check(tank, DEFAULT_CONFIG).log).not.toBeNull();
     expect(stressorAmount(atBandCentre(key, reading, { hardinessOffset: -1 }), key)).toBe(0);
   });
 

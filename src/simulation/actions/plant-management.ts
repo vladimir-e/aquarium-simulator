@@ -43,7 +43,7 @@ export function checkPlantFootprint(
     ok,
     message: ok
       ? ''
-      : `Not enough floor: ${Math.round(free)} cm² free, ${PLANT_SPECIES_DATA[species].name} needs ${needed}`,
+      : `Not enough floor: ${Math.floor(free)} cm² free, ${PLANT_SPECIES_DATA[species].name} needs ${needed}`,
     free,
     needed,
   };

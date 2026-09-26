@@ -11,16 +11,25 @@ import {
   highNitriteAlert,
   lowOxygenAlert,
   waterLevelAlert,
-  HIGH_ALGAE_THRESHOLD,
+  algaeAlertLine,
+  waterLevelAlertLine,
   HIGH_CO2_THRESHOLD,
-  WATER_LEVEL_CRITICAL_THRESHOLD,
   type Alert,
 } from './index.js';
+import { DEFAULT_CONFIG, type TunableConfig } from '../config/index.js';
+import { computeFishVitality } from '../systems/fish-health.js';
+import { buildPlantStressors } from '../systems/plant-vitality.js';
+import { createFish } from '../livestock/create-fish.js';
+import { createPlant } from '../plants/create-plant.js';
+import { lightAtHeight } from '../plants/canopy.js';
 import { FREE_AMMONIA_EDGE, NITRATE_EDGE, NITRITE_EDGE, OXYGEN_EDGE } from '../livestock/tolerance.js';
 import { createSimulation, type AlertState, type SimulationState } from '../state.js';
 import { getPh } from '../core/carbonate.js';
 
 const CAPACITY = 100;
+const config = DEFAULT_CONFIG;
+const LEVEL_LINE = waterLevelAlertLine(config);
+const ALGAE_LINE = algaeAlertLine(config);
 
 type Setter = (draft: Draft<SimulationState>, value: number) => void;
 
@@ -45,12 +54,12 @@ const CASES: Case[] = [
     alert: waterLevelAlert,
     flag: 'waterLevelCritical',
     source: 'evaporation',
-    set: (draft, share): void => {
-      draft.resources.water = share * CAPACITY;
+    set: (draft, percent): void => {
+      draft.resources.water = (percent / 100) * CAPACITY;
     },
-    firing: WATER_LEVEL_CRITICAL_THRESHOLD / 2,
-    quiet: 0.5,
-    edge: { value: WATER_LEVEL_CRITICAL_THRESHOLD, fires: false },
+    firing: LEVEL_LINE / 2,
+    quiet: (LEVEL_LINE + 100) / 2,
+    edge: { value: LEVEL_LINE, fires: false },
   },
   {
     alert: highAlgaeAlert,
@@ -59,9 +68,9 @@ const CASES: Case[] = [
     set: (draft, mass): void => {
       draft.algae.mass = mass;
     },
-    firing: HIGH_ALGAE_THRESHOLD + 5,
-    quiet: HIGH_ALGAE_THRESHOLD / 2,
-    edge: { value: HIGH_ALGAE_THRESHOLD, fires: true },
+    firing: ALGAE_LINE + 5,
+    quiet: ALGAE_LINE / 2,
+    edge: { value: ALGAE_LINE, fires: false },
   },
   {
     alert: highAmmoniaAlert,
@@ -129,36 +138,88 @@ function tank({ set }: Case, value: number, triggered = false, tick = 0): Simula
 
 describe.each(CASES)('$alert.id', (c) => {
   it('fires one warning on crossing, stamped with the tick', () => {
-    const result = c.alert.check(tank(c, c.firing, false, 42));
+    const result = c.alert.check(tank(c, c.firing, false, 42), config);
 
     expect(result.log).toMatchObject({ severity: 'warning', source: c.source, tick: 42 });
     expect(result.alertState[c.flag]).toBe(true);
   });
 
   it('stays quiet while latched, and clears once the condition passes', () => {
-    const held = c.alert.check(tank(c, c.firing, true));
+    const held = c.alert.check(tank(c, c.firing, true), config);
     expect(held.log).toBeNull();
     expect(held.alertState[c.flag]).toBe(true);
 
-    const cleared = c.alert.check(tank(c, c.quiet, true));
+    const cleared = c.alert.check(tank(c, c.quiet, true), config);
     expect(cleared.log).toBeNull();
     expect(cleared.alertState[c.flag]).toBe(false);
   });
 
   it('treats the threshold itself as the documented side', () => {
-    expect(c.alert.check(tank(c, c.edge.value)).log !== null).toBe(c.edge.fires);
+    expect(c.alert.check(tank(c, c.edge.value), config).log !== null).toBe(c.edge.fires);
   });
 });
 
+function tuned(waterLevelStressThreshold: number, algaeShadingThreshold: number): TunableConfig {
+  return {
+    ...config,
+    livestock: { ...config.livestock, waterLevelStressThreshold },
+    plants: { ...config.plants, algaeShadingThreshold },
+  };
+}
+
 describe('waterLevelAlert', () => {
   it('stays quiet on an empty tank', () => {
-    expect(waterLevelAlert.check(tank(CASES[0]!, 0)).log).toBeNull();
+    expect(waterLevelAlert.check(tank(CASES[0]!, 0), config).log).toBeNull();
   });
 
   it('reports the level and the share of capacity', () => {
-    const message = waterLevelAlert.check(tank(CASES[0]!, 0.15)).log!.message;
+    const message = waterLevelAlert.check(tank(CASES[0]!, 15), config).log!.message;
     expect(message).toContain('15.0L');
     expect(message).toContain('15.0%');
+  });
+
+  it('fires exactly where the water starts to harm fish, wherever that is tuned', () => {
+    for (const line of [30, 50, 70]) {
+      const at = tuned(line, ALGAE_LINE);
+      for (const percent of [line - 5, line, line + 5]) {
+        const state = tank(CASES[0]!, percent);
+        const fish = createFish({ species: 'neon_tetra', stage: 'adult', rng: { ...state.rng } });
+        const { stressors } = computeFishVitality(
+          fish,
+          state.resources,
+          [],
+          state.resources.water,
+          CAPACITY,
+          at.livestock
+        ).breakdown;
+        const harmed = stressors.find((s) => s.key === 'waterLevel')!.amount > 0;
+
+        expect(waterLevelAlert.check(state, at).log !== null).toBe(harmed);
+      }
+    }
+  });
+});
+
+describe('highAlgaeAlert', () => {
+  it('fires exactly where the bloom starts to shade plants, wherever that is tuned', () => {
+    for (const line of [20, 30, 50]) {
+      const at = tuned(LEVEL_LINE, line);
+      for (const mass of [line - 5, line, line + 5]) {
+        const state = tank(CASES[1]!, mass);
+        const plant = createPlant({ species: 'java_fern', rng: { ...state.rng } });
+        const shading = buildPlantStressors({
+          plant,
+          resources: state.resources,
+          waterVolume: state.resources.water,
+          plantsConfig: at.plants,
+          nutrientSufficiency: 1,
+          algaeMass: mass,
+          light: lightAtHeight(plant, { leaf: 1, top: 1 }, state.resources, 40),
+        }).find((s) => s.key === 'algae')!;
+
+        expect(highAlgaeAlert.check(state, at).log !== null).toBe(shading.amount > 0);
+      }
+    }
   });
 });
 
@@ -173,8 +234,8 @@ describe('highAmmoniaAlert', () => {
     const hard = at(1, 12);
 
     expect(getPh(hard.resources)).toBeGreaterThan(getPh(soft.resources));
-    expect(highAmmoniaAlert.check(hard).log).not.toBeNull();
-    expect(highAmmoniaAlert.check(soft).log).toBeNull();
+    expect(highAmmoniaAlert.check(hard, config).log).not.toBeNull();
+    expect(highAmmoniaAlert.check(soft, config).log).toBeNull();
   });
 
   it('draws its total-ammonia line lower as pH climbs', () => {
@@ -189,7 +250,7 @@ describe('checkAlerts', () => {
   });
 
   it('is silent on a fresh tank', () => {
-    const result = checkAlerts(createSimulation({ tankCapacity: CAPACITY }));
+    const result = checkAlerts(createSimulation({ tankCapacity: CAPACITY }), config);
 
     expect(result.logs).toEqual([]);
     expect(Object.values(result.alertState).every((flag) => !flag)).toBe(true);
@@ -201,7 +262,7 @@ describe('checkAlerts', () => {
       draft.resources.co2 = HIGH_CO2_THRESHOLD + 5;
       draft.alertState.highCo2 = true;
     });
-    const result = checkAlerts(state);
+    const result = checkAlerts(state, config);
 
     expect(result.logs.map((l) => l.source)).toEqual(['evaporation']);
     expect(result.alertState.waterLevelCritical).toBe(true);

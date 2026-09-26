@@ -21,10 +21,11 @@
  * leaf never shades it.
  */
 
-import type { Plant, SimulationState } from '../state.js';
+import type { Plant, Resources, SimulationState } from '../state.js';
 import { calculateFloorArea, calculateTankHeight } from '../state.js';
 import type { OpticsConfig } from '../config/optics.js';
-import { growthFormOf, type PlantSpecies } from './species.js';
+import { dailyLightIntegral } from '../equipment/light.js';
+import { dailyLightEdge, growthFormOf, type PlantSpecies } from './species.js';
 
 type Unit = Pick<Plant, 'species' | 'size'>;
 
@@ -123,6 +124,40 @@ export function canopyLight(
       top: Math.exp(optics.waterAttenuationPerCm * own.height - aboveTop),
     };
   });
+}
+
+/** The light one plant stands in, at its own height. */
+export interface PlantLight {
+  /** PAR at its mean leaf, µmol/m²/s. */
+  par: number;
+  /** PAR at the top of its crown, what the light-high stressor reads. */
+  crownPar: number;
+  /** The day's light at its mean leaf, mol/m²/d. */
+  dailyLight: number;
+  /** That day's light over the daily light the species starves under. */
+  needShare: number;
+  /** The day's light at the substrate that leaves its leaf on the species edge. */
+  substrateEdge: number;
+  heightCm: number;
+}
+
+/** A plant's light at its place in the canopy, on the tank's light as it stands. */
+export function lightAtHeight(
+  plant: Unit,
+  canopy: CanopyLight,
+  resources: Pick<Resources, 'light' | 'lightByHour'>,
+  waterDepth: number
+): PlantLight {
+  const dailyLight = dailyLightIntegral(resources.lightByHour) * canopy.leaf;
+  const edge = dailyLightEdge(plant.species);
+  return {
+    par: resources.light * canopy.leaf,
+    crownPar: resources.light * canopy.top,
+    dailyLight,
+    needShare: dailyLight / edge,
+    substrateEdge: edge / canopy.leaf,
+    heightCm: plantHeight(plant, waterDepth),
+  };
 }
 
 /** Floor the planting claims, cm²: every unit's footprint, grown or not. */

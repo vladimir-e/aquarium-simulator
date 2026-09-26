@@ -5,6 +5,7 @@
 
 import type { LogEntry } from '../core/logging.js';
 import type { AlertState, SimulationState } from '../state.js';
+import type { TunableConfig } from '../config/index.js';
 
 /**
  * Result of an alert check.
@@ -21,5 +22,5 @@ export interface Alert {
   /** Unique identifier for this alert */
   id: string;
   /** Check for alert condition and return result with log and state update */
-  check(state: SimulationState): AlertResult;
+  check(state: SimulationState, config: TunableConfig): AlertResult;
 }

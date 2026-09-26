@@ -1,6 +1,6 @@
 /**
- * High algae alert — fires once when algae mass reaches
- * `HIGH_ALGAE_THRESHOLD`, resets below it.
+ * High algae alert — fires once when the bloom grows past the mass where it
+ * starts to shade plants, resets at or below it.
  *
  * Reads `state.algae.mass` directly — algae is a top-level organism
  * with mass / surplus, not a resource.
@@ -8,40 +8,34 @@
 
 import type { Alert, AlertResult } from './types.js';
 import type { SimulationState } from '../state.js';
+import type { TunableConfig } from '../config/index.js';
 import { createLog } from '../core/logging.js';
 
-/** Threshold for high algae alert (80 out of 100) */
-export const HIGH_ALGAE_THRESHOLD = 80;
+/** Algae mass the bloom alerts over: where it starts to shade plants. */
+export function algaeAlertLine(config: TunableConfig): number {
+  return config.plants.algaeShadingThreshold;
+}
 
 export const highAlgaeAlert: Alert = {
   id: 'high-algae',
 
-  check(state: SimulationState): AlertResult {
+  check(state: SimulationState, config: TunableConfig): AlertResult {
     const algaeMass = state.algae.mass;
-    const wasTriggered = state.alertState.highAlgae;
 
-    // Check if currently at or above threshold
-    const isAboveThreshold = algaeMass >= HIGH_ALGAE_THRESHOLD;
-
-    if (isAboveThreshold) {
-      // Condition is active
-      if (!wasTriggered) {
-        // Just crossed threshold - fire alert and set flag
-        return {
-          log: createLog(
-            state.tick,
-            'algae',
-            'warning',
-            `High algae level: ${algaeMass.toFixed(1)} - consider reducing light or scrubbing`
-          ),
-          alertState: { highAlgae: true },
-        };
-      }
-      // Already triggered, don't fire again but keep flag set
+    if (algaeMass <= algaeAlertLine(config)) {
+      return { log: null, alertState: { highAlgae: false } };
+    }
+    if (state.alertState.highAlgae) {
       return { log: null, alertState: { highAlgae: true } };
     }
-
-    // Condition is not active - clear the flag so it can fire again
-    return { log: null, alertState: { highAlgae: false } };
+    return {
+      log: createLog(
+        state.tick,
+        'algae',
+        'warning',
+        `High algae level: ${algaeMass.toFixed(1)} - shading plants, consider reducing light or scrubbing`
+      ),
+      alertState: { highAlgae: true },
+    };
   },
 };

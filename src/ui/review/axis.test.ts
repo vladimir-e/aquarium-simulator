@@ -116,9 +116,8 @@ describe('alertMarkers', () => {
   });
 
   it('marks a kind once a tick, however many logs it wrote there', () => {
-    const died = (tick: number): LogEntry =>
-      createLog(tick, 'simulation', 'warning', 'Anubias died from poor conditions', 'plant-died');
-    const marks = alertMarkers([died(86), died(86), died(90), ...logs], null);
+    const low = (tick: number): LogEntry => createLog(tick, 'evaporation', 'warning', 'Water level low');
+    const marks = alertMarkers([low(86), low(86), low(90), ...logs], null);
 
     expect(marks.filter((mark) => mark.tick === 86)).toHaveLength(1);
     expect(new Set(marks.map((mark) => `${mark.kind}-${mark.tick}`)).size).toBe(marks.length);

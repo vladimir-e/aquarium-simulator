@@ -43,6 +43,8 @@ export interface AlgaeProcessingResult {
   state: SimulationState;
   /** The net rate this tick and the factors behind it. */
   population: AlgaePopulationResult;
+  /** That net folded into the bank, before the bank spends on mass. */
+  bank: SurplusBankTick;
 }
 
 const MASS_MAX = 100;
@@ -151,7 +153,7 @@ export function processAlgae(
     draft.algae = next;
   });
 
-  return { state: newState, population };
+  return { state: newState, population, bank };
 }
 
 // Re-export the population math for tests and UI introspection.

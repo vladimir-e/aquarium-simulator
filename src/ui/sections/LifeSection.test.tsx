@@ -6,7 +6,7 @@ import { bare, stocked, type Run } from '../test/run';
 import { group, query, renderStage } from '../test/stage';
 import { stubSim } from '../test/stubSim';
 import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
-import { readHourAhead } from '../run';
+import { LEDGER_DECIMALS, readHourAhead } from '../run';
 import {
   applyAction,
   type Action,
@@ -72,11 +72,7 @@ describe('LifeSection', () => {
         ...run.state,
         plants: [...run.state.plants, { ...first, id: 'plant_bud', parentId: first.id, size: 20 }],
       };
-      return {
-        run: { ...run, state },
-        founder: first.id,
-        label: `Anubias family ${first.id.slice(first.id.indexOf('_') + 1)}`,
-      };
+      return { run: { ...run, state }, founder: first.id, label: 'Anubias family 1' };
     }
 
     it('opens a species onto its families, and a family onto its units to remove one', () => {
@@ -85,14 +81,14 @@ describe('LifeSection', () => {
       const plants = within(group('Plants'));
 
       fireEvent.click(speciesRow('Plants', 'Anubias'));
-      expect(plants.getAllByRole('button', { name: /^Anubias family \S+ — \d/ })).toHaveLength(2);
-      expect(plants.queryByRole('button', { name: 'Remove Anubias bud' })).toBeNull();
+      expect(plants.getAllByRole('button', { name: /^Anubias family \d — \d/ })).toHaveLength(2);
+      expect(plants.queryByRole('button', { name: `Remove ${label} · #2` })).toBeNull();
 
       fireEvent.click(plants.getByRole('button', { name: new RegExp(`^${label} — 2`) }));
-      expect(plants.getByText('from', { exact: false }).textContent).toMatch(/^from /);
+      expect(plants.getByText('from', { exact: false }).textContent).toBe(' · from #1');
 
-      fireEvent.click(plants.getByRole('button', { name: 'Remove Anubias bud' }));
-      expect(plants.queryByRole('button', { name: 'Remove Anubias bud' })).toBeNull();
+      fireEvent.click(plants.getByRole('button', { name: `Remove ${label} · #2` }));
+      expect(plants.queryByRole('button', { name: `Remove ${label} · #2` })).toBeNull();
       expect(plants.getByRole('button', { name: new RegExp(`^${label} — 1`) })).toBeTruthy();
     });
 
@@ -157,8 +153,9 @@ describe('LifeSection', () => {
     expect(drawer.getByText(/per day/)).toBeTruthy();
 
     const { breakdown } = readHourAhead(state, DEFAULT_CONFIG).fish[0].vitality;
+    const prints = (amount: number): boolean => Number((amount * 24).toFixed(LEDGER_DECIMALS)) > 0;
     for (const factor of [...breakdown.stressors, ...breakdown.benefits]) {
-      if (factor.amount > 0) expect(drawer.getByText(factor.label)).toBeTruthy();
+      if (prints(factor.amount)) expect(drawer.getAllByText(factor.label).length).toBeGreaterThan(0);
     }
   });
 
@@ -169,6 +166,30 @@ describe('LifeSection', () => {
     );
 
     expect(within(screen.getByRole('dialog')).getByText(/the worst of 6 Neon Tetra/)).toBeTruthy();
+    expect(query().get('inspect')).toBe('species-neon_tetra');
+  });
+
+  it('opens the ledger the address names, as a group stands when it is read', () => {
+    renderStage(<Live run={stocked()} />, { path: '/life?inspect=species-neon_tetra' });
+
+    expect(within(screen.getByRole('dialog')).getByText(/the worst of 6 Neon Tetra/)).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: /^Close/ }));
+    expect(query().get('inspect')).toBeNull();
+  });
+
+  it('trims a unit’s own family from its ledger', () => {
+    const run = stocked();
+    const [first] = run.state.plants;
+    const { onAct } = renderLife(run);
+
+    fireEvent.click(speciesRow('Plants', 'Anubias'));
+    fireEvent.click(
+      within(group('Plants')).getByRole('button', { name: 'Anubias family 1 — inspect the worst of 1' })
+    );
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: /^Trim/ }));
+
+    expect(onAct.mock.calls).toEqual([['trimPlants', undefined, { familyId: first.familyId }]]);
   });
 
   it('adds the fish the picker committed to, and the roster shows them', () => {

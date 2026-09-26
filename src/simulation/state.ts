@@ -300,9 +300,9 @@ export interface Equipment {
  * Used to only fire alerts once when crossing thresholds.
  */
 export interface AlertState {
-  /** Water is below `WATER_LEVEL_CRITICAL_THRESHOLD` of capacity */
+  /** Water is below `waterLevelAlertLine` % of capacity */
   waterLevelCritical: boolean;
-  /** Algae mass is at or above `HIGH_ALGAE_THRESHOLD` */
+  /** Algae mass is above `algaeAlertLine` */
   highAlgae: boolean;
   /** Free NH₃ is above `FREE_AMMONIA_EDGE` */
   highAmmonia: boolean;

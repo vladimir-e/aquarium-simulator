@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { classifyAmmonia, classifyVital } from './vitals';
+import { HIGH_CO2_THRESHOLD } from '../../simulation/alerts/index.js';
+import { classifyAmmonia, classifyLevel, classifyVital } from './vitals';
 
 describe('classifyAmmonia', () => {
   it('alerts only past the line it is handed', () => {
@@ -33,13 +34,15 @@ describe('classifyVital', () => {
     expect(classifyVital('oxygen', 8)).toBe('ok');
   });
 
-  it('alerts on CO₂ only past the harmful threshold, quiet otherwise', () => {
-    expect(classifyVital('co2', 19)).toBe('neutral');
-    expect(classifyVital('co2', 35)).toBe('alert');
+  it('alerts on CO₂ only past the line the engine alerts on, quiet otherwise', () => {
+    expect(classifyVital('co2', HIGH_CO2_THRESHOLD)).toBe('neutral');
+    expect(classifyVital('co2', HIGH_CO2_THRESHOLD + 0.1)).toBe('alert');
   });
+});
 
-  it('warns on water below the critical level', () => {
-    expect(classifyVital('water', 10)).toBe('warn');
-    expect(classifyVital('water', 99)).toBe('ok');
+describe('classifyLevel', () => {
+  it('warns only under the line it is handed', () => {
+    expect(classifyLevel(49, 50)).toBe('warn');
+    expect(classifyLevel(50, 50)).toBe('ok');
   });
 });

@@ -3,7 +3,7 @@ import { screen, cleanup, fireEvent, within } from '@testing-library/react';
 import { OverviewSection } from './OverviewSection';
 import { activeNeeds } from '../nav';
 import { bare, stocked, type Run } from '../test/run';
-import { renderStage } from '../test/stage';
+import { query, renderStage } from '../test/stage';
 import { stubSim } from '../test/stubSim';
 import { DEFAULT_CONFIG, NUTRIENTS } from '../../simulation/config/index.js';
 import type { AlertState } from '../../simulation/index.js';
@@ -167,6 +167,15 @@ describe('OverviewSection', () => {
 
     expect(life.getByText('×2')).toBeTruthy();
     expect(life.getByRole('img', { name: /Anubias by family/i }).children).toHaveLength(2);
+  });
+
+  it('opens a group on the member it names, in the Life ledger', () => {
+    renderOverview(stocked());
+    fireEvent.click(
+      within(widget('Life')).getByRole('button', { name: /Neon Tetra — inspect the worst of 6/ })
+    );
+
+    expect(query().get('inspect')).toBe('species-neon_tetra');
   });
 
   it('gives the algae row no dots to speak of', () => {

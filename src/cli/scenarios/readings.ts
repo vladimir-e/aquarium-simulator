@@ -3,6 +3,7 @@ import type { TunableConfig } from '../../simulation/config/index.js';
 import { floorCover, floorShade } from '../../simulation/plants/canopy.js';
 import { freeAmmoniaPpm } from '../../simulation/systems/nitrogen-cycle.js';
 import { FREE_AMMONIA_EDGE } from '../../simulation/livestock/tolerance.js';
+import { HIGH_CO2_THRESHOLD } from '../../simulation/alerts/high-co2.js';
 import { getDgh, getDkh, getPpm } from '../../simulation/resources/helpers.js';
 import { getPh } from '../../simulation/core/carbonate.js';
 import { toFahrenheit } from '../units.js';
@@ -103,7 +104,11 @@ const DEFINITIONS = [
     unit: 'mg/L',
     digits: 1,
     read: (s): number => s.resources.co2,
-    band: { green: [1, 30], amber: [0, 40], why: 'air-equilibrated ~3, injected tanks aim 20–30, fish gasp past ~35' },
+    band: {
+      green: [1, HIGH_CO2_THRESHOLD],
+      amber: [0, HIGH_CO2_THRESHOLD],
+      why: `air-equilibrated ~3, injected tanks aim 20–30, keepers treat past ${HIGH_CO2_THRESHOLD} as too much`,
+    },
   },
   {
     id: 'ph',

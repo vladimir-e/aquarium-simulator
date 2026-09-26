@@ -9,6 +9,7 @@ import type { LogEntry } from '../../simulation/index.js';
 export interface RunAggregates {
   /** Ticks (simulated hours) elapsed since the run began. */
   ticks: number;
+  /** What the tank lost: fish, and plant units. */
   deaths: number;
   /** What the tank added to itself: fry born live or hatched, and plant offshoots. */
   births: number;
@@ -29,12 +30,12 @@ function entryCount(log: LogEntry): number {
 /**
  * Fold newly appended log entries into the aggregates. Lifecycle events are
  * counted by their `event` discriminator; any other warning-severity entry
- * (e.g. a chemistry threshold crossing or a plant death) counts as an alert.
+ * (a chemistry threshold crossing) counts as an alert.
  */
 export function accrueLogs(aggregates: RunAggregates, logs: LogEntry[]): RunAggregates {
   let { deaths, births, frySold, alerts } = aggregates;
   for (const log of logs) {
-    if (log.event === 'fish-died') {
+    if (log.event === 'fish-died' || log.event === 'plant-died') {
       deaths += entryCount(log);
     } else if (
       log.event === 'fish-spawned' ||

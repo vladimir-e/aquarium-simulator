@@ -7,6 +7,7 @@ import {
   getTotalRateUnits,
   isOvergrown,
   LEAF_AREA_PER_RATE_UNIT,
+  lightAtHeight,
   plantHeight,
   rateUnits,
   type CanopyLight,
@@ -184,14 +185,15 @@ describe('the regulator', () => {
       opticsDefaults
     );
     return day.reduce((net, par) => {
+      const hour = { ...resources, light: par, lightByHour: day };
       const ctx = {
         plant,
-        resources: { ...resources, light: par, lightByHour: day },
+        resources: hour,
         waterVolume: resources.water,
         plantsConfig: plantsDefaults,
         nutrientSufficiency: calculateNutrientSufficiency(resources, resources.water, species, nutrientsDefaults),
         algaeMass: 0,
-        canopy,
+        light: lightAtHeight(plant, canopy, hour, DEPTH),
       };
       const sum = (factors: { amount: number }[]): number => factors.reduce((s, f) => s + f.amount, 0);
       return net + sum(buildPlantBenefits(ctx)) - sum(buildPlantStressors(ctx));

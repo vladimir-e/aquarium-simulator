@@ -9,7 +9,12 @@ import {
   type GasReading,
   type WaterReading,
 } from './water';
-import { ammoniaAlertLine, HIGH_CO2_THRESHOLD } from '../../simulation/alerts/index.js';
+import {
+  ammoniaAlertLine,
+  checkAlerts,
+  HIGH_CO2_THRESHOLD,
+} from '../../simulation/alerts/index.js';
+import { DEFAULT_CONFIG, type TunableConfig } from '../../simulation/config/index.js';
 import {
   NITRATE_EDGE,
   NITRITE_EDGE,
@@ -24,7 +29,7 @@ function tank(): SimulationState {
 }
 
 function readings(state: SimulationState): WaterReading[] {
-  return waterReadings(state, 'metric');
+  return waterReadings(state, DEFAULT_CONFIG, 'metric');
 }
 
 function byKey(state: SimulationState, key: string): WaterReading {
@@ -123,11 +128,27 @@ describe('waterReadings', () => {
     expect(byKey(state, 'ph').status).toBe('neutral');
   });
 
+  it('warns on the level exactly where its alert fires, wherever the line is tuned', () => {
+    for (const line of [30, 50, 70]) {
+      const config: TunableConfig = {
+        ...DEFAULT_CONFIG,
+        livestock: { ...DEFAULT_CONFIG.livestock, waterLevelStressThreshold: line },
+      };
+      for (const percent of [line - 1, line, line + 1]) {
+        const state = tank();
+        state.resources.water = (percent / 100) * state.tank.capacity;
+        const level = waterReadings(state, config, 'metric').find((r) => r.key === 'water')!;
+
+        expect(level.status === 'warn').toBe(checkAlerts(state, config).alertState.waterLevelCritical);
+      }
+    }
+  });
+
   it('shows the reading in the reader’s units without moving it on the track', () => {
     const state = tank();
     state.resources.temperature = 25;
-    const metric = waterReadings(state, 'metric')[0];
-    const imperial = waterReadings(state, 'imperial')[0];
+    const metric = waterReadings(state, DEFAULT_CONFIG, 'metric')[0];
+    const imperial = waterReadings(state, DEFAULT_CONFIG, 'imperial')[0];
     expect(metric.text).toBe('25.0');
     expect(imperial.text).toBe('77.0');
     expect(imperial.fill).toBeCloseTo(metric.fill, 10);

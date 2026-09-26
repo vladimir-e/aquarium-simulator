@@ -166,7 +166,8 @@ describe('the six verbs', () => {
       expect(scoped(first, 75).options.map((o) => o.hint)).toEqual(['2 plants', '1 plant', 'none']);
       expect(scoped(first, 75).meta).toBe('Java Fern · 1 of 2 plants · tallest 80 %');
       expect(scoped(first, 75).commitLabel).toBe('Trim family to 75 %');
-      expect(scoped(first, 75).title).toBe(`Trim family ${first.slice(first.indexOf('_') + 1)}`);
+      expect(scoped(first, 75).title).toBe('Trim family 1');
+      expect(scoped(second, 75).title).toBe('Trim family 2');
       expect(scoped(first, 85).blocked).toBe('nothing above 85 %');
       expect(scoped(second, 85).blocked).toBeNull();
       expect(detail(state, 'trimPlants', { ...DEFAULT_SETTINGS, trimPlants: 85 }).blocked).toBeNull();

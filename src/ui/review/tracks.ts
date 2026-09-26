@@ -68,7 +68,7 @@ export const TRACKS: TrackDef[] = [
     // `AlgaeState.mass` is a percentage despite the name, as `Plant.size` is.
     title: 'Populations',
     shortLabel: 'pop.',
-    alertKinds: ['algae', 'plant'],
+    alertKinds: ['algae'],
     series: [
       { key: 'fishCount', label: 'fish', decimals: 0, accessor: (s) => s.fishCount },
       { key: 'fryCount', label: 'fry', decimals: 0, accessor: (s) => s.fryCount },

@@ -118,6 +118,25 @@ describe('readLedger', () => {
     expect(ledger.bank!.note).toBe('full');
   });
 
+  it('never reads the bank of an organism the next tick takes as a purchase', () => {
+    const cap = DEFAULT_CONFIG.livestock.surplusCap;
+    const dying = tank(
+      [
+        makeFish({ id: 'fish_a_1', sex: 'female', health: 0.5, surplus: cap / 5 }),
+        makeFish({ id: 'fish_a_2', sex: 'male', health: 0.5, surplus: cap / 5 }),
+      ],
+      500
+    );
+    const next = tick(dying, DEFAULT_CONFIG);
+
+    expect(next.fish).toHaveLength(0);
+    for (const id of ['fish_a_1', 'fish_a_2']) {
+      const { bank } = fishLedger(dying, id);
+      expect(bank!.text).not.toBe('0.0');
+      expect(bank!.note).not.toMatch(/^buying/);
+    }
+  });
+
   it('reads the bank a spawn empties as buying a brood, the hour before it spawns', () => {
     const cap = DEFAULT_CONFIG.livestock.surplusCap;
     const pair = tank([
@@ -148,16 +167,51 @@ describe('readLedger', () => {
       expect(plantLedger(planted(0)).bank!.note).toBe('buying growth');
     });
 
-    it('names the bank by which way the next tick moves it', () => {
+    it('names the bank by which way the next tick moves it, and by what it buys', () => {
       const cap = DEFAULT_CONFIG.plants.surplusCap;
       const budding = planted(10, cap);
       const grown = { ...budding, plants: budding.plants.map((plant) => ({ ...plant, size: 100 })) };
 
-      for (const state of [planted(0, 2), planted(10, 2), planted(0), planted(10), grown]) {
-        const moved = tick(state, DEFAULT_CONFIG).plants[0].surplus - state.plants[0].surplus;
+      const notes = [planted(0, 2), planted(10, 2), planted(0), planted(10), budding, grown].map((state) => {
+        const next = tick(state, DEFAULT_CONFIG).plants;
+        const moved = next[0].surplus - state.plants[0].surplus;
+        const note = plantLedger(state).bank!.note;
 
-        expect(plantLedger(state).bank!.note).toBe(moved > 0 ? 'banking' : 'buying growth');
-      }
+        expect(note).toBe(
+          moved > 0 ? 'banking' : next.length > state.plants.length ? 'buying an offshoot' : 'buying growth'
+        );
+        return note;
+      });
+      expect(notes).toContain('buying an offshoot');
+    });
+
+    it('never reads the bank of a plant the next tick takes as buying growth', () => {
+      const dark = planted(0, half);
+      const dying = {
+        ...dark,
+        equipment: { ...dark.equipment, light: { ...dark.equipment.light, enabled: false } },
+        resources: { ...dark.resources, lightByHour: dark.resources.lightByHour.map(() => 0) },
+        plants: dark.plants.map((plant) => ({ ...plant, condition: 0.001, surplus: 1 })),
+      };
+
+      expect(tick(dying, DEFAULT_CONFIG).plants).toHaveLength(0);
+      expect(plantLedger(dying).bank!.note).not.toMatch(/^buying/);
+    });
+
+    it('tones its light warn exactly while the light-high stressor charges it, whatever its need', () => {
+      const burns = [20, 200, 800].map((par) => {
+        const state = produce(planted(10), (draft) => {
+          draft.equipment.light.par = par;
+        });
+        const { light } = plantLedger(state);
+        const { vitality } = readHourAhead(state, DEFAULT_CONFIG).plants[0];
+        const burning = vitality.breakdown.stressors.find((s) => s.key === 'light')!.amount > 0;
+
+        expect(light!.status === 'warn').toBe(burning || Number(light!.text) < 100);
+        return burning;
+      });
+      expect(burns).toContain(true);
+      expect(burns).toContain(false);
     });
 
     it('trends by the condition the next tick leaves it at', () => {
@@ -201,7 +255,29 @@ describe('readLedger', () => {
     const algae = ledgerOf(tank([]), { kind: 'algae' })!;
 
     expect(algae.species).toBe('algae');
-    expect(algae.bank).toBeNull();
     expect(algae.verb).toBe('scrubAlgae');
+  });
+
+  it('reads the bloom’s bank buying coverage while lit, and held while dark', () => {
+    const preset = getPresetById('planted')!;
+    let state = produce(createSimulation(preset.config, preset.seed), (draft) => {
+      draft.algae.mass = 20;
+      draft.algae.surplus = 10;
+    });
+    const notes = new Map<boolean, Set<string>>([
+      [true, new Set()],
+      [false, new Set()],
+    ]);
+    for (let hour = 0; hour < 24; hour++) {
+      const next = tick(state, DEFAULT_CONFIG);
+      const { bank } = ledgerOf(state, { kind: 'algae' })!;
+
+      notes.get(next.resources.light > 0)!.add(bank!.note);
+      expect(bank!.text).toBe(state.algae.surplus.toFixed(1));
+      state = next;
+    }
+    expect(notes.get(true)).toContain('buying coverage');
+    expect([...notes.get(false)!].every((note) => note !== 'buying coverage')).toBe(true);
+    expect(notes.get(false)).toContain('held while dark');
   });
 });

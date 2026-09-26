@@ -48,11 +48,16 @@ function shownPerDay(changePerHour: number): number {
   return Number((changePerHour * TICKS_PER_DAY).toFixed(TREND_DECIMALS));
 }
 
+/** What the next tick does to a figure, per day, as a reading row prints it: nothing while it holds. */
+export function projectedDrift(changePerHour: number): string {
+  const perDay = shownPerDay(changePerHour);
+  if (perDay === 0) return '';
+  return `${perDay > 0 ? '↗' : '↘'} ${Math.abs(perDay).toFixed(TREND_DECIMALS)}/d`;
+}
+
 /** What the next tick does to a figure, from the change it makes in its hour. */
 export function projectedTrend(changePerHour: number): string {
-  const perDay = shownPerDay(changePerHour);
-  if (perDay === 0) return 'steady';
-  return `${perDay > 0 ? '↗' : '↘'} ${Math.abs(perDay).toFixed(TREND_DECIMALS)}/d`;
+  return projectedDrift(changePerHour) || 'steady';
 }
 
 const SICK: Reading = { status: 'warn', word: 'sick' };

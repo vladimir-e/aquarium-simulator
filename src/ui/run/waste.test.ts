@@ -73,17 +73,20 @@ describe('wasteInflow', () => {
     expect(inflow.sources.find((s) => s.key === 'food')?.gramsPerHour).toBe(0);
   });
 
-  it('takes food decay straight from the engine’s decay curve', () => {
+  it('decays only the food the next hour’s fish leave, as the tick does', () => {
     const state = stocked();
-    const expected =
+    const standing =
       calculateDecay(
         state.resources.food,
         state.resources.temperature,
         state.resources.oxygen,
         config.decay
-      ) *
-      config.decay.wasteConversionRatio;
-    expect(inflowOf(state).sources[0].gramsPerHour).toBeCloseTo(expected, 10);
+      ) * config.decay.wasteConversionRatio;
+    const food = inflowOf(state).sources[0].gramsPerHour;
+
+    expect(food).toBe(readHourAhead(state, config).foodWaste);
+    expect(food).toBeGreaterThan(0);
+    expect(food).toBeLessThan(standing);
   });
 
   it('counts what the plants shed on the hour ahead, not on the condition they stand at', () => {

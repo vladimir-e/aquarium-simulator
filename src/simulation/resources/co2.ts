@@ -1,8 +1,8 @@
 /**
  * CO2 resource - dissolved carbon dioxide stored as concentration (mg/L).
  *
- * Plants use CO2 for photosynthesis. Atmospheric equilibrium ~3-5 mg/L.
- * Levels > 30 mg/L are harmful to fish. Equilibrates toward atmospheric
+ * Plants use CO2 for photosynthesis. Atmospheric equilibrium ~3-5 mg/L;
+ * keepers treat past 40 mg/L as too much. Equilibrates toward atmospheric
  * levels via gas exchange (off-gassing).
  */
 

@@ -26,12 +26,20 @@ export {
   bankShare,
   conditionStatus,
   conditionWord,
+  projectedDrift,
   worstReading,
 } from './status.js';
-export { type HourAhead, type OrganismAhead, type PlantAhead, readHourAhead } from './ahead.js';
+export {
+  type BloomBankAhead,
+  type HourAhead,
+  type OrganismAhead,
+  type PlantAhead,
+  readHourAhead,
+} from './ahead.js';
 export { type StockedBand, stockedBand, toleranceStatus } from './tolerance.js';
 export {
   classifyAmmonia,
+  classifyLevel,
   classifyVital,
   NITRATE_LOW_PPM,
   type VitalKey,
@@ -96,6 +104,8 @@ export {
   type FryRosterRow,
   type ClutchRosterRow,
   type RosterInput,
+  type Inspection,
+  inspection,
   rosterTables,
   shortId,
 } from './roster.js';
@@ -114,11 +124,16 @@ export {
   type DailyLightReading,
   dailyLightReading,
   lightStatus,
+  plantLightStatus,
 } from './light.js';
 export {
   algaeReading,
   algaeStatus,
   algaeWord,
+  type PlantLabel,
+  plantLabels,
+  familyTitle,
+  unitTitle,
   type PlantRow,
   plantRows,
   type PlantGroupFigures,

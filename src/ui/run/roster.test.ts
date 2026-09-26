@@ -9,6 +9,7 @@ import { groupPlantsBySpecies, plantRows } from './flora.js';
 import { readLedger } from './ledger.js';
 import { groupReading, worstMember, type Member } from './status.js';
 import {
+  inspection,
   rosterTables,
   type ClutchRosterRow,
   type FamilyRosterRow,
@@ -91,7 +92,7 @@ describe('rosterTables', () => {
     const second = fish[2] as IndividualRosterRow;
     expect(second.id).toBe('fish_a_2');
     expect(second.sex).toBe('female');
-    expect(second.shortId).toBe('a_2');
+    expect(second.tag).toBe('a_2');
     expect(second.figure).toBe('0.50 g');
     expect(second.age).toBe('120 d');
   });
@@ -112,12 +113,23 @@ describe('rosterTables', () => {
     expect(individual.word).toBe('starving');
   });
 
-  it('hands a group over at its worst member', () => {
+  it('hands a group over at its worst member, counted as the group stands', () => {
     const state = tank([
       makeFish({ id: 'fish_a_1', health: 100 }),
       makeFish({ id: 'fish_a_2', health: 20 }),
     ]);
-    expect((tables(state).fish[0] as SpeciesRosterRow).worstKey).toBe('fish_a_2');
+    const [header] = tables(state).fish;
+
+    expect(inspection(header.key, input(state, DEFAULT_CONFIG))).toEqual({
+      target: { kind: 'fish', id: 'fish_a_2' },
+      subtitle: 'the worst of 2 Neon Tetra',
+    });
+    expect(inspection('fish_a_1', input(state, DEFAULT_CONFIG))).toEqual({
+      target: { kind: 'fish', id: 'fish_a_1' },
+      subtitle: '',
+    });
+    expect(inspection('algae', input(state, DEFAULT_CONFIG))!.target).toEqual({ kind: 'algae' });
+    expect(inspection('fish_gone', input(state, DEFAULT_CONFIG))).toBeNull();
   });
 
   it('counts down to hatch from the current tick, not from when the clutch was laid', () => {
@@ -218,14 +230,16 @@ describe('rosterTables', () => {
       ...state,
       plants: state.plants.map((plant, i) => ({ ...plant, condition: i === 1 ? 65 : 100 })),
     };
-    const { fish, plants } = input(planted, DEFAULT_CONFIG);
+    const roster = input(planted, DEFAULT_CONFIG);
+    const { fish, plants } = roster;
     const rows = tables(planted);
     const reads = (members: (Member & { id: string })[], row: RosterRow): void => {
       const header = row as SpeciesRosterRow;
+      const opened = inspection(header.key, roster)!.target as { id: string };
       expect(members.every((member) => member.reading.status === 'ok')).toBe(true);
       expect(header).toMatchObject(groupReading(members));
-      expect(header.worstKey).toBe(worstMember(members).id);
-      expect(header.worstKey).toBe(members.find((member) => member.condition === 65)!.id);
+      expect(opened.id).toBe(worstMember(members).id);
+      expect(opened.id).toBe(members.find((member) => member.condition === 65)!.id);
     };
 
     reads(fish[0].members, rows.fish[0]);
@@ -329,7 +343,8 @@ describe('rosterTables', () => {
         [2, 2],
         [1, 1],
       ]);
-      expect(a.label).toBe(`family ${a.familyId.slice(a.familyId.indexOf('_') + 1)}`);
+      expect([a, b, c].map((family) => family.label)).toEqual(['family 1', 'family 2', 'family 3']);
+      expect(a.title).toBe('Java Fern family 1');
       expect(a.figure).toBe(`${((state.plants[0].size + 40) / 100).toFixed(1)} units`);
     });
 
@@ -361,8 +376,12 @@ describe('rosterTables', () => {
         SpeciesRosterRow,
         FamilyRosterRow,
       ];
-      expect(species.worstKey).toBe('plant_a2');
-      expect(a.worstKey).toBe('plant_a2');
+      const roster = input(state, DEFAULT_CONFIG);
+      expect(inspection(species.key, roster)!.target).toEqual({ kind: 'plant', id: 'plant_a2' });
+      expect(inspection(a.key, roster)).toEqual({
+        target: { kind: 'plant', id: 'plant_a2' },
+        subtitle: 'the worst of 3 in Java Fern family 1',
+      });
     });
 
     it('names a unit by the one it budded from, beside its light and its bank toward the next offshoot', () => {
@@ -374,7 +393,14 @@ describe('rosterTables', () => {
       const founder = rows.find((row) => row.key === a.id) as IndividualRosterRow;
       const share = readPlantLight(state, DEFAULT_CONFIG)[5].needShare;
 
-      expect(unit).toMatchObject({ parent: 'a1', figure: '20 %', age: '1 d', bank: '62 %' });
+      expect(unit).toMatchObject({
+        tag: '#3',
+        title: 'Java Fern family 1 · #3',
+        parent: '#2',
+        figure: '20 %',
+        age: '1 d',
+        bank: '62 %',
+      });
       expect(unit.light!.text).toBe(`${Math.floor(share * 100)} %`);
       expect(founder.parent).toBeNull();
     });

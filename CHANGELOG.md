@@ -11,23 +11,26 @@ Format: - **Feature name** (#PR) - One short sentence (under ~150 chars)
 
 ## Unreleased
 
+- **Alerts fire where harm starts** - water level and algae where their tunables start harm, CO₂ past 40 mg/L; breaking: `waterLevelAlertLine`, `algaeAlertLine`, `check` takes the config.
+- **A feeding adds what it weighs** - the food stock keeps its real mass instead of rounding to 0.01 g, so a pinch no longer vanishes or swells.
+- **The console reads what a bank buys** - a death buys nothing, a bud an offshoot, the bloom's bank shows; plant families and units read by number, not id.
 - **The console reads plant families** - the roster opens species onto families onto units, read for light at height and bank to the next offshoot; a family trims alone.
-- **A pass returns what it computed** - plants, algae and livestock hand back the vitalities, light, waste and metabolism behind their effects.
+- **A pass returns what it computed** - `processPlants` its `vitalities`, `light`, `shedding`; `processAlgae` its `population`, `bank`; `processLivestock` its `metabolism`, `vitalities`.
 - **A full bank buys a plant an offshoot** - a runner, plantlet or rhizome branch of its family; breaking: `Plant` gains `parentId`, `familyId`, `age`, `vigour` (v31, v15).
 - **Plants carry vigour, and trim by family** - income scales by a ±15 % vigour drawn at birth, so clones bud apart; `trimPlants` takes a `familyId`.
-- **Plants grow to a full unit and read light at height** - size 0–100 of a growth form, shaded by `leafAttenuationPerLai`, read by `canopyLight` and `readPlantLight`; breaking: no `maxSize`, vitality takes a `canopy`, photosynthesis per-plant PAR (v31, v15).
+- **Plants grow to a full unit and read light at height** - size 0–100 of a growth form, shaded by `leafAttenuationPerLai`, read by `canopyLight` and `readPlantLight`; breaking: no `maxSize`, vitality takes the plant's `light`, photosynthesis per-plant PAR (v31, v15).
 - **Plants claim floor, not slots** - footprints fit the floor, read by `floorCover`, `floorShade` and `isOvergrown`, and sizes run from `deathSizeThreshold` (now 1) to 100; breaking: `checkPlantFootprint` replaces `getMaxPlants`, `canAddPlant` takes a species.
 - **Plants are rated by leaf** - photosynthesis, respiration, plant power and waste run on 500 cm² rate units; breaking: `getTotalRateUnits` replaces `getTotalPlantSize`, and `calculateRespiration` takes it.
 - **The planted preset injects like a keeper** - 0.5 bps holds CO₂ at 20–30 mg/L; carpets, java fern and anubias take pH down to 5.0, as published.
-- **The console reads sickness and the day's light** - losing condition reads sick, a group reads its most urgent members, Daily light its worst-lit plant.
+- **The console reads sickness and the day's light** - an organism losing condition reads sick, a group its most urgent members, Daily light tones by its worst-lit plant.
 - **One vitality model** - condition moves by benefit minus damage, banks at 100 and heals off the bank; breaking: `computeVitality` takes the bank and a `healingRate` (v30, v14).
 - **The bank has one claim on it** - damage never reaches it; breaking: `spendSurplusOnGrowth` → `spendSurplus`.
-- **Plants starve on the day's light** - 24 h of PAR, so nights cost nothing; `scheduledLightHistory` seeds a new tank's day of light; breaking: `Resources.lightByHour`, no `lightInsufficientSeverity`.
-- **Low condition sheds a plant** - with the deficit squared, and it dies at 0; breaking: no `sheddingConditionThreshold`/`deathConditionThreshold`, its waste is `plant-shedding` and `plant-death`, not `plant-condition`.
+- **Plants starve on the day's light** - 24 h of PAR; `scheduledLightHistory` seeds a new tank's day of light; breaking: `Resources.lightByHour`, no `lightInsufficientSeverity`.
+- **Low condition sheds a plant** - and it dies at 0; breaking: no `sheddingConditionThreshold`/`deathConditionThreshold`; its waste is `plant-shedding` and `plant-death`.
 - **Plants take nitrate on log dose** - harm starts at each plant's own edge, as a fish's does; breaking: `nitrateStressSeverity`/`nitrateEdge` replace `nutrientToxicity*`.
 - **Fish release only what they ate** - every gram of fish nitrogen comes from food, so a fasting fish releases no nitrogen; breaking: no `basalAmmoniaRate` (v29).
 - **Comfort is a curve** - plant temperature and pH, and fish pH, earn most at the band's centre and nothing at its edge, where damage starts.
-- **Water harms where it really does** - NH₃, NO₂, NO₃ and O₂ harm on log dose from each fish's own edge; breaking: `hardened` factors, no `*StressThreshold` (v29).
+- **Water harms where it really does** - NH₃, NO₂, NO₃, O₂ harm on log dose past each fish's edge; breaking: `computeVitality` takes `hardened` factors, no `nitrateStressThreshold`/`oxygenStressThreshold` (v29).
 - **Plant nutrition saturates** - per-nutrient Monod on species demand; uptake follows the plant, not the bottle; food returns its N, P, K and Fe, eaten or decayed; breaking: nutrients config, no `wasteToAmmoniaRatio` (v29).
 - **A cycled tank carries its stock** - a `'cycled'` colony is sized to the load its fish and bed put on it at rest, so a stocked tank opens without a mini-cycle; `cycledColony` takes the state.
 - **Nitrifiers saturate on their substrate** - AOB and NOB oxidise at a Monod share of capacity, so a cycled tank holds hundredths of a ppm and a pulse stands until worked down; `aobAmmoniaHalfSaturation`, `nobNitriteHalfSaturation`.

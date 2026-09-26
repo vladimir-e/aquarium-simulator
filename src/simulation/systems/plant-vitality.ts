@@ -25,10 +25,14 @@
  */
 
 import type { Plant, Resources } from '../state.js';
-import type { CanopyLight } from '../plants/canopy.js';
+import type { PlantLight } from '../plants/canopy.js';
 import { getPh } from '../core/carbonate.js';
-import { PLANT_SPECIES_DATA, dailyLightEdge, getSaturationIrradiance } from '../plants/species.js';
-import { dailyLightIntegral } from '../equipment/light.js';
+import {
+  PLANT_SPECIES_DATA,
+  dailyLightEdge,
+  getSaturationIrradiance,
+  type PlantSpecies,
+} from '../plants/species.js';
 import { toleranceFactor } from '../livestock/tolerance.js';
 import type { PlantsConfig } from '../config/plants.js';
 import { lightSaturationFactor } from '../core/kinetics.js';
@@ -62,13 +66,13 @@ export interface PlantVitalityContext {
    * threshold.
    */
   algaeMass: number;
-  /** Light at this plant's height over the substrate PAR, from the tick's one canopy pass. */
-  canopy: CanopyLight;
+  /** The light at this plant's height, from the tick's one canopy pass. */
+  light: PlantLight;
 }
 
-function lightSaturation({ plant, resources, plantsConfig, canopy }: PlantVitalityContext): number {
+function lightSaturation({ plant, plantsConfig, light }: PlantVitalityContext): number {
   return lightSaturationFactor(
-    resources.light * canopy.leaf,
+    light.par,
     getSaturationIrradiance(plant.species, plantsConfig)
   );
 }
@@ -81,12 +85,17 @@ export function lightShortfall(dailyLight: number, edge: number): number {
   return edge > 0 ? Math.max(0, 1 - dailyLight / edge) : 0;
 }
 
+/** Nitrate ppm a species takes harm past: the plant edge, carried out by its hardiness. */
+export function plantNitrateEdge(species: PlantSpecies, plantsConfig: PlantsConfig): number {
+  return plantsConfig.nitrateEdge * toleranceFactor(PLANT_SPECIES_DATA[species].hardiness);
+}
+
 /**
  * Build the stressor list for a plant, hardened: hardiness scales every channel
  * but nitrate, whose edge it moves instead.
  */
 export function buildPlantStressors(ctx: PlantVitalityContext): VitalityFactor[] {
-  const { plant, resources, waterVolume, plantsConfig, nutrientSufficiency, algaeMass, canopy } = ctx;
+  const { plant, resources, waterVolume, plantsConfig, nutrientSufficiency, algaeMass, light } = ctx;
   const species = PLANT_SPECIES_DATA[plant.species];
   const factors: VitalityFactor[] = [];
 
@@ -99,10 +108,7 @@ export function buildPlantStressors(ctx: PlantVitalityContext): VitalityFactor[]
     label: 'Light starvation',
     amount:
       plantsConfig.lightStarvationSeverity *
-      lightShortfall(
-        dailyLightIntegral(resources.lightByHour) * canopy.leaf,
-        dailyLightEdge(plant.species)
-      ) *
+      lightShortfall(light.dailyLight, dailyLightEdge(plant.species)) *
       getRespirationTemperatureFactor(resources.temperature, plantsConfig),
   });
 
@@ -110,7 +116,7 @@ export function buildPlantStressors(ctx: PlantVitalityContext): VitalityFactor[]
   factors.push({
     key: 'light',
     label: 'Light high',
-    amount: plantsConfig.lightExcessiveSeverity * Math.max(0, resources.light * canopy.top - lightHi),
+    amount: plantsConfig.lightExcessiveSeverity * Math.max(0, light.crownPar - lightHi),
   });
 
   const ph = getPh(resources);
@@ -148,13 +154,14 @@ export function buildPlantStressors(ctx: PlantVitalityContext): VitalityFactor[]
   }
   factors.push({ key: 'algae', label: 'Algae shading', amount: algaeAmount });
 
-  const nitrateEdge = plantsConfig.nitrateEdge * toleranceFactor(species.hardiness);
   return [
     ...hardened(factors, species.hardiness),
     {
       key: 'nitrate',
       label: 'Nitrate',
-      amount: plantsConfig.nitrateStressSeverity * eFoldsPast(getPpm(resources.nitrate, waterVolume), nitrateEdge),
+      amount:
+        plantsConfig.nitrateStressSeverity *
+        eFoldsPast(getPpm(resources.nitrate, waterVolume), plantNitrateEdge(plant.species, plantsConfig)),
     },
   ];
 }

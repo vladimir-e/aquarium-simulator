@@ -6,6 +6,7 @@
 import type { Alert } from './types.js';
 import type { LogEntry } from '../core/logging.js';
 import type { AlertState, SimulationState } from '../state.js';
+import type { TunableConfig } from '../config/index.js';
 import { waterLevelAlert } from './water-level.js';
 import { highAlgaeAlert } from './high-algae.js';
 import { highAmmoniaAlert } from './high-ammonia.js';
@@ -15,8 +16,8 @@ import { lowOxygenAlert } from './low-oxygen.js';
 import { highCo2Alert } from './high-co2.js';
 
 export type { Alert, AlertResult } from './types.js';
-export { waterLevelAlert, WATER_LEVEL_CRITICAL_THRESHOLD } from './water-level.js';
-export { highAlgaeAlert, HIGH_ALGAE_THRESHOLD } from './high-algae.js';
+export { waterLevelAlert, waterLevelAlertLine } from './water-level.js';
+export { highAlgaeAlert, algaeAlertLine } from './high-algae.js';
 export { highAmmoniaAlert, ammoniaAlertLine } from './high-ammonia.js';
 export { highNitriteAlert } from './high-nitrite.js';
 export { highNitrateAlert } from './high-nitrate.js';
@@ -47,8 +48,8 @@ export interface CheckAlertsResult {
 /**
  * Check all alerts and return logs and updated alert state.
  */
-export function checkAlerts(state: SimulationState): CheckAlertsResult {
-  const results = alerts.map((alert) => alert.check(state));
+export function checkAlerts(state: SimulationState, config: TunableConfig): CheckAlertsResult {
+  const results = alerts.map((alert) => alert.check(state, config));
 
   // Collect all logs
   const logs = results.map((r) => r.log).filter((log): log is LogEntry => log !== null);

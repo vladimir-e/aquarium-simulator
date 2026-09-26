@@ -4,7 +4,7 @@
  * engine's own alert thresholds, so no surface invents a band.
  */
 
-import { HIGH_CO2_THRESHOLD, WATER_LEVEL_CRITICAL_THRESHOLD } from '../../simulation/alerts/index.js';
+import { HIGH_CO2_THRESHOLD } from '../../simulation/alerts/index.js';
 import { NITRATE_EDGE, NITRITE_EDGE, OXYGEN_COMFORT, OXYGEN_EDGE } from '../../simulation/livestock/tolerance.js';
 import type { Status } from './status.js';
 
@@ -22,8 +22,6 @@ export type VitalKey =
 
 /** Nitrate below this (ppm) reads as depleted plant food. */
 export const NITRATE_LOW_PPM = 5;
-/** Water level below this (% of capacity) is the engine's critical threshold. */
-const WATER_LOW_PCT = WATER_LEVEL_CRITICAL_THRESHOLD * 100;
 
 /**
  * Total ammonia against the line its free NH₃ alerts at — a line that moves
@@ -33,14 +31,18 @@ export function classifyAmmonia(ppm: number, line: number): Status {
   return ppm > line ? 'alert' : 'ok';
 }
 
+/** The water level, % of capacity, against the line it alerts under. */
+export function classifyLevel(percent: number, line: number): Status {
+  return percent < line ? 'warn' : 'ok';
+}
+
 /**
  * Classify a vital by its canonical value: nitrite alerts over threshold and
  * reads ok otherwise; nitrate is plant food, so it warns when
  * depleted and alerts when it climbs past the alert line; the physical readouts
- * (pH, KH, GH, temp) stay quiet, oxygen and CO₂ colour only at their extremes, and
- * water tracks its critical-level threshold.
+ * (pH, KH, GH, temp) stay quiet, and oxygen and CO₂ colour only at their extremes.
  */
-export function classifyVital(key: Exclude<VitalKey, 'ammonia'>, value: number): Status {
+export function classifyVital(key: Exclude<VitalKey, 'ammonia' | 'water'>, value: number): Status {
   switch (key) {
     case 'nitrite':
       return value > NITRITE_EDGE ? 'alert' : 'ok';
@@ -52,8 +54,6 @@ export function classifyVital(key: Exclude<VitalKey, 'ammonia'>, value: number):
       return value >= OXYGEN_COMFORT ? 'ok' : 'neutral';
     case 'co2':
       return value > HIGH_CO2_THRESHOLD ? 'alert' : 'neutral';
-    case 'water':
-      return value < WATER_LOW_PCT ? 'warn' : 'ok';
     case 'ph':
     case 'kh':
     case 'gh':

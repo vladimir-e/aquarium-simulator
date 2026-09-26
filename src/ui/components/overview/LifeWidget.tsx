@@ -58,7 +58,10 @@ export function LifeWidget({
 
   const handlers: RosterHandlers = {
     onToggle: () => navigate('/life'),
-    onInspect: (row) => (row.kind === 'population' ? onOpenReading('algae') : navigate('/life')),
+    onInspect: (row) =>
+      row.kind === 'population'
+        ? onOpenReading('algae')
+        : navigate({ pathname: '/life', search: `?${new globalThis.URLSearchParams({ inspect: row.key })}` }),
     onRemove: () => navigate('/life'),
     onSellFry: () => navigate('/life'),
     onTrimFamily: () => navigate('/life'),

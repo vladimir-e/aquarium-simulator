@@ -8,10 +8,10 @@
 
 import type { SimulationState } from '../../simulation/index.js';
 import {
-  HIGH_ALGAE_THRESHOLD,
+  algaeAlertLine,
   ammoniaAlertLine,
   HIGH_CO2_THRESHOLD,
-  WATER_LEVEL_CRITICAL_THRESHOLD,
+  waterLevelAlertLine,
 } from '../../simulation/alerts/index.js';
 import {
   FREE_AMMONIA_EDGE,
@@ -42,6 +42,7 @@ import {
   groupPlantsBySpecies,
   nutrientReadings,
   plantRows,
+  projectedDrift,
   projectNitritePeak,
   readFish,
   readHourAhead,
@@ -110,7 +111,7 @@ export interface ReadingView {
   at: number;
   band: StripBand | null;
   tone: StripTone;
-  /** Direction and rate over the last day; empty while it is steady. */
+  /** Direction and rate per day; empty while it is steady. */
   trend: string;
   /** What the band means, in the engine's words. */
   sentence: string;
@@ -172,7 +173,7 @@ export interface Dosing {
 export interface ReadingBook {
   /** What the tank is running on, for the line beside a title. */
   caption: string;
-  /** The hour the next tick runs, every reading here was taken on. */
+  /** The hour the next tick runs, which every forward-looking reading shares. */
   ahead: HourAhead;
   byId: ReadingsById;
   demand: NeedView[];
@@ -377,19 +378,26 @@ function nutrientView(
   fills: ReadingFlow[] = []
 ): NeedView {
   const at = scale(DISPLAY_CEILING[reading.key]);
+  const harm =
+    reading.ceiling === null
+      ? ''
+      : `; past ${said(id, reading.ceiling)} the least hardy plant here takes harm`;
   return {
     id,
     name: reading.label,
     value: reading.text,
     unit: 'ppm',
     at: at(reading.ppm),
-    band: reading.needed > 0 ? { from: at(reading.needed), to: 1 } : null,
+    band:
+      reading.needed > 0
+        ? { from: at(reading.needed), to: reading.ceiling === null ? 1 : at(reading.ceiling) }
+        : null,
     tone: toneOf(reading.status),
     trend: measuredTrend(tape, id),
     need: reading.needed > 0 ? `need ${reading.neededText}` : '',
     sentence:
       reading.needed > 0
-        ? `Plants ask for ${reading.neededText} ppm — below it the engine's own sufficiency drops.`
+        ? `Plants ask for ${reading.neededText} ppm — below it the engine's own sufficiency drops${harm}.`
         : 'Nothing planted, so nothing is asking for it.',
     net: null,
     fills,
@@ -399,14 +407,14 @@ function nutrientView(
 }
 
 /**
- * Read the whole tank once. Everything the Overview and the Water module draw
- * comes out of this call, so the expensive derivations — the hour the next
- * tick settles, the nitrite projection — happen once per tick.
+ * Read the whole tank once. Everything the console draws comes out of this
+ * call, so the expensive derivations — the hour the next tick settles, the
+ * nitrite projection — happen once per tick.
  */
 export function readTank({ state, config, history, units }: TankInput): ReadingBook {
   const tape = tapeOf(history, units);
   const ahead = readHourAhead(state, config);
-  const water = waterReadings(state, units);
+  const water = waterReadings(state, config, units);
   const gases = gasReadings(state);
   const nutrients = nutrientReadings(state, config);
   const bacteria = bacteriaReadout(state, config, ahead);
@@ -426,6 +434,8 @@ export function readTank({ state, config, history, units }: TankInput): ReadingB
   const phBand = stockedBand(state, (data) => data.phRange);
   const ghBand = stockedBand(state, (data) => data.ghRange);
   const algae = state.algae.mass;
+  const algaeLine = algaeAlertLine(config);
+  const levelLine = waterLevelAlertLine(config);
   const algaeAt = scale(DISPLAY_CEILING.algae);
   const wasteAt = scale(DISPLAY_CEILING.waste);
   const oxygenAt = scale(DISPLAY_CEILING.oxygen);
@@ -526,7 +536,7 @@ export function readTank({ state, config, history, units }: TankInput): ReadingB
     }),
     level: fromWater('level', tape, {
       reading: read('water'),
-      sentence: `Under ${said('level', WATER_LEVEL_CRITICAL_THRESHOLD * 100)} % of capacity the engine calls the level critical.`,
+      sentence: `Under ${said('level', levelLine)} % of capacity the water starts to harm fish, and the engine alerts.`,
     }),
     oxygen: {
       id: 'oxygen',
@@ -552,7 +562,7 @@ export function readTank({ state, config, history, units }: TankInput): ReadingB
       band: { from: 0, to: co2At(HIGH_CO2_THRESHOLD) },
       tone: toneOf(gas('co2').status),
       trend: measuredTrend(tape, 'co2'),
-      sentence: `Over ${said('co2', HIGH_CO2_THRESHOLD)} mg/L the engine alerts — plants take it up, surface exchange drives it off.`,
+      sentence: `Over ${said('co2', HIGH_CO2_THRESHOLD)} mg/L — what keepers treat as too much — the engine alerts. Plants take it up, surface exchange drives it off.`,
       net: null,
       fills: [],
       drains: [],
@@ -568,10 +578,10 @@ export function readTank({ state, config, history, units }: TankInput): ReadingB
       value: algae.toFixed(DECIMALS.algae),
       unit: '%',
       at: algaeAt(algae),
-      band: { from: 0, to: algaeAt(HIGH_ALGAE_THRESHOLD) },
-      tone: toneOf(algaeStatus(algae)),
-      trend: measuredTrend(tape, 'algae'),
-      sentence: `Coverage the plants are competing with; over ${said('algae', HIGH_ALGAE_THRESHOLD)} % the engine calls it a bloom.`,
+      band: { from: 0, to: algaeAt(algaeLine) },
+      tone: toneOf(algaeStatus(algae, algaeLine)),
+      trend: projectedDrift(ahead.algaeMass - algae),
+      sentence: `Coverage the plants are competing with; over ${said('algae', algaeLine)} % it shades them, and the engine alerts.`,
       net: null,
       fills: [],
       drains: [],
@@ -589,7 +599,7 @@ export function readTank({ state, config, history, units }: TankInput): ReadingB
       need: light.need,
       sentence:
         light.needed > 0
-          ? `The substrate's PAR over the last 24 hours. Under ${said('dailyLight', light.needed)} ${DAILY_LIGHT_UNIT} the worst-lit plant here starves, on the light at its own height.`
+          ? `The substrate's PAR over the day the next hour closes. Under ${said('dailyLight', light.needed)} ${DAILY_LIGHT_UNIT} the worst-lit plant here starves, on the light at its own height.`
           : 'Nothing planted, so nothing is asking for it.',
       net: null,
       fills: [],
@@ -616,7 +626,7 @@ export function readTank({ state, config, history, units }: TankInput): ReadingB
       fish: groupBySpecies(fish, config.livestock),
       fry: groupFry(fish, config.livestock),
       plants: groupPlantsBySpecies(specimens),
-      algae: algaeReading(algae),
+      algae: algaeReading(algae, algaeLine),
     },
     rack: {
       devices: equipmentRows(state, bacteria, units),

@@ -1,12 +1,19 @@
 import { describe, it, expect } from 'vitest';
 import { produce } from 'immer';
 import {
+  applyEffects,
+  calculateDecay,
   createSimulation,
   dailyLightIntegral,
   getPresetById,
+  processAlgae,
+  processBreeding,
+  processLivestock,
+  processPlants,
   tick,
   type SimulationState,
 } from '../../simulation/index.js';
+import { settleEnvironment } from '../../simulation/tick.js';
 import { bankSurplus, spendAlgaeSurplus } from '../../simulation/algae/index.js';
 import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
 import { readHourAhead } from './ahead.js';
@@ -14,9 +21,9 @@ import { readHourAhead } from './ahead.js';
 const config = DEFAULT_CONFIG;
 
 /**
- * The planted preset, stocked and recovering from a bad spell so every organism
- * is moving — but for a grown sword towering over the rest on a full bank, which
- * buds, and a female neon on a full bank beside a male, who spawns.
+ * The planted preset, stocked, fed and recovering from a bad spell so every
+ * organism is moving — but for a grown sword towering over the rest on a full
+ * bank, which buds, and a female neon on a full bank beside a male, who spawns.
  */
 function recovering(): SimulationState {
   const preset = getPresetById('planted')!;
@@ -39,6 +46,7 @@ function recovering(): SimulationState {
     Object.assign(draft.fish[0], { sex: 'female', health: 100, surplus: config.livestock.surplusCap });
     draft.fish[1].sex = 'male';
     draft.algae.mass = 20;
+    draft.resources.food = 1;
   });
 }
 
@@ -67,7 +75,14 @@ describe('readHourAhead', () => {
       expect(ahead.plants.map((plant) => plant.vitality.newCondition)).toEqual(
         after.map((plant) => plant.condition)
       );
-      expect(ahead.plants.map((plant) => plant.bank)).toEqual(after.map((plant) => plant.surplus));
+      expect(ahead.plants.map(({ vitality, spent }) => vitality.surplus - spent)).toEqual(
+        after.map((plant) => plant.surplus)
+      );
+      expect(ahead.plants.map((plant) => plant.buds)).toEqual(
+        state.plants.map((plant) =>
+          next.plants.some((p) => p.parentId === plant.id && !state.plants.some((q) => q.id === p.id))
+        )
+      );
     }
   });
 
@@ -107,7 +122,54 @@ describe('readHourAhead', () => {
       expect(ahead.fish.map((fish) => fish.vitality.newCondition)).toEqual(
         after.map((fish) => fish.health)
       );
-      expect(ahead.fish.map((fish) => fish.bank)).toEqual(after.map((fish) => fish.surplus));
+      expect(ahead.fish.map(({ vitality, spent }) => vitality.surplus - spent)).toEqual(
+        after.map((fish) => fish.surplus)
+      );
+    }
+  });
+
+  it('buys nothing with the bank of an organism the next tick takes', () => {
+    const dying = produce(recovering(), (draft) => {
+      draft.equipment.light.enabled = false;
+      draft.resources.lightByHour.fill(0);
+      draft.resources.ammonia = 500 * draft.resources.water;
+      Object.assign(draft.plants[1], { condition: 0.001, surplus: 1 });
+      for (const fish of draft.fish) Object.assign(fish, { health: 0.5, surplus: 1 });
+    });
+    const ahead = readHourAhead(dying, config);
+    const next = tick(dying, config);
+    const gone = <T extends { id: string }>(before: T[], after: T[]): boolean[] =>
+      before.map((o) => !after.some((a) => a.id === o.id));
+
+    expect(gone(dying.fish, next.fish)).toContain(true);
+    expect(gone(dying.plants, next.plants)).toContain(true);
+    gone(dying.fish, next.fish).forEach((died, i) => died && expect(ahead.fish[i].spent).toBe(0));
+    gone(dying.plants, next.plants).forEach((died, i) => died && expect(ahead.plants[i].spent).toBe(0));
+  });
+
+  it('reads the waste the fish pass, the ammonia they breathe out and the food they leave to rot off the hour the plants and bloom leave them', () => {
+    const fed = hours.map(({ state }) => readHourAhead(state, config));
+    expect(fed.some((ahead) => ahead.fishWaste > 0 && ahead.gillAmmonia > 0 && ahead.foodWaste > 0)).toBe(true);
+
+    for (const { state } of hours) {
+      const ahead = readHourAhead(state, config);
+      const settled = settleEnvironment(state, config);
+      const plantPass = processPlants(settled, config);
+      const bloom = processAlgae(applyEffects(plantPass.state, plantPass.effects, config), config).state;
+      const livestock = processLivestock(bloom, config);
+      const delta = (resource: string, source: string): number =>
+        livestock.effects
+          .filter((e) => e.resource === resource && e.source === source)
+          .reduce((sum, e) => sum + e.delta, 0);
+      const left = processBreeding(applyEffects(livestock.state, livestock.effects, config), config)
+        .state.resources;
+
+      expect(ahead.fishWaste).toBeCloseTo(delta('waste', 'fish-metabolism'), 12);
+      expect(ahead.gillAmmonia).toBeCloseTo(delta('ammonia', 'fish-gill-excretion'), 12);
+      expect(ahead.foodWaste).toBe(
+        calculateDecay(left.food, left.temperature, left.oxygen, config.decay) *
+          config.decay.wasteConversionRatio
+      );
     }
   });
 
@@ -126,6 +188,11 @@ describe('readHourAhead', () => {
 
       expect(grown).toEqual(next.algae);
       expect(ahead.algaeMass).toBe(next.algae.mass);
+      expect(ahead.algaeBank).toEqual({
+        drained: bank.drained,
+        spent: bank.surplus - next.algae.surplus,
+        next: next.algae.surplus,
+      });
     }
   });
 });

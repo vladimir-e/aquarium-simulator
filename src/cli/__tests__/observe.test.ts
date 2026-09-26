@@ -62,6 +62,10 @@ describe('renderObserve', () => {
     const text = observe(failing);
     expect(line(text, '**Fish').endsWith(`% · ${fish} sick`)).toBe(true);
     expect(line(text, '**Plants').endsWith(`% · ${plants} sick`)).toBe(true);
+
+    const healthy = observe(stocked);
+    expect(line(healthy, '**Fish')).not.toContain(' sick');
+    expect(line(healthy, '**Plants')).not.toContain(' sick');
   });
 
   it('prints the day of light the plants starve on, marked where the console tints it', () => {

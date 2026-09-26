@@ -22,7 +22,7 @@ describe('feed action', () => {
     const state = createSimulation({ tankCapacity: 100 });
     const result = feed(state, { type: 'feed', amount: 0.5 });
 
-    expect(result.message).toContain('0.5g');
+    expect(result.message).toContain('0.50g');
   });
 
   it('logs with correct message', () => {
@@ -33,7 +33,7 @@ describe('feed action', () => {
       (log) => log.source === 'user' && log.message.includes('Fed')
     );
     expect(feedLog).toBeDefined();
-    expect(feedLog!.message).toContain('0.5g');
+    expect(feedLog!.message).toContain('0.50g');
     expect(feedLog!.severity).toBe('info');
   });
 
@@ -45,11 +45,14 @@ describe('feed action', () => {
     expect(result.message).toContain('Cannot feed');
   });
 
-  it('maintains 2 decimal precision', () => {
+  it('adds the whole feeding to the stock, rounding only what it says', () => {
     const state = createSimulation({ tankCapacity: 100 });
-    const result = feed(state, { type: 'feed', amount: 0.123 });
+    const fed = feed(state, { type: 'feed', amount: 0.123 });
+    const pinch = feed(fed.state, { type: 'feed', amount: 0.003 });
 
-    expect(result.state.resources.food).toBeCloseTo(0.12, 2);
+    expect(fed.state.resources.food).toBe(0.123);
+    expect(fed.message).toBe('Added 0.12g of food');
+    expect(pinch.state.resources.food).toBeCloseTo(0.126, 12);
   });
 
   describe('non-finite amounts', () => {

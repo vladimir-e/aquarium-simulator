@@ -140,11 +140,13 @@ describe('plant options', () => {
       return state;
     };
     const carpet = GROWTH_FORMS.carpet.footprintCm2;
-    const edge = Math.floor(calculateFloorArea(362) / carpet);
-    expect(Math.round(calculateFloorArea(362) - edge * carpet)).toBe(carpet);
+    const brim = Array.from({ length: 2000 }, (_, i) => i + 20).find(
+      (capacity) => calculateFloorArea(capacity) % carpet >= carpet - 0.5
+    )!;
+    const edge = Math.floor(calculateFloorArea(brim) / carpet);
 
     const tanks = [
-      planted(edge, 'monte_carlo', soil(362)),
+      planted(edge, 'monte_carlo', soil(brim)),
       planted(1, 'java_fern', soil(19)),
       planted(floorFull, 'java_fern', soil(19)),
       planted(3, 'amazon_sword', soil(200)),
@@ -164,6 +166,9 @@ describe('plant options', () => {
         expect(candidate.headroom).toBe(fits);
         expect(Number(/^\d+/.exec(candidate.fit)![0]) >= check.needed).toBe(check.ok);
         expect(candidate.refusal).toBe(check.ok ? null : check.message);
+        if (!check.ok) {
+          expect(Number(/(\d+) cm² free/.exec(check.message)![1])).toBeLessThan(check.needed);
+        }
       }
     }
   });

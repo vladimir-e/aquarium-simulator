@@ -1,9 +1,11 @@
 /**
  * Flora derivations: what each plant is doing on the hour the next tick
- * settles and how the planting folds into species and families, how the bloom
- * reads off its coverage, and the tank's nutrient readings. Nothing here invents a band — a nutrient reads short when the
- * engine's own sufficiency would rise if that one were topped up, so no surface
- * can name a deficiency the plants are not actually feeling.
+ * settles, how the planting folds into species and families and how the reader
+ * counts them, how the bloom reads off its coverage, and the tank's nutrient
+ * readings. Nothing here invents a band — a nutrient reads short when the
+ * engine's own sufficiency would rise if that one were topped up, and high past
+ * the edge the engine charges a plant from, so no surface can name a shortage
+ * or an excess the plants are not actually feeling.
  */
 
 import {
@@ -14,7 +16,9 @@ import {
   isOvergrown,
   MAX_DOSE_ML,
   PLANT_SPECIES_DATA,
+  plantNitrateEdge,
   speciesHalfSaturation,
+  type Plant,
   type PlantSpecies,
   type Resources,
   type SimulationState,
@@ -37,10 +41,13 @@ import {
   type TunableConfig,
 } from '../../simulation/config/index.js';
 import type { HourAhead } from './ahead.js';
+import { groupBy, mean } from './fold.js';
+import { plantLightStatus } from './light.js';
 import {
   bankShare,
   groupMember,
   groupReading,
+  STATUS_SEVERITY,
   vitalReading,
   type Reading,
   type Status,
@@ -63,9 +70,12 @@ export function overTrimCount(state: SimulationState): number {
   return getPlantsToTrimCount(state, TRIM_CEILING);
 }
 
-// Low algae mass is good for the player, so the colours run green → coral as it climbs.
-export function algaeStatus(mass: number): Status {
-  return mass < 30 ? 'ok' : mass < 60 ? 'warn' : 'alert';
+/**
+ * Low algae mass is good for the player, so the colours run green → coral as it
+ * climbs: warn past the line the bloom alerts over, alert past twice it.
+ */
+export function algaeStatus(mass: number, line: number): Status {
+  return mass <= line ? 'ok' : mass <= 2 * line ? 'warn' : 'alert';
 }
 
 export function algaeWord(mass: number): string {
@@ -75,9 +85,65 @@ export function algaeWord(mass: number): string {
   return 'booming';
 }
 
-/** How the bloom reads off its coverage. */
-export function algaeReading(mass: number): Reading {
-  return { status: algaeStatus(mass), word: algaeWord(mass) };
+/** How the bloom reads off its coverage, against the line it alerts over. */
+export function algaeReading(mass: number, line: number): Reading {
+  return { status: algaeStatus(mass, line), word: algaeWord(mass) };
+}
+
+/** Where a plant stands among its kin, numbered the way a reader counts. */
+export interface PlantLabel {
+  /** Its family, in the order its species' families were founded. */
+  family: number;
+  /** Itself, in the order its family's units were born. */
+  unit: number;
+  /** The unit it budded from, while that one stands. */
+  parent: number | null;
+}
+
+type Kin = Pick<Plant, 'id' | 'species' | 'familyId' | 'parentId'>;
+
+/** The order the tank drew an id in: the order its plants were planted and budded. */
+function drawOrder(id: string): number {
+  return parseInt(id.slice(id.indexOf('_') + 1), 36);
+}
+
+function numbered(ids: Iterable<string>): Map<string, number> {
+  const sorted = [...ids].sort((a, b) => drawOrder(a) - drawOrder(b) || 0);
+  return new Map(sorted.map((id, i) => [id, i + 1]));
+}
+
+/** Every plant's label, by id. The ids stay the engine's; these are the reader's. */
+export function plantLabels(plants: readonly Kin[]): Map<string, PlantLabel> {
+  const families = new Map(
+    groupBy(plants, (plant) => plant.species).flatMap((kind) => [
+      ...numbered(new Set(kind.map((plant) => plant.familyId))),
+    ])
+  );
+  const units = new Map(
+    groupBy(plants, (plant) => plant.familyId).flatMap((family) => [
+      ...numbered(family.map((plant) => plant.id)),
+    ])
+  );
+  return new Map(
+    plants.map((plant) => [
+      plant.id,
+      {
+        family: families.get(plant.familyId)!,
+        unit: units.get(plant.id)!,
+        parent: plant.parentId === null ? null : (units.get(plant.parentId) ?? null),
+      },
+    ])
+  );
+}
+
+/** A family as the console names it. */
+export function familyTitle(name: string, label: PlantLabel): string {
+  return `${name} family ${label.family}`;
+}
+
+/** A unit as the console names it, family first. */
+export function unitTitle(name: string, label: PlantLabel): string {
+  return `${familyTitle(name, label)} · #${label.unit}`;
 }
 
 /** One row of the plant list, read on the hour the next tick settles. */
@@ -86,7 +152,7 @@ export interface PlantRow {
   species: PlantSpecies;
   name: string;
   familyId: string;
-  parentId: string | null;
+  label: PlantLabel;
   /** % of one full unit of its growth form; growth tapers to 100. */
   size: number;
   /** Hours in the tank. */
@@ -96,6 +162,7 @@ export interface PlantRow {
   reading: Reading;
   /** The day's light at its own height over the day's light its species starves under. */
   light: number;
+  lightStatus: Status;
   /** Its bank as a share of what the next offshoot costs. */
   bank: number;
 }
@@ -105,6 +172,7 @@ export function plantRows(
   ahead: HourAhead,
   config: PlantsConfig
 ): PlantRow[] {
+  const labels = plantLabels(state.plants);
   return state.plants.map((plant, i) => {
     const { vitality, light } = ahead.plants[i];
     const { sick, reading } = vitalReading(plant.condition, vitality);
@@ -113,13 +181,14 @@ export function plantRows(
       species: plant.species,
       name: PLANT_SPECIES_DATA[plant.species].name,
       familyId: plant.familyId,
-      parentId: plant.parentId,
+      label: labels.get(plant.id)!,
       size: plant.size,
       age: plant.age,
       condition: plant.condition,
       sick,
       reading,
       light: light.needShare,
+      lightStatus: plantLightStatus(light, plant.species),
       bank: bankShare(plant.surplus, config.surplusCap),
     };
   });
@@ -128,10 +197,6 @@ export function plantRows(
 /** A share as the plant readings print it: floored, so it never reads a line it has not reached. */
 export function sharePercent(share: number): number {
   return Math.floor(share * 100);
-}
-
-function mean(values: number[]): number {
-  return values.length ? values.reduce((sum, v) => sum + v, 0) / values.length : 0;
 }
 
 /** What a family or a species reads as, over every unit under it. */
@@ -144,6 +209,8 @@ export interface PlantGroupFigures {
   oldest: number;
   /** The worst-lit unit's light, as a share of its need. */
   light: number;
+  /** The worst any unit's light reads: short, or burning. */
+  lightStatus: Status;
 }
 
 function figuresOf(members: PlantRow[]): PlantGroupFigures {
@@ -152,14 +219,19 @@ function figuresOf(members: PlantRow[]): PlantGroupFigures {
     condition: mean(members.map((member) => member.condition)),
     oldest: Math.max(...members.map((member) => member.age)),
     light: Math.min(...members.map((member) => member.light)),
+    lightStatus: members
+      .map((member) => member.lightStatus)
+      .reduce((worst, status) => (STATUS_SEVERITY[status] > STATUS_SEVERITY[worst] ? status : worst)),
   };
 }
 
 /** A founder and every unit budded down its line, read by the group rule over them. */
 export interface PlantFamily extends PlantGroupFigures {
   familyId: string;
+  /** Its number among its species' families. */
+  number: number;
   reading: Reading;
-  /** In planting order. */
+  /** In birth order. */
   members: PlantRow[];
 }
 
@@ -177,26 +249,20 @@ export interface PlantSpeciesGroup extends PlantGroupFigures {
   members: PlantRow[];
 }
 
-function groupBy<K>(rows: PlantRow[], key: (row: PlantRow) => K): PlantRow[][] {
-  const groups = new Map<K, PlantRow[]>();
-  for (const row of rows) {
-    const existing = groups.get(key(row));
-    if (existing) existing.push(row);
-    else groups.set(key(row), [row]);
-  }
-  return [...groups.values()];
-}
-
 export function groupPlantsBySpecies(rows: PlantRow[]): PlantSpeciesGroup[] {
   return groupBy(rows, (row) => row.species).map((members) => {
-    const families = groupBy(members, (row) => row.familyId).map(
-      (family): PlantFamily => ({
-        familyId: family[0].familyId,
-        ...figuresOf(family),
-        reading: groupReading(family),
-        members: family,
+    const families = groupBy(members, (row) => row.familyId)
+      .map((family): PlantFamily => {
+        const born = [...family].sort((a, b) => a.label.unit - b.label.unit);
+        return {
+          familyId: family[0].familyId,
+          number: family[0].label.family,
+          ...figuresOf(born),
+          reading: groupReading(born),
+          members: born,
+        };
       })
-    );
+      .sort((a, b) => a.number - b.number);
     return {
       species: members[0].species,
       name: members[0].name,
@@ -209,14 +275,14 @@ export function groupPlantsBySpecies(rows: PlantRow[]): PlantSpeciesGroup[] {
 }
 
 /**
- * How much of the floor the planting claims. Past the whole floor it says the
- * planting has outgrown it, and never prints a figure that would put it back.
+ * How much of the floor the planting claims, never at a line it has not
+ * reached: floored while it fits, and past the whole floor ceiled.
  */
 export function floorPlanted(state: SimulationState): string {
-  const percent = Math.round(floorCover(state.plants, state.tank.capacity) * 100);
+  const cover = floorCover(state.plants, state.tank.capacity);
   return isOvergrown(state)
-    ? `floor outgrown · ${Math.max(101, percent)} % claimed`
-    : `floor ${percent} % planted`;
+    ? `floor outgrown · ${Math.ceil(cover * 100)} % claimed`
+    : `floor ${sharePercent(cover)} % planted`;
 }
 
 const NUTRIENT_LABEL: Record<Nutrient, string> = {
@@ -251,8 +317,18 @@ export interface NutrientReading {
   fill: number;
   /** Topping this one up would raise the engine's sufficiency for some plant. */
   limiting: boolean;
-  /** Coral empty, amber short, green at the need — grey while it holds nothing back. */
+  /** ppm past which the least hardy plant here takes harm; null where excess harms none. */
+  ceiling: number | null;
+  /** Past that ceiling, so some plant is paying for it. */
+  excess: boolean;
+  /** Coral empty or harming, amber short, green at the need — grey while it holds nothing back. */
   status: Status;
+}
+
+/** Nitrate is the one plant food the engine charges an excess of, from each species' own edge. */
+function ceilingPpm(state: SimulationState, key: Nutrient, config: PlantsConfig): number | null {
+  if (key !== 'nitrate' || state.plants.length === 0) return null;
+  return Math.min(...state.plants.map((plant) => plantNitrateEdge(plant.species, config)));
 }
 
 /** ppm at which the tank's hungriest plant has `NEED_SHARE` of its need met. */
@@ -305,6 +381,8 @@ export function nutrientReadings(
     const needed = needs[key];
     const limiting = isLimiting(key);
     const depleted = ppm <= DEPLETED_PPM;
+    const ceiling = ceilingPpm(state, key, config.plants);
+    const excess = ceiling !== null && ppm > ceiling;
 
     return {
       key,
@@ -315,13 +393,17 @@ export function nutrientReadings(
       neededText: needed > 0 ? needed.toFixed(resource.precision) : '—',
       fill: needed > 0 ? Math.min(1, ppm / needed) : 0,
       limiting,
-      status: limiting
-        ? depleted
-          ? 'alert'
-          : 'warn'
-        : needed > 0 && ppm >= needed
-          ? 'ok'
-          : 'neutral',
+      ceiling,
+      excess,
+      status: excess
+        ? 'alert'
+        : limiting
+          ? depleted
+            ? 'alert'
+            : 'warn'
+          : needed > 0 && ppm >= needed
+            ? 'ok'
+            : 'neutral',
     };
   });
 }
@@ -331,8 +413,11 @@ export interface NutrientAlert {
   status: Status;
 }
 
-/** The one thing to say about the tank's nutrients. */
+/** The one thing to say about the tank's nutrients: what harms the plants before what they lack. */
 export function nutrientAlert(readings: NutrientReading[]): NutrientAlert | null {
+  const excess = readings.find((r) => r.excess);
+  if (excess) return { text: `${excess.label} high`, status: 'alert' };
+
   const short = readings.filter((r) => r.limiting);
   if (short.length === 0) return null;
 

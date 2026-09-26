@@ -22,9 +22,16 @@ import {
   type Hunger,
   type SpeciesGroup,
 } from './livestock.js';
-import { sharePercent, type PlantFamily, type PlantRow, type PlantSpeciesGroup } from './flora.js';
-import { lightStatus } from './light.js';
+import {
+  familyTitle,
+  sharePercent,
+  unitTitle,
+  type PlantFamily,
+  type PlantRow,
+  type PlantSpeciesGroup,
+} from './flora.js';
 import { worstMember, type Status } from './status.js';
+import type { LedgerTarget } from './ledger.js';
 import type { ReadingBand } from './water.js';
 
 /** The engine calls 60 and up healthy, on the 0–100 axis every organism is scored on. */
@@ -74,8 +81,6 @@ export interface SpeciesRosterRow extends Vital {
   dots: Status[];
   /** What one dot stands for. */
   dot: 'individual' | 'family';
-  /** The individual a tap on the group inspects: its worst. */
-  worstKey: string;
   expanded: boolean;
 }
 
@@ -86,8 +91,10 @@ export interface FamilyRosterRow extends Vital {
   familyId: string;
   species: PlantSpecies;
   name: string;
-  /** Named for its founder, which it outlives. */
+  /** Its number among the species' families. */
   label: string;
+  /** Species and family, for what reads it out of the table. */
+  title: string;
   /** Its units — what the dots count. */
   count: number;
   /** Full units' worth. */
@@ -96,9 +103,8 @@ export interface FamilyRosterRow extends Vital {
   age: string;
   /** The worst-lit unit's. */
   light: LightFigure;
-  /** One per unit, in planting order. */
+  /** One per unit, in birth order. */
   dots: Status[];
-  worstKey: string;
   expanded: boolean;
 }
 
@@ -109,9 +115,12 @@ export interface IndividualRosterRow extends Vital {
   id: string;
   species: SpeciesId;
   name: string;
-  shortId: string;
+  /** How the row names it under its group. */
+  tag: string;
+  /** How anything reading it out of the table names it. */
+  title: string;
   sex: FishSex | null;
-  /** The unit a plant budded from; null for a fish and for anything planted. */
+  /** The unit a plant budded from, while it stands; null for a fish and for anything planted. */
   parent: string | null;
   figure: string;
   age: string;
@@ -172,6 +181,14 @@ export type RosterRow =
   | FryRosterRow
   | ClutchRosterRow;
 
+function speciesKey(species: SpeciesId): string {
+  return `species-${species}`;
+}
+
+function familyKey(familyId: string): string {
+  return `family-${familyId}`;
+}
+
 /** An engine id without its kind, the way the roster names an individual. */
 export function shortId(id: string): string {
   return id.slice(id.indexOf('_') + 1);
@@ -217,7 +234,7 @@ function fishRows(
   expanded: ReadonlySet<string>
 ): RosterRow[] {
   return groups.flatMap((group) => {
-    const key = `species-${group.species}`;
+    const key = speciesKey(group.species);
     const open = expanded.has(key);
     const header: SpeciesRosterRow = {
       kind: 'species',
@@ -234,7 +251,6 @@ function fishRows(
       dot: 'individual',
       at: group.condition / 100,
       ...group.reading,
-      worstKey: worstMember(group.members).id,
       expanded: open,
     };
     const fish = group.members.map(
@@ -244,7 +260,8 @@ function fishRows(
         id,
         species: group.species,
         name: group.name,
-        shortId: shortId(id),
+        tag: shortId(id),
+        title: `${group.name} ${shortId(id)}`,
         sex: fish.sex,
         parent: null,
         figure: `${fish.mass.toFixed(2)} g`,
@@ -260,12 +277,13 @@ function fishRows(
   });
 }
 
-function lightFigure(share: number): LightFigure {
-  return { text: `${sharePercent(share)} %`, status: lightStatus(share) };
+function lightFigure(share: number, status: Status): LightFigure {
+  return { text: `${sharePercent(share)} %`, status };
 }
 
+/** Full units' worth, floored like every plant figure: a group never reads a unit it has not grown. */
 function units(amount: number): string {
-  return `${amount.toFixed(1)} units`;
+  return `${(Math.floor(amount * 10) / 10).toFixed(1)} units`;
 }
 
 function plantUnit(plant: PlantRow): IndividualRosterRow {
@@ -275,13 +293,14 @@ function plantUnit(plant: PlantRow): IndividualRosterRow {
     id: plant.id,
     species: plant.species,
     name: plant.name,
-    shortId: shortId(plant.id),
+    tag: `#${plant.label.unit}`,
+    title: unitTitle(plant.name, plant.label),
     sex: null,
-    parent: plant.parentId === null ? null : shortId(plant.parentId),
-    figure: `${Math.round(plant.size)} %`,
+    parent: plant.label.parent === null ? null : `#${plant.label.parent}`,
+    figure: `${Math.floor(plant.size)} %`,
     age: days(plant.age),
     satiation: null,
-    light: lightFigure(plant.light),
+    light: lightFigure(plant.light, plant.lightStatus),
     bank: `${sharePercent(plant.bank)} %`,
     at: plant.condition / 100,
     ...plant.reading,
@@ -293,7 +312,7 @@ function familyRows(
   family: PlantFamily,
   expanded: ReadonlySet<string>
 ): RosterRow[] {
-  const key = `family-${family.familyId}`;
+  const key = familyKey(family.familyId);
   const open = expanded.has(key);
   const header: FamilyRosterRow = {
     kind: 'family',
@@ -301,23 +320,23 @@ function familyRows(
     familyId: family.familyId,
     species: group.species,
     name: group.name,
-    label: `family ${shortId(family.familyId)}`,
+    label: `family ${family.number}`,
+    title: familyTitle(group.name, family.members[0].label),
     count: family.members.length,
     figure: units(family.units),
     age: days(family.oldest),
-    light: lightFigure(family.light),
+    light: lightFigure(family.light, family.lightStatus),
     dots: family.members.map((member) => member.reading.status),
     at: family.condition / 100,
     ...family.reading,
-    worstKey: worstMember(family.members).id,
     expanded: open,
   };
   return open ? [header, ...family.members.map(plantUnit)] : [header];
 }
 
-function plantRows(groups: PlantSpeciesGroup[], expanded: ReadonlySet<string>): RosterRow[] {
+function plantTable(groups: PlantSpeciesGroup[], expanded: ReadonlySet<string>): RosterRow[] {
   return groups.flatMap((group) => {
-    const key = `species-${group.species}`;
+    const key = speciesKey(group.species);
     const open = expanded.has(key);
     const header: SpeciesRosterRow = {
       kind: 'species',
@@ -329,12 +348,11 @@ function plantRows(groups: PlantSpeciesGroup[], expanded: ReadonlySet<string>): 
       figure: units(group.units),
       age: days(group.oldest),
       satiation: null,
-      light: lightFigure(group.light),
+      light: lightFigure(group.light, group.lightStatus),
       dots: group.families.map((family) => family.reading.status),
       dot: 'family',
       at: group.condition / 100,
       ...group.reading,
-      worstKey: worstMember(group.members).id,
       expanded: open,
     };
     return open
@@ -399,6 +417,55 @@ export function rosterTables(
       ...input.clutches.map((clutch) => clutchRow(clutch, input.tick)),
       ...(input.fry ? [fryRow(input.fry, config)] : []),
     ],
-    plants: plantRows(input.plants, expanded),
+    plants: plantTable(input.plants, expanded),
   };
+}
+
+/** What a roster row's key opens the ledger on, and the line saying why that one. */
+export interface Inspection {
+  target: LedgerTarget;
+  subtitle: string;
+}
+
+/**
+ * The ledger a row key opens, resolved afresh on every read: an individual by
+ * its id, the bloom, or a group as its worst member at this hour — so a group's
+ * ledger follows its worst and counts the group as it stands.
+ */
+export function inspection(
+  key: string,
+  roster: Pick<RosterInput, 'fish' | 'plants'>
+): Inspection | null {
+  if (key === 'algae') return { target: { kind: 'algae' }, subtitle: '' };
+  for (const group of roster.fish) {
+    if (speciesKey(group.species) === key) {
+      return {
+        target: { kind: 'fish', id: worstMember(group.members).id },
+        subtitle: `the worst of ${group.count} ${group.name}`,
+      };
+    }
+    if (group.members.some((member) => member.id === key)) {
+      return { target: { kind: 'fish', id: key }, subtitle: '' };
+    }
+  }
+  for (const group of roster.plants) {
+    if (speciesKey(group.species) === key) {
+      return {
+        target: { kind: 'plant', id: worstMember(group.members).id },
+        subtitle: `the worst of ${group.members.length} ${group.name}`,
+      };
+    }
+    for (const family of group.families) {
+      if (familyKey(family.familyId) === key) {
+        return {
+          target: { kind: 'plant', id: worstMember(family.members).id },
+          subtitle: `the worst of ${family.members.length} in ${familyTitle(group.name, family.members[0].label)}`,
+        };
+      }
+    }
+    if (group.members.some((member) => member.id === key)) {
+      return { target: { kind: 'plant', id: key }, subtitle: '' };
+    }
+  }
+  return null;
 }

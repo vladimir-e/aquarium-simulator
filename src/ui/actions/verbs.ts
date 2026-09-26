@@ -23,7 +23,7 @@ import {
 } from '../../simulation/index.js';
 import { FoodResource, getPpm, NitrateResource } from '../../simulation/resources/index.js';
 import type { TunableConfig } from '../../simulation/config/index.js';
-import { doseToCover, nutrientReadings, shortId, TRIM_TARGETS } from '../run';
+import { doseToCover, nutrientReadings, plantLabels, TRIM_TARGETS } from '../run';
 import { formatVolume, type UnitSystem } from '../utils/units.js';
 import { previewRows, type PreviewRow } from './readings.js';
 
@@ -103,6 +103,12 @@ export const BUILD_VERBS: BuildVerb[] = [
 /** A trim held to one family, where the tank's verb reaches every plant. */
 export interface VerbScope {
   familyId: string;
+}
+
+/** A trim held to one family, numbered as the roster numbers it — while the family stands. */
+function scopeTitle(state: SimulationState, scope: VerbScope): string | null {
+  const member = state.plants.find((plant) => plant.familyId === scope.familyId);
+  return member ? `Trim family ${plantLabels(state.plants).get(member.id)!.family}` : null;
 }
 
 /** The tank as a verb sees it: every plant, or only the family it is held to. */
@@ -419,7 +425,7 @@ function meta(
       const reach = reached(state, scope);
       const { plants } = reach;
       const tallest = plants.reduce((most, plant) => Math.max(most, plant.size), 0);
-      const line = `${getPlantsToTrimCount(reach, settings.trimPlants)} of ${plural(plants.length, 'plant')} · tallest ${Math.round(tallest)} %`;
+      const line = `${getPlantsToTrimCount(reach, settings.trimPlants)} of ${plural(plants.length, 'plant')} · tallest ${Math.floor(tallest)} %`;
       return scope && plants.length > 0
         ? `${PLANT_SPECIES_DATA[plants[0].species].name} · ${line}`
         : line;
@@ -523,7 +529,7 @@ export function verbDetail(
   const setting = settingOf(id, settings);
   return {
     id,
-    title: scope ? `Trim family ${shortId(scope.familyId)}` : VERB[id].title,
+    title: (id === 'trimPlants' && scope && scopeTitle(state, scope)) || VERB[id].title,
     meta: meta(state, id, settings, units, config, scope),
     setting,
     options: setting === null ? [] : rungs(state, setting, units, config, scope),

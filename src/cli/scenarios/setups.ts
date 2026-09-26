@@ -5,6 +5,7 @@ import type { FilterType } from '../../simulation/equipment/filter.js';
 import type { HardscapeType } from '../../simulation/equipment/hardscape.js';
 import { DAILY, TRIM_TARGET, WEEKLY, type Chore, type Schedule, type ScheduleEntry } from './keeper.js';
 import type { BandOverrides } from './readings.js';
+import { HIGH_CO2_THRESHOLD } from '../../simulation/alerts/high-co2.js';
 import { LITERS_PER_GALLON, toCelsius } from '../units.js';
 
 export interface Setup {
@@ -186,7 +187,11 @@ export const SETUPS: Setup[] = [
     cycled: true,
     schedule: [...maintained, trim],
     bands: {
-      co2: { green: [15, 35], amber: [8, 40], why: 'injected tanks aim 20–30 mg/L while the lights are on' },
+      co2: {
+        green: [15, 35],
+        amber: [8, HIGH_CO2_THRESHOLD],
+        why: 'injected tanks aim 20–30 mg/L while the lights are on',
+      },
     },
   },
   {

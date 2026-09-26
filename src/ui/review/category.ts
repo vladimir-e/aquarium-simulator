@@ -52,8 +52,7 @@ export type AlertKind =
   | 'co2'
   | 'oxygen'
   | 'algae'
-  | 'water'
-  | 'plant';
+  | 'water';
 
 export const ALERT_LABEL: Record<AlertKind, string> = {
   ammonia: 'NH₃',
@@ -63,22 +62,19 @@ export const ALERT_LABEL: Record<AlertKind, string> = {
   oxygen: 'O₂',
   algae: 'algae',
   water: 'water',
-  plant: 'plant',
 };
 
 /**
  * A warning that counts as an alert — the mirror of the run aggregates: a
- * `fish-died` warning is a death, so it's excluded; every other warning
- * (chemistry crossings, plant deaths) counts.
+ * death is a life event, not an alert, so only a warning without one counts.
  */
 export function isAlertLog(log: LogEntry): boolean {
-  return log.severity === 'warning' && log.event !== 'fish-died';
+  return log.severity === 'warning' && log.event === undefined;
 }
 
 /** Which vital an alert warning is about, keyed on its event then source. */
 export function classifyAlert(log: LogEntry): AlertKind | null {
   if (!isAlertLog(log)) return null;
-  if (log.event === 'plant-died') return 'plant';
   const msg = log.message.toLowerCase();
   switch (log.source) {
     case 'nitrogen-cycle':

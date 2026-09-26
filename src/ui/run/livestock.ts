@@ -18,6 +18,7 @@ import type { TunableConfig } from '../../simulation/config/index.js';
 import type { LivestockConfig } from '../../simulation/config/livestock.js';
 import type { HourAhead } from './ahead.js';
 import { groupReading, vitalReading, worstReading, type Reading, type Status } from './status.js';
+import { groupBy, mean } from './fold.js';
 
 /** Hungry and starving are the two bands that count toward "N hungry". */
 export function isHungryBand(band: SatiationBand): boolean {
@@ -103,20 +104,6 @@ export function readFish(state: SimulationState, config: TunableConfig, ahead: H
   });
 }
 
-function groupBySpeciesKey(fish: FishRead[]): Map<FishSpecies, FishRead[]> {
-  const groups = new Map<FishSpecies, FishRead[]>();
-  for (const read of fish) {
-    const existing = groups.get(read.fish.species);
-    if (existing) existing.push(read);
-    else groups.set(read.fish.species, [read]);
-  }
-  return groups;
-}
-
-function mean(values: number[]): number {
-  return values.length ? values.reduce((sum, v) => sum + v, 0) / values.length : 0;
-}
-
 /**
  * The columns the table prints for one fish or one group. A group carries its
  * *total* mass against *average* age, satiation and condition — mass is the
@@ -171,9 +158,9 @@ function groupFigures(members: FishRead[], config: LivestockConfig): RosterGroup
 /** Adult fish folded into per-species rows, in first-seen order. */
 export function groupBySpecies(fish: FishRead[], config: LivestockConfig): SpeciesGroup[] {
   const adults = fish.filter((read) => read.fish.stage === 'adult');
-  return [...groupBySpeciesKey(adults)].map(([species, members]) => ({
-    species,
-    name: FISH_SPECIES_DATA[species].name,
+  return groupBy(adults, (read) => read.fish.species).map((members) => ({
+    species: members[0].fish.species,
+    name: FISH_SPECIES_DATA[members[0].fish.species].name,
     ...groupFigures(members, config),
   }));
 }

@@ -65,7 +65,7 @@ describe('canAddPlant / checkPlantFootprint', () => {
     expect(canAddPlant(state, 'amazon_sword')).toBe(false);
     expect(footprint.ok).toBe(false);
     expect(footprint.message).toBe(
-      `Not enough floor: ${Math.round(footprint.free)} cm² free, Amazon Sword needs ${GROWTH_FORMS.rosette.footprintCm2}`
+      `Not enough floor: ${Math.floor(footprint.free)} cm² free, Amazon Sword needs ${GROWTH_FORMS.rosette.footprintCm2}`
     );
     expect(add(state, 'amazon_sword').message).toBe(footprint.message);
   });

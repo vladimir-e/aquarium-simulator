@@ -3,7 +3,7 @@
  *
  * Pipeline:
  * 1. The canopy: each plant's light at its own height, read by photosynthesis
- *    and vitality.
+ *    and vitality and handed back as the light the tick ran on.
  * 2. Compute per-plant Liebig sufficiency once (shared by photosynthesis
  *    and vitality below).
  * 3. Photosynthesis: emits resource effects only — O2 production, CO2
@@ -23,8 +23,14 @@
 
 import { produce } from 'immer';
 import type { SimulationState, Plant } from '../state.js';
-import { PLANT_SPECIES_DATA, dailyLightEdge, growthFormOf } from './species.js';
-import { canopyLight, getTotalRateUnits, plantHeight, type CanopyLight } from './canopy.js';
+import { PLANT_SPECIES_DATA, growthFormOf } from './species.js';
+import {
+  canopyLight,
+  getTotalRateUnits,
+  lightAtHeight,
+  type CanopyLight,
+  type PlantLight,
+} from './canopy.js';
 import type { Effect } from '../core/effects.js';
 import type { Nutrient, TunableConfig } from '../config/index.js';
 import { calculatePhotosynthesis } from '../systems/photosynthesis.js';
@@ -41,43 +47,15 @@ import {
 import { createLog } from '../core/logging.js';
 import { getPpm } from '../resources/index.js';
 import { calculateTankHeight } from '../state.js';
-import { dailyLightIntegral } from '../equipment/light.js';
 import type { VitalityResult } from '../systems/vitality.js';
 
 function canopyOf(state: SimulationState, config: TunableConfig): CanopyLight[] {
   return canopyLight(state.plants, state.tank.capacity, config.optics);
 }
 
-/** The light one plant stands in, at its own height. */
-export interface PlantLight {
-  /** PAR at its mean leaf, µmol/m²/s. */
-  par: number;
-  /** PAR at the top of its crown, what the light-high stressor reads. */
-  crownPar: number;
-  /** The day's light at its mean leaf, mol/m²/d. */
-  dailyLight: number;
-  /** That day's light over the daily light the species starves under. */
-  needShare: number;
-  /** The day's light at the substrate that leaves its leaf on the species edge. */
-  substrateEdge: number;
-  heightCm: number;
-}
-
 function lightOf(state: SimulationState, canopy: CanopyLight[]): PlantLight[] {
   const depth = calculateTankHeight(state.tank.capacity);
-  const substrateDay = dailyLightIntegral(state.resources.lightByHour);
-  return state.plants.map((plant, i) => {
-    const dailyLight = substrateDay * canopy[i].leaf;
-    const edge = dailyLightEdge(plant.species);
-    return {
-      par: state.resources.light * canopy[i].leaf,
-      crownPar: state.resources.light * canopy[i].top,
-      dailyLight,
-      needShare: dailyLight / edge,
-      substrateEdge: edge / canopy[i].leaf,
-      heightCm: plantHeight(plant, depth),
-    };
-  });
+  return state.plants.map((plant, i) => lightAtHeight(plant, canopy[i], state.resources, depth));
 }
 
 /** Every plant's light, in `state.plants` order — the readings vitality runs on. */
@@ -101,10 +79,6 @@ export interface PlantsProcessingResult {
 /**
  * Process plants for one tick. See module-level docstring for the
  * pipeline shape.
- *
- * @param state - Current simulation state
- * @param config - Tunable configuration
- * @returns Updated state and resource effects
  */
 export function processPlants(
   state: SimulationState,
@@ -118,8 +92,8 @@ export function processPlants(
     return { state, effects, vitalities: [], light: [], shedding: 0 };
   }
 
-  // 1. The canopy.
-  const canopy = canopyOf(state, config);
+  // 1. The canopy, and each plant's light in it.
+  const light = lightOf(state, canopyOf(state, config));
 
   // 2. Liebig sufficiency, once per plant: photosynthesis gates biomass and
   //    uptake on it, and vitality its nutrient stressor and benefit.
@@ -140,7 +114,7 @@ export function processPlants(
   //    supply chain below — photosynthesis does not directly add size.
   const photosynthesisResult = calculatePhotosynthesis(
     state.plants,
-    canopy.map((light) => state.resources.light * light.leaf),
+    light.map((plant) => plant.par),
     state.resources.co2,
     state.resources,
     state.resources.water,
@@ -200,7 +174,7 @@ export function processPlants(
       plantsConfig,
       nutrientSufficiency: sufficiencyByPlantId.get(plant.id) ?? 0,
       algaeMass,
-      canopy: canopy[i],
+      light: light[i],
     })
   );
 
@@ -276,7 +250,7 @@ export function processPlants(
     state: newState,
     effects,
     vitalities,
-    light: lightOf(state, canopy),
+    light,
     shedding: shedWaste,
   };
 }
@@ -294,11 +268,12 @@ export {
   fullRateUnits,
   getTotalRateUnits,
   canopyLight,
+  lightAtHeight,
   floorCover,
   floorShade,
   isOvergrown,
 } from './canopy.js';
-export type { CanopyLight } from './canopy.js';
+export type { CanopyLight, PlantLight } from './canopy.js';
 export {
   calculateRespiration,
   getRespirationTemperatureFactor,
@@ -327,4 +302,5 @@ export {
   buildPlantStressors,
   buildPlantBenefits,
   plantHealingRate,
+  plantNitrateEdge,
 } from '../systems/plant-vitality.js';

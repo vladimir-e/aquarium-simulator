@@ -3,7 +3,7 @@
  * judged by the plants actually planted, each on the light at its own height.
  */
 
-import type { PlantLight } from '../../simulation/index.js';
+import { PLANT_SPECIES_DATA, type PlantLight, type PlantSpecies } from '../../simulation/index.js';
 import type { HourAhead } from './ahead.js';
 import type { Status } from './status.js';
 
@@ -29,9 +29,20 @@ function worstLit(plants: readonly PlantLight[]): PlantLight | null {
   );
 }
 
-/** How a plant's light reads off its share of what its species starves under. */
+/** How a day's light reads off its share of what the species starves under. */
 export function lightStatus(needShare: number): Status {
   return needShare >= 1 ? 'ok' : needShare > 0 ? 'warn' : 'alert';
+}
+
+/** Whether the hour's light burns a plant: its crown past the PAR its species tolerates. */
+export function crownBurns(light: PlantLight, species: PlantSpecies): boolean {
+  return light.crownPar > PLANT_SPECIES_DATA[species].tolerableLight[1];
+}
+
+/** How one plant's light reads: short of its need, or burning its crown. */
+export function plantLightStatus(light: PlantLight, species: PlantSpecies): Status {
+  const status = lightStatus(light.needShare);
+  return status === 'ok' && crownBurns(light, species) ? 'warn' : status;
 }
 
 export function dailyLightReading(ahead: HourAhead): DailyLightReading {

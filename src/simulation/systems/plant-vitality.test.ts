@@ -15,7 +15,7 @@ import { plantsDefaults } from '../config/plants.js';
 import { nutrientsDefaults } from '../config/nutrients.js';
 import { getMassFromPpm } from '../resources/helpers.js';
 import type { Plant, Resources } from '../state.js';
-import type { CanopyLight } from '../plants/canopy.js';
+import { lightAtHeight, type CanopyLight } from '../plants/canopy.js';
 import type { VitalityFactor } from './vitality.js';
 import { withPh, type ResourceOverrides } from '../tests/resources.js';
 import { getGhMass } from '../resources/helpers.js';
@@ -92,7 +92,7 @@ function ctx(
     plantsConfig,
     nutrientSufficiency,
     algaeMass,
-    canopy,
+    light: lightAtHeight(plant, canopy, resources, 50),
   };
 }
 

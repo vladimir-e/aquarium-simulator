@@ -7,8 +7,8 @@ import type { Alert, AlertResult } from './types.js';
 import type { SimulationState } from '../state.js';
 import { createLog } from '../core/logging.js';
 
-/** Threshold for high CO2 alert (mg/L) */
-export const HIGH_CO2_THRESHOLD = 30.0;
+/** Dissolved CO₂ (mg/L) keepers treat as too much. */
+export const HIGH_CO2_THRESHOLD = 40;
 
 export const highCo2Alert: Alert = {
   id: 'high-co2',
@@ -29,7 +29,7 @@ export const highCo2Alert: Alert = {
             state.tick,
             'gas-exchange',
             'warning',
-            `High CO2 level: ${co2Level.toFixed(1)} mg/L - harmful to fish`
+            `High CO2 level: ${co2Level.toFixed(1)} mg/L - past the ${HIGH_CO2_THRESHOLD} mg/L keepers treat as too much`
           ),
           alertState: { highCo2: true },
         };

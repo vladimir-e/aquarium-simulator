@@ -21,7 +21,8 @@ import { SpeciesGlyph, type SpeciesKey } from '../ui/SpeciesGlyph';
  * One row, laid out three ways. Each layout fixes its column count, so a row
  * kind must emit exactly that many cells: nine for the fish table at tablet
  * width, ten for the plants, five for the widget, and six for either table on
- * a phone — which is what the {@link WIDE} cells fall out to.
+ * a phone — which is what the {@link WIDE} cells fall out to. On a phone an
+ * individual's figure takes the count cell its row has no count for.
  */
 export type RosterLayout = 'fish' | 'plants' | 'widget';
 
@@ -265,7 +266,7 @@ function FamilyLine({
   onInspect: () => void;
   onTrim: () => void;
 }): React.JSX.Element {
-  const title = `${row.name} ${row.label}`;
+  const { title } = row;
   return (
     <div className={`${ROW} ${ROW_H} ${TEMPLATE[layout]}`}>
       <RowOverlay
@@ -311,20 +312,20 @@ function IndividualLine({
 }): React.JSX.Element {
   return (
     <div className={`${ROW} ${ROW_H} ${TEMPLATE[layout]}`}>
-      <RowOverlay label={`${row.name} ${row.shortId} — ${row.word}`} onClick={onInspect} />
+      <RowOverlay label={`${row.title} — ${row.word}`} onClick={onInspect} />
       <span aria-hidden />
       <span
         className={`${CELL} ${layout === 'plants' ? 'pl-6 md:pl-12' : 'pl-6'} text-[13px] tabular-nums text-ink-2`}
       >
-        {row.shortId}
+        {row.tag}
         {row.sex && (
           <span className="ml-1.5 text-ink-3" title={row.sex}>
             {SEX[row.sex]}
           </span>
         )}
-        {row.parent && <span className="ml-1.5 hidden text-ink-3 md:inline">from {row.parent}</span>}
+        {row.parent && <span className="hidden text-ink-3 md:inline"> · from {row.parent}</span>}
       </span>
-      <span aria-hidden />
+      <span className={`${FIGURE} md:invisible`}>{row.figure}</span>
       <Figures
         layout={layout}
         figure={row.figure}
@@ -339,7 +340,7 @@ function IndividualLine({
         <button
           type="button"
           onClick={onRemove}
-          aria-label={`Remove ${row.name} ${row.shortId}`}
+          aria-label={`Remove ${row.title}`}
           className={`relative flex h-6 w-6 items-center justify-center justify-self-center rounded-control text-ink-3 transition-colors hover:text-alert ${TIGHT_FOCUS}`}
         >
           <X className="h-3.5 w-3.5" />
@@ -433,13 +434,7 @@ function Line({
             <span className="ml-1.5 text-[13px] font-normal text-ink-2">{row.caption}</span>
           </span>
           <span className={`${CELL} text-right text-[13px] text-ink-2`}>×{row.count}</span>
-          {layout !== 'widget' && (
-            <>
-              <span className={`${FIGURE} ${WIDE}`}>{row.figure}</span>
-              <span className={`${FIGURE} ${WIDE}`}>{row.age}</span>
-              <SatiationCell satiation={row.satiation} wide />
-            </>
-          )}
+          <Figures layout={layout} figure={row.figure} age={row.age} satiation={row.satiation} />
           <ConditionCell at={row.at} status={row.status} label={`${row.name} condition`} />
           <Word status={row.status} word={row.word} />
           {layout !== 'widget' && (

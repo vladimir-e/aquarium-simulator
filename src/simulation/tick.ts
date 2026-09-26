@@ -117,7 +117,7 @@ export function tick(
   newState = applyEffects(newState, passiveEffects, config);
 
   // Check alerts after all effects applied
-  const alertResult = checkAlerts(newState);
+  const alertResult = checkAlerts(newState, config);
   newState = produce(newState, (draft) => {
     // Update alert state (always, to track threshold crossings)
     draft.alertState = alertResult.alertState;

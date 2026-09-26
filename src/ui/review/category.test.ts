@@ -7,31 +7,14 @@ import {
   latestAlert,
   LOG_FILTERS,
 } from './category';
-import {
-  applyAction,
-  createLog,
-  createSimulation,
-  growthFormOf,
-  tick,
-  type LogEntry,
-} from '../../simulation/index.js';
-import { DEFAULT_CONFIG } from '../../simulation/config/index.js';
+import { createLog, type LogEntry } from '../../simulation/index.js';
 
 describe('categorizeLog', () => {
-  it('tags an offshoot as life, in the words of its growth form', () => {
-    let state = applyAction(createSimulation({ tankCapacity: 200 }), {
-      type: 'addPlant',
-      species: 'java_fern',
-      initialSize: 95,
-    }).state;
-    state = { ...state, plants: state.plants.map((plant) => ({ ...plant, surplus: 1e3 })) };
-    const [offshoot] = tick(state, DEFAULT_CONFIG).logs.filter(
-      (log) => log.event === 'plant-propagated'
-    );
+  it('tags an offshoot as life, and not an alert', () => {
+    const offshoot = createLog(1, 'simulation', 'info', 'Java Fern branched', 'plant-propagated');
 
     expect(categorizeLog(offshoot)).toBe('life');
     expect(isAlertLog(offshoot)).toBe(false);
-    expect(offshoot.message).toBe(`Java Fern ${growthFormOf('java_fern').offshootVerb}`);
   });
 
   it('tags any lifecycle event as life, regardless of source', () => {
@@ -89,7 +72,7 @@ describe('filterLogs', () => {
 describe('isAlertLog', () => {
   it('counts chemistry and plant-death warnings', () => {
     expect(isAlertLog(createLog(1, 'nitrogen-cycle', 'warning', 'high ammonia'))).toBe(true);
-    expect(isAlertLog(createLog(1, 'simulation', 'warning', 'plant died', 'plant-died'))).toBe(true);
+    expect(isAlertLog(createLog(1, 'simulation', 'warning', 'plant died', 'plant-died'))).toBe(false);
   });
 
   it('excludes a fish death (a death, not an alert) and info lines', () => {
@@ -110,10 +93,10 @@ describe('classifyAlert', () => {
     expect(classifyAlert(createLog(1, 'gas-exchange', 'warning', 'High CO2 level: 35 mg/L'))).toBe('co2');
   });
 
-  it('maps algae, water, and plant-death alerts', () => {
+  it('maps algae and water alerts, and leaves a death to the life events', () => {
     expect(classifyAlert(createLog(1, 'algae', 'warning', 'High algae level: 85'))).toBe('algae');
-    expect(classifyAlert(createLog(1, 'evaporation', 'warning', 'Water level critical: 30L'))).toBe('water');
-    expect(classifyAlert(createLog(1, 'simulation', 'warning', 'Anubias died from poor conditions', 'plant-died'))).toBe('plant');
+    expect(classifyAlert(createLog(1, 'evaporation', 'warning', 'Water level low: 30L'))).toBe('water');
+    expect(classifyAlert(createLog(1, 'simulation', 'warning', 'Anubias died from poor conditions', 'plant-died'))).toBeNull();
   });
 
   it('returns null for non-alert lines and unclassified engine warnings', () => {

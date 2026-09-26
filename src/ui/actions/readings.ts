@@ -12,10 +12,10 @@
 
 import { floorShade, type FishSpeciesData, type SimulationState } from '../../simulation/index.js';
 import {
-  HIGH_ALGAE_THRESHOLD,
+  algaeAlertLine,
   ammoniaAlertLine,
   HIGH_CO2_THRESHOLD,
-  WATER_LEVEL_CRITICAL_THRESHOLD,
+  waterLevelAlertLine,
 } from '../../simulation/alerts/index.js';
 import { NITRATE_EDGE, NITRITE_EDGE, OXYGEN_EDGE } from '../../simulation/livestock/tolerance.js';
 import type { Nutrient, TunableConfig } from '../../simulation/config/index.js';
@@ -84,7 +84,7 @@ interface Sheet {
 
 function sheetOf(state: SimulationState, config: TunableConfig, units: UnitSystem): Sheet {
   const water = {} as Record<WaterKey, WaterReading>;
-  for (const reading of waterReadings(state, units)) water[reading.key] = reading;
+  for (const reading of waterReadings(state, config, units)) water[reading.key] = reading;
 
   const nutrients = {} as Record<Nutrient, NutrientReading>;
   for (const reading of nutrientReadings(state, config)) nutrients[reading.key] = reading;
@@ -271,10 +271,10 @@ const READINGS: Reading[] = [
     unit: PERCENT,
     display: same,
     decimals: 0,
-    note: (value) =>
-      value < WATER_LEVEL_CRITICAL_THRESHOLD * 100
-        ? `below ${WATER_LEVEL_CRITICAL_THRESHOLD * 100} %`
-        : null,
+    note: (value, _before, { config }) => {
+      const line = waterLevelAlertLine(config);
+      return value < line ? `below ${line} %` : null;
+    },
   }),
   {
     key: 'oxygen',
@@ -323,9 +323,9 @@ const READINGS: Reading[] = [
     unit: PERCENT,
     display: same,
     decimals: 0,
-    status: (value) => algaeStatus(value),
+    status: (value, { config }) => algaeStatus(value, algaeAlertLine(config)),
     at: (value) => onScale(DISPLAY_CEILING.algae, value),
-    band: () => ({ from: 0, to: onScale(DISPLAY_CEILING.algae, HIGH_ALGAE_THRESHOLD) }),
+    band: ({ config }) => ({ from: 0, to: onScale(DISPLAY_CEILING.algae, algaeAlertLine(config)) }),
     note: none,
   },
   {
@@ -346,7 +346,7 @@ const READINGS: Reading[] = [
     label: 'Tallest',
     read: ({ state }) => state.plants.reduce((tallest, plant) => Math.max(tallest, plant.size), 0),
     unit: PERCENT,
-    display: same,
+    display: Math.floor,
     decimals: 0,
     status: quiet,
     at: (value) => onScale(DISPLAY_CEILING.plantSize, value),

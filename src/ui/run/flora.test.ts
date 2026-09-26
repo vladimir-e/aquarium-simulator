@@ -28,9 +28,11 @@ import {
   nutrientReadings,
   overTrimCount,
   groupPlantsBySpecies,
+  plantLabels,
   plantRows,
   TRIM_TARGETS,
   type PlantRow,
+  type PlantSpeciesGroup,
 } from './flora';
 import { readHourAhead } from './ahead';
 import { conditionStatus, conditionWord, projectedTrend, type Reading } from './status';
@@ -68,9 +70,9 @@ describe('condition + algae words', () => {
   });
 
   it('maps algae mass to status and word (low is good)', () => {
-    expect(algaeStatus(10)).toBe('ok');
-    expect(algaeStatus(45)).toBe('warn');
-    expect(algaeStatus(90)).toBe('alert');
+    expect(algaeStatus(30, 30)).toBe('ok');
+    expect(algaeStatus(45, 30)).toBe('warn');
+    expect(algaeStatus(61, 30)).toBe('alert');
     expect(algaeWord(1)).toBe('sparse');
     expect(algaeWord(70)).toBe('spreading');
     expect(algaeWord(95)).toBe('booming');
@@ -85,7 +87,9 @@ const THRIVING: Reading = { status: 'ok', word: 'thriving' };
 const SICK: Reading = { status: 'warn', word: 'sick' };
 const STRUGGLING: Reading = { status: 'alert', word: 'struggling' };
 
-function unit(id: string, familyId: string, overrides: Partial<PlantRow> = {}): PlantRow {
+type Unit = Omit<PlantRow, 'label'> & { parentId: string | null };
+
+function unit(id: string, familyId: string, overrides: Partial<Unit> = {}): Unit {
   return {
     id,
     species: 'java_fern',
@@ -98,14 +102,21 @@ function unit(id: string, familyId: string, overrides: Partial<PlantRow> = {}): 
     sick: false,
     reading: THRIVING,
     light: 1,
+    lightStatus: 'ok',
     bank: 0,
     ...overrides,
   };
 }
 
+/** Units as the run layer hands them over: labelled off their lineage. */
+function grouped(units: Unit[]): PlantSpeciesGroup[] {
+  const labels = plantLabels(units);
+  return groupPlantsBySpecies(units.map((u) => ({ ...u, label: labels.get(u.id)! })));
+}
+
 describe('groupPlantsBySpecies', () => {
   it('groups each species into the families it was planted as, each down its line in planting order', () => {
-    const groups = groupPlantsBySpecies([
+    const groups = grouped([
       unit('a', 'a'),
       unit('m', 'm', { species: 'monte_carlo', name: 'Monte Carlo' }),
       unit('b', 'b'),
@@ -125,7 +136,7 @@ describe('groupPlantsBySpecies', () => {
   });
 
   it('sums a group’s units, and reads its oldest, its worst-lit and its mean condition', () => {
-    const [ferns] = groupPlantsBySpecies([
+    const [ferns] = grouped([
       unit('a', 'a', { size: 90, age: 900, light: 1.4, condition: 100 }),
       unit('a1', 'a', { size: 40, age: 100, light: 0.6, condition: 70 }),
       unit('b', 'b', { size: 20, age: 300, light: 1.1, condition: 40 }),
@@ -139,7 +150,7 @@ describe('groupPlantsBySpecies', () => {
   });
 
   it('reads a family by the group rule over its units, and a species by it over its families', () => {
-    const [ferns] = groupPlantsBySpecies([
+    const [ferns] = grouped([
       unit('a', 'a', { reading: STRUGGLING, condition: 20 }),
       unit('a1', 'a', { reading: STRUGGLING, condition: 25 }),
       unit('a2', 'a'),
@@ -155,7 +166,7 @@ describe('groupPlantsBySpecies', () => {
   });
 
   it('counts families, not units, at the species, under the reason they share', () => {
-    const [ferns] = groupPlantsBySpecies([
+    const [ferns] = grouped([
       unit('a', 'a', { reading: SICK }),
       unit('a1', 'a', { reading: SICK }),
       unit('b', 'b', { reading: SICK }),
@@ -166,7 +177,7 @@ describe('groupPlantsBySpecies', () => {
   });
 
   it('reads a species of one family of one unit as that unit', () => {
-    const [ferns] = groupPlantsBySpecies([unit('a', 'a', { reading: STRUGGLING, condition: 20 })]);
+    const [ferns] = grouped([unit('a', 'a', { reading: STRUGGLING, condition: 20 })]);
     expect(ferns.families[0].reading).toEqual(STRUGGLING);
     expect(ferns.reading).toEqual(STRUGGLING);
   });
@@ -182,21 +193,19 @@ describe('floorPlanted', () => {
   };
   const fill = Math.ceil(calculateFloorArea(capacity) / growthFormOf('monte_carlo').footprintCm2);
 
-  it('reads the floor the planting claims while it fits', () => {
-    const cover = floorCover(carpets(fill - 1).plants, capacity);
-    expect(floorPlanted(carpets(fill - 1))).toBe(`floor ${Math.round(cover * 100)} % planted`);
+  it('reads the floor the planting claims while it fits, never a line it has not reached', () => {
+    for (const count of [1, fill - 1]) {
+      const cover = floorCover(carpets(count).plants, capacity);
+      expect(floorPlanted(carpets(count))).toBe(`floor ${Math.floor(cover * 100)} % planted`);
+    }
   });
 
   it('says the planting has outgrown its floor past it, never at a figure that would put it back', () => {
-    const cover = floorCover(carpets(fill).plants, capacity);
-    expect(cover).toBeGreaterThan(1);
-    expect(Math.round(cover * 100)).toBe(100);
-    expect(floorPlanted(carpets(fill))).toBe('floor outgrown · 101 % claimed');
-
-    const overgrown = carpets(fill * 3);
-    expect(floorPlanted(overgrown)).toBe(
-      `floor outgrown · ${Math.round(floorCover(overgrown.plants, capacity) * 100)} % claimed`
-    );
+    for (const count of [fill, fill * 3]) {
+      const cover = floorCover(carpets(count).plants, capacity);
+      expect(cover).toBeGreaterThan(1);
+      expect(floorPlanted(carpets(count))).toBe(`floor outgrown · ${Math.ceil(cover * 100)} % claimed`);
+    }
   });
 });
 
@@ -218,12 +227,6 @@ describe('plantRows', () => {
       draft.plants[2].surplus = cap;
     });
     expect(rows(state).map((row) => row.bank)).toEqual([0, 0.25, 1]);
-
-    const offshoots = produce(state, (draft) => {
-      draft.plants[1].surplus = cap;
-    });
-    const next = tick(offshoots, DEFAULT_CONFIG).plants;
-    expect(next.filter((plant) => plant.parentId !== null)).toHaveLength(2);
   });
 
   it('carries each unit’s lineage and age', () => {
@@ -236,10 +239,47 @@ describe('plantRows', () => {
         { ...founder, id: 'plant_bud', parentId: founder.id, age: 24 },
       ],
     };
-    expect(rows(state).map(({ familyId, parentId, age }) => ({ familyId, parentId, age }))).toEqual([
-      { familyId: founder.id, parentId: null, age: 240 },
-      { familyId: founder.id, parentId: founder.id, age: 24 },
+    expect(rows(state).map(({ familyId, label, age }) => ({ familyId, label, age }))).toEqual([
+      { familyId: founder.id, label: { family: 1, unit: 1, parent: null }, age: 240 },
+      { familyId: founder.id, label: { family: 1, unit: 2, parent: 1 }, age: 24 },
     ]);
+  });
+});
+
+describe('plantLabels', () => {
+  const kin = (
+    id: string,
+    familyId: string,
+    parentId: string | null,
+    species: PlantSpecies = 'java_fern'
+  ): { id: string; familyId: string; parentId: string | null; species: PlantSpecies } => ({
+    id,
+    familyId,
+    parentId,
+    species,
+  });
+
+  it('numbers families in founding order within their species, and units in birth order within their family', () => {
+    const labels = plantLabels([
+      kin('plant_5', 'plant_1', 'plant_1'),
+      kin('plant_1', 'plant_1', null),
+      kin('plant_3', 'plant_3', null),
+      kin('plant_4', 'plant_4', null, 'monte_carlo'),
+      kin('plant_a', 'plant_1', 'plant_5'),
+    ]);
+
+    expect(labels.get('plant_1')).toEqual({ family: 1, unit: 1, parent: null });
+    expect(labels.get('plant_5')).toEqual({ family: 1, unit: 2, parent: 1 });
+    expect(labels.get('plant_a')).toEqual({ family: 1, unit: 3, parent: 2 });
+    expect(labels.get('plant_3')).toEqual({ family: 2, unit: 1, parent: null });
+    expect(labels.get('plant_4')).toEqual({ family: 1, unit: 1, parent: null });
+  });
+
+  it('keeps a family its number when its founder dies, and names no parent that is gone', () => {
+    const labels = plantLabels([kin('plant_3', 'plant_3', null), kin('plant_a', 'plant_1', 'plant_1')]);
+
+    expect(labels.get('plant_a')).toEqual({ family: 1, unit: 1, parent: null });
+    expect(labels.get('plant_3')).toEqual({ family: 2, unit: 1, parent: null });
   });
 
   it('calls a plant sick exactly while the next tick takes condition off it, as the trend shows', () => {
@@ -466,5 +506,4 @@ describe('overTrimCount', () => {
     expect(overTrimCount(sized(80))).toBe(0);
     expect(getPlantsToTrimCount(sized(80), 75)).toBe(1);
   });
-
 });

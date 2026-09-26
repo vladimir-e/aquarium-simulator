@@ -81,7 +81,7 @@ const WRITTEN: readonly NeedSpec[] = [
     id: 'waterLevelCritical',
     section: 'water',
     tone: 'alert',
-    text: 'Water level critical',
+    text: 'Water level low',
     reading: 'level',
     act: 'topOff',
     to: '/water',

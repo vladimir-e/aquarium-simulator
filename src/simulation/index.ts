@@ -266,8 +266,8 @@ export {
   checkAlerts,
   waterLevelAlert,
   highAlgaeAlert,
-  WATER_LEVEL_CRITICAL_THRESHOLD,
-  HIGH_ALGAE_THRESHOLD,
+  waterLevelAlertLine,
+  algaeAlertLine,
 } from './alerts/index.js';
 
 // Actions
@@ -354,6 +354,7 @@ export {
   getSpeciesGrowthRate,
   computePlantVitality,
   plantHealingRate,
+  plantNitrateEdge,
   buildPlantStressors,
   buildPlantBenefits,
   readPlantLight,
