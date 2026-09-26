@@ -492,11 +492,12 @@ describe('bedReading', () => {
     const inTabs = (mg: number, n: Nutrient): number => mg / tab[n];
     expect(inTabs(need.phosphate, 'phosphate')).toBeLessThan(inTabs(need.nitrate, 'nitrate'));
 
+    const phosphateMetShortOfNitrateInTabs = 1.1 * ((need.phosphate + (need.nitrate * tab.phosphate) / tab.nitrate) / 2);
     const bedded = (nitrate: number): SimulationState =>
       produce(state, (draft) => {
         draft.equipment.substrate.nutrients = {
           nitrate,
-          phosphate: 1.1 * ((need.phosphate + (need.nitrate * tab.phosphate) / tab.nitrate) / 2),
+          phosphate: phosphateMetShortOfNitrateInTabs,
           potassium: 3 * need.potassium,
           iron: 3 * need.iron,
         };

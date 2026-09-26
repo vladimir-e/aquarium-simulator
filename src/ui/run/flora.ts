@@ -492,7 +492,7 @@ export function bedReading(
     on ?? carried.sort((a, b) => stock[a] / against[a] - stock[b] / against[b])[0] ?? null;
   const tabsOf = (vector: NutrientVector): number => (nutrient ? vector[nutrient] / tab[nutrient] : 0);
   const tabs = tabsOf(stock);
-  const short = Math.max(...carried.map((n) => (need[n] - stock[n]) / tab[n]));
+  const short = carried.length > 0 ? Math.max(...carried.map((n) => (need[n] - stock[n]) / tab[n])) : 0;
   const needed = roots.length > 0 && nutrient ? tabs + short : 0;
 
   return {
@@ -503,7 +503,7 @@ export function bedReading(
     neededText: needed > 0 ? needed.toFixed(TAB_DECIMALS) : '—',
     scale: tabsOf(getSubstrateNutrients('aqua_soil', capacity)),
     limiting,
-    advice: limiting ? Math.max(1, Math.ceil(short)) : null,
+    advice: limiting ? Math.ceil(short) : null,
     status: limiting
       ? printsAsZero(tabs, TAB_DECIMALS)
         ? 'alert'

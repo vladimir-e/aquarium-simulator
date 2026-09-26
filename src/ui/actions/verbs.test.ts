@@ -9,9 +9,10 @@ import {
   WATER_CHANGE_AMOUNTS,
   type SimulationState,
 } from '../../simulation/index.js';
-import { DEFAULT_CONFIG, type TunableConfig } from '../../simulation/config/index.js';
+import { DEFAULT_CONFIG, mapNutrients, type Nutrient, type TunableConfig } from '../../simulation/config/index.js';
+import { getMassFromPpm } from '../../simulation/resources/index.js';
 import { produce } from 'immer';
-import { bedReading, doseToCover, nutrientReadings, TRIM_TARGETS } from '../run';
+import { bedReading, doseToCover, nutrientProbe, nutrientReadings, TRIM_TARGETS } from '../run';
 import {
   DEFAULT_SETTINGS,
   DOSE_PRESETS,
@@ -247,6 +248,34 @@ describe('the seven verbs', () => {
     expect(sheet.options.every((o) => o.value <= MAX_ROOT_TABS)).toBe(true);
     expect(sheet.preview.map((r) => r.key)).toEqual(['bed']);
     expect(sheet.preview[0]).toMatchObject({ before: '0.0', after: '1.0', unit: 'tabs' });
+  });
+
+  it('holds the preview and the rung hints on the standing reading’s nutrient when the tabs flip which one binds', () => {
+    const sword = applyAction(tank(), { type: 'addPlant', species: 'amazon_sword' }).state;
+    const count = DEFAULT_SETTINGS.rootTab;
+    const tab = DEFAULT_CONFIG.nutrients.rootTab;
+    const need = mapNutrients((n) =>
+      getMassFromPpm(nutrientProbe(sword, DEFAULT_CONFIG).need.bed[n], sword.tank.capacity)
+    );
+    const coverPerTab = (n: Nutrient): number => tab[n] / need[n];
+    const nitrateCoverPhosphateOvertakes = (count * (coverPerTab('phosphate') - coverPerTab('nitrate'))) / 2;
+    const state = produce(sword, (draft) => {
+      draft.equipment.substrate.nutrients = {
+        nitrate: nitrateCoverPhosphateOvertakes * need.nitrate,
+        phosphate: 0,
+        potassium: 3 * need.potassium,
+        iron: 3 * need.iron,
+      };
+    });
+    const after = applyAction(state, { type: 'rootTab', count }).state;
+    expect(bedReading(state, DEFAULT_CONFIG)!.nutrient).toBe('phosphate');
+    expect(bedReading(after, DEFAULT_CONFIG)!.nutrient).toBe('nitrate');
+
+    const onPhosphate = bedReading(after, DEFAULT_CONFIG, undefined, 'phosphate')!.text;
+    expect(onPhosphate).not.toBe(bedReading(after, DEFAULT_CONFIG)!.text);
+    const sheet = detail(state, 'rootTab');
+    expect(sheet.preview.find((r) => r.key === 'bed')?.after).toBe(onPhosphate);
+    expect(sheet.options.find((o) => o.value === count)?.hint).toBe(`bed ${onPhosphate}`);
   });
 
   it('offers the most tabs the engine takes where a starved bed asks for more, and says it is capped', () => {

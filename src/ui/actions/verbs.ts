@@ -24,14 +24,13 @@ import {
   type SimulationState,
 } from '../../simulation/index.js';
 import { FoodResource, getPpm, NitrateResource } from '../../simulation/resources/index.js';
-import type { TunableConfig } from '../../simulation/config/index.js';
+import type { Nutrient, TunableConfig } from '../../simulation/config/index.js';
 import {
   bedReading,
   doseToCover,
   nutrientReadings,
   plantLabels,
   TRIM_TARGETS,
-  type BedReading,
 } from '../run';
 import { formatVolume, type UnitSystem } from '../utils/units.js';
 import { previewRows, type PreviewRow } from './readings.js';
@@ -402,7 +401,7 @@ function rungsFor(
         rung: (count) => ({
           value: count,
           label: String(count),
-          hint: advised.hint(count) ?? (tabbable && bed ? `bed ${bedAfter(state, count, config, bed)}` : '—'),
+          hint: advised.hint(count) ?? (tabbable && bed ? `bed ${bedAfter(state, count, config, bed.nutrient)}` : '—'),
           disabled: !tabbable,
         }),
       };
@@ -443,9 +442,9 @@ function advisedRungs(
   };
 }
 
-function bedAfter(state: SimulationState, count: number, config: TunableConfig, bed: BedReading): string {
+function bedAfter(state: SimulationState, count: number, config: TunableConfig, on: Nutrient | null): string {
   const after = applyAction(state, { type: 'rootTab', count }, config).state;
-  return bedReading(after, config, undefined, bed.nutrient)?.text ?? '—';
+  return bedReading(after, config, undefined, on)?.text ?? '—';
 }
 
 function nitrateRise(state: SimulationState, ml: number, config: TunableConfig): number {
